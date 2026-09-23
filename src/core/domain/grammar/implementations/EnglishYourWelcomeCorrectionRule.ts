@@ -34,7 +34,7 @@ export class EnglishYourWelcomeCorrectionRule implements GrammarRule {
       return null;
     }
 
-    const firstToken = phrase.split(/\s+/)[0] || "your";
+    const firstToken = phrase.split(/\s+/)[0];
     const style = detectWordCase(firstToken);
     const correctedFirst = style === "upper" ? "YOU'RE" : style === "title" ? "You're" : "you're";
 

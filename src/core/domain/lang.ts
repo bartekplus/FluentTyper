@@ -33,7 +33,7 @@ export const SUPPORTED_LANGUAGES: Record<string, string> = {
   [TEXT_EXPANDER_LANG]: "Text Expander",
 };
 
-export const SUPPORTED_LANGUAGE_KEYS = Object.keys(SUPPORTED_LANGUAGES);
+const SUPPORTED_LANGUAGE_KEYS = Object.keys(SUPPORTED_LANGUAGES);
 export const SUPPORTED_PREDICTION_LANGUAGE_KEYS = SUPPORTED_LANGUAGE_KEYS.filter(
   (lang) => lang !== "auto_detect",
 );
@@ -74,35 +74,16 @@ const TYPOGRAPHIC_SEPARATOR_CHARS_REGEX_SOURCE = [
 const DEFAULT_SEPARATOR_CHARS_REGEX_SOURCE = `${BASE_SEPARATOR_CHARS_REGEX_SOURCE}|${TYPOGRAPHIC_SEPARATOR_CHARS_REGEX_SOURCE}`;
 
 export const DEFAULT_SEPARATOR_CHARS_REGEX: RegExp = RegExp(DEFAULT_SEPARATOR_CHARS_REGEX_SOURCE);
+// U+0640 (ARABIC TATWEEL) is deliberately NOT a separator: it is an
+// intra-word joining filler, so "كتـــاب" is a single word. Splitting on it
+// would hand Presage a fragment ("اب"). It is stripped instead, see
+// stripIgnoredWordChars.
 export const LANG_SEPARATOR_CHARS_REGEX: Record<string, RegExp> = {
-  auto_detect: DEFAULT_SEPARATOR_CHARS_REGEX,
-  // U+0640 (ARABIC TATWEEL) is deliberately NOT a separator: it is an
-  // intra-word joining filler, so "كتـــاب" is a single word. Splitting on it
-  // would hand Presage a fragment ("اب"). It is stripped instead, see
-  // stripIgnoredWordChars.
-  ar_SA: DEFAULT_SEPARATOR_CHARS_REGEX,
-  en_US: DEFAULT_SEPARATOR_CHARS_REGEX,
+  ...Object.fromEntries(
+    SUPPORTED_LANGUAGE_KEYS.map((lang) => [lang, DEFAULT_SEPARATOR_CHARS_REGEX]),
+  ),
   fr_FR: RegExp(`${DEFAULT_SEPARATOR_CHARS_REGEX_SOURCE}|'|\\u2019`),
-  hr_HR: DEFAULT_SEPARATOR_CHARS_REGEX,
-  es_ES: DEFAULT_SEPARATOR_CHARS_REGEX,
-  el_GR: DEFAULT_SEPARATOR_CHARS_REGEX,
-  sv_SE: DEFAULT_SEPARATOR_CHARS_REGEX,
-  de_DE: DEFAULT_SEPARATOR_CHARS_REGEX,
-  pl_PL: DEFAULT_SEPARATOR_CHARS_REGEX,
-  pt_BR: DEFAULT_SEPARATOR_CHARS_REGEX,
-  textExpander: DEFAULT_SEPARATOR_CHARS_REGEX,
 };
-export const LANG_ADDITIONAL_SEPARATOR_REGEX: Record<string, RegExp | null> = {
-  auto_detect: null,
-  ar_SA: null,
-  en_US: null,
-  fr_FR: RegExp(/['\u2019]/g),
-  hr_HR: null,
-  es_ES: null,
-  el_GR: null,
-  sv_SE: null,
-  de_DE: null,
-  pl_PL: null,
-  pt_BR: null,
-  textExpander: null,
+export const LANG_ADDITIONAL_SEPARATOR_REGEX: Record<string, RegExp | undefined> = {
+  fr_FR: /['\u2019]/g,
 };

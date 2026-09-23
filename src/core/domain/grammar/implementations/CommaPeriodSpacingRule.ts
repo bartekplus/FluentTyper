@@ -82,7 +82,7 @@ export class CommaPeriodSpacingRule extends SpacingRuleShared implements Grammar
 
   apply(context: GrammarContext): GrammarEdit | null {
     const inputStr = context.beforeCursor;
-    if (!inputStr || inputStr.length < 2) {
+    if (inputStr.length < 2) {
       return null;
     }
 

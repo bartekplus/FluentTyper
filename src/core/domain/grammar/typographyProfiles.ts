@@ -1,7 +1,7 @@
 export const NBSP = " ";
 export const NNBSP = " ";
 
-export interface TypographyProfile {
+interface TypographyProfile {
   /** Quotation marks typed with `"`. */
   double: readonly [open: string, close: string];
   /** Nested quotation marks typed with `'`; an apostrophe is always `’`. */

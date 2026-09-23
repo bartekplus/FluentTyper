@@ -3,17 +3,18 @@ import {
   SUPPORTED_PREDICTION_LANGUAGE_KEYS,
   TEXT_EXPANDER_LANG,
 } from "./lang";
+import { isObjectRecord } from "./guards";
 
 export interface AutoLanguageBrowserDetection {
   language: string;
   percentage: number;
 }
 
-export interface AutoLanguageSitePriors {
+interface AutoLanguageSitePriors {
   [domain: string]: Record<string, number>;
 }
 
-export interface AutoLanguageSessionSnapshot {
+interface AutoLanguageSessionSnapshot {
   stableLanguage: string | null;
   pendingLanguage: string | null;
   pendingConfirmations: number;
@@ -21,7 +22,7 @@ export interface AutoLanguageSessionSnapshot {
   switchSuppressedUntilBoundary: boolean;
 }
 
-export interface ResolveAutoLanguageDecisionInput {
+interface ResolveAutoLanguageDecisionInput {
   allowedLanguages: string[];
   fallbackLanguage: string;
   sampleText: string;
@@ -34,7 +35,7 @@ export interface ResolveAutoLanguageDecisionInput {
   session: AutoLanguageSessionSnapshot;
 }
 
-export interface ResolveAutoLanguageDecisionResult {
+interface ResolveAutoLanguageDecisionResult {
   resolvedLanguage: string;
   stableLanguage: string | null;
   pendingLanguage: string | null;
@@ -78,7 +79,7 @@ const ARABIC_SCRIPT_REGEX = /(?=\p{L})\p{Script=Arabic}/u;
 // detection, where the user's enabled languages decide.
 const SHARED_ARABIC_BLOCK_EXCLUSIVE_REGEX =
   /[\u0679\u067E\u0681\u0685\u0686\u0688\u0689\u0691\u0693\u0696\u0698\u069A\u069B\u06A9\u06AB\u06AF\u06BA\u06BC\u06BE\u06C1\u06C2\u06C3\u06CC\u06CD\u06D0\u06D2\u06D3]/u;
-const LETTER_REGEX = /\p{L}/u;
+const LETTER_REGEX = /\p{L}/gu;
 // Combining marks (Arabic tashkeel, Indic vowel signs) and ZWNJ are part of a
 // word; splitting on them inflated the token evidence count.
 const TOKEN_REGEX = /\p{L}[\p{L}\p{M}\u200C]*/gu;
@@ -92,18 +93,11 @@ function clampProbability(value: unknown): number {
 }
 
 function countAlphaChars(text: string): number {
-  let count = 0;
-  for (const char of text) {
-    if (LETTER_REGEX.test(char)) {
-      count += 1;
-    }
-  }
-  return count;
+  return text.match(LETTER_REGEX)?.length ?? 0;
 }
 
 function countTokens(text: string): number {
-  const matches = text.match(TOKEN_REGEX);
-  return matches ? matches.length : 0;
+  return text.match(TOKEN_REGEX)?.length ?? 0;
 }
 
 function resolveHintLanguage(
@@ -179,8 +173,7 @@ function textScript(text: string): ScriptKind | null {
 
 /** The word currently being typed: the last token in the sample. */
 function extractCurrentToken(sampleText: string): string {
-  const tokens = [...sampleText.matchAll(TOKEN_REGEX)].map((match) => match[0]);
-  return tokens.at(-1) ?? "";
+  return sampleText.match(TOKEN_REGEX)?.at(-1) ?? "";
 }
 
 function compareCandidateScores(
@@ -203,9 +196,10 @@ export function extractAutoLanguageSample(text: string): string {
   }
   const lastChar = text.charAt(text.length - 1);
   const trailingBoundary = lastChar && BOUNDARY_REGEX.test(lastChar) ? lastChar : "";
-  const tokens = [...text.matchAll(TOKEN_REGEX)].map((match) => match[0]);
-  const limitedTokens = tokens.slice(-AUTO_LANGUAGE_MAX_SAMPLE_TOKENS);
-  const tokenSample = limitedTokens.join(" ").trim();
+  const tokenSample = (text.match(TOKEN_REGEX) ?? [])
+    .slice(-AUTO_LANGUAGE_MAX_SAMPLE_TOKENS)
+    .join(" ")
+    .trim();
   const textSample = text.trim();
   let source = tokenSample || textSample;
   if (source && trailingBoundary) {
@@ -228,24 +222,23 @@ export function sanitizeAutoLanguageSitePriors(
   priorsRaw: unknown,
   enabledLanguages: string[],
 ): AutoLanguageSitePriors {
-  if (!priorsRaw || typeof priorsRaw !== "object" || Array.isArray(priorsRaw)) {
+  if (!isObjectRecord(priorsRaw)) {
     return {};
   }
   const result: AutoLanguageSitePriors = {};
-  for (const [domain, entryRaw] of Object.entries(priorsRaw as Record<string, unknown>)) {
-    if (!entryRaw || typeof entryRaw !== "object" || Array.isArray(entryRaw)) {
+  for (const [domain, entryRaw] of Object.entries(priorsRaw)) {
+    if (!isObjectRecord(entryRaw)) {
       continue;
     }
-    const normalizedEntries = Object.entries(entryRaw as Record<string, unknown>)
+    const normalizedEntries = Object.entries(entryRaw)
       .filter(
         ([language, weight]) =>
           enabledLanguages.includes(language) &&
           typeof weight === "number" &&
           Number.isFinite(weight),
       )
-      .map(([language, weight]) => [language, clampProbability(weight)] as const)
-      .filter(([, weight]) => weight > 0)
-      .map(([language, weight]) => [language, weight] as [string, number]);
+      .map(([language, weight]): [string, number] => [language, clampProbability(weight)])
+      .filter(([, weight]) => weight > 0);
     if (normalizedEntries.length === 0) {
       continue;
     }
@@ -284,10 +277,7 @@ export function getAutoLanguageSitePrior(
   domain: string | undefined,
   allowedLanguages: string[],
 ): { language: string | null; confidence: number } {
-  if (!domain) {
-    return { language: null, confidence: 0 };
-  }
-  const entry = priorsRaw[domain];
+  const entry = domain ? priorsRaw[domain] : undefined;
   if (!entry) {
     return { language: null, confidence: 0 };
   }
@@ -350,6 +340,25 @@ export function resolveAutoLanguageDecision(
   if (switchSuppressedUntilBoundary && atTokenBoundary) {
     switchSuppressedUntilBoundary = false;
   }
+
+  // Every outcome except the manual lock and a pending switch clears the pending state.
+  const settle = (
+    resolvedLanguage: string,
+    stable: string | null,
+    source: ResolveAutoLanguageDecisionResult["source"],
+    switched: boolean,
+    suppressUntilBoundary: boolean,
+  ): ResolveAutoLanguageDecisionResult => ({
+    resolvedLanguage,
+    stableLanguage: stable,
+    pendingLanguage: null,
+    pendingConfirmations: 0,
+    manualLockLanguage: null,
+    switchSuppressedUntilBoundary: suppressUntilBoundary,
+    source,
+    switched,
+    hasQualifiedEvidence,
+  });
 
   if (manualLockLanguage) {
     return {
@@ -436,79 +445,35 @@ export function resolveAutoLanguageDecision(
           ? fallbackLanguage
           : null);
       if (compatible && compatible !== stableLanguage) {
-        return {
-          resolvedLanguage: compatible,
-          stableLanguage: compatible,
-          pendingLanguage: null,
-          pendingConfirmations: 0,
-          manualLockLanguage: null,
-          switchSuppressedUntilBoundary: true,
-          source: "script_switch",
-          switched: true,
-          hasQualifiedEvidence,
-        };
+        return settle(compatible, compatible, "script_switch", true, true);
       }
     }
   }
 
   if (!stableLanguage) {
     if (strongScriptLanguage) {
-      return {
-        resolvedLanguage: strongScriptLanguage,
-        stableLanguage: strongScriptLanguage,
-        pendingLanguage: null,
-        pendingConfirmations: 0,
-        manualLockLanguage: null,
-        switchSuppressedUntilBoundary: false,
-        source: "strong_script",
-        switched: false,
-        hasQualifiedEvidence,
-      };
+      return settle(strongScriptLanguage, strongScriptLanguage, "strong_script", false, false);
     }
     if (hasQualifiedEvidence && topLanguage && topScore >= INITIAL_COMMIT_THRESHOLD) {
-      return {
-        resolvedLanguage: topLanguage,
-        stableLanguage: topLanguage,
-        pendingLanguage: null,
-        pendingConfirmations: 0,
-        manualLockLanguage: null,
-        switchSuppressedUntilBoundary: false,
-        source: "detection",
-        switched: false,
-        hasQualifiedEvidence,
-      };
+      return settle(topLanguage, topLanguage, "detection", false, false);
     }
-    return {
-      resolvedLanguage: provisionalLanguage,
-      stableLanguage: null,
-      pendingLanguage: null,
-      pendingConfirmations: 0,
-      manualLockLanguage: null,
-      switchSuppressedUntilBoundary: false,
-      source: documentLanguageHint
+    return settle(
+      provisionalLanguage,
+      null,
+      documentLanguageHint
         ? "provisional_document"
         : pageLanguageHint
           ? "provisional_page"
           : sitePriorLanguage
             ? "provisional_site_prior"
             : "fallback",
-      switched: false,
-      hasQualifiedEvidence,
-    };
+      false,
+      false,
+    );
   }
 
   if (strongScriptLanguage && strongScriptLanguage !== stableLanguage) {
-    return {
-      resolvedLanguage: strongScriptLanguage,
-      stableLanguage: strongScriptLanguage,
-      pendingLanguage: null,
-      pendingConfirmations: 0,
-      manualLockLanguage: null,
-      switchSuppressedUntilBoundary: true,
-      source: "strong_script",
-      switched: true,
-      hasQualifiedEvidence,
-    };
+    return settle(strongScriptLanguage, strongScriptLanguage, "strong_script", true, true);
   }
 
   if (switchSuppressedUntilBoundary && !atTokenBoundary && !pasteLikeInput) {
@@ -525,36 +490,17 @@ export function resolveAutoLanguageDecision(
     };
   }
 
-  if (!topLanguage || topLanguage === stableLanguage || !hasQualifiedEvidence) {
-    return {
-      resolvedLanguage: stableLanguage,
-      stableLanguage,
-      pendingLanguage: null,
-      pendingConfirmations: 0,
-      manualLockLanguage: null,
-      switchSuppressedUntilBoundary,
-      source: "stable",
-      switched: false,
-      hasQualifiedEvidence,
-    };
-  }
-
   const canSwitchNow = atTokenBoundary || pasteLikeInput;
   const eligibleChallenger =
     canSwitchNow && topScore >= SWITCH_THRESHOLD && topScore - stableScore >= SWITCH_MARGIN;
 
-  if (!eligibleChallenger) {
-    return {
-      resolvedLanguage: stableLanguage,
-      stableLanguage,
-      pendingLanguage: null,
-      pendingConfirmations: 0,
-      manualLockLanguage: null,
-      switchSuppressedUntilBoundary,
-      source: "stable",
-      switched: false,
-      hasQualifiedEvidence,
-    };
+  if (
+    !topLanguage ||
+    topLanguage === stableLanguage ||
+    !hasQualifiedEvidence ||
+    !eligibleChallenger
+  ) {
+    return settle(stableLanguage, stableLanguage, "stable", false, switchSuppressedUntilBoundary);
   }
 
   if (pendingLanguage === topLanguage) {
@@ -565,17 +511,7 @@ export function resolveAutoLanguageDecision(
   }
 
   if (pendingConfirmations >= 2) {
-    return {
-      resolvedLanguage: topLanguage,
-      stableLanguage: topLanguage,
-      pendingLanguage: null,
-      pendingConfirmations: 0,
-      manualLockLanguage: null,
-      switchSuppressedUntilBoundary: true,
-      source: "detection",
-      switched: true,
-      hasQualifiedEvidence,
-    };
+    return settle(topLanguage, topLanguage, "detection", true, true);
   }
 
   return {

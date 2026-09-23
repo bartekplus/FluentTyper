@@ -1,5 +1,4 @@
 // Centralized constants for command strings and config keys
-// filepath: /Users/bartosztomczyk/Devel/FluentTyper/src/shared/constants.js
 
 // Command Strings
 export const CMD_CONTENT_SCRIPT_PREDICT_REQ = "CMD_CONTENT_SCRIPT_PREDICT_REQ";

@@ -19,24 +19,14 @@ const CODE_SINGLETONS = new Set([
   "not",
 ]);
 
-function resolveAgreementCorrection(lowerPhrase: string): string | null {
-  switch (lowerPhrase) {
-    case "i is":
-      return "i am";
-    case "i has":
-      return "i have";
-    case "you was":
-      return "you were";
-    case "he are":
-      return "he is";
-    case "she are":
-      return "she is";
-    case "it are":
-      return "it is";
-    default:
-      return null;
-  }
-}
+const AGREEMENT_CORRECTIONS = new Map([
+  ["i is", "i am"],
+  ["i has", "i have"],
+  ["you was", "you were"],
+  ["he are", "he is"],
+  ["she are", "she is"],
+  ["it are", "it is"],
+]);
 
 export class EnglishPronounVerbWhitelistAgreementRule implements GrammarRule {
   readonly id = "englishPronounVerbWhitelistAgreement" as const;
@@ -64,7 +54,7 @@ export class EnglishPronounVerbWhitelistAgreementRule implements GrammarRule {
       return null;
     }
 
-    const corrected = resolveAgreementCorrection(phrase.toLowerCase());
+    const corrected = AGREEMENT_CORRECTIONS.get(phrase.toLowerCase());
     if (!corrected) {
       return null;
     }

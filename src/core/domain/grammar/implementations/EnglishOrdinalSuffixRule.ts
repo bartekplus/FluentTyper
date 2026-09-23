@@ -15,7 +15,7 @@ import { isInsideProtectedSpan } from "./helpers/ProtectedSpanShared";
 // road). None of them can be told apart from a typo by the text alone.
 const ORDINAL_REGEX = /(?<=^|[\s([])(\d+)(nd|th)$/;
 
-function ordinalSuffix(digits: string): string {
+export function ordinalSuffix(digits: string): string {
   const lastTwo = Number(digits.slice(-2));
   if (lastTwo >= 11 && lastTwo <= 13) return "th";
   return ["th", "st", "nd", "rd"][lastTwo % 10] ?? "th";

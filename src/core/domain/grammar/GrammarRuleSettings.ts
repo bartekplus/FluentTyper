@@ -1,3 +1,4 @@
+import { isObjectRecord } from "../guards";
 import {
   DEFAULT_CURRENT_GRAMMAR_RULES,
   DEFAULT_V3_GRAMMAR_RULES,
@@ -23,10 +24,7 @@ export const LEGACY_RULE_IDS: readonly CatalogRuleId[] = [
 
 export function isGrammarRuleOverrides(value: unknown): value is GrammarRuleOverrides {
   return (
-    typeof value === "object" &&
-    value !== null &&
-    !Array.isArray(value) &&
-    Object.values(value).every((choice) => typeof choice === "boolean")
+    isObjectRecord(value) && Object.values(value).every((choice) => typeof choice === "boolean")
   );
 }
 

@@ -36,12 +36,8 @@ export class GrammarRuleEngine {
       let madeChanges = false;
 
       for (const ruleId of pipeline) {
-        if (!this.shouldRunRule(ruleId, enabledRules)) {
-          continue;
-        }
-
         const rule = this.rules.get(ruleId);
-        if (!rule) {
+        if (!rule || (enabledRules && !enabledRules.includes(ruleId))) {
           continue;
         }
 
@@ -51,15 +47,10 @@ export class GrammarRuleEngine {
             continue;
           }
 
-          const edits = Array.isArray(result) ? result : [result];
-          if (edits.length === 0) {
-            continue;
-          }
-
-          for (const edit of edits) {
+          for (const edit of Array.isArray(result) ? result : [result]) {
             const enrichedEdit: GrammarEdit = {
               ...edit,
-              sourceRuleId: edit.sourceRuleId ?? (rule.id as GrammarEdit["sourceRuleId"]),
+              sourceRuleId: edit.sourceRuleId ?? rule.id,
             };
             appliedEdits.push(enrichedEdit);
             currentContext = applyGrammarEditToContext(currentContext, enrichedEdit);
@@ -87,22 +78,13 @@ export class GrammarRuleEngine {
     const accumulatedEdits: GrammarEdit[] = [];
 
     for (const event of events) {
-      const edits = this.process(event, currentContext, enabledRules);
-      if (edits.length === 0) {
-        continue;
-      }
-
-      for (const edit of edits) {
+      for (const edit of this.process(event, currentContext, enabledRules)) {
         accumulatedEdits.push(edit);
         currentContext = applyGrammarEditToContext(currentContext, edit);
       }
     }
 
     return mergeSequentialGrammarEdits(accumulatedEdits)[0] ?? null;
-  }
-
-  private shouldRunRule(ruleId: string, enabledRules?: string[]): boolean {
-    return !enabledRules || enabledRules.includes(ruleId);
   }
 
   private recordRuleError(ruleId: string, error: unknown): void {

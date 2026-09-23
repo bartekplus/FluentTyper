@@ -18,7 +18,7 @@ export class CapitalizeAfterLineBreakRule implements GrammarRule {
     }
 
     let i = text.length - 2;
-    while (i >= 0 && SPACE_CHARS.includes(text[i]) && text[i] !== "\n") {
+    while (i >= 0 && SPACE_CHARS.includes(text[i])) {
       i -= 1;
     }
 

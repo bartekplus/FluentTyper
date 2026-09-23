@@ -367,7 +367,7 @@ export type CatalogRuleId = (typeof GRAMMAR_RULE_CATALOG)[number]["id"];
 
 export const GRAMMAR_RULE_IDS: CatalogRuleId[] = GRAMMAR_RULE_CATALOG.map((entry) => entry.id);
 
-const V1_RECOMMENDED_RULES: CatalogRuleId[] = [
+export const RECOMMENDED_V1_GRAMMAR_RULES: CatalogRuleId[] = [
   "capitalizeSentenceStart",
   "capitalizeAfterLineBreak",
   "technicalTokenCompaction",
@@ -381,22 +381,14 @@ const V1_RECOMMENDED_RULES: CatalogRuleId[] = [
   "neutralPunctuationPolicy",
 ];
 
-const V2_RECOMMENDED_MIDDLE_RULES: CatalogRuleId[] = [
+// This is the pre-v3 recommended set (current users migrated by V5).
+export const RECOMMENDED_V2_GRAMMAR_RULES: CatalogRuleId[] = [
+  ...RECOMMENDED_V1_GRAMMAR_RULES.slice(0, 2),
   "englishPronounICapitalization",
   "englishContractionNormalization",
   "englishTypoWhitelistCorrection",
+  ...RECOMMENDED_V1_GRAMMAR_RULES.slice(2),
 ];
-
-// This is the pre-v3 recommended set (current users migrated by V5).
-const V2_RECOMMENDED_RULES: CatalogRuleId[] = [
-  ...V1_RECOMMENDED_RULES.slice(0, 2),
-  ...V2_RECOMMENDED_MIDDLE_RULES,
-  ...V1_RECOMMENDED_RULES.slice(2),
-];
-
-export const RECOMMENDED_V1_GRAMMAR_RULES: CatalogRuleId[] = [...V1_RECOMMENDED_RULES];
-
-export const RECOMMENDED_V2_GRAMMAR_RULES: CatalogRuleId[] = [...V2_RECOMMENDED_RULES];
 
 // Historical snapshots used by V6 migration. Keep these exact when the live catalog grows.
 export const DEFAULT_V3_GRAMMAR_RULES: CatalogRuleId[] = [

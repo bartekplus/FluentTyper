@@ -66,7 +66,7 @@ export class EnglishModalOfCorrectionRule implements GrammarRule {
     }
 
     const style = detectWordCase(modal);
-    const normalizedModal = applyWordCase(modal.toLowerCase(), style);
+    const normalizedModal = applyWordCase(modal, style);
     const haveWord = style === "upper" ? "HAVE" : "have";
 
     return {

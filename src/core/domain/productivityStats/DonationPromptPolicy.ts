@@ -11,6 +11,7 @@ import {
   DONATION_PROMPT_COOLDOWN_DAYS,
   DONATION_SNOOZE_DAYS,
 } from "./constants";
+import { ordinalSuffix } from "../grammar/implementations/EnglishOrdinalSuffixRule";
 import type { StatsSanitizer } from "./StatsSanitizer";
 import type { ProductivityStatsState } from "./types";
 
@@ -76,7 +77,7 @@ export class DonationPromptPolicy {
     }
 
     const hoursLabel = nextMilestone === 1 ? "hour" : "hours";
-    const ordinal = this.toOrdinal(nextMilestone);
+    const ordinal = `${nextMilestone}${ordinalSuffix(String(nextMilestone))}`;
     return {
       promptId: `milestone_${nextMilestone}`,
       kind: "milestone",
@@ -118,24 +119,5 @@ export class DonationPromptPolicy {
       state.shownMilestones.push(milestone);
       state.shownMilestones.sort((left, right) => left - right);
     }
-  }
-
-  private toOrdinal(value: number): string {
-    const mod100 = value % 100;
-    if (mod100 >= 11 && mod100 <= 13) {
-      return `${value}th`;
-    }
-
-    const mod10 = value % 10;
-    if (mod10 === 1) {
-      return `${value}st`;
-    }
-    if (mod10 === 2) {
-      return `${value}nd`;
-    }
-    if (mod10 === 3) {
-      return `${value}rd`;
-    }
-    return `${value}th`;
   }
 }

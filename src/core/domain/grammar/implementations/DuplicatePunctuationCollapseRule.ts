@@ -21,22 +21,12 @@ export class DuplicatePunctuationCollapseRule implements GrammarRule {
       return null;
     }
 
-    const immediate = this.resolveImmediateDuplicate(input);
-    if (immediate) {
-      return immediate;
-    }
-
-    const spaced = this.resolveSpacedTrailingDuplicate(input);
-    if (spaced) {
-      return spaced;
-    }
-
-    const trailingDuplicate = this.resolveTrailingDuplicateBeforeSpace(input);
-    if (trailingDuplicate) {
-      return trailingDuplicate;
-    }
-
-    return this.resolveTrailingDoublePeriod(input);
+    return (
+      this.resolveImmediateDuplicate(input) ??
+      this.resolveSpacedTrailingDuplicate(input) ??
+      this.resolveTrailingDuplicateBeforeSpace(input) ??
+      this.resolveTrailingDoublePeriod(input)
+    );
   }
 
   private resolveImmediateDuplicate(input: string): GrammarEdit | null {
@@ -154,17 +144,11 @@ export class DuplicatePunctuationCollapseRule implements GrammarRule {
     if (spacingRun.includes("\xA0")) {
       return "\xA0";
     }
-    return spacingRun.charAt(0) || "";
+    return spacingRun.charAt(0);
   }
 
   private measureLeadingSpaceBefore(input: string, index: number): number {
-    let i = index - 1;
-    let count = 0;
-    while (i >= 0 && SPACE_CHARS.includes(input.charAt(i))) {
-      count += 1;
-      i -= 1;
-    }
-    return count;
+    return splitTrailingSpaces(input.slice(0, index), SPACE_CHARS).trailingSpaces.length;
   }
 
   private resolveTrailingDoublePeriod(input: string): GrammarEdit | null {

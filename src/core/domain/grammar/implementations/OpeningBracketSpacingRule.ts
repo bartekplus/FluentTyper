@@ -8,7 +8,7 @@ export class OpeningBracketSpacingRule extends SpacingRuleShared implements Gram
 
   apply(context: GrammarContext): GrammarEdit | null {
     const inputStr = context.beforeCursor;
-    if (!inputStr || inputStr.length < 2) {
+    if (inputStr.length < 2) {
       return null;
     }
 
@@ -19,25 +19,16 @@ export class OpeningBracketSpacingRule extends SpacingRuleShared implements Gram
     }
 
     const previousChar = inputStr[openingIndex - 1];
-    const hasSpaceBefore = SPACE_CHARS.includes(previousChar);
-
-    let requiresSpaceBefore = true;
-    if (openingBracket === "(" && this.isControlKeywordBeforeIndex(inputStr, openingIndex)) {
-      requiresSpaceBefore = true;
-    } else if (
-      openingBracket === "{" &&
-      this.findPreviousSignificantChar(inputStr, openingIndex - 1) === ")"
-    ) {
-      requiresSpaceBefore = true;
-    } else if (SpacingRuleShared.CLOSING_BRACKETS.has(previousChar)) {
+    const requiresSpaceBefore =
+      (openingBracket === "(" && this.isControlKeywordBeforeIndex(inputStr, openingIndex)) ||
+      (openingBracket === "{" &&
+        this.findPreviousSignificantChar(inputStr, openingIndex - 1) === ")") ||
       // "[link](url)" and "foo()[0]": a bracket against a bracket is structure.
-      requiresSpaceBefore = false;
-    } else if (this.isTightlyAttached(inputStr, openingIndex)) {
-      // Preserve attached code-like forms such as function calls.
-      requiresSpaceBefore = false;
-    }
+      // Otherwise preserve attached code-like forms such as function calls.
+      (!SpacingRuleShared.CLOSING_BRACKETS.has(previousChar) &&
+        !this.isTightlyAttached(inputStr, openingIndex));
 
-    if (requiresSpaceBefore && !hasSpaceBefore) {
+    if (requiresSpaceBefore && !SPACE_CHARS.includes(previousChar)) {
       return this.createEdit(` ${openingBracket}`, 1);
     }
 

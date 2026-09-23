@@ -74,11 +74,6 @@ export interface PredictResponseContext {
   predictions: string[];
 }
 
-// Context for CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG
-export interface UpdateLangConfigContext {
-  lang: string;
-}
-
 // Context for CMD_CONTENT_SCRIPT_PREDICT_REQ
 export interface ContentScriptPredictRequestContext {
   text: string;
@@ -106,64 +101,21 @@ export interface GetAutoLanguageStatusContext {
   domainURL?: string;
 }
 
-// Context for CMD_OPTIONS_PAGE_CONFIG_CHANGE
-export type OptionsPageConfigChangeContext = Record<string, never>;
-// Context for CMD_CONTENT_SCRIPT_GET_CONFIG
-export type ContentScriptGetConfigContext = Record<string, never>;
-export type PopupPageEnableContext = Record<string, never>;
-export type PopupPageDisableContext = Record<string, never>;
-export interface PopupPageStatusContext {
-  enabled: boolean;
-}
-
-export interface SuggestionAcceptedUsageEventContext {
-  eventType: "suggestion_accepted";
-  triggerText: string;
-  typedTextLength: number;
-  insertedTextLength: number;
-  language: string;
-}
-
-export interface SuggestionShownUsageEventContext {
-  eventType: "suggestion_shown";
-  suggestionCount: number;
-  language: string;
-}
-
-export interface SnippetExpandedUsageEventContext {
-  eventType: "snippet_expanded";
-  triggerText: string;
-  typedTextLength: number;
-  insertedTextLength: number;
-  language: string;
-}
-
-export interface CharsInsertedFromSnippetUsageEventContext {
-  eventType: "chars_inserted_from_snippet";
-  amount: number;
-  triggerText: string;
-  language: string;
-}
-
-export interface CharsTypedForTriggerUsageEventContext {
-  eventType: "chars_typed_for_trigger";
-  amount: number;
-  triggerText: string;
-  language: string;
-}
-
 export type ContentScriptUsageEventContext =
-  | SuggestionAcceptedUsageEventContext
-  | SuggestionShownUsageEventContext
-  | SnippetExpandedUsageEventContext
-  | CharsInsertedFromSnippetUsageEventContext
-  | CharsTypedForTriggerUsageEventContext;
-
-export type PopupGetProductivityStatsContext = Record<string, never>;
-
-export interface PopupAckWeeklyRecapContext {
-  weekKey: string;
-}
+  | {
+      eventType: "suggestion_accepted" | "snippet_expanded";
+      triggerText: string;
+      typedTextLength: number;
+      insertedTextLength: number;
+      language: string;
+    }
+  | { eventType: "suggestion_shown"; suggestionCount: number; language: string }
+  | {
+      eventType: "chars_inserted_from_snippet" | "chars_typed_for_trigger";
+      amount: number;
+      triggerText: string;
+      language: string;
+    };
 
 export type DonationPromptAction = "shown" | "supported" | "snooze";
 
@@ -171,26 +123,6 @@ export interface PopupAckDonationMilestoneContext {
   promptId: string;
   action: DonationPromptAction;
   milestoneHours: number | null;
-}
-
-export type OptionsResetProductivityStatsContext = Record<string, never>;
-export type OptionsClearPersonalizationContext = Record<string, never>;
-export type ContentScriptPersonalizationEventContext = PersonalizationEvent;
-export type OptionsGetPredictorDebugSnapshotContext = Record<string, never>;
-export type OptionsClearPredictorDebugTraceContext = Record<string, never>;
-export type OptionsGetObservabilitySnapshotContext = Record<string, never>;
-export type OptionsClearObservabilityEventsContext = Record<string, never>;
-export interface ContentScriptReportObservabilityEventContext {
-  event: ObservabilityEvent;
-}
-export interface ContentScriptReportObservabilityModulesContext {
-  modules: string[];
-}
-export interface OptionsReportObservabilityEventContext {
-  event: ObservabilityEvent;
-}
-export interface OptionsReportObservabilityModulesContext {
-  modules: string[];
 }
 
 export interface ProductivityEventSummary {
@@ -284,7 +216,7 @@ export type Message =
   | { command: "CMD_GET_HOSTNAME" }
   | {
       command: "CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG";
-      context: UpdateLangConfigContext;
+      context: { lang: string };
     }
   | {
       command: "CMD_CONTENT_SCRIPT_PREDICT_REQ";
@@ -292,22 +224,22 @@ export type Message =
     }
   | {
       command: "CMD_OPTIONS_PAGE_CONFIG_CHANGE";
-      context: OptionsPageConfigChangeContext;
+      context: Record<string, never>;
     }
   | {
       command: "CMD_CONTENT_SCRIPT_GET_CONFIG";
-      context: ContentScriptGetConfigContext;
+      context: Record<string, never>;
     }
-  | { command: "CMD_POPUP_PAGE_ENABLE"; context: PopupPageEnableContext }
-  | { command: "CMD_POPUP_PAGE_DISABLE"; context: PopupPageDisableContext }
-  | { command: "CMD_STATUS_COMMAND"; context: PopupPageStatusContext }
+  | { command: "CMD_POPUP_PAGE_ENABLE"; context: Record<string, never> }
+  | { command: "CMD_POPUP_PAGE_DISABLE"; context: Record<string, never> }
+  | { command: "CMD_STATUS_COMMAND"; context: { enabled: boolean } }
   | {
       command: "CMD_CONTENT_SCRIPT_USAGE_EVENT";
       context: ContentScriptUsageEventContext;
     }
   | {
       command: "CMD_CONTENT_SCRIPT_PERSONALIZATION_EVENT";
-      context: ContentScriptPersonalizationEventContext;
+      context: PersonalizationEvent;
     }
   | {
       command: "CMD_CONTENT_SCRIPT_REPORT_RUNTIME_STATUS";
@@ -315,11 +247,11 @@ export type Message =
     }
   | {
       command: "CMD_POPUP_GET_PRODUCTIVITY_STATS";
-      context: PopupGetProductivityStatsContext;
+      context: Record<string, never>;
     }
   | {
       command: "CMD_POPUP_ACK_WEEKLY_RECAP";
-      context: PopupAckWeeklyRecapContext;
+      context: { weekKey: string };
     }
   | {
       command: "CMD_POPUP_ACK_DONATION_MILESTONE";
@@ -327,43 +259,43 @@ export type Message =
     }
   | {
       command: "CMD_OPTIONS_RESET_PRODUCTIVITY_STATS";
-      context: OptionsResetProductivityStatsContext;
+      context: Record<string, never>;
     }
   | {
       command: "CMD_OPTIONS_CLEAR_PERSONALIZATION";
-      context: OptionsClearPersonalizationContext;
+      context: Record<string, never>;
     }
   | {
       command: "CMD_OPTIONS_GET_PREDICTOR_DEBUG_SNAPSHOT";
-      context: OptionsGetPredictorDebugSnapshotContext;
+      context: Record<string, never>;
     }
   | {
       command: "CMD_OPTIONS_CLEAR_PREDICTOR_DEBUG_TRACE";
-      context: OptionsClearPredictorDebugTraceContext;
+      context: Record<string, never>;
     }
   | {
       command: "CMD_OPTIONS_GET_OBSERVABILITY_SNAPSHOT";
-      context: OptionsGetObservabilitySnapshotContext;
+      context: Record<string, never>;
     }
   | {
       command: "CMD_OPTIONS_CLEAR_OBSERVABILITY_EVENTS";
-      context: OptionsClearObservabilityEventsContext;
+      context: Record<string, never>;
     }
   | {
       command: "CMD_CONTENT_SCRIPT_REPORT_OBSERVABILITY_EVENT";
-      context: ContentScriptReportObservabilityEventContext;
+      context: { event: ObservabilityEvent };
     }
   | {
       command: "CMD_CONTENT_SCRIPT_REPORT_OBSERVABILITY_MODULES";
-      context: ContentScriptReportObservabilityModulesContext;
+      context: { modules: string[] };
     }
   | {
       command: "CMD_OPTIONS_REPORT_OBSERVABILITY_EVENT";
-      context: OptionsReportObservabilityEventContext;
+      context: { event: ObservabilityEvent };
     }
   | {
       command: "CMD_OPTIONS_REPORT_OBSERVABILITY_MODULES";
-      context: OptionsReportObservabilityModulesContext;
+      context: { modules: string[] };
     }
   | {
       command: "CMD_GET_AUTO_LANGUAGE_STATUS";
