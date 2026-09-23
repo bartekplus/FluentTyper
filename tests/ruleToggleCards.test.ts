@@ -9,6 +9,7 @@ import {
   DEFAULT_CURRENT_GRAMMAR_RULES,
   GRAMMAR_RULE_IDS,
   RECOMMENDED_CURRENT_GRAMMAR_RULES,
+  TYPOGRAPHY_GRAMMAR_RULES,
 } from "../src/core/domain/grammar/ruleCatalog.js";
 import type { RuleToggleCardsConfig } from "../src/ui/settings-engine/types.js";
 
@@ -195,12 +196,14 @@ describe("ruleToggleCards setting", () => {
     const actionLabels = actions.map((action) => action.text);
     expect(actionLabels).toEqual([
       i18n.get("grammar_rules_recommended"),
+      i18n.get("grammar_rules_typography"),
       i18n.get("grammar_rules_enable_all"),
       i18n.get("grammar_rules_disable_all"),
     ]);
     expect(actionLabels).not.toContain(i18n.get("grammar_rules_safe_defaults"));
     expect(grammarSetting?.default).toEqual({});
     expect(actions[0]?.values).toEqual(RECOMMENDED_CURRENT_GRAMMAR_RULES);
+    expect(actions[1]?.values).toEqual(TYPOGRAPHY_GRAMMAR_RULES);
     expect(DEFAULT_CURRENT_GRAMMAR_RULES).toContain("measurementUnitFormatting");
   });
 

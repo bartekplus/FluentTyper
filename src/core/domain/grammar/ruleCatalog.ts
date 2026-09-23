@@ -314,6 +314,18 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     priority: 132,
   },
   {
+    id: "frenchPunctuationSpacing",
+    name: "French punctuation spacing",
+    titleI18nKey: "grammar_rule_french_punctuation_spacing",
+    descriptionI18nKey: "grammar_rule_french_punctuation_spacing_desc",
+    exampleI18nKey: "grammar_rule_french_punctuation_spacing_example",
+    languageScope: "all",
+    safetyTier: "advanced",
+    defaultRollout: "off",
+    recommended: false,
+    priority: 133,
+  },
+  {
     id: "duplicatePunctuationCollapse",
     name: "Collapse accidental duplicate punctuation",
     titleI18nKey: "grammar_rule_duplicate_punctuation_collapse",
@@ -323,7 +335,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     safetyTier: "advanced",
     defaultRollout: "off",
     recommended: false,
-    priority: 133,
+    priority: 134,
   },
   {
     id: "autoBracketClose",
@@ -335,7 +347,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     safetyTier: "advanced",
     defaultRollout: "off",
     recommended: false,
-    priority: 134,
+    priority: 135,
   },
 ] as const;
 
@@ -405,6 +417,16 @@ export const DEFAULT_CURRENT_GRAMMAR_RULES: CatalogRuleId[] = GRAMMAR_RULE_CATAL
 export const RECOMMENDED_CURRENT_GRAMMAR_RULES: CatalogRuleId[] = GRAMMAR_RULE_CATALOG.filter(
   (entry) => entry.recommended,
 ).map((entry) => entry.id);
+
+/** Opt-in preset: the recommended rules plus language-aware quotes and punctuation. */
+const TYPOGRAPHY_EXTRA_RULES: CatalogRuleId[] = [
+  "smartQuoteNormalization",
+  "frenchPunctuationSpacing",
+  "ellipsisShortcut",
+];
+export const TYPOGRAPHY_GRAMMAR_RULES: CatalogRuleId[] = GRAMMAR_RULE_IDS.filter(
+  (id) => RECOMMENDED_CURRENT_GRAMMAR_RULES.includes(id) || TYPOGRAPHY_EXTRA_RULES.includes(id),
+);
 
 const LEGACY_RULE_MAP: Record<string, CatalogRuleId[]> = {
   spacingRule: [

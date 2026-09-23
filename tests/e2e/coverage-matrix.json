@@ -1208,6 +1208,17 @@
       ]
     },
     {
+      "id": "grammar_language_typography",
+      "description": "Opt-in Typography preset uses the writing language's quotation marks and French (France) punctuation spacing, and leaves code and protected fields unchanged.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/grammar/LanguageTypography.test.ts",
+          "test": "language-aware typography preset"
+        }
+      ]
+    },
+    {
       "id": "grammar_v3_advanced_shortcuts",
       "description": "V3 advanced typography shortcuts normalize prose punctuation and quotes.",
       "coverage": [

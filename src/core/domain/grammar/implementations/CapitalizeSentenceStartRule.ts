@@ -76,11 +76,14 @@ function closesAbbreviation(text: string, index: number, lang?: string): boolean
   }
   return token.length <= 1 || token.includes(".") || ABBREVIATIONS.has(token.toLowerCase());
 }
-const CLOSING_CHARS = new Set([")", "]", "}", '"', "'", "”", "’"]);
+// Includes every closing quote the typography profiles emit: „…“ ‚…‘ «…» ›…‹.
+const CLOSING_CHARS = new Set([")", "]", "}", '"', "'", "”", "’", "“", "‘", "»", "›"]);
+// French padding inside a closing guillemet and before "!" or "?": "« Oui ! »".
+const CLOSING_PADDING_CHARS = new Set(["\u00A0", "\u202F"]);
 const WORD_BOUNDARY_CHARS = [...SPACE_CHARS, "\n"];
 // Punctuation that closes a prose word without making it a token: "done.",
 // "hello,", "(quietly)".
-const TRAILING_PUNCTUATION_REGEX = /[.,!?;:)\]}"'”’]+$/u;
+const TRAILING_PUNCTUATION_REGEX = /[.,!?;:)\]}"'”’“‘»›\u00A0\u202F]+$/u;
 
 export class CapitalizeSentenceStartRule implements GrammarRule {
   readonly id = "capitalizeSentenceStart" as const;
@@ -130,8 +133,10 @@ export class CapitalizeSentenceStartRule implements GrammarRule {
     if (i < 0) {
       return true;
     }
-    while (i >= 0 && CLOSING_CHARS.has(text[i])) {
-      i -= 1;
+    if (CLOSING_CHARS.has(text[i])) {
+      while (i >= 0 && (CLOSING_CHARS.has(text[i]) || CLOSING_PADDING_CHARS.has(text[i]))) {
+        i -= 1;
+      }
     }
     return (
       i >= 0 &&

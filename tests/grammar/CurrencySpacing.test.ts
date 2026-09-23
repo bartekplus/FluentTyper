@@ -69,7 +69,7 @@ describe("currency spacing", () => {
       ["en_US", "Budget: 250EUR ", `Budget: 250${NBSP}EUR `],
       ["en_US", "It costs 0.50USD ", `It costs 0.50${NBSP}USD `],
       ["de_DE", "Preis: 9,00€ ", `Preis: 9,00${NBSP}€ `],
-      ["fr_FR", "Prix : 12€ ", `Prix : 12${NBSP}€ `],
+      ["fr_FR", "Il coûte 12€ ", `Il coûte 12${NBSP}€ `],
       ["sv_SE", "Pris: 99kr ", `Pris: 99${NBSP}kr `],
       ["pt_BR", "Custa 100BRL ", `Custa 100${NBSP}BRL `],
       ["ar_SA", "السعر 50SAR ", `السعر 50${NBSP}SAR `],
