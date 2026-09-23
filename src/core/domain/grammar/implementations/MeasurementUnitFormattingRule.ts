@@ -57,12 +57,11 @@ export function isProsePrefix(prefix: string): boolean {
   // Four spaces or a tab open an indented Markdown code block; a textarea
   // cannot tell us whether that applies, so fail closed by default. But a
   // paragraph that just happens to be indented ("\tThe box weighs 5kg") still
-  // has real prose words before the number, so only refuse when nothing
-  // word-like precedes it, or when it's a colon-terminated label ("Price:")
-  // that reads the same as an indented code example either way.
+  // reads as a sentence: a capitalized start and at least two words before the
+  // number. Anything else ("\tcopy 250EUR", "    Price: 250EUR") is refused.
   if (/^(?: {4}|\t)/u.test(line)) {
     const afterIndent = line.replace(/^(?: {4}|\t)+/u, "");
-    if (!/\p{L}/u.test(afterIndent) || /[:：]\s*$/u.test(afterIndent)) {
+    if (!/^\p{Lu}\S*\s+\S+/u.test(afterIndent) || /[:：]\s*$/u.test(afterIndent)) {
       return false;
     }
   }
@@ -87,9 +86,7 @@ export function isProsePrefix(prefix: string): boolean {
     // These also read as ordinary capitalized English (and other-language)
     // words at a sentence start ("Cat weighs 5kg", "Tar det 5kg"), so only
     // treat the lowercase spelling as the shell command.
-    /^\s*(?:cat|touch|sed|tar)(?:\s|$)/u.test(
-      line,
-    )
+    /^\s*(?:cat|touch|sed|tar)(?:\s|$)/u.test(line)
   ) {
     return false;
   }

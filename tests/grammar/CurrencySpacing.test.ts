@@ -154,6 +154,11 @@ describe("currency spacing", () => {
       "Example:\n\n    250EUR ",
       "Example:\n\n\t250EUR ",
       "    Price: 250EUR ",
+      // Indented lines only read as prose when they look like a sentence.
+      "\tcopy 250EUR ",
+      "    copy 250EUR ",
+      "\tcp file 250EUR ",
+      "    x = 250EUR ",
     ]) {
       expectUnchanged(input);
     }

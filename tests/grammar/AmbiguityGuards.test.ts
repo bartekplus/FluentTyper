@@ -151,6 +151,20 @@ describe("unambiguous corrections still apply", () => {
     test(input, () => expect(type(input)).toBe(expected));
 });
 
+describe("measurement formatting on indented lines", () => {
+  const withoutRule = DEFAULT_CURRENT_GRAMMAR_RULES.filter(
+    (id) => id !== "measurementUnitFormatting",
+  );
+
+  // An indented line may be a Markdown code block: only a sentence formats.
+  for (const input of ["\tcopy 5kg ", "    copy 5kg ", "\tcp file 5kg ", "    x = 5kg "])
+    test(`leaves ${JSON.stringify(input)}`, () =>
+      expect(type(input)).toBe(type(input, "en_US", withoutRule)));
+
+  test("formats an indented sentence", () =>
+    expect(type("\tThe box weighs 5kg ")).toBe("\tThe box weighs 5 kg "));
+});
+
 describe("comma/period spacing never adds a space before a closing quote", () => {
   for (const input of ['"Hi," he said ', 'She said "stop." Then ', "He wrote “done.” Ok "])
     test(input, () => expect(type(input)).toBe(input));
