@@ -54,12 +54,23 @@ export class SmartQuoteNormalizationRule implements GrammarRule {
         return null;
       }
       const { core, trailingSpaces } = splitTrailingSpaces(beforeQuote);
+      // Nothing was typed between the marks ("" ), only the opener's own
+      // padding: close it instead of opening another one over that padding.
+      const openedEmpty =
+        pad.length > 0 &&
+        trailingSpaces === pad &&
+        core.endsWith(doubleOpen) &&
+        (quoteBalance(core, typed, doubleOpen, doubleClose) ?? 0) > 0;
       const forceClosingQuoteWithSpaceTrim =
+        !openedEmpty &&
         trailingSpaces.length > 0 &&
         (quoteBalance(core, typed, doubleOpen, doubleClose) ?? 0) > 0 &&
         endsWithLikelyQuoteContent(core);
 
-      if (forceClosingQuoteWithSpaceTrim) {
+      if (openedEmpty) {
+        replacement = `${pad}${doubleClose}`;
+        deleteBackwards = 1;
+      } else if (forceClosingQuoteWithSpaceTrim) {
         replacement = `${pad}${doubleClose}`;
         deleteBackwards = 1 + trailingSpaces.length;
       } else {

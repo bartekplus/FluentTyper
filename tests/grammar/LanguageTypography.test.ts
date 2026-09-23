@@ -149,6 +149,10 @@ describe("language-aware typography preset", () => {
     );
   });
 
+  test("French empty quotes open and close", () => {
+    expect(type('Il dit "" ', "fr_FR")).toBe(`Il dit «${NBSP}${NBSP}» `);
+  });
+
   test("straight quotes stay straight in code and protected contexts", () => {
     expect(type('Run `echo "hi"` now', "en_US")).toBe('Run `echo "hi"` now');
     expect(type('Set x = "a"', "de_DE")).toBe('Set x = "a"');
