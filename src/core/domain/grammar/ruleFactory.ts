@@ -29,6 +29,7 @@ import { EnglishArticleAnCorrectionRule } from "./implementations/EnglishArticle
 import { EnglishOrdinalSuffixRule } from "./implementations/EnglishOrdinalSuffixRule";
 import { AutoBracketCloseRule } from "./implementations/AutoBracketCloseRule";
 import { MeasurementUnitFormattingRule } from "./implementations/MeasurementUnitFormattingRule";
+import { CurrencySpacingRule } from "./implementations/CurrencySpacingRule";
 
 export function createGrammarRuleCatalogRuntime(options: {
   insertSpaceAfterAutocomplete: boolean;
@@ -61,6 +62,7 @@ export function createGrammarRuleCatalogRuntime(options: {
     slashContextSpacing: new SlashContextSpacingRule(insertSpaceAfterAutocomplete),
     mathOperatorSpacing: new MathOperatorSpacingRule(insertSpaceAfterAutocomplete),
     measurementUnitFormatting: new MeasurementUnitFormattingRule(),
+    currencySpacing: new CurrencySpacingRule(),
     technicalTokenCompaction: new TechnicalTokenCompactionRule(insertSpaceAfterAutocomplete),
     collapseRepeatedSpaces: new CollapseRepeatedSpacesRule(),
     trimSpaceBeforeLineBreak: new TrimSpaceBeforeLineBreakRule(),

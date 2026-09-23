@@ -2,6 +2,7 @@ export type GrammarEventType = "insertChar" | "wordBoundary" | "idle" | "paste";
 
 export type GrammarRuleId =
   | "measurementUnitFormatting"
+  | "currencySpacing"
   | "capitalizeSentenceStart"
   | "capitalizeAfterLineBreak"
   | "englishPronounICapitalization"

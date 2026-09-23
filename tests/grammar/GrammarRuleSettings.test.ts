@@ -28,6 +28,7 @@ const DEFAULT_RULES = [
   "technicalTokenCompaction",
   "mathOperatorSpacing",
   "measurementUnitFormatting",
+  "currencySpacing",
   "slashContextSpacing",
   "openingBracketSpacing",
   "closingBracketSpacing",
