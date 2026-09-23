@@ -169,6 +169,19 @@ describe("comma/period spacing never adds a space before a closing quote", () =>
   for (const input of ['"Hi," he said ', 'She said "stop." Then ', "He wrote “done.” Ok "])
     test(input, () => expect(type(input)).toBe(input));
 
+  // String literals and code keep their meaningful spaces.
+  const withoutCommaPeriod = DEFAULT_CURRENT_GRAMMAR_RULES.filter(
+    (id) => id !== "commaPeriodSpacing",
+  );
+  for (const input of [
+    'const separator = ", " ',
+    'const padding = ". " ',
+    '`a, "b, "` ',
+    '```\nx = ", "\n```',
+  ])
+    test(`leaves the literal ${JSON.stringify(input)}`, () =>
+      expect(type(input)).toBe(type(input, "en_US", withoutCommaPeriod)));
+
   // Normal comma spacing before an ordinary word is untouched.
   test("normal comma spacing still applies", () => {
     expect(type("a,b ")).toBe("A, b ");

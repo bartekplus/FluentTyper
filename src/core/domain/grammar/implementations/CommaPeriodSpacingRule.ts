@@ -1,6 +1,7 @@
 import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "../types";
 import { PUNCTUATION_EQUIVALENTS, SPACE_CHARS, SPACING_OR_FILLER_CHARS } from "../../spacingRules";
 import { resolveInputAction } from "./helpers/GenericRuleShared";
+import { isInsideProtectedSpan } from "./helpers/ProtectedSpanShared";
 import { SpacingRuleShared } from "./helpers/SpacingRuleShared";
 import { resolveMeasurementLocale } from "../measurement/registry";
 
@@ -77,9 +78,14 @@ export class CommaPeriodSpacingRule extends SpacingRuleShared implements Grammar
 
     // A closing quote closes tight: strip a space this rule (or the user)
     // left between "," / "." and the quote that follows it. An opening quote
-    // is left untouched, so its space survives.
+    // is left untouched, so its space survives. Inside code or a string
+    // literal (`x = ", "`) that space is content, so fail closed there.
     if (lastChar === '"' || lastChar === "”") {
-      if (!isClosingQuote(inputStr, length - 1, lastChar)) {
+      if (
+        context.hints?.measurementContext === "protected" ||
+        isInsideProtectedSpan(inputStr.slice(0, -1)) ||
+        !isClosingQuote(inputStr, length - 1, lastChar)
+      ) {
         return null;
       }
       let spaceRun = 0;

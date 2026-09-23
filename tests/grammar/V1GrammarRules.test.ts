@@ -237,6 +237,16 @@ describe("V1 grammar rules", () => {
       expect(arabic).not.toContain(",");
     });
 
+    test("keeps the space before a closing quote in a protected editing context", () => {
+      const rule = new CommaPeriodSpacingRule(true);
+      expect(rule.apply(context('"Hi, "'))).toEqual({
+        replacement: '"',
+        deleteBackwards: 2,
+        deleteForwards: 0,
+      });
+      expect(rule.apply(context('"Hi, "', { measurementContext: "protected" }))).toBeNull();
+    });
+
     test("treats zero-width fillers as ignorable separators for duplicate commas", () => {
       const rule = new CommaPeriodSpacingRule(true);
 
