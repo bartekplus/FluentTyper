@@ -1,10 +1,6 @@
 import type { SettingsRegistry } from "@ui/settings-engine/SettingsEngine.js";
 import type { Store } from "@core/application/storage/Store.js";
-import {
-  SUPPORTED_LANGUAGES,
-  SUPPORTED_PREDICTION_LANGUAGE_KEYS,
-  resolveEnabledLanguages,
-} from "@core/domain/lang";
+import { SUPPORTED_PREDICTION_LANGUAGE_KEYS, resolveEnabledLanguages } from "@core/domain/lang";
 import {
   CMD_GET_AUTO_LANGUAGE_STATUS,
   KEY_ENABLED_LANGUAGES,
@@ -17,25 +13,14 @@ import {
 import { resolveSiteProfiles } from "@core/domain/siteProfiles";
 import { formatTranslation, i18n } from "./fluenttyperI18n.js";
 import {
+  appendLanguageOptions,
   bindRerender,
   createWorkspaceCard,
   createWorkspaceShell,
+  languageLabel,
   moveControlToBody,
   pruneEmptySettingsGroups,
 } from "./workspacePanelUtils.js";
-
-function languageLabel(languageKey: string): string {
-  return SUPPORTED_LANGUAGES[languageKey] || languageKey;
-}
-
-function appendLanguageOptions(select: HTMLSelectElement, languageKeys: string[]): void {
-  languageKeys.forEach((languageKey) => {
-    const option = document.createElement("option");
-    option.value = languageKey;
-    option.textContent = languageLabel(languageKey);
-    select.appendChild(option);
-  });
-}
 
 export class LanguageSettingsPanel {
   private readonly root: HTMLElement;

@@ -139,10 +139,6 @@ export function getColorPickerValue(rawValue: string): string {
   return parsed ? toOpaqueHex(parsed) : "#000000";
 }
 
-function isThemeColorEditableWithPicker(rawValue: string): boolean {
-  return parseThemeColor(rawValue) !== null;
-}
-
 export function mergeColorPickerValue(pickerHex: string, previousRawValue: string): string {
   const pickerColor = parseThemeColor(pickerHex);
   if (!pickerColor) {
@@ -514,7 +510,7 @@ export class AppearanceStudio {
       rawInput.addEventListener("input", () => {
         draftTheme[key] = rawInput.value.trim();
         pickerInput.value = getColorPickerValue(draftTheme[key]);
-        pickerInput.disabled = !isThemeColorEditableWithPicker(draftTheme[key]);
+        pickerInput.disabled = !parseThemeColor(draftTheme[key]);
         this.syncLiveTheme(draftTheme);
       });
       rawInput.addEventListener("change", () => {
@@ -525,7 +521,7 @@ export class AppearanceStudio {
       pickerInput.type = "color";
       pickerInput.className = "input";
       pickerInput.value = getColorPickerValue(theme[key]);
-      pickerInput.disabled = !isThemeColorEditableWithPicker(theme[key]);
+      pickerInput.disabled = !parseThemeColor(theme[key]);
       pickerInput.addEventListener("input", () => {
         const mergedValue = mergeColorPickerValue(pickerInput.value, rawInput.value);
         rawInput.value = mergedValue;
