@@ -139,6 +139,7 @@
     "gdocs_document_tab_changes_invalidate_the_old_snapshot_before_editing",
     "gdocs_late_acknowledged_writes_recover_and_learn_only_once",
     "gdocs_disposing_removes_ui_and_keyboard_interception",
+    "gdocs_burst_correction_survives_a_host_slower_than_typing",
     "gdocs_visible_suggestions_remain_usable_across_repeated_snapshot_refreshes",
     "gdocs_a_colored_collaborator_caret_does_not_displace_the_local_caret_anchor",
     "gdocs_releases_an_unverified_write_after_the_next_user_interaction_without_replay",

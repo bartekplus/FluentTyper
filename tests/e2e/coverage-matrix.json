@@ -2112,6 +2112,17 @@
       ]
     },
     {
+      "id": "gdocs_burst_correction_survives_a_host_slower_than_typing",
+      "description": "Mock editor/browser fixture, not a live Google Docs claim: with the page CPU throttled 6x so no model read completes between keystrokes, a correction the burst typed past is still replayed and made",
+      "coverage": [
+        {
+          "layer": "integration",
+          "file": "tests/e2e/google-docs.e2e.test.ts",
+          "test": "a correction is still made when every read loses to the burst"
+        }
+      ]
+    },
+    {
       "id": "gdocs_visible_suggestions_remain_usable_across_repeated_snapshot_refreshes",
       "description": "Mock editor/browser fixture, not a live Google Docs claim: visible suggestions remain usable across repeated snapshot refreshes",
       "coverage": [
