@@ -27,8 +27,17 @@ export class FrenchPunctuationSpacingRule implements GrammarRule {
   // ":" and ";" don't end a word on their own (see below); "!" and "?" do, but
   // may still need undoing once more of the same word turns up (see retraction).
   readonly triggers: GrammarEventType[] = ["insertChar", "wordBoundary"];
+  // The text right after this rule eagerly spaced a "!"/"?" out of nothing.
+  // Only that space may be retracted; one the writer typed is theirs.
+  private eagerlySpaced: string | null = null;
 
   apply(context: GrammarContext): GrammarEdit | null {
+    const input = context.beforeCursor;
+    const eagerlySpaced = this.eagerlySpaced;
+    // Re-runs over the text it just produced keep the memo; anything else ends it.
+    if (input !== eagerlySpaced) {
+      this.eagerlySpaced = null;
+    }
     if (
       !usesFrenchPunctuationSpacing(context.hints?.lang) ||
       isDeleteInputAction(context) ||
@@ -37,11 +46,11 @@ export class FrenchPunctuationSpacingRule implements GrammarRule {
       return null;
     }
 
-    const input = context.beforeCursor;
-
-    const retraction = retractMidWordMark(input);
-    if (retraction) {
-      return retraction;
+    if (eagerlySpaced !== null && input.slice(0, -1) === eagerlySpaced) {
+      const retraction = retractMidWordMark(input);
+      if (retraction && !isInsideProtectedSpan(input.slice(0, -3))) {
+        return retraction;
+      }
     }
 
     const last = input.charAt(input.length - 1);
@@ -86,6 +95,9 @@ export class FrenchPunctuationSpacingRule implements GrammarRule {
       return null;
     }
 
+    if (last !== " " && !trailingSpaces) {
+      this.eagerlySpaced = `${core}${space}${typed}`;
+    }
     return {
       replacement: last === " " ? `${space}${typed} ` : `${space}${typed}`,
       deleteBackwards: trailingSpaces.length + (last === " " ? 2 : 1),

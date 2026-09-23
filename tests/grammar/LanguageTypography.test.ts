@@ -6,6 +6,7 @@ import {
   RECOMMENDED_CURRENT_GRAMMAR_RULES,
   TYPOGRAPHY_GRAMMAR_RULES,
 } from "../../src/core/domain/grammar/ruleCatalog";
+import { FrenchPunctuationSpacingRule } from "../../src/core/domain/grammar/implementations/FrenchPunctuationSpacingRule";
 import type {
   GrammarContext,
   GrammarEventType,
@@ -137,6 +138,27 @@ describe("language-aware typography preset", () => {
     // (which also applies in English, since "?" mid-word isn't a word boundary)
     // doesn't capitalize "x" and obscure what this test is checking.
     expect(type("Vu x?y ", "fr_FR")).toBe("Vu x?y ");
+  });
+
+  test("French question spacing only retracts a space it inserted itself", () => {
+    const rule = new FrenchPunctuationSpacingRule();
+    for (const space of [NBSP, NNBSP]) {
+      for (const input of [`Run \`a${space}?b`, `\`\`\`\na${space}?b`, `const x = "a${space}?b`]) {
+        // Only the tail: sentence capitalization is a separate rule.
+        expect(type(input, "fr_FR").slice(-3)).toBe(`${space}?b`);
+        expect(
+          rule.apply({
+            beforeCursor: input,
+            afterCursor: "",
+            hints: { lang: "fr_FR", inputAction: "insert", measurementContext: "prose" },
+          }),
+        ).toBeNull();
+      }
+    }
+    // A space the writer typed before "?" is normalized, never removed.
+    expect(type(`Vu a${NNBSP}?b `, "fr_FR")).toBe(`Vu a${NNBSP}?b `);
+    expect(type(`Vu a${NBSP}?b `, "fr_FR")).toBe(`Vu a${NNBSP}?b `);
+    expect(type("Vu a ?b ", "fr_FR")).toBe(`Vu a${NNBSP}?b `);
   });
 
   test("French colon spacing still spaces a sentence colon", () => {
