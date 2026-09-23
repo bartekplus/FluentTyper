@@ -103,6 +103,21 @@ describe("InlineSuggestionPresenter", () => {
     presenter.clearForEntry(entry.id);
   });
 
+  test("renders a text expansion that extends the shortcut as a plain continuation", () => {
+    const renderSpy = jest
+      .spyOn(InlineSuggestionView, "render")
+      .mockImplementation(() => document.createElement("div"));
+    const { entry, render } = setupInputPresenter({ value: "sig", suggestion: "signature " });
+    entry.inlineSuggestionToken = "sig";
+
+    render();
+
+    // No arrow: the expansion continues what was typed, nothing is replaced.
+    expect(renderSpy).toHaveBeenCalledTimes(1);
+    expect(renderSpy.mock.calls[0]?.[0].text).toBe("nature ");
+    expect(entry.inlineSuggestion).toBe("signature ");
+  });
+
   test("drops a non-extending suggestion predicted for a different token", () => {
     const renderSpy = jest.spyOn(InlineSuggestionView, "render");
     const mirrorSpy = jest.spyOn(InlineSuggestionView, "renderMirrorPreview");

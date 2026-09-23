@@ -4275,6 +4275,56 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     browserTimeout(30000, 45000),
   );
 
+  // A text expansion that starts with its shortcut is a plain continuation:
+  // no arrow, just the ghost suffix, and Tab completes it.
+  test(
+    "Inline text expansion extending the shortcut previews a plain continuation",
+    async () => {
+      const selector = "#test-input";
+      try {
+        await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, true);
+        await setSettingAndWait(worker!, KEY_LANGUAGE, "textExpander");
+        await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+        await setSettingAndWait(worker!, KEY_TEXT_EXPANSIONS, [["sig", "signature block"]]);
+        await applyConfigChange(browser, worker!);
+
+        await gotoTestPage(page);
+        await page.bringToFront();
+        await waitForInputReady(page, selector);
+        await clearInputContent(page, selector);
+        await typeInInput(page, selector, "sig");
+
+        const ghostText = await waitUntil(
+          "inline continuation preview",
+          async () => {
+            const text = await page.evaluate(
+              () => document.querySelector(".ft-suggestion-inline")?.textContent ?? "",
+            );
+            return text.length > 0 ? text.replace(/ /g, " ") : false;
+          },
+          { timeoutMs: browserTimeout(3000, 6000), intervalMs: 50 },
+        );
+        expect(ghostText).not.toContain("→");
+        expect(ghostText.trimEnd()).toBe("nature block");
+
+        await page.keyboard.press("Tab");
+        const finalText = await waitForInputContentMatch(
+          page,
+          selector,
+          /^signature block[ \xa0]?$/,
+          browserTimeout(3000, 6000),
+        );
+        expect(finalText).toMatch(/^signature block[ \xa0]?$/);
+      } finally {
+        await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
+        await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+        await setSettingAndWait(worker!, KEY_TEXT_EXPANSIONS, []);
+        await applyConfigChange(browser, worker!);
+      }
+    },
+    browserTimeout(30000, 45000),
+  );
+
   test(
     "Enabled languages restrict popup language list",
     async () => {
