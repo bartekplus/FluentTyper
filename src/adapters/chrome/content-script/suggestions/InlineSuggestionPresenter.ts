@@ -84,7 +84,11 @@ export class InlineSuggestionPresenter {
       return;
     }
 
-    const suffix = isReplacement ? suggestion : plainSuggestion.slice(plainMention.length);
+    // Keep the typed shortcut visible and annotate what replaces it.
+    // ponytail: arrow is LTR-oriented; mirror it if RTL snippets need it.
+    const suffix = isReplacement
+      ? ` → ${suggestion.trimEnd()}`
+      : plainSuggestion.slice(plainMention.length);
     if (!suffix) {
       // Nothing to preview, but Tab may still accept (a no-op completion).
       this.clearForEntry(entry.id);
@@ -115,26 +119,23 @@ export class InlineSuggestionPresenter {
 
     let ghost: HTMLDivElement | null;
     if (useMirror && TextTargetAdapter.isTextValue(entry.elem as TextTarget)) {
-      // Replacements render in place of the typed token: WYSIWYG.
       ghost = InlineSuggestionView.renderMirrorPreview({
         target: entry.elem as HTMLInputElement | HTMLTextAreaElement,
         suffix,
         cursorOffset: snapshot.cursorOffset,
-        replacedTokenText: isReplacement ? mentionText : "",
         trailingTokenText,
         entryId: entry.id,
         doc: this.doc,
       });
     } else if (isReplacement) {
-      // Contenteditable can't hide the typed token in a floating ghost, so
-      // annotate it instead.
-      // ponytail: no mid-text contenteditable replacement preview (would need
-      // stripping the token from the cloned DOM), so Tab isn't armed there.
+      // ponytail: no mid-text contenteditable replacement preview (the clone
+      // can't show that acceptance also consumes the trailing token), so Tab
+      // isn't armed there.
       ghost = isMidText
         ? null
         : InlineSuggestionView.render({
             target: entry.elem,
-            text: ` → ${suggestion.trimEnd()}`,
+            text: suffix,
             caretRect,
             entryId: entry.id,
             doc: this.doc,

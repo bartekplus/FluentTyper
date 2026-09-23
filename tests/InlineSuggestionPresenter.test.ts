@@ -84,7 +84,7 @@ describe("InlineSuggestionPresenter", () => {
   });
 
   // Snippet expansions (#397) replace the typed shortcut instead of extending it.
-  test("previews a text expansion in place of the typed shortcut", () => {
+  test("previews a text expansion after the typed shortcut", () => {
     const { entry, render, presenter } = setupInputPresenter({
       value: "fun brb",
       token: "brb",
@@ -95,8 +95,8 @@ describe("InlineSuggestionPresenter", () => {
     render();
 
     const mirror = document.querySelector(".ft-suggestion-inline");
-    // WYSIWYG: the preview reads as the post-acceptance text.
-    expect(mirror?.textContent?.replace(/\u00a0/g, " ")).toBe("fun hello ");
+    // The typed shortcut stays visible; the expansion is annotated after it.
+    expect(mirror?.textContent?.replace(/\u00a0/g, " ")).toBe("fun brb → hello");
     expect(entry.inlineSuggestion).toBe("hello ");
     expect(entry.inlineRenderRejected).toBe(false);
     // Stop the removal observer: later tests reuse the entry id.

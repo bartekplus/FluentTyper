@@ -224,7 +224,6 @@ export class InlineSuggestionView {
     target,
     suffix,
     cursorOffset,
-    replacedTokenText = "",
     trailingTokenText = "",
     entryId,
     doc = document,
@@ -232,8 +231,6 @@ export class InlineSuggestionView {
     target: HTMLInputElement | HTMLTextAreaElement;
     suffix: string;
     cursorOffset: number;
-    /** Typed chars before the caret that acceptance replaces (a text expansion's shortcut). */
-    replacedTokenText?: string;
     trailingTokenText?: string;
     entryId?: number;
     doc?: Document;
@@ -273,7 +270,7 @@ export class InlineSuggestionView {
     // fully replaces the input's visual — the user sees the text as it
     // would look after accepting, with only the suffix ghost-styled.
     const value = target.value ?? "";
-    const beforeText = value.slice(0, cursorOffset - replacedTokenText.length);
+    const beforeText = value.slice(0, cursorOffset);
     // Skip the trailing token chars — acceptance would replace them, so
     // the preview must reflect the post-acceptance text.
     const afterText = value.slice(cursorOffset + trailingTokenText.length);

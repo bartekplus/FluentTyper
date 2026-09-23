@@ -429,7 +429,7 @@
     },
     {
       "id": "inline_text_expansion_replacement",
-      "description": "Inline mode previews a text expansion in place of its shortcut (visible even in a narrow mid-text input) and Tab inserts exactly the previewed text; a stale prediction is never accepted after further typing.",
+      "description": "Inline mode previews a text expansion after its shortcut (visible even in a narrow mid-text input) and Tab inserts exactly the previewed text; a stale prediction is never accepted after further typing.",
       "coverage": [
         {
           "layer": "e2e-full",
@@ -449,7 +449,7 @@
         {
           "layer": "unit",
           "file": "tests/InlineSuggestionPresenter.test.ts",
-          "test": "previews a text expansion in place of the typed shortcut"
+          "test": "previews a text expansion after the typed shortcut"
         }
       ]
     },

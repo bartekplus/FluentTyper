@@ -4205,9 +4205,9 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     browserTimeout(45000, 70000),
   );
 
-  // Regression for #397: a text expansion replaces its shortcut, so the
-  // preview must show the replacement (visibly, even in a narrow input) and
-  // Tab must yield exactly the previewed text.
+  // Regression for #397: a text expansion replaces its shortcut. The preview
+  // keeps the shortcut and annotates the expansion after it (visibly, even in
+  // a narrow input); Tab replaces the shortcut with the expansion.
   test(
     "Inline text expansion previews and replaces the shortcut mid-text in a narrow input",
     async () => {
@@ -4250,25 +4250,21 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
               const ghostRect = ghost.getBoundingClientRect();
               const visible =
                 ghostRect.left >= mirrorRect.left - 1 && ghostRect.right <= mirrorRect.right + 1;
-              return visible ? (mirror.textContent ?? "").replace(/ /g, " ") : false;
+              return visible ? (mirror.textContent ?? "").replace(/\u00a0/g, " ") : false;
             }),
           { timeoutMs: browserTimeout(3000, 6000), intervalMs: 50 },
         );
-        // The shortcut is replaced, not kept alongside the expansion.
-        expect(preview).not.toContain("longshortcut");
+        // The typed shortcut stays visible, with the expansion annotated after it.
+        expect(preview).toBe("longshortcutxx → OK rest");
 
         await page.keyboard.press("Tab");
-        const finalText = await waitUntil(
-          "input value after accepting the text expansion",
-          async () => {
-            const value = await page.$eval(selector, (el) =>
-              (el as HTMLInputElement).value.replace(/ /g, " "),
-            );
-            return value === preview ? value : false;
-          },
-          { timeoutMs: browserTimeout(3000, 6000), intervalMs: 50 },
+        const finalText = await waitForInputContentMatch(
+          page,
+          selector,
+          /^OK[ \xa0]+rest$/,
+          browserTimeout(3000, 6000),
         );
-        expect(finalText).toBe(preview);
+        expect(finalText).toMatch(/^OK[ \xa0]+rest$/);
       } finally {
         await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
         await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
