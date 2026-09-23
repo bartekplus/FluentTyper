@@ -224,6 +224,10 @@ export function resolveEditableCursorContext({
     typeof typedKey === "string" &&
     typedKey.length === 1 &&
     blockContext.beforeCursor === resolvedSnapshot.beforeCursor &&
+    // A key that leaked out of a freshly split empty block leaves nothing after
+    // the caret. Text there (e.g. a signature below the line) means the user
+    // is simply typing at the end of this block.
+    resolvedSnapshot.afterCursor.trim().length === 0 &&
     (resolvedSnapshot.beforeCursor.endsWith(typedKey) ||
       resolvedSnapshot.beforeCursor.endsWith(typedKey.toLocaleUpperCase()));
   if (typedKeyLooksMergedIntoPreviousBlock) {

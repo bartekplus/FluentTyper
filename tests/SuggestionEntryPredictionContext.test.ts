@@ -149,6 +149,29 @@ describe("resolveEditableCursorContext", () => {
     });
   });
 
+  function resolveAtFirstBlockEnd(afterCursor: string) {
+    return resolveEditableCursorContext({
+      entry: createSuggestionEntry({ elem: createContentEditableElement() }),
+      snapshot: { beforeCursor: "ok brb", afterCursor, cursorOffset: 6 },
+      contentEditableAdapter: createContentEditableAdapter({
+        getBlockContext: () => ({ beforeCursor: "ok brb", afterCursor: "" }),
+        isCollapsedSelectionBeforeBlockBoundary: () => true,
+      }),
+      hasMultipleBlockDescendants: true,
+      inputAction: "insert",
+      typedKey: "b",
+    });
+  }
+
+  test("keeps the whole line when typing at the end of a block followed by another block", () => {
+    // e.g. a line above an email signature: the key did not leak out of a new empty block.
+    expect(resolveAtFirstBlockEnd("-- Bart").beforeCursor).toBe("ok brb");
+  });
+
+  test("treats a key at the very end of the editor as merged from a new empty block", () => {
+    expect(resolveAtFirstBlockEnd("").beforeCursor).toBe("b");
+  });
+
   test("seeds a pending grammar replacement into block-local prediction context", () => {
     const entry = createSuggestionEntry({ elem: createContentEditableElement() });
     entry.pendingExtensionEdit = createGrammarPendingEdit({
