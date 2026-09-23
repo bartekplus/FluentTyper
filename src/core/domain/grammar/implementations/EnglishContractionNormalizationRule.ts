@@ -6,24 +6,26 @@ import {
 } from "./helpers/EnglishRuleShared";
 import { applyWordCase, detectWordCase } from "./helpers/GenericRuleShared";
 
-const ENGLISH_CONTRACTION_MAP: Record<string, string> = {
-  im: "i'm",
-  ive: "i've",
-  dont: "don't",
-  isnt: "isn't",
-  arent: "aren't",
-  wasnt: "wasn't",
-  werent: "weren't",
-  didnt: "didn't",
-  doesnt: "doesn't",
-  havent: "haven't",
-  hasnt: "hasn't",
-  hadnt: "hadn't",
-  shouldnt: "shouldn't",
-  couldnt: "couldn't",
-  wouldnt: "wouldn't",
-  mustnt: "mustn't",
-};
+const ENGLISH_CONTRACTION_MAP = new Map(
+  Object.entries({
+    im: "i'm",
+    ive: "i've",
+    dont: "don't",
+    isnt: "isn't",
+    arent: "aren't",
+    wasnt: "wasn't",
+    werent: "weren't",
+    didnt: "didn't",
+    doesnt: "doesn't",
+    havent: "haven't",
+    hasnt: "hasn't",
+    hadnt: "hadn't",
+    shouldnt: "shouldn't",
+    couldnt: "couldn't",
+    wouldnt: "wouldn't",
+    mustnt: "mustn't",
+  }),
+);
 // "ill", "cant" and "wont" are ordinary English words; expanding them corrupts
 // valid input, and no context available here disambiguates them.
 const FORCE_PRONOUN_I_PREFIX = new Set(["im", "ive"]);
@@ -47,7 +49,7 @@ export class EnglishContractionNormalizationRule implements GrammarRule {
     }
 
     const normalizedInput = tokenInfo.token.toLowerCase();
-    const canonical = ENGLISH_CONTRACTION_MAP[normalizedInput];
+    const canonical = ENGLISH_CONTRACTION_MAP.get(normalizedInput);
     if (!canonical) {
       return null;
     }
