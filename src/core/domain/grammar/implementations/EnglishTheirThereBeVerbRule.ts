@@ -28,12 +28,11 @@ export class EnglishTheirThereBeVerbRule implements GrammarRule {
       return null;
     }
 
-    const firstToken = phrase.split(/\s+/)[0] || "their";
-    const verb = match[1] || "is";
-    const style = detectWordCase(firstToken);
+    const firstToken = phrase.split(/\s+/)[0];
+    const verb = match[1];
 
     return {
-      replacement: `${applyWordCase("there", style)} ${applyWordCase(verb.toLowerCase(), detectWordCase(verb))}${boundaryContext.trailing}`,
+      replacement: `${applyWordCase("there", detectWordCase(firstToken))} ${applyWordCase(verb, detectWordCase(verb))}${boundaryContext.trailing}`,
       deleteBackwards: boundaryContext.input.length - phraseStart,
       deleteForwards: 0,
     };

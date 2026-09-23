@@ -28,10 +28,7 @@ export function normalizeDomainHost(domainOrUrl: string): string | undefined {
     }
   };
 
-  let hostName = parseHostName(trimmed);
-  if (!hostName) {
-    hostName = parseHostName(`http://${trimmed}`);
-  }
+  const hostName = parseHostName(trimmed) || parseHostName(`http://${trimmed}`);
   if (!hostName) {
     return undefined;
   }
@@ -44,8 +41,7 @@ function normalizeNumSuggestions(value: unknown): number | undefined {
   if (typeof value !== "number" || !Number.isFinite(value)) {
     return undefined;
   }
-  const integerValue = Math.round(value);
-  return Math.min(MAX_NUM_SUGGESTIONS, Math.max(0, integerValue));
+  return Math.min(MAX_NUM_SUGGESTIONS, Math.max(0, Math.round(value)));
 }
 
 function normalizeLanguage(value: unknown, enabledLanguages: string[]): string | undefined {
@@ -59,7 +55,7 @@ function normalizeLanguage(value: unknown, enabledLanguages: string[]): string |
   return enabledLanguages.includes(trimmed) ? trimmed : undefined;
 }
 
-export function sanitizeSiteProfile(
+function sanitizeSiteProfile(
   profileRaw: unknown,
   enabledLanguages: string[],
 ): SiteProfile | undefined {
@@ -114,8 +110,7 @@ export function getSiteProfileForDomain(
   if (!normalizedDomain) {
     return undefined;
   }
-  const profiles = resolveSiteProfiles(profilesRaw, enabledLanguages);
-  return profiles[normalizedDomain];
+  return resolveSiteProfiles(profilesRaw, enabledLanguages)[normalizedDomain];
 }
 
 export function setSiteProfileForDomain(

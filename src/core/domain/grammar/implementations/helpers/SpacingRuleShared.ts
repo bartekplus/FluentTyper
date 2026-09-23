@@ -1,6 +1,12 @@
 import type { GrammarEdit } from "../../types";
 import { SPACE_CHARS } from "../../../spacingRules";
 
+const OPENING_BY_CLOSING_BRACKET = new Map([
+  [")", "("],
+  ["]", "["],
+  ["}", "{"],
+]);
+
 export abstract class SpacingRuleShared {
   protected static readonly MATH_OPERATORS = new Set(["=", "+", "*"]);
   protected static readonly OPENING_BRACKETS = new Set(["(", "[", "{"]);
@@ -130,16 +136,13 @@ export abstract class SpacingRuleShared {
   }
 
   protected isEqualsRightOperandLike(ch: string | undefined): boolean {
-    if (!ch) {
-      return false;
-    }
-    if (this.isIdentifierStartChar(ch) || this.isDigit(ch)) {
-      return true;
-    }
-    if (SpacingRuleShared.QUOTE_CHARS.has(ch)) {
-      return true;
-    }
-    return SpacingRuleShared.OPENING_BRACKETS.has(ch);
+    return (
+      !!ch &&
+      (this.isIdentifierStartChar(ch) ||
+        this.isDigit(ch) ||
+        SpacingRuleShared.QUOTE_CHARS.has(ch) ||
+        SpacingRuleShared.OPENING_BRACKETS.has(ch))
+    );
   }
 
   protected isArithmeticOperatorContext(
@@ -151,15 +154,15 @@ export abstract class SpacingRuleShared {
       return false;
     }
 
-    const leftNumeric = leftOperand.kind === "number";
-    const rightNumeric = this.isDigit(rightChar);
-    if (leftNumeric || rightNumeric) {
+    if (leftOperand.kind === "number" || this.isDigit(rightChar)) {
       return true;
     }
-
-    const leftSingleIdentifier = leftOperand.kind === "identifier" && leftOperand.text.length === 1;
-    const rightSingleIdentifier = this.isIdentifierStartChar(rightChar);
-    return leftSingleIdentifier && rightSingleIdentifier;
+    // Single-letter identifiers on both sides: "a+b", "x*y".
+    return (
+      leftOperand.kind === "identifier" &&
+      leftOperand.text.length === 1 &&
+      this.isIdentifierStartChar(rightChar)
+    );
   }
 
   protected isTightlyAttached(inputStr: string, index: number): boolean {
@@ -194,16 +197,7 @@ export abstract class SpacingRuleShared {
   }
 
   protected getOpeningBracket(closingBracket: string): string | null {
-    switch (closingBracket) {
-      case ")":
-        return "(";
-      case "]":
-        return "[";
-      case "}":
-        return "{";
-      default:
-        return null;
-    }
+    return OPENING_BY_CLOSING_BRACKET.get(closingBracket) ?? null;
   }
 
   protected findMatchingOpeningIndex(

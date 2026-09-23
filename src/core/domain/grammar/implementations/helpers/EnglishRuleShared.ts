@@ -13,7 +13,7 @@ export interface EnglishBoundaryContext {
   trailing: string;
 }
 
-export interface TrailingTokenInfo {
+interface TrailingTokenInfo {
   core: string;
   trailing: string;
   token: string;
@@ -21,11 +21,11 @@ export interface TrailingTokenInfo {
   tokenEnd: number;
 }
 
-export function isEnglishLanguageContext(context: GrammarContext): boolean {
+function isEnglishLanguageContext(context: GrammarContext): boolean {
   return context.hints?.lang === "en_US";
 }
 
-export function splitTrailingDelimiters(input: string): { core: string; trailing: string } {
+function splitTrailingDelimiters(input: string): { core: string; trailing: string } {
   let coreEnd = input.length;
   while (coreEnd > 0 && TRAILING_DELIMITER_REGEX.test(input[coreEnd - 1])) {
     coreEnd -= 1;

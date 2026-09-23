@@ -7,7 +7,7 @@ const UNIT_CHAR = /[\p{L}%°Ωµμ]/u;
 const DIGIT = /[0-9]/;
 const SUPERSCRIPT = /[⁰¹²³⁴⁵⁶⁷⁸⁹⁻]/u;
 
-export interface ParsedMeasurementExpression {
+interface ParsedMeasurementExpression {
   start: number;
   numberEnd: number;
   unitStart: number;

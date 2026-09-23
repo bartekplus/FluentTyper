@@ -60,10 +60,10 @@ const ABBREVIATIONS = new Set([
   "tzv",
 ]);
 
-/** True when the period at `index` closes an initial or a known abbreviation. */
 // Locales that write ordinals as "1." inside a sentence ("der 1. und 2. Platz").
 const ORDINAL_PERIOD_LOCALES = new Set(["de_DE", "hr_HR", "pl_PL", "sv_SE"]);
 
+/** True when the period at `index` closes an initial or a known abbreviation. */
 function closesAbbreviation(text: string, index: number, lang?: string): boolean {
   let start = index;
   while (start > 0 && /[\p{L}\p{N}.]/u.test(text[start - 1])) {

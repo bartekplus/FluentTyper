@@ -9,7 +9,7 @@ export class ClosingBracketSpacingRule extends SpacingRuleShared implements Gram
 
   apply(context: GrammarContext): GrammarEdit | null {
     const inputStr = context.beforeCursor;
-    if (!inputStr || inputStr.length < 2) {
+    if (inputStr.length < 2) {
       return null;
     }
 
@@ -27,7 +27,6 @@ export class ClosingBracketSpacingRule extends SpacingRuleShared implements Gram
     if (openingChar && hasSpaceBefore && inputStr[closingIndex - 2] === openingChar) {
       return null;
     }
-    const spaceBeforeViolated = hasSpaceBefore;
     // "[label](url)": a link target may follow "]", and once a space is in,
     // "see [1] (the paper)" cannot be told from it. So "]" gets no space.
     const insertSpaceAfter =
@@ -36,17 +35,17 @@ export class ClosingBracketSpacingRule extends SpacingRuleShared implements Gram
       this.isProseLikeClosingContext(inputStr, closingBracket, closingIndex);
 
     const inputAction = resolveInputAction(context);
-    if (inputAction === "delete" && !spaceBeforeViolated && insertSpaceAfter) {
+    if (inputAction === "delete" && !hasSpaceBefore && insertSpaceAfter) {
       return null;
     }
 
-    if (!spaceBeforeViolated && !insertSpaceAfter) {
+    if (!hasSpaceBefore && !insertSpaceAfter) {
       return null;
     }
 
     return this.createEdit(
       `${closingBracket}${insertSpaceAfter ? " " : ""}`,
-      spaceBeforeViolated ? 2 : 1,
+      hasSpaceBefore ? 2 : 1,
     );
   }
 
@@ -69,24 +68,16 @@ export class ClosingBracketSpacingRule extends SpacingRuleShared implements Gram
 
     if (openingIndex === null) {
       const previousChar = this.findPreviousSignificantChar(inputStr, closingIndex - 1);
-      if (!previousChar) {
-        return true;
-      }
-      return !this.isLikelyCodeContinuationChar(previousChar);
+      return !previousChar || !this.isLikelyCodeContinuationChar(previousChar);
     }
 
     if (openingIndex === 0) {
       return true;
     }
 
-    const charBeforeOpening = inputStr[openingIndex - 1];
-    if (SPACE_CHARS.includes(charBeforeOpening)) {
-      if (openingBracket === "(" && this.isControlKeywordBeforeIndex(inputStr, openingIndex)) {
-        return false;
-      }
-      return true;
-    }
-
-    return false;
+    return (
+      SPACE_CHARS.includes(inputStr[openingIndex - 1]) &&
+      !(openingBracket === "(" && this.isControlKeywordBeforeIndex(inputStr, openingIndex))
+    );
   }
 }

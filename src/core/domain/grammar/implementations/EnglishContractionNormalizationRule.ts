@@ -46,11 +46,11 @@ export class EnglishContractionNormalizationRule implements GrammarRule {
       return null;
     }
 
-    const canonical = ENGLISH_CONTRACTION_MAP[tokenInfo.token.toLowerCase()];
+    const normalizedInput = tokenInfo.token.toLowerCase();
+    const canonical = ENGLISH_CONTRACTION_MAP[normalizedInput];
     if (!canonical) {
       return null;
     }
-    const normalizedInput = tokenInfo.token.toLowerCase();
     // "Jony Ive", "Ada Ill": a capitalized token following another capitalized
     // word is a name, not a contraction someone forgot an apostrophe in.
     if (/^[A-Z][a-z]/.test(tokenInfo.token)) {
@@ -74,10 +74,7 @@ export class EnglishContractionNormalizationRule implements GrammarRule {
     }
 
     let normalizedToken = applyWordCase(canonical, detectWordCase(tokenInfo.token));
-    if (
-      FORCE_PRONOUN_I_PREFIX.has(normalizedInput) &&
-      tokenInfo.token !== tokenInfo.token.toUpperCase()
-    ) {
+    if (FORCE_PRONOUN_I_PREFIX.has(normalizedInput)) {
       normalizedToken = `I${normalizedToken.slice(1)}`;
     }
     if (normalizedToken === tokenInfo.token) {

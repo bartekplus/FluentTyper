@@ -19,7 +19,7 @@ function getCurrentDateTime(lang: string): DateTime {
   return now;
 }
 
-export interface DateTimeVariables {
+interface DateTimeVariables {
   time: (lang: string, format?: string) => string;
   date: (lang: string, format?: string, dateMath?: string) => string;
   datetime: (lang: string, format?: string, dateMath?: string) => string;
@@ -34,51 +34,31 @@ function applyDateMath(now: DateTime, mathArg?: string): DateTime {
     return now;
   }
 
-  const sign = match[1] === "+" ? 1 : -1;
-  const amount = parseInt(match[2], 10) * sign;
-  const unitChar = match[3];
-
-  let unit: string = "days";
-  if (unitChar === "d") {
-    unit = "days";
-  } else if (unitChar === "w") {
-    unit = "weeks";
-  } else if (unitChar === "m") {
-    unit = "months";
-  } else if (unitChar === "y") {
-    unit = "years";
-  }
-
+  const amount = parseInt(match[2], 10) * (match[1] === "+" ? 1 : -1);
+  const unit = { d: "days", w: "weeks", m: "months", y: "years" }[
+    match[3] as "d" | "w" | "m" | "y"
+  ];
   return now.plus({ [unit]: amount });
 }
 
+function formatDateTime(
+  now: DateTime,
+  format: string | undefined,
+  fallback: Intl.DateTimeFormatOptions,
+): string {
+  return format ? now.toFormat(format) : now.toLocaleString(fallback);
+}
+
 export const DATE_TIME_VARIABLES: DateTimeVariables = {
-  time: (lang: string, format?: string): string => {
-    const now = getCurrentDateTime(lang);
-
-    if (format) {
-      return now.toFormat(format);
-    }
-    return now.toLocaleString(DateTime.TIME_SIMPLE);
-  },
-  date: (lang: string, format?: string, dateMath?: string): string => {
-    let now = getCurrentDateTime(lang);
-    now = applyDateMath(now, dateMath);
-
-    if (format) {
-      return now.toFormat(format);
-    }
-    return now.toLocaleString(DateTime.DATE_SHORT);
-  },
-  datetime: (lang: string, format?: string, dateMath?: string): string => {
-    let now = getCurrentDateTime(lang);
-    now = applyDateMath(now, dateMath);
-
-    if (format) {
-      return now.toFormat(format);
-    }
-    return now.toLocaleString(DateTime.DATETIME_SHORT);
-  },
+  time: (lang, format) => formatDateTime(getCurrentDateTime(lang), format, DateTime.TIME_SIMPLE),
+  date: (lang, format, dateMath) =>
+    formatDateTime(applyDateMath(getCurrentDateTime(lang), dateMath), format, DateTime.DATE_SHORT),
+  datetime: (lang, format, dateMath) =>
+    formatDateTime(
+      applyDateMath(getCurrentDateTime(lang), dateMath),
+      format,
+      DateTime.DATETIME_SHORT,
+    ),
 };
 
 export function resolveDynamicVariable(
@@ -107,10 +87,7 @@ export function resolveDynamicVariable(
   }
   if (varName === "random" && arg) {
     const options = arg.split("|");
-    if (options.length > 0) {
-      const randomIndex = Math.floor(Math.random() * options.length);
-      return options[randomIndex];
-    }
+    return options[Math.floor(Math.random() * options.length)];
   }
 
   return undefined;

@@ -83,9 +83,6 @@ export class RecapPolicy {
       currentWeekStart.getMonth(),
       currentWeekStart.getDate(),
       WEEKLY_RECAP_REVEAL_HOUR,
-      0,
-      0,
-      0,
     );
 
     return now >= revealAt;

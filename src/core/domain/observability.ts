@@ -22,7 +22,7 @@ export const OBSERVABILITY_MODULE_IDS = [
   "RuntimeTestHooks",
 ] as const;
 
-export type ObservabilityModuleId = (typeof OBSERVABILITY_MODULE_IDS)[number];
+type ObservabilityModuleId = (typeof OBSERVABILITY_MODULE_IDS)[number];
 
 export interface ObservabilityModuleOverride {
   enabled?: boolean;
@@ -33,10 +33,6 @@ export interface ObservabilityConfig {
   enabled: boolean;
   defaultLevel: LogLevel;
   moduleOverrides: Partial<Record<ObservabilityModuleId, ObservabilityModuleOverride>>;
-}
-
-export interface ObservabilityEventContext {
-  [key: string]: unknown;
 }
 
 export interface ObservabilityEvent {
@@ -51,7 +47,7 @@ export interface ObservabilityEvent {
   tabId?: number;
   frameId?: number;
   suggestionId?: number;
-  context?: ObservabilityEventContext;
+  context?: Record<string, unknown>;
 }
 
 export interface ObservabilityModuleState {
@@ -73,8 +69,6 @@ export interface ObservabilityContentRuntimeStatus {
   updatedAt: number;
 }
 
-export type ObservabilityAutoLanguageRuntimeStatus = ObservabilityContentRuntimeStatus;
-
 export interface ObservabilitySummary {
   totalEvents: number;
   eventsByLevel: Record<LogLevel, number>;
@@ -92,7 +86,7 @@ export interface ObservabilitySnapshot {
   events: ObservabilityEvent[];
   predictor: unknown;
   contentRuntimes: ObservabilityContentRuntimeStatus[];
-  autoLanguageRuntimes: ObservabilityAutoLanguageRuntimeStatus[];
+  autoLanguageRuntimes: ObservabilityContentRuntimeStatus[];
 }
 
 export function isLogLevel(value: unknown): value is LogLevel {
