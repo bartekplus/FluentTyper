@@ -1,9 +1,5 @@
 import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "../types";
-import {
-  isLikelyCodeLikeContext,
-  resolveEnglishBoundaryContext,
-  resolveUserDictionarySet,
-} from "./helpers/EnglishRuleShared";
+import { matchTrailingEnglishPhrase, resolveUserDictionarySet } from "./helpers/EnglishRuleShared";
 import { detectWordCase, normalizeWordSet } from "./helpers/GenericRuleShared";
 
 const ALOT_REGEX = /\balot$/i;
@@ -19,21 +15,12 @@ export class EnglishAlotCorrectionRule implements GrammarRule {
   }
 
   apply(context: GrammarContext): GrammarEdit | null {
-    const boundaryContext = resolveEnglishBoundaryContext(context);
-    if (!boundaryContext) {
+    const matched = matchTrailingEnglishPhrase(context, ALOT_REGEX);
+    if (!matched) {
       return null;
     }
-
-    const match = boundaryContext.core.match(ALOT_REGEX);
-    if (!match) {
-      return null;
-    }
-
+    const { boundary: boundaryContext, match, phraseStart } = matched;
     const phrase = match[0];
-    const phraseStart = boundaryContext.core.length - phrase.length;
-    if (isLikelyCodeLikeContext(boundaryContext.core, phraseStart, boundaryContext.core.length)) {
-      return null;
-    }
 
     const dictionarySet = resolveUserDictionarySet(context, this.fallbackUserDictionary);
     if (dictionarySet.has("alot")) {

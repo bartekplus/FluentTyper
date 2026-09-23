@@ -123,6 +123,29 @@ export function isLikelyCodeLikeContext(
   return false;
 }
 
+/**
+ * Boundary context + trailing `regex` match on its core, rejected when the
+ * matched phrase sits in a code-like context.
+ */
+export function matchTrailingEnglishPhrase(
+  context: GrammarContext,
+  regex: RegExp,
+): { boundary: EnglishBoundaryContext; match: RegExpMatchArray; phraseStart: number } | null {
+  const boundary = resolveEnglishBoundaryContext(context);
+  if (!boundary) {
+    return null;
+  }
+  const match = boundary.core.match(regex);
+  if (!match) {
+    return null;
+  }
+  const phraseStart = boundary.core.length - match[0].length;
+  if (isLikelyCodeLikeContext(boundary.core, phraseStart, boundary.core.length)) {
+    return null;
+  }
+  return { boundary, match, phraseStart };
+}
+
 export function resolveUserDictionarySet(
   context: GrammarContext,
   fallbackSet: Set<string>,

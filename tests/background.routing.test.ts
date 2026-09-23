@@ -1060,6 +1060,17 @@ describe("background routing and lifecycle", () => {
     );
     expect(unknown).toBe(false);
     expect(harness.logError).toHaveBeenCalledWith("onMessage", "Unknown command: UNKNOWN");
+
+    const unrouted = harness.onMessage(
+      { command: "CMD_POPUP_PAGE_ENABLE", context: {} },
+      {} as chrome.runtime.MessageSender,
+      jest.fn(),
+    );
+    expect(unrouted).toBe(false);
+    expect(harness.logError).toHaveBeenCalledWith(
+      "onMessage",
+      "Unknown command: CMD_POPUP_PAGE_ENABLE",
+    );
     expect(harness.checkLastError).toHaveBeenCalled();
   });
 

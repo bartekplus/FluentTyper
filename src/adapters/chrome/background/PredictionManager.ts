@@ -1,7 +1,11 @@
 import { randomUUID } from "@core/domain/randomId";
 import type { PresageModule } from "./PresageTypes";
 import { PresageHandler } from "./PresageHandler";
-import { PredictionOrchestrator, type PredictionConfig } from "./PredictionOrchestrator";
+import {
+  PredictionOrchestrator,
+  type PredictionConfig,
+  type PredictorDebugConfig,
+} from "./PredictionOrchestrator";
 import type {
   AIPredictorStageDebugInfo,
   PredictionDebugEvent,
@@ -45,13 +49,7 @@ interface PredictorDebugTrace extends PredictionDebugEvent {
 
 export interface PredictorDebugSnapshot {
   generatedAtMs: number;
-  config: {
-    aiPredictorEnabled: boolean;
-    aiModelId: string;
-    aiPredictionTimeoutMs: number;
-    debugPresagePredictorEnabled: boolean;
-    debugAIPredictorEnabled: boolean;
-  };
+  config: PredictorDebugConfig;
   runtime: {
     presage: {
       languageEngineCount: number;

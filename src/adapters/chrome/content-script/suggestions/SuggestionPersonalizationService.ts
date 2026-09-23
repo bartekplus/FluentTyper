@@ -1,6 +1,7 @@
 import { CMD_CONTENT_SCRIPT_PERSONALIZATION_EVENT } from "@core/domain/constants";
 import type { ContentScriptPersonalizationEventMessage } from "@core/domain/messageTypes";
 import { randomUUID } from "@core/domain/randomId";
+import { sendFireAndForget } from "./sendFireAndForget";
 import type { SuggestionPersonalization } from "./types";
 
 interface SuggestionPersonalizationServiceOptions {
@@ -54,16 +55,6 @@ export class SuggestionPersonalizationService implements SuggestionPersonalizati
   }
 
   private emit(message: ContentScriptPersonalizationEventMessage): void {
-    try {
-      this.sendMessage(message, () => {
-        try {
-          void this.readLastError();
-        } catch {
-          // Ignore runtime teardown.
-        }
-      });
-    } catch {
-      // A suspended or reloading background must never break suggestion acceptance.
-    }
+    sendFireAndForget(this.sendMessage, this.readLastError, message);
   }
 }

@@ -4,9 +4,9 @@ import {
   findLineEditorController,
   readLineEditorBlockContext,
   readLineEditorCursor,
+  syncBackingSelection,
   type LineEditorBlockContext,
   type LineEditorController,
-  type LineEditorCursor,
 } from "./HostEditorControllerUtils";
 import type { PostEditFingerprint } from "./types";
 
@@ -152,7 +152,7 @@ class LineEditorHostSession implements HostEditorSession {
       run();
     }
 
-    this.syncBackingSelection(selection);
+    syncBackingSelection(this.controller, this.backingTarget, selection);
     this.controller.focus?.();
 
     return { applied: true, didDispatchInput: false };
@@ -160,25 +160,5 @@ class LineEditorHostSession implements HostEditorSession {
 
   public createPostEditFingerprint(): PostEditFingerprint {
     return TextTargetAdapter.createPostEditFingerprint(this.backingTarget ?? this.elem);
-  }
-
-  private syncBackingSelection(position: LineEditorCursor): void {
-    const target = this.backingTarget;
-    if (!target) {
-      return;
-    }
-    const absoluteIndex = this.controller.indexFromPos(position);
-    if (!Number.isFinite(absoluteIndex)) {
-      return;
-    }
-    const selectionIndex = Math.max(0, Math.trunc(absoluteIndex));
-    if (selectionIndex > target.value.length) {
-      return;
-    }
-    try {
-      target.setSelectionRange(selectionIndex, selectionIndex);
-    } catch {
-      // Ignore selection sync failures on host-owned hidden inputs.
-    }
   }
 }

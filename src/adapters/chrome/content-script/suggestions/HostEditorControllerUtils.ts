@@ -94,3 +94,27 @@ export function readLineEditorBlockContext(
     blockText,
   };
 }
+
+/** Mirrors the editor caret onto the hidden backing input/textarea, if any. */
+export function syncBackingSelection(
+  controller: LineEditorController,
+  target: HTMLInputElement | HTMLTextAreaElement | null,
+  selection: LineEditorCursor,
+): void {
+  if (!target) {
+    return;
+  }
+  const absoluteIndex = controller.indexFromPos(selection);
+  if (!Number.isFinite(absoluteIndex)) {
+    return;
+  }
+  const selectionIndex = Math.max(0, Math.trunc(absoluteIndex));
+  if (selectionIndex > target.value.length) {
+    return;
+  }
+  try {
+    target.setSelectionRange(selectionIndex, selectionIndex);
+  } catch {
+    // Ignore selection sync failures on hidden backing inputs.
+  }
+}

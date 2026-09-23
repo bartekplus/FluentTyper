@@ -1,8 +1,5 @@
 import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "../types";
-import {
-  isLikelyCodeLikeContext,
-  resolveEnglishBoundaryContext,
-} from "./helpers/EnglishRuleShared";
+import { matchTrailingEnglishPhrase } from "./helpers/EnglishRuleShared";
 import { applyWordCase, detectWordCase } from "./helpers/GenericRuleShared";
 
 const MODAL_OF_REGEX = /\b(could|would|should|must)\s+of\s+([A-Za-z]+)$/i;
@@ -44,24 +41,14 @@ export class EnglishModalOfCorrectionRule implements GrammarRule {
   readonly triggers: GrammarEventType[] = ["wordBoundary"];
 
   apply(context: GrammarContext): GrammarEdit | null {
-    const boundaryContext = resolveEnglishBoundaryContext(context);
-    if (!boundaryContext) {
+    const matched = matchTrailingEnglishPhrase(context, MODAL_OF_REGEX);
+    if (!matched) {
       return null;
     }
-
-    const match = boundaryContext.core.match(MODAL_OF_REGEX);
-    if (!match) {
-      return null;
-    }
-
-    const phrase = match[0];
+    const { boundary: boundaryContext, match, phraseStart } = matched;
     const modal = match[1];
     const following = match[2];
     if (OF_IDIOMS.has(following.toLowerCase())) {
-      return null;
-    }
-    const phraseStart = boundaryContext.core.length - phrase.length;
-    if (isLikelyCodeLikeContext(boundaryContext.core, phraseStart, boundaryContext.core.length)) {
       return null;
     }
 

@@ -34,14 +34,10 @@ export interface PredictionConfig extends PresageConfig {
   debugAIPredictorEnabled?: boolean;
 }
 
+export type PredictorDebugConfig = Required<Omit<PredictionConfig, keyof PresageConfig>>;
+
 interface PredictionOrchestratorDebugState {
-  predictorConfig: {
-    aiPredictorEnabled: boolean;
-    aiModelId: string;
-    aiPredictionTimeoutMs: number;
-    debugPresagePredictorEnabled: boolean;
-    debugAIPredictorEnabled: boolean;
-  };
+  predictorConfig: PredictorDebugConfig;
 }
 
 export class PredictionOrchestrator {

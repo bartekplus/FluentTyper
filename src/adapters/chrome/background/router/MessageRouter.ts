@@ -28,7 +28,7 @@ import type {
   PredictRequestMessage,
   UpdateLangConfigMessage,
 } from "@core/domain/messageTypes";
-import { isMessageCommand, parseRuntimeMessage } from "@core/domain/contracts/messages";
+import { parseRuntimeMessage } from "@core/domain/contracts/messages";
 import { getDomain, isEnabledForDomain } from "@core/application/domain-utils";
 import { checkLastError } from "@core/application/transport-utils";
 import {
@@ -73,16 +73,6 @@ type RoutedMessage = Extract<Message, { command: RoutedMessageCommand }>;
 type RoutedMessageByCommand = {
   [TCommand in RoutedMessageCommand]: Extract<RoutedMessage, { command: TCommand }>;
 };
-
-const ROUTED_MESSAGE_COMMAND_SET = new Set<string>(ROUTED_MESSAGE_COMMANDS);
-
-function isRoutedMessageCommand(command: string): command is RoutedMessageCommand {
-  return isMessageCommand(command) && ROUTED_MESSAGE_COMMAND_SET.has(command);
-}
-
-function isRoutedMessage(message: Message): message is RoutedMessage {
-  return isRoutedMessageCommand(message.command);
-}
 
 interface MessageDispatchPayload {
   request: RoutedMessage;
@@ -231,19 +221,20 @@ export class MessageRouter {
     }
     const runtimeMessage = parsedRequest.value;
 
-    if (!isRoutedMessage(runtimeMessage)) {
-      logError("onMessage", `Unknown command: ${runtimeMessage.command}`);
+    const { command } = runtimeMessage;
+    if (!this.registry.has(command)) {
+      logError("onMessage", `Unknown command: ${command}`);
       return false;
     }
 
-    void this.registry.dispatch(runtimeMessage.command, {
-      request: runtimeMessage,
+    void this.registry.dispatch(command, {
+      request: runtimeMessage as RoutedMessage,
       sender,
       sendResponse,
       worker: this.getWorker(),
     });
 
-    return runtimeMessage.command !== CMD_CONTENT_SCRIPT_PREDICT_REQ;
+    return command !== CMD_CONTENT_SCRIPT_PREDICT_REQ;
   }
 
   private respondOk(sendResponse: (response?: unknown) => void): void {

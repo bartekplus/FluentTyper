@@ -3,6 +3,7 @@ import type {
   ContentScriptUsageEventContext,
   ContentScriptUsageEventMessage,
 } from "@core/domain/messageTypes";
+import { sendFireAndForget } from "./sendFireAndForget";
 import type { SuggestionTelemetry } from "./types";
 
 interface SuggestionTelemetryServiceOptions {
@@ -68,16 +69,9 @@ export class SuggestionTelemetryService implements SuggestionTelemetry {
   }
 
   private emitUsageEvent(context: ContentScriptUsageEventContext): void {
-    try {
-      this.sendMessage({ command: CMD_CONTENT_SCRIPT_USAGE_EVENT, context }, () => {
-        try {
-          void this.readLastError();
-        } catch {
-          // Ignore runtime teardown.
-        }
-      });
-    } catch {
-      // A suspended or reloading background must never break suggestions.
-    }
+    sendFireAndForget(this.sendMessage, this.readLastError, {
+      command: CMD_CONTENT_SCRIPT_USAGE_EVENT,
+      context,
+    });
   }
 }

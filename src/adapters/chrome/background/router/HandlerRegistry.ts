@@ -15,6 +15,10 @@ export class HandlerRegistry<TCommand extends string, TPayload> {
     this.handlers.set(command, handler);
   }
 
+  has(command: string): command is TCommand {
+    return this.handlers.has(command as TCommand);
+  }
+
   async dispatch(command: TCommand, payload: TPayload): Promise<void> {
     this.logger.debug("Dispatching command", { command });
     try {

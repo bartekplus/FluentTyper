@@ -10,8 +10,8 @@ import {
   findLineEditorController,
   readLineEditorBlockContext,
   readLineEditorCursor,
+  syncBackingSelection,
   type LineEditorController,
-  type LineEditorCursor,
 } from "./HostEditorControllerUtils";
 
 type BridgeRequest =
@@ -450,30 +450,6 @@ function findBackingTextValueTarget(
     : null;
 }
 
-function syncBackingSelection(
-  controller: LineEditorController,
-  elem: HTMLElement,
-  selection: LineEditorCursor,
-): void {
-  const target = findBackingTextValueTarget(elem);
-  if (!target) {
-    return;
-  }
-  const absoluteIndex = controller.indexFromPos(selection);
-  if (!Number.isFinite(absoluteIndex)) {
-    return;
-  }
-  const selectionIndex = Math.max(0, Math.trunc(absoluteIndex));
-  if (selectionIndex > target.value.length) {
-    return;
-  }
-  try {
-    target.setSelectionRange(selectionIndex, selectionIndex);
-  } catch {
-    // Ignore selection sync failures on hidden backing inputs.
-  }
-}
-
 function applyBlockReplacement(
   controller: LineEditorController,
   elem: HTMLElement,
@@ -514,7 +490,7 @@ function applyBlockReplacement(
     run();
   }
 
-  syncBackingSelection(controller, elem, selection);
+  syncBackingSelection(controller, findBackingTextValueTarget(elem), selection);
   controller.focus?.();
 
   return APPLIED;
