@@ -13,7 +13,8 @@ const APOSTROPHE = "’";
 
 export class SmartQuoteNormalizationRule implements GrammarRule {
   readonly id = "smartQuoteNormalization" as const;
-  readonly triggers: GrammarEventType[] = ["insertChar"];
+  // A typed space arrives as a word boundary; see closeNestedQuote.
+  readonly triggers: GrammarEventType[] = ["insertChar", "wordBoundary"];
 
   apply(context: GrammarContext): GrammarEdit | null {
     if (isDeleteInputAction(context) || context.hints?.measurementContext === "protected") {
@@ -29,6 +30,11 @@ export class SmartQuoteNormalizationRule implements GrammarRule {
     const [doubleOpen, doubleClose] = profile.double;
     const [singleOpen, singleClose] = profile.single;
     const pad = profile.quoteSpace;
+
+    const nestedClose = closeNestedQuote(input, singleOpen, singleClose);
+    if (nestedClose) {
+      return nestedClose;
+    }
 
     const typed = input.charAt(input.length - 1);
     if (typed !== '"' && typed !== "'") {
@@ -60,15 +66,12 @@ export class SmartQuoteNormalizationRule implements GrammarRule {
         replacement = shouldOpenQuote(beforeQuote) ? `${doubleOpen}${pad}` : `${pad}${doubleClose}`;
       }
     } else {
-      const balance = quoteBalance(beforeQuote, typed, singleOpen, singleClose);
-      if (balance === null) {
+      if (quoteBalance(beforeQuote, typed, singleOpen, singleClose) === null) {
         return null;
       }
       if (isLikelyApostropheContext(beforeQuote)) {
-        // ponytail: where the closer is not the apostrophe (de, pl, fr), a word
-        // ending inside an open nested quote closes it, so "‚Peter's" loses its
-        // apostrophe. Looking at the next typed character would settle it.
-        replacement = balance > 0 ? singleClose : APOSTROPHE;
+        // Where the nested closer differs, closeNestedQuote decides once the word ends.
+        replacement = APOSTROPHE;
       } else {
         replacement = shouldOpenQuote(beforeQuote) ? singleOpen : singleClose;
       }
@@ -84,6 +87,22 @@ export class SmartQuoteNormalizationRule implements GrammarRule {
       deleteForwards: 0,
     };
   }
+}
+
+/**
+ * Where the nested closer is not the apostrophe (de, pl, fr), "’" after a word
+ * is only known to close an open nested quote once a non-word character follows
+ * it: "'c'est bon'" is “c’est bon”. The typed character is kept for the engine's
+ * next pass, which may convert it too.
+ */
+function closeNestedQuote(input: string, open: string, close: string): GrammarEdit | null {
+  if (close === APOSTROPHE || !/[\p{L}\p{N}]’[^\p{L}\p{N}’]$/u.test(input)) {
+    return null;
+  }
+  if ((quoteBalance(input.slice(0, -2), "'", open, close) ?? 0) === 0) {
+    return null;
+  }
+  return { replacement: `${close}${input.slice(-1)}`, deleteBackwards: 2, deleteForwards: 0 };
 }
 
 /**
@@ -119,7 +138,7 @@ function quoteBalance(input: string, straight: string, open: string, close: stri
 }
 
 function endsWithLikelyQuoteContent(input: string): boolean {
-  return /[\p{L}\p{N}\])}»›”’!?.,:;]$/u.test(input);
+  return /[\p{L}\p{N}\])}»›”’“‘!?.,:;]$/u.test(input);
 }
 
 function isWordChar(value: string): boolean {

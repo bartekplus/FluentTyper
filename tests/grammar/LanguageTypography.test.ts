@@ -89,6 +89,39 @@ describe("language-aware typography preset", () => {
     expect(type("Hallo! Warum? ", "de_DE")).toBe("Hallo! Warum? ");
   });
 
+  test.each([
+    ["fr_FR", "Il dit 'c'est bon' ", "Il dit “c’est bon” "],
+    ["pl_PL", "Nazwa 'McDonald's' ", "Nazwa «McDonald’s» "],
+    ["de_DE", "Er sagt 'Peter's Haus' ", "Er sagt ‚Peter’s Haus‘ "],
+    ["de_DE", "Er sagt 'Wort'. ", "Er sagt ‚Wort‘. "],
+  ])("%s keeps in-word apostrophes inside nested quotes: %s", (lang, input, expected) => {
+    expect(type(input, lang)).toBe(expected);
+  });
+
+  test("a trailing space before the outer closer closes it after a nested quote", () => {
+    expect(type("Er sagt \"ein 'Wort' \"", "de_DE")).toBe("Er sagt „ein ‚Wort‘“");
+  });
+
+  test.each([
+    ["de_DE", 'Er sagt "hallo!" danach ', "Er sagt „hallo!“ Danach "],
+    ["pl_PL", "Mówi 'dobrze!' potem ", "Mówi «dobrze!» Potem "],
+    ["en_US", 'She said "hi!" then ', "She said “hi!” Then "],
+    ["fr_FR", 'Il dit "bonjour!" ensuite ', `Il dit «${NBSP}bonjour${NNBSP}!${NBSP}» Ensuite `],
+  ])("%s capitalizes a sentence after its closing quote: %s", (lang, input, expected) => {
+    expect(type(input, lang)).toBe(expected);
+  });
+
+  test("French spacing keeps URLs after delimiters and HTML character references", () => {
+    expect(type("Voir (https://exemple.fr) ", "fr_FR")).toBe("Voir (https://exemple.fr) ");
+    expect(type("Voir [ici](https://exemple.fr) ", "fr_FR")).toBe(
+      "Voir [ici](https://exemple.fr) ",
+    );
+    for (const reference of ["&nbsp;", "&amp;", "&#160;", "&#xA0;"]) {
+      expect(type(`Entité ${reference} `, "fr_FR")).toBe(`Entité ${reference} `);
+    }
+    expect(type("Oui; enfin ", "fr_FR")).toBe(`Oui${NNBSP}; enfin `);
+  });
+
   test("straight quotes stay straight in code and protected contexts", () => {
     expect(type('Run `echo "hi"` now', "en_US")).toBe('Run `echo "hi"` now');
     expect(type('Set x = "a"', "de_DE")).toBe('Set x = "a"');

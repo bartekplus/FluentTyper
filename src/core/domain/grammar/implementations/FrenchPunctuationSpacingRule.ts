@@ -1,7 +1,6 @@
 import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "../types";
 import { NBSP, NNBSP, usesFrenchPunctuationSpacing } from "../typographyProfiles";
 import {
-  getLastToken,
   isDeleteInputAction,
   shouldSkipGenericReplacement,
   splitTrailingSpaces,
@@ -10,9 +9,11 @@ import { isInsideProtectedSpan } from "./helpers/ProtectedSpanShared";
 
 // Only after a word, number or closing mark, so "?!" stays together and ":)" is left alone.
 const SPACED_AFTER_REGEX = /[\p{L}\p{N}»)\]’”]$/u;
-// "https:" is a URL still being typed, not a sentence.
+// "https:" is a URL still being typed, also as "(https:" or "[ici](https:".
 // ponytail: fixed scheme list; "localhost:3000" in prose still gets a space.
-const URL_SCHEME_REGEX = /^(?:https?|ftps?|mailto|file|tel|data)$/i;
+const URL_SCHEME_REGEX = /(?:^|[^\p{L}\p{N}])(?:https?|ftps?|mailto|file|tel|data)$/iu;
+// "&nbsp;", "&#160;", "&#xA0;": the semicolon ends an HTML character reference.
+const CHARACTER_REFERENCE_REGEX = /&(?:[a-z][a-z\d]*|#\d+|#x[\da-f]+)$/i;
 
 /**
  * France-style spacing: a no-break space before ":" and a narrow no-break space
@@ -47,7 +48,8 @@ export class FrenchPunctuationSpacingRule implements GrammarRule {
       return null;
     }
     if (
-      (typed === ":" && URL_SCHEME_REGEX.test(getLastToken(core))) ||
+      (typed === ":" && URL_SCHEME_REGEX.test(core)) ||
+      (typed === ";" && CHARACTER_REFERENCE_REGEX.test(core)) ||
       shouldSkipGenericReplacement(core) ||
       isInsideProtectedSpan(core)
     ) {
