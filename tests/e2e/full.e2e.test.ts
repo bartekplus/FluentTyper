@@ -4388,7 +4388,12 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
                 ?.textContent,
             };
           }, selector);
-          throw new Error(`${String(error)} ${JSON.stringify(diagnostics)}`, { cause: error });
+          const optionsPage = await openOptionsPage(browser, worker!);
+          const traces = (await getPredictorDebugSnapshot(optionsPage)).traces?.slice(-3);
+          await optionsPage.close();
+          throw new Error(`${String(error)} ${JSON.stringify({ ...diagnostics, traces })}`, {
+            cause: error,
+          });
         }
 
         await page.keyboard.press("Tab");
