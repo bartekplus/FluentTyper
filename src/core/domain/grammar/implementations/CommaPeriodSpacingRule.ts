@@ -92,9 +92,15 @@ export class CommaPeriodSpacingRule extends SpacingRuleShared implements Grammar
     // is left untouched, so its space survives. Inside code or a string
     // literal (`x = ", "`) that space is content, so fail closed there.
     if (lastChar === '"' || lastChar === "”") {
+      const prefix = inputStr.slice(0, -1);
+      // The span helper treats any quote after "," or ":" as a string literal,
+      // which is also ordinary dialogue (He said, "Hi,"). Only trust it where
+      // the paragraph looks like code or sits in a fence.
+      const paragraph = prefix.slice(prefix.lastIndexOf("\n") + 1);
+      const codeLike = /[=({[;`]/.test(paragraph) || /```|~~~/.test(prefix);
       if (
         context.hints?.measurementContext === "protected" ||
-        isInsideProtectedSpan(inputStr.slice(0, -1)) ||
+        (codeLike && isInsideProtectedSpan(prefix)) ||
         !isClosingQuote(inputStr, length - 1, lastChar)
       ) {
         return null;
