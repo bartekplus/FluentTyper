@@ -449,14 +449,9 @@ export class SuggestionPositioningService {
     measurementRoot.appendChild(measurementContainer);
 
     try {
-      const probeComputedStyle = window.getComputedStyle(probe);
-      const resolvedValue =
-        property === "font-size"
-          ? probeComputedStyle.fontSize
-          : property === "padding-top"
-            ? probeComputedStyle.paddingTop
-            : probeComputedStyle.paddingLeft;
-      const resolvedPx = Number.parseFloat(resolvedValue);
+      const resolvedPx = Number.parseFloat(
+        window.getComputedStyle(probe).getPropertyValue(property),
+      );
       return Number.isFinite(resolvedPx) ? resolvedPx : null;
     } finally {
       measurementContainer.remove();

@@ -1857,6 +1857,28 @@ describe("SuggestionManagerRuntime", () => {
       expect(getManualAttachButton(host)).toBeNull();
     });
 
+    test("positions the shadow-hosted manual attach icon in viewport coordinates", () => {
+      const runtime = makeRuntime();
+      const host = document.createElement("div");
+      document.body.appendChild(host);
+      const shadow = host.attachShadow({ mode: "open" });
+      const list = document.createElement("datalist");
+      list.id = "cities";
+      const shadowInput = document.createElement("input");
+      shadowInput.type = "text";
+      shadowInput.setAttribute("list", "cities");
+      shadow.append(list, shadowInput);
+      mockRect(host, { left: 500, top: 500, width: 10, height: 10 });
+      mockRect(shadowInput, { left: 100, top: 50, width: 200, height: 30 });
+
+      runtime.queryAndAttachHelper();
+
+      const container = getManualAttachContainer(shadow);
+      expect(container?.style.position).toBe("fixed");
+      expect(container?.style.left).toBe("274px");
+      expect(container?.style.top).toBe("56px");
+    });
+
     test("uses dark surface styling for a shadow-hosted conflicting field on a dark host", () => {
       const runtime = makeRuntime();
       const host = document.createElement("div");

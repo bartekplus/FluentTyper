@@ -199,6 +199,33 @@ describe("SuggestionPositioningService", () => {
     expect(mixedMenu.style.getPropertyValue("--ft-font-size")).toBe("12px");
   });
 
+  test("measures other theme length units through the matching computed property", () => {
+    const service = new SuggestionPositioningService();
+    const pxMenu = document.createElement("div");
+    const measuredMenu = document.createElement("div");
+    const input = document.createElement("input");
+    input.style.fontSize = "16px";
+    document.body.appendChild(input);
+    const setTheme = (fontSize: string, padY: string, padX: string) => {
+      const rootStyle = document.documentElement.style;
+      rootStyle.setProperty("--ft-theme-suggestion-font-size", fontSize);
+      rootStyle.setProperty("--ft-theme-suggestion-padding-vertical", padY);
+      rootStyle.setProperty("--ft-theme-suggestion-padding-horizontal", padX);
+    };
+
+    setTheme("12px", "4.8px", "16px");
+    service.syncMenuTypography(pxMenu, input);
+    // Units the fast path does not parse go through a probe element.
+    setTheme("9pt", "3.6pt", "12pt");
+    service.syncMenuTypography(measuredMenu, input);
+
+    for (const property of ["--ft-font-size", "--ft-pad-y", "--ft-pad-x", "--ft-row-height"]) {
+      expect(measuredMenu.style.getPropertyValue(property)).toBe(
+        pxMenu.style.getPropertyValue(property),
+      );
+    }
+  });
+
   test("keeps custom master-era size and spacing preferences as compact scaling hints", () => {
     const service = new SuggestionPositioningService();
     const menu = document.createElement("div");

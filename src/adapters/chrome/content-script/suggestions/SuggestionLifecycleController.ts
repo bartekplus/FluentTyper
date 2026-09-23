@@ -132,9 +132,9 @@ export class SuggestionLifecycleController {
 
     const composedPath = typeof event.composedPath === "function" ? event.composedPath() : [];
     const path = composedPath.length > 0 ? composedPath : [event.target];
-    const entries = [...this.getEntries()];
-
-    const eligible = entries.filter((entry) => this.isDocumentTabFallbackEligible(entry));
+    const eligible = [...this.getEntries()].filter((entry) =>
+      this.isDocumentTabFallbackEligible(entry),
+    );
     for (const node of path) {
       const match =
         eligible.find((entry) => node === entry.inputEventTarget) ??

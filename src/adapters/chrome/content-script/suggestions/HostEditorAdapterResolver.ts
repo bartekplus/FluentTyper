@@ -46,10 +46,15 @@ export class HostEditorAdapterResolver {
       return null;
     }
 
-    const backingTarget = TextTargetAdapter.findBackingTextValueTarget(elem);
+    // The backing target is looked up last: the page bridge runs host code
+    // that may still be creating it.
     const controller = findLineEditorController(elem);
     if (controller) {
-      return new LineEditorHostSession(elem, controller, backingTarget);
+      return new LineEditorHostSession(
+        elem,
+        controller,
+        TextTargetAdapter.findBackingTextValueTarget(elem),
+      );
     }
     const bridgedBlockContext = this.pageBridge.getBlockContextAtSelection(elem);
     return bridgedBlockContext
@@ -57,7 +62,7 @@ export class HostEditorAdapterResolver {
           elem,
           this.pageBridge,
           bridgedBlockContext.blockText,
-          backingTarget,
+          TextTargetAdapter.findBackingTextValueTarget(elem),
         )
       : null;
   }
