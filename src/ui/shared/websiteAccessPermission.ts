@@ -13,10 +13,8 @@ type PermissionCopy = {
   title: string;
 };
 
-type WebsiteAccessPermissionCopy = Record<WebsiteAccessPermissionState, PermissionCopy>;
-
 interface WebsiteAccessPermissionElements {
-  action: HTMLButtonElement | null;
+  action: HTMLButtonElement;
   badge: HTMLElement;
   body: HTMLElement;
   root: HTMLElement;
@@ -27,16 +25,13 @@ type PermissionFunction = (
   options: chrome.permissions.Permissions,
 ) => Promise<boolean | undefined> | boolean | undefined;
 
-interface WebsiteAccessPermissionApi {
-  permissions?: {
-    contains?: PermissionFunction;
-    request?: PermissionFunction;
-  };
-}
-
-interface WebsiteAccessPermissionTestHooks {
+interface PermissionFunctions {
   contains?: PermissionFunction;
   request?: PermissionFunction;
+}
+
+interface WebsiteAccessPermissionApi {
+  permissions?: PermissionFunctions;
 }
 
 interface WebsiteAccessPermissionControllerOptions {
@@ -47,7 +42,7 @@ interface WebsiteAccessPermissionControllerOptions {
   visibleStates?: WebsiteAccessPermissionState[];
 }
 
-function getWebsiteAccessPermissionCopy(): WebsiteAccessPermissionCopy {
+function getWebsiteAccessPermissionCopy(): Record<WebsiteAccessPermissionState, PermissionCopy> {
   return {
     missing: {
       badge: i18n.get("permission_status_missing_badge"),
@@ -71,7 +66,7 @@ function getWebsiteAccessPermissionCopy(): WebsiteAccessPermissionCopy {
 export class WebsiteAccessPermissionService {
   constructor(
     private readonly api: WebsiteAccessPermissionApi | undefined,
-    private readonly hooks: WebsiteAccessPermissionTestHooks = {},
+    private readonly hooks: PermissionFunctions = {},
   ) {}
 
   async getState(): Promise<WebsiteAccessPermissionState> {
@@ -119,7 +114,7 @@ export class WebsiteAccessPermissionController {
 
   constructor(private readonly options: WebsiteAccessPermissionControllerOptions) {
     this.visibleStates = new Set(options.visibleStates ?? ["missing", "granted", "unavailable"]);
-    this.options.elements.action?.addEventListener("click", () => {
+    this.options.elements.action.addEventListener("click", () => {
       void this.handleRequest();
     });
   }
@@ -146,15 +141,10 @@ export class WebsiteAccessPermissionController {
     title.textContent = viewModel.title;
     body.textContent = viewModel.body;
 
-    if (action) {
-      if (viewModel.actionLabel) {
-        action.hidden = false;
-        action.disabled = false;
-        action.textContent = viewModel.actionLabel;
-      } else {
-        action.hidden = true;
-        action.disabled = true;
-      }
+    action.hidden = !viewModel.actionLabel;
+    action.disabled = !viewModel.actionLabel;
+    if (viewModel.actionLabel) {
+      action.textContent = viewModel.actionLabel;
     }
 
     if (state === "granted" && this.currentState !== "granted") {

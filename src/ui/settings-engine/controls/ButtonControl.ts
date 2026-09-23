@@ -3,9 +3,9 @@ import type { Store } from "@core/application/storage/Store.js";
 import {
   BaseControl,
   appendLabel,
-  createButtonInput,
   createControlContainer,
   createFieldRoot,
+  createInputElement,
 } from "./FieldControl.js";
 
 export class ButtonControl extends BaseControl<string> {
@@ -18,7 +18,10 @@ export class ButtonControl extends BaseControl<string> {
     const control = createControlContainer();
     appendLabel(control, params.label);
 
-    const btn = createButtonInput(params.text);
+    const btn = createInputElement("button", "button is-primary");
+    if (params.text) {
+      btn.value = params.text;
+    }
 
     btn.addEventListener("click", () => {
       this.emitter.fireEvent("action", this.get());

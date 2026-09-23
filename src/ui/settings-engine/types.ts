@@ -10,7 +10,7 @@ export interface RuleOption {
   languageScope: "all" | "en_US";
 }
 
-export interface RuleToggleAction {
+interface RuleToggleAction {
   actionKey?: string;
   text: string;
   values: string[];

@@ -6,13 +6,12 @@ import {
   createControlContainer,
   createFieldRoot,
   createInputElement,
-  dispatchControlEvent,
   getUniqueID,
 } from "./FieldControl.js";
 
 export class SliderControl extends BaseControl<number> {
   private display?: HTMLOutputElement;
-  private tooltip?: HTMLDivElement;
+  private readonly tooltip: HTMLDivElement;
 
   constructor(params: SliderConfig, store: Store) {
     super(params, store);
@@ -65,12 +64,9 @@ export class SliderControl extends BaseControl<number> {
       this.emitter.fireEvent("action", value);
     });
 
-    input.addEventListener("mouseup", () => {
-      this.tooltip?.classList.remove("slider-tooltip--visible");
-    });
-    input.addEventListener("touchend", () => {
-      this.tooltip?.classList.remove("slider-tooltip--visible");
-    });
+    const hideTooltip = () => tooltip.classList.remove("slider-tooltip--visible");
+    input.addEventListener("mouseup", hideTooltip);
+    input.addEventListener("touchend", hideTooltip);
 
     if (params.name !== undefined) {
       store
@@ -89,14 +85,12 @@ export class SliderControl extends BaseControl<number> {
     if (this.display) {
       this.display.innerText = formatted;
     }
-    if (this.tooltip) {
-      this.tooltip.textContent = formatted;
-      const min = parseFloat(input.min) || 0;
-      const max = parseFloat(input.max) || 100;
-      const pct = ((value - min) / (max - min)) * 100;
-      this.tooltip.style.left = `${pct}%`;
-      this.tooltip.classList.add("slider-tooltip--visible");
-    }
+    this.tooltip.textContent = formatted;
+    const min = parseFloat(input.min) || 0;
+    const max = parseFloat(input.max) || 100;
+    const pct = ((value - min) / (max - min)) * 100;
+    this.tooltip.style.left = `${pct}%`;
+    this.tooltip.classList.add("slider-tooltip--visible");
   }
 
   get(): number {
@@ -111,7 +105,7 @@ export class SliderControl extends BaseControl<number> {
     }
 
     if (!silent) {
-      dispatchControlEvent(this._element, "input");
+      this._element.dispatchEvent(new Event("input"));
     }
 
     return this;

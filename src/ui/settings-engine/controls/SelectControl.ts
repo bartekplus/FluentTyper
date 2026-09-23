@@ -5,8 +5,6 @@ import {
   appendLabel,
   createControlContainer,
   createFieldRoot,
-  createOptionElement,
-  dispatchControlEvent,
 } from "./FieldControl.js";
 
 function toAriaLabel(label?: string): string {
@@ -40,7 +38,10 @@ export class SelectControl extends BaseControl<string> {
     select.setAttribute("aria-label", toAriaLabel(params.label));
 
     for (const [value, text] of params.options ?? []) {
-      select.appendChild(createOptionElement(value, text ?? value));
+      const option = document.createElement("option");
+      option.value = value;
+      option.text = text ?? value;
+      select.appendChild(option);
     }
 
     select.addEventListener("change", () => {
@@ -64,7 +65,7 @@ export class SelectControl extends BaseControl<string> {
   set(value: string, silent?: boolean): this {
     this.selectEl.value = String(value ?? "");
     if (!silent) {
-      dispatchControlEvent(this.selectEl, "change");
+      this.selectEl.dispatchEvent(new Event("change"));
     }
     return this;
   }

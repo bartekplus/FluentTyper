@@ -1,4 +1,4 @@
-export interface TabBundle {
+interface TabBundle {
   tabLi: HTMLLIElement;
   tabA: HTMLAnchorElement;
   content: HTMLDivElement;
