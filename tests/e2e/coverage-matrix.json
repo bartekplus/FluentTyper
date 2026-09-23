@@ -901,6 +901,22 @@
       ]
     },
     {
+      "id": "grammar_currency_spacing",
+      "description": "Typed prose receives one nonbreaking separator before a recognized currency marker written after the amount; number, marker and order are preserved and code-like text is unchanged.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/grammar/CurrencySpacing.test.ts",
+          "test": "inserts one NBSP and keeps number, decimals, zeros and marker exactly"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/CurrencySpacing.test.ts",
+          "test": "requires prose context and a verified locale"
+        }
+      ]
+    },
+    {
       "id": "grammar_linebreak_capitalization",
       "description": "Grammar capitalizes the first letter after line breaks.",
       "coverage": [

@@ -27,6 +27,7 @@ import { EnglishPronounVerbWhitelistAgreementRule } from "./implementations/Engl
 import { EnglishArticleAnCorrectionRule } from "./implementations/EnglishArticleAnCorrectionRule";
 import { AutoBracketCloseRule } from "./implementations/AutoBracketCloseRule";
 import { MeasurementUnitFormattingRule } from "./implementations/MeasurementUnitFormattingRule";
+import { CurrencySpacingRule } from "./implementations/CurrencySpacingRule";
 
 export function createGrammarRuleCatalogRuntime(options: {
   insertSpaceAfterAutocomplete: boolean;
@@ -58,6 +59,7 @@ export function createGrammarRuleCatalogRuntime(options: {
     slashContextSpacing: new SlashContextSpacingRule(insertSpaceAfterAutocomplete),
     mathOperatorSpacing: new MathOperatorSpacingRule(insertSpaceAfterAutocomplete),
     measurementUnitFormatting: new MeasurementUnitFormattingRule(),
+    currencySpacing: new CurrencySpacingRule(),
     technicalTokenCompaction: new TechnicalTokenCompactionRule(insertSpaceAfterAutocomplete),
     collapseRepeatedSpaces: new CollapseRepeatedSpacesRule(),
     trimSpaceBeforeLineBreak: new TrimSpaceBeforeLineBreakRule(),

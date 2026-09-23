@@ -182,6 +182,18 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     priority: 55,
   },
   {
+    id: "currencySpacing",
+    name: "Currency spacing",
+    titleI18nKey: "grammar_rule_currency_spacing",
+    descriptionI18nKey: "grammar_rule_currency_spacing_desc",
+    exampleI18nKey: "grammar_rule_currency_spacing_example",
+    languageScope: "all",
+    safetyTier: "safe",
+    defaultRollout: "on",
+    recommended: true,
+    priority: 56,
+  },
+  {
     id: "slashContextSpacing",
     name: "Slash context spacing",
     titleI18nKey: "grammar_rule_slash_context_spacing",

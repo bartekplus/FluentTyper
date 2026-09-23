@@ -24,6 +24,12 @@ Other supported examples include `Speed: 5m/s `, `Energy: 10kWh `, `Storage: 250
 
 The live writing-language registry is checked by the generator and tests. The nine UI locales also have translated titles, descriptions, and examples. `auto_detect` and `textExpander` are not locale policies. Underscore/hyphen variants resolve to the same exact supported locale. Region/script information is never reduced to a base-language guess: unverified `en-GB`, `pt-PT`, script-bearing tags, and unknown tags fail closed. No browser UI language is used. Written names, plural categories, and inflection are preserved rather than rewritten; leaving an unknown name alone is not recognition coverage.
 
+## Currency spacing
+
+`currencySpacing` (UI: **Currency spacing**, default on, `src/core/domain/grammar/implementations/CurrencySpacingRule.ts`) reuses the same number reader, locale profiles, prose guard, and strict edit path. It inserts the locale's U+00A0 between an amount and a currency marker written directly after it: `Cena: 120zł ` → `Cena: 120 zł `, `Budget: 250EUR ` → `Budget: 250 EUR `, `Cena: 19,99zł ` → `Cena: 19,99 zł `.
+
+Markers are an exact, case-sensitive allowlist: common ISO 4217 codes (codes that are also words or acronyms, such as `ALL`, `TRY`, `CAD`, are excluded) plus the suffix symbols `€`, `zł`, and `kr`. It never reorders (`€100`, `$100` stay), converts (`$` ↔ `USD`), or regroups (`1,000` ↔ `1.000`). Grouped amounts such as `1.000EUR`, ranges, lowercase or unknown markers, and existing separators are left unchanged. Tests: `tests/grammar/CurrencySpacing.test.ts`.
+
 ## Exact coverage and deliberate gaps
 
 The curated registry contains **96 exact prose entries**, with all 24 current SI decimal prefixes (including Q/R/r/q and both micro glyphs) and ten binary prefixes Ki through Qi where permitted. Finite lookup tables recognize **1,383 exact/prefixed forms**; 1,167 can receive spacing in the test context `Measured: 1<form> `, while 216 are preserved. These counts exclude the unbounded combinations of supported atoms. They do not count unknown no-ops as support.

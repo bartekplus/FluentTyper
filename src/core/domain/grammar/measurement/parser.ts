@@ -17,6 +17,7 @@ export interface ParsedMeasurementExpression {
 export function parseMeasurementExpression(
   text: string,
   locale: MeasurementLocalePolicy,
+  isUnit: (text: string, start: number) => boolean = parseUnitExpression,
 ): ParsedMeasurementExpression | null {
   const boundedStart = Math.max(0, text.length - MAX_EXPRESSION_LENGTH);
 
@@ -38,7 +39,7 @@ export function parseMeasurementExpression(
     while (text[unitStart] === " " || text[unitStart] === "\u00a0") {
       unitStart += 1;
     }
-    if (unitStart === text.length || !parseUnitExpression(text, unitStart)) {
+    if (unitStart === text.length || !isUnit(text, unitStart)) {
       continue;
     }
 

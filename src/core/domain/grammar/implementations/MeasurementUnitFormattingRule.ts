@@ -48,7 +48,7 @@ export class MeasurementUnitFormattingRule implements GrammarRule {
   }
 }
 
-function isProsePrefix(prefix: string): boolean {
+export function isProsePrefix(prefix: string): boolean {
   const lineStart = Math.max(prefix.lastIndexOf("\n"), prefix.lastIndexOf("\r")) + 1;
   if (/\p{Bidi_Control}|`|~~~/u.test(prefix)) {
     return false;
