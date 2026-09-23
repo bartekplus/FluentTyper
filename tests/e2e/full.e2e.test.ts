@@ -1789,7 +1789,10 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         worker!,
         "new_installation/index.html",
       );
-      await newInstallationPage.setViewport(ONBOARDING_VIEWPORT);
+      // Firefox BiDi rejects setViewport on extension (privileged) pages.
+      if (!isFirefox()) {
+        await newInstallationPage.setViewport(ONBOARDING_VIEWPORT);
+      }
       await newInstallationPage.waitForSelector("body", {
         timeout: browserTimeout(3000, 10000),
       });

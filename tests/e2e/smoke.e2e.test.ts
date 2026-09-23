@@ -1185,7 +1185,10 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
     async () => {
       const optionsPage = await openOptionsPage(browser, worker);
       try {
-        await optionsPage.setViewport({ width: 390, height: 844, isMobile: true });
+        // Firefox BiDi rejects setViewport on extension (privileged) pages.
+        if (!isFirefox()) {
+          await optionsPage.setViewport({ width: 390, height: 844, isMobile: true });
+        }
 
         await optionsPage.select("#mobile-section-select", "site_mgmt_tab");
         await optionsPage.waitForFunction(() => window.location.hash === "#site_mgmt_tab", {
@@ -1222,7 +1225,8 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
           { timeout: suiteTimeout(3000, 7000) },
         );
 
-        await popupPage.click("#openStatsOptionsBtn");
+        // DOM click: Firefox BiDi rejects input actions on extension (privileged) pages.
+        await popupPage.$eval("#openStatsOptionsBtn", (el) => (el as HTMLElement).click());
         const target = await targetPromise;
         advancedPage = await target.asPage();
         expect(target.url()).toContain("options/options.html#advanced_tab");
