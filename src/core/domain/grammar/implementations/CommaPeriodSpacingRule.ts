@@ -29,12 +29,16 @@ function closedQuoteStart(inputStr: string, index: number, ch: string): number {
   if (ch === '"') {
     // Classify each " rather than counting them: one right after a digit is an
     // inch mark (5"), one at a word start opens, anything else closes. A
-    // second opener or a stray closer is ambiguous, so do nothing.
+    // second opener or a stray closer is ambiguous, so do nothing. Inside an
+    // open quote a " after a digit may close it ("5") as well, so do nothing.
     let opener = -1;
     for (let i = 0; i < before.length; i += 1) {
       if (before[i] !== '"') continue;
       const previous = before[i - 1] ?? "";
-      if (/\p{Nd}/u.test(previous)) continue;
+      if (/\p{Nd}/u.test(previous)) {
+        if (opener >= 0) return -1;
+        continue;
+      }
       const opens = /^[\s([{—–]?$/u.test(previous);
       const isOpen = opener >= 0;
       if (opens === isOpen) return -1;

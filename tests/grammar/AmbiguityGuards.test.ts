@@ -206,6 +206,17 @@ describe("comma/period spacing never adds a space before a closing quote", () =>
     test(`keeps the space after an inch mark ${JSON.stringify(input)}`, () =>
       expect(type(input)).toBe(input));
 
+  // A " after a digit inside an open quote may close it or be an inch mark:
+  // too ambiguous to pair the next quote, so nothing is trimmed.
+  for (const input of [
+    'He said "5". "Next" ',
+    'The year "2026". "Next" ',
+    'He said "Room 5". "Next" ',
+    'She wrote "Size 6", "ok" ',
+  ])
+    test(`keeps the space after a quoted number ${JSON.stringify(input)}`, () =>
+      expect(type(input)).toBe(input));
+
   // Normal comma spacing before an ordinary word is untouched.
   test("normal comma spacing still applies", () => {
     expect(type("a,b ")).toBe("A, b ");
