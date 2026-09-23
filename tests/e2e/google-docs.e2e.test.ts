@@ -43,6 +43,8 @@ const GRAMMAR_CASES: Array<[string, string, string] | [string, string, string, s
   ["ellipsisShortcut", "wait... ", "wait\u2026 "],
   ["emdashShortcut", "word--x ", "word\u2014x "],
   ["smartQuoteNormalization", 'say "hi" ', "say \u201chi\u201d "],
+  // French (France) only; in the fixture's English the assertion guards against a spurious edit.
+  ["frenchPunctuationSpacing", "Bonjour! ", "Bonjour! "],
   ["duplicatePunctuationCollapse", "hello,, ", "hello, "],
   ["autoBracketClose", "f(", "f()"],
 ];

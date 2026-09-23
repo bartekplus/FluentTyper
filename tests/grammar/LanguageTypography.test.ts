@@ -1,0 +1,98 @@
+import { describe, expect, test } from "bun:test";
+import { GrammarRuleEngine } from "../../src/core/domain/grammar/GrammarRuleEngine";
+import { applyGrammarEditToContext } from "../../src/core/domain/grammar/GrammarEditSequencing";
+import { createGrammarRuleCatalogRuntime } from "../../src/core/domain/grammar/ruleFactory";
+import {
+  RECOMMENDED_CURRENT_GRAMMAR_RULES,
+  TYPOGRAPHY_GRAMMAR_RULES,
+} from "../../src/core/domain/grammar/ruleCatalog";
+import type {
+  GrammarContext,
+  GrammarEventType,
+  GrammarHints,
+} from "../../src/core/domain/grammar/types";
+
+const NBSP = " ";
+const NNBSP = " ";
+
+/** Types `input` one character at a time with the content script's triggers. */
+function type(
+  input: string,
+  lang: string,
+  measurementContext: GrammarHints["measurementContext"] = "prose",
+): string {
+  const engine = new GrammarRuleEngine();
+  for (const rule of createGrammarRuleCatalogRuntime({
+    insertSpaceAfterAutocomplete: true,
+    userDictionaryList: [],
+  }))
+    engine.registerRule(rule);
+  let context: GrammarContext = {
+    beforeCursor: "",
+    afterCursor: "",
+    hints: { lang, inputAction: "insert", measurementContext },
+  };
+  for (const char of input) {
+    context.beforeCursor += char;
+    const triggers: GrammarEventType[] = [char === " " ? "wordBoundary" : "insertChar"];
+    if (/[.!?]/.test(char)) triggers.push("wordBoundary");
+    const edit = engine.processSequence(triggers, context, TYPOGRAPHY_GRAMMAR_RULES);
+    if (edit) context = applyGrammarEditToContext(context, edit);
+  }
+  return context.beforeCursor;
+}
+
+describe("language-aware typography preset", () => {
+  test("preset adds typography rules on top of the recommended set", () => {
+    expect(TYPOGRAPHY_GRAMMAR_RULES).toEqual(
+      expect.arrayContaining([
+        ...RECOMMENDED_CURRENT_GRAMMAR_RULES,
+        "smartQuoteNormalization",
+        "frenchPunctuationSpacing",
+      ]),
+    );
+  });
+
+  test.each([
+    ["en_US", "She said \"quoted text\" and 'this' too.", "She said “quoted text” and ‘this’ too."],
+    ["pl_PL", "Powiedział \"cytowany tekst\" i 'to'.", "Powiedział „cytowany tekst” i «to»."],
+    ["de_DE", "Er sagte \"zitierter Text\" und 'das'.", "Er sagte „zitierter Text“ und ‚das‘."],
+    ["fr_FR", 'Il a dit "texte cité" hier.', `Il a dit «${NBSP}texte cité${NBSP}» hier.`],
+    // A space typed inside the guillemets is absorbed, not doubled.
+    ["fr_FR", 'Il a dit " texte cité " hier.', `Il a dit «${NBSP}texte cité${NBSP}» hier.`],
+    // Languages without a verified profile keep English quotes.
+    ["es_ES", 'Dijo "hola" ayer.', "Dijo “hola” ayer."],
+  ])("%s quotes: %s", (lang, input, expected) => {
+    expect(type(input, lang)).toBe(expected);
+  });
+
+  test("apostrophes stay apostrophes in every language", () => {
+    expect(type("it's fine ", "en_US")).toBe("It’s fine ");
+    expect(type("c'est l'heure ", "fr_FR")).toBe("C’est l’heure ");
+    expect(type("Peter's Haus ", "de_DE")).toBe("Peter’s Haus ");
+  });
+
+  test("French (France) punctuation gets no-break spaces", () => {
+    expect(type("Bonjour! Ça va? Oui; enfin: presque.", "fr_FR")).toBe(
+      `Bonjour${NNBSP}! Ça va${NNBSP}? Oui${NNBSP}; enfin${NBSP}: presque.`,
+    );
+    // A plain space the writer typed is replaced, not doubled.
+    expect(type("Quoi ? Voici :", "fr_FR")).toBe(`Quoi${NNBSP}? Voici${NBSP}:`);
+    expect(type("Quoi?! ", "fr_FR")).toBe(`Quoi${NNBSP}?! `);
+    expect(type('Il dit "non"!', "fr_FR")).toBe(`Il dit «${NBSP}non${NBSP}»${NNBSP}!`);
+  });
+
+  test("French spacing leaves times, URLs and other languages alone", () => {
+    expect(type("Rendez-vous à 12:30 ", "fr_FR")).toBe("Rendez-vous à 12:30 ");
+    expect(type("Voir https://exemple.fr?a=1 ", "fr_FR")).toBe("Voir https://exemple.fr?a=1 ");
+    expect(type("Hello! Why? ", "en_US")).toBe("Hello! Why? ");
+    expect(type("Hallo! Warum? ", "de_DE")).toBe("Hallo! Warum? ");
+  });
+
+  test("straight quotes stay straight in code and protected contexts", () => {
+    expect(type('Run `echo "hi"` now', "en_US")).toBe('Run `echo "hi"` now');
+    expect(type('Set x = "a"', "de_DE")).toBe('Set x = "a"');
+    expect(type('Say "hi" there', "fr_FR", "protected")).toBe('Say "hi" there');
+    expect(type("Bonjour! ", "fr_FR", "protected")).toBe("Bonjour! ");
+  });
+});

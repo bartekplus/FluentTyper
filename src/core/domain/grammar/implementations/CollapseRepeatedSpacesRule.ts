@@ -39,8 +39,9 @@ export class CollapseRepeatedSpacesRule implements GrammarRule {
       return null;
     }
 
+    // Keep the first space: a no-break space placed on purpose ("10 kg", "« ") stays one.
     return {
-      replacement: " ",
+      replacement: text[indexBeforeSpaces + 1],
       deleteBackwards: trailingSpaces,
       deleteForwards: 0,
     };

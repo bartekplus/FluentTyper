@@ -1,4 +1,5 @@
 import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "../types";
+import { resolveTypographyProfile } from "../typographyProfiles";
 import {
   isDeleteInputAction,
   isLikelyApostropheContext,
@@ -6,13 +7,16 @@ import {
   shouldOpenQuote,
   shouldSkipGenericReplacement,
 } from "./helpers/GenericRuleShared";
+import { isInsideProtectedSpan } from "./helpers/ProtectedSpanShared";
+
+const APOSTROPHE = "’";
 
 export class SmartQuoteNormalizationRule implements GrammarRule {
   readonly id = "smartQuoteNormalization" as const;
   readonly triggers: GrammarEventType[] = ["insertChar"];
 
   apply(context: GrammarContext): GrammarEdit | null {
-    if (isDeleteInputAction(context)) {
+    if (isDeleteInputAction(context) || context.hints?.measurementContext === "protected") {
       return null;
     }
 
@@ -21,16 +25,18 @@ export class SmartQuoteNormalizationRule implements GrammarRule {
       return null;
     }
 
+    const profile = resolveTypographyProfile(context.hints?.lang);
+    const [doubleOpen, doubleClose] = profile.double;
+    const [singleOpen, singleClose] = profile.single;
+    const pad = profile.quoteSpace;
+
     const typed = input.charAt(input.length - 1);
     if (typed !== '"' && typed !== "'") {
       return null;
     }
 
     const beforeQuote = input.slice(0, -1);
-    if (shouldSkipGenericReplacement(beforeQuote)) {
-      return null;
-    }
-    if (this.hasAmbiguousOrMismatchedQuoteState(beforeQuote, typed)) {
+    if (shouldSkipGenericReplacement(beforeQuote) || isInsideProtectedSpan(beforeQuote)) {
       return null;
     }
 
@@ -38,25 +44,34 @@ export class SmartQuoteNormalizationRule implements GrammarRule {
     let deleteBackwards = 1;
 
     if (typed === '"') {
+      if (quoteBalance(beforeQuote, typed, doubleOpen, doubleClose) === null) {
+        return null;
+      }
       const { core, trailingSpaces } = splitTrailingSpaces(beforeQuote);
-      const hasPendingOpenDoubleQuote = this.countPendingOpenDoubleQuotes(core) > 0;
       const forceClosingQuoteWithSpaceTrim =
         trailingSpaces.length > 0 &&
-        hasPendingOpenDoubleQuote &&
-        this.endsWithLikelyQuoteContent(core);
+        (quoteBalance(core, typed, doubleOpen, doubleClose) ?? 0) > 0 &&
+        endsWithLikelyQuoteContent(core);
 
       if (forceClosingQuoteWithSpaceTrim) {
-        replacement = "”";
+        replacement = `${pad}${doubleClose}`;
         deleteBackwards = 1 + trailingSpaces.length;
       } else {
-        replacement = shouldOpenQuote(beforeQuote) ? "“" : "”";
+        replacement = shouldOpenQuote(beforeQuote) ? `${doubleOpen}${pad}` : `${pad}${doubleClose}`;
       }
     } else {
-      replacement = isLikelyApostropheContext(beforeQuote)
-        ? "’"
-        : shouldOpenQuote(beforeQuote)
-          ? "‘"
-          : "’";
+      const balance = quoteBalance(beforeQuote, typed, singleOpen, singleClose);
+      if (balance === null) {
+        return null;
+      }
+      if (isLikelyApostropheContext(beforeQuote)) {
+        // ponytail: where the closer is not the apostrophe (de, pl, fr), a word
+        // ending inside an open nested quote closes it, so "‚Peter's" loses its
+        // apostrophe. Looking at the next typed character would settle it.
+        replacement = balance > 0 ? singleClose : APOSTROPHE;
+      } else {
+        replacement = shouldOpenQuote(beforeQuote) ? singleOpen : singleClose;
+      }
     }
 
     if (replacement === typed) {
@@ -69,127 +84,44 @@ export class SmartQuoteNormalizationRule implements GrammarRule {
       deleteForwards: 0,
     };
   }
+}
 
-  private hasAmbiguousOrMismatchedQuoteState(inputBeforeQuote: string, typed: '"' | "'"): boolean {
-    if (typed === '"') {
-      return this.hasMismatchedDoubleQuoteState(inputBeforeQuote);
+/**
+ * Open quotes left in `input`, counting straight quotes by position, or null
+ * when a closer has nothing to close. An apostrophe inside a word is neither.
+ */
+function quoteBalance(input: string, straight: string, open: string, close: string): number | null {
+  let balance = 0;
+
+  for (let i = 0; i < input.length; i += 1) {
+    const char = input.charAt(i);
+    if (char === open) {
+      balance += 1;
+      continue;
     }
-    return this.hasMismatchedSingleQuoteState(inputBeforeQuote);
-  }
-
-  private hasMismatchedDoubleQuoteState(input: string): boolean {
-    let balance = 0;
-
-    for (let i = 0; i < input.length; i += 1) {
-      const char = input.charAt(i);
-      if (char === "“") {
-        balance += 1;
-        continue;
-      }
-      if (char === "”") {
-        if (balance === 0) {
-          return true;
-        }
-        balance -= 1;
-        continue;
-      }
-      if (char !== '"') {
-        continue;
-      }
-
-      const before = input.slice(0, i);
-      if (shouldOpenQuote(before)) {
-        balance += 1;
-        continue;
-      }
-      if (balance === 0) {
-        return true;
-      }
-      balance -= 1;
+    if (char !== close && char !== straight) {
+      continue;
     }
-
-    return false;
-  }
-
-  private countPendingOpenDoubleQuotes(input: string): number {
-    let balance = 0;
-
-    for (let i = 0; i < input.length; i += 1) {
-      const char = input.charAt(i);
-      if (char === "“") {
-        balance += 1;
-        continue;
-      }
-      if (char === "”") {
-        if (balance > 0) {
-          balance -= 1;
-        }
-        continue;
-      }
-      if (char !== '"') {
-        continue;
-      }
-      const before = input.slice(0, i);
-      if (shouldOpenQuote(before)) {
-        balance += 1;
-      } else if (balance > 0) {
-        balance -= 1;
-      }
+    if (straight === "'" && isWordChar(input.charAt(i - 1)) && isWordChar(input.charAt(i + 1))) {
+      continue;
     }
-
-    return balance;
-  }
-
-  private endsWithLikelyQuoteContent(input: string): boolean {
-    if (!input) {
-      return false;
+    if (char === straight && shouldOpenQuote(input.slice(0, i))) {
+      balance += 1;
+      continue;
     }
-    const last = input.charAt(input.length - 1);
-    return /[\p{L}\p{N}\])}»›”’!?.,:;]/u.test(last);
-  }
-
-  private hasMismatchedSingleQuoteState(input: string): boolean {
-    let balance = 0;
-
-    for (let i = 0; i < input.length; i += 1) {
-      const char = input.charAt(i);
-      const prev = i > 0 ? input.charAt(i - 1) : "";
-      const next = i + 1 < input.length ? input.charAt(i + 1) : "";
-      const inWordApostrophe = this.isWordChar(prev) && this.isWordChar(next);
-
-      if (char === "‘") {
-        balance += 1;
-        continue;
-      }
-      if (char === "’") {
-        if (inWordApostrophe) {
-          continue;
-        }
-        if (balance === 0) {
-          return true;
-        }
-        balance -= 1;
-        continue;
-      }
-      if (char !== "'" || inWordApostrophe) {
-        continue;
-      }
-
-      const before = input.slice(0, i);
-      if (shouldOpenQuote(before)) {
-        balance += 1;
-        continue;
-      }
-      if (balance === 0) {
-        return true;
-      }
-      balance -= 1;
+    if (balance === 0) {
+      return null;
     }
-
-    return false;
+    balance -= 1;
   }
 
-  private isWordChar(value: string): boolean {
-    return /[\p{L}\p{N}]/u.test(value);
-  }
+  return balance;
+}
+
+function endsWithLikelyQuoteContent(input: string): boolean {
+  return /[\p{L}\p{N}\])}»›”’!?.,:;]$/u.test(input);
+}
+
+function isWordChar(value: string): boolean {
+  return /[\p{L}\p{N}]/u.test(value);
 }

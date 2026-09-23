@@ -18,6 +18,7 @@ import { DoubleSpaceToPeriodRule } from "./implementations/DoubleSpaceToPeriodRu
 import { EllipsisShortcutRule } from "./implementations/EllipsisShortcutRule";
 import { EmdashShortcutRule } from "./implementations/EmdashShortcutRule";
 import { SmartQuoteNormalizationRule } from "./implementations/SmartQuoteNormalizationRule";
+import { FrenchPunctuationSpacingRule } from "./implementations/FrenchPunctuationSpacingRule";
 import { DuplicatePunctuationCollapseRule } from "./implementations/DuplicatePunctuationCollapseRule";
 import { EnglishModalOfCorrectionRule } from "./implementations/EnglishModalOfCorrectionRule";
 import { EnglishYourWelcomeCorrectionRule } from "./implementations/EnglishYourWelcomeCorrectionRule";
@@ -67,6 +68,7 @@ export function createGrammarRuleCatalogRuntime(options: {
     ellipsisShortcut: new EllipsisShortcutRule(),
     emdashShortcut: new EmdashShortcutRule(),
     smartQuoteNormalization: new SmartQuoteNormalizationRule(),
+    frenchPunctuationSpacing: new FrenchPunctuationSpacingRule(),
     duplicatePunctuationCollapse: new DuplicatePunctuationCollapseRule(),
     autoBracketClose: new AutoBracketCloseRule(),
   };
