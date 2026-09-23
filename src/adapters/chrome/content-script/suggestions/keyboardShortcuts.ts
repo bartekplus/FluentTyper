@@ -1,4 +1,4 @@
-export function isMacPlatform(platform = getNavigatorPlatform()): boolean {
+function isMacPlatform(platform = getNavigatorPlatform()): boolean {
   return /mac/i.test(platform);
 }
 
@@ -24,8 +24,5 @@ export function isNativeUndoChord(
 }
 
 function getNavigatorPlatform(): string {
-  if (typeof navigator === "undefined") {
-    return "";
-  }
-  return navigator.platform || "";
+  return typeof navigator === "undefined" ? "" : navigator.platform || "";
 }

@@ -25,7 +25,7 @@ export interface LineEditorBlockContext {
   blockText: string;
 }
 
-export function isLineEditorController(value: unknown): value is LineEditorController {
+function isLineEditorController(value: unknown): value is LineEditorController {
   if (!value || typeof value !== "object") {
     return false;
   }
@@ -85,7 +85,7 @@ export function readLineEditorBlockContext(
     return null;
   }
   const blockText = controller.getLine(cursor.line);
-  if (typeof blockText !== "string" || cursor.ch < 0 || cursor.ch > blockText.length) {
+  if (typeof blockText !== "string" || cursor.ch > blockText.length) {
     return null;
   }
   return {

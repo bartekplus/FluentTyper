@@ -6,7 +6,7 @@ import {
   HOST_EDITOR_RESPONSE_ATTR,
 } from "./HostEditorBridgeProtocol";
 
-export interface HostEditorBridgeApplyArgs {
+interface HostEditorBridgeApplyArgs {
   replaceStart: number;
   replaceEnd: number;
   replacementText: string;

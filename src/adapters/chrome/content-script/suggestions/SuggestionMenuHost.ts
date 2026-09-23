@@ -1,4 +1,4 @@
-export const SUGGESTION_MENU_HOST_ID_PREFIX = "ft-menu-";
+const SUGGESTION_MENU_HOST_ID_PREFIX = "ft-menu-";
 
 export function resolveSuggestionMenuHostId(entryId: number | string): string {
   return `${SUGGESTION_MENU_HOST_ID_PREFIX}${entryId}`;

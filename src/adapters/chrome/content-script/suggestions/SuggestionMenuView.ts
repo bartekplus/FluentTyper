@@ -1,7 +1,7 @@
 import { resolveSuggestionMenuHostId } from "./SuggestionMenuHost";
 import { SUGGESTION_POPUP_SHADOW_CSS } from "./SuggestionPopupShadowStyles";
 
-export interface SuggestionMenuElements {
+interface SuggestionMenuElements {
   menu: HTMLDivElement;
   list: HTMLUListElement;
 }

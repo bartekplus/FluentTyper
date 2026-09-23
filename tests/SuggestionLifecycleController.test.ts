@@ -166,4 +166,70 @@ describe("SuggestionLifecycleController", () => {
     expect(focus).toHaveBeenCalledTimes(1);
     expect(blur).toHaveBeenCalledTimes(1);
   });
+
+  test("routes Tab through the document fallback only for entries with a visible suggestion", () => {
+    const makeHandlers = (keydown: EventListener) => ({
+      beforeinput: () => undefined,
+      input: () => undefined,
+      keydown,
+      paste: () => undefined,
+      focus: () => undefined,
+      blur: () => undefined,
+      click: () => undefined,
+      compositionStart: () => undefined,
+      compositionEnd: () => undefined,
+      menuMouseDown: () => undefined,
+      menuClick: () => undefined,
+    });
+    const viaDocument: boolean[] = [];
+    const recordKeydown =
+      (calls: string[], name: string): EventListener =>
+      (event) => {
+        calls.push(name);
+        viaDocument.push(event.currentTarget === document);
+      };
+    const calls: string[] = [];
+
+    const editor = document.createElement("div");
+    editor.setAttribute("contenteditable", "true");
+    const child = document.createElement("span");
+    editor.appendChild(child);
+    const backing = document.createElement("textarea");
+    const plain = document.createElement("input");
+    document.body.append(editor, backing, plain);
+
+    const eligible = createSuggestionEntry({
+      id: 1,
+      elem: editor as unknown as SuggestionElement,
+      inputEventTarget: backing,
+      inlineSuggestion: "hello",
+      handlers: makeHandlers(recordKeydown(calls, "eligible")),
+    });
+    const ineligible = createSuggestionEntry({
+      id: 2,
+      elem: plain,
+      handlers: makeHandlers(recordKeydown(calls, "ineligible")),
+    });
+    const controller = new SuggestionLifecycleController({
+      getEntries: () => [eligible, ineligible],
+      dismissEntry: () => undefined,
+      reconcileEntrySelection: () => undefined,
+    });
+    controller.attachEntryListeners(eligible);
+    controller.attachEntryListeners(ineligible);
+
+    const tab = () =>
+      new window.KeyboardEvent("keydown", { key: "Tab", bubbles: true, composed: true });
+    child.dispatchEvent(tab());
+    backing.dispatchEvent(tab());
+    plain.dispatchEvent(tab());
+
+    // Eligible entries are handled once, by the document capture fallback (which
+    // marks the event so the element listener skips it); others by their own listener.
+    expect(calls).toEqual(["eligible", "eligible", "ineligible"]);
+    expect(viaDocument).toEqual([true, true, false]);
+
+    controller.detachEntryListeners(eligible);
+    controller.detachEntryListeners(ineligible);
+  });
 });

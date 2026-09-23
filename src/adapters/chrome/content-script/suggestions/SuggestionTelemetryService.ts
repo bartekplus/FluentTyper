@@ -11,10 +11,7 @@ interface SuggestionTelemetryServiceOptions {
 }
 
 export class SuggestionTelemetryService implements SuggestionTelemetry {
-  private readonly sendMessage: (
-    message: ContentScriptUsageEventMessage,
-    callback: () => void,
-  ) => void;
+  private readonly sendMessage: NonNullable<SuggestionTelemetryServiceOptions["sendMessage"]>;
   private readonly readLastError: () => unknown;
 
   constructor(options: SuggestionTelemetryServiceOptions = {}) {
@@ -23,11 +20,7 @@ export class SuggestionTelemetryService implements SuggestionTelemetry {
       ((message, callback) => {
         chrome.runtime.sendMessage(message, callback);
       });
-    this.readLastError =
-      options.readLastError ??
-      (() => {
-        return chrome.runtime.lastError;
-      });
+    this.readLastError = options.readLastError ?? (() => chrome.runtime.lastError);
   }
 
   public recordSuggestionShown(args: { suggestionCount: number; language: string }): void {
@@ -75,21 +68,16 @@ export class SuggestionTelemetryService implements SuggestionTelemetry {
   }
 
   private emitUsageEvent(context: ContentScriptUsageEventContext): void {
-    const message: ContentScriptUsageEventMessage = {
-      command: CMD_CONTENT_SCRIPT_USAGE_EVENT,
-      context,
-    };
-
     try {
-      this.sendMessage(message, () => {
+      this.sendMessage({ command: CMD_CONTENT_SCRIPT_USAGE_EVENT, context }, () => {
         try {
           void this.readLastError();
-        } catch (error: unknown) {
-          void error;
+        } catch {
+          // Ignore runtime teardown.
         }
       });
-    } catch (error: unknown) {
-      void error;
+    } catch {
+      // A suspended or reloading background must never break suggestions.
     }
   }
 }

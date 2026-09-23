@@ -1,4 +1,4 @@
-export interface CaretTrace {
+interface CaretTrace {
   beforePreview: string;
   afterPreview: string;
   aroundCaret: string;

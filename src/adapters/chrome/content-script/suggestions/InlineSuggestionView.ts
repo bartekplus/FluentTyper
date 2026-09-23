@@ -95,6 +95,36 @@ const INLINE_STYLE_PROPERTIES = [
   "textTransform",
 ] as const;
 
+/** Computed font properties copied onto the floating ghost. */
+const GHOST_FONT_PROPERTIES = [
+  "font",
+  "fontFamily",
+  "fontSize",
+  "fontWeight",
+  "fontStyle",
+  "fontVariant",
+  "letterSpacing",
+  "wordSpacing",
+  "textTransform",
+  "lineHeight",
+  "direction",
+  "unicodeBidi",
+  "fontFeatureSettings",
+  "fontKerning",
+  "textAlign",
+] as const;
+
+function copyStyles(
+  target: HTMLElement,
+  computed: CSSStyleDeclaration,
+  properties: readonly (keyof CSSStyleDeclaration & string)[],
+): void {
+  const style = target.style as unknown as Record<string, string>;
+  for (const prop of properties) {
+    style[prop] = computed[prop] as string;
+  }
+}
+
 export class InlineSuggestionView {
   static readonly CLASS_NAME = "ft-suggestion-inline";
   static readonly OWNED_ATTR = "data-ft-suggestion-owned";
@@ -158,19 +188,13 @@ export class InlineSuggestionView {
   }): HTMLDivElement | null {
     InlineSuggestionView.removeForEntry(entryId, doc);
 
-    const ghost = doc.createElement("div");
-    ghost.className = InlineSuggestionView.CLASS_NAME;
-    ghost.setAttribute(InlineSuggestionView.OWNED_ATTR, "true");
-    ghost.setAttribute(InlineSuggestionView.ROLE_ATTR, InlineSuggestionView.INLINE_ROLE);
-    if (entryId !== undefined) {
-      ghost.setAttribute(ENTRY_ID_ATTR, String(entryId));
-    }
+    const ghost = InlineSuggestionView.createOverlay(doc, entryId);
     ghost.textContent = text;
 
     const styleTarget = InlineSuggestionView.resolveCaretElement(target, doc) ?? target;
     const computedStyle = window.getComputedStyle(styleTarget);
 
-    InlineSuggestionView.applyFontStyles(ghost, computedStyle);
+    copyStyles(ghost, computedStyle, GHOST_FONT_PROPERTIES);
 
     // The computed lineHeight may be larger than the caretRect height because
     // it includes CSS leading.  Shift the ghost up by half the difference so
@@ -258,21 +282,13 @@ export class InlineSuggestionView {
       return null;
     }
 
-    const mirror = doc.createElement("div");
-    mirror.className = InlineSuggestionView.CLASS_NAME;
-    mirror.setAttribute(InlineSuggestionView.OWNED_ATTR, "true");
-    mirror.setAttribute(InlineSuggestionView.ROLE_ATTR, InlineSuggestionView.INLINE_ROLE);
-    if (entryId !== undefined) {
-      mirror.setAttribute(ENTRY_ID_ATTR, String(entryId));
-    }
+    const mirror = InlineSuggestionView.createOverlay(doc, entryId);
 
     const computed = window.getComputedStyle(target);
     const isInput = TextTargetAdapter.isInput(target);
 
     // Copy all box-model and font properties so the mirror matches exactly.
-    for (const prop of MIRROR_PROPERTIES) {
-      (mirror.style as unknown as Record<string, string>)[prop] = computed[prop];
-    }
+    copyStyles(mirror, computed, MIRROR_PROPERTIES);
 
     mirror.style.borderColor = "transparent";
     mirror.style.backgroundColor = InlineSuggestionView.resolveBackgroundColor(target);
@@ -293,30 +309,19 @@ export class InlineSuggestionView {
     const afterText = value.slice(cursorOffset + trailingTokenText.length);
     const textColor = computed.color;
 
-    const beforeSpan = doc.createElement("span");
-    beforeSpan.style.color = textColor;
-    beforeSpan.textContent = isInput ? beforeText.replace(/\s/g, "\u00A0") : beforeText;
+    const createSpan = (text: string, ghosted = false): HTMLSpanElement => {
+      const span = doc.createElement("span");
+      span.style.color = textColor;
+      if (ghosted) {
+        span.style.opacity = "0.5";
+      }
+      span.textContent = isInput ? text.replace(/\s/g, "\u00A0") : text;
+      return span;
+    };
+    const suffixSpan = createSpan(suffix, true);
+    mirror.append(createSpan(beforeText), suffixSpan, createSpan(afterText));
 
-    const suffixSpan = doc.createElement("span");
-    suffixSpan.style.color = textColor;
-    suffixSpan.style.opacity = "0.5";
-    suffixSpan.textContent = isInput ? suffix.replace(/\s/g, "\u00A0") : suffix;
-
-    const afterSpan = doc.createElement("span");
-    afterSpan.style.color = textColor;
-    afterSpan.textContent = isInput ? afterText.replace(/\s/g, "\u00A0") : afterText;
-
-    mirror.appendChild(beforeSpan);
-    mirror.appendChild(suffixSpan);
-    mirror.appendChild(afterSpan);
-
-    // Position fixed, exactly over the target element.
-    const rect = target.getBoundingClientRect();
-    mirror.style.position = "fixed";
-    mirror.style.left = `${rect.left}px`;
-    mirror.style.top = `${rect.top}px`;
-    mirror.style.pointerEvents = "none";
-    mirror.style.zIndex = "10000";
+    InlineSuggestionView.placeOver(mirror, target);
 
     resolveSuggestionOverlayRoot(doc).appendChild(mirror);
 
@@ -369,20 +374,12 @@ export class InlineSuggestionView {
       return null;
     }
 
-    const mirror = doc.createElement("div");
-    mirror.className = InlineSuggestionView.CLASS_NAME;
-    mirror.setAttribute(InlineSuggestionView.OWNED_ATTR, "true");
-    mirror.setAttribute(InlineSuggestionView.ROLE_ATTR, InlineSuggestionView.INLINE_ROLE);
-    if (entryId !== undefined) {
-      mirror.setAttribute(ENTRY_ID_ATTR, String(entryId));
-    }
+    const mirror = InlineSuggestionView.createOverlay(doc, entryId);
 
     const computed = window.getComputedStyle(blockElement);
 
     // Copy box-model + font properties from the block element.
-    for (const prop of MIRROR_PROPERTIES) {
-      (mirror.style as unknown as Record<string, string>)[prop] = computed[prop];
-    }
+    copyStyles(mirror, computed, MIRROR_PROPERTIES);
 
     mirror.style.borderColor = "transparent";
     mirror.style.backgroundColor = InlineSuggestionView.resolveBackgroundColor(blockElement);
@@ -425,12 +422,7 @@ export class InlineSuggestionView {
       mirror.appendChild(suffixSpan);
     }
 
-    const blockRect = blockElement.getBoundingClientRect();
-    mirror.style.position = "fixed";
-    mirror.style.left = `${blockRect.left}px`;
-    mirror.style.top = `${blockRect.top}px`;
-    mirror.style.pointerEvents = "none";
-    mirror.style.zIndex = "10000";
+    InlineSuggestionView.placeOver(mirror, blockElement);
 
     resolveSuggestionOverlayRoot(doc).appendChild(mirror);
     return mirror;
@@ -519,9 +511,7 @@ export class InlineSuggestionView {
         const cloneEl = cloneChild as HTMLElement;
         const cs = window.getComputedStyle(origEl);
 
-        for (const prop of INLINE_STYLE_PROPERTIES) {
-          (cloneEl.style as unknown as Record<string, string>)[prop] = cs[prop];
-        }
+        copyStyles(cloneEl, cs, INLINE_STYLE_PROPERTIES);
 
         // Recurse into children.
         InlineSuggestionView.inlineComputedStyles(origEl, cloneEl);
@@ -568,24 +558,6 @@ export class InlineSuggestionView {
 
     // No block found inside target — use target itself.
     return target;
-  }
-
-  private static applyFontStyles(ghost: HTMLElement, computedStyle: CSSStyleDeclaration): void {
-    ghost.style.font = computedStyle.font;
-    ghost.style.fontFamily = computedStyle.fontFamily;
-    ghost.style.fontSize = computedStyle.fontSize;
-    ghost.style.fontWeight = computedStyle.fontWeight;
-    ghost.style.fontStyle = computedStyle.fontStyle;
-    ghost.style.fontVariant = computedStyle.fontVariant;
-    ghost.style.letterSpacing = computedStyle.letterSpacing;
-    ghost.style.wordSpacing = computedStyle.wordSpacing;
-    ghost.style.textTransform = computedStyle.textTransform;
-    ghost.style.lineHeight = computedStyle.lineHeight;
-    ghost.style.direction = computedStyle.direction;
-    ghost.style.unicodeBidi = computedStyle.unicodeBidi;
-    ghost.style.fontFeatureSettings = computedStyle.fontFeatureSettings;
-    ghost.style.fontKerning = computedStyle.fontKerning;
-    ghost.style.textAlign = computedStyle.textAlign;
   }
 
   private static resolveBackgroundColor(target: HTMLElement): string {
@@ -650,33 +622,41 @@ export class InlineSuggestionView {
       }
     }
 
-    if (!elem || elem === target) {
-      return null;
-    }
-
     // Only use the resolved element if it lives inside our target.
-    if (!target.contains(elem)) {
-      return null;
-    }
-
-    return elem;
+    return elem && elem !== target && target.contains(elem) ? elem : null;
   }
 
   static removeAll(doc: Document = document): void {
-    const nodes = doc.querySelectorAll(
-      `[${InlineSuggestionView.OWNED_ATTR}="true"][${InlineSuggestionView.ROLE_ATTR}="${InlineSuggestionView.INLINE_ROLE}"]`,
-    );
-    nodes.forEach((node) => node.remove());
+    InlineSuggestionView.removeForEntry(undefined, doc);
   }
 
   static removeForEntry(entryId: number | undefined, doc: Document = document): void {
-    if (entryId === undefined) {
-      InlineSuggestionView.removeAll(doc);
-      return;
+    const entryFilter = entryId === undefined ? "" : `[${ENTRY_ID_ATTR}="${entryId}"]`;
+    doc
+      .querySelectorAll(
+        `[${InlineSuggestionView.OWNED_ATTR}="true"][${InlineSuggestionView.ROLE_ATTR}="${InlineSuggestionView.INLINE_ROLE}"]${entryFilter}`,
+      )
+      .forEach((node) => node.remove());
+  }
+
+  private static createOverlay(doc: Document, entryId: number | undefined): HTMLDivElement {
+    const overlay = doc.createElement("div");
+    overlay.className = InlineSuggestionView.CLASS_NAME;
+    overlay.setAttribute(InlineSuggestionView.OWNED_ATTR, "true");
+    overlay.setAttribute(InlineSuggestionView.ROLE_ATTR, InlineSuggestionView.INLINE_ROLE);
+    if (entryId !== undefined) {
+      overlay.setAttribute(ENTRY_ID_ATTR, String(entryId));
     }
-    const nodes = doc.querySelectorAll(
-      `[${InlineSuggestionView.OWNED_ATTR}="true"][${InlineSuggestionView.ROLE_ATTR}="${InlineSuggestionView.INLINE_ROLE}"][${ENTRY_ID_ATTR}="${entryId}"]`,
-    );
-    nodes.forEach((node) => node.remove());
+    return overlay;
+  }
+
+  /** Position `overlay` fixed, exactly over `target`. */
+  private static placeOver(overlay: HTMLElement, target: HTMLElement): void {
+    const rect = target.getBoundingClientRect();
+    overlay.style.position = "fixed";
+    overlay.style.left = `${rect.left}px`;
+    overlay.style.top = `${rect.top}px`;
+    overlay.style.pointerEvents = "none";
+    overlay.style.zIndex = "10000";
   }
 }

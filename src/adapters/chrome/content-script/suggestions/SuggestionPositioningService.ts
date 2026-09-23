@@ -11,17 +11,25 @@ import {
 } from "./SuggestionPopupTypography";
 import type { SuggestionElement } from "./types";
 
-interface MenuDimensions {
-  width: number;
-  height: number;
-}
-
 interface MenuCoordinates {
   left: number;
   top: number;
   maxHeight: number;
   maxWidth: number;
 }
+
+type ThemeLengthProperty = "font-size" | "padding-top" | "padding-left";
+
+/** Styles that lay the menu out invisibly so its natural size can be read. */
+const MENU_MEASURE_STYLES = {
+  top: "0px",
+  left: "0px",
+  right: "auto",
+  bottom: "auto",
+  position: "fixed",
+  visibility: "hidden",
+  display: "block",
+} as const;
 
 export class SuggestionPositioningService {
   private static readonly VIEWPORT_PADDING_PX = 8;
@@ -155,10 +163,7 @@ export class SuggestionPositioningService {
     const mirrorRect = mirror.getBoundingClientRect();
 
     const fontSize = Number.parseFloat(computed.fontSize) || 0;
-    let lineHeight = Number.parseFloat(computed.lineHeight);
-    if (!lineHeight || Number.isNaN(lineHeight)) {
-      lineHeight = fontSize ? fontSize * 1.2 : 0;
-    }
+    const lineHeight = Number.parseFloat(computed.lineHeight) || fontSize * 1.2;
 
     const fallbackHeight = lineHeight || fontSize || mirrorRect.height;
     const glyphRect =
@@ -197,13 +202,8 @@ export class SuggestionPositioningService {
     }
 
     const range = selection.getRangeAt(0).cloneRange();
-    const getRangeRect = (value: Range): DOMRect | null => {
-      if (typeof value.getBoundingClientRect !== "function") {
-        return null;
-      }
-      return value.getBoundingClientRect();
-    };
-    let rect = getRangeRect(range);
+    let rect =
+      typeof range.getBoundingClientRect === "function" ? range.getBoundingClientRect() : null;
 
     if ((!rect || rect.height === 0) && selection.anchorNode) {
       const marker = document.createElement("span");
@@ -291,38 +291,18 @@ export class SuggestionPositioningService {
     };
   }
 
-  private getMenuDimensions(menu: HTMLDivElement): MenuDimensions {
-    const previous = {
-      top: menu.style.top,
-      left: menu.style.left,
-      right: menu.style.right,
-      bottom: menu.style.bottom,
-      position: menu.style.position,
-      visibility: menu.style.visibility,
-      display: menu.style.display,
-    };
+  private getMenuDimensions(menu: HTMLDivElement): { width: number; height: number } {
+    const keys = Object.keys(MENU_MEASURE_STYLES) as (keyof typeof MENU_MEASURE_STYLES)[];
+    const previous = keys.map((key) => menu.style[key]);
+    for (const key of keys) {
+      menu.style.setProperty(key, MENU_MEASURE_STYLES[key], "important");
+    }
 
-    menu.style.setProperty("top", "0px", "important");
-    menu.style.setProperty("left", "0px", "important");
-    menu.style.setProperty("right", "auto", "important");
-    menu.style.setProperty("bottom", "auto", "important");
-    menu.style.setProperty("position", "fixed", "important");
-    menu.style.setProperty("visibility", "hidden", "important");
-    menu.style.setProperty("display", "block", "important");
+    const dimensions = { width: menu.offsetWidth, height: menu.offsetHeight };
 
-    const dimensions: MenuDimensions = {
-      width: menu.offsetWidth,
-      height: menu.offsetHeight,
-    };
-
-    menu.style.position = previous.position;
-    menu.style.top = previous.top;
-    menu.style.left = previous.left;
-    menu.style.right = previous.right;
-    menu.style.bottom = previous.bottom;
-    menu.style.visibility = previous.visibility;
-    menu.style.display = previous.display;
-
+    keys.forEach((key, index) => {
+      menu.style[key] = previous[index];
+    });
     return dimensions;
   }
 
@@ -364,88 +344,65 @@ export class SuggestionPositioningService {
     }
 
     const rootComputedStyle = window.getComputedStyle(root);
+    // The theme value's scale relative to its legacy default, clamped.
+    const scale = (
+      variableName: string,
+      legacyDefaultValue: string,
+      property: ThemeLengthProperty,
+      minScale: number,
+    ): number => {
+      const rawThemeValue = rootComputedStyle.getPropertyValue(variableName).trim();
+      if (!rawThemeValue) {
+        return 1;
+      }
+      const rootFontSizePx = this.resolveFontSizePx(rootComputedStyle.fontSize);
+      const toPx = (value: string) =>
+        this.resolveCssLengthPx(
+          value,
+          property,
+          typographyAnchor,
+          rootFontSizePx,
+          contextFontSizePx,
+        );
+      const themePx = toPx(rawThemeValue);
+      const legacyDefaultPx = toPx(legacyDefaultValue);
+      if (
+        !themePx ||
+        !legacyDefaultPx ||
+        legacyDefaultPx <= 0 ||
+        !Number.isFinite(themePx) ||
+        !Number.isFinite(legacyDefaultPx)
+      ) {
+        return 1;
+      }
+      return this.clamp(themePx / legacyDefaultPx, minScale, 1.2);
+    };
 
     return {
-      fontSize: this.resolveThemeLengthScale({
-        rootComputedStyle,
-        variableName: "--ft-theme-suggestion-font-size",
-        legacyDefaultValue: SuggestionPositioningService.LEGACY_THEME_FONT_SIZE,
-        property: "font-size",
-        typographyAnchor,
-        contextFontSizePx,
-        minScale: 0.85,
-        maxScale: 1.2,
-      }),
-      paddingVertical: this.resolveThemeLengthScale({
-        rootComputedStyle,
-        variableName: "--ft-theme-suggestion-padding-vertical",
-        legacyDefaultValue: SuggestionPositioningService.LEGACY_THEME_PADDING_VERTICAL,
-        property: "padding-top",
-        typographyAnchor,
-        contextFontSizePx,
-        minScale: 0.75,
-        maxScale: 1.2,
-      }),
-      paddingHorizontal: this.resolveThemeLengthScale({
-        rootComputedStyle,
-        variableName: "--ft-theme-suggestion-padding-horizontal",
-        legacyDefaultValue: SuggestionPositioningService.LEGACY_THEME_PADDING_HORIZONTAL,
-        property: "padding-left",
-        typographyAnchor,
-        contextFontSizePx,
-        minScale: 0.75,
-        maxScale: 1.2,
-      }),
+      fontSize: scale(
+        "--ft-theme-suggestion-font-size",
+        SuggestionPositioningService.LEGACY_THEME_FONT_SIZE,
+        "font-size",
+        0.85,
+      ),
+      paddingVertical: scale(
+        "--ft-theme-suggestion-padding-vertical",
+        SuggestionPositioningService.LEGACY_THEME_PADDING_VERTICAL,
+        "padding-top",
+        0.75,
+      ),
+      paddingHorizontal: scale(
+        "--ft-theme-suggestion-padding-horizontal",
+        SuggestionPositioningService.LEGACY_THEME_PADDING_HORIZONTAL,
+        "padding-left",
+        0.75,
+      ),
     };
-  }
-
-  private resolveThemeLengthScale(args: {
-    rootComputedStyle: CSSStyleDeclaration;
-    variableName: string;
-    legacyDefaultValue: string;
-    property: "font-size" | "padding-top" | "padding-left";
-    typographyAnchor: HTMLElement;
-    contextFontSizePx: number;
-    minScale: number;
-    maxScale: number;
-  }): number {
-    const rawThemeValue = args.rootComputedStyle.getPropertyValue(args.variableName).trim();
-    if (!rawThemeValue) {
-      return 1;
-    }
-
-    const rootFontSizePx = this.resolveFontSizePx(args.rootComputedStyle.fontSize);
-    const resolvedThemeValuePx = this.resolveCssLengthPx(
-      rawThemeValue,
-      args.property,
-      args.typographyAnchor,
-      rootFontSizePx,
-      args.contextFontSizePx,
-    );
-    const resolvedLegacyDefaultPx = this.resolveCssLengthPx(
-      args.legacyDefaultValue,
-      args.property,
-      args.typographyAnchor,
-      rootFontSizePx,
-      args.contextFontSizePx,
-    );
-
-    if (
-      !resolvedThemeValuePx ||
-      !resolvedLegacyDefaultPx ||
-      resolvedLegacyDefaultPx <= 0 ||
-      !Number.isFinite(resolvedThemeValuePx) ||
-      !Number.isFinite(resolvedLegacyDefaultPx)
-    ) {
-      return 1;
-    }
-
-    return this.clamp(resolvedThemeValuePx / resolvedLegacyDefaultPx, args.minScale, args.maxScale);
   }
 
   private resolveCssLengthPx(
     value: string,
-    property: "font-size" | "padding-top" | "padding-left",
+    property: ThemeLengthProperty,
     typographyAnchor: HTMLElement,
     rootFontSizePx: number,
     contextFontSizePx: number,
@@ -458,19 +415,11 @@ export class SuggestionPositioningService {
       return 0;
     }
 
-    const pxMatch = normalizedValue.match(/^(-?\d*\.?\d+)px$/);
-    if (pxMatch) {
-      return Number.parseFloat(pxMatch[1]);
-    }
-
-    const remMatch = normalizedValue.match(/^(-?\d*\.?\d+)rem$/);
-    if (remMatch) {
-      return Number.parseFloat(remMatch[1]) * rootFontSizePx;
-    }
-
-    const emMatch = normalizedValue.match(/^(-?\d*\.?\d+)em$/);
-    if (emMatch) {
-      return Number.parseFloat(emMatch[1]) * contextFontSizePx;
+    const match = normalizedValue.match(/^(-?\d*\.?\d+)(px|rem|em)$/);
+    if (match) {
+      const unitPx =
+        match[2] === "px" ? 1 : match[2] === "rem" ? rootFontSizePx : contextFontSizePx;
+      return Number.parseFloat(match[1]) * unitPx;
     }
 
     return this.measureCssLengthPx(value, property, typographyAnchor, contextFontSizePx);
@@ -478,7 +427,7 @@ export class SuggestionPositioningService {
 
   private measureCssLengthPx(
     value: string,
-    property: "font-size" | "padding-top" | "padding-left",
+    property: ThemeLengthProperty,
     typographyAnchor: HTMLElement,
     contextFontSizePx: number,
   ): number | null {
