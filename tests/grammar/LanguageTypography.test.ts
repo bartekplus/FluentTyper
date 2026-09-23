@@ -77,7 +77,9 @@ describe("language-aware typography preset", () => {
       `Bonjour${NNBSP}! Ça va${NNBSP}? Oui${NNBSP}; enfin${NBSP}: presque.`,
     );
     // A plain space the writer typed is replaced, not doubled.
-    expect(type("Quoi ? Voici :", "fr_FR")).toBe(`Quoi${NNBSP}? Voici${NBSP}:`);
+    // A trailing space is typed here (unlike above) because a colon only gets
+    // spaced once it is confirmed to end a word, not on its own keystroke.
+    expect(type("Quoi ? Voici : ", "fr_FR")).toBe(`Quoi${NNBSP}? Voici${NBSP}: `);
     expect(type("Quoi?! ", "fr_FR")).toBe(`Quoi${NNBSP}?! `);
     expect(type('Il dit "non"!', "fr_FR")).toBe(`Il dit «${NBSP}non${NBSP}»${NNBSP}!`);
   });
@@ -120,6 +122,31 @@ describe("language-aware typography preset", () => {
       expect(type(`Entité ${reference} `, "fr_FR")).toBe(`Entité ${reference} `);
     }
     expect(type("Oui; enfin ", "fr_FR")).toBe(`Oui${NNBSP}; enfin `);
+  });
+
+  test("French colon spacing leaves a colon inside a token alone", () => {
+    expect(type("C:\\Users\\moi ", "fr_FR")).toBe("C:\\Users\\moi ");
+  });
+
+  test("French colon spacing leaves emoji shortcodes alone", () => {
+    expect(type("Merci :smile: ", "fr_FR")).toBe("Merci :smile: ");
+  });
+
+  test("French question spacing leaves x?y alone", () => {
+    // Written mid-sentence so the unrelated sentence-start capitalization rule
+    // (which also applies in English, since "?" mid-word isn't a word boundary)
+    // doesn't capitalize "x" and obscure what this test is checking.
+    expect(type("Vu x?y ", "fr_FR")).toBe("Vu x?y ");
+  });
+
+  test("French colon spacing still spaces a sentence colon", () => {
+    expect(type("Note: ", "fr_FR")).toBe(`Note${NBSP}: `);
+  });
+
+  test("French colon spacing leaves other technical tokens alone", () => {
+    expect(type("std::vector a:b localhost:3000 ", "fr_FR")).toBe(
+      "std::vector a:b localhost:3000 ",
+    );
   });
 
   test("straight quotes stay straight in code and protected contexts", () => {
