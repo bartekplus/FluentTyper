@@ -76,35 +76,23 @@ export function parseThemeColor(rawValue: string): RGBAColor | null {
 
   if (value.startsWith("#")) {
     const hex = value.slice(1);
-    if (hex.length === 3 || hex.length === 4) {
-      const channels = [...hex].map((part) => Number.parseInt(part + part, 16));
-      if (channels.some((part) => Number.isNaN(part))) {
-        return null;
-      }
-      return {
-        r: channels[0],
-        g: channels[1],
-        b: channels[2],
-        a: hex.length === 4 ? channels[3] / 255 : 1,
-      };
+    if (![3, 4, 6, 8].includes(hex.length)) {
+      return null;
     }
-    if (hex.length === 6 || hex.length === 8) {
-      const pairs = hex.match(/.{1,2}/g);
-      if (!pairs) {
-        return null;
-      }
-      const channels = pairs.map((part) => Number.parseInt(part, 16));
-      if (channels.some((part) => Number.isNaN(part))) {
-        return null;
-      }
-      return {
-        r: channels[0],
-        g: channels[1],
-        b: channels[2],
-        a: hex.length === 8 ? channels[3] / 255 : 1,
-      };
+    const pairs = hex.length <= 4 ? [...hex].map((part) => part + part) : hex.match(/.{1,2}/g);
+    if (!pairs) {
+      return null;
     }
-    return null;
+    const channels = pairs.map((part) => Number.parseInt(part, 16));
+    if (channels.some((part) => Number.isNaN(part))) {
+      return null;
+    }
+    return {
+      r: channels[0],
+      g: channels[1],
+      b: channels[2],
+      a: hex.length === 4 || hex.length === 8 ? channels[3] / 255 : 1,
+    };
   }
 
   const rgbMatch = value.match(
@@ -124,16 +112,18 @@ export function parseThemeColor(rawValue: string): RGBAColor | null {
   return { r, g, b, a };
 }
 
-function toOpaqueHex(color: RGBAColor): string {
-  return `#${[color.r, color.g, color.b]
+function toHex(channels: number[]): string {
+  return `#${channels
     .map((channel) => clampColorChannel(channel).toString(16).padStart(2, "0"))
     .join("")}`;
 }
 
+function toOpaqueHex(color: RGBAColor): string {
+  return toHex([color.r, color.g, color.b]);
+}
+
 function toAlphaHex(color: RGBAColor): string {
-  return `#${[color.r, color.g, color.b, Math.round(clampAlpha(color.a) * 255)]
-    .map((channel) => clampColorChannel(channel).toString(16).padStart(2, "0"))
-    .join("")}`;
+  return toHex([color.r, color.g, color.b, Math.round(clampAlpha(color.a) * 255)]);
 }
 
 function toRgbString(color: RGBAColor): string {
@@ -365,10 +355,10 @@ export class AppearanceStudio {
     shell.appendChild(title);
     shell.appendChild(this.createHelperText(i18n.get("appearance_density_copy")));
 
-    shell.appendChild(
-      this.createSelectField(
-        i18n.get("appearance_font_size_title"),
-        theme[KEY_SUGGESTION_FONT_SIZE],
+    const fields: Array<[string, ThemeKey, Array<[string, string]>]> = [
+      [
+        "appearance_font_size_title",
+        KEY_SUGGESTION_FONT_SIZE,
         [
           ["0.75rem", i18n.get("appearance_font_size_xs")],
           ["0.8rem", i18n.get("appearance_font_size_sm")],
@@ -376,14 +366,10 @@ export class AppearanceStudio {
           ["0.9rem", i18n.get("appearance_font_size_lg")],
           ["1rem", i18n.get("appearance_font_size_xl")],
         ],
-        (value) => this.registry[KEY_SUGGESTION_FONT_SIZE].set(value),
-        (value) => this.syncLiveTheme({ ...theme, [KEY_SUGGESTION_FONT_SIZE]: value }),
-      ),
-    );
-    shell.appendChild(
-      this.createSelectField(
-        i18n.get("appearance_row_height_title"),
-        theme[KEY_SUGGESTION_PADDING_VERTICAL],
+      ],
+      [
+        "appearance_row_height_title",
+        KEY_SUGGESTION_PADDING_VERTICAL,
         [
           ["0.3rem", i18n.get("appearance_density_ultra_compact")],
           ["0.4rem", i18n.get("appearance_density_compact")],
@@ -391,14 +377,10 @@ export class AppearanceStudio {
           ["0.6rem", i18n.get("appearance_density_balanced")],
           ["0.8rem", i18n.get("appearance_density_roomy")],
         ],
-        (value) => this.registry[KEY_SUGGESTION_PADDING_VERTICAL].set(value),
-        (value) => this.syncLiveTheme({ ...theme, [KEY_SUGGESTION_PADDING_VERTICAL]: value }),
-      ),
-    );
-    shell.appendChild(
-      this.createSelectField(
-        i18n.get("appearance_side_padding_title"),
-        theme[KEY_SUGGESTION_PADDING_HORIZONTAL],
+      ],
+      [
+        "appearance_side_padding_title",
+        KEY_SUGGESTION_PADDING_HORIZONTAL,
         [
           ["0.5rem", i18n.get("appearance_density_ultra_tight")],
           ["0.6rem", i18n.get("appearance_density_tight")],
@@ -406,10 +388,19 @@ export class AppearanceStudio {
           ["1rem", i18n.get("appearance_density_wide")],
           ["1.2rem", i18n.get("appearance_density_extra_wide")],
         ],
-        (value) => this.registry[KEY_SUGGESTION_PADDING_HORIZONTAL].set(value),
-        (value) => this.syncLiveTheme({ ...theme, [KEY_SUGGESTION_PADDING_HORIZONTAL]: value }),
-      ),
-    );
+      ],
+    ];
+    fields.forEach(([titleKey, key, options]) => {
+      shell.appendChild(
+        this.createSelectField(
+          i18n.get(titleKey),
+          theme[key],
+          options,
+          (value) => this.registry[key].set(value),
+          (value) => this.syncLiveTheme({ ...theme, [key]: value }),
+        ),
+      );
+    });
     return shell;
   }
 
@@ -553,13 +544,9 @@ export class AppearanceStudio {
   }
 
   private readThemeValues(): Record<ThemeKey, string> {
-    return THEME_KEYS.reduce(
-      (acc, key) => {
-        acc[key] = formatLooseText(this.registry[key].get());
-        return acc;
-      },
-      {} as Record<ThemeKey, string>,
-    );
+    return Object.fromEntries(
+      THEME_KEYS.map((key) => [key, formatLooseText(this.registry[key].get())]),
+    ) as Record<ThemeKey, string>;
   }
 
   private syncLiveTheme(theme: Record<ThemeKey, string>): void {
@@ -584,16 +571,14 @@ export class AppearanceStudio {
       : theme[KEY_SUGGESTION_HIGHLIGHT_TEXT_DARK];
     const border = isLight ? theme[KEY_SUGGESTION_BORDER_LIGHT] : theme[KEY_SUGGESTION_BORDER_DARK];
 
-    preview.style.setProperty("--suggestion-bg-light", bg);
-    preview.style.setProperty("--suggestion-text-light", text);
-    preview.style.setProperty("--suggestion-highlight-bg-light", highlightBg);
-    preview.style.setProperty("--suggestion-highlight-text-light", highlightText);
-    preview.style.setProperty("--suggestion-border-color-light", border);
-    preview.style.setProperty("--suggestion-bg-dark", bg);
-    preview.style.setProperty("--suggestion-text-dark", text);
-    preview.style.setProperty("--suggestion-highlight-bg-dark", highlightBg);
-    preview.style.setProperty("--suggestion-highlight-text-dark", highlightText);
-    preview.style.setProperty("--suggestion-border-color-dark", border);
+    // The preview mirrors the selected mode into both light and dark variables.
+    for (const suffix of ["light", "dark"]) {
+      preview.style.setProperty(`--suggestion-bg-${suffix}`, bg);
+      preview.style.setProperty(`--suggestion-text-${suffix}`, text);
+      preview.style.setProperty(`--suggestion-highlight-bg-${suffix}`, highlightBg);
+      preview.style.setProperty(`--suggestion-highlight-text-${suffix}`, highlightText);
+      preview.style.setProperty(`--suggestion-border-color-${suffix}`, border);
+    }
     preview.style.setProperty("--suggestion-font-size", theme[KEY_SUGGESTION_FONT_SIZE]);
     preview.style.setProperty(
       "--suggestion-padding-vertical",

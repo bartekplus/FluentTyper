@@ -55,7 +55,10 @@ import {
   DEFAULT_AI_MODEL_ID,
   DEFAULT_AI_PREDICTION_TIMEOUT_MS,
 } from "@core/domain/constants";
-import { DEFAULT_SUGGESTION_THEME_SETTINGS } from "@core/domain/themeDefaults";
+import {
+  DEFAULT_SUGGESTION_THEME_SETTINGS,
+  type SuggestionThemeSettings,
+} from "@core/domain/themeDefaults";
 import {
   GRAMMAR_RULE_CATALOG,
   GRAMMAR_RULE_IDS,
@@ -237,6 +240,16 @@ const DEV_OBSERVABILITY_SETTINGS: FieldConfig[] = [
     text: `<div id='observabilityRoot'>${i18n.get("observability_loading")}</div>`,
   },
 ];
+
+function themeValueSetting(groupKey: string, name: keyof SuggestionThemeSettings): FieldConfig {
+  return {
+    tab: "theming_tab",
+    group: i18n.get(groupKey),
+    name,
+    type: "valueOnly",
+    default: DEFAULT_SUGGESTION_THEME_SETTINGS[name],
+  };
+}
 
 const GRAMMAR_RULE_OPTIONS = GRAMMAR_RULE_CATALOG.map((rule) => {
   const rolloutBadge =
@@ -658,97 +671,19 @@ const manifest: ManifestDefinition = {
       description: i18n.get("options_panel_appearance_desc"),
       keywords: [i18n.get("options_panel_appearance_label"), i18n.get("typography_spacing")],
     },
-    {
-      tab: "theming_tab",
-      group: i18n.get("light_theme_colors"),
-      name: KEY_SUGGESTION_BG_LIGHT,
-      type: "valueOnly",
-      default: DEFAULT_SUGGESTION_THEME_SETTINGS.suggestionBgLight,
-    },
-    {
-      tab: "theming_tab",
-      group: i18n.get("light_theme_colors"),
-      name: KEY_SUGGESTION_TEXT_LIGHT,
-      type: "valueOnly",
-      default: DEFAULT_SUGGESTION_THEME_SETTINGS.suggestionTextLight,
-    },
-    {
-      tab: "theming_tab",
-      group: i18n.get("light_theme_colors"),
-      name: KEY_SUGGESTION_HIGHLIGHT_BG_LIGHT,
-      type: "valueOnly",
-      default: DEFAULT_SUGGESTION_THEME_SETTINGS.suggestionHighlightBgLight,
-    },
-    {
-      tab: "theming_tab",
-      group: i18n.get("light_theme_colors"),
-      name: KEY_SUGGESTION_HIGHLIGHT_TEXT_LIGHT,
-      type: "valueOnly",
-      default: DEFAULT_SUGGESTION_THEME_SETTINGS.suggestionHighlightTextLight,
-    },
-    {
-      tab: "theming_tab",
-      group: i18n.get("light_theme_colors"),
-      name: KEY_SUGGESTION_BORDER_LIGHT,
-      type: "valueOnly",
-      default: DEFAULT_SUGGESTION_THEME_SETTINGS.suggestionBorderLight,
-    },
-    {
-      tab: "theming_tab",
-      group: i18n.get("dark_theme_colors"),
-      name: KEY_SUGGESTION_BG_DARK,
-      type: "valueOnly",
-      default: DEFAULT_SUGGESTION_THEME_SETTINGS.suggestionBgDark,
-    },
-    {
-      tab: "theming_tab",
-      group: i18n.get("dark_theme_colors"),
-      name: KEY_SUGGESTION_TEXT_DARK,
-      type: "valueOnly",
-      default: DEFAULT_SUGGESTION_THEME_SETTINGS.suggestionTextDark,
-    },
-    {
-      tab: "theming_tab",
-      group: i18n.get("dark_theme_colors"),
-      name: KEY_SUGGESTION_HIGHLIGHT_BG_DARK,
-      type: "valueOnly",
-      default: DEFAULT_SUGGESTION_THEME_SETTINGS.suggestionHighlightBgDark,
-    },
-    {
-      tab: "theming_tab",
-      group: i18n.get("dark_theme_colors"),
-      name: KEY_SUGGESTION_HIGHLIGHT_TEXT_DARK,
-      type: "valueOnly",
-      default: DEFAULT_SUGGESTION_THEME_SETTINGS.suggestionHighlightTextDark,
-    },
-    {
-      tab: "theming_tab",
-      group: i18n.get("dark_theme_colors"),
-      name: KEY_SUGGESTION_BORDER_DARK,
-      type: "valueOnly",
-      default: DEFAULT_SUGGESTION_THEME_SETTINGS.suggestionBorderDark,
-    },
-    {
-      tab: "theming_tab",
-      group: i18n.get("typography_spacing"),
-      name: KEY_SUGGESTION_FONT_SIZE,
-      type: "valueOnly",
-      default: DEFAULT_SUGGESTION_THEME_SETTINGS.suggestionFontSize,
-    },
-    {
-      tab: "theming_tab",
-      group: i18n.get("typography_spacing"),
-      name: KEY_SUGGESTION_PADDING_VERTICAL,
-      type: "valueOnly",
-      default: DEFAULT_SUGGESTION_THEME_SETTINGS.suggestionPaddingVertical,
-    },
-    {
-      tab: "theming_tab",
-      group: i18n.get("typography_spacing"),
-      name: KEY_SUGGESTION_PADDING_HORIZONTAL,
-      type: "valueOnly",
-      default: DEFAULT_SUGGESTION_THEME_SETTINGS.suggestionPaddingHorizontal,
-    },
+    themeValueSetting("light_theme_colors", KEY_SUGGESTION_BG_LIGHT),
+    themeValueSetting("light_theme_colors", KEY_SUGGESTION_TEXT_LIGHT),
+    themeValueSetting("light_theme_colors", KEY_SUGGESTION_HIGHLIGHT_BG_LIGHT),
+    themeValueSetting("light_theme_colors", KEY_SUGGESTION_HIGHLIGHT_TEXT_LIGHT),
+    themeValueSetting("light_theme_colors", KEY_SUGGESTION_BORDER_LIGHT),
+    themeValueSetting("dark_theme_colors", KEY_SUGGESTION_BG_DARK),
+    themeValueSetting("dark_theme_colors", KEY_SUGGESTION_TEXT_DARK),
+    themeValueSetting("dark_theme_colors", KEY_SUGGESTION_HIGHLIGHT_BG_DARK),
+    themeValueSetting("dark_theme_colors", KEY_SUGGESTION_HIGHLIGHT_TEXT_DARK),
+    themeValueSetting("dark_theme_colors", KEY_SUGGESTION_BORDER_DARK),
+    themeValueSetting("typography_spacing", KEY_SUGGESTION_FONT_SIZE),
+    themeValueSetting("typography_spacing", KEY_SUGGESTION_PADDING_VERTICAL),
+    themeValueSetting("typography_spacing", KEY_SUGGESTION_PADDING_HORIZONTAL),
 
     // =========================================================================
     // TAB: Data & Backup
