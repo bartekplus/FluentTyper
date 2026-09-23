@@ -121,6 +121,9 @@ export interface SuggestionEntry {
   visibleSuggestionBeforeCursorText: string | null;
   visibleSuggestionFullText: string | null;
   inlineSuggestion: string | null;
+  // The typed token the current suggestions were predicted for. A suggestion
+  // that replaces rather than extends the token is valid only for this token.
+  inlineSuggestionToken: string | null;
   pendingInlineAccept: boolean;
   // The renderer vetoed the current suggestions; Tab must not wait on them.
   inlineRenderRejected: boolean;

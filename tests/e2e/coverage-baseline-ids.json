@@ -27,6 +27,7 @@
     "contenteditable_br_line_prediction_scope",
     "missing_space_cancellation",
     "inline_suggestion_tab_insert",
+    "inline_text_expansion_replacement",
     "enabled_languages_popup_restriction",
     "auto_detect_language_guards",
     "productivity_dashboard_render_reset",

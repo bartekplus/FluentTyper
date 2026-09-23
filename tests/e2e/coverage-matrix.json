@@ -428,6 +428,32 @@
       ]
     },
     {
+      "id": "inline_text_expansion_replacement",
+      "description": "Inline mode previews a text expansion in place of its shortcut (visible even in a narrow mid-text input) and Tab inserts exactly the previewed text; a stale prediction is never accepted after further typing.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Inline text expansion previews and replaces the shortcut mid-text in a narrow input"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionEntrySession.test.ts",
+          "test": "inline Tab accepts a text expansion that replaces the typed shortcut"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionEntrySession.test.ts",
+          "test": "inline Tab does not accept a stale prediction after diverging typing"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/InlineSuggestionPresenter.test.ts",
+          "test": "previews a text expansion in place of the typed shortcut"
+        }
+      ]
+    },
+    {
       "id": "enabled_languages_popup_restriction",
       "description": "Enabled languages list constrains popup language options.",
       "coverage": [

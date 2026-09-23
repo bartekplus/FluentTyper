@@ -339,6 +339,7 @@ export class SuggestionEntrySession {
     this.entry.visibleSuggestionBeforeCursorText = null;
     this.entry.visibleSuggestionFullText = null;
     this.entry.inlineSuggestion = null;
+    this.entry.inlineSuggestionToken = null;
     this.entry.pendingInlineAccept = false;
     this.entry.inlineRenderRejected = false;
     this.hideMenu();
@@ -362,6 +363,7 @@ export class SuggestionEntrySession {
     const currentPredictionContext = this.resolveCurrentPredictionContext();
     this.entry.visibleSuggestionBeforeCursorText = currentPredictionContext.beforeCursor;
     this.entry.visibleSuggestionFullText = currentPredictionContext.fullText;
+    this.entry.inlineSuggestionToken = this.entry.latestMentionText;
 
     this.entry.inlineRenderRejected = false;
     if (this.inlineSuggestionEnabled) {
