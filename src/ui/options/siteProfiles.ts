@@ -6,13 +6,8 @@ import {
   KEY_NUM_SUGGESTIONS,
   KEY_PREFER_NATIVE_AUTOCOMPLETE,
   KEY_SITE_PROFILES,
-  MAX_NUM_SUGGESTIONS,
 } from "@core/domain/constants";
-import {
-  parseBooleanOverride,
-  parseSuggestionsOverride,
-  resolveGlobalNumSuggestions,
-} from "@core/domain/siteProfileService";
+import { resolveGlobalNumSuggestions } from "@core/domain/siteProfileService";
 import {
   normalizeDomainHost,
   removeSiteProfileForDomain,
@@ -21,6 +16,15 @@ import {
   type SiteProfile,
   type SiteProfiles,
 } from "@core/domain/siteProfiles";
+import {
+  buildSiteProfile,
+  getInheritLabel,
+  getOnOffLabel,
+  getPreferNativeAutocompleteLabel,
+  populateBooleanOverrideOptions,
+  populateSuggestionOptions,
+  toOverrideValue,
+} from "@ui/shared/siteProfileEditor";
 import { formatTranslation, i18n } from "./fluenttyperI18n.js";
 import { appendLanguageOptions, createStackField, languageLabel } from "./workspacePanelUtils.js";
 
@@ -38,24 +42,6 @@ interface SiteProfilesElements {
   status: HTMLElement;
   tableBody: HTMLElement;
   emptyState: HTMLElement;
-}
-
-function getOnOffLabel(value: boolean): string {
-  return value ? i18n.get("site_profile_on") : i18n.get("site_profile_off");
-}
-
-function getInheritLabel(globalValueLabel: string): string {
-  return `${i18n.get("site_profile_inherit_global")} (${globalValueLabel})`;
-}
-
-function getPreferNativeAutocompleteLabel(value: boolean): string {
-  return value
-    ? i18n.get("prefer_native_autocomplete_on")
-    : i18n.get("prefer_native_autocomplete_off");
-}
-
-function toOverrideOptionValue(value: boolean | undefined): string {
-  return typeof value === "boolean" ? (value ? "on" : "off") : "global";
 }
 
 function getPrimaryLanguage(enabledLanguages: string[]): string {
@@ -293,63 +279,16 @@ export class SiteProfilesManager {
     const selectedLanguage = enabledLanguages.includes(this.elements.languageSelect.value)
       ? this.elements.languageSelect.value
       : getPrimaryLanguage(enabledLanguages);
-    const profile: SiteProfile = { language: selectedLanguage };
-
-    const numSuggestions = parseSuggestionsOverride(this.elements.numSuggestionsSelect.value);
-    if (typeof numSuggestions === "number") {
-      profile.numSuggestions = numSuggestions;
-    }
-
-    const inlineSuggestion = parseBooleanOverride(this.elements.inlineSelect.value);
-    if (typeof inlineSuggestion === "boolean") {
-      profile.inline_suggestion = inlineSuggestion;
-    }
-
-    const preferNativeAutocomplete = parseBooleanOverride(
-      this.elements.preferNativeAutocompleteSelect.value,
-    );
-    if (typeof preferNativeAutocomplete === "boolean") {
-      profile.preferNativeAutocomplete = preferNativeAutocomplete;
-    }
-
-    return profile;
+    return buildSiteProfile(selectedLanguage, {
+      numSuggestions: this.elements.numSuggestionsSelect.value,
+      inlineSuggestion: this.elements.inlineSelect.value,
+      preferNativeAutocomplete: this.elements.preferNativeAutocompleteSelect.value,
+    });
   }
 
   private populateLanguageOptions(enabledLanguages: string[]): void {
     this.elements.languageSelect.replaceChildren();
     appendLanguageOptions(this.elements.languageSelect, enabledLanguages);
-  }
-
-  private populateSuggestionsOptions(globalNumSuggestions: number): void {
-    this.elements.numSuggestionsSelect.replaceChildren();
-    const inherit = document.createElement("option");
-    inherit.value = "global";
-    inherit.textContent = getInheritLabel(String(globalNumSuggestions));
-    this.elements.numSuggestionsSelect.appendChild(inherit);
-    for (let idx = 0; idx <= MAX_NUM_SUGGESTIONS; idx++) {
-      const option = document.createElement("option");
-      option.value = String(idx);
-      option.textContent = String(idx);
-      this.elements.numSuggestionsSelect.appendChild(option);
-    }
-  }
-
-  private populateBooleanOverrideOptions(
-    select: HTMLSelectElement,
-    globalValue: boolean,
-    describeValue: (value: boolean) => string,
-  ): void {
-    select.replaceChildren();
-    [
-      { value: "global", label: getInheritLabel(describeValue(globalValue)) },
-      { value: "on", label: describeValue(true) },
-      { value: "off", label: describeValue(false) },
-    ].forEach((entry) => {
-      const option = document.createElement("option");
-      option.value = entry.value;
-      option.textContent = entry.label;
-      select.appendChild(option);
-    });
   }
 
   private applyEditorState(enabledLanguages: string[], siteProfiles: SiteProfiles): void {
@@ -359,8 +298,8 @@ export class SiteProfilesManager {
     this.elements.languageSelect.value = profile?.language || primaryLanguage;
     this.elements.numSuggestionsSelect.value =
       typeof profile?.numSuggestions === "number" ? String(profile.numSuggestions) : "global";
-    this.elements.inlineSelect.value = toOverrideOptionValue(profile?.inline_suggestion);
-    this.elements.preferNativeAutocompleteSelect.value = toOverrideOptionValue(
+    this.elements.inlineSelect.value = toOverrideValue(profile?.inline_suggestion);
+    this.elements.preferNativeAutocompleteSelect.value = toOverrideValue(
       profile?.preferNativeAutocomplete,
     );
     this.elements.saveButton.textContent = this.editingDomain
@@ -496,13 +435,13 @@ export class SiteProfilesManager {
     const globalPreferNativeAutocomplete = rawPreferNativeAutocomplete !== false;
 
     this.populateLanguageOptions(enabledLanguages);
-    this.populateSuggestionsOptions(globalNumSuggestions);
-    this.populateBooleanOverrideOptions(
+    populateSuggestionOptions(this.elements.numSuggestionsSelect, globalNumSuggestions);
+    populateBooleanOverrideOptions(
       this.elements.inlineSelect,
       globalInlineSuggestion,
       getOnOffLabel,
     );
-    this.populateBooleanOverrideOptions(
+    populateBooleanOverrideOptions(
       this.elements.preferNativeAutocompleteSelect,
       globalPreferNativeAutocomplete,
       getPreferNativeAutocompleteLabel,

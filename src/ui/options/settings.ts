@@ -1,9 +1,5 @@
 import { SettingsEngine, type SettingsRegistry } from "@ui/settings-engine/SettingsEngine.js";
-import {
-  createLogger,
-  getRegisteredObservabilityModules,
-  setGlobalObservabilityRuntime,
-} from "@core/application/logging/Logger";
+import { createLogger, installObservabilityRelay } from "@core/application/logging/Logger";
 import { Store } from "@core/application/storage/Store.js";
 import { dispatchSettingsSaveStatus } from "@ui/settings-engine/controls/FieldControl.js";
 import { resolveEnabledLanguages } from "@core/domain/lang";
@@ -14,17 +10,23 @@ import { AppearanceStudio } from "@ui/options/AppearanceStudio";
 import { renderDataDiagnosticsPanel } from "@ui/options/DataDiagnosticsPanel";
 import { renderAboutWorkspacePanel } from "@ui/options/AboutWorkspacePanel";
 import { formatMetricNumber, formatWeekRange } from "@ui/shared/formatMetrics.js";
+import {
+  acknowledgeDonationPrompt,
+  acknowledgeWeeklyRecap,
+  sendRuntimeMessage,
+} from "@ui/shared/runtimeMessaging";
 import { renderEssentialsWorkspacePanel } from "@ui/options/EssentialsWorkspacePanel";
 import { renderGrammarWorkspacePanel } from "@ui/options/GrammarWorkspacePanel";
 import { renderObservabilityWorkspacePanel } from "@ui/options/ObservabilityWorkspacePanel";
 import { resolveSiteProfiles } from "@core/domain/siteProfiles";
 import { sanitizeAutoLanguageSitePriors } from "@core/domain/autoLanguageDetection";
 import {
-  OBSERVABILITY_MODULE_IDS,
   isLogLevel,
+  sanitizeObservabilityModuleOverrides,
   type LogLevel,
   type ObservabilityConfig,
   type ObservabilityEvent,
+  type ObservabilityModuleOverride,
   type ObservabilityModuleState,
   type ObservabilitySnapshot,
   type ObservabilitySummary,
@@ -57,28 +59,14 @@ import {
   KEY_EXTENSION_LANGUAGE,
   KEY_SITE_PROFILES,
   KEY_ENABLED_GRAMMAR_RULES,
-  // theme settings
-  KEY_SUGGESTION_BG_LIGHT,
-  KEY_SUGGESTION_TEXT_LIGHT,
-  KEY_SUGGESTION_HIGHLIGHT_BG_LIGHT,
-  KEY_SUGGESTION_HIGHLIGHT_TEXT_LIGHT,
-  KEY_SUGGESTION_BORDER_LIGHT,
-  KEY_SUGGESTION_BG_DARK,
-  KEY_SUGGESTION_TEXT_DARK,
-  KEY_SUGGESTION_HIGHLIGHT_BG_DARK,
-  KEY_SUGGESTION_HIGHLIGHT_TEXT_DARK,
-  KEY_SUGGESTION_BORDER_DARK,
-  KEY_SUGGESTION_FONT_SIZE,
-  KEY_SUGGESTION_PADDING_VERTICAL,
-  KEY_SUGGESTION_PADDING_HORIZONTAL,
   KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
   KEY_DEBUG_AI_PREDICTOR_ENABLED,
   KEY_OBSERVABILITY_DEFAULT_LEVEL,
   KEY_OBSERVABILITY_ENABLED,
   KEY_OBSERVABILITY_MODULE_OVERRIDES,
+  DEFAULT_OBSERVABILITY_ENABLED,
+  DEFAULT_OBSERVABILITY_DEFAULT_LEVEL,
   CMD_POPUP_GET_PRODUCTIVITY_STATS,
-  CMD_POPUP_ACK_WEEKLY_RECAP,
-  CMD_POPUP_ACK_DONATION_MILESTONE,
   CMD_OPTIONS_CLEAR_OBSERVABILITY_EVENTS,
   CMD_OPTIONS_GET_OBSERVABILITY_SNAPSHOT,
   CMD_OPTIONS_RESET_PRODUCTIVITY_STATS,
@@ -90,7 +78,12 @@ import { PERSONALIZATION_STORAGE_KEY } from "@core/application/personalization/P
 import { DEFAULT_SUGGESTION_THEME_SETTINGS } from "@core/domain/themeDefaults";
 import { i18n } from "./fluenttyperI18n.js";
 import { manifest } from "./settingsManifest.js";
-import { createWorkspaceShell, formatLooseText, languageLabel } from "./workspacePanelUtils.js";
+import {
+  createWorkspaceShell,
+  downloadBlob,
+  formatLooseText,
+  languageLabel,
+} from "./workspacePanelUtils.js";
 
 const PRODUCTIVITY_INSIGHTS_MAX_RETRIES = 5;
 const PRODUCTIVITY_INSIGHTS_RETRY_DELAY_MS = 200;
@@ -117,8 +110,8 @@ function resolveOptionsObservabilityConfig(registry: SettingsRegistry) {
   const enabled = registry[KEY_OBSERVABILITY_ENABLED]?.get();
   const defaultLevel = registry[KEY_OBSERVABILITY_DEFAULT_LEVEL]?.get();
   return {
-    enabled: typeof enabled === "boolean" ? enabled : true,
-    defaultLevel: isLogLevel(defaultLevel) ? defaultLevel : "debug",
+    enabled: typeof enabled === "boolean" ? enabled : DEFAULT_OBSERVABILITY_ENABLED,
+    defaultLevel: isLogLevel(defaultLevel) ? defaultLevel : DEFAULT_OBSERVABILITY_DEFAULT_LEVEL,
     moduleOverrides: getObservabilityModuleOverrides(registry),
   };
 }
@@ -127,32 +120,12 @@ function applyOptionsObservabilityRuntime(registry: SettingsRegistry) {
   if (!IS_DEV_BUILD) {
     return;
   }
-  setGlobalObservabilityRuntime({
+  installObservabilityRelay({
     config: resolveOptionsObservabilityConfig(registry),
     source: "options",
-    sink: (event) => {
-      try {
-        void chrome.runtime.sendMessage({
-          command: CMD_OPTIONS_REPORT_OBSERVABILITY_EVENT,
-          context: {
-            event,
-          },
-        });
-      } catch {
-        // Ignore runtime disconnects during page teardown.
-      }
-    },
+    eventCommand: CMD_OPTIONS_REPORT_OBSERVABILITY_EVENT,
+    modulesCommand: CMD_OPTIONS_REPORT_OBSERVABILITY_MODULES,
   });
-  try {
-    void chrome.runtime.sendMessage({
-      command: CMD_OPTIONS_REPORT_OBSERVABILITY_MODULES,
-      context: {
-        modules: getRegisteredObservabilityModules(),
-      },
-    });
-  } catch {
-    // Ignore runtime disconnects during page teardown.
-  }
 }
 
 function optionsPageConfigChange() {
@@ -192,20 +165,8 @@ const CONFIG_REFRESH_KEYS = [
   KEY_DEBUG_AI_PREDICTOR_ENABLED,
   KEY_OBSERVABILITY_ENABLED,
   KEY_OBSERVABILITY_DEFAULT_LEVEL,
-  KEY_SUGGESTION_BG_LIGHT,
-  KEY_SUGGESTION_TEXT_LIGHT,
-  KEY_SUGGESTION_HIGHLIGHT_BG_LIGHT,
-  KEY_SUGGESTION_HIGHLIGHT_TEXT_LIGHT,
-  KEY_SUGGESTION_BORDER_LIGHT,
-  KEY_SUGGESTION_BG_DARK,
-  KEY_SUGGESTION_TEXT_DARK,
-  KEY_SUGGESTION_HIGHLIGHT_BG_DARK,
-  KEY_SUGGESTION_HIGHLIGHT_TEXT_DARK,
-  KEY_SUGGESTION_BORDER_DARK,
-  KEY_SUGGESTION_FONT_SIZE,
-  KEY_SUGGESTION_PADDING_VERTICAL,
-  KEY_SUGGESTION_PADDING_HORIZONTAL,
-] as const;
+  ...Object.keys(DEFAULT_SUGGESTION_THEME_SETTINGS),
+];
 
 const OBSERVABILITY_REFRESH_KEYS = new Set([
   KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
@@ -249,20 +210,11 @@ function wireImportExportHandlers(registry: SettingsRegistry): void {
   registry.exportSettingButton.addEvent("action", function () {
     chrome.storage.local.get(null, function (items) {
       const result = JSON.stringify(createSettingsExportSnapshot(items));
-      const blob = new Blob([result], { type: "application/json" });
-      const exportFilename = "FluentTyperSettings.json";
-      const dlink = document.createElement("a");
-      dlink.href = window.URL.createObjectURL(blob);
-      dlink.download = exportFilename;
-      dlink.onclick = function () {
-        const that = this as HTMLAnchorElement;
-        setTimeout(function () {
-          window.URL.revokeObjectURL(that.href);
-        }, 1500);
-      };
-
-      dlink.click();
-      dlink.remove();
+      downloadBlob(
+        new Blob([result], { type: "application/json" }),
+        "FluentTyperSettings.json",
+        1500,
+      );
     });
     dispatchSettingsSaveStatus("saved", { message: i18n.get("settings_exported") });
   });
@@ -516,40 +468,18 @@ function formatTrendDayLabel(dateKey: unknown) {
   return new Intl.DateTimeFormat(undefined, { weekday: "short" }).format(date);
 }
 
-function sendRuntimeMessage(message: object) {
-  return new Promise<unknown>((resolve) => {
-    chrome.runtime.sendMessage(message, (response: unknown) => {
-      if (chrome.runtime.lastError) {
-        resolve(null);
-        return;
-      }
-      resolve(response || null);
-    });
-  });
-}
-
-async function acknowledgeWeeklyRecap(weekKey: unknown) {
-  if (typeof weekKey !== "string" || !weekKey) {
-    return;
-  }
-  await sendRuntimeMessage({
-    command: CMD_POPUP_ACK_WEEKLY_RECAP,
-    context: { weekKey },
-  });
-}
-
-async function handleDonationPromptAction(prompt: Record<string, unknown>, action: string) {
+async function handleDonationPromptAction(
+  prompt: Record<string, unknown>,
+  action: "shown" | "supported" | "snooze",
+) {
   if (!prompt || typeof prompt.promptId !== "string" || !prompt.promptId) {
     return;
   }
-  await sendRuntimeMessage({
-    command: CMD_POPUP_ACK_DONATION_MILESTONE,
-    context: {
-      promptId: prompt.promptId,
-      action,
-      milestoneHours: typeof prompt.milestoneHours === "number" ? prompt.milestoneHours : null,
-    },
-  });
+  await acknowledgeDonationPrompt(
+    prompt.promptId,
+    action,
+    typeof prompt.milestoneHours === "number" ? prompt.milestoneHours : null,
+  );
 }
 
 type RankedRow = Record<string, unknown>;
@@ -823,7 +753,10 @@ function renderProductivityInsights(root: HTMLElement, stats: ProductivityStats)
     recapAction.className = "button is-small is-light recap-action";
     recapAction.textContent = t("productivity_weekly_recap_mark_seen");
     recapAction.onclick = async () => {
-      await acknowledgeWeeklyRecap(weeklyRecap?.weekKey);
+      const weekKey = weeklyRecap?.weekKey;
+      if (typeof weekKey === "string" && weekKey) {
+        await acknowledgeWeeklyRecap(weekKey);
+      }
       await loadProductivityInsights(root);
     };
     recapSection.appendChild(recapAction);
@@ -990,37 +923,13 @@ function buildObservabilitySnapshotSignature(snapshot: ObservabilitySnapshot) {
 
 function getObservabilityModuleOverrides(
   registry: SettingsRegistry,
-): Record<string, { enabled?: boolean; level?: LogLevel }> {
-  const value = registry[KEY_OBSERVABILITY_MODULE_OVERRIDES]?.get();
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return {};
-  }
-  const result: Record<string, { enabled?: boolean; level?: LogLevel }> = {};
-  for (const [moduleId, override] of Object.entries(value as Record<string, unknown>)) {
-    if (!OBSERVABILITY_MODULE_IDS.includes(moduleId as (typeof OBSERVABILITY_MODULE_IDS)[number])) {
-      continue;
-    }
-    if (!override || typeof override !== "object" || Array.isArray(override)) {
-      continue;
-    }
-    const record = override as Record<string, unknown>;
-    const nextOverride: { enabled?: boolean; level?: LogLevel } = {};
-    if (typeof record.enabled === "boolean") {
-      nextOverride.enabled = record.enabled;
-    }
-    if (isLogLevel(record.level)) {
-      nextOverride.level = record.level;
-    }
-    if (Object.keys(nextOverride).length > 0) {
-      result[moduleId] = nextOverride;
-    }
-  }
-  return result;
+): Record<string, ObservabilityModuleOverride> {
+  return sanitizeObservabilityModuleOverrides(registry[KEY_OBSERVABILITY_MODULE_OVERRIDES]?.get());
 }
 
 function setObservabilityModuleOverrides(
   registry: SettingsRegistry,
-  overrides: Record<string, { enabled?: boolean; level?: LogLevel }>,
+  overrides: Record<string, ObservabilityModuleOverride>,
 ) {
   const setting = registry[KEY_OBSERVABILITY_MODULE_OVERRIDES];
   if (!setting || typeof setting.set !== "function") {

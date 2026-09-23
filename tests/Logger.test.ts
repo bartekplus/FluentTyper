@@ -1,10 +1,14 @@
 import { jest } from "bun:test";
 import {
   createLogger,
+  installObservabilityRelay,
   resetGlobalObservabilityRuntime,
   setGlobalObservabilityRuntime,
 } from "../src/core/application/logging/Logger";
-import type { ObservabilityConfig } from "../src/core/domain/observability";
+import {
+  sanitizeObservabilityModuleOverrides,
+  type ObservabilityConfig,
+} from "../src/core/domain/observability";
 
 type LoggingGlobals = typeof globalThis & {
   __FT_DEV_BUILD__?: boolean;
@@ -132,5 +136,62 @@ describe("Logger", () => {
     logger.error("hidden");
 
     expect(console.error).not.toHaveBeenCalled();
+  });
+
+  test("installObservabilityRelay reports modules and forwards events with the given commands", () => {
+    const globals = globalThis as { chrome?: unknown };
+    const originalChrome = globals.chrome;
+    const sendMessage = jest.fn(() => Promise.resolve());
+    globals.chrome = { runtime: { sendMessage } };
+    try {
+      const logger = createLogger("RelayModule");
+      installObservabilityRelay({
+        source: "options",
+        config: { enabled: true, defaultLevel: "warn", moduleOverrides: {} },
+        eventCommand: "CMD_EVENT",
+        modulesCommand: "CMD_MODULES",
+      });
+
+      expect(sendMessage).toHaveBeenCalledTimes(1);
+      expect(sendMessage).toHaveBeenCalledWith({
+        command: "CMD_MODULES",
+        context: { modules: expect.arrayContaining(["RelayModule"]) },
+      });
+
+      logger.info("hidden by config");
+      logger.warn("relayed");
+
+      expect(sendMessage).toHaveBeenCalledTimes(2);
+      expect(sendMessage).toHaveBeenLastCalledWith({
+        command: "CMD_EVENT",
+        context: {
+          event: expect.objectContaining({
+            source: "options",
+            moduleId: "RelayModule",
+            level: "warn",
+            message: "relayed",
+          }),
+        },
+      });
+    } finally {
+      globals.chrome = originalChrome;
+    }
+  });
+
+  test("sanitizeObservabilityModuleOverrides keeps only known modules with valid fields", () => {
+    expect(sanitizeObservabilityModuleOverrides(null)).toEqual({});
+    expect(sanitizeObservabilityModuleOverrides([])).toEqual({});
+    expect(
+      sanitizeObservabilityModuleOverrides({
+        UnknownModule: { enabled: true },
+        PresageHandler: { enabled: "yes", level: "loud" },
+        MessageRouter: [],
+        OptionsObservability: { enabled: false, level: "info", extra: 1 },
+        LanguageDetector: { level: "error" },
+      }),
+    ).toEqual({
+      OptionsObservability: { enabled: false, level: "info" },
+      LanguageDetector: { level: "error" },
+    });
   });
 });

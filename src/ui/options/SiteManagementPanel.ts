@@ -10,7 +10,12 @@ import {
 import { normalizeDomainHost } from "@core/domain/siteProfiles";
 import { SiteProfilesManager } from "./siteProfiles.js";
 import { i18n } from "./fluenttyperI18n.js";
-import { bindRerender, createWorkspaceCard, createWorkspaceShell } from "./workspacePanelUtils.js";
+import {
+  bindRerender,
+  createSearchInput,
+  createWorkspaceCard,
+  createWorkspaceShell,
+} from "./workspacePanelUtils.js";
 
 type DomainListMode = "blackList" | "whiteList";
 
@@ -121,16 +126,12 @@ export class SiteManagementPanel {
 
     const toolbar = document.createElement("div");
     toolbar.className = "text-assets-toolbar";
-    const search = document.createElement("input");
-    search.type = "search";
-    search.className = "input";
-    search.placeholder = i18n.get("site_management_search_domains");
-    search.value = this.searchQuery;
-    search.addEventListener("input", () => {
-      this.searchQuery = search.value.trim().toLowerCase();
-      void this.render();
-    });
-    toolbar.appendChild(search);
+    toolbar.appendChild(
+      createSearchInput(i18n.get("site_management_search_domains"), this.searchQuery, (query) => {
+        this.searchQuery = query;
+        void this.render();
+      }),
+    );
 
     const addInput = document.createElement("input");
     addInput.className = "input";

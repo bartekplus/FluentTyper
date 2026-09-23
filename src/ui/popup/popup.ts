@@ -13,20 +13,12 @@ import {
   setSiteProfileForDomain,
   type SiteProfile,
 } from "@core/domain/siteProfiles";
-import {
-  parseBooleanOverride,
-  parseSuggestionsOverride,
-  resolveGlobalNumSuggestions,
-} from "@core/domain/siteProfileService";
+import { resolveGlobalNumSuggestions } from "@core/domain/siteProfileService";
 import {
   CMD_POPUP_PAGE_ENABLE,
   CMD_POPUP_PAGE_DISABLE,
   CMD_OPTIONS_PAGE_CONFIG_CHANGE,
   CMD_POPUP_GET_PRODUCTIVITY_STATS,
-  CMD_POPUP_ACK_WEEKLY_RECAP,
-  CMD_POPUP_ACK_DONATION_MILESTONE,
-  CMD_GET_AUTO_LANGUAGE_STATUS,
-  MAX_NUM_SUGGESTIONS,
 } from "@core/domain/constants";
 import type {
   OptionsPageConfigChangeMessage,
@@ -34,8 +26,6 @@ import type {
   PopupPageDisableMessage,
   ProductivityDashboardStats,
   PopupGetProductivityStatsMessage,
-  PopupAckWeeklyRecapMessage,
-  PopupAckDonationMilestoneMessage,
 } from "@core/domain/messageTypes";
 import { formatTranslation, i18n } from "@ui/options/fluenttyperI18n.js";
 import { formatMetricNumber as formatNumber, formatWeekRange } from "@ui/shared/formatMetrics.js";
@@ -44,6 +34,21 @@ import {
   WebsiteAccessPermissionController,
   WebsiteAccessPermissionService,
 } from "@ui/shared/websiteAccessPermission";
+import {
+  acknowledgeDonationPrompt,
+  acknowledgeWeeklyRecap,
+  fetchAutoLanguageStatus,
+  sendRuntimeMessage,
+} from "@ui/shared/runtimeMessaging";
+import {
+  buildSiteProfile,
+  createSelectOption,
+  getOnOffLabel,
+  getPreferNativeAutocompleteLabel,
+  populateBooleanOverrideOptions,
+  populateSuggestionOptions,
+  toOverrideValue,
+} from "@ui/shared/siteProfileEditor";
 
 const settings = new SettingsManager();
 const coreSettingsRepository = new CoreSettingsRepository(settings);
@@ -232,32 +237,6 @@ function resolveDisplayedLanguage(): string {
   return currentProfileLanguageFallback;
 }
 
-async function getActiveAutoLanguageStatus(): Promise<{
-  language: string;
-  locked: boolean;
-} | null> {
-  try {
-    const response: unknown = await chrome.runtime.sendMessage({
-      command: CMD_GET_AUTO_LANGUAGE_STATUS,
-      context: {
-        tabId: currentTabId ?? undefined,
-        domainURL: currentDomainURL,
-      },
-    });
-    const status = (response as { status?: { language?: string; locked?: boolean } | null })
-      ?.status;
-    if (!status || typeof status.language !== "string" || status.language.length === 0) {
-      return null;
-    }
-    return {
-      language: status.language,
-      locked: status.locked === true,
-    };
-  } catch {
-    return null;
-  }
-}
-
 function renderStaticPageState(
   state: Extract<PopupPageState, { kind: "restricted" | "non_actionable" }>,
 ): void {
@@ -335,7 +314,12 @@ async function renderActionablePageState(): Promise<void> {
   );
   const configuredLanguage = profile?.language || resolveDisplayedLanguage();
   const autoLanguageStatus =
-    configuredLanguage === "auto_detect" ? await getActiveAutoLanguageStatus() : null;
+    configuredLanguage === "auto_detect"
+      ? await fetchAutoLanguageStatus({
+          tabId: currentTabId ?? undefined,
+          domainURL: currentDomainURL,
+        })
+      : null;
   const fallbackLanguageCode = getDefaultSiteProfileLanguage(
     currentProfileLanguageFallback,
     currentEnabledLanguages,
@@ -447,44 +431,16 @@ function setSiteProfileInputsDisabled(disabled: boolean): void {
   }
 }
 
-function getOnOffLabel(value: boolean): string {
-  return value ? i18n.get("site_profile_on") : i18n.get("site_profile_off");
-}
-
-function getInheritLabel(globalValueLabel: string): string {
-  return `${i18n.get("site_profile_inherit_global")} (${globalValueLabel})`;
-}
-
 function getProfileStatusLabel(profileEnabled: boolean): string {
   return profileEnabled
     ? i18n.get("popup_site_profile_status_active")
     : i18n.get("popup_site_profile_status_global");
 }
 
-function toOverrideValue(value: boolean | undefined): string {
-  return typeof value === "boolean" ? (value ? "on" : "off") : "global";
-}
-
-function createSelectOption(value: string, text: string): HTMLOptionElement {
-  const option = document.createElement("option");
-  option.value = value;
-  option.textContent = text;
-  return option;
-}
-
 function populateLanguageOptions(select: HTMLSelectElement, languages: string[]): void {
   select.replaceChildren();
   for (const langCode of languages) {
     select.appendChild(createSelectOption(langCode, SUPPORTED_LANGUAGES[langCode] || langCode));
-  }
-}
-
-function populateSuggestionOptions(select: HTMLSelectElement, globalNumSuggestions: number): void {
-  select.replaceChildren(
-    createSelectOption("global", getInheritLabel(String(globalNumSuggestions))),
-  );
-  for (let idx = 0; idx <= MAX_NUM_SUGGESTIONS; idx += 1) {
-    select.appendChild(createSelectOption(String(idx), String(idx)));
   }
 }
 
@@ -535,10 +491,7 @@ async function loadSiteProfileEditor() {
   populateBooleanOverrideOptions(
     preferNativeAutocomplete,
     globalPreferNativeAutocomplete,
-    (value) =>
-      value
-        ? i18n.get("prefer_native_autocomplete_on")
-        : i18n.get("prefer_native_autocomplete_off"),
+    getPreferNativeAutocompleteLabel,
   );
 
   const fallbackLanguage = getDefaultSiteProfileLanguage(
@@ -570,36 +523,11 @@ function readSiteProfileFromEditor(): SiteProfile {
     language && currentEnabledLanguages.includes(language.value)
       ? language.value
       : currentProfileLanguageFallback;
-  const profile: SiteProfile = {
-    language: languageValue,
-  };
-  const numSuggestions = suggestions ? parseSuggestionsOverride(suggestions.value) : undefined;
-  if (typeof numSuggestions === "number") {
-    profile.numSuggestions = numSuggestions;
-  }
-  const inlineSuggestion = inline ? parseBooleanOverride(inline.value) : undefined;
-  if (typeof inlineSuggestion === "boolean") {
-    profile.inline_suggestion = inlineSuggestion;
-  }
-  const preferNativeAutocompleteOverride = preferNativeAutocomplete
-    ? parseBooleanOverride(preferNativeAutocomplete.value)
-    : undefined;
-  if (typeof preferNativeAutocompleteOverride === "boolean") {
-    profile.preferNativeAutocomplete = preferNativeAutocompleteOverride;
-  }
-  return profile;
-}
-
-function populateBooleanOverrideOptions(
-  select: HTMLSelectElement,
-  globalValue: boolean,
-  describeValue: (value: boolean) => string,
-): void {
-  select.replaceChildren(
-    createSelectOption("global", getInheritLabel(describeValue(globalValue))),
-    createSelectOption("on", describeValue(true)),
-    createSelectOption("off", describeValue(false)),
-  );
+  return buildSiteProfile(languageValue, {
+    numSuggestions: suggestions?.value,
+    inlineSuggestion: inline?.value,
+    preferNativeAutocomplete: preferNativeAutocomplete?.value,
+  });
 }
 
 async function saveSiteProfileFromEditor() {
@@ -662,18 +590,6 @@ async function copyTextToClipboard(text: string): Promise<boolean> {
   return copied;
 }
 
-async function sendRuntimeMessage<T>(message: object): Promise<T | null> {
-  return new Promise((resolve) => {
-    chrome.runtime.sendMessage(message, (response: unknown) => {
-      if (chrome.runtime.lastError) {
-        resolve(null);
-        return;
-      }
-      resolve((response as T) || null);
-    });
-  });
-}
-
 function openOptionsPageAtAnchor(anchor: string): void {
   const baseUrl = chrome.runtime.getURL("options/options.html");
   const targetUrl = `${baseUrl}#${anchor}`;
@@ -696,32 +612,6 @@ function initializeFooterLinks(): void {
     return;
   }
   optionsLink.href = chrome.runtime.getURL("options/options.html");
-}
-
-async function acknowledgeWeeklyRecap(weekKey: string): Promise<void> {
-  const message: PopupAckWeeklyRecapMessage = {
-    command: CMD_POPUP_ACK_WEEKLY_RECAP,
-    context: {
-      weekKey,
-    },
-  };
-  await sendRuntimeMessage(message);
-}
-
-async function handleDonationPromptAction(
-  promptId: string,
-  action: "shown" | "supported" | "snooze",
-  milestoneHours: number | null,
-): Promise<void> {
-  const message: PopupAckDonationMilestoneMessage = {
-    command: CMD_POPUP_ACK_DONATION_MILESTONE,
-    context: {
-      promptId,
-      action,
-      milestoneHours,
-    },
-  };
-  await sendRuntimeMessage(message);
 }
 
 function formatLanguageSummary(stats: ProductivityDashboardStats): string {
@@ -840,24 +730,20 @@ function renderMilestoneHint(stats: ProductivityDashboardStats): void {
 
   if (lastMarkedDonationPromptId !== donationPrompt.promptId) {
     lastMarkedDonationPromptId = donationPrompt.promptId;
-    void handleDonationPromptAction(
-      donationPrompt.promptId,
-      "shown",
-      donationPrompt.milestoneHours,
-    );
+    void acknowledgeDonationPrompt(donationPrompt.promptId, "shown", donationPrompt.milestoneHours);
   }
 
   container.classList.remove("is-hidden");
   textNode.textContent = donationPrompt.message;
   linkNode.onclick = () => {
-    void handleDonationPromptAction(
+    void acknowledgeDonationPrompt(
       donationPrompt.promptId,
       "supported",
       donationPrompt.milestoneHours,
     );
   };
   laterButton.onclick = () => {
-    void handleDonationPromptAction(
+    void acknowledgeDonationPrompt(
       donationPrompt.promptId,
       "snooze",
       donationPrompt.milestoneHours,

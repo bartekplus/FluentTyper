@@ -12,8 +12,10 @@ import { resolveDynamicVariable } from "@core/domain/variables";
 import { formatTranslation, i18n } from "./fluenttyperI18n.js";
 import {
   bindControlEvents,
+  createSearchInput,
   createStackField,
   createWorkspaceShell,
+  downloadBlob,
   formatLooseText,
 } from "./workspacePanelUtils.js";
 
@@ -141,16 +143,12 @@ export class TextAssetsPanel {
     const toolbar = document.createElement("div");
     toolbar.className = "text-assets-toolbar";
 
-    const search = document.createElement("input");
-    search.type = "search";
-    search.className = "input";
-    search.placeholder = i18n.get("text_assets_search_placeholder");
-    search.value = this.searchQuery;
-    search.addEventListener("input", () => {
-      this.searchQuery = search.value.trim().toLowerCase();
-      this.render();
-    });
-    toolbar.appendChild(search);
+    toolbar.appendChild(
+      createSearchInput(i18n.get("text_assets_search_placeholder"), this.searchQuery, (query) => {
+        this.searchQuery = query;
+        this.render();
+      }),
+    );
 
     const actions = document.createElement("div");
     actions.className = "text-assets-actions";
@@ -167,12 +165,11 @@ export class TextAssetsPanel {
 
     const exportButton = this.createButton(i18n.get("text_expander_export_csv_btn"), () => {
       const csv = stringify(this.getPersistedExpansions());
-      const blob = new Blob([csv], { type: "text/csv" });
-      const link = document.createElement("a");
-      link.href = window.URL.createObjectURL(blob);
-      link.download = "FluentTyperTextExpanderDataBase.csv";
-      link.click();
-      window.setTimeout(() => window.URL.revokeObjectURL(link.href), 1200);
+      downloadBlob(
+        new Blob([csv], { type: "text/csv" }),
+        "FluentTyperTextExpanderDataBase.csv",
+        1200,
+      );
     });
     actions.appendChild(exportButton);
 
@@ -458,16 +455,16 @@ export class TextAssetsPanel {
 
     const toolbar = document.createElement("div");
     toolbar.className = "text-assets-toolbar";
-    const search = document.createElement("input");
-    search.type = "search";
-    search.className = "input";
-    search.placeholder = i18n.get("text_assets_dictionary_search");
-    search.value = this.dictionaryQuery;
-    search.addEventListener("input", () => {
-      this.dictionaryQuery = search.value.trim().toLowerCase();
-      this.render();
-    });
-    toolbar.appendChild(search);
+    toolbar.appendChild(
+      createSearchInput(
+        i18n.get("text_assets_dictionary_search"),
+        this.dictionaryQuery,
+        (query) => {
+          this.dictionaryQuery = query;
+          this.render();
+        },
+      ),
+    );
 
     const addInput = document.createElement("input");
     addInput.className = "input";
