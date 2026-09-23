@@ -151,6 +151,32 @@ describe("unambiguous corrections still apply", () => {
     test(input, () => expect(type(input)).toBe(expected));
 });
 
+describe("comma/period spacing never adds a space before a closing quote", () => {
+  for (const input of ['"Hi," he said ', 'She said "stop." Then ', "He wrote “done.” Ok "])
+    test(input, () => expect(type(input)).toBe(input));
+
+  // Normal comma spacing before an ordinary word is untouched.
+  test("normal comma spacing still applies", () => {
+    expect(type("a,b ")).toBe("A, b ");
+  });
+
+  // An opening quote right after a comma/period is not a closing quote: only
+  // an unmatched " or " earlier in the paragraph makes the current one a
+  // closer, so these keep their space, straight or curly, default pipeline
+  // or all rules on (smart-quote normalization included, which is why the
+  // quote characters differ between the two expectations below).
+  for (const [input, allRulesExpected] of [
+    ['He said, "hello" ', "He said, “hello” "],
+    ['End. "Next" one ', "End. “Next” one "],
+    ["He said, 'hi' ", "He said, ‘hi’ "],
+  ] as const) {
+    test(`keeps the space before an opening quote ${JSON.stringify(input)}`, () =>
+      expect(type(input)).toBe(input));
+    test(`keeps the space before an opening quote, all rules ${JSON.stringify(input)}`, () =>
+      expect(type(input, "en_US", GRAMMAR_RULE_IDS)).toBe(allRulesExpected));
+  }
+});
+
 describe("opt-in a/an correction", () => {
   const withRule = [...DEFAULT_CURRENT_GRAMMAR_RULES, "englishArticleAnCorrection"];
 

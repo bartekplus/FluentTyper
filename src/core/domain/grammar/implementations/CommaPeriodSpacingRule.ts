@@ -11,6 +11,32 @@ const NUMERIC_PREFIX = /(?:^|[\s([{])[-+]?\p{Nd}+(?:[.,\u066B]\p{Nd}*)*$/u;
 const numericPrefixBefore = (text: string, index: number): boolean =>
   NUMERIC_PREFIX.test(text.slice(Math.max(0, index - 34), index));
 
+// A closing quote sits tight against the punctuation before it: "Hi," not
+// "Hi, ". Only " and " are judged, and only as closers: an opening quote
+// right after a comma/period ('He said, "hello"') must keep its space.
+// Straight/curly single quotes are apostrophe-ambiguous and » opens rather
+// than closes in German/Danish, so none of those are touched at all.
+const CURLY_QUOTE_OPENERS = /[“„]/g;
+const CURLY_QUOTE_CLOSERS = /”/g;
+const STRAIGHT_QUOTES = /"/g;
+
+// Whether the quote just typed at `index` closes an earlier, still-open quote
+// in the current paragraph (the text since the last newline) rather than
+// opening a new one.
+function isClosingQuote(inputStr: string, index: number, ch: string): boolean {
+  const paragraphStart = inputStr.lastIndexOf("\n", index - 1) + 1;
+  const before = inputStr.slice(paragraphStart, index);
+  if (ch === '"') {
+    return (before.match(STRAIGHT_QUOTES)?.length ?? 0) % 2 === 1;
+  }
+  if (ch === "”") {
+    const openers = before.match(CURLY_QUOTE_OPENERS)?.length ?? 0;
+    const closers = before.match(CURLY_QUOTE_CLOSERS)?.length ?? 0;
+    return openers > closers;
+  }
+  return false;
+}
+
 export class CommaPeriodSpacingRule extends SpacingRuleShared implements GrammarRule {
   readonly id = "commaPeriodSpacing" as const;
   readonly triggers: GrammarEventType[] = ["insertChar", "wordBoundary"];
@@ -47,6 +73,26 @@ export class CommaPeriodSpacingRule extends SpacingRuleShared implements Grammar
         return null;
       }
       return this.createEdit(". ", spacesBefore + 2);
+    }
+
+    // A closing quote closes tight: strip a space this rule (or the user)
+    // left between "," / "." and the quote that follows it. An opening quote
+    // is left untouched, so its space survives.
+    if (lastChar === '"' || lastChar === "”") {
+      if (!isClosingQuote(inputStr, length - 1, lastChar)) {
+        return null;
+      }
+      let spaceRun = 0;
+      let j = length - 2;
+      while (j >= 0 && SPACE_CHARS.includes(inputStr[j])) {
+        spaceRun += 1;
+        j -= 1;
+      }
+      const punctuationChar = j >= 0 ? inputStr[j] : "";
+      if (spaceRun > 0 && (punctuationChar === "," || punctuationChar === ".")) {
+        return this.createEdit(lastChar, spaceRun + 1);
+      }
+      return null;
     }
 
     // A digit followed by a comma is ambiguous until the next character: keep
