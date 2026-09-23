@@ -1,6 +1,6 @@
 import { isInDocument } from "@core/application/dom-utils";
 
-export type MutationPlan =
+type MutationPlan =
   | {
       type: "noop";
     }

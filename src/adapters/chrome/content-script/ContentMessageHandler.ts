@@ -30,6 +30,10 @@ function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
 }
 
+function finiteOr(value: unknown, fallback: number): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
 export type ContentMessageHandlerDependencies = {
   getEnabled: () => boolean;
   setEnabled: (value: boolean) => void;
@@ -50,16 +54,12 @@ export class ContentMessageHandler {
   constructor(private readonly dependencies: ContentMessageHandlerDependencies) {}
 
   handleGetPrediction(context: ContentScriptPredictRequestContext): void {
-    const runtimeGeneration =
-      typeof context.runtimeGeneration === "number" && Number.isFinite(context.runtimeGeneration)
-        ? context.runtimeGeneration
-        : this.dependencies.getPredictionGeneration();
-    const traceStartedAtMs =
-      typeof context.traceStartedAtMs === "number" && Number.isFinite(context.traceStartedAtMs)
-        ? context.traceStartedAtMs
-        : Date.now();
+    const runtimeGeneration = finiteOr(
+      context.runtimeGeneration,
+      this.dependencies.getPredictionGeneration(),
+    );
     const traceContext = createPredictionTraceContext(
-      traceStartedAtMs,
+      finiteOr(context.traceStartedAtMs, Date.now()),
       isNonEmptyString(context.traceId) ? context.traceId.trim() : undefined,
     );
     const lang = this.dependencies.getLanguage();
@@ -94,10 +94,10 @@ export class ContentMessageHandler {
   }
 
   reportRuntimeStatus(runtimeGeneration?: number): void {
-    const resolvedRuntimeGeneration =
-      typeof runtimeGeneration === "number" && Number.isFinite(runtimeGeneration)
-        ? runtimeGeneration
-        : this.dependencies.getPredictionGeneration();
+    const resolvedRuntimeGeneration = finiteOr(
+      runtimeGeneration,
+      this.dependencies.getPredictionGeneration(),
+    );
     if (resolvedRuntimeGeneration <= 0) {
       return;
     }

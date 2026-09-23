@@ -2,8 +2,8 @@ import type { GrammarEdit } from "@core/domain/grammar/types";
 
 export const DOCS_SESSION_ID = -1;
 export const MAX_CONTEXT = 8192;
-export const MAX_EDIT = 16384;
-export const MAX_DOCUMENT = 2_000_000;
+const MAX_EDIT = 16384;
+const MAX_DOCUMENT = 2_000_000;
 export const SNAPSHOT_LIFETIME_MS = 10000;
 export const REQUEST_EVENT = "fluenttyper:gdocs:v2:request";
 export const RESPONSE_EVENT = "fluenttyper:gdocs:v2:response";
@@ -34,18 +34,20 @@ export interface DocsEdit {
   replacement: string;
   cursorAfter: number;
 }
-export type DocsStatus =
-  | "ready"
-  | "applied"
-  | "stale"
-  | "inactive"
-  | "unavailable"
-  | "invalid"
-  | "busy"
-  | "composing"
-  | "cancelled"
-  | "unverified"
-  | "unsupported-selection";
+export const DOCS_STATUSES = [
+  "ready",
+  "applied",
+  "stale",
+  "inactive",
+  "unavailable",
+  "invalid",
+  "busy",
+  "composing",
+  "cancelled",
+  "unverified",
+  "unsupported-selection",
+] as const;
+export type DocsStatus = (typeof DOCS_STATUSES)[number];
 export interface DocsReply {
   status: DocsStatus;
   snapshot?: DocsSnapshot;
@@ -289,12 +291,6 @@ export function planCompletion(
 }
 
 /**
- * `cursor` is where the rule was judged, which is the caret unless the edit is being
- * replayed for a character typed earlier in a burst. A replayed edit never reaches past
- * that point, and carries the caret along by the length it changed instead of claiming
- * the position the rule asked for: the user has already typed beyond it.
- */
-/**
  * What Docs really inserts for `text`: every pasted no-break space becomes an ordinary
  * one. Length-preserving, so offsets computed against the request still hold.
  */
@@ -302,6 +298,12 @@ export function hostInserted(text: string): string {
   return text.replace(/\u00a0/g, " ");
 }
 
+/**
+ * `cursor` is where the rule was judged, which is the caret unless the edit is being
+ * replayed for a character typed earlier in a burst. A replayed edit never reaches past
+ * that point, and carries the caret along by the length it changed instead of claiming
+ * the position the rule asked for: the user has already typed beyond it.
+ */
 export function planGrammar(
   snapshot: DocsSnapshot,
   edit: GrammarEdit,

@@ -53,10 +53,7 @@ const THEME_SETTING_SPECS: ThemeSettingSpec[] = [
 export class ThemeApplicator {
   apply(themeSettings: ThemeSettings): void {
     const safeThemeSettings = this.sanitizeThemeSettings(themeSettings);
-    const existingStyle = document.getElementById("fluent-typer-theme-overrides");
-    if (existingStyle) {
-      existingStyle.remove();
-    }
+    document.getElementById("fluent-typer-theme-overrides")?.remove();
 
     const styleElement = document.createElement("style");
     styleElement.id = "fluent-typer-theme-overrides";

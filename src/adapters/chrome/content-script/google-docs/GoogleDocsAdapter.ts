@@ -692,9 +692,7 @@ export class GoogleDocsAdapter {
       this.queueEdit("delete", []);
       return;
     }
-    const triggers: GrammarEventType[] = ["insertChar"];
-    if (key === "Enter" || this.prediction.isSeparator(key)) triggers.push("wordBoundary");
-    this.queueEdit("insert", triggers);
+    this.queueEdit("insert", this.charTriggers(key === "Enter" ? "\n" : key));
   }
   private onInput(event: InputEvent): void {
     if (this.applying || this.disposed) return;
@@ -808,7 +806,6 @@ export class GoogleDocsAdapter {
     this.clearVisual();
     this.snapshot = null;
     this.failureStatus = null;
-    this.suggestions = [];
     if (this.refreshTimer !== null) clearTimeout(this.refreshTimer);
     if (this.idleTimer !== null) clearTimeout(this.idleTimer);
     this.refreshTimer = null;
@@ -819,21 +816,21 @@ export class GoogleDocsAdapter {
     this.clearPendingTriggers();
     this.grammarBaseline = null;
     this.typed = 0;
+    const listeners: [string, EventListener][] = [
+      ["keydown", this.keyListener],
+      ["input", this.inputListener],
+      ["paste", this.pasteListener],
+      ["compositionstart", this.compositionStart],
+      ["compositionend", this.compositionEnd],
+      ["pointerdown", this.navigationListener],
+    ];
     const old = this.input;
     old?.frame.removeAttribute(KEY_STATE_ATTR);
-    old?.document.removeEventListener("keydown", this.keyListener, true);
-    old?.document.removeEventListener("input", this.inputListener, true);
-    old?.document.removeEventListener("paste", this.pasteListener, true);
-    old?.document.removeEventListener("compositionstart", this.compositionStart, true);
-    old?.document.removeEventListener("compositionend", this.compositionEnd, true);
-    old?.document.removeEventListener("pointerdown", this.navigationListener, true);
+    for (const [type, listener] of listeners)
+      old?.document.removeEventListener(type, listener, true);
     this.input = input;
     this.composing = false;
-    input?.document.addEventListener("keydown", this.keyListener, true);
-    input?.document.addEventListener("input", this.inputListener, true);
-    input?.document.addEventListener("paste", this.pasteListener, true);
-    input?.document.addEventListener("compositionstart", this.compositionStart, true);
-    input?.document.addEventListener("compositionend", this.compositionEnd, true);
-    input?.document.addEventListener("pointerdown", this.navigationListener, true);
+    for (const [type, listener] of listeners)
+      input?.document.addEventListener(type, listener, true);
   }
 }

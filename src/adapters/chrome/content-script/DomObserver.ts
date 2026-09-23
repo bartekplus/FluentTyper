@@ -12,9 +12,7 @@ export class DomObserver {
 
   attach(): void {
     if (!this.observer) {
-      this.observer = new MutationObserver((mutationsList) => {
-        this.callback(mutationsList);
-      });
+      this.observer = new MutationObserver((mutationsList) => this.callback(mutationsList));
     }
     this.observer.observe(this.node, {
       childList: true,
@@ -45,9 +43,7 @@ export class DomObserver {
   }
 
   disconnect(): void {
-    if (this.observer) {
-      this.observer.disconnect();
-    }
+    this.observer?.disconnect();
   }
 
   setNode(node: Node): void {

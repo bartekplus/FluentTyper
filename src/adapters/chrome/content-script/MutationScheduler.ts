@@ -18,54 +18,33 @@ export class MutationScheduler {
       return;
     }
     this.scheduled = true;
-    if (this.shouldUseAnimationFrame()) {
-      this.scheduleAnimationFrameFlush();
+    if (
+      typeof window.requestAnimationFrame === "function" &&
+      document.visibilityState === "visible"
+    ) {
+      this.animationFrameId = window.requestAnimationFrame(() => {
+        this.animationFrameId = null;
+        this.flush();
+      });
       return;
     }
-    this.scheduleTimeoutFlush();
-  }
-
-  clear(): void {
-    this.clearAnimationFrame();
-    this.clearTimeout();
-    this.scheduled = false;
-    this.pendingMutations = [];
-  }
-
-  private shouldUseAnimationFrame(): boolean {
-    return (
-      typeof window.requestAnimationFrame === "function" && document.visibilityState === "visible"
-    );
-  }
-
-  private scheduleAnimationFrameFlush(): void {
-    this.animationFrameId = window.requestAnimationFrame(() => {
-      this.animationFrameId = null;
-      this.flush();
-    });
-  }
-
-  private scheduleTimeoutFlush(): void {
     this.timeoutId = window.setTimeout(() => {
       this.timeoutId = null;
       this.flush();
     }, this.coalesceDelayMs);
   }
 
-  private clearAnimationFrame(): void {
-    if (this.animationFrameId === null) {
-      return;
+  clear(): void {
+    if (this.animationFrameId !== null) {
+      window.cancelAnimationFrame(this.animationFrameId);
+      this.animationFrameId = null;
     }
-    window.cancelAnimationFrame(this.animationFrameId);
-    this.animationFrameId = null;
-  }
-
-  private clearTimeout(): void {
-    if (this.timeoutId === null) {
-      return;
+    if (this.timeoutId !== null) {
+      window.clearTimeout(this.timeoutId);
+      this.timeoutId = null;
     }
-    window.clearTimeout(this.timeoutId);
-    this.timeoutId = null;
+    this.scheduled = false;
+    this.pendingMutations = [];
   }
 
   private flush(): void {

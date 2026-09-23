@@ -6,7 +6,7 @@ import type {
   SetConfigContext,
 } from "@core/domain/messageTypes";
 import { DomObserver } from "./DomObserver";
-import { MutationPipeline, type MutationPlan } from "./MutationPipeline";
+import { MutationPipeline } from "./MutationPipeline";
 import { MutationScheduler } from "./MutationScheduler";
 import { ShadowRootInterceptor } from "./ShadowRootInterceptor";
 import { ThemeApplicator } from "./ThemeApplicator";
@@ -43,7 +43,7 @@ export class ContentRuntimeController {
     enabledGrammarRules: [],
     userDictionaryList: [],
   };
-  public readonly domObserver: DomObserver;
+  private readonly domObserver: DomObserver;
   private readonly shadowObservers = new Map<ShadowRoot, DomObserver>();
   private shadowRootInterceptor: ShadowRootInterceptor | null = null;
   private lateDiscoveryListenersAttached = false;
@@ -62,7 +62,9 @@ export class ContentRuntimeController {
   private pendingRestartToken: symbol | null = null;
   private pendingRestartTimer: ReturnType<typeof setTimeout> | null = null;
 
-  constructor(private readonly themeApplicator: ThemeApplicator = new ThemeApplicator()) {
+  private readonly themeApplicator = new ThemeApplicator();
+
+  constructor() {
     this.domObserver = new DomObserver(
       document.body || document.documentElement,
       this.onMutationCallbackBound,
@@ -161,7 +163,6 @@ export class ContentRuntimeController {
 
   fulfillPrediction(context: PredictResponseContext): void {
     if (
-      typeof context.runtimeGeneration === "number" &&
       Number.isFinite(context.runtimeGeneration) &&
       context.runtimeGeneration !== this.predictionGeneration
     ) {
@@ -178,10 +179,6 @@ export class ContentRuntimeController {
       return;
     }
     this.suggestionManager?.fulfillPrediction(context);
-  }
-
-  attachMutationObserver(): void {
-    this.domObserver.attach();
   }
 
   mutationCallback(mutationsList: MutationRecord[]): void {
@@ -205,11 +202,17 @@ export class ContentRuntimeController {
       }
       this.suggestionManager.removeHelpersNotInDocument();
 
-      const mutationPlan = this.mutationPipeline.buildPlan(mutationsList);
-      this.executeMutationPlan(mutationPlan);
+      const plan = this.mutationPipeline.buildPlan(mutationsList);
+      if (plan.type === "full-scan") {
+        this.suggestionManager.queryAndAttachHelper();
+      } else if (plan.type === "targeted-scan") {
+        for (const root of plan.roots) {
+          this.suggestionManager.queryAndAttachHelper(root);
+        }
+      }
     } finally {
       if (this.enabled) {
-        this.attachMutationObserver();
+        this.domObserver.attach();
         this.refreshShadowObservers();
       }
     }
@@ -224,7 +227,7 @@ export class ContentRuntimeController {
     this.googleDocs?.start();
     this.suggestionManager?.queryAndAttachHelper();
     this.suggestionManager?.triggerActiveSuggestion();
-    this.attachMutationObserver();
+    this.domObserver.attach();
     this.refreshShadowObservers();
     this.ensureShadowRootInterceptor();
     this.ensureLateDiscoveryListeners();
@@ -419,24 +422,5 @@ export class ContentRuntimeController {
       return;
     }
     this.onRuntimeActivity?.(this.predictionGeneration);
-  }
-
-  private executeMutationPlan(mutationPlan: MutationPlan): void {
-    if (!this.suggestionManager) {
-      return;
-    }
-
-    switch (mutationPlan.type) {
-      case "full-scan":
-        this.suggestionManager.queryAndAttachHelper();
-        return;
-      case "targeted-scan":
-        for (const mutationRoot of mutationPlan.roots) {
-          this.suggestionManager.queryAndAttachHelper(mutationRoot);
-        }
-        return;
-      default:
-        return;
-    }
   }
 }
