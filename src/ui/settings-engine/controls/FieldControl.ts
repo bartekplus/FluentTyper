@@ -69,23 +69,19 @@ export function createFieldRoot(className = "field"): HTMLDivElement {
   return root;
 }
 
-export function createControlContainer(className = "control"): HTMLDivElement {
+export function createControlContainer(): HTMLDivElement {
   const control = document.createElement("div");
-  control.className = className;
+  control.className = "control";
   return control;
 }
 
-export function appendLabel(
-  parent: HTMLElement,
-  label?: string,
-  className = "label",
-): HTMLLabelElement | undefined {
+export function appendLabel(parent: HTMLElement, label?: string): HTMLLabelElement | undefined {
   if (!label) {
     return undefined;
   }
 
   const element = document.createElement("label");
-  element.className = className;
+  element.className = "label";
   element.innerHTML = label;
   parent.appendChild(element);
   return element;
