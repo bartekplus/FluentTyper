@@ -153,6 +153,13 @@ describe("language-aware typography preset", () => {
     expect(type('Il dit "" ', "fr_FR")).toBe(`Il dit «${NBSP}${NBSP}» `);
   });
 
+  test("an English opening quote followed by a space is not closed over the typed space", () => {
+    // A second "“" here is a German-style closer only for German; in English
+    // it's just another opener typed after whitespace, so the space must
+    // survive rather than being swallowed into a bogus close-with-trim.
+    expect(type('Type " " here', "en_US")).toBe("Type “ “ here");
+  });
+
   test("straight quotes stay straight in code and protected contexts", () => {
     expect(type('Run `echo "hi"` now', "en_US")).toBe('Run `echo "hi"` now');
     expect(type('Set x = "a"', "de_DE")).toBe('Set x = "a"');
