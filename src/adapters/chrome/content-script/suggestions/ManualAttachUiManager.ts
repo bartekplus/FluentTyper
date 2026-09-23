@@ -17,8 +17,8 @@ const INLINE_OBSTACLE_SELECTOR = [
   "[role='textbox']",
 ].join(", ");
 
-export const MANUAL_ATTACH_BUTTON_CLASS = "ft-manual-attach-button";
-export const MANUAL_ATTACH_TOOLTIP = "Click to enable FluentTyper for this field.";
+const MANUAL_ATTACH_BUTTON_CLASS = "ft-manual-attach-button";
+const MANUAL_ATTACH_TOOLTIP = "Click to enable FluentTyper for this field.";
 
 export type ManualAttachTarget = HTMLInputElement | HTMLTextAreaElement | HTMLElement;
 type ManualAttachSurfaceTone = "light" | "dark";
@@ -43,7 +43,6 @@ interface ManualAttachMountTarget {
 interface ManualAttachUiHandle {
   containerParent: HTMLElement | ShadowRoot;
   positioningParent: HTMLElement | null;
-  usesViewportPositioning: boolean;
   container: HTMLDivElement;
   button: HTMLButtonElement;
   icon: HTMLImageElement;
@@ -55,15 +54,15 @@ interface ManualAttachUiHandle {
 }
 
 export class ManualAttachUiManager {
-  private readonly iconUrl: string;
-  private readonly onActivate: (element: ManualAttachTarget) => void;
   private readonly handles = new Map<ManualAttachTarget, ManualAttachUiHandle>();
   private readonly parentPositionStates = new Map<HTMLElement, ParentPositionState>();
 
-  constructor(options: { iconUrl: string; onActivate: (element: ManualAttachTarget) => void }) {
-    this.iconUrl = options.iconUrl;
-    this.onActivate = options.onActivate;
-  }
+  constructor(
+    private readonly options: {
+      iconUrl: string;
+      onActivate: (element: ManualAttachTarget) => void;
+    },
+  ) {}
 
   public ensureForElement(element: ManualAttachTarget): void {
     if (!isInDocument(element)) {
@@ -164,7 +163,7 @@ export class ManualAttachUiManager {
 
     const icon = element.ownerDocument.createElement("img");
     icon.alt = "";
-    icon.src = this.iconUrl;
+    icon.src = this.options.iconUrl;
     icon.draggable = false;
     Object.assign(icon.style, {
       width: "16px",
@@ -194,7 +193,6 @@ export class ManualAttachUiManager {
     const handle: ManualAttachUiHandle = {
       containerParent: mountTarget.containerParent,
       positioningParent: mountTarget.positioningParent,
-      usesViewportPositioning: mountTarget.positioningParent === null,
       container,
       button,
       icon,
@@ -224,7 +222,7 @@ export class ManualAttachUiManager {
       }
       handle.successPending = true;
       this.applySuccessState(handle);
-      this.onActivate(element);
+      this.options.onActivate(element);
       handle.successTimer = setTimeout(() => {
         this.removeForElement(element);
       }, SUCCESS_STATE_MS);
@@ -317,36 +315,19 @@ export class ManualAttachUiManager {
     const inlineObstacle = isContentEditableTarget
       ? this.resolveInlineObstacle(element, handle, isRtl)
       : null;
-    const offsetTop = this.resolveOffsetTop(elementRect.height, {
-      prefersTopInset: isTextarea || isContentEditableTarget,
-    });
-    if (handle.usesViewportPositioning) {
-      const left = this.resolveInlineOffset({
-        rectStart: elementRect.left,
-        rectSize: elementRect.width,
-        isRtl,
-        obstacleStart: inlineObstacle?.start,
-        obstacleEnd: inlineObstacle?.end,
-      });
-      const top = Math.max(0, elementRect.top + offsetTop);
-      handle.container.style.left = `${Math.round(left)}px`;
-      handle.container.style.top = `${Math.round(top)}px`;
-      return;
-    }
-
+    const offsetTop = this.resolveOffsetTop(
+      elementRect.height,
+      isTextarea || isContentEditableTarget,
+    );
+    // Without a positioning parent the container is fixed to the viewport.
     const parentRect = handle.positioningParent?.getBoundingClientRect();
+    const parentLeft = parentRect?.left ?? 0;
     const left = this.resolveInlineOffset({
-      rectStart: elementRect.left - (parentRect?.left ?? 0),
+      rectStart: elementRect.left - parentLeft,
       rectSize: elementRect.width,
       isRtl,
-      obstacleStart:
-        typeof inlineObstacle?.start === "number"
-          ? inlineObstacle.start - (parentRect?.left ?? 0)
-          : undefined,
-      obstacleEnd:
-        typeof inlineObstacle?.end === "number"
-          ? inlineObstacle.end - (parentRect?.left ?? 0)
-          : undefined,
+      obstacleStart: inlineObstacle ? inlineObstacle.start - parentLeft : undefined,
+      obstacleEnd: inlineObstacle ? inlineObstacle.end - parentLeft : undefined,
     });
     const top = Math.max(0, elementRect.top - (parentRect?.top ?? 0) + offsetTop);
 
@@ -381,10 +362,10 @@ export class ManualAttachUiManager {
     isRtl: boolean,
   ): { start: number; end: number } | null {
     const positioningParent = handle.positioningParent;
-    const layoutParent = positioningParent?.parentElement;
     if (!positioningParent) {
       return null;
     }
+    const layoutParent = positioningParent.parentElement;
     const elementRect = element.getBoundingClientRect();
     const elementMidpoint = elementRect.left + elementRect.width / 2;
     // Only consider peer layout boxes around the editor. Deep descendants inside
@@ -413,22 +394,18 @@ export class ManualAttachUiManager {
     if (obstacles.length === 0) {
       return null;
     }
-    if (isRtl) {
-      const nearest = obstacles.reduce((best, rect) => (rect.right > best.right ? rect : best));
-      return { start: nearest.left, end: nearest.right };
-    }
-    const nearest = obstacles.reduce((best, rect) => (rect.left < best.left ? rect : best));
+    const nearest = obstacles.reduce((best, rect) =>
+      (isRtl ? rect.right > best.right : rect.left < best.left) ? rect : best,
+    );
     return { start: nearest.left, end: nearest.right };
   }
 
   private isInlineObstacleCandidate(candidate: HTMLElement): boolean {
-    if (candidate.getAttribute("aria-hidden") === "true") {
-      return false;
-    }
-    if (candidate.matches(INLINE_OBSTACLE_SELECTOR)) {
-      return true;
-    }
-    return candidate.querySelector(INLINE_OBSTACLE_SELECTOR) instanceof HTMLElement;
+    return (
+      candidate.getAttribute("aria-hidden") !== "true" &&
+      (candidate.matches(INLINE_OBSTACLE_SELECTOR) ||
+        candidate.querySelector(INLINE_OBSTACLE_SELECTOR) instanceof HTMLElement)
+    );
   }
 
   private resolveSurfaceTone(element: ManualAttachTarget): ManualAttachSurfaceTone {
@@ -500,16 +477,9 @@ export class ManualAttachUiManager {
     };
   }
 
-  private resolveOffsetTop(
-    height: number,
-    options: {
-      prefersTopInset: boolean;
-    },
-  ): number {
+  private resolveOffsetTop(height: number, prefersTopInset: boolean): number {
     const maxOffset = Math.max(0, height - BUTTON_SIZE_PX);
-    const desired = options.prefersTopInset
-      ? FIELD_INSET_PX
-      : Math.max(0, (height - BUTTON_SIZE_PX) / 2);
+    const desired = prefersTopInset ? FIELD_INSET_PX : Math.max(0, (height - BUTTON_SIZE_PX) / 2);
     return this.clampToRange(desired, 0, maxOffset);
   }
 
@@ -541,12 +511,11 @@ export class ManualAttachUiManager {
     }
 
     const computedPosition = parent.ownerDocument.defaultView?.getComputedStyle(parent).position;
-    const shouldSetRelative = !computedPosition || computedPosition === "static";
     this.parentPositionStates.set(parent, {
       count: 1,
       originalPosition: parent.style.position,
     });
-    if (shouldSetRelative) {
+    if (!computedPosition || computedPosition === "static") {
       parent.style.position = "relative";
     }
   }
@@ -556,8 +525,7 @@ export class ManualAttachUiManager {
     if (!existing) {
       return;
     }
-    existing.count -= 1;
-    if (existing.count > 0) {
+    if (--existing.count > 0) {
       return;
     }
     parent.style.position = existing.originalPosition;
@@ -566,12 +534,11 @@ export class ManualAttachUiManager {
 
   private applyPadding(element: ManualAttachTarget): void {
     const computedStyle = element.ownerDocument.defaultView?.getComputedStyle(element);
-    const direction = computedStyle?.direction === "rtl" ? "left" : "right";
     const computedPadding =
       Number.parseFloat(
-        direction === "right"
-          ? computedStyle?.paddingRight || ""
-          : computedStyle?.paddingLeft || "",
+        (computedStyle?.direction === "rtl"
+          ? computedStyle.paddingLeft
+          : computedStyle?.paddingRight) || "",
       ) || 0;
     const nextPadding = Math.ceil(computedPadding + PADDING_RESERVE_PX);
     this.setInlineEndPaddingStyleValue(element, `${nextPadding}px`);
@@ -594,11 +561,7 @@ export class ManualAttachUiManager {
 
   private setInlineEndPaddingStyleValue(element: ManualAttachTarget, value: string): void {
     const direction = element.ownerDocument.defaultView?.getComputedStyle(element).direction;
-    if (direction === "rtl") {
-      element.style.paddingLeft = value;
-      return;
-    }
-    element.style.paddingRight = value;
+    element.style[direction === "rtl" ? "paddingLeft" : "paddingRight"] = value;
   }
 
   private isHtmlElement(node: unknown, ownerDocument: Document): node is HTMLElement {

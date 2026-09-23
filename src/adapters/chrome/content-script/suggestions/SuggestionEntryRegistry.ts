@@ -6,9 +6,7 @@ export class SuggestionEntryRegistry {
   private entryIdByElement = new WeakMap<Element, number>();
 
   public allocateId(): number {
-    const id = this.nextEntryId;
-    this.nextEntryId += 1;
-    return id;
+    return this.nextEntryId++;
   }
 
   public register(entry: SuggestionEntry): void {
@@ -18,12 +16,10 @@ export class SuggestionEntryRegistry {
 
   public unregister(id: number): SuggestionEntry | undefined {
     const entry = this.entries.get(id);
-    if (!entry) {
-      return undefined;
+    if (entry) {
+      this.entries.delete(id);
+      this.entryIdByElement.delete(entry.elem);
     }
-
-    this.entries.delete(id);
-    this.entryIdByElement.delete(entry.elem);
     return entry;
   }
 
@@ -33,10 +29,7 @@ export class SuggestionEntryRegistry {
 
   public getByElement(elem: Element): SuggestionEntry | undefined {
     const id = this.entryIdByElement.get(elem);
-    if (typeof id !== "number") {
-      return undefined;
-    }
-    const entry = this.entries.get(id);
+    const entry = id === undefined ? undefined : this.entries.get(id);
     return entry?.elem === elem ? entry : undefined;
   }
 

@@ -5,7 +5,7 @@ import { SuggestionPositioningService } from "./SuggestionPositioningService";
 import { SuggestionMenuView } from "./SuggestionMenuView";
 import type { SuggestionElement } from "./types";
 
-export interface SuggestionMenuRenderModel {
+interface SuggestionMenuRenderModel {
   menuId: number;
   menu: HTMLDivElement;
   list: HTMLUListElement;
@@ -18,13 +18,9 @@ export interface SuggestionMenuRenderModel {
 }
 
 export class SuggestionMenuPresenter {
-  private readonly positioningService: SuggestionPositioningService;
-
   constructor(
-    positioningService: SuggestionPositioningService = new SuggestionPositioningService(),
-  ) {
-    this.positioningService = positioningService;
-  }
+    private readonly positioningService: SuggestionPositioningService = new SuggestionPositioningService(),
+  ) {}
 
   public render(model: SuggestionMenuRenderModel): boolean {
     model.list.innerHTML = "";
@@ -71,9 +67,6 @@ export class SuggestionMenuPresenter {
 
     if (model.suggestions.length === 0) {
       this.hide(model.menu, model.list, model.target);
-      if (panel !== model.menu) {
-        panel.setAttribute("aria-hidden", "true");
-      }
       return false;
     }
 
@@ -82,9 +75,6 @@ export class SuggestionMenuPresenter {
     this.positioningService.syncMenuTypography(model.menu, model.target);
     if (!this.positioningService.positionMenu(model.menu, model.target)) {
       this.hide(model.menu, model.list, model.target);
-      if (panel !== model.menu) {
-        panel.setAttribute("aria-hidden", "true");
-      }
       return false;
     }
 
@@ -121,8 +111,7 @@ export class SuggestionMenuPresenter {
   }
 
   public updateHighlight(list: HTMLUListElement, selectedIndex: number): void {
-    const items = Array.from(list.querySelectorAll("li"));
-    items.forEach((item, index) => {
+    list.querySelectorAll("li").forEach((item, index) => {
       if (index === selectedIndex) {
         item.classList.add("highlight");
         item.setAttribute("aria-selected", "true");
@@ -163,9 +152,7 @@ export class SuggestionMenuPresenter {
       return safeSuggestion;
     }
 
-    const lowerSuggestion = suggestion.toLowerCase();
-    const lowerMention = mention.toLowerCase();
-    const matchIndex = lowerSuggestion.indexOf(lowerMention);
+    const matchIndex = suggestion.toLowerCase().indexOf(mention.toLowerCase());
     if (matchIndex < 0) {
       return safeSuggestion;
     }

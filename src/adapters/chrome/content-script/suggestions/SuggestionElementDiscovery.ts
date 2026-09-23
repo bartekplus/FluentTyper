@@ -5,7 +5,7 @@ export function isVisiblyInteractive(elem: HTMLElement): boolean {
   return style.display !== "none" && style.visibility !== "hidden";
 }
 
-export interface SuggestionElementDiscoveryOptions {
+interface SuggestionElementDiscoveryOptions {
   selectors: string;
   isCandidateElement: (elem: HTMLElement) => elem is SuggestionElement;
   onShadowRootDiscovered?: (root: ShadowRoot) => void;
@@ -46,15 +46,10 @@ export class SuggestionElementDiscovery {
   }
 
   private isEligibleElement(elem: Element): elem is SuggestionElement {
-    if (!(elem instanceof HTMLElement)) {
-      return false;
-    }
-    if (!this.isCandidateElementPredicate(elem)) {
-      return false;
-    }
-    if (!isVisiblyInteractive(elem)) {
-      return false;
-    }
-    return true;
+    return (
+      elem instanceof HTMLElement &&
+      this.isCandidateElementPredicate(elem) &&
+      isVisiblyInteractive(elem)
+    );
   }
 }

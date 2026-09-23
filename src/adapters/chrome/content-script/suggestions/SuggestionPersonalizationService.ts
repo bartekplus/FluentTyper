@@ -11,12 +11,8 @@ interface SuggestionPersonalizationServiceOptions {
 
 export class SuggestionPersonalizationService implements SuggestionPersonalization {
   private readonly sendMessage: NonNullable<SuggestionPersonalizationServiceOptions["sendMessage"]>;
-  private readonly readLastError: NonNullable<
-    SuggestionPersonalizationServiceOptions["readLastError"]
-  >;
-  private readonly createEventId: NonNullable<
-    SuggestionPersonalizationServiceOptions["createEventId"]
-  >;
+  private readonly readLastError: () => unknown;
+  private readonly createEventId: () => string;
 
   constructor(options: SuggestionPersonalizationServiceOptions = {}) {
     this.sendMessage =
@@ -25,7 +21,7 @@ export class SuggestionPersonalizationService implements SuggestionPersonalizati
         chrome.runtime.sendMessage(message, callback);
       });
     this.readLastError = options.readLastError ?? (() => chrome.runtime.lastError);
-    this.createEventId = options.createEventId ?? generateEventId;
+    this.createEventId = options.createEventId ?? (() => `accept-${randomUUID()}`);
   }
 
   recordSuggestionAccepted(args: {
@@ -70,8 +66,4 @@ export class SuggestionPersonalizationService implements SuggestionPersonalizati
       // A suspended or reloading background must never break suggestion acceptance.
     }
   }
-}
-
-function generateEventId(): string {
-  return `accept-${randomUUID()}`;
 }

@@ -23,30 +23,13 @@ const AUTOCOMPLETE_BLOCKED_PREFIXES = ["tel", "address-", "cc-"];
 
 export class NativeAutocompleteConflictDetector {
   public isNativeAutocompletePreferred(elem: SuggestionElement): boolean {
-    if (this.hasInputList(elem)) {
-      return true;
-    }
-    if (this.hasComboboxRole(elem)) {
-      return true;
-    }
-    if (this.hasTextControlAriaConflict(elem)) {
-      return true;
-    }
-    if (this.controlsAutocompletePopup(elem)) {
-      return true;
-    }
-    if (TextTargetAdapter.isInput(elem) && this.hasSemanticAutocompletePurpose(elem)) {
-      return true;
-    }
-    return false;
-  }
-
-  private hasInputList(elem: SuggestionElement): boolean {
-    return TextTargetAdapter.isInput(elem) && elem.hasAttribute("list");
-  }
-
-  private hasComboboxRole(elem: SuggestionElement): boolean {
-    return elem.getAttribute("role") === "combobox";
+    return (
+      (TextTargetAdapter.isInput(elem) && elem.hasAttribute("list")) ||
+      elem.getAttribute("role") === "combobox" ||
+      this.hasTextControlAriaConflict(elem) ||
+      this.controlsAutocompletePopup(elem) ||
+      (TextTargetAdapter.isInput(elem) && this.hasSemanticAutocompletePurpose(elem))
+    );
   }
 
   private hasTextControlAriaConflict(elem: SuggestionElement): boolean {
@@ -69,9 +52,6 @@ export class NativeAutocompleteConflictDetector {
         .trim()
         .split(/\s+/)
         .filter(Boolean);
-    if (rawIds.length === 0) {
-      return false;
-    }
     return rawIds.some((id) => {
       const target = this.findControlledElement(elem, id);
       return target ? CONTROLLED_POPUP_ROLES.has(target.getAttribute("role") || "") : false;
@@ -100,7 +80,6 @@ export class NativeAutocompleteConflictDetector {
     const tokens = autocomplete
       .toLowerCase()
       .split(/\s+/)
-      .map((token) => token.trim())
       .filter((token) => token.length > 0 && token !== "on" && token !== "off");
     return tokens.some(
       (token) =>

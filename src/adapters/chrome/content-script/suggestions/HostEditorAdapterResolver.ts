@@ -34,6 +34,8 @@ export interface HostEditorSession {
   createPostEditFingerprint(): PostEditFingerprint;
 }
 
+type BlockReplacementArgs = Parameters<HostEditorSession["applyBlockReplacement"]>[0];
+
 export class HostEditorAdapterResolver {
   constructor(
     private readonly pageBridge: HostEditorPageBridge = new InjectedHostEditorPageBridge(),
@@ -44,26 +46,20 @@ export class HostEditorAdapterResolver {
       return null;
     }
 
+    const backingTarget = TextTargetAdapter.findBackingTextValueTarget(elem);
     const controller = findLineEditorController(elem);
-    if (!controller) {
-      const bridgedBlockContext = this.pageBridge.getBlockContextAtSelection(elem);
-      if (!bridgedBlockContext) {
-        return null;
-      }
-
-      return new BridgedLineEditorHostSession(
-        elem,
-        this.pageBridge,
-        bridgedBlockContext.blockText,
-        TextTargetAdapter.findBackingTextValueTarget(elem),
-      );
+    if (controller) {
+      return new LineEditorHostSession(elem, controller, backingTarget);
     }
-
-    return new LineEditorHostSession(
-      elem,
-      controller,
-      TextTargetAdapter.findBackingTextValueTarget(elem),
-    );
+    const bridgedBlockContext = this.pageBridge.getBlockContextAtSelection(elem);
+    return bridgedBlockContext
+      ? new BridgedLineEditorHostSession(
+          elem,
+          this.pageBridge,
+          bridgedBlockContext.blockText,
+          backingTarget,
+        )
+      : null;
   }
 }
 
@@ -85,13 +81,7 @@ class BridgedLineEditorHostSession implements HostEditorSession {
     replacementText,
     cursorAfter,
     expectedBlockText,
-  }: {
-    replaceStart: number;
-    replaceEnd: number;
-    replacementText: string;
-    cursorAfter: number;
-    expectedBlockText?: string;
-  }): HostEditorApplyResult {
+  }: BlockReplacementArgs): HostEditorApplyResult {
     return this.pageBridge.applyBlockReplacement(this.elem, {
       replaceStart,
       replaceEnd,
@@ -102,8 +92,7 @@ class BridgedLineEditorHostSession implements HostEditorSession {
   }
 
   public createPostEditFingerprint(): PostEditFingerprint {
-    const target = this.backingTarget ?? this.elem;
-    return TextTargetAdapter.createPostEditFingerprint(target);
+    return TextTargetAdapter.createPostEditFingerprint(this.backingTarget ?? this.elem);
   }
 }
 
@@ -123,13 +112,7 @@ class LineEditorHostSession implements HostEditorSession {
     replaceEnd,
     replacementText,
     cursorAfter,
-  }: {
-    replaceStart: number;
-    replaceEnd: number;
-    replacementText: string;
-    cursorAfter: number;
-    expectedBlockText?: string;
-  }): HostEditorApplyResult {
+  }: BlockReplacementArgs): HostEditorApplyResult {
     // LineEditor host (CodeMirror) owns both its DOM and its model, so
     // there is no staleness window and we ignore the caller's
     // expectedBlockText hint.
@@ -171,8 +154,7 @@ class LineEditorHostSession implements HostEditorSession {
   }
 
   public createPostEditFingerprint(): PostEditFingerprint {
-    const target = this.backingTarget ?? this.elem;
-    return TextTargetAdapter.createPostEditFingerprint(target);
+    return TextTargetAdapter.createPostEditFingerprint(this.backingTarget ?? this.elem);
   }
 
   private syncBackingSelection(position: LineEditorCursor): void {
