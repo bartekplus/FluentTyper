@@ -9,11 +9,6 @@ import { isInsideProtectedSpan } from "./helpers/ProtectedSpanShared";
 // after a space, an opening quote or bracket, or the text start, so "v1th",
 // "1.1th" and "x=2st" are never touched.
 const ORDINAL_REGEX = /(?<=^|[\s(["'“‘])(\d+)(st|nd|rd|th|ST|ND|RD|TH)$/;
-// "11st" is also 11 stone, the British body-weight unit.
-// ponytail: only the preceding verb is checked, so "He is 11st" still becomes
-// "11th"; look at the next token too if that shows up in practice.
-const WEIGHT_WORD_REGEX =
-  /(?:^|\s)(?:weighs?|weighed|weighing|lost|lose|loses|losing|gained|gains?|gaining)\s+$/i;
 
 function ordinalSuffix(digits: string): string {
   const lastTwo = Number(digits.slice(-2));
@@ -42,13 +37,15 @@ export class EnglishOrdinalSuffixRule implements GrammarRule {
 
     const [token, digits, suffix] = match;
     const expected = ordinalSuffix(digits);
-    if (suffix.toLowerCase() === expected) {
+    // Ambiguity guard: a typed "st" is never rewritten. "11st" and "12st" are
+    // also stone, the British body-weight unit ("He is 11st", "11st 4lb"), and
+    // the surrounding words cannot tell the two apart reliably.
+    if (suffix.toLowerCase() === "st" || suffix.toLowerCase() === expected) {
       return null;
     }
     const tokenStart = match.index;
     const beforeToken = core.slice(0, tokenStart);
     if (
-      (suffix.toLowerCase() === "st" && WEIGHT_WORD_REGEX.test(beforeToken)) ||
       isInsideProtectedSpan(beforeToken) ||
       isLikelyCodeLikeContext(core, tokenStart, core.length)
     ) {

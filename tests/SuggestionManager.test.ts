@@ -817,6 +817,29 @@ describe("SuggestionManager", () => {
     expect(postUndoPrediction.text).toBe("x=y");
   });
 
+  test("reverts an ordinal suffix fix on Ctrl+Z without reapplying it", async () => {
+    const { manager } = await createManager({
+      enabledGrammarRules: ["englishOrdinalSuffix", "measurementUnitFormatting"],
+    });
+    const input = document.createElement("input");
+    input.type = "text";
+    document.body.appendChild(input);
+    manager.queryAndAttachHelper();
+
+    input.value = "Took 1th ";
+    input.selectionStart = input.value.length;
+    input.selectionEnd = input.value.length;
+    dispatchInput(input, { inputType: "insertText" });
+
+    expect(input.value).toBe("Took 1st ");
+
+    dispatchKeydown(input, "z", { ctrlKey: true });
+    expect(input.value).toBe("Took 1th ");
+
+    dispatchInput(input, { inputType: "insertText" });
+    expect(input.value).toBe("Took 1th ");
+  });
+
   test("hides popup when caret navigation leaves the current token", async () => {
     const { manager, getPrediction } = await createManager();
     const input = document.createElement("input");

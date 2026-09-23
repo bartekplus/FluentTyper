@@ -249,11 +249,16 @@ describe("opt-in a/an correction", () => {
 });
 
 describe("ordinal suffix repair", () => {
+  const pipelines = [
+    ["default", DEFAULT_CURRENT_GRAMMAR_RULES],
+    ["all", GRAMMAR_RULE_IDS],
+  ] as const;
+
   for (const [input, expected] of [
     ["1th place ", "1st place "],
-    ["2st attempt ", "2nd attempt "],
+    ["2th attempt ", "2nd attempt "],
     ["3th version ", "3rd version "],
-    ["11st item ", "11th item "],
+    ["the 12nd item ", "The 12th item "],
     ["the 21th birthday ", "The 21st birthday "],
     ["the 112nd floor ", "The 112th floor "],
     ["the 1013rd entry ", "The 1013th entry "],
@@ -261,36 +266,65 @@ describe("ordinal suffix repair", () => {
     ["THE 3TH ROW ", "THE 3RD ROW "],
     ["on the (22th) ", "On the (22nd) "],
   ])
-    test(`corrects ${JSON.stringify(input)}`, () => expect(type(input)).toBe(expected));
+    for (const [name, rules] of pipelines)
+      test(`corrects ${JSON.stringify(input)} (${name} rules)`, () =>
+        expect(type(input, "en_US", rules)).toBe(expected));
 
-  // Every keystroke, full default pipeline with the rule on versus off.
-  const withoutRule = DEFAULT_CURRENT_GRAMMAR_RULES.filter((id) => id !== "englishOrdinalSuffix");
+  // Measurement formatting must not split the corrected token into "1 st".
+  for (const [name, rules] of pipelines)
+    test(`keeps "1st" intact after correction (${name} rules)`, () => {
+      const input = "Took 1th place in 2 laps ";
+      const corrected = input.indexOf("1th ") + "1th ".length;
+      for (let end = corrected; end <= input.length; end += 1)
+        expect(type(input.slice(0, end), "en_US", rules)).toMatch(/^Took 1st( |$)/);
+      expect(type(input, "en_US", rules)).toBe("Took 1st place in 2 laps ");
+    });
+
+  // Every keystroke, each pipeline with the rule on versus off.
   for (const input of [
     // Already correct, and bare numbers never gain a suffix.
     "1st 2nd 3rd 4th 11th 12th 13th 21st 22nd 23rd 101st 111th ",
     "We had 21 guests ",
+    // A typed "st" is never rewritten: it may be stone, the weight unit.
+    "He is 11st ",
+    "Currently 12st ",
+    "11st 4lb ",
+    "He weighs 11st now ",
+    "I lost 2st last year ",
+    "We took 11st place ",
+    "It was 2ST ",
     // Not a whole ordinal token.
     "Use v1th here ",
-    "Call f(2st) now ",
+    "Call f(2th) now ",
     "Set x=3th now ",
     "Version 1.1th here ",
     "Tag #1th here ",
     "the 21th-century view ",
     "Mixed 1St case ",
-    // Stone, the weight unit.
-    "He weighs 11st now ",
-    "I lost 2st last year ",
+    "Mixed 2Th case ",
+    // Technical tokens containing those sequences.
+    "Use v11st now ",
+    "Set id_12st here ",
+    "Open path/11st/4lb now ",
+    "Call f(11st) now ",
+    "Tag #12st here ",
+    "Load build-2th.json now ",
+    "Use 0x1th here ",
+    "Set weight=11st 4lb ",
     // Code and literals.
     "Type `1th` here ",
+    "Type `11st 4lb` here ",
     "```\n1th\n``` ",
     'Set text = "1th " ',
   ])
-    test(`leaves ${JSON.stringify(input)}`, () => {
-      for (let end = 1; end <= input.length; end += 1) {
-        const prefix = input.slice(0, end);
-        expect(type(prefix)).toBe(type(prefix, "en_US", withoutRule));
-      }
-    });
+    for (const [name, rules] of pipelines)
+      test(`leaves ${JSON.stringify(input)} (${name} rules)`, () => {
+        const withoutRule = rules.filter((id) => id !== "englishOrdinalSuffix");
+        for (let end = 1; end <= input.length; end += 1) {
+          const prefix = input.slice(0, end);
+          expect(type(prefix, "en_US", rules)).toBe(type(prefix, "en_US", withoutRule));
+        }
+      });
 });
 
 describe("advanced opt-in rules never rewrite code punctuation", () => {

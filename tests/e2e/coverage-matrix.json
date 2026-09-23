@@ -1188,12 +1188,17 @@
     },
     {
       "id": "grammar_english_ordinal_suffix",
-      "description": "Ordinal suffix repair fixes whole ordinal tokens in prose and leaves bare numbers, identifiers, code and stone weights unchanged.",
+      "description": "Ordinal suffix repair fixes whole ordinal tokens in prose never rewrites a typed st suffix, and leaves bare numbers, identifiers and code unchanged.",
       "coverage": [
         {
           "layer": "unit",
           "file": "tests/grammar/AmbiguityGuards.test.ts",
           "test": "ordinal suffix repair"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionManager.test.ts",
+          "test": "reverts an ordinal suffix fix on Ctrl+Z without reapplying it"
         }
       ]
     },
