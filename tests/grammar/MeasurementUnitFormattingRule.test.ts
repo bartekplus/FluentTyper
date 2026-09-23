@@ -104,4 +104,15 @@ describe("MeasurementUnitFormattingRule", () => {
     expect(apply("Mass: 10kg. ")).toBeNull();
     expect(rule.triggers).toEqual(["wordBoundary"]);
   });
+
+  test("sentence-initial words that happen to be shell commands are prose", () => {
+    expect(result("Cat weighs 5kg ")).toBe("Cat weighs 5 kg ");
+    expect(result("Touch the 5kg ")).toBe("Touch the 5 kg ");
+    expect(result("Tar det 5kg ", "sv_SE")).toBe("Tar det 5 kg ");
+    expect(result("Sed de 5kg ", "es_ES")).toBe("Sed de 5 kg ");
+  });
+
+  test("tab-indented prose paragraph still formats", () => {
+    expect(result("\tThe box weighs 5kg ")).toBe("\tThe box weighs 5 kg ");
+  });
 });

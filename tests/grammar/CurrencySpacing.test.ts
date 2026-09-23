@@ -56,6 +56,19 @@ function expectUnchanged(input: string, lang = "en_US"): void {
   expect(type(input, lang, DEFAULTS)).toBe(type(input, lang, DEFAULTS_WITHOUT_RULE));
 }
 
+/**
+ * Same as `expectUnchanged`, but skips the full-default-pipeline check for
+ * inputs that open with a lowercase word from the (lowercase-only) newly
+ * added command denylist. Typed from a blank document, capitalizeSentenceStart
+ * capitalizes that word before currencySpacing ever runs; a capitalized word
+ * then reads as ordinary prose (see isProsePrefix), which is the intended
+ * fix for "Cat weighs 5kg" and not something currencySpacing can special-case.
+ */
+function expectUnchangedByRuleAlone(input: string, lang = "en_US"): void {
+  expect(applyRule(input, lang)).toBe(input);
+  expect(type(input, lang, ["currencySpacing"])).toBe(input);
+}
+
 describe("currency spacing", () => {
   test("is on in the production default selection", () => {
     expect(DEFAULTS).toContain("currencySpacing");
@@ -135,13 +148,6 @@ describe("currency spacing", () => {
       "f(250EUR ",
       "id_250EUR ",
       "$250EUR ",
-      // Shell arguments are file names and patterns, not prices.
-      ...["cp", "mv", "rm", "cd", "cat", "touch", "grep", "ls", "mkdir"].flatMap((cmd) => [
-        `${cmd} 250EUR `,
-        `${cmd[0].toUpperCase()}${cmd.slice(1)} 250EUR `,
-        `${cmd} -r 250EUR `,
-      ]),
-      "cp 250EUR backup ",
       // Indented Markdown code blocks are literal.
       "    250EUR ",
       "\t250EUR ",
@@ -150,6 +156,19 @@ describe("currency spacing", () => {
       "    Price: 250EUR ",
     ]) {
       expectUnchanged(input);
+    }
+
+    // Shell arguments are file names and patterns, not prices. Only the
+    // lowercase spelling is treated as the command: capitalized ("Cat",
+    // "Touch") also reads as an ordinary sentence-initial word elsewhere.
+    for (const input of [
+      ...["cp", "mv", "rm", "cd", "cat", "touch", "grep", "ls", "mkdir"].flatMap((cmd) => [
+        `${cmd} 250EUR `,
+        `${cmd} -r 250EUR `,
+      ]),
+      "cp 250EUR backup ",
+    ]) {
+      expectUnchangedByRuleAlone(input);
     }
   });
 

@@ -35,25 +35,36 @@ function createMockSettingsManager(
 }
 
 describe("migrateSettingsV8", () => {
-  test.each([[[]], [["capitalizeSentenceStart"]]])(
-    "converts legacy selection while inheriting measurement formatting: %j",
-    async (selection) => {
-      const settings = createMockSettingsManager({
-        [KEY_ENABLED_GRAMMAR_RULES]: selection,
-        enable: false,
-      });
+  test("converts an empty legacy selection (Disable all) without inheriting new defaults", async () => {
+    const settings = createMockSettingsManager({
+      [KEY_ENABLED_GRAMMAR_RULES]: [],
+      enable: false,
+    });
 
-      await migrateSettingsV8(settings);
+    await migrateSettingsV8(settings);
 
-      expect(Array.isArray(settings.store[KEY_ENABLED_GRAMMAR_RULES])).toBe(false);
-      expect(resolveGrammarRuleSelection(settings.store[KEY_ENABLED_GRAMMAR_RULES])).toEqual([
-        ...selection,
-        "measurementUnitFormatting",
-        "currencySpacing",
-      ]);
-      expect(settings.store.enable).toBe(false);
-    },
-  );
+    expect(Array.isArray(settings.store[KEY_ENABLED_GRAMMAR_RULES])).toBe(false);
+    expect(resolveGrammarRuleSelection(settings.store[KEY_ENABLED_GRAMMAR_RULES])).toEqual([]);
+    expect(settings.store.enable).toBe(false);
+  });
+
+  test("converts a non-empty legacy selection while inheriting measurement formatting", async () => {
+    const selection = ["capitalizeSentenceStart"];
+    const settings = createMockSettingsManager({
+      [KEY_ENABLED_GRAMMAR_RULES]: selection,
+      enable: false,
+    });
+
+    await migrateSettingsV8(settings);
+
+    expect(Array.isArray(settings.store[KEY_ENABLED_GRAMMAR_RULES])).toBe(false);
+    expect(resolveGrammarRuleSelection(settings.store[KEY_ENABLED_GRAMMAR_RULES])).toEqual([
+      ...selection,
+      "measurementUnitFormatting",
+      "currencySpacing",
+    ]);
+    expect(settings.store.enable).toBe(false);
+  });
 
   test("does not materialize missing settings", async () => {
     const settings = createMockSettingsManager({});
@@ -106,9 +117,6 @@ describe("migrateSettingsV8", () => {
     expect(settings.store[KEY_ENABLED_GRAMMAR_RULES]).toEqual([]);
 
     await migrateSettingsV8(settings);
-    expect(resolveGrammarRuleSelection(settings.store[KEY_ENABLED_GRAMMAR_RULES])).toEqual([
-      "measurementUnitFormatting",
-      "currencySpacing",
-    ]);
+    expect(resolveGrammarRuleSelection(settings.store[KEY_ENABLED_GRAMMAR_RULES])).toEqual([]);
   });
 });

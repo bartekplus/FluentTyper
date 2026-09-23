@@ -55,9 +55,16 @@ export function isProsePrefix(prefix: string): boolean {
   }
   const line = prefix.slice(lineStart);
   // Four spaces or a tab open an indented Markdown code block; a textarea
-  // cannot tell us whether that applies, so fail closed.
+  // cannot tell us whether that applies, so fail closed by default. But a
+  // paragraph that just happens to be indented ("\tThe box weighs 5kg") still
+  // has real prose words before the number, so only refuse when nothing
+  // word-like precedes it, or when it's a colon-terminated label ("Price:")
+  // that reads the same as an indented code example either way.
   if (/^(?: {4}|\t)/u.test(line)) {
-    return false;
+    const afterIndent = line.replace(/^(?: {4}|\t)+/u, "");
+    if (!/\p{L}/u.test(afterIndent) || /[:：]\s*$/u.test(afterIndent)) {
+      return false;
+    }
   }
   // Nothing before the measurement is not evidence against prose, and treating
   // it as such formatted "2Mbit 2Mbit" into "2Mbit 2 Mbit": the same text
@@ -74,7 +81,13 @@ export function isProsePrefix(prefix: string): boolean {
   if (
     // Case-insensitive: at the start of a field the capitalization rule turns
     // "npm" into "Npm" before this guard ever sees it.
-    /^\s*(?:sudo|doas|git|npm|npx|bun|node|python\d*|pip\d*|curl|wget|echo|printf|export|let|const|var|return|import|docker|kubectl|cargo|apt|brew|cp|mv|rm|cd|ls|cat|touch|grep|mkdir|chmod|chown|ln|scp|rsync|ssh|sed|awk|tar|yarn|pnpm)(?:\s|$)/iu.test(
+    /^\s*(?:sudo|doas|git|npm|npx|bun|node|python\d*|pip\d*|curl|wget|echo|printf|export|let|const|var|return|import|docker|kubectl|cargo|apt|brew)(?:\s|$)/iu.test(
+      line,
+    ) ||
+    // These also read as ordinary capitalized English (and other-language)
+    // words at a sentence start ("Cat weighs 5kg", "Tar det 5kg"), so only
+    // treat the lowercase spelling as the shell command.
+    /^\s*(?:cp|mv|rm|cd|ls|cat|touch|grep|mkdir|chmod|chown|ln|scp|rsync|ssh|sed|awk|tar|yarn|pnpm)(?:\s|$)/u.test(
       line,
     )
   ) {
