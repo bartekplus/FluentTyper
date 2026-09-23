@@ -318,6 +318,24 @@ describe("ruleToggleCards setting", () => {
     expect(englishCard.tabIndex).toBe(-1);
   });
 
+  test("arrow keys wrap roving focus around the visible cards", () => {
+    const { host } = buildRuleToggleCardsHost();
+    const safeCard = findRuleCard(host, "safePunctuation");
+    const advancedCard = findRuleCard(host, "advancedEllipsis");
+
+    safeCard.focus();
+    pressKey(safeCard, "ArrowUp");
+    expect(document.activeElement).toBe(advancedCard);
+    expect(visibleRuleCards(host).map((card) => card.tabIndex)).toEqual([-1, -1, 0]);
+
+    pressKey(advancedCard, "ArrowDown");
+    expect(document.activeElement).toBe(safeCard);
+    expect(visibleRuleCards(host).map((card) => card.tabIndex)).toEqual([0, -1, -1]);
+
+    pressKey(safeCard, "ArrowLeft");
+    expect(document.activeElement).toBe(advancedCard);
+  });
+
   test("bulk actions and enabled-only filter stay in sync with selected rule values", () => {
     const { host, bundle } = buildRuleToggleCardsHost();
 

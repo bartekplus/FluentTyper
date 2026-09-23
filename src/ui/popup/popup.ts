@@ -63,13 +63,12 @@ const OPTIONS_ANCHOR_ADVANCED = "advanced_tab";
 const POPUP_THEME_MEDIA_QUERY = "(prefers-color-scheme: dark)";
 
 type PopupPageState =
-  | { kind: "actionable"; url: string }
+  | { kind: "actionable" }
   | {
       kind: "restricted" | "non_actionable";
       badge: string;
       title: string;
       body: string;
-      url?: string;
     };
 
 function getPageStateElements() {
@@ -101,16 +100,10 @@ function setNodeTextAndTitle(node: HTMLElement | null, value: string): void {
 }
 
 function clearPageStateSupplementalContent(elements: PageStateElements): void {
-  if (elements.language) {
-    setNodeTextAndTitle(elements.language, "");
-  }
-  if (elements.profile) {
-    setNodeTextAndTitle(elements.profile, "");
-  }
+  setNodeTextAndTitle(elements.language, "");
+  setNodeTextAndTitle(elements.profile, "");
   elements.meta?.classList.add("is-hidden");
-  if (elements.hint) {
-    setNodeTextAndTitle(elements.hint, "");
-  }
+  setNodeTextAndTitle(elements.hint, "");
 }
 
 function renderNonActionablePageState(
@@ -159,14 +152,21 @@ function setSiteSpecificControlsEnabled(enabled: boolean): void {
   }
 }
 
+function staticPageState(
+  kind: "restricted" | "non_actionable",
+  key: string,
+): Extract<PopupPageState, { kind: "restricted" | "non_actionable" }> {
+  return {
+    kind,
+    badge: i18n.get(`popup_page_state_${key}_badge`),
+    title: i18n.get(`popup_page_state_${key}_title`),
+    body: i18n.get(`popup_page_state_${key}_body`),
+  };
+}
+
 function getCurrentPageState(url?: string): PopupPageState {
   if (!url) {
-    return {
-      kind: "non_actionable",
-      badge: i18n.get("popup_page_state_no_page_badge"),
-      title: i18n.get("popup_page_state_no_page_title"),
-      body: i18n.get("popup_page_state_no_page_body"),
-    };
+    return staticPageState("non_actionable", "no_page");
   }
 
   const normalizedUrl = url.toLowerCase();
@@ -179,54 +179,22 @@ function getCurrentPageState(url?: string): PopupPageState {
     "devtools://",
     "view-source:",
   ];
-
   if (restrictedPrefixes.some((prefix) => normalizedUrl.startsWith(prefix))) {
-    return {
-      kind: "restricted",
-      badge: i18n.get("popup_page_state_restricted_badge"),
-      title: i18n.get("popup_page_state_restricted_title"),
-      body: i18n.get("popup_page_state_restricted_body"),
-      url,
-    };
+    return staticPageState("restricted", "restricted");
   }
-
   if (
     normalizedUrl.startsWith("chrome-extension://") ||
     normalizedUrl.startsWith("moz-extension://")
   ) {
-    return {
-      kind: "non_actionable",
-      badge: i18n.get("popup_page_state_extension_badge"),
-      title: i18n.get("popup_page_state_extension_title"),
-      body: i18n.get("popup_page_state_extension_body"),
-      url,
-    };
+    return staticPageState("non_actionable", "extension");
   }
-
   if (normalizedUrl.startsWith("file://")) {
-    return {
-      kind: "non_actionable",
-      badge: i18n.get("popup_page_state_file_badge"),
-      title: i18n.get("popup_page_state_file_title"),
-      body: i18n.get("popup_page_state_file_body"),
-      url,
-    };
+    return staticPageState("non_actionable", "file");
   }
-
   if (normalizedUrl.startsWith("http://") || normalizedUrl.startsWith("https://")) {
-    return {
-      kind: "actionable",
-      url,
-    };
+    return { kind: "actionable" };
   }
-
-  return {
-    kind: "non_actionable",
-    badge: i18n.get("popup_page_state_other_badge"),
-    title: i18n.get("popup_page_state_other_title"),
-    body: i18n.get("popup_page_state_other_body"),
-    url,
-  };
+  return staticPageState("non_actionable", "other");
 }
 
 function resolveDisplayedLanguage(): string {
@@ -407,14 +375,11 @@ async function renderActionablePageState(): Promise<void> {
   panel?.setAttribute("data-page-state", globallyEnabled && siteAllowed ? "active" : "paused");
   section?.classList.remove("is-hidden");
   setSiteSpecificControlsEnabled(true);
-  if (hint) {
-    setNodeTextAndTitle(hint, currentDomainURL);
-  }
+  setNodeTextAndTitle(hint, currentDomainURL);
 }
 
-async function refreshThisSiteSection(pageState: PopupPageState | null = null): Promise<void> {
-  const resolvedState = pageState ?? currentPageState;
-  if (resolvedState.kind === "actionable") {
+async function refreshThisSiteSection(): Promise<void> {
+  if (currentPageState.kind === "actionable") {
     if (
       currentWebsiteAccessPermissionState === "missing" ||
       currentWebsiteAccessPermissionState === "unavailable"
@@ -425,7 +390,7 @@ async function refreshThisSiteSection(pageState: PopupPageState | null = null): 
     await renderActionablePageState();
     return;
   }
-  renderStaticPageState(resolvedState);
+  renderStaticPageState(currentPageState);
 }
 
 function getSiteProfileElements() {
@@ -451,23 +416,11 @@ function getDefaultSiteProfileLanguage(language: string, enabledLanguages: strin
 
 function setSiteProfileInputsDisabled(disabled: boolean): void {
   const { language, suggestions, inline, preferNativeAutocomplete } = getSiteProfileElements();
-  const details = document.getElementById("siteProfileDetails");
-  if (disabled) {
-    details?.classList.add("is-hidden");
-  } else {
-    details?.classList.remove("is-hidden");
-  }
-  if (language) {
-    language.disabled = disabled;
-  }
-  if (suggestions) {
-    suggestions.disabled = disabled;
-  }
-  if (inline) {
-    inline.disabled = disabled;
-  }
-  if (preferNativeAutocomplete) {
-    preferNativeAutocomplete.disabled = disabled;
+  document.getElementById("siteProfileDetails")?.classList.toggle("is-hidden", disabled);
+  for (const select of [language, suggestions, inline, preferNativeAutocomplete]) {
+    if (select) {
+      select.disabled = disabled;
+    }
   }
 }
 
@@ -483,6 +436,10 @@ function getProfileStatusLabel(profileEnabled: boolean): string {
   return profileEnabled
     ? i18n.get("popup_site_profile_status_active")
     : i18n.get("popup_site_profile_status_global");
+}
+
+function toOverrideValue(value: boolean | undefined): string {
+  return typeof value === "boolean" ? (value ? "on" : "off") : "global";
 }
 
 function createSelectOption(value: string, text: string): HTMLOptionElement {
@@ -570,18 +527,8 @@ async function loadSiteProfileEditor() {
     language.value = profile.language;
     suggestions.value =
       typeof profile.numSuggestions === "number" ? String(profile.numSuggestions) : "global";
-    inline.value =
-      typeof profile.inline_suggestion === "boolean"
-        ? profile.inline_suggestion
-          ? "on"
-          : "off"
-        : "global";
-    preferNativeAutocomplete.value =
-      typeof profile.preferNativeAutocomplete === "boolean"
-        ? profile.preferNativeAutocomplete
-          ? "on"
-          : "off"
-        : "global";
+    inline.value = toOverrideValue(profile.inline_suggestion);
+    preferNativeAutocomplete.value = toOverrideValue(profile.preferNativeAutocomplete);
     status.textContent = getProfileStatusLabel(true);
   } else {
     toggle.checked = false;
@@ -656,25 +603,16 @@ async function saveSiteProfileFromEditor() {
 }
 
 function translateUI() {
-  const elements = document.querySelectorAll("[data-i18n]");
-  elements.forEach((el) => {
-    const key = el.getAttribute("data-i18n");
-    if (key) {
-      const translated = i18n.get(key);
-      if (translated) {
-        el.textContent = translated;
-      }
+  document.querySelectorAll("[data-i18n]").forEach((el) => {
+    const translated = i18n.get(el.getAttribute("data-i18n") ?? "");
+    if (translated) {
+      el.textContent = translated;
     }
   });
-
-  const titleElements = document.querySelectorAll("[data-i18n-title]");
-  titleElements.forEach((el) => {
-    const key = el.getAttribute("data-i18n-title");
-    if (key) {
-      const translated = i18n.get(key);
-      if (translated) {
-        el.setAttribute("title", translated);
-      }
+  document.querySelectorAll("[data-i18n-title]").forEach((el) => {
+    const translated = i18n.get(el.getAttribute("data-i18n-title") ?? "");
+    if (translated) {
+      el.setAttribute("title", translated);
     }
   });
 }
@@ -846,23 +784,19 @@ function renderWeeklyRecapCard(stats: ProductivityDashboardStats): void {
     "popup_short_chars",
   )}, ${formatNumber(stats.weeklyRecap.estimatedMinutesSaved)} ${i18n.get("popup_short_minutes")}.`;
 
-  dismissButton.onclick = () => {
+  const dismiss = () => {
     void acknowledgeWeeklyRecap(stats.weeklyRecap.weekKey);
     cardNode.classList.add("is-hidden");
   };
+  dismissButton.onclick = dismiss;
+  supportLink.onclick = dismiss;
   shareButton.onclick = () => {
     void copyTextToClipboard(recapShareText);
-    void acknowledgeWeeklyRecap(stats.weeklyRecap.weekKey);
-    cardNode.classList.add("is-hidden");
-  };
-  supportLink.onclick = () => {
-    void acknowledgeWeeklyRecap(stats.weeklyRecap.weekKey);
-    cardNode.classList.add("is-hidden");
+    dismiss();
   };
   viewButton.onclick = () => {
-    void acknowledgeWeeklyRecap(stats.weeklyRecap.weekKey);
+    dismiss();
     openOptionsPageAtAnchor(OPTIONS_ANCHOR_ADVANCED);
-    cardNode.classList.add("is-hidden");
   };
 }
 
@@ -1121,22 +1055,13 @@ function init() {
       if (!isValidLanguage && !(isAutoDetect && allowAutoDetect)) {
         language = displayLanguage;
         await coreSettingsRepository.setLanguage(language);
-        void chrome.runtime.sendMessage({
-          command: CMD_OPTIONS_PAGE_CONFIG_CHANGE,
-          context: {},
-        });
+        void notifyConfigChange();
       }
       if (allowAutoDetect) {
-        const opt = window.document.createElement("option");
-        opt.value = "auto_detect";
-        opt.textContent = SUPPORTED_LANGUAGES.auto_detect;
-        select.appendChild(opt);
+        select.appendChild(createSelectOption("auto_detect", SUPPORTED_LANGUAGES.auto_detect));
       }
       for (const langCode of currentEnabledLanguages) {
-        const opt = window.document.createElement("option");
-        opt.value = langCode;
-        opt.textContent = SUPPORTED_LANGUAGES[langCode];
-        select.appendChild(opt);
+        select.appendChild(createSelectOption(langCode, SUPPORTED_LANGUAGES[langCode]));
       }
       select.value = displayLanguage;
       currentProfileLanguageFallback = getDefaultSiteProfileLanguage(

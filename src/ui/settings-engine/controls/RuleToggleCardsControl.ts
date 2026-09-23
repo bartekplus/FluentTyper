@@ -197,28 +197,12 @@ export class RuleToggleCardsControl extends BaseControl<string[]> {
   }
 
   private createSection(title: string, sectionType: "safe" | "advanced"): SectionBundle {
-    if (sectionType === "advanced") {
-      const details = document.createElement("details");
-      details.className = `grammar-rule-section grammar-rule-section-${sectionType}`;
-
-      const summary = document.createElement("summary");
-      summary.className = "grammar-rule-section-title";
-      summary.innerText = title;
-      details.appendChild(summary);
-
-      const list = document.createElement("div");
-      list.className = "grammar-rule-selector-list";
-      list.setAttribute("role", "group");
-      list.setAttribute("aria-label", title);
-      details.appendChild(list);
-
-      return { section: details, list, details };
-    }
-
-    const section = document.createElement("section");
+    // Advanced rules live in a collapsible <details>; safe rules are always visible.
+    const isAdvanced = sectionType === "advanced";
+    const section = document.createElement(isAdvanced ? "details" : "section");
     section.className = `grammar-rule-section grammar-rule-section-${sectionType}`;
 
-    const heading = document.createElement("h4");
+    const heading = document.createElement(isAdvanced ? "summary" : "h4");
     heading.className = "grammar-rule-section-title";
     heading.innerText = title;
     section.appendChild(heading);
@@ -229,7 +213,9 @@ export class RuleToggleCardsControl extends BaseControl<string[]> {
     list.setAttribute("aria-label", title);
     section.appendChild(list);
 
-    return { section, list };
+    return isAdvanced
+      ? { section, list, details: section as HTMLDetailsElement }
+      : { section, list };
   }
 
   private createCard(rule: RuleOption, container: HTMLElement): RuleControl {
@@ -354,14 +340,11 @@ export class RuleToggleCardsControl extends BaseControl<string[]> {
     if (preferredCard) {
       nextIndex = visible.findIndex((ctrl) => ctrl.card === preferredCard);
     }
-    if (nextIndex === -1 && document.activeElement instanceof HTMLElement) {
+    if (nextIndex === -1) {
       nextIndex = visible.findIndex((ctrl) => ctrl.card === document.activeElement);
     }
     if (nextIndex === -1) {
       nextIndex = Math.min(this.rovingIndex, visible.length - 1);
-    }
-    if (nextIndex < 0) {
-      nextIndex = 0;
     }
 
     this.rovingIndex = nextIndex;
@@ -380,16 +363,12 @@ export class RuleToggleCardsControl extends BaseControl<string[]> {
     const currentIdx = visible.findIndex(
       (rc) => rc.card === document.activeElement || rc.card.tabIndex === 0,
     );
-    let next = currentIdx + direction;
-    if (currentIdx === -1) {
-      next = direction === 1 ? 0 : visible.length - 1;
-    }
-    if (next < 0) {
-      next = visible.length - 1;
-    }
-    if (next >= visible.length) {
-      next = 0;
-    }
+    const next =
+      currentIdx === -1
+        ? direction === 1
+          ? 0
+          : visible.length - 1
+        : (currentIdx + direction + visible.length) % visible.length;
     this.syncRovingTabIndex(visible[next].card);
     visible[next].card.focus();
   }
