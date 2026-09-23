@@ -179,7 +179,11 @@ function installBackgroundHarnessModuleMocks(): void {
     isEnabledForDomain: (...args: [unknown, string]) =>
       backgroundHarnessMocks.isEnabledForDomain(...args),
     toStoredString: (value: unknown) =>
-      typeof value === "string" ? value : typeof value === "number" ? String(value) : null,
+      typeof value === "string"
+        ? value
+        : typeof value === "number" || typeof value === "boolean" || typeof value === "bigint"
+          ? String(value)
+          : null,
     isWhiteSpace: (character: string) => /\s+/.test(character),
     isNumber: (value: string) =>
       (!Number.isNaN(Number(value)) && !Number.isNaN(Number.parseFloat(value))) ||

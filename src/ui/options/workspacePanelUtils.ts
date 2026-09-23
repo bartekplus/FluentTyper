@@ -1,4 +1,5 @@
 import type { SettingsRegistry } from "@ui/settings-engine/SettingsEngine.js";
+import { toStoredString } from "@core/application/domain-utils";
 import { SUPPORTED_LANGUAGES } from "@core/domain/lang";
 
 type ControlEventTarget = {
@@ -12,13 +13,29 @@ export function createWorkspaceShell(className = "workspace-panel-stack"): HTMLD
 }
 
 export function formatLooseText(value: unknown, fallback = ""): string {
-  if (typeof value === "string") {
-    return value;
-  }
-  if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint") {
-    return String(value);
-  }
-  return fallback;
+  return toStoredString(value) ?? fallback;
+}
+
+export function createSearchInput(
+  placeholder: string,
+  value: string,
+  onQuery: (query: string) => void,
+): HTMLInputElement {
+  const search = document.createElement("input");
+  search.type = "search";
+  search.className = "input";
+  search.placeholder = placeholder;
+  search.value = value;
+  search.addEventListener("input", () => onQuery(search.value.trim().toLowerCase()));
+  return search;
+}
+
+export function downloadBlob(blob: Blob, filename: string, revokeDelayMs: number): void {
+  const link = document.createElement("a");
+  link.href = window.URL.createObjectURL(blob);
+  link.download = filename;
+  link.click();
+  window.setTimeout(() => window.URL.revokeObjectURL(link.href), revokeDelayMs);
 }
 
 export function languageLabel(languageKey: string): string {

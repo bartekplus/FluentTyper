@@ -16,6 +16,10 @@ import {
   KEY_SUGGESTION_TEXT_DARK,
   KEY_SUGGESTION_TEXT_LIGHT,
 } from "@core/domain/constants";
+import {
+  DEFAULT_SUGGESTION_THEME_SETTINGS,
+  type SuggestionThemeSettings,
+} from "@core/domain/themeDefaults";
 import { i18n } from "./fluenttyperI18n.js";
 import {
   bindRerender,
@@ -27,23 +31,8 @@ import {
 type ThemePreset = Record<string, string>;
 type RGBAColor = { r: number; g: number; b: number; a: number };
 
-const THEME_KEYS = [
-  KEY_SUGGESTION_BG_LIGHT,
-  KEY_SUGGESTION_TEXT_LIGHT,
-  KEY_SUGGESTION_HIGHLIGHT_BG_LIGHT,
-  KEY_SUGGESTION_HIGHLIGHT_TEXT_LIGHT,
-  KEY_SUGGESTION_BORDER_LIGHT,
-  KEY_SUGGESTION_BG_DARK,
-  KEY_SUGGESTION_TEXT_DARK,
-  KEY_SUGGESTION_HIGHLIGHT_BG_DARK,
-  KEY_SUGGESTION_HIGHLIGHT_TEXT_DARK,
-  KEY_SUGGESTION_BORDER_DARK,
-  KEY_SUGGESTION_FONT_SIZE,
-  KEY_SUGGESTION_PADDING_VERTICAL,
-  KEY_SUGGESTION_PADDING_HORIZONTAL,
-] as const;
-
-type ThemeKey = (typeof THEME_KEYS)[number];
+type ThemeKey = keyof SuggestionThemeSettings;
+const THEME_KEYS = Object.keys(DEFAULT_SUGGESTION_THEME_SETTINGS) as ThemeKey[];
 const LIGHT_THEME_CANVAS = "#ffffff";
 const DARK_THEME_CANVAS = "#020617";
 

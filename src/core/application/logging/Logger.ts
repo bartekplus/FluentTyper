@@ -107,6 +107,41 @@ function registerObservabilityModule(scope: string): void {
   (getLoggingGlobals().__FT_OBSERVABILITY_REGISTERED_MODULES__ ??= new Set<string>()).add(scope);
 }
 
+/** Dev-build relay: forwards log events to the background and reports registered modules. */
+export function installObservabilityRelay(options: {
+  source: ObservabilityEvent["source"];
+  config?: ObservabilityConfig;
+  eventCommand: string;
+  modulesCommand: string;
+}): void {
+  setGlobalObservabilityRuntime({
+    config: options.config,
+    source: options.source,
+    sink: (event) => {
+      try {
+        void chrome.runtime.sendMessage({
+          command: options.eventCommand,
+          context: {
+            event,
+          },
+        });
+      } catch {
+        // Ignore runtime disconnects during page teardown.
+      }
+    },
+  });
+  try {
+    void chrome.runtime.sendMessage({
+      command: options.modulesCommand,
+      context: {
+        modules: getRegisteredObservabilityModules(),
+      },
+    });
+  } catch {
+    // Ignore runtime disconnects during page teardown.
+  }
+}
+
 export function resetGlobalObservabilityRuntime(): void {
   const globals = getLoggingGlobals();
   delete globals.__FT_OBSERVABILITY_CONFIG__;

@@ -4,23 +4,10 @@ import type {
   ObservabilitySnapshot,
 } from "./observability";
 import type { PersonalizationEvent } from "./personalization/types";
+import type { SuggestionThemeSettings } from "./themeDefaults";
 
 // Context for CMD_BACKGROUND_PAGE_SET_CONFIG
-export interface SuggestionThemeConfig {
-  suggestionBgLight: string;
-  suggestionTextLight: string;
-  suggestionHighlightBgLight: string;
-  suggestionHighlightTextLight: string;
-  suggestionBorderLight: string;
-  suggestionBgDark: string;
-  suggestionTextDark: string;
-  suggestionHighlightBgDark: string;
-  suggestionHighlightTextDark: string;
-  suggestionBorderDark: string;
-  suggestionFontSize: string;
-  suggestionPaddingVertical: string;
-  suggestionPaddingHorizontal: string;
-}
+export type SuggestionThemeConfig = SuggestionThemeSettings;
 
 export interface SetConfigContext {
   autocomplete: boolean;

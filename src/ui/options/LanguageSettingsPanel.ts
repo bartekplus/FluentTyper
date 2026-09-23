@@ -2,7 +2,6 @@ import type { SettingsRegistry } from "@ui/settings-engine/SettingsEngine.js";
 import type { Store } from "@core/application/storage/Store.js";
 import { SUPPORTED_PREDICTION_LANGUAGE_KEYS, resolveEnabledLanguages } from "@core/domain/lang";
 import {
-  CMD_GET_AUTO_LANGUAGE_STATUS,
   KEY_ENABLED_LANGUAGES,
   KEY_EXTENSION_LANGUAGE,
   KEY_FALLBACK_LANGUAGE,
@@ -11,6 +10,7 @@ import {
   KEY_SITE_PROFILES,
 } from "@core/domain/constants";
 import { resolveSiteProfiles } from "@core/domain/siteProfiles";
+import { fetchAutoLanguageStatus } from "@ui/shared/runtimeMessaging";
 import { formatTranslation, i18n } from "./fluenttyperI18n.js";
 import {
   appendLanguageOptions,
@@ -59,8 +59,7 @@ export class LanguageSettingsPanel {
         : enabledLanguages[0];
     const siteProfiles = resolveSiteProfiles(siteProfilesRaw, enabledLanguages);
     const usageCounts = this.countSiteProfileUsage(siteProfiles);
-    const autoLanguageStatus =
-      language === "auto_detect" ? await this.fetchAutoLanguageStatus() : null;
+    const autoLanguageStatus = language === "auto_detect" ? await fetchAutoLanguageStatus() : null;
 
     const shell = createWorkspaceShell();
 
@@ -320,25 +319,5 @@ export class LanguageSettingsPanel {
       acc[profile.language] = (acc[profile.language] || 0) + 1;
       return acc;
     }, {});
-  }
-
-  private async fetchAutoLanguageStatus(): Promise<{ language: string; locked: boolean } | null> {
-    try {
-      const response: unknown = await chrome.runtime.sendMessage({
-        command: CMD_GET_AUTO_LANGUAGE_STATUS,
-        context: {},
-      });
-      const status = (response as { status?: { language?: string; locked?: boolean } | null })
-        ?.status;
-      if (!status || typeof status.language !== "string" || status.language.length === 0) {
-        return null;
-      }
-      return {
-        language: status.language,
-        locked: status.locked === true,
-      };
-    } catch {
-      return null;
-    }
   }
 }
