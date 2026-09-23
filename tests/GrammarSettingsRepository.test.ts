@@ -14,6 +14,7 @@ const DEFAULT_RULES = [
   "englishTheirThereBeVerb",
   "englishAlotCorrection",
   "englishPronounVerbWhitelistAgreement",
+  "englishOrdinalSuffix",
   "technicalTokenCompaction",
   "mathOperatorSpacing",
   "measurementUnitFormatting",
@@ -50,7 +51,10 @@ describe("CoreSettingsRepository grammar settings", () => {
     [{}, DEFAULT_RULES],
     [{ capitalizeSentenceStart: false }, DEFAULT_RULES.slice(1)],
     [{ ellipsisShortcut: true }, [...DEFAULT_RULES, "ellipsisShortcut"]],
-    [["commaPeriodSpacing"], ["measurementUnitFormatting", "commaPeriodSpacing"]],
+    [
+      ["commaPeriodSpacing"],
+      ["englishOrdinalSuffix", "measurementUnitFormatting", "commaPeriodSpacing"],
+    ],
     [{ unknownRule: true }, DEFAULT_RULES],
     [{ commaPeriodSpacing: "false" }, []],
   ])("resolves stored grammar setting %j to runtime ids", async (stored, expected) => {

@@ -1187,6 +1187,17 @@
       ]
     },
     {
+      "id": "grammar_english_ordinal_suffix",
+      "description": "Ordinal suffix repair fixes whole ordinal tokens in prose and leaves bare numbers, identifiers, code and stone weights unchanged.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/grammar/AmbiguityGuards.test.ts",
+          "test": "ordinal suffix repair"
+        }
+      ]
+    },
+    {
       "id": "grammar_v3_advanced_shortcuts",
       "description": "V3 advanced typography shortcuts normalize prose punctuation and quotes.",
       "coverage": [

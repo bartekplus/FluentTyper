@@ -248,6 +248,51 @@ describe("opt-in a/an correction", () => {
     });
 });
 
+describe("ordinal suffix repair", () => {
+  for (const [input, expected] of [
+    ["1th place ", "1st place "],
+    ["2st attempt ", "2nd attempt "],
+    ["3th version ", "3rd version "],
+    ["11st item ", "11th item "],
+    ["the 21th birthday ", "The 21st birthday "],
+    ["the 112nd floor ", "The 112th floor "],
+    ["the 1013rd entry ", "The 1013th entry "],
+    ["her 102th year. ", "Her 102nd year. "],
+    ["THE 3TH ROW ", "THE 3RD ROW "],
+    ["on the (22th) ", "On the (22nd) "],
+  ])
+    test(`corrects ${JSON.stringify(input)}`, () => expect(type(input)).toBe(expected));
+
+  // Every keystroke, full default pipeline with the rule on versus off.
+  const withoutRule = DEFAULT_CURRENT_GRAMMAR_RULES.filter((id) => id !== "englishOrdinalSuffix");
+  for (const input of [
+    // Already correct, and bare numbers never gain a suffix.
+    "1st 2nd 3rd 4th 11th 12th 13th 21st 22nd 23rd 101st 111th ",
+    "We had 21 guests ",
+    // Not a whole ordinal token.
+    "Use v1th here ",
+    "Call f(2st) now ",
+    "Set x=3th now ",
+    "Version 1.1th here ",
+    "Tag #1th here ",
+    "the 21th-century view ",
+    "Mixed 1St case ",
+    // Stone, the weight unit.
+    "He weighs 11st now ",
+    "I lost 2st last year ",
+    // Code and literals.
+    "Type `1th` here ",
+    "```\n1th\n``` ",
+    'Set text = "1th " ',
+  ])
+    test(`leaves ${JSON.stringify(input)}`, () => {
+      for (let end = 1; end <= input.length; end += 1) {
+        const prefix = input.slice(0, end);
+        expect(type(prefix)).toBe(type(prefix, "en_US", withoutRule));
+      }
+    });
+});
+
 describe("advanced opt-in rules never rewrite code punctuation", () => {
   const all = GRAMMAR_RULE_IDS;
   for (const input of [
