@@ -101,6 +101,7 @@ const IS_DEV_BUILD = typeof __FT_DEV_BUILD__ !== "undefined" && Boolean(__FT_DEV
 let observabilityLastSignature = "";
 let observabilityBindingsInitialized = false;
 let observabilityCurrentSnapshot: ObservabilitySnapshot | null = null;
+let observabilityRegistry: SettingsRegistry | null = null;
 const observabilityUIState = {
   moduleQuery: "",
   moduleFilter: "all" as "all" | "overrides" | "enabled" | "unregistered",
@@ -112,9 +113,7 @@ const observabilityUIState = {
 };
 const observabilityLogger = createLogger("OptionsObservability");
 
-function resolveOptionsObservabilityConfig(
-  registry: ReturnType<SettingsEngine["buildFromManifest"]>,
-) {
+function resolveOptionsObservabilityConfig(registry: SettingsRegistry) {
   const enabled = registry[KEY_OBSERVABILITY_ENABLED]?.get();
   const defaultLevel = registry[KEY_OBSERVABILITY_DEFAULT_LEVEL]?.get();
   return {
@@ -124,9 +123,7 @@ function resolveOptionsObservabilityConfig(
   };
 }
 
-function applyOptionsObservabilityRuntime(
-  registry: ReturnType<SettingsEngine["buildFromManifest"]>,
-) {
+function applyOptionsObservabilityRuntime(registry: SettingsRegistry) {
   if (!IS_DEV_BUILD) {
     return;
   }
@@ -219,10 +216,6 @@ const OBSERVABILITY_REFRESH_KEYS = new Set([
   KEY_OBSERVABILITY_DEFAULT_LEVEL,
 ]);
 
-function bindActionHandler(registry: SettingsRegistry, key: string, handler: () => void): void {
-  registry[key]?.addEvent("action", handler);
-}
-
 function refreshObservabilitySnapshot(rootId: string): void {
   const root = document.getElementById(rootId);
   if (!root) {
@@ -245,12 +238,11 @@ function handleConfigRefreshTrigger(registry: SettingsRegistry, key: string): vo
 }
 
 function wireValidationHandlers(registry: SettingsRegistry, store: Store): void {
-  bindActionHandler(registry, KEY_LANGUAGE, () => {
-    void validateLanguageSettings(registry, store);
-  });
-  bindActionHandler(registry, KEY_ENABLED_LANGUAGES, () => {
-    void validateLanguageSettings(registry, store);
-  });
+  for (const key of [KEY_LANGUAGE, KEY_ENABLED_LANGUAGES]) {
+    registry[key]?.addEvent("action", () => {
+      void validateLanguageSettings(registry, store);
+    });
+  }
 }
 
 function wireImportExportHandlers(registry: SettingsRegistry): void {
@@ -272,8 +264,6 @@ function wireImportExportHandlers(registry: SettingsRegistry): void {
       dlink.click();
       dlink.remove();
     });
-  });
-  registry.exportSettingButton.addEvent("action", function () {
     dispatchSettingsSaveStatus("saved", { message: i18n.get("settings_exported") });
   });
 
@@ -295,11 +285,11 @@ function applyInlineSuggestionLocks(registry: SettingsRegistry, enabled: boolean
 }
 
 function wireRuntimeSettingsHandlers(registry: SettingsRegistry): void {
-  bindActionHandler(registry, KEY_INLINE_SUGGESTION, () => {
+  registry[KEY_INLINE_SUGGESTION]?.addEvent("action", () => {
     applyInlineSuggestionLocks(registry, registry[KEY_INLINE_SUGGESTION].get() as boolean);
   });
 
-  bindActionHandler(registry, KEY_EXTENSION_LANGUAGE, () => {
+  registry[KEY_EXTENSION_LANGUAGE]?.addEvent("action", () => {
     const langValue = registry[KEY_EXTENSION_LANGUAGE].get();
     const storageKey = `store.settings.${KEY_EXTENSION_LANGUAGE}`;
     localStorage.setItem(storageKey, JSON.stringify(langValue));
@@ -316,53 +306,23 @@ function wireRuntimeSettingsHandlers(registry: SettingsRegistry): void {
   }
 }
 
-function arraysEqual(a: unknown, b: unknown): boolean {
-  if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) {
-    return false;
-  }
-  for (let i = 0; i < a.length; i++) {
-    if (a[i] !== b[i]) {
-      return false;
-    }
-  }
-  return true;
-}
-
-async function sanitizeSiteProfilesForEnabledLanguages(
+/** Re-sanitizes a stored per-language record; returns true when it had to be rewritten. */
+async function sanitizeStoredForEnabledLanguages(
   store: Store,
-  enabledLanguages: string[] | null,
+  key: string,
+  enabledLanguages: string[],
+  sanitize: (raw: unknown, enabledLanguages: string[]) => unknown,
 ) {
-  const resolvedEnabledLanguages =
-    enabledLanguages || resolveEnabledLanguages(await store.get(KEY_ENABLED_LANGUAGES));
-  const rawSiteProfiles = await store.get(KEY_SITE_PROFILES);
-  const sanitizedSiteProfiles = resolveSiteProfiles(rawSiteProfiles, resolvedEnabledLanguages);
-  const hasChanges =
-    JSON.stringify(rawSiteProfiles || {}) !== JSON.stringify(sanitizedSiteProfiles);
+  const raw = await store.get(key);
+  const sanitized = sanitize(raw, enabledLanguages);
+  const hasChanges = JSON.stringify(raw || {}) !== JSON.stringify(sanitized);
   if (hasChanges) {
-    await store.set(KEY_SITE_PROFILES, sanitizedSiteProfiles);
+    await store.set(key, sanitized);
   }
   return hasChanges;
 }
 
-async function sanitizeAutoLanguagePriorsForEnabledLanguages(
-  store: Store,
-  enabledLanguages: string[] | null,
-) {
-  const resolvedEnabledLanguages =
-    enabledLanguages || resolveEnabledLanguages(await store.get(KEY_ENABLED_LANGUAGES));
-  const rawPriors = await store.get(KEY_AUTO_LANGUAGE_SITE_PRIORS);
-  const sanitizedPriors = sanitizeAutoLanguageSitePriors(rawPriors, resolvedEnabledLanguages);
-  const hasChanges = JSON.stringify(rawPriors || {}) !== JSON.stringify(sanitizedPriors);
-  if (hasChanges) {
-    await store.set(KEY_AUTO_LANGUAGE_SITE_PRIORS, sanitizedPriors);
-  }
-  return hasChanges;
-}
-
-export async function validateLanguageSettings(
-  registry: ReturnType<SettingsEngine["buildFromManifest"]>,
-  store: Store,
-) {
+export async function validateLanguageSettings(registry: SettingsRegistry, store: Store) {
   const enabledLanguagesRaw = await store.get(KEY_ENABLED_LANGUAGES);
   const enabledLanguages = resolveEnabledLanguages(enabledLanguagesRaw);
   const allowAutoDetect = enabledLanguages.length > 1;
@@ -380,7 +340,11 @@ export async function validateLanguageSettings(
     ? fallbackLanguage
     : enabledLanguages[0];
   let didSanitize = false;
-  if (!arraysEqual(enabledLanguagesRaw, enabledLanguages)) {
+  if (
+    !Array.isArray(enabledLanguagesRaw) ||
+    enabledLanguagesRaw.length !== enabledLanguages.length ||
+    enabledLanguagesRaw.some((language, index) => language !== enabledLanguages[index])
+  ) {
     await store.set(KEY_ENABLED_LANGUAGES, enabledLanguages);
     registry[KEY_ENABLED_LANGUAGES].set(enabledLanguages, true);
     didSanitize = true;
@@ -396,22 +360,24 @@ export async function validateLanguageSettings(
     didSanitize = true;
   }
 
-  const siteProfilesChanged = await sanitizeSiteProfilesForEnabledLanguages(
+  const siteProfilesChanged = await sanitizeStoredForEnabledLanguages(
     store,
+    KEY_SITE_PROFILES,
     enabledLanguages,
+    resolveSiteProfiles,
   );
-  const sitePriorsChanged = await sanitizeAutoLanguagePriorsForEnabledLanguages(
+  const sitePriorsChanged = await sanitizeStoredForEnabledLanguages(
     store,
+    KEY_AUTO_LANGUAGE_SITE_PRIORS,
     enabledLanguages,
+    sanitizeAutoLanguageSitePriors,
   );
   if (siteProfilesChanged || sitePriorsChanged || didSanitize) {
     optionsPageConfigChange();
   }
 }
 
-function importSettingButtonFileSelected(
-  registry: ReturnType<SettingsEngine["buildFromManifest"]>,
-) {
+function importSettingButtonFileSelected(registry: SettingsRegistry) {
   const importInputElem = registry.importSettingButton.element as HTMLInputElement;
   const fr = new FileReader();
   fr.addEventListener("load", () => {
@@ -781,10 +747,8 @@ function renderProductivityInsights(root: HTMLElement, stats: ProductivityStats)
   const weekOverWeekDeltaPct = Number(stats.weekOverWeekDeltaPct);
   if (stats.weekOverWeekDeltaPct === null || !Number.isFinite(weekOverWeekDeltaPct)) {
     trendValue.textContent = t("productivity_week_over_week_empty");
-  } else if (weekOverWeekDeltaPct >= 0) {
-    trendValue.textContent = `+${weekOverWeekDeltaPct}% ${t("productivity_week_over_week_suffix")}`;
   } else {
-    trendValue.textContent = `${weekOverWeekDeltaPct}% ${t("productivity_week_over_week_suffix")}`;
+    trendValue.textContent = `${weekOverWeekDeltaPct >= 0 ? "+" : ""}${weekOverWeekDeltaPct}% ${t("productivity_week_over_week_suffix")}`;
   }
   trendSection.appendChild(trendTitle);
   trendSection.appendChild(trendValue);
@@ -858,18 +822,13 @@ function renderProductivityInsights(root: HTMLElement, stats: ProductivityStats)
   )} ${t("popup_short_minutes")}`;
   recapSection.appendChild(recapTitle);
   recapSection.appendChild(recapSummary);
-  if (weeklyRecap?.topSnippet) {
-    const recapTopSnippet = document.createElement("p");
-    recapTopSnippet.className = "recap-top-snippet";
-    const topSnippet = weeklyRecap.topSnippet as Record<string, unknown>;
-    recapTopSnippet.textContent = `${t("productivity_top_snippet_label")}: ${formatLooseText(topSnippet.snippet)} (${formatMetricNumber(topSnippet.count)}x)`;
-    recapSection.appendChild(recapTopSnippet);
-  } else {
-    const recapTopSnippet = document.createElement("p");
-    recapTopSnippet.className = "recap-top-snippet";
-    recapTopSnippet.textContent = t("productivity_top_snippet_empty");
-    recapSection.appendChild(recapTopSnippet);
-  }
+  const recapTopSnippet = document.createElement("p");
+  recapTopSnippet.className = "recap-top-snippet";
+  const topSnippet = weeklyRecap?.topSnippet as Record<string, unknown> | undefined;
+  recapTopSnippet.textContent = topSnippet
+    ? `${t("productivity_top_snippet_label")}: ${formatLooseText(topSnippet.snippet)} (${formatMetricNumber(topSnippet.count)}x)`
+    : t("productivity_top_snippet_empty");
+  recapSection.appendChild(recapTopSnippet);
   if (stats.shouldShowWeeklyRecap) {
     const recapAction = document.createElement("button");
     recapAction.type = "button";
@@ -1018,9 +977,7 @@ function createPredictorToggleAction(label: string, key: string, enabled: boolea
   return row;
 }
 
-type ObservabilitySnapshotRecord = ObservabilitySnapshot;
-
-function isObservabilitySnapshot(snapshot: unknown): snapshot is ObservabilitySnapshotRecord {
+function isObservabilitySnapshot(snapshot: unknown): snapshot is ObservabilitySnapshot {
   return (
     !!snapshot &&
     typeof snapshot === "object" &&
@@ -1032,11 +989,7 @@ function isObservabilitySnapshot(snapshot: unknown): snapshot is ObservabilitySn
   );
 }
 
-function getObservabilityRootElement() {
-  return document.getElementById("observabilityRoot");
-}
-
-function buildObservabilitySnapshotSignature(snapshot: ObservabilitySnapshotRecord) {
+function buildObservabilitySnapshotSignature(snapshot: ObservabilitySnapshot) {
   try {
     return JSON.stringify({
       ...snapshot,
@@ -1048,7 +1001,7 @@ function buildObservabilitySnapshotSignature(snapshot: ObservabilitySnapshotReco
 }
 
 function getObservabilityModuleOverrides(
-  registry: ReturnType<SettingsEngine["buildFromManifest"]>,
+  registry: SettingsRegistry,
 ): Record<string, { enabled?: boolean; level?: LogLevel }> {
   const value = registry[KEY_OBSERVABILITY_MODULE_OVERRIDES]?.get();
   if (!value || typeof value !== "object" || Array.isArray(value)) {
@@ -1078,7 +1031,7 @@ function getObservabilityModuleOverrides(
 }
 
 function setObservabilityModuleOverrides(
-  registry: ReturnType<SettingsEngine["buildFromManifest"]>,
+  registry: SettingsRegistry,
   overrides: Record<string, { enabled?: boolean; level?: LogLevel }>,
 ) {
   const setting = registry[KEY_OBSERVABILITY_MODULE_OVERRIDES];
@@ -1216,12 +1169,20 @@ function restoreObservabilityScrollState(
   });
 }
 
-function countObservabilityRegisteredModules(modules: ObservabilityModuleState[]) {
-  return modules.filter((moduleState) => Boolean(moduleState.registered)).length;
+function levelBadgeTone(level: unknown) {
+  return level === "error"
+    ? "error"
+    : level === "warn"
+      ? "warn"
+      : level === "info"
+        ? "success"
+        : "neutral";
 }
 
-function countObservabilityOverriddenModules(modules: ObservabilityModuleState[]) {
-  return modules.filter((moduleState) => Boolean(moduleState.hasOverride)).length;
+function formatObservabilityUpdatedStatus(generatedAtMs: number) {
+  return observabilityUIState.scopeDomain === "all"
+    ? `Updated ${formatClockTime(generatedAtMs)}`
+    : `Updated ${formatClockTime(generatedAtMs)} · scope ${observabilityUIState.scopeDomain}`;
 }
 
 function buildObservabilitySummaryFromEvents(events: ObservabilityEvent[]): ObservabilitySummary {
@@ -1247,7 +1208,7 @@ function buildObservabilitySummaryFromEvents(events: ObservabilityEvent[]): Obse
   };
 }
 
-function collectObservabilityScopeDomains(snapshot: ObservabilitySnapshotRecord): string[] {
+function collectObservabilityScopeDomains(snapshot: ObservabilitySnapshot): string[] {
   const domains = new Set<string>();
   [...snapshot.contentRuntimes, ...snapshot.autoLanguageRuntimes].forEach((runtime) => {
     if (typeof runtime.domain === "string" && runtime.domain.trim().length > 0) {
@@ -1258,9 +1219,9 @@ function collectObservabilityScopeDomains(snapshot: ObservabilitySnapshotRecord)
 }
 
 function buildScopedObservabilitySnapshot(
-  snapshot: ObservabilitySnapshotRecord,
+  snapshot: ObservabilitySnapshot,
   scopeDomain: string,
-): ObservabilitySnapshotRecord {
+): ObservabilitySnapshot {
   if (scopeDomain === "all") {
     return snapshot;
   }
@@ -1276,13 +1237,9 @@ function buildScopedObservabilitySnapshot(
   const scopedAutoLanguageRuntimes = snapshot.autoLanguageRuntimes.filter(
     (runtime) => runtime.domain === normalizedDomain,
   );
-  const matchingTabIds = new Set<number>();
-  scopedContentRuntimes.forEach((runtime) => {
-    matchingTabIds.add(runtime.tabId);
-  });
-  scopedAutoLanguageRuntimes.forEach((runtime) => {
-    matchingTabIds.add(runtime.tabId);
-  });
+  const matchingTabIds = new Set<number>(
+    [...scopedContentRuntimes, ...scopedAutoLanguageRuntimes].map((runtime) => runtime.tabId),
+  );
 
   const scopedEvents = snapshot.events.filter(
     (event) => typeof event.tabId === "number" && matchingTabIds.has(event.tabId),
@@ -1403,10 +1360,7 @@ function updateObservabilityLiveStatus(root: HTMLElement, text: string) {
   }
 }
 
-function renderStoredObservabilitySnapshot(
-  root: HTMLElement,
-  registry: ReturnType<SettingsEngine["buildFromManifest"]>,
-) {
+function renderStoredObservabilitySnapshot(root: HTMLElement, registry: SettingsRegistry) {
   if (observabilityCurrentSnapshot) {
     renderObservabilitySnapshot(root, observabilityCurrentSnapshot, registry);
   }
@@ -1414,8 +1368,8 @@ function renderStoredObservabilitySnapshot(
 
 function renderObservabilitySnapshot(
   root: HTMLElement,
-  snapshot: ObservabilitySnapshotRecord,
-  registry: ReturnType<SettingsEngine["buildFromManifest"]>,
+  snapshot: ObservabilitySnapshot,
+  registry: SettingsRegistry,
 ) {
   const pageScrollX = window.scrollX;
   const pageScrollY = window.scrollY;
@@ -1482,10 +1436,7 @@ function renderObservabilitySnapshot(
   const title = document.createElement("h3");
   title.textContent = "Observability Control Room";
   const subtitle = document.createElement("p");
-  subtitle.textContent =
-    observabilityUIState.scopeDomain === "all"
-      ? `Updated ${formatClockTime(snapshot.generatedAtMs)}`
-      : `Updated ${formatClockTime(snapshot.generatedAtMs)} · scope ${observabilityUIState.scopeDomain}`;
+  subtitle.textContent = formatObservabilityUpdatedStatus(snapshot.generatedAtMs);
   subtitle.setAttribute("data-observability-live-status", "true");
   titleBlock.append(title, subtitle);
   header.appendChild(titleBlock);
@@ -1538,12 +1489,12 @@ function renderObservabilitySnapshot(
   appendObservabilityInfoItem(
     coverageCard,
     "Registered modules",
-    `${countObservabilityRegisteredModules(modules)} / ${modules.length}`,
+    `${modules.filter((moduleState) => moduleState.registered).length} / ${modules.length}`,
   );
   appendObservabilityInfoItem(
     coverageCard,
     "Overrides",
-    String(countObservabilityOverriddenModules(modules)),
+    String(modules.filter((moduleState) => moduleState.hasOverride).length),
   );
   appendObservabilityInfoItem(
     coverageCard,
@@ -1646,8 +1597,6 @@ function renderObservabilitySnapshot(
       "Search by module or source",
       "Filter observability modules",
     ),
-  );
-  modulesToolbar.append(
     createObservabilitySelect(
       "set-observability-module-filter",
       observabilityUIState.moduleFilter,
@@ -1707,13 +1656,7 @@ function renderObservabilitySnapshot(
     detail.appendChild(
       createObservabilityBadge(
         `level ${String(moduleState.level || "debug")}`,
-        moduleState.level === "error"
-          ? "error"
-          : moduleState.level === "warn"
-            ? "warn"
-            : moduleState.level === "info"
-              ? "success"
-              : "neutral",
+        levelBadgeTone(moduleState.level),
       ),
     );
     if (Array.isArray(moduleState.sources) && moduleState.sources.length > 0) {
@@ -1789,16 +1732,12 @@ function renderObservabilitySnapshot(
       "Search message, trace, tab, or module",
       "Filter observability events",
     ),
-  );
-  eventsToolbar.append(
     createObservabilitySelect("set-observability-event-source", observabilityUIState.eventSource, [
       { value: "all", label: "All sources" },
       { value: "background", label: "Background" },
       { value: "content_script", label: "Content script" },
       { value: "options", label: "Options" },
     ]),
-  );
-  eventsToolbar.append(
     createObservabilitySelect("set-observability-event-level", observabilityUIState.eventLevel, [
       { value: "all", label: "All levels" },
       { value: "debug", label: "Debug" },
@@ -1844,16 +1783,7 @@ function renderObservabilitySnapshot(
       const chips = document.createElement("div");
       chips.className = "observability-badge-row";
       chips.appendChild(
-        createObservabilityBadge(
-          String(event.level || "debug"),
-          event.level === "error"
-            ? "error"
-            : event.level === "warn"
-              ? "warn"
-              : event.level === "info"
-                ? "success"
-                : "neutral",
-        ),
+        createObservabilityBadge(String(event.level || "debug"), levelBadgeTone(event.level)),
       );
       chips.appendChild(
         createObservabilityBadge(
@@ -1924,9 +1854,7 @@ function renderObservabilitySnapshot(
     root,
     observabilityUIState.livePaused
       ? "Live updates paused"
-      : observabilityUIState.scopeDomain === "all"
-        ? `Updated ${formatClockTime(snapshot.generatedAtMs)}`
-        : `Updated ${formatClockTime(snapshot.generatedAtMs)} · scope ${observabilityUIState.scopeDomain}`,
+      : formatObservabilityUpdatedStatus(snapshot.generatedAtMs),
   );
   window.requestAnimationFrame(() => {
     window.scrollTo(pageScrollX, pageScrollY);
@@ -1973,25 +1901,17 @@ async function loadObservabilitySnapshot(root: HTMLElement, retryCount = 0) {
     return;
   }
   observabilityLastSignature = signature;
-  const registry = (
-    window as unknown as {
-      __ftSettingsRegistry?: ReturnType<SettingsEngine["buildFromManifest"]>;
-    }
-  ).__ftSettingsRegistry;
-  if (registry) {
-    renderObservabilitySnapshot(root, response, registry);
+  if (observabilityRegistry) {
+    renderObservabilitySnapshot(root, response, observabilityRegistry);
   }
 }
 
-function setupObservabilityDashboard(registry: ReturnType<SettingsEngine["buildFromManifest"]>) {
+function setupObservabilityDashboard(registry: SettingsRegistry) {
   if (!IS_DEV_BUILD) {
     return;
   }
-  const registryHost = window as unknown as {
-    __ftSettingsRegistry?: ReturnType<SettingsEngine["buildFromManifest"]>;
-  };
-  registryHost.__ftSettingsRegistry = registry;
-  const mountIfNeeded = () => getObservabilityRootElement();
+  observabilityRegistry = registry;
+  const mountIfNeeded = () => document.getElementById("observabilityRoot");
   const scheduleRefresh = (force = false) => {
     const root = mountIfNeeded();
     if (root) {
@@ -2060,7 +1980,7 @@ function setupObservabilityDashboard(registry: ReturnType<SettingsEngine["buildF
       if (key) {
         const setting = registry[key];
         if (setting && typeof setting.set === "function") {
-          setting.set(Boolean(nextEnabled));
+          setting.set(nextEnabled);
           applyOptionsObservabilityRuntime(registry);
           observabilityLogger.info("Updating predictor debug toggle", {
             key,
@@ -2072,15 +1992,11 @@ function setupObservabilityDashboard(registry: ReturnType<SettingsEngine["buildF
       }
       return;
     }
-    if (action === "copy-observability") {
-      const raw = root.getAttribute("data-raw-snapshot") || "";
-      if (raw && navigator.clipboard?.writeText) {
-        void navigator.clipboard.writeText(raw);
-      }
-      return;
-    }
-    if (action === "copy-scoped-observability") {
-      const raw = root.getAttribute("data-raw-snapshot-scoped") || "";
+    if (action === "copy-observability" || action === "copy-scoped-observability") {
+      const raw =
+        root.getAttribute(
+          action === "copy-observability" ? "data-raw-snapshot" : "data-raw-snapshot-scoped",
+        ) || "";
       if (raw && navigator.clipboard?.writeText) {
         void navigator.clipboard.writeText(raw);
       }

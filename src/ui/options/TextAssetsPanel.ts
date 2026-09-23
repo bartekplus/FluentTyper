@@ -39,6 +39,12 @@ const VARIABLE_SNIPPETS = [
   "${page_domain}",
 ];
 
+const PAGE_VARIABLE_PREVIEWS = new Map([
+  ["page_url", "https://example.com/path"],
+  ["page_title", "Example page"],
+  ["page_domain", "example.com"],
+]);
+
 export class TextAssetsPanel {
   private readonly root: HTMLElement;
   private readonly registry: SettingsRegistry;
@@ -234,15 +240,13 @@ export class TextAssetsPanel {
     const filtered = this.snippetRows.filter(({ shortcut, text }) =>
       [shortcut, text].join(" ").toLowerCase().includes(this.searchQuery),
     );
-    if (!filtered.length && !this.searchQuery && !this.snippetRows.length) {
+    if (!filtered.length) {
       const empty = document.createElement("p");
       empty.className = "settings-inline-help";
-      empty.textContent = i18n.get("text_assets_no_snippets");
-      list.appendChild(empty);
-    } else if (!filtered.length) {
-      const empty = document.createElement("p");
-      empty.className = "settings-inline-help";
-      empty.textContent = i18n.get("nothing-found");
+      empty.textContent =
+        !this.searchQuery && !this.snippetRows.length
+          ? i18n.get("text_assets_no_snippets")
+          : i18n.get("nothing-found");
       list.appendChild(empty);
     } else {
       filtered.forEach(({ id, shortcut, text }) => {
@@ -481,7 +485,7 @@ export class TextAssetsPanel {
       if (!value || this.dictionary.includes(value)) {
         return;
       }
-      this.dictionary = [...this.dictionary, value].sort((a, b) => a.localeCompare(b));
+      this.dictionary = [...this.dictionary, value];
       this.clearDictionaryArmed = false;
       this.setDictionaryStatus(i18n.get("settings_status_saved"));
       this.persistDictionary();
@@ -540,9 +544,7 @@ export class TextAssetsPanel {
       if (nextWords.length === 0) {
         return;
       }
-      this.dictionary = Array.from(new Set([...this.dictionary, ...nextWords])).sort((a, b) =>
-        a.localeCompare(b),
-      );
+      this.dictionary = [...this.dictionary, ...nextWords];
       this.bulkDictionaryValue = "";
       bulkTextarea.value = "";
       this.updateBulkPreview(bulkPreview, bulkAddButton, bulkTextarea.value);
@@ -579,9 +581,7 @@ export class TextAssetsPanel {
           .split(/\r?\n/)
           .map((entry) => entry.trim())
           .filter(Boolean);
-        this.dictionary = Array.from(new Set([...this.dictionary, ...words])).sort((a, b) =>
-          a.localeCompare(b),
-        );
+        this.dictionary = [...this.dictionary, ...words];
         this.clearDictionaryArmed = false;
         this.setDictionaryStatus(i18n.get("settings_status_saved"));
         this.persistDictionary();
@@ -629,31 +629,35 @@ export class TextAssetsPanel {
     summary.textContent = i18n.get("dynamic_variables");
     shell.appendChild(summary);
 
-    const dateInput = document.createElement("input");
-    dateInput.className = "input";
-    dateInput.value = formatLooseText(this.registry[KEY_DATE_FORMAT].get());
-    dateInput.placeholder = i18n.get("custom_date_format_label");
-    dateInput.addEventListener("input", () => {
-      this.liveDateFormat = dateInput.value;
-      this.refreshActiveSnippetPreview();
-    });
-    dateInput.addEventListener("change", () => {
-      this.liveDateFormat = dateInput.value;
-      this.registry[KEY_DATE_FORMAT].set(dateInput.value);
-    });
-
-    const timeInput = document.createElement("input");
-    timeInput.className = "input";
-    timeInput.value = formatLooseText(this.registry[KEY_TIME_FORMAT].get());
-    timeInput.placeholder = i18n.get("custom_time_format_label");
-    timeInput.addEventListener("input", () => {
-      this.liveTimeFormat = timeInput.value;
-      this.refreshActiveSnippetPreview();
-    });
-    timeInput.addEventListener("change", () => {
-      this.liveTimeFormat = timeInput.value;
-      this.registry[KEY_TIME_FORMAT].set(timeInput.value);
-    });
+    const createFormatField = (
+      key: typeof KEY_DATE_FORMAT | typeof KEY_TIME_FORMAT,
+      labelKey: string,
+      setLiveFormat: (value: string) => void,
+    ) => {
+      const input = document.createElement("input");
+      input.className = "input";
+      input.value = formatLooseText(this.registry[key].get());
+      input.placeholder = i18n.get(labelKey);
+      input.addEventListener("input", () => {
+        setLiveFormat(input.value);
+        this.refreshActiveSnippetPreview();
+      });
+      input.addEventListener("change", () => {
+        setLiveFormat(input.value);
+        this.registry[key].set(input.value);
+      });
+      return createStackField(i18n.get(labelKey), input);
+    };
+    const createHelpList = (items: string[]) => {
+      const list = document.createElement("ul");
+      list.className = "settings-inline-help";
+      items.forEach((text) => {
+        const item = document.createElement("li");
+        item.textContent = text;
+        list.appendChild(item);
+      });
+      return list;
+    };
 
     const docs = document.createElement("div");
     docs.className = "settings-inline-card";
@@ -663,18 +667,13 @@ export class TextAssetsPanel {
     docsIntro.textContent = i18n.get("text_assets_advanced_variables_docs");
     docs.appendChild(docsIntro);
 
-    const variableGroups = document.createElement("ul");
-    variableGroups.className = "settings-inline-help";
-    [
-      i18n.get("text_assets_variable_group_datetime"),
-      i18n.get("text_assets_variable_group_utility"),
-      i18n.get("text_assets_variable_group_page"),
-    ].forEach((groupText) => {
-      const item = document.createElement("li");
-      item.textContent = groupText;
-      variableGroups.appendChild(item);
-    });
-    docs.appendChild(variableGroups);
+    docs.appendChild(
+      createHelpList([
+        i18n.get("text_assets_variable_group_datetime"),
+        i18n.get("text_assets_variable_group_utility"),
+        i18n.get("text_assets_variable_group_page"),
+      ]),
+    );
 
     const formatHelp = document.createElement("p");
     formatHelp.className = "settings-inline-help";
@@ -688,23 +687,22 @@ export class TextAssetsPanel {
     docsLink.textContent = i18n.get("text_assets_luxon_link_label");
     docs.appendChild(docsLink);
 
-    const exampleList = document.createElement("ul");
-    exampleList.className = "settings-inline-help";
-    [
-      i18n.get("text_assets_luxon_example_date_short"),
-      i18n.get("text_assets_luxon_example_date_long"),
-      i18n.get("text_assets_luxon_example_time_short"),
-      i18n.get("text_assets_luxon_example_time_long"),
-    ].forEach((example) => {
-      const item = document.createElement("li");
-      item.textContent = example;
-      exampleList.appendChild(item);
-    });
-    docs.appendChild(exampleList);
+    docs.appendChild(
+      createHelpList([
+        i18n.get("text_assets_luxon_example_date_short"),
+        i18n.get("text_assets_luxon_example_date_long"),
+        i18n.get("text_assets_luxon_example_time_short"),
+        i18n.get("text_assets_luxon_example_time_long"),
+      ]),
+    );
 
     shell.append(
-      createStackField(i18n.get("custom_date_format_label"), dateInput),
-      createStackField(i18n.get("custom_time_format_label"), timeInput),
+      createFormatField(KEY_DATE_FORMAT, "custom_date_format_label", (value) => {
+        this.liveDateFormat = value;
+      }),
+      createFormatField(KEY_TIME_FORMAT, "custom_time_format_label", (value) => {
+        this.liveTimeFormat = value;
+      }),
       docs,
     );
     return shell;
@@ -748,9 +746,6 @@ export class TextAssetsPanel {
   }
 
   private getSelectedSnippet(): SnippetRow | null {
-    if (!this.selectedSnippetId) {
-      return null;
-    }
     return this.snippetRows.find((row) => row.id === this.selectedSnippetId) ?? null;
   }
 
@@ -819,26 +814,19 @@ export class TextAssetsPanel {
   private updateSnippetPreview(target: HTMLElement, rawValue: string): void {
     const dateFormat = this.liveDateFormat;
     const timeFormat = this.liveTimeFormat;
-    const preview = rawValue.replace(/\$\{([^}:]+)(?::([^}]+))?\}/g, (_match, varName, arg) => {
-      if (varName === "page_url") {
-        return "https://example.com/path";
-      }
-      if (varName === "page_title") {
-        return "Example page";
-      }
-      if (varName === "page_domain") {
-        return "example.com";
-      }
-      return (
-        resolveDynamicVariable(
+    const preview = rawValue.replace(
+      /\$\{([^}:]+)(?::([^}]+))?\}/g,
+      (_match, varName, arg) =>
+        PAGE_VARIABLE_PREVIEWS.get(String(varName)) ??
+        (resolveDynamicVariable(
           String(varName),
           arg ? String(arg) : undefined,
           "en_US",
           timeFormat,
           dateFormat,
-        ) || `\${${String(varName)}}`
-      );
-    });
+        ) ||
+          `\${${String(varName)}}`),
+    );
     target.textContent = preview || i18n.get("text_assets_preview_placeholder");
   }
 

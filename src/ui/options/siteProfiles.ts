@@ -54,6 +54,10 @@ function getPreferNativeAutocompleteLabel(value: boolean): string {
     : i18n.get("prefer_native_autocomplete_off");
 }
 
+function toOverrideOptionValue(value: boolean | undefined): string {
+  return typeof value === "boolean" ? (value ? "on" : "off") : "global";
+}
+
 function getPrimaryLanguage(enabledLanguages: string[]): string {
   return enabledLanguages[0] || "en_US";
 }
@@ -311,10 +315,6 @@ export class SiteProfilesManager {
     return profile;
   }
 
-  private async notifyConfigChange(): Promise<void> {
-    await this.onConfigChange?.();
-  }
-
   private populateLanguageOptions(enabledLanguages: string[]): void {
     this.elements.languageSelect.replaceChildren();
     enabledLanguages.forEach((languageKey) => {
@@ -364,18 +364,10 @@ export class SiteProfilesManager {
     this.elements.languageSelect.value = profile?.language || primaryLanguage;
     this.elements.numSuggestionsSelect.value =
       typeof profile?.numSuggestions === "number" ? String(profile.numSuggestions) : "global";
-    this.elements.inlineSelect.value =
-      typeof profile?.inline_suggestion === "boolean"
-        ? profile.inline_suggestion
-          ? "on"
-          : "off"
-        : "global";
-    this.elements.preferNativeAutocompleteSelect.value =
-      typeof profile?.preferNativeAutocomplete === "boolean"
-        ? profile.preferNativeAutocomplete
-          ? "on"
-          : "off"
-        : "global";
+    this.elements.inlineSelect.value = toOverrideOptionValue(profile?.inline_suggestion);
+    this.elements.preferNativeAutocompleteSelect.value = toOverrideOptionValue(
+      profile?.preferNativeAutocomplete,
+    );
     this.elements.saveButton.textContent = this.editingDomain
       ? i18n.get("site_profiles_update_btn")
       : i18n.get("site_profiles_add_btn");
@@ -462,14 +454,8 @@ export class SiteProfilesManager {
           label: i18n.get("site_profiles_table_prefer_native_autocomplete"),
           value:
             typeof profile.preferNativeAutocomplete === "boolean"
-              ? profile.preferNativeAutocomplete
-                ? i18n.get("prefer_native_autocomplete_on")
-                : i18n.get("prefer_native_autocomplete_off")
-              : getInheritLabel(
-                  globalPreferNativeAutocomplete
-                    ? i18n.get("prefer_native_autocomplete_on")
-                    : i18n.get("prefer_native_autocomplete_off"),
-                ),
+              ? getPreferNativeAutocompleteLabel(profile.preferNativeAutocomplete)
+              : getInheritLabel(getPreferNativeAutocompleteLabel(globalPreferNativeAutocomplete)),
         },
       ].forEach((entry) => {
         const item = createElement("div", { className: "site-profile-meta-item" });
@@ -586,7 +572,7 @@ export class SiteProfilesManager {
     this.editingDomain = normalizedDomain;
     this.pendingRemovalDomain = null;
     this.setStatus(i18n.get("site_profiles_saved_status"));
-    await this.notifyConfigChange();
+    await this.onConfigChange?.();
     await this.render();
   }
 
@@ -612,7 +598,7 @@ export class SiteProfilesManager {
       this.editingDomain = null;
     }
     this.setStatus(i18n.get("site_profiles_removed_status"));
-    await this.notifyConfigChange();
+    await this.onConfigChange?.();
     await this.render();
   }
 }
