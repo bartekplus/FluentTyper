@@ -1449,6 +1449,20 @@ test("inline Tab accepts an exact-match suggestion with no ghost suffix", () => 
   expect(textEditService.acceptSuggestion).toHaveBeenCalledWith(entry, "function");
 });
 
+// Regression for #397: a snippet expansion replaces its shortcut, so it never
+// starts with the typed word.
+test("inline Tab accepts a text expansion that replaces the typed shortcut", () => {
+  const { entry, textEditService, pressTab, respond } = makeInlineTabHarness({
+    value: "brb",
+    caretMeasurable: true,
+  });
+  respond(["be right back "]);
+
+  expect(entry.inlineSuggestion).toBe("be right back ");
+  expect(pressTab()).toBe(true);
+  expect(textEditService.acceptSuggestion).toHaveBeenCalledWith(entry, "be right back ");
+});
+
 test("session falls back to empty suggestions for invalid prediction payloads", () => {
   const renderMenu = jest.fn();
   const logNoVisibleSuggestions = jest.fn();

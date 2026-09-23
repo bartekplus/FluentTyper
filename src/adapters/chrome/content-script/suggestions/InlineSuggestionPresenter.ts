@@ -70,12 +70,12 @@ export class InlineSuggestionPresenter {
 
     const plainSuggestion = stripIgnoredWordChars(suggestion);
     const plainMention = stripIgnoredWordChars(mentionText);
-    if (!plainSuggestion.toLowerCase().startsWith(plainMention.toLowerCase())) {
-      this.dropForEntry(entry);
-      return;
-    }
-
-    const suffix = plainSuggestion.slice(plainMention.length);
+    // A text expansion replaces the typed shortcut instead of extending it:
+    // preview the replacement so Tab still only accepts what is shown.
+    // ponytail: arrow is LTR-oriented; mirror it if RTL snippets need it.
+    const suffix = plainSuggestion.toLowerCase().startsWith(plainMention.toLowerCase())
+      ? plainSuggestion.slice(plainMention.length)
+      : ` → ${suggestion.trimEnd()}`;
     if (!suffix) {
       // Nothing to preview, but Tab may still accept (a no-op completion).
       this.clearForEntry(entry.id);

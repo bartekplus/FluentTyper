@@ -81,13 +81,10 @@ describe("InlineSuggestionPresenter", () => {
     expect(removeForEntrySpy).not.toHaveBeenCalled();
   });
 
-  test("clears inline UI when suggestion does not match mention prefix", () => {
+  test("previews a replacement when the suggestion does not extend the typed word", () => {
     const renderSpy = jest
       .spyOn(InlineSuggestionView, "render")
-      .mockImplementation(() => undefined);
-    const removeForEntrySpy = jest
-      .spyOn(InlineSuggestionView, "removeForEntry")
-      .mockImplementation(() => undefined);
+      .mockImplementation(() => document.createElement("div"));
     const positioning = {
       getCaretRect: jest.fn(() => createRect()),
     } as unknown as SuggestionPositioningService;
@@ -109,10 +106,12 @@ describe("InlineSuggestionPresenter", () => {
       resolveMentionToken: () => ({ token: "fun", start: 0 }),
     });
 
-    expect(renderSpy).not.toHaveBeenCalled();
-    expect(removeForEntrySpy).toHaveBeenCalled();
-    // A hidden ghost must not stay armed for Tab acceptance.
-    expect(entry.inlineSuggestion).toBeNull();
+    // Snippet expansions (#397) replace the typed word; Tab must stay armed
+    // and the ghost must show what Tab will insert.
+    expect(renderSpy).toHaveBeenCalledTimes(1);
+    expect(renderSpy.mock.calls[0]?.[0].text).toBe(" → hello");
+    expect(entry.inlineSuggestion).toBe("hello");
+    expect(entry.inlineRenderRejected).toBe(false);
   });
 
   test("drops the accept target when the caret cannot be measured", () => {
