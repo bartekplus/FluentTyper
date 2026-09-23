@@ -57,10 +57,6 @@ export class MutationPipeline {
       }
     }
 
-    if (candidates.length === 0) {
-      return [];
-    }
-
     const uniqueCandidates = Array.from(new Set(candidates));
     uniqueCandidates.sort(
       (left, right) => this.getElementDepth(left) - this.getElementDepth(right),
