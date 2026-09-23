@@ -4,7 +4,12 @@ const LITERAL_OPENERS = new Set(["=", "(", ",", "[", "{", ":", "+"]);
 const FENCE_OPEN_REGEX = /^ {0,3}(`{3,}|~{3,})/;
 // Prose quotation marks and their closers. A straight single quote is left out:
 // it is also an apostrophe ("don't", "the 90's").
-const PROSE_QUOTE_CLOSERS: Record<string, string> = { '"': '"', "“": "”", "‘": "’" };
+const PROSE_QUOTE_CLOSERS: Record<string, string> = {
+  '"': '"',
+  "“": "”",
+  "‘": "’",
+  "«": "»",
+};
 
 /**
  * True when the end of `text` (the text before the cursor) sits inside Markdown
@@ -75,7 +80,7 @@ export function isInsideProtectedSpan(
       } else if (
         options.quotations &&
         ch in PROSE_QUOTE_CLOSERS &&
-        /^[\s([]?$/.test(line[i - 1] ?? "")
+        /^[\s([–—]?$/.test(line[i - 1] ?? "")
       ) {
         proseCloser = PROSE_QUOTE_CLOSERS[ch];
       }

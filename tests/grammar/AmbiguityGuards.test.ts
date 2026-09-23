@@ -323,6 +323,14 @@ describe("opt-in ordinal suffix repair", () => {
       expect(type(input, "en_US", rules)).toBe("Took 1st place in 2 laps ");
     });
 
+  // Quoted text is left alone even when the opening quote follows a dash, or
+  // is a guillemet rather than a straight/curly quote.
+  const rules = [...DEFAULT_CURRENT_GRAMMAR_RULES, RULE];
+  for (const input of ['He said—"use 3th" ', "Il a dit « 3th » "])
+    test(`leaves quoted ${JSON.stringify(input)}`, () => {
+      expect(type(input, "en_US", rules)).toBe(type(input, "en_US", without(rules)));
+    });
+
   // Every keystroke, each pipeline with the rule on versus off.
   for (const input of [
     // Already correct, and bare numbers never gain a suffix.
