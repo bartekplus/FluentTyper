@@ -276,6 +276,8 @@ async function launchFirefox(): Promise<Browser> {
     browser: "firefox",
     headless: !IS_HEADED,
     defaultViewport: null,
+    // Firefox's WebDriver BiDi refuses moz-extension:// navigation without this.
+    args: ["--remote-allow-system-access"],
     extraPrefsFirefox: {
       "extensions.webextensions.uuids": JSON.stringify({
         [FIREFOX_EXTENSION_ID]: FIREFOX_EXTENSION_HOST,
