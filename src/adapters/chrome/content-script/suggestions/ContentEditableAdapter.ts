@@ -38,7 +38,6 @@ interface BoundaryCandidate {
   container: Node;
   offset: number;
   textOffset: number;
-  order: number;
 }
 
 export interface ContentEditableEditResult {
@@ -144,8 +143,7 @@ export class ContentEditableAdapter {
       }
 
       if (shouldTryNativeReplacement) {
-        const nativeReplacementResult = this.tryNativeReplacement(elem, replacementText);
-        if (nativeReplacementResult.didMutateDom) {
+        if (this.tryNativeReplacement(elem, replacementText)) {
           // execCommand leaves the caret at the end of the inserted text. Plain
           // contenteditable has no async host reconciliation to override us, so
           // place the caret at the final offset synchronously. This prevents a
@@ -153,14 +151,10 @@ export class ContentEditableAdapter {
           // immediate "x") lands before a deferred caret correction runs.
           this.setCaret(editScope, cursorAfter);
           logger.debug("Contenteditable replacement handled by execCommand fallback", {
-            didDispatchInput: nativeReplacementResult.didDispatchInput,
+            didDispatchInput: false,
             editorTextLength: (elem.textContent ?? "").length,
           });
-          return {
-            appliedBy: "fallback-dom",
-            didMutateDom: true,
-            didDispatchInput: nativeReplacementResult.didDispatchInput,
-          };
+          return { appliedBy: "fallback-dom", didMutateDom: true, didDispatchInput: false };
         }
       }
     }
@@ -523,15 +517,14 @@ export class ContentEditableAdapter {
   private findInnermostBlockContainingRange(root: HTMLElement, range: Range): HTMLElement | null {
     let block: HTMLElement | null = null;
     let current: Node | null = range.startContainer;
-    const rootNode = root as Node;
-    while (current && current !== rootNode) {
+    while (current && current !== root) {
       if (current.nodeType === Node.ELEMENT_NODE && BLOCK_TAGS.has((current as Element).tagName)) {
         block = current as HTMLElement;
         break;
       }
       current = current.parentNode;
     }
-    if (!block && range.startContainer === rootNode) {
+    if (!block && range.startContainer === root) {
       const idx =
         range.startOffset < root.childNodes.length
           ? range.startOffset
@@ -640,8 +633,7 @@ export class ContentEditableAdapter {
     root: HTMLElement,
     preferForward: boolean,
   ): HTMLElement {
-    const rootNode = root as Node;
-    if (node === rootNode) {
+    if (node === root) {
       const adjacent = this.pickAdjacentChildAtOffset(root, offset, preferForward);
       if (adjacent) {
         const block = this.resolveBlock(adjacent, root);
@@ -655,11 +647,9 @@ export class ContentEditableAdapter {
     // When the block is a container with block children at this offset, use the
     // innermost block (e.g. Lexical/Reddit: root -> div -> p, p; cursor at (div, 1) must use second p,
     // not the wrapper div, so prediction uses "S" only, not "Wa" + "S").
-    if (block !== root && block.nodeType === Node.ELEMENT_NODE) {
-      const el = block as Element;
-      const childOffset =
-        node === block ? offset : this.getOffsetOfNodeInBlock(block, node, offset);
-      const adjacent = this.pickAdjacentChildAtOffset(el, childOffset, preferForward);
+    if (block !== root) {
+      const childOffset = this.getOffsetOfNodeInBlock(block, node, offset);
+      const adjacent = this.pickAdjacentChildAtOffset(block, childOffset, preferForward);
       if (
         adjacent &&
         adjacent.nodeType === Node.ELEMENT_NODE &&
@@ -673,15 +663,14 @@ export class ContentEditableAdapter {
   }
 
   /** Child index of block that contains the given node (for resolving innermost block). */
-  private getOffsetOfNodeInBlock(block: HTMLElement, node: Node, _offset: number): number {
+  private getOffsetOfNodeInBlock(block: HTMLElement, node: Node, offset: number): number {
     if (node === block) {
-      return _offset;
+      return offset;
     }
     let current: Node | null = node;
-    const blockNode = block as Node;
-    while (current && current !== blockNode) {
+    while (current && current !== block) {
       const parent: Node | null = current.parentNode;
-      if (parent === blockNode) {
+      if (parent === block) {
         return Array.prototype.indexOf.call(block.childNodes, current);
       }
       if (!parent) {
@@ -884,8 +873,7 @@ export class ContentEditableAdapter {
 
   private findNextSiblingAcrossAncestors(node: Node, root: HTMLElement): Node | null {
     let current: Node | null = node;
-    const rootNode = root as Node;
-    while (current && current !== rootNode) {
+    while (current && current !== root) {
       if (current.nextSibling) {
         return current.nextSibling;
       }
@@ -898,21 +886,19 @@ export class ContentEditableAdapter {
     return BLOCK_TAGS.has(node.tagName);
   }
 
-  private tryNativeReplacement(
-    elem: HTMLElement,
-    replacementText: string,
-  ): { didMutateDom: boolean; didDispatchInput: boolean } {
+  /** Returns whether execCommand mutated the DOM. */
+  private tryNativeReplacement(elem: HTMLElement, replacementText: string): boolean {
     const beforeText = elem.textContent ?? "";
     const commandResult = this.runExecCommand(() =>
       document.execCommand("insertText", false, replacementText),
     );
-    const didMutateDom =
+    return (
       (elem.textContent ?? "") !== beforeText ||
       (!commandResult &&
         replacementText.length === 0 &&
         this.runExecCommand(() => document.execCommand("delete", false)) &&
-        (elem.textContent ?? "") !== beforeText);
-    return { didMutateDom, didDispatchInput: false };
+        (elem.textContent ?? "") !== beforeText)
+    );
   }
 
   private runExecCommand(command: () => boolean): boolean {
@@ -1205,19 +1191,13 @@ export class ContentEditableAdapter {
     }
 
     const candidates: BoundaryCandidate[] = [];
-    let order = 0;
     const addBoundaryCandidates = (container: Element): void => {
       for (let offset = 0; offset <= container.childNodes.length; offset += 1) {
         const textOffset = this.measureBoundaryTextOffset(elem, container, offset, probeRange);
         if (textOffset === null) {
           continue;
         }
-        candidates.push({
-          container,
-          offset,
-          textOffset,
-          order: order++,
-        });
+        candidates.push({ container, offset, textOffset });
       }
     };
 
@@ -1251,7 +1231,6 @@ export class ContentEditableAdapter {
     const anchorPosition =
       endpoint === "end" ? selectionAnchors.endPosition : selectionAnchors.startPosition;
     const candidates: BoundaryCandidate[] = [];
-    let order = 0;
     const addCandidateOffsets = (container: Element, offsets: number[]): void => {
       for (const candidateOffset of offsets) {
         if (candidateOffset < 0 || candidateOffset > container.childNodes.length) {
@@ -1266,12 +1245,7 @@ export class ContentEditableAdapter {
         if (textOffset === null) {
           continue;
         }
-        candidates.push({
-          container,
-          offset: candidateOffset,
-          textOffset,
-          order: order++,
-        });
+        candidates.push({ container, offset: candidateOffset, textOffset });
       }
     };
 
@@ -1346,26 +1320,12 @@ export class ContentEditableAdapter {
   ): boolean {
     const bestDistance = Math.abs(best.textOffset - clampedTarget);
     const candidateDistance = Math.abs(candidate.textOffset - clampedTarget);
-    if (candidateDistance < bestDistance) {
-      return true;
+    if (candidateDistance !== bestDistance) {
+      return candidateDistance < bestDistance;
     }
-    if (candidateDistance > bestDistance) {
-      return false;
-    }
-
-    const bestOnOrAfter = best.textOffset >= clampedTarget;
-    const candidateOnOrAfter = candidate.textOffset >= clampedTarget;
-    if (candidateOnOrAfter !== bestOnOrAfter) {
-      return candidateOnOrAfter;
-    }
-
-    if (candidateOnOrAfter && candidate.textOffset < best.textOffset) {
-      return true;
-    }
-    if (!candidateOnOrAfter && candidate.textOffset > best.textOffset) {
-      return true;
-    }
-    return candidate.order < best.order;
+    // Equal distance on the same side means equal textOffset: the earlier candidate wins.
+    // Across sides, prefer the one on or after the target.
+    return candidate.textOffset >= clampedTarget && best.textOffset < clampedTarget;
   }
 
   private measureBoundaryTextOffset(

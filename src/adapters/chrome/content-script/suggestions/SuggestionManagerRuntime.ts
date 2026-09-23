@@ -251,15 +251,14 @@ export class SuggestionManagerRuntime {
     }
 
     if (TextTargetAdapter.isInput(elem)) {
-      const input = elem;
-      if (input.disabled || input.readOnly) {
+      if (elem.disabled || elem.readOnly) {
         return false;
       }
-      const inputType = (input.type || "text").toLowerCase();
+      const inputType = (elem.type || "text").toLowerCase();
       if (!["text", "search", "", "email", "url"].includes(inputType)) {
         return false;
       }
-      const blocked = `${input.name} ${input.id}`.toLowerCase();
+      const blocked = `${elem.name} ${elem.id}`.toLowerCase();
       return !blocked.includes("password") && !blocked.includes("username");
     }
 

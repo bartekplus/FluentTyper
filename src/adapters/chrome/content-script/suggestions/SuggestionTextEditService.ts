@@ -989,12 +989,7 @@ export class SuggestionTextEditService {
   }
 
   private shouldConsumeFollowingSpace(insertedSuggestion: string, nextChar: string): boolean {
-    if (!insertedSuggestion || !nextChar) {
-      return false;
-    }
-    const endsWithSpace = /[ \xA0]$/.test(insertedSuggestion);
-    const nextIsSpace = /[ \xA0]/.test(nextChar);
-    return endsWithSpace && nextIsSpace;
+    return /[ \xA0]$/.test(insertedSuggestion) && /[ \xA0]/.test(nextChar);
   }
 
   private createManualAutoFixSuppression({
@@ -1560,13 +1555,11 @@ export class SuggestionTextEditService {
       entry.pendingExtensionEdit.postEditBlockText = postEditBlockText;
     }
 
-    const finishedAt = performance.now();
-    const durationMs = finishedAt - startedAt;
     logger.debug("Accepted contenteditable suggestion", {
       suggestionLength: suggestion.length,
       replacementLength: replacementText.length,
       blockTextLength: blockSourceText.length,
-      durationMs,
+      durationMs: performance.now() - startedAt,
       blockScoped: true,
       activeBlockSnapshot: buildElementSnapshot(
         activeBlock,

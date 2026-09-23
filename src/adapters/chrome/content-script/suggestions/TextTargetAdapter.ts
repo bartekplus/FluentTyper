@@ -78,9 +78,8 @@ export class TextTargetAdapter {
 
   static snapshot(target: TextTarget): TextCursorSnapshot {
     if (TextTargetAdapter.isTextValue(target)) {
-      const textTarget = target;
-      const value = textTarget.value ?? "";
-      const cursorOffset = textTarget.selectionStart ?? value.length;
+      const value = target.value ?? "";
+      const cursorOffset = target.selectionStart ?? value.length;
       return {
         beforeCursor: value.slice(0, cursorOffset),
         afterCursor: value.slice(cursorOffset),
@@ -99,15 +98,14 @@ export class TextTargetAdapter {
     }
 
     try {
-      const clonedRange = range.cloneRange();
-      const preRange = clonedRange.cloneRange();
+      const preRange = range.cloneRange();
       preRange.selectNodeContents(target);
-      preRange.setEnd(clonedRange.startContainer, clonedRange.startOffset);
+      preRange.setEnd(range.startContainer, range.startOffset);
       const beforeCursor = preRange.toString();
 
-      const postRange = clonedRange.cloneRange();
+      const postRange = range.cloneRange();
       postRange.selectNodeContents(target);
-      postRange.setStart(clonedRange.endContainer, clonedRange.endOffset);
+      postRange.setStart(range.endContainer, range.endOffset);
       const afterCursor = postRange.toString();
 
       return {

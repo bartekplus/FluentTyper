@@ -267,10 +267,7 @@ export class SuggestionEntrySession {
       const shouldSuppressAwaitedHostEcho =
         this.entry.pendingExtensionEdit?.awaitingHostInputEcho === true &&
         preservesPendingExtensionEdit;
-      if (
-        this.entry.pendingExtensionEdit !== null &&
-        (shouldSuppressAwaitedHostEcho || preservesPendingExtensionEdit)
-      ) {
+      if (this.entry.pendingExtensionEdit !== null && preservesPendingExtensionEdit) {
         if (shouldSuppressAwaitedHostEcho) {
           this.entry.pendingExtensionEdit.awaitingHostInputEcho = false;
         }
@@ -589,6 +586,13 @@ export class SuggestionEntrySession {
       return false;
     }
 
+    const reschedule = (remainingMs: number) => {
+      pending.reconcileScheduled = false;
+      controls.rescheduleFallback(
+        Math.max(1, Math.min(INSERT_INPUT_FALLBACK_RETRY_INTERVAL_MS, remainingMs)),
+      );
+      return true;
+    };
     const snapshot = TextTargetAdapter.snapshot(this.entry.elem);
     const currentFullText = `${snapshot.beforeCursor}${snapshot.afterCursor}`;
     const textChanged =
@@ -608,11 +612,7 @@ export class SuggestionEntrySession {
       if (!caretContextAdvanced && !shouldReconcileEnterAtEmptyBoundary) {
         const remainingMs = pending.waitForTextChangeUntilMs - Date.now();
         if (remainingMs > 0) {
-          pending.reconcileScheduled = false;
-          controls.rescheduleFallback(
-            Math.max(1, Math.min(INSERT_INPUT_FALLBACK_RETRY_INTERVAL_MS, remainingMs)),
-          );
-          return true;
+          return reschedule(remainingMs);
         }
       }
       return false;
@@ -650,11 +650,7 @@ export class SuggestionEntrySession {
       return false;
     }
 
-    pending.reconcileScheduled = false;
-    controls.rescheduleFallback(
-      Math.max(1, Math.min(INSERT_INPUT_FALLBACK_RETRY_INTERVAL_MS, remainingMs)),
-    );
-    return true;
+    return reschedule(remainingMs);
   }
 
   private scheduleKeyFallbackReconcile(
@@ -1018,7 +1014,7 @@ export class SuggestionEntrySession {
         this.clearSuggestions();
         if (applyResult.didDispatchInput) {
           if (
-            !TextTargetAdapter.isTextValue(this.entry.elem) &&
+            !isTextValueTarget &&
             predictionMode === "reconcile" &&
             this.dispatchAdjustedGrammarPrediction({
               beforeCursor: cursorContext.beforeCursor,
@@ -1056,7 +1052,7 @@ export class SuggestionEntrySession {
             inputAction,
             predictionMode,
             scheduleIdle,
-            isTextValue: TextTargetAdapter.isTextValue(this.entry.elem),
+            isTextValue: isTextValueTarget,
           })
         ) {
           return;
@@ -1064,10 +1060,10 @@ export class SuggestionEntrySession {
       } else if (
         !applyResult.suppressedByManualRevert &&
         this.dispatchAdjustedGrammarPrediction({
-          beforeCursor: TextTargetAdapter.isTextValue(this.entry.elem)
+          beforeCursor: isTextValueTarget
             ? cursorContext.snapshot.beforeCursor
             : cursorContext.beforeCursor,
-          afterCursor: TextTargetAdapter.isTextValue(this.entry.elem)
+          afterCursor: isTextValueTarget
             ? cursorContext.snapshot.afterCursor
             : cursorContext.afterCursor,
           grammarReplacement,
@@ -1075,7 +1071,7 @@ export class SuggestionEntrySession {
           inputAction,
           predictionMode,
           scheduleIdle,
-          isTextValue: TextTargetAdapter.isTextValue(this.entry.elem),
+          isTextValue: isTextValueTarget,
         })
       ) {
         return;
@@ -1088,11 +1084,7 @@ export class SuggestionEntrySession {
       typedKey,
     });
     const predictionBeforeCursor = predictionContext.beforeCursor;
-    this.recordPredictionInput(
-      inputAction,
-      predictionBeforeCursor,
-      TextTargetAdapter.isTextValue(this.entry.elem),
-    );
+    this.recordPredictionInput(inputAction, predictionBeforeCursor, isTextValueTarget);
 
     if (this.inlineSuggestionEnabled) {
       this.renderInline();
