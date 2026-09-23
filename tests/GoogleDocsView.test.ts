@@ -55,6 +55,20 @@ describe("GoogleDocsView inline ghost guard", () => {
     expect(document.querySelector(`.${InlineSuggestionView.CLASS_NAME}`)).not.toBeNull();
   });
 
+  test("ghosts a text expansion as an annotation after the typed shortcut", () => {
+    caret = mountCaret();
+    view = renderDocs("brb", "be right back ");
+    expect(document.querySelector(`.${InlineSuggestionView.CLASS_NAME}`)?.textContent).toBe(
+      " → be right back",
+    );
+  });
+
+  test("falls back to the menu for a multi-line text expansion", () => {
+    caret = mountCaret();
+    view = renderDocs("sig", "Best,\nBart");
+    expect(document.querySelector(`.${InlineSuggestionView.CLASS_NAME}`)).toBeNull();
+  });
+
   test("falls back to the menu for RTL text even when the Docs UI is LTR", () => {
     caret = mountCaret();
     view = renderDocs("الي", "اليوم");

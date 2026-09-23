@@ -353,11 +353,13 @@ describe("Google Docs cross-world fixture (not live Docs)", () => {
     await page.keyboard.press("Tab");
     await expectText("hello");
   });
-  test("inline spelling fallback stays selectable", async () => {
-    await seed("helo", ["hello"], { inline_suggestion: true });
-    expect(await page.$(".ft-suggestion-inline")).toBeNull();
+  test("inline text expansion previews as a replacement", async () => {
+    await seed("brb", ["be right back"], { inline_suggestion: true });
+    expect(await page.$eval(".ft-suggestion-inline", (el) => el.textContent)).toBe(
+      " → be right back",
+    );
     await page.keyboard.press("Tab");
-    await expectText("hello");
+    await expectText("be right back");
   });
   test("explicit noncollapsed selection replacement", async () => {
     await seed("The bad phrase.", ["good sentence"], {}, 14, 4);

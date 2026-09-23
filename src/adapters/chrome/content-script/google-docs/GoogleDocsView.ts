@@ -126,13 +126,15 @@ export class GoogleDocsView {
     const token = this.options.findToken(context.beforeCursor).token;
     const candidate = suggestions[index];
     // Canvas cannot be DOM-mirrored. Never cover existing text with a guessed replacement.
-    // Inline is used for actual suffix insertion; other edits retain the same menu/acceptance.
+    // A text expansion keeps the typed shortcut visible (acceptance replaces the whole
+    // token; the response was already matched to this snapshot). Other edits retain the
+    // same menu/acceptance.
+    const preview = InlineSuggestionView.previewText(candidate, token);
     const canGhost =
       measuredCaret !== null &&
       this.options.inline &&
       snapshot.anchor === snapshot.focus &&
-      candidate.startsWith(token) &&
-      candidate.length > token.length &&
+      preview.text.length > 0 &&
       !/[^\n\r]/.test(context.afterCursor.split("\n")[0]) &&
       !candidate.includes("\n") &&
       // The caret element's direction follows the Docs UI language, not the
@@ -144,7 +146,7 @@ export class GoogleDocsView {
       this.syncFont(caret.rect);
       const ghost = InlineSuggestionView.render({
         target: this.font,
-        text: candidate.slice(token.length),
+        text: preview.text,
         caretRect: caret.rect,
         entryId: DOCS_SESSION_ID,
       });
@@ -152,8 +154,7 @@ export class GoogleDocsView {
         ghost.setAttribute("aria-hidden", "true");
         // The anchor is a thin caret, not the text area's right edge. The generic
         // presenter otherwise clamps this canvas ghost to the caret's 1px width.
-        // The ghost grows to the RIGHT of the caret here: canGhost above rejects
-        // RTL completions (the typed token is its prefix) and an RTL Docs UI.
+        // Grows RIGHT of the caret: canGhost rejects RTL text and an RTL Docs UI.
         ghost.style.maxWidth = `${Math.max(0, window.innerWidth - caret.rect.left - 8)}px`;
         // Docs paints canvas glyphs ~1px lower per 17px line than a CSS line box does.
         ghost.style.top = `${caret.rect.top + caret.rect.height * 0.06}px`;
