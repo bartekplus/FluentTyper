@@ -337,4 +337,32 @@ describe("HostEditorAdapterResolver", () => {
       selectionCollapsed: true,
     });
   });
+  test("looks up the backing text target after the page bridge answers", () => {
+    const root = document.createElement("div");
+    root.className = "CodeMirror";
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    editable.textContent = "abc";
+    root.appendChild(editable);
+    document.body.appendChild(root);
+    const backing = document.createElement("textarea");
+    backing.value = "backing text";
+    const pageBridge: HostEditorPageBridge = {
+      getBlockContextAtSelection() {
+        // Host code creates the backing textarea while answering.
+        root.before(backing);
+        return { beforeCursor: "abc", afterCursor: "", blockText: "abc" };
+      },
+      applyBlockReplacement() {
+        return { applied: false, didDispatchInput: false };
+      },
+    };
+
+    const session = new HostEditorAdapterResolver(pageBridge).resolve(editable);
+
+    expect(session?.createPostEditFingerprint().fullText).toBe("backing text");
+    root.remove();
+    backing.remove();
+  });
 });

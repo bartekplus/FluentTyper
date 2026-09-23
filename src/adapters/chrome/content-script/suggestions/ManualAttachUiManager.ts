@@ -41,7 +41,6 @@ interface ManualAttachMountTarget {
 }
 
 interface ManualAttachUiHandle {
-  containerParent: HTMLElement | ShadowRoot;
   positioningParent: HTMLElement | null;
   container: HTMLDivElement;
   button: HTMLButtonElement;
@@ -191,7 +190,6 @@ export class ManualAttachUiManager {
     });
 
     const handle: ManualAttachUiHandle = {
-      containerParent: mountTarget.containerParent,
       positioningParent: mountTarget.positioningParent,
       container,
       button,
