@@ -44,16 +44,6 @@ function createEmptySnapshot(): SuggestionSnapshot {
   };
 }
 
-function resolveBlockContext(
-  entry: SuggestionEntryCursorContextSource,
-  contentEditableAdapter: SuggestionEntrySessionContentEditableAdapter,
-): CursorContextBlock | null {
-  const blockContext = contentEditableAdapter.getBlockContext(entry.elem as HTMLElement);
-  return (
-    blockContext ?? contentEditableAdapter.getBlockContextBySelection(entry.elem as HTMLElement)
-  );
-}
-
 /**
  * Resolves the cursor context used for prediction and grammar processing.
  *
@@ -91,19 +81,23 @@ export function resolveEditableCursorContext({
     };
   }
 
-  const blockContext = resolveBlockContext(entry, contentEditableAdapter);
+  // No usable block-local context: predict from `beforeCursor` but edit with full-text offsets.
+  const fullTextOffsetsContext = (beforeCursor: string): EditableCursorContext => ({
+    beforeCursor,
+    afterCursor: "",
+    snapshot: snapshot ?? createEmptySnapshot(),
+    applyContext: {
+      beforeCursor: snapshot?.beforeCursor ?? "",
+      afterCursor: snapshot?.afterCursor ?? "",
+      useFullTextOffsets: true,
+    },
+    safeForGrammar: false,
+  });
+  const blockContext =
+    contentEditableAdapter.getBlockContext(entry.elem) ??
+    contentEditableAdapter.getBlockContextBySelection(entry.elem);
   if (!blockContext) {
-    return {
-      beforeCursor: "",
-      afterCursor: "",
-      snapshot: snapshot ?? createEmptySnapshot(),
-      applyContext: {
-        beforeCursor: snapshot?.beforeCursor ?? "",
-        afterCursor: snapshot?.afterCursor ?? "",
-        useFullTextOffsets: true,
-      },
-      safeForGrammar: false,
-    };
+    return fullTextOffsetsContext("");
   }
 
   const beforeBlockBoundary = contentEditableAdapter.isCollapsedSelectionBeforeBlockBoundary(
@@ -117,17 +111,7 @@ export function resolveEditableCursorContext({
     const previousBlockFallback = hasMultipleBlockDescendants
       ? contentEditableAdapter.getPreviousBlockTextBySelection(entry.elem)
       : null;
-    return {
-      beforeCursor: previousBlockFallback ?? "",
-      afterCursor: "",
-      snapshot: snapshot ?? createEmptySnapshot(),
-      applyContext: {
-        beforeCursor: snapshot?.beforeCursor ?? "",
-        afterCursor: snapshot?.afterCursor ?? "",
-        useFullTextOffsets: true,
-      },
-      safeForGrammar: false,
-    };
+    return fullTextOffsetsContext(previousBlockFallback ?? "");
   }
 
   const rawAfterCursor = blockContext.afterCursor;

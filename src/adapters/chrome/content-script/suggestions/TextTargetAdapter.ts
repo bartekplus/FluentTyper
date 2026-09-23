@@ -2,10 +2,20 @@ import type { PostEditFingerprint } from "./types";
 
 export type TextTarget = HTMLInputElement | HTMLTextAreaElement | HTMLElement;
 
-export interface TextCursorSnapshot {
+interface TextCursorSnapshot {
   beforeCursor: string;
   afterCursor: string;
   cursorOffset: number;
+}
+
+export function rangeInsideTarget(range: Range, target: Node): boolean {
+  const inside = (node: Node) => node === target || target.contains(node);
+  return inside(range.startContainer) && inside(range.endContainer);
+}
+
+function wholeTextSnapshot(target: TextTarget): TextCursorSnapshot {
+  const text = target.textContent ?? "";
+  return { beforeCursor: text, afterCursor: "", cursorOffset: text.length };
 }
 
 export class TextTargetAdapter {
@@ -59,13 +69,7 @@ export class TextTargetAdapter {
       return true;
     }
 
-    const targetNode = target as Node;
-    const range = selection.getRangeAt(0);
-    const startInsideTarget =
-      range.startContainer === targetNode || targetNode.contains(range.startContainer);
-    const endInsideTarget =
-      range.endContainer === targetNode || targetNode.contains(range.endContainer);
-    if (!startInsideTarget || !endInsideTarget) {
+    if (!rangeInsideTarget(selection.getRangeAt(0), target)) {
       return true;
     }
 
@@ -86,28 +90,12 @@ export class TextTargetAdapter {
 
     const selection = window.getSelection();
     if (!selection || selection.rangeCount === 0) {
-      const text = target.textContent ?? "";
-      return {
-        beforeCursor: text,
-        afterCursor: "",
-        cursorOffset: text.length,
-      };
+      return wholeTextSnapshot(target);
     }
 
     const range = selection.getRangeAt(0);
-    const targetNode = target as Node;
-    const startInsideTarget =
-      range.startContainer === targetNode || targetNode.contains(range.startContainer);
-    const endInsideTarget =
-      range.endContainer === targetNode || targetNode.contains(range.endContainer);
-
-    if (!startInsideTarget || !endInsideTarget) {
-      const text = target.textContent ?? "";
-      return {
-        beforeCursor: text,
-        afterCursor: "",
-        cursorOffset: text.length,
-      };
+    if (!rangeInsideTarget(range, target)) {
+      return wholeTextSnapshot(target);
     }
 
     try {
@@ -128,12 +116,7 @@ export class TextTargetAdapter {
         cursorOffset: beforeCursor.length,
       };
     } catch {
-      const text = target.textContent ?? "";
-      return {
-        beforeCursor: text,
-        afterCursor: "",
-        cursorOffset: text.length,
-      };
+      return wholeTextSnapshot(target);
     }
   }
 
