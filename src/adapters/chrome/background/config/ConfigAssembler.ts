@@ -5,7 +5,7 @@ import {
 } from "@core/domain/constants";
 import type { SettingsManager } from "@core/application/settingsManager";
 import type { ConfigMessage } from "@core/domain/messageTypes";
-import type { PredictionConfig } from "../PredictionManager";
+import type { PredictionConfig } from "../PredictionOrchestrator";
 import { CoreSettingsRepository } from "@core/application/repositories/CoreSettingsRepository";
 import { ObservabilitySettingsRepository } from "@core/application/repositories/ObservabilitySettingsRepository";
 import { PredictorSettingsRepository } from "@core/application/repositories/PredictorSettingsRepository";
@@ -16,7 +16,7 @@ interface ConfigAssemblerOptions {
   isDevBuild: boolean;
 }
 
-export interface AssembledPredictionRuntimeConfig {
+interface AssembledPredictionRuntimeConfig {
   language: string;
   predictionConfig: PredictionConfig;
   textExpansions: Array<[string, object]>;

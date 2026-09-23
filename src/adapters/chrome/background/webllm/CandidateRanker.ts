@@ -40,25 +40,14 @@ export class CandidateRanker {
     fragment: string,
     limit: number,
   ): string[] {
-    const bestByToken = new Map<string, { token: string; score: number; index: number }>();
-    predictions.forEach((token, index) => {
-      const tokenLower = token.toLowerCase();
-      const score = this.scoreCompletionCandidate(tokenLower, fragment);
-      if (score === null) {
-        return;
-      }
-      const existing = bestByToken.get(tokenLower);
-      if (
-        !existing ||
-        score < existing.score ||
-        (score === existing.score && index < existing.index)
-      ) {
-        bestByToken.set(tokenLower, { token, score, index });
-      }
-    });
-
-    return Array.from(bestByToken.values())
-      .sort((a, b) => (a.score !== b.score ? a.score - b.score : a.index - b.index))
+    // `predictions` is already de-duplicated case-insensitively; sort is stable, so ties keep input order.
+    return predictions
+      .map((token) => ({
+        token,
+        score: this.scoreCompletionCandidate(token.toLowerCase(), fragment),
+      }))
+      .filter((entry): entry is { token: string; score: number } => entry.score !== null)
+      .sort((a, b) => a.score - b.score)
       .map((entry) => entry.token)
       .slice(0, limit);
   }

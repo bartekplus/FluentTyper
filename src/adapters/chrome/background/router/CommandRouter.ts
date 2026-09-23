@@ -12,11 +12,7 @@ import type {
   UpdateLangConfigMessage,
 } from "@core/domain/messageTypes";
 import type { BackgroundServiceWorker } from "../BackgroundServiceWorker";
-import {
-  createErrorMappingMiddleware,
-  createLoggingMiddleware,
-  HandlerRegistry,
-} from "./HandlerRegistry";
+import { HandlerRegistry } from "./HandlerRegistry";
 
 const logger = createLogger("CommandRouter");
 
@@ -36,7 +32,9 @@ function isRuntimeCommand(command: string): command is RuntimeCommand {
 }
 
 export class CommandRouter {
-  private readonly registry: HandlerRegistry<RuntimeCommand, void, void>;
+  private readonly registry = new HandlerRegistry<RuntimeCommand, void>(logger, (error) => {
+    logError("CommandRouter.handle", error);
+  });
 
   constructor(getWorker: () => BackgroundServiceWorker) {
     const handlers: Record<RuntimeCommand, RuntimeCommandHandler> = {
@@ -79,19 +77,9 @@ export class CommandRouter {
       },
     };
 
-    this.registry = new HandlerRegistry<RuntimeCommand, void, void>([
-      createErrorMappingMiddleware<void, void>({
-        mapError: (error) => {
-          logError("CommandRouter.handle", error);
-        },
-      }),
-      createLoggingMiddleware(logger),
-    ]);
-
-    this.registry
-      .register(CMD_TOGGLE_FT_ACTIVE_TAB, handlers[CMD_TOGGLE_FT_ACTIVE_TAB])
-      .register(CMD_TRIGGER_FT_ACTIVE_TAB, handlers[CMD_TRIGGER_FT_ACTIVE_TAB])
-      .register(CMD_TOGGLE_FT_ACTIVE_LANG, handlers[CMD_TOGGLE_FT_ACTIVE_LANG]);
+    for (const command of SUPPORTED_RUNTIME_COMMANDS) {
+      this.registry.register(command, handlers[command]);
+    }
   }
 
   async handle(command: string): Promise<void> {

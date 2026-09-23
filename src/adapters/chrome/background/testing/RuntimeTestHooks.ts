@@ -39,9 +39,7 @@ const TEST_TRIGGER_COMMAND_ALLOW_LIST = new Set<string>([
   CMD_TOGGLE_FT_ACTIVE_LANG,
 ]);
 
-function getWebLLMTestGlobals(): WebLLMTestGlobals {
-  return globalThis;
-}
+const testGlobals: WebLLMTestGlobals = globalThis;
 
 function normalizePredictions(predictions: unknown[]): string[] {
   return predictions
@@ -50,9 +48,9 @@ function normalizePredictions(predictions: unknown[]): string[] {
     .filter((prediction) => prediction.length > 0);
 }
 
-function setWebLLMTestOverride(predictions: string[], delayMs: number): void {
+function setWebLLMTestOverride(predictions: unknown[], delayMs: number): void {
   const normalizedPredictions = normalizePredictions(predictions);
-  getWebLLMTestGlobals()[WEB_LLM_TEST_OVERRIDE_KEY] = {
+  testGlobals[WEB_LLM_TEST_OVERRIDE_KEY] = {
     predictions: normalizedPredictions,
     delayMs,
     calls: [],
@@ -64,12 +62,12 @@ function setWebLLMTestOverride(predictions: string[], delayMs: number): void {
 }
 
 function clearWebLLMTestOverride(): void {
-  delete getWebLLMTestGlobals()[WEB_LLM_TEST_OVERRIDE_KEY];
+  delete testGlobals[WEB_LLM_TEST_OVERRIDE_KEY];
   logger.info("Cleared WebLLM test override");
 }
 
 function getWebLLMTestPredictionCalls(): RuntimeTestPredictionRequest[] {
-  const override = getWebLLMTestGlobals()[WEB_LLM_TEST_OVERRIDE_KEY];
+  const override = testGlobals[WEB_LLM_TEST_OVERRIDE_KEY];
   if (!override || !Array.isArray(override.calls)) {
     return [];
   }
@@ -86,7 +84,7 @@ export async function maybePredictFromRuntimeTestOverride(
   if (!ENABLE_RUNTIME_TEST_HOOKS) {
     return null;
   }
-  const override = getWebLLMTestGlobals()[WEB_LLM_TEST_OVERRIDE_KEY];
+  const override = testGlobals[WEB_LLM_TEST_OVERRIDE_KEY];
   if (!override) {
     return null;
   }
@@ -119,7 +117,7 @@ export function registerRuntimeTestHooks(commandRouter: CommandRouter): void {
     return;
   }
   logger.info("Registering runtime test hooks");
-  getWebLLMTestGlobals().triggerCommandForTesting = async (command: string) => {
+  testGlobals.triggerCommandForTesting = async (command: string) => {
     await commandRouter.handle(command);
   };
 
@@ -167,14 +165,11 @@ export function registerRuntimeTestHooks(commandRouter: CommandRouter): void {
           sendResponse({ ok: false });
           return true;
         }
-        const predictions = predictionsRaw.filter(
-          (prediction): prediction is string => typeof prediction === "string",
-        );
         const delayMs =
           typeof delayMsRaw === "number" && Number.isFinite(delayMsRaw)
             ? Math.max(0, Math.round(delayMsRaw))
             : 0;
-        setWebLLMTestOverride(predictions, delayMs);
+        setWebLLMTestOverride(predictionsRaw, delayMs);
         sendResponse({ ok: true });
         return true;
       }
