@@ -52,6 +52,36 @@ let currentDomainURL: string | undefined;
 let currentTabId: number | null = null;
 let currentEnabledLanguages: string[] = [];
 let currentProfileLanguageFallback = "en_US";
+
+// Literal i18n keys (badge, title, body) so they stay greppable. Must precede currentPageState init (TDZ).
+const STATIC_PAGE_STATE_KEYS = {
+  no_page: [
+    "popup_page_state_no_page_badge",
+    "popup_page_state_no_page_title",
+    "popup_page_state_no_page_body",
+  ],
+  restricted: [
+    "popup_page_state_restricted_badge",
+    "popup_page_state_restricted_title",
+    "popup_page_state_restricted_body",
+  ],
+  extension: [
+    "popup_page_state_extension_badge",
+    "popup_page_state_extension_title",
+    "popup_page_state_extension_body",
+  ],
+  file: [
+    "popup_page_state_file_badge",
+    "popup_page_state_file_title",
+    "popup_page_state_file_body",
+  ],
+  other: [
+    "popup_page_state_other_badge",
+    "popup_page_state_other_title",
+    "popup_page_state_other_body",
+  ],
+} as const;
+
 let currentPageState: PopupPageState = getCurrentPageState(undefined);
 let lastMarkedDonationPromptId: string | null = null;
 const PRODUCTIVITY_DASHBOARD_RETRY_DELAYS_MS = [150, 300, 600, 1200, 2400] as const;
@@ -154,14 +184,10 @@ function setSiteSpecificControlsEnabled(enabled: boolean): void {
 
 function staticPageState(
   kind: "restricted" | "non_actionable",
-  key: string,
+  key: keyof typeof STATIC_PAGE_STATE_KEYS,
 ): Extract<PopupPageState, { kind: "restricted" | "non_actionable" }> {
-  return {
-    kind,
-    badge: i18n.get(`popup_page_state_${key}_badge`),
-    title: i18n.get(`popup_page_state_${key}_title`),
-    body: i18n.get(`popup_page_state_${key}_body`),
-  };
+  const [badge, title, body] = STATIC_PAGE_STATE_KEYS[key];
+  return { kind, badge: i18n.get(badge), title: i18n.get(title), body: i18n.get(body) };
 }
 
 function getCurrentPageState(url?: string): PopupPageState {
@@ -293,10 +319,7 @@ function syncPopupThemeWithSystem(): void {
 
 async function renderActionablePageState(): Promise<void> {
   if (!currentDomainURL) {
-    const fallbackState = getCurrentPageState(undefined);
-    if (fallbackState.kind !== "actionable") {
-      renderStaticPageState(fallbackState);
-    }
+    renderStaticPageState(staticPageState("non_actionable", "no_page"));
     return;
   }
 

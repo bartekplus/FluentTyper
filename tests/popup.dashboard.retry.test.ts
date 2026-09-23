@@ -778,6 +778,28 @@ describe.serial("popup productivity dashboard retry/failure paths", () => {
     );
   });
 
+  test("renders translated copy for every non-actionable page state", async () => {
+    const cases: Array<[string | undefined, string]> = [
+      [undefined, "no_page"],
+      ["about:blank", "restricted"],
+      ["moz-extension://abc/options.html", "extension"],
+      ["file:///tmp/a.txt", "file"],
+      ["ftp://example.com", "other"],
+    ];
+    for (const [url, state] of cases) {
+      await loadPopupWithOutcomes([{ type: "stats", value: createPopupStats(1) }], "0", undefined, {
+        id: 12,
+        url,
+      });
+      for (const part of ["badge", "title", "body"]) {
+        const key = `popup_page_state_${state}_${part}`;
+        const expected = originalI18nGet!(key);
+        expect(expected).not.toBe(key);
+        expect(textContent(`pageState${part[0].toUpperCase()}${part.slice(1)}`)).toBe(expected);
+      }
+    }
+  });
+
   test("shows recovery copy in the popup when permission checks are unavailable", async () => {
     await loadPopupWithOutcomes(
       [{ type: "stats", value: createPopupStats(1) }],
