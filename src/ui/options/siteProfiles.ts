@@ -1,5 +1,5 @@
 import type { Store } from "@core/application/storage/Store.js";
-import { SUPPORTED_LANGUAGES, resolveEnabledLanguages } from "@core/domain/lang";
+import { resolveEnabledLanguages } from "@core/domain/lang";
 import {
   KEY_ENABLED_LANGUAGES,
   KEY_INLINE_SUGGESTION,
@@ -22,7 +22,7 @@ import {
   type SiteProfiles,
 } from "@core/domain/siteProfiles";
 import { formatTranslation, i18n } from "./fluenttyperI18n.js";
-import { createStackField } from "./workspacePanelUtils.js";
+import { appendLanguageOptions, createStackField, languageLabel } from "./workspacePanelUtils.js";
 
 interface SiteProfilesElements {
   editingBadge: HTMLElement;
@@ -317,12 +317,7 @@ export class SiteProfilesManager {
 
   private populateLanguageOptions(enabledLanguages: string[]): void {
     this.elements.languageSelect.replaceChildren();
-    enabledLanguages.forEach((languageKey) => {
-      const option = document.createElement("option");
-      option.value = languageKey;
-      option.textContent = SUPPORTED_LANGUAGES[languageKey] || languageKey;
-      this.elements.languageSelect.appendChild(option);
-    });
+    appendLanguageOptions(this.elements.languageSelect, enabledLanguages);
   }
 
   private populateSuggestionsOptions(globalNumSuggestions: number): void {
@@ -434,7 +429,7 @@ export class SiteProfilesManager {
       [
         {
           label: i18n.get("site_profiles_table_language"),
-          value: SUPPORTED_LANGUAGES[profile.language] || profile.language,
+          value: languageLabel(profile.language),
         },
         {
           label: i18n.get("site_profiles_table_num_suggestions"),

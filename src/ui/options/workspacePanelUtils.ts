@@ -1,4 +1,5 @@
 import type { SettingsRegistry } from "@ui/settings-engine/SettingsEngine.js";
+import { SUPPORTED_LANGUAGES } from "@core/domain/lang";
 
 type ControlEventTarget = {
   addEvent?: (type: string, fn: () => void) => void;
@@ -18,6 +19,19 @@ export function formatLooseText(value: unknown, fallback = ""): string {
     return String(value);
   }
   return fallback;
+}
+
+export function languageLabel(languageKey: string): string {
+  return SUPPORTED_LANGUAGES[languageKey] || languageKey;
+}
+
+export function appendLanguageOptions(select: HTMLSelectElement, languageKeys: string[]): void {
+  languageKeys.forEach((languageKey) => {
+    const option = document.createElement("option");
+    option.value = languageKey;
+    option.textContent = languageLabel(languageKey);
+    select.appendChild(option);
+  });
 }
 
 export function createWorkspaceCard(titleText?: string, bodyText?: string) {

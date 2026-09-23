@@ -6,7 +6,7 @@ import {
 } from "@core/application/logging/Logger";
 import { Store } from "@core/application/storage/Store.js";
 import { dispatchSettingsSaveStatus } from "@ui/settings-engine/controls/FieldControl.js";
-import { SUPPORTED_LANGUAGES, resolveEnabledLanguages } from "@core/domain/lang";
+import { resolveEnabledLanguages } from "@core/domain/lang";
 import { LanguageSettingsPanel } from "@ui/options/LanguageSettingsPanel";
 import { TextAssetsPanel } from "@ui/options/TextAssetsPanel";
 import { SiteManagementPanel } from "@ui/options/SiteManagementPanel";
@@ -90,7 +90,7 @@ import { PERSONALIZATION_STORAGE_KEY } from "@core/application/personalization/P
 import { DEFAULT_SUGGESTION_THEME_SETTINGS } from "@core/domain/themeDefaults";
 import { i18n } from "./fluenttyperI18n.js";
 import { manifest } from "./settingsManifest.js";
-import { createWorkspaceShell, formatLooseText } from "./workspacePanelUtils.js";
+import { createWorkspaceShell, formatLooseText, languageLabel } from "./workspacePanelUtils.js";
 
 const PRODUCTIVITY_INSIGHTS_MAX_RETRIES = 5;
 const PRODUCTIVITY_INSIGHTS_RETRY_DELAY_MS = 200;
@@ -216,8 +216,8 @@ const OBSERVABILITY_REFRESH_KEYS = new Set([
   KEY_OBSERVABILITY_DEFAULT_LEVEL,
 ]);
 
-function refreshObservabilitySnapshot(rootId: string): void {
-  const root = document.getElementById(rootId);
+function refreshObservabilitySnapshot(): void {
+  const root = document.getElementById("observabilityRoot");
   if (!root) {
     return;
   }
@@ -233,7 +233,7 @@ function handleConfigRefreshTrigger(registry: SettingsRegistry, key: string): vo
   optionsPageConfigChange();
 
   if (OBSERVABILITY_REFRESH_KEYS.has(key)) {
-    refreshObservabilitySnapshot("observabilityRoot");
+    refreshObservabilitySnapshot();
   }
 }
 
@@ -502,7 +502,7 @@ function formatLanguageLabel(language: unknown) {
   if (typeof language !== "string" || !language) {
     return t("productivity_unknown_language");
   }
-  return SUPPORTED_LANGUAGES[language] || language;
+  return languageLabel(language);
 }
 
 function formatTrendDayLabel(dateKey: unknown) {
@@ -555,11 +555,18 @@ async function handleDonationPromptAction(prompt: Record<string, unknown>, actio
 type RankedRow = Record<string, unknown>;
 
 function appendRankedList(
-  container: HTMLElement,
+  columns: HTMLElement,
+  titleText: string,
   rows: RankedRow[],
   emptyText: string,
   rowMapper: (row: RankedRow) => [string, string],
 ) {
+  const container = document.createElement("section");
+  container.className = "productivity-insights-section";
+  const title = document.createElement("h4");
+  title.textContent = titleText;
+  container.appendChild(title);
+  columns.appendChild(container);
   const list = document.createElement("ul");
   list.className = "productivity-insights-list";
   if (!Array.isArray(rows) || rows.length === 0) {
@@ -760,13 +767,13 @@ function renderProductivityInsights(root: HTMLElement, stats: ProductivityStats)
   const columns = document.createElement("div");
   columns.className = "productivity-insights-columns";
 
-  const snippetSection = document.createElement("section");
-  snippetSection.className = "productivity-insights-section";
-  const snippetTitle = document.createElement("h4");
-  snippetTitle.textContent = t("productivity_top_snippets_title");
-  snippetSection.appendChild(snippetTitle);
+  const languageRow = (row: RankedRow): [string, string] => [
+    formatLanguageLabel(row.language),
+    `${formatMetricNumber(row.estimatedMinutesSaved)} ${t("popup_short_minutes")}`,
+  ];
   appendRankedList(
-    snippetSection,
+    columns,
+    t("productivity_top_snippets_title"),
     (stats.topSnippets as RankedRow[]) || [],
     t("productivity_top_snippets_empty"),
     (row) => [
@@ -774,39 +781,20 @@ function renderProductivityInsights(root: HTMLElement, stats: ProductivityStats)
       `${formatMetricNumber(row.count)}x • ${formatMetricNumber(row.estimatedMinutesSaved)} ${t("popup_short_minutes")}`,
     ],
   );
-  columns.appendChild(snippetSection);
-
-  const languageWeekSection = document.createElement("section");
-  languageWeekSection.className = "productivity-insights-section";
-  const languageWeekTitle = document.createElement("h4");
-  languageWeekTitle.textContent = t("productivity_languages_last7_title");
-  languageWeekSection.appendChild(languageWeekTitle);
   appendRankedList(
-    languageWeekSection,
+    columns,
+    t("productivity_languages_last7_title"),
     (stats.perLanguageLast7Days as RankedRow[]) || [],
     t("productivity_languages_empty"),
-    (row) => [
-      formatLanguageLabel(row.language),
-      `${formatMetricNumber(row.estimatedMinutesSaved)} ${t("popup_short_minutes")}`,
-    ],
+    languageRow,
   );
-  columns.appendChild(languageWeekSection);
-
-  const languageLifetimeSection = document.createElement("section");
-  languageLifetimeSection.className = "productivity-insights-section";
-  const languageLifetimeTitle = document.createElement("h4");
-  languageLifetimeTitle.textContent = t("productivity_languages_lifetime_title");
-  languageLifetimeSection.appendChild(languageLifetimeTitle);
   appendRankedList(
-    languageLifetimeSection,
+    columns,
+    t("productivity_languages_lifetime_title"),
     (stats.perLanguageLifetime as RankedRow[]) || [],
     t("productivity_languages_empty"),
-    (row) => [
-      formatLanguageLabel(row.language),
-      `${formatMetricNumber(row.estimatedMinutesSaved)} ${t("popup_short_minutes")}`,
-    ],
+    languageRow,
   );
-  columns.appendChild(languageLifetimeSection);
   shell.appendChild(columns);
 
   const weeklyRecap = stats.weeklyRecap as Record<string, unknown> | undefined;
