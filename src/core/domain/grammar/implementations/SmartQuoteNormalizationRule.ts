@@ -69,7 +69,6 @@ export class SmartQuoteNormalizationRule implements GrammarRule {
 
       if (openedEmpty) {
         replacement = `${pad}${doubleClose}`;
-        deleteBackwards = 1;
       } else if (forceClosingQuoteWithSpaceTrim) {
         replacement = `${pad}${doubleClose}`;
         deleteBackwards = 1 + trailingSpaces.length;

@@ -5,26 +5,19 @@ export interface PredictionTraceContext {
   traceStartedAtMs: number;
 }
 
-function generatePredictionTraceId(): string {
-  return `pred-${randomUUID()}`;
-}
-
 export function createPredictionTraceContext(
   startedAtMs: number = Date.now(),
   traceId?: string,
 ): PredictionTraceContext {
   return {
-    traceId: traceId ?? generatePredictionTraceId(),
+    traceId: traceId ?? `pred-${randomUUID()}`,
     traceStartedAtMs: startedAtMs,
   };
 }
 
-export function resolveTraceAgeMs(
-  traceStartedAtMs?: number,
-  now: number = Date.now(),
-): number | null {
+export function resolveTraceAgeMs(traceStartedAtMs?: number): number | null {
   if (typeof traceStartedAtMs !== "number" || !Number.isFinite(traceStartedAtMs)) {
     return null;
   }
-  return Math.max(0, now - traceStartedAtMs);
+  return Math.max(0, Date.now() - traceStartedAtMs);
 }

@@ -21,16 +21,8 @@ export interface DailyProductivityState {
   languageUsage: Record<string, LanguageUsageCounters>;
 }
 
-export interface ProductivityStatsState {
+export interface ProductivityStatsState extends DailyProductivityState {
   schemaVersion: 2;
-  acceptedSuggestions: number;
-  charactersSaved: number;
-  suggestionsShown: number;
-  snippetsExpanded: number;
-  charsInsertedFromSnippet: number;
-  charsTypedForTrigger: number;
-  snippetUsage: Record<string, SnippetUsageCounters>;
-  languageUsage: Record<string, LanguageUsageCounters>;
   daily: Record<string, DailyProductivityState>;
   shownMilestones: number[];
   firstValuePromptAcknowledged: boolean;
@@ -38,5 +30,3 @@ export interface ProductivityStatsState {
   lastDonationPromptAt: string | null;
   donationSnoozedUntil: string | null;
 }
-
-export type AggregatedCounters = DailyProductivityState;

@@ -52,12 +52,7 @@ export class InlineSuggestionPresenter {
     resolveMentionToken: (beforeCursor: string) => { token: string; start: number };
     resolveTrailingToken?: (afterCursor: string) => string;
   }): void {
-    if (!enabled) {
-      this.clearForEntry(entry.id);
-      return;
-    }
-
-    const suggestion = entry.inlineSuggestion;
+    const suggestion = enabled ? entry.inlineSuggestion : null;
     if (!suggestion) {
       this.clearForEntry(entry.id);
       return;
@@ -129,20 +124,7 @@ export class InlineSuggestionPresenter {
         entryId: entry.id,
         doc: this.doc,
       });
-    } else if (isReplacement) {
-      // ponytail: no mid-text contenteditable replacement preview (the clone
-      // can't show that acceptance also consumes the trailing token), so Tab
-      // isn't armed there.
-      ghost = isMidText
-        ? null
-        : InlineSuggestionView.render({
-            target: entry.elem,
-            text: suffix,
-            caretRect,
-            entryId: entry.id,
-            doc: this.doc,
-          });
-    } else if (useMirror) {
+    } else if (useMirror && !isReplacement) {
       ghost = InlineSuggestionView.renderContentEditableMirrorPreview({
         target: entry.elem,
         suffix,
@@ -150,6 +132,11 @@ export class InlineSuggestionPresenter {
         entryId: entry.id,
         doc: this.doc,
       });
+    } else if (isReplacement && isMidText) {
+      // ponytail: no mid-text contenteditable replacement preview (the clone
+      // can't show that acceptance also consumes the trailing token), so Tab
+      // isn't armed there.
+      ghost = null;
     } else {
       ghost = InlineSuggestionView.render({
         target: entry.elem,
@@ -174,11 +161,8 @@ export class InlineSuggestionPresenter {
   private observeGhostRemoval(): void {
     this.stopObservingRemoval();
     const ghost = this.activeGhost;
-    if (!ghost) {
-      return;
-    }
-    const root = ghost.parentNode;
-    if (!root) {
+    const root = ghost?.parentNode;
+    if (!ghost || !root) {
       return;
     }
     this.removalObserver = new MutationObserver(() => {
@@ -198,9 +182,7 @@ export class InlineSuggestionPresenter {
   }
 
   private stopObservingRemoval(): void {
-    if (this.removalObserver) {
-      this.removalObserver.disconnect();
-      this.removalObserver = null;
-    }
+    this.removalObserver?.disconnect();
+    this.removalObserver = null;
   }
 }

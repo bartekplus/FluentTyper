@@ -46,14 +46,7 @@ function cloneSanitizedNode(node: Node): Node | null {
 
   const tagName = node.tagName.toUpperCase();
   if (!ALLOWED_TAGS.has(tagName)) {
-    const fragment = document.createDocumentFragment();
-    node.childNodes.forEach((child) => {
-      const sanitizedChild = cloneSanitizedNode(child);
-      if (sanitizedChild) {
-        fragment.appendChild(sanitizedChild);
-      }
-    });
-    return fragment;
+    return appendSanitizedChildren(node, document.createDocumentFragment());
   }
 
   const element = document.createElement(tagName.toLowerCase());
@@ -91,14 +84,17 @@ function cloneSanitizedNode(node: Node): Node | null {
     element.setAttribute("rel", "noopener noreferrer");
   }
 
-  node.childNodes.forEach((child) => {
+  return appendSanitizedChildren(node, element);
+}
+
+function appendSanitizedChildren<T extends Node>(source: Node, target: T): T {
+  source.childNodes.forEach((child) => {
     const sanitizedChild = cloneSanitizedNode(child);
     if (sanitizedChild) {
-      element.appendChild(sanitizedChild);
+      target.appendChild(sanitizedChild);
     }
   });
-
-  return element;
+  return target;
 }
 
 export function setSafeHtmlContent(container: HTMLElement, html: string): void {

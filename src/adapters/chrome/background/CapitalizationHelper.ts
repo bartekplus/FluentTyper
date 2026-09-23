@@ -7,7 +7,7 @@ export enum Capitalization {
   None = "none",
 }
 
-export interface CheckAutoCapitalizeParams {
+interface CheckAutoCapitalizeParams {
   lastWord: string;
   wordCount: number;
   newSentence: boolean;

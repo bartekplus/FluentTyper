@@ -5,7 +5,7 @@ export interface Ok<TValue> {
   value: TValue;
 }
 
-export interface Err<TError> {
+interface Err<TError> {
   ok: false;
   error: TError;
 }

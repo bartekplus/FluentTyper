@@ -10,8 +10,8 @@ import {
   findLineEditorController,
   readLineEditorBlockContext,
   readLineEditorCursor,
+  syncBackingSelection,
   type LineEditorController,
-  type LineEditorCursor,
 } from "./HostEditorControllerUtils";
 
 type BridgeRequest =
@@ -26,6 +26,11 @@ type BridgeRequest =
       cursorAfter: number;
       expectedBlockText: string;
     };
+type ApplyRequest = Extract<BridgeRequest, { action: "applyBlockReplacement" }>;
+type BridgeWindow = Window & { [HOST_EDITOR_MAIN_WORLD_FLAG]?: boolean };
+
+const NOT_APPLIED = { applied: false, didDispatchInput: false };
+const APPLIED = { applied: true, didDispatchInput: false };
 
 // ── CKEditor-5 integration ──────────────────────────────────────────
 // CKEditor-5 stores its editor instance on the root editable element as
@@ -287,7 +292,7 @@ function flushCKEditor5PendingMutations(editor: CKEditorInstance): void {
 
 function applyCKEditor5BlockReplacement(
   editor: CKEditorInstance,
-  request: Extract<BridgeRequest, { action: "applyBlockReplacement" }>,
+  request: ApplyRequest,
 ): { applied: boolean; didDispatchInput: boolean } {
   // Drain any pending DOM mutation records before reading the model so that
   // a freshly-typed character already in the DOM (Firefox CKEditor-5 lag)
@@ -295,15 +300,15 @@ function applyCKEditor5BlockReplacement(
   flushCKEditor5PendingMutations(editor);
   const position = getCKEditor5SelectionPosition(editor);
   if (!position) {
-    return { applied: false, didDispatchInput: false };
+    return NOT_APPLIED;
   }
   const block = position.parent;
   if (!block) {
-    return { applied: false, didDispatchInput: false };
+    return NOT_APPLIED;
   }
   const mapping = extractModelBlockMapping(block);
   if (mapping === null) {
-    return { applied: false, didDispatchInput: false };
+    return NOT_APPLIED;
   }
   // Validate the request bounds against the caller's view of the block,
   // not the host model.  When the host is lagging (Firefox can expose a
@@ -314,14 +319,14 @@ function applyCKEditor5BlockReplacement(
     request.replaceEnd < request.replaceStart ||
     request.replaceEnd > request.expectedBlockText.length
   ) {
-    return { applied: false, didDispatchInput: false };
+    return NOT_APPLIED;
   }
   const expectedLength =
     request.expectedBlockText.length -
     (request.replaceEnd - request.replaceStart) +
     request.replacementText.length;
   if (request.cursorAfter < 0 || request.cursorAfter > expectedLength) {
-    return { applied: false, didDispatchInput: false };
+    return NOT_APPLIED;
   }
 
   if (mapping.text !== request.expectedBlockText) {
@@ -333,13 +338,13 @@ function applyCKEditor5BlockReplacement(
     // softBreaks (which we don't attempt to rewrite) and guards against
     // unrelated mismatches corrupting the block.
     if (mapping.softBreakModelOffsets.length > 0) {
-      return { applied: false, didDispatchInput: false };
+      return NOT_APPLIED;
     }
     const expectedMissingLeading =
       request.expectedBlockText.slice(0, request.replaceStart) +
       request.expectedBlockText.slice(request.replaceEnd);
     if (mapping.text !== expectedMissingLeading) {
-      return { applied: false, didDispatchInput: false };
+      return NOT_APPLIED;
     }
     const expectedPostEditText =
       request.expectedBlockText.slice(0, request.replaceStart) +
@@ -351,13 +356,12 @@ function applyCKEditor5BlockReplacement(
         if (expectedPostEditText.length > 0) {
           writer.insertText(expectedPostEditText, writer.createPositionAt(block, 0));
         }
-        const cursorPos = writer.createPositionAt(block, request.cursorAfter);
-        writer.setSelection(cursorPos);
+        writer.setSelection(writer.createPositionAt(block, request.cursorAfter));
       });
     } catch {
-      return { applied: false, didDispatchInput: false };
+      return NOT_APPLIED;
     }
-    return { applied: true, didDispatchInput: false };
+    return APPLIED;
   }
 
   // Translate text offsets to model offsets (accounting for softBreaks).
@@ -393,17 +397,11 @@ function applyCKEditor5BlockReplacement(
   // the inserted text preserves the surrounding formatting.
   let textAttrs: Record<string, unknown> | null = null;
   try {
-    const probePos = position;
-    if (probePos) {
-      const node = probePos.textNode ?? probePos.nodeBefore ?? probePos.nodeAfter;
-      if (node && typeof node.getAttributes === "function") {
-        const attrs: Record<string, unknown> = {};
-        for (const [key, value] of node.getAttributes()) {
-          attrs[key] = value;
-        }
-        if (Object.keys(attrs).length > 0) {
-          textAttrs = attrs;
-        }
+    const node = position.textNode ?? position.nodeBefore ?? position.nodeAfter;
+    if (node && typeof node.getAttributes === "function") {
+      const attrs: Record<string, unknown> = Object.fromEntries(node.getAttributes());
+      if (Object.keys(attrs).length > 0) {
+        textAttrs = attrs;
       }
     }
   } catch {
@@ -412,10 +410,12 @@ function applyCKEditor5BlockReplacement(
 
   try {
     editor.model.change((writer: any) => {
-      const startPos = writer.createPositionAt(block, modelReplaceStart);
-      const endPos = writer.createPositionAt(block, modelReplaceEnd);
-      const range = writer.createRange(startPos, endPos);
-      writer.remove(range);
+      writer.remove(
+        writer.createRange(
+          writer.createPositionAt(block, modelReplaceStart),
+          writer.createPositionAt(block, modelReplaceEnd),
+        ),
+      );
       if (request.replacementText.length > 0) {
         const insertPos = writer.createPositionAt(block, modelReplaceStart);
         if (textAttrs) {
@@ -424,14 +424,13 @@ function applyCKEditor5BlockReplacement(
           writer.insertText(request.replacementText, insertPos);
         }
       }
-      const cursorPos = writer.createPositionAt(block, modelCursorAfter);
-      writer.setSelection(cursorPos);
+      writer.setSelection(writer.createPositionAt(block, modelCursorAfter));
     });
   } catch {
-    return { applied: false, didDispatchInput: false };
+    return NOT_APPLIED;
   }
 
-  return { applied: true, didDispatchInput: false };
+  return APPLIED;
 }
 /* oxlint-enable typescript/no-explicit-any, typescript/no-unsafe-member-access, typescript/no-unsafe-assignment, typescript/no-unsafe-call, typescript/no-unsafe-argument */
 
@@ -446,44 +445,19 @@ function findBackingTextValueTarget(
     return null;
   }
   const candidate = codeMirrorRoot.previousElementSibling;
-  if (candidate instanceof HTMLInputElement || candidate instanceof HTMLTextAreaElement) {
-    return candidate;
-  }
-  return null;
-}
-
-function syncBackingSelection(
-  controller: LineEditorController,
-  elem: HTMLElement,
-  selection: LineEditorCursor,
-): void {
-  const target = findBackingTextValueTarget(elem);
-  if (!target) {
-    return;
-  }
-  const absoluteIndex = controller.indexFromPos(selection);
-  if (!Number.isFinite(absoluteIndex)) {
-    return;
-  }
-  const selectionIndex = Math.max(0, Math.trunc(absoluteIndex));
-  if (selectionIndex > target.value.length) {
-    return;
-  }
-  try {
-    target.setSelectionRange(selectionIndex, selectionIndex);
-  } catch {
-    // Ignore selection sync failures on hidden backing inputs.
-  }
+  return candidate instanceof HTMLInputElement || candidate instanceof HTMLTextAreaElement
+    ? candidate
+    : null;
 }
 
 function applyBlockReplacement(
   controller: LineEditorController,
   elem: HTMLElement,
-  request: Extract<BridgeRequest, { action: "applyBlockReplacement" }>,
+  request: ApplyRequest,
 ) {
   const cursor = readLineEditorCursor(controller);
   if (!cursor) {
-    return { applied: false, didDispatchInput: false };
+    return NOT_APPLIED;
   }
   const blockText = controller.getLine(cursor.line);
   if (
@@ -493,13 +467,13 @@ function applyBlockReplacement(
     request.replaceEnd < request.replaceStart ||
     request.replaceEnd > blockText.length
   ) {
-    return { applied: false, didDispatchInput: false };
+    return NOT_APPLIED;
   }
 
   const expectedLength =
     blockText.length - (request.replaceEnd - request.replaceStart) + request.replacementText.length;
   if (request.cursorAfter < 0 || request.cursorAfter > expectedLength) {
-    return { applied: false, didDispatchInput: false };
+    return NOT_APPLIED;
   }
 
   const from = { line: cursor.line, ch: request.replaceStart };
@@ -516,10 +490,10 @@ function applyBlockReplacement(
     run();
   }
 
-  syncBackingSelection(controller, elem, selection);
+  syncBackingSelection(controller, findBackingTextValueTarget(elem), selection);
   controller.focus?.();
 
-  return { applied: true, didDispatchInput: false };
+  return APPLIED;
 }
 
 export function installHostEditorMainWorldBridge(doc: Document = document): void {
@@ -527,11 +501,11 @@ export function installHostEditorMainWorldBridge(doc: Document = document): void
   if (!win) {
     return;
   }
-  if ((win as Window & { [HOST_EDITOR_MAIN_WORLD_FLAG]?: boolean })[HOST_EDITOR_MAIN_WORLD_FLAG]) {
+  if ((win as BridgeWindow)[HOST_EDITOR_MAIN_WORLD_FLAG]) {
     return;
   }
 
-  (win as Window & { [HOST_EDITOR_MAIN_WORLD_FLAG]?: boolean })[HOST_EDITOR_MAIN_WORLD_FLAG] = true;
+  (win as BridgeWindow)[HOST_EDITOR_MAIN_WORLD_FLAG] = true;
 
   // Cursor movement bridge: content script (isolated world) dispatches this
   // event when it needs to reposition the cursor in the main world. Running
@@ -577,33 +551,18 @@ export function installHostEditorMainWorldBridge(doc: Document = document): void
       try {
         const request = JSON.parse(rawRequest) as BridgeRequest;
         const controller = findLineEditorController(source);
-        if (controller) {
-          if (request.action === "getBlockContext") {
-            const blockContext = readLineEditorBlockContext(controller);
-            if (blockContext) {
-              response = { ok: true, blockContext };
-            }
-          } else {
-            response = {
-              ok: true,
-              result: applyBlockReplacement(controller, source, request),
-            };
+        const ckEditor = controller ? null : findCKEditor5Instance(source);
+        if (request.action === "getBlockContext") {
+          const blockContext = controller
+            ? readLineEditorBlockContext(controller)
+            : ckEditor && getCKEditor5BlockContext(ckEditor);
+          if (blockContext) {
+            response = { ok: true, blockContext };
           }
-        } else {
-          const ckEditor = findCKEditor5Instance(source);
-          if (ckEditor) {
-            if (request.action === "getBlockContext") {
-              const blockContext = getCKEditor5BlockContext(ckEditor);
-              if (blockContext) {
-                response = { ok: true, blockContext };
-              }
-            } else {
-              response = {
-                ok: true,
-                result: applyCKEditor5BlockReplacement(ckEditor, request),
-              };
-            }
-          }
+        } else if (controller) {
+          response = { ok: true, result: applyBlockReplacement(controller, source, request) };
+        } else if (ckEditor) {
+          response = { ok: true, result: applyCKEditor5BlockReplacement(ckEditor, request) };
         }
       } catch {
         response = { ok: false };

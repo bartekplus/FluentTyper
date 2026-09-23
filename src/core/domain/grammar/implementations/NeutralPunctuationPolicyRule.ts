@@ -1,11 +1,10 @@
-import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "../types";
+import type { GrammarEdit, GrammarEventType, GrammarRule } from "../types";
 
 export class NeutralPunctuationPolicyRule implements GrammarRule {
   readonly id = "neutralPunctuationPolicy" as const;
   readonly triggers: GrammarEventType[] = ["insertChar", "wordBoundary"];
 
-  apply(context: GrammarContext): GrammarEdit | null {
-    void context;
+  apply(): GrammarEdit | null {
     // Explicitly no-op: for : ; ! ? we intentionally avoid auto spacing in v1
     // to keep cross-language behavior conservative. French spacing is the
     // opt-in frenchPunctuationSpacing rule.

@@ -3,7 +3,7 @@ import { isWhiteSpace } from "@core/application/domain-utils";
 import { createLogger } from "@core/application/logging/Logger";
 import { getErrorMessage } from "@core/domain/error";
 import { Capitalization } from "./CapitalizationHelper";
-import { PredictionInputProcessor } from "./PredictionInputProcessor";
+import { MIN_WORD_LENGTH_TO_PREDICT, PredictionInputProcessor } from "./PredictionInputProcessor";
 import { TemplateExpander } from "./TemplateExpander";
 import type { PresageModule } from "./PresageTypes";
 import { setTextExpansions, setUserDictionaryList } from "./PresageFiles";
@@ -14,7 +14,6 @@ import { SPACING_RULES, Spacing } from "@core/domain/spacingRules";
 import { rankPersonalizedCandidates } from "@core/domain/personalization/PersonalizationRanker";
 import type { PersonalizationRankingSnapshot } from "@core/domain/personalization/types";
 const SUGGESTION_COUNT = 5;
-const MIN_WORD_LENGTH_TO_PREDICT = 1;
 const logger = createLogger("PresageHandler");
 
 export interface PresageConfig {
@@ -50,15 +49,17 @@ export interface PresagePredictionContext {
 
 export class PresageHandler {
   private readonly module: PresageModule;
-  private presageEngines: Record<string, PresageEngine>;
-  private numSuggestions: number;
-  private minWordLengthToPredict: number;
-  private predictNextWordAfterSeparatorChar: boolean;
-  private insertSpaceAfterAutocomplete: boolean;
-  private autoCapitalize: boolean;
-  private prefixOnlyMode: boolean;
-  private userDictionaryList: string[];
-  private predictionInputProcessor: PredictionInputProcessor;
+  private readonly presageEngines: Record<string, PresageEngine> = {};
+  private numSuggestions = SUGGESTION_COUNT;
+  private minWordLengthToPredict = MIN_WORD_LENGTH_TO_PREDICT;
+  private predictNextWordAfterSeparatorChar = false;
+  private insertSpaceAfterAutocomplete = true;
+  private autoCapitalize = true;
+  private prefixOnlyMode = false;
+  private predictionInputProcessor = new PredictionInputProcessor(
+    this.minWordLengthToPredict,
+    this.autoCapitalize,
+  );
 
   private timeFormat?: string;
   private dateFormat?: string;
@@ -75,22 +76,10 @@ export class PresageHandler {
       prefixOnlyMode: false,
     };
     this.module = Module;
-    this.presageEngines = {};
-    this.numSuggestions = SUGGESTION_COUNT;
-    this.minWordLengthToPredict = MIN_WORD_LENGTH_TO_PREDICT;
-    this.predictNextWordAfterSeparatorChar = false;
-    this.insertSpaceAfterAutocomplete = true;
-    this.autoCapitalize = true;
-    this.prefixOnlyMode = false;
-    this.userDictionaryList = [];
     this.getPersonalizationSnapshot = options.getPersonalizationSnapshot ?? (() => ({}));
     this.now = options.now ?? Date.now;
 
-    this.predictionInputProcessor = new PredictionInputProcessor(
-      this.minWordLengthToPredict,
-      this.autoCapitalize,
-    );
-    for (const [lang] of Object.entries(SUPPORTED_LANGUAGES)) {
+    for (const lang of Object.keys(SUPPORTED_LANGUAGES)) {
       if (lang === "auto_detect") {
         continue;
       }
@@ -125,7 +114,6 @@ export class PresageHandler {
 
     this.timeFormat = config.timeFormat;
     this.dateFormat = config.dateFormat;
-    this.userDictionaryList = config.userDictionaryList || [];
 
     if (shouldRefreshEngines) {
       this.refreshPresageEngines();
@@ -134,13 +122,13 @@ export class PresageHandler {
     }
 
     setTextExpansions(this.module, this.presageEngines, config.textExpansions);
-    setUserDictionaryList(this.module, this.presageEngines, this.userDictionaryList);
+    setUserDictionaryList(this.module, this.presageEngines, config.userDictionaryList || []);
 
     this.predictionInputProcessor = new PredictionInputProcessor(
       this.minWordLengthToPredict,
       this.autoCapitalize,
     );
-    for (const [, presageEngine] of Object.entries(this.presageEngines)) {
+    for (const presageEngine of Object.values(this.presageEngines)) {
       presageEngine.setConfig({
         numSuggestions: MAX_NUM_SUGGESTIONS,
         prefixOnlyMode: this.prefixOnlyMode,
@@ -248,41 +236,7 @@ export class PresageHandler {
     predictionCandidates: string[],
     context: PresagePredictionContext,
   ): PredictionResult {
-    return this.applyPredictionOutputRules(
-      predictionCandidates,
-      context.predictionInput,
-      context.nextChar,
-      context.doCapitalize,
-      context.effectiveNumSuggestions,
-    );
-  }
-
-  async runPrediction(
-    text: string,
-    nextChar: string,
-    lang: string,
-    configOverride?: { numSuggestions?: number; tabId?: number },
-    afterCursorTokenSuffix?: string,
-  ): Promise<PredictionResult> {
-    const context = this.preparePredictionContext(
-      text,
-      nextChar,
-      lang,
-      configOverride?.numSuggestions,
-      configOverride?.tabId,
-      afterCursorTokenSuffix,
-    );
-    const predictions = await this.predictPresage(context);
-    return this.finalizePrediction(predictions, context);
-  }
-
-  private applyPredictionOutputRules(
-    predictionCandidates: string[],
-    predictionInput: string,
-    nextChar: string,
-    doCapitalize: Capitalization,
-    effectiveNumSuggestions: number,
-  ): PredictionResult {
+    const { predictionInput, nextChar, doCapitalize, effectiveNumSuggestions } = context;
     let predictions = predictionCandidates.slice();
     if (predictions.length > effectiveNumSuggestions) {
       predictions = predictions.slice(0, effectiveNumSuggestions);
@@ -329,6 +283,25 @@ export class PresageHandler {
       default:
     }
     return { predictions };
+  }
+
+  async runPrediction(
+    text: string,
+    nextChar: string,
+    lang: string,
+    configOverride?: { numSuggestions?: number; tabId?: number },
+    afterCursorTokenSuffix?: string,
+  ): Promise<PredictionResult> {
+    const context = this.preparePredictionContext(
+      text,
+      nextChar,
+      lang,
+      configOverride?.numSuggestions,
+      configOverride?.tabId,
+      afterCursorTokenSuffix,
+    );
+    const predictions = await this.predictPresage(context);
+    return this.finalizePrediction(predictions, context);
   }
 
   private refreshPresageEngines(): void {

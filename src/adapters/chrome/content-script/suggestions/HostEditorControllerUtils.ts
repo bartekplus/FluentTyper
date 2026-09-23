@@ -1,4 +1,4 @@
-export interface LineEditorCursor {
+interface LineEditorCursor {
   line: number;
   ch: number;
 }
@@ -25,7 +25,7 @@ export interface LineEditorBlockContext {
   blockText: string;
 }
 
-export function isLineEditorController(value: unknown): value is LineEditorController {
+function isLineEditorController(value: unknown): value is LineEditorController {
   if (!value || typeof value !== "object") {
     return false;
   }
@@ -85,7 +85,7 @@ export function readLineEditorBlockContext(
     return null;
   }
   const blockText = controller.getLine(cursor.line);
-  if (typeof blockText !== "string" || cursor.ch < 0 || cursor.ch > blockText.length) {
+  if (typeof blockText !== "string" || cursor.ch > blockText.length) {
     return null;
   }
   return {
@@ -93,4 +93,28 @@ export function readLineEditorBlockContext(
     afterCursor: blockText.slice(cursor.ch),
     blockText,
   };
+}
+
+/** Mirrors the editor caret onto the hidden backing input/textarea, if any. */
+export function syncBackingSelection(
+  controller: LineEditorController,
+  target: HTMLInputElement | HTMLTextAreaElement | null,
+  selection: LineEditorCursor,
+): void {
+  if (!target) {
+    return;
+  }
+  const absoluteIndex = controller.indexFromPos(selection);
+  if (!Number.isFinite(absoluteIndex)) {
+    return;
+  }
+  const selectionIndex = Math.max(0, Math.trunc(absoluteIndex));
+  if (selectionIndex > target.value.length) {
+    return;
+  }
+  try {
+    target.setSelectionRange(selectionIndex, selectionIndex);
+  } catch {
+    // Ignore selection sync failures on hidden backing inputs.
+  }
 }

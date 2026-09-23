@@ -2,19 +2,15 @@ import { SHADOW_ATTACH_MARKER_ATTR } from "./ShadowRootInterceptor";
 
 export class DomObserver {
   private observer: MutationObserver | null = null;
-  private node: Node;
-  private readonly callback: (mutationsList: MutationRecord[]) => void;
 
-  constructor(node: Node, callback: (mutationsList: MutationRecord[]) => void) {
-    this.node = node;
-    this.callback = callback;
-  }
+  constructor(
+    private node: Node,
+    private readonly callback: (mutationsList: MutationRecord[]) => void,
+  ) {}
 
   attach(): void {
     if (!this.observer) {
-      this.observer = new MutationObserver((mutationsList) => {
-        this.callback(mutationsList);
-      });
+      this.observer = new MutationObserver((mutationsList) => this.callback(mutationsList));
     }
     this.observer.observe(this.node, {
       childList: true,
@@ -45,9 +41,7 @@ export class DomObserver {
   }
 
   disconnect(): void {
-    if (this.observer) {
-      this.observer.disconnect();
-    }
+    this.observer?.disconnect();
   }
 
   setNode(node: Node): void {

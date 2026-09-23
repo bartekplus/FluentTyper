@@ -6,7 +6,7 @@ export const EARLY_TAB_ACCEPT_BRIDGE_TARGET_ATTR = "data-ft-early-tab-bridge";
 export const EARLY_TAB_ACCEPT_VISIBLE_ATTR = "data-ft-suggestion-visible";
 export const EARLY_TAB_ACCEPT_MESSAGE_TYPE = "ft-early-tab-accept-message";
 
-export interface EarlyTabAcceptMessage {
+interface EarlyTabAcceptMessage {
   source: typeof EARLY_TAB_ACCEPT_REQUEST_EVENT;
   type: typeof EARLY_TAB_ACCEPT_MESSAGE_TYPE;
   entryId: string;

@@ -28,7 +28,7 @@ import type {
   PredictRequestMessage,
   UpdateLangConfigMessage,
 } from "@core/domain/messageTypes";
-import { isMessageCommand, parseRuntimeMessage } from "@core/domain/contracts/messages";
+import { parseRuntimeMessage } from "@core/domain/contracts/messages";
 import { getDomain, isEnabledForDomain } from "@core/application/domain-utils";
 import { checkLastError } from "@core/application/transport-utils";
 import {
@@ -40,11 +40,7 @@ import {
 } from "@core/domain/error";
 import { DomainSettingsCache } from "../config/DomainSettingsCache";
 import type { BackgroundServiceWorker } from "../BackgroundServiceWorker";
-import {
-  createErrorMappingMiddleware,
-  createLoggingMiddleware,
-  HandlerRegistry,
-} from "./HandlerRegistry";
+import { HandlerRegistry } from "./HandlerRegistry";
 import { mapRuntimeError } from "./RuntimeErrorMapper";
 
 const logger = createLogger("MessageRouter");
@@ -78,16 +74,6 @@ type RoutedMessageByCommand = {
   [TCommand in RoutedMessageCommand]: Extract<RoutedMessage, { command: TCommand }>;
 };
 
-const ROUTED_MESSAGE_COMMAND_SET = new Set<string>(ROUTED_MESSAGE_COMMANDS);
-
-function isRoutedMessageCommand(command: string): command is RoutedMessageCommand {
-  return isMessageCommand(command) && ROUTED_MESSAGE_COMMAND_SET.has(command);
-}
-
-function isRoutedMessage(message: Message): message is RoutedMessage {
-  return isRoutedMessageCommand(message.command);
-}
-
 interface MessageDispatchPayload {
   request: RoutedMessage;
   sender: chrome.runtime.MessageSender;
@@ -102,17 +88,32 @@ type CommandPayload<TCommand extends RoutedMessageCommand = RoutedMessageCommand
   request: RoutedMessageByCommand[TCommand];
 };
 
+/** Runs `work`, passing FluentTyper errors through and wrapping anything else via `wrap`. */
+async function rethrowAs<T>(work: () => Promise<T>, wrap: (cause: unknown) => Error): Promise<T> {
+  try {
+    return await work();
+  } catch (error) {
+    if (isFluentTyperError(error)) {
+      throw error;
+    }
+    throw wrap(error);
+  }
+}
+
 interface SenderRoutingContext {
   tabId: number;
   frameId: number;
 }
 
-function resolveSenderRoutingContext(
+function requireSenderRoutingContext(
   sender: chrome.runtime.MessageSender,
-): SenderRoutingContext | null {
+  purpose: string,
+): SenderRoutingContext {
   const tabId = sender.tab?.id;
   if (typeof tabId !== "number") {
-    return null;
+    throw new TransportError(`Missing sender tab id for ${purpose}`, {
+      code: "message_missing_sender_tab_id",
+    });
   }
   return {
     tabId,
@@ -122,25 +123,18 @@ function resolveSenderRoutingContext(
 
 export class MessageRouter {
   private readonly getWorker: () => BackgroundServiceWorker;
-  private readonly registry: HandlerRegistry<RoutedMessageCommand, MessageDispatchPayload, void>;
+  private readonly registry = new HandlerRegistry<RoutedMessageCommand, MessageDispatchPayload>(
+    logger,
+    (error, command, payload) => {
+      const mappedError = mapRuntimeError(error);
+      logError(`MessageRouter.${command}.${mappedError.category}.${mappedError.code}`, error);
+      payload.sendResponse(mappedError.response);
+    },
+  );
   private readonly domainSettingsCache = new DomainSettingsCache();
 
   constructor(getWorker: () => BackgroundServiceWorker) {
     this.getWorker = getWorker;
-    this.registry = new HandlerRegistry<RoutedMessageCommand, MessageDispatchPayload, void>([
-      createErrorMappingMiddleware<MessageDispatchPayload, void>({
-        mapError: (error, context) => {
-          const mappedError = mapRuntimeError(error);
-          logError(
-            `MessageRouter.${context.command}.${mappedError.category}.${mappedError.code}`,
-            error,
-          );
-          context.payload.sendResponse(mappedError.response);
-        },
-      }),
-      createLoggingMiddleware(logger),
-    ]);
-
     const register = <TCommand extends RoutedMessageCommand>(
       command: TCommand,
       handler: (payload: CommandPayload<TCommand>) => Promise<void> | void,
@@ -227,19 +221,20 @@ export class MessageRouter {
     }
     const runtimeMessage = parsedRequest.value;
 
-    if (!isRoutedMessage(runtimeMessage)) {
-      logError("onMessage", `Unknown command: ${runtimeMessage.command}`);
+    const { command } = runtimeMessage;
+    if (!this.registry.has(command)) {
+      logError("onMessage", `Unknown command: ${command}`);
       return false;
     }
 
-    void this.registry.dispatch(runtimeMessage.command, {
-      request: runtimeMessage,
+    void this.registry.dispatch(command, {
+      request: runtimeMessage as RoutedMessage,
       sender,
       sendResponse,
       worker: this.getWorker(),
     });
 
-    return runtimeMessage.command !== CMD_CONTENT_SCRIPT_PREDICT_REQ;
+    return command !== CMD_CONTENT_SCRIPT_PREDICT_REQ;
   }
 
   private respondOk(sendResponse: (response?: unknown) => void): void {
@@ -250,51 +245,38 @@ export class MessageRouter {
     payload: CommandPayload<typeof CMD_CONTENT_SCRIPT_PREDICT_REQ>,
   ): Promise<void> {
     const { request, sender, sendResponse, worker } = payload;
-    const senderContext = resolveSenderRoutingContext(sender);
-    if (!senderContext) {
-      throw new TransportError("Missing sender tab id for prediction request", {
-        code: "message_missing_sender_tab_id",
-      });
-    }
-
-    const { tabId, frameId } = senderContext;
+    const { tabId, frameId } = requireSenderRoutingContext(sender, "prediction request");
     const domainURL = getDomain(sender.tab?.url || "");
 
-    let domainSettings: Awaited<ReturnType<DomainSettingsCache["resolve"]>>;
-    try {
-      domainSettings = await this.domainSettingsCache.resolve(worker.settingsManager, domainURL);
-    } catch (error) {
-      if (isFluentTyperError(error)) {
-        throw error;
-      }
-      throw new ConfigError("Failed to resolve domain runtime settings", {
-        code: "message_resolve_domain_runtime_settings_failed",
-        cause: error,
-      });
-    }
+    const domainSettings = await rethrowAs(
+      () => this.domainSettingsCache.resolve(worker.settingsManager, domainURL),
+      (cause) =>
+        new ConfigError("Failed to resolve domain runtime settings", {
+          code: "message_resolve_domain_runtime_settings_failed",
+          cause,
+        }),
+    );
 
     let language = domainSettings.language;
     worker.language = language;
 
     if (language === "auto_detect") {
-      try {
-        const resolution = await worker.languageDetector.resolveLanguage({
-          ...request.context,
-          tabId,
-          frameId,
-          domainURL,
-          enabledLanguages: domainSettings.enabledLanguages,
-        });
-        language = resolution.language;
-      } catch (error) {
-        if (isFluentTyperError(error)) {
-          throw error;
-        }
-        throw new PredictorError("Failed to auto-detect language", {
-          code: "message_detect_language_failed",
-          cause: error,
-        });
-      }
+      const resolution = await rethrowAs(
+        () =>
+          worker.languageDetector.resolveLanguage({
+            ...request.context,
+            tabId,
+            frameId,
+            domainURL,
+            enabledLanguages: domainSettings.enabledLanguages,
+          }),
+        (cause) =>
+          new PredictorError("Failed to auto-detect language", {
+            code: "message_detect_language_failed",
+            cause,
+          }),
+      );
+      language = resolution.language;
     }
 
     if (request.context.lang !== language) {
@@ -325,22 +307,20 @@ export class MessageRouter {
       },
     };
 
-    try {
-      await worker.runPrediction(
-        predictRequestMessage,
-        domainSettings.hasNumSuggestionsOverride
-          ? { numSuggestions: domainSettings.numSuggestions }
-          : undefined,
-      );
-    } catch (error) {
-      if (isFluentTyperError(error)) {
-        throw error;
-      }
-      throw new PredictorError("Failed to run prediction", {
-        code: "message_run_prediction_failed",
-        cause: error,
-      });
-    }
+    await rethrowAs(
+      () =>
+        worker.runPrediction(
+          predictRequestMessage,
+          domainSettings.hasNumSuggestionsOverride
+            ? { numSuggestions: domainSettings.numSuggestions }
+            : undefined,
+        ),
+      (cause) =>
+        new PredictorError("Failed to run prediction", {
+          code: "message_run_prediction_failed",
+          cause,
+        }),
+    );
 
     this.respondOk(sendResponse);
   }
@@ -349,17 +329,14 @@ export class MessageRouter {
     payload: CommandPayload<typeof CMD_OPTIONS_PAGE_CONFIG_CHANGE>,
   ): Promise<void> {
     const { sendResponse, worker } = payload;
-    try {
-      await worker.updatePresageConfig();
-    } catch (error) {
-      if (isFluentTyperError(error)) {
-        throw error;
-      }
-      throw new ConfigError("Failed to update prediction runtime config", {
-        code: "message_update_runtime_config_failed",
-        cause: error,
-      });
-    }
+    await rethrowAs(
+      () => worker.updatePresageConfig(),
+      (cause) =>
+        new ConfigError("Failed to update prediction runtime config", {
+          code: "message_update_runtime_config_failed",
+          cause,
+        }),
+    );
     // Settings changed — flush cached domain settings so the next prediction
     // request picks up the new values without waiting for the TTL to expire.
     this.domainSettingsCache.invalidate();
@@ -372,22 +349,18 @@ export class MessageRouter {
     const { sender, sendResponse, worker } = payload;
     const domain = getDomain(sender.tab?.url || "") || "";
 
-    let isEnabled: boolean;
-    let message: Awaited<ReturnType<BackgroundServiceWorker["getBackgroundPageSetConfigMsg"]>>;
-    try {
-      [isEnabled, message] = await Promise.all([
-        isEnabledForDomain(worker.settingsManager, domain),
-        worker.getBackgroundPageSetConfigMsg(domain),
-      ]);
-    } catch (error) {
-      if (isFluentTyperError(error)) {
-        throw error;
-      }
-      throw new ConfigError("Failed to resolve content script config", {
-        code: "message_get_content_script_config_failed",
-        cause: error,
-      });
-    }
+    const [isEnabled, message] = await rethrowAs(
+      () =>
+        Promise.all([
+          isEnabledForDomain(worker.settingsManager, domain),
+          worker.getBackgroundPageSetConfigMsg(domain),
+        ]),
+      (cause) =>
+        new ConfigError("Failed to resolve content script config", {
+          code: "message_get_content_script_config_failed",
+          cause,
+        }),
+    );
 
     message.context.enabled = isEnabled;
     sendResponse(message);
@@ -413,24 +386,15 @@ export class MessageRouter {
     payload: CommandPayload<typeof CMD_CONTENT_SCRIPT_REPORT_RUNTIME_STATUS>,
   ): void {
     const { request, sender, sendResponse, worker } = payload;
-    const senderContext = resolveSenderRoutingContext(sender);
-    if (!senderContext) {
-      throw new TransportError("Missing sender tab id for runtime status request", {
-        code: "message_missing_sender_tab_id",
-      });
-    }
-    worker.reportAutoLanguageRuntime({
-      tabId: senderContext.tabId,
-      frameId: senderContext.frameId,
+    const { tabId, frameId } = requireSenderRoutingContext(sender, "runtime status request");
+    const scope = {
+      tabId,
+      frameId,
       runtimeGeneration: request.context.runtimeGeneration,
       domainURL: request.context.domainURL,
-    });
-    worker.observabilityService.recordContentRuntimeStatus({
-      tabId: senderContext.tabId,
-      frameId: senderContext.frameId,
-      runtimeGeneration: request.context.runtimeGeneration,
-      domainURL: request.context.domainURL,
-    });
+    };
+    worker.reportAutoLanguageRuntime(scope);
+    worker.observabilityService.recordContentRuntimeStatus(scope);
     this.respondOk(sendResponse);
   }
 
@@ -438,12 +402,7 @@ export class MessageRouter {
     payload: CommandPayload<typeof CMD_CONTENT_SCRIPT_REPORT_OBSERVABILITY_EVENT>,
   ): void {
     const { request, sender, sendResponse, worker } = payload;
-    const senderContext = resolveSenderRoutingContext(sender);
-    if (!senderContext) {
-      throw new TransportError("Missing sender tab id for observability event", {
-        code: "message_missing_sender_tab_id",
-      });
-    }
+    const senderContext = requireSenderRoutingContext(sender, "observability event");
     worker.observabilityService.recordEvent({
       ...request.context.event,
       source: "content_script",

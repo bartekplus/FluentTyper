@@ -108,6 +108,21 @@ describe("settings alias startup integration", () => {
     expect(storageState["store.settings.enable"]).toBeUndefined();
   });
 
+  test("get prefers canonical value over alias and returns undefined when neither exists", async () => {
+    installChromeStorageMock({
+      "store.settings.enable": "true",
+      "store.settings.enabled": "false",
+      "store.settings.tributeBgLight": '"#abc123"',
+    });
+    const { SettingsManager } = await loadSettingsModules();
+    const settings = new SettingsManager();
+
+    expect(await settings.get("enabled")).toBe(true);
+    expect(await settings.get("suggestionBgLight")).toBe("#abc123");
+    expect(await settings.get("tributeBgLight")).toBe("#abc123");
+    expect(await settings.get("suggestionBgDark")).toBeUndefined();
+  });
+
   test("migrates alias-only startup state to canonical keys and preserves values", async () => {
     installChromeStorageMock({
       "store.settings.enabled": "false",

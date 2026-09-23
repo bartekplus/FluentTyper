@@ -552,6 +552,32 @@ describe("ContentEditableAdapter", () => {
     expect(contextInSecond?.afterCursor).toBe("");
   });
 
+  test("maps root-level caret between sibling blocks into the adjacent block", () => {
+    const adapter = new ContentEditableAdapter();
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML = "<p>one</p><p>two</p>";
+    document.body.appendChild(editable);
+    const selection = window.getSelection();
+    if (!selection) {
+      throw new Error("Selection API unavailable");
+    }
+
+    const placeCaret = (offset: number) => {
+      const range = document.createRange();
+      range.setStart(editable, offset);
+      range.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(range);
+    };
+
+    placeCaret(1);
+    expect(adapter.getBlockContext(editable)).toEqual({ beforeCursor: "", afterCursor: "two" });
+
+    placeCaret(2);
+    expect(adapter.getBlockContext(editable)).toEqual({ beforeCursor: "two", afterCursor: "" });
+  });
+
   test("uses innermost block through deeper nested wrappers", () => {
     const adapter = new ContentEditableAdapter();
     const editable = document.createElement("div");

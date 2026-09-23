@@ -6,24 +6,26 @@ import {
 } from "./helpers/EnglishRuleShared";
 import { applyWordCase, detectWordCase } from "./helpers/GenericRuleShared";
 
-const ENGLISH_CONTRACTION_MAP: Record<string, string> = {
-  im: "i'm",
-  ive: "i've",
-  dont: "don't",
-  isnt: "isn't",
-  arent: "aren't",
-  wasnt: "wasn't",
-  werent: "weren't",
-  didnt: "didn't",
-  doesnt: "doesn't",
-  havent: "haven't",
-  hasnt: "hasn't",
-  hadnt: "hadn't",
-  shouldnt: "shouldn't",
-  couldnt: "couldn't",
-  wouldnt: "wouldn't",
-  mustnt: "mustn't",
-};
+const ENGLISH_CONTRACTION_MAP = new Map(
+  Object.entries({
+    im: "i'm",
+    ive: "i've",
+    dont: "don't",
+    isnt: "isn't",
+    arent: "aren't",
+    wasnt: "wasn't",
+    werent: "weren't",
+    didnt: "didn't",
+    doesnt: "doesn't",
+    havent: "haven't",
+    hasnt: "hasn't",
+    hadnt: "hadn't",
+    shouldnt: "shouldn't",
+    couldnt: "couldn't",
+    wouldnt: "wouldn't",
+    mustnt: "mustn't",
+  }),
+);
 // "ill", "cant" and "wont" are ordinary English words; expanding them corrupts
 // valid input, and no context available here disambiguates them.
 const FORCE_PRONOUN_I_PREFIX = new Set(["im", "ive"]);
@@ -46,11 +48,11 @@ export class EnglishContractionNormalizationRule implements GrammarRule {
       return null;
     }
 
-    const canonical = ENGLISH_CONTRACTION_MAP[tokenInfo.token.toLowerCase()];
+    const normalizedInput = tokenInfo.token.toLowerCase();
+    const canonical = ENGLISH_CONTRACTION_MAP.get(normalizedInput);
     if (!canonical) {
       return null;
     }
-    const normalizedInput = tokenInfo.token.toLowerCase();
     // "Jony Ive", "Ada Ill": a capitalized token following another capitalized
     // word is a name, not a contraction someone forgot an apostrophe in.
     if (/^[A-Z][a-z]/.test(tokenInfo.token)) {
@@ -74,10 +76,7 @@ export class EnglishContractionNormalizationRule implements GrammarRule {
     }
 
     let normalizedToken = applyWordCase(canonical, detectWordCase(tokenInfo.token));
-    if (
-      FORCE_PRONOUN_I_PREFIX.has(normalizedInput) &&
-      tokenInfo.token !== tokenInfo.token.toUpperCase()
-    ) {
+    if (FORCE_PRONOUN_I_PREFIX.has(normalizedInput)) {
       normalizedToken = `I${normalizedToken.slice(1)}`;
     }
     if (normalizedToken === tokenInfo.token) {

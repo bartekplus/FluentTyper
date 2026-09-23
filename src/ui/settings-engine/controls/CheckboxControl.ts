@@ -6,7 +6,6 @@ import {
   createControlContainer,
   createFieldRoot,
   createInputElement,
-  dispatchControlEvent,
   getUniqueID,
 } from "./FieldControl.js";
 
@@ -52,7 +51,7 @@ export class CheckboxControl extends BaseControl<boolean> {
   set(value: boolean, silent?: boolean): this {
     (this._element as HTMLInputElement).checked = Boolean(value);
     if (!silent) {
-      dispatchControlEvent(this._element, "change");
+      this._element.dispatchEvent(new Event("change"));
     }
     return this;
   }

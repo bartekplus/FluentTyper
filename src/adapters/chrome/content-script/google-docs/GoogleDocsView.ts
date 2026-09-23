@@ -68,9 +68,13 @@ const LABELS: Record<string, readonly [string, string, string, string]> = {
     "Ändringen kunde inte verifieras. Kontrollera dokumentet innan du laddar om. Ändringen upprepas inte.",
   ],
 };
+const HIDDEN_LIVE_CSS =
+  "position:fixed;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);pointer-events:none";
+/** Where suggestions dock when the caret geometry is missing or ambiguous. */
+const fallbackCaretRect = () => new DOMRect(16, Math.max(16, window.innerHeight - 80), 0, 20);
 class DocsPositioning extends SuggestionPositioningService {
   override getCaretRect(): DOMRect | null {
-    return getDocsCaret()?.rect ?? new DOMRect(16, Math.max(16, window.innerHeight - 80), 0, 20);
+    return getDocsCaret()?.rect ?? fallbackCaretRect();
   }
 }
 export class GoogleDocsView {
@@ -94,8 +98,7 @@ export class GoogleDocsView {
     this.live.setAttribute("aria-live", "polite");
     this.live.setAttribute("aria-atomic", "true");
     this.live.setAttribute("data-ft-suggestion-owned", "true");
-    this.live.style.cssText =
-      "position:fixed;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);pointer-events:none";
+    this.live.style.cssText = HIDDEN_LIVE_CSS;
     document.body.appendChild(this.live);
     this.font.setAttribute("data-ft-suggestion-owned", "true");
     this.font.setAttribute("aria-hidden", "true");
@@ -117,10 +120,7 @@ export class GoogleDocsView {
     const measuredCaret = getDocsCaret();
     if (!suggestions.length) return false;
     // Ambiguous collaborator/bidi geometry uses a fixed palette instead of guessing a caret.
-    const caret = measuredCaret ?? {
-      element: document.body,
-      rect: new DOMRect(16, Math.max(16, window.innerHeight - 80), 0, 20),
-    };
+    const caret = measuredCaret ?? { element: document.body, rect: fallbackCaretRect() };
     this.target = caret.element;
     const context = snapshotContext(snapshot);
     const token = this.options.findToken(context.beforeCursor).token;
@@ -227,8 +227,7 @@ export class GoogleDocsView {
     this.presenter.hide(this.elements.menu, this.elements.list, this.target ?? undefined);
     InlineSuggestionView.removeForEntry(DOCS_SESSION_ID);
     if (!keepAnnouncement) this.live.textContent = "";
-    this.live.style.cssText =
-      "position:fixed;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);pointer-events:none";
+    this.live.style.cssText = HIDDEN_LIVE_CSS;
   }
   status(status: DocsStatus): void {
     if (status !== "unverified" && status !== "unavailable") return;

@@ -14,7 +14,7 @@ import { CustomPanelControl } from "./controls/CustomPanelControl.js";
 
 export type SettingsRegistry = Record<string, FieldControl>;
 
-export interface SettingsEngineOptions {
+interface SettingsEngineOptions {
   container: {
     tabs: HTMLElement;
     content: HTMLElement;

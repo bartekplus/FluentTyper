@@ -13,7 +13,7 @@ const LOG_LEVEL_PRIORITY: Record<LogLevel, number> = {
   error: 40,
 };
 
-export interface LogContext {
+interface LogContext {
   traceId?: string;
   command?: string;
   requestId?: number;
@@ -100,15 +100,46 @@ export function setGlobalObservabilityRuntime(options: {
 }
 
 export function getRegisteredObservabilityModules(): string[] {
-  return [...(getLoggingGlobals().__FT_OBSERVABILITY_REGISTERED_MODULES__ || new Set<string>())];
+  return [...(getLoggingGlobals().__FT_OBSERVABILITY_REGISTERED_MODULES__ ?? [])];
 }
 
-export function registerObservabilityModule(scope: string): void {
-  const globals = getLoggingGlobals();
-  if (!globals.__FT_OBSERVABILITY_REGISTERED_MODULES__) {
-    globals.__FT_OBSERVABILITY_REGISTERED_MODULES__ = new Set<string>();
+function registerObservabilityModule(scope: string): void {
+  (getLoggingGlobals().__FT_OBSERVABILITY_REGISTERED_MODULES__ ??= new Set<string>()).add(scope);
+}
+
+/** Dev-build relay: forwards log events to the background and reports registered modules. */
+export function installObservabilityRelay(options: {
+  source: ObservabilityEvent["source"];
+  config?: ObservabilityConfig;
+  eventCommand: string;
+  modulesCommand: string;
+}): void {
+  setGlobalObservabilityRuntime({
+    config: options.config,
+    source: options.source,
+    sink: (event) => {
+      try {
+        void chrome.runtime.sendMessage({
+          command: options.eventCommand,
+          context: {
+            event,
+          },
+        });
+      } catch {
+        // Ignore runtime disconnects during page teardown.
+      }
+    },
+  });
+  try {
+    void chrome.runtime.sendMessage({
+      command: options.modulesCommand,
+      context: {
+        modules: getRegisteredObservabilityModules(),
+      },
+    });
+  } catch {
+    // Ignore runtime disconnects during page teardown.
   }
-  globals.__FT_OBSERVABILITY_REGISTERED_MODULES__.add(scope);
 }
 
 export function resetGlobalObservabilityRuntime(): void {

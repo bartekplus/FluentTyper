@@ -40,7 +40,7 @@ export function getLastToken(input: string): string {
   return parts[parts.length - 1] ?? "";
 }
 
-export function isLikelyUrlOrEmailContext(input: string): boolean {
+function isLikelyUrlOrEmailContext(input: string): boolean {
   const trimmed = input.trimEnd();
   if (!trimmed) {
     return false;
@@ -62,12 +62,8 @@ export function isTechnicalToken(token: string): boolean {
   );
 }
 
-export function isLikelyCodeLikeTokenContext(input: string): boolean {
-  return isTechnicalToken(getLastToken(input));
-}
-
 export function shouldSkipGenericReplacement(input: string): boolean {
-  return isLikelyUrlOrEmailContext(input) || isLikelyCodeLikeTokenContext(input);
+  return isLikelyUrlOrEmailContext(input) || isTechnicalToken(getLastToken(input));
 }
 
 export function detectWordCase(word: string): "upper" | "title" | "lower" {

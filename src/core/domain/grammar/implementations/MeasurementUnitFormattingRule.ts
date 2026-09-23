@@ -1,38 +1,25 @@
 import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "../types";
 import { parseMeasurementExpression } from "../measurement/parser";
 import { resolveMeasurementLocale } from "../measurement/registry";
+import type { MeasurementLocalePolicy } from "../measurement/contracts";
 
 export class MeasurementUnitFormattingRule implements GrammarRule {
   readonly id = "measurementUnitFormatting" as const;
   readonly triggers: GrammarEventType[] = ["wordBoundary"];
 
   apply(context: GrammarContext): GrammarEdit | null {
-    const hints = context.hints;
-    if (
-      hints?.measurementContext !== "prose" ||
-      hints.inputAction !== "insert" ||
-      hints.isPaste ||
-      context.beforeCursor.length > 512 ||
-      context.afterCursor.length > 0
-    ) {
+    const boundary = readMeasurementBoundary(context);
+    if (!boundary) {
       return null;
     }
 
-    const locale = resolveMeasurementLocale(hints.lang);
-    const trailing = context.beforeCursor.at(-1);
-    if (!locale || (trailing !== " " && trailing !== "\n")) {
-      return null;
-    }
-
-    const expressionEnd = context.beforeCursor.length - 1;
-    const prefixAndExpression = context.beforeCursor.slice(0, expressionEnd);
+    const { locale, text: prefixAndExpression, trailing } = boundary;
     const parsed = parseMeasurementExpression(prefixAndExpression, locale);
     if (
       !parsed ||
       parsed.unitStart !== parsed.numberEnd ||
-      // Single capital letters also denote grades, models, resolutions, and names.
-      // Single capitals denote grades and resolutions; "3d" and "5g" are not
-      // a day and a gram either.
+      // Single capitals also denote grades, models, resolutions and names; "3d"
+      // and "5g" are not a day and a gram either.
       /^([A-Z]|[dg])$/.test(prefixAndExpression.slice(parsed.unitStart)) ||
       !isProsePrefix(prefixAndExpression.slice(0, parsed.start))
     ) {
@@ -46,6 +33,31 @@ export class MeasurementUnitFormattingRule implements GrammarRule {
       strict: true,
     };
   }
+}
+
+/**
+ * The text before a just-typed space or newline, when that keystroke is a plain
+ * prose insertion in a locale with a measurement policy. Shared with currency.
+ */
+export function readMeasurementBoundary(
+  context: GrammarContext,
+): { locale: MeasurementLocalePolicy; text: string; trailing: string } | null {
+  const hints = context.hints;
+  if (
+    hints?.measurementContext !== "prose" ||
+    hints.inputAction !== "insert" ||
+    hints.isPaste ||
+    context.beforeCursor.length > 512 ||
+    context.afterCursor.length > 0
+  ) {
+    return null;
+  }
+  const locale = resolveMeasurementLocale(hints.lang);
+  const trailing = context.beforeCursor.at(-1);
+  if (!locale || (trailing !== " " && trailing !== "\n")) {
+    return null;
+  }
+  return { locale, text: context.beforeCursor.slice(0, -1), trailing };
 }
 
 export function isProsePrefix(prefix: string): boolean {

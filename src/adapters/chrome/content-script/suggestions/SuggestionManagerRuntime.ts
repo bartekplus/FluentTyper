@@ -81,7 +81,6 @@ export class SuggestionManagerRuntime {
   private readonly nativeAutocompleteConflictDetector = new NativeAutocompleteConflictDetector();
 
   private lang: string;
-  private separatorRegex: RegExp;
 
   private activeEntryId: number | null = null;
 
@@ -109,7 +108,6 @@ export class SuggestionManagerRuntime {
     });
 
     this.lang = options.lang;
-    this.separatorRegex = LANG_SEPARATOR_CHARS_REGEX[this.lang] || /\s+/;
     this.grammarCoordinator = new SuggestionGrammarCoordinator({
       enabledGrammarRules: options.enabledGrammarRules,
       insertSpaceAfterAutocomplete: options.insertSpaceAfterAutocomplete,
@@ -121,7 +119,7 @@ export class SuggestionManagerRuntime {
       getPrediction: options.getPrediction,
       lang: this.lang,
       minWordLengthToPredict: options.minWordLengthToPredict,
-      separatorRegex: this.separatorRegex,
+      separatorRegex: LANG_SEPARATOR_CHARS_REGEX[this.lang] || /\s+/,
     });
     this.telemetry = options.telemetry ?? new SuggestionTelemetryService();
     this.personalization = options.personalization ?? new SuggestionPersonalizationService();
@@ -242,28 +240,25 @@ export class SuggestionManagerRuntime {
       return;
     }
     this.lang = lang;
-    this.separatorRegex = LANG_SEPARATOR_CHARS_REGEX[lang] || /\s+/;
     this.grammarCoordinator.updateLanguage(this.lang);
-    this.predictionCoordinator.updateLang(this.lang, this.separatorRegex);
+    this.predictionCoordinator.updateLang(this.lang, LANG_SEPARATOR_CHARS_REGEX[lang] || /\s+/);
     this.triggerActiveSuggestion();
   }
 
   private isStructurallyEligibleElement(elem: HTMLElement): elem is SuggestionElement {
     if (TextTargetAdapter.isTextArea(elem)) {
-      const ta = elem;
-      return !ta.disabled && !ta.readOnly;
+      return !elem.disabled && !elem.readOnly;
     }
 
     if (TextTargetAdapter.isInput(elem)) {
-      const input = elem;
-      if (input.disabled || input.readOnly) {
+      if (elem.disabled || elem.readOnly) {
         return false;
       }
-      const inputType = (input.type || "text").toLowerCase();
+      const inputType = (elem.type || "text").toLowerCase();
       if (!["text", "search", "", "email", "url"].includes(inputType)) {
         return false;
       }
-      const blocked = `${input.name} ${input.id}`.toLowerCase();
+      const blocked = `${elem.name} ${elem.id}`.toLowerCase();
       return !blocked.includes("password") && !blocked.includes("username");
     }
 
@@ -271,11 +266,7 @@ export class SuggestionManagerRuntime {
   }
 
   private isManualAttachSupportedElement(elem: SuggestionElement): elem is ManualAttachTarget {
-    return (
-      TextTargetAdapter.isInput(elem) ||
-      TextTargetAdapter.isTextArea(elem) ||
-      elem.isContentEditable
-    );
+    return TextTargetAdapter.isTextValue(elem) || elem.isContentEditable;
   }
 
   private hasNativeAutocompleteConflict(elem: SuggestionElement): boolean {
@@ -325,9 +316,7 @@ export class SuggestionManagerRuntime {
       }
       if (this.shouldShowManualAttachUi(element)) {
         this.manualAttachUiManager.ensureForElement(element);
-        continue;
-      }
-      if (!this.shouldShowManualAttachUi(element)) {
+      } else {
         this.manualAttachUiManager.removeForElement(element);
       }
     }
@@ -444,40 +433,28 @@ export class SuggestionManagerRuntime {
       pendingGrammarPaste: false,
       recentInteractionTrail: [],
       handlers: {
-        beforeinput: () => undefined,
-        input: () => undefined,
-        keydown: () => undefined,
-        paste: () => undefined,
-        focus: () => undefined,
-        blur: () => undefined,
-        click: () => undefined,
-        compositionStart: () => undefined,
-        compositionEnd: () => undefined,
-        menuMouseDown: () => undefined,
-        menuClick: () => undefined,
+        beforeinput: this.onElementBeforeInput.bind(this, id),
+        input: this.onElementInput.bind(this, id),
+        keydown: this.onElementKeyDown.bind(this, id),
+        paste: this.onElementPaste.bind(this, id),
+        focus: this.onElementFocus.bind(this, id),
+        blur: this.onElementBlur.bind(this, id),
+        click: this.onElementClick.bind(this, id),
+        compositionStart: this.onElementCompositionStart.bind(this, id),
+        compositionEnd: this.onElementCompositionEnd.bind(this, id),
+        menuMouseDown: (event) => {
+          event.preventDefault();
+        },
+        menuClick: this.onMenuClick.bind(this, id),
       },
     };
-
-    entry.handlers.beforeinput = this.onElementBeforeInput.bind(this, id);
-    entry.handlers.input = this.onElementInput.bind(this, id);
-    entry.handlers.keydown = this.onElementKeyDown.bind(this, id);
-    entry.handlers.paste = this.onElementPaste.bind(this, id);
-    entry.handlers.focus = this.onElementFocus.bind(this, id);
-    entry.handlers.blur = this.onElementBlur.bind(this, id);
-    entry.handlers.click = this.onElementClick.bind(this, id);
-    entry.handlers.compositionStart = this.onElementCompositionStart.bind(this, id);
-    entry.handlers.compositionEnd = this.onElementCompositionEnd.bind(this, id);
-    entry.handlers.menuMouseDown = (event) => {
-      event.preventDefault();
-    };
-    entry.handlers.menuClick = this.onMenuClick.bind(this, id);
 
     stateHost.setAttribute("data-suggestion", "true");
     stateHost.setAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR, String(id));
     stateHost.setAttribute(EARLY_TAB_ACCEPT_ENABLED_ATTR, String(this.autocompleteOnTab));
     stateHost.setAttribute(
       EARLY_TAB_ACCEPT_BRIDGE_TARGET_ATTR,
-      String(this.shouldUseEarlyTabBridge(elem)),
+      String(!TextTargetAdapter.isTextValue(elem)),
     );
     stateHost.setAttribute(EARLY_TAB_ACCEPT_VISIBLE_ATTR, "false");
     menu.id = SuggestionMenuView.resolveHostId(id);
@@ -541,10 +518,7 @@ export class SuggestionManagerRuntime {
       return true;
     }
     const active = getDeepActiveElement(document);
-    if (!active) {
-      return false;
-    }
-    return active === entry.elem || entry.elem.contains(active);
+    return !!active && (active === entry.elem || entry.elem.contains(active));
   }
 
   private getActiveEntry(): SuggestionEntry | null {
@@ -745,11 +719,6 @@ export class SuggestionManagerRuntime {
       return;
     }
 
-    const entry = this.entryRegistry.getById(id);
-    if (!entry) {
-      return;
-    }
-
     this.getSession(id)?.acceptSuggestionAtIndex(index);
   }
 
@@ -811,10 +780,6 @@ export class SuggestionManagerRuntime {
     clearTimeout(pending.timer);
     pending.observer?.disconnect();
     this.pendingKeyFallbacks.delete(id);
-  }
-
-  private shouldUseEarlyTabBridge(elem: SuggestionElement): boolean {
-    return elem.tagName !== "INPUT" && elem.tagName !== "TEXTAREA";
   }
 
   private getSession(entryId: number): SuggestionEntrySession | undefined {

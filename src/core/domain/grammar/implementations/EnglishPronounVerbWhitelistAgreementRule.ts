@@ -1,8 +1,5 @@
 import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "../types";
-import {
-  isLikelyCodeLikeContext,
-  resolveEnglishBoundaryContext,
-} from "./helpers/EnglishRuleShared";
+import { matchTrailingEnglishPhrase } from "./helpers/EnglishRuleShared";
 import { applyWordCase, detectWordCase } from "./helpers/GenericRuleShared";
 
 const AGREEMENT_REGEX = /\b(i\s+is|i\s+has|you\s+was|(he|she|it)\s+are)(\s+\S+)$/i;
@@ -19,52 +16,33 @@ const CODE_SINGLETONS = new Set([
   "not",
 ]);
 
-function resolveAgreementCorrection(lowerPhrase: string): string | null {
-  switch (lowerPhrase) {
-    case "i is":
-      return "i am";
-    case "i has":
-      return "i have";
-    case "you was":
-      return "you were";
-    case "he are":
-      return "he is";
-    case "she are":
-      return "she is";
-    case "it are":
-      return "it is";
-    default:
-      return null;
-  }
-}
+const AGREEMENT_CORRECTIONS = new Map([
+  ["i is", "i am"],
+  ["i has", "i have"],
+  ["you was", "you were"],
+  ["he are", "he is"],
+  ["she are", "she is"],
+  ["it are", "it is"],
+]);
 
 export class EnglishPronounVerbWhitelistAgreementRule implements GrammarRule {
   readonly id = "englishPronounVerbWhitelistAgreement" as const;
   readonly triggers: GrammarEventType[] = ["wordBoundary"];
 
   apply(context: GrammarContext): GrammarEdit | null {
-    const boundaryContext = resolveEnglishBoundaryContext(context);
-    if (!boundaryContext) {
+    const matched = matchTrailingEnglishPhrase(context, AGREEMENT_REGEX);
+    if (!matched) {
       return null;
     }
-
-    const match = boundaryContext.core.match(AGREEMENT_REGEX);
-    if (!match) {
-      return null;
-    }
-
+    const { boundary: boundaryContext, match, phraseStart } = matched;
     const trailingWord = (match[3] ?? "").trim();
     if (CODE_SINGLETONS.has(trailingWord.toLowerCase())) {
       return null;
     }
 
     const phrase = match[1];
-    const phraseStart = boundaryContext.core.length - (match[0] ?? "").length;
-    if (isLikelyCodeLikeContext(boundaryContext.core, phraseStart, boundaryContext.core.length)) {
-      return null;
-    }
 
-    const corrected = resolveAgreementCorrection(phrase.toLowerCase());
+    const corrected = AGREEMENT_CORRECTIONS.get(phrase.toLowerCase());
     if (!corrected) {
       return null;
     }

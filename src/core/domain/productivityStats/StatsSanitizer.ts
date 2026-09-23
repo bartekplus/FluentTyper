@@ -147,28 +147,19 @@ export class StatsSanitizer {
         continue;
       }
 
-      let counters: SnippetUsageCounters | null = null;
-      if (typeof rawValue === "number") {
-        const count = this.clampCount(rawValue);
-        if (count > 0) {
-          counters = this.createSnippetCounters();
-          counters.count = count;
-        }
-      } else if (isObjectRecord(rawValue)) {
-        const count = this.clampCount(rawValue.count);
-        const charactersSaved = this.clampCount(rawValue.charactersSaved);
-        const charsInserted = this.clampCount(rawValue.charsInserted);
-        const charsTyped = this.clampCount(rawValue.charsTyped);
-        if (count > 0 || charactersSaved > 0 || charsInserted > 0 || charsTyped > 0) {
-          counters = this.createSnippetCounters();
-          counters.count = count;
-          counters.charactersSaved = charactersSaved;
-          counters.charsInserted = charsInserted;
-          counters.charsTyped = charsTyped;
-        }
-      }
-
-      if (counters) {
+      // A bare number carries only the use count.
+      const counters: SnippetUsageCounters =
+        typeof rawValue === "number"
+          ? { ...this.createSnippetCounters(), count: this.clampCount(rawValue) }
+          : isObjectRecord(rawValue)
+            ? {
+                count: this.clampCount(rawValue.count),
+                charactersSaved: this.clampCount(rawValue.charactersSaved),
+                charsInserted: this.clampCount(rawValue.charsInserted),
+                charsTyped: this.clampCount(rawValue.charsTyped),
+              }
+            : this.createSnippetCounters();
+      if (Object.values(counters).some((counter) => counter > 0)) {
         sanitized[normalizedKey] = counters;
       }
     }
@@ -187,38 +178,24 @@ export class StatsSanitizer {
         continue;
       }
 
-      const acceptedSuggestions = this.clampCount(entry.acceptedSuggestions);
-      const charactersSaved = this.clampCount(entry.charactersSaved);
-      const suggestionsShown = this.clampCount(entry.suggestionsShown);
-      const snippetsExpanded = this.clampCount(entry.snippetsExpanded);
-      const charsInsertedFromSnippet = this.clampCount(entry.charsInsertedFromSnippet);
-      const charsTypedForTrigger = this.clampCount(entry.charsTypedForTrigger);
-      const snippetUsage = this.sanitizeSnippetUsageMap(entry.snippetUsage);
-      const languageUsage = this.sanitizeLanguageUsageMap(entry.languageUsage);
-
-      if (
-        acceptedSuggestions === 0 &&
-        charactersSaved === 0 &&
-        suggestionsShown === 0 &&
-        snippetsExpanded === 0 &&
-        charsInsertedFromSnippet === 0 &&
-        charsTypedForTrigger === 0 &&
-        Object.keys(snippetUsage).length === 0 &&
-        Object.keys(languageUsage).length === 0
-      ) {
-        continue;
-      }
-
-      sanitized[dateKey] = {
-        acceptedSuggestions,
-        charactersSaved,
-        suggestionsShown,
-        snippetsExpanded,
-        charsInsertedFromSnippet,
-        charsTypedForTrigger,
-        snippetUsage,
-        languageUsage,
+      const day: DailyProductivityState = {
+        acceptedSuggestions: this.clampCount(entry.acceptedSuggestions),
+        charactersSaved: this.clampCount(entry.charactersSaved),
+        suggestionsShown: this.clampCount(entry.suggestionsShown),
+        snippetsExpanded: this.clampCount(entry.snippetsExpanded),
+        charsInsertedFromSnippet: this.clampCount(entry.charsInsertedFromSnippet),
+        charsTypedForTrigger: this.clampCount(entry.charsTypedForTrigger),
+        snippetUsage: this.sanitizeSnippetUsageMap(entry.snippetUsage),
+        languageUsage: this.sanitizeLanguageUsageMap(entry.languageUsage),
       };
+      const { snippetUsage, languageUsage, ...counts } = day;
+      if (
+        Object.values(counts).some((count) => count > 0) ||
+        Object.keys(snippetUsage).length > 0 ||
+        Object.keys(languageUsage).length > 0
+      ) {
+        sanitized[dateKey] = day;
+      }
     }
 
     return sanitized;

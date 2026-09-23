@@ -38,13 +38,10 @@ interface BoundaryCandidate {
   container: Node;
   offset: number;
   textOffset: number;
-  order: number;
 }
 
-export type ContentEditableApplySource = "host-beforeinput" | "fallback-dom";
-
 export interface ContentEditableEditResult {
-  appliedBy: ContentEditableApplySource;
+  appliedBy: "host-beforeinput" | "fallback-dom";
   didMutateDom: boolean;
   didDispatchInput: boolean;
 }
@@ -103,7 +100,12 @@ export class ContentEditableAdapter {
         editScopeTextLength: (editScope.textContent ?? "").length,
         editorTextLength: beforeText.length,
       });
-      const beforeInputEvent = this.dispatchReplacementBeforeInput(elem, range, replacementText);
+      const beforeInputEvent = this.dispatchReplacementEvent(
+        "beforeinput",
+        elem,
+        range,
+        replacementText,
+      );
       const textAfterBeforeInput = elem.textContent ?? "";
       const hostHandled = beforeInputEvent.defaultPrevented || textAfterBeforeInput !== beforeText;
 
@@ -141,8 +143,7 @@ export class ContentEditableAdapter {
       }
 
       if (shouldTryNativeReplacement) {
-        const nativeReplacementResult = this.tryNativeReplacement(elem, replacementText);
-        if (nativeReplacementResult.didMutateDom) {
+        if (this.tryNativeReplacement(elem, replacementText)) {
           // execCommand leaves the caret at the end of the inserted text. Plain
           // contenteditable has no async host reconciliation to override us, so
           // place the caret at the final offset synchronously. This prevents a
@@ -150,14 +151,10 @@ export class ContentEditableAdapter {
           // immediate "x") lands before a deferred caret correction runs.
           this.setCaret(editScope, cursorAfter);
           logger.debug("Contenteditable replacement handled by execCommand fallback", {
-            didDispatchInput: nativeReplacementResult.didDispatchInput,
+            didDispatchInput: false,
             editorTextLength: (elem.textContent ?? "").length,
           });
-          return {
-            appliedBy: "fallback-dom",
-            didMutateDom: true,
-            didDispatchInput: nativeReplacementResult.didDispatchInput,
-          };
+          return { appliedBy: "fallback-dom", didMutateDom: true, didDispatchInput: false };
         }
       }
     }
@@ -175,7 +172,7 @@ export class ContentEditableAdapter {
     }
 
     this.setCaret(editScope, cursorAfter);
-    this.dispatchReplacementInput(elem, range, replacementText);
+    this.dispatchReplacementEvent("input", elem, range, replacementText);
     logger.debug("Contenteditable replacement applied by DOM fallback", {
       replaceStart,
       replaceEnd,
@@ -210,13 +207,8 @@ export class ContentEditableAdapter {
       innermost && (elem === resolvedBlock || resolvedBlock.contains(innermost))
         ? innermost
         : resolvedBlock;
-    const startPoint = this.resolvePointWithinBlock(
-      range.startContainer,
-      range.startOffset,
-      block,
-      elem,
-    );
-    const endPoint = this.resolvePointWithinBlock(range.endContainer, range.endOffset, block, elem);
+    const startPoint = this.resolvePointWithinBlock(range.startContainer, range.startOffset, block);
+    const endPoint = this.resolvePointWithinBlock(range.endContainer, range.endOffset, block);
     if (startPoint && endPoint) {
       const lineContext = this.getBrSeparatedLineContext(block, startPoint, endPoint);
       if (lineContext) {
@@ -268,11 +260,7 @@ export class ContentEditableAdapter {
 
   public getActiveBlockElement(elem: HTMLElement): HTMLElement | null {
     const range = this.resolveSelectionRangeWithinElement(elem);
-    if (!range) {
-      return null;
-    }
-
-    return this.resolveActiveBlockForRange(elem, range);
+    return range ? this.resolveActiveBlockForRange(elem, range) : null;
   }
 
   public hasUnstableSelection(elem: HTMLElement): boolean {
@@ -309,10 +297,7 @@ export class ContentEditableAdapter {
     elem: HTMLElement,
   ): { beforeCursor: string; afterCursor: string } | null {
     const range = this.resolveSelectionRangeWithinElement(elem);
-    if (!range) {
-      return null;
-    }
-    return this.getBlockContextByWalking(elem, range);
+    return range ? this.getBlockContextByWalking(elem, range) : null;
   }
 
   public getPreviousBlockTextBySelection(elem: HTMLElement): string | null {
@@ -465,15 +450,9 @@ export class ContentEditableAdapter {
     }
 
     const blockIndex = this.getBlockChildIndex(container, block);
-    if (blockIndex < 0) {
-      return { container: block, offset: 0 };
-    }
-
-    if (offset <= blockIndex) {
-      return { container: block, offset: 0 };
-    }
-
-    return { container: block, offset: block.childNodes.length };
+    return blockIndex < 0 || offset <= blockIndex
+      ? { container: block, offset: 0 }
+      : { container: block, offset: block.childNodes.length };
   }
 
   private getBrSeparatedLineContext(
@@ -538,15 +517,14 @@ export class ContentEditableAdapter {
   private findInnermostBlockContainingRange(root: HTMLElement, range: Range): HTMLElement | null {
     let block: HTMLElement | null = null;
     let current: Node | null = range.startContainer;
-    const rootNode = root as Node;
-    while (current && current !== rootNode) {
+    while (current && current !== root) {
       if (current.nodeType === Node.ELEMENT_NODE && BLOCK_TAGS.has((current as Element).tagName)) {
         block = current as HTMLElement;
         break;
       }
       current = current.parentNode;
     }
-    if (!block && range.startContainer === rootNode) {
+    if (!block && range.startContainer === root) {
       const idx =
         range.startOffset < root.childNodes.length
           ? range.startOffset
@@ -623,15 +601,15 @@ export class ContentEditableAdapter {
       );
     }
 
-    const container =
-      range.startContainer.nodeType === Node.ELEMENT_NODE
-        ? (range.startContainer as Element)
-        : null;
-    if (!container) {
+    if (range.startContainer.nodeType !== Node.ELEMENT_NODE) {
       return false;
     }
 
-    const next = this.pickAdjacentChildAtOffset(container, range.startOffset, true);
+    const next = this.pickAdjacentChildAtOffset(
+      range.startContainer as Element,
+      range.startOffset,
+      true,
+    );
     return next?.nodeType === Node.ELEMENT_NODE && this.isBlockElement(next as Element);
   }
 
@@ -655,8 +633,7 @@ export class ContentEditableAdapter {
     root: HTMLElement,
     preferForward: boolean,
   ): HTMLElement {
-    const rootNode = root as Node;
-    if (node === rootNode) {
+    if (node === root) {
       const adjacent = this.pickAdjacentChildAtOffset(root, offset, preferForward);
       if (adjacent) {
         const block = this.resolveBlock(adjacent, root);
@@ -670,11 +647,9 @@ export class ContentEditableAdapter {
     // When the block is a container with block children at this offset, use the
     // innermost block (e.g. Lexical/Reddit: root -> div -> p, p; cursor at (div, 1) must use second p,
     // not the wrapper div, so prediction uses "S" only, not "Wa" + "S").
-    if (block !== root && block.nodeType === Node.ELEMENT_NODE) {
-      const el = block as Element;
-      const childOffset =
-        node === block ? offset : this.getOffsetOfNodeInBlock(block, node, offset);
-      const adjacent = this.pickAdjacentChildAtOffset(el, childOffset, preferForward);
+    if (block !== root) {
+      const childOffset = this.getOffsetOfNodeInBlock(block, node, offset);
+      const adjacent = this.pickAdjacentChildAtOffset(block, childOffset, preferForward);
       if (
         adjacent &&
         adjacent.nodeType === Node.ELEMENT_NODE &&
@@ -688,15 +663,14 @@ export class ContentEditableAdapter {
   }
 
   /** Child index of block that contains the given node (for resolving innermost block). */
-  private getOffsetOfNodeInBlock(block: HTMLElement, node: Node, _offset: number): number {
+  private getOffsetOfNodeInBlock(block: HTMLElement, node: Node, offset: number): number {
     if (node === block) {
-      return _offset;
+      return offset;
     }
     let current: Node | null = node;
-    const blockNode = block as Node;
-    while (current && current !== blockNode) {
+    while (current && current !== block) {
       const parent: Node | null = current.parentNode;
-      if (parent === blockNode) {
+      if (parent === block) {
         return Array.prototype.indexOf.call(block.childNodes, current);
       }
       if (!parent) {
@@ -733,35 +707,20 @@ export class ContentEditableAdapter {
     container: Node,
     offset: number,
     block: HTMLElement,
-    root: HTMLElement,
   ): ContentEditableDomPosition | null {
     if (container === block || block.contains(container)) {
       return { container, offset };
     }
 
-    const rootNode = root as Node;
-    if (container === rootNode && block.parentNode === rootNode) {
-      const blockIndex = Array.prototype.indexOf.call(root.childNodes, block);
-      if (blockIndex < 0) {
-        return null;
-      }
-      if (offset <= blockIndex) {
-        return { container: block, offset: 0 };
-      }
-      return { container: block, offset: block.childNodes.length };
-    }
-
-    // Container is an ancestor of block (e.g. Lexical wrapper div with block = child <p>).
+    // Container is an ancestor of block (e.g. root, or a Lexical wrapper div with block = child <p>).
     if (container.nodeType === Node.ELEMENT_NODE && (container as Element).contains(block)) {
-      const containerEl = container as Element;
-      const blockIndex = this.getBlockChildIndex(containerEl, block);
+      const blockIndex = this.getBlockChildIndex(container as Element, block);
       if (blockIndex < 0) {
         return null;
       }
-      if (offset <= blockIndex) {
-        return { container: block, offset: 0 };
-      }
-      return { container: block, offset: block.childNodes.length };
+      return offset <= blockIndex
+        ? { container: block, offset: 0 }
+        : { container: block, offset: block.childNodes.length };
     }
 
     return null;
@@ -781,29 +740,20 @@ export class ContentEditableAdapter {
     return -1;
   }
 
-  private dispatchReplacementBeforeInput(
+  private dispatchReplacementEvent(
+    type: "beforeinput" | "input",
     elem: HTMLElement,
     range: Range,
     replacementText: string,
   ): Event {
-    const beforeInputEvent = this.createInputEvent("beforeinput", {
+    const event = this.createInputEvent(type, {
       inputType: "insertReplacementText",
       data: replacementText,
-      cancelable: true,
+      cancelable: type === "beforeinput",
       targetRange: range,
     });
-    elem.dispatchEvent(beforeInputEvent);
-    return beforeInputEvent;
-  }
-
-  private dispatchReplacementInput(elem: HTMLElement, range: Range, replacementText: string): void {
-    const inputEvent = this.createInputEvent("input", {
-      inputType: "insertReplacementText",
-      data: replacementText,
-      cancelable: false,
-      targetRange: range,
-    });
-    elem.dispatchEvent(inputEvent);
+    elem.dispatchEvent(event);
+    return event;
   }
 
   private normalizeCollapsedInsertionRange(range: Range, root: HTMLElement): void {
@@ -811,16 +761,10 @@ export class ContentEditableAdapter {
       return;
     }
 
-    const startContainer = range.startContainer;
-    if (startContainer.nodeType === Node.TEXT_NODE) {
+    if (range.startContainer.nodeType !== Node.ELEMENT_NODE) {
       return;
     }
-
-    const container =
-      startContainer.nodeType === Node.ELEMENT_NODE ? (startContainer as Element) : null;
-    if (!container) {
-      return;
-    }
+    const container = range.startContainer as Element;
 
     const startOffset = range.startOffset;
     if (container === root && this.shouldPreserveStructuralBoundary(container, startOffset)) {
@@ -913,7 +857,7 @@ export class ContentEditableAdapter {
 
   private findFirstTextNode(root: Node): Text | null {
     const walker = document.createTreeWalker(root, SHOW_TEXT);
-    return (walker.nextNode() as Text | null) ?? null;
+    return walker.nextNode() as Text | null;
   }
 
   private findLastTextNode(root: Node): Text | null {
@@ -929,8 +873,7 @@ export class ContentEditableAdapter {
 
   private findNextSiblingAcrossAncestors(node: Node, root: HTMLElement): Node | null {
     let current: Node | null = node;
-    const rootNode = root as Node;
-    while (current && current !== rootNode) {
+    while (current && current !== root) {
       if (current.nextSibling) {
         return current.nextSibling;
       }
@@ -943,51 +886,27 @@ export class ContentEditableAdapter {
     return BLOCK_TAGS.has(node.tagName);
   }
 
-  private tryNativeReplacement(
-    elem: HTMLElement,
-    replacementText: string,
-  ): { didMutateDom: boolean; didDispatchInput: boolean } {
+  /** Returns whether execCommand mutated the DOM. */
+  private tryNativeReplacement(elem: HTMLElement, replacementText: string): boolean {
     const beforeText = elem.textContent ?? "";
-    const commandResult = this.runExecInsertText(replacementText);
-    const afterText = elem.textContent ?? "";
-    if (afterText !== beforeText) {
-      return {
-        didMutateDom: true,
-        didDispatchInput: false,
-      };
-    }
-    if (!commandResult && replacementText.length === 0 && this.runExecDelete()) {
-      const afterDeleteText = elem.textContent ?? "";
-      if (afterDeleteText !== beforeText) {
-        return {
-          didMutateDom: true,
-          didDispatchInput: false,
-        };
-      }
-    }
-    return {
-      didMutateDom: false,
-      didDispatchInput: false,
-    };
+    const commandResult = this.runExecCommand(() =>
+      document.execCommand("insertText", false, replacementText),
+    );
+    return (
+      (elem.textContent ?? "") !== beforeText ||
+      (!commandResult &&
+        replacementText.length === 0 &&
+        this.runExecCommand(() => document.execCommand("delete", false)) &&
+        (elem.textContent ?? "") !== beforeText)
+    );
   }
 
-  private runExecInsertText(replacementText: string): boolean {
+  private runExecCommand(command: () => boolean): boolean {
     if (typeof document.execCommand !== "function") {
       return false;
     }
     try {
-      return document.execCommand("insertText", false, replacementText);
-    } catch {
-      return false;
-    }
-  }
-
-  private runExecDelete(): boolean {
-    if (typeof document.execCommand !== "function") {
-      return false;
-    }
-    try {
-      return document.execCommand("delete", false);
+      return command();
     } catch {
       return false;
     }
@@ -1272,19 +1191,13 @@ export class ContentEditableAdapter {
     }
 
     const candidates: BoundaryCandidate[] = [];
-    let order = 0;
     const addBoundaryCandidates = (container: Element): void => {
       for (let offset = 0; offset <= container.childNodes.length; offset += 1) {
         const textOffset = this.measureBoundaryTextOffset(elem, container, offset, probeRange);
         if (textOffset === null) {
           continue;
         }
-        candidates.push({
-          container,
-          offset,
-          textOffset,
-          order: order++,
-        });
+        candidates.push({ container, offset, textOffset });
       }
     };
 
@@ -1318,7 +1231,6 @@ export class ContentEditableAdapter {
     const anchorPosition =
       endpoint === "end" ? selectionAnchors.endPosition : selectionAnchors.startPosition;
     const candidates: BoundaryCandidate[] = [];
-    let order = 0;
     const addCandidateOffsets = (container: Element, offsets: number[]): void => {
       for (const candidateOffset of offsets) {
         if (candidateOffset < 0 || candidateOffset > container.childNodes.length) {
@@ -1333,12 +1245,7 @@ export class ContentEditableAdapter {
         if (textOffset === null) {
           continue;
         }
-        candidates.push({
-          container,
-          offset: candidateOffset,
-          textOffset,
-          order: order++,
-        });
+        candidates.push({ container, offset: candidateOffset, textOffset });
       }
     };
 
@@ -1413,26 +1320,12 @@ export class ContentEditableAdapter {
   ): boolean {
     const bestDistance = Math.abs(best.textOffset - clampedTarget);
     const candidateDistance = Math.abs(candidate.textOffset - clampedTarget);
-    if (candidateDistance < bestDistance) {
-      return true;
+    if (candidateDistance !== bestDistance) {
+      return candidateDistance < bestDistance;
     }
-    if (candidateDistance > bestDistance) {
-      return false;
-    }
-
-    const bestOnOrAfter = best.textOffset >= clampedTarget;
-    const candidateOnOrAfter = candidate.textOffset >= clampedTarget;
-    if (candidateOnOrAfter !== bestOnOrAfter) {
-      return candidateOnOrAfter;
-    }
-
-    if (candidateOnOrAfter && candidate.textOffset < best.textOffset) {
-      return true;
-    }
-    if (!candidateOnOrAfter && candidate.textOffset > best.textOffset) {
-      return true;
-    }
-    return candidate.order < best.order;
+    // Equal distance on the same side means equal textOffset: the earlier candidate wins.
+    // Across sides, prefer the one on or after the target.
+    return candidate.textOffset >= clampedTarget && best.textOffset < clampedTarget;
   }
 
   private measureBoundaryTextOffset(

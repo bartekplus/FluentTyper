@@ -51,7 +51,7 @@ import {
 import type { LogLevel, ObservabilityModuleOverride } from "../observability";
 import type { SiteProfiles } from "../siteProfiles";
 
-export const SETTINGS_KEYS = {
+const SETTINGS_KEYS = {
   enabled: "enable",
   domainList: "domainBlackList",
   domainListMode: KEY_DOMAIN_LIST_MODE,
@@ -177,17 +177,10 @@ const ALIASES_BY_CANONICAL: Record<string, string[]> = {
   [SETTINGS_KEYS.suggestionPaddingHorizontal]: ["tributePaddingHorizontal"],
 };
 
-const CANONICAL_BY_STORAGE_KEY: Record<string, string> = Object.entries(
-  ALIASES_BY_CANONICAL,
-).reduce(
-  (lookup, [canonical, aliases]) => {
-    lookup[canonical] = canonical;
-    for (const alias of aliases) {
-      lookup[alias] = canonical;
-    }
-    return lookup;
-  },
-  {} as Record<string, string>,
+const CANONICAL_BY_STORAGE_KEY: Record<string, string> = Object.fromEntries(
+  Object.entries(ALIASES_BY_CANONICAL).flatMap(([canonical, aliases]) =>
+    [canonical, ...aliases].map((key) => [key, canonical]),
+  ),
 );
 
 export function getSettingStorageKey(field: SettingField): string {
@@ -196,7 +189,7 @@ export function getSettingStorageKey(field: SettingField): string {
 
 export function getSettingStorageAliases(field: SettingField): string[] {
   const canonical = SETTINGS_KEYS[field];
-  return [canonical, ...(ALIASES_BY_CANONICAL[canonical] || [])];
+  return [canonical, ...getAliasesForCanonicalSettingKey(canonical)];
 }
 
 export function resolveCanonicalSettingKey(key: string): string {
@@ -208,8 +201,7 @@ export function getAliasesForCanonicalSettingKey(canonicalKey: string): string[]
 }
 
 export function getAliasedSettingFields(): SettingField[] {
-  return (Object.keys(SETTINGS_KEYS) as SettingField[]).filter((field) => {
-    const canonical = SETTINGS_KEYS[field];
-    return (ALIASES_BY_CANONICAL[canonical] || []).length > 0;
-  });
+  return (Object.keys(SETTINGS_KEYS) as SettingField[]).filter(
+    (field) => getAliasesForCanonicalSettingKey(SETTINGS_KEYS[field]).length > 0,
+  );
 }

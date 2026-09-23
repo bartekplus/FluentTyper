@@ -1,12 +1,7 @@
 import type { SettingsRegistry } from "@ui/settings-engine/SettingsEngine.js";
 import type { Store } from "@core/application/storage/Store.js";
+import { SUPPORTED_PREDICTION_LANGUAGE_KEYS, resolveEnabledLanguages } from "@core/domain/lang";
 import {
-  SUPPORTED_LANGUAGES,
-  SUPPORTED_PREDICTION_LANGUAGE_KEYS,
-  resolveEnabledLanguages,
-} from "@core/domain/lang";
-import {
-  CMD_GET_AUTO_LANGUAGE_STATUS,
   KEY_ENABLED_LANGUAGES,
   KEY_EXTENSION_LANGUAGE,
   KEY_FALLBACK_LANGUAGE,
@@ -15,6 +10,8 @@ import {
   KEY_SITE_PROFILES,
 } from "@core/domain/constants";
 import { resolveSiteProfiles } from "@core/domain/siteProfiles";
+import { fetchAutoLanguageStatus } from "@ui/shared/runtimeMessaging";
+import { appendLanguageOptions, languageLabel } from "@ui/shared/siteProfileEditor";
 import { formatTranslation, i18n } from "./fluenttyperI18n.js";
 import {
   bindRerender,
@@ -61,28 +58,25 @@ export class LanguageSettingsPanel {
         : enabledLanguages[0];
     const siteProfiles = resolveSiteProfiles(siteProfilesRaw, enabledLanguages);
     const usageCounts = this.countSiteProfileUsage(siteProfiles);
-    const autoLanguageStatus =
-      language === "auto_detect" ? await this.fetchAutoLanguageStatus() : null;
+    const autoLanguageStatus = language === "auto_detect" ? await fetchAutoLanguageStatus() : null;
 
     const shell = createWorkspaceShell();
 
     const topGrid = createWorkspaceShell("workspace-top-grid");
     topGrid.append(
-      this.createExtensionUiCard(),
+      this.createControlCard("extension_ui_language", KEY_EXTENSION_LANGUAGE),
       this.createSummary(enabledLanguages, language, fallbackLanguage, autoLanguageStatus),
     );
 
     const lowerGrid = createWorkspaceShell("workspace-main-grid");
-    const languageDisplayCard = this.createLanguageDisplayCard();
+    const languageDisplayCard = this.createControlCard("language_display", KEY_DISPLAY_LANG_HEADER);
     languageDisplayCard.classList.add("workspace-span-full");
     const languageGridSection = this.createLanguageGridSection(enabledLanguages, usageCounts);
     languageGridSection.classList.add("workspace-span-full");
     lowerGrid.append(
       languageDisplayCard,
       languageGridSection,
-      ...Array.from(
-        this.createBehaviorCards(enabledLanguages, language, fallbackLanguage).children,
-      ),
+      ...this.createBehaviorCards(enabledLanguages, language, fallbackLanguage),
     );
 
     shell.append(topGrid, lowerGrid);
@@ -91,15 +85,9 @@ export class LanguageSettingsPanel {
     pruneEmptySettingsGroups(this.root);
   }
 
-  private createExtensionUiCard(): HTMLElement {
-    const { card, body } = createWorkspaceCard(i18n.get("extension_ui_language"));
-    moveControlToBody(this.registry, KEY_EXTENSION_LANGUAGE, body);
-    return card;
-  }
-
-  private createLanguageDisplayCard(): HTMLElement {
-    const { card, body } = createWorkspaceCard(i18n.get("language_display"));
-    moveControlToBody(this.registry, KEY_DISPLAY_LANG_HEADER, body);
+  private createControlCard(titleKey: string, controlKey: string): HTMLElement {
+    const { card, body } = createWorkspaceCard(i18n.get(titleKey));
+    moveControlToBody(this.registry, controlKey, body);
     return card;
   }
 
@@ -118,10 +106,8 @@ export class LanguageSettingsPanel {
 
     const text = document.createElement("p");
     const primaryLabel =
-      language === "auto_detect"
-        ? i18n.get("language_panel_auto_detect")
-        : SUPPORTED_LANGUAGES[language] || language;
-    const fallbackLabel = SUPPORTED_LANGUAGES[fallbackLanguage] || fallbackLanguage;
+      language === "auto_detect" ? i18n.get("language_panel_auto_detect") : languageLabel(language);
+    const fallbackLabel = languageLabel(fallbackLanguage);
     if (enabledLanguages.length > 1) {
       text.textContent =
         language === "auto_detect"
@@ -136,7 +122,7 @@ export class LanguageSettingsPanel {
             });
     } else {
       text.textContent = formatTranslation("language_panel_summary_single", {
-        language: SUPPORTED_LANGUAGES[enabledLanguages[0]] || enabledLanguages[0],
+        language: languageLabel(enabledLanguages[0]),
       });
     }
     shell.appendChild(text);
@@ -144,8 +130,7 @@ export class LanguageSettingsPanel {
     if (language === "auto_detect" && autoLanguageStatus?.language) {
       const activeStatus = document.createElement("p");
       activeStatus.className = "settings-inline-help";
-      const activeLabel =
-        SUPPORTED_LANGUAGES[autoLanguageStatus.language] || autoLanguageStatus.language;
+      const activeLabel = languageLabel(autoLanguageStatus.language);
       activeStatus.textContent = formatTranslation("language_panel_auto_detect_current", {
         language: activeLabel,
       });
@@ -208,7 +193,7 @@ export class LanguageSettingsPanel {
       }
 
       const title = document.createElement("strong");
-      title.textContent = SUPPORTED_LANGUAGES[languageKey] || languageKey;
+      title.textContent = languageLabel(languageKey);
       button.appendChild(title);
 
       const meta = document.createElement("span");
@@ -230,8 +215,8 @@ export class LanguageSettingsPanel {
       button.addEventListener("click", () => {
         const next = enabledLanguages.includes(languageKey)
           ? enabledLanguages.filter((entry) => entry !== languageKey)
-          : SUPPORTED_PREDICTION_LANGUAGE_KEYS.filter((entry) =>
-              new Set([...enabledLanguages, languageKey]).has(entry),
+          : SUPPORTED_PREDICTION_LANGUAGE_KEYS.filter(
+              (entry) => entry === languageKey || enabledLanguages.includes(entry),
             );
         if (next.length === 0) {
           return;
@@ -250,10 +235,7 @@ export class LanguageSettingsPanel {
     enabledLanguages: string[],
     language: string,
     fallbackLanguage: string,
-  ): HTMLElement {
-    const grid = document.createElement("div");
-    grid.className = "language-behavior-grid";
-
+  ): HTMLElement[] {
     const primaryCard = document.createElement("section");
     primaryCard.className = "settings-inline-card";
     const primaryLabel = document.createElement("label");
@@ -267,12 +249,7 @@ export class LanguageSettingsPanel {
       autoDetect.textContent = i18n.get("language_panel_auto_detect");
       primarySelect.appendChild(autoDetect);
     }
-    enabledLanguages.forEach((languageKey) => {
-      const option = document.createElement("option");
-      option.value = languageKey;
-      option.textContent = SUPPORTED_LANGUAGES[languageKey] || languageKey;
-      primarySelect.appendChild(option);
-    });
+    appendLanguageOptions(primarySelect, enabledLanguages);
     primarySelect.value =
       language === "auto_detect" && enabledLanguages.length > 1
         ? "auto_detect"
@@ -287,7 +264,6 @@ export class LanguageSettingsPanel {
     primaryHelp.className = "settings-inline-help";
     primaryHelp.textContent = i18n.get("language_panel_primary_help");
     primaryCard.appendChild(primaryHelp);
-    grid.appendChild(primaryCard);
 
     const detectionCard = document.createElement("section");
     detectionCard.className = "settings-inline-card";
@@ -311,7 +287,7 @@ export class LanguageSettingsPanel {
       const lockCopy = document.createElement("p");
       lockCopy.className = "settings-inline-help";
       lockCopy.textContent = formatTranslation("language_panel_detection_lock_and_fallback", {
-        language: SUPPORTED_LANGUAGES[fallbackLanguage] || fallbackLanguage,
+        language: languageLabel(fallbackLanguage),
       });
       detectionCard.appendChild(lockCopy);
     }
@@ -319,12 +295,7 @@ export class LanguageSettingsPanel {
     if (enabledLanguages.length > 1 && primarySelect.value === "auto_detect") {
       const fallbackSelect = document.createElement("select");
       fallbackSelect.className = "input";
-      enabledLanguages.forEach((languageKey) => {
-        const option = document.createElement("option");
-        option.value = languageKey;
-        option.textContent = SUPPORTED_LANGUAGES[languageKey] || languageKey;
-        fallbackSelect.appendChild(option);
-      });
+      appendLanguageOptions(fallbackSelect, enabledLanguages);
       fallbackSelect.value = enabledLanguages.includes(fallbackLanguage)
         ? fallbackLanguage
         : enabledLanguages[0];
@@ -334,8 +305,7 @@ export class LanguageSettingsPanel {
       detectionCard.appendChild(fallbackSelect);
     }
 
-    grid.appendChild(detectionCard);
-    return grid;
+    return [primaryCard, detectionCard];
   }
 
   private countSiteProfileUsage(
@@ -348,25 +318,5 @@ export class LanguageSettingsPanel {
       acc[profile.language] = (acc[profile.language] || 0) + 1;
       return acc;
     }, {});
-  }
-
-  private async fetchAutoLanguageStatus(): Promise<{ language: string; locked: boolean } | null> {
-    try {
-      const response: unknown = await chrome.runtime.sendMessage({
-        command: CMD_GET_AUTO_LANGUAGE_STATUS,
-        context: {},
-      });
-      const status = (response as { status?: { language?: string; locked?: boolean } | null })
-        ?.status;
-      if (!status || typeof status.language !== "string" || status.language.length === 0) {
-        return null;
-      }
-      return {
-        language: status.language,
-        locked: status.locked === true,
-      };
-    } catch {
-      return null;
-    }
   }
 }

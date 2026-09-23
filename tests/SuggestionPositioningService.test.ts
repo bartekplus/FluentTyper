@@ -169,6 +169,63 @@ describe("SuggestionPositioningService", () => {
     );
   });
 
+  test("resolves px and em theme lengths like their rem equivalents", () => {
+    const service = new SuggestionPositioningService();
+    const remMenu = document.createElement("div");
+    const mixedMenu = document.createElement("div");
+    const input = document.createElement("input");
+    input.style.fontSize = "16px";
+    document.body.appendChild(input);
+
+    document.documentElement.style.setProperty("--ft-theme-suggestion-font-size", "0.75rem");
+    document.documentElement.style.setProperty("--ft-theme-suggestion-padding-vertical", "0.45rem");
+    document.documentElement.style.setProperty(
+      "--ft-theme-suggestion-padding-horizontal",
+      "0.6rem",
+    );
+    service.syncMenuTypography(remMenu, input);
+
+    // Root and field font size are both 16px, so these match the rem values above.
+    document.documentElement.style.setProperty("--ft-theme-suggestion-font-size", "12PX");
+    document.documentElement.style.setProperty("--ft-theme-suggestion-padding-vertical", "0.45em");
+    document.documentElement.style.setProperty("--ft-theme-suggestion-padding-horizontal", "9.6px");
+    service.syncMenuTypography(mixedMenu, input);
+
+    for (const property of ["--ft-font-size", "--ft-pad-y", "--ft-pad-x", "--ft-row-height"]) {
+      expect(mixedMenu.style.getPropertyValue(property)).toBe(
+        remMenu.style.getPropertyValue(property),
+      );
+    }
+    expect(mixedMenu.style.getPropertyValue("--ft-font-size")).toBe("12px");
+  });
+
+  test("measures other theme length units through the matching computed property", () => {
+    const service = new SuggestionPositioningService();
+    const pxMenu = document.createElement("div");
+    const measuredMenu = document.createElement("div");
+    const input = document.createElement("input");
+    input.style.fontSize = "16px";
+    document.body.appendChild(input);
+    const setTheme = (fontSize: string, padY: string, padX: string) => {
+      const rootStyle = document.documentElement.style;
+      rootStyle.setProperty("--ft-theme-suggestion-font-size", fontSize);
+      rootStyle.setProperty("--ft-theme-suggestion-padding-vertical", padY);
+      rootStyle.setProperty("--ft-theme-suggestion-padding-horizontal", padX);
+    };
+
+    setTheme("12px", "4.8px", "16px");
+    service.syncMenuTypography(pxMenu, input);
+    // Units the fast path does not parse go through a probe element.
+    setTheme("9pt", "3.6pt", "12pt");
+    service.syncMenuTypography(measuredMenu, input);
+
+    for (const property of ["--ft-font-size", "--ft-pad-y", "--ft-pad-x", "--ft-row-height"]) {
+      expect(measuredMenu.style.getPropertyValue(property)).toBe(
+        pxMenu.style.getPropertyValue(property),
+      );
+    }
+  });
+
   test("keeps custom master-era size and spacing preferences as compact scaling hints", () => {
     const service = new SuggestionPositioningService();
     const menu = document.createElement("div");

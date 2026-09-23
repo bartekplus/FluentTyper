@@ -286,6 +286,52 @@ describe("TextAssetsPanel", () => {
     expect(values[KEY_USER_DICTIONARY_LIST]).toEqual([]);
   });
 
+  test("adding a single dictionary word keeps the list sorted and ignores duplicates", async () => {
+    const values: SettingsMap = {
+      [KEY_TEXT_EXPANSIONS]: [],
+      [KEY_USER_DICTIONARY_LIST]: ["zeta"],
+      [KEY_DATE_FORMAT]: "",
+      [KEY_TIME_FORMAT]: "",
+    };
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+
+    new TextAssetsPanel(root, createRegistry(values), createStore(values));
+    await flushAsyncWork();
+
+    const addWord = async (word: string) => {
+      const input = root.querySelector<HTMLInputElement>(
+        `input[placeholder="${i18n.get("text_assets_add_custom_word_placeholder")}"]`,
+      );
+      input!.value = word;
+      findButtonByText(root, i18n.get("add")).click();
+      await flushAsyncWork();
+    };
+
+    await addWord("alpha");
+    expect(values[KEY_USER_DICTIONARY_LIST]).toEqual(["alpha", "zeta"]);
+    await addWord("zeta");
+    expect(values[KEY_USER_DICTIONARY_LIST]).toEqual(["alpha", "zeta"]);
+  });
+
+  test("snippet preview substitutes page variables with sample values", async () => {
+    const values: SettingsMap = {
+      [KEY_TEXT_EXPANSIONS]: [["pg", "${page_url} ${page_title} ${page_domain} ${unknown_var}"]],
+      [KEY_USER_DICTIONARY_LIST]: [],
+      [KEY_DATE_FORMAT]: "",
+      [KEY_TIME_FORMAT]: "",
+    };
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+
+    new TextAssetsPanel(root, createRegistry(values), createStore(values));
+    await flushAsyncWork();
+
+    expect(root.querySelector(".snippet-preview")?.textContent).toBe(
+      "https://example.com/path Example page example.com ${unknown_var}",
+    );
+  });
+
   test("dynamic variables help links to Luxon docs and shows format examples", async () => {
     const values: SettingsMap = {
       [KEY_TEXT_EXPANSIONS]: [],

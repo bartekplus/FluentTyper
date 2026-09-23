@@ -52,7 +52,10 @@ function buildElementSnapshot(
   };
 }
 
-export interface TextEditApplyResult {
+type DomEditResult = { didMutateDom: boolean; didDispatchInput: boolean };
+type EditResult = ContentEditableEditResult | DomEditResult;
+
+interface TextEditApplyResult {
   applied: boolean;
   didDispatchInput: boolean;
   suppressedByManualRevert?: boolean;
@@ -65,7 +68,7 @@ interface AcceptedSuggestionEditResult {
   cursorAfterIsBlockLocal: boolean;
 }
 
-export interface GrammarEditApplyContext {
+interface GrammarEditApplyContext {
   snapshot?: SuggestionSnapshot;
   contentEditableContext?: {
     beforeCursor: string;
@@ -351,11 +354,8 @@ export class SuggestionTextEditService {
         })()
       : TextTargetAdapter.matchesPostEditFingerprint(entry.elem, postEditFingerprint, snapshot);
 
-    if (!fingerprintMatch) {
-      entry.pendingExtensionEdit = null;
-      return false;
-    }
     if (
+      !fingerprintMatch ||
       replaceEnd > fullText.length ||
       fullText.slice(replaceStart, replaceEnd) !== replacementText
     ) {
@@ -429,12 +429,7 @@ export class SuggestionTextEditService {
     if (
       (pendingEdit.postEditBlockText ?? "") !== blockFullText ||
       blockContext.beforeCursor.length < pendingEdit.replaceStart ||
-      blockContext.beforeCursor.length > pendingEdit.cursorAfter
-    ) {
-      entry.pendingExtensionEdit = null;
-      return false;
-    }
-    if (
+      blockContext.beforeCursor.length > pendingEdit.cursorAfter ||
       replaceEnd > blockFullText.length ||
       blockFullText.slice(pendingEdit.replaceStart, replaceEnd) !== pendingEdit.replacementText
     ) {
@@ -552,8 +547,7 @@ export class SuggestionTextEditService {
           ),
         );
         blockSourceText = `${blockContext.beforeCursor}${blockContext.afterCursor}`;
-        expectedBlockText = blockSourceText;
-        expectedBlockText = `${expectedBlockText.slice(0, blockReplaceStart)}${replacement}${expectedBlockText.slice(blockReplaceEnd)}`;
+        expectedBlockText = `${blockSourceText.slice(0, blockReplaceStart)}${replacement}${blockSourceText.slice(blockReplaceEnd)}`;
         expectedBlockCursorAfter =
           edit.cursorOffset !== undefined
             ? blockReplaceStart + Math.max(0, Math.min(replacement.length, edit.cursorOffset))
@@ -616,9 +610,7 @@ export class SuggestionTextEditService {
       return { applied: false, didDispatchInput: false, suppressedByManualRevert: true };
     }
 
-    let applyResult:
-      ContentEditableEditResult | { didMutateDom: boolean; didDispatchInput: boolean } | null =
-      null;
+    let applyResult: EditResult | null = null;
     if (
       !TextTargetAdapter.isTextValue(entry.elem) &&
       activeBlock !== null &&
@@ -636,18 +628,12 @@ export class SuggestionTextEditService {
           blockText: blockSourceText,
         });
         if (hostEditorSession) {
-          const hostResult = hostEditorSession.applyBlockReplacement({
+          applyResult = this.applyHostReplacement(hostEditorSession, {
             replaceStart: blockReplaceStart,
             replaceEnd: blockReplaceEnd,
             replacementText: replacement,
             cursorAfter: blockCursorAfter,
           });
-          if (hostResult.applied) {
-            applyResult = {
-              didMutateDom: true,
-              didDispatchInput: hostResult.didDispatchInput,
-            };
-          }
         }
         if (applyResult === null) {
           applyResult = this.tryHostGrammarEditWithMatchingBlockText(
@@ -788,7 +774,7 @@ export class SuggestionTextEditService {
       };
     }
 
-    let postEditSnapshot: SuggestionSnapshot | null =
+    let postEditSnapshot: SuggestionSnapshot =
       !TextTargetAdapter.isTextValue(entry.elem) &&
       activeBlock !== null &&
       expectedBlockText !== null &&
@@ -798,10 +784,7 @@ export class SuggestionTextEditService {
             afterCursor: expectedFullText.slice(cursorAfter),
             cursorOffset: cursorAfter,
           }
-        : null;
-    if (postEditSnapshot === null) {
-      postEditSnapshot = TextTargetAdapter.snapshot(entry.elem);
-    }
+        : TextTargetAdapter.snapshot(entry.elem);
     if (
       isStrictEdit &&
       !this.matchesExpectedGrammarResult(postEditSnapshot, expectedFullText, cursorAfter)
@@ -921,7 +904,7 @@ export class SuggestionTextEditService {
 
     const beforeCursor = blockContext?.beforeCursor ?? snapshot?.beforeCursor ?? "";
     const afterCursor = blockContext?.afterCursor ?? snapshot?.afterCursor ?? "";
-    const charBeforeCursor = beforeCursor.charAt(beforeCursor.length - 1) || "";
+    const charBeforeCursor = beforeCursor.charAt(beforeCursor.length - 1);
     if (!charBeforeCursor || /\s/.test(charBeforeCursor)) {
       return;
     }
@@ -1006,12 +989,7 @@ export class SuggestionTextEditService {
   }
 
   private shouldConsumeFollowingSpace(insertedSuggestion: string, nextChar: string): boolean {
-    if (!insertedSuggestion || !nextChar) {
-      return false;
-    }
-    const endsWithSpace = /[ \xA0]$/.test(insertedSuggestion);
-    const nextIsSpace = /[ \xA0]/.test(nextChar);
-    return endsWithSpace && nextIsSpace;
+    return /[ \xA0]$/.test(insertedSuggestion) && /[ \xA0]/.test(nextChar);
   }
 
   private createManualAutoFixSuppression({
@@ -1025,13 +1003,7 @@ export class SuggestionTextEditService {
     fullText: string;
     cursorOffset: number;
   }): ManualAutoFixSuppressionSnapshot {
-    const tokenContext = this.resolveTokenContext(fullText, cursorOffset);
-    return {
-      ruleKey,
-      replaceStart,
-      tokenStart: tokenContext.tokenStart,
-      tokenText: tokenContext.tokenText,
-    };
+    return { ruleKey, replaceStart, ...this.resolveTokenContext(fullText, cursorOffset) };
   }
 
   private resolveTokenContext(
@@ -1095,7 +1067,7 @@ export class SuggestionTextEditService {
     replacementText: string,
     cursorAfter: number,
     options: { preferDomMutation?: boolean; scopeRoot?: HTMLElement | null } = {},
-  ): ContentEditableEditResult | { didMutateDom: boolean; didDispatchInput: boolean } {
+  ): EditResult {
     const boundedStart = Math.max(0, Math.min(fullText.length, replaceStart));
     const boundedEnd = Math.max(boundedStart, Math.min(fullText.length, replaceEnd));
     const updatedText = `${fullText.slice(0, boundedStart)}${replacementText}${fullText.slice(boundedEnd)}`;
@@ -1162,9 +1134,7 @@ export class SuggestionTextEditService {
   }
 
   private shouldPreferDomMutationForGrammar(elem: SuggestionElement): boolean {
-    if (TextTargetAdapter.isTextValue(elem)) {
-      return false;
-    }
+    // Only contenteditable targets are ever added.
     return this.domPreferredGrammarTargets.has(elem);
   }
 
@@ -1195,7 +1165,7 @@ export class SuggestionTextEditService {
     localReplaceEnd: number,
     replacementText: string,
     localCursorAfter: number,
-  ): { didMutateDom: boolean; didDispatchInput: boolean } | null {
+  ): DomEditResult | null {
     const session = this.hostEditorAdapterResolver.resolve(elem);
     if (!session) {
       return null;
@@ -1245,19 +1215,12 @@ export class SuggestionTextEditService {
     ) {
       return null;
     }
-    const hostResult = session.applyBlockReplacement({
+    return this.applyHostReplacement(session, {
       replaceStart: fullReplaceStart,
       replaceEnd: fullReplaceEnd,
       replacementText,
       cursorAfter: fullCursorAfter,
     });
-    if (!hostResult.applied) {
-      return null;
-    }
-    return {
-      didMutateDom: true,
-      didDispatchInput: hostResult.didDispatchInput,
-    };
   }
 
   private tryHostGrammarEditWithStaleHostRewrite(
@@ -1267,7 +1230,7 @@ export class SuggestionTextEditService {
     replaceEnd: number,
     replacementText: string,
     cursorAfter: number,
-  ): { didMutateDom: boolean; didDispatchInput: boolean } | null {
+  ): DomEditResult | null {
     const session = this.hostEditorAdapterResolver.resolve(elem);
     if (!session) {
       return null;
@@ -1276,20 +1239,13 @@ export class SuggestionTextEditService {
     // text and, when its model is stale, rewrites the block by
     // replacing its content with the post-edit text via the editor's
     // own model API.  We therefore don't need a parity check here.
-    const hostResult = session.applyBlockReplacement({
+    return this.applyHostReplacement(session, {
       replaceStart,
       replaceEnd,
       replacementText,
       cursorAfter,
       expectedBlockText: blockText,
     });
-    if (!hostResult.applied) {
-      return null;
-    }
-    return {
-      didMutateDom: true,
-      didDispatchInput: hostResult.didDispatchInput,
-    };
   }
 
   private tryHostGrammarEditWithMatchingBlockText(
@@ -1299,7 +1255,7 @@ export class SuggestionTextEditService {
     replaceEnd: number,
     replacementText: string,
     cursorAfter: number,
-  ): { didMutateDom: boolean; didDispatchInput: boolean } | null {
+  ): DomEditResult | null {
     const session = this.hostEditorAdapterResolver.resolve(elem);
     if (!session) {
       return null;
@@ -1324,19 +1280,22 @@ export class SuggestionTextEditService {
       return null;
     }
 
-    const hostResult = session.applyBlockReplacement({
+    return this.applyHostReplacement(session, {
       replaceStart,
       replaceEnd,
       replacementText,
       cursorAfter,
     });
-    if (!hostResult.applied) {
-      return null;
-    }
-    return {
-      didMutateDom: true,
-      didDispatchInput: hostResult.didDispatchInput,
-    };
+  }
+
+  private applyHostReplacement(
+    session: HostEditorSession,
+    request: Parameters<HostEditorSession["applyBlockReplacement"]>[0],
+  ): DomEditResult | null {
+    const hostResult = session.applyBlockReplacement(request);
+    return hostResult.applied
+      ? { didMutateDom: true, didDispatchInput: hostResult.didDispatchInput }
+      : null;
   }
 
   private resolveHostEditorSession(
@@ -1386,7 +1345,7 @@ export class SuggestionTextEditService {
     cursorAfter: number;
     activeBlock: HTMLElement;
     hostEditorSession: HostEditorSession | null;
-  }): ContentEditableEditResult | { didMutateDom: boolean; didDispatchInput: boolean } {
+  }): EditResult {
     if (hostEditorSession) {
       const result = hostEditorSession.applyBlockReplacement({
         replaceStart,
@@ -1414,7 +1373,7 @@ export class SuggestionTextEditService {
       return fallbackResult;
     }
 
-    const initialApplyResult = this.replaceTextByOffsets(
+    return this.replaceTextByOffsets(
       elem,
       blockSourceText,
       replaceStart,
@@ -1423,7 +1382,6 @@ export class SuggestionTextEditService {
       cursorAfter,
       { scopeRoot: activeBlock },
     );
-    return initialApplyResult;
   }
 
   private acceptContentEditableSuggestion(
@@ -1597,13 +1555,11 @@ export class SuggestionTextEditService {
       entry.pendingExtensionEdit.postEditBlockText = postEditBlockText;
     }
 
-    const finishedAt = performance.now();
-    const durationMs = finishedAt - startedAt;
     logger.debug("Accepted contenteditable suggestion", {
       suggestionLength: suggestion.length,
       replacementLength: replacementText.length,
       blockTextLength: blockSourceText.length,
-      durationMs,
+      durationMs: performance.now() - startedAt,
       blockScoped: true,
       activeBlockSnapshot: buildElementSnapshot(
         activeBlock,
@@ -1640,7 +1596,7 @@ export class SuggestionTextEditService {
       expectedBlockCursorAfter: number | null;
     },
   ): {
-    applyResult: ContentEditableEditResult | { didMutateDom: boolean; didDispatchInput: boolean };
+    applyResult: EditResult;
     postEditSnapshot: SuggestionSnapshot;
   } | null {
     const currentSnapshot = TextTargetAdapter.snapshot(entry.elem);
@@ -1698,7 +1654,7 @@ export class SuggestionTextEditService {
     expectedSegmentText: string,
     cursorAfter: number,
   ): {
-    applyResult: ContentEditableEditResult | { didMutateDom: boolean; didDispatchInput: boolean };
+    applyResult: EditResult;
     postEditSnapshot: SuggestionSnapshot;
   } | null {
     if (currentSegmentText === expectedSegmentText) {

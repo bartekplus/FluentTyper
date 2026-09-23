@@ -53,10 +53,7 @@ const THEME_SETTING_SPECS: ThemeSettingSpec[] = [
 export class ThemeApplicator {
   apply(themeSettings: ThemeSettings): void {
     const safeThemeSettings = this.sanitizeThemeSettings(themeSettings);
-    const existingStyle = document.getElementById("fluent-typer-theme-overrides");
-    if (existingStyle) {
-      existingStyle.remove();
-    }
+    document.getElementById("fluent-typer-theme-overrides")?.remove();
 
     const styleElement = document.createElement("style");
     styleElement.id = "fluent-typer-theme-overrides";
@@ -96,23 +93,12 @@ export class ThemeApplicator {
     }
 
     const trimmedValue = value.trim();
-    if (!trimmedValue || this.isUnsafeCustomPropertyValue(trimmedValue)) {
+    if (!trimmedValue || /var\(|url\(|[;{}]/i.test(trimmedValue)) {
       return fallback;
     }
 
     const probe = document.createElement("div");
     probe.style.setProperty(property, trimmedValue);
     return probe.style.getPropertyValue(property) ? trimmedValue : fallback;
-  }
-
-  private isUnsafeCustomPropertyValue(value: string): boolean {
-    const normalizedValue = value.toLowerCase();
-    return (
-      normalizedValue.includes("var(") ||
-      normalizedValue.includes("url(") ||
-      normalizedValue.includes(";") ||
-      normalizedValue.includes("{") ||
-      normalizedValue.includes("}")
-    );
   }
 }

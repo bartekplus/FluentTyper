@@ -1,15 +1,23 @@
 import type { StorageBackend } from "./StorageBackend.js";
 
-function toError(error: unknown): Error {
-  if (error instanceof Error) {
-    return error;
-  }
-  return new Error(typeof error === "string" ? error : String(error));
-}
-
-function getRuntimeError(): Error | null {
-  const lastError = chrome.runtime?.lastError;
-  return lastError ? new Error(lastError.message) : null;
+function callStorage<T, R = void>(
+  invoke: (done: (result: T) => void) => void,
+  map: (result: T) => R = () => undefined as R,
+): Promise<R> {
+  return new Promise((resolve, reject) => {
+    try {
+      invoke((result) => {
+        const lastError = chrome.runtime?.lastError;
+        if (lastError) {
+          reject(new Error(lastError.message));
+          return;
+        }
+        resolve(map(result));
+      });
+    } catch (ex) {
+      reject(ex instanceof Error ? ex : new Error(String(ex)));
+    }
+  });
 }
 
 export class ChromeStorageBackend implements StorageBackend {
@@ -20,82 +28,38 @@ export class ChromeStorageBackend implements StorageBackend {
   }
 
   async get(key: string): Promise<string | undefined> {
-    return new Promise((resolve, reject) => {
-      try {
-        this.backend.get(key, (value) => {
-          const runtimeError = getRuntimeError();
-          if (runtimeError) {
-            reject(runtimeError);
-            return;
-          }
-          resolve(value[key] as string | undefined);
-        });
-      } catch (ex) {
-        reject(toError(ex));
-      }
-    });
+    return callStorage<Record<string, unknown>, string | undefined>(
+      (done) => this.backend.get(key, done),
+      (value) => value[key] as string | undefined,
+    );
   }
 
   async set(key: string, value: string): Promise<void> {
-    return new Promise((resolve, reject) => {
-      try {
-        this.backend.set({ [key]: value }, () => {
-          const runtimeError = getRuntimeError();
-          if (runtimeError) {
-            reject(runtimeError);
-            return;
-          }
-          resolve();
-        });
-      } catch (ex) {
-        reject(toError(ex));
-      }
-    });
+    return callStorage((done) => this.backend.set({ [key]: value }, () => done(undefined)));
   }
 
   async remove(key: string): Promise<void> {
-    return new Promise((resolve, reject) => {
-      try {
-        this.backend.remove(key, () => {
-          const runtimeError = getRuntimeError();
-          if (runtimeError) {
-            reject(runtimeError);
-            return;
-          }
-          resolve();
-        });
-      } catch (ex) {
-        reject(toError(ex));
-      }
-    });
+    return callStorage((done) => this.backend.remove(key, () => done(undefined)));
   }
 
   async getAll(prefix: string): Promise<Record<string, string>> {
-    return new Promise((resolve, reject) => {
-      try {
-        this.backend.get(null, (values) => {
-          const runtimeError = getRuntimeError();
-          if (runtimeError) {
-            reject(runtimeError);
-            return;
+    return callStorage<Record<string, unknown>, Record<string, string>>(
+      (done) => this.backend.get(null, done),
+      (values) => {
+        const result: Record<string, string> = {};
+        for (const [key, value] of Object.entries(values)) {
+          if (!key.startsWith(prefix)) {
+            continue;
           }
-          const result: Record<string, string> = {};
-          for (const [key, value] of Object.entries(values)) {
-            if (!key.startsWith(prefix)) {
-              continue;
-            }
-            Object.defineProperty(result, key.substring(prefix.length), {
-              configurable: true,
-              enumerable: true,
-              value: value,
-              writable: true,
-            });
-          }
-          resolve(result);
-        });
-      } catch (ex) {
-        reject(toError(ex));
-      }
-    });
+          Object.defineProperty(result, key.substring(prefix.length), {
+            configurable: true,
+            enumerable: true,
+            value: value,
+            writable: true,
+          });
+        }
+        return result;
+      },
+    );
   }
 }

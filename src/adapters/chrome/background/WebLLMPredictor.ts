@@ -114,7 +114,7 @@ export class WebLLMPredictor implements SecondaryPredictor {
   }
 
   preload(): void {
-    void this.ensureReady();
+    void this.engineLifecycleService.ensureReady(this.enabled, this.modelId);
   }
 
   interruptActiveGeneration(
@@ -147,18 +147,14 @@ export class WebLLMPredictor implements SecondaryPredictor {
       return [];
     }
     const requestSeq = this.generationCoordinator.nextGenerationSeq();
-    const testOverridePredictions = await maybePredictFromRuntimeTestOverride({
-      lang: request.lang,
-      predictionInput: request.predictionInput,
-      numSuggestions: request.numSuggestions,
-    });
+    const testOverridePredictions = await maybePredictFromRuntimeTestOverride(request);
     if (testOverridePredictions) {
       if (this.isRequestStale(requestSeq)) {
         return [];
       }
       return testOverridePredictions;
     }
-    const ready = await this.ensureReady();
+    const ready = await this.engineLifecycleService.ensureReady(this.enabled, this.modelId);
     if (!ready || !this.engineLifecycleService.getEngine() || this.isRequestStale(requestSeq)) {
       return [];
     }
@@ -187,7 +183,15 @@ export class WebLLMPredictor implements SecondaryPredictor {
       let rawOutput = "";
       let source = "none";
       try {
-        const chatResult = await this.predictWithChatCompletion(request, modeContext);
+        const chatResult = await this.predictWithChatCompletion(
+          request,
+          this.promptBuilder.buildChatMessages(
+            request.predictionInput,
+            request.lang,
+            request.numSuggestions,
+            modeContext,
+          ),
+        );
         predictions = chatResult.predictions;
         rawOutput = chatResult.rawOutput;
         source = "chat";
@@ -202,7 +206,14 @@ export class WebLLMPredictor implements SecondaryPredictor {
       }
       if (predictions.length === 0) {
         try {
-          const simpleChatResult = await this.predictWithSimpleChatCompletion(request, modeContext);
+          const simpleChatResult = await this.predictWithChatCompletion(
+            request,
+            this.promptBuilder.buildSimpleChatMessages(
+              request.predictionInput,
+              request.numSuggestions,
+              modeContext,
+            ),
+          );
           if (simpleChatResult.rawOutput.trim().length > 0 || !rawOutput) {
             rawOutput = simpleChatResult.rawOutput;
           }
@@ -264,10 +275,7 @@ export class WebLLMPredictor implements SecondaryPredictor {
 
   private isExpectedRequestInFlight(lang: string, predictionInput: string): boolean {
     const inFlightRequest = this.generationCoordinator.getInFlightRequest();
-    if (!inFlightRequest) {
-      return false;
-    }
-    return inFlightRequest.lang === lang && inFlightRequest.predictionInput === predictionInput;
+    return inFlightRequest?.lang === lang && inFlightRequest.predictionInput === predictionInput;
   }
 
   private isRequestStale(seq: number): boolean {
@@ -275,10 +283,6 @@ export class WebLLMPredictor implements SecondaryPredictor {
       seq !== this.generationCoordinator.getActiveGenerationSeq() ||
       this.generationCoordinator.isCancelled(seq)
     );
-  }
-
-  private async ensureReady(): Promise<boolean> {
-    return this.engineLifecycleService.ensureReady(this.enabled, this.modelId);
   }
 
   private createEmptyPredictionPayload(): PredictionResponsePayload {
@@ -293,7 +297,7 @@ export class WebLLMPredictor implements SecondaryPredictor {
   }
 
   private resetEngine(): void {
-    this.generationCoordinator.advanceGenerationSeq();
+    this.generationCoordinator.nextGenerationSeq();
     this.interruptActiveGeneration("reset");
     this.generationCoordinator.clearGenerationTracking();
     this.engineLifecycleService.reset();
@@ -301,7 +305,7 @@ export class WebLLMPredictor implements SecondaryPredictor {
 
   private async predictWithChatCompletion(
     request: SecondaryPredictorRequest,
-    modeContext: PredictionModeContext,
+    messages: Array<{ role: "system" | "user"; content: string }>,
   ): Promise<PredictionResponsePayload> {
     const engine = this.engineLifecycleService.getEngine();
     if (!engine) {
@@ -309,39 +313,7 @@ export class WebLLMPredictor implements SecondaryPredictor {
     }
     const chatCompletion = (await engine.chat.completions.create({
       stream: false,
-      messages: this.promptBuilder.buildChatMessages(
-        request.predictionInput,
-        request.lang,
-        request.numSuggestions,
-        modeContext,
-      ),
-      n: 1,
-      max_tokens: this.getMaxTokens(request.numSuggestions),
-      temperature: 0.2,
-      top_p: 0.95,
-    })) as ChatCreateResponse;
-    const parsed = await this.responseParser.parseChatCreateResponse(
-      chatCompletion,
-      request.numSuggestions,
-    );
-    return this.responseParser.enrichFromEngineMessage(engine, parsed, request.numSuggestions);
-  }
-
-  private async predictWithSimpleChatCompletion(
-    request: SecondaryPredictorRequest,
-    modeContext: PredictionModeContext,
-  ): Promise<PredictionResponsePayload> {
-    const engine = this.engineLifecycleService.getEngine();
-    if (!engine) {
-      return this.createEmptyPredictionPayload();
-    }
-    const chatCompletion = (await engine.chat.completions.create({
-      stream: false,
-      messages: this.promptBuilder.buildSimpleChatMessages(
-        request.predictionInput,
-        request.numSuggestions,
-        modeContext,
-      ),
+      messages,
       n: 1,
       max_tokens: this.getMaxTokens(request.numSuggestions),
       temperature: 0.2,

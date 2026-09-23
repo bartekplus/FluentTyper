@@ -15,7 +15,7 @@ export class PromptBuilder {
     const fragment = (fragmentMatch?.[1] || "").toLowerCase();
     return {
       mode: fragment ? "complete_or_correct" : "next_word",
-      fragment: fragment || "",
+      fragment,
     };
   }
 

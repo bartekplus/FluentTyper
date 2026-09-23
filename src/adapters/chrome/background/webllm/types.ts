@@ -7,23 +7,20 @@ export interface CompletionResponse {
   choices?: Array<{ text?: string | null }>;
 }
 
-export interface CompletionChunkResponse {
-  choices?: Array<{ text?: string | null }>;
-}
+export type ChatMessageContent =
+  | string
+  | Array<{
+      text?: string | null;
+    }>
+  | null
+  | undefined;
 
-export interface ChatCompletionChoice {
-  message?: {
-    content?:
-      | string
-      | Array<{
-          text?: string | null;
-        }>
-      | null;
-  } | null;
-}
-
-export interface ChatCompletionResponse {
-  choices?: ChatCompletionChoice[];
+interface ChatCompletionResponse {
+  choices?: Array<{
+    message?: {
+      content?: ChatMessageContent;
+    } | null;
+  }>;
 }
 
 export interface ChatCompletionChunkResponse {
@@ -34,23 +31,13 @@ export interface ChatCompletionChunkResponse {
   }>;
 }
 
-export type ChatMessageContent =
-  | string
-  | Array<{
-      text?: string | null;
-    }>
-  | null
-  | undefined;
-
 export type ChatCreateResponse =
   ChatCompletionResponse | AsyncIterable<ChatCompletionChunkResponse>;
 
-export type CompletionCreateResponse = CompletionResponse | AsyncIterable<CompletionChunkResponse>;
-
-export type PredictionMode = "next_word" | "complete_or_correct";
+export type CompletionCreateResponse = CompletionResponse | AsyncIterable<CompletionResponse>;
 
 export interface PredictionModeContext {
-  mode: PredictionMode;
+  mode: "next_word" | "complete_or_correct";
   fragment: string;
 }
 

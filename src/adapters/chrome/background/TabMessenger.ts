@@ -39,11 +39,7 @@ export class TabMessenger {
       !tabs || tabs.length === 0 || isExtensionPage
         ? await this.queryTabs({ active: true, lastFocusedWindow: true })
         : undefined;
-    const activeTabId = this.getTabIdFromTabs(fallbackTabs ?? tabs);
-    if (activeTabId !== undefined) {
-      return activeTabId;
-    }
-    return this.lastActiveTabId;
+    return this.getTabIdFromTabs(fallbackTabs ?? tabs) ?? this.lastActiveTabId;
   }
 
   private isWebsiteUrl(url: string | undefined): boolean {
@@ -106,7 +102,7 @@ export class TabMessenger {
     }
 
     const allTabs = await this.queryTabs({});
-    const recentWebsiteTab = [...(allTabs ?? [])]
+    const recentWebsiteTab = (allTabs ?? [])
       .filter((tab) => this.isWebsiteUrl(tab.url))
       .sort((left, right) => (right.lastAccessed || 0) - (left.lastAccessed || 0))[0];
     const recentContext = this.toWebsiteTabContext(recentWebsiteTab);

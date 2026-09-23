@@ -4,7 +4,7 @@ export enum Spacing {
   NO_CHANGE = "NO_CHANGE",
 }
 
-export interface SpacingRule {
+interface SpacingRule {
   spaceBefore: Spacing;
   spaceAfter: Spacing;
 }

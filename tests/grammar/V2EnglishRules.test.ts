@@ -153,4 +153,16 @@ describe("V2 english grammar rules", () => {
       });
     });
   });
+
+  test("Object.prototype names are ordinary words, not lookup hits", () => {
+    const rules = [
+      new EnglishContractionNormalizationRule(),
+      new EnglishTypoWhitelistCorrectionRule(),
+    ];
+    for (const rule of rules) {
+      for (const word of ["constructor ", "toString ", "__proto__ ", "hasOwnProperty "]) {
+        expect(rule.apply(context(word, { lang: "en_US", inputAction: "insert" }))).toBeNull();
+      }
+    }
+  });
 });

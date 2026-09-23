@@ -1,6 +1,6 @@
 export type GrammarEventType = "insertChar" | "wordBoundary" | "idle" | "paste";
 
-export type GrammarRuleId =
+type GrammarRuleId =
   | "measurementUnitFormatting"
   | "currencySpacing"
   | "capitalizeSentenceStart"
@@ -30,10 +30,7 @@ export type GrammarRuleId =
   | "smartQuoteNormalization"
   | "frenchPunctuationSpacing"
   | "duplicatePunctuationCollapse"
-  | "autoBracketClose"
-  // Legacy ids kept for compatibility and migration handling.
-  | "spacingRule"
-  | "capitalizeFirstLetter";
+  | "autoBracketClose";
 
 export interface GrammarHints {
   /** Adapter-verified editing context; missing information fails closed. */
@@ -56,7 +53,7 @@ export interface GrammarEdit {
   deleteBackwards: number; // Number of characters to delete before the cursor
   deleteForwards: number; // Number of characters to delete after the cursor
   cursorOffset?: number; // If set, cursor is placed at replaceStart + cursorOffset instead of end of replacement
-  sourceRuleId?: Exclude<GrammarRuleId, "spacingRule" | "capitalizeFirstLetter">;
+  sourceRuleId?: GrammarRuleId;
   // Apply only if the field is untouched and the result lands exactly as computed;
   // never fall back to a host-editor bypass. For edits that must not corrupt markup.
   strict?: boolean;
@@ -70,7 +67,7 @@ export interface GrammarRule {
 }
 
 export interface GrammarRuleCatalogEntry {
-  id: Exclude<GrammarRuleId, "spacingRule" | "capitalizeFirstLetter">;
+  id: GrammarRuleId;
   name: string;
   titleI18nKey: string;
   descriptionI18nKey: string;

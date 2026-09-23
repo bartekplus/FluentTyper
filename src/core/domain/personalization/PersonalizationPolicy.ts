@@ -6,27 +6,21 @@ import type {
   PersonalizationWord,
 } from "./types";
 
-export const PERSONALIZATION_STORE_VERSION = 1 as const;
+const PERSONALIZATION_STORE_VERSION = 1 as const;
 export const PERSONALIZATION_DECAY_WINDOW_MS = 90 * 24 * 60 * 60 * 1000;
-export const PERSONALIZATION_PROMOTION_THRESHOLD = 2;
+const PERSONALIZATION_PROMOTION_THRESHOLD = 2;
 export const PERSONALIZATION_MAX_WORDS_PER_LANGUAGE = 500;
-export const PERSONALIZATION_MAX_RECENT_EVENTS = 100;
-
-const EMPTY_STORE: PersonalizationStoreV1 = {
-  version: PERSONALIZATION_STORE_VERSION,
-  languages: {},
-  recentEvents: {},
-};
+const PERSONALIZATION_MAX_RECENT_EVENTS = 100;
 
 export function createEmptyPersonalizationStore(): PersonalizationStoreV1 {
   return {
-    version: EMPTY_STORE.version,
+    version: PERSONALIZATION_STORE_VERSION,
     languages: {},
     recentEvents: {},
   };
 }
 
-export function isPersonalizationLanguage(language: unknown): language is string {
+function isPersonalizationLanguage(language: unknown): language is string {
   return (
     typeof language === "string" &&
     language !== "auto_detect" &&
@@ -176,8 +170,7 @@ export function sanitizePersonalizationStore(
 export function trimRecentEvents(
   events: Record<string, PersonalizationRecentEvent>,
 ): Record<string, PersonalizationRecentEvent> {
-  const entries = Object.entries(events);
-  return Object.fromEntries(entries.slice(-PERSONALIZATION_MAX_RECENT_EVENTS));
+  return Object.fromEntries(Object.entries(events).slice(-PERSONALIZATION_MAX_RECENT_EVENTS));
 }
 
 export function isValidEventId(value: unknown): value is string {

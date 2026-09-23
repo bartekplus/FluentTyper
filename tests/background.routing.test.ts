@@ -179,7 +179,11 @@ function installBackgroundHarnessModuleMocks(): void {
     isEnabledForDomain: (...args: [unknown, string]) =>
       backgroundHarnessMocks.isEnabledForDomain(...args),
     toStoredString: (value: unknown) =>
-      typeof value === "string" ? value : typeof value === "number" ? String(value) : null,
+      typeof value === "string"
+        ? value
+        : typeof value === "number" || typeof value === "boolean" || typeof value === "bigint"
+          ? String(value)
+          : null,
     isWhiteSpace: (character: string) => /\s+/.test(character),
     isNumber: (value: string) =>
       (!Number.isNaN(Number(value)) && !Number.isNaN(Number.parseFloat(value))) ||
@@ -1060,6 +1064,17 @@ describe("background routing and lifecycle", () => {
     );
     expect(unknown).toBe(false);
     expect(harness.logError).toHaveBeenCalledWith("onMessage", "Unknown command: UNKNOWN");
+
+    const unrouted = harness.onMessage(
+      { command: "CMD_POPUP_PAGE_ENABLE", context: {} },
+      {} as chrome.runtime.MessageSender,
+      jest.fn(),
+    );
+    expect(unrouted).toBe(false);
+    expect(harness.logError).toHaveBeenCalledWith(
+      "onMessage",
+      "Unknown command: CMD_POPUP_PAGE_ENABLE",
+    );
     expect(harness.checkLastError).toHaveBeenCalled();
   });
 

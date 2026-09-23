@@ -252,12 +252,7 @@ export class GoogleDocsTransaction {
   }
 
   private matches(a: DocsHostState, b: DocsHostState): boolean {
-    return (
-      a.scope === b.scope &&
-      a.input === b.input &&
-      a.interaction === b.interaction &&
-      sameModel(a.model, b.model)
-    );
+    return this.sameSelection(a, b) && sameModel(a.model, b.model);
   }
   private isExpected(state: DocsHostState, journal: Journal): boolean {
     return (

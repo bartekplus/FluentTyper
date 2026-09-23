@@ -11,16 +11,6 @@ export type AcceptedSuggestionContentEditableAdapter = Pick<
   "getActiveBlockElement" | "getBlockContext"
 >;
 
-type AcceptedSuggestionTransientState = Pick<
-  SuggestionEntry,
-  | "pendingExtensionEdit"
-  | "missingTrailingSpace"
-  | "expectedCursorPos"
-  | "expectedCursorPosIsBlockLocal"
-  | "expectedCursorPosBlockElement"
-  | "expectedCursorPosBlockText"
->;
-
 type AcceptedSuggestionSpaceState = Pick<
   SuggestionEntry,
   | "missingTrailingSpace"
@@ -29,6 +19,9 @@ type AcceptedSuggestionSpaceState = Pick<
   | "expectedCursorPosBlockElement"
   | "expectedCursorPosBlockText"
 >;
+
+type AcceptedSuggestionTransientState = AcceptedSuggestionSpaceState &
+  Pick<SuggestionEntry, "pendingExtensionEdit">;
 
 export function clearAcceptedSuggestionTransientState(
   state: AcceptedSuggestionTransientState,

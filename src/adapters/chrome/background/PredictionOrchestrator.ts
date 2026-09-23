@@ -34,14 +34,10 @@ export interface PredictionConfig extends PresageConfig {
   debugAIPredictorEnabled?: boolean;
 }
 
-export interface PredictionOrchestratorDebugState {
-  predictorConfig: {
-    aiPredictorEnabled: boolean;
-    aiModelId: string;
-    aiPredictionTimeoutMs: number;
-    debugPresagePredictorEnabled: boolean;
-    debugAIPredictorEnabled: boolean;
-  };
+export type PredictorDebugConfig = Required<Omit<PredictionConfig, keyof PresageConfig>>;
+
+interface PredictionOrchestratorDebugState {
+  predictorConfig: PredictorDebugConfig;
 }
 
 export class PredictionOrchestrator {
@@ -175,41 +171,25 @@ export class PredictionOrchestrator {
       presageDebug.skipReason = this.resolvePresageSkipReason(context);
     }
 
-    if (!aiPromise) {
-      const result = this.presageHandler.finalizePrediction(presagePredictions, context);
-      this.emitDebugEvent(configOverride?.debugListener, {
-        timestampMs: Date.now(),
-        text,
-        nextChar,
-        lang,
-        predictionInput: context.predictionInput,
-        numSuggestions: context.effectiveNumSuggestions,
-        doPrediction: context.doPrediction,
-        totalDurationMs: Date.now() - startedAt,
-        presage: presageDebug,
-        webllm: aiDebug,
-        mergedPredictions: presagePredictions.slice(),
-        finalPredictions: result.predictions.slice(),
-      });
-      return result;
+    let mergedPredictions = presagePredictions;
+    if (aiPromise) {
+      let aiResult: AIPredictionResult;
+      try {
+        aiResult = await aiPromise;
+      } catch {
+        aiResult = this.createEmptyAIPredictionResult();
+      }
+
+      aiDebug.durationMs = aiResult.durationMs;
+      aiDebug.timedOut = aiResult.timedOut;
+      aiDebug.predictions = aiResult.predictions.slice();
+
+      mergedPredictions = mergePredictions(
+        presagePredictions,
+        aiResult.predictions,
+        context.effectiveNumSuggestions,
+      );
     }
-
-    let aiResult: AIPredictionResult;
-    try {
-      aiResult = await aiPromise;
-    } catch {
-      aiResult = this.createEmptyAIPredictionResult();
-    }
-
-    aiDebug.durationMs = aiResult.durationMs;
-    aiDebug.timedOut = aiResult.timedOut;
-    aiDebug.predictions = aiResult.predictions.slice();
-
-    const mergedPredictions = mergePredictions(
-      presagePredictions,
-      aiResult.predictions,
-      context.effectiveNumSuggestions,
-    );
 
     const result = this.presageHandler.finalizePrediction(mergedPredictions, context);
 

@@ -11,35 +11,10 @@ import {
   TYPING_CHARACTERS_PER_MINUTE,
 } from "./constants";
 import type { StatsSanitizer } from "./StatsSanitizer";
-import type {
-  AggregatedCounters,
-  DailyProductivityState,
-  LanguageUsageCounters,
-  SnippetUsageCounters,
-} from "./types";
+import type { DailyProductivityState, LanguageUsageCounters, SnippetUsageCounters } from "./types";
 
 export class StatsAggregator {
   constructor(private readonly sanitizer: StatsSanitizer) {}
-
-  private createAggregatedCounters(): AggregatedCounters {
-    return {
-      acceptedSuggestions: 0,
-      charactersSaved: 0,
-      suggestionsShown: 0,
-      snippetsExpanded: 0,
-      charsInsertedFromSnippet: 0,
-      charsTypedForTrigger: 0,
-      snippetUsage: {},
-      languageUsage: {},
-    };
-  }
-
-  private createLanguageUsageCounters(): LanguageUsageCounters {
-    return {
-      acceptedSuggestions: 0,
-      charactersSaved: 0,
-    };
-  }
 
   private addLanguageUsageCounters(
     usageMap: Record<string, LanguageUsageCounters>,
@@ -47,10 +22,7 @@ export class StatsAggregator {
     acceptedSuggestions: number,
     charactersSaved: number,
   ): void {
-    if (!usageMap[language]) {
-      usageMap[language] = this.createLanguageUsageCounters();
-    }
-
+    usageMap[language] ??= { acceptedSuggestions: 0, charactersSaved: 0 };
     usageMap[language].acceptedSuggestions += acceptedSuggestions;
     usageMap[language].charactersSaved += charactersSaved;
   }
@@ -82,10 +54,7 @@ export class StatsAggregator {
       charsTypedDelta?: number;
     },
   ): void {
-    if (!usageMap[snippet]) {
-      usageMap[snippet] = this.sanitizer.createSnippetCounters();
-    }
-
+    usageMap[snippet] ??= this.sanitizer.createSnippetCounters();
     usageMap[snippet].count += update.countDelta || 0;
     usageMap[snippet].charactersSaved += update.charsSavedDelta || 0;
     usageMap[snippet].charsInserted += update.charsInsertedDelta || 0;
@@ -104,8 +73,8 @@ export class StatsAggregator {
     daily: Record<string, DailyProductivityState>,
     start: Date,
     end: Date,
-  ): AggregatedCounters {
-    const counters = this.createAggregatedCounters();
+  ): DailyProductivityState {
+    const counters = this.sanitizer.createDailyState();
 
     const cursor = this.sanitizer.startOfLocalDay(start);
     const endKey = this.sanitizer.toLocalDateKey(end);
@@ -149,7 +118,7 @@ export class StatsAggregator {
   aggregateThroughDate(
     daily: Record<string, DailyProductivityState>,
     endDate: Date,
-  ): Pick<AggregatedCounters, "acceptedSuggestions" | "charactersSaved"> {
+  ): Pick<DailyProductivityState, "acceptedSuggestions" | "charactersSaved"> {
     let acceptedSuggestions = 0;
     let charactersSaved = 0;
     const endKey = this.sanitizer.toLocalDateKey(endDate);
@@ -176,15 +145,12 @@ export class StatsAggregator {
         charactersSaved: counters.charactersSaved,
         estimatedMinutesSaved: this.estimateMinutesSaved(counters.count, counters.charactersSaved),
       }))
-      .sort((left, right) => {
-        if (right.estimatedMinutesSaved === left.estimatedMinutesSaved) {
-          if (right.count === left.count) {
-            return left.snippet.localeCompare(right.snippet);
-          }
-          return right.count - left.count;
-        }
-        return right.estimatedMinutesSaved - left.estimatedMinutesSaved;
-      })
+      .sort(
+        (left, right) =>
+          right.estimatedMinutesSaved - left.estimatedMinutesSaved ||
+          right.count - left.count ||
+          left.snippet.localeCompare(right.snippet),
+      )
       .slice(0, limit);
   }
 
@@ -199,15 +165,12 @@ export class StatsAggregator {
           counters.charactersSaved,
         ),
       }))
-      .sort((left, right) => {
-        if (right.estimatedMinutesSaved === left.estimatedMinutesSaved) {
-          if (right.acceptedSuggestions === left.acceptedSuggestions) {
-            return left.language.localeCompare(right.language);
-          }
-          return right.acceptedSuggestions - left.acceptedSuggestions;
-        }
-        return right.estimatedMinutesSaved - left.estimatedMinutesSaved;
-      });
+      .sort(
+        (left, right) =>
+          right.estimatedMinutesSaved - left.estimatedMinutesSaved ||
+          right.acceptedSuggestions - left.acceptedSuggestions ||
+          left.language.localeCompare(right.language),
+      );
   }
 
   getLast7DayTrend(
@@ -240,9 +203,8 @@ export class StatsAggregator {
       return;
     }
 
-    const removeCount = keys.length - MAX_DAILY_BUCKETS;
-    for (let index = 0; index < removeCount; index += 1) {
-      delete daily[keys[index]];
+    for (const key of keys.slice(0, keys.length - MAX_DAILY_BUCKETS)) {
+      delete daily[key];
     }
   }
 

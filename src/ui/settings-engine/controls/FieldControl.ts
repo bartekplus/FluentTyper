@@ -8,7 +8,7 @@ export function getUniqueID(): string {
 type ValueEventHandler<TValue> = (value: TValue) => void;
 type EventHandler<TValue = unknown> = ValueEventHandler<TValue> | (() => void);
 
-export class TypedEventEmitter {
+class TypedEventEmitter {
   private readonly events: Record<string, EventHandler[]> = {};
 
   addEvent(type: string, fn: EventHandler): this {
@@ -47,7 +47,7 @@ export interface FieldControl<TValue = unknown> {
   destroy(): void;
 }
 
-export type SettingsSaveStatusState = "saving" | "saved" | "error";
+type SettingsSaveStatusState = "saving" | "saved" | "error";
 
 export function dispatchSettingsSaveStatus(
   state: SettingsSaveStatusState,
@@ -69,23 +69,19 @@ export function createFieldRoot(className = "field"): HTMLDivElement {
   return root;
 }
 
-export function createControlContainer(className = "control"): HTMLDivElement {
+export function createControlContainer(): HTMLDivElement {
   const control = document.createElement("div");
-  control.className = className;
+  control.className = "control";
   return control;
 }
 
-export function appendLabel(
-  parent: HTMLElement,
-  label?: string,
-  className = "label",
-): HTMLLabelElement | undefined {
+export function appendLabel(parent: HTMLElement, label?: string): HTMLLabelElement | undefined {
   if (!label) {
     return undefined;
   }
 
   const element = document.createElement("label");
-  element.className = className;
+  element.className = "label";
   element.innerHTML = label;
   parent.appendChild(element);
   return element;
@@ -98,25 +94,6 @@ export function createInputElement(type: string, className?: string): HTMLInputE
     input.className = className;
   }
   return input;
-}
-
-export function createButtonInput(text?: string): HTMLInputElement {
-  const input = createInputElement("button", "button is-primary");
-  if (text) {
-    input.value = text;
-  }
-  return input;
-}
-
-export function createOptionElement(value: string, text = value): HTMLOptionElement {
-  const option = document.createElement("option");
-  option.value = value;
-  option.text = text;
-  return option;
-}
-
-export function dispatchControlEvent(target: EventTarget, type: string): void {
-  target.dispatchEvent(new Event(type));
 }
 
 export abstract class BaseControl<TValue> implements FieldControl<TValue> {

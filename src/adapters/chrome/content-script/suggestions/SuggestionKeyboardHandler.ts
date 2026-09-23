@@ -19,65 +19,32 @@ interface SuggestionKeyboardHandlerOptions {
 }
 
 export class SuggestionKeyboardHandler {
-  private readonly autocompleteOnSpace: boolean;
-  private readonly autocompleteOnEnter: boolean;
-  private readonly autocompleteOnTab: boolean;
-  private readonly selectByDigit: boolean;
-  private readonly inlineSuggestionEnabled: boolean;
-  private readonly handleMissingSpaceAfterAccept: (
-    entry: SuggestionEntry,
-    event: KeyboardEvent,
-  ) => void;
-  private readonly tryUndoLastExtensionEdit: (
-    entry: SuggestionEntry,
-    event: KeyboardEvent,
-  ) => boolean;
-  private readonly consumeKeyboardEvent: (event: KeyboardEvent) => void;
-  private readonly clearSuggestions: (entry: SuggestionEntry) => void;
-  private readonly isMenuVisible: (entry: SuggestionEntry) => boolean;
-  private readonly updateSelectionHighlight: (entry: SuggestionEntry) => void;
-  private readonly acceptSuggestion: (entry: SuggestionEntry, suggestion: string) => boolean;
-  private readonly acceptSuggestionAtIndex: (entry: SuggestionEntry, index: number) => boolean;
-  private readonly requestInlineSuggestion: (entry: SuggestionEntry) => void;
-
-  constructor(options: SuggestionKeyboardHandlerOptions) {
-    this.autocompleteOnSpace = options.autocompleteOnSpace;
-    this.autocompleteOnEnter = options.autocompleteOnEnter;
-    this.autocompleteOnTab = options.autocompleteOnTab;
-    this.selectByDigit = options.selectByDigit;
-    this.inlineSuggestionEnabled = options.inlineSuggestionEnabled;
-    this.handleMissingSpaceAfterAccept = options.handleMissingSpaceAfterAccept;
-    this.tryUndoLastExtensionEdit = options.tryUndoLastExtensionEdit;
-    this.consumeKeyboardEvent = options.consumeKeyboardEvent;
-    this.clearSuggestions = options.clearSuggestions;
-    this.isMenuVisible = options.isMenuVisible;
-    this.updateSelectionHighlight = options.updateSelectionHighlight;
-    this.acceptSuggestion = options.acceptSuggestion;
-    this.acceptSuggestionAtIndex = options.acceptSuggestionAtIndex;
-    this.requestInlineSuggestion = options.requestInlineSuggestion;
-  }
+  constructor(private readonly options: SuggestionKeyboardHandlerOptions) {}
 
   public handle(entry: SuggestionEntry, keyboardEvent: KeyboardEvent): void {
-    this.handleMissingSpaceAfterAccept(entry, keyboardEvent);
+    this.options.handleMissingSpaceAfterAccept(entry, keyboardEvent);
 
     if (keyboardEvent.defaultPrevented) {
       return;
     }
 
     const key = keyboardEvent.key;
-    if (isNativeUndoChord(keyboardEvent) && this.tryUndoLastExtensionEdit(entry, keyboardEvent)) {
+    if (
+      isNativeUndoChord(keyboardEvent) &&
+      this.options.tryUndoLastExtensionEdit(entry, keyboardEvent)
+    ) {
       return;
     }
 
-    const digitIndex = this.selectByDigit ? this.mapDigitToIndex(key) : null;
-    const isInlineTab = this.inlineSuggestionEnabled && key === "Tab";
+    const digitIndex = this.options.selectByDigit ? this.mapDigitToIndex(key) : null;
+    const isInlineTab = this.options.inlineSuggestionEnabled && key === "Tab";
     const isActiveKey =
       key === "Escape" ||
       key === "ArrowUp" ||
       key === "ArrowDown" ||
       key === " " ||
-      (key === "Enter" && this.autocompleteOnEnter) ||
-      (key === "Tab" && this.autocompleteOnTab);
+      (key === "Enter" && this.options.autocompleteOnEnter) ||
+      (key === "Tab" && this.options.autocompleteOnTab);
 
     if (!isActiveKey && !isInlineTab && digitIndex === null) {
       return;
@@ -85,8 +52,8 @@ export class SuggestionKeyboardHandler {
 
     if (isInlineTab) {
       if (entry.inlineSuggestion) {
-        this.consumeKeyboardEvent(keyboardEvent);
-        this.acceptSuggestion(entry, entry.inlineSuggestion);
+        this.options.consumeKeyboardEvent(keyboardEvent);
+        this.options.acceptSuggestion(entry, entry.inlineSuggestion);
         return;
       }
 
@@ -95,54 +62,46 @@ export class SuggestionKeyboardHandler {
         entry.latestMentionText.length > 0 &&
         !entry.inlineRenderRejected
       ) {
-        this.consumeKeyboardEvent(keyboardEvent);
-        this.requestInlineSuggestion(entry);
+        this.options.consumeKeyboardEvent(keyboardEvent);
+        this.options.requestInlineSuggestion(entry);
         return;
       }
     }
 
     if (key === "Escape") {
-      this.clearSuggestions(entry);
+      this.options.clearSuggestions(entry);
       return;
     }
 
-    if (!this.isMenuVisible(entry)) {
+    if (!this.options.isMenuVisible(entry)) {
       return;
     }
 
     if (key === "ArrowDown") {
-      this.consumeKeyboardEvent(keyboardEvent);
+      this.options.consumeKeyboardEvent(keyboardEvent);
       this.moveSelection(entry, 1);
       return;
     }
 
     if (key === "ArrowUp") {
-      this.consumeKeyboardEvent(keyboardEvent);
+      this.options.consumeKeyboardEvent(keyboardEvent);
       this.moveSelection(entry, -1);
       return;
     }
 
     if (digitIndex !== null && digitIndex < entry.suggestions.length) {
-      this.consumeKeyboardEvent(keyboardEvent);
-      this.acceptSuggestionAtIndex(entry, digitIndex);
+      this.options.consumeKeyboardEvent(keyboardEvent);
+      this.options.acceptSuggestionAtIndex(entry, digitIndex);
       return;
     }
 
-    if (key === "Tab" && this.autocompleteOnTab) {
-      this.consumeKeyboardEvent(keyboardEvent);
-      this.acceptSuggestionAtIndex(entry, entry.selectedIndex);
-      return;
-    }
-
-    if (key === "Enter" && this.autocompleteOnEnter) {
-      this.consumeKeyboardEvent(keyboardEvent);
-      this.acceptSuggestionAtIndex(entry, entry.selectedIndex);
-      return;
-    }
-
-    if (key === " " && this.autocompleteOnSpace) {
-      this.consumeKeyboardEvent(keyboardEvent);
-      this.acceptSuggestionAtIndex(entry, entry.selectedIndex);
+    if (
+      (key === "Tab" && this.options.autocompleteOnTab) ||
+      (key === "Enter" && this.options.autocompleteOnEnter) ||
+      (key === " " && this.options.autocompleteOnSpace)
+    ) {
+      this.options.consumeKeyboardEvent(keyboardEvent);
+      this.options.acceptSuggestionAtIndex(entry, entry.selectedIndex);
     }
   }
 
@@ -151,10 +110,9 @@ export class SuggestionKeyboardHandler {
       return;
     }
 
-    const next =
+    entry.selectedIndex =
       (entry.selectedIndex + direction + entry.suggestions.length) % entry.suggestions.length;
-    entry.selectedIndex = next;
-    this.updateSelectionHighlight(entry);
+    this.options.updateSelectionHighlight(entry);
   }
 
   private mapDigitToIndex(key: string): number | null {

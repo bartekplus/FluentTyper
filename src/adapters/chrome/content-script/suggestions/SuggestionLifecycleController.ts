@@ -1,7 +1,7 @@
 import { isSuggestionMenuHostVisible } from "./SuggestionMenuHost";
 import type { SuggestionEntry } from "./types";
 
-export interface SuggestionLifecycleControllerOptions {
+interface SuggestionLifecycleControllerOptions {
   getEntries: () => Iterable<SuggestionEntry>;
   dismissEntry: (entry: SuggestionEntry) => void;
   reconcileEntrySelection: (entry: SuggestionEntry) => void;
@@ -30,36 +30,13 @@ export class SuggestionLifecycleController {
   }
 
   public attachEntryListeners(entry: SuggestionEntry): void {
-    entry.elem.addEventListener("beforeinput", entry.handlers.beforeinput, true);
-    entry.elem.addEventListener("input", entry.handlers.input, true);
-    entry.elem.addEventListener("keydown", this.getEntryKeydownListener(entry), true);
-    entry.elem.addEventListener("paste", entry.handlers.paste, true);
-    entry.elem.addEventListener("focus", entry.handlers.focus, true);
-    entry.elem.addEventListener("blur", entry.handlers.blur, true);
-    entry.elem.addEventListener("click", entry.handlers.click, true);
-    entry.elem.addEventListener("compositionstart", entry.handlers.compositionStart, true);
-    entry.elem.addEventListener("compositionend", entry.handlers.compositionEnd, true);
-    this.toggleBackingInputTargetListeners(entry, true);
-    entry.list.addEventListener("mousedown", entry.handlers.menuMouseDown);
-    entry.list.addEventListener("click", entry.handlers.menuClick);
-
+    this.toggleEntryListeners(entry, true);
     this.attachedEntryCount += 1;
     this.toggleDocumentListeners(true);
   }
 
   public detachEntryListeners(entry: SuggestionEntry): void {
-    entry.elem.removeEventListener("beforeinput", entry.handlers.beforeinput, true);
-    entry.elem.removeEventListener("input", entry.handlers.input, true);
-    entry.elem.removeEventListener("keydown", this.getEntryKeydownListener(entry), true);
-    entry.elem.removeEventListener("paste", entry.handlers.paste, true);
-    entry.elem.removeEventListener("focus", entry.handlers.focus, true);
-    entry.elem.removeEventListener("blur", entry.handlers.blur, true);
-    entry.elem.removeEventListener("click", entry.handlers.click, true);
-    entry.elem.removeEventListener("compositionstart", entry.handlers.compositionStart, true);
-    entry.elem.removeEventListener("compositionend", entry.handlers.compositionEnd, true);
-    this.toggleBackingInputTargetListeners(entry, false);
-    entry.list.removeEventListener("mousedown", entry.handlers.menuMouseDown);
-    entry.list.removeEventListener("click", entry.handlers.menuClick);
+    this.toggleEntryListeners(entry, false);
     this.keydownListenerByEntryId.delete(entry.id);
 
     this.attachedEntryCount = Math.max(0, this.attachedEntryCount - 1);
@@ -68,20 +45,32 @@ export class SuggestionLifecycleController {
     }
   }
 
-  private toggleBackingInputTargetListeners(entry: SuggestionEntry, attach: boolean): void {
-    const inputEventTarget = entry.inputEventTarget;
-    if (!inputEventTarget || inputEventTarget === entry.elem) {
-      return;
-    }
+  private toggleEntryListeners(entry: SuggestionEntry, attach: boolean): void {
     const method = attach ? "addEventListener" : "removeEventListener";
-    inputEventTarget[method]("beforeinput", entry.handlers.beforeinput, true);
-    inputEventTarget[method]("input", entry.handlers.input, true);
-    inputEventTarget[method]("keydown", this.getEntryKeydownListener(entry), true);
-    inputEventTarget[method]("paste", entry.handlers.paste, true);
-    inputEventTarget[method]("focus", entry.handlers.focus, true);
-    inputEventTarget[method]("blur", entry.handlers.blur, true);
-    inputEventTarget[method]("compositionstart", entry.handlers.compositionStart, true);
-    inputEventTarget[method]("compositionend", entry.handlers.compositionEnd, true);
+    const { handlers } = entry;
+    const targetListeners: [string, EventListener][] = [
+      ["beforeinput", handlers.beforeinput],
+      ["input", handlers.input],
+      ["keydown", this.getEntryKeydownListener(entry)],
+      ["paste", handlers.paste],
+      ["focus", handlers.focus],
+      ["blur", handlers.blur],
+      ["compositionstart", handlers.compositionStart],
+      ["compositionend", handlers.compositionEnd],
+    ];
+    for (const [eventName, listener] of targetListeners) {
+      entry.elem[method](eventName, listener, true);
+    }
+    entry.elem[method]("click", handlers.click, true);
+    // A backing input (e.g. CodeMirror's hidden textarea) receives the keystrokes.
+    const inputEventTarget = entry.inputEventTarget;
+    if (inputEventTarget && inputEventTarget !== entry.elem) {
+      for (const [eventName, listener] of targetListeners) {
+        inputEventTarget[method](eventName, listener, true);
+      }
+    }
+    entry.list[method]("mousedown", handlers.menuMouseDown);
+    entry.list[method]("click", handlers.menuClick);
   }
 
   private getEntryKeydownListener(entry: SuggestionEntry): EventListener {
@@ -143,36 +132,16 @@ export class SuggestionLifecycleController {
 
     const composedPath = typeof event.composedPath === "function" ? event.composedPath() : [];
     const path = composedPath.length > 0 ? composedPath : [event.target];
-    const entries = [...this.getEntries()];
-
+    const eligible = [...this.getEntries()].filter((entry) =>
+      this.isDocumentTabFallbackEligible(entry),
+    );
     for (const node of path) {
-      const directBackingTargetMatch = entries.find(
-        (entry) => this.isDocumentTabFallbackEligible(entry) && node === entry.inputEventTarget,
-      );
-      if (directBackingTargetMatch) {
-        directBackingTargetMatch.handlers.keydown(keyboardEvent);
-        keyboardEvent.__ftDocumentTabCaptureHandled = true;
-        return;
-      }
-
-      const directElementMatch = entries.find(
-        (entry) => this.isDocumentTabFallbackEligible(entry) && node === entry.elem,
-      );
-      if (directElementMatch) {
-        directElementMatch.handlers.keydown(keyboardEvent);
-        keyboardEvent.__ftDocumentTabCaptureHandled = true;
-        return;
-      }
-
-      if (!(node instanceof Node)) {
-        continue;
-      }
-
-      const containingEntry = entries.find(
-        (entry) => this.isDocumentTabFallbackEligible(entry) && entry.elem.contains(node),
-      );
-      if (containingEntry) {
-        containingEntry.handlers.keydown(keyboardEvent);
+      const match =
+        eligible.find((entry) => node === entry.inputEventTarget) ??
+        eligible.find((entry) => node === entry.elem) ??
+        (node instanceof Node ? eligible.find((entry) => entry.elem.contains(node)) : undefined);
+      if (match) {
+        match.handlers.keydown(keyboardEvent);
         keyboardEvent.__ftDocumentTabCaptureHandled = true;
         return;
       }

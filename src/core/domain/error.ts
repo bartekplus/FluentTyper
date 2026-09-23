@@ -13,7 +13,7 @@ interface FluentTyperErrorDetails {
 }
 
 function isErrorWithMessage(error: unknown): error is ErrorWithMessage {
-  return isObjectRecord(error) && "message" in error && hasStringProperty(error, "message");
+  return isObjectRecord(error) && hasStringProperty(error, "message");
 }
 
 function toErrorWithMessage(maybeError: unknown): ErrorWithMessage {
@@ -30,7 +30,7 @@ function toErrorWithMessage(maybeError: unknown): ErrorWithMessage {
   }
 }
 
-export abstract class FluentTyperError extends Error {
+abstract class FluentTyperError extends Error {
   readonly kind: FluentTyperErrorKind;
   readonly code: string;
   readonly cause?: unknown;

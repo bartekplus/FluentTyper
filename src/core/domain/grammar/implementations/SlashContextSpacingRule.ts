@@ -9,7 +9,7 @@ export class SlashContextSpacingRule extends SpacingRuleShared implements Gramma
 
   apply(context: GrammarContext): GrammarEdit | null {
     const inputStr = context.beforeCursor;
-    if (!inputStr || inputStr.length < 2) {
+    if (inputStr.length < 2) {
       return null;
     }
 
@@ -71,12 +71,6 @@ export class SlashContextSpacingRule extends SpacingRuleShared implements Gramma
   }
 
   private isSlashOperandLike(ch: string | null): boolean {
-    if (!ch) {
-      return false;
-    }
-    if ([")", "]", "}"].includes(ch)) {
-      return true;
-    }
-    return /[\p{L}\p{N}]/u.test(ch);
+    return !!ch && ([")", "]", "}"].includes(ch) || /[\p{L}\p{N}]/u.test(ch));
   }
 }

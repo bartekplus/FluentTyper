@@ -1,5 +1,5 @@
-export type TranslationMap = Record<string, string>;
-export type TranslationDictionary = Record<string, TranslationMap>;
+type TranslationMap = Record<string, string>;
+type TranslationDictionary = Record<string, TranslationMap>;
 
 export class I18n {
   lang: string;

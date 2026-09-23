@@ -9,20 +9,14 @@ import {
 } from "./EarlyTabAcceptBridgeProtocol";
 import { isSuggestionMenuHostVisible, resolveSuggestionMenuHost } from "./SuggestionMenuHost";
 
-type FluentTyperManagedElement = HTMLElement;
 type FluentTyperBridgeWindow = Window & {
   [EARLY_TAB_ACCEPT_MAIN_WORLD_FLAG]?: boolean;
   __ftEarlyTabAcceptBridgeKeydownHandler?: (event: KeyboardEvent) => void;
 };
 
-function isManagedSuggestionTarget(
-  element: HTMLElement | null,
-  doc: Document,
-): element is FluentTyperManagedElement {
-  const entryId =
-    element instanceof HTMLElement ? element.getAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR) : null;
+function isManagedSuggestionTarget(element: HTMLElement, doc: Document): boolean {
+  const entryId = element.getAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR);
   return (
-    element instanceof HTMLElement &&
     element.getAttribute("data-suggestion") === "true" &&
     element.getAttribute(EARLY_TAB_ACCEPT_ENABLED_ATTR) === "true" &&
     element.getAttribute(EARLY_TAB_ACCEPT_BRIDGE_TARGET_ATTR) === "true" &&
@@ -32,10 +26,7 @@ function isManagedSuggestionTarget(
   );
 }
 
-function findManagedSuggestionTarget(
-  start: HTMLElement | null,
-  doc: Document,
-): FluentTyperManagedElement | null {
+function findManagedSuggestionTarget(start: HTMLElement, doc: Document): HTMLElement | null {
   let current: Node | null = start;
   while (current) {
     if (current instanceof HTMLElement && isManagedSuggestionTarget(current, doc)) {
@@ -46,10 +37,7 @@ function findManagedSuggestionTarget(
   return null;
 }
 
-function resolveManagedSuggestionTarget(
-  event: KeyboardEvent,
-  doc: Document,
-): FluentTyperManagedElement | null {
+function resolveManagedSuggestionTarget(event: KeyboardEvent, doc: Document): HTMLElement | null {
   const path = typeof event.composedPath === "function" ? event.composedPath() : [event.target];
   for (const node of path) {
     if (node instanceof HTMLElement) {
@@ -130,9 +118,7 @@ export function resetEarlyTabAcceptMainWorldBridgeForTests(doc: Document = docum
     delete win.__ftEarlyTabAcceptBridgeKeydownHandler;
   }
 
-  if (win[EARLY_TAB_ACCEPT_MAIN_WORLD_FLAG]) {
-    delete win[EARLY_TAB_ACCEPT_MAIN_WORLD_FLAG];
-  }
+  delete win[EARLY_TAB_ACCEPT_MAIN_WORLD_FLAG];
 }
 
 export {

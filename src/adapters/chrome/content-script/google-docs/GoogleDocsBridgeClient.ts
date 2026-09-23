@@ -1,4 +1,5 @@
 import {
+  DOCS_STATUSES,
   REQUEST_EVENT,
   RESPONSE_EVENT,
   parseObject,
@@ -7,19 +8,7 @@ import {
   type DocsEdit,
   type DocsStatus,
 } from "./GoogleDocsModel";
-const STATUSES = new Set<DocsStatus>([
-  "ready",
-  "applied",
-  "stale",
-  "inactive",
-  "unavailable",
-  "invalid",
-  "busy",
-  "composing",
-  "cancelled",
-  "unverified",
-  "unsupported-selection",
-]);
+const STATUSES = new Set<string>(DOCS_STATUSES);
 export class GoogleDocsBridgeClient {
   private readonly pending = new Map<
     string,
@@ -28,7 +17,7 @@ export class GoogleDocsBridgeClient {
   private disposed = false;
   private readonly listener = (event: Event) => {
     const value = parseObject((event as CustomEvent<unknown>).detail);
-    if (!value || typeof value.id !== "string" || !STATUSES.has(value.status as DocsStatus)) return;
+    if (!value || typeof value.id !== "string" || !STATUSES.has(value.status as string)) return;
     const request = this.pending.get(value.id);
     if (!request) return;
     const snapshot = snapshotFrom(value.snapshot);

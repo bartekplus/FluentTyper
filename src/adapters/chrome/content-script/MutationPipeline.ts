@@ -1,6 +1,6 @@
 import { isInDocument } from "@core/application/dom-utils";
 
-export type MutationPlan =
+type MutationPlan =
   | {
       type: "noop";
     }
@@ -55,10 +55,6 @@ export class MutationPipeline {
       if (mutation.type === "attributes") {
         addCandidate(mutation.target);
       }
-    }
-
-    if (candidates.length === 0) {
-      return [];
     }
 
     const uniqueCandidates = Array.from(new Set(candidates));

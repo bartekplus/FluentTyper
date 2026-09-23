@@ -14,7 +14,7 @@ export class TemplateExpander {
       argsMatches.map(async (match) => {
         const argument = match.slice(2, -1);
         const resolved = await resolver(argument);
-        return resolved !== undefined ? resolved : match;
+        return resolved ?? match;
       }),
     );
 
@@ -46,12 +46,7 @@ export class TemplateExpander {
         console.warn(`Failed to resolve variable ${varName}`, e);
       }
 
-      const pageVariable = await TemplateExpander.resolvePageVariable(varName, tabId);
-      if (pageVariable !== undefined) {
-        return pageVariable;
-      }
-
-      return undefined;
+      return TemplateExpander.resolvePageVariable(varName, tabId);
     };
   }
 

@@ -7,7 +7,7 @@ import {
 } from "@core/domain/constants";
 import { SettingsRepositoryBase } from "./SettingsRepositoryBase";
 
-export interface PredictorSettingsSnapshot {
+interface PredictorSettingsSnapshot {
   aiPredictorEnabled: boolean;
   aiModelId: string;
   aiPredictionTimeoutMs: number;

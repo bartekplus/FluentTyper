@@ -1,28 +1,13 @@
+import { KEY_ENABLED_GRAMMAR_RULES } from "@core/domain/constants";
 import { getSettingStorageAliases, type SettingField } from "@core/domain/contracts/settings";
-import type { JsonValue, SettingsManager } from "../settingsManager";
-
-export async function readRawSetting(settings: SettingsManager, key: string): Promise<unknown> {
-  return settings.getRaw(key);
-}
-
-export async function writeRawSetting(
-  settings: SettingsManager,
-  key: string,
-  value: JsonValue,
-): Promise<void> {
-  await settings.setRaw(key, value);
-}
-
-export async function removeRawSetting(settings: SettingsManager, key: string): Promise<void> {
-  await settings.removeRaw(key);
-}
+import type { SettingsManager } from "../settingsManager";
 
 export async function readFirstDefinedSetting(
   settings: SettingsManager,
   keys: string[],
 ): Promise<unknown> {
   for (const key of keys) {
-    const value = await readRawSetting(settings, key);
+    const value = await settings.getRaw(key);
     if (typeof value !== "undefined") {
       return value;
     }
@@ -37,7 +22,7 @@ export async function readSettingWithAliases(
   return readFirstDefinedSetting(settings, getSettingStorageAliases(field));
 }
 
-export function readStringArraySnapshot(value: unknown): string[] {
+function readStringArraySnapshot(value: unknown): string[] {
   if (!Array.isArray(value)) {
     return [];
   }
@@ -45,13 +30,39 @@ export function readStringArraySnapshot(value: unknown): string[] {
 }
 
 export function areStringArraysEqual(left: readonly string[], right: readonly string[]): boolean {
-  if (left.length !== right.length) {
-    return false;
-  }
-  for (let index = 0; index < left.length; index += 1) {
-    if (left[index] !== right[index]) {
-      return false;
+  return left.length === right.length && left.every((item, index) => item === right[index]);
+}
+
+/**
+ * One-shot grammar-rule selection migration: backs up the current selection,
+ * replaces it with `nextRules` when `shouldReplace` matches, then sets the marker.
+ */
+export async function migrateGrammarRuleSelection(
+  settings: SettingsManager,
+  options: {
+    label: string;
+    migratedKey: string;
+    backupKey: string;
+    shouldReplace: (snapshot: string[]) => boolean;
+    nextRules: string[];
+  },
+): Promise<void> {
+  try {
+    if ((await settings.getRaw(options.migratedKey)) === true) {
+      return;
     }
+
+    const rawSnapshot = readStringArraySnapshot(await settings.getRaw(KEY_ENABLED_GRAMMAR_RULES));
+
+    if (!Array.isArray(await settings.getRaw(options.backupKey))) {
+      await settings.setRaw(options.backupKey, rawSnapshot);
+    }
+
+    if (options.shouldReplace(rawSnapshot)) {
+      await settings.setRaw(KEY_ENABLED_GRAMMAR_RULES, options.nextRules);
+    }
+    await settings.setRaw(options.migratedKey, true);
+  } catch (error) {
+    console.warn(`[${options.label}] Failed to migrate settings:`, error);
   }
-  return true;
 }

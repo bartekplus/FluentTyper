@@ -1,9 +1,5 @@
 import { checkLastError } from "@core/application/transport-utils";
-import {
-  createLogger,
-  getRegisteredObservabilityModules,
-  setGlobalObservabilityRuntime,
-} from "@core/application/logging/Logger";
+import { createLogger, installObservabilityRelay } from "@core/application/logging/Logger";
 import {
   CMD_CONTENT_SCRIPT_GET_CONFIG,
   CMD_CONTENT_SCRIPT_REPORT_OBSERVABILITY_EVENT,
@@ -35,31 +31,11 @@ const logger = createLogger("FluentTyperContentScript");
 declare const __FT_DEV_BUILD__: boolean | undefined;
 
 if (typeof __FT_DEV_BUILD__ !== "undefined" && __FT_DEV_BUILD__) {
-  setGlobalObservabilityRuntime({
+  installObservabilityRelay({
     source: "content_script",
-    sink: (event) => {
-      try {
-        void chrome.runtime.sendMessage({
-          command: CMD_CONTENT_SCRIPT_REPORT_OBSERVABILITY_EVENT,
-          context: {
-            event,
-          },
-        });
-      } catch {
-        // Ignore runtime disconnects during page teardown.
-      }
-    },
+    eventCommand: CMD_CONTENT_SCRIPT_REPORT_OBSERVABILITY_EVENT,
+    modulesCommand: CMD_CONTENT_SCRIPT_REPORT_OBSERVABILITY_MODULES,
   });
-  try {
-    void chrome.runtime.sendMessage({
-      command: CMD_CONTENT_SCRIPT_REPORT_OBSERVABILITY_MODULES,
-      context: {
-        modules: getRegisteredObservabilityModules(),
-      },
-    });
-  } catch {
-    // Ignore runtime disconnects during page teardown.
-  }
 }
 
 class FluentTyper {

@@ -1,6 +1,7 @@
 import { CMD_CONTENT_SCRIPT_PERSONALIZATION_EVENT } from "@core/domain/constants";
 import type { ContentScriptPersonalizationEventMessage } from "@core/domain/messageTypes";
 import { randomUUID } from "@core/domain/randomId";
+import { sendFireAndForget } from "./sendFireAndForget";
 import type { SuggestionPersonalization } from "./types";
 
 interface SuggestionPersonalizationServiceOptions {
@@ -11,12 +12,8 @@ interface SuggestionPersonalizationServiceOptions {
 
 export class SuggestionPersonalizationService implements SuggestionPersonalization {
   private readonly sendMessage: NonNullable<SuggestionPersonalizationServiceOptions["sendMessage"]>;
-  private readonly readLastError: NonNullable<
-    SuggestionPersonalizationServiceOptions["readLastError"]
-  >;
-  private readonly createEventId: NonNullable<
-    SuggestionPersonalizationServiceOptions["createEventId"]
-  >;
+  private readonly readLastError: () => unknown;
+  private readonly createEventId: () => string;
 
   constructor(options: SuggestionPersonalizationServiceOptions = {}) {
     this.sendMessage =
@@ -25,7 +22,7 @@ export class SuggestionPersonalizationService implements SuggestionPersonalizati
         chrome.runtime.sendMessage(message, callback);
       });
     this.readLastError = options.readLastError ?? (() => chrome.runtime.lastError);
-    this.createEventId = options.createEventId ?? generateEventId;
+    this.createEventId = options.createEventId ?? (() => `accept-${randomUUID()}`);
   }
 
   recordSuggestionAccepted(args: {
@@ -58,20 +55,6 @@ export class SuggestionPersonalizationService implements SuggestionPersonalizati
   }
 
   private emit(message: ContentScriptPersonalizationEventMessage): void {
-    try {
-      this.sendMessage(message, () => {
-        try {
-          void this.readLastError();
-        } catch {
-          // Ignore runtime teardown.
-        }
-      });
-    } catch {
-      // A suspended or reloading background must never break suggestion acceptance.
-    }
+    sendFireAndForget(this.sendMessage, this.readLastError, message);
   }
-}
-
-function generateEventId(): string {
-  return `accept-${randomUUID()}`;
 }

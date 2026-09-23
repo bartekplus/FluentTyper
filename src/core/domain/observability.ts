@@ -22,7 +22,7 @@ export const OBSERVABILITY_MODULE_IDS = [
   "RuntimeTestHooks",
 ] as const;
 
-export type ObservabilityModuleId = (typeof OBSERVABILITY_MODULE_IDS)[number];
+type ObservabilityModuleId = (typeof OBSERVABILITY_MODULE_IDS)[number];
 
 export interface ObservabilityModuleOverride {
   enabled?: boolean;
@@ -33,10 +33,6 @@ export interface ObservabilityConfig {
   enabled: boolean;
   defaultLevel: LogLevel;
   moduleOverrides: Partial<Record<ObservabilityModuleId, ObservabilityModuleOverride>>;
-}
-
-export interface ObservabilityEventContext {
-  [key: string]: unknown;
 }
 
 export interface ObservabilityEvent {
@@ -51,7 +47,7 @@ export interface ObservabilityEvent {
   tabId?: number;
   frameId?: number;
   suggestionId?: number;
-  context?: ObservabilityEventContext;
+  context?: Record<string, unknown>;
 }
 
 export interface ObservabilityModuleState {
@@ -73,8 +69,6 @@ export interface ObservabilityContentRuntimeStatus {
   updatedAt: number;
 }
 
-export type ObservabilityAutoLanguageRuntimeStatus = ObservabilityContentRuntimeStatus;
-
 export interface ObservabilitySummary {
   totalEvents: number;
   eventsByLevel: Record<LogLevel, number>;
@@ -92,17 +86,51 @@ export interface ObservabilitySnapshot {
   events: ObservabilityEvent[];
   predictor: unknown;
   contentRuntimes: ObservabilityContentRuntimeStatus[];
-  autoLanguageRuntimes: ObservabilityAutoLanguageRuntimeStatus[];
+  autoLanguageRuntimes: ObservabilityContentRuntimeStatus[];
 }
 
 export function isLogLevel(value: unknown): value is LogLevel {
   return value === "debug" || value === "info" || value === "warn" || value === "error";
 }
 
-export function isObservabilityModuleId(value: unknown): value is ObservabilityModuleId {
+function isObservabilityModuleId(value: unknown): value is ObservabilityModuleId {
   return (
     typeof value === "string" && OBSERVABILITY_MODULE_IDS.includes(value as ObservabilityModuleId)
   );
+}
+
+function sanitizeModuleOverride(value: unknown): ObservabilityModuleOverride | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+  const record = value as Record<string, unknown>;
+  const override: ObservabilityModuleOverride = {};
+  if (typeof record.enabled === "boolean") {
+    override.enabled = record.enabled;
+  }
+  if (isLogLevel(record.level)) {
+    override.level = record.level;
+  }
+  return Object.keys(override).length > 0 ? override : null;
+}
+
+export function sanitizeObservabilityModuleOverrides(
+  value: unknown,
+): ObservabilityConfig["moduleOverrides"] {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+  const result: ObservabilityConfig["moduleOverrides"] = {};
+  for (const [moduleId, overrideValue] of Object.entries(value as Record<string, unknown>)) {
+    if (!isObservabilityModuleId(moduleId)) {
+      continue;
+    }
+    const override = sanitizeModuleOverride(overrideValue);
+    if (override) {
+      result[moduleId] = override;
+    }
+  }
+  return result;
 }
 
 export const DEFAULT_OBSERVABILITY_CONFIG: ObservabilityConfig = {

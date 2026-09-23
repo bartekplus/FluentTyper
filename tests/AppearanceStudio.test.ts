@@ -106,6 +106,21 @@ describe("AppearanceStudio theme value compatibility", () => {
     });
   });
 
+  test("parses short and long hex forms and rejects malformed hex", () => {
+    expect(parseThemeColor("#abc")).toEqual({ r: 170, g: 187, b: 204, a: 1 });
+    expect(parseThemeColor("#abc0")).toEqual({ r: 170, g: 187, b: 204, a: 0 });
+    expect(parseThemeColor("#112233")).toEqual({ r: 17, g: 34, b: 51, a: 1 });
+    expect(parseThemeColor("#12345")).toBeNull();
+    expect(parseThemeColor("#zzz")).toBeNull();
+    expect(parseThemeColor("#11zz33")).toBeNull();
+  });
+
+  test("alpha-hex values keep alpha-hex format when merging picker colors", () => {
+    expect(mergeColorPickerValue("#112233", "#ffffff80")).toBe("#11223380");
+    expect(mergeColorPickerValue("#112233", "#fff8")).toBe("#11223388");
+    expect(mergeColorPickerValue("#112233", "#ffffff")).toBe("#112233");
+  });
+
   test("color picker merges into rgba values without stripping alpha", () => {
     expect(getColorPickerValue("rgba(255, 255, 255, 0.85)")).toBe("#ffffff");
     expect(mergeColorPickerValue("#112233", "rgba(255, 255, 255, 0.85)")).toBe(

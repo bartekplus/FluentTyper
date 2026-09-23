@@ -3,25 +3,37 @@ import { ChromeStorageBackend } from "./ChromeStorageBackend.js";
 import { LocalStorageBackend } from "./LocalStorageBackend.js";
 import { getAliasesForCanonicalSettingKey } from "@core/domain/contracts/settings";
 
+function isValidJson(raw: string | undefined): boolean {
+  if (raw === undefined) {
+    return false;
+  }
+  try {
+    JSON.parse(raw);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export class Store {
   private readonly storageName: string;
   private readonly storageBackend: StorageBackend;
   private readonly initializationPromise: Promise<void>;
 
-  constructor(storageName: string, defaults?: Record<string, unknown>, useLocalBackend = true) {
+  constructor(storageName: string, defaults?: Record<string, unknown>) {
     this.storageName = storageName;
     this.storageBackend =
       typeof chrome !== "undefined" && chrome.storage
-        ? new ChromeStorageBackend(useLocalBackend)
+        ? new ChromeStorageBackend(true)
         : new LocalStorageBackend();
     this.initializationPromise = this.initializeDefaults(defaults);
   }
 
-  buildKey(name: string): string {
+  private buildKey(name: string): string {
     return `store.${this.storageName}.${name}`;
   }
 
-  static serializeValue(value: unknown): string | null {
+  private static serializeValue(value: unknown): string | null {
     if (typeof value === "function") {
       return null;
     }
@@ -34,14 +46,11 @@ export class Store {
 
   private async getStoredValue(name: string): Promise<unknown> {
     const value = await this.storageBackend.get(this.buildKey(name));
-    if (value !== undefined) {
-      try {
-        return JSON.parse(value);
-      } catch {
-        return undefined;
-      }
+    try {
+      return value === undefined ? undefined : JSON.parse(value);
+    } catch {
+      return undefined;
     }
-    return undefined;
   }
 
   private async setStoredValue(name: string, value: unknown): Promise<void> {
@@ -61,34 +70,18 @@ export class Store {
     const writes: Promise<void>[] = [];
 
     for (const [key, value] of Object.entries(defaults)) {
-      const rawStoredValue = storedValues[key];
-      if (rawStoredValue === undefined) {
-        const aliases = getAliasesForCanonicalSettingKey(key);
-        let hasValidAliasValue = false;
-        for (const aliasKey of aliases) {
-          const rawAliasValue = storedValues[aliasKey];
-          if (rawAliasValue === undefined) {
-            continue;
-          }
-          try {
-            JSON.parse(rawAliasValue);
-            hasValidAliasValue = true;
-            break;
-          } catch {
-            // ignore invalid alias, continue checking
-          }
-        }
-        if (hasValidAliasValue) {
-          continue;
-        }
-        writes.push(this.setStoredValue(key, value));
+      if (isValidJson(storedValues[key])) {
         continue;
       }
-      try {
-        JSON.parse(rawStoredValue);
-      } catch {
-        writes.push(this.setStoredValue(key, value));
+      if (
+        storedValues[key] === undefined &&
+        getAliasesForCanonicalSettingKey(key).some((aliasKey) =>
+          isValidJson(storedValues[aliasKey]),
+        )
+      ) {
+        continue;
       }
+      writes.push(this.setStoredValue(key, value));
     }
 
     await Promise.all(writes);

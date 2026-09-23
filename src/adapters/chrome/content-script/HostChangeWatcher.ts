@@ -19,10 +19,7 @@ export class HostChangeWatcher {
   private hostName = window.location.hostname;
   private readonly scheduleWatchDogCheckBound = this.scheduleWatchDogCheck.bind(this);
 
-  constructor(
-    private readonly dependencies: HostChangeWatcherDependencies,
-    private readonly debounceMs = HOST_CHANGE_WATCHDOG_DEBOUNCE_MS,
-  ) {}
+  constructor(private readonly dependencies: HostChangeWatcherDependencies) {}
 
   start(): void {
     this.attachRootNodeObserver();
@@ -93,7 +90,7 @@ export class HostChangeWatcher {
     this.watchDogTimeoutId = window.setTimeout(() => {
       this.watchDogTimeoutId = null;
       this.dependencies.watchDogRunner();
-    }, this.debounceMs);
+    }, HOST_CHANGE_WATCHDOG_DEBOUNCE_MS);
   }
 
   private attachRootNodeObserver(): void {
@@ -109,22 +106,26 @@ export class HostChangeWatcher {
   }
 
   private attachWatchDogEventListeners(): void {
-    window.navigation?.addEventListener("navigate", this.scheduleWatchDogCheckBound);
-    window.addEventListener("pageshow", this.scheduleWatchDogCheckBound);
-    window.addEventListener("popstate", this.scheduleWatchDogCheckBound);
-    window.addEventListener("hashchange", this.scheduleWatchDogCheckBound);
-    window.addEventListener("focus", this.scheduleWatchDogCheckBound, true);
-    document.addEventListener("visibilitychange", this.scheduleWatchDogCheckBound);
-    document.addEventListener("readystatechange", this.scheduleWatchDogCheckBound);
+    for (const [target, type, capture] of watchDogEvents()) {
+      target?.addEventListener(type, this.scheduleWatchDogCheckBound, capture);
+    }
   }
 
   private detachWatchDogEventListeners(): void {
-    window.navigation?.removeEventListener("navigate", this.scheduleWatchDogCheckBound);
-    window.removeEventListener("pageshow", this.scheduleWatchDogCheckBound);
-    window.removeEventListener("popstate", this.scheduleWatchDogCheckBound);
-    window.removeEventListener("hashchange", this.scheduleWatchDogCheckBound);
-    window.removeEventListener("focus", this.scheduleWatchDogCheckBound, true);
-    document.removeEventListener("visibilitychange", this.scheduleWatchDogCheckBound);
-    document.removeEventListener("readystatechange", this.scheduleWatchDogCheckBound);
+    for (const [target, type, capture] of watchDogEvents()) {
+      target?.removeEventListener(type, this.scheduleWatchDogCheckBound, capture);
+    }
   }
+}
+
+function watchDogEvents(): [EventTarget | undefined, string, boolean][] {
+  return [
+    [window.navigation, "navigate", false],
+    [window, "pageshow", false],
+    [window, "popstate", false],
+    [window, "hashchange", false],
+    [window, "focus", true],
+    [document, "visibilitychange", false],
+    [document, "readystatechange", false],
+  ];
 }

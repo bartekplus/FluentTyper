@@ -35,7 +35,7 @@ import { hasStringProperty, isObjectRecord } from "../guards";
 import type { Message } from "../messageTypes";
 import { err, ok, type Result } from "../result";
 
-export const MESSAGE_COMMANDS = [
+const MESSAGE_COMMANDS = [
   CMD_BACKGROUND_PAGE_SET_CONFIG,
   CMD_BACKGROUND_PAGE_PREDICT_REQ,
   CMD_BACKGROUND_PAGE_PREDICT_RESP,
@@ -69,15 +69,15 @@ export const MESSAGE_COMMANDS = [
   CMD_TOGGLE_FT_ACTIVE_LANG,
 ] as const;
 
-export type MessageCommand = (typeof MESSAGE_COMMANDS)[number];
+type MessageCommand = (typeof MESSAGE_COMMANDS)[number];
 
 const COMMAND_SET = new Set<string>(MESSAGE_COMMANDS);
 
-export function isMessageCommand(value: unknown): value is MessageCommand {
+function isMessageCommand(value: unknown): value is MessageCommand {
   return typeof value === "string" && COMMAND_SET.has(value);
 }
 
-export type RuntimeMessageParseError =
+type RuntimeMessageParseError =
   | { kind: "invalid_payload" }
   | { kind: "invalid_command" }
   | { kind: "unsupported_command"; command: string };
