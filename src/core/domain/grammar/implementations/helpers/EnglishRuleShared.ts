@@ -5,6 +5,7 @@ const TRAILING_DELIMITER_REGEX = /[\s.,!?;:)\]"}]/;
 const LETTER_REGEX = /[A-Za-z]/;
 const OPENING_BRACKETS = new Set(["(", "[", "{"]);
 const CODE_CONTEXT_CHARS = new Set(["=", "(", "[", "{", ":", "+", "-", "*", "/", "%", "&", "|"]);
+const MARKDOWN_BULLET_MARKERS = new Set(["-", "*", "+"]);
 
 export interface EnglishBoundaryContext {
   input: string;
@@ -107,6 +108,15 @@ export function isLikelyCodeLikeContext(
       // "I said (dont do it)" is prose in brackets; "call foo(dont)" is a call.
       // The space before the bracket is the whole difference, so do not trim it.
       return /[\p{L}\p{N}_]/u.test(core[i - 1] ?? "");
+    }
+    // A leading "- ", "* ", or "+ " with nothing but indentation before it on
+    // the line is a Markdown bullet, not an operator: "- 3th item" is prose,
+    // "x - 3th" and "a*3th" (something before the marker) are still code-like.
+    if (MARKDOWN_BULLET_MARKERS.has(ch)) {
+      const lineStart = core.lastIndexOf("\n", i - 1) + 1;
+      if (/^[ \t]*$/.test(core.slice(lineStart, i))) {
+        return false;
+      }
     }
     return CODE_CONTEXT_CHARS.has(ch);
   }

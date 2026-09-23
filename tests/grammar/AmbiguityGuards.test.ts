@@ -331,6 +331,11 @@ describe("opt-in ordinal suffix repair", () => {
       expect(type(input, "en_US", rules)).toBe(type(input, "en_US", without(rules)));
     });
 
+  // A Markdown bullet marker is prose, not a code operator.
+  test("corrects a bulleted item", () => {
+    expect(type("- 3th item ", "en_US", rules)).toBe("- 3rd item ");
+  });
+
   // Every keystroke, each pipeline with the rule on versus off.
   for (const input of [
     // Already correct, and bare numbers never gain a suffix.
