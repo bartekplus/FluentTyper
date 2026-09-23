@@ -310,6 +310,7 @@ describe("SuggestionPositioningService", () => {
     input.style.paddingBottom = "4px";
     input.style.borderTopWidth = "1px";
     input.style.borderBottomWidth = "1px";
+    input.style.borderStyle = "solid"; // computed border width is 0 without a style
     input.style.boxSizing = "border-box";
     document.body.appendChild(input);
     input.setSelectionRange(1, 1);
