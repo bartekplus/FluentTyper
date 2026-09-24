@@ -3,7 +3,7 @@
   "version": "2026.26.0",
   "description": "Type less, do more. Get smart autocomplete, spell check, and text expansion to boost your productivity on any website.",
   "type": "module",
-  "packageManager": "bun@1.4.0",
+  "packageManager": "bun@1.4.2",
   "scripts": {
     "watch": "bun build.ts --mode=development --watch",
     "build": "bun build.ts --mode=production",
