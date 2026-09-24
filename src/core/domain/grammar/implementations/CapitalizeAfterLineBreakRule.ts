@@ -18,6 +18,10 @@ export class CapitalizeAfterLineBreakRule implements GrammarRule {
     }
 
     let i = text.length - 2;
+    // Spanish "¿Qué" / "¡Hola": the letter after the inverted mark starts the line.
+    if (text[i] === "¿" || text[i] === "¡") {
+      i -= 1;
+    }
     while (i >= 0 && SPACE_CHARS.includes(text[i])) {
       i -= 1;
     }

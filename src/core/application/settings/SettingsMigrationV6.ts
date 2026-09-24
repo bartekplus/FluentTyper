@@ -12,8 +12,15 @@ export async function migrateSettingsV6(settings: SettingsManager): Promise<void
     label: "SettingsMigrationV6",
     migratedKey: KEY_GRAMMAR_RULES_V3_MIGRATED,
     backupKey: KEY_GRAMMAR_RULES_V3_BACKUP,
+    // Both sides normalized, since normalization drops the retired
+    // "neutralPunctuationPolicy". The stored selection must still have named it
+    // (directly or via "spacingRule"), as the exact pre-retirement match required.
     shouldReplace: (snapshot) =>
-      areStringArraysEqual(normalizeGrammarRuleSelection(snapshot), RECOMMENDED_V2_GRAMMAR_RULES),
+      snapshot.some((id) => id === "neutralPunctuationPolicy" || id === "spacingRule") &&
+      areStringArraysEqual(
+        normalizeGrammarRuleSelection(snapshot),
+        normalizeGrammarRuleSelection(RECOMMENDED_V2_GRAMMAR_RULES),
+      ),
     nextRules: DEFAULT_V3_GRAMMAR_RULES,
   });
 }

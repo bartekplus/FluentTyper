@@ -25,7 +25,6 @@ const DEFAULT_RULES = [
   "commaPeriodSpacing",
   "collapseRepeatedSpaces",
   "trimSpaceBeforeLineBreak",
-  "neutralPunctuationPolicy",
 ];
 
 function repositoryWith(value?: unknown): {

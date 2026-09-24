@@ -1025,22 +1025,6 @@
       ]
     },
     {
-      "id": "grammar_neutral_punctuation_policy",
-      "description": "Grammar v1 keeps : ; ! ? spacing behavior neutral.",
-      "coverage": [
-        {
-          "layer": "e2e-full",
-          "file": "tests/e2e/full.e2e.test.ts",
-          "test": "Grammar Rule Engine keeps : ; ! ? spacing neutral with granular rule IDs"
-        },
-        {
-          "layer": "unit",
-          "file": "tests/grammar/V1GrammarRules.test.ts",
-          "test": "is a no-op for neutral punctuation policy"
-        }
-      ]
-    },
-    {
       "id": "grammar_prediction_threshold_decoupling",
       "description": "Grammar evaluation remains active when prediction thresholds disable autocomplete.",
       "coverage": [

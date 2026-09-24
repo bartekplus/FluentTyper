@@ -290,19 +290,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     priority: 110,
   },
   {
-    id: "neutralPunctuationPolicy",
-    name: "Neutral spacing for : ;",
-    titleI18nKey: "grammar_rule_neutral_punctuation",
-    descriptionI18nKey: "grammar_rule_neutral_punctuation_desc",
-    exampleI18nKey: "grammar_rule_neutral_punctuation_example",
-    languageScope: "all",
-    safetyTier: "safe",
-    defaultRollout: "on",
-    recommended: true,
-    priority: 120,
-    codeSafe: true,
-  },
-  {
     id: "ellipsisShortcut",
     name: "Replace three dots with ellipsis",
     titleI18nKey: "grammar_rule_ellipsis_shortcut",
@@ -381,7 +368,10 @@ export type CatalogRuleId = (typeof GRAMMAR_RULE_CATALOG)[number]["id"];
 
 export const GRAMMAR_RULE_IDS: CatalogRuleId[] = GRAMMAR_RULE_CATALOG.map((entry) => entry.id);
 
-export const RECOMMENDED_V1_GRAMMAR_RULES: CatalogRuleId[] = [
+// Historical snapshots below are exact stored values, compared against real
+// stored settings by the V4-V6 migrations. They may name retired rules
+// ("neutralPunctuationPolicy"), so they are plain strings, never edited.
+export const RECOMMENDED_V1_GRAMMAR_RULES: string[] = [
   "capitalizeSentenceStart",
   "capitalizeAfterLineBreak",
   "technicalTokenCompaction",
@@ -396,7 +386,7 @@ export const RECOMMENDED_V1_GRAMMAR_RULES: CatalogRuleId[] = [
 ];
 
 // This is the pre-v3 recommended set (current users migrated by V5).
-export const RECOMMENDED_V2_GRAMMAR_RULES: CatalogRuleId[] = [
+export const RECOMMENDED_V2_GRAMMAR_RULES: string[] = [
   ...RECOMMENDED_V1_GRAMMAR_RULES.slice(0, 2),
   "englishPronounICapitalization",
   "englishContractionNormalization",
@@ -405,7 +395,7 @@ export const RECOMMENDED_V2_GRAMMAR_RULES: CatalogRuleId[] = [
 ];
 
 // Historical snapshots used by V6 migration. Keep these exact when the live catalog grows.
-export const DEFAULT_V3_GRAMMAR_RULES: CatalogRuleId[] = [
+export const DEFAULT_V3_GRAMMAR_RULES: string[] = [
   "capitalizeSentenceStart",
   "capitalizeAfterLineBreak",
   "englishPronounICapitalization",
@@ -467,7 +457,6 @@ const LEGACY_RULE_MAP: Record<string, CatalogRuleId[]> = {
     "slashContextSpacing",
     "mathOperatorSpacing",
     "technicalTokenCompaction",
-    "neutralPunctuationPolicy",
   ],
   capitalizeFirstLetter: ["capitalizeSentenceStart", "capitalizeAfterLineBreak"],
 };

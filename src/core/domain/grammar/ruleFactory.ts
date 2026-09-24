@@ -10,7 +10,6 @@ import { MathOperatorSpacingRule } from "./implementations/MathOperatorSpacingRu
 import { TechnicalTokenCompactionRule } from "./implementations/TechnicalTokenCompactionRule";
 import { CollapseRepeatedSpacesRule } from "./implementations/CollapseRepeatedSpacesRule";
 import { TrimSpaceBeforeLineBreakRule } from "./implementations/TrimSpaceBeforeLineBreakRule";
-import { NeutralPunctuationPolicyRule } from "./implementations/NeutralPunctuationPolicyRule";
 import { EnglishPronounICapitalizationRule } from "./implementations/EnglishPronounICapitalizationRule";
 import { EnglishContractionNormalizationRule } from "./implementations/EnglishContractionNormalizationRule";
 import { EnglishTypoWhitelistCorrectionRule } from "./implementations/EnglishTypoWhitelistCorrectionRule";
@@ -70,7 +69,6 @@ export function createGrammarRuleCatalogRuntime(options: {
     technicalTokenCompaction: new TechnicalTokenCompactionRule(insertSpaceAfterAutocomplete),
     collapseRepeatedSpaces: new CollapseRepeatedSpacesRule(),
     trimSpaceBeforeLineBreak: new TrimSpaceBeforeLineBreakRule(),
-    neutralPunctuationPolicy: new NeutralPunctuationPolicyRule(),
 
     // Advanced rules stay grouped together so the catalog order is the only priority source.
     ellipsisShortcut: new EllipsisShortcutRule(),

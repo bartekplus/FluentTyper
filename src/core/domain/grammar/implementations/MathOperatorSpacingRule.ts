@@ -20,10 +20,7 @@ export class MathOperatorSpacingRule extends SpacingRuleShared implements Gramma
     }
     if (
       context.hints?.measurementContext === "prose" &&
-      (/(?:^|[^\p{L}\p{N}_.])[-+]?[0-9]+(?:[.,][0-9]*)?[eE][+-][0-9]$/u.test(
-        inputStr.slice(-128),
-      ) ||
-        /[0-9]-[0-9]$/.test(inputStr))
+      /(?:^|[^\p{L}\p{N}_.])[-+]?[0-9]+(?:[.,][0-9]*)?[eE][+-][0-9]$/u.test(inputStr.slice(-128))
     ) {
       return null;
     }
@@ -45,8 +42,15 @@ export class MathOperatorSpacingRule extends SpacingRuleShared implements Gramma
     if (operatorChar === "=" && /[-?&`<]/.test(beforeOperand)) {
       return null;
     }
-    if (operatorChar === "=" && leftOperand.text === leftOperand.text.toUpperCase()) {
-      // "FOO=bar" is an environment variable.
+    // A number ending a name ("FOO2", "var1") is part of that name.
+    const standaloneNumber =
+      leftOperand.kind === "number" && !this.isIdentifierChar(inputStr[leftOperand.start - 1]);
+    if (
+      operatorChar === "=" &&
+      !standaloneNumber &&
+      leftOperand.text === leftOperand.text.toUpperCase()
+    ) {
+      // "FOO=bar" and "FOO2=bar" are environment variables; "2=2" is arithmetic.
       return null;
     }
 
@@ -61,7 +65,7 @@ export class MathOperatorSpacingRule extends SpacingRuleShared implements Gramma
     // "Call +1 555", "i'm +1 on that": a sign separated from the word before it
     // belongs to the number. "y+1" stays arithmetic.
     if (
-      (operatorChar === "+" || operatorChar === "-") &&
+      operatorChar === "+" &&
       leftOperand.kind === "identifier" &&
       this.isDigit(rightChar) &&
       /\s/.test(inputStr[operatorIndex - 1] ?? "")

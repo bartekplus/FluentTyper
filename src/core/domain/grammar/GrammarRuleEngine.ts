@@ -30,7 +30,10 @@ export class GrammarRuleEngine {
     enabledRules?: string[],
   ): GrammarEdit[] {
     const pipeline = this.pipelines[event];
-    let currentContext = { ...context };
+    let currentContext: GrammarContext = {
+      ...context,
+      charTyped: context.charTyped ?? context.beforeCursor.at(-1),
+    };
     const appliedEdits: GrammarEdit[] = [];
     // Code is never rewritten: in a code editor field or inside Markdown code
     // only code-safe rules run, as in code mode. Rules do not guess at code.
@@ -85,7 +88,10 @@ export class GrammarRuleEngine {
     context: GrammarContext,
     enabledRules?: string[],
   ): GrammarEdit | null {
-    let currentContext = { ...context };
+    let currentContext: GrammarContext = {
+      ...context,
+      charTyped: context.charTyped ?? context.beforeCursor.at(-1),
+    };
     const accumulatedEdits: GrammarEdit[] = [];
 
     for (const event of events) {

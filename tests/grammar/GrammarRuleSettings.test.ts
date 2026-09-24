@@ -38,7 +38,6 @@ const DEFAULT_RULES = [
   "commaPeriodSpacing",
   "collapseRepeatedSpaces",
   "trimSpaceBeforeLineBreak",
-  "neutralPunctuationPolicy",
 ];
 
 const PRE_MEASUREMENT_RULES = [
@@ -61,7 +60,6 @@ const PRE_MEASUREMENT_RULES = [
   "commaPeriodSpacing",
   "collapseRepeatedSpaces",
   "trimSpaceBeforeLineBreak",
-  "neutralPunctuationPolicy",
   "ellipsisShortcut",
   "emdashShortcut",
   "smartQuoteNormalization",
@@ -198,6 +196,72 @@ describe("GrammarRuleSettings", () => {
           if (id === "commaPeriodSpacing" || id === "mathOperatorSpacing") return false;
           return DEFAULT_CURRENT_GRAMMAR_RULES.includes(id);
         }),
+      );
+    });
+  });
+
+  describe("retired neutralPunctuationPolicy in stored settings", () => {
+    const RETIRED = "neutralPunctuationPolicy";
+
+    test("old stored arrays resolve to the same live rules without it", () => {
+      for (const legacy of [
+        RECOMMENDED_V1_GRAMMAR_RULES,
+        RECOMMENDED_V2_GRAMMAR_RULES,
+        DEFAULT_V3_GRAMMAR_RULES,
+        ["spacingRule"],
+        [RETIRED, "commaPeriodSpacing"],
+      ]) {
+        const liveIds = legacy.filter((id) => id !== RETIRED);
+        const withoutRetired = resolveGrammarRuleSelection(liveIds);
+        expect(resolveGrammarRuleSelection(legacy)).toEqual(withoutRetired);
+        expect(resolveGrammarRuleSelection(legacy)).not.toContain(RETIRED);
+      }
+    });
+
+    test("an array holding only the retired rule is not a disable-all", () => {
+      // As before its removal: every legacy rule is off, and the rules added
+      // since inherit their defaults.
+      expect(resolveGrammarRuleSelection([RETIRED])).toEqual(
+        DEFAULT_RULES.filter((id) => !LEGACY_RULE_IDS.includes(id as never)),
+      );
+    });
+
+    test("old override maps ignore it, whichever way it was set", () => {
+      for (const choice of [true, false]) {
+        expect(resolveGrammarRuleSelection({ [RETIRED]: choice })).toEqual(DEFAULT_RULES);
+        expect(
+          resolveGrammarRuleSelection({ [RETIRED]: choice, capitalizeSentenceStart: false }),
+        ).toEqual(DEFAULT_RULES.filter((id) => id !== "capitalizeSentenceStart"));
+      }
+    });
+
+    test("a Disable all saved while it existed still disables everything", () => {
+      // Written from the catalog of that time: every rule, the retired one included.
+      const stored = Object.fromEntries(
+        [...GRAMMAR_RULE_IDS, RETIRED].map((id) => [id, false] as const),
+      );
+      expect(resolveGrammarRuleSelection(stored)).toEqual([]);
+      const legacyInventory = Object.fromEntries(
+        [...LEGACY_RULE_IDS, RETIRED].map((id) => [id, false] as const),
+      );
+      expect(resolveGrammarRuleSelection(legacyInventory)).toEqual([]);
+      // The array-era "Disable all".
+      expect(resolveGrammarRuleSelection([])).toEqual([]);
+    });
+
+    test("a Disable all saved after it was retired still disables everything", () => {
+      const stored = grammarRuleSelectionToOverrides([]);
+      expect(stored).not.toHaveProperty(RETIRED);
+      expect(resolveGrammarRuleSelection(stored)).toEqual([]);
+    });
+
+    test("an otherwise all-off map with it switched on is not a disable-all", () => {
+      const stored = {
+        ...Object.fromEntries(LEGACY_RULE_IDS.map((id) => [id, false] as const)),
+        [RETIRED]: true,
+      };
+      expect(resolveGrammarRuleSelection(stored)).toEqual(
+        DEFAULT_RULES.filter((id) => !LEGACY_RULE_IDS.includes(id as never)),
       );
     });
   });

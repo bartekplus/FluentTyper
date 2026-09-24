@@ -1,5 +1,6 @@
 import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "../types";
 import { SPACE_CHARS } from "../../spacingRules";
+import { isGreekQuestionMark } from "../typographyProfiles";
 import {
   isLowercaseLetter,
   isTechnicalToken,
@@ -7,58 +8,43 @@ import {
 } from "./helpers/GenericRuleShared";
 
 const SENTENCE_ENDING_CHARS = new Set([".", "!", "?"]);
+// Spanish opens a question or exclamation with an inverted mark: "¿Qué?".
+const SENTENCE_OPENING_MARKS = new Set(["¿", "¡"]);
 // A period closing one of these is an abbreviation at least as often as a
 // sentence end, so the following word is left exactly as the user typed it.
+// Each language only gets its own list: "co." (pl "what"), "est." (fr "east"),
+// "ave." (pt "bird") and "min." (sv "my") end sentences elsewhere.
 // ar_SA needs no entries: Arabic script is uncased, so the rule never fires on it.
-const ABBREVIATIONS = new Set([
-  "etc",
-  "vs",
-  "cf",
-  "al",
-  "approx",
-  "eg",
-  "ie",
-  "fig",
-  "resp",
-  "est",
-  "min",
-  "max",
-  // Titles and company forms.
-  "mr",
-  "mrs",
-  "ms",
-  "dr",
-  "prof",
-  "jr",
-  "sr",
-  "inc",
-  "ltd",
-  "co",
-  "corp",
-  "dept",
-  "univ",
-  "ave",
-  "blvd",
-  // de_DE, pl_PL, es/pt, sv_SE, hr_HR.
-  "usw",
-  "bzw",
-  "evtl",
-  "ggf",
-  "vgl",
-  "inkl",
-  "np",
-  "tzn",
-  "itd",
-  "itp",
-  "tj",
-  "tys",
-  "sra",
-  "ej",
-  "dvs",
-  "osv",
-  "npr",
-  "tzv",
+const SHARED_ABBREVIATIONS = ["etc", "vs", "cf", "al", "eg", "ie", "dr", "prof"];
+const ABBREVIATIONS_BY_LANGUAGE: Record<string, readonly string[]> = {
+  en: [
+    ...["approx", "fig", "resp", "est", "min", "max", "mr", "mrs", "ms", "jr", "sr"],
+    ...["inc", "ltd", "co", "corp", "dept", "univ", "ave", "blvd"],
+  ],
+  de: ["usw", "bzw", "evtl", "ggf", "vgl", "inkl", "ca", "bspw", "nr", "hr", "fr"],
+  pl: ["np", "tzn", "itd", "itp", "tj", "mgr", "inż", "ul", "godz", "wg", "św"],
+  es: ["sr", "sra", "srta", "ej", "aprox", "pág", "núm", "ud", "uds"],
+  pt: ["sr", "sra", "srta", "pág", "núm", "av", "dra"],
+  sv: ["dvs", "osv", "tys", "ca", "nr", "bl"],
+  hr: ["npr", "tzv", "itd", "sl", "br", "god"],
+  fr: ["env", "av", "apr", "mme", "mlle"],
+  el: ["κλπ", "δηλ", "βλ", "σελ", "αρ"],
+};
+const ALL_ABBREVIATIONS = new Set([
+  ...SHARED_ABBREVIATIONS,
+  ...Object.values(ABBREVIATIONS_BY_LANGUAGE).flat(),
 ]);
+const LANGUAGE_ABBREVIATIONS = new Map(
+  Object.entries(ABBREVIATIONS_BY_LANGUAGE).map(([lang, words]) => [
+    lang,
+    new Set([...SHARED_ABBREVIATIONS, ...words]),
+  ]),
+);
+
+/** A language without its own list (auto-detect not resolved yet) keeps every entry. */
+function abbreviationsFor(lang?: string): ReadonlySet<string> {
+  return LANGUAGE_ABBREVIATIONS.get((lang ?? "").slice(0, 2).toLowerCase()) ?? ALL_ABBREVIATIONS;
+}
 
 // Locales that write ordinals as "1." inside a sentence ("der 1. und 2. Platz").
 const ORDINAL_PERIOD_LOCALES = new Set(["de_DE", "hr_HR", "pl_PL", "sv_SE"]);
@@ -74,7 +60,9 @@ function closesAbbreviation(text: string, index: number, lang?: string): boolean
     // "2026." and "12." end sentences in English; elsewhere they are ordinals.
     return token.length > 0 && ORDINAL_PERIOD_LOCALES.has(lang ?? "");
   }
-  return token.length <= 1 || token.includes(".") || ABBREVIATIONS.has(token.toLowerCase());
+  return (
+    token.length <= 1 || token.includes(".") || abbreviationsFor(lang).has(token.toLowerCase())
+  );
 }
 // Includes every closing quote the typography profiles emit: „…“ ‚…‘ «…» ›…‹.
 const CLOSING_CHARS = new Set([")", "]", "}", '"', "'", "”", "’", "“", "‘", "»", "›"]);
@@ -109,8 +97,9 @@ export class CapitalizeSentenceStartRule implements GrammarRule {
       wordStart -= 1;
     }
     const word = text.slice(wordStart, boundary);
+    const letter = SENTENCE_OPENING_MARKS.has(word[0]) ? 1 : 0;
     if (
-      !isLowercaseLetter(word[0]) ||
+      !isLowercaseLetter(word[letter] ?? "") ||
       isTechnicalToken(word.replace(TRAILING_PUNCTUATION_REGEX, "")) ||
       !this.startsSentence(text, wordStart, context.hints?.lang)
     ) {
@@ -118,7 +107,7 @@ export class CapitalizeSentenceStartRule implements GrammarRule {
     }
 
     return {
-      replacement: `${word[0].toUpperCase()}${text.slice(wordStart + 1)}`,
+      replacement: `${word.slice(0, letter)}${word[letter].toUpperCase()}${text.slice(wordStart + letter + 1)}`,
       deleteBackwards: text.length - wordStart,
       deleteForwards: 0,
     };
@@ -140,7 +129,7 @@ export class CapitalizeSentenceStartRule implements GrammarRule {
     }
     return (
       i >= 0 &&
-      SENTENCE_ENDING_CHARS.has(text[i]) &&
+      (SENTENCE_ENDING_CHARS.has(text[i]) || isGreekQuestionMark(text[i], lang)) &&
       !(text[i] === "." && closesAbbreviation(text, i, lang))
     );
   }

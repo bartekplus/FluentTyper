@@ -41,8 +41,6 @@ const GRAMMAR_CASES: Array<[string, string, string] | [string, string, string, s
   ["commaPeriodSpacing", "Hello ,world ", "Hello,world "],
   ["collapseRepeatedSpaces", "hello  world ", "hello world "],
   ["trimSpaceBeforeLineBreak", "hello  \n", "hello\n"],
-  // Deliberate no-op rule: the assertion guards against a spurious edit.
-  ["neutralPunctuationPolicy", "Bonjour : ", "Bonjour : "],
   ["ellipsisShortcut", "wait... ", "wait\u2026 "],
   ["emdashShortcut", "word--x ", "word\u2014x "],
   ["smartQuoteNormalization", 'say "hi" ', "say \u201chi\u201d "],

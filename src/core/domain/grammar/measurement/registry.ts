@@ -78,7 +78,7 @@ export function lookupMeasurementUnit(symbol: string): MeasurementUnit | undefin
   return prefixed;
 }
 
-/** Resolve only the nine writing locales supported by the grammar policy. */
+/** Resolve only the writing locales supported by the grammar policy. */
 export function resolveMeasurementLocale(lang?: string): MeasurementLocalePolicy | undefined {
   if (!lang) return undefined;
   const match = /^([A-Za-z]{2})[-_]([A-Za-z]{2})$/.exec(lang);

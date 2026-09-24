@@ -3,7 +3,7 @@ import { PUNCTUATION_EQUIVALENTS, SPACE_CHARS, SPACING_OR_FILLER_CHARS } from ".
 import { resolveInputAction } from "./helpers/GenericRuleShared";
 import { SpacingRuleShared } from "./helpers/SpacingRuleShared";
 import { resolveMeasurementLocale } from "../measurement/registry";
-import { usesFrenchPunctuationSpacing } from "../typographyProfiles";
+import { isGreekQuestionMark, usesFrenchPunctuationSpacing } from "../typographyProfiles";
 
 // A standalone number ending right before a comma: "2", "-1.5", "(١٫٥",
 // "1,500,000". Deferral and repair must both use it, or a deferred space can
@@ -90,10 +90,12 @@ export class CommaPeriodSpacingRule extends SpacingRuleShared implements Grammar
     if (lastChar === " ") {
       const periodIndex = length - 2;
       const mark = inputStr[periodIndex] ?? "";
+      const lang = context.hints?.lang;
       const closesSentence =
         mark === "." ||
         (["?", "!"].includes(PUNCTUATION_EQUIVALENTS[mark] ?? mark) &&
-          !usesFrenchPunctuationSpacing(context.hints?.lang));
+          !usesFrenchPunctuationSpacing(lang)) ||
+        isGreekQuestionMark(mark, lang);
       if (!canDefer || !closesSentence) {
         return null;
       }
@@ -102,7 +104,9 @@ export class CommaPeriodSpacingRule extends SpacingRuleShared implements Grammar
         spacesBefore += 1;
       }
       const wordEnd = inputStr[periodIndex - 1 - spacesBefore] ?? "";
-      if (spacesBefore === 0 || !/[\p{L}\p{N}]/u.test(wordEnd)) {
+      // A closing bracket or quote ends a word too; closingBracketSpacing
+      // spaced "(quietly) " before the "." arrived.
+      if (spacesBefore === 0 || !/[\p{L}\p{N})\]}"”’»“‘›]/u.test(wordEnd)) {
         return null;
       }
       return this.createEdit(`${mark} `, spacesBefore + 2);

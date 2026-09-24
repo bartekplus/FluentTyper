@@ -25,7 +25,6 @@ type GrammarRuleId =
   | "technicalTokenCompaction"
   | "collapseRepeatedSpaces"
   | "trimSpaceBeforeLineBreak"
-  | "neutralPunctuationPolicy"
   | "ellipsisShortcut"
   | "emdashShortcut"
   | "smartQuoteNormalization"
@@ -45,6 +44,7 @@ export interface GrammarHints {
 export interface GrammarContext {
   beforeCursor: string;
   afterCursor: string;
+  /** The keystroke itself; earlier rules may already have rewritten it in beforeCursor. */
   charTyped?: string;
   hints?: GrammarHints;
 }
