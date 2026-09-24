@@ -30,6 +30,11 @@ export function resolveTypographyProfile(lang: string | undefined): TypographyPr
   return PROFILES[(lang ?? "").slice(0, 2).toLowerCase()] ?? ENGLISH;
 }
 
+/** Greek writes its question mark as ";" (U+037E normalizes to it). */
+export function isGreekQuestionMark(ch: string, lang: string | undefined): boolean {
+  return (ch === ";" || ch === "\u037E") && (lang ?? "").slice(0, 2).toLowerCase() === "el";
+}
+
 /** Spacing before high punctuation is France-specific; Canadian French spaces only the colon. */
 export function usesFrenchPunctuationSpacing(lang: string | undefined): boolean {
   return lang === "fr_FR" || lang === "fr";

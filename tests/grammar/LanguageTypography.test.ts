@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { GrammarRuleEngine } from "../../src/core/domain/grammar/GrammarRuleEngine";
 import { applyGrammarEditToContext } from "../../src/core/domain/grammar/GrammarEditSequencing";
 import { createGrammarRuleCatalogRuntime } from "../../src/core/domain/grammar/ruleFactory";
+import { CapitalizeSentenceStartRule } from "../../src/core/domain/grammar/implementations/CapitalizeSentenceStartRule";
 import {
   GRAMMAR_RULE_CATALOG,
   GRAMMAR_RULE_IDS,
@@ -280,6 +281,48 @@ describe("rule interactions", () => {
   test("digits on both sides of = are spaced like other arithmetic", () => {
     expect(type("so 2=2 and x=1 ", "en_US")).toBe("So 2 = 2 and x = 1 ");
     expect(type("FOO=bar ", "en_US")).toBe("FOO=bar ");
+    // A number ending a name is not a number operand.
+    expect(type("set FOO2=bar and var1=2 ", "en_US")).toBe("Set FOO2=bar and var1=2 ");
+  });
+
+  test("a lone inverted mark is left alone", () => {
+    // The engine swallows rule errors, so call the rule itself.
+    expect(
+      new CapitalizeSentenceStartRule().apply({
+        beforeCursor: "hola. ¿ ",
+        afterCursor: "",
+        hints: { lang: "es_ES" },
+      }),
+    ).toBeNull();
+    expect(type("hola. ¿ vale ", "es_ES")).toBe("Hola. ¿ vale ");
+  });
+
+  test("a stray space before a closer is repaired even right before the same closer", () => {
+    // Cursor inside an existing pair: no auto-close involved.
+    const rules = ["closingBracketSpacing"];
+    const engine = new GrammarRuleEngine();
+    for (const rule of createGrammarRuleCatalogRuntime({
+      insertSpaceAfterAutocomplete: true,
+      userDictionaryList: [],
+    }))
+      engine.registerRule(rule);
+    const edit = engine.processSequence(
+      ["insertChar"],
+      {
+        beforeCursor: "f(g(x )",
+        afterCursor: ")",
+        hints: { lang: "en_US", inputAction: "insert" },
+      },
+      rules,
+    );
+    expect(edit).toEqual(
+      expect.objectContaining({ replacement: ")", deleteBackwards: 2, deleteForwards: 0 }),
+    );
+  });
+
+  test("an inch mark does not count as an open quote for auto-close", () => {
+    const rules = ["autoBracketClose"];
+    expect(type('a 5" screen and "', "en_US", "prose", rules)).toBe('a 5" screen and ""');
   });
 });
 

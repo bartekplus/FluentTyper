@@ -20,14 +20,18 @@ const WORD_CHAR_REGEX = /[\p{L}\p{N}]/u;
 
 /**
  * True when an odd number of `quote` precede it on the line, so the next one
- * closes. `'` is left out: apostrophes ("it's") make its count meaningless.
+ * closes. `'` is left out: apostrophes ("it's") make its count meaningless, and
+ * so is a `"` right after a digit, an inch mark ("5\"").
  */
+const QUOTE_COUNT_REGEX: Record<string, RegExp> = { '"': /(?<!\p{Nd})"/gu, "`": /`/g };
+
 function closesOpenQuote(beforeQuote: string, quote: string): boolean {
-  if (quote !== '"' && quote !== "`") {
+  const regex = QUOTE_COUNT_REGEX[quote];
+  if (!regex) {
     return false;
   }
   const line = beforeQuote.slice(beforeQuote.lastIndexOf("\n") + 1);
-  return line.split(quote).length % 2 === 0;
+  return (line.match(regex)?.length ?? 0) % 2 === 1;
 }
 
 export class AutoBracketCloseRule implements GrammarRule {

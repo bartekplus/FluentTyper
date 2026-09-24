@@ -1,5 +1,6 @@
 import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "../types";
 import { SPACE_CHARS } from "../../spacingRules";
+import { isGreekQuestionMark } from "../typographyProfiles";
 import {
   isLowercaseLetter,
   isTechnicalToken,
@@ -7,8 +8,6 @@ import {
 } from "./helpers/GenericRuleShared";
 
 const SENTENCE_ENDING_CHARS = new Set([".", "!", "?"]);
-// Greek writes the question mark as ";" (U+037E normalizes to it).
-const GREEK_QUESTION_MARKS = new Set([";", "\u037E"]);
 // Spanish opens a question or exclamation with an inverted mark: "¿Qué?".
 const SENTENCE_OPENING_MARKS = new Set(["¿", "¡"]);
 // A period closing one of these is an abbreviation at least as often as a
@@ -100,7 +99,7 @@ export class CapitalizeSentenceStartRule implements GrammarRule {
     const word = text.slice(wordStart, boundary);
     const letter = SENTENCE_OPENING_MARKS.has(word[0]) ? 1 : 0;
     if (
-      !isLowercaseLetter(word[letter]) ||
+      !isLowercaseLetter(word[letter] ?? "") ||
       isTechnicalToken(word.replace(TRAILING_PUNCTUATION_REGEX, "")) ||
       !this.startsSentence(text, wordStart, context.hints?.lang)
     ) {
@@ -130,8 +129,7 @@ export class CapitalizeSentenceStartRule implements GrammarRule {
     }
     return (
       i >= 0 &&
-      (SENTENCE_ENDING_CHARS.has(text[i]) ||
-        (lang === "el_GR" && GREEK_QUESTION_MARKS.has(text[i]))) &&
+      (SENTENCE_ENDING_CHARS.has(text[i]) || isGreekQuestionMark(text[i], lang)) &&
       !(text[i] === "." && closesAbbreviation(text, i, lang))
     );
   }

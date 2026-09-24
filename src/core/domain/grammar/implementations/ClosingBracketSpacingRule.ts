@@ -19,12 +19,6 @@ export class ClosingBracketSpacingRule extends SpacingRuleShared implements Gram
       return null;
     }
 
-    // Typed right before the same closer (an auto-closed pair): overtyping it
-    // is autoBracketClose's call, and a space here would strand that closer.
-    if (context.afterCursor[0] === closingBracket) {
-      return null;
-    }
-
     const prevChar = inputStr[closingIndex - 1];
     const hasSpaceBefore = SPACE_CHARS.includes(prevChar);
 
@@ -35,9 +29,12 @@ export class ClosingBracketSpacingRule extends SpacingRuleShared implements Gram
     }
     // "[label](url)": a link target may follow "]", and once a space is in,
     // "see [1] (the paper)" cannot be told from it. So "]" gets no space.
+    // Typed right before the same closer (an auto-closed pair): a space here
+    // would strand that closer instead of letting autoBracketClose overtype it.
     const insertSpaceAfter =
       this.insertSpaceAfterAutocomplete &&
       closingBracket !== "]" &&
+      context.afterCursor[0] !== closingBracket &&
       this.isProseLikeClosingContext(inputStr, closingBracket, closingIndex);
 
     const inputAction = resolveInputAction(context);

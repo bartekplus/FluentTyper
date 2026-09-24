@@ -3,7 +3,7 @@ import { PUNCTUATION_EQUIVALENTS, SPACE_CHARS, SPACING_OR_FILLER_CHARS } from ".
 import { resolveInputAction } from "./helpers/GenericRuleShared";
 import { SpacingRuleShared } from "./helpers/SpacingRuleShared";
 import { resolveMeasurementLocale } from "../measurement/registry";
-import { usesFrenchPunctuationSpacing } from "../typographyProfiles";
+import { isGreekQuestionMark, usesFrenchPunctuationSpacing } from "../typographyProfiles";
 
 // A standalone number ending right before a comma: "2", "-1.5", "(١٫٥",
 // "1,500,000". Deferral and repair must both use it, or a deferred space can
@@ -90,13 +90,12 @@ export class CommaPeriodSpacingRule extends SpacingRuleShared implements Grammar
     if (lastChar === " ") {
       const periodIndex = length - 2;
       const mark = inputStr[periodIndex] ?? "";
-      // Greek writes its question mark as ";".
       const lang = context.hints?.lang;
       const closesSentence =
         mark === "." ||
         (["?", "!"].includes(PUNCTUATION_EQUIVALENTS[mark] ?? mark) &&
           !usesFrenchPunctuationSpacing(lang)) ||
-        (lang === "el_GR" && (mark === ";" || mark === "\u037E"));
+        isGreekQuestionMark(mark, lang);
       if (!canDefer || !closesSentence) {
         return null;
       }

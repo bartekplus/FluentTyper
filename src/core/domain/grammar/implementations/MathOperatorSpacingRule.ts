@@ -42,12 +42,15 @@ export class MathOperatorSpacingRule extends SpacingRuleShared implements Gramma
     if (operatorChar === "=" && /[-?&`<]/.test(beforeOperand)) {
       return null;
     }
+    // A number ending a name ("FOO2", "var1") is part of that name.
+    const standaloneNumber =
+      leftOperand.kind === "number" && !this.isIdentifierChar(inputStr[leftOperand.start - 1]);
     if (
       operatorChar === "=" &&
-      leftOperand.kind !== "number" &&
+      !standaloneNumber &&
       leftOperand.text === leftOperand.text.toUpperCase()
     ) {
-      // "FOO=bar" is an environment variable; "2=2" is arithmetic.
+      // "FOO=bar" and "FOO2=bar" are environment variables; "2=2" is arithmetic.
       return null;
     }
 
