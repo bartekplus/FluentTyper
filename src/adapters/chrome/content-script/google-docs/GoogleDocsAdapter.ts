@@ -159,6 +159,8 @@ export class GoogleDocsAdapter {
   private snapshot: DocsSnapshot | null = null;
   private requested: { id: number; snapshot: DocsSnapshot } | null = null;
   private suggestions: string[] = [];
+  /** Parallel to `suggestions`: the snippet shortcut each one expands, or null. */
+  private snippetShortcuts: Array<string | null> = [];
   private selectedIndex = 0;
   private input: DocsInput | null = null;
   private epoch = 0;
@@ -328,9 +330,12 @@ export class GoogleDocsAdapter {
     )
       return;
     this.snapshot = reply.snapshot;
-    this.suggestions = (Array.isArray(response.predictions) ? response.predictions : [])
-      .filter((text): text is string => typeof text === "string" && this.completion(text) !== null)
+    const shown = (Array.isArray(response.predictions) ? response.predictions : [])
+      .map((text, index) => ({ text, shortcut: response.snippetShortcuts?.[index] ?? null }))
+      .filter(({ text }) => typeof text === "string" && this.completion(text) !== null)
       .slice(0, 10);
+    this.suggestions = shown.map(({ text }) => text);
+    this.snippetShortcuts = shown.map(({ shortcut }) => shortcut);
     this.selectedIndex = 0;
     this.render(response.lang);
     if (this.visible)
@@ -743,7 +748,13 @@ export class GoogleDocsAdapter {
       this.clearVisual();
       return;
     }
-    this.visible = this.view.render(this.suggestions, this.selectedIndex, this.snapshot, language);
+    this.visible = this.view.render(
+      this.suggestions,
+      this.selectedIndex,
+      this.snapshot,
+      language,
+      this.snippetShortcuts,
+    );
     this.updateKeyState();
   }
   private updateKeyState(): void {

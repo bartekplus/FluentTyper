@@ -1,5 +1,7 @@
 export interface PredictionResult {
   predictions: string[];
+  /** Per prediction: the snippet shortcut it expands, or null for plain words. */
+  snippetShortcuts?: Array<string | null>;
 }
 
 export interface PredictorStageDebugInfo {

@@ -295,6 +295,17 @@ export const SUGGESTION_POPUP_SHADOW_CSS = `
   text-transform: inherit;
 }
 
+.ft-suggestion-snippet {
+  all: initial;
+  color: var(--ft-panel-header-fg);
+  -webkit-text-fill-color: currentColor;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  letter-spacing: inherit;
+}
+
+.ft-suggestion-list li.highlight .ft-suggestion-snippet,
 .ft-suggestion-list li.highlight .ft-suggestion-match {
   color: inherit;
 }

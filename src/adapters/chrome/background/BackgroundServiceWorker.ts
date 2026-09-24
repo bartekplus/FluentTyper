@@ -116,7 +116,7 @@ export class BackgroundServiceWorker {
     );
     await this.ensureRuntimeConfigReady();
 
-    const { predictions } = await this.predictionManager.runPrediction(
+    const { predictions, snippetShortcuts } = await this.predictionManager.runPrediction(
       message.context.text,
       message.context.nextChar,
       message.context.lang,
@@ -150,6 +150,7 @@ export class BackgroundServiceWorker {
         traceStartedAtMs: message.context.traceStartedAtMs,
         frameId: message.context.frameId,
         predictions,
+        snippetShortcuts,
       },
     };
     this.predictionManager.recordTraceTimelineEvent(

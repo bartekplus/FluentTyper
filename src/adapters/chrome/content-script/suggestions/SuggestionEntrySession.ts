@@ -378,6 +378,7 @@ export class SuggestionEntrySession {
       this.clearInlinePresenter();
       this.renderMenu({
         suggestions: this.entry.suggestions,
+        snippetShortcuts: context.snippetShortcuts,
         selectedIndex: this.entry.selectedIndex,
         menuHeader: this.entry.menuHeader,
         mentionText: this.entry.latestMentionText,

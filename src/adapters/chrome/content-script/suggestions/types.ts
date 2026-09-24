@@ -194,6 +194,7 @@ export interface SuggestionEntrySessionOptions {
   getPendingFallback?: () => PendingKeyFallback | undefined;
   renderMenu: (context: {
     suggestions: string[];
+    snippetShortcuts?: Array<string | null>;
     selectedIndex: number;
     menuHeader: string | null;
     mentionText: string;
