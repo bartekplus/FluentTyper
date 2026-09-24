@@ -1,3 +1,4 @@
+import { DEFAULT_SEPARATOR_CHARS_REGEX } from "../src/core/domain/lang";
 import { afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
 import { SuggestionPredictionCoordinator } from "../src/adapters/chrome/content-script/suggestions/SuggestionPredictionCoordinator";
 import { createSuggestionEntry } from "./suggestionTestUtils";
@@ -298,6 +299,13 @@ describe("SuggestionPredictionCoordinator", () => {
       const result = makeCoordinator().findMentionToken("hello ");
       expect(result.token).toBe("");
       expect(result.start).toBe(6);
+    });
+
+    test("stops at opening punctuation, the same word snippet matching uses", () => {
+      const coordinator = makeCoordinator(DEFAULT_SEPARATOR_CHARS_REGEX);
+      for (const text of ["(ad", "[ad", '"ad', "/ad"]) {
+        expect(coordinator.findMentionToken(text)).toEqual({ token: "ad", start: 1 });
+      }
     });
 
     test("returns empty token and start 0 for empty input", () => {

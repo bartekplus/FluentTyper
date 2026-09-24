@@ -129,6 +129,8 @@ interface Acceptance {
   insertedText: string;
   language: string;
   suggestion: string;
+  /** A snippet expansion: counted in telemetry, never learned as a word. */
+  snippet: boolean;
 }
 interface TrackedEdit {
   operationId?: string;
@@ -561,6 +563,7 @@ export class GoogleDocsAdapter {
       insertedText: edit.replacement,
       language: this.options.lang,
       suggestion,
+      snippet: this.snippetShortcuts[index] != null,
     };
     void this.apply(edit, acceptance);
     return true;
@@ -600,11 +603,14 @@ export class GoogleDocsAdapter {
     this.view.status(reply.status);
     if (!this.uncertain) void this.refresh();
   }
+  private learn(acceptance: Acceptance | null): string {
+    return acceptance && !acceptance.snippet
+      ? this.personalization.recordSuggestionAccepted(acceptance)
+      : "";
+  }
   private recordApplied(edit: TrackedEdit, operationId: string): void {
     if (this.lastEdit?.operationId === operationId) return;
-    const eventId = edit.acceptance
-      ? this.personalization.recordSuggestionAccepted(edit.acceptance)
-      : "";
+    const eventId = this.learn(edit.acceptance);
     if (edit.acceptance) this.telemetry.recordSuggestionAccepted(edit.acceptance);
     this.lastEdit = { ...edit, operationId, eventId, active: true };
   }
@@ -626,9 +632,7 @@ export class GoogleDocsAdapter {
       last.active = false;
       this.grammarSuppressed = reply.snapshot;
     } else if (reply.history === "applied" && !last.active) {
-      last.eventId = last.acceptance
-        ? this.personalization.recordSuggestionAccepted(last.acceptance)
-        : "";
+      last.eventId = this.learn(last.acceptance);
       last.active = true;
     }
   }

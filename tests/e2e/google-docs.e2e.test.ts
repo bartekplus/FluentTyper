@@ -399,6 +399,26 @@ describe("Google Docs cross-world fixture (not live Docs)", () => {
     await waitUntil("reversal", () => evaluate<boolean>('events.includes("reverted")'));
     expect((await evaluate<string[]>("events")).filter((v) => v === "reverted")).toHaveLength(1);
   });
+  test("accepted snippet expansions are not learned, exact shortcuts are left to the background", async () => {
+    try {
+      // Partial shortcut "em" -> "email": labelled, so never sent for learning.
+      await evaluate('snippetShortcuts=["email"]');
+      await seed("em", ["private@example.com"]);
+      await page.keyboard.press("Tab");
+      await expectText("private@example.com");
+      await waitUntil("accepted statistics", () =>
+        evaluate<boolean>('events.includes("accepted")'),
+      );
+      expect((await evaluate<string[]>("events")).includes("learned")).toBe(false);
+      // Exact shortcut: unlabelled; the background's exact-trigger check excludes it.
+      await evaluate("snippetShortcuts=[null]");
+      await seed("email", ["private@example.com"]);
+      await page.keyboard.press("Tab");
+      await waitUntil("learning", () => evaluate<boolean>('events.includes("learned")'));
+    } finally {
+      await evaluate("snippetShortcuts=[]");
+    }
+  });
   test("IME composition suppresses accepting suggestions", async () => {
     await seed("hel", ["hello"]);
     await page

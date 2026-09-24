@@ -440,6 +440,63 @@ test("session acceptance lifecycle applies accepted suggestion state", () => {
   });
 });
 
+test("session never learns an accepted snippet expansion, but still learns words and exact shortcuts", () => {
+  const entry = createSuggestionEntry({ requestId: 2, latestMentionText: "em" });
+  const textEditService = {
+    acceptSuggestion: jest.fn((_entry: SuggestionEntry, suggestion: string) => ({
+      triggerText: "em",
+      insertedText: suggestion,
+      cursorAfter: suggestion.length,
+      cursorAfterIsBlockLocal: false,
+    })),
+    applyGrammarEdit: jest.fn(() => ({ applied: false, didDispatchInput: false })),
+    syncManualAutoFixSuppression: jest.fn(),
+  };
+  const recordSuggestionAccepted = jest.fn();
+  const recordPersonalizationAccepted = jest.fn(() => "accept-fixed");
+  const predictionCoordinator = {
+    shouldProcessResponse: (_entry: SuggestionEntry, context: PredictionResponse) =>
+      context.requestId === entry.requestId,
+    schedule: jest.fn(),
+    reconcile: jest.fn(),
+    cancelPending: jest.fn(),
+    findMentionToken: () => ({ token: "em", start: 0 }),
+  };
+  const session = makeSession({
+    entry,
+    predictionCoordinator,
+    textEditService,
+    recordSuggestionAccepted,
+    recordPersonalizationAccepted,
+  });
+  const respond = (predictions: string[], snippetShortcuts?: Array<string | null>) =>
+    session.handlePredictionResponse({
+      requestId: entry.requestId,
+      suggestionId: entry.id,
+      predictions,
+      snippetShortcuts,
+      lang: "en_US",
+    });
+
+  // Partial shortcut "em" -> "email": a labelled snippet.
+  respond(["emit", "private@example.com"], [null, "email"]);
+  session.acceptSuggestionAtIndex(1);
+  expect(recordSuggestionAccepted).toHaveBeenCalledTimes(1);
+  expect(recordPersonalizationAccepted).not.toHaveBeenCalled();
+
+  // A word from the same response shape stays learnable.
+  respond(["emit", "private@example.com"], [null, "email"]);
+  session.acceptSuggestionAtIndex(0);
+  expect(recordPersonalizationAccepted).toHaveBeenCalledWith(
+    expect.objectContaining({ suggestion: "emit" }),
+  );
+
+  // Exact shortcut: unlabelled, so the background's exact-trigger check decides.
+  respond(["private@example.com"]);
+  session.acceptSuggestionAtIndex(0);
+  expect(recordPersonalizationAccepted).toHaveBeenCalledTimes(2);
+});
+
 test("session skips delayed spacing when a block-scoped accepted word already has a following space", () => {
   const editable = document.createElement("div");
   editable.setAttribute("contenteditable", "true");

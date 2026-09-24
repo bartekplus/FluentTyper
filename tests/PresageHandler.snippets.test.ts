@@ -1,5 +1,9 @@
+import { afterEach, describe, expect, spyOn, test } from "bun:test";
 import { mod } from "./fakeLibPresage.js";
 import { PresageHandler } from "../src/adapters/chrome/background/PresageHandler";
+import { TemplateExpander } from "../src/adapters/chrome/background/TemplateExpander";
+import { KEY_TEXT_EXPANSIONS } from "../src/core/domain/constants";
+import { manifest } from "../src/ui/options/settingsManifest";
 
 function createHandler(
   textExpansions: Array<[string, string]>,
@@ -21,115 +25,145 @@ function createHandler(
   return handler;
 }
 
+function predict(handler: PresageHandler, text: string, lang = "en_US") {
+  return handler.runPrediction(text, "", lang);
+}
+
 const expansions: Array<[string, string]> = [
   ["address", "123 Main Street"],
   ["adv", "advice"],
   ["sig", "Best, Bart"],
 ];
 
+const defaultExpansions = manifest.settings.find((setting) => setting.name === KEY_TEXT_EXPANSIONS)
+  ?.default as Array<[string, string]>;
+
+afterEach(() => {
+  mod.PresageCallback.predictions = [];
+});
+
 describe("PresageHandler snippet suggestions (#366)", () => {
   test("inserts prefix matches after the top word, shortest shortcut first", async () => {
     mod.PresageCallback.predictions = ["add", "adding"];
-    await expect(createHandler(expansions).runPrediction("ad", "", "en_US")).resolves.toMatchObject(
-      {
-        predictions: ["add", "advice", "123 Main Street", "adding"],
-      },
-    );
+    await expect(predict(createHandler(expansions), "ad")).resolves.toEqual({
+      predictions: ["add", "advice", "123 Main Street", "adding"],
+      snippetShortcuts: [null, "adv", "address", null],
+    });
   });
 
-  test("fuzzy matches in-order characters unless prefix-only mode is on", async () => {
-    mod.PresageCallback.predictions = ["adrift"];
-    await expect(
-      createHandler(expansions).runPrediction("adr", "", "en_US"),
-    ).resolves.toMatchObject({
-      predictions: ["adrift", "123 Main Street"],
-    });
-    await expect(
-      createHandler(expansions, { prefixOnlyMode: true }).runPrediction("adr", "", "en_US"),
-    ).resolves.toMatchObject({ predictions: ["adrift"] });
+  test("ordinary words never hit the default snippets in a word language", async () => {
+    expect(defaultExpansions.length).toBeGreaterThan(10);
+    mod.PresageCallback.predictions = ["word"];
+    const handler = createHandler(defaultExpansions);
+    for (const word of ["date", "time", "came", "calm", "title", "domain", "sales"]) {
+      await expect(predict(handler, word)).resolves.toEqual({ predictions: ["word"] });
+    }
   });
 
-  test("typo matches are one edit from the shortcut start, tokens of 4+ letters only", async () => {
-    mod.PresageCallback.predictions = ["asdf"];
-    const handler = createHandler([...expansions, ["thx", "Thanks!"]]);
-    await expect(handler.runPrediction("asdr", "", "en_US")).resolves.toMatchObject({
-      predictions: ["asdf", "123 Main Street"],
+  test("abbreviation and typo matches only in Text Expander, and not in prefix-only mode", async () => {
+    const handler = createHandler(expansions);
+    await expect(predict(handler, "adr")).resolves.toEqual({ predictions: [] });
+    await expect(predict(handler, "adr", "textExpander")).resolves.toEqual({
+      predictions: ["123 Main Street"],
+      snippetShortcuts: ["address"],
     });
-    await expect(handler.runPrediction("the", "", "en_US")).resolves.toMatchObject({
-      predictions: ["asdf"],
+    await expect(predict(handler, "asdr", "textExpander")).resolves.toEqual({
+      predictions: ["123 Main Street"],
+      snippetShortcuts: ["address"],
     });
     await expect(
-      createHandler(expansions, { prefixOnlyMode: true }).runPrediction("asdr", "", "en_US"),
-    ).resolves.toMatchObject({ predictions: ["asdf"] });
+      predict(createHandler(expansions, { prefixOnlyMode: true }), "adr", "textExpander"),
+    ).resolves.toEqual({ predictions: [] });
   });
 
-  test("ranks prefix, then abbreviation, then typo matches", async () => {
-    mod.PresageCallback.predictions = [];
+  test("ranks prefix, then abbreviation, then typo matches in Text Expander", async () => {
     const handler = createHandler([
       ["adxe", "typo"],
       ["axdre", "abbreviation"],
       ["adreno", "prefix"],
     ]);
-    await expect(handler.runPrediction("adre", "", "textExpander")).resolves.toMatchObject({
+    await expect(predict(handler, "adre", "textExpander")).resolves.toMatchObject({
       predictions: ["prefix", "abbreviation", "typo"],
     });
+  });
+
+  test("matches the current word after opening punctuation, the token acceptance replaces", async () => {
+    const handler = createHandler(expansions);
+    for (const text of ["(ad", "[ad", '"ad', "/ad"]) {
+      await expect(predict(handler, text)).resolves.toEqual({
+        predictions: ["advice", "123 Main Street"],
+        snippetShortcuts: ["adv", "address"],
+      });
+    }
   });
 
   test("caps snippets at half the list unless words leave slots empty or the language is Text Expander", async () => {
     const many = Array.from({ length: 10 }, (_, i): [string, string] => [`ad${i}x`, `snip${i}`]);
     mod.PresageCallback.predictions = ["add", "adding", "admin", "adult"];
-    await expect(createHandler(many).runPrediction("ad", "", "en_US")).resolves.toMatchObject({
+    await expect(predict(createHandler(many), "ad")).resolves.toMatchObject({
       predictions: ["add", "snip0", "snip1", "adding", "admin"],
     });
     mod.PresageCallback.predictions = ["add"];
-    await expect(createHandler(many).runPrediction("ad", "", "en_US")).resolves.toMatchObject({
+    await expect(predict(createHandler(many), "ad")).resolves.toMatchObject({
       predictions: ["add", "snip0", "snip1", "snip2", "snip3"],
     });
     mod.PresageCallback.predictions = [];
-    await expect(
-      createHandler(many).runPrediction("ad", "", "textExpander"),
-    ).resolves.toMatchObject({
+    await expect(predict(createHandler(many), "ad", "textExpander")).resolves.toMatchObject({
       predictions: ["snip0", "snip1", "snip2", "snip3", "snip4"],
+    });
+  });
+
+  test("resolves templates only for the snippets it can show", async () => {
+    const many = Array.from({ length: 1000 }, (_, i): [string, string] => [
+      `ad${i}x`,
+      `snip${i} \${page_title}`,
+    ]);
+    const handler = createHandler(many);
+    const parse = spyOn(TemplateExpander, "parseStringTemplateAsync");
+    try {
+      await predict(handler, "ad", "textExpander");
+      expect(parse).toHaveBeenCalledTimes(5);
+    } finally {
+      parse.mockRestore();
+    }
+  });
+
+  test("two shortcuts with the same expansion give one row, labelled with the best match", async () => {
+    mod.PresageCallback.predictions = ["add"];
+    const handler = createHandler([
+      ["address", "X"],
+      ["addr", "X"],
+    ]);
+    await expect(predict(handler, "ad")).resolves.toEqual({
+      predictions: ["add", "X"],
+      snippetShortcuts: [null, "addr"],
+    });
+  });
+
+  test("a snippet equal to a Presage word is dropped, the word stays unlabelled, and the budget refills", async () => {
+    mod.PresageCallback.predictions = ["add", "adding", "admin", "adult", "adopt"];
+    const handler = createHandler([
+      ["ad0", "add"],
+      ["ad1", "adding"],
+      ["address", "123 Main Street"],
+    ]);
+    await expect(predict(handler, "ad")).resolves.toEqual({
+      predictions: ["add", "123 Main Street", "adding", "admin", "adult"],
+      snippetShortcuts: [null, "address", null, null, null],
     });
   });
 
   test("respects the min word length to predict setting", async () => {
     mod.PresageCallback.predictions = ["add"];
     await expect(
-      createHandler(expansions, { minWordLengthToPredict: 3 }).runPrediction("ad", "", "en_US"),
-    ).resolves.toMatchObject({ predictions: [] });
+      predict(createHandler(expansions, { minWordLengthToPredict: 3 }), "ad"),
+    ).resolves.toEqual({ predictions: [] });
   });
 
-  test("ignores finished words and exact shortcuts", async () => {
-    mod.PresageCallback.predictions = ["alpha"];
-    const handler = createHandler(expansions);
-    await expect(handler.runPrediction("ad ", "", "en_US")).resolves.toMatchObject({
-      predictions: ["alpha"],
-    });
-    await expect(handler.runPrediction("sig", "", "en_US")).resolves.toMatchObject({
-      predictions: ["alpha"],
-    });
-  });
-
-  test("reports the shortcut of each fuzzy snippet, not of exact Presage matches", async () => {
-    mod.PresageCallback.predictions = ["Best, Bart", "add"];
-    const handler = createHandler(expansions);
-    await expect(handler.runPrediction("adr", "", "en_US")).resolves.toEqual({
-      predictions: ["Best, Bart", "123 Main Street", "add"],
-      snippetShortcuts: [null, "address", null],
-    });
+  test("ignores finished words and leaves exact shortcuts to Presage, unlabelled", async () => {
     mod.PresageCallback.predictions = ["Best, Bart"];
-    await expect(handler.runPrediction("sig", "", "en_US")).resolves.toEqual({
-      predictions: ["Best, Bart"],
-    });
-  });
-
-  test("does not duplicate an expansion Presage already returned", async () => {
-    mod.PresageCallback.predictions = ["123 Main Street", "add"];
-    await expect(
-      createHandler(expansions).runPrediction("addr", "", "en_US"),
-    ).resolves.toMatchObject({
-      predictions: ["123 Main Street", "add"],
-    });
+    const handler = createHandler(expansions);
+    await expect(predict(handler, "ad ")).resolves.toEqual({ predictions: ["Best, Bart"] });
+    await expect(predict(handler, "sig")).resolves.toEqual({ predictions: ["Best, Bart"] });
   });
 });

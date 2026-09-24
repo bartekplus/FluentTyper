@@ -10,6 +10,7 @@ import { getErrorMessage } from "@core/domain/error";
 import type {
   AIPredictorStageDebugInfo,
   PredictionDebugEvent,
+  PredictionCandidate,
   PredictionResult,
   PredictionRunConfig,
   PredictorStageDebugInfo,
@@ -160,13 +161,13 @@ export class PredictionOrchestrator {
       aiDebug.skipReason = this.resolveAISkipReason(context);
     }
 
-    let presagePredictions: string[] = [];
+    let presagePredictions: PredictionCandidate[] = [];
     if (canRunPresage) {
       presageDebug.attempted = true;
       const presageStartedAt = Date.now();
       presagePredictions = await this.presageHandler.predictPresage(context);
       presageDebug.durationMs = Date.now() - presageStartedAt;
-      presageDebug.predictions = presagePredictions.slice();
+      presageDebug.predictions = presagePredictions.map(({ text }) => text);
     } else {
       presageDebug.skipReason = this.resolvePresageSkipReason(context);
     }
@@ -186,7 +187,7 @@ export class PredictionOrchestrator {
 
       mergedPredictions = mergePredictions(
         presagePredictions,
-        aiResult.predictions,
+        aiResult.predictions.map((text): PredictionCandidate => ({ text })),
         context.effectiveNumSuggestions,
       );
     }
@@ -204,7 +205,7 @@ export class PredictionOrchestrator {
       totalDurationMs: Date.now() - startedAt,
       presage: presageDebug,
       webllm: aiDebug,
-      mergedPredictions: mergedPredictions.slice(),
+      mergedPredictions: mergedPredictions.map(({ text }) => text),
       finalPredictions: result.predictions.slice(),
     });
 

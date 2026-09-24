@@ -10,7 +10,8 @@ import type { PresageModule } from "./PresageTypes";
 import { setTextExpansions, setUserDictionaryList } from "./PresageFiles";
 import { PresageEngine, type PresageEngineConfig } from "./PresageEngine";
 import { MAX_NUM_SUGGESTIONS } from "@core/domain/constants";
-import type { PredictionResult } from "./PredictionTypes";
+import type { PredictionCandidate, PredictionResult } from "./PredictionTypes";
+import { normalizePrediction } from "./PredictionMerger";
 import { SPACING_RULES, Spacing } from "@core/domain/spacingRules";
 import { rankPersonalizedCandidates } from "@core/domain/personalization/PersonalizationRanker";
 import type { PersonalizationRankingSnapshot } from "@core/domain/personalization/types";
@@ -36,17 +37,20 @@ function isSubsequence(token: string, text: string): boolean {
  * 0 = prefix ("ad" -> "address"),
  * 1 = abbreviation: token chars in order, first char anchored ("adr" -> "address"),
  * 2 = typo: one edit away from the shortcut's start ("adre" -> "address"),
- * null = no match. Like Presage's spell-correction predictors, only prefix
- * matches survive prefix-only mode. Exact matches are left to Presage.
+ * null = no match. Exact matches are left to Presage.
+ *
+ * Fuzzy tiers only run when `fuzzy` is set (Text Expander, not prefix-only mode):
+ * in a word language they turn ordinary words into snippet hits against
+ * marker-prefixed shortcuts ("date" -> "ddate", "title" -> "ptitle").
  */
-function snippetMatchRank(shortcut: string, token: string, prefixOnly: boolean): number | null {
+function snippetMatchRank(shortcut: string, token: string, fuzzy: boolean): number | null {
   if (shortcut === token) {
     return null;
   }
   if (shortcut.startsWith(token)) {
     return 0;
   }
-  if (prefixOnly) {
+  if (!fuzzy) {
     return null;
   }
   if (shortcut[0] === token[0] && isSubsequence(token, shortcut)) {
@@ -90,9 +94,14 @@ export interface PresagePredictionContext {
   doCapitalize: Capitalization;
   effectiveNumSuggestions: number;
   tabId?: number;
-  // Set by predictPresage: lowercased resolved expansion -> shortcut, for labels.
-  snippetShortcuts?: Map<string, string>;
+  /**
+   * The word being typed, lowercased, as prediction and the content script's
+   * replacement both see it: "(ad" -> "ad". Empty after a space.
+   */
+  snippetToken: string;
 }
+
+type TemplateResolver = (fullVarName: string) => Promise<string | undefined>;
 
 export class PresageHandler {
   private readonly module: PresageModule;
@@ -208,19 +217,34 @@ export class PresageHandler {
     if (!this.hasLanguageEngine(lang)) {
       return [];
     }
-    return this.resolveTemplates(this.presageEngines[lang].predict(predictionInput), lang, tabId);
+    const resolver = this.createResolver(lang, tabId);
+    return Promise.all(
+      this.presageEngines[lang]
+        .predict(predictionInput)
+        .map((text) => TemplateExpander.parseStringTemplateAsync(text, resolver)),
+    );
   }
 
-  private resolveTemplates(texts: string[], lang: string, tabId?: number): Promise<string[]> {
-    const resolver = TemplateExpander.createResolver(
+  /** One resolver per request; page variables (a chrome.tabs.get each) are fetched once. */
+  private createResolver(lang: string, tabId?: number): TemplateResolver {
+    const resolve = TemplateExpander.createResolver(
       lang,
       this.timeFormat ?? "",
       this.dateFormat ?? "",
       tabId,
     );
-    return Promise.all(
-      texts.map((text) => TemplateExpander.parseStringTemplateAsync(text, resolver)),
-    );
+    const pageVariables = new Map<string, Promise<string | undefined>>();
+    return (name) => {
+      if (!name.startsWith("page_")) {
+        return resolve(name);
+      }
+      let value = pageVariables.get(name);
+      if (!value) {
+        value = resolve(name);
+        pageVariables.set(name, value);
+      }
+      return value;
+    };
   }
 
   preparePredictionContext(
@@ -235,7 +259,7 @@ export class PresageHandler {
       typeof numSuggestionsOverride === "number"
         ? Math.min(MAX_NUM_SUGGESTIONS, Math.max(0, Math.round(numSuggestionsOverride)))
         : this.numSuggestions;
-    const { predictionInput, doPrediction, doCapitalize } =
+    const { predictionInput, lastWord, doPrediction, doCapitalize } =
       this.predictionInputProcessor.processInput(
         text,
         lang,
@@ -254,10 +278,11 @@ export class PresageHandler {
       doCapitalize,
       effectiveNumSuggestions,
       tabId,
+      snippetToken: /\s$/u.test(predictionInput) ? "" : lastWord.toLocaleLowerCase(),
     };
   }
 
-  async predictPresage(context: PresagePredictionContext): Promise<string[]> {
+  async predictPresage(context: PresagePredictionContext): Promise<PredictionCandidate[]> {
     if (
       !context.doPrediction ||
       context.effectiveNumSuggestions <= 0 ||
@@ -274,48 +299,56 @@ export class PresageHandler {
       !this.personalizationEnabled || this.isTextExpansionRequest(context.predictionInput)
         ? predictions
         : this.rankPersonalized(predictions, context);
-    const snippets = await this.predictSnippets(context, ranked.length);
-    context.snippetShortcuts = new Map(
-      snippets.map(({ text, shortcut }) => [text.trim().toLocaleLowerCase(), shortcut]),
-    );
+    const words = ranked.map((text): PredictionCandidate => ({ text }));
+    const snippets = await this.predictSnippets(context, ranked);
     // Keep the top word prediction first so snippets never displace plain autocomplete.
-    const fresh = snippets.map(({ text }) => text).filter((text) => !ranked.includes(text));
-    return [...ranked.slice(0, 1), ...fresh, ...ranked.slice(1)];
+    return [...words.slice(0, 1), ...snippets, ...words.slice(1)];
   }
 
   /**
-   * Snippet expansions matching the token being typed (#366), best match first.
+   * Snippet expansions matching the word being typed (#366), best match first,
+   * minus any whose text is already a word prediction or an earlier snippet.
    * The token length is already gated by minWordLengthToPredict via doPrediction.
    */
   private async predictSnippets(
     context: PresagePredictionContext,
-    wordCount: number,
-  ): Promise<Array<{ text: string; shortcut: string }>> {
-    // Empty after a trailing space: the word is finished, nothing to complete.
-    const token = context.predictionInput.split(/\s+/u).at(-1)?.toLocaleLowerCase() ?? "";
+    words: string[],
+  ): Promise<PredictionCandidate[]> {
+    const fuzzy = context.lang === TEXT_EXPANDER_LANG && !this.prefixOnlyMode;
+    const token = context.snippetToken;
     if (!token) {
       return [];
     }
     const matches = [...this.textExpansionsByShortcut]
       .flatMap(([shortcut, expansion]) => {
-        const rank = snippetMatchRank(shortcut, token, this.prefixOnlyMode);
+        const rank = snippetMatchRank(shortcut, token, fuzzy);
         return rank === null ? [] : [{ rank, shortcut, expansion }];
       })
       .sort((a, b) => a.rank - b.rank || a.shortcut.length - b.shortcut.length);
     // Cap at half the list so snippets never crowd out words, but let them fill
     // slots words leave empty. Text Expander has no words to protect.
     const numSuggestions = context.effectiveNumSuggestions;
-    const cap =
+    const budget =
       context.lang === TEXT_EXPANDER_LANG
-        ? matches.length
-        : Math.max(Math.floor(numSuggestions / 2), numSuggestions - wordCount);
-    const shown = matches.slice(0, cap);
-    const texts = await this.resolveTemplates(
-      shown.map(({ expansion }) => expansion),
-      context.lang,
-      context.tabId,
-    );
-    return texts.map((text, index) => ({ text, shortcut: shown[index].shortcut }));
+        ? numSuggestions
+        : Math.max(Math.floor(numSuggestions / 2), numSuggestions - words.length);
+    const seen = new Set(words.map(normalizePrediction));
+    const resolver = this.createResolver(context.lang, context.tabId);
+    const picked: PredictionCandidate[] = [];
+    // Resolve one at a time: templates can hit chrome.tabs, so only pay for what is
+    // shown, and refill from lower-ranked matches when one collides.
+    for (const { shortcut, expansion } of matches) {
+      if (picked.length >= budget) {
+        break;
+      }
+      const text = await TemplateExpander.parseStringTemplateAsync(expansion, resolver);
+      const key = normalizePrediction(text);
+      if (!seen.has(key)) {
+        seen.add(key);
+        picked.push({ text, snippetShortcut: shortcut });
+      }
+    }
+    return picked;
   }
 
   private rankPersonalized(predictions: string[], context: PresagePredictionContext): string[] {
@@ -333,31 +366,20 @@ export class PresageHandler {
   }
 
   finalizePrediction(
-    predictionCandidates: string[],
+    predictionCandidates: PredictionCandidate[],
     context: PresagePredictionContext,
   ): PredictionResult {
     const { predictionInput, nextChar, doCapitalize, effectiveNumSuggestions } = context;
-    let predictions = predictionCandidates.slice();
-    if (predictions.length > effectiveNumSuggestions) {
-      predictions = predictions.slice(0, effectiveNumSuggestions);
-    }
+    const candidates = predictionCandidates.slice(0, effectiveNumSuggestions);
+    let predictions = candidates.map(({ text }) => text);
     // Sort prediction so that the most relevant ones are at the top
     // eg. if input is "the act", then "act" will be first and "action" will be second
-    if (predictions.length > 1 && predictionInput.trim().length > 0) {
+    if (candidates.length > 1 && predictionInput.trim().length > 0) {
       const inputLower = predictionInput.trim().toLowerCase();
-      predictions.sort((a, b) => {
-        const aLower = a.toLowerCase();
-        const bLower = b.toLowerCase();
-        // Exact match first
-        if (aLower === inputLower && bLower !== inputLower) {
-          return -1;
-        }
-        if (bLower === inputLower && aLower !== inputLower) {
-          return 1;
-        }
-        // Keep original order for now, follow presage order
-        return 0;
-      });
+      const isExact = ({ text }: PredictionCandidate) => text.toLowerCase() === inputLower;
+      // Stable sort: exact match first, otherwise keep Presage order.
+      candidates.sort((a, b) => Number(isExact(b)) - Number(isExact(a)));
+      predictions = candidates.map(({ text }) => text);
     }
     if (this.insertSpaceAfterAutocomplete) {
       if (
@@ -382,15 +404,12 @@ export class PresageHandler {
       case Capitalization.None:
       default:
     }
-    const shortcuts = context.snippetShortcuts;
-    if (!shortcuts?.size) {
+    if (!candidates.some(({ snippetShortcut }) => snippetShortcut)) {
       return { predictions };
     }
     return {
       predictions,
-      snippetShortcuts: predictions.map(
-        (pred) => shortcuts.get(pred.trim().toLocaleLowerCase()) ?? null,
-      ),
+      snippetShortcuts: candidates.map(({ snippetShortcut }) => snippetShortcut ?? null),
     };
   }
 

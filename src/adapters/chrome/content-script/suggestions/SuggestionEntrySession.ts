@@ -87,6 +87,8 @@ export class SuggestionEntrySession {
   private readonly logRenderedSuggestionPopup: SuggestionEntrySessionOptions["logRenderedSuggestionPopup"];
   private readonly logNoVisibleSuggestions: (context: PredictionResponse) => void;
   private lastAcceptedSuggestion: string | null = null;
+  // Snippet expansions among the current suggestions: never learned as words.
+  private snippetSuggestions = new Set<string>();
 
   constructor(options: SuggestionEntrySessionOptions) {
     this.entry = options.entry;
@@ -333,6 +335,7 @@ export class SuggestionEntrySession {
 
   public clearSuggestions(): void {
     this.entry.suggestions = [];
+    this.snippetSuggestions.clear();
     this.entry.selectedIndex = 0;
     this.entry.visibleSuggestionBeforeCursorText = null;
     this.entry.visibleSuggestionFullText = null;
@@ -355,6 +358,9 @@ export class SuggestionEntrySession {
     }
 
     this.entry.suggestions = Array.isArray(context.predictions) ? context.predictions.slice() : [];
+    this.snippetSuggestions = new Set(
+      this.entry.suggestions.filter((_, index) => context.snippetShortcuts?.[index]),
+    );
     this.entry.selectedIndex = 0;
     this.entry.menuHeader =
       this.displayLangHeader && context.lang ? `Lang: ${SUPPORTED_LANGUAGES[context.lang]}` : null;
@@ -1218,11 +1224,15 @@ export class SuggestionEntrySession {
       return false;
     }
     this.lastAcceptedSuggestion = suggestion;
-    const personalizationEventId = this.recordPersonalizationAccepted({
-      suggestion,
-      triggerText: accepted.triggerText,
-      language: this.getLang(),
-    });
+    // A snippet is user content (an address, an email), not a word to learn. The
+    // background only recognises exact-shortcut triggers, so skip it here.
+    const personalizationEventId = this.snippetSuggestions.has(suggestion)
+      ? ""
+      : this.recordPersonalizationAccepted({
+          suggestion,
+          triggerText: accepted.triggerText,
+          language: this.getLang(),
+        });
     if (personalizationEventId && this.entry.pendingExtensionEdit?.source === "suggestion") {
       this.entry.pendingExtensionEdit.personalizationEventId = personalizationEventId;
     }
