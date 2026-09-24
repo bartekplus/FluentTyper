@@ -23,15 +23,18 @@ const WORD_CHAR_REGEX = /[\p{L}\p{N}]/u;
  * closes. `'` is left out: apostrophes ("it's") make its count meaningless, and
  * so is a `"` right after a digit, an inch mark ("5\"").
  */
-const QUOTE_COUNT_REGEX: Record<string, RegExp> = { '"': /(?<!\p{Nd})"/gu, "`": /`/g };
-
 function closesOpenQuote(beforeQuote: string, quote: string): boolean {
-  const regex = QUOTE_COUNT_REGEX[quote];
-  if (!regex) {
+  if (quote !== '"' && quote !== "`") {
     return false;
   }
-  const line = beforeQuote.slice(beforeQuote.lastIndexOf("\n") + 1);
-  return (line.match(regex)?.length ?? 0) % 2 === 1;
+  // Walk back to the line start in place: no copy of the line per keystroke.
+  let count = 0;
+  for (let i = beforeQuote.length - 1; i >= 0 && beforeQuote[i] !== "\n"; i -= 1) {
+    if (beforeQuote[i] === quote && !(quote === '"' && /\p{Nd}/u.test(beforeQuote[i - 1] ?? ""))) {
+      count += 1;
+    }
+  }
+  return count % 2 === 1;
 }
 
 export class AutoBracketCloseRule implements GrammarRule {

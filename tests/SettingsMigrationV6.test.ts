@@ -44,6 +44,15 @@ describe("migrateSettingsV6", () => {
     expect(settings.store[KEY_GRAMMAR_RULES_V3_MIGRATED]).toBe(true);
   });
 
+  test("keeps the pre-v3 set minus the retired no-op rule unchanged", async () => {
+    const custom = RECOMMENDED_V2_GRAMMAR_RULES.filter((id) => id !== "neutralPunctuationPolicy");
+    const settings = createMockSettingsManager({ [KEY_ENABLED_GRAMMAR_RULES]: custom });
+
+    await migrateSettingsV6(settings);
+
+    expect(settings.store[KEY_ENABLED_GRAMMAR_RULES]).toEqual(custom);
+  });
+
   test("keeps custom rule selection unchanged", async () => {
     const customRules = ["capitalizeSentenceStart", "commaPeriodSpacing"];
     const settings = createMockSettingsManager({
