@@ -16,6 +16,7 @@ type GrammarRuleId =
   | "englishPronounVerbWhitelistAgreement"
   | "englishArticleAnCorrection"
   | "englishOrdinalSuffix"
+  | "englishProperNounCapitalization"
   | "commaPeriodSpacing"
   | "openingBracketSpacing"
   | "closingBracketSpacing"

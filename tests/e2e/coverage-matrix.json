@@ -1285,6 +1285,22 @@
       ]
     },
     {
+      "id": "grammar_english_proper_nouns",
+      "description": "Default-on English capitalization of days, months, major holidays and continents; may/march/august only beside a certain date (mid-may, may 15, on march 10); a name before a bare period waits for the next key; user-dictionary base and inflected forms are respected; seasons, directions, titles, typed casing, technical tokens, code and other languages are left alone.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ProperNounCapitalization.test.ts",
+          "test": "English proper noun capitalization"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionManager.test.ts",
+          "test": "reverts a deferred month capitalization on Ctrl+Z without reapplying it"
+        }
+      ]
+    },
+    {
       "id": "grammar_language_typography",
       "description": "Opt-in Typography preset uses the writing language's quotation marks and French (France) punctuation spacing, and leaves code and protected fields unchanged.",
       "coverage": [

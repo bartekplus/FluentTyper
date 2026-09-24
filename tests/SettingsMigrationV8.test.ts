@@ -60,6 +60,7 @@ describe("migrateSettingsV8", () => {
     expect(Array.isArray(settings.store[KEY_ENABLED_GRAMMAR_RULES])).toBe(false);
     expect(resolveGrammarRuleSelection(settings.store[KEY_ENABLED_GRAMMAR_RULES])).toEqual([
       ...selection,
+      "englishProperNounCapitalization",
       "measurementUnitFormatting",
       "currencySpacing",
     ]);
@@ -94,7 +95,12 @@ describe("migrateSettingsV8", () => {
 
     const resolved = resolveGrammarRuleSelection(settings.store[KEY_ENABLED_GRAMMAR_RULES]);
     expect(
-      resolved.filter((id) => id !== "measurementUnitFormatting" && id !== "currencySpacing"),
+      resolved.filter(
+        (id) =>
+          id !== "measurementUnitFormatting" &&
+          id !== "currencySpacing" &&
+          id !== "englishProperNounCapitalization",
+      ),
     ).toEqual(DEFAULT_V3_GRAMMAR_RULES);
     expect(resolved).toContain("measurementUnitFormatting");
   });

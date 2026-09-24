@@ -840,6 +840,29 @@ describe("SuggestionManager", () => {
     expect(input.value).toBe("Took 1th ");
   });
 
+  test("reverts a deferred month capitalization on Ctrl+Z without reapplying it", async () => {
+    const { manager } = await createManager({
+      enabledGrammarRules: ["englishProperNounCapitalization"],
+    });
+    const input = document.createElement("input");
+    input.type = "text";
+    document.body.appendChild(input);
+    manager.queryAndAttachHelper();
+
+    input.value = "Due may 15 ";
+    input.selectionStart = input.value.length;
+    input.selectionEnd = input.value.length;
+    dispatchInput(input, { inputType: "insertText" });
+
+    expect(input.value).toBe("Due May 15 ");
+
+    dispatchKeydown(input, "z", { ctrlKey: true });
+    expect(input.value).toBe("Due may 15 ");
+
+    dispatchInput(input, { inputType: "insertText" });
+    expect(input.value).toBe("Due may 15 ");
+  });
+
   test("hides popup when caret navigation leaves the current token", async () => {
     const { manager, getPrediction } = await createManager();
     const input = document.createElement("input");

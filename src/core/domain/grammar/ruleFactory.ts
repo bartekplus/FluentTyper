@@ -27,6 +27,7 @@ import { EnglishAlotCorrectionRule } from "./implementations/EnglishAlotCorrecti
 import { EnglishPronounVerbWhitelistAgreementRule } from "./implementations/EnglishPronounVerbWhitelistAgreementRule";
 import { EnglishArticleAnCorrectionRule } from "./implementations/EnglishArticleAnCorrectionRule";
 import { EnglishOrdinalSuffixRule } from "./implementations/EnglishOrdinalSuffixRule";
+import { EnglishProperNounCapitalizationRule } from "./implementations/EnglishProperNounCapitalizationRule";
 import { AutoBracketCloseRule } from "./implementations/AutoBracketCloseRule";
 import { MeasurementUnitFormattingRule } from "./implementations/MeasurementUnitFormattingRule";
 import { CurrencySpacingRule } from "./implementations/CurrencySpacingRule";
@@ -54,6 +55,9 @@ export function createGrammarRuleCatalogRuntime(options: {
     englishPronounVerbWhitelistAgreement: new EnglishPronounVerbWhitelistAgreementRule(),
     englishArticleAnCorrection: new EnglishArticleAnCorrectionRule(),
     englishOrdinalSuffix: new EnglishOrdinalSuffixRule(),
+    englishProperNounCapitalization: new EnglishProperNounCapitalizationRule(
+      options.userDictionaryList,
+    ),
 
     // Spacing and punctuation rules share the autocomplete spacing toggle.
     commaPeriodSpacing: new CommaPeriodSpacingRule(insertSpaceAfterAutocomplete),

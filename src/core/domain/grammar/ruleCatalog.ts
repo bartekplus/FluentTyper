@@ -158,6 +158,18 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     priority: 35,
   },
   {
+    id: "englishProperNounCapitalization",
+    name: "Capitalize days, months and holidays",
+    titleI18nKey: "grammar_rule_english_proper_nouns",
+    descriptionI18nKey: "grammar_rule_english_proper_nouns_desc",
+    exampleI18nKey: "grammar_rule_english_proper_nouns_example",
+    languageScope: "en_US",
+    safetyTier: "safe",
+    defaultRollout: "on",
+    recommended: true,
+    priority: 36,
+  },
+  {
     id: "technicalTokenCompaction",
     name: "Compact technical token spacing",
     titleI18nKey: "grammar_rule_technical_compaction",
