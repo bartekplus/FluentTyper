@@ -14,6 +14,7 @@ const DEFAULT_RULES = [
   "englishTheirThereBeVerb",
   "englishAlotCorrection",
   "englishPronounVerbWhitelistAgreement",
+  "englishProperNounCapitalization",
   "technicalTokenCompaction",
   "mathOperatorSpacing",
   "measurementUnitFormatting",
@@ -53,7 +54,12 @@ describe("CoreSettingsRepository grammar settings", () => {
     [{ ellipsisShortcut: true }, [...DEFAULT_RULES, "ellipsisShortcut"]],
     [
       ["commaPeriodSpacing"],
-      ["measurementUnitFormatting", "currencySpacing", "commaPeriodSpacing"],
+      [
+        "englishProperNounCapitalization",
+        "measurementUnitFormatting",
+        "currencySpacing",
+        "commaPeriodSpacing",
+      ],
     ],
     [{ unknownRule: true }, DEFAULT_RULES],
     [{ commaPeriodSpacing: "false" }, []],
