@@ -5626,7 +5626,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   );
 
   test.each(GENERIC_INPUT_SELECTORS)(
-    "Grammar Rule Engine preserves code-style brackets and slash technical contexts while keeping prose spacing in %s",
+    "Grammar Rule Engine preserves attached brackets and slash technical contexts while keeping prose spacing in %s",
     async (selector) => {
       await setGrammarRulesAndWaitStable(
         worker!,
@@ -5678,15 +5678,9 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       };
 
       await clearInputContent(page, selector);
-      await typeInInput(page, selector, "if(");
-      await waitForNormalizedMatch(/if \(/);
-      let elementText = await readNormalizedText();
-      expect(elementText).toContain("if (");
-
-      await clearInputContent(page, selector);
       await typeInInput(page, selector, "console.log(");
       await waitForNormalizedValue("console.log(");
-      elementText = await readNormalizedText();
+      let elementText = await readNormalizedText();
       expect(elementText).toContain("console.log(");
       expect(elementText).not.toContain("console.log (");
 
@@ -6731,7 +6725,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   );
 
   test(
-    "Grammar Rule Engine keeps V3 advanced shortcuts inactive for URL/code-like contexts in #test-input",
+    "Grammar Rule Engine keeps V3 advanced shortcuts inactive for URL and Markdown code contexts in #test-input",
     async () => {
       const selector = "#test-input";
 
@@ -6771,8 +6765,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       );
 
       await clearInputContent(page, selector);
-      await typeInInput(page, selector, 'const s = "');
-      await waitForInputContentEqual(page, selector, 'const s = "', browserTimeout(5000, 9000));
+      await typeInInput(page, selector, 'Run `s = "');
+      await waitForInputContentEqual(page, selector, 'Run `s = "', browserTimeout(5000, 9000));
 
       await setGrammarRulesAndWait(worker!, []);
       await applyConfigChange(browser, worker!);

@@ -20,11 +20,10 @@ export class OpeningBracketSpacingRule extends SpacingRuleShared implements Gram
 
     const previousChar = inputStr[openingIndex - 1];
     const requiresSpaceBefore =
-      (openingBracket === "(" && this.isControlKeywordBeforeIndex(inputStr, openingIndex)) ||
       (openingBracket === "{" &&
         this.findPreviousSignificantChar(inputStr, openingIndex - 1) === ")") ||
       // "[link](url)" and "foo()[0]": a bracket against a bracket is structure.
-      // Otherwise preserve attached code-like forms such as function calls.
+      // A bracket typed against a word stays attached: "item(s)".
       (!SpacingRuleShared.CLOSING_BRACKETS.has(previousChar) &&
         !this.isTightlyAttached(inputStr, openingIndex));
 

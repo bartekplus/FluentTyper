@@ -1,5 +1,7 @@
 import { applyGrammarEditToContext, mergeSequentialGrammarEdits } from "./GrammarEditSequencing";
 import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "./types";
+import { isCodeSafeGrammarRule } from "./ruleCatalog";
+import { isInsideMarkdownCode } from "./implementations/helpers/ProtectedSpanShared";
 
 const MAX_PROCESS_ITERATIONS = 5;
 const RULE_ERROR_THROTTLE_MS = 60_000;
@@ -30,6 +32,11 @@ export class GrammarRuleEngine {
     const pipeline = this.pipelines[event];
     let currentContext = { ...context };
     const appliedEdits: GrammarEdit[] = [];
+    // Code is never rewritten: in a code editor field or inside Markdown code
+    // only code-safe rules run, as in code mode. Rules do not guess at code.
+    const codeOnly =
+      context.hints?.measurementContext === "protected" ||
+      isInsideMarkdownCode(context.beforeCursor);
 
     // Iterate to a steady state, but stop after a small fixed budget to avoid loops.
     for (let iteration = 0; iteration < MAX_PROCESS_ITERATIONS; iteration += 1) {
@@ -37,7 +44,11 @@ export class GrammarRuleEngine {
 
       for (const ruleId of pipeline) {
         const rule = this.rules.get(ruleId);
-        if (!rule || (enabledRules && !enabledRules.includes(ruleId))) {
+        if (
+          !rule ||
+          (enabledRules && !enabledRules.includes(ruleId)) ||
+          (codeOnly && !isCodeSafeGrammarRule(ruleId))
+        ) {
           continue;
         }
 

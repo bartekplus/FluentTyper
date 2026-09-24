@@ -3,7 +3,7 @@ import type { GrammarContext } from "../../types";
 const SPACE_CHARS = [" ", "\xA0"];
 const URL_OR_SCHEME_REGEX = /(https?:\/\/|www\.|mailto:)/i;
 const EMAIL_LIKE_REGEX = /[^\s@]+@[^\s@]+\.[^\s@]+/;
-const CODE_TOKEN_REGEX = /[\\/_=<>`$]|::|->|=>|[\p{L}\p{N}_]\.[\p{L}\p{N}_]/u;
+const TECHNICAL_TOKEN_REGEX = /[\\/_]|[\p{L}\p{N}_]\.[\p{L}\p{N}_]/u;
 
 export function isDeleteInputAction(context: GrammarContext): boolean {
   return resolveInputAction(context) === "delete";
@@ -58,7 +58,7 @@ export function isTechnicalToken(token: string): boolean {
     /^[@#]/.test(token) ||
     URL_OR_SCHEME_REGEX.test(token) ||
     EMAIL_LIKE_REGEX.test(token) ||
-    CODE_TOKEN_REGEX.test(token)
+    TECHNICAL_TOKEN_REGEX.test(token)
   );
 }
 

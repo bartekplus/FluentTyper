@@ -84,6 +84,10 @@ export class CoreSettingsRepository extends SettingsRepositoryBase {
     return this.getBooleanField("preferNativeAutocomplete", true);
   }
 
+  async getCodeMode(): Promise<boolean> {
+    return this.getBooleanField("codeMode", false);
+  }
+
   async getAutocomplete(): Promise<boolean> {
     return this.getBooleanField("autocomplete");
   }

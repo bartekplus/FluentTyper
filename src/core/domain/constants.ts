@@ -74,6 +74,7 @@ export const KEY_INLINE_SUGGESTION = "inline_suggestion";
 export const KEY_PREFIX_ONLY_MODE = "prefixOnlyMode";
 export const KEY_PERSONALIZATION_ENABLED = "personalizationEnabled";
 export const KEY_PREFER_NATIVE_AUTOCOMPLETE = "preferNativeAutocomplete";
+export const KEY_CODE_MODE = "codeMode";
 export const KEY_EXTENSION_LANGUAGE = "extensionLanguage";
 export const KEY_SITE_PROFILES = "siteProfiles";
 export const KEY_PRODUCTIVITY_STATS = "productivityStats";

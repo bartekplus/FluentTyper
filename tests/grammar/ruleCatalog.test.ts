@@ -7,11 +7,24 @@ import {
   RECOMMENDED_V1_GRAMMAR_RULES,
   RECOMMENDED_V2_GRAMMAR_RULES,
   RECOMMENDED_CURRENT_GRAMMAR_RULES,
+  filterCodeSafeGrammarRules,
   isCatalogRuleId,
   normalizeGrammarRuleSelection,
 } from "../../src/core/domain/grammar/ruleCatalog";
 
 describe("ruleCatalog", () => {
+  test("code mode keeps only code-safe rules", () => {
+    expect(
+      filterCodeSafeGrammarRules([
+        "capitalizeSentenceStart",
+        "commaPeriodSpacing",
+        "trimSpaceBeforeLineBreak",
+        "autoBracketClose",
+        "unknownRule",
+      ]),
+    ).toEqual(["trimSpaceBeforeLineBreak", "autoBracketClose"]);
+  });
+
   test("exposes stable ordered catalog ids", () => {
     expect(GRAMMAR_RULE_CATALOG.length).toBeGreaterThan(0);
     expect(GRAMMAR_RULE_IDS).toEqual(GRAMMAR_RULE_CATALOG.map((entry) => entry.id));

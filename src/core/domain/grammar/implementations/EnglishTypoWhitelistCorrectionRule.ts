@@ -1,7 +1,7 @@
 import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "../types";
 import {
   findTrailingLetterToken,
-  isLikelyCodeLikeContext,
+  isPartOfTechnicalToken,
   resolveEnglishBoundaryContext,
   resolveUserDictionarySet,
 } from "./helpers/EnglishRuleShared";
@@ -42,7 +42,7 @@ export class EnglishTypoWhitelistCorrectionRule implements GrammarRule {
     if (!tokenInfo) {
       return null;
     }
-    if (isLikelyCodeLikeContext(tokenInfo.core, tokenInfo.tokenStart, tokenInfo.tokenEnd)) {
+    if (isPartOfTechnicalToken(tokenInfo.core, tokenInfo.tokenStart, tokenInfo.tokenEnd)) {
       return null;
     }
 

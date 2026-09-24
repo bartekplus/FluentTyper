@@ -1,8 +1,5 @@
 import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "../types";
-import {
-  isLikelyCodeLikeContext,
-  resolveEnglishBoundaryContext,
-} from "./helpers/EnglishRuleShared";
+import { isPartOfTechnicalToken, resolveEnglishBoundaryContext } from "./helpers/EnglishRuleShared";
 import { isInsideProtectedSpan } from "./helpers/ProtectedSpanShared";
 
 // Only a whole token of digits plus a lowercase "nd" or "th" is a candidate. It
@@ -26,9 +23,6 @@ export class EnglishOrdinalSuffixRule implements GrammarRule {
   readonly triggers: GrammarEventType[] = ["wordBoundary"];
 
   apply(context: GrammarContext): GrammarEdit | null {
-    if (context.hints?.measurementContext === "protected") {
-      return null;
-    }
     const boundaryContext = resolveEnglishBoundaryContext(context);
     if (!boundaryContext) {
       return null;
@@ -51,7 +45,7 @@ export class EnglishOrdinalSuffixRule implements GrammarRule {
     // examples are still corrected once the user opts in to this rule.
     if (
       isInsideProtectedSpan(beforeToken, { quotations: true }) ||
-      isLikelyCodeLikeContext(core, tokenStart, core.length)
+      isPartOfTechnicalToken(core, tokenStart, core.length)
     ) {
       return null;
     }

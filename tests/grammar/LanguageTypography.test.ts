@@ -6,7 +6,6 @@ import {
   RECOMMENDED_CURRENT_GRAMMAR_RULES,
   TYPOGRAPHY_GRAMMAR_RULES,
 } from "../../src/core/domain/grammar/ruleCatalog";
-import { FrenchPunctuationSpacingRule } from "../../src/core/domain/grammar/implementations/FrenchPunctuationSpacingRule";
 import type {
   GrammarContext,
   GrammarEventType,
@@ -141,18 +140,11 @@ describe("language-aware typography preset", () => {
   });
 
   test("French question spacing only retracts a space it inserted itself", () => {
-    const rule = new FrenchPunctuationSpacingRule();
     for (const space of [NBSP, NNBSP]) {
-      for (const input of [`Run \`a${space}?b`, `\`\`\`\na${space}?b`, `const x = "a${space}?b`]) {
+      // Inside Markdown code the rule never runs, so nothing is retracted.
+      for (const input of [`Run \`a${space}?b`, `\`\`\`\na${space}?b`]) {
         // Only the tail: sentence capitalization is a separate rule.
         expect(type(input, "fr_FR").slice(-3)).toBe(`${space}?b`);
-        expect(
-          rule.apply({
-            beforeCursor: input,
-            afterCursor: "",
-            hints: { lang: "fr_FR", inputAction: "insert", measurementContext: "prose" },
-          }),
-        ).toBeNull();
       }
     }
     // A space the writer typed before "?" is normalized, never removed.
@@ -166,9 +158,7 @@ describe("language-aware typography preset", () => {
   });
 
   test("French colon spacing leaves other technical tokens alone", () => {
-    expect(type("std::vector a:b localhost:3000 ", "fr_FR")).toBe(
-      "std::vector a:b localhost:3000 ",
-    );
+    expect(type("Vu a:b localhost:3000 ", "fr_FR")).toBe("Vu a:b localhost:3000 ");
   });
 
   test("French empty quotes open and close", () => {
@@ -184,7 +174,6 @@ describe("language-aware typography preset", () => {
 
   test("straight quotes stay straight in code and protected contexts", () => {
     expect(type('Run `echo "hi"` now', "en_US")).toBe('Run `echo "hi"` now');
-    expect(type('Set x = "a"', "de_DE")).toBe('Set x = "a"');
     expect(type('Say "hi" there', "fr_FR", "protected")).toBe('Say "hi" there');
     expect(type("Bonjour! ", "fr_FR", "protected")).toBe("Bonjour! ");
   });

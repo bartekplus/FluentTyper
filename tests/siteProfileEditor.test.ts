@@ -66,6 +66,7 @@ describe("siteProfileEditor", () => {
         numSuggestions: "global",
         inlineSuggestion: "global",
         preferNativeAutocomplete: "global",
+        codeMode: "global",
       }),
     ).toEqual({ language: "de_DE" });
     expect(
@@ -73,12 +74,14 @@ describe("siteProfileEditor", () => {
         numSuggestions: "99",
         inlineSuggestion: "off",
         preferNativeAutocomplete: "on",
+        codeMode: "on",
       }),
     ).toEqual({
       language: "pl_PL",
       numSuggestions: MAX_NUM_SUGGESTIONS,
       inline_suggestion: false,
       preferNativeAutocomplete: true,
+      codeMode: true,
     });
   });
 });

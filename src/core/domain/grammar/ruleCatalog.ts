@@ -276,10 +276,11 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     defaultRollout: "on",
     recommended: true,
     priority: 110,
+    codeSafe: true,
   },
   {
     id: "neutralPunctuationPolicy",
-    name: "Neutral spacing for : ; ! ?",
+    name: "Neutral spacing for : ;",
     titleI18nKey: "grammar_rule_neutral_punctuation",
     descriptionI18nKey: "grammar_rule_neutral_punctuation_desc",
     exampleI18nKey: "grammar_rule_neutral_punctuation_example",
@@ -288,6 +289,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     defaultRollout: "on",
     recommended: true,
     priority: 120,
+    codeSafe: true,
   },
   {
     id: "ellipsisShortcut",
@@ -360,6 +362,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     defaultRollout: "off",
     recommended: false,
     priority: 135,
+    codeSafe: true,
   },
 ] as const;
 
@@ -417,6 +420,19 @@ export const DEFAULT_V3_GRAMMAR_RULES: CatalogRuleId[] = [
 export const DEFAULT_CURRENT_GRAMMAR_RULES: CatalogRuleId[] = GRAMMAR_RULE_CATALOG.filter(
   (entry) => entry.defaultRollout === "on",
 ).map((entry) => entry.id);
+
+const CODE_SAFE_RULE_IDS: ReadonlySet<string> = new Set(
+  GRAMMAR_RULE_CATALOG.filter((entry) => entry.codeSafe).map((entry) => entry.id),
+);
+
+export function isCodeSafeGrammarRule(ruleId: string): boolean {
+  return CODE_SAFE_RULE_IDS.has(ruleId);
+}
+
+/** Code mode keeps only the rules that never rewrite code. */
+export function filterCodeSafeGrammarRules(ruleIds: readonly string[]): string[] {
+  return ruleIds.filter(isCodeSafeGrammarRule);
+}
 
 export const RECOMMENDED_CURRENT_GRAMMAR_RULES: CatalogRuleId[] = GRAMMAR_RULE_CATALOG.filter(
   (entry) => entry.recommended,

@@ -23,6 +23,12 @@ describe("CoreSettingsRepository", () => {
     await expect(repository.getPreferNativeAutocomplete()).resolves.toBe(true);
   });
 
+  test("defaults codeMode to false when the setting is absent", async () => {
+    const repository = new CoreSettingsRepository(createSettingsManagerMock({}));
+
+    await expect(repository.getCodeMode()).resolves.toBe(false);
+  });
+
   test("defaults autocompleteOnEnter and autocompleteOnTab to true when absent", async () => {
     const repository = new CoreSettingsRepository(createSettingsManagerMock({}));
 

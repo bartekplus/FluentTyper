@@ -7,7 +7,6 @@ import {
   shouldOpenQuote,
   shouldSkipGenericReplacement,
 } from "./helpers/GenericRuleShared";
-import { isInsideProtectedSpan } from "./helpers/ProtectedSpanShared";
 
 const APOSTROPHE = "’";
 
@@ -17,7 +16,7 @@ export class SmartQuoteNormalizationRule implements GrammarRule {
   readonly triggers: GrammarEventType[] = ["insertChar", "wordBoundary"];
 
   apply(context: GrammarContext): GrammarEdit | null {
-    if (isDeleteInputAction(context) || context.hints?.measurementContext === "protected") {
+    if (isDeleteInputAction(context)) {
       return null;
     }
 
@@ -42,7 +41,7 @@ export class SmartQuoteNormalizationRule implements GrammarRule {
     }
 
     const beforeQuote = input.slice(0, -1);
-    if (shouldSkipGenericReplacement(beforeQuote) || isInsideProtectedSpan(beforeQuote)) {
+    if (shouldSkipGenericReplacement(beforeQuote)) {
       return null;
     }
 

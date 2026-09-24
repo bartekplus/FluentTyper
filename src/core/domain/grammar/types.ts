@@ -77,4 +77,6 @@ export interface GrammarRuleCatalogEntry {
   defaultRollout: "on" | "off";
   recommended: boolean;
   priority: number;
+  /** Safe to run while code mode is on: never rewrites code. */
+  codeSafe?: true;
 }

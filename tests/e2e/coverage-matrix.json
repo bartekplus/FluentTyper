@@ -874,7 +874,7 @@
         {
           "layer": "e2e-full",
           "file": "tests/e2e/full.e2e.test.ts",
-          "test": "Grammar Rule Engine preserves code-style brackets and slash technical contexts"
+          "test": "Grammar Rule Engine preserves attached brackets and slash technical contexts"
         },
         {
           "layer": "unit",
@@ -973,7 +973,7 @@
         {
           "layer": "unit",
           "file": "tests/grammar/CurrencySpacing.test.ts",
-          "test": "leaves code, commands and literal text unchanged"
+          "test": "leaves URLs, paths and identifiers unchanged"
         },
         {
           "layer": "unit",
@@ -1323,12 +1323,12 @@
     },
     {
       "id": "grammar_v3_advanced_context_guard",
-      "description": "V3 advanced rules skip URL/code-like contexts and ambiguous quote states.",
+      "description": "V3 advanced rules skip URL and Markdown code contexts and ambiguous quote states.",
       "coverage": [
         {
           "layer": "e2e-full",
           "file": "tests/e2e/full.e2e.test.ts",
-          "test": "Grammar Rule Engine keeps V3 advanced shortcuts inactive for URL/code-like contexts in #test-input"
+          "test": "Grammar Rule Engine keeps V3 advanced shortcuts inactive for URL and Markdown code contexts in #test-input"
         },
         {
           "layer": "unit",

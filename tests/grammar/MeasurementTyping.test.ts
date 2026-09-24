@@ -43,9 +43,7 @@ describe("measurement formatting during typing", () => {
     ["2kg 2kg ", "en_US", "2\u00a0kg 2\u00a0kg "],
     ["10kg ", "en_US", "10\u00a0kg "],
     ["/tmp/10kg ", "en_US", "/tmp/10kg "],
-    // The leading word is capitalized by a different rule; what matters here
-    // is that the shell context still blocks the measurement spacing.
-    ["npm 10kg ", "en_US", "Npm 10kg "],
+    ["```\nMass: 10kg ", "en_US", "```\nMass: 10kg "],
   ])
     test(input, () => expect(type(input, lang)).toBe(expected));
 

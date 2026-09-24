@@ -3,19 +3,6 @@ import { matchTrailingEnglishPhrase } from "./helpers/EnglishRuleShared";
 import { applyWordCase, detectWordCase } from "./helpers/GenericRuleShared";
 
 const AGREEMENT_REGEX = /\b(i\s+is|i\s+has|you\s+was|(he|she|it)\s+are)(\s+\S+)$/i;
-// "i is None", "it are null": a language singleton after the verb means `i` and
-// `it` are identifiers, so the phrase is code rather than a grammar slip.
-const CODE_SINGLETONS = new Set([
-  "none",
-  "true",
-  "false",
-  "null",
-  "nil",
-  "undefined",
-  "nan",
-  "not",
-]);
-
 const AGREEMENT_CORRECTIONS = new Map([
   ["i is", "i am"],
   ["i has", "i have"],
@@ -35,11 +22,6 @@ export class EnglishPronounVerbWhitelistAgreementRule implements GrammarRule {
       return null;
     }
     const { boundary: boundaryContext, match, phraseStart } = matched;
-    const trailingWord = (match[3] ?? "").trim();
-    if (CODE_SINGLETONS.has(trailingWord.toLowerCase())) {
-      return null;
-    }
-
     const phrase = match[1];
 
     const corrected = AGREEMENT_CORRECTIONS.get(phrase.toLowerCase());

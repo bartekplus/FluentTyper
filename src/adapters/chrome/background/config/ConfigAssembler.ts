@@ -80,6 +80,7 @@ export class ConfigAssembler {
         displayLangHeader,
         inline_suggestion: domainSettings.inlineSuggestion,
         preferNativeAutocomplete: domainSettings.preferNativeAutocomplete,
+        codeMode: domainSettings.codeMode,
         enabledGrammarRules: await this.coreSettingsRepository.getEnabledGrammarRules(),
         userDictionaryList,
         themeConfig,
@@ -152,14 +153,18 @@ export class ConfigAssembler {
     };
   }
 
-  async resolveDomainConfigOverrides(
-    domainURL: string,
-  ): Promise<{ lang: string; inline_suggestion: boolean; preferNativeAutocomplete: boolean }> {
+  async resolveDomainConfigOverrides(domainURL: string): Promise<{
+    lang: string;
+    inline_suggestion: boolean;
+    preferNativeAutocomplete: boolean;
+    codeMode: boolean;
+  }> {
     const domainSettings = await resolveDomainRuntimeSettings(this.settingsManager, domainURL);
     return {
       lang: domainSettings.language,
       inline_suggestion: domainSettings.inlineSuggestion,
       preferNativeAutocomplete: domainSettings.preferNativeAutocomplete,
+      codeMode: domainSettings.codeMode,
     };
   }
 

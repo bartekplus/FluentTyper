@@ -62,45 +62,17 @@ export function readMeasurementBoundary(
 
 export function isProsePrefix(prefix: string): boolean {
   const lineStart = Math.max(prefix.lastIndexOf("\n"), prefix.lastIndexOf("\r")) + 1;
-  if (/\p{Bidi_Control}|`|~~~/u.test(prefix)) {
+  if (/\p{Bidi_Control}/u.test(prefix)) {
     return false;
   }
   const line = prefix.slice(lineStart);
-  // Four spaces or a tab open an indented Markdown code block; a textarea
-  // cannot tell us whether that applies, so fail closed, even for an indented
-  // sentence ("\tCopy source 250EUR" reads as one too).
-  if (/^(?: {4}|\t)/u.test(line)) {
-    return false;
-  }
   // Nothing before the measurement is not evidence against prose, and treating
   // it as such formatted "2Mbit 2Mbit" into "2Mbit 2 Mbit": the same text
   // twice, spaced only where a word happened to precede it.
   if (line.trim().length === 0) {
     return true;
   }
-  if (
-    /(?:^|[;\s])(?:(?:min|max)-)?(?:width|height|margin(?:-[a-z]+)?|padding(?:-[a-z]+)?|font(?:-[a-z]+)?|line-height|gap|inset|top|right|bottom|left|border(?:-[a-z]+)?|stroke(?:-[a-z]+)?)\s*:/iu.test(
-      line,
-    )
-  )
-    return false;
-  if (
-    // Case-insensitive: at the start of a field the capitalization rule turns
-    // "npm" into "Npm" before this guard ever sees it.
-    /^\s*(?:sudo|doas|git|npm|npx|bun|node|python\d*|pip\d*|curl|wget|echo|printf|export|let|const|var|return|import|docker|kubectl|cargo|apt|brew|cp|mv|rm|cd|ls|grep|mkdir|chmod|chown|ln|scp|rsync|ssh|awk|yarn|pnpm)(?:\s|$)/iu.test(
-      line,
-    ) ||
-    // These also read as ordinary capitalized English (and other-language)
-    // words at a sentence start ("Cat weighs 5kg", "Tar det 5kg"), so only
-    // treat the lowercase spelling as the shell command...
-    /^\s*(?:cat|touch|sed|tar)(?:\s|$)/u.test(line) ||
-    // ...unless nothing but spaces follows it: "Cat 250EUR" is a file name
-    // however capitalizeSentenceStart spelled it.
-    /^\s*(?:cat|touch|sed|tar)\s*$/iu.test(line)
-  ) {
-    return false;
-  }
-  if (!/\p{L}/u.test(line) || /(?:https?:\/\/|www\.|[\\/]|[`{}[\]$]|(?:^|\s)--?\w)/iu.test(line)) {
+  if (!/\p{L}/u.test(line) || /(?:https?:\/\/|www\.|[\\/]|[[\]])/iu.test(line)) {
     return false;
   }
   // "the mass (10kg) is" is prose in brackets, so look past an opening bracket

@@ -14,6 +14,7 @@ export interface DomainRuntimeSettings {
   enabledLanguages: string[];
   inlineSuggestion: boolean;
   preferNativeAutocomplete: boolean;
+  codeMode: boolean;
   numSuggestions: number;
   hasNumSuggestionsOverride: boolean;
 }
@@ -67,12 +68,14 @@ export async function resolveDomainRuntimeSettings(
     languageState,
     inlineSuggestionGlobal,
     preferNativeAutocompleteGlobal,
+    codeModeGlobal,
     numGlobal,
     siteProfilesRaw,
   ] = await Promise.all([
     resolveLanguageState(settingsManager),
     settingsRepository.getInlineSuggestion(),
     settingsRepository.getPreferNativeAutocomplete(),
+    settingsRepository.getCodeMode(),
     settingsRepository.getNumSuggestions(),
     siteProfileRepository.getSiteProfiles(),
   ]);
@@ -89,6 +92,7 @@ export async function resolveDomainRuntimeSettings(
     typeof profile?.preferNativeAutocomplete === "boolean"
       ? profile.preferNativeAutocomplete
       : preferNativeAutocompleteGlobal;
+  const codeMode = typeof profile?.codeMode === "boolean" ? profile.codeMode : codeModeGlobal;
   const hasNumSuggestionsOverride = typeof profile?.numSuggestions === "number";
   const numSuggestions = clampNumSuggestions(
     hasNumSuggestionsOverride ? profile?.numSuggestions : numGlobal,
@@ -99,6 +103,7 @@ export async function resolveDomainRuntimeSettings(
     enabledLanguages: languageState.enabledLanguages,
     inlineSuggestion,
     preferNativeAutocomplete,
+    codeMode,
     numSuggestions,
     hasNumSuggestionsOverride,
   };

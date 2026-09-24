@@ -67,17 +67,15 @@ export class ClosingBracketSpacingRule extends SpacingRuleShared implements Gram
     );
 
     if (openingIndex === null) {
+      // "1)" and "a)" are list markers, not the end of a bracketed aside.
       const previousChar = this.findPreviousSignificantChar(inputStr, closingIndex - 1);
-      return !previousChar || !this.isLikelyCodeContinuationChar(previousChar);
+      return !previousChar || !this.isIdentifierChar(previousChar);
     }
 
     if (openingIndex === 0) {
       return true;
     }
 
-    return (
-      SPACE_CHARS.includes(inputStr[openingIndex - 1]) &&
-      !(openingBracket === "(" && this.isControlKeywordBeforeIndex(inputStr, openingIndex))
-    );
+    return SPACE_CHARS.includes(inputStr[openingIndex - 1]);
   }
 }

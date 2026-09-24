@@ -3,9 +3,6 @@ import { normalizeWordSet, resolveInputAction } from "./GenericRuleShared";
 
 const TRAILING_DELIMITER_REGEX = /[\s.,!?;:)\]"}]/;
 const LETTER_REGEX = /[A-Za-z]/;
-const OPENING_BRACKETS = new Set(["(", "[", "{"]);
-const CODE_CONTEXT_CHARS = new Set(["=", "(", "[", "{", ":", "+", "-", "*", "/", "%", "&", "|"]);
-const MARKDOWN_BULLET_MARKERS = new Set(["-", "*", "+"]);
 
 export interface EnglishBoundaryContext {
   input: string;
@@ -81,51 +78,23 @@ export function findTrailingLetterToken(input: string): TrailingTokenInfo | null
   };
 }
 
-export function isLikelyCodeLikeContext(
+/**
+ * True when the token is glued to a mention, path, file or dotted name
+ * ("@i", "src/dont", "my_file", "i.e"): changing it would break that name.
+ */
+export function isPartOfTechnicalToken(
   core: string,
   tokenStart: number,
   tokenEnd: number,
 ): boolean {
   const before = tokenStart > 0 ? core[tokenStart - 1] : "";
   const after = tokenEnd < core.length ? core[tokenEnd] : "";
-
-  if (before === "@" || after === "@") {
-    return true;
-  }
-  if (before === "/" || after === "/" || before === "\\" || after === "\\") {
-    return true;
-  }
-  if (before === "_" || after === "_" || before === "." || after === ".") {
-    return true;
-  }
-
-  for (let i = tokenStart - 1; i >= 0; i -= 1) {
-    const ch = core[i];
-    if (ch.trim().length === 0) {
-      continue;
-    }
-    if (OPENING_BRACKETS.has(ch)) {
-      // "I said (dont do it)" is prose in brackets; "call foo(dont)" is a call.
-      // The space before the bracket is the whole difference, so do not trim it.
-      return /[\p{L}\p{N}_]/u.test(core[i - 1] ?? "");
-    }
-    // A leading "- ", "* ", or "+ " with nothing but indentation before it on
-    // the line is a Markdown bullet, not an operator: "- 3th item" is prose,
-    // "x - 3th" and "a*3th" (something before the marker) are still code-like.
-    if (MARKDOWN_BULLET_MARKERS.has(ch)) {
-      const lineStart = core.lastIndexOf("\n", i - 1) + 1;
-      if (/^[ \t]*$/.test(core.slice(lineStart, i))) {
-        return false;
-      }
-    }
-    return CODE_CONTEXT_CHARS.has(ch);
-  }
-  return false;
+  return ["@", "/", "\\", "_", "."].some((ch) => before === ch || after === ch);
 }
 
 /**
  * Boundary context + trailing `regex` match on its core, rejected when the
- * matched phrase sits in a code-like context.
+ * matched phrase is part of a technical token.
  */
 export function matchTrailingEnglishPhrase(
   context: GrammarContext,
@@ -140,7 +109,7 @@ export function matchTrailingEnglishPhrase(
     return null;
   }
   const phraseStart = boundary.core.length - match[0].length;
-  if (isLikelyCodeLikeContext(boundary.core, phraseStart, boundary.core.length)) {
+  if (isPartOfTechnicalToken(boundary.core, phraseStart, boundary.core.length)) {
     return null;
   }
   return { boundary, match, phraseStart };

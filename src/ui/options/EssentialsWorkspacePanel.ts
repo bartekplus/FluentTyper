@@ -10,6 +10,7 @@ import {
   KEY_NUM_SUGGESTIONS,
   KEY_PERSONALIZATION_ENABLED,
   KEY_PREFER_NATIVE_AUTOCOMPLETE,
+  KEY_CODE_MODE,
   KEY_PREFIX_ONLY_MODE,
   KEY_SELECT_BY_DIGIT,
 } from "@core/domain/constants";
@@ -32,6 +33,7 @@ export function renderEssentialsWorkspacePanel(
   moveControlToBody(registry, "enable", general.body);
   moveControlToBody(registry, KEY_INLINE_SUGGESTION, general.body);
   moveControlToBody(registry, KEY_PREFER_NATIVE_AUTOCOMPLETE, general.body);
+  moveControlToBody(registry, KEY_CODE_MODE, general.body);
   moveControlToBody(registry, KEY_PREFIX_ONLY_MODE, general.body);
 
   const prediction = createWorkspaceCard(i18n.get("prediction_engine"));

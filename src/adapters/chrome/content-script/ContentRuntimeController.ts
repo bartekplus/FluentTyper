@@ -1,5 +1,6 @@
 import { createLogger, setGlobalObservabilityRuntime } from "@core/application/logging/Logger";
 import { isInDocument } from "@core/application/dom-utils";
+import { filterCodeSafeGrammarRules } from "@core/domain/grammar/ruleCatalog";
 import type {
   ContentScriptPredictRequestContext,
   PredictResponseContext,
@@ -39,6 +40,7 @@ export class ContentRuntimeController {
     displayLangHeader: true,
     inline_suggestion: false,
     preferNativeAutocomplete: true,
+    codeMode: false,
     themeConfig: undefined,
     enabledGrammarRules: [],
     userDictionaryList: [],
@@ -403,7 +405,11 @@ export class ContentRuntimeController {
       displayLangHeader: this.config.displayLangHeader,
       inline_suggestion: this.config.inline_suggestion,
       preferNativeAutocomplete: this.config.preferNativeAutocomplete,
-      enabledGrammarRules: this.config.enabledGrammarRules,
+      // Code mode keeps FluentTyper from rewriting code: only rules that never
+      // touch code run.
+      enabledGrammarRules: this.config.codeMode
+        ? filterCodeSafeGrammarRules(this.config.enabledGrammarRules)
+        : this.config.enabledGrammarRules,
       userDictionaryList: this.config.userDictionaryList,
       getPrediction: (context: ContentScriptPredictRequestContext) =>
         this.onPredictionRequest?.({

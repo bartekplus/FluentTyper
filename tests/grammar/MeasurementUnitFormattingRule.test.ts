@@ -90,8 +90,6 @@ describe("MeasurementUnitFormattingRule", () => {
       "URL https://example.test/10kg ",
       "Path: /tmp/10kg ",
       "Code: value_10kg ",
-      "Run: --size 10kg ",
-      "```ts\nMass: 10kg ",
       "Mass: \u202e10kg ",
     ];
     for (const input of rejected) expect(apply(input)).toBeNull();
@@ -110,12 +108,9 @@ describe("MeasurementUnitFormattingRule", () => {
     expect(result("Touch the 5kg ")).toBe("Touch the 5 kg ");
     expect(result("Tar det 5kg ", "sv_SE")).toBe("Tar det 5 kg ");
     expect(result("Sed de 5kg ", "es_ES")).toBe("Sed de 5 kg ");
-    // A bare command word directly before the number is a file name in any case.
-    for (const cmd of ["cat", "Cat", "touch", "Touch", "tar", "Tar", "sed", "Sed"])
-      expect(apply(`${cmd} 5kg `)).toBeNull();
   });
 
-  test("indented lines fail closed, even when they read as a sentence", () => {
-    expect(apply("\tThe box weighs 5kg ")).toBeNull();
+  test("indented lines are prose", () => {
+    expect(result("\tThe box weighs 5kg ")).toBe("\tThe box weighs 5\u00a0kg ");
   });
 });
