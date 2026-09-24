@@ -103,7 +103,7 @@ FluentTyper uses [Bun](https://bun.sh/) as the primary package manager and scrip
 
 ### Prerequisites
 
-- [Bun](https://bun.sh/) `1.4.0` (pinned in `packageManager`)
+- [Bun](https://bun.sh/) `1.4.2` (pinned in `packageManager`)
 
 ### Install and Build
 
