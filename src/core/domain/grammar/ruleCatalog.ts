@@ -276,7 +276,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     defaultRollout: "on",
     recommended: true,
     priority: 110,
-    codeSafe: true,
   },
   {
     id: "neutralPunctuationPolicy",

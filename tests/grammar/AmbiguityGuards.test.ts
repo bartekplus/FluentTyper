@@ -5,6 +5,7 @@ import { createGrammarRuleCatalogRuntime } from "../../src/core/domain/grammar/r
 import {
   DEFAULT_CURRENT_GRAMMAR_RULES,
   GRAMMAR_RULE_IDS,
+  filterCodeSafeGrammarRules,
 } from "../../src/core/domain/grammar/ruleCatalog";
 import type { GrammarContext } from "../../src/core/domain/grammar/types";
 
@@ -517,4 +518,32 @@ describe("Arabic punctuation", () => {
       "\u0643\u062a\u0627\u0628\u060c \u0642\u0644\u0645 ",
     );
   });
+});
+
+describe("Markdown code is detected centrally", () => {
+  // Fenced blocks, including ones inside blockquotes and list items, stay byte-for-byte.
+  for (const input of [
+    "```\ndont ",
+    "> ~~~\n> Mass: 10kg ",
+    "- ~~~\n  Mass: 10kg ",
+    "> ~~~\n> Budget: 250EUR ",
+    "1. ```\n   Budget: 250EUR ",
+    // Even backslashes escape each other, so the backtick still opens a span.
+    "Use \\\\` literally. dont ",
+  ])
+    test(`leaves ${JSON.stringify(input)}`, () => expect(type(input)).toBe(input));
+
+  // An escaped backtick and a closed "```x```" span are not code openers.
+  for (const [input, expected] of [
+    ["Use \\` literally. dont ", "Use \\` literally. Don't "],
+    ["```x```\ndont ", "```x```\nDon't "],
+  ])
+    test(`corrects ${JSON.stringify(input)}`, () => expect(type(input)).toBe(expected));
+});
+
+test("code mode keeps significant trailing spaces in multiline literals", () => {
+  const input = 'x = """keep  \n';
+  expect(type(input, "en_US", filterCodeSafeGrammarRules(DEFAULT_CURRENT_GRAMMAR_RULES))).toBe(
+    input,
+  );
 });

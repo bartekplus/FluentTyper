@@ -22,7 +22,7 @@ describe("ruleCatalog", () => {
         "autoBracketClose",
         "unknownRule",
       ]),
-    ).toEqual(["trimSpaceBeforeLineBreak", "autoBracketClose"]);
+    ).toEqual(["autoBracketClose"]);
   });
 
   test("exposes stable ordered catalog ids", () => {
