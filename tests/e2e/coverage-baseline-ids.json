@@ -58,7 +58,6 @@
     "grammar_measurement_unit_formatting",
     "grammar_linebreak_capitalization",
     "grammar_whitespace_cleanup",
-    "grammar_neutral_punctuation_policy",
     "grammar_prediction_threshold_decoupling",
     "grammar_v4_forced_migration",
     "grammar_english_pronoun_i",

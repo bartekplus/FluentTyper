@@ -18,6 +18,18 @@ const SYMMETRIC_QUOTES = new Set(["'", '"', "`"]);
 
 const WORD_CHAR_REGEX = /[\p{L}\p{N}]/u;
 
+/**
+ * True when an odd number of `quote` precede it on the line, so the next one
+ * closes. `'` is left out: apostrophes ("it's") make its count meaningless.
+ */
+function closesOpenQuote(beforeQuote: string, quote: string): boolean {
+  if (quote !== '"' && quote !== "`") {
+    return false;
+  }
+  const line = beforeQuote.slice(beforeQuote.lastIndexOf("\n") + 1);
+  return line.split(quote).length % 2 === 0;
+}
+
 export class AutoBracketCloseRule implements GrammarRule {
   readonly id = "autoBracketClose" as const;
   readonly triggers: GrammarEventType[] = ["insertChar"];
@@ -38,9 +50,10 @@ export class AutoBracketCloseRule implements GrammarRule {
       return this.handleOvertype(beforeCursor, typed);
     }
 
-    // Check for auto-close: user typed an opening char
+    // Check for auto-close: user typed an opening char. One another rule produced
+    // (smart quotes turn ' into « in Polish) has no closer of its own coming.
     const closeChar = PAIRS.get(typed);
-    if (closeChar) {
+    if (closeChar && (context.charTyped ?? typed) === typed) {
       return this.handleAutoClose(context, typed, closeChar);
     }
 
@@ -61,6 +74,11 @@ export class AutoBracketCloseRule implements GrammarRule {
       (SYMMETRIC_QUOTES.has(openChar) || openChar === "<") &&
       WORD_CHAR_REGEX.test(beforeOpener.at(-1) ?? "")
     ) {
+      return null;
+    }
+
+    // Nor one that closes an open quote: '"hi,"' must not open another pair.
+    if (closesOpenQuote(beforeOpener, openChar)) {
       return null;
     }
 
@@ -88,10 +106,15 @@ export class AutoBracketCloseRule implements GrammarRule {
       return null;
     }
 
-    // For symmetric quotes: only overtype when preceded by a word character.
-    // This distinguishes "user closing a quote" (e.g., "hello"|) from
-    // "engine re-processing after auto-close" (e.g., "|) which would oscillate.
-    if (SYMMETRIC_QUOTES.has(closeChar) && !WORD_CHAR_REGEX.test(beforeTyped.at(-1) ?? "")) {
+    // For symmetric quotes: only overtype a quote that closes one. After a word
+    // ("hello"|) it does; otherwise an odd count of that quote on the line before
+    // it ("hi,"| or ""|) says so. This tells "user closing a quote" from "engine
+    // re-processing after auto-close" (e.g., "|), which would oscillate.
+    if (
+      SYMMETRIC_QUOTES.has(closeChar) &&
+      !WORD_CHAR_REGEX.test(beforeTyped.at(-1) ?? "") &&
+      !closesOpenQuote(beforeTyped, closeChar)
+    ) {
       return null;
     }
 

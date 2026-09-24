@@ -90,10 +90,13 @@ export class CommaPeriodSpacingRule extends SpacingRuleShared implements Grammar
     if (lastChar === " ") {
       const periodIndex = length - 2;
       const mark = inputStr[periodIndex] ?? "";
+      // Greek writes its question mark as ";".
+      const lang = context.hints?.lang;
       const closesSentence =
         mark === "." ||
         (["?", "!"].includes(PUNCTUATION_EQUIVALENTS[mark] ?? mark) &&
-          !usesFrenchPunctuationSpacing(context.hints?.lang));
+          !usesFrenchPunctuationSpacing(lang)) ||
+        (lang === "el_GR" && (mark === ";" || mark === "\u037E"));
       if (!canDefer || !closesSentence) {
         return null;
       }
@@ -102,7 +105,9 @@ export class CommaPeriodSpacingRule extends SpacingRuleShared implements Grammar
         spacesBefore += 1;
       }
       const wordEnd = inputStr[periodIndex - 1 - spacesBefore] ?? "";
-      if (spacesBefore === 0 || !/[\p{L}\p{N}]/u.test(wordEnd)) {
+      // A closing bracket or quote ends a word too; closingBracketSpacing
+      // spaced "(quietly) " before the "." arrived.
+      if (spacesBefore === 0 || !/[\p{L}\p{N})\]}"”’»“‘›]/u.test(wordEnd)) {
         return null;
       }
       return this.createEdit(`${mark} `, spacesBefore + 2);

@@ -19,6 +19,12 @@ export class ClosingBracketSpacingRule extends SpacingRuleShared implements Gram
       return null;
     }
 
+    // Typed right before the same closer (an auto-closed pair): overtyping it
+    // is autoBracketClose's call, and a space here would strand that closer.
+    if (context.afterCursor[0] === closingBracket) {
+      return null;
+    }
+
     const prevChar = inputStr[closingIndex - 1];
     const hasSpaceBefore = SPACE_CHARS.includes(prevChar);
 

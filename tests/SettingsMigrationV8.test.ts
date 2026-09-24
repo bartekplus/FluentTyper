@@ -1,11 +1,15 @@
 import { describe, expect, test } from "bun:test";
+import { migrateSettingsV5 } from "../src/core/application/settings/SettingsMigrationV5";
 import { migrateSettingsV6 } from "../src/core/application/settings/SettingsMigrationV6";
 import { migrateSettingsV8 } from "../src/core/application/settings/SettingsMigrationV8";
 import type { SettingsManager } from "../src/core/application/settingsManager";
 import { KEY_ENABLED_GRAMMAR_RULES } from "../src/core/domain/constants";
 import {
+  DEFAULT_CURRENT_GRAMMAR_RULES,
   DEFAULT_V3_GRAMMAR_RULES,
+  RECOMMENDED_V1_GRAMMAR_RULES,
   RECOMMENDED_V2_GRAMMAR_RULES,
+  normalizeGrammarRuleSelection,
 } from "../src/core/domain/grammar/ruleCatalog";
 import { resolveGrammarRuleSelection } from "../src/core/domain/grammar/GrammarRuleSettings";
 
@@ -101,7 +105,7 @@ describe("migrateSettingsV8", () => {
           id !== "currencySpacing" &&
           id !== "englishProperNounCapitalization",
       ),
-    ).toEqual(DEFAULT_V3_GRAMMAR_RULES);
+    ).toEqual(normalizeGrammarRuleSelection(DEFAULT_V3_GRAMMAR_RULES));
     expect(resolved).toContain("measurementUnitFormatting");
   });
 
@@ -124,5 +128,35 @@ describe("migrateSettingsV8", () => {
 
     await migrateSettingsV8(settings);
     expect(resolveGrammarRuleSelection(settings.store[KEY_ENABLED_GRAMMAR_RULES])).toEqual([]);
+  });
+
+  describe("stored selections naming the retired neutralPunctuationPolicy", () => {
+    async function upgrade(stored: unknown): Promise<unknown> {
+      const settings = createMockSettingsManager({ [KEY_ENABLED_GRAMMAR_RULES]: stored });
+      await migrateSettingsV5(settings);
+      await migrateSettingsV6(settings);
+      await migrateSettingsV8(settings);
+      return settings.store[KEY_ENABLED_GRAMMAR_RULES];
+    }
+
+    test.each([
+      ["the v1 recommended set", RECOMMENDED_V1_GRAMMAR_RULES],
+      ["the v2 recommended set", RECOMMENDED_V2_GRAMMAR_RULES],
+    ])("%s still upgrades to the current defaults", async (_label, stored) => {
+      // V5 and V6 still recognize the exact stored snapshots, retired id and all.
+      expect(stored).toContain("neutralPunctuationPolicy");
+      expect(resolveGrammarRuleSelection(await upgrade(stored.slice()))).toEqual(
+        DEFAULT_CURRENT_GRAMMAR_RULES,
+      );
+    });
+
+    test("a customized selection keeps its live rules", async () => {
+      const resolved = resolveGrammarRuleSelection(
+        await upgrade(["commaPeriodSpacing", "neutralPunctuationPolicy"]),
+      );
+      expect(resolved).toContain("commaPeriodSpacing");
+      expect(resolved).not.toContain("capitalizeSentenceStart");
+      expect(resolved).not.toContain("neutralPunctuationPolicy");
+    });
   });
 });

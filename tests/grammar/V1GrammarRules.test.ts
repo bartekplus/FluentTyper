@@ -10,7 +10,6 @@ import { MathOperatorSpacingRule } from "../../src/core/domain/grammar/implement
 import { TechnicalTokenCompactionRule } from "../../src/core/domain/grammar/implementations/TechnicalTokenCompactionRule";
 import { CollapseRepeatedSpacesRule } from "../../src/core/domain/grammar/implementations/CollapseRepeatedSpacesRule";
 import { TrimSpaceBeforeLineBreakRule } from "../../src/core/domain/grammar/implementations/TrimSpaceBeforeLineBreakRule";
-import { NeutralPunctuationPolicyRule } from "../../src/core/domain/grammar/implementations/NeutralPunctuationPolicyRule";
 import { ZERO_WIDTH_FILLER_CHARS } from "../../src/core/domain/spacingRules";
 
 function context(beforeCursor: string, hints?: GrammarContext["hints"]): GrammarContext {
@@ -450,14 +449,6 @@ describe("V1 grammar rules", () => {
       const rule = new TrimSpaceBeforeLineBreakRule();
       expect(rule.apply(context("Hello\n"))).toBeNull();
       expect(rule.apply(context("Hello"))).toBeNull();
-    });
-  });
-
-  describe("NeutralPunctuationPolicyRule", () => {
-    test("is a no-op for neutral punctuation policy", () => {
-      const rule = new NeutralPunctuationPolicyRule();
-      expect(rule.apply(context("Hello!"))).toBeNull();
-      expect(rule.apply(context("Hello :"))).toBeNull();
     });
   });
 });

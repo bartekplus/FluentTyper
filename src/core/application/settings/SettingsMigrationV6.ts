@@ -12,8 +12,13 @@ export async function migrateSettingsV6(settings: SettingsManager): Promise<void
     label: "SettingsMigrationV6",
     migratedKey: KEY_GRAMMAR_RULES_V3_MIGRATED,
     backupKey: KEY_GRAMMAR_RULES_V3_BACKUP,
+    // Both sides normalized: the snapshot names rules retired since, which
+    // normalization drops from the stored selection too.
     shouldReplace: (snapshot) =>
-      areStringArraysEqual(normalizeGrammarRuleSelection(snapshot), RECOMMENDED_V2_GRAMMAR_RULES),
+      areStringArraysEqual(
+        normalizeGrammarRuleSelection(snapshot),
+        normalizeGrammarRuleSelection(RECOMMENDED_V2_GRAMMAR_RULES),
+      ),
     nextRules: DEFAULT_V3_GRAMMAR_RULES,
   });
 }

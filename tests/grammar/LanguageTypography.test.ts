@@ -3,9 +3,12 @@ import { GrammarRuleEngine } from "../../src/core/domain/grammar/GrammarRuleEngi
 import { applyGrammarEditToContext } from "../../src/core/domain/grammar/GrammarEditSequencing";
 import { createGrammarRuleCatalogRuntime } from "../../src/core/domain/grammar/ruleFactory";
 import {
+  GRAMMAR_RULE_CATALOG,
+  GRAMMAR_RULE_IDS,
   RECOMMENDED_CURRENT_GRAMMAR_RULES,
   TYPOGRAPHY_GRAMMAR_RULES,
 } from "../../src/core/domain/grammar/ruleCatalog";
+import { SUPPORTED_PREDICTION_LANGUAGE_KEYS } from "../../src/core/domain/lang";
 import type {
   GrammarContext,
   GrammarEventType,
@@ -20,6 +23,7 @@ function type(
   input: string,
   lang: string,
   measurementContext: GrammarHints["measurementContext"] = "prose",
+  rules: readonly string[] = TYPOGRAPHY_GRAMMAR_RULES,
 ): string {
   const engine = new GrammarRuleEngine();
   for (const rule of createGrammarRuleCatalogRuntime({
@@ -36,10 +40,10 @@ function type(
     context.beforeCursor += char;
     const triggers: GrammarEventType[] = [char === " " ? "wordBoundary" : "insertChar"];
     if (/[.!?]/.test(char)) triggers.push("wordBoundary");
-    const edit = engine.processSequence(triggers, context, TYPOGRAPHY_GRAMMAR_RULES);
+    const edit = engine.processSequence(triggers, context, [...rules]);
     if (edit) context = applyGrammarEditToContext(context, edit);
   }
-  return context.beforeCursor;
+  return context.beforeCursor + context.afterCursor;
 }
 
 describe("language-aware typography preset", () => {
@@ -60,8 +64,14 @@ describe("language-aware typography preset", () => {
     ["fr_FR", 'Il a dit "texte cité" hier.', `Il a dit «${NBSP}texte cité${NBSP}» hier.`],
     // A space typed inside the guillemets is absorbed, not doubled.
     ["fr_FR", 'Il a dit " texte cité " hier.', `Il a dit «${NBSP}texte cité${NBSP}» hier.`],
-    // Languages without a verified profile keep English quotes.
+    ["el_GR", "Είπε \"γεια\" και 'αντίο'.", "Είπε «γεια» και “αντίο”."],
+    ["sv_SE", "Han sa \"hej\" och 'då'.", "Han sa ”hej” och ’då’."],
+    ["hr_HR", "Rekao je \"bok\" i 'zbogom'.", "Rekao je „bok“ i ‚zbogom‘."],
+    // CLDR gives Spanish and Portuguese the English marks.
     ["es_ES", 'Dijo "hola" ayer.', "Dijo “hola” ayer."],
+    ["pt_BR", "Ele disse \"oi\" e 'tchau'.", "Ele disse “oi” e ‘tchau’."],
+    // Arabic has no verified profile (CLDR reverses the marks for RTL): English marks.
+    ["ar_SA", 'قال "مرحبا" امس.', "قال “مرحبا” امس."],
   ])("%s quotes: %s", (lang, input, expected) => {
     expect(type(input, lang)).toBe(expected);
   });
@@ -176,5 +186,248 @@ describe("language-aware typography preset", () => {
     expect(type('Run `echo "hi"` now', "en_US")).toBe('Run `echo "hi"` now');
     expect(type('Say "hi" there', "fr_FR", "protected")).toBe('Say "hi" there');
     expect(type("Bonjour! ", "fr_FR", "protected")).toBe("Bonjour! ");
+  });
+});
+
+describe("per-language sentence and spacing behavior", () => {
+  test("Swedish same-glyph quotes pair by position, not by count", () => {
+    // The second pair opens after a closed one instead of closing over the space.
+    expect(type('Han sa "hej" och sa "då" ', "sv_SE")).toBe("Han sa ”hej” och sa ”då” ");
+  });
+
+  test.each([
+    ["es_ES", "hola. ¿qué tal? bien ", "Hola. ¿Qué tal? Bien "],
+    ["es_ES", "vale. ¡hola amigo! ", "Vale. ¡Hola amigo! "],
+    ["es_ES", "hola\n¿qué tal ", "Hola\n¿Qué tal "],
+    ["es_ES", "hola\n¡vamos ", "Hola\n¡Vamos "],
+  ])("%s capitalizes after an inverted opening mark: %s", (lang, input, expected) => {
+    expect(type(input, lang)).toBe(expected);
+  });
+
+  test("an inverted mark mid-sentence does not start a sentence", () => {
+    expect(type("Dime ¿qué tal? ", "es_ES")).toBe("Dime ¿qué tal? ");
+  });
+
+  test("the Greek question mark ; ends a sentence only in Greek", () => {
+    expect(type("γεια σου; καλά ", "el_GR")).toBe("Γεια σου; Καλά ");
+    expect(type("Τι κάνεις ; καλά ", "el_GR")).toBe("Τι κάνεις; Καλά ");
+    expect(type("Ok; then more ", "en_US")).toBe("Ok; then more ");
+    expect(type("Ok ; then ", "en_US")).toBe("Ok ; then ");
+  });
+
+  test.each([
+    ["pl_PL", "Nie wiem co. ale dobrze ", "Nie wiem co. Ale dobrze "],
+    ["fr_FR", "Le vent vient de l'est. il fait froid ", "Le vent vient de l’est. Il fait froid "],
+    ["pt_BR", "Vi uma ave. ela voou ", "Vi uma ave. Ela voou "],
+    ["sv_SE", "Den är min. vi går ", "Den är min. Vi går "],
+  ])("%s: another language's abbreviation is a word here: %s", (lang, input, expected) => {
+    expect(type(input, lang)).toBe(expected);
+  });
+
+  test.each([
+    ["en_US", "Ask Mr. smith and co. today "],
+    ["de_DE", "Äpfel, Birnen usw. und mehr "],
+    ["pl_PL", "Owoce, np. jabłka "],
+    ["es_ES", "Hola, sra. lópez "],
+    ["sv_SE", "Frukt, dvs. äpplen "],
+    ["hr_HR", "Voće, npr. jabuke "],
+    ["fr_FR", "Des fruits, etc. et plus "],
+    ["el_GR", "Φρούτα, κλπ. και άλλα "],
+  ])("%s keeps its own abbreviations: %s", (lang, input) => {
+    expect(type(input, lang)).toBe(input);
+  });
+
+  test("without a resolved language every abbreviation still counts", () => {
+    expect(type("Äpfel usw. und co. mehr ", "auto_detect")).toBe("Äpfel usw. und co. mehr ");
+  });
+});
+
+describe("rule interactions", () => {
+  const withAutoClose = [...TYPOGRAPHY_GRAMMAR_RULES, "autoBracketClose"];
+
+  test("a typed closer overtypes the auto-closed one before bracket spacing runs", () => {
+    expect(type("see (item 1) now", "en_US", "prose", withAutoClose)).toBe("See (item 1) now");
+    expect(type("list [a] and {b} ok", "en_US", "prose", withAutoClose)).toBe(
+      "List [a] and {b} ok",
+    );
+  });
+
+  test("sentence punctuation closes up to the space bracket spacing added", () => {
+    const defaults = RECOMMENDED_CURRENT_GRAMMAR_RULES;
+    expect(type("he left (quietly). then ", "en_US", "prose", defaults)).toBe(
+      "He left (quietly). Then ",
+    );
+    expect(type("wirklich (ja)? gut ", "de_DE", "prose", defaults)).toBe("Wirklich (ja)? Gut ");
+    // The space typed before a period after a word still goes, as before.
+    expect(type("done . next ", "en_US", "prose", defaults)).toBe("Done. Next ");
+  });
+
+  test("a closing straight quote overtypes its auto-closed twin after punctuation", () => {
+    const rules = [...RECOMMENDED_CURRENT_GRAMMAR_RULES, "autoBracketClose"];
+    expect(type('he said "hi," ok ', "en_US", "prose", rules)).toBe('He said "hi," ok ');
+    expect(type('say "" ok ', "en_US", "prose", rules)).toBe('Say "" ok ');
+    expect(type("run `ls` ok ", "en_US", "prose", rules)).toBe("Run `ls` ok ");
+  });
+
+  test("auto-close pairs only what was typed, not a mark smart quotes produced", () => {
+    // Polish nests quotes in «…» and Greek opens with «: neither may strand a "»".
+    expect(type("Mówi 'tak' dziś ", "pl_PL", "prose", withAutoClose)).toBe("Mówi «tak» dziś ");
+    expect(type('Είπε "ναι" τώρα ', "el_GR", "prose", withAutoClose)).toBe("Είπε «ναι» τώρα ");
+    // A guillemet typed directly is still paired.
+    expect(type("Il dit «", "fr_FR", "prose", withAutoClose)).toBe("Il dit «»");
+  });
+
+  test("digits on both sides of = are spaced like other arithmetic", () => {
+    expect(type("so 2=2 and x=1 ", "en_US")).toBe("So 2 = 2 and x = 1 ");
+    expect(type("FOO=bar ", "en_US")).toBe("FOO=bar ");
+  });
+});
+
+describe("cross-language parity", () => {
+  // Rules scoped to every language must not depend on it. The only intended
+  // differences are asserted elsewhere in this file: quote marks, French
+  // punctuation spacing, the Greek ";" and each language's abbreviations.
+  test.each([
+    ["hello ,world. next (aside ) done ", "Hello, world. Next (aside) done "],
+    ["so x=y and 2+3 at 12: 30 ", "So x = y and 2 + 3 at 12:30 "],
+    ["wait... and word--more ", "Wait… and word—more "],
+    ["one,, two  three ", "One, two. Three "],
+    ["see https: //x.com and a /b ", "See https://x.com and a / b "],
+    ["line one  \nline two ", "Line one.\nLine two "],
+  ])("%s is typed the same in every language", (input, expected) => {
+    for (const lang of SUPPORTED_PREDICTION_LANGUAGE_KEYS) {
+      expect({ lang, out: type(input, lang, "prose", GRAMMAR_RULE_IDS) }).toEqual({
+        lang,
+        out: expected,
+      });
+    }
+  });
+
+  test("measurement and currency spacing apply in every writing language", () => {
+    for (const lang of SUPPORTED_PREDICTION_LANGUAGE_KEYS) {
+      // Text Expander is not a writing language, so it has no locale policy.
+      const expected =
+        lang === "textExpander" ? "It is 10kg for 5EUR " : `It is 10${NBSP}kg for 5${NBSP}EUR `;
+      expect({ lang, out: type("it is 10kg for 5EUR ", lang) }).toEqual({ lang, out: expected });
+    }
+  });
+
+  test("English-only rules never fire in another language", () => {
+    const englishOnly = GRAMMAR_RULE_CATALOG.filter((rule) => rule.languageScope === "en_US").map(
+      (rule) => rule.id,
+    );
+    const input = "Well i dont know, teh cat has alot. i is 2th on monday, an user. your welcome. ";
+    expect(type(input, "en_US", "prose", englishOnly)).not.toBe(input);
+    for (const lang of SUPPORTED_PREDICTION_LANGUAGE_KEYS.filter((key) => key !== "en_US")) {
+      expect({ lang, out: type(input, lang, "prose", englishOnly) }).toEqual({ lang, out: input });
+    }
+  });
+});
+
+describe("rule contract: every rule has a positive and a negative case", () => {
+  // Each rule runs alone. [lang, typed, expected] where the rule fires, and
+  // [lang, typed] where it must not. A new catalog rule fails until listed.
+  const CASES: Record<string, { fires: [string, string, string]; skips: [string, string] }> = {
+    capitalizeSentenceStart: {
+      fires: ["en_US", "done. next ", "Done. Next "],
+      skips: ["en_US", "e.g. next "],
+    },
+    capitalizeAfterLineBreak: { fires: ["en_US", "a\nb", "a\nB"], skips: ["en_US", "a b"] },
+    englishPronounICapitalization: {
+      fires: ["en_US", "so i think ", "so I think "],
+      skips: ["en_US", "for i in x "],
+    },
+    englishContractionNormalization: {
+      fires: ["en_US", "we dont go ", "we don't go "],
+      skips: ["en_US", "we wont go "],
+    },
+    englishTypoWhitelistCorrection: {
+      fires: ["en_US", "teh cat ", "the cat "],
+      skips: ["en_US", "tech cat "],
+    },
+    doubleSpaceToPeriod: { fires: ["en_US", "done  ", "done. "], skips: ["en_US", "(done)  "] },
+    englishModalOfCorrection: {
+      fires: ["en_US", "could of gone ", "could have gone "],
+      skips: ["en_US", "must of course go "],
+    },
+    englishYourWelcomeCorrection: {
+      fires: ["en_US", "your welcome.", "you're welcome."],
+      skips: ["en_US", "your welcome email "],
+    },
+    englishTheirThereBeVerb: {
+      fires: ["en_US", "their is one ", "there is one "],
+      skips: ["en_US", "their car is "],
+    },
+    englishAlotCorrection: {
+      fires: ["en_US", "thanks alot ", "thanks a lot "],
+      skips: ["en_US", "thanks a lot "],
+    },
+    englishPronounVerbWhitelistAgreement: {
+      fires: ["en_US", "he are here ", "he is here "],
+      skips: ["en_US", "they are here "],
+    },
+    englishArticleAnCorrection: {
+      fires: ["en_US", "it is a apple ", "it is an apple "],
+      skips: ["en_US", "plan A is "],
+    },
+    englishOrdinalSuffix: {
+      fires: ["en_US", "the 2th time ", "the 2nd time "],
+      skips: ["en_US", "he is 11st "],
+    },
+    englishProperNounCapitalization: {
+      fires: ["en_US", "on monday we ", "on Monday we "],
+      skips: ["en_US", "it may rain "],
+    },
+    technicalTokenCompaction: {
+      fires: ["en_US", "at 12: 30 ", "at 12:30 "],
+      skips: ["en_US", "we sold 12. 5 "],
+    },
+    mathOperatorSpacing: {
+      fires: ["en_US", "so x=y ", "so x = y "],
+      skips: ["en_US", "use --port=8080 "],
+    },
+    measurementUnitFormatting: {
+      fires: ["en_US", "it is 10kg ", `it is 10${NBSP}kg `],
+      skips: ["en_US", "it is 3d "],
+    },
+    currencySpacing: {
+      fires: ["en_US", "costs 5EUR ", `costs 5${NBSP}EUR `],
+      skips: ["en_US", "costs 5TRY "],
+    },
+    slashContextSpacing: { fires: ["en_US", "a /b ", "a / b "], skips: ["en_US", "and/or "] },
+    openingBracketSpacing: { fires: ["en_US", "(a){x ", "(a) {x "], skips: ["en_US", "item(s) "] },
+    closingBracketSpacing: {
+      fires: ["en_US", "see (a )", "see (a) "],
+      skips: ["en_US", "- [ ] todo "],
+    },
+    commaPeriodSpacing: { fires: ["en_US", "a ,b ", "a, b "], skips: ["en_US", "we paid 1,5 "] },
+    collapseRepeatedSpaces: { fires: ["en_US", "a   b", "a b"], skips: ["en_US", "    indented"] },
+    trimSpaceBeforeLineBreak: { fires: ["en_US", "a  \nb", "a\nb"], skips: ["en_US", "a\nb"] },
+    ellipsisShortcut: { fires: ["en_US", "wait...", "wait…"], skips: ["en_US", "f(...args"] },
+    emdashShortcut: { fires: ["en_US", "word--x", "word—x"], skips: ["en_US", "use --force "] },
+    smartQuoteNormalization: {
+      fires: ["en_US", 'say "hi" ', "say “hi” "],
+      skips: ["en_US", 'run `echo "hi"` '],
+    },
+    frenchPunctuationSpacing: {
+      fires: ["fr_FR", "Oui! ", `Oui${NNBSP}! `],
+      skips: ["en_US", "Oui! "],
+    },
+    duplicatePunctuationCollapse: {
+      fires: ["en_US", "a,, b", "a, b"],
+      skips: ["en_US", "std::vector "],
+    },
+    autoBracketClose: { fires: ["en_US", "f(", "f()"], skips: ["en_US", "it's"] },
+  };
+
+  test("every catalog rule is listed", () => {
+    expect(Object.keys(CASES).sort()).toEqual([...GRAMMAR_RULE_IDS].sort());
+  });
+
+  test.each(Object.entries(CASES))("%s", (ruleId, { fires, skips }) => {
+    const [lang, typed, expected] = fires;
+    expect(expected).not.toBe(typed);
+    expect(type(typed, lang, "prose", [ruleId])).toBe(expected);
+    expect(type(skips[1], skips[0], "prose", [ruleId])).toBe(skips[1]);
   });
 });

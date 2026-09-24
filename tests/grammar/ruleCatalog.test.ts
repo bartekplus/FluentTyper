@@ -38,7 +38,6 @@ describe("ruleCatalog", () => {
       "openingBracketSpacing",
       "closingBracketSpacing",
       "commaPeriodSpacing",
-      "neutralPunctuationPolicy",
     ]);
 
     expect(
@@ -57,7 +56,6 @@ describe("ruleCatalog", () => {
       "openingBracketSpacing",
       "closingBracketSpacing",
       "commaPeriodSpacing",
-      "neutralPunctuationPolicy",
     ]);
   });
 
@@ -73,8 +71,15 @@ describe("ruleCatalog", () => {
       RECOMMENDED_V1_GRAMMAR_RULES.length,
     );
     expect(DEFAULT_CURRENT_GRAMMAR_RULES.every((id) => isCatalogRuleId(id))).toBe(true);
-    expect(RECOMMENDED_V1_GRAMMAR_RULES.every((id) => isCatalogRuleId(id))).toBe(true);
-    expect(RECOMMENDED_V2_GRAMMAR_RULES.every((id) => isCatalogRuleId(id))).toBe(true);
+    // Historical snapshots are frozen stored values: every entry is a live rule
+    // except the retired no-op "neutralPunctuationPolicy".
+    for (const snapshot of [
+      RECOMMENDED_V1_GRAMMAR_RULES,
+      RECOMMENDED_V2_GRAMMAR_RULES,
+      DEFAULT_V3_GRAMMAR_RULES,
+    ]) {
+      expect(snapshot.filter((id) => !isCatalogRuleId(id))).toEqual(["neutralPunctuationPolicy"]);
+    }
   });
 
   test("keeps v3 snapshots frozen while current defaults follow the catalog", () => {

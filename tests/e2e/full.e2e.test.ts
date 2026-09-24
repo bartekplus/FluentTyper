@@ -6077,53 +6077,6 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   );
 
   test(
-    "Grammar Rule Engine keeps : ; ! ? spacing neutral with granular rule IDs",
-    async () => {
-      const selector = "#test-input";
-
-      await setGrammarRulesAndWaitStable(
-        worker!,
-        ["neutralPunctuationPolicy"],
-        3,
-        browserTimeout(5000, 7000),
-      );
-      await setSettingAndWait(worker!, KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE, true);
-      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
-      await applyConfigChange(browser, worker!);
-
-      await gotoTestPage(page, {
-        enableCkEditor: false,
-      });
-      await page.bringToFront();
-      await waitForInputReady(page, selector);
-
-      const neutralCases: Array<{ typed: string; expected: string }> = [
-        { typed: "Hello :", expected: "Hello :" },
-        { typed: "Hello ;", expected: "Hello ;" },
-        { typed: "Hello !", expected: "Hello !" },
-        { typed: "Hello ?", expected: "Hello ?" },
-      ];
-
-      for (const testCase of neutralCases) {
-        await clearInputContent(page, selector);
-        await typeInInput(page, selector, testCase.typed);
-        await waitForInputContentEqual(
-          page,
-          selector,
-          testCase.expected,
-          browserTimeout(5000, 9000),
-        );
-      }
-
-      await setGrammarRulesAndWait(worker!, []);
-      await applyConfigChange(browser, worker!);
-    },
-    browserTimeout(25000, 40000),
-  );
-
-  test(
     "Grammar Rule Engine still applies grammar when minWordLengthToPredict is -1 with granular rule IDs",
     async () => {
       const selector = "#test-input";

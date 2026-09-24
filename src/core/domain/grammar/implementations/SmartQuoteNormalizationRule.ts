@@ -120,20 +120,22 @@ function closeNestedQuote(input: string, open: string, close: string): GrammarEd
  */
 function quoteBalance(input: string, straight: string, open: string, close: string): number | null {
   let balance = 0;
+  // Swedish ”…” and ’…’: a same-glyph mark opens or closes by position, like a straight one.
+  const symmetric = open === close;
 
   for (let i = 0; i < input.length; i += 1) {
     const char = input.charAt(i);
-    if (char === open) {
-      balance += 1;
-      continue;
-    }
-    if (char !== close && char !== straight) {
+    if (char !== open && char !== close && char !== straight) {
       continue;
     }
     if (straight === "'" && isWordChar(input.charAt(i - 1)) && isWordChar(input.charAt(i + 1))) {
       continue;
     }
-    if (char === straight && shouldOpenQuote(input.slice(0, i))) {
+    if (char === open && !symmetric) {
+      balance += 1;
+      continue;
+    }
+    if ((char === straight || symmetric) && shouldOpenQuote(input.slice(0, i))) {
       balance += 1;
       continue;
     }

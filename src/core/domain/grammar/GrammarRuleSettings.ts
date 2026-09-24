@@ -3,6 +3,7 @@ import {
   DEFAULT_CURRENT_GRAMMAR_RULES,
   DEFAULT_V3_GRAMMAR_RULES,
   GRAMMAR_RULE_IDS,
+  isCatalogRuleId,
   normalizeGrammarRuleSelection,
   type CatalogRuleId,
 } from "./ruleCatalog";
@@ -13,6 +14,8 @@ export type GrammarRuleOverrides = Record<string, boolean>;
 // be added here: absence for a newly introduced rule means inherit its default.
 // Also the lower bound for detecting "Disable all": every rule stored here has
 // existed since before any override map could have opted every rule out at once.
+// Retired rules are left out: a "Disable all" written after their removal never
+// names them, and one written before them still names every live rule.
 export const LEGACY_RULE_IDS: readonly CatalogRuleId[] = [
   ...DEFAULT_V3_GRAMMAR_RULES,
   "ellipsisShortcut",
@@ -20,7 +23,11 @@ export const LEGACY_RULE_IDS: readonly CatalogRuleId[] = [
   "smartQuoteNormalization",
   "duplicatePunctuationCollapse",
   "autoBracketClose",
-];
+].filter(isCatalogRuleId);
+
+// Rules removed from the catalog. A legacy array that named one keeps it "on",
+// so a selection that named no live rule is still not read as "Disable all".
+const RETIRED_RULE_IDS = ["neutralPunctuationPolicy"];
 
 export function isGrammarRuleOverrides(value: unknown): value is GrammarRuleOverrides {
   return (
@@ -36,6 +43,7 @@ export function migrateLegacyGrammarRuleSelection(
   return Object.fromEntries([
     ...LEGACY_RULE_IDS.map((id) => [id, selected.has(id)] as const),
     ...[...selected].map((id) => [id, true] as const),
+    ...RETIRED_RULE_IDS.filter((id) => value.includes(id)).map((id) => [id, true] as const),
   ]);
 }
 
