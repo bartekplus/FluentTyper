@@ -70,6 +70,7 @@ export function buildSiteProfile(
     numSuggestions?: string;
     inlineSuggestion?: string;
     preferNativeAutocomplete?: string;
+    codeMode?: string;
   },
 ): SiteProfile {
   const profile: SiteProfile = { language };
@@ -86,6 +87,10 @@ export function buildSiteProfile(
   );
   if (typeof preferNativeAutocomplete === "boolean") {
     profile.preferNativeAutocomplete = preferNativeAutocomplete;
+  }
+  const codeMode = parseBooleanOverride(overrides.codeMode ?? "global");
+  if (typeof codeMode === "boolean") {
+    profile.codeMode = codeMode;
   }
   return profile;
 }

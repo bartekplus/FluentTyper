@@ -243,7 +243,7 @@ describe("V3 rule expansion", () => {
     });
   });
 
-  test("EnglishArticleAnCorrectionRule skips adapter-protected fields", () => {
+  test("EnglishArticleAnCorrectionRule corrects the article", () => {
     const rule = new EnglishArticleAnCorrectionRule();
     const hints = { lang: "en_US", inputAction: "insert" } as const;
 
@@ -252,17 +252,12 @@ describe("V3 rule expansion", () => {
       deleteBackwards: "a error ".length,
       deleteForwards: 0,
     });
-    expect(
-      rule.apply(context("a error ", { ...hints, measurementContext: "protected" })),
-    ).toBeNull();
   });
 
   test("EnglishPronounVerbWhitelistAgreementRule applies strict whitelist", () => {
     const rule = new EnglishPronounVerbWhitelistAgreementRule();
 
-    // "i is None" is Python; the word after the verb decides.
     expect(rule.apply(context("I is ", { lang: "en_US", inputAction: "insert" }))).toBeNull();
-    expect(rule.apply(context("i is None ", { lang: "en_US", inputAction: "insert" }))).toBeNull();
     expect(rule.apply(context("I is wrong ", { lang: "en_US", inputAction: "insert" }))).toEqual({
       replacement: "I am wrong ",
       deleteBackwards: "I is wrong ".length,

@@ -1,9 +1,5 @@
 import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "../types";
-import {
-  isLikelyCodeLikeContext,
-  resolveEnglishBoundaryContext,
-} from "./helpers/EnglishRuleShared";
-import { isInsideProtectedSpan } from "./helpers/ProtectedSpanShared";
+import { isPartOfTechnicalToken, resolveEnglishBoundaryContext } from "./helpers/EnglishRuleShared";
 
 // Article, then a finished word. The article must start a token: after a space,
 // or after an opening quote/bracket that itself starts a token, so the "an" in
@@ -76,9 +72,6 @@ export class EnglishArticleAnCorrectionRule implements GrammarRule {
   readonly triggers: GrammarEventType[] = ["wordBoundary"];
 
   apply(context: GrammarContext): GrammarEdit | null {
-    if (context.hints?.measurementContext === "protected") {
-      return null;
-    }
     const boundaryContext = resolveEnglishBoundaryContext(context);
     if (!boundaryContext) {
       return null;
@@ -99,8 +92,7 @@ export class EnglishArticleAnCorrectionRule implements GrammarRule {
     }
     if (
       !isArticleContext(beforeArticle) ||
-      isInsideProtectedSpan(beforeArticle) ||
-      isLikelyCodeLikeContext(core, articleStart, core.length)
+      isPartOfTechnicalToken(core, articleStart, core.length)
     ) {
       return null;
     }

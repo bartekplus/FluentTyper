@@ -25,6 +25,7 @@ type SuggestionLike = {
   fulfillPrediction: jest.Mock;
   handleEarlyTabAcceptRequest: jest.Mock;
   autocompleteSeparator?: RegExp;
+  options?: { enabledGrammarRules?: string[] };
 };
 
 type DomObserverLike = {
@@ -111,8 +112,9 @@ jest.unstable_mockModule("../src/core/application/dom-utils", () => ({
 jest.unstable_mockModule(
   "../src/adapters/chrome/content-script/suggestions/SuggestionManagerRuntime",
   () => ({
-    SuggestionManagerRuntime: jest.fn().mockImplementation(() => {
+    SuggestionManagerRuntime: jest.fn().mockImplementation((options: SuggestionLike["options"]) => {
       const instance: SuggestionLike = {
+        options,
         queryAndAttachHelper: jest.fn(() => false),
         detachAllHelpers: jest.fn(),
         removeHelpersNotInDocument: jest.fn(),
@@ -521,6 +523,23 @@ describe("content_script behavior", () => {
     expect(style!.textContent).toContain("--suggestion-bg-light: #ffffff");
     expect(style!.textContent).toContain("--ft-theme-suggestion-text-dark: #f4f4f4");
     expect(initialManager.detachAllHelpers).toHaveBeenCalled();
+  });
+
+  test("code mode passes only code-safe grammar rules to the suggestion manager", async () => {
+    const { fluentTyper, suggestionInstances } = await loadContentScript();
+    const enabledGrammarRules = [
+      "capitalizeSentenceStart",
+      "commaPeriodSpacing",
+      "autoBracketClose",
+    ];
+
+    fluentTyper.setConfig(defaultConfig({ enabledGrammarRules }));
+    expect(suggestionInstances.at(-1)?.options?.enabledGrammarRules).toEqual(enabledGrammarRules);
+
+    fluentTyper.setConfig(defaultConfig({ enabledGrammarRules, codeMode: true }));
+    // The runtime restarts on a timer once it is already enabled.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(suggestionInstances.at(-1)?.options?.enabledGrammarRules).toEqual(["autoBracketClose"]);
   });
 
   test("messageHandler handles config/lang/toggle/trigger commands and status replies", async () => {

@@ -24,6 +24,7 @@ describe("site profiles helpers", () => {
           numSuggestions: 7.6,
           inline_suggestion: true,
           preferNativeAutocomplete: false,
+          codeMode: true,
         },
         "bad-domain-[": {
           language: "en_US",
@@ -42,6 +43,7 @@ describe("site profiles helpers", () => {
         numSuggestions: 8,
         inline_suggestion: true,
         preferNativeAutocomplete: false,
+        codeMode: true,
       },
     });
   });

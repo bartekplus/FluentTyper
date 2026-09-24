@@ -178,6 +178,7 @@ const SITE_SPECIFIC_CONTROL_IDS = [
   "siteNumSuggestionsSelect",
   "siteInlineModeSelect",
   "sitePreferNativeAutocompleteSelect",
+  "siteCodeModeSelect",
 ];
 
 function setSiteSpecificControlsEnabled(enabled: boolean): void {
@@ -411,6 +412,7 @@ function getSiteProfileElements() {
     preferNativeAutocomplete: document.getElementById(
       "sitePreferNativeAutocompleteSelect",
     ) as HTMLSelectElement | null,
+    codeMode: document.getElementById("siteCodeModeSelect") as HTMLSelectElement | null,
     section: document.getElementById("siteProfileSection"),
     status: document.getElementById("siteProfileStatus"),
   };
@@ -424,9 +426,10 @@ function getDefaultSiteProfileLanguage(language: string, enabledLanguages: strin
 }
 
 function setSiteProfileInputsDisabled(disabled: boolean): void {
-  const { language, suggestions, inline, preferNativeAutocomplete } = getSiteProfileElements();
+  const { language, suggestions, inline, preferNativeAutocomplete, codeMode } =
+    getSiteProfileElements();
   document.getElementById("siteProfileDetails")?.classList.toggle("is-hidden", disabled);
-  for (const select of [language, suggestions, inline, preferNativeAutocomplete]) {
+  for (const select of [language, suggestions, inline, preferNativeAutocomplete, codeMode]) {
     if (select) {
       select.disabled = disabled;
     }
@@ -448,8 +451,16 @@ function notifyConfigChange(): Promise<unknown> {
 }
 
 async function loadSiteProfileEditor() {
-  const { toggle, language, suggestions, inline, preferNativeAutocomplete, section, status } =
-    getSiteProfileElements();
+  const {
+    toggle,
+    language,
+    suggestions,
+    inline,
+    preferNativeAutocomplete,
+    codeMode,
+    section,
+    status,
+  } = getSiteProfileElements();
   if (
     !currentDomainURL ||
     currentPageState.kind !== "actionable" ||
@@ -459,13 +470,19 @@ async function loadSiteProfileEditor() {
     return;
   }
   section?.classList.remove("is-hidden");
-  const [siteProfilesRaw, numSuggestionsRaw, inlineSuggestionRaw, preferNativeAutocompleteRaw] =
-    await Promise.all([
-      siteProfileRepository.getRawSiteProfiles(),
-      coreSettingsRepository.getNumSuggestions(),
-      coreSettingsRepository.getInlineSuggestion(),
-      coreSettingsRepository.getPreferNativeAutocomplete(),
-    ]);
+  const [
+    siteProfilesRaw,
+    numSuggestionsRaw,
+    inlineSuggestionRaw,
+    preferNativeAutocompleteRaw,
+    globalCodeMode,
+  ] = await Promise.all([
+    siteProfileRepository.getRawSiteProfiles(),
+    coreSettingsRepository.getNumSuggestions(),
+    coreSettingsRepository.getInlineSuggestion(),
+    coreSettingsRepository.getPreferNativeAutocomplete(),
+    coreSettingsRepository.getCodeMode(),
+  ]);
   const profile = getSiteProfileForDomain(
     siteProfilesRaw,
     currentDomainURL,
@@ -475,7 +492,15 @@ async function loadSiteProfileEditor() {
   const globalInlineSuggestion = inlineSuggestionRaw === true;
   const globalPreferNativeAutocomplete = preferNativeAutocompleteRaw !== false;
 
-  if (!toggle || !language || !suggestions || !inline || !preferNativeAutocomplete || !status) {
+  if (
+    !toggle ||
+    !language ||
+    !suggestions ||
+    !inline ||
+    !preferNativeAutocomplete ||
+    !codeMode ||
+    !status
+  ) {
     return;
   }
 
@@ -489,6 +514,7 @@ async function loadSiteProfileEditor() {
     globalPreferNativeAutocomplete,
     getPreferNativeAutocompleteLabel,
   );
+  populateBooleanOverrideOptions(codeMode, globalCodeMode, getOnOffLabel);
 
   const fallbackLanguage = getDefaultSiteProfileLanguage(
     currentProfileLanguageFallback,
@@ -501,6 +527,7 @@ async function loadSiteProfileEditor() {
       typeof profile.numSuggestions === "number" ? String(profile.numSuggestions) : "global";
     inline.value = toOverrideValue(profile.inline_suggestion);
     preferNativeAutocomplete.value = toOverrideValue(profile.preferNativeAutocomplete);
+    codeMode.value = toOverrideValue(profile.codeMode);
     status.textContent = getProfileStatusLabel(true);
   } else {
     toggle.checked = false;
@@ -508,13 +535,15 @@ async function loadSiteProfileEditor() {
     suggestions.value = "global";
     inline.value = "global";
     preferNativeAutocomplete.value = "global";
+    codeMode.value = "global";
     status.textContent = getProfileStatusLabel(false);
   }
   setSiteProfileInputsDisabled(!toggle.checked);
 }
 
 function readSiteProfileFromEditor(): SiteProfile {
-  const { language, suggestions, inline, preferNativeAutocomplete } = getSiteProfileElements();
+  const { language, suggestions, inline, preferNativeAutocomplete, codeMode } =
+    getSiteProfileElements();
   const languageValue =
     language && currentEnabledLanguages.includes(language.value)
       ? language.value
@@ -523,6 +552,7 @@ function readSiteProfileFromEditor(): SiteProfile {
     numSuggestions: suggestions?.value,
     inlineSuggestion: inline?.value,
     preferNativeAutocomplete: preferNativeAutocomplete?.value,
+    codeMode: codeMode?.value,
   });
 }
 
@@ -859,6 +889,7 @@ function init() {
     "siteNumSuggestionsSelect",
     "siteInlineModeSelect",
     "sitePreferNativeAutocompleteSelect",
+    "siteCodeModeSelect",
   ]
     .map((id) => document.getElementById(id))
     .forEach((element) => {

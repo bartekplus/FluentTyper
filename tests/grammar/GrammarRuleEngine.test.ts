@@ -308,3 +308,20 @@ describe("GrammarRuleEngine", () => {
     }
   });
 });
+
+describe("GrammarRuleEngine code contexts", () => {
+  test("runs only code-safe rules in code editor fields and Markdown code", () => {
+    const engine = new GrammarRuleEngine();
+    engine.registerRule(new CommaPeriodSpacingRule(true));
+    const prose = { beforeCursor: "Hello ,", afterCursor: "" };
+
+    expect(engine.process("insertChar", prose)).toHaveLength(1);
+    expect(
+      engine.process("insertChar", { ...prose, hints: { measurementContext: "protected" } }),
+    ).toEqual([]);
+    expect(engine.process("insertChar", { ...prose, beforeCursor: "`Hello ," })).toEqual([]);
+    expect(engine.process("insertChar", { ...prose, beforeCursor: "```\nHello ," })).toEqual([]);
+    // A closed code span is prose again.
+    expect(engine.process("insertChar", { ...prose, beforeCursor: "`x` Hello ," })).toHaveLength(1);
+  });
+});

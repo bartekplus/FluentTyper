@@ -28,6 +28,7 @@ import {
   KEY_MIN_WORD_LENGTH_TO_PREDICT,
   KEY_NUM_SUGGESTIONS,
   KEY_PREFER_NATIVE_AUTOCOMPLETE,
+  KEY_CODE_MODE,
   KEY_PRODUCTIVITY_STATS,
   KEY_SELECT_BY_DIGIT,
   KEY_SITE_PROFILES,
@@ -62,6 +63,7 @@ const SETTINGS_KEYS = {
   prefixOnlyMode: KEY_PREFIX_ONLY_MODE,
   personalizationEnabled: KEY_PERSONALIZATION_ENABLED,
   preferNativeAutocomplete: KEY_PREFER_NATIVE_AUTOCOMPLETE,
+  codeMode: KEY_CODE_MODE,
   numSuggestions: KEY_NUM_SUGGESTIONS,
   minWordLengthToPredict: KEY_MIN_WORD_LENGTH_TO_PREDICT,
   autocomplete: KEY_AUTOCOMPLETE,
@@ -118,6 +120,7 @@ export interface SettingsSchema {
   prefixOnlyMode: boolean;
   personalizationEnabled: boolean;
   preferNativeAutocomplete: boolean;
+  codeMode: boolean;
   numSuggestions: number;
   minWordLengthToPredict: number;
   autocomplete: boolean;

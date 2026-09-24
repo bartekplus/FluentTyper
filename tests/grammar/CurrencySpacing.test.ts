@@ -124,65 +124,22 @@ describe("currency spacing", () => {
     expect(applyRule("Budget: 250EUR")).toBe("Budget: 250EUR");
   });
 
-  test("leaves code, commands and literal text unchanged", () => {
+  test("leaves URLs, paths and identifiers unchanged", () => {
     for (const input of [
-      "let price = 250EUR ",
-      "const x = 5USD ",
       "https://shop.example/250EUR ",
       "path/to/250EUR ",
-      "`250EUR ",
-      "```\n250EUR ",
       "f(250EUR ",
       "id_250EUR ",
-      "$250EUR ",
-      // Indented Markdown code blocks are literal.
-      "    250EUR ",
-      "\t250EUR ",
-      "Example:\n\n    250EUR ",
-      "Example:\n\n\t250EUR ",
-      "    Price: 250EUR ",
-      // Nothing tells an indented code block from prose, so indentation
-      // always fails closed.
-      "\tCopy source 250EUR ",
-      "    Copy source 250EUR ",
-      "Example:\n\n\tCopy source 250EUR ",
-      "\tcopy 250EUR ",
-      "    copy 250EUR ",
-      "\tcp file 250EUR ",
-      "    x = 250EUR ",
     ]) {
       expectUnchanged(input);
     }
+  });
 
-    // Shell arguments are file names and patterns, not prices. Unambiguous
-    // command names are refused in any case: capitalizeSentenceStart turns a
-    // field-initial "cp" into "Cp" before currencySpacing runs.
-    for (const input of [
-      ...["cp", "mv", "rm", "cd", "grep", "ls", "mkdir"].flatMap((cmd) => [
-        `${cmd} 250EUR `,
-        `${cmd[0].toUpperCase()}${cmd.slice(1)} 250EUR `,
-        `${cmd} -r 250EUR `,
-      ]),
-      "cp 250EUR backup ",
-    ]) {
-      expectUnchanged(input);
+  test("the engine leaves Markdown code unchanged", () => {
+    // Code itself is code mode's job; the engine only skips Markdown code.
+    for (const input of ["`250EUR ", "```\n250EUR "]) {
+      expect(type(input, "en_US", ["currencySpacing"])).toBe(input);
     }
-
-    // "cat", "touch", "tar" and "sed" also read as ordinary sentence-initial
-    // words ("Cat weighs 5kg"), but a bare command word directly followed by
-    // the amount is a file name in any case: capitalizeSentenceStart turns a
-    // field-initial "cat" into "Cat" before currencySpacing runs.
-    for (const input of ["cat", "touch", "tar", "sed"].flatMap((cmd) => [
-      `${cmd} 250EUR `,
-      `${cmd[0].toUpperCase()}${cmd.slice(1)} 250EUR `,
-      `${cmd} -r 250EUR `,
-    ])) {
-      expectUnchanged(input);
-    }
-    // Known limit: with a plain word between them, the pipeline's "Cat file
-    // 250EUR" is indistinguishable from "Cat weighs 250EUR" and formats as
-    // prose. The lowercase spelling is still refused by the rule itself.
-    expect(applyRule("cat file 250EUR ")).toBe("cat file 250EUR ");
   });
 
   test("requires a verified locale", () => {

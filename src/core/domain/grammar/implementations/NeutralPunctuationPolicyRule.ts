@@ -5,9 +5,10 @@ export class NeutralPunctuationPolicyRule implements GrammarRule {
   readonly triggers: GrammarEventType[] = ["insertChar", "wordBoundary"];
 
   apply(): GrammarEdit | null {
-    // Explicitly no-op: for : ; ! ? we intentionally avoid auto spacing in v1
+    // Explicitly no-op: for : ; we intentionally avoid auto spacing in v1
     // to keep cross-language behavior conservative. French spacing is the
-    // opt-in frenchPunctuationSpacing rule.
+    // opt-in frenchPunctuationSpacing rule; ! ? close like a period in
+    // commaPeriodSpacing.
     return null;
   }
 }

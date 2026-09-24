@@ -1,7 +1,7 @@
 import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "../types";
 import {
   findTrailingLetterToken,
-  isLikelyCodeLikeContext,
+  isPartOfTechnicalToken,
   resolveEnglishBoundaryContext,
 } from "./helpers/EnglishRuleShared";
 import { applyWordCase, detectWordCase } from "./helpers/GenericRuleShared";
@@ -44,7 +44,7 @@ export class EnglishContractionNormalizationRule implements GrammarRule {
     if (!tokenInfo) {
       return null;
     }
-    if (isLikelyCodeLikeContext(tokenInfo.core, tokenInfo.tokenStart, tokenInfo.tokenEnd)) {
+    if (isPartOfTechnicalToken(tokenInfo.core, tokenInfo.tokenStart, tokenInfo.tokenEnd)) {
       return null;
     }
 

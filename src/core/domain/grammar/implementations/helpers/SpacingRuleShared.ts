@@ -11,7 +11,6 @@ export abstract class SpacingRuleShared {
   protected static readonly MATH_OPERATORS = new Set(["=", "+", "*"]);
   protected static readonly OPENING_BRACKETS = new Set(["(", "[", "{"]);
   protected static readonly CLOSING_BRACKETS = new Set([")", "]", "}"]);
-  protected static readonly CONTROL_KEYWORDS = new Set(["if", "for", "while", "switch", "catch"]);
   protected static readonly QUOTE_CHARS = new Set(['"', "'", "`", "”", "’"]);
 
   protected readonly insertSpaceAfterAutocomplete: boolean;
@@ -170,30 +169,6 @@ export abstract class SpacingRuleShared {
       return false;
     }
     return !SPACE_CHARS.includes(inputStr[index - 1]);
-  }
-
-  protected isControlKeywordBeforeIndex(inputStr: string, index: number): boolean {
-    const previousIndex = this.findPreviousSignificantIndex(inputStr, index - 1);
-    if (previousIndex === null) {
-      return false;
-    }
-
-    const tokenBounds = this.readIdentifierTokenBoundsAt(inputStr, previousIndex);
-    if (!tokenBounds) {
-      return false;
-    }
-
-    const token = inputStr.slice(tokenBounds.start, tokenBounds.end + 1).toLowerCase();
-    if (!SpacingRuleShared.CONTROL_KEYWORDS.has(token)) {
-      return false;
-    }
-
-    const charBeforeToken = tokenBounds.start > 0 ? inputStr[tokenBounds.start - 1] : undefined;
-    return !this.isIdentifierChar(charBeforeToken);
-  }
-
-  protected isLikelyCodeContinuationChar(ch: string): boolean {
-    return this.isIdentifierChar(ch) || [")", "]", "}", ".", "'", '"', "`"].includes(ch);
   }
 
   protected getOpeningBracket(closingBracket: string): string | null {

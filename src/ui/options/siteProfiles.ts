@@ -5,6 +5,7 @@ import {
   KEY_INLINE_SUGGESTION,
   KEY_NUM_SUGGESTIONS,
   KEY_PREFER_NATIVE_AUTOCOMPLETE,
+  KEY_CODE_MODE,
   KEY_SITE_PROFILES,
 } from "@core/domain/constants";
 import { resolveGlobalNumSuggestions } from "@core/domain/siteProfileService";
@@ -37,6 +38,7 @@ interface SiteProfilesElements {
   numSuggestionsSelect: HTMLSelectElement;
   inlineSelect: HTMLSelectElement;
   preferNativeAutocompleteSelect: HTMLSelectElement;
+  codeModeSelect: HTMLSelectElement;
   searchInput: HTMLInputElement;
   normalizedPreview: HTMLElement;
   saveButton: HTMLButtonElement;
@@ -149,6 +151,11 @@ export class SiteProfilesManager {
       i18n.get("site_profiles_prefer_native_autocomplete_label"),
       preferNativeAutocompleteSelect,
     );
+    const codeModeSelect = createSelect("siteProfileCodeModeSelect");
+    const codeModeField = createStackField(
+      i18n.get("site_profiles_code_mode_label"),
+      codeModeSelect,
+    );
 
     const actions = createElement("div", { className: "text-assets-actions" });
     const saveButton = createElement("button", {
@@ -179,6 +186,7 @@ export class SiteProfilesManager {
       suggestionsField,
       inlineField,
       preferNativeAutocompleteField,
+      codeModeField,
     );
 
     editor.append(formGrid, actions, status);
@@ -220,6 +228,7 @@ export class SiteProfilesManager {
       numSuggestionsSelect,
       inlineSelect,
       preferNativeAutocompleteSelect,
+      codeModeSelect,
       searchInput,
       normalizedPreview: preview,
       saveButton,
@@ -285,6 +294,7 @@ export class SiteProfilesManager {
       numSuggestions: this.elements.numSuggestionsSelect.value,
       inlineSuggestion: this.elements.inlineSelect.value,
       preferNativeAutocomplete: this.elements.preferNativeAutocompleteSelect.value,
+      codeMode: this.elements.codeModeSelect.value,
     });
   }
 
@@ -304,6 +314,7 @@ export class SiteProfilesManager {
     this.elements.preferNativeAutocompleteSelect.value = toOverrideValue(
       profile?.preferNativeAutocomplete,
     );
+    this.elements.codeModeSelect.value = toOverrideValue(profile?.codeMode);
     this.elements.saveButton.textContent = this.editingDomain
       ? i18n.get("site_profiles_update_btn")
       : i18n.get("site_profiles_add_btn");
@@ -319,6 +330,7 @@ export class SiteProfilesManager {
     globalNumSuggestions: number,
     globalInlineSuggestion: boolean,
     globalPreferNativeAutocomplete: boolean,
+    globalCodeMode: boolean,
   ): void {
     const profileEntries = Object.entries(siteProfiles)
       .filter(([domain]) => domain.toLowerCase().includes(this.searchQuery))
@@ -393,6 +405,13 @@ export class SiteProfilesManager {
               ? getPreferNativeAutocompleteLabel(profile.preferNativeAutocomplete)
               : getInheritLabel(getPreferNativeAutocompleteLabel(globalPreferNativeAutocomplete)),
         },
+        {
+          label: i18n.get("site_profiles_code_mode_label"),
+          value:
+            typeof profile.codeMode === "boolean"
+              ? getOnOffLabel(profile.codeMode)
+              : getInheritLabel(getOnOffLabel(globalCodeMode)),
+        },
       ].forEach((entry) => {
         const item = createElement("div", { className: "site-profile-meta-item" });
         item.appendChild(
@@ -422,12 +441,14 @@ export class SiteProfilesManager {
       rawNumSuggestions,
       rawInline,
       rawPreferNativeAutocomplete,
+      rawCodeMode,
     ] = await Promise.all([
       this.store.get(KEY_ENABLED_LANGUAGES),
       this.store.get(KEY_SITE_PROFILES),
       this.store.get(KEY_NUM_SUGGESTIONS),
       this.store.get(KEY_INLINE_SUGGESTION),
       this.store.get(KEY_PREFER_NATIVE_AUTOCOMPLETE),
+      this.store.get(KEY_CODE_MODE),
     ]);
 
     const enabledLanguages = resolveEnabledLanguages(enabledLanguagesRaw);
@@ -435,6 +456,7 @@ export class SiteProfilesManager {
     const globalNumSuggestions = resolveGlobalNumSuggestions(rawNumSuggestions);
     const globalInlineSuggestion = rawInline === true;
     const globalPreferNativeAutocomplete = rawPreferNativeAutocomplete !== false;
+    const globalCodeMode = rawCodeMode === true;
 
     this.populateLanguageOptions(enabledLanguages);
     populateSuggestionOptions(this.elements.numSuggestionsSelect, globalNumSuggestions);
@@ -448,12 +470,14 @@ export class SiteProfilesManager {
       globalPreferNativeAutocomplete,
       getPreferNativeAutocompleteLabel,
     );
+    populateBooleanOverrideOptions(this.elements.codeModeSelect, globalCodeMode, getOnOffLabel);
     this.applyEditorState(enabledLanguages, siteProfiles);
     this.renderTable(
       siteProfiles,
       globalNumSuggestions,
       globalInlineSuggestion,
       globalPreferNativeAutocomplete,
+      globalCodeMode,
     );
     this.setStatus(this.statusText, this.statusIsError);
   }

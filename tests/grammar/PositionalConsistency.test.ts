@@ -81,8 +81,8 @@ describe("prose in brackets is still prose", () => {
   ])
     test(input, () => expect(type(input)).toBe(expected));
 
-  // An identifier hard against the bracket is a call, not a parenthetical.
-  for (const input of ["call foo(dont) here ", "call f(10kg now "])
+  // A measurement needs a word before it, so a bracket hard against a token is refused.
+  for (const input of ["call f(10kg now "])
     test(input, () => expect(type(input)).toBe(input.charAt(0).toUpperCase() + input.slice(1)));
 });
 

@@ -5,6 +5,7 @@ import { createGrammarRuleCatalogRuntime } from "../../src/core/domain/grammar/r
 import {
   DEFAULT_CURRENT_GRAMMAR_RULES,
   GRAMMAR_RULE_IDS,
+  filterCodeSafeGrammarRules,
 } from "../../src/core/domain/grammar/ruleCatalog";
 import type { GrammarContext } from "../../src/core/domain/grammar/types";
 
@@ -123,13 +124,6 @@ describe("unambiguous corrections still apply", () => {
     ["i was there too ", "I was there too "],
     ["i is wrong here ", "I am wrong here "],
     ["he are going ", "He is going "],
-    // "i"/"it" are identifiers here: only the sentence-start capital changes,
-    // the identifiers and their verbs are left exactly as typed.
-    ["for i in range(10) ", "For i in range(10) "],
-    ["print(i) if i is not None ", "Print(i) if i is not None "],
-    ["it are null here ", "It are null here "],
-    ["if i is None then ", "If i is None then "],
-    ["when i = 3 then ", "When i = 3 then "],
     // Only the sentence-start capital changes; brackets and links are intact.
     ["set x = {a: 1} now ", "Set x = {a: 1} now "],
     // A sentence period is never spaced by the rule; the user's space after
@@ -152,30 +146,16 @@ describe("unambiguous corrections still apply", () => {
 });
 
 describe("measurement formatting on indented lines", () => {
-  const withoutRule = DEFAULT_CURRENT_GRAMMAR_RULES.filter(
-    (id) => id !== "measurementUnitFormatting",
-  );
-
-  // An indented line may be a Markdown code block and no editor signal says
-  // otherwise, so indentation fails closed by design, even for a sentence.
-  for (const input of [
-    "\tcopy 5kg ",
-    "    copy 5kg ",
-    "\tcp file 5kg ",
-    "    x = 5kg ",
-    "\tCopy source 5kg ",
-    "    Copy source 5kg ",
-    "\tThe box weighs 5kg ",
-  ])
-    test(`leaves ${JSON.stringify(input)}`, () =>
-      expect(type(input)).toBe(type(input, "en_US", withoutRule)));
+  // Indentation is not treated as code: code mode is the user's switch.
+  test("formats an indented sentence", () =>
+    expect(type("\tThe box weighs 5kg ")).toBe("\tThe box weighs 5\u00a0kg "));
 });
 
 describe("comma/period spacing never adds a space before a closing quote", () => {
   for (const input of ['"Hi," he said ', 'She said "stop." Then ', "He wrote “done.” Ok "])
     test(input, () => expect(type(input)).toBe(input));
 
-  // String literals and code keep their meaningful spaces.
+  // Markdown code and punctuation-only quotes keep their meaningful spaces.
   const withoutCommaPeriod = DEFAULT_CURRENT_GRAMMAR_RULES.filter(
     (id) => id !== "commaPeriodSpacing",
   );
@@ -190,8 +170,6 @@ describe("comma/period spacing never adds a space before a closing quote", () =>
     'return ". " ',
     'yield ". " ',
     'sep: ". " ',
-    'return "Hi, " ',
-    'print("a, ") ',
     'x: ", " ',
   ])
     test(`leaves the literal ${JSON.stringify(input)}`, () =>
@@ -264,7 +242,7 @@ describe("opt-in a/an correction", () => {
     ["Hello. A error occurred ", "Hello. An error occurred "],
     ["This is a error in `code` here ", "This is an error in `code` here "],
     ["He said it's a error ", "He said it's an error "],
-    ["```\ncode\n```\nThis is a error ", "```\nCode\n```\nThis is an error "],
+    ["```\ncode\n```\nThis is a error ", "```\ncode\n```\nThis is an error "],
   ])
     test(`corrects ${JSON.stringify(input)}`, () =>
       expect(type(input, "en_US", withRule)).toBe(expected));
@@ -435,8 +413,6 @@ describe("opt-in ordinal suffix repair", () => {
     'He said "the\n3th line" ',
     // Not a whole ordinal token.
     "Use v1th here ",
-    "Call f(2th) now ",
-    "Set x=3th now ",
     "Version 1.1th here ",
     "Tag #1th here ",
     "the 21th-century view ",
@@ -542,4 +518,32 @@ describe("Arabic punctuation", () => {
       "\u0643\u062a\u0627\u0628\u060c \u0642\u0644\u0645 ",
     );
   });
+});
+
+describe("Markdown code is detected centrally", () => {
+  // Fenced blocks, including ones inside blockquotes and list items, stay byte-for-byte.
+  for (const input of [
+    "```\ndont ",
+    "> ~~~\n> Mass: 10kg ",
+    "- ~~~\n  Mass: 10kg ",
+    "> ~~~\n> Budget: 250EUR ",
+    "1. ```\n   Budget: 250EUR ",
+    // Even backslashes escape each other, so the backtick still opens a span.
+    "Use \\\\` literally. dont ",
+  ])
+    test(`leaves ${JSON.stringify(input)}`, () => expect(type(input)).toBe(input));
+
+  // An escaped backtick and a closed "```x```" span are not code openers.
+  for (const [input, expected] of [
+    ["Use \\` literally. dont ", "Use \\` literally. Don't "],
+    ["```x```\ndont ", "```x```\nDon't "],
+  ])
+    test(`corrects ${JSON.stringify(input)}`, () => expect(type(input)).toBe(expected));
+});
+
+test("code mode keeps significant trailing spaces in multiline literals", () => {
+  const input = 'x = """keep  \n';
+  expect(type(input, "en_US", filterCodeSafeGrammarRules(DEFAULT_CURRENT_GRAMMAR_RULES))).toBe(
+    input,
+  );
 });

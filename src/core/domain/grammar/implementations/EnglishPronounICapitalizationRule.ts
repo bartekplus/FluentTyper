@@ -3,7 +3,7 @@ import {
   type EnglishBoundaryContext,
   resolveEnglishBoundaryContext,
   findTrailingLetterToken,
-  isLikelyCodeLikeContext,
+  isPartOfTechnicalToken,
 } from "./helpers/EnglishRuleShared";
 
 const ENGLISH_APOSTROPHE_PRONOUN_REGEX = /(^|[^A-Za-z0-9_])(i)(['’](?:m|ve|ll|d))$/;
@@ -48,7 +48,7 @@ export class EnglishPronounICapitalizationRule implements GrammarRule {
     if (/^[ \t]+$/.test(tokenInfo.trailing)) {
       return null;
     }
-    if (isLikelyCodeLikeContext(tokenInfo.core, tokenInfo.tokenStart, tokenInfo.tokenEnd)) {
+    if (isPartOfTechnicalToken(tokenInfo.core, tokenInfo.tokenStart, tokenInfo.tokenEnd)) {
       return null;
     }
 
@@ -77,7 +77,7 @@ export class EnglishPronounICapitalizationRule implements GrammarRule {
     if (core[pronounIndex] !== "i") {
       return null;
     }
-    if (isLikelyCodeLikeContext(core, pronounIndex, pronounIndex + 1)) {
+    if (isPartOfTechnicalToken(core, pronounIndex, pronounIndex + 1)) {
       return null;
     }
 
@@ -100,7 +100,7 @@ export class EnglishPronounICapitalizationRule implements GrammarRule {
     if (replaceStart < 0 || core[replaceStart] !== "i") {
       return null;
     }
-    if (isLikelyCodeLikeContext(core, replaceStart, replaceStart + 1)) {
+    if (isPartOfTechnicalToken(core, replaceStart, replaceStart + 1)) {
       return null;
     }
 

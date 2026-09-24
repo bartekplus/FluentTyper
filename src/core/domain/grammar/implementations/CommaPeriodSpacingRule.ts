@@ -1,9 +1,9 @@
 import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "../types";
 import { PUNCTUATION_EQUIVALENTS, SPACE_CHARS, SPACING_OR_FILLER_CHARS } from "../../spacingRules";
 import { resolveInputAction } from "./helpers/GenericRuleShared";
-import { isInsideProtectedSpan } from "./helpers/ProtectedSpanShared";
 import { SpacingRuleShared } from "./helpers/SpacingRuleShared";
 import { resolveMeasurementLocale } from "../measurement/registry";
+import { usesFrenchPunctuationSpacing } from "../typographyProfiles";
 
 // A standalone number ending right before a comma: "2", "-1.5", "(١٫٥",
 // "1,500,000". Deferral and repair must both use it, or a deferred space can
@@ -55,25 +55,11 @@ function closedQuoteStart(inputStr: string, index: number, ch: string): number {
   return -1;
 }
 
-// A statement keyword before the quote makes it a string literal, not dialogue.
-// Case-insensitive because sentence capitalization turns "return" into
-// "Return"; words that also open English sentences ("If", "When") only count
-// in lowercase.
-const CODE_STATEMENT_START =
-  /^\s*(?:return|yield|throw|await|echo|printf|puts|console\.\w+|export|const|var|def|elif)\b/iu;
-const LOWERCASE_STATEMENT_START = /^\s*(?:case|print|let|if|else|when)\b/u;
-
-// Positive evidence that the quote from `openerIndex` to the "," / "." at
-// `punctuationIndex` is dialogue: the quote holds a word ("Hi", not ". "), the
-// paragraph does not open like a statement, and a colon right before the quote
-// ends a word ("He said:", not "1:").
+// The quote from `openerIndex` to the "," / "." at `punctuationIndex` is
+// dialogue when it holds a word ("Hi", not ". ").
 function isProseQuote(inputStr: string, openerIndex: number, punctuationIndex: number): boolean {
   const quoted = inputStr.slice(openerIndex + 1, punctuationIndex);
-  if (!/^[\p{L}\p{N}]/u.test(quoted) || !/\p{L}/u.test(quoted)) return false;
-  const lead = inputStr.slice(inputStr.lastIndexOf("\n", openerIndex) + 1, openerIndex);
-  if (CODE_STATEMENT_START.test(lead) || LOWERCASE_STATEMENT_START.test(lead)) return false;
-  const wordBefore = /(\S+)\s+$/u.exec(lead)?.[1] ?? "";
-  return !wordBefore.endsWith(":") || /^\p{L}[\p{L}'’-]*:$/u.test(wordBefore);
+  return /^[\p{L}\p{N}]/u.test(quoted) && /\p{L}/u.test(quoted);
 }
 
 export class CommaPeriodSpacingRule extends SpacingRuleShared implements GrammarRule {
@@ -98,9 +84,17 @@ export class CommaPeriodSpacingRule extends SpacingRuleShared implements Grammar
     // follows says nothing about which one it was. Only a space the user typed
     // after "Hello ." confirms a sentence end; then the stray space before the
     // period can go. Until then "path ." may still become "path ../..".
+    // "?" and "!" close the same way ("Really ? " -> "Really? "), except in
+    // French, which keeps a space before them. That also rewrites a ternary
+    // ("a ? b"); code mode turns this rule off.
     if (lastChar === " ") {
       const periodIndex = length - 2;
-      if (!canDefer || inputStr[periodIndex] !== ".") {
+      const mark = inputStr[periodIndex] ?? "";
+      const closesSentence =
+        mark === "." ||
+        (["?", "!"].includes(PUNCTUATION_EQUIVALENTS[mark] ?? mark) &&
+          !usesFrenchPunctuationSpacing(context.hints?.lang));
+      if (!canDefer || !closesSentence) {
         return null;
       }
       let spacesBefore = 0;
@@ -111,26 +105,15 @@ export class CommaPeriodSpacingRule extends SpacingRuleShared implements Grammar
       if (spacesBefore === 0 || !/[\p{L}\p{N}]/u.test(wordEnd)) {
         return null;
       }
-      return this.createEdit(". ", spacesBefore + 2);
+      return this.createEdit(`${mark} `, spacesBefore + 2);
     }
 
     // A closing quote closes tight: strip a space this rule (or the user)
     // left between "," / "." and the quote that follows it. An opening quote
-    // is left untouched, so its space survives. Inside code or a string
-    // literal (`x = ", "`) that space is content, so fail closed there.
+    // is left untouched, so its space survives.
     if (lastChar === '"' || lastChar === "”") {
-      const prefix = inputStr.slice(0, -1);
-      // The span helper treats any quote after "," or ":" as a string literal,
-      // which is also ordinary dialogue (He said, "Hi,"). Only trust it where
-      // the paragraph looks like code or sits in a fence.
-      const paragraph = prefix.slice(prefix.lastIndexOf("\n") + 1);
-      const codeLike = /[=({[;`]/.test(paragraph) || /```|~~~/.test(prefix);
       const openerIndex = closedQuoteStart(inputStr, length - 1, lastChar);
-      if (
-        context.hints?.measurementContext === "protected" ||
-        (codeLike && isInsideProtectedSpan(prefix)) ||
-        openerIndex < 0
-      ) {
+      if (openerIndex < 0) {
         return null;
       }
       let spaceRun = 0;

@@ -6,6 +6,7 @@ export interface SiteProfile {
   numSuggestions?: number;
   inline_suggestion?: boolean;
   preferNativeAutocomplete?: boolean;
+  codeMode?: boolean;
 }
 
 export type SiteProfiles = Record<string, SiteProfile>;
@@ -76,6 +77,9 @@ function sanitizeSiteProfile(
   }
   if (typeof profileRaw.preferNativeAutocomplete === "boolean") {
     siteProfile.preferNativeAutocomplete = profileRaw.preferNativeAutocomplete;
+  }
+  if (typeof profileRaw.codeMode === "boolean") {
+    siteProfile.codeMode = profileRaw.codeMode;
   }
   return siteProfile;
 }

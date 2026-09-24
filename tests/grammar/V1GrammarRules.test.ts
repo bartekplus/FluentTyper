@@ -129,6 +129,24 @@ describe("V1 grammar rules", () => {
         deleteForwards: 0,
       });
       expect(rule.apply(context("Hello. ", prose))).toBeNull();
+      // "?" and "!" close the same way, keeping the typed mark.
+      for (const mark of ["?", "!", "؟"]) {
+        expect(rule.apply(context(`Really ${mark} `, prose))).toEqual({
+          replacement: `${mark} `,
+          deleteBackwards: 3,
+          deleteForwards: 0,
+        });
+        expect(rule.apply(context(`Really ${mark}`, prose))).toBeNull();
+        expect(rule.apply(context(`Really${mark} `, prose))).toBeNull();
+      }
+      // French keeps its space before high punctuation; Canadian French does not.
+      expect(rule.apply(context("Vraiment ? ", { ...prose, lang: "fr_FR" }))).toBeNull();
+      expect(rule.apply(context("Vraiment ? ", { ...prose, lang: "fr_CA" }))).toEqual({
+        replacement: "? ",
+        deleteBackwards: 3,
+        deleteForwards: 0,
+      });
+      expect(rule.apply(context("x != ", prose))).toBeNull();
       expect(rule.apply(context("Path .. ", prose))).toBeNull();
       expect(rule.apply(context("Hello   ,"))).toEqual({
         replacement: ", ",
@@ -237,14 +255,13 @@ describe("V1 grammar rules", () => {
       expect(arabic).not.toContain(",");
     });
 
-    test("keeps the space before a closing quote in a protected editing context", () => {
+    test("closes a quote tight after a comma", () => {
       const rule = new CommaPeriodSpacingRule(true);
       expect(rule.apply(context('"Hi, "'))).toEqual({
         replacement: '"',
         deleteBackwards: 2,
         deleteForwards: 0,
       });
-      expect(rule.apply(context('"Hi, "', { measurementContext: "protected" }))).toBeNull();
     });
 
     test("treats zero-width fillers as ignorable separators for duplicate commas", () => {
@@ -258,14 +275,10 @@ describe("V1 grammar rules", () => {
   });
 
   describe("OpeningBracketSpacingRule", () => {
-    test("adds space before prose/control openers and preserves code-like attachment", () => {
+    test("keeps a bracket typed against a word attached", () => {
       const rule = new OpeningBracketSpacingRule(true);
 
-      expect(rule.apply(context("if("))).toEqual({
-        replacement: " (",
-        deleteBackwards: 1,
-        deleteForwards: 0,
-      });
+      expect(rule.apply(context("item("))).toBeNull();
 
       expect(rule.apply(context("if (x){"))).toEqual({
         replacement: " {",
