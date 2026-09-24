@@ -33,7 +33,7 @@ const GRAMMAR_CASES: Array<[string, string, string] | [string, string, string, s
   ["measurementUnitFormatting", "10kg ", "10 kg ", "10\u00a0kg "],
   ["currencySpacing", "250EUR ", "250 EUR ", "250\u00a0EUR "],
   ["slashContextSpacing", "https: //x ", "https://x "],
-  ["openingBracketSpacing", "if(x ", "if (x "],
+  ["openingBracketSpacing", "(a){x ", "(a) {x "],
   ["closingBracketSpacing", "Hello (world )", "Hello (world)"],
   // The space after the comma is a deferred repair that needs a typing pause, so both
   // paths stop here while text keeps arriving. Asserted to keep the two in step.
