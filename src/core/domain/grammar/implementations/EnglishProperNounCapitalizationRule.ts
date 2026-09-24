@@ -7,7 +7,8 @@ import { isTechnicalToken, normalizeWordSet } from "./helpers/GenericRuleShared"
 
 // Names that are never a common word, so a lowercase one is always a slip.
 // Seasons, directions, job titles and holidays that are also ordinary phrases
-// ("memorial day", "mother's day", "boxing day", "good friday", "lent") stay out on purpose.
+// ("memorial day", "mother's day", "boxing day", "good friday", "lent",
+// "thanksgiving" as in "a prayer of thanksgiving") stay out on purpose.
 const PHRASES = [
   // Multi-word first so "christmas eve" wins over "christmas".
   "New Year's Day",
@@ -37,7 +38,6 @@ const PHRASES = [
   "Christmas",
   "Easter",
   "Halloween",
-  "Thanksgiving",
   "Hanukkah",
   "Passover",
   "Ramadan",
@@ -67,41 +67,19 @@ const PHRASE_REGEX = new RegExp(
 const CANONICAL = new Map(PHRASES.map((phrase) => [phraseKey(phrase), phrase]));
 
 // "may", "march" and "august" are also a verb, a verb and an adjective ("it may
-// rain", "we march on", "an august institution"). They are a month only beside
-// a date word: "mid-may", "may 15", "march 2026", or a time preposition or day
-// number before it that the next word or punctuation confirms ("in may,",
-// "15 august and"). "logging in may fail" and "only 3 may enter" stay as typed.
+// rain", "we march on", "an august institution"). Only evidence that cannot be
+// the verb or adjective counts: "mid-may", or a day number or year after it
+// ("may 15", "august 2026"). "march" before a number is also the verb ("march 2
+// abreast"), so it also needs a date word or day number before it ("on march
+// 10", "3 march 2026"). Anything less certain ("in may,", "15 august and") is
+// left as typed.
 const CONTEXT_MONTH_REGEX = new RegExp(
   `${NAME_START}(may|march|august)(?:[ \\t]+([\\p{L}\\p{N}]+))?$`,
   "giu",
 );
-const MONTH_PREPOSITIONS = new Set([
-  "in",
-  "since",
-  "until",
-  "till",
-  "during",
-  "from",
-  "through",
-  "of",
-  "by",
-]);
+const MARCH_DATE_WORDS = new Set(["on", "in", "since", "until", "till", "from", "by", "of"]);
 const DAY_NUMBER = /^(?:[1-9]|[12]\d|3[01])(?:st|nd|rd|th)?$/i;
 const DAY_OR_YEAR = /^(?:(?:[1-9]|[12]\d|3[01])(?:st|nd|rd|th)?|(?:19|20)\d\d)$/i;
-const MONTH_FOLLOWERS = new Set([
-  ...["and", "to", "through", "until", "when", "this", "last", "next", "the"],
-  ...["for", "but", "so", "as", "at", "after", "before", "with", "of", "is", "was"],
-  ...["our", "my", "his", "her", "their"],
-]);
-// "march" before a number is also the verb ("soldiers march 10 miles"), so it
-// is a month only after a date word, a line start or punctuation ("on march 10",
-// "Dates: march 10"). "deadline march 10" is left as typed.
-const LINE_OR_PUNCTUATION_BEFORE_REGEX = /(?:^|[\n,;:.!?([“"—–-])[ \t]*$/gu;
-
-// "monday." may still become "monday.com" or "june.pdf", so a name before a bare
-// period waits for the next key, unless a date word before it rules that out
-// ("see you on monday.").
-const PERIOD_DATE_WORDS = new Set(["on", "by", "until", "since", "next", "last", "this", "every"]);
 const PREVIOUS_WORD_REGEX = /(?:^|\s)[(["“]?([\p{L}\p{N}'’]+)[ \t]+$/gu;
 const MID_PREFIX_REGEX = /(?<!\p{L})mid-$/giu;
 
@@ -144,16 +122,12 @@ export class EnglishProperNounCapitalizationRule implements GrammarRule {
       return null;
     }
     const { core, trailing, input } = boundary;
-    const found = this.findName(core, trailing);
-    if (!found) {
+    // "monday." may still become "monday.com" or "june.pdf"; wait for the next key.
+    if (trailing === ".") {
       return null;
     }
-    if (
-      trailing === "." &&
-      !PERIOD_DATE_WORDS.has(
-        execTail(PREVIOUS_WORD_REGEX, core.slice(0, found.start))?.[1].toLowerCase() ?? "",
-      )
-    ) {
+    const found = this.findName(core);
+    if (!found) {
       return null;
     }
     let tokenStart = found.start;
@@ -163,10 +137,16 @@ export class EnglishProperNounCapitalizationRule implements GrammarRule {
     if (isTechnicalToken(core.slice(tokenStart))) {
       return null;
     }
+    // The whole word, with any plural or possessive ending: casing and the user
+    // dictionary apply to "mondays" and "easter's" as typed, and to their base.
     const typed = core.slice(found.start, found.end);
     const dictionary = resolveUserDictionarySet(context, this.fallbackUserDictionary);
     const replaced = recase(typed, found.canonical);
-    if (replaced === typed || dictionary.has(typed.toLowerCase())) {
+    if (
+      replaced === typed ||
+      dictionary.has(typed.toLowerCase()) ||
+      dictionary.has(found.canonical.toLowerCase())
+    ) {
       return null;
     }
 
@@ -177,15 +157,12 @@ export class EnglishProperNounCapitalizationRule implements GrammarRule {
     };
   }
 
-  private findName(
-    core: string,
-    trailing: string,
-  ): { start: number; end: number; canonical: string } | null {
+  private findName(core: string): { start: number; end: number; canonical: string } | null {
     const phrase = execTail(PHRASE_REGEX, core);
     if (phrase) {
       // PHRASE_REGEX is built from PHRASES, so every match has a canonical form.
       const canonical = CANONICAL.get(phraseKey(phrase[1]))!;
-      return { start: phrase.index, end: phrase.index + phrase[1].length, canonical };
+      return { start: phrase.index, end: core.length, canonical };
     }
 
     const month = execTail(CONTEXT_MONTH_REGEX, core);
@@ -195,16 +172,12 @@ export class EnglishProperNounCapitalizationRule implements GrammarRule {
     const [, word, next] = month;
     const before = core.slice(0, month.index);
     const previous = execTail(PREVIOUS_WORD_REGEX, before)?.[1].toLowerCase() ?? "";
-    const dateBefore = MONTH_PREPOSITIONS.has(previous) || DAY_NUMBER.test(previous);
-
     const isMonth = next
-      ? (DAY_OR_YEAR.test(next) &&
-          (word.toLowerCase() !== "march" ||
-            dateBefore ||
-            previous === "on" ||
-            execTail(LINE_OR_PUNCTUATION_BEFORE_REGEX, before) !== null)) ||
-        (dateBefore && MONTH_FOLLOWERS.has(next.toLowerCase()))
-      : execTail(MID_PREFIX_REGEX, before) !== null || (dateBefore && /\S/.test(trailing));
+      ? DAY_OR_YEAR.test(next) &&
+        (word.toLowerCase() !== "march" ||
+          MARCH_DATE_WORDS.has(previous) ||
+          DAY_NUMBER.test(previous))
+      : execTail(MID_PREFIX_REGEX, before) !== null;
     if (!isMonth) {
       return null;
     }

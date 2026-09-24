@@ -1286,7 +1286,7 @@
     },
     {
       "id": "grammar_english_proper_nouns",
-      "description": "Default-on English capitalization of days, months, major holidays and continents; may/march/august only in a date context; a name before a bare period waits for the next key unless a date word precedes it; seasons, directions, titles, typed casing, technical tokens, code and other languages are left alone.",
+      "description": "Default-on English capitalization of days, months, major holidays and continents; may/march/august only beside a certain date (mid-may, may 15, on march 10); a name before a bare period waits for the next key; user-dictionary base and inflected forms are respected; seasons, directions, titles, typed casing, technical tokens, code and other languages are left alone.",
       "coverage": [
         {
           "layer": "unit",

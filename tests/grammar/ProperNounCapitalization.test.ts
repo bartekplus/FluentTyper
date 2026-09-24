@@ -10,11 +10,16 @@ const DEFAULTS: string[] = DEFAULT_CURRENT_GRAMMAR_RULES;
 const DEFAULTS_WITHOUT_RULE = DEFAULTS.filter((id) => id !== RULE);
 
 /** Types `input` one keystroke at a time through `rules`. */
-function type(input: string, rules: string[], hints: GrammarContext["hints"] = {}): string {
+function type(
+  input: string,
+  rules: string[],
+  hints: GrammarContext["hints"] = {},
+  userDictionaryList: string[] = [],
+): string {
   const engine = new GrammarRuleEngine();
   for (const item of createGrammarRuleCatalogRuntime({
     insertSpaceAfterAutocomplete: true,
-    userDictionaryList: [],
+    userDictionaryList,
   })) {
     engine.registerRule(item);
   }
@@ -40,9 +45,15 @@ function expectFixed(input: string, expected: string): void {
 }
 
 /** The rule changes nothing on its own nor in the default pipeline. */
-function expectUnchanged(input: string, hints: GrammarContext["hints"] = {}): void {
-  expect(type(input, [RULE], hints)).toBe(input);
-  expect(type(input, DEFAULTS, hints)).toBe(type(input, DEFAULTS_WITHOUT_RULE, hints));
+function expectUnchanged(
+  input: string,
+  hints: GrammarContext["hints"] = {},
+  userDictionaryList: string[] = [],
+): void {
+  expect(type(input, [RULE], hints, userDictionaryList)).toBe(input);
+  expect(type(input, DEFAULTS, hints, userDictionaryList)).toBe(
+    type(input, DEFAULTS_WITHOUT_RULE, hints, userDictionaryList),
+  );
 }
 
 describe("English proper noun capitalization", () => {
@@ -73,19 +84,15 @@ describe("English proper noun capitalization", () => {
     expectFixed("in south america ", "in South America ");
   });
 
-  test("capitalizes may, march and august only in a date context", () => {
-    expectFixed("see you in may, ok ", "see you in May, ok ");
-    expectFixed("due in may and june ", "due in May and June ");
-    expectFixed("since march this year ", "since March this year ");
+  test("capitalizes may, march and august only beside a certain date", () => {
     expectFixed("may 15 works ", "May 15 works ");
-    expectFixed("on march 3rd we ", "on March 3rd we ");
+    expectFixed("due may 15th ", "due May 15th ");
     expectFixed("from august 2026 on ", "from August 2026 on ");
-    expectFixed("the 3rd of may. ", "the 3rd of May. ");
-    expectFixed("on 15 august, we ", "on 15 August, we ");
-    expectFixed("mid-march is busy ", "mid-March is busy ");
-    expectFixed("Dates: march 10 ", "Dates: March 10 ");
-    expectFixed("due (march 10) ", "due (March 10) ");
+    expectFixed("on march 3rd we ", "on March 3rd we ");
     expectFixed("due by march 10 ", "due by March 10 ");
+    expectFixed("since 3 march 2026 ", "since 3 March 2026 ");
+    expectFixed("mid-march is busy ", "mid-March is busy ");
+    expectFixed("in mid-may we ", "in mid-May we ");
   });
 
   test("leaves the verb and adjective senses alone", () => {
@@ -93,20 +100,26 @@ describe("English proper noun capitalization", () => {
     expectUnchanged("this may happen ");
     expectUnchanged("you may go ");
     expectUnchanged("logging in may fail ");
+    expectUnchanged("Logging in may at times fail ");
+    expectUnchanged("Those who log in may as well wait ");
+    expectUnchanged("users logging in may or may not see it ");
+    expectUnchanged("now that you're in may I ask ");
     expectUnchanged("only 3 may enter ");
+    expectUnchanged("Only 3 may, at most, enter ");
+    expectUnchanged("only 2 may or may not attend ");
     expectUnchanged("we march forward ");
     expectUnchanged("march on! ");
     expectUnchanged("we march 10 miles ");
+    expectUnchanged("soldiers march 10 miles ");
+    expectUnchanged("we'll march 10 miles ");
+    expectUnchanged("don't march 2 abreast ");
+    expectUnchanged("Read the manual; march 2 abreast ");
     expectUnchanged("an august institution ");
     expectUnchanged("men of august bearing ");
-    expectUnchanged("users logging in may or may not see it ");
-    expectUnchanged("now that you're in may I ask ");
-    expectUnchanged("only 2 may or may not attend ");
-    expectUnchanged("we'll march 10 miles ");
-    expectUnchanged("they'd march 5 km ");
-    expectUnchanged("don't march 2 abreast ");
-    expectUnchanged("soldiers march 10 miles ");
-    // Known miss: no date word before "march".
+    expectUnchanged("men of august and venerable bearing ");
+    // Known misses: the month is certain only to a reader.
+    expectUnchanged("see you in may, ok ");
+    expectUnchanged("the 3rd of may. ");
     expectUnchanged("deadline march 10 ");
   });
 
@@ -117,12 +130,15 @@ describe("English proper noun capitalization", () => {
     expectUnchanged("a memorial day for the family ");
     expectUnchanged("my mother's day was busy ");
     expectUnchanged("Saturday is boxing day at the club ");
+    expectUnchanged("a prayer of thanksgiving ");
+    expectUnchanged("words of thanksgiving ");
     expectFixed("have a good friday ", "have a good Friday ");
   });
 
   test("leaves typed casing, technical tokens and other languages alone", () => {
     expectUnchanged("MONDAY is here ");
     expectUnchanged("mOnday is here ");
+    expectUnchanged("on mondayS ");
     expectUnchanged("@monday hi ");
     expectUnchanged("#december hi ");
     expectUnchanged("see ./june now ");
@@ -139,14 +155,14 @@ describe("English proper noun capitalization", () => {
     expect(type("see you on monday ", [RULE], { lang: "de_DE" })).toBe("see you on monday ");
   });
 
-  test("fixes a name before a bare period only after a date word or on the next key", () => {
-    expectFixed("see you on monday.", "see you on Monday.");
-    expectFixed("due by friday.", "due by Friday.");
-    expectFixed("see you on christmas eve.", "see you on Christmas Eve.");
-    expectFixed("the 3rd of may. ", "the 3rd of May. ");
-    expectUnchanged("the 3rd of may.");
-    expectUnchanged("see monday.");
+  test("fixes a name before a bare period only once the next key arrives", () => {
+    expectFixed("see you on monday. ", "see you on Monday. ");
+    expectFixed("see you on christmas eve.\n", "see you on Christmas Eve.\n");
+    expectUnchanged("see you on monday.");
     expectUnchanged("see monday.com ");
+    expectUnchanged("work on monday.com ");
+    expectUnchanged("replace this june.pdf ");
+    expectUnchanged("edit this europe.json ");
     expectUnchanged("open june.pdf now ");
     expectUnchanged("visit europe.eu today ");
   });
@@ -168,19 +184,20 @@ describe("English proper noun capitalization", () => {
     expect(edit?.replacement).toBe("Monday ");
   });
 
-  test("respects the user dictionary", () => {
-    const engine = new GrammarRuleEngine();
-    for (const item of createGrammarRuleCatalogRuntime({
-      insertSpaceAfterAutocomplete: true,
-      userDictionaryList: ["monday"],
-    })) {
-      engine.registerRule(item);
+  test("respects the user dictionary for the base word and the exact inflected form", () => {
+    const cases: [string, string[]][] = [
+      ["on monday ", ["monday"]],
+      ["on mondays ", ["monday"]],
+      ["on mondays ", ["mondays"]],
+      ["on easter's ", ["easter's"]],
+      ["due may 15 ", ["may"]],
+    ];
+    for (const [input, dictionary] of cases) {
+      // Through the rule factory's list and through the runtime hint.
+      expectUnchanged(input, {}, dictionary);
+      expectUnchanged(input, { userDictionary: dictionary });
     }
-    const edit = engine.processSequence(
-      ["wordBoundary"],
-      { beforeCursor: "on monday ", afterCursor: "", hints: { lang: "en_US" } },
-      [RULE],
-    );
-    expect(edit).toBeNull();
+    expectFixed("on mondays ", "on Mondays ");
+    expectFixed("on easter's ", "on Easter's ");
   });
 });
