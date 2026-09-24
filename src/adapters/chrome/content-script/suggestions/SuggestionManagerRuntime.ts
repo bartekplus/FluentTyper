@@ -634,13 +634,14 @@ export class SuggestionManagerRuntime {
       textEditService: this.textEditService,
       contentEditableAdapter: this.contentEditableAdapter,
       getPendingFallback: () => this.pendingKeyFallbacks.get(entry.id),
-      renderMenu: ({ suggestions, selectedIndex, menuHeader, mentionText }) =>
+      renderMenu: ({ suggestions, snippetShortcuts, selectedIndex, menuHeader, mentionText }) =>
         this.menuPresenter.render({
           menuId: entry.id,
           menu: entry.menu,
           list: entry.list,
           target: entry.elem,
           suggestions,
+          snippetShortcuts,
           selectedIndex,
           showShortcutDigits: this.selectByDigit,
           menuHeader,

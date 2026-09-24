@@ -2,27 +2,29 @@ const PRESAGE_INTERLEAVE_COUNT = 2;
 
 const NBSP_REGEX = /\xA0/g;
 
-function normalizePrediction(prediction: string): string {
+export function normalizePrediction(prediction: string): string {
   return prediction.replace(NBSP_REGEX, " ").trim().toLowerCase();
 }
 
-export function mergePredictions(
-  presagePredictions: string[],
-  aiPredictions: string[],
+export function mergePredictions<T extends string | { text: string }>(
+  presagePredictions: T[],
+  aiPredictions: T[],
   limit: number,
-): string[] {
+): T[] {
   if (limit <= 0) {
     return [];
   }
 
-  const merged: string[] = [];
+  const merged: T[] = [];
   const seen = new Set<string>();
 
-  const addPrediction = (prediction: string | undefined): void => {
+  const addPrediction = (prediction: T | undefined): void => {
     if (!prediction || merged.length >= limit) {
       return;
     }
-    const normalized = normalizePrediction(prediction);
+    const normalized = normalizePrediction(
+      typeof prediction === "string" ? prediction : prediction.text,
+    );
     if (!normalized || seen.has(normalized)) {
       return;
     }

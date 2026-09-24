@@ -131,6 +131,7 @@
     "gdocs_mouse_acceptance_retains_editor_focus",
     "gdocs_ignored_writes_are_never_learned_or_retried",
     "gdocs_native_undo_observation_reverses_personalization_once",
+    "gdocs_snippet_expansions_are_not_learned",
     "gdocs_ime_composition_suppresses_accepting_suggestions",
     "gdocs_the_shared_local_grammar_catalog_performs_automatic_correction",
     "gdocs_multiple_visible_carets_use_a_fixed_palette_without_choosing_a_collaborator",

@@ -11,6 +11,7 @@ interface SuggestionMenuRenderModel {
   list: HTMLUListElement;
   target: SuggestionElement;
   suggestions: string[];
+  snippetShortcuts?: Array<string | null>;
   selectedIndex: number;
   showShortcutDigits: boolean;
   menuHeader: string | null;
@@ -48,6 +49,7 @@ export class SuggestionMenuPresenter {
       li.innerHTML = this.buildSuggestionMenuItemHtml({
         mentionText: model.mentionText,
         suggestion,
+        snippetShortcut: model.snippetShortcuts?.[index] ?? null,
         shortcutDigit: model.showShortcutDigits ? this.formatShortcutDigit(index) : null,
       });
       li.setAttribute("data-index", String(index));
@@ -133,15 +135,21 @@ export class SuggestionMenuPresenter {
   private buildSuggestionMenuItemHtml(args: {
     mentionText: string;
     suggestion: string;
+    snippetShortcut: string | null;
     shortcutDigit: string | null;
   }): string {
     const shortcutMarkup = args.shortcutDigit
       ? `<span class="ft-suggestion-shortcut" aria-hidden="true">${args.shortcutDigit}</span>`
       : "";
-    const labelMarkup = `<span class="ft-suggestion-label">${this.buildSuggestionLabelHtml(
-      args.mentionText,
-      args.suggestion,
-    )}</span>`;
+    // Snippet: "shortcut → expansion", so fuzzy matches explain themselves and the
+    // shortcut can be learned. The typed text is highlighted in the shortcut.
+    const content = args.snippetShortcut
+      ? `<span class="ft-suggestion-snippet">${this.buildSuggestionLabelHtml(
+          args.mentionText,
+          args.snippetShortcut,
+        )} →</span> ${this.escapeHtml(args.suggestion)}`
+      : this.buildSuggestionLabelHtml(args.mentionText, args.suggestion);
+    const labelMarkup = `<span class="ft-suggestion-label">${content}</span>`;
     return `${shortcutMarkup}${labelMarkup}`;
   }
 

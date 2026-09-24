@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { GoogleDocsView } from "../src/adapters/chrome/content-script/google-docs/GoogleDocsView";
 import { InlineSuggestionView } from "../src/adapters/chrome/content-script/suggestions/InlineSuggestionView";
+import { SuggestionMenuView } from "../src/adapters/chrome/content-script/suggestions/SuggestionMenuView";
+import { DOCS_SESSION_ID } from "../src/adapters/chrome/content-script/google-docs/GoogleDocsModel";
 import { createRect } from "./suggestionTestUtils";
 
 function mountCaret(): HTMLElement {
@@ -14,9 +16,13 @@ function mountCaret(): HTMLElement {
   return caret;
 }
 
-function renderDocs(typed: string, candidate: string): GoogleDocsView {
+function renderDocs(
+  typed: string,
+  candidate: string,
+  { inline = true, snippetShortcut = null as string | null } = {},
+): GoogleDocsView {
   const view = new GoogleDocsView({
-    inline: true,
+    inline,
     digits: false,
     langHeader: false,
     findToken: () => ({ token: typed }),
@@ -35,6 +41,7 @@ function renderDocs(typed: string, candidate: string): GoogleDocsView {
       focus: typed.length,
     },
     "ar_SA",
+    [snippetShortcut],
   );
   return view;
 }
@@ -73,5 +80,13 @@ describe("GoogleDocsView inline ghost guard", () => {
     caret = mountCaret();
     view = renderDocs("الي", "اليوم");
     expect(document.querySelector(`.${InlineSuggestionView.CLASS_NAME}`)).toBeNull();
+  });
+
+  test("labels a snippet with its shortcut in the menu", () => {
+    caret = mountCaret();
+    view = renderDocs("adr", "123 Main Street", { inline: false, snippetShortcut: "address" });
+    const menu = document.getElementById(SuggestionMenuView.resolveHostId(DOCS_SESSION_ID));
+    const label = menu?.shadowRoot?.querySelector(".ft-suggestion-label");
+    expect(label?.textContent).toBe("address → 123 Main Street");
   });
 });

@@ -60,6 +60,7 @@ export interface PredictResponseContext {
   traceId?: string;
   traceStartedAtMs?: number;
   predictions: string[];
+  snippetShortcuts?: Array<string | null>;
 }
 
 // Context for CMD_CONTENT_SCRIPT_PREDICT_REQ

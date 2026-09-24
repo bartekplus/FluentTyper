@@ -129,6 +129,8 @@ interface Acceptance {
   insertedText: string;
   language: string;
   suggestion: string;
+  /** A snippet expansion: counted in telemetry, never learned as a word. */
+  snippet: boolean;
 }
 interface TrackedEdit {
   operationId?: string;
@@ -159,6 +161,8 @@ export class GoogleDocsAdapter {
   private snapshot: DocsSnapshot | null = null;
   private requested: { id: number; snapshot: DocsSnapshot } | null = null;
   private suggestions: string[] = [];
+  /** Parallel to `suggestions`: the snippet shortcut each one expands, or null. */
+  private snippetShortcuts: Array<string | null> = [];
   private selectedIndex = 0;
   private input: DocsInput | null = null;
   private epoch = 0;
@@ -328,9 +332,12 @@ export class GoogleDocsAdapter {
     )
       return;
     this.snapshot = reply.snapshot;
-    this.suggestions = (Array.isArray(response.predictions) ? response.predictions : [])
-      .filter((text): text is string => typeof text === "string" && this.completion(text) !== null)
+    const shown = (Array.isArray(response.predictions) ? response.predictions : [])
+      .map((text, index) => ({ text, shortcut: response.snippetShortcuts?.[index] ?? null }))
+      .filter(({ text }) => typeof text === "string" && this.completion(text) !== null)
       .slice(0, 10);
+    this.suggestions = shown.map(({ text }) => text);
+    this.snippetShortcuts = shown.map(({ shortcut }) => shortcut);
     this.selectedIndex = 0;
     this.render(response.lang);
     if (this.visible)
@@ -556,6 +563,7 @@ export class GoogleDocsAdapter {
       insertedText: edit.replacement,
       language: this.options.lang,
       suggestion,
+      snippet: this.snippetShortcuts[index] != null,
     };
     void this.apply(edit, acceptance);
     return true;
@@ -595,11 +603,14 @@ export class GoogleDocsAdapter {
     this.view.status(reply.status);
     if (!this.uncertain) void this.refresh();
   }
+  private learn(acceptance: Acceptance | null): string {
+    return acceptance && !acceptance.snippet
+      ? this.personalization.recordSuggestionAccepted(acceptance)
+      : "";
+  }
   private recordApplied(edit: TrackedEdit, operationId: string): void {
     if (this.lastEdit?.operationId === operationId) return;
-    const eventId = edit.acceptance
-      ? this.personalization.recordSuggestionAccepted(edit.acceptance)
-      : "";
+    const eventId = this.learn(edit.acceptance);
     if (edit.acceptance) this.telemetry.recordSuggestionAccepted(edit.acceptance);
     this.lastEdit = { ...edit, operationId, eventId, active: true };
   }
@@ -621,9 +632,7 @@ export class GoogleDocsAdapter {
       last.active = false;
       this.grammarSuppressed = reply.snapshot;
     } else if (reply.history === "applied" && !last.active) {
-      last.eventId = last.acceptance
-        ? this.personalization.recordSuggestionAccepted(last.acceptance)
-        : "";
+      last.eventId = this.learn(last.acceptance);
       last.active = true;
     }
   }
@@ -743,7 +752,13 @@ export class GoogleDocsAdapter {
       this.clearVisual();
       return;
     }
-    this.visible = this.view.render(this.suggestions, this.selectedIndex, this.snapshot, language);
+    this.visible = this.view.render(
+      this.suggestions,
+      this.selectedIndex,
+      this.snapshot,
+      language,
+      this.snippetShortcuts,
+    );
     this.updateKeyState();
   }
   private updateKeyState(): void {

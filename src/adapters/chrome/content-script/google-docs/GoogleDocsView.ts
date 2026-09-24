@@ -115,7 +115,13 @@ export class GoogleDocsView {
     });
     this.elements.list.addEventListener("mousedown", (event) => event.preventDefault());
   }
-  render(suggestions: string[], index: number, snapshot: DocsSnapshot, language: string): boolean {
+  render(
+    suggestions: string[],
+    index: number,
+    snapshot: DocsSnapshot,
+    language: string,
+    snippetShortcuts?: Array<string | null>,
+  ): boolean {
     this.clear(true);
     const measuredCaret = getDocsCaret();
     if (!suggestions.length) return false;
@@ -170,6 +176,7 @@ export class GoogleDocsView {
         ...this.elements,
         target: caret.element,
         suggestions,
+        snippetShortcuts,
         selectedIndex: index,
         showShortcutDigits: this.options.digits,
         menuHeader: this.options.langHeader ? (SUPPORTED_LANGUAGES[language] ?? language) : null,

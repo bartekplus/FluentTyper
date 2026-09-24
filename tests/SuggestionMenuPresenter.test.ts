@@ -41,6 +41,37 @@ describe("SuggestionMenuPresenter", () => {
     );
   });
 
+  test("labels snippet suggestions with their shortcut", () => {
+    const positioning = {
+      syncMenuTypography: jest.fn(),
+      positionMenu: jest.fn(() => true),
+    } as unknown as SuggestionPositioningService;
+    const presenter = new SuggestionMenuPresenter(positioning);
+    const menu = document.createElement("div");
+    const list = document.createElement("ul");
+    menu.appendChild(list);
+
+    presenter.render({
+      menuId: 1,
+      menu,
+      list,
+      target: document.createElement("input"),
+      suggestions: ["add", "1 <Main> St"],
+      snippetShortcuts: [null, "address"],
+      selectedIndex: 0,
+      showShortcutDigits: false,
+      menuHeader: null,
+      mentionText: "ad",
+    });
+
+    const labels = list.querySelectorAll(".ft-suggestion-label");
+    expect(labels[0].querySelector(".ft-suggestion-snippet")).toBeNull();
+    expect(labels[1].querySelector(".ft-suggestion-snippet")?.innerHTML).toBe(
+      '<span class="ft-suggestion-match">ad</span>dress →',
+    );
+    expect(labels[1].textContent).toBe("address → 1 <Main> St");
+  });
+
   test("hides menu when positioning fails", () => {
     const positioning = {
       syncMenuTypography: jest.fn(),

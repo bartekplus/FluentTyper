@@ -17,9 +17,11 @@ const fixture = globalThis as unknown as {
   requests: PredictionRequest[];
   events: string[];
   predictions: string[];
+  snippetShortcuts: Array<string | null>;
   startDocs: (options?: Partial<SuggestionManagerOptions>) => void;
 };
 fixture.predictions = ["hello", "help", "helmet"];
+fixture.snippetShortcuts = [];
 fixture.events = [];
 fixture.requests = [];
 fixture.startDocs = (options = {}) => {
@@ -56,6 +58,7 @@ fixture.startDocs = (options = {}) => {
         const response = {
           ...context,
           predictions: fixture.predictions.slice(),
+          snippetShortcuts: fixture.snippetShortcuts.slice(),
           lang: context.lang,
         };
         if (context.suggestionId === -1) fixture.docs.fulfillPrediction(response);
