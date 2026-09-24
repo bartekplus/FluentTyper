@@ -1,6 +1,7 @@
 import {
   PredictionInputProcessor,
   MIN_WORD_LENGTH_TO_PREDICT,
+  MAX_PREDICTION_INPUT_CHARS,
 } from "../src/adapters/chrome/background/PredictionInputProcessor";
 import { Capitalization } from "../src/adapters/chrome/background/CapitalizationHelper";
 
@@ -61,6 +62,19 @@ describe("PredictionInputProcessor", () => {
       expect(result.doPrediction).toBe(false);
       expect(result.doCapitalize).toBe(Capitalization.None);
       expect(result.lastWord).toBe("");
+    });
+    it("should bound the engine input for huge documents", () => {
+      // Presage cost grows ~quadratically with token length: a 200k-char
+      // space-less run took ~1 s per keystroke and starved the prediction queue.
+      const result = processor.processInput(`${"e".repeat(200_000)} the wo`, "en_US", 1, true);
+      expect(result.predictionInput.length).toBeLessThanOrEqual(MAX_PREDICTION_INPUT_CHARS);
+      expect(result.predictionInput.endsWith(" the wo")).toBe(true);
+      expect(result.lastWord).toBe("wo");
+    });
+    it("should bound a huge word after the cursor", () => {
+      // Caret at the start of a 200k-char run: Presage took ~7.5 s per request.
+      const result = processor.processInput("", "en_US", 1, true, "e".repeat(200_000));
+      expect(result.predictionInput.length).toBeLessThanOrEqual(MAX_PREDICTION_INPUT_CHARS);
     });
     it("should process a simple input and lowercase it", () => {
       const result = processor.processInput("Hello world", "en_US", 1, true);

@@ -20,6 +20,9 @@ const EQUIVALENT_PUNCTUATION_REGEX = new RegExp(
 );
 const PAST_WORDS_COUNT = 5;
 export const MIN_WORD_LENGTH_TO_PREDICT = 1;
+// Only the last PAST_WORDS_COUNT words matter, but one word can be huge (a
+// 200k-char run cost Presage ~1 s per keystroke), so bound the raw input too.
+export const MAX_PREDICTION_INPUT_CHARS = 512;
 
 export class PredictionInputProcessor {
   readonly separatorCharRegex: RegExp;
@@ -95,7 +98,10 @@ export class PredictionInputProcessor {
     if (typeof afterCursorTokenSuffix !== "string" || afterCursorTokenSuffix.length === 0) {
       return "";
     }
-    const normalizedAfterCursor = this.normalizeForTokenizing(afterCursorTokenSuffix, language);
+    const normalizedAfterCursor = this.normalizeForTokenizing(
+      afterCursorTokenSuffix.slice(0, MAX_PREDICTION_INPUT_CHARS),
+      language,
+    );
     return extractPredictionTokenSuffix(normalizedAfterCursor, (char) =>
       this.separatorCharRegex.test(char),
     );
@@ -122,9 +128,14 @@ export class PredictionInputProcessor {
       };
     }
     const endsWithSpace = predictionInput !== predictionInput.trimEnd();
-    const normalizedInput = this.normalizeForTokenizing(predictionInput, language);
+    const normalizedInput = this.normalizeForTokenizing(
+      predictionInput.slice(-MAX_PREDICTION_INPUT_CHARS),
+      language,
+    );
     const currentWordSuffix = this.resolveCurrentWordSuffix(afterCursorTokenSuffix, language);
-    const predictionInputWithCurrentWord = `${normalizedInput}${currentWordSuffix}`;
+    const predictionInputWithCurrentWord = `${normalizedInput}${currentWordSuffix}`.slice(
+      -MAX_PREDICTION_INPUT_CHARS,
+    );
     const lastWordsArray = predictionInputWithCurrentWord
       .split(this.whiteSpaceRegex)
       .filter((e) => e.trim())
