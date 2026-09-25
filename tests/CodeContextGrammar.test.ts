@@ -68,7 +68,8 @@ test("all automatic grammar triggers receive code protection from the shared res
   const process = jest.spyOn(GrammarRuleEngine.prototype, "processSequence");
   try {
     for (const trigger of ["insertChar", "wordBoundary", "idle", "paste"] as const) {
-      for (const [node, expectedContext] of [[prose, "prose"], [code, "protected"]] as const) {
+      for (const node of [prose, code]) {
+        const expectedContext = node === prose ? "prose" : "protected";
         select(node);
         const edit = grammar.run({
           beforeCursor: "teh ",
@@ -77,8 +78,9 @@ test("all automatic grammar triggers receive code protection from the shared res
           triggers: [trigger],
           measurementContext: measurementEditingContext(root),
         });
-        expect(process.mock.calls.at(-1)?.[0]).toEqual([trigger]);
-        expect(process.mock.calls.at(-1)?.[1].hints?.measurementContext).toBe(expectedContext);
+        const lastCall = process.mock.calls.at(-1);
+        expect(lastCall?.[0]).toEqual([trigger]);
+        expect(lastCall?.[1].hints?.measurementContext).toBe(expectedContext);
         if (expectedContext === "protected") expect(edit).toBeNull();
       }
     }
