@@ -27,6 +27,12 @@ jobs:
           s = p.read_text()
           s = s.replace('const sendMessage = jest.fn(() => Promise.resolve());', 'const sendMessage = jest.fn((message: { context: { suppressAutoCapitalize?: boolean } }) => Promise.resolve(message));')
           p.write_text(s)
+          p = Path('tests/SuggestionManager.test.ts')
+          s = p.read_text()
+          old = 'const { manager, getPrediction } = await createManager({ enabledGrammarRules: ["capitalizeSentenceStart"] });'
+          new = 'const { manager, getPrediction } = await createManager({ enabledGrammarRules: ["capitalizeSentenceStart"], selectByDigit: false });'
+          assert s.count(old) == 1
+          p.write_text(s.replace(old, new))
           PY
       - name: Prove regression fails on original production code
         run: |
@@ -38,7 +44,19 @@ jobs:
               raise SystemExit('Expected the specific casing regression to fail before applying the fix')
           PY
       - name: Apply checked production patch
-        run: python3 .github/pr-412-casing-repair.py code
+        run: |
+          python3 .github/pr-412-casing-repair.py code
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('docs/automatic-code-context.md')
+          s = p.read_text()
+          old = 'No settings, migrations, permissions, network requests, logging of typed text,\nprediction messages, or keyboard interception are added. Suggestions, explicit\nsnippet acceptance, the early-Tab bridge, and Markdown parsing are unchanged.'
+          new = 'No settings, migrations, permissions, network requests, logging of typed text,\nor keyboard interception are added. Prediction requests carry an optional\nsentence-casing suppression flag for code/literal contexts; explicit snippet\nacceptance, the early-Tab bridge, and Markdown parsing are otherwise unchanged.'
+          assert s.count(old) == 1
+          s = s.replace(old, new)
+          s = s.replace('This is automatic **grammar protection**, not a new autocomplete mode.', 'This applies automatic **grammar and prediction-casing protection**, not a new autocomplete mode.')
+          p.write_text(s)
+          PY
       - name: Format changed source and regressions
         run: |
           bunx prettier --write \
@@ -83,7 +101,7 @@ jobs:
           PY
       - name: Publish validated tree on work branch only
         run: |
-          git rm .github/pr-412-casing-repair.py .github/workflows/pr-412-casing-repair.yml
+          git rm -f .github/pr-412-casing-repair.py .github/workflows/pr-412-casing-repair.yml
           git add src/core/domain/messageTypes.d.ts src/adapters/chrome tests/CodePredictionCapitalization.test.ts tests/SuggestionManager.test.ts tests/e2e/full.e2e.test.ts tests/e2e/coverage-matrix.json tests/e2e/coverage-baseline-ids.json docs/automatic-code-context.md
           git diff --cached --check
           git diff --cached --stat
