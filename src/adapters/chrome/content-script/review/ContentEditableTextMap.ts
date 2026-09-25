@@ -1,4 +1,5 @@
 import type { ProtectedRange, TextRange } from "@core/domain/grammar/review/types";
+import { ZERO_WIDTH_FILLER_CHARS } from "@core/domain/spacingRules";
 import { ancestorContext } from "../suggestions/CodeContextResolver";
 
 /**
@@ -43,12 +44,13 @@ const OBJECT_TAGS = new Set(
 );
 const SKIPPED_TAGS = new Set(["SCRIPT", "STYLE", "TEMPLATE", "NOSCRIPT"]);
 // Zero-width characters rich editors insert as cursor guards.
-const FILLER = /\u200B|\u200C|\u200D|\u2060|\uFEFF/;
+const FILLERS = ZERO_WIDTH_FILLER_CHARS.join("|");
+const FILLER = new RegExp(FILLERS);
 // Characters that end an ordinary run of text, per white-space mode.
 const SPECIAL_CHARS: Record<Whitespace, RegExp> = {
-  collapse: /\u200B|\u200C|\u200D|\u2060|\uFEFF|[ \t\r\f\n]/g,
-  "preserve-breaks": /\u200B|\u200C|\u200D|\u2060|\uFEFF|[ \t\r\f]/g,
-  preserve: /\u200B|\u200C|\u200D|\u2060|\uFEFF/g,
+  collapse: new RegExp(`${FILLERS}|[ \\t\\r\\f\\n]`, "g"),
+  "preserve-breaks": new RegExp(`${FILLERS}|[ \\t\\r\\f]`, "g"),
+  preserve: new RegExp(FILLERS, "g"),
 };
 /** Stop reading very large documents; the session reviews a bounded prefix and says so. */
 export const MAX_MAPPED_CHARS = 200_000;
@@ -136,8 +138,7 @@ export function buildContentEditableTextMap(root: HTMLElement): ContentEditableT
       }
       const ch = data[i];
       if (FILLER.test(ch)) {
-        protect(length, length + 1, "structure");
-        emit(ch);
+        emitVirtual(ch);
         i += 1;
         continue;
       }
@@ -151,8 +152,7 @@ export function buildContentEditableTextMap(root: HTMLElement): ContentEditableT
       if (j - i === 1 && ch === " ") {
         addSegment(node, i, " ", code);
       } else {
-        protect(length, length + 1, "structure");
-        emit(" ");
+        emitVirtual(" ");
       }
       i = j;
     }
@@ -166,6 +166,8 @@ export function buildContentEditableTextMap(root: HTMLElement): ContentEditableT
     } else if (node.nodeType === 1) {
       const element = node as HTMLElement;
       const tag = element.tagName.toUpperCase();
+      // What the element itself makes of its content (read at most once).
+      let context: ReturnType<typeof ancestorContext> | undefined;
       if (SKIPPED_TAGS.has(tag) || element.hidden) {
         // Not rendered; nothing to read.
       } else if (tag === "BR") {
@@ -174,14 +176,14 @@ export function buildContentEditableTextMap(root: HTMLElement): ContentEditableT
         emitVirtual("\uFFFC");
       } else if (
         element !== root &&
-        ancestorContext(element, element.parentNode ?? undefined) === "protected"
+        (context ??= ancestorContext(element, element.parentNode ?? undefined)) === "protected"
       ) {
         // contenteditable=false, read-only islands: one object, never read as prose.
         emitVirtual("\uFFFC");
       } else {
         const block = BLOCK_TAGS.has(tag);
-        const childCode =
-          code || ancestorContext(element, element.parentNode ?? undefined) === "code";
+        context ??= ancestorContext(element, element.parentNode ?? undefined);
+        const childCode = code || context === "code";
         const childWhitespace =
           element === root || block || element.hasAttribute("style")
             ? whitespaceOf(element)
@@ -326,10 +328,7 @@ export function caretRange(
   const segment = before ?? segmentContaining(map, offset);
   if (!segment) return null;
   const domRange = doc.createRange();
-  const position = before
-    ? segment.nodeStart + (offset - segment.start)
-    : segment.nodeStart + (offset - segment.start);
-  domRange.setStart(segment.node, position);
+  domRange.setStart(segment.node, segment.nodeStart + (offset - segment.start));
   domRange.collapse(true);
   return domRange;
 }

@@ -7,13 +7,14 @@ import type {
   ReviewDiagnostic,
   ReviewOptions,
 } from "@core/domain/grammar/review/types";
+import { REVIEW_CATEGORIES } from "@core/domain/grammar/review/types";
 import { GoogleDocsReviewTarget, type GoogleDocsReviewSurface } from "./GoogleDocsReviewTarget";
 import {
   ContentEditableReviewTarget,
   resolveReviewTarget,
   type ReviewTargetHandle,
 } from "./ReviewTargets";
-import { ReviewUi, type ReviewMark } from "./ReviewUi";
+import { ReviewUi, type ReviewMark, type ReviewUiCallbacks } from "./ReviewUi";
 import { REVIEW_HIGHLIGHT_NAMES } from "./reviewStyles";
 
 const logger = createLogger("ReviewController");
@@ -54,6 +55,8 @@ interface ActiveReview {
   cssHighlights: ReturnType<typeof highlightApi>;
   cleanup: Array<() => void>;
   frame: number | null;
+  /** The findings the category highlights were last built from. */
+  paintedDiagnostics: readonly ReviewDiagnostic[] | null;
 }
 
 /**
@@ -172,7 +175,7 @@ export class ReviewController {
           this.active?.session.setCategory(category, shown),
         navigate: (step) => this.navigate(step),
       },
-      { capabilityKeys },
+      capabilityKeys,
       modalDialogOf(target.element),
     );
     target.setMeasurementRoot(ui.root);
@@ -200,6 +203,7 @@ export class ReviewController {
       cssHighlights,
       cleanup: [],
       frame: null,
+      paintedDiagnostics: null,
     };
     this.active = active;
     this.deps.suspend(target.element);
@@ -259,6 +263,17 @@ export class ReviewController {
         active.cleanup.push(() => resize.disconnect());
       }
       on(element, "scroll", () => this.scheduleLayout(), { passive: true });
+      // Removal from the page and scripted value changes fire no event here.
+      const poll = view.setInterval(() => {
+        if (this.active !== active || active.state?.status !== "ready") return;
+        const current = active.target.element;
+        const changed =
+          !current.isConnected ||
+          ((current.tagName === "TEXTAREA" || current.tagName === "INPUT") &&
+            (current as HTMLTextAreaElement).value !== session.sourceText);
+        if (changed) session.notifySourceChanged();
+      }, SOURCE_POLL_MS);
+      active.cleanup.push(() => view.clearInterval(poll));
     } else {
       // Docs has no DOM text to observe; its own key events drive a recheck.
       on(doc, "keyup", () => session.notifySourceChanged(), true);
@@ -275,19 +290,6 @@ export class ReviewController {
     });
     on<PointerEvent>(doc, "pointerdown", (event) => this.onDocumentPointerDown(event), true);
     on(view, "pagehide", () => this.close());
-    if (!(target instanceof GoogleDocsReviewTarget)) {
-      // Removal from the page and scripted value changes fire no event here.
-      const poll = view.setInterval(() => {
-        if (this.active !== active || active.state?.status !== "ready") return;
-        const current = active.target.element;
-        const changed =
-          !current.isConnected ||
-          ((current.tagName === "TEXTAREA" || current.tagName === "INPUT") &&
-            (current as HTMLTextAreaElement).value !== session.sourceText);
-        if (changed) session.notifySourceChanged();
-      }, SOURCE_POLL_MS);
-      active.cleanup.push(() => view.clearInterval(poll));
-    }
     active.cleanup.push(() => {
       if (active.frame !== null) view.cancelAnimationFrame(active.frame);
     });
@@ -303,8 +305,9 @@ export class ReviewController {
     const active = this.active;
     if (!active) return;
     this.active = null;
-    // Closed from the panel (Escape, ×): the keyboard goes back to the editor.
-    const returnFocus = active.ui.hasFocus();
+    // Closed from the panel (Escape, ×): the keyboard goes back to the editor,
+    // first, so what resumes on close (Docs' key handling) finds it focused.
+    if (active.ui.hasFocus() && active.target.element.isConnected) active.target.focusEditor();
     active.session.close();
     this.clearHighlights(active);
     for (const cleanup of active.cleanup.splice(0).reverse()) {
@@ -316,7 +319,6 @@ export class ReviewController {
     }
     active.target.dispose();
     active.ui.destroy();
-    if (returnFocus && active.target.element.isConnected) active.target.focusEditor();
   }
 
   // ------------------------------------------------------------------- state
@@ -327,6 +329,11 @@ export class ReviewController {
     active.state = state;
     active.ui.render(state);
     this.paint(active);
+    this.refreshCard(active);
+  }
+
+  /** Moves an open card to where its finding is now. */
+  private refreshCard(active: ActiveReview): void {
     const cardId = active.ui.cardDiagnosticId();
     if (cardId) active.ui.updateCardAnchor(this.anchorFor(active, cardId));
   }
@@ -416,8 +423,7 @@ export class ReviewController {
       if (this.active !== active) return;
       // CSS highlights move with the text by themselves; overlays are re-measured.
       if (!active.cssHighlights) this.paint(active);
-      const cardId = active.ui.cardDiagnosticId();
-      if (cardId) active.ui.updateCardAnchor(this.anchorFor(active, cardId));
+      this.refreshCard(active);
     });
   }
 
@@ -445,22 +451,27 @@ export class ReviewController {
     selectedId: string | null,
   ): void {
     const api = active.cssHighlights!;
-    const byCategory = new Map<ReviewCategory, Range[]>();
-    const selected: Range[] = [];
-    for (const diagnostic of diagnostics) {
-      const range = active.target.domRange(diagnostic.range);
-      if (!range) continue;
-      const ranges = byCategory.get(diagnostic.category);
-      if (ranges) ranges.push(range);
-      else byCategory.set(diagnostic.category, [range]);
-      if (diagnostic.id === selectedId) selected.push(range.cloneRange());
+    // Same findings (only the selection changed): the category highlights stand.
+    if (diagnostics !== active.paintedDiagnostics) {
+      active.paintedDiagnostics = diagnostics;
+      const byCategory = new Map<ReviewCategory, Range[]>();
+      for (const diagnostic of diagnostics) {
+        const range = active.target.domRange(diagnostic.range);
+        if (!range) continue;
+        const ranges = byCategory.get(diagnostic.category);
+        if (ranges) ranges.push(range);
+        else byCategory.set(diagnostic.category, [range]);
+      }
+      for (const category of REVIEW_CATEGORIES) {
+        const ranges = byCategory.get(category) ?? [];
+        const name = REVIEW_HIGHLIGHT_NAMES[category];
+        if (ranges.length) api.registry.set(name, new api.Highlight(...ranges));
+        else api.registry.delete(name);
+      }
     }
-    for (const category of ["spelling", "grammar", "punctuation", "typography"] as const) {
-      const ranges = byCategory.get(category) ?? [];
-      const name = REVIEW_HIGHLIGHT_NAMES[category];
-      if (ranges.length) api.registry.set(name, new api.Highlight(...ranges));
-      else api.registry.delete(name);
-    }
+    const current = selectedId ? diagnostics.find((d) => d.id === selectedId) : undefined;
+    const range = current ? active.target.domRange(current.range) : null;
+    const selected = range ? [range] : [];
     if (selected.length) {
       const highlight = new api.Highlight(...selected);
       highlight.priority = 1;
@@ -474,6 +485,7 @@ export class ReviewController {
     // Only FluentTyper's own names: the page's and other extensions' highlights stay.
     for (const name of Object.values(REVIEW_HIGHLIGHT_NAMES))
       active.cssHighlights?.registry.delete(name);
+    active.paintedDiagnostics = null;
     active.ui.paintMarks([], null);
   }
 
@@ -557,17 +569,8 @@ export class ReviewController {
     const ui = new ReviewUi(
       document,
       this.lang,
-      {
-        close: () => this.dismissNotice(),
-        select: () => {},
-        apply: () => {},
-        ignore: () => {},
-        addToDictionary: () => {},
-        fixAll: () => {},
-        toggleCategory: () => {},
-        navigate: () => {},
-      },
-      { capabilityKeys: [] },
+      { ...NOTICE_CALLBACKS, close: () => this.dismissNotice() },
+      [],
     );
     ui.showMessage(reviewText(key, this.lang));
     this.notice = ui;
@@ -590,6 +593,18 @@ export class ReviewController {
     this.dismissNotice();
   }
 }
+
+// A notice has nothing to select, apply or filter.
+const NOTICE_CALLBACKS: ReviewUiCallbacks = {
+  close: () => {},
+  select: () => {},
+  apply: () => {},
+  ignore: () => {},
+  addToDictionary: () => {},
+  fixAll: () => {},
+  toggleCategory: () => {},
+  navigate: () => {},
+};
 
 /** How often an open review checks for changes that fire no event. */
 const SOURCE_POLL_MS = 1000;

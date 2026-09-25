@@ -894,5 +894,3 @@ export function reviewText(
     Object.hasOwn(params, name) ? String(params[name]) : match,
   );
 }
-
-export const REVIEW_TEXT_KEYS = Object.keys(TABLE) as ReviewTextKey[];

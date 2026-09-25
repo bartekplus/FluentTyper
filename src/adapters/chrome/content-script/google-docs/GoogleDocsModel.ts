@@ -163,6 +163,10 @@ export function snapshotFor(model: DocsModel, scope: string, token: string): Doc
   };
 }
 
+/** Docs' private structural markers (tables, footnotes, objects): never prose, never edited. */
+// eslint-disable-next-line no-control-regex -- matches Docs' private control markers.
+export const DOCS_STRUCTURE_CONTROLS = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\ufffc]/u;
+
 export function snapshotContext(snapshot: DocsSnapshot) {
   const start = Math.min(snapshot.anchor, snapshot.focus) - snapshot.windowStart;
   const end = Math.max(snapshot.anchor, snapshot.focus) - snapshot.windowStart;
@@ -200,9 +204,10 @@ export function validEdit(text: string, edit: DocsEdit): boolean {
   )
     return false;
   // Docs' structural markers are not ordinary text. Never replace across them.
-  // eslint-disable-next-line no-control-regex -- Reject private editor structural controls.
-  const protectedControls = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\ufffc]/u;
-  if (protectedControls.test(replacement) || protectedControls.test(text.slice(start, end)))
+  if (
+    DOCS_STRUCTURE_CONTROLS.test(replacement) ||
+    DOCS_STRUCTURE_CONTROLS.test(text.slice(start, end))
+  )
     return false;
   const result = text.slice(0, start) + replacement + text.slice(end);
   // The caret may legitimately sit outside the replaced run: a correction replayed for

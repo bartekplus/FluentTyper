@@ -1,3 +1,5 @@
+import { existsSync } from "node:fs";
+import { dirname, resolve as resolvePath } from "node:path";
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 import puppeteer, { type Browser, type Page, type CDPSession } from "puppeteer";
 import { waitUntil } from "./e2e-helpers";
@@ -147,12 +149,20 @@ describe("Google Docs cross-world fixture (not live Docs)", () => {
           {
             name: "fixture-repository-alias",
             setup(build) {
-              build.onResolve({ filter: /^@core\// }, (args) => ({
-                path: Bun.resolveSync(
-                  `./src/core/${args.path.slice(6)}`,
-                  `${import.meta.dir}/../..`,
-                ),
-              }));
+              // Plain file checks for the alias and relative imports: Bun 1.3's
+              // resolver intermittently fails existing files when one directory is
+              // reached through several specifiers at once (the review code's
+              // "../implementations/x" beside the grammar's "./implementations/x").
+              const sourceFile = (base: string) =>
+                [`${base}.ts`, `${base}/index.ts`, base].find((candidate) => existsSync(candidate));
+              build.onResolve({ filter: /^@core\// }, (args) => {
+                const base = resolvePath(import.meta.dir, "../../src/core", args.path.slice(6));
+                return { path: sourceFile(base) ?? `${base}.ts` };
+              });
+              build.onResolve({ filter: /^\.\.?\// }, (args) => {
+                const file = sourceFile(resolvePath(dirname(args.importer), args.path));
+                return file ? { path: file } : undefined;
+              });
             },
           },
         ],
@@ -856,6 +866,10 @@ describe("Google Docs cross-world fixture (not live Docs)", () => {
     expect((await model()).text).toBe("Now teh changed.");
     expect((await model()).pastes).toBe(0);
     await evaluate("review.dispose()");
+    // Closing re-reads the document; typing corrections resume once that read lands.
+    await waitUntil("docs resumed", () =>
+      evaluate<boolean>("!docs.reviewActive && !docs.reading && !!docs.snapshot"),
+    );
     // After the review, typing corrections resume.
     await page.evaluate(() => {
       const f = window as unknown as { setModel: (text: string) => void; focusEditor: () => void };

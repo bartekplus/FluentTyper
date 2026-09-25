@@ -1,5 +1,5 @@
 import type { ReviewCategory, ReviewDiagnostic, ReviewEdit } from "./types";
-import { applyEdits, rangesOverlap } from "./textRanges";
+import { applyEdits, editTouches, rangesOverlap } from "./textRanges";
 
 export type DeferReason = "not-batch-approved" | "conflict" | "unproven";
 
@@ -46,17 +46,11 @@ function sameEdit(a: ReviewEdit, b: ReviewEdit): boolean {
 
 /** Overlap, a shared insertion point, or an insertion inside the other edit. */
 function editsCollide(a: ReviewEdit, b: ReviewEdit): boolean {
-  if (a.start === a.end || b.start === b.end) {
-    const insertion = a.start === a.end ? a : b;
-    const other = insertion === a ? b : a;
-    return insertion.start >= other.start && insertion.start <= other.end;
-  }
-  return rangesOverlap(a, b);
+  return a.start === a.end ? editTouches(a, b) : editTouches(b, a);
 }
 
 function touchesContext(edit: ReviewEdit, diagnostic: ReviewDiagnostic): boolean {
-  const { context } = diagnostic;
-  return edit.start < context.end && edit.end > context.start;
+  return rangesOverlap(edit, diagnostic.context);
 }
 
 /**
@@ -122,7 +116,6 @@ export function* planBulkFixSteps(
     parent[find(a)] = find(b);
   };
   const hard = new Set<number>();
-  const soft = new Set<number>();
 
   // Only candidates whose spans (edits and evidence) overlap or touch can
   // collide or depend on each other: sweep in span order instead of all pairs.
@@ -155,8 +148,10 @@ export function* planBulkFixSteps(
       }
       if (collide || dependent) {
         union(i, j);
-        (collide ? hard : soft).add(i);
-        (collide ? hard : soft).add(j);
+        if (collide) {
+          hard.add(i);
+          hard.add(j);
+        }
       }
     }
   }

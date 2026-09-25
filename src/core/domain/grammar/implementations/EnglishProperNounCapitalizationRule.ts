@@ -170,13 +170,16 @@ const LAST_WORDS = new Set([
   "august",
 ]);
 
+// The month words whose date evidence is the number right after them.
+const MONTH_BEFORE_NUMBER = /(?:may|march|august)[ \t]+$/i;
+
 /**
  * Cheap pre-check for scanning finished text: false when no name found by
  * findProperName can end with `word` (a whole word, possibly possessive or
- * plural, or the day/year after a month).
+ * plural, or a day/year right after a month word in `before`).
  */
-export function couldEndProperName(word: string): boolean {
-  if (DAY_OR_YEAR.test(word)) return true;
+export function couldEndProperName(word: string, before: string): boolean {
+  if (DAY_OR_YEAR.test(word)) return MONTH_BEFORE_NUMBER.test(before);
   const key = phraseKey(word);
   return LAST_WORDS.has(key) || LAST_WORDS.has(key.replace(/s$/, ""));
 }

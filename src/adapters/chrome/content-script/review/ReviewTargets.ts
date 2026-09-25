@@ -5,6 +5,7 @@ import type {
   ReviewTargetRead,
 } from "@core/application/review/ReviewSession";
 import type { ReviewEdit, TextRange } from "@core/domain/grammar/review/types";
+import { mergeEdits, positionAfterReplacement } from "@core/domain/grammar/review/textRanges";
 import { getDeepActiveElement, isInDocument } from "@core/application/dom-utils";
 import { ancestorContext } from "../suggestions/CodeContextResolver";
 import { isLockedField, isSensitiveField } from "../suggestions/FieldEligibility";
@@ -105,9 +106,7 @@ export function resolveReviewTarget(doc: Document = document): Resolution {
   if (!(active instanceof HTMLElement)) return { ok: false, reason: "no-editor" };
 
   if (isTextControl(active)) {
-    if (active.tagName === "INPUT" && !["text", "search", ""].includes(active.type)) {
-      return { ok: false, reason: "sensitive" };
-    }
+    // Non-text input types are refused as sensitive by the eligibility check.
     if (!isReviewEligible(active)) return { ok: false, reason: "sensitive" };
     const start = active.selectionStart ?? 0;
     const end = active.selectionEnd ?? start;
@@ -151,12 +150,6 @@ function readSelectionRange(host: HTMLElement): Range | null {
   return selection.getRangeAt(0);
 }
 
-/**
- * `observed` equals `expected`, except that native editing may turn a space
- * right next to the inserted text into a no-break space (or back): Chrome and
- * Firefox do that so the space stays visible beside formatting boundaries. Any
- * other difference, or one farther away, is not accepted.
- */
 /** `block` when it is still in the document and holds `range`. */
 function blockHolding(block: BlockText | null, range: TextRange): BlockText | null {
   return block !== null &&
@@ -167,6 +160,12 @@ function blockHolding(block: BlockText | null, range: TextRange): BlockText | nu
     : null;
 }
 
+/**
+ * `observed` equals `expected`, except that native editing may turn a space
+ * right next to the inserted text into a no-break space (or back): Chrome and
+ * Firefox do that so the space stays visible beside formatting boundaries. Any
+ * other difference, or one farther away, is not accepted.
+ */
 function sameExceptEdgeSpaces(
   observed: string,
   expected: string,
@@ -250,11 +249,8 @@ export class TextControlReviewTarget implements ReviewTargetHandle {
     if (this.composing) return { status: "rejected", reason: "composing" };
     if (field.value !== request.before) return { status: "stale" };
 
-    const start = Math.min(...request.edits.map((edit) => edit.start));
-    const end = Math.max(...request.edits.map((edit) => edit.end));
-    const tailLength = request.before.length - end;
-    const replacement = request.after.slice(start, request.after.length - tailLength);
-    const delta = request.after.length - request.before.length;
+    const merged = mergeEdits(request.before, request.after, request.edits);
+    const { start, end, replacement } = merged;
     const selection = {
       start: field.selectionStart ?? 0,
       end: field.selectionEnd ?? 0,
@@ -285,12 +281,7 @@ export class TextControlReviewTarget implements ReviewTargetHandle {
       );
     }
 
-    const remap = (position: number) =>
-      position <= start
-        ? position
-        : position >= end
-          ? position + delta
-          : start + replacement.length;
+    const remap = (position: number) => positionAfterReplacement(position, merged);
     if (field.value === request.after) {
       field.setSelectionRange(remap(selection.start), remap(selection.end), selection.direction);
       field.scrollTop = scroll.top;
@@ -385,10 +376,11 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
 
     root.focus({ preventScroll: true });
     // The write lands wherever focus is: it must be this editor.
-    const focused = getDeepActiveElement(doc);
-    if (!focused || !(focused === root || root.contains(focused))) {
-      return { status: "rejected", reason: "host-refused" };
-    }
+    const focusInside = () => {
+      const focused = getDeepActiveElement(doc);
+      return !!focused && (focused === root || root.contains(focused));
+    };
+    if (!focusInside()) return { status: "rejected", reason: "host-refused" };
     let current = request.before;
     // Each write is verified in its own block when that block reads the same
     // on its own; a final full read-back below verifies the whole result.
@@ -396,22 +388,18 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
     const edits = [...request.edits].sort((a, b) => b.start - a.start);
     let sliceStart = win.performance.now();
     for (let index = 0; index < edits.length; index += 1) {
-      if (index > 0 && this.composing) return { status: "partial", applied: index };
+      // Stopping before the first edit changed nothing; later, say how far it got.
+      const failAt = (first: ReviewApplyResult): ReviewApplyResult =>
+        index === 0 ? first : { status: "partial", applied: index };
+      if (index > 0 && this.composing) return failAt({ status: "stale" });
       // A long batch yields so the page stays responsive; each native edit is its
       // own undo step here anyway. Afterwards it continues only if nothing moved.
       if (win.performance.now() - sliceStart > WRITE_SLICE_MS) {
         await new Promise((resolve) => win.setTimeout(resolve, 0));
         map = buildContentEditableTextMap(root);
         written = null;
-        const active = getDeepActiveElement(doc);
-        if (
-          map.text !== current ||
-          this.composing ||
-          !root.isConnected ||
-          !active ||
-          !(active === root || root.contains(active))
-        ) {
-          return index === 0 ? { status: "stale" } : { status: "partial", applied: index };
+        if (map.text !== current || this.composing || !root.isConnected || !focusInside()) {
+          return failAt({ status: "stale" });
         }
         sliceStart = win.performance.now();
       }
@@ -427,9 +415,7 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
           )
         : offsetRangeToDomRange(map, edit, doc);
       if (!range || !selection || range.toString() !== edit.original) {
-        return index === 0
-          ? { status: "rejected", reason: "host-refused" }
-          : { status: "partial", applied: index };
+        return failAt({ status: "rejected", reason: "host-refused" });
       }
       const block: BlockText | null = previous ?? readBlockAt(root, map, range, current);
       selection.removeAllRanges();
@@ -453,11 +439,7 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
       }
       const editEnd = edit.start + edit.replacement.length;
       if (!sameExceptEdgeSpaces(observed, expected, edit.start, editEnd)) {
-        if (observed === current) {
-          return index === 0
-            ? { status: "rejected", reason: "host-refused" }
-            : { status: "partial", applied: index };
-        }
+        if (observed === current) return failAt({ status: "rejected", reason: "host-refused" });
         return { status: "unverified" };
       }
       current = observed;
@@ -541,29 +523,29 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
 }
 
 const MIRRORED_STYLES = [
-  "boxSizing",
-  "fontFamily",
-  "fontSize",
-  "fontStyle",
-  "fontVariant",
-  "fontWeight",
-  "fontStretch",
-  "fontKerning",
-  "fontFeatureSettings",
-  "letterSpacing",
-  "wordSpacing",
-  "lineHeight",
-  "textTransform",
-  "textIndent",
-  "textAlign",
-  "tabSize",
+  "box-sizing",
+  "font-family",
+  "font-size",
+  "font-style",
+  "font-variant",
+  "font-weight",
+  "font-stretch",
+  "font-kerning",
+  "font-feature-settings",
+  "letter-spacing",
+  "word-spacing",
+  "line-height",
+  "text-transform",
+  "text-indent",
+  "text-align",
+  "tab-size",
   "direction",
-  "unicodeBidi",
-  "writingMode",
-  "paddingTop",
-  "paddingRight",
-  "paddingBottom",
-  "paddingLeft",
+  "unicode-bidi",
+  "writing-mode",
+  "padding-top",
+  "padding-right",
+  "padding-bottom",
+  "padding-left",
 ] as const;
 
 /**
@@ -609,13 +591,7 @@ class TextControlMirror {
     const computed = view.getComputedStyle(field);
     const style = this.mirror.style;
     for (const property of MIRRORED_STYLES) {
-      style.setProperty(
-        property.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`),
-        computed.getPropertyValue(
-          property.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`),
-        ),
-        "important",
-      );
+      style.setProperty(property, computed.getPropertyValue(property), "important");
     }
     const rect = field.getBoundingClientRect();
     const textarea = field.tagName === "TEXTAREA";
@@ -643,13 +619,18 @@ class TextControlMirror {
     this.mirror.scrollLeft = field.scrollLeft;
   }
 
-  rects(range: TextRange): DOMRect[] {
-    this.syncOnce();
-    const doc = this.field.ownerDocument;
-    const domRange = doc.createRange();
+  /** The mirror's DOM range for a snapshot range (clamped to its text). */
+  private rangeFor(range: TextRange): Range {
+    const domRange = this.field.ownerDocument.createRange();
     const length = this.textNode.data.length;
     domRange.setStart(this.textNode, Math.min(range.start, length));
     domRange.setEnd(this.textNode, Math.min(range.end, length));
+    return domRange;
+  }
+
+  rects(range: TextRange): DOMRect[] {
+    this.syncOnce();
+    const domRange = this.rangeFor(range);
     const box = this.mirror.getBoundingClientRect();
     if (typeof domRange.getClientRects !== "function") return [];
     // Only the part inside the field's visible content box is really on screen.
@@ -665,10 +646,7 @@ class TextControlMirror {
 
   reveal(range: TextRange): void {
     this.sync();
-    const doc = this.field.ownerDocument;
-    const domRange = doc.createRange();
-    domRange.setStart(this.textNode, Math.min(range.start, this.textNode.data.length));
-    domRange.setEnd(this.textNode, Math.min(range.end, this.textNode.data.length));
+    const domRange = this.rangeFor(range);
     if (typeof domRange.getBoundingClientRect !== "function") return;
     const target = domRange.getBoundingClientRect();
     const box = this.mirror.getBoundingClientRect();

@@ -105,10 +105,6 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
   },
 };
 
-export function reviewMetadataFor(ruleId: CatalogRuleId): ReviewRuleMetadata {
-  return REVIEW_RULE_METADATA[ruleId];
-}
-
 /** Catalog order; the coverage map shown in docs and asserted by tests. */
 export function reviewCoverageMap(): Array<{ ruleId: CatalogRuleId } & ReviewRuleMetadata> {
   return GRAMMAR_RULE_CATALOG.map((entry) => ({

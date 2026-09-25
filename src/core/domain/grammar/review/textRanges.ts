@@ -104,22 +104,25 @@ export interface TextDiff {
   slackStart: number;
 }
 
-export function diffTexts(oldText: string, newText: string): TextDiff | null {
-  if (oldText === newText) return null;
-  const maxPrefix = Math.min(oldText.length, newText.length);
+/** Lengths of the longest common prefix and (non-overlapping) common suffix of a and b. */
+export function commonAffixes(a: string, b: string): { prefix: number; suffix: number } {
+  const maxPrefix = Math.min(a.length, b.length);
   let prefix = 0;
-  while (prefix < maxPrefix && oldText.charCodeAt(prefix) === newText.charCodeAt(prefix)) {
-    prefix += 1;
-  }
+  while (prefix < maxPrefix && a.charCodeAt(prefix) === b.charCodeAt(prefix)) prefix += 1;
   let suffix = 0;
   while (
-    suffix < oldText.length - prefix &&
-    suffix < newText.length - prefix &&
-    oldText.charCodeAt(oldText.length - 1 - suffix) ===
-      newText.charCodeAt(newText.length - 1 - suffix)
+    suffix < a.length - prefix &&
+    suffix < b.length - prefix &&
+    a.charCodeAt(a.length - 1 - suffix) === b.charCodeAt(b.length - 1 - suffix)
   ) {
     suffix += 1;
   }
+  return { prefix, suffix };
+}
+
+export function diffTexts(oldText: string, newText: string): TextDiff | null {
+  if (oldText === newText) return null;
+  const { prefix, suffix } = commonAffixes(oldText, newText);
   // Suffix-first placement gives the earliest possible start.
   let suffixFirst = 0;
   while (
@@ -176,4 +179,73 @@ export function remapScope(scope: TextRange, diff: TextDiff): TextRange | null {
     return { start: scope.start, end: scope.end + delta };
   }
   return null;
+}
+
+/**
+ * Several edits of `before` (giving `after`) as ONE contiguous replacement:
+ * from the first edit's start to the last edit's end.
+ */
+export function mergeEdits(
+  before: string,
+  after: string,
+  edits: readonly ReviewEdit[],
+): { start: number; end: number; replacement: string } {
+  const start = Math.min(...edits.map((edit) => edit.start));
+  const end = Math.max(...edits.map((edit) => edit.end));
+  return { start, end, replacement: after.slice(start, after.length - (before.length - end)) };
+}
+
+/** Where `position` lands after [start, end) is replaced: inside moves to the end of the new text. */
+export function positionAfterReplacement(
+  position: number,
+  merged: { start: number; end: number; replacement: string },
+): number {
+  const { start, end, replacement } = merged;
+  if (position <= start) return position;
+  if (position >= end) return position + replacement.length - (end - start);
+  return start + replacement.length;
+}
+
+/**
+ * Maps a snapshot position to the text after `edits` (non-overlapping). An
+ * insertion exactly at the position stays after it.
+ */
+export function positionMapper(edits: readonly ReviewEdit[]): (position: number) => number {
+  const sorted = [...edits].sort((a, b) => a.end - b.end || a.start - b.start);
+  const deltas: number[] = [0];
+  for (const edit of sorted) {
+    deltas.push(deltas[deltas.length - 1] + edit.replacement.length - (edit.end - edit.start));
+  }
+  return (position) => {
+    // Edits ending at or before the position.
+    let low = 0;
+    let high = sorted.length;
+    while (low < high) {
+      const middle = (low + high) >> 1;
+      if (sorted[middle].end <= position) low = middle + 1;
+      else high = middle;
+    }
+    let count = low;
+    while (
+      count > 0 &&
+      sorted[count - 1].start === position &&
+      sorted[count - 1].end === position
+    ) {
+      count -= 1;
+    }
+    return position + deltas[count];
+  };
+}
+
+/**
+ * `range` carried through exact, non-overlapping `edits` of its text, or null
+ * when an edit touches it (overlaps or borders it).
+ */
+export function remapRangeThroughEdits(
+  range: TextRange,
+  edits: readonly ReviewEdit[],
+  map: (position: number) => number = positionMapper(edits),
+): TextRange | null {
+  if (edits.some((edit) => edit.start <= range.end && edit.end >= range.start)) return null;
+  return { start: map(range.start), end: map(range.end) };
 }

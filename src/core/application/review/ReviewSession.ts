@@ -17,7 +17,9 @@ import {
 import {
   applyEdits,
   diffTexts,
+  positionMapper,
   remapRange,
+  remapRangeThroughEdits,
   remapScope,
 } from "@core/domain/grammar/review/textRanges";
 import type {
@@ -29,6 +31,7 @@ import type {
   ReviewOptions,
   TextRange,
 } from "@core/domain/grammar/review/types";
+import { REVIEW_CATEGORIES } from "@core/domain/grammar/review/types";
 
 /** What a review target can honestly do; the UI shows limits, never hides them. */
 export interface ReviewCapabilities {
@@ -140,26 +143,25 @@ interface IgnoredOccurrence {
 }
 
 function sameOptions(a: ReviewOptions, b: ReviewOptions): boolean {
-  const sameList = (x: readonly string[], y: readonly string[]) =>
-    x.length === y.length && x.every((value, index) => value === y[index]);
   return (
     a.lang === b.lang &&
     a.insertSpaceAfterAutocomplete === b.insertSpaceAfterAutocomplete &&
-    sameList(a.enabledRules, b.enabledRules) &&
-    sameList(a.userDictionary, b.userDictionary)
+    sameKey(a.enabledRules, b.enabledRules) &&
+    sameKey(a.userDictionary, b.userDictionary)
   );
 }
 
-const ALL_CATEGORIES: ReviewCategory[] = ["spelling", "grammar", "punctuation", "typography"];
-
-/**
- * One review session over one editor. Owns generations, cancellation and the
- * scope; every write goes through the target port with verification.
- * Starting a review reads only: no text, formatting, setting or learning changes.
- */
 interface PendingPlan {
   key: readonly unknown[];
   promise: Promise<BulkPlan | null>;
+}
+
+class PlanSuperseded extends Error {}
+
+const NO_DIAGNOSTICS: ReviewDiagnostic[] = [];
+
+function occurrenceKey(entry: IgnoredOccurrence): string {
+  return `${entry.ruleId}|${entry.range.start}|${entry.range.end}|${entry.original}`;
 }
 
 /** Proof checks a plan may run at once before it continues asynchronously. */
@@ -169,6 +171,11 @@ function sameKey(a: readonly unknown[], b: readonly unknown[]): boolean {
   return a.length === b.length && a.every((value, index) => value === b[index]);
 }
 
+/**
+ * One review session over one editor. Owns generations, cancellation and the
+ * scope; every write goes through the target port with verification.
+ * Starting a review reads only: no text, formatting, setting or learning changes.
+ */
 export class ReviewSession {
   private generation = 0;
   private status: ReviewStatus = "loading";
@@ -184,10 +191,17 @@ export class ReviewSession {
   private coverage: ReviewCoverage | null = null;
   private ignored: IgnoredOccurrence[] = [];
   // getState() runs on every change; the plan only depends on these inputs.
+  private listCache: {
+    key: readonly unknown[];
+    active: ReviewDiagnostic[];
+    visible: ReviewDiagnostic[];
+  } | null = null;
+  // Lookup set for `ignored`, rebuilt when the list is replaced.
+  private ignoredKeys: { list: IgnoredOccurrence[]; keys: Set<string> } | null = null;
   private planCache: { key: readonly unknown[]; plan: BulkPlan } | null = null;
   private planPending: { key: readonly unknown[]; promise: Promise<BulkPlan | null> } | null = null;
   private resolvedCount = 0;
-  private categories = new Set<ReviewCategory>(ALL_CATEGORIES);
+  private categories = new Set<ReviewCategory>(REVIEW_CATEGORIES);
   private selectedId: string | null = null;
   private notice: ReviewNotice | null = null;
   private recheckTimer: unknown = null;
@@ -234,8 +248,10 @@ export class ReviewSession {
     this.generation += 1;
     // "Fixed: 3" describes our last write; after the user's own edit (say, an
     // undo) it no longer describes the text.
+    const changed = this.notice !== null || this.status !== "updating" || this.selectedId !== null;
     this.notice = null;
-    if (this.status !== "stale-scope") {
+    // Already showing "updating" (the next keystroke): only the pause restarts.
+    if (this.status !== "stale-scope" && changed) {
       this.status = "updating";
       this.selectedId = null;
       this.emit();
@@ -261,8 +277,11 @@ export class ReviewSession {
   }
 
   setCategory(category: ReviewCategory, shown: boolean): void {
-    if (shown) this.categories.add(category);
-    else this.categories.delete(category);
+    // A new set per change: the plan cache keys on identity.
+    const categories = new Set(this.categories);
+    if (shown) categories.add(category);
+    else categories.delete(category);
+    this.categories = categories;
     if (this.selectedId && !this.visibleDiagnostics().some((d) => d.id === this.selectedId)) {
       this.selectedId = null;
     }
@@ -273,11 +292,11 @@ export class ReviewSession {
   ignore(id: string): void {
     const diagnostic = this.diagnostics.find((d) => d.id === id);
     if (!diagnostic) return;
-    this.ignored.push({
-      ruleId: diagnostic.ruleId,
-      range: { ...diagnostic.range },
-      original: diagnostic.original,
-    });
+    // A new list per change: the plan cache keys on identity.
+    this.ignored = [
+      ...this.ignored,
+      { ruleId: diagnostic.ruleId, range: { ...diagnostic.range }, original: diagnostic.original },
+    ];
     if (this.selectedId === id) this.selectedId = null;
     this.emit();
   }
@@ -333,7 +352,7 @@ export class ReviewSession {
       unavailable: this.unavailable,
       scopeKind: this.scopeKind,
       capabilities: this.capabilities,
-      diagnostics: this.status === "ready" ? this.visibleDiagnostics() : [],
+      diagnostics: this.status === "ready" ? this.visibleDiagnostics() : NO_DIAGNOSTICS,
       ignoredCount: this.ignoredDiagnostics().length,
       resolvedCount: this.resolvedCount,
       categories: new Set(this.categories),
@@ -359,11 +378,22 @@ export class ReviewSession {
   }
 
   private activeDiagnostics(): ReviewDiagnostic[] {
-    return this.diagnostics.filter((d) => !this.isIgnored(d));
+    return this.visibleLists().active;
   }
 
+  /** The same array while results, ignores and filters stay the same: the UI keys on it. */
   private visibleDiagnostics(): ReviewDiagnostic[] {
-    return this.activeDiagnostics().filter((d) => this.categories.has(d.category));
+    return this.visibleLists().visible;
+  }
+
+  private visibleLists(): { active: ReviewDiagnostic[]; visible: ReviewDiagnostic[] } {
+    const key = [this.diagnostics, this.ignored, this.categories];
+    if (!this.listCache || !sameKey(this.listCache.key, key)) {
+      const active = this.diagnostics.filter((d) => !this.isIgnored(d));
+      const visible = active.filter((d) => this.categories.has(d.category));
+      this.listCache = { key, active, visible };
+    }
+    return this.listCache;
   }
 
   private ignoredDiagnostics(): ReviewDiagnostic[] {
@@ -371,25 +401,15 @@ export class ReviewSession {
   }
 
   private isIgnored(diagnostic: ReviewDiagnostic): boolean {
-    return this.ignored.some(
-      (entry) =>
-        entry.ruleId === diagnostic.ruleId &&
-        entry.range.start === diagnostic.range.start &&
-        entry.range.end === diagnostic.range.end &&
-        entry.original === diagnostic.original,
-    );
+    if (this.ignoredKeys?.list !== this.ignored) {
+      this.ignoredKeys = { list: this.ignored, keys: new Set(this.ignored.map(occurrenceKey)) };
+    }
+    return this.ignoredKeys.keys.has(occurrenceKey(diagnostic));
   }
 
   private planKey(): readonly unknown[] | null {
     if (!this.prepared) return null;
-    return [
-      this.prepared,
-      this.text,
-      this.diagnostics,
-      this.ignored,
-      this.ignored.length,
-      [...this.categories].sort().join(),
-    ];
+    return [this.prepared, this.text, this.diagnostics, this.ignored, this.categories];
   }
 
   /**
@@ -404,7 +424,7 @@ export class ReviewSession {
     if (this.planCache && sameKey(this.planCache.key, key)) return this.planCache.plan;
     if (this.planPending && sameKey(this.planPending.key, key)) return null;
     const prepared = this.prepared;
-    const filtered = this.categories.size < ALL_CATEGORIES.length ? this.categories : undefined;
+    const filtered = this.categories.size < REVIEW_CATEGORIES.length ? this.categories : undefined;
     const steps = planBulkFixSteps(this.text, this.activeDiagnostics(), {
       categories: filtered,
       prove: true,
@@ -433,15 +453,24 @@ export class ReviewSession {
     prepared: PreparedReview,
   ): Promise<BulkPlan | null> {
     let request: IteratorResult<ProofRequest, BulkPlan> = { done: false, value: first };
-    while (!request.done) {
-      const answer = await stillDetectedAfterAsync(
-        prepared,
-        request.value.checks,
-        request.value.otherEdits,
-        () => new Promise<void>((resolve) => this.setTimer(resolve, 0)),
-      );
-      if (this.planPending !== pending) return null;
-      request = steps.next(answer);
+    // Newer results replace this plan: stop at the next pause, not after the round.
+    const pause = async () => {
+      await this.pause();
+      if (this.planPending !== pending) throw new PlanSuperseded();
+    };
+    try {
+      while (!request.done) {
+        const answer = await stillDetectedAfterAsync(
+          prepared,
+          request.value.checks,
+          request.value.otherEdits,
+          pause,
+        );
+        request = steps.next(answer);
+      }
+    } catch (error) {
+      if (error instanceof PlanSuperseded) return null;
+      throw error;
     }
     this.planPending = null;
     this.planCache = { key: pending.key, plan: request.value };
@@ -482,7 +511,7 @@ export class ReviewSession {
       // Our own edits are exactly known: carry scope and ignores through them.
       const delta = after.length - before.length;
       if (this.scope) this.scope = { start: this.scope.start, end: this.scope.end + delta };
-      this.remapIgnored(before, after, edits);
+      this.remapIgnored(edits);
       this.text = after;
     } else if (result.status === "stale") {
       this.notice = { kind: "stale" };
@@ -499,30 +528,21 @@ export class ReviewSession {
     return result;
   }
 
-  private remapIgnored(before: string, after: string, edits: ReviewEdit[]): void {
-    const diff = diffTexts(before, after);
-    if (!diff) return;
-    // Several own edits: carry each ignore through them one by one.
-    const sorted = [...edits].sort((a, b) => b.start - a.start);
+  /** Our own edits are exactly known: each ignore moves with them, or goes if one touches it. */
+  private remapIgnored(edits: ReviewEdit[]): void {
+    if (this.ignored.length === 0) return;
+    const map = positionMapper(edits);
     this.ignored = this.ignored.flatMap((entry) => {
-      let range: TextRange | null = entry.range;
-      let text = before;
-      for (const edit of sorted) {
-        if (!range) break;
-        const next = text.slice(0, edit.start) + edit.replacement + text.slice(edit.end);
-        const step = diffTexts(text, next);
-        range = step ? remapRange(range, step) : range;
-        text = next;
-      }
+      const range = remapRangeThroughEdits(entry.range, edits, map);
       return range ? [{ ...entry, range }] : [];
     });
   }
 
   /** Re-reads and rescans; a failure anywhere is shown as an error, never as "Checking…" forever. */
   private async refresh(): Promise<void> {
-    const generation = this.generation + 1;
+    const generation = ++this.generation;
     try {
-      await this.readAndScan();
+      await this.readAndScan(generation);
     } catch {
       if (this.isClosed || this.generation !== generation) return;
       this.status = "error";
@@ -532,8 +552,7 @@ export class ReviewSession {
     }
   }
 
-  private async readAndScan(): Promise<void> {
-    const generation = ++this.generation;
+  private async readAndScan(generation: number): Promise<void> {
     let read: ReviewTargetRead;
     try {
       read = await this.deps.target.read();
@@ -604,7 +623,7 @@ export class ReviewSession {
     for (const chunk of reviewChunks(prepared)) {
       scans.push(scanReviewChunk(prepared, chunk));
       // Yield between chunks so typing is never blocked by a long scan.
-      await new Promise<void>((resolve) => this.setTimer(resolve, 0));
+      await this.pause();
       if (generation !== this.generation || this.isClosed) return;
     }
     const result = finalizeReview(
@@ -627,6 +646,11 @@ export class ReviewSession {
       this.clearTimer(this.recheckTimer);
       this.recheckTimer = null;
     }
+  }
+
+  /** Lets the host run (typing, painting) between chunks of work. */
+  private pause(): Promise<void> {
+    return new Promise<void>((resolve) => this.setTimer(resolve, 0));
   }
 
   private emit(): void {

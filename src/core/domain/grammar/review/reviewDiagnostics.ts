@@ -3,7 +3,13 @@ import { findMarkdownCodeRanges } from "../implementations/helpers/ProtectedSpan
 import { isTechnicalToken, normalizeWordSet } from "../implementations/helpers/GenericRuleShared";
 import { REVIEW_RULE_METADATA, isReviewSupportedRule } from "./reviewCatalog";
 import { MASK_CHAR, REVIEW_DETECTORS, minimalEdits, type RawFinding } from "./reviewDetectors";
-import { applyEdits, editTouches, isGraphemeBoundary, rangesOverlap } from "./textRanges";
+import {
+  applyEdits,
+  editTouches,
+  isGraphemeBoundary,
+  positionMapper,
+  rangesOverlap,
+} from "./textRanges";
 import type {
   BulkDecision,
   CoverageGap,
@@ -223,8 +229,9 @@ export function finalizeReview(
   const unique = dropDuplicateFixes(diagnostics);
 
   const skipped: Partial<Record<CoverageGap, number>> = { ...extraGaps };
-  for (const [reason, count] of Object.entries(protectedCharsInScope(prepared))) {
-    if (count > 0) skipped[reason as CoverageGap] = (skipped[reason as CoverageGap] ?? 0) + count;
+  const protectedChars = protectedCharsInScope(prepared);
+  for (const reason of Object.keys(protectedChars) as CoverageGap[]) {
+    skipped[reason] = (skipped[reason] ?? 0) + (protectedChars[reason] ?? 0);
   }
   if (failed.size > 0) skipped["rule-error"] = failed.size;
 
@@ -263,9 +270,9 @@ function dropDuplicateFixes(diagnostics: ReviewDiagnostic[]): ReviewDiagnostic[]
   return diagnostics.filter((diagnostic) => kept.has(diagnostic));
 }
 
-function protectedCharsInScope(prepared: PreparedReview): Record<string, number> {
+function protectedCharsInScope(prepared: PreparedReview): Partial<Record<CoverageGap, number>> {
   const { scope } = prepared.snapshot;
-  const counts: Record<string, number> = {};
+  const counts: Partial<Record<CoverageGap, number>> = {};
   let covered = scope.start;
   for (const range of prepared.protectedRanges) {
     if (range.reason === "technical") continue;
@@ -414,7 +421,7 @@ function* proofSteps(
   const { snapshot } = prepared;
   const text = applyEdits(snapshot.text, otherEdits);
   if (text === null) return diagnostics.map(() => false);
-  const shift = positionShifter(otherEdits);
+  const shift = positionMapper(otherEdits);
   const shifted = {
     id: `${snapshot.id}~`,
     text,
@@ -465,35 +472,4 @@ function* proofSteps(
     yield;
   }
   return expected.map(({ start, edits }) => found.get(start)?.has(edits) ?? false);
-}
-
-/**
- * Maps a snapshot position to the text after `edits` (non-overlapping). An
- * insertion exactly at the position stays after it.
- */
-function positionShifter(edits: readonly ReviewEdit[]): (position: number) => number {
-  const sorted = [...edits].sort((a, b) => a.end - b.end || a.start - b.start);
-  const deltas: number[] = [0];
-  for (const edit of sorted) {
-    deltas.push(deltas[deltas.length - 1] + edit.replacement.length - (edit.end - edit.start));
-  }
-  return (position) => {
-    // Edits ending at or before the position.
-    let low = 0;
-    let high = sorted.length;
-    while (low < high) {
-      const middle = (low + high) >> 1;
-      if (sorted[middle].end <= position) low = middle + 1;
-      else high = middle;
-    }
-    let count = low;
-    while (
-      count > 0 &&
-      sorted[count - 1].start === position &&
-      sorted[count - 1].end === position
-    ) {
-      count -= 1;
-    }
-    return position + deltas[count];
-  };
 }

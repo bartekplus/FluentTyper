@@ -1,5 +1,7 @@
+import { getDeepActiveElement } from "@core/application/dom-utils";
 import type { ReviewViewState } from "@core/application/review/ReviewSession";
 import { reviewText, type ReviewTextKey } from "@core/domain/grammar/review/reviewMessages";
+import { commonAffixes } from "@core/domain/grammar/review/textRanges";
 import {
   REVIEW_CATEGORIES,
   type ReviewCategory,
@@ -17,11 +19,6 @@ export interface ReviewUiCallbacks {
   fixAll(viaKeyboard: boolean): void;
   toggleCategory(category: ReviewCategory, shown: boolean): void;
   navigate(step: 1 | -1): void;
-}
-
-export interface ReviewUiNotes {
-  /** Extra, honest capability notes (no highlights, review only, undo behavior\u2026). */
-  capabilityKeys: ReviewTextKey[];
 }
 
 export interface ReviewMark {
@@ -61,20 +58,18 @@ function visibleWhitespace(text: string): string {
     .replace(/\n/g, "\u21B5");
 }
 
+/** The common prefix and suffix, and whether whitespace itself is what changes. */
+function changeShape(from: string, to: string) {
+  const { prefix, suffix } = commonAffixes(from, to);
+  const changed = from.slice(prefix, from.length - suffix) + to.slice(prefix, to.length - suffix);
+  return { prefix, suffix, whitespace: /\s/.test(changed) };
+}
+
 /** Whitespace is shown as symbols only when whitespace itself is what changes. */
 function changePreview(from: string, to: string): [string, string] {
-  let prefix = 0;
-  while (prefix < from.length && prefix < to.length && from[prefix] === to[prefix]) prefix += 1;
-  let suffix = 0;
-  while (
-    suffix < from.length - prefix &&
-    suffix < to.length - prefix &&
-    from[from.length - 1 - suffix] === to[to.length - 1 - suffix]
-  ) {
-    suffix += 1;
-  }
-  const changed = from.slice(prefix, from.length - suffix) + to.slice(prefix, to.length - suffix);
-  return /\s/.test(changed) ? [visibleWhitespace(from), visibleWhitespace(to)] : [from, to];
+  return changeShape(from, to).whitespace
+    ? [visibleWhitespace(from), visibleWhitespace(to)]
+    : [from, to];
 }
 
 function element<K extends keyof HTMLElementTagNameMap>(
@@ -97,20 +92,10 @@ function appendDiff(
   to: string,
   side: "from" | "to",
 ) {
-  let prefix = 0;
-  while (prefix < from.length && prefix < to.length && from[prefix] === to[prefix]) prefix += 1;
-  let suffix = 0;
-  while (
-    suffix < from.length - prefix &&
-    suffix < to.length - prefix &&
-    from[from.length - 1 - suffix] === to[to.length - 1 - suffix]
-  ) {
-    suffix += 1;
-  }
+  const { prefix, suffix, whitespace } = changeShape(from, to);
   const text = side === "from" ? from : to;
   const changed = text.slice(prefix, text.length - suffix);
-  const both = from.slice(prefix, from.length - suffix) + to.slice(prefix, to.length - suffix);
-  const show = /\s/.test(both) ? visibleWhitespace : (value: string) => value;
+  const show = whitespace ? visibleWhitespace : (value: string) => value;
   parent.append(doc.createTextNode(show(text.slice(0, prefix))));
   if (changed) parent.append(element(doc, "mark", {}, show(changed)));
   parent.append(doc.createTextNode(show(text.slice(text.length - suffix))));
@@ -146,11 +131,16 @@ export class ReviewUi {
   /** The open card's finding, kept while a recheck runs on unchanged text. */
   private cardMemory: { ruleId: string; start: number; end: number; text: string } | null = null;
 
+  // List items by finding id, for the findings last listed.
+  private readonly items = new Map<string, HTMLElement>();
+  private listedDiagnostics: readonly ReviewDiagnostic[] | null = null;
+
   constructor(
     doc: Document,
     private readonly lang: string,
     private readonly callbacks: ReviewUiCallbacks,
-    private notesConfig: ReviewUiNotes,
+    /** Honest capability notes (no highlights, review only, undo behavior). */
+    private readonly capabilityKeys: readonly ReviewTextKey[],
     /** Where the host goes: inside a modal dialog, anything outside it is inert. */
     mount: Element | null = null,
   ) {
@@ -281,11 +271,6 @@ export class ReviewUi {
     } catch {
       host.removeAttribute("popover");
     }
-  }
-
-  setNotes(notes: ReviewUiNotes): void {
-    this.notesConfig = notes;
-    if (this.state) this.render(this.state);
   }
 
   /**
@@ -472,7 +457,7 @@ export class ReviewUi {
   }
 
   private renderNotes(state: ReviewViewState): void {
-    const lines: string[] = this.notesConfig.capabilityKeys.map((key) => this.t(key));
+    const lines: string[] = this.capabilityKeys.map((key) => this.t(key));
     if (state.status === "ready") {
       const skipped = state.coverage?.skipped ?? {};
       const protectedChars = (skipped.code ?? 0) + (skipped.structure ?? 0);
@@ -520,6 +505,27 @@ export class ReviewUi {
   }
 
   private renderList(state: ReviewViewState): void {
+    // Same findings (a selection or a notice changed): only the current item moves.
+    if (state.diagnostics !== this.listedDiagnostics) {
+      this.listedDiagnostics = state.diagnostics;
+      this.rebuildList(state);
+    } else {
+      for (const [id, item] of this.items) {
+        item.setAttribute("aria-current", String(id === state.selectedId));
+      }
+    }
+    // Keep the current finding visible in the list, scrolling only the list.
+    const current = state.selectedId ? this.itemFor(state.selectedId) : null;
+    if (current) {
+      const box = this.list.getBoundingClientRect();
+      const rect = current.getBoundingClientRect();
+      if (rect.top < box.top) this.list.scrollTop -= box.top - rect.top;
+      else if (rect.bottom > box.bottom) this.list.scrollTop += rect.bottom - box.bottom;
+    }
+  }
+
+  private rebuildList(state: ReviewViewState): void {
+    this.items.clear();
     const items = state.diagnostics.map((diagnostic) => {
       const li = element(this.doc, "li");
       const button = element(this.doc, "button", {
@@ -553,25 +559,14 @@ export class ReviewUi {
         this.focusCard();
       });
       li.append(button);
+      this.items.set(diagnostic.id, button);
       return li;
     });
     this.list.replaceChildren(...items);
-    // Keep the current finding visible in the list, scrolling only the list.
-    const current = state.selectedId ? this.itemFor(state.selectedId) : null;
-    if (current) {
-      const box = this.list.getBoundingClientRect();
-      const rect = current.getBoundingClientRect();
-      if (rect.top < box.top) this.list.scrollTop -= box.top - rect.top;
-      else if (rect.bottom > box.bottom) this.list.scrollTop += rect.bottom - box.bottom;
-    }
   }
 
   private itemFor(id: string): HTMLElement | null {
-    return (
-      Array.from(this.list.querySelectorAll<HTMLElement>(".item")).find(
-        (item) => item.dataset.id === id,
-      ) ?? null
-    );
+    return this.items.get(id) ?? null;
   }
 
   openCard(diagnostic: ReviewDiagnostic, anchor: DOMRect | null): void {
@@ -723,7 +718,6 @@ export class ReviewUi {
     }
   }
 
-  /** Below the finding (above when there is no room), else beside the panel. */
   /**
    * Places the card next to its finding (below, above, right or left) where it
    * covers neither the finding nor the panel; failing that, where it covers
@@ -832,12 +826,8 @@ export class ReviewUi {
 
   /** True when the keyboard focus is in the panel or the card. */
   hasFocus(): boolean {
-    let active: Element | null = this.doc.activeElement;
-    // Focus inside a dialog or another shadow root reports its host.
-    while (active && active !== this.host && active.shadowRoot?.activeElement) {
-      active = active.shadowRoot.activeElement;
-    }
-    return active === this.host;
+    const active = getDeepActiveElement(this.doc);
+    return active === this.host || (!!active && this.root.contains(active));
   }
 
   destroy(): void {
