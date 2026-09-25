@@ -113,6 +113,7 @@ export class PredictionInputProcessor {
     numSuggestions: number,
     predictNextWordAfterSeparatorChar: boolean,
     afterCursorTokenSuffix?: string,
+    suppressAutoCapitalize = false,
   ): {
     predictionInput: string;
     lastWord: string;
@@ -153,7 +154,7 @@ export class PredictionInputProcessor {
       wordCount: wordArray.length,
       newSentence,
       endsWithSpace,
-      autoCapitalize: this.autoCapitalize,
+      autoCapitalize: this.autoCapitalize && suppressAutoCapitalize !== true,
     });
     const doPrediction = this.checkDoPrediction(
       lastWord,

@@ -2951,6 +2951,103 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   );
 
   test(
+    "Quill code predictions keep lowercase through Tab and restore prose casing",
+    async () => {
+      try {
+        await setGrammarRulesAndWait(worker!, ["capitalizeSentenceStart"]);
+        await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+        await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
+        await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+        await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
+        await setSettingAndWait(worker!, KEY_AUTOCOMPLETE_ON_TAB, true);
+        await applyConfigChange(browser, worker!);
+        await gotoTestPage(page, { enableQuill: true });
+        await page.bringToFront();
+        await waitForInputReady(page, QUILL_SELECTOR);
+        await page.focus(QUILL_SELECTOR);
+        await page.evaluate(() => {
+          const quill = (
+            window as typeof window & {
+              __testQuill?: {
+                setText: (text: string, source?: string) => void;
+                formatLine: (
+                  index: number,
+                  length: number,
+                  name: string,
+                  value: boolean,
+                  source?: string,
+                ) => void;
+                setSelection: (index: number, length: number, source?: string) => void;
+              };
+            }
+          ).__testQuill;
+          if (!quill) throw new Error("Quill test instance not found");
+          quill.setText("what . \nwhat . \n", "silent");
+          quill.formatLine(0, 1, "code-block", true, "api");
+          quill.setSelection("what . ".length, 0, "api");
+          if (!document.querySelector(".ql-editor .ql-code-block"))
+            throw new Error("Missing actual Quill code block");
+        });
+        for (const expected of ["was", "Was"]) {
+          if (expected === "Was") {
+            await page.keyboard.press("Escape");
+            await page.evaluate(() => {
+              const quill = (
+                window as typeof window & {
+                  __testQuill?: {
+                    getText: () => string;
+                    setSelection: (index: number, length: number, source?: string) => void;
+                  };
+                }
+              ).__testQuill;
+              if (!quill) throw new Error("Quill test instance not found");
+              quill.setSelection(quill.getText().indexOf("\n") + 1 + "what . ".length, 0, "api");
+            });
+          }
+          await page.keyboard.type("wa");
+          const index = await waitUntil(
+            `Quill offers ${expected} with context-correct casing`,
+            async () => {
+              const suggestions = await waitForVisibleSuggestionTexts(page);
+              const found = suggestions.findIndex((text) => text.trim() === expected);
+              return found >= 0 ? { value: found } : false;
+            },
+            { timeoutMs: browserTimeout(5000, 10000), intervalMs: 50 },
+          );
+          for (let i = 0; i < index.value; i += 1) await page.keyboard.press("ArrowDown");
+          await page.keyboard.press("Tab");
+          await waitUntil(
+            `Quill inserts ${expected} without changing code casing`,
+            async () =>
+              page.evaluate((inProse) => {
+                const quill = (
+                  window as typeof window & { __testQuill?: { getText: () => string } }
+                ).__testQuill;
+                const lines = quill
+                  ?.getText()
+                  .replace(/\u00a0/g, " ")
+                  .split("\n");
+                const code = document
+                  .querySelector(".ql-editor .ql-code-block")
+                  ?.textContent?.trimEnd();
+                return (
+                  code === "what . was" &&
+                  lines?.[0]?.trimEnd() === "what . was" &&
+                  lines?.[1]?.trimEnd() === (inProse ? "what . Was" : "what .")
+                );
+              }, expected === "Was"),
+            { timeoutMs: browserTimeout(5000, 10000), intervalMs: 50 },
+          );
+        }
+      } finally {
+        await setGrammarRulesAndWait(worker!, []);
+        await applyConfigChange(browser, worker!);
+      }
+    },
+    browserTimeout(45000, 70000),
+  );
+
+  test(
     "Quill preserves block structure and caret-correct insertion on Tab acceptance",
     async () => {
       await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");

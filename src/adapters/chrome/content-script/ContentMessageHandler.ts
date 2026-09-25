@@ -79,6 +79,7 @@ export class ContentMessageHandler {
         text: context.text,
         nextChar: context.nextChar,
         afterCursorTokenSuffix: context.afterCursorTokenSuffix,
+        ...(context.suppressAutoCapitalize === true ? { suppressAutoCapitalize: true } : {}),
         inputAction: context.inputAction,
         suggestionId: context.suggestionId,
         requestId: context.requestId,

@@ -311,8 +311,16 @@ export class MessageRouter {
       () =>
         worker.runPrediction(
           predictRequestMessage,
-          domainSettings.hasNumSuggestionsOverride
-            ? { numSuggestions: domainSettings.numSuggestions }
+          domainSettings.hasNumSuggestionsOverride ||
+            request.context.suppressAutoCapitalize === true
+            ? {
+                ...(domainSettings.hasNumSuggestionsOverride
+                  ? { numSuggestions: domainSettings.numSuggestions }
+                  : {}),
+                ...(request.context.suppressAutoCapitalize === true
+                  ? { suppressAutoCapitalize: true }
+                  : {}),
+              }
             : undefined,
         ),
       (cause) =>

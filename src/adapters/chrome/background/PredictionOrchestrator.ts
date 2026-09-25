@@ -117,6 +117,7 @@ export class PredictionOrchestrator {
       configOverride?.numSuggestions,
       configOverride?.tabId,
       afterCursorTokenSuffix,
+      configOverride?.suppressAutoCapitalize,
     );
 
     const presageDebug: PredictorStageDebugInfo = {

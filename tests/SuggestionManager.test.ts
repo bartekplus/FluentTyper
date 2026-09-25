@@ -378,6 +378,54 @@ describe("SuggestionManager", () => {
     ).toBeUndefined();
   });
 
+  test("Quill code prediction stays lowercase through Tab acceptance", async () => {
+    const { PresageHandler } = await import("../src/adapters/chrome/background/PresageHandler");
+    const { PredictionOrchestrator } =
+      await import("../src/adapters/chrome/background/PredictionOrchestrator");
+    const { mod } = await import("./fakeLibPresage.js");
+    const original = mod.PresageCallback.predictions;
+    try {
+      mod.PresageCallback.predictions = ["was"];
+      const handler = new PresageHandler(mod);
+      handler.setConfig({
+        numSuggestions: 1,
+        minWordLengthToPredict: 1,
+        insertSpaceAfterAutocomplete: true,
+        autoCapitalize: true,
+        textExpansions: [],
+        prefixOnlyMode: false,
+      });
+      const backend = new PredictionOrchestrator(handler);
+      const { manager, getPrediction } = await createManager({
+        enabledGrammarRules: ["capitalizeSentenceStart"],
+        selectByDigit: false,
+      });
+      const root = document.createElement("div");
+      root.setAttribute("contenteditable", "true");
+      Object.defineProperty(root, "isContentEditable", { value: true });
+      root.innerHTML = '<div class="ql-code-block">what . wa</div>';
+      document.body.append(root);
+      manager.queryAndAttachHelper();
+      root.focus();
+      setContentEditableCursor(root, "what . wa".length);
+      dispatchInput(root, { inputType: "insertText" });
+      const request = await waitForNextCall(getPrediction);
+      const result = await backend.runPrediction(
+        request.text,
+        request.nextChar,
+        request.lang,
+        { suppressAutoCapitalize: request.suppressAutoCapitalize },
+        request.afterCursorTokenSuffix,
+      );
+      manager.fulfillPrediction(buildResponse(request, result));
+      expect(querySuggestionMenuItems()[0]?.textContent?.trim()).toBe("was");
+      dispatchKeydown(root, "Tab");
+      expect(root.querySelector(".ql-code-block")?.textContent?.trimEnd()).toBe("what . was");
+    } finally {
+      mod.PresageCallback.predictions = original;
+    }
+  });
+
   test("capitalizes an accepted suggestion the way typing the word would", async () => {
     // Typing "was " capitalized while picking "was" from the menu did not:
     // acceptance finishes a word without ever reaching the keystroke path.

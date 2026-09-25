@@ -254,6 +254,7 @@ export class PresageHandler {
     numSuggestionsOverride?: number,
     tabId?: number,
     afterCursorTokenSuffix?: string,
+    suppressAutoCapitalize = false,
   ): PresagePredictionContext {
     const effectiveNumSuggestions =
       typeof numSuggestionsOverride === "number"
@@ -266,6 +267,7 @@ export class PresageHandler {
         effectiveNumSuggestions,
         this.predictNextWordAfterSeparatorChar,
         afterCursorTokenSuffix,
+        suppressAutoCapitalize,
       );
 
     return {
