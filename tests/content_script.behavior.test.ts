@@ -8,9 +8,11 @@ import {
   CMD_POPUP_PAGE_DISABLE,
   CMD_POPUP_PAGE_ENABLE,
   CMD_STATUS_COMMAND,
+  CMD_REVIEW_FT_ACTIVE_TAB,
   CMD_TOGGLE_FT_ACTIVE_TAB,
   CMD_TRIGGER_FT_ACTIVE_TAB,
 } from "../src/core/domain/constants";
+import { ContentRuntimeController } from "../src/adapters/chrome/content-script/ContentRuntimeController";
 import {
   EARLY_TAB_ACCEPT_MESSAGE_TYPE,
   EARLY_TAB_ACCEPT_REQUEST_EVENT,
@@ -588,6 +590,37 @@ describe("content_script behavior", () => {
         (response) => (response as { command?: string }).command === CMD_STATUS_COMMAND,
       ),
     ).toBe(true);
+  });
+
+  test("messageHandler routes Review text with its source and replies with status", async () => {
+    const review = jest
+      .spyOn(ContentRuntimeController.prototype, "reviewActiveEditor")
+      .mockImplementation(() => undefined);
+    try {
+      const { fluentTyper } = await loadContentScript();
+      fluentTyper.enable();
+      const responses: unknown[] = [];
+      fluentTyper.messageHandler(
+        { command: CMD_REVIEW_FT_ACTIVE_TAB, context: { source: "popup" } },
+        (response) => responses.push(response),
+      );
+      fluentTyper.messageHandler(
+        { command: CMD_REVIEW_FT_ACTIVE_TAB, context: { source: "command" } },
+        (response) => responses.push(response),
+      );
+      // Anything but the popup is treated as the keyboard command.
+      fluentTyper.messageHandler({ command: CMD_REVIEW_FT_ACTIVE_TAB, context: {} }, (response) =>
+        responses.push(response),
+      );
+      expect(review.mock.calls).toEqual([["popup"], ["command"], ["command"]]);
+      expect(
+        responses.every(
+          (response) => (response as { command?: string }).command === CMD_STATUS_COMMAND,
+        ),
+      ).toBe(true);
+    } finally {
+      review.mockRestore();
+    }
   });
 
   test("same-language runtime update does not thrash suggestion manager", async () => {

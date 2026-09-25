@@ -3,6 +3,7 @@ import { JSDOM } from "jsdom";
 import {
   CMD_GET_AUTO_LANGUAGE_STATUS,
   CMD_POPUP_GET_PRODUCTIVITY_STATS,
+  CMD_REVIEW_FT_ACTIVE_TAB,
 } from "../src/core/domain/constants";
 import type { ProductivityDashboardStats } from "../src/core/domain/messageTypes";
 import { acquireDomGlobalLock } from "./support/domGlobalLock";
@@ -66,6 +67,10 @@ function popupMarkup(initialAccepted = "0"): string {
     <div id="checkboxDomainHint"></div>
     <input id="checkboxEnableInput" type="checkbox" />
     <select id="languageSelect"></select>
+    <div id="reviewTextCard" class="is-hidden">
+      <button id="reviewTextBtn" type="button"></button>
+      <small id="reviewTextShortcut"></small>
+    </div>
 
     <div id="permissionBanner" class="is-hidden" data-permission-state="missing">
       <span id="permissionBadge"></span>
@@ -1010,6 +1015,41 @@ describe.serial("popup productivity dashboard retry/failure paths", () => {
     expect(chromeMock.tabs.create).toHaveBeenCalledWith({
       url: expect.stringContaining("options/options.html#advanced_tab"),
     });
+  });
+
+  test("Review text asks the current tab to review its focused editor, then closes", async () => {
+    const chromeMock = await loadPopupWithOutcomes(
+      [{ type: "stats", value: createPopupStats(1) }],
+      "0",
+      { contains: async () => true },
+      createWebsiteTab(),
+    );
+    const card = document.getElementById("reviewTextCard") as HTMLElement;
+    expect(card.classList.contains("is-hidden")).toBe(false);
+    chromeMock.tabs.sendMessage.mockImplementation(() => Promise.resolve());
+    const close = jest.spyOn(window, "close").mockImplementation(() => undefined);
+
+    (document.getElementById("reviewTextBtn") as HTMLButtonElement).click();
+
+    expect(chromeMock.tabs.sendMessage).toHaveBeenCalledWith(17, {
+      command: CMD_REVIEW_FT_ACTIVE_TAB,
+      context: { source: "popup" },
+    });
+    expect(close).toHaveBeenCalledTimes(1);
+  });
+
+  test("Review text is hidden where FluentTyper is off", async () => {
+    await loadPopupWithOutcomes(
+      [{ type: "stats", value: createPopupStats(1) }],
+      "0",
+      { contains: async () => true },
+      createWebsiteTab(),
+      false,
+      undefined,
+      undefined,
+      { "store.settings.enable": JSON.stringify(false) },
+    );
+    expect(document.getElementById("reviewTextCard")?.classList.contains("is-hidden")).toBe(true);
   });
 
   test("popup applies explicit dark theme mode from matchMedia", async () => {
