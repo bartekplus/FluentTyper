@@ -6,7 +6,6 @@ export function measurementEditingContext(
   element: HTMLElement,
 ): GrammarHints["measurementContext"] {
   if (resolveCodeContext(element) !== "prose") return "protected";
-  if (element.getAttribute("aria-readonly") === "true") return "protected";
   if (
     /(?:^|\s)(?:current-password|new-password|one-time-code)(?:\s|$)/.test(
       element.getAttribute("autocomplete") ?? "",

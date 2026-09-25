@@ -1,46 +1,12 @@
 import { afterEach, expect, jest, test } from "bun:test";
+import { createEditor as editor, setCaret as caret, withProperty } from "./codeContextTestUtils";
 import { resolveCodeContext } from "../src/adapters/chrome/content-script/suggestions/CodeContextResolver";
 import { measurementEditingContext } from "../src/adapters/chrome/content-script/suggestions/MeasurementEditingContext";
-
-function editor(html: string, doc: Document = document): HTMLDivElement {
-  const element = doc.createElement("div");
-  element.setAttribute("contenteditable", "true");
-  // jsdom does not implement inherited isContentEditable.
-  Object.defineProperty(element, "isContentEditable", { configurable: true, value: true });
-  element.innerHTML = html;
-  doc.body.append(element);
-  return element;
-}
-
-function caret(node: Node, offset = node.textContent?.length ?? 0): void {
-  const doc = node.ownerDocument ?? document;
-  const selection = doc.getSelection();
-  if (!selection) throw new Error("Missing fixture selection");
-  const range = doc.createRange();
-  range.setStart(node, offset);
-  range.collapse(true);
-  selection.removeAllRanges();
-  selection.addRange(range);
-}
 
 function text(element: Element): Text {
   const node = element.firstChild;
   if (!node || node.nodeType !== 3) throw new Error("Missing fixture text");
   return node as Text;
-}
-
-function withProperty(target: object, name: string, value: unknown, run: () => void): void {
-  // Instance spies on jsdom's inherited Document methods were ineffective in
-  // Bun CI. Install an own property and restore its exact previous descriptor.
-  const previous = Object.getOwnPropertyDescriptor(target, name);
-  Object.defineProperty(target, name, { configurable: true, writable: true, value });
-  try {
-    expect(Reflect.get(target, name)).toBe(value);
-    run();
-  } finally {
-    if (previous) Object.defineProperty(target, name, previous);
-    else Reflect.deleteProperty(target, name);
-  }
 }
 
 afterEach(() => {

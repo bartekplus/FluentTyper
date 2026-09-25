@@ -1,28 +1,14 @@
 import { expect, jest, test } from "bun:test";
+import { createEditor, withProperty } from "./codeContextTestUtils";
 import { resolveCodeContext } from "../src/adapters/chrome/content-script/suggestions/CodeContextResolver";
 
 type CaretRange = Pick<Range, "startContainer" | "startOffset" | "endContainer" | "endOffset">;
-
-function withProperty(target: object, name: string, value: unknown, run: () => void): void {
-  const previous = Object.getOwnPropertyDescriptor(target, name);
-  Object.defineProperty(target, name, { configurable: true, writable: true, value });
-  try {
-    expect(Reflect.get(target, name)).toBe(value);
-    run();
-  } finally {
-    if (previous) Object.defineProperty(target, name, previous);
-    else Reflect.deleteProperty(target, name);
-  }
-}
 
 function fixture() {
   const host = document.createElement("div");
   document.body.append(host);
   const shadow = host.attachShadow({ mode: "open" });
-  const root = document.createElement("div");
-  root.setAttribute("contenteditable", "true");
-  Object.defineProperty(root, "isContentEditable", { value: true });
-  root.innerHTML = '<p>prose</p><div class="ql-code-block">code</div>';
+  const root = createEditor('<p>prose</p><div class="ql-code-block">code</div>');
   shadow.append(root);
   const prose = root.firstElementChild!.firstChild!;
   const code = root.lastElementChild!.firstChild!;
@@ -105,4 +91,36 @@ test("a throwing composed selection API does not fall back to a different caret"
       expect(fallback).not.toHaveBeenCalled();
     });
   });
+});
+
+test("code-context fixtures restore inherited properties after exceptions", () => {
+  const target = Object.create({ value: "inherited" }) as { value: string };
+  expect(() =>
+    withProperty(target, "value", "temporary", () => {
+      expect(target.value).toBe("temporary");
+      throw new Error("fixture failure");
+    }),
+  ).toThrow("fixture failure");
+  expect(Object.hasOwn(target, "value")).toBe(false);
+  expect(target.value).toBe("inherited");
+});
+
+test("code-context fixtures restore nested overrides and exact accessor descriptors", () => {
+  const target = {};
+  Object.defineProperty(target, "value", {
+    configurable: true,
+    enumerable: false,
+    get: () => "original",
+  });
+  const original = Object.getOwnPropertyDescriptor(target, "value");
+  withProperty(target, "value", "outer", () => {
+    expect(() =>
+      withProperty(target, "value", "inner", () => {
+        throw new Error("nested failure");
+      }),
+    ).toThrow("nested failure");
+    expect(Reflect.get(target, "value")).toBe("outer");
+  });
+  expect(Object.getOwnPropertyDescriptor(target, "value")).toEqual(original);
+  expect(Reflect.get(target, "value")).toBe("original");
 });

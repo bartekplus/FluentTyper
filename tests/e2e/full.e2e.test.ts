@@ -1,3 +1,4 @@
+import type Quill from "quill";
 import type { Browser, Page } from "puppeteer";
 import path from "path";
 import * as fs from "fs";
@@ -2966,21 +2967,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         await waitForInputReady(page, QUILL_SELECTOR);
         await page.focus(QUILL_SELECTOR);
         await page.evaluate(() => {
-          const quill = (
-            window as typeof window & {
-              __testQuill?: {
-                setText: (text: string, source?: string) => void;
-                formatLine: (
-                  index: number,
-                  length: number,
-                  name: string,
-                  value: boolean,
-                  source?: string,
-                ) => void;
-                setSelection: (index: number, length: number, source?: string) => void;
-              };
-            }
-          ).__testQuill;
+          const quill = (window as typeof window & { __testQuill?: Quill }).__testQuill;
           if (!quill) throw new Error("Quill test instance not found");
           quill.setText("what . \nwhat . \n", "silent");
           quill.formatLine(0, 1, "code-block", true, "api");
@@ -2992,14 +2979,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           if (expected === "Was") {
             await page.keyboard.press("Escape");
             await page.evaluate(() => {
-              const quill = (
-                window as typeof window & {
-                  __testQuill?: {
-                    getText: () => string;
-                    setSelection: (index: number, length: number, source?: string) => void;
-                  };
-                }
-              ).__testQuill;
+              const quill = (window as typeof window & { __testQuill?: Quill }).__testQuill;
               if (!quill) throw new Error("Quill test instance not found");
               quill.setSelection(quill.getText().indexOf("\n") + 1 + "what . ".length, 0, "api");
             });
@@ -3008,7 +2988,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           const index = await waitUntil(
             `Quill offers ${expected} with context-correct casing`,
             async () => {
-              const suggestions = await waitForVisibleSuggestionTexts(page);
+              const suggestions = await getVisibleSuggestionTexts(page);
               const found = suggestions.findIndex((text) => text.trim() === expected);
               return found >= 0 ? { value: found } : false;
             },
@@ -3020,9 +3000,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
             `Quill inserts ${expected} without changing code casing`,
             async () =>
               page.evaluate((inProse) => {
-                const quill = (
-                  window as typeof window & { __testQuill?: { getText: () => string } }
-                ).__testQuill;
+                const quill = (window as typeof window & { __testQuill?: Quill }).__testQuill;
                 const lines = quill
                   ?.getText()
                   .replace(/\u00a0/g, " ")

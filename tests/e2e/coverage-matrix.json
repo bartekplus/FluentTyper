@@ -2431,6 +2431,16 @@
           "layer": "unit",
           "file": "tests/CodeContextShadow.test.ts",
           "test": "a throwing composed selection API does not fall back to a different caret"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/CodeContextShadow.test.ts",
+          "test": "code-context fixtures restore inherited properties after exceptions"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/CodeContextShadow.test.ts",
+          "test": "code-context fixtures restore nested overrides and exact accessor descriptors"
         }
       ]
     },
@@ -2478,6 +2488,11 @@
           "layer": "e2e-full",
           "file": "tests/e2e/full.e2e.test.ts",
           "test": "Quill code predictions keep lowercase through Tab and restore prose casing"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/background.routing.test.ts",
+          "test": "onMessage combines code casing suppression with site suggestion-count overrides"
         }
       ]
     }

@@ -1,28 +1,17 @@
 import { afterEach, expect, jest, test } from "bun:test";
+import { createEditor, setCaret as select } from "./codeContextTestUtils";
 import { GrammarRuleEngine } from "../src/core/domain/grammar/GrammarRuleEngine";
 import { GRAMMAR_RULE_CATALOG } from "../src/core/domain/grammar/ruleCatalog";
 import { measurementEditingContext } from "../src/adapters/chrome/content-script/suggestions/MeasurementEditingContext";
 import { SuggestionGrammarCoordinator } from "../src/adapters/chrome/content-script/suggestions/SuggestionGrammarCoordinator";
 
 function fixture(): { root: HTMLDivElement; prose: Text; code: Text } {
-  const root = document.createElement("div");
-  root.setAttribute("contenteditable", "true");
-  Object.defineProperty(root, "isContentEditable", { configurable: true, value: true });
-  root.innerHTML = '<p>teh </p><div class="ql-code-block">teh </div>';
-  document.body.append(root);
+  const root = createEditor('<p>teh </p><div class="ql-code-block">teh </div>');
   return {
     root,
     prose: root.firstElementChild!.firstChild as Text,
     code: root.lastElementChild!.firstChild as Text,
   };
-}
-
-function select(node: Text): void {
-  const range = document.createRange();
-  range.setStart(node, node.length);
-  range.collapse(true);
-  document.getSelection()!.removeAllRanges();
-  document.getSelection()!.addRange(range);
 }
 
 function coordinator(enabledGrammarRules?: string[]): SuggestionGrammarCoordinator {

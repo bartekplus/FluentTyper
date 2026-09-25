@@ -40,6 +40,7 @@ import {
 } from "@core/domain/error";
 import { DomainSettingsCache } from "../config/DomainSettingsCache";
 import type { BackgroundServiceWorker } from "../BackgroundServiceWorker";
+import type { PredictionConfigOverride } from "../PredictionTypes";
 import { HandlerRegistry } from "./HandlerRegistry";
 import { mapRuntimeError } from "./RuntimeErrorMapper";
 
@@ -307,22 +308,16 @@ export class MessageRouter {
       },
     };
 
+    let configOverride: PredictionConfigOverride | undefined;
+    if (domainSettings.hasNumSuggestionsOverride) {
+      configOverride = { numSuggestions: domainSettings.numSuggestions };
+    }
+    if (request.context.suppressAutoCapitalize === true) {
+      configOverride = { ...configOverride, suppressAutoCapitalize: true };
+    }
+
     await rethrowAs(
-      () =>
-        worker.runPrediction(
-          predictRequestMessage,
-          domainSettings.hasNumSuggestionsOverride ||
-            request.context.suppressAutoCapitalize === true
-            ? {
-                ...(domainSettings.hasNumSuggestionsOverride
-                  ? { numSuggestions: domainSettings.numSuggestions }
-                  : {}),
-                ...(request.context.suppressAutoCapitalize === true
-                  ? { suppressAutoCapitalize: true }
-                  : {}),
-              }
-            : undefined,
-        ),
+      () => worker.runPrediction(predictRequestMessage, configOverride),
       (cause) =>
         new PredictorError("Failed to run prediction", {
           code: "message_run_prediction_failed",

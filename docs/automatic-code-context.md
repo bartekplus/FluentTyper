@@ -1,107 +1,73 @@
 # Automatic rich-text code protection
 
-FluentTyper applies the existing Code-mode grammar filter at the current caret,
-without changing saved global/site settings or restarting the content runtime.
-Moving back into prose restores the configured prose rules on the next grammar
-operation. The resolver is synchronous and uncached, so changing a paragraph's
-format without changing its text is also recognized.
+FluentTyper resolves the current caret's code context for each grammar operation
+and prediction request. Moving between code and prose, or changing formatting
+without changing text, does not change saved settings or restart the runtime.
 
-## Supported DOM signals
+## Detection
 
-- Semantic `code`, `pre`, `kbd`, and `samp` ancestors. Literal/preformatted text is
-  protected even when it is not a programming language.
-- Quill 2's editing DOM: `.ql-code-block` and `.ql-code-block-container`, including
-  empty blocks and syntax-highlighting descendants. No `.ql-editor` ancestor is
-  required, so the standalone code-block representation works too.
-- Existing whole-editor markers: `.monaco-editor`, `.CodeMirror`, `.cm-editor`,
-  and `.ace_editor`.
+`CodeContextResolver.ts` recognizes semantic `code`, `pre`, `kbd`, and `samp`
+ancestors; Quill's `.ql-code-block` and `.ql-code-block-container`; and the existing
+Monaco, CodeMirror, and Ace editor markers. Empty blocks and syntax-highlighting
+descendants are covered. Preformatted/literal content receives the same protection.
+Code elsewhere in the composer does not disable the active prose paragraph.
 
-Code blocks elsewhere in a composer do not change the active prose paragraph's
-mode. Inline code does not disable adjacent prose text. Monospace fonts,
-`spellcheck="false"`, `data-gramm="false"`, generic `.code`/`language-*` classes,
-and text that merely resembles a program are not used as code evidence.
+Monospace fonts, `spellcheck=false`, `data-gramm=false`, generic `.code` or
+`language-*` classes, and program-looking text are not standalone code signals.
 
-## Selection and eligibility
+Selection is read from the editor's owning document. Shadow editors use
+`getComposedRanges()` when available, with scoped or ordinary range fallbacks.
+Every resolved range must be collapsed and belong to the target. Missing,
+foreign, expanded, or unavailable selections remain unknown. A parent-offset
+caret next to code also remains unknown rather than guessing insertion affinity.
+A failed composed-selection call never falls back to a different caret.
 
-`CodeContextResolver.ts` uses the editor's owning document and inspects the
-caret's ancestors. For shadow-root editors it supplies the accessible ancestor
-roots to `getComposedRanges()` when available, with scoped-selection/ordinary
-range fallbacks. It checks that the returned range actually belongs to the
-editor rather than treating a re-scoped host position as prose.
+## Grammar and prediction behavior
 
-Missing, foreign, non-collapsed, or unavailable selections are unknown. A
-parent/child-offset position immediately adjacent to code also has uncertain
-formatting affinity; prose-only rules are withheld rather than choosing a
-sibling. An ordinary text-node position in adjacent prose remains eligible.
+`MeasurementEditingContext.ts` preserves existing field eligibility exclusions
+and maps every non-prose result to the grammar engine's `protected` hint.
+Only code-safe grammar rules run there; an explicitly enabled `autoBracketClose`
+still runs. This is not a policy that blocks every extension action.
 
-`MeasurementEditingContext.ts` retains the existing grammar-hint interface and
-sensitive/read-only/input-type exclusions. Unknown and protected contexts map to
-its existing `protected` hint. This hint is already consumed by the shared
-local grammar paths, including Enter's virtual word-boundary processing.
+Prediction requests carry optional `suppressAutoCapitalize: true` for non-prose
+DOM contexts. The background applies it per request, never to shared predictor
+configuration. Thus `what . wa` can offer and insert `was` in code and `Was` in
+prose. Authored `Wa`/`WA`, original candidate casing, and snippet text/metadata
+retain their existing behavior; results are not blindly lowercased. Virtual
+Google Docs prediction sessions without a DOM element retain their prior behavior.
 
-## Semantics and scope
+No dependencies, settings migrations, permissions, external requests, typed-text
+logging, or keyboard interception are added. Explicit autocomplete and snippet
+acceptance remain available. Markdown parsing is unchanged.
 
-This applies automatic **grammar and prediction-casing protection**, not a new autocomplete mode. The
-existing `codeSafe` rule allowlist still applies; an explicitly enabled
-`autoBracketClose` remains enabled. Unknown/protected does not introduce a new
-"block every extension action" policy. Existing composition, edit eligibility,
-and selection-stability guards remain responsible for their respective checks.
+## Limits
 
-No settings, migrations, permissions, network requests, logging of typed text,
-or keyboard interception are added. Prediction requests carry an optional
-sentence-casing suppression flag for code/literal contexts; explicit snippet
-acceptance, the early-Tab bridge, and Markdown parsing are otherwise unchanged.
-
-This change does not add final replacement-range validation across inline-code
-boundaries, clip grammar context to prose-only spans, or add stale-prediction
-region tokens. A caret-local check alone is not a guarantee that every possible
-replacement range avoids code. Those broader safeguards need a separate edit-
-transaction change and end-to-end validation. Custom model-only code styles and
-Google Docs canvas code formatting also need dedicated adapters.
+Caret-local detection does not validate every replacement range across inline
+code, clip grammar context to prose-only spans, or track stale predictions by
+region identity. Those are separate transaction safeguards. Custom model-only
+code styles and Google Docs canvas formatting need dedicated adapters.
 
 ## Tests
 
-`tests/CodeContextResolver.test.ts` covers mixed Quill markup, empty blocks,
-semantic/inline code, highlighted descendants, prose restoration, formatting-only
-changes, negative heuristics, protected controls, ambiguous boundaries, iframe
-selections, nested composed shadow ranges, and selection API failures.
+`CodeContextResolver.test.ts`, `CodeContextGrammar.test.ts`, and
+`CodeContextShadow.test.ts` cover detection, selection boundaries/failures,
+formatting changes, real grammar hints, and optional code-safe rules.
+`codeContextTestUtils.ts` shares editor/caret fixtures and synchronous property
+overrides; exact descriptor restoration is tested even for nested exceptions.
 
-`tests/CodeContextGrammar.test.ts` uses the real coordinator and rule catalog to
-check default-rule protection/restoration, Enter boundaries, and preservation of
-the optional code-safe bracket rule. A call-through engine spy verifies the
-context delivered for every trigger; a null result from an empty idle/paste
-pipeline alone would not establish that protection was propagated.
+`CodePredictionCapitalization.test.ts` covers casing, request isolation, and
+message forwarding. `background.routing.test.ts` covers independent casing and
+site suggestion-count overrides. `SuggestionManager.test.ts` checks popup text
+and Tab acceptance. The full Chrome/Firefox suite tests the built extension in
+real Quill code and prose in the same composer. Automated fixtures are not a
+claim of independent live Slack or Google Docs validation.
 
-`tests/CodeContextShadow.test.ts` checks composed-range rejection and both scoped
-and ordinary range fallbacks. Positive prose/code controls and explicit call
-assertions prevent a generic unknown result from making a negative test pass
-without exercising its intended branch. A throwing composed API must not fall
-back to a different, otherwise-valid prose caret.
-
-DOM API fixtures use scoped own-property overrides with exact descriptor
-restoration in `finally`. The original instance spies on jsdom's inherited
-`Document.getSelection` did not affect the actual reads in Bun CI. Supplementing
-the real Selection object also avoids replacing it with an incomplete mock.
-
-The coverage registry tracks these behaviors under
-`grammar_rich_text_code_protection`, `grammar_code_context_selection_safety`, and
-`grammar_code_context_formatting_changes`. Unit-level coverage provides precise
-control of DOM API capabilities and failures; it does not claim live Slack or
-Google Docs validation.
-
-Run the focused repository tests with:
+Run the focused tests:
 
 ```sh
-bun test tests/CodeContextResolver.test.ts tests/CodeContextGrammar.test.ts tests/CodeContextShadow.test.ts
+bun test tests/CodeContextResolver.test.ts tests/CodeContextGrammar.test.ts tests/CodeContextShadow.test.ts tests/CodePredictionCapitalization.test.ts
 ```
 
-Run the full repository checks, unit suite, coverage registry validation, and
-smoke/full extension suites on Chrome and Firefox as specified in
-`docs/agents/testing.md`. Browser regression suites and focused DOM tests serve
-different purposes; neither is a claim of manual validation in live Slack.
-
-## Prediction sentence casing
-
-The current editing context also suppresses automatic sentence capitalization in prediction results. The content script sends a per-request boolean through the existing runtime message and prediction configuration override; it does not change saved settings or the shared predictor configuration. Thus `what . wa` can offer and insert `was` in code while prose still offers `Was`. Explicitly typed capitals and original candidate/snippet casing are retained; results are not blindly lowercased. Google Docs virtual prediction sessions without an element retain their existing behavior.
-
-The regression covers request-local and overlapping code/prose predictions, mid-word suffixes, preserved candidate/snippet casing, content-message forwarding, and actual Tab acceptance. The full Chrome/Firefox suite additionally tests the built extension in a real Quill code block and then in prose in the same composer. This is an automated Quill fixture, not a claim of live Slack validation.
+Run `bun run check`, `bun run test`, `bun run check:e2e:coverage`, and both
+browsers' smoke/full suites as specified in `docs/agents/testing.md`. Coverage
+entries use the existing stable behavior IDs; no baseline behavior is removed.
