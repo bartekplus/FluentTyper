@@ -1,5 +1,6 @@
 import {
   CMD_BACKGROUND_PAGE_PREDICT_REQ,
+  CMD_CONTENT_SCRIPT_ADD_TO_DICTIONARY,
   CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG,
   CMD_CONTENT_SCRIPT_GET_CONFIG,
   CMD_CONTENT_SCRIPT_PREDICT_REQ,
@@ -38,6 +39,7 @@ import {
   isFluentTyperError,
   logError,
 } from "@core/domain/error";
+import { CoreSettingsRepository } from "@core/application/repositories/CoreSettingsRepository";
 import { DomainSettingsCache } from "../config/DomainSettingsCache";
 import type { BackgroundServiceWorker } from "../BackgroundServiceWorker";
 import type { PredictionConfigOverride } from "../PredictionTypes";
@@ -48,6 +50,7 @@ const logger = createLogger("MessageRouter");
 
 const ROUTED_MESSAGE_COMMANDS = [
   CMD_CONTENT_SCRIPT_PREDICT_REQ,
+  CMD_CONTENT_SCRIPT_ADD_TO_DICTIONARY,
   CMD_OPTIONS_PAGE_CONFIG_CHANGE,
   CMD_CONTENT_SCRIPT_GET_CONFIG,
   CMD_CONTENT_SCRIPT_USAGE_EVENT,
@@ -148,6 +151,10 @@ export class MessageRouter {
 
     register(CMD_CONTENT_SCRIPT_PREDICT_REQ, this.handleContentScriptPredictReq.bind(this));
     register(CMD_OPTIONS_PAGE_CONFIG_CHANGE, this.handleOptionsPageConfigChange.bind(this));
+    register(
+      CMD_CONTENT_SCRIPT_ADD_TO_DICTIONARY,
+      this.handleContentScriptAddToDictionary.bind(this),
+    );
     register(CMD_CONTENT_SCRIPT_GET_CONFIG, this.handleContentScriptGetConfig.bind(this));
     register(CMD_CONTENT_SCRIPT_USAGE_EVENT, this.handleContentScriptUsageEvent.bind(this));
     register(
@@ -344,6 +351,37 @@ export class MessageRouter {
     // request picks up the new values without waiting for the TTL to expire.
     this.domainSettingsCache.invalidate();
     this.respondOk(sendResponse);
+  }
+
+  /**
+   * "Add to dictionary" from a review card: an explicit user action. Uses the
+   * same stored list and the same config broadcast as the options page.
+   */
+  private async handleContentScriptAddToDictionary(
+    payload: CommandPayload<typeof CMD_CONTENT_SCRIPT_ADD_TO_DICTIONARY>,
+  ): Promise<void> {
+    const { request, sendResponse, worker } = payload;
+    const word = typeof request.context?.word === "string" ? request.context.word : "";
+    const added = await rethrowAs(
+      () => new CoreSettingsRepository(worker.settingsManager).addUserDictionaryWord(word),
+      (cause) =>
+        new ConfigError("Failed to add a user dictionary word", {
+          code: "message_add_dictionary_word_failed",
+          cause,
+        }),
+    );
+    if (added) {
+      await rethrowAs(
+        () => worker.updatePresageConfig(),
+        (cause) =>
+          new ConfigError("Failed to update prediction runtime config", {
+            code: "message_update_runtime_config_failed",
+            cause,
+          }),
+      );
+      this.domainSettingsCache.invalidate();
+    }
+    sendResponse({ ok: added });
   }
 
   private async handleContentScriptGetConfig(

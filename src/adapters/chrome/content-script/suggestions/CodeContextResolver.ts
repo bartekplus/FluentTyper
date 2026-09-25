@@ -14,10 +14,18 @@ function parentAcrossShadowRoot(node: Node): Node | null {
   return node.nodeType === 11 && "host" in node ? (node as ShadowRoot).host : null;
 }
 
-/** No page globals, computed styles, text heuristics, or document-wide queries. */
-function ancestorContext(node: Node): CodeContext | null {
+/**
+ * The code/protected context a node sits in, or null for prose ancestors.
+ * No page globals, computed styles, text heuristics, or document-wide queries.
+ * Exported for range-aware review, which classifies every text node it reads.
+ */
+export function ancestorContext(node: Node, stopAt?: Node): CodeContext | null {
   let code = false;
-  for (let current: Node | null = node; current; current = parentAcrossShadowRoot(current)) {
+  for (
+    let current: Node | null = node;
+    current && current !== stopAt;
+    current = parentAcrossShadowRoot(current)
+  ) {
     if (current.nodeType !== 1) continue;
     const element = current as Element;
     if (element.matches(NON_PROSE_CONTEXT)) return "protected";

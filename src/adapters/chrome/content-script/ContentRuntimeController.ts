@@ -1,7 +1,9 @@
 import { createLogger, setGlobalObservabilityRuntime } from "@core/application/logging/Logger";
-import { isInDocument } from "@core/application/dom-utils";
+import { getDeepActiveElement, isInDocument } from "@core/application/dom-utils";
+import { CMD_CONTENT_SCRIPT_ADD_TO_DICTIONARY } from "@core/domain/constants";
 import { filterCodeSafeGrammarRules } from "@core/domain/grammar/ruleCatalog";
 import type {
+  ContentScriptAddToDictionaryMessage,
   ContentScriptPredictRequestContext,
   PredictResponseContext,
   SetConfigContext,
@@ -12,6 +14,7 @@ import { MutationScheduler } from "./MutationScheduler";
 import { ShadowRootInterceptor } from "./ShadowRootInterceptor";
 import { ThemeApplicator } from "./ThemeApplicator";
 import { SuggestionManagerRuntime } from "./suggestions/SuggestionManagerRuntime";
+import { ReviewController } from "./review/ReviewController";
 
 import { GoogleDocsAdapter } from "./google-docs/GoogleDocsAdapter";
 import { DOCS_SESSION_ID } from "./google-docs/GoogleDocsModel";
@@ -65,6 +68,9 @@ export class ContentRuntimeController {
   private pendingRestartTimer: ReturnType<typeof setTimeout> | null = null;
 
   private readonly themeApplicator = new ThemeApplicator();
+  // Created on the first review request: no cost for pages that never review.
+  private review: ReviewController | null = null;
+  private reviewSuspended: HTMLElement | null = null;
 
   constructor() {
     this.domObserver = new DomObserver(
@@ -132,6 +138,8 @@ export class ContentRuntimeController {
     if (this.enabled && config.enabled) {
       logger.info("Restarting runtime due to config change");
       this.onRestartRequest();
+      // A settings change (rules, dictionary, language) rechecks an open review.
+      this.review?.handleOptionsChanged();
       return;
     }
 
@@ -148,6 +156,72 @@ export class ContentRuntimeController {
     this.config.lang = lang;
     this.suggestionManager?.updateLangConfig(this.config.lang);
     this.googleDocs?.updateLanguage(this.config.lang);
+    this.review?.handleOptionsChanged();
+  }
+
+  /**
+   * Starts a review of the focused editor in THIS frame. Every frame receives
+   * the request; only the one holding the focused editor acts. From the popup,
+   * focus returns to the page once the popup closes.
+   */
+  reviewActiveEditor(source: "command" | "popup"): void {
+    if (!this.enabled || isGoogleDocsInputFrame()) {
+      return;
+    }
+    const run = () => {
+      if (!this.googleDocs && /^I?FRAME$/.test(getDeepActiveElement(document)?.tagName ?? "")) {
+        // A child frame holds the focus and handles the request itself.
+        return;
+      }
+      this.review ??= this.createReviewController();
+      this.review.invoke();
+    };
+    if (document.hasFocus()) {
+      run();
+      return;
+    }
+    if (source !== "popup") {
+      return;
+    }
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const onFocus = () => {
+      if (timer !== null) clearTimeout(timer);
+      window.removeEventListener("focus", onFocus);
+      if (document.hasFocus()) run();
+    };
+    window.addEventListener("focus", onFocus);
+    timer = setTimeout(() => window.removeEventListener("focus", onFocus), 1500);
+  }
+
+  private createReviewController(): ReviewController {
+    return new ReviewController({
+      getOptions: () => ({
+        lang: this.config.lang,
+        // Code mode keeps only code-safe rules, none of which review supports.
+        enabledRules: this.config.codeMode
+          ? filterCodeSafeGrammarRules(this.config.enabledGrammarRules)
+          : this.config.enabledGrammarRules,
+        userDictionary: this.config.userDictionaryList ?? [],
+        insertSpaceAfterAutocomplete: this.config.insertSpaceAfterAutocomplete,
+      }),
+      suspend: (element) => {
+        this.reviewSuspended = element;
+        this.suggestionManager?.suspendForReview(element);
+      },
+      resume: (element) => {
+        this.reviewSuspended = null;
+        this.suggestionManager?.resumeAfterReview(element);
+      },
+      addToDictionary: async (word) => {
+        const message: ContentScriptAddToDictionaryMessage = {
+          command: CMD_CONTENT_SCRIPT_ADD_TO_DICTIONARY,
+          context: { word },
+        };
+        const response: unknown = await chrome.runtime.sendMessage(message);
+        return (response as { ok?: unknown } | undefined)?.ok === true;
+      },
+      getDocsSurface: () => this.googleDocs,
+    });
   }
 
   triggerActiveSuggestion(): void {
@@ -236,7 +310,9 @@ export class ContentRuntimeController {
     this.reportRuntimeActivity();
   }
 
-  disable(): void {
+  disable({ keepReview = false }: { keepReview?: boolean } = {}): void {
+    // A restart for a settings change keeps an open review; turning off ends it.
+    if (!keepReview) this.review?.close();
     this.googleDocs?.dispose();
     this.googleDocs = null;
     logger.info("Disabling content runtime");
@@ -260,7 +336,7 @@ export class ContentRuntimeController {
     }
 
     logger.warn("Restarting content runtime");
-    this.disable();
+    this.disable({ keepReview: !this.googleDocs });
     this.suggestionManager = null;
     const restartToken = Symbol("content-runtime-restart");
     this.pendingRestartToken = restartToken;
@@ -419,6 +495,7 @@ export class ContentRuntimeController {
       onShadowRootDiscovered: this.registerShadowRoot.bind(this),
     };
     this.suggestionManager = new SuggestionManagerRuntime(managerOptions);
+    if (this.reviewSuspended) this.suggestionManager.suspendForReview(this.reviewSuspended);
     if (isGoogleDocsPage()) this.googleDocs = new GoogleDocsAdapter(managerOptions);
     this.reportRuntimeActivity();
   }

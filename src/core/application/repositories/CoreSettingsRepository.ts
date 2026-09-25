@@ -170,6 +170,19 @@ export class CoreSettingsRepository extends SettingsRepositoryBase {
     return this.getStringArrayField("userDictionaryList");
   }
 
+  /** Appends one word unless an entry already matches it (case-insensitively). */
+  async addUserDictionaryWord(word: string): Promise<boolean> {
+    const trimmed = word.trim();
+    if (!trimmed || trimmed.length > 64 || /\s/.test(trimmed)) {
+      return false;
+    }
+    const current = await this.getUserDictionaryList();
+    if (!current.some((entry) => entry.trim().toLowerCase() === trimmed.toLowerCase())) {
+      await this.setField("userDictionaryList", [...current, trimmed]);
+    }
+    return true;
+  }
+
   async getThemeSettings(): Promise<SuggestionThemeSettings> {
     const fields = Object.keys(DEFAULT_SUGGESTION_THEME_SETTINGS) as ThemeField[];
     const values = await Promise.all(fields.map((field) => this.getField(field)));

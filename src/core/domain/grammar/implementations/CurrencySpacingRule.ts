@@ -5,7 +5,7 @@ import { isProsePrefix, readMeasurementBoundary } from "./MeasurementUnitFormatt
 // Exact, case-sensitive markers written after the amount. ISO codes that are
 // also words or common acronyms (ALL, TOP, CUP, TRY, CAD, ARS) are left out.
 // "$", "£" and "¥" normally precede the amount, and moving them is not spacing.
-const CURRENCY_MARKERS = new Set(
+export const CURRENCY_MARKERS = new Set(
   "EUR USD GBP CHF PLN SEK NOK DKK CZK HUF RON BGN JPY CNY AUD NZD BRL MXN SAR AED INR UAH € zł kr".split(
     " ",
   ),

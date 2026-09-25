@@ -204,6 +204,11 @@ export type Message =
     }
   | { command: "CMD_TOGGLE_FT_ACTIVE_TAB" }
   | { command: "CMD_TRIGGER_FT_ACTIVE_TAB" }
+  | { command: "CMD_REVIEW_FT_ACTIVE_TAB"; context?: { source?: "command" | "popup" } }
+  | {
+      command: "CMD_CONTENT_SCRIPT_ADD_TO_DICTIONARY";
+      context: { word: string };
+    }
   | { command: "CMD_GET_HOSTNAME" }
   | {
       command: "CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG";
@@ -303,6 +308,11 @@ export type PredictResponseMessage = Extract<
 >;
 export type ToggleActiveTabMessage = Extract<Message, { command: "CMD_TOGGLE_FT_ACTIVE_TAB" }>;
 export type TriggerActiveTabMessage = Extract<Message, { command: "CMD_TRIGGER_FT_ACTIVE_TAB" }>;
+export type ReviewActiveTabMessage = Extract<Message, { command: "CMD_REVIEW_FT_ACTIVE_TAB" }>;
+export type ContentScriptAddToDictionaryMessage = Extract<
+  Message,
+  { command: "CMD_CONTENT_SCRIPT_ADD_TO_DICTIONARY" }
+>;
 export type UpdateLangConfigMessage = Extract<
   Message,
   { command: "CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG" }

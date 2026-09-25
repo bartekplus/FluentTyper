@@ -189,6 +189,7 @@ export class GoogleDocsAdapter {
   // trusts a text diff only as far as this accounts for it; a paste zeroes it.
   private typed = 0;
   private visible = false;
+  private reviewActive = false;
   private failureStatus: string | null = null;
   private pollTimer: ReturnType<typeof setInterval> | null = null;
   private refreshTimer: ReturnType<typeof setTimeout> | null = null;
@@ -303,6 +304,35 @@ export class GoogleDocsAdapter {
   triggerActiveSuggestion(): void {
     void this.refresh(true);
   }
+
+  /** Review mode: typing-time grammar and suggestions pause; nothing else changes. */
+  setReviewActive(active: boolean): void {
+    this.reviewActive = active;
+    this.clearPendingTriggers();
+    this.dismiss();
+    if (!active) void this.refresh(true);
+  }
+
+  /** A fresh single-use-token snapshot through the same verified bridge as typing. */
+  reviewRead(): Promise<DocsReply> {
+    if (this.disposed) return Promise.resolve({ status: "cancelled" });
+    if (this.applying) return Promise.resolve({ status: "busy" });
+    return this.bridge.read();
+  }
+
+  /** One model-verified edit (token-checked, minimal, verified by the MAIN-world transaction). */
+  async reviewApply(token: string, edit: DocsEdit): Promise<DocsReply> {
+    if (this.disposed || this.applying) return { status: "busy" };
+    this.applying = true;
+    try {
+      return await this.bridge.apply(token, edit);
+    } catch {
+      return { status: "unverified" };
+    } finally {
+      this.applying = false;
+      this.snapshot = null;
+    }
+  }
   fulfillPrediction(response: PredictionResponse): void {
     void this.receivePrediction(response);
   }
@@ -352,6 +382,7 @@ export class GoogleDocsAdapter {
     action?: PredictionInputAction,
     triggers: GrammarEventType[] = [],
   ): Promise<void> {
+    if (this.reviewActive) return;
     for (const trigger of triggers) this.pendingTriggers.add(trigger);
     if (action) this.pendingAction = action;
     if (this.disposed || this.composing || document.hidden) return;

@@ -2,10 +2,10 @@ import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from 
 import { matchTrailingEnglishPhrase } from "./helpers/EnglishRuleShared";
 import { applyWordCase, detectWordCase } from "./helpers/GenericRuleShared";
 
-const MODAL_OF_REGEX = /\b(could|would|should|must)\s+of\s+([A-Za-z]+)$/i;
+export const MODAL_OF_REGEX = /\b(could|would|should|must)\s+of\s+([A-Za-z]+)$/i;
 // "must of course", "would of necessity": prepositional "of" reads as a mistake
 // until the following word arrives, so the correction waits for it.
-const OF_IDIOMS = new Set([
+export const OF_IDIOMS = new Set([
   "course",
   "necessity",
   "itself",
@@ -54,7 +54,7 @@ export class EnglishModalOfCorrectionRule implements GrammarRule {
 
     const style = detectWordCase(modal);
     const normalizedModal = applyWordCase(modal, style);
-    const haveWord = style === "upper" ? "HAVE" : "have";
+    const haveWord = modalHaveWord(modal);
 
     return {
       replacement: `${normalizedModal} ${haveWord} ${following}${boundaryContext.trailing}`,
@@ -62,4 +62,9 @@ export class EnglishModalOfCorrectionRule implements GrammarRule {
       deleteForwards: 0,
     };
   }
+}
+
+/** "have" in the case of the modal it follows: "COULD OF" -> "HAVE". */
+export function modalHaveWord(modal: string): string {
+  return detectWordCase(modal) === "upper" ? "HAVE" : "have";
 }

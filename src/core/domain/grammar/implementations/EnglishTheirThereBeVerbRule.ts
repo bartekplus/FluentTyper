@@ -2,7 +2,7 @@ import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from 
 import { matchTrailingEnglishPhrase } from "./helpers/EnglishRuleShared";
 import { applyWordCase, detectWordCase } from "./helpers/GenericRuleShared";
 
-const THEIR_THERE_BE_REGEX = /\btheir\s+(is|are|was|were)$/i;
+export const THEIR_THERE_BE_REGEX = /\btheir\s+(is|are|was|were)$/i;
 
 export class EnglishTheirThereBeVerbRule implements GrammarRule {
   readonly id = "englishTheirThereBeVerb" as const;
@@ -19,10 +19,16 @@ export class EnglishTheirThereBeVerbRule implements GrammarRule {
     const firstToken = phrase.split(/\s+/)[0];
     const verb = match[1];
 
+    const [there, normalizedVerb] = correctTheirBeVerb(firstToken, verb);
     return {
-      replacement: `${applyWordCase("there", detectWordCase(firstToken))} ${applyWordCase(verb, detectWordCase(verb))}${boundaryContext.trailing}`,
+      replacement: `${there} ${normalizedVerb}${boundaryContext.trailing}`,
       deleteBackwards: boundaryContext.input.length - phraseStart,
       deleteForwards: 0,
     };
   }
+}
+
+/** ["there", verb], each in the case it was typed in. */
+export function correctTheirBeVerb(their: string, verb: string): [string, string] {
+  return [applyWordCase("there", detectWordCase(their)), applyWordCase(verb, detectWordCase(verb))];
 }

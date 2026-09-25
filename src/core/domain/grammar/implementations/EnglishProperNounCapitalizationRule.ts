@@ -94,7 +94,7 @@ function phraseKey(phrase: string): string {
 }
 
 /** Gives each all-lowercase word of `typed` the canonical casing, letter for letter. */
-function recase(typed: string, canonical: string): string {
+export function recase(typed: string, canonical: string): string {
   const letters = [...canonical.replace(/[^\p{L}]/gu, "")];
   let index = 0;
   return typed.replace(/\S+/g, (word) => {
@@ -126,7 +126,7 @@ export class EnglishProperNounCapitalizationRule implements GrammarRule {
     if (trailing === ".") {
       return null;
     }
-    const found = this.findName(core);
+    const found = findProperName(core);
     if (!found) {
       return null;
     }
@@ -156,32 +156,38 @@ export class EnglishProperNounCapitalizationRule implements GrammarRule {
       deleteForwards: 0,
     };
   }
+}
 
-  private findName(core: string): { start: number; end: number; canonical: string } | null {
-    const phrase = execTail(PHRASE_REGEX, core);
-    if (phrase) {
-      // PHRASE_REGEX is built from PHRASES, so every match has a canonical form.
-      const canonical = CANONICAL.get(phraseKey(phrase[1]))!;
-      return { start: phrase.index, end: core.length, canonical };
-    }
-
-    const month = execTail(CONTEXT_MONTH_REGEX, core);
-    if (!month) {
-      return null;
-    }
-    const [, word, next] = month;
-    const before = core.slice(0, month.index);
-    const previous = execTail(PREVIOUS_WORD_REGEX, before)?.[1].toLowerCase() ?? "";
-    const isMonth = next
-      ? DAY_OR_YEAR.test(next) &&
-        (word.toLowerCase() !== "march" ||
-          MARCH_DATE_WORDS.has(previous) ||
-          DAY_NUMBER.test(previous))
-      : execTail(MID_PREFIX_REGEX, before) !== null;
-    if (!isMonth) {
-      return null;
-    }
-    const canonical = word[0].toUpperCase() + word.slice(1).toLowerCase();
-    return { start: month.index, end: month.index + word.length, canonical };
+/**
+ * The name ending at the end of `core` (a word end), with its canonical form.
+ * `contextual` marks may/march/august, which needed date evidence to count.
+ */
+export function findProperName(
+  core: string,
+): { start: number; end: number; canonical: string; contextual: boolean } | null {
+  const phrase = execTail(PHRASE_REGEX, core);
+  if (phrase) {
+    // PHRASE_REGEX is built from PHRASES, so every match has a canonical form.
+    const canonical = CANONICAL.get(phraseKey(phrase[1]))!;
+    return { start: phrase.index, end: core.length, canonical, contextual: false };
   }
+
+  const month = execTail(CONTEXT_MONTH_REGEX, core);
+  if (!month) {
+    return null;
+  }
+  const [, word, next] = month;
+  const before = core.slice(0, month.index);
+  const previous = execTail(PREVIOUS_WORD_REGEX, before)?.[1].toLowerCase() ?? "";
+  const isMonth = next
+    ? DAY_OR_YEAR.test(next) &&
+      (word.toLowerCase() !== "march" ||
+        MARCH_DATE_WORDS.has(previous) ||
+        DAY_NUMBER.test(previous))
+    : execTail(MID_PREFIX_REGEX, before) !== null;
+  if (!isMonth) {
+    return null;
+  }
+  const canonical = word[0].toUpperCase() + word.slice(1).toLowerCase();
+  return { start: month.index, end: month.index + word.length, canonical, contextual: true };
 }

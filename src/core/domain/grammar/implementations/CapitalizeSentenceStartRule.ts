@@ -9,7 +9,7 @@ import {
 
 const SENTENCE_ENDING_CHARS = new Set([".", "!", "?"]);
 // Spanish opens a question or exclamation with an inverted mark: "¿Qué?".
-const SENTENCE_OPENING_MARKS = new Set(["¿", "¡"]);
+export const SENTENCE_OPENING_MARKS = new Set(["¿", "¡"]);
 // A period closing one of these is an abbreviation at least as often as a
 // sentence end, so the following word is left exactly as the user typed it.
 // Each language only gets its own list: "co." (pl "what"), "est." (fr "east"),
@@ -68,10 +68,10 @@ function closesAbbreviation(text: string, index: number, lang?: string): boolean
 const CLOSING_CHARS = new Set([")", "]", "}", '"', "'", "”", "’", "“", "‘", "»", "›"]);
 // French padding inside a closing guillemet and before "!" or "?": "« Oui ! »".
 const CLOSING_PADDING_CHARS = new Set(["\u00A0", "\u202F"]);
-const WORD_BOUNDARY_CHARS = [...SPACE_CHARS, "\n"];
+export const WORD_BOUNDARY_CHARS = [...SPACE_CHARS, "\n"];
 // Punctuation that closes a prose word without making it a token: "done.",
 // "hello,", "(quietly)".
-const TRAILING_PUNCTUATION_REGEX = /[.,!?;:)\]}"'”’“‘»›\u00A0\u202F]+$/u;
+export const TRAILING_PUNCTUATION_REGEX = /[.,!?;:)\]}"'”’“‘»›\u00A0\u202F]+$/u;
 
 export class CapitalizeSentenceStartRule implements GrammarRule {
   readonly id = "capitalizeSentenceStart" as const;
@@ -101,7 +101,7 @@ export class CapitalizeSentenceStartRule implements GrammarRule {
     if (
       !isLowercaseLetter(word[letter] ?? "") ||
       isTechnicalToken(word.replace(TRAILING_PUNCTUATION_REGEX, "")) ||
-      !this.startsSentence(text, wordStart, context.hints?.lang)
+      !startsSentence(text, wordStart, context.hints?.lang)
     ) {
       return null;
     }
@@ -112,25 +112,30 @@ export class CapitalizeSentenceStartRule implements GrammarRule {
       deleteForwards: 0,
     };
   }
+}
 
-  private startsSentence(text: string, wordStart: number, lang?: string): boolean {
-    let i = wordStart - 1;
-    // A newline is left to the line-break rule.
-    while (i >= 0 && SPACE_CHARS.includes(text[i])) {
+/**
+ * True when the word at `wordStart` opens a sentence: text start, or a sentence
+ * end (not an abbreviation) followed by spaces. A newline is not a sentence
+ * start here; capitalizeAfterLineBreak owns line starts.
+ */
+export function startsSentence(text: string, wordStart: number, lang?: string): boolean {
+  let i = wordStart - 1;
+  // A newline is left to the line-break rule.
+  while (i >= 0 && SPACE_CHARS.includes(text[i])) {
+    i -= 1;
+  }
+  if (i < 0) {
+    return true;
+  }
+  if (CLOSING_CHARS.has(text[i])) {
+    while (i >= 0 && (CLOSING_CHARS.has(text[i]) || CLOSING_PADDING_CHARS.has(text[i]))) {
       i -= 1;
     }
-    if (i < 0) {
-      return true;
-    }
-    if (CLOSING_CHARS.has(text[i])) {
-      while (i >= 0 && (CLOSING_CHARS.has(text[i]) || CLOSING_PADDING_CHARS.has(text[i]))) {
-        i -= 1;
-      }
-    }
-    return (
-      i >= 0 &&
-      (SENTENCE_ENDING_CHARS.has(text[i]) || isGreekQuestionMark(text[i], lang)) &&
-      !(text[i] === "." && closesAbbreviation(text, i, lang))
-    );
   }
+  return (
+    i >= 0 &&
+    (SENTENCE_ENDING_CHARS.has(text[i]) || isGreekQuestionMark(text[i], lang)) &&
+    !(text[i] === "." && closesAbbreviation(text, i, lang))
+  );
 }

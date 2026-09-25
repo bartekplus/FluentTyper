@@ -1,0 +1,546 @@
+import type {
+  ReviewApplyResult,
+  ReviewCapabilities,
+  ReviewTargetPort,
+  ReviewTargetRead,
+} from "@core/application/review/ReviewSession";
+import type { ReviewEdit, TextRange } from "@core/domain/grammar/review/types";
+import { getDeepActiveElement, isInDocument } from "@core/application/dom-utils";
+import { ancestorContext } from "../suggestions/CodeContextResolver";
+import { isLockedField, isSensitiveField } from "../suggestions/FieldEligibility";
+import { rangeInsideTarget } from "../suggestions/TextTargetAdapter";
+import {
+  buildContentEditableTextMap,
+  caretRange,
+  domPositionToOffset,
+  offsetRangeToDomRange,
+  type ContentEditableTextMap,
+} from "./ContentEditableTextMap";
+
+export type ReviewEditorKind = "text-control" | "contenteditable" | "quill" | "model-editor";
+
+/** Editors that own a document model; writing their DOM behind their back is not safe. */
+const MODEL_EDITOR_SELECTOR =
+  "[data-lexical-editor], .ProseMirror, [data-slate-editor], .DraftEditor-root, [data-contents], .ck-editor__editable";
+
+export interface ReviewTargetHandle extends ReviewTargetPort {
+  readonly element: HTMLElement;
+  readonly kind: ReviewEditorKind;
+  composing: boolean;
+  /** Viewport rectangles of a snapshot range, for highlights and hit-testing. */
+  rangeRects(range: TextRange): DOMRect[];
+  /** DOM Range for CSS highlights; null for form controls. */
+  domRange(range: TextRange): Range | null;
+  /** Brings a range into view inside the editor without moving the caret. */
+  reveal(range: TextRange): void;
+  /** Where measurement helpers may live (FluentTyper's own shadow root). */
+  setMeasurementRoot(root: ShadowRoot): void;
+  dispose(): void;
+}
+
+type Resolution =
+  | { ok: true; target: ReviewTargetHandle; scope: TextRange | null }
+  | { ok: false; reason: "no-editor" | "sensitive" | "cross-selection" };
+
+function isTextControl(element: Element): element is HTMLInputElement | HTMLTextAreaElement {
+  return element.tagName === "INPUT" || element.tagName === "TEXTAREA";
+}
+
+/** The outermost contenteditable ancestor (the editing host) of `element`. */
+function editingHost(element: HTMLElement): HTMLElement | null {
+  if (!element.isContentEditable) return null;
+  let host = element;
+  for (
+    let parent = host.parentElement;
+    parent && parent.isContentEditable;
+    parent = parent.parentElement
+  ) {
+    host = parent;
+  }
+  return host;
+}
+
+/** Everything that makes a field ineligible for reading or writing, checked on every entry. */
+export function isReviewEligible(element: HTMLElement): boolean {
+  if (!isInDocument(element) || isLockedField(element) || isSensitiveField(element)) return false;
+  if (element.closest("[hidden], [inert], [aria-hidden='true']")) return false;
+  // Code editors, and fields that are themselves code or read-only islands, are
+  // not prose. Only the host's own markup counts here; code INSIDE a rich editor
+  // is protected range by range, never by where the caret happens to be.
+  return ancestorContext(element) === null;
+}
+
+/**
+ * Captures the editor and the selection BEFORE any review UI opens or takes
+ * focus. A selection must lie wholly inside one editor; otherwise the whole
+ * editor is the scope, never the page.
+ */
+export function resolveReviewTarget(doc: Document = document): Resolution {
+  const active = getDeepActiveElement(doc);
+  if (!(active instanceof HTMLElement)) return { ok: false, reason: "no-editor" };
+
+  if (isTextControl(active)) {
+    if (active.tagName === "INPUT" && !["text", "search", ""].includes(active.type)) {
+      return { ok: false, reason: "sensitive" };
+    }
+    if (!isReviewEligible(active)) return { ok: false, reason: "sensitive" };
+    const start = active.selectionStart ?? 0;
+    const end = active.selectionEnd ?? start;
+    return {
+      ok: true,
+      target: new TextControlReviewTarget(active),
+      scope: end > start ? { start, end } : null,
+    };
+  }
+
+  const host = editingHost(active);
+  if (!host) return { ok: false, reason: "no-editor" };
+  if (!isReviewEligible(host)) return { ok: false, reason: "sensitive" };
+  const target = new ContentEditableReviewTarget(host);
+
+  const selection = readSelectionRange(host);
+  if (!selection || selection.collapsed) return { ok: true, target, scope: null };
+  if (!rangeInsideTarget(selection, host)) {
+    const touches =
+      host.contains(selection.startContainer) || host.contains(selection.endContainer);
+    return touches ? { ok: false, reason: "cross-selection" } : { ok: true, target, scope: null };
+  }
+  const map = buildContentEditableTextMap(host);
+  const start = domPositionToOffset(map, selection.startContainer, selection.startOffset);
+  const end = domPositionToOffset(map, selection.endContainer, selection.endOffset);
+  if (start === null || end === null) return { ok: false, reason: "cross-selection" };
+  return { ok: true, target, scope: end > start ? { start, end } : null };
+}
+
+function readSelectionRange(host: HTMLElement): Range | null {
+  const root = host.getRootNode();
+  const scoped = (root as ShadowRoot & { getSelection?: () => Selection | null }).getSelection;
+  const selection =
+    root instanceof ShadowRoot && typeof scoped === "function"
+      ? scoped.call(root)
+      : host.ownerDocument.getSelection();
+  if (!selection || selection.rangeCount === 0) return null;
+  return selection.getRangeAt(0);
+}
+
+const TEXT_CAPABILITIES: ReviewCapabilities = {
+  inline: true,
+  apply: true,
+  bulk: true,
+  undo: "single-step",
+};
+
+function nextFrame(win: Window): Promise<void> {
+  return new Promise((resolve) => {
+    // One frame lets a host editor reconcile its model; a timer covers hidden tabs.
+    const timer = win.setTimeout(resolve, 50);
+    win.requestAnimationFrame(() => {
+      win.clearTimeout(timer);
+      resolve();
+    });
+  });
+}
+
+/** Input and textarea: plain text, written as ONE native edit (one undo step). */
+export class TextControlReviewTarget implements ReviewTargetHandle {
+  readonly kind = "text-control" as const;
+  readonly capabilities = TEXT_CAPABILITIES;
+  composing = false;
+  private mirror: TextControlMirror | null = null;
+  private measurementRoot: ShadowRoot | null = null;
+
+  constructor(readonly element: HTMLInputElement | HTMLTextAreaElement) {}
+
+  setMeasurementRoot(root: ShadowRoot): void {
+    this.measurementRoot = root;
+  }
+
+  private ensureMirror(): TextControlMirror | null {
+    if (!this.measurementRoot) return null;
+    this.mirror ??= new TextControlMirror(this.element, this.measurementRoot);
+    return this.mirror;
+  }
+
+  read(): ReviewTargetRead {
+    if (!isReviewEligible(this.element)) {
+      return { ok: false, reason: isInDocument(this.element) ? "ineligible" : "detached" };
+    }
+    if (this.composing) return { ok: false, reason: "composing" };
+    return { ok: true, text: this.element.value, protectedRanges: [], signature: "" };
+  }
+
+  apply(request: {
+    edits: ReviewEdit[];
+    before: string;
+    after: string;
+  }): Promise<ReviewApplyResult> {
+    return Promise.resolve(this.applyNow(request));
+  }
+
+  private applyNow(request: {
+    edits: ReviewEdit[];
+    before: string;
+    after: string;
+  }): ReviewApplyResult {
+    const field = this.element;
+    if (!isReviewEligible(field)) return { status: "rejected", reason: "ineligible" };
+    if (this.composing) return { status: "rejected", reason: "composing" };
+    if (field.value !== request.before) return { status: "stale" };
+
+    const start = Math.min(...request.edits.map((edit) => edit.start));
+    const end = Math.max(...request.edits.map((edit) => edit.end));
+    const tailLength = request.before.length - end;
+    const replacement = request.after.slice(start, request.after.length - tailLength);
+    const delta = request.after.length - request.before.length;
+    const selection = {
+      start: field.selectionStart ?? 0,
+      end: field.selectionEnd ?? 0,
+      direction: field.selectionDirection ?? "none",
+    };
+    const scroll = { top: field.scrollTop, left: field.scrollLeft };
+    const doc = field.ownerDocument;
+
+    field.focus({ preventScroll: true });
+    field.setSelectionRange(start, end);
+    // One native insertion: the browser's own undo reverts it as one step.
+    const inserted =
+      replacement.length > 0
+        ? doc.execCommand("insertText", false, replacement)
+        : doc.execCommand("delete", false);
+    if (!inserted && field.value === request.before) {
+      // execCommand unavailable for this control: still a verified, event-visible edit.
+      field.setRangeText(replacement, start, end, "end");
+      field.dispatchEvent(
+        new InputEvent("input", {
+          bubbles: true,
+          inputType: "insertReplacementText",
+          data: replacement,
+        }),
+      );
+    }
+
+    const remap = (position: number) =>
+      position <= start
+        ? position
+        : position >= end
+          ? position + delta
+          : start + replacement.length;
+    if (field.value === request.after) {
+      field.setSelectionRange(remap(selection.start), remap(selection.end), selection.direction);
+      field.scrollTop = scroll.top;
+      field.scrollLeft = scroll.left;
+      return { status: "applied" };
+    }
+    return field.value === request.before
+      ? { status: "rejected", reason: "host-refused" }
+      : { status: "unverified" };
+  }
+
+  rangeRects(range: TextRange): DOMRect[] {
+    return this.ensureMirror()?.rects(range) ?? [];
+  }
+
+  domRange(): Range | null {
+    return null;
+  }
+
+  reveal(range: TextRange): void {
+    this.ensureMirror()?.reveal(range);
+  }
+
+  dispose(): void {
+    this.mirror?.dispose();
+    this.mirror = null;
+  }
+}
+
+/** Plain contenteditable and Quill: minimal native edits inside text nodes, verified after each. */
+export class ContentEditableReviewTarget implements ReviewTargetHandle {
+  readonly kind: ReviewEditorKind;
+  readonly capabilities: ReviewCapabilities;
+  composing = false;
+  private map: ContentEditableTextMap | null = null;
+
+  constructor(readonly element: HTMLElement) {
+    const quill = element.classList.contains("ql-editor") && !!element.closest(".ql-container");
+    this.kind = quill
+      ? "quill"
+      : element.matches(MODEL_EDITOR_SELECTOR) || element.closest(MODEL_EDITOR_SELECTOR)
+        ? "model-editor"
+        : "contenteditable";
+    const writable = this.kind !== "model-editor";
+    this.capabilities = {
+      inline: true,
+      apply: writable,
+      bulk: writable,
+      // Quill's history module merges quick successive changes; plain
+      // contenteditable keeps one native undo step per edit.
+      undo: this.kind === "quill" ? "host-history" : writable ? "per-edit" : "none",
+    };
+  }
+
+  read(): ReviewTargetRead {
+    if (!isReviewEligible(this.element)) {
+      return { ok: false, reason: isInDocument(this.element) ? "ineligible" : "detached" };
+    }
+    if (this.composing) return { ok: false, reason: "composing" };
+    this.map = buildContentEditableTextMap(this.element);
+    return {
+      ok: true,
+      text: this.map.text,
+      protectedRanges: this.map.protectedRanges,
+      signature: this.map.signature,
+    };
+  }
+
+  async apply(request: {
+    edits: ReviewEdit[];
+    before: string;
+    after: string;
+    signature: string;
+  }): Promise<ReviewApplyResult> {
+    const root = this.element;
+    const doc = root.ownerDocument;
+    const win = doc.defaultView;
+    if (!win || !this.capabilities.apply) return { status: "rejected", reason: "unsupported" };
+    if (!isReviewEligible(root)) return { status: "rejected", reason: "ineligible" };
+    if (this.composing) return { status: "rejected", reason: "composing" };
+    let map = buildContentEditableTextMap(root);
+    if (map.text !== request.before || map.signature !== request.signature) {
+      return { status: "stale" };
+    }
+    const selection = doc.getSelection();
+    const saved = this.captureSelection(map, selection);
+
+    root.focus({ preventScroll: true });
+    let current = request.before;
+    const edits = [...request.edits].sort((a, b) => b.start - a.start);
+    for (let index = 0; index < edits.length; index += 1) {
+      const edit = edits[index];
+      if (index > 0) {
+        map = buildContentEditableTextMap(root);
+        if (map.text !== current || this.composing) return { status: "partial", applied: index };
+      }
+      const range = offsetRangeToDomRange(map, edit, doc);
+      if (!range || !selection || range.toString() !== edit.original) {
+        return index === 0
+          ? { status: "rejected", reason: "host-refused" }
+          : { status: "partial", applied: index };
+      }
+      selection.removeAllRanges();
+      selection.addRange(range);
+      if (edit.replacement.length > 0) doc.execCommand("insertText", false, edit.replacement);
+      else doc.execCommand("delete", false);
+      const expected = current.slice(0, edit.start) + edit.replacement + current.slice(edit.end);
+      // The DOM is read back; a successful dispatch proves nothing.
+      const observed = buildContentEditableTextMap(root).text;
+      if (observed !== expected) {
+        if (observed === current) {
+          return index === 0
+            ? { status: "rejected", reason: "host-refused" }
+            : { status: "partial", applied: index };
+        }
+        return { status: "unverified" };
+      }
+      current = expected;
+    }
+
+    // Let a model-backed host (Quill) reconcile, then confirm it kept the text.
+    await nextFrame(win);
+    const final = buildContentEditableTextMap(root);
+    if (final.text !== request.after) return { status: "unverified" };
+    this.map = final;
+    this.restoreSelection(final, saved, request.edits);
+    return { status: "applied" };
+  }
+
+  private captureSelection(
+    map: ContentEditableTextMap,
+    selection: Selection | null,
+  ): { start: number; end: number } | null {
+    if (!selection || selection.rangeCount === 0) return null;
+    const range = selection.getRangeAt(0);
+    if (!rangeInsideTarget(range, this.element)) return null;
+    const start = domPositionToOffset(map, range.startContainer, range.startOffset);
+    const end = domPositionToOffset(map, range.endContainer, range.endOffset);
+    return start === null || end === null ? null : { start, end };
+  }
+
+  private restoreSelection(
+    map: ContentEditableTextMap,
+    saved: { start: number; end: number } | null,
+    edits: ReviewEdit[],
+  ): void {
+    if (!saved) return;
+    const shift = (position: number) =>
+      edits.reduce((result, edit) => {
+        if (position >= edit.end) return result + edit.replacement.length - (edit.end - edit.start);
+        if (position > edit.start)
+          return result + (edit.start + edit.replacement.length - position);
+        return result;
+      }, position);
+    const doc = this.element.ownerDocument;
+    const start = caretRange(map, shift(saved.start), doc);
+    const end = caretRange(map, shift(saved.end), doc);
+    const selection = doc.getSelection();
+    if (!start || !end || !selection) return;
+    const range = doc.createRange();
+    range.setStart(start.startContainer, start.startOffset);
+    range.setEnd(end.startContainer, end.startOffset);
+    selection.removeAllRanges();
+    selection.addRange(range);
+  }
+
+  rangeRects(range: TextRange): DOMRect[] {
+    const domRange = this.domRange(range);
+    return domRange ? Array.from(domRange.getClientRects()) : [];
+  }
+
+  domRange(range: TextRange): Range | null {
+    this.map ??= buildContentEditableTextMap(this.element);
+    return offsetRangeToDomRange(this.map, range, this.element.ownerDocument);
+  }
+
+  setMeasurementRoot(): void {
+    // Measured through DOM Ranges on the editor itself.
+  }
+
+  reveal(range: TextRange): void {
+    const domRange = this.domRange(range);
+    const node = domRange?.startContainer;
+    const element = node?.nodeType === 3 ? node.parentElement : (node as Element | undefined);
+    element?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+  }
+
+  dispose(): void {
+    this.map = null;
+  }
+}
+
+const MIRRORED_STYLES = [
+  "boxSizing",
+  "fontFamily",
+  "fontSize",
+  "fontStyle",
+  "fontVariant",
+  "fontWeight",
+  "fontStretch",
+  "fontKerning",
+  "fontFeatureSettings",
+  "letterSpacing",
+  "wordSpacing",
+  "lineHeight",
+  "textTransform",
+  "textIndent",
+  "textAlign",
+  "tabSize",
+  "direction",
+  "unicodeBidi",
+  "writingMode",
+  "paddingTop",
+  "paddingRight",
+  "paddingBottom",
+  "paddingLeft",
+] as const;
+
+/**
+ * Measures text ranges inside an input/textarea with an invisible mirror laid
+ * over the field's content box: same font, padding, wrapping, direction and
+ * scroll. Nothing is added to or changed in the field itself.
+ */
+class TextControlMirror {
+  private readonly mirror: HTMLDivElement;
+  private readonly textNode: Text;
+
+  constructor(
+    private readonly field: HTMLInputElement | HTMLTextAreaElement,
+    root: ShadowRoot,
+  ) {
+    const doc = field.ownerDocument;
+    this.mirror = doc.createElement("div");
+    this.mirror.setAttribute("aria-hidden", "true");
+    this.mirror.setAttribute("data-fluenttyper-review-mirror", "");
+    this.textNode = doc.createTextNode("");
+    this.mirror.appendChild(this.textNode);
+    // In FluentTyper's own shadow root: never inside or next to the host's field.
+    root.appendChild(this.mirror);
+  }
+
+  private sync(): void {
+    const field = this.field;
+    const view = field.ownerDocument.defaultView;
+    if (!view) return;
+    const computed = view.getComputedStyle(field);
+    const style = this.mirror.style;
+    for (const property of MIRRORED_STYLES) {
+      style.setProperty(
+        property.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`),
+        computed.getPropertyValue(
+          property.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`),
+        ),
+        "important",
+      );
+    }
+    const rect = field.getBoundingClientRect();
+    const textarea = field.tagName === "TEXTAREA";
+    const important = (name: string, value: string) => style.setProperty(name, value, "important");
+    important("position", "fixed");
+    important("visibility", "hidden");
+    important("pointer-events", "none");
+    important("overflow", "hidden");
+    important("margin", "0");
+    important("border", "0");
+    important("box-sizing", "border-box");
+    important("left", `${rect.left + field.clientLeft}px`);
+    important("top", `${rect.top + field.clientTop}px`);
+    important("width", `${field.clientWidth}px`);
+    important("height", `${field.clientHeight}px`);
+    important("white-space", textarea ? "pre-wrap" : "pre");
+    important("overflow-wrap", textarea ? computed.overflowWrap || "break-word" : "normal");
+    important("word-break", computed.wordBreak);
+    important("z-index", "-1");
+    // A trailing newline needs a character after it to occupy a line.
+    const value = field.value;
+    const text = value.endsWith("\n") ? `${value}\u200B` : value;
+    if (this.textNode.data !== text) this.textNode.data = text;
+    this.mirror.scrollTop = field.scrollTop;
+    this.mirror.scrollLeft = field.scrollLeft;
+  }
+
+  rects(range: TextRange): DOMRect[] {
+    this.sync();
+    const doc = this.field.ownerDocument;
+    const domRange = doc.createRange();
+    const length = this.textNode.data.length;
+    domRange.setStart(this.textNode, Math.min(range.start, length));
+    domRange.setEnd(this.textNode, Math.min(range.end, length));
+    const box = this.mirror.getBoundingClientRect();
+    // Only the part inside the field's visible content box is really on screen.
+    return Array.from(domRange.getClientRects()).filter(
+      (rect) =>
+        rect.width > 0 &&
+        rect.bottom > box.top &&
+        rect.top < box.bottom &&
+        rect.right > box.left &&
+        rect.left < box.right,
+    );
+  }
+
+  reveal(range: TextRange): void {
+    this.sync();
+    const doc = this.field.ownerDocument;
+    const domRange = doc.createRange();
+    domRange.setStart(this.textNode, Math.min(range.start, this.textNode.data.length));
+    domRange.setEnd(this.textNode, Math.min(range.end, this.textNode.data.length));
+    const target = domRange.getBoundingClientRect();
+    const box = this.mirror.getBoundingClientRect();
+    if (target.top < box.top) this.field.scrollTop -= box.top - target.top + 4;
+    else if (target.bottom > box.bottom) this.field.scrollTop += target.bottom - box.bottom + 4;
+    if (target.left < box.left) this.field.scrollLeft -= box.left - target.left + 4;
+    else if (target.right > box.right) this.field.scrollLeft += target.right - box.right + 4;
+  }
+
+  dispose(): void {
+    this.mirror.remove();
+  }
+}

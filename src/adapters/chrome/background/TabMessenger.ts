@@ -70,6 +70,15 @@ export class TabMessenger {
     });
   }
 
+  /** Every frame decides for itself whether it owns the focused editor. */
+  sendToActiveTabAllFrames(message: Message): void {
+    void this.getActiveTabId().then((tabId) => {
+      if (tabId !== undefined) {
+        void chrome.tabs.sendMessage(tabId, message).catch(() => undefined);
+      }
+    });
+  }
+
   sendToTab(tabId: number, frameId: number, message: Message): void {
     void chrome.tabs.sendMessage(tabId, message, { frameId });
   }

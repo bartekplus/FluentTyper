@@ -30,6 +30,8 @@ import {
   CMD_TOGGLE_FT_ACTIVE_LANG,
   CMD_TOGGLE_FT_ACTIVE_TAB,
   CMD_TRIGGER_FT_ACTIVE_TAB,
+  CMD_REVIEW_FT_ACTIVE_TAB,
+  CMD_CONTENT_SCRIPT_ADD_TO_DICTIONARY,
 } from "../constants";
 import { hasStringProperty, isObjectRecord } from "../guards";
 import type { Message } from "../messageTypes";
@@ -67,6 +69,8 @@ const MESSAGE_COMMANDS = [
   CMD_TOGGLE_FT_ACTIVE_TAB,
   CMD_TRIGGER_FT_ACTIVE_TAB,
   CMD_TOGGLE_FT_ACTIVE_LANG,
+  CMD_REVIEW_FT_ACTIVE_TAB,
+  CMD_CONTENT_SCRIPT_ADD_TO_DICTIONARY,
 ] as const;
 
 type MessageCommand = (typeof MESSAGE_COMMANDS)[number];

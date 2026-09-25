@@ -162,6 +162,7 @@ class FluentTyper {
       setConfig: (config: SetConfigContext) => this.setConfig(config),
       updateLanguage: (lang: string) => this.runtimeController.updateLanguage(lang),
       triggerActiveSuggestion: () => this.runtimeController.triggerActiveSuggestion(),
+      reviewActiveEditor: (source) => this.runtimeController.reviewActiveEditor(source),
       fulfillPrediction: (context: PredictResponseContext) =>
         this.runtimeController.fulfillPrediction(context),
       getLanguage: () => this.config.lang,
