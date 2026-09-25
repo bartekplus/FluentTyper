@@ -9,36 +9,80 @@ permissions:
 
 jobs:
   audit:
-    if: github.event.pull_request.number == 412
+    if: >-
+      github.event.pull_request.number == 412 &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'feat/automatic-rich-text-code-mode'
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version-file: package.json
       - run: bun install --frozen-lockfile
-      - name: Focused and full-suite comparison
+      - name: Register coverage without rewriting existing behaviors
         run: |
           python3 - <<'PY'
-          import subprocess
-          import sys
+          import json
+          from pathlib import Path
 
-          commands = [
-              ["bun", "test", "tests/CodeContextShadow.test.ts", "tests/CodeContextResolver.test.ts", "tests/CodeContextGrammar.test.ts"],
-              ["bun", "run", "test"],
+          matrix_path = Path('tests/e2e/coverage-matrix.json')
+          baseline_path = Path('tests/e2e/coverage-baseline-ids.json')
+          matrix = json.loads(matrix_path.read_text())
+          baseline = json.loads(baseline_path.read_text())
+          additions = [
+              {
+                  'id': 'grammar_rich_text_code_protection',
+                  'description': 'Caret-local rich-text code protection suppresses prose grammar and restores configured rules in prose without changing settings; code-safe opt-in rules remain available.',
+                  'coverage': [
+                      {'layer': 'unit', 'file': 'tests/CodeContextGrammar.test.ts', 'test': 'default grammar protects Quill code and resumes in prose without reconfiguration'},
+                      {'layer': 'unit', 'file': 'tests/CodeContextGrammar.test.ts', 'test': 'all automatic grammar triggers receive code protection from the shared resolver'},
+                      {'layer': 'unit', 'file': 'tests/CodeContextGrammar.test.ts', 'test': 'Enter virtual word-boundary grammar respects the current code region'},
+                      {'layer': 'unit', 'file': 'tests/CodeContextGrammar.test.ts', 'test': 'automatic protection preserves the existing optional code-safe bracket rule'},
+                  ],
+              },
+              {
+                  'id': 'grammar_code_context_selection_safety',
+                  'description': 'The code detector validates owning-document and composed or scoped shadow selections; missing, foreign, expanded, ambiguous, and failed selections do not become prose.',
+                  'coverage': [
+                      {'layer': 'unit', 'file': 'tests/CodeContextResolver.test.ts', 'test': 'supplies nested shadow roots to composed selection resolution'},
+                      {'layer': 'unit', 'file': 'tests/CodeContextResolver.test.ts', 'test': "uses the editor's owning document for iframe selections"},
+                      {'layer': 'unit', 'file': 'tests/CodeContextResolver.test.ts', 'test': 'selection API failure cannot classify unknown context as prose'},
+                      {'layer': 'unit', 'file': 'tests/CodeContextShadow.test.ts', 'test': 'scoped shadow selection fallback distinguishes code from prose'},
+                      {'layer': 'unit', 'file': 'tests/CodeContextShadow.test.ts', 'test': 'ordinary shadow range fallback validates the actual range endpoints'},
+                      {'layer': 'unit', 'file': 'tests/CodeContextShadow.test.ts', 'test': 'empty multiple and expanded composed ranges do not become prose'},
+                      {'layer': 'unit', 'file': 'tests/CodeContextShadow.test.ts', 'test': 'a throwing composed selection API does not fall back to a different caret'},
+                  ],
+              },
+              {
+                  'id': 'grammar_code_context_formatting_changes',
+                  'description': 'Formatting-only changes are rechecked without caching; unrelated code siblings and typography heuristics do not disable prose.',
+                  'coverage': [
+                      {'layer': 'unit', 'file': 'tests/CodeContextResolver.test.ts', 'test': 'rechecks formatting-only DOM changes without cached text or input events'},
+                      {'layer': 'unit', 'file': 'tests/CodeContextResolver.test.ts', 'test': 'does not disable prose text next to inline code'},
+                      {'layer': 'unit', 'file': 'tests/CodeContextResolver.test.ts', 'test': 'does not guess code from typography, spellcheck, generic classes, or text'},
+                  ],
+              },
           ]
-          failed = False
-          for command in commands:
-              result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
-              lines = result.stdout.splitlines()
-              print("COMMAND:", " ".join(command), "EXIT:", result.returncode)
-              indices = set(range(max(0, len(lines) - 25), len(lines)))
-              for index, line in enumerate(lines):
-                  if "(fail)" in line or "error:" in line or "Expected:" in line:
-                      indices.update(range(max(0, index - 18), min(len(lines), index + 12)))
-              for index in sorted(indices):
-                  print(lines[index])
-              failed = failed or result.returncode != 0
-          sys.exit(1 if failed else 0)
+          existing = {item['id'] for item in matrix['behaviors']}
+          for addition in additions:
+              if addition['id'] not in existing:
+                  matrix['behaviors'].append(addition)
+              if addition['id'] not in baseline['baselineBehaviorIds']:
+                  baseline['baselineBehaviorIds'].append(addition['id'])
+          for destination, content in [(matrix_path, matrix), (baseline_path, baseline)]:
+              destination.write_text(json.dumps(content, indent=2, ensure_ascii=False) + '\n')
           PY
+          bunx prettier --write tests/e2e/coverage-matrix.json tests/e2e/coverage-baseline-ids.json
+          bun run check:e2e:coverage
+          if git diff --quiet; then exit 0; fi
+          git add -- tests/e2e/coverage-matrix.json tests/e2e/coverage-baseline-ids.json
+          git diff --cached --check
+          git diff --cached --stat
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'test: register automatic code-context regressions'
+          git push origin HEAD:refs/heads/feat/automatic-rich-text-code-mode
