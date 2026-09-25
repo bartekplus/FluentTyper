@@ -181,7 +181,9 @@ export class ReviewController {
     void session.start().catch((error: unknown) => {
       logger.warn("Review scan failed", { error: String(error) });
     });
-    ui.focusPanel();
+    // Docs only answers while its own input frame is focused; the panel is one
+    // Tab/shortcut away. Elsewhere keyboard users land in the panel.
+    if (!(target instanceof GoogleDocsReviewTarget)) ui.focusPanel();
   }
 
   private listen(active: ActiveReview): void {
@@ -223,9 +225,11 @@ export class ReviewController {
         });
         active.cleanup.push(() => observer.disconnect());
       }
-      const resize = new ResizeObserver(() => this.scheduleLayout());
-      resize.observe(element);
-      active.cleanup.push(() => resize.disconnect());
+      if (typeof ResizeObserver === "function") {
+        const resize = new ResizeObserver(() => this.scheduleLayout());
+        resize.observe(element);
+        active.cleanup.push(() => resize.disconnect());
+      }
       on(element, "scroll", () => this.scheduleLayout(), { passive: true });
     } else {
       // Docs has no DOM text to observe; its own key events drive a recheck.

@@ -661,3 +661,171 @@ export async function getWebLLMPredictionCallsForTesting(
     })
     .filter((call): call is WebLLMTestPredictionCall => call !== null);
 }
+
+// ---------------------------------------------------------------- review mode
+
+export const REVIEW_HOST_SELECTOR = "[data-fluenttyper-review]";
+
+export interface ReviewPanelSnapshot {
+  open: boolean;
+  status: string;
+  notes: string;
+  items: Array<{ id: string; text: string; category: string; current: boolean }>;
+  fixAll: { text: string; disabled: boolean; hidden: boolean };
+  card: { open: boolean; text: string; applyDisabled: boolean };
+  marks: Array<{ category: string; left: number; top: number; width: number; height: number }>;
+  highlights: string[];
+  focus: string | null;
+}
+
+/**
+ * Sends exactly what the review keyboard command sends (CommandRouter): the
+ * review request to every frame of the active tab.
+ */
+export async function triggerReview(
+  context: BackgroundContext,
+  source: "command" | "popup" = "command",
+): Promise<void> {
+  await context.evaluate(async (sourceInner) => {
+    const tabs = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+    const tab = tabs.find((candidate) => /^https?:/.test(candidate.url ?? "")) ?? tabs[0];
+    if (typeof tab?.id !== "number") throw new Error("No active tab");
+    await chrome.tabs
+      .sendMessage(tab.id, {
+        command: "CMD_REVIEW_FT_ACTIVE_TAB",
+        context: { source: sourceInner },
+      })
+      .catch(() => undefined);
+  }, source);
+}
+
+export async function readReviewPanel(page: Page): Promise<ReviewPanelSnapshot> {
+  return page.evaluate((hostSelector) => {
+    const host = document.querySelector(hostSelector);
+    const root = host?.shadowRoot ?? null;
+    const text = (selector: string) => root?.querySelector(selector)?.textContent ?? "";
+    const fixAll = root?.querySelector<HTMLButtonElement>("[data-action=fix-all]");
+    const card = root?.querySelector<HTMLElement>(".card");
+    const registry = (globalThis as { CSS?: { highlights?: Map<string, unknown> } }).CSS
+      ?.highlights;
+    const focused = root?.activeElement as HTMLElement | null | undefined;
+    return {
+      open: !!root,
+      status: text(".status"),
+      notes: text(".notes"),
+      items: Array.from(root?.querySelectorAll<HTMLElement>(".item") ?? []).map((item) => ({
+        id: item.dataset.id ?? "",
+        text: item.querySelector(".change")?.textContent ?? "",
+        category: item.dataset.category ?? "",
+        current: item.getAttribute("aria-current") === "true",
+      })),
+      fixAll: {
+        text: fixAll?.textContent ?? "",
+        disabled: fixAll?.disabled ?? true,
+        hidden: fixAll?.hidden ?? true,
+      },
+      card: {
+        open: !!card && !card.hidden,
+        text: card?.textContent ?? "",
+        applyDisabled:
+          card?.querySelector<HTMLButtonElement>("[data-action=apply]")?.disabled ?? true,
+      },
+      marks: Array.from(root?.querySelectorAll<HTMLElement>(".mark") ?? []).map((mark) => {
+        const rect = mark.getBoundingClientRect();
+        return {
+          category: mark.dataset.category ?? "",
+          left: rect.left,
+          top: rect.top,
+          width: rect.width,
+          height: rect.height,
+        };
+      }),
+      highlights: registry
+        ? Array.from(registry.keys()).filter((name) => name.startsWith("fluenttyper-review-"))
+        : [],
+      focus: focused
+        ? `${focused.tagName.toLowerCase()}${focused.dataset.action ? `[${focused.dataset.action}]` : ""}${focused.classList.contains("item") ? ".item" : ""}`
+        : null,
+    };
+  }, REVIEW_HOST_SELECTOR);
+}
+
+export async function waitForReview(
+  page: Page,
+  label: string,
+  predicate: (panel: ReviewPanelSnapshot) => boolean,
+  timeoutMs = 8000,
+): Promise<ReviewPanelSnapshot> {
+  let last: ReviewPanelSnapshot | null = null;
+  try {
+    return await waitUntil(
+      label,
+      async () => {
+        last = await readReviewPanel(page);
+        return predicate(last) ? last : false;
+      },
+      { timeoutMs, intervalMs: 40 },
+    );
+  } catch (error) {
+    throw new Error(`${String(error)}; last panel: ${JSON.stringify(last)}`, { cause: error });
+  }
+}
+
+/** A real mouse click on a control inside the review UI. */
+export async function clickReviewControl(page: Page, selector: string): Promise<void> {
+  const point = await page.evaluate(
+    (hostSelector, selectorInner) => {
+      const element = document
+        .querySelector(hostSelector)
+        ?.shadowRoot?.querySelector<HTMLElement>(selectorInner);
+      if (!element) return null;
+      element.scrollIntoView({ block: "nearest" });
+      const rect = element.getBoundingClientRect();
+      return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+    },
+    REVIEW_HOST_SELECTOR,
+    selector,
+  );
+  if (!point) throw new Error(`Review control not found: ${selector}`);
+  await page.mouse.click(point.x, point.y);
+}
+
+/** Center of the n-th occurrence (1-based) of `needle` in an editor's text nodes. */
+export async function textPoint(
+  page: Page,
+  editorSelector: string,
+  needle: string,
+  occurrence = 1,
+): Promise<{ x: number; y: number }> {
+  const point = await page.evaluate(
+    (selector, needleInner, occurrenceInner) => {
+      const root = document.querySelector(selector);
+      if (!root) return null;
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+      let seen = 0;
+      for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+        const data = (node as Text).data;
+        for (
+          let index = data.indexOf(needleInner);
+          index >= 0;
+          index = data.indexOf(needleInner, index + 1)
+        ) {
+          seen += 1;
+          if (seen === occurrenceInner) {
+            const range = document.createRange();
+            range.setStart(node, index);
+            range.setEnd(node, index + needleInner.length);
+            const rect = range.getBoundingClientRect();
+            return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+          }
+        }
+      }
+      return null;
+    },
+    editorSelector,
+    needle,
+    occurrence,
+  );
+  if (!point) throw new Error(`Text not found: ${needle}`);
+  return point;
+}

@@ -2495,6 +2495,248 @@
           "test": "onMessage combines code casing suppression with site suggestion-count overrides"
         }
       ]
+    },
+    {
+      "id": "review_catalog_coverage",
+      "description": "Every grammar rule is explicitly classified for review (supported with a category and bulk policy, or excluded with a reason); typing conveniences are excluded.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewDiagnostics.test.ts",
+          "test": "classifies every catalog rule explicitly"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewDiagnostics.test.ts",
+          "test": "typing conveniences are excluded from review"
+        }
+      ]
+    },
+    {
+      "id": "review_readonly_detection",
+      "description": "Review detection reads one immutable snapshot, never mutates it, and is deterministic with exact UTF-16 ranges, categories and replacements per supported rule.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewDiagnostics.test.ts",
+          "test": "detection is read-only and deterministic"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewDiagnostics.test.ts",
+          "test": "englishPronounVerbWhitelistAgreement capitalizes the pronoun it rewrites"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewDiagnostics.test.ts",
+          "test": "Unicode: emoji, combining marks, NBSP and surrogate pairs"
+        },
+        {
+          "layer": "e2e-smoke",
+          "file": "tests/e2e/smoke.e2e.test.ts",
+          "test": "review mode fixes a textarea from one snapshot without changing it on start"
+        }
+      ]
+    },
+    {
+      "id": "review_scope_and_protection",
+      "description": "Review stays inside the captured selection, keeps outside context, and never reads prose across or edits Markdown/DOM code, structure or technical tokens.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewDiagnostics.test.ts",
+          "test": "a partial selection keeps surrounding context and edits only inside it"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewDiagnostics.test.ts",
+          "test": "inline and fenced Markdown code is skipped without joining prose across it"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewDiagnostics.test.ts",
+          "test": "adapter-protected ranges (DOM code, Quill code blocks, structure) are never edited"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "code, pre, kbd and Quill code blocks are code ranges, read in place"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review mode reviews only the selection, rechecks after edits, and follows scrolling"
+        }
+      ]
+    },
+    {
+      "id": "review_bulk_planning",
+      "description": "Fix all plans from one snapshot: duplicates merge, collisions and unproven context-dependent groups are deferred, never resolved by position.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewBulkPlanner.test.ts",
+          "test": "overlapping edits defer the whole group instead of picking a winner"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewBulkPlanner.test.ts",
+          "test": "context-dependent findings need a proof, else both are deferred"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewBulkPlanner.test.ts",
+          "test": "cascading findings appear only on recheck, never in the same batch"
+        }
+      ]
+    },
+    {
+      "id": "review_session_lifecycle",
+      "description": "Review sessions invalidate on edits, debounce rechecks, keep per-occurrence ignores, remap or invalidate the scope, and never write stale or unverified fixes.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSession.test.ts",
+          "test": "an edit made after the scan is detected before writing: no stale write"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSession.test.ts",
+          "test": "ignore is per occurrence and survives harmless rechecks"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSession.test.ts",
+          "test": "selection scope: fixes and edits inside keep it; a boundary edit invalidates it"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSession.test.ts",
+          "test": "closing discards pending work and never writes"
+        }
+      ]
+    },
+    {
+      "id": "review_textarea_fix_all_undo",
+      "description": "Textarea review paints categorized overlay marks, applies Fix all as one verified native edit, and one undo restores the text; no network requests.",
+      "coverage": [
+        {
+          "layer": "e2e-smoke",
+          "file": "tests/e2e/smoke.e2e.test.ts",
+          "test": "review mode fixes a textarea from one snapshot without changing it on start"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review mode reviews a textarea read-only, paints categorized marks and fixes all safe issues as one undo step"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "one verified native edit for several fixes; selection is carried through"
+        }
+      ]
+    },
+    {
+      "id": "review_contenteditable_card_flow",
+      "description": "Contenteditable review uses namespaced CSS highlights; clicking a highlight opens its card; apply, ignore, add to dictionary and Fix all keep bold, links, lists and code; native undo works.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review mode card flow in contenteditable: click, apply, ignore, add to dictionary, fix all, undo, formatting kept"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "minimal edits inside text nodes keep formatting and are verified"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/background.routing.test.ts",
+          "test": "onMessage add to dictionary appends once and broadcasts the updated config"
+        }
+      ]
+    },
+    {
+      "id": "review_quill_model",
+      "description": "Review fixes in Quill keep the real Quill model's bold, link and code, and Quill undo reverts the batch.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review mode keeps the real Quill model's formatting and code, and Quill undo reverts the batch"
+        }
+      ]
+    },
+    {
+      "id": "review_keyboard_accessibility",
+      "description": "Review panel and card are keyboard operable; Escape closes the card then the review; Tab in the editor is never captured.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review mode keyboard flow: panel focus, list, card, Escape order, and Tab is never captured"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "invoke reads only, shows results, and Escape restores everything"
+        }
+      ]
+    },
+    {
+      "id": "review_sensitive_and_review_only",
+      "description": "Sensitive fields are refused with an explanation; model-backed editors are review-only and never written.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review mode refuses sensitive fields and model-backed editors stay review-only"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "sensitive, locked and non-text fields are excluded"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "model-backed editors are review-only; Quill is writable"
+        }
+      ]
+    },
+    {
+      "id": "review_command_routing",
+      "description": "The review command reaches every frame of the active tab without changing settings; the dev runtime reviews through the real command router.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/background.routing.test.ts",
+          "test": "onCommand review asks every frame of the active tab; only the focused one acts"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "CMD_REVIEW_FT_ACTIVE_TAB command reviews the focused editor through the command router"
+        }
+      ]
+    },
+    {
+      "id": "review_google_docs_fixture",
+      "description": "Mock editor/browser fixture, not a live Google Docs claim: review lists Docs findings from the logical model, applies one verified transaction, pauses typing corrections and refuses stale fixes.",
+      "coverage": [
+        {
+          "layer": "integration",
+          "file": "tests/e2e/google-docs.e2e.test.ts",
+          "test": "review lists findings from the logical model and applies one verified edit"
+        },
+        {
+          "layer": "integration",
+          "file": "tests/e2e/google-docs.e2e.test.ts",
+          "test": "review in Docs pauses typing corrections and refuses a stale fix"
+        }
+      ]
     }
   ]
 }

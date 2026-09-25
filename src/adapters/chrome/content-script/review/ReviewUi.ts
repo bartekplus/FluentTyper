@@ -523,7 +523,11 @@ export class ReviewUi {
   }
 
   private itemFor(id: string): HTMLElement | null {
-    return this.list.querySelector(`[data-id="${CSS.escape(id)}"]`);
+    return (
+      Array.from(this.list.querySelectorAll<HTMLElement>(".item")).find(
+        (item) => item.dataset.id === id,
+      ) ?? null
+    );
   }
 
   openCard(diagnostic: ReviewDiagnostic, anchor: DOMRect | null): void {

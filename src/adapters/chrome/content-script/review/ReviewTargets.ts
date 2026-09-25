@@ -116,11 +116,33 @@ function readSelectionRange(host: HTMLElement): Range | null {
   const root = host.getRootNode();
   const scoped = (root as ShadowRoot & { getSelection?: () => Selection | null }).getSelection;
   const selection =
-    root instanceof ShadowRoot && typeof scoped === "function"
+    root.nodeType === 11 && typeof scoped === "function"
       ? scoped.call(root)
       : host.ownerDocument.getSelection();
   if (!selection || selection.rangeCount === 0) return null;
   return selection.getRangeAt(0);
+}
+
+/**
+ * `observed` equals `expected`, except that native editing may turn a space
+ * right next to the inserted text into a no-break space (or back): Chrome and
+ * Firefox do that so the space stays visible beside formatting boundaries. Any
+ * other difference, or one farther away, is not accepted.
+ */
+function sameExceptEdgeSpaces(
+  observed: string,
+  expected: string,
+  editStart: number,
+  editEnd: number,
+): boolean {
+  if (observed === expected) return true;
+  if (observed.length !== expected.length) return false;
+  for (let i = 0; i < observed.length; i += 1) {
+    if (observed[i] === expected[i]) continue;
+    const spaces = /^[ \u00A0]$/.test(observed[i]) && /^[ \u00A0]$/.test(expected[i]);
+    if (!spaces || i < editStart - 1 || i > editEnd) return false;
+  }
+  return true;
 }
 
 const TEXT_CAPABILITIES: ReviewCapabilities = {
@@ -334,7 +356,8 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
       const expected = current.slice(0, edit.start) + edit.replacement + current.slice(edit.end);
       // The DOM is read back; a successful dispatch proves nothing.
       const observed = buildContentEditableTextMap(root).text;
-      if (observed !== expected) {
+      const editEnd = edit.start + edit.replacement.length;
+      if (!sameExceptEdgeSpaces(observed, expected, edit.start, editEnd)) {
         if (observed === current) {
           return index === 0
             ? { status: "rejected", reason: "host-refused" }
@@ -342,13 +365,13 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
         }
         return { status: "unverified" };
       }
-      current = expected;
+      current = observed;
     }
 
     // Let a model-backed host (Quill) reconcile, then confirm it kept the text.
     await nextFrame(win);
     const final = buildContentEditableTextMap(root);
-    if (final.text !== request.after) return { status: "unverified" };
+    if (final.text !== current) return { status: "unverified" };
     this.map = final;
     this.restoreSelection(final, saved, request.edits);
     return { status: "applied" };
@@ -393,7 +416,10 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
 
   rangeRects(range: TextRange): DOMRect[] {
     const domRange = this.domRange(range);
-    return domRange ? Array.from(domRange.getClientRects()) : [];
+    // Range geometry is missing in some non-layout environments; no rects, no marks.
+    return domRange && typeof domRange.getClientRects === "function"
+      ? Array.from(domRange.getClientRects())
+      : [];
   }
 
   domRange(range: TextRange): Range | null {
@@ -515,6 +541,7 @@ class TextControlMirror {
     domRange.setStart(this.textNode, Math.min(range.start, length));
     domRange.setEnd(this.textNode, Math.min(range.end, length));
     const box = this.mirror.getBoundingClientRect();
+    if (typeof domRange.getClientRects !== "function") return [];
     // Only the part inside the field's visible content box is really on screen.
     return Array.from(domRange.getClientRects()).filter(
       (rect) =>
@@ -532,6 +559,7 @@ class TextControlMirror {
     const domRange = doc.createRange();
     domRange.setStart(this.textNode, Math.min(range.start, this.textNode.data.length));
     domRange.setEnd(this.textNode, Math.min(range.end, this.textNode.data.length));
+    if (typeof domRange.getBoundingClientRect !== "function") return;
     const target = domRange.getBoundingClientRect();
     const box = this.mirror.getBoundingClientRect();
     if (target.top < box.top) this.field.scrollTop -= box.top - target.top + 4;

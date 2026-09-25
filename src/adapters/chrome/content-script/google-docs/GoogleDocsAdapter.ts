@@ -313,6 +313,17 @@ export class GoogleDocsAdapter {
     if (!active) void this.refresh(true);
   }
 
+  /** Docs reads and writes only while its input frame has focus (e.g. after a panel click). */
+  reviewFocusEditor(): void {
+    const input = this.input ?? getDocsInput();
+    try {
+      input?.frame.focus();
+      input?.element.focus({ preventScroll: true });
+    } catch {
+      // A detached frame: the next read reports it.
+    }
+  }
+
   /** A fresh single-use-token snapshot through the same verified bridge as typing. */
   reviewRead(): Promise<DocsReply> {
     if (this.disposed) return Promise.resolve({ status: "cancelled" });

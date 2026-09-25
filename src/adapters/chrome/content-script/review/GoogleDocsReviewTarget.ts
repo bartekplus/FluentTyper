@@ -11,6 +11,7 @@ export interface GoogleDocsReviewSurface {
   reviewRead(): Promise<DocsReply>;
   reviewApply(token: string, edit: DocsEdit): Promise<DocsReply>;
   setReviewActive(active: boolean): void;
+  reviewFocusEditor(): void;
 }
 
 // Docs' structural markers (tables, footnotes, objects); never prose, never edited.
@@ -33,6 +34,7 @@ export class GoogleDocsReviewTarget implements ReviewTargetHandle {
   };
   composing = false;
   private snapshot: DocsSnapshot | null = null;
+  private lastRead: ReviewTargetRead | null = null;
 
   constructor(
     private readonly surface: GoogleDocsReviewSurface,
@@ -41,7 +43,8 @@ export class GoogleDocsReviewTarget implements ReviewTargetHandle {
 
   /** The initial read; its selection (if any) becomes the review scope. */
   async start(): Promise<TextRange | null> {
-    const reply = await this.surface.reviewRead();
+    this.surface.reviewFocusEditor();
+    const reply = await this.readWithRetry();
     if (reply.status !== "ready" || !reply.snapshot) return null;
     this.snapshot = reply.snapshot;
     const start =
@@ -50,8 +53,21 @@ export class GoogleDocsReviewTarget implements ReviewTargetHandle {
     return end > start ? { start, end } : null;
   }
 
+  /** The bridge allows two requests in flight; a busy reply is retried briefly, never an edit. */
+  private async readWithRetry(): Promise<DocsReply> {
+    let reply = await this.surface.reviewRead();
+    for (let attempt = 0; attempt < 10 && reply.status === "busy"; attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 30));
+      reply = await this.surface.reviewRead();
+    }
+    return reply;
+  }
+
   async read(): Promise<ReviewTargetRead> {
-    const reply = await this.surface.reviewRead();
+    const reply = await this.readWithRetry();
+    // Docs reads only while its input frame has focus. With focus in the review
+    // panel the last read stands; every write re-reads with the editor focused.
+    if (reply.status === "inactive" && this.lastRead) return this.lastRead;
     if (reply.status === "composing") return { ok: false, reason: "composing" };
     if (reply.status !== "ready" || !reply.snapshot) return { ok: false, reason: "detached" };
     this.snapshot = reply.snapshot;
@@ -59,12 +75,13 @@ export class GoogleDocsReviewTarget implements ReviewTargetHandle {
     for (const match of reply.snapshot.text.matchAll(DOCS_CONTROLS)) {
       protectedRanges.push({ start: match.index, end: match.index + 1, reason: "structure" });
     }
-    return {
+    this.lastRead = {
       ok: true,
       text: reply.snapshot.text,
       protectedRanges,
       signature: `${reply.snapshot.scope}@${reply.snapshot.windowStart}`,
     };
+    return this.lastRead;
   }
 
   async apply(request: {
@@ -81,7 +98,8 @@ export class GoogleDocsReviewTarget implements ReviewTargetHandle {
       start,
       request.after.length - (request.before.length - end),
     );
-    const fresh = await this.surface.reviewRead();
+    this.surface.reviewFocusEditor();
+    const fresh = await this.readWithRetry();
     const snapshot = fresh.snapshot;
     if (fresh.status !== "ready" || !snapshot) return { status: "stale" };
     if (

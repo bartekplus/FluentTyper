@@ -19,6 +19,8 @@ import {
   CMD_TOGGLE_FT_ACTIVE_LANG,
   CMD_TOGGLE_FT_ACTIVE_TAB,
   CMD_TRIGGER_FT_ACTIVE_TAB,
+  CMD_REVIEW_FT_ACTIVE_TAB,
+  CMD_CONTENT_SCRIPT_ADD_TO_DICTIONARY,
   DEFAULT_AI_PREDICTION_TIMEOUT_MS,
   DEFAULT_AI_MODEL_ID,
   DEFAULT_DEBUG_AI_PREDICTOR_ENABLED,
@@ -89,6 +91,7 @@ const backgroundHarnessMocks = {
   ),
   tabSendToAll: jest.fn(),
   tabSendToActive: jest.fn(),
+  tabSendToActiveAllFrames: jest.fn(),
   tabSendToTab: jest.fn(),
   getActiveTabContext: jest.fn(async () => ({
     tabId: 1,
@@ -162,6 +165,8 @@ function installBackgroundHarnessModuleMocks(): void {
       sendToAllTabs: (...args: [unknown, unknown?, unknown?]) =>
         backgroundHarnessMocks.tabSendToAll(...args),
       sendToActiveTab: (...args: [unknown]) => backgroundHarnessMocks.tabSendToActive(...args),
+      sendToActiveTabAllFrames: (...args: [unknown]) =>
+        backgroundHarnessMocks.tabSendToActiveAllFrames(...args),
       sendToTab: (...args: [number, number, unknown]) =>
         backgroundHarnessMocks.tabSendToTab(...args),
       getActiveTabContext: (...args: []) => backgroundHarnessMocks.getActiveTabContext(...args),
@@ -290,6 +295,7 @@ async function loadBackgroundHarness(stateOverrides: Record<string, unknown> = {
   );
   const tabSendToAll = jest.fn();
   const tabSendToActive = jest.fn();
+  const tabSendToActiveAllFrames = jest.fn();
   const tabSendToTab = jest.fn();
   const getActiveTabContext = jest.fn(async () => ({
     tabId: 1,
@@ -361,6 +367,7 @@ async function loadBackgroundHarness(stateOverrides: Record<string, unknown> = {
   backgroundHarnessMocks.predictionRecordTraceTimelineEvent = predictionRecordTraceTimelineEvent;
   backgroundHarnessMocks.tabSendToAll = tabSendToAll;
   backgroundHarnessMocks.tabSendToActive = tabSendToActive;
+  backgroundHarnessMocks.tabSendToActiveAllFrames = tabSendToActiveAllFrames;
   backgroundHarnessMocks.tabSendToTab = tabSendToTab;
   backgroundHarnessMocks.getActiveTabContext = getActiveTabContext;
   backgroundHarnessMocks.getLastActiveWebsiteTabContext = getLastActiveWebsiteTabContext;
@@ -407,6 +414,7 @@ async function loadBackgroundHarness(stateOverrides: Record<string, unknown> = {
     predictionRecordTraceTimelineEvent,
     tabSendToAll,
     tabSendToActive,
+    tabSendToActiveAllFrames,
     tabSendToTab,
     getActiveTabContext,
     getLastActiveWebsiteTabContext,
@@ -527,6 +535,58 @@ describe("background routing and lifecycle", () => {
       command: CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG,
       context: { lang: "fr_FR" },
     });
+  });
+
+  test("onCommand review asks every frame of the active tab; only the focused one acts", async () => {
+    const harness = await loadBackgroundHarness();
+
+    harness.onCommand(CMD_REVIEW_FT_ACTIVE_TAB);
+    await flushPromises();
+
+    expect(harness.tabSendToActiveAllFrames).toHaveBeenCalledWith({
+      command: CMD_REVIEW_FT_ACTIVE_TAB,
+      context: { source: "command" },
+    });
+    expect(harness.tabSendToActive).not.toHaveBeenCalled();
+    // Starting a review changes no setting.
+    expect(harness.settingsSet).not.toHaveBeenCalled();
+  });
+
+  test("onMessage add to dictionary appends once and broadcasts the updated config", async () => {
+    const harness = await loadBackgroundHarness({ userDictionaryList: ["Existing"] });
+    const updateSpy = jest.spyOn(
+      harness.module.BackgroundServiceWorker.prototype,
+      "updatePresageConfig",
+    );
+    const sendResponse = jest.fn();
+    const send = async (word: unknown) => {
+      sendResponse.mockClear();
+      harness.onMessage(
+        { command: CMD_CONTENT_SCRIPT_ADD_TO_DICTIONARY, context: { word } },
+        { tab: { id: 1 } } as chrome.runtime.MessageSender,
+        sendResponse,
+      );
+      await flushPromises();
+      await flushPromises();
+    };
+
+    await send("teh");
+    expect(sendResponse).toHaveBeenCalledWith({ ok: true });
+    expect(harness.settingsSet).toHaveBeenCalledWith("userDictionaryList", ["Existing", "teh"]);
+    expect(updateSpy).toHaveBeenCalledTimes(1);
+
+    // Already present (case-insensitively): nothing is written twice.
+    harness.settingsSet.mockClear();
+    await send("EXISTING");
+    expect(sendResponse).toHaveBeenCalledWith({ ok: true });
+    expect(harness.settingsSet).not.toHaveBeenCalled();
+
+    // Not a single word: refused, nothing stored.
+    await send("two words");
+    expect(sendResponse).toHaveBeenCalledWith({ ok: false });
+    await send(42);
+    expect(sendResponse).toHaveBeenCalledWith({ ok: false });
+    expect(harness.settingsSet).not.toHaveBeenCalled();
   });
 
   test("onCommand rotates active language for current site profile if it exists", async () => {

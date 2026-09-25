@@ -52,18 +52,17 @@ type Whitespace = "collapse" | "preserve" | "preserve-breaks";
 function whitespaceOf(element: Element): Whitespace {
   const style = element.ownerDocument.defaultView?.getComputedStyle(element);
   if (!style) return "preserve";
-  const collapse = (style as CSSStyleDeclaration & { whiteSpaceCollapse?: string })
-    .whiteSpaceCollapse;
-  if (collapse) {
-    return collapse === "collapse"
-      ? "collapse"
-      : collapse === "preserve-breaks"
-        ? "preserve-breaks"
-        : "preserve";
-  }
   const whiteSpace = style.whiteSpace;
   if (whiteSpace === "normal" || whiteSpace === "nowrap") return "collapse";
-  return whiteSpace === "pre-line" ? "preserve-breaks" : "preserve";
+  if (whiteSpace === "pre-line") return "preserve-breaks";
+  if (whiteSpace === "pre" || whiteSpace === "pre-wrap" || whiteSpace === "break-spaces") {
+    return "preserve";
+  }
+  // Any other combination is expressed by the white-space-collapse longhand.
+  const collapse = (style as CSSStyleDeclaration & { whiteSpaceCollapse?: string })
+    .whiteSpaceCollapse;
+  if (collapse === "collapse") return "collapse";
+  return collapse === "preserve-breaks" ? "preserve-breaks" : "preserve";
 }
 
 export function buildContentEditableTextMap(root: HTMLElement): ContentEditableTextMap {

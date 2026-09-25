@@ -774,6 +774,97 @@ describe("Google Docs cross-world fixture (not live Docs)", () => {
     expect((await model()).pastes).toBe(1);
     expect((await evaluate<string[]>("events")).filter((v) => v === "accepted")).toHaveLength(1);
   });
+  async function reviewPanel() {
+    return page.evaluate(() => {
+      const root = document.querySelector("[data-fluenttyper-review]")?.shadowRoot;
+      return {
+        open: !!root,
+        status: root?.querySelector(".status")?.textContent ?? "",
+        notes: root?.querySelector(".notes")?.textContent ?? "",
+        items: Array.from(root?.querySelectorAll<HTMLElement>(".item") ?? []).map(
+          (item) => item.querySelector(".change")?.textContent ?? "",
+        ),
+        fixAllHidden: root?.querySelector<HTMLElement>("[data-action=fix-all]")?.hidden ?? true,
+        cardOpen: !(root?.querySelector<HTMLElement>(".card")?.hidden ?? true),
+      };
+    });
+  }
+  async function clickInReview(selector: string) {
+    await page.evaluate((selectorInner) => {
+      document
+        .querySelector("[data-fluenttyper-review]")
+        ?.shadowRoot?.querySelector<HTMLElement>(selectorInner)
+        ?.click();
+    }, selector);
+  }
+  test("review lists findings from the logical model and applies one verified edit", async () => {
+    await startGrammar([]);
+    await page.evaluate(() => {
+      const f = window as unknown as { setModel: (text: string) => void; focusEditor: () => void };
+      f.setModel("We saw teh cat and teh dog.");
+      f.focusEditor();
+    });
+    await evaluate("startReview()");
+    await waitUntil(
+      "docs review findings",
+      async () => (await reviewPanel()).status === "Issues: 2",
+    ).catch(async (error) => {
+      throw new Error(`${String(error)} ${JSON.stringify(await reviewPanel())}`);
+    });
+    const panel = await reviewPanel();
+    expect(panel.items).toEqual(["teh \u2192 the", "teh \u2192 the"]);
+    // No canvas geometry: honest panel-only findings, and no Docs batch.
+    expect(panel.notes).toContain("Google Docs: findings are listed here");
+    expect(panel.fixAllHidden).toBe(true);
+    expect((await model()).pastes).toBe(0);
+
+    await clickInReview(".item");
+    await waitUntil("docs card", async () => (await reviewPanel()).cardOpen);
+    await clickInReview(".card [data-action=apply]");
+    await expectText("We saw the cat and teh dog.");
+    // One minimal paste through the transaction; the other occurrence is untouched.
+    expect((await model()).pastes).toBe(1);
+    await waitUntil(
+      "docs recheck",
+      async () => (await reviewPanel()).status === "Fixed: 1. Issues: 1",
+    );
+    await evaluate("review.dispose()");
+    expect((await reviewPanel()).open).toBe(false);
+  });
+  test("review in Docs pauses typing corrections and refuses a stale fix", async () => {
+    await startGrammar(["englishTypoWhitelistCorrection"]);
+    await page.evaluate(() => {
+      const f = window as unknown as { setModel: (text: string) => void; focusEditor: () => void };
+      f.setModel("See teh plan.");
+      f.focusEditor();
+    });
+    await evaluate("startReview()");
+    await waitUntil("docs review", async () => (await reviewPanel()).status === "Issues: 1");
+    // Typing grammar is paused while reviewing: "teh " typed now stays as typed.
+    await page.keyboard.type(" teh ", { delay: TYPING_DELAY_MS });
+    await expectText("See teh plan. teh ");
+    // The document changed after the scan: the old fix must not be written.
+    await page.evaluate(() => {
+      (window as unknown as { setModel: (text: string) => void }).setModel("Now teh changed.");
+    });
+    await clickInReview(".item");
+    await clickInReview(".card [data-action=apply]");
+    await waitUntil("stale or rechecked", async () => {
+      const panel = await reviewPanel();
+      return panel.status.includes("Issues") && !panel.status.startsWith("Fixed");
+    });
+    expect((await model()).text).toBe("Now teh changed.");
+    expect((await model()).pastes).toBe(0);
+    await evaluate("review.dispose()");
+    // After the review, typing corrections resume.
+    await page.evaluate(() => {
+      const f = window as unknown as { setModel: (text: string) => void; focusEditor: () => void };
+      f.setModel("");
+      f.focusEditor();
+    });
+    await page.keyboard.type("teh ", { delay: TYPING_DELAY_MS });
+    await expectText("the ");
+  });
   test("disposing removes UI and keyboard interception", async () => {
     await seed("hel", ["hello"]);
     await evaluate("docs.dispose()");
