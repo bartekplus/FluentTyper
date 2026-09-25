@@ -8,9 +8,6 @@ export type CodeContext = "prose" | "code" | "protected" | "unknown";
 
 type SelectionRange = Pick<Range, "startContainer" | "startOffset" | "endContainer" | "endOffset">;
 type ScopedSelectionRoot = ShadowRoot & { getSelection?: () => Selection | null };
-type ComposedSelection = Selection & {
-  getComposedRanges?: (options: { shadowRoots: ShadowRoot[] }) => SelectionRange[];
-};
 
 function parentAcrossShadowRoot(node: Node): Node | null {
   if (node.parentNode) return node.parentNode;
@@ -30,7 +27,7 @@ function ancestorContext(node: Node): CodeContext | null {
 }
 
 function readSelectionRange(element: HTMLElement): SelectionRange | null {
-  const docSelection: ComposedSelection | null = element.ownerDocument.getSelection();
+  const docSelection = element.ownerDocument.getSelection();
   if (!docSelection) return null;
 
   const roots: ShadowRoot[] = [];

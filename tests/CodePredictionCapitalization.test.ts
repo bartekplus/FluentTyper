@@ -1,4 +1,6 @@
 import { afterEach, describe, expect, jest, test } from "bun:test";
+import type { ContentScriptPredictRequestContext } from "../src/core/domain/messageTypes";
+import { createEditor, setCaret as caret, withProperty } from "./codeContextTestUtils";
 import { Capitalization } from "../src/adapters/chrome/background/CapitalizationHelper";
 import { PredictionInputProcessor } from "../src/adapters/chrome/background/PredictionInputProcessor";
 import { PresageHandler } from "../src/adapters/chrome/background/PresageHandler";
@@ -25,15 +27,6 @@ function backend(autoCapitalize = true) {
     userDictionaryList: [],
   });
   return { handler, orchestrator: new PredictionOrchestrator(handler) };
-}
-
-function caret(node: Node): void {
-  const range = document.createRange();
-  range.setStart(node, node.textContent?.length ?? 0);
-  range.collapse(true);
-  const selection = document.getSelection()!;
-  selection.removeAllRanges();
-  selection.addRange(range);
 }
 
 describe("code prediction capitalization", () => {
@@ -125,12 +118,8 @@ describe("code prediction capitalization", () => {
   });
 
   test("the live caret supplies suppression for code and restores prose in the same host", () => {
-    const root = document.createElement("div");
-    root.setAttribute("contenteditable", "true");
-    Object.defineProperty(root, "isContentEditable", { value: true });
-    root.innerHTML = '<p>what . wa</p><div class="ql-code-block">what . wa</div>';
-    document.body.append(root);
-    const getPrediction = jest.fn();
+    const root = createEditor('<p>what . wa</p><div class="ql-code-block">what . wa</div>');
+    const getPrediction = jest.fn<(context: ContentScriptPredictRequestContext) => void>();
     const coordinator = new SuggestionPredictionCoordinator({
       debounceByAction: { insert: 0, delete: 0, other: 0 },
       getPrediction,
@@ -170,15 +159,10 @@ describe("code prediction capitalization", () => {
   });
 
   test("content messaging forwards the code flag without persisting it", () => {
-    const descriptor = Object.getOwnPropertyDescriptor(globalThis, "chrome");
     const sendMessage = jest.fn((message: { context: { suppressAutoCapitalize?: boolean } }) =>
       Promise.resolve(message),
     );
-    Object.defineProperty(globalThis, "chrome", {
-      configurable: true,
-      value: { runtime: { sendMessage } },
-    });
-    try {
+    withProperty(globalThis, "chrome", { runtime: { sendMessage } }, () => {
       const handler = new ContentMessageHandler({
         getEnabled: () => true,
         setEnabled: () => {},
@@ -201,9 +185,6 @@ describe("code prediction capitalization", () => {
       expect(sendMessage.mock.calls.at(-1)?.[0].context.suppressAutoCapitalize).toBe(true);
       handler.handleGetPrediction(request);
       expect(sendMessage.mock.calls.at(-1)?.[0].context.suppressAutoCapitalize).toBeUndefined();
-    } finally {
-      if (descriptor) Object.defineProperty(globalThis, "chrome", descriptor);
-      else Reflect.deleteProperty(globalThis, "chrome");
-    }
+    });
   });
 });
