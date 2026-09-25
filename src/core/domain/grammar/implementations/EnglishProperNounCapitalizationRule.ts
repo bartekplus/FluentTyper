@@ -162,6 +162,25 @@ export class EnglishProperNounCapitalizationRule implements GrammarRule {
  * The name ending at the end of `core` (a word end), with its canonical form.
  * `contextual` marks may/march/august, which needed date evidence to count.
  */
+// Letters-only last words of the names findProperName can end on.
+const LAST_WORDS = new Set([
+  ...PHRASES.map((phrase) => phraseKey(phrase.split(" ").at(-1)!)),
+  "may",
+  "march",
+  "august",
+]);
+
+/**
+ * Cheap pre-check for scanning finished text: false when no name found by
+ * findProperName can end with `word` (a whole word, possibly possessive or
+ * plural, or the day/year after a month).
+ */
+export function couldEndProperName(word: string): boolean {
+  if (DAY_OR_YEAR.test(word)) return true;
+  const key = phraseKey(word);
+  return LAST_WORDS.has(key) || LAST_WORDS.has(key.replace(/s$/, ""));
+}
+
 export function findProperName(
   core: string,
 ): { start: number; end: number; canonical: string; contextual: boolean } | null {

@@ -22,6 +22,12 @@ const PROSE_QUOTE_CLOSERS: Record<string, string> = {
 };
 
 /**
+ * Every character that can open a span isInsideProtectedSpan tracks (quotes,
+ * code spans, fences): text without any of them is never inside one.
+ */
+export const PROTECTED_SPAN_OPENERS = `${Object.keys(PROSE_QUOTE_CLOSERS).join("")}\`~`;
+
+/**
  * True when the end of `text` (the text before the cursor) sits inside Markdown
  * code that has not been closed yet. Conservative: an unclosed delimiter counts
  * as open, since its closer may simply not be typed.

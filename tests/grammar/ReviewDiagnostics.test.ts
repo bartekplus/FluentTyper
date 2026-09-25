@@ -11,6 +11,7 @@ import {
 import { REVIEW_DETECTORS } from "../../src/core/domain/grammar/review/reviewDetectors";
 import {
   MAX_REVIEW_CHARS,
+  REVIEW_CHUNK_CHARS,
   detectReviewDiagnostics,
   finalizeReview,
   prepareReview,
@@ -145,6 +146,11 @@ describe("review detectors: capitalization and typography", () => {
       ["englishPronounICapitalization", "i", [20, 21], "I"],
       ["englishPronounICapitalization", "i", [29, 30], "I"],
       ["englishPronounICapitalization", "i", [35, 36], "I"],
+    ]);
+    // A complete contraction after it identifies the pronoun too.
+    expect(only("so i don't and i can’t, i 'quoted'", "englishPronounICapitalization")).toEqual([
+      ["englishPronounICapitalization", "i", [3, 4], "I"],
+      ["englishPronounICapitalization", "i", [15, 16], "I"],
     ]);
     // Loop variables, roman numerals, "i.e.", mentions and end-of-input ambiguity.
     expect(
@@ -573,6 +579,86 @@ describe("review scope and protection", () => {
     expect(chunked.diagnostics).toEqual(whole.diagnostics);
     expect(whole.diagnostics).toHaveLength(text.split("teh").length - 1);
     expect(MAX_REVIEW_CHARS).toBeGreaterThanOrEqual(10_000);
+  });
+
+  test("chunked scanning finds exactly what one whole-text scan finds, for every rule", () => {
+    const paragraph = [
+      "i think teh meeting went well , and alot of people came.",
+      "Their is a problem; we should of fixed it  sooner,, right..",
+      "Thanks, your welcome. i has a question about a apple and an umbrella.",
+      "The price is 5$ and we meet on monday, may 15 in the 2th week at 10kg.",
+      "Here is `const x = teh;` and https://example.com/teh?alot=1 in text.",
+    ].join(" ");
+    // Short lines, then one long line: chunks end at line ends and, inside the
+    // long line, at spaces mid-paragraph, where findings cross the boundary.
+    let text = "";
+    for (let i = 0; text.length < 12_000; i += 1) {
+      text += i % 3 === 0 ? `${paragraph}\n` : `${paragraph} `;
+    }
+    text += `\n${paragraph} `.repeat(1) + `${paragraph} `.repeat(60);
+    const prepared = prepareReview(
+      { id: "s", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
+      options(),
+    );
+    const chunks = reviewChunks(prepared);
+    expect(chunks.length).toBeGreaterThan(5);
+    const chunked = finalizeReview(
+      prepared,
+      chunks.map((chunk) => scanReviewChunk(prepared, chunk)),
+    );
+    const whole = finalizeReview(prepared, [
+      scanReviewChunk(prepared, { start: 0, end: text.length }),
+    ]);
+    expect(chunked.diagnostics.length).toBeGreaterThan(400);
+    expect(chunked.diagnostics).toEqual(whole.diagnostics);
+  });
+
+  test("a finding that crosses a chunk boundary is found by the chunk it starts in", () => {
+    for (const [phrase, ruleId] of [
+      ["Thanks, your welcome.", "englishYourWelcomeCorrection"],
+      ["we should of been", "englishModalOfCorrection"],
+      ["and their is more", "englishTheirThereBeVerb"],
+      ["she said i has more", "englishPronounVerbWhitelistAgreement"],
+      ["it was a apple", "englishArticleAnCorrection"],
+      ["we met on may 15 then", "englishProperNounCapitalization"],
+    ] as const) {
+      // One line, so the first chunk ends at the first space at or after
+      // REVIEW_CHUNK_CHARS: right after the phrase's second-to-last word.
+      const lastSpace = phrase.lastIndexOf(" ");
+      const padding = "x".repeat(REVIEW_CHUNK_CHARS - lastSpace - 1);
+      const text = `${padding} ${phrase} Ok.`;
+      const prepared = prepareReview(
+        { id: "s", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
+        options(),
+      );
+      const chunks = reviewChunks(prepared);
+      expect(chunks[0].end).toBe(REVIEW_CHUNK_CHARS + 1);
+      expect(text.slice(chunks[0].end)).toStartWith(phrase.slice(lastSpace + 1));
+      const chunked = finalizeReview(
+        prepared,
+        chunks.map((chunk) => scanReviewChunk(prepared, chunk)),
+      );
+      expect(chunked.diagnostics.map((d) => d.ruleId)).toContain(ruleId);
+    }
+  });
+
+  test("a long single line is still split into bounded chunks", () => {
+    const text = "one teh two ".repeat(2_000);
+    const prepared = prepareReview(
+      { id: "s", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
+      options({ enabledRules: ["englishTypoWhitelistCorrection"] }),
+    );
+    const chunks = reviewChunks(prepared);
+    expect(chunks.length).toBeGreaterThan(4);
+    for (const chunk of chunks) {
+      expect(chunk.end - chunk.start).toBeLessThanOrEqual(2 * REVIEW_CHUNK_CHARS);
+      if (chunk.end < text.length) expect(text[chunk.end - 1]).toBe(" ");
+    }
+    const result = finalizeReview(
+      prepared,
+      chunks.map((chunk) => scanReviewChunk(prepared, chunk)),
+    );
+    expect(result.diagnostics).toHaveLength(2_000);
   });
 
   test("a throwing detector is reported as a coverage gap, not as no issues", () => {

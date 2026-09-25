@@ -14,6 +14,8 @@ import {
   caretRange,
   domPositionToOffset,
   offsetRangeToDomRange,
+  readBlockAt,
+  type BlockText,
   type ContentEditableTextMap,
 } from "./ContentEditableTextMap";
 
@@ -129,6 +131,16 @@ function readSelectionRange(host: HTMLElement): Range | null {
  * Firefox do that so the space stays visible beside formatting boundaries. Any
  * other difference, or one farther away, is not accepted.
  */
+/** `block` when it is still in the document and holds `range`. */
+function blockHolding(block: BlockText | null, range: TextRange): BlockText | null {
+  return block !== null &&
+    block.element.isConnected &&
+    range.start >= block.offset &&
+    range.end <= block.offset + block.map.text.length
+    ? block
+    : null;
+}
+
 function sameExceptEdgeSpaces(
   observed: string,
   expected: string,
@@ -151,6 +163,9 @@ const TEXT_CAPABILITIES: ReviewCapabilities = {
   bulk: true,
   undo: "single-step",
 };
+
+/** How long a batch of native edits runs before it lets the page breathe. */
+const WRITE_SLICE_MS = 50;
 
 function nextFrame(win: Window): Promise<void> {
   return new Promise((resolve) => {
@@ -336,26 +351,67 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
 
     root.focus({ preventScroll: true });
     let current = request.before;
+    // Each write is verified in its own block when that block reads the same
+    // on its own; a final full read-back below verifies the whole result.
+    let written: BlockText | null = null;
     const edits = [...request.edits].sort((a, b) => b.start - a.start);
+    let sliceStart = win.performance.now();
     for (let index = 0; index < edits.length; index += 1) {
-      const edit = edits[index];
-      if (index > 0) {
+      if (index > 0 && this.composing) return { status: "partial", applied: index };
+      // A long batch yields so the page stays responsive; each native edit is its
+      // own undo step here anyway. Afterwards it continues only if nothing moved.
+      if (win.performance.now() - sliceStart > WRITE_SLICE_MS) {
+        await new Promise((resolve) => win.setTimeout(resolve, 0));
         map = buildContentEditableTextMap(root);
-        if (map.text !== current || this.composing) return { status: "partial", applied: index };
+        written = null;
+        const active = getDeepActiveElement(doc);
+        if (
+          map.text !== current ||
+          this.composing ||
+          !root.isConnected ||
+          !active ||
+          !(active === root || root.contains(active))
+        ) {
+          return index === 0 ? { status: "stale" } : { status: "partial", applied: index };
+        }
+        sliceStart = win.performance.now();
       }
-      const range = offsetRangeToDomRange(map, edit, doc);
+      const edit = edits[index];
+      // Descending order: earlier blocks are untouched, so the first map still
+      // locates them; the block just written has new nodes, so use its re-read.
+      const previous = blockHolding(written, edit);
+      const range: Range | null = previous
+        ? offsetRangeToDomRange(
+            previous.map,
+            { start: edit.start - previous.offset, end: edit.end - previous.offset },
+            doc,
+          )
+        : offsetRangeToDomRange(map, edit, doc);
       if (!range || !selection || range.toString() !== edit.original) {
         return index === 0
           ? { status: "rejected", reason: "host-refused" }
           : { status: "partial", applied: index };
       }
+      const block: BlockText | null = previous ?? readBlockAt(root, map, range, current);
       selection.removeAllRanges();
       selection.addRange(range);
       if (edit.replacement.length > 0) doc.execCommand("insertText", false, edit.replacement);
       else doc.execCommand("delete", false);
       const expected = current.slice(0, edit.start) + edit.replacement + current.slice(edit.end);
       // The DOM is read back; a successful dispatch proves nothing.
-      const observed = buildContentEditableTextMap(root).text;
+      let observed: string;
+      if (block && block.element.isConnected) {
+        const after = buildContentEditableTextMap(block.element);
+        observed =
+          current.slice(0, block.offset) +
+          after.text +
+          current.slice(block.offset + block.map.text.length);
+        written = { element: block.element, offset: block.offset, map: after };
+      } else {
+        map = buildContentEditableTextMap(root);
+        observed = map.text;
+        written = null;
+      }
       const editEnd = edit.start + edit.replacement.length;
       if (!sameExceptEdgeSpaces(observed, expected, edit.start, editEnd)) {
         if (observed === current) {
@@ -492,6 +548,19 @@ class TextControlMirror {
     root.appendChild(this.mirror);
   }
 
+  // One sync serves every measurement in the same task: a paint measures each
+  // finding, and re-syncing forces a style and layout pass per finding.
+  private synced = false;
+
+  private syncOnce(): void {
+    if (this.synced) return;
+    this.sync();
+    this.synced = true;
+    queueMicrotask(() => {
+      this.synced = false;
+    });
+  }
+
   private sync(): void {
     const field = this.field;
     const view = field.ownerDocument.defaultView;
@@ -534,7 +603,7 @@ class TextControlMirror {
   }
 
   rects(range: TextRange): DOMRect[] {
-    this.sync();
+    this.syncOnce();
     const doc = this.field.ownerDocument;
     const domRange = doc.createRange();
     const length = this.textNode.data.length;
@@ -566,6 +635,8 @@ class TextControlMirror {
     else if (target.bottom > box.bottom) this.field.scrollTop += target.bottom - box.bottom + 4;
     if (target.left < box.left) this.field.scrollLeft -= box.left - target.left + 4;
     else if (target.right > box.right) this.field.scrollLeft += target.right - box.right + 4;
+    // The field may have scrolled: measure again next time.
+    this.synced = false;
   }
 
   dispose(): void {

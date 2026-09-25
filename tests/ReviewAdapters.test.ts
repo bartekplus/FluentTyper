@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, jest, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
 import { createEditor, setCaret } from "./codeContextTestUtils";
 import {
   buildContentEditableTextMap,
@@ -68,6 +68,13 @@ function textarea(value: string): HTMLTextAreaElement {
 function edit(start: number, end: number, original: string, replacement: string): ReviewEdit {
   return { start, end, original, replacement };
 }
+
+beforeEach(() => {
+  // Other suites share this document; a leftover editable body would be "the editor".
+  document.body.removeAttribute("contenteditable");
+  delete (document.body as { isContentEditable?: boolean }).isContentEditable;
+  document.designMode = "off";
+});
 
 afterEach(() => {
   jest.restoreAllMocks();
@@ -276,6 +283,48 @@ describe("contenteditable writes", () => {
     });
     expect(result).toEqual({ status: "applied" });
     expect(root.innerHTML).toBe("<p>We saw <b>the</b> cat, ok</p>");
+  });
+
+  test("a long batch yields to the page and continues only while nothing changed", async () => {
+    setExecCommand(contentEditableInsert);
+    // Every clock read is 100 ms later: the batch yields before each edit.
+    let clock = 0;
+    jest.spyOn(window.performance, "now").mockImplementation(() => (clock += 100));
+    const request = (root: HTMLElement) => {
+      const read = new ContentEditableReviewTarget(root).read();
+      if (!read.ok) throw new Error("unreadable");
+      return {
+        edits: [edit(1, 3, "eh", "he"), edit(9, 11, "eh", "he")],
+        before: read.text,
+        after: "the and the",
+        signature: read.signature,
+      };
+    };
+
+    const calm = createEditor("<p>teh and <b>teh</b></p>");
+    calm.tabIndex = 0;
+    expect(await new ContentEditableReviewTarget(calm).apply(request(calm))).toEqual({
+      status: "applied",
+    });
+    expect(calm.innerHTML).toBe("<p>the and <b>the</b></p>");
+
+    // The user types during a pause: the batch stops and says how far it got.
+    const busy = createEditor("<p>teh and <b>teh</b></p>");
+    busy.tabIndex = 0;
+    const pending = new ContentEditableReviewTarget(busy).apply(request(busy));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    busy.querySelector("b")!.append("!");
+    expect(await pending).toEqual({ status: "partial", applied: 1 });
+    expect(busy.innerHTML).toBe("<p>teh and <b>the!</b></p>");
+
+    // Focus moved elsewhere during a pause: nothing more is written.
+    const left = createEditor("<p>teh and <b>teh</b></p>");
+    left.tabIndex = 0;
+    const other = textarea("elsewhere");
+    const pendingLeft = new ContentEditableReviewTarget(left).apply(request(left));
+    other.focus();
+    expect(await pendingLeft).toEqual({ status: "stale" });
+    expect(left.innerHTML).toBe("<p>teh and <b>teh</b></p>");
   });
 
   test("formatting-only changes make a pending fix stale", async () => {

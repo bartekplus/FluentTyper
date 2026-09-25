@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { GRAMMAR_RULE_IDS } from "../../src/core/domain/grammar/ruleCatalog";
-import { planBulkFix } from "../../src/core/domain/grammar/review/bulkPlanner";
+import { MAX_PROOF_GROUP, planBulkFix } from "../../src/core/domain/grammar/review/bulkPlanner";
 import {
   detectReviewDiagnostics,
   prepareReview,
@@ -61,7 +61,7 @@ function reviewAndPlan(text: string) {
   const prepared = prepareReview(snapshot, OPTIONS);
   const { diagnostics } = detectReviewDiagnostics(snapshot, OPTIONS);
   const plan = planBulkFix(text, diagnostics, {
-    stillHolds: (d, others) => stillDetectedAfter(prepared, d, others),
+    stillHold: (checks, others) => stillDetectedAfter(prepared, checks, others),
   });
   return { diagnostics, plan };
 }
@@ -103,7 +103,7 @@ describe("bulk planning", () => {
     const b = diagnostic([edit(0, 1, "i", "I"), edit(4, 5, "s", "ve")], {
       context: { start: 0, end: 5 },
     });
-    const plan = planBulkFix("i has", [a, b], { stillHolds: () => true });
+    const plan = planBulkFix("i has", [a, b], { stillHold: (checks) => checks.map(() => true) });
     expect(plan.edits).toHaveLength(2);
     expect(plan.expectedText).toBe("I have");
   });
@@ -160,7 +160,9 @@ describe("bulk planning", () => {
     const b = diagnostic([edit(6, 7, "t", "T")], { context: { start: 3, end: 10 } });
     const unproven = planBulkFix("end.. then", [a, b]);
     expect(unproven.deferred.map((d) => d.reason)).toEqual(["unproven", "unproven"]);
-    const proven = planBulkFix("end.. then", [a, b], { stillHolds: () => true });
+    const proven = planBulkFix("end.. then", [a, b], {
+      stillHold: (checks) => checks.map(() => true),
+    });
     expect(proven.expectedText).toBe("end. Then");
   });
 
@@ -176,7 +178,57 @@ describe("bulk planning", () => {
     const prepared = prepareReview(snapshot, OPTIONS);
     const fake = diagnostic([edit(0, 1, "o", "O")], { ruleId: "capitalizeSentenceStart" });
     // Prepending a lowercase word makes "ok" no longer a sentence start.
-    expect(stillDetectedAfter(prepared, fake, [edit(0, 0, "", "and ")])).toBe(false);
+    expect(stillDetectedAfter(prepared, [fake], [edit(0, 0, "", "and ")])).toEqual([false]);
+  });
+
+  test("proofs run in rounds: one call per round covers every linked group", () => {
+    // Two independent pairs, each: b's evidence contains a's edit.
+    const a1 = diagnostic([edit(0, 1, "a", "A")]);
+    const b1 = diagnostic([edit(2, 3, "b", "B")], { context: { start: 0, end: 3 } });
+    const a2 = diagnostic([edit(10, 11, "c", "C")]);
+    const b2 = diagnostic([edit(12, 13, "d", "D")], { context: { start: 10, end: 13 } });
+    const calls: Array<{ checks: string[]; others: number[] }> = [];
+    const plan = planBulkFix("a b       c d", [a1, b1, a2, b2], {
+      stillHold: (checks, others) => {
+        calls.push({ checks: checks.map((c) => c.id), others: others.map((e) => e.start) });
+        return checks.map((c) => c.id !== b2.id);
+      },
+    });
+    expect(calls).toEqual([
+      { checks: [a1.id, a2.id], others: [2, 12] },
+      { checks: [b1.id, b2.id], others: [0, 10] },
+    ]);
+    // One failed member defers its own group only.
+    expect(plan.diagnosticIds).toEqual([a1.id, b1.id]);
+    expect(plan.deferred).toEqual([
+      { id: a2.id, reason: "unproven" },
+      { id: b2.id, reason: "unproven" },
+    ]);
+  });
+
+  test("real findings: many linked groups are proven together, without one scan each", () => {
+    const text = "yes i dont know. ".repeat(200);
+    const { plan } = reviewAndPlan(text);
+    expect(plan.deferred).toEqual([]);
+    expect(plan.expectedText).toBe("Yes I don't know. ".repeat(200));
+  });
+
+  test("a chain of linked fixes longer than the proof limit is left for individual review", () => {
+    const chain = Array.from({ length: MAX_PROOF_GROUP + 1 }, (_, i) =>
+      diagnostic([edit(i * 2, i * 2 + 1, "x", "X")], {
+        context: { start: Math.max(0, i * 2 - 2), end: i * 2 + 1 },
+      }),
+    );
+    let called = false;
+    const plan = planBulkFix("x ".repeat(MAX_PROOF_GROUP + 1), chain, {
+      stillHold: (checks) => {
+        called = true;
+        return checks.map(() => true);
+      },
+    });
+    expect(called).toBe(false);
+    expect(plan.diagnosticIds).toEqual([]);
+    expect(new Set(plan.deferred.map((d) => d.reason))).toEqual(new Set(["unproven"]));
   });
 
   test("cascading findings appear only on recheck, never in the same batch", () => {
@@ -188,6 +240,13 @@ describe("bulk planning", () => {
 });
 
 describe("text ranges", () => {
+  test("applyEdits rejects an insertion touching another edit, wherever it is", () => {
+    expect(applyEdits("ab", [edit(2, 2, "", "x"), edit(2, 2, "", "y")])).toBeNull();
+    expect(applyEdits("ab", [edit(1, 1, "", "x"), edit(1, 2, "b", "B")])).toBeNull();
+    expect(applyEdits("ab", [edit(0, 1, "a", "A"), edit(1, 1, "", "x")])).toBeNull();
+    expect(applyEdits("ab", [edit(2, 2, "", "!"), edit(0, 1, "a", "A")])).toBe("Ab!");
+  });
+
   test("applyEdits verifies originals and rejects overlaps", () => {
     expect(applyEdits("abc", [edit(0, 1, "a", "A"), edit(2, 3, "c", "C")])).toBe("AbC");
     expect(applyEdits("abc", [edit(0, 1, "x", "A")])).toBeNull();

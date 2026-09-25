@@ -20,6 +20,8 @@ import type {
 export const MAX_REVIEW_CHARS = 50_000;
 /** Scan unit between yields; chunks end on line breaks so no token straddles two. */
 export const REVIEW_CHUNK_CHARS = 4_000;
+// How far past its chunk a detector's forward scan may need to read.
+const SCAN_LOOKAHEAD = 1_024;
 // Context read around the scope; enough for every rule's look-behind.
 const CONTEXT_MARGIN = 512;
 
@@ -70,7 +72,11 @@ export function prepareReview(
   ].sort((a, b) => a.start - b.start);
 
   let text = source;
-  const masked = protectedRanges.filter((range) => range.reason !== "technical");
+  // Technical tokens stay visible ("e.g." must still read as an abbreviation);
+  // overlong ones carry no prose and are masked so no detector walks them.
+  const masked = protectedRanges.filter(
+    (range) => range.reason !== "technical" || range.end - range.start > MAX_PROSE_TOKEN_CHARS,
+  );
   if (masked.length > 0) {
     const parts: string[] = [];
     let cursor = 0;
@@ -97,7 +103,13 @@ export function prepareReview(
   };
 }
 
-/** URLs, e-mail addresses, paths, mentions and dotted names in [from, to). */
+/**
+ * No prose word is this long; longer tokens (hashes, base64, minified code) are
+ * protected outright, which also keeps per-token pattern checks linear.
+ */
+export const MAX_PROSE_TOKEN_CHARS = 100;
+
+/** URLs, e-mail addresses, paths, mentions, dotted names and overlong tokens in [from, to). */
 function technicalRanges(source: string, from: number, to: number): ProtectedRange[] {
   const ranges: ProtectedRange[] = [];
   const token = /\S+/g;
@@ -105,6 +117,10 @@ function technicalRanges(source: string, from: number, to: number): ProtectedRan
   // Back up to the start of a token cut by `from`.
   while (token.lastIndex > 0 && /\S/.test(source[token.lastIndex - 1])) token.lastIndex -= 1;
   for (let match = token.exec(source); match && match.index < to; match = token.exec(source)) {
+    if (match[0].length > MAX_PROSE_TOKEN_CHARS) {
+      ranges.push({ start: match.index, end: match.index + match[0].length, reason: "technical" });
+      continue;
+    }
     const lead = match[0].match(/^["'(“‘[<]*/)![0].length;
     const bare = match[0].slice(lead).replace(/[.,;:!?)\]"'”’>]+$/u, "");
     if (bare && isTechnicalToken(bare)) {
@@ -123,8 +139,16 @@ export function reviewChunks(prepared: PreparedReview): TextRange[] {
   while (cursor < end) {
     let chunkEnd = Math.min(end, cursor + REVIEW_CHUNK_CHARS);
     if (chunkEnd < end) {
+      // Prefer a line end; a long line (one-line fields) splits at a space so
+      // the scan still yields. Ownership makes any split point correct.
+      const limit = Math.min(end, chunkEnd + REVIEW_CHUNK_CHARS);
       const newline = prepared.text.indexOf("\n", chunkEnd);
-      chunkEnd = newline < 0 || newline >= end ? end : newline + 1;
+      if (newline >= 0 && newline < limit) {
+        chunkEnd = newline + 1;
+      } else {
+        const space = prepared.text.slice(chunkEnd, limit).search(/\s/);
+        chunkEnd = space < 0 ? limit : chunkEnd + space + 1;
+      }
     }
     chunks.push({ start: cursor, end: chunkEnd });
     cursor = chunkEnd;
@@ -141,9 +165,15 @@ export interface ChunkScan {
 export function scanReviewChunk(prepared: PreparedReview, chunk: TextRange): ChunkScan {
   const findings: RawFinding[] = [];
   const failedRules: CatalogRuleId[] = [];
+  const scanEnd = chunk.end + SCAN_LOOKAHEAD;
   const context = {
     source: prepared.snapshot.text,
     text: prepared.text,
+    // Masked at the cut: nothing matches across it or mistakes it for the end.
+    scanText:
+      scanEnd < prepared.text.length
+        ? `${prepared.text.slice(0, scanEnd)}${MASK_CHAR}`
+        : prepared.text,
     from: chunk.start,
     to: chunk.end,
     lang: prepared.options.lang,
@@ -342,26 +372,21 @@ export function detectReviewDiagnostics(
 }
 
 /**
- * Proof step for bulk planning: re-runs detection on the text as it would be
- * after `otherEdits`, and checks `diagnostic` is found there with the same
- * edits (shifted). Protected ranges and the scope move with the edits; the
- * edits never touch protected text, so the shift is exact.
+ * Proof step for bulk planning: re-runs detection once on the text as it would
+ * be after `otherEdits`, and checks each diagnostic is found there with the
+ * same edits (shifted). Protected ranges and the scope move with the edits;
+ * the edits never touch protected text, so the shift is exact. Only the chunks
+ * holding a checked diagnostic are scanned.
  */
 export function stillDetectedAfter(
   prepared: PreparedReview,
-  diagnostic: ReviewDiagnostic,
+  diagnostics: readonly ReviewDiagnostic[],
   otherEdits: readonly ReviewEdit[],
-): boolean {
+): boolean[] {
   const { snapshot } = prepared;
   const text = applyEdits(snapshot.text, otherEdits);
-  if (text === null) return false;
-  const shift = (position: number) =>
-    position +
-    otherEdits
-      .filter(
-        (edit) => edit.end <= position && !(edit.start === edit.end && edit.start === position),
-      )
-      .reduce((sum, edit) => sum + edit.replacement.length - (edit.end - edit.start), 0);
+  if (text === null) return diagnostics.map(() => false);
+  const shift = positionShifter(otherEdits);
   const shifted = {
     id: `${snapshot.id}~`,
     text,
@@ -373,18 +398,56 @@ export function stillDetectedAfter(
     })),
   };
   const next = prepareReview(shifted, prepared.options);
-  const start = shift(diagnostic.range.start);
-  const scan = scanReviewChunk(next, { start, end: start + 1 });
-  const expected = JSON.stringify(
-    diagnostic.alternatives[diagnostic.bulk.eligible ? diagnostic.bulk.alternative : 0].edits.map(
-      (edit) => ({ ...edit, start: shift(edit.start), end: shift(edit.end) }),
+  const expected = diagnostics.map((diagnostic) => ({
+    start: shift(diagnostic.range.start),
+    edits: JSON.stringify(
+      diagnostic.alternatives[diagnostic.bulk.eligible ? diagnostic.bulk.alternative : 0].edits.map(
+        (edit) => ({ ...edit, start: shift(edit.start), end: shift(edit.end) }),
+      ),
     ),
-  );
-  return scan.findings.some((finding) => {
-    const found = toDiagnostic(next, finding);
-    return (
-      found !== null &&
-      found.alternatives.some((alternative) => JSON.stringify(alternative.edits) === expected)
-    );
-  });
+  }));
+  const found = new Map<number, Set<string>>();
+  for (const chunk of reviewChunks(next)) {
+    if (!expected.some(({ start }) => start >= chunk.start && start < chunk.end)) continue;
+    for (const finding of scanReviewChunk(next, chunk).findings) {
+      const diagnostic = toDiagnostic(next, finding);
+      if (!diagnostic) continue;
+      const edits = found.get(diagnostic.range.start) ?? new Set<string>();
+      for (const alternative of diagnostic.alternatives)
+        edits.add(JSON.stringify(alternative.edits));
+      found.set(diagnostic.range.start, edits);
+    }
+  }
+  return expected.map(({ start, edits }) => found.get(start)?.has(edits) ?? false);
+}
+
+/**
+ * Maps a snapshot position to the text after `edits` (non-overlapping). An
+ * insertion exactly at the position stays after it.
+ */
+function positionShifter(edits: readonly ReviewEdit[]): (position: number) => number {
+  const sorted = [...edits].sort((a, b) => a.end - b.end || a.start - b.start);
+  const deltas: number[] = [0];
+  for (const edit of sorted) {
+    deltas.push(deltas[deltas.length - 1] + edit.replacement.length - (edit.end - edit.start));
+  }
+  return (position) => {
+    // Edits ending at or before the position.
+    let low = 0;
+    let high = sorted.length;
+    while (low < high) {
+      const middle = (low + high) >> 1;
+      if (sorted[middle].end <= position) low = middle + 1;
+      else high = middle;
+    }
+    let count = low;
+    while (
+      count > 0 &&
+      sorted[count - 1].start === position &&
+      sorted[count - 1].end === position
+    ) {
+      count -= 1;
+    }
+    return position + deltas[count];
+  };
 }

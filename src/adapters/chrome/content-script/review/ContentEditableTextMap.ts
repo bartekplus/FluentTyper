@@ -44,6 +44,12 @@ const OBJECT_TAGS = new Set(
 const SKIPPED_TAGS = new Set(["SCRIPT", "STYLE", "TEMPLATE", "NOSCRIPT"]);
 // Zero-width characters rich editors insert as cursor guards.
 const FILLER = /\u200B|\u200C|\u200D|\u2060|\uFEFF/;
+// Characters that end an ordinary run of text, per white-space mode.
+const SPECIAL_CHARS: Record<Whitespace, RegExp> = {
+  collapse: /\u200B|\u200C|\u200D|\u2060|\uFEFF|[ \t\r\f\n]/g,
+  "preserve-breaks": /\u200B|\u200C|\u200D|\u2060|\uFEFF|[ \t\r\f]/g,
+  preserve: /\u200B|\u200C|\u200D|\u2060|\uFEFF/g,
+};
 /** Stop reading very large documents; the session reviews a bounded prefix and says so. */
 export const MAX_MAPPED_CHARS = 200_000;
 
@@ -110,8 +116,24 @@ export function buildContentEditableTextMap(root: HTMLElement): ContentEditableT
 
   const visitText = (node: Text, whitespace: Whitespace, code: boolean) => {
     const data = node.data;
+    const special = SPECIAL_CHARS[whitespace];
+    const collapsible = (ch: string | undefined) =>
+      whitespace !== "preserve" &&
+      (ch === " " ||
+        ch === "\t" ||
+        ch === "\r" ||
+        ch === "\f" ||
+        (ch === "\n" && whitespace === "collapse"));
     let i = 0;
     while (i < data.length) {
+      // Ordinary text up to the next filler or collapsible whitespace, in one piece.
+      special.lastIndex = i;
+      const next = special.exec(data)?.index ?? data.length;
+      if (next > i) {
+        addSegment(node, i, data.slice(i, next), code);
+        i = next;
+        continue;
+      }
       const ch = data[i];
       if (FILLER.test(ch)) {
         protect(length, length + 1, "structure");
@@ -119,44 +141,8 @@ export function buildContentEditableTextMap(root: HTMLElement): ContentEditableT
         i += 1;
         continue;
       }
-      const isCollapsible =
-        whitespace !== "preserve" &&
-        (ch === " " ||
-          ch === "\t" ||
-          ch === "\r" ||
-          ch === "\f" ||
-          (ch === "\n" && whitespace === "collapse"));
-      if (!isCollapsible) {
-        let j = i + 1;
-        while (j < data.length && !FILLER.test(data[j])) {
-          const next = data[j];
-          if (
-            whitespace !== "preserve" &&
-            (next === " " ||
-              next === "\t" ||
-              next === "\r" ||
-              next === "\f" ||
-              (next === "\n" && whitespace === "collapse"))
-          ) {
-            break;
-          }
-          j += 1;
-        }
-        addSegment(node, i, data.slice(i, j), code);
-        i = j;
-        continue;
-      }
       let j = i + 1;
-      while (
-        j < data.length &&
-        (data[j] === " " ||
-          data[j] === "\t" ||
-          data[j] === "\r" ||
-          data[j] === "\f" ||
-          (data[j] === "\n" && whitespace === "collapse"))
-      ) {
-        j += 1;
-      }
+      while (j < data.length && collapsible(data[j])) j += 1;
       // Leading whitespace in a line is not rendered; neither is a second space.
       if (length === 0 || last === "\n" || last === " ") {
         i = j;
@@ -232,6 +218,44 @@ export function buildContentEditableTextMap(root: HTMLElement): ContentEditableT
     nodeStarts,
     nodeEnds,
   };
+}
+
+/** One block of the editor, read on its own, and where its text sits in the whole. */
+export interface BlockText {
+  element: HTMLElement;
+  offset: number;
+  map: ContentEditableTextMap;
+}
+
+/**
+ * The nearest block element inside `root` that holds `range`, read on its own,
+ * for verifying a write without re-reading the whole editor. Null when there is
+ * no such block or its text does not line up exactly with `text` (the whole
+ * editor's text, mapped by `map`): the caller then reads everything.
+ */
+export function readBlockAt(
+  root: HTMLElement,
+  map: ContentEditableTextMap,
+  range: Range,
+  text: string,
+): BlockText | null {
+  let node: Node | null = range.commonAncestorContainer;
+  while (
+    node &&
+    node !== root &&
+    !(node.nodeType === 1 && BLOCK_TAGS.has((node as Element).tagName.toUpperCase()))
+  ) {
+    node = node.parentNode;
+  }
+  if (!node || node === root) return null;
+  const element = node as HTMLElement;
+  let offset = map.nodeStarts.get(element);
+  if (offset === undefined) return null;
+  const local = buildContentEditableTextMap(element);
+  // The whole map may open the block with a virtual break the block's own read lacks.
+  if (text[offset] === "\n" && !local.text.startsWith("\n")) offset += 1;
+  if (text.slice(offset, offset + local.text.length) !== local.text) return null;
+  return { element, offset, map: local };
 }
 
 /** Snapshot offset of a DOM position (text or element offset), or null when outside the map. */

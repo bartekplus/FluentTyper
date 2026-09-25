@@ -391,7 +391,9 @@ export class ReviewController {
     for (const diagnostic of diagnostics) {
       const range = active.target.domRange(diagnostic.range);
       if (!range) continue;
-      byCategory.set(diagnostic.category, [...(byCategory.get(diagnostic.category) ?? []), range]);
+      const ranges = byCategory.get(diagnostic.category);
+      if (ranges) ranges.push(range);
+      else byCategory.set(diagnostic.category, [range]);
       if (diagnostic.id === selectedId) selected.push(range.cloneRange());
     }
     for (const category of ["spelling", "grammar", "punctuation", "typography"] as const) {

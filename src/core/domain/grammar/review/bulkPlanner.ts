@@ -20,11 +20,16 @@ export interface BulkPlanOptions {
   /** When set, only these categories are planned (the visible filter). */
   categories?: ReadonlySet<ReviewCategory>;
   /**
-   * Proof hook for context-dependent groups: true when `diagnostic` is still
-   * detected, with the same edits, in the text after `otherEdits` are applied.
+   * Proof hook for context-dependent groups: for each checked diagnostic, true
+   * when it is still detected, with the same edits, in the text after
+   * `otherEdits` are applied. `otherEdits` never contain or collide with a
+   * checked diagnostic's own edits.
    */
-  stillHolds?: (diagnostic: ReviewDiagnostic, otherEdits: ReviewEdit[]) => boolean;
+  stillHold?: (checks: ReviewDiagnostic[], otherEdits: ReviewEdit[]) => boolean[];
 }
+
+/** Longer chains of dependent fixes are left for individual review. */
+export const MAX_PROOF_GROUP = 8;
 
 function sameEdit(a: ReviewEdit, b: ReviewEdit): boolean {
   return a.start === b.start && a.end === b.end && a.replacement === b.replacement;
@@ -54,7 +59,7 @@ function touchesContext(edit: ReviewEdit, diagnostic: ReviewDiagnostic): boolean
  * - Colliding edits (overlap, shared insertion point) defer every finding in
  *   the colliding group: no winner is picked by position.
  * - An edit inside another finding's evidence makes the pair context-dependent;
- *   such a group is kept only when `stillHolds` proves each member is still
+ *   such a group is kept only when `stillHold` proves each member is still
  *   detected unchanged after all the others are applied, and deferred otherwise.
  */
 export function planBulkFix(
@@ -94,8 +99,18 @@ export function planBulkFix(
   const hard = new Set<number>();
   const soft = new Set<number>();
 
-  for (let i = 0; i < candidates.length; i += 1) {
-    for (let j = i + 1; j < candidates.length; j += 1) {
+  // Only candidates whose spans (edits and evidence) overlap or touch can
+  // collide or depend on each other: sweep in span order instead of all pairs.
+  const spans = candidates.map((candidate, index) => ({
+    index,
+    start: Math.min(candidate.diagnostic.context.start, ...candidate.edits.map((e) => e.start)),
+    end: Math.max(candidate.diagnostic.context.end, ...candidate.edits.map((e) => e.end)),
+  }));
+  spans.sort((a, b) => a.start - b.start || a.index - b.index);
+  for (let x = 0; x < spans.length; x += 1) {
+    for (let y = x + 1; y < spans.length && spans[y].start <= spans[x].end; y += 1) {
+      const i = Math.min(spans[x].index, spans[y].index);
+      const j = Math.max(spans[x].index, spans[y].index);
       const a = candidates[i];
       const b = candidates[j];
       let collide = false;
@@ -124,10 +139,13 @@ export function planBulkFix(
   const groups = new Map<number, number[]>();
   candidates.forEach((_, index) => {
     const root = find(index);
-    groups.set(root, [...(groups.get(root) ?? []), index]);
+    const members = groups.get(root);
+    if (members) members.push(index);
+    else groups.set(root, [index]);
   });
 
   const accepted: number[] = [];
+  const linked: number[][] = [];
   for (const members of groups.values()) {
     if (members.length === 1) {
       accepted.push(members[0]);
@@ -139,26 +157,24 @@ export function planBulkFix(
       );
       continue;
     }
-    const proven =
-      options.stillHolds !== undefined &&
-      members.every((index) => {
-        const mine = candidates[index].edits;
-        const others = dedupe(
-          members
-            .filter((other) => other !== index)
-            .flatMap((other) => candidates[other].edits)
-            .filter((edit) => !mine.some((own) => sameEdit(own, edit))),
-        );
-        return options.stillHolds!(candidates[index].diagnostic, others);
-      });
-    if (proven) {
-      accepted.push(...members);
+    if (options.stillHold && members.length <= MAX_PROOF_GROUP) {
+      linked.push(members);
     } else {
       members.forEach((index) =>
         deferred.push({ id: candidates[index].diagnostic.id, reason: "unproven" }),
       );
     }
   }
+  const proven = options.stillHold ? proveGroups(candidates, linked, options.stillHold) : [];
+  linked.forEach((members, group) => {
+    if (proven[group]) {
+      accepted.push(...members);
+    } else {
+      members.forEach((index) =>
+        deferred.push({ id: candidates[index].diagnostic.id, reason: "unproven" }),
+      );
+    }
+  });
 
   accepted.sort((a, b) => a - b);
   const edits = dedupe(accepted.flatMap((index) => candidates[index].edits)).sort(
@@ -188,10 +204,57 @@ export function planBulkFix(
   };
 }
 
-function dedupe(edits: ReviewEdit[]): ReviewEdit[] {
-  const unique: ReviewEdit[] = [];
-  for (const edit of edits) {
-    if (!unique.some((existing) => sameEdit(existing, edit))) unique.push(edit);
+/**
+ * Proves each context-linked group: every member must still be detected, with
+ * the same edits, after the other members' edits. Round k checks member k of
+ * every group at once; different groups never collide, so a round shares one
+ * text. A round where one group would pre-apply another group's checked fix
+ * (an identical edit) falls back to checking those groups one by one.
+ */
+function proveGroups(
+  candidates: ReadonlyArray<{ diagnostic: ReviewDiagnostic; edits: ReviewEdit[] }>,
+  groups: readonly number[][],
+  stillHold: NonNullable<BulkPlanOptions["stillHold"]>,
+): boolean[] {
+  const proven = groups.map(() => true);
+  const rounds = Math.max(0, ...groups.map((members) => members.length));
+  for (let round = 0; round < rounds; round += 1) {
+    const checks: Array<{ group: number; own: ReviewEdit[]; others: ReviewEdit[] }> = [];
+    groups.forEach((members, group) => {
+      if (!proven[group] || round >= members.length) return;
+      const own = candidates[members[round]].edits;
+      const others = members
+        .filter((index) => index !== members[round])
+        .flatMap((index) => candidates[index].edits)
+        .filter((edit) => !own.some((mine) => sameEdit(mine, edit)));
+      checks.push({ group, own, others });
+    });
+    if (checks.length === 0) break;
+    const others = dedupe(checks.flatMap((check) => check.others));
+    const clash = checks.some((check) =>
+      check.own.some((mine) => others.some((edit) => sameEdit(mine, edit))),
+    );
+    const results = clash
+      ? checks.map(
+          (check) =>
+            stillHold([candidates[groups[check.group][round]].diagnostic], dedupe(check.others))[0],
+        )
+      : stillHold(
+          checks.map((check) => candidates[groups[check.group][round]].diagnostic),
+          others,
+        );
+    checks.forEach((check, index) => {
+      if (results[index] !== true) proven[check.group] = false;
+    });
   }
-  return unique;
+  return proven;
+}
+
+function dedupe(edits: ReviewEdit[]): ReviewEdit[] {
+  const unique = new Map<string, ReviewEdit>();
+  for (const edit of edits) {
+    const key = `${edit.start}:${edit.end}:${edit.replacement}`;
+    if (!unique.has(key)) unique.set(key, edit);
+  }
+  return [...unique.values()];
 }

@@ -37,10 +37,17 @@ import {
   isArticleContext,
 } from "../implementations/EnglishArticleAnCorrectionRule";
 import { ordinalSuffix } from "../implementations/EnglishOrdinalSuffixRule";
-import { findProperName, recase } from "../implementations/EnglishProperNounCapitalizationRule";
+import {
+  couldEndProperName,
+  findProperName,
+  recase,
+} from "../implementations/EnglishProperNounCapitalizationRule";
 import { CURRENCY_MARKERS } from "../implementations/CurrencySpacingRule";
 import { isProsePrefix } from "../implementations/MeasurementUnitFormattingRule";
-import { isInsideProtectedSpan } from "../implementations/helpers/ProtectedSpanShared";
+import {
+  PROTECTED_SPAN_OPENERS,
+  isInsideProtectedSpan,
+} from "../implementations/helpers/ProtectedSpanShared";
 import { isLowercaseLetter, isTechnicalToken } from "../implementations/helpers/GenericRuleShared";
 import { isGraphemeBoundary } from "./textRanges";
 import type { ReviewEdit, ReviewMessageKey, TextRange } from "./types";
@@ -60,6 +67,12 @@ import type { ReviewEdit, ReviewMessageKey, TextRange } from "./types";
 export interface DetectContext {
   source: string;
   text: string;
+  /**
+   * `text` cut shortly after `to` (and masked at the cut), for forward regex
+   * scans: a chunk without matches must not scan the rest of the document.
+   * Same offsets as `text`; read context from `text`.
+   */
+  scanText: string;
   /** Findings are owned by the chunk their range starts in: [from, to). */
   from: number;
   to: number;
@@ -111,7 +124,7 @@ function isGluedToTechnical(text: string, start: number, end: number): boolean {
 function* asciiWords(ctx: DetectContext, lookback = 0): Generator<TextRange> {
   const regex = /[A-Za-z]+/g;
   regex.lastIndex = Math.max(0, ctx.from - lookback);
-  for (let match = regex.exec(ctx.text); match; match = regex.exec(ctx.text)) {
+  for (let match = regex.exec(ctx.scanText); match; match = regex.exec(ctx.scanText)) {
     if (match.index >= ctx.to + lookback) return;
     const start = match.index;
     const end = start + match[0].length;
@@ -121,6 +134,23 @@ function* asciiWords(ctx: DetectContext, lookback = 0): Generator<TextRange> {
     }
     yield { start, end };
   }
+}
+
+/**
+ * `text.lastIndexOf(needle, position)` for non-decreasing positions, reading
+ * each character once: per-match line or paragraph lookups on a long line
+ * would otherwise rescan it for every match.
+ */
+function lastIndexFinder(text: string, needle: string): (position: number) => number {
+  let searched = 0;
+  let last = -1;
+  return (position) => {
+    if (position < searched) return text.lastIndexOf(needle, position);
+    const found = text.slice(searched, position + needle.length).lastIndexOf(needle);
+    if (found >= 0) last = searched + found;
+    searched = position + 1;
+    return last;
+  };
 }
 
 function owned(ctx: DetectContext, start: number): boolean {
@@ -139,16 +169,16 @@ const capitalizeStarts: Detector = (ctx) => {
   const findings: RawFinding[] = [];
   const regex = /[^\s\uFFFC]+/gu;
   regex.lastIndex = ctx.from;
-  for (let match = regex.exec(ctx.text); match; match = regex.exec(ctx.text)) {
+  for (let match = regex.exec(ctx.scanText); match; match = regex.exec(ctx.scanText)) {
     const wordStart = match.index;
     if (wordStart >= ctx.to) break;
     // A token must start after whitespace or at the text start.
     if (wordStart > 0 && !/\s/.test(ctx.text[wordStart - 1])) continue;
     const word = match[0];
     const letterIndex = wordStart + (SENTENCE_OPENING_MARKS.has(word[0]) ? 1 : 0);
+    if (!isLowercaseLetter(ctx.text[letterIndex] ?? "")) continue;
     const letterEnd = graphemeEnd(ctx.text, letterIndex);
     const letter = ctx.source.slice(letterIndex, letterEnd);
-    if (!isLowercaseLetter(ctx.text[letterIndex] ?? "")) continue;
     const bare = word.replace(TRAILING_PUNCTUATION_REGEX, "");
     // "iPhone", "eBay", "macOS": a capital later in the word means deliberate casing.
     if (isTechnicalToken(bare) || /\p{Lu}/u.test(bare.slice(1)) || /\p{N}/u.test(bare)) continue;
@@ -205,7 +235,7 @@ const pronounI: Detector = (ctx) => {
   const findings: RawFinding[] = [];
   const regex = /(?<![\p{L}\p{N}_'’])i(?![\p{L}\p{N}_])/gu;
   regex.lastIndex = ctx.from;
-  for (let match = regex.exec(ctx.text); match; match = regex.exec(ctx.text)) {
+  for (let match = regex.exec(ctx.scanText); match; match = regex.exec(ctx.scanText)) {
     const start = match.index;
     if (start >= ctx.to) break;
     const before = ctx.text[start - 1] ?? "";
@@ -221,7 +251,11 @@ const pronounI: Detector = (ctx) => {
       const next = rest.match(/^[ \t\u00A0]+(\S+)/);
       if (!next) continue;
       const following = next[1].replace(TRAILING_PUNCTUATION_REGEX, "");
-      if (!/^\p{L}+$/u.test(following) || NON_PRONOUN_FOLLOWERS.has(following.toLowerCase())) {
+      // Unlike typing, the next word is complete here: "i don't" is the pronoun too.
+      if (
+        !/^\p{L}+(?:['’]\p{L}+)?$/u.test(following) ||
+        NON_PRONOUN_FOLLOWERS.has(following.toLowerCase())
+      ) {
         continue;
       }
       contextEnd += next[0].length;
@@ -292,16 +326,33 @@ interface PhraseMatch {
   end: number;
 }
 
-/** Runs a typing rule's end-anchored pattern at every word end of the chunk. */
-function* phraseMatches(ctx: DetectContext, pattern: RegExp): Generator<PhraseMatch> {
+function isWhitespaceAt(text: string, index: number): boolean {
+  return /\s/.test(text[index] ?? "");
+}
+
+/**
+ * Runs a typing rule's end-anchored pattern at every word end of the chunk.
+ * The window holds the last `tokens` whitespace-separated tokens up to the
+ * word: all the pattern can span, and it starts on a token boundary so "^" in
+ * a pattern never lands mid-text.
+ */
+function* phraseMatches(
+  ctx: DetectContext,
+  pattern: RegExp,
+  tokens: number,
+): Generator<PhraseMatch> {
   const regex = new RegExp(pattern.source, `${pattern.flags.replace(/[gy]/g, "")}d`);
   for (const word of asciiWords(ctx, PHRASE_WINDOW)) {
-    // Start the window on a token boundary so "^" in a pattern never lands mid-text.
-    let windowStart = Math.max(0, word.end - PHRASE_WINDOW);
-    if (windowStart > 0) {
-      const space = ctx.text.slice(windowStart, word.start).search(/\s/);
-      if (space < 0) continue;
-      windowStart += space + 1;
+    const limit = Math.max(0, word.end - PHRASE_WINDOW);
+    let windowStart = word.start;
+    while (windowStart > limit && !isWhitespaceAt(ctx.text, windowStart - 1)) windowStart -= 1;
+    if (windowStart > 0 && !isWhitespaceAt(ctx.text, windowStart - 1)) continue;
+    for (let count = 1; count < tokens; count += 1) {
+      let i = windowStart;
+      while (i > limit && isWhitespaceAt(ctx.text, i - 1)) i -= 1;
+      while (i > limit && !isWhitespaceAt(ctx.text, i - 1)) i -= 1;
+      if (i > 0 && !isWhitespaceAt(ctx.text, i - 1)) break;
+      windowStart = i;
     }
     const match = regex.exec(ctx.text.slice(windowStart, word.end));
     if (!match) continue;
@@ -322,7 +373,7 @@ function groupRange(match: RegExpExecArray, group: number): TextRange {
 
 const modalOf: Detector = (ctx) => {
   const findings: RawFinding[] = [];
-  for (const { match, start, end } of phraseMatches(ctx, MODAL_OF_REGEX)) {
+  for (const { match, start, end } of phraseMatches(ctx, MODAL_OF_REGEX, 3)) {
     if (OF_IDIOMS.has(match[2].toLowerCase())) continue;
     const modal = groupRange(match, 1);
     let ofStart = modal.end;
@@ -342,7 +393,7 @@ const modalOf: Detector = (ctx) => {
 
 const yourWelcome: Detector = (ctx) => {
   const findings: RawFinding[] = [];
-  for (const { match, start, end } of phraseMatches(ctx, YOUR_WELCOME_REGEX)) {
+  for (const { match, start, end } of phraseMatches(ctx, YOUR_WELCOME_REGEX, 2)) {
     // "Your welcome email" is possessive: only the sentence-final phrase counts.
     // The end of the whole text ends the sentence too; nothing is appended.
     if (end < ctx.text.length && !/^[.!?\n]/.test(ctx.text[end])) continue;
@@ -363,7 +414,7 @@ const yourWelcome: Detector = (ctx) => {
 
 const theirThere: Detector = (ctx) => {
   const findings: RawFinding[] = [];
-  for (const { match, start, end } of phraseMatches(ctx, THEIR_THERE_BE_REGEX)) {
+  for (const { match, start, end } of phraseMatches(ctx, THEIR_THERE_BE_REGEX, 2)) {
     const phrase = match[0];
     const their = phrase.split(/\s+/)[0];
     const [there, verb] = correctTheirBeVerb(their, match[1]);
@@ -380,7 +431,7 @@ const theirThere: Detector = (ctx) => {
 
 const pronounVerb: Detector = (ctx) => {
   const findings: RawFinding[] = [];
-  for (const { match, start, end } of phraseMatches(ctx, AGREEMENT_REGEX)) {
+  for (const { match, start, end } of phraseMatches(ctx, AGREEMENT_REGEX, 3)) {
     const phrase = match[1];
     const corrected = AGREEMENT_CORRECTIONS.get(phrase.toLowerCase().replace(/\s+/, " "));
     if (!corrected) continue;
@@ -403,9 +454,10 @@ const pronounVerb: Detector = (ctx) => {
 
 const articleAn: Detector = (ctx) => {
   const findings: RawFinding[] = [];
-  for (const { match, start, end } of phraseMatches(ctx, ARTICLE_REGEX)) {
+  const newlineBefore = lastIndexFinder(ctx.text, "\n");
+  for (const { match, start, end } of phraseMatches(ctx, ARTICLE_REGEX, 2)) {
     const [, article, word] = match;
-    const lineStart = ctx.text.lastIndexOf("\n", start - 1) + 1;
+    const lineStart = newlineBefore(start - 1) + 1;
     const sliceStart = Math.max(lineStart, start - 400);
     // A cut-off slice must not look like a line start to the sentence-start test.
     const beforeArticle = `${sliceStart > lineStart ? "x " : ""}${ctx.text.slice(sliceStart, start)}`;
@@ -427,11 +479,37 @@ const articleAn: Detector = (ctx) => {
 
 // ------------------------------------------------------------------ typography
 
+// How much of a paragraph the quotation check re-reads for one finding.
+const MAX_QUOTE_LOOKBACK = 4_000;
+
+/** Positions in [from, to) of characters that can open a quotation or code span. */
+function openerPositions(text: string, from: number, to: number): number[] {
+  const positions: number[] = [];
+  for (let i = from; i < to; i += 1) {
+    if (PROTECTED_SPAN_OPENERS.includes(text[i])) positions.push(i);
+  }
+  return positions;
+}
+
+/** True when sorted `positions` has one in [from, to). */
+function hasPositionIn(positions: readonly number[], from: number, to: number): boolean {
+  let low = 0;
+  let high = positions.length;
+  while (low < high) {
+    const middle = (low + high) >> 1;
+    if (positions[middle] < from) low = middle + 1;
+    else high = middle;
+  }
+  return low < positions.length && positions[low] < to;
+}
+
 const ordinal: Detector = (ctx) => {
   const findings: RawFinding[] = [];
+  let openers: number[] | null = null;
+  const blankLineBefore = lastIndexFinder(ctx.text, "\n\n");
   const regex = /(?<=^|[\s([])(\d+)(nd|th)(?![\p{L}\p{N}])/gu;
   regex.lastIndex = ctx.from;
-  for (let match = regex.exec(ctx.text); match; match = regex.exec(ctx.text)) {
+  for (let match = regex.exec(ctx.scanText); match; match = regex.exec(ctx.scanText)) {
     const start = match.index;
     if (start >= ctx.to) break;
     const [token, digits, suffix] = match;
@@ -439,9 +517,14 @@ const ordinal: Detector = (ctx) => {
     const end = start + token.length;
     if (suffix === expected || isGluedToTechnical(ctx.text, start, end)) continue;
     // Quoted text is often a deliberate example; the typing rule leaves it too.
-    const paragraphStart = Math.max(0, ctx.text.lastIndexOf("\n\n", start) + 1);
-    if (isInsideProtectedSpan(ctx.text.slice(paragraphStart, start), { quotations: true })) {
-      continue;
+    const paragraphStart = Math.max(0, blankLineBefore(start) + 1);
+    openers ??= openerPositions(ctx.text, paragraphStart, ctx.to);
+    if (hasPositionIn(openers, paragraphStart, start)) {
+      // Too far to re-read per match: leave it rather than guess.
+      if (start - paragraphStart > MAX_QUOTE_LOOKBACK) continue;
+      if (isInsideProtectedSpan(ctx.text.slice(paragraphStart, start), { quotations: true })) {
+        continue;
+      }
     }
     findings.push({
       ruleId: "englishOrdinalSuffix",
@@ -458,9 +541,10 @@ const properNoun: Detector = (ctx) => {
   // Word ends, digits included: "may 15" is decided at the end of "15".
   const regex = /[\p{L}\p{N}]+(?:['’]s)?(?![\p{L}\p{N}_])/gu;
   regex.lastIndex = Math.max(0, ctx.from - 32);
-  for (let match = regex.exec(ctx.text); match; match = regex.exec(ctx.text)) {
+  for (let match = regex.exec(ctx.scanText); match; match = regex.exec(ctx.scanText)) {
     const wordEnd = match.index + match[0].length;
     if (match.index >= ctx.to + 32) break;
+    if (!couldEndProperName(match[0])) continue;
     const windowStart = Math.max(0, wordEnd - 160);
     const core = ctx.text.slice(windowStart, wordEnd);
     const found = findProperName(core);
@@ -507,7 +591,7 @@ const commaPeriodSpacing: Detector = (ctx) => {
   // Space before a comma: "word , next".
   const before = /(?<=[\p{L}\p{N})\]"”’])[ \u00A0]+(?=[,،](?![,،]))/gu;
   before.lastIndex = ctx.from;
-  for (let match = before.exec(ctx.text); match; match = before.exec(ctx.text)) {
+  for (let match = before.exec(ctx.scanText); match; match = before.exec(ctx.scanText)) {
     const start = match.index;
     if (start >= ctx.to) break;
     const end = start + match[0].length;
@@ -524,7 +608,7 @@ const commaPeriodSpacing: Detector = (ctx) => {
   const frenchSpacing = usesFrenchPunctuationSpacing(ctx.lang);
   const mark = /(?<=[\p{L}\p{N})\]}"”’»])[ \u00A0]+([.?!])(?=\s|$)/gu;
   mark.lastIndex = ctx.from;
-  for (let match = mark.exec(ctx.text); match; match = mark.exec(ctx.text)) {
+  for (let match = mark.exec(ctx.scanText); match; match = mark.exec(ctx.scanText)) {
     const start = match.index;
     if (start >= ctx.to) break;
     if (match[1] !== "." && frenchSpacing) continue;
@@ -543,7 +627,7 @@ const commaPeriodSpacing: Detector = (ctx) => {
   if (!ctx.insertSpaceAfterAutocomplete) return findings;
   const after = /(?<=\p{L}{2})[,،](?=\p{L}{2})/gu;
   after.lastIndex = ctx.from;
-  for (let match = after.exec(ctx.text); match; match = after.exec(ctx.text)) {
+  for (let match = after.exec(ctx.scanText); match; match = after.exec(ctx.scanText)) {
     const start = match.index;
     if (start >= ctx.to) break;
     let tokenStart = start;
@@ -565,17 +649,23 @@ const commaPeriodSpacing: Detector = (ctx) => {
 
 const repeatedSpaces: Detector = (ctx) => {
   const findings: RawFinding[] = [];
+  // Per line start: a long line is measured once, not once per gap.
+  const gapCounts = new Map<number, number>();
+  const newlineBefore = lastIndexFinder(ctx.text, "\n");
   const regex = /(?<=[^\s])[ \u00A0]{2,}(?=[^\s])/gu;
   regex.lastIndex = ctx.from;
-  for (let match = regex.exec(ctx.text); match; match = regex.exec(ctx.text)) {
+  for (let match = regex.exec(ctx.scanText); match; match = regex.exec(ctx.scanText)) {
     const start = match.index;
     if (start >= ctx.to) break;
-    const lineStart = ctx.text.lastIndexOf("\n", start) + 1;
-    let lineEnd = ctx.text.indexOf("\n", start);
-    if (lineEnd < 0) lineEnd = ctx.text.length;
+    const lineStart = newlineBefore(start) + 1;
     // Several wide gaps on one line are alignment (a plain-text table), not typos.
-    const gaps = ctx.text.slice(lineStart, lineEnd).match(/(?<=\S)[ \u00A0]{2,}(?=\S)/gu);
-    if ((gaps?.length ?? 0) > 1) continue;
+    if (!gapCounts.has(lineStart)) {
+      let lineEnd = ctx.text.indexOf("\n", start);
+      if (lineEnd < 0) lineEnd = ctx.text.length;
+      const gaps = ctx.text.slice(lineStart, lineEnd).match(/(?<=\S)[ \u00A0]{2,}(?=\S)/gu);
+      gapCounts.set(lineStart, gaps?.length ?? 0);
+    }
+    if (gapCounts.get(lineStart)! > 1) continue;
     const end = start + match[0].length;
     // Keep the first space: a no-break space placed on purpose stays.
     findings.push({
@@ -593,7 +683,7 @@ const duplicatePunctuation: Detector = (ctx) => {
   // ",," ";;" ", ," and the Arabic equivalents. ":" is left out: "std::vector".
   const run = /([,;،؛])(?:[ \u00A0]*\1)+/gu;
   run.lastIndex = ctx.from;
-  for (let match = run.exec(ctx.text); match; match = run.exec(ctx.text)) {
+  for (let match = run.exec(ctx.scanText); match; match = run.exec(ctx.scanText)) {
     const start = match.index;
     if (start >= ctx.to) break;
     const end = start + match[0].length;
@@ -608,7 +698,7 @@ const duplicatePunctuation: Detector = (ctx) => {
   // "word.." (never "..." or "../"): one period too many at a sentence end.
   const periods = /(?<=[\p{L}\p{N})\]"”’])\.\.(?=\s|$)/gu;
   periods.lastIndex = ctx.from;
-  for (let match = periods.exec(ctx.text); match; match = periods.exec(ctx.text)) {
+  for (let match = periods.exec(ctx.scanText); match; match = periods.exec(ctx.scanText)) {
     const start = match.index;
     if (start >= ctx.to) break;
     findings.push({
@@ -628,10 +718,16 @@ function measurementLike(
   const locale = resolveMeasurementLocale(ctx.lang);
   if (!locale) return [];
   const findings: RawFinding[] = [];
-  const regex = /[^\s\uFFFC]*\p{Nd}[^\s\uFFFC]*/gu;
+  // Tokens, then a digit test: a "[^\s]*\d[^\s]*" pattern backtracks on long tokens.
+  const regex = /[^\s\uFFFC]+/gu;
   regex.lastIndex = Math.max(0, ctx.from);
-  for (let match = regex.exec(ctx.text); match; match = regex.exec(ctx.text)) {
+  // Back up to the start of a token cut by `from`.
+  while (regex.lastIndex > 0 && !/[\s\uFFFC]/u.test(ctx.text[regex.lastIndex - 1])) {
+    regex.lastIndex -= 1;
+  }
+  for (let match = regex.exec(ctx.scanText); match; match = regex.exec(ctx.scanText)) {
     if (match.index >= ctx.to + 64) break;
+    if (!/\p{Nd}/u.test(match[0])) continue;
     const bare = match[0].replace(/[.,;:!?)\]]+$/u, "");
     const tokenEnd = match.index + bare.length;
     const windowStart = Math.max(0, tokenEnd - 160);

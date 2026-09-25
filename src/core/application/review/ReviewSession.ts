@@ -1,4 +1,4 @@
-import { planBulkFix } from "@core/domain/grammar/review/bulkPlanner";
+import { planBulkFix, type BulkPlan } from "@core/domain/grammar/review/bulkPlanner";
 import {
   MAX_REVIEW_CHARS,
   finalizeReview,
@@ -165,6 +165,8 @@ export class ReviewSession {
   private diagnostics: ReviewDiagnostic[] = [];
   private coverage: ReviewCoverage | null = null;
   private ignored: IgnoredOccurrence[] = [];
+  // getState() runs on every change; the plan only depends on these inputs.
+  private planCache: { key: readonly unknown[]; plan: BulkPlan } | null = null;
   private resolvedCount = 0;
   private categories = new Set<ReviewCategory>(ALL_CATEGORIES);
   private selectedId: string | null = null;
@@ -202,6 +204,7 @@ export class ReviewSession {
     this.cancelRecheck();
     this.status = "closed";
     this.diagnostics = [];
+    this.planCache = null;
     this.emit();
   }
 
@@ -342,14 +345,27 @@ export class ReviewSession {
     );
   }
 
-  private planBulk() {
+  private planBulk(): BulkPlan | null {
     if (!this.prepared) return null;
     const prepared = this.prepared;
+    const key = [
+      prepared,
+      this.text,
+      this.diagnostics,
+      this.ignored,
+      this.ignored.length,
+      [...this.categories].sort().join(),
+    ];
+    if (this.planCache?.key.every((value, index) => value === key[index])) {
+      return this.planCache.plan;
+    }
     const filtered = this.categories.size < ALL_CATEGORIES.length ? this.categories : undefined;
-    return planBulkFix(this.text, this.activeDiagnostics(), {
+    const plan = planBulkFix(this.text, this.activeDiagnostics(), {
       categories: filtered,
-      stillHolds: (diagnostic, others) => stillDetectedAfter(prepared, diagnostic, others),
+      stillHold: (checks, others) => stillDetectedAfter(prepared, checks, others),
     });
+    this.planCache = { key, plan };
+    return plan;
   }
 
   private async write(

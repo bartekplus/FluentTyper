@@ -24,6 +24,9 @@ export function isGraphemeBoundary(text: string, index: number): boolean {
   // A lone surrogate half is never a boundary; neither is a split pair.
   const code = text.charCodeAt(index);
   if (code >= 0xdc00 && code <= 0xdfff) return false;
+  // Printable ASCII on both sides is always a boundary (no extenders, no CR LF).
+  const previous = text.charCodeAt(index - 1);
+  if (code >= 0x20 && code < 0x7f && previous >= 0x20 && previous < 0x7f) return true;
   const windowStart = Math.max(0, index - 32);
   const local = text.slice(windowStart, Math.min(text.length, index + 32));
   if (typeof Intl === "undefined" || typeof Intl.Segmenter !== "function") {
@@ -42,24 +45,33 @@ export function isGraphemeBoundary(text: string, index: number): boolean {
 
 /** Applies non-overlapping edits to `text`, or returns null when they overlap or are invalid. */
 export function applyEdits(text: string, edits: readonly ReviewEdit[]): string | null {
-  const sorted = [...edits].sort((a, b) => b.start - a.start || b.end - a.end);
-  let result = text;
-  let limit = text.length;
+  const sorted = [...edits].sort((a, b) => a.start - b.start || a.end - b.end);
+  const parts: string[] = [];
+  let cursor = 0;
+  let previous: ReviewEdit | null = null;
   for (const edit of sorted) {
     if (
-      edit.start < 0 ||
+      edit.start < cursor ||
       edit.end < edit.start ||
-      edit.end > limit ||
+      edit.end > text.length ||
       text.slice(edit.start, edit.end) !== edit.original
     ) {
       return null;
     }
-    // Two insertions at one point have no defined order.
-    if (edit.start === edit.end && edit.end === limit && limit !== text.length) return null;
-    result = result.slice(0, edit.start) + edit.replacement + result.slice(edit.end);
-    limit = edit.start;
+    // An insertion touching another edit has no defined order.
+    if (
+      previous &&
+      previous.end === edit.start &&
+      (previous.start === previous.end || edit.start === edit.end)
+    ) {
+      return null;
+    }
+    parts.push(text.slice(cursor, edit.start), edit.replacement);
+    cursor = edit.end;
+    previous = edit;
   }
-  return result;
+  parts.push(text.slice(cursor));
+  return parts.join("");
 }
 
 /**
