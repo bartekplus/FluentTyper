@@ -223,8 +223,11 @@ UI           ReviewUi.ts, reviewStyles.ts (shadow DOM, top-layer popover)
 Background   CommandRouter (shortcut), MessageRouter (add to dictionary)
 ```
 
-Nothing is created until the first review. The review code ships in the content
-script but costs nothing until invoked.
+Nothing is created, observed or scanned until the first review. The review code
+does ship in the content script, which grows by about 124 KB minified (43 KB
+gzip) and is parsed in every frame; loading it as a separate chunk on first use
+would need a `web_accessible_resources` manifest entry, left for a maintainer to
+decide.
 
 Limits: 50,000 characters per review (a larger scope is cut, and the panel
 says so), scanned in chunks of about 4,000 characters that yield to the page.
