@@ -89,12 +89,20 @@ test("empty multiple and expanded composed ranges do not become prose", () => {
 });
 
 test("a throwing composed selection API does not fall back to a different caret", () => {
-  const { root, selection } = fixture();
+  const { root, shadow, prose, at, selection } = fixture();
+  const fallback = jest.fn(() => ({ rangeCount: 1, getRangeAt: () => at(prose) }));
   const getComposedRanges = jest.fn(() => {
     throw new Error("Composed selection unavailable");
   });
-  withProperty(selection, "getComposedRanges", getComposedRanges, () => {
-    expect(resolveCodeContext(root)).toBe("unknown");
-    expect(getComposedRanges).toHaveBeenCalledTimes(1);
+  withProperty(shadow, "getSelection", fallback, () => {
+    withProperty(selection, "getComposedRanges", undefined, () => {
+      expect(resolveCodeContext(root)).toBe("prose");
+    });
+    fallback.mockClear();
+    withProperty(selection, "getComposedRanges", getComposedRanges, () => {
+      expect(resolveCodeContext(root)).toBe("unknown");
+      expect(getComposedRanges).toHaveBeenCalledTimes(1);
+      expect(fallback).not.toHaveBeenCalled();
+    });
   });
 });

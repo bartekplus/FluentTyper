@@ -60,23 +60,41 @@ Google Docs canvas code formatting also need dedicated adapters.
 
 ## Tests
 
-`tests/CodeContextResolver.test.ts` covers the supplied mixed Quill markup, empty
-blocks, semantic/inline code, highlighted descendants, prose restoration,
-formatting-only changes, negative heuristics, existing protected controls,
-ambiguous boundaries, owning-document selection, composed shadow ranges, and
-selection API failures.
+`tests/CodeContextResolver.test.ts` covers mixed Quill markup, empty blocks,
+semantic/inline code, highlighted descendants, prose restoration, formatting-only
+changes, negative heuristics, protected controls, ambiguous boundaries, iframe
+selections, nested composed shadow ranges, and selection API failures.
 
-`tests/CodeContextGrammar.test.ts` exercises the real grammar coordinator and
-catalog: default-rule protection and restoration, all automatic trigger types,
-Enter boundaries, and preservation of the optional code-safe bracket rule.
+`tests/CodeContextGrammar.test.ts` uses the real coordinator and rule catalog to
+check default-rule protection/restoration, Enter boundaries, and preservation of
+the optional code-safe bracket rule. A call-through engine spy verifies the
+context delivered for every trigger; a null result from an empty idle/paste
+pipeline alone would not establish that protection was propagated.
+
+`tests/CodeContextShadow.test.ts` checks composed-range rejection and both scoped
+and ordinary range fallbacks. Positive prose/code controls and explicit call
+assertions prevent a generic unknown result from making a negative test pass
+without exercising its intended branch. A throwing composed API must not fall
+back to a different, otherwise-valid prose caret.
+
+DOM API fixtures use scoped own-property overrides with exact descriptor
+restoration in `finally`. The original instance spies on jsdom's inherited
+`Document.getSelection` did not affect the actual reads in Bun CI. Supplementing
+the real Selection object also avoids replacing it with an incomplete mock.
+
+The coverage registry tracks these behaviors under
+`grammar_rich_text_code_protection`, `grammar_code_context_selection_safety`, and
+`grammar_code_context_formatting_changes`. Unit-level coverage provides precise
+control of DOM API capabilities and failures; it does not claim live Slack or
+Google Docs validation.
 
 Run the focused repository tests with:
 
 ```sh
-bun test tests/CodeContextResolver.test.ts tests/CodeContextGrammar.test.ts
+bun test tests/CodeContextResolver.test.ts tests/CodeContextGrammar.test.ts tests/CodeContextShadow.test.ts
 ```
 
-Before marking the draft ready, run the repository checks, unit suite, coverage
-registry validation, and smoke/full extension suites on Chrome and Firefox as
-specified in `docs/agents/testing.md`. Focused DOM checks are not a substitute
-for the complete extension or live Slack/editor validation.
+Run the full repository checks, unit suite, coverage registry validation, and
+smoke/full extension suites on Chrome and Firefox as specified in
+`docs/agents/testing.md`. Browser regression suites and focused DOM tests serve
+different purposes; neither is a claim of manual validation in live Slack.

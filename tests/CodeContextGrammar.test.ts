@@ -1,4 +1,5 @@
-import { afterEach, expect, test } from "bun:test";
+import { afterEach, expect, jest, test } from "bun:test";
+import { GrammarRuleEngine } from "../src/core/domain/grammar/GrammarRuleEngine";
 import { GRAMMAR_RULE_CATALOG } from "../src/core/domain/grammar/ruleCatalog";
 import { measurementEditingContext } from "../src/adapters/chrome/content-script/suggestions/MeasurementEditingContext";
 import { SuggestionGrammarCoordinator } from "../src/adapters/chrome/content-script/suggestions/SuggestionGrammarCoordinator";
@@ -60,19 +61,30 @@ test("default grammar protects Quill code and resumes in prose without reconfigu
 });
 
 test("all automatic grammar triggers receive code protection from the shared resolver", () => {
-  const { root, code } = fixture();
+  const { root, prose, code } = fixture();
   const grammar = coordinator();
-  select(code);
-  for (const trigger of ["insertChar", "wordBoundary", "idle", "paste"] as const) {
-    expect(
-      grammar.run({
-        beforeCursor: "teh ",
-        afterCursor: "",
-        inputAction: "insert",
-        triggers: [trigger],
-        measurementContext: measurementEditingContext(root),
-      }),
-    ).toBeNull();
+  // Call through to the real engine. A null result alone proves nothing for a
+  // trigger whose current pipeline is empty (for example idle or paste).
+  const process = jest.spyOn(GrammarRuleEngine.prototype, "processSequence");
+  try {
+    for (const trigger of ["insertChar", "wordBoundary", "idle", "paste"] as const) {
+      for (const [node, expectedContext] of [[prose, "prose"], [code, "protected"]] as const) {
+        select(node);
+        const edit = grammar.run({
+          beforeCursor: "teh ",
+          afterCursor: "",
+          inputAction: "insert",
+          triggers: [trigger],
+          measurementContext: measurementEditingContext(root),
+        });
+        expect(process.mock.calls.at(-1)?.[0]).toEqual([trigger]);
+        expect(process.mock.calls.at(-1)?.[1].hints?.measurementContext).toBe(expectedContext);
+        if (expectedContext === "protected") expect(edit).toBeNull();
+      }
+    }
+    expect(process).toHaveBeenCalledTimes(8);
+  } finally {
+    process.mockRestore();
   }
 });
 
