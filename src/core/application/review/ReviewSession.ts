@@ -295,6 +295,11 @@ export class ReviewSession {
     return this.write(plan.edits, plan.diagnosticIds.length, plan.deferred.length);
   }
 
+  /** The text the current results describe. */
+  get sourceText(): string {
+    return this.text;
+  }
+
   getState(): ReviewViewState {
     const plan = this.status === "ready" && this.capabilities.bulk ? this.planBulk() : null;
     return {
@@ -440,7 +445,21 @@ export class ReviewSession {
     });
   }
 
+  /** Re-reads and rescans; a failure anywhere is shown as an error, never as "Checking…" forever. */
   private async refresh(): Promise<void> {
+    const generation = this.generation + 1;
+    try {
+      await this.readAndScan();
+    } catch {
+      if (this.isClosed || this.generation !== generation) return;
+      this.status = "error";
+      this.diagnostics = [];
+      this.selectedId = null;
+      this.emit();
+    }
+  }
+
+  private async readAndScan(): Promise<void> {
     const generation = ++this.generation;
     let read: ReviewTargetRead;
     try {

@@ -12,10 +12,11 @@ export const REVIEW_SHADOW_CSS = `
   --ft-muted: color-mix(in srgb, var(--ft-fg) 64%, transparent);
   --ft-accent: var(--ft-theme-suggestion-highlight-bg-light, var(--suggestion-highlight-bg-light, #0f172a));
   --ft-accent-fg: var(--ft-theme-suggestion-highlight-text-light, var(--suggestion-highlight-text-light, #ffffff));
-  --ft-spelling: #c81e1e;
-  --ft-grammar: #b45309;
-  --ft-punctuation: #1d4ed8;
-  --ft-typography: #7c3aed;
+  /* At least 3:1 on light and dark pages: overlay marks sit on the page. */
+  --ft-spelling: #e5383b;
+  --ft-grammar: #b87400;
+  --ft-punctuation: #3b82f6;
+  --ft-typography: #9061f9;
   --ft-focus: #2563eb;
   color-scheme: light dark;
 }
@@ -35,10 +36,6 @@ export const REVIEW_SHADOW_CSS = `
     --ft-border: var(--ft-theme-suggestion-border-color-dark, var(--suggestion-border-color-dark, #334155));
     --ft-accent: #3b82f6;
     --ft-accent-fg: #ffffff;
-    --ft-spelling: #f87171;
-    --ft-grammar: #fbbf24;
-    --ft-punctuation: #60a5fa;
-    --ft-typography: #c4b5fd;
     --ft-focus: #93c5fd;
   }
 }
@@ -76,11 +73,19 @@ export const REVIEW_SHADOW_CSS = `
 .panel {
   width: min(340px, calc(100vw - 24px));
   max-height: min(70vh, 560px);
+  /* When even a short list does not fit (zoom, small screens), the panel
+     itself scrolls so every control stays reachable. */
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   bottom: 12px;
   right: 12px;
 }
+@media (max-height: 480px) {
+  .panel { max-height: calc(100vh - 24px); }
+}
+.panel > * { flex-shrink: 0; }
+.panel > .list { flex-shrink: 1; }
 .panel[data-corner="bottom-left"] { right: auto; left: 12px; }
 .panel[data-corner="top-right"] { bottom: auto; top: 12px; }
 .panel[data-corner="top-left"] { bottom: auto; top: 12px; right: auto; left: 12px; }
@@ -162,6 +167,7 @@ footer .fix-note { padding: 0; }
 .diff { display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; align-items: baseline; font-size: 13px; }
 .diff .label { font-size: 11px; color: var(--ft-muted); }
 .from { text-decoration: line-through; text-decoration-color: var(--ft-cat); }
+.from, .to, .change { overflow-wrap: anywhere; min-width: 0; }
 .to mark, .from mark { background: color-mix(in srgb, var(--ft-cat) 22%, transparent); color: inherit; border-radius: 2px; }
 .alternatives { display: flex; flex-wrap: wrap; gap: 4px; }
 .alternatives button[aria-pressed="true"] { border-color: var(--ft-cat); background: color-mix(in srgb, var(--ft-cat) 14%, transparent); }

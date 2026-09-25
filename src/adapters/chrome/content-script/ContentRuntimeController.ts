@@ -17,6 +17,7 @@ import { SuggestionManagerRuntime } from "./suggestions/SuggestionManagerRuntime
 import { ReviewController } from "./review/ReviewController";
 
 import { GoogleDocsAdapter } from "./google-docs/GoogleDocsAdapter";
+import type { GoogleDocsReviewSurface } from "./review/GoogleDocsReviewTarget";
 import { DOCS_SESSION_ID } from "./google-docs/GoogleDocsModel";
 import { isGoogleDocsPage, isGoogleDocsInputFrame } from "./google-docs/GoogleDocsEnvironment";
 
@@ -61,6 +62,19 @@ export class ContentRuntimeController {
     null;
   private onRuntimeActivity: ((runtimeGeneration: number) => void) | null = null;
   private readonly onRestartRequest = this.restart.bind(this);
+  // An open Docs review outlives a settings restart: it talks to whichever
+  // Docs adapter is current, and a new adapter learns the review is open.
+  private docsReviewActive = false;
+  private readonly docsReviewSurface: GoogleDocsReviewSurface = {
+    reviewRead: () => this.googleDocs?.reviewRead() ?? Promise.resolve({ status: "busy" }),
+    reviewApply: (token, edit) =>
+      this.googleDocs?.reviewApply(token, edit) ?? Promise.resolve({ status: "busy" }),
+    setReviewActive: (active) => {
+      this.docsReviewActive = active;
+      this.googleDocs?.setReviewActive(active);
+    },
+    reviewFocusEditor: () => this.googleDocs?.reviewFocusEditor(),
+  };
   private readonly mutationPipeline: MutationPipeline;
   private readonly mutationScheduler: MutationScheduler;
   private predictionGeneration = 0;
@@ -220,7 +234,7 @@ export class ContentRuntimeController {
         const response: unknown = await chrome.runtime.sendMessage(message);
         return (response as { ok?: unknown } | undefined)?.ok === true;
       },
-      getDocsSurface: () => this.googleDocs,
+      getDocsSurface: () => (this.googleDocs ? this.docsReviewSurface : null),
     });
   }
 
@@ -336,7 +350,7 @@ export class ContentRuntimeController {
     }
 
     logger.warn("Restarting content runtime");
-    this.disable({ keepReview: !this.googleDocs });
+    this.disable({ keepReview: true });
     this.suggestionManager = null;
     const restartToken = Symbol("content-runtime-restart");
     this.pendingRestartToken = restartToken;
@@ -496,7 +510,10 @@ export class ContentRuntimeController {
     };
     this.suggestionManager = new SuggestionManagerRuntime(managerOptions);
     if (this.reviewSuspended) this.suggestionManager.suspendForReview(this.reviewSuspended);
-    if (isGoogleDocsPage()) this.googleDocs = new GoogleDocsAdapter(managerOptions);
+    if (isGoogleDocsPage()) {
+      this.googleDocs = new GoogleDocsAdapter(managerOptions);
+      if (this.docsReviewActive) this.googleDocs.setReviewActive(true);
+    }
     this.reportRuntimeActivity();
   }
 

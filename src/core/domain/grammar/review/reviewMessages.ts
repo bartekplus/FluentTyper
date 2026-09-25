@@ -337,6 +337,17 @@ const UI = {
     "Włączone reguły nie znalazły problemów.",
     "As verificações ativadas não encontraram problemas.",
   ],
+  review_status_all_ignored: [
+    "All remaining issues are ignored.",
+    "Tous les problèmes restants sont ignorés.",
+    "Svi preostali problemi su zanemareni.",
+    "Todos los problemas restantes están ignorados.",
+    "Όλα τα υπόλοιπα ζητήματα αγνοούνται.",
+    "Alla återstående problem ignoreras.",
+    "Alle verbleibenden Probleme werden ignoriert.",
+    "Wszystkie pozostałe problemy są zignorowane.",
+    "Todos os problemas restantes estão ignorados.",
+  ],
   review_status_all_resolved: [
     "All found issues are resolved. Fixed: {count}.",
     "Tous les problèmes trouvés sont résolus. Corrigés : {count}.",

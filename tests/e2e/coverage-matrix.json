@@ -2748,6 +2748,22 @@
           "test": "Review mode handles wrapping, resize, RTL, hi-DPI hit-testing, dark mode, IME, multiple fields and navigation cleanup"
         }
       ]
+    },
+    {
+      "id": "review_dialog_focus_rtl_small_viewport",
+      "description": "The review works inside a modal dialog, returns focus to the editor when closed from the panel, keeps its UI left-to-right on RTL pages, and keeps the panel and Fix all reachable in a small viewport.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review mode works inside a modal dialog, returns focus, stays LTR on RTL pages and fits small viewports"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "pressing the shortcut again from the panel keeps the review"
+        }
+      ]
     }
   ]
 }

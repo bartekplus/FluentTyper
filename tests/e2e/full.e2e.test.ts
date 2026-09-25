@@ -7503,4 +7503,106 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     },
     browserTimeout(50000, 70000),
   );
+
+  test(
+    "Review mode works inside a modal dialog, returns focus, stays LTR on RTL pages and fits small viewports",
+    async () => {
+      await prepareReviewPage();
+      const viewport = page.viewport();
+      // Inside a modal dialog everything outside it is inert: the panel must still work.
+      await page.evaluate(() => {
+        const dialog = document.createElement("dialog");
+        dialog.id = "review-dialog";
+        const field = document.createElement("textarea");
+        field.id = "dialog-field";
+        field.value = "We saw teh cat.";
+        dialog.append(field);
+        document.body.append(dialog);
+        dialog.showModal();
+        field.focus();
+        field.setSelectionRange(0, 0);
+      });
+      await triggerReview(worker!);
+      await waitForReview(page, "dialog review", (p) => p.status === "Issues: 1");
+      expect(
+        await page.evaluate(
+          () => !!document.querySelector("#review-dialog [data-fluenttyper-review]"),
+        ),
+      ).toBe(true);
+      await clickReviewControl(page, "[data-action=fix-all]");
+      await waitUntil(
+        "fixed inside the dialog",
+        () =>
+          page.evaluate(
+            () =>
+              (document.querySelector("#dialog-field") as HTMLTextAreaElement).value ===
+              "We saw the cat.",
+          ),
+        { timeoutMs: 5000 },
+      );
+      // Closed from the panel with Escape: the keyboard returns to the field.
+      await page.evaluate(() => {
+        const root = document.querySelector("[data-fluenttyper-review]")!.shadowRoot!;
+        (root.querySelector("h2") as HTMLElement).focus();
+      });
+      await page.keyboard.press("Escape");
+      await waitForReview(page, "closed", (p) => !p.open);
+      expect(await page.evaluate(() => document.activeElement?.id)).toBe("dialog-field");
+      await page.evaluate(() => {
+        const dialog = document.querySelector("#review-dialog") as HTMLDialogElement;
+        dialog.close();
+        dialog.remove();
+      });
+
+      // An RTL page: the English panel and card stay left-to-right.
+      await page.evaluate(() => document.documentElement.setAttribute("dir", "rtl"));
+      await setTextarea("We saw teh cat.");
+      await triggerReview(worker!);
+      await waitForReview(page, "rtl review", (p) => p.status === "Issues: 1");
+      await clickReviewControl(page, ".item");
+      await waitForReview(page, "rtl card", (p) => p.card.open);
+      expect(
+        await page.evaluate(() => {
+          const root = document.querySelector("[data-fluenttyper-review]")!.shadowRoot!;
+          return [".panel", ".card"].map(
+            (selector) => getComputedStyle(root.querySelector(selector)!).direction,
+          );
+        }),
+      ).toEqual(["ltr", "ltr"]);
+      await page.keyboard.press("Escape");
+      await page.keyboard.press("Escape");
+      await waitForReview(page, "rtl closed", (p) => !p.open);
+      await page.evaluate(() => document.documentElement.removeAttribute("dir"));
+
+      // A small viewport (like 200% zoom on a phone): the panel stays on screen
+      // and Fix all stays reachable.
+      await page.setViewport({ width: 360, height: 320 });
+      await setTextarea("i think teh plan is ok , but their is alot to do. We could of won.");
+      await triggerReview(worker!);
+      await waitForReview(page, "small review", (p) => /^Issues: \d+/.test(p.status));
+      const box = await page.evaluate(() => {
+        const panel = document
+          .querySelector("[data-fluenttyper-review]")!
+          .shadowRoot!.querySelector(".panel")!;
+        const rect = panel.getBoundingClientRect();
+        return { top: rect.top, bottom: rect.bottom, height: window.innerHeight };
+      });
+      expect(box.top).toBeGreaterThanOrEqual(0);
+      expect(box.bottom).toBeLessThanOrEqual(box.height);
+      await clickReviewControl(page, "[data-action=fix-all]");
+      await waitUntil(
+        "fixed from a small viewport",
+        () =>
+          page.evaluate(() =>
+            (document.querySelector("#test-textarea") as HTMLTextAreaElement).value.startsWith(
+              "I think the plan",
+            ),
+          ),
+        { timeoutMs: 5000 },
+      );
+      await page.setViewport(viewport);
+      await finishReview();
+    },
+    browserTimeout(40000, 60000),
+  );
 });

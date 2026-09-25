@@ -154,6 +154,21 @@ describe("ReviewSession", () => {
     expect(h.originals()).toEqual(["teh"]);
   });
 
+  test("a failing read or scan shows the error state instead of loading forever", async () => {
+    const h = harness("teh cat");
+    const read = h.editor.read.bind(h.editor);
+    // A malformed read makes the scan itself throw.
+    h.editor.read = () => ({ ...read(), protectedRanges: null as unknown as [] });
+    await Promise.all([h.session.start(), h.settle()]);
+    expect(h.last().status).toBe("error");
+    // The next edit tries again.
+    h.editor.read = read;
+    h.session.notifySourceChanged();
+    await h.settle();
+    expect(h.last().status).toBe("ready");
+    expect(h.originals()).toEqual(["teh"]);
+  });
+
   test("an edit made after the scan is detected before writing: no stale write", async () => {
     const h = harness("teh cat");
     await Promise.all([h.session.start(), h.settle()]);

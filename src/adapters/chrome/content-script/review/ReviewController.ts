@@ -1,3 +1,4 @@
+import { getDeepActiveElement } from "@core/application/dom-utils";
 import { createLogger } from "@core/application/logging/Logger";
 import { ReviewSession, type ReviewViewState } from "@core/application/review/ReviewSession";
 import { reviewText, type ReviewTextKey } from "@core/domain/grammar/review/reviewMessages";
@@ -63,6 +64,9 @@ interface ActiveReview {
 export class ReviewController {
   private active: ActiveReview | null = null;
   private notice: ReviewUi | null = null;
+  private noticeReturnFocus: HTMLElement | null = null;
+  private startToken = 0;
+  private docsStarting = false;
 
   constructor(private readonly deps: ReviewControllerDependencies) {}
 
@@ -82,6 +86,13 @@ export class ReviewController {
   invoke(): void {
     // Capture editor and selection before any FluentTyper UI takes focus.
     const docs = this.deps.getDocsSurface();
+    // Pressed again from the panel itself: that is "take me to the review".
+    if (this.active?.ui.hasFocus()) {
+      this.active.ui.focusPanel();
+      return;
+    }
+    // A Docs review is already starting (its first read is asynchronous).
+    if (docs && this.docsStarting) return;
     const resolution = docs ? null : resolveReviewTarget(document);
     if (this.active) {
       const same = resolution?.ok && resolution.target.element === this.active.target.element;
@@ -113,8 +124,24 @@ export class ReviewController {
   private async startDocs(surface: GoogleDocsReviewSurface): Promise<void> {
     const element = document.querySelector<HTMLElement>(".kix-appview-editor") ?? document.body;
     const target = new GoogleDocsReviewTarget(surface, element);
+    const token = ++this.startToken;
+    this.docsStarting = true;
     surface.setReviewActive(true);
-    const scope = await target.start();
+    let scope: { start: number; end: number } | null = null;
+    let failed = false;
+    try {
+      scope = await target.start();
+    } catch {
+      failed = true;
+    } finally {
+      this.docsStarting = false;
+    }
+    // Closed, disposed or failed while Docs was answering: open nothing.
+    if (failed || token !== this.startToken) {
+      surface.setReviewActive(false);
+      target.dispose();
+      return;
+    }
     this.start(target, scope, () => surface.setReviewActive(false));
   }
 
@@ -146,6 +173,7 @@ export class ReviewController {
         navigate: (step) => this.navigate(step),
       },
       { capabilityKeys },
+      modalDialogOf(target.element),
     );
     target.setMeasurementRoot(ui.root);
     ui.placeAwayFrom(target.element.getBoundingClientRect());
@@ -236,9 +264,30 @@ export class ReviewController {
       on(doc, "keyup", () => session.notifySourceChanged(), true);
     }
     on(view, "scroll", () => this.scheduleLayout(), { capture: true, passive: true });
-    on(view, "resize", () => this.scheduleLayout());
+    on(view, "resize", () => {
+      // A rotated or resized window may put the panel over the editor.
+      const cardId = active.ui.cardDiagnosticId();
+      active.ui.placeAwayFrom(
+        element.getBoundingClientRect(),
+        cardId ? this.anchorFor(active, cardId) : null,
+      );
+      this.scheduleLayout();
+    });
     on<PointerEvent>(doc, "pointerdown", (event) => this.onDocumentPointerDown(event), true);
     on(view, "pagehide", () => this.close());
+    if (!(target instanceof GoogleDocsReviewTarget)) {
+      // Removal from the page and scripted value changes fire no event here.
+      const poll = view.setInterval(() => {
+        if (this.active !== active || active.state?.status !== "ready") return;
+        const current = active.target.element;
+        const changed =
+          !current.isConnected ||
+          ((current.tagName === "TEXTAREA" || current.tagName === "INPUT") &&
+            (current as HTMLTextAreaElement).value !== session.sourceText);
+        if (changed) session.notifySourceChanged();
+      }, SOURCE_POLL_MS);
+      active.cleanup.push(() => view.clearInterval(poll));
+    }
     active.cleanup.push(() => {
       if (active.frame !== null) view.cancelAnimationFrame(active.frame);
     });
@@ -249,9 +298,13 @@ export class ReviewController {
   }
 
   close(): void {
+    // Also cancels a Docs review that is still starting.
+    this.startToken += 1;
     const active = this.active;
     if (!active) return;
     this.active = null;
+    // Closed from the panel (Escape, ×): the keyboard goes back to the editor.
+    const returnFocus = active.ui.hasFocus();
     active.session.close();
     this.clearHighlights(active);
     for (const cleanup of active.cleanup.splice(0).reverse()) {
@@ -263,6 +316,7 @@ export class ReviewController {
     }
     active.target.dispose();
     active.ui.destroy();
+    if (returnFocus && active.target.element.isConnected) active.target.focusEditor();
   }
 
   // ------------------------------------------------------------------- state
@@ -292,7 +346,12 @@ export class ReviewController {
     const diagnostic = this.diagnostic(id);
     if (!diagnostic) return;
     active.target.reveal(diagnostic.range);
-    if (options.openCard) active.ui.openCard(diagnostic, this.anchorFor(active, id));
+    const anchor = this.anchorFor(active, id);
+    // Never leave the current finding under the panel.
+    if (anchor && active.ui.panelCovers(anchor)) {
+      active.ui.placeAwayFrom(active.target.element.getBoundingClientRect(), anchor);
+    }
+    if (options.openCard) active.ui.openCard(diagnostic, anchor);
     if (options.focusList) active.ui.focusItem(id);
   }
 
@@ -455,7 +514,8 @@ export class ReviewController {
 
   private onEditorClick(event: MouseEvent): void {
     const active = this.active;
-    if (!active || event.button !== 0) return;
+    // The panel may sit inside the editor's tree (designMode): its own clicks are not the editor's.
+    if (!active || event.button !== 0 || active.ui.owns(event)) return;
     // A drag that selected text is a selection, not a click on a finding.
     const element = active.target.element;
     if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) {
@@ -470,7 +530,7 @@ export class ReviewController {
 
   private onEditorKeyDown(event: KeyboardEvent): void {
     const active = this.active;
-    if (!active || event.key !== "Escape" || event.isComposing) return;
+    if (!active || event.key !== "Escape" || event.isComposing || active.ui.owns(event)) return;
     // Escape closes the card first, then the review.
     event.preventDefault();
     event.stopPropagation();
@@ -511,16 +571,43 @@ export class ReviewController {
     );
     ui.showMessage(reviewText(key, this.lang));
     this.notice = ui;
+    this.noticeReturnFocus = getDeepActiveElement(document) as HTMLElement | null;
     ui.focusPanel();
   }
 
   private dismissNotice(): void {
-    this.notice?.destroy();
+    const notice = this.notice;
+    if (!notice) return;
+    const returnFocus = notice.hasFocus() ? this.noticeReturnFocus : null;
+    notice.destroy();
     this.notice = null;
+    this.noticeReturnFocus = null;
+    if (returnFocus?.isConnected) returnFocus.focus?.({ preventScroll: true });
   }
 
   dispose(): void {
     this.close();
     this.dismissNotice();
   }
+}
+
+/** How often an open review checks for changes that fire no event. */
+const SOURCE_POLL_MS = 1000;
+
+/** The open modal dialog holding `element` (across shadow roots), if any. */
+function modalDialogOf(element: Element): HTMLDialogElement | null {
+  for (let node: Node | null = element; node;) {
+    if (node.nodeType === 1 && (node as Element).tagName === "DIALOG") {
+      const dialog = node as HTMLDialogElement;
+      try {
+        if (dialog.matches(":modal")) return dialog;
+      } catch {
+        // No :modal support: an open dialog is the best signal left.
+        if (dialog.open) return dialog;
+      }
+    }
+    const parent: Node | null = node.parentNode;
+    node = parent && parent.nodeType === 11 ? ((parent as ShadowRoot).host ?? null) : parent;
+  }
+  return null;
 }

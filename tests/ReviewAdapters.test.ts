@@ -482,6 +482,151 @@ describe("review controller lifecycle", () => {
   });
 });
 
+describe("adversarial review regressions", () => {
+  async function until(predicate: () => boolean, timeoutMs = 1000): Promise<void> {
+    for (let i = 0; i < timeoutMs / 5; i += 1) {
+      if (predicate()) return;
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    }
+    throw new Error("condition not reached");
+  }
+  const hosts = () => document.querySelectorAll("[data-fluenttyper-review]");
+  const options = () => ({
+    lang: "en_US",
+    enabledRules: GRAMMAR_RULE_IDS,
+    userDictionary: [],
+    insertSpaceAfterAutocomplete: true,
+  });
+
+  test("a text-control fix is refused when focus cannot move to the field", async () => {
+    setExecCommand(textControlInsert);
+    const field = textarea("teh cat");
+    const other = createEditor("<p>Other editor text.</p>");
+    other.tabIndex = 0;
+    const target = new TextControlReviewTarget(field);
+    // The page keeps focus elsewhere (a hidden field cannot take it either).
+    jest.spyOn(field, "focus").mockImplementation(() => other.focus());
+    other.focus();
+    expect(
+      await target.apply({ edits: [edit(1, 3, "eh", "he")], before: "teh cat", after: "the cat" }),
+    ).toEqual({ status: "rejected", reason: "host-refused" });
+    expect(field.value).toBe("teh cat");
+    expect(other.textContent).toBe("Other editor text.");
+  });
+
+  test("autocomplete tokens are case-insensitive; more secret names are refused", () => {
+    for (const [attribute, value] of [
+      ["autocomplete", "One-Time-Code"],
+      ["autocomplete", "CC-Number"],
+      ["name", "mfa_code"],
+      ["name", "ssn"],
+      ["id", "verification-code"],
+      ["name", "cc_number"],
+    ] as const) {
+      const field = document.createElement("input");
+      field.setAttribute(attribute, value);
+      document.body.append(field);
+      field.focus();
+      expect(resolveReviewTarget(document)).toEqual({ ok: false, reason: "sensitive" });
+      field.remove();
+    }
+  });
+
+  test("editors that keep their own model (Trix, TinyMCE, CKEditor 4) are review-only", () => {
+    for (const html of [
+      '<trix-editor contenteditable="true"></trix-editor>',
+      '<div class="mce-content-body" contenteditable="true"></div>',
+      '<div class="cke_editable" contenteditable="true"></div>',
+    ]) {
+      const wrapper = document.createElement("div");
+      wrapper.innerHTML = html;
+      const editor = wrapper.firstElementChild as HTMLElement;
+      Object.defineProperty(editor, "isContentEditable", { configurable: true, value: true });
+      document.body.append(wrapper);
+      expect(new ContentEditableReviewTarget(editor).capabilities.apply).toBe(false);
+      wrapper.remove();
+    }
+  });
+
+  test("pressing the shortcut again from the panel keeps the review", async () => {
+    textarea("We saw teh cat.");
+    const suspend = jest.fn();
+    const review = new ReviewController({
+      getOptions: options,
+      suspend,
+      resume: jest.fn(),
+      addToDictionary: async () => true,
+      getDocsSurface: () => null,
+      uiLanguage: "en",
+    });
+    review.invoke();
+    await until(
+      () => hosts()[0]?.shadowRoot?.querySelector(".status")?.textContent === "Issues: 1",
+    );
+    // Focus is now in the panel, so no editor is focused.
+    (hosts()[0].shadowRoot!.querySelector("[data-action=close]") as HTMLElement).focus();
+    review.invoke();
+    expect(review.isActive).toBe(true);
+    expect(suspend).toHaveBeenCalledTimes(1);
+    expect(hosts()).toHaveLength(1);
+    review.close();
+  });
+
+  test("a Docs review still starting is started once and can be cancelled", async () => {
+    let answer: (reply: { status: "cancelled" }) => void = () => {};
+    const surface = {
+      reviewRead: jest.fn(
+        () =>
+          new Promise<{ status: "cancelled" }>((resolve) => {
+            answer = resolve;
+          }),
+      ),
+      reviewApply: jest.fn(),
+      setReviewActive: jest.fn(),
+      reviewFocusEditor: jest.fn(),
+    };
+    const review = new ReviewController({
+      getOptions: options,
+      suspend: jest.fn(),
+      resume: jest.fn(),
+      addToDictionary: async () => true,
+      getDocsSurface: () => surface as never,
+      uiLanguage: "en",
+    });
+    review.invoke();
+    review.invoke();
+    expect(surface.setReviewActive.mock.calls).toEqual([[true]]);
+    // Closed while Docs is answering: nothing opens afterwards, typing resumes.
+    review.close();
+    answer({ status: "cancelled" });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(hosts()).toHaveLength(0);
+    expect(review.isActive).toBe(false);
+    expect(surface.setReviewActive.mock.calls).toEqual([[true], [false]]);
+  });
+
+  test("an editor removed without any event is noticed", async () => {
+    const field = textarea("We saw teh cat.");
+    const review = new ReviewController({
+      getOptions: options,
+      suspend: jest.fn(),
+      resume: jest.fn(),
+      addToDictionary: async () => true,
+      getDocsSurface: () => null,
+      uiLanguage: "en",
+    });
+    review.invoke();
+    const status = () => hosts()[0]?.shadowRoot?.querySelector(".status")?.textContent;
+    await until(() => status() === "Issues: 1");
+    field.value = "We saw teh cat and teh dog.";
+    // Checked about once a second, then the usual pause before rechecking.
+    await until(() => status() === "Issues: 2", 4000);
+    field.remove();
+    await until(() => status() === "The reviewed field is no longer available.", 4000);
+    review.close();
+  }, 15000);
+});
+
 test("setCaret helper keeps its contract", () => {
   const root = createEditor("<p>x</p>");
   setCaret(root.querySelector("p")!.firstChild!);

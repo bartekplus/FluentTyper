@@ -142,6 +142,10 @@ export class GoogleDocsReviewTarget implements ReviewTargetHandle {
     return null;
   }
 
+  focusEditor(): void {
+    this.surface.reviewFocusEditor();
+  }
+
   reveal(): void {
     // No reliable canvas geometry: the panel list is the navigation surface.
   }

@@ -31,6 +31,15 @@ export interface ReviewMark {
   rects: DOMRect[];
 }
 
+type Box = Pick<DOMRect, "left" | "top" | "right" | "bottom">;
+
+function overlapArea(a: Box, b: Box): number {
+  return (
+    Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left)) *
+    Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top))
+  );
+}
+
 const BADGES: Record<ReviewCategory, string> = {
   spelling: "abc",
   grammar: "G",
@@ -142,10 +151,14 @@ export class ReviewUi {
     private readonly lang: string,
     private readonly callbacks: ReviewUiCallbacks,
     private notesConfig: ReviewUiNotes,
+    /** Where the host goes: inside a modal dialog, anything outside it is inert. */
+    mount: Element | null = null,
   ) {
     this.doc = doc;
     this.host = doc.createElement("div");
     this.host.setAttribute("data-fluenttyper-review", "");
+    // Never part of an editing host, even on designMode pages.
+    this.host.setAttribute("contenteditable", "false");
     const hostStyle = this.host.style;
     for (const [name, value] of Object.entries({
       all: "initial",
@@ -175,7 +188,9 @@ export class ReviewUi {
       role: "dialog",
       "aria-modal": "false",
       "aria-labelledby": "ft-review-title",
-      dir: "auto",
+      // The UI languages are all left-to-right; snippets of the user's text
+      // carry dir="auto" themselves.
+      dir: "ltr",
     });
     const header = element(doc, "header");
     this.heading = element(
@@ -233,7 +248,13 @@ export class ReviewUi {
     footer.append(this.fixAll, this.fixNote);
     this.panel.append(header, this.status, this.notes, this.filters, nav, this.list, footer);
 
-    this.card = element(doc, "div", { class: "card", role: "dialog", hidden: "", tabindex: "-1" });
+    this.card = element(doc, "div", {
+      class: "card",
+      role: "dialog",
+      hidden: "",
+      tabindex: "-1",
+      dir: "ltr",
+    });
     this.root.append(style, this.marks, this.panel, this.card);
 
     close.addEventListener("click", () => this.callbacks.close());
@@ -242,7 +263,7 @@ export class ReviewUi {
     this.fixAll.addEventListener("click", (event) => this.callbacks.fixAll(event.detail === 0));
     this.root.addEventListener("keydown", (event) => this.onKeyDown(event as KeyboardEvent));
 
-    (doc.documentElement ?? doc.body).appendChild(this.host);
+    (mount ?? doc.documentElement ?? doc.body).appendChild(this.host);
     this.enterTopLayer();
   }
 
@@ -267,23 +288,34 @@ export class ReviewUi {
     if (this.state) this.render(this.state);
   }
 
-  /** Puts the panel in the viewport corner that covers the least of the editor. */
-  placeAwayFrom(rect: DOMRect | null): void {
+  /**
+   * Puts the panel in the viewport corner that covers the least of the editor
+   * and, above all, never covers `focus` (the current finding) when a corner
+   * avoids it.
+   */
+  placeAwayFrom(rect: DOMRect | null, focus: DOMRect | null = null): void {
     const view = this.doc.defaultView;
     if (!rect || !view) return;
-    const width = Math.min(340, view.innerWidth - 24);
-    const height = Math.min(view.innerHeight * 0.7, 560);
+    const width = this.panel.offsetWidth || Math.min(340, view.innerWidth - 24);
+    const height = this.panel.offsetHeight || Math.min(view.innerHeight * 0.7, 560);
     const corners = [
       ["bottom-right", view.innerWidth - 12 - width, view.innerHeight - 12 - height],
       ["bottom-left", 12, view.innerHeight - 12 - height],
       ["top-right", view.innerWidth - 12 - width, 12],
       ["top-left", 12, 12],
     ] as const;
-    const overlap = ([, left, top]: (typeof corners)[number]) =>
-      Math.max(0, Math.min(left + width, rect.right) - Math.max(left, rect.left)) *
-      Math.max(0, Math.min(top + height, rect.bottom) - Math.max(top, rect.top));
-    const best = corners.reduce((a, b) => (overlap(b) < overlap(a) ? b : a));
+    const score = ([, left, top]: (typeof corners)[number]) =>
+      overlapArea({ left, top, right: left + width, bottom: top + height }, rect) +
+      (focus
+        ? 1000 * overlapArea({ left, top, right: left + width, bottom: top + height }, focus)
+        : 0);
+    const best = corners.reduce((a, b) => (score(b) < score(a) ? b : a));
     this.panel.dataset.corner = best[0];
+  }
+
+  /** True when the panel sits over `rect`. */
+  panelCovers(rect: DOMRect): boolean {
+    return !this.panel.hidden && overlapArea(this.panel.getBoundingClientRect(), rect) > 0;
   }
 
   /** A message-only panel: why nothing could be reviewed. */
@@ -406,6 +438,7 @@ export class ReviewUi {
     const count = state.diagnostics.length;
     let summary: string;
     if (count > 0) summary = this.t("review_status_count", { count });
+    else if (state.ignoredCount > 0) summary = this.t("review_status_all_ignored");
     else if (state.resolvedCount > 0)
       summary = this.t("review_status_all_resolved", { count: state.resolvedCount });
     else summary = this.t("review_status_none");
@@ -665,7 +698,11 @@ export class ReviewUi {
         { type: "button", "data-action": "dictionary" },
         this.t("review_card_add_dictionary", { word: diagnostic.dictionaryWord }),
       );
-      add.addEventListener("click", () => this.callbacks.addToDictionary(diagnostic.id));
+      // A lasting settings change: only the user's own click counts, never a
+      // page script clicking through the shadow root.
+      add.addEventListener("click", (event) => {
+        if (event.isTrusted) this.callbacks.addToDictionary(diagnostic.id);
+      });
       actions.append(add);
     }
     parts.push(actions);
@@ -684,31 +721,44 @@ export class ReviewUi {
   }
 
   /** Below the finding (above when there is no room), else beside the panel. */
+  /**
+   * Places the card next to its finding (below, above, right or left) where it
+   * covers neither the finding nor the panel; failing that, where it covers
+   * the least, the finding counting most.
+   */
   private positionCard(): void {
     const view = this.doc.defaultView;
     if (!view || this.card.hidden) return;
     const width = this.card.offsetWidth || 320;
     const height = this.card.offsetHeight || 160;
-    let left: number;
-    let top: number;
+    const fit = (left: number, top: number) => ({
+      left: Math.max(8, Math.min(left, view.innerWidth - width - 8)),
+      top: Math.max(8, Math.min(top, view.innerHeight - height - 8)),
+    });
+    const panel = this.panel.hidden ? null : this.panel.getBoundingClientRect();
     const anchor = this.cardAnchor;
-    if (anchor) {
-      left = anchor.left;
-      top = anchor.bottom + 6;
-      if (top + height > view.innerHeight - 8) top = anchor.top - height - 6;
-    } else {
-      const panel = this.panel.getBoundingClientRect();
-      left = panel.left - width - 8;
-      top = panel.top;
-      if (left < 8) {
-        left = panel.left;
-        top = panel.top - height - 8;
-      }
+    const candidates = anchor
+      ? [
+          fit(anchor.left, anchor.bottom + 6),
+          fit(anchor.left, anchor.top - height - 6),
+          fit(anchor.right + 8, anchor.top),
+          fit(anchor.left - width - 8, anchor.top),
+        ]
+      : [];
+    if (panel) {
+      candidates.push(
+        fit(panel.left - width - 8, panel.top),
+        fit(panel.left, panel.top - height - 8),
+      );
     }
-    left = Math.max(8, Math.min(left, view.innerWidth - width - 8));
-    top = Math.max(8, Math.min(top, view.innerHeight - height - 8));
-    this.card.style.left = `${left}px`;
-    this.card.style.top = `${top}px`;
+    if (candidates.length === 0) candidates.push(fit(8, 8));
+    const score = ({ left, top }: { left: number; top: number }) => {
+      const box = { left, top, right: left + width, bottom: top + height };
+      return (anchor ? 4 * overlapArea(box, anchor) : 0) + (panel ? overlapArea(box, panel) : 0);
+    };
+    const best = candidates.reduce((a, b) => (score(b) < score(a) ? b : a));
+    this.card.style.left = `${best.left}px`;
+    this.card.style.top = `${best.top}px`;
   }
 
   /** Re-anchors an open card after scrolling or a resize. */
@@ -775,6 +825,16 @@ export class ReviewUi {
         Math.max(0, Math.min(items.length - 1, index + (event.key === "ArrowDown" ? 1 : -1)))
       ]?.focus();
     }
+  }
+
+  /** True when the keyboard focus is in the panel or the card. */
+  hasFocus(): boolean {
+    let active: Element | null = this.doc.activeElement;
+    // Focus inside a dialog or another shadow root reports its host.
+    while (active && active !== this.host && active.shadowRoot?.activeElement) {
+      active = active.shadowRoot.activeElement;
+    }
+    return active === this.host;
   }
 
   destroy(): void {

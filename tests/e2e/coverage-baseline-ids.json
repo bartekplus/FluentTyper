@@ -168,6 +168,7 @@
     "review_sensitive_and_review_only",
     "review_command_routing",
     "review_google_docs_fixture",
-    "review_layout_and_lifecycle"
+    "review_layout_and_lifecycle",
+    "review_dialog_focus_rtl_small_viewport"
   ]
 }

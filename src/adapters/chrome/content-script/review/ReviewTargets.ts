@@ -22,8 +22,20 @@ import {
 export type ReviewEditorKind = "text-control" | "contenteditable" | "quill" | "model-editor";
 
 /** Editors that own a document model; writing their DOM behind their back is not safe. */
-const MODEL_EDITOR_SELECTOR =
-  "[data-lexical-editor], .ProseMirror, [data-slate-editor], .DraftEditor-root, [data-contents], .ck-editor__editable";
+const MODEL_EDITOR_SELECTOR = [
+  "[data-lexical-editor]",
+  ".ProseMirror",
+  "[data-slate-editor]",
+  ".DraftEditor-root",
+  "[data-contents]",
+  ".ck-editor__editable",
+  // Frameworks that keep their own document or undo model over the DOM.
+  "trix-editor",
+  ".cke_editable",
+  ".mce-content-body",
+  ".fr-element",
+  ".note-editable",
+].join(", ");
 
 export interface ReviewTargetHandle extends ReviewTargetPort {
   readonly element: HTMLElement;
@@ -35,6 +47,8 @@ export interface ReviewTargetHandle extends ReviewTargetPort {
   domRange(range: TextRange): Range | null;
   /** Brings a range into view inside the editor without moving the caret. */
   reveal(range: TextRange): void;
+  /** Gives the keyboard back to the editor (the review closed from its panel). */
+  focusEditor(): void;
   /** Where measurement helpers may live (FluentTyper's own shadow root). */
   setMeasurementRoot(root: ShadowRoot): void;
   dispose(): void;
@@ -66,6 +80,15 @@ function editingHost(element: HTMLElement): HTMLElement | null {
 export function isReviewEligible(element: HTMLElement): boolean {
   if (!isInDocument(element) || isLockedField(element) || isSensitiveField(element)) return false;
   if (element.closest("[hidden], [inert], [aria-hidden='true']")) return false;
+  // Not rendered (display: none, visibility: hidden): nothing the user can review.
+  const visible = (
+    element as HTMLElement & {
+      checkVisibility?: (options?: { visibilityProperty?: boolean }) => boolean;
+    }
+  ).checkVisibility;
+  if (typeof visible === "function" && !visible.call(element, { visibilityProperty: true })) {
+    return false;
+  }
   // Code editors, and fields that are themselves code or read-only islands, are
   // not prose. Only the host's own markup counts here; code INSIDE a rich editor
   // is protected range by range, never by where the caret happens to be.
@@ -95,7 +118,10 @@ export function resolveReviewTarget(doc: Document = document): Resolution {
     };
   }
 
-  const host = editingHost(active);
+  let host = editingHost(active);
+  if (!host) return { ok: false, reason: "no-editor" };
+  // designMode: the whole document is editable; its text is the body's.
+  if (host === doc.documentElement) host = doc.body;
   if (!host) return { ok: false, reason: "no-editor" };
   if (!isReviewEligible(host)) return { ok: false, reason: "sensitive" };
   const target = new ContentEditableReviewTarget(host);
@@ -238,6 +264,9 @@ export class TextControlReviewTarget implements ReviewTargetHandle {
     const doc = field.ownerDocument;
 
     field.focus({ preventScroll: true });
+    // The native edit goes to the focused element; if focus did not move here
+    // (hidden, or the page kept it), writing would change another editor.
+    if (getDeepActiveElement(doc) !== field) return { status: "rejected", reason: "host-refused" };
     field.setSelectionRange(start, end);
     // One native insertion: the browser's own undo reverts it as one step.
     const inserted =
@@ -279,6 +308,10 @@ export class TextControlReviewTarget implements ReviewTargetHandle {
 
   domRange(): Range | null {
     return null;
+  }
+
+  focusEditor(): void {
+    this.element.focus({ preventScroll: true });
   }
 
   reveal(range: TextRange): void {
@@ -347,9 +380,15 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
       return { status: "stale" };
     }
     const selection = doc.getSelection();
-    const saved = this.captureSelection(map, selection);
+    // Inside a shadow root the document selection is retargeted; read the scoped one.
+    const saved = this.captureSelection(map, readSelectionRange(root));
 
     root.focus({ preventScroll: true });
+    // The write lands wherever focus is: it must be this editor.
+    const focused = getDeepActiveElement(doc);
+    if (!focused || !(focused === root || root.contains(focused))) {
+      return { status: "rejected", reason: "host-refused" };
+    }
     let current = request.before;
     // Each write is verified in its own block when that block reads the same
     // on its own; a final full read-back below verifies the whole result.
@@ -435,11 +474,9 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
 
   private captureSelection(
     map: ContentEditableTextMap,
-    selection: Selection | null,
+    range: Range | null,
   ): { start: number; end: number } | null {
-    if (!selection || selection.rangeCount === 0) return null;
-    const range = selection.getRangeAt(0);
-    if (!rangeInsideTarget(range, this.element)) return null;
+    if (!range || !rangeInsideTarget(range, this.element)) return null;
     const start = domPositionToOffset(map, range.startContainer, range.startOffset);
     const end = domPositionToOffset(map, range.endContainer, range.endOffset);
     return start === null || end === null ? null : { start, end };
@@ -485,6 +522,10 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
 
   setMeasurementRoot(): void {
     // Measured through DOM Ranges on the editor itself.
+  }
+
+  focusEditor(): void {
+    this.element.focus({ preventScroll: true });
   }
 
   reveal(range: TextRange): void {
