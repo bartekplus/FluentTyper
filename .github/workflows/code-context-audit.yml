@@ -1,0 +1,44 @@
+name: Code context audit
+
+on:
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    if: github.event.pull_request.number == 412
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+      - run: bun install --frozen-lockfile
+      - name: Focused and full-suite comparison
+        run: |
+          python3 - <<'PY'
+          import subprocess
+          import sys
+
+          commands = [
+              ["bun", "test", "tests/CodeContextShadow.test.ts", "tests/CodeContextResolver.test.ts", "tests/CodeContextGrammar.test.ts"],
+              ["bun", "run", "test"],
+          ]
+          failed = False
+          for command in commands:
+              result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+              lines = result.stdout.splitlines()
+              print("COMMAND:", " ".join(command), "EXIT:", result.returncode)
+              indices = set(range(max(0, len(lines) - 25), len(lines)))
+              for index, line in enumerate(lines):
+                  if "(fail)" in line or "error:" in line or "Expected:" in line:
+                      indices.update(range(max(0, index - 18), min(len(lines), index + 12)))
+              for index in sorted(indices):
+                  print(lines[index])
+              failed = failed or result.returncode != 0
+          sys.exit(1 if failed else 0)
+          PY
