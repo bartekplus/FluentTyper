@@ -41,15 +41,16 @@ local grammar paths, including Enter's virtual word-boundary processing.
 
 ## Semantics and scope
 
-This is automatic **grammar protection**, not a new autocomplete mode. The
+This applies automatic **grammar and prediction-casing protection**, not a new autocomplete mode. The
 existing `codeSafe` rule allowlist still applies; an explicitly enabled
 `autoBracketClose` remains enabled. Unknown/protected does not introduce a new
 "block every extension action" policy. Existing composition, edit eligibility,
 and selection-stability guards remain responsible for their respective checks.
 
 No settings, migrations, permissions, network requests, logging of typed text,
-prediction messages, or keyboard interception are added. Suggestions, explicit
-snippet acceptance, the early-Tab bridge, and Markdown parsing are unchanged.
+or keyboard interception are added. Prediction requests carry an optional
+sentence-casing suppression flag for code/literal contexts; explicit snippet
+acceptance, the early-Tab bridge, and Markdown parsing are otherwise unchanged.
 
 This change does not add final replacement-range validation across inline-code
 boundaries, clip grammar context to prose-only spans, or add stale-prediction
@@ -98,3 +99,9 @@ Run the full repository checks, unit suite, coverage registry validation, and
 smoke/full extension suites on Chrome and Firefox as specified in
 `docs/agents/testing.md`. Browser regression suites and focused DOM tests serve
 different purposes; neither is a claim of manual validation in live Slack.
+
+## Prediction sentence casing
+
+The current editing context also suppresses automatic sentence capitalization in prediction results. The content script sends a per-request boolean through the existing runtime message and prediction configuration override; it does not change saved settings or the shared predictor configuration. Thus `what . wa` can offer and insert `was` in code while prose still offers `Was`. Explicitly typed capitals and original candidate/snippet casing are retained; results are not blindly lowercased. Google Docs virtual prediction sessions without an element retain their existing behavior.
+
+The regression covers request-local and overlapping code/prose predictions, mid-word suffixes, preserved candidate/snippet casing, content-message forwarding, and actual Tab acceptance. The full Chrome/Firefox suite additionally tests the built extension in a real Quill code block and then in prose in the same composer. This is an automated Quill fixture, not a claim of live Slack validation.

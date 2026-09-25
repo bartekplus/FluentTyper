@@ -2454,6 +2454,32 @@
           "test": "does not guess code from typography, spellcheck, generic classes, or text"
         }
       ]
+    },
+    {
+      "id": "grammar_code_prediction_casing",
+      "description": "Code context suppresses automatic sentence casing before suggestions are rendered and accepted, preserving authored capitals and restoring prose behavior per request.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/CodePredictionCapitalization.test.ts",
+          "test": "code suppression is request-local and does not force lowercase"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/CodePredictionCapitalization.test.ts",
+          "test": "overlapping code and prose requests cannot share casing state"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionManager.test.ts",
+          "test": "Quill code prediction stays lowercase through Tab acceptance"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Quill code predictions keep lowercase through Tab and restore prose casing"
+        }
+      ]
     }
   ]
 }

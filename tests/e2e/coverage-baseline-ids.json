@@ -154,6 +154,7 @@
     "arabic_measurement_formatting",
     "grammar_rich_text_code_protection",
     "grammar_code_context_selection_safety",
-    "grammar_code_context_formatting_changes"
+    "grammar_code_context_formatting_changes",
+    "grammar_code_prediction_casing"
   ]
 }
