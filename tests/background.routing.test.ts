@@ -657,6 +657,65 @@ describe("background routing and lifecycle", () => {
     );
   });
 
+  test("onMessage combines code casing suppression with site suggestion-count overrides", async () => {
+    const harness = await loadBackgroundHarness({
+      language: "en_US",
+      [KEY_SITE_PROFILES]: { "example.com": { language: "en_US", numSuggestions: 4 } },
+    });
+    const runPrediction = jest
+      .spyOn(harness.module.BackgroundServiceWorker.prototype, "runPrediction")
+      .mockResolvedValue(undefined);
+    const cases = [
+      ["plain.example", undefined, undefined],
+      ["example.com", undefined, { numSuggestions: 4 }],
+      ["plain.example", true, { suppressAutoCapitalize: true }],
+      ["example.com", true, { numSuggestions: 4, suppressAutoCapitalize: true }],
+      ["plain.example", false, undefined],
+      ["example.com", false, { numSuggestions: 4 }],
+      ["plain.example", "true", undefined],
+      ["example.com", 1, { numSuggestions: 4 }],
+    ] as const;
+    try {
+      for (const [domain, suppressAutoCapitalize, expected] of cases) {
+        runPrediction.mockClear();
+        harness.getDomain.mockReturnValue(domain);
+        const reply = await new Promise<unknown>((resolve) => {
+          harness.onMessage(
+            {
+              command: CMD_CONTENT_SCRIPT_PREDICT_REQ,
+              context: {
+                text: "what . wa",
+                nextChar: "",
+                afterCursorTokenSuffix: "s",
+                lang: "en_US",
+                suggestionId: 1,
+                requestId: 2,
+                suppressAutoCapitalize,
+              },
+            },
+            { tab: { id: 77, url: `https://${domain}` } as chrome.tabs.Tab, frameId: 3 },
+            resolve,
+          );
+        });
+        expect(reply).toEqual({ ok: true });
+        expect(runPrediction).toHaveBeenCalledTimes(1);
+        expect(runPrediction).toHaveBeenCalledWith(
+          expect.objectContaining({
+            context: expect.objectContaining({
+              text: "what . wa",
+              afterCursorTokenSuffix: "s",
+              tabId: 77,
+              frameId: 3,
+            }),
+          }),
+          expected,
+        );
+      }
+    } finally {
+      runPrediction.mockRestore();
+    }
+  });
+
   test("onMessage applies site profile language and suggestion count override", async () => {
     const harness = await loadBackgroundHarness({
       [KEY_SITE_PROFILES]: {

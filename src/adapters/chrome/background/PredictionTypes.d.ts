@@ -38,8 +38,13 @@ export interface PredictionDebugEvent {
   finalPredictions: string[];
 }
 
-export interface PredictionRunConfig {
+export interface PredictionConfigOverride {
   numSuggestions?: number;
+  /** Disable automatic sentence casing for this request without changing shared config. */
+  suppressAutoCapitalize?: boolean;
+}
+
+export interface PredictionRunConfig extends PredictionConfigOverride {
   tabId?: number;
   debugListener?: (debugEvent: PredictionDebugEvent) => void;
 }

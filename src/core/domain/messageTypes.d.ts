@@ -65,6 +65,8 @@ export interface PredictResponseContext {
 
 // Context for CMD_CONTENT_SCRIPT_PREDICT_REQ
 export interface ContentScriptPredictRequestContext {
+  /** Per-request code/literal context; suppress sentence casing, not authored capitals. */
+  suppressAutoCapitalize?: boolean;
   text: string;
   nextChar: string;
   afterCursorTokenSuffix?: string;

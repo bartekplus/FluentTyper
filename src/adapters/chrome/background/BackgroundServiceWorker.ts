@@ -5,6 +5,7 @@ import { SettingsManager } from "@core/application/settingsManager";
 import { CoreSettingsRepository } from "@core/application/repositories/CoreSettingsRepository";
 import { LanguageDetector, type AutoLanguageSessionLookup } from "./LanguageDetector";
 import { PredictionManager } from "./PredictionManager";
+import type { PredictionConfigOverride } from "./PredictionTypes";
 import { TabMessenger } from "./TabMessenger";
 import { ProductivityStatsManager } from "./ProductivityStatsManager";
 import { migrateSettingsV3 } from "@core/application/settings/SettingsMigrationV3";
@@ -88,7 +89,7 @@ export class BackgroundServiceWorker {
 
   async runPrediction(
     message: PredictRequestMessage,
-    configOverride?: { numSuggestions?: number },
+    configOverride?: PredictionConfigOverride,
   ): Promise<void> {
     const traceId = this.predictionManager.ensureTraceId(message.context.traceId);
     const traceMeta = {

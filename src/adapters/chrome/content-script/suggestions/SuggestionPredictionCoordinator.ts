@@ -1,4 +1,5 @@
 import { TextTargetAdapter } from "./TextTargetAdapter";
+import { resolveCodeContext } from "./CodeContextResolver";
 import type { PredictionRequest, PredictionResponse, SuggestionEntry } from "./types";
 import type { PredictionInputAction } from "@core/domain/messageTypes";
 import { extractPredictionTokenSuffix } from "@core/domain/predictionToken";
@@ -220,6 +221,9 @@ export class SuggestionPredictionCoordinator {
     });
 
     this.getPrediction({
+      ...(entry.elem && resolveCodeContext(entry.elem) !== "prose"
+        ? { suppressAutoCapitalize: true }
+        : {}),
       text: beforeCursor,
       nextChar: afterCursor.charAt(0),
       afterCursorTokenSuffix: extractPredictionTokenSuffix(afterCursor, (char) =>

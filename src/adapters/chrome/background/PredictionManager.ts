@@ -11,6 +11,7 @@ import type {
   PredictionDebugEvent,
   PredictionResult,
   PredictionRunConfig,
+  PredictionConfigOverride,
   PredictorStageDebugInfo,
 } from "./PredictionTypes";
 import libPresageMod from "@third-party/libpresage/libpresage.js";
@@ -111,7 +112,7 @@ export class PredictionManager {
     text: string,
     nextChar: string,
     lang: string,
-    configOverride?: { numSuggestions?: number },
+    configOverride?: PredictionConfigOverride,
     debugMeta?: PredictionDebugRequestMeta,
     afterCursorTokenSuffix?: string,
   ): Promise<PredictionResult> {
@@ -131,6 +132,7 @@ export class PredictionManager {
 
     const runConfig: PredictionRunConfig = {
       numSuggestions: configOverride?.numSuggestions,
+      ...(configOverride?.suppressAutoCapitalize === true ? { suppressAutoCapitalize: true } : {}),
       tabId: resolvedDebugMeta.tabId ?? undefined,
       debugListener: (debugEvent) => {
         this.recordDebugTrace(debugEvent, resolvedDebugMeta);
