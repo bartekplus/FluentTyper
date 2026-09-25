@@ -29,6 +29,20 @@ function text(element: Element): Text {
   return node as Text;
 }
 
+function withProperty(target: object, name: string, value: unknown, run: () => void): void {
+  // Instance spies on jsdom's inherited Document methods were ineffective in
+  // Bun CI. Install an own property and restore its exact previous descriptor.
+  const previous = Object.getOwnPropertyDescriptor(target, name);
+  Object.defineProperty(target, name, { configurable: true, writable: true, value });
+  try {
+    expect(Reflect.get(target, name)).toBe(value);
+    run();
+  } finally {
+    if (previous) Object.defineProperty(target, name, previous);
+    else Reflect.deleteProperty(target, name);
+  }
+}
+
 afterEach(() => {
   jest.restoreAllMocks();
   document.getSelection()?.removeAllRanges();
@@ -215,18 +229,21 @@ test("supplies nested shadow roots to composed selection resolution", () => {
   const innerHost = document.createElement("div");
   outer.append(innerHost);
   const inner = innerHost.attachShadow({ mode: "open" });
-  const root = editor('<div class="ql-code-block">code</div>');
+  const root = editor('<p>prose</p><div class="ql-code-block">code</div>');
   inner.append(root);
-  const node = text(root.firstElementChild!);
+  let node = text(root.lastElementChild!);
   const getComposedRanges = jest.fn(() => [
     { startContainer: node, startOffset: 2, endContainer: node, endOffset: 2 },
   ]);
-  jest
-    .spyOn(document, "getSelection")
-    .mockReturnValue({ getComposedRanges } as unknown as Selection);
-  expect(measurementEditingContext(root)).toBe("protected");
-  expect(resolveCodeContext(root)).toBe("code");
-  expect(getComposedRanges).toHaveBeenCalledWith({ shadowRoots: [inner, outer] });
+  withProperty(document.getSelection()!, "getComposedRanges", getComposedRanges, () => {
+    expect(resolveCodeContext(root)).toBe("code");
+    expect(measurementEditingContext(root)).toBe("protected");
+    node = text(root.firstElementChild!);
+    expect(resolveCodeContext(root)).toBe("prose");
+    expect(measurementEditingContext(root)).toBe("prose");
+    expect(getComposedRanges).toHaveBeenCalledTimes(4);
+    expect(getComposedRanges).toHaveBeenCalledWith({ shadowRoots: [inner, outer] });
+  });
 });
 
 test("does not mistake a shadow-host re-scoped selection for inner prose", () => {
@@ -237,18 +254,25 @@ test("does not mistake a shadow-host re-scoped selection for inner prose", () =>
   shadow.append(root);
   const range = document.createRange();
   range.selectNode(host);
+  range.collapse(true);
   const getComposedRanges = jest.fn(() => [range]);
-  jest
-    .spyOn(document, "getSelection")
-    .mockReturnValue({ getComposedRanges } as unknown as Selection);
-  expect(resolveCodeContext(root)).toBe("unknown");
+  withProperty(document.getSelection()!, "getComposedRanges", getComposedRanges, () => {
+    expect(resolveCodeContext(root)).toBe("unknown");
+    expect(getComposedRanges).toHaveBeenCalledWith({ shadowRoots: [shadow] });
+  });
 });
 
 test("selection API failure cannot classify unknown context as prose", () => {
   const root = editor("<p>prose</p>");
-  jest.spyOn(document, "getSelection").mockImplementation(() => {
+  caret(text(root.firstElementChild!));
+  expect(resolveCodeContext(root)).toBe("prose");
+  const getSelection = jest.fn(() => {
     throw new Error("Selection unavailable during reconciliation");
   });
-  expect(resolveCodeContext(root)).toBe("unknown");
-  expect(measurementEditingContext(root)).toBe("protected");
+  withProperty(document, "getSelection", getSelection, () => {
+    expect(resolveCodeContext(root)).toBe("unknown");
+    expect(measurementEditingContext(root)).toBe("protected");
+    expect(getSelection).toHaveBeenCalledTimes(2);
+  });
+  expect(resolveCodeContext(root)).toBe("prose");
 });
