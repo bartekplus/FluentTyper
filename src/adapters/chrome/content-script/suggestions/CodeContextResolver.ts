@@ -46,8 +46,7 @@ function readSelectionRange(element: HTMLElement): SelectionRange | null {
     return ranges.length === 1 ? ranges[0] : null;
   }
 
-  const selection =
-    (roots[0] as ScopedSelectionRoot | undefined)?.getSelection?.() ?? docSelection;
+  const selection = (roots[0] as ScopedSelectionRoot | undefined)?.getSelection?.() ?? docSelection;
   return selection.rangeCount === 1 ? selection.getRangeAt(0) : null;
 }
 
