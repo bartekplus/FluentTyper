@@ -369,8 +369,11 @@ export class ReviewUi {
     this.next.disabled = !nav;
     const bulkAvailable = state.capabilities.bulk && state.status === "ready";
     this.fixAll.hidden = !state.capabilities.bulk;
-    this.fixAll.textContent = this.t("review_fix_all", { count: state.bulk.count });
-    this.fixAll.disabled = !bulkAvailable || state.bulk.count === 0;
+    // While the plan is still being proven the count is not known yet.
+    this.fixAll.textContent = this.t("review_fix_all", {
+      count: state.bulk.pending ? "\u2026" : state.bulk.count,
+    });
+    this.fixAll.disabled = !bulkAvailable || state.bulk.pending || state.bulk.count === 0;
     const filtered = state.categories.size < REVIEW_CATEGORIES.length;
     const noteParts = [this.t(filtered ? "review_fix_all_filtered" : "review_fix_all_whole")];
     if (state.bulk.deferred > 0) {
@@ -443,7 +446,7 @@ export class ReviewUi {
       summary = this.t("review_status_all_resolved", { count: state.resolvedCount });
     else summary = this.t("review_status_none");
     // "All resolved" already reports the fixes; don't say it twice.
-    const redundant = count === 0 && state.notice?.kind === "applied";
+    const redundant = count === 0 && state.ignoredCount === 0 && state.notice?.kind === "applied";
     return notice && !redundant ? `${notice} ${summary}` : summary;
   }
 

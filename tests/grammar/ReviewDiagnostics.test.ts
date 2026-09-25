@@ -295,6 +295,50 @@ describe("review detectors: grammar", () => {
   });
 });
 
+describe("adversarial review regressions: detection", () => {
+  test('"your welcome" is corrected only as a reply, never as a possessive', () => {
+    const rule = "englishYourWelcomeCorrection";
+    expect(only("Thank you all for your welcome.", rule)).toEqual([]);
+    expect(only("Did you enjoy your welcome?", rule)).toEqual([]);
+    expect(only("Thanks, your welcome.", rule).map((row) => row[1])).toEqual(["your welcome"]);
+    expect(only("your welcome", rule).map((row) => row[1])).toEqual(["your welcome"]);
+  });
+
+  test('a lowercase "i" that reads as a variable is not rewritten as "I am"/"I have"', () => {
+    const rule = "englishPronounVerbWhitelistAgreement";
+    for (const text of [
+      "Check if i is None",
+      "returns null if i is out of range",
+      "The loop variable i is incremented",
+      "while i has items left",
+    ]) {
+      expect(only(text, rule)).toEqual([]);
+    }
+    expect(only("so i has time", rule).map((row) => row[3])).toEqual(["I have"]);
+    expect(only("I is here", rule).map((row) => row[3])).toEqual(["I am"]);
+  });
+
+  test('"im"/"ive" after a determiner is a word; the rest is one at a time', () => {
+    const rule = "englishContractionNormalization";
+    expect(only("The im tag and an ive file", rule)).toEqual([]);
+    const [finding] = review("so im going", { enabledRules: [rule] });
+    expect(finding.alternatives[0].preview).toContain("I'm");
+    expect(finding.bulk.eligible).toBe(false);
+    // A word the user added to the dictionary is theirs.
+    expect(review("dont", { enabledRules: [rule], userDictionary: ["dont"] })).toEqual([]);
+  });
+
+  test("indented code is protected with CRLF and whitespace-only blank lines too", () => {
+    for (const text of [
+      "Intro text.\r\n\r\n    let teh = dont;\r\n",
+      "Intro text.\n \n    let teh = dont;\n",
+    ]) {
+      const findings = review(text);
+      expect(findings.filter((d) => d.range.start > text.indexOf("let"))).toEqual([]);
+    }
+  });
+});
+
 describe("review detectors: punctuation and spacing", () => {
   test("commaPeriodSpacing", () => {
     expect(only("Yes , no . Really ? ok,then 1,5 a,b x,y,z", "commaPeriodSpacing")).toEqual([

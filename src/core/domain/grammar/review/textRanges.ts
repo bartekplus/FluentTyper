@@ -17,6 +17,16 @@ export function editTouches(edit: TextRange, range: TextRange): boolean {
 
 let segmenter: Intl.Segmenter | undefined;
 
+function isLowSurrogate(code: number): boolean {
+  return code >= 0xdc00 && code <= 0xdfff;
+}
+
+/** A regional indicator (U+1F1E6..U+1F1FF) starts at `index`. */
+function isRegionalIndicatorAt(text: string, index: number): boolean {
+  const low = text.charCodeAt(index + 1);
+  return text.charCodeAt(index) === 0xd83c && low >= 0xdde6 && low <= 0xddff;
+}
+
 /** Grapheme boundary test on a bounded local window (never segments a whole document). */
 export function isGraphemeBoundary(text: string, index: number): boolean {
   if (!Number.isSafeInteger(index) || index < 0 || index > text.length) return false;
@@ -27,7 +37,11 @@ export function isGraphemeBoundary(text: string, index: number): boolean {
   // Printable ASCII on both sides is always a boundary (no extenders, no CR LF).
   const previous = text.charCodeAt(index - 1);
   if (code >= 0x20 && code < 0x7f && previous >= 0x20 && previous < 0x7f) return true;
-  const windowStart = Math.max(0, index - 32);
+  let windowStart = Math.max(0, index - 32);
+  // Never start inside a surrogate pair, and count flags (regional-indicator
+  // pairs) from the start of their run, or a window could pair them wrongly.
+  if (windowStart > 0 && isLowSurrogate(text.charCodeAt(windowStart))) windowStart -= 1;
+  while (windowStart >= 2 && isRegionalIndicatorAt(text, windowStart - 2)) windowStart -= 2;
   const local = text.slice(windowStart, Math.min(text.length, index + 32));
   if (typeof Intl === "undefined" || typeof Intl.Segmenter !== "function") {
     // Without a segmenter, refuse to split before a combining mark or joiner.

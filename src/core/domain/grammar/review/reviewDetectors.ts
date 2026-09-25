@@ -163,6 +163,45 @@ function graphemeEnd(text: string, index: number): number {
   return end;
 }
 
+// The month words whose date evidence is the number after them.
+const MONTH_BEFORE_NUMBER = /(?:may|march|august)[ \t]+$/i;
+
+// Words after which a lowercase "i" is a loop variable or identifier.
+const VARIABLE_CONTEXT_BEFORE =
+  /\b(?:if|while|until|unless|whether|when|where|each|every|the|a|index|variable|counter|loop)\s+$/i;
+
+// Words after which "im"/"ive" is a noun or tag, not "I'm"/"I've".
+const DETERMINER_BEFORE =
+  /\b(?:the|a|an|this|that|these|those|my|your|his|her|its|our|their|each|every|no)\s+$/i;
+
+/**
+ * Start of the `count` whitespace-separated tokens before `index` (at most 64
+ * characters back): the evidence a sentence-start decision reads.
+ */
+function previousTokensStart(text: string, index: number, count: number): number {
+  const limit = Math.max(0, index - 64);
+  let position = index;
+  for (let token = 0; token < count && position > limit; token += 1) {
+    while (position > limit && /\s/.test(text[position - 1])) position -= 1;
+    while (position > limit && !/\s/.test(text[position - 1])) position -= 1;
+  }
+  return position;
+}
+
+/** True when `index` opens a clause: text start, a line start, or after . ! ? , ; : or an opening mark. */
+function opensClause(text: string, index: number): boolean {
+  let i = index - 1;
+  while (i >= 0 && (text[i] === " " || text[i] === "\t" || text[i] === "\u00A0")) i -= 1;
+  return i < 0 || /[\n.!?,;:([{"“‘«—–-]/.test(text[i]);
+}
+
+/** Where the clause-opening evidence for a phrase at `index` starts. */
+function clauseEvidenceStart(text: string, index: number): number {
+  let i = index - 1;
+  while (i >= 0 && (text[i] === " " || text[i] === "\t" || text[i] === "\u00A0")) i -= 1;
+  return Math.max(0, i);
+}
+
 // ---------------------------------------------------------------- capitalization
 
 const capitalizeStarts: Detector = (ctx) => {
@@ -188,14 +227,14 @@ const capitalizeStarts: Detector = (ctx) => {
     const wordEnd = wordStart + bare.length;
 
     if (startsSentence(ctx.text, wordStart, ctx.lang)) {
-      let evidence = wordStart - 1;
-      while (evidence > 0 && isSpace(ctx.text[evidence])) evidence -= 1;
+      // The mark AND the word before it ("approx .", "etc .") decide it.
+      const evidence = previousTokensStart(ctx.text, wordStart, 2);
       findings.push({
         ruleId: "capitalizeSentenceStart",
         messageKey: "review_msg_sentence_start",
         range,
         alternatives: [upper],
-        context: { start: Math.max(0, Math.min(evidence, wordStart)), end: wordEnd },
+        context: { start: evidence, end: wordEnd },
       });
       continue;
     }
@@ -290,11 +329,13 @@ const wordSpelling: Detector = (ctx) => {
       });
       continue;
     }
-    const contraction = normalizeContractionToken(
-      word,
-      ctx.text.slice(Math.max(0, start - PHRASE_WINDOW), start),
-    );
-    if (contraction) {
+    const before = ctx.text.slice(Math.max(0, start - PHRASE_WINDOW), start);
+    const contraction = ctx.dictionary.has(word.toLowerCase())
+      ? null
+      : normalizeContractionToken(word, before);
+    // "the im tag", "an ive file": after a determiner it is a word, not "I'm".
+    const pronounForm = /^i(?:m|ve)$/i.test(word);
+    if (contraction && !(pronounForm && DETERMINER_BEFORE.test(before))) {
       findings.push({
         ruleId: "englishContractionNormalization",
         messageKey: "review_msg_contraction",
@@ -302,6 +343,8 @@ const wordSpelling: Detector = (ctx) => {
         alternatives: [contraction],
         // The name guard reads the previous word on the line.
         context: { start: Math.max(0, ctx.text.lastIndexOf(" ", start - 2) + 1), end },
+        // "im"/"ive" can still be a tag, an abbreviation or a name: one at a time.
+        bulkBlock: pronounForm ? "ambiguous" : undefined,
       });
       continue;
     }
@@ -397,6 +440,8 @@ const yourWelcome: Detector = (ctx) => {
     // "Your welcome email" is possessive: only the sentence-final phrase counts.
     // The end of the whole text ends the sentence too; nothing is appended.
     if (end < ctx.text.length && !/^[.!?\n]/.test(ctx.text[end])) continue;
+    // "Thank you all for your welcome." is possessive too: the reply opens its clause.
+    if (!opensClause(ctx.text, start)) continue;
     const phrase = match[0];
     const firstToken = phrase.split(/\s+/)[0];
     const [you, welcome] = correctYourWelcome(firstToken);
@@ -406,7 +451,10 @@ const yourWelcome: Detector = (ctx) => {
       messageKey: "review_msg_your_welcome",
       range: { start, end },
       alternatives: [`${you}${gap}${welcome}`],
-      context: { start, end: Math.min(ctx.text.length, end + 1) },
+      context: {
+        start: clauseEvidenceStart(ctx.text, start),
+        end: Math.min(ctx.text.length, end + 1),
+      },
     });
   }
   return findings;
@@ -431,22 +479,37 @@ const theirThere: Detector = (ctx) => {
 
 const pronounVerb: Detector = (ctx) => {
   const findings: RawFinding[] = [];
-  for (const { match, start, end } of phraseMatches(ctx, AGREEMENT_REGEX, 3)) {
+  for (const { match, end } of phraseMatches(ctx, AGREEMENT_REGEX, 3)) {
     const phrase = match[1];
     const corrected = AGREEMENT_CORRECTIONS.get(phrase.toLowerCase().replace(/\s+/, " "));
     if (!corrected) continue;
     const [pronoun, verb] = correctPronounVerb(phrase, corrected);
     const inputPronoun = phrase.split(/\s+/)[0];
+    const phraseRange = groupRange(match, 1);
+    // A lowercase "i" before "is" is usually a variable ("if i is None"); the
+    // pronoun rule leaves it alone for the same reason. "i has" is too after a
+    // condition or determiner ("while i has items", "the i has").
+    if (inputPronoun === "i") {
+      const verbWord = phrase.split(/\s+/)[1].toLowerCase();
+      if (NON_PRONOUN_FOLLOWERS.has(verbWord)) continue;
+      if (
+        VARIABLE_CONTEXT_BEFORE.test(
+          ctx.text.slice(Math.max(0, phraseRange.start - 24), phraseRange.start),
+        )
+      ) {
+        continue;
+      }
+    }
     const gap = phrase.slice(inputPronoun.length, phrase.length - phrase.split(/\s+/)[1].length);
     // The pronoun "i" is always capitalized; the case rule would flag it anyway.
     const fixedPronoun = pronoun === "i" ? "I" : pronoun;
-    const phraseRange = groupRange(match, 1);
     findings.push({
       ruleId: "englishPronounVerbWhitelistAgreement",
       messageKey: "review_msg_pronoun_verb",
       range: phraseRange,
       alternatives: [`${fixedPronoun}${gap}${verb}`],
-      context: { start, end },
+      // The word before the pronoun decided it.
+      context: { start: previousTokensStart(ctx.text, phraseRange.start, 1), end },
     });
   }
   return findings;
@@ -545,6 +608,13 @@ const properNoun: Detector = (ctx) => {
     const wordEnd = match.index + match[0].length;
     if (match.index >= ctx.to + 32) break;
     if (!couldEndProperName(match[0])) continue;
+    // A day or year only counts right after a month word ("may 15").
+    if (
+      /^\p{N}/u.test(match[0]) &&
+      !MONTH_BEFORE_NUMBER.test(ctx.text.slice(Math.max(0, match.index - 12), match.index))
+    ) {
+      continue;
+    }
     const windowStart = Math.max(0, wordEnd - 160);
     const core = ctx.text.slice(windowStart, wordEnd);
     const found = findProperName(core);
@@ -727,7 +797,9 @@ function measurementLike(
   }
   for (let match = regex.exec(ctx.scanText); match; match = regex.exec(ctx.scanText)) {
     if (match.index >= ctx.to + 64) break;
-    if (!/\p{Nd}/u.test(match[0])) continue;
+    // Only a unit glued to its number is a finding ("10kg", "5$"); plain numbers
+    // skip the window parse, which dominates number-heavy text.
+    if (!/\p{Nd}[^\p{Nd}\s.,]/u.test(match[0])) continue;
     const bare = match[0].replace(/[.,;:!?)\]]+$/u, "");
     const tokenEnd = match.index + bare.length;
     const windowStart = Math.max(0, tokenEnd - 160);

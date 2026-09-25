@@ -20,6 +20,8 @@ import type {
 export const MAX_REVIEW_CHARS = 50_000;
 /** Scan unit between yields; chunks end on line breaks so no token straddles two. */
 export const REVIEW_CHUNK_CHARS = 4_000;
+// Above this many proofs in one chunk, scanning the chunk once is cheaper.
+const PROOF_WINDOWS_PER_CHUNK = 8;
 // How far past its chunk a detector's forward scan may need to read.
 const SCAN_LOOKAHEAD = 1_024;
 // Context read around the scope; enough for every rule's look-behind.
@@ -383,6 +385,32 @@ export function stillDetectedAfter(
   diagnostics: readonly ReviewDiagnostic[],
   otherEdits: readonly ReviewEdit[],
 ): boolean[] {
+  const steps = proofSteps(prepared, diagnostics, otherEdits);
+  for (let step = steps.next(); ; step = steps.next()) {
+    if (step.done) return step.value;
+  }
+}
+
+/** stillDetectedAfter, pausing (`pause`) between its scans so the page stays responsive. */
+export async function stillDetectedAfterAsync(
+  prepared: PreparedReview,
+  diagnostics: readonly ReviewDiagnostic[],
+  otherEdits: readonly ReviewEdit[],
+  pause: () => Promise<void>,
+): Promise<boolean[]> {
+  const steps = proofSteps(prepared, diagnostics, otherEdits);
+  for (let step = steps.next(); ; step = steps.next()) {
+    if (step.done) return step.value;
+    await pause();
+  }
+}
+
+/** The proof as steps: it yields after preparing and after each scan. */
+function* proofSteps(
+  prepared: PreparedReview,
+  diagnostics: readonly ReviewDiagnostic[],
+  otherEdits: readonly ReviewEdit[],
+): Generator<void, boolean[], void> {
   const { snapshot } = prepared;
   const text = applyEdits(snapshot.text, otherEdits);
   if (text === null) return diagnostics.map(() => false);
@@ -398,6 +426,7 @@ export function stillDetectedAfter(
     })),
   };
   const next = prepareReview(shifted, prepared.options);
+  yield;
   const expected = diagnostics.map((diagnostic) => ({
     start: shift(diagnostic.range.start),
     edits: JSON.stringify(
@@ -407,9 +436,25 @@ export function stillDetectedAfter(
     ),
   }));
   const found = new Map<number, Set<string>>();
+  // A chunk with a few checked findings is scanned only where they start: the
+  // findings a scan owns start in its range, and each detector reads its own
+  // bounded context around them.
+  const scans: TextRange[] = [];
   for (const chunk of reviewChunks(next)) {
-    if (!expected.some(({ start }) => start >= chunk.start && start < chunk.end)) continue;
-    for (const finding of scanReviewChunk(next, chunk).findings) {
+    const starts = expected
+      .map(({ start }) => start)
+      .filter((start) => start >= chunk.start && start < chunk.end);
+    if (starts.length > PROOF_WINDOWS_PER_CHUNK) scans.push(chunk);
+    else {
+      // From a little before, so a token that opens before its finding (a quote
+      // before a capital) is matched from its start.
+      for (const start of new Set(starts)) {
+        scans.push({ start: Math.max(chunk.start, start - 64), end: start + 1 });
+      }
+    }
+  }
+  for (const scan of scans) {
+    for (const finding of scanReviewChunk(next, scan).findings) {
       const diagnostic = toDiagnostic(next, finding);
       if (!diagnostic) continue;
       const edits = found.get(diagnostic.range.start) ?? new Set<string>();
@@ -417,6 +462,7 @@ export function stillDetectedAfter(
         edits.add(JSON.stringify(alternative.edits));
       found.set(diagnostic.range.start, edits);
     }
+    yield;
   }
   return expected.map(({ start, edits }) => found.get(start)?.has(edits) ?? false);
 }

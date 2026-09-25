@@ -20,8 +20,10 @@ What gets reviewed:
 - A selection wholly inside one editor: **that selection** ("Selection" in the panel).
 - Otherwise: **the whole focused editor** ("Whole field"). Review never scans the page.
 - A selection that crosses editors, a password, payment, security-code or
-  one-time-code field, and hidden, read-only or disabled fields are refused
-  with an explanation.
+  one-time-code field (by type, `autocomplete` token, name or masking), and
+  hidden, unrendered, read-only or disabled fields are refused with an
+  explanation.
+- In a modal dialog the review opens inside the dialog, so it stays usable.
 
 Starting a review changes nothing: not the text, formatting, selection,
 settings or learning data. While a review is open, typing-time corrections
@@ -37,7 +39,8 @@ and suggestions pause for that editor, and resume when it closes.
 | Capitalization and typography | purple | dashed underline | `Aa`  |
 
 Color is never the only signal: each category also has its own line style and
-badge, and the card and list name the category in words. In forced-colors
+badge, and the card and list name the category in words. The underline colors
+keep at least 3:1 contrast on light and dark pages alike, whatever the OS theme. In forced-colors
 (high-contrast) mode the highlights use system colors with the same line styles.
 
 Click a highlight, or choose a finding in the list, to open its card:
@@ -65,6 +68,7 @@ Note that `teh` inside the code span, the bold text and the link are untouched.
   needs its own focus). **Tab** moves through the panel. Arrow keys move
   through the list. **Enter** or **Space** opens the card for a finding.
 - **Escape** closes the card first, then the review. Focus returns to the editor.
+- Pressing the shortcut again while the panel has focus keeps the review.
 - In the editor, review never captures **Tab** or **Enter**.
 
 ### States
@@ -75,13 +79,17 @@ The panel names every state:
 - **Results:** "Issues: N"
 - **Nothing found:** "No issues found by the enabled checks"
 - **All resolved:** "All found issues are resolved. Fixed: N."
-- **Ignored:** "Ignored: N"
+- **Ignored:** "Ignored: N", and "All remaining issues are ignored." once nothing else is left
 - **Paused:** while an IME composes ("Paused while you compose")
 - **Stale selection:** after an edit at the selection's edge
 - **Unsupported, review-only or sensitive editor:** says which
 - **Partial coverage:** protected text skipped, the size limit, or rules
   skipped for the language
 - **Fix outcomes:** a fix the editor refused, or one it only partly applied
+- **Error:** "Review failed. Close it and try again." (a scan that fails never
+  leaves "Checking…" on screen)
+- **Planning:** "Fix all safe (…)" while dependent fixes in a very large,
+  error-dense text are still being proven; Fix all waits for the proof
 
 ## Rules and categories
 
@@ -158,20 +166,21 @@ signature and invalidate pending fixes.
 
 ## Editor support
 
-| Editor                                            | Highlights                                                            | Apply one                               | Fix all | Undo                                     |
-| ------------------------------------------------- | --------------------------------------------------------------------- | --------------------------------------- | ------- | ---------------------------------------- |
-| `<textarea>`, text `<input>`                      | overlay measured through a hidden mirror in FluentTyper's shadow root | yes                                     | yes     | one native undo step for the whole batch |
-| `contenteditable`                                 | CSS Custom Highlights (overlay fallback, e.g. inside shadow DOM)      | yes                                     | yes     | one native undo step per fix             |
-| Quill                                             | CSS Custom Highlights                                                 | yes                                     | yes     | Quill history (a batch is one step)      |
-| ProseMirror, Lexical, Slate, Draft.js, CKEditor 5 | yes                                                                   | no: review-only, the panel explains     | no      | —                                        |
-| Google Docs (existing bridge)                     | no; list and card only                                                | yes: one verified replacement at a time | no      | Docs history                             |
-| Code editors, sensitive and ineligible fields     | refused with an explanation                                           | —                                       | —       | —                                        |
+| Editor                                                                                 | Highlights                                                            | Apply one                               | Fix all | Undo                                     |
+| -------------------------------------------------------------------------------------- | --------------------------------------------------------------------- | --------------------------------------- | ------- | ---------------------------------------- |
+| `<textarea>`, text `<input>`                                                           | overlay measured through a hidden mirror in FluentTyper's shadow root | yes                                     | yes     | one native undo step for the whole batch |
+| `contenteditable`                                                                      | CSS Custom Highlights (overlay fallback, e.g. inside shadow DOM)      | yes                                     | yes     | one native undo step per fix             |
+| Quill                                                                                  | CSS Custom Highlights                                                 | yes                                     | yes     | Quill history (a batch is one step)      |
+| ProseMirror, Lexical, Slate, Draft.js, CKEditor 4/5, Trix, TinyMCE, Froala, Summernote | yes                                                                   | no: review-only, the panel explains     | no      | —                                        |
+| Google Docs (existing bridge)                                                          | no; list and card only                                                | yes: one verified replacement at a time | no      | Docs history                             |
+| Code editors, sensitive and ineligible fields                                          | refused with an explanation                                           | —                                       | —       | —                                        |
 
 Highlights never change the page's editor DOM. CSS highlights are registered
 under FluentTyper's own names (`fluenttyper-review-*`); the page's and other
 extensions' highlights are never touched. Everything is removed on close, on
 navigation or when FluentTyper is disabled. If the editor leaves the page, the
-panel says it is no longer available and nothing stays painted.
+panel says it is no longer available and nothing stays painted; a scripted
+change to a text field is noticed within a second.
 
 ### Writes
 
@@ -264,6 +273,12 @@ Known costs:
 - An ignore belongs to one occurrence and is dropped when an edit (including
   an undo) spans the ignored text.
 - Chains of more than 8 mutually dependent fixes are left for individual review.
+- A lowercase "i" before "is" (and before "has" after words like "if" or
+  "while") is left alone: it is usually a variable.
+- A sentence that ends right after a contraction ("I don't. the end") is not
+  seen as ended: the shared sentence rule reads "t." as an initial.
+- "Add to dictionary" accepts one word (letters with inner apostrophes or
+  hyphens) and only from a real click.
 
 ## Testing
 

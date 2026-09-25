@@ -1,4 +1,8 @@
-import { planBulkFix, type BulkPlan } from "@core/domain/grammar/review/bulkPlanner";
+import {
+  planBulkFixSteps,
+  type BulkPlan,
+  type ProofRequest,
+} from "@core/domain/grammar/review/bulkPlanner";
 import {
   MAX_REVIEW_CHARS,
   finalizeReview,
@@ -6,6 +10,7 @@ import {
   reviewChunks,
   scanReviewChunk,
   stillDetectedAfter,
+  stillDetectedAfterAsync,
   type ChunkScan,
   type PreparedReview,
 } from "@core/domain/grammar/review/reviewDiagnostics";
@@ -109,7 +114,8 @@ export interface ReviewViewState {
   truncated: number;
   languageSkipped: number;
   noRules: boolean;
-  bulk: { count: number; deferred: number };
+  /** `pending`: the plan is still being proven; Fix all waits for it. */
+  bulk: { count: number; deferred: number; pending: boolean };
   notice: ReviewNotice | null;
   /** The text the diagnostics' offsets refer to. */
   text: string;
@@ -151,6 +157,18 @@ const ALL_CATEGORIES: ReviewCategory[] = ["spelling", "grammar", "punctuation", 
  * scope; every write goes through the target port with verification.
  * Starting a review reads only: no text, formatting, setting or learning changes.
  */
+interface PendingPlan {
+  key: readonly unknown[];
+  promise: Promise<BulkPlan | null>;
+}
+
+/** Proof checks a plan may run at once before it continues asynchronously. */
+const SYNC_PROOF_CHECKS = 64;
+
+function sameKey(a: readonly unknown[], b: readonly unknown[]): boolean {
+  return a.length === b.length && a.every((value, index) => value === b[index]);
+}
+
 export class ReviewSession {
   private generation = 0;
   private status: ReviewStatus = "loading";
@@ -167,6 +185,7 @@ export class ReviewSession {
   private ignored: IgnoredOccurrence[] = [];
   // getState() runs on every change; the plan only depends on these inputs.
   private planCache: { key: readonly unknown[]; plan: BulkPlan } | null = null;
+  private planPending: { key: readonly unknown[]; promise: Promise<BulkPlan | null> } | null = null;
   private resolvedCount = 0;
   private categories = new Set<ReviewCategory>(ALL_CATEGORIES);
   private selectedId: string | null = null;
@@ -205,6 +224,7 @@ export class ReviewSession {
     this.status = "closed";
     this.diagnostics = [];
     this.planCache = null;
+    this.planPending = null;
     this.emit();
   }
 
@@ -290,7 +310,13 @@ export class ReviewSession {
   /** Applies every safe fix in the shown categories as one planned batch. */
   async fixAll(): Promise<ReviewApplyResult | null> {
     if (!this.canWrite() || !this.capabilities.bulk) return null;
-    const plan = this.planBulk();
+    let plan = this.planBulk();
+    if (!plan && this.planPending) {
+      // Still proving: wait for it, then act only if nothing changed meanwhile.
+      const generation = this.generation;
+      plan = await this.planPending.promise;
+      if (generation !== this.generation || !this.canWrite()) return null;
+    }
     if (!plan || plan.edits.length === 0) return null;
     return this.write(plan.edits, plan.diagnosticIds.length, plan.deferred.length);
   }
@@ -319,6 +345,7 @@ export class ReviewSession {
       bulk: {
         count: plan?.diagnosticIds.length ?? 0,
         deferred: plan?.deferred.length ?? 0,
+        pending: plan === null && this.planPending !== null,
       },
       notice: this.notice,
       text: this.text,
@@ -353,27 +380,73 @@ export class ReviewSession {
     );
   }
 
-  private planBulk(): BulkPlan | null {
+  private planKey(): readonly unknown[] | null {
     if (!this.prepared) return null;
-    const prepared = this.prepared;
-    const key = [
-      prepared,
+    return [
+      this.prepared,
       this.text,
       this.diagnostics,
       this.ignored,
       this.ignored.length,
       [...this.categories].sort().join(),
     ];
-    if (this.planCache?.key.every((value, index) => value === key[index])) {
-      return this.planCache.plan;
-    }
+  }
+
+  /**
+   * The Fix-all plan for the current results, or null while it is still being
+   * proven. Most plans need no proof, and small proofs run at once; larger ones
+   * (dense errors in long text) continue asynchronously, pausing between scans,
+   * and are dropped when newer results replace them.
+   */
+  private planBulk(): BulkPlan | null {
+    const key = this.planKey();
+    if (!key || !this.prepared) return null;
+    if (this.planCache && sameKey(this.planCache.key, key)) return this.planCache.plan;
+    if (this.planPending && sameKey(this.planPending.key, key)) return null;
+    const prepared = this.prepared;
     const filtered = this.categories.size < ALL_CATEGORIES.length ? this.categories : undefined;
-    const plan = planBulkFix(this.text, this.activeDiagnostics(), {
+    const steps = planBulkFixSteps(this.text, this.activeDiagnostics(), {
       categories: filtered,
-      stillHold: (checks, others) => stillDetectedAfter(prepared, checks, others),
+      prove: true,
     });
-    this.planCache = { key, plan };
-    return plan;
+    let budget = SYNC_PROOF_CHECKS;
+    let step = steps.next();
+    while (!step.done && step.value.checks.length <= budget) {
+      budget -= step.value.checks.length;
+      step = steps.next(stillDetectedAfter(prepared, step.value.checks, step.value.otherEdits));
+    }
+    if (step.done) {
+      this.planCache = { key, plan: step.value };
+      return step.value;
+    }
+    const pending: PendingPlan = { key, promise: Promise.resolve(null) };
+    this.planPending = pending;
+    pending.promise = this.provePlan(pending, steps, step.value, prepared);
+    return null;
+  }
+
+  /** Answers the remaining proof rounds, pausing between scans; dropped if superseded. */
+  private async provePlan(
+    pending: PendingPlan,
+    steps: Generator<ProofRequest, BulkPlan, boolean[]>,
+    first: ProofRequest,
+    prepared: PreparedReview,
+  ): Promise<BulkPlan | null> {
+    let request: IteratorResult<ProofRequest, BulkPlan> = { done: false, value: first };
+    while (!request.done) {
+      const answer = await stillDetectedAfterAsync(
+        prepared,
+        request.value.checks,
+        request.value.otherEdits,
+        () => new Promise<void>((resolve) => this.setTimer(resolve, 0)),
+      );
+      if (this.planPending !== pending) return null;
+      request = steps.next(answer);
+    }
+    this.planPending = null;
+    this.planCache = { key: pending.key, plan: request.value };
+    this.emit();
+    return request.value;
   }
 
   private async write(

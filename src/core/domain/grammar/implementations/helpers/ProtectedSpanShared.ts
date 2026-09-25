@@ -116,7 +116,7 @@ export function isInsideMarkdownCode(text: string): boolean {
  */
 export function findMarkdownCodeRanges(text: string): Array<[number, number]> {
   const ranges: Array<[number, number]> = [];
-  if (!text.includes("`") && !text.includes("~~~") && !/(?:^|\n\n)(?: {4}|\t)/.test(text)) {
+  if (!text.includes("`") && !text.includes("~~~") && !/(?:^|\n[ \t\r]*\n)(?: {4}|\t)/.test(text)) {
     return ranges;
   }
   const lines = text.split("\n");

@@ -28,6 +28,15 @@ export interface BulkPlanOptions {
   stillHold?: (checks: ReviewDiagnostic[], otherEdits: ReviewEdit[]) => boolean[];
 }
 
+/**
+ * One proof round: true, per check, when it is still detected with the same
+ * edits after `otherEdits` (never its own) are applied.
+ */
+export interface ProofRequest {
+  checks: ReviewDiagnostic[];
+  otherEdits: ReviewEdit[];
+}
+
 /** Longer chains of dependent fixes are left for individual review. */
 export const MAX_PROOF_GROUP = 8;
 
@@ -67,6 +76,22 @@ export function planBulkFix(
   diagnostics: readonly ReviewDiagnostic[],
   options: BulkPlanOptions = {},
 ): BulkPlan {
+  const steps = planBulkFixSteps(text, diagnostics, {
+    ...options,
+    prove: options.stillHold !== undefined,
+  });
+  for (let step = steps.next(); ;) {
+    if (step.done) return step.value;
+    step = steps.next(options.stillHold!(step.value.checks, step.value.otherEdits));
+  }
+}
+
+/** The plan as a sequence of proof requests; the caller answers each round. */
+export function* planBulkFixSteps(
+  text: string,
+  diagnostics: readonly ReviewDiagnostic[],
+  options: Omit<BulkPlanOptions, "stillHold"> & { prove: boolean },
+): Generator<ProofRequest, BulkPlan, boolean[]> {
   const deferred: BulkPlan["deferred"] = [];
   const candidates: Array<{ diagnostic: ReviewDiagnostic; edits: ReviewEdit[] }> = [];
   for (const diagnostic of diagnostics) {
@@ -157,7 +182,7 @@ export function planBulkFix(
       );
       continue;
     }
-    if (options.stillHold && members.length <= MAX_PROOF_GROUP) {
+    if (options.prove && members.length <= MAX_PROOF_GROUP) {
       linked.push(members);
     } else {
       members.forEach((index) =>
@@ -165,7 +190,7 @@ export function planBulkFix(
       );
     }
   }
-  const proven = options.stillHold ? proveGroups(candidates, linked, options.stillHold) : [];
+  const proven = options.prove ? yield* proveGroups(candidates, linked) : [];
   linked.forEach((members, group) => {
     if (proven[group]) {
       accepted.push(...members);
@@ -211,11 +236,10 @@ export function planBulkFix(
  * text. A round where one group would pre-apply another group's checked fix
  * (an identical edit) falls back to checking those groups one by one.
  */
-function proveGroups(
+function* proveGroups(
   candidates: ReadonlyArray<{ diagnostic: ReviewDiagnostic; edits: ReviewEdit[] }>,
   groups: readonly number[][],
-  stillHold: NonNullable<BulkPlanOptions["stillHold"]>,
-): boolean[] {
+): Generator<ProofRequest, boolean[], boolean[]> {
   const proven = groups.map(() => true);
   const rounds = Math.max(0, ...groups.map((members) => members.length));
   for (let round = 0; round < rounds; round += 1) {
@@ -231,18 +255,24 @@ function proveGroups(
     });
     if (checks.length === 0) break;
     const others = dedupe(checks.flatMap((check) => check.others));
-    const clash = checks.some((check) =>
-      check.own.some((mine) => others.some((edit) => sameEdit(mine, edit))),
-    );
-    const results = clash
-      ? checks.map(
-          (check) =>
-            stillHold([candidates[groups[check.group][round]].diagnostic], dedupe(check.others))[0],
-        )
-      : stillHold(
-          checks.map((check) => candidates[groups[check.group][round]].diagnostic),
-          others,
-        );
+    const otherKeys = new Set(others.map(editKey));
+    const clash = checks.some((check) => check.own.some((mine) => otherKeys.has(editKey(mine))));
+    let results: boolean[];
+    if (clash) {
+      results = [];
+      for (const check of checks) {
+        const [result] = yield {
+          checks: [candidates[groups[check.group][round]].diagnostic],
+          otherEdits: dedupe(check.others),
+        };
+        results.push(result);
+      }
+    } else {
+      results = yield {
+        checks: checks.map((check) => candidates[groups[check.group][round]].diagnostic),
+        otherEdits: others,
+      };
+    }
     checks.forEach((check, index) => {
       if (results[index] !== true) proven[check.group] = false;
     });
@@ -250,10 +280,14 @@ function proveGroups(
   return proven;
 }
 
+function editKey(edit: ReviewEdit): string {
+  return `${edit.start}:${edit.end}:${edit.replacement}`;
+}
+
 function dedupe(edits: ReviewEdit[]): ReviewEdit[] {
   const unique = new Map<string, ReviewEdit>();
   for (const edit of edits) {
-    const key = `${edit.start}:${edit.end}:${edit.replacement}`;
+    const key = editKey(edit);
     if (!unique.has(key)) unique.set(key, edit);
   }
   return [...unique.values()];

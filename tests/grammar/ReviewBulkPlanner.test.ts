@@ -239,6 +239,17 @@ describe("bulk planning", () => {
   });
 });
 
+describe("adversarial review regressions: planning", () => {
+  test("a sentence start decided by an abbreviation is never batched with the spacing fix", () => {
+    for (const text of ["It costs approx . five dollars.", "pears etc . and more"]) {
+      const { plan } = reviewAndPlan(text);
+      expect(plan.expectedText).not.toMatch(/approx\. Five|etc\. And/);
+      // Whatever is applied, the result is what re-detection agrees with.
+      expect(applyEdits(text, plan.edits)).toBe(plan.expectedText);
+    }
+  });
+});
+
 describe("text ranges", () => {
   test("applyEdits rejects an insertion touching another edit, wherever it is", () => {
     expect(applyEdits("ab", [edit(2, 2, "", "x"), edit(2, 2, "", "y")])).toBeNull();
@@ -258,6 +269,13 @@ describe("text ranges", () => {
     expect(editTouches({ start: 3, end: 3 }, { start: 3, end: 6 })).toBe(true);
     expect(editTouches({ start: 6, end: 6 }, { start: 3, end: 6 })).toBe(true);
     expect(editTouches({ start: 1, end: 3 }, { start: 3, end: 6 })).toBe(false);
+  });
+
+  test("grapheme boundaries inside long runs of flags", () => {
+    const flags = "\u{1F1FA}\u{1F1F8}".repeat(12);
+    for (let index = 0; index <= flags.length; index += 1) {
+      expect(isGraphemeBoundary(flags, index)).toBe(index % 4 === 0);
+    }
   });
 
   test("grapheme boundaries: emoji, skin tones, combining marks, surrogates", () => {

@@ -169,6 +169,32 @@ describe("ReviewSession", () => {
     expect(h.originals()).toEqual(["teh"]);
   });
 
+  test("a plan with many proofs is finished in the background; Fix all waits for it", async () => {
+    const text = "yes i dont know. ".repeat(40);
+    const h = harness(text, {
+      rules: [
+        "capitalizeSentenceStart",
+        "englishPronounICapitalization",
+        "englishContractionNormalization",
+      ],
+    });
+    const started = h.session.start();
+    // Run the scan, stopping as soon as results are shown.
+    for (let i = 0; i < 200 && h.last().status !== "ready"; i += 1) {
+      await Promise.resolve();
+      h.timers.shift()?.callback();
+    }
+    expect(h.last().status).toBe("ready");
+    expect(h.last().bulk.pending).toBe(true);
+    // Fix all now waits for the proofs, then applies the whole proven plan.
+    const fixing = h.session.fixAll();
+    await h.settle();
+    await started;
+    expect(await fixing).toEqual({ status: "applied" });
+    expect(h.editor.text).toBe("Yes I don't know. ".repeat(40));
+    expect(h.last().bulk.pending).toBe(false);
+  });
+
   test("an edit made after the scan is detected before writing: no stale write", async () => {
     const h = harness("teh cat");
     await Promise.all([h.session.start(), h.settle()]);
