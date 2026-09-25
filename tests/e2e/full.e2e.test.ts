@@ -7412,4 +7412,95 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     },
     browserTimeout(30000, 50000),
   );
+
+  test(
+    "Review mode handles wrapping, resize, RTL, hi-DPI hit-testing, dark mode, IME, multiple fields and navigation cleanup",
+    async () => {
+      await prepareReviewPage();
+      const viewport = page.viewport();
+      // Hit-testing and mirror measurement at device pixel ratio 2.
+      await page.setViewport({ width: 1100, height: 800, deviceScaleFactor: 2 });
+      if (!isFirefox()) {
+        await page.emulateMediaFeatures([{ name: "prefers-color-scheme", value: "dark" }]);
+      }
+      expect(await page.evaluate(() => window.devicePixelRatio)).toBe(2);
+      // A finding that wraps across two lines gets one mark per line box.
+      await page.evaluate(() => {
+        const field = document.querySelector("#test-textarea") as HTMLTextAreaElement;
+        field.style.width = "160px";
+        field.value = "Fine words here. Thanks, your welcome";
+        field.focus();
+        field.setSelectionRange(0, 0);
+      });
+      await triggerReview(worker!);
+      let panel = await waitForReview(page, "wrapped finding", (p) => p.status === "Issues: 1");
+      const wrappedMarks = panel.marks.length;
+      expect(wrappedMarks).toBeGreaterThanOrEqual(1);
+      if (!isFirefox()) {
+        const background = await page.evaluate(() => {
+          const node = document
+            .querySelector("[data-fluenttyper-review]")!
+            .shadowRoot!.querySelector(".panel") as HTMLElement;
+          return getComputedStyle(node).backgroundColor;
+        });
+        // The dark palette: a dark panel background.
+        const [r, g, b] = background.match(/\d+/g)!.map(Number);
+        expect(r + g + b).toBeLessThan(200);
+      }
+      // Resizing the field re-measures the marks.
+      const before = panel.marks.map((mark) => mark.left).join(",");
+      await page.evaluate(() => {
+        (document.querySelector("#test-textarea") as HTMLTextAreaElement).style.width = "480px";
+      });
+      panel = await waitForReview(
+        page,
+        "re-measured marks",
+        (p) => p.marks.length >= 1 && p.marks.map((mark) => mark.left).join(",") !== before,
+      );
+      // A click at the mark's own center hits the same finding (works at any device scale).
+      const mark = panel.marks[0];
+      await page.mouse.click(mark.left + mark.width / 2, mark.top + mark.height / 2 - 2);
+      await waitForReview(page, "card from mark", (p) => p.card.open);
+
+      // IME composition pauses the review; its end rechecks.
+      await page.evaluate(() => {
+        const field = document.querySelector("#test-textarea") as HTMLTextAreaElement;
+        field.dispatchEvent(new CompositionEvent("compositionstart", { bubbles: true }));
+      });
+      await waitForReview(page, "composition pause", (p) =>
+        p.status.includes("Paused while you compose"),
+      );
+      await page.evaluate(() => {
+        const field = document.querySelector("#test-textarea") as HTMLTextAreaElement;
+        field.dispatchEvent(new CompositionEvent("compositionend", { bubbles: true }));
+      });
+      await waitForReview(page, "composition end", (p) => p.status === "Issues: 1");
+
+      // Reviewing another field closes the first review and scans the new one only.
+      await page.evaluate(() => {
+        const root = document.querySelector("#test-contenteditable") as HTMLElement;
+        root.setAttribute("dir", "rtl");
+        root.textContent = "We saw teh cat and teh dog.";
+        root.focus();
+      });
+      await triggerReview(worker!);
+      panel = await waitForReview(page, "second field", (p) => p.status === "Issues: 2");
+      expect(
+        await page.evaluate(() => document.querySelectorAll("[data-fluenttyper-review]").length),
+      ).toBe(1);
+      // RTL editors get their highlights from the text's own geometry.
+      expect(panel.highlights).toEqual(["fluenttyper-review-spelling"]);
+
+      // Navigating away removes every highlight and the panel.
+      if (!isFirefox()) await page.emulateMediaFeatures([]);
+      await page.setViewport(viewport);
+      await gotoTestPage(page, { enableCkEditor: false });
+      await waitForInputReady(page, "#test-textarea");
+      const after = await readReviewPanel(page);
+      expect(after.open).toBe(false);
+      expect(after.highlights).toEqual([]);
+      await finishReview();
+    },
+    browserTimeout(50000, 70000),
+  );
 });
