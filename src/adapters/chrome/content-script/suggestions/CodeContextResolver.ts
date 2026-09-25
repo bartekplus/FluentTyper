@@ -30,7 +30,7 @@ function ancestorContext(node: Node): CodeContext | null {
 }
 
 function readSelectionRange(element: HTMLElement): SelectionRange | null {
-  const docSelection = element.ownerDocument.getSelection() as ComposedSelection | null;
+  const docSelection: ComposedSelection | null = element.ownerDocument.getSelection();
   if (!docSelection) return null;
 
   const roots: ShadowRoot[] = [];
