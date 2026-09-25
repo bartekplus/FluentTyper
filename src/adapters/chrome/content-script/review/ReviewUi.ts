@@ -520,6 +520,14 @@ export class ReviewUi {
       return li;
     });
     this.list.replaceChildren(...items);
+    // Keep the current finding visible in the list, scrolling only the list.
+    const current = state.selectedId ? this.itemFor(state.selectedId) : null;
+    if (current) {
+      const box = this.list.getBoundingClientRect();
+      const rect = current.getBoundingClientRect();
+      if (rect.top < box.top) this.list.scrollTop -= box.top - rect.top;
+      else if (rect.bottom > box.bottom) this.list.scrollTop += rect.bottom - box.bottom;
+    }
   }
 
   private itemFor(id: string): HTMLElement | null {

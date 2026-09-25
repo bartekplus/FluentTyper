@@ -212,6 +212,9 @@ export class ReviewSession {
   notifySourceChanged(): void {
     if (this.status === "closed" || this.status === "applying") return;
     this.generation += 1;
+    // "Fixed: 3" describes our last write; after the user's own edit (say, an
+    // undo) it no longer describes the text.
+    this.notice = null;
     if (this.status !== "stale-scope") {
       this.status = "updating";
       this.selectedId = null;

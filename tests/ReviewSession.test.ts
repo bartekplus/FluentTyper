@@ -140,6 +140,20 @@ describe("ReviewSession", () => {
     expect(h.last().notice).toEqual({ kind: "applied", count: 1, deferred: 0 });
   });
 
+  test("a user's own edit after a fix (an undo) drops the fix notice", async () => {
+    const h = harness("teh cat");
+    await Promise.all([h.session.start(), h.settle()]);
+    const applying = h.session.apply(h.last().diagnostics[0].id);
+    await h.settle();
+    await applying;
+    expect(h.last().notice).toEqual({ kind: "applied", count: 1, deferred: 0 });
+    h.editor.text = "teh cat";
+    h.session.notifySourceChanged();
+    await h.settle();
+    expect(h.last().notice).toBeNull();
+    expect(h.originals()).toEqual(["teh"]);
+  });
+
   test("an edit made after the scan is detected before writing: no stale write", async () => {
     const h = harness("teh cat");
     await Promise.all([h.session.start(), h.settle()]);
