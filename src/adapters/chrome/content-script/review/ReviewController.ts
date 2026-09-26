@@ -54,6 +54,31 @@ function highlightApi(): { registry: HighlightRegistry; Highlight: HighlightCons
     : null;
 }
 
+// A Docs change with no keystroke is checked once re-rendering settles.
+const DOCS_SOURCE_CHECK_MS = 700;
+// How often such a check looks again for the editor's focus.
+const DOCS_FOCUS_WAIT_MS = 500;
+// Docs' menus (menu bar, context menu), dialogs (find, link) and bubbles.
+const DOCS_POPUPS = '[role="menu"], [role="dialog"], [role="listbox"], .docs-bubble';
+
+/** The boxes of Docs' menus, dialogs and bubbles showing now. */
+function docsPopupBoxes(doc: Document): DOMRect[] {
+  const view = doc.defaultView;
+  const boxes: DOMRect[] = [];
+  for (const popup of doc.querySelectorAll<HTMLElement>(DOCS_POPUPS)) {
+    if (typeof popup.checkVisibility === "function" && !popup.checkVisibility()) continue;
+    const box = popup.getBoundingClientRect();
+    if (box.width <= 0 || box.height <= 0) continue;
+    if (view && (box.bottom <= 0 || box.right <= 0 || box.top >= view.innerHeight)) continue;
+    boxes.push(box);
+  }
+  return boxes;
+}
+
+function intersects(a: DOMRect, b: DOMRect): boolean {
+  return a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+}
+
 interface ActiveReview {
   target: ReviewTargetHandle;
   session: ReviewSession;
@@ -78,6 +103,8 @@ export class ReviewController {
   private noticeReturnFocus: HTMLElement | null = null;
   private startToken = 0;
   private docsStarting = false;
+  // Where the last press on the reviewed editor started.
+  private pressAt: { x: number; y: number } | null = null;
 
   constructor(private readonly deps: ReviewControllerDependencies) {}
 
@@ -106,6 +133,8 @@ export class ReviewController {
     // A Docs review is already starting (its first read is asynchronous).
     if (docs && this.docsStarting) return;
     const resolution = docs ? null : resolveReviewTarget(document);
+    // A review whose selection could not follow an edit asked for a new one.
+    if (this.active?.state?.status === "stale-scope") this.close();
     if (this.active) {
       const same = resolution?.ok && resolution.target.element === this.active.target.element;
       if (same || (docs && this.active.target instanceof GoogleDocsReviewTarget)) {
@@ -164,7 +193,7 @@ export class ReviewController {
   ): void {
     const doc = target.element.ownerDocument;
     const capabilityKeys: ReviewTextKey[] = [];
-    // Docs without its text runs (a Docs version or setting that hides them): list only.
+    // Docs without its text runs (not rendered yet, or hidden): list only, until they appear.
     if (target instanceof GoogleDocsReviewTarget) {
       if (!target.canHighlight()) capabilityKeys.push("review_cap_docs");
     } else if (!target.capabilities.inline) capabilityKeys.push("review_cap_no_inline");
@@ -291,18 +320,62 @@ export class ReviewController {
       // Docs has no DOM text to observe; input in its editor frame drives a recheck.
       active.cleanup.push(target.onSourceChange(() => session.notifySourceChanged()));
       // Its text runs are re-rendered as pages scroll into view and after edits:
-      // the highlights are measured again.
-      const observer = new MutationObserver(() => this.scheduleLayout());
-      observer.observe(element, {
-        subtree: true,
-        childList: true,
-        attributes: true,
-        attributeFilter: ["aria-label", "x", "y", "width", "height", "transform"],
-      });
-      active.cleanup.push(() => observer.disconnect());
+      // the highlights are measured again. A change that came without a
+      // keystroke (a collaborator, a menu command, Docs' own spelling fix)
+      // re-renders them too; a quiet read tells whether the text moved on.
+      // Docs is read only while its editor has focus: a check that finds focus
+      // elsewhere (the panel, a Docs dialog) looks again shortly. (A frame
+      // taking focus fires no event in this document.)
+      let check: ReturnType<typeof setTimeout> | null = null;
+      const scheduleCheck = (ms: number) => {
+        if (check !== null) clearTimeout(check);
+        check = setTimeout(() => {
+          check = null;
+          if (target.editorFocused()) void this.checkDocsSource(active);
+          else scheduleCheck(DOCS_FOCUS_WAIT_MS);
+        }, ms);
+      };
+      active.cleanup.push(
+        target.onLayoutChange(() => {
+          this.scheduleLayout();
+          scheduleCheck(DOCS_SOURCE_CHECK_MS);
+        }),
+        () => {
+          if (check !== null) clearTimeout(check);
+        },
+      );
       // A click on a highlighted word opens its card; Docs still gets the click.
       on<MouseEvent>(element, "click", (event) => this.onEditorClick(event));
+      // Keys go to Docs' own frame: Escape there closes a card opened from a highlight.
+      active.cleanup.push(
+        target.onKey((key) => {
+          if (key !== "Escape" || !active.ui.isCardOpen()) return false;
+          active.ui.closeCard();
+          return true;
+        }),
+      );
+      // Docs' menus and dialogs close on a click or a key: marks come back then.
+      on(doc, "pointerup", () => this.scheduleLayout(), true);
+      on(doc, "keyup", () => this.scheduleLayout(), true);
     }
+    // Where the press started: a drag that ends on a highlight is a selection.
+    on<PointerEvent>(
+      element,
+      "pointerdown",
+      (event) => {
+        this.pressAt = { x: event.clientX, y: event.clientY };
+      },
+      true,
+    );
+    // The page's context menu is about the page: the card steps aside.
+    on<MouseEvent>(
+      doc,
+      "contextmenu",
+      (event) => {
+        if (!active.ui.owns(event)) active.ui.closeCard();
+      },
+      true,
+    );
     on(view, "scroll", () => this.scheduleLayout(), { capture: true, passive: true });
     on(view, "resize", () => {
       // A rotated or resized window may put the panel over the editor.
@@ -457,6 +530,14 @@ export class ReviewController {
     const state = active.state;
     const diagnostics = state?.status === "ready" ? state.diagnostics : [];
     if (!active.target.capabilities.inline) return;
+    let blockers: DOMRect[] = [];
+    if (active.target instanceof GoogleDocsReviewTarget) {
+      // Docs shows runs only for an allowed extension and only for rendered
+      // pages: the "listed only" note follows what it shows now.
+      active.ui.setCapabilityKeys(active.target.canHighlight() ? [] : ["review_cap_docs"]);
+      // Docs' menus, dialogs and bubbles sit over the page: never mark over them.
+      blockers = docsPopupBoxes(active.target.element.ownerDocument);
+    }
     if (active.cssHighlights) {
       this.paintCss(active, diagnostics, state?.selectedId ?? null);
       return;
@@ -465,7 +546,9 @@ export class ReviewController {
       id: diagnostic.id,
       category: diagnostic.category,
       selected: diagnostic.id === state?.selectedId,
-      rects: active.target.rangeRects(diagnostic.range),
+      rects: active.target
+        .rangeRects(diagnostic.range)
+        .filter((rect) => !blockers.some((box) => intersects(rect, box))),
     }));
     const box = active.target.element.getBoundingClientRect();
     active.ui.paintMarks(marks, diagnostics.length ? box : null);
@@ -561,9 +644,27 @@ export class ReviewController {
     } else if (element.ownerDocument.getSelection()?.isCollapsed === false) {
       return;
     }
+    // A double click, a shift-click or a drag selects text (in Docs, only its
+    // own model knows): that is not a click on a finding.
+    const start = this.pressAt;
+    this.pressAt = null;
+    const moved = start && Math.hypot(event.clientX - start.x, event.clientY - start.y) > 4;
+    if (event.detail > 1 || event.shiftKey || moved) {
+      // The card its first click opened would sit over the selection.
+      if (event.detail > 1) active.ui.closeCard();
+      return;
+    }
     const id = this.hitTest(event.clientX, event.clientY);
     if (id) this.select(id, { openCard: true, focusList: false });
     else if (active.ui.isCardOpen()) active.ui.closeCard();
+  }
+
+  /** Rechecks a Docs review whose text changed with no keystroke in its editor. */
+  private async checkDocsSource(active: ActiveReview): Promise<void> {
+    if (this.active !== active || active.state?.status !== "ready") return;
+    const read = await active.target.read();
+    if (this.active !== active || active.state?.status !== "ready") return;
+    if (read.ok && read.text !== active.session.sourceText) active.session.notifySourceChanged();
   }
 
   private onEditorKeyDown(event: KeyboardEvent): void {
@@ -583,6 +684,11 @@ export class ReviewController {
   private onDocumentPointerDown(event: PointerEvent): void {
     const active = this.active;
     if (!active || !active.ui.isCardOpen() || active.ui.owns(event)) return;
+    // A right or middle press opens the page's own menus: the card steps aside.
+    if (event.button !== 0) {
+      active.ui.closeCard();
+      return;
+    }
     // A press on the editor is handled by its click (which may open another card).
     if (event.composedPath().includes(active.target.element)) return;
     active.ui.closeCard();

@@ -245,6 +245,7 @@ function selectRange(selection: Selection, range: Range): void {
 /**
  * Writes one verified-in-place edit with the browser's own editing commands, so
  * native undo reverts it. `range` holds exactly `edit.original` in `text`.
+ * Returns false, having written nothing, when the browser cannot write it in place.
  */
 function writeNative(
   doc: Document,
@@ -252,7 +253,7 @@ function writeNative(
   range: Range,
   edit: ReviewEdit,
   text: string,
-): void {
+): boolean {
   const node = range.startContainer;
   const inOneNode =
     node.nodeType === 3 &&
@@ -279,7 +280,7 @@ function writeNative(
         false,
         edit.replacement.slice(prefix, edit.replacement.length - suffix),
       );
-      return;
+      return true;
     }
     // Gecko, replacing a text node's whole text, empties the node first and then
     // drops the space next to it ("Well, <em>i</em> agree" -> "Well, <em>I</em>agree").
@@ -288,6 +289,9 @@ function writeNative(
     if (coversWholeTextNode(range) && isGecko(doc)) {
       let tail = 1;
       while (tail < edit.original.length && !isGraphemeBoundary(text, edit.end - tail)) tail += 1;
+      // Nothing is kept before the tail: text typed at a link's very start lands
+      // outside the link, and the link would read "Ii".
+      if (tail === edit.original.length && node.parentElement?.closest("a")) return false;
       const tailText = edit.original.slice(edit.original.length - tail);
       const head = range.cloneRange();
       head.setEnd(node, range.endOffset - tail);
@@ -296,18 +300,19 @@ function writeNative(
       const tailStart = range.startOffset + edit.replacement.length;
       const data = (node as Text).data;
       // Written somewhere else: the read-back reports it; nothing more is written.
-      if (!node.isConnected || data.slice(tailStart, tailStart + tail) !== tailText) return;
+      if (!node.isConnected || data.slice(tailStart, tailStart + tail) !== tailText) return true;
       const rest = doc.createRange();
       rest.setStart(node, tailStart);
       rest.setEnd(node, tailStart + tail);
       selectRange(selection, rest);
       doc.execCommand("delete", false);
-      return;
+      return true;
     }
   }
   selectRange(selection, range);
   if (edit.replacement.length > 0) doc.execCommand("insertText", false, edit.replacement);
   else doc.execCommand("delete", false);
+  return true;
 }
 
 const TEXT_CAPABILITIES: ReviewCapabilities = {
@@ -575,7 +580,9 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
         range.startContainer.nodeType === 3 && range.endContainer === range.startContainer
           ? inlineTags(range.startContainer, scopeElement)
           : null;
-      writeNative(doc, selection, range, edit, current);
+      if (!writeNative(doc, selection, range, edit, current)) {
+        return failAt({ status: "rejected", reason: "host-refused" });
+      }
       const expected = current.slice(0, edit.start) + edit.replacement + current.slice(edit.end);
       // The DOM is read back; a successful dispatch proves nothing.
       let observed: string;

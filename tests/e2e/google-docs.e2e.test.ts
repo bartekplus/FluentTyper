@@ -943,12 +943,34 @@ describe("Google Docs cross-world fixture (not live Docs)", () => {
     const target = expected[2];
     await page.mouse.click(target.left + target.width / 2, target.top + 10);
     await waitUntil("docs card from a click", async () => (await reviewPanel()).cardOpen);
+    // Keys go to Docs' own frame: Escape there closes the card and never reaches Docs.
+    await page.evaluate(() => (window as unknown as { focusEditor: () => void }).focusEditor());
+    await page.keyboard.press("Escape");
+    await waitUntil("card closed by Escape", async () => !(await reviewPanel()).cardOpen);
+    await page.mouse.click(target.left + target.width / 2, target.top + 10);
+    await waitUntil("docs card again", async () => (await reviewPanel()).cardOpen);
     await clickInReview(".card [data-action=apply]");
     await expectText("We saw teh cat and teh dog.\nThe end is near the river.");
     // The page redraws its runs; the two findings left are measured again.
     await waitUntil("remeasured highlights", async () => (await marks()).length === 2);
     const left = (await marks()).sort((a, b) => a.left - b.left);
     expect(Math.abs(left[0].left - expected[0].left)).toBeLessThan(2);
+    // A change with no keystroke (a collaborator, a menu command) is picked up
+    // once Docs re-renders the page; with focus in the panel Docs cannot be
+    // read, so it is picked up when focus returns to the document.
+    await page.evaluate(() =>
+      (window as unknown as { setModel: (text: string) => void }).setModel(
+        "We saw teh cat and teh dog.\nThe end is near the river teh end.",
+      ),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    expect((await reviewPanel()).status).toBe("Fixed: 1. Issues: 2");
+    await page.evaluate(() => (window as unknown as { focusEditor: () => void }).focusEditor());
+    await waitUntil(
+      "docs recheck without a keystroke",
+      async () => (await reviewPanel()).status === "Issues: 3",
+    );
+    await waitUntil("new highlight", async () => (await marks()).length === 3);
     await evaluate("review.dispose()");
   });
   test("without Docs' text runs the review lists findings only, and says so", async () => {

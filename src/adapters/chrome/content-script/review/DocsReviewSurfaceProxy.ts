@@ -11,6 +11,7 @@ export class DocsReviewSurfaceProxy implements GoogleDocsReviewSurface {
   private adapter: GoogleDocsReviewSurface | null = null;
   private active = false;
   private readonly listeners = new Set<() => void>();
+  private readonly keyListeners = new Set<(key: string) => boolean>();
 
   /** The current adapter (null when Docs support stops); a new one inherits the review. */
   attach(adapter: GoogleDocsReviewSurface | null): void {
@@ -19,6 +20,11 @@ export class DocsReviewSurfaceProxy implements GoogleDocsReviewSurface {
     adapter.onReviewSourceChange(() => {
       if (this.adapter !== adapter) return;
       for (const listener of this.listeners) listener();
+    });
+    adapter.onReviewKey?.((key) => {
+      if (this.adapter !== adapter) return false;
+      for (const listener of this.keyListeners) if (listener(key)) return true;
+      return false;
     });
     if (this.active) adapter.setReviewActive(true);
   }
@@ -44,6 +50,13 @@ export class DocsReviewSurfaceProxy implements GoogleDocsReviewSurface {
     this.listeners.add(listener);
     return () => {
       this.listeners.delete(listener);
+    };
+  }
+
+  onReviewKey(listener: (key: string) => boolean): () => void {
+    this.keyListeners.add(listener);
+    return () => {
+      this.keyListeners.delete(listener);
     };
   }
 }

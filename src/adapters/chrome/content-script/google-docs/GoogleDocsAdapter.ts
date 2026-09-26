@@ -194,6 +194,7 @@ export class GoogleDocsAdapter {
   private visible = false;
   private reviewActive = false;
   private readonly reviewSourceListeners = new Set<() => void>();
+  private readonly reviewKeyListeners = new Set<(key: string) => boolean>();
   private failureStatus: string | null = null;
   private pollTimer: ReturnType<typeof setInterval> | null = null;
   private refreshTimer: ReturnType<typeof setTimeout> | null = null;
@@ -362,6 +363,14 @@ export class GoogleDocsAdapter {
     this.reviewSourceListeners.add(listener);
     return () => {
       this.reviewSourceListeners.delete(listener);
+    };
+  }
+
+  /** While a review is active, `listener` sees each key in Docs' input frame first; true consumes it. */
+  onReviewKey(listener: (key: string) => boolean): () => void {
+    this.reviewKeyListeners.add(listener);
+    return () => {
+      this.reviewKeyListeners.delete(listener);
     };
   }
 
@@ -769,6 +778,16 @@ export class GoogleDocsAdapter {
     return false;
   }
   private onKey(event: KeyboardEvent): void {
+    // An open review may take a key first (Escape closes its card).
+    if (this.reviewActive && !this.disposed && !event.isComposing) {
+      for (const listener of this.reviewKeyListeners) {
+        if (listener(event.key)) {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+          return;
+        }
+      }
+    }
     // Text, line breaks, deletion and shortcuts (paste, cut, undo) can edit;
     // navigation cannot, and would only blank an open review's list.
     if ([...event.key].length === 1 || EDITING_KEYS.has(event.key)) this.reviewSourceChanged();

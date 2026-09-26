@@ -148,13 +148,15 @@ export class ReviewUi {
   // List items by finding id, for the findings last listed.
   private readonly items = new Map<string, HTMLElement>();
   private listedDiagnostics: readonly ReviewDiagnostic[] | null = null;
+  // The state the notes were last rendered for.
+  private notesState: ReviewViewState | null = null;
 
   constructor(
     doc: Document,
     private readonly lang: string,
     private readonly callbacks: ReviewUiCallbacks,
     /** Honest capability notes (no highlights, review only, undo behavior). */
-    private readonly capabilityKeys: readonly ReviewTextKey[],
+    private capabilityKeys: readonly ReviewTextKey[],
     /** Where the host goes: inside a modal dialog, anything outside it is inert. */
     mount: Element | null = null,
   ) {
@@ -334,6 +336,7 @@ export class ReviewUi {
     this.status.textContent = this.statusText(state);
     // Whether suggestions for unknown words may still join the results.
     this.panel.dataset.spelling = state.status === "ready" ? state.spelling : "idle";
+    this.notesState = state;
     this.renderNotes(state);
     this.renderFilters(state);
     this.renderList(state);
@@ -442,6 +445,18 @@ export class ReviewUi {
       case "dictionary-failed":
         return this.t("review_notice_dictionary_failed");
     }
+  }
+
+  /** Replaces the capability notes (what the editor allows can change while reviewing). */
+  setCapabilityKeys(keys: readonly ReviewTextKey[]): void {
+    if (
+      keys.length === this.capabilityKeys.length &&
+      keys.every((k, i) => k === this.capabilityKeys[i])
+    ) {
+      return;
+    }
+    this.capabilityKeys = keys;
+    if (this.notesState) this.renderNotes(this.notesState);
   }
 
   private renderNotes(state: ReviewViewState): void {
@@ -745,7 +760,6 @@ export class ReviewUi {
     this.replaceCard(parts);
   }
 
-  /** Swaps the card's content, keeping keyboard focus on the same control. */
   /** A card's buttons: `lead` (Apply), then Ignore and, for a single word, Add to dictionary. */
   private cardActions(diagnostic: ReviewDiagnostic, ...lead: HTMLElement[]): HTMLElement {
     const doc = this.doc;
@@ -775,6 +789,7 @@ export class ReviewUi {
     return actions;
   }
 
+  /** Swaps the card's content, keeping keyboard focus on the same control. */
   private replaceCard(parts: HTMLElement[]): void {
     const focused = this.root.activeElement as HTMLElement | null;
     const inCard = !!focused && this.card.contains(focused);
@@ -857,9 +872,11 @@ export class ReviewUi {
           "data-selected": String(mark.selected),
           "data-review-id": mark.id,
         });
+        // Relative to the clip, so marks outside the editor's box are cut off
+        // (Docs draws whole pages above and below its scrolled view).
         Object.assign(node.style, {
-          left: `${rect.left}px`,
-          top: `${rect.top}px`,
+          left: `${rect.left - clip.left}px`,
+          top: `${rect.top - clip.top}px`,
           width: `${rect.width}px`,
           height: `${rect.height}px`,
         });

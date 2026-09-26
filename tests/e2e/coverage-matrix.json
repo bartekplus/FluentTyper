@@ -2662,7 +2662,7 @@
     },
     {
       "id": "review_session_lifecycle",
-      "description": "Review sessions invalidate on edits, debounce rechecks, keep per-occurrence ignores, remap or invalidate the scope, and never write stale or unverified fixes.",
+      "description": "Review sessions invalidate on edits, debounce rechecks, keep per-occurrence ignores, remap or invalidate the scope (a lost selection is reviewed anew when invoked again), and never write stale or unverified fixes.",
       "coverage": [
         {
           "layer": "unit",
@@ -2688,6 +2688,11 @@
           "layer": "unit",
           "file": "tests/content_script.behavior.test.ts",
           "test": "turning FluentTyper off dismisses a review notice; a settings restart keeps it"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "invoking again after the selection was lost starts a new review"
         }
       ]
     },
@@ -2744,7 +2749,7 @@
     },
     {
       "id": "review_contenteditable_card_flow",
-      "description": "Contenteditable review uses namespaced CSS highlights; clicking a highlight opens its card; apply, ignore, add to dictionary and Fix all keep bold, links, lists and code; native undo works.",
+      "description": "Contenteditable review uses namespaced CSS highlights; clicking a highlight opens its card; apply, ignore, add to dictionary and Fix all keep bold, links, lists and code; native undo works; a one-character link Gecko would split is refused untouched.",
       "coverage": [
         {
           "layer": "e2e-full",
@@ -2864,7 +2869,7 @@
     },
     {
       "id": "review_google_docs_fixture",
-      "description": "Mock editor/browser fixture, not a live Google Docs claim: review lists Docs findings from the logical model, highlights them over the text runs Docs renders (placed by their visible text, list markers and DOM order aside; listed only, with a note, when Docs renders none), applies one verified transaction, pauses typing corrections, refuses stale fixes, rechecks when the document is typed into, reads a document of up to 50,000 characters whole (caret anywhere, or all of it selected), and reports a longer document's window as partial.",
+      "description": "Mock editor/browser fixture, not a live Google Docs claim: review lists Docs findings from the logical model, highlights them over the text runs Docs renders (placed by their visible text, list markers and DOM order aside; listed only, with a note, when Docs renders none; never over Docs' menus or outside the editor; a click opens a finding's card, a drag, shift-click or double click does not, and Escape in Docs closes it), rechecks after a change made without a keystroke once Docs' editor has focus, applies one verified transaction, pauses typing corrections, refuses stale fixes, rechecks when the document is typed into, reads a document of up to 50,000 characters whole (caret anywhere, or all of it selected), and reports a longer document's window as partial.",
       "coverage": [
         {
           "layer": "integration",
@@ -2969,22 +2974,57 @@
         {
           "layer": "unit",
           "file": "tests/GoogleDocsGeometry.test.ts",
-          "test": "repeated text is placed by the runs around it, or left out"
+          "test": "repeated text is placed by the runs drawn next to it, or left out"
         },
         {
           "layer": "unit",
           "file": "tests/GoogleDocsGeometry.test.ts",
-          "test": "text the review does not have (a header) is left out"
+          "test": "a footer or header whose text is also in the body is never placed there"
         },
         {
           "layer": "unit",
           "file": "tests/GoogleDocsGeometry.test.ts",
-          "test": "the page's runs are read in reading order, list markers skipped"
+          "test": "a table cell repeating its neighbour's text is never swapped with it"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/GoogleDocsGeometry.test.ts",
+          "test": "list markers and other text the review lacks never break the chain"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/GoogleDocsGeometry.test.ts",
+          "test": "the page's runs are read in reading order, whatever their size"
         },
         {
           "layer": "unit",
           "file": "tests/GoogleDocsGeometry.test.ts",
           "test": "a range's rectangles are its share of each run it touches"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/GoogleDocsGeometry.test.ts",
+          "test": "a label's own spacing does not move or widen a highlight"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/GoogleDocsGeometry.test.ts",
+          "test": "right-to-left text is measured from the right; mixed directions get no rectangle"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/GoogleDocsGeometry.test.ts",
+          "test": "labels of structure markers only are never placed"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "Docs highlights follow its text runs, step aside for its menus and answer only clicks"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/DocsReviewSurfaceProxy.test.ts",
+          "test": "keys in Docs' frame reach the review through whichever adapter is current"
         }
       ]
     },

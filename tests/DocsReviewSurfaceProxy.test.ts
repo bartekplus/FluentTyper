@@ -3,6 +3,7 @@ import { DocsReviewSurfaceProxy } from "../src/adapters/chrome/content-script/re
 
 function fakeAdapter() {
   let notify: () => void = () => {};
+  let keyListener: (key: string) => boolean = () => false;
   return {
     reviewRead: jest.fn(() => Promise.resolve({ status: "inactive" as const })),
     reviewApply: jest.fn(() => Promise.resolve({ status: "applied" as const })),
@@ -12,7 +13,12 @@ function fakeAdapter() {
       notify = listener;
       return () => {};
     }),
+    onReviewKey: jest.fn((listener: (key: string) => boolean) => {
+      keyListener = listener;
+      return () => {};
+    }),
     type: () => notify(),
+    press: (key: string) => keyListener(key),
   };
 }
 
@@ -46,5 +52,26 @@ describe("Docs review surface across a settings restart", () => {
     const third = fakeAdapter();
     proxy.attach(third);
     expect(third.setReviewActive).not.toHaveBeenCalled();
+  });
+
+  test("keys in Docs' frame reach the review through whichever adapter is current", () => {
+    const proxy = new DocsReviewSurfaceProxy();
+    const first = fakeAdapter();
+    proxy.attach(first);
+    const keys: string[] = [];
+    const stop = proxy.onReviewKey((key) => {
+      keys.push(key);
+      return key === "Escape";
+    });
+    expect(first.press("Escape")).toBe(true);
+    expect(first.press("a")).toBe(false);
+    const second = fakeAdapter();
+    proxy.attach(second);
+    // The replaced adapter no longer reaches the review; the new one does.
+    expect(first.press("Escape")).toBe(false);
+    expect(second.press("Escape")).toBe(true);
+    stop();
+    expect(second.press("Escape")).toBe(false);
+    expect(keys).toEqual(["Escape", "a", "Escape"]);
   });
 });

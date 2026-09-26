@@ -43,8 +43,9 @@ export const REVIEW_SHADOW_CSS = `
 [hidden] { display: none !important; }
 .layer { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
 .clip { position: fixed; overflow: hidden; pointer-events: none; }
+/* Inside the clip, which is their containing block: a fixed mark would escape its overflow. */
 .mark {
-  position: fixed;
+  position: absolute;
   pointer-events: none;
   border-bottom: 2px solid var(--ft-cat);
   background: color-mix(in srgb, var(--ft-cat) 12%, transparent);

@@ -28,6 +28,7 @@ import {
 import { REVIEW_HIGHLIGHT_NAMES } from "../src/adapters/chrome/content-script/review/reviewStyles";
 import { GRAMMAR_RULE_IDS } from "../src/core/domain/grammar/ruleCatalog";
 import type { ReviewEdit } from "../src/core/domain/grammar/review/types";
+import { installDomRect } from "./domRect";
 import * as fs from "fs";
 import path from "path";
 
@@ -658,6 +659,12 @@ describe("contenteditable writes", () => {
         const next = walker.nextNode() as Text | null;
         if (next?.data.startsWith(" ")) next.data = next.data.slice(1);
       }
+      // Text typed at a link's very start lands before the link.
+      const link = node.parentElement?.closest("a");
+      if (command === "insertText" && range.collapsed && range.startOffset === 0 && link) {
+        link.before(document.createTextNode(value ?? ""));
+        return true;
+      }
       return contentEditableInsert(command, ui, value);
     };
     const agent = Object.getOwnPropertyDescriptor(window.navigator, "userAgent");
@@ -680,6 +687,13 @@ describe("contenteditable writes", () => {
       outcome = await applyOne("<p>We saw <b>teh</b> cat</p>", edit(8, 10, "eh", "he"));
       expect(outcome.html).toBe("<p>We saw <b>the</b> cat</p>");
       expect(outcome.commands).toEqual(["insertText"]);
+
+      // A one-character link: nothing can stay before the tail, and text typed at
+      // a link's start lands outside it ("Ii"). Refused, with nothing written.
+      outcome = await applyOne('<p>Yes <a href="#x">i</a> think.</p>', edit(4, 5, "i", "I"));
+      expect(outcome.result).toEqual({ status: "rejected", reason: "host-refused" });
+      expect(outcome.html).toBe('<p>Yes <a href="#x">i</a> think.</p>');
+      expect(outcome.commands).toEqual([]);
     } finally {
       if (agent) Object.defineProperty(window.navigator, "userAgent", agent);
       else delete (window.navigator as { userAgent?: string }).userAgent;
@@ -985,6 +999,28 @@ describe("review controller lifecycle", () => {
     review.close();
   });
 
+  test("invoking again after the selection was lost starts a new review", async () => {
+    const field = textarea("Outside teh. Inside teh.");
+    field.setSelectionRange(13, 24);
+    const { review, suspend } = controller();
+    review.invoke();
+    const status = () => root()?.querySelector(".status")?.textContent;
+    await until(() => status() === "Issues: 1");
+    // Back in the field, typing at the selection's edge: it cannot be followed any more.
+    field.focus();
+    field.value = "Outside teh. Inside teh.!";
+    field.dispatchEvent(new Event("input"));
+    await until(() => status() !== "Issues: 1" && status() !== "Text changed. Updating…");
+    const stale = status();
+    // The shortcut again reviews the field anew instead of focusing a dead panel.
+    field.setSelectionRange(0, 0);
+    review.invoke();
+    expect(suspend).toHaveBeenCalledTimes(2);
+    await until(() => status() === "Issues: 2");
+    expect(stale).not.toBe(status());
+    review.close();
+  });
+
   test("an unsupported target explains itself instead of scanning", () => {
     const input = document.createElement("input");
     input.type = "password";
@@ -1214,6 +1250,156 @@ describe("adversarial review regressions", () => {
     review.close();
     expect(listeners.size).toBe(0);
   });
+
+  test("Docs highlights follow its text runs, step aside for its menus and answer only clicks", async () => {
+    const restoreDomRect = installDomRect();
+    // The click handler tells text controls apart; the shared jsdom globals lack them.
+    const globals = globalThis as Record<string, unknown>;
+    const lent = ["HTMLInputElement", "HTMLTextAreaElement"].map((name) => ({
+      name,
+      had: Object.prototype.hasOwnProperty.call(globals, name),
+      value: globals[name],
+    }));
+    for (const { name } of lent) {
+      globals[name] = (window as unknown as Record<string, unknown>)[name];
+    }
+    const boxOf = (node: Element, left: number, top: number, width: number, height: number) => {
+      node.getBoundingClientRect = () => new DOMRect(left, top, width, height);
+    };
+    let text = "We saw teh cat.";
+    const editor = document.createElement("div");
+    editor.className = "kix-appview-editor";
+    boxOf(editor, 0, 0, 800, 600);
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    const run = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    run.setAttribute("aria-label", text);
+    // 10px per character (no canvas font here): "teh" is drawn at 170-200.
+    boxOf(run, 100, 100, 150, 20);
+    svg.append(run);
+    editor.append(svg);
+    document.body.append(editor);
+    const keys = new Set<(key: string) => boolean>();
+    const surface = {
+      reviewRead: jest.fn(() =>
+        Promise.resolve({
+          status: "ready" as const,
+          snapshot: {
+            token: "t",
+            scope: "doc",
+            text,
+            windowStart: 0,
+            documentLength: text.length,
+            anchor: 0,
+            focus: 0,
+          },
+        }),
+      ),
+      reviewApply: jest.fn(),
+      setReviewActive: jest.fn(),
+      reviewFocusEditor: jest.fn(),
+      onReviewSourceChange: () => () => {},
+      onReviewKey: (listener: (key: string) => boolean) => {
+        keys.add(listener);
+        return () => keys.delete(listener);
+      },
+    };
+    const review = new ReviewController({
+      getOptions: options,
+      suspend: jest.fn(),
+      resume: jest.fn(),
+      addToDictionary: async () => true,
+      getDocsSurface: () => surface as never,
+      uiLanguage: "en",
+    });
+    const MouseEventCtor = (window as unknown as { MouseEvent: typeof MouseEvent }).MouseEvent;
+    const press = (type: string, x: number, y: number, init: MouseEventInit = {}) =>
+      editor.dispatchEvent(
+        new MouseEventCtor(type, { bubbles: true, clientX: x, clientY: y, detail: 1, ...init }),
+      );
+    const clickAt = (x: number, y: number, from = { x, y }, init: MouseEventInit = {}) => {
+      press("pointerdown", from.x, from.y);
+      press("click", x, y, init);
+    };
+    const panel = () => hosts()[0]?.shadowRoot ?? document.createDocumentFragment();
+    const marks = () => Array.from(panel().querySelectorAll<HTMLElement>(".mark"));
+    const cardOpen = () => panel().querySelector<HTMLElement>(".card")?.hidden === false;
+    const docsNote = "the page itself is not highlighted";
+    try {
+      review.invoke();
+      await until(() => panel().querySelector(".status")?.textContent === "Issues: 1");
+      await until(() => marks().length === 1);
+      expect([marks()[0].style.left, marks()[0].style.width]).toEqual(["170px", "30px"]);
+      expect(panel().querySelector(".notes")?.textContent ?? "").not.toContain(docsNote);
+
+      // A drag, a shift-click or a double click selects text: no card.
+      clickAt(175, 110, { x: 110, y: 110 });
+      clickAt(175, 110, undefined, { shiftKey: true });
+      clickAt(175, 110, undefined, { detail: 2 });
+      expect(cardOpen()).toBe(false);
+      // A click opens the card; Escape pressed in Docs' own frame closes it, and
+      // only while a card is open is the key taken from Docs.
+      clickAt(175, 110);
+      expect(cardOpen()).toBe(true);
+      const escape = (key: string) => [...keys].some((listener) => listener(key));
+      expect(escape("a")).toBe(false);
+      expect(escape("Escape")).toBe(true);
+      expect(cardOpen()).toBe(false);
+      expect(escape("Escape")).toBe(false);
+      // The second click of a double click closes what the first opened.
+      clickAt(175, 110);
+      clickAt(175, 110, undefined, { detail: 2 });
+      expect(cardOpen()).toBe(false);
+      // The page's context menu closes the card; one inside the panel does not.
+      clickAt(175, 110);
+      panel()
+        .querySelector(".card")!
+        .dispatchEvent(new MouseEventCtor("contextmenu", { bubbles: true, composed: true }));
+      expect(cardOpen()).toBe(true);
+      document.dispatchEvent(new MouseEventCtor("contextmenu", { bubbles: true }));
+      expect(cardOpen()).toBe(false);
+
+      // A Docs menu over the word hides its mark until the menu goes away.
+      const menu = document.createElement("div");
+      menu.setAttribute("role", "menu");
+      boxOf(menu, 160, 90, 100, 50);
+      document.body.append(menu);
+      document.dispatchEvent(new MouseEventCtor("pointerup", { bubbles: true }));
+      await until(() => marks().length === 0);
+      menu.remove();
+      document.dispatchEvent(new MouseEventCtor("pointerup", { bubbles: true }));
+      await until(() => marks().length === 1);
+
+      // A change with no keystroke (a collaborator, a menu command) re-renders
+      // the runs; a quiet read picks up the new text, once Docs' editor has
+      // focus (only then can it be read).
+      const focused = jest
+        .spyOn(GoogleDocsReviewTarget.prototype, "editorFocused")
+        .mockReturnValue(false);
+      text = "We saw teh cat and teh dog.";
+      run.setAttribute("aria-label", text);
+      boxOf(run, 100, 100, 270, 20);
+      await new Promise((resolve) => setTimeout(resolve, 1300));
+      expect(panel().querySelector(".status")?.textContent).toBe("Issues: 1");
+      focused.mockReturnValue(true);
+      await until(() => panel().querySelector(".status")?.textContent === "Issues: 2", 4000);
+      await until(() => marks().length === 2);
+
+      // Runs gone (pages not rendered): the list is all there is, and the note says so.
+      svg.remove();
+      document.dispatchEvent(new MouseEventCtor("pointerup", { bubbles: true }));
+      await until(() => (panel().querySelector(".notes")?.textContent ?? "").includes(docsNote));
+      expect(marks()).toHaveLength(0);
+      review.close();
+      expect(keys.size).toBe(0);
+    } finally {
+      review.close();
+      restoreDomRect();
+      for (const { name, had, value } of lent) {
+        if (had) globals[name] = value;
+        else delete globals[name];
+      }
+    }
+  }, 10000);
 
   test("an unknown word offers its suggestions; nothing changes until one is picked", async () => {
     setExecCommand(textControlInsert);

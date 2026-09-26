@@ -20,6 +20,7 @@ import {
   type LocatedRun,
   type VisibleText,
 } from "../google-docs/GoogleDocsGeometry";
+import { getDocsInput } from "../google-docs/GoogleDocsEnvironment";
 import type { ReviewTargetHandle } from "./ReviewTargets";
 
 export interface GoogleDocsReviewSurface {
@@ -29,6 +30,11 @@ export interface GoogleDocsReviewSurface {
   reviewFocusEditor(): void;
   /** Called on input in the Docs editor while a review is active; returns the unsubscribe. */
   onReviewSourceChange(listener: () => void): () => void;
+  /**
+   * Called on each key pressed in the Docs editor while a review is active,
+   * before Docs sees it; a listener returning true consumes the key.
+   */
+  onReviewKey?(listener: (key: string) => boolean): () => void;
 }
 
 // Docs' structural markers, found everywhere in a snapshot.
@@ -77,11 +83,17 @@ export class GoogleDocsReviewTarget implements ReviewTargetHandle {
   };
   composing = false;
   private lastRead: ReviewTargetRead | null = null;
-  // The rendered runs placed in the last read's text, for the current task only:
-  // one paint asks for every finding's rectangles, and Docs re-renders between tasks.
+  // The rendered runs placed in `placedFor`'s text, kept until Docs re-renders
+  // them (see onLayoutChange) or the text changes: a scroll only moves them.
   private runs: LocatedRun[] | null = null;
+  private runsFound = 0;
+  private placedFor: string | null = null;
+  // Boxes are re-read once per task: one paint asks for every finding's rectangles.
+  private boxesFresh = false;
   // The last read's visible characters, indexed once per read, not per paint.
   private indexed: { text: string; index: VisibleText } | null = null;
+  private layoutObserver: MutationObserver | null = null;
+  private readonly layoutListeners = new Set<() => void>();
 
   constructor(
     private readonly surface: GoogleDocsReviewSurface,
@@ -90,6 +102,16 @@ export class GoogleDocsReviewTarget implements ReviewTargetHandle {
 
   onSourceChange(listener: () => void): () => void {
     return this.surface.onReviewSourceChange(listener);
+  }
+
+  /** Keys pressed in Docs' editor (its own input frame) while reviewing; true consumes one. */
+  onKey(listener: (key: string) => boolean): () => void {
+    return this.surface.onReviewKey?.(listener) ?? (() => {});
+  }
+
+  /** True when Docs can be read now: its input frame has focus. */
+  editorFocused(): boolean {
+    return getDocsInput(this.element.ownerDocument) !== null;
   }
 
   /** The initial read; its selection (if any) becomes the review scope. */
@@ -189,22 +211,68 @@ export class GoogleDocsReviewTarget implements ReviewTargetHandle {
 
   /** True when Docs shows its text as runs this review can place (an allowed extension). */
   canHighlight(): boolean {
-    return readDocsTextRuns(this.element).length > 0;
+    this.placedRuns();
+    return this.runsFound > 0;
+  }
+
+  /**
+   * `listener` runs when Docs re-renders its text runs (pages scrolled into
+   * view, edits, a collaborator's change). Returns the unsubscribe.
+   */
+  onLayoutChange(listener: () => void): () => void {
+    this.layoutListeners.add(listener);
+    if (!this.layoutObserver) {
+      this.layoutObserver = new MutationObserver(() => {
+        this.runs = null;
+        for (const notify of this.layoutListeners) notify();
+      });
+      this.layoutObserver.observe(this.element, {
+        subtree: true,
+        childList: true,
+        attributes: true,
+        attributeFilter: ["aria-label", "x", "y", "width", "height", "transform"],
+      });
+    }
+    return () => {
+      this.layoutListeners.delete(listener);
+      if (this.layoutListeners.size === 0) {
+        this.layoutObserver?.disconnect();
+        this.layoutObserver = null;
+      }
+    };
   }
 
   rangeRects(range: TextRange): DOMRect[] {
+    const runs = this.placedRuns();
+    return runs ? docsRangeRects(runs, range.start, range.end) : [];
+  }
+
+  /** The runs placed in the last read's text, their boxes current for this task. */
+  private placedRuns(): LocatedRun[] | null {
     const read = this.lastRead;
-    if (!read?.ok) return [];
-    if (!this.runs) {
+    if (!read?.ok) return null;
+    if (!this.runs || this.placedFor !== read.text) {
       if (this.indexed?.text !== read.text) {
         this.indexed = { text: read.text, index: visibleCharacters(read.text) };
       }
-      this.runs = locateRuns(this.indexed.index, readDocsTextRuns(this.element));
-      queueMicrotask(() => {
-        this.runs = null;
-      });
+      const found = readDocsTextRuns(this.element);
+      this.runsFound = found.length;
+      this.runs = locateRuns(this.indexed.index, found);
+      this.placedFor = read.text;
+      this.freshUntilNextTask();
+    } else if (!this.boxesFresh) {
+      // Scrolled or zoomed since: the same runs, somewhere else on screen.
+      for (const run of this.runs) if (run.element) run.box = run.element.getBoundingClientRect();
+      this.freshUntilNextTask();
     }
-    return docsRangeRects(read.text, this.runs, range.start, range.end);
+    return this.runs;
+  }
+
+  private freshUntilNextTask(): void {
+    this.boxesFresh = true;
+    queueMicrotask(() => {
+      this.boxesFresh = false;
+    });
   }
 
   domRange(): Range | null {
@@ -223,6 +291,9 @@ export class GoogleDocsReviewTarget implements ReviewTargetHandle {
   setMeasurementRoot(): void {}
 
   dispose(): void {
-    // Nothing is held between reads.
+    this.layoutListeners.clear();
+    this.layoutObserver?.disconnect();
+    this.layoutObserver = null;
+    this.runs = null;
   }
 }

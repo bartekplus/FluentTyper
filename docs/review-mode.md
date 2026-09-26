@@ -369,18 +369,25 @@ Known costs:
   each run of text; review places those runs in the document's text and
   measures each finding inside its run. Docs draws only the pages near where
   you are, so a finding elsewhere is in the list until you scroll to it; if
-  Docs shows no runs at all, the panel says findings are listed only. No Fix
-  all (one verified replacement at a time).
+  Docs shows no runs at all, the panel says findings are listed only. A run
+  is placed only where it and the runs drawn beside it agree with the text:
+  a header, footer or table cell whose text repeats elsewhere may stay
+  unhighlighted, but never highlights other text. Highlights stay inside the
+  editor and are not drawn over Docs' menus, dialogs and bubbles. A click on
+  a highlight opens its card; a drag, shift-click or double click selects
+  text as usual, and Escape in the document closes the card. No Fix all (one
+  verified replacement at a time).
 - Google Docs: a document of up to 50,000 characters is reviewed whole, even
   with all of it selected. In a longer one, 50,000 characters around the
   cursor are reviewed, starting at a sentence and ending at a whole word; the
-  panel reports how much was not checked. Typing in the document rechecks, but
-  changes Docs makes without input in its editor (a collaborator, a menu
-  command) are noticed only at the next keystroke or write.
+  panel reports how much was not checked. Typing in the document rechecks. A
+  change made without typing (a collaborator, a menu command) is noticed when
+  Docs redraws the page, once its editor has focus (Docs is read only then).
 - Model-backed editors are review-only: writing behind their document model is not safe.
 - Contenteditable undo is one step per fix; textarea and Quill undo a batch in one step.
   In Firefox, a fix that replaces all of a formatted word's text (a word that is
-  its own bold, italic or link) takes two steps, so the space beside it is kept.
+  its own bold, italic or link) takes two steps, so the space beside it is kept;
+  a one-character link ("i" -> "I") cannot be written that way and is refused.
 - Textarea highlights can be misplaced under an ancestor with CSS `zoom`.
 - Chrome may turn a space next to an edit into a no-break space. Review
   accepts only that change next to the edit; any other difference, or text the
