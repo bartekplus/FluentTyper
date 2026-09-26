@@ -2585,6 +2585,16 @@
           "layer": "unit",
           "file": "tests/grammar/ReviewDiagnostics.test.ts",
           "test": "protected text keeps its line breaks, LF and CRLF alike"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewDiagnostics.test.ts",
+          "test": "a stray space before a period is fixed unless the mark is named"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewDiagnostics.test.ts",
+          "test": "a double hyphen is a dash, not a hyphen joining a longer name"
         }
       ]
     },
@@ -2657,6 +2667,16 @@
           "layer": "unit",
           "file": "tests/ReviewSession.test.ts",
           "test": "a proof that fails leaves its fixes for individual review; Fix all never waits forever"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewBulkPlanner.test.ts",
+          "test": "Fix all fixes stray marks and dashes, and leaves a clause's subject for review"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSession.test.ts",
+          "test": "a planner that fails mid-proof batches nothing and leaves every fix for review"
         }
       ]
     },
