@@ -2931,6 +2931,27 @@
           "test": "shows the in-field Review button unless it is turned off"
         }
       ]
+    },
+    {
+      "id": "review_runs_all_supported_rules",
+      "description": "Review runs every review-supported rule whatever is switched on for typing (a rule off for typing is still found, and the in-field button shows with every typing rule off), while typing-time grammar keeps the configured rules; code mode leaves review no rules and hides the button.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review mode runs every supported rule, even ones off for typing, and none in code mode"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewDiagnostics.test.ts",
+          "test": "review runs every supported rule, whatever is on for typing, and none in code mode"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/content_script.behavior.test.ts",
+          "test": "review runs every review-supported rule whatever is on for typing; code mode leaves none"
+        }
+      ]
     }
   ]
 }

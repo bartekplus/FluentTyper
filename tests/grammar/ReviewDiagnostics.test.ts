@@ -1,12 +1,15 @@
 import { describe, expect, test } from "bun:test";
 import {
+  DEFAULT_CURRENT_GRAMMAR_RULES,
   GRAMMAR_RULE_CATALOG,
   GRAMMAR_RULE_IDS,
   type CatalogRuleId,
 } from "../../src/core/domain/grammar/ruleCatalog";
 import {
   REVIEW_RULE_METADATA,
+  REVIEW_SUPPORTED_RULE_IDS,
   reviewCoverageMap,
+  reviewRuleIds,
 } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { REVIEW_DETECTORS } from "../../src/core/domain/grammar/review/reviewDetectors";
 import {
@@ -90,6 +93,24 @@ describe("review rule coverage map", () => {
     for (const ruleId of GRAMMAR_RULE_IDS) {
       expect(detected.includes(ruleId)).toBe(REVIEW_RULE_METADATA[ruleId].review === "supported");
     }
+  });
+
+  test("review runs every supported rule, whatever is on for typing, and none in code mode", () => {
+    const supported = reviewCoverageMap()
+      .filter((entry) => entry.review === "supported")
+      .map((entry) => entry.ruleId);
+    expect(REVIEW_SUPPORTED_RULE_IDS).toEqual(supported);
+    expect(reviewRuleIds({ codeMode: false })).toEqual(supported);
+    // Off for typing by default, yet review finds it.
+    expect(DEFAULT_CURRENT_GRAMMAR_RULES).not.toContain("duplicatePunctuationCollapse");
+    expect(
+      summary(review("Hello world.. Next", { enabledRules: reviewRuleIds({ codeMode: false }) })),
+    ).toEqual([["duplicatePunctuationCollapse", "..", [11, 13], "."]]);
+    // Code mode keeps only code-safe rules, none of which review supports.
+    expect(reviewRuleIds({ codeMode: true })).toEqual([]);
+    expect(review("teh cat , ok..", { enabledRules: reviewRuleIds({ codeMode: true }) })).toEqual(
+      [],
+    );
   });
 
   test("typing conveniences are excluded from review", () => {

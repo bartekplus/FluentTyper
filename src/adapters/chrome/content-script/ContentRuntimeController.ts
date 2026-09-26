@@ -22,7 +22,7 @@ import { SuggestionManagerRuntime } from "./suggestions/SuggestionManagerRuntime
 import { ReviewController } from "./review/ReviewController";
 import { ReviewLauncher } from "./review/ReviewLauncher";
 import { whenDocumentFocused } from "./review/whenDocumentFocused";
-import { isReviewSupportedRule } from "@core/domain/grammar/review/reviewCatalog";
+import { reviewRuleIds } from "@core/domain/grammar/review/reviewCatalog";
 
 import { GoogleDocsAdapter } from "./google-docs/GoogleDocsAdapter";
 import { DocsReviewSurfaceProxy } from "./review/DocsReviewSurfaceProxy";
@@ -206,10 +206,8 @@ export class ContentRuntimeController {
     return new ReviewController({
       getOptions: () => ({
         lang: this.config.lang,
-        // Code mode keeps only code-safe rules, none of which review supports.
-        enabledRules: this.config.codeMode
-          ? filterCodeSafeGrammarRules(this.config.enabledGrammarRules)
-          : this.config.enabledGrammarRules,
+        // Every rule review supports, whatever is switched on for typing; none in code mode.
+        enabledRules: reviewRuleIds({ codeMode: this.config.codeMode }),
         userDictionary: this.config.userDictionaryList ?? [],
         insertSpaceAfterAutocomplete: this.config.insertSpaceAfterAutocomplete,
       }),
@@ -342,8 +340,7 @@ export class ContentRuntimeController {
         this.enabled &&
         this.config.showReviewButton !== false &&
         // Code mode leaves no rule review supports: the button would find nothing.
-        !this.config.codeMode &&
-        this.config.enabledGrammarRules.some(isReviewSupportedRule),
+        reviewRuleIds({ codeMode: this.config.codeMode }).length > 0,
       canShowFor: (field) => !this.suggestionManager?.isAwaitingManualAttach(field),
       reviewedElement: () => this.review?.reviewedElement ?? null,
       review: () => {

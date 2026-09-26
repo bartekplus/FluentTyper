@@ -1,7 +1,7 @@
 # Review Text
 
 "Review text" proofreads text you have already written, in the editor you are
-using, with the same local grammar rules that correct you while typing. It runs
+using, with the same local grammar rules that can correct you while typing. It runs
 entirely in the page: no text leaves the browser, nothing is logged or stored,
 and it needs no extra permissions.
 
@@ -99,7 +99,8 @@ The panel names every state:
 
 - **Loading:** "Checking…"
 - **Results:** "Issues: N"
-- **Nothing found:** "No issues found by the enabled checks"
+- **Nothing found:** "No issues found by the review checks"
+- **Code mode:** "No review checks run in code mode."
 - **All resolved:** "All found issues are resolved. Fixed: N."
 - **Ignored:** "Ignored: N", and "All remaining issues are ignored." once nothing else is left
 - **Paused:** while an IME composes ("Paused while you compose")
@@ -119,32 +120,37 @@ The panel names every state:
 Review reuses the typing-time rules' own patterns, word lists and helpers.
 Each catalog rule is classified in
 [`reviewCatalog.ts`](../src/core/domain/grammar/review/reviewCatalog.ts), and
-its `Record` type makes an unclassified new rule a compile error. Only rules
-enabled in settings run (the "Disable all" switch disables all of them).
+its `Record` type makes an unclassified new rule a compile error. Review runs
+every supported rule, whether or not it is switched on for typing (even after
+"Disable all"): review never changes text until you apply a fix, so the
+typing-time switches, which decide what is corrected automatically as you
+type, do not gate it. Typing-time corrections still follow your settings
+exactly. Code mode is the exception: it keeps only code-safe rules, none of
+which review supports, so a review there finds nothing and the panel says so.
 English rules are skipped for other languages, and the panel says so.
 
-Supported:
+Supported (**Typing** is the rule's default for typing; review runs it either way):
 
-| Rule                                   | Language | Default | Category    | Fix all                                                                                           |
-| -------------------------------------- | -------- | ------- | ----------- | ------------------------------------------------------------------------------------------------- |
-| `capitalizeSentenceStart`              | all      | on      | typography  | yes                                                                                               |
-| `capitalizeAfterLineBreak`             | all      | on      | typography  | individual only: line starts in poems, lists and hard-wrapped text are often lowercase on purpose |
-| `englishPronounICapitalization`        | English  | on      | typography  | yes                                                                                               |
-| `englishContractionNormalization`      | English  | on      | spelling    | yes                                                                                               |
-| `englishTypoWhitelistCorrection`       | English  | on      | spelling    | yes                                                                                               |
-| `englishModalOfCorrection`             | English  | on      | grammar     | yes                                                                                               |
-| `englishYourWelcomeCorrection`         | English  | on      | grammar     | yes                                                                                               |
-| `englishTheirThereBeVerb`              | English  | on      | grammar     | yes                                                                                               |
-| `englishAlotCorrection`                | English  | on      | spelling    | yes                                                                                               |
-| `englishPronounVerbWhitelistAgreement` | English  | on      | grammar     | yes                                                                                               |
-| `englishArticleAnCorrection`           | English  | off     | grammar     | individual only: word-list heuristic; a letter or identifier can look like an article             |
-| `englishOrdinalSuffix`                 | English  | off     | typography  | yes                                                                                               |
-| `englishProperNounCapitalization`      | English  | on      | typography  | yes (months that need a date as evidence: individual only)                                        |
-| `measurementUnitFormatting`            | all      | on      | punctuation | individual only: units in technical prose are meaning-sensitive                                   |
-| `currencySpacing`                      | all      | on      | punctuation | yes                                                                                               |
-| `commaPeriodSpacing`                   | all      | on      | punctuation | yes                                                                                               |
-| `collapseRepeatedSpaces`               | all      | on      | punctuation | yes (alignment gaps are left alone)                                                               |
-| `duplicatePunctuationCollapse`         | all      | off     | punctuation | yes                                                                                               |
+| Rule                                   | Language | Typing | Category    | Fix all                                                                                           |
+| -------------------------------------- | -------- | ------ | ----------- | ------------------------------------------------------------------------------------------------- |
+| `capitalizeSentenceStart`              | all      | on     | typography  | yes                                                                                               |
+| `capitalizeAfterLineBreak`             | all      | on     | typography  | individual only: line starts in poems, lists and hard-wrapped text are often lowercase on purpose |
+| `englishPronounICapitalization`        | English  | on     | typography  | yes                                                                                               |
+| `englishContractionNormalization`      | English  | on     | spelling    | yes                                                                                               |
+| `englishTypoWhitelistCorrection`       | English  | on     | spelling    | yes                                                                                               |
+| `englishModalOfCorrection`             | English  | on     | grammar     | yes                                                                                               |
+| `englishYourWelcomeCorrection`         | English  | on     | grammar     | yes                                                                                               |
+| `englishTheirThereBeVerb`              | English  | on     | grammar     | yes                                                                                               |
+| `englishAlotCorrection`                | English  | on     | spelling    | yes                                                                                               |
+| `englishPronounVerbWhitelistAgreement` | English  | on     | grammar     | yes                                                                                               |
+| `englishArticleAnCorrection`           | English  | off    | grammar     | individual only: word-list heuristic; a letter or identifier can look like an article             |
+| `englishOrdinalSuffix`                 | English  | off    | typography  | yes                                                                                               |
+| `englishProperNounCapitalization`      | English  | on     | typography  | yes (months that need a date as evidence: individual only)                                        |
+| `measurementUnitFormatting`            | all      | on     | punctuation | individual only: units in technical prose are meaning-sensitive                                   |
+| `currencySpacing`                      | all      | on     | punctuation | yes                                                                                               |
+| `commaPeriodSpacing`                   | all      | on     | punctuation | yes                                                                                               |
+| `collapseRepeatedSpaces`               | all      | on     | punctuation | yes (alignment gaps are left alone)                                                               |
+| `duplicatePunctuationCollapse`         | all      | off    | punctuation | yes                                                                                               |
 
 Unlike typing, review sees the words after a word as well as before it, so it
 decides some cases typing has to leave as typed. These are always individual
@@ -200,9 +206,8 @@ ranked for the words before it: `wa → was / way / war`.
   and the user's dictionary.
 - **When it runs:** after the rule results are shown ("Checking spelling…"
   while it runs), a few words at a time, with answers remembered for rechecks.
-  It needs at least one review rule on (so not in code mode) and a Presage
-  dictionary for the language; otherwise the panel says spelling suggestions
-  are unavailable.
+  It does not run in code mode, and it needs a Presage dictionary for the
+  language; without one the panel says spelling suggestions are unavailable.
 - **Local:** the words go from the page's content script to the extension's own
   background engine and back; nothing leaves the browser, nothing is stored or
   logged, and the engine does not learn from them.

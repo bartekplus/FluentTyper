@@ -19,7 +19,7 @@ export function renderGrammarWorkspacePanel(root: HTMLElement, registry: Setting
   card.className = "settings-inline-card";
   card.appendChild(control.rootElement);
 
-  // Review uses these rules too; its in-field button is switched here.
+  // Review runs all its rules, not only those on for typing; its in-field button is switched here.
   const review = createWorkspaceCard(i18n.get("popup_review_text"));
   moveControlToBody(registry, KEY_SHOW_REVIEW_BUTTON, review.body);
 

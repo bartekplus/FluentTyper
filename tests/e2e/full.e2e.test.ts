@@ -29,6 +29,7 @@ import {
   KEY_ENABLED_GRAMMAR_RULES,
   KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE,
   KEY_AUTOCOMPLETE_ON_ENTER,
+  KEY_CODE_MODE,
 } from "../../src/core/domain/constants";
 import { SUPPORTED_PREDICTION_LANGUAGE_KEYS } from "../../src/core/domain/lang";
 import { grammarRuleSelectionToOverrides } from "../../src/core/domain/grammar/GrammarRuleSettings";
@@ -7281,6 +7282,75 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   );
 
   test(
+    "Review mode runs every supported rule, even ones off for typing, and none in code mode",
+    async () => {
+      const selector = "#test-textarea";
+      const launcherShown = () =>
+        page.evaluate(() => {
+          const button = document
+            .querySelector("[data-fluenttyper-review-launcher]")
+            ?.shadowRoot?.querySelector<HTMLButtonElement>("button");
+          return !!button && !button.hidden;
+        });
+      // duplicatePunctuationCollapse is off for typing by default.
+      expect(DEFAULT_CURRENT_GRAMMAR_RULES).not.toContain("duplicatePunctuationCollapse");
+      await prepareReviewPage();
+
+      // Typing leaves ".." alone: the space after it, where the rule would act, is already typed.
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "Hello world.. Next");
+      await waitForInputContentEqual(
+        page,
+        selector,
+        "Hello world.. Next",
+        browserTimeout(5000, 9000),
+      );
+
+      // Review finds it anyway, and changes nothing until asked.
+      await triggerReview(worker!);
+      let panel = await waitForReview(page, "off-for-typing rule", (p) => p.status === "Issues: 1");
+      expect(panel.items.map((item) => [item.text, item.category])).toEqual([
+        [".. \u2192 .", "punctuation"],
+      ]);
+      expect(await textareaValue()).toBe("Hello world.. Next");
+      await page.keyboard.press("Escape");
+      await waitForReview(page, "closed", (p) => !p.open);
+
+      // With every rule off for typing, review and its in-field button still work.
+      await setGrammarRulesAndWait(worker!, []);
+      await applyConfigChange(browser, worker!);
+      await setTextarea("We saw teh cat.. Then left.");
+      await waitUntil("review button with typing rules off", launcherShown, { timeoutMs: 5000 });
+      await triggerReview(worker!);
+      panel = await waitForReview(page, "all typing rules off", (p) => p.status === "Issues: 2");
+      expect(panel.items.map((item) => item.text)).toEqual(["teh \u2192 the", ".. \u2192 ."]);
+      await page.keyboard.press("Escape");
+      await waitForReview(page, "closed again", (p) => !p.open);
+
+      // Code mode keeps review's rules off: nothing to check, no button.
+      try {
+        await setSettingAndWait(worker!, KEY_CODE_MODE, true);
+        await applyConfigChange(browser, worker!);
+        await setTextarea("We saw teh cat.. Then left.");
+        await waitUntil("no review button in code mode", async () => !(await launcherShown()), {
+          timeoutMs: 5000,
+        });
+        await triggerReview(worker!);
+        panel = await waitForReview(page, "code mode", (p) => p.open && p.status !== "");
+        expect(panel.status).toBe("No review checks run in code mode.");
+        expect(panel.items).toEqual([]);
+        expect(await textareaValue()).toBe("We saw teh cat.. Then left.");
+      } finally {
+        await page.keyboard.press("Escape").catch(() => undefined);
+        await setSettingAndWait(worker!, KEY_CODE_MODE, false);
+        await applyConfigChange(browser, worker!);
+      }
+      await finishReview();
+    },
+    browserTimeout(40000, 60000),
+  );
+
+  test(
     "Review mode card flow in contenteditable: click, apply, ignore, add to dictionary, fix all, undo, formatting kept",
     async () => {
       await prepareReviewPage();
@@ -7510,7 +7580,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await waitForReview(
         page,
         "clean",
-        (p) => p.status === "No issues found by the enabled checks.",
+        (p) => p.status === "No issues found by the review checks.",
       );
       await page.focus("#test-textarea");
       // Live grammar is suspended in the reviewed editor, so "Teh" stays as typed.

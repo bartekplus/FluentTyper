@@ -1,4 +1,4 @@
-import { GRAMMAR_RULE_CATALOG, type CatalogRuleId } from "../ruleCatalog";
+import { GRAMMAR_RULE_CATALOG, isCodeSafeGrammarRule, type CatalogRuleId } from "../ruleCatalog";
 import { REVIEW_SPELLING_CHECK, type ReviewCategory, type ReviewCheckId } from "./types";
 
 /**
@@ -130,4 +130,20 @@ export function isReviewSupportedRule(ruleId: string): ruleId is CatalogRuleId {
     Object.hasOwn(REVIEW_RULE_METADATA, ruleId) &&
     REVIEW_RULE_METADATA[ruleId as CatalogRuleId].review === "supported"
   );
+}
+
+/** Every rule review can run, in catalog order. */
+export const REVIEW_SUPPORTED_RULE_IDS: readonly CatalogRuleId[] = GRAMMAR_RULE_CATALOG.map(
+  (entry) => entry.id,
+).filter(isReviewSupportedRule);
+
+/**
+ * The rules a review runs. Review never changes text without the user's click,
+ * so the typing-time rule switches do not gate it: every supported rule runs.
+ * Code mode keeps only code-safe rules, as while typing; review supports none.
+ */
+export function reviewRuleIds({ codeMode }: { codeMode: boolean }): CatalogRuleId[] {
+  return codeMode
+    ? REVIEW_SUPPORTED_RULE_IDS.filter(isCodeSafeGrammarRule)
+    : [...REVIEW_SUPPORTED_RULE_IDS];
 }

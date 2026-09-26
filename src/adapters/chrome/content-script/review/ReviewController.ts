@@ -24,7 +24,7 @@ import { REVIEW_HIGHLIGHT_NAMES } from "./reviewStyles";
 const logger = createLogger("ReviewController");
 
 export interface ReviewControllerDependencies {
-  /** Current review settings: enabled rules (already code-mode filtered), language, dictionary. */
+  /** Current review settings: the rules to run (reviewRuleIds), language, dictionary. */
   getOptions(): ReviewOptions;
   /** Pauses live grammar/suggestions for this editor only; resume restores them. */
   suspend(element: HTMLElement): void;
