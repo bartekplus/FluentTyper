@@ -257,6 +257,26 @@ describe("adversarial review regressions: planning", () => {
       expect(applyEdits(text, plan.edits)).toBe(plan.expectedText);
     }
   });
+
+  test("Fix all leaves objects, dialogue tags, named marks, hyphenated names and tables alone", () => {
+    for (const text of [
+      "Everything I told you was a lie. The gift I gave you was expensive.",
+      "Saying thank you was the least I could do.",
+      "“Stop!” she shouted. “Why?” he asked. He said, 'Stop!' and she left.",
+      "In Vim, press . to repeat. Type ? for help.",
+      "Run it with --dont-ask. Set the dont-care bits. Use alot-lib.",
+      "| Application | `src/core/application/` | adapters, UI              |",
+    ]) {
+      expect(reviewAndPlan(text).plan.expectedText).toBe(text);
+    }
+    // What is left still gets fixed, CRLF included.
+    expect(reviewAndPlan("Thanks!\r\nYour welcome\r\nBye").plan.expectedText).toBe(
+      "Thanks!\r\nYou're welcome\r\nBye",
+    );
+    expect(reviewAndPlan("You was late. Hello . Next").plan.expectedText).toBe(
+      "You were late. Hello. Next",
+    );
+  });
 });
 
 describe("text ranges", () => {

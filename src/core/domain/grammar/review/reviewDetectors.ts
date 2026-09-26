@@ -4,6 +4,8 @@ import { usesFrenchPunctuationSpacing } from "../typographyProfiles";
 import { parseMeasurementExpression } from "../measurement/parser";
 import { resolveMeasurementLocale } from "../measurement/registry";
 import {
+  CLOSING_CHARS,
+  CLOSING_PADDING_CHARS,
   SENTENCE_OPENING_MARKS,
   TRAILING_PUNCTUATION_REGEX,
   startsSentence,
@@ -249,6 +251,16 @@ const capitalizeStarts: Detector = (ctx) => {
     const wordEnd = wordStart + bare.length;
 
     if (startsSentence(ctx.text, wordStart, ctx.lang)) {
+      const end = sentenceEndBefore(ctx.text, wordStart);
+      const mark = ctx.text[end.mark];
+      // "“Stop!” she shouted", "(really?) and": a quoted or bracketed "!" or
+      // "?" before a lowercase word ends the quotation, not the sentence.
+      if (end.closed && mark !== ".") continue;
+      // "press . to repeat", "type ? for help": a mark between spaces before
+      // a lowercase word is a symbol, not a sentence end. French spaces "?"
+      // and "!" on purpose.
+      const standalone = end.mark >= 0 && !end.closed && /\s/.test(ctx.text[end.mark - 1] ?? " ");
+      if (standalone && !(mark !== "." && usesFrenchPunctuationSpacing(ctx.lang))) continue;
       // The mark AND the word it closes decide it: "etc." or, when the mark
       // stands alone, the word before it ("approx .", "etc .").
       const previous = previousTokensStart(ctx.text, wordStart, 1);
@@ -261,6 +273,8 @@ const capitalizeStarts: Detector = (ctx) => {
         range,
         alternatives: [upper],
         context: { start: evidence, end: wordEnd },
+        // 'He said "stop." she left': the quotation may end inside the sentence.
+        bulkBlock: end.closed ? "context-dependent" : undefined,
       });
       continue;
     }
@@ -277,6 +291,18 @@ const capitalizeStarts: Detector = (ctx) => {
   }
   return findings;
 };
+
+/**
+ * The sentence mark `startsSentence` read before `wordStart` (its index), and
+ * whether closing quotes or brackets sit between it and the word ("Stop!” she").
+ */
+function sentenceEndBefore(text: string, wordStart: number): { mark: number; closed: boolean } {
+  let i = wordStart - 1;
+  while (i >= 0 && isSpace(text[i])) i -= 1;
+  const closer = i;
+  while (i >= 0 && (CLOSING_CHARS.has(text[i]) || CLOSING_PADDING_CHARS.has(text[i]))) i -= 1;
+  return { mark: i, closed: i !== closer };
+}
 
 /** Index of the newline that starts the line `wordStart` is the first word of, or null. */
 function lineBreakBefore(text: string, wordStart: number): number | null {
@@ -353,6 +379,12 @@ const wordSpelling: Detector = (ctx) => {
   const findings: RawFinding[] = [];
   for (const { start, end } of asciiWords(ctx)) {
     if (isGluedToTechnical(ctx.text, start, end)) continue;
+    // "--dont-ask", "dont-care", "alot-lib": a hyphen after the word makes it
+    // part of a longer name, and typing never reaches a word boundary there.
+    if (ctx.text[end] === "-") continue;
+    // Typing still corrects the end of "x-teh" or "--dont", so review flags it,
+    // but only one at a time: a compound or an option name may be deliberate.
+    const glued: RawFinding["bulkBlock"] = ctx.text[start - 1] === "-" ? "ambiguous" : undefined;
     const word = ctx.text.slice(start, end);
     const range = { start, end };
     const typo = correctWhitelistedTypo(word, ctx.dictionary);
@@ -363,6 +395,7 @@ const wordSpelling: Detector = (ctx) => {
         range,
         alternatives: [typo],
         dictionaryWord: word,
+        bulkBlock: glued,
       });
       continue;
     }
@@ -381,7 +414,7 @@ const wordSpelling: Detector = (ctx) => {
         // The name guard reads the previous word on the line.
         context: { start: Math.max(0, ctx.text.lastIndexOf(" ", start - 2) + 1), end },
         // "im"/"ive" can still be a tag, an abbreviation or a name: one at a time.
-        bulkBlock: pronounForm ? "ambiguous" : undefined,
+        bulkBlock: pronounForm ? "ambiguous" : glued,
       });
       continue;
     }
@@ -409,6 +442,7 @@ const wordSpelling: Detector = (ctx) => {
         range,
         alternatives: [correctAlot(word)],
         dictionaryWord: word,
+        bulkBlock: glued,
       });
     }
   }
@@ -493,7 +527,7 @@ const yourWelcome: Detector = (ctx) => {
   for (const { match, start, end } of phraseMatches(ctx, YOUR_WELCOME_REGEX, 2)) {
     // "Your welcome email" is possessive: only the sentence-final phrase counts.
     // The end of the whole text ends the sentence too; nothing is appended.
-    if (end < ctx.text.length && !/^[.!?\n]/.test(ctx.text[end])) continue;
+    if (end < ctx.text.length && !/^[.!?\r\n]/.test(ctx.text[end])) continue;
     // "Thank you all for your welcome." is possessive too: the reply opens its clause.
     if (!opensClause(ctx.text, start)) continue;
     const phrase = match[0];
@@ -531,6 +565,38 @@ const theirThere: Detector = (ctx) => {
   return findings;
 };
 
+// The word right before a phrase, on the same line.
+const PREVIOUS_WORD = /([A-Za-z]+)[ \t\u00A0]+$/;
+// Verbs and prepositions that take "you" as their object: "I told you was"
+// reads "(what) I told you was". Regular past tenses ("promised") and gerunds
+// ("Meeting you was") are recognized by their ending.
+const OBJECT_YOU_BEFORE = new Set([
+  ...["tell", "tells", "told", "give", "gives", "gave", "given", "show", "shows", "shown"],
+  ...["send", "sends", "sent", "ask", "asks", "thank", "thanks", "teach", "taught", "pay"],
+  ...["paid", "bring", "brought", "buy", "bought", "get", "got", "gotten", "owe", "make"],
+  ...["made", "let", "see", "saw", "seen", "hear", "heard", "meet", "met", "love", "hate"],
+  ...["want", "need", "help", "call", "find", "found", "leave", "left", "know", "knew"],
+  ...["known", "hit", "hurt", "keep", "kept", "lend", "lent", "sell", "sold", "write"],
+  ...["wrote", "written", "read", "remind", "warn", "trust", "miss", "choose", "chose"],
+  ...["chosen", "lose", "lost", "offer", "promise", "beat", "catch", "caught", "bless"],
+  ...["to", "for", "with", "of", "about", "from", "at", "by", "on", "upon", "onto", "into"],
+  ...["toward", "towards", "against", "without", "behind", "beside", "besides", "around"],
+  ...["near", "among", "between", "beyond", "under", "over", "through", "unto", "within"],
+]);
+// Words ending in "ed" or "ing" that are not verbs taking an object.
+const NOT_OBJECT_TAKERS = /^(?:indeed|\p{L}*thing)$/u;
+
+function takesObjectYou(word: string): boolean {
+  if (OBJECT_YOU_BEFORE.has(word)) return true;
+  return word.length > 4 && /(?:ed|ing)$/.test(word) && !NOT_OBJECT_TAKERS.test(word);
+}
+
+// Subordinators after which "you" opens a clause as its subject: "if you was".
+const YOU_SUBJECT_BEFORE = new Set([
+  ...["if", "when", "whenever", "because", "while", "although", "though", "unless"],
+  ...["whether", "since", "until", "once", "where", "wherever", "that"],
+]);
+
 const pronounVerb: Detector = (ctx) => {
   const findings: RawFinding[] = [];
   for (const { match, end } of phraseMatches(ctx, AGREEMENT_REGEX, 3)) {
@@ -553,6 +619,20 @@ const pronounVerb: Detector = (ctx) => {
         continue;
       }
     }
+    let bulkBlock: RawFinding["bulkBlock"];
+    if (inputPronoun.toLowerCase() === "you") {
+      // "Everything I told you was", "Seeing you was", "the gift for you was":
+      // "you" is the object of the word before it, and "was" is right.
+      const previous = PREVIOUS_WORD.exec(
+        ctx.text.slice(Math.max(0, phraseRange.start - 32), phraseRange.start),
+      )?.[1].toLowerCase();
+      if (previous && takesObjectYou(previous)) continue;
+      // Only a clause start says subject for sure ("You was late.", "if you
+      // was there"); anywhere else a verb this list lacks may precede it.
+      if (!opensClause(ctx.text, phraseRange.start) && !YOU_SUBJECT_BEFORE.has(previous ?? "")) {
+        bulkBlock = "context-dependent";
+      }
+    }
     const gap = phrase.slice(inputPronoun.length, phrase.length - inputVerb.length);
     // The pronoun "i" is always capitalized; the case rule would flag it anyway.
     const fixedPronoun = pronoun === "i" ? "I" : pronoun;
@@ -563,6 +643,7 @@ const pronounVerb: Detector = (ctx) => {
       alternatives: [`${fixedPronoun}${gap}${verb}`],
       // The word before the pronoun decided it.
       context: { start: previousTokensStart(ctx.text, phraseRange.start, 1), end },
+      bulkBlock,
     });
   }
   return findings;
@@ -622,7 +703,9 @@ function hasPositionIn(positions: readonly number[], from: number, to: number): 
 const ordinal: Detector = (ctx) => {
   const findings: RawFinding[] = [];
   let openers: number[] | null = null;
+  // A blank line ends a paragraph, with LF or CRLF line endings.
   const blankLineBefore = lastIndexFinder(ctx.text, "\n\n");
+  const blankCrlfLineBefore = lastIndexFinder(ctx.text, "\n\r\n");
   const regex = /(?<=^|[\s([])(\d+)(nd|th)(?![\p{L}\p{N}])/gu;
   for (const match of ownedMatches(ctx, regex)) {
     const start = match.index;
@@ -631,7 +714,7 @@ const ordinal: Detector = (ctx) => {
     const end = start + token.length;
     if (suffix === expected || isGluedToTechnical(ctx.text, start, end)) continue;
     // Quoted text is often a deliberate example; the typing rule leaves it too.
-    const paragraphStart = Math.max(0, blankLineBefore(start) + 1);
+    const paragraphStart = Math.max(0, blankLineBefore(start) + 1, blankCrlfLineBefore(start) + 1);
     openers ??= openerPositions(ctx.text, paragraphStart, ctx.to);
     if (hasPositionIn(openers, paragraphStart, start)) {
       // Too far to re-read per match: leave it rather than guess.
@@ -715,6 +798,9 @@ const properNoun: Detector = (ctx) => {
 
 // ------------------------------------------------------ punctuation and spacing
 
+// Spaces and a lowercase word (after an optional opening mark) on the same line.
+const STANDALONE_MARK_FOLLOWER = /^[ \t\u00A0]+["'“‘([¿¡]?\p{Ll}/u;
+
 const commaPeriodSpacing: Detector = (ctx) => {
   const findings: RawFinding[] = [];
   // Space before a comma: "word , next".
@@ -738,6 +824,9 @@ const commaPeriodSpacing: Detector = (ctx) => {
     const start = match.index;
     if (match[1] !== "." && frenchSpacing) continue;
     const end = start + match[0].length;
+    // "press . to repeat", "type ? for help": between spaces and before a
+    // lowercase word, the mark is a symbol being named, not a sentence end.
+    if (STANDALONE_MARK_FOLLOWER.test(ctx.text.slice(end, end + 8))) continue;
     findings.push({
       ruleId: "commaPeriodSpacing",
       messageKey: "review_msg_space_before_mark",
@@ -773,20 +862,27 @@ const commaPeriodSpacing: Detector = (ctx) => {
 const repeatedSpaces: Detector = (ctx) => {
   const findings: RawFinding[] = [];
   // Per line start: a long line is measured once, not once per gap.
-  const gapCounts = new Map<number, number>();
+  const aligned = new Map<number, boolean>();
   const newlineBefore = lastIndexFinder(ctx.text, "\n");
   const regex = /(?<=[^\s])[ \u00A0]{2,}(?=[^\s])/gu;
   for (const match of ownedMatches(ctx, regex)) {
     const start = match.index;
     const lineStart = newlineBefore(start) + 1;
-    // Several wide gaps on one line are alignment (a plain-text table), not typos.
-    if (!gapCounts.has(lineStart)) {
+    if (!aligned.has(lineStart)) {
       let lineEnd = ctx.text.indexOf("\n", start);
       if (lineEnd < 0) lineEnd = ctx.text.length;
-      const gaps = ctx.text.slice(lineStart, lineEnd).match(/(?<=\S)[ \u00A0]{2,}(?=\S)/gu);
-      gapCounts.set(lineStart, gaps?.length ?? 0);
+      const line = ctx.text.slice(lineStart, lineEnd);
+      const gaps = line.match(/(?<=\S)[ \u00A0]{2,}(?=\S)/gu);
+      const trimmed = line.trim();
+      // Several wide gaps on one line are alignment (a plain-text table), not
+      // typos; so is the padding of a Markdown table row ("| a  | b |").
+      aligned.set(
+        lineStart,
+        (gaps?.length ?? 0) > 1 ||
+          (trimmed.length > 1 && trimmed.startsWith("|") && trimmed.endsWith("|")),
+      );
     }
-    if (gapCounts.get(lineStart)! > 1) continue;
+    if (aligned.get(lineStart)) continue;
     const end = start + match[0].length;
     // Keep the first space: a no-break space placed on purpose stays.
     findings.push({

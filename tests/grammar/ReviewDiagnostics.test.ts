@@ -456,6 +456,92 @@ describe("adversarial review regressions: detection", () => {
     expect(review("dont", { enabledRules: [rule], userDictionary: ["dont"] })).toEqual([]);
   });
 
+  test('"you was" after a verb or preposition is its object; only a clause start batches', () => {
+    const rule = "englishPronounVerbWhitelistAgreement";
+    // "you" is the object of the word before it, and "was" belongs to the subject.
+    for (const text of [
+      "Everything I told you was a lie.",
+      "The gift I gave you was expensive.",
+      "Saying thank you was the least I could do.",
+      "What I promised you was real.",
+      "Meeting you was great.",
+      "The letter for you was lost.",
+      "What I said to you was true.",
+    ]) {
+      expect(only(text, rule)).toEqual([]);
+    }
+    // The subject at a clause start is still flagged, and batched.
+    for (const text of [
+      "you was late",
+      "You was late.",
+      "If you was there",
+      "Yes, you was wrong.",
+    ]) {
+      const [finding] = review(text, { enabledRules: [rule] });
+      expect(finding.alternatives[0].preview).toMatch(/^you were$/i);
+      expect(finding.bulk.eligible).toBe(true);
+    }
+    // Anywhere else a verb the list lacks may come first: one at a time.
+    for (const text of ["and you was right", "Honestly you was right", "Everything you was told"]) {
+      const [finding] = review(text, { enabledRules: [rule] });
+      expect(finding.alternatives[0].preview).toBe("you were");
+      expect(finding.bulk).toEqual({ eligible: false, reason: "context-dependent" });
+    }
+  });
+
+  test("a quoted or bracketed ! or ? before a lowercase word ends the quotation, not the sentence", () => {
+    const rule = "capitalizeSentenceStart";
+    for (const text of [
+      "“Stop!” she shouted. “Why?” he asked.",
+      "He said, 'Stop!' and she left.",
+      'She asked "why?" then left.',
+      "He won (really!) and left.",
+      "« Oui ! » dit-il.",
+    ]) {
+      expect(only(text, rule)).toEqual([]);
+    }
+    // After the dialogue tag, the next sentence still starts with a capital.
+    expect(only("“Stop!” she shouted. then", rule)).toEqual([[rule, "t", [21, 22], "T"]]);
+    // A period inside the quotation usually ends the sentence, but not surely.
+    const [finding] = review('He said "stop." she left.', { enabledRules: [rule] });
+    expect(summary([finding])).toEqual([[rule, "s", [16, 17], "S"]]);
+    expect(finding.bulk).toEqual({ eligible: false, reason: "context-dependent" });
+  });
+
+  test("a mark between spaces before a lowercase word is a symbol, not a sentence end", () => {
+    const text = "In Vim, press . to repeat. Type ? for help.";
+    expect(review(text)).toEqual([]);
+    expect(review("Hello ! how are you")).toEqual([]);
+    // Before a capital, or ending the text, it is still a stray space.
+    expect(summary(review("Hello . Next"))).toEqual([["commaPeriodSpacing", " .", [5, 7], "."]]);
+    expect(summary(review("End of the sentence ."))).toEqual([
+      ["commaPeriodSpacing", " .", [19, 21], "."],
+    ]);
+    expect(only("Is it ? Yes.", "commaPeriodSpacing")).toEqual([
+      ["commaPeriodSpacing", " ?", [5, 7], "?"],
+    ]);
+    // French spaces "?" and "!" on purpose, so what follows starts a sentence.
+    expect(only("Vraiment ? oui.", "capitalizeSentenceStart", { lang: "fr_FR" })).toEqual([
+      ["capitalizeSentenceStart", "o", [11, 12], "O"],
+    ]);
+  });
+
+  test("a word glued to a hyphen is edited only where typing would edit it", () => {
+    // Typing never reaches a word boundary before a hyphen, so it never edits these.
+    expect(review("Run it with --dont-ask. Set the dont-care bits. Use alot-lib.")).toEqual([]);
+    expect(review("See teh-x and seperate-ly.")).toEqual([]);
+    // Typing corrects a word after a hyphen ("x-teh "); review flags it one at a time.
+    const findings = review("Pass --dont now, see x-teh, go re-alot.");
+    expect(summary(findings)).toEqual([
+      ["englishContractionNormalization", "dont", [7, 11], "don't"],
+      ["englishTypoWhitelistCorrection", "teh", [23, 26], "the"],
+      ["englishAlotCorrection", "alot", [34, 38], "a lot"],
+    ]);
+    for (const finding of findings) {
+      expect(finding.bulk).toEqual({ eligible: false, reason: "ambiguous" });
+    }
+  });
+
   test("indented code is protected with CRLF and whitespace-only blank lines too", () => {
     for (const text of [
       "Intro text.\r\n\r\n    let teh = dont;\r\n",
@@ -465,16 +551,46 @@ describe("adversarial review regressions: detection", () => {
       expect(findings.filter((d) => d.range.start > text.indexOf("let"))).toEqual([]);
     }
   });
+
+  test("CRLF line endings are read like LF", () => {
+    for (const eol of ["\n", "\r\n"]) {
+      const at = (text: string) => text.split("\n").join(eol);
+      // "your welcome" ending its line is the reply.
+      expect(only(at("Thanks!\nYour welcome\nBye"), "englishYourWelcomeCorrection")).toEqual([
+        [
+          "englishYourWelcomeCorrection",
+          "Your welcome",
+          [7 + eol.length, 19 + eol.length],
+          "You're welcome",
+        ],
+      ]);
+      // A month ending its line ends its clause.
+      expect(
+        only(at("Open until march\nNext"), "englishProperNounCapitalization").map((r) => r[1]),
+      ).toEqual(["march"]);
+      // A blank line ends the paragraph an unclosed quotation opened in.
+      expect(
+        only(at('He said "hi\n\nThe 2th item'), "englishOrdinalSuffix").map((r) => r[1]),
+      ).toEqual(["2th"]);
+      // Line starts after a sentence or a blank line; never a sentence start.
+      expect(
+        only(at("Done.\nthen\nwrapped\n\nnew"), "capitalizeAfterLineBreak").map((r) => r[1]),
+      ).toEqual(["t", "n"]);
+      expect(only(at("Done.\nthen"), "capitalizeSentenceStart")).toEqual([]);
+    }
+  });
 });
 
 describe("review detectors: punctuation and spacing", () => {
   test("commaPeriodSpacing", () => {
-    expect(only("Yes , no . Really ? ok,then 1,5 a,b x,y,z", "commaPeriodSpacing")).toEqual([
+    expect(only("Yes , no . Really ? Ok,then 1,5 a,b x,y,z", "commaPeriodSpacing")).toEqual([
       ["commaPeriodSpacing", " ,", [3, 5], ","],
       ["commaPeriodSpacing", " .", [8, 10], "."],
       ["commaPeriodSpacing", " ?", [17, 19], "?"],
       ["commaPeriodSpacing", ",", [22, 23], ", "],
     ]);
+    // Before a lowercase word, a mark between spaces is a symbol ("press . to").
+    expect(only("Really ? ok", "commaPeriodSpacing")).toEqual([]);
     // The missing space follows the "space after autocomplete" setting.
     expect(only("ok,then", "commaPeriodSpacing", { insertSpaceAfterAutocomplete: false })).toEqual(
       [],
@@ -498,6 +614,22 @@ describe("review detectors: punctuation and spacing", () => {
     ]);
     expect(only("name   age   city\n    indented", "collapseRepeatedSpaces")).toEqual([]);
     expect(only("trailing  \nnext", "collapseRepeatedSpaces")).toEqual([]);
+  });
+
+  test("collapseRepeatedSpaces leaves Markdown table padding alone", () => {
+    const rule = "collapseRepeatedSpaces";
+    // One wide gap only, so the alignment guard alone does not see it.
+    const table = [
+      "| Layer | Path | Imports |",
+      "| --- | --- | --- |",
+      "| Application | `src/core/application/` | adapters, UI              |",
+      "  | Domain  | none |  ",
+    ].join("\n");
+    expect(only(table, rule)).toEqual([]);
+    expect(only(table.split("\n").join("\r\n"), rule)).toEqual([]);
+    // A pipe on one side only is prose.
+    expect(only("| a  b", rule)).toEqual([[rule, "  ", [3, 5], " "]]);
+    expect(only("a  b |", rule)).toEqual([[rule, "  ", [1, 3], " "]]);
   });
 
   test("duplicatePunctuationCollapse", () => {

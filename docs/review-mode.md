@@ -133,7 +133,7 @@ Supported (**Typing** is the rule's default for typing; review runs it either wa
 
 | Rule                                   | Language | Typing | Category    | Fix all                                                                                           |
 | -------------------------------------- | -------- | ------ | ----------- | ------------------------------------------------------------------------------------------------- |
-| `capitalizeSentenceStart`              | all      | on     | typography  | yes                                                                                               |
+| `capitalizeSentenceStart`              | all      | on     | typography  | yes (after a quote or bracket closing a period: individual only)                                  |
 | `capitalizeAfterLineBreak`             | all      | on     | typography  | individual only: line starts in poems, lists and hard-wrapped text are often lowercase on purpose |
 | `englishPronounICapitalization`        | English  | on     | typography  | yes                                                                                               |
 | `englishContractionNormalization`      | English  | on     | spelling    | yes                                                                                               |
@@ -142,15 +142,21 @@ Supported (**Typing** is the rule's default for typing; review runs it either wa
 | `englishYourWelcomeCorrection`         | English  | on     | grammar     | yes                                                                                               |
 | `englishTheirThereBeVerb`              | English  | on     | grammar     | yes                                                                                               |
 | `englishAlotCorrection`                | English  | on     | spelling    | yes                                                                                               |
-| `englishPronounVerbWhitelistAgreement` | English  | on     | grammar     | yes                                                                                               |
+| `englishPronounVerbWhitelistAgreement` | English  | on     | grammar     | yes ("you was" away from a clause start: individual only)                                         |
 | `englishArticleAnCorrection`           | English  | off    | grammar     | individual only: word-list heuristic; a letter or identifier can look like an article             |
 | `englishOrdinalSuffix`                 | English  | off    | typography  | yes                                                                                               |
 | `englishProperNounCapitalization`      | English  | on     | typography  | yes (months that need a date as evidence: individual only)                                        |
 | `measurementUnitFormatting`            | all      | on     | punctuation | individual only: units in technical prose are meaning-sensitive                                   |
 | `currencySpacing`                      | all      | on     | punctuation | yes                                                                                               |
 | `commaPeriodSpacing`                   | all      | on     | punctuation | yes                                                                                               |
-| `collapseRepeatedSpaces`               | all      | on     | punctuation | yes (alignment gaps are left alone)                                                               |
+| `collapseRepeatedSpaces`               | all      | on     | punctuation | yes (alignment gaps and Markdown table padding are left alone)                                    |
 | `duplicatePunctuationCollapse`         | all      | off    | punctuation | yes                                                                                               |
+
+Some text is left alone because it only looks like an error: "you" as an
+object ("Everything I told you was a lie"), a lowercase dialogue tag after a
+quoted "!" or "?" ("“Stop!” she said"), a mark named between spaces ("press .
+to repeat"), and a word joined to a hyphen after it ("--dont-ask", "dont-care").
+After a hyphen ("x-teh"), where typing still corrects it, the fix is individual only.
 
 Unlike typing, review sees the words after a word as well as before it, so it
 decides some cases typing has to leave as typed. These are always individual

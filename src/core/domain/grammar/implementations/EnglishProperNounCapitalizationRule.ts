@@ -249,8 +249,9 @@ const NOUN_DETERMINERS = new Set([
 ]);
 // "the end of may", "the 5th of march".
 const OF_MONTH_HEADS = new Set(["end", "beginning", "start", "middle", "ides", "rest", "month"]);
-// The word ends its clause: sentence mark, comma, closing bracket or the line's end.
-const CLAUSE_END = /^(?:[.,;:!?)\]]|[ \t]*(?:\n|$))/u;
+// The word ends its clause: sentence mark, comma, closing bracket or the line's
+// end (LF, CRLF or CR).
+const CLAUSE_END = /^(?:[.,;:!?)\]]|[ \t]*(?:[\r\n]|$))/u;
 const YEAR_AFTER = /^[ \t]+(?:19|20)\d\d(?![\p{L}\p{N}])/u;
 const RANGE_AFTER = new RegExp(
   `^[ \\t]*(?:to|through|until|till|and|or|[-–—])[ \\t]*(?:${PLAIN_MONTHS})(?![\\p{L}])`,

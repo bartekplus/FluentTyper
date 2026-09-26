@@ -65,9 +65,9 @@ function closesAbbreviation(text: string, index: number, lang?: string): boolean
   );
 }
 // Includes every closing quote the typography profiles emit: „…“ ‚…‘ «…» ›…‹.
-const CLOSING_CHARS = new Set([")", "]", "}", '"', "'", "”", "’", "“", "‘", "»", "›"]);
+export const CLOSING_CHARS = new Set([")", "]", "}", '"', "'", "”", "’", "“", "‘", "»", "›"]);
 // French padding inside a closing guillemet and before "!" or "?": "« Oui ! »".
-const CLOSING_PADDING_CHARS = new Set(["\u00A0", "\u202F"]);
+export const CLOSING_PADDING_CHARS = new Set(["\u00A0", "\u202F"]);
 export const WORD_BOUNDARY_CHARS = [...SPACE_CHARS, "\n"];
 // Punctuation that closes a prose word without making it a token: "done.",
 // "hello,", "(quietly)".
