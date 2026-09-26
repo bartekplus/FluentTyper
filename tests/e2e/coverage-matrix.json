@@ -2835,6 +2835,32 @@
           "test": "known words come back as known; unknown ones get candidates, even in prefix-only mode"
         }
       ]
+    },
+    {
+      "id": "review_in_field_button",
+      "description": "A Review button on the focused multi-line text box (own shadow layer, page layout untouched) reviews only that box; it hides while typing and during its review, yields to the enable icon, and the setting turns it off.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review button in the focused text box reviews only that box; the setting turns it off"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "shows on the focused field with text, in its corner; clicking reviews that field"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "hidden without text, while typing, during its review, and when turned off"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/CoreSettingsRepository.test.ts",
+          "test": "shows the in-field Review button unless it is turned off"
+        }
+      ]
     }
   ]
 }

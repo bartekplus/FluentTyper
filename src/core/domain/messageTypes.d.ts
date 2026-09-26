@@ -22,6 +22,8 @@ export interface SetConfigContext {
   codeMode: boolean;
   enabled: boolean;
   displayLangHeader: boolean;
+  /** Show the "Review text" button on the focused multi-line field. */
+  showReviewButton?: boolean;
   enabledGrammarRules: string[];
   userDictionaryList: string[];
   // Theme configuration is reused by settings and options payloads.

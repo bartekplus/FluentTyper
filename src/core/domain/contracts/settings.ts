@@ -15,6 +15,7 @@ import {
   KEY_DEBUG_AI_PREDICTOR_ENABLED,
   KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
   KEY_DISPLAY_LANG_HEADER,
+  KEY_SHOW_REVIEW_BUTTON,
   KEY_DOMAIN_LIST_MODE,
   KEY_ENABLED_GRAMMAR_RULES,
   KEY_ENABLED_LANGUAGES,
@@ -71,6 +72,7 @@ const SETTINGS_KEYS = {
   autocompleteOnTab: KEY_AUTOCOMPLETE_ON_TAB,
   selectByDigit: KEY_SELECT_BY_DIGIT,
   displayLangHeader: KEY_DISPLAY_LANG_HEADER,
+  showReviewButton: KEY_SHOW_REVIEW_BUTTON,
   autoCapitalize: KEY_AUTO_CAPITALIZE,
   autoLanguageSitePriors: KEY_AUTO_LANGUAGE_SITE_PRIORS,
   insertSpaceAfterAutocomplete: KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE,
@@ -128,6 +130,7 @@ export interface SettingsSchema {
   autocompleteOnTab: boolean;
   selectByDigit: boolean;
   displayLangHeader: boolean;
+  showReviewButton: boolean;
   autoCapitalize: boolean;
   autoLanguageSitePriors: Record<string, Record<string, number>>;
   insertSpaceAfterAutocomplete: boolean;

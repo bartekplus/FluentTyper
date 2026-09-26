@@ -436,6 +436,17 @@ const UI = {
     "Podpowiedzi pisowni nie są dostępne dla tego języka.",
     "Sugestões ortográficas não disponíveis para este idioma.",
   ],
+  review_launcher_label: [
+    "Review this text (FluentTyper)",
+    "Relire ce texte (FluentTyper)",
+    "Pregledaj ovaj tekst (FluentTyper)",
+    "Revisar este texto (FluentTyper)",
+    "Έλεγχος αυτού του κειμένου (FluentTyper)",
+    "Granska den här texten (FluentTyper)",
+    "Diesen Text prüfen (FluentTyper)",
+    "Sprawdź ten tekst (FluentTyper)",
+    "Revisar este texto (FluentTyper)",
+  ],
   review_card_replace_with: [
     "Replace with",
     "Remplacer par",

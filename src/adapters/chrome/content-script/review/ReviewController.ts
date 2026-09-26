@@ -32,6 +32,8 @@ export interface ReviewControllerDependencies {
   addToDictionary(word: string): Promise<boolean>;
   /** Local dictionary lookups for unknown words (the extension's own Presage engine). */
   lookupSpelling?: ReviewSpellingLookup;
+  /** Called when a review opens or closes (the in-field button hides for the reviewed field). */
+  onActiveChange?(): void;
   /** The Google Docs adapter when this page is a Docs editor. */
   getDocsSurface(): GoogleDocsReviewSurface | null;
   uiLanguage?: string;
@@ -78,6 +80,11 @@ export class ReviewController {
   private docsStarting = false;
 
   constructor(private readonly deps: ReviewControllerDependencies) {}
+
+  /** The editor an open review is showing. */
+  get reviewedElement(): HTMLElement | null {
+    return this.active?.target.element ?? null;
+  }
 
   get isActive(): boolean {
     return this.active !== null;
@@ -213,6 +220,7 @@ export class ReviewController {
       paintedDiagnostics: null,
     };
     this.active = active;
+    this.deps.onActiveChange?.();
     this.deps.suspend(target.element);
     active.cleanup.push(() => this.deps.resume(target.element));
     if (onClose) active.cleanup.push(onClose);
@@ -326,6 +334,7 @@ export class ReviewController {
     }
     active.target.dispose();
     active.ui.destroy();
+    this.deps.onActiveChange?.();
   }
 
   // ------------------------------------------------------------------- state
@@ -617,7 +626,7 @@ const NOTICE_CALLBACKS: ReviewUiCallbacks = {
 const SOURCE_POLL_MS = 1000;
 
 /** The open modal dialog holding `element` (across shadow roots), if any. */
-function modalDialogOf(element: Element): HTMLDialogElement | null {
+export function modalDialogOf(element: Element): HTMLDialogElement | null {
   for (let node: Node | null = element; node;) {
     if (node.nodeType === 1 && (node as Element).tagName === "DIALOG") {
       const dialog = node as HTMLDialogElement;

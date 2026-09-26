@@ -7139,6 +7139,121 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   );
 
   test(
+    "Review button in the focused text box reviews only that box; the setting turns it off",
+    async () => {
+      await prepareReviewPage();
+      await setTextarea("We saw the cat and the dog.");
+      await page.evaluate(() => {
+        const second = document.createElement("textarea");
+        second.id = "second-textarea";
+        second.rows = 4;
+        second.cols = 40;
+        second.value = "Another box with teh typo.";
+        document.querySelector("#test-textarea")!.after(second);
+      });
+      const launcher = () =>
+        page.evaluate(() => {
+          const button = document
+            .querySelector("[data-fluenttyper-review-launcher]")
+            ?.shadowRoot?.querySelector<HTMLButtonElement>("button");
+          if (!button || button.hidden) return null;
+          const rect = button.getBoundingClientRect();
+          return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+        });
+      const box = (selector: string) =>
+        page.$eval(selector, (el) => {
+          const rect = el.getBoundingClientRect();
+          return { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom };
+        });
+
+      // The button sits inside the focused box, in its corner; the page's layout is untouched.
+      const paddingBefore = await page.$eval(
+        "#second-textarea",
+        (el) => getComputedStyle(el).paddingRight,
+      );
+      await page.focus("#second-textarea");
+      await waitUntil("review button", async () => (await launcher()) !== null, {
+        timeoutMs: 5000,
+      });
+      const point = (await launcher())!;
+      const second = await box("#second-textarea");
+      expect(point.x).toBeGreaterThan(second.left);
+      expect(point.x).toBeLessThan(second.right);
+      expect(point.y).toBeGreaterThan(second.top);
+      expect(point.y).toBeLessThan(second.bottom);
+      expect(await page.$eval("#second-textarea", (el) => getComputedStyle(el).paddingRight)).toBe(
+        paddingBefore,
+      );
+
+      // Typing hides it until a pause.
+      await page.keyboard.press("End");
+      await page.keyboard.type(" More", { delay: 20 });
+      expect(await launcher()).toBeNull();
+      await waitUntil("button back after typing", async () => (await launcher()) !== null, {
+        timeoutMs: 5000,
+      });
+
+      // A click reviews this box only, and the button steps aside while its review is open.
+      const target = (await launcher())!;
+      await page.mouse.click(target.x, target.y);
+      const panel = await waitForReview(page, "second box review", (p) => p.status === "Issues: 1");
+      expect(panel.items.map((item) => item.text)).toEqual(["teh \u2192 the"]);
+      expect(await page.evaluate(() => document.activeElement?.id)).not.toBe("test-textarea");
+      expect(await launcher()).toBeNull();
+      await clickReviewControl(page, "[data-action=fix-all]");
+      await waitUntil(
+        "fixed second box",
+        async () =>
+          (await page.$eval("#second-textarea", (el) => (el as HTMLTextAreaElement).value)) ===
+          "Another box with the typo. More",
+        { timeoutMs: 5000 },
+      );
+      expect(await textareaValue()).toBe("We saw the cat and the dog.");
+      await page.keyboard.press("Escape");
+      await waitForReview(page, "closed", (p) => !p.open);
+
+      // Inside a modal dialog (the page behind it is inert), the button still works.
+      await page.evaluate(() => {
+        const dialog = document.createElement("dialog");
+        dialog.id = "launcher-dialog";
+        const field = document.createElement("textarea");
+        field.id = "dialog-textarea";
+        field.rows = 4;
+        field.cols = 40;
+        field.value = "In a dialog with teh typo.";
+        dialog.append(field);
+        document.body.append(dialog);
+        dialog.showModal();
+        field.focus();
+      });
+      await waitUntil("dialog button", async () => (await launcher()) !== null, {
+        timeoutMs: 5000,
+      });
+      const inDialog = (await launcher())!;
+      await page.mouse.click(inDialog.x, inDialog.y);
+      await waitForReview(page, "dialog review", (p) => p.status === "Issues: 1");
+      await page.keyboard.press("Escape");
+      await waitForReview(page, "dialog review closed", (p) => !p.open);
+      await page.evaluate(() => {
+        const dialog = document.querySelector<HTMLDialogElement>("#launcher-dialog")!;
+        dialog.close();
+        dialog.remove();
+      });
+
+      // Turned off in settings: no button anywhere.
+      await setSettingAndWait(worker!, "showReviewButton", false);
+      await applyConfigChange(browser, worker!);
+      await page.focus("#test-textarea");
+      await sleep(1200);
+      expect(await launcher()).toBeNull();
+      await setSettingAndWait(worker!, "showReviewButton", true);
+      await applyConfigChange(browser, worker!);
+      await finishReview();
+    },
+    browserTimeout(30000, 45000),
+  );
+
+  test(
     "Review mode never writes stale offsets when focusing the field changes it",
     async () => {
       await prepareReviewPage();

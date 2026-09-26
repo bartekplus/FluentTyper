@@ -57,6 +57,17 @@ describe("CoreSettingsRepository", () => {
     await expect(repository.getPreferNativeAutocomplete()).resolves.toBe(true);
   });
 
+  test("shows the in-field Review button unless it is turned off", async () => {
+    await expect(
+      new CoreSettingsRepository(createSettingsManagerMock({})).getShowReviewButton(),
+    ).resolves.toBe(true);
+    await expect(
+      new CoreSettingsRepository(
+        createSettingsManagerMock({ showReviewButton: false }),
+      ).getShowReviewButton(),
+    ).resolves.toBe(false);
+  });
+
   test("defaults codeMode to false when the setting is absent", async () => {
     const repository = new CoreSettingsRepository(createSettingsManagerMock({}));
 

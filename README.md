@@ -58,7 +58,7 @@ Example: type `callMe` and expand it to `Call me back once you're free`.
 3. Start typing to see suggestions.
 4. Use arrow keys to choose a suggestion.
 5. Press `Tab` to accept, or `Esc` to dismiss.
-6. To proofread text you already wrote, press `Alt+Shift+R` (or choose **Review text** in the popup).
+6. To proofread text you already wrote, press `Alt+Shift+R`, click the **Review** button in the corner of the text box, or choose **Review text** in the popup.
 
 ## Site Profiles and Precedence
 

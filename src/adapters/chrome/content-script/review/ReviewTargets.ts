@@ -64,7 +64,7 @@ function isTextControl(element: Element): element is HTMLInputElement | HTMLText
 }
 
 /** The outermost contenteditable ancestor (the editing host) of `element`. */
-function editingHost(element: HTMLElement): HTMLElement | null {
+export function editingHost(element: HTMLElement): HTMLElement | null {
   if (!element.isContentEditable) return null;
   let host = element;
   for (

@@ -12,8 +12,29 @@ and it needs no extra permissions.
 Put the cursor in a text field, then either:
 
 - press **Alt+Shift+R** (the suggested shortcut; change it in the browser's
-  extension shortcut settings), or
+  extension shortcut settings),
+- click the **Review** button in the corner of the text box you are writing in, or
 - open the FluentTyper popup and choose **Review text**.
+
+With several text boxes on a page, each of these reviews only the one you are
+in (the one with the cursor); the others are never read or changed.
+
+![The Review button in the corner of the text box being written in](images/review-mode/8-review-button.png)
+
+The **Review button** is one small button, drawn in FluentTyper's own layer,
+so the page's layout and the field's padding are untouched:
+
+- It appears only on the focused **multi-line** field (text areas and rich
+  editors, not search boxes or other single-line inputs), once the field
+  holds some text, and only where review can run (not in sensitive, locked,
+  code or very small fields, not in Google Docs, not in code mode).
+- It hides while you type, comes back when you pause, and steps aside while
+  that field's review is open. Clicking it keeps your cursor and selection, so
+  a selection is reviewed on its own, exactly as with the shortcut.
+- One icon per field: where FluentTyper waits for the "enable here" icon
+  (a field with the browser's own autocomplete), that icon shows instead.
+- It is not a tab stop; keyboard users have the shortcut. Turn it off under
+  **Settings → Grammar → Review text**.
 
 What gets reviewed:
 

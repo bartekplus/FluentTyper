@@ -238,6 +238,11 @@ export class SuggestionManagerRuntime {
   }
 
   /** Detaches the helper from an editor for the duration of a review. */
+  /** True while the "enable FluentTyper here" icon owns `element` (one icon per field). */
+  public isAwaitingManualAttach(element: HTMLElement): boolean {
+    return this.manualAttachUiManager.has(element);
+  }
+
   public suspendForReview(elem: HTMLElement): void {
     this.reviewSuspended.add(elem);
     for (const [id, entry] of [...this.entryRegistry.entriesById()]) {

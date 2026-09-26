@@ -119,6 +119,11 @@ export class CoreSettingsRepository extends SettingsRepositoryBase {
     return this.getBooleanField("displayLangHeader");
   }
 
+  /** The "Review text" button on the focused multi-line field; on unless turned off. */
+  async getShowReviewButton(): Promise<boolean> {
+    return this.getBooleanField("showReviewButton", true);
+  }
+
   async getInsertSpaceAfterAutocomplete(): Promise<boolean> {
     return this.getBooleanField("insertSpaceAfterAutocomplete");
   }

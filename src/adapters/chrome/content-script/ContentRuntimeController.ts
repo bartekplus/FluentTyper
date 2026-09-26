@@ -20,6 +20,8 @@ import { ShadowRootInterceptor } from "./ShadowRootInterceptor";
 import { ThemeApplicator } from "./ThemeApplicator";
 import { SuggestionManagerRuntime } from "./suggestions/SuggestionManagerRuntime";
 import { ReviewController } from "./review/ReviewController";
+import { ReviewLauncher } from "./review/ReviewLauncher";
+import { isReviewSupportedRule } from "@core/domain/grammar/review/reviewCatalog";
 
 import { GoogleDocsAdapter } from "./google-docs/GoogleDocsAdapter";
 import type { GoogleDocsReviewSurface } from "./review/GoogleDocsReviewTarget";
@@ -47,6 +49,7 @@ export class ContentRuntimeController {
     selectByDigit: false,
     minWordLengthToPredict: 0,
     displayLangHeader: true,
+    showReviewButton: true,
     inline_suggestion: false,
     preferNativeAutocomplete: true,
     codeMode: false,
@@ -97,6 +100,7 @@ export class ContentRuntimeController {
   private readonly themeApplicator = new ThemeApplicator();
   // Created on the first review request: no cost for pages that never review.
   private review: ReviewController | null = null;
+  private reviewLauncher: ReviewLauncher | null = null;
   private reviewSuspended: HTMLElement | null = null;
 
   constructor() {
@@ -157,6 +161,7 @@ export class ContentRuntimeController {
       autocomplete: config.autocomplete,
     });
     this.config = config;
+    this.reviewLauncher?.refresh();
 
     if (config.themeConfig) {
       this.themeApplicator.apply(config.themeConfig);
@@ -258,6 +263,7 @@ export class ContentRuntimeController {
         return response?.ok === true && Array.isArray(response.results) ? response.results : null;
       },
       getDocsSurface: () => (this.googleDocs ? this.docsReviewSurface : null),
+      onActiveChange: () => this.reviewLauncher?.refresh(),
     });
   }
 
@@ -344,12 +350,39 @@ export class ContentRuntimeController {
     this.refreshShadowObservers();
     this.ensureShadowRootInterceptor();
     this.ensureLateDiscoveryListeners();
+    this.ensureReviewLauncher();
     this.reportRuntimeActivity();
+  }
+
+  /** The in-field "Review text" button; Google Docs has no DOM field to put it on. */
+  private ensureReviewLauncher(): void {
+    if (this.reviewLauncher || isGoogleDocsPage()) {
+      this.reviewLauncher?.refresh();
+      return;
+    }
+    this.reviewLauncher = new ReviewLauncher(document, {
+      isEnabled: () =>
+        this.enabled &&
+        this.config.showReviewButton !== false &&
+        // Code mode leaves no rule review supports: the button would find nothing.
+        !this.config.codeMode &&
+        this.config.enabledGrammarRules.some(isReviewSupportedRule),
+      canShowFor: (field) => !this.suggestionManager?.isAwaitingManualAttach(field),
+      reviewedElement: () => this.review?.reviewedElement ?? null,
+      review: () => {
+        this.review ??= this.createReviewController();
+        this.review.invoke();
+      },
+    });
   }
 
   disable({ keepReview = false }: { keepReview?: boolean } = {}): void {
     // A restart for a settings change keeps an open review; turning off ends it.
-    if (!keepReview) this.review?.close();
+    if (!keepReview) {
+      this.review?.close();
+      this.reviewLauncher?.dispose();
+      this.reviewLauncher = null;
+    }
     this.googleDocs?.dispose();
     this.googleDocs = null;
     logger.info("Disabling content runtime");

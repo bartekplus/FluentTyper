@@ -32,6 +32,7 @@ import {
   KEY_USER_DICTIONARY_LIST,
   KEY_DOMAIN_LIST_MODE,
   KEY_DISPLAY_LANG_HEADER,
+  KEY_SHOW_REVIEW_BUTTON,
   KEY_EXTENSION_LANGUAGE,
   KEY_SITE_PROFILES,
   KEY_PREFER_NATIVE_AUTOCOMPLETE,
@@ -460,6 +461,17 @@ const manifest: ManifestDefinition = {
       label: i18n.get("grammar_tab"),
       description: i18n.get("options_tab_grammar_desc"),
       keywords: [i18n.get("grammar_rules"), i18n.get("grammar_tab")],
+    },
+    {
+      tab: "grammar_tab",
+      group: i18n.get("popup_review_text"),
+      name: KEY_SHOW_REVIEW_BUTTON,
+      type: "checkbox",
+      label: buildFieldLabel(
+        i18n.get("show_review_button_label"),
+        i18n.get("show_review_button_desc"),
+      ),
+      default: true,
     },
     {
       tab: "grammar_tab",

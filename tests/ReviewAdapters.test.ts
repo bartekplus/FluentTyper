@@ -11,6 +11,10 @@ import {
   resolveReviewTarget,
 } from "../src/adapters/chrome/content-script/review/ReviewTargets";
 import { ReviewController } from "../src/adapters/chrome/content-script/review/ReviewController";
+import {
+  ReviewLauncher,
+  launcherFieldFor,
+} from "../src/adapters/chrome/content-script/review/ReviewLauncher";
 import { windowReviewable } from "../src/adapters/chrome/content-script/review/GoogleDocsReviewTarget";
 import { REVIEW_HIGHLIGHT_NAMES } from "../src/adapters/chrome/content-script/review/reviewStyles";
 import { GRAMMAR_RULE_IDS } from "../src/core/domain/grammar/ruleCatalog";
@@ -467,6 +471,132 @@ describe("contenteditable writes", () => {
     document.body.append(container);
     expect(new ContentEditableReviewTarget(quill).kind).toBe("quill");
     expect(new ContentEditableReviewTarget(quill).capabilities.apply).toBe(true);
+  });
+});
+
+describe("in-field review button", () => {
+  const launcherButton = () =>
+    document
+      .querySelector("[data-fluenttyper-review-launcher]")
+      ?.shadowRoot?.querySelector<HTMLButtonElement>("button") ?? null;
+  const shown = () => {
+    const button = launcherButton();
+    return !!button && !button.hidden;
+  };
+  function sized(element: HTMLElement, rect = { left: 100, top: 50, width: 300, height: 120 }) {
+    element.getBoundingClientRect = () =>
+      ({
+        ...rect,
+        right: rect.left + rect.width,
+        bottom: rect.top + rect.height,
+        x: rect.left,
+        y: rect.top,
+      }) as DOMRect;
+    return element;
+  }
+  function launcher(overrides: Partial<ConstructorParameters<typeof ReviewLauncher>[1]> = {}) {
+    const review = jest.fn();
+    const instance = new ReviewLauncher(document, {
+      isEnabled: () => true,
+      canShowFor: () => true,
+      reviewedElement: () => null,
+      review,
+      uiLanguage: "en",
+      ...overrides,
+    });
+    return { instance, review };
+  }
+  const focusIn = (element: HTMLElement) => {
+    element.focus();
+    element.dispatchEvent(new window.FocusEvent("focusin", { bubbles: true, composed: true }));
+  };
+
+  test("only multi-line editors the review can read get a button", () => {
+    const area = document.createElement("textarea");
+    const input = document.createElement("input");
+    const locked = document.createElement("textarea");
+    locked.readOnly = true;
+    const rich = createEditor("<p>Some text</p>");
+    const single = createEditor("<p>Some text</p>");
+    single.setAttribute("aria-multiline", "false");
+    document.body.append(area, input, locked);
+    expect(launcherFieldFor(area)).toBe(area);
+    expect(launcherFieldFor(input)).toBeNull();
+    expect(launcherFieldFor(locked)).toBeNull();
+    // (jsdom does not inherit isContentEditable to children; the e2e covers a caret inside.)
+    expect(launcherFieldFor(rich)).toBe(rich);
+    expect(launcherFieldFor(single)).toBeNull();
+  });
+
+  test("shows on the focused field with text, in its corner; clicking reviews that field", () => {
+    const field = sized(textarea("We saw teh cat."));
+    const other = sized(textarea("Another box."), { left: 100, top: 300, width: 300, height: 120 });
+    const { instance, review } = launcher();
+    focusIn(field);
+    expect(shown()).toBe(true);
+    // Bottom inline-end corner, inside the field: 100 + 300 - 6 - 24, 50 + 120 - 6 - 24.
+    expect(launcherButton()!.style.left).toBe("370px");
+    expect(launcherButton()!.style.top).toBe("140px");
+    expect(launcherButton()!.getAttribute("aria-label")).toBe("Review this text (FluentTyper)");
+    // The page's markup and layout are untouched: the button lives in its own host.
+    expect(field.style.paddingRight).toBe("");
+
+    launcherButton()!.click();
+    expect(review).toHaveBeenCalledWith(field);
+    expect(review).not.toHaveBeenCalledWith(other);
+    instance.dispose();
+    expect(document.querySelector("[data-fluenttyper-review-launcher]")).toBeNull();
+  });
+
+  test("hidden without text, while typing, during its review, and when turned off", async () => {
+    const field = sized(textarea(""));
+    let reviewed: HTMLElement | null = null;
+    let enabled = true;
+    const { instance } = launcher({
+      reviewedElement: () => reviewed,
+      isEnabled: () => enabled,
+    });
+    focusIn(field);
+    expect(shown()).toBe(false);
+
+    field.value = "Now some text";
+    field.dispatchEvent(new Event("input", { bubbles: true, composed: true }));
+    // Typing: out of the way until the user pauses.
+    expect(shown()).toBe(false);
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    expect(shown()).toBe(true);
+
+    reviewed = field;
+    instance.refresh();
+    expect(shown()).toBe(false);
+    reviewed = null;
+    enabled = false;
+    instance.refresh();
+    expect(shown()).toBe(false);
+    enabled = true;
+    instance.refresh();
+    expect(shown()).toBe(true);
+
+    // Leaving the field hides it; too small a field never gets one.
+    field.blur();
+    field.dispatchEvent(new window.FocusEvent("focusout", { bubbles: true, composed: true }));
+    expect(shown()).toBe(false);
+    const tiny = sized(textarea("Some text here"), { left: 0, top: 0, width: 80, height: 20 });
+    focusIn(tiny);
+    expect(shown()).toBe(false);
+    instance.dispose();
+  });
+
+  test("one icon per field: the enable icon wins until FluentTyper is on there", () => {
+    const field = sized(textarea("Some text here"));
+    let awaitingEnable = true;
+    const { instance } = launcher({ canShowFor: () => !awaitingEnable });
+    focusIn(field);
+    expect(shown()).toBe(false);
+    awaitingEnable = false;
+    instance.refresh();
+    expect(shown()).toBe(true);
+    instance.dispose();
   });
 });
 

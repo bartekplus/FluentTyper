@@ -64,9 +64,23 @@ try {
   await page.bringToFront();
   const html = () => page.evaluate(() => document.querySelector("#doc")!.innerHTML);
   const status = async () => (await readReviewPanel(page)).status;
-  const shot = async (name: string) => {
+  // Results the user can act on: highlights shown, not rechecking (settings can still
+  // arrive right after load and recheck), and the dictionary check finished.
+  const settled = () =>
+    waitUntil(
+      "settled review",
+      async () => {
+        const panel = await readReviewPanel(page);
+        return /^(Issues|Fixed|All|No issues)/.test(panel.status) && panel.spelling !== "checking";
+      },
+      { timeoutMs: 8000 },
+    );
+  const shot = async (
+    name: string,
+    clip?: { x: number; y: number; width: number; height: number },
+  ) => {
     await sleep(250);
-    await page.screenshot({ path: path.join(OUT, `${name}.png`) });
+    await page.screenshot({ path: path.join(OUT, `${name}.png`), clip });
     console.log(`saved ${name}.png`);
   };
   await page.evaluate(() => {
@@ -88,6 +102,7 @@ try {
 
   // 2. Click a highlight, then apply its fix.
   let point = await textPoint(page, "#doc", "teh", 1);
+  await settled();
   await page.mouse.click(point.x, point.y);
   await waitUntil("card", async () => (await readReviewPanel(page)).card.open, { timeoutMs: 4000 });
   await shot("2-correction-card");
@@ -102,6 +117,7 @@ try {
 
   // 3. Ignore another finding.
   point = await textPoint(page, "#doc", "monday", 1);
+  await settled();
   await page.mouse.click(point.x, point.y);
   await waitUntil("card", async () => (await readReviewPanel(page)).card.open, { timeoutMs: 4000 });
   await clickReviewControl(page, ".card [data-action=ignore]");
@@ -159,6 +175,7 @@ try {
     { timeoutMs: 8000 },
   );
   point = await textPoint(page, "#doc", "wa", 1);
+  await settled();
   await page.mouse.click(point.x, point.y);
   await waitUntil("card", async () => (await readReviewPanel(page)).card.open, { timeoutMs: 4000 });
   check((await html()) === unknown, "an unknown word changes nothing until a word is picked");
@@ -168,6 +185,27 @@ try {
     timeoutMs: 4000,
   });
   check(true, "picking a suggestion replaces only that word");
+
+  // 7. The in-field button: on the box being written in, it reviews that box.
+  await page.keyboard.press("Escape");
+  await page.keyboard.press("Escape");
+  await waitUntil("closed", async () => !(await readReviewPanel(page)).open, { timeoutMs: 4000 });
+  await page.evaluate(() => {
+    const editor = document.querySelector<HTMLElement>("#doc")!;
+    editor.innerHTML = "<h2>Release notes</h2><p>We could of shipped on Monday.</p>";
+    editor.focus();
+  });
+  const launcherShown = () =>
+    page.evaluate(() => {
+      const button = document
+        .querySelector("[data-fluenttyper-review-launcher]")
+        ?.shadowRoot?.querySelector("button");
+      return !!button && !button.hidden;
+    });
+  await waitUntil("review button", launcherShown, { timeoutMs: 4000 });
+  await sleep(800);
+  await shot("8-review-button", { x: 0, y: 0, width: 760, height: 220 });
+  check(!(await readReviewPanel(page)).open, "the button alone starts nothing");
 } finally {
   await browser.close();
   server.close();
