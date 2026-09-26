@@ -83,6 +83,8 @@ export class SuggestionManagerRuntime {
   private lang: string;
 
   private activeEntryId: number | null = null;
+  /** Editors under review: no live grammar, predictions or suggestion UI until resumed. */
+  private readonly reviewSuspended = new WeakSet<HTMLElement>();
 
   constructor(options: SuggestionManagerOptions) {
     this.discovery = new SuggestionElementDiscovery({
@@ -235,6 +237,34 @@ export class SuggestionManagerRuntime {
     return false;
   }
 
+  /** Detaches the helper from an editor for the duration of a review. */
+  /** True while the "enable FluentTyper here" icon owns `element` (one icon per field). */
+  public isAwaitingManualAttach(element: HTMLElement): boolean {
+    return this.manualAttachUiManager.has(element);
+  }
+
+  public suspendForReview(elem: HTMLElement): void {
+    this.reviewSuspended.add(elem);
+    for (const [id, entry] of [...this.entryRegistry.entriesById()]) {
+      if (entry.elem === elem || elem.contains(entry.elem) || entry.elem.contains(elem)) {
+        this.detachHelper(id);
+      }
+    }
+  }
+
+  /** Restores normal behavior after a review; no setting was changed meanwhile. */
+  public resumeAfterReview(elem: HTMLElement): void {
+    this.reviewSuspended.delete(elem);
+    if (isInDocument(elem)) this.queryAndAttachHelper(elem);
+  }
+
+  private isReviewSuspended(elem: HTMLElement): boolean {
+    for (let node: HTMLElement | null = elem; node; node = node.parentElement) {
+      if (this.reviewSuspended.has(node)) return true;
+    }
+    return false;
+  }
+
   public updateLangConfig(lang: string): void {
     if (this.lang === lang) {
       return;
@@ -373,7 +403,7 @@ export class SuggestionManagerRuntime {
       }
     }
 
-    if (shouldSkip || !this.isStructurallyEligibleElement(elem)) {
+    if (shouldSkip || !this.isStructurallyEligibleElement(elem) || this.isReviewSuspended(elem)) {
       return false;
     }
 

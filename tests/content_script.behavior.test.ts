@@ -8,9 +8,12 @@ import {
   CMD_POPUP_PAGE_DISABLE,
   CMD_POPUP_PAGE_ENABLE,
   CMD_STATUS_COMMAND,
+  CMD_REVIEW_FT_ACTIVE_TAB,
   CMD_TOGGLE_FT_ACTIVE_TAB,
   CMD_TRIGGER_FT_ACTIVE_TAB,
 } from "../src/core/domain/constants";
+import { ContentRuntimeController } from "../src/adapters/chrome/content-script/ContentRuntimeController";
+import { REVIEW_SUPPORTED_RULE_IDS } from "../src/core/domain/grammar/review/reviewCatalog";
 import {
   EARLY_TAB_ACCEPT_MESSAGE_TYPE,
   EARLY_TAB_ACCEPT_REQUEST_EVENT,
@@ -542,6 +545,32 @@ describe("content_script behavior", () => {
     expect(suggestionInstances.at(-1)?.options?.enabledGrammarRules).toEqual(["autoBracketClose"]);
   });
 
+  test("review runs every review-supported rule whatever is on for typing; code mode leaves none", async () => {
+    const { fluentTyper, suggestionInstances } = await loadContentScript();
+    // The options the review controller reads when a review starts or rechecks.
+    const reviewRules = () =>
+      (
+        fluentTyper as unknown as {
+          runtimeController: {
+            createReviewController(): { deps: { getOptions(): { enabledRules: string[] } } };
+          };
+        }
+      ).runtimeController
+        .createReviewController()
+        .deps.getOptions().enabledRules;
+
+    // Every rule off for typing ("Disable all"): typing gets none, review still runs all it supports.
+    fluentTyper.setConfig(defaultConfig({ enabledGrammarRules: [] }));
+    expect(suggestionInstances.at(-1)?.options?.enabledGrammarRules).toEqual([]);
+    expect(reviewRules()).toEqual([...REVIEW_SUPPORTED_RULE_IDS]);
+    expect(reviewRules()).toContain("duplicatePunctuationCollapse");
+
+    fluentTyper.setConfig(
+      defaultConfig({ enabledGrammarRules: ["capitalizeSentenceStart"], codeMode: true }),
+    );
+    expect(reviewRules()).toEqual([]);
+  });
+
   test("messageHandler handles config/lang/toggle/trigger commands and status replies", async () => {
     const { fluentTyper } = await loadContentScript();
     fluentTyper.enable();
@@ -588,6 +617,66 @@ describe("content_script behavior", () => {
         (response) => (response as { command?: string }).command === CMD_STATUS_COMMAND,
       ),
     ).toBe(true);
+  });
+
+  test("messageHandler routes Review text with its source and replies with status", async () => {
+    const review = jest
+      .spyOn(ContentRuntimeController.prototype, "reviewActiveEditor")
+      .mockImplementation(() => undefined);
+    try {
+      const { fluentTyper } = await loadContentScript();
+      fluentTyper.enable();
+      const responses: unknown[] = [];
+      fluentTyper.messageHandler(
+        { command: CMD_REVIEW_FT_ACTIVE_TAB, context: { source: "popup" } },
+        (response) => responses.push(response),
+      );
+      fluentTyper.messageHandler(
+        { command: CMD_REVIEW_FT_ACTIVE_TAB, context: { source: "command" } },
+        (response) => responses.push(response),
+      );
+      // Anything but the popup is treated as the keyboard command.
+      fluentTyper.messageHandler({ command: CMD_REVIEW_FT_ACTIVE_TAB, context: {} }, (response) =>
+        responses.push(response),
+      );
+      expect(review.mock.calls).toEqual([["popup"], ["command"], ["command"]]);
+      expect(
+        responses.every(
+          (response) => (response as { command?: string }).command === CMD_STATUS_COMMAND,
+        ),
+      ).toBe(true);
+    } finally {
+      review.mockRestore();
+    }
+  });
+
+  test("turning FluentTyper off dismisses a review notice; a settings restart keeps it", async () => {
+    const { fluentTyper } = await loadContentScript();
+    fluentTyper.enabled = true;
+    const hasFocus = jest.spyOn(document, "hasFocus").mockReturnValue(true);
+    try {
+      const input = document.createElement("input");
+      input.type = "password";
+      document.body.append(input);
+      input.focus();
+      const notice = () =>
+        document.querySelector("[data-fluenttyper-review]")?.shadowRoot?.querySelector(".status")
+          ?.textContent ?? null;
+      fluentTyper.messageHandler({
+        command: CMD_REVIEW_FT_ACTIVE_TAB,
+        context: { source: "command" },
+      });
+      expect(notice()).toContain("excluded from review");
+
+      // A restart for a settings change leaves what the user is reading alone.
+      fluentTyper.restart();
+      expect(notice()).toContain("excluded from review");
+
+      fluentTyper.enabled = false;
+      expect(document.querySelector("[data-fluenttyper-review]")).toBeNull();
+    } finally {
+      hasFocus.mockRestore();
+    }
   });
 
   test("same-language runtime update does not thrash suggestion manager", async () => {

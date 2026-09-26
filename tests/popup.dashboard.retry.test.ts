@@ -3,6 +3,7 @@ import { JSDOM } from "jsdom";
 import {
   CMD_GET_AUTO_LANGUAGE_STATUS,
   CMD_POPUP_GET_PRODUCTIVITY_STATS,
+  CMD_REVIEW_FT_ACTIVE_TAB,
 } from "../src/core/domain/constants";
 import type { ProductivityDashboardStats } from "../src/core/domain/messageTypes";
 import { acquireDomGlobalLock } from "./support/domGlobalLock";
@@ -66,6 +67,9 @@ function popupMarkup(initialAccepted = "0"): string {
     <div id="checkboxDomainHint"></div>
     <input id="checkboxEnableInput" type="checkbox" />
     <select id="languageSelect"></select>
+    <div id="reviewTextAction" class="is-hidden">
+      <button id="reviewTextBtn" type="button"><kbd id="reviewTextShortcut" class="is-hidden"></kbd></button>
+    </div>
 
     <div id="permissionBanner" class="is-hidden" data-permission-state="missing">
       <span id="permissionBadge"></span>
@@ -377,6 +381,9 @@ function createChromeMock(
       sync: localStorageApi,
     },
     permissions: undefined,
+    commands: {
+      getAll: jest.fn(async () => [{ name: CMD_REVIEW_FT_ACTIVE_TAB, shortcut: "Alt+Shift+R" }]),
+    },
   };
 
   if (permissionApi) {
@@ -1010,6 +1017,68 @@ describe.serial("popup productivity dashboard retry/failure paths", () => {
     expect(chromeMock.tabs.create).toHaveBeenCalledWith({
       url: expect.stringContaining("options/options.html#advanced_tab"),
     });
+  });
+
+  test("Review text asks the current tab to review its focused editor, then closes", async () => {
+    const chromeMock = await loadPopupWithOutcomes(
+      [{ type: "stats", value: createPopupStats(1) }],
+      "0",
+      { contains: async () => true },
+      createWebsiteTab(),
+    );
+    // Shown in the "This site" panel, with the command's shortcut.
+    const action = document.getElementById("reviewTextAction") as HTMLElement;
+    expect(action.classList.contains("is-hidden")).toBe(false);
+    expect(document.getElementById("pageStatePanel")?.classList.contains("has-action")).toBe(true);
+    chromeMock.tabs.sendMessage.mockImplementation(() => Promise.resolve());
+    const close = jest.spyOn(window, "close").mockImplementation(() => undefined);
+
+    (document.getElementById("reviewTextBtn") as HTMLButtonElement).click();
+
+    expect(chromeMock.tabs.sendMessage).toHaveBeenCalledWith(17, {
+      command: CMD_REVIEW_FT_ACTIVE_TAB,
+      context: { source: "popup" },
+    });
+    expect(close).toHaveBeenCalledTimes(1);
+  });
+
+  test("Review text shows its shortcut and follows the site switch without reopening", async () => {
+    await loadPopupWithOutcomes(
+      [{ type: "stats", value: createPopupStats(1) }],
+      "0",
+      { contains: async () => true },
+      createWebsiteTab(),
+    );
+    await flushAsyncWork();
+    const shortcut = document.getElementById("reviewTextShortcut") as HTMLElement;
+    expect(shortcut.textContent).toBe("Alt+Shift+R");
+    expect(shortcut.classList.contains("is-hidden")).toBe(false);
+    expect((document.getElementById("reviewTextBtn") as HTMLButtonElement).title).toBe(
+      "Shortcut: Alt+Shift+R",
+    );
+
+    // Turning FluentTyper off for this site hides the action at once.
+    (document.getElementById("checkboxDomainInput") as HTMLInputElement).click();
+    await waitForCondition(
+      () => document.getElementById("reviewTextAction")!.classList.contains("is-hidden"),
+      "Review text stayed visible after the site was turned off.",
+    );
+    expect(document.getElementById("pageStatePanel")?.classList.contains("has-action")).toBe(false);
+  });
+
+  test("Review text is hidden where FluentTyper is off", async () => {
+    await loadPopupWithOutcomes(
+      [{ type: "stats", value: createPopupStats(1) }],
+      "0",
+      { contains: async () => true },
+      createWebsiteTab(),
+      false,
+      undefined,
+      undefined,
+      { "store.settings.enable": JSON.stringify(false) },
+    );
+    expect(document.getElementById("reviewTextAction")?.classList.contains("is-hidden")).toBe(true);
+    expect(document.getElementById("pageStatePanel")?.classList.contains("has-action")).toBe(false);
   });
 
   test("popup applies explicit dark theme mode from matchMedia", async () => {

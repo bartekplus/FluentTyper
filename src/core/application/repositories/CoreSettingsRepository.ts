@@ -14,6 +14,9 @@ const DEFAULT_MIN_WORD_LENGTH_TO_PREDICT = 1;
 
 type ThemeField = keyof SuggestionThemeSettings & SettingField;
 
+/** Pending user-dictionary writes, applied one after another. */
+let dictionaryWrites: Promise<unknown> = Promise.resolve();
+
 export class CoreSettingsRepository extends SettingsRepositoryBase {
   private static toString(value: unknown, fallback = ""): string {
     return typeof value === "string" ? value : fallback;
@@ -116,6 +119,11 @@ export class CoreSettingsRepository extends SettingsRepositoryBase {
     return this.getBooleanField("displayLangHeader");
   }
 
+  /** The "Review text" button on the focused multi-line field; on unless turned off. */
+  async getShowReviewButton(): Promise<boolean> {
+    return this.getBooleanField("showReviewButton", true);
+  }
+
   async getInsertSpaceAfterAutocomplete(): Promise<boolean> {
     return this.getBooleanField("insertSpaceAfterAutocomplete");
   }
@@ -168,6 +176,25 @@ export class CoreSettingsRepository extends SettingsRepositoryBase {
 
   async getUserDictionaryList(): Promise<string[]> {
     return this.getStringArrayField("userDictionaryList");
+  }
+
+  /** Appends one word unless an entry already matches it (case-insensitively). */
+  async addUserDictionaryWord(word: string): Promise<boolean> {
+    const trimmed = word.trim();
+    // One word: letters (with their marks), inner apostrophes or hyphens.
+    if (trimmed.length > 64 || !/^[\p{L}\p{M}]+(?:['\u2019-][\p{L}\p{M}]+)*$/u.test(trimmed)) {
+      return false;
+    }
+    // Read-modify-write: queue adds so two quick ones both land.
+    const add = dictionaryWrites.then(async () => {
+      const current = await this.getUserDictionaryList();
+      if (!current.some((entry) => entry.trim().toLowerCase() === trimmed.toLowerCase())) {
+        await this.setField("userDictionaryList", [...current, trimmed]);
+      }
+      return true;
+    });
+    dictionaryWrites = add.catch(() => undefined);
+    return add;
   }
 
   async getThemeSettings(): Promise<SuggestionThemeSettings> {

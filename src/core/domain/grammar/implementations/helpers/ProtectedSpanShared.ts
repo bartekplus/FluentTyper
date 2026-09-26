@@ -22,6 +22,12 @@ const PROSE_QUOTE_CLOSERS: Record<string, string> = {
 };
 
 /**
+ * Every character that can open a span isInsideProtectedSpan tracks (quotes,
+ * code spans, fences): text without any of them is never inside one.
+ */
+export const PROTECTED_SPAN_OPENERS = `${Object.keys(PROSE_QUOTE_CLOSERS).join("")}\`~`;
+
+/**
  * True when the end of `text` (the text before the cursor) sits inside Markdown
  * code that has not been closed yet. Conservative: an unclosed delimiter counts
  * as open, since its closer may simply not be typed.
@@ -97,4 +103,101 @@ export function isInsideProtectedSpan(
 export function isInsideMarkdownCode(text: string): boolean {
   // Cheap precheck: most prose has neither delimiter, so skip the full scan.
   return (text.includes("`") || text.includes("~~~")) && isInsideProtectedSpan(text);
+}
+
+/**
+ * Markdown code in complete text, as [start, end) ranges (UTF-16, end-exclusive).
+ *
+ * Unlike isInsideProtectedSpan, which reads a prefix whose closer may still be
+ * typed, this sees the finished text, so it follows CommonMark exactly where
+ * that is safe: a backtick run without a matching run before the paragraph
+ * ends is literal (6.1). An unclosed fence still runs to the end (4.5). An
+ * indented line after a blank line (4.4) counts as code too, conservatively.
+ */
+export function findMarkdownCodeRanges(text: string): Array<[number, number]> {
+  const ranges: Array<[number, number]> = [];
+  if (!text.includes("`") && !text.includes("~~~") && !/(?:^|\n[ \t\r]*\n)(?: {4}|\t)/.test(text)) {
+    return ranges;
+  }
+  const lines = text.split("\n");
+  let fence: { char: string; length: number; start: number } | null = null;
+  // Paragraph text outside fences, scanned for spans once a paragraph ends.
+  let paragraphStart = -1;
+  let previousBlank = true;
+  let indentedCode = false;
+  let lineStart = 0;
+  const flushParagraph = (end: number) => {
+    if (paragraphStart >= 0) findCodeSpans(text, paragraphStart, end, ranges);
+    paragraphStart = -1;
+  };
+
+  for (const line of lines) {
+    const lineEnd = lineStart + line.length;
+    const found = readFence(line);
+    if (fence) {
+      if (
+        found &&
+        found.run[0] === fence.char &&
+        found.run.length >= fence.length &&
+        found.rest.trim() === ""
+      ) {
+        ranges.push([fence.start, lineEnd]);
+        fence = null;
+      }
+    } else if (found) {
+      flushParagraph(lineStart);
+      fence = { char: found.run[0], length: found.run.length, start: lineStart };
+    } else if (line.trim() === "") {
+      flushParagraph(lineStart);
+      previousBlank = true;
+      lineStart = lineEnd + 1;
+      continue;
+    } else if ((previousBlank || indentedCode) && paragraphStart < 0 && /^(?: {4}|\t)/.test(line)) {
+      ranges.push([lineStart, lineEnd]);
+      indentedCode = true;
+      previousBlank = false;
+      lineStart = lineEnd + 1;
+      continue;
+    } else if (paragraphStart < 0) {
+      paragraphStart = lineStart;
+    }
+    indentedCode = false;
+    previousBlank = false;
+    lineStart = lineEnd + 1;
+  }
+  if (fence) ranges.push([fence.start, text.length]);
+  flushParagraph(text.length);
+  return ranges.sort((a, b) => a[0] - b[0]);
+}
+
+/** CommonMark code spans in text[start, end): a run closes only at a run of equal length. */
+function findCodeSpans(
+  text: string,
+  start: number,
+  end: number,
+  ranges: Array<[number, number]>,
+): void {
+  let i = start;
+  while (i < end) {
+    const ch = text[i];
+    if (ch === "\\") {
+      i += 2;
+      continue;
+    }
+    if (ch !== "`") {
+      i += 1;
+      continue;
+    }
+    const run = /^`+/.exec(text.slice(i, end))![0].length;
+    // The first run of exactly as many backticks closes the span.
+    const close = new RegExp(`(?<!\`)\`{${run}}(?!\`)`).exec(text.slice(i + run, end));
+    if (!close) {
+      // Literal backticks; keep scanning after them.
+      i += run;
+      continue;
+    }
+    const closed = i + 2 * run + close.index;
+    ranges.push([i, closed]);
+    i = closed;
+  }
 }

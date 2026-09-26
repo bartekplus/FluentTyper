@@ -4,10 +4,10 @@ import { isPartOfTechnicalToken, resolveEnglishBoundaryContext } from "./helpers
 // Article, then a finished word. The article must start a token: after a space,
 // or after an opening quote/bracket that itself starts a token, so the "an" in
 // "Qur'an" or "Xi'an" is never an article.
-const ARTICLE_REGEX = /(?:^|(?<=\s)|(?<=(?:^|\s)["'([“‘]))(a|an|A|An)\s+([a-z]+)$/;
+export const ARTICLE_REGEX = /(?:^|(?<=\s)|(?<=(?:^|\s)["'([“‘]))(a|an|A|An)\s+([a-z]+)$/;
 // A capital article is only an article at a sentence start; "grade A apples",
 // "Plan A is" use the letter.
-const SENTENCE_START_REGEX = /(?:^|[.!?]\s+|\n\s*)["'([“‘]?$/;
+export const SENTENCE_START_REGEX = /(?:^|[.!?]\s+|\n\s*)["'([“‘]?$/;
 // Knowing a word's sound does not make the "a" before it an article: "keep a
 // independent of b", "option a early" and the SQL alias in "from users an group
 // by" are identifiers. So the article must also follow a word that is itself
@@ -55,7 +55,7 @@ const TAKES_A = new Set(
   ).split(" "),
 );
 
-function isArticleContext(beforeArticle: string): boolean {
+export function isArticleContext(beforeArticle: string): boolean {
   if (SENTENCE_START_REGEX.test(beforeArticle)) return true;
   const match = beforeArticle.match(PRECEDING_WORD_REGEX);
   if (!match || match.index === undefined) return false;
@@ -97,11 +97,10 @@ export class EnglishArticleAnCorrectionRule implements GrammarRule {
       return null;
     }
 
-    const fix = article.length === 2 ? TAKES_A.has(word) && "a" : TAKES_AN.has(word) && "an";
-    if (!fix) {
+    const corrected = correctArticle(article, word);
+    if (!corrected) {
       return null;
     }
-    const corrected = isTitle ? `A${fix.slice(1)}` : fix;
 
     const between = core.slice(articleStart + article.length, core.length - word.length);
     return {
@@ -110,4 +109,13 @@ export class EnglishArticleAnCorrectionRule implements GrammarRule {
       deleteForwards: 0,
     };
   }
+}
+
+/** The article `word` takes when it differs from `article` ("a" before "hour" -> "an"). */
+export function correctArticle(article: string, word: string): string | null {
+  const fix = article.length === 2 ? TAKES_A.has(word) && "a" : TAKES_AN.has(word) && "an";
+  if (!fix) {
+    return null;
+  }
+  return article[0] === "A" ? `A${fix.slice(1)}` : fix;
 }

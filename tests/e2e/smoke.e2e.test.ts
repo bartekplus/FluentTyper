@@ -18,6 +18,9 @@ import {
   openPopupPage,
   waitUntil,
   suiteTimeout,
+  clickReviewControl,
+  triggerReview,
+  waitForReview,
 } from "./e2e-helpers";
 import {
   CMD_OPTIONS_GET_PREDICTOR_DEBUG_SNAPSHOT,
@@ -2031,6 +2034,49 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
       const suggestions = await waitForSuggestionTexts(page);
       expect(suggestions.length).toBeGreaterThan(0);
       expect(suggestions[0]?.toLowerCase()).toMatch(/^h\S*/);
+    },
+    suiteTimeout(15000, 22000),
+  );
+
+  test(
+    "review mode fixes a textarea from one snapshot without changing it on start",
+    async () => {
+      await setSettingAndWait(
+        worker,
+        KEY_ENABLED_GRAMMAR_RULES,
+        grammarRuleSelectionToOverrides(RECOMMENDED_CURRENT_GRAMMAR_RULES),
+      );
+      await sendConfigChange(browser, worker);
+      page = await prepareReusableTestPage(browser, page);
+      await waitForInputReady(page, "#test-textarea");
+      const original = "i saw teh cat , and their is more.";
+      await page.evaluate((value) => {
+        const field = document.querySelector("#test-textarea") as HTMLTextAreaElement;
+        field.value = value;
+        field.focus();
+        field.setSelectionRange(0, 0);
+      }, original);
+
+      await triggerReview(worker);
+      const panel = await waitForReview(page, "smoke review findings", (p) =>
+        /^Issues: \d+$/.test(p.status),
+      );
+      expect(panel.items.length).toBe(4);
+      expect(await page.$eval("#test-textarea", (el) => (el as HTMLTextAreaElement).value)).toBe(
+        original,
+      );
+
+      await clickReviewControl(page, "[data-action=fix-all]");
+      await waitUntil(
+        "smoke review fix all",
+        async () =>
+          (await page.$eval("#test-textarea", (el) => (el as HTMLTextAreaElement).value)) ===
+          "I saw the cat, and there is more.",
+        { timeoutMs: suiteTimeout(4000, 6000) },
+      );
+      await page.keyboard.press("Escape");
+      await waitForReview(page, "smoke review closed", (p) => !p.open);
+      settingsDirty = true;
     },
     suiteTimeout(15000, 22000),
   );

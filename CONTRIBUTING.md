@@ -205,6 +205,14 @@ When changing message shapes, update all of:
 2. Extend `TemplateExpander.createResolver()` if it needs browser context (tab, URL, etc.)
 3. Add or update tests
 
+### Review Text
+
+Review mode ([docs/review-mode.md](docs/review-mode.md)) reuses the typing rules for finished text.
+
+- Adding a grammar rule: classify it in `src/core/domain/grammar/review/reviewCatalog.ts` (the build fails until you do). A supported rule needs a detector in `reviewDetectors.ts` built on the rule's exported helpers, not a second copy of its logic.
+- Diagnostics are UTF-16, end-exclusive offsets into one immutable snapshot. Writes go through the target port, are re-validated before and verified after, and never locate text by searching.
+- Never mutate the host editor's DOM for highlights, never clear the whole `CSS.highlights` registry, and never log or store reviewed text.
+
 ### Logging
 
 - Production: warn and error only

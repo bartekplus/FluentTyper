@@ -79,6 +79,12 @@
         "default": "Ctrl+Period"
       },
       "description": "Trigger FluentTyper on active tab"
+    },
+    "CMD_REVIEW_FT_ACTIVE_TAB": {
+      "suggested_key": {
+        "default": "Alt+Shift+R"
+      },
+      "description": "Review text in the active editor"
     }
   },
   "offline_enabled": true,

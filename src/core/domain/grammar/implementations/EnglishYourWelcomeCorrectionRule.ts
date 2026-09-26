@@ -2,7 +2,7 @@ import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from 
 import { matchTrailingEnglishPhrase } from "./helpers/EnglishRuleShared";
 import { applyWordCase, detectWordCase } from "./helpers/GenericRuleShared";
 
-const YOUR_WELCOME_REGEX = /\byour\s+welcome$/i;
+export const YOUR_WELCOME_REGEX = /\byour\s+welcome$/i;
 
 export class EnglishYourWelcomeCorrectionRule implements GrammarRule {
   readonly id = "englishYourWelcomeCorrection" as const;
@@ -22,14 +22,19 @@ export class EnglishYourWelcomeCorrectionRule implements GrammarRule {
       return null;
     }
 
-    const firstToken = phrase.split(/\s+/)[0];
-    const style = detectWordCase(firstToken);
-    const correctedFirst = style === "upper" ? "YOU'RE" : style === "title" ? "You're" : "you're";
+    const [correctedFirst, correctedWelcome] = correctYourWelcome(phrase.split(/\s+/)[0]);
 
     return {
-      replacement: `${correctedFirst} ${applyWordCase("welcome", style === "upper" ? "upper" : "lower")}${boundaryContext.trailing}`,
+      replacement: `${correctedFirst} ${correctedWelcome}${boundaryContext.trailing}`,
       deleteBackwards: boundaryContext.input.length - phraseStart,
       deleteForwards: 0,
     };
   }
+}
+
+/** ["you're", "welcome"] in the case of the typed "your". */
+export function correctYourWelcome(firstToken: string): [string, string] {
+  const style = detectWordCase(firstToken);
+  const correctedFirst = style === "upper" ? "YOU'RE" : style === "title" ? "You're" : "you're";
+  return [correctedFirst, applyWordCase("welcome", style === "upper" ? "upper" : "lower")];
 }

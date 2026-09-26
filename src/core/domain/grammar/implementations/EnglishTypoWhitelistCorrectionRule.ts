@@ -46,19 +46,9 @@ export class EnglishTypoWhitelistCorrectionRule implements GrammarRule {
       return null;
     }
 
-    const normalizedToken = tokenInfo.token.toLowerCase();
-    const correction = TYPO_WHITELIST.get(normalizedToken);
-    if (!correction) {
-      return null;
-    }
-
     const dictionarySet = resolveUserDictionarySet(context, this.fallbackUserDictionary);
-    if (dictionarySet.has(normalizedToken)) {
-      return null;
-    }
-
-    const replacementToken = applyWordCase(correction, detectWordCase(tokenInfo.token));
-    if (replacementToken === tokenInfo.token) {
+    const replacementToken = correctWhitelistedTypo(tokenInfo.token, dictionarySet);
+    if (!replacementToken) {
       return null;
     }
 
@@ -68,4 +58,18 @@ export class EnglishTypoWhitelistCorrectionRule implements GrammarRule {
       deleteForwards: 0,
     };
   }
+}
+
+/** The whitelisted correction of `token` in its own case, or null (also for dictionary words). */
+export function correctWhitelistedTypo(
+  token: string,
+  dictionary: ReadonlySet<string>,
+): string | null {
+  const normalizedToken = token.toLowerCase();
+  const correction = TYPO_WHITELIST.get(normalizedToken);
+  if (!correction || dictionary.has(normalizedToken)) {
+    return null;
+  }
+  const replacementToken = applyWordCase(correction, detectWordCase(token));
+  return replacementToken === token ? null : replacementToken;
 }

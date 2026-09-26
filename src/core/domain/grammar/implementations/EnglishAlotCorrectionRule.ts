@@ -2,7 +2,7 @@ import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from 
 import { matchTrailingEnglishPhrase, resolveUserDictionarySet } from "./helpers/EnglishRuleShared";
 import { detectWordCase, normalizeWordSet } from "./helpers/GenericRuleShared";
 
-const ALOT_REGEX = /\balot$/i;
+export const ALOT_REGEX = /\balot$/i;
 
 export class EnglishAlotCorrectionRule implements GrammarRule {
   readonly id = "englishAlotCorrection" as const;
@@ -27,8 +27,7 @@ export class EnglishAlotCorrectionRule implements GrammarRule {
       return null;
     }
 
-    const style = detectWordCase(phrase);
-    const replacementPhrase = style === "upper" ? "A LOT" : style === "title" ? "A lot" : "a lot";
+    const replacementPhrase = correctAlot(phrase);
 
     return {
       replacement: `${replacementPhrase}${boundaryContext.trailing}`,
@@ -36,4 +35,10 @@ export class EnglishAlotCorrectionRule implements GrammarRule {
       deleteForwards: 0,
     };
   }
+}
+
+/** "a lot" in the case of the typed "alot". */
+export function correctAlot(phrase: string): string {
+  const style = detectWordCase(phrase);
+  return style === "upper" ? "A LOT" : style === "title" ? "A lot" : "a lot";
 }

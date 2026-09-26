@@ -1,5 +1,6 @@
 import {
   CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG,
+  CMD_REVIEW_FT_ACTIVE_TAB,
   CMD_TOGGLE_FT_ACTIVE_LANG,
   CMD_TOGGLE_FT_ACTIVE_TAB,
   CMD_TRIGGER_FT_ACTIVE_TAB,
@@ -7,6 +8,7 @@ import {
 import { createLogger } from "@core/application/logging/Logger";
 import { logError } from "@core/domain/error";
 import type {
+  ReviewActiveTabMessage,
   ToggleActiveTabMessage,
   TriggerActiveTabMessage,
   UpdateLangConfigMessage,
@@ -19,7 +21,8 @@ const logger = createLogger("CommandRouter");
 type RuntimeCommand =
   | typeof CMD_TOGGLE_FT_ACTIVE_TAB
   | typeof CMD_TRIGGER_FT_ACTIVE_TAB
-  | typeof CMD_TOGGLE_FT_ACTIVE_LANG;
+  | typeof CMD_TOGGLE_FT_ACTIVE_LANG
+  | typeof CMD_REVIEW_FT_ACTIVE_TAB;
 
 export class CommandRouter {
   private readonly registry = new HandlerRegistry<RuntimeCommand, void>(logger, (error) => {
@@ -39,6 +42,14 @@ export class CommandRouter {
           command: CMD_TRIGGER_FT_ACTIVE_TAB,
         };
         getWorker().tabMessenger.sendToActiveTab(message);
+      },
+      [CMD_REVIEW_FT_ACTIVE_TAB]: () => {
+        const message: ReviewActiveTabMessage = {
+          command: CMD_REVIEW_FT_ACTIVE_TAB,
+          context: { source: "command" },
+        };
+        // The focused editor may be in any frame; each frame checks its own focus.
+        getWorker().tabMessenger.sendToActiveTabAllFrames(message);
       },
       [CMD_TOGGLE_FT_ACTIVE_LANG]: async () => {
         const worker = getWorker();

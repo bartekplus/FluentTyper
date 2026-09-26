@@ -26,6 +26,7 @@ FluentTyper helps you write faster and with fewer mistakes:
 - Local prediction with libPresage (WebLLM path is currently dev/debug-only)
 - Spelling suggestions
 - Offline [measurement-unit spacing](docs/measurement-formatting.md) in verified prose contexts
+- Offline [Review text](docs/review-mode.md): proofread a field you already wrote, with categorized highlights, one-click fixes and "Fix all safe" (`Alt+Shift+R`)
 - Text expansion snippets for repeated phrases
 - Keyboard-first suggestion selection with arrow keys and `Tab`
 
@@ -57,6 +58,7 @@ Example: type `callMe` and expand it to `Call me back once you're free`.
 3. Start typing to see suggestions.
 4. Use arrow keys to choose a suggestion.
 5. Press `Tab` to accept, or `Esc` to dismiss.
+6. To proofread text you already wrote, press `Alt+Shift+R`, click the **Review** button in the corner of the text box, or choose **Review text** in the popup.
 
 ## Site Profiles and Precedence
 
@@ -95,6 +97,7 @@ FluentTyper is privacy-first:
 - No upload of your typed content
 - Works offline
 - Predictions are generated locally on your computer
+- Review text checks the field in the page itself; the reviewed text is never uploaded, logged or stored
 - In dev/debug builds, when AI predictor is enabled, only model artifacts are downloaded; typed content stays local
 
 ## Development Setup

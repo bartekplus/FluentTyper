@@ -125,7 +125,7 @@ async function main(): Promise<void> {
       [
         bunExecutable,
         "test",
-        "--test-name-pattern=CMD_TOGGLE_FT_ACTIVE_LANG|AI predictor|predictor debug dashboard",
+        "--test-name-pattern=CMD_TOGGLE_FT_ACTIVE_LANG|CMD_REVIEW_FT_ACTIVE_TAB|AI predictor|predictor debug dashboard",
         "tests/e2e/full.e2e.test.ts",
         ...options.passthroughArgs,
       ],

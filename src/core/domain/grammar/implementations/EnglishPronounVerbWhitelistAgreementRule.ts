@@ -2,8 +2,8 @@ import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from 
 import { matchTrailingEnglishPhrase } from "./helpers/EnglishRuleShared";
 import { applyWordCase, detectWordCase } from "./helpers/GenericRuleShared";
 
-const AGREEMENT_REGEX = /\b(i\s+is|i\s+has|you\s+was|(he|she|it)\s+are)(\s+\S+)$/i;
-const AGREEMENT_CORRECTIONS = new Map([
+export const AGREEMENT_REGEX = /\b(i\s+is|i\s+has|you\s+was|(he|she|it)\s+are)(\s+\S+)$/i;
+export const AGREEMENT_CORRECTIONS = new Map([
   ["i is", "i am"],
   ["i has", "i have"],
   ["you was", "you were"],
@@ -29,16 +29,22 @@ export class EnglishPronounVerbWhitelistAgreementRule implements GrammarRule {
       return null;
     }
 
-    const [inputPronoun] = phrase.split(/\s+/);
-    const [pronoun, verb] = corrected.split(" ");
-    const pronounStyle = detectWordCase(inputPronoun || pronoun);
-    const verbStyle =
-      pronounStyle === "upper" && (inputPronoun || "").toLowerCase() !== "i" ? "upper" : "lower";
+    const [pronoun, verb] = correctPronounVerb(phrase, corrected);
 
     return {
-      replacement: `${applyWordCase(pronoun, pronounStyle)} ${applyWordCase(verb, verbStyle)}${match[3] ?? ""}${boundaryContext.trailing}`,
+      replacement: `${pronoun} ${verb}${match[3] ?? ""}${boundaryContext.trailing}`,
       deleteBackwards: boundaryContext.input.length - phraseStart,
       deleteForwards: 0,
     };
   }
+}
+
+/** [pronoun, verb] of `corrected` ("i am") in the case of the typed `phrase`. */
+export function correctPronounVerb(phrase: string, corrected: string): [string, string] {
+  const [inputPronoun] = phrase.split(/\s+/);
+  const [pronoun, verb] = corrected.split(" ");
+  const pronounStyle = detectWordCase(inputPronoun || pronoun);
+  const verbStyle =
+    pronounStyle === "upper" && (inputPronoun || "").toLowerCase() !== "i" ? "upper" : "lower";
+  return [applyWordCase(pronoun, pronounStyle), applyWordCase(verb, verbStyle)];
 }

@@ -76,7 +76,8 @@ export class GoogleDocsTransaction {
     this.tokens.clear();
   }
 
-  async read(): Promise<DocsReply> {
+  /** `review`: the larger review window (see REVIEW_WINDOW); writes are unaffected. */
+  async read({ review = false }: { review?: boolean } = {}): Promise<DocsReply> {
     if (this.busy) return { status: "busy" };
     const epoch = this.epoch;
     try {
@@ -93,7 +94,7 @@ export class GoogleDocsTransaction {
           this.journal = null;
         }
       }
-      const snapshot = this.cache(state);
+      const snapshot = this.cache(state, review);
       if (!snapshot) return { status: "unsupported-selection" };
       const journal = this.journal;
       const history =
@@ -261,9 +262,9 @@ export class GoogleDocsTransaction {
       state.model.raw === journal.expectedRaw
     );
   }
-  private cache(state: DocsHostState): DocsSnapshot | null {
+  private cache(state: DocsHostState, review: boolean): DocsSnapshot | null {
     const token = this.createId();
-    const snapshot = snapshotFor(state.model, state.scope, token);
+    const snapshot = snapshotFor(state.model, state.scope, token, review);
     if (!snapshot) return null;
     for (const [key, value] of this.tokens) {
       if (this.now() - value.at > SNAPSHOT_LIFETIME_MS) this.tokens.delete(key);

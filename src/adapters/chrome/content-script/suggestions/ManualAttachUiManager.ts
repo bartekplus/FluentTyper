@@ -115,6 +115,10 @@ export class ManualAttachUiManager {
     return this.handles.keys();
   }
 
+  public has(element: ManualAttachTarget): boolean {
+    return this.handles.has(element);
+  }
+
   public isSuccessPending(element: ManualAttachTarget): boolean {
     return this.handles.get(element)?.successPending === true;
   }

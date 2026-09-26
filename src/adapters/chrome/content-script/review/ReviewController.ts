@@ -1,0 +1,787 @@
+import { getDeepActiveElement } from "@core/application/dom-utils";
+import { createLogger } from "@core/application/logging/Logger";
+import {
+  ReviewSession,
+  type ReviewSpellingLookup,
+  type ReviewViewState,
+} from "@core/application/review/ReviewSession";
+import { reviewText, type ReviewTextKey } from "@core/domain/grammar/review/reviewMessages";
+import type {
+  ReviewCategory,
+  ReviewDiagnostic,
+  ReviewOptions,
+} from "@core/domain/grammar/review/types";
+import { REVIEW_CATEGORIES } from "@core/domain/grammar/review/types";
+import { GoogleDocsReviewTarget, type GoogleDocsReviewSurface } from "./GoogleDocsReviewTarget";
+import {
+  ContentEditableReviewTarget,
+  resolveReviewTarget,
+  type ReviewTargetHandle,
+} from "./ReviewTargets";
+import { ReviewUi, type ReviewMark, type ReviewUiCallbacks } from "./ReviewUi";
+import { REVIEW_HIGHLIGHT_NAMES } from "./reviewStyles";
+
+const logger = createLogger("ReviewController");
+
+export interface ReviewControllerDependencies {
+  /** Current review settings: the rules to run (reviewRuleIds), language, dictionary. */
+  getOptions(): ReviewOptions;
+  /** Pauses live grammar/suggestions for this editor only; resume restores them. */
+  suspend(element: HTMLElement): void;
+  resume(element: HTMLElement): void;
+  addToDictionary(word: string): Promise<boolean>;
+  /** Local dictionary lookups for unknown words (the extension's own Presage engine). */
+  lookupSpelling?: ReviewSpellingLookup;
+  /** Called when a review opens or closes (the in-field button hides for the reviewed field). */
+  onActiveChange?(): void;
+  /** The Google Docs adapter when this page is a Docs editor. */
+  getDocsSurface(): GoogleDocsReviewSurface | null;
+  uiLanguage?: string;
+}
+
+type HighlightRegistry = Map<string, unknown>;
+type HighlightConstructor = new (...ranges: Range[]) => { priority: number };
+
+/** Feature-detected CSS Custom Highlight API; missing in older browsers. */
+function highlightApi(): { registry: HighlightRegistry; Highlight: HighlightConstructor } | null {
+  const scope = globalThis as typeof globalThis & {
+    CSS?: { highlights?: HighlightRegistry };
+    Highlight?: HighlightConstructor;
+  };
+  const registry = scope.CSS?.highlights;
+  return registry && typeof scope.Highlight === "function"
+    ? { registry, Highlight: scope.Highlight }
+    : null;
+}
+
+// A Docs change with no keystroke is checked once re-rendering settles.
+const DOCS_SOURCE_CHECK_MS = 700;
+// How often such a check looks again for the editor's focus.
+const DOCS_FOCUS_WAIT_MS = 500;
+// Docs' menus (menu bar, context menu), dialogs (find, link) and bubbles.
+const DOCS_POPUPS = '[role="menu"], [role="dialog"], [role="listbox"], .docs-bubble';
+
+/** The boxes of Docs' menus, dialogs and bubbles showing now. */
+function docsPopupBoxes(doc: Document): DOMRect[] {
+  const view = doc.defaultView;
+  const boxes: DOMRect[] = [];
+  for (const popup of doc.querySelectorAll<HTMLElement>(DOCS_POPUPS)) {
+    if (typeof popup.checkVisibility === "function" && !popup.checkVisibility()) continue;
+    const box = popup.getBoundingClientRect();
+    if (box.width <= 0 || box.height <= 0) continue;
+    if (view && (box.bottom <= 0 || box.right <= 0 || box.top >= view.innerHeight)) continue;
+    boxes.push(box);
+  }
+  return boxes;
+}
+
+function intersects(a: DOMRect, b: DOMRect): boolean {
+  return a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+}
+
+interface ActiveReview {
+  target: ReviewTargetHandle;
+  session: ReviewSession;
+  ui: ReviewUi;
+  state: ReviewViewState | null;
+  /** CSS highlights are only styled in the document's own style scope. */
+  cssHighlights: ReturnType<typeof highlightApi>;
+  cleanup: Array<() => void>;
+  frame: number | null;
+  /** The findings the category highlights were last built from. */
+  paintedDiagnostics: readonly ReviewDiagnostic[] | null;
+}
+
+/**
+ * Explicitly invoked review of one editor. Nothing is scanned, observed or
+ * created until invoke(); close() removes every listener, observer, timer,
+ * highlight and element it added and restores the editor's normal behavior.
+ */
+export class ReviewController {
+  private active: ActiveReview | null = null;
+  private notice: ReviewUi | null = null;
+  private noticeReturnFocus: HTMLElement | null = null;
+  private startToken = 0;
+  private docsStarting = false;
+  // Where the last press on the reviewed editor started.
+  private pressAt: { x: number; y: number } | null = null;
+
+  constructor(private readonly deps: ReviewControllerDependencies) {}
+
+  /** The editor an open review is showing. */
+  get reviewedElement(): HTMLElement | null {
+    return this.active?.target.element ?? null;
+  }
+
+  get isActive(): boolean {
+    return this.active !== null;
+  }
+
+  private get lang(): string {
+    return this.deps.uiLanguage ?? navigator.language;
+  }
+
+  /** Starts (or focuses) a review of the focused editor or its selection. */
+  invoke(): void {
+    // Capture editor and selection before any FluentTyper UI takes focus.
+    const docs = this.deps.getDocsSurface();
+    // Pressed again from the panel itself: that is "take me to the review".
+    if (this.active?.ui.hasFocus()) {
+      this.active.ui.focusPanel();
+      return;
+    }
+    // A Docs review is already starting (its first read is asynchronous).
+    if (docs && this.docsStarting) return;
+    const resolution = docs ? null : resolveReviewTarget(document);
+    // A review whose selection could not follow an edit asked for a new one.
+    if (this.active?.state?.status === "stale-scope") this.close();
+    if (this.active) {
+      const same = resolution?.ok && resolution.target.element === this.active.target.element;
+      if (same || (docs && this.active.target instanceof GoogleDocsReviewTarget)) {
+        this.active.ui.focusPanel();
+        return;
+      }
+      this.close();
+    }
+    this.dismissNotice();
+    if (docs) {
+      void this.startDocs(docs);
+      return;
+    }
+    if (!resolution?.ok) {
+      const reason = resolution?.reason ?? "no-editor";
+      this.showNotice(
+        reason === "sensitive"
+          ? "review_unsupported_sensitive"
+          : reason === "cross-selection"
+            ? "review_unsupported_cross"
+            : "review_unsupported_no_editor",
+      );
+      return;
+    }
+    this.start(resolution.target, resolution.scope);
+  }
+
+  private async startDocs(surface: GoogleDocsReviewSurface): Promise<void> {
+    const element = document.querySelector<HTMLElement>(".kix-appview-editor") ?? document.body;
+    const target = new GoogleDocsReviewTarget(surface, element);
+    const token = ++this.startToken;
+    this.docsStarting = true;
+    surface.setReviewActive(true);
+    let scope: { start: number; end: number } | null = null;
+    let failed = false;
+    try {
+      scope = await target.start();
+    } catch {
+      failed = true;
+    } finally {
+      this.docsStarting = false;
+    }
+    // Closed, disposed or failed while Docs was answering: open nothing.
+    if (failed || token !== this.startToken) {
+      surface.setReviewActive(false);
+      target.dispose();
+      return;
+    }
+    this.start(target, scope, () => surface.setReviewActive(false));
+  }
+
+  private start(
+    target: ReviewTargetHandle,
+    scope: { start: number; end: number } | null,
+    onClose?: () => void,
+  ): void {
+    const doc = target.element.ownerDocument;
+    const capabilityKeys: ReviewTextKey[] = [];
+    // Docs without its text runs (not rendered yet, or hidden): list only, until they appear.
+    if (target instanceof GoogleDocsReviewTarget) {
+      if (!target.canHighlight()) capabilityKeys.push("review_cap_docs");
+    } else if (!target.capabilities.inline) capabilityKeys.push("review_cap_no_inline");
+    if (!target.capabilities.apply) capabilityKeys.push("review_cap_review_only");
+    else if (target.capabilities.undo === "per-edit" && target.capabilities.bulk) {
+      capabilityKeys.push("review_cap_undo_per_edit");
+    }
+    const ui = new ReviewUi(
+      doc,
+      this.lang,
+      {
+        close: () => this.close(),
+        select: (id, options) => this.select(id, options),
+        apply: (id, alternative, viaKeyboard) => void this.apply(id, alternative, viaKeyboard),
+        ignore: (id) => this.ignore(id),
+        addToDictionary: (id) => void this.active?.session.addToDictionary(id),
+        fixAll: (viaKeyboard) => void this.fixAll(viaKeyboard),
+        toggleCategory: (category: ReviewCategory, shown) =>
+          this.active?.session.setCategory(category, shown),
+        navigate: (step) => this.navigate(step),
+      },
+      capabilityKeys,
+      reviewMountFor(target.element),
+    );
+    target.setMeasurementRoot(ui.root);
+    ui.placeAwayFrom(target.element.getBoundingClientRect());
+
+    // ::highlight() rules live in the page stylesheet, which does not reach
+    // into shadow trees; those editors, and form controls, use the overlay.
+    const cssHighlights =
+      target instanceof ContentEditableReviewTarget && target.element.getRootNode() === doc
+        ? highlightApi()
+        : null;
+
+    const session = new ReviewSession({
+      target,
+      options: this.deps.getOptions(),
+      initialScope: scope,
+      onChange: (state) => this.onState(state),
+      addToDictionary: (word) => this.deps.addToDictionary(word),
+      lookupSpelling: this.deps.lookupSpelling,
+    });
+    const active: ActiveReview = {
+      target,
+      session,
+      ui,
+      state: null,
+      cssHighlights,
+      cleanup: [],
+      frame: null,
+      paintedDiagnostics: null,
+    };
+    this.active = active;
+    this.deps.onActiveChange?.();
+    this.deps.suspend(target.element);
+    active.cleanup.push(() => this.deps.resume(target.element));
+    if (onClose) active.cleanup.push(onClose);
+    this.listen(active);
+    void session.start().catch((error: unknown) => {
+      logger.warn("Review scan failed", { error: String(error) });
+    });
+    // Docs only answers while its own input frame is focused; the panel is one
+    // Tab/shortcut away. Elsewhere keyboard users land in the panel.
+    if (!(target instanceof GoogleDocsReviewTarget)) ui.focusPanel();
+  }
+
+  private listen(active: ActiveReview): void {
+    const { target, session } = active;
+    const element = target.element;
+    const doc = element.ownerDocument;
+    const view = doc.defaultView!;
+    const on = <E extends Event>(
+      node: EventTarget,
+      type: string,
+      handler: (event: E) => void,
+      options: AddEventListenerOptions | boolean = false,
+    ) => {
+      node.addEventListener(type, handler as EventListener, options);
+      active.cleanup.push(() => node.removeEventListener(type, handler as EventListener, options));
+    };
+
+    if (!(target instanceof GoogleDocsReviewTarget)) {
+      on(element, "input", () => session.notifySourceChanged());
+      on(element, "compositionstart", () => {
+        target.composing = true;
+        session.notifySourceChanged();
+      });
+      on(element, "compositionend", () => {
+        target.composing = false;
+        session.notifySourceChanged();
+      });
+      on<MouseEvent>(element, "click", (event) => this.onEditorClick(event));
+      on<KeyboardEvent>(element, "keydown", (event) => this.onEditorKeyDown(event), true);
+      // Programmatic edits and formatting-only changes (text turned into code).
+      if (element.isContentEditable) {
+        const observer = new MutationObserver(() => session.notifySourceChanged());
+        observer.observe(element, {
+          subtree: true,
+          childList: true,
+          characterData: true,
+          attributes: true,
+          attributeFilter: ["class", "contenteditable", "style", "hidden"],
+        });
+        active.cleanup.push(() => observer.disconnect());
+      }
+      if (typeof ResizeObserver === "function") {
+        const resize = new ResizeObserver(() => this.scheduleLayout());
+        resize.observe(element);
+        active.cleanup.push(() => resize.disconnect());
+      }
+      on(element, "scroll", () => this.scheduleLayout(), { passive: true });
+      // Removal from the page and scripted value changes fire no event here.
+      const poll = view.setInterval(() => {
+        if (this.active !== active || active.state?.status !== "ready") return;
+        const current = active.target.element;
+        const changed =
+          !current.isConnected ||
+          ((current.tagName === "TEXTAREA" || current.tagName === "INPUT") &&
+            (current as HTMLTextAreaElement).value !== session.sourceText);
+        if (changed) session.notifySourceChanged();
+      }, SOURCE_POLL_MS);
+      active.cleanup.push(() => view.clearInterval(poll));
+    } else {
+      // Docs has no DOM text to observe; input in its editor frame drives a recheck.
+      active.cleanup.push(target.onSourceChange(() => session.notifySourceChanged()));
+      // Its text runs are re-rendered as pages scroll into view and after edits:
+      // the highlights are measured again. A change that came without a
+      // keystroke (a collaborator, a menu command, Docs' own spelling fix)
+      // re-renders them too; a quiet read tells whether the text moved on.
+      // Docs is read only while its editor has focus: a check that finds focus
+      // elsewhere (the panel, a Docs dialog) looks again shortly. (A frame
+      // taking focus fires no event in this document.)
+      let check: ReturnType<typeof setTimeout> | null = null;
+      const scheduleCheck = (ms: number) => {
+        if (check !== null) clearTimeout(check);
+        check = setTimeout(() => {
+          check = null;
+          if (target.editorFocused()) void this.checkDocsSource(active);
+          else scheduleCheck(DOCS_FOCUS_WAIT_MS);
+        }, ms);
+      };
+      active.cleanup.push(
+        target.onLayoutChange(() => {
+          this.scheduleLayout();
+          scheduleCheck(DOCS_SOURCE_CHECK_MS);
+        }),
+        () => {
+          if (check !== null) clearTimeout(check);
+        },
+      );
+      // A click on a highlighted word opens its card; Docs still gets the click.
+      on<MouseEvent>(element, "click", (event) => this.onEditorClick(event));
+      // Keys go to Docs' own frame: Escape there closes a card opened from a highlight.
+      active.cleanup.push(
+        target.onKey((key) => {
+          if (key !== "Escape" || !active.ui.isCardOpen()) return false;
+          active.ui.closeCard();
+          return true;
+        }),
+      );
+      // Docs' menus and dialogs close on a click or a key: marks come back then.
+      on(doc, "pointerup", () => this.scheduleLayout(), true);
+      on(doc, "keyup", () => this.scheduleLayout(), true);
+    }
+    // Where the press started: a drag that ends on a highlight is a selection.
+    on<PointerEvent>(
+      element,
+      "pointerdown",
+      (event) => {
+        this.pressAt = { x: event.clientX, y: event.clientY };
+      },
+      true,
+    );
+    // The page's context menu is about the page: the card steps aside.
+    on<MouseEvent>(
+      doc,
+      "contextmenu",
+      (event) => {
+        if (!active.ui.owns(event)) active.ui.closeCard();
+      },
+      true,
+    );
+    on(view, "scroll", () => this.scheduleLayout(), { capture: true, passive: true });
+    on(view, "resize", () => {
+      // A rotated or resized window may put the panel over the editor.
+      const cardId = active.ui.cardDiagnosticId();
+      active.ui.placeAwayFrom(
+        element.getBoundingClientRect(),
+        cardId ? this.anchorFor(active, cardId) : null,
+      );
+      this.scheduleLayout();
+    });
+    on<PointerEvent>(doc, "pointerdown", (event) => this.onDocumentPointerDown(event), true);
+    on(view, "pagehide", () => this.close());
+    active.cleanup.push(() => {
+      if (active.frame !== null) view.cancelAnimationFrame(active.frame);
+    });
+  }
+
+  handleOptionsChanged(): void {
+    this.active?.session.updateOptions(this.deps.getOptions());
+  }
+
+  close(): void {
+    // Also cancels a Docs review that is still starting.
+    this.startToken += 1;
+    const active = this.active;
+    if (!active) return;
+    this.active = null;
+    // Closed from the panel (Escape, ×): the keyboard goes back to the editor,
+    // first, so what resumes on close (Docs' key handling) finds it focused.
+    if (active.ui.hasFocus() && active.target.element.isConnected) active.target.focusEditor();
+    active.session.close();
+    this.clearHighlights(active);
+    for (const cleanup of active.cleanup.splice(0).reverse()) {
+      try {
+        cleanup();
+      } catch {
+        // Cleanup continues past a detached node.
+      }
+    }
+    active.target.dispose();
+    active.ui.destroy();
+    this.deps.onActiveChange?.();
+  }
+
+  // ------------------------------------------------------------------- state
+
+  private onState(state: ReviewViewState): void {
+    const active = this.active;
+    if (!active) return;
+    active.state = state;
+    active.ui.render(state);
+    this.paint(active);
+    this.refreshCard(active);
+  }
+
+  /** Moves an open card to where its finding is now. */
+  private refreshCard(active: ActiveReview): void {
+    const cardId = active.ui.cardDiagnosticId();
+    if (cardId) active.ui.updateCardAnchor(this.anchorFor(active, cardId));
+  }
+
+  private diagnostic(id: string): ReviewDiagnostic | undefined {
+    return this.active?.state?.diagnostics.find((d) => d.id === id);
+  }
+
+  private select(id: string | null, options: { openCard: boolean; focusList: boolean }): void {
+    const active = this.active;
+    if (!active) return;
+    active.session.select(id);
+    if (!id) {
+      active.ui.closeCard();
+      return;
+    }
+    const diagnostic = this.diagnostic(id);
+    if (!diagnostic) return;
+    active.target.reveal(diagnostic.range);
+    const anchor = this.anchorFor(active, id);
+    // Never leave the current finding under the panel.
+    if (anchor && active.ui.panelCovers(anchor)) {
+      active.ui.placeAwayFrom(active.target.element.getBoundingClientRect(), anchor);
+    }
+    if (options.openCard) active.ui.openCard(diagnostic, anchor);
+    if (options.focusList) active.ui.focusItem(id);
+  }
+
+  private navigate(step: 1 | -1): void {
+    const state = this.active?.state;
+    if (!state || state.diagnostics.length === 0) return;
+    const index = state.diagnostics.findIndex((d) => d.id === state.selectedId);
+    const next =
+      index < 0
+        ? step > 0
+          ? 0
+          : state.diagnostics.length - 1
+        : (index + step + state.diagnostics.length) % state.diagnostics.length;
+    this.select(state.diagnostics[next].id, { openCard: true, focusList: true });
+  }
+
+  private async apply(id: string, alternative: number, viaKeyboard: boolean): Promise<void> {
+    const active = this.active;
+    if (!active) return;
+    active.ui.closeCard();
+    await active.session.apply(id, alternative);
+    if (this.active === active && viaKeyboard) this.focusAfterWrite(active);
+  }
+
+  private ignore(id: string): void {
+    const active = this.active;
+    if (!active) return;
+    const index = active.state?.diagnostics.findIndex((d) => d.id === id) ?? -1;
+    active.ui.closeCard();
+    active.session.ignore(id);
+    // Keep keyboard users in the list, on the issue that took this one's place.
+    const next =
+      active.state?.diagnostics[
+        Math.min(Math.max(index, 0), (active.state?.diagnostics.length ?? 1) - 1)
+      ];
+    if (next) active.ui.focusItem(next.id);
+    else active.ui.focusPanel();
+  }
+
+  private async fixAll(viaKeyboard: boolean): Promise<void> {
+    const active = this.active;
+    if (!active) return;
+    await active.session.fixAll();
+    if (this.active === active && viaKeyboard) this.focusAfterWrite(active);
+  }
+
+  /** Writes focus the editor; a keyboard user continues in the review panel. */
+  private focusAfterWrite(active: ActiveReview): void {
+    const next = active.state?.diagnostics[0];
+    if (next) active.ui.focusItem(next.id);
+    else active.ui.focusPanel();
+  }
+
+  // ------------------------------------------------------------- highlights
+
+  private scheduleLayout(): void {
+    const active = this.active;
+    if (!active || active.frame !== null) return;
+    const view = active.target.element.ownerDocument.defaultView!;
+    active.frame = view.requestAnimationFrame(() => {
+      active.frame = null;
+      if (this.active !== active) return;
+      // CSS highlights move with the text by themselves; overlays are re-measured.
+      if (!active.cssHighlights) this.paint(active);
+      this.refreshCard(active);
+    });
+  }
+
+  private paint(active: ActiveReview): void {
+    const state = active.state;
+    const diagnostics = state?.status === "ready" ? state.diagnostics : [];
+    if (!active.target.capabilities.inline) return;
+    let blockers: DOMRect[] = [];
+    if (active.target instanceof GoogleDocsReviewTarget) {
+      // Docs shows runs only for an allowed extension and only for rendered
+      // pages: the "listed only" note follows what it shows now.
+      active.ui.setCapabilityKeys(active.target.canHighlight() ? [] : ["review_cap_docs"]);
+      // Docs' menus, dialogs and bubbles sit over the page: never mark over them.
+      blockers = docsPopupBoxes(active.target.element.ownerDocument);
+    }
+    if (active.cssHighlights) {
+      this.paintCss(active, diagnostics, state?.selectedId ?? null);
+      return;
+    }
+    const marks: ReviewMark[] = diagnostics.map((diagnostic) => ({
+      id: diagnostic.id,
+      category: diagnostic.category,
+      selected: diagnostic.id === state?.selectedId,
+      rects: active.target
+        .rangeRects(diagnostic.range)
+        .filter((rect) => !blockers.some((box) => intersects(rect, box))),
+    }));
+    const box = active.target.element.getBoundingClientRect();
+    active.ui.paintMarks(marks, diagnostics.length ? box : null);
+  }
+
+  private paintCss(
+    active: ActiveReview,
+    diagnostics: ReviewDiagnostic[],
+    selectedId: string | null,
+  ): void {
+    const api = active.cssHighlights!;
+    // Same findings (only the selection changed): the category highlights stand.
+    if (diagnostics !== active.paintedDiagnostics) {
+      active.paintedDiagnostics = diagnostics;
+      const byCategory = new Map<ReviewCategory, Range[]>();
+      for (const diagnostic of diagnostics) {
+        const range = active.target.domRange(diagnostic.range);
+        if (!range) continue;
+        const ranges = byCategory.get(diagnostic.category);
+        if (ranges) ranges.push(range);
+        else byCategory.set(diagnostic.category, [range]);
+      }
+      for (const category of REVIEW_CATEGORIES) {
+        const ranges = byCategory.get(category) ?? [];
+        const name = REVIEW_HIGHLIGHT_NAMES[category];
+        if (ranges.length) api.registry.set(name, new api.Highlight(...ranges));
+        else api.registry.delete(name);
+      }
+    }
+    const current = selectedId ? diagnostics.find((d) => d.id === selectedId) : undefined;
+    const range = current ? active.target.domRange(current.range) : null;
+    const selected = range ? [range] : [];
+    if (selected.length) {
+      const highlight = new api.Highlight(...selected);
+      highlight.priority = 1;
+      api.registry.set(REVIEW_HIGHLIGHT_NAMES.selected, highlight);
+    } else {
+      api.registry.delete(REVIEW_HIGHLIGHT_NAMES.selected);
+    }
+  }
+
+  private clearHighlights(active: ActiveReview): void {
+    // Only FluentTyper's own names: the page's and other extensions' highlights stay.
+    for (const name of Object.values(REVIEW_HIGHLIGHT_NAMES))
+      active.cssHighlights?.registry.delete(name);
+    active.paintedDiagnostics = null;
+    active.ui.paintMarks([], null);
+  }
+
+  /** The first on-screen rectangle of a finding, or null (the card then sits by the panel). */
+  private anchorFor(active: ActiveReview, id: string): DOMRect | null {
+    const diagnostic = active.state?.diagnostics.find((d) => d.id === id);
+    if (!diagnostic || !active.target.capabilities.inline) return null;
+    const view = active.target.element.ownerDocument.defaultView!;
+    const box = active.target.element.getBoundingClientRect();
+    return (
+      active.target
+        .rangeRects(diagnostic.range)
+        .find(
+          (rect) =>
+            rect.bottom > Math.max(0, box.top) &&
+            rect.top < Math.min(view.innerHeight, box.bottom) &&
+            rect.right > box.left &&
+            rect.left < box.right,
+        ) ?? null
+    );
+  }
+
+  /** Narrow hit-testing: only a click on a finding's own rectangles opens its card. */
+  private hitTest(x: number, y: number): string | null {
+    const active = this.active;
+    if (!active || active.state?.status !== "ready") return null;
+    for (const diagnostic of active.state.diagnostics) {
+      for (const rect of active.target.rangeRects(diagnostic.range)) {
+        if (x >= rect.left && x <= rect.right && y >= rect.top - 2 && y <= rect.bottom + 2) {
+          return diagnostic.id;
+        }
+      }
+    }
+    return null;
+  }
+
+  // ------------------------------------------------------------------ events
+
+  private onEditorClick(event: MouseEvent): void {
+    const active = this.active;
+    // The panel may sit inside the editor's tree (designMode): its own clicks are not the editor's.
+    if (!active || event.button !== 0 || active.ui.owns(event)) return;
+    // A drag that selected text is a selection, not a click on a finding.
+    const element = active.target.element;
+    if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) {
+      if (element.selectionStart !== element.selectionEnd) return;
+    } else if (element.ownerDocument.getSelection()?.isCollapsed === false) {
+      return;
+    }
+    // Docs' own bubbles and menus inside the editor (a link's bubble) are not its text.
+    if (
+      active.target instanceof GoogleDocsReviewTarget &&
+      event.target instanceof Element &&
+      event.target.closest(DOCS_POPUPS)
+    ) {
+      return;
+    }
+    // A double click, a shift-click or a drag selects text (in Docs, only its
+    // own model knows): that is not a click on a finding.
+    const start = this.pressAt;
+    this.pressAt = null;
+    const moved = start && Math.hypot(event.clientX - start.x, event.clientY - start.y) > 4;
+    if (event.detail > 1 || event.shiftKey || moved) {
+      // The card its first click opened would sit over the selection.
+      if (event.detail > 1) active.ui.closeCard();
+      return;
+    }
+    const id = this.hitTest(event.clientX, event.clientY);
+    if (id) this.select(id, { openCard: true, focusList: false });
+    else if (active.ui.isCardOpen()) active.ui.closeCard();
+  }
+
+  /** Rechecks a Docs review whose text changed with no keystroke in its editor. */
+  private async checkDocsSource(active: ActiveReview): Promise<void> {
+    if (this.active !== active || active.state?.status !== "ready") return;
+    const read = await active.target.read();
+    if (this.active !== active || active.state?.status !== "ready") return;
+    if (read.ok && read.text !== active.session.sourceText) active.session.notifySourceChanged();
+  }
+
+  private onEditorKeyDown(event: KeyboardEvent): void {
+    const active = this.active;
+    if (!active || event.key !== "Escape" || event.isComposing || active.ui.owns(event)) return;
+    // Escape closes the card first, then the review.
+    event.preventDefault();
+    event.stopPropagation();
+    if (active.ui.isCardOpen()) {
+      active.ui.closeCard();
+      active.session.select(null);
+    } else {
+      this.close();
+    }
+  }
+
+  private onDocumentPointerDown(event: PointerEvent): void {
+    const active = this.active;
+    if (!active || !active.ui.isCardOpen() || active.ui.owns(event)) return;
+    // A right or middle press opens the page's own menus: the card steps aside.
+    if (event.button !== 0) {
+      active.ui.closeCard();
+      return;
+    }
+    // A press on the editor is handled by its click (which may open another card).
+    if (event.composedPath().includes(active.target.element)) return;
+    active.ui.closeCard();
+  }
+
+  // ----------------------------------------------------------------- notices
+
+  /** Explains why nothing could be reviewed; closes itself on Escape or its button. */
+  private showNotice(key: ReviewTextKey): void {
+    const focused = getDeepActiveElement(document) as HTMLElement | null;
+    const ui = new ReviewUi(
+      document,
+      this.lang,
+      { ...NOTICE_CALLBACKS, close: () => this.dismissNotice() },
+      [],
+      // In a modal dialog (a password field in a sign-in dialog), outside it is inert.
+      reviewMountFor(focused ?? document.activeElement),
+    );
+    ui.showMessage(reviewText(key, this.lang));
+    this.notice = ui;
+    this.noticeReturnFocus = focused;
+    ui.focusPanel();
+  }
+
+  private dismissNotice(): void {
+    const notice = this.notice;
+    if (!notice) return;
+    const returnFocus = notice.hasFocus() ? this.noticeReturnFocus : null;
+    notice.destroy();
+    this.notice = null;
+    this.noticeReturnFocus = null;
+    if (returnFocus?.isConnected) returnFocus.focus?.({ preventScroll: true });
+  }
+
+  dispose(): void {
+    this.close();
+    this.dismissNotice();
+  }
+}
+
+// A notice has nothing to select, apply or filter.
+const NOTICE_CALLBACKS: ReviewUiCallbacks = {
+  close: () => {},
+  select: () => {},
+  apply: () => {},
+  ignore: () => {},
+  addToDictionary: () => {},
+  fixAll: () => {},
+  toggleCategory: () => {},
+  navigate: () => {},
+};
+
+/** How often an open review checks for changes that fire no event. */
+const SOURCE_POLL_MS = 1000;
+
+/**
+ * Where FluentTyper's own layers go for `element`: the open modal dialog
+ * holding it (everything outside that dialog is inert), or null for the
+ * document element. Never a dialog that is part of editable content (a
+ * designMode page, a contenteditable body): what is appended there would be
+ * saved with the user's text.
+ */
+export function reviewMountFor(element: Element | null): HTMLDialogElement | null {
+  const dialog = element ? modalDialogOf(element) : null;
+  if (!dialog || dialog.ownerDocument.designMode === "on") return null;
+  for (let node: Element | null = dialog; node; node = node.parentElement) {
+    if ((node as HTMLElement).isContentEditable) return null;
+  }
+  return dialog;
+}
+
+/** The open modal dialog holding `element` (across shadow roots), if any. */
+export function modalDialogOf(element: Element): HTMLDialogElement | null {
+  for (let node: Node | null = element; node;) {
+    if (node.nodeType === 1 && (node as Element).tagName === "DIALOG") {
+      const dialog = node as HTMLDialogElement;
+      try {
+        if (dialog.matches(":modal")) return dialog;
+      } catch {
+        // No :modal support: an open dialog is the best signal left.
+        if (dialog.open) return dialog;
+      }
+    }
+    const parent: Node | null = node.parentNode;
+    node = parent && parent.nodeType === 11 ? ((parent as ShadowRoot).host ?? null) : parent;
+  }
+  return null;
+}

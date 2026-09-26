@@ -12,6 +12,7 @@ import {
   CMD_STATUS_COMMAND,
   CMD_TOGGLE_FT_ACTIVE_TAB,
   CMD_TRIGGER_FT_ACTIVE_TAB,
+  CMD_REVIEW_FT_ACTIVE_TAB,
 } from "@core/domain/constants";
 import type {
   ContentScriptPredictRequestContext,
@@ -41,6 +42,7 @@ export type ContentMessageHandlerDependencies = {
   setConfig: (config: SetConfigContext) => void;
   updateLanguage: (lang: string) => void;
   triggerActiveSuggestion: () => void;
+  reviewActiveEditor: (source: "command" | "popup") => void;
   fulfillPrediction: (context: PredictResponseContext) => void;
   getLanguage: () => string;
   getPredictionGeneration: () => number;
@@ -157,6 +159,12 @@ export class ContentMessageHandler {
         return;
       case CMD_TRIGGER_FT_ACTIVE_TAB:
         this.dependencies.triggerActiveSuggestion();
+        this.sendRuntimeStatus(sendResponse);
+        return;
+      case CMD_REVIEW_FT_ACTIVE_TAB:
+        this.dependencies.reviewActiveEditor(
+          message.context?.source === "popup" ? "popup" : "command",
+        );
         this.sendRuntimeStatus(sendResponse);
         return;
       case CMD_GET_HOSTNAME:

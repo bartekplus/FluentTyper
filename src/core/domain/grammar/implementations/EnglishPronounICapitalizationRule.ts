@@ -11,7 +11,7 @@ const ENGLISH_APOSTROPHE_PRONOUN_REGEX = /(^|[^A-Za-z0-9_])(i)(['’](?:m|ve|ll|
 // decides: the pronoun takes a verb, so "i is"/"i in"/"i of" is `i` the
 // identifier ("for i in range", "if i is None"), never the English pronoun.
 const DEFERRED_PRONOUN_I_REGEX = /(?:^|[^\p{L}\p{N}_'’])i([ \t]+)(\S+)$/u;
-const NON_PRONOUN_FOLLOWERS = new Set(["is", "in", "are", "of", "not"]);
+export const NON_PRONOUN_FOLLOWERS = new Set(["is", "in", "are", "of", "not"]);
 
 export class EnglishPronounICapitalizationRule implements GrammarRule {
   readonly id = "englishPronounICapitalization" as const;

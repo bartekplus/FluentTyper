@@ -1,3 +1,5 @@
+import { existsSync } from "node:fs";
+import { dirname, resolve as resolvePath } from "node:path";
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 import puppeteer, { type Browser, type Page, type CDPSession } from "puppeteer";
 import { waitUntil } from "./e2e-helpers";
@@ -147,12 +149,20 @@ describe("Google Docs cross-world fixture (not live Docs)", () => {
           {
             name: "fixture-repository-alias",
             setup(build) {
-              build.onResolve({ filter: /^@core\// }, (args) => ({
-                path: Bun.resolveSync(
-                  `./src/core/${args.path.slice(6)}`,
-                  `${import.meta.dir}/../..`,
-                ),
-              }));
+              // Plain file checks for the alias and relative imports: Bun 1.3's
+              // resolver intermittently fails existing files when one directory is
+              // reached through several specifiers at once (the review code's
+              // "../implementations/x" beside the grammar's "./implementations/x").
+              const sourceFile = (base: string) =>
+                [`${base}.ts`, `${base}/index.ts`, base].find((candidate) => existsSync(candidate));
+              build.onResolve({ filter: /^@core\// }, (args) => {
+                const base = resolvePath(import.meta.dir, "../../src/core", args.path.slice(6));
+                return { path: sourceFile(base) ?? `${base}.ts` };
+              });
+              build.onResolve({ filter: /^\.\.?\// }, (args) => {
+                const file = sourceFile(resolvePath(dirname(args.importer), args.path));
+                return file ? { path: file } : undefined;
+              });
             },
           },
         ],
@@ -773,6 +783,365 @@ describe("Google Docs cross-world fixture (not live Docs)", () => {
     await waitUntil("late acceptance", () => evaluate<boolean>('events.includes("accepted")'));
     expect((await model()).pastes).toBe(1);
     expect((await evaluate<string[]>("events")).filter((v) => v === "accepted")).toHaveLength(1);
+  });
+  async function reviewPanel() {
+    return page.evaluate(() => {
+      const root = document.querySelector("[data-fluenttyper-review]")?.shadowRoot;
+      return {
+        open: !!root,
+        status: root?.querySelector(".status")?.textContent ?? "",
+        scope: root?.querySelector(".scope")?.textContent ?? "",
+        notes: root?.querySelector(".notes")?.textContent ?? "",
+        items: Array.from(root?.querySelectorAll<HTMLElement>(".item") ?? []).map(
+          (item) => item.querySelector(".change")?.textContent ?? "",
+        ),
+        fixAllHidden: root?.querySelector<HTMLElement>("[data-action=fix-all]")?.hidden ?? true,
+        cardOpen: !(root?.querySelector<HTMLElement>(".card")?.hidden ?? true),
+      };
+    });
+  }
+  async function clickInReview(selector: string) {
+    await page.evaluate((selectorInner) => {
+      document
+        .querySelector("[data-fluenttyper-review]")
+        ?.shadowRoot?.querySelector<HTMLElement>(selectorInner)
+        ?.click();
+    }, selector);
+  }
+  test("review lists findings from the logical model and applies one verified edit", async () => {
+    await startGrammar([]);
+    await page.evaluate(() => {
+      const f = window as unknown as { setModel: (text: string) => void; focusEditor: () => void };
+      f.setModel("We saw teh cat and teh dog.");
+      f.focusEditor();
+    });
+    await evaluate("startReview()");
+    await waitUntil(
+      "docs review findings",
+      async () => (await reviewPanel()).status === "Issues: 2",
+    ).catch(async (error) => {
+      throw new Error(`${String(error)} ${JSON.stringify(await reviewPanel())}`);
+    });
+    const panel = await reviewPanel();
+    expect(panel.items).toEqual(["teh \u2192 the", "teh \u2192 the"]);
+    // No canvas geometry: honest panel-only findings, and no Docs batch.
+    expect(panel.notes).toContain("Google Docs: findings are listed here");
+    expect(panel.fixAllHidden).toBe(true);
+    expect((await model()).pastes).toBe(0);
+
+    await clickInReview(".item");
+    await waitUntil("docs card", async () => (await reviewPanel()).cardOpen);
+    await clickInReview(".card [data-action=apply]");
+    await expectText("We saw the cat and teh dog.");
+    // One minimal paste through the transaction; the other occurrence is untouched.
+    expect((await model()).pastes).toBe(1);
+    await waitUntil(
+      "docs recheck",
+      async () => (await reviewPanel()).status === "Fixed: 1. Issues: 1",
+    );
+    await evaluate("review.dispose()");
+    expect((await reviewPanel()).open).toBe(false);
+  });
+  test("review reads a long document whole, far from the caret and with all of it selected", async () => {
+    await startGrammar([]);
+    // About 40,000 characters: well past the typing window around the caret.
+    const filler = "Plenty of fine prose here. ".repeat(1500);
+    const text = `Where wa it?  We saw teh cat.\n${filler}The end.`;
+    await page.evaluate((value) => {
+      const f = window as unknown as {
+        setModel: (text: string, anchor?: number, focus?: number) => void;
+        focusEditor: () => void;
+      };
+      f.setModel(value);
+      f.focusEditor();
+    }, text);
+    await evaluate("startReview()");
+    await waitUntil("whole-document findings", async () =>
+      (await reviewPanel()).items.includes("teh \u2192 the"),
+    ).catch(async (error) => {
+      throw new Error(`${String(error)} ${JSON.stringify(await reviewPanel())}`);
+    });
+    let panel = await reviewPanel();
+    expect(panel.items).toEqual(["␣␣ \u2192 ␣", "teh \u2192 the"]);
+    expect(panel.notes).not.toContain("outside");
+    await evaluate("review.dispose()");
+
+    // Select all: the whole document is the scope, not a refused selection.
+    await page.evaluate((length) => {
+      (window as unknown as { setModel: (t: string, a: number, f: number) => void }).setModel(
+        (window as unknown as { model: { text: string } }).model.text,
+        0,
+        length,
+      );
+    }, text.length);
+    await evaluate("startReview()");
+    await waitUntil("select-all findings", async () =>
+      (await reviewPanel()).items.includes("teh \u2192 the"),
+    ).catch(async (error) => {
+      throw new Error(`${String(error)} ${JSON.stringify(await reviewPanel())}`);
+    });
+    panel = await reviewPanel();
+    expect(panel.items).toEqual(["␣␣ \u2192 ␣", "teh \u2192 the"]);
+    expect((await model()).pastes).toBe(0);
+    await evaluate("review.dispose()");
+  });
+  test("review highlights findings where Docs shows their text, and a click opens the card", async () => {
+    await startGrammar([]);
+    const text = "We saw teh cat and teh dog.\nThe end is near teh river.";
+    await page.evaluate((value) => {
+      const f = window as unknown as {
+        docsRuns: object;
+        setModel: (text: string) => void;
+        focusEditor: () => void;
+      };
+      // Like Docs: list numbers as runs of their own, DOM order unlike reading order.
+      f.docsRuns = { markers: true, shuffle: true };
+      f.setModel(value);
+      f.focusEditor();
+    }, text);
+    await evaluate("startReview()");
+    await waitUntil("docs findings", async () => (await reviewPanel()).status === "Issues: 3");
+    // Where the canvas draws each "teh": 20px in, on its line, 16px Arial.
+    const expected = await page.evaluate((value) => {
+      const canvas = document.querySelector("canvas")!;
+      const box = canvas.getBoundingClientRect();
+      const ctx = canvas.getContext("2d")!;
+      ctx.font = "16px Arial";
+      const spots: Array<{ left: number; top: number; width: number }> = [];
+      value.split("\n").forEach((line, row) => {
+        for (let at = line.indexOf("teh"); at >= 0; at = line.indexOf("teh", at + 1)) {
+          spots.push({
+            left: box.left + canvas.clientLeft + 20 + ctx.measureText(line.slice(0, at)).width,
+            top: box.top + canvas.clientTop + 60 + row * 24 - 16,
+            width: ctx.measureText("teh").width,
+          });
+        }
+      });
+      return spots;
+    }, text);
+    const marks = async () =>
+      page.evaluate(() =>
+        Array.from(
+          document
+            .querySelector("[data-fluenttyper-review]")!
+            .shadowRoot!.querySelectorAll<HTMLElement>(".mark"),
+        ).map((mark) => {
+          const rect = mark.getBoundingClientRect();
+          return { left: rect.left, top: rect.top, width: rect.width };
+        }),
+      );
+    await waitUntil("docs highlights", async () => (await marks()).length === 3);
+    const painted = (await marks()).sort((a, b) => a.top - b.top || a.left - b.left);
+    painted.forEach((mark, index) => {
+      expect(Math.abs(mark.left - expected[index].left)).toBeLessThan(2);
+      expect(Math.abs(mark.width - expected[index].width)).toBeLessThan(2);
+      expect(Math.abs(mark.top - expected[index].top)).toBeLessThan(4);
+    });
+    // Highlighted: no "listed here only" note.
+    expect((await reviewPanel()).notes).not.toContain("Google Docs: findings are listed here");
+    // A click on the second line's "teh" opens its card; Docs still gets the click.
+    const target = expected[2];
+    await page.mouse.click(target.left + target.width / 2, target.top + 10);
+    await waitUntil("docs card from a click", async () => (await reviewPanel()).cardOpen);
+    // Keys go to Docs' own frame: Escape there closes the card and never reaches Docs.
+    await page.evaluate(() => (window as unknown as { focusEditor: () => void }).focusEditor());
+    await page.keyboard.press("Escape");
+    await waitUntil("card closed by Escape", async () => !(await reviewPanel()).cardOpen);
+    await page.mouse.click(target.left + target.width / 2, target.top + 10);
+    await waitUntil("docs card again", async () => (await reviewPanel()).cardOpen);
+    await clickInReview(".card [data-action=apply]");
+    await expectText("We saw teh cat and teh dog.\nThe end is near the river.");
+    // The page redraws its runs; the two findings left are measured again.
+    await waitUntil("remeasured highlights", async () => (await marks()).length === 2);
+    const left = (await marks()).sort((a, b) => a.left - b.left);
+    expect(Math.abs(left[0].left - expected[0].left)).toBeLessThan(2);
+    // A change with no keystroke (a collaborator, a menu command) is picked up
+    // once Docs re-renders the page; with focus in the panel Docs cannot be
+    // read, so it is picked up when focus returns to the document.
+    await page.evaluate(() =>
+      (window as unknown as { setModel: (text: string) => void }).setModel(
+        "We saw teh cat and teh dog.\nThe end is near the river teh end.",
+      ),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    expect((await reviewPanel()).status).toBe("Fixed: 1. Issues: 2");
+    await page.evaluate(() => (window as unknown as { focusEditor: () => void }).focusEditor());
+    await waitUntil(
+      "docs recheck without a keystroke",
+      async () => (await reviewPanel()).status === "Issues: 3",
+    );
+    await waitUntil("new highlight", async () => (await marks()).length === 3);
+    await evaluate("review.dispose()");
+  });
+  test("without Docs' text runs the review lists findings only, and says so", async () => {
+    await startGrammar([]);
+    await page.evaluate(() => {
+      const f = window as unknown as { setModel: (text: string) => void; focusEditor: () => void };
+      f.setModel("We saw teh cat.");
+      f.focusEditor();
+    });
+    await evaluate("startReview()");
+    await waitUntil("docs findings", async () => (await reviewPanel()).status === "Issues: 1");
+    expect((await reviewPanel()).notes).toContain("Google Docs: findings are listed here");
+    const marks = await page.evaluate(
+      () =>
+        document.querySelector("[data-fluenttyper-review]")!.shadowRoot!.querySelectorAll(".mark")
+          .length,
+    );
+    expect(marks).toBe(0);
+    await evaluate("review.dispose()");
+  });
+  test("review in Docs pauses typing corrections and refuses a stale fix", async () => {
+    await startGrammar(["englishTypoWhitelistCorrection"]);
+    await page.evaluate(() => {
+      const f = window as unknown as { setModel: (text: string) => void; focusEditor: () => void };
+      f.setModel("See teh plan.");
+      f.focusEditor();
+    });
+    await evaluate("startReview()");
+    await waitUntil("docs review", async () => (await reviewPanel()).status === "Issues: 1");
+    // Typing grammar is paused while reviewing: "teh " typed now stays as typed.
+    await page.keyboard.type(" teh ", { delay: TYPING_DELAY_MS });
+    await expectText("See teh plan. teh ");
+    // The document changed after the scan: the old fix must not be written.
+    await page.evaluate(() => {
+      (window as unknown as { setModel: (text: string) => void }).setModel("Now teh changed.");
+    });
+    await clickInReview(".item");
+    await clickInReview(".card [data-action=apply]");
+    await waitUntil("stale or rechecked", async () => {
+      const panel = await reviewPanel();
+      return panel.status.includes("Issues") && !panel.status.startsWith("Fixed");
+    });
+    expect((await model()).text).toBe("Now teh changed.");
+    expect((await model()).pastes).toBe(0);
+    await evaluate("review.dispose()");
+    // Closing re-reads the document; typing corrections resume once that read lands.
+    await waitUntil("docs resumed", () =>
+      evaluate<boolean>("!docs.reviewActive && !docs.reading && !!docs.snapshot"),
+    );
+    // After the review, typing corrections resume.
+    await page.evaluate(() => {
+      const f = window as unknown as { setModel: (text: string) => void; focusEditor: () => void };
+      f.setModel("");
+      f.focusEditor();
+    });
+    await page.keyboard.type("teh ", { delay: TYPING_DELAY_MS });
+    await expectText("the ");
+  });
+  test("an open review rechecks when the document is typed into", async () => {
+    await startGrammar(["englishTypoWhitelistCorrection"]);
+    await page.evaluate(() => {
+      const f = window as unknown as { setModel: (text: string) => void; focusEditor: () => void };
+      f.setModel("See teh plan.");
+      f.focusEditor();
+    });
+    await evaluate("startReview()");
+    await waitUntil("docs review", async () => (await reviewPanel()).status === "Issues: 1");
+    // Only Docs' input frame sees these keys; the panel is never touched.
+    await page.keyboard.type(" teh ", { delay: TYPING_DELAY_MS });
+    await expectText("See teh plan. teh ");
+    // The typed "teh" is listed (its sentence-start capital too) without touching the panel.
+    const typos = async () =>
+      (await reviewPanel()).items.filter((item) => item === "teh \u2192 the").length;
+    await waitUntil("recheck after typing", async () => (await typos()) === 2).catch(
+      async (error) => {
+        throw new Error(`${String(error)} ${JSON.stringify(await reviewPanel())}`);
+      },
+    );
+    await evaluate("review.dispose()");
+  });
+  test("a review survives a settings restart made while its panel has focus", async () => {
+    await startGrammar(["englishTypoWhitelistCorrection"]);
+    await page.evaluate(() => {
+      const f = window as unknown as { setModel: (text: string) => void; focusEditor: () => void };
+      f.setModel("See teh plan.");
+      f.focusEditor();
+    });
+    await evaluate("startReview()");
+    await waitUntil("docs review", async () => (await reviewPanel()).status === "Issues: 1");
+    // The keyboard moves into the review panel: Docs' input frame loses focus.
+    await page.evaluate(() => {
+      document
+        .querySelector("[data-fluenttyper-review]")!
+        .shadowRoot!.querySelector<HTMLElement>(".item")!
+        .focus();
+    });
+    expect(await evaluate<string>("document.activeElement?.tagName ?? ''")).not.toBe("IFRAME");
+    // A settings restart replaces the adapter while the panel still has focus.
+    await evaluate('startDocs({ enabledGrammarRules: ["englishTypoWhitelistCorrection"] })');
+    // Applying from the panel: the new adapter finds and focuses Docs itself.
+    await clickInReview(".item");
+    await waitUntil("docs card", async () => (await reviewPanel()).cardOpen);
+    await clickInReview(".card [data-action=apply]");
+    await expectText("See the plan.");
+    // Typing in Docs still rechecks the review, without touching the panel.
+    await page.evaluate(() => {
+      (window as unknown as { focusEditor: () => void }).focusEditor();
+    });
+    await page.keyboard.type(" teh ", { delay: TYPING_DELAY_MS });
+    await waitUntil("recheck after restart", async () =>
+      (await reviewPanel()).items.includes("teh \u2192 the"),
+    ).catch(async (error) => {
+      throw new Error(`${String(error)} ${JSON.stringify(await reviewPanel())}`);
+    });
+    await evaluate("review.dispose()");
+  });
+  test("a review keeps rechecking after Docs replaces its input frame", async () => {
+    await startGrammar(["englishTypoWhitelistCorrection"]);
+    await page.evaluate(() => {
+      const f = window as unknown as { setModel: (text: string) => void; focusEditor: () => void };
+      f.setModel("See teh plan.");
+      f.focusEditor();
+    });
+    await evaluate("startReview()");
+    await waitUntil("docs review", async () => (await reviewPanel()).status === "Issues: 1");
+    // The panel takes focus, then Docs swaps in a new input frame.
+    await page.evaluate(() => {
+      document
+        .querySelector("[data-fluenttyper-review]")!
+        .shadowRoot!.querySelector<HTMLElement>(".item")!
+        .focus();
+      (window as unknown as { replaceInputFrame: () => void }).replaceInputFrame();
+    });
+    // Typing into the new frame, without any panel action, still rechecks.
+    await page.evaluate(() => (window as unknown as { focusEditor: () => void }).focusEditor());
+    await page.keyboard.type(" teh ", { delay: TYPING_DELAY_MS });
+    await expectText("See teh plan. teh ");
+    await waitUntil(
+      "recheck after the frame was replaced",
+      async () =>
+        (await reviewPanel()).items.filter((item) => item === "teh \u2192 the").length === 2,
+    ).catch(async (error) => {
+      throw new Error(`${String(error)} ${JSON.stringify(await reviewPanel())}`);
+    });
+    await evaluate("review.dispose()");
+  });
+  test("a long document is reviewed around the cursor and reported as partial", async () => {
+    await startGrammar([]);
+    // About 69,000 characters: longer than a review read's 50,000-character window.
+    const filler = "Plain words stay here. ".repeat(3000);
+    await page.evaluate((text) => {
+      const f = window as unknown as {
+        setModel: (text: string) => void;
+        focusEditor: () => void;
+      };
+      f.setModel(text);
+      f.focusEditor();
+    }, `Early teh line. ${filler}Late teh line.`);
+    await evaluate("startReview()");
+    await waitUntil(
+      "docs window review",
+      async () => (await reviewPanel()).status === "Issues: 1",
+    ).catch(async (error) => {
+      throw new Error(`${String(error)} ${JSON.stringify(await reviewPanel()).slice(0, 600)}`);
+    });
+    const panel = await reviewPanel();
+    // Only the "teh" near the cursor is in the window; the early one is not claimed as checked.
+    expect(panel.items).toEqual(["teh \u2192 the"]);
+    expect(panel.scope).toBe("Part of the document");
+    expect(panel.notes).toMatch(/Only the text around the cursor was reviewed; \d+ characters/);
+    await evaluate("review.dispose()");
   });
   test("disposing removes UI and keyboard interception", async () => {
     await seed("hel", ["hello"]);

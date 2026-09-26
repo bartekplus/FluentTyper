@@ -1,5 +1,7 @@
 import {
   CMD_BACKGROUND_PAGE_PREDICT_REQ,
+  CMD_CONTENT_SCRIPT_ADD_TO_DICTIONARY,
+  CMD_CONTENT_SCRIPT_REVIEW_SPELLING,
   CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG,
   CMD_CONTENT_SCRIPT_GET_CONFIG,
   CMD_CONTENT_SCRIPT_PREDICT_REQ,
@@ -25,6 +27,7 @@ import {
 import { createLogger } from "@core/application/logging/Logger";
 import type {
   Message,
+  ReviewSpellingResponse,
   PredictRequestMessage,
   UpdateLangConfigMessage,
 } from "@core/domain/messageTypes";
@@ -38,9 +41,12 @@ import {
   isFluentTyperError,
   logError,
 } from "@core/domain/error";
+import { CoreSettingsRepository } from "@core/application/repositories/CoreSettingsRepository";
+import { parseSpellingRequest } from "@core/domain/grammar/review/reviewSpelling";
 import { DomainSettingsCache } from "../config/DomainSettingsCache";
 import type { BackgroundServiceWorker } from "../BackgroundServiceWorker";
 import type { PredictionConfigOverride } from "../PredictionTypes";
+import { REVIEW_SPELLING_BUDGET_MS } from "../PresageEngine";
 import { HandlerRegistry } from "./HandlerRegistry";
 import { mapRuntimeError } from "./RuntimeErrorMapper";
 
@@ -48,6 +54,8 @@ const logger = createLogger("MessageRouter");
 
 const ROUTED_MESSAGE_COMMANDS = [
   CMD_CONTENT_SCRIPT_PREDICT_REQ,
+  CMD_CONTENT_SCRIPT_ADD_TO_DICTIONARY,
+  CMD_CONTENT_SCRIPT_REVIEW_SPELLING,
   CMD_OPTIONS_PAGE_CONFIG_CHANGE,
   CMD_CONTENT_SCRIPT_GET_CONFIG,
   CMD_CONTENT_SCRIPT_USAGE_EVENT,
@@ -148,6 +156,11 @@ export class MessageRouter {
 
     register(CMD_CONTENT_SCRIPT_PREDICT_REQ, this.handleContentScriptPredictReq.bind(this));
     register(CMD_OPTIONS_PAGE_CONFIG_CHANGE, this.handleOptionsPageConfigChange.bind(this));
+    register(
+      CMD_CONTENT_SCRIPT_ADD_TO_DICTIONARY,
+      this.handleContentScriptAddToDictionary.bind(this),
+    );
+    register(CMD_CONTENT_SCRIPT_REVIEW_SPELLING, this.handleContentScriptReviewSpelling.bind(this));
     register(CMD_CONTENT_SCRIPT_GET_CONFIG, this.handleContentScriptGetConfig.bind(this));
     register(CMD_CONTENT_SCRIPT_USAGE_EVENT, this.handleContentScriptUsageEvent.bind(this));
     register(
@@ -344,6 +357,58 @@ export class MessageRouter {
     // request picks up the new values without waiting for the TTL to expire.
     this.domainSettingsCache.invalidate();
     this.respondOk(sendResponse);
+  }
+
+  /**
+   * "Add to dictionary" from a review card: an explicit user action. Uses the
+   * same stored list and the same config broadcast as the options page.
+   */
+  private async handleContentScriptAddToDictionary(
+    payload: CommandPayload<typeof CMD_CONTENT_SCRIPT_ADD_TO_DICTIONARY>,
+  ): Promise<void> {
+    const { request, sendResponse, worker } = payload;
+    const word = typeof request.context?.word === "string" ? request.context.word : "";
+    const added = await rethrowAs(
+      () => new CoreSettingsRepository(worker.settingsManager).addUserDictionaryWord(word),
+      (cause) =>
+        new ConfigError("Failed to add a user dictionary word", {
+          code: "message_add_dictionary_word_failed",
+          cause,
+        }),
+    );
+    if (added) {
+      await rethrowAs(
+        () => worker.updatePresageConfig(),
+        (cause) =>
+          new ConfigError("Failed to update prediction runtime config", {
+            code: "message_update_runtime_config_failed",
+            cause,
+          }),
+      );
+      this.domainSettingsCache.invalidate();
+    }
+    sendResponse({ ok: added });
+  }
+
+  /**
+   * Review spelling: which words the language's dictionary knows, and Presage's
+   * candidates for the rest. Read-only and ephemeral, unlike a typing
+   * prediction: nothing is learned, stored, traced, counted or logged. Each
+   * request is time-bounded, so typing predictions never wait long behind it:
+   * the answer may cover only the first words, and the page asks again.
+   */
+  private async handleContentScriptReviewSpelling(
+    payload: CommandPayload<typeof CMD_CONTENT_SCRIPT_REVIEW_SPELLING>,
+  ): Promise<void> {
+    const { request, sendResponse, worker } = payload;
+    const parsed = parseSpellingRequest(request.context);
+    const results = parsed
+      ? await worker.predictionManager.lookupSpelling(parsed.lang, parsed.words, {
+          budgetMs: REVIEW_SPELLING_BUDGET_MS,
+        })
+      : null;
+    const response: ReviewSpellingResponse = results ? { ok: true, results } : { ok: false };
+    sendResponse(response);
   }
 
   private async handleContentScriptGetConfig(

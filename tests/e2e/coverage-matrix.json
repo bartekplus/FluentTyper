@@ -2495,6 +2495,728 @@
           "test": "onMessage combines code casing suppression with site suggestion-count overrides"
         }
       ]
+    },
+    {
+      "id": "review_catalog_coverage",
+      "description": "Every grammar rule is explicitly classified for review (supported with a category and bulk policy, or excluded with a reason); typing conveniences are excluded.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewDiagnostics.test.ts",
+          "test": "classifies every catalog rule explicitly"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewDiagnostics.test.ts",
+          "test": "typing conveniences are excluded from review"
+        }
+      ]
+    },
+    {
+      "id": "review_readonly_detection",
+      "description": "Review detection reads one immutable snapshot, never mutates it, and is deterministic with exact UTF-16 ranges, categories and replacements per supported rule; with the words after a word available, review decides cases typing leaves as typed (months, cant/wont/ill before a bare verb, a sentence-final \"i.\"), always as individual fixes.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewDiagnostics.test.ts",
+          "test": "detection is read-only and deterministic"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewDiagnostics.test.ts",
+          "test": "englishPronounVerbWhitelistAgreement capitalizes the pronoun it rewrites"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewDiagnostics.test.ts",
+          "test": "Unicode: emoji, combining marks, NBSP and surrogate pairs"
+        },
+        {
+          "layer": "e2e-smoke",
+          "file": "tests/e2e/smoke.e2e.test.ts",
+          "test": "review mode fixes a textarea from one snapshot without changing it on start"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewDiagnostics.test.ts",
+          "test": "may, march and august are months when the words after them say so"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewDiagnostics.test.ts",
+          "test": "cant, wont and ill are contractions only before a bare verb"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewDiagnostics.test.ts",
+          "test": "a sentence-final \"i.\" is the pronoun; list markers and numbered parts are not"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewDiagnostics.test.ts",
+          "test": "\"you was\" after a verb or preposition is its object; only a clause start batches"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewDiagnostics.test.ts",
+          "test": "a quoted or bracketed ! or ? before a lowercase word ends the quotation, not the sentence"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewDiagnostics.test.ts",
+          "test": "a mark between spaces before a lowercase word is a symbol, not a sentence end"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewDiagnostics.test.ts",
+          "test": "a word glued to a hyphen is edited only where typing would edit it"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewDiagnostics.test.ts",
+          "test": "CRLF line endings are read like LF"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewDiagnostics.test.ts",
+          "test": "collapseRepeatedSpaces leaves Markdown table padding alone"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewDiagnostics.test.ts",
+          "test": "protected text keeps its line breaks, LF and CRLF alike"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewDiagnostics.test.ts",
+          "test": "a stray space before a period is fixed unless the mark is named"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewDiagnostics.test.ts",
+          "test": "a double hyphen is a dash, not a hyphen joining a longer name"
+        }
+      ]
+    },
+    {
+      "id": "review_scope_and_protection",
+      "description": "Review stays inside the captured selection, keeps outside context, and never reads prose across or edits Markdown/DOM code, structure or technical tokens.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewDiagnostics.test.ts",
+          "test": "a partial selection keeps surrounding context and edits only inside it"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewDiagnostics.test.ts",
+          "test": "inline and fenced Markdown code is skipped without joining prose across it"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewDiagnostics.test.ts",
+          "test": "adapter-protected ranges (DOM code, Quill code blocks, structure) are never edited"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "code, pre, kbd and Quill code blocks are code ranges, read in place"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review mode reviews only the selection, rechecks after edits, and follows scrolling"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSession.test.ts",
+          "test": "a lost selection stays stale until closed; it never becomes a whole-field review"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSession.test.ts",
+          "test": "an edit before the first scan finishes still moves the selection with the text"
+        }
+      ]
+    },
+    {
+      "id": "review_bulk_planning",
+      "description": "Fix all plans from one snapshot: duplicates merge, collisions and unproven context-dependent groups are deferred, never resolved by position.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewBulkPlanner.test.ts",
+          "test": "overlapping edits defer the whole group instead of picking a winner"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewBulkPlanner.test.ts",
+          "test": "context-dependent findings need a proof, else both are deferred"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewBulkPlanner.test.ts",
+          "test": "cascading findings appear only on recheck, never in the same batch"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewBulkPlanner.test.ts",
+          "test": "Fix all leaves objects, dialogue tags, named marks, hyphenated names and tables alone"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSession.test.ts",
+          "test": "a proof that fails leaves its fixes for individual review; Fix all never waits forever"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewBulkPlanner.test.ts",
+          "test": "Fix all fixes stray marks and dashes, and leaves a clause's subject for review"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSession.test.ts",
+          "test": "a planner that fails mid-proof batches nothing and leaves every fix for review"
+        }
+      ]
+    },
+    {
+      "id": "review_session_lifecycle",
+      "description": "Review sessions invalidate on edits, debounce rechecks, keep per-occurrence ignores, remap or invalidate the scope (a lost selection is reviewed anew when invoked again), and never write stale or unverified fixes.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSession.test.ts",
+          "test": "an edit made after the scan is detected before writing: no stale write"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSession.test.ts",
+          "test": "ignore is per occurrence and survives harmless rechecks"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSession.test.ts",
+          "test": "selection scope: fixes and edits inside keep it; a boundary edit invalidates it"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSession.test.ts",
+          "test": "closing discards pending work and never writes"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/content_script.behavior.test.ts",
+          "test": "turning FluentTyper off dismisses a review notice; a settings restart keeps it"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "invoking again after the selection was lost starts a new review"
+        }
+      ]
+    },
+    {
+      "id": "review_textarea_fix_all_undo",
+      "description": "Textarea review paints categorized overlay marks, applies Fix all as one verified native edit, and one undo restores the text; no network requests.",
+      "coverage": [
+        {
+          "layer": "e2e-smoke",
+          "file": "tests/e2e/smoke.e2e.test.ts",
+          "test": "review mode fixes a textarea from one snapshot without changing it on start"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review mode reviews a textarea read-only, paints categorized marks and fixes all safe issues as one undo step"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review mode never writes stale offsets when focusing the field changes it"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "one verified native edit for several fixes; selection is carried through"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "a caret or selection between separate fixes keeps its place"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "a focus handler that changes the field makes the write fail without mutation"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "a control without a native edit is refused, never written outside undo"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "a fix longer than the field's maxlength is refused, never written truncated"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review mode refuses fixes that a full field's maxlength would cut, and writes nothing"
+        }
+      ]
+    },
+    {
+      "id": "review_contenteditable_card_flow",
+      "description": "Contenteditable review uses namespaced CSS highlights; clicking a highlight opens its card; apply, ignore, add to dictionary and Fix all keep bold, links, lists and code; native undo works; a one-character link Gecko would split is refused untouched.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review mode card flow in contenteditable: click, apply, ignore, add to dictionary, fix all, undo, formatting kept"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "minimal edits inside text nodes keep formatting and are verified"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/background.routing.test.ts",
+          "test": "onMessage add to dictionary appends once and broadcasts the updated config"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "a focus handler that only changes protection makes the write fail untouched"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "a batch never resumes into text that became protected during its pause"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "Gecko: a whole formatted word keeps its node and the space after it"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "a link keeps its text; text a browser moves out of it is reported, not applied"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review mode fixes a whole formatted word and link text in place, keeping the spaces around them, and undo restores them"
+        }
+      ]
+    },
+    {
+      "id": "review_quill_model",
+      "description": "Review fixes in Quill keep the real Quill model's bold, link and code, and Quill undo reverts the batch.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review mode keeps the real Quill model's formatting and code, and Quill undo reverts the batch"
+        }
+      ]
+    },
+    {
+      "id": "review_keyboard_accessibility",
+      "description": "Review panel and card are keyboard operable; Escape closes the card then the review; Tab in the editor is never captured.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review mode keyboard flow: panel focus, list, card, Escape order, and Tab is never captured"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "invoke reads only, shows results, and Escape restores everything"
+        }
+      ]
+    },
+    {
+      "id": "review_sensitive_and_review_only",
+      "description": "Sensitive fields are refused with an explanation; model-backed editors are review-only and never written.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review mode refuses sensitive fields and model-backed editors stay review-only"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "sensitive, locked and non-text fields are excluded"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "model-backed editors are review-only; Quill is writable"
+        }
+      ]
+    },
+    {
+      "id": "review_command_routing",
+      "description": "The review command reaches every frame of the active tab without changing settings; the dev runtime reviews through the real command router. From the popup, the page acts once it regains focus, including focus that returns into a child frame (Google Docs' input frame).",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/background.routing.test.ts",
+          "test": "onCommand review asks every frame of the active tab; only the focused one acts"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "CMD_REVIEW_FT_ACTIVE_TAB command reviews the focused editor through the command router"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/whenDocumentFocused.test.ts",
+          "test": "focus returning into a child frame (Google Docs' input frame) starts it"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review text from the popup reviews a Google Docs page whose focus returns into its input frame"
+        }
+      ]
+    },
+    {
+      "id": "review_google_docs_fixture",
+      "description": "Mock editor/browser fixture, not a live Google Docs claim: review lists Docs findings from the logical model, highlights them over the text runs Docs renders (placed by their visible text, list markers and DOM order aside; listed only, with a note, when Docs renders none; never over Docs' menus or outside the editor; a click opens a finding's card, a drag, shift-click or double click does not, and Escape in Docs closes it), rechecks after a change made without a keystroke once Docs' editor has focus, applies one verified transaction, pauses typing corrections, refuses stale fixes, rechecks when the document is typed into, reads a document of up to 50,000 characters whole (caret anywhere, or all of it selected), and reports a longer document's window as partial.",
+      "coverage": [
+        {
+          "layer": "integration",
+          "file": "tests/e2e/google-docs.e2e.test.ts",
+          "test": "review lists findings from the logical model and applies one verified edit"
+        },
+        {
+          "layer": "integration",
+          "file": "tests/e2e/google-docs.e2e.test.ts",
+          "test": "review in Docs pauses typing corrections and refuses a stale fix"
+        },
+        {
+          "layer": "integration",
+          "file": "tests/e2e/google-docs.e2e.test.ts",
+          "test": "an open review rechecks when the document is typed into"
+        },
+        {
+          "layer": "integration",
+          "file": "tests/e2e/google-docs.e2e.test.ts",
+          "test": "a long document is reviewed around the cursor and reported as partial"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "a Docs window is reported as partial, and Docs input rechecks without the panel"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "a window cut from a longer document starts at a sentence and ends at a word"
+        },
+        {
+          "layer": "integration",
+          "file": "tests/e2e/google-docs.e2e.test.ts",
+          "test": "a review survives a settings restart made while its panel has focus"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/DocsReviewSurfaceProxy.test.ts",
+          "test": "a replacement adapter inherits the open review and its listeners"
+        },
+        {
+          "layer": "integration",
+          "file": "tests/e2e/google-docs.e2e.test.ts",
+          "test": "review reads a long document whole, far from the caret and with all of it selected"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/GoogleDocsModel.test.ts",
+          "test": "a document up to the review window is read whole, wherever the caret is"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/GoogleDocsModel.test.ts",
+          "test": "a selection of any length is accepted, as far as the window reaches"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/GoogleDocsTransaction.test.ts",
+          "test": "a review read carries the whole document and its token writes far from the caret"
+        },
+        {
+          "layer": "integration",
+          "file": "tests/e2e/google-docs.e2e.test.ts",
+          "test": "a review keeps rechecking after Docs replaces its input frame"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "a selection longer than the review window keeps its real caret after a fix"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/GoogleDocsModel.test.ts",
+          "test": "a typing snapshot keeps the typing window; only a review read may be larger"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/GoogleDocsModel.test.ts",
+          "test": "messages keep the typing size limit unless a review reply is allowed"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/GoogleDocsBridgeClient.test.ts",
+          "test": "a review read accepts the review window; a typing read keeps the typing bounds"
+        },
+        {
+          "layer": "integration",
+          "file": "tests/e2e/google-docs.e2e.test.ts",
+          "test": "review highlights findings where Docs shows their text, and a click opens the card"
+        },
+        {
+          "layer": "integration",
+          "file": "tests/e2e/google-docs.e2e.test.ts",
+          "test": "without Docs' text runs the review lists findings only, and says so"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/GoogleDocsGeometry.test.ts",
+          "test": "runs follow each other across spaces, line wraps and paragraph breaks"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/GoogleDocsGeometry.test.ts",
+          "test": "repeated text is placed by the runs drawn next to it, or left out"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/GoogleDocsGeometry.test.ts",
+          "test": "a footer or header whose text is also in the body is never placed there"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/GoogleDocsGeometry.test.ts",
+          "test": "a table cell repeating its neighbour's text is never swapped with it"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/GoogleDocsGeometry.test.ts",
+          "test": "list markers and other text the review lacks never break the chain"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/GoogleDocsGeometry.test.ts",
+          "test": "the page's runs are read in reading order, whatever their size"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/GoogleDocsGeometry.test.ts",
+          "test": "a range's rectangles are its share of each run it touches"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/GoogleDocsGeometry.test.ts",
+          "test": "a label's own spacing does not move or widen a highlight"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/GoogleDocsGeometry.test.ts",
+          "test": "right-to-left text is measured from the right; mixed directions get no rectangle"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/GoogleDocsGeometry.test.ts",
+          "test": "labels of structure markers only are never placed"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "Docs highlights follow its text runs, step aside for its menus and answer only clicks"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/DocsReviewSurfaceProxy.test.ts",
+          "test": "keys in Docs' frame reach the review through whichever adapter is current"
+        }
+      ]
+    },
+    {
+      "id": "review_layout_and_lifecycle",
+      "description": "Review highlights follow wrapping and resize, hit-test at device pixel ratio 2, render in dark mode and RTL, pause during IME composition, work across multiple fields, and are cleaned up on navigation.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review mode handles wrapping, resize, RTL, hi-DPI hit-testing, dark mode, IME, multiple fields and navigation cleanup"
+        }
+      ]
+    },
+    {
+      "id": "review_dialog_focus_rtl_small_viewport",
+      "description": "The review works inside a modal dialog, returns focus to the editor when closed from the panel, keeps its UI left-to-right on RTL pages, and keeps the panel and Fix all reachable in a small viewport.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review mode works inside a modal dialog, returns focus, stays LTR on RTL pages and fits small viewports"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "pressing the shortcut again from the panel keeps the review"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "a notice in a modal dialog opens inside the dialog, where its close button works"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review notice in a modal dialog opens inside the dialog; its close button and Escape dismiss only the notice"
+        }
+      ]
+    },
+    {
+      "id": "review_unknown_word_choice",
+      "description": "Review looks unknown words up in the local Presage dictionary and offers close suggestions to pick from; nothing is preselected, auto-applied or batched, and the lookup stays inside the extension.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review mode offers suggestions for an unknown word and changes nothing until one is picked"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "an unknown word offers its suggestions; nothing changes until one is picked"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSession.test.ts",
+          "test": "an unknown word becomes a pick-one finding after the rule results; nothing is applied"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/background.routing.test.ts",
+          "test": "onMessage review spelling looks words up locally and refuses malformed requests"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/PresageHandler.live.test.ts",
+          "test": "known words come back as known; unknown ones get candidates, even in prefix-only mode"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewSpelling.test.ts",
+          "test": "a selection looks up only the whole words it contains"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewSpelling.test.ts",
+          "test": "words with combining marks are looked up composed, in a request the background accepts"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSession.test.ts",
+          "test": "a word with combining marks never makes the dictionary check unavailable"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSession.test.ts",
+          "test": "each different word is looked up once per pass, whatever its contexts"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSession.test.ts",
+          "test": "the check stops at its per-pass limits and says so; a recheck continues"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSession.test.ts",
+          "test": "a shorter answer covers the first words; the rest are asked again"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSession.test.ts",
+          "test": "findings are added as answers arrive: each word ranked once, earlier findings kept"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/PresageEngine.test.ts",
+          "test": "no word is started once the budget is spent; the typing config is restored"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/PresageEngine.test.ts",
+          "test": "a failing lookup still restores the typing config"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "a page script clicking 'Add to dictionary' changes no settings"
+        }
+      ]
+    },
+    {
+      "id": "review_in_field_button",
+      "description": "A Review button on the focused multi-line text box (own shadow layer, page layout untouched) reviews only that box; it hides while typing and during its review, yields to the enable icon, and the setting turns it off.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review button in the focused text box reviews only that box; the setting turns it off"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "shows on the focused field with text, in its corner; clicking reviews that field"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "hidden without text, while typing, during its review, and when turned off"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/CoreSettingsRepository.test.ts",
+          "test": "shows the in-field Review button unless it is turned off"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "an editable body (TinyMCE, CKEditor 4 frames) never holds the button"
+        }
+      ]
+    },
+    {
+      "id": "review_runs_all_supported_rules",
+      "description": "Review runs every review-supported rule whatever is switched on for typing (a rule off for typing is still found, and the in-field button shows with every typing rule off), while typing-time grammar keeps the configured rules; code mode leaves review no rules and hides the button.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review mode runs every supported rule, even ones off for typing, and none in code mode"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewDiagnostics.test.ts",
+          "test": "review runs every supported rule, whatever is on for typing, and none in code mode"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/content_script.behavior.test.ts",
+          "test": "review runs every review-supported rule whatever is on for typing; code mode leaves none"
+        }
+      ]
     }
   ]
 }

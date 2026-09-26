@@ -3,6 +3,8 @@ import type { GrammarEdit } from "@core/domain/grammar/types";
 export const DOCS_SESSION_ID = -1;
 export const MAX_CONTEXT = 8192;
 const MAX_EDIT = 16384;
+/** The longest text a typing read carries: MAX_CONTEXT on each side of an edit. */
+const MAX_TYPING_TEXT = MAX_CONTEXT * 2 + MAX_EDIT;
 const MAX_DOCUMENT = 2_000_000;
 export const SNAPSHOT_LIFETIME_MS = 10000;
 export const REQUEST_EVENT = "fluenttyper:gdocs:v2:request";
@@ -27,6 +29,12 @@ export interface DocsSnapshot {
   documentLength: number;
   anchor: number;
   focus: number;
+  /**
+   * Review snapshots only: the real caret (the selection's focus) in the whole
+   * document. A review snapshot's anchor and focus are its scope, clipped to
+   * the window; the caret is restored from this one.
+   */
+  caret?: number;
 }
 export interface DocsEdit {
   start: number;
@@ -68,8 +76,16 @@ export function isGoogleDocsURL(href: string): boolean {
   }
 }
 
-export function parseObject(value: unknown): Record<string, unknown> | null {
-  if (typeof value !== "string" || value.length > 200000) return null;
+/** Page messages: typing reads, writes, keys and requests stay within this. */
+export const MAX_MESSAGE = 200_000;
+/** Only a review read's reply may be larger: REVIEW_WINDOW characters, some of them JSON-escaped. */
+export const MAX_REVIEW_MESSAGE = 400_000;
+
+export function parseObject(
+  value: unknown,
+  maxLength = MAX_MESSAGE,
+): Record<string, unknown> | null {
+  if (typeof value !== "string" || value.length > maxLength) return null;
   try {
     const parsed: unknown = JSON.parse(value);
     return parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)
@@ -144,7 +160,20 @@ export function sameModel(a: DocsModel, b: DocsModel): boolean {
   return a.raw === b.raw && a.anchor === b.anchor && a.focus === b.focus;
 }
 
-export function snapshotFor(model: DocsModel, scope: string, token: string): DocsSnapshot | null {
+/**
+ * How much of a document a review read carries: the whole document up to this
+ * many characters (review's own scan limit), else this much around the caret.
+ * Typing reads carry only MAX_CONTEXT on each side.
+ */
+export const REVIEW_WINDOW = 50_000;
+
+export function snapshotFor(
+  model: DocsModel,
+  scope: string,
+  token: string,
+  review = false,
+): DocsSnapshot | null {
+  if (review) return reviewSnapshotFor(model, scope, token);
   const start = Math.min(model.anchor, model.focus),
     end = Math.max(model.anchor, model.focus);
   if (end - start > MAX_EDIT) return null;
@@ -162,6 +191,39 @@ export function snapshotFor(model: DocsModel, scope: string, token: string): Doc
     focus: model.focus,
   };
 }
+
+/**
+ * A review read: the window is centered on the selection (or caret) and moved
+ * to fit inside the document, so a document up to REVIEW_WINDOW is read whole.
+ * The selection is only the review's scope, never an edit, so any length is
+ * accepted; a part beyond the window is reported as unread, not refused.
+ */
+function reviewSnapshotFor(model: DocsModel, scope: string, token: string): DocsSnapshot {
+  const { text } = model;
+  const start = Math.min(model.anchor, model.focus),
+    end = Math.max(model.anchor, model.focus);
+  const room = REVIEW_WINDOW - (end - start);
+  let windowStart = room > 0 ? start - Math.floor(room / 2) : start;
+  windowStart = Math.max(0, Math.min(windowStart, text.length - REVIEW_WINDOW));
+  let windowEnd = Math.min(text.length, windowStart + REVIEW_WINDOW);
+  while (!isBoundary(text, windowStart)) windowStart += 1;
+  while (!isBoundary(text, windowEnd)) windowEnd -= 1;
+  const inWindow = (index: number) => Math.min(Math.max(index, windowStart), windowEnd);
+  return {
+    token,
+    scope,
+    text: text.slice(windowStart, windowEnd),
+    windowStart,
+    documentLength: text.length,
+    anchor: inWindow(model.anchor),
+    focus: inWindow(model.focus),
+    caret: model.focus,
+  };
+}
+
+/** Docs' private structural markers (tables, footnotes, objects): never prose, never edited. */
+// eslint-disable-next-line no-control-regex -- matches Docs' private control markers.
+export const DOCS_STRUCTURE_CONTROLS = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\ufffc]/u;
 
 export function snapshotContext(snapshot: DocsSnapshot) {
   const start = Math.min(snapshot.anchor, snapshot.focus) - snapshot.windowStart;
@@ -182,7 +244,8 @@ export function sameSnapshot(a: DocsSnapshot, b: DocsSnapshot): boolean {
     a.windowStart === b.windowStart &&
     a.documentLength === b.documentLength &&
     a.anchor === b.anchor &&
-    a.focus === b.focus
+    a.focus === b.focus &&
+    a.caret === b.caret
   );
 }
 
@@ -200,9 +263,10 @@ export function validEdit(text: string, edit: DocsEdit): boolean {
   )
     return false;
   // Docs' structural markers are not ordinary text. Never replace across them.
-  // eslint-disable-next-line no-control-regex -- Reject private editor structural controls.
-  const protectedControls = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\ufffc]/u;
-  if (protectedControls.test(replacement) || protectedControls.test(text.slice(start, end)))
+  if (
+    DOCS_STRUCTURE_CONTROLS.test(replacement) ||
+    DOCS_STRUCTURE_CONTROLS.test(text.slice(start, end))
+  )
     return false;
   const result = text.slice(0, start) + replacement + text.slice(end);
   // The caret may legitimately sit outside the replaced run: a correction replayed for
@@ -335,16 +399,25 @@ export function planGrammar(
   };
 }
 
-export function snapshotFrom(value: unknown): DocsSnapshot | null {
+/**
+ * Validates a snapshot from a page message. A typing read carries at most
+ * MAX_CONTEXT on each side of an edit; only a review read (`review`) may
+ * carry the larger REVIEW_WINDOW.
+ */
+export function snapshotFrom(
+  value: unknown,
+  { review = false }: { review?: boolean } = {},
+): DocsSnapshot | null {
   if (!value || typeof value !== "object") return null;
   const s = value as Record<string, unknown>;
+  const maxText = review ? Math.max(MAX_TYPING_TEXT, REVIEW_WINDOW) : MAX_TYPING_TEXT;
   if (
     typeof s.token !== "string" ||
     s.token.length > 100 ||
     typeof s.scope !== "string" ||
     s.scope.length > 4096 ||
     typeof s.text !== "string" ||
-    s.text.length > MAX_CONTEXT * 2 + MAX_EDIT ||
+    s.text.length > maxText ||
     typeof s.documentLength !== "number" ||
     !Number.isSafeInteger(s.documentLength) ||
     s.documentLength < 0 ||
@@ -356,7 +429,12 @@ export function snapshotFrom(value: unknown): DocsSnapshot | null {
     typeof s.anchor !== "number" ||
     typeof s.focus !== "number" ||
     !isBoundary(s.text, s.anchor - s.windowStart) ||
-    !isBoundary(s.text, s.focus - s.windowStart)
+    !isBoundary(s.text, s.focus - s.windowStart) ||
+    (s.caret !== undefined &&
+      (typeof s.caret !== "number" ||
+        !Number.isSafeInteger(s.caret) ||
+        s.caret < 0 ||
+        s.caret > s.documentLength))
   )
     return null;
   return {
@@ -367,5 +445,6 @@ export function snapshotFrom(value: unknown): DocsSnapshot | null {
     documentLength: s.documentLength,
     anchor: s.anchor,
     focus: s.focus,
+    ...(typeof s.caret === "number" ? { caret: s.caret } : {}),
   };
 }

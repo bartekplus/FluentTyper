@@ -11,6 +11,40 @@ function createSettingsManagerMock(seed: Record<string, unknown>): SettingsManag
 }
 
 describe("CoreSettingsRepository", () => {
+  test("user dictionary adds accept one word only and never lose a concurrent add", async () => {
+    const store: Record<string, unknown> = {};
+    const slow = () => new Promise((resolve) => setTimeout(resolve, 5));
+    const manager = {
+      get: async (key: string) => {
+        await slow();
+        return store[key] as never;
+      },
+      getRaw: async (key: string) => store[key] as never,
+      set: async (key: string, value: unknown) => {
+        await slow();
+        store[key] = value;
+      },
+      setRaw: async () => undefined,
+    } as unknown as SettingsManager;
+    const repository = new CoreSettingsRepository(manager);
+
+    for (const bad of ["", "two words", "<img>", "a,b", "x".repeat(65), "-dash", "o'"]) {
+      await expect(repository.addUserDictionaryWord(bad)).resolves.toBe(false);
+    }
+    const added = await Promise.all([
+      repository.addUserDictionaryWord("teh"),
+      repository.addUserDictionaryWord("Zoë"),
+      repository.addUserDictionaryWord("rock'n'roll"),
+      repository.addUserDictionaryWord("TEH"),
+    ]);
+    expect(added).toEqual([true, true, true, true]);
+    await expect(repository.getUserDictionaryList()).resolves.toEqual([
+      "teh",
+      "Zoë",
+      "rock'n'roll",
+    ]);
+  });
+
   test("defaults enabled to true when the setting is absent", async () => {
     const repository = new CoreSettingsRepository(createSettingsManagerMock({}));
 
@@ -21,6 +55,17 @@ describe("CoreSettingsRepository", () => {
     const repository = new CoreSettingsRepository(createSettingsManagerMock({}));
 
     await expect(repository.getPreferNativeAutocomplete()).resolves.toBe(true);
+  });
+
+  test("shows the in-field Review button unless it is turned off", async () => {
+    await expect(
+      new CoreSettingsRepository(createSettingsManagerMock({})).getShowReviewButton(),
+    ).resolves.toBe(true);
+    await expect(
+      new CoreSettingsRepository(
+        createSettingsManagerMock({ showReviewButton: false }),
+      ).getShowReviewButton(),
+    ).resolves.toBe(false);
   });
 
   test("defaults codeMode to false when the setting is absent", async () => {

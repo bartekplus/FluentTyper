@@ -19,8 +19,10 @@ import {
   CMD_POPUP_PAGE_DISABLE,
   CMD_OPTIONS_PAGE_CONFIG_CHANGE,
   CMD_POPUP_GET_PRODUCTIVITY_STATS,
+  CMD_REVIEW_FT_ACTIVE_TAB,
 } from "@core/domain/constants";
 import type {
+  ReviewActiveTabMessage,
   OptionsPageConfigChangeMessage,
   PopupPageEnableMessage,
   PopupPageDisableMessage,
@@ -161,6 +163,7 @@ function renderNonActionablePageState(
   body.textContent = state.body;
   clearPageStateSupplementalContent(elements);
   panel?.setAttribute("data-page-state", panelState);
+  setReviewActionVisible(false);
   setSiteSpecificControlsEnabled(false);
   if (clearDomainToggle) {
     const domainToggle = document.getElementById("checkboxDomainInput") as HTMLInputElement | null;
@@ -383,6 +386,7 @@ async function renderActionablePageState(): Promise<void> {
   setNodeTextAndTitle(profileNode, profileCopy);
   meta.classList.remove("is-hidden");
   panel?.setAttribute("data-page-state", globallyEnabled && siteAllowed ? "active" : "paused");
+  setReviewActionVisible(globallyEnabled && siteAllowed);
   section?.classList.remove("is-hidden");
   setSiteSpecificControlsEnabled(true);
   setNodeTextAndTitle(hint, currentDomainURL);
@@ -1022,11 +1026,51 @@ function init() {
     event.preventDefault();
     void chrome.runtime.openOptionsPage();
   });
+  setupReviewTextAction();
 
   productivityDashboardLoadCancelled = false;
   productivityDashboardLoadCompleted = false;
   window.addEventListener("unload", cleanupProductivityDashboardLoader, { once: true });
   void loadProductivityDashboard();
+}
+
+/**
+ * "Review text": asks the page to review its focused editor. The page captures
+ * the editor and selection itself; the popup closes so focus returns there.
+ * It sits in the "This site" panel, shown only while FluentTyper runs here.
+ */
+function setupReviewTextAction(): void {
+  const button = document.getElementById("reviewTextBtn");
+  if (!button) return;
+  button.addEventListener("click", () => {
+    const tabId = currentTabId;
+    if (tabId === null) return;
+    const message: ReviewActiveTabMessage = {
+      command: CMD_REVIEW_FT_ACTIVE_TAB,
+      context: { source: "popup" },
+    };
+    // Every frame receives it; only the frame holding the focused editor acts.
+    void chrome.tabs.sendMessage(tabId, message).catch(() => undefined);
+    window.close();
+  });
+  const shortcut = document.getElementById("reviewTextShortcut");
+  void chrome.commands
+    ?.getAll?.()
+    .then((commands) => {
+      const key = commands.find((command) => command.name === CMD_REVIEW_FT_ACTIVE_TAB)?.shortcut;
+      if (!shortcut || !key) return;
+      shortcut.textContent = key;
+      shortcut.classList.remove("is-hidden");
+      button.title = formatTranslation("popup_review_text_shortcut", { shortcut: key });
+    })
+    .catch(() => undefined);
+}
+
+/** Shows "Review text" only where it can act: a website with FluentTyper on. */
+function setReviewActionVisible(visible: boolean): void {
+  const shown = visible && currentTabId !== null;
+  document.getElementById("reviewTextAction")?.classList.toggle("is-hidden", !shown);
+  document.getElementById("pageStatePanel")?.classList.toggle("has-action", shown);
 }
 
 async function addRemoveDomain(tabId: number, domainURL: string) {

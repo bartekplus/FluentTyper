@@ -30,19 +30,79 @@
     <script>
       window.fixtureScope = "https://docs.google.com/document/d/fluenttyper-fixture/edit?tab=t.1";
       window.model = { text: "", anchor: 0, focus: 0, pastes: 0, mode: "apply" };
-      const iframe = document.querySelector("iframe");
-      iframe.contentDocument.open();
-      iframe.contentDocument.write(
-        '<html><body><div id="input" contenteditable="true" role="textbox"></div></body></html>',
-      );
-      iframe.contentDocument.close();
-      const input = iframe.contentDocument.querySelector("#input");
+      let iframe = document.querySelector("iframe");
+      let input;
+      // The editable inside Docs' input frame, with the key and paste handling below.
+      function mountInput() {
+        iframe.contentDocument.open();
+        iframe.contentDocument.write(
+          '<html><body><div id="input" contenteditable="true" role="textbox"></div></body></html>',
+        );
+        iframe.contentDocument.close();
+        input = iframe.contentDocument.querySelector("#input");
+        input.addEventListener("keydown", onKeyDown);
+        input.addEventListener("paste", onPaste);
+      }
+      // Live Docs can swap its input frame for a new one while the document stays open.
+      window.replaceInputFrame = () => {
+        const next = document.createElement("iframe");
+        next.className = iframe.className;
+        next.setAttribute("style", iframe.getAttribute("style"));
+        iframe.replaceWith(next);
+        iframe = next;
+        mountInput();
+      };
+      // Off unless a test turns it on: { markers, shuffle }. Like Docs for an allowed
+      // extension: an invisible SVG rect over each rendered run of text, labelled with
+      // its text and canvas font; list numbers are runs of their own; DOM order is not
+      // reading order.
+      window.docsRuns = null;
+      function drawRuns(ctx) {
+        document.querySelector(".kix-canvas-tile-content")?.remove();
+        if (!window.docsRuns) return;
+        const canvas = document.querySelector("canvas");
+        const tile = document.createElement("div");
+        tile.className = "kix-canvas-tile-content";
+        const at = canvas.getBoundingClientRect();
+        tile.style.cssText = `position:absolute;left:${at.left + scrollX + canvas.clientLeft}px;top:${at.top + scrollY + canvas.clientTop}px;pointer-events:none`;
+        const ns = "http://www.w3.org/2000/svg";
+        const svg = document.createElementNS(ns, "svg");
+        svg.setAttribute("width", "800");
+        svg.setAttribute("height", "350");
+        const rects = [];
+        const run = (label, x, y) => {
+          const rect = document.createElementNS(ns, "rect");
+          rect.setAttribute("x", String(x));
+          rect.setAttribute("y", String(y - 16));
+          rect.setAttribute("width", String(Math.max(1, ctx.measureText(label).width)));
+          rect.setAttribute("height", "20");
+          rect.setAttribute("fill-opacity", "0");
+          rect.setAttribute("aria-label", label);
+          rect.setAttribute("data-font-css", "16px Arial");
+          rects.push(rect);
+        };
+        model.text.split("\n").forEach((line, i) => {
+          const y = 60 + i * 24;
+          if (window.docsRuns.markers) run(`${i + 1}.`, 2, y);
+          // Runs of three words, the space after each word inside its run.
+          const words = line.match(/\S+\s*/g) ?? [];
+          for (let w = 0; w < words.length; w += 3) {
+            const before = words.slice(0, w).join("");
+            run(words.slice(w, w + 3).join(""), 20 + ctx.measureText(before).width, y);
+          }
+        });
+        if (window.docsRuns.shuffle) rects.reverse();
+        svg.append(...rects);
+        tile.append(svg);
+        document.body.append(tile);
+      }
       function draw() {
         const ctx = document.querySelector("canvas").getContext("2d");
         ctx.clearRect(0, 0, 800, 350);
         ctx.font = "16px Arial";
         model.text.split("\n").forEach((line, i) => ctx.fillText(line, 20, 60 + i * 24));
         document.querySelector(".kix-cursor-caret").style.left = 80 + model.anchor * 8 + "px";
+        drawRuns(ctx);
       }
       window.setModel = (text, anchor = text.length, focus = anchor) => {
         model.text = text;
@@ -77,7 +137,7 @@
       };
       // Live Docs consumes keystrokes on keydown, paints the canvas itself and never lets
       // the hidden editable produce an `input` event.
-      input.addEventListener("keydown", (event) => {
+      function onKeyDown(event) {
         if (event.isComposing || event.keyCode === 229 || event.defaultPrevented) return;
         if (event.ctrlKey || event.altKey || event.metaKey) return;
         const key = event.key;
@@ -94,8 +154,8 @@
         // listener has already run and scheduled its follow-up work.
         event.preventDefault();
         apply();
-      });
-      input.addEventListener("paste", (event) => {
+      }
+      function onPaste(event) {
         model.pastes++;
         event.preventDefault();
         if (model.mode === "ignore") return;
@@ -106,7 +166,8 @@
             .replace(/^ +| +$/g, "")
             .replace(/\u00a0/g, " "),
         );
-      });
+      }
+      mountInput();
       window.focusEditor = () => input.focus();
       focusEditor();
       draw();

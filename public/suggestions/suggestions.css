@@ -260,3 +260,47 @@
   pointer-events: none;
   white-space: pre-wrap;
 }
+
+/*
+  FluentTyper review highlights (CSS Custom Highlight API). Painted by the
+  browser over the page's own text; no element is added to the editor.
+  Line style differs per category so color is never the only signal. The
+  underline colors keep at least 3:1 contrast on light and dark pages alike,
+  since the page's background, not the OS theme, is what they sit on.
+*/
+::highlight(fluenttyper-review-spelling) {
+  background-color: rgba(229, 56, 59, 0.14);
+  text-decoration: underline wavy #e5383b;
+  text-decoration-thickness: 1.5px;
+}
+::highlight(fluenttyper-review-grammar) {
+  background-color: rgba(184, 116, 0, 0.14);
+  text-decoration: underline double #b87400;
+}
+::highlight(fluenttyper-review-punctuation) {
+  background-color: rgba(59, 130, 246, 0.14);
+  text-decoration: underline dotted #3b82f6;
+  text-decoration-thickness: 2px;
+}
+::highlight(fluenttyper-review-typography) {
+  background-color: rgba(144, 97, 249, 0.14);
+  text-decoration: underline dashed #9061f9;
+  text-decoration-thickness: 1.5px;
+}
+::highlight(fluenttyper-review-selected) {
+  background-color: rgba(59, 130, 246, 0.3);
+}
+@media (forced-colors: active) {
+  /* Only the selected finding gets a background; the others keep their lines. */
+  ::highlight(fluenttyper-review-spelling),
+  ::highlight(fluenttyper-review-grammar),
+  ::highlight(fluenttyper-review-punctuation),
+  ::highlight(fluenttyper-review-typography) {
+    background-color: transparent;
+    text-decoration-color: CanvasText;
+  }
+  ::highlight(fluenttyper-review-selected) {
+    background-color: Highlight;
+    color: HighlightText;
+  }
+}

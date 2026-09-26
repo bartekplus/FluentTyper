@@ -22,6 +22,8 @@ export interface SetConfigContext {
   codeMode: boolean;
   enabled: boolean;
   displayLangHeader: boolean;
+  /** Show the "Review text" button on the focused multi-line field. */
+  showReviewButton?: boolean;
   enabledGrammarRules: string[];
   userDictionaryList: string[];
   // Theme configuration is reused by settings and options payloads.
@@ -204,6 +206,15 @@ export type Message =
     }
   | { command: "CMD_TOGGLE_FT_ACTIVE_TAB" }
   | { command: "CMD_TRIGGER_FT_ACTIVE_TAB" }
+  | { command: "CMD_REVIEW_FT_ACTIVE_TAB"; context?: { source?: "command" | "popup" } }
+  | {
+      command: "CMD_CONTENT_SCRIPT_ADD_TO_DICTIONARY";
+      context: { word: string };
+    }
+  | {
+      command: "CMD_CONTENT_SCRIPT_REVIEW_SPELLING";
+      context: ReviewSpellingRequestContext;
+    }
   | { command: "CMD_GET_HOSTNAME" }
   | {
       command: "CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG";
@@ -303,6 +314,26 @@ export type PredictResponseMessage = Extract<
 >;
 export type ToggleActiveTabMessage = Extract<Message, { command: "CMD_TOGGLE_FT_ACTIVE_TAB" }>;
 export type TriggerActiveTabMessage = Extract<Message, { command: "CMD_TRIGGER_FT_ACTIVE_TAB" }>;
+export type ReviewActiveTabMessage = Extract<Message, { command: "CMD_REVIEW_FT_ACTIVE_TAB" }>;
+export type ContentScriptAddToDictionaryMessage = Extract<
+  Message,
+  { command: "CMD_CONTENT_SCRIPT_ADD_TO_DICTIONARY" }
+>;
+export type ContentScriptReviewSpellingMessage = Extract<
+  Message,
+  { command: "CMD_CONTENT_SCRIPT_REVIEW_SPELLING" }
+>;
+/** Words to look up for review; `before` is up to two preceding words, for ranking. */
+export interface ReviewSpellingRequestContext {
+  lang: string;
+  words: Array<{ word: string; before: string }>;
+}
+/**
+ * Per word, for the first words asked (the background bounds each lookup's time, so the
+ * answer may be shorter; the rest were not looked up yet): null when known, else
+ * Presage's candidates. `ok: false`: no dictionary for the language.
+ */
+export type ReviewSpellingResponse = { ok: true; results: Array<string[] | null> } | { ok: false };
 export type UpdateLangConfigMessage = Extract<
   Message,
   { command: "CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG" }

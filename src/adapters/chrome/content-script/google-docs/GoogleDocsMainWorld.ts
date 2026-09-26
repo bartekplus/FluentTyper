@@ -214,7 +214,7 @@ export function installGoogleDocsMainWorld(win: Window = window): () => void {
     pending += 1;
     void (
       request.kind === "read"
-        ? transactions.read()
+        ? transactions.read({ review: request.review === true })
         : transactions.apply(request.token as string, request.edit as DocsEdit)
     )
       .then(reply, () => reply({ status: "unverified" }))

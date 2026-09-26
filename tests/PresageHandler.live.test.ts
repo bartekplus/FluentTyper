@@ -1,5 +1,6 @@
 import libPresageMod from "../src/third_party/libpresage/libpresage.js";
 import { PresageHandler } from "../src/adapters/chrome/background/PresageHandler";
+import { REVIEW_SPELLING_BUDGET_MS } from "../src/adapters/chrome/background/PresageEngine";
 
 function createLiveConfig(textExpansions: Array<[string, string]>) {
   return {
@@ -201,5 +202,60 @@ describe("PresageHandler live Arabic (ar_SA)", () => {
 
     const french = await handler.runPrediction("champig", "", "fr_FR");
     expect(french.predictions.map((p) => p.trim())).toContain("champignon");
+  });
+});
+
+describe("PresageHandler live review spelling", () => {
+  test("known words come back as known; unknown ones get candidates, even in prefix-only mode", async () => {
+    const handler = await createLiveHandler();
+    for (const prefixOnlyMode of [false, true]) {
+      handler.setConfig({
+        ...createLiveConfig([]),
+        prefixOnlyMode,
+        userDictionaryList: ["Bartek"],
+      });
+      const results = handler.lookupSpelling("en_US", [
+        { word: "wa", before: "Where " },
+        { word: "was", before: "Where " },
+        { word: "recieve", before: "I " },
+        { word: "don't", before: "" },
+        { word: "Bartek", before: "" },
+      ])!;
+      expect(results[0]).toEqual(expect.arrayContaining(["was", "way"]));
+      expect(results[1]).toBeNull();
+      expect(results[2]).toContain("receive");
+      expect(results[3]).toBeNull();
+      // The user's dictionary counts as known.
+      expect(results[4]).toBeNull();
+    }
+    // Typing predictions are unchanged afterwards: prefix-only mode is back on.
+    const typing = await handler.runPrediction("recie", "", "en_US");
+    for (const word of typing.predictions.map((p) => p.trim().toLowerCase())) {
+      expect(word.startsWith("recie")).toBe(true);
+    }
+    expect(handler.lookupSpelling("xx_XX", [{ word: "wa", before: "" }])).toBeNull();
+  });
+
+  test("a time-bounded lookup answers the first words exactly as an unbounded one", async () => {
+    const handler = await createLiveHandler();
+    handler.setConfig({ ...createLiveConfig([]), prefixOnlyMode: true });
+    // Unknown words cost the engine tens of milliseconds each.
+    const words = Array.from({ length: 25 }, (_, i) => ({
+      word: `zq${"bcdfghjklmnpqrstvwxz"[i % 20]}vx${"bcdfg"[Math.floor(i / 5)]}`,
+      before: "the big ",
+    }));
+    const full = handler.lookupSpelling("en_US", words)!;
+    expect(full).toHaveLength(words.length);
+    const bounded = handler.lookupSpelling("en_US", words, {
+      budgetMs: REVIEW_SPELLING_BUDGET_MS,
+    })!;
+    expect(bounded.length).toBeGreaterThanOrEqual(1);
+    expect(bounded.length).toBeLessThan(words.length);
+    expect(bounded).toEqual(full.slice(0, bounded.length));
+    // Typing predictions afterwards are unchanged: prefix-only mode is back on.
+    const typing = await handler.runPrediction("recie", "", "en_US");
+    for (const word of typing.predictions.map((p) => p.trim().toLowerCase())) {
+      expect(word.startsWith("recie")).toBe(true);
+    }
   });
 });

@@ -155,6 +155,23 @@
     "grammar_rich_text_code_protection",
     "grammar_code_context_selection_safety",
     "grammar_code_context_formatting_changes",
-    "grammar_code_prediction_casing"
+    "grammar_code_prediction_casing",
+    "review_catalog_coverage",
+    "review_readonly_detection",
+    "review_scope_and_protection",
+    "review_bulk_planning",
+    "review_session_lifecycle",
+    "review_textarea_fix_all_undo",
+    "review_contenteditable_card_flow",
+    "review_quill_model",
+    "review_keyboard_accessibility",
+    "review_sensitive_and_review_only",
+    "review_command_routing",
+    "review_google_docs_fixture",
+    "review_layout_and_lifecycle",
+    "review_dialog_focus_rtl_small_viewport",
+    "review_unknown_word_choice",
+    "review_in_field_button",
+    "review_runs_all_supported_rules"
   ]
 }

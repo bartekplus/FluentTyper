@@ -24,7 +24,7 @@ import {
   type DocsReply,
   type DocsEdit,
 } from "./GoogleDocsModel";
-import { getDocsInput, type DocsInput } from "./GoogleDocsEnvironment";
+import { findDocsInput, getDocsInput, type DocsInput } from "./GoogleDocsEnvironment";
 import { GoogleDocsBridgeClient } from "./GoogleDocsBridgeClient";
 import { GoogleDocsView } from "./GoogleDocsView";
 
@@ -143,6 +143,9 @@ interface HistoryEdit extends TrackedEdit {
   active: boolean;
 }
 
+// Non-character keys that can change the document (for an open review).
+const EDITING_KEYS = new Set(["Enter", "Backspace", "Delete", "Tab"]);
+
 /** Async canvas-editor adapter using the normal predictor, grammar rules, theme and local services. */
 export class GoogleDocsAdapter {
   private readonly prediction: SuggestionPredictionCoordinator;
@@ -189,6 +192,9 @@ export class GoogleDocsAdapter {
   // trusts a text diff only as far as this accounts for it; a paste zeroes it.
   private typed = 0;
   private visible = false;
+  private reviewActive = false;
+  private readonly reviewSourceListeners = new Set<() => void>();
+  private readonly reviewKeyListeners = new Set<(key: string) => boolean>();
   private failureStatus: string | null = null;
   private pollTimer: ReturnType<typeof setInterval> | null = null;
   private refreshTimer: ReturnType<typeof setTimeout> | null = null;
@@ -199,6 +205,7 @@ export class GoogleDocsAdapter {
   // Shift+Insert are not, and Docs produces no `input` event to classify them either, so
   // the paste event itself is the marker. Our own write is a synthetic paste: skip it.
   private readonly pasteListener = () => {
+    this.reviewSourceChanged();
     if (!this.applying && !this.disposed) this.queueEdit("insert", ["insertChar", "paste"]);
   };
   private readonly compositionStart = () => {
@@ -206,6 +213,7 @@ export class GoogleDocsAdapter {
     this.dismiss();
   };
   private readonly compositionEnd = () => {
+    this.reviewSourceChanged();
     this.composing = false;
     this.scheduleRefresh("insert", [], 60);
   };
@@ -285,6 +293,8 @@ export class GoogleDocsAdapter {
     if (this.pollTimer !== null) clearInterval(this.pollTimer);
     this.pollTimer = null;
     this.bind(null);
+    document.removeEventListener("focusin", this.reviewFocusListener, true);
+    window.removeEventListener("blur", this.reviewBlurListener);
     this.bridge.dispose();
     this.view.dispose();
     document.removeEventListener(KEY_EVENT, this.bridgeKeyListener);
@@ -302,6 +312,106 @@ export class GoogleDocsAdapter {
   }
   triggerActiveSuggestion(): void {
     void this.refresh(true);
+  }
+
+  /** Review mode: typing-time grammar and suggestions pause; nothing else changes. */
+  setReviewActive(active: boolean): void {
+    this.reviewActive = active;
+    this.clearPendingTriggers();
+    this.dismiss();
+    if (!active) {
+      document.removeEventListener("focusin", this.reviewFocusListener, true);
+      window.removeEventListener("blur", this.reviewBlurListener);
+      void this.refresh(true);
+      return;
+    }
+    document.addEventListener("focusin", this.reviewFocusListener, true);
+    window.addEventListener("blur", this.reviewBlurListener);
+    this.bindForReview();
+  }
+
+  /**
+   * While reviewing, typing refreshes are paused, yet the input frame's events
+   * are how the review learns the document changed. So the current frame is
+   * bound whether or not it has focus: the review panel may hold focus when a
+   * settings restart creates this adapter, and Docs may replace the frame.
+   * Rebound on review start, on every focus change in this document, when
+   * focus moves into a frame (this window's blur: focus inside a frame never
+   * reaches this document), on every review read and on every poll (a no-op
+   * while the frame is unchanged).
+   */
+  private bindForReview(): void {
+    if (!this.reviewActive || this.disposed) return;
+    const input = getDocsInput() ?? findDocsInput();
+    if (input) this.bind(input);
+  }
+
+  private readonly reviewFocusListener = () => this.bindForReview();
+  // The window blurs as focus enters a frame; the frame is active a task later.
+  private readonly reviewBlurListener = () => {
+    this.bindForReview();
+    setTimeout(() => this.bindForReview(), 0);
+  };
+
+  /**
+   * While a review is active, `listener` runs on every editing keystroke,
+   * input, paste and finished composition in Docs' input frame (before Docs
+   * applies the change; readers wait for the next task), never for our own
+   * writes. Returns the unsubscribe.
+   */
+  onReviewSourceChange(listener: () => void): () => void {
+    this.reviewSourceListeners.add(listener);
+    return () => {
+      this.reviewSourceListeners.delete(listener);
+    };
+  }
+
+  /** While a review is active, `listener` sees each key in Docs' input frame first; true consumes it. */
+  onReviewKey(listener: (key: string) => boolean): () => void {
+    this.reviewKeyListeners.add(listener);
+    return () => {
+      this.reviewKeyListeners.delete(listener);
+    };
+  }
+
+  private reviewSourceChanged(): void {
+    if (!this.reviewActive || this.disposed || this.applying) return;
+    for (const listener of this.reviewSourceListeners) listener();
+  }
+
+  /** Docs reads and writes only while its input frame has focus (e.g. after a panel click). */
+  reviewFocusEditor(): void {
+    // Found without focus: this may be called with the review panel focused.
+    const input = this.input?.frame.isConnected ? this.input : findDocsInput();
+    try {
+      input?.frame.focus();
+      input?.element.focus({ preventScroll: true });
+    } catch {
+      // A detached frame: the next read reports it.
+    }
+    this.bindForReview();
+  }
+
+  /** A fresh single-use-token snapshot through the same verified bridge as typing. */
+  reviewRead(): Promise<DocsReply> {
+    if (this.disposed) return Promise.resolve({ status: "cancelled" });
+    this.bindForReview();
+    if (this.applying) return Promise.resolve({ status: "busy" });
+    return this.bridge.read({ review: true });
+  }
+
+  /** One model-verified edit (token-checked, minimal, verified by the MAIN-world transaction). */
+  async reviewApply(token: string, edit: DocsEdit): Promise<DocsReply> {
+    if (this.disposed || this.applying) return { status: "busy" };
+    this.applying = true;
+    try {
+      return await this.bridge.apply(token, edit);
+    } catch {
+      return { status: "unverified" };
+    } finally {
+      this.applying = false;
+      this.snapshot = null;
+    }
   }
   fulfillPrediction(response: PredictionResponse): void {
     void this.receivePrediction(response);
@@ -352,6 +462,13 @@ export class GoogleDocsAdapter {
     action?: PredictionInputAction,
     triggers: GrammarEventType[] = [],
   ): Promise<void> {
+    if (this.reviewActive) {
+      // Typing refreshes pause, but the poll keeps the review's input binding
+      // current: Docs may replace its input frame, and focus inside the new one
+      // never reaches this document.
+      this.bindForReview();
+      return;
+    }
     for (const trigger of triggers) this.pendingTriggers.add(trigger);
     if (action) this.pendingAction = action;
     if (this.disposed || this.composing || document.hidden) return;
@@ -661,6 +778,19 @@ export class GoogleDocsAdapter {
     return false;
   }
   private onKey(event: KeyboardEvent): void {
+    // An open review may take a key first (Escape closes its card).
+    if (this.reviewActive && !this.disposed && !event.isComposing) {
+      for (const listener of this.reviewKeyListeners) {
+        if (listener(event.key)) {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+          return;
+        }
+      }
+    }
+    // Text, line breaks, deletion and shortcuts (paste, cut, undo) can edit;
+    // navigation cannot, and would only blank an open review's list.
+    if ([...event.key].length === 1 || EDITING_KEYS.has(event.key)) this.reviewSourceChanged();
     if (event.isComposing || event.keyCode === 229) {
       this.composing = true;
       this.dismiss();
@@ -704,6 +834,7 @@ export class GoogleDocsAdapter {
     this.queueEdit("insert", this.charTriggers(key === "Enter" ? "\n" : key));
   }
   private onInput(event: InputEvent): void {
+    this.reviewSourceChanged();
     if (this.applying || this.disposed) return;
     this.dismiss();
     if (event.isComposing || this.composing) return;

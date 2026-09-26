@@ -7,6 +7,9 @@ if (!crypto.randomUUID)
   });
 import { SuggestionManagerRuntime } from "../../../../src/adapters/chrome/content-script/suggestions/SuggestionManagerRuntime";
 import { GoogleDocsAdapter } from "../../../../src/adapters/chrome/content-script/google-docs/GoogleDocsAdapter";
+import { ReviewController } from "../../../../src/adapters/chrome/content-script/review/ReviewController";
+import { DocsReviewSurfaceProxy } from "../../../../src/adapters/chrome/content-script/review/DocsReviewSurfaceProxy";
+import { GRAMMAR_RULE_IDS } from "../../../../src/core/domain/grammar/ruleCatalog";
 import type {
   SuggestionManagerOptions,
   PredictionRequest,
@@ -19,7 +22,13 @@ const fixture = globalThis as unknown as {
   predictions: string[];
   snippetShortcuts: Array<string | null>;
   startDocs: (options?: Partial<SuggestionManagerOptions>) => void;
+  review: ReviewController | null;
+  startReview: () => void;
+  surface: DocsReviewSurfaceProxy;
 };
+// The stable surface an open review holds; startDocs() replacing the adapter
+// is the extension's settings restart.
+fixture.surface = new DocsReviewSurfaceProxy();
 fixture.predictions = ["hello", "help", "helmet"];
 fixture.snippetShortcuts = [];
 fixture.events = [];
@@ -70,6 +79,26 @@ fixture.startDocs = (options = {}) => {
   fixture.generic = new SuggestionManagerRuntime(config);
   fixture.generic.queryAndAttachHelper();
   fixture.docs = new GoogleDocsAdapter(config);
+  fixture.surface.attach(fixture.docs);
   fixture.docs.start();
 };
 fixture.startDocs();
+fixture.review = null;
+// Review through the Docs adapter's own verified bridge, exactly as the extension wires it.
+fixture.startReview = () => {
+  fixture.review?.dispose();
+  fixture.review = new ReviewController({
+    getOptions: () => ({
+      lang: "en_US",
+      enabledRules: GRAMMAR_RULE_IDS,
+      userDictionary: [],
+      insertSpaceAfterAutocomplete: true,
+    }),
+    suspend: () => {},
+    resume: () => {},
+    addToDictionary: async () => true,
+    getDocsSurface: () => fixture.surface,
+    uiLanguage: "en",
+  });
+  fixture.review.invoke();
+};

@@ -29,9 +29,11 @@ import {
   KEY_ENABLED_GRAMMAR_RULES,
   KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE,
   KEY_AUTOCOMPLETE_ON_ENTER,
+  KEY_CODE_MODE,
 } from "../../src/core/domain/constants";
 import { SUPPORTED_PREDICTION_LANGUAGE_KEYS } from "../../src/core/domain/lang";
 import { grammarRuleSelectionToOverrides } from "../../src/core/domain/grammar/GrammarRuleSettings";
+import { DEFAULT_CURRENT_GRAMMAR_RULES } from "../../src/core/domain/grammar/ruleCatalog";
 import type { BackgroundContext } from "./e2e-helpers";
 import {
   BROWSER_TYPE,
@@ -49,6 +51,11 @@ import {
   suiteTimeout,
   waitUntil,
   isFirefox,
+  clickReviewControl,
+  readReviewPanel,
+  textPoint,
+  triggerReview,
+  waitForReview,
 } from "./e2e-helpers";
 
 const TEST_PAGE_PATH = path.resolve(__dirname, "test-page.html");
@@ -6978,5 +6985,1116 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await applyConfigChange(browser, worker!);
     },
     browserTimeout(30000, 50000),
+  );
+
+  // ------------------------------------------------------------ review mode
+
+  // Synthetic demo text: known errors in every category, a deliberately correct
+  // technical name (GitHub) and inline code that must never change.
+  const REVIEW_DEMO =
+    "i think teh GitHub release is ready , but their is one problem. We could of shipped on monday with alot of fixes. Run `teh build` first.";
+  const REVIEW_DEMO_FIXED =
+    "I think the GitHub release is ready, but there is one problem. We could have shipped on Monday with a lot of fixes. Run `teh build` first.";
+
+  async function prepareReviewPage(
+    options: { enableQuill?: boolean; enableLexical?: boolean } = {},
+  ) {
+    await setGrammarRulesAndWaitStable(
+      worker!,
+      DEFAULT_CURRENT_GRAMMAR_RULES,
+      3,
+      browserTimeout(5000, 7000),
+    );
+    await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+    await applyConfigChange(browser, worker!);
+    await gotoTestPage(page, { enableCkEditor: false, ...options });
+    await page.bringToFront();
+    await waitForInputReady(page, "#test-textarea");
+  }
+
+  async function finishReview() {
+    await page.keyboard.press("Escape").catch(() => undefined);
+    await setGrammarRulesAndWait(worker!, []);
+    await applyConfigChange(browser, worker!);
+  }
+
+  async function setTextarea(value: string, selection: [number, number] = [0, 0]) {
+    await page.evaluate(
+      (valueInner, [start, end]) => {
+        const field = document.querySelector("#test-textarea") as HTMLTextAreaElement;
+        field.value = valueInner;
+        field.focus();
+        field.setSelectionRange(start, end);
+      },
+      value,
+      selection,
+    );
+  }
+
+  const textareaValue = () =>
+    page.$eval("#test-textarea", (el) => (el as HTMLTextAreaElement).value);
+
+  async function pressUndo(selector: string) {
+    await page.focus(selector);
+    await page.keyboard.down("Control");
+    await page.keyboard.press("z");
+    await page.keyboard.up("Control");
+  }
+
+  test(
+    "Review mode reviews a textarea read-only, paints categorized marks and fixes all safe issues as one undo step",
+    async () => {
+      await prepareReviewPage();
+      await setTextarea(REVIEW_DEMO);
+      const requests: string[] = [];
+      page.on("request", (request) => {
+        if (!request.url().endsWith("/favicon.ico")) requests.push(request.url());
+      });
+
+      await triggerReview(worker!);
+      const panel = await waitForReview(page, "textarea findings", (p) =>
+        /^Issues: \d+$/.test(p.status),
+      );
+      // Starting a review changes nothing.
+      expect(await textareaValue()).toBe(REVIEW_DEMO);
+      expect(panel.items.map((item) => item.text)).toEqual([
+        "i → I",
+        "teh → the",
+        "␣, → ,",
+        "their is → there is",
+        "could of → could have",
+        "monday → Monday",
+        "alot → a␣lot",
+      ]);
+      expect(new Set(panel.marks.map((mark) => mark.category))).toEqual(
+        new Set(["spelling", "grammar", "punctuation", "typography"]),
+      );
+      expect(panel.marks).toHaveLength(panel.items.length);
+      expect(panel.notes).toContain("Skipped as code or protected text: 11 characters.");
+      expect(panel.fixAll).toMatchObject({ text: "Fix all safe (7)", disabled: false });
+
+      await clickReviewControl(page, "[data-action=fix-all]");
+      await waitUntil("fixed textarea", async () => (await textareaValue()) === REVIEW_DEMO_FIXED, {
+        timeoutMs: 5000,
+      });
+      await waitForReview(
+        page,
+        "all resolved",
+        (p) => p.status === "All found issues are resolved. Fixed: 7.",
+      );
+
+      // One native undo step restores the text as it was.
+      await pressUndo("#test-textarea");
+      await waitUntil("undone batch", async () => (await textareaValue()) === REVIEW_DEMO, {
+        timeoutMs: 5000,
+      });
+      // Review is fully offline.
+      expect(requests).toEqual([]);
+      await finishReview();
+    },
+    browserTimeout(40000, 60000),
+  );
+
+  test(
+    "Review mode offers suggestions for an unknown word and changes nothing until one is picked",
+    async () => {
+      await prepareReviewPage();
+      await setTextarea("Where wa it?");
+      const requests: string[] = [];
+      page.on("request", (request) => {
+        if (!request.url().endsWith("/favicon.ico")) requests.push(request.url());
+      });
+      await triggerReview(worker!);
+      // Looked up in the extension's own dictionary engine: close words only, no default.
+      let panel = await waitForReview(page, "spelling finding", (p) => p.items.length > 0);
+      expect(panel.items.map((item) => [item.text, item.category])).toEqual([
+        ["wa \u2192 was / way / war", "spelling"],
+      ]);
+      expect(panel.fixAll).toMatchObject({ text: "Fix all safe (0)", disabled: true });
+      expect(await textareaValue()).toBe("Where wa it?");
+
+      await clickReviewControl(page, ".item");
+      panel = await waitForReview(page, "choice card", (p) => p.card.open);
+      expect(panel.card.text).toContain("This word is not in the dictionary.");
+      expect(panel.card.text).toContain("Nothing changes until you pick a word.");
+      expect(await textareaValue()).toBe("Where wa it?");
+
+      // The user picks "was": one native edit, and one undo step restores the word.
+      await clickReviewControl(page, '.card button.suggestion[data-index="0"]');
+      await waitUntil("picked", async () => (await textareaValue()) === "Where was it?", {
+        timeoutMs: 5000,
+      });
+      await waitForReview(
+        page,
+        "resolved",
+        (p) => p.status === "All found issues are resolved. Fixed: 1.",
+      );
+      await pressUndo("#test-textarea");
+      await waitUntil("undone", async () => (await textareaValue()) === "Where wa it?", {
+        timeoutMs: 5000,
+      });
+      expect(requests).toEqual([]);
+      await finishReview();
+    },
+    browserTimeout(20000, 30000),
+  );
+
+  test(
+    "Review button in the focused text box reviews only that box; the setting turns it off",
+    async () => {
+      await prepareReviewPage();
+      await setTextarea("We saw the cat and the dog.");
+      await page.evaluate(() => {
+        const second = document.createElement("textarea");
+        second.id = "second-textarea";
+        second.rows = 4;
+        second.cols = 40;
+        second.value = "Another box with teh typo.";
+        document.querySelector("#test-textarea")!.after(second);
+      });
+      const launcher = () =>
+        page.evaluate(() => {
+          const button = document
+            .querySelector("[data-fluenttyper-review-launcher]")
+            ?.shadowRoot?.querySelector<HTMLButtonElement>("button");
+          if (!button || button.hidden) return null;
+          const rect = button.getBoundingClientRect();
+          return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+        });
+      const box = (selector: string) =>
+        page.$eval(selector, (el) => {
+          const rect = el.getBoundingClientRect();
+          return { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom };
+        });
+
+      // The button sits inside the focused box, in its corner; the page's layout is untouched.
+      const paddingBefore = await page.$eval(
+        "#second-textarea",
+        (el) => getComputedStyle(el).paddingRight,
+      );
+      await page.focus("#second-textarea");
+      await waitUntil("review button", async () => (await launcher()) !== null, {
+        timeoutMs: 5000,
+      });
+      const point = (await launcher())!;
+      const second = await box("#second-textarea");
+      expect(point.x).toBeGreaterThan(second.left);
+      expect(point.x).toBeLessThan(second.right);
+      expect(point.y).toBeGreaterThan(second.top);
+      expect(point.y).toBeLessThan(second.bottom);
+      expect(await page.$eval("#second-textarea", (el) => getComputedStyle(el).paddingRight)).toBe(
+        paddingBefore,
+      );
+
+      // Typing hides it until a pause.
+      await page.keyboard.press("End");
+      await page.keyboard.type(" More", { delay: 20 });
+      expect(await launcher()).toBeNull();
+      await waitUntil("button back after typing", async () => (await launcher()) !== null, {
+        timeoutMs: 5000,
+      });
+
+      // A click reviews this box only, and the button steps aside while its review is open.
+      const target = (await launcher())!;
+      await page.mouse.click(target.x, target.y);
+      const panel = await waitForReview(page, "second box review", (p) => p.status === "Issues: 1");
+      expect(panel.items.map((item) => item.text)).toEqual(["teh \u2192 the"]);
+      expect(await page.evaluate(() => document.activeElement?.id)).not.toBe("test-textarea");
+      expect(await launcher()).toBeNull();
+      await clickReviewControl(page, "[data-action=fix-all]");
+      await waitUntil(
+        "fixed second box",
+        async () =>
+          (await page.$eval("#second-textarea", (el) => (el as HTMLTextAreaElement).value)) ===
+          "Another box with the typo. More",
+        { timeoutMs: 5000 },
+      );
+      expect(await textareaValue()).toBe("We saw the cat and the dog.");
+      await page.keyboard.press("Escape");
+      await waitForReview(page, "closed", (p) => !p.open);
+
+      // Inside a modal dialog (the page behind it is inert), the button still works.
+      await page.evaluate(() => {
+        const dialog = document.createElement("dialog");
+        dialog.id = "launcher-dialog";
+        const field = document.createElement("textarea");
+        field.id = "dialog-textarea";
+        field.rows = 4;
+        field.cols = 40;
+        field.value = "In a dialog with teh typo.";
+        dialog.append(field);
+        document.body.append(dialog);
+        dialog.showModal();
+        field.focus();
+      });
+      await waitUntil("dialog button", async () => (await launcher()) !== null, {
+        timeoutMs: 5000,
+      });
+      const inDialog = (await launcher())!;
+      await page.mouse.click(inDialog.x, inDialog.y);
+      await waitForReview(page, "dialog review", (p) => p.status === "Issues: 1");
+      await page.keyboard.press("Escape");
+      await waitForReview(page, "dialog review closed", (p) => !p.open);
+      await page.evaluate(() => {
+        const dialog = document.querySelector<HTMLDialogElement>("#launcher-dialog")!;
+        dialog.close();
+        dialog.remove();
+      });
+
+      // Turned off in settings: no button anywhere.
+      await setSettingAndWait(worker!, "showReviewButton", false);
+      await applyConfigChange(browser, worker!);
+      await page.focus("#test-textarea");
+      await sleep(1200);
+      expect(await launcher()).toBeNull();
+      await setSettingAndWait(worker!, "showReviewButton", true);
+      await applyConfigChange(browser, worker!);
+      await finishReview();
+    },
+    browserTimeout(30000, 45000),
+  );
+
+  test(
+    "Review mode never writes stale offsets when focusing the field changes it",
+    async () => {
+      await prepareReviewPage();
+      await setTextarea("We saw teh cat.");
+      await triggerReview(worker!);
+      await waitForReview(page, "textarea finding", (p) => p.status === "Issues: 1");
+      // The panel has focus now. The page rewrites the field as soon as it is focused again.
+      await page.evaluate(() => {
+        const field = document.querySelector("#test-textarea") as HTMLTextAreaElement;
+        field.addEventListener("focus", () => (field.value = `PREFIX: ${field.value}`), {
+          once: true,
+        });
+      });
+      await clickReviewControl(page, ".item");
+      await waitForReview(page, "card", (p) => p.card.open);
+      await clickReviewControl(page, ".card [data-action=apply]");
+      await waitForReview(page, "rechecked after the refused write", (p) =>
+        /Issues: 1$/.test(p.status),
+      );
+      // Not "PREFIX: We saw the cat." written at the old offsets, and not rewritten at all.
+      expect(await textareaValue()).toBe("PREFIX: We saw teh cat.");
+      await finishReview();
+    },
+    browserTimeout(20000, 30000),
+  );
+
+  test(
+    "Review mode runs every supported rule, even ones off for typing, and none in code mode",
+    async () => {
+      const selector = "#test-textarea";
+      const launcherShown = () =>
+        page.evaluate(() => {
+          const button = document
+            .querySelector("[data-fluenttyper-review-launcher]")
+            ?.shadowRoot?.querySelector<HTMLButtonElement>("button");
+          return !!button && !button.hidden;
+        });
+      // duplicatePunctuationCollapse is off for typing by default.
+      expect(DEFAULT_CURRENT_GRAMMAR_RULES).not.toContain("duplicatePunctuationCollapse");
+      await prepareReviewPage();
+
+      // Typing leaves ".." alone: the space after it, where the rule would act, is already typed.
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "Hello world.. Next");
+      await waitForInputContentEqual(
+        page,
+        selector,
+        "Hello world.. Next",
+        browserTimeout(5000, 9000),
+      );
+
+      // Review finds it anyway, and changes nothing until asked.
+      await triggerReview(worker!);
+      let panel = await waitForReview(page, "off-for-typing rule", (p) => p.status === "Issues: 1");
+      expect(panel.items.map((item) => [item.text, item.category])).toEqual([
+        [".. \u2192 .", "punctuation"],
+      ]);
+      expect(await textareaValue()).toBe("Hello world.. Next");
+      await page.keyboard.press("Escape");
+      await waitForReview(page, "closed", (p) => !p.open);
+
+      // With every rule off for typing, review and its in-field button still work.
+      await setGrammarRulesAndWait(worker!, []);
+      await applyConfigChange(browser, worker!);
+      await setTextarea("We saw teh cat.. Then left.");
+      await waitUntil("review button with typing rules off", launcherShown, { timeoutMs: 5000 });
+      await triggerReview(worker!);
+      panel = await waitForReview(page, "all typing rules off", (p) => p.status === "Issues: 2");
+      expect(panel.items.map((item) => item.text)).toEqual(["teh \u2192 the", ".. \u2192 ."]);
+      await page.keyboard.press("Escape");
+      await waitForReview(page, "closed again", (p) => !p.open);
+
+      // Code mode keeps review's rules off: nothing to check, no button.
+      try {
+        await setSettingAndWait(worker!, KEY_CODE_MODE, true);
+        await applyConfigChange(browser, worker!);
+        await setTextarea("We saw teh cat.. Then left.");
+        await waitUntil("no review button in code mode", async () => !(await launcherShown()), {
+          timeoutMs: 5000,
+        });
+        await triggerReview(worker!);
+        panel = await waitForReview(page, "code mode", (p) => p.open && p.status !== "");
+        expect(panel.status).toBe("No review checks run in code mode.");
+        expect(panel.items).toEqual([]);
+        expect(await textareaValue()).toBe("We saw teh cat.. Then left.");
+      } finally {
+        await page.keyboard.press("Escape").catch(() => undefined);
+        await setSettingAndWait(worker!, KEY_CODE_MODE, false);
+        await applyConfigChange(browser, worker!);
+      }
+      await finishReview();
+    },
+    browserTimeout(40000, 60000),
+  );
+
+  test(
+    "Review mode card flow in contenteditable: click, apply, ignore, add to dictionary, fix all, undo, formatting kept",
+    async () => {
+      await prepareReviewPage();
+      const selector = "#test-contenteditable";
+      await page.evaluate((sel) => {
+        const root = document.querySelector(sel) as HTMLElement;
+        root.innerHTML =
+          '<p>We saw <b>teh</b> cat and teh dog , <a href="#link">recieve</a> it.</p>' +
+          "<ul><li>their is one item</li></ul><p>Run <code>teh build</code> alot.</p>";
+        root.focus();
+      }, selector);
+      await triggerReview(worker!);
+      let panel = await waitForReview(page, "contenteditable findings", (p) =>
+        /^Issues: \d+$/.test(p.status),
+      );
+      expect(panel.items.map((item) => item.text)).toEqual([
+        "teh → the",
+        "teh → the",
+        "␣, → ,",
+        "recieve → receive",
+        "t → T",
+        "their is → there is",
+        "alot → a␣lot",
+      ]);
+      // Painted with namespaced CSS Custom Highlights; no element added to the editor.
+      expect(panel.highlights.sort()).toEqual([
+        "fluenttyper-review-grammar",
+        "fluenttyper-review-punctuation",
+        "fluenttyper-review-spelling",
+        "fluenttyper-review-typography",
+      ]);
+      expect(await page.$eval(selector, (el) => el.querySelectorAll("span, mark").length)).toBe(0);
+
+      // Click the SECOND "teh": the card opens for that occurrence only.
+      const point = await textPoint(page, selector, "teh", 2);
+      await page.mouse.click(point.x, point.y);
+      panel = await waitForReview(page, "card", (p) => p.card.open);
+      expect(panel.card.text).toContain("This is a common misspelling.");
+      await clickReviewControl(page, ".card [data-action=apply]");
+      await waitUntil(
+        "one fix",
+        async () =>
+          (await page.$eval(selector, (el) => el.textContent)) ===
+          "We saw teh cat and the dog , recieve it.their is one itemRun teh build alot.",
+        { timeoutMs: 5000 },
+      );
+
+      // Ignore the remaining "teh" (this occurrence, this session only).
+      panel = await waitForReview(page, "after apply", (p) => p.status === "Fixed: 1. Issues: 6");
+      await clickReviewControl(page, `.item[data-id="${panel.items[0].id}"]`);
+      await waitForReview(page, "card for ignore", (p) => p.card.open);
+      await clickReviewControl(page, ".card [data-action=ignore]");
+      panel = await waitForReview(page, "ignored", (p) => p.items.length === 5);
+      expect(panel.notes).toContain("Ignored: 1");
+
+      // Add "recieve" to the user dictionary through the existing settings path.
+      const recieve = panel.items.find((item) => item.text.startsWith("recieve"))!;
+      await clickReviewControl(page, `.item[data-id="${recieve.id}"]`);
+      await waitForReview(page, "card for dictionary", (p) => p.card.open);
+      await clickReviewControl(page, ".card [data-action=dictionary]");
+      await waitForReview(page, "dictionary word gone", (p) =>
+        p.items.every((item) => !item.text.startsWith("recieve")),
+      );
+      await waitUntil(
+        "stored dictionary word",
+        async () =>
+          (
+            (await getLocalStorageValue<string[]>(
+              worker!,
+              `${SETTINGS_PREFIX}userDictionaryList`,
+            )) ?? []
+          ).includes("recieve"),
+        { timeoutMs: 5000 },
+      );
+
+      await clickReviewControl(page, "[data-action=fix-all]");
+      // The line-start capital is individual-only and stays for the user to decide.
+      panel = await waitForReview(
+        page,
+        "remaining fixed",
+        (p) => p.status === "Fixed: 3. Issues: 1",
+      );
+      expect(panel.items.map((item) => item.text)).toEqual(["t → T"]);
+      const html = await page.$eval(selector, (el) => el.innerHTML);
+      // Structure, bold, link, list and code are untouched. Native editing may turn
+      // the space beside </code> into a no-break space; review accepts only that.
+      expect(html.replace("</code>&nbsp;", "</code> ")).toBe(
+        '<p>We saw <b>teh</b> cat and the dog, <a href="#link">recieve</a> it.</p>' +
+          "<ul><li>there is one item</li></ul><p>Run <code>teh build</code> a lot.</p>",
+      );
+
+      // Native undo reverts review fixes (one per edit in plain contenteditable).
+      await pressUndo(selector);
+      await waitUntil(
+        "one fix undone",
+        async () => (await page.$eval(selector, (el) => el.innerHTML)) !== html,
+        { timeoutMs: 5000 },
+      );
+      expect(await page.$eval(selector, (el) => el.querySelector("code")?.textContent)).toBe(
+        "teh build",
+      );
+      await setSettingAndWait(worker!, "userDictionaryList", []);
+      await finishReview();
+    },
+    browserTimeout(50000, 70000),
+  );
+
+  test(
+    "Review mode fixes a whole formatted word and link text in place, keeping the spaces around them, and undo restores them",
+    async () => {
+      await prepareReviewPage();
+      const selector = "#test-contenteditable";
+      const original =
+        "<p>Well, <em>i</em> agree.</p><p>We could <b>of</b> shipped it.</p>" +
+        '<p>He said <a href="#link">alot</a> of things.</p>';
+      const html = () => page.$eval(selector, (el) => el.innerHTML);
+      await page.evaluate(
+        (sel, value) => {
+          const root = document.querySelector(sel) as HTMLElement;
+          root.innerHTML = value;
+          root.focus();
+        },
+        selector,
+        original,
+      );
+      await triggerReview(worker!);
+      const panel = await waitForReview(page, "findings", (p) => p.status === "Issues: 3");
+      expect(panel.items.map((item) => item.text)).toEqual([
+        "i → I",
+        "could of → could have",
+        "alot → a␣lot",
+      ]);
+
+      // One fix: the word stays in its <em>, and the space after it stays a space.
+      await clickReviewControl(page, `.item[data-id="${panel.items[0].id}"]`);
+      await waitForReview(page, "card", (p) => p.card.open);
+      await clickReviewControl(page, ".card [data-action=apply]");
+      await waitForReview(page, "one fixed", (p) => p.status === "Fixed: 1. Issues: 2");
+      expect(await html()).toBe(original.replace("<em>i</em>", "<em>I</em>"));
+
+      // Native undo restores it exactly (Firefox takes two steps, see ReviewTargets).
+      let presses = 0;
+      while ((await html()) !== original && presses < 4) {
+        await pressUndo(selector);
+        presses += 1;
+      }
+      expect(await html()).toBe(original);
+      expect(presses).toBe(isFirefox() ? 2 : 1);
+      await waitForReview(page, "rechecked after undo", (p) => /Issues: 3$/.test(p.status));
+
+      // Fix all: every word keeps its formatting, the link keeps its text, no space is lost.
+      await clickReviewControl(page, "[data-action=fix-all]");
+      await waitForReview(page, "all fixed", (p) =>
+        p.status.startsWith("All found issues are resolved."),
+      );
+      expect(await html()).toBe(
+        "<p>Well, <em>I</em> agree.</p><p>We could <b>have</b> shipped it.</p>" +
+          '<p>He said <a href="#link">a lot</a> of things.</p>',
+      );
+      presses = 0;
+      while ((await html()) !== original && presses < 8) {
+        await pressUndo(selector);
+        presses += 1;
+      }
+      expect(await html()).toBe(original);
+      await finishReview();
+    },
+    browserTimeout(40000, 60000),
+  );
+
+  test(
+    "Review mode keeps the real Quill model's formatting and code, and Quill undo reverts the batch",
+    async () => {
+      await prepareReviewPage({ enableQuill: true });
+      await waitForInputReady(page, QUILL_SELECTOR);
+      await page.evaluate(() => {
+        const quill = (window as typeof window & { __testQuill: Quill }).__testQuill;
+        quill.setContents([
+          { insert: "i think " },
+          { insert: "teh", attributes: { bold: true } },
+          { insert: " plan is ready , but their is a " },
+          { insert: "link", attributes: { link: "https://example.invalid/" } },
+          { insert: ".\nRun " },
+          { insert: "teh build", attributes: { code: true } },
+          { insert: " with alot of care.\n" },
+        ]);
+        // Seeded text is the user's existing document, not an undoable change.
+        quill.history.clear();
+        quill.focus();
+        quill.setSelection(0, 0);
+      });
+      const quillText = () =>
+        page.evaluate(() =>
+          (window as typeof window & { __testQuill: Quill }).__testQuill.getText(),
+        );
+      const original = await quillText();
+      await triggerReview(worker!);
+      await waitForReview(page, "quill findings", (p) => p.fixAll.text === "Fix all safe (5)");
+      await clickReviewControl(page, "[data-action=fix-all]");
+      await waitForReview(page, "quill resolved", (p) => p.status.startsWith("All found issues"));
+      const contents = await page.evaluate(
+        () => (window as typeof window & { __testQuill: Quill }).__testQuill.getContents().ops,
+      );
+      expect(contents).toEqual([
+        { insert: "I think " },
+        { insert: "the", attributes: { bold: true } },
+        { insert: " plan is ready, but there is a " },
+        { insert: "link", attributes: { link: "https://example.invalid/" } },
+        { insert: ".\nRun " },
+        { insert: "teh build", attributes: { code: true } },
+        { insert: " with a lot of care.\n" },
+      ]);
+      // Quill's history merges quick successive changes: one undo reverts the batch.
+      await pressUndo(QUILL_SELECTOR);
+      await waitUntil("quill undo", async () => (await quillText()) === original, {
+        timeoutMs: 5000,
+      });
+      await finishReview();
+    },
+    browserTimeout(40000, 60000),
+  );
+
+  test(
+    "Review mode keyboard flow: panel focus, list, card, Escape order, and Tab is never captured",
+    async () => {
+      await prepareReviewPage();
+      await setTextarea("We saw teh cat and teh dog.");
+      await triggerReview(worker!);
+      let panel = await waitForReview(page, "panel focused", (p) => p.status === "Issues: 2");
+      expect(panel.focus).toBe("h2");
+      // Tab moves through review controls to the first issue.
+      for (let i = 0; i < 12 && (await readReviewPanel(page)).focus !== "button.item"; i += 1) {
+        await page.keyboard.press("Tab");
+      }
+      await page.keyboard.press("Enter");
+      panel = await waitForReview(page, "card from keyboard", (p) => p.card.open);
+      expect(panel.focus).toBe("button[apply]");
+      await page.keyboard.press("Enter");
+      await waitUntil(
+        "keyboard apply",
+        async () => (await textareaValue()) === "We saw the cat and teh dog.",
+        { timeoutMs: 5000 },
+      );
+      await waitForReview(page, "focus back in list", (p) => p.focus === "button.item");
+      // Escape closes the card first, then the review.
+      await page.keyboard.press("Enter");
+      await waitForReview(page, "card again", (p) => p.card.open);
+      await page.keyboard.press("Escape");
+      panel = await waitForReview(page, "card closed", (p) => !p.card.open);
+      expect(panel.open).toBe(true);
+      await page.keyboard.press("Escape");
+      await waitForReview(page, "review closed", (p) => !p.open);
+      expect(await textareaValue()).toBe("We saw the cat and teh dog.");
+
+      // With a review open but the editor focused, Tab leaves the editor as usual.
+      await setTextarea("We saw teh cat.", [3, 3]);
+      await triggerReview(worker!);
+      await waitForReview(page, "second review", (p) => p.status === "Issues: 1");
+      await page.focus("#test-textarea");
+      await page.keyboard.press("Tab");
+      expect(await page.evaluate(() => document.activeElement?.id)).toBe("test-input");
+      expect(await textareaValue()).toBe("We saw teh cat.");
+      await page.focus("#test-textarea");
+      await page.keyboard.press("Escape");
+      await waitForReview(page, "closed from editor", (p) => !p.open);
+      await finishReview();
+    },
+    browserTimeout(40000, 60000),
+  );
+
+  test(
+    "Review mode reviews only the selection, rechecks after edits, and follows scrolling",
+    async () => {
+      await prepareReviewPage();
+      await setTextarea("Teh one. Teh two. Teh three.", [9, 17]);
+      await triggerReview(worker!);
+      let panel = await waitForReview(page, "selection scope", (p) => p.status === "Issues: 1");
+      expect(panel.items[0].text).toBe("Teh → The");
+      await clickReviewControl(page, "[data-action=fix-all]");
+      await waitUntil(
+        "scoped fix",
+        async () => (await textareaValue()) === "Teh one. The two. Teh three.",
+        { timeoutMs: 5000 },
+      );
+
+      // An edit invalidates at once and rechecks after a pause (whole-field review).
+      await page.keyboard.press("Escape");
+      await setTextarea("Short.", [6, 6]);
+      await triggerReview(worker!);
+      await waitForReview(
+        page,
+        "clean",
+        (p) => p.status === "No issues found by the review checks.",
+      );
+      await page.focus("#test-textarea");
+      // Live grammar is suspended in the reviewed editor, so "Teh" stays as typed.
+      await page.keyboard.type(" Teh");
+      await waitForReview(page, "recheck after typing", (p) => p.status === "Issues: 1");
+      expect(await textareaValue()).toBe("Short. Teh");
+      await page.keyboard.press("Escape");
+
+      // Marks follow the textarea's own scrolling.
+      const lines = Array.from({ length: 30 }, (_, i) => `Line ${i} is fine.`).join("\n");
+      await setTextarea(`${lines}\nFinal teh line.`, [0, 0]);
+      await page.$eval("#test-textarea", (el) => ((el as HTMLTextAreaElement).scrollTop = 0));
+      await triggerReview(worker!);
+      await waitForReview(page, "scroll finding", (p) => p.items.length === 1);
+      expect((await readReviewPanel(page)).marks).toHaveLength(0);
+      await page.$eval("#test-textarea", (el) => ((el as HTMLTextAreaElement).scrollTop = 10000));
+      panel = await waitForReview(page, "mark after scroll", (p) => p.marks.length === 1);
+      const box = await page.$eval("#test-textarea", (el) => {
+        const rect = el.getBoundingClientRect();
+        return { top: rect.top, bottom: rect.bottom };
+      });
+      expect(panel.marks[0].top).toBeGreaterThan(box.top);
+      expect(panel.marks[0].top + panel.marks[0].height).toBeLessThan(box.bottom);
+      await finishReview();
+    },
+    browserTimeout(50000, 70000),
+  );
+
+  test(
+    "Review mode refuses sensitive fields and model-backed editors stay review-only",
+    async () => {
+      await prepareReviewPage({ enableLexical: true });
+      await page.evaluate(() => {
+        const input = document.createElement("input");
+        input.type = "password";
+        input.id = "test-review-password";
+        input.value = "teh secret";
+        document.querySelector(".container")!.append(input);
+        input.focus();
+      });
+      await triggerReview(worker!);
+      let panel = await waitForReview(page, "sensitive notice", (p) => p.open);
+      expect(panel.status).toContain("excluded from review");
+      expect(panel.items).toEqual([]);
+      await page.keyboard.press("Escape");
+      await waitForReview(page, "notice closed", (p) => !p.open);
+
+      // Type with live grammar off (it would correct "teh"), then review with it on.
+      await setGrammarRulesAndWait(worker!, []);
+      await applyConfigChange(browser, worker!);
+      await waitForInputReady(page, LEXICAL_SELECTOR);
+      await page.focus(LEXICAL_SELECTOR);
+      await page.keyboard.type("We saw teh cat.");
+      await setGrammarRulesAndWaitStable(
+        worker!,
+        DEFAULT_CURRENT_GRAMMAR_RULES,
+        3,
+        browserTimeout(5000, 7000),
+      );
+      await applyConfigChange(browser, worker!);
+      await page.focus(LEXICAL_SELECTOR);
+      await triggerReview(worker!);
+      panel = await waitForReview(page, "lexical findings", (p) => p.status === "Issues: 1");
+      expect(panel.notes).toContain("Review only");
+      expect(panel.fixAll.hidden).toBe(true);
+      await clickReviewControl(page, `.item[data-id="${panel.items[0].id}"]`);
+      panel = await waitForReview(page, "lexical card", (p) => p.card.open);
+      expect(panel.card.applyDisabled).toBe(true);
+      expect(await page.$eval(LEXICAL_SELECTOR, (el) => el.textContent)).toBe("We saw teh cat.");
+      await finishReview();
+    },
+    browserTimeout(50000, 70000),
+  );
+
+  test(
+    "Review notice in a modal dialog opens inside the dialog; its close button and Escape dismiss only the notice",
+    async () => {
+      await prepareReviewPage();
+      await page.evaluate(() => {
+        const dialog = document.createElement("dialog");
+        dialog.id = "notice-dialog";
+        const input = document.createElement("input");
+        input.type = "password";
+        input.id = "notice-password";
+        input.value = "teh secret";
+        dialog.append(input);
+        document.body.append(dialog);
+        dialog.showModal();
+        input.focus();
+      });
+      const state = () =>
+        page.evaluate(() => ({
+          dialogOpen: document.querySelector<HTMLDialogElement>("#notice-dialog")!.open,
+          noticeParent: document.querySelector("[data-fluenttyper-review]")?.parentElement?.id,
+          focused: document.activeElement?.id ?? "",
+        }));
+      try {
+        // Everything outside a modal dialog is inert: the notice goes inside it.
+        await triggerReview(worker!);
+        const panel = await waitForReview(page, "notice", (p) => p.open);
+        expect(panel.status).toContain("excluded from review");
+        expect((await state()).noticeParent).toBe("notice-dialog");
+        await clickReviewControl(page, "[data-action=close]");
+        await waitForReview(page, "closed by its button", (p) => !p.open);
+        expect(await state()).toEqual({
+          dialogOpen: true,
+          noticeParent: undefined,
+          focused: "notice-password",
+        });
+
+        // Escape closes the notice, not the page's dialog.
+        await triggerReview(worker!);
+        await waitForReview(page, "notice again", (p) => p.open);
+        await page.keyboard.press("Escape");
+        await waitForReview(page, "closed by Escape", (p) => !p.open);
+        expect((await state()).dialogOpen).toBe(true);
+      } finally {
+        await page.evaluate(() => {
+          const dialog = document.querySelector<HTMLDialogElement>("#notice-dialog");
+          dialog?.close();
+          dialog?.remove();
+        });
+      }
+      await finishReview();
+    },
+    browserTimeout(30000, 45000),
+  );
+
+  test(
+    "Review mode refuses fixes that a full field's maxlength would cut, and writes nothing",
+    async () => {
+      await prepareReviewPage();
+      // A full field. Fix all writes one merged edit, which the browser would cut
+      // at the limit ("I don't know th cat").
+      const full = "i dont know teh cat";
+      await page.$eval("#test-textarea", (el) => el.setAttribute("maxlength", "19"));
+      try {
+        await setTextarea(full);
+        await triggerReview(worker!);
+        let panel = await waitForReview(page, "findings", (p) => p.status === "Issues: 3");
+        await clickReviewControl(page, "[data-action=fix-all]");
+        panel = await waitForReview(page, "refused", (p) =>
+          p.status.includes("The editor refused the change."),
+        );
+        expect(await textareaValue()).toBe(full);
+        expect(panel.items).toHaveLength(3);
+      } finally {
+        await page.$eval("#test-textarea", (el) => el.removeAttribute("maxlength"));
+      }
+      await finishReview();
+    },
+    browserTimeout(30000, 45000),
+  );
+
+  devRuntimeTest(
+    "CMD_REVIEW_FT_ACTIVE_TAB command reviews the focused editor through the command router",
+    async () => {
+      await prepareReviewPage();
+      await setTextarea("We saw teh cat.");
+      await triggerCommandForTesting(worker!, "CMD_REVIEW_FT_ACTIVE_TAB");
+      const panel = await waitForReview(page, "command review", (p) => p.status === "Issues: 1");
+      expect(panel.items[0].text).toBe("teh \u2192 the");
+      expect(await textareaValue()).toBe("We saw teh cat.");
+      await finishReview();
+    },
+    browserTimeout(30000, 50000),
+  );
+
+  test(
+    "Review text from the popup reviews a Google Docs page whose focus returns into its input frame",
+    async () => {
+      // The synthetic Docs editor (mocked annotated-text API, no network) served
+      // at a Docs URL, so the installed extension runs its real Docs support.
+      const docsUrl = "https://docs.google.com/document/d/fluenttyper-e2e/edit";
+      const fixture = await fs.promises.readFile(
+        path.join(import.meta.dir, "fixtures/google-docs/editor.html"),
+        "utf8",
+      );
+      await prepareReviewPage();
+      const docsPage = await browser.newPage();
+      const away = await browser.newPage();
+      try {
+        await docsPage.setRequestInterception(true);
+        docsPage.on("request", (request) => {
+          if (request.url().startsWith(docsUrl)) {
+            void request.respond({ status: 200, contentType: "text/html", body: fixture });
+          } else {
+            void request.abort();
+          }
+        });
+        await docsPage.goto(docsUrl, { waitUntil: "domcontentloaded" });
+        await docsPage.bringToFront();
+        await docsPage.evaluate(() => {
+          const w = window as unknown as {
+            setModel: (text: string) => void;
+            focusEditor: () => void;
+          };
+          w.setModel("We saw teh cat.");
+          w.focusEditor();
+        });
+        await waitUntil(
+          "Docs support reads the document",
+          () =>
+            docsPage.evaluate(
+              () =>
+                (window as unknown as { _docs_annotate_canvas_by_ext?: unknown })
+                  ._docs_annotate_canvas_by_ext != null &&
+                document.activeElement?.tagName === "IFRAME",
+            ),
+          { timeoutMs: browserTimeout(5000, 8000) },
+        );
+        // The tab the popup was opened on.
+        const tabId = await worker!.evaluate(async () => {
+          const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+          return tab?.id ?? -1;
+        });
+        // The popup holds focus while the request is sent, then closes, and the
+        // browser puts focus back into Docs' input frame, not the top document.
+        await away.bringToFront();
+        await waitUntil("the Docs page lost focus", async () =>
+          docsPage.evaluate(() => !document.hasFocus()),
+        );
+        await worker!.evaluate(async (id) => {
+          await chrome.tabs
+            .sendMessage(id, { command: "CMD_REVIEW_FT_ACTIVE_TAB", context: { source: "popup" } })
+            .catch(() => undefined);
+        }, tabId);
+        await docsPage.bringToFront();
+        const panel = await waitForReview(
+          docsPage,
+          "Docs review from the popup",
+          (p) => p.status === "Issues: 1",
+        );
+        expect(panel.items.map((item) => item.text)).toEqual(["teh → the"]);
+        // Reviewing changed nothing.
+        expect(
+          await docsPage.evaluate(() => (window as unknown as { model: { text: string } }).model),
+        ).toMatchObject({ text: "We saw teh cat." });
+
+        // The keyboard shortcut (what the command router sends), pressed while typing in Docs.
+        await clickReviewControl(docsPage, "[data-action=close]");
+        await waitUntil("review closed", async () => !(await readReviewPanel(docsPage)).open);
+        await docsPage.evaluate(() =>
+          (window as unknown as { focusEditor: () => void }).focusEditor(),
+        );
+        await triggerReview(worker!);
+        await waitForReview(
+          docsPage,
+          "Docs review from the shortcut",
+          (p) => p.status === "Issues: 1",
+        );
+      } finally {
+        await away.close().catch(() => undefined);
+        await docsPage.close().catch(() => undefined);
+        await page.bringToFront();
+        await finishReview();
+      }
+    },
+    browserTimeout(30000, 50000),
+  );
+
+  test(
+    "Review mode handles wrapping, resize, RTL, hi-DPI hit-testing, dark mode, IME, multiple fields and navigation cleanup",
+    async () => {
+      await prepareReviewPage();
+      const viewport = page.viewport();
+      // Hit-testing and mirror measurement at device pixel ratio 2.
+      await page.setViewport({ width: 1100, height: 800, deviceScaleFactor: 2 });
+      if (!isFirefox()) {
+        await page.emulateMediaFeatures([{ name: "prefers-color-scheme", value: "dark" }]);
+      }
+      expect(await page.evaluate(() => window.devicePixelRatio)).toBe(2);
+      // A finding that wraps across two lines gets one mark per line box.
+      await page.evaluate(() => {
+        const field = document.querySelector("#test-textarea") as HTMLTextAreaElement;
+        field.style.width = "160px";
+        field.value = "Fine words here. Thanks, your welcome";
+        field.focus();
+        field.setSelectionRange(0, 0);
+      });
+      await triggerReview(worker!);
+      let panel = await waitForReview(page, "wrapped finding", (p) => p.status === "Issues: 1");
+      const wrappedMarks = panel.marks.length;
+      expect(wrappedMarks).toBeGreaterThanOrEqual(1);
+      if (!isFirefox()) {
+        const background = await page.evaluate(() => {
+          const node = document
+            .querySelector("[data-fluenttyper-review]")!
+            .shadowRoot!.querySelector(".panel") as HTMLElement;
+          return getComputedStyle(node).backgroundColor;
+        });
+        // The dark palette: a dark panel background.
+        const [r, g, b] = background.match(/\d+/g)!.map(Number);
+        expect(r + g + b).toBeLessThan(200);
+      }
+      // Resizing the field re-measures the marks.
+      const before = panel.marks.map((mark) => mark.left).join(",");
+      await page.evaluate(() => {
+        (document.querySelector("#test-textarea") as HTMLTextAreaElement).style.width = "480px";
+      });
+      panel = await waitForReview(
+        page,
+        "re-measured marks",
+        (p) => p.marks.length >= 1 && p.marks.map((mark) => mark.left).join(",") !== before,
+      );
+      // A click at the mark's own center hits the same finding (works at any device scale).
+      const mark = panel.marks[0];
+      await page.mouse.click(mark.left + mark.width / 2, mark.top + mark.height / 2 - 2);
+      await waitForReview(page, "card from mark", (p) => p.card.open);
+
+      // IME composition pauses the review; its end rechecks.
+      await page.evaluate(() => {
+        const field = document.querySelector("#test-textarea") as HTMLTextAreaElement;
+        field.dispatchEvent(new CompositionEvent("compositionstart", { bubbles: true }));
+      });
+      await waitForReview(page, "composition pause", (p) =>
+        p.status.includes("Paused while you compose"),
+      );
+      await page.evaluate(() => {
+        const field = document.querySelector("#test-textarea") as HTMLTextAreaElement;
+        field.dispatchEvent(new CompositionEvent("compositionend", { bubbles: true }));
+      });
+      await waitForReview(page, "composition end", (p) => p.status === "Issues: 1");
+
+      // Reviewing another field closes the first review and scans the new one only.
+      await page.evaluate(() => {
+        const root = document.querySelector("#test-contenteditable") as HTMLElement;
+        root.setAttribute("dir", "rtl");
+        root.textContent = "We saw teh cat and teh dog.";
+        root.focus();
+      });
+      await triggerReview(worker!);
+      panel = await waitForReview(page, "second field", (p) => p.status === "Issues: 2");
+      expect(
+        await page.evaluate(() => document.querySelectorAll("[data-fluenttyper-review]").length),
+      ).toBe(1);
+      // RTL editors get their highlights from the text's own geometry.
+      expect(panel.highlights).toEqual(["fluenttyper-review-spelling"]);
+
+      // Navigating away removes every highlight and the panel.
+      if (!isFirefox()) await page.emulateMediaFeatures([]);
+      await page.setViewport(viewport);
+      await gotoTestPage(page, { enableCkEditor: false });
+      await waitForInputReady(page, "#test-textarea");
+      const after = await readReviewPanel(page);
+      expect(after.open).toBe(false);
+      expect(after.highlights).toEqual([]);
+      await finishReview();
+    },
+    browserTimeout(50000, 70000),
+  );
+
+  test(
+    "Review mode works inside a modal dialog, returns focus, stays LTR on RTL pages and fits small viewports",
+    async () => {
+      await prepareReviewPage();
+      const viewport = page.viewport();
+      // Inside a modal dialog everything outside it is inert: the panel must still work.
+      await page.evaluate(() => {
+        const dialog = document.createElement("dialog");
+        dialog.id = "review-dialog";
+        const field = document.createElement("textarea");
+        field.id = "dialog-field";
+        field.value = "We saw teh cat.";
+        dialog.append(field);
+        document.body.append(dialog);
+        dialog.showModal();
+        field.focus();
+        field.setSelectionRange(0, 0);
+      });
+      await triggerReview(worker!);
+      await waitForReview(page, "dialog review", (p) => p.status === "Issues: 1");
+      expect(
+        await page.evaluate(
+          () => !!document.querySelector("#review-dialog [data-fluenttyper-review]"),
+        ),
+      ).toBe(true);
+      await clickReviewControl(page, "[data-action=fix-all]");
+      await waitUntil(
+        "fixed inside the dialog",
+        () =>
+          page.evaluate(
+            () =>
+              (document.querySelector("#dialog-field") as HTMLTextAreaElement).value ===
+              "We saw the cat.",
+          ),
+        { timeoutMs: 5000 },
+      );
+      // Closed from the panel with Escape: the keyboard returns to the field.
+      await page.evaluate(() => {
+        const root = document.querySelector("[data-fluenttyper-review]")!.shadowRoot!;
+        (root.querySelector("h2") as HTMLElement).focus();
+      });
+      await page.keyboard.press("Escape");
+      await waitForReview(page, "closed", (p) => !p.open);
+      expect(await page.evaluate(() => document.activeElement?.id)).toBe("dialog-field");
+      await page.evaluate(() => {
+        const dialog = document.querySelector("#review-dialog") as HTMLDialogElement;
+        dialog.close();
+        dialog.remove();
+      });
+
+      // An RTL page: the English panel and card stay left-to-right.
+      await page.evaluate(() => document.documentElement.setAttribute("dir", "rtl"));
+      await setTextarea("We saw teh cat.");
+      await triggerReview(worker!);
+      await waitForReview(page, "rtl review", (p) => p.status === "Issues: 1");
+      await clickReviewControl(page, ".item");
+      await waitForReview(page, "rtl card", (p) => p.card.open);
+      expect(
+        await page.evaluate(() => {
+          const root = document.querySelector("[data-fluenttyper-review]")!.shadowRoot!;
+          return [".panel", ".card"].map(
+            (selector) => getComputedStyle(root.querySelector(selector)!).direction,
+          );
+        }),
+      ).toEqual(["ltr", "ltr"]);
+      await page.keyboard.press("Escape");
+      await page.keyboard.press("Escape");
+      await waitForReview(page, "rtl closed", (p) => !p.open);
+      await page.evaluate(() => document.documentElement.removeAttribute("dir"));
+
+      // A small viewport (like 200% zoom on a phone): the panel stays on screen
+      // and Fix all stays reachable.
+      await page.setViewport({ width: 360, height: 320 });
+      await setTextarea("i think teh plan is ok , but their is alot to do. We could of won.");
+      await triggerReview(worker!);
+      await waitForReview(page, "small review", (p) => /^Issues: \d+/.test(p.status));
+      const box = await page.evaluate(() => {
+        const panel = document
+          .querySelector("[data-fluenttyper-review]")!
+          .shadowRoot!.querySelector(".panel")!;
+        const rect = panel.getBoundingClientRect();
+        return { top: rect.top, bottom: rect.bottom, height: window.innerHeight };
+      });
+      expect(box.top).toBeGreaterThanOrEqual(0);
+      expect(box.bottom).toBeLessThanOrEqual(box.height);
+      await clickReviewControl(page, "[data-action=fix-all]");
+      await waitUntil(
+        "fixed from a small viewport",
+        () =>
+          page.evaluate(() =>
+            (document.querySelector("#test-textarea") as HTMLTextAreaElement).value.startsWith(
+              "I think the plan",
+            ),
+          ),
+        { timeoutMs: 5000 },
+      );
+      await page.setViewport(viewport);
+      await finishReview();
+    },
+    browserTimeout(40000, 60000),
   );
 });
