@@ -790,6 +790,7 @@ describe("Google Docs cross-world fixture (not live Docs)", () => {
       return {
         open: !!root,
         status: root?.querySelector(".status")?.textContent ?? "",
+        scope: root?.querySelector(".scope")?.textContent ?? "",
         notes: root?.querySelector(".notes")?.textContent ?? "",
         items: Array.from(root?.querySelectorAll<HTMLElement>(".item") ?? []).map(
           (item) => item.querySelector(".change")?.textContent ?? "",
@@ -878,6 +879,53 @@ describe("Google Docs cross-world fixture (not live Docs)", () => {
     });
     await page.keyboard.type("teh ", { delay: TYPING_DELAY_MS });
     await expectText("the ");
+  });
+  test("an open review rechecks when the document is typed into", async () => {
+    await startGrammar(["englishTypoWhitelistCorrection"]);
+    await page.evaluate(() => {
+      const f = window as unknown as { setModel: (text: string) => void; focusEditor: () => void };
+      f.setModel("See teh plan.");
+      f.focusEditor();
+    });
+    await evaluate("startReview()");
+    await waitUntil("docs review", async () => (await reviewPanel()).status === "Issues: 1");
+    // Only Docs' input frame sees these keys; the panel is never touched.
+    await page.keyboard.type(" teh ", { delay: TYPING_DELAY_MS });
+    await expectText("See teh plan. teh ");
+    // The typed "teh" is listed (its sentence-start capital too) without touching the panel.
+    const typos = async () =>
+      (await reviewPanel()).items.filter((item) => item === "teh \u2192 the").length;
+    await waitUntil("recheck after typing", async () => (await typos()) === 2).catch(
+      async (error) => {
+        throw new Error(`${String(error)} ${JSON.stringify(await reviewPanel())}`);
+      },
+    );
+    await evaluate("review.dispose()");
+  });
+  test("a long document is reviewed around the cursor and reported as partial", async () => {
+    await startGrammar([]);
+    const filler = "Plain words stay here. ".repeat(1200);
+    await page.evaluate((text) => {
+      const f = window as unknown as {
+        setModel: (text: string) => void;
+        focusEditor: () => void;
+      };
+      f.setModel(text);
+      f.focusEditor();
+    }, `Early teh line. ${filler}Late teh line.`);
+    await evaluate("startReview()");
+    await waitUntil(
+      "docs window review",
+      async () => (await reviewPanel()).status === "Issues: 1",
+    ).catch(async (error) => {
+      throw new Error(`${String(error)} ${JSON.stringify(await reviewPanel()).slice(0, 600)}`);
+    });
+    const panel = await reviewPanel();
+    // Only the "teh" near the cursor is in the window; the early one is not claimed as checked.
+    expect(panel.items).toEqual(["teh \u2192 the"]);
+    expect(panel.scope).toBe("Part of the document");
+    expect(panel.notes).toMatch(/Only the text around the cursor was reviewed; \d+ characters/);
+    await evaluate("review.dispose()");
   });
   test("disposing removes UI and keyboard interception", async () => {
     await seed("hel", ["hello"]);

@@ -83,8 +83,9 @@ The panel names every state:
 - **Paused:** while an IME composes ("Paused while you compose")
 - **Stale selection:** after an edit at the selection's edge
 - **Unsupported, review-only or sensitive editor:** says which
-- **Partial coverage:** protected text skipped, the size limit, or rules
-  skipped for the language
+- **Partial coverage:** protected text skipped, the size limit, rules
+  skipped for the language, or (Google Docs) text outside the window around the
+  cursor, with the scope shown as "Part of the document"
 - **Fix outcomes:** a fix the editor refused, or one it only partly applied
 - **Error:** "Review failed. Close it and try again." (a scan that fails never
   leaves "Checking…" on screen)
@@ -196,6 +197,10 @@ Before every write, review re-reads the editor and checks all of these:
 Findings are located by offsets into that snapshot, never by searching for the text.
 
 Writes go through the browser's native editing command, so native undo works.
+A text field that refuses that command is reported as refused rather than
+written another way that undo would not restore. Focusing the editor can run
+page code, so the checks above are repeated after focus moves and before the
+write. The caret and selection keep their place between fixes.
 After writing, review reads the editor back and reports anything that doesn't
 match: a refusal, a partial write, or a result it could not verify. It never
 retries blindly, and always rechecks afterwards. In a contenteditable, each edit
@@ -268,6 +273,11 @@ Known costs:
 - The review UI language follows the browser language (English, French,
   Croatian, Spanish, Greek, Swedish, German, Polish, Portuguese).
 - Google Docs: no inline highlights and no Fix all (one verified replacement at a time).
+- Google Docs: only a window of about 8,000 characters on each side of the
+  cursor is reviewed, starting at a sentence and ending at a whole word; the
+  panel reports how much was not checked. Typing in the document rechecks, but
+  changes Docs makes without input in its editor (a collaborator, a menu
+  command) are noticed only at the next keystroke or write.
 - Model-backed editors are review-only: writing behind their document model is not safe.
 - Contenteditable undo is one step per fix; textarea and Quill undo a batch in one step.
 - Textarea highlights can be misplaced under an ancestor with CSS `zoom`.
@@ -276,8 +286,9 @@ Known costs:
 - An ignore belongs to one occurrence and is dropped when an edit (including
   an undo) spans the ignored text.
 - Chains of more than 8 mutually dependent fixes are left for individual review.
-- A lowercase "i" before "is" (and before "has" after words like "if" or
-  "while") is left alone: it is usually a variable.
+- A lowercase "i" before "is", or named by the word before it ("the variable
+  i", "the index i"), and "i has" after words like "if" or "while", is left
+  alone: it is usually a variable.
 - A sentence that ends right after a contraction ("I don't. the end") is not
   seen as ended: the shared sentence rule reads "t." as an initial.
 - "Add to dictionary" accepts one word (letters with inner apostrophes or

@@ -275,8 +275,8 @@ export class ReviewController {
       }, SOURCE_POLL_MS);
       active.cleanup.push(() => view.clearInterval(poll));
     } else {
-      // Docs has no DOM text to observe; its own key events drive a recheck.
-      on(doc, "keyup", () => session.notifySourceChanged(), true);
+      // Docs has no DOM text to observe; input in its editor frame drives a recheck.
+      active.cleanup.push(target.onSourceChange(() => session.notifySourceChanged()));
     }
     on(view, "scroll", () => this.scheduleLayout(), { capture: true, passive: true });
     on(view, "resize", () => {

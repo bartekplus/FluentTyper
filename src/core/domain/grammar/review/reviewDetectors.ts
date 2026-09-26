@@ -173,9 +173,15 @@ function graphemeEnd(text: string, index: number): number {
   return end;
 }
 
-// Words after which a lowercase "i" is a loop variable or identifier.
-const VARIABLE_CONTEXT_BEFORE =
-  /\b(?:if|while|until|unless|whether|when|where|each|every|the|a|index|variable|counter|loop)\s+$/i;
+// Words after which a lowercase "i" names something ("the variable i"): an identifier.
+const IDENTIFIER_WORDS = "each|every|the|a|index|variable|counter|iterator|loop";
+const IDENTIFIER_BEFORE = new RegExp(`\\b(?:${IDENTIFIER_WORDS})\\s+$`, "i");
+// "i is"/"i has" is a variable after a condition too ("while i has items");
+// "if i go" is still the pronoun, so conditions only guard those verbs.
+const VARIABLE_CONTEXT_BEFORE = new RegExp(
+  `\\b(?:if|while|until|unless|whether|when|where|${IDENTIFIER_WORDS})\\s+$`,
+  "i",
+);
 
 // Words after which "im"/"ive" is a noun or tag, not "I'm"/"I've".
 const DETERMINER_BEFORE =
@@ -236,8 +242,12 @@ const capitalizeStarts: Detector = (ctx) => {
     const wordEnd = wordStart + bare.length;
 
     if (startsSentence(ctx.text, wordStart, ctx.lang)) {
-      // The mark AND the word before it ("approx .", "etc .") decide it.
-      const evidence = previousTokensStart(ctx.text, wordStart, 2);
+      // The mark AND the word it closes decide it: "etc." or, when the mark
+      // stands alone, the word before it ("approx .", "etc .").
+      const previous = previousTokensStart(ctx.text, wordStart, 1);
+      const evidence = /[\p{L}\p{N}]/u.test(ctx.text.slice(previous, wordStart))
+        ? previous
+        : previousTokensStart(ctx.text, wordStart, 2);
       findings.push({
         ruleId: "capitalizeSentenceStart",
         messageKey: "review_msg_sentence_start",
@@ -286,6 +296,7 @@ const pronounI: Detector = (ctx) => {
     const start = match.index;
     const before = ctx.text[start - 1] ?? "";
     if (/[@#/\\.=$\-([]/.test(before) || before === MASK_CHAR) continue;
+    if (IDENTIFIER_BEFORE.test(ctx.text.slice(Math.max(0, start - 24), start))) continue;
     const rest = ctx.text.slice(start + 1, start + 1 + 40);
     let contextEnd = start + 1;
     if (/^['’](?:m|ve|ll|d)(?![\p{L}\p{N}])/u.test(rest)) {
@@ -311,7 +322,8 @@ const pronounI: Detector = (ctx) => {
       messageKey: "review_msg_pronoun_i",
       range: { start, end: start + 1 },
       alternatives: ["I"],
-      context: { start, end: contextEnd },
+      // The word before decided it as well as the one after.
+      context: { start: previousTokensStart(ctx.text, start, 1), end: contextEnd },
     });
   }
   return findings;

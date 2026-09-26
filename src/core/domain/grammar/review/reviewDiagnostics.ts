@@ -275,7 +275,7 @@ function protectedCharsInScope(prepared: PreparedReview): Partial<Record<Coverag
   const counts: Partial<Record<CoverageGap, number>> = {};
   let covered = scope.start;
   for (const range of prepared.protectedRanges) {
-    if (range.reason === "technical") continue;
+    if (range.reason === "technical" || range.reason === "outside-window") continue;
     const start = Math.max(range.start, scope.start, covered);
     const end = Math.min(range.end, scope.end);
     if (end <= start) continue;

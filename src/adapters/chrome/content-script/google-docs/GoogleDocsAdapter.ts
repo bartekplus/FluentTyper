@@ -143,6 +143,9 @@ interface HistoryEdit extends TrackedEdit {
   active: boolean;
 }
 
+// Non-character keys that can change the document (for an open review).
+const EDITING_KEYS = new Set(["Enter", "Backspace", "Delete", "Tab"]);
+
 /** Async canvas-editor adapter using the normal predictor, grammar rules, theme and local services. */
 export class GoogleDocsAdapter {
   private readonly prediction: SuggestionPredictionCoordinator;
@@ -190,6 +193,7 @@ export class GoogleDocsAdapter {
   private typed = 0;
   private visible = false;
   private reviewActive = false;
+  private readonly reviewSourceListeners = new Set<() => void>();
   private failureStatus: string | null = null;
   private pollTimer: ReturnType<typeof setInterval> | null = null;
   private refreshTimer: ReturnType<typeof setTimeout> | null = null;
@@ -200,6 +204,7 @@ export class GoogleDocsAdapter {
   // Shift+Insert are not, and Docs produces no `input` event to classify them either, so
   // the paste event itself is the marker. Our own write is a synthetic paste: skip it.
   private readonly pasteListener = () => {
+    this.reviewSourceChanged();
     if (!this.applying && !this.disposed) this.queueEdit("insert", ["insertChar", "paste"]);
   };
   private readonly compositionStart = () => {
@@ -207,6 +212,7 @@ export class GoogleDocsAdapter {
     this.dismiss();
   };
   private readonly compositionEnd = () => {
+    this.reviewSourceChanged();
     this.composing = false;
     this.scheduleRefresh("insert", [], 60);
   };
@@ -310,7 +316,32 @@ export class GoogleDocsAdapter {
     this.reviewActive = active;
     this.clearPendingTriggers();
     this.dismiss();
-    if (!active) void this.refresh(true);
+    if (!active) {
+      void this.refresh(true);
+      return;
+    }
+    // Typing refreshes are paused, so bind the input frame now: its events
+    // are how an open review learns that the document changed.
+    const input = getDocsInput();
+    if (input) this.bind(input);
+  }
+
+  /**
+   * While a review is active, `listener` runs on every editing keystroke,
+   * input, paste and finished composition in Docs' input frame (before Docs
+   * applies the change; readers wait for the next task), never for our own
+   * writes. Returns the unsubscribe.
+   */
+  onReviewSourceChange(listener: () => void): () => void {
+    this.reviewSourceListeners.add(listener);
+    return () => {
+      this.reviewSourceListeners.delete(listener);
+    };
+  }
+
+  private reviewSourceChanged(): void {
+    if (!this.reviewActive || this.disposed || this.applying) return;
+    for (const listener of this.reviewSourceListeners) listener();
   }
 
   /** Docs reads and writes only while its input frame has focus (e.g. after a panel click). */
@@ -703,6 +734,9 @@ export class GoogleDocsAdapter {
     return false;
   }
   private onKey(event: KeyboardEvent): void {
+    // Text, line breaks, deletion and shortcuts (paste, cut, undo) can edit;
+    // navigation cannot, and would only blank an open review's list.
+    if ([...event.key].length === 1 || EDITING_KEYS.has(event.key)) this.reviewSourceChanged();
     if (event.isComposing || event.keyCode === 229) {
       this.composing = true;
       this.dismiss();
@@ -746,6 +780,7 @@ export class GoogleDocsAdapter {
     this.queueEdit("insert", this.charTriggers(key === "Enter" ? "\n" : key));
   }
   private onInput(event: InputEvent): void {
+    this.reviewSourceChanged();
     if (this.applying || this.disposed) return;
     this.dismiss();
     if (event.isComposing || this.composing) return;

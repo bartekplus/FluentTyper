@@ -343,7 +343,11 @@ export class ReviewUi {
     const focusedId = previousFocus?.dataset?.id ?? null;
     this.state = state;
     this.scopeLabel.textContent = this.t(
-      state.scopeKind === "selection" ? "review_scope_selection" : "review_scope_field",
+      state.scopeKind === "selection"
+        ? "review_scope_selection"
+        : state.unread > 0
+          ? "review_scope_window"
+          : "review_scope_field",
     );
     this.status.textContent = this.statusText(state);
     this.renderNotes(state);
@@ -465,6 +469,7 @@ export class ReviewUi {
         lines.push(this.t("review_status_skipped", { count: protectedChars }));
       if (state.truncated > 0)
         lines.push(this.t("review_status_size_limit", { count: state.truncated }));
+      if (state.unread > 0) lines.push(this.t("review_status_window", { count: state.unread }));
       if ((state.coverage?.failedRules.length ?? 0) > 0)
         lines.push(this.t("review_status_rule_error"));
       if (state.languageSkipped > 0) lines.push(this.t("review_status_language"));

@@ -51,6 +51,11 @@ export interface ReviewTargetText {
   protectedRanges: ProtectedRange[];
   /** Changes when structure or protection changes even if `text` does not. */
   signature: string;
+  /**
+   * Characters of the editor outside `text`, when the adapter can only read a
+   * window of a long document: never reviewed, so the review is partial.
+   */
+  unread?: number;
 }
 
 export type ReviewUnavailable = "detached" | "ineligible" | "composing" | "unsupported";
@@ -115,6 +120,8 @@ export interface ReviewViewState {
   coverage: ReviewCoverage | null;
   /** Characters beyond the size limit that were not reviewed. */
   truncated: number;
+  /** Characters of the document the editor did not hand over (outside its window). */
+  unread: number;
   languageSkipped: number;
   noRules: boolean;
   /** `pending`: the plan is still being proven; Fix all waits for it. */
@@ -186,6 +193,7 @@ export class ReviewSession {
   private scope: TextRange | null;
   private readonly scopeKind: "selection" | "field";
   private truncated = 0;
+  private unread = 0;
   private prepared: PreparedReview | null = null;
   private diagnostics: ReviewDiagnostic[] = [];
   private coverage: ReviewCoverage | null = null;
@@ -359,6 +367,7 @@ export class ReviewSession {
       selectedId: this.selectedId,
       coverage: this.coverage,
       truncated: this.truncated,
+      unread: this.unread,
       languageSkipped: this.prepared?.languageSkipped.length ?? 0,
       noRules: this.prepared !== null && this.prepared.rules.size === 0,
       bulk: {
@@ -598,6 +607,7 @@ export class ReviewSession {
     this.text = read.text;
     this.signature = read.signature;
     this.protectedRanges = read.protectedRanges;
+    this.unread = read.unread ?? 0;
     await this.scan(generation);
   }
 
@@ -626,11 +636,10 @@ export class ReviewSession {
       await this.pause();
       if (generation !== this.generation || this.isClosed) return;
     }
-    const result = finalizeReview(
-      prepared,
-      scans,
-      this.truncated > 0 ? { "size-limit": this.truncated } : {},
-    );
+    const result = finalizeReview(prepared, scans, {
+      ...(this.truncated > 0 && { "size-limit": this.truncated }),
+      ...(this.unread > 0 && { "outside-window": this.unread }),
+    });
     this.prepared = prepared;
     this.diagnostics = result.diagnostics;
     this.coverage = result.coverage;

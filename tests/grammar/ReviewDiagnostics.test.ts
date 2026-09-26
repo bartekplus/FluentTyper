@@ -161,6 +161,27 @@ describe("review detectors: capitalization and typography", () => {
     ).toEqual([]);
   });
 
+  test('"i" named by the word before it is an identifier, not the pronoun', () => {
+    const rule = "englishPronounICapitalization";
+    for (const text of [
+      "The variable i has a value.",
+      "The index i represents a row.",
+      "Let the counter i grow, then the iterator i stops.",
+      "Use a i here.",
+    ]) {
+      expect(only(text, rule)).toEqual([]);
+    }
+    // A condition before it is not a name: "if i go" is still the pronoun.
+    expect(only("Yesterday i went home.", rule)).toEqual([[rule, "i", [10, 11], "I"]]);
+    expect(only("Call me if i go, and when i leave.", rule).map((row) => row[2])).toEqual([
+      [11, 12],
+      [26, 27],
+    ]);
+    // The deciding word before it is evidence: editing it re-checks the finding.
+    const [finding] = review("Yesterday i went home.", { enabledRules: [rule] });
+    expect(finding.context).toEqual({ start: 0, end: 16 });
+  });
+
   test("englishProperNounCapitalization", () => {
     expect(
       only("See you on monday and on christmas eve, then july", "englishProperNounCapitalization"),

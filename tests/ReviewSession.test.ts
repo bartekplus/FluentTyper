@@ -409,6 +409,19 @@ describe("ReviewSession", () => {
     expect(h.last().coverage?.skipped["size-limit"]).toBe(h.last().truncated);
   });
 
+  test("text the editor did not hand over is reported as unreviewed", async () => {
+    const h = harness("teh cat");
+    const read = h.editor.read.bind(h.editor);
+    h.editor.read = () => {
+      const result = read();
+      return result.ok ? { ...result, unread: 5000 } : result;
+    };
+    await Promise.all([h.session.start(), h.settle()]);
+    expect(h.last().unread).toBe(5000);
+    expect(h.last().coverage?.skipped["outside-window"]).toBe(5000);
+    expect(h.originals()).toEqual(["teh"]);
+  });
+
   test("settings changes recheck with the new rules", async () => {
     const h = harness("teh cat");
     await Promise.all([h.session.start(), h.settle()]);

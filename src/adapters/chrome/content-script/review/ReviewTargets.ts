@@ -5,7 +5,7 @@ import type {
   ReviewTargetRead,
 } from "@core/application/review/ReviewSession";
 import type { ReviewEdit, TextRange } from "@core/domain/grammar/review/types";
-import { mergeEdits, positionAfterReplacement } from "@core/domain/grammar/review/textRanges";
+import { mergeEdits, positionThroughEdits } from "@core/domain/grammar/review/textRanges";
 import { getDeepActiveElement, isInDocument } from "@core/application/dom-utils";
 import { ancestorContext } from "../suggestions/CodeContextResolver";
 import { isLockedField, isSensitiveField } from "../suggestions/FieldEligibility";
@@ -245,12 +245,15 @@ export class TextControlReviewTarget implements ReviewTargetHandle {
     after: string;
   }): ReviewApplyResult {
     const field = this.element;
-    if (!isReviewEligible(field)) return { status: "rejected", reason: "ineligible" };
-    if (this.composing) return { status: "rejected", reason: "composing" };
-    if (field.value !== request.before) return { status: "stale" };
+    const check = (): ReviewApplyResult | null => {
+      if (!isReviewEligible(field)) return { status: "rejected", reason: "ineligible" };
+      if (this.composing) return { status: "rejected", reason: "composing" };
+      return field.value === request.before ? null : { status: "stale" };
+    };
+    const refused = check();
+    if (refused) return refused;
 
-    const merged = mergeEdits(request.before, request.after, request.edits);
-    const { start, end, replacement } = merged;
+    const { start, end, replacement } = mergeEdits(request.before, request.after, request.edits);
     const selection = {
       start: field.selectionStart ?? 0,
       end: field.selectionEnd ?? 0,
@@ -263,34 +266,28 @@ export class TextControlReviewTarget implements ReviewTargetHandle {
     // The native edit goes to the focused element; if focus did not move here
     // (hidden, or the page kept it), writing would change another editor.
     if (getDeepActiveElement(doc) !== field) return { status: "rejected", reason: "host-refused" };
+    // Focus handlers run page code: the offsets hold only for the text they came from.
+    const changed = check();
+    if (changed) return changed;
     field.setSelectionRange(start, end);
-    // One native insertion: the browser's own undo reverts it as one step.
-    const inserted =
-      replacement.length > 0
-        ? doc.execCommand("insertText", false, replacement)
-        : doc.execCommand("delete", false);
-    if (!inserted && field.value === request.before) {
-      // execCommand unavailable for this control: still a verified, event-visible edit.
-      field.setRangeText(replacement, start, end, "end");
-      field.dispatchEvent(
-        new InputEvent("input", {
-          bubbles: true,
-          inputType: "insertReplacementText",
-          data: replacement,
-        }),
-      );
-    }
+    // One native insertion, so the browser's own undo reverts it as one step.
+    // A control without execCommand support is refused rather than written
+    // another way that undo would not restore.
+    if (replacement.length > 0) doc.execCommand("insertText", false, replacement);
+    else doc.execCommand("delete", false);
 
-    const remap = (position: number) => positionAfterReplacement(position, merged);
     if (field.value === request.after) {
+      const remap = (position: number) => positionThroughEdits(position, request.edits);
       field.setSelectionRange(remap(selection.start), remap(selection.end), selection.direction);
       field.scrollTop = scroll.top;
       field.scrollLeft = scroll.left;
       return { status: "applied" };
     }
-    return field.value === request.before
-      ? { status: "rejected", reason: "host-refused" }
-      : { status: "unverified" };
+    if (field.value === request.before) {
+      field.setSelectionRange(selection.start, selection.end, selection.direction);
+      return { status: "rejected", reason: "host-refused" };
+    }
+    return { status: "unverified" };
   }
 
   rangeRects(range: TextRange): DOMRect[] {

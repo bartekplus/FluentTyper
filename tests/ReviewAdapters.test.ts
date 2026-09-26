@@ -11,6 +11,7 @@ import {
   resolveReviewTarget,
 } from "../src/adapters/chrome/content-script/review/ReviewTargets";
 import { ReviewController } from "../src/adapters/chrome/content-script/review/ReviewController";
+import { windowReviewable } from "../src/adapters/chrome/content-script/review/GoogleDocsReviewTarget";
 import { REVIEW_HIGHLIGHT_NAMES } from "../src/adapters/chrome/content-script/review/reviewStyles";
 import { GRAMMAR_RULE_IDS } from "../src/core/domain/grammar/ruleCatalog";
 import type { ReviewEdit } from "../src/core/domain/grammar/review/types";
@@ -221,6 +222,34 @@ describe("resolving the review target before any UI opens", () => {
   });
 });
 
+describe("Google Docs review window", () => {
+  const cut = (text: string, windowStart: number, documentLength: number) =>
+    windowReviewable({
+      token: "t",
+      scope: "doc",
+      text,
+      windowStart,
+      documentLength,
+      anchor: windowStart,
+      focus: windowStart,
+    });
+
+  test("a window cut from a longer document starts at a sentence and ends at a word", () => {
+    const text = "rds here. Next one\nPara two. Final wo";
+    const reviewable = cut(text, 100, 100 + text.length + 50);
+    expect(text.slice(reviewable.start, reviewable.end)).toBe("Next one\nPara two. Final ");
+    // A paragraph break is a start too; with neither, the first word start.
+    expect(cut("rds\nNext", 5, 100).start).toBe(4);
+    expect(cut("rds next", 5, 100).start).toBe(4);
+  });
+
+  test("a document read whole, or an edge at the document boundary, is not cut", () => {
+    expect(cut("whole doc", 0, 9)).toEqual({ start: 0, end: 9 });
+    expect(cut("start of doc wo", 0, 100)).toEqual({ start: 0, end: 13 });
+    expect(cut("ail. end", 50, 58)).toEqual({ start: 5, end: 8 });
+  });
+});
+
 describe("text control writes", () => {
   test("one verified native edit for several fixes; selection is carried through", async () => {
     setExecCommand(textControlInsert);
@@ -241,6 +270,66 @@ describe("text control writes", () => {
     expect(field.value).toBe("the cat, the dog");
     expect(inserts).toBe(1);
     expect(field.selectionStart).toBe(16);
+  });
+
+  test("a caret or selection between separate fixes keeps its place", async () => {
+    setExecCommand(textControlInsert);
+    const request = {
+      edits: [edit(1, 3, "eh", "he"), edit(13, 15, "eh", "he")],
+      before: "teh cat and teh dog",
+      after: "the cat and the dog",
+    };
+    const caret = textarea(request.before);
+    caret.setSelectionRange(5, 5);
+    expect(await new TextControlReviewTarget(caret).apply(request)).toEqual({
+      status: "applied",
+    });
+    expect([caret.selectionStart, caret.selectionEnd]).toEqual([5, 5]);
+    caret.remove();
+
+    const selected = textarea(request.before);
+    selected.setSelectionRange(4, 11, "backward");
+    expect(await new TextControlReviewTarget(selected).apply(request)).toEqual({
+      status: "applied",
+    });
+    expect(selected.value.slice(selected.selectionStart!, selected.selectionEnd!)).toBe("cat and");
+    expect(selected.selectionDirection).toBe("backward");
+  });
+
+  test("a focus handler that changes the field makes the write fail without mutation", async () => {
+    setExecCommand(textControlInsert);
+    const request = { edits: [edit(1, 3, "eh", "he")], before: "teh cat", after: "the cat" };
+    const field = textarea(request.before);
+    field.blur();
+    field.addEventListener("focus", () => (field.value = `PREFIX: ${field.value}`), {
+      once: true,
+    });
+    expect(await new TextControlReviewTarget(field).apply(request)).toEqual({ status: "stale" });
+    expect(field.value).toBe("PREFIX: teh cat");
+
+    const locked = textarea(request.before);
+    locked.blur();
+    locked.addEventListener("focus", () => (locked.readOnly = true), { once: true });
+    expect(await new TextControlReviewTarget(locked).apply(request)).toEqual({
+      status: "rejected",
+      reason: "ineligible",
+    });
+    expect(locked.value).toBe("teh cat");
+  });
+
+  test("a control without a native edit is refused, never written outside undo", async () => {
+    setExecCommand(() => false);
+    const field = textarea("teh cat");
+    field.setSelectionRange(7, 7);
+    expect(
+      await new TextControlReviewTarget(field).apply({
+        edits: [edit(1, 3, "eh", "he")],
+        before: "teh cat",
+        after: "the cat",
+      }),
+    ).toEqual({ status: "rejected", reason: "host-refused" });
+    expect(field.value).toBe("teh cat");
+    expect([field.selectionStart, field.selectionEnd]).toEqual([7, 7]);
   });
 
   test("stale text, composition and a host that rewrites the value are refused", async () => {
@@ -584,6 +673,7 @@ describe("adversarial review regressions", () => {
       reviewApply: jest.fn(),
       setReviewActive: jest.fn(),
       reviewFocusEditor: jest.fn(),
+      onReviewSourceChange: jest.fn(() => () => {}),
     };
     const review = new ReviewController({
       getOptions: options,
@@ -603,6 +693,64 @@ describe("adversarial review regressions", () => {
     expect(hosts()).toHaveLength(0);
     expect(review.isActive).toBe(false);
     expect(surface.setReviewActive.mock.calls).toEqual([[true], [false]]);
+  });
+
+  test("a Docs window is reported as partial, and Docs input rechecks without the panel", async () => {
+    // A window cut from the middle of a long document, mid-sentence at both ends.
+    let text = "ut sentence. We saw teh cat. Last wor";
+    const windowStart = 20_000;
+    const after = 500;
+    const listeners = new Set<() => void>();
+    const surface = {
+      reviewRead: jest.fn(() =>
+        Promise.resolve({
+          status: "ready" as const,
+          snapshot: {
+            token: "t",
+            scope: "doc",
+            text,
+            windowStart,
+            documentLength: windowStart + text.length + after,
+            anchor: windowStart + 20,
+            focus: windowStart + 20,
+          },
+        }),
+      ),
+      reviewApply: jest.fn(),
+      setReviewActive: jest.fn(),
+      reviewFocusEditor: jest.fn(),
+      onReviewSourceChange: (listener: () => void) => {
+        listeners.add(listener);
+        return () => {
+          listeners.delete(listener);
+        };
+      },
+    };
+    const review = new ReviewController({
+      getOptions: options,
+      suspend: jest.fn(),
+      resume: jest.fn(),
+      addToDictionary: async () => true,
+      getDocsSurface: () => surface as never,
+      uiLanguage: "en",
+    });
+    review.invoke();
+    const panel = () => hosts()[0]?.shadowRoot;
+    const status = () => panel()?.querySelector(".status")?.textContent;
+    await until(() => status() === "Issues: 1");
+    // "ut" and "wor" are cut words, not findings; they count as not reviewed.
+    expect(panel()?.querySelector(".scope")?.textContent).toBe("Part of the document");
+    const unread = windowStart + after + "ut sentence. ".length + "wor".length;
+    expect(panel()?.querySelector(".notes")?.textContent).toContain(
+      `Only the text around the cursor was reviewed; ${unread} characters`,
+    );
+    // Typing in Docs' own input frame is the only signal; nothing in the panel is touched.
+    text = "ut sentence. We saw teh cat and teh dog. Last wor";
+    expect(listeners.size).toBe(1);
+    listeners.forEach((listener) => listener());
+    await until(() => status() === "Issues: 2", 4000);
+    review.close();
+    expect(listeners.size).toBe(0);
   });
 
   test("an editor removed without any event is noticed", async () => {

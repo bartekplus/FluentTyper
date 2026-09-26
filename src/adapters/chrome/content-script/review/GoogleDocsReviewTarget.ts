@@ -4,7 +4,7 @@ import type {
   ReviewTargetRead,
 } from "@core/application/review/ReviewSession";
 import type { ProtectedRange, ReviewEdit, TextRange } from "@core/domain/grammar/review/types";
-import { mergeEdits, positionAfterReplacement } from "@core/domain/grammar/review/textRanges";
+import { mergeEdits, positionThroughEdits } from "@core/domain/grammar/review/textRanges";
 import {
   DOCS_STRUCTURE_CONTROLS,
   snapshotContext,
@@ -19,10 +19,33 @@ export interface GoogleDocsReviewSurface {
   reviewApply(token: string, edit: DocsEdit): Promise<DocsReply>;
   setReviewActive(active: boolean): void;
   reviewFocusEditor(): void;
+  /** Called on input in the Docs editor while a review is active; returns the unsubscribe. */
+  onReviewSourceChange(listener: () => void): () => void;
 }
 
 // Docs' structural markers, found everywhere in a snapshot.
 const DOCS_CONTROLS = new RegExp(DOCS_STRUCTURE_CONTROLS.source, "gu");
+
+/**
+ * The complete part of a window cut out of a longer document: from the first
+ * sentence or paragraph start (or at least word start) after a cut start, to
+ * the last word start before a cut end. The cut edges are partial words and
+ * sentences that would read as errors.
+ */
+export function windowReviewable(snapshot: DocsSnapshot): { start: number; end: number } {
+  const { text } = snapshot;
+  let start = 0;
+  if (snapshot.windowStart > 0) {
+    const boundary =
+      /[.!?\u2026]["'\u201D\u2019)\]]*[ \t\u00A0]+|\n/u.exec(text) ?? /\s+/u.exec(text);
+    start = boundary ? boundary.index + boundary[0].length : text.length;
+  }
+  let end = text.length;
+  if (snapshot.windowStart + text.length < snapshot.documentLength) {
+    while (end > start && !/\s/u.test(text[end - 1])) end -= 1;
+  }
+  return { start, end: Math.max(start, end) };
+}
 
 /** What a snapshot's text is relative to: formatting-free, so the scope and window. */
 function snapshotSignature(snapshot: DocsSnapshot): string {
@@ -51,6 +74,10 @@ export class GoogleDocsReviewTarget implements ReviewTargetHandle {
     readonly element: HTMLElement,
   ) {}
 
+  onSourceChange(listener: () => void): () => void {
+    return this.surface.onReviewSourceChange(listener);
+  }
+
   /** The initial read; its selection (if any) becomes the review scope. */
   async start(): Promise<TextRange | null> {
     this.surface.reviewFocusEditor();
@@ -77,15 +104,30 @@ export class GoogleDocsReviewTarget implements ReviewTargetHandle {
     if (reply.status === "inactive" && this.lastRead) return this.lastRead;
     if (reply.status === "composing") return { ok: false, reason: "composing" };
     if (reply.status !== "ready" || !reply.snapshot) return { ok: false, reason: "detached" };
+    const { snapshot } = reply;
     const protectedRanges: ProtectedRange[] = [];
-    for (const match of reply.snapshot.text.matchAll(DOCS_CONTROLS)) {
+    // Docs hands over a window around the cursor; the rest, and the window's
+    // cut edges, are not reviewed.
+    const reviewable = windowReviewable(snapshot);
+    if (reviewable.start > 0) {
+      protectedRanges.push({ start: 0, end: reviewable.start, reason: "outside-window" });
+    }
+    for (const match of snapshot.text.matchAll(DOCS_CONTROLS)) {
       protectedRanges.push({ start: match.index, end: match.index + 1, reason: "structure" });
+    }
+    if (reviewable.end < snapshot.text.length) {
+      protectedRanges.push({
+        start: reviewable.end,
+        end: snapshot.text.length,
+        reason: "outside-window",
+      });
     }
     this.lastRead = {
       ok: true,
-      text: reply.snapshot.text,
+      text: snapshot.text,
       protectedRanges,
-      signature: snapshotSignature(reply.snapshot),
+      signature: snapshotSignature(snapshot),
+      unread: snapshot.documentLength - (reviewable.end - reviewable.start),
     };
     return this.lastRead;
   }
@@ -98,8 +140,7 @@ export class GoogleDocsReviewTarget implements ReviewTargetHandle {
   }): Promise<ReviewApplyResult> {
     if (request.edits.length === 0) return { status: "applied" };
     // One transaction is one contiguous replacement; a finding's edits are merged.
-    const merged = mergeEdits(request.before, request.after, request.edits);
-    const { start, end, replacement } = merged;
+    const { start, end, replacement } = mergeEdits(request.before, request.after, request.edits);
     this.surface.reviewFocusEditor();
     const fresh = await this.readWithRetry();
     const snapshot = fresh.snapshot;
@@ -109,7 +150,7 @@ export class GoogleDocsReviewTarget implements ReviewTargetHandle {
     }
     const cursorAfter =
       snapshot.windowStart +
-      positionAfterReplacement(snapshot.focus - snapshot.windowStart, merged);
+      positionThroughEdits(snapshot.focus - snapshot.windowStart, request.edits);
     const reply = await this.surface.reviewApply(snapshot.token, {
       start: snapshot.windowStart + start,
       end: snapshot.windowStart + end,

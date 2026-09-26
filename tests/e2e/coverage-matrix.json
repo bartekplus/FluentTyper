@@ -2631,9 +2631,29 @@
           "test": "Review mode reviews a textarea read-only, paints categorized marks and fixes all safe issues as one undo step"
         },
         {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review mode never writes stale offsets when focusing the field changes it"
+        },
+        {
           "layer": "unit",
           "file": "tests/ReviewAdapters.test.ts",
           "test": "one verified native edit for several fixes; selection is carried through"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "a caret or selection between separate fixes keeps its place"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "a focus handler that changes the field makes the write fail without mutation"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "a control without a native edit is refused, never written outside undo"
         }
       ]
     },
@@ -2724,7 +2744,7 @@
     },
     {
       "id": "review_google_docs_fixture",
-      "description": "Mock editor/browser fixture, not a live Google Docs claim: review lists Docs findings from the logical model, applies one verified transaction, pauses typing corrections and refuses stale fixes.",
+      "description": "Mock editor/browser fixture, not a live Google Docs claim: review lists Docs findings from the logical model, applies one verified transaction, pauses typing corrections, refuses stale fixes, rechecks when the document is typed into, and reports a long document's window as partial.",
       "coverage": [
         {
           "layer": "integration",
@@ -2735,6 +2755,26 @@
           "layer": "integration",
           "file": "tests/e2e/google-docs.e2e.test.ts",
           "test": "review in Docs pauses typing corrections and refuses a stale fix"
+        },
+        {
+          "layer": "integration",
+          "file": "tests/e2e/google-docs.e2e.test.ts",
+          "test": "an open review rechecks when the document is typed into"
+        },
+        {
+          "layer": "integration",
+          "file": "tests/e2e/google-docs.e2e.test.ts",
+          "test": "a long document is reviewed around the cursor and reported as partial"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "a Docs window is reported as partial, and Docs input rechecks without the panel"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "a window cut from a longer document starts at a sentence and ends at a word"
         }
       ]
     },

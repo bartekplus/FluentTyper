@@ -11,6 +11,7 @@ import {
   diffTexts,
   editTouches,
   isGraphemeBoundary,
+  positionThroughEdits,
   remapRange,
   remapScope,
 } from "../../src/core/domain/grammar/review/textRanges";
@@ -213,6 +214,14 @@ describe("bulk planning", () => {
     expect(plan.expectedText).toBe("Yes I don't know. ".repeat(200));
   });
 
+  test('a fix to the word before "i" that makes it an identifier defers the pronoun fix', () => {
+    const { diagnostics, plan } = reviewAndPlan("We printed teh i value.");
+    const pronoun = diagnostics.find((d) => d.ruleId === "englishPronounICapitalization");
+    expect(pronoun).toBeDefined();
+    expect(plan.deferred).toContainEqual({ id: pronoun!.id, reason: "unproven" });
+    expect(plan.expectedText).not.toContain(" I ");
+  });
+
   test("a chain of linked fixes longer than the proof limit is left for individual review", () => {
     const chain = Array.from({ length: MAX_PROOF_GROUP + 1 }, (_, i) =>
       diagnostic([edit(i * 2, i * 2 + 1, "x", "X")], {
@@ -303,6 +312,20 @@ describe("text ranges", () => {
     const ambiguous = diffTexts("aa b", "aaa b")!;
     expect(ambiguous.slackStart).toBe(0);
     expect(remapRange({ start: 1, end: 2 }, ambiguous)).toBeNull();
+  });
+
+  test("a caret between separate fixes keeps its place; one inside a fix moves past it", () => {
+    // "teh  cat and teh dog" -> "the cat and the dog"
+    const edits = [edit(1, 3, "eh", "he"), edit(3, 5, "  ", " "), edit(14, 16, "eh", "he")];
+    expect(positionThroughEdits(0, edits)).toBe(0);
+    expect(positionThroughEdits(1, edits)).toBe(1);
+    expect(positionThroughEdits(2, edits)).toBe(3);
+    expect(positionThroughEdits(6, edits)).toBe(5);
+    expect(positionThroughEdits(13, edits)).toBe(12);
+    expect(positionThroughEdits(15, edits)).toBe(15);
+    expect(positionThroughEdits(20, edits)).toBe(19);
+    // An insertion at the caret goes after it; order of edits does not matter.
+    expect(positionThroughEdits(3, [edit(3, 3, "", "!"), edit(0, 1, "a", "")])).toBe(2);
   });
 
   test("scope remapping grows inside, shifts outside, invalidates on a boundary", () => {

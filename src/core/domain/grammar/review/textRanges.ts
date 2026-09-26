@@ -195,15 +195,21 @@ export function mergeEdits(
   return { start, end, replacement: after.slice(start, after.length - (before.length - end)) };
 }
 
-/** Where `position` lands after [start, end) is replaced: inside moves to the end of the new text. */
-export function positionAfterReplacement(
-  position: number,
-  merged: { start: number; end: number; replacement: string },
-): number {
-  const { start, end, replacement } = merged;
-  if (position <= start) return position;
-  if (position >= end) return position + replacement.length - (end - start);
-  return start + replacement.length;
+/**
+ * Where a caret or selection end lands after `edits` (non-overlapping) are
+ * applied: text between fixes keeps its place, a position inside an edit moves
+ * to the end of that edit's replacement, and an insertion at the position goes
+ * after it (the caret stays before inserted text).
+ */
+export function positionThroughEdits(position: number, edits: readonly ReviewEdit[]): number {
+  let delta = 0;
+  for (const edit of [...edits].sort((a, b) => a.start - b.start)) {
+    if (position <= edit.start) break;
+    const change = edit.replacement.length - (edit.end - edit.start);
+    if (position < edit.end) return edit.start + delta + edit.replacement.length;
+    delta += change;
+  }
+  return position + delta;
 }
 
 /**

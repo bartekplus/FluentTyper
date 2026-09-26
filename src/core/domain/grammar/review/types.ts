@@ -83,7 +83,11 @@ export interface ReviewDiagnostic {
   dictionaryWord?: string;
 }
 
-export type ProtectedReason = "code" | "structure" | "technical";
+/**
+ * `outside-window`: the cut edges of a window of a longer document (a partial
+ * word or sentence); the target counts them in `unread`, not as protected.
+ */
+export type ProtectedReason = "code" | "structure" | "technical" | "outside-window";
 
 export interface ProtectedRange extends TextRange {
   reason: ProtectedReason;
@@ -109,7 +113,8 @@ export interface ReviewOptions {
   insertSpaceAfterAutocomplete: boolean;
 }
 
-export type CoverageGap = "code" | "technical" | "structure" | "size-limit" | "rule-error";
+export type CoverageGap =
+  "code" | "technical" | "structure" | "size-limit" | "outside-window" | "rule-error";
 
 export interface ReviewCoverage {
   /** Review-supported rules that ran. */

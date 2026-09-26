@@ -7095,6 +7095,33 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   );
 
   test(
+    "Review mode never writes stale offsets when focusing the field changes it",
+    async () => {
+      await prepareReviewPage();
+      await setTextarea("We saw teh cat.");
+      await triggerReview(worker!);
+      await waitForReview(page, "textarea finding", (p) => p.status === "Issues: 1");
+      // The panel has focus now. The page rewrites the field as soon as it is focused again.
+      await page.evaluate(() => {
+        const field = document.querySelector("#test-textarea") as HTMLTextAreaElement;
+        field.addEventListener("focus", () => (field.value = `PREFIX: ${field.value}`), {
+          once: true,
+        });
+      });
+      await clickReviewControl(page, ".item");
+      await waitForReview(page, "card", (p) => p.card.open);
+      await clickReviewControl(page, ".card [data-action=apply]");
+      await waitForReview(page, "rechecked after the refused write", (p) =>
+        /Issues: 1$/.test(p.status),
+      );
+      // Not "PREFIX: We saw the cat." written at the old offsets, and not rewritten at all.
+      expect(await textareaValue()).toBe("PREFIX: We saw teh cat.");
+      await finishReview();
+    },
+    browserTimeout(20000, 30000),
+  );
+
+  test(
     "Review mode card flow in contenteditable: click, apply, ignore, add to dictionary, fix all, undo, formatting kept",
     async () => {
       await prepareReviewPage();
