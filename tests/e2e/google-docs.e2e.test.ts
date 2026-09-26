@@ -842,6 +842,49 @@ describe("Google Docs cross-world fixture (not live Docs)", () => {
     await evaluate("review.dispose()");
     expect((await reviewPanel()).open).toBe(false);
   });
+  test("review reads a long document whole, far from the caret and with all of it selected", async () => {
+    await startGrammar([]);
+    // About 40,000 characters: well past the typing window around the caret.
+    const filler = "Plenty of fine prose here. ".repeat(1500);
+    const text = `Where wa it?  We saw teh cat.\n${filler}The end.`;
+    await page.evaluate((value) => {
+      const f = window as unknown as {
+        setModel: (text: string, anchor?: number, focus?: number) => void;
+        focusEditor: () => void;
+      };
+      f.setModel(value);
+      f.focusEditor();
+    }, text);
+    await evaluate("startReview()");
+    await waitUntil("whole-document findings", async () =>
+      (await reviewPanel()).items.includes("teh \u2192 the"),
+    ).catch(async (error) => {
+      throw new Error(`${String(error)} ${JSON.stringify(await reviewPanel())}`);
+    });
+    let panel = await reviewPanel();
+    expect(panel.items).toEqual(["␣␣ \u2192 ␣", "teh \u2192 the"]);
+    expect(panel.notes).not.toContain("outside");
+    await evaluate("review.dispose()");
+
+    // Select all: the whole document is the scope, not a refused selection.
+    await page.evaluate((length) => {
+      (window as unknown as { setModel: (t: string, a: number, f: number) => void }).setModel(
+        (window as unknown as { model: { text: string } }).model.text,
+        0,
+        length,
+      );
+    }, text.length);
+    await evaluate("startReview()");
+    await waitUntil("select-all findings", async () =>
+      (await reviewPanel()).items.includes("teh \u2192 the"),
+    ).catch(async (error) => {
+      throw new Error(`${String(error)} ${JSON.stringify(await reviewPanel())}`);
+    });
+    panel = await reviewPanel();
+    expect(panel.items).toEqual(["␣␣ \u2192 ␣", "teh \u2192 the"]);
+    expect((await model()).pastes).toBe(0);
+    await evaluate("review.dispose()");
+  });
   test("review in Docs pauses typing corrections and refuses a stale fix", async () => {
     await startGrammar(["englishTypoWhitelistCorrection"]);
     await page.evaluate(() => {
@@ -940,7 +983,8 @@ describe("Google Docs cross-world fixture (not live Docs)", () => {
   });
   test("a long document is reviewed around the cursor and reported as partial", async () => {
     await startGrammar([]);
-    const filler = "Plain words stay here. ".repeat(1200);
+    // About 69,000 characters: longer than a review read's 50,000-character window.
+    const filler = "Plain words stay here. ".repeat(3000);
     await page.evaluate((text) => {
       const f = window as unknown as {
         setModel: (text: string) => void;

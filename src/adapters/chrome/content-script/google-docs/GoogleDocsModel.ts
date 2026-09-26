@@ -69,7 +69,8 @@ export function isGoogleDocsURL(href: string): boolean {
 }
 
 export function parseObject(value: unknown): Record<string, unknown> | null {
-  if (typeof value !== "string" || value.length > 200000) return null;
+  // Room for a review read: REVIEW_WINDOW characters, some of them JSON-escaped.
+  if (typeof value !== "string" || value.length > 400_000) return null;
   try {
     const parsed: unknown = JSON.parse(value);
     return parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)
@@ -144,7 +145,20 @@ export function sameModel(a: DocsModel, b: DocsModel): boolean {
   return a.raw === b.raw && a.anchor === b.anchor && a.focus === b.focus;
 }
 
-export function snapshotFor(model: DocsModel, scope: string, token: string): DocsSnapshot | null {
+/**
+ * How much of a document a review read carries: the whole document up to this
+ * many characters (review's own scan limit), else this much around the caret.
+ * Typing reads carry only MAX_CONTEXT on each side.
+ */
+export const REVIEW_WINDOW = 50_000;
+
+export function snapshotFor(
+  model: DocsModel,
+  scope: string,
+  token: string,
+  review = false,
+): DocsSnapshot | null {
+  if (review) return reviewSnapshotFor(model, scope, token);
   const start = Math.min(model.anchor, model.focus),
     end = Math.max(model.anchor, model.focus);
   if (end - start > MAX_EDIT) return null;
@@ -160,6 +174,34 @@ export function snapshotFor(model: DocsModel, scope: string, token: string): Doc
     documentLength: model.text.length,
     anchor: model.anchor,
     focus: model.focus,
+  };
+}
+
+/**
+ * A review read: the window is centered on the selection (or caret) and moved
+ * to fit inside the document, so a document up to REVIEW_WINDOW is read whole.
+ * The selection is only the review's scope, never an edit, so any length is
+ * accepted; a part beyond the window is reported as unread, not refused.
+ */
+function reviewSnapshotFor(model: DocsModel, scope: string, token: string): DocsSnapshot {
+  const { text } = model;
+  const start = Math.min(model.anchor, model.focus),
+    end = Math.max(model.anchor, model.focus);
+  const room = REVIEW_WINDOW - (end - start);
+  let windowStart = room > 0 ? start - Math.floor(room / 2) : start;
+  windowStart = Math.max(0, Math.min(windowStart, text.length - REVIEW_WINDOW));
+  let windowEnd = Math.min(text.length, windowStart + REVIEW_WINDOW);
+  while (!isBoundary(text, windowStart)) windowStart += 1;
+  while (!isBoundary(text, windowEnd)) windowEnd -= 1;
+  const inWindow = (index: number) => Math.min(Math.max(index, windowStart), windowEnd);
+  return {
+    token,
+    scope,
+    text: text.slice(windowStart, windowEnd),
+    windowStart,
+    documentLength: text.length,
+    anchor: inWindow(model.anchor),
+    focus: inWindow(model.focus),
   };
 }
 
@@ -349,7 +391,7 @@ export function snapshotFrom(value: unknown): DocsSnapshot | null {
     typeof s.scope !== "string" ||
     s.scope.length > 4096 ||
     typeof s.text !== "string" ||
-    s.text.length > MAX_CONTEXT * 2 + MAX_EDIT ||
+    s.text.length > Math.max(MAX_CONTEXT * 2 + MAX_EDIT, REVIEW_WINDOW) ||
     typeof s.documentLength !== "number" ||
     !Number.isSafeInteger(s.documentLength) ||
     s.documentLength < 0 ||

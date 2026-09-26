@@ -38,8 +38,9 @@ export class GoogleDocsBridgeClient {
   constructor() {
     document.addEventListener(RESPONSE_EVENT, this.listener);
   }
-  read(): Promise<DocsReply> {
-    return this.request("read");
+  /** `review`: a review read, which carries a much larger window of the document. */
+  read({ review = false }: { review?: boolean } = {}): Promise<DocsReply> {
+    return this.request("read", review ? { review: true } : {});
   }
   apply(token: string, edit: DocsEdit): Promise<DocsReply> {
     return this.request("apply", { token, edit });

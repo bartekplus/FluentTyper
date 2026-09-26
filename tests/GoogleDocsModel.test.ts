@@ -10,6 +10,7 @@ import {
   minimizeEdit,
   validEdit,
   snapshotFrom,
+  REVIEW_WINDOW,
 } from "../src/adapters/chrome/content-script/google-docs/GoogleDocsModel";
 const token = (text: string) => ({
   token: text.match(/[^\s.,!?]*$/u)?.[0] ?? "",
@@ -169,5 +170,52 @@ describe("Google Docs logical edits", () => {
       replacement: "wonderful",
       cursorAfter: 13,
     });
+  });
+});
+
+describe("Google Docs review reads", () => {
+  const review = (text: string, anchor = text.length, focus = anchor) =>
+    snapshotFor(
+      readModel(`\u0003${text}\n`, [{ anchor: anchor + 1, focus: focus + 1 }])!,
+      "doc?tab=t.1",
+      "token",
+      true,
+    )!;
+
+  test("a document up to the review window is read whole, wherever the caret is", () => {
+    const text = "Some prose here. ".repeat(2500); // 42,500 characters
+    for (const caret of [0, 20_000, text.length]) {
+      const s = review(text, caret);
+      expect(s).toMatchObject({ text, windowStart: 0, documentLength: text.length });
+      expect(s.anchor).toBe(caret);
+    }
+    // A typing read of the same document carries only the context around the caret.
+    expect(snapshot(text, 0).text.length).toBe(8192);
+  });
+
+  test("a longer document is read around the caret, the window moved to fit", () => {
+    const text = "x".repeat(REVIEW_WINDOW * 3);
+    const middle = review(text, REVIEW_WINDOW * 1.5);
+    expect(middle.text.length).toBe(REVIEW_WINDOW);
+    expect(middle.windowStart).toBe(REVIEW_WINDOW);
+    const end = review(text);
+    expect(end.windowStart).toBe(REVIEW_WINDOW * 2);
+    expect(end.text.length).toBe(REVIEW_WINDOW);
+    expect(review(text, 0).windowStart).toBe(0);
+  });
+
+  test("a selection of any length is accepted, as far as the window reaches", () => {
+    const text = "Some prose here. ".repeat(6000); // 102,000 characters
+    // Select all: a typing read refuses it (it could never be one edit).
+    expect(
+      snapshotFor(readModel(`\u0003${text}\n`, [{ anchor: 1, focus: text.length + 1 }])!, "d", "t"),
+    ).toBeNull();
+    const all = review(text, 0, text.length);
+    expect(all.windowStart).toBe(0);
+    expect(all.text.length).toBe(REVIEW_WINDOW);
+    expect([all.anchor, all.focus]).toEqual([0, REVIEW_WINDOW]);
+    // The page-message check accepts what it sends.
+    expect(snapshotFrom(JSON.parse(JSON.stringify(all)))).toEqual(all);
+    expect(snapshotContext(all)).toMatchObject({ start: 0, end: REVIEW_WINDOW });
   });
 });

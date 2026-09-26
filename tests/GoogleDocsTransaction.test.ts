@@ -84,6 +84,26 @@ describe("Google Docs verified transactions", () => {
     ]);
     expect((await transaction.read()).history).toBe("applied");
   });
+  test("a review read carries the whole document and its token writes far from the caret", async () => {
+    const host = new Host();
+    const prose = "We saw teh cat. " + "Plenty of text. ".repeat(3000);
+    host.raw = `\u0003${prose}\n`;
+    host.anchor = host.focus = prose.length;
+    const transaction = new GoogleDocsTransaction(host, () => "id");
+    // A typing read stops 8,192 characters before the caret; a review read does not.
+    expect((await transaction.read()).snapshot!.text.startsWith("We saw")).toBe(false);
+    const snapshot = (await transaction.read({ review: true })).snapshot!;
+    expect(snapshot.text).toBe(prose);
+    const reply = await transaction.apply(snapshot.token, {
+      start: 7,
+      end: 10,
+      replacement: "the",
+      cursorAfter: prose.length,
+    });
+    expect(reply.status).toBe("applied");
+    expect(host.raw.startsWith("\u0003We saw the cat.")).toBe(true);
+    expect(host.pastes).toBe(1);
+  });
   test("replayed tokens never produce a second insertion", async () => {
     const { host, transaction, token } = await setup();
     await transaction.apply(token, edit);

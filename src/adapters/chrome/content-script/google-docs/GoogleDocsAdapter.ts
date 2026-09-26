@@ -377,7 +377,7 @@ export class GoogleDocsAdapter {
     if (this.disposed) return Promise.resolve({ status: "cancelled" });
     this.bindForReview();
     if (this.applying) return Promise.resolve({ status: "busy" });
-    return this.bridge.read();
+    return this.bridge.read({ review: true });
   }
 
   /** One model-verified edit (token-checked, minimal, verified by the MAIN-world transaction). */

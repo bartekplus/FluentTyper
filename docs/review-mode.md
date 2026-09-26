@@ -106,8 +106,8 @@ The panel names every state:
 - **Stale selection:** after an edit at the selection's edge
 - **Unsupported, review-only or sensitive editor:** says which
 - **Partial coverage:** protected text skipped, the size limit, rules
-  skipped for the language, or (Google Docs) text outside the window around the
-  cursor, with the scope shown as "Part of the document"
+  skipped for the language, or (Google Docs, past 50,000 characters) text outside
+  the window around the cursor, with the scope shown as "Part of the document"
 - **Fix outcomes:** a fix the editor refused, or one it only partly applied
 - **Error:** "Review failed. Close it and try again." (a scan that fails never
   leaves "Checking…" on screen)
@@ -334,8 +334,9 @@ Known costs:
 - The review UI language follows the browser language (English, French,
   Croatian, Spanish, Greek, Swedish, German, Polish, Portuguese).
 - Google Docs: no inline highlights and no Fix all (one verified replacement at a time).
-- Google Docs: only a window of about 8,000 characters on each side of the
-  cursor is reviewed, starting at a sentence and ending at a whole word; the
+- Google Docs: a document of up to 50,000 characters is reviewed whole, even
+  with all of it selected. In a longer one, 50,000 characters around the
+  cursor are reviewed, starting at a sentence and ending at a whole word; the
   panel reports how much was not checked. Typing in the document rechecks, but
   changes Docs makes without input in its editor (a collaborator, a menu
   command) are noticed only at the next keystroke or write.
