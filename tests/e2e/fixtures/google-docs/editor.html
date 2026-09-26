@@ -30,13 +30,28 @@
     <script>
       window.fixtureScope = "https://docs.google.com/document/d/fluenttyper-fixture/edit?tab=t.1";
       window.model = { text: "", anchor: 0, focus: 0, pastes: 0, mode: "apply" };
-      const iframe = document.querySelector("iframe");
-      iframe.contentDocument.open();
-      iframe.contentDocument.write(
-        '<html><body><div id="input" contenteditable="true" role="textbox"></div></body></html>',
-      );
-      iframe.contentDocument.close();
-      const input = iframe.contentDocument.querySelector("#input");
+      let iframe = document.querySelector("iframe");
+      let input;
+      // The editable inside Docs' input frame, with the key and paste handling below.
+      function mountInput() {
+        iframe.contentDocument.open();
+        iframe.contentDocument.write(
+          '<html><body><div id="input" contenteditable="true" role="textbox"></div></body></html>',
+        );
+        iframe.contentDocument.close();
+        input = iframe.contentDocument.querySelector("#input");
+        input.addEventListener("keydown", onKeyDown);
+        input.addEventListener("paste", onPaste);
+      }
+      // Live Docs can swap its input frame for a new one while the document stays open.
+      window.replaceInputFrame = () => {
+        const next = document.createElement("iframe");
+        next.className = iframe.className;
+        next.setAttribute("style", iframe.getAttribute("style"));
+        iframe.replaceWith(next);
+        iframe = next;
+        mountInput();
+      };
       function draw() {
         const ctx = document.querySelector("canvas").getContext("2d");
         ctx.clearRect(0, 0, 800, 350);
@@ -77,7 +92,7 @@
       };
       // Live Docs consumes keystrokes on keydown, paints the canvas itself and never lets
       // the hidden editable produce an `input` event.
-      input.addEventListener("keydown", (event) => {
+      function onKeyDown(event) {
         if (event.isComposing || event.keyCode === 229 || event.defaultPrevented) return;
         if (event.ctrlKey || event.altKey || event.metaKey) return;
         const key = event.key;
@@ -94,8 +109,8 @@
         // listener has already run and scheduled its follow-up work.
         event.preventDefault();
         apply();
-      });
-      input.addEventListener("paste", (event) => {
+      }
+      function onPaste(event) {
         model.pastes++;
         event.preventDefault();
         if (model.mode === "ignore") return;
@@ -106,7 +121,8 @@
             .replace(/^ +| +$/g, "")
             .replace(/\u00a0/g, " "),
         );
-      });
+      }
+      mountInput();
       window.focusEditor = () => input.focus();
       focusEditor();
       draw();

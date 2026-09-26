@@ -27,6 +27,12 @@ export interface DocsSnapshot {
   documentLength: number;
   anchor: number;
   focus: number;
+  /**
+   * Review snapshots only: the real caret (the selection's focus) in the whole
+   * document. A review snapshot's anchor and focus are its scope, clipped to
+   * the window; the caret is restored from this one.
+   */
+  caret?: number;
 }
 export interface DocsEdit {
   start: number;
@@ -202,6 +208,7 @@ function reviewSnapshotFor(model: DocsModel, scope: string, token: string): Docs
     documentLength: text.length,
     anchor: inWindow(model.anchor),
     focus: inWindow(model.focus),
+    caret: model.focus,
   };
 }
 
@@ -228,7 +235,8 @@ export function sameSnapshot(a: DocsSnapshot, b: DocsSnapshot): boolean {
     a.windowStart === b.windowStart &&
     a.documentLength === b.documentLength &&
     a.anchor === b.anchor &&
-    a.focus === b.focus
+    a.focus === b.focus &&
+    a.caret === b.caret
   );
 }
 
@@ -403,7 +411,12 @@ export function snapshotFrom(value: unknown): DocsSnapshot | null {
     typeof s.anchor !== "number" ||
     typeof s.focus !== "number" ||
     !isBoundary(s.text, s.anchor - s.windowStart) ||
-    !isBoundary(s.text, s.focus - s.windowStart)
+    !isBoundary(s.text, s.focus - s.windowStart) ||
+    (s.caret !== undefined &&
+      (typeof s.caret !== "number" ||
+        !Number.isSafeInteger(s.caret) ||
+        s.caret < 0 ||
+        s.caret > s.documentLength))
   )
     return null;
   return {
@@ -414,5 +427,6 @@ export function snapshotFrom(value: unknown): DocsSnapshot | null {
     documentLength: s.documentLength,
     anchor: s.anchor,
     focus: s.focus,
+    ...(typeof s.caret === "number" ? { caret: s.caret } : {}),
   };
 }

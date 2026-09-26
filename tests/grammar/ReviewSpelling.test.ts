@@ -6,6 +6,7 @@ import {
   spellingDiagnostic,
 } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import {
+  parseSpellingRequest,
   rankSpellingSuggestions,
   spellingCandidates,
   spellingDistance,
@@ -88,6 +89,26 @@ describe("review spelling: which words are looked up", () => {
     expect(scoped("done carefully", 0, 8)).toEqual([["done", 0]]);
     // A decomposed accent is part of its word, not a boundary.
     expect(scoped("cafe\u0301 ok", 0, 8).map(([word]) => word)).toEqual(["cafe\u0301", "ok"]);
+  });
+
+  test("words with combining marks are looked up composed, in a request the background accepts", () => {
+    const text = "We visited the cafe\u0301 today, then teh caf\u00e9, and read हिंदी.";
+    const candidates = spellingCandidates(prepared(text), []);
+    const byWord = new Map(candidates.map((c) => [c.word, c]));
+    // Decomposed: looked up as the composed word; the range still covers what was written.
+    const decomposed = byWord.get("cafe\u0301")!;
+    expect(decomposed.lookup).toBe("caf\u00e9");
+    expect(text.slice(decomposed.range.start, decomposed.range.end)).toBe("cafe\u0301");
+    // Devanagari vowel signs are combining marks too.
+    expect(byWord.get("हिंदी")!.lookup).toBe("हिंदी");
+    // The request the session sends is accepted whole.
+    const request = {
+      lang: "en_US",
+      words: candidates.map(({ lookup, before }) => ({ word: lookup, before })),
+    };
+    expect(parseSpellingRequest(request)?.words).toHaveLength(candidates.length);
+    // A decomposed accent is one edit away from its composed suggestion, like any other.
+    expect(rankSpellingSuggestions("cafe\u0301e", ["caf\u00e9"])).toEqual(["caf\u00e9"]);
   });
 
   test("words another finding already covers are not looked up again", () => {

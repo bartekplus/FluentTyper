@@ -981,6 +981,36 @@ describe("Google Docs cross-world fixture (not live Docs)", () => {
     });
     await evaluate("review.dispose()");
   });
+  test("a review keeps rechecking after Docs replaces its input frame", async () => {
+    await startGrammar(["englishTypoWhitelistCorrection"]);
+    await page.evaluate(() => {
+      const f = window as unknown as { setModel: (text: string) => void; focusEditor: () => void };
+      f.setModel("See teh plan.");
+      f.focusEditor();
+    });
+    await evaluate("startReview()");
+    await waitUntil("docs review", async () => (await reviewPanel()).status === "Issues: 1");
+    // The panel takes focus, then Docs swaps in a new input frame.
+    await page.evaluate(() => {
+      document
+        .querySelector("[data-fluenttyper-review]")!
+        .shadowRoot!.querySelector<HTMLElement>(".item")!
+        .focus();
+      (window as unknown as { replaceInputFrame: () => void }).replaceInputFrame();
+    });
+    // Typing into the new frame, without any panel action, still rechecks.
+    await page.evaluate(() => (window as unknown as { focusEditor: () => void }).focusEditor());
+    await page.keyboard.type(" teh ", { delay: TYPING_DELAY_MS });
+    await expectText("See teh plan. teh ");
+    await waitUntil(
+      "recheck after the frame was replaced",
+      async () =>
+        (await reviewPanel()).items.filter((item) => item === "teh \u2192 the").length === 2,
+    ).catch(async (error) => {
+      throw new Error(`${String(error)} ${JSON.stringify(await reviewPanel())}`);
+    });
+    await evaluate("review.dispose()");
+  });
   test("a long document is reviewed around the cursor and reported as partial", async () => {
     await startGrammar([]);
     // About 69,000 characters: longer than a review read's 50,000-character window.

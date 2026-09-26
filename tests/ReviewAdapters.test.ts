@@ -15,7 +15,16 @@ import {
   ReviewLauncher,
   launcherFieldFor,
 } from "../src/adapters/chrome/content-script/review/ReviewLauncher";
-import { windowReviewable } from "../src/adapters/chrome/content-script/review/GoogleDocsReviewTarget";
+import {
+  GoogleDocsReviewTarget,
+  windowReviewable,
+} from "../src/adapters/chrome/content-script/review/GoogleDocsReviewTarget";
+import {
+  readModel,
+  snapshotFor,
+  snapshotFrom,
+  type DocsEdit,
+} from "../src/adapters/chrome/content-script/google-docs/GoogleDocsModel";
 import { REVIEW_HIGHLIGHT_NAMES } from "../src/adapters/chrome/content-script/review/reviewStyles";
 import { GRAMMAR_RULE_IDS } from "../src/core/domain/grammar/ruleCatalog";
 import type { ReviewEdit } from "../src/core/domain/grammar/review/types";
@@ -251,6 +260,75 @@ describe("Google Docs review window", () => {
     expect(cut("whole doc", 0, 9)).toEqual({ start: 0, end: 9 });
     expect(cut("start of doc wo", 0, 100)).toEqual({ start: 0, end: 13 });
     expect(cut("ail. end", 50, 58)).toEqual({ start: 5, end: 8 });
+  });
+});
+
+describe("Google Docs review writes", () => {
+  /** A Docs surface over `text` with the selection [anchor, focus), through the real page-message check. */
+  function docsSurface(text: string, anchor: number, focus: number) {
+    const edits: DocsEdit[] = [];
+    const read = () => {
+      const model = readModel(`\u0003${text}\n`, [{ anchor: anchor + 1, focus: focus + 1 }])!;
+      const snapshot = snapshotFrom(
+        JSON.parse(JSON.stringify(snapshotFor(model, "doc", "t", true))),
+      )!;
+      return Promise.resolve({ status: "ready" as const, snapshot });
+    };
+    return {
+      edits,
+      surface: {
+        reviewRead: read,
+        reviewApply: (_token: string, edit: DocsEdit) => {
+          edits.push(edit);
+          return Promise.resolve({ status: "applied" as const });
+        },
+        setReviewActive: () => {},
+        reviewFocusEditor: () => {},
+        onReviewSourceChange: () => () => {},
+      },
+    };
+  }
+
+  async function fixAfterSelecting(
+    text: string,
+    anchor: number,
+    focus: number,
+    fix: { start: number; end: number; replacement: string },
+  ): Promise<DocsEdit> {
+    const { surface, edits } = docsSurface(text, anchor, focus);
+    const target = new GoogleDocsReviewTarget(surface, document.body);
+    await target.start();
+    const before = await target.read();
+    if (!before.ok) throw new Error("read failed");
+    const edit: ReviewEdit = {
+      ...fix,
+      original: before.text.slice(fix.start, fix.end),
+    };
+    const after = before.text.slice(0, fix.start) + fix.replacement + before.text.slice(fix.end);
+    const result = await target.apply({
+      edits: [edit],
+      before: before.text,
+      after,
+      signature: before.signature,
+    });
+    expect(result).toEqual({ status: "applied" });
+    return edits[0];
+  }
+
+  test("a selection longer than the review window keeps its real caret after a fix", async () => {
+    const text = "We saw teh cat. " + "Plenty of fine prose. ".repeat(4000); // ~88,000
+    // Forward [0, 80000): the caret is at 80000, far past the 50,000-character window.
+    let edit = await fixAfterSelecting(text, 0, 80_000, { start: 7, end: 10, replacement: "the" });
+    expect(edit).toMatchObject({ start: 7, end: 10, replacement: "the", cursorAfter: 80_000 });
+    // A length-changing fix before the caret moves it by the change.
+    edit = await fixAfterSelecting(text, 0, 80_000, { start: 7, end: 10, replacement: "these" });
+    expect(edit.cursorAfter).toBe(80_002);
+    // Reversed (80000 -> 0): the caret is at 0, before the fix.
+    edit = await fixAfterSelecting(text, 80_000, 0, { start: 7, end: 10, replacement: "the" });
+    expect(edit.cursorAfter).toBe(0);
+    // Control: a selection inside the window was never clipped.
+    edit = await fixAfterSelecting(text, 0, 30_000, { start: 7, end: 10, replacement: "these" });
+    expect(edit.cursorAfter).toBe(30_002);
   });
 });
 

@@ -293,6 +293,7 @@ export class GoogleDocsAdapter {
     this.pollTimer = null;
     this.bind(null);
     document.removeEventListener("focusin", this.reviewFocusListener, true);
+    window.removeEventListener("blur", this.reviewBlurListener);
     this.bridge.dispose();
     this.view.dispose();
     document.removeEventListener(KEY_EVENT, this.bridgeKeyListener);
@@ -319,10 +320,12 @@ export class GoogleDocsAdapter {
     this.dismiss();
     if (!active) {
       document.removeEventListener("focusin", this.reviewFocusListener, true);
+      window.removeEventListener("blur", this.reviewBlurListener);
       void this.refresh(true);
       return;
     }
     document.addEventListener("focusin", this.reviewFocusListener, true);
+    window.addEventListener("blur", this.reviewBlurListener);
     this.bindForReview();
   }
 
@@ -331,7 +334,10 @@ export class GoogleDocsAdapter {
    * are how the review learns the document changed. So the current frame is
    * bound whether or not it has focus: the review panel may hold focus when a
    * settings restart creates this adapter, and Docs may replace the frame.
-   * Rebound on review start, on every focus change and on every review read.
+   * Rebound on review start, on every focus change in this document, when
+   * focus moves into a frame (this window's blur: focus inside a frame never
+   * reaches this document), on every review read and on every poll (a no-op
+   * while the frame is unchanged).
    */
   private bindForReview(): void {
     if (!this.reviewActive || this.disposed) return;
@@ -340,6 +346,11 @@ export class GoogleDocsAdapter {
   }
 
   private readonly reviewFocusListener = () => this.bindForReview();
+  // The window blurs as focus enters a frame; the frame is active a task later.
+  private readonly reviewBlurListener = () => {
+    this.bindForReview();
+    setTimeout(() => this.bindForReview(), 0);
+  };
 
   /**
    * While a review is active, `listener` runs on every editing keystroke,
@@ -442,7 +453,13 @@ export class GoogleDocsAdapter {
     action?: PredictionInputAction,
     triggers: GrammarEventType[] = [],
   ): Promise<void> {
-    if (this.reviewActive) return;
+    if (this.reviewActive) {
+      // Typing refreshes pause, but the poll keeps the review's input binding
+      // current: Docs may replace its input frame, and focus inside the new one
+      // never reaches this document.
+      this.bindForReview();
+      return;
+    }
     for (const trigger of triggers) this.pendingTriggers.add(trigger);
     if (action) this.pendingAction = action;
     if (this.disposed || this.composing || document.hidden) return;

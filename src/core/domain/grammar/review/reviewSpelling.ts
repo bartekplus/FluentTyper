@@ -17,7 +17,7 @@ export interface SpellingCandidate {
   range: TextRange;
   /** The word as written. */
   word: string;
-  /** The word as looked up: typographic apostrophes made plain. */
+  /** The word as looked up: typographic apostrophes made plain, composed (NFC). */
   lookup: string;
   before: string;
 }
@@ -30,7 +30,7 @@ const MAX_WORD_CHARS = 40;
 const WORD = /\p{L}[\p{L}\p{M}]*(?:['’]\p{L}[\p{L}\p{M}]*)*/gu;
 // Separate from WORD: String#match resets a shared regex's lastIndex.
 const CONTEXT_WORD = /\p{L}[\p{L}\p{M}]*(?:['’]\p{L}[\p{L}\p{M}]*)*/gu;
-const SUGGESTION = /^\p{L}+(?:['’]\p{L}+)*$/u;
+const SUGGESTION = /^\p{L}[\p{L}\p{M}]*(?:['’]\p{L}[\p{L}\p{M}]*)*$/u;
 // A word glued to these is part of a number, path, handle, identifier or compound.
 const GLUE = /[\p{N}_@#$%&/\\=+*<>~^`|-]/u;
 const SENTENCE_BREAK = /[.!?\n￼]/u;
@@ -85,7 +85,10 @@ export function spellingCandidates(
     const rest = word.slice(1);
     if (/\p{Lu}/u.test(rest)) continue;
     if (/\p{Lu}/u.test(word[0]) && !opensSentence(prepared, start)) continue;
-    const lookup = word.replace(/’/g, "'");
+    // "cafe\u0301" is looked up as "café"; the snapshot and its offsets keep the word as written.
+    const lookup = lookupForm(word);
+    // Only what the lookup request accepts is asked; one refused word would fail its batch.
+    if (!isLookupWord(lookup)) continue;
     if (
       prepared.dictionary.has(lookup.toLowerCase()) ||
       prepared.dictionary.has(word.toLowerCase())
@@ -160,7 +163,7 @@ function maxDistance(word: string): number {
  * word the dictionary can split into two words gets no suggestions at all.
  */
 export function rankSpellingSuggestions(word: string, candidates: readonly string[]): string[] {
-  const lower = word.replace(/’/g, "'").toLowerCase();
+  const lower = lookupForm(word).toLowerCase();
   if (isCompound(lower, candidates)) return [];
   const limit = maxDistance(lower);
   const seen = new Set<string>([lower]);
@@ -169,7 +172,7 @@ export function rankSpellingSuggestions(word: string, candidates: readonly strin
   candidates.forEach((candidate, order) => {
     const text = candidate.trim();
     if (!SUGGESTION.test(text)) return;
-    const key = text.replace(/’/g, "'").toLowerCase();
+    const key = lookupForm(text).toLowerCase();
     if (seen.has(key)) return;
     seen.add(key);
     const distance = spellingDistance(lower, key);
@@ -206,7 +209,19 @@ function matchStyle(word: string, suggestion: string): string {
 
 /** Words per lookup request; the session sends larger documents in several. */
 export const MAX_SPELLING_BATCH = 100;
-const LOOKUP_WORD = /^\p{L}+(?:'\p{L}+)*$/u;
+// The same word shape as WORD (letters with their combining marks: "हिंदी"),
+// with plain apostrophes only.
+const LOOKUP_WORD = /^\p{L}[\p{L}\p{M}]*(?:'\p{L}[\p{L}\p{M}]*)*$/u;
+
+/** A word as it is looked up: typographic apostrophes made plain, and composed (NFC). */
+export function lookupForm(word: string): string {
+  return word.replace(/’/g, "'").normalize("NFC");
+}
+
+/** True when a lookup request accepts `word` (see parseSpellingRequest). */
+export function isLookupWord(word: string): boolean {
+  return word.length <= MAX_WORD_CHARS && LOOKUP_WORD.test(word);
+}
 const MAX_BEFORE_CHARS = 100;
 
 /**
@@ -228,8 +243,7 @@ export function parseSpellingRequest(
     const { word, before } = item as { word?: unknown; before?: unknown };
     if (
       typeof word !== "string" ||
-      word.length > MAX_WORD_CHARS ||
-      !LOOKUP_WORD.test(word) ||
+      !isLookupWord(word) ||
       typeof before !== "string" ||
       before.length > MAX_BEFORE_CHARS
     ) {

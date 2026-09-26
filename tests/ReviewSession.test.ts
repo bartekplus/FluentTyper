@@ -10,6 +10,7 @@ import {
 } from "../src/core/application/review/ReviewSession";
 import { GRAMMAR_RULE_IDS } from "../src/core/domain/grammar/ruleCatalog";
 import { MAX_REVIEW_CHARS } from "../src/core/domain/grammar/review/reviewDiagnostics";
+import { parseSpellingRequest } from "../src/core/domain/grammar/review/reviewSpelling";
 import type {
   ProtectedRange,
   ReviewEdit,
@@ -481,6 +482,23 @@ describe("ReviewSession spelling", () => {
     await Promise.all([h.session.apply(finding.id, 1), h.settle()]);
     expect(h.editor.text).toBe("Where way it?");
     expect(h.last().diagnostics).toEqual([]);
+  });
+
+  test("a word with combining marks never makes the dictionary check unavailable", async () => {
+    // Exactly what the background does: a request it refuses is answered with nothing.
+    const lookup: ReviewSpellingLookup = (lang, words) => {
+      const parsed = parseSpellingRequest({ lang, words });
+      if (!parsed) return Promise.resolve(null);
+      return Promise.resolve(
+        parsed.words.map(({ word }) => (word === "wa" ? ["was", "way"] : null)),
+      );
+    };
+    const h = harness("We visited the cafe\u0301 and read हिंदी. Where wa it?", {
+      lookupSpelling: lookup,
+    });
+    await Promise.all([h.session.start(), h.settle()]);
+    expect(h.last().spelling).toBe("done");
+    expect(h.last().diagnostics.map((d) => d.original)).toEqual(["wa"]);
   });
 
   test("answers are remembered: a recheck looks up only new words", async () => {

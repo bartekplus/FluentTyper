@@ -2840,6 +2840,16 @@
           "layer": "unit",
           "file": "tests/GoogleDocsTransaction.test.ts",
           "test": "a review read carries the whole document and its token writes far from the caret"
+        },
+        {
+          "layer": "integration",
+          "file": "tests/e2e/google-docs.e2e.test.ts",
+          "test": "a review keeps rechecking after Docs replaces its input frame"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "a selection longer than the review window keeps its real caret after a fix"
         }
       ]
     },
@@ -2903,6 +2913,16 @@
           "layer": "unit",
           "file": "tests/grammar/ReviewSpelling.test.ts",
           "test": "a selection looks up only the whole words it contains"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewSpelling.test.ts",
+          "test": "words with combining marks are looked up composed, in a request the background accepts"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSession.test.ts",
+          "test": "a word with combining marks never makes the dictionary check unavailable"
         }
       ]
     },

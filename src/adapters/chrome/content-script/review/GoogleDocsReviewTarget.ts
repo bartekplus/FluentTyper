@@ -148,9 +148,10 @@ export class GoogleDocsReviewTarget implements ReviewTargetHandle {
     if (snapshot.text !== request.before || snapshotSignature(snapshot) !== request.signature) {
       return { status: "stale" };
     }
+    // The real caret, which a large selection can put outside the window.
+    const caret = snapshot.caret ?? snapshot.focus;
     const cursorAfter =
-      snapshot.windowStart +
-      positionThroughEdits(snapshot.focus - snapshot.windowStart, request.edits);
+      snapshot.windowStart + positionThroughEdits(caret - snapshot.windowStart, request.edits);
     const reply = await this.surface.reviewApply(snapshot.token, {
       start: snapshot.windowStart + start,
       end: snapshot.windowStart + end,
