@@ -6,7 +6,9 @@ import type {
 } from "@core/application/review/ReviewSession";
 import type { ReviewEdit, TextRange } from "@core/domain/grammar/review/types";
 import {
+  commonAffixes,
   editTouches,
+  isGraphemeBoundary,
   mergeEdits,
   positionThroughEdits,
 } from "@core/domain/grammar/review/textRanges";
@@ -196,6 +198,118 @@ function sameExceptEdgeSpaces(
   return true;
 }
 
+/** Tag names of the elements around `node` inside `scope` (its formatting and links). */
+function inlineTags(node: Node, scope: Node): string[] {
+  const tags: string[] = [];
+  for (
+    let element = node.parentElement;
+    element && element !== scope;
+    element = element.parentElement
+  ) {
+    if (!scope.contains(element)) return tags;
+    tags.push(element.tagName);
+  }
+  return tags;
+}
+
+/** Every tag of `required` is in `tags`, as often (extra wrappers are allowed). */
+function includesAll(tags: readonly string[], required: readonly string[]): boolean {
+  const left = [...tags];
+  return required.every((tag) => {
+    const index = left.indexOf(tag);
+    if (index < 0) return false;
+    left.splice(index, 1);
+    return true;
+  });
+}
+
+/** Gecko's editor, for its native editing quirks (feature detection cannot see them). */
+function isGecko(doc: Document): boolean {
+  return /\bGecko\/\d/.test(doc.defaultView?.navigator.userAgent ?? "");
+}
+
+/** True when `range` holds all of one text node's text (whitespace aside). */
+function coversWholeTextNode(range: Range): boolean {
+  const node = range.startContainer;
+  if (node.nodeType !== 3 || range.endContainer !== node || range.collapsed) return false;
+  const data = (node as Text).data;
+  const blank = /^[ \t\n\r\f]*$/;
+  return blank.test(data.slice(0, range.startOffset)) && blank.test(data.slice(range.endOffset));
+}
+
+function selectRange(selection: Selection, range: Range): void {
+  selection.removeAllRanges();
+  selection.addRange(range);
+}
+
+/**
+ * Writes one verified-in-place edit with the browser's own editing commands, so
+ * native undo reverts it. `range` holds exactly `edit.original` in `text`.
+ */
+function writeNative(
+  doc: Document,
+  selection: Selection,
+  range: Range,
+  edit: ReviewEdit,
+  text: string,
+): void {
+  const node = range.startContainer;
+  const inOneNode =
+    node.nodeType === 3 &&
+    range.endContainer === node &&
+    range.endOffset - range.startOffset === edit.original.length;
+  if (inOneNode && edit.replacement.length > 0) {
+    // An insertion anchored on a neighboring character ("a" -> "a ") is written
+    // as a pure insertion strictly inside that character's node: browsers move
+    // text typed at the very edge of a link out of the link.
+    const { prefix, suffix } = commonAffixes(edit.original, edit.replacement);
+    const at = range.startOffset + prefix;
+    if (
+      prefix + suffix === edit.original.length &&
+      at > 0 &&
+      at < (node as Text).data.length &&
+      isGraphemeBoundary(text, edit.start + prefix)
+    ) {
+      const caret = doc.createRange();
+      caret.setStart(node, at);
+      caret.collapse(true);
+      selectRange(selection, caret);
+      doc.execCommand(
+        "insertText",
+        false,
+        edit.replacement.slice(prefix, edit.replacement.length - suffix),
+      );
+      return;
+    }
+    // Gecko, replacing a text node's whole text, empties the node first and then
+    // drops the space next to it ("Well, <em>i</em> agree" -> "Well, <em>I</em>agree").
+    // Keep the last original character until the replacement is in, so the node
+    // never empties, then delete it. (Two native undo steps there.)
+    if (coversWholeTextNode(range) && isGecko(doc)) {
+      let tail = 1;
+      while (tail < edit.original.length && !isGraphemeBoundary(text, edit.end - tail)) tail += 1;
+      const tailText = edit.original.slice(edit.original.length - tail);
+      const head = range.cloneRange();
+      head.setEnd(node, range.endOffset - tail);
+      selectRange(selection, head);
+      doc.execCommand("insertText", false, edit.replacement);
+      const tailStart = range.startOffset + edit.replacement.length;
+      const data = (node as Text).data;
+      // Written somewhere else: the read-back reports it; nothing more is written.
+      if (!node.isConnected || data.slice(tailStart, tailStart + tail) !== tailText) return;
+      const rest = doc.createRange();
+      rest.setStart(node, tailStart);
+      rest.setEnd(node, tailStart + tail);
+      selectRange(selection, rest);
+      doc.execCommand("delete", false);
+      return;
+    }
+  }
+  selectRange(selection, range);
+  if (edit.replacement.length > 0) doc.execCommand("insertText", false, edit.replacement);
+  else doc.execCommand("delete", false);
+}
+
 const TEXT_CAPABILITIES: ReviewCapabilities = {
   inline: true,
   apply: true,
@@ -262,7 +376,12 @@ export class TextControlReviewTarget implements ReviewTargetHandle {
     const check = (): ReviewApplyResult | null => {
       if (!isReviewEligible(field)) return { status: "rejected", reason: "ineligible" };
       if (this.composing) return { status: "rejected", reason: "composing" };
-      return field.value === request.before ? null : { status: "stale" };
+      if (field.value !== request.before) return { status: "stale" };
+      // The browser would cut the text to the field's maxlength: refused, never truncated.
+      if (field.maxLength >= 0 && request.after.length > field.maxLength) {
+        return { status: "rejected", reason: "host-refused" };
+      }
+      return null;
     };
     const refused = check();
     if (refused) return refused;
@@ -450,13 +569,17 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
         return failAt({ status: "rejected", reason: "host-refused" });
       }
       const block: BlockText | null = previous ?? readBlockAt(root, map, range, current);
-      selection.removeAllRanges();
-      selection.addRange(range);
-      if (edit.replacement.length > 0) doc.execCommand("insertText", false, edit.replacement);
-      else doc.execCommand("delete", false);
+      const scopeElement = block?.element ?? root;
+      // The formatting (link, bold…) around the text being changed, when it is one node.
+      const formatting =
+        range.startContainer.nodeType === 3 && range.endContainer === range.startContainer
+          ? inlineTags(range.startContainer, scopeElement)
+          : null;
+      writeNative(doc, selection, range, edit, current);
       const expected = current.slice(0, edit.start) + edit.replacement + current.slice(edit.end);
       // The DOM is read back; a successful dispatch proves nothing.
       let observed: string;
+      let placedIn: { map: ContentEditableTextMap; offset: number };
       if (block && block.element.isConnected) {
         const after = buildContentEditableTextMap(block.element);
         observed =
@@ -464,15 +587,30 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
           after.text +
           current.slice(block.offset + block.map.text.length);
         written = { element: block.element, offset: block.offset, map: after };
+        placedIn = { map: after, offset: block.offset };
       } else {
         map = buildContentEditableTextMap(root);
         observed = map.text;
         written = null;
+        placedIn = { map, offset: 0 };
       }
       const editEnd = edit.start + edit.replacement.length;
       if (!sameExceptEdgeSpaces(observed, expected, edit.start, editEnd)) {
         if (observed === current) return failAt({ status: "rejected", reason: "host-refused" });
         return { status: "unverified" };
+      }
+      // The right text in the wrong place: a browser can move text typed at a
+      // link's edge out of the link. Reported, never passed off as applied.
+      if (formatting && formatting.length > 0 && edit.replacement.length > 0) {
+        const placed = offsetRangeToDomRange(
+          placedIn.map,
+          { start: edit.start - placedIn.offset, end: editEnd - placedIn.offset },
+          doc,
+        );
+        const kept = (node: Node) => includesAll(inlineTags(node, scopeElement), formatting);
+        if (!placed || !kept(placed.startContainer) || !kept(placed.endContainer)) {
+          return { status: "unverified" };
+        }
       }
       current = observed;
     }

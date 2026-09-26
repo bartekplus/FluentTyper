@@ -650,6 +650,35 @@ describe("content_script behavior", () => {
     }
   });
 
+  test("turning FluentTyper off dismisses a review notice; a settings restart keeps it", async () => {
+    const { fluentTyper } = await loadContentScript();
+    fluentTyper.enabled = true;
+    const hasFocus = jest.spyOn(document, "hasFocus").mockReturnValue(true);
+    try {
+      const input = document.createElement("input");
+      input.type = "password";
+      document.body.append(input);
+      input.focus();
+      const notice = () =>
+        document.querySelector("[data-fluenttyper-review]")?.shadowRoot?.querySelector(".status")
+          ?.textContent ?? null;
+      fluentTyper.messageHandler({
+        command: CMD_REVIEW_FT_ACTIVE_TAB,
+        context: { source: "command" },
+      });
+      expect(notice()).toContain("excluded from review");
+
+      // A restart for a settings change leaves what the user is reading alone.
+      fluentTyper.restart();
+      expect(notice()).toContain("excluded from review");
+
+      fluentTyper.enabled = false;
+      expect(document.querySelector("[data-fluenttyper-review]")).toBeNull();
+    } finally {
+      hasFocus.mockRestore();
+    }
+  });
+
   test("same-language runtime update does not thrash suggestion manager", async () => {
     const { fluentTyper } = await loadContentScript();
     fluentTyper.enable();

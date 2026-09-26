@@ -276,7 +276,8 @@ Findings are located by offsets into that snapshot, never by searching for the t
 
 Writes go through the browser's native editing command, so native undo works.
 A text field that refuses that command is reported as refused rather than
-written another way that undo would not restore. Focusing the editor can run
+written another way that undo would not restore, and so is a fix that would
+make it longer than its `maxlength` (the browser would cut it). Focusing the editor can run
 page code, so the checks above are repeated after focus moves and before the
 write. The caret and selection keep their place between fixes.
 After writing, review reads the editor back and reports anything that doesn't
@@ -366,9 +367,12 @@ Known costs:
   command) are noticed only at the next keystroke or write.
 - Model-backed editors are review-only: writing behind their document model is not safe.
 - Contenteditable undo is one step per fix; textarea and Quill undo a batch in one step.
+  In Firefox, a fix that replaces all of a formatted word's text (a word that is
+  its own bold, italic or link) takes two steps, so the space beside it is kept.
 - Textarea highlights can be misplaced under an ancestor with CSS `zoom`.
 - Chrome may turn a space next to an edit into a no-break space. Review
-  accepts only that change next to the edit; any other difference is reported.
+  accepts only that change next to the edit; any other difference, or text the
+  browser put outside the link or formatting it came from, is reported.
 - An ignore belongs to one occurrence and is dropped when an edit (including
   an undo) spans the ignored text.
 - Chains of more than 8 mutually dependent fixes are left for individual review.

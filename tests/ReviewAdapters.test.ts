@@ -438,6 +438,36 @@ describe("text control writes", () => {
     field.disabled = true;
     expect(target.read()).toEqual({ ok: false, reason: "ineligible" });
   });
+
+  test("a fix longer than the field's maxlength is refused, never written truncated", async () => {
+    let inserts = 0;
+    setExecCommand((...args) => {
+      inserts += 1;
+      return textControlInsert(...args);
+    });
+    // A full field: the browser would cut "I don't know it at al" to "I don' know it at al".
+    const full = "I dont know it at al";
+    const field = textarea(full);
+    field.maxLength = 20;
+    const target = new TextControlReviewTarget(field);
+    const dont = (before: string) => ({
+      edits: [edit(4, 5, "n", "n'")],
+      before,
+      after: `${before.slice(0, 5)}'${before.slice(5)}`,
+    });
+    expect(await target.apply(dont(full))).toEqual({
+      status: "rejected",
+      reason: "host-refused",
+    });
+    expect(field.value).toBe(full);
+    expect(inserts).toBe(0);
+
+    // A fix that still fits is written as usual.
+    field.value = "I dont know";
+    expect(await target.apply(dont("I dont know"))).toEqual({ status: "applied" });
+    expect(field.value).toBe("I don't know");
+    expect(inserts).toBe(1);
+  });
 });
 
 describe("contenteditable writes", () => {
@@ -588,6 +618,111 @@ describe("contenteditable writes", () => {
     ).toEqual({ status: "rejected", reason: "host-refused" });
   });
 
+  /** One edit applied to a fresh editor holding `html`, with the commands it used. */
+  async function applyOne(html: string, one: ReviewEdit) {
+    const commands: string[] = [];
+    const insert = currentInsert;
+    setExecCommand((command, ui, value) => {
+      commands.push(command);
+      return insert(command, ui, value);
+    });
+    const root = createEditor(html);
+    const target = new ContentEditableReviewTarget(root);
+    const read = target.read();
+    if (!read.ok) throw new Error("unreadable");
+    expect(read.text.slice(one.start, one.end)).toBe(one.original);
+    const result = await target.apply({
+      edits: [one],
+      before: read.text,
+      after: read.text.slice(0, one.start) + one.replacement + read.text.slice(one.end),
+      signature: read.signature,
+    });
+    return { result, html: root.innerHTML, commands };
+  }
+  let currentInsert: ExecCommand = contentEditableInsert;
+
+  test("Gecko: a whole formatted word keeps its node and the space after it", async () => {
+    // Gecko empties a text node whose whole text is replaced, and then drops the
+    // space next to it: "Well, <em>i</em> agree" became "Well, <em>I</em>agree".
+    currentInsert = (command, ui, value) => {
+      const range = document.getSelection()!.getRangeAt(0);
+      const node = range.startContainer as Text;
+      if (
+        command === "insertText" &&
+        !range.collapsed &&
+        range.startOffset === 0 &&
+        range.endOffset === node.data.length
+      ) {
+        const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+        walker.currentNode = node;
+        const next = walker.nextNode() as Text | null;
+        if (next?.data.startsWith(" ")) next.data = next.data.slice(1);
+      }
+      return contentEditableInsert(command, ui, value);
+    };
+    const agent = Object.getOwnPropertyDescriptor(window.navigator, "userAgent");
+    Object.defineProperty(window.navigator, "userAgent", {
+      configurable: true,
+      get: () => "Mozilla/5.0 (X11; Linux x86_64; rv:156.0) Gecko/20100101 Firefox/156.0",
+    });
+    try {
+      let outcome = await applyOne("<p>Well, <em>i</em> agree.</p>", edit(6, 7, "i", "I"));
+      expect(outcome.result).toEqual({ status: "applied" });
+      expect(outcome.html).toBe("<p>Well, <em>I</em> agree.</p>");
+      // The replacement goes in before the last original character leaves: the node never empties.
+      expect(outcome.commands).toEqual(["insertText", "delete"]);
+
+      outcome = await applyOne("<p>We <i>realy</i> like it</p>", edit(3, 8, "realy", "really"));
+      expect(outcome.result).toEqual({ status: "applied" });
+      expect(outcome.html).toBe("<p>We <i>really</i> like it</p>");
+
+      // Part of a node is one ordinary native edit, as before.
+      outcome = await applyOne("<p>We saw <b>teh</b> cat</p>", edit(8, 10, "eh", "he"));
+      expect(outcome.html).toBe("<p>We saw <b>the</b> cat</p>");
+      expect(outcome.commands).toEqual(["insertText"]);
+    } finally {
+      if (agent) Object.defineProperty(window.navigator, "userAgent", agent);
+      else delete (window.navigator as { userAgent?: string }).userAgent;
+      currentInsert = contentEditableInsert;
+    }
+  });
+
+  test("a link keeps its text; text a browser moves out of it is reported, not applied", async () => {
+    // Like Chrome: text inserted at the very edge of a link lands outside the link.
+    currentInsert = (command, ui, value = "") => {
+      const range = document.getSelection()!.getRangeAt(0);
+      const node = range.startContainer as Text;
+      const link = node.parentElement?.closest("a");
+      if (command !== "insertText" || !link) return contentEditableInsert(command, ui, value);
+      const atStart = range.startOffset === 0;
+      const atEnd = range.endOffset === node.data.length;
+      if (!atStart && !atEnd) return contentEditableInsert(command, ui, value);
+      range.deleteContents();
+      const text = document.createTextNode(value);
+      if (atStart) link.before(text);
+      else link.after(text);
+      if (!link.textContent) link.remove();
+      return true;
+    };
+    try {
+      // "alot" -> "a lot" arrives as "a" -> "a ": written as a space inside the word.
+      let outcome = await applyOne(
+        '<p>He said <a href="#x">alot</a> of things.</p>',
+        edit(8, 9, "a", "a "),
+      );
+      expect(outcome.result).toEqual({ status: "applied" });
+      expect(outcome.html).toBe('<p>He said <a href="#x">a lot</a> of things.</p>');
+
+      // A link's whole text replaced, and the browser drops the link: the text is
+      // right, but where it went is not, so the write is not reported as applied.
+      outcome = await applyOne('<p>Yes <a href="#x">i</a> think.</p>', edit(4, 5, "i", "I"));
+      expect(outcome.html).toBe("<p>Yes I think.</p>");
+      expect(outcome.result).toEqual({ status: "unverified" });
+    } finally {
+      currentInsert = contentEditableInsert;
+    }
+  });
+
   test("model-backed editors are review-only; Quill is writable", () => {
     const prose = createEditor("<p>x</p>");
     prose.className = "ProseMirror";
@@ -721,6 +856,46 @@ describe("in-field review button", () => {
     instance.dispose();
   });
 
+  test("an editable body (TinyMCE, CKEditor 4 frames) never holds the button", () => {
+    const body = document.body;
+    body.innerHTML = "<p>Hello there, this is my blog post.</p>";
+    body.setAttribute("contenteditable", "true");
+    Object.defineProperty(body, "isContentEditable", { configurable: true, value: true });
+    sized(body);
+    const { instance, review } = launcher();
+    try {
+      focusIn(body);
+      expect(shown()).toBe(true);
+      // The user's saved content is the body's: nothing of FluentTyper's is in it.
+      expect(body.innerHTML).not.toContain("data-fluenttyper-review-launcher");
+      expect(
+        document.documentElement.querySelector(":scope > [data-fluenttyper-review-launcher]"),
+      ).not.toBeNull();
+      launcherButton()!.click();
+      expect(review).toHaveBeenCalledWith(body);
+
+      // A modal dialog that is itself part of the editable content is no place for it either.
+      const dialog = document.createElement("dialog");
+      dialog.setAttribute("open", "");
+      const field = document.createElement("textarea");
+      field.value = "In a dialog with some text.";
+      dialog.append(field);
+      body.append(dialog);
+      Object.defineProperty(dialog, "isContentEditable", { configurable: true, value: true });
+      const matches = dialog.matches.bind(dialog);
+      jest
+        .spyOn(dialog, "matches")
+        .mockImplementation((selector) => selector === ":modal" || matches(selector));
+      sized(field);
+      focusIn(field);
+      expect(shown()).toBe(true);
+      expect(body.innerHTML).not.toContain("data-fluenttyper-review-launcher");
+    } finally {
+      instance.dispose();
+      body.removeAttribute("contenteditable");
+    }
+  });
+
   test("one icon per field: the enable icon wins until FluentTyper is on there", () => {
     const field = sized(textarea("Some text here"));
     let awaitingEnable = true;
@@ -821,6 +996,29 @@ describe("review controller lifecycle", () => {
     expect(root()?.querySelector(".status")?.textContent).toContain("excluded from review");
     review.dispose();
     expect(root()).toBeNull();
+  });
+
+  test("a notice in a modal dialog opens inside the dialog, where its close button works", () => {
+    // Outside a modal dialog everything is inert: a notice there could not be closed.
+    const dialog = document.createElement("dialog");
+    dialog.setAttribute("open", "");
+    const matches = dialog.matches.bind(dialog);
+    jest
+      .spyOn(dialog, "matches")
+      .mockImplementation((selector) => selector === ":modal" || matches(selector));
+    const input = document.createElement("input");
+    input.type = "password";
+    dialog.append(input);
+    document.body.append(dialog);
+    input.focus();
+    const { review } = controller();
+    review.invoke();
+    const host = document.querySelector("[data-fluenttyper-review]");
+    expect(host?.parentElement).toBe(dialog);
+    expect(root()?.querySelector(".status")?.textContent).toContain("excluded from review");
+    root()!.querySelector<HTMLElement>("[data-action=close]")!.click();
+    expect(root()).toBeNull();
+    expect(document.activeElement).toBe(input);
   });
 
   test("only FluentTyper's own highlight names are ever touched", () => {
@@ -1072,6 +1270,41 @@ describe("adversarial review regressions", () => {
       () =>
         root().querySelector(".status")?.textContent === "All found issues are resolved. Fixed: 1.",
     );
+    review.close();
+  });
+
+  test("a page script clicking 'Add to dictionary' changes no settings", async () => {
+    textarea("Where wa it? We saw teh cat.");
+    const addToDictionary = jest.fn(async () => true);
+    const review = new ReviewController({
+      getOptions: options,
+      suspend: jest.fn(),
+      resume: jest.fn(),
+      addToDictionary,
+      lookupSpelling: (_lang, words) =>
+        Promise.resolve(words.map(({ word }) => (word === "wa" ? ["was", "way"] : null))),
+      getDocsSurface: () => null,
+      uiLanguage: "en",
+    });
+    review.invoke();
+    const root = () => hosts()[0]!.shadowRoot!;
+    const items = () => Array.from(root().querySelectorAll<HTMLElement>(".item"));
+    await until(
+      () => items().length === 2 && root().querySelector(".panel[data-spelling=checking]") === null,
+    );
+    // Both card kinds offer the button: a rule finding ("teh") and an unknown word ("wa").
+    for (const word of ["teh", "wa"]) {
+      items()
+        .find((item) => item.querySelector(".change")?.textContent?.startsWith(`${word} `))!
+        .click();
+      const add = root().querySelector<HTMLButtonElement>(".card [data-action=dictionary]")!;
+      expect(add.textContent).toBe(`Add “${word}” to dictionary`);
+      // element.click() from script is an untrusted event.
+      add.click();
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      expect(addToDictionary).not.toHaveBeenCalled();
+    }
+    expect(items()).toHaveLength(2);
     review.close();
   });
 

@@ -189,7 +189,7 @@ export class ReviewController {
         navigate: (step) => this.navigate(step),
       },
       capabilityKeys,
-      modalDialogOf(target.element),
+      reviewMountFor(target.element),
     );
     target.setMeasurementRoot(ui.root);
     ui.placeAwayFrom(target.element.getBoundingClientRect());
@@ -582,15 +582,18 @@ export class ReviewController {
 
   /** Explains why nothing could be reviewed; closes itself on Escape or its button. */
   private showNotice(key: ReviewTextKey): void {
+    const focused = getDeepActiveElement(document) as HTMLElement | null;
     const ui = new ReviewUi(
       document,
       this.lang,
       { ...NOTICE_CALLBACKS, close: () => this.dismissNotice() },
       [],
+      // In a modal dialog (a password field in a sign-in dialog), outside it is inert.
+      reviewMountFor(focused ?? document.activeElement),
     );
     ui.showMessage(reviewText(key, this.lang));
     this.notice = ui;
-    this.noticeReturnFocus = getDeepActiveElement(document) as HTMLElement | null;
+    this.noticeReturnFocus = focused;
     ui.focusPanel();
   }
 
@@ -624,6 +627,22 @@ const NOTICE_CALLBACKS: ReviewUiCallbacks = {
 
 /** How often an open review checks for changes that fire no event. */
 const SOURCE_POLL_MS = 1000;
+
+/**
+ * Where FluentTyper's own layers go for `element`: the open modal dialog
+ * holding it (everything outside that dialog is inert), or null for the
+ * document element. Never a dialog that is part of editable content (a
+ * designMode page, a contenteditable body): what is appended there would be
+ * saved with the user's text.
+ */
+export function reviewMountFor(element: Element | null): HTMLDialogElement | null {
+  const dialog = element ? modalDialogOf(element) : null;
+  if (!dialog || dialog.ownerDocument.designMode === "on") return null;
+  for (let node: Element | null = dialog; node; node = node.parentElement) {
+    if ((node as HTMLElement).isContentEditable) return null;
+  }
+  return dialog;
+}
 
 /** The open modal dialog holding `element` (across shadow roots), if any. */
 export function modalDialogOf(element: Element): HTMLDialogElement | null {

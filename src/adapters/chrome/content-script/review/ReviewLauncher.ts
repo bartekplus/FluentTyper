@@ -1,5 +1,5 @@
 import { reviewText } from "@core/domain/grammar/review/reviewMessages";
-import { modalDialogOf } from "./ReviewController";
+import { reviewMountFor } from "./ReviewController";
 import { editingHost, isReviewEligible } from "./ReviewTargets";
 
 /** Marks FluentTyper's own launcher host; never a review target itself. */
@@ -192,7 +192,9 @@ export class ReviewLauncher {
 
   private ensureButton(field: HTMLElement): HTMLButtonElement {
     // Inside a modal dialog everything outside it is inert: the button goes in the dialog.
-    const mount = modalDialogOf(field) ?? this.doc.body ?? this.doc.documentElement;
+    // Otherwise it goes on the document element, never in the body: an editable
+    // body (TinyMCE and CKEditor 4 frames, designMode) would save it with the text.
+    const mount = reviewMountFor(field) ?? this.doc.documentElement;
     if (this.button && this.host?.isConnected && this.host.parentNode === mount) return this.button;
     this.host?.remove();
     const host = this.doc.createElement("div");

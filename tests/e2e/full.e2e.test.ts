@@ -7459,6 +7459,69 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   );
 
   test(
+    "Review mode fixes a whole formatted word and link text in place, keeping the spaces around them, and undo restores them",
+    async () => {
+      await prepareReviewPage();
+      const selector = "#test-contenteditable";
+      const original =
+        "<p>Well, <em>i</em> agree.</p><p>We could <b>of</b> shipped it.</p>" +
+        '<p>He said <a href="#link">alot</a> of things.</p>';
+      const html = () => page.$eval(selector, (el) => el.innerHTML);
+      await page.evaluate(
+        (sel, value) => {
+          const root = document.querySelector(sel) as HTMLElement;
+          root.innerHTML = value;
+          root.focus();
+        },
+        selector,
+        original,
+      );
+      await triggerReview(worker!);
+      const panel = await waitForReview(page, "findings", (p) => p.status === "Issues: 3");
+      expect(panel.items.map((item) => item.text)).toEqual([
+        "i → I",
+        "could of → could have",
+        "alot → a␣lot",
+      ]);
+
+      // One fix: the word stays in its <em>, and the space after it stays a space.
+      await clickReviewControl(page, `.item[data-id="${panel.items[0].id}"]`);
+      await waitForReview(page, "card", (p) => p.card.open);
+      await clickReviewControl(page, ".card [data-action=apply]");
+      await waitForReview(page, "one fixed", (p) => p.status === "Fixed: 1. Issues: 2");
+      expect(await html()).toBe(original.replace("<em>i</em>", "<em>I</em>"));
+
+      // Native undo restores it exactly (Firefox takes two steps, see ReviewTargets).
+      let presses = 0;
+      while ((await html()) !== original && presses < 4) {
+        await pressUndo(selector);
+        presses += 1;
+      }
+      expect(await html()).toBe(original);
+      expect(presses).toBe(isFirefox() ? 2 : 1);
+      await waitForReview(page, "rechecked after undo", (p) => /Issues: 3$/.test(p.status));
+
+      // Fix all: every word keeps its formatting, the link keeps its text, no space is lost.
+      await clickReviewControl(page, "[data-action=fix-all]");
+      await waitForReview(page, "all fixed", (p) =>
+        p.status.startsWith("All found issues are resolved."),
+      );
+      expect(await html()).toBe(
+        "<p>Well, <em>I</em> agree.</p><p>We could <b>have</b> shipped it.</p>" +
+          '<p>He said <a href="#link">a lot</a> of things.</p>',
+      );
+      presses = 0;
+      while ((await html()) !== original && presses < 8) {
+        await pressUndo(selector);
+        presses += 1;
+      }
+      expect(await html()).toBe(original);
+      await finishReview();
+    },
+    browserTimeout(40000, 60000),
+  );
+
+  test(
     "Review mode keeps the real Quill model's formatting and code, and Quill undo reverts the batch",
     async () => {
       await prepareReviewPage({ enableQuill: true });
@@ -7653,6 +7716,86 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await finishReview();
     },
     browserTimeout(50000, 70000),
+  );
+
+  test(
+    "Review notice in a modal dialog opens inside the dialog; its close button and Escape dismiss only the notice",
+    async () => {
+      await prepareReviewPage();
+      await page.evaluate(() => {
+        const dialog = document.createElement("dialog");
+        dialog.id = "notice-dialog";
+        const input = document.createElement("input");
+        input.type = "password";
+        input.id = "notice-password";
+        input.value = "teh secret";
+        dialog.append(input);
+        document.body.append(dialog);
+        dialog.showModal();
+        input.focus();
+      });
+      const state = () =>
+        page.evaluate(() => ({
+          dialogOpen: document.querySelector<HTMLDialogElement>("#notice-dialog")!.open,
+          noticeParent: document.querySelector("[data-fluenttyper-review]")?.parentElement?.id,
+          focused: document.activeElement?.id ?? "",
+        }));
+      try {
+        // Everything outside a modal dialog is inert: the notice goes inside it.
+        await triggerReview(worker!);
+        const panel = await waitForReview(page, "notice", (p) => p.open);
+        expect(panel.status).toContain("excluded from review");
+        expect((await state()).noticeParent).toBe("notice-dialog");
+        await clickReviewControl(page, "[data-action=close]");
+        await waitForReview(page, "closed by its button", (p) => !p.open);
+        expect(await state()).toEqual({
+          dialogOpen: true,
+          noticeParent: undefined,
+          focused: "notice-password",
+        });
+
+        // Escape closes the notice, not the page's dialog.
+        await triggerReview(worker!);
+        await waitForReview(page, "notice again", (p) => p.open);
+        await page.keyboard.press("Escape");
+        await waitForReview(page, "closed by Escape", (p) => !p.open);
+        expect((await state()).dialogOpen).toBe(true);
+      } finally {
+        await page.evaluate(() => {
+          const dialog = document.querySelector<HTMLDialogElement>("#notice-dialog");
+          dialog?.close();
+          dialog?.remove();
+        });
+      }
+      await finishReview();
+    },
+    browserTimeout(30000, 45000),
+  );
+
+  test(
+    "Review mode refuses fixes that a full field's maxlength would cut, and writes nothing",
+    async () => {
+      await prepareReviewPage();
+      // A full field. Fix all writes one merged edit, which the browser would cut
+      // at the limit ("I don't know th cat").
+      const full = "i dont know teh cat";
+      await page.$eval("#test-textarea", (el) => el.setAttribute("maxlength", "19"));
+      try {
+        await setTextarea(full);
+        await triggerReview(worker!);
+        let panel = await waitForReview(page, "findings", (p) => p.status === "Issues: 3");
+        await clickReviewControl(page, "[data-action=fix-all]");
+        panel = await waitForReview(page, "refused", (p) =>
+          p.status.includes("The editor refused the change."),
+        );
+        expect(await textareaValue()).toBe(full);
+        expect(panel.items).toHaveLength(3);
+      } finally {
+        await page.$eval("#test-textarea", (el) => el.removeAttribute("maxlength"));
+      }
+      await finishReview();
+    },
+    browserTimeout(30000, 45000),
   );
 
   devRuntimeTest(

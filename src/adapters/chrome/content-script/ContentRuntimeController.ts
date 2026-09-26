@@ -351,9 +351,10 @@ export class ContentRuntimeController {
   }
 
   disable({ keepReview = false }: { keepReview?: boolean } = {}): void {
-    // A restart for a settings change keeps an open review; turning off ends it.
+    // A restart for a settings change keeps an open review; turning off ends it,
+    // along with any notice explaining why a review could not start.
     if (!keepReview) {
-      this.review?.close();
+      this.review?.dispose();
       this.reviewLauncher?.dispose();
       this.reviewLauncher = null;
     }
