@@ -2550,6 +2550,41 @@
           "layer": "unit",
           "file": "tests/grammar/ReviewDiagnostics.test.ts",
           "test": "a sentence-final \"i.\" is the pronoun; list markers and numbered parts are not"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewDiagnostics.test.ts",
+          "test": "\"you was\" after a verb or preposition is its object; only a clause start batches"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewDiagnostics.test.ts",
+          "test": "a quoted or bracketed ! or ? before a lowercase word ends the quotation, not the sentence"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewDiagnostics.test.ts",
+          "test": "a mark between spaces before a lowercase word is a symbol, not a sentence end"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewDiagnostics.test.ts",
+          "test": "a word glued to a hyphen is edited only where typing would edit it"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewDiagnostics.test.ts",
+          "test": "CRLF line endings are read like LF"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewDiagnostics.test.ts",
+          "test": "collapseRepeatedSpaces leaves Markdown table padding alone"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewDiagnostics.test.ts",
+          "test": "protected text keeps its line breaks, LF and CRLF alike"
         }
       ]
     },
@@ -2581,6 +2616,16 @@
           "layer": "e2e-full",
           "file": "tests/e2e/full.e2e.test.ts",
           "test": "Review mode reviews only the selection, rechecks after edits, and follows scrolling"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSession.test.ts",
+          "test": "a lost selection stays stale until closed; it never becomes a whole-field review"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSession.test.ts",
+          "test": "an edit before the first scan finishes still moves the selection with the text"
         }
       ]
     },
@@ -2602,6 +2647,16 @@
           "layer": "unit",
           "file": "tests/grammar/ReviewBulkPlanner.test.ts",
           "test": "cascading findings appear only on recheck, never in the same batch"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewBulkPlanner.test.ts",
+          "test": "Fix all leaves objects, dialogue tags, named marks, hyphenated names and tables alone"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSession.test.ts",
+          "test": "a proof that fails leaves its fixes for individual review; Fix all never waits forever"
         }
       ]
     },
@@ -2628,6 +2683,11 @@
           "layer": "unit",
           "file": "tests/ReviewSession.test.ts",
           "test": "closing discards pending work and never writes"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/content_script.behavior.test.ts",
+          "test": "turning FluentTyper off dismisses a review notice; a settings restart keeps it"
         }
       ]
     },
@@ -2669,6 +2729,16 @@
           "layer": "unit",
           "file": "tests/ReviewAdapters.test.ts",
           "test": "a control without a native edit is refused, never written outside undo"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "a fix longer than the field's maxlength is refused, never written truncated"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review mode refuses fixes that a full field's maxlength would cut, and writes nothing"
         }
       ]
     },
@@ -2700,6 +2770,21 @@
           "layer": "unit",
           "file": "tests/ReviewAdapters.test.ts",
           "test": "a batch never resumes into text that became protected during its pause"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "Gecko: a whole formatted word keeps its node and the space after it"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "a link keeps its text; text a browser moves out of it is reported, not applied"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review mode fixes a whole formatted word and link text in place, keeping the spaces around them, and undo restores them"
         }
       ]
     },
@@ -2850,6 +2935,21 @@
           "layer": "unit",
           "file": "tests/ReviewAdapters.test.ts",
           "test": "a selection longer than the review window keeps its real caret after a fix"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/GoogleDocsModel.test.ts",
+          "test": "a typing snapshot keeps the typing window; only a review read may be larger"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/GoogleDocsModel.test.ts",
+          "test": "messages keep the typing size limit unless a review reply is allowed"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/GoogleDocsBridgeClient.test.ts",
+          "test": "a review read accepts the review window; a typing read keeps the typing bounds"
         }
       ]
     },
@@ -2877,6 +2977,16 @@
           "layer": "unit",
           "file": "tests/ReviewAdapters.test.ts",
           "test": "pressing the shortcut again from the panel keeps the review"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "a notice in a modal dialog opens inside the dialog, where its close button works"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review notice in a modal dialog opens inside the dialog; its close button and Escape dismiss only the notice"
         }
       ]
     },
@@ -2923,6 +3033,41 @@
           "layer": "unit",
           "file": "tests/ReviewSession.test.ts",
           "test": "a word with combining marks never makes the dictionary check unavailable"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSession.test.ts",
+          "test": "each different word is looked up once per pass, whatever its contexts"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSession.test.ts",
+          "test": "the check stops at its per-pass limits and says so; a recheck continues"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSession.test.ts",
+          "test": "a shorter answer covers the first words; the rest are asked again"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSession.test.ts",
+          "test": "findings are added as answers arrive: each word ranked once, earlier findings kept"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/PresageEngine.test.ts",
+          "test": "no word is started once the budget is spent; the typing config is restored"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/PresageEngine.test.ts",
+          "test": "a failing lookup still restores the typing config"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "a page script clicking 'Add to dictionary' changes no settings"
         }
       ]
     },
@@ -2949,6 +3094,11 @@
           "layer": "unit",
           "file": "tests/CoreSettingsRepository.test.ts",
           "test": "shows the in-field Review button unless it is turned off"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "an editable body (TinyMCE, CKEditor 4 frames) never holds the button"
         }
       ]
     },

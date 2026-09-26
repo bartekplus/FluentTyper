@@ -212,6 +212,11 @@ ranked for the words before it: `wa → was / way / war`.
   and the user's dictionary.
 - **When it runs:** after the rule results are shown ("Checking spelling…"
   while it runs), a few words at a time, with answers remembered for rechecks.
+  Each different word is looked up once, and each request to the background
+  engine stops after about 40 ms, so typing suggestions in other tabs never wait
+  long. One pass checks at most 2,000 different words, and stops early once 100
+  are unknown (text in another language, say); the panel then says spelling was
+  checked only in the first part, and a recheck continues from there.
   It does not run in code mode, and it needs a Presage dictionary for the
   language; without one the panel says spelling suggestions are unavailable.
 - **Local:** the words go from the page's content script to the extension's own

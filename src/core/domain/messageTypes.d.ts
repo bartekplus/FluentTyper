@@ -328,7 +328,11 @@ export interface ReviewSpellingRequestContext {
   lang: string;
   words: Array<{ word: string; before: string }>;
 }
-/** Per word: null when known, else Presage's candidates. `ok: false`: no dictionary for the language. */
+/**
+ * Per word, for the first words asked (the background bounds each lookup's time, so the
+ * answer may be shorter; the rest were not looked up yet): null when known, else
+ * Presage's candidates. `ok: false`: no dictionary for the language.
+ */
 export type ReviewSpellingResponse = { ok: true; results: Array<string[] | null> } | { ok: false };
 export type UpdateLangConfigMessage = Extract<
   Message,
