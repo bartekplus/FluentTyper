@@ -154,9 +154,13 @@ Supported (**Typing** is the rule's default for typing; review runs it either wa
 
 Some text is left alone because it only looks like an error: "you" as an
 object ("Everything I told you was a lie"), a lowercase dialogue tag after a
-quoted "!" or "?" ("“Stop!” she said"), a mark named between spaces ("press .
-to repeat"), and a word joined to a hyphen after it ("--dont-ask", "dont-care").
-After a hyphen ("x-teh"), where typing still corrects it, the fix is individual only.
+quoted "!" or "?" ("“Stop!” she said"), a named mark ("press . to repeat",
+"use the . key", "type '.' to repeat"), and a word joined to a hyphen after it
+("--dont-ask", "dont-care"). A double hyphen is a dash ("I dont--really--care"
+is fixed). After a hyphen ("x-teh"), where typing still corrects it, the fix is
+individual only. So is "you was" after a verb that can open a clause ("I heard
+you was sick", "I was hoping you was coming"), where "you" is usually the
+subject.
 
 Unlike typing, review sees the words after a word as well as before it, so it
 decides some cases typing has to leave as typed. These are always individual

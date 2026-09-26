@@ -448,6 +448,53 @@ describe("ReviewSession", () => {
     }
   });
 
+  test("a planner that fails mid-proof batches nothing and leaves every fix for review", async () => {
+    const unhandled: unknown[] = [];
+    const onUnhandled = (reason: unknown) => unhandled.push(reason);
+    process.on("unhandledRejection", onUnhandled);
+    try {
+      const text = "yes i dont know. ".repeat(40);
+      const h = harness(text, {
+        rules: [
+          "capitalizeSentenceStart",
+          "englishPronounICapitalization",
+          "englishContractionNormalization",
+        ],
+      });
+      // The planner itself throws when the next proof answer reaches it.
+      type ProvePlan = (
+        pending: unknown,
+        steps: Generator<unknown, unknown, boolean[]>,
+        first: unknown,
+        prepared: unknown,
+      ) => Promise<unknown>;
+      const session = h.session as unknown as { provePlan: ProvePlan };
+      const provePlan = session.provePlan.bind(h.session);
+      session.provePlan = (pending, _steps, first, prepared) => {
+        const failing = (function* (): Generator<unknown, unknown, boolean[]> {
+          yield first;
+          throw new Error("planner failed");
+        })();
+        failing.next();
+        return provePlan(pending, failing, first, prepared);
+      };
+      await Promise.all([h.session.start(), h.settle()]);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      const state = h.last();
+      expect(state.status).toBe("ready");
+      expect(state.diagnostics.length).toBeGreaterThan(0);
+      // Nothing was proven: Fix all batches nothing, and every finding is left.
+      expect(state.bulk).toEqual({ count: 0, deferred: state.diagnostics.length, pending: false });
+      const fixing = h.session.fixAll();
+      await h.settle();
+      expect(await fixing).toBeNull();
+      expect(h.editor.text).toBe(text);
+      expect(unhandled).toEqual([]);
+    } finally {
+      process.off("unhandledRejection", onUnhandled);
+    }
+  });
+
   test("closing discards pending work and never writes", async () => {
     const h = harness("teh cat");
     const started = h.session.start();

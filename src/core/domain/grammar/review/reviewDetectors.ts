@@ -256,11 +256,15 @@ const capitalizeStarts: Detector = (ctx) => {
       // "“Stop!” she shouted", "(really?) and": a quoted or bracketed "!" or
       // "?" before a lowercase word ends the quotation, not the sentence.
       if (end.closed && mark !== ".") continue;
-      // "press . to repeat", "type ? for help": a mark between spaces before
-      // a lowercase word is a symbol, not a sentence end. French spaces "?"
-      // and "!" on purpose.
-      const standalone = end.mark >= 0 && !end.closed && /\s/.test(ctx.text[end.mark - 1] ?? " ");
-      if (standalone && !(mark !== "." && usesFrenchPunctuationSpacing(ctx.lang))) continue;
+      // "press . to repeat", "type ? for help": a named mark is a symbol, not
+      // a sentence end. French spaces "?" and "!" on purpose.
+      if (
+        end.mark >= 0 &&
+        namesMark(ctx.text, end.mark) &&
+        !(mark !== "." && usesFrenchPunctuationSpacing(ctx.lang))
+      ) {
+        continue;
+      }
       // The mark AND the word it closes decide it: "etc." or, when the mark
       // stands alone, the word before it ("approx .", "etc .").
       const previous = previousTokensStart(ctx.text, wordStart, 1);
@@ -302,6 +306,35 @@ function sentenceEndBefore(text: string, wordStart: number): { mark: number; clo
   const closer = i;
   while (i >= 0 && (CLOSING_CHARS.has(text[i]) || CLOSING_PADDING_CHARS.has(text[i]))) i -= 1;
   return { mark: i, closed: i !== closer };
+}
+
+// Words that name the key or symbol right after them: "press . to repeat".
+const MARK_NAMING_WORDS = new Set([
+  ...["press", "presses", "pressed", "pressing", "type", "types", "typed", "typing", "hit"],
+  ...["hits", "tap", "taps", "enter", "enters", "use", "uses", "key", "keys", "add", "adds"],
+  ...["insert", "inserts", "put", "puts", "remove", "removes", "delete", "deletes", "the"],
+  ...["a", "an", "character", "char", "symbol", "sign", "dot", "mark", "punctuation"],
+]);
+const MARK_QUOTES = /^["'“”‘’`]$/u;
+const LINE_SPACE = /^[ \t ]$/u;
+
+/**
+ * True when the mark at `index` is named, not ending a sentence: it stands
+ * alone after a word that names keys or symbols ("press . to repeat", "Type ?
+ * for help"), or it is wrapped in quotes or backticks ("type '.' to repeat").
+ */
+function namesMark(text: string, index: number): boolean {
+  let before = index - 1;
+  while (before >= 0 && LINE_SPACE.test(text[before])) before -= 1;
+  let after = index + 1;
+  while (after < text.length && LINE_SPACE.test(text[after])) after += 1;
+  if (MARK_QUOTES.test(text[before] ?? "") && MARK_QUOTES.test(text[after] ?? "")) return true;
+  // "It was late . we left" is a stray space: only a naming word makes it a symbol.
+  if (before === index - 1) return false;
+  let wordStart = before + 1;
+  while (wordStart > 0 && /[A-Za-z]/.test(text[wordStart - 1])) wordStart -= 1;
+  if (WORD_CHAR.test(text[wordStart - 1] ?? "")) return false;
+  return MARK_NAMING_WORDS.has(text.slice(wordStart, before + 1).toLowerCase());
 }
 
 /** Index of the newline that starts the line `wordStart` is the first word of, or null. */
@@ -381,7 +414,8 @@ const wordSpelling: Detector = (ctx) => {
     if (isGluedToTechnical(ctx.text, start, end)) continue;
     // "--dont-ask", "dont-care", "alot-lib": a hyphen after the word makes it
     // part of a longer name, and typing never reaches a word boundary there.
-    if (ctx.text[end] === "-") continue;
+    // A double hyphen is a dash ("I dont--really--care"): like a space.
+    if (ctx.text[end] === "-" && ctx.text[end + 1] !== "-") continue;
     // Typing still corrects the end of "x-teh" or "--dont", so review flags it,
     // but only one at a time: a compound or an option name may be deliberate.
     const glued: RawFinding["bulkBlock"] = ctx.text[start - 1] === "-" ? "ambiguous" : undefined;
@@ -567,28 +601,48 @@ const theirThere: Detector = (ctx) => {
 
 // The word right before a phrase, on the same line.
 const PREVIOUS_WORD = /([A-Za-z]+)[ \t\u00A0]+$/;
-// Verbs and prepositions that take "you" as their object: "I told you was"
-// reads "(what) I told you was". Regular past tenses ("promised") and gerunds
-// ("Meeting you was") are recognized by their ending.
+// Verbs and prepositions after which "you" can only be their object: "I told
+// you was" reads "(what) I told you was". Verbs that can introduce a clause
+// ("I heard you was sick", "I knew you was lying") are left out: after them
+// "you" is usually the subject of the new clause.
 const OBJECT_YOU_BEFORE = new Set([
-  ...["tell", "tells", "told", "give", "gives", "gave", "given", "show", "shows", "shown"],
-  ...["send", "sends", "sent", "ask", "asks", "thank", "thanks", "teach", "taught", "pay"],
-  ...["paid", "bring", "brought", "buy", "bought", "get", "got", "gotten", "owe", "make"],
-  ...["made", "let", "see", "saw", "seen", "hear", "heard", "meet", "met", "love", "hate"],
-  ...["want", "need", "help", "call", "find", "found", "leave", "left", "know", "knew"],
-  ...["known", "hit", "hurt", "keep", "kept", "lend", "lent", "sell", "sold", "write"],
-  ...["wrote", "written", "read", "remind", "warn", "trust", "miss", "choose", "chose"],
-  ...["chosen", "lose", "lost", "offer", "promise", "beat", "catch", "caught", "bless"],
+  ...["tell", "tells", "told", "give", "gives", "gave", "given", "show", "shows", "showed"],
+  ...["shown", "send", "sends", "sent", "ask", "asks", "asked", "thank", "thanks", "thanked"],
+  ...["teach", "teaches", "taught", "pay", "pays", "paid", "bring", "brings", "brought"],
+  ...["buy", "buys", "bought", "owe", "owes", "owed", "lend", "lends", "lent", "sell"],
+  ...["sells", "sold", "write", "writes", "wrote", "written", "remind", "reminds"],
+  ...["reminded", "warn", "warns", "warned", "offer", "offers", "offered", "promise"],
+  ...["promises", "promised", "meet", "met", "love", "hate", "help", "call", "leave", "left"],
+  ...["hit", "hurt", "keep", "kept", "miss", "choose", "chose", "chosen", "lose", "lost"],
+  ...["beat", "catch", "caught", "bless", "blessed", "make", "made", "let", "want", "wanted"],
+  ...["need", "needed"],
   ...["to", "for", "with", "of", "about", "from", "at", "by", "on", "upon", "onto", "into"],
   ...["toward", "towards", "against", "without", "behind", "beside", "besides", "around"],
   ...["near", "among", "between", "beyond", "under", "over", "through", "unto", "within"],
 ]);
-// Words ending in "ed" or "ing" that are not verbs taking an object.
-const NOT_OBJECT_TAKERS = /^(?:indeed|\p{L}*thing)$/u;
+// Words ending in "ing" that are not gerunds taking an object.
+const NOT_GERUNDS = /^(?:\p{L}*thing|during|morning|evening|ceiling|king|spring|string)$/u;
+// Gerunds that can introduce a clause: "Knowing you was lying, I left".
+const CLAUSE_GERUNDS = new Set([
+  ...["knowing", "hearing", "seeing", "finding", "thinking", "believing", "feeling"],
+  ...["noticing", "realizing", "realising", "hoping", "wishing", "saying", "guessing"],
+  ...["supposing", "assuming", "figuring", "imagining", "remembering", "forgetting"],
+  ...["understanding", "learning", "reading", "deciding", "suspecting", "fearing"],
+  ...["expecting", "pretending", "claiming", "admitting", "doubting", "trusting"],
+]);
 
-function takesObjectYou(word: string): boolean {
+/**
+ * True when "you" after `word` can only be its object. A past tense or a
+ * gerund elsewhere may take "you" as its object ("the man calling you") or
+ * introduce a clause ("I assumed you was busy", "I was hoping you was"), so
+ * its ending alone never decides it: such a finding stays, one at a time.
+ */
+function takesObjectYou(word: string, opensItsClause: boolean): boolean {
   if (OBJECT_YOU_BEFORE.has(word)) return true;
-  return word.length > 4 && /(?:ed|ing)$/.test(word) && !NOT_OBJECT_TAKERS.test(word);
+  // A gerund opening its clause is the subject, and "you" its object:
+  // "Meeting you was great".
+  const gerund = word.length > 4 && word.endsWith("ing") && !NOT_GERUNDS.test(word);
+  return gerund && opensItsClause && !CLAUSE_GERUNDS.has(word);
 }
 
 // Subordinators after which "you" opens a clause as its subject: "if you was".
@@ -623,12 +677,18 @@ const pronounVerb: Detector = (ctx) => {
     if (inputPronoun.toLowerCase() === "you") {
       // "Everything I told you was", "Seeing you was", "the gift for you was":
       // "you" is the object of the word before it, and "was" is right.
-      const previous = PREVIOUS_WORD.exec(
-        ctx.text.slice(Math.max(0, phraseRange.start - 32), phraseRange.start),
-      )?.[1].toLowerCase();
-      if (previous && takesObjectYou(previous)) continue;
+      const lookback = Math.max(0, phraseRange.start - 32);
+      const previousMatch = PREVIOUS_WORD.exec(ctx.text.slice(lookback, phraseRange.start));
+      const previous = previousMatch?.[1].toLowerCase();
+      if (
+        previous &&
+        takesObjectYou(previous, opensClause(ctx.text, lookback + previousMatch!.index))
+      ) {
+        continue;
+      }
       // Only a clause start says subject for sure ("You was late.", "if you
-      // was there"); anywhere else a verb this list lacks may precede it.
+      // was there"); anywhere else ("I heard you was sick") the word before
+      // may still take "you" as its object: one at a time.
       if (!opensClause(ctx.text, phraseRange.start) && !YOU_SUBJECT_BEFORE.has(previous ?? "")) {
         bulkBlock = "context-dependent";
       }
@@ -824,9 +884,14 @@ const commaPeriodSpacing: Detector = (ctx) => {
     const start = match.index;
     if (match[1] !== "." && frenchSpacing) continue;
     const end = start + match[0].length;
-    // "press . to repeat", "type ? for help": between spaces and before a
-    // lowercase word, the mark is a symbol being named, not a sentence end.
-    if (STANDALONE_MARK_FOLLOWER.test(ctx.text.slice(end, end + 8))) continue;
+    // "press . to repeat", "type ? for help": before a lowercase word, a
+    // named mark is a symbol, not a sentence end.
+    if (
+      STANDALONE_MARK_FOLLOWER.test(ctx.text.slice(end, end + 8)) &&
+      namesMark(ctx.text, end - 1)
+    ) {
+      continue;
+    }
     findings.push({
       ruleId: "commaPeriodSpacing",
       messageKey: "review_msg_space_before_mark",

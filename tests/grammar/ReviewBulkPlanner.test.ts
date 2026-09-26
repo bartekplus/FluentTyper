@@ -266,6 +266,17 @@ describe("adversarial review regressions: planning", () => {
       "You were late. Hello. Next",
     );
   });
+
+  test("Fix all fixes stray marks and dashes, and leaves a clause's subject for review", () => {
+    expect(reviewAndPlan("It was late . we left.").plan.expectedText).toBe("It was late. We left.");
+    expect(reviewAndPlan("I dont--really--care.").plan.expectedText).toBe("I don't--really--care.");
+    // "you was" after a clause-opening verb is found, but fixed one at a time.
+    for (const text of ["I heard you was sick.", "I was hoping you was coming."]) {
+      const { diagnostics, plan } = reviewAndPlan(text);
+      expect(diagnostics.map((d) => d.original)).toEqual(["you was"]);
+      expect(plan.expectedText).toBe(text);
+    }
+  });
 });
 
 describe("text ranges", () => {

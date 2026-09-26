@@ -578,13 +578,15 @@ export class ReviewSession {
     try {
       let step = request;
       while (!step.done) step = steps.next(step.value.checks.map(() => false));
-      return step.value;
+      // A planner that threw is finished without a plan: `next` returns no value.
+      if (step.value) return step.value;
     } catch {
-      const deferred = this.visibleDiagnostics()
-        .filter((d) => d.ruleId !== REVIEW_SPELLING_CHECK)
-        .map((d) => ({ id: d.id, reason: "unproven" as const }));
-      return { diagnosticIds: [], edits: [], expectedText: text, deferred };
+      // The planner failed while finishing: the same as having no plan.
     }
+    const deferred = this.visibleDiagnostics()
+      .filter((d) => d.ruleId !== REVIEW_SPELLING_CHECK)
+      .map((d) => ({ id: d.id, reason: "unproven" as const }));
+    return { diagnosticIds: [], edits: [], expectedText: text, deferred };
   }
 
   private async write(

@@ -467,6 +467,7 @@ describe("adversarial review regressions: detection", () => {
       "Meeting you was great.",
       "The letter for you was lost.",
       "What I said to you was true.",
+      "the gift for you was",
     ]) {
       expect(only(text, rule)).toEqual([]);
     }
@@ -486,6 +487,22 @@ describe("adversarial review regressions: detection", () => {
       const [finding] = review(text, { enabledRules: [rule] });
       expect(finding.alternatives[0].preview).toBe("you were");
       expect(finding.bulk).toEqual({ eligible: false, reason: "context-dependent" });
+    }
+    // After a verb that can open a clause ("heard", "knew", "Knowing"), or a
+    // past tense or "-ing" word that is not a gerund subject, "you" may be the
+    // subject of a new clause: found, one at a time.
+    for (const text of [
+      "I heard you was sick.",
+      "I knew you was lying.",
+      "I assumed you was busy.",
+      "I'm surprised you was there.",
+      "I was hoping you was coming.",
+      "Tomorrow morning you was going to call.",
+      "Knowing you was lying, I left.",
+    ]) {
+      const findings = review(text, { enabledRules: [rule] });
+      expect(findings.map((d) => d.alternatives[0].preview)).toEqual(["you were"]);
+      expect(findings[0].bulk).toEqual({ eligible: false, reason: "context-dependent" });
     }
   });
 
@@ -511,7 +528,11 @@ describe("adversarial review regressions: detection", () => {
   test("a mark between spaces before a lowercase word is a symbol, not a sentence end", () => {
     const text = "In Vim, press . to repeat. Type ? for help.";
     expect(review(text)).toEqual([]);
-    expect(review("Hello ! how are you")).toEqual([]);
+    // Only a named mark is a symbol; after any other word it ends the sentence.
+    expect(summary(review("Hello ! how are you"))).toEqual([
+      ["commaPeriodSpacing", " !", [5, 7], "!"],
+      ["capitalizeSentenceStart", "h", [8, 9], "H"],
+    ]);
     // Before a capital, or ending the text, it is still a stray space.
     expect(summary(review("Hello . Next"))).toEqual([["commaPeriodSpacing", " .", [5, 7], "."]]);
     expect(summary(review("End of the sentence ."))).toEqual([
@@ -540,6 +561,48 @@ describe("adversarial review regressions: detection", () => {
     for (const finding of findings) {
       expect(finding.bulk).toEqual({ eligible: false, reason: "ambiguous" });
     }
+  });
+
+  test("a stray space before a period is fixed unless the mark is named", () => {
+    // A mark after an ordinary word ends the sentence: both fixes, batched.
+    const findings = review("It was late . we left.");
+    expect(summary(findings)).toEqual([
+      ["commaPeriodSpacing", " .", [11, 13], "."],
+      ["capitalizeSentenceStart", "w", [14, 15], "W"],
+    ]);
+    for (const finding of findings) expect(finding.bulk.eligible).toBe(true);
+    // A mark after a word that names keys or symbols, or in quotes, is a symbol.
+    for (const text of [
+      "Press . to repeat.",
+      "Hit ! to force it.",
+      "Use the . key to repeat.",
+      "End it with a . then stop.",
+      "Type the dot . then enter.",
+      "Type '.' to repeat.",
+      'Type "." to repeat.',
+      "Type ` . ` to repeat.",
+    ]) {
+      expect(review(text)).toEqual([]);
+    }
+    // A word merely ending like a naming word does not name the mark.
+    expect(summary(review("Compress . then wait."))).toEqual([
+      ["commaPeriodSpacing", " .", [8, 10], "."],
+      ["capitalizeSentenceStart", "t", [11, 12], "T"],
+    ]);
+  });
+
+  test("a double hyphen is a dash, not a hyphen joining a longer name", () => {
+    const findings = review("I dont--really--care.");
+    expect(summary(findings)).toEqual([
+      ["englishContractionNormalization", "dont", [2, 6], "don't"],
+    ]);
+    expect(findings[0].bulk.eligible).toBe(true);
+    // After a double hyphen, typing still corrects the word: one at a time.
+    const [after] = review("Oh--dont go.", { enabledRules: ["englishContractionNormalization"] });
+    expect(summary([after])).toEqual([
+      ["englishContractionNormalization", "dont", [4, 8], "don't"],
+    ]);
+    expect(after.bulk).toEqual({ eligible: false, reason: "ambiguous" });
   });
 
   test("indented code is protected with CRLF and whitespace-only blank lines too", () => {
@@ -609,8 +672,12 @@ describe("review detectors: punctuation and spacing", () => {
       ["commaPeriodSpacing", " ?", [17, 19], "?"],
       ["commaPeriodSpacing", ",", [22, 23], ", "],
     ]);
-    // Before a lowercase word, a mark between spaces is a symbol ("press . to").
-    expect(only("Really ? ok", "commaPeriodSpacing")).toEqual([]);
+    // Before a lowercase word, a named mark is a symbol ("press . to"); any
+    // other mark between spaces is still a stray space.
+    expect(only("Press ? ok", "commaPeriodSpacing")).toEqual([]);
+    expect(only("Really ? ok", "commaPeriodSpacing")).toEqual([
+      ["commaPeriodSpacing", " ?", [6, 8], "?"],
+    ]);
     // The missing space follows the "space after autocomplete" setting.
     expect(only("ok,then", "commaPeriodSpacing", { insertSpaceAfterAutocomplete: false })).toEqual(
       [],
