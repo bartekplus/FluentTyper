@@ -491,6 +491,61 @@ body.fluenttyper-popup[data-theme="dark"] .setting-card {
   white-space: nowrap;
 }
 
+/* "Review text": this page's one action, beside its status instead of a grid card. */
+.page-state-panel.has-action .page-state-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 0.75rem;
+  row-gap: 0.14rem;
+}
+
+.page-state-panel.has-action .page-state-body,
+.page-state-panel.has-action .page-state-meta {
+  grid-column: 1;
+}
+
+.page-state-panel.has-action .page-state-meta::before {
+  display: none;
+}
+
+.page-state-action {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  justify-self: end;
+}
+
+.page-state-action-button.button {
+  gap: 0.4rem;
+  height: 2rem;
+  padding-inline: 0.8rem 0.55rem;
+  font-size: 0.78rem;
+  font-weight: 650;
+  white-space: nowrap;
+  box-shadow: 0 6px 16px -10px var(--accent-color);
+}
+
+.page-state-action-button.button:focus-visible {
+  box-shadow: var(--popup-focus-ring-shadow);
+}
+
+.page-state-action-button svg {
+  flex-shrink: 0;
+}
+
+.page-state-kbd {
+  padding: 0.12rem 0.36rem;
+  border: 1px solid rgba(255, 255, 255, 0.34);
+  border-radius: 0.35rem;
+  background: rgba(255, 255, 255, 0.16);
+  color: inherit;
+  font-family: inherit;
+  font-size: 0.64rem;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0.02em;
+}
+
 .page-state-chip + .page-state-chip::before {
   content: "\2022";
   margin-right: 0.32rem;

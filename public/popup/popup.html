@@ -104,6 +104,39 @@
                 <span id="pageStateLanguage" class="page-state-chip"></span>
                 <span id="pageStateProfile" class="page-state-chip"></span>
               </div>
+              <!-- An action on this page, not a setting: it lives with the page's status. -->
+              <div id="reviewTextAction" class="page-state-action is-hidden">
+                <button
+                  id="reviewTextBtn"
+                  type="button"
+                  class="button is-small is-rounded is-link page-state-action-button"
+                  aria-describedby="reviewTextHint"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="15"
+                    height="15"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M4 7h11" />
+                    <path d="M4 12h7" />
+                    <path d="M4 17h5" />
+                    <path d="m13 17 3 3 5-6" />
+                  </svg>
+                  <span data-i18n="popup_review_text">Review text</span>
+                  <kbd id="reviewTextShortcut" class="page-state-kbd is-hidden"></kbd>
+                </button>
+                <span id="reviewTextHint" class="sr-only" data-i18n="popup_review_text_hint"
+                  >Checks the focused field, or only the selected text, with your enabled rules.
+                  Nothing changes until you apply a fix.</span
+                >
+              </div>
             </div>
           </div>
 
@@ -129,27 +162,6 @@
                   />
                   <label for="checkboxDomainInput"></label>
                 </div>
-              </div>
-            </div>
-
-            <div id="reviewTextCard" class="setting-card setting-card--control is-hidden">
-              <div class="setting-card-header">
-                <div class="row-copy">
-                  <span class="row-label" data-i18n="popup_review_text">Review text</span>
-                  <span id="reviewTextHint" class="row-hint" data-i18n="popup_review_text_hint"
-                    >Checks the focused field, or only the selected text, with your enabled rules.
-                    Nothing changes until you apply a fix.</span
-                  >
-                  <span id="reviewTextShortcut" class="row-hint"></span>
-                </div>
-                <button
-                  id="reviewTextBtn"
-                  type="button"
-                  class="button is-small is-rounded is-link"
-                  data-i18n="popup_review_text"
-                >
-                  Review text
-                </button>
               </div>
             </div>
 
