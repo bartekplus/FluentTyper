@@ -1345,6 +1345,15 @@ describe("adversarial review regressions", () => {
       expect(escape("Escape")).toBe(true);
       expect(cardOpen()).toBe(false);
       expect(escape("Escape")).toBe(false);
+      // A click on Docs' own bubble (a link's) over the word is not a click on the text.
+      const bubble = document.createElement("div");
+      bubble.className = "docs-bubble";
+      editor.append(bubble);
+      bubble.dispatchEvent(
+        new MouseEventCtor("click", { bubbles: true, clientX: 175, clientY: 110, detail: 1 }),
+      );
+      expect(cardOpen()).toBe(false);
+      bubble.remove();
       // The second click of a double click closes what the first opened.
       clickAt(175, 110);
       clickAt(175, 110, undefined, { detail: 2 });

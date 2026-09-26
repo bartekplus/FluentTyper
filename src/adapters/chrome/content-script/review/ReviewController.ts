@@ -644,6 +644,14 @@ export class ReviewController {
     } else if (element.ownerDocument.getSelection()?.isCollapsed === false) {
       return;
     }
+    // Docs' own bubbles and menus inside the editor (a link's bubble) are not its text.
+    if (
+      active.target instanceof GoogleDocsReviewTarget &&
+      event.target instanceof Element &&
+      event.target.closest(DOCS_POPUPS)
+    ) {
+      return;
+    }
     // A double click, a shift-click or a drag selects text (in Docs, only its
     // own model knows): that is not a click on a finding.
     const start = this.pressAt;
