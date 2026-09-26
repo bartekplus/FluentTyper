@@ -24,7 +24,7 @@ import {
   type DocsReply,
   type DocsEdit,
 } from "./GoogleDocsModel";
-import { getDocsInput, type DocsInput } from "./GoogleDocsEnvironment";
+import { findDocsInput, getDocsInput, type DocsInput } from "./GoogleDocsEnvironment";
 import { GoogleDocsBridgeClient } from "./GoogleDocsBridgeClient";
 import { GoogleDocsView } from "./GoogleDocsView";
 
@@ -292,6 +292,7 @@ export class GoogleDocsAdapter {
     if (this.pollTimer !== null) clearInterval(this.pollTimer);
     this.pollTimer = null;
     this.bind(null);
+    document.removeEventListener("focusin", this.reviewFocusListener, true);
     this.bridge.dispose();
     this.view.dispose();
     document.removeEventListener(KEY_EVENT, this.bridgeKeyListener);
@@ -317,14 +318,28 @@ export class GoogleDocsAdapter {
     this.clearPendingTriggers();
     this.dismiss();
     if (!active) {
+      document.removeEventListener("focusin", this.reviewFocusListener, true);
       void this.refresh(true);
       return;
     }
-    // Typing refreshes are paused, so bind the input frame now: its events
-    // are how an open review learns that the document changed.
-    const input = getDocsInput();
+    document.addEventListener("focusin", this.reviewFocusListener, true);
+    this.bindForReview();
+  }
+
+  /**
+   * While reviewing, typing refreshes are paused, yet the input frame's events
+   * are how the review learns the document changed. So the current frame is
+   * bound whether or not it has focus: the review panel may hold focus when a
+   * settings restart creates this adapter, and Docs may replace the frame.
+   * Rebound on review start, on every focus change and on every review read.
+   */
+  private bindForReview(): void {
+    if (!this.reviewActive || this.disposed) return;
+    const input = getDocsInput() ?? findDocsInput();
     if (input) this.bind(input);
   }
+
+  private readonly reviewFocusListener = () => this.bindForReview();
 
   /**
    * While a review is active, `listener` runs on every editing keystroke,
@@ -346,18 +361,21 @@ export class GoogleDocsAdapter {
 
   /** Docs reads and writes only while its input frame has focus (e.g. after a panel click). */
   reviewFocusEditor(): void {
-    const input = this.input ?? getDocsInput();
+    // Found without focus: this may be called with the review panel focused.
+    const input = this.input?.frame.isConnected ? this.input : findDocsInput();
     try {
       input?.frame.focus();
       input?.element.focus({ preventScroll: true });
     } catch {
       // A detached frame: the next read reports it.
     }
+    this.bindForReview();
   }
 
   /** A fresh single-use-token snapshot through the same verified bridge as typing. */
   reviewRead(): Promise<DocsReply> {
     if (this.disposed) return Promise.resolve({ status: "cancelled" });
+    this.bindForReview();
     if (this.applying) return Promise.resolve({ status: "busy" });
     return this.bridge.read();
   }

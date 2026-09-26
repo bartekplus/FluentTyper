@@ -902,6 +902,42 @@ describe("Google Docs cross-world fixture (not live Docs)", () => {
     );
     await evaluate("review.dispose()");
   });
+  test("a review survives a settings restart made while its panel has focus", async () => {
+    await startGrammar(["englishTypoWhitelistCorrection"]);
+    await page.evaluate(() => {
+      const f = window as unknown as { setModel: (text: string) => void; focusEditor: () => void };
+      f.setModel("See teh plan.");
+      f.focusEditor();
+    });
+    await evaluate("startReview()");
+    await waitUntil("docs review", async () => (await reviewPanel()).status === "Issues: 1");
+    // The keyboard moves into the review panel: Docs' input frame loses focus.
+    await page.evaluate(() => {
+      document
+        .querySelector("[data-fluenttyper-review]")!
+        .shadowRoot!.querySelector<HTMLElement>(".item")!
+        .focus();
+    });
+    expect(await evaluate<string>("document.activeElement?.tagName ?? ''")).not.toBe("IFRAME");
+    // A settings restart replaces the adapter while the panel still has focus.
+    await evaluate('startDocs({ enabledGrammarRules: ["englishTypoWhitelistCorrection"] })');
+    // Applying from the panel: the new adapter finds and focuses Docs itself.
+    await clickInReview(".item");
+    await waitUntil("docs card", async () => (await reviewPanel()).cardOpen);
+    await clickInReview(".card [data-action=apply]");
+    await expectText("See the plan.");
+    // Typing in Docs still rechecks the review, without touching the panel.
+    await page.evaluate(() => {
+      (window as unknown as { focusEditor: () => void }).focusEditor();
+    });
+    await page.keyboard.type(" teh ", { delay: TYPING_DELAY_MS });
+    await waitUntil("recheck after restart", async () =>
+      (await reviewPanel()).items.includes("teh \u2192 the"),
+    ).catch(async (error) => {
+      throw new Error(`${String(error)} ${JSON.stringify(await reviewPanel())}`);
+    });
+    await evaluate("review.dispose()");
+  });
   test("a long document is reviewed around the cursor and reported as partial", async () => {
     await startGrammar([]);
     const filler = "Plain words stay here. ".repeat(1200);

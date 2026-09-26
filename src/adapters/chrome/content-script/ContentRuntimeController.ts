@@ -24,7 +24,7 @@ import { ReviewLauncher } from "./review/ReviewLauncher";
 import { isReviewSupportedRule } from "@core/domain/grammar/review/reviewCatalog";
 
 import { GoogleDocsAdapter } from "./google-docs/GoogleDocsAdapter";
-import type { GoogleDocsReviewSurface } from "./review/GoogleDocsReviewTarget";
+import { DocsReviewSurfaceProxy } from "./review/DocsReviewSurfaceProxy";
 import { DOCS_SESSION_ID } from "./google-docs/GoogleDocsModel";
 import { isGoogleDocsPage, isGoogleDocsInputFrame } from "./google-docs/GoogleDocsEnvironment";
 
@@ -70,27 +70,8 @@ export class ContentRuntimeController {
     null;
   private onRuntimeActivity: ((runtimeGeneration: number) => void) | null = null;
   private readonly onRestartRequest = this.restart.bind(this);
-  // An open Docs review outlives a settings restart: it talks to whichever
-  // Docs adapter is current, and a new adapter learns the review is open.
-  private docsReviewActive = false;
-  private readonly docsSourceListeners = new Set<() => void>();
-  private readonly docsReviewSurface: GoogleDocsReviewSurface = {
-    reviewRead: () => this.googleDocs?.reviewRead() ?? Promise.resolve({ status: "busy" }),
-    reviewApply: (token, edit) =>
-      this.googleDocs?.reviewApply(token, edit) ?? Promise.resolve({ status: "busy" }),
-    setReviewActive: (active) => {
-      this.docsReviewActive = active;
-      this.googleDocs?.setReviewActive(active);
-    },
-    reviewFocusEditor: () => this.googleDocs?.reviewFocusEditor(),
-    // Kept here, not on the adapter, so a review survives the adapter being replaced.
-    onReviewSourceChange: (listener) => {
-      this.docsSourceListeners.add(listener);
-      return () => {
-        this.docsSourceListeners.delete(listener);
-      };
-    },
-  };
+  // An open Docs review outlives a settings restart, which replaces the adapter.
+  private readonly docsReviewSurface = new DocsReviewSurfaceProxy();
   private readonly mutationPipeline: MutationPipeline;
   private readonly mutationScheduler: MutationScheduler;
   private predictionGeneration = 0;
@@ -385,6 +366,7 @@ export class ContentRuntimeController {
     }
     this.googleDocs?.dispose();
     this.googleDocs = null;
+    this.docsReviewSurface.attach(null);
     logger.info("Disabling content runtime");
     if (this.pendingRestartTimer !== null) {
       clearTimeout(this.pendingRestartTimer);
@@ -568,10 +550,7 @@ export class ContentRuntimeController {
     if (this.reviewSuspended) this.suggestionManager.suspendForReview(this.reviewSuspended);
     if (isGoogleDocsPage()) {
       this.googleDocs = new GoogleDocsAdapter(managerOptions);
-      this.googleDocs.onReviewSourceChange(() => {
-        for (const listener of this.docsSourceListeners) listener();
-      });
-      if (this.docsReviewActive) this.googleDocs.setReviewActive(true);
+      this.docsReviewSurface.attach(this.googleDocs);
     }
     this.reportRuntimeActivity();
   }

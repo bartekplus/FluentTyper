@@ -362,6 +362,61 @@ describe("text control writes", () => {
 });
 
 describe("contenteditable writes", () => {
+  test("a focus handler that only changes protection makes the write fail untouched", async () => {
+    setExecCommand(contentEditableInsert);
+    const root = createEditor("<p>We saw teh cat.</p>");
+    root.tabIndex = 0;
+    const target = new ContentEditableReviewTarget(root);
+    const read = target.read();
+    if (!read.ok) throw new Error("unreadable");
+    // Same text, same Text node, now inside <code>: code is never corrected.
+    root.addEventListener(
+      "focus",
+      () => {
+        const paragraph = root.querySelector("p")!;
+        const code = document.createElement("code");
+        code.append(...paragraph.childNodes);
+        paragraph.append(code);
+      },
+      { once: true },
+    );
+    root.blur();
+    expect(
+      await target.apply({
+        edits: [edit(8, 10, "eh", "he")],
+        before: read.text,
+        after: "We saw the cat.",
+        signature: read.signature,
+      }),
+    ).toEqual({ status: "stale" });
+    expect(root.innerHTML).toBe("<p><code>We saw teh cat.</code></p>");
+  });
+
+  test("a batch never resumes into text that became protected during its pause", async () => {
+    setExecCommand(contentEditableInsert);
+    let clock = 0;
+    jest.spyOn(window.performance, "now").mockImplementation(() => (clock += 100));
+    const root = createEditor("<p>teh and <b>teh</b></p>");
+    root.tabIndex = 0;
+    const target = new ContentEditableReviewTarget(root);
+    const read = target.read();
+    if (!read.ok) throw new Error("unreadable");
+    const pending = target.apply({
+      edits: [edit(1, 3, "eh", "he"), edit(9, 11, "eh", "he")],
+      before: read.text,
+      after: "the and the",
+      signature: read.signature,
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    // The later fix is written; during the pause the first words become code.
+    const first = root.querySelector("p")!.firstChild!;
+    const code = document.createElement("code");
+    first.replaceWith(code);
+    code.append(first);
+    expect(await pending).toEqual({ status: "partial", applied: 1 });
+    expect(root.innerHTML).toBe("<p><code>teh and </code><b>the</b></p>");
+  });
+
   test("minimal edits inside text nodes keep formatting and are verified", async () => {
     setExecCommand(contentEditableInsert);
     const root = createEditor("<p>We saw <b>teh</b> cat , ok</p>");

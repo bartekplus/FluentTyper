@@ -73,6 +73,23 @@ describe("review spelling: which words are looked up", () => {
     expect(words("my wa and wa", { userDictionary: ["WA"] })).toEqual(["my", "and"]);
   });
 
+  test("a selection looks up only the whole words it contains", () => {
+    const scoped = (text: string, start: number, end: number) =>
+      spellingCandidates(
+        prepareReview({ id: "s", text, scope: { start, end }, protectedRanges: [] }, options()),
+        [],
+      ).map((candidate) => [candidate.word, candidate.range.start]);
+    // Starting inside "carefully" (or inside "don't"): the cut word is not a word.
+    expect(scoped("carefully done", 1, 14)).toEqual([["done", 10]]);
+    expect(scoped("I don't know", 6, 12)).toEqual([["know", 8]]);
+    // The whole word selected: looked up.
+    expect(scoped("so carefully done", 3, 12)).toEqual([["carefully", 3]]);
+    // Ending inside a word: that word is left out too.
+    expect(scoped("done carefully", 0, 8)).toEqual([["done", 0]]);
+    // A decomposed accent is part of its word, not a boundary.
+    expect(scoped("cafe\u0301 ok", 0, 8).map(([word]) => word)).toEqual(["cafe\u0301", "ok"]);
+  });
+
   test("words another finding already covers are not looked up again", () => {
     const review = prepared("We saw teh cat");
     expect(spellingCandidates(review, [{ start: 7, end: 10 }]).map((c) => c.word)).toEqual([

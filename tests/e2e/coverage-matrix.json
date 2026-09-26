@@ -2675,6 +2675,16 @@
           "layer": "unit",
           "file": "tests/background.routing.test.ts",
           "test": "onMessage add to dictionary appends once and broadcasts the updated config"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "a focus handler that only changes protection makes the write fail untouched"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "a batch never resumes into text that became protected during its pause"
         }
       ]
     },
@@ -2775,6 +2785,16 @@
           "layer": "unit",
           "file": "tests/ReviewAdapters.test.ts",
           "test": "a window cut from a longer document starts at a sentence and ends at a word"
+        },
+        {
+          "layer": "integration",
+          "file": "tests/e2e/google-docs.e2e.test.ts",
+          "test": "a review survives a settings restart made while its panel has focus"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/DocsReviewSurfaceProxy.test.ts",
+          "test": "a replacement adapter inherits the open review and its listeners"
         }
       ]
     },
@@ -2833,6 +2853,11 @@
           "layer": "unit",
           "file": "tests/PresageHandler.live.test.ts",
           "test": "known words come back as known; unknown ones get candidates, even in prefix-only mode"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewSpelling.test.ts",
+          "test": "a selection looks up only the whole words it contains"
         }
       ]
     },

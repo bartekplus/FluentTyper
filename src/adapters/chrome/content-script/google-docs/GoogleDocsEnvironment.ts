@@ -23,8 +23,20 @@ export interface DocsInput {
 export function getDocsInput(doc: Document = document): DocsInput | null {
   const frame = doc.activeElement;
   if (!frame?.matches(INPUT_FRAME_SELECTOR)) return null;
+  return inputOf(frame as HTMLIFrameElement);
+}
+
+/**
+ * Docs' input frame whether or not it has focus (a review panel may hold it).
+ * For listening to the editor and focusing it, never for reading typed text.
+ */
+export function findDocsInput(doc: Document = document): DocsInput | null {
+  const frame = doc.querySelector<HTMLIFrameElement>(INPUT_FRAME_SELECTOR);
+  return frame ? inputOf(frame) : null;
+}
+
+function inputOf(iframe: HTMLIFrameElement): DocsInput | null {
   try {
-    const iframe = frame as HTMLIFrameElement;
     const inner = iframe.contentDocument;
     // Docs' setSelection blurs the inner editable while the frame stays focused; fall back
     // to the frame's editable target instead of treating that transient blur as inactive.

@@ -5,7 +5,11 @@ import type {
   ReviewTargetRead,
 } from "@core/application/review/ReviewSession";
 import type { ReviewEdit, TextRange } from "@core/domain/grammar/review/types";
-import { mergeEdits, positionThroughEdits } from "@core/domain/grammar/review/textRanges";
+import {
+  editTouches,
+  mergeEdits,
+  positionThroughEdits,
+} from "@core/domain/grammar/review/textRanges";
 import { getDeepActiveElement, isInDocument } from "@core/application/dom-utils";
 import { ancestorContext } from "../suggestions/CodeContextResolver";
 import { isLockedField, isSensitiveField } from "../suggestions/FieldEligibility";
@@ -62,6 +66,16 @@ type Resolution =
 function isTextControl(element: Element): element is HTMLInputElement | HTMLTextAreaElement {
   return element.tagName === "INPUT" || element.tagName === "TEXTAREA";
 }
+
+/** The protected ranges wholly before `limit`, as a comparable key. */
+function protectionKey(ranges: readonly ProtectedRangeLike[], limit: number): string {
+  return ranges
+    .filter((range) => range.end <= limit)
+    .map((range) => `${range.start}-${range.end}:${range.reason}`)
+    .join(",");
+}
+
+type ProtectedRangeLike = TextRange & { reason: string };
 
 /** The outermost contenteditable ancestor (the editing host) of `element`. */
 export function editingHost(element: HTMLElement): HTMLElement | null {
@@ -378,6 +392,15 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
       return !!focused && (focused === root || root.contains(focused));
     };
     if (!focusInside()) return { status: "rejected", reason: "host-refused" };
+    // Focus handlers run page code, which may have changed the text or only its
+    // markup (text moved into <code>): re-read everything before the first write.
+    if (!isReviewEligible(root)) return { status: "rejected", reason: "ineligible" };
+    if (this.composing) return { status: "rejected", reason: "composing" };
+    map = buildContentEditableTextMap(root);
+    if (map.text !== request.before || map.signature !== request.signature) {
+      return { status: "stale" };
+    }
+    const protectedAtStart = map.protectedRanges;
     let current = request.before;
     // Each write is verified in its own block when that block reads the same
     // on its own; a final full read-back below verifies the whole result.
@@ -396,6 +419,18 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
         map = buildContentEditableTextMap(root);
         written = null;
         if (map.text !== current || this.composing || !root.isConnected || !focusInside()) {
+          return failAt({ status: "stale" });
+        }
+        // The edits still to come lie before the ones written: that part of the
+        // text must still have exactly the protection it had, and none may touch it.
+        const limit = index === 0 ? Number.POSITIVE_INFINITY : edits[index - 1].start;
+        if (
+          !isReviewEligible(root) ||
+          protectionKey(map.protectedRanges, limit) !== protectionKey(protectedAtStart, limit) ||
+          edits
+            .slice(index)
+            .some((pending) => map.protectedRanges.some((range) => editTouches(pending, range)))
+        ) {
           return failAt({ status: "stale" });
         }
         sliceStart = win.performance.now();

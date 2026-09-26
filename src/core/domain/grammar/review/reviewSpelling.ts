@@ -26,9 +26,10 @@ export const MAX_SPELLING_SUGGESTIONS = 5;
 const MIN_WORD_CHARS = 2;
 const MAX_WORD_CHARS = 40;
 
-const WORD = /\p{L}+(?:['’]\p{L}+)*/gu;
+// Letters with their combining marks ("e\u0301"), joined by inner apostrophes.
+const WORD = /\p{L}[\p{L}\p{M}]*(?:['’]\p{L}[\p{L}\p{M}]*)*/gu;
 // Separate from WORD: String#match resets a shared regex's lastIndex.
-const CONTEXT_WORD = /\p{L}+(?:['’]\p{L}+)*/gu;
+const CONTEXT_WORD = /\p{L}[\p{L}\p{M}]*(?:['’]\p{L}[\p{L}\p{M}]*)*/gu;
 const SUGGESTION = /^\p{L}+(?:['’]\p{L}+)*$/u;
 // A word glued to these is part of a number, path, handle, identifier or compound.
 const GLUE = /[\p{N}_@#$%&/\\=+*<>~^`|-]/u;
@@ -71,6 +72,10 @@ export function spellingCandidates(
     if (word.length < MIN_WORD_CHARS || word.length > MAX_WORD_CHARS) continue;
     const previous = text[start - 1] ?? "";
     const next = text[end] ?? "";
+    // A selection that starts inside a word ("c|arefully") holds only part of it:
+    // the part is not a word to look up. (A word running past the end is cut above.)
+    if (/[\p{L}\p{M}\p{N}]/u.test(previous)) continue;
+    if (/['’]/u.test(previous) && /[\p{L}\p{M}\p{N}]/u.test(text[start - 2] ?? "")) continue;
     if (GLUE.test(previous) || GLUE.test(next) || previous === MASK_CHAR || next === MASK_CHAR) {
       continue;
     }
