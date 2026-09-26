@@ -180,7 +180,6 @@ footer .fix-note { padding: 0; }
   background: color-mix(in srgb, var(--ft-cat) 14%, transparent);
 }
 .hint { font-size: 11px; color: var(--ft-muted); }
-.ws { color: var(--ft-muted); }
 @media (forced-colors: active) {
   .mark { border-bottom-color: Highlight; background: transparent; forced-color-adjust: none; }
   .mark[data-selected="true"] { box-shadow: 0 0 0 2px Highlight; }
@@ -203,3 +202,48 @@ export const REVIEW_HIGHLIGHT_NAMES = {
   typography: "fluenttyper-review-typography",
   selected: "fluenttyper-review-selected",
 } as const;
+
+/**
+ * A viewport-sized, click-through host for FluentTyper's own layer, with the
+ * shadow root its UI goes in. The page's CSS cannot reach or move it, and it is
+ * never part of an editing host, even on designMode pages.
+ */
+export function createOverlayHost(
+  doc: Document,
+  attribute: string,
+  zIndex: number,
+): { host: HTMLElement; root: ShadowRoot } {
+  const host = doc.createElement("div");
+  host.setAttribute(attribute, "");
+  host.setAttribute("contenteditable", "false");
+  for (const [name, value] of Object.entries({
+    all: "initial",
+    position: "fixed",
+    inset: "0",
+    width: "100vw",
+    height: "100vh",
+    margin: "0",
+    padding: "0",
+    border: "0",
+    background: "transparent",
+    overflow: "visible",
+    "pointer-events": "none",
+    "z-index": String(zIndex),
+    display: "block",
+  })) {
+    host.style.setProperty(name, value, "important");
+  }
+  return { host, root: host.attachShadow({ mode: "open" }) };
+}
+
+/** Moves a connected host to the top layer, which escapes page transforms, stacking contexts and clipping. */
+export function enterTopLayer(host: HTMLElement): void {
+  const popover = host as HTMLElement & { showPopover?: () => void };
+  if (typeof popover.showPopover !== "function") return;
+  try {
+    host.setAttribute("popover", "manual");
+    popover.showPopover();
+  } catch {
+    host.removeAttribute("popover");
+  }
+}

@@ -144,17 +144,6 @@ describe("bulk planning", () => {
     expect(plan.deferred.map((d) => d.id)).toEqual([a.id, b.id]);
   });
 
-  test("ignored findings and hidden categories are excluded, not deferred", () => {
-    const a = diagnostic([edit(0, 1, "a", "A")]);
-    const b = diagnostic([edit(2, 3, "b", "B")], { category: "grammar" });
-    const plan = planBulkFix("a b", [a, b], {
-      ignored: new Set([a.id]),
-      categories: new Set(["spelling"]),
-    });
-    expect(plan.diagnosticIds).toEqual([]);
-    expect(plan.deferred).toEqual([]);
-  });
-
   test("context-dependent findings need a proof, else both are deferred", () => {
     // b's evidence (context) contains a's edit.
     const a = diagnostic([edit(3, 5, "..", ".")]);

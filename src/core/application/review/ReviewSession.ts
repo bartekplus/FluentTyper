@@ -277,11 +277,7 @@ export class ReviewSession {
   private coverage: ReviewCoverage | null = null;
   private ignored: IgnoredOccurrence[] = [];
   // getState() runs on every change; the plan only depends on these inputs.
-  private listCache: {
-    key: readonly unknown[];
-    active: ReviewDiagnostic[];
-    visible: ReviewDiagnostic[];
-  } | null = null;
+  private listCache: { key: readonly unknown[]; visible: ReviewDiagnostic[] } | null = null;
   // Lookup set for `ignored`, rebuilt when the list is replaced.
   private ignoredKeys: { list: IgnoredOccurrence[]; keys: Set<string> } | null = null;
   private planCache: { key: readonly unknown[]; plan: BulkPlan } | null = null;
@@ -465,23 +461,16 @@ export class ReviewSession {
     return this.status === "ready" && this.capabilities.apply;
   }
 
-  private activeDiagnostics(): ReviewDiagnostic[] {
-    return this.visibleLists().active;
-  }
-
   /** The same array while results, ignores and filters stay the same: the UI keys on it. */
   private visibleDiagnostics(): ReviewDiagnostic[] {
-    return this.visibleLists().visible;
-  }
-
-  private visibleLists(): { active: ReviewDiagnostic[]; visible: ReviewDiagnostic[] } {
     const key = [this.diagnostics, this.ignored, this.categories];
     if (!this.listCache || !sameKey(this.listCache.key, key)) {
-      const active = this.diagnostics.filter((d) => !this.isIgnored(d));
-      const visible = active.filter((d) => this.categories.has(d.category));
-      this.listCache = { key, active, visible };
+      const visible = this.diagnostics.filter(
+        (d) => !this.isIgnored(d) && this.categories.has(d.category),
+      );
+      this.listCache = { key, visible };
     }
-    return this.listCache;
+    return this.listCache.visible;
   }
 
   private ignoredDiagnostics(): ReviewDiagnostic[] {
@@ -519,12 +508,11 @@ export class ReviewSession {
     if (this.planCache && sameKey(this.planCache.key, key)) return this.planCache.plan;
     if (this.planPending && sameKey(this.planPending.key, key)) return null;
     const prepared = this.prepared;
-    const filtered = this.categories.size < REVIEW_CATEGORIES.length ? this.categories : undefined;
-    const ruleFindings = this.activeDiagnostics().filter((d) => d.ruleId !== REVIEW_SPELLING_CHECK);
-    const steps = planBulkFixSteps(this.text, ruleFindings, {
-      categories: filtered,
-      prove: true,
-    });
+    // What is shown: ignored findings and hidden categories are neither fixed nor counted.
+    const ruleFindings = this.visibleDiagnostics().filter(
+      (d) => d.ruleId !== REVIEW_SPELLING_CHECK,
+    );
+    const steps = planBulkFixSteps(this.text, ruleFindings, { prove: true });
     let budget = SYNC_PROOF_CHECKS;
     let step = steps.next();
     while (!step.done && step.value.checks.length <= budget) {

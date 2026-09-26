@@ -22,7 +22,7 @@ export interface SpellingCandidate {
   before: string;
 }
 
-export const MAX_SPELLING_SUGGESTIONS = 5;
+const MAX_SPELLING_SUGGESTIONS = 5;
 const MIN_WORD_CHARS = 2;
 const MAX_WORD_CHARS = 40;
 
@@ -208,18 +208,18 @@ function matchStyle(word: string, suggestion: string): string {
 }
 
 /** Words per lookup request; the session sends larger documents in several. */
-export const MAX_SPELLING_BATCH = 100;
+const MAX_SPELLING_BATCH = 100;
 // The same word shape as WORD (letters with their combining marks: "हिंदी"),
 // with plain apostrophes only.
 const LOOKUP_WORD = /^\p{L}[\p{L}\p{M}]*(?:'\p{L}[\p{L}\p{M}]*)*$/u;
 
 /** A word as it is looked up: typographic apostrophes made plain, and composed (NFC). */
-export function lookupForm(word: string): string {
+function lookupForm(word: string): string {
   return word.replace(/’/g, "'").normalize("NFC");
 }
 
 /** True when a lookup request accepts `word` (see parseSpellingRequest). */
-export function isLookupWord(word: string): boolean {
+function isLookupWord(word: string): boolean {
   return word.length <= MAX_WORD_CHARS && LOOKUP_WORD.test(word);
 }
 const MAX_BEFORE_CHARS = 100;

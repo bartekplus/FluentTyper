@@ -7,7 +7,7 @@ import {
   type ReviewCategory,
   type ReviewDiagnostic,
 } from "@core/domain/grammar/review/types";
-import { REVIEW_SHADOW_CSS } from "./reviewStyles";
+import { REVIEW_SHADOW_CSS, createOverlayHost, enterTopLayer } from "./reviewStyles";
 
 export interface ReviewUiCallbacks {
   close(): void;
@@ -159,29 +159,9 @@ export class ReviewUi {
     mount: Element | null = null,
   ) {
     this.doc = doc;
-    this.host = doc.createElement("div");
-    this.host.setAttribute("data-fluenttyper-review", "");
-    // Never part of an editing host, even on designMode pages.
-    this.host.setAttribute("contenteditable", "false");
-    const hostStyle = this.host.style;
-    for (const [name, value] of Object.entries({
-      all: "initial",
-      position: "fixed",
-      inset: "0",
-      width: "100vw",
-      height: "100vh",
-      margin: "0",
-      padding: "0",
-      border: "0",
-      background: "transparent",
-      overflow: "visible",
-      "pointer-events": "none",
-      "z-index": "2147483647",
-      display: "block",
-    })) {
-      hostStyle.setProperty(name, value, "important");
-    }
-    this.root = this.host.attachShadow({ mode: "open" });
+    const overlay = createOverlayHost(doc, "data-fluenttyper-review", 2147483647);
+    this.host = overlay.host;
+    this.root = overlay.root;
     const style = element(doc, "style", {}, REVIEW_SHADOW_CSS);
     this.marks = element(doc, "div", { class: "layer", "aria-hidden": "true" });
     this.clip = element(doc, "div", { class: "clip" });
@@ -268,23 +248,11 @@ export class ReviewUi {
     this.root.addEventListener("keydown", (event) => this.onKeyDown(event as KeyboardEvent));
 
     (mount ?? doc.documentElement ?? doc.body).appendChild(this.host);
-    this.enterTopLayer();
+    enterTopLayer(this.host);
   }
 
   private t(key: ReviewTextKey, params?: Record<string, string | number>): string {
     return reviewText(key, this.lang, params);
-  }
-
-  /** The top layer escapes page stacking contexts and overflow clipping. */
-  private enterTopLayer(): void {
-    const host = this.host as HTMLElement & { showPopover?: () => void };
-    if (typeof host.showPopover !== "function") return;
-    try {
-      host.setAttribute("popover", "manual");
-      host.showPopover();
-    } catch {
-      host.removeAttribute("popover");
-    }
   }
 
   /**
@@ -702,7 +670,6 @@ export class ReviewUi {
       });
       parts.push(group);
     }
-    const actions = element(doc, "div", { class: "actions" });
     const apply = element(
       doc,
       "button",
@@ -713,29 +680,7 @@ export class ReviewUi {
     apply.addEventListener("click", (event) =>
       this.callbacks.apply(diagnostic.id, this.cardAlternative, event.detail === 0),
     );
-    const ignore = element(
-      doc,
-      "button",
-      { type: "button", "data-action": "ignore", title: this.t("review_card_ignore_hint") },
-      this.t("review_card_ignore"),
-    );
-    ignore.addEventListener("click", () => this.callbacks.ignore(diagnostic.id));
-    actions.append(apply, ignore);
-    if (diagnostic.dictionaryWord) {
-      const add = element(
-        doc,
-        "button",
-        { type: "button", "data-action": "dictionary" },
-        this.t("review_card_add_dictionary", { word: diagnostic.dictionaryWord }),
-      );
-      // A lasting settings change: only the user's own click counts, never a
-      // page script clicking through the shadow root.
-      add.addEventListener("click", (event) => {
-        if (event.isTrusted) this.callbacks.addToDictionary(diagnostic.id);
-      });
-      actions.append(add);
-    }
-    parts.push(actions);
+    parts.push(this.cardActions(diagnostic, apply));
     if (!diagnostic.bulk.eligible && state?.capabilities.bulk) {
       parts.push(element(doc, "p", { class: "hint" }, this.t("review_card_individual")));
     }
@@ -782,27 +727,7 @@ export class ReviewUi {
       );
       group.append(button);
     });
-    const actions = element(doc, "div", { class: "actions" });
-    const ignore = element(
-      doc,
-      "button",
-      { type: "button", "data-action": "ignore", title: this.t("review_card_ignore_hint") },
-      this.t("review_card_ignore"),
-    );
-    ignore.addEventListener("click", () => this.callbacks.ignore(diagnostic.id));
-    actions.append(ignore);
-    if (diagnostic.dictionaryWord) {
-      const add = element(
-        doc,
-        "button",
-        { type: "button", "data-action": "dictionary" },
-        this.t("review_card_add_dictionary", { word: diagnostic.dictionaryWord }),
-      );
-      add.addEventListener("click", (event) => {
-        if (event.isTrusted) this.callbacks.addToDictionary(diagnostic.id);
-      });
-      actions.append(add);
-    }
+    const actions = this.cardActions(diagnostic);
     const parts: HTMLElement[] = [
       header,
       element(doc, "p", {}, this.t(diagnostic.messageKey)),
@@ -821,6 +746,35 @@ export class ReviewUi {
   }
 
   /** Swaps the card's content, keeping keyboard focus on the same control. */
+  /** A card's buttons: `lead` (Apply), then Ignore and, for a single word, Add to dictionary. */
+  private cardActions(diagnostic: ReviewDiagnostic, ...lead: HTMLElement[]): HTMLElement {
+    const doc = this.doc;
+    const actions = element(doc, "div", { class: "actions" });
+    const ignore = element(
+      doc,
+      "button",
+      { type: "button", "data-action": "ignore", title: this.t("review_card_ignore_hint") },
+      this.t("review_card_ignore"),
+    );
+    ignore.addEventListener("click", () => this.callbacks.ignore(diagnostic.id));
+    actions.append(...lead, ignore);
+    if (diagnostic.dictionaryWord) {
+      const add = element(
+        doc,
+        "button",
+        { type: "button", "data-action": "dictionary" },
+        this.t("review_card_add_dictionary", { word: diagnostic.dictionaryWord }),
+      );
+      // A lasting settings change: only the user's own click counts, never a
+      // page script clicking through the shadow root.
+      add.addEventListener("click", (event) => {
+        if (event.isTrusted) this.callbacks.addToDictionary(diagnostic.id);
+      });
+      actions.append(add);
+    }
+    return actions;
+  }
+
   private replaceCard(parts: HTMLElement[]): void {
     const focused = this.root.activeElement as HTMLElement | null;
     const inCard = !!focused && this.card.contains(focused);

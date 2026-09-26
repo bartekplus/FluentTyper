@@ -94,7 +94,7 @@ export function applyEdits(text: string, edits: readonly ReviewEdit[]): string |
  * `slack` is the span over which that placement is ambiguous, so callers can
  * refuse to guess which side of a boundary it fell on.
  */
-export interface TextDiff {
+interface TextDiff {
   start: number;
   /** End of the replaced part in the old text. */
   oldEnd: number;

@@ -106,7 +106,7 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
 };
 
 /** Review's dictionary check: individual only, and the user always picks the word. */
-export const REVIEW_SPELLING_METADATA: ReviewRuleMetadata = {
+const REVIEW_SPELLING_METADATA: ReviewRuleMetadata = {
   review: "supported",
   category: "spelling",
   bulk: "individual",

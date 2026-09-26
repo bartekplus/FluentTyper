@@ -1,6 +1,7 @@
 import { reviewText } from "@core/domain/grammar/review/reviewMessages";
 import { reviewMountFor } from "./ReviewController";
 import { editingHost, isReviewEligible } from "./ReviewTargets";
+import { createOverlayHost, enterTopLayer } from "./reviewStyles";
 
 /** Marks FluentTyper's own launcher host; never a review target itself. */
 export const REVIEW_LAUNCHER_ATTRIBUTE = "data-fluenttyper-review-launcher";
@@ -197,29 +198,7 @@ export class ReviewLauncher {
     const mount = reviewMountFor(field) ?? this.doc.documentElement;
     if (this.button && this.host?.isConnected && this.host.parentNode === mount) return this.button;
     this.host?.remove();
-    const host = this.doc.createElement("div");
-    host.setAttribute(REVIEW_LAUNCHER_ATTRIBUTE, "");
-    // Never part of an editing host, even on designMode pages.
-    host.setAttribute("contenteditable", "false");
-    // A viewport-sized, click-through layer the page's CSS cannot reach or move.
-    for (const [name, value] of Object.entries({
-      all: "initial",
-      position: "fixed",
-      inset: "0",
-      width: "100vw",
-      height: "100vh",
-      margin: "0",
-      padding: "0",
-      border: "0",
-      background: "transparent",
-      overflow: "visible",
-      "pointer-events": "none",
-      "z-index": "2147483000",
-      display: "block",
-    })) {
-      host.style.setProperty(name, value, "important");
-    }
-    const root = host.attachShadow({ mode: "open" });
+    const { host, root } = createOverlayHost(this.doc, REVIEW_LAUNCHER_ATTRIBUTE, 2147483000);
     const style = this.doc.createElement("style");
     style.textContent = LAUNCHER_STYLES;
     const button = this.doc.createElement("button");
@@ -246,16 +225,7 @@ export class ReviewLauncher {
     });
     root.append(style, button);
     mount.append(host);
-    // The top layer escapes page transforms, stacking contexts and clipping.
-    const popover = host as HTMLElement & { showPopover?: () => void };
-    if (typeof popover.showPopover === "function") {
-      try {
-        host.setAttribute("popover", "manual");
-        popover.showPopover();
-      } catch {
-        host.removeAttribute("popover");
-      }
-    }
+    enterTopLayer(host);
     this.host = host;
     this.button = button;
     return button;

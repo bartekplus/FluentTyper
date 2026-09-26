@@ -288,6 +288,22 @@ describe("ReviewSession", () => {
     expect(h.originals()).toEqual(["a hour", "a", "alot"]);
   });
 
+  test("Fix all leaves ignored findings and hidden categories alone, and does not count them", async () => {
+    // Moved from the planner: the session plans only what it shows.
+    const h = harness("teh a teh b , ok", { rules: GRAMMAR_RULE_IDS });
+    await Promise.all([h.session.start(), h.settle()]);
+    const first = h.last().diagnostics.find((d) => d.original === "teh")!;
+    h.session.ignore(first.id);
+    h.session.setCategory("punctuation", false);
+    h.session.setCategory("typography", false);
+    expect(h.last().bulk).toMatchObject({ count: 1, deferred: 0 });
+    const fixing = h.session.fixAll();
+    await h.settle();
+    await fixing;
+    expect(h.editor.text).toBe("teh a the b , ok");
+    expect(h.last().notice).toMatchObject({ kind: "applied", count: 1, deferred: 0 });
+  });
+
   test("Fix all follows the shown categories", async () => {
     const h = harness("teh plan , ok", { rules: GRAMMAR_RULE_IDS });
     await Promise.all([h.session.start(), h.settle()]);

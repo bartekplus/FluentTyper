@@ -1,7 +1,7 @@
-import type { ReviewCategory, ReviewDiagnostic, ReviewEdit } from "./types";
+import type { ReviewDiagnostic, ReviewEdit } from "./types";
 import { applyEdits, editTouches, rangesOverlap } from "./textRanges";
 
-export type DeferReason = "not-batch-approved" | "conflict" | "unproven";
+type DeferReason = "not-batch-approved" | "conflict" | "unproven";
 
 export interface BulkPlan {
   /** Diagnostics whose chosen fix is in the plan. */
@@ -15,10 +15,6 @@ export interface BulkPlan {
 }
 
 export interface BulkPlanOptions {
-  /** Diagnostics the user ignored in this session. */
-  ignored?: ReadonlySet<string>;
-  /** When set, only these categories are planned (the visible filter). */
-  categories?: ReadonlySet<ReviewCategory>;
   /**
    * Proof hook for context-dependent groups: for each checked diagnostic, true
    * when it is still detected, with the same edits, in the text after
@@ -89,8 +85,6 @@ export function* planBulkFixSteps(
   const deferred: BulkPlan["deferred"] = [];
   const candidates: Array<{ diagnostic: ReviewDiagnostic; edits: ReviewEdit[] }> = [];
   for (const diagnostic of diagnostics) {
-    if (options.ignored?.has(diagnostic.id)) continue;
-    if (options.categories && !options.categories.has(diagnostic.category)) continue;
     if (!diagnostic.bulk.eligible) {
       deferred.push({ id: diagnostic.id, reason: "not-batch-approved" });
       continue;

@@ -34,7 +34,7 @@ export interface ReviewEdit extends TextRange {
   replacement: string;
 }
 
-export interface ReviewAlternative {
+interface ReviewAlternative {
   /** The edits are applied together; they never overlap each other. */
   edits: ReviewEdit[];
   /** The corrected text of the highlighted range, for display. */
@@ -100,7 +100,7 @@ export interface ReviewDiagnostic {
  * `outside-window`: the cut edges of a window of a longer document (a partial
  * word or sentence); the target counts them in `unread`, not as protected.
  */
-export type ProtectedReason = "code" | "structure" | "technical" | "outside-window";
+type ProtectedReason = "code" | "structure" | "technical" | "outside-window";
 
 export interface ProtectedRange extends TextRange {
   reason: ProtectedReason;

@@ -70,7 +70,7 @@ import type { ReviewEdit, ReviewMessageKey, TextRange } from "./types";
  * helpers, evaluated at positions in the finished text. No typing events are
  * simulated and no delimiter is appended at the end of the input.
  */
-export interface DetectContext {
+interface DetectContext {
   source: string;
   text: string;
   /**
@@ -100,7 +100,7 @@ export interface RawFinding {
   dictionaryWord?: string;
 }
 
-export type Detector = (ctx: DetectContext) => RawFinding[];
+type Detector = (ctx: DetectContext) => RawFinding[];
 
 export const MASK_CHAR = "\uFFFC";
 // Enough context for every phrase pattern; the patterns themselves are shorter.

@@ -118,7 +118,7 @@ export function prepareReview(
  * No prose word is this long; longer tokens (hashes, base64, minified code) are
  * protected outright, which also keeps per-token pattern checks linear.
  */
-export const MAX_PROSE_TOKEN_CHARS = 100;
+const MAX_PROSE_TOKEN_CHARS = 100;
 
 /** URLs, e-mail addresses, paths, mentions, dotted names and overlong tokens in [from, to). */
 function technicalRanges(source: string, from: number, to: number): ProtectedRange[] {

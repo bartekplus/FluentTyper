@@ -188,28 +188,15 @@ function findCodeSpans(
       i += 1;
       continue;
     }
-    let run = 1;
-    while (i + run < end && text[i + run] === "`") run += 1;
-    let j = i + run;
-    let closed = -1;
-    while (j < end) {
-      if (text[j] !== "`") {
-        j += 1;
-        continue;
-      }
-      let closeRun = 1;
-      while (j + closeRun < end && text[j + closeRun] === "`") closeRun += 1;
-      if (closeRun === run) {
-        closed = j + closeRun;
-        break;
-      }
-      j += closeRun;
-    }
-    if (closed < 0) {
+    const run = /^`+/.exec(text.slice(i, end))![0].length;
+    // The first run of exactly as many backticks closes the span.
+    const close = new RegExp(`(?<!\`)\`{${run}}(?!\`)`).exec(text.slice(i + run, end));
+    if (!close) {
       // Literal backticks; keep scanning after them.
       i += run;
       continue;
     }
+    const closed = i + 2 * run + close.index;
     ranges.push([i, closed]);
     i = closed;
   }

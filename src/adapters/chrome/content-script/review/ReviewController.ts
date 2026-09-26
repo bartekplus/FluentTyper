@@ -90,10 +90,6 @@ export class ReviewController {
     return this.active !== null;
   }
 
-  get activeElement(): HTMLElement | null {
-    return this.active?.target.element ?? null;
-  }
-
   private get lang(): string {
     return this.deps.uiLanguage ?? navigator.language;
   }

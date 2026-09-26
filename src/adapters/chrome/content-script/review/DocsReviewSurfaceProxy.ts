@@ -23,10 +23,6 @@ export class DocsReviewSurfaceProxy implements GoogleDocsReviewSurface {
     if (this.active) adapter.setReviewActive(true);
   }
 
-  get isReviewActive(): boolean {
-    return this.active;
-  }
-
   reviewRead(): Promise<DocsReply> {
     return this.adapter?.reviewRead() ?? Promise.resolve({ status: "busy" });
   }

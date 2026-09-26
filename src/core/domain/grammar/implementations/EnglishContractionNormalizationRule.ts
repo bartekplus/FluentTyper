@@ -108,72 +108,16 @@ const CONTEXT_CONTRACTION_MAP = new Map(
 );
 // Verbs that follow "can't"/"won't"/"I'll" in their bare form; none of them is
 // a noun that "ill" or "cant" would modify ("ill will", "ill health").
-const BARE_VERBS = new Set([
-  "be",
-  "go",
-  "do",
-  "get",
-  "see",
-  "find",
-  "wait",
-  "believe",
-  "stop",
-  "help",
-  "make",
-  "say",
-  "tell",
-  "think",
-  "understand",
-  "remember",
-  "sleep",
-  "come",
-  "have",
-  "work",
-  "let",
-  "take",
-  "give",
-  "use",
-  "open",
-  "load",
-  "start",
-  "run",
-  "hear",
-  "figure",
-  "afford",
-  "imagine",
-  "explain",
-  "decide",
-  "read",
-  "write",
-  "send",
-  "call",
-  "try",
-  "keep",
-  "leave",
-  "know",
-  "change",
-  "fix",
-  "happen",
-  "hurt",
-  "matter",
-  "stay",
-  "agree",
-  "check",
-  "bring",
-  "look",
-  "need",
-]);
+const BARE_VERBS = new Set(
+  (
+    "be go do get see find wait believe stop help make say tell think understand remember " +
+    "sleep come have work let take give use open load start run hear figure afford imagine " +
+    "explain decide read write send call try keep leave know change fix happen hurt matter " +
+    "stay agree check bring look need"
+  ).split(" "),
+);
 // One adverb may sit between: "I cant really say".
-const ADVERBS = new Set([
-  "really",
-  "even",
-  "just",
-  "ever",
-  "always",
-  "possibly",
-  "still",
-  "actually",
-]);
+const ADVERBS = new Set("really even just ever always possibly still actually".split(" "));
 const SUBJECT_BEFORE =
   /(?:^|[^\p{L}\p{N}_'’])(?:i|you|we|they|he|she|it|who|that|this|there|someone|nobody|everyone)[ \t]+$/iu;
 const CLAUSE_OPENER = /(?:^|[^\p{L}])(?:and|but|so|then|maybe|ok|okay|yes|no|well|or)$/iu;

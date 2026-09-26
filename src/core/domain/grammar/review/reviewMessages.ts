@@ -977,13 +977,13 @@ const UI = {
   ],
 } satisfies Record<string, Translations>;
 
-export type ReviewUiKey = keyof typeof UI;
+type ReviewUiKey = keyof typeof UI;
 export type ReviewTextKey = ReviewUiKey | ReviewMessageKey;
 
 const TABLE: Record<ReviewTextKey, Translations> = { ...EXPLANATIONS, ...UI };
 
 /** "pt" is stored as "pr" by the options page; anything unknown falls back to English. */
-export function resolveReviewUiLanguage(locale: string | undefined): (typeof LANGS)[number] {
+function resolveReviewUiLanguage(locale: string | undefined): (typeof LANGS)[number] {
   const code = (locale ?? "").split(/[-_]/)[0].toLowerCase();
   const normalized = code === "pt" ? "pr" : code;
   return (LANGS as readonly string[]).includes(normalized)

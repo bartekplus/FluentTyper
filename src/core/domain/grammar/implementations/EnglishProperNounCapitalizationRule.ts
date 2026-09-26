@@ -217,36 +217,14 @@ export function findProperName(
 // Months that are only ever months, for "april or may" and "may to june".
 const PLAIN_MONTHS = "january|february|april|june|july|september|october|november|december";
 // Before a month and never before the verb or adjective: "in may", "until march".
-const MONTH_PREPOSITIONS = new Set([
-  "in",
-  "during",
-  "since",
-  "until",
-  "till",
-  "by",
-  "from",
-  "before",
-  "through",
-  "throughout",
-]);
+const MONTH_PREPOSITIONS = new Set(
+  "in during since until till by from before through throughout".split(" "),
+);
 // "last march" is a month; "the last march" or "his early march" is a march.
 const MONTH_MODIFIERS = new Set(["last", "next", "every", "early", "late"]);
-const NOUN_DETERMINERS = new Set([
-  "the",
-  "a",
-  "an",
-  "this",
-  "that",
-  "his",
-  "her",
-  "their",
-  "our",
-  "my",
-  "your",
-  "its",
-  "whose",
-  "one",
-]);
+const NOUN_DETERMINERS = new Set(
+  "the a an this that his her their our my your its whose one".split(" "),
+);
 // "the end of may", "the 5th of march".
 const OF_MONTH_HEADS = new Set(["end", "beginning", "start", "middle", "ides", "rest", "month"]);
 // The word ends its clause: sentence mark, comma, closing bracket or the line's
