@@ -46,6 +46,7 @@ import { parseSpellingRequest } from "@core/domain/grammar/review/reviewSpelling
 import { DomainSettingsCache } from "../config/DomainSettingsCache";
 import type { BackgroundServiceWorker } from "../BackgroundServiceWorker";
 import type { PredictionConfigOverride } from "../PredictionTypes";
+import { REVIEW_SPELLING_BUDGET_MS } from "../PresageEngine";
 import { HandlerRegistry } from "./HandlerRegistry";
 import { mapRuntimeError } from "./RuntimeErrorMapper";
 
@@ -392,7 +393,9 @@ export class MessageRouter {
   /**
    * Review spelling: which words the language's dictionary knows, and Presage's
    * candidates for the rest. Read-only and ephemeral, unlike a typing
-   * prediction: nothing is learned, stored, traced, counted or logged.
+   * prediction: nothing is learned, stored, traced, counted or logged. Each
+   * request is time-bounded, so typing predictions never wait long behind it:
+   * the answer may cover only the first words, and the page asks again.
    */
   private async handleContentScriptReviewSpelling(
     payload: CommandPayload<typeof CMD_CONTENT_SCRIPT_REVIEW_SPELLING>,
@@ -400,7 +403,9 @@ export class MessageRouter {
     const { request, sendResponse, worker } = payload;
     const parsed = parseSpellingRequest(request.context);
     const results = parsed
-      ? await worker.predictionManager.lookupSpelling(parsed.lang, parsed.words)
+      ? await worker.predictionManager.lookupSpelling(parsed.lang, parsed.words, {
+          budgetMs: REVIEW_SPELLING_BUDGET_MS,
+        })
       : null;
     const response: ReviewSpellingResponse = results ? { ok: true, results } : { ok: false };
     sendResponse(response);

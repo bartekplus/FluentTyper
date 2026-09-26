@@ -8,7 +8,11 @@ import { MIN_WORD_LENGTH_TO_PREDICT, PredictionInputProcessor } from "./Predicti
 import { TemplateExpander } from "./TemplateExpander";
 import type { PresageModule } from "./PresageTypes";
 import { setTextExpansions, setUserDictionaryList } from "./PresageFiles";
-import { PresageEngine, type PresageEngineConfig } from "./PresageEngine";
+import {
+  PresageEngine,
+  type PresageEngineConfig,
+  type SpellingLookupOptions,
+} from "./PresageEngine";
 import { MAX_NUM_SUGGESTIONS } from "@core/domain/constants";
 import type { PredictionCandidate, PredictionResult } from "./PredictionTypes";
 import { normalizePrediction } from "./PredictionMerger";
@@ -208,13 +212,16 @@ export class PresageHandler {
   /**
    * Review spelling: per word, null when the language's dictionary knows it,
    * otherwise Presage's candidates for it. Null when the language has no engine.
+   * With a time budget the answer may cover only the first words (see
+   * PresageEngine.lookupWords).
    */
   lookupSpelling(
     lang: string,
     words: ReadonlyArray<{ word: string; before: string }>,
+    options?: SpellingLookupOptions,
   ): Array<string[] | null> | null {
     if (!this.hasLanguageEngine(lang)) return null;
-    return this.presageEngines[lang].lookupWords(words);
+    return this.presageEngines[lang].lookupWords(words, options);
   }
 
   hasLanguageEngine(lang: string): boolean {

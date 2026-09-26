@@ -436,6 +436,17 @@ const UI = {
     "Podpowiedzi pisowni nie są dostępne dla tego języka.",
     "Sugestões ortográficas não disponíveis para este idioma.",
   ],
+  review_status_spelling_partial: [
+    "Spelling was checked only in the first part of the text (too many different words).",
+    "Orthographe vérifiée seulement au début du texte (trop de mots différents).",
+    "Pravopis je provjeren samo u prvom dijelu teksta (previše različitih riječi).",
+    "Ortografía comprobada solo al principio del texto (demasiadas palabras distintas).",
+    "Η ορθογραφία ελέγχθηκε μόνο στην αρχή του κειμένου (πάρα πολλές διαφορετικές λέξεις).",
+    "Stavningen kontrollerades bara i början av texten (för många olika ord).",
+    "Rechtschreibung nur im ersten Teil des Textes geprüft (zu viele verschiedene Wörter).",
+    "Pisownię sprawdzono tylko na początku tekstu (zbyt wiele różnych słów).",
+    "Ortografia verificada só no início do texto (palavras diferentes demais).",
+  ],
   review_launcher_label: [
     "Review this text (FluentTyper)",
     "Relire ce texte (FluentTyper)",

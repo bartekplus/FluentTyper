@@ -3,6 +3,8 @@ import type { GrammarEdit } from "@core/domain/grammar/types";
 export const DOCS_SESSION_ID = -1;
 export const MAX_CONTEXT = 8192;
 const MAX_EDIT = 16384;
+/** The longest text a typing read carries: MAX_CONTEXT on each side of an edit. */
+const MAX_TYPING_TEXT = MAX_CONTEXT * 2 + MAX_EDIT;
 const MAX_DOCUMENT = 2_000_000;
 export const SNAPSHOT_LIFETIME_MS = 10000;
 export const REQUEST_EVENT = "fluenttyper:gdocs:v2:request";
@@ -74,9 +76,16 @@ export function isGoogleDocsURL(href: string): boolean {
   }
 }
 
-export function parseObject(value: unknown): Record<string, unknown> | null {
-  // Room for a review read: REVIEW_WINDOW characters, some of them JSON-escaped.
-  if (typeof value !== "string" || value.length > 400_000) return null;
+/** Page messages: typing reads, writes, keys and requests stay within this. */
+export const MAX_MESSAGE = 200_000;
+/** Only a review read's reply may be larger: REVIEW_WINDOW characters, some of them JSON-escaped. */
+export const MAX_REVIEW_MESSAGE = 400_000;
+
+export function parseObject(
+  value: unknown,
+  maxLength = MAX_MESSAGE,
+): Record<string, unknown> | null {
+  if (typeof value !== "string" || value.length > maxLength) return null;
   try {
     const parsed: unknown = JSON.parse(value);
     return parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)
@@ -390,16 +399,25 @@ export function planGrammar(
   };
 }
 
-export function snapshotFrom(value: unknown): DocsSnapshot | null {
+/**
+ * Validates a snapshot from a page message. A typing read carries at most
+ * MAX_CONTEXT on each side of an edit; only a review read (`review`) may
+ * carry the larger REVIEW_WINDOW.
+ */
+export function snapshotFrom(
+  value: unknown,
+  { review = false }: { review?: boolean } = {},
+): DocsSnapshot | null {
   if (!value || typeof value !== "object") return null;
   const s = value as Record<string, unknown>;
+  const maxText = review ? Math.max(MAX_TYPING_TEXT, REVIEW_WINDOW) : MAX_TYPING_TEXT;
   if (
     typeof s.token !== "string" ||
     s.token.length > 100 ||
     typeof s.scope !== "string" ||
     s.scope.length > 4096 ||
     typeof s.text !== "string" ||
-    s.text.length > Math.max(MAX_CONTEXT * 2 + MAX_EDIT, REVIEW_WINDOW) ||
+    s.text.length > maxText ||
     typeof s.documentLength !== "number" ||
     !Number.isSafeInteger(s.documentLength) ||
     s.documentLength < 0 ||

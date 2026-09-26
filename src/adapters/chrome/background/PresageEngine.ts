@@ -8,6 +8,19 @@ export interface PresageEngineConfig {
 // Enough candidates that a known rare word still comes back as itself.
 const SPELLING_CANDIDATES = 20;
 
+/**
+ * Time a review lookup from a page may take before it stops starting words.
+ * A known word costs about a millisecond and an unknown one tens, so one
+ * request stays well under 100 ms and typing predictions never wait long.
+ */
+export const REVIEW_SPELLING_BUDGET_MS = 40;
+
+export interface SpellingLookupOptions {
+  /** Start no further word after this long; the answer then covers only the first words. */
+  budgetMs?: number;
+  now?: () => number;
+}
+
 export class PresageEngine {
   private readonly module: PresageModule;
   private readonly lang: string;
@@ -68,18 +81,32 @@ export class PresageEngine {
    * preceding words. Spelling corrections stay on even in prefix-only mode;
    * the typing configuration is restored before returning, and the engine
    * does not learn from these lookups.
+   *
+   * With `budgetMs`, no further word is started once that much time has
+   * passed (the first always is): the answer then covers only the first
+   * words, and the caller asks again for the rest. An unknown word costs tens
+   * of milliseconds, and typing predictions wait behind the whole call.
    */
-  lookupWords(words: ReadonlyArray<{ word: string; before: string }>): Array<string[] | null> {
+  lookupWords(
+    words: ReadonlyArray<{ word: string; before: string }>,
+    { budgetMs = Infinity, now = () => performance.now() }: SpellingLookupOptions = {},
+  ): Array<string[] | null> {
     this.libPresage.config("Presage.Selector.SUGGESTIONS", String(SPELLING_CANDIDATES));
     this.libPresage.config("Presage.ContextTracker.PREFIX_ONLY_MODE", "no");
     try {
-      return words.map(({ word, before }) => {
+      const started = now();
+      const results: Array<string[] | null> = [];
+      for (const { word, before } of words) {
+        if (results.length > 0 && now() - started >= budgetMs) break;
         const candidates = this.predict(`${before}${word}`);
         const key = word.toLowerCase();
-        return candidates.some((candidate) => candidate.trim().toLowerCase() === key)
-          ? null
-          : candidates;
-      });
+        results.push(
+          candidates.some((candidate) => candidate.trim().toLowerCase() === key)
+            ? null
+            : candidates,
+        );
+      }
+      return results;
     } finally {
       // Nothing of the reviewed text stays in the engine.
       this.callback.pastStream = "";

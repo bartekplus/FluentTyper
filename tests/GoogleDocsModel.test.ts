@@ -10,6 +10,10 @@ import {
   minimizeEdit,
   validEdit,
   snapshotFrom,
+  parseObject,
+  MAX_CONTEXT,
+  MAX_MESSAGE,
+  MAX_REVIEW_MESSAGE,
   REVIEW_WINDOW,
 } from "../src/adapters/chrome/content-script/google-docs/GoogleDocsModel";
 const token = (text: string) => ({
@@ -214,8 +218,42 @@ describe("Google Docs review reads", () => {
     expect(all.windowStart).toBe(0);
     expect(all.text.length).toBe(REVIEW_WINDOW);
     expect([all.anchor, all.focus]).toEqual([0, REVIEW_WINDOW]);
-    // The page-message check accepts what it sends.
-    expect(snapshotFrom(JSON.parse(JSON.stringify(all)))).toEqual(all);
+    // The page-message check for a review read accepts what it sends.
+    expect(snapshotFrom(JSON.parse(JSON.stringify(all)), { review: true })).toEqual(all);
     expect(snapshotContext(all)).toMatchObject({ start: 0, end: REVIEW_WINDOW });
+  });
+});
+
+describe("Google Docs page-message bounds", () => {
+  const TYPING_TEXT = MAX_CONTEXT * 2 + 16384;
+  const snapshotOf = (length: number) => ({
+    token: "t",
+    scope: "d",
+    text: "a".repeat(length),
+    windowStart: 0,
+    documentLength: length,
+    anchor: 0,
+    focus: 0,
+  });
+
+  test("a typing snapshot keeps the typing window; only a review read may be larger", () => {
+    expect(snapshotFrom(snapshotOf(TYPING_TEXT))).not.toBeNull();
+    expect(snapshotFrom(snapshotOf(TYPING_TEXT + 1))).toBeNull();
+    expect(snapshotFrom(snapshotOf(REVIEW_WINDOW))).toBeNull();
+    expect(snapshotFrom(snapshotOf(TYPING_TEXT + 1), { review: true })).not.toBeNull();
+    expect(snapshotFrom(snapshotOf(REVIEW_WINDOW), { review: true })).not.toBeNull();
+    expect(snapshotFrom(snapshotOf(REVIEW_WINDOW + 1), { review: true })).toBeNull();
+  });
+
+  test("messages keep the typing size limit unless a review reply is allowed", () => {
+    const message = (length: number) => {
+      const shell = JSON.stringify({ id: "x", padding: "" });
+      return JSON.stringify({ id: "x", padding: "a".repeat(length - shell.length) });
+    };
+    expect(MAX_MESSAGE).toBe(200_000);
+    expect(parseObject(message(MAX_MESSAGE))).toMatchObject({ id: "x" });
+    expect(parseObject(message(MAX_MESSAGE + 1))).toBeNull();
+    expect(parseObject(message(MAX_MESSAGE + 1), MAX_REVIEW_MESSAGE)).toMatchObject({ id: "x" });
+    expect(parseObject(message(MAX_REVIEW_MESSAGE + 1), MAX_REVIEW_MESSAGE)).toBeNull();
   });
 });

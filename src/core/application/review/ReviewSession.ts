@@ -135,9 +135,10 @@ export interface ReviewViewState {
   /**
    * The dictionary check, which runs after the rule results are shown:
    * `off` without a lookup (or with no rules on), `unavailable` when the
-   * language has no dictionary.
+   * language has no dictionary, `partial` when it stopped at its limit for
+   * one pass (see SPELLING_WORDS_PER_PASS) with words left unchecked.
    */
-  spelling: "off" | "checking" | "done" | "unavailable";
+  spelling: "off" | "checking" | "done" | "partial" | "unavailable";
   notice: ReviewNotice | null;
   /** The text the diagnostics' offsets refer to. */
   text: string;
@@ -159,7 +160,9 @@ export interface ReviewSessionDependencies {
 
 /**
  * Per word: null when the dictionary knows it, else candidate replacements
- * ranked for `before`. Null overall: no dictionary for the language.
+ * ranked for `before`. Null overall: no dictionary for the language. The
+ * answer may be shorter than `words` (the background bounds each lookup's
+ * time): it covers the first words, and the rest were not looked up yet.
  */
 export type ReviewSpellingLookup = (
   lang: string,
@@ -168,6 +171,17 @@ export type ReviewSpellingLookup = (
 
 /** Words per lookup: small, so typing predictions sharing the engine never wait long. */
 const SPELLING_REQUEST_WORDS = 25;
+
+/**
+ * Dictionary work per pass, in document order. Each different word is looked
+ * up once, but an unknown word costs the engine far more than a known one
+ * (tens of milliseconds against about one), so the check stops after this
+ * many different words, or after the batch in which this many turned out
+ * unknown (text in another language, say). The panel says the check was
+ * partial; answers are remembered, so a recheck continues where it stopped.
+ */
+export const SPELLING_WORDS_PER_PASS = 2000;
+export const SPELLING_UNKNOWN_PER_PASS = 100;
 
 interface IgnoredOccurrence {
   ruleId: string;
@@ -204,6 +218,29 @@ function sameKey(a: readonly unknown[], b: readonly unknown[]): boolean {
   return a.length === b.length && a.every((value, index) => value === b[index]);
 }
 
+function textOrder(a: ReviewDiagnostic, b: ReviewDiagnostic): number {
+  return a.range.start - b.range.start || a.range.end - b.range.end;
+}
+
+/** `shown` (already in text order) with `added` merged in; on a tie, shown first. */
+function mergeInTextOrder(
+  shown: readonly ReviewDiagnostic[],
+  added: ReviewDiagnostic[],
+): ReviewDiagnostic[] {
+  added.sort(textOrder);
+  const merged: ReviewDiagnostic[] = [];
+  let i = 0;
+  let j = 0;
+  while (i < shown.length || j < added.length) {
+    if (j >= added.length || (i < shown.length && textOrder(shown[i], added[j]) <= 0)) {
+      merged.push(shown[i++]);
+    } else {
+      merged.push(added[j++]);
+    }
+  }
+  return merged;
+}
+
 /**
  * One review session over one editor. Owns generations, cancellation and the
  * scope; every write goes through the target port with verification.
@@ -218,6 +255,11 @@ export class ReviewSession {
   private protectedRanges: ProtectedRange[] = [];
   private scope: TextRange | null;
   private readonly scopeKind: "selection" | "field";
+  // An edit the selection could not be followed through: the review stays
+  // stale until it is closed, and never widens to the whole field.
+  private scopeLost = false;
+  // True once a read succeeded: `text` is then what the scope and ignores refer to.
+  private hasRead = false;
   private truncated = 0;
   private unread = 0;
   private prepared: PreparedReview | null = null;
@@ -225,7 +267,7 @@ export class ReviewSession {
   // The rule findings alone: Fix all plans from these (spelling is never batched).
   private ruleDiagnostics: ReviewDiagnostic[] = [];
   private spelling: ReviewViewState["spelling"] = "off";
-  // Lookups already answered, per language: known words, and candidates per word and context.
+  // Lookups already answered, per language and lowercased word: known words, and candidates.
   private spellingCache = {
     lang: "",
     unavailable: false,
@@ -288,7 +330,7 @@ export class ReviewSession {
 
   /** Any edit in the editor: results are stale now; a recheck follows after a pause. */
   notifySourceChanged(): void {
-    if (this.status === "closed" || this.status === "applying") return;
+    if (this.status === "closed" || this.status === "applying" || this.scopeLost) return;
     this.generation += 1;
     // "Fixed: 3" describes our last write; after the user's own edit (say, an
     // undo) it no longer describes the text.
@@ -512,6 +554,7 @@ export class ReviewSession {
       await this.pause();
       if (this.planPending !== pending) throw new PlanSuperseded();
     };
+    let plan: BulkPlan;
     try {
       while (!request.done) {
         const answer = await stillDetectedAfterAsync(
@@ -522,14 +565,38 @@ export class ReviewSession {
         );
         request = steps.next(answer);
       }
+      plan = request.value;
     } catch (error) {
-      if (error instanceof PlanSuperseded) return null;
-      throw error;
+      if (error instanceof PlanSuperseded || this.planPending !== pending) return null;
+      // Any other failure: what is still unproven stays unproven, so Fix all never waits forever.
+      plan = this.unprovenPlan(steps, request, prepared.text);
     }
     this.planPending = null;
-    this.planCache = { key: pending.key, plan: request.value };
+    this.planCache = { key: pending.key, plan };
     this.emit();
-    return request.value;
+    return plan;
+  }
+
+  /**
+   * Finishes a plan whose proof failed: every open check counts as not holding,
+   * so its group is left for individual review. If the planner itself failed,
+   * nothing is batched.
+   */
+  private unprovenPlan(
+    steps: Generator<ProofRequest, BulkPlan, boolean[]>,
+    request: IteratorResult<ProofRequest, BulkPlan>,
+    text: string,
+  ): BulkPlan {
+    try {
+      let step = request;
+      while (!step.done) step = steps.next(step.value.checks.map(() => false));
+      return step.value;
+    } catch {
+      const deferred = this.visibleDiagnostics()
+        .filter((d) => d.ruleId !== REVIEW_SPELLING_CHECK)
+        .map((d) => ({ id: d.id, reason: "unproven" as const }));
+      return { diagnosticIds: [], edits: [], expectedText: text, deferred };
+    }
   }
 
   private async write(
@@ -607,6 +674,7 @@ export class ReviewSession {
   }
 
   private async readAndScan(generation: number): Promise<void> {
+    if (this.scopeLost) return;
     let read: ReviewTargetRead;
     try {
       read = await this.deps.target.read();
@@ -624,16 +692,21 @@ export class ReviewSession {
     this.unavailable = undefined;
 
     const previousText = this.text;
-    const hadText = this.prepared !== null;
+    // The last text read is what the scope and ignores refer to, even when its
+    // scan was cut short by this very change.
+    const hadText = this.hasRead;
+    this.hasRead = true;
     if (hadText && read.text !== previousText) {
       const diff = diffTexts(previousText, read.text);
       if (diff) {
         if (this.scope) {
           const next = remapScope(this.scope, diff);
           if (!next) {
-            this.scope = null;
+            this.scopeLost = true;
+            this.cancelRecheck();
             this.status = "stale-scope";
             this.diagnostics = [];
+            this.selectedId = null;
             this.text = read.text;
             this.emit();
             return;
@@ -646,7 +719,6 @@ export class ReviewSession {
         });
       }
     }
-    if (this.status === "stale-scope") return;
     // Formatting-only change: same text, different protection. Old ignores
     // still refer to the same characters; findings are recomputed below.
     this.text = read.text;
@@ -715,8 +787,11 @@ export class ReviewSession {
   /**
    * The dictionary check, after the rule results are on screen: looks up the
    * words not answered before, a few at a time, and adds a pick-one finding
-   * for each unknown word with close suggestions. Dropped as soon as newer
-   * results replace these; a missing dictionary is reported, not retried.
+   * for each unknown word with close suggestions. Each different word is
+   * looked up once, in the context of its first occurrence: whether the
+   * dictionary knows a word does not depend on the words before it. Stops at
+   * the per-pass limits. Dropped as soon as newer results replace these; a
+   * missing dictionary is reported, not retried.
    */
   private async checkSpelling(
     generation: number,
@@ -724,72 +799,99 @@ export class ReviewSession {
     lookup: ReviewSpellingLookup,
   ): Promise<void> {
     const cache = this.spellingCache;
-    const candidates = spellingCandidates(
+    const occurrences = new Map<string, SpellingCandidate[]>();
+    for (const candidate of spellingCandidates(
       prepared,
       this.ruleDiagnostics.map((d) => d.range),
-    );
-    const keyOf = (candidate: SpellingCandidate) =>
-      `${candidate.lookup.toLowerCase()}\u0000${candidate.before.toLowerCase()}`;
-    const pending = new Map<string, { word: string; before: string }>();
-    for (const candidate of candidates) {
-      const key = keyOf(candidate);
-      if (cache.known.has(candidate.lookup.toLowerCase()) || cache.candidates.has(key)) continue;
-      pending.set(key, { word: candidate.lookup, before: candidate.before });
+    )) {
+      const key = candidate.lookup.toLowerCase();
+      const list = occurrences.get(key);
+      if (list) list.push(candidate);
+      else occurrences.set(key, [candidate]);
     }
-    const queue = [...pending];
-    for (let index = 0; index < queue.length; index += SPELLING_REQUEST_WORDS) {
-      const batch = queue.slice(index, index + SPELLING_REQUEST_WORDS);
+    const queue: Array<{ key: string; word: string; before: string }> = [];
+    for (const [key, [first]] of occurrences) {
+      if (cache.known.has(key) || cache.candidates.has(key)) continue;
+      queue.push({ key, word: first.lookup, before: first.before });
+    }
+    // Words answered on an earlier pass are shown at once.
+    const ranked = new Map<string, string[]>();
+    this.showSpelling(prepared, occurrences, ranked, [...occurrences.keys()]);
+    let next = 0;
+    let unknown = 0;
+    while (
+      next < queue.length &&
+      next < SPELLING_WORDS_PER_PASS &&
+      unknown < SPELLING_UNKNOWN_PER_PASS
+    ) {
+      const batch = queue.slice(
+        next,
+        Math.min(next + SPELLING_REQUEST_WORDS, SPELLING_WORDS_PER_PASS),
+      );
       let results: Array<string[] | null> | null;
       try {
         results = await lookup(
           cache.lang,
-          batch.map(([, item]) => item),
+          batch.map(({ word, before }) => ({ word, before })),
         );
       } catch {
         results = null;
       }
       if (generation !== this.generation || this.isClosed) return;
-      if (!results || results.length !== batch.length) {
+      // A shorter answer covers the first words; the rest go in the next request.
+      if (!results || results.length === 0 || results.length > batch.length) {
         cache.unavailable = true;
         this.spelling = "unavailable";
         this.emit();
         return;
       }
-      batch.forEach(([key, item], position) => {
+      const answered = batch.slice(0, results.length);
+      const unknownKeys: string[] = [];
+      answered.forEach(({ key }, position) => {
         const result = results[position];
-        if (result === null) cache.known.add(item.word.toLowerCase());
-        else cache.candidates.set(key, result);
+        if (result === null) {
+          cache.known.add(key);
+        } else {
+          cache.candidates.set(key, result);
+          unknownKeys.push(key);
+        }
       });
-      this.showSpelling(prepared, candidates, keyOf);
+      next += answered.length;
+      unknown += unknownKeys.length;
+      this.showSpelling(prepared, occurrences, ranked, unknownKeys);
     }
-    this.spelling = "done";
-    this.showSpelling(prepared, candidates, keyOf);
+    this.spelling = next < queue.length ? "partial" : "done";
+    this.emit();
   }
 
-  /** Rule findings plus a finding per unknown word answered so far, in text order. */
+  /**
+   * Adds the findings for newly answered words to those already shown, in
+   * text order. Earlier findings are kept as they are, and suggestions are
+   * ranked once per written form of a word; nothing is emitted when nothing
+   * new was found.
+   */
   private showSpelling(
     prepared: PreparedReview,
-    candidates: readonly SpellingCandidate[],
-    keyOf: (candidate: SpellingCandidate) => string,
+    occurrences: ReadonlyMap<string, readonly SpellingCandidate[]>,
+    ranked: Map<string, string[]>,
+    keys: readonly string[],
   ): void {
     const found: ReviewDiagnostic[] = [];
-    for (const candidate of candidates) {
-      if (this.spellingCache.known.has(candidate.lookup.toLowerCase())) continue;
-      const answer = this.spellingCache.candidates.get(keyOf(candidate));
+    for (const key of keys) {
+      const answer = this.spellingCache.candidates.get(key);
       if (!answer) continue;
-      const diagnostic = spellingDiagnostic(
-        prepared,
-        candidate,
-        rankSpellingSuggestions(candidate.word, answer),
-      );
-      if (diagnostic) found.push(diagnostic);
+      for (const candidate of occurrences.get(key) ?? []) {
+        let suggestions = ranked.get(candidate.word);
+        if (!suggestions) {
+          suggestions = rankSpellingSuggestions(candidate.word, answer);
+          ranked.set(candidate.word, suggestions);
+        }
+        const diagnostic = spellingDiagnostic(prepared, candidate, suggestions);
+        if (diagnostic) found.push(diagnostic);
+      }
     }
-    const shown = this.diagnostics.length - this.ruleDiagnostics.length;
-    if (found.length !== shown) {
-      this.diagnostics = [...this.ruleDiagnostics, ...found].sort(
-        (a, b) => a.range.start - b.range.start || a.range.end - b.range.end,
-      );
-    }
+    if (found.length === 0) return;
+    this.diagnostics = mergeInTextOrder(this.diagnostics, found);
     this.emit();
   }
 

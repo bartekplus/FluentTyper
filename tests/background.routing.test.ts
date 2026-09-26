@@ -31,6 +31,7 @@ import {
   KEY_DEBUG_AI_PREDICTOR_ENABLED,
   KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
 } from "../src/core/domain/constants";
+import { REVIEW_SPELLING_BUDGET_MS } from "../src/adapters/chrome/background/PresageEngine";
 
 function flushPromises() {
   return new Promise((resolve) => setTimeout(resolve, 5));
@@ -88,6 +89,7 @@ const backgroundHarnessMocks = {
     async (
       _lang: string,
       words: Array<{ word: string; before: string }>,
+      _options?: unknown,
     ): Promise<Array<string[] | null> | null> =>
       words.map(({ word }) => (word === "wa" ? ["was", "way"] : null)),
   ),
@@ -147,7 +149,7 @@ function installBackgroundHarnessModuleMocks(): void {
       runPrediction: (...args: [string, string, string, unknown?, unknown?, string?]) =>
         backgroundHarnessMocks.predictionRun(...args),
       initialize: () => backgroundHarnessMocks.predictionInitialize(),
-      lookupSpelling: (...args: [string, Array<{ word: string; before: string }>]) =>
+      lookupSpelling: (...args: [string, Array<{ word: string; before: string }>, unknown?]) =>
         backgroundHarnessMocks.predictionLookupSpelling(...args),
       setConfig: (...args: [unknown]) => backgroundHarnessMocks.predictionSetConfig(...args),
       ensureTraceId: (...args: [string?]) =>
@@ -622,10 +624,15 @@ describe("background routing and lifecycle", () => {
       ],
     });
     expect(sendResponse).toHaveBeenCalledWith({ ok: true, results: [["was", "way"], null] });
-    expect(backgroundHarnessMocks.predictionLookupSpelling).toHaveBeenCalledWith("en_US", [
-      { word: "wa", before: "Where " },
-      { word: "it", before: "" },
-    ]);
+    // Time-bounded, so typing predictions never wait long behind a review.
+    expect(backgroundHarnessMocks.predictionLookupSpelling).toHaveBeenCalledWith(
+      "en_US",
+      [
+        { word: "wa", before: "Where " },
+        { word: "it", before: "" },
+      ],
+      { budgetMs: REVIEW_SPELLING_BUDGET_MS },
+    );
     // Nothing is stored or predicted for typing along the way.
     expect(harness.settingsSet).not.toHaveBeenCalled();
     expect(backgroundHarnessMocks.predictionRun).not.toHaveBeenCalled();

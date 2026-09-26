@@ -490,6 +490,7 @@ export class ReviewUi {
       if (state.spelling === "unavailable") {
         lines.push(this.t("review_status_spelling_unavailable"));
       }
+      if (state.spelling === "partial") lines.push(this.t("review_status_spelling_partial"));
       if ((state.coverage?.failedRules.length ?? 0) > 0)
         lines.push(this.t("review_status_rule_error"));
       if (state.languageSkipped > 0) lines.push(this.t("review_status_language"));

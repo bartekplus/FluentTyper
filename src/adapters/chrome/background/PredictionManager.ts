@@ -1,6 +1,7 @@
 import { randomUUID } from "@core/domain/randomId";
 import type { PresageModule } from "./PresageTypes";
 import { PresageHandler } from "./PresageHandler";
+import type { SpellingLookupOptions } from "./PresageEngine";
 import {
   PredictionOrchestrator,
   type PredictionConfig,
@@ -112,9 +113,10 @@ export class PredictionManager {
   async lookupSpelling(
     lang: string,
     words: ReadonlyArray<{ word: string; before: string }>,
+    options?: SpellingLookupOptions,
   ): Promise<Array<string[] | null> | null> {
     await this.initialize();
-    return this.presageHandler?.lookupSpelling(lang, words) ?? null;
+    return this.presageHandler?.lookupSpelling(lang, words, options) ?? null;
   }
 
   async runPrediction(

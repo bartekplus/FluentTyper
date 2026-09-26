@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import {
   ReviewSession,
+  SPELLING_UNKNOWN_PER_PASS,
+  SPELLING_WORDS_PER_PASS,
   type ReviewApplyResult,
   type ReviewCapabilities,
   type ReviewSpellingLookup,
@@ -340,6 +342,96 @@ describe("ReviewSession", () => {
     expect(h.last().diagnostics).toEqual([]);
   });
 
+  test("a lost selection stays stale until closed; it never becomes a whole-field review", async () => {
+    const text = "Outside teh selection. Inside teh selection.";
+    const start = text.indexOf("Inside");
+    const h = harness(text, { scope: { start, end: text.length } });
+    await Promise.all([h.session.start(), h.settle()]);
+    expect(h.last().diagnostics.map((d) => d.range)).toEqual([{ start: 30, end: 33 }]);
+    // Typing at the selection's edge: it can no longer be followed.
+    h.editor.text = `${text}!`;
+    h.session.notifySourceChanged();
+    await h.settle();
+    expect(h.last().status).toBe("stale-scope");
+    const stale = h.states.length - 1;
+    // A composition (a read that fails), then more edits: still stale, nothing listed.
+    h.editor.composing = true;
+    h.session.notifySourceChanged();
+    await h.settle();
+    h.editor.composing = false;
+    h.session.notifySourceChanged();
+    await h.settle();
+    h.editor.text = `${text}!!`;
+    h.session.notifySourceChanged();
+    await h.settle();
+    expect(h.last()).toMatchObject({ status: "stale-scope", scopeKind: "selection" });
+    expect(h.states.slice(stale).every((state) => state.status === "stale-scope")).toBe(true);
+    expect(h.states.some((state) => state.diagnostics.some((d) => d.range.start === 8))).toBe(
+      false,
+    );
+    expect(h.last().bulk.count).toBe(0);
+    expect(await h.session.fixAll()).toBeNull();
+    expect(h.editor.applyCalls).toEqual([]);
+  });
+
+  test("an edit before the first scan finishes still moves the selection with the text", async () => {
+    const filler = "Some words here.\n".repeat(300); // more than one scan chunk
+    const tail = "Please fix teh typo.";
+    const h = harness(filler + tail, {
+      scope: { start: filler.length, end: filler.length + tail.length },
+    });
+    const started = h.session.start();
+    // The first scan pauses after its first chunk; the user types at the start meanwhile.
+    for (let i = 0; i < 5; i += 1) await Promise.resolve();
+    expect(h.last().status).toBe("loading");
+    const prefix = "INSERTED PREFIX TEXT. ";
+    h.editor.text = prefix + h.editor.text;
+    h.session.notifySourceChanged();
+    await h.settle();
+    await started;
+    expect(h.last()).toMatchObject({ status: "ready", scopeKind: "selection" });
+    const at = prefix.length + filler.length + tail.indexOf("teh");
+    expect(h.last().diagnostics.map((d) => d.range)).toEqual([{ start: at, end: at + 3 }]);
+  });
+
+  test("a proof that fails leaves its fixes for individual review; Fix all never waits forever", async () => {
+    const unhandled: unknown[] = [];
+    const onUnhandled = (reason: unknown) => unhandled.push(reason);
+    process.on("unhandledRejection", onUnhandled);
+    try {
+      const text = "yes i dont know. ".repeat(40);
+      const h = harness(text, {
+        rules: [
+          "capitalizeSentenceStart",
+          "englishPronounICapitalization",
+          "englishContractionNormalization",
+        ],
+      });
+      const started = h.session.start();
+      for (let i = 0; i < 200 && h.last().status !== "ready"; i += 1) {
+        await Promise.resolve();
+        h.timers.shift()?.callback();
+      }
+      expect(h.last().bulk.pending).toBe(true);
+      // The proof's next pause fails (any error, not a newer plan replacing it).
+      (h.session as unknown as { pause: () => Promise<void> }).pause = () =>
+        Promise.reject(new Error("proof failed"));
+      await h.settle();
+      await started;
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(h.last().bulk.pending).toBe(false);
+      expect(h.last().bulk.deferred).toBeGreaterThan(0);
+      // Fix all answers at once, and writes only what was proven (here: nothing).
+      const fixing = h.session.fixAll();
+      await h.settle();
+      expect(await fixing).toBeNull();
+      expect(h.editor.text).toBe(text);
+      expect(unhandled).toEqual([]);
+    } finally {
+      process.off("unhandledRejection", onUnhandled);
+    }
+  });
+
   test("closing discards pending work and never writes", async () => {
     const h = harness("teh cat");
     const started = h.session.start();
@@ -547,6 +639,126 @@ describe("ReviewSession spelling", () => {
     expect(h.states.some((state) => state.diagnostics.some((d) => d.original === "wa"))).toBe(
       false,
     );
+  });
+
+  /** `count` different lowercase words: "qba", "qbb", … (letters only, none in the fake dictionary). */
+  function distinctWords(count: number, prefix = "q"): string[] {
+    const letters = "abcdefghijklmnopqrstuvwxyz";
+    return Array.from(
+      { length: count },
+      (_, i) =>
+        `${prefix}${letters[1 + Math.floor(i / 676)]}${letters[Math.floor(i / 26) % 26]}${letters[i % 26]}`,
+    );
+  }
+
+  test("each different word is looked up once per pass, whatever its contexts", async () => {
+    const fake = fakeLookup();
+    const contexts = distinctWords(30);
+    // "wa" after 30 different words: one lookup, 30 findings.
+    const h = harness(contexts.map((word) => `${word} wa`).join(". "), {
+      lookupSpelling: fake.lookup,
+    });
+    await Promise.all([h.session.start(), h.settle()]);
+    expect(h.last().spelling).toBe("done");
+    expect(fake.words().filter((word) => word === "wa")).toEqual(["wa"]);
+    expect(fake.words()).toHaveLength(31);
+    expect(h.originals().filter((word) => word === "wa")).toHaveLength(30);
+    // The first occurrence's context is the one asked about.
+    expect(fake.calls.flat()).toContainEqual({ word: "wa", before: `${contexts[0]} ` });
+  });
+
+  test("the check stops at its per-pass limits and says so; a recheck continues", async () => {
+    // Unknown words (each gets a close suggestion): the check stops soon after the limit.
+    const unknown = distinctWords(SPELLING_UNKNOWN_PER_PASS + 60);
+    const asked: string[] = [];
+    const h = harness(unknown.join(" "), {
+      lookupSpelling: (_lang, words) => {
+        asked.push(...words.map(({ word }) => word));
+        return Promise.resolve(words.map(({ word }) => [`${word}s`]));
+      },
+    });
+    await Promise.all([h.session.start(), h.settle()]);
+    expect(h.last().spelling).toBe("partial");
+    expect(asked.length).toBeGreaterThanOrEqual(SPELLING_UNKNOWN_PER_PASS);
+    expect(asked.length).toBeLessThan(SPELLING_UNKNOWN_PER_PASS + 25);
+    // In document order: the first words are checked, the rest are not listed.
+    expect(asked).toEqual(unknown.slice(0, asked.length));
+    expect(h.originals()).toEqual(asked);
+    // A recheck asks only for the words not answered yet.
+    h.session.notifySourceChanged();
+    await h.settle();
+    expect(new Set(asked).size).toBe(asked.length);
+    expect(asked).toEqual(unknown);
+    expect(h.last().spelling).toBe("done");
+    expect(h.originals()).toEqual(unknown);
+
+    // Known words: at most SPELLING_WORDS_PER_PASS different ones per pass.
+    const known = distinctWords(SPELLING_WORDS_PER_PASS + 30);
+    const fake = fakeLookup();
+    const many = harness(known.join(" "), { lookupSpelling: fake.lookup });
+    await Promise.all([many.session.start(), many.settle()]);
+    expect(fake.words()).toEqual(known.slice(0, SPELLING_WORDS_PER_PASS));
+    expect(many.last().spelling).toBe("partial");
+  });
+
+  test("a shorter answer covers the first words; the rest are asked again", async () => {
+    const words = distinctWords(40);
+    const asked: string[] = [];
+    const h = harness(`${words.join(" ")} wa`, {
+      lookupSpelling: (_lang, batch) => {
+        // A time-bounded background answers only the first two words of each request.
+        const answered = batch.slice(0, 2);
+        asked.push(...answered.map(({ word }) => word));
+        return Promise.resolve(answered.map(({ word }) => (word === "wa" ? ["was"] : null)));
+      },
+    });
+    await Promise.all([h.session.start(), h.settle()]);
+    expect(h.last().spelling).toBe("done");
+    expect(asked).toEqual([...words, "wa"]);
+    expect(h.originals()).toEqual(["wa"]);
+  });
+
+  test("findings are added as answers arrive: each word ranked once, earlier findings kept", async () => {
+    // Counts how often the session ranks a word's candidates.
+    let ranked = 0;
+    class Candidates extends Array<string> {
+      override forEach(
+        callback: (value: string, index: number, array: string[]) => void,
+        thisArg?: unknown,
+      ): void {
+        ranked += 1;
+        super.forEach(callback, thisArg);
+      }
+    }
+    const unknown = distinctWords(60, "z");
+    const knownWords = distinctWords(60);
+    const lookups: number[] = [];
+    const h = harness(unknown.map((word, i) => `${knownWords[i]} ${word}`).join(" "), {
+      lookupSpelling: (_lang, words) => {
+        lookups.push(words.length);
+        return Promise.resolve(
+          words.map(({ word }) => (word.startsWith("z") ? Candidates.from([`${word}s`]) : null)),
+        );
+      },
+    });
+    await Promise.all([h.session.start(), h.settle()]);
+    expect(h.last().spelling).toBe("done");
+    expect(h.originals()).toEqual(unknown);
+    expect(lookups.length).toBeGreaterThan(3);
+    expect(ranked).toBe(unknown.length);
+    // A finding shown after an early batch is the same object at the end.
+    const early = h.states.find(
+      (state) => state.spelling === "checking" && state.diagnostics.length > 0,
+    )!;
+    expect(early.diagnostics.length).toBeLessThan(unknown.length);
+    for (const finding of early.diagnostics) expect(h.last().diagnostics).toContain(finding);
+    // Batches of known words alone change nothing and are not shown again.
+    const quiet = fakeLookup();
+    const plain = harness(distinctWords(120).join(" "), { lookupSpelling: quiet.lookup });
+    await Promise.all([plain.session.start(), plain.settle()]);
+    expect(quiet.calls.length).toBeGreaterThan(3);
+    const spellingStates = plain.states.filter((state) => state.spelling !== "off");
+    expect(spellingStates.map((state) => state.spelling)).toEqual(["checking", "done"]);
   });
 
   test("words other findings cover, and the user's dictionary, are not looked up; no rules, no check", async () => {

@@ -271,6 +271,7 @@ describe("Google Docs review writes", () => {
       const model = readModel(`\u0003${text}\n`, [{ anchor: anchor + 1, focus: focus + 1 }])!;
       const snapshot = snapshotFrom(
         JSON.parse(JSON.stringify(snapshotFor(model, "doc", "t", true))),
+        { review: true },
       )!;
       return Promise.resolve({ status: "ready" as const, snapshot });
     };
