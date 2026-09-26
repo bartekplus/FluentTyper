@@ -376,7 +376,8 @@ Known costs:
   Docs shows no runs at all, the panel says findings are listed only. A run
   is placed only where it and the runs drawn beside it agree with the text:
   a header, footer or table cell whose text repeats elsewhere may stay
-  unhighlighted, but never highlights other text. Highlights stay inside the
+  unhighlighted, but never highlights other text. Text set in columns, and
+  table cells drawn far apart, may be listed only. Highlights stay inside the
   editor and are not drawn over Docs' menus, dialogs and bubbles. A click on
   a highlight opens its card; a drag, shift-click or double click selects
   text as usual, and Escape in the document closes the card. No Fix all (one
