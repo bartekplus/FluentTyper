@@ -72,6 +72,20 @@ function changePreview(from: string, to: string): [string, string] {
     : [from, to];
 }
 
+/** How many suggestions a pick-one finding shows in the list; the card shows all. */
+const LIST_CHOICES = 3;
+
+/** "teh → the"; a pick-one finding lists its first suggestions: "wa → was / way / war". */
+function listPreview(diagnostic: ReviewDiagnostic): string {
+  if (diagnostic.requiresChoice) {
+    const choices = diagnostic.alternatives.map((alternative) => alternative.preview);
+    const shown = choices.slice(0, LIST_CHOICES).join(" / ");
+    return `${diagnostic.original} \u2192 ${shown}${choices.length > LIST_CHOICES ? " / \u2026" : ""}`;
+  }
+  const [from, to] = changePreview(diagnostic.original, diagnostic.alternatives[0].preview);
+  return `${from} \u2192 ${to}`;
+}
+
 function element<K extends keyof HTMLElementTagNameMap>(
   doc: Document,
   tag: K,
@@ -350,6 +364,8 @@ export class ReviewUi {
           : "review_scope_field",
     );
     this.status.textContent = this.statusText(state);
+    // Whether suggestions for unknown words may still join the results.
+    this.panel.dataset.spelling = state.status === "ready" ? state.spelling : "idle";
     this.renderNotes(state);
     this.renderFilters(state);
     this.renderList(state);
@@ -470,6 +486,10 @@ export class ReviewUi {
       if (state.truncated > 0)
         lines.push(this.t("review_status_size_limit", { count: state.truncated }));
       if (state.unread > 0) lines.push(this.t("review_status_window", { count: state.unread }));
+      if (state.spelling === "checking") lines.push(this.t("review_status_spelling_checking"));
+      if (state.spelling === "unavailable") {
+        lines.push(this.t("review_status_spelling_unavailable"));
+      }
       if ((state.coverage?.failedRules.length ?? 0) > 0)
         lines.push(this.t("review_status_rule_error"));
       if (state.languageSkipped > 0) lines.push(this.t("review_status_language"));
@@ -541,8 +561,7 @@ export class ReviewUi {
         "aria-current": String(diagnostic.id === state.selectedId),
       });
       const change = element(this.doc, "span", { class: "change", dir: "auto" });
-      const [from, to] = changePreview(diagnostic.original, diagnostic.alternatives[0].preview);
-      change.textContent = `${from} \u2192 ${to}`;
+      change.textContent = listPreview(diagnostic);
       button.append(
         element(
           this.doc,
@@ -597,7 +616,10 @@ export class ReviewUi {
   }
 
   focusCard(): void {
-    this.card.querySelector<HTMLElement>("button.primary")?.focus({ preventScroll: true });
+    // A pick-one card has no default: focus lands on its first suggestion.
+    this.card
+      .querySelector<HTMLElement>("button.primary, button.suggestion")
+      ?.focus({ preventScroll: true });
   }
 
   cardDiagnosticId(): string | null {
@@ -636,6 +658,10 @@ export class ReviewUi {
     });
     header.append(close);
 
+    if (diagnostic.requiresChoice) {
+      this.renderChoiceCard(diagnostic, header, canApply);
+      return;
+    }
     const alternative = diagnostic.alternatives[this.cardAlternative] ?? diagnostic.alternatives[0];
     const diff = element(doc, "div", { class: "diff", "aria-label": this.t("review_card_change") });
     const from = element(doc, "span", { class: "from", dir: "auto" });
@@ -714,12 +740,98 @@ export class ReviewUi {
     }
     if (!state?.capabilities.apply)
       parts.push(element(doc, "p", { class: "hint" }, this.t("review_cap_review_only")));
+    this.replaceCard(parts);
+  }
+
+  /**
+   * An unknown word: the word as written, then its suggestions as buttons.
+   * None is preselected and nothing changes until one is chosen; one click
+   * (or Enter) on a suggestion replaces the word with it.
+   */
+  private renderChoiceCard(
+    diagnostic: ReviewDiagnostic,
+    header: HTMLElement,
+    canApply: boolean,
+  ): void {
+    const doc = this.doc;
+    const word = element(doc, "p", { class: "word" });
+    word.append(element(doc, "span", { class: "from", dir: "auto" }, diagnostic.original));
+    const group = element(doc, "div", {
+      class: "alternatives suggestions",
+      role: "group",
+      "aria-label": this.t("review_card_replace_with"),
+    });
+    diagnostic.alternatives.forEach((option, index) => {
+      const button = element(
+        doc,
+        "button",
+        {
+          type: "button",
+          class: "suggestion",
+          "data-action": "pick",
+          "data-index": String(index),
+          "aria-label": this.t("review_card_replace_label", { word: option.preview }),
+          dir: "auto",
+        },
+        option.preview,
+      );
+      button.disabled = !canApply;
+      button.addEventListener("click", (event) =>
+        this.callbacks.apply(diagnostic.id, index, event.detail === 0),
+      );
+      group.append(button);
+    });
+    const actions = element(doc, "div", { class: "actions" });
+    const ignore = element(
+      doc,
+      "button",
+      { type: "button", "data-action": "ignore", title: this.t("review_card_ignore_hint") },
+      this.t("review_card_ignore"),
+    );
+    ignore.addEventListener("click", () => this.callbacks.ignore(diagnostic.id));
+    actions.append(ignore);
+    if (diagnostic.dictionaryWord) {
+      const add = element(
+        doc,
+        "button",
+        { type: "button", "data-action": "dictionary" },
+        this.t("review_card_add_dictionary", { word: diagnostic.dictionaryWord }),
+      );
+      add.addEventListener("click", (event) => {
+        if (event.isTrusted) this.callbacks.addToDictionary(diagnostic.id);
+      });
+      actions.append(add);
+    }
+    const parts: HTMLElement[] = [
+      header,
+      element(doc, "p", {}, this.t(diagnostic.messageKey)),
+      word,
+      element(doc, "p", { class: "label" }, this.t("review_card_replace_with")),
+      group,
+      actions,
+      element(
+        doc,
+        "p",
+        { class: "hint" },
+        this.t(this.state?.capabilities.apply ? "review_card_pick_hint" : "review_cap_review_only"),
+      ),
+    ];
+    this.replaceCard(parts);
+  }
+
+  /** Swaps the card's content, keeping keyboard focus on the same control. */
+  private replaceCard(parts: HTMLElement[]): void {
     const focused = this.root.activeElement as HTMLElement | null;
-    const focusedAction =
-      focused && this.card.contains(focused) ? focused.dataset.action : undefined;
+    const inCard = !!focused && this.card.contains(focused);
+    const focusedAction = inCard ? focused.dataset.action : undefined;
+    const focusedIndex = inCard ? focused.dataset.index : undefined;
     this.card.replaceChildren(...parts);
     if (focusedAction) {
-      this.card.querySelector<HTMLElement>(`[data-action="${focusedAction}"]`)?.focus();
+      const selector =
+        focusedIndex === undefined
+          ? `[data-action="${focusedAction}"]`
+          : `[data-action="${focusedAction}"][data-index="${focusedIndex}"]`;
+      this.card.querySelector<HTMLElement>(selector)?.focus();
     }
   }
 
@@ -816,6 +928,17 @@ export class ReviewUi {
       return;
     }
     const target = event.composedPath()[0] as HTMLElement | undefined;
+    if (
+      target?.classList.contains("suggestion") &&
+      ["ArrowRight", "ArrowLeft", "ArrowDown", "ArrowUp"].includes(event.key)
+    ) {
+      event.preventDefault();
+      const options = Array.from(this.card.querySelectorAll<HTMLElement>("button.suggestion"));
+      const forward = event.key === "ArrowRight" || event.key === "ArrowDown";
+      const index = options.indexOf(target) + (forward ? 1 : -1);
+      options[(index + options.length) % options.length]?.focus();
+      return;
+    }
     if (
       (event.key === "ArrowDown" || event.key === "ArrowUp") &&
       target?.classList.contains("item")

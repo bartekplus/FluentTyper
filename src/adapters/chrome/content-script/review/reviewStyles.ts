@@ -172,6 +172,13 @@ footer .fix-note { padding: 0; }
 .alternatives { display: flex; flex-wrap: wrap; gap: 4px; }
 .alternatives button[aria-pressed="true"] { border-color: var(--ft-cat); background: color-mix(in srgb, var(--ft-cat) 14%, transparent); }
 .actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.card .word { font-size: 15px; font-weight: 600; }
+.card p.label { font-size: 11px; color: var(--ft-muted); }
+.suggestions button { font-weight: 600; min-width: 44px; }
+.suggestions button:hover:not(:disabled), .suggestions button:focus-visible {
+  border-color: var(--ft-cat);
+  background: color-mix(in srgb, var(--ft-cat) 14%, transparent);
+}
 .hint { font-size: 11px; color: var(--ft-muted); }
 .ws { color: var(--ft-muted); }
 @media (forced-colors: active) {

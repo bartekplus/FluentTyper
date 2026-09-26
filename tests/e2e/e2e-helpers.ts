@@ -670,6 +670,8 @@ export interface ReviewPanelSnapshot {
   open: boolean;
   status: string;
   notes: string;
+  /** "checking" while suggestions for unknown words may still join the results. */
+  spelling: string;
   items: Array<{ id: string; text: string; category: string; current: boolean }>;
   fixAll: { text: string; disabled: boolean; hidden: boolean };
   card: { open: boolean; text: string; applyDisabled: boolean };
@@ -713,6 +715,7 @@ export async function readReviewPanel(page: Page): Promise<ReviewPanelSnapshot> 
       open: !!root,
       status: text(".status"),
       notes: text(".notes"),
+      spelling: root?.querySelector<HTMLElement>(".panel")?.dataset.spelling ?? "",
       items: Array.from(root?.querySelectorAll<HTMLElement>(".item") ?? []).map((item) => ({
         id: item.dataset.id ?? "",
         text: item.querySelector(".change")?.textContent ?? "",
@@ -762,7 +765,8 @@ export async function waitForReview(
       label,
       async () => {
         last = await readReviewPanel(page);
-        return predicate(last) ? last : false;
+        // Results are final once the dictionary check has answered too.
+        return last.spelling !== "checking" && predicate(last) ? last : false;
       },
       { timeoutMs, intervalMs: 40 },
     );

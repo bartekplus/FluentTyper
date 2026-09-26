@@ -136,6 +136,38 @@ try {
   await sleep(900);
   check((await html()) === original, "native undo restores the original exactly");
   await shot("6-undo");
+
+  // 6. An unknown word: suggestions to pick from, nothing changes until one is chosen.
+  await page.keyboard.press("Escape");
+  await page.keyboard.press("Escape");
+  await waitUntil("closed", async () => !(await readReviewPanel(page)).open, { timeoutMs: 4000 });
+  await page.evaluate(() => {
+    const editor = document.querySelector<HTMLElement>("#doc")!;
+    editor.innerHTML = "<h2>Release notes</h2><p>Where wa the new build? It shipped on Monday.</p>";
+    editor.focus();
+    const range = document.createRange();
+    range.setStart(editor.querySelector("p")!.firstChild!, 0);
+    range.collapse(true);
+    getSelection()!.removeAllRanges();
+    getSelection()!.addRange(range);
+  });
+  const unknown = await html();
+  await triggerReview(worker);
+  await waitUntil(
+    "spelling",
+    async () => (await readReviewPanel(page)).items.some((item) => item.text.startsWith("wa ")),
+    { timeoutMs: 8000 },
+  );
+  point = await textPoint(page, "#doc", "wa", 1);
+  await page.mouse.click(point.x, point.y);
+  await waitUntil("card", async () => (await readReviewPanel(page)).card.open, { timeoutMs: 4000 });
+  check((await html()) === unknown, "an unknown word changes nothing until a word is picked");
+  await shot("7-spelling-choice");
+  await clickReviewControl(page, '.card button.suggestion[data-index="0"]');
+  await waitUntil("picked", async () => (await html()).includes("Where was the new build"), {
+    timeoutMs: 4000,
+  });
+  check(true, "picking a suggestion replaces only that word");
 } finally {
   await browser.close();
   server.close();

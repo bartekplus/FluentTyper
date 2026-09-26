@@ -21,6 +21,7 @@ import {
   CMD_TRIGGER_FT_ACTIVE_TAB,
   CMD_REVIEW_FT_ACTIVE_TAB,
   CMD_CONTENT_SCRIPT_ADD_TO_DICTIONARY,
+  CMD_CONTENT_SCRIPT_REVIEW_SPELLING,
   DEFAULT_AI_PREDICTION_TIMEOUT_MS,
   DEFAULT_AI_MODEL_ID,
   DEFAULT_DEBUG_AI_PREDICTOR_ENABLED,
@@ -83,6 +84,13 @@ const backgroundHarnessMocks = {
   cycleManualLockForScope: jest.fn(async () => null),
   getRecentSessionStatusForScope: jest.fn(async () => null),
   predictionRun: jest.fn(async () => ({ predictions: [] })),
+  predictionLookupSpelling: jest.fn(
+    async (
+      _lang: string,
+      words: Array<{ word: string; before: string }>,
+    ): Promise<Array<string[] | null> | null> =>
+      words.map(({ word }) => (word === "wa" ? ["was", "way"] : null)),
+  ),
   predictionInitialize: jest.fn(async () => undefined),
   predictionSetConfig: jest.fn(),
   predictionEnsureTraceId: jest.fn((traceId?: string) => traceId || "generated-trace-id"),
@@ -139,6 +147,8 @@ function installBackgroundHarnessModuleMocks(): void {
       runPrediction: (...args: [string, string, string, unknown?, unknown?, string?]) =>
         backgroundHarnessMocks.predictionRun(...args),
       initialize: () => backgroundHarnessMocks.predictionInitialize(),
+      lookupSpelling: (...args: [string, Array<{ word: string; before: string }>]) =>
+        backgroundHarnessMocks.predictionLookupSpelling(...args),
       setConfig: (...args: [unknown]) => backgroundHarnessMocks.predictionSetConfig(...args),
       ensureTraceId: (...args: [string?]) =>
         backgroundHarnessMocks.predictionEnsureTraceId(...args),
@@ -587,6 +597,57 @@ describe("background routing and lifecycle", () => {
     await send(42);
     expect(sendResponse).toHaveBeenCalledWith({ ok: false });
     expect(harness.settingsSet).not.toHaveBeenCalled();
+  });
+
+  test("onMessage review spelling looks words up locally and refuses malformed requests", async () => {
+    const harness = await loadBackgroundHarness();
+    const sendResponse = jest.fn();
+    const send = async (context: unknown) => {
+      sendResponse.mockClear();
+      harness.onMessage(
+        { command: CMD_CONTENT_SCRIPT_REVIEW_SPELLING, context },
+        { tab: { id: 1 } } as chrome.runtime.MessageSender,
+        sendResponse,
+      );
+      await flushPromises();
+      await flushPromises();
+    };
+    backgroundHarnessMocks.predictionLookupSpelling.mockClear();
+
+    await send({
+      lang: "en_US",
+      words: [
+        { word: "wa", before: "Where " },
+        { word: "it", before: "" },
+      ],
+    });
+    expect(sendResponse).toHaveBeenCalledWith({ ok: true, results: [["was", "way"], null] });
+    expect(backgroundHarnessMocks.predictionLookupSpelling).toHaveBeenCalledWith("en_US", [
+      { word: "wa", before: "Where " },
+      { word: "it", before: "" },
+    ]);
+    // Nothing is stored or predicted for typing along the way.
+    expect(harness.settingsSet).not.toHaveBeenCalled();
+    expect(backgroundHarnessMocks.predictionRun).not.toHaveBeenCalled();
+
+    // Not plain words, too many, or no language: refused without a lookup.
+    backgroundHarnessMocks.predictionLookupSpelling.mockClear();
+    for (const context of [
+      { lang: "en_US", words: [{ word: "two words", before: "" }] },
+      { lang: "en_US", words: Array.from({ length: 101 }, () => ({ word: "a", before: "" })) },
+      { lang: "../x", words: [{ word: "wa", before: "" }] },
+      { lang: "en_US", words: [] },
+      null,
+    ]) {
+      await send(context);
+      expect(sendResponse).toHaveBeenCalledWith({ ok: false });
+    }
+    expect(backgroundHarnessMocks.predictionLookupSpelling).not.toHaveBeenCalled();
+
+    // A language without a dictionary engine.
+    backgroundHarnessMocks.predictionLookupSpelling.mockImplementationOnce(async () => null);
+    await send({ lang: "xx_XX", words: [{ word: "wa", before: "" }] });
+    expect(sendResponse).toHaveBeenCalledWith({ ok: false });
   });
 
   test("onCommand rotates active language for current site profile if it exists", async () => {

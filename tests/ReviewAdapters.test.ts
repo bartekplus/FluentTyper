@@ -753,6 +753,64 @@ describe("adversarial review regressions", () => {
     expect(listeners.size).toBe(0);
   });
 
+  test("an unknown word offers its suggestions; nothing changes until one is picked", async () => {
+    setExecCommand(textControlInsert);
+    const field = textarea("Where wa it?");
+    field.setSelectionRange(0, 0);
+    const lookups: string[] = [];
+    const review = new ReviewController({
+      getOptions: options,
+      suspend: jest.fn(),
+      resume: jest.fn(),
+      addToDictionary: async () => true,
+      lookupSpelling: (_lang, words) => {
+        lookups.push(...words.map((item) => item.word));
+        return Promise.resolve(
+          words.map(({ word }) => (word === "wa" ? ["was", "way", "want", "war", "wax"] : null)),
+        );
+      },
+      getDocsSurface: () => null,
+      uiLanguage: "en",
+    });
+    review.invoke();
+    const root = () => hosts()[0]!.shadowRoot!;
+    await until(
+      () =>
+        root().querySelector(".item .change")?.textContent === "wa \u2192 was / way / war / \u2026",
+    );
+    expect(field.value).toBe("Where wa it?");
+    expect(lookups).toContain("wa");
+
+    root().querySelector<HTMLElement>(".item")!.click();
+    const card = root().querySelector<HTMLElement>(".card")!;
+    // No preselected fix: no Apply button, one button per suggestion, focus on the first.
+    expect(card.querySelector("[data-action=apply]")).toBeNull();
+    const choices = () => Array.from(card.querySelectorAll<HTMLButtonElement>("button.suggestion"));
+    expect(choices().map((button) => button.textContent)).toEqual(["was", "way", "war", "wax"]);
+    expect(choices()[1].getAttribute("aria-label")).toBe("Replace with \u201Cway\u201D");
+    expect(root().activeElement).toBe(choices()[0]);
+    expect(card.textContent).toContain("Nothing changes until you pick a word.");
+    expect(card.querySelector("[data-action=dictionary]")?.textContent).toBe(
+      "Add \u201Cwa\u201D to dictionary",
+    );
+    // Arrow keys move between suggestions without applying anything.
+    const KeyboardEventCtor = (window as unknown as { KeyboardEvent: typeof KeyboardEvent })
+      .KeyboardEvent;
+    choices()[0].dispatchEvent(
+      new KeyboardEventCtor("keydown", { key: "ArrowRight", bubbles: true, composed: true }),
+    );
+    expect(root().activeElement).toBe(choices()[1]);
+    expect(field.value).toBe("Where wa it?");
+
+    choices()[1].click();
+    await until(() => field.value === "Where way it?");
+    await until(
+      () =>
+        root().querySelector(".status")?.textContent === "All found issues are resolved. Fixed: 1.",
+    );
+    review.close();
+  });
+
   test("an editor removed without any event is noticed", async () => {
     const field = textarea("We saw teh cat.");
     const review = new ReviewController({

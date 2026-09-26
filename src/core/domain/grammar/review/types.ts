@@ -16,6 +16,13 @@ export const REVIEW_CATEGORIES: readonly ReviewCategory[] = [
   "typography",
 ];
 
+/**
+ * Review's own dictionary check: not a typing rule (typing offers spelling
+ * corrections as suggestions), so it has an id outside the rule catalog.
+ */
+export const REVIEW_SPELLING_CHECK = "reviewSpelling" as const;
+export type ReviewCheckId = CatalogRuleId | typeof REVIEW_SPELLING_CHECK;
+
 export interface TextRange {
   start: number;
   end: number;
@@ -54,7 +61,8 @@ export type ReviewMessageKey =
   | "review_msg_repeated_spaces"
   | "review_msg_duplicate_punctuation"
   | "review_msg_measurement_spacing"
-  | "review_msg_currency_spacing";
+  | "review_msg_currency_spacing"
+  | "review_msg_unknown_word";
 
 export type BulkDecision =
   | { eligible: true; alternative: number }
@@ -64,7 +72,7 @@ export interface ReviewDiagnostic {
   /** Unique within its snapshot: rule, range and replacement. */
   id: string;
   snapshotId: string;
-  ruleId: CatalogRuleId;
+  ruleId: ReviewCheckId;
   category: ReviewCategory;
   messageKey: ReviewMessageKey;
   lang: string;
@@ -81,6 +89,11 @@ export interface ReviewDiagnostic {
   context: TextRange;
   /** Set only for single-word spelling findings a user dictionary can accept. */
   dictionaryWord?: string;
+  /**
+   * No alternative is preselected: the user picks one (an unknown word and
+   * its possible replacements). Never part of Fix all.
+   */
+  requiresChoice?: true;
 }
 
 /**

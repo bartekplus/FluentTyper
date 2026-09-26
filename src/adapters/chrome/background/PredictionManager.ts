@@ -108,6 +108,15 @@ export class PredictionManager {
     }
   }
 
+  /** Review spelling lookups (see PresageHandler.lookupSpelling); null without an engine. */
+  async lookupSpelling(
+    lang: string,
+    words: ReadonlyArray<{ word: string; before: string }>,
+  ): Promise<Array<string[] | null> | null> {
+    await this.initialize();
+    return this.presageHandler?.lookupSpelling(lang, words) ?? null;
+  }
+
   async runPrediction(
     text: string,
     nextChar: string,

@@ -1,6 +1,10 @@
 import { getDeepActiveElement } from "@core/application/dom-utils";
 import { createLogger } from "@core/application/logging/Logger";
-import { ReviewSession, type ReviewViewState } from "@core/application/review/ReviewSession";
+import {
+  ReviewSession,
+  type ReviewSpellingLookup,
+  type ReviewViewState,
+} from "@core/application/review/ReviewSession";
 import { reviewText, type ReviewTextKey } from "@core/domain/grammar/review/reviewMessages";
 import type {
   ReviewCategory,
@@ -26,6 +30,8 @@ export interface ReviewControllerDependencies {
   suspend(element: HTMLElement): void;
   resume(element: HTMLElement): void;
   addToDictionary(word: string): Promise<boolean>;
+  /** Local dictionary lookups for unknown words (the extension's own Presage engine). */
+  lookupSpelling?: ReviewSpellingLookup;
   /** The Google Docs adapter when this page is a Docs editor. */
   getDocsSurface(): GoogleDocsReviewSurface | null;
   uiLanguage?: string;
@@ -194,6 +200,7 @@ export class ReviewController {
       initialScope: scope,
       onChange: (state) => this.onState(state),
       addToDictionary: (word) => this.deps.addToDictionary(word),
+      lookupSpelling: this.deps.lookupSpelling,
     });
     const active: ActiveReview = {
       target,

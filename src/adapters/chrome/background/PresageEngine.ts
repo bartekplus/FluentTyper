@@ -5,6 +5,9 @@ export interface PresageEngineConfig {
   prefixOnlyMode: boolean;
 }
 
+// Enough candidates that a known rare word still comes back as itself.
+const SPELLING_CANDIDATES = 20;
+
 export class PresageEngine {
   private readonly module: PresageModule;
   private readonly lang: string;
@@ -57,6 +60,31 @@ export class PresageEngine {
       }
     }
     return predictions;
+  }
+
+  /**
+   * Review spelling, read-only: for each word, null when Presage offers the
+   * word itself (the dictionary knows it), else its candidates, ranked for the
+   * preceding words. Spelling corrections stay on even in prefix-only mode;
+   * the typing configuration is restored before returning, and the engine
+   * does not learn from these lookups.
+   */
+  lookupWords(words: ReadonlyArray<{ word: string; before: string }>): Array<string[] | null> {
+    this.libPresage.config("Presage.Selector.SUGGESTIONS", String(SPELLING_CANDIDATES));
+    this.libPresage.config("Presage.ContextTracker.PREFIX_ONLY_MODE", "no");
+    try {
+      return words.map(({ word, before }) => {
+        const candidates = this.predict(`${before}${word}`);
+        const key = word.toLowerCase();
+        return candidates.some((candidate) => candidate.trim().toLowerCase() === key)
+          ? null
+          : candidates;
+      });
+    } finally {
+      // Nothing of the reviewed text stays in the engine.
+      this.callback.pastStream = "";
+      this.setConfig(this.config);
+    }
   }
 
   private createLibPresage(): Presage {

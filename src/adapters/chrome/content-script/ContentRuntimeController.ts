@@ -1,9 +1,14 @@
 import { createLogger, setGlobalObservabilityRuntime } from "@core/application/logging/Logger";
 import { getDeepActiveElement, isInDocument } from "@core/application/dom-utils";
-import { CMD_CONTENT_SCRIPT_ADD_TO_DICTIONARY } from "@core/domain/constants";
+import {
+  CMD_CONTENT_SCRIPT_ADD_TO_DICTIONARY,
+  CMD_CONTENT_SCRIPT_REVIEW_SPELLING,
+} from "@core/domain/constants";
 import { filterCodeSafeGrammarRules } from "@core/domain/grammar/ruleCatalog";
 import type {
   ContentScriptAddToDictionaryMessage,
+  ContentScriptReviewSpellingMessage,
+  ReviewSpellingResponse,
   ContentScriptPredictRequestContext,
   PredictResponseContext,
   SetConfigContext,
@@ -241,6 +246,16 @@ export class ContentRuntimeController {
         };
         const response: unknown = await chrome.runtime.sendMessage(message);
         return (response as { ok?: unknown } | undefined)?.ok === true;
+      },
+      // Unknown words are looked up in the extension's own Presage engine; nothing leaves the browser.
+      lookupSpelling: async (lang, words) => {
+        const message: ContentScriptReviewSpellingMessage = {
+          command: CMD_CONTENT_SCRIPT_REVIEW_SPELLING,
+          context: { lang, words: [...words] },
+        };
+        const response = (await chrome.runtime.sendMessage(message)) as
+          ReviewSpellingResponse | undefined;
+        return response?.ok === true && Array.isArray(response.results) ? response.results : null;
       },
       getDocsSurface: () => (this.googleDocs ? this.docsReviewSurface : null),
     });

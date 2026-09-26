@@ -2804,6 +2804,37 @@
           "test": "pressing the shortcut again from the panel keeps the review"
         }
       ]
+    },
+    {
+      "id": "review_unknown_word_choice",
+      "description": "Review looks unknown words up in the local Presage dictionary and offers close suggestions to pick from; nothing is preselected, auto-applied or batched, and the lookup stays inside the extension.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review mode offers suggestions for an unknown word and changes nothing until one is picked"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "an unknown word offers its suggestions; nothing changes until one is picked"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSession.test.ts",
+          "test": "an unknown word becomes a pick-one finding after the rule results; nothing is applied"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/background.routing.test.ts",
+          "test": "onMessage review spelling looks words up locally and refuses malformed requests"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/PresageHandler.live.test.ts",
+          "test": "known words come back as known; unknown ones get candidates, even in prefix-only mode"
+        }
+      ]
     }
   ]
 }

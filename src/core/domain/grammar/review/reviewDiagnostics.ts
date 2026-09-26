@@ -1,7 +1,7 @@
 import { GRAMMAR_RULE_CATALOG, type CatalogRuleId } from "../ruleCatalog";
 import { findMarkdownCodeRanges } from "../implementations/helpers/ProtectedSpanShared";
 import { isTechnicalToken, normalizeWordSet } from "../implementations/helpers/GenericRuleShared";
-import { REVIEW_RULE_METADATA, isReviewSupportedRule } from "./reviewCatalog";
+import { isReviewSupportedRule, reviewMetadataFor } from "./reviewCatalog";
 import { MASK_CHAR, REVIEW_DETECTORS, minimalEdits, type RawFinding } from "./reviewDetectors";
 import {
   applyEdits,
@@ -10,16 +10,19 @@ import {
   positionMapper,
   rangesOverlap,
 } from "./textRanges";
-import type {
-  BulkDecision,
-  CoverageGap,
-  ProtectedRange,
-  ReviewDiagnostic,
-  ReviewEdit,
-  ReviewOptions,
-  ReviewScanResult,
-  ReviewSourceSnapshot,
-  TextRange,
+import type { SpellingCandidate } from "./reviewSpelling";
+import {
+  REVIEW_SPELLING_CHECK,
+  type BulkDecision,
+  type CoverageGap,
+  type ProtectedRange,
+  type ReviewCheckId,
+  type ReviewDiagnostic,
+  type ReviewEdit,
+  type ReviewOptions,
+  type ReviewScanResult,
+  type ReviewSourceSnapshot,
+  type TextRange,
 } from "./types";
 
 /** Largest scope reviewed at once (UTF-16 code units). Larger scopes are cut and reported. */
@@ -245,7 +248,9 @@ export function finalizeReview(
   };
 }
 
-const PRIORITY = new Map(GRAMMAR_RULE_CATALOG.map((entry) => [entry.id, entry.priority]));
+const PRIORITY = new Map<string, number>(
+  GRAMMAR_RULE_CATALOG.map((entry) => [entry.id, entry.priority]),
+);
 
 /**
  * Two rules proposing exactly the same change ("i" at a sentence start is both
@@ -285,7 +290,31 @@ function protectedCharsInScope(prepared: PreparedReview): Partial<Record<Coverag
   return counts;
 }
 
-function toDiagnostic(prepared: PreparedReview, finding: RawFinding): ReviewDiagnostic | null {
+/** A finding from a detector, or from review's own dictionary check. */
+type Finding =
+  RawFinding | (Omit<RawFinding, "ruleId"> & { ruleId: ReviewCheckId; requiresChoice?: true });
+
+/**
+ * An unknown word as a finding: its suggestions (best first) are the
+ * alternatives, none preselected, and it can be added to the dictionary.
+ */
+export function spellingDiagnostic(
+  prepared: PreparedReview,
+  candidate: SpellingCandidate,
+  suggestions: readonly string[],
+): ReviewDiagnostic | null {
+  if (suggestions.length === 0) return null;
+  return toDiagnostic(prepared, {
+    ruleId: REVIEW_SPELLING_CHECK,
+    messageKey: "review_msg_unknown_word",
+    range: candidate.range,
+    alternatives: [...suggestions],
+    dictionaryWord: candidate.word,
+    requiresChoice: true,
+  });
+}
+
+function toDiagnostic(prepared: PreparedReview, finding: Finding): ReviewDiagnostic | null {
   const { snapshot, options } = prepared;
   const source = snapshot.text;
   const { scope } = snapshot;
@@ -328,7 +357,7 @@ function toDiagnostic(prepared: PreparedReview, finding: RawFinding): ReviewDiag
   }
   if (alternatives.length === 0) return null;
 
-  const metadata = REVIEW_RULE_METADATA[finding.ruleId];
+  const metadata = reviewMetadataFor(finding.ruleId);
   if (metadata.review !== "supported") return null;
   let bulk: BulkDecision;
   if (metadata.bulk !== "eligible") bulk = { eligible: false, reason: "rule-not-batch-approved" };
@@ -356,6 +385,7 @@ function toDiagnostic(prepared: PreparedReview, finding: RawFinding): ReviewDiag
     ...(finding.dictionaryWord && /^\p{L}+$/u.test(finding.dictionaryWord)
       ? { dictionaryWord: finding.dictionaryWord }
       : {}),
+    ...("requiresChoice" in finding && finding.requiresChoice ? { requiresChoice: true } : {}),
   };
 }
 

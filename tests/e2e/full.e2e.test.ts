@@ -7095,6 +7095,50 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   );
 
   test(
+    "Review mode offers suggestions for an unknown word and changes nothing until one is picked",
+    async () => {
+      await prepareReviewPage();
+      await setTextarea("Where wa it?");
+      const requests: string[] = [];
+      page.on("request", (request) => {
+        if (!request.url().endsWith("/favicon.ico")) requests.push(request.url());
+      });
+      await triggerReview(worker!);
+      // Looked up in the extension's own dictionary engine: close words only, no default.
+      let panel = await waitForReview(page, "spelling finding", (p) => p.items.length > 0);
+      expect(panel.items.map((item) => [item.text, item.category])).toEqual([
+        ["wa \u2192 was / way / war", "spelling"],
+      ]);
+      expect(panel.fixAll).toMatchObject({ text: "Fix all safe (0)", disabled: true });
+      expect(await textareaValue()).toBe("Where wa it?");
+
+      await clickReviewControl(page, ".item");
+      panel = await waitForReview(page, "choice card", (p) => p.card.open);
+      expect(panel.card.text).toContain("This word is not in the dictionary.");
+      expect(panel.card.text).toContain("Nothing changes until you pick a word.");
+      expect(await textareaValue()).toBe("Where wa it?");
+
+      // The user picks "was": one native edit, and one undo step restores the word.
+      await clickReviewControl(page, '.card button.suggestion[data-index="0"]');
+      await waitUntil("picked", async () => (await textareaValue()) === "Where was it?", {
+        timeoutMs: 5000,
+      });
+      await waitForReview(
+        page,
+        "resolved",
+        (p) => p.status === "All found issues are resolved. Fixed: 1.",
+      );
+      await pressUndo("#test-textarea");
+      await waitUntil("undone", async () => (await textareaValue()) === "Where wa it?", {
+        timeoutMs: 5000,
+      });
+      expect(requests).toEqual([]);
+      await finishReview();
+    },
+    browserTimeout(20000, 30000),
+  );
+
+  test(
     "Review mode never writes stale offsets when focusing the field changes it",
     async () => {
       await prepareReviewPage();

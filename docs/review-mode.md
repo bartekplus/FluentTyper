@@ -140,6 +140,38 @@ Excluded (typing conveniences, not errors in finished text):
 | `frenchPunctuationSpacing`           | Typing-time convention; invisible no-break space changes.                  |
 | `autoBracketClose`                   | Review never inserts closing brackets.                                     |
 
+### Unknown words
+
+Besides the rules, review checks each prose word against the language's
+dictionary: the same local Presage engine (Hunspell and Aspell predictors) that
+offers spelling corrections while you type. A word the dictionary does not know
+("Where **wa** it?") is listed with the closest words Presage suggests for it,
+ranked for the words before it: `wa → was / way / war`.
+
+![Choosing a replacement for an unknown word](images/review-mode/7-spelling-choice.png)
+
+- **Nothing is preselected and nothing is fixed automatically.** The card shows
+  the word and one button per suggestion; one click (or Enter) on a suggestion
+  replaces the word with it, as one native undo step. Arrow keys move between
+  suggestions; **Ignore** and **Add to dictionary** work as for any finding.
+- **Never in Fix all.** These findings count as left for individual review.
+- **Only close suggestions.** A suggestion must be one edit away for a word of up
+  to five letters, two for a longer one; completions ("wa" → "water") are
+  dropped. A word with no close suggestion is not listed at all, and neither is
+  a compound the dictionary can split into two words ("changelog", "webhook").
+- **Left out:** names (a capitalized word inside a sentence), acronyms and
+  mixed case ("NASA", "iPhone"), words glued to digits, symbols or hyphens,
+  anything touching code or protected text, words another rule already flags,
+  and the user's dictionary.
+- **When it runs:** after the rule results are shown ("Checking spelling…"
+  while it runs), a few words at a time, with answers remembered for rechecks.
+  It needs at least one review rule on (so not in code mode) and a Presage
+  dictionary for the language; otherwise the panel says spelling suggestions
+  are unavailable.
+- **Local:** the words go from the page's content script to the extension's own
+  background engine and back; nothing leaves the browser, nothing is stored or
+  logged, and the engine does not learn from them.
+
 A finding whose fix depends on context another fix changes is batched only
 when re-detection proves both still hold together. Otherwise both are left
 for individual review. A fix that would create a new finding is never chained:
@@ -216,6 +248,7 @@ Domain       src/core/domain/grammar/review/
              reviewCatalog.ts    per-rule review metadata and coverage map
              reviewDetectors.ts  detectors built on the typing rules' exports
              reviewDiagnostics.ts prepare / chunk / scan / finalize; proof step
+             reviewSpelling.ts   unknown words: what to look up, which suggestions to offer
              bulkPlanner.ts      Fix-all planning: conflicts deferred, proofs in rounds
              textRanges.ts       edits, diffs, remapping, grapheme boundaries
              reviewMessages.ts   explanations and UI strings (9 languages)
@@ -225,7 +258,8 @@ Adapters     src/adapters/chrome/content-script/review/
              ReviewTargets.ts, ContentEditableTextMap.ts, GoogleDocsReviewTarget.ts
              ReviewController.ts (listeners, painting, focus)
 UI           ReviewUi.ts, reviewStyles.ts (shadow DOM, top-layer popover)
-Background   CommandRouter (shortcut), MessageRouter (add to dictionary)
+Background   CommandRouter (shortcut), MessageRouter (add to dictionary, dictionary
+             lookups through PresageEngine.lookupWords)
 ```
 
 Nothing is created, observed or scanned until the first review. The review code
@@ -268,8 +302,13 @@ Known costs:
 
 ## Limitations
 
-- Findings are limited to the catalog rules above. Review is not a general
-  grammar checker, and most rules are English-only.
+- Findings are limited to the catalog rules above and the dictionary check for
+  unknown words. Review is not a general grammar checker, and most rules are
+  English-only.
+- The dictionary check finds words the dictionary lacks, not real words in the
+  wrong place ("form" for "from"). It follows the language setting: under
+  `en_US`, British spellings are unknown words, and a name that opens a
+  sentence is listed (with "Add to dictionary" to accept it).
 - The review UI language follows the browser language (English, French,
   Croatian, Spanish, Greek, Swedish, German, Polish, Portuguese).
 - Google Docs: no inline highlights and no Fix all (one verified replacement at a time).

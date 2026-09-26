@@ -205,6 +205,18 @@ export class PresageHandler {
     };
   }
 
+  /**
+   * Review spelling: per word, null when the language's dictionary knows it,
+   * otherwise Presage's candidates for it. Null when the language has no engine.
+   */
+  lookupSpelling(
+    lang: string,
+    words: ReadonlyArray<{ word: string; before: string }>,
+  ): Array<string[] | null> | null {
+    if (!this.hasLanguageEngine(lang)) return null;
+    return this.presageEngines[lang].lookupWords(words);
+  }
+
   hasLanguageEngine(lang: string): boolean {
     return lang in this.presageEngines;
   }

@@ -1,5 +1,5 @@
 import { GRAMMAR_RULE_CATALOG, type CatalogRuleId } from "../ruleCatalog";
-import type { ReviewCategory } from "./types";
+import { REVIEW_SPELLING_CHECK, type ReviewCategory, type ReviewCheckId } from "./types";
 
 /**
  * Review metadata for every catalog rule. The Record type makes a new catalog
@@ -104,6 +104,18 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     reason: "Typing convenience: review never inserts closing brackets.",
   },
 };
+
+/** Review's dictionary check: individual only, and the user always picks the word. */
+export const REVIEW_SPELLING_METADATA: ReviewRuleMetadata = {
+  review: "supported",
+  category: "spelling",
+  bulk: "individual",
+  note: "An unknown word has several possible corrections, or none: the user picks.",
+};
+
+export function reviewMetadataFor(ruleId: ReviewCheckId): ReviewRuleMetadata {
+  return ruleId === REVIEW_SPELLING_CHECK ? REVIEW_SPELLING_METADATA : REVIEW_RULE_METADATA[ruleId];
+}
 
 /** Catalog order; the coverage map shown in docs and asserted by tests. */
 export function reviewCoverageMap(): Array<{ ruleId: CatalogRuleId } & ReviewRuleMetadata> {

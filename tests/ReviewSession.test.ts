@@ -3,6 +3,7 @@ import {
   ReviewSession,
   type ReviewApplyResult,
   type ReviewCapabilities,
+  type ReviewSpellingLookup,
   type ReviewTargetPort,
   type ReviewTargetRead,
   type ReviewViewState,
@@ -60,10 +61,12 @@ function harness(
     scope = null,
     dictionary,
     rules = ["englishTypoWhitelistCorrection"],
+    lookupSpelling,
   }: {
     scope?: TextRange | null;
     dictionary?: (word: string) => Promise<boolean>;
     rules?: readonly string[];
+    lookupSpelling?: ReviewSpellingLookup;
   } = {},
 ) {
   const editor = new FakeEditor(text);
@@ -80,6 +83,7 @@ function harness(
     initialScope: scope,
     onChange: (state) => states.push(state),
     addToDictionary: dictionary,
+    lookupSpelling,
     setTimer: (callback, delay) => {
       const timer = { callback, delay };
       timers.push(timer);
@@ -433,5 +437,111 @@ describe("ReviewSession", () => {
     });
     await h.settle();
     expect(h.last()).toMatchObject({ status: "ready", noRules: true, diagnostics: [] });
+  });
+});
+
+describe("ReviewSession spelling", () => {
+  /** A fake dictionary: "wa" and "teh" are unknown; every other word is known. */
+  function fakeLookup(candidates: Record<string, string[]> = {}) {
+    const calls: Array<Array<{ word: string; before: string }>> = [];
+    const lookup: ReviewSpellingLookup = (lang, words) => {
+      expect(lang).toBe("en_US");
+      calls.push([...words]);
+      return Promise.resolve(
+        words.map(({ word }) =>
+          word === "wa" ? ["was", "way", "want", "water", "war"] : (candidates[word] ?? null),
+        ),
+      );
+    };
+    return { lookup, calls, words: () => calls.flat().map((item) => item.word) };
+  }
+
+  test("an unknown word becomes a pick-one finding after the rule results; nothing is applied", async () => {
+    const fake = fakeLookup();
+    const h = harness("Where wa it?", { lookupSpelling: fake.lookup });
+    await Promise.all([h.session.start(), h.settle()]);
+    // Rule results first (none here), then the dictionary check.
+    expect(
+      h.states.some((state) => state.status === "ready" && state.spelling === "checking"),
+    ).toBe(true);
+    expect(h.last().spelling).toBe("done");
+    const [finding] = h.last().diagnostics;
+    expect(finding).toMatchObject({
+      ruleId: "reviewSpelling",
+      original: "wa",
+      requiresChoice: true,
+    });
+    expect(finding.alternatives.map((a) => a.preview)).toEqual(["was", "way", "war"]);
+    expect(fake.calls[0]).toContainEqual({ word: "wa", before: "Where " });
+    // Never batched, and nothing was written.
+    expect(h.last().bulk).toMatchObject({ count: 0, deferred: 1 });
+    expect(h.editor.applyCalls).toEqual([]);
+
+    // The user picks the second suggestion.
+    await Promise.all([h.session.apply(finding.id, 1), h.settle()]);
+    expect(h.editor.text).toBe("Where way it?");
+    expect(h.last().diagnostics).toEqual([]);
+  });
+
+  test("answers are remembered: a recheck looks up only new words", async () => {
+    const fake = fakeLookup();
+    const h = harness("Where wa it?", { lookupSpelling: fake.lookup });
+    await Promise.all([h.session.start(), h.settle()]);
+    const first = fake.words().length;
+    h.editor.text = "Where wa it? Found it.";
+    h.session.notifySourceChanged();
+    await h.settle();
+    expect(fake.words().slice(first)).toEqual(["Found"]);
+    expect(h.last().diagnostics.map((d) => d.original)).toEqual(["wa"]);
+  });
+
+  test("a language without a dictionary is reported once; rule results stay", async () => {
+    let calls = 0;
+    const h = harness("teh wa", {
+      lookupSpelling: () => {
+        calls += 1;
+        return Promise.resolve(null);
+      },
+    });
+    await Promise.all([h.session.start(), h.settle()]);
+    expect(h.last().spelling).toBe("unavailable");
+    expect(h.originals()).toEqual(["teh"]);
+    h.editor.text = "teh wa now";
+    h.session.notifySourceChanged();
+    await h.settle();
+    expect(calls).toBe(1);
+    expect(h.last().spelling).toBe("unavailable");
+  });
+
+  test("answers for text that has since changed are dropped", async () => {
+    let answer: (value: Array<string[] | null>) => void = () => {};
+    const h = harness("Where wa it?", {
+      lookupSpelling: () =>
+        new Promise((resolve) => {
+          answer = resolve;
+        }),
+    });
+    await Promise.all([h.session.start(), h.settle()]);
+    h.session.notifySourceChanged();
+    answer([null, ["was"], null]);
+    await h.settle();
+    // The old answer never produced a finding for the old text.
+    expect(h.states.some((state) => state.diagnostics.some((d) => d.original === "wa"))).toBe(
+      false,
+    );
+  });
+
+  test("words other findings cover, and the user's dictionary, are not looked up; no rules, no check", async () => {
+    const fake = fakeLookup();
+    const h = harness("teh wa", { lookupSpelling: fake.lookup });
+    await Promise.all([h.session.start(), h.settle()]);
+    expect(fake.words()).toEqual(["wa"]);
+    expect(h.originals()).toEqual(["teh", "wa"]);
+
+    const off = fakeLookup();
+    const none = harness("Where wa it?", { lookupSpelling: off.lookup, rules: [] });
+    await Promise.all([none.session.start(), none.settle()]);
+    expect(none.last().spelling).toBe("off");
+    expect(off.calls).toEqual([]);
   });
 });

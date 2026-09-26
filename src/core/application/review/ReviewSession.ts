@@ -9,6 +9,7 @@ import {
   prepareReview,
   reviewChunks,
   scanReviewChunk,
+  spellingDiagnostic,
   stillDetectedAfter,
   stillDetectedAfterAsync,
   type ChunkScan,
@@ -31,7 +32,12 @@ import type {
   ReviewOptions,
   TextRange,
 } from "@core/domain/grammar/review/types";
-import { REVIEW_CATEGORIES } from "@core/domain/grammar/review/types";
+import { REVIEW_CATEGORIES, REVIEW_SPELLING_CHECK } from "@core/domain/grammar/review/types";
+import {
+  rankSpellingSuggestions,
+  spellingCandidates,
+  type SpellingCandidate,
+} from "@core/domain/grammar/review/reviewSpelling";
 
 /** What a review target can honestly do; the UI shows limits, never hides them. */
 export interface ReviewCapabilities {
@@ -126,6 +132,12 @@ export interface ReviewViewState {
   noRules: boolean;
   /** `pending`: the plan is still being proven; Fix all waits for it. */
   bulk: { count: number; deferred: number; pending: boolean };
+  /**
+   * The dictionary check, which runs after the rule results are shown:
+   * `off` without a lookup (or with no rules on), `unavailable` when the
+   * language has no dictionary.
+   */
+  spelling: "off" | "checking" | "done" | "unavailable";
   notice: ReviewNotice | null;
   /** The text the diagnostics' offsets refer to. */
   text: string;
@@ -138,10 +150,24 @@ export interface ReviewSessionDependencies {
   initialScope: TextRange | null;
   onChange: (state: ReviewViewState) => void;
   addToDictionary?: (word: string) => Promise<boolean>;
+  /** Local dictionary lookups (see ReviewSpellingLookup). */
+  lookupSpelling?: ReviewSpellingLookup;
   setTimer?: (callback: () => void, delayMs: number) => unknown;
   clearTimer?: (handle: unknown) => void;
   recheckDelayMs?: number;
 }
+
+/**
+ * Per word: null when the dictionary knows it, else candidate replacements
+ * ranked for `before`. Null overall: no dictionary for the language.
+ */
+export type ReviewSpellingLookup = (
+  lang: string,
+  words: ReadonlyArray<{ word: string; before: string }>,
+) => Promise<Array<string[] | null> | null>;
+
+/** Words per lookup: small, so typing predictions sharing the engine never wait long. */
+const SPELLING_REQUEST_WORDS = 25;
 
 interface IgnoredOccurrence {
   ruleId: string;
@@ -196,6 +222,16 @@ export class ReviewSession {
   private unread = 0;
   private prepared: PreparedReview | null = null;
   private diagnostics: ReviewDiagnostic[] = [];
+  // The rule findings alone: Fix all plans from these (spelling is never batched).
+  private ruleDiagnostics: ReviewDiagnostic[] = [];
+  private spelling: ReviewViewState["spelling"] = "off";
+  // Lookups already answered, per language: known words, and candidates per word and context.
+  private spellingCache = {
+    lang: "",
+    unavailable: false,
+    known: new Set<string>(),
+    candidates: new Map<string, string[]>(),
+  };
   private coverage: ReviewCoverage | null = null;
   private ignored: IgnoredOccurrence[] = [];
   // getState() runs on every change; the plan only depends on these inputs.
@@ -345,7 +381,7 @@ export class ReviewSession {
       if (generation !== this.generation || !this.canWrite()) return null;
     }
     if (!plan || plan.edits.length === 0) return null;
-    return this.write(plan.edits, plan.diagnosticIds.length, plan.deferred.length);
+    return this.write(plan.edits, plan.diagnosticIds.length, this.deferredCount(plan));
   }
 
   /** The text the current results describe. */
@@ -372,9 +408,10 @@ export class ReviewSession {
       noRules: this.prepared !== null && this.prepared.rules.size === 0,
       bulk: {
         count: plan?.diagnosticIds.length ?? 0,
-        deferred: plan?.deferred.length ?? 0,
+        deferred: plan ? this.deferredCount(plan) : 0,
         pending: plan === null && this.planPending !== null,
       },
+      spelling: this.spelling,
       notice: this.notice,
       text: this.text,
     };
@@ -418,7 +455,14 @@ export class ReviewSession {
 
   private planKey(): readonly unknown[] | null {
     if (!this.prepared) return null;
-    return [this.prepared, this.text, this.diagnostics, this.ignored, this.categories];
+    // Rule findings only: spelling results arriving later never re-plan Fix all.
+    return [this.prepared, this.text, this.ruleDiagnostics, this.ignored, this.categories];
+  }
+
+  /** Findings Fix all leaves for the user: the plan's, plus every shown spelling finding. */
+  private deferredCount(plan: BulkPlan): number {
+    const spelling = this.visibleDiagnostics().filter((d) => d.ruleId === REVIEW_SPELLING_CHECK);
+    return plan.deferred.length + spelling.length;
   }
 
   /**
@@ -434,7 +478,8 @@ export class ReviewSession {
     if (this.planPending && sameKey(this.planPending.key, key)) return null;
     const prepared = this.prepared;
     const filtered = this.categories.size < REVIEW_CATEGORIES.length ? this.categories : undefined;
-    const steps = planBulkFixSteps(this.text, this.activeDiagnostics(), {
+    const ruleFindings = this.activeDiagnostics().filter((d) => d.ruleId !== REVIEW_SPELLING_CHECK);
+    const steps = planBulkFixSteps(this.text, ruleFindings, {
       categories: filtered,
       prove: true,
     });
@@ -641,11 +686,109 @@ export class ReviewSession {
       ...(this.unread > 0 && { "outside-window": this.unread }),
     });
     this.prepared = prepared;
+    this.ruleDiagnostics = result.diagnostics;
     this.diagnostics = result.diagnostics;
     this.coverage = result.coverage;
     this.status = "ready";
     if (this.selectedId && !this.visibleDiagnostics().some((d) => d.id === this.selectedId)) {
       this.selectedId = null;
+    }
+    const lookup = this.deps.lookupSpelling;
+    const spelling = lookup && prepared.rules.size > 0;
+    if (spelling) this.spellingCache = this.cacheFor(prepared.options.lang);
+    this.spelling = !spelling ? "off" : this.spellingCache.unavailable ? "unavailable" : "checking";
+    this.emit();
+    if (this.spelling !== "checking") return;
+    // Not awaited: results are usable now, and suggestions join them as they come.
+    this.checkSpelling(generation, prepared, lookup!).catch(() => {
+      if (generation !== this.generation || this.isClosed) return;
+      this.spelling = "unavailable";
+      this.emit();
+    });
+  }
+
+  private cacheFor(lang: string): ReviewSession["spellingCache"] {
+    if (this.spellingCache.lang === lang) return this.spellingCache;
+    return { lang, unavailable: false, known: new Set(), candidates: new Map() };
+  }
+
+  /**
+   * The dictionary check, after the rule results are on screen: looks up the
+   * words not answered before, a few at a time, and adds a pick-one finding
+   * for each unknown word with close suggestions. Dropped as soon as newer
+   * results replace these; a missing dictionary is reported, not retried.
+   */
+  private async checkSpelling(
+    generation: number,
+    prepared: PreparedReview,
+    lookup: ReviewSpellingLookup,
+  ): Promise<void> {
+    const cache = this.spellingCache;
+    const candidates = spellingCandidates(
+      prepared,
+      this.ruleDiagnostics.map((d) => d.range),
+    );
+    const keyOf = (candidate: SpellingCandidate) =>
+      `${candidate.lookup.toLowerCase()}\u0000${candidate.before.toLowerCase()}`;
+    const pending = new Map<string, { word: string; before: string }>();
+    for (const candidate of candidates) {
+      const key = keyOf(candidate);
+      if (cache.known.has(candidate.lookup.toLowerCase()) || cache.candidates.has(key)) continue;
+      pending.set(key, { word: candidate.lookup, before: candidate.before });
+    }
+    const queue = [...pending];
+    for (let index = 0; index < queue.length; index += SPELLING_REQUEST_WORDS) {
+      const batch = queue.slice(index, index + SPELLING_REQUEST_WORDS);
+      let results: Array<string[] | null> | null;
+      try {
+        results = await lookup(
+          cache.lang,
+          batch.map(([, item]) => item),
+        );
+      } catch {
+        results = null;
+      }
+      if (generation !== this.generation || this.isClosed) return;
+      if (!results || results.length !== batch.length) {
+        cache.unavailable = true;
+        this.spelling = "unavailable";
+        this.emit();
+        return;
+      }
+      batch.forEach(([key, item], position) => {
+        const result = results[position];
+        if (result === null) cache.known.add(item.word.toLowerCase());
+        else cache.candidates.set(key, result);
+      });
+      this.showSpelling(prepared, candidates, keyOf);
+    }
+    this.spelling = "done";
+    this.showSpelling(prepared, candidates, keyOf);
+  }
+
+  /** Rule findings plus a finding per unknown word answered so far, in text order. */
+  private showSpelling(
+    prepared: PreparedReview,
+    candidates: readonly SpellingCandidate[],
+    keyOf: (candidate: SpellingCandidate) => string,
+  ): void {
+    const found: ReviewDiagnostic[] = [];
+    for (const candidate of candidates) {
+      if (this.spellingCache.known.has(candidate.lookup.toLowerCase())) continue;
+      const answer = this.spellingCache.candidates.get(keyOf(candidate));
+      if (!answer) continue;
+      const diagnostic = spellingDiagnostic(
+        prepared,
+        candidate,
+        rankSpellingSuggestions(candidate.word, answer),
+      );
+      if (diagnostic) found.push(diagnostic);
+    }
+    const shown = this.diagnostics.length - this.ruleDiagnostics.length;
+    if (found.length !== shown) {
+      this.diagnostics = [...this.ruleDiagnostics, ...found].sort(
+        (a, b) => a.range.start - b.range.start || a.range.end - b.range.end,
+      );
     }
     this.emit();
   }
