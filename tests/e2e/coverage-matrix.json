@@ -2514,7 +2514,7 @@
     },
     {
       "id": "review_readonly_detection",
-      "description": "Review detection reads one immutable snapshot, never mutates it, and is deterministic with exact UTF-16 ranges, categories and replacements per supported rule.",
+      "description": "Review detection reads one immutable snapshot, never mutates it, and is deterministic with exact UTF-16 ranges, categories and replacements per supported rule; with the words after a word available, review decides cases typing leaves as typed (months, cant/wont/ill before a bare verb, a sentence-final \"i.\"), always as individual fixes.",
       "coverage": [
         {
           "layer": "unit",
@@ -2535,6 +2535,21 @@
           "layer": "e2e-smoke",
           "file": "tests/e2e/smoke.e2e.test.ts",
           "test": "review mode fixes a textarea from one snapshot without changing it on start"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewDiagnostics.test.ts",
+          "test": "may, march and august are months when the words after them say so"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewDiagnostics.test.ts",
+          "test": "cant, wont and ill are contractions only before a bare verb"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewDiagnostics.test.ts",
+          "test": "a sentence-final \"i.\" is the pronoun; list markers and numbered parts are not"
         }
       ]
     },

@@ -213,3 +213,82 @@ export function findProperName(
   const canonical = word[0].toUpperCase() + word.slice(1).toLowerCase();
   return { start: month.index, end: month.index + word.length, canonical, contextual: true };
 }
+
+// Months that are only ever months, for "april or may" and "may to june".
+const PLAIN_MONTHS = "january|february|april|june|july|september|october|november|december";
+// Before a month and never before the verb or adjective: "in may", "until march".
+const MONTH_PREPOSITIONS = new Set([
+  "in",
+  "during",
+  "since",
+  "until",
+  "till",
+  "by",
+  "from",
+  "before",
+  "through",
+  "throughout",
+]);
+// "last march" is a month; "the last march" or "his early march" is a march.
+const MONTH_MODIFIERS = new Set(["last", "next", "every", "early", "late"]);
+const NOUN_DETERMINERS = new Set([
+  "the",
+  "a",
+  "an",
+  "this",
+  "that",
+  "his",
+  "her",
+  "their",
+  "our",
+  "my",
+  "your",
+  "its",
+  "whose",
+  "one",
+]);
+// "the end of may", "the 5th of march".
+const OF_MONTH_HEADS = new Set(["end", "beginning", "start", "middle", "ides", "rest", "month"]);
+// The word ends its clause: sentence mark, comma, closing bracket or the line's end.
+const CLAUSE_END = /^(?:[.,;:!?)\]]|[ \t]*(?:\n|$))/u;
+const YEAR_AFTER = /^[ \t]+(?:19|20)\d\d(?![\p{L}\p{N}])/u;
+const RANGE_AFTER = new RegExp(
+  `^[ \\t]*(?:to|through|until|till|and|or|[-–—])[ \\t]*(?:${PLAIN_MONTHS})(?![\\p{L}])`,
+  "iu",
+);
+const RANGE_BEFORE = new RegExp(
+  `(?<![\\p{L}])(?:${PLAIN_MONTHS})[ \\t]*(?:,|to|through|until|till|and|or|[-–—])[ \\t]*$`,
+  "iu",
+);
+const LAST_TWO_WORDS = /(?:^|[^\p{L}\p{N}'’])([\p{L}\p{N}'’]+)[ \t]+([\p{L}\p{N}'’]+)[ \t]+$/u;
+
+/**
+ * Finished text only (review): whether a lowercase "may", "march" or
+ * "august" is the month, judged with the text AFTER it too, which typing
+ * never has. `before` ends right before the word and `after` starts right
+ * after it. The verb and the adjective need a subject or a noun next to
+ * them, so the month is what is left when neither can fit:
+ * - a date preposition before it and its clause ending after it:
+ *   "in may.", "until march,", "by august" at the end of a line;
+ * - "last"/"next"/"every"/"early"/"late" before it, not after a determiner
+ *   ("last may," is a month; "the last march," is a march);
+ * - "the end of may", "the 5th of march", ending its clause or before a year;
+ * - a day number before it, ending its clause: "on 5 may.";
+ * - a range or list with a month that is only a month: "april or may",
+ *   "may to june".
+ * Anything else ("this may.", "in august company", "they march,") stays.
+ */
+export function isMonthInContext(word: string, before: string, after: string): boolean {
+  if (!/^(?:may|march|august)$/.test(word)) return false;
+  if (RANGE_AFTER.test(after)) return true;
+  const ends = CLAUSE_END.test(after) || YEAR_AFTER.test(after);
+  if (!ends) return false;
+  if (RANGE_BEFORE.test(before)) return true;
+  const words = LAST_TWO_WORDS.exec(before);
+  const previous = (words?.[2] ?? execTail(PREVIOUS_WORD_REGEX, before)?.[1] ?? "").toLowerCase();
+  const earlier = (words?.[1] ?? "").toLowerCase();
+  if (MONTH_PREPOSITIONS.has(previous)) return true;
+  if (MONTH_MODIFIERS.has(previous)) return !NOUN_DETERMINERS.has(earlier);
+  if (previous === "of") return OF_MONTH_HEADS.has(earlier) || DAY_NUMBER.test(earlier);
+  return DAY_NUMBER.test(previous) && (MARCH_DATE_WORDS.has(earlier) || /\D$/.test(previous));
+}

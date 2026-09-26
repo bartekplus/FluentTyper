@@ -146,6 +146,19 @@ Supported:
 | `collapseRepeatedSpaces`               | all      | on      | punctuation | yes (alignment gaps are left alone)                                                               |
 | `duplicatePunctuationCollapse`         | all      | off     | punctuation | yes                                                                                               |
 
+Unlike typing, review sees the words after a word as well as before it, so it
+decides some cases typing has to leave as typed. These are always individual
+fixes (never in Fix all), because the deciding words are only evidence:
+
+- **Months:** "in may.", "until march,", "last may,", "the end of august",
+  "on 5 may." and "april or may" are the month. "It may rain", "they march",
+  "an august institution" and "the last march" stay as written.
+- **Contractions:** "cant", "wont" and "ill" before a bare verb: "I cant go",
+  "It wont work", "ill be there". "The cant of the roof", "as is his wont" and
+  "fell ill" stay.
+- **"i" ending a sentence:** "taller than i." (typing cannot rule out "i.e.").
+  A roman-numeral list marker ("i. First") or part ("Part i.") stays.
+
 Excluded (typing conveniences, not errors in finished text):
 
 | Rule                                 | Why                                                                        |

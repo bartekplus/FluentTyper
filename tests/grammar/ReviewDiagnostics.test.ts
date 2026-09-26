@@ -161,6 +161,22 @@ describe("review detectors: capitalization and typography", () => {
     ).toEqual([]);
   });
 
+  test('a sentence-final "i." is the pronoun; list markers and numbered parts are not', () => {
+    const rule = "englishPronounICapitalization";
+    // Typing cannot tell "i." from the start of "i.e."; the finished text can.
+    expect(only("She is taller than i. Nobody but i.\nIt was i.", rule).map((r) => r[2])).toEqual([
+      [19, 20],
+      [33, 34],
+      [43, 44],
+    ]);
+    for (const text of ["i.e. this", "i. First item", "  i. Second item", "See Part i. Next"]) {
+      expect(only(text, rule)).toEqual([]);
+    }
+    // A loop variable can end a sentence too: one at a time.
+    const [finding] = review("taller than i.", { enabledRules: [rule] });
+    expect(finding.bulk).toEqual({ eligible: false, reason: "context-dependent" });
+  });
+
   test('"i" named by the word before it is an identifier, not the pronoun', () => {
     const rule = "englishPronounICapitalization";
     for (const text of [
@@ -204,6 +220,44 @@ describe("review detectors: capitalization and typography", () => {
     ).toEqual([]);
   });
 
+  test("may, march and august are months when the words after them say so", () => {
+    const rule = "englishProperNounCapitalization";
+    const months = (text: string) => only(text, rule).map(([, original]) => original);
+    // Typing leaves these as typed: it never sees what follows the word.
+    for (const text of [
+      "We moved in may.",
+      "We left in august, then came back.",
+      "Last may, we met.",
+      "It ends at the end of march.",
+      "On the 5th of may, we left.",
+      "Due on 5 may.",
+      "Come in april or may.",
+      "From may to june.",
+      "Open until march",
+      "Every august, they sail.",
+    ]) {
+      expect(months(text)).toContain(text.match(/may|march|august/)![0]);
+    }
+    // The verb, the adjective and the noun stay as written.
+    for (const text of [
+      "It may rain.",
+      "This may.",
+      "You may, of course.",
+      "They march, then rest.",
+      "On his last march, he fell.",
+      "Log in may fail.",
+      "Every may be wrong.",
+      "an august institution in august company",
+      "Only 5 may.",
+    ]) {
+      expect(months(text)).toEqual([]);
+    }
+    // Always one at a time, with the deciding words as evidence.
+    const [finding] = review("We moved in may.", { enabledRules: [rule] });
+    expect(finding.bulk).toEqual({ eligible: false, reason: "context-dependent" });
+    expect(finding.context!.end).toBeGreaterThan(finding.range.end);
+  });
+
   test("englishOrdinalSuffix", () => {
     expect(only("the 2th and 23th and 11th", "englishOrdinalSuffix")).toEqual([
       ["englishOrdinalSuffix", "2th", [4, 7], "2nd"],
@@ -241,6 +295,38 @@ describe("review detectors: spelling", () => {
     );
     const [finding] = review("dont", { enabledRules: ["englishContractionNormalization"] });
     expect(finding.dictionaryWord).toBeUndefined();
+  });
+
+  test("cant, wont and ill are contractions only before a bare verb", () => {
+    const rule = "englishContractionNormalization";
+    expect(only("I cant go. It wont work. ill be there. Cant wait!", rule)).toEqual([
+      [rule, "cant", [2, 6], "can't"],
+      [rule, "wont", [14, 18], "won't"],
+      [rule, "ill", [25, 28], "I'll"],
+      [rule, "Cant", [39, 43], "Can't"],
+    ]);
+    expect(only("I cant really say, and ill call you.", rule).map((row) => row[3])).toEqual([
+      "can't",
+      "I'll",
+    ]);
+    // The ordinary words stay: no bare verb after them, or no subject before.
+    for (const text of [
+      "the cant of the roof",
+      "They cant the deck.",
+      "As is his wont to say.",
+      "They were wont to go.",
+      "He fell ill.",
+      "ill health and ill will",
+      "I cant.",
+      "Ada Ill be",
+      "ILL BE THERE",
+    ]) {
+      expect(only(text, rule)).toEqual([]);
+    }
+    const [finding] = review("It wont work.", { enabledRules: [rule] });
+    expect(finding.bulk).toEqual({ eligible: false, reason: "context-dependent" });
+    // The verb after it decided it: editing that word re-checks the finding.
+    expect(finding.context).toEqual({ start: 0, end: 12 });
   });
 
   test("englishAlotCorrection", () => {
@@ -653,6 +739,7 @@ describe("review scope and protection", () => {
       "Thanks, your welcome. i has a question about a apple and an umbrella.",
       "The price is 5$ and we meet on monday, may 15 in the 2th week at 10kg.",
       "Here is `const x = teh;` and https://example.com/teh?alot=1 in text.",
+      "We left in may, and i cant go; she is taller than i.",
     ].join(" ");
     // Short lines, then one long line: chunks end at line ends and, inside the
     // long line, at spaces mid-paragraph, where findings cross the boundary.

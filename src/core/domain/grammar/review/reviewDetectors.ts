@@ -9,7 +9,10 @@ import {
   startsSentence,
 } from "../implementations/CapitalizeSentenceStartRule";
 import { NON_PRONOUN_FOLLOWERS } from "../implementations/EnglishPronounICapitalizationRule";
-import { normalizeContractionToken } from "../implementations/EnglishContractionNormalizationRule";
+import {
+  normalizeContractionInContext,
+  normalizeContractionToken,
+} from "../implementations/EnglishContractionNormalizationRule";
 import { correctWhitelistedTypo } from "../implementations/EnglishTypoWhitelistCorrectionRule";
 import {
   MODAL_OF_REGEX,
@@ -40,6 +43,7 @@ import { ordinalSuffix } from "../implementations/EnglishOrdinalSuffixRule";
 import {
   couldEndProperName,
   findProperName,
+  isMonthInContext,
   recase,
 } from "../implementations/EnglishProperNounCapitalizationRule";
 import { CURRENCY_MARKERS } from "../implementations/CurrencySpacingRule";
@@ -176,6 +180,9 @@ function graphemeEnd(text: string, index: number): number {
 // Words after which a lowercase "i" names something ("the variable i"): an identifier.
 const IDENTIFIER_WORDS = "each|every|the|a|index|variable|counter|iterator|loop";
 const IDENTIFIER_BEFORE = new RegExp(`\\b(?:${IDENTIFIER_WORDS})\\s+$`, "i");
+// Words naming a numbered part: "Part i.", "Appendix i." is the roman numeral.
+const NUMERAL_BEFORE =
+  /\b(?:part|chapter|section|appendix|volume|vol|book|act|phase|step|stage|level|type|class|article|annex|item|figure|fig|table|option|case|grade|war|page|no)\s+$/i;
 // "i is"/"i has" is a variable after a condition too ("while i has items");
 // "if i go" is still the pronoun, so conditions only guard those verbs.
 const VARIABLE_CONTEXT_BEFORE = new RegExp(
@@ -299,10 +306,19 @@ const pronounI: Detector = (ctx) => {
     if (IDENTIFIER_BEFORE.test(ctx.text.slice(Math.max(0, start - 24), start))) continue;
     const rest = ctx.text.slice(start + 1, start + 1 + 40);
     let contextEnd = start + 1;
+    let sentenceEnd = false;
     if (/^['’](?:m|ve|ll|d)(?![\p{L}\p{N}])/u.test(rest)) {
       contextEnd += rest.match(/^['’]\w+/)![0].length;
     } else if (/^[,;!?]/.test(rest)) {
       contextEnd += 1;
+    } else if (/^\.(?:\s|$)/u.test(rest)) {
+      // Unlike typing, what follows the period is here: not "i.e.", so "than i." ends
+      // a sentence. A roman numeral opening a list line or naming a part is not.
+      const lineStart = ctx.text.lastIndexOf("\n", start - 1) + 1;
+      if (ctx.text.slice(lineStart, start).trim() === "") continue;
+      if (NUMERAL_BEFORE.test(ctx.text.slice(Math.max(0, start - 24), start))) continue;
+      contextEnd += 1;
+      sentenceEnd = true;
     } else {
       // Whitespace alone does not say pronoun or variable; the next word does.
       const next = rest.match(/^[ \t\u00A0]+(\S+)/);
@@ -324,6 +340,8 @@ const pronounI: Detector = (ctx) => {
       alternatives: ["I"],
       // The word before decided it as well as the one after.
       context: { start: previousTokensStart(ctx.text, start, 1), end: contextEnd },
+      // "increment i." can still be a variable: one at a time.
+      bulkBlock: sentenceEnd ? "context-dependent" : undefined,
     });
   }
   return findings;
@@ -364,6 +382,23 @@ const wordSpelling: Detector = (ctx) => {
         context: { start: Math.max(0, ctx.text.lastIndexOf(" ", start - 2) + 1), end },
         // "im"/"ive" can still be a tag, an abbreviation or a name: one at a time.
         bulkBlock: pronounForm ? "ambiguous" : undefined,
+      });
+      continue;
+    }
+    // Unlike typing, the next word is here: "i cant go" is "can't", "the cant" is not.
+    const after = ctx.text.slice(end, end + 40);
+    const inContext = ctx.dictionary.has(word.toLowerCase())
+      ? null
+      : normalizeContractionInContext(word, before, after);
+    if (inContext) {
+      const verbEnd = end + (/^[ \t]+\p{L}+(?:[ \t]+\p{L}+)?/u.exec(after)?.[0].length ?? 0);
+      findings.push({
+        ruleId: "englishContractionNormalization",
+        messageKey: "review_msg_contraction",
+        range,
+        alternatives: [inContext],
+        context: { start: previousTokensStart(ctx.text, start, 1), end: verbEnd },
+        bulkBlock: "context-dependent",
       });
       continue;
     }
@@ -627,7 +662,21 @@ const properNoun: Detector = (ctx) => {
     if (!couldEndProperName(match[0], before)) continue;
     const windowStart = Math.max(0, wordEnd - 160);
     const core = ctx.text.slice(windowStart, wordEnd);
-    const found = findProperName(core);
+    // Unlike typing, the words after it are here too: "in may," is the month.
+    const found =
+      findProperName(core) ??
+      (isMonthInContext(
+        match[0],
+        ctx.text.slice(Math.max(0, match.index - 48), match.index),
+        ctx.text.slice(wordEnd, wordEnd + 24),
+      )
+        ? {
+            start: core.length - match[0].length,
+            end: core.length,
+            canonical: match[0][0].toUpperCase() + match[0].slice(1),
+            contextual: true,
+          }
+        : null);
     if (!found) continue;
     const start = windowStart + found.start;
     const end = windowStart + found.end;
@@ -646,8 +695,8 @@ const properNoun: Detector = (ctx) => {
       messageKey: "review_msg_proper_noun",
       range: { start, end },
       alternatives: [replaced],
-      // may/march/august needed a date next to them; that date is evidence.
-      context: found.contextual ? { start: Math.max(0, start - 16), end: wordEnd + 12 } : undefined,
+      // may/march/august needed a date or a clause end next to them; that is evidence.
+      context: found.contextual ? { start: Math.max(0, start - 16), end: wordEnd + 16 } : undefined,
       bulkBlock: found.contextual ? "context-dependent" : undefined,
     });
   }
