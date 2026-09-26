@@ -614,7 +614,8 @@ class TextControlMirror {
     // A trailing newline needs a character after it to occupy a line.
     const value = field.value;
     const text = value.endsWith("\n") ? `${value}\u200B` : value;
-    if (this.textNode.data !== text) this.textNode.data = text;
+    // Always a Text node: the value is set as plain text, never parsed.
+    if (this.textNode.data !== text) this.textNode.textContent = text;
     this.mirror.scrollTop = field.scrollTop;
     this.mirror.scrollLeft = field.scrollLeft;
   }
