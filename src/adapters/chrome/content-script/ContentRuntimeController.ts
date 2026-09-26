@@ -21,6 +21,7 @@ import { ThemeApplicator } from "./ThemeApplicator";
 import { SuggestionManagerRuntime } from "./suggestions/SuggestionManagerRuntime";
 import { ReviewController } from "./review/ReviewController";
 import { ReviewLauncher } from "./review/ReviewLauncher";
+import { whenDocumentFocused } from "./review/whenDocumentFocused";
 import { isReviewSupportedRule } from "@core/domain/grammar/review/reviewCatalog";
 
 import { GoogleDocsAdapter } from "./google-docs/GoogleDocsAdapter";
@@ -29,6 +30,8 @@ import { DOCS_SESSION_ID } from "./google-docs/GoogleDocsModel";
 import { isGoogleDocsPage, isGoogleDocsInputFrame } from "./google-docs/GoogleDocsEnvironment";
 
 const logger = createLogger("ContentRuntimeController");
+// How long a review asked for from the popup waits for the page to regain focus.
+const POPUP_FOCUS_WAIT_MS = 1500;
 
 export class ContentRuntimeController {
   private static readonly SELECTORS = "textarea, input, [contentEditable]";
@@ -196,14 +199,7 @@ export class ContentRuntimeController {
     if (source !== "popup") {
       return;
     }
-    let timer: ReturnType<typeof setTimeout> | null = null;
-    const onFocus = () => {
-      if (timer !== null) clearTimeout(timer);
-      window.removeEventListener("focus", onFocus);
-      if (document.hasFocus()) run();
-    };
-    window.addEventListener("focus", onFocus);
-    timer = setTimeout(() => window.removeEventListener("focus", onFocus), 1500);
+    whenDocumentFocused(document, run, POPUP_FOCUS_WAIT_MS);
   }
 
   private createReviewController(): ReviewController {
@@ -337,7 +333,7 @@ export class ContentRuntimeController {
 
   /** The in-field "Review text" button; Google Docs has no DOM field to put it on. */
   private ensureReviewLauncher(): void {
-    if (this.reviewLauncher || isGoogleDocsPage()) {
+    if (this.reviewLauncher || isGoogleDocsPage() || isGoogleDocsInputFrame()) {
       this.reviewLauncher?.refresh();
       return;
     }

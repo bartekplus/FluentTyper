@@ -2738,7 +2738,7 @@
     },
     {
       "id": "review_command_routing",
-      "description": "The review command reaches every frame of the active tab without changing settings; the dev runtime reviews through the real command router.",
+      "description": "The review command reaches every frame of the active tab without changing settings; the dev runtime reviews through the real command router. From the popup, the page acts once it regains focus, including focus that returns into a child frame (Google Docs' input frame).",
       "coverage": [
         {
           "layer": "unit",
@@ -2749,6 +2749,16 @@
           "layer": "e2e-full",
           "file": "tests/e2e/full.e2e.test.ts",
           "test": "CMD_REVIEW_FT_ACTIVE_TAB command reviews the focused editor through the command router"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/whenDocumentFocused.test.ts",
+          "test": "focus returning into a child frame (Google Docs' input frame) starts it"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review text from the popup reviews a Google Docs page whose focus returns into its input frame"
         }
       ]
     },

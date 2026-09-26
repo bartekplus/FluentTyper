@@ -18,6 +18,7 @@ Put the cursor in a text field, then either:
 
 With several text boxes on a page, each of these reviews only the one you are
 in (the one with the cursor); the others are never read or changed.
+In Google Docs, use the shortcut or the popup; there is no Review button there.
 
 ![The Review button in the corner of the text box being written in](images/review-mode/8-review-button.png)
 

@@ -7600,6 +7600,99 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   );
 
   test(
+    "Review text from the popup reviews a Google Docs page whose focus returns into its input frame",
+    async () => {
+      // The synthetic Docs editor (mocked annotated-text API, no network) served
+      // at a Docs URL, so the installed extension runs its real Docs support.
+      const docsUrl = "https://docs.google.com/document/d/fluenttyper-e2e/edit";
+      const fixture = await fs.promises.readFile(
+        path.join(import.meta.dir, "fixtures/google-docs/editor.html"),
+        "utf8",
+      );
+      await prepareReviewPage();
+      const docsPage = await browser.newPage();
+      const away = await browser.newPage();
+      try {
+        await docsPage.setRequestInterception(true);
+        docsPage.on("request", (request) => {
+          if (request.url().startsWith(docsUrl)) {
+            void request.respond({ status: 200, contentType: "text/html", body: fixture });
+          } else {
+            void request.abort();
+          }
+        });
+        await docsPage.goto(docsUrl, { waitUntil: "domcontentloaded" });
+        await docsPage.bringToFront();
+        await docsPage.evaluate(() => {
+          const w = window as unknown as {
+            setModel: (text: string) => void;
+            focusEditor: () => void;
+          };
+          w.setModel("We saw teh cat.");
+          w.focusEditor();
+        });
+        await waitUntil(
+          "Docs support reads the document",
+          () =>
+            docsPage.evaluate(
+              () =>
+                (window as unknown as { _docs_annotate_canvas_by_ext?: unknown })
+                  ._docs_annotate_canvas_by_ext != null &&
+                document.activeElement?.tagName === "IFRAME",
+            ),
+          { timeoutMs: browserTimeout(5000, 8000) },
+        );
+        // The tab the popup was opened on.
+        const tabId = await worker!.evaluate(async () => {
+          const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+          return tab?.id ?? -1;
+        });
+        // The popup holds focus while the request is sent, then closes, and the
+        // browser puts focus back into Docs' input frame, not the top document.
+        await away.bringToFront();
+        await waitUntil("the Docs page lost focus", async () =>
+          docsPage.evaluate(() => !document.hasFocus()),
+        );
+        await worker!.evaluate(async (id) => {
+          await chrome.tabs
+            .sendMessage(id, { command: "CMD_REVIEW_FT_ACTIVE_TAB", context: { source: "popup" } })
+            .catch(() => undefined);
+        }, tabId);
+        await docsPage.bringToFront();
+        const panel = await waitForReview(
+          docsPage,
+          "Docs review from the popup",
+          (p) => p.status === "Issues: 1",
+        );
+        expect(panel.items.map((item) => item.text)).toEqual(["teh → the"]);
+        // Reviewing changed nothing.
+        expect(
+          await docsPage.evaluate(() => (window as unknown as { model: { text: string } }).model),
+        ).toMatchObject({ text: "We saw teh cat." });
+
+        // The keyboard shortcut (what the command router sends), pressed while typing in Docs.
+        await clickReviewControl(docsPage, "[data-action=close]");
+        await waitUntil("review closed", async () => !(await readReviewPanel(docsPage)).open);
+        await docsPage.evaluate(() =>
+          (window as unknown as { focusEditor: () => void }).focusEditor(),
+        );
+        await triggerReview(worker!);
+        await waitForReview(
+          docsPage,
+          "Docs review from the shortcut",
+          (p) => p.status === "Issues: 1",
+        );
+      } finally {
+        await away.close().catch(() => undefined);
+        await docsPage.close().catch(() => undefined);
+        await page.bringToFront();
+        await finishReview();
+      }
+    },
+    browserTimeout(30000, 50000),
+  );
+
+  test(
     "Review mode handles wrapping, resize, RTL, hi-DPI hit-testing, dark mode, IME, multiple fields and navigation cleanup",
     async () => {
       await prepareReviewPage();
