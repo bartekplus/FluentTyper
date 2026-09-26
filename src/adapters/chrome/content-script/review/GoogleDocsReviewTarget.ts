@@ -12,6 +12,14 @@ import {
   type DocsReply,
   type DocsSnapshot,
 } from "../google-docs/GoogleDocsModel";
+import {
+  docsRangeRects,
+  locateRuns,
+  readDocsTextRuns,
+  visibleCharacters,
+  type LocatedRun,
+  type VisibleText,
+} from "../google-docs/GoogleDocsGeometry";
 import type { ReviewTargetHandle } from "./ReviewTargets";
 
 export interface GoogleDocsReviewSurface {
@@ -53,21 +61,27 @@ function snapshotSignature(snapshot: DocsSnapshot): string {
 }
 
 /**
- * Google Docs through its logical-text bridge. The canvas gives no reliable
- * geometry, so findings are listed in the panel only. Each fix is ONE
- * token-checked, model-verified transaction; "Fix all" is not offered
- * because Docs has no atomic multi-edit transaction.
+ * Google Docs through its logical-text bridge. Findings are highlighted where
+ * Docs shows their text (see GoogleDocsGeometry); text on pages Docs has not
+ * rendered is listed in the panel only. Each fix is ONE token-checked,
+ * model-verified transaction; "Fix all" is not offered because Docs has no
+ * atomic multi-edit transaction.
  */
 export class GoogleDocsReviewTarget implements ReviewTargetHandle {
   readonly kind = "model-editor" as const;
   readonly capabilities: ReviewCapabilities = {
-    inline: false,
+    inline: true,
     apply: true,
     bulk: false,
     undo: "per-edit",
   };
   composing = false;
   private lastRead: ReviewTargetRead | null = null;
+  // The rendered runs placed in the last read's text, for the current task only:
+  // one paint asks for every finding's rectangles, and Docs re-renders between tasks.
+  private runs: LocatedRun[] | null = null;
+  // The last read's visible characters, indexed once per read, not per paint.
+  private indexed: { text: string; index: VisibleText } | null = null;
 
   constructor(
     private readonly surface: GoogleDocsReviewSurface,
@@ -173,8 +187,24 @@ export class GoogleDocsReviewTarget implements ReviewTargetHandle {
     }
   }
 
-  rangeRects(): DOMRect[] {
-    return [];
+  /** True when Docs shows its text as runs this review can place (an allowed extension). */
+  canHighlight(): boolean {
+    return readDocsTextRuns(this.element).length > 0;
+  }
+
+  rangeRects(range: TextRange): DOMRect[] {
+    const read = this.lastRead;
+    if (!read?.ok) return [];
+    if (!this.runs) {
+      if (this.indexed?.text !== read.text) {
+        this.indexed = { text: read.text, index: visibleCharacters(read.text) };
+      }
+      this.runs = locateRuns(this.indexed.index, readDocsTextRuns(this.element));
+      queueMicrotask(() => {
+        this.runs = null;
+      });
+    }
+    return docsRangeRects(read.text, this.runs, range.start, range.end);
   }
 
   domRange(): Range | null {
@@ -186,7 +216,8 @@ export class GoogleDocsReviewTarget implements ReviewTargetHandle {
   }
 
   reveal(): void {
-    // No reliable canvas geometry: the panel list is the navigation surface.
+    // Docs renders only the pages near its own scroll position and owns that
+    // scroll: the panel list is the way to a finding elsewhere.
   }
 
   setMeasurementRoot(): void {}

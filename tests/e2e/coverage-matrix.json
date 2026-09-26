@@ -2864,7 +2864,7 @@
     },
     {
       "id": "review_google_docs_fixture",
-      "description": "Mock editor/browser fixture, not a live Google Docs claim: review lists Docs findings from the logical model, applies one verified transaction, pauses typing corrections, refuses stale fixes, rechecks when the document is typed into, reads a document of up to 50,000 characters whole (caret anywhere, or all of it selected), and reports a longer document's window as partial.",
+      "description": "Mock editor/browser fixture, not a live Google Docs claim: review lists Docs findings from the logical model, highlights them over the text runs Docs renders (placed by their visible text, list markers and DOM order aside; listed only, with a note, when Docs renders none), applies one verified transaction, pauses typing corrections, refuses stale fixes, rechecks when the document is typed into, reads a document of up to 50,000 characters whole (caret anywhere, or all of it selected), and reports a longer document's window as partial.",
       "coverage": [
         {
           "layer": "integration",
@@ -2950,6 +2950,41 @@
           "layer": "unit",
           "file": "tests/GoogleDocsBridgeClient.test.ts",
           "test": "a review read accepts the review window; a typing read keeps the typing bounds"
+        },
+        {
+          "layer": "integration",
+          "file": "tests/e2e/google-docs.e2e.test.ts",
+          "test": "review highlights findings where Docs shows their text, and a click opens the card"
+        },
+        {
+          "layer": "integration",
+          "file": "tests/e2e/google-docs.e2e.test.ts",
+          "test": "without Docs' text runs the review lists findings only, and says so"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/GoogleDocsGeometry.test.ts",
+          "test": "runs follow each other across spaces, line wraps and paragraph breaks"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/GoogleDocsGeometry.test.ts",
+          "test": "repeated text is placed by the runs around it, or left out"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/GoogleDocsGeometry.test.ts",
+          "test": "text the review does not have (a header) is left out"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/GoogleDocsGeometry.test.ts",
+          "test": "the page's runs are read in reading order, list markers skipped"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/GoogleDocsGeometry.test.ts",
+          "test": "a range's rectangles are its share of each run it touches"
         }
       ]
     },

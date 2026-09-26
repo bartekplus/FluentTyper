@@ -250,14 +250,14 @@ signature and invalidate pending fixes.
 
 ## Editor support
 
-| Editor                                                                                 | Highlights                                                            | Apply one                               | Fix all | Undo                                     |
-| -------------------------------------------------------------------------------------- | --------------------------------------------------------------------- | --------------------------------------- | ------- | ---------------------------------------- |
-| `<textarea>`, text `<input>`                                                           | overlay measured through a hidden mirror in FluentTyper's shadow root | yes                                     | yes     | one native undo step for the whole batch |
-| `contenteditable`                                                                      | CSS Custom Highlights (overlay fallback, e.g. inside shadow DOM)      | yes                                     | yes     | one native undo step per fix             |
-| Quill                                                                                  | CSS Custom Highlights                                                 | yes                                     | yes     | Quill history (a batch is one step)      |
-| ProseMirror, Lexical, Slate, Draft.js, CKEditor 4/5, Trix, TinyMCE, Froala, Summernote | yes                                                                   | no: review-only, the panel explains     | no      | —                                        |
-| Google Docs (existing bridge)                                                          | no; list and card only                                                | yes: one verified replacement at a time | no      | Docs history                             |
-| Code editors, sensitive and ineligible fields                                          | refused with an explanation                                           | —                                       | —       | —                                        |
+| Editor                                                                                 | Highlights                                                              | Apply one                               | Fix all | Undo                                     |
+| -------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- | --------------------------------------- | ------- | ---------------------------------------- |
+| `<textarea>`, text `<input>`                                                           | overlay measured through a hidden mirror in FluentTyper's shadow root   | yes                                     | yes     | one native undo step for the whole batch |
+| `contenteditable`                                                                      | CSS Custom Highlights (overlay fallback, e.g. inside shadow DOM)        | yes                                     | yes     | one native undo step per fix             |
+| Quill                                                                                  | CSS Custom Highlights                                                   | yes                                     | yes     | Quill history (a batch is one step)      |
+| ProseMirror, Lexical, Slate, Draft.js, CKEditor 4/5, Trix, TinyMCE, Froala, Summernote | yes                                                                     | no: review-only, the panel explains     | no      | —                                        |
+| Google Docs (existing bridge)                                                          | overlay over the text Docs shows; list only where Docs has not drawn it | yes: one verified replacement at a time | no      | Docs history                             |
+| Code editors, sensitive and ineligible fields                                          | refused with an explanation                                             | —                                       | —       | —                                        |
 
 Highlights never change the page's editor DOM. CSS highlights are registered
 under FluentTyper's own names (`fluenttyper-review-*`); the page's and other
@@ -363,7 +363,14 @@ Known costs:
   sentence is listed (with "Add to dictionary" to accept it).
 - The review UI language follows the browser language (English, French,
   Croatian, Spanish, Greek, Swedish, German, Polish, Portuguese).
-- Google Docs: no inline highlights and no Fix all (one verified replacement at a time).
+- Google Docs: findings are highlighted where Docs shows their text. Docs
+  paints text on a canvas, and for an extension it allows (FluentTyper registers
+  as one, as it does for autocomplete) it lays an invisible labelled box over
+  each run of text; review places those runs in the document's text and
+  measures each finding inside its run. Docs draws only the pages near where
+  you are, so a finding elsewhere is in the list until you scroll to it; if
+  Docs shows no runs at all, the panel says findings are listed only. No Fix
+  all (one verified replacement at a time).
 - Google Docs: a document of up to 50,000 characters is reviewed whole, even
   with all of it selected. In a longer one, 50,000 characters around the
   cursor are reviewed, starting at a sentence and ending at a whole word; the

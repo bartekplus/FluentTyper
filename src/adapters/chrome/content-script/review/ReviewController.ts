@@ -164,8 +164,10 @@ export class ReviewController {
   ): void {
     const doc = target.element.ownerDocument;
     const capabilityKeys: ReviewTextKey[] = [];
-    if (target instanceof GoogleDocsReviewTarget) capabilityKeys.push("review_cap_docs");
-    else if (!target.capabilities.inline) capabilityKeys.push("review_cap_no_inline");
+    // Docs without its text runs (a Docs version or setting that hides them): list only.
+    if (target instanceof GoogleDocsReviewTarget) {
+      if (!target.canHighlight()) capabilityKeys.push("review_cap_docs");
+    } else if (!target.capabilities.inline) capabilityKeys.push("review_cap_no_inline");
     if (!target.capabilities.apply) capabilityKeys.push("review_cap_review_only");
     else if (target.capabilities.undo === "per-edit" && target.capabilities.bulk) {
       capabilityKeys.push("review_cap_undo_per_edit");
@@ -288,6 +290,18 @@ export class ReviewController {
     } else {
       // Docs has no DOM text to observe; input in its editor frame drives a recheck.
       active.cleanup.push(target.onSourceChange(() => session.notifySourceChanged()));
+      // Its text runs are re-rendered as pages scroll into view and after edits:
+      // the highlights are measured again.
+      const observer = new MutationObserver(() => this.scheduleLayout());
+      observer.observe(element, {
+        subtree: true,
+        childList: true,
+        attributes: true,
+        attributeFilter: ["aria-label", "x", "y", "width", "height", "transform"],
+      });
+      active.cleanup.push(() => observer.disconnect());
+      // A click on a highlighted word opens its card; Docs still gets the click.
+      on<MouseEvent>(element, "click", (event) => this.onEditorClick(event));
     }
     on(view, "scroll", () => this.scheduleLayout(), { capture: true, passive: true });
     on(view, "resize", () => {

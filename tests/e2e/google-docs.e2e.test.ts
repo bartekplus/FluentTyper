@@ -885,6 +885,90 @@ describe("Google Docs cross-world fixture (not live Docs)", () => {
     expect((await model()).pastes).toBe(0);
     await evaluate("review.dispose()");
   });
+  test("review highlights findings where Docs shows their text, and a click opens the card", async () => {
+    await startGrammar([]);
+    const text = "We saw teh cat and teh dog.\nThe end is near teh river.";
+    await page.evaluate((value) => {
+      const f = window as unknown as {
+        docsRuns: object;
+        setModel: (text: string) => void;
+        focusEditor: () => void;
+      };
+      // Like Docs: list numbers as runs of their own, DOM order unlike reading order.
+      f.docsRuns = { markers: true, shuffle: true };
+      f.setModel(value);
+      f.focusEditor();
+    }, text);
+    await evaluate("startReview()");
+    await waitUntil("docs findings", async () => (await reviewPanel()).status === "Issues: 3");
+    // Where the canvas draws each "teh": 20px in, on its line, 16px Arial.
+    const expected = await page.evaluate((value) => {
+      const canvas = document.querySelector("canvas")!;
+      const box = canvas.getBoundingClientRect();
+      const ctx = canvas.getContext("2d")!;
+      ctx.font = "16px Arial";
+      const spots: Array<{ left: number; top: number; width: number }> = [];
+      value.split("\n").forEach((line, row) => {
+        for (let at = line.indexOf("teh"); at >= 0; at = line.indexOf("teh", at + 1)) {
+          spots.push({
+            left: box.left + canvas.clientLeft + 20 + ctx.measureText(line.slice(0, at)).width,
+            top: box.top + canvas.clientTop + 60 + row * 24 - 16,
+            width: ctx.measureText("teh").width,
+          });
+        }
+      });
+      return spots;
+    }, text);
+    const marks = async () =>
+      page.evaluate(() =>
+        Array.from(
+          document
+            .querySelector("[data-fluenttyper-review]")!
+            .shadowRoot!.querySelectorAll<HTMLElement>(".mark"),
+        ).map((mark) => {
+          const rect = mark.getBoundingClientRect();
+          return { left: rect.left, top: rect.top, width: rect.width };
+        }),
+      );
+    await waitUntil("docs highlights", async () => (await marks()).length === 3);
+    const painted = (await marks()).sort((a, b) => a.top - b.top || a.left - b.left);
+    painted.forEach((mark, index) => {
+      expect(Math.abs(mark.left - expected[index].left)).toBeLessThan(2);
+      expect(Math.abs(mark.width - expected[index].width)).toBeLessThan(2);
+      expect(Math.abs(mark.top - expected[index].top)).toBeLessThan(4);
+    });
+    // Highlighted: no "listed here only" note.
+    expect((await reviewPanel()).notes).not.toContain("Google Docs: findings are listed here");
+    // A click on the second line's "teh" opens its card; Docs still gets the click.
+    const target = expected[2];
+    await page.mouse.click(target.left + target.width / 2, target.top + 10);
+    await waitUntil("docs card from a click", async () => (await reviewPanel()).cardOpen);
+    await clickInReview(".card [data-action=apply]");
+    await expectText("We saw teh cat and teh dog.\nThe end is near the river.");
+    // The page redraws its runs; the two findings left are measured again.
+    await waitUntil("remeasured highlights", async () => (await marks()).length === 2);
+    const left = (await marks()).sort((a, b) => a.left - b.left);
+    expect(Math.abs(left[0].left - expected[0].left)).toBeLessThan(2);
+    await evaluate("review.dispose()");
+  });
+  test("without Docs' text runs the review lists findings only, and says so", async () => {
+    await startGrammar([]);
+    await page.evaluate(() => {
+      const f = window as unknown as { setModel: (text: string) => void; focusEditor: () => void };
+      f.setModel("We saw teh cat.");
+      f.focusEditor();
+    });
+    await evaluate("startReview()");
+    await waitUntil("docs findings", async () => (await reviewPanel()).status === "Issues: 1");
+    expect((await reviewPanel()).notes).toContain("Google Docs: findings are listed here");
+    const marks = await page.evaluate(
+      () =>
+        document.querySelector("[data-fluenttyper-review]")!.shadowRoot!.querySelectorAll(".mark")
+          .length,
+    );
+    expect(marks).toBe(0);
+    await evaluate("review.dispose()");
+  });
   test("review in Docs pauses typing corrections and refuses a stale fix", async () => {
     await startGrammar(["englishTypoWhitelistCorrection"]);
     await page.evaluate(() => {
