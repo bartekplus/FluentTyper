@@ -95,8 +95,8 @@ export function prepareReview(
       const start = Math.max(cursor, range.start);
       if (range.end <= start) continue;
       parts.push(source.slice(cursor, start));
-      // Line breaks survive masking so line and paragraph logic still works.
-      parts.push(source.slice(start, range.end).replace(/[^\n]/g, MASK_CHAR));
+      // Line breaks (LF or CRLF) survive masking so line and paragraph logic still works.
+      parts.push(source.slice(start, range.end).replace(/[^\r\n]/g, MASK_CHAR));
       cursor = range.end;
     }
     parts.push(source.slice(cursor));

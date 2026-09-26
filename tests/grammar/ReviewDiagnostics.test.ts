@@ -552,6 +552,26 @@ describe("adversarial review regressions: detection", () => {
     }
   });
 
+  test("protected text keeps its line breaks, LF and CRLF alike", () => {
+    for (const eol of ["\n", "\r\n"]) {
+      const text = `See:${eol}code()${eol}more()${eol}Done.`;
+      const start = text.indexOf("code");
+      const end = text.indexOf("Done");
+      const prepared = prepareReview(
+        {
+          id: "s",
+          text,
+          scope: { start: 0, end: text.length },
+          protectedRanges: [{ start, end, reason: "code" }],
+        },
+        options(),
+      );
+      const masked = prepared.text.slice(start, end);
+      expect(masked.replace(/\uFFFC/g, "")).toBe(eol.repeat(2));
+      expect(prepared.text.length).toBe(text.length);
+    }
+  });
+
   test("CRLF line endings are read like LF", () => {
     for (const eol of ["\n", "\r\n"]) {
       const at = (text: string) => text.split("\n").join(eol);
