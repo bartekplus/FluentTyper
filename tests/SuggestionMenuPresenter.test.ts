@@ -4,16 +4,14 @@ import { SuggestionMenuView } from "../src/adapters/chrome/content-script/sugges
 import type { SuggestionPositioningService } from "../src/adapters/chrome/content-script/suggestions/SuggestionPositioningService";
 
 describe("SuggestionMenuPresenter", () => {
-  test("renders suggestions with header and highlight", () => {
+  test("renders suggestions with the language and highlight", () => {
     const positioning = {
       syncMenuTypography: jest.fn(),
       positionMenu: jest.fn(() => true),
     } as unknown as SuggestionPositioningService;
     const presenter = new SuggestionMenuPresenter(positioning);
-    const menu = document.createElement("div");
-    const list = document.createElement("ul");
+    const { menu, list } = SuggestionMenuView.ensureMenu();
     const target = document.createElement("input");
-    menu.appendChild(list);
 
     const rendered = presenter.render({
       menuId: 1,
@@ -28,7 +26,10 @@ describe("SuggestionMenuPresenter", () => {
     });
 
     expect(rendered).toBe(true);
-    expect(menu.querySelector(".ft-suggestion-header")?.textContent).toBe("Lang: English");
+    // The language sits at the end of the footer line.
+    const footer = SuggestionMenuView.resolveFooter(menu);
+    expect(footer?.hidden).toBe(false);
+    expect(footer?.querySelector(".ft-suggestion-lang")?.textContent).toBe("Lang: English");
     expect(list.querySelectorAll("li").length).toBe(2);
     // Each item resolves its own base direction (Arabic with trailing digits in an LTR page).
     expect(
@@ -98,10 +99,8 @@ describe("SuggestionMenuPresenter", () => {
     });
 
     const [word, snippet] = Array.from(list.querySelectorAll("li"));
-    expect(word.querySelector(".ft-suggestion-kind")?.textContent).toBe("W");
     expect(word.querySelector(".ft-suggestion-detail")).toBeNull();
     // A snippet shows its expansion, with the shortcut (typed text highlighted) on the right.
-    expect(snippet.querySelector(".ft-suggestion-kind")?.textContent).toBe("S");
     expect(snippet.querySelector(".ft-suggestion-label")?.textContent).toBe("1 <Main> St");
     expect(snippet.querySelector(".ft-suggestion-detail")?.innerHTML).toBe(
       '<span class="ft-suggestion-match">ad</span>dress',

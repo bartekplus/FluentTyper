@@ -12,7 +12,6 @@ export class SuggestionMenuView {
   static readonly ROLE_ATTR = "data-ft-suggestion-role";
   static readonly MENU_ROLE = "menu";
   static readonly PANEL_CLASS = "ft-suggestion-panel";
-  static readonly HEADER_CLASS = "ft-suggestion-header";
   static readonly LIST_CLASS = "ft-suggestion-list";
   static readonly FOOTER_CLASS = "ft-suggestion-footer";
 
@@ -43,20 +42,12 @@ export class SuggestionMenuView {
       menu.setAttribute(SuggestionMenuView.ROLE_ATTR, SuggestionMenuView.MENU_ROLE);
       list = doc.createElement("ul");
       list.className = SuggestionMenuView.LIST_CLASS;
-      menu.appendChild(this.createHeader(doc));
       menu.appendChild(list);
       menu.appendChild(this.createFooter(doc));
     }
 
     container.appendChild(menu);
     return { menu, list };
-  }
-
-  static resolveHeader(menu: HTMLDivElement): HTMLDivElement | null {
-    return (
-      menu.shadowRoot?.querySelector<HTMLDivElement>(`.${SuggestionMenuView.HEADER_CLASS}`) ??
-      menu.querySelector<HTMLDivElement>(`.${SuggestionMenuView.HEADER_CLASS}`)
-    );
   }
 
   static resolveFooter(menu: HTMLDivElement): HTMLDivElement | null {
@@ -88,25 +79,16 @@ export class SuggestionMenuView {
     panel.setAttribute("role", "listbox");
     panel.setAttribute("aria-hidden", "true");
 
-    const header = this.createHeader(doc);
     const list = doc.createElement("ul");
     list.className = SuggestionMenuView.LIST_CLASS;
     list.setAttribute("part", "list");
     onListCreated(list);
 
-    panel.append(header, list, this.createFooter(doc));
+    panel.append(list, this.createFooter(doc));
     return panel;
   }
 
-  private static createHeader(doc: Document): HTMLDivElement {
-    const header = doc.createElement("div");
-    header.className = SuggestionMenuView.HEADER_CLASS;
-    header.setAttribute("part", "header");
-    header.hidden = true;
-    return header;
-  }
-
-  /** Key hints under the list; decorative, the keys work without it. */
+  /** Key hints and the language under the list; decorative, the keys work without it. */
   private static createFooter(doc: Document): HTMLDivElement {
     const footer = doc.createElement("div");
     footer.className = SuggestionMenuView.FOOTER_CLASS;

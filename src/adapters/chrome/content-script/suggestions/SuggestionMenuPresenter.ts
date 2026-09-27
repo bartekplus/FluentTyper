@@ -30,23 +30,7 @@ export class SuggestionMenuPresenter {
 
   public render(model: SuggestionMenuRenderModel): boolean {
     model.list.innerHTML = "";
-    const header = SuggestionMenuView.resolveHeader(model.menu);
     const panel = SuggestionMenuView.resolvePanel(model.menu);
-
-    if (header) {
-      if (model.menuHeader) {
-        header.textContent = model.menuHeader;
-        header.hidden = false;
-      } else {
-        header.textContent = "";
-        header.hidden = true;
-      }
-    } else if (model.menuHeader) {
-      const fallbackHeader = document.createElement("div");
-      fallbackHeader.className = SuggestionMenuView.HEADER_CLASS;
-      fallbackHeader.textContent = model.menuHeader;
-      model.menu.insertBefore(fallbackHeader, model.list);
-    }
 
     model.suggestions.forEach((suggestion, index) => {
       const li = document.createElement("li");
@@ -58,7 +42,6 @@ export class SuggestionMenuPresenter {
         snippetShortcut,
         shortcutDigit: model.showShortcutDigits ? this.formatShortcutDigit(index) : null,
       });
-      li.classList.add(snippetShortcut ? "is-snippet" : "is-word");
       li.setAttribute("data-index", String(index));
       li.setAttribute("role", "option");
       // Per-item base direction: Arabic with trailing digits/punctuation in an LTR page.
@@ -105,16 +88,11 @@ export class SuggestionMenuPresenter {
   }
 
   public hide(menu: HTMLDivElement, list: HTMLUListElement, target?: SuggestionElement): void {
-    const header = SuggestionMenuView.resolveHeader(menu);
     const panel = SuggestionMenuView.resolvePanel(menu);
     menu.style.setProperty("display", "none", "important");
     menu.style.setProperty("visibility", "visible", "important");
     if (target) {
       resolveSuggestionStateHost(target).setAttribute(EARLY_TAB_ACCEPT_VISIBLE_ATTR, "false");
-    }
-    if (header) {
-      header.textContent = "";
-      header.hidden = true;
     }
     const footer = SuggestionMenuView.resolveFooter(menu);
     if (footer) {
@@ -146,40 +124,43 @@ export class SuggestionMenuPresenter {
     });
   }
 
+  /** Key hints, and the prediction language at the end of the same line. */
   private renderFooter(model: SuggestionMenuRenderModel): void {
     const footer = SuggestionMenuView.resolveFooter(model.menu);
     if (!footer) {
       return;
     }
-    if (!model.acceptKeys) {
-      footer.replaceChildren();
-      footer.hidden = true;
-      return;
-    }
     const doc = footer.ownerDocument;
-    const hints = buildSuggestionKeyHints({
-      acceptKeys: model.acceptKeys,
-      // Digit keys reach the first nine suggestions ("0" is the tenth, not hinted).
-      digitCount: model.showShortcutDigits ? Math.min(model.suggestions.length, 9) : 0,
+    const hints = model.acceptKeys
+      ? buildSuggestionKeyHints({
+          acceptKeys: model.acceptKeys,
+          // Digit keys reach the first nine suggestions ("0" is the tenth, not hinted).
+          digitCount: model.showShortcutDigits ? Math.min(model.suggestions.length, 9) : 0,
+        })
+      : [];
+    const items: HTMLElement[] = hints.map(({ keys, label }) => {
+      const hint = doc.createElement("span");
+      hint.className = "ft-suggestion-hint";
+      const kbd = doc.createElement("kbd");
+      kbd.textContent = keys;
+      hint.append(kbd, ` ${label}`);
+      return hint;
     });
-    footer.replaceChildren(
-      ...hints.map(({ keys, label }) => {
-        const hint = doc.createElement("span");
-        hint.className = "ft-suggestion-hint";
-        const kbd = doc.createElement("kbd");
-        kbd.textContent = keys;
-        hint.append(kbd, ` ${label}`);
-        return hint;
-      }),
-    );
-    footer.hidden = false;
+    if (model.menuHeader) {
+      const lang = doc.createElement("span");
+      lang.className = "ft-suggestion-lang";
+      lang.textContent = model.menuHeader;
+      items.push(lang);
+    }
+    footer.replaceChildren(...items);
+    footer.hidden = items.length === 0;
   }
 
   private formatShortcutDigit(index: number): string {
     return index === 9 ? "0" : String(index + 1);
   }
 
-  /** Row: [number] [kind] label [snippet shortcut], as in the popup design. */
+  /** Row: [number] label [snippet shortcut], as in the popup design. */
   private buildSuggestionMenuItemHtml(args: {
     mentionText: string;
     suggestion: string;
@@ -189,11 +170,8 @@ export class SuggestionMenuPresenter {
     const shortcutMarkup = args.shortcutDigit
       ? `<span class="ft-suggestion-shortcut" aria-hidden="true">${args.shortcutDigit}</span>`
       : "";
-    // W(ord) or S(nippet): a snippet expands its shortcut, shown on the right,
-    // where the typed text is highlighted, so fuzzy matches explain themselves.
-    const kindMarkup = `<span class="ft-suggestion-kind" aria-hidden="true">${
-      args.snippetShortcut ? "S" : "W"
-    }</span>`;
+    // A snippet shows its expansion, and on the right the shortcut it expands,
+    // with the typed text highlighted, so fuzzy matches explain themselves.
     const label = args.snippetShortcut
       ? this.escapeHtml(args.suggestion)
       : this.buildSuggestionLabelHtml(args.mentionText, args.suggestion);
@@ -204,7 +182,7 @@ export class SuggestionMenuPresenter {
           args.snippetShortcut,
         )}</span>`
       : "";
-    return `${shortcutMarkup}${kindMarkup}${labelMarkup}${detailMarkup}`;
+    return `${shortcutMarkup}${labelMarkup}${detailMarkup}`;
   }
 
   private buildSuggestionLabelHtml(mentionText: string, suggestion: string): string {

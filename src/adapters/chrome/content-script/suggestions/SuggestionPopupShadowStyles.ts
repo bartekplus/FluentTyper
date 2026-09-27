@@ -32,10 +32,6 @@ export const SUGGESTION_POPUP_SHADOW_CSS = `
   );
   /* Typed prefix, and the selected row's outline, mixed from it. */
   --ft-panel-accent: #185fa8;
-  --ft-kind-word-bg: #dcebf7;
-  --ft-kind-word-fg: #1c5d8f;
-  --ft-kind-snippet-bg: #fbe6d4;
-  --ft-kind-snippet-fg: #9a4a12;
   --ft-panel-shadow:
     0 12px 32px rgba(15, 23, 42, 0.14),
     0 2px 6px rgba(15, 23, 42, 0.08);
@@ -90,10 +86,6 @@ export const SUGGESTION_POPUP_SHADOW_CSS = `
       var(--suggestion-highlight-text-dark, #f3f4f6)
     );
     --ft-panel-accent: #7cc4ff;
-    --ft-kind-word-bg: #1f3a4f;
-    --ft-kind-word-fg: #9fd2f5;
-    --ft-kind-snippet-bg: #4a3322;
-    --ft-kind-snippet-fg: #f2b88a;
     --ft-panel-shadow:
       0 16px 40px rgba(0, 0, 0, 0.5),
       0 2px 6px rgba(0, 0, 0, 0.35);
@@ -147,23 +139,6 @@ export const SUGGESTION_POPUP_SHADOW_CSS = `
   isolation: isolate;
   transform-origin: top left;
   animation: ft-suggestion-pop-in 120ms cubic-bezier(0.2, 0.85, 0.28, 1);
-}
-
-.ft-suggestion-header {
-  all: initial;
-  display: none;
-  padding: 4px 8px 6px;
-  color: var(--ft-panel-muted);
-  font-family: var(--ft-font-family);
-  font-size: calc(var(--ft-font-size) * 0.8);
-  line-height: 1.2;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  text-transform: none;
-}
-
-.ft-suggestion-header:not([hidden]) {
-  display: block;
 }
 
 .ft-suggestion-list {
@@ -238,9 +213,8 @@ export const SUGGESTION_POPUP_SHADOW_CSS = `
   -webkit-text-fill-color: currentColor;
 }
 
-/* Number (1-9) and kind (W/S) badges share one square shape. */
-.ft-suggestion-shortcut,
-.ft-suggestion-kind {
+/* Number badge (1-9). */
+.ft-suggestion-shortcut {
   all: initial;
   display: flex;
   flex: none;
@@ -257,25 +231,6 @@ export const SUGGESTION_POPUP_SHADOW_CSS = `
   line-height: 1;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
-}
-
-.ft-suggestion-kind {
-  width: 20px;
-  height: 20px;
-}
-
-.ft-suggestion-shortcut + .ft-suggestion-kind {
-  margin-inline-start: -4px;
-}
-
-li.is-word .ft-suggestion-kind {
-  background: var(--ft-kind-word-bg);
-  color: var(--ft-kind-word-fg);
-}
-
-li.is-snippet .ft-suggestion-kind {
-  background: var(--ft-kind-snippet-bg);
-  color: var(--ft-kind-snippet-fg);
 }
 
 .ft-suggestion-label {
@@ -343,6 +298,16 @@ li.is-snippet .ft-suggestion-kind {
 
 .ft-suggestion-footer[hidden] {
   display: none;
+}
+
+/* The prediction language, at the far end of the hint line. */
+.ft-suggestion-lang {
+  all: initial;
+  margin-inline-start: auto;
+  color: inherit;
+  -webkit-text-fill-color: currentColor;
+  font: inherit;
+  font-weight: 600;
 }
 
 .ft-suggestion-footer kbd {

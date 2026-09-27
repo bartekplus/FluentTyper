@@ -311,7 +311,6 @@ export class AppearanceStudio {
       if (index === 1) {
         item.classList.add("highlight");
       }
-      item.classList.add("is-word");
       if (showShortcutDigits) {
         const shortcut = document.createElement("span");
         shortcut.className = "ft-suggestion-shortcut";
@@ -319,10 +318,6 @@ export class AppearanceStudio {
         item.appendChild(shortcut);
         item.classList.add("has-shortcut");
       }
-      const kind = document.createElement("span");
-      kind.className = "ft-suggestion-kind";
-      kind.textContent = "W";
-      item.appendChild(kind);
       const label = document.createElement("span");
       label.className = "ft-suggestion-label";
       label.textContent = entry;
