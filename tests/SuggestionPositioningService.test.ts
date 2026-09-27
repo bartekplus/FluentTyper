@@ -86,8 +86,9 @@ describe("SuggestionPositioningService", () => {
     expect(menu.getAttribute("data-ft-beside")).toBe("true");
     expect(menu.getAttribute("data-ft-placement")).toBe("below");
     expect(menu.style.left).toBe(`${120 + 6}px`);
-    // The first row (inside the 1px border) is centred on the caret line.
-    expect(menu.style.top).toBe(`${60 + 8 - 27 / 2 - 1}px`);
+    // Baselines match: the caret line's (16px text, ascent 12.8px) and the first
+    // row's (its middle, inside the 1px border, without layout in tests).
+    expect(menu.style.top).toBe(`${60 + 12.8 - (1 + 27 / 2)}px`);
   });
 
   test("grows upward from the caret line when there is no room below, keeping the first row put", () => {
@@ -99,19 +100,21 @@ describe("SuggestionPositioningService", () => {
       Object.defineProperty(menu, "offsetHeight", { value: height, configurable: true });
     Object.defineProperty(menu, "offsetWidth", { value: 200, configurable: true });
     menu.style.setProperty("--ft-row-height", "27px");
-    const firstRowBottom = 660 + 8 + 27 / 2;
+    // Baseline of the caret line (16px text, ascent 12.8px) and, below it, the
+    // rest of the first row plus the 1px border.
+    const menuBottom = 660 + 12.8 + (1 + 27 / 2);
 
     setHeight(30);
     service.positionMenu(menu, target);
     // A short list would fit below, but a longer one would not: grow upward.
     expect(menu.getAttribute("data-ft-placement")).toBe("above");
-    expect(menu.style.top).toBe(`${firstRowBottom + 1 - 30}px`);
+    expect(menu.style.top).toBe(`${menuBottom - 30}px`);
 
     // Fewer suggestions: the menu shrinks from the top, the first row stays.
     setHeight(20);
     service.positionMenu(menu, target);
     expect(menu.getAttribute("data-ft-placement")).toBe("above");
-    expect(menu.style.top).toBe(`${firstRowBottom + 1 - 20}px`);
+    expect(menu.style.top).toBe(`${menuBottom - 20}px`);
   });
 
   test("falls back to below the caret line when there is no room past the caret", () => {

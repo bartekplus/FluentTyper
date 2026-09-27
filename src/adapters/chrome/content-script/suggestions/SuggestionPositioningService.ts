@@ -292,14 +292,14 @@ export class SuggestionPositioningService {
     let rawLeft: number;
     let maxHeight: number;
     if (placement.beside) {
-      // First suggestion on the caret's line, just past the caret.
+      // First suggestion's text on the caret's line: the two baselines match.
       const row = this.measureFirstRow(menu);
-      const rowTop = rect.top + rect.height / 2 - row.height / 2;
+      const baseline = this.caretBaseline(rect, elem);
       if (showBelow) {
-        rawTop = rowTop - row.top;
+        rawTop = baseline - row.baselineFromTop;
         maxHeight = window.innerHeight - viewportPadding - rawTop;
       } else {
-        const bottom = rowTop + row.height + row.bottom;
+        const bottom = baseline + row.baselineFromBottom;
         maxHeight = bottom - viewportPadding;
         rawTop = bottom - Math.min(menuDimensions.height, maxHeight);
       }
@@ -368,31 +368,85 @@ export class SuggestionPositioningService {
   }
 
   /**
-   * The first suggestion's row, as its distance from the menu's top and bottom
-   * edges in the current layout (bottom-up when the menu grows upward).
+   * Where the first suggestion's text baseline sits, as distances from the
+   * menu's top and bottom edges in the current layout (bottom-up when the menu
+   * grows upward).
    */
-  private measureFirstRow(menu: HTMLDivElement): { top: number; bottom: number; height: number } {
-    const item = (menu.shadowRoot ?? menu).querySelector("li");
-    const box = this.withMeasureStyles(menu, () => {
-      const rowRect = item?.getBoundingClientRect();
-      if (!rowRect || rowRect.height <= 0) {
+  private measureFirstRow(menu: HTMLDivElement): {
+    baselineFromTop: number;
+    baselineFromBottom: number;
+  } {
+    const root = menu.shadowRoot ?? menu;
+    const label = root.querySelector<HTMLElement>("li .ft-suggestion-label");
+    // Measured against the panel, which moves with the label: a running pop-in
+    // animation shifts both alike.
+    const panel = root.querySelector<HTMLElement>(".ft-suggestion-panel") ?? menu;
+    const row = this.withMeasureStyles(menu, () => {
+      const labelRect = label?.getBoundingClientRect();
+      if (!label || !labelRect || labelRect.height <= 0) {
         return null;
       }
-      const menuRect = menu.getBoundingClientRect();
+      const panelRect = panel.getBoundingClientRect();
+      const baseline = this.baselineInLineBox(
+        labelRect.top,
+        labelRect.height,
+        window.getComputedStyle(label),
+      );
       return {
-        top: rowRect.top - menuRect.top,
-        bottom: menuRect.bottom - rowRect.bottom,
-        height: rowRect.height,
+        baselineFromTop: baseline - panelRect.top,
+        baselineFromBottom: panelRect.bottom - baseline,
       };
     });
-    if (box) {
-      return box;
+    if (row) {
+      return row;
     }
-    // No layout (tests): one row inside the 1px border.
+    // No layout (tests): one row inside the 1px border, baseline at its middle.
     const rowHeight =
       Number.parseFloat(menu.style.getPropertyValue("--ft-row-height")) ||
       SuggestionPositioningService.DEFAULT_ROW_HEIGHT_PX;
-    return { top: 1, bottom: 1, height: rowHeight };
+    return { baselineFromTop: 1 + rowHeight / 2, baselineFromBottom: 1 + rowHeight / 2 };
+  }
+
+  /** Text baseline of the caret's line; `rect` is that line's box. */
+  protected caretBaseline(rect: DOMRect, elem: SuggestionElement): number {
+    return this.baselineInLineBox(
+      rect.top,
+      rect.height,
+      window.getComputedStyle(this.resolveTypographyAnchor(elem)),
+    );
+  }
+
+  /** CSS places a line's baseline half the leading plus the font's ascent below the line top. */
+  private baselineInLineBox(top: number, lineHeight: number, style: CSSStyleDeclaration): number {
+    const { ascent, descent } = this.fontMetrics(style);
+    return top + (lineHeight - ascent - descent) / 2 + ascent;
+  }
+
+  private fontMetrics(style: CSSStyleDeclaration): { ascent: number; descent: number } {
+    const fontSize = this.resolveFontSizePx(style.fontSize);
+    const context = SuggestionPositioningService.getMeasureContext();
+    if (context) {
+      context.font = `${style.fontStyle} ${style.fontWeight} ${fontSize}px ${style.fontFamily}`;
+      const metrics = context.measureText("Hg");
+      if (metrics.fontBoundingBoxAscent > 0) {
+        return { ascent: metrics.fontBoundingBoxAscent, descent: metrics.fontBoundingBoxDescent };
+      }
+    }
+    // Typical Latin proportions when the browser cannot report them.
+    return { ascent: fontSize * 0.8, descent: fontSize * 0.2 };
+  }
+
+  private static measureContext: CanvasRenderingContext2D | null | undefined;
+
+  private static getMeasureContext(): CanvasRenderingContext2D | null {
+    if (this.measureContext === undefined) {
+      try {
+        this.measureContext = document.createElement("canvas").getContext("2d");
+      } catch {
+        this.measureContext = null;
+      }
+    }
+    return this.measureContext;
   }
 
   /** Panel border plus row padding: where a row's text starts inside the menu. */

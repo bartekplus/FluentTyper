@@ -345,14 +345,15 @@ export const SUGGESTION_POPUP_SHADOW_CSS = `
 }
 
 @keyframes ft-suggestion-pop-in {
+  /* No slide: the first suggestion's text is placed on the caret's line. */
   from {
     opacity: 0;
-    transform: translateY(4px) scale(0.985);
+    transform: scale(0.985);
   }
 
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: scale(1);
   }
 }
 `;

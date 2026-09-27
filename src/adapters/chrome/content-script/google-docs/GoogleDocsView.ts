@@ -77,6 +77,11 @@ class DocsPositioning extends SuggestionPositioningService {
   override getCaretRect(): DOMRect | null {
     return getDocsCaret()?.rect ?? fallbackCaretRect();
   }
+  // Docs paints text on a canvas, so its font is unknown: the caret spans the
+  // glyphs' ascent and descent, and the baseline sits about 80% down it.
+  protected override caretBaseline(rect: DOMRect): number {
+    return rect.top + rect.height * 0.8;
+  }
 }
 export class GoogleDocsView {
   private readonly elements = SuggestionMenuView.ensureMenu();
