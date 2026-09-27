@@ -94,16 +94,11 @@ export class SuggestionPositioningService {
     menu.style.setProperty("--ft-text-transform", SUGGESTION_POPUP_TEXT_TRANSFORM);
   }
 
-  /**
-   * `word` is the part of the current word before the caret: the menu anchors at
-   * the word's start, so it stays put while the word is typed.
-   */
-  public positionMenu(menu: HTMLDivElement, elem: SuggestionElement, word = ""): boolean {
-    const caret = this.getCaretRect(elem);
-    if (!caret) {
+  public positionMenu(menu: HTMLDivElement, elem: SuggestionElement): boolean {
+    const rect = this.getCaretRect(elem);
+    if (!rect) {
       return false;
     }
-    const rect = this.getWordStartRect(caret, elem, word);
 
     const coordinates = this.getMenuCoordinatesForRect(menu, rect, elem);
 
@@ -116,49 +111,6 @@ export class SuggestionPositioningService {
     menu.style.setProperty("max-width", `${coordinates.maxWidth}px`, "important");
     menu.style.setProperty("z-index", "2147483647", "important");
     return true;
-  }
-
-  /** Width of `word` in the field's font; 0 anchors the menu at the caret. */
-  protected measureWordWidth(word: string, elem: SuggestionElement): number {
-    if (!word) {
-      return 0;
-    }
-    const context = SuggestionPositioningService.getMeasureContext();
-    if (!context) {
-      return 0;
-    }
-    const style = window.getComputedStyle(this.resolveTypographyAnchor(elem));
-    context.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
-    const letterSpacing = Number.parseFloat(style.letterSpacing) || 0;
-    return context.measureText(word).width + letterSpacing * word.length;
-  }
-
-  private static measureContext: CanvasRenderingContext2D | null | undefined;
-
-  private static getMeasureContext(): CanvasRenderingContext2D | null {
-    if (this.measureContext === undefined) {
-      try {
-        this.measureContext = document.createElement("canvas").getContext("2d");
-      } catch {
-        this.measureContext = null;
-      }
-    }
-    return this.measureContext;
-  }
-
-  private getWordStartRect(caret: DOMRect, elem: SuggestionElement, word: string): DOMRect {
-    const width = this.measureWordWidth(word, elem);
-    if (!(width > 0)) {
-      return caret;
-    }
-    // ponytail: assumes the word is on the caret's line; a word wrapped mid-way
-    // anchors at the field edge. Measure with a Range if that shows up.
-    const bounds = elem.getBoundingClientRect();
-    const isRtl = window.getComputedStyle(elem).direction === "rtl";
-    const left = isRtl
-      ? Math.min(caret.left + width, bounds.right)
-      : Math.max(caret.left - width, bounds.left);
-    return this.createRect(left, caret.top, 0, caret.height);
   }
 
   public getCaretRect(elem: SuggestionElement): DOMRect | null {

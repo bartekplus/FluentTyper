@@ -77,10 +77,6 @@ class DocsPositioning extends SuggestionPositioningService {
   override getCaretRect(): DOMRect | null {
     return getDocsCaret()?.rect ?? fallbackCaretRect();
   }
-  // Docs paints text on a canvas: the caret element carries no font to measure.
-  protected override measureWordWidth(): number {
-    return 0;
-  }
 }
 export class GoogleDocsView {
   private readonly elements = SuggestionMenuView.ensureMenu();

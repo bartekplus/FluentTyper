@@ -82,7 +82,7 @@ export class SuggestionMenuPresenter {
     model.menu.style.setProperty("display", "block", "important");
     model.menu.style.setProperty("visibility", "hidden", "important");
     this.positioningService.syncMenuTypography(model.menu, model.target);
-    if (!this.positioningService.positionMenu(model.menu, model.target, model.mentionText)) {
+    if (!this.positioningService.positionMenu(model.menu, model.target)) {
       this.hide(model.menu, model.list, model.target);
       return false;
     }
