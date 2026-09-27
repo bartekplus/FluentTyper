@@ -37,8 +37,7 @@ const MENU_MEASURE_STYLES = {
 
 export class SuggestionPositioningService {
   private static readonly VIEWPORT_PADDING_PX = 8;
-  private static readonly CARET_GAP_PX = 2;
-  private static readonly DEFAULT_PAD_X_PX = 8;
+  private static readonly CARET_GAP_PX = 4;
   private static readonly PREFERRED_MENU_HEIGHT_PX = 200;
   private static readonly DEFAULT_FONT_SIZE_PX = 16;
   private static readonly LEGACY_THEME_FONT_SIZE = "0.9rem";
@@ -274,10 +273,9 @@ export class SuggestionPositioningService {
       ),
     );
 
-    // Line the first suggestion's text up with the anchor, not the panel edge.
-    const textInset = this.resolveTextInset(menu);
+    // The panel's inline-start edge sits at the caret.
     const isRtl = window.getComputedStyle(elem).direction === "rtl";
-    const rawLeft = isRtl ? rect.right - menuDimensions.width + textInset : rect.left - textInset;
+    const rawLeft = isRtl ? rect.right - menuDimensions.width : rect.left;
     const left = this.clamp(
       rawLeft,
       viewportPadding,
@@ -321,12 +319,6 @@ export class SuggestionPositioningService {
     menu.setAttribute(SUGGESTION_MENU_PLACEMENT_ATTR, placement);
     menu.setAttribute(SUGGESTION_MENU_PLACEMENT_LINE_ATTR, line);
     return placement;
-  }
-
-  /** Panel border plus row padding: where a row's text starts inside the menu. */
-  private resolveTextInset(menu: HTMLDivElement): number {
-    const padX = Number.parseFloat(menu.style.getPropertyValue("--ft-pad-x"));
-    return (Number.isFinite(padX) ? padX : SuggestionPositioningService.DEFAULT_PAD_X_PX) + 1;
   }
 
   private getMenuDimensions(menu: HTMLDivElement): { width: number; height: number } {

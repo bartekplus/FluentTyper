@@ -86,8 +86,8 @@ describe("SuggestionPositioningService", () => {
     service.positionMenu(menu, target);
     // A one-row list would fit below, but a longer one would not: open above.
     expect(menu.getAttribute("data-ft-placement")).toBe("above");
-    // Bottom edge sits 2px above the caret line.
-    expect(menu.style.top).toBe(`${660 - 2 - 30}px`);
+    // Bottom edge sits 4px above the caret line.
+    expect(menu.style.top).toBe(`${660 - 4 - 30}px`);
 
     setHeight(20);
     service.positionMenu(menu, target);
@@ -97,10 +97,10 @@ describe("SuggestionPositioningService", () => {
     const nextLine = new CaretPositioningService(createRect(50, 100, 0, 16));
     nextLine.positionMenu(menu, target);
     expect(menu.getAttribute("data-ft-placement")).toBe("below");
-    expect(menu.style.top).toBe(`${100 + 16 + 2}px`);
+    expect(menu.style.top).toBe(`${100 + 16 + 4}px`);
   });
 
-  test("lines the first suggestion's text up with the caret", () => {
+  test("puts the panel's edge at the caret", () => {
     const service = new CaretPositioningService(createRect(120, 60, 0, 16));
     const menu = document.createElement("div");
     const target = document.createElement("input");
@@ -110,8 +110,7 @@ describe("SuggestionPositioningService", () => {
 
     service.positionMenu(menu, target);
 
-    // Text starts after the 1px border and the row's 7px padding.
-    expect(menu.style.left).toBe(`${120 - 8}px`);
+    expect(menu.style.left).toBe("120px");
   });
 
   test("returns false when caret rect cannot be resolved", () => {
