@@ -40,5 +40,10 @@ describe("SuggestionPopupShadowStyles", () => {
     expect(SUGGESTION_POPUP_SHADOW_CSS).toMatch(
       /\.ft-suggestion-match\s*\{[\s\S]*color:\s*var\(--ft-panel-accent\);/,
     );
+    // On the selected row the typed text leans on that row's own (themed) text
+    // color, so a dark selected row on a light popup keeps it readable.
+    expect(SUGGESTION_POPUP_SHADOW_CSS).toMatch(
+      /li\.highlight \.ft-suggestion-match\s*\{\s*color:\s*color-mix\(in srgb, var\(--ft-panel-accent\) 45%, var\(--ft-panel-highlight-fg\)\);/,
+    );
   });
 });

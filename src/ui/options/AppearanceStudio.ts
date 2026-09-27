@@ -4,7 +4,7 @@ import {
   KEY_AUTOCOMPLETE,
   KEY_AUTOCOMPLETE_ON_ENTER,
   KEY_AUTOCOMPLETE_ON_TAB,
-  KEY_DISPLAY_LANG_HEADER,
+  KEY_SHOW_SUGGESTION_FOOTER,
   KEY_HORIZONTAL_SUGGESTIONS,
   KEY_LANGUAGE,
   KEY_SELECT_BY_DIGIT,
@@ -59,7 +59,7 @@ const PREVIEW_OPTION_KEYS = [
   KEY_AUTOCOMPLETE_ON_ENTER,
   KEY_AUTOCOMPLETE,
   KEY_HORIZONTAL_SUGGESTIONS,
-  KEY_DISPLAY_LANG_HEADER,
+  KEY_SHOW_SUGGESTION_FOOTER,
   KEY_LANGUAGE,
 ];
 /** Page text the preview sizes the popup for: 16px on a 1.4 line. */
@@ -556,26 +556,27 @@ export class AppearanceStudio {
     ];
     const showShortcutDigits = setting(KEY_SELECT_BY_DIGIT) === true;
     const languageName = SUPPORTED_LANGUAGES[String(setting(KEY_LANGUAGE))];
+    // The footer (key hints and language) is off unless turned on.
+    const showFooter = setting(KEY_SHOW_SUGGESTION_FOOTER) === true;
     return buildSuggestionPanelHtml({
       suggestions,
       selectedIndex: 0,
       showShortcutDigits,
       // As if the first letters of the samples were typed, to show the highlight.
       mentionText: suggestions[0].slice(0, 3),
-      hints: buildSuggestionKeyHints({
-        // The same defaults the settings fall back to.
-        acceptKeys: acceptKeyLabels({
-          autocompleteOnTab: setting(KEY_AUTOCOMPLETE_ON_TAB) !== false,
-          autocompleteOnEnter: setting(KEY_AUTOCOMPLETE_ON_ENTER) !== false,
-          autocomplete: setting(KEY_AUTOCOMPLETE) === true,
-        }),
-        digitCount: showShortcutDigits ? suggestions.length : 0,
-        language: navigator.language || "en",
-      }),
-      language:
-        setting(KEY_DISPLAY_LANG_HEADER) === true && languageName
-          ? suggestionLanguageLabel(languageName)
-          : null,
+      hints: !showFooter
+        ? []
+        : buildSuggestionKeyHints({
+            // The same defaults the settings fall back to.
+            acceptKeys: acceptKeyLabels({
+              autocompleteOnTab: setting(KEY_AUTOCOMPLETE_ON_TAB) !== false,
+              autocompleteOnEnter: setting(KEY_AUTOCOMPLETE_ON_ENTER) !== false,
+              autocomplete: setting(KEY_AUTOCOMPLETE) === true,
+            }),
+            digitCount: showShortcutDigits ? suggestions.length : 0,
+            language: navigator.language || "en",
+          }),
+      language: showFooter && languageName ? suggestionLanguageLabel(languageName) : null,
     });
   }
 

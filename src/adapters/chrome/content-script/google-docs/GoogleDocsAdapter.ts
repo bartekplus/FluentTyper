@@ -268,11 +268,13 @@ export class GoogleDocsAdapter {
       inline: options.inline_suggestion,
       digits: options.selectByDigit,
       horizontal: options.horizontalSuggestions,
-      acceptKeys: acceptKeyLabels({
-        ...options,
-        autocompleteOnTab: options.autocompleteOnTab || options.inline_suggestion,
-      }),
-      langHeader: options.displayLangHeader,
+      acceptKeys: options.showSuggestionFooter
+        ? acceptKeyLabels({
+            ...options,
+            autocompleteOnTab: options.autocompleteOnTab || options.inline_suggestion,
+          })
+        : undefined,
+      showFooter: options.showSuggestionFooter,
       findToken: (text) => this.prediction.findMentionToken(text),
       accept: (index) => {
         this.accept(index);

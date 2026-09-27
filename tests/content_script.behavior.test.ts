@@ -81,7 +81,7 @@ function defaultConfig(overrides: Record<string, unknown> = {}) {
     lang: "en_US",
     selectByDigit: true,
     minWordLengthToPredict: 1,
-    displayLangHeader: true,
+    showSuggestionFooter: true,
     inline_suggestion: false,
     preferNativeAutocomplete: true,
     themeConfig: undefined,

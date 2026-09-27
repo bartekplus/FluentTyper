@@ -52,7 +52,7 @@ export class ContentRuntimeController {
     selectByDigit: false,
     horizontalSuggestions: false,
     minWordLengthToPredict: 0,
-    displayLangHeader: true,
+    showSuggestionFooter: false,
     showReviewButton: true,
     inline_suggestion: false,
     preferNativeAutocomplete: true,
@@ -526,7 +526,7 @@ export class ContentRuntimeController {
       lang: this.config.lang,
       selectByDigit: this.config.selectByDigit,
       horizontalSuggestions: this.config.horizontalSuggestions,
-      displayLangHeader: this.config.displayLangHeader,
+      showSuggestionFooter: this.config.showSuggestionFooter,
       inline_suggestion: this.config.inline_suggestion,
       preferNativeAutocomplete: this.config.preferNativeAutocomplete,
       // Code mode keeps FluentTyper from rewriting code: only rules that never

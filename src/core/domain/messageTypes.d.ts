@@ -23,7 +23,7 @@ export interface SetConfigContext {
   preferNativeAutocomplete: boolean;
   codeMode: boolean;
   enabled: boolean;
-  displayLangHeader: boolean;
+  showSuggestionFooter: boolean;
   /** Show the "Review text" button on the focused multi-line field. */
   showReviewButton?: boolean;
   enabledGrammarRules: string[];

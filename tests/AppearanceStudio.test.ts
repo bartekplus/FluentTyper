@@ -13,6 +13,7 @@ import {
   KEY_AUTOCOMPLETE_ON_TAB,
   KEY_HORIZONTAL_SUGGESTIONS,
   KEY_SELECT_BY_DIGIT,
+  KEY_SHOW_SUGGESTION_FOOTER,
   KEY_SUGGESTION_BG_DARK,
   KEY_SUGGESTION_BG_LIGHT,
   KEY_SUGGESTION_BORDER_DARK,
@@ -249,6 +250,7 @@ describe("AppearanceStudio theme value compatibility", () => {
       [KEY_AUTOCOMPLETE_ON_ENTER]: true,
       [KEY_AUTOCOMPLETE]: true,
       [KEY_HORIZONTAL_SUGGESTIONS]: false,
+      [KEY_SHOW_SUGGESTION_FOOTER]: true,
     });
 
     new AppearanceStudio(root, registry as never, {
@@ -275,6 +277,26 @@ describe("AppearanceStudio theme value compatibility", () => {
 
     expect(keys()).toEqual(["↑↓", "Tab ⏎ Space", "Esc"]);
     expect(preview().dataset.ftLayout).toBe("horizontal");
+  });
+
+  test("preview drops the whole footer when the key hints and language setting is off", () => {
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    const { registry } = createRegistry({ ...DEFAULT_THEME, [KEY_SHOW_SUGGESTION_FOOTER]: false });
+
+    new AppearanceStudio(root, registry as never, {
+      default: DEFAULT_THEME,
+      compact: COMPACT_THEME,
+    });
+
+    const footer = () =>
+      (root.querySelector(".appearance-preview") as HTMLElement).shadowRoot!.querySelector(
+        ".ft-suggestion-footer",
+      ) as HTMLElement;
+    expect(footer().hidden).toBe(true);
+
+    registry[KEY_SHOW_SUGGESTION_FOOTER].set(true);
+    expect(footer().hidden).toBe(false);
   });
 
   test("advanced color typing updates preview and contrast before blur", () => {

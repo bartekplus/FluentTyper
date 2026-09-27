@@ -141,6 +141,13 @@
   font-size: 0.86em !important;
 }
 
+/* Selected row: mixed from its own text color, which the theme contrasts with its background. */
+.ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"]
+  li.highlight
+  .ft-suggestion-match {
+  color: color-mix(in srgb, var(--ft-accent) 45%, var(--ft-highlight-fg)) !important;
+}
+
 /* Matched text inside a suggestion */
 .ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"]
   li

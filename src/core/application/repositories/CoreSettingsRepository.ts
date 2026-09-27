@@ -119,8 +119,9 @@ export class CoreSettingsRepository extends SettingsRepositoryBase {
     return Math.min(12, Math.max(-1, Math.round(value)));
   }
 
-  async getDisplayLangHeader(): Promise<boolean> {
-    return this.getBooleanField("displayLangHeader");
+  /** The popup's bottom line (key hints and prediction language); off unless turned on. */
+  async getShowSuggestionFooter(): Promise<boolean> {
+    return this.getBooleanField("showSuggestionFooter");
   }
 
   /** The "Review text" button on the focused multi-line field; on unless turned off. */

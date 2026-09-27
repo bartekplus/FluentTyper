@@ -254,7 +254,7 @@ async function loadBackgroundHarness(stateOverrides: Record<string, unknown> = {
     autocompleteOnTab: true,
     selectByDigit: true,
     minWordLengthToPredict: 1,
-    displayLangHeader: true,
+    showSuggestionFooter: true,
     inline_suggestion: false,
     preferNativeAutocomplete: true,
     suggestionBgLight: "#fff",

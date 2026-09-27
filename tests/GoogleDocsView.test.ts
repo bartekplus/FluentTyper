@@ -24,7 +24,9 @@ function renderDocs(
   const view = new GoogleDocsView({
     inline,
     digits: false,
-    langHeader: false,
+    horizontal: false,
+    acceptKeys: undefined,
+    showFooter: false,
     findToken: () => ({ token: typed }),
     accept: () => undefined,
   });

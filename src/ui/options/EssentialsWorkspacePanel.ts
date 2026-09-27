@@ -14,6 +14,7 @@ import {
   KEY_PREFIX_ONLY_MODE,
   KEY_SELECT_BY_DIGIT,
   KEY_HORIZONTAL_SUGGESTIONS,
+  KEY_SHOW_SUGGESTION_FOOTER,
 } from "@core/domain/constants";
 import { i18n } from "./fluenttyperI18n.js";
 import {
@@ -34,6 +35,7 @@ export function renderEssentialsWorkspacePanel(
   moveControlToBody(registry, "enable", general.body);
   moveControlToBody(registry, KEY_INLINE_SUGGESTION, general.body);
   moveControlToBody(registry, KEY_HORIZONTAL_SUGGESTIONS, general.body);
+  moveControlToBody(registry, KEY_SHOW_SUGGESTION_FOOTER, general.body);
   moveControlToBody(registry, KEY_PREFER_NATIVE_AUTOCOMPLETE, general.body);
   moveControlToBody(registry, KEY_CODE_MODE, general.body);
   moveControlToBody(registry, KEY_PREFIX_ONLY_MODE, general.body);

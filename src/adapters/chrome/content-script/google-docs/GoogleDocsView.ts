@@ -90,8 +90,10 @@ export class GoogleDocsView {
       inline: boolean;
       digits: boolean;
       horizontal: boolean;
-      acceptKeys: string[];
-      langHeader: boolean;
+      /** Key hints, undefined without a footer. */
+      acceptKeys: string[] | undefined;
+      /** The popup's bottom line: key hints and the prediction language. */
+      showFooter: boolean;
       findToken: (text: string) => { token: string };
       accept: (index: number) => void;
     },
@@ -184,7 +186,7 @@ export class GoogleDocsView {
         showShortcutDigits: this.options.digits,
         horizontal: this.options.horizontal,
         acceptKeys: this.options.acceptKeys,
-        menuHeader: this.options.langHeader ? (SUPPORTED_LANGUAGES[language] ?? language) : null,
+        menuHeader: this.options.showFooter ? (SUPPORTED_LANGUAGES[language] ?? language) : null,
         mentionText: context.selectedText || token,
       });
     const panel = SuggestionMenuView.resolvePanel(this.elements.menu);

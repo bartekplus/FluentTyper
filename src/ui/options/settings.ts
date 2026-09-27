@@ -53,7 +53,7 @@ import {
   KEY_TEXT_EXPANSIONS,
   KEY_USER_DICTIONARY_LIST,
   KEY_DOMAIN_LIST_MODE,
-  KEY_DISPLAY_LANG_HEADER,
+  KEY_SHOW_SUGGESTION_FOOTER,
   KEY_SHOW_REVIEW_BUTTON,
   KEY_INLINE_SUGGESTION,
   KEY_PREFIX_ONLY_MODE,
@@ -155,7 +155,7 @@ const CONFIG_REFRESH_KEYS = [
   KEY_DATE_FORMAT,
   KEY_TEXT_EXPANSIONS,
   KEY_USER_DICTIONARY_LIST,
-  KEY_DISPLAY_LANG_HEADER,
+  KEY_SHOW_SUGGESTION_FOOTER,
   KEY_SHOW_REVIEW_BUTTON,
   KEY_INLINE_SUGGESTION,
   KEY_PREFER_NATIVE_AUTOCOMPLETE,
@@ -240,6 +240,7 @@ function applyInlineSuggestionLocks(registry: SettingsRegistry, enabled: boolean
   registry[KEY_NUM_SUGGESTIONS].setDisabled(enabled);
   // Inline mode shows no suggestion list to lay out.
   registry[KEY_HORIZONTAL_SUGGESTIONS]?.setDisabled(enabled);
+  registry[KEY_SHOW_SUGGESTION_FOOTER]?.setDisabled(enabled);
 }
 
 function wireRuntimeSettingsHandlers(registry: SettingsRegistry): void {

@@ -67,7 +67,7 @@ export class SuggestionEntrySession {
   private readonly hideMenu: () => void;
   private readonly clearInlinePresenter: () => void;
   private readonly isFocused: () => boolean;
-  private readonly displayLangHeader: boolean;
+  private readonly showSuggestionFooter: boolean;
   private readonly inlineSuggestionEnabled: boolean;
   private readonly predictionCoordinator: SuggestionEntrySessionOptions["predictionCoordinator"];
   private readonly grammarCoordinator: SuggestionEntrySessionOptions["grammarCoordinator"];
@@ -98,7 +98,7 @@ export class SuggestionEntrySession {
     this.hideMenu = options.hideMenu;
     this.clearInlinePresenter = options.clearInlinePresenter;
     this.isFocused = options.isFocused;
-    this.displayLangHeader = options.displayLangHeader;
+    this.showSuggestionFooter = options.showSuggestionFooter;
     this.inlineSuggestionEnabled = options.inlineSuggestionEnabled;
     this.predictionCoordinator = options.predictionCoordinator;
     this.grammarCoordinator = options.grammarCoordinator;
@@ -364,7 +364,7 @@ export class SuggestionEntrySession {
     );
     this.entry.selectedIndex = 0;
     this.entry.menuHeader =
-      this.displayLangHeader && context.lang
+      this.showSuggestionFooter && context.lang
         ? suggestionLanguageLabel(SUPPORTED_LANGUAGES[context.lang])
         : null;
     const currentPredictionContext = this.resolveCurrentPredictionContext();

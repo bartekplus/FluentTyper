@@ -283,6 +283,24 @@ ${DARK_PALETTE}
   text-transform: inherit;
 }
 
+/*
+ * On the selected row, mix from its own text color: the theme contrasts that
+ * with the row's background, which a fixed accent may not (a dark selected row
+ * on a light popup).
+ */
+.ft-suggestion-list li.highlight .ft-suggestion-match {
+  color: color-mix(in srgb, var(--ft-panel-accent) 45%, var(--ft-panel-highlight-fg));
+}
+
+.ft-suggestion-list li.highlight .ft-suggestion-detail {
+  color: color-mix(in srgb, var(--ft-panel-highlight-fg) 72%, var(--ft-panel-highlight-bg));
+}
+
+.ft-suggestion-list li.highlight .ft-suggestion-shortcut {
+  background: color-mix(in srgb, var(--ft-panel-highlight-fg) 14%, var(--ft-panel-highlight-bg));
+  color: color-mix(in srgb, var(--ft-panel-highlight-fg) 80%, var(--ft-panel-highlight-bg));
+}
+
 /* A snippet's shortcut, on the right. */
 .ft-suggestion-detail {
   all: initial;

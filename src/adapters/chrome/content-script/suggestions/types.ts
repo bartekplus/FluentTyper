@@ -55,7 +55,7 @@ export interface SuggestionManagerOptions {
   lang: string;
   selectByDigit: boolean;
   horizontalSuggestions: boolean;
-  displayLangHeader: boolean;
+  showSuggestionFooter: boolean;
   inline_suggestion: boolean;
   preferNativeAutocomplete: boolean;
   enabledGrammarRules: string[];
@@ -169,7 +169,7 @@ export interface SuggestionEntrySessionOptions {
   hideMenu: () => void;
   clearInlinePresenter: () => void;
   isFocused: () => boolean;
-  displayLangHeader: boolean;
+  showSuggestionFooter: boolean;
   inlineSuggestionEnabled: boolean;
   predictionCoordinator: Pick<
     SuggestionPredictionCoordinator,
