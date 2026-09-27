@@ -1,4 +1,4 @@
-import { acceptKeyLabels } from "../suggestions/SuggestionMenuHints";
+import { acceptKeyLabels } from "@core/domain/suggestionPopup/keyHints";
 import { LANG_SEPARATOR_CHARS_REGEX } from "@core/domain/lang";
 import type { GrammarEventType } from "@core/domain/grammar/types";
 import type { PredictionInputAction } from "@core/domain/messageTypes";

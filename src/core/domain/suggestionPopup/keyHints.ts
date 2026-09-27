@@ -39,9 +39,10 @@ export interface SuggestionKeyHint {
 export function buildSuggestionKeyHints(args: {
   acceptKeys: string[];
   digitCount: number;
-  language?: string;
+  /** A BCP 47 tag such as navigator.language; unknown languages get English. */
+  language: string;
 }): SuggestionKeyHint[] {
-  const lang = (args.language ?? navigator.language ?? "en").split(/[-_]/)[0].toLowerCase();
+  const lang = args.language.split(/[-_]/)[0].toLowerCase();
   const [navigate, accept, pick, dismiss] = LABELS[lang] ?? LABELS.en;
   const hints: SuggestionKeyHint[] = [{ keys: "↑↓", label: navigate }];
   if (args.acceptKeys.length > 0) {

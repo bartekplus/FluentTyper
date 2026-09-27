@@ -5,14 +5,17 @@ import {
 } from "./SuggestionMenuHost";
 import { MIRROR_LAYOUT_PROPERTIES } from "./InlineSuggestionView";
 import {
+  NEUTRAL_THEME_SCALE,
+  THEME_SCALE_REFERENCES,
+  computeSuggestionPopupStyleVars,
+  themeScaleFor,
+  type SuggestionPopupThemeScale,
+} from "@core/domain/suggestionPopup/metrics";
+import {
   SUGGESTION_POPUP_FONT_FAMILY,
-  SUGGESTION_POPUP_FONT_STRETCH,
   SUGGESTION_POPUP_FONT_STYLE,
   SUGGESTION_POPUP_FONT_WEIGHT,
-  SUGGESTION_POPUP_LETTER_SPACING,
-  SUGGESTION_POPUP_TEXT_TRANSFORM,
-  SUGGESTION_POPUP_WORD_SPACING,
-} from "./SuggestionPopupTypography";
+} from "@core/domain/suggestionPopup/typography";
 import type { SuggestionElement } from "./types";
 
 interface MenuCoordinates {
@@ -40,58 +43,27 @@ export class SuggestionPositioningService {
   private static readonly CARET_GAP_PX = 4;
   private static readonly PREFERRED_MENU_HEIGHT_PX = 200;
   private static readonly DEFAULT_FONT_SIZE_PX = 16;
-  private static readonly LEGACY_THEME_FONT_SIZE = "0.9rem";
-  private static readonly LEGACY_THEME_PADDING_VERTICAL = "0.6rem";
-  private static readonly LEGACY_THEME_PADDING_HORIZONTAL = "0.8rem";
 
   public syncMenuTypography(menu: HTMLDivElement, elem: SuggestionElement): void {
     const typographyAnchor = this.resolveTypographyAnchor(elem);
     const computed = window.getComputedStyle(typographyAnchor);
     const fontSizePx = this.resolveFontSizePx(computed.fontSize);
-    const lineHeightPx = this.resolveLineHeightPx(computed.lineHeight, fontSizePx);
-    const themeScale = this.resolveLegacyThemeScale(menu, typographyAnchor, fontSizePx);
-    const popupFontSizePx = Math.round(this.clamp(fontSizePx * 0.84 * themeScale.fontSize, 12, 15));
-    const popupLineHeightPx = Math.round(
-      this.clamp(lineHeightPx * 0.86 * themeScale.fontSize, 16, 22),
-    );
-    const padX = Math.round(this.clamp(fontSizePx * 0.62 * themeScale.paddingHorizontal, 8, 12));
-    const padY = Math.round(this.clamp(fontSizePx * 0.14 * themeScale.paddingVertical, 3, 6));
-    // 16px text on a 1.4 line gives the design's 32px rows.
-    const rowHeightPx = Math.round(
-      this.clamp(popupLineHeightPx + fontSizePx * 0.8 * themeScale.paddingVertical, 28, 38),
-    );
-    const radiusPx = Math.round(this.clamp(fontSizePx * 0.5, 8, 10));
-    const availableViewportWidth = Math.max(
-      152,
-      window.innerWidth - SuggestionPositioningService.VIEWPORT_PADDING_PX * 2,
-    );
+    const vars = computeSuggestionPopupStyleVars({
+      fontSizePx,
+      lineHeightPx: this.resolveLineHeightPx(computed.lineHeight, fontSizePx),
+      themeScale: this.resolveLegacyThemeScale(menu, typographyAnchor, fontSizePx),
+      viewportWidthPx: window.innerWidth,
+    });
 
-    menu.style.fontSize = `${popupFontSizePx}px`;
-    menu.style.lineHeight = `${popupLineHeightPx}px`;
+    menu.style.fontSize = vars["--ft-font-size"];
+    menu.style.lineHeight = vars["--ft-line-height"];
     menu.style.direction = computed.direction;
     menu.style.fontFamily = SUGGESTION_POPUP_FONT_FAMILY;
     menu.style.fontWeight = SUGGESTION_POPUP_FONT_WEIGHT;
     menu.style.fontStyle = SUGGESTION_POPUP_FONT_STYLE;
-    menu.style.setProperty("--ft-font-size", `${popupFontSizePx}px`);
-    menu.style.setProperty("--ft-line-height", `${popupLineHeightPx}px`);
-    menu.style.setProperty("--ft-row-height", `${rowHeightPx}px`);
-    menu.style.setProperty("--ft-pad-x", `${padX}px`);
-    menu.style.setProperty("--ft-pad-y", `${padY}px`);
-    menu.style.setProperty("--ft-radius", `${radiusPx}px`);
-    menu.style.setProperty(
-      "--ft-panel-min-width",
-      `${Math.round(this.clamp(Math.max(popupFontSizePx * 9, 148), 148, availableViewportWidth))}px`,
-    );
-    menu.style.setProperty("--suggestion-font-size", `${popupFontSizePx}px`);
-    menu.style.setProperty("--suggestion-padding-vertical", `${padY}px`);
-    menu.style.setProperty("--suggestion-padding-horizontal", `${padX}px`);
-    menu.style.setProperty("--ft-font-family", SUGGESTION_POPUP_FONT_FAMILY);
-    menu.style.setProperty("--ft-font-weight", SUGGESTION_POPUP_FONT_WEIGHT);
-    menu.style.setProperty("--ft-font-style", SUGGESTION_POPUP_FONT_STYLE);
-    menu.style.setProperty("--ft-font-stretch", SUGGESTION_POPUP_FONT_STRETCH);
-    menu.style.setProperty("--ft-letter-spacing", SUGGESTION_POPUP_LETTER_SPACING);
-    menu.style.setProperty("--ft-word-spacing", SUGGESTION_POPUP_WORD_SPACING);
-    menu.style.setProperty("--ft-text-transform", SUGGESTION_POPUP_TEXT_TRANSFORM);
+    for (const [name, value] of Object.entries(vars)) {
+      menu.style.setProperty(name, value);
+    }
   }
 
   public positionMenu(menu: HTMLDivElement, elem: SuggestionElement): boolean {
@@ -356,37 +328,28 @@ export class SuggestionPositioningService {
     return elem;
   }
 
+  /** The user's Appearance sizes (theme CSS variables on the page root) as a scale. */
   private resolveLegacyThemeScale(
     menu: HTMLDivElement,
     typographyAnchor: HTMLElement,
     contextFontSizePx: number,
-  ): {
-    fontSize: number;
-    paddingVertical: number;
-    paddingHorizontal: number;
-  } {
+  ): SuggestionPopupThemeScale {
     const root = menu.ownerDocument?.documentElement;
     if (!root) {
-      return {
-        fontSize: 1,
-        paddingVertical: 1,
-        paddingHorizontal: 1,
-      };
+      return NEUTRAL_THEME_SCALE;
     }
 
     const rootComputedStyle = window.getComputedStyle(root);
-    // The theme value's scale relative to its legacy default, clamped.
+    const rootFontSizePx = this.resolveFontSizePx(rootComputedStyle.fontSize);
     const scale = (
+      key: keyof SuggestionPopupThemeScale,
       variableName: string,
-      legacyDefaultValue: string,
       property: ThemeLengthProperty,
-      minScale: number,
     ): number => {
       const rawThemeValue = rootComputedStyle.getPropertyValue(variableName).trim();
       if (!rawThemeValue) {
         return 1;
       }
-      const rootFontSizePx = this.resolveFontSizePx(rootComputedStyle.fontSize);
       const toPx = (value: string) =>
         this.resolveCssLengthPx(
           value,
@@ -395,38 +358,21 @@ export class SuggestionPositioningService {
           rootFontSizePx,
           contextFontSizePx,
         );
-      const themePx = toPx(rawThemeValue);
-      const legacyDefaultPx = toPx(legacyDefaultValue);
-      if (
-        !themePx ||
-        !legacyDefaultPx ||
-        legacyDefaultPx <= 0 ||
-        !Number.isFinite(themePx) ||
-        !Number.isFinite(legacyDefaultPx)
-      ) {
-        return 1;
-      }
-      return this.clamp(themePx / legacyDefaultPx, minScale, 1.2);
+      const { reference, min } = THEME_SCALE_REFERENCES[key];
+      return themeScaleFor(toPx(rawThemeValue), toPx(reference), min);
     };
 
     return {
-      fontSize: scale(
-        "--ft-theme-suggestion-font-size",
-        SuggestionPositioningService.LEGACY_THEME_FONT_SIZE,
-        "font-size",
-        0.85,
-      ),
+      fontSize: scale("fontSize", "--ft-theme-suggestion-font-size", "font-size"),
       paddingVertical: scale(
+        "paddingVertical",
         "--ft-theme-suggestion-padding-vertical",
-        SuggestionPositioningService.LEGACY_THEME_PADDING_VERTICAL,
         "padding-top",
-        0.75,
       ),
       paddingHorizontal: scale(
+        "paddingHorizontal",
         "--ft-theme-suggestion-padding-horizontal",
-        SuggestionPositioningService.LEGACY_THEME_PADDING_HORIZONTAL,
         "padding-left",
-        0.75,
       ),
     };
   }

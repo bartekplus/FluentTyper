@@ -3,7 +3,12 @@ import { SUGGESTION_MENU_LAYOUT_ATTR, isSuggestionMenuHostVisible } from "./Sugg
 import { resolveSuggestionStateHost } from "./SuggestionStateHost";
 import { SuggestionPositioningService } from "./SuggestionPositioningService";
 import { SuggestionMenuView } from "./SuggestionMenuView";
-import { buildSuggestionKeyHints } from "./SuggestionMenuHints";
+import { buildSuggestionKeyHints } from "@core/domain/suggestionPopup/keyHints";
+import {
+  buildSuggestionFooterHtml,
+  buildSuggestionRowHtml,
+  formatShortcutDigit,
+} from "@core/domain/suggestionPopup/markup";
 import type { SuggestionElement } from "./types";
 
 interface SuggestionMenuRenderModel {
@@ -36,11 +41,11 @@ export class SuggestionMenuPresenter {
       const li = document.createElement("li");
       li.id = `ft-suggestion-option-${model.menuId}-${index}`;
       const snippetShortcut = model.snippetShortcuts?.[index] ?? null;
-      li.innerHTML = this.buildSuggestionMenuItemHtml({
+      li.innerHTML = buildSuggestionRowHtml({
         mentionText: model.mentionText,
         suggestion,
         snippetShortcut,
-        shortcutDigit: model.showShortcutDigits ? this.formatShortcutDigit(index) : null,
+        shortcutDigit: model.showShortcutDigits ? formatShortcutDigit(index) : null,
       });
       li.setAttribute("data-index", String(index));
       li.setAttribute("role", "option");
@@ -49,7 +54,7 @@ export class SuggestionMenuPresenter {
       li.setAttribute("aria-selected", index === model.selectedIndex ? "true" : "false");
       if (model.showShortcutDigits) {
         li.classList.add("has-shortcut");
-        li.setAttribute("data-shortcut", this.formatShortcutDigit(index));
+        li.setAttribute("data-shortcut", formatShortcutDigit(index));
       }
       if (index === model.selectedIndex) {
         li.classList.add("highlight");
@@ -130,85 +135,15 @@ export class SuggestionMenuPresenter {
     if (!footer) {
       return;
     }
-    const doc = footer.ownerDocument;
     const hints = model.acceptKeys
       ? buildSuggestionKeyHints({
           acceptKeys: model.acceptKeys,
           // Digit keys reach the first nine suggestions ("0" is the tenth, not hinted).
           digitCount: model.showShortcutDigits ? Math.min(model.suggestions.length, 9) : 0,
+          language: navigator.language || "en",
         })
       : [];
-    const items: HTMLElement[] = hints.map(({ keys, label }) => {
-      const hint = doc.createElement("span");
-      hint.className = "ft-suggestion-hint";
-      const kbd = doc.createElement("kbd");
-      kbd.textContent = keys;
-      hint.append(kbd, ` ${label}`);
-      return hint;
-    });
-    if (model.menuHeader) {
-      const lang = doc.createElement("span");
-      lang.className = "ft-suggestion-lang";
-      lang.textContent = model.menuHeader;
-      items.push(lang);
-    }
-    footer.replaceChildren(...items);
-    footer.hidden = items.length === 0;
-  }
-
-  private formatShortcutDigit(index: number): string {
-    return index === 9 ? "0" : String(index + 1);
-  }
-
-  /** Row: [number] label [snippet shortcut], as in the popup design. */
-  private buildSuggestionMenuItemHtml(args: {
-    mentionText: string;
-    suggestion: string;
-    snippetShortcut: string | null;
-    shortcutDigit: string | null;
-  }): string {
-    const shortcutMarkup = args.shortcutDigit
-      ? `<span class="ft-suggestion-shortcut" aria-hidden="true">${args.shortcutDigit}</span>`
-      : "";
-    // A snippet shows its expansion, and on the right the shortcut it expands,
-    // with the typed text highlighted, so fuzzy matches explain themselves.
-    const label = args.snippetShortcut
-      ? this.escapeHtml(args.suggestion)
-      : this.buildSuggestionLabelHtml(args.mentionText, args.suggestion);
-    const labelMarkup = `<span class="ft-suggestion-label">${label}</span>`;
-    const detailMarkup = args.snippetShortcut
-      ? `<span class="ft-suggestion-detail">${this.buildSuggestionLabelHtml(
-          args.mentionText,
-          args.snippetShortcut,
-        )}</span>`
-      : "";
-    return `${shortcutMarkup}${labelMarkup}${detailMarkup}`;
-  }
-
-  private buildSuggestionLabelHtml(mentionText: string, suggestion: string): string {
-    const safeSuggestion = this.escapeHtml(suggestion);
-    const mention = (mentionText || "").trim();
-    if (!mention) {
-      return safeSuggestion;
-    }
-
-    const matchIndex = suggestion.toLowerCase().indexOf(mention.toLowerCase());
-    if (matchIndex < 0) {
-      return safeSuggestion;
-    }
-
-    const before = this.escapeHtml(suggestion.slice(0, matchIndex));
-    const match = this.escapeHtml(suggestion.slice(matchIndex, matchIndex + mention.length));
-    const after = this.escapeHtml(suggestion.slice(matchIndex + mention.length));
-    return `${before}<span class="ft-suggestion-match">${match}</span>${after}`;
-  }
-
-  private escapeHtml(value: string): string {
-    return value
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll('"', "&quot;")
-      .replaceAll("'", "&#39;");
+    footer.innerHTML = buildSuggestionFooterHtml(hints, model.menuHeader);
+    footer.hidden = footer.childElementCount === 0;
   }
 }

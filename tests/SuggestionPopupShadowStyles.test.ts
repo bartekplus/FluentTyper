@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { SUGGESTION_POPUP_SHADOW_CSS } from "../src/adapters/chrome/content-script/suggestions/SuggestionPopupShadowStyles";
-import { SUGGESTION_POPUP_FONT_FAMILY } from "../src/adapters/chrome/content-script/suggestions/SuggestionPopupTypography";
+import { SUGGESTION_POPUP_SHADOW_CSS } from "../src/core/domain/suggestionPopup/styles";
+import { SUGGESTION_POPUP_FONT_FAMILY } from "../src/core/domain/suggestionPopup/typography";
 
 describe("SuggestionPopupShadowStyles", () => {
   test("restores explicit foreground and typography after list reset", () => {

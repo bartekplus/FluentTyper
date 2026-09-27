@@ -1,5 +1,6 @@
 import { resolveSuggestionMenuHostId } from "./SuggestionMenuHost";
-import { SUGGESTION_POPUP_SHADOW_CSS } from "./SuggestionPopupShadowStyles";
+import { SUGGESTION_POPUP_CLASS } from "@core/domain/suggestionPopup/markup";
+import { SUGGESTION_POPUP_SHADOW_CSS } from "@core/domain/suggestionPopup/styles";
 
 interface SuggestionMenuElements {
   menu: HTMLDivElement;
@@ -7,13 +8,13 @@ interface SuggestionMenuElements {
 }
 
 export class SuggestionMenuView {
-  static readonly CONTAINER_CLASS = "ft-suggestion-container";
+  static readonly CONTAINER_CLASS = SUGGESTION_POPUP_CLASS.container;
   static readonly OWNED_ATTR = "data-ft-suggestion-owned";
   static readonly ROLE_ATTR = "data-ft-suggestion-role";
   static readonly MENU_ROLE = "menu";
-  static readonly PANEL_CLASS = "ft-suggestion-panel";
-  static readonly LIST_CLASS = "ft-suggestion-list";
-  static readonly FOOTER_CLASS = "ft-suggestion-footer";
+  static readonly PANEL_CLASS = SUGGESTION_POPUP_CLASS.panel;
+  static readonly LIST_CLASS = SUGGESTION_POPUP_CLASS.list;
+  static readonly FOOTER_CLASS = SUGGESTION_POPUP_CLASS.footer;
 
   static resolveHostId(entryId: number | string): string {
     return resolveSuggestionMenuHostId(entryId);

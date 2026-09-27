@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   acceptKeyLabels,
   buildSuggestionKeyHints,
-} from "../src/adapters/chrome/content-script/suggestions/SuggestionMenuHints";
+} from "../src/core/domain/suggestionPopup/keyHints";
 
 describe("SuggestionMenuHints", () => {
   test("lists exactly the accept keys enabled in the options", () => {

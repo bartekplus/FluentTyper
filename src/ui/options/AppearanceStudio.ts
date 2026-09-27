@@ -1,6 +1,12 @@
 import { clampColorChannel, relativeLuminance } from "@core/domain/color";
 import type { SettingsRegistry } from "@ui/settings-engine/SettingsEngine.js";
 import {
+  KEY_AUTOCOMPLETE,
+  KEY_AUTOCOMPLETE_ON_ENTER,
+  KEY_AUTOCOMPLETE_ON_TAB,
+  KEY_DISPLAY_LANG_HEADER,
+  KEY_HORIZONTAL_SUGGESTIONS,
+  KEY_LANGUAGE,
   KEY_SELECT_BY_DIGIT,
   KEY_SUGGESTION_BG_DARK,
   KEY_SUGGESTION_BG_LIGHT,
@@ -20,6 +26,17 @@ import {
   DEFAULT_SUGGESTION_THEME_SETTINGS,
   type SuggestionThemeSettings,
 } from "@core/domain/themeDefaults";
+import { SUPPORTED_LANGUAGES } from "@core/domain/lang";
+import { acceptKeyLabels, buildSuggestionKeyHints } from "@core/domain/suggestionPopup/keyHints";
+import {
+  buildSuggestionPanelHtml,
+  suggestionLanguageLabel,
+} from "@core/domain/suggestionPopup/markup";
+import {
+  computeSuggestionPopupStyleVars,
+  themeScaleFromValues,
+} from "@core/domain/suggestionPopup/metrics";
+import { SUGGESTION_POPUP_SHADOW_CSS } from "@core/domain/suggestionPopup/styles";
 import { i18n } from "./fluenttyperI18n.js";
 import {
   bindRerender,
@@ -35,6 +52,19 @@ type ThemeKey = keyof SuggestionThemeSettings;
 const THEME_KEYS = Object.keys(DEFAULT_SUGGESTION_THEME_SETTINGS) as ThemeKey[];
 const LIGHT_THEME_CANVAS = "#ffffff";
 const DARK_THEME_CANVAS = "#020617";
+/** Settings besides the theme that change what the popup shows. */
+const PREVIEW_OPTION_KEYS = [
+  KEY_SELECT_BY_DIGIT,
+  KEY_AUTOCOMPLETE_ON_TAB,
+  KEY_AUTOCOMPLETE_ON_ENTER,
+  KEY_AUTOCOMPLETE,
+  KEY_HORIZONTAL_SUGGESTIONS,
+  KEY_DISPLAY_LANG_HEADER,
+  KEY_LANGUAGE,
+];
+/** Page text the preview sizes the popup for: 16px on a 1.4 line. */
+const PREVIEW_TEXT_FONT_SIZE_PX = 16;
+const PREVIEW_TEXT_LINE_HEIGHT_PX = 22.4;
 
 function clampAlpha(value: number): number {
   return Math.max(0, Math.min(1, value));
@@ -211,7 +241,9 @@ export class AppearanceStudio {
     THEME_KEYS.forEach((key) => {
       bindRerender(this.registry[key], () => this.render());
     });
-    bindRerender(this.registry[KEY_SELECT_BY_DIGIT], () => this.render());
+    PREVIEW_OPTION_KEYS.forEach((key) => {
+      bindRerender(this.registry[key], () => this.render());
+    });
     this.render();
   }
 
@@ -294,37 +326,12 @@ export class AppearanceStudio {
     });
     shell.appendChild(toggle);
 
+    // The real popup's stylesheet, markup and sizing, in a shadow root like on
+    // web pages, so the preview cannot drift from what users see.
     const preview = document.createElement("div");
-    preview.className = "appearance-preview ft-suggestion-container";
-    preview.setAttribute("data-ft-suggestion-owned", "true");
-    preview.setAttribute("data-ft-suggestion-role", "menu");
-    preview.tabIndex = 0;
-    const list = document.createElement("ul");
-    const showShortcutDigits = this.registry[KEY_SELECT_BY_DIGIT]?.get() === true;
-    [
-      i18n.get("appearance_sample_one"),
-      i18n.get("appearance_sample_two"),
-      i18n.get("appearance_sample_three"),
-    ].forEach((entry, index) => {
-      const item = document.createElement("li");
-      item.className = "appearance-preview-item";
-      if (index === 1) {
-        item.classList.add("highlight");
-      }
-      if (showShortcutDigits) {
-        const shortcut = document.createElement("span");
-        shortcut.className = "ft-suggestion-shortcut";
-        shortcut.textContent = String(index + 1);
-        item.appendChild(shortcut);
-        item.classList.add("has-shortcut");
-      }
-      const label = document.createElement("span");
-      label.className = "ft-suggestion-label";
-      label.textContent = entry;
-      item.appendChild(label);
-      list.appendChild(item);
-    });
-    preview.appendChild(list);
+    preview.className = "appearance-preview";
+    const shadowRoot = preview.attachShadow({ mode: "open" });
+    shadowRoot.innerHTML = `<style>${SUGGESTION_POPUP_SHADOW_CSS}</style>${this.buildPreviewPanelHtml()}`;
     this.livePreview = preview;
     this.updatePreviewCard(theme);
 
@@ -539,12 +546,64 @@ export class AppearanceStudio {
     this.updateContrastWarnings(theme);
   }
 
+  /** The popup as the current options would show it for a few sample words. */
+  private buildPreviewPanelHtml(): string {
+    const setting = (key: string) => this.registry[key]?.get();
+    const suggestions = [
+      i18n.get("appearance_sample_one"),
+      i18n.get("appearance_sample_two"),
+      i18n.get("appearance_sample_three"),
+    ];
+    const showShortcutDigits = setting(KEY_SELECT_BY_DIGIT) === true;
+    const languageName = SUPPORTED_LANGUAGES[String(setting(KEY_LANGUAGE))];
+    return buildSuggestionPanelHtml({
+      suggestions,
+      selectedIndex: 0,
+      showShortcutDigits,
+      // As if the first letters of the samples were typed, to show the highlight.
+      mentionText: suggestions[0].slice(0, 3),
+      hints: buildSuggestionKeyHints({
+        // The same defaults the settings fall back to.
+        acceptKeys: acceptKeyLabels({
+          autocompleteOnTab: setting(KEY_AUTOCOMPLETE_ON_TAB) !== false,
+          autocompleteOnEnter: setting(KEY_AUTOCOMPLETE_ON_ENTER) !== false,
+          autocomplete: setting(KEY_AUTOCOMPLETE) === true,
+        }),
+        digitCount: showShortcutDigits ? suggestions.length : 0,
+        language: navigator.language || "en",
+      }),
+      language:
+        setting(KEY_DISPLAY_LANG_HEADER) === true && languageName
+          ? suggestionLanguageLabel(languageName)
+          : null,
+    });
+  }
+
   private updatePreviewCard(theme: Record<ThemeKey, string>): void {
     if (!this.livePreview) {
       return;
     }
     const preview = this.livePreview;
     preview.setAttribute("data-mode", this.previewMode);
+    preview.setAttribute("data-ft-color-scheme", this.previewMode);
+    if (this.registry[KEY_HORIZONTAL_SUGGESTIONS]?.get() === true) {
+      preview.setAttribute("data-ft-layout", "horizontal");
+    } else {
+      preview.removeAttribute("data-ft-layout");
+    }
+    const sizeVars = computeSuggestionPopupStyleVars({
+      fontSizePx: PREVIEW_TEXT_FONT_SIZE_PX,
+      lineHeightPx: PREVIEW_TEXT_LINE_HEIGHT_PX,
+      themeScale: themeScaleFromValues({
+        fontSize: theme[KEY_SUGGESTION_FONT_SIZE],
+        paddingVertical: theme[KEY_SUGGESTION_PADDING_VERTICAL],
+        paddingHorizontal: theme[KEY_SUGGESTION_PADDING_HORIZONTAL],
+      }),
+      viewportWidthPx: window.innerWidth,
+    });
+    for (const [name, value] of Object.entries(sizeVars)) {
+      preview.style.setProperty(name, value);
+    }
     const isLight = this.previewMode === "light";
     const bg = isLight ? theme[KEY_SUGGESTION_BG_LIGHT] : theme[KEY_SUGGESTION_BG_DARK];
     const text = isLight ? theme[KEY_SUGGESTION_TEXT_LIGHT] : theme[KEY_SUGGESTION_TEXT_DARK];
@@ -564,15 +623,6 @@ export class AppearanceStudio {
       preview.style.setProperty(`--suggestion-highlight-text-${suffix}`, highlightText);
       preview.style.setProperty(`--suggestion-border-color-${suffix}`, border);
     }
-    preview.style.setProperty("--suggestion-font-size", theme[KEY_SUGGESTION_FONT_SIZE]);
-    preview.style.setProperty(
-      "--suggestion-padding-vertical",
-      theme[KEY_SUGGESTION_PADDING_VERTICAL],
-    );
-    preview.style.setProperty(
-      "--suggestion-padding-horizontal",
-      theme[KEY_SUGGESTION_PADDING_HORIZONTAL],
-    );
     preview.style.color = text;
   }
 

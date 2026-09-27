@@ -1,3 +1,4 @@
+import { suggestionLanguageLabel } from "@core/domain/suggestionPopup/markup";
 import { createLogger } from "@core/application/logging/Logger";
 import type { GrammarEventType } from "@core/domain/grammar/types";
 import { SUPPORTED_LANGUAGES } from "@core/domain/lang";
@@ -363,7 +364,9 @@ export class SuggestionEntrySession {
     );
     this.entry.selectedIndex = 0;
     this.entry.menuHeader =
-      this.displayLangHeader && context.lang ? `Lang: ${SUPPORTED_LANGUAGES[context.lang]}` : null;
+      this.displayLangHeader && context.lang
+        ? suggestionLanguageLabel(SUPPORTED_LANGUAGES[context.lang])
+        : null;
     const currentPredictionContext = this.resolveCurrentPredictionContext();
     this.entry.visibleSuggestionBeforeCursorText = currentPredictionContext.beforeCursor;
     this.entry.visibleSuggestionFullText = currentPredictionContext.fullText;

@@ -647,23 +647,13 @@ body.fluenttyper-options .settings-group.settings-group-panel-only .settings-gro
   background: color-mix(in srgb, var(--accent-color) 8%, var(--box-background-color));
 }
 
+/* The popup preview renders the real popup (shadow root); show it in the page flow. */
 .appearance-preview {
+  display: block !important;
   position: static !important;
-  width: min(100%, 340px);
+  width: fit-content;
+  max-width: 100%;
   margin-top: 0.15rem;
-}
-
-.appearance-preview-item {
-  list-style: none;
-}
-
-/* The preview follows its own light/dark toggle, not the OS scheme. */
-.appearance-preview.ft-suggestion-container[data-ft-suggestion-role="menu"][data-mode="light"] {
-  --ft-accent: var(--suggestion-match-light);
-}
-
-.appearance-preview.ft-suggestion-container[data-ft-suggestion-role="menu"][data-mode="dark"] {
-  --ft-accent: var(--suggestion-match-dark);
 }
 
 .preset-grid {

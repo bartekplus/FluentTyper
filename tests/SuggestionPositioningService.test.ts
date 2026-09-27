@@ -5,7 +5,7 @@ import {
   SUGGESTION_POPUP_FONT_WEIGHT,
   SUGGESTION_POPUP_LETTER_SPACING,
   SUGGESTION_POPUP_TEXT_TRANSFORM,
-} from "../src/adapters/chrome/content-script/suggestions/SuggestionPopupTypography";
+} from "../src/core/domain/suggestionPopup/typography";
 import { createRect } from "./suggestionTestUtils";
 
 class CaretPositioningService extends SuggestionPositioningService {
@@ -160,7 +160,7 @@ describe("SuggestionPositioningService", () => {
     );
     expect(menu.style.getPropertyValue("--ft-font-size")).toBe("15px");
     // 18px page text: taller than the design's 32px rows for 16px text.
-    expect(menu.style.getPropertyValue("--ft-row-height")).toBe("35px");
+    expect(menu.style.getPropertyValue("--ft-row-height")).toBe("36px");
     expect(menu.style.getPropertyValue("--ft-panel-min-width")).toBe("148px");
   });
 

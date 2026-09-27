@@ -1,4 +1,4 @@
-import { acceptKeyLabels } from "./SuggestionMenuHints";
+import { acceptKeyLabels } from "@core/domain/suggestionPopup/keyHints";
 import { getDeepActiveElement, isInDocument } from "@core/application/dom-utils";
 import { createLogger } from "@core/application/logging/Logger";
 import { LANG_SEPARATOR_CHARS_REGEX } from "@core/domain/lang";

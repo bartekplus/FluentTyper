@@ -6,10 +6,10 @@ import {
   SUGGESTION_POPUP_LETTER_SPACING,
   SUGGESTION_POPUP_TEXT_TRANSFORM,
   SUGGESTION_POPUP_WORD_SPACING,
-} from "./SuggestionPopupTypography";
+} from "./typography";
 
-export const SUGGESTION_POPUP_SHADOW_CSS = `
-:host {
+/** Colors on light pages; the user's theme (--ft-theme-*) wins over the defaults. */
+const LIGHT_PALETTE = `
   --ft-panel-bg: var(
     --ft-theme-suggestion-bg-light,
     var(--suggestion-bg-light, #ffffff)
@@ -35,7 +35,39 @@ export const SUGGESTION_POPUP_SHADOW_CSS = `
   --ft-panel-shadow:
     0 12px 32px rgba(15, 23, 42, 0.14),
     0 2px 6px rgba(15, 23, 42, 0.08);
-  --ft-font-family: ${SUGGESTION_POPUP_FONT_FAMILY};
+`;
+
+/** Colors on dark pages. */
+const DARK_PALETTE = `
+  --ft-panel-bg: var(
+    --ft-theme-suggestion-bg-dark,
+    var(--suggestion-bg-dark, #22252c)
+  );
+  --ft-panel-fg: var(
+    --ft-theme-suggestion-text-dark,
+    var(--suggestion-text-dark, #e6e7eb)
+  );
+  --ft-panel-border: var(
+    --ft-theme-suggestion-border-color-dark,
+    var(--suggestion-border-color-dark, #373b46)
+  );
+  --ft-panel-highlight-bg: var(
+    --ft-theme-suggestion-highlight-bg-dark,
+    var(--suggestion-highlight-bg-dark, #2c3b52)
+  );
+  --ft-panel-highlight-fg: var(
+    --ft-theme-suggestion-highlight-text-dark,
+    var(--suggestion-highlight-text-dark, #f3f4f6)
+  );
+  --ft-panel-accent: #7cc4ff;
+  --ft-panel-shadow:
+    0 16px 40px rgba(0, 0, 0, 0.5),
+    0 2px 6px rgba(0, 0, 0, 0.35);
+`;
+
+export const SUGGESTION_POPUP_SHADOW_CSS = `
+:host {
+${LIGHT_PALETTE}  --ft-font-family: ${SUGGESTION_POPUP_FONT_FAMILY};
   --ft-font-size: 13px;
   --ft-line-height: 18px;
   --ft-font-weight: ${SUGGESTION_POPUP_FONT_WEIGHT};
@@ -65,31 +97,17 @@ export const SUGGESTION_POPUP_SHADOW_CSS = `
 
 @media (prefers-color-scheme: dark) {
   :host {
-    --ft-panel-bg: var(
-      --ft-theme-suggestion-bg-dark,
-      var(--suggestion-bg-dark, #22252c)
-    );
-    --ft-panel-fg: var(
-      --ft-theme-suggestion-text-dark,
-      var(--suggestion-text-dark, #e6e7eb)
-    );
-    --ft-panel-border: var(
-      --ft-theme-suggestion-border-color-dark,
-      var(--suggestion-border-color-dark, #373b46)
-    );
-    --ft-panel-highlight-bg: var(
-      --ft-theme-suggestion-highlight-bg-dark,
-      var(--suggestion-highlight-bg-dark, #2c3b52)
-    );
-    --ft-panel-highlight-fg: var(
-      --ft-theme-suggestion-highlight-text-dark,
-      var(--suggestion-highlight-text-dark, #f3f4f6)
-    );
-    --ft-panel-accent: #7cc4ff;
-    --ft-panel-shadow:
-      0 16px 40px rgba(0, 0, 0, 0.5),
-      0 2px 6px rgba(0, 0, 0, 0.35);
+  ${DARK_PALETTE}
   }
+}
+
+/* An explicit scheme (the options preview's light/dark toggle) beats the OS one. */
+:host([data-ft-color-scheme="light"]) {
+${LIGHT_PALETTE}
+}
+
+:host([data-ft-color-scheme="dark"]) {
+${DARK_PALETTE}
 }
 
 /* Derived from the (user-themable) panel colors, so custom themes stay coherent. */
@@ -179,6 +197,8 @@ export const SUGGESTION_POPUP_SHADOW_CSS = `
 
 .ft-suggestion-list li {
   all: initial;
+  /* \`all: initial\` resets box-sizing; rows are --ft-row-height including borders. */
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   column-gap: 10px;

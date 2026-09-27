@@ -8,6 +8,10 @@ import {
   parseThemeColor,
 } from "../src/ui/options/AppearanceStudio.js";
 import {
+  KEY_AUTOCOMPLETE,
+  KEY_AUTOCOMPLETE_ON_ENTER,
+  KEY_AUTOCOMPLETE_ON_TAB,
+  KEY_HORIZONTAL_SUGGESTIONS,
   KEY_SELECT_BY_DIGIT,
   KEY_SUGGESTION_BG_DARK,
   KEY_SUGGESTION_BG_LIGHT,
@@ -23,6 +27,7 @@ import {
   KEY_SUGGESTION_TEXT_DARK,
   KEY_SUGGESTION_TEXT_LIGHT,
 } from "../src/core/domain/constants.js";
+import { SUGGESTION_POPUP_SHADOW_CSS } from "../src/core/domain/suggestionPopup/styles.js";
 import { i18n } from "../src/ui/options/fluenttyperI18n.js";
 
 const DEFAULT_THEME = {
@@ -223,15 +228,53 @@ describe("AppearanceStudio theme value compatibility", () => {
       compact: COMPACT_THEME,
     });
 
-    expect(root.querySelector(".ft-suggestion-shortcut")).toBeNull();
+    const popup = () => (root.querySelector(".appearance-preview") as HTMLElement).shadowRoot!;
+    expect(popup().querySelector(".ft-suggestion-shortcut")).toBeNull();
 
     registry[KEY_SELECT_BY_DIGIT].set(true);
 
-    const shortcuts = root.querySelectorAll(".ft-suggestion-shortcut");
+    const shortcuts = popup().querySelectorAll(".ft-suggestion-shortcut");
     expect(shortcuts).toHaveLength(3);
     expect(shortcuts[0]?.textContent).toBe("1");
     expect(shortcuts[1]?.textContent).toBe("2");
     expect(shortcuts[2]?.textContent).toBe("3");
+  });
+
+  test("preview renders the real popup, following the options that change it", () => {
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    const { registry } = createRegistry({
+      ...DEFAULT_THEME,
+      [KEY_AUTOCOMPLETE_ON_TAB]: false,
+      [KEY_AUTOCOMPLETE_ON_ENTER]: true,
+      [KEY_AUTOCOMPLETE]: true,
+      [KEY_HORIZONTAL_SUGGESTIONS]: false,
+    });
+
+    new AppearanceStudio(root, registry as never, {
+      default: DEFAULT_THEME,
+      compact: COMPACT_THEME,
+    });
+
+    const preview = () => root.querySelector(".appearance-preview") as HTMLElement;
+    // The web-page popup's own stylesheet, not a copy.
+    expect(preview().shadowRoot!.querySelector("style")?.textContent).toBe(
+      SUGGESTION_POPUP_SHADOW_CSS,
+    );
+    expect(preview().dataset.ftColorScheme).toBe("light");
+    expect(preview().style.getPropertyValue("--ft-row-height")).toBe("32px");
+    const keys = () =>
+      Array.from(
+        preview().shadowRoot!.querySelectorAll(".ft-suggestion-footer kbd"),
+        (kbd) => kbd.textContent,
+      );
+    expect(keys()).toEqual(["↑↓", "⏎ Space", "Esc"]);
+
+    registry[KEY_AUTOCOMPLETE_ON_TAB].set(true);
+    registry[KEY_HORIZONTAL_SUGGESTIONS].set(true);
+
+    expect(keys()).toEqual(["↑↓", "Tab ⏎ Space", "Esc"]);
+    expect(preview().dataset.ftLayout).toBe("horizontal");
   });
 
   test("advanced color typing updates preview and contrast before blur", () => {
