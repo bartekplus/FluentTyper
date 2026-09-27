@@ -78,6 +78,7 @@ export class SuggestionManagerRuntime {
   private readonly insertSpaceAfterAutocomplete: boolean;
   private readonly preferNativeAutocomplete: boolean;
   private readonly selectByDigit: boolean;
+  private readonly horizontalSuggestions: boolean;
   private readonly nativeAutocompleteConflictDetector = new NativeAutocompleteConflictDetector();
 
   private lang: string;
@@ -104,6 +105,7 @@ export class SuggestionManagerRuntime {
     this.insertSpaceAfterAutocomplete = options.insertSpaceAfterAutocomplete;
     this.preferNativeAutocomplete = options.preferNativeAutocomplete;
     this.selectByDigit = options.selectByDigit;
+    this.horizontalSuggestions = options.horizontalSuggestions;
     this.manualAttachUiManager = new ManualAttachUiManager({
       iconUrl: resolveManualAttachIconUrl(),
       onActivate: this.handleManualAttachActivate.bind(this),
@@ -674,6 +676,7 @@ export class SuggestionManagerRuntime {
           snippetShortcuts,
           selectedIndex,
           showShortcutDigits: this.selectByDigit,
+          horizontal: this.horizontalSuggestions,
           menuHeader,
           mentionText,
         }),

@@ -30,6 +30,26 @@ describe("SuggestionKeyboardHandler", () => {
     expect(updateSelectionHighlight).toHaveBeenCalledWith(entry);
   });
 
+  test("moves selection the other way when the menu lists suggestions bottom-up", () => {
+    const handler = createHandler({
+      consumeKeyboardEvent: jest.fn((event: KeyboardEvent) => event.preventDefault()),
+      isMenuVisible: jest.fn(() => true),
+    });
+    const entry = createSuggestionEntry({ suggestions: ["one", "two", "three"], selectedIndex: 0 });
+    entry.menu.setAttribute("data-ft-placement", "above");
+
+    // Above the caret the next suggestion is drawn above the first one.
+    handler.handle(entry, createEvent("ArrowUp"));
+    expect(entry.selectedIndex).toBe(1);
+    handler.handle(entry, createEvent("ArrowDown"));
+    expect(entry.selectedIndex).toBe(0);
+
+    // A single row is never reversed.
+    entry.menu.setAttribute("data-ft-layout", "horizontal");
+    handler.handle(entry, createEvent("ArrowDown"));
+    expect(entry.selectedIndex).toBe(1);
+  });
+
   test("requests inline suggestion on Tab when suggestions exist but inline is null", () => {
     const requestInlineSuggestion = jest.fn();
     const consumeKeyboardEvent = jest.fn((event: KeyboardEvent) => {

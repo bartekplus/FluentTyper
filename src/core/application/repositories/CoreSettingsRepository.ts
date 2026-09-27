@@ -107,6 +107,10 @@ export class CoreSettingsRepository extends SettingsRepositoryBase {
     return this.getBooleanField("selectByDigit");
   }
 
+  async getHorizontalSuggestions(): Promise<boolean> {
+    return this.getBooleanField("horizontalSuggestions");
+  }
+
   async getMinWordLengthToPredict(): Promise<number> {
     const value = await this.getField("minWordLengthToPredict");
     if (typeof value !== "number" || !Number.isFinite(value)) {

@@ -1,4 +1,5 @@
 import { isNativeUndoChord } from "./keyboardShortcuts";
+import { isSuggestionMenuReversed } from "./SuggestionMenuHost";
 import type { SuggestionEntry } from "./types";
 
 interface SuggestionKeyboardHandlerOptions {
@@ -77,15 +78,11 @@ export class SuggestionKeyboardHandler {
       return;
     }
 
-    if (key === "ArrowDown") {
+    if (key === "ArrowDown" || key === "ArrowUp") {
       this.options.consumeKeyboardEvent(keyboardEvent);
-      this.moveSelection(entry, 1);
-      return;
-    }
-
-    if (key === "ArrowUp") {
-      this.options.consumeKeyboardEvent(keyboardEvent);
-      this.moveSelection(entry, -1);
+      // Arrows follow the screen: a reversed menu lists the next item above.
+      const reversed = isSuggestionMenuReversed(entry.menu);
+      this.moveSelection(entry, (key === "ArrowDown") !== reversed ? 1 : -1);
       return;
     }
 

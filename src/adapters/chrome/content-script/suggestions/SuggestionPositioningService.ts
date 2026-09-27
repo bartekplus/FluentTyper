@@ -1,4 +1,8 @@
 import { TextTargetAdapter } from "./TextTargetAdapter";
+import {
+  SUGGESTION_MENU_PLACEMENT_ATTR,
+  SUGGESTION_MENU_PLACEMENT_LINE_ATTR,
+} from "./SuggestionMenuHost";
 import { MIRROR_LAYOUT_PROPERTIES } from "./InlineSuggestionView";
 import {
   SUGGESTION_POPUP_FONT_FAMILY,
@@ -33,8 +37,9 @@ const MENU_MEASURE_STYLES = {
 
 export class SuggestionPositioningService {
   private static readonly VIEWPORT_PADDING_PX = 8;
-  private static readonly CARET_GAP_PX = 8;
-  private static readonly HORIZONTAL_OFFSET_PX = 12;
+  private static readonly CARET_GAP_PX = 2;
+  private static readonly DEFAULT_PAD_X_PX = 8;
+  private static readonly PREFERRED_MENU_HEIGHT_PX = 200;
   private static readonly DEFAULT_FONT_SIZE_PX = 16;
   private static readonly LEGACY_THEME_FONT_SIZE = "0.9rem";
   private static readonly LEGACY_THEME_PADDING_VERTICAL = "0.6rem";
@@ -253,11 +258,10 @@ export class SuggestionPositioningService {
     const gap = SuggestionPositioningService.CARET_GAP_PX;
     const availableBelow = Math.max(0, window.innerHeight - rect.bottom - gap - viewportPadding);
     const availableAbove = Math.max(0, rect.top - gap - viewportPadding);
-    const maxHeight = Math.max(
-      96,
-      availableBelow >= availableAbove ? availableBelow : availableAbove,
-    );
-    const showBelow = availableBelow >= menuDimensions.height || availableBelow >= availableAbove;
+    const showBelow =
+      this.resolvePlacement(menu, rect, availableBelow, availableAbove, menuDimensions.height) ===
+      "below";
+    const maxHeight = Math.max(96, showBelow ? availableBelow : availableAbove);
     const rawTop = showBelow
       ? rect.bottom + gap
       : rect.top - gap - Math.min(menuDimensions.height, maxHeight);
@@ -270,10 +274,10 @@ export class SuggestionPositioningService {
       ),
     );
 
+    // Line the first suggestion's text up with the anchor, not the panel edge.
+    const textInset = this.resolveTextInset(menu);
     const isRtl = window.getComputedStyle(elem).direction === "rtl";
-    const rawLeft = isRtl
-      ? rect.right - menuDimensions.width + SuggestionPositioningService.HORIZONTAL_OFFSET_PX
-      : rect.left - SuggestionPositioningService.HORIZONTAL_OFFSET_PX;
+    const rawLeft = isRtl ? rect.right - menuDimensions.width + textInset : rect.left - textInset;
     const left = this.clamp(
       rawLeft,
       viewportPadding,
@@ -289,6 +293,40 @@ export class SuggestionPositioningService {
       maxHeight,
       maxWidth: Math.max(1, window.innerWidth - viewportPadding * 2),
     };
+  }
+
+  /**
+   * Picks a side once per caret line and keeps it: flipping as the list grows or
+   * shrinks would move the first suggestion away from the caret.
+   */
+  private resolvePlacement(
+    menu: HTMLDivElement,
+    rect: DOMRect,
+    availableBelow: number,
+    availableAbove: number,
+    menuHeight: number,
+  ): "above" | "below" {
+    const line = String(Math.round(rect.top));
+    const locked = menu.getAttribute(SUGGESTION_MENU_PLACEMENT_ATTR);
+    if (
+      menu.getAttribute(SUGGESTION_MENU_PLACEMENT_LINE_ATTR) === line &&
+      (locked === "above" || locked === "below")
+    ) {
+      return locked;
+    }
+    // Judge by the room a longer list will need, not only the current one.
+    const needed = Math.max(menuHeight, SuggestionPositioningService.PREFERRED_MENU_HEIGHT_PX);
+    const placement =
+      availableBelow >= needed || availableBelow >= availableAbove ? "below" : "above";
+    menu.setAttribute(SUGGESTION_MENU_PLACEMENT_ATTR, placement);
+    menu.setAttribute(SUGGESTION_MENU_PLACEMENT_LINE_ATTR, line);
+    return placement;
+  }
+
+  /** Panel border plus row padding: where a row's text starts inside the menu. */
+  private resolveTextInset(menu: HTMLDivElement): number {
+    const padX = Number.parseFloat(menu.style.getPropertyValue("--ft-pad-x"));
+    return (Number.isFinite(padX) ? padX : SuggestionPositioningService.DEFAULT_PAD_X_PX) + 1;
   }
 
   private getMenuDimensions(menu: HTMLDivElement): { width: number; height: number } {

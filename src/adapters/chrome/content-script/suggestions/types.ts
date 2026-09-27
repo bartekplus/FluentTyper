@@ -54,6 +54,7 @@ export interface SuggestionManagerOptions {
   insertSpaceAfterAutocomplete: boolean;
   lang: string;
   selectByDigit: boolean;
+  horizontalSuggestions: boolean;
   displayLangHeader: boolean;
   inline_suggestion: boolean;
   preferNativeAutocomplete: boolean;

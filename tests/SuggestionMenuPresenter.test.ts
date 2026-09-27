@@ -41,6 +41,38 @@ describe("SuggestionMenuPresenter", () => {
     );
   });
 
+  test("marks the menu horizontal before positioning it, and clears the mark again", () => {
+    const menu = document.createElement("div");
+    const layoutWhenPositioned: Array<string | null> = [];
+    const positioning = {
+      syncMenuTypography: jest.fn(),
+      positionMenu: jest.fn(() => {
+        layoutWhenPositioned.push(menu.getAttribute("data-ft-layout"));
+        return true;
+      }),
+    } as unknown as SuggestionPositioningService;
+    const presenter = new SuggestionMenuPresenter(positioning);
+    const list = document.createElement("ul");
+    menu.appendChild(list);
+    const model = {
+      menuId: 1,
+      menu,
+      list,
+      target: document.createElement("input"),
+      suggestions: ["hello"],
+      selectedIndex: 0,
+      showShortcutDigits: false,
+      menuHeader: null,
+      mentionText: "he",
+    };
+
+    presenter.render({ ...model, horizontal: true });
+    presenter.render({ ...model, horizontal: false });
+
+    // Measured with the row layout applied, so its size is the row's.
+    expect(layoutWhenPositioned).toEqual(["horizontal", null]);
+  });
+
   test("labels snippet suggestions with their shortcut", () => {
     const positioning = {
       syncMenuTypography: jest.fn(),

@@ -266,6 +266,7 @@ export class GoogleDocsAdapter {
     this.view = new GoogleDocsView({
       inline: options.inline_suggestion,
       digits: options.selectByDigit,
+      horizontal: options.horizontalSuggestions,
       langHeader: options.displayLangHeader,
       findToken: (text) => this.prediction.findMentionToken(text),
       accept: (index) => {
@@ -761,9 +762,9 @@ export class GoogleDocsAdapter {
       return true;
     }
     if (key === "ArrowDown" || key === "ArrowUp") {
+      const step = (key === "ArrowDown") !== this.view.isReversed() ? 1 : -1;
       this.selectedIndex =
-        (this.selectedIndex + (key === "ArrowDown" ? 1 : -1) + this.suggestions.length) %
-        this.suggestions.length;
+        (this.selectedIndex + step + this.suggestions.length) % this.suggestions.length;
       if (!this.view.highlight(this.suggestions, this.selectedIndex)) this.render();
       return true;
     }

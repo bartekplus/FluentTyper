@@ -40,6 +40,7 @@ export const KEY_AUTOCOMPLETE = "autocomplete";
 export const KEY_AUTOCOMPLETE_ON_ENTER = "autocompleteOnEnter";
 export const KEY_AUTOCOMPLETE_ON_TAB = "autocompleteOnTab";
 export const KEY_SELECT_BY_DIGIT = "selectByDigit";
+export const KEY_HORIZONTAL_SUGGESTIONS = "horizontalSuggestions";
 export const KEY_MIN_WORD_LENGTH_TO_PREDICT = "minWordLengthToPredict";
 export const KEY_NUM_SUGGESTIONS = "numSuggestions";
 export const KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE = "insertSpaceAfterAutocomplete";

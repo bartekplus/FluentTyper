@@ -1,4 +1,5 @@
 import { RTL_LETTER_REGEX, SUPPORTED_LANGUAGES } from "@core/domain/lang";
+import { isSuggestionMenuReversed } from "../suggestions/SuggestionMenuHost";
 import { SuggestionMenuView } from "../suggestions/SuggestionMenuView";
 import { SuggestionMenuPresenter } from "../suggestions/SuggestionMenuPresenter";
 import { SuggestionPositioningService } from "../suggestions/SuggestionPositioningService";
@@ -88,6 +89,7 @@ export class GoogleDocsView {
     private readonly options: {
       inline: boolean;
       digits: boolean;
+      horizontal: boolean;
       langHeader: boolean;
       findToken: (text: string) => { token: string };
       accept: (index: number) => void;
@@ -179,6 +181,7 @@ export class GoogleDocsView {
         snippetShortcuts,
         selectedIndex: index,
         showShortcutDigits: this.options.digits,
+        horizontal: this.options.horizontal,
         menuHeader: this.options.langHeader ? (SUPPORTED_LANGUAGES[language] ?? language) : null,
         mentionText: context.selectedText || token,
       });
@@ -193,6 +196,10 @@ export class GoogleDocsView {
    * and showing it again replays the panel's pop-in animation: the popup blinks on every
    * arrow press. False when there is no open menu to move within (the inline ghost).
    */
+  /** The menu lists suggestions bottom-up (opened above the caret). */
+  isReversed(): boolean {
+    return isSuggestionMenuReversed(this.elements.menu);
+  }
   highlight(suggestions: string[], index: number): boolean {
     if (!this.presenter.isVisible(this.elements.menu, suggestions.length)) return false;
     this.presenter.updateHighlight(this.elements.list, index);

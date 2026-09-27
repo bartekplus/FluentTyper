@@ -164,7 +164,8 @@ export const SUGGESTION_POPUP_SHADOW_CSS = `
 
 .ft-suggestion-list {
   all: initial;
-  display: block;
+  display: flex;
+  flex-direction: column;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -206,6 +207,31 @@ export const SUGGESTION_POPUP_SHADOW_CSS = `
     color 120ms ease,
     box-shadow 120ms ease,
     transform 120ms ease;
+}
+
+/* Above the caret the list grows upward, so the first suggestion stays next to it. */
+:host([data-ft-placement="above"]:not([data-ft-layout="horizontal"])) .ft-suggestion-list {
+  flex-direction: column-reverse;
+}
+
+:host([data-ft-layout="horizontal"]) {
+  max-width: min(640px, calc(100vw - 16px));
+}
+
+:host([data-ft-layout="horizontal"]) .ft-suggestion-panel {
+  min-width: 0;
+}
+
+/* One row, first suggestion at the anchor; what does not fit is cut off, never wrapped. */
+:host([data-ft-layout="horizontal"]) .ft-suggestion-list {
+  flex-direction: row;
+  column-gap: 2px;
+  overflow: hidden;
+}
+
+:host([data-ft-layout="horizontal"]) .ft-suggestion-list li {
+  flex: none;
+  max-width: 240px;
 }
 
 .ft-suggestion-list li:not(.highlight):hover {

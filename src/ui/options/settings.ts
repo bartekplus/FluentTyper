@@ -47,6 +47,7 @@ import {
   KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE,
   KEY_AUTO_CAPITALIZE,
   KEY_SELECT_BY_DIGIT,
+  KEY_HORIZONTAL_SUGGESTIONS,
   KEY_TIME_FORMAT,
   KEY_DATE_FORMAT,
   KEY_TEXT_EXPANSIONS,
@@ -148,6 +149,7 @@ const CONFIG_REFRESH_KEYS = [
   KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE,
   KEY_AUTO_CAPITALIZE,
   KEY_SELECT_BY_DIGIT,
+  KEY_HORIZONTAL_SUGGESTIONS,
   KEY_ENABLED_GRAMMAR_RULES,
   KEY_TIME_FORMAT,
   KEY_DATE_FORMAT,
@@ -236,6 +238,8 @@ function applyInlineSuggestionLocks(registry: SettingsRegistry, enabled: boolean
   registry[KEY_AUTOCOMPLETE_ON_TAB].setDisabled(enabled);
   registry[KEY_PREFIX_ONLY_MODE].setDisabled(enabled);
   registry[KEY_NUM_SUGGESTIONS].setDisabled(enabled);
+  // Inline mode shows no suggestion list to lay out.
+  registry[KEY_HORIZONTAL_SUGGESTIONS]?.setDisabled(enabled);
 }
 
 function wireRuntimeSettingsHandlers(registry: SettingsRegistry): void {

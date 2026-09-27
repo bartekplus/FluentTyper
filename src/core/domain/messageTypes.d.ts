@@ -15,6 +15,8 @@ export interface SetConfigContext {
   autocompleteOnTab: boolean;
   insertSpaceAfterAutocomplete: boolean;
   selectByDigit: boolean;
+  /** Show suggestions in one row instead of a list. */
+  horizontalSuggestions: boolean;
   lang: string;
   minWordLengthToPredict: number;
   inline_suggestion: boolean;

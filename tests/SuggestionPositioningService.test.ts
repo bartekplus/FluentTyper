@@ -73,6 +73,47 @@ describe("SuggestionPositioningService", () => {
     expect(menu.style.zIndex).toBe("2147483647");
   });
 
+  test("keeps the side of the caret line while the list grows or shrinks", () => {
+    // Caret low on a 768px viewport: 90px below it, far more above.
+    const service = new CaretPositioningService(createRect(50, 660, 0, 16));
+    const menu = document.createElement("div");
+    const target = document.createElement("input");
+    const setHeight = (height: number) =>
+      Object.defineProperty(menu, "offsetHeight", { value: height, configurable: true });
+    Object.defineProperty(menu, "offsetWidth", { value: 200, configurable: true });
+
+    setHeight(30);
+    service.positionMenu(menu, target);
+    // A one-row list would fit below, but a longer one would not: open above.
+    expect(menu.getAttribute("data-ft-placement")).toBe("above");
+    // Bottom edge sits 2px above the caret line.
+    expect(menu.style.top).toBe(`${660 - 2 - 30}px`);
+
+    setHeight(20);
+    service.positionMenu(menu, target);
+    expect(menu.getAttribute("data-ft-placement")).toBe("above");
+
+    // Caret on a line with room below: a fresh decision.
+    const nextLine = new CaretPositioningService(createRect(50, 100, 0, 16));
+    nextLine.positionMenu(menu, target);
+    expect(menu.getAttribute("data-ft-placement")).toBe("below");
+    expect(menu.style.top).toBe(`${100 + 16 + 2}px`);
+  });
+
+  test("lines the first suggestion's text up with the caret", () => {
+    const service = new CaretPositioningService(createRect(120, 60, 0, 16));
+    const menu = document.createElement("div");
+    const target = document.createElement("input");
+    Object.defineProperty(menu, "offsetWidth", { value: 200, configurable: true });
+    Object.defineProperty(menu, "offsetHeight", { value: 60, configurable: true });
+    menu.style.setProperty("--ft-pad-x", "7px");
+
+    service.positionMenu(menu, target);
+
+    // Text starts after the 1px border and the row's 7px padding.
+    expect(menu.style.left).toBe(`${120 - 8}px`);
+  });
+
   test("returns false when caret rect cannot be resolved", () => {
     const service = new CaretPositioningService(null);
     const menu = document.createElement("div");

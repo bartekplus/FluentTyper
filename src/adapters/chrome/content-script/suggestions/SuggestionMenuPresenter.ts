@@ -1,5 +1,5 @@
 import { EARLY_TAB_ACCEPT_VISIBLE_ATTR } from "./EarlyTabAcceptBridgeProtocol";
-import { isSuggestionMenuHostVisible } from "./SuggestionMenuHost";
+import { SUGGESTION_MENU_LAYOUT_ATTR, isSuggestionMenuHostVisible } from "./SuggestionMenuHost";
 import { resolveSuggestionStateHost } from "./SuggestionStateHost";
 import { SuggestionPositioningService } from "./SuggestionPositioningService";
 import { SuggestionMenuView } from "./SuggestionMenuView";
@@ -16,6 +16,8 @@ interface SuggestionMenuRenderModel {
   showShortcutDigits: boolean;
   menuHeader: string | null;
   mentionText: string;
+  /** Single row of suggestions instead of a list. */
+  horizontal?: boolean;
 }
 
 export class SuggestionMenuPresenter {
@@ -72,6 +74,11 @@ export class SuggestionMenuPresenter {
       return false;
     }
 
+    if (model.horizontal) {
+      model.menu.setAttribute(SUGGESTION_MENU_LAYOUT_ATTR, "horizontal");
+    } else {
+      model.menu.removeAttribute(SUGGESTION_MENU_LAYOUT_ATTR);
+    }
     model.menu.style.setProperty("display", "block", "important");
     model.menu.style.setProperty("visibility", "hidden", "important");
     this.positioningService.syncMenuTypography(model.menu, model.target);
@@ -119,7 +126,7 @@ export class SuggestionMenuPresenter {
         item.setAttribute("aria-selected", "true");
         list.parentElement?.setAttribute("aria-activedescendant", item.id);
         if (typeof item.scrollIntoView === "function") {
-          item.scrollIntoView({ block: "nearest" });
+          item.scrollIntoView({ block: "nearest", inline: "nearest" });
         }
       } else {
         item.classList.remove("highlight");

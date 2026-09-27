@@ -12,6 +12,7 @@ import {
   KEY_AUTOCOMPLETE_ON_TAB,
   KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE,
   KEY_SELECT_BY_DIGIT,
+  KEY_HORIZONTAL_SUGGESTIONS,
   KEY_LANGUAGE,
   KEY_ENABLED_LANGUAGES,
   KEY_FALLBACK_LANGUAGE,
@@ -365,6 +366,17 @@ const manifest: ManifestDefinition = {
       label: buildFieldLabel(
         i18n.get("enable_inline_suggestion_label"),
         i18n.get("enable_inline_suggestion_desc"),
+      ),
+      default: false,
+    },
+    {
+      tab: "core_settings",
+      group: i18n.get("General"),
+      name: KEY_HORIZONTAL_SUGGESTIONS,
+      type: "checkbox",
+      label: buildFieldLabel(
+        i18n.get("horizontal_suggestions_label"),
+        i18n.get("horizontal_suggestions_desc"),
       ),
       default: false,
     },
