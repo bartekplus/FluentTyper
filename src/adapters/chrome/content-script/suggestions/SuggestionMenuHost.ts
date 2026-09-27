@@ -30,15 +30,17 @@ export function isSuggestionMenuHostVisible(menu: HTMLElement | null): boolean {
   );
 }
 
-/** "above" | "below": which side of the caret line the menu opened on. */
+/** "above" | "below": which way the list grows from its first suggestion. */
 export const SUGGESTION_MENU_PLACEMENT_ATTR = "data-ft-placement";
 /** Caret line the placement was chosen for; the side is kept while it matches. */
 export const SUGGESTION_MENU_PLACEMENT_LINE_ATTR = "data-ft-placement-line";
+/** "true" when the menu sits beside the caret on its line, not above or below it. */
+export const SUGGESTION_MENU_BESIDE_ATTR = "data-ft-beside";
 /** "horizontal" lays the suggestions out in a single row. */
 export const SUGGESTION_MENU_LAYOUT_ATTR = "data-ft-layout";
 
 /**
- * A vertical menu above the caret is drawn bottom-up, so the first suggestion
+ * A vertical menu growing upward is drawn bottom-up, so the first suggestion
  * stays next to the caret; arrow keys then move the other way.
  */
 export function isSuggestionMenuReversed(menu: HTMLElement | null): boolean {

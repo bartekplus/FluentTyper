@@ -1,5 +1,6 @@
 import { TextTargetAdapter } from "./TextTargetAdapter";
 import {
+  SUGGESTION_MENU_BESIDE_ATTR,
   SUGGESTION_MENU_PLACEMENT_ATTR,
   SUGGESTION_MENU_PLACEMENT_LINE_ATTR,
 } from "./SuggestionMenuHost";
@@ -22,6 +23,13 @@ interface MenuCoordinates {
   maxWidth: number;
 }
 
+interface MenuPlacement {
+  /** Which way the list grows from its first suggestion. */
+  side: "above" | "below";
+  /** First suggestion on the caret's line, past the caret; else above/below that line. */
+  beside: boolean;
+}
+
 type ThemeLengthProperty = "font-size" | "padding-top" | "padding-left";
 
 /** Styles that lay the menu out invisibly so its natural size can be read. */
@@ -38,6 +46,8 @@ const MENU_MEASURE_STYLES = {
 export class SuggestionPositioningService {
   private static readonly VIEWPORT_PADDING_PX = 8;
   private static readonly CARET_GAP_PX = 2;
+  private static readonly BESIDE_GAP_PX = 6;
+  private static readonly DEFAULT_ROW_HEIGHT_PX = 27;
   private static readonly DEFAULT_PAD_X_PX = 8;
   private static readonly PREFERRED_MENU_HEIGHT_PX = 200;
   private static readonly DEFAULT_FONT_SIZE_PX = 16;
@@ -256,15 +266,56 @@ export class SuggestionPositioningService {
     const menuDimensions = this.getMenuDimensions(menu);
     const viewportPadding = SuggestionPositioningService.VIEWPORT_PADDING_PX;
     const gap = SuggestionPositioningService.CARET_GAP_PX;
-    const availableBelow = Math.max(0, window.innerHeight - rect.bottom - gap - viewportPadding);
-    const availableAbove = Math.max(0, rect.top - gap - viewportPadding);
-    const showBelow =
-      this.resolvePlacement(menu, rect, availableBelow, availableAbove, menuDimensions.height) ===
-      "below";
-    const maxHeight = Math.max(96, showBelow ? availableBelow : availableAbove);
-    const rawTop = showBelow
-      ? rect.bottom + gap
-      : rect.top - gap - Math.min(menuDimensions.height, maxHeight);
+    const isRtl = window.getComputedStyle(elem).direction === "rtl";
+    const besideLeft = isRtl
+      ? rect.left - SuggestionPositioningService.BESIDE_GAP_PX - menuDimensions.width
+      : rect.right + SuggestionPositioningService.BESIDE_GAP_PX;
+    const placement = this.resolvePlacement(menu, rect, () => {
+      const beside =
+        besideLeft >= viewportPadding &&
+        besideLeft + menuDimensions.width <= window.innerWidth - viewportPadding;
+      // Beside the caret the list grows from the caret line; otherwise from its edge.
+      const below = beside
+        ? window.innerHeight - viewportPadding - rect.top
+        : window.innerHeight - rect.bottom - gap - viewportPadding;
+      const above = beside ? rect.bottom - viewportPadding : rect.top - gap - viewportPadding;
+      // Judge by the room a longer list will need, not only the current one.
+      const needed = Math.max(
+        menuDimensions.height,
+        SuggestionPositioningService.PREFERRED_MENU_HEIGHT_PX,
+      );
+      return { beside, side: below >= needed || below >= above ? "below" : "above" };
+    });
+    const showBelow = placement.side === "below";
+
+    let rawTop: number;
+    let rawLeft: number;
+    let maxHeight: number;
+    if (placement.beside) {
+      // First suggestion on the caret's line, just past the caret.
+      const row = this.measureFirstRow(menu);
+      const rowTop = rect.top + rect.height / 2 - row.height / 2;
+      if (showBelow) {
+        rawTop = rowTop - row.top;
+        maxHeight = window.innerHeight - viewportPadding - rawTop;
+      } else {
+        const bottom = rowTop + row.height + row.bottom;
+        maxHeight = bottom - viewportPadding;
+        rawTop = bottom - Math.min(menuDimensions.height, maxHeight);
+      }
+      rawLeft = besideLeft;
+    } else {
+      const availableBelow = Math.max(0, window.innerHeight - rect.bottom - gap - viewportPadding);
+      const availableAbove = Math.max(0, rect.top - gap - viewportPadding);
+      maxHeight = Math.max(96, showBelow ? availableBelow : availableAbove);
+      rawTop = showBelow
+        ? rect.bottom + gap
+        : rect.top - gap - Math.min(menuDimensions.height, maxHeight);
+      // Line the first suggestion's text up with the caret, not the panel edge.
+      const textInset = this.resolveTextInset(menu);
+      rawLeft = isRtl ? rect.right - menuDimensions.width + textInset : rect.left - textInset;
+    }
+
     const top = this.clamp(
       rawTop,
       viewportPadding,
@@ -273,11 +324,6 @@ export class SuggestionPositioningService {
         window.innerHeight - viewportPadding - Math.min(menuDimensions.height, maxHeight),
       ),
     );
-
-    // Line the first suggestion's text up with the anchor, not the panel edge.
-    const textInset = this.resolveTextInset(menu);
-    const isRtl = window.getComputedStyle(elem).direction === "rtl";
-    const rawLeft = isRtl ? rect.right - menuDimensions.width + textInset : rect.left - textInset;
     const left = this.clamp(
       rawLeft,
       viewportPadding,
@@ -296,31 +342,57 @@ export class SuggestionPositioningService {
   }
 
   /**
-   * Picks a side once per caret line and keeps it: flipping as the list grows or
-   * shrinks would move the first suggestion away from the caret.
+   * Picks where the menu goes once per caret line and keeps it: switching as the
+   * list grows or shrinks would move the first suggestion away from the caret.
+   * ponytail: a locked "beside" menu that stops fitting as the caret nears the
+   * edge is clamped into view; re-deciding on overflow would fix that.
    */
   private resolvePlacement(
     menu: HTMLDivElement,
     rect: DOMRect,
-    availableBelow: number,
-    availableAbove: number,
-    menuHeight: number,
-  ): "above" | "below" {
+    decide: () => MenuPlacement,
+  ): MenuPlacement {
     const line = String(Math.round(rect.top));
-    const locked = menu.getAttribute(SUGGESTION_MENU_PLACEMENT_ATTR);
+    const side = menu.getAttribute(SUGGESTION_MENU_PLACEMENT_ATTR);
     if (
       menu.getAttribute(SUGGESTION_MENU_PLACEMENT_LINE_ATTR) === line &&
-      (locked === "above" || locked === "below")
+      (side === "above" || side === "below")
     ) {
-      return locked;
+      return { side, beside: menu.getAttribute(SUGGESTION_MENU_BESIDE_ATTR) === "true" };
     }
-    // Judge by the room a longer list will need, not only the current one.
-    const needed = Math.max(menuHeight, SuggestionPositioningService.PREFERRED_MENU_HEIGHT_PX);
-    const placement =
-      availableBelow >= needed || availableBelow >= availableAbove ? "below" : "above";
-    menu.setAttribute(SUGGESTION_MENU_PLACEMENT_ATTR, placement);
+    const placement = decide();
+    menu.setAttribute(SUGGESTION_MENU_PLACEMENT_ATTR, placement.side);
     menu.setAttribute(SUGGESTION_MENU_PLACEMENT_LINE_ATTR, line);
+    menu.setAttribute(SUGGESTION_MENU_BESIDE_ATTR, String(placement.beside));
     return placement;
+  }
+
+  /**
+   * The first suggestion's row, as its distance from the menu's top and bottom
+   * edges in the current layout (bottom-up when the menu grows upward).
+   */
+  private measureFirstRow(menu: HTMLDivElement): { top: number; bottom: number; height: number } {
+    const item = (menu.shadowRoot ?? menu).querySelector("li");
+    const box = this.withMeasureStyles(menu, () => {
+      const rowRect = item?.getBoundingClientRect();
+      if (!rowRect || rowRect.height <= 0) {
+        return null;
+      }
+      const menuRect = menu.getBoundingClientRect();
+      return {
+        top: rowRect.top - menuRect.top,
+        bottom: menuRect.bottom - rowRect.bottom,
+        height: rowRect.height,
+      };
+    });
+    if (box) {
+      return box;
+    }
+    // No layout (tests): one row inside the 1px border.
+    const rowHeight =
+      Number.parseFloat(menu.style.getPropertyValue("--ft-row-height")) ||
+      SuggestionPositioningService.DEFAULT_ROW_HEIGHT_PX;
+    return { top: 1, bottom: 1, height: rowHeight };
   }
 
   /** Panel border plus row padding: where a row's text starts inside the menu. */
@@ -330,18 +402,26 @@ export class SuggestionPositioningService {
   }
 
   private getMenuDimensions(menu: HTMLDivElement): { width: number; height: number } {
+    return this.withMeasureStyles(menu, () => ({
+      width: menu.offsetWidth,
+      height: menu.offsetHeight,
+    }));
+  }
+
+  /** Runs `measure` with the menu laid out invisibly at its natural size. */
+  private withMeasureStyles<T>(menu: HTMLDivElement, measure: () => T): T {
     const keys = Object.keys(MENU_MEASURE_STYLES) as (keyof typeof MENU_MEASURE_STYLES)[];
     const previous = keys.map((key) => menu.style[key]);
     for (const key of keys) {
       menu.style.setProperty(key, MENU_MEASURE_STYLES[key], "important");
     }
-
-    const dimensions = { width: menu.offsetWidth, height: menu.offsetHeight };
-
-    keys.forEach((key, index) => {
-      menu.style[key] = previous[index];
-    });
-    return dimensions;
+    try {
+      return measure();
+    } finally {
+      keys.forEach((key, index) => {
+        menu.style[key] = previous[index];
+      });
+    }
   }
 
   private resolveTypographyAnchor(elem: SuggestionElement): HTMLElement {
