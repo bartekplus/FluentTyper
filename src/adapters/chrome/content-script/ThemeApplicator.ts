@@ -1,3 +1,4 @@
+import { resolveSuggestionAccents } from "@core/domain/suggestionPopup/palette";
 import { DEFAULT_SUGGESTION_THEME_SETTINGS } from "@core/domain/themeDefaults";
 import type { SetConfigContext } from "@core/domain/messageTypes";
 
@@ -69,6 +70,14 @@ export class ThemeApplicator {
       const value = themeSettings[spec.key];
       lines.push(`  --${spec.cssName}: ${value} !important;`);
       lines.push(`  --ft-theme-${spec.cssName}: ${value} !important;`);
+    }
+    // Accents for typed text that read on these colors (the design's, when they do).
+    const accents = resolveSuggestionAccents(themeSettings);
+    for (const mode of ["light", "dark"] as const) {
+      lines.push(`  --ft-theme-suggestion-accent-${mode}: ${accents[mode].accent} !important;`);
+      lines.push(
+        `  --ft-theme-suggestion-highlight-accent-${mode}: ${accents[mode].highlightAccent} !important;`,
+      );
     }
     lines.push("}");
     return lines.join("\n");

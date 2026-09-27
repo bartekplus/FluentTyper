@@ -1,4 +1,15 @@
-import { clampColorChannel, relativeLuminance } from "@core/domain/color";
+import {
+  calculateThemeContrast,
+  clampAlpha,
+  clampColorChannel,
+  parseThemeColor,
+  resolveOpaqueColor,
+  toHex,
+  toOpaqueHex,
+  type RGBAColor,
+} from "@core/domain/color";
+
+export { calculateThemeContrast, parseThemeColor };
 import type { SettingsRegistry } from "@ui/settings-engine/SettingsEngine.js";
 import {
   KEY_AUTOCOMPLETE,
@@ -36,6 +47,7 @@ import {
   computeSuggestionPopupStyleVars,
   themeScaleFromValues,
 } from "@core/domain/suggestionPopup/metrics";
+import { resolveSuggestionAccents } from "@core/domain/suggestionPopup/palette";
 import { SUGGESTION_POPUP_SHADOW_CSS } from "@core/domain/suggestionPopup/styles";
 import { i18n } from "./fluenttyperI18n.js";
 import {
@@ -46,7 +58,6 @@ import {
 } from "./workspacePanelUtils.js";
 
 type ThemePreset = Record<string, string>;
-type RGBAColor = { r: number; g: number; b: number; a: number };
 
 type ThemeKey = keyof SuggestionThemeSettings;
 const THEME_KEYS = Object.keys(DEFAULT_SUGGESTION_THEME_SETTINGS) as ThemeKey[];
@@ -66,79 +77,11 @@ const PREVIEW_OPTION_KEYS = [
 const PREVIEW_TEXT_FONT_SIZE_PX = 16;
 const PREVIEW_TEXT_LINE_HEIGHT_PX = 22.4;
 
-function clampAlpha(value: number): number {
-  return Math.max(0, Math.min(1, value));
-}
-
 function normalizeAlphaString(alpha: number): string {
   const normalized = clampAlpha(alpha);
   return Number.isInteger(normalized)
     ? String(normalized)
     : normalized.toFixed(3).replace(/0+$/, "").replace(/\.$/, "");
-}
-
-function parseRgbPart(value: string): number | null {
-  const numericValue = Number.parseFloat(value);
-  return Number.isFinite(numericValue) ? clampColorChannel(numericValue) : null;
-}
-
-function parseAlphaPart(value: string): number | null {
-  const numericValue = Number.parseFloat(value);
-  return Number.isFinite(numericValue) ? clampAlpha(numericValue) : null;
-}
-
-export function parseThemeColor(rawValue: string): RGBAColor | null {
-  const value = rawValue.trim();
-  if (!value) {
-    return null;
-  }
-
-  if (value.startsWith("#")) {
-    const hex = value.slice(1);
-    if (![3, 4, 6, 8].includes(hex.length)) {
-      return null;
-    }
-    const pairs = hex.length <= 4 ? [...hex].map((part) => part + part) : hex.match(/.{1,2}/g);
-    if (!pairs) {
-      return null;
-    }
-    const channels = pairs.map((part) => Number.parseInt(part, 16));
-    if (channels.some((part) => Number.isNaN(part))) {
-      return null;
-    }
-    return {
-      r: channels[0],
-      g: channels[1],
-      b: channels[2],
-      a: hex.length === 4 || hex.length === 8 ? channels[3] / 255 : 1,
-    };
-  }
-
-  const rgbMatch = value.match(
-    /^rgba?\(\s*([^\s,]+)\s*,\s*([^\s,]+)\s*,\s*([^\s,]+)(?:\s*,\s*([^)]+))?\s*\)$/i,
-  );
-  if (!rgbMatch) {
-    return null;
-  }
-
-  const r = parseRgbPart(rgbMatch[1]);
-  const g = parseRgbPart(rgbMatch[2]);
-  const b = parseRgbPart(rgbMatch[3]);
-  const a = rgbMatch[4] === undefined ? 1 : parseAlphaPart(rgbMatch[4]);
-  if (r === null || g === null || b === null || a === null) {
-    return null;
-  }
-  return { r, g, b, a };
-}
-
-function toHex(channels: number[]): string {
-  return `#${channels
-    .map((channel) => clampColorChannel(channel).toString(16).padStart(2, "0"))
-    .join("")}`;
-}
-
-function toOpaqueHex(color: RGBAColor): string {
-  return toHex([color.r, color.g, color.b]);
 }
 
 function toAlphaHex(color: RGBAColor): string {
@@ -184,46 +127,6 @@ export function mergeColorPickerValue(pickerHex: string, previousRawValue: strin
     return toRgbaString(nextColor);
   }
   return toOpaqueHex(nextColor);
-}
-
-function compositeForegroundOverBackground(
-  foreground: RGBAColor,
-  background: RGBAColor,
-): RGBAColor {
-  const alpha = foreground.a + background.a * (1 - foreground.a);
-  if (alpha <= 0) {
-    return { r: 0, g: 0, b: 0, a: 0 };
-  }
-
-  return {
-    r: (foreground.r * foreground.a + background.r * background.a * (1 - foreground.a)) / alpha,
-    g: (foreground.g * foreground.a + background.g * background.a * (1 - foreground.a)) / alpha,
-    b: (foreground.b * foreground.a + background.b * background.a * (1 - foreground.a)) / alpha,
-    a: alpha,
-  };
-}
-
-function resolveOpaqueColor(rawValue: string, backdropRawValue: string): RGBAColor {
-  const backdrop = parseThemeColor(backdropRawValue) ?? { r: 0, g: 0, b: 0, a: 1 };
-  const parsed = parseThemeColor(rawValue);
-  if (!parsed) {
-    return backdrop;
-  }
-  return parsed.a >= 1 ? parsed : compositeForegroundOverBackground(parsed, backdrop);
-}
-
-export function calculateThemeContrast(
-  backgroundRawValue: string,
-  foregroundRawValue: string,
-  backdropRawValue: string,
-): number {
-  const background = resolveOpaqueColor(backgroundRawValue, backdropRawValue);
-  const foreground = resolveOpaqueColor(foregroundRawValue, toOpaqueHex(background));
-  const backgroundLuminance = relativeLuminance(background);
-  const foregroundLuminance = relativeLuminance(foreground);
-  const lighter = Math.max(backgroundLuminance, foregroundLuminance);
-  const darker = Math.min(backgroundLuminance, foregroundLuminance);
-  return (lighter + 0.05) / (darker + 0.05);
 }
 
 export class AppearanceStudio {
@@ -616,8 +519,11 @@ export class AppearanceStudio {
       : theme[KEY_SUGGESTION_HIGHLIGHT_TEXT_DARK];
     const border = isLight ? theme[KEY_SUGGESTION_BORDER_LIGHT] : theme[KEY_SUGGESTION_BORDER_DARK];
 
+    const accents = resolveSuggestionAccents(theme)[this.previewMode];
     // The preview mirrors the selected mode into both light and dark variables.
     for (const suffix of ["light", "dark"]) {
+      preview.style.setProperty(`--suggestion-accent-${suffix}`, accents.accent);
+      preview.style.setProperty(`--suggestion-highlight-accent-${suffix}`, accents.highlightAccent);
       preview.style.setProperty(`--suggestion-bg-${suffix}`, bg);
       preview.style.setProperty(`--suggestion-text-${suffix}`, text);
       preview.style.setProperty(`--suggestion-highlight-bg-${suffix}`, highlightBg);

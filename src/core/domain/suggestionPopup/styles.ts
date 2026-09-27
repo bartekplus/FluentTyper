@@ -1,3 +1,4 @@
+import { SUGGESTION_POPUP_ACCENT } from "./palette";
 import {
   SUGGESTION_POPUP_FONT_FAMILY,
   SUGGESTION_POPUP_FONT_STRETCH,
@@ -30,8 +31,15 @@ const LIGHT_PALETTE = `
     --ft-theme-suggestion-highlight-text-light,
     var(--suggestion-highlight-text-light, #1f2329)
   );
-  /* Typed prefix, and the selected row's outline, mixed from it. */
-  --ft-panel-accent: #185fa8;
+  /* Typed text; the theme code passes versions that read on the user's colors. */
+  --ft-panel-accent: var(
+    --ft-theme-suggestion-accent-light,
+    var(--suggestion-accent-light, ${SUGGESTION_POPUP_ACCENT.light})
+  );
+  --ft-panel-highlight-accent: var(
+    --ft-theme-suggestion-highlight-accent-light,
+    var(--suggestion-highlight-accent-light, ${SUGGESTION_POPUP_ACCENT.light})
+  );
   --ft-panel-shadow:
     0 12px 32px rgba(15, 23, 42, 0.14),
     0 2px 6px rgba(15, 23, 42, 0.08);
@@ -59,7 +67,14 @@ const DARK_PALETTE = `
     --ft-theme-suggestion-highlight-text-dark,
     var(--suggestion-highlight-text-dark, #f3f4f6)
   );
-  --ft-panel-accent: #7cc4ff;
+  --ft-panel-accent: var(
+    --ft-theme-suggestion-accent-dark,
+    var(--suggestion-accent-dark, ${SUGGESTION_POPUP_ACCENT.dark})
+  );
+  --ft-panel-highlight-accent: var(
+    --ft-theme-suggestion-highlight-accent-dark,
+    var(--suggestion-highlight-accent-dark, ${SUGGESTION_POPUP_ACCENT.dark})
+  );
   --ft-panel-shadow:
     0 16px 40px rgba(0, 0, 0, 0.5),
     0 2px 6px rgba(0, 0, 0, 0.35);
@@ -116,7 +131,7 @@ ${DARK_PALETTE}
   --ft-panel-highlight-border: color-mix(
     in srgb,
     var(--ft-panel-highlight-bg) 60%,
-    var(--ft-panel-accent)
+    var(--ft-panel-highlight-accent)
   );
   --ft-badge-bg: color-mix(in srgb, var(--ft-panel-fg) 9%, var(--ft-panel-bg));
   --ft-badge-fg: color-mix(in srgb, var(--ft-panel-fg) 72%, var(--ft-panel-bg));
@@ -284,12 +299,12 @@ ${DARK_PALETTE}
 }
 
 /*
- * On the selected row, mix from its own text color: the theme contrasts that
- * with the row's background, which a fixed accent may not (a dark selected row
- * on a light popup).
+ * The selected row has its own accent (checked against that row's background)
+ * and mixes its other colors from its own text color, so a dark selected row on
+ * a light popup stays readable.
  */
 .ft-suggestion-list li.highlight .ft-suggestion-match {
-  color: color-mix(in srgb, var(--ft-panel-accent) 45%, var(--ft-panel-highlight-fg));
+  color: var(--ft-panel-highlight-accent);
 }
 
 .ft-suggestion-list li.highlight .ft-suggestion-detail {
