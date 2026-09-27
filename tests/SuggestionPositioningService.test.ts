@@ -73,77 +73,45 @@ describe("SuggestionPositioningService", () => {
     expect(menu.style.zIndex).toBe("2147483647");
   });
 
-  test("puts the first suggestion on the caret's line, just past the caret", () => {
-    const service = new CaretPositioningService(createRect(120, 60, 0, 16));
-    const menu = document.createElement("div");
-    const target = document.createElement("input");
-    Object.defineProperty(menu, "offsetWidth", { value: 200, configurable: true });
-    Object.defineProperty(menu, "offsetHeight", { value: 60, configurable: true });
-    menu.style.setProperty("--ft-row-height", "27px");
-
-    service.positionMenu(menu, target);
-
-    expect(menu.getAttribute("data-ft-beside")).toBe("true");
-    expect(menu.getAttribute("data-ft-placement")).toBe("below");
-    expect(menu.style.left).toBe(`${120 + 6}px`);
-    // Baselines match: the caret line's (16px text, ascent 12.8px) and the first
-    // row's (its middle, inside the 1px border, without layout in tests).
-    expect(menu.style.top).toBe(`${60 + 12.8 - (1 + 27 / 2)}px`);
-  });
-
-  test("grows upward from the caret line when there is no room below, keeping the first row put", () => {
-    // Caret low on a 768px viewport: 100px below it, far more above.
+  test("keeps the side of the caret line while the list grows or shrinks", () => {
+    // Caret low on a 768px viewport: 90px below it, far more above.
     const service = new CaretPositioningService(createRect(50, 660, 0, 16));
     const menu = document.createElement("div");
     const target = document.createElement("input");
     const setHeight = (height: number) =>
       Object.defineProperty(menu, "offsetHeight", { value: height, configurable: true });
     Object.defineProperty(menu, "offsetWidth", { value: 200, configurable: true });
-    menu.style.setProperty("--ft-row-height", "27px");
-    // Baseline of the caret line (16px text, ascent 12.8px) and, below it, the
-    // rest of the first row plus the 1px border.
-    const menuBottom = 660 + 12.8 + (1 + 27 / 2);
 
     setHeight(30);
     service.positionMenu(menu, target);
-    // A short list would fit below, but a longer one would not: grow upward.
+    // A one-row list would fit below, but a longer one would not: open above.
     expect(menu.getAttribute("data-ft-placement")).toBe("above");
-    expect(menu.style.top).toBe(`${menuBottom - 30}px`);
+    // Bottom edge sits 2px above the caret line.
+    expect(menu.style.top).toBe(`${660 - 2 - 30}px`);
 
-    // Fewer suggestions: the menu shrinks from the top, the first row stays.
     setHeight(20);
     service.positionMenu(menu, target);
     expect(menu.getAttribute("data-ft-placement")).toBe("above");
-    expect(menu.style.top).toBe(`${menuBottom - 20}px`);
+
+    // Caret on a line with room below: a fresh decision.
+    const nextLine = new CaretPositioningService(createRect(50, 100, 0, 16));
+    nextLine.positionMenu(menu, target);
+    expect(menu.getAttribute("data-ft-placement")).toBe("below");
+    expect(menu.style.top).toBe(`${100 + 16 + 2}px`);
   });
 
-  test("falls back to below the caret line when there is no room past the caret", () => {
-    // 900 + 6 + 200 overflows the 1024px viewport.
-    const service = new CaretPositioningService(createRect(900, 60, 0, 16));
+  test("lines the first suggestion's text up with the caret", () => {
+    const service = new CaretPositioningService(createRect(120, 60, 0, 16));
     const menu = document.createElement("div");
     const target = document.createElement("input");
-    const setWidth = (width: number) =>
-      Object.defineProperty(menu, "offsetWidth", { value: width, configurable: true });
+    Object.defineProperty(menu, "offsetWidth", { value: 200, configurable: true });
     Object.defineProperty(menu, "offsetHeight", { value: 60, configurable: true });
     menu.style.setProperty("--ft-pad-x", "7px");
 
-    setWidth(200);
     service.positionMenu(menu, target);
-    expect(menu.getAttribute("data-ft-beside")).toBe("false");
-    expect(menu.style.top).toBe(`${60 + 16 + 2}px`);
-    // Clamped into the viewport.
-    expect(menu.style.left).toBe(`${1024 - 8 - 200}px`);
 
-    // A narrower list on the same line keeps the placement instead of jumping.
-    setWidth(50);
-    service.positionMenu(menu, target);
-    expect(menu.getAttribute("data-ft-beside")).toBe("false");
-    // Its first suggestion's text starts under the caret (1px border + 7px padding).
-    expect(menu.style.left).toBe(`${900 - 8}px`);
-
-    // On another line it is decided afresh.
-    new CaretPositioningService(createRect(100, 200, 0, 16)).positionMenu(menu, target);
-    expect(menu.getAttribute("data-ft-beside")).toBe("true");
+    // Text starts after the 1px border and the row's 7px padding.
+    expect(menu.style.left).toBe(`${120 - 8}px`);
   });
 
   test("returns false when caret rect cannot be resolved", () => {
