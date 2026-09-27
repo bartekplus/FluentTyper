@@ -54,12 +54,13 @@ export class SuggestionPositioningService {
     const popupLineHeightPx = Math.round(
       this.clamp(lineHeightPx * 0.86 * themeScale.fontSize, 16, 22),
     );
-    const padX = Math.round(this.clamp(fontSizePx * 0.44 * themeScale.paddingHorizontal, 6, 10));
+    const padX = Math.round(this.clamp(fontSizePx * 0.62 * themeScale.paddingHorizontal, 8, 12));
     const padY = Math.round(this.clamp(fontSizePx * 0.14 * themeScale.paddingVertical, 3, 6));
+    // 16px text on a 1.4 line gives the design's 32px rows.
     const rowHeightPx = Math.round(
-      this.clamp(popupLineHeightPx + fontSizePx * 0.24 * themeScale.paddingVertical, 27, 34),
+      this.clamp(popupLineHeightPx + fontSizePx * 0.8 * themeScale.paddingVertical, 28, 38),
     );
-    const radiusPx = Math.round(this.clamp(fontSizePx * 0.56, 9, 12));
+    const radiusPx = Math.round(this.clamp(fontSizePx * 0.5, 8, 10));
     const availableViewportWidth = Math.max(
       152,
       window.innerWidth - SuggestionPositioningService.VIEWPORT_PADDING_PX * 2,

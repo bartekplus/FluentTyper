@@ -86,7 +86,9 @@ describe("GoogleDocsView inline ghost guard", () => {
     caret = mountCaret();
     view = renderDocs("adr", "123 Main Street", { inline: false, snippetShortcut: "address" });
     const menu = document.getElementById(SuggestionMenuView.resolveHostId(DOCS_SESSION_ID));
-    const label = menu?.shadowRoot?.querySelector(".ft-suggestion-label");
-    expect(label?.textContent).toBe("address → 123 Main Street");
+    const row = menu?.shadowRoot?.querySelector("li");
+    expect(row?.querySelector(".ft-suggestion-label")?.textContent).toBe("123 Main Street");
+    expect(row?.querySelector(".ft-suggestion-detail")?.textContent).toBe("address");
+    expect(row?.querySelector(".ft-suggestion-kind")?.textContent).toBe("S");
   });
 });

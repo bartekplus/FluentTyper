@@ -735,7 +735,7 @@ async function waitForSuggestionTexts(page: Page): Promise<string[]> {
           continue;
         }
         const visibleTexts = Array.from(getMenuRoot(container).querySelectorAll("li[data-index]"))
-          .map((li) => li.textContent ?? "")
+          .map((li) => (li.querySelector(".ft-suggestion-label") ?? li).textContent ?? "")
           .filter((text) => text.length > 0);
         if (visibleTexts.length > 0) {
           return visibleTexts;

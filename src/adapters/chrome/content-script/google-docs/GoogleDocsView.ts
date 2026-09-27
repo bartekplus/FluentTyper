@@ -90,6 +90,7 @@ export class GoogleDocsView {
       inline: boolean;
       digits: boolean;
       horizontal: boolean;
+      acceptKeys: string[];
       langHeader: boolean;
       findToken: (text: string) => { token: string };
       accept: (index: number) => void;
@@ -182,6 +183,7 @@ export class GoogleDocsView {
         selectedIndex: index,
         showShortcutDigits: this.options.digits,
         horizontal: this.options.horizontal,
+        acceptKeys: this.options.acceptKeys,
         menuHeader: this.options.langHeader ? (SUPPORTED_LANGUAGES[language] ?? language) : null,
         mentionText: context.selectedText || token,
       });

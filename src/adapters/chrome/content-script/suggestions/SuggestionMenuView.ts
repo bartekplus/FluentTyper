@@ -14,6 +14,7 @@ export class SuggestionMenuView {
   static readonly PANEL_CLASS = "ft-suggestion-panel";
   static readonly HEADER_CLASS = "ft-suggestion-header";
   static readonly LIST_CLASS = "ft-suggestion-list";
+  static readonly FOOTER_CLASS = "ft-suggestion-footer";
 
   static resolveHostId(entryId: number | string): string {
     return resolveSuggestionMenuHostId(entryId);
@@ -44,6 +45,7 @@ export class SuggestionMenuView {
       list.className = SuggestionMenuView.LIST_CLASS;
       menu.appendChild(this.createHeader(doc));
       menu.appendChild(list);
+      menu.appendChild(this.createFooter(doc));
     }
 
     container.appendChild(menu);
@@ -54,6 +56,13 @@ export class SuggestionMenuView {
     return (
       menu.shadowRoot?.querySelector<HTMLDivElement>(`.${SuggestionMenuView.HEADER_CLASS}`) ??
       menu.querySelector<HTMLDivElement>(`.${SuggestionMenuView.HEADER_CLASS}`)
+    );
+  }
+
+  static resolveFooter(menu: HTMLDivElement): HTMLDivElement | null {
+    return (
+      menu.shadowRoot?.querySelector<HTMLDivElement>(`.${SuggestionMenuView.FOOTER_CLASS}`) ??
+      menu.querySelector<HTMLDivElement>(`.${SuggestionMenuView.FOOTER_CLASS}`)
     );
   }
 
@@ -85,7 +94,7 @@ export class SuggestionMenuView {
     list.setAttribute("part", "list");
     onListCreated(list);
 
-    panel.append(header, list);
+    panel.append(header, list, this.createFooter(doc));
     return panel;
   }
 
@@ -95,6 +104,16 @@ export class SuggestionMenuView {
     header.setAttribute("part", "header");
     header.hidden = true;
     return header;
+  }
+
+  /** Key hints under the list; decorative, the keys work without it. */
+  private static createFooter(doc: Document): HTMLDivElement {
+    const footer = doc.createElement("div");
+    footer.className = SuggestionMenuView.FOOTER_CLASS;
+    footer.setAttribute("part", "footer");
+    footer.setAttribute("aria-hidden", "true");
+    footer.hidden = true;
+    return footer;
   }
 
   private static applyBaseHostStyles(menu: HTMLDivElement, shadowEnabled: boolean): void {

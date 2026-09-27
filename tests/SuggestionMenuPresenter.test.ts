@@ -1,5 +1,6 @@
 import { describe, expect, jest, test } from "bun:test";
 import { SuggestionMenuPresenter } from "../src/adapters/chrome/content-script/suggestions/SuggestionMenuPresenter";
+import { SuggestionMenuView } from "../src/adapters/chrome/content-script/suggestions/SuggestionMenuView";
 import type { SuggestionPositioningService } from "../src/adapters/chrome/content-script/suggestions/SuggestionPositioningService";
 
 describe("SuggestionMenuPresenter", () => {
@@ -96,12 +97,49 @@ describe("SuggestionMenuPresenter", () => {
       mentionText: "ad",
     });
 
-    const labels = list.querySelectorAll(".ft-suggestion-label");
-    expect(labels[0].querySelector(".ft-suggestion-snippet")).toBeNull();
-    expect(labels[1].querySelector(".ft-suggestion-snippet")?.innerHTML).toBe(
-      '<span class="ft-suggestion-match">ad</span>dress →',
+    const [word, snippet] = Array.from(list.querySelectorAll("li"));
+    expect(word.querySelector(".ft-suggestion-kind")?.textContent).toBe("W");
+    expect(word.querySelector(".ft-suggestion-detail")).toBeNull();
+    // A snippet shows its expansion, with the shortcut (typed text highlighted) on the right.
+    expect(snippet.querySelector(".ft-suggestion-kind")?.textContent).toBe("S");
+    expect(snippet.querySelector(".ft-suggestion-label")?.textContent).toBe("1 <Main> St");
+    expect(snippet.querySelector(".ft-suggestion-detail")?.innerHTML).toBe(
+      '<span class="ft-suggestion-match">ad</span>dress',
     );
-    expect(labels[1].textContent).toBe("address → 1 <Main> St");
+  });
+
+  test("shows the keys that work in a footer, and none without accept keys", () => {
+    const positioning = {
+      syncMenuTypography: jest.fn(),
+      positionMenu: jest.fn(() => true),
+    } as unknown as SuggestionPositioningService;
+    const presenter = new SuggestionMenuPresenter(positioning);
+    const { menu, list } = SuggestionMenuView.ensureMenu();
+    const model = {
+      menuId: 1,
+      menu,
+      list,
+      target: document.createElement("input"),
+      suggestions: ["hello", "help", "helm"],
+      selectedIndex: 0,
+      showShortcutDigits: true,
+      menuHeader: null,
+      mentionText: "he",
+    };
+    const footer = () => SuggestionMenuView.resolveFooter(menu)!;
+
+    presenter.render({ ...model, acceptKeys: ["Tab", "⏎"] });
+    expect(footer().hidden).toBe(false);
+    expect(Array.from(footer().querySelectorAll("kbd"), (kbd) => kbd.textContent)).toEqual([
+      "↑↓",
+      "Tab ⏎",
+      "1–3",
+      "Esc",
+    ]);
+
+    presenter.render(model);
+    expect(footer().hidden).toBe(true);
+    menu.remove();
   });
 
   test("hides menu when positioning fails", () => {

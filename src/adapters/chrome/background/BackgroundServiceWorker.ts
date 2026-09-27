@@ -14,6 +14,7 @@ import { migrateSettingsV5 } from "@core/application/settings/SettingsMigrationV
 import { migrateSettingsV6 } from "@core/application/settings/SettingsMigrationV6";
 import { migrateSettingsV7 } from "@core/application/settings/SettingsMigrationV7";
 import { migrateSettingsV8 } from "@core/application/settings/SettingsMigrationV8";
+import { migrateSettingsV9 } from "@core/application/settings/SettingsMigrationV9";
 import { migrateToLocalStore } from "./Migration";
 import type {
   ConfigMessage,
@@ -278,6 +279,7 @@ export class BackgroundServiceWorker {
         await migrateSettingsV6(this.settingsManager);
         await migrateSettingsV7(this.settingsManager);
         await migrateSettingsV8(this.settingsManager);
+        await migrateSettingsV9(this.settingsManager);
         await Promise.all([
           this.personalizationService.initialize(),
           this.predictionManager.initialize(),

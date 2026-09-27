@@ -3,6 +3,7 @@ import { SUGGESTION_MENU_LAYOUT_ATTR, isSuggestionMenuHostVisible } from "./Sugg
 import { resolveSuggestionStateHost } from "./SuggestionStateHost";
 import { SuggestionPositioningService } from "./SuggestionPositioningService";
 import { SuggestionMenuView } from "./SuggestionMenuView";
+import { buildSuggestionKeyHints } from "./SuggestionMenuHints";
 import type { SuggestionElement } from "./types";
 
 interface SuggestionMenuRenderModel {
@@ -18,6 +19,8 @@ interface SuggestionMenuRenderModel {
   mentionText: string;
   /** Single row of suggestions instead of a list. */
   horizontal?: boolean;
+  /** Keys that insert the selected suggestion; given, a key-hint footer is shown. */
+  acceptKeys?: string[];
 }
 
 export class SuggestionMenuPresenter {
@@ -48,12 +51,14 @@ export class SuggestionMenuPresenter {
     model.suggestions.forEach((suggestion, index) => {
       const li = document.createElement("li");
       li.id = `ft-suggestion-option-${model.menuId}-${index}`;
+      const snippetShortcut = model.snippetShortcuts?.[index] ?? null;
       li.innerHTML = this.buildSuggestionMenuItemHtml({
         mentionText: model.mentionText,
         suggestion,
-        snippetShortcut: model.snippetShortcuts?.[index] ?? null,
+        snippetShortcut,
         shortcutDigit: model.showShortcutDigits ? this.formatShortcutDigit(index) : null,
       });
+      li.classList.add(snippetShortcut ? "is-snippet" : "is-word");
       li.setAttribute("data-index", String(index));
       li.setAttribute("role", "option");
       // Per-item base direction: Arabic with trailing digits/punctuation in an LTR page.
@@ -73,6 +78,7 @@ export class SuggestionMenuPresenter {
       this.hide(model.menu, model.list, model.target);
       return false;
     }
+    this.renderFooter(model);
 
     if (model.horizontal) {
       model.menu.setAttribute(SUGGESTION_MENU_LAYOUT_ATTR, "horizontal");
@@ -110,6 +116,11 @@ export class SuggestionMenuPresenter {
       header.textContent = "";
       header.hidden = true;
     }
+    const footer = SuggestionMenuView.resolveFooter(menu);
+    if (footer) {
+      footer.replaceChildren();
+      footer.hidden = true;
+    }
     panel.setAttribute("aria-hidden", "true");
     panel.removeAttribute("aria-activedescendant");
     list.innerHTML = "";
@@ -135,10 +146,40 @@ export class SuggestionMenuPresenter {
     });
   }
 
+  private renderFooter(model: SuggestionMenuRenderModel): void {
+    const footer = SuggestionMenuView.resolveFooter(model.menu);
+    if (!footer) {
+      return;
+    }
+    if (!model.acceptKeys) {
+      footer.replaceChildren();
+      footer.hidden = true;
+      return;
+    }
+    const doc = footer.ownerDocument;
+    const hints = buildSuggestionKeyHints({
+      acceptKeys: model.acceptKeys,
+      // Digit keys reach the first nine suggestions ("0" is the tenth, not hinted).
+      digitCount: model.showShortcutDigits ? Math.min(model.suggestions.length, 9) : 0,
+    });
+    footer.replaceChildren(
+      ...hints.map(({ keys, label }) => {
+        const hint = doc.createElement("span");
+        hint.className = "ft-suggestion-hint";
+        const kbd = doc.createElement("kbd");
+        kbd.textContent = keys;
+        hint.append(kbd, ` ${label}`);
+        return hint;
+      }),
+    );
+    footer.hidden = false;
+  }
+
   private formatShortcutDigit(index: number): string {
     return index === 9 ? "0" : String(index + 1);
   }
 
+  /** Row: [number] [kind] label [snippet shortcut], as in the popup design. */
   private buildSuggestionMenuItemHtml(args: {
     mentionText: string;
     suggestion: string;
@@ -148,16 +189,22 @@ export class SuggestionMenuPresenter {
     const shortcutMarkup = args.shortcutDigit
       ? `<span class="ft-suggestion-shortcut" aria-hidden="true">${args.shortcutDigit}</span>`
       : "";
-    // Snippet: "shortcut → expansion", so fuzzy matches explain themselves and the
-    // shortcut can be learned. The typed text is highlighted in the shortcut.
-    const content = args.snippetShortcut
-      ? `<span class="ft-suggestion-snippet">${this.buildSuggestionLabelHtml(
+    // W(ord) or S(nippet): a snippet expands its shortcut, shown on the right,
+    // where the typed text is highlighted, so fuzzy matches explain themselves.
+    const kindMarkup = `<span class="ft-suggestion-kind" aria-hidden="true">${
+      args.snippetShortcut ? "S" : "W"
+    }</span>`;
+    const label = args.snippetShortcut
+      ? this.escapeHtml(args.suggestion)
+      : this.buildSuggestionLabelHtml(args.mentionText, args.suggestion);
+    const labelMarkup = `<span class="ft-suggestion-label">${label}</span>`;
+    const detailMarkup = args.snippetShortcut
+      ? `<span class="ft-suggestion-detail">${this.buildSuggestionLabelHtml(
           args.mentionText,
           args.snippetShortcut,
-        )} →</span> ${this.escapeHtml(args.suggestion)}`
-      : this.buildSuggestionLabelHtml(args.mentionText, args.suggestion);
-    const labelMarkup = `<span class="ft-suggestion-label">${content}</span>`;
-    return `${shortcutMarkup}${labelMarkup}`;
+        )}</span>`
+      : "";
+    return `${shortcutMarkup}${kindMarkup}${labelMarkup}${detailMarkup}`;
   }
 
   private buildSuggestionLabelHtml(mentionText: string, suggestion: string): string {

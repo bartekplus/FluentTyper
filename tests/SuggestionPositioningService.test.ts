@@ -159,7 +159,8 @@ describe("SuggestionPositioningService", () => {
       SUGGESTION_POPUP_TEXT_TRANSFORM,
     );
     expect(menu.style.getPropertyValue("--ft-font-size")).toBe("15px");
-    expect(menu.style.getPropertyValue("--ft-row-height")).toBe("27px");
+    // 18px page text: taller than the design's 32px rows for 16px text.
+    expect(menu.style.getPropertyValue("--ft-row-height")).toBe("35px");
     expect(menu.style.getPropertyValue("--ft-panel-min-width")).toBe("148px");
   });
 
@@ -285,8 +286,8 @@ describe("SuggestionPositioningService", () => {
 
     expect(menu.style.getPropertyValue("--ft-font-size")).toBe("12px");
     expect(menu.style.getPropertyValue("--ft-pad-y")).toBe("3px");
-    expect(menu.style.getPropertyValue("--ft-pad-x")).toBe("6px");
-    expect(menu.style.getPropertyValue("--ft-row-height")).toBe("27px");
+    expect(menu.style.getPropertyValue("--ft-pad-x")).toBe("8px");
+    expect(menu.style.getPropertyValue("--ft-row-height")).toBe("28px");
     expect(menu.style.getPropertyValue("--ft-panel-min-width")).toBe("148px");
   });
 

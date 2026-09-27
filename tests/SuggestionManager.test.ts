@@ -418,7 +418,9 @@ describe("SuggestionManager", () => {
         request.afterCursorTokenSuffix,
       );
       manager.fulfillPrediction(buildResponse(request, result));
-      expect(querySuggestionMenuItems()[0]?.textContent?.trim()).toBe("was");
+      expect(
+        querySuggestionMenuItems()[0]?.querySelector(".ft-suggestion-label")?.textContent?.trim(),
+      ).toBe("was");
       dispatchKeydown(root, "Tab");
       expect(root.querySelector(".ql-code-block")?.textContent?.trimEnd()).toBe("what . was");
     } finally {

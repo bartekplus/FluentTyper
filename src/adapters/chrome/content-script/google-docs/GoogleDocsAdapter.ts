@@ -1,3 +1,4 @@
+import { acceptKeyLabels } from "../suggestions/SuggestionMenuHints";
 import { LANG_SEPARATOR_CHARS_REGEX } from "@core/domain/lang";
 import type { GrammarEventType } from "@core/domain/grammar/types";
 import type { PredictionInputAction } from "@core/domain/messageTypes";
@@ -267,6 +268,10 @@ export class GoogleDocsAdapter {
       inline: options.inline_suggestion,
       digits: options.selectByDigit,
       horizontal: options.horizontalSuggestions,
+      acceptKeys: acceptKeyLabels({
+        ...options,
+        autocompleteOnTab: options.autocompleteOnTab || options.inline_suggestion,
+      }),
       langHeader: options.displayLangHeader,
       findToken: (text) => this.prediction.findMentionToken(text),
       accept: (index) => {

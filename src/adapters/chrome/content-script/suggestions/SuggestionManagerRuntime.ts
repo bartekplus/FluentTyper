@@ -1,3 +1,4 @@
+import { acceptKeyLabels } from "./SuggestionMenuHints";
 import { getDeepActiveElement, isInDocument } from "@core/application/dom-utils";
 import { createLogger } from "@core/application/logging/Logger";
 import { LANG_SEPARATOR_CHARS_REGEX } from "@core/domain/lang";
@@ -79,6 +80,7 @@ export class SuggestionManagerRuntime {
   private readonly preferNativeAutocomplete: boolean;
   private readonly selectByDigit: boolean;
   private readonly horizontalSuggestions: boolean;
+  private readonly acceptKeys: string[];
   private readonly nativeAutocompleteConflictDetector = new NativeAutocompleteConflictDetector();
 
   private lang: string;
@@ -106,6 +108,7 @@ export class SuggestionManagerRuntime {
     this.preferNativeAutocomplete = options.preferNativeAutocomplete;
     this.selectByDigit = options.selectByDigit;
     this.horizontalSuggestions = options.horizontalSuggestions;
+    this.acceptKeys = acceptKeyLabels(options);
     this.manualAttachUiManager = new ManualAttachUiManager({
       iconUrl: resolveManualAttachIconUrl(),
       onActivate: this.handleManualAttachActivate.bind(this),
@@ -677,6 +680,7 @@ export class SuggestionManagerRuntime {
           selectedIndex,
           showShortcutDigits: this.selectByDigit,
           horizontal: this.horizontalSuggestions,
+          acceptKeys: this.acceptKeys,
           menuHeader,
           mentionText,
         }),

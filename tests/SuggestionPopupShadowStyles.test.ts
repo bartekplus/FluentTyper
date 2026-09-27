@@ -7,11 +7,11 @@ describe("SuggestionPopupShadowStyles", () => {
     expect(SUGGESTION_POPUP_SHADOW_CSS).toContain(
       `--ft-font-family: ${SUGGESTION_POPUP_FONT_FAMILY};`,
     );
-    expect(SUGGESTION_POPUP_SHADOW_CSS).toContain("var(--suggestion-highlight-bg-light, #0f172a)");
+    expect(SUGGESTION_POPUP_SHADOW_CSS).toContain("var(--suggestion-highlight-bg-light, #e3edf9)");
     expect(SUGGESTION_POPUP_SHADOW_CSS).toContain(
-      "var(--suggestion-highlight-text-light, #ffffff)",
+      "var(--suggestion-highlight-text-light, #1f2329)",
     );
-    expect(SUGGESTION_POPUP_SHADOW_CSS).toContain("--ft-row-height: 27px;");
+    expect(SUGGESTION_POPUP_SHADOW_CSS).toContain("--ft-row-height: 32px;");
     expect(SUGGESTION_POPUP_SHADOW_CSS).toContain("--ft-panel-min-width: 152px;");
     expect(SUGGESTION_POPUP_SHADOW_CSS).toMatch(
       /\.ft-suggestion-list\s*\{[\s\S]*color:\s*var\(--ft-panel-fg\);/,
@@ -26,21 +26,19 @@ describe("SuggestionPopupShadowStyles", () => {
     expect(SUGGESTION_POPUP_SHADOW_CSS).toMatch(
       /\.ft-suggestion-panel\s*\{[\s\S]*width:\s*max-content;[\s\S]*min-width:\s*min\(var\(--ft-panel-min-width\), 100%\);/,
     );
+    // Selected row: filled, with an accent-tinted outline (popup design).
     expect(SUGGESTION_POPUP_SHADOW_CSS).toMatch(
-      /\.ft-suggestion-list li\.has-shortcut\s*\{[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\) auto;/,
+      /\.ft-suggestion-list li\.highlight\s*\{[\s\S]*border-color:\s*var\(--ft-panel-highlight-border\);/,
     );
+    // The key-hint footer hides with its hidden attribute despite \`all: initial\`.
     expect(SUGGESTION_POPUP_SHADOW_CSS).toMatch(
-      /\.ft-suggestion-list li\.highlight\s*\{[\s\S]*box-shadow:/,
+      /\.ft-suggestion-footer\[hidden\]\s*\{\s*display:\s*none;/,
     );
-    expect(SUGGESTION_POPUP_SHADOW_CSS).toMatch(/\.ft-suggestion-shortcut\s*\{[\s\S]*order:\s*2;/);
     expect(SUGGESTION_POPUP_SHADOW_CSS).toMatch(
       /\.ft-suggestion-label\s*\{[\s\S]*-webkit-text-fill-color:\s*currentColor;/,
     );
     expect(SUGGESTION_POPUP_SHADOW_CSS).toMatch(
-      /\.ft-suggestion-match\s*\{[\s\S]*color:\s*var\(--ft-panel-match-fg\);/,
-    );
-    expect(SUGGESTION_POPUP_SHADOW_CSS).toMatch(
-      /\.ft-suggestion-list li\.highlight \.ft-suggestion-match\s*\{[\s\S]*color:\s*inherit;/,
+      /\.ft-suggestion-match\s*\{[\s\S]*color:\s*var\(--ft-panel-accent\);/,
     );
   });
 });

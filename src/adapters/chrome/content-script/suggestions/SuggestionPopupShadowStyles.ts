@@ -12,52 +12,33 @@ export const SUGGESTION_POPUP_SHADOW_CSS = `
 :host {
   --ft-panel-bg: var(
     --ft-theme-suggestion-bg-light,
-    var(--suggestion-bg-light, rgba(252, 253, 255, 0.96))
+    var(--suggestion-bg-light, #ffffff)
   );
   --ft-panel-fg: var(
     --ft-theme-suggestion-text-light,
-    var(--suggestion-text-light, #0f172a)
+    var(--suggestion-text-light, #1f2329)
   );
   --ft-panel-border: var(
     --ft-theme-suggestion-border-color-light,
-    var(--suggestion-border-color-light, rgba(148, 163, 184, 0.28))
+    var(--suggestion-border-color-light, #d5dae3)
   );
   --ft-panel-highlight-bg: var(
     --ft-theme-suggestion-highlight-bg-light,
-    var(--suggestion-highlight-bg-light, #0f172a)
+    var(--suggestion-highlight-bg-light, #e3edf9)
   );
   --ft-panel-highlight-fg: var(
     --ft-theme-suggestion-highlight-text-light,
-    var(--suggestion-highlight-text-light, #ffffff)
+    var(--suggestion-highlight-text-light, #1f2329)
   );
-  --ft-panel-header-fg: color-mix(
-    in srgb,
-    var(--ft-panel-fg) 52%,
-    transparent
-  );
-  --ft-panel-match-fg: color-mix(
-    in srgb,
-    var(--ft-panel-fg) 82%,
-    #9a5b13
-  );
-  --ft-shortcut-bg: color-mix(
-    in srgb,
-    var(--ft-panel-bg) 92%,
-    var(--ft-panel-fg) 8%
-  );
-  --ft-shortcut-border: color-mix(
-    in srgb,
-    var(--ft-panel-border) 82%,
-    transparent
-  );
-  --ft-shortcut-fg: color-mix(
-    in srgb,
-    var(--ft-panel-fg) 76%,
-    transparent
-  );
+  /* Typed prefix, and the selected row's outline, mixed from it. */
+  --ft-panel-accent: #185fa8;
+  --ft-kind-word-bg: #dcebf7;
+  --ft-kind-word-fg: #1c5d8f;
+  --ft-kind-snippet-bg: #fbe6d4;
+  --ft-kind-snippet-fg: #9a4a12;
   --ft-panel-shadow:
-    0 18px 42px rgba(15, 23, 42, 0.12),
-    0 2px 10px rgba(15, 23, 42, 0.06);
+    0 12px 32px rgba(15, 23, 42, 0.14),
+    0 2px 6px rgba(15, 23, 42, 0.08);
   --ft-font-family: ${SUGGESTION_POPUP_FONT_FAMILY};
   --ft-font-size: 13px;
   --ft-line-height: 18px;
@@ -67,10 +48,10 @@ export const SUGGESTION_POPUP_SHADOW_CSS = `
   --ft-letter-spacing: ${SUGGESTION_POPUP_LETTER_SPACING};
   --ft-word-spacing: ${SUGGESTION_POPUP_WORD_SPACING};
   --ft-text-transform: ${SUGGESTION_POPUP_TEXT_TRANSFORM};
-  --ft-radius: 10px;
-  --ft-pad-x: 8px;
+  --ft-radius: 8px;
+  --ft-pad-x: 10px;
   --ft-pad-y: 3px;
-  --ft-row-height: 27px;
+  --ft-row-height: 32px;
   --ft-panel-min-width: 152px;
   all: initial;
   box-sizing: border-box;
@@ -79,7 +60,7 @@ export const SUGGESTION_POPUP_SHADOW_CSS = `
   left: 0;
   z-index: 2147483647;
   display: none;
-  max-width: min(360px, calc(100vw - 16px));
+  max-width: min(460px, calc(100vw - 16px));
   max-height: calc(100vh - 16px);
   pointer-events: none;
   color-scheme: light dark;
@@ -90,28 +71,47 @@ export const SUGGESTION_POPUP_SHADOW_CSS = `
   :host {
     --ft-panel-bg: var(
       --ft-theme-suggestion-bg-dark,
-      var(--suggestion-bg-dark, rgba(15, 23, 42, 0.96))
+      var(--suggestion-bg-dark, #22252c)
     );
     --ft-panel-fg: var(
       --ft-theme-suggestion-text-dark,
-      var(--suggestion-text-dark, #e5edf7)
+      var(--suggestion-text-dark, #e6e7eb)
     );
     --ft-panel-border: var(
       --ft-theme-suggestion-border-color-dark,
-      var(--suggestion-border-color-dark, rgba(148, 163, 184, 0.22))
+      var(--suggestion-border-color-dark, #373b46)
     );
     --ft-panel-highlight-bg: var(
       --ft-theme-suggestion-highlight-bg-dark,
-      var(--suggestion-highlight-bg-dark, rgba(96, 165, 250, 0.18))
+      var(--suggestion-highlight-bg-dark, #2c3b52)
     );
     --ft-panel-highlight-fg: var(
       --ft-theme-suggestion-highlight-text-dark,
-      var(--suggestion-highlight-text-dark, #f8fafc)
+      var(--suggestion-highlight-text-dark, #f3f4f6)
     );
+    --ft-panel-accent: #7cc4ff;
+    --ft-kind-word-bg: #1f3a4f;
+    --ft-kind-word-fg: #9fd2f5;
+    --ft-kind-snippet-bg: #4a3322;
+    --ft-kind-snippet-fg: #f2b88a;
     --ft-panel-shadow:
-      0 20px 46px rgba(2, 6, 23, 0.34),
-      0 4px 12px rgba(2, 6, 23, 0.18);
+      0 16px 40px rgba(0, 0, 0, 0.5),
+      0 2px 6px rgba(0, 0, 0, 0.35);
   }
+}
+
+/* Derived from the (user-themable) panel colors, so custom themes stay coherent. */
+:host {
+  --ft-panel-muted: color-mix(in srgb, var(--ft-panel-fg) 68%, var(--ft-panel-bg));
+  --ft-panel-highlight-border: color-mix(
+    in srgb,
+    var(--ft-panel-highlight-bg) 60%,
+    var(--ft-panel-accent)
+  );
+  --ft-badge-bg: color-mix(in srgb, var(--ft-panel-fg) 9%, var(--ft-panel-bg));
+  --ft-badge-fg: color-mix(in srgb, var(--ft-panel-fg) 72%, var(--ft-panel-bg));
+  --ft-kbd-border: color-mix(in srgb, var(--ft-panel-fg) 24%, var(--ft-panel-bg));
+  --ft-kbd-fg: color-mix(in srgb, var(--ft-panel-fg) 84%, var(--ft-panel-bg));
 }
 
 *, *::before, *::after {
@@ -128,6 +128,7 @@ export const SUGGESTION_POPUP_SHADOW_CSS = `
   max-width: inherit;
   max-height: inherit;
   overflow: hidden;
+  padding: 4px;
   border-radius: var(--ft-radius);
   border: 1px solid var(--ft-panel-border);
   background: var(--ft-panel-bg);
@@ -151,21 +152,25 @@ export const SUGGESTION_POPUP_SHADOW_CSS = `
 .ft-suggestion-header {
   all: initial;
   display: none;
-  padding: 8px 10px 4px;
-  border-bottom: 1px solid color-mix(in srgb, var(--ft-panel-border) 72%, transparent);
-  color: var(--ft-panel-header-fg);
+  padding: 4px 8px 6px;
+  color: var(--ft-panel-muted);
   font-family: var(--ft-font-family);
-  font-size: calc(var(--ft-font-size) * 0.74);
+  font-size: calc(var(--ft-font-size) * 0.8);
   line-height: 1.2;
   font-weight: 600;
   letter-spacing: 0.02em;
   text-transform: none;
 }
 
+.ft-suggestion-header:not([hidden]) {
+  display: block;
+}
+
 .ft-suggestion-list {
   all: initial;
   display: flex;
   flex-direction: column;
+  row-gap: 2px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -184,14 +189,28 @@ export const SUGGESTION_POPUP_SHADOW_CSS = `
   text-transform: var(--ft-text-transform);
 }
 
+/* Above the caret the list grows upward, so the first suggestion stays next to it. */
+:host([data-ft-placement="above"]:not([data-ft-layout="horizontal"])) .ft-suggestion-list {
+  flex-direction: column-reverse;
+}
+
+/* ...and the key hints go on top, away from the caret. */
+:host([data-ft-placement="above"]) .ft-suggestion-footer {
+  order: -1;
+  margin: 0 0 4px;
+  border-top: 0;
+  border-bottom: 1px solid var(--ft-panel-border);
+}
+
 .ft-suggestion-list li {
   all: initial;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
+  display: flex;
   align-items: center;
+  column-gap: 10px;
   min-height: var(--ft-row-height);
-  padding: var(--ft-pad-y) var(--ft-pad-x);
-  border-radius: calc(var(--ft-radius) - 6px);
+  padding: 0 var(--ft-pad-x) 0 calc(var(--ft-pad-x) - 2px);
+  border: 1px solid transparent;
+  border-radius: 5px;
   color: var(--ft-panel-fg);
   -webkit-text-fill-color: currentColor;
   cursor: pointer;
@@ -204,97 +223,65 @@ export const SUGGESTION_POPUP_SHADOW_CSS = `
   text-transform: var(--ft-text-transform);
   transition:
     background-color 120ms ease,
-    color 120ms ease,
-    box-shadow 120ms ease,
-    transform 120ms ease;
-}
-
-/* Above the caret the list grows upward, so the first suggestion stays next to it. */
-:host([data-ft-placement="above"]:not([data-ft-layout="horizontal"])) .ft-suggestion-list {
-  flex-direction: column-reverse;
-}
-
-:host([data-ft-layout="horizontal"]) {
-  max-width: min(640px, calc(100vw - 16px));
-}
-
-:host([data-ft-layout="horizontal"]) .ft-suggestion-panel {
-  min-width: 0;
-}
-
-/* One row, first suggestion at the anchor; what does not fit is cut off, never wrapped. */
-:host([data-ft-layout="horizontal"]) .ft-suggestion-list {
-  flex-direction: row;
-  column-gap: 2px;
-  overflow: hidden;
-}
-
-:host([data-ft-layout="horizontal"]) .ft-suggestion-list li {
-  flex: none;
-  max-width: 240px;
+    border-color 120ms ease,
+    color 120ms ease;
 }
 
 .ft-suggestion-list li:not(.highlight):hover {
   background: color-mix(in srgb, var(--ft-panel-bg) 92%, var(--ft-panel-fg) 8%);
 }
 
-.ft-suggestion-list li.has-shortcut {
-  grid-template-columns: minmax(0, 1fr) auto;
-  column-gap: 8px;
-}
-
 .ft-suggestion-list li.highlight {
   background: var(--ft-panel-highlight-bg);
+  border-color: var(--ft-panel-highlight-border);
   color: var(--ft-panel-highlight-fg);
   -webkit-text-fill-color: currentColor;
-  box-shadow:
-    inset 0 1px 0 color-mix(in srgb, var(--ft-panel-highlight-fg) 10%, transparent),
-    inset 0 0 0 1px color-mix(in srgb, var(--ft-panel-highlight-fg) 12%, transparent);
 }
 
-.ft-suggestion-list li:active {
-  transform: scale(0.995);
-}
-
-.ft-suggestion-shortcut {
+/* Number (1-9) and kind (W/S) badges share one square shape. */
+.ft-suggestion-shortcut,
+.ft-suggestion-kind {
   all: initial;
-  display: grid;
-  place-items: center;
-  order: 2;
-  justify-self: end;
-  min-width: 18px;
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
   height: 18px;
-  padding: 0 6px;
-  border-radius: 999px;
-  border: 1px solid var(--ft-shortcut-border);
-  background: var(--ft-shortcut-bg);
-  color: var(--ft-shortcut-fg);
+  border-radius: 4px;
+  background: var(--ft-badge-bg);
+  color: var(--ft-badge-fg);
   -webkit-text-fill-color: currentColor;
   font-family: var(--ft-font-family);
-  font-size: calc(var(--ft-font-size) * 0.72);
+  font-size: 11px;
   line-height: 1;
-  font-weight: 700;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 
-.ft-suggestion-list li.highlight .ft-suggestion-shortcut {
-  background: color-mix(
-    in srgb,
-    var(--ft-panel-highlight-fg) 14%,
-    var(--ft-panel-highlight-bg)
-  );
-  border-color: color-mix(
-    in srgb,
-    var(--ft-panel-highlight-fg) 24%,
-    transparent
-  );
-  color: var(--ft-panel-highlight-fg);
+.ft-suggestion-kind {
+  width: 20px;
+  height: 20px;
+}
+
+.ft-suggestion-shortcut + .ft-suggestion-kind {
+  margin-inline-start: -4px;
+}
+
+li.is-word .ft-suggestion-kind {
+  background: var(--ft-kind-word-bg);
+  color: var(--ft-kind-word-fg);
+}
+
+li.is-snippet .ft-suggestion-kind {
+  background: var(--ft-kind-snippet-bg);
+  color: var(--ft-kind-snippet-fg);
 }
 
 .ft-suggestion-label {
   all: initial;
   display: block;
-  order: 1;
+  flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -311,7 +298,7 @@ export const SUGGESTION_POPUP_SHADOW_CSS = `
 
 .ft-suggestion-match {
   all: initial;
-  color: var(--ft-panel-match-fg);
+  color: var(--ft-panel-accent);
   -webkit-text-fill-color: currentColor;
   font-family: inherit;
   font-size: inherit;
@@ -321,19 +308,90 @@ export const SUGGESTION_POPUP_SHADOW_CSS = `
   text-transform: inherit;
 }
 
-.ft-suggestion-snippet {
+/* A snippet's shortcut, on the right. */
+.ft-suggestion-detail {
   all: initial;
-  color: var(--ft-panel-header-fg);
+  display: block;
+  flex: 0 1 auto;
+  max-width: 45%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ft-panel-muted);
   -webkit-text-fill-color: currentColor;
   font-family: inherit;
-  font-size: inherit;
+  font-size: 0.86em;
   line-height: inherit;
   letter-spacing: inherit;
 }
 
-.ft-suggestion-list li.highlight .ft-suggestion-snippet,
-.ft-suggestion-list li.highlight .ft-suggestion-match {
-  color: inherit;
+.ft-suggestion-footer {
+  all: initial;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin-top: 4px;
+  padding: 8px 8px 4px;
+  border-top: 1px solid var(--ft-panel-border);
+  color: var(--ft-panel-muted);
+  -webkit-text-fill-color: currentColor;
+  font-family: var(--ft-font-family);
+  font-size: 11.5px;
+  line-height: 18px;
+  white-space: nowrap;
+}
+
+.ft-suggestion-footer[hidden] {
+  display: none;
+}
+
+.ft-suggestion-footer kbd {
+  all: initial;
+  margin-inline-end: 4px;
+  padding: 1px 5px;
+  border: 1px solid var(--ft-kbd-border);
+  border-radius: 3px;
+  color: var(--ft-kbd-fg);
+  -webkit-text-fill-color: currentColor;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+:host([data-ft-layout="horizontal"]) {
+  max-width: min(640px, calc(100vw - 16px));
+}
+
+:host([data-ft-layout="horizontal"]) .ft-suggestion-panel {
+  min-width: 0;
+  padding: 6px;
+  border-radius: calc(var(--ft-radius) + 2px);
+}
+
+/* One row, first suggestion at the anchor; what does not fit is cut off, never wrapped. */
+:host([data-ft-layout="horizontal"]) .ft-suggestion-list {
+  flex-direction: row;
+  column-gap: 4px;
+  overflow: hidden;
+}
+
+:host([data-ft-layout="horizontal"]) .ft-suggestion-list li {
+  flex: none;
+  max-width: 240px;
+  column-gap: 8px;
+  min-height: calc(var(--ft-row-height) + 4px);
+  padding: 0 calc(var(--ft-pad-x) + 2px) 0 var(--ft-pad-x);
+  border-radius: 6px;
+}
+
+:host([data-ft-layout="horizontal"]) .ft-suggestion-footer {
+  margin-top: 6px;
+  padding: 6px 8px 2px;
+}
+
+:host([data-ft-layout="horizontal"][data-ft-placement="above"]) .ft-suggestion-footer {
+  margin: 0 0 6px;
+  padding: 2px 8px 6px;
 }
 
 @media (prefers-reduced-motion: reduce) {

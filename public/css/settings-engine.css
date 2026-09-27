@@ -657,6 +657,23 @@ body.fluenttyper-options .settings-group.settings-group-panel-only .settings-gro
   list-style: none;
 }
 
+/* The preview follows its own light/dark toggle, not the OS scheme. */
+.appearance-preview.ft-suggestion-container[data-ft-suggestion-role="menu"][data-mode="light"] {
+  --ft-accent: var(--suggestion-match-light);
+  --ft-kind-word-bg: var(--suggestion-kind-word-bg-light);
+  --ft-kind-word-fg: var(--suggestion-kind-word-text-light);
+  --ft-kind-snippet-bg: var(--suggestion-kind-snippet-bg-light);
+  --ft-kind-snippet-fg: var(--suggestion-kind-snippet-text-light);
+}
+
+.appearance-preview.ft-suggestion-container[data-ft-suggestion-role="menu"][data-mode="dark"] {
+  --ft-accent: var(--suggestion-match-dark);
+  --ft-kind-word-bg: var(--suggestion-kind-word-bg-dark);
+  --ft-kind-word-fg: var(--suggestion-kind-word-text-dark);
+  --ft-kind-snippet-bg: var(--suggestion-kind-snippet-bg-dark);
+  --ft-kind-snippet-fg: var(--suggestion-kind-snippet-text-dark);
+}
+
 .preset-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
