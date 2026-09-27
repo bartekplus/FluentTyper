@@ -114,6 +114,32 @@ describe("SuggestionPositioningService", () => {
     expect(menu.style.left).toBe(`${120 - 8}px`);
   });
 
+  test("anchors at the start of the typed word, so the menu stays put while typing", () => {
+    class WordPositioningService extends CaretPositioningService {
+      protected override measureWordWidth(word: string): number {
+        return word.length * 10;
+      }
+    }
+    const menu = document.createElement("div");
+    const target = document.createElement("input");
+    target.getBoundingClientRect = () => createRect(20, 50, 400, 30);
+    Object.defineProperty(menu, "offsetWidth", { value: 200, configurable: true });
+    Object.defineProperty(menu, "offsetHeight", { value: 60, configurable: true });
+    menu.style.setProperty("--ft-pad-x", "7px");
+
+    // "he|" then "hel|": the caret moves 10px, the word start does not.
+    new WordPositioningService(createRect(120, 60, 0, 16)).positionMenu(menu, target, "he");
+    const first = menu.style.left;
+    new WordPositioningService(createRect(130, 60, 0, 16)).positionMenu(menu, target, "hel");
+
+    expect(first).toBe(`${100 - 8}px`);
+    expect(menu.style.left).toBe(first);
+
+    // A word longer than the room before the caret anchors at the field edge.
+    new WordPositioningService(createRect(60, 60, 0, 16)).positionMenu(menu, target, "wrapped");
+    expect(menu.style.left).toBe(`${20 - 8}px`);
+  });
+
   test("returns false when caret rect cannot be resolved", () => {
     const service = new CaretPositioningService(null);
     const menu = document.createElement("div");
