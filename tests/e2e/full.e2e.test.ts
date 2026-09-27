@@ -2505,8 +2505,17 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         const throughIndex = suggestions.map(normalizeSuggestionText).indexOf("through");
         expect(throughIndex).toBeGreaterThanOrEqual(0);
 
+        // Arrows follow the screen: a menu opened above the caret lists bottom-up.
+        const reversed = await page.evaluate(() =>
+          Array.from(document.querySelectorAll<HTMLElement>('[id^="ft-menu-"]')).some(
+            (menu) =>
+              getComputedStyle(menu).display !== "none" &&
+              menu.getAttribute("data-ft-placement") === "above" &&
+              menu.getAttribute("data-ft-layout") !== "horizontal",
+          ),
+        );
         for (let index = 0; index < throughIndex; index += 1) {
-          await page.keyboard.press("ArrowDown");
+          await page.keyboard.press(reversed ? "ArrowUp" : "ArrowDown");
         }
         await page.keyboard.press("Tab");
         await waitUntil(
