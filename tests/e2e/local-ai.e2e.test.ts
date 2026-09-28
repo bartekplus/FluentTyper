@@ -322,12 +322,23 @@ describeE2E(`Local AI Review E2E [${BROWSER_TYPE}]`, () => {
           );
         await waitUntil("status request", async () => (await sentCommands()).length > 0);
 
-        // Install asks first; nothing is sent until the confirm button is pressed.
-        const installButton = await optionsPage.waitForSelector(
-          "#local-ai > * > .text-assets-actions > .is-link:not([hidden])",
+        // A machine without a usable WebGPU adapter (CI) is told so, with nothing to install.
+        const install = "#local-ai > * > .text-assets-actions > .is-link:not([hidden])";
+        const shown = await optionsPage.waitForFunction(
+          (selector) =>
+            document.querySelector(selector)
+              ? "install"
+              : document.querySelector(".local-ai-status")?.textContent?.includes("isn't available")
+                ? "unsupported"
+                : false,
+          { timeout: 15000 },
+          install,
         );
-        await installButton!.click();
-        await optionsPage.waitForSelector("#local-ai .local-ai-confirm:not([hidden])");
+        if ((await shown.jsonValue()) === "install") {
+          // Install asks first; nothing is sent until the confirm button is pressed.
+          await (await optionsPage.$(install))!.click();
+          await optionsPage.waitForSelector("#local-ai .local-ai-confirm:not([hidden])");
+        }
         expect(new Set(await sentCommands())).toEqual(new Set([CMD_LOCAL_AI_GET_STATUS]));
         expect(await getSetting(worker, KEY_LOCAL_AI_REVIEW_CONSENT)).toBeUndefined();
         expect(outsideRequests()).toEqual([]);

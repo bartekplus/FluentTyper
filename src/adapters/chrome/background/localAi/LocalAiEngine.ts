@@ -102,18 +102,28 @@ function installErrorCode(error: unknown): LocalAiErrorCode {
     : "download-failed";
 }
 
+/** A GPU-less machine can leave `requestAdapter` pending forever: treat that as no adapter. */
+const ADAPTER_TIMEOUT_MS = 5_000;
+
 export async function probeGpu(
   gpu: GpuLike | undefined,
   record: LocalAiModelRecord,
+  adapterTimeoutMs = ADAPTER_TIMEOUT_MS,
 ): Promise<LocalAiUnavailableReason | null> {
   if (!gpu) {
     return "no-webgpu";
   }
   let adapter: GpuAdapterLike | null = null;
+  let timer: ReturnType<typeof setTimeout> | undefined;
   try {
-    adapter = await gpu.requestAdapter({ powerPreference: "high-performance" });
+    adapter = await Promise.race([
+      gpu.requestAdapter({ powerPreference: "high-performance" }),
+      new Promise<null>((resolve) => (timer = setTimeout(() => resolve(null), adapterTimeoutMs))),
+    ]);
   } catch {
     adapter = null;
+  } finally {
+    clearTimeout(timer);
   }
   if (!adapter) {
     return "no-adapter";
@@ -157,13 +167,15 @@ export class LocalAiEngine {
   /**
    * Explicit install, the only time network is allowed: download and verify
    * the listed files, load once from the cache (network denied), then mark
-   * the model verified. Leaves the model loaded. `signal` cancels it
-   * (downloads stop at once; a load in progress finishes, then is dropped).
+   * the model verified. Leaves the model loaded. `signal` cancels it at once;
+   * a load that outlives `loadTimeoutMs` or the cancel is abandoned (its late
+   * model is discarded).
    */
   async install(
     modelId: string,
     onProgress: ProgressSink,
     signal: AbortSignal,
+    loadTimeoutMs: number,
   ): Promise<LoadResult> {
     const record = this.findModel(modelId);
     if (!record) {
@@ -187,12 +199,23 @@ export class LocalAiEngine {
     } finally {
       this.deps.guard.allowDownloads(null);
     }
-    const result = await this.load(modelId, onProgress);
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const stopped = new Promise<LoadResult>((resolve) => {
+      timer = setTimeout(() => resolve({ ok: false, error: "load-failed" }), loadTimeoutMs);
+      signal.addEventListener("abort", () => resolve({ ok: false, error: "load-failed" }), {
+        once: true,
+      });
+    });
+    const result = await Promise.race([this.load(modelId, onProgress), stopped]);
+    clearTimeout(timer);
     if (signal.aborted) {
       await this.unload();
       return { ok: false, error: "download-cancelled" };
     }
-    if (result.ok) {
+    if (!result.ok) {
+      // A failed or abandoned load: nothing stays half-loaded on the GPU.
+      await this.unload();
+    } else {
       try {
         await markModelVerified(this.deps.caches, record);
       } catch (error) {

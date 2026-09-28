@@ -242,6 +242,7 @@ export class LocalAiHost {
                 this.setProgress(progress);
               },
               abort.signal,
+              this.options.loadTimeoutMs ?? DEFAULT_LOAD_TIMEOUT_MS,
             );
             this.loadedModelId = result.ok ? modelId : null;
           }

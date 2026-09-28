@@ -228,6 +228,7 @@ function makeEngine(setup: Setup = {}) {
 }
 
 const noProgress = () => undefined;
+const LOAD_MS = 60_000;
 const signal = new AbortController().signal;
 
 // ------------------------------------------------------------------ install and cache
@@ -241,6 +242,7 @@ describe("install, integrity and cache state", () => {
         GEMMA.record.modelId,
         (phase, value) => progress.push([phase, value]),
         signal,
+        LOAD_MS,
       ),
     ).toEqual({ ok: true });
     expect(network).toEqual([...GEMMA.served.keys()]);
@@ -258,14 +260,16 @@ describe("install, integrity and cache state", () => {
 
   test("a resumed install re-verifies cached files instead of downloading them again", async () => {
     const { engine, network } = makeEngine();
-    await engine.install(GEMMA.record.modelId, noProgress, signal);
+    await engine.install(GEMMA.record.modelId, noProgress, signal, LOAD_MS);
     network.length = 0;
     await engine.unload();
     const progress: number[] = [];
     const onProgress = (phase: string, value: number) => {
       if (phase === "download") progress.push(value);
     };
-    expect(await engine.install(GEMMA.record.modelId, onProgress, signal)).toEqual({ ok: true });
+    expect(await engine.install(GEMMA.record.modelId, onProgress, signal, LOAD_MS)).toEqual({
+      ok: true,
+    });
     expect(network).toEqual([]);
     // Verification of the cached files is visible as progress, not silence.
     expect(progress.filter((value) => value > 0 && value < 1).length).toBeGreaterThan(0);
@@ -277,7 +281,7 @@ describe("install, integrity and cache state", () => {
     const weights = [...served.keys()].find((url) => url.endsWith(".onnx_data"))!;
     served.set(weights, "weights-evil!");
     const { engine, caches } = makeEngine({ served });
-    expect(await engine.install(GEMMA.record.modelId, noProgress, signal)).toEqual({
+    expect(await engine.install(GEMMA.record.modelId, noProgress, signal, LOAD_MS)).toEqual({
       ok: false,
       error: "integrity-failed",
     });
@@ -289,12 +293,35 @@ describe("install, integrity and cache state", () => {
     const weights = [...GEMMA.served.keys()].find((url) => url.endsWith(".onnx_data"))!;
     const { engine, caches, network } = makeEngine({ stall: weights });
     const abort = new AbortController();
-    const installing = engine.install(GEMMA.record.modelId, noProgress, abort.signal);
+    const installing = engine.install(GEMMA.record.modelId, noProgress, abort.signal, LOAD_MS);
     while (!network.includes(weights)) await flush();
     abort.abort();
     expect(await installing).toEqual({ ok: false, error: "download-cancelled" });
     expect(caches.urls()).not.toContain(weights);
     expect(await engine.cacheState(GEMMA.record.modelId)).toBe("partial");
+  });
+
+  test("an install whose GPU load hangs is abandoned at the bound or on cancel", async () => {
+    const hung = { loadModel: () => new Promise<ModelLike>(() => undefined) };
+    const timedOut = makeEngine(hung);
+    expect(await timedOut.engine.install(GEMMA.record.modelId, noProgress, signal, 20)).toEqual({
+      ok: false,
+      error: "load-failed",
+    });
+    expect(await timedOut.engine.cacheState(GEMMA.record.modelId)).toBe("partial");
+
+    const cancelled = makeEngine(hung);
+    const abort = new AbortController();
+    const installing = cancelled.engine.install(
+      GEMMA.record.modelId,
+      noProgress,
+      abort.signal,
+      LOAD_MS,
+    );
+    // Downloaded (files cached, not verified): the hung load is running.
+    while ((await cancelled.engine.cacheState(GEMMA.record.modelId)) !== "partial") await flush();
+    abort.abort();
+    expect(await installing).toEqual({ ok: false, error: "download-cancelled" });
   });
 
   test("files present without the verified marker are partial, never complete", async () => {
@@ -308,8 +335,8 @@ describe("install, integrity and cache state", () => {
 
   test("delete removes only that model's files and marker", async () => {
     const { engine, caches } = makeEngine();
-    await engine.install(GEMMA.record.modelId, noProgress, signal);
-    await engine.install(QWEN.record.modelId, noProgress, signal);
+    await engine.install(GEMMA.record.modelId, noProgress, signal, LOAD_MS);
+    await engine.install(QWEN.record.modelId, noProgress, signal, LOAD_MS);
     const presage = await caches.open("presage-dictionaries");
     await presage.put("https://example.invalid/en.db", new Response("dict"));
     await engine.delete(GEMMA.record.modelId);
@@ -346,7 +373,7 @@ describe("network guard", () => {
         return new FakeModel();
       },
     });
-    expect(await made.engine.install(GEMMA.record.modelId, noProgress, signal)).toEqual({
+    expect(await made.engine.install(GEMMA.record.modelId, noProgress, signal, LOAD_MS)).toEqual({
       ok: false,
       error: "load-failed",
     });
@@ -366,10 +393,12 @@ describe("network guard", () => {
     });
     await ok.guard.fetch(extensionUrl);
     await expect(ok.guard.fetch(listed)).rejects.toBeInstanceOf(NetworkBlockedError);
-    expect(await ok.engine.install(GEMMA.record.modelId, noProgress, signal)).toEqual({ ok: true });
+    expect(await ok.engine.install(GEMMA.record.modelId, noProgress, signal, LOAD_MS)).toEqual({
+      ok: true,
+    });
 
     const evil = makeEngine({ redirects: new Map([[listed, "https://evil.example/x"]]) });
-    expect(await evil.engine.install(GEMMA.record.modelId, noProgress, signal)).toEqual({
+    expect(await evil.engine.install(GEMMA.record.modelId, noProgress, signal, LOAD_MS)).toEqual({
       ok: false,
       error: "download-failed",
     });
@@ -381,7 +410,7 @@ describe("network guard", () => {
 describe("lifecycle and generation", () => {
   async function loaded(setup: Setup = {}) {
     const made = makeEngine(setup);
-    await made.engine.install(GEMMA.record.modelId, noProgress, signal);
+    await made.engine.install(GEMMA.record.modelId, noProgress, signal, LOAD_MS);
     return made;
   }
 
@@ -426,7 +455,7 @@ describe("lifecycle and generation", () => {
     });
 
     const qwen = makeEngine();
-    await qwen.engine.install(QWEN.record.modelId, noProgress, signal);
+    await qwen.engine.install(QWEN.record.modelId, noProgress, signal, LOAD_MS);
     await qwen.engine.generate(QWEN.record.modelId, REQUEST);
     expect(qwen.tokenizer.templateOptions[0]).not.toHaveProperty("enable_thinking");
   });
@@ -455,7 +484,7 @@ describe("lifecycle and generation", () => {
         throw new Error(`${SENTINEL} load`);
       },
     });
-    const install = await failing.engine.install(GEMMA.record.modelId, noProgress, signal);
+    const install = await failing.engine.install(GEMMA.record.modelId, noProgress, signal, LOAD_MS);
     expect(install).toEqual({ ok: false, error: "load-failed" });
 
     const { engine, model } = await loaded();
@@ -480,6 +509,8 @@ describe("probeGpu and SHA-256", () => {
       "missing-feature",
     );
     expect(await probeGpu(gpu({ features: new Set(["shader-f16"]) }), GEMMA.record)).toBeNull();
+    const hung: GpuLike = { requestAdapter: () => new Promise(() => undefined) };
+    expect(await probeGpu(hung, GEMMA.record, 20)).toBe("no-adapter");
   });
 
   test("incremental SHA-256 matches a reference across chunk boundaries", () => {
