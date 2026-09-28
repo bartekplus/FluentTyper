@@ -75,6 +75,8 @@ export const KEY_OBSERVABILITY_ENABLED = "observabilityEnabled";
 export const KEY_OBSERVABILITY_DEFAULT_LEVEL = "observabilityDefaultLevel";
 export const KEY_OBSERVABILITY_MODULE_OVERRIDES = "observabilityModuleOverrides";
 export const KEY_SHOW_SUGGESTION_FOOTER = "showSuggestionFooter";
+/** @deprecated Legacy "Show language of prediction" key – kept only for migration in SettingsMigrationV10. */
+export const KEY_LEGACY_DISPLAY_LANG_HEADER = "displayLangHeader";
 export const KEY_SHOW_REVIEW_BUTTON = "showReviewButton";
 export const KEY_INLINE_SUGGESTION = "inline_suggestion";
 export const KEY_PREFIX_ONLY_MODE = "prefixOnlyMode";

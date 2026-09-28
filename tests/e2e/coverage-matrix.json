@@ -3283,6 +3283,11 @@
           "layer": "unit",
           "file": "tests/UiLanguage.test.ts",
           "test": "uses the Extension UI Language setting, or the browser's when it is auto"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SettingsMigrationV10.test.ts",
+          "test": "keeps the prediction language on for users who had turned it on"
         }
       ]
     },
