@@ -1196,7 +1196,7 @@ export class ReviewSession {
 
   private aiAvailability(): ReviewAiAvailability {
     return this.deps.ai
-      ? reviewAiAvailability(this.aiStatus, this.aiEnabled, this.aiPaused)
+      ? reviewAiAvailability(this.aiStatus, this.aiEnabled, this.aiPaused, this.options.lang)
       : "off";
   }
 

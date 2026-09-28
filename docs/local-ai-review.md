@@ -84,7 +84,9 @@ model-lib ABI `v0_2_84/base`. Two tiers, chosen from the real-GPU evaluation
 and **Compact = Qwen3 1.7B** (smaller download, equally conservative, far fewer
 corrections). Both q4f16_1, 4k context, `enable_thinking: false`. No higher-quality tier:
 the stronger candidate (Qwen3.5 4B) changed correct text and meaning in the evaluation.
-Requests use `response_format: {type: "json_object", schema}`; WebLLM 0.2.85 fails a
+Local AI runs only for review languages listed in the model record (`languages: ["en"]`);
+both models damaged a Polish rewrite in the evaluation. Requests use
+`response_format: {type: "json_object", schema}`; WebLLM 0.2.85 fails a
 bare `json_object` request.
 
 ## Pipeline (pure domain, `src/core/domain/grammar/review/ai/`)

@@ -1,4 +1,5 @@
 import type { LocalAiStatus } from "@core/domain/contracts/localAi";
+import { localAiModelForTier } from "@core/domain/localAi/modelRegistry";
 import type {
   AiErrorCode,
   AiGenerationOutcome,
@@ -52,7 +53,9 @@ export type ReviewAiAvailability =
   /** Ready (engine may still need to load from cache). */
   | "ready"
   /** Paused by the user for this review. */
-  | "paused";
+  | "paused"
+  /** The review's language is not one the selected model was evaluated for. */
+  | "language";
 
 /** Local AI coverage of the CURRENT text, tracked apart from rule coverage. */
 export type ReviewAiCoverage =
@@ -130,6 +133,7 @@ export function reviewAiAvailability(
   status: LocalAiStatus | null,
   enabled: boolean,
   paused: boolean,
+  lang = "en",
 ): ReviewAiAvailability {
   if (!enabled || !status?.enabled) return "off";
   // No runtime host in this browser or build (Firefox): Review stays exactly as without AI.
@@ -137,6 +141,9 @@ export function reviewAiAvailability(
     return "off";
   }
   if (status.runtime === "unavailable" || status.unavailable) return "unsupported";
+  // Only evaluated languages: elsewhere a small model damages text (docs/local-ai-evaluation.md).
+  const base = lang.slice(0, 2).toLowerCase();
+  if (!localAiModelForTier(status.tier).languages.includes(base)) return "language";
   if (!status.consented) return "setup-needed";
   // A download in progress is a partial install: it is installing, not missing.
   if (status.runtime === "downloading") return "installing";

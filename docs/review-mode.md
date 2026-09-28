@@ -252,6 +252,10 @@ downloaded again until you press Download. Turning the switch off keeps the mode
 stops using it. On a browser or device that cannot run it (no WebGPU, no 16-bit float
 shader support, Firefox), the settings say why and Review never asks again.
 
+**Languages.** Local AI runs only for English reviews for now: that is what the models
+were evaluated on. For another review language the panel says so once, and the rule and
+dictionary checks work as always.
+
 **Correct (the default).** When a review opens, the rule and dictionary results appear
 first, as always. Then the model checks the scope in the background, a paragraph at a
 time ("Checking context locally…"), and adds what it finds to the same list, tagged

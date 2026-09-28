@@ -720,6 +720,12 @@ describe("Local AI review helpers", () => {
         false,
       ),
     ).toBe("unsupported");
+    // Only languages the selected model was evaluated for (English): no setup offer, no run.
+    expect(reviewAiAvailability(status({ consented: false }), true, false, "pl_PL")).toBe(
+      "language",
+    );
+    expect(reviewAiAvailability(status(), true, false, "pl_PL")).toBe("language");
+    expect(reviewAiAvailability(status(), true, false, "en_GB")).toBe("ready");
     expect(reviewAiAvailability(status({ consented: false }), true, false)).toBe("setup-needed");
     expect(reviewAiAvailability(status({ install: "partial" }), true, false)).toBe(
       "install-needed",

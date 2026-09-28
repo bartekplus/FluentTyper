@@ -192,6 +192,9 @@ describe("ReviewUi: Local AI", () => {
     expect(shown(".modes")).toBe(false);
     expect($(".ai-line").textContent).toContain("isn't available");
     expect(shown("[data-action=ai-setup]")).toBe(false);
+    ui.render(state({ ai: ai({ availability: "language" }) }));
+    expect(shown(".modes")).toBe(false);
+    expect($(".ai-line").textContent).toContain("English text only");
 
     ui.render(state());
     const group = $(".modes");

@@ -1152,6 +1152,17 @@ const UI = {
     "Lokalna SI nie jest dostępna w tej przeglądarce ani na tym urządzeniu. Podstawowe sprawdzanie nadal działa.",
     "A IA local não está disponível neste navegador ou dispositivo. As verificações básicas continuam funcionando.",
   ],
+  review_ai_language: [
+    "Local AI checks English text only for now. Basic checks still work.",
+    "L'IA locale ne vérifie pour l'instant que les textes en anglais. Les vérifications de base fonctionnent toujours.",
+    "Lokalna UI zasad provjerava samo tekst na engleskom. Osnovne provjere i dalje rade.",
+    "Por ahora la IA local solo revisa texto en inglés. Las comprobaciones básicas siguen funcionando.",
+    "Η τοπική ΤΝ ελέγχει προς το παρόν μόνο αγγλικό κείμενο. Οι βασικοί έλεγχοι λειτουργούν κανονικά.",
+    "Lokal AI kontrollerar än så länge bara engelsk text. De grundläggande kontrollerna fungerar fortfarande.",
+    "Die lokale KI prüft vorerst nur englischen Text. Die Basisprüfungen funktionieren weiterhin.",
+    "Lokalna SI na razie sprawdza tylko tekst po angielsku. Podstawowe sprawdzanie nadal działa.",
+    "Por enquanto, a IA local só verifica texto em inglês. As verificações básicas continuam funcionando.",
+  ],
   review_ai_off: [
     "Local AI is off. Turn it on in settings to rewrite.",
     "L'IA locale est désactivée. Activez-la dans les paramètres pour réécrire.",
