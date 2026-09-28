@@ -119,6 +119,7 @@ export class LocalAiHost {
   private installAbort: AbortController | null = null;
   /** Support/cache probes queued or running: jobs wait for them. */
   private refreshing = 0;
+  private queuedRefresh: Promise<void> | null = null;
   private interruptRunning: (() => void) | null = null;
   private lock: Promise<unknown> = Promise.resolve();
   private idleTimer: ReturnType<typeof setTimeout> | null = null;
@@ -183,10 +184,16 @@ export class LocalAiHost {
     return run;
   }
 
-  /** Probe support and, for the current model, what is cached. */
+  /**
+   * Probe support and, for the current model, what is cached. A request joins a
+   * refresh still waiting for the lock (it will read the latest state when it runs);
+   * one already running may describe an older model, so a new one queues behind it.
+   */
   refresh(): Promise<void> {
+    if (this.queuedRefresh) return this.queuedRefresh;
     this.refreshing += 1;
-    return this.exclusive(async () => {
+    const refresh = this.exclusive(async () => {
+      this.queuedRefresh = null;
       const modelId = this.stateModelId ?? localAiModelForTier(undefined).modelId;
       this.activity = "checking";
       this.publish();
@@ -204,6 +211,8 @@ export class LocalAiHost {
       this.refreshing -= 1;
       this.settle();
     });
+    this.queuedRefresh = refresh;
+    return refresh;
   }
 
   /**
@@ -275,7 +284,12 @@ export class LocalAiHost {
     return this.exclusive(async () => {
       this.activity = "unloading";
       this.publish();
-      await this.engine.delete(modelId);
+      try {
+        await this.engine.delete(modelId);
+      } catch {
+        // The files stay (the cache state below says so); the options page shows why.
+        this.error = "delete-failed";
+      }
       if (this.loadedModelId === modelId) {
         this.loadedModelId = null;
       }

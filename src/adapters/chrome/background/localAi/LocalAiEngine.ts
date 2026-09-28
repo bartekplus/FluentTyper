@@ -311,7 +311,7 @@ export class LocalAiEngine {
     }
   }
 
-  /** The host reads the outcome back with `cacheState`. */
+  /** Throws if the cache refuses; the host reads the outcome back with `cacheState`. */
   async delete(modelId: string): Promise<void> {
     const record = this.findModel(modelId);
     if (!record) {
@@ -320,7 +320,7 @@ export class LocalAiEngine {
     if (this.loaded?.modelId === modelId || this.loading?.modelId === modelId) {
       await this.unload();
     }
-    await deleteModelArtifacts(this.deps.caches, record).catch(() => undefined);
+    await deleteModelArtifacts(this.deps.caches, record);
   }
 
   interrupt(): void {

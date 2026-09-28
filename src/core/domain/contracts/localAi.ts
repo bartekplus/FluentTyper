@@ -38,6 +38,7 @@ export type LocalAiErrorCode =
   | "download-cancelled"
   | "storage-full"
   | "cache-failed"
+  | "delete-failed"
   | "load-failed"
   | "device-lost"
   | "integrity-failed";

@@ -5810,6 +5810,17 @@ i18n.extend({
     pl: "Przeglądarka nie mogła zapisać plików modelu.",
     pr: "O navegador não conseguiu salvar os arquivos do modelo.",
   },
+  local_ai_error_delete_failed: {
+    en: "The browser couldn't delete the model files. Try again.",
+    fr: "Le navigateur n'a pas pu supprimer les fichiers du modèle. Réessayez.",
+    hr: "Preglednik nije mogao izbrisati datoteke modela. Pokušajte ponovo.",
+    es: "El navegador no pudo eliminar los archivos del modelo. Inténtelo de nuevo.",
+    el: "Το πρόγραμμα περιήγησης δεν μπόρεσε να διαγράψει τα αρχεία του μοντέλου. Δοκιμάστε ξανά.",
+    sv: "Webbläsaren kunde inte ta bort modellfilerna. Försök igen.",
+    de: "Der Browser konnte die Modelldateien nicht löschen. Versuchen Sie es erneut.",
+    pl: "Przeglądarka nie mogła usunąć plików modelu. Spróbuj ponownie.",
+    pr: "O navegador não conseguiu excluir os arquivos do modelo. Tente novamente.",
+  },
   local_ai_error_load_failed: {
     en: "The model couldn't be loaded on this device.",
     fr: "Le modèle n'a pas pu être chargé sur cet appareil.",
