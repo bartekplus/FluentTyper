@@ -1768,6 +1768,17 @@ const UI = {
     "Propozycję przepisania odrzucono: odpowiedź modelu była niepełna. Twój tekst się nie zmienił. Wygeneruj ponownie lub wybierz inny styl.",
     "A reescrita foi descartada: a resposta do modelo estava incompleta. Seu texto não foi alterado. Gere novamente ou experimente outro estilo.",
   ],
+  review_reject_unchanged: [
+    "The model returned your text unchanged. Generate again or try another style.",
+    "Le modèle a renvoyé votre texte sans modification. Générez à nouveau ou essayez un autre style.",
+    "Model je vratio vaš tekst bez promjena. Generirajte ponovno ili odaberite drugi stil.",
+    "El modelo devolvió su texto sin cambios. Genere de nuevo o pruebe otro estilo.",
+    "Το μοντέλο επέστρεψε το κείμενό σας χωρίς αλλαγές. Δημιουργήστε ξανά ή δοκιμάστε άλλο ύφος.",
+    "Modellen returnerade din text oförändrad. Generera igen eller prova en annan stil.",
+    "Das Modell hat Ihren Text unverändert zurückgegeben. Erneut erzeugen oder einen anderen Stil wählen.",
+    "Model zwrócił tekst bez zmian. Wygeneruj ponownie lub wybierz inny styl.",
+    "O modelo devolveu seu texto sem alterações. Gere novamente ou experimente outro estilo.",
+  ],
 } satisfies Record<string, Translations>;
 
 type ReviewUiKey = keyof typeof UI;

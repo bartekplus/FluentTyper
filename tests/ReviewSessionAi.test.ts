@@ -663,7 +663,12 @@ describe("ReviewSession with Local AI: Rewrite", () => {
     await h.start();
     h.session.setAiPaused(true);
     h.session.setMode("rewrite");
+    h.ai.auto = false;
     h.session.generateRewrite();
+    // The host reports its own work on this request; that must not end it.
+    h.ai.push({ runtime: "generating" });
+    expect(h.ai.aborted).toBe(0);
+    h.ai.requests.at(-1)!.answer();
     await h.settle();
     expect(h.last().ai.availability).toBe("paused");
     expect(h.last().rewrite!.status).toBe("ready");

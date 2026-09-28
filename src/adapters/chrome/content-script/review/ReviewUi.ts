@@ -106,6 +106,7 @@ const REJECTION_KEY: Record<AiRejectionReason, ReviewTextKey> = {
   "too-many-edits": "review_reject_too_much",
   shape: "review_reject_incomplete",
   "unsafe-boundary": "review_reject_incomplete",
+  unchanged: "review_reject_unchanged",
 };
 
 function isLocalAi(diagnostic: ReviewDiagnostic): boolean {

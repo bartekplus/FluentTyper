@@ -108,6 +108,8 @@ export type AiRejectionReason =
   | "invented"
   | "length"
   | "too-many-edits"
+  /** Rewrite returned every sentence as written: nothing to apply. */
+  | "unchanged"
   | "unsafe-boundary";
 
 export interface AiCorrectionResult {

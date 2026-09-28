@@ -749,4 +749,14 @@ describe("rewriteProposal", () => {
     });
     expect(rewriteProposal(prep, [], [], "concise")).toEqual({ ok: false, reason: "shape" });
   });
+
+  test("a rewrite that changes nothing has nothing to apply", () => {
+    const prep = prepared("One is here.");
+    const { chunks } = buildAiChunks(prep, { mode: "rewrite", style: "concise" });
+    const echo = chunks.map((chunk) => chunk.segments.map(({ id, text }) => ({ id, text })));
+    expect(rewriteProposal(prep, chunks, echo, "concise")).toEqual({
+      ok: false,
+      reason: "unchanged",
+    });
+  });
 });

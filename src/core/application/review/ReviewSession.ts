@@ -1222,8 +1222,9 @@ export class ReviewSession {
     const availability = this.aiAvailability();
     if (availability === "off") {
       this.aiOff();
-    } else if (modelChanged || availability !== "ready") {
-      // Another model's answers do not describe this one's: they go.
+    } else if (modelChanged || (availability !== "ready" && availability !== "paused")) {
+      // Another model's answers do not describe this one's: they go. Paused keeps an
+      // explicit rewrite running (the host reports its own work on it).
       this.cancelAi();
       this.stopRewriteGeneration("idle");
       if (modelChanged) this.dropAiFindings();

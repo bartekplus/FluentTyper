@@ -169,13 +169,17 @@ describe("Local AI fixtures", () => {
   );
 
   test.each(REWRITE.map((fixture) => [fixture.id, fixture] as const))(
-    "%s: an unchanged rewrite passes validation and its own invariants",
+    "%s: an echoed rewrite is valid but has nothing to apply; its must-keep terms are in the text",
     (_id, fixture) => {
       const score = scoreRewriteCase(
         fixture,
         oracleOutputs(fixture, fixture.text, "rewrite", fixture.style),
       );
-      expect(score).toMatchObject({ valid: true, proposalOk: true, missing: [], forbidden: [] });
+      expect(score).toMatchObject({ valid: true, proposalOk: false, rejection: "unchanged" });
+      const text = fixture.text.toLowerCase();
+      expect(
+        fixture.invariants.mustKeep.filter((keep) => !text.includes(keep.toLowerCase())),
+      ).toEqual([]);
     },
   );
 
@@ -212,7 +216,7 @@ describe("Local AI fixtures", () => {
         oracleOutputs(REWRITE[0], REWRITE[0].text, "rewrite", REWRITE[0].style),
       ),
     ]);
-    expect(rewrites).toContain("| 1 | 1 | 1 | 1 |");
+    expect(rewrites).toContain("| 1 | 1 | 0 | 0 |");
     expect(rewrites).not.toContain(REWRITE[0].text);
   });
 });

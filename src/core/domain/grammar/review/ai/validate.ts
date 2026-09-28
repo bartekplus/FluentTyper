@@ -1299,6 +1299,7 @@ export function rewriteProposal(
     // Most frequent; ties go to the first reason met.
     return fail(reasons.reduce((best, entry) => (entry[1] > best[1] ? entry : best))[0]);
   }
+  if (edits.length === 0) return fail("unchanged");
 
   const source = prepared.snapshot.text;
   const { scope } = prepared.snapshot;
