@@ -34,6 +34,9 @@ import {
   KEY_DOMAIN_LIST_MODE,
   KEY_SHOW_SUGGESTION_FOOTER,
   KEY_SHOW_REVIEW_BUTTON,
+  KEY_LOCAL_AI_REVIEW_ENABLED,
+  KEY_LOCAL_AI_REVIEW_TIER,
+  DEFAULT_LOCAL_AI_REVIEW_ENABLED,
   KEY_EXTENSION_LANGUAGE,
   KEY_SITE_PROFILES,
   KEY_PREFER_NATIVE_AUTOCOMPLETE,
@@ -62,6 +65,7 @@ import {
   DEFAULT_SUGGESTION_THEME_SETTINGS,
   type SuggestionThemeSettings,
 } from "@core/domain/themeDefaults";
+import { DEFAULT_LOCAL_AI_TIER } from "@core/domain/localAi/modelRegistry";
 import {
   GRAMMAR_RULE_CATALOG,
   GRAMMAR_RULE_IDS,
@@ -495,6 +499,22 @@ const manifest: ManifestDefinition = {
         i18n.get("show_review_button_desc"),
       ),
       default: true,
+    },
+    // Rendered in the Grammar workspace's Local AI card (LocalAiSettingsPanel).
+    {
+      tab: "grammar_tab",
+      group: i18n.get("local_ai_title"),
+      name: KEY_LOCAL_AI_REVIEW_ENABLED,
+      type: "checkbox",
+      label: buildFieldLabel(i18n.get("local_ai_enabled_label"), i18n.get("local_ai_enabled_desc")),
+      default: DEFAULT_LOCAL_AI_REVIEW_ENABLED,
+    },
+    {
+      tab: "grammar_tab",
+      group: i18n.get("local_ai_title"),
+      name: KEY_LOCAL_AI_REVIEW_TIER,
+      type: "valueOnly",
+      default: DEFAULT_LOCAL_AI_TIER,
     },
     {
       tab: "grammar_tab",

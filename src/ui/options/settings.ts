@@ -55,6 +55,8 @@ import {
   KEY_DOMAIN_LIST_MODE,
   KEY_SHOW_SUGGESTION_FOOTER,
   KEY_SHOW_REVIEW_BUTTON,
+  KEY_LOCAL_AI_REVIEW_ENABLED,
+  KEY_LOCAL_AI_REVIEW_TIER,
   KEY_INLINE_SUGGESTION,
   KEY_PREFIX_ONLY_MODE,
   KEY_PERSONALIZATION_ENABLED,
@@ -157,6 +159,8 @@ const CONFIG_REFRESH_KEYS = [
   KEY_USER_DICTIONARY_LIST,
   KEY_SHOW_SUGGESTION_FOOTER,
   KEY_SHOW_REVIEW_BUTTON,
+  KEY_LOCAL_AI_REVIEW_ENABLED,
+  KEY_LOCAL_AI_REVIEW_TIER,
   KEY_INLINE_SUGGESTION,
   KEY_PREFER_NATIVE_AUTOCOMPLETE,
   KEY_CODE_MODE,
@@ -243,7 +247,7 @@ function applyInlineSuggestionLocks(registry: SettingsRegistry, enabled: boolean
   registry[KEY_SHOW_SUGGESTION_FOOTER]?.setDisabled(enabled);
 }
 
-function wireRuntimeSettingsHandlers(registry: SettingsRegistry): void {
+export function wireRuntimeSettingsHandlers(registry: SettingsRegistry): void {
   registry[KEY_INLINE_SUGGESTION]?.addEvent("action", () => {
     applyInlineSuggestionLocks(registry, registry[KEY_INLINE_SUGGESTION].get() as boolean);
   });

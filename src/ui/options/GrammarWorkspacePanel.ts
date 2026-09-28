@@ -1,6 +1,7 @@
 import type { SettingsRegistry } from "@ui/settings-engine/SettingsEngine.js";
 import { KEY_ENABLED_GRAMMAR_RULES, KEY_SHOW_REVIEW_BUTTON } from "@core/domain/constants";
 import { i18n } from "./fluenttyperI18n.js";
+import { mountLocalAiSettings } from "./LocalAiSettingsPanel.js";
 import {
   createWorkspaceCard,
   createWorkspaceShell,
@@ -25,5 +26,7 @@ export function renderGrammarWorkspacePanel(root: HTMLElement, registry: Setting
 
   shell.append(review.card, card);
   root.replaceChildren(shell);
+  // Mounted after the shell is attached so it can observe its own visibility.
+  mountLocalAiSettings(review.card, registry);
   pruneEmptySettingsGroups(root);
 }
