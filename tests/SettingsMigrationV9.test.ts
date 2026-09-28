@@ -62,6 +62,21 @@ describe("migrateSettingsV9", () => {
     );
   });
 
+  test("a customized mode keeps the previous defaults for colors never saved", async () => {
+    // Only one light color was ever saved; the others fall back to defaults.
+    const settings = createMockSettingsManager({ suggestionHighlightBgLight: "#7c3aed" });
+
+    await migrateSettingsV9(settings);
+
+    expect(settings.store.suggestionHighlightBgLight).toBe("#7c3aed");
+    expect(settings.store.suggestionBgLight).toBe(PREVIOUS_LIGHT.suggestionBgLight);
+    expect(settings.store.suggestionTextLight).toBe(PREVIOUS_LIGHT.suggestionTextLight);
+    // The untouched dark mode moves to the redesign.
+    expect(settings.store.suggestionBgDark).toBe(
+      DEFAULT_SUGGESTION_THEME_SETTINGS.suggestionBgDark,
+    );
+  });
+
   test("finishes a mode that a failed earlier run left half migrated", async () => {
     const settings = createMockSettingsManager({
       ...PREVIOUS_DARK,

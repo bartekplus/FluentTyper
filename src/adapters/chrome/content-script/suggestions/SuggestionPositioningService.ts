@@ -288,7 +288,8 @@ export class SuggestionPositioningService {
     availableAbove: number,
     menuHeight: number,
   ): "above" | "below" {
-    const line = `${Math.round(rect.top)}:${window.innerHeight}`;
+    // Width counts too: it changes the width cap, the wrapping and so the height.
+    const line = `${Math.round(rect.top)}:${window.innerWidth}x${window.innerHeight}`;
     const locked = menu.getAttribute(SUGGESTION_MENU_PLACEMENT_ATTR);
     if (
       menu.getAttribute(SUGGESTION_MENU_PLACEMENT_LINE_ATTR) === line &&

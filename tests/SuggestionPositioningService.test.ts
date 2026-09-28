@@ -108,6 +108,17 @@ describe("SuggestionPositioningService", () => {
       Object.defineProperty(window, "innerHeight", { value: originalHeight, configurable: true });
     }
 
+    // A width-only resize re-decides too (it changes the width cap and wrapping).
+    const originalWidth = window.innerWidth;
+    Object.defineProperty(window, "innerWidth", { value: originalWidth + 1, configurable: true });
+    menu.setAttribute("data-ft-placement", "below");
+    try {
+      service.positionMenu(menu, target);
+      expect(menu.getAttribute("data-ft-placement")).toBe("above");
+    } finally {
+      Object.defineProperty(window, "innerWidth", { value: originalWidth, configurable: true });
+    }
+
     // Caret on a line with room below: a fresh decision.
     const nextLine = new CaretPositioningService(createRect(50, 100, 0, 16));
     nextLine.positionMenu(menu, target);
