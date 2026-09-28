@@ -22,7 +22,7 @@ export class LocalAiSettingsRepository extends SettingsRepositoryBase {
 
   async getLocalAiReviewTier(): Promise<LocalAiModelTier> {
     const value = await this.getField("localAiReviewTier");
-    return value === "standard" || value === "quality" ? value : DEFAULT_LOCAL_AI_TIER;
+    return value === "standard" || value === "compact" ? value : DEFAULT_LOCAL_AI_TIER;
   }
 
   async setLocalAiReviewTier(tier: LocalAiModelTier): Promise<void> {

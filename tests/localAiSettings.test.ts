@@ -22,8 +22,8 @@ const NOT_SET_UP: LocalAiStatus = {
   enabled: true,
   consented: false,
   tier: "standard",
-  modelId: "Qwen3-1.7B-q4f16_1-MLC",
-  displayName: "Standard (Qwen3 1.7B)",
+  modelId: "Qwen3-4B-q4f16_1-MLC",
+  displayName: "Recommended (Qwen3 4B)",
   downloadBytes: 968_001_536,
   install: "none",
   runtime: "download-required",
@@ -156,7 +156,7 @@ describe("Local AI settings section", () => {
 
     expect(sent).toEqual([{ command: CMD_LOCAL_AI_GET_STATUS, context: { probe: true } }]);
     expect(statusText(card)).toContain("Not set up yet");
-    expect(visibleButton(card, "Download and enable (≈ 0.97 GB)")).toBeDefined();
+    expect(visibleButton(card, "Download and enable (≈ 2.26 GB)")).toBeDefined();
     expect(card.textContent).toContain("Hugging Face");
     expect(card.textContent).toContain("estimated GPU memory");
     expect(card.querySelectorAll('input[type="radio"]')).toHaveLength(2);
@@ -193,22 +193,22 @@ describe("Local AI settings section", () => {
     expect(storage["store.settings.localAiReviewEnabled"]).toBe("false");
     expect(sent.map((message) => message.command)).toEqual([CMD_OPTIONS_PAGE_CONFIG_CHANGE]);
 
-    const quality = card.querySelector<HTMLInputElement>('input[value="quality"]')!;
+    const quality = card.querySelector<HTMLInputElement>('input[value="compact"]')!;
     quality.click();
     await flush();
-    expect(storage["store.settings.localAiReviewTier"]).toBe('"quality"');
+    expect(storage["store.settings.localAiReviewTier"]).toBe('"compact"');
     expect(sent.map((message) => message.command)).toEqual([
       CMD_OPTIONS_PAGE_CONFIG_CHANGE,
       CMD_OPTIONS_PAGE_CONFIG_CHANGE,
     ]);
-    expect(statusText(card)).toContain("Higher quality (Qwen3 4B) isn't installed yet");
-    expect(visibleButton(card, "Download and enable (≈ 2.26 GB)")).toBeDefined();
+    expect(statusText(card)).toContain("Compact (Qwen3 1.7B) isn't installed yet");
+    expect(visibleButton(card, "Download and enable (≈ 0.97 GB)")).toBeDefined();
   });
 
   test("install needs the inline confirm and sends the selected tier only after it", async () => {
     const { registry, card } = await renderOptions();
     (registry[KEY_LOCAL_AI_REVIEW_ENABLED].element as HTMLInputElement).click();
-    card.querySelector<HTMLInputElement>('input[value="quality"]')!.click();
+    card.querySelector<HTMLInputElement>('input[value="compact"]')!.click();
     await flush();
     sent.length = 0;
 
@@ -217,7 +217,7 @@ describe("Local AI settings section", () => {
     expect(localAiCommands()).toEqual([]);
     const confirm = card.querySelector<HTMLElement>(".local-ai-confirm")!;
     expect(confirm.hidden).toBe(false);
-    expect(confirm.textContent).toContain("2.26 GB");
+    expect(confirm.textContent).toContain("0.97 GB");
     expect(confirm.textContent).toContain("huggingface.co");
 
     visibleButton(card, "Not now")!.click();
@@ -229,7 +229,7 @@ describe("Local AI settings section", () => {
     visibleButton(card, "Download")!.click();
     await flush();
     expect(localAiCommands()).toEqual([
-      { command: CMD_LOCAL_AI_INSTALL, context: { tier: "quality" } },
+      { command: CMD_LOCAL_AI_INSTALL, context: { tier: "compact" } },
     ]);
     // "Download and enable" also switches the preference back on.
     expect(storage["store.settings.localAiReviewEnabled"]).toBe("true");
@@ -241,7 +241,7 @@ describe("Local AI settings section", () => {
     broadcast({ ...NOT_SET_UP, consented: true, install: "partial", runtime: "unconfigured" });
     expect(statusText(card)).toContain("Download incomplete");
     expect(statusText(card)).not.toContain("available offline");
-    expect(visibleButton(card, "Install again (≈ 0.97 GB)")).toBeDefined();
+    expect(visibleButton(card, "Install again (≈ 2.26 GB)")).toBeDefined();
 
     broadcast({ ...NOT_SET_UP, consented: true, install: "complete", runtime: "ready" });
     expect(statusText(card)).toBe("Installed — available offline.");
@@ -279,7 +279,7 @@ describe("Local AI settings section", () => {
     visibleButton(card, "Delete model")!.click();
     await flush();
     expect(localAiCommands()).toEqual([
-      { command: CMD_LOCAL_AI_DELETE_MODEL, context: { modelId: "Qwen3-1.7B-q4f16_1-MLC" } },
+      { command: CMD_LOCAL_AI_DELETE_MODEL, context: { modelId: "Qwen3-4B-q4f16_1-MLC" } },
     ]);
   });
 

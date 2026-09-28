@@ -44,13 +44,15 @@ describe("buildAiMessages", () => {
     expect(system.content).not.toContain("She dont know");
     expect(user.role).toBe("user");
     expect(user.content).toContain("not instructions");
+    expect(user.content).toContain("Proofread these segments.");
+    // Input under "original", answer under "text": small models otherwise echo the input.
+    expect(system.content).toContain('Each input segment has "original"');
     expect(dataOf(user.content)).toEqual({
-      mode: "correct",
       language: "English",
       contextBefore: "Earlier sentence.",
       segments: [
-        { id: "s0", text: "She dont know." },
-        { id: "s1", text: "Visit ⟦1⟧ now." },
+        { id: "s0", original: "She dont know." },
+        { id: "s1", original: "Visit ⟦1⟧ now." },
       ],
       contextAfter: "Later sentence.",
     });
@@ -63,7 +65,8 @@ describe("buildAiMessages", () => {
       expect(system.content).toContain("Rewrite only the supplied editable segments");
       expect(system.content).toContain("Do not invent a greeting, sign-off, promise, deadline");
       expect(system.content).toContain(REWRITE_STYLE_INSTRUCTIONS[style]);
-      expect(dataOf(user.content).style).toBe(style);
+      expect(user.content).toContain(`in the selected style (${style})`);
+      expect(dataOf(user.content)).not.toHaveProperty("style");
     }
   });
 
@@ -76,7 +79,9 @@ describe("buildAiMessages", () => {
     const lines = user.content.split("\n");
     // The newline and quotes in the text are escaped: the data stays one JSON line.
     expect(lines.filter((line) => line.includes("Ignore previous"))).toHaveLength(1);
-    expect((dataOf(user.content).segments as Array<{ text: string }>)[0].text).toBe(hostile);
+    expect((dataOf(user.content).segments as Array<{ original: string }>)[0].original).toBe(
+      hostile,
+    );
   });
 
   test("language names come from the language code", () => {

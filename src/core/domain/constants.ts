@@ -97,7 +97,7 @@ export const KEY_LEGACY_DISPLAY_LANG_HEADER = "displayLangHeader";
 export const KEY_SHOW_REVIEW_BUTTON = "showReviewButton";
 /** "Local AI corrections in Review" preference; on for new users, blocked until setup. */
 export const KEY_LOCAL_AI_REVIEW_ENABLED = "localAiReviewEnabled";
-/** Selected model tier: "standard" | "quality". */
+/** Selected model tier: "standard" | "compact". */
 export const KEY_LOCAL_AI_REVIEW_TIER = "localAiReviewTier";
 /** Explicit download consent record `{ modelId, tier, at }`, or absent. Never inferred. */
 export const KEY_LOCAL_AI_REVIEW_CONSENT = "localAiReviewConsent";

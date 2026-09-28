@@ -242,8 +242,9 @@ device (WebGPU). It is off until you set it up, and basic Review works the same 
 without it. It never runs while you type: suggestions and autocomplete stay Presage-only.
 
 **Setting it up.** The first review offers "Set up local AI…" once (with the download
-size), or open **Settings → Grammar → Local AI**. There you choose **Standard** or
-**Higher quality**, see the download size and an estimate of GPU memory, and press
+size), or open **Settings → Grammar → Local AI**. There you choose **Recommended**
+(Qwen3 4B, about 2.3 GB) or **Compact** (Qwen3 1.7B, about 1 GB, finds far fewer
+mistakes), see the download size and an estimate of GPU memory, and press
 **Download and enable**, which asks you to confirm first. The model files come from
 Hugging Face once, from a pinned revision; the model's executable code ships inside the
 extension. After that it works offline. **Delete model** frees the disk space; nothing is

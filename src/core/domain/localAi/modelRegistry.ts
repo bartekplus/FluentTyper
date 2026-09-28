@@ -18,7 +18,7 @@ export const LOCAL_AI_RUNTIME_VERSION = "0.2.85";
 /** WebLLM model-library ABI directory the packaged libraries come from. */
 export const LOCAL_AI_MODEL_LIB_ABI = "v0_2_84/base";
 
-export type LocalAiModelTier = "standard" | "quality";
+export type LocalAiModelTier = "standard" | "compact";
 
 /** Evaluation status; a model is promoted only with recorded real-device evidence. */
 export type LocalAiQualityStatus = "unevaluated" | "evaluated" | "rejected";
@@ -51,32 +51,17 @@ export interface LocalAiModelRecord {
   source: string;
 }
 
+/**
+ * Chosen from the real-GPU evaluation (docs/local-ai-evaluation.md, prompt
+ * review-ai-2): Qwen3 4B was the only candidate with no false positives, no
+ * meaning-changing edits and useful recall, so it is the default. Qwen3 1.7B is
+ * the smaller fallback: equally conservative, but it finds far fewer mistakes.
+ */
 export const LOCAL_AI_MODELS: readonly LocalAiModelRecord[] = [
   {
     tier: "standard",
-    modelId: "Qwen3-1.7B-q4f16_1-MLC",
-    displayName: "Standard (Qwen3 1.7B)",
-    weightsRepo: "mlc-ai/Qwen3-1.7B-q4f16_1-MLC",
-    weightsRevision: "80b3abcec6c3b3f5355dc0cc99cc4fb578f192bc",
-    modelLibPath: "local-ai/libs/Qwen3-1.7B-q4f16_1_cs1k-webgpu.wasm",
-    modelLibSha256: "8161aaa4b40bccf19fcedb2f2e8c221eb9efb72d2198681f1958c9c1e05a682f",
-    modelLibSri: "sha384-7QJDec7NGvNVHjD9ZRdHNFxHlk/iXvbqQ7xDxoO6lpVF7/GmSvWboR66CTWhsRL8",
-    modelLibBytes: 5_566_554,
-    quantization: "q4f16_1",
-    contextWindow: 4096,
-    requiredFeatures: ["shader-f16"],
-    downloadBytes: 968_001_536,
-    vramEstimateMB: 2036.66,
-    thinking: "qwen3-enable-thinking",
-    languages: ["en"],
-    quality: "unevaluated",
-    license: "Apache-2.0 (Qwen/Qwen3-1.7B); MLC conversion by mlc-ai",
-    source: "https://huggingface.co/mlc-ai/Qwen3-1.7B-q4f16_1-MLC",
-  },
-  {
-    tier: "quality",
     modelId: "Qwen3-4B-q4f16_1-MLC",
-    displayName: "Higher quality (Qwen3 4B)",
+    displayName: "Recommended (Qwen3 4B)",
     weightsRepo: "mlc-ai/Qwen3-4B-q4f16_1-MLC",
     weightsRevision: "a5c9fab855e3ccbdfed2e7e69683d75f30332161",
     modelLibPath: "local-ai/libs/Qwen3-4B-q4f16_1_cs1k-webgpu.wasm",
@@ -90,9 +75,30 @@ export const LOCAL_AI_MODELS: readonly LocalAiModelRecord[] = [
     vramEstimateMB: 3431.59,
     thinking: "qwen3-enable-thinking",
     languages: ["en"],
-    quality: "unevaluated",
+    quality: "evaluated",
     license: "Apache-2.0 (Qwen/Qwen3-4B); MLC conversion by mlc-ai",
     source: "https://huggingface.co/mlc-ai/Qwen3-4B-q4f16_1-MLC",
+  },
+  {
+    tier: "compact",
+    modelId: "Qwen3-1.7B-q4f16_1-MLC",
+    displayName: "Compact (Qwen3 1.7B)",
+    weightsRepo: "mlc-ai/Qwen3-1.7B-q4f16_1-MLC",
+    weightsRevision: "80b3abcec6c3b3f5355dc0cc99cc4fb578f192bc",
+    modelLibPath: "local-ai/libs/Qwen3-1.7B-q4f16_1_cs1k-webgpu.wasm",
+    modelLibSha256: "8161aaa4b40bccf19fcedb2f2e8c221eb9efb72d2198681f1958c9c1e05a682f",
+    modelLibSri: "sha384-7QJDec7NGvNVHjD9ZRdHNFxHlk/iXvbqQ7xDxoO6lpVF7/GmSvWboR66CTWhsRL8",
+    modelLibBytes: 5_566_554,
+    quantization: "q4f16_1",
+    contextWindow: 4096,
+    requiredFeatures: ["shader-f16"],
+    downloadBytes: 968_001_536,
+    vramEstimateMB: 2036.66,
+    thinking: "qwen3-enable-thinking",
+    languages: ["en"],
+    quality: "evaluated",
+    license: "Apache-2.0 (Qwen/Qwen3-1.7B); MLC conversion by mlc-ai",
+    source: "https://huggingface.co/mlc-ai/Qwen3-1.7B-q4f16_1-MLC",
   },
 ];
 

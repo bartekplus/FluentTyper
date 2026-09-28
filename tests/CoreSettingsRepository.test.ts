@@ -136,7 +136,7 @@ describe("CoreSettingsRepository", () => {
 describe("LocalAiSettingsRepository", () => {
   const repository = (seed: Record<string, unknown>) =>
     new LocalAiSettingsRepository(createSettingsManagerMock(seed));
-  const consent = { modelId: "Qwen3-1.7B-q4f16_1-MLC", tier: "standard", at: 1_700_000_000_000 };
+  const consent = { modelId: "Qwen3-4B-q4f16_1-MLC", tier: "standard", at: 1_700_000_000_000 };
 
   test("the preference defaults on; upgrade: an existing explicit false is preserved", async () => {
     await expect(repository({}).getLocalAiReviewEnabled()).resolves.toBe(true);
@@ -150,8 +150,8 @@ describe("LocalAiSettingsRepository", () => {
 
   test("tier defaults to standard and rejects unknown values", async () => {
     await expect(repository({}).getLocalAiReviewTier()).resolves.toBe("standard");
-    await expect(repository({ localAiReviewTier: "quality" }).getLocalAiReviewTier()).resolves.toBe(
-      "quality",
+    await expect(repository({ localAiReviewTier: "compact" }).getLocalAiReviewTier()).resolves.toBe(
+      "compact",
     );
     await expect(repository({ localAiReviewTier: "huge" }).getLocalAiReviewTier()).resolves.toBe(
       "standard",
@@ -169,7 +169,7 @@ describe("LocalAiSettingsRepository", () => {
       "yes",
       [consent],
       { ...consent, modelId: "Unknown-MLC" },
-      { ...consent, tier: "quality" },
+      { ...consent, tier: "compact" },
       { ...consent, at: "now" },
       { modelId: consent.modelId, tier: consent.tier },
     ]) {
@@ -201,11 +201,11 @@ describe("LocalAiSettingsRepository", () => {
 
     await writer.setLocalAiReviewConsent(consent as never);
     await writer.setLocalAiSetupOfferDismissed(true);
-    await writer.setLocalAiReviewTier("quality");
+    await writer.setLocalAiReviewTier("compact");
     expect(store).toEqual({
       localAiReviewConsent: consent,
       localAiSetupOfferDismissed: true,
-      localAiReviewTier: "quality",
+      localAiReviewTier: "compact",
     });
     await expect(writer.getLocalAiSetupOfferDismissed()).resolves.toBe(true);
 

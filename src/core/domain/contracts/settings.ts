@@ -143,9 +143,9 @@ export interface SettingsSchema {
   showSuggestionFooter: boolean;
   showReviewButton: boolean;
   localAiReviewEnabled: boolean;
-  localAiReviewTier: "standard" | "quality";
+  localAiReviewTier: "standard" | "compact";
   /** Written only by the explicit Install action; never inferred or migrated. */
-  localAiReviewConsent: { modelId: string; tier: "standard" | "quality"; at: number } | null;
+  localAiReviewConsent: { modelId: string; tier: "standard" | "compact"; at: number } | null;
   localAiSetupOfferDismissed: boolean;
   autoCapitalize: boolean;
   autoLanguageSitePriors: Record<string, Record<string, number>>;

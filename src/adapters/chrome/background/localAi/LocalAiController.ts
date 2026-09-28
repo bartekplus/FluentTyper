@@ -198,7 +198,7 @@ export class LocalAiController {
     switch (request.command) {
       case CMD_LOCAL_AI_INSTALL: {
         const tier = request.context?.tier;
-        if (tier !== "standard" && tier !== "quality") {
+        if (tier !== "standard" && tier !== "compact") {
           return { ok: false, error: "invalid" };
         }
         const record = localAiModelForTier(tier);

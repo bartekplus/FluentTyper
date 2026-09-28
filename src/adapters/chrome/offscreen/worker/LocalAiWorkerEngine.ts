@@ -6,7 +6,11 @@ import type {
 } from "@mlc-ai/web-llm";
 import type { LocalAiErrorCode, LocalAiUnavailableReason } from "@core/domain/contracts/localAi";
 import { localAiModelById, type LocalAiModelRecord } from "@core/domain/localAi/modelRegistry";
-import { aiMaxOutputTokens, buildAiMessages } from "@core/domain/grammar/review/ai/prompts";
+import {
+  AI_RESPONSE_SCHEMA,
+  aiMaxOutputTokens,
+  buildAiMessages,
+} from "@core/domain/grammar/review/ai/prompts";
 import { MAX_AI_RAW_OUTPUT_CHARS, parseAiResponse } from "@core/domain/grammar/review/ai/parse";
 import type {
   AiErrorCode,
@@ -96,6 +100,8 @@ const MIN_GPU_LIMITS = {
 
 const CORRECT_TEMPERATURE = 0;
 const REWRITE_TEMPERATURE = 0.4;
+// Fixed, as in the evaluation; low variance, not a promise of identical output across devices.
+const GENERATION_SEED = 42;
 
 function errorName(error: unknown): string {
   const name = (error as { name?: unknown } | null)?.name;
@@ -376,7 +382,8 @@ export class LocalAiWorkerEngine {
         n: 1,
         temperature: request.mode === "rewrite" ? REWRITE_TEMPERATURE : CORRECT_TEMPERATURE,
         max_tokens: this.ai.aiMaxOutputTokens(request),
-        response_format: { type: "json_object" },
+        seed: GENERATION_SEED,
+        response_format: { type: "json_object", schema: AI_RESPONSE_SCHEMA },
         ...(record.thinking === "qwen3-enable-thinking"
           ? { extra_body: { enable_thinking: false } }
           : {}),

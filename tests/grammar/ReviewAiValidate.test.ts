@@ -100,6 +100,58 @@ describe("correctionFindings", () => {
     expectRejected("Add 5 ml of water.", "Add 5 mg of water.", "number");
   });
 
+  test("code-like punctuation and bracket balance are left alone (real-GPU eval: tech-04)", () => {
+    // "user.save(" is the placeholder; the model dropped the ")" glued to it.
+    expect(correctOne("Call user.save() after validation.", "x").segments).toEqual([
+      "Call ⟦1⟧) after validation.",
+    ]);
+    expectRejected(
+      "Call user.save() after validation.",
+      "Call ⟦1⟧ after validation.",
+      "technical-token",
+    );
+    expectRejected("Wrap it (like this) today.", "Wrap it (like this today.", "technical-token");
+    expectRejected("Run it (twice.", "Run it (twice).", "technical-token");
+  });
+
+  test("British and American spellings are both correct (real-GPU eval: ambiguous-10/11)", () => {
+    expectRejected(
+      "The colour looks different in daylight.",
+      "The color looks different in daylight.",
+      "drift",
+    );
+    expectRejected(
+      "We realised the organisation had changed.",
+      "We realized the organization had changed.",
+      "drift",
+    );
+    expectRejected("Meet at the centre today.", "Meet at the center today.", "drift");
+    expectRejected("We travelled far.", "We traveled far.", "drift");
+    expectRejected("Check the catalogue first.", "Check the catalog first.", "drift");
+    expectRejected("Renew the licence soon.", "Renew the license soon.", "drift");
+    expectRejected("They analysed it.", "They analyzed it.", "drift");
+    // Not a dialect pair: noun/verb confusion stays a correction.
+    expect(correctOne("I need your advise.", "I need your advice.").applied).toBe(
+      "I need your advice.",
+    );
+  });
+
+  test("whitespace at segment edges never changes (real-GPU eval: pl-06)", () => {
+    expectRejected("Dzięki, wygląda dobrze!", "Dzięki, wygląda dobrze! ", "shape");
+    expectRejected("It is fine.", " It is fine.", "shape");
+  });
+
+  test("a determiner's noun keeps its number (real-GPU eval: fix-07/08)", () => {
+    expectRejected("My friends is coming over.", "My friend is coming over.", "drift");
+    expectRejected("This results look promising.", "This result looks promising.", "drift");
+    expect(correctOne("My friends is coming over.", "My friends are coming over.").applied).toBe(
+      "My friends are coming over.",
+    );
+    expect(
+      correctOne("This results look promising.", "These results look promising.").applied,
+    ).toBe("These results look promising.");
+  });
+
   test("agreement fix becomes one Local AI finding", () => {
     const text = "The results shows a problem.";
     const { diagnostics, rejected, applied } = correctOne(text, "The results show a problem.");
@@ -356,6 +408,52 @@ describe("rewriteProposal", () => {
 
   const TEXT = "hey, can you check the logs from 3 pm? the deploy failed twice.";
 
+  test("a rewrite may not translate (real-GPU eval: rw-pl-02)", () => {
+    const text = "wrzuciłem fix na release/1.2, sprawdźcie proszę";
+    expect(
+      rejection(text, ["I have applied the fix to ⟦1⟧, please check it."], "professional"),
+    ).toBe("drift");
+    expect(
+      rejection(text, ["Wrzuciłem fix na ⟦1⟧, sprawdźcie, proszę."], "professional"),
+    ).toBeNull();
+    expect(rejection("Send the log today.", ["Wyślij log dzisiaj."])).toBe("drift");
+  });
+
+  test("equivalent negation and hedges are not rejected (real-GPU eval: rw-26, rw-31)", () => {
+    expect(
+      rejection("nope, not happening this sprint", ["No, not happening this sprint"]),
+    ).toBeNull();
+    expect(rejection("nope, not happening this sprint", ["Yes, happening this sprint"])).toBe(
+      "negation",
+    );
+    const text = "Not sure the numbers are right, can someone double check the Q3 sheet?";
+    expect(
+      rejection(
+        text,
+        ["Not sure the numbers are correct. Could someone double-check the Q3 sheet?"],
+        "professional",
+      ),
+    ).toBeNull();
+    expect(
+      rejection("Maybe the numbers are wrong, can someone check the Q3 sheet?", [
+        "The numbers are wrong. Could someone check the Q3 sheet?",
+      ]),
+    ).toBe("uncertainty");
+    // Only "could" before a person is a request; "maybe we" still hedges.
+    expect(
+      rejection("Maybe we could try it, but I'm not sure it helps.", [
+        "We could try it, though I'm not sure it will help.",
+      ]),
+    ).toBe("uncertainty");
+    expect(rejection("The issue could be hardware.", ["The issue is hardware."])).toBe(
+      "uncertainty",
+    );
+  });
+
+  test("whitespace at segment edges never changes in a rewrite", () => {
+    expect(rejection("The build is red.", ["The build is red. "])).toBe("shape");
+  });
+
   test("a valid rewrite becomes one proposal of word hunks", () => {
     const { proposal } = rewrite(
       TEXT,
@@ -417,7 +515,9 @@ describe("rewriteProposal", () => {
     const text = "We should probably look at the failing tests before the release on Friday.";
     expect(rejection(text, ["We should probably fix tests before Friday."], "concise")).toBeNull();
     expect(rejection(text, ["Probably Friday."], "concise")).toBe("length");
-    expect(rejection(text, [`${text} ${"Then look again. ".repeat(6)}`], "clearer")).toBe("length");
+    expect(rejection(text, [`${text} ${"Then look again. ".repeat(6).trim()}`], "clearer")).toBe(
+      "length",
+    );
   });
 
   test("combines chunks and never touches protected text between them", () => {

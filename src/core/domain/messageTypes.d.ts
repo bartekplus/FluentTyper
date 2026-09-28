@@ -315,7 +315,7 @@ export type Message =
       context?: { probe?: boolean };
     }
   | { command: "CMD_LOCAL_AI_ENSURE_HOST"; context?: Record<string, never> }
-  | { command: "CMD_LOCAL_AI_INSTALL"; context: { tier: "standard" | "quality" } }
+  | { command: "CMD_LOCAL_AI_INSTALL"; context: { tier: "standard" | "compact" } }
   | { command: "CMD_LOCAL_AI_CANCEL_INSTALL"; context?: Record<string, never> }
   | { command: "CMD_LOCAL_AI_DELETE_MODEL"; context: { modelId: string } }
   | { command: "CMD_LOCAL_AI_OPEN_SETUP"; context?: Record<string, never> }

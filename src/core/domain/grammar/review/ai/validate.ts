@@ -1,7 +1,13 @@
 import { damerauLevenshteinDistance } from "../../../editDistance";
 import { isTechnicalToken } from "../../implementations/helpers/GenericRuleShared";
 import type { PreparedReview } from "../reviewDiagnostics";
-import { applyEdits, editTouches, isGraphemeBoundary, rangesOverlap } from "../textRanges";
+import {
+  applyEdits,
+  commonAffixes,
+  editTouches,
+  isGraphemeBoundary,
+  rangesOverlap,
+} from "../textRanges";
 import {
   REVIEW_LOCAL_AI_CHECK,
   type ReviewCategory,
@@ -128,7 +134,7 @@ const wordSet = (list: string) => new Set(list.trim().split(/\s+/));
  * "cant" and "wont", which are also real words ("the cant of the roof").
  */
 const NEGATIONS = wordSet(`
-  not no never none nobody nothing nowhere neither nor without cannot dont doesnt didnt isnt
+  not no nope nah never none nobody nothing nowhere neither nor without cannot dont doesnt didnt isnt
   arent wasnt werent hasnt havent hadnt couldnt wouldnt shouldnt mustnt neednt aint nie
   nigdy nic niczego nikt nikogo nikomu nigdzie ani bez żaden żadna żadne żadnego żadnej
   żadnych żadnym żadnemu
@@ -146,6 +152,7 @@ const HEDGE_PAIRS = new Set([
   "i believe",
   "i feel",
   "not sure",
+  "not certain",
   "kind of",
   "sort of",
   "wydaje się",
@@ -157,6 +164,17 @@ const INFORMAL = wordSet(`
   gonna wanna gotta kinda sorta dunno lemme gimme y'all ya yeah yep nope lol tbh imo btw ok
   okay cuz
 `);
+
+const DETERMINERS = wordSet(`
+  a an the this that these those my your his her its our their some many each every several
+  few both all any another
+`);
+
+/** One word is the other with a plural ending ("friend"/"friends", "city"/"cities"). */
+function pluralFlip(a: string, b: string): boolean {
+  const [x, y] = [lower(a), lower(b)].sort((p, q) => p.length - q.length);
+  return y === `${x}s` || y === `${x}es` || (x.endsWith("y") && y === `${x.slice(0, -1)}ies`);
+}
 
 const SENTENCE_MARK = /^[.!?…]$/;
 const hasApostrophe = (token: Token) => /\p{L}['’]\p{L}/u.test(token.text);
@@ -314,6 +332,37 @@ function oppositePolarity(x: string, y: string): boolean {
 }
 
 /**
+ * British and American spellings of one word ("colour"/"color",
+ * "organise"/"organize", "centre"/"center", "travelled"/"traveled",
+ * "catalogue"/"catalog", "licence"/"license"): both are correct, so swapping
+ * them is never a correction. Curated patterns on otherwise identical words.
+ */
+function dialectPair(x: string, y: string): boolean {
+  const { prefix, suffix } = commonAffixes(x, y);
+  const head = x.slice(0, prefix);
+  const tail = x.slice(x.length - suffix);
+  const pair = [x.slice(prefix, x.length - suffix), y.slice(prefix, y.length - suffix)]
+    .sort()
+    .join("/");
+  switch (pair) {
+    case "/u": // colour, favourite, honours
+      return head.endsWith("o") && tail.startsWith("r") && Math.max(x.length, y.length) >= 5;
+    case "s/z": // organise, realising, analyse
+      return /[iy]$/.test(head) && /^[eai]/.test(tail);
+    case "er/re": // centre, metres
+      return /^[sd]?$/.test(tail);
+    case "/l": // travelled, modelling, labeller ("usefull" is a typo)
+      return head.endsWith("l") && /^[ei]/.test(tail);
+    case "/ue": // catalogue, dialogues
+      return head.endsWith("og") && /^s?$/.test(tail);
+    case "c/s": // licence, defence, offence
+      return head.endsWith("en") && tail.startsWith("e");
+    default:
+      return false;
+  }
+}
+
+/**
  * How two words relate, if a proofreader could swap them: case only, a
  * grammatical form (apostrophe, family, inflection) or a spelling fix (small
  * edit distance, diacritics). Anything else is a different word (drift).
@@ -322,7 +371,7 @@ function closeKind(a: string, b: string): CloseKind | null {
   const x = lower(a);
   const y = lower(b);
   if (x === y) return "case";
-  if (oppositePolarity(x, y)) return null;
+  if (oppositePolarity(x, y) || dialectPair(x, y)) return null;
   if (bare(x) === bare(y) || foldDiacritics(x) === foldDiacritics(y)) return "spelling";
   const family = familyOf(x);
   if (family !== undefined && family === familyOf(y)) return "form";
@@ -441,13 +490,17 @@ function wordsOf(tokens: readonly Token[]): string[] {
   return tokens.filter((token) => token.kind === "word").map((token) => lower(token.text));
 }
 
+const REQUEST_SUBJECTS = wordSet("you someone somebody anyone anybody we i");
+
 /** Hedge markers; "could you" is a polite request, not uncertainty. */
 function hedgeCount(words: readonly string[]): number {
   let count = 0;
   words.forEach((word, index) => {
     const stripped = word.endsWith("n't") ? word.slice(0, -3) : word;
     const next = words[index + 1];
-    if (HEDGES.has(stripped) && next !== "you") count += 1;
+    // "could you/someone …" asks; it does not hedge.
+    const request = stripped === "could" && REQUEST_SUBJECTS.has(next ?? "");
+    if (HEDGES.has(stripped) && !request) count += 1;
     if (next !== undefined && HEDGE_PAIRS.has(`${word} ${next}`)) count += 1;
   });
   return count;
@@ -540,6 +593,14 @@ function analyzeSegment(prepared: PreparedReview, segment: AiSegment, proposed: 
   ) {
     return { ok: false, reason: "placeholder" };
   }
+  // Spacing at the segment edges belongs to the text around it.
+  const edges = (text: string) => `${/^\s*/.exec(text)?.[0]}|${/\s*$/.exec(text)?.[0]}`;
+  if (edges(proposed) !== edges(segment.text)) return { ok: false, reason: "shape" };
+  // Brackets pair up code and asides: a proposal never opens or closes one.
+  const brackets = (text: string) => [...text.replace(/[^()[\]{}]/g, "")].sort().join("");
+  if (brackets(proposed) !== brackets(segment.text)) {
+    return { ok: false, reason: "technical-token" };
+  }
   const original = tokenize(segment.text);
   const next = tokenize(proposed);
   const hunks = diffTokens(original, next);
@@ -608,6 +669,10 @@ function analyzeSegment(prepared: PreparedReview, segment: AiSegment, proposed: 
         ok: false,
         reason: touched.reason === "technical" ? "technical-token" : "protected",
       };
+    }
+    // Glued to a protected token ("⟦1⟧)" for "user.save()"): part of it, not prose.
+    if (neighbours.some((token) => token.kind === "placeholder")) {
+      return { ok: false, reason: "technical-token" };
     }
     edits.push(edit);
     local.push({ start, end });
@@ -705,6 +770,20 @@ function correctSegment(
     const removed = removedIndexes.map((index) => original[index]);
     const added = next.slice(hunk.p0, hunk.p1).filter((token) => token.kind === "word");
     if (removedIndexes.some((index) => afterNumber(original, index))) return { reason: "number" };
+    // "My friends is" -> "My friend is": the noun after an unchanged determiner keeps
+    // its number; agreement is fixed on the verb or the determiner, never by
+    // deciding how many there are.
+    const flipsNoun = removedIndexes.some((index) => {
+      const determiner = original[index - 2];
+      return (
+        index - 2 < hunk.o0 &&
+        original[index - 1]?.kind === "space" &&
+        determiner?.kind === "word" &&
+        DETERMINERS.has(lower(determiner.text)) &&
+        added.some((token) => pluralFlip(original[index].text, token.text))
+      );
+    });
+    if (flipsNoun) return { reason: "drift" };
     for (let index = hunk.p0; index < hunk.p1; index += 1) {
       if (next[index].kind === "word" && afterNumber(next, index)) return { reason: "number" };
     }
@@ -870,6 +949,30 @@ function commitmentCounts(words: readonly string[]): Map<string, number> {
   return counts;
 }
 
+const POLISH_WORDS = wordSet(`
+  w we z ze na do o od po za się nie że to jest są czy jak ale dla proszę już też tak
+`);
+const ENGLISH_WORDS = wordSet(`
+  the a an and or to of in on at for with is are was were be have has it this that you we
+  please will not
+`);
+
+/**
+ * The proposal is in another language than the original ("wrzuciłem fix,
+ * sprawdźcie proszę" -> "I pushed a fix, please check"): a rewrite never
+ * translates. Polish vs English by diacritics and function words.
+ */
+function languageShifted(before: readonly string[], after: readonly string[]): boolean {
+  const language = (words: readonly string[]) => {
+    const polish = words.filter((w) => POLISH_WORDS.has(w) || /[ąćęłńóśźż]/u.test(w)).length;
+    const english = words.filter((w) => ENGLISH_WORDS.has(w)).length;
+    return polish > english ? "pl" : english > polish ? "en" : null;
+  };
+  const from = language(before);
+  const to = language(after);
+  return from !== null && to !== null && from !== to;
+}
+
 /** Candidate technical tokens (URLs, addresses, paths, dotted names) of a text. */
 function technicalPieces(text: string): Set<string> {
   const pieces = new Set<string>();
@@ -951,6 +1054,7 @@ export function rewriteProposal(
     }
   }
   if (negationCount(originalWords) !== negationCount(proposedWords)) return fail("negation");
+  if (languageShifted(originalWords, proposedWords)) return fail("drift");
   if (hedgeCount(originalWords) !== hedgeCount(proposedWords)) return fail("uncertainty");
   const commitmentsBefore = commitmentCounts(originalWords);
   for (const [key, count] of commitmentCounts(proposedWords)) {

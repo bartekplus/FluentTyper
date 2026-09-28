@@ -27,19 +27,19 @@ const EXT = "chrome-extension://ftext/";
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
-type Consent = { modelId: string; tier: "standard" | "quality"; at: number } | null;
+type Consent = { modelId: string; tier: "standard" | "compact"; at: number } | null;
 
 function makeSettings(
   initial: {
     enabled?: boolean;
-    tier?: "standard" | "quality";
+    tier?: "standard" | "compact";
     consent?: Consent;
     dismissed?: boolean;
   } = {},
 ) {
   const state = {
     enabled: initial.enabled ?? true,
-    tier: initial.tier ?? ("standard" as "standard" | "quality"),
+    tier: initial.tier ?? ("standard" as "standard" | "compact"),
     consent: initial.consent ?? null,
     dismissed: initial.dismissed ?? false,
   };
@@ -318,10 +318,10 @@ describe("LocalAiController status", () => {
   });
 
   test("consent is per tier and model", async () => {
-    const switched = setup({ consent: consented, tier: "quality" });
+    const switched = setup({ consent: consented, tier: "compact" });
     expect(await switched.controller.getStatus()).toMatchObject({
       consented: false,
-      tier: "quality",
+      tier: "compact",
       modelId: QUALITY.modelId,
       install: "unknown",
     });

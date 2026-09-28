@@ -18,6 +18,7 @@ import {
   modelWeightsUrl,
 } from "../src/adapters/chrome/offscreen/worker/modelArtifacts";
 import { LOCAL_AI_MODELS } from "../src/core/domain/localAi/modelRegistry";
+import { AI_RESPONSE_SCHEMA } from "../src/core/domain/grammar/review/ai/prompts";
 import type { AiGenerationRequest } from "../src/core/domain/grammar/review/ai/types";
 import type { WorkerReply } from "../src/adapters/chrome/offscreen/workerProtocol";
 
@@ -214,7 +215,10 @@ describe("LocalAiWorkerEngine generation", () => {
       n: 1,
       temperature: 0,
       max_tokens: 321,
-      response_format: { type: "json_object" },
+      seed: 42,
+      // WebLLM 0.2.85 fails every bare json_object request (GrammarMatcherInitError):
+      // the response contract must go with it as a schema (real-GPU evaluation finding).
+      response_format: { type: "json_object", schema: AI_RESPONSE_SCHEMA },
       extra_body: { enable_thinking: false },
     });
     await engine.generate(STANDARD.modelId, { ...REQUEST, mode: "rewrite", style: "concise" });

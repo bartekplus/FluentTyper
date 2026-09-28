@@ -210,7 +210,10 @@ export function mountLocalAiSettings(anchor: HTMLElement, registry: SettingsRegi
       size: formatGigabytes(model.downloadBytes),
       memory: formatGigabytes(model.vramEstimateMB * 1_048_576, 1),
     });
-    text.append(name, meta);
+    const hint = document.createElement("span");
+    hint.className = "local-ai-model-meta";
+    hint.textContent = t(`local_ai_tier_${model.tier}_hint`);
+    text.append(name, hint, meta);
     option.append(radio, text);
     models.appendChild(option);
     return radio;
