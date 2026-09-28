@@ -1090,6 +1090,19 @@ describe("review controller lifecycle", () => {
     review.close();
   });
 
+  test("closing a review in the middle of a write resumes suggestions", async () => {
+    const field = textarea("We saw teh cat.");
+    const { review, suspend, resume } = controller();
+    review.invoke();
+    await until(() => root()?.querySelector(".status")?.textContent === "Issues: 1");
+    root()!.querySelector<HTMLElement>(".item")!.click();
+    root()!.querySelector<HTMLElement>(".card [data-action=apply]")!.click();
+    expect(suspend).toHaveBeenCalledWith(field);
+    review.close();
+    expect(resume).toHaveBeenCalledTimes(1);
+    expect(resume).toHaveBeenCalledWith(field);
+  });
+
   test("editing invalidates at once; results come back after the pause", async () => {
     const field = textarea("We saw teh cat.");
     const { review } = controller();

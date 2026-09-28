@@ -95,6 +95,8 @@ interface ActiveReview {
   frame: number | null;
   /** The findings the category highlights were last built from. */
   paintedDiagnostics: readonly ReviewDiagnostic[] | null;
+  /** Suggestions are paused while the review writes a fix. */
+  writing: boolean;
 }
 
 /**
@@ -230,9 +232,13 @@ export class ReviewController {
       cleanup: [],
       frame: null,
       paintedDiagnostics: null,
+      writing: false,
     };
     this.active = active;
     this.deps.onActiveChange?.();
+    active.cleanup.push(() => {
+      if (active.writing) this.deps.resume(target.element);
+    });
     if (onClose) active.cleanup.push(onClose);
     this.listen(active);
     void session.start().catch((error: unknown) => {
@@ -476,6 +482,13 @@ export class ReviewController {
     const active = this.active;
     if (!active) return;
     active.state = state;
+    // Review's own edits must not open suggestions or trigger typing-time corrections.
+    const writing = state.status === "applying";
+    if (writing !== active.writing) {
+      active.writing = writing;
+      if (writing) this.deps.suspend(active.target.element);
+      else this.deps.resume(active.target.element);
+    }
     active.ui.render(state);
     this.paint(active);
     this.refreshCard(active);
@@ -528,7 +541,7 @@ export class ReviewController {
     const active = this.active;
     if (!active) return;
     active.ui.closeCard();
-    await this.whileWriting(active, () => active.session.apply(id, alternative));
+    await active.session.apply(id, alternative);
     if (this.active === active && viaKeyboard) this.focusAfterWrite(active);
   }
 
@@ -550,19 +563,8 @@ export class ReviewController {
   private async fixAll(viaKeyboard: boolean): Promise<void> {
     const active = this.active;
     if (!active) return;
-    await this.whileWriting(active, () => active.session.fixAll());
+    await active.session.fixAll();
     if (this.active === active && viaKeyboard) this.focusAfterWrite(active);
-  }
-
-  /** Review's own edits must not open suggestions or trigger typing-time corrections. */
-  private async whileWriting(active: ActiveReview, write: () => Promise<unknown>): Promise<void> {
-    const element = active.target.element;
-    this.deps.suspend(element);
-    try {
-      await write();
-    } finally {
-      this.deps.resume(element);
-    }
   }
 
   /** Writes focus the editor; a keyboard user continues in the review panel. */

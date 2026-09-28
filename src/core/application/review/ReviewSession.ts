@@ -635,6 +635,7 @@ export class ReviewSession {
     }
     // Always re-read: never assume the editor holds what we asked for.
     this.status = "loading";
+    this.emit();
     await this.refresh();
     return result;
   }
