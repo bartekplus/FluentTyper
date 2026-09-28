@@ -212,7 +212,8 @@ export class LocalAiHost {
         }
         if (this.probeFailed) {
           this.probeFailed = false;
-          this.error = undefined;
+          // Only the probe's own error: a newer one (e.g. delete-failed) stays.
+          if (this.error === "load-failed") this.error = undefined;
         }
       } catch {
         // `install` stays unknown: waiting jobs fail as engine failures instead of hanging.

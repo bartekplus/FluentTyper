@@ -410,6 +410,29 @@ describe("LocalAiHost lifecycle", () => {
     expect(host.state().error).toBeUndefined();
   });
 
+  test("a good probe keeps a newer error than the failed probe's", async () => {
+    let fail = true;
+    const { host } = makeHost(
+      {
+        probe: async () => {
+          if (fail) throw new Error("gone");
+          return null;
+        },
+        delete: async () => {
+          throw new DOMException("refused", "UnknownError");
+        },
+      },
+      { configure: false },
+    );
+    host.configure({ modelId: STANDARD.modelId }, true);
+    await flush(5);
+    await host.deleteModel(STANDARD.modelId);
+    expect(host.state().error).toBe("delete-failed");
+    fail = false;
+    await host.refresh();
+    expect(host.state().error).toBe("delete-failed");
+  });
+
   test("cancelling the only job during a cold load abandons the load, not as a failure", async () => {
     const { review, host, count } = makeHost({ load: never }, { loadTimeoutMs: 60_000 });
     const port = review();
