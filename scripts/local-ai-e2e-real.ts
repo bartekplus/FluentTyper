@@ -534,6 +534,32 @@ async function run(): Promise<void> {
       return `${ai.length} Local AI findings of ${panel.items.length} in total; "${line}"`;
     });
 
+    await step("(ii-c) closing Review releases the GPU (offscreen document closed)", async () => {
+      const page = await openEditor(browser, CORRECT_TEXT);
+      await review(worker);
+      await waitUntil("first Local AI finding", async () => (await aiItemIds(page)).length > 0, {
+        timeoutMs: 5 * MINUTE,
+        intervalMs: 100,
+      });
+      check(
+        (await getOffscreenDocumentUrls(worker)).length === 1,
+        "no offscreen document while Review is open",
+      );
+      await page.keyboard.press("Escape");
+      await page.keyboard.press("Escape");
+      await waitUntil("Review panel closed", async () => !(await readReviewPanel(page)).open);
+      const closedAt = performance.now();
+      await waitUntil(
+        "offscreen document (engine worker) released",
+        async () => (await getOffscreenDocumentUrls(worker)).length === 0,
+        { timeoutMs: 15_000, intervalMs: 100 },
+      );
+      const releasedMs = Math.round(performance.now() - closedAt);
+      timings.push(["Review closed → GPU released (offscreen document gone)", releasedMs]);
+      await page.close();
+      return `released ${releasedMs} ms after the panel closed`;
+    });
+
     await step("(iii) Rewrite (Keep my voice): diff, Apply only when ready, apply", async () => {
       const page = await openEditor(browser, REWRITE_TEXT);
       await review(worker);

@@ -87,6 +87,7 @@ function makeChrome(options: { offscreen?: boolean } = {}) {
     documentOpen = true;
   });
   const closeDocument = jest.fn(async () => {
+    await flush();
     documentOpen = false;
   });
   const api = {
@@ -290,6 +291,39 @@ describe("LocalAiController host lifecycle", () => {
     expect(chromeFake.closeDocument).toHaveBeenCalledTimes(1);
     const status = await send({ command: CMD_LOCAL_AI_GET_STATUS });
     expect(status).toMatchObject({ ok: true, status: { runtime: "ready", install: "complete" } });
+  });
+
+  test("ENSURE_HOST racing an idle close waits for the close, then recreates once", async () => {
+    const { send, chromeFake } = setup({ consent: consented });
+    await send({ command: CMD_LOCAL_AI_ENSURE_HOST });
+    const host = chromeFake.hostPort();
+    chromeFake.connect(host);
+    await flush();
+    host.emit({ type: "idle" });
+    const [a, b] = await Promise.all([
+      send({ command: CMD_LOCAL_AI_ENSURE_HOST }),
+      send({ command: CMD_LOCAL_AI_ENSURE_HOST }),
+    ]);
+    expect(a.ok && b.ok).toBe(true);
+    expect(chromeFake.closeDocument).toHaveBeenCalledTimes(1);
+    expect(chromeFake.createDocument).toHaveBeenCalledTimes(2);
+    expect(chromeFake.createDocument.mock.invocationCallOrder[1]).toBeGreaterThan(
+      chromeFake.closeDocument.mock.invocationCallOrder[0],
+    );
+    expect(await chromeFake.raw.runtime.getContexts()).toHaveLength(1);
+  });
+
+  test("idle does not close a document a Review is being opened on", async () => {
+    const { send, chromeFake } = setup({ consent: consented });
+    await send({ command: CMD_LOCAL_AI_ENSURE_HOST });
+    const host = chromeFake.hostPort();
+    chromeFake.connect(host);
+    await flush();
+    const ensuring = send({ command: CMD_LOCAL_AI_ENSURE_HOST });
+    host.emit({ type: "idle" });
+    await ensuring;
+    await flush();
+    expect(chromeFake.closeDocument).not.toHaveBeenCalled();
   });
 
   test("a preference change re-configures the host and broadcasts status", async () => {

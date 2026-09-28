@@ -93,6 +93,9 @@ export class LocalAiController {
   private hostState: HostState | null = null;
   private hostFailed = false;
   private documentPromise: Promise<void> | null = null;
+  private closingPromise: Promise<void> | null = null;
+  /** ENSURE_HOST requests in flight: a Review is opening, so `idle` must not close the host. */
+  private ensuring = 0;
   /** Explicit actions waiting for the host port (sent right after `configure`). */
   private pendingDown: HostPortDownMessage[] = [];
   private hostConfigured = false;
@@ -148,18 +151,23 @@ export class LocalAiController {
         }
         return this.ok();
       case CMD_LOCAL_AI_ENSURE_HOST: {
-        const status = await this.getStatus();
-        if (status.enabled && status.consented && this.hostSupported) {
-          // Resolves once the document has loaded, i.e. its review-port listener exists.
-          await this.ensureDocument();
-          if (this.hostFailed) {
-            return { ok: false, error: "unavailable" };
+        this.ensuring += 1;
+        try {
+          const status = await this.getStatus();
+          if (status.enabled && status.consented && this.hostSupported) {
+            // Resolves once the document has loaded, i.e. its review-port listener exists.
+            await this.ensureDocument();
+            if (this.hostFailed) {
+              return { ok: false, error: "unavailable" };
+            }
+            if (!this.hostPort) {
+              this.nudgeHost();
+            }
           }
-          if (!this.hostPort) {
-            this.nudgeHost();
-          }
+          return await this.ok();
+        } finally {
+          this.ensuring -= 1;
         }
-        return this.ok();
       }
       case CMD_LOCAL_AI_INSTALL:
       case CMD_LOCAL_AI_CANCEL_INSTALL:
@@ -284,9 +292,10 @@ export class LocalAiController {
     return contexts.length > 0;
   }
 
-  /** Single-flight create; a no-op when the document already exists. */
+  /** Single-flight create (after any close in progress); a no-op when the document exists. */
   private ensureDocument(): Promise<void> {
     this.documentPromise ??= (async () => {
+      await this.closingPromise;
       try {
         if (!(await this.documentExists())) {
           await this.api.offscreen.createDocument({
@@ -420,8 +429,13 @@ export class LocalAiController {
         void this.broadcastStatus();
         return;
       case "idle":
-        if (this.pendingDown.length === 0) {
-          void this.closeDocument().then(() => this.broadcastStatus());
+        // The host released the GPU and no Review is open. Keep the document if a
+        // Review is being opened on it right now or an explicit action is queued.
+        if (this.pendingDown.length === 0 && this.ensuring === 0 && !this.closingPromise) {
+          this.closingPromise = this.closeDocument().finally(() => {
+            this.closingPromise = null;
+          });
+          void this.closingPromise.then(() => this.broadcastStatus());
         }
         return;
       default:

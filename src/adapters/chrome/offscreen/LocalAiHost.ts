@@ -34,6 +34,13 @@ import type { WorkerLoadResult } from "./workerProtocol";
  *   jobs are bound to their port; results and progress go only to that port.
  * - Jobs run one at a time on the worker's single engine, and only when the
  *   host is configured (consent + preference) and the model is fully cached.
+ * - GPU memory is held only while a Review with Local AI is open. When the
+ *   last review port closes (or an install ends with none open) the GPU is
+ *   released at once: running work settles, the engine unloads, the worker is
+ *   terminated (that frees the WebGPU device), and `idle` lets the background
+ *   close this document. An open but idle review releases the same way after
+ *   the idle interval, without closing. The next job starts a fresh worker and
+ *   loads from cache.
  * - Nothing here logs, stores or forwards text; worker replies are rebuilt
  *   into contract messages, never passed through.
  */
@@ -58,7 +65,10 @@ export interface LocalAiHostOptions {
    * options page) is refused.
    */
   extensionOrigin?: string;
-  /** Unload the engine this long after the last job. */
+  /**
+   * With a review open, release the GPU this long after the last job. With none
+   * open (and nothing ever connected), close the document after this long.
+   */
   idleMs?: number;
   /** After an interrupt, tear the worker down if generation has not settled by then. */
   cancelSettleMs?: number;
@@ -214,7 +224,7 @@ export class LocalAiHost {
         void this.refresh();
         return;
       case "unload":
-        void this.unloadEngine().then(() => this.touchIdle());
+        this.releaseNow();
         return;
       default:
         return;
@@ -228,14 +238,14 @@ export class LocalAiHost {
     this.recoveries = 0;
     if (!model || !enabled) {
       this.cancelAllJobs("not-ready");
-      void this.unloadEngine().then(() => this.touchIdle());
+      this.releaseNow();
       return;
     }
     if (previousModelId !== null && previousModelId !== model.modelId) {
       this.cancelAllJobs("not-ready");
     }
     if (this.loadedModelId !== null && this.loadedModelId !== model.modelId) {
-      void this.unloadEngine();
+      void this.releaseGpu();
     }
     if (this.stateModelId !== model.modelId) {
       this.stateModelId = model.modelId;
@@ -335,7 +345,12 @@ export class LocalAiHost {
       ok: result.ok,
       ...(result.ok || !result.error ? {} : { error: result.error }),
     });
-    this.settle();
+    if (this.reviewPorts.size === 0) {
+      // Installed, failed or cancelled: nothing needs the GPU any more.
+      this.releaseNow();
+    } else {
+      this.settle();
+    }
   }
 
   /** WebLLM cannot abort a download, so a running install tears the worker down. */
@@ -373,7 +388,12 @@ export class LocalAiHost {
     this.settle();
   }
 
-  private unloadEngine(): Promise<void> {
+  /**
+   * Frees the GPU: after any running work (the lock), unload the engine, then
+   * terminate the worker, since an unloaded engine may keep its WebGPU device.
+   * The next job starts a fresh worker and loads from cache.
+   */
+  private releaseGpu(): Promise<void> {
     return this.exclusive(async () => {
       if (this.worker.active) {
         this.activity = "unloading";
@@ -383,12 +403,25 @@ export class LocalAiHost {
         } catch {
           // Worker gone: nothing is loaded any more.
         }
+        this.worker.terminate();
       }
       this.loadedModelId = null;
       this.activity = "idle";
     }).finally(() => {
       this.publish();
       this.pump();
+    });
+  }
+
+  /** Release now; with no review open and nothing pending, let the background close us. */
+  private releaseNow(): void {
+    this.clearIdle();
+    void this.releaseGpu().then(() => {
+      if (this.reviewPorts.size === 0 && !this.busy()) {
+        this.sendUp({ type: "idle" });
+      } else {
+        this.touchIdle();
+      }
     });
   }
 
@@ -498,7 +531,12 @@ export class LocalAiHost {
     if (this.scheduler.removePort(port)) {
       this.interruptRunning?.();
     }
-    this.touchIdle();
+    if (this.reviewPorts.size === 0 && !this.installing) {
+      // The last review closed: release behind its settling job, no grace period.
+      this.releaseNow();
+    } else {
+      this.touchIdle();
+    }
   }
 
   private dropPort(port: PortLike): void {
@@ -747,13 +785,13 @@ export class LocalAiHost {
     }
   }
 
-  /** Idle interval over: unload the engine; with no review open, let the background close us. */
+  /** Idle interval over: release the GPU; with no review open, let the background close us. */
   private async onIdle(): Promise<void> {
     this.idleTimer = null;
     if (this.busy()) {
       return;
     }
-    await this.unloadEngine();
+    await this.releaseGpu();
     if (!this.busy() && this.reviewPorts.size === 0) {
       this.sendUp({ type: "idle" });
     }

@@ -44,8 +44,17 @@ re-downloads silently; the user must press Install again.
 - **Chrome/Edge:** an offscreen document (`local-ai/offscreen.html`, reason `WORKERS`)
   hosting one dedicated worker that owns the only WebLLM engine. Needs the `offscreen`
   permission (no install-time warning). The background creates it only when a Review opens
-  with consent + preference on, or for an explicit install/delete; it closes it after the
-  engine idles out.
+  with consent + preference on, or for an explicit install/delete/probe, and closes it as
+  soon as the host reports `idle`.
+- **GPU memory is held only while a Review with Local AI is open.** When the last Review
+  port closes, or an install ends (success, failure or cancel) with no Review open, the
+  host releases the GPU at once, with no grace period: running work is cancelled and
+  allowed to settle, the engine unloads, the worker is terminated (an unloaded engine may
+  keep its WebGPU device; terminating the worker frees it), and the host sends `idle` so
+  the background closes the document. A Review that stays open without jobs releases the
+  same way after 5 minutes but keeps the document. The next Review starts a fresh worker
+  and loads the model from cache, a cold load of about 1.5–5 s. An ENSURE_HOST that races
+  a close waits for it and recreates the document (single-flight).
 - **Firefox:** no offscreen API; the feature reports `host-unsupported`, and Review stays
   exactly as today. Not validated for WebGPU.
 - Transport: the content script opens a `chrome.runtime` **port** straight to the

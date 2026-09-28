@@ -422,15 +422,107 @@ describe("LocalAiHost lifecycle", () => {
     expect(port.results()).toHaveLength(1);
   });
 
-  test("idle interval unloads the engine and reports idle once no review is open", async () => {
-    const { review, background, workers } = makeHost({}, { idleMs: 20 });
+  test("closing the last review releases the GPU at once: unload, terminate, then idle", async () => {
+    const { review, background, workers } = makeHost();
+    const port = review();
+    await flush();
+    port.emit({ type: "generate", requestId: "r1", request: request("x") });
+    await flush(5);
+    expect(workers[0].terminated).toBe(false);
+    port.close();
+    await flush(5);
+    expect(workers[0].calls.at(-1)?.type).toBe("unload");
+    expect(workers[0].terminated).toBe(true);
+    expect(background.messages.at(-1)).toEqual({ type: "idle" });
+  });
+
+  test("closing the last review mid-job settles the job first, then releases", async () => {
+    const { review, background, workers } = makeHost({
+      generate: () =>
+        new Promise((resolve) => {
+          workers[0].onInterrupt = () => resolve({ ok: false, error: "cancelled" });
+        }),
+    });
     const port = review();
     await flush();
     port.emit({ type: "generate", requestId: "r1", request: request("x") });
     await flush(5);
     port.close();
+    await flush(5);
+    expect(workers[0].interrupts).toBe(1);
+    expect(workers[0].calls.map((call) => call.type).slice(-2)).toEqual(["generate", "unload"]);
+    expect(workers[0].terminated).toBe(true);
+    expect(background.messages.at(-1)).toEqual({ type: "idle" });
+  });
+
+  test("another open review keeps the engine; the last one closing releases it", async () => {
+    const { review, background, workers } = makeHost();
+    const a = review(1);
+    const b = review(2);
+    await flush();
+    a.emit({ type: "generate", requestId: "r1", request: request("x") });
+    await flush(5);
+    a.close();
+    await flush(5);
+    expect(workers[0].terminated).toBe(false);
+    expect(background.messages).not.toContainEqual({ type: "idle" });
+    b.close();
+    await flush(5);
+    expect(workers[0].terminated).toBe(true);
+    expect(background.messages.at(-1)).toEqual({ type: "idle" });
+  });
+
+  test("an open but idle review releases the GPU after the idle interval, without closing", async () => {
+    const { review, background, workers } = makeHost({}, { idleMs: 20 });
+    const port = review();
+    await flush();
+    port.emit({ type: "generate", requestId: "r1", request: request("x") });
     await flush(40);
     expect(workers[0].calls.at(-1)?.type).toBe("unload");
+    expect(workers[0].terminated).toBe(true);
+    expect(background.messages).not.toContainEqual({ type: "idle" });
+    port.emit({ type: "generate", requestId: "r2", request: request("y") });
+    await flush(5);
+    expect(workers).toHaveLength(2);
+    expect(workers[1].calls.map((call) => call.type)).toEqual(["load", "generate"]);
+    expect(port.results()).toHaveLength(2);
+  });
+
+  test("a review and job arriving during a release start a fresh worker", async () => {
+    let finishUnload!: () => void;
+    const { review, background, workers } = makeHost({
+      unload: () => new Promise((resolve) => (finishUnload = () => resolve(null))),
+    });
+    const first = review(1);
+    await flush();
+    first.emit({ type: "generate", requestId: "r1", request: request("x") });
+    await flush(5);
+    first.close();
+    await flush(5);
+    const second = review(2);
+    second.emit({ type: "generate", requestId: "r2", request: request("y") });
+    finishUnload();
+    await flush(5);
+    expect(workers[0].terminated).toBe(true);
+    expect(workers).toHaveLength(2);
+    expect(workers[1].calls.map((call) => call.type)).toEqual(["load", "generate"]);
+    expect(second.results()).toEqual([
+      expect.objectContaining({ requestId: "r2", outcome: expect.objectContaining({ ok: true }) }),
+    ]);
+    expect(background.messages).not.toContainEqual({ type: "idle" });
+  });
+
+  test("a finished install with no review open releases the GPU and reports idle", async () => {
+    const { background, workers } = makeHost({ "cache-state": () => ({ install: "none" }) });
+    await flush(5);
+    background.emit({ type: "install", tier: "standard" });
+    await flush(5);
+    expect(background.messages).toContainEqual({
+      type: "installed",
+      modelId: STANDARD.modelId,
+      ok: true,
+    });
+    expect(workers.every((worker) => worker.terminated)).toBe(true);
     expect(background.messages.at(-1)).toEqual({ type: "idle" });
   });
 
@@ -453,5 +545,7 @@ describe("LocalAiHost lifecycle", () => {
       error: "download-cancelled",
     });
     expect(upStates().at(-1)).toMatchObject({ runtime: "download-required" });
+    expect(workers.every((worker) => worker.terminated)).toBe(true);
+    expect(background.messages.at(-1)).toEqual({ type: "idle" });
   });
 });
