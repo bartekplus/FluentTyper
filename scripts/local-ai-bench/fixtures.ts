@@ -42,6 +42,10 @@ export interface ModelRun {
     completionTokens: number | null;
   }>;
   smoke: GenResult[];
+  /** Set when the model run stopped early (timeout, load failure); results are partial. */
+  failure?: string;
+  /** Origins the page requested during the run (download/CSP evidence). */
+  requestOrigins?: string[];
   correct: Array<CaseRun & { score: CorrectScore }>;
   rewrite: Array<CaseRun & { score: RewriteScore }>;
   cancel: Array<{
@@ -52,6 +56,20 @@ export interface ModelRun {
   }>;
 }
 
+export interface RunLimits {
+  generationMs: number;
+  /** Epoch ms after which the model run stops. */
+  deadline: number;
+}
+
+function bounded<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`timeout: ${label}`)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
 export interface CaseRun {
   id: string;
   style: ConcreteRewriteStyle | null;
@@ -60,6 +78,8 @@ export interface CaseRun {
   generations: GenResult[];
   /** Raw model proposal spliced into the input, before validation (null when a chunk failed). */
   proposed: string | null;
+  /** Like `proposed`, but chunks that failed keep their original text (for recall). */
+  proposedPartial: string;
   /** Input after applying only what validation accepted. */
   accepted: string;
   /** Wall time: generation + parse (page) + validation (driver), summed over chunks. */
@@ -98,6 +118,7 @@ async function generateCase(
   fixture: { id: string; text: string; lang: string },
   style: ConcreteRewriteStyle | null,
   params: GenParams,
+  limits: RunLimits,
 ): Promise<CaseRun & { raws: string[] }> {
   const mode = style ? "rewrite" : "correct";
   const prepared = fixturePrepared(fixture.text, fixture.lang);
@@ -108,6 +129,7 @@ async function generateCase(
     input: fixture.text,
     generations: [],
     proposed: null,
+    proposedPartial: fixture.text,
     accepted: fixture.text,
     latencyMs: 0,
     validateMs: 0,
@@ -119,17 +141,53 @@ async function generateCase(
   let complete = true;
   for (const chunk of chunks) {
     const request = aiRequestForChunk(chunk, fixture.lang, mode, style);
-    const result = await page.evaluate(
-      (req, p) => window.ftBench.generate(req, p),
-      request,
-      params,
-    );
+    if (Date.now() > limits.deadline) throw new Error("timeout: model run");
+    let result: GenResult;
+    try {
+      result = await bounded(
+        page.evaluate((req, p) => window.ftBench.generate(req, p), request, params),
+        Math.min(limits.generationMs, limits.deadline - Date.now()),
+        "generation",
+      );
+    } catch (error) {
+      // Interrupt; if the engine does not settle, the model run is aborted by the caller.
+      await bounded(
+        page.evaluate(() => window.ftBench.interrupt()),
+        5_000,
+        "interrupt after generation timeout",
+      );
+      if (Date.now() > limits.deadline) throw error;
+      console.log(`  ${fixture.id}: generation timeout, interrupted`);
+      result = {
+        raw: "",
+        finish: "timeout",
+        ttftMs: null,
+        genMs: limits.generationMs,
+        parsedMs: limits.generationMs,
+        maxTokens: 0,
+        usage: null,
+        outcome: { ok: false, error: "timeout" },
+        error: "timeout",
+      };
+    }
     run.generations.push(result);
     run.latencyMs += result.parsedMs;
     // The scorer gets exactly what the stream produced; a non-"stop" finish is a failure.
-    run.raws.push(result.finish === "stop" ? result.raw : "");
+    run.raws.push(
+      result.finish !== "stop"
+        ? ""
+        : params.contract === "text"
+          ? // Text contract: hand the scorer the parsed answer in the JSON contract it reads.
+            result.outcome?.ok
+            ? JSON.stringify({ segments: result.outcome.segments })
+            : ""
+          : params.thinkBudget
+            ? result.raw.replace(/^\s*<think>[\s\S]*?<\/think>\s*/, "")
+            : result.raw,
+    );
     if (!result.outcome?.ok) {
       complete = false;
+      segmentTexts.push(...chunk.segments.map((segment) => segment.text));
       continue;
     }
     parsed.push(result.outcome.segments);
@@ -143,8 +201,10 @@ async function generateCase(
       run.validateMs += performance.now() - t0;
     }
   }
+  if (chunks.length > 0)
+    run.proposedPartial = splice(fixture.text, chunks, segmentTexts) ?? fixture.text;
   if (complete && chunks.length > 0) {
-    run.proposed = splice(fixture.text, chunks, segmentTexts);
+    run.proposed = run.proposedPartial;
     if (style) {
       const t0 = performance.now();
       const proposal = rewriteProposal(prepared, chunks, parsed, style);
@@ -162,6 +222,7 @@ export async function runFixtures(
   run: ModelRun,
   args: Map<string, string>,
   correctParams: GenParams,
+  limits: RunLimits,
 ): Promise<void> {
   const limit = Number(args.get("limit") ?? Infinity);
   const ids = args.get("ids")?.split(",");
@@ -174,7 +235,7 @@ export async function runFixtures(
   if (modes.includes("correct")) {
     const cases = selected(loadCorrectCases());
     for (const [index, fixture] of cases.entries()) {
-      const { raws, ...result } = await generateCase(page, fixture, null, correctParams);
+      const { raws, ...result } = await generateCase(page, fixture, null, correctParams, limits);
       const score = scoreCorrectCase(fixture, raws);
       run.correct.push({ ...result, score });
       const status = !score.valid
@@ -194,7 +255,13 @@ export async function runFixtures(
   const rewriteCases = selected(loadRewriteCases());
   if (modes.includes("rewrite")) {
     for (const [index, fixture] of rewriteCases.entries()) {
-      const { raws, ...result } = await generateCase(page, fixture, fixture.style, rewriteParams);
+      const { raws, ...result } = await generateCase(
+        page,
+        fixture,
+        fixture.style,
+        rewriteParams,
+        limits,
+      );
       const score = scoreRewriteCase(fixture, raws);
       run.rewrite.push({ ...result, score });
       const status = !score.valid
@@ -220,10 +287,14 @@ export async function runFixtures(
     }).chunks[0]!;
     const request = aiRequestForChunk(chunk, longest.lang, "rewrite", "clearer");
     for (let i = 0; i < 5; i++) {
-      const result = await page.evaluate(
-        (req, p) => window.ftBench.cancelToSettle(req, p, 300),
-        request,
-        rewriteParams,
+      const result = await bounded(
+        page.evaluate(
+          (req, p) => window.ftBench.cancelToSettle(req, p, 300),
+          request,
+          rewriteParams,
+        ),
+        limits.generationMs,
+        "cancel",
       );
       run.cancel.push(result);
       console.log(`cancel ${i}: settle ${result.settleMs.toFixed(1)} ms (${result.finish})`);

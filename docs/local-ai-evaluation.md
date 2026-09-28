@@ -115,6 +115,280 @@ informations`, `since three years`, `more slower then`, `however`, `it still mis
 (a reorder). Rewrite proposals rejected (Qwen3 4B, 35 cases): 5 → 4 after per-sentence
 acceptance. Every fixture ran once.
 
+## Model screening and prompt experiments (WebLLM, `review-ai-3`) — not adopted; product prompt unchanged
+
+Run 2026-09-28 on the same device (Apple M2 Max, Chrome for Testing 154, WebLLM 0.2.85),
+Correct mode only, one sentence per request, **each fixture ran once** (temperature 0,
+seed 42). Nothing here changed the product: registry, shipped prompt (`review-ai-3`) and
+validator are as committed; the prompt variants live only in
+`scripts/local-ai-bench/promptVariants.ts`. Commands:
+`bun run bench:local-ai --real --modes=correct --tag=<t> --ids=<set> [--prompt=<variant>]`,
+then `bun scripts/local-ai-bench/recall.ts <results>.json`.
+
+**Screening set (112 fixtures, 122 requests):** `dense-01…20` + `dense-para-01` (user report,
+91 expected word-level fixes), `heldout-01…20` (45 fixes, measurement only), and 108
+correct-text fixtures that must stay unchanged: `dense-ok-*` (22), `heldout-ok-*` (10),
+`spec-*` (12), `ambiguous-*` (16), `tech-*` (11). Recall = expected word-level fixes (LCS
+token-diff hunks between fixture and expected text) that the output also makes; "model" is the
+raw proposal (placeholders restored), "accepted" is what the validator let through. FP model =
+unchanged fixtures the raw proposal changed (the validator blocks most); FP accepted = what a
+user would be shown. Candidate libraries were downloaded from `mlc-ai/binary-mlc-llm-libs` at
+commit `025bcaf3780fa8254f5e5efd3bfea0a5397248f4` and each verified against that commit's git
+blob SHA-1 before use (SHA-256/SRI recorded in the probe file); weights from each repo's
+pinned revision. Every model's weights and the profile's HTTP cache were deleted after it
+ran, except Qwen3-4B and Qwen3-1.7B.
+
+### Models (shipped prompt `review-ai-3`)
+
+| Model                            | Download / VRAM est. | Recall dense (model) | Recall held-out (model) | Dense accepted  | Held-out accepted | Fully / partly fixed (of 41) | FP model | FP accepted (ids)                                             | p50 / p90 ms per sentence | Cold load |
+| -------------------------------- | -------------------- | -------------------- | ----------------------- | --------------- | ----------------- | ---------------------------- | -------- | ------------------------------------------------------------- | ------------------------- | --------- |
+| **Qwen3-4B** (Recommended today) | 2.26 GB / 3.4 GB     | 49% (45/91)          | 47% (21/45)             | 49% (45/91)     | 47% (21/45)       | 11 / 21                      | 1        | ambiguous-16                                                  | 1793 / 2087               | 3.4 s     |
+| Qwen3.5-4B                       | 2.37 GB / 3.9 GB     | 78% (71/91)          | 76% (34/45)             | 71% (65/91)     | 71% (32/45)       | 20 / 18                      | 3        | **spec-06**, ambiguous-16                                     | 2566 / 2834               | 2.9 s     |
+| Phi-4-mini-instruct              | 2.16 GB / 3.4 GB     | 75% (68/91)          | 62% (28/45)             | 68% (62/91)     | 62% (28/45)       | 16 / 23                      | 10       | ambiguous-16                                                  | 1550 / 1750               | 3.0 s     |
+| Llama-3.2-3B-Instruct            | 1.81 GB / 2.3 GB     | 57% (52/91)          | 49% (22/45)             | 57% (52/91)     | 49% (22/45)       | 10 / 24                      | 7        | **spec-06**, tech-01, ambiguous-16                            | 1181 / 1356               | 2.2 s     |
+| Qwen2.5-3B-Instruct              | 1.74 GB / 2.5 GB     | 68% (62/91)          | 49% (22/45)             | 68% (62/91)     | 49% (22/45)       | 16 / 20                      | 14       | ambiguous-02, ambiguous-16                                    | 1472 / 1730               | 2.7 s     |
+| gemma-2-2b-it                    | 1.47 GB / 1.9 GB     | 77% (70/91)          | 71% (32/45)             | 70% (64/91)     | 67% (30/45)       | 16 / 22                      | 9        | **spec-07**, ambiguous-16                                     | 1091 / 1251               | 2.4 s     |
+| Ministral-3-3B-Instruct-2512     | 1.93 GB / 2.9 GB     | 29% (26/91)          | 31% (14/45)             | 24% (22/91)     | 27% (12/45)       | 5 / 14                       | 55       | ambiguous-09, ambiguous-12, dense-ok-02, -03, -04             | 1297 / 1506               | 2.5 s     |
+| Qwen3-8B                         | 4.61 GB / 5.7 GB     | 54% (49/91)          | 58% (26/45)             | 54% (49/91)     | 58% (26/45)       | 15 / 20                      | 1        | ambiguous-16                                                  | 2656 / 2929               | 5.6 s     |
+| Llama-3.1-8B-Instruct            | 4.52 GB / 5.0 GB     | 77% (70/91)          | 64% (29/45)             | 73% (66/91)     | 64% (29/45)       | 20 / 17                      | 14       | **spec-09**, ambiguous-04, -06, -16, dense-ok-07, dense-ok-17 | 2492 / 2699               | 5.0 s     |
+| Qwen2.5-7B-Instruct              | 4.28 GB / 5.1 GB     | 73% (66/91)          | 69% (31/45)             | 69% (63/91)     | 67% (30/45)       | 19 / 18                      | 9        | ambiguous-16, dense-ok-17                                     | 2343 / 2594               | 4.5 s     |
+| Mistral-7B-Instruct-v0.3         | 4.08 GB / 4.6 GB     | 71% (65/91)          | 71% (32/45)             | 67% (61/91)     | 71% (32/45)       | 17 / 22                      | 23       | **spec-07, spec-09, spec-11**, 8 more                         | 2866 / 3192               | 4.2 s     |
+| gemma-2-9b-it                    | 5.20 GB / 6.4 GB     | 77% (70/91)          | **89% (40/45)**         | 70% (64/91)     | **84% (38/45)**   | 24 / 17                      | 13       | ambiguous-16, dense-ok-17                                     | 4365 / 7032               | 6.8 s     |
+| Qwen3.5-9B                       | 5.04 GB / 6.4 GB     | **85% (77/91)**      | 76% (34/45)             | **78% (71/91)** | 69% (31/45)       | 21 / 17                      | 4        | ambiguous-07, ambiguous-16, dense-ok-15                       | 3360 / 3647               | 5.7 s     |
+
+Download = the pinned revision's weight shards; VRAM = WebLLM's registry estimate (not
+measured; the machine has 32 GB unified memory, so every 7–9B model fit). First download took
+28–95 s here. `ambiguous-16` (`If I was you` → `were`) is changed by every model; the fixture
+treats the indicative as a dialect choice. Accepted changes to golden spec fixtures (bold):
+Qwen3.5-4B and Llama-3.2-3B `cant` → `cante` (spec-06), gemma-2-2b drops the final period of
+spec-07, Llama-3.1-8B and Mistral change spec-09 (`rtpjitterbuffer latency=200 …`).
+Ministral-3-3B wraps words in Markdown `**bold**` (55 of 108 correct fixtures changed before
+validation); its chat template was used as shipped, no workaround tried. gemma-2-9b's
+dense-ok-17 change (`The data are stored … never leave` → `The data is stored … never
+leave`) breaks agreement.
+
+**Full Correct suite (230 fixtures, 246 requests) for the three best new candidates and the
+baseline:**
+
+| Model               | Correct text changed (accepted, of 119)                                                                                               | Other corrections accepted (non-dense, 69 fixes) | Wrong edits accepted on correction fixtures (human-checked)                                                                                                                                          | p50 / p90 ms |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
+| Qwen3-4B            | 1: ambiguous-16                                                                                                                       | 84% (58/69)                                      | none (7 extra edits, all valid alternatives or partial fixes)                                                                                                                                        | 1627 / 1886  |
+| Qwen3.5-9B          | 3: ambiguous-07 (`None of the tests are` → `is`), ambiguous-16, dense-ok-15 (`fewer settings means` → `mean`)                         | 88% (61/69)                                      | fix-14 `She walk` → `She walked` (tense changed; expected `walks`)                                                                                                                                   | 3216 / 3691  |
+| Phi-4-mini-instruct | 2: mixed-01 (adds quotes around `merci beaucoup`), ambiguous-16                                                                       | 80% (55/69)                                      | fix-40 `a wierd bug` → `weird bug` (drops the article), fix-55 `The the report` → `the report` (lower-case start), pl-15 `plik` → `plac` (different word), dense-05 `There are too many information` | 1403 / 1787  |
+| gemma-2-2b-it       | 4: spec-07 (drops the period), **casual-05 `see you then` → `see you than`** (meaning broken), casual-08 (adds a comma), ambiguous-16 | 86% (59/69)                                      | none beyond partial fixes                                                                                                                                                                            | 992 / 1204   |
+
+Screening verdict against the precision-first criteria: no candidate beats Qwen3-4B on
+precision. Qwen3.5-9B has the best recall of the models without golden-fixture or meaning
+changes (+36 dense / +29 held-out points over Qwen3-4B) but its three accepted changes to
+correct text are prescriptive rewrites of acceptable usage, and it costs 2.2× the download,
+~1.9× the VRAM estimate and ~1.8× the latency. Phi-4-mini is the only candidate faster than
+Qwen3-4B with clearly higher recall, but on the full suite it produced four wrong accepted
+edits (validator gaps: article deletion, capitalization loss, a same-language word swap in
+Polish). gemma-2-2b is the fastest and smallest with good recall but broke a meaning
+(casual-05) and a golden fixture; it is also under the Gemma terms, not Apache/MIT. Licenses
+(upstream cards): Qwen Apache-2.0, Phi-4-mini MIT, Llama 3.x community license, Gemma terms.
+
+### Prompt variants (not adopted)
+
+Variants edit only the Correct system prompt of `review-ai-3`: **classes** names seven more
+error classes, each with an example in new words (uncountable nouns, duration prepositions,
+redundant prepositions after verbs, articles on singular countable nouns, _however_
+punctuation, _look forward to_ + -ing, than/then); **soft** allows deleting a wrong/redundant
+word or adding a missing one while still forbidding synonyms and rephrasing; **twoex** adds a
+second worked example; **combo** is all three. Thinking ON (Qwen3, bounded budget) was
+prepared in the harness (`--think-budget`, harness-only stripping of the think block) but
+**not run** (parked for the engine experiment).
+
+| Model / prompt           | Recall dense (model) | Recall held-out (model) | Held-out accepted | FP model (ids)                                        | FP accepted      | p50 / p90 ms |
+| ------------------------ | -------------------- | ----------------------- | ----------------- | ----------------------------------------------------- | ---------------- | ------------ |
+| Qwen3-4B `review-ai-3`   | 49% (45/91)          | 47% (21/45)             | 47% (21/45)       | 1 (ambiguous-16)                                      | 1 (ambiguous-16) | 1793 / 2087  |
+| Qwen3-4B classes         | 52% (47/91)          | 42% (19/45)             | 42% (19/45)       | 0                                                     | 0                | 2182 / 2427  |
+| Qwen3-4B soft            | 48% (44/91)          | 40% (18/45)             | 40% (18/45)       | 0                                                     | 0                | 1838 / 2072  |
+| Qwen3-4B twoex           | 47% (43/91)          | 42% (19/45)             | 42% (19/45)       | 1 (ambiguous-16)                                      | 1                | 2020 / 2255  |
+| Qwen3-4B **combo**       | 53% (48/91)          | **56% (25/45)**         | **56% (25/45)**   | 0                                                     | 0                | 2556 / 2808  |
+| Qwen3.5-9B `review-ai-3` | 85% (77/91)          | 76% (34/45)             | 69% (31/45)       | 5 (ambiguous-07, -11, -16, injection-02, dense-ok-15) | 3                | 3216 / 3691  |
+| Qwen3.5-9B **classes**   | 85% (77/91)          | **84% (38/45)**         | **78% (35/45)**   | 5 (+spec-07, blocked)                                 | 3 (same)         | 4315 / 4634  |
+| Qwen3.5-9B soft          | 85% (77/91)          | 71% (32/45)             | 67% (30/45)       | 5 (+ambiguous-01, blocked)                            | 3 (same)         | 3749 / 4101  |
+| Qwen3.5-9B twoex         | 86% (78/91)          | 78% (35/45)             | 71% (32/45)       | 6 (+spec-07, ambiguous-01, blocked)                   | 3 (same)         | 4219 / 4553  |
+| Qwen3.5-9B combo         | 85% (77/91)          | 82% (37/45)             | 78% (35/45)       | 4 (+spec-07, blocked)                                 | 3 (same)         | 4863 / 5272  |
+
+(The Qwen3.5-9B baseline row is from its full-suite run on the same prompt; screening and
+full-suite recall and changed ids on the shared fixtures were identical; latency and the
+injection-02 entry come from the full run.)
+
+Reading: **soft** and **twoex** alone do not help (held-out down or flat). **combo** is the
+only variant that raises Qwen3-4B's held-out recall (+4 fixes: `discuss about … since` →
+`discussing … for`, `however` punctuation, `explained to us`, an indirect question, `then` →
+`than`; one lost: `If customer open`) with no correct text changed, at +43% latency (~85 more
+prompt tokens per request and a second example). For Qwen3.5-9B, **classes** gives the largest
+held-out gain (+4 accepted) with no new accepted FP (one new model-level change to spec-07,
+blocked by the validator). **Caveat that blocks adoption:** the seven named classes were chosen
+after seeing the held-out errors (three of Qwen3-4B's four new held-out fixes are in those
+classes), so the held-out set is no longer a clean measure for `classes`/`combo`; each fixture
+ran once and the gains are 4 of 45 fixes. Before adopting `combo`, measure it on a fresh
+held-out set written without reference to these classes.
+
+## Engine comparison: WebLLM vs Transformers.js (benchmark only)
+
+Question: can Transformers.js (Hugging Face, ONNX Runtime Web on WebGPU) replace WebLLM, whose
+per-model compiled libraries from `mlc-ai/binary-mlc-llm-libs` carry no license (the release
+blocker)? Product code, registry and the shipped prompt are unchanged; the engine exists only in
+`scripts/local-ai-bench/` (`--engine=transformers`, `tjsPage.ts`, `tjsWorker.ts`,
+`tjsModels.ts`).
+
+**Setup.** `@huggingface/transformers` **4.3.0** (devDependency only, Apache-2.0), which pulls
+`onnxruntime-web` **1.31.0-dev.20260914-8d85527a0** (MIT; a dev pre-release pinned by 4.3.0),
+`@huggingface/jinja` 0.5.10 (MIT) and `@huggingface/tokenizers` 0.2.0 (Apache-2.0). Same
+harness page, Chrome for Testing 154 with `--enable-unsafe-webgpu`, same persistent profile,
+same M2 Max. Requests, `buildAiMessages` (`review-ai-3`), `parseAiResponse`,
+`correctionFindings` and scoring are identical to the WebLLM runs; the model's own chat template
+(`apply_chat_template`, `enable_thinking: false` for Qwen3/SmolLM3), `device: "webgpu"`,
+`dtype: "q4f16"`, greedy decoding (`do_sample: false`), `max_new_tokens =
+aiMaxOutputTokens(request)`. Transformers.js 4.3.0 has **no grammar-constrained decoding** (no
+JSON-schema/grammar code in the package), so option (a) is our JSON contract unconstrained.
+Option (b) is a benchmark-only plain-text contract (`textContractMessages` /
+`parseTextContract` in `promptVariants.ts`): same rules and example content, the model answers
+with only the corrected sentence (Correct sends one sentence per request), bounded one-line
+parse, then the same `correctionFindings`. Cancellation uses `InterruptableStoppingCriteria`.
+Screening set as above (112 fixtures, 122 requests), Correct mode, **each sentence ran once**.
+Hard limits: load ≤ 10 min, generation ≤ 90 s, model ≤ 20 min (added after the Qwen3-1.7B
+hang). Every model's weights (CacheStorage and the profile's HTTP cache) were deleted after it ran.
+
+### Same model, both engines (same prompt, same sentences)
+
+| Model / engine / contract              | Invalid                                                                                                                                                             | Recall dense / held-out (model) | Accepted dense / held-out | Fully / partly fixed (41) | FP model | FP accepted                                                    | p50 / p90 ms | First token p50 | Cold load | Download | Cancel p50 |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- | ------------------------- | ------------------------- | -------- | -------------------------------------------------------------- | ------------ | --------------- | --------- | -------- | ---------- |
+| Qwen3-4B · WebLLM · JSON (grammar)     | 0/122                                                                                                                                                               | 49% / 47%                       | 49% / 47%                 | 11 / 21                   | 1        | ambiguous-16                                                   | 1793 / 2087  | 1018            | 3.4 s     | 2.26 GB  | 1.0 s      |
+| Qwen3-4B · Transformers.js · JSON      | 0/122                                                                                                                                                               | 49% / 42%                       | 49% / 42%                 | 11 / 21                   | 1        | ambiguous-16                                                   | 1719 / 1881  | 1189            | 6.4 s     | 2.83 GB  | 1.3 s      |
+| Qwen3-4B · WebLLM · text               | 0/122                                                                                                                                                               | 41% / 27%                       | 41% / 27%                 | 7 / 19                    | 2        | none                                                           | 1148 / 1368  | 781             | 2.3 s     | 2.26 GB  | —          |
+| Qwen3-4B · Transformers.js · text      | 0/122                                                                                                                                                               | 44% / 38%                       | 44% / 38%                 | 10 / 21                   | 1        | none                                                           | 1192 / 1372  | 933             | 6.6 s     | 2.83 GB  | —          |
+| Phi-4-mini · WebLLM · JSON (grammar)   | 0/122                                                                                                                                                               | 75% / 62%                       | 68% / 62%                 | 16 / 23                   | 10       | ambiguous-16                                                   | 1550 / 1750  | 878             | 3.0 s     | 2.16 GB  | —          |
+| Phi-4-mini · Transformers.js · JSON    | 0/122                                                                                                                                                               | 71% / 62%                       | 70% / 62%                 | 15 / 23                   | 13       | ambiguous-16, dense-ok-15                                      | 1601 / 1773  | 1124            | 3.5 s     | 2.55 GB  | 1.2 s      |
+| Phi-4-mini · Transformers.js · text    | 0/122                                                                                                                                                               | 65% / 60%                       | 65% / 58%                 | 14 / 24                   | 9        | ambiguous-16, dense-ok-07                                      | 1003 / 1208  | 794             | 3.5 s     | 2.55 GB  | —          |
+| Llama-3.2-3B · WebLLM · JSON (grammar) | 3/122                                                                                                                                                               | 57% / 49%                       | 57% / 49%                 | 10 / 24                   | 7        | spec-06, tech-01, ambiguous-16                                 | 1181 / 1356  | 690             | 2.2 s     | 1.81 GB  | —          |
+| Llama-3.2-3B · Transformers.js · JSON  | 6/122                                                                                                                                                               | 47% / 51%                       | 47% / 51%                 | 11 / 23                   | 6        | spec-06, ambiguous-16, heldout-ok-03, heldout-ok-09            | 1244 / 1376  | 843             | 5.5 s     | 2.41 GB  | 0.8 s      |
+| Llama-3.2-3B · Transformers.js · text  | 0/122                                                                                                                                                               | 62% / 56%                       | 62% / 56%                 | 14 / 22                   | 18       | spec-11, ambiguous-16, dense-ok-02, dense-ok-07, heldout-ok-09 | 844 / 971    | 653             | 6.5 s     | 2.41 GB  | —          |
+| Qwen2.5-3B-Instruct · Transformers.js  | not run: no onnx-community or official ONNX export (only third-party repos)                                                                                         |                                 |                           |                           |          |                                                                |              |                 |           |          |            |
+| Qwen3-1.7B · Transformers.js           | failed: `std::bad_alloc` creating the session (single 1.4 GB `.onnx` file, no external data), after which the run stopped progressing (35 min, killed); not retried |                                 |                           |                           |          |                                                                |              |                 |           |          |            |
+
+Recall denominators: dense 91, held-out 45 expected fixes. Cancel: longest rewrite fixture
+(`rw-dense-01`), `interrupt` 300 ms after start, five runs; WebLLM was measured for Qwen3-4B
+only on this fixture. Download = pinned files of the q4f16 variant (Transformers.js exports are
+larger: 2.83 vs 2.26 GB for Qwen3-4B). First download took 53 s (Qwen3-4B), 129 s (Phi-4-mini),
+63 s (Llama) here.
+
+### Transformers.js-only models
+
+| Model (repo @ revision)                                                               | Contract           | Invalid                                                                      | Recall dense / held-out (model) | Accepted dense / held-out | Fully / partly | FP model | FP accepted                                                    | p50 / p90 ms | First token | Cold load | Download | License               |
+| ------------------------------------------------------------------------------------- | ------------------ | ---------------------------------------------------------------------------- | ------------------------------- | ------------------------- | -------------- | -------- | -------------------------------------------------------------- | ------------ | ----------- | --------- | -------- | --------------------- |
+| **Qwen3-4B-Instruct-2507** (`onnx-community/Qwen3-4B-Instruct-2507-ONNX` @ `41a4dd4`) | JSON               | 0/122                                                                        | **63% / 60%**                   | **63% / 58%**             | 18 / 19        | 1        | ambiguous-16                                                   | 1570 / 1747  | 1052        | 4.5 s     | 2.89 GB  | Apache-2.0            |
+| same                                                                                  | text               | 0/122                                                                        | 63% / 60%                       | 63% / 56%                 | 17 / 19        | 2        | ambiguous-16                                                   | 1060 / 1225  | 808         | 3.8 s     |          |                       |
+| granite-4.0-micro (`onnx-community/granite-4.0-micro-ONNX-web` @ `33934a2`)           | JSON               | 107/122                                                                      | 2% / 7%                         | 2% / 7%                   | 1 / 1          | 2        | none                                                           | 1274 / 1614  | 794         | 2.4 s     | 2.30 GB  | Apache-2.0            |
+| same                                                                                  | text               | 0/122                                                                        | 65% / 69%                       | 65% / 67%                 | 17 / 20        | 4        | ambiguous-16                                                   | 872 / 1005   | 627         | 2.5 s     |          |                       |
+| LFM2-2.6B (`onnx-community/LFM2-2.6B-ONNX` @ `9655cd4`)                               | JSON               | 1/122                                                                        | 69% / 69%                       | 62% / 69%                 | 20 / 19        | 12       | **spec-06**, tech-11, ambiguous-16, dense-ok-15, heldout-ok-09 | 942 / 1037   | 605         | 2.3 s     | 1.65 GB  | LFM Open License v1.0 |
+| same                                                                                  | text               | 5/122                                                                        | 68% / 53%                       | 68% / 53%                 | 15 / 21        | 27       | tech-11, ambiguous-16, dense-ok-15, heldout-ok-09              | 616 / 763    | 449         | 2.3 s     |          |                       |
+| SmolLM2-1.7B-Instruct (`HuggingFaceTB/SmolLM2-1.7B-Instruct` @ `31b70e2`)             | JSON               | 54/122                                                                       | 29% / 22%                       | 29% / 20%                 | 9 / 5          | 5        | none                                                           | 815 / 1089   | 480         | 1.6 s     | 1.11 GB  | Apache-2.0            |
+| same                                                                                  | text               | 0/122                                                                        | 63% / 58%                       | 58% / 51%                 | 10 / 26        | 15       | spec-11, ambiguous-16, dense-ok-02                             | 516 / 601    | 388         | 1.7 s     |          |                       |
+| gemma-3-1b-it (`onnx-community/gemma-3-1b-it-ONNX` @ `a58439f`)                       | JSON               | 39/122                                                                       | 25% / 11%                       | 25% / 11%                 | 7 / 4          | 5        | **spec-06**, dense-ok-09, dense-ok-14                          | 930 / 1120   | 400         | 1.6 s     | 0.76 GB  | Gemma terms           |
+| same                                                                                  | text               | 1/122                                                                        | 62% / 56%                       | 55% / 49%                 | 9 / 23         | 41       | 15 ids incl. tech-06, tech-09, tech-11, dense-ok-01…03         | 568 / 722    | 353         | 1.4 s     |          |                       |
+| SmolLM3-3B (`HuggingFaceTB/SmolLM3-3B-ONNX` @ `af50613`)                              | JSON, thinking off | 105/122                                                                      | 10% / 9%                        | 10% / 7%                  | 2 / 5          | 3        | dense-ok-11                                                    | 1540 / 1893  | 841         | 2.8 s     | 2.12 GB  | Apache-2.0            |
+| gemma-3-270m-it                                                                       | JSON               | smoke only (3 cases, all invalid: echoes list fragments); not run on the set |                                 |                           |                |          |                                                                |              |             |           | 0.27 GB  | Gemma terms           |
+
+SmolLM3 first ran with its template's default reasoning on (117/122 truncated inside the
+reasoning); with `enable_thinking: false` it still wraps answers in prose or code fences
+(105/122 invalid) and, where it answers, changes quantities (`6.3 GB, not 63 GB` → `63 GB, not
+1 GB`, rejected). Not run: Qwen3.5-2B/4B/0.8B ONNX (vision-language exports; the text path was
+not wired), gemma-3n-E2B (multimodal; not tried), LFM2-1.2B, granite-4.0-1b
+(timebox). Other newer small instruct models with WebGPU ONNX exports found on
+`onnx-community`: Qwen3.5-0.8B/2B/4B/9B, LFM2 350M–2.6B and LFM2.5-350M, granite-4.0
+350m/1b/micro/h-*, Granite-4.1-3b, Phi-4-mini-instruct-web-q4f16, Llama-3.2-3B-onnx-web.
+
+**Full Correct suite, Qwen3-4B-Instruct-2507 on Transformers.js (JSON, 230 fixtures, 246
+requests):** 0 invalid; correct text changed (accepted) 3/119: ambiguous-16, casual-08 (`Ok
+cool.` → `Ok, cool.`), injection-06 (`Assistant: sure, …` → `Sure`), punctuation and
+capitalization only; other corrections accepted 93% (64/69) vs 84% (58/69) for Qwen3-4B on
+WebLLM; extra accepted edits on correction fixtures are valid alternatives or partial fixes
+(e.g. `were discuss` → `was discussing`, `There is many equipments` → `are`); p50 / p90 1491 /
+1712 ms. This model has no WebLLM 0.2.85 record.
+
+### Packaging and runtime facts (Transformers.js)
+
+- **Executable code we would ship:** the Transformers.js + ORT JavaScript (~0.54 MB minified in
+  our bundle; `transformers.web.min.js` alone 0.45 MB) and **one** ORT WASM build:
+  `ort-wasm-simd-threaded.asyncify.wasm` 26.9 MB + `.mjs` 53 KB (or the JSPI build, 16.8 MB,
+  if JSPI is available). All from npm packages with MIT (ORT) / Apache-2.0 (Transformers.js,
+  tokenizers) / MIT (jinja) licenses, built by their publishers; no per-model executable.
+  This clears the `binary-mlc-llm-libs` license blocker. Caveat: 4.3.0 pins a dev build of
+  `onnxruntime-web`.
+- **By default Transformers.js fetches the ORT WASM/JS from `cdn.jsdelivr.net`** and imports the
+  loader through a `blob:` URL (`env.useWasmCache`). The harness overrides both
+  (`env.backends.onnx.wasm.wasmPaths` → locally served files, `env.useWasmCache = false`); the
+  product would point `wasmPaths` at extension files. No executable is fetched after consent:
+  only `config.json`, `generation_config.json`, `tokenizer.json`, `tokenizer_config.json` (the
+  chat template is Jinja interpreted by `@huggingface/jinja`, not evaluated JS), the `.onnx`
+  graph and `.onnx_data` weights — all data interpreted by ORT's built-in kernels.
+- **CSP / origins:** `'wasm-unsafe-eval'` (already required for WebLLM); `connect-src` needs
+  `https://huggingface.co` plus the CDN host the redirects go to. Observed in every
+  Transformers.js download here: `https://us.aws.cdn.hf.co`. Today's
+  `LOCAL_AI_DOWNLOAD_ORIGINS` already covers it: it allowlists `https://*.cdn.hf.co` (added
+  after the WebLLM real-extension run hit the same regional redirect), in both the CSP and the
+  worker's network guard. No other origin was requested.
+- **Cache backend:** CacheStorage (`caches.open("transformers-cache")`), keyed by resolved file
+  URL; a model is evicted by deleting its entries (the harness does this by URL prefix);
+  `env.customCache` exists for a product-owned store. Downloads also leave a copy in Chrome's HTTP
+  cache unless fetched with `cache: "no-store"`, as the product's WebLLM worker now does.
+- **Workers:** a dedicated worker (module worker) has WebGPU and ran load + generation
+  (gemma-3-1b-it: load 3.4 s, 8 tokens in 0.4 s; `--worker-check`). Not tested inside an MV3
+  offscreen document or under the extension CSP.
+- **Cancellation:** `InterruptableStoppingCriteria.interrupt()` stops at the next token;
+  settle 0.3–1.3 s after `interrupt`, dominated by the prompt prefill that cannot be interrupted
+  (WebLLM, same fixture, Qwen3-4B: 1.0 s).
+- **Failure modes seen:** a single-file 1.4 GB ONNX graph (Qwen3-1.7B) cannot be loaded
+  (`std::bad_alloc` in ORT WASM) and the run then hung; models whose exports use external data
+  files loaded fine. Without grammar constraints, JSON validity depends on the model (0/122
+  invalid for Qwen3-4B, Qwen3-4B-2507 and Phi-4-mini; 39–117/122 for gemma-3-1b, granite,
+  SmolLM2/3).
+- **Build isolation:** `bun run build` + `bun run check:local-ai:artifact` pass for chrome,
+  edge and firefox with the devDependency installed; no Transformers.js/ORT markers
+  (`InterruptableStoppingCriteria`, `onnxruntime`, `ort-wasm-simd`, `transformers-cache`) in
+  any build output.
+
+### Recommendation: engine
+
+Criteria: no more correct-text changes than today, no new meaning changes, speed within ~1.5×
+of WebLLM for the same model, packaging that clears the license blocker.
+
+- **Switching is justified on these measurements: Transformers.js with Qwen3-4B-Instruct-2507,
+  JSON contract.** Same-model speed is at parity (Qwen3-4B 1719 vs 1793 ms p50; Phi-4-mini 1601
+  vs 1550; Llama-3.2-3B 1244 vs 1181), cold load is slower (4–6.5 s vs 2–3.4 s) and cancel
+  settles ~0.3 s later. Same model, same prompt: identical correct-text changes (ambiguous-16
+  only) and near-identical recall (held-out 42% vs 47%, two fixes, single runs). The packaged
+  runtime is MIT/Apache and generic, so the license blocker goes away. The model available only
+  on Transformers.js, Qwen3-4B-Instruct-2507 (Apache-2.0, 2.89 GB), raises recall (held-out 58%
+  vs 47% accepted, dense 63% vs 49%, other corrections 93% vs 84%) at the same latency. Its
+  full-suite correct-text changes are 3 vs 1 (a comma, a capital after a colon and the shared
+  subjunctive), none meaning-changing; that is a small regression against the "no more
+  correct-text changes" criterion to be accepted or tightened (e.g. validator rule for
+  capitalization after a colon) before switching.
+- The text contract is ~30–40% faster but raised correct-text changes for most models and
+  lowered Qwen3-4B's recall; keep the JSON contract (validity was 100% for the candidates that
+  matter, without a grammar). Hybrid (both engines) is not worth it: it would keep the
+  unlicensed libraries in the package.
+- Not verified: extension packaging (offscreen document + worker under the MV3 CSP), memory,
+  other GPUs, run-to-run variance (each sentence ran once), Rewrite quality on Transformers.js.
+
+**Migration outline (not implemented):** replace the worker engine
+(`local-ai` offscreen worker: WebLLM `MLCEngine` → `AutoTokenizer` + `AutoModelForCausalLM` +
+`TextStreamer`/`InterruptableStoppingCriteria`, `env.backends.onnx.wasm.wasmPaths` pointing at
+packaged ORT files, `env.useWasmCache = false`, `env.allowLocalModels = false`); the model
+registry records repo + revision + dtype + per-file SHA-256 of the ONNX/tokenizer files instead
+of model-lib path/SRI (the downloaded files are data; verify hashes after download since
+Transformers.js has no SRI option); build/packaging ships the ORT WASM + loader instead of
+`local-ai/libs/*.wasm` and drops `scripts/fetch-local-ai-assets.ts`' lib step; CSP keeps
+`'wasm-unsafe-eval'` and `connect-src` gains the HF CDN redirect host(s); the artifact check
+swaps the WebLLM markers for ORT/Transformers.js markers. Unchanged: prompts, parse, validator,
+segments, session, consent/UI, port protocol, cache-deletion UX (different cache name).
+
 ## Previous configuration (prompt `review-ai-2`)
 
 Run 2026-09-28 against the committed product code (df79cf37): prompt `review-ai-2`,

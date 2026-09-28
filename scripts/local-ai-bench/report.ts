@@ -252,7 +252,12 @@ export function modelMarkdown(run: ModelRun, s: ModelSummary): string {
 
 if (import.meta.main) {
   const files = existsSync(RESULTS)
-    ? readdirSync(RESULTS).filter((f) => /^Qwen.*(?<!\.smoke|\.summary)\.json$/.test(f))
+    ? readdirSync(RESULTS).filter(
+        (f) =>
+          f.endsWith(".json") &&
+          f !== "downloads.json" &&
+          !/\.(smoke|summary|worker)\.json$/.test(f),
+      )
     : [];
   const rows: string[] = [
     "| Model | Valid | FP on unchanged | Corrected | Wrong/partial fix | Correct p50/p90 | Rewrite changed / inv. ok | Rewrite p50/p90 | Cold load | Cancel p50 |",

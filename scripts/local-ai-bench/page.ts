@@ -8,6 +8,7 @@
 import {
   MLCEngine,
   hasModelInCache,
+  deleteModelAllInfoInCache,
   type AppConfig,
   type ChatCompletionMessageParam,
   type CompletionUsage,
@@ -17,7 +18,12 @@ import {
   AI_RESPONSE_SCHEMA,
   aiMaxOutputTokens,
 } from "../../src/core/domain/grammar/review/ai/prompts";
-import { variantMessages, type PromptVariant } from "./promptVariants";
+import {
+  parseTextContract,
+  textContractMessages,
+  variantMessages,
+  type PromptVariant,
+} from "./promptVariants";
 import { parseAiResponse } from "../../src/core/domain/grammar/review/ai/parse";
 import type {
   AiGenerationOutcome,
@@ -48,6 +54,14 @@ export interface GenParams {
   json: "schema" | "object" | "none";
   /** "product" = prompts.ts as shipped; others are benchmark-only experiments. */
   prompt: PromptVariant;
+  /**
+   * Benchmark-only: extra output tokens for Qwen3 reasoning (enable_thinking
+   * on, json "none"). A complete leading <think>…</think> block is stripped in
+   * the harness before the product parser runs; the product rejects it.
+   */
+  thinkBudget?: number;
+  /** Benchmark-only: "text" = one corrected sentence as plain text (engine comparison). */
+  contract?: "json" | "text";
 }
 
 /** The shipped response-contract schema (re-exported for the driver's reports). */
@@ -102,6 +116,10 @@ async function probe(): Promise<{ ok: boolean; detail: string; f16: boolean; ua:
   const info = adapter.info;
   const detail = `${info.vendor} ${info.architecture} ${info.description}`.trim();
   return { ok: f16, detail: f16 ? detail : `${detail} (no shader-f16)`, f16, ua };
+}
+
+async function deleteModel(model: BenchModel): Promise<void> {
+  await deleteModelAllInfoInCache(model.modelId, appConfigFor(model));
 }
 
 async function isCached(model: BenchModel): Promise<boolean> {
@@ -180,8 +198,11 @@ async function generateMessages(
 }
 
 async function generate(request: AiGenerationRequest, params: GenParams): Promise<GenResult> {
-  const messages = variantMessages(params.prompt, request);
-  const maxTokens = aiMaxOutputTokens(request);
+  const messages =
+    params.contract === "text"
+      ? textContractMessages(request)
+      : variantMessages(params.prompt, request);
+  const maxTokens = aiMaxOutputTokens(request) + (params.thinkBudget ?? 0);
   const t0 = performance.now();
   const result = await generateMessages(messages, maxTokens, params);
   // Only a normally finished stream is a candidate result (spec 8.4).
@@ -192,7 +213,14 @@ async function generate(request: AiGenerationRequest, params: GenParams): Promis
         ? { ok: false, error: "truncated" }
         : result.finish !== "stop"
           ? { ok: false, error: "cancelled" }
-          : parseAiResponse(result.raw, request);
+          : params.contract === "text"
+            ? parseTextContract(result.raw, request)
+            : parseAiResponse(
+                params.thinkBudget
+                  ? result.raw.replace(/^\s*<think>[\s\S]*?<\/think>\s*/, "")
+                  : result.raw,
+                request,
+              );
   return { ...result, outcome, parsedMs: performance.now() - t0 };
 }
 
@@ -254,10 +282,17 @@ declare global {
   }
 }
 
+/** Stops a running generation (harness timeout path). */
+function interrupt(): void {
+  engine?.interruptGenerate();
+}
+
 const api = {
+  interrupt,
   promptVersion: AI_PROMPT_VERSION,
   probe,
   isCached,
+  deleteModel,
   load,
   unload,
   generate,
