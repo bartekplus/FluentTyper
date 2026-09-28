@@ -207,13 +207,10 @@ export class LocalAiController {
     };
   }
 
-  /** Tells the host which model it may run: null without consent or with the preference off. */
+  /** Tells the host the consented model (null without consent) and whether it may run it. */
   private async configureHost(): Promise<void> {
     const status = await this.getStatus();
-    this.host?.configure(
-      status.consented && status.enabled ? { modelId: status.modelId } : null,
-      status.enabled,
-    );
+    this.host?.configure(status.consented ? { modelId: status.modelId } : null, status.enabled);
   }
 
   /** Review ports come only from this extension's content scripts, in web pages. */

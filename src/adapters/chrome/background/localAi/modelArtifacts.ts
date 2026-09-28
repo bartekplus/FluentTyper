@@ -94,13 +94,15 @@ async function cachedFileMatches(
   url: string,
   file: LocalAiModelFile,
   onChunk: (bytes: number) => void,
+  signal: AbortSignal,
 ) {
   const response = await cache.match(url);
   if (!response?.body) {
     return false;
   }
   const { stream, result } = hashingStream(response.body, onChunk);
-  await stream.pipeTo(new WritableStream());
+  // Cancel stops a multi-GB re-hash at once, like a download.
+  await stream.pipeTo(new WritableStream(), { signal });
   const { bytes, sha256 } = result();
   return bytes === file.bytes && sha256 === file.sha256;
 }
@@ -130,7 +132,7 @@ export async function downloadModelFiles(
       done += bytes;
       onBytes(Math.min(done, base + file.bytes));
     };
-    if (await cachedFileMatches(cache, url, file, count)) {
+    if (await cachedFileMatches(cache, url, file, count, signal)) {
       done = base + file.bytes;
       continue;
     }

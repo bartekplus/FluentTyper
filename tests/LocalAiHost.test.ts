@@ -383,6 +383,33 @@ describe("LocalAiHost lifecycle", () => {
     expect(count("probe")).toBe(1);
   });
 
+  test("with the preference off, the consented model's cache is still checked", async () => {
+    const { host, count } = makeHost({}, { configure: false });
+    host.configure({ modelId: STANDARD.modelId }, false);
+    await host.refresh();
+    expect(count("cacheState")).toBe(1);
+    expect(host.state()).toMatchObject({ modelId: STANDARD.modelId, install: "complete" });
+  });
+
+  test("a good probe clears the error a failed one left", async () => {
+    let fail = true;
+    const { host } = makeHost(
+      {
+        probe: async () => {
+          if (fail) throw new Error("gone");
+          return null;
+        },
+      },
+      { configure: false },
+    );
+    host.configure({ modelId: STANDARD.modelId }, true);
+    await flush(5);
+    expect(host.state().error).toBe("load-failed");
+    fail = false;
+    await host.refresh();
+    expect(host.state().error).toBeUndefined();
+  });
+
   test("model loads that keep failing end in error instead of retrying", async () => {
     const { review, host, count } = makeHost({
       load: async () => ({ ok: false, error: "load-failed" }),

@@ -170,6 +170,7 @@ interface Setup {
   redirects?: Map<string, string>;
   /** This URL sends a few bytes, then waits until its request is aborted. */
   stall?: string;
+  loadTokenizer?: () => Promise<TokenizerLike>;
   /** A fake loader; `engineFetch` is the engine's guarded fetch. */
   loadModel?: (record: LocalAiModelRecord, engineFetch: typeof fetch) => Promise<ModelLike>;
 }
@@ -206,7 +207,7 @@ function makeEngine(setup: Setup = {}) {
   const model = new FakeModel();
   const deps: EngineDeps = {
     runtime: {
-      loadTokenizer: async () => tokenizer,
+      loadTokenizer: setup.loadTokenizer ?? (async () => tokenizer),
       loadModel: (record) =>
         setup.loadModel ? setup.loadModel(record, guard.fetch) : Promise.resolve(model),
       createStopper: () => new FakeStopper(),
@@ -333,6 +334,43 @@ describe("install, integrity and cache state", () => {
     model.dispose = () => new Promise(() => undefined);
     await engine.unload();
     expect(await engine.load(GEMMA.record.modelId, noProgress)).toEqual({ ok: true });
+  });
+
+  test("a load abandoned while its tokenizer loads never starts the model allocation", async () => {
+    let releaseTokenizer!: () => void;
+    const loadModel = jest.fn(async () => new FakeModel());
+    const { engine } = makeEngine({
+      loadTokenizer: () =>
+        new Promise((resolve) => (releaseTokenizer = () => resolve(new FakeTokenizer()))),
+      loadModel,
+    });
+    const loading = engine.load(GEMMA.record.modelId, noProgress);
+    await flush();
+    await engine.unload();
+    releaseTokenizer();
+    expect(await loading).toEqual({ ok: false, error: "load-failed" });
+    expect(loadModel).not.toHaveBeenCalled();
+  });
+
+  test("cancel stops the re-hash of a cached file at once", async () => {
+    const { engine, caches } = makeEngine();
+    await engine.install(GEMMA.record.modelId, noProgress, signal, LOAD_MS);
+    const weights = [...GEMMA.served.keys()].find((url) => url.endsWith(".onnx_data"))!;
+    const open = caches.open.bind(caches);
+    caches.open = async (name: string) => {
+      const cache = await open(name);
+      const match = cache.match.bind(cache);
+      cache.match = (async (request: RequestInfo | URL) =>
+        String(request instanceof Request ? request.url : request) === weights
+          ? new Response(new ReadableStream({ start: (c) => c.enqueue(encode("w")) }))
+          : match(request)) as Cache["match"];
+      return cache;
+    };
+    const abort = new AbortController();
+    const installing = engine.install(GEMMA.record.modelId, noProgress, abort.signal, LOAD_MS);
+    await flush(20);
+    abort.abort();
+    expect(await installing).toEqual({ ok: false, error: "download-cancelled" });
   });
 
   test("a marker that cannot be written fails the install and unloads the model", async () => {

@@ -120,6 +120,8 @@ export class LocalAiHost {
   /** Support/cache probes queued or running: jobs wait for them. */
   private refreshing = 0;
   private queuedRefresh: Promise<void> | null = null;
+  /** The current `error` came from a failed probe (a later good probe clears it). */
+  private probeFailed = false;
   private interruptRunning: (() => void) | null = null;
   private lock: Promise<unknown> = Promise.resolve();
   private idleTimer: ReturnType<typeof setTimeout> | null = null;
@@ -147,6 +149,11 @@ export class LocalAiHost {
     this.config = { model, enabled };
     this.fatal = false;
     this.recoveries = 0;
+    // The consented model stays known while disabled: the options page still sees and deletes it.
+    if (model && this.stateModelId !== model.modelId) {
+      this.stateModelId = model.modelId;
+      this.install = "unknown";
+    }
     if (!model || !enabled) {
       this.cancelAllJobs("not-ready");
       this.releaseNow();
@@ -158,10 +165,6 @@ export class LocalAiHost {
     }
     if (this.loadedModelId !== null && this.loadedModelId !== model.modelId) {
       void this.releaseGpu();
-    }
-    if (this.stateModelId !== model.modelId) {
-      this.stateModelId = model.modelId;
-      this.install = "unknown";
     }
     if (this.install === "unknown") {
       void this.refresh();
@@ -202,8 +205,13 @@ export class LocalAiHost {
         if (this.stateModelId) {
           this.install = await this.engine.cacheState(this.stateModelId);
         }
+        if (this.probeFailed) {
+          this.probeFailed = false;
+          this.error = undefined;
+        }
       } catch {
         // `install` stays unknown: waiting jobs fail as engine failures instead of hanging.
+        this.probeFailed = true;
         this.error = "load-failed";
       }
       this.activity = "idle";

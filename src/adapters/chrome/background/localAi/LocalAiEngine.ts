@@ -268,6 +268,10 @@ export class LocalAiEngine {
     this.deps.guard.takeBlockedUrl();
     try {
       const tokenizer = await this.deps.runtime.loadTokenizer(record);
+      if (epoch !== this.epoch) {
+        // Abandoned while the tokenizer loaded: never start an obsolete GPU allocation.
+        return { ok: false, error: "load-failed" };
+      }
       const model = await this.deps.runtime.loadModel(record);
       if (epoch !== this.epoch) {
         // Unloaded, deleted or switched while loading: discard the late model.
