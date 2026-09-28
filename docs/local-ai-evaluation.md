@@ -165,6 +165,37 @@ realistic sizes; run-to-run variance (each fixture ran once); Qwen3.5-2B, Qwen3.
 Qwen2.5-1.5B were not re-run beyond what is listed; Firefox (no runtime host). Fixtures are
 synthetic and finite: a regression gate, not proof of semantic safety. Polish is not advertised.
 
+## Integrated extension run (real GPU)
+
+`bun run test:local-ai:real` (`scripts/local-ai-e2e-real.ts`) drives the **production
+Chrome build** end to end: offscreen document, worker, review port, options page, Review
+panel. Run on 2026-09-28, commit `1985d948` + script fix, Apple M2 Max (Metal), headless
+Chrome for Testing 154, Recommended tier (Qwen3 4B), one run (earlier runs of the same
+script varied about ±5%).
+
+| Step                                                                                                                                    | Result                                                                                                   |
+| --------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| Install from the options page (explicit confirm)                                                                                        | pass: 154 requests, only `huggingface.co` and the `*.cdn.hf.co` CDN; none to `raw.githubusercontent.com` |
+| Correct: rule finding, then a Local AI finding; accept from the card; native undo                                                       | pass                                                                                                     |
+| Rewrite (Keep my voice): Apply disabled while generating; diff; Apply                                                                   | pass                                                                                                     |
+| Sentinel text absent from extension storage, console and profile files (CacheStorage and Chrome's own form-restore `Sessions` excluded) | pass (before and after the offline phase)                                                                |
+| Offline cold start (same profile, all external networking denied): AI finding from the cache                                            | pass, no external request attempted                                                                      |
+| Partial cache (one weight shard deleted): honest "install again", rules intact, no network                                              | pass                                                                                                     |
+| Delete from options: model cache empty, consent and preference kept, no download; HTTP cache 0 MB                                       | pass                                                                                                     |
+
+| Timing                                                           |     ms |
+| ---------------------------------------------------------------- | -----: |
+| Install (confirm → available offline, 2.26 GB)                   | 37,015 |
+| Review open → first rule finding                                 |     87 |
+| Review open → first Local AI finding (engine warm after install) |  2,656 |
+| Rewrite Generate → ready                                         |  2,650 |
+| Offline cold Review → first Local AI finding (cold engine load)  |  5,743 |
+
+This run found and fixed two release blockers: Hugging Face redirects weights and
+tokenizer to a regional `*.cdn.hf.co` host (now allowlisted in both CSP and the network
+guard), and downloads went through Chrome's HTTP cache, leaving a 1.1 GB copy after
+Delete (downloads now use `cache: "no-store"`).
+
 ## Runtime findings (all runs)
 
 1. **`response_format: { type: "json_object" }` without a schema always fails in WebLLM

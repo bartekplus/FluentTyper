@@ -26,6 +26,7 @@ import {
 } from "../src/core/domain/constants";
 import {
   LOCAL_AI_DOWNLOAD_ORIGINS,
+  matchesDownloadOrigin,
   localAiModelForTier,
 } from "../src/core/domain/localAi/modelRegistry";
 import {
@@ -445,7 +446,9 @@ async function run(): Promise<void> {
       });
       await page.close();
       const origins = [...new Set(externalRequests.map((url) => new URL(url).origin))];
-      const foreign = origins.filter((origin) => !LOCAL_AI_DOWNLOAD_ORIGINS.includes(origin));
+      const foreign = origins.filter(
+        (origin) => !matchesDownloadOrigin(`${origin}/`, LOCAL_AI_DOWNLOAD_ORIGINS),
+      );
       check(
         foreign.length === 0,
         `Requests outside LOCAL_AI_DOWNLOAD_ORIGINS: ${foreign.join(", ")}`,
