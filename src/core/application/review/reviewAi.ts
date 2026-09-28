@@ -134,8 +134,11 @@ export function reviewAiAvailability(
   }
   if (status.runtime === "unavailable" || status.unavailable) return "unsupported";
   // Only evaluated languages: elsewhere a small model damages text (docs/local-ai-evaluation.md).
+  // "auto_detect" means the session is still identifying the text's language (AI waits).
   const base = lang.slice(0, 2).toLowerCase();
-  if (!localAiModelForTier(status.tier).languages.includes(base)) return "language";
+  if (lang !== "auto_detect" && !localAiModelForTier(status.tier).languages.includes(base)) {
+    return "language";
+  }
   if (!status.consented) return "setup-needed";
   // A download in progress is a partial install: it is installing, not missing.
   if (status.runtime === "downloading") return "installing";

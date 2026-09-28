@@ -48,6 +48,8 @@ export interface ReviewControllerDependencies {
   createAiProvider?(): ReviewAiProvider | null;
   /** The persistent "Local AI corrections in Review" preference, read on settings changes. */
   aiEnabled?(): boolean;
+  /** Local identification of the reviewed text's language (language setting "auto_detect"). */
+  detectLanguage?(text: string): Promise<string | null>;
 }
 
 type HighlightRegistry = Map<string, unknown>;
@@ -231,6 +233,7 @@ export class ReviewController {
       addToDictionary: (word) => this.deps.addToDictionary(word),
       lookupSpelling: this.deps.lookupSpelling,
       ai,
+      detectLanguage: this.deps.detectLanguage && ((text) => this.deps.detectLanguage!(text)),
     });
     // The preference as it is now; later changes arrive through handleOptionsChanged.
     if (this.deps.aiEnabled) session.setAiEnabled(this.deps.aiEnabled());

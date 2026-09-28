@@ -108,6 +108,9 @@ export type ReviewApplyResult =
   | { status: "partial"; applied: number }
   | { status: "unverified" };
 
+/** The language setting that asks for identification instead of naming a language. */
+const AUTO_DETECT = "auto_detect";
+
 /**
  * Editor side of a review. Adapters implement it; the session never touches the DOM.
  * `apply` receives edits against `before` (descending, non-overlapping) and must
@@ -218,6 +221,11 @@ export interface ReviewSessionDependencies {
   ai?: ReviewAiProvider;
   /** Pause after a text change before new text goes to the model (slower than rule rechecks). */
   aiRecheckDelayMs?: number;
+  /**
+   * Local language identification of the reviewed text, used for Local AI when the
+   * language setting is "auto_detect"; null when it cannot tell.
+   */
+  detectLanguage?: (text: string) => Promise<string | null>;
 }
 
 /**
@@ -357,6 +365,9 @@ export class ReviewSession {
   private mode: ReviewMode = "correct";
   private aiEnabled = true;
   private aiPaused = false;
+  /** With "auto_detect": the reviewed text's language (null: not identified yet). */
+  private detectedLang: string | null = null;
+  private detecting = false;
   private aiStatus: LocalAiStatus | null = null;
   // The setup offer was answered in this review (opened or declined).
   private aiOfferAnswered = false;
@@ -665,6 +676,7 @@ export class ReviewSession {
       this.status !== "ready" ||
       rewrite.status === "generating" ||
       rewrite.status === "applying" ||
+      this.detecting ||
       // Pause stops automatic checking; an explicit Generate still works.
       (this.aiAvailability() !== "ready" && this.aiAvailability() !== "paused")
     ) {
@@ -1183,8 +1195,39 @@ export class ReviewSession {
 
   private aiAvailability(): ReviewAiAvailability {
     return this.deps.ai
-      ? reviewAiAvailability(this.aiStatus, this.aiEnabled, this.aiPaused, this.options.lang)
+      ? reviewAiAvailability(this.aiStatus, this.aiEnabled, this.aiPaused, this.aiLang())
       : "off";
+  }
+
+  /**
+   * The language Local AI works in: the setting, or with "auto_detect" the language
+   * identified in this review's text. Unidentifiable text counts as not English.
+   * ponytail: identified once per review; re-identify on text change if mixed-language
+   * editing turns out to matter.
+   */
+  private aiLang(): string {
+    if (this.options.lang !== AUTO_DETECT) return this.options.lang;
+    return this.detecting ? AUTO_DETECT : (this.detectedLang ?? "und");
+  }
+
+  /** With "auto_detect", identifies the reviewed text's language once, then starts AI. */
+  private identifyLanguage(prepared: PreparedReview): boolean {
+    if (this.options.lang !== AUTO_DETECT || this.detectedLang !== null) return false;
+    if (this.detecting) return true;
+    const detect = this.deps.detectLanguage;
+    if (!detect) return false;
+    this.detecting = true;
+    const { text, scope } = prepared.snapshot;
+    void detect(text.slice(scope.start, Math.min(scope.end, scope.start + 4000)))
+      .catch(() => null)
+      .then((lang) => {
+        this.detecting = false;
+        this.detectedLang = lang ?? "und";
+        if (this.isClosed) return;
+        this.startAi();
+        this.emit();
+      });
+    return true;
   }
 
   private aiViewState(): ReviewAiViewState {
@@ -1259,6 +1302,7 @@ export class ReviewSession {
       !ai ||
       !prepared ||
       this.status !== "ready" ||
+      this.identifyLanguage(prepared) ||
       this.mode !== "correct" ||
       this.aiAvailability() !== "ready" ||
       this.aiPassFor === prepared
@@ -1349,8 +1393,7 @@ export class ReviewSession {
     const cacheKey = (request: AiGenerationRequest, modelId: string, promptVersion: string) =>
       JSON.stringify([request, modelId, promptVersion]);
     const pending: AiChunk[] = [];
-    const requestFor = (chunk: AiChunk) =>
-      aiRequestForChunk(chunk, prepared.options.lang, "correct", null);
+    const requestFor = (chunk: AiChunk) => aiRequestForChunk(chunk, this.aiLang(), "correct", null);
     for (const chunk of plan.chunks) {
       const key = cacheKey(requestFor(chunk), this.aiStatus?.modelId ?? "", AI_PROMPT_VERSION);
       const cached = this.aiCache.get(key);
@@ -1607,7 +1650,7 @@ export class ReviewSession {
     for (const chunk of plan.chunks) {
       let outcome: AiGenerationOutcome;
       try {
-        const request = aiRequestForChunk(chunk, prepared.options.lang, "rewrite", style);
+        const request = aiRequestForChunk(chunk, this.aiLang(), "rewrite", style);
         outcome = (await ai.generate(request, abort.signal)).outcome;
       } catch {
         outcome = { ok: false, error: "engine-failed" };

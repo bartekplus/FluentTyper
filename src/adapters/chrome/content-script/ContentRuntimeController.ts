@@ -256,6 +256,15 @@ export class ContentRuntimeController {
           ? new LocalAiReviewProvider(chrome.runtime)
           : null,
       aiEnabled: () => this.config.localAiReviewEnabled !== false,
+      // The browser's own on-device language identification (CLD); the text stays local.
+      detectLanguage: async (text) => {
+        try {
+          const result = await chrome.i18n.detectLanguage(text);
+          return result.isReliable ? (result.languages[0]?.language ?? null) : null;
+        } catch {
+          return null;
+        }
+      },
     });
   }
 

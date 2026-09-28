@@ -159,8 +159,11 @@ function harness(
   text: string,
   {
     ai = new FakeAi() as FakeAi | null,
-    deps = {} as Partial<Pick<ReviewSessionDependencies, "addToDictionary" | "lookupSpelling">>,
+    deps = {} as Partial<
+      Pick<ReviewSessionDependencies, "addToDictionary" | "lookupSpelling" | "detectLanguage">
+    >,
     rules = ["englishTypoWhitelistCorrection"],
+    lang = "en_US",
   } = {},
 ) {
   const editor = new FakeEditor(text);
@@ -169,7 +172,7 @@ function harness(
   const session = new ReviewSession({
     target: editor,
     options: {
-      lang: "en_US",
+      lang,
       enabledRules: rules,
       userDictionary: [],
       insertSpaceAfterAutocomplete: true,
@@ -436,6 +439,29 @@ describe("ReviewSession with Local AI: Correct", () => {
     await h.settle();
     expect(h.last().ai.availability).toBe("ready");
     expect(h.aiFindings().length).toBeGreaterThan(0);
+  });
+
+  test("with auto-detect, the text's identified language gates Local AI and names the request", async () => {
+    const english = harness(TEXT, {
+      lang: "auto_detect",
+      deps: { detectLanguage: async () => "en" },
+    });
+    await english.start();
+    await english.settle();
+    expect(english.last().ai.availability).toBe("ready");
+    expect(english.ai.requests.length).toBeGreaterThan(0);
+    expect(english.ai.requests.every(({ request }) => request.lang === "en")).toBe(true);
+
+    for (const detected of ["de", null]) {
+      const other = harness(TEXT, {
+        lang: "auto_detect",
+        deps: { detectLanguage: async () => detected },
+      });
+      await other.start();
+      await other.settle();
+      expect(other.last().ai.availability).toBe("language");
+      expect(other.ai.requests).toHaveLength(0);
+    }
   });
 
   test("coverage is partial when text was protected or a chunk failed", async () => {
