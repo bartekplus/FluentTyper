@@ -87,8 +87,8 @@ If you hit an unsupported site, please open a bug report so compatibility can be
 - **Autocomplete** is Presage-only in every build (Chrome, Firefox, Edge); no model runs while
   you type.
 - **Review** can use an optional on-device model on Chrome and Edge (WebGPU), set up
-  explicitly under **Settings → Grammar → Local AI**. It runs in the extension's own worker,
-  never in the page. Firefox keeps the rule-based Review. See
+  explicitly under **Settings → Grammar → Local AI**. It runs in the extension's own background
+  service worker, never in the page. Firefox keeps the rule-based Review. See
   [docs/review-mode.md](docs/review-mode.md#local-ai-optional) and the design note
   [docs/local-ai-review.md](docs/local-ai-review.md).
 

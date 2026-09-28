@@ -3319,7 +3319,7 @@
     },
     {
       "id": "local_ai_pre_consent_no_requests",
-      "description": "Before download consent, opening Review creates no Local AI runtime host (offscreen document) and sends no request outside the extension and the page; rule findings still appear.",
+      "description": "Before download consent, opening Review starts no Local AI engine (no ONNX Runtime load) and sends no request outside the extension and the page; rule findings still appear.",
       "coverage": [
         {
           "layer": "e2e-full",
@@ -3329,7 +3329,7 @@
         {
           "layer": "unit",
           "file": "tests/LocalAiController.test.ts",
-          "test": "never creates the host at startup or before consent"
+          "test": "nothing is probed or loaded at startup, before consent, or on a settings change alone"
         },
         {
           "layer": "unit",
@@ -3439,7 +3439,7 @@
         {
           "layer": "unit",
           "file": "tests/LocalAiController.test.ts",
-          "test": "without chrome.offscreen (Firefox) everything is host-unsupported"
+          "test": "without an engine (Firefox) everything is host-unsupported"
         }
       ]
     }

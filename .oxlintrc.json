@@ -299,8 +299,8 @@
           {
             "patterns": [
               {
-                "group": ["@adapters/chrome/content-script/*", "@adapters/chrome/offscreen/*"],
-                "message": "Background adapter must not import content-script or offscreen modules directly."
+                "group": ["@adapters/chrome/content-script/*"],
+                "message": "Background adapter must not import content-script modules directly."
               }
             ]
           }
@@ -315,28 +315,8 @@
           {
             "patterns": [
               {
-                "group": ["@adapters/chrome/background/*", "@adapters/chrome/offscreen/*"],
-                "message": "Content-script adapter must not import background or offscreen modules directly."
-              }
-            ]
-          }
-        ]
-      }
-    },
-    {
-      "files": ["src/adapters/chrome/offscreen/**/*.{ts,mts,cts,d.ts}"],
-      "rules": {
-        "no-restricted-imports": [
-          "error",
-          {
-            "patterns": [
-              {
-                "group": [
-                  "@adapters/chrome/background/*",
-                  "@adapters/chrome/content-script/*",
-                  "@ui/*"
-                ],
-                "message": "Offscreen adapter must not import background, content-script or UI modules."
+                "group": ["@adapters/chrome/background/*"],
+                "message": "Content-script adapter must not import background modules directly."
               }
             ]
           }
@@ -351,11 +331,7 @@
           {
             "patterns": [
               {
-                "group": [
-                  "@adapters/chrome/background/*",
-                  "@adapters/chrome/content-script/*",
-                  "@adapters/chrome/offscreen/*"
-                ],
+                "group": ["@adapters/chrome/background/*", "@adapters/chrome/content-script/*"],
                 "message": "UI modules must not depend on adapter internals."
               }
             ]

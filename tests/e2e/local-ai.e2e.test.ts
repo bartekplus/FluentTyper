@@ -20,7 +20,6 @@ import {
   clickReviewControl,
   evaluateInContentScript,
   getBackgroundContext,
-  getOffscreenDocumentUrls,
   isChrome,
   isFirefox,
   launchBrowser,
@@ -94,8 +93,13 @@ describeE2E(`Local AI Review E2E [${BROWSER_TYPE}]`, () => {
       ({ url }) => !/^(chrome-extension|data|blob|about):/.test(url) && !url.startsWith(pageOrigin),
     );
 
+  /** The engine never started: ONNX Runtime fetches its WASM only when a model loads. */
   async function expectNoAiHost(): Promise<void> {
-    if (isChrome()) expect(await getOffscreenDocumentUrls(worker)).toEqual([]);
+    if (isChrome()) {
+      expect((network?.requests ?? []).filter(({ url }) => url.includes("local-ai/ort/"))).toEqual(
+        [],
+      );
+    }
   }
 
   async function openReviewPage(): Promise<Page> {
@@ -278,7 +282,7 @@ describeE2E(`Local AI Review E2E [${BROWSER_TYPE}]`, () => {
     TIMEOUT,
   );
 
-  // Last on Chrome: the options page's status probe starts the (model-less) runtime host.
+  // Last on Chrome: the options page's status probe configures the (model-less) runtime host.
   chromeTest(
     '"Set up local AI…" opens the Local AI settings; installing needs the inline confirm',
     async () => {

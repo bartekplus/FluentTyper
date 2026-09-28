@@ -108,18 +108,22 @@ async function cachedFileMatches(
 /**
  * Downloads every listed file not yet cached intact, verifying size and
  * SHA-256 as it streams into the cache. A mismatch deletes all of this
- * model's entries and throws an IntegrityError. `fetchFile` is the worker's
+ * model's entries and throws an IntegrityError. `fetchFile` is the engine's
  * guarded fetch; `onBytes` receives the running total of verified bytes.
+ * Aborting `signal` stops the download; a file cut short is never stored
+ * (Cache.put fails with its body), and nothing is marked verified.
  */
 export async function downloadModelFiles(
   caches: CacheStorageLike,
   record: LocalAiModelRecord,
-  fetchFile: (url: string) => Promise<Response>,
+  fetchFile: (url: string, init: RequestInit) => Promise<Response>,
   onBytes: (bytes: number) => void,
+  signal: AbortSignal,
 ): Promise<void> {
   const cache = await caches.open(MODEL_CACHE);
   let done = 0;
   for (const file of record.files) {
+    signal.throwIfAborted();
     const url = localAiModelFileUrl(record, file);
     const base = done;
     const count = (bytes: number) => {
@@ -132,7 +136,7 @@ export async function downloadModelFiles(
     }
     done = base;
     await cache.delete(url);
-    const response = await fetchFile(url);
+    const response = await fetchFile(url, { signal });
     if (!response.ok || !response.body) {
       throw new Error("Local AI model file download failed");
     }

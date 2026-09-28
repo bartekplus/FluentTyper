@@ -115,12 +115,13 @@ wrong word. Other languages need their own evaluation first.
 
 ## Integrated extension run
 
-`bun run test:local-ai:real` (production Chrome build, Gemma 4 E4B, same device; all 14
-steps pass): install 157 s (5.2 GB); first Local AI finding 8.1 s after Review opens (the
-model loads from disk each time); the user's 10-sentence paragraph complete in 29 s; GPU
-released 1.1 s after the Review closes; Rewrite 7.9 s; offline cold start → first finding
-8.0 s; a partial cache fails honestly; Delete leaves no copy (HTTP cache included); no
-sentinel text in storage, console or profile files.
+`bun run test:local-ai:real` (production Chrome build, engine in the background service
+worker, Gemma 4 E4B, same device, 2026-09-28; all 14 steps pass): install 153 s (5.2 GB);
+first Local AI finding 7.7 s after Review opens (the model loads from disk each time); the
+user's 10-sentence paragraph complete in 29 s; model unloaded 1.1 s after the Review closes;
+Rewrite 7.8 s; offline cold start → first finding 7.5 s; a partial cache fails honestly;
+Delete leaves no copy (HTTP cache included); no sentinel text in storage, console or
+profile files.
 
 ## Not verified
 

@@ -306,7 +306,7 @@ review-only editor there is no Apply: **Copy** puts the proposal on the clipboar
 click it. Every new review starts in Correct.
 
 **Privacy.** The text goes from the page's content script to the extension's own
-offscreen document and worker and back, bound to that tab and review; it is never
+background service worker and back, bound to that tab and review; it is never
 uploaded, logged or stored, and the model's conversation is reset between requests.
 Nothing is downloaded or loaded before you set it up.
 

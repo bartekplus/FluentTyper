@@ -4,17 +4,19 @@ This directory (`local-ai/`) is present only in the Chrome and Edge builds. It c
 optional on-device model runtime used by Local AI Review. Nothing here runs unless the user
 installs a model.
 
-## Bundled in `worker.js` and shipped in `ort/`
+## Bundled in `background.js` and shipped in `ort/`
 
-| Component                                                                   | Version                                  | License    | Notes                                                                                  |
-| --------------------------------------------------------------------------- | ---------------------------------------- | ---------- | -------------------------------------------------------------------------------------- |
-| [@huggingface/transformers](https://github.com/huggingface/transformers.js) | 4.3.0                                    | Apache-2.0 | Transformers.js; Copyright Hugging Face                                                |
-| [@huggingface/tokenizers](https://github.com/huggingface/tokenizers.js)     | 0.2.0                                    | Apache-2.0 | Copyright Hugging Face                                                                 |
-| [@huggingface/jinja](https://github.com/huggingface/huggingface.js)         | 0.5.10                                   | MIT        | Copyright (c) 2023 Hugging Face; chat templates are interpreted, not evaluated as code |
-| [onnxruntime-web](https://github.com/microsoft/onnxruntime)                 | 1.31.0-dev.20260914-8d85527a0            | MIT        | Copyright (c) Microsoft Corporation; JavaScript in `worker.js`, WebAssembly in `ort/`  |
-| [onnxruntime-common](https://github.com/microsoft/onnxruntime)              | 1.30.0 and 1.31.0-dev.20260911-2a43ec07e | MIT        | Copyright (c) Microsoft Corporation                                                    |
+| Component                                                                   | Version                                  | License    | Notes                                                                                     |
+| --------------------------------------------------------------------------- | ---------------------------------------- | ---------- | ----------------------------------------------------------------------------------------- |
+| [@huggingface/transformers](https://github.com/huggingface/transformers.js) | 4.3.0                                    | Apache-2.0 | Transformers.js; Copyright Hugging Face                                                   |
+| [@huggingface/tokenizers](https://github.com/huggingface/tokenizers.js)     | 0.2.0                                    | Apache-2.0 | Copyright Hugging Face                                                                    |
+| [@huggingface/jinja](https://github.com/huggingface/huggingface.js)         | 0.5.10                                   | MIT        | Copyright (c) 2023 Hugging Face; chat templates are interpreted, not evaluated as code    |
+| [onnxruntime-web](https://github.com/microsoft/onnxruntime)                 | 1.31.0-dev.20260914-8d85527a0            | MIT        | Copyright (c) Microsoft Corporation; JavaScript in `background.js`, WebAssembly in `ort/` |
+| [onnxruntime-common](https://github.com/microsoft/onnxruntime)              | 1.30.0 and 1.31.0-dev.20260911-2a43ec07e | MIT        | Copyright (c) Microsoft Corporation                                                       |
 
-`ort/ort-wasm-simd-threaded.asyncify.wasm` and `.mjs` are copied unmodified from the
+The Transformers.js and ONNX Runtime JavaScript (including ONNX Runtime's WebAssembly glue, from
+its bundle build) is bundled into the extension's `background.js`. Only
+`ort/ort-wasm-simd-threaded.asyncify.wasm` ships here, copied unmodified from the
 onnxruntime-web npm package (SHA-256 pinned in `scripts/check-local-ai-artifact.ts`). The
 WebAssembly build of ONNX Runtime incorporates third-party components; their notices, from
 ONNX Runtime commit `8d85527a010e294a26b274749f74294b2a32cec5` and limited to the components in

@@ -1,21 +1,21 @@
 import { describe, expect, jest, test } from "bun:test";
 import { createHash } from "crypto";
 import {
-  LocalAiWorkerEngine,
+  LocalAiEngine,
   probeGpu,
+  type EngineDeps,
   type GpuLike,
   type ModelLike,
   type StopperLike,
   type TensorLike,
   type TokenizerLike,
-  type WorkerEngineDeps,
-} from "../src/adapters/chrome/offscreen/worker/LocalAiWorkerEngine";
+} from "../src/adapters/chrome/background/localAi/LocalAiEngine";
 import {
-  installNetworkGuard,
+  createNetworkGuard,
   NetworkBlockedError,
-} from "../src/adapters/chrome/offscreen/worker/networkGuard";
-import { MODEL_CACHE } from "../src/adapters/chrome/offscreen/worker/modelArtifacts";
-import { Sha256 } from "../src/adapters/chrome/offscreen/worker/sha256";
+} from "../src/adapters/chrome/background/localAi/networkGuard";
+import { MODEL_CACHE } from "../src/adapters/chrome/background/localAi/modelArtifacts";
+import { Sha256 } from "../src/adapters/chrome/background/localAi/sha256";
 import {
   LOCAL_AI_DOWNLOAD_ORIGINS,
   localAiModelFileUrl,
@@ -23,7 +23,6 @@ import {
 } from "../src/core/domain/localAi/modelRegistry";
 import type { AiGenerationRequest } from "../src/core/domain/grammar/review/ai/types";
 import { aiMaxOutputTokens } from "../src/core/domain/grammar/review/ai/prompts";
-import type { WorkerReply } from "../src/adapters/chrome/offscreen/workerProtocol";
 
 const SENTINEL = "SENTINEL-7f3a-private-text";
 const ORIGIN = "chrome-extension://ftext";
@@ -169,8 +168,10 @@ class FakeStopper implements StopperLike {
 interface Setup {
   served?: Map<string, string>;
   redirects?: Map<string, string>;
-  /** A fake loader; `workerFetch` is the worker's guarded fetch. */
-  loadModel?: (record: LocalAiModelRecord, workerFetch: typeof fetch) => Promise<ModelLike>;
+  /** This URL sends a few bytes, then waits until its request is aborted. */
+  stall?: string;
+  /** A fake loader; `engineFetch` is the engine's guarded fetch. */
+  loadModel?: (record: LocalAiModelRecord, engineFetch: typeof fetch) => Promise<ModelLike>;
 }
 
 function makeEngine(setup: Setup = {}) {
@@ -178,6 +179,15 @@ function makeEngine(setup: Setup = {}) {
   const network: string[] = [];
   const nativeFetch = jest.fn(async (input: Request, _init?: RequestInit) => {
     network.push(input.url);
+    if (input.url === setup.stall) {
+      const stalled = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(encode("weights"));
+          input.signal.addEventListener("abort", () => controller.error(input.signal.reason));
+        },
+      });
+      return new Response(stalled);
+    }
     const body = served.get(input.url);
     const response = new Response(body === undefined ? null : body, {
       status: body === undefined ? 404 : 200,
@@ -186,27 +196,29 @@ function makeEngine(setup: Setup = {}) {
     Object.defineProperty(response, "url", { value: finalUrl });
     return response;
   });
-  const scope = { fetch: nativeFetch as unknown as typeof fetch, location: { origin: ORIGIN } };
-  const guard = installNetworkGuard(scope, LOCAL_AI_DOWNLOAD_ORIGINS);
+  const guard = createNetworkGuard(
+    nativeFetch as unknown as typeof fetch,
+    ORIGIN,
+    LOCAL_AI_DOWNLOAD_ORIGINS,
+  );
   const caches = new FakeCaches();
   const tokenizer = new FakeTokenizer();
   const model = new FakeModel();
-  const deps: WorkerEngineDeps = {
+  const deps: EngineDeps = {
     runtime: {
       loadTokenizer: async () => tokenizer,
       loadModel: (record) =>
-        setup.loadModel ? setup.loadModel(record, scope.fetch) : Promise.resolve(model),
+        setup.loadModel ? setup.loadModel(record, guard.fetch) : Promise.resolve(model),
       createStopper: () => new FakeStopper(),
     },
     caches,
     gpu: undefined,
     guard,
-    fetch: (url) => scope.fetch(url),
     findModel,
   };
   return {
-    engine: new LocalAiWorkerEngine(deps),
-    scope,
+    engine: new LocalAiEngine(deps),
+    guard,
     network,
     nativeFetch,
     caches,
@@ -216,6 +228,7 @@ function makeEngine(setup: Setup = {}) {
 }
 
 const noProgress = () => undefined;
+const signal = new AbortController().signal;
 
 // ------------------------------------------------------------------ install and cache
 
@@ -224,7 +237,11 @@ describe("install, integrity and cache state", () => {
     const { engine, caches, network, nativeFetch } = makeEngine();
     const progress: Array<[string, number]> = [];
     expect(
-      await engine.install(GEMMA.record.modelId, (phase, value) => progress.push([phase, value])),
+      await engine.install(
+        GEMMA.record.modelId,
+        (phase, value) => progress.push([phase, value]),
+        signal,
+      ),
     ).toEqual({ ok: true });
     expect(network).toEqual([...GEMMA.served.keys()]);
     expect(nativeFetch.mock.calls[0][1]).toEqual({
@@ -235,20 +252,20 @@ describe("install, integrity and cache state", () => {
     expect(progress).toContainEqual(["download", 1]);
     expect(progress.at(-1)).toEqual(["load", 1]);
     expect(caches.urls().sort()).toEqual([...GEMMA.served.keys()].sort());
-    expect(await engine.cacheState(GEMMA.record.modelId)).toEqual({ install: "complete" });
-    expect(await engine.cacheState(QWEN.record.modelId)).toEqual({ install: "none" });
+    expect(await engine.cacheState(GEMMA.record.modelId)).toBe("complete");
+    expect(await engine.cacheState(QWEN.record.modelId)).toBe("none");
   });
 
   test("a resumed install re-verifies cached files instead of downloading them again", async () => {
     const { engine, network } = makeEngine();
-    await engine.install(GEMMA.record.modelId, noProgress);
+    await engine.install(GEMMA.record.modelId, noProgress, signal);
     network.length = 0;
     await engine.unload();
     const progress: number[] = [];
     const onProgress = (phase: string, value: number) => {
       if (phase === "download") progress.push(value);
     };
-    expect(await engine.install(GEMMA.record.modelId, onProgress)).toEqual({ ok: true });
+    expect(await engine.install(GEMMA.record.modelId, onProgress, signal)).toEqual({ ok: true });
     expect(network).toEqual([]);
     // Verification of the cached files is visible as progress, not silence.
     expect(progress.filter((value) => value > 0 && value < 1).length).toBeGreaterThan(0);
@@ -260,12 +277,24 @@ describe("install, integrity and cache state", () => {
     const weights = [...served.keys()].find((url) => url.endsWith(".onnx_data"))!;
     served.set(weights, "weights-evil!");
     const { engine, caches } = makeEngine({ served });
-    expect(await engine.install(GEMMA.record.modelId, noProgress)).toEqual({
+    expect(await engine.install(GEMMA.record.modelId, noProgress, signal)).toEqual({
       ok: false,
       error: "integrity-failed",
     });
     expect(caches.urls()).toEqual([]);
-    expect(await engine.cacheState(GEMMA.record.modelId)).toEqual({ install: "none" });
+    expect(await engine.cacheState(GEMMA.record.modelId)).toBe("none");
+  });
+
+  test("cancel aborts the download; the file cut short is not cached, nothing is verified", async () => {
+    const weights = [...GEMMA.served.keys()].find((url) => url.endsWith(".onnx_data"))!;
+    const { engine, caches, network } = makeEngine({ stall: weights });
+    const abort = new AbortController();
+    const installing = engine.install(GEMMA.record.modelId, noProgress, abort.signal);
+    while (!network.includes(weights)) await flush();
+    abort.abort();
+    expect(await installing).toEqual({ ok: false, error: "download-cancelled" });
+    expect(caches.urls()).not.toContain(weights);
+    expect(await engine.cacheState(GEMMA.record.modelId)).toBe("partial");
   });
 
   test("files present without the verified marker are partial, never complete", async () => {
@@ -274,18 +303,18 @@ describe("install, integrity and cache state", () => {
     for (const [url, body] of GEMMA.served) {
       await store.put(url, new Response(body));
     }
-    expect(await engine.cacheState(GEMMA.record.modelId)).toEqual({ install: "partial" });
+    expect(await engine.cacheState(GEMMA.record.modelId)).toBe("partial");
   });
 
   test("delete removes only that model's files and marker", async () => {
     const { engine, caches } = makeEngine();
-    await engine.install(GEMMA.record.modelId, noProgress);
-    await engine.install(QWEN.record.modelId, noProgress);
+    await engine.install(GEMMA.record.modelId, noProgress, signal);
+    await engine.install(QWEN.record.modelId, noProgress, signal);
     const presage = await caches.open("presage-dictionaries");
     await presage.put("https://example.invalid/en.db", new Response("dict"));
     await engine.delete(GEMMA.record.modelId);
-    expect(await engine.cacheState(GEMMA.record.modelId)).toEqual({ install: "none" });
-    expect(await engine.cacheState(QWEN.record.modelId)).toEqual({ install: "complete" });
+    expect(await engine.cacheState(GEMMA.record.modelId)).toBe("none");
+    expect(await engine.cacheState(QWEN.record.modelId)).toBe("complete");
     expect(caches.urls("presage-dictionaries")).toEqual(["https://example.invalid/en.db"]);
   });
 });
@@ -296,8 +325,8 @@ describe("network guard", () => {
   test("review-time loads cannot reach the network; a missing listed file is cache-failed", async () => {
     const listed = [...GEMMA.served.keys()][2];
     const made = makeEngine({
-      loadModel: async (_record, workerFetch) => {
-        await workerFetch(listed);
+      loadModel: async (_record, engineFetch) => {
+        await engineFetch(listed);
         return new FakeModel();
       },
     });
@@ -312,18 +341,18 @@ describe("network guard", () => {
     const warn = jest.spyOn(console, "warn").mockImplementation(() => undefined);
     const unlisted = `https://huggingface.co/${GEMMA.record.repo}/resolve/${GEMMA.record.revision}/special_tokens_map.json`;
     const made = makeEngine({
-      loadModel: async (_record, workerFetch) => {
-        await workerFetch(unlisted);
+      loadModel: async (_record, engineFetch) => {
+        await engineFetch(unlisted);
         return new FakeModel();
       },
     });
-    expect(await made.engine.install(GEMMA.record.modelId, noProgress)).toEqual({
+    expect(await made.engine.install(GEMMA.record.modelId, noProgress, signal)).toEqual({
       ok: false,
       error: "load-failed",
     });
     expect(warn).toHaveBeenCalledWith(expect.any(String), unlisted);
     expect(made.network).not.toContain(unlisted);
-    expect(await made.engine.cacheState(GEMMA.record.modelId)).toEqual({ install: "partial" });
+    expect(await made.engine.cacheState(GEMMA.record.modelId)).toBe("partial");
     warn.mockRestore();
   });
 
@@ -335,12 +364,12 @@ describe("network guard", () => {
       served: new Map([[extensionUrl, "wasm"], ...GEMMA.served]),
       redirects: cdnRedirect,
     });
-    await ok.scope.fetch(extensionUrl);
-    await expect(ok.scope.fetch(listed)).rejects.toBeInstanceOf(NetworkBlockedError);
-    expect(await ok.engine.install(GEMMA.record.modelId, noProgress)).toEqual({ ok: true });
+    await ok.guard.fetch(extensionUrl);
+    await expect(ok.guard.fetch(listed)).rejects.toBeInstanceOf(NetworkBlockedError);
+    expect(await ok.engine.install(GEMMA.record.modelId, noProgress, signal)).toEqual({ ok: true });
 
     const evil = makeEngine({ redirects: new Map([[listed, "https://evil.example/x"]]) });
-    expect(await evil.engine.install(GEMMA.record.modelId, noProgress)).toEqual({
+    expect(await evil.engine.install(GEMMA.record.modelId, noProgress, signal)).toEqual({
       ok: false,
       error: "download-failed",
     });
@@ -352,7 +381,7 @@ describe("network guard", () => {
 describe("lifecycle and generation", () => {
   async function loaded(setup: Setup = {}) {
     const made = makeEngine(setup);
-    await made.engine.install(GEMMA.record.modelId, noProgress);
+    await made.engine.install(GEMMA.record.modelId, noProgress, signal);
     return made;
   }
 
@@ -397,7 +426,7 @@ describe("lifecycle and generation", () => {
     });
 
     const qwen = makeEngine();
-    await qwen.engine.install(QWEN.record.modelId, noProgress);
+    await qwen.engine.install(QWEN.record.modelId, noProgress, signal);
     await qwen.engine.generate(QWEN.record.modelId, REQUEST);
     expect(qwen.tokenizer.templateOptions[0]).not.toHaveProperty("enable_thinking");
   });
@@ -420,40 +449,22 @@ describe("lifecycle and generation", () => {
     });
   });
 
-  test("dependency errors become codes; their text never leaves the worker", async () => {
-    const replies: WorkerReply[] = [];
+  test("dependency errors become codes; their text never leaves the engine", async () => {
     const failing = makeEngine({
       loadModel: async () => {
         throw new Error(`${SENTINEL} load`);
       },
     });
-    await failing.engine.handle(
-      { id: 1, type: "install", modelId: GEMMA.record.modelId },
-      (reply) => replies.push(reply),
-    );
-    expect(replies.at(-1)).toEqual({
-      id: 1,
-      type: "result",
-      result: { ok: false, error: "load-failed" },
-    });
+    const install = await failing.engine.install(GEMMA.record.modelId, noProgress, signal);
+    expect(install).toEqual({ ok: false, error: "load-failed" });
 
     const { engine, model } = await loaded();
     model.generateImpl = async () => {
       throw new Error(`${SENTINEL} generation`);
     };
-    await engine.handle(
-      { id: 2, type: "generate", modelId: GEMMA.record.modelId, request: REQUEST },
-      (reply) => replies.push(reply),
-    );
-    expect(replies.at(-1)).toEqual({
-      id: 2,
-      type: "result",
-      result: { ok: false, error: "engine-failed" },
-    });
-    expect(JSON.stringify(replies)).not.toContain(SENTINEL);
-    expect(
-      replies.every((reply) => reply.type === "result" || typeof reply.progress === "number"),
-    ).toBe(true);
+    const outcome = await engine.generate(GEMMA.record.modelId, REQUEST);
+    expect(outcome).toEqual({ ok: false, error: "engine-failed" });
+    expect(JSON.stringify([install, outcome])).not.toContain(SENTINEL);
   });
 });
 

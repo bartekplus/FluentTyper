@@ -393,6 +393,7 @@ async function loadBackgroundHarness(stateOverrides: Record<string, unknown> = {
   (BackgroundServiceWorker as unknown as { instance?: unknown }).instance = undefined;
 
   const module = await import(freshModulePath("../src/adapters/chrome/background/background"));
+  module.startBackground();
 
   const onInstalled = onInstalledAddListener.mock.calls[0][0] as (
     details: chrome.runtime.InstalledDetails,

@@ -10,12 +10,13 @@ import { readFile, readdir, stat } from "fs/promises";
 import { parseArgs } from "node:util";
 import { LOCAL_AI_DOWNLOAD_ORIGINS } from "../src/core/domain/localAi/modelRegistry";
 
-/** Build directory the worker loads ONNX Runtime from (env.backends.onnx.wasm.wasmPaths). */
+/** Build directory background.js loads the ONNX Runtime WASM from (env.backends.onnx.wasm.wasmPaths). */
 export const LOCAL_AI_ORT_DIR = "local-ai/ort";
 /**
- * The ONNX Runtime files shipped for `onnxruntime-web/webgpu` (the asyncify
- * build that Transformers.js imports), pinned by SHA-256. The .mjs is the
- * WASM glue ORT imports when wasmPaths names a directory.
+ * The ONNX Runtime WASM shipped for `onnxruntime-web/webgpu` (the asyncify build
+ * that Transformers.js imports), pinned by SHA-256. Its JavaScript glue is part of
+ * ORT's bundle build, which is bundled into background.js (a service worker cannot
+ * import() a separate .mjs).
  * onnxruntime-web 1.31.0-dev.20260914-8d85527a0 (pinned by @huggingface/transformers 4.3.0).
  */
 export const LOCAL_AI_ORT_FILES: Record<string, { bytes: number; sha256: string }> = {
@@ -23,12 +24,8 @@ export const LOCAL_AI_ORT_FILES: Record<string, { bytes: number; sha256: string 
     bytes: 26_861_777,
     sha256: "49871f5a4409519797e127440868a6d1923339d9185907f301a5b2a1d90af082",
   },
-  "ort-wasm-simd-threaded.asyncify.mjs": {
-    bytes: 53_057,
-    sha256: "0966b6105cd936744498aa60df7a22cbd47af3374dbc64a9ab561c08a71e3611",
-  },
 };
-/** String literals of ONNX Runtime / Transformers.js (survive minification): only in local-ai/worker.js. */
+/** String literals of ONNX Runtime / Transformers.js (survive minification): only in a Local AI background.js. */
 export const LOCAL_AI_ENGINE_MARKERS = [
   "ort-wasm-simd-threaded",
   "onnxruntime",
@@ -39,7 +36,7 @@ const TEST_HOOK_MARKERS = ["TEST_TRIGGER_COMMAND", "triggerCommandForTesting"];
 /** content_script.js installs its observability relay only when __FT_DEV_BUILD__ is true. */
 const DEV_BUILD_CONTENT_SCRIPT_MARKER = "CMD_CONTENT_SCRIPT_REPORT_OBSERVABILITY_EVENT";
 const REPO_ROOT = path.resolve(import.meta.dir, "..");
-/** Transformers.js' default wasmPaths; inert only when the worker overrides it. */
+/** Transformers.js' default wasmPaths; inert only when background.js overrides it. */
 const ORT_CDN_ORIGIN = "https://cdn.jsdelivr.net";
 
 const APP_BUNDLES = [
@@ -51,10 +48,11 @@ const APP_BUNDLES = [
   "options/settings.js",
   "new_installation/onboarding.js",
 ];
-const LOCAL_AI_BUNDLES = ["local-ai/offscreen.js", "local-ai/worker.js"];
+/** The only bundle that may hold the Local AI engine (Chrome/Edge). */
+const ENGINE_BUNDLE = "background.js";
 
 /**
- * URL origins that may appear in Local AI bundles without being contacted:
+ * URL origins that may appear in the engine bundle without being contacted:
  * documentation links in dependency error/warning strings. CSP connect-src
  * blocks all of them at runtime regardless.
  */
@@ -74,8 +72,8 @@ interface PlatformExpectation {
 }
 
 const PLATFORMS: Record<string, PlatformExpectation> = {
-  chrome: { permissions: ["activeTab", "offscreen", "storage"], localAi: true },
-  edge: { permissions: ["activeTab", "offscreen", "storage"], localAi: true },
+  chrome: { permissions: ["activeTab", "storage"], localAi: true },
+  edge: { permissions: ["activeTab", "storage"], localAi: true },
   firefox: { permissions: ["activeTab", "storage"], localAi: false },
 };
 
@@ -152,9 +150,6 @@ export async function checkLocalAiArtifact(
   if (expected.localAi) {
     const localAiEntries = await readdir(path.join(buildDir, "local-ai")).catch(() => []);
     const expectedEntries = [
-      "offscreen.html",
-      "offscreen.js",
-      "worker.js",
       "ort",
       "THIRD_PARTY_NOTICES.md",
       "ONNXRUNTIME_THIRD_PARTY_NOTICES.txt",
@@ -178,23 +173,13 @@ export async function checkLocalAiArtifact(
         fail(`${LOCAL_AI_ORT_DIR}/${name} does not match its pinned SHA-256/size`);
       }
     }
-    const offscreenHtml = await read("local-ai/offscreen.html").catch(() => "");
-    const scripts = offscreenHtml.match(/<script\b[^>]*>/gi) ?? [];
-    if (
-      scripts.length !== 1 ||
-      !/\ssrc="(\.\/)?offscreen\.js"/.test(scripts[0]) ||
-      /<script\b[^>]*>(?!\s*<\/script>)/i.test(offscreenHtml)
-    ) {
-      fail("local-ai/offscreen.html must load only ./offscreen.js, with no inline script");
-    }
   } else if (await stat(path.join(buildDir, "local-ai")).catch(() => null)) {
     fail(`${platform} build must not contain local-ai/`);
   }
 
   // Bundles: engine isolation and production stripping.
-  const bundles = [...APP_BUNDLES, ...(expected.localAi ? LOCAL_AI_BUNDLES : [])];
   const contents = new Map<string, string>();
-  for (const bundle of bundles) {
+  for (const bundle of APP_BUNDLES) {
     const content = await read(bundle).catch(() => null);
     if (content === null) {
       fail(`missing ${bundle}`);
@@ -203,7 +188,7 @@ export async function checkLocalAiArtifact(
     }
   }
   for (const [bundle, content] of contents) {
-    const isLocalAi = LOCAL_AI_BUNDLES.includes(bundle);
+    const isEngine = expected.localAi && bundle === ENGINE_BUNDLE;
     for (const marker of TEST_HOOK_MARKERS) {
       if (content.includes(marker)) {
         fail(`${bundle} contains runtime test hooks ("${marker}")`);
@@ -212,19 +197,16 @@ export async function checkLocalAiArtifact(
     if (content.includes(REPO_ROOT)) {
       fail(`${bundle} embeds the build machine path ${REPO_ROOT}`);
     }
-    const isWorker = bundle === "local-ai/worker.js";
-    if (!isWorker) {
+    if (!isEngine) {
       for (const marker of LOCAL_AI_ENGINE_MARKERS) {
         if (content.includes(marker)) {
           fail(`${bundle} contains the Local AI engine ("${marker}")`);
         }
       }
-    }
-    if (!isLocalAi) {
       continue;
     }
-    // The worker must replace Transformers.js' CDN wasmPaths with the packaged runtime.
-    const ortOverridden = isWorker && content.includes(`${LOCAL_AI_ORT_DIR}/`);
+    // background.js must replace Transformers.js' CDN wasmPaths with the packaged runtime.
+    const ortOverridden = content.includes(`${LOCAL_AI_ORT_DIR}/`);
     const origins = new Map<string, number>();
     for (const url of content.match(/https?:\/\/[a-z0-9.-]+/gi) ?? []) {
       origins.set(url.toLowerCase(), (origins.get(url.toLowerCase()) ?? 0) + 1);
@@ -246,12 +228,12 @@ export async function checkLocalAiArtifact(
   if (contents.get("content_script.js")?.includes(DEV_BUILD_CONTENT_SCRIPT_MARKER)) {
     fail("content_script.js was built with __FT_DEV_BUILD__ = true");
   }
-  const worker = contents.get("local-ai/worker.js");
-  if (expected.localAi && !worker?.includes(LOCAL_AI_ENGINE_MARKERS[0])) {
-    fail("local-ai/worker.js does not contain the Local AI engine");
+  const engine = expected.localAi ? (contents.get(ENGINE_BUNDLE) ?? "") : null;
+  if (engine !== null && !engine.includes(LOCAL_AI_ENGINE_MARKERS[0])) {
+    fail(`${ENGINE_BUNDLE} does not contain the Local AI engine`);
   }
-  if (worker && !worker.includes(`${LOCAL_AI_ORT_DIR}/`)) {
-    fail(`local-ai/worker.js does not point ONNX Runtime at ${LOCAL_AI_ORT_DIR}/`);
+  if (engine !== null && !engine.includes(`${LOCAL_AI_ORT_DIR}/`)) {
+    fail(`${ENGINE_BUNDLE} does not point ONNX Runtime at ${LOCAL_AI_ORT_DIR}/`);
   }
 
   return { failures, notes };

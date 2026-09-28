@@ -36,6 +36,7 @@ import { PersonalizationRepository } from "@core/application/personalization/Per
 import { PersonalizationService } from "@core/application/personalization/PersonalizationService";
 import { LocalAiSettingsRepository } from "@core/application/repositories/LocalAiSettingsRepository";
 import { LocalAiController } from "./localAi/LocalAiController";
+import type { EngineLike } from "./localAi/LocalAiHost";
 
 declare const __FT_DEV_BUILD__: boolean | undefined;
 
@@ -59,7 +60,7 @@ export class BackgroundServiceWorker {
   private runtimeConfigLoadPromise: Promise<void> | null = null;
   private initializationPromise: Promise<void> | null = null;
 
-  constructor() {
+  constructor(localAiEngine: EngineLike | null = null) {
     if (BackgroundServiceWorker.instance) {
       return BackgroundServiceWorker.instance;
     }
@@ -90,6 +91,7 @@ export class BackgroundServiceWorker {
     this.configAssembler = new ConfigAssembler(this.settingsManager, { isDevBuild: IS_DEV_BUILD });
     this.localAiController = new LocalAiController(
       new LocalAiSettingsRepository(this.settingsManager),
+      localAiEngine,
     );
     this.language = "auto_detect";
     BackgroundServiceWorker.instance = this;

@@ -6,15 +6,15 @@ FluentTyper uses a layered architecture. Keep imports and responsibilities flowi
 
 - `src/core/domain/`: pure domain logic, contracts, constants, guards, and types. Do not import from application, adapters, or UI.
 - `src/core/application/`: use-case orchestration, repositories, logging, and settings access. Do not import from adapters or UI.
-- `src/adapters/chrome/`: browser integration for background, content-script and offscreen runtime behavior. Do not import from UI.
+- `src/adapters/chrome/`: browser integration for background and content-script runtime behavior. Do not import from UI.
 - `src/ui/`: popup, onboarding, and settings UI. Do not import from adapter internals.
 
 ## Adapter Separation
 
 - `src/adapters/chrome/background/**` must not import from `src/adapters/chrome/content-script/**`.
 - `src/adapters/chrome/content-script/**` must not import from `src/adapters/chrome/background/**`.
-- `src/adapters/chrome/offscreen/**` (Local AI Review runtime host: offscreen document code, and the engine worker code under `offscreen/worker/`) must not import background or content-script modules, and they must not import it. The three talk only through the ports and messages in `src/core/domain/contracts/localAi.ts`.
-- Only `src/entries/local_ai_worker.ts` may import `@huggingface/transformers` (Transformers.js + ONNX Runtime Web); the build fails if any other bundle contains the engine.
+- The Local AI Review runtime (engine, job host, consent controller) lives in `src/adapters/chrome/background/localAi/` and runs in the background service worker; content scripts reach it only through the review port and messages in `src/core/domain/contracts/localAi.ts`.
+- Only `src/adapters/chrome/background/localAi/engineRuntime.ts` may import `@huggingface/transformers` (Transformers.js + ONNX Runtime Web). Only `src/entries/background.ts` imports it (tests get no engine); builds without the runtime (Firefox) swap it for `engineRuntime.noop.ts`. The build fails if the engine appears in any bundle but a Chrome/Edge `background.js`.
 
 ## Entry Points
 
@@ -25,8 +25,6 @@ FluentTyper uses a layered architecture. Keep imports and responsibilities flowi
 - `src/entries/popup.ts`
 - `src/entries/settings.ts`
 - `src/entries/onboarding.ts`
-- `src/entries/local_ai_offscreen.ts` (Chrome/Edge offscreen document `local-ai/offscreen.html`)
-- `src/entries/local_ai_worker.ts` (module worker `local-ai/worker.js`, owns the Transformers.js engine)
 
 ## Imports and Shared Contracts
 

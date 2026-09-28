@@ -32,7 +32,7 @@ interface BuildContext {
   platform: string;
   /** Development build: __FT_DEV_BUILD__ and runtime test hooks. */
   devBuild: boolean;
-  /** Local AI Review runtime (offscreen document + Transformers.js worker): Chrome and Edge. */
+  /** Local AI Review runtime (Transformers.js in background.js): Chrome and Edge. */
   includeLocalAiRuntime: boolean;
   configuredLogLevel: string;
   rootDir: string;
@@ -41,6 +41,7 @@ interface BuildContext {
   publicDir: string;
   platformDir: string;
   runtimeHooksNoopPath: string;
+  localAiEngineNoopPath: string;
 }
 
 function parseCliOptions(argv: string[]): CliOptions {
@@ -96,7 +97,10 @@ function transformManifestContent(manifestContent: string, connectSrc: string[] 
   return `${JSON.stringify(manifest, null, 2)}\n`;
 }
 
-/** Production swaps the runtime test hooks for their no-op module. */
+/**
+ * Production swaps the runtime test hooks for their no-op module; builds without
+ * the Local AI runtime swap the engine (Transformers.js + ONNX Runtime) for none.
+ */
 function createBuildPlugin(context: BuildContext) {
   return {
     name: "fluenttyper-build-aliases",
@@ -107,6 +111,12 @@ function createBuildPlugin(context: BuildContext) {
             filter: /^@adapters\/chrome\/background\/testing\/RuntimeTestHooks$/,
           },
           () => ({ path: context.runtimeHooksNoopPath }),
+        );
+      }
+      if (!context.includeLocalAiRuntime) {
+        build.onResolve(
+          { filter: /^@adapters\/chrome\/background\/localAi\/engineRuntime$/ },
+          () => ({ path: context.localAiEngineNoopPath }),
         );
       }
     },
@@ -172,8 +182,9 @@ async function copyStaticAssets(context: BuildContext): Promise<void> {
 }
 
 /**
- * Copies the ONNX Runtime WebGPU runtime the worker loads from local-ai/ort/
- * (onnxruntime-web/webgpu = the asyncify build) and fails on any hash drift.
+ * Copies the ONNX Runtime WebGPU WASM (onnxruntime-web/webgpu = the asyncify build;
+ * its JavaScript glue is bundled into background.js) to local-ai/ort/ and fails on
+ * any hash drift.
  */
 async function copyOrtRuntime(context: BuildContext): Promise<void> {
   // The onnxruntime-web that Transformers.js itself resolves.
@@ -195,13 +206,16 @@ async function copyOrtRuntime(context: BuildContext): Promise<void> {
   }
 }
 
-/** Fails the build if Transformers.js / ONNX Runtime appears outside the Local AI worker. */
-async function assertEngineIsolation(outfiles: string[], workerOutfile: string): Promise<void> {
-  for (const outfile of outfiles.filter((file) => file !== workerOutfile)) {
+/**
+ * Fails the build if Transformers.js / ONNX Runtime appears outside background.js,
+ * or anywhere in a build without the Local AI runtime.
+ */
+async function assertEngineIsolation(outfiles: string[], engineOutfile: string | null) {
+  for (const outfile of outfiles.filter((file) => file !== engineOutfile)) {
     const content = await readFile(outfile, "utf8");
     const marker = LOCAL_AI_ENGINE_MARKERS.find((candidate) => content.includes(candidate));
     if (marker) {
-      throw new Error(`${outfile} contains "${marker}"; only local-ai/worker.js may bundle it`);
+      throw new Error(`${outfile} contains "${marker}"; only a Local AI background.js may`);
     }
   }
 }
@@ -260,26 +274,12 @@ async function bundleExtension(context: BuildContext): Promise<void> {
       outfile: path.join(context.buildDir, "new_installation", "onboarding.js"),
       label: "onboarding",
     },
-  ].map((item): BundleEntry => ({ ...item, format: "iife" }));
-  const workerOutfile = path.join(context.buildDir, "local-ai", "worker.js");
-  if (context.includeLocalAiRuntime) {
-    entrypoints.push(
-      {
-        entrypoint: path.join(context.srcDir, "entries", "local_ai_offscreen.ts"),
-        outfile: path.join(context.buildDir, "local-ai", "offscreen.js"),
-        label: "local-ai/offscreen",
-        format: "iife",
-      },
-      {
-        // The only bundle with Transformers.js + ONNX Runtime. ESM (a module
-        // worker): ONNX Runtime locates its files through import.meta.url.
-        entrypoint: path.join(context.srcDir, "entries", "local_ai_worker.ts"),
-        outfile: workerOutfile,
-        label: "local-ai/worker",
-        format: "esm",
-      },
-    );
-  }
+  ].map((item): BundleEntry => ({
+    ...item,
+    // Transformers.js and ONNX Runtime use import.meta.url: an ES module service worker.
+    format: item.label === "background" && context.includeLocalAiRuntime ? "esm" : "iife",
+  }));
+  const backgroundOutfile = path.join(context.buildDir, "background.js");
 
   const plugin = createBuildPlugin(context);
   const buildResults = await Promise.all(
@@ -316,7 +316,7 @@ async function bundleExtension(context: BuildContext): Promise<void> {
   );
   await assertEngineIsolation(
     entrypoints.map((item) => item.outfile),
-    workerOutfile,
+    context.includeLocalAiRuntime ? backgroundOutfile : null,
   );
 
   await copyStaticAssets(context);
@@ -431,6 +431,14 @@ async function main(): Promise<void> {
       "background",
       "testing",
       "RuntimeTestHooks.noop.ts",
+    ),
+    localAiEngineNoopPath: path.join(
+      srcDir,
+      "adapters",
+      "chrome",
+      "background",
+      "localAi",
+      "engineRuntime.noop.ts",
     ),
   };
 

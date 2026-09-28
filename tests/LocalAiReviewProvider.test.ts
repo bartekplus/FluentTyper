@@ -7,6 +7,7 @@ import {
 import {
   CMD_LOCAL_AI_DISMISS_SETUP_OFFER,
   CMD_LOCAL_AI_ENSURE_HOST,
+  CMD_LOCAL_AI_GET_STATUS,
   CMD_LOCAL_AI_OPEN_SETUP,
 } from "../src/core/domain/constants";
 import {
@@ -219,5 +220,20 @@ describe("LocalAiReviewProvider", () => {
     const after = await provider.generate(REQUEST, new AbortController().signal);
     expect(after.outcome).toEqual({ ok: false, error: "cancelled" });
     expect(r.ports).toHaveLength(1);
+  });
+
+  test("without a port, returning to the tab re-reads the status (setup finished elsewhere)", async () => {
+    const r = runtime();
+    const provider = new LocalAiReviewProvider(r.fake);
+    const statuses: LocalAiStatus[] = [];
+    provider.onStatus((status) => statuses.push(status));
+    document.dispatchEvent(new Event("visibilitychange"));
+    await tick();
+    expect(r.sent).toEqual([CMD_LOCAL_AI_GET_STATUS]);
+    expect(statuses).toEqual([STATUS]);
+    provider.dispose();
+    document.dispatchEvent(new Event("visibilitychange"));
+    await tick();
+    expect(r.sent).toEqual([CMD_LOCAL_AI_GET_STATUS]);
   });
 });

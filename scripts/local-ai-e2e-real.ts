@@ -21,6 +21,7 @@ import path from "node:path";
 import process from "node:process";
 import puppeteer, { type Browser, type CDPSession, type Page } from "puppeteer";
 import {
+  CMD_LOCAL_AI_STATUS_CHANGED,
   KEY_LANGUAGE,
   KEY_LOCAL_AI_REVIEW_CONSENT,
   KEY_LOCAL_AI_REVIEW_ENABLED,
@@ -30,10 +31,9 @@ import {
   matchesDownloadOrigin,
   localAiModelForTier,
 } from "../src/core/domain/localAi/modelRegistry";
-import { MODEL_CACHE } from "../src/adapters/chrome/offscreen/worker/modelArtifacts";
+import { MODEL_CACHE } from "../src/adapters/chrome/background/localAi/modelArtifacts";
 import {
   clickReviewControl,
-  getOffscreenDocumentUrls,
   readReviewAi,
   readReviewPanel,
   REVIEW_HOST_SELECTOR,
@@ -177,38 +177,9 @@ async function launch(offline: boolean): Promise<{ browser: Browser; worker: Bac
       session.send("Network.enable").catch(() => undefined),
     ]);
   };
+  // The Local AI engine runs in the service worker, which does its downloads.
   await watchTargets(browser, (session, watched) => instrument(session, watched.type()));
-  await watchWorkerTargets(browser, (session) => instrument(session, "worker"));
   return { browser, worker };
-}
-
-/**
- * The Local AI engine is a dedicated (module) worker of the offscreen document and
- * does its own downloads; puppeteer's `targetcreated` does not report such workers,
- * so they are discovered and attached from a browser-level session.
- */
-async function watchWorkerTargets(
-  browser: Browser,
-  attach: (session: CDPSession) => Promise<void>,
-): Promise<void> {
-  const root = await browser.target().createCDPSession();
-  const seen = new Set<string>();
-  const attachNew = async () => {
-    const { targetInfos } = await root.send("Target.getTargets");
-    for (const info of targetInfos) {
-      if (info.type !== "worker" || seen.has(info.targetId)) continue;
-      seen.add(info.targetId);
-      const { sessionId } = await root.send("Target.attachToTarget", {
-        targetId: info.targetId,
-        flatten: true,
-      });
-      const session = root.connection()?.session(sessionId);
-      if (session) await attach(session).catch(() => undefined);
-    }
-  };
-  root.on("Target.targetCreated", () => void attachNew().catch(() => undefined));
-  await root.send("Target.setDiscoverTargets", { discover: true });
-  await attachNew();
 }
 
 async function openOptions(browser: Browser, worker: BackgroundContext): Promise<Page> {
@@ -585,30 +556,45 @@ async function run(): Promise<void> {
       return `${ai.length} Local AI findings of ${panel.items.length} in total; "${line}"`;
     });
 
-    await step("(ii-c) closing Review releases the GPU (offscreen document closed)", async () => {
+    await step("(ii-c) closing Review unloads the model at once", async () => {
+      // The options page hears every status broadcast: record the runtime states.
+      const options = await openOptions(browser, worker);
+      await options.evaluate((command) => {
+        const seen: string[] = [];
+        (globalThis as { __ftRuntimes?: string[] }).__ftRuntimes = seen;
+        chrome.runtime.onMessage.addListener((message) => {
+          const runtime = (
+            message as { command?: string; context?: { status?: { runtime?: string } } }
+          )?.context?.status?.runtime;
+          if ((message as { command?: string })?.command === command && runtime) seen.push(runtime);
+        });
+      }, CMD_LOCAL_AI_STATUS_CHANGED);
+      const runtimes = () =>
+        options.evaluate(() => (globalThis as { __ftRuntimes?: string[] }).__ftRuntimes ?? []);
       const page = await openEditor(browser, CORRECT_TEXT);
       await review(worker);
       await waitUntil("first Local AI finding", async () => (await aiItemIds(page)).length > 0, {
         timeoutMs: 5 * MINUTE,
         intervalMs: 100,
       });
-      check(
-        (await getOffscreenDocumentUrls(worker)).length === 1,
-        "no offscreen document while Review is open",
-      );
+      const before = (await runtimes()).length;
       await page.keyboard.press("Escape");
       await page.keyboard.press("Escape");
       await waitUntil("Review panel closed", async () => !(await readReviewPanel(page)).open);
       const closedAt = performance.now();
       await waitUntil(
-        "offscreen document (engine worker) released",
-        async () => (await getOffscreenDocumentUrls(worker)).length === 0,
+        "model unloaded",
+        async () => {
+          const after = (await runtimes()).slice(before);
+          return after.includes("unloading") && after.at(-1) === "ready";
+        },
         { timeoutMs: 15_000, intervalMs: 100 },
       );
       const releasedMs = Math.round(performance.now() - closedAt);
-      timings.push(["Review closed → GPU released (offscreen document gone)", releasedMs]);
+      timings.push(["Review closed → model unloaded", releasedMs]);
       await page.close();
-      return `released ${releasedMs} ms after the panel closed`;
+      await options.close();
+      return `unloaded ${releasedMs} ms after the panel closed`;
     });
 
     await step("(iii) Rewrite (Keep my voice): diff, Apply only when ready, apply", async () => {
@@ -722,12 +708,7 @@ async function run(): Promise<void> {
       );
       check(removed, "No ONNX weight file found in CacheStorage");
       await options.close();
-      // Cold host: the warm engine must not hide the missing weights.
-      await worker.evaluate(() => chrome.offscreen.closeDocument().catch(() => undefined));
-      await waitUntil(
-        "host closed",
-        async () => (await getOffscreenDocumentUrls(worker)).length === 0,
-      );
+      // (v) closed its Review, so the model was unloaded: this Review loads cold from the cache.
 
       const page = await openEditor(browser, CORRECT_TEXT);
       await review(worker);

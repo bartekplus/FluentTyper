@@ -21,9 +21,9 @@ If you change message shapes:
 ## Predictor Constraints
 
 - Autocomplete (popup and inline predictions) is Presage-only in every build, dev and production. Local AI Review settings never feed prediction config; stale legacy AI predictor keys in storage are ignored.
-- Chrome/Edge builds include the Local AI Review runtime (`local-ai/offscreen.html` hosting the module worker `local-ai/worker.js`), isolated from prediction (see [architecture.md](architecture.md)); Firefox builds ship none. Packaging: [commands.md](commands.md#local-ai-review-assets).
+- Chrome/Edge builds include the Local AI Review runtime in the background service worker (`background.js`), never used by prediction (see [architecture.md](architecture.md)); Firefox builds ship none. Packaging: [commands.md](commands.md#local-ai-review-assets).
 - `__FT_DEV_BUILD__`, runtime test hooks and text-bearing predictor debug traces stay development-only; including the Local AI runtime never enables them.
-- `connect-src` allows only `'self'` and the Hugging Face origins in `LOCAL_AI_DOWNLOAD_ORIGINS`; no `blob:` or remote script source is needed (single-threaded worker, ORT proxy worker off, `env.useWasmCache` false). Check a production build with `bun run check:local-ai:artifact`.
+- `connect-src` allows only `'self'` and the Hugging Face origins in `LOCAL_AI_DOWNLOAD_ORIGINS`; no `blob:` or remote script source is needed (single-threaded WASM, no ORT proxy worker, `env.useWasmCache` false). Check a production build with `bun run check:local-ai:artifact`.
 - Do not make Local AI required for normal operation, and keep Review working when it is unavailable.
 
 ## Text Expansions and Dynamic Variables

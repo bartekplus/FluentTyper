@@ -1,17 +1,16 @@
 import { describe, expect, test } from "bun:test";
-import { LocalAiHost, type PortLike } from "../src/adapters/chrome/offscreen/LocalAiHost";
+import {
+  LocalAiHost,
+  type EngineLike,
+  type HostState,
+  type PortLike,
+} from "../src/adapters/chrome/background/localAi/LocalAiHost";
 import {
   JobScheduler,
   MAX_PENDING_PER_PORT,
   MAX_PENDING_TOTAL,
-} from "../src/adapters/chrome/offscreen/JobScheduler";
-import type { WorkerLike } from "../src/adapters/chrome/offscreen/WorkerClient";
-import type {
-  WorkerCall,
-  WorkerRequest,
-  WorkerResults,
-} from "../src/adapters/chrome/offscreen/workerProtocol";
-import { LOCAL_AI_HOST_PORT, LOCAL_AI_REVIEW_PORT } from "../src/core/domain/contracts/localAi";
+} from "../src/adapters/chrome/background/localAi/JobScheduler";
+import { LOCAL_AI_REVIEW_PORT } from "../src/core/domain/contracts/localAi";
 import { LOCAL_AI_MODELS } from "../src/core/domain/localAi/modelRegistry";
 import type { AiGenerationRequest } from "../src/core/domain/grammar/review/ai/types";
 
@@ -19,6 +18,7 @@ const STANDARD = LOCAL_AI_MODELS[0];
 const SENTINEL = "SENTINEL-host-9c21";
 
 const flush = (ms = 0) => new Promise((resolve) => setTimeout(resolve, ms));
+const never = () => new Promise<never>(() => undefined);
 
 function request(text: string): AiGenerationRequest {
   return {
@@ -42,11 +42,9 @@ class FakePort implements PortLike {
     addListener: (listener: (message: unknown) => void) => this.messageListeners.push(listener),
   };
   onDisconnect = { addListener: (listener: () => void) => this.disconnectListeners.push(listener) };
+  readonly name = LOCAL_AI_REVIEW_PORT;
 
-  constructor(
-    readonly name: string,
-    readonly sender?: { tab?: unknown; url?: string },
-  ) {}
+  constructor(readonly sender: chrome.runtime.MessageSender) {}
 
   postMessage(message: unknown): void {
     this.messages.push(message as Record<string, unknown>);
@@ -65,93 +63,61 @@ class FakePort implements PortLike {
   }
 }
 
-type Handler = (call: WorkerCall) => unknown;
-
-class FakeWorker implements WorkerLike {
-  calls: WorkerCall[] = [];
-  interrupts = 0;
-  terminated = false;
-  onmessage: ((event: MessageEvent) => void) | null = null;
-  onerror: ((event: ErrorEvent) => void) | null = null;
-  onmessageerror: ((event: MessageEvent) => void) | null = null;
-  onInterrupt: () => void = () => undefined;
-
-  constructor(private readonly handlers: Partial<Record<WorkerCall["type"], Handler>>) {}
-
-  postMessage(message: WorkerRequest): void {
-    if (message.type === "interrupt") {
-      this.interrupts += 1;
-      this.onInterrupt();
-      return;
-    }
-    const { id, ...call } = message;
-    this.calls.push(call as WorkerCall);
-    const handler = this.handlers[call.type] ?? DEFAULT_HANDLERS[call.type];
-    void Promise.resolve(handler(call as WorkerCall)).then((result) => {
-      if (!this.terminated) {
-        this.onmessage?.({ data: { id, type: "result", result } } as MessageEvent);
-      }
-    });
-  }
-  terminate(): void {
-    this.terminated = true;
-  }
-  crash(): void {
-    this.onerror?.({} as ErrorEvent);
-  }
+/** A fake engine; `calls` records the method names in order. */
+function fakeEngine(overrides: Partial<EngineLike>) {
+  const calls: string[] = [];
+  const defaults: EngineLike = {
+    probe: async () => null,
+    cacheState: async () => "complete",
+    install: async () => ({ ok: true }),
+    load: async () => ({ ok: true }),
+    generate: async (_modelId, job) => ({ ok: true, segments: job.segments }),
+    interrupt: () => undefined,
+    unload: async () => undefined,
+    delete: async () => undefined,
+  };
+  const engine = Object.fromEntries(
+    Object.entries(defaults).map(([name, fallback]) => [
+      name,
+      (...args: unknown[]) => {
+        calls.push(name);
+        const impl = (overrides[name as keyof EngineLike] ?? fallback) as (
+          ...rest: unknown[]
+        ) => unknown;
+        return impl(...args);
+      },
+    ]),
+  ) as unknown as EngineLike;
+  return { engine, calls };
 }
 
-const DEFAULT_HANDLERS: Record<WorkerCall["type"], Handler> = {
-  probe: (): WorkerResults["probe"] => ({ unavailable: null }),
-  "cache-state": (): WorkerResults["cache-state"] => ({ install: "complete" }),
-  install: (): WorkerResults["install"] => ({ ok: true }),
-  load: (): WorkerResults["load"] => ({ ok: true }),
-  generate: (call) => ({
-    ok: true,
-    segments: (call as Extract<WorkerCall, { type: "generate" }>).request.segments,
-  }),
-  unload: () => null,
-  delete: () => null,
-};
-
 function makeHost(
-  handlers: Partial<Record<WorkerCall["type"], Handler>> = {},
+  overrides: Partial<EngineLike> = {},
   options: { configure?: boolean; idleMs?: number; loadTimeoutMs?: number } = {},
 ) {
-  const background = new FakePort(LOCAL_AI_HOST_PORT);
-  const workers: FakeWorker[] = [];
-  const host = new LocalAiHost({
-    connectBackground: () => background,
-    createWorker: () => {
-      const worker = new FakeWorker(handlers);
-      workers.push(worker);
-      return worker;
-    },
+  const { engine, calls } = fakeEngine(overrides);
+  const states: HostState[] = [];
+  let pings = 0;
+  const host: LocalAiHost = new LocalAiHost({
+    engine,
+    onChange: () => states.push(host.state()),
+    keepAlive: () => (pings += 1),
+    keepAliveMs: 5,
     idleMs: options.idleMs ?? 10_000,
     cancelSettleMs: 20,
     jobTimeoutMs: 5_000,
     loadTimeoutMs: options.loadTimeoutMs ?? 5_000,
-    extensionOrigin: "chrome-extension://ft/",
   });
-  host.start();
   if (options.configure !== false) {
-    background.emit({
-      type: "configure",
-      model: { modelId: STANDARD.modelId },
-      enabled: true,
-    });
+    host.configure({ modelId: STANDARD.modelId }, true);
   }
   const review = (tabId = 1) => {
-    const port = new FakePort(LOCAL_AI_REVIEW_PORT, { tab: { id: tabId } });
+    const port = new FakePort({ id: "ftext", tab: { id: tabId } as chrome.tabs.Tab });
     host.acceptReviewPort(port);
     return port;
   };
-  const upStates = () =>
-    background.messages.filter((message) => message.type === "state") as Array<{
-      runtime: string;
-      error?: string;
-    }>;
-  return { host, background, workers, review, upStates };
+  const count = (name: string) => calls.filter((call) => call === name).length;
+  return { host, calls, count, states, review, pings: () => pings };
 }
 
 // ------------------------------------------------------------------ scheduler
@@ -191,23 +157,8 @@ describe("JobScheduler", () => {
 // ------------------------------------------------------------------ host
 
 describe("LocalAiHost review ports", () => {
-  test("accepts only content-script review ports and drops protocol violations", async () => {
-    const { host, review } = makeHost();
-    const noTab = new FakePort(LOCAL_AI_REVIEW_PORT, {});
-    host.acceptReviewPort(noTab);
-    expect(noTab.disconnected).toBe(true);
-    // An extension page in a tab (the options page) is not a content script.
-    const page = new FakePort(LOCAL_AI_REVIEW_PORT, {
-      tab: { id: 2 },
-      url: "chrome-extension://ft/options/options.html",
-    });
-    host.acceptReviewPort(page);
-    expect(page.disconnected).toBe(true);
-    const other = new FakePort("something-else", { tab: { id: 1 } });
-    host.acceptReviewPort(other);
-    expect(other.disconnected).toBe(false);
-    expect(other.messages).toEqual([]);
-
+  test("drops protocol violations; invalid requests get a bounded error", async () => {
+    const { review } = makeHost();
     const port = review();
     await flush();
     port.emit({ type: "generate", requestId: "r1", request: { nope: SENTINEL } });
@@ -224,13 +175,12 @@ describe("LocalAiHost review ports", () => {
 
   test("results go only to the originating port, rebuilt without extra fields", async () => {
     const { review } = makeHost({
-      generate: (call) => ({
-        ok: true,
-        debug: SENTINEL,
-        segments: (call as Extract<WorkerCall, { type: "generate" }>).request.segments.map(
-          (segment) => ({ ...segment, raw: SENTINEL }),
-        ),
-      }),
+      generate: async (_modelId, job) =>
+        ({
+          ok: true,
+          debug: SENTINEL,
+          segments: job.segments.map((segment) => ({ ...segment, raw: SENTINEL })),
+        }) as never,
     });
     const a = review(1);
     const b = review(2);
@@ -253,13 +203,9 @@ describe("LocalAiHost review ports", () => {
   test("a cancel only affects its own port; every generate gets exactly one result", async () => {
     let release!: () => void;
     const { review } = makeHost({
-      generate: (call) =>
+      generate: (_modelId, job) =>
         new Promise((resolve) => {
-          release = () =>
-            resolve({
-              ok: true,
-              segments: (call as Extract<WorkerCall, { type: "generate" }>).request.segments,
-            });
+          release = () => resolve({ ok: true, segments: job.segments });
         }),
     });
     const a = review(1);
@@ -291,139 +237,141 @@ describe("LocalAiHost review ports", () => {
     port.emit({ type: "generate", requestId: "r1", request: request("x") });
     await flush(5);
     expect(port.results()).toEqual([]);
-    unconfigured.background.emit({
-      type: "configure",
-      model: { modelId: STANDARD.modelId },
-      enabled: true,
-    });
+    unconfigured.host.configure({ modelId: STANDARD.modelId }, true);
     await flush(5);
     expect(port.results()).toHaveLength(1);
 
     const notConsented = makeHost({}, { configure: false });
-    notConsented.background.emit({ type: "configure", model: null, enabled: true });
+    notConsented.host.configure(null, true);
     const p2 = notConsented.review();
     p2.emit({ type: "generate", requestId: "r1", request: request("x") });
     expect(p2.results()[0]).toMatchObject({ outcome: { ok: false, error: "not-ready" } });
 
-    const partial = makeHost({ "cache-state": () => ({ install: "partial" }) });
+    const partial = makeHost({ cacheState: async () => "partial" });
     const p3 = partial.review();
     await flush(5);
     p3.emit({ type: "generate", requestId: "r1", request: request("x") });
     expect(p3.results()[0]).toMatchObject({ outcome: { ok: false, error: "not-installed" } });
-    expect(partial.workers[0].calls.some((call) => call.type === "load")).toBe(false);
+    expect(partial.count("load")).toBe(0);
+  });
+
+  test("a failed support/cache probe answers waiting jobs instead of leaving them queued", async () => {
+    const { review } = makeHost({
+      cacheState: async () => {
+        throw new Error("boom");
+      },
+    });
+    const port = review();
+    port.emit({ type: "generate", requestId: "r1", request: request("x") });
+    await flush(5);
+    expect(port.results()).toEqual([
+      expect.objectContaining({ requestId: "r1", outcome: { ok: false, error: "engine-failed" } }),
+    ]);
   });
 
   test("a disconnect cancels that port's running job", async () => {
-    const { review, workers } = makeHost({ generate: () => new Promise(() => undefined) });
+    const { review, count } = makeHost({ generate: never });
     const port = review();
     await flush();
     port.emit({ type: "generate", requestId: "r1", request: request("x") });
     await flush(5);
     port.close();
-    expect(workers[0].interrupts).toBe(1);
+    expect(count("interrupt")).toBe(1);
   });
 });
 
 describe("LocalAiHost lifecycle", () => {
-  test("cancel waits for the generation to settle; a hung one tears the worker down", async () => {
-    const { review, workers } = makeHost({ generate: () => new Promise(() => undefined) });
+  test("a generation that does not settle after cancel is abandoned; the next job reloads", async () => {
+    const { review, calls, count } = makeHost({ generate: never });
     const port = review();
     await flush();
     port.emit({ type: "generate", requestId: "r1", request: request("x") });
     await flush(5);
     port.emit({ type: "cancel", requestId: "r1" });
-    expect(workers[0].interrupts).toBe(1);
-    expect(workers[0].terminated).toBe(false);
+    expect(count("interrupt")).toBe(1);
+    expect(count("unload")).toBe(0);
     await flush(40);
-    expect(workers[0].terminated).toBe(true);
-    // The next job starts a fresh worker and loads again.
+    expect(count("unload")).toBe(1);
     port.emit({ type: "generate", requestId: "r2", request: request("y") });
     await flush(5);
-    expect(workers).toHaveLength(2);
-    expect(workers[1].calls.map((call) => call.type)).toContain("load");
+    expect(calls.slice(-2)).toEqual(["load", "generate"]);
   });
 
-  test("a model load that never finishes tears the worker down and answers the job", async () => {
-    const { review, workers } = makeHost(
-      { load: () => new Promise(() => undefined) },
-      { loadTimeoutMs: 30 },
-    );
+  test("a generation that settles after interrupt keeps the model", async () => {
+    let stop!: () => void;
+    const { review, count } = makeHost({
+      generate: () =>
+        new Promise((resolve) => (stop = () => resolve({ ok: false, error: "cancelled" }))),
+      interrupt: () => stop(),
+    });
+    const port = review();
+    await flush();
+    port.emit({ type: "generate", requestId: "r1", request: request("x") });
+    await flush(5);
+    port.emit({ type: "cancel", requestId: "r1" });
+    await flush(40);
+    expect(count("unload")).toBe(0);
+    expect(port.results()).toHaveLength(1);
+  });
+
+  test("a model load that never finishes is abandoned and the job answered", async () => {
+    const { review, count } = makeHost({ load: never }, { loadTimeoutMs: 30 });
     const port = review();
     await flush();
     port.emit({ type: "generate", requestId: "r1", request: request("x") });
     await flush(60);
-    expect(workers[0].terminated).toBe(true);
-    expect(port.results()).toHaveLength(1);
-    expect(port.results()[0]).toMatchObject({ outcome: { ok: false } });
+    expect(count("unload")).toBe(1);
+    expect(port.results()).toEqual([
+      expect.objectContaining({ outcome: { ok: false, error: "engine-failed" } }),
+    ]);
   });
 
-  test("a generation that settles after interrupt keeps the worker", async () => {
-    const { review, workers } = makeHost({
-      generate: () =>
-        new Promise((resolve) => {
-          workers[0].onInterrupt = () => resolve({ ok: false, error: "cancelled" });
-        }),
+  test("an engine failure disposes and reloads once, then the host stays in error", async () => {
+    const { review, host, count } = makeHost({
+      generate: async () => ({ ok: false, error: "engine-failed" }),
     });
     const port = review();
     await flush();
     port.emit({ type: "generate", requestId: "r1", request: request("x") });
     await flush(5);
-    port.emit({ type: "cancel", requestId: "r1" });
-    await flush(40);
-    expect(workers[0].terminated).toBe(false);
-    expect(port.results()).toHaveLength(1);
-  });
-
-  test("a worker crash is retried once, then the host stays in error", async () => {
-    const { review, workers, upStates } = makeHost({
-      generate: () => new Promise(() => undefined),
-    });
-    const port = review();
-    await flush();
-    port.emit({ type: "generate", requestId: "r1", request: request("x") });
-    await flush(5);
-    workers[0].crash();
-    await flush(5);
-    expect(port.results()[0]).toMatchObject({ outcome: { ok: false, error: "engine-failed" } });
+    expect(count("unload")).toBe(1);
     port.emit({ type: "generate", requestId: "r2", request: request("y") });
     await flush(5);
-    expect(workers).toHaveLength(2);
-    workers[1].crash();
-    await flush(5);
+    expect(count("load")).toBe(2);
     port.emit({ type: "generate", requestId: "r3", request: request("z") });
     expect(port.results().at(-1)).toMatchObject({
       requestId: "r3",
       outcome: { ok: false, error: "engine-failed" },
     });
-    expect(upStates().at(-1)).toMatchObject({ runtime: "error", error: "worker-crashed" });
+    expect(host.state()).toMatchObject({ runtime: "error", error: "load-failed" });
   });
 
   test("disable during a load answers the job and unloads", async () => {
     let finishLoad!: () => void;
-    const { review, background, workers } = makeHost({
+    const { review, host, calls } = makeHost({
       load: () => new Promise((resolve) => (finishLoad = () => resolve({ ok: true }))),
     });
     const port = review();
     await flush();
     port.emit({ type: "generate", requestId: "r1", request: request("x") });
     await flush(5);
-    background.emit({ type: "configure", model: null, enabled: false });
+    host.configure(null, false);
     expect(port.results()).toEqual([
       expect.objectContaining({ outcome: { ok: false, error: "not-ready" } }),
     ]);
     finishLoad();
     await flush(5);
-    expect(workers[0].calls.map((call) => call.type)).not.toContain("generate");
-    expect(workers[0].calls.at(-1)?.type).toBe("unload");
+    expect(calls).not.toContain("generate");
+    expect(calls.at(-1)).toBe("unload");
     expect(port.results()).toHaveLength(1);
   });
 
-  test("closing the last review mid-job settles the job first, then releases", async () => {
-    const { review, background, workers } = makeHost({
+  test("closing the last review mid-job settles the job first, then unloads at once", async () => {
+    let stop!: () => void;
+    const { review, calls } = makeHost({
       generate: () =>
-        new Promise((resolve) => {
-          workers[0].onInterrupt = () => resolve({ ok: false, error: "cancelled" });
-        }),
+        new Promise((resolve) => (stop = () => resolve({ ok: false, error: "cancelled" }))),
+      interrupt: () => stop(),
     });
     const port = review();
     await flush();
@@ -431,14 +379,11 @@ describe("LocalAiHost lifecycle", () => {
     await flush(5);
     port.close();
     await flush(5);
-    expect(workers[0].interrupts).toBe(1);
-    expect(workers[0].calls.map((call) => call.type).slice(-2)).toEqual(["generate", "unload"]);
-    expect(workers[0].terminated).toBe(true);
-    expect(background.messages.at(-1)).toEqual({ type: "idle" });
+    expect(calls.slice(-3)).toEqual(["generate", "interrupt", "unload"]);
   });
 
-  test("another open review keeps the engine; the last one closing releases it", async () => {
-    const { review, background, workers } = makeHost();
+  test("another open review keeps the model; the last one closing unloads it", async () => {
+    const { review, calls, count } = makeHost();
     const a = review(1);
     const b = review(2);
     await flush();
@@ -446,35 +391,29 @@ describe("LocalAiHost lifecycle", () => {
     await flush(5);
     a.close();
     await flush(5);
-    expect(workers[0].terminated).toBe(false);
-    expect(background.messages).not.toContainEqual({ type: "idle" });
+    expect(count("unload")).toBe(0);
     b.close();
     await flush(5);
-    expect(workers[0].calls.at(-1)?.type).toBe("unload");
-    expect(workers[0].terminated).toBe(true);
-    expect(background.messages.at(-1)).toEqual({ type: "idle" });
+    expect(calls.at(-1)).toBe("unload");
   });
 
-  test("an open but idle review releases the GPU after the idle interval, without closing", async () => {
-    const { review, background, workers } = makeHost({}, { idleMs: 20 });
+  test("an open but idle review unloads after the idle interval; the next job reloads", async () => {
+    const { review, calls } = makeHost({}, { idleMs: 20 });
     const port = review();
     await flush();
     port.emit({ type: "generate", requestId: "r1", request: request("x") });
     await flush(40);
-    expect(workers[0].calls.at(-1)?.type).toBe("unload");
-    expect(workers[0].terminated).toBe(true);
-    expect(background.messages).not.toContainEqual({ type: "idle" });
+    expect(calls.at(-1)).toBe("unload");
     port.emit({ type: "generate", requestId: "r2", request: request("y") });
     await flush(5);
-    expect(workers).toHaveLength(2);
-    expect(workers[1].calls.map((call) => call.type)).toEqual(["load", "generate"]);
+    expect(calls.slice(-2)).toEqual(["load", "generate"]);
     expect(port.results()).toHaveLength(2);
   });
 
-  test("a review and job arriving during a release start a fresh worker", async () => {
+  test("a review and job arriving during an unload load the model again", async () => {
     let finishUnload!: () => void;
-    const { review, background, workers } = makeHost({
-      unload: () => new Promise((resolve) => (finishUnload = () => resolve(null))),
+    const { review, calls } = makeHost({
+      unload: () => new Promise((resolve) => (finishUnload = () => resolve())),
     });
     const first = review(1);
     await flush();
@@ -486,80 +425,91 @@ describe("LocalAiHost lifecycle", () => {
     second.emit({ type: "generate", requestId: "r2", request: request("y") });
     finishUnload();
     await flush(5);
-    expect(workers[0].terminated).toBe(true);
-    expect(workers).toHaveLength(2);
-    expect(workers[1].calls.map((call) => call.type)).toEqual(["load", "generate"]);
+    expect(calls.slice(-3)).toEqual(["unload", "load", "generate"]);
     expect(second.results()).toEqual([
       expect.objectContaining({ requestId: "r2", outcome: expect.objectContaining({ ok: true }) }),
     ]);
-    expect(background.messages).not.toContainEqual({ type: "idle" });
   });
 
-  test("a finished install with no review open releases the GPU and reports idle", async () => {
-    const { background, workers } = makeHost({ "cache-state": () => ({ install: "none" }) });
+  test("keepalive runs only while Local AI is in use", async () => {
+    const { review, pings } = makeHost();
+    await flush(20);
+    expect(pings()).toBe(0);
+    const port = review();
+    await flush(20);
+    expect(pings()).toBeGreaterThan(0);
+    port.close();
     await flush(5);
-    background.emit({ type: "install", tier: "standard" });
+    const stopped = pings();
+    await flush(20);
+    expect(pings()).toBe(stopped);
+  });
+});
+
+describe("LocalAiHost install", () => {
+  test("a finished install with no review open unloads the model", async () => {
+    const { host, calls } = makeHost({ cacheState: async () => "none" });
     await flush(5);
-    expect(background.messages).toContainEqual({
-      type: "installed",
-      modelId: STANDARD.modelId,
-      ok: true,
-    });
-    expect(workers.every((worker) => worker.terminated)).toBe(true);
-    expect(background.messages.at(-1)).toEqual({ type: "idle" });
+    await host.installModel("standard", Promise.resolve());
+    await flush(5);
+    expect(calls).toContain("install");
+    expect(calls.at(-1)).toBe("unload");
   });
 
-  test("a configure racing an install never reports download-required in between", async () => {
-    const { background, upStates } = makeHost(
-      { "cache-state": () => ({ install: "none" }), install: () => new Promise(() => undefined) },
+  test("nothing downloads before consent is recorded; the status never flashes download-required", async () => {
+    let recordConsent!: () => void;
+    const { host, states, count } = makeHost(
+      { cacheState: async () => "none", install: never },
       { configure: false },
     );
-    // The consent write re-configures the host while the install message arrives.
-    background.emit({
-      type: "configure",
-      model: { modelId: STANDARD.modelId },
-      enabled: true,
-    });
-    background.emit({ type: "install", tier: "standard" });
+    const consent = new Promise<void>((resolve) => (recordConsent = resolve));
+    void host.installModel("standard", consent);
+    host.configure({ modelId: STANDARD.modelId }, true);
     await flush(10);
-    const runtimes = upStates().map((state) => state.runtime);
+    expect(count("install")).toBe(0);
+    recordConsent();
+    await flush(10);
+    expect(count("install")).toBe(1);
+    const runtimes = states.map((state) => state.runtime);
     expect(runtimes.at(-1)).toBe("downloading");
     expect(runtimes).not.toContain("download-required");
   });
 
   test("an install arriving while another runs is ignored", async () => {
-    const { background, upStates } = makeHost({
-      "cache-state": () => ({ install: "none" }),
-      install: () => new Promise(() => undefined),
-    });
+    const { host } = makeHost({ cacheState: async () => "none", install: never });
     await flush(5);
-    background.emit({ type: "install", tier: "standard" });
+    void host.installModel("standard", Promise.resolve());
     await flush(5);
-    background.emit({ type: "install", tier: "compact" });
+    void host.installModel("compact", Promise.resolve());
     await flush(5);
-    expect(upStates().at(-1)).toMatchObject({ runtime: "downloading", modelId: STANDARD.modelId });
+    expect(host.state()).toMatchObject({ runtime: "downloading", modelId: STANDARD.modelId });
   });
 
-  test("install streams numeric progress; cancel tears down and reports download-cancelled", async () => {
-    const { background, workers, upStates } = makeHost({
-      "cache-state": () => ({ install: "none" }),
-      install: () => new Promise(() => undefined),
+  test("cancel aborts the download and reports download-cancelled", async () => {
+    let signal!: AbortSignal;
+    const { host, calls } = makeHost({
+      cacheState: async () => "none",
+      install: (_modelId, _onProgress, abort) => {
+        signal = abort;
+        return new Promise((resolve) =>
+          abort.addEventListener("abort", () =>
+            resolve({ ok: false, error: "download-cancelled" }),
+          ),
+        );
+      },
     });
     await flush(5);
-    background.emit({ type: "install", tier: "standard" });
+    const installing = host.installModel("standard", Promise.resolve());
     await flush(5);
-    expect(upStates().at(-1)).toMatchObject({ runtime: "downloading" });
-    background.emit({ type: "cancel-install" });
+    expect(host.state().runtime).toBe("downloading");
+    host.cancelInstall();
+    await installing;
     await flush(5);
-    expect(workers[0].terminated).toBe(true);
-    expect(background.messages).toContainEqual({
-      type: "installed",
-      modelId: STANDARD.modelId,
-      ok: false,
+    expect(signal.aborted).toBe(true);
+    expect(host.state()).toMatchObject({
+      runtime: "download-required",
       error: "download-cancelled",
     });
-    expect(upStates().at(-1)).toMatchObject({ runtime: "download-required" });
-    expect(workers.every((worker) => worker.terminated)).toBe(true);
-    expect(background.messages.at(-1)).toEqual({ type: "idle" });
+    expect(calls.at(-1)).toBe("unload");
   });
 });

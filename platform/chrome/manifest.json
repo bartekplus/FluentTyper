@@ -52,7 +52,7 @@
     "page": "options/options.html",
     "open_in_tab": true
   },
-  "permissions": ["storage", "activeTab", "offscreen"],
+  "permissions": ["storage", "activeTab"],
   "update_url": "https://clients2.google.com/service/update2/crx",
   "version": "2026.26.0",
   "manifest_version": 3,

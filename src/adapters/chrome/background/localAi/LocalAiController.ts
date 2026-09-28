@@ -12,13 +12,7 @@ import {
   KEY_LOCAL_AI_REVIEW_TIER,
   KEY_LOCAL_AI_SETUP_OFFER_DISMISSED,
 } from "@core/domain/constants";
-import {
-  LOCAL_AI_HOST_PORT,
-  LOCAL_AI_OFFSCREEN_PATH,
-  type HostPortDownMessage,
-  type HostPortUpMessage,
-  type LocalAiStatus,
-} from "@core/domain/contracts/localAi";
+import { LOCAL_AI_REVIEW_PORT, type LocalAiStatus } from "@core/domain/contracts/localAi";
 import { localAiModelById, localAiModelForTier } from "@core/domain/localAi/modelRegistry";
 import type {
   LocalAiCommandResponse,
@@ -27,8 +21,9 @@ import type {
 } from "@core/domain/messageTypes";
 import type { LocalAiSettingsRepository } from "@core/application/repositories/LocalAiSettingsRepository";
 import { createLogger } from "@core/application/logging/Logger";
+import { LocalAiHost, type EngineLike } from "./LocalAiHost";
 
-/** Background owner of consent and the optional offscreen host. */
+/** Background owner of consent and of the optional in-process Local AI host. */
 
 export type LocalAiSettings = Pick<
   LocalAiSettingsRepository,
@@ -42,46 +37,36 @@ export type LocalAiSettings = Pick<
 
 export type LocalAiRequest = Extract<Message, { command: `CMD_LOCAL_AI_${string}` }>;
 
-type HostState = Omit<Extract<HostPortUpMessage, { type: "state" }>, "type">;
-
 const SETTINGS_KEYS = [
   KEY_LOCAL_AI_REVIEW_ENABLED,
   KEY_LOCAL_AI_REVIEW_TIER,
   KEY_LOCAL_AI_REVIEW_CONSENT,
   KEY_LOCAL_AI_SETUP_OFFER_DISMISSED,
 ];
-const OFFSCREEN_JUSTIFICATION =
-  "Runs FluentTyper's optional on-device Local AI Review model in a dedicated worker.";
 
 const logger = createLogger("LocalAiController");
 
 export class LocalAiController {
-  private hostPort: chrome.runtime.Port | null = null;
-  /** An explicit install was sent and has not reported back: the document must stay. */
-  private installInFlight = false;
-  private hostState: HostState | null = null;
-  private hostFailed = false;
-  private documentPromise: Promise<void> | null = null;
-  private closingPromise: Promise<void> | null = null;
-  /** ENSURE_HOST requests in flight: a Review is opening, so `idle` must not close the host. */
-  private ensuring = 0;
-  /** Explicit actions waiting for the host port (sent right after `configure`). */
-  private pendingDown: HostPortDownMessage[] = [];
-  private hostConfigured = false;
-  private lastConfigure = "";
+  /** Null where the build ships no engine (Firefox). */
+  private readonly host: LocalAiHost | null;
 
   constructor(
     private readonly settings: LocalAiSettings,
+    engine: EngineLike | null,
     private readonly api: typeof chrome = chrome,
-  ) {}
-
-  get hostSupported(): boolean {
-    return typeof this.api.offscreen?.createDocument === "function";
+  ) {
+    this.host = engine
+      ? new LocalAiHost({
+          engine,
+          onChange: () => void this.broadcastStatus(),
+          keepAlive: () => void api.runtime.getPlatformInfo(),
+        })
+      : null;
   }
 
-  /** Listeners; registered only where a runtime host can exist. */
+  /** Listeners; registered only where the engine exists. */
   register(): void {
-    if (!this.hostSupported) {
+    if (!this.host) {
       return;
     }
     this.api.runtime.onConnect.addListener((port) => this.onConnect(port));
@@ -115,36 +100,21 @@ export class LocalAiController {
     const fromOptions = this.isOptionsPage(sender);
     switch (request.command) {
       case CMD_LOCAL_AI_GET_STATUS:
-        if (request.context?.probe === true && fromOptions && this.hostSupported) {
-          await this.sendToHost({ type: "probe" });
+        if (request.context?.probe === true && fromOptions && this.host) {
+          await this.configureHost();
+          void this.host.refresh();
         }
         return this.ok();
-      case CMD_LOCAL_AI_ENSURE_HOST: {
-        this.ensuring += 1;
-        try {
-          const status = await this.getStatus();
-          if (status.enabled && status.consented && this.hostSupported) {
-            // Resolves once the document has loaded, i.e. its review-port listener exists.
-            await this.ensureDocument();
-            if (this.hostFailed) {
-              return { ok: false, error: "unavailable" };
-            }
-            if (!this.hostPort) {
-              this.nudgeHost();
-            }
-          }
-          return await this.ok();
-        } finally {
-          this.ensuring -= 1;
-        }
-      }
+      case CMD_LOCAL_AI_ENSURE_HOST:
+        // The host runs in this service worker; the review port connects straight to it.
+        return this.ok();
       case CMD_LOCAL_AI_INSTALL:
       case CMD_LOCAL_AI_CANCEL_INSTALL:
       case CMD_LOCAL_AI_DELETE_MODEL:
         if (!fromOptions) {
           return { ok: false, error: "forbidden" };
         }
-        if (!this.hostSupported) {
+        if (!this.host) {
           return { ok: false, error: "unavailable" };
         }
         if (request.command === CMD_LOCAL_AI_INSTALL) {
@@ -152,24 +122,31 @@ export class LocalAiController {
           if (tier !== "standard" && tier !== "compact") {
             return { ok: false, error: "invalid" };
           }
+          if (this.host.installing) {
+            // Another options page's install runs: its consent and download stay as they are.
+            return this.ok();
+          }
           const record = localAiModelForTier(tier);
-          // Consent is recorded at the moment of the explicit action, then acted on.
-          await this.settings.setLocalAiReviewConsent({
+          // Consent is recorded at the moment of the explicit action; the host claims the
+          // install at once and downloads nothing until the record is written.
+          const consent = this.settings.setLocalAiReviewConsent({
             modelId: record.modelId,
             tier: record.tier,
             at: Date.now(),
           });
-          this.installInFlight = true;
-          await this.sendToHost({ type: "install", tier: record.tier });
+          void this.host.installModel(record.tier, consent);
+          await consent;
+          await this.configureHost();
         } else if (request.command === CMD_LOCAL_AI_DELETE_MODEL) {
           const record = localAiModelById(request.context?.modelId);
           if (!record) {
             return { ok: false, error: "invalid" };
           }
           // Consent and preference stay; nothing re-downloads until Install is pressed again.
-          await this.sendToHost({ type: "delete-model", modelId: record.modelId });
-        } else if (this.hostPort || (await this.documentExists())) {
-          await this.sendToHost({ type: "cancel-install" });
+          await this.configureHost();
+          void this.host.deleteModel(record.modelId);
+        } else {
+          this.host.cancelInstall();
         }
         return this.ok();
       case CMD_LOCAL_AI_OPEN_SETUP:
@@ -199,6 +176,8 @@ export class LocalAiController {
   }
 
   async getStatus(): Promise<LocalAiStatus> {
+    // Read before the settings: a broadcast reports the change that triggered it.
+    const host = this.host?.state() ?? null;
     const [enabled, tier, consent, dismissed] = await Promise.all([
       this.settings.getLocalAiReviewEnabled(),
       this.settings.getLocalAiReviewTier(),
@@ -207,20 +186,9 @@ export class LocalAiController {
     ]);
     const record = localAiModelForTier(tier);
     const consented = consent?.tier === record.tier && consent.modelId === record.modelId;
-    const host = this.hostState;
     const hostDescribes =
       host !== null && (host.modelId === null || host.modelId === record.modelId);
-    const unavailable = !this.hostSupported ? "host-unsupported" : (host?.unavailable ?? undefined);
-    const error = this.hostFailed ? "host-failed" : hostDescribes ? host.error : undefined;
-    // From the Install click until the host reports `installed`, the host's own
-    // intermediate states (unconfigured, checking, not yet downloaded) are not news.
-    const installing =
-      this.installInFlight &&
-      !this.hostFailed &&
-      !unavailable &&
-      host?.runtime !== "downloading" &&
-      host?.runtime !== "loading";
-    const runtime = unavailable ? "unavailable" : hostDescribes ? host.runtime : "unconfigured";
+    const unavailable = !this.host ? "host-unsupported" : (host?.unavailable ?? undefined);
     return {
       enabled,
       consented,
@@ -229,191 +197,43 @@ export class LocalAiController {
       displayName: record.displayName,
       downloadBytes: record.downloadBytes,
       install: host?.modelId === record.modelId ? host.install : "unknown",
-      runtime: installing ? "downloading" : runtime,
+      runtime: unavailable ? "unavailable" : hostDescribes ? host.runtime : "unconfigured",
       unavailable,
-      error,
+      error: hostDescribes ? host.error : undefined,
       progress: hostDescribes ? host.progress : undefined,
-      offerSetup: enabled && !consented && !dismissed && this.hostSupported && !unavailable,
+      offerSetup: enabled && !consented && !dismissed && this.host !== null && !unavailable,
     };
-  }
-
-  // ------------------------------------------------------------ offscreen document
-
-  private async documentExists(): Promise<boolean> {
-    if (typeof this.api.runtime.getContexts !== "function") {
-      return this.hostPort !== null;
-    }
-    const contexts = await this.api.runtime.getContexts({
-      contextTypes: ["OFFSCREEN_DOCUMENT"],
-      documentUrls: [this.api.runtime.getURL(LOCAL_AI_OFFSCREEN_PATH)],
-    });
-    return contexts.length > 0;
-  }
-
-  /** Single-flight create (after any close in progress); a no-op when the document exists. */
-  private ensureDocument(): Promise<void> {
-    this.documentPromise ??= (async () => {
-      await this.closingPromise;
-      try {
-        if (!(await this.documentExists())) {
-          await this.api.offscreen.createDocument({
-            url: LOCAL_AI_OFFSCREEN_PATH,
-            reasons: ["WORKERS"],
-            justification: OFFSCREEN_JUSTIFICATION,
-          });
-        }
-        this.hostFailed = false;
-      } catch {
-        this.hostFailed = true;
-        this.pendingDown = [];
-        logger.warn("Local AI host could not be created");
-      }
-    })().finally(() => {
-      this.documentPromise = null;
-    });
-    return this.documentPromise;
-  }
-
-  private async closeDocument(): Promise<void> {
-    this.hostPort?.disconnect();
-    this.hostPort = null;
-    if (this.hostState) {
-      // A closed host keeps nothing warm; cached artifacts stay as last seen.
-      const { runtime, install } = this.hostState;
-      this.hostState = {
-        ...this.hostState,
-        runtime:
-          runtime === "unavailable"
-            ? runtime
-            : install === "complete"
-              ? "ready"
-              : install === "unknown"
-                ? "unconfigured"
-                : "download-required",
-        progress: undefined,
-      };
-    }
-    try {
-      if (await this.documentExists()) {
-        await this.api.offscreen.closeDocument();
-      }
-    } catch {
-      // Already closed.
-    }
-  }
-
-  /** After a service-worker restart the host is alive but unconnected: ask it to reconnect. */
-  private nudgeHost(): void {
-    void Promise.resolve(this.api.runtime.sendMessage({ type: LOCAL_AI_HOST_PORT })).catch(
-      () => undefined,
-    );
-  }
-
-  private async sendToHost(message: HostPortDownMessage): Promise<void> {
-    if (this.hostPort && this.hostConfigured) {
-      this.hostPort.postMessage(message);
-      return;
-    }
-    this.pendingDown.push(message);
-    if (this.hostPort) {
-      return;
-    }
-    await this.ensureDocument();
-    if (!this.hostPort) {
-      this.nudgeHost();
-    }
-  }
-
-  // ------------------------------------------------------------ host port
-
-  private onConnect(port: chrome.runtime.Port): void {
-    if (port.name !== LOCAL_AI_HOST_PORT) {
-      // Review ports belong to the offscreen host; other ports to other owners.
-      return;
-    }
-    if (port.sender?.tab || port.sender?.url !== this.api.runtime.getURL(LOCAL_AI_OFFSCREEN_PATH)) {
-      port.disconnect();
-      return;
-    }
-    this.hostPort?.disconnect();
-    this.hostPort = port;
-    this.hostConfigured = false;
-    this.lastConfigure = "";
-    port.onMessage.addListener((message: unknown) => this.onHostMessage(port, message));
-    port.onDisconnect.addListener(() => {
-      if (this.hostPort === port) {
-        this.hostPort = null;
-        this.installInFlight = false;
-      }
-    });
-    // `configure` always goes first; explicit actions queued meanwhile follow it.
-    void this.pushConfigure().then(() => {
-      if (this.hostPort !== port) {
-        return;
-      }
-      this.hostConfigured = true;
-      const pending = this.pendingDown;
-      this.pendingDown = [];
-      pending.forEach((message) => port.postMessage(message));
-    });
-  }
-
-  /** The port's sender was verified in onConnect: this is our own offscreen host. */
-  private onHostMessage(port: chrome.runtime.Port, value: unknown): void {
-    if (port !== this.hostPort) {
-      return;
-    }
-    const message = value as HostPortUpMessage | null;
-    switch (message?.type) {
-      case "state":
-        this.hostState = message;
-        void this.broadcastStatus();
-        return;
-      case "installed":
-        this.installInFlight = false;
-        void this.broadcastStatus();
-        return;
-      case "idle":
-        // The host released the GPU and no Review is open. Keep the document if a
-        // Review is being opened on it right now, an explicit action is queued, or
-        // an install is under way (an idle sent before the host saw it can cross it).
-        if (
-          this.pendingDown.length === 0 &&
-          this.ensuring === 0 &&
-          !this.installInFlight &&
-          !this.closingPromise
-        ) {
-          this.closingPromise = this.closeDocument().finally(() => {
-            this.closingPromise = null;
-          });
-          void this.closingPromise.then(() => this.broadcastStatus());
-        }
-        return;
-      default:
-        return;
-    }
   }
 
   /** Tells the host which model it may run: null without consent or with the preference off. */
-  private async pushConfigure(): Promise<void> {
+  private async configureHost(): Promise<void> {
     const status = await this.getStatus();
-    const message: HostPortDownMessage = {
-      type: "configure",
-      model: status.consented && status.enabled ? { modelId: status.modelId } : null,
-      enabled: status.enabled,
-    };
-    const key = JSON.stringify(message);
-    if (this.hostPort && key !== this.lastConfigure) {
-      this.lastConfigure = key;
-      this.hostPort.postMessage(message);
+    this.host?.configure(
+      status.consented && status.enabled ? { modelId: status.modelId } : null,
+      status.enabled,
+    );
+  }
+
+  /** Review ports come only from this extension's content scripts, in web pages. */
+  private onConnect(port: chrome.runtime.Port): void {
+    if (port.name !== LOCAL_AI_REVIEW_PORT || !this.host) {
+      return;
     }
+    const sender = port.sender;
+    // An extension page open in a tab (the options page) is not a content script.
+    const fromExtensionPage = sender?.url?.startsWith(this.api.runtime.getURL("")) === true;
+    if (sender?.id !== this.api.runtime.id || !sender.tab || fromExtensionPage) {
+      port.disconnect();
+      return;
+    }
+    this.host.acceptReviewPort(port);
+    void this.configureHost();
   }
 
   private async onSettingsChanged(): Promise<void> {
-    if (this.hostPort) {
-      await this.pushConfigure();
-    } else if (await this.documentExists()) {
-      this.nudgeHost();
+    // Configure only a host already in use: a settings change alone probes nothing.
+    if (this.host?.configured) {
+      await this.configureHost();
     }
     await this.broadcastStatus();
   }

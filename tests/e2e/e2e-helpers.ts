@@ -735,26 +735,16 @@ export async function readReviewAi(page: Page): Promise<ReviewAiSnapshot> {
   }, REVIEW_HOST_SELECTOR);
 }
 
-/** URLs of the extension's offscreen documents (Chrome background context only). */
-export async function getOffscreenDocumentUrls(context: BackgroundContext): Promise<string[]> {
-  return context.evaluate(async () => {
-    const contexts = await chrome.runtime.getContexts({
-      contextTypes: ["OFFSCREEN_DOCUMENT" as chrome.runtime.ContextType],
-    });
-    return contexts.map((entry) => entry.documentUrl ?? "");
-  });
-}
-
 export interface RecordedRequest {
   url: string;
-  /** Kind and URL of the target (page, service worker, offscreen document, worker) that sent it. */
+  /** Kind and URL of the target (page, service worker, worker) that sent it. */
   targetType: string;
   targetUrl: string;
 }
 
 /**
- * Opens a CDP session on every target (pages, the service worker, offscreen
- * documents and their workers), existing and new, and hands it to `attach`.
+ * Opens a CDP session on every target (pages, the service worker), existing and
+ * new, and hands it to `attach`.
  * Chrome only. A target created later may send its very first requests
  * before `attach` finishes.
  */

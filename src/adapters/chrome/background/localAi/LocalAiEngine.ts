@@ -10,14 +10,6 @@ import type {
   AiGenerationOutcome,
   AiGenerationRequest,
 } from "@core/domain/grammar/review/ai/types";
-import type {
-  WorkerCall,
-  WorkerLoadResult,
-  WorkerProgressPhase,
-  WorkerReply,
-  WorkerRequest,
-  WorkerResults,
-} from "../workerProtocol";
 import { NetworkBlockedError, type NetworkGuard } from "./networkGuard";
 import {
   IntegrityError,
@@ -28,7 +20,15 @@ import {
   type CacheStorageLike,
 } from "./modelArtifacts";
 
-/** Dedicated worker engine. Its epoch discards loads completed after unload. */
+/**
+ * The Local AI engine, run in-process by the background service worker. Its
+ * epoch discards loads completed after unload. Returns bounded, text-free data.
+ */
+
+export type LoadResult =
+  { ok: true } | { ok: false; error?: LocalAiErrorCode; unavailable?: LocalAiUnavailableReason };
+
+export type ProgressPhase = "download" | "load";
 
 /** Just the tensor surface used here. */
 export interface TensorLike {
@@ -60,7 +60,7 @@ export interface ModelLike {
   dispose(): Promise<unknown>;
 }
 
-/** The Transformers.js calls the engine makes (the worker entry binds the real library). */
+/** The Transformers.js calls the engine makes (engineRuntime.ts binds the real library). */
 interface TransformersRuntime {
   loadTokenizer(record: LocalAiModelRecord): Promise<TokenizerLike>;
   loadModel(record: LocalAiModelRecord): Promise<ModelLike>;
@@ -77,13 +77,12 @@ export interface GpuLike {
   }): Promise<GpuAdapterLike | null>;
 }
 
-export interface WorkerEngineDeps {
+export interface EngineDeps {
   runtime: TransformersRuntime;
   caches: CacheStorageLike;
   gpu: GpuLike | undefined;
+  /** Every engine fetch (Transformers.js and downloads) goes through the guard. */
   guard: NetworkGuard;
-  /** The worker's guarded fetch (downloads go through the guard). */
-  fetch: (url: string) => Promise<Response>;
   /** Registry lookup (tests use tiny synthetic records). */
   findModel?: (modelId: unknown) => LocalAiModelRecord | null;
 }
@@ -124,77 +123,48 @@ export async function probeGpu(
     : "missing-feature";
 }
 
-type ProgressSink = (phase: WorkerProgressPhase, progress: number) => void;
+type ProgressSink = (phase: ProgressPhase, progress: number) => void;
 
-export class LocalAiWorkerEngine {
+export class LocalAiEngine {
   private loaded: LoadedModel | null = null;
-  private loading: { modelId: string; promise: Promise<WorkerLoadResult> } | null = null;
+  private loading: { modelId: string; promise: Promise<LoadResult> } | null = null;
   private epoch = 0;
   private stopper: StopperLike | null = null;
   private interruptRequested = false;
   private readonly findModel: (modelId: unknown) => LocalAiModelRecord | null;
 
-  constructor(private readonly deps: WorkerEngineDeps) {
+  constructor(private readonly deps: EngineDeps) {
     this.findModel = deps.findModel ?? localAiModelById;
   }
 
-  /** Serves one host request; replies only with bounded, text-free data. */
-  async handle(message: WorkerRequest, reply: (message: WorkerReply) => void): Promise<void> {
-    if (message.type === "interrupt") {
-      this.interrupt();
-      return;
-    }
-    const { id } = message;
-    const onProgress: ProgressSink = (phase, progress) =>
-      reply({ id, type: "progress", phase, progress });
-    reply({ id, type: "result", result: await this.run(message, onProgress) });
-  }
-
-  private run(
-    call: WorkerCall,
-    onProgress: ProgressSink,
-  ): Promise<WorkerResults[WorkerCall["type"]]> {
-    switch (call.type) {
-      case "probe":
-        return this.probe(call.modelId);
-      case "cache-state":
-        return this.cacheState(call.modelId);
-      case "install":
-        return this.install(call.modelId, onProgress);
-      case "load":
-        return this.load(call.modelId, onProgress);
-      case "generate":
-        return this.generate(call.modelId, call.request);
-      case "unload":
-        return this.unload().then(() => null);
-      case "delete":
-        return this.delete(call.modelId);
-    }
-  }
-
-  async probe(modelId: string): Promise<WorkerResults["probe"]> {
+  async probe(modelId: string): Promise<LocalAiUnavailableReason | null> {
     const record = this.findModel(modelId);
-    return { unavailable: record ? await probeGpu(this.deps.gpu, record) : "not-in-build" };
+    return record ? probeGpu(this.deps.gpu, record) : "not-in-build";
   }
 
-  async cacheState(modelId: string): Promise<WorkerResults["cache-state"]> {
+  async cacheState(modelId: string): Promise<"none" | "partial" | "complete"> {
     const record = this.findModel(modelId);
     if (!record) {
-      return { install: "none" };
+      return "none";
     }
     try {
-      return { install: await modelCacheState(this.deps.caches, record) };
+      return await modelCacheState(this.deps.caches, record);
     } catch {
-      return { install: "partial" };
+      return "partial";
     }
   }
 
   /**
    * Explicit install, the only time network is allowed: download and verify
    * the listed files, load once from the cache (network denied), then mark
-   * the model verified. Leaves the model loaded.
+   * the model verified. Leaves the model loaded. `signal` cancels it
+   * (downloads stop at once; a load in progress finishes, then is dropped).
    */
-  async install(modelId: string, onProgress: ProgressSink): Promise<WorkerLoadResult> {
+  async install(
+    modelId: string,
+    onProgress: ProgressSink,
+    signal: AbortSignal,
+  ): Promise<LoadResult> {
     const record = this.findModel(modelId);
     if (!record) {
       return { ok: false, error: "download-failed" };
@@ -205,15 +175,23 @@ export class LocalAiWorkerEngine {
     );
     try {
       onProgress("download", 0);
-      await downloadModelFiles(this.deps.caches, record, this.deps.fetch, (bytes) =>
-        onProgress("download", Math.min(1, bytes / record.downloadBytes)),
+      await downloadModelFiles(
+        this.deps.caches,
+        record,
+        (url, init) => this.deps.guard.fetch(url, init),
+        (bytes) => onProgress("download", Math.min(1, bytes / record.downloadBytes)),
+        signal,
       );
     } catch (error) {
-      return { ok: false, error: installErrorCode(error) };
+      return { ok: false, error: signal.aborted ? "download-cancelled" : installErrorCode(error) };
     } finally {
       this.deps.guard.allowDownloads(null);
     }
     const result = await this.load(modelId, onProgress);
+    if (signal.aborted) {
+      await this.unload();
+      return { ok: false, error: "download-cancelled" };
+    }
     if (result.ok) {
       try {
         await markModelVerified(this.deps.caches, record);
@@ -225,7 +203,7 @@ export class LocalAiWorkerEngine {
   }
 
   /** Single-flight per model id: concurrent loads of the same model share one promise. */
-  load(modelId: string, onProgress: ProgressSink): Promise<WorkerLoadResult> {
+  load(modelId: string, onProgress: ProgressSink): Promise<LoadResult> {
     if (this.loaded?.modelId === modelId) {
       return Promise.resolve({ ok: true });
     }
@@ -253,7 +231,7 @@ export class LocalAiWorkerEngine {
     record: LocalAiModelRecord,
     onProgress: ProgressSink,
     epoch: number,
-  ): Promise<WorkerLoadResult> {
+  ): Promise<LoadResult> {
     if (epoch !== this.epoch) {
       return { ok: false, error: "load-failed" };
     }
@@ -292,31 +270,32 @@ export class LocalAiWorkerEngine {
     return "load-failed";
   }
 
+  /**
+   * Disposes the model and drops the tokenizer/model references. A load still
+   * in flight is not awaited (it may hang with a lost device): the epoch
+   * discards its model when it lands, and the next load starts afresh.
+   */
   async unload(): Promise<void> {
     this.epoch += 1;
     this.deps.guard.allowDownloads(null);
     const loaded = this.loaded;
-    const loading = this.loading;
     this.loaded = null;
+    this.loading = null;
     if (loaded) {
       await loaded.model.dispose().catch(() => undefined);
     }
-    if (loading) {
-      await loading.promise;
-    }
   }
 
-  /** The host reads the outcome back with `cache-state`. */
-  async delete(modelId: string): Promise<null> {
+  /** The host reads the outcome back with `cacheState`. */
+  async delete(modelId: string): Promise<void> {
     const record = this.findModel(modelId);
     if (!record) {
-      return null;
+      return;
     }
     if (this.loaded?.modelId === modelId || this.loading?.modelId === modelId) {
       await this.unload();
     }
     await deleteModelArtifacts(this.deps.caches, record).catch(() => undefined);
-    return null;
   }
 
   interrupt(): void {
@@ -370,7 +349,10 @@ export class LocalAiWorkerEngine {
     } catch {
       return { ok: false, error: "engine-failed" };
     } finally {
-      this.stopper = null;
+      // A generation abandoned by the host may settle after a newer one started.
+      if (this.stopper === stopper) {
+        this.stopper = null;
+      }
     }
   }
 }

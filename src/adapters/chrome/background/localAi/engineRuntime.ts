@@ -9,29 +9,21 @@ import {
   LOCAL_AI_DOWNLOAD_ORIGINS,
   type LocalAiModelRecord,
 } from "@core/domain/localAi/modelRegistry";
-import {
-  LocalAiWorkerEngine,
-  type GpuLike,
-  type ModelLike,
-  type TokenizerLike,
-} from "@adapters/chrome/offscreen/worker/LocalAiWorkerEngine";
-import {
-  installNetworkGuard,
-  type GuardScope,
-} from "@adapters/chrome/offscreen/worker/networkGuard";
-import { MODEL_CACHE } from "@adapters/chrome/offscreen/worker/modelArtifacts";
-import type { WorkerReply, WorkerRequest } from "@adapters/chrome/offscreen/workerProtocol";
+import { LocalAiEngine, type GpuLike, type ModelLike, type TokenizerLike } from "./LocalAiEngine";
+import { createNetworkGuard } from "./networkGuard";
+import { MODEL_CACHE } from "./modelArtifacts";
 
-/** Dedicated worker owning the only Local AI engine; spawned by the offscreen document. */
-type WorkerScope = GuardScope & {
-  caches: CacheStorage;
-  navigator: { gpu?: GpuLike };
-  postMessage(message: WorkerReply): void;
-  onmessage: ((event: MessageEvent<WorkerRequest>) => void) | null;
-};
+/**
+ * The only module that imports Transformers.js + ONNX Runtime Web (Chrome/Edge
+ * background). build.ts swaps it for engineRuntime.noop.ts where the build
+ * ships no Local AI runtime (Firefox).
+ */
 
-const scope = globalThis as unknown as WorkerScope;
-const guard = installNetworkGuard(scope, LOCAL_AI_DOWNLOAD_ORIGINS);
+const guard = createNetworkGuard(
+  globalThis.fetch.bind(globalThis),
+  globalThis.location.origin,
+  LOCAL_AI_DOWNLOAD_ORIGINS,
+);
 
 // Models come only from the pinned Hugging Face files the install cached; the
 // ONNX Runtime WASM ships in the extension (never the default CDN, never a blob: copy).
@@ -40,13 +32,15 @@ env.allowRemoteModels = true;
 env.useBrowserCache = true;
 env.cacheKey = MODEL_CACHE;
 env.useWasmCache = false;
-env.fetch = scope.fetch;
+env.fetch = guard.fetch;
 const onnxWasm = env.backends.onnx.wasm;
 if (onnxWasm) {
-  // Explicit files (as Transformers.js itself picks them for WebGPU), copied by build.ts.
-  const ort = `${scope.location.origin}/local-ai/ort/ort-wasm-simd-threaded.asyncify`;
-  onnxWasm.wasmPaths = { mjs: `${ort}.mjs`, wasm: `${ort}.wasm` };
-  // No cross-origin isolation in an extension worker: single-threaded WASM.
+  // Only the .wasm: a service worker cannot import() the .mjs glue, so ONNX Runtime's
+  // bundle build (glue embedded) is bundled into background.js; build.ts copies the .wasm.
+  onnxWasm.wasmPaths = {
+    wasm: chrome.runtime.getURL("local-ai/ort/ort-wasm-simd-threaded.asyncify.wasm"),
+  };
+  // No cross-origin isolation and no Worker in a service worker: single-threaded WASM.
   onnxWasm.numThreads = 1;
 }
 
@@ -59,7 +53,7 @@ function pinRevision(record: LocalAiModelRecord): void {
   env.remotePathTemplate = `{model}/resolve/${record.revision}/`;
 }
 
-const engine = new LocalAiWorkerEngine({
+export const localAiEngine: LocalAiEngine | null = new LocalAiEngine({
   runtime: {
     loadTokenizer: async (record): Promise<TokenizerLike> => {
       pinRevision(record);
@@ -78,12 +72,7 @@ const engine = new LocalAiWorkerEngine({
     },
     createStopper: () => new InterruptableStoppingCriteria(),
   },
-  caches: scope.caches,
-  gpu: scope.navigator.gpu,
+  caches: globalThis.caches,
+  gpu: (globalThis.navigator as Navigator & { gpu?: GpuLike }).gpu,
   guard,
-  fetch: scope.fetch,
 });
-
-scope.onmessage = (event) => {
-  void engine.handle(event.data, (reply) => scope.postMessage(reply));
-};

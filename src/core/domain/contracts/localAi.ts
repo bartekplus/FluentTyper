@@ -4,23 +4,18 @@ import type { LocalAiModelTier } from "../localAi/modelRegistry";
 /**
  * Local AI Review transport contract.
  *
- * Topology (Chrome/Edge):
- *   options page ──runtime messages──> background (settings/consent authority)
- *   background  <──port LOCAL_AI_HOST_PORT── offscreen document ──> dedicated worker (Transformers.js)
- *   content script ──port LOCAL_AI_REVIEW_PORT──> offscreen document (review jobs)
+ * Topology (Chrome/Edge): the engine runs in the background service worker.
+ *   options page   ──runtime messages──> background (settings/consent authority, engine)
+ *   content script ──port LOCAL_AI_REVIEW_PORT──> background (review jobs)
  *
- * The port IS the session: the offscreen host binds every job to the port it
+ * The port IS the session: the background binds every job to the port it
  * arrived on (and to port.sender tab/frame), so a result or cancel from one
  * tab can never reach another, and a disconnect cancels that port's work.
  * Nothing here is page-visible; no text is persisted or logged.
  */
 
-/** Content script -> offscreen review jobs. */
+/** Content script -> background review jobs. */
 export const LOCAL_AI_REVIEW_PORT = "ft-local-ai-review";
-/** Offscreen -> background control channel (sender URL is verified). */
-export const LOCAL_AI_HOST_PORT = "ft-local-ai-host";
-/** Offscreen document path, relative to the extension root. */
-export const LOCAL_AI_OFFSCREEN_PATH = "local-ai/offscreen.html";
 
 export type LocalAiRuntimeState =
   | "unconfigured"
@@ -45,9 +40,7 @@ export type LocalAiErrorCode =
   | "cache-failed"
   | "load-failed"
   | "device-lost"
-  | "worker-crashed"
-  | "integrity-failed"
-  | "host-failed";
+  | "integrity-failed";
 
 export type LocalAiInstallState = "unknown" | "none" | "partial" | "complete";
 
@@ -88,33 +81,3 @@ export type ReviewPortHostMessage =
       outcome: AiGenerationOutcome;
     }
   | { type: "status"; status: LocalAiStatus };
-
-// ------------------------------------------------------------------ host port
-
-/** Background -> offscreen. */
-export type HostPortDownMessage =
-  | {
-      type: "configure";
-      /** Model the user consented to; null disables review jobs (no consent, or preference off). */
-      model: { modelId: string } | null;
-      enabled: boolean;
-    }
-  | { type: "install"; tier: LocalAiModelTier }
-  | { type: "cancel-install" }
-  | { type: "delete-model"; modelId: string }
-  | { type: "probe" };
-
-/** Offscreen -> background. */
-export type HostPortUpMessage =
-  | {
-      type: "state";
-      runtime: LocalAiRuntimeState;
-      install: LocalAiInstallState;
-      modelId: string | null;
-      unavailable?: LocalAiUnavailableReason;
-      error?: LocalAiErrorCode;
-      progress?: number;
-    }
-  | { type: "installed"; modelId: string; ok: boolean; error?: LocalAiErrorCode }
-  /** Engine unloaded after its idle interval; the background may close the document. */
-  | { type: "idle" };

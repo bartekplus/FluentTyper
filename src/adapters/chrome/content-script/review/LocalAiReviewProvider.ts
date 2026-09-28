@@ -114,7 +114,23 @@ export class LocalAiReviewProvider implements ReviewAiProvider {
   constructor(
     private readonly runtime: LocalAiRuntime,
     private readonly cancelSettleMs = CANCEL_SETTLE_MS,
-  ) {}
+  ) {
+    document.addEventListener("visibilitychange", this.onVisible);
+  }
+
+  /**
+   * Without an open port nothing pushes status here (setup happens in the options
+   * tab): coming back to this tab re-reads it, so a finished install shows up.
+   */
+  private readonly onVisible = (): void => {
+    if (document.visibilityState !== "visible" || this.port || this.listeners.size === 0) return;
+    this.status().then(
+      (status) => {
+        if (!this.disposed && !this.port) this.notify(status);
+      },
+      () => {},
+    );
+  };
 
   async status(): Promise<LocalAiStatus> {
     const status = statusOf(await this.runtime.sendMessage({ command: CMD_LOCAL_AI_GET_STATUS }));
@@ -150,6 +166,7 @@ export class LocalAiReviewProvider implements ReviewAiProvider {
     if (this.disposed) return;
     this.disposed = true;
     this.listeners.clear();
+    document.removeEventListener("visibilitychange", this.onVisible);
     const port = this.port;
     this.port = null;
     try {

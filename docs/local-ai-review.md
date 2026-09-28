@@ -41,35 +41,45 @@ re-downloads silently; the user must press Install again.
 
 ## Runtime host
 
-- **Chrome/Edge:** an offscreen document (`local-ai/offscreen.html`, reason `WORKERS`)
-  hosting one dedicated worker that owns the only Transformers.js model. Needs the `offscreen`
-  permission (no install-time warning). The background creates it only when a Review opens
-  with consent + preference on, or for an explicit install/delete/probe, and closes it as
-  soon as the host reports `idle`.
+- **Chrome/Edge:** the engine runs inside the background service worker (no extra
+  permission, no extra document or worker). Transformers.js and ONNX Runtime are part of
+  `background.js`, but the engine does nothing (no GPU probe, no cache read, no load) until
+  a Review opens with consent + preference on, or the options page probes, installs or
+  deletes. The model loads on the first job.
+- **Keepalive:** Chrome stops an idle service worker after 30 s, which would drop a
+  multi-GB loaded model or cut an install short. While Local AI is in use (a Review port
+  open, a job queued or running, an install/delete/probe running) the host calls
+  `chrome.runtime.getPlatformInfo()` every 5 s, which resets that timer; the interval stops
+  as soon as nothing is active, so the worker can idle out as before.
 - **GPU memory is held only while a Review with Local AI is open.** When the last Review
   port closes, or an install ends (success, failure or cancel) with no Review open, the
-  host releases the GPU at once, with no grace period: running work is cancelled and
-  allowed to settle, the model is disposed, the worker is terminated (a disposed model may
-  leave its WebGPU device alive; terminating the worker frees it), and the host sends `idle` so
-  the background closes the document. A Review that stays open without jobs releases the
-  same way after 5 minutes but keeps the document. The next Review starts a fresh worker
-  and loads the model from cache, a cold load of about 10 s for Gemma 4 E4B on an M2 Max. An ENSURE_HOST that races
-  a close waits for it and recreates the document (single-flight).
-- **Firefox:** no offscreen API; the feature reports `host-unsupported`, and Review stays
-  exactly as today. Not validated for WebGPU.
-- Transport: the content script opens a `chrome.runtime` **port** straight to the
-  offscreen document (`ft-local-ai-review`). The port is the session: every job is bound
-  to its port and `port.sender` (tab/frame); a disconnect cancels its work. The background
-  is the settings/consent authority and talks to the offscreen document over its own port
-  (`ft-local-ai-host`, sender URL verified). Offscreen documents have no `chrome.storage`,
-  so the background pushes `configure`.
+  host unloads at once, with no grace period: running work is cancelled and allowed to
+  settle, then the model is disposed and its tokenizer/model references dropped. A disposed
+  model may leave ONNX Runtime's WebGPU device alive; it goes when Chrome stops the idle
+  service worker (about 30 s after the keepalive ends). A Review that stays open without
+  jobs unloads the same way after 5 minutes. The next job loads the model from cache, a
+  cold load of about 10 s for Gemma 4 E4B on an M2 Max.
+- **Firefox:** its MV3 background is an event page; the build ships no engine (build.ts
+  swaps `engineRuntime.ts` for a no-op), the feature reports `host-unsupported`, and Review
+  stays exactly as today.
+- Transport: the content script opens a `chrome.runtime` **port** to the background
+  (`ft-local-ai-review`), accepted only from this extension's content scripts (sender id,
+  a tab, not an extension page). The port is the session: every job is bound to its port
+  and `port.sender` (tab/frame); a disconnect cancels its work. The background is also the
+  settings/consent authority, and configures the in-process host directly.
+- **Trade-offs:** inference shares the service worker's thread with Presage (generation
+  is mostly GPU-bound, but tokenizing and decoding run there); `background.js` grows by
+  the runtime, from 407 KB to 977 KB minified on Chrome (Firefox: 419 KB); and an engine
+  failure is contained by dispose-and-reload rather than a separate process.
 - Lifecycle state machine: `unconfigured → checking-support → download-required →
 downloading → loading → ready ⇄ generating → unloading`, plus `unavailable` / `error`.
   Single-flight load keyed by model id; an epoch disposes a load that completes after
   disable/unload/model switch. Cancellation interrupts through Transformers.js's
   `InterruptableStoppingCriteria` (stops at the next token; the prompt prefill cannot be
   interrupted, so a cancel settles in about 1.3–1.5 s) and waits for the generation to
-  settle; if it does not settle within 3 s, the worker is terminated and recreated. One
+  settle; if it does not settle within 3 s, it is abandoned and the model disposed (the
+  next job reloads). A generation that throws (e.g. a lost GPU device) disposes the model
+  too; after a second such failure the host stays in `error` until the next Review. One
   generation at a time, a bounded queue, round-robin across ports, latest wins within a
   port. Every generation is independent: fresh input ids from the chat template, greedy
   decoding (`do_sample: false`), `max_new_tokens` from the request budget; no chat
@@ -77,23 +87,26 @@ downloading → loading → ready ⇄ generating → unloading`, plus `unavailab
 
 ## Packaging (release gate)
 
-- **Executable code ships in the extension:** the Transformers.js/ONNX Runtime JavaScript
-  is bundled into `local-ai/worker.js`, and ONNX Runtime's WASM + `.mjs` loader are copied
-  to `local-ai/ort/`; the worker points `env.backends.onnx.wasm.wasmPaths` there and turns
-  off `env.useWasmCache` (no CDN, no `blob:` copy). Single-threaded (no cross-origin
-  isolation). There is no per-model executable.
+- **Executable code ships in the extension:** the Transformers.js/ONNX Runtime JavaScript,
+  including ONNX Runtime's WASM glue (its bundle build: a service worker cannot `import()`
+  a separate `.mjs`), is bundled into `background.js` (an ES module), and only ONNX
+  Runtime's `.wasm` is copied to `local-ai/ort/`; `env.backends.onnx.wasm.wasmPaths` names
+  that file and `env.useWasmCache` is off (no CDN, no `blob:` copy). Single-threaded (no
+  cross-origin isolation, no `Worker` in a service worker). There is no per-model executable.
 - **A model is data:** each registry record pins a Hugging Face revision and lists every
   file the loader reads, with size and SHA-256. Only an explicit install downloads, and
   only those exact URLs (redirects must land on `LOCAL_AI_DOWNLOAD_ORIGINS`, which is also
   the CSP `connect-src`), without credentials, referrer or HTTP caching. Each file is
   hashed while it streams into Transformers.js's cache (`transformers-cache`, keyed by
   the pinned URL); a size or hash mismatch deletes the model's files and fails the install
-  (`integrity-failed`). The install then loads the model once from the cache with the
+  (`integrity-failed`). Cancel aborts the download; a file cut short is never stored. The
+  install then loads the model once from the cache with the
   network denied and records a verified marker (in FluentTyper's own cache). A model is
   `complete` only with every file present and the marker; anything else is `partial`.
   A resumed install re-hashes cached files instead of downloading them again.
-- **Review-time loads never use the network:** the worker's fetch (also Transformers.js's
-  `env.fetch`) refuses every network URL outside an install, so a missing file fails as
+- **Review-time loads never use the network:** the engine's guarded fetch (Transformers.js's
+  `env.fetch` and the install's downloads; the service worker's global `fetch` is left
+  alone) refuses every network URL outside an install, so a missing file fails as
   `cache-failed` (shown as not installed) instead of downloading. A loader request for a
   file missing from the registry fails the install and is logged with its path (no text).
 - **Delete** removes exactly the record's file URLs and its marker.
@@ -147,7 +160,7 @@ connection metadata (IP address, requested model files), never reviewed text.
    every Review, each Review waits ~8 s for the model before the first Local AI finding
    (rule findings still appear at once).
 4. **Coverage:** one GPU and OS measured, memory not measured; Edge and Firefox not run in a
-   browser (Firefox has no offscreen documents, so Review works without AI there).
+   browser (Firefox ships no engine, so Review works without AI there).
 5. **Recall:** Gemma 4 E4B still misses about 1 in 5 errors on the dense fixtures; it
    abstains rather than guesses. English only.
 6. **Validator limits:** hedge swaps in rewrites (`might` → `may`) pass because hedges are
