@@ -249,11 +249,12 @@ export class ContentRuntimeController {
       },
       getDocsSurface: () => (this.googleDocs ? this.docsReviewSurface : null),
       onActiveChange: () => this.reviewLauncher?.refresh(),
-      // Local AI is optional: off by preference, or where the runtime cannot open a port.
+      // Created even with the preference off, so turning it on reaches an open Review
+      // (`aiEnabled` and the status keep it "off" until then; nothing connects before a job).
       createAiProvider: () =>
-        this.config.localAiReviewEnabled === false || typeof chrome.runtime?.connect !== "function"
-          ? null
-          : new LocalAiReviewProvider(chrome.runtime),
+        typeof chrome.runtime?.connect === "function"
+          ? new LocalAiReviewProvider(chrome.runtime)
+          : null,
       aiEnabled: () => this.config.localAiReviewEnabled !== false,
     });
   }

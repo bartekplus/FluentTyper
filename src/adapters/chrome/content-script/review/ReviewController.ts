@@ -232,6 +232,8 @@ export class ReviewController {
       lookupSpelling: this.deps.lookupSpelling,
       ai,
     });
+    // The preference as it is now; later changes arrive through handleOptionsChanged.
+    if (this.deps.aiEnabled) session.setAiEnabled(this.deps.aiEnabled());
     const active: ActiveReview = {
       target,
       session,

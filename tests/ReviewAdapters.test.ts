@@ -1781,6 +1781,19 @@ describe("review controller with Local AI", () => {
     review.close();
   });
 
+  test("turning the preference on while a review is open starts its AI work", async () => {
+    textarea("We saw teh cat. She go home.");
+    let enabled = false;
+    const { review, providers } = controller({ aiEnabled: () => enabled });
+    review.invoke();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(providers[0].signals).toHaveLength(0);
+    enabled = true;
+    review.handleOptionsChanged();
+    await until(() => providers[0].signals.length === 1);
+    review.close();
+  });
+
   test("Escape in the editor closes an open AI batch preview before the review", async () => {
     const field = textarea("We saw teh cat. She go home now. She go there too.");
     const { review } = controller({ answer: true });

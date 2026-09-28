@@ -324,6 +324,22 @@ describe("install, integrity and cache state", () => {
     expect(await installing).toEqual({ ok: false, error: "download-cancelled" });
   });
 
+  test("a marker that cannot be written fails the install and unloads the model", async () => {
+    const { engine, caches, model } = makeEngine();
+    const open = caches.open.bind(caches);
+    caches.open = async (name: string) => {
+      if (name === "fluenttyper-local-ai") {
+        throw new DOMException("full", "QuotaExceededError");
+      }
+      return open(name);
+    };
+    expect(await engine.install(GEMMA.record.modelId, noProgress, signal, LOAD_MS)).toEqual({
+      ok: false,
+      error: "storage-full",
+    });
+    expect(model.disposed).toBe(1);
+  });
+
   test("files present without the verified marker are partial, never complete", async () => {
     const { engine, caches } = makeEngine();
     const store = await caches.open(MODEL_CACHE);

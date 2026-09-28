@@ -219,6 +219,8 @@ export class LocalAiEngine {
       try {
         await markModelVerified(this.deps.caches, record);
       } catch (error) {
+        // Not installed after all: the loaded model must not outlive the failure.
+        await this.unload();
         return { ok: false, error: installErrorCode(error) };
       }
     }

@@ -424,6 +424,20 @@ describe("ReviewSession with Local AI: Correct", () => {
     expect(plain.last().diagnostics.map((d) => d.original)).toEqual(["teh"]);
   });
 
+  test("turning the preference on in an open review fetches status and starts AI", async () => {
+    const h = harness(TEXT);
+    h.ai.current = status({ enabled: false });
+    h.session.setAiEnabled(false);
+    await h.start();
+    expect(h.last().ai.availability).toBe("off");
+    expect(h.ai.requests).toHaveLength(0);
+    h.ai.current = status();
+    h.session.setAiEnabled(true);
+    await h.settle();
+    expect(h.last().ai.availability).toBe("ready");
+    expect(h.aiFindings().length).toBeGreaterThan(0);
+  });
+
   test("coverage is partial when text was protected or a chunk failed", async () => {
     const h = harness(TEXT);
     h.editor.protectedRanges = [{ start: 3, end: 6, reason: "code" }];
