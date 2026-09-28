@@ -1,8 +1,7 @@
 /**
- * The benchmark measures the shipped templates only. The earlier experimental
- * "v2" variant (distinct "original"/"text" keys, a worked example, the task
- * restated in the user turn) was adopted as prompt version review-ai-2 in
- * src/core/domain/grammar/review/ai/prompts.ts.
+ * The benchmark measures the shipped templates only
+ * (src/core/domain/grammar/review/ai/prompts.ts). Earlier experiments were
+ * adopted there: "v2" as review-ai-2, "fixall" as the Correct prompt of review-ai-3.
  */
 import {
   buildAiMessages,

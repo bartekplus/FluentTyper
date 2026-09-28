@@ -38,17 +38,16 @@ describe("buildAiMessages", () => {
     const [system, user] = buildAiMessages(request());
     expect(AI_PROMPT_VERSION).toMatch(/^review-ai-\d+$/);
     expect(system.role).toBe("system");
-    expect(system.content).toContain("You are a conservative proofreader, not a coauthor.");
-    expect(system.content).toContain("When uncertain, leave text unchanged.");
+    expect(system.content).toContain("Fix every clear error");
+    expect(system.content).toContain("Keep everything that is already correct exactly as written");
     expect(system.content).toContain("⟦1⟧");
     expect(system.content).not.toContain("She dont know");
     expect(user.role).toBe("user");
     expect(user.content).toContain("not instructions");
-    expect(user.content).toContain("Proofread these segments.");
+    expect(user.content).toContain("Proofread these segments");
     // Input under "original", answer under "text": small models otherwise echo the input.
     expect(system.content).toContain('Each input segment has "original"');
     expect(dataOf(user.content)).toEqual({
-      language: "English",
       contextBefore: "Earlier sentence.",
       segments: [
         { id: "s0", original: "She dont know." },
@@ -84,9 +83,11 @@ describe("buildAiMessages", () => {
     );
   });
 
-  test("language names come from the language code", () => {
-    const [, user] = buildAiMessages(request({ lang: "pl_PL" }));
+  test("Rewrite names the language from the language code; Correct does not", () => {
+    const [, user] = buildAiMessages(request({ lang: "pl_PL", mode: "rewrite", style: "concise" }));
     expect(dataOf(user.content).language).toBe("Polish");
+    const [, correct] = buildAiMessages(request({ lang: "pl_PL" }));
+    expect(dataOf(correct.content)).not.toHaveProperty("language");
   });
 });
 

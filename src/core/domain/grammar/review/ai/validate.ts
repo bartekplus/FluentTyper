@@ -165,15 +165,56 @@ const INFORMAL = wordSet(`
   okay cuz
 `);
 
-const DETERMINERS = wordSet(`
-  a an the this that these those my your his her its our their some many each every several
-  few both all any another
+/** Determiners that fix a noun's number: agreement with them is a correction. */
+const PLURAL_DETERMINERS = wordSet(`
+  several many few both various numerous two three four five six seven eight nine
+  ten eleven twelve twenty thirty forty fifty hundred thousand dozen
+`);
+// "that", "which" and "what" also introduce clauses ("which make it hard"): not listed.
+const SINGULAR_DETERMINERS = wordSet("a an each every one another either neither");
+/**
+ * Determiners whose noun keeps the number the author wrote. Demonstratives are
+ * here too: "this results" may mean one result or several ("these results").
+ */
+const NEUTRAL_DETERMINERS = wordSet(`
+  the my your his her its our their some all any no whose this these those
 `);
 
-/** One word is the other with a plural ending ("friend"/"friends", "city"/"cities"). */
-function pluralFlip(a: string, b: string): boolean {
+/** The plural of the pair when one word is the other with a plural ending, else null. */
+function pluralOf(a: string, b: string): string | null {
   const [x, y] = [lower(a), lower(b)].sort((p, q) => p.length - q.length);
-  return y === `${x}s` || y === `${x}es` || (x.endsWith("y") && y === `${x.slice(0, -1)}ies`);
+  const flip = y === `${x}s` || y === `${x}es` || (x.endsWith("y") && y === `${x.slice(0, -1)}ies`);
+  return flip ? y : null;
+}
+
+/**
+ * "My friends is" -> "My friend is": a noun right after an unchanged determiner
+ * keeps its number unless the determiner itself marks it ("several issue" ->
+ * "several issues", "a long texts" -> "a long text"). After a number-neutral
+ * determiner, agreement is fixed on the verb, never by deciding how many there are.
+ */
+function flipsNounNumber(
+  original: readonly Token[],
+  index: number,
+  unit: readonly Hunk[],
+  added: readonly Token[],
+): boolean {
+  const determiner = wordBefore(original, index);
+  // A determiner changed in the same unit ("many informations" -> "much information") agrees anew.
+  if (!determiner || unit.some((hunk) => index - 2 >= hunk.o0 && index - 2 < hunk.o1)) {
+    return false;
+  }
+  const word = lower(determiner.text);
+  const numeric = /^\p{N}+$/u.test(word) ? Number(word) : null;
+  const wantsPlural = PLURAL_DETERMINERS.has(word) || (numeric !== null && numeric >= 2);
+  const wantsSingular = SINGULAR_DETERMINERS.has(word) || numeric === 1;
+  if (!wantsPlural && !wantsSingular && !NEUTRAL_DETERMINERS.has(word)) return false;
+  return added.some((token) => {
+    const plural = pluralOf(original[index].text, token.text);
+    if (plural === null) return false;
+    const becomesPlural = lower(token.text) === plural;
+    return !(wantsPlural && becomesPlural) && !(wantsSingular && !becomesPlural);
+  });
 }
 
 const SENTENCE_MARK = /^[.!?…]$/;
@@ -204,7 +245,10 @@ const WORD_GROUPS: readonly (readonly string[])[] = [
   ["be", "am", "is", "are", "was", "were", "been", "being"],
   ["have", "has", "had", "having"],
   ["do", "does", "did", "done", "doing"],
-  ["of", "in", "on", "at", "to", "for", "with", "from", "by", "about", "into", "onto"],
+  [
+    ...["of", "in", "on", "at", "to", "for", "with", "from", "by", "about", "into", "onto"],
+    ...["since", "during", "until", "till"],
+  ],
   ["i", "me", "my", "mine", "myself"],
   ["we", "us", "our", "ours", "ourselves"],
   ["he", "him", "his", "himself"],
@@ -216,6 +260,9 @@ const WORD_GROUPS: readonly (readonly string[])[] = [
   ["this", "these"],
   ["that", "those"],
   ["w", "we", "z", "ze", "o", "na", "do", "od", "po", "za", "się"],
+  ["much", "many"],
+  ["little", "few"],
+  ["less", "fewer"],
 ];
 /** Words that may be inserted or deleted by a correction (articles, auxiliaries, prepositions). */
 const INSERTABLE = new Set(WORD_GROUPS.slice(0, 5).flat().concat(WORD_GROUPS[15]));
@@ -390,7 +437,8 @@ function closeKind(a: string, b: string): CloseKind | null {
 function isCorrection(
   removed: readonly Token[],
   added: readonly Token[],
-  repeated: (index: number) => boolean,
+  deletable: (index: number) => boolean,
+  movable: (word: string) => boolean = () => false,
 ): boolean {
   const n = removed.length;
   const m = added.length;
@@ -409,8 +457,10 @@ function isCorrection(
       if (i < n && j + 1 < m && bare(lower(removed[i].text)) === joined(added, j)) {
         reach[i + 1][j + 2] = true;
       }
-      if (i < n && (INSERTABLE.has(lower(removed[i].text)) || repeated(i))) reach[i + 1][j] = true;
-      if (j < m && INSERTABLE.has(lower(added[j].text))) reach[i][j + 1] = true;
+      const gone = i < n ? lower(removed[i].text) : "";
+      if (i < n && (INSERTABLE.has(gone) || movable(gone) || deletable(i))) reach[i + 1][j] = true;
+      const extra = j < m ? lower(added[j].text) : "";
+      if (j < m && (INSERTABLE.has(extra) || movable(extra))) reach[i][j + 1] = true;
     }
   }
   return reach[n][m];
@@ -507,6 +557,23 @@ function hedgeCount(words: readonly string[]): number {
 }
 
 const negationCount = (words: readonly string[]) => words.filter(isNegation).length;
+
+/** Negative-polarity forms that replace a second negative ("not … nothing" -> "not … anything"). */
+const NEGATIVE_POLARITY = wordSet("anything anybody anyone ever anywhere any either");
+
+/**
+ * True when the polarity may have changed. Resolving a double negative is not
+ * a change: every dropped negation became its negative-polarity counterpart
+ * ("nothing" -> "anything", "no one" -> "anyone") and a negation remains.
+ */
+function negationChanged(before: readonly string[], after: readonly string[]): boolean {
+  const dropped = negationCount(before) - negationCount(after);
+  if (dropped === 0) return false;
+  if (dropped < 0 || negationCount(after) === 0) return true;
+  const polarity = (words: readonly string[]) =>
+    words.filter((word) => NEGATIVE_POLARITY.has(word)).length;
+  return polarity(after) - polarity(before) < dropped;
+}
 const numbersOf = (tokens: readonly Token[]) =>
   tokens
     .filter(
@@ -561,143 +628,147 @@ function mapOffset(pieces: readonly Piece[], offset: number): number | null {
   return null;
 }
 
-type Analysis =
-  | {
-      ok: true;
-      original: Token[];
-      proposed: Token[];
-      hunks: Hunk[];
-      /** Snapshot edits, one per hunk, in order. */
-      edits: ReviewEdit[];
-      /** The same edits in segment-text offsets. */
-      local: Array<{ start: number; end: number }>;
-      pieces: Piece[];
-    }
-  | { ok: false; reason: AiRejectionReason };
+interface SegmentDiff {
+  original: Token[];
+  proposed: Token[];
+  hunks: Hunk[];
+  pieces: Piece[];
+  quoted: TextRange[];
+}
 
-/**
- * Checks shared by both modes for one segment: shape, placeholders, quoted
- * text, code symbols, the token diff and its mapping to snapshot edits
- * (scope, grapheme boundaries, protected ranges, exact originals) and the
- * reconstruction of the proposed text.
- */
-function analyzeSegment(prepared: PreparedReview, segment: AiSegment, proposed: string): Analysis {
-  const source = prepared.snapshot.text;
-  const { scope } = prepared.snapshot;
-  const pieces = segmentPieces(source, segment);
-  if (!pieces || LINE_BREAK.test(proposed)) return { ok: false, reason: "shape" };
+/** Segment-level shape: host map, no line breaks, exact placeholders, bounded diff. */
+function diffSegment(
+  prepared: PreparedReview,
+  segment: AiSegment,
+  proposed: string,
+): SegmentDiff | { reason: AiRejectionReason } {
+  const pieces = segmentPieces(prepared.snapshot.text, segment);
+  if (!pieces || LINE_BREAK.test(proposed)) return { reason: "shape" };
   const found = proposed.match(PLACEHOLDER_LIKE) ?? [];
   if (
     found.length !== segment.placeholders.length ||
     found.some((token, index) => token !== segment.placeholders[index].token)
   ) {
-    return { ok: false, reason: "placeholder" };
-  }
-  // Spacing at the segment edges belongs to the text around it.
-  const edges = (text: string) => `${/^\s*/.exec(text)?.[0]}|${/\s*$/.exec(text)?.[0]}`;
-  if (edges(proposed) !== edges(segment.text)) return { ok: false, reason: "shape" };
-  // Brackets pair up code and asides: a proposal never opens or closes one.
-  const brackets = (text: string) => [...text.replace(/[^()[\]{}]/g, "")].sort().join("");
-  if (brackets(proposed) !== brackets(segment.text)) {
-    return { ok: false, reason: "technical-token" };
+    return { reason: "placeholder" };
   }
   const original = tokenize(segment.text);
   const next = tokenize(proposed);
   const hunks = diffTokens(original, next);
-  if (!hunks) return { ok: false, reason: "length" };
-
-  const quoted = quotedRegions(segment.text);
-  const edits: ReviewEdit[] = [];
-  const local: Array<{ start: number; end: number }> = [];
-  for (const hunk of hunks) {
-    const removed = original.slice(hunk.o0, hunk.o1);
-    const added = next.slice(hunk.p0, hunk.p1);
-    if ([...removed, ...added].some((token) => token.kind === "placeholder")) {
-      return { ok: false, reason: "placeholder" };
-    }
-    const start = hunk.o0 < original.length ? original[hunk.o0].start : segment.text.length;
-    const end = hunk.o1 > hunk.o0 ? original[hunk.o1 - 1].end : start;
-    const replacement = added.map((token) => token.text).join("");
-    const originalText = segment.text.slice(start, end);
-    if (
-      QUOTE_CHARS.test(originalText) ||
-      QUOTE_CHARS.test(replacement) ||
-      quoted.some((region) =>
-        start === end
-          ? region.start < start && start < region.end
-          : start < region.end && region.start < end,
-      )
-    ) {
-      return { ok: false, reason: "quoted" };
-    }
-    // Code-like text ("latency=200", "a|b") is left alone, including its spacing.
-    const neighbours = [original[hunk.o0 - 1], original[hunk.o1]].filter(Boolean);
-    if (
-      [...removed, ...added, ...neighbours].some(
-        (token) => CODE_SYMBOL.test(token.text) || /\p{Ll}\p{Lu}/u.test(token.text),
-      ) ||
-      replacement.split(/\s+/).some((piece) => {
-        const core = piece.replace(/^[("'“‘[<]+|[.,;:!?)\]"'”’>]+$/gu, "");
-        return core !== "" && isTechnicalToken(core);
-      })
-    ) {
-      return { ok: false, reason: "technical-token" };
-    }
-    const snapStart = mapOffset(pieces, start);
-    const snapEnd = mapOffset(pieces, end);
-    if (snapStart === null || snapEnd === null || snapEnd - snapStart !== end - start) {
-      return { ok: false, reason: "placeholder" };
-    }
-    const edit: ReviewEdit = {
-      start: snapStart,
-      end: snapEnd,
-      original: source.slice(snapStart, snapEnd),
-      replacement,
-    };
-    if (
-      edit.original !== originalText ||
-      edit.start < scope.start ||
-      edit.end > scope.end ||
-      !isGraphemeBoundary(source, edit.start) ||
-      !isGraphemeBoundary(source, edit.end)
-    ) {
-      return { ok: false, reason: "unsafe-boundary" };
-    }
-    const touched = prepared.protectedRanges.find((range) => editTouches(edit, range));
-    if (touched) {
-      return {
-        ok: false,
-        reason: touched.reason === "technical" ? "technical-token" : "protected",
-      };
-    }
-    // Glued to a protected token ("⟦1⟧)" for "user.save()"): part of it, not prose.
-    if (neighbours.some((token) => token.kind === "placeholder")) {
-      return { ok: false, reason: "technical-token" };
-    }
-    edits.push(edit);
-    local.push({ start, end });
-  }
-  const rebuilt = applyEdits(
-    segment.text,
-    edits.map((edit, index) => ({ ...edit, ...local[index] })),
-  );
-  if (rebuilt !== proposed) return { ok: false, reason: "shape" };
-  return { ok: true, original, proposed: next, hunks, edits, local, pieces };
+  if (!hunks) return { reason: "length" };
+  return { original, proposed: next, hunks, pieces, quoted: quotedRegions(segment.text) };
 }
+
+/** Spacing at the segment edges belongs to the text around it. */
+const edgesOf = (text: string) => `${/^\s*/.exec(text)?.[0]}|${/\s*$/.exec(text)?.[0]}`;
+/** Brackets pair up code and asides: a proposal never opens or closes one. */
+const bracketsOf = (text: string) => [...text.replace(/[^()[\]{}]/g, "")].sort().join("");
+
+type HunkEdit =
+  { ok: true; edit: ReviewEdit; local: TextRange } | { ok: false; reason: AiRejectionReason };
+
+/**
+ * One hunk as a snapshot edit: quoted text, code symbols, placeholders, the
+ * mapping through the segment map, scope, grapheme boundaries, protected
+ * ranges and the exact original text.
+ */
+function hunkEdit(
+  prepared: PreparedReview,
+  segment: AiSegment,
+  diff: SegmentDiff,
+  hunk: Hunk,
+): HunkEdit {
+  const source = prepared.snapshot.text;
+  const { scope } = prepared.snapshot;
+  const { original, proposed: next, pieces, quoted } = diff;
+  const removed = original.slice(hunk.o0, hunk.o1);
+  const added = next.slice(hunk.p0, hunk.p1);
+  if ([...removed, ...added].some((token) => token.kind === "placeholder")) {
+    return { ok: false, reason: "placeholder" };
+  }
+  const start = hunk.o0 < original.length ? original[hunk.o0].start : segment.text.length;
+  const end = hunk.o1 > hunk.o0 ? original[hunk.o1 - 1].end : start;
+  const replacement = added.map((token) => token.text).join("");
+  const originalText = segment.text.slice(start, end);
+  if (
+    QUOTE_CHARS.test(originalText) ||
+    QUOTE_CHARS.test(replacement) ||
+    quoted.some((region) =>
+      start === end
+        ? region.start < start && start < region.end
+        : start < region.end && region.start < end,
+    )
+  ) {
+    return { ok: false, reason: "quoted" };
+  }
+  // Code-like text ("latency=200", "a|b") is left alone, including its spacing.
+  const neighbours = [original[hunk.o0 - 1], original[hunk.o1]].filter(Boolean);
+  if (
+    bracketsOf(originalText) !== bracketsOf(replacement) ||
+    [...removed, ...added, ...neighbours].some(
+      (token) => CODE_SYMBOL.test(token.text) || /\p{Ll}\p{Lu}/u.test(token.text),
+    ) ||
+    replacement.split(/\s+/).some((piece) => {
+      const core = piece.replace(/^[("'“‘[<]+|[.,;:!?)\]"'”’>]+$/gu, "");
+      return core !== "" && isTechnicalToken(core);
+    })
+  ) {
+    return { ok: false, reason: "technical-token" };
+  }
+  const snapStart = mapOffset(pieces, start);
+  const snapEnd = mapOffset(pieces, end);
+  if (snapStart === null || snapEnd === null || snapEnd - snapStart !== end - start) {
+    return { ok: false, reason: "placeholder" };
+  }
+  const edit: ReviewEdit = {
+    start: snapStart,
+    end: snapEnd,
+    original: source.slice(snapStart, snapEnd),
+    replacement,
+  };
+  if (
+    edit.original !== originalText ||
+    edit.start < scope.start ||
+    edit.end > scope.end ||
+    !isGraphemeBoundary(source, edit.start) ||
+    !isGraphemeBoundary(source, edit.end)
+  ) {
+    return { ok: false, reason: "unsafe-boundary" };
+  }
+  const touched = prepared.protectedRanges.find((range) => editTouches(edit, range));
+  if (touched) {
+    return { ok: false, reason: touched.reason === "technical" ? "technical-token" : "protected" };
+  }
+  // Glued to a protected token ("⟦1⟧)" for "user.save()"): part of it, not prose.
+  if (neighbours.some((token) => token.kind === "placeholder")) {
+    return { ok: false, reason: "technical-token" };
+  }
+  return { ok: true, edit, local: { start, end } };
+}
+
+/** Edits in segment-text offsets, for rebuilding a segment variant. */
+const localEdits = (hunkEdits: ReadonlyArray<{ edit: ReviewEdit; local: TextRange }>) =>
+  hunkEdits.map(({ edit, local }) => ({ ...edit, ...local }));
 
 // ---------------------------------------------------------------------------
 // Correct mode
+
+/** Most words one change unit may remove or add. */
+const MAX_UNIT_WORDS = 4;
+/** Above this share of changed words a proposal is a rewrite, not a correction. */
+const MAX_CHANGED_SHARE = 0.5;
 
 /**
  * Turns one chunk's parsed Correct-mode output into guarded findings against
  * the prepared snapshot: word-level diff, placeholder restore, protection and
  * scope checks, risk guards (numbers, technical tokens, names, negation,
- * uncertainty, quotes), drift rejection, sentence-grouped atomic hunks and a
- * reconstruction check.
+ * uncertainty, quotes), drift rejection and a reconstruction check.
  *
- * A segment is one sentence; all of its accepted hunks form ONE diagnostic
- * with one alternative, so dependent edits are never applied halfway. Any
- * failing hunk rejects the whole segment.
+ * Findings are per change unit: hunks separated by at most one unchanged word
+ * ("user paste" -> "a user pastes") form one unit, applied atomically so a
+ * dependent edit is never applied halfway. Each unit is validated on its own
+ * against the original sentence; a rejected unit is counted and dropped
+ * without sinking the others. A proposal changing most of a sentence is a
+ * rewrite and is rejected whole.
  */
 export function correctionFindings(
   prepared: PreparedReview,
@@ -720,49 +791,123 @@ export function correctionFindings(
     const proposed = segments[index].text;
     if (proposed === segment.text) return;
     const result = correctSegment(prepared, segment, proposed);
-    if ("reason" in result) reject(result.reason);
-    else diagnostics.push(result.diagnostic);
+    diagnostics.push(...result.diagnostics);
+    result.rejected.forEach(reject);
   });
   return { diagnostics, rejected };
 }
+
+/** Hunks separated by at most one unchanged word belong together. */
+function changeUnits(original: readonly Token[], hunks: readonly Hunk[]): Hunk[][] {
+  const units: Hunk[][] = [];
+  for (const hunk of hunks) {
+    const unit = units[units.length - 1];
+    const previous = unit?.[unit.length - 1];
+    const between = previous
+      ? original.slice(previous.o1, hunk.o0).filter((token) => token.kind === "word").length
+      : Infinity;
+    if (unit && between <= 1) unit.push(hunk);
+    else units.push([hunk]);
+  }
+  return units;
+}
+
+const wordCount = (tokens: readonly Token[]) =>
+  tokens.filter((token) => token.kind === "word").length;
 
 function correctSegment(
   prepared: PreparedReview,
   segment: AiSegment,
   proposed: string,
-): { diagnostic: ReviewDiagnostic } | { reason: AiRejectionReason } {
-  const lengthDelta = Math.abs(proposed.length - segment.text.length);
-  if (lengthDelta > Math.max(12, Math.ceil(segment.text.length * 0.25)))
-    return { reason: "length" };
-  const analysis = analyzeSegment(prepared, segment, proposed);
-  if (!analysis.ok) return { reason: analysis.reason };
-  const { original, proposed: next, hunks, edits, local, pieces } = analysis;
-  if (hunks.length === 0) return { reason: "shape" };
+): { diagnostics: ReviewDiagnostic[]; rejected: AiRejectionReason[] } {
+  const diff = diffSegment(prepared, segment, proposed);
+  if ("reason" in diff) return { diagnostics: [], rejected: [diff.reason] };
+  const { original, proposed: next, hunks } = diff;
+  if (hunks.length === 0) return { diagnostics: [], rejected: ["shape"] };
 
-  const originalWords = wordsOf(original);
-  const proposedWords = wordsOf(next);
-  if (hunks.length > Math.max(3, Math.ceil(originalWords.length / 4))) {
+  const removedWords = hunks.reduce((sum, h) => sum + wordCount(original.slice(h.o0, h.o1)), 0);
+  const addedWords = hunks.reduce((sum, h) => sum + wordCount(next.slice(h.p0, h.p1)), 0);
+  if (
+    removedWords > wordCount(original) * MAX_CHANGED_SHARE ||
+    addedWords > wordCount(next) * MAX_CHANGED_SHARE
+  ) {
+    return { diagnostics: [], rejected: ["drift"] };
+  }
+
+  const diagnostics: ReviewDiagnostic[] = [];
+  const rejected: AiRejectionReason[] = [];
+  for (const unit of changeUnits(original, hunks)) {
+    const result = correctUnit(prepared, segment, diff, unit);
+    if ("reason" in result) rejected.push(result.reason);
+    else diagnostics.push(result.diagnostic);
+  }
+  return { diagnostics, rejected };
+}
+
+/** A word right after a number is its unit ("300 kb", "5ml"): changing it changes the quantity. */
+function afterNumber(tokens: readonly Token[], index: number): boolean {
+  const digits = (at: number) => /\p{N}/u.test(tokens[at]?.text ?? "");
+  return digits(index - 1) || (tokens[index - 1]?.kind === "space" && digits(index - 2));
+}
+
+/** The word token before `index`, across one space, or undefined. */
+const wordBefore = (tokens: readonly Token[], index: number) =>
+  tokens[index - 1]?.kind === "space" && tokens[index - 2]?.kind === "word"
+    ? tokens[index - 2]
+    : undefined;
+const wordAfter = (tokens: readonly Token[], index: number) =>
+  tokens[index + 1]?.kind === "space" && tokens[index + 2]?.kind === "word"
+    ? tokens[index + 2]
+    : undefined;
+
+/** Validates one change unit against the original sentence and builds its finding. */
+function correctUnit(
+  prepared: PreparedReview,
+  segment: AiSegment,
+  diff: SegmentDiff,
+  unit: readonly Hunk[],
+): { diagnostic: ReviewDiagnostic } | { reason: AiRejectionReason } {
+  const { original, proposed: next, pieces } = diff;
+  const hunkEdits: Array<{ edit: ReviewEdit; local: TextRange }> = [];
+  for (const hunk of unit) {
+    const result = hunkEdit(prepared, segment, diff, hunk);
+    if (!result.ok) return { reason: result.reason };
+    hunkEdits.push(result);
+  }
+  const unitRemoved = unit.flatMap((h) => original.slice(h.o0, h.o1));
+  const unitAdded = unit.flatMap((h) => next.slice(h.p0, h.p1));
+  if (wordCount(unitRemoved) > MAX_UNIT_WORDS || wordCount(unitAdded) > MAX_UNIT_WORDS) {
     return { reason: "too-many-edits" };
   }
-  if (numbersOf(original).join("\u0000") !== numbersOf(next).join("\u0000")) {
+
+  // The sentence with only this unit applied: the unit must stand on its own.
+  const variant = applyEdits(segment.text, localEdits(hunkEdits));
+  if (variant === null) return { reason: "shape" };
+  if (edgesOf(variant) !== edgesOf(segment.text)) return { reason: "shape" };
+  const changed = tokenize(variant);
+  if (numbersOf(original).join("\u0000") !== numbersOf(changed).join("\u0000")) {
     return { reason: "number" };
   }
-  if (negationCount(originalWords) !== negationCount(proposedWords)) return { reason: "negation" };
-  if (hedgeCount(originalWords) !== hedgeCount(proposedWords)) return { reason: "uncertainty" };
-
+  const originalWords = wordsOf(original);
+  const changedWords = wordsOf(changed);
+  if (negationChanged(originalWords, changedWords)) return { reason: "negation" };
+  if (hedgeCount(originalWords) !== hedgeCount(changedWords)) return { reason: "uncertainty" };
   // Terminating a fragment ("lol same" -> "Lol, same.") formalizes it.
   const terminated = (text: string) => /[.!?…]["'”’»)\]]*\s*$/u.test(text);
-  if (!terminated(segment.text) && terminated(proposed)) return { reason: "drift" };
+  if (!terminated(segment.text) && terminated(variant)) return { reason: "drift" };
+
+  // "to not change" -> "not to change": "not" moves across one word; the
+  // negation count is unchanged (checked above).
+  const spanStart = hunkEdits[0].local.start;
+  const spanEnd = hunkEdits[hunkEdits.length - 1].local.end;
+  const splitInfinitive =
+    /\bto not\b/i.test(segment.text.slice(spanStart, spanEnd)) &&
+    /\bnot to\b/i.test(variant.slice(spanStart, spanEnd + variant.length - segment.text.length));
+  const movable = (word: string) => splitInfinitive && word === "not";
 
   const originalStarts = sentenceStarts(original);
   const proposedStarts = sentenceStarts(next);
-  const wordAt = (index: number) => original[index]?.kind === "word";
-  // A word right after a number is its unit ("300 kb", "5ml"): changing it changes the quantity.
-  const afterNumber = (tokens: readonly { kind: string; text: string }[], index: number) => {
-    const digits = (at: number) => /\p{N}/u.test(tokens[at]?.text ?? "");
-    return digits(index - 1) || (tokens[index - 1]?.kind === "space" && digits(index - 2));
-  };
-  for (const hunk of hunks) {
+  for (const hunk of unit) {
     const removedIndexes: number[] = [];
     for (let index = hunk.o0; index < hunk.o1; index += 1) {
       if (original[index].kind === "word") removedIndexes.push(index);
@@ -770,22 +915,11 @@ function correctSegment(
     const removed = removedIndexes.map((index) => original[index]);
     const added = next.slice(hunk.p0, hunk.p1).filter((token) => token.kind === "word");
     if (removedIndexes.some((index) => afterNumber(original, index))) return { reason: "number" };
-    // "My friends is" -> "My friend is": the noun after an unchanged determiner keeps
-    // its number; agreement is fixed on the verb or the determiner, never by
-    // deciding how many there are.
-    const flipsNoun = removedIndexes.some((index) => {
-      const determiner = original[index - 2];
-      return (
-        index - 2 < hunk.o0 &&
-        original[index - 1]?.kind === "space" &&
-        determiner?.kind === "word" &&
-        DETERMINERS.has(lower(determiner.text)) &&
-        added.some((token) => pluralFlip(original[index].text, token.text))
-      );
-    });
-    if (flipsNoun) return { reason: "drift" };
     for (let index = hunk.p0; index < hunk.p1; index += 1) {
       if (next[index].kind === "word" && afterNumber(next, index)) return { reason: "number" };
+    }
+    if (removedIndexes.some((index) => flipsNounNumber(original, index, unit, added))) {
+      return { reason: "drift" };
     }
     if (removedIndexes.some((index) => isNameAt(original, originalStarts, index))) {
       return { reason: "name" };
@@ -801,20 +935,20 @@ function correctSegment(
         return { reason: "name" };
       }
     }
-    // "the the" -> "the": a deleted word repeating its neighbour.
-    const repeated = (position: number) => {
+    // Deletions a proofreader makes: a repeated word ("the the"), the "more" of
+    // a double comparative ("more slower").
+    const deletable = (position: number) => {
       const index = removedIndexes[position];
       const text = lower(original[index].text);
+      const before = wordBefore(original, index);
+      const after = wordAfter(original, index);
       return (
-        (original[index - 1]?.kind === "space" &&
-          wordAt(index - 2) &&
-          lower(original[index - 2].text) === text) ||
-        (original[index + 1]?.kind === "space" &&
-          wordAt(index + 2) &&
-          lower(original[index + 2].text) === text)
+        lower(before?.text ?? "") === text ||
+        lower(after?.text ?? "") === text ||
+        ((text === "more" || text === "most") && COMPARATIVE.test(lower(after?.text ?? "")))
       );
     };
-    if (!isCorrection(removed, added, repeated) || formalizes(removed, added)) {
+    if (!isCorrection(removed, added, deletable, movable) || formalizes(removed, added)) {
       return { reason: "drift" };
     }
     // A new sentence break inside the segment ("16 rd. chain") is not a correction.
@@ -824,12 +958,14 @@ function correctSegment(
     if (addedMarks.length > 0 && hunk.o1 < original.length) return { reason: "drift" };
   }
 
-  // One atomic finding for the sentence: underline from the first to the last change.
+  // Underline from the first to the last change of the unit.
+  const local = hunkEdits.map((item) => item.local);
+  const edits = hunkEdits.map((item) => item.edit);
   let underlineStart = local[0].start;
   let underlineEnd = local[local.length - 1].end;
   if (underlineStart === underlineEnd) {
     // A lone insertion underlines the token it attaches to.
-    const hunk = hunks[0];
+    const hunk = unit[0];
     const before = original
       .slice(0, hunk.o0)
       .reverse()
@@ -868,7 +1004,7 @@ function correctSegment(
       id: `${snapshot.id}/${REVIEW_LOCAL_AI_CHECK}@${range.start}-${range.end}#${hashText(preview)}`,
       snapshotId: snapshot.id,
       ruleId: REVIEW_LOCAL_AI_CHECK,
-      category: categoryOf(original, next, hunks),
+      category: categoryOf(original, next, unit),
       messageKey: "review_msg_local_ai",
       lang: options.lang,
       range,
@@ -882,6 +1018,8 @@ function correctSegment(
     },
   };
 }
+
+const COMPARATIVE = /^(?:\p{L}{2,}(?:er|est)|better|best|worse|worst|less|least|fewer)$/u;
 
 /** Category by the kind of change; a generic "grammar" rather than a guessed rule. */
 function categoryOf(
@@ -1011,11 +1149,20 @@ export function rewriteProposal(
       const segment = chunk.segments[index];
       if (output[index].id !== segment.id) return fail("shape");
       const proposed = output[index].text;
-      const analysis = analyzeSegment(prepared, segment, proposed);
-      if (!analysis.ok) return fail(analysis.reason);
-      edits.push(...analysis.edits);
-      originalTokens.push(analysis.original);
-      proposedTokens.push(analysis.proposed);
+      const diff = diffSegment(prepared, segment, proposed);
+      if ("reason" in diff) return fail(diff.reason);
+      if (edgesOf(proposed) !== edgesOf(segment.text)) return fail("shape");
+      if (bracketsOf(proposed) !== bracketsOf(segment.text)) return fail("technical-token");
+      const hunkEdits: Array<{ edit: ReviewEdit; local: TextRange }> = [];
+      for (const hunk of diff.hunks) {
+        const result = hunkEdit(prepared, segment, diff, hunk);
+        if (!result.ok) return fail(result.reason);
+        hunkEdits.push(result);
+      }
+      if (applyEdits(segment.text, localEdits(hunkEdits)) !== proposed) return fail("shape");
+      edits.push(...hunkEdits.map((item) => item.edit));
+      originalTokens.push(diff.original);
+      proposedTokens.push(diff.proposed);
       originalText += `${segment.text}\n`;
       proposedText += `${proposed}\n`;
     }
@@ -1053,7 +1200,7 @@ export function rewriteProposal(
       return fail("name");
     }
   }
-  if (negationCount(originalWords) !== negationCount(proposedWords)) return fail("negation");
+  if (negationChanged(originalWords, proposedWords)) return fail("negation");
   if (languageShifted(originalWords, proposedWords)) return fail("drift");
   if (hedgeCount(originalWords) !== hedgeCount(proposedWords)) return fail("uncertainty");
   const commitmentsBefore = commitmentCounts(originalWords);

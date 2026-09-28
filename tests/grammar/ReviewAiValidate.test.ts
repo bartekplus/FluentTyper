@@ -79,7 +79,8 @@ const correctOne = (text: string, proposed: string, extra: Extra = {}) =>
 function expectRejected(text: string, proposed: string, reason: string, extra: Extra = {}) {
   const result = correctOne(text, proposed, extra);
   expect(result.diagnostics).toEqual([]);
-  expect(result.rejected).toEqual({ [reason]: 1 });
+  // Every change unit of the proposal was rejected, all for this reason.
+  expect(Object.keys(result.rejected)).toEqual([reason]);
 }
 
 describe("correctionFindings", () => {
@@ -143,7 +144,18 @@ describe("correctionFindings", () => {
 
   test("a determiner's noun keeps its number (real-GPU eval: fix-07/08)", () => {
     expectRejected("My friends is coming over.", "My friend is coming over.", "drift");
+    expectRejected("The results is late.", "The result is late.", "drift");
+    // "This results" may mean one result or several: the author's noun keeps its number.
     expectRejected("This results look promising.", "This result looks promising.", "drift");
+    // Agreement with a number-marking determiner is a correction.
+    expect(
+      correctOne("We found several issue today.", "We found several issues today.").applied,
+    ).toBe("We found several issues today.");
+    expect(correctOne("We found two issue today.", "We found two issues today.").applied).toBe(
+      "We found two issues today.",
+    );
+    expectRejected("We found several issues today.", "We found several issue today.", "drift");
+    expectRejected("We saw each issue today.", "We saw each issues today.", "drift");
     expect(correctOne("My friends is coming over.", "My friends are coming over.").applied).toBe(
       "My friends are coming over.",
     );
@@ -176,15 +188,88 @@ describe("correctionFindings", () => {
     expect(applied).toBe("The results show a problem.");
   });
 
-  test("dependent hunks of one sentence form one atomic finding", () => {
-    const text = "He go home and she buy milk.";
-    const { diagnostics, applied } = correctOne(text, "He goes home and she buys milk.");
+  test("changes one word apart form one atomic unit; distant changes stay separate", () => {
+    const text = "It fails when user paste a long text.";
+    const { diagnostics, applied } = correctOne(text, "It fails when a user pastes a long text.");
     expect(diagnostics).toHaveLength(1);
     expect(diagnostics[0].alternatives).toHaveLength(1);
     expect(diagnostics[0].alternatives[0].edits).toHaveLength(2);
-    expect(diagnostics[0].original).toBe("go home and she buy");
-    expect(diagnostics[0].alternatives[0].preview).toBe("goes home and she buys");
-    expect(applied).toBe("He goes home and she buys milk.");
+    expect(diagnostics[0].original).toBe("user paste");
+    expect(diagnostics[0].alternatives[0].preview).toBe("a user pastes");
+    expect(applied).toBe("It fails when a user pastes a long text.");
+
+    const apart = correctOne("He go home and she buy milk.", "He goes home and she buys milk.");
+    expect(apart.diagnostics.map((d) => d.original)).toEqual(["go", "buy"]);
+    expect(apart.applied).toBe("He goes home and she buys milk.");
+  });
+
+  test("a rejected unit is dropped without sinking the rest of the sentence", () => {
+    const result = correctOne(
+      "Me and my colleague discussed about this problem, and we decided to not change nothing for now.",
+      "My colleague and I discussed this problem, and we decided not to change anything for now.",
+    );
+    expect(Object.keys(result.rejected).length).toBeGreaterThan(0);
+    expect(result.applied).toContain("we decided not to change anything for now.");
+    expect(result.applied).toContain("Me and my colleague");
+  });
+
+  test("dense text: per-unit bounds and the rewrite guard", () => {
+    expectRejected(
+      "The meeting went well and everyone agreed on the plan.",
+      "Everyone agreed that the plan and the meeting were great.",
+      "drift",
+    );
+    const long = correctOne(
+      "We should deploy the new version on the staging cluster first today.",
+      "We ought to roll out that fresh release onto the staging cluster first today.",
+    );
+    expect(long.diagnostics).toEqual([]);
+    expectRejected(
+      "The meeting went well and everyone agreed on the plan.",
+      "The meeting was a big success because all agreed on the plan.",
+      "too-many-edits",
+    );
+  });
+
+  test("closed-class swaps and proofreader deletions", () => {
+    const fixed = (text: string, proposed: string) => correctOne(text, proposed).applied;
+    expect(fixed("She works here since three years.", "She works here for three years.")).toBe(
+      "She works here for three years.",
+    );
+    expect(fixed("It is more slower then before.", "It is slower than before.")).toBe(
+      "It is slower than before.",
+    );
+    expect(fixed("The results are more better now.", "The results are better now.")).toBe(
+      "The results are better now.",
+    );
+    expect(fixed("We discussed about this problem.", "We discussed this problem.")).toBe(
+      "We discussed this problem.",
+    );
+    expect(
+      fixed("There is too many informations here.", "There is too much information here."),
+    ).toBe("There is too much information here.");
+    // "more" before a non-comparative is content, not a double comparative.
+    expectRejected("We need more tests here.", "We need tests here.", "drift");
+  });
+
+  test("double negatives: a negative-polarity counterpart is not a polarity change", () => {
+    const fixed = (text: string, proposed: string) => correctOne(text, proposed).applied;
+    expect(fixed("We did not change nothing today.", "We did not change anything today.")).toBe(
+      "We did not change anything today.",
+    );
+    expect(fixed("I don't know nobody here yet.", "I don't know anybody here yet.")).toBe(
+      "I don't know anybody here yet.",
+    );
+    expect(fixed("We decided to not change it today.", "We decided not to change it today.")).toBe(
+      "We decided not to change it today.",
+    );
+    // No other negation remains: the sentence became positive.
+    expectRejected(
+      "We changed nothing today at all.",
+      "We changed anything today at all.",
+      "negation",
+    );
+    expectRejected("We did not change nothing today.", "We did change anything today.", "negation");
   });
 
   test("categories follow the kind of change", () => {
@@ -239,7 +324,11 @@ describe("correctionFindings", () => {
     expectRejected("It never fails.", "It always fails.", "negation");
     expectRejected("The cant of the roof is odd.", "The can't of the roof is odd.", "negation");
     expectRejected("It may break later.", "It will break later.", "uncertainty");
-    expectRejected("I think it works.", "It works.", "uncertainty");
+    expectRejected(
+      "I think the new build works fine now.",
+      "The new build works fine now.",
+      "uncertainty",
+    );
     expectRejected("Ask Priya about it.", "Ask Paula about it.", "name");
     expectRejected("It may rain in May.", "It may rain in may.", "name");
     expectRejected("I use Qwen daily.", "I use Owen daily.", "name");
@@ -448,6 +537,19 @@ describe("rewriteProposal", () => {
     expect(rejection("The issue could be hardware.", ["The issue is hardware."])).toBe(
       "uncertainty",
     );
+  });
+
+  test("a rewrite may resolve a double negative (user report)", () => {
+    expect(
+      rejection("We decided to not change nothing for now.", [
+        "We decided not to change anything for now.",
+      ]),
+    ).toBeNull();
+    expect(
+      rejection("We decided to not change nothing for now.", [
+        "We decided to change things for now.",
+      ]),
+    ).toBe("negation");
   });
 
   test("whitespace at segment edges never changes in a rewrite", () => {

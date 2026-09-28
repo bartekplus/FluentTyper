@@ -45,6 +45,11 @@ interface ReviewAlternative {
   edits: ReviewEdit[];
   /** The corrected text of the highlighted range, for display. */
   preview: string;
+  /**
+   * Offered by the optional local model where it disagrees with a check on the
+   * same text: shown as a labelled option, never preselected, never in Fix all.
+   */
+  localAi?: true;
 }
 
 export type ReviewMessageKey =

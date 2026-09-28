@@ -261,6 +261,32 @@ describe("ReviewUi: Local AI", () => {
     expect(card.textContent).toContain("Not included in Fix all");
   });
 
+  test("a check's finding shows the Local AI option as labelled, not preselected", () => {
+    const disputed = finding("rule", {
+      ruleId: "englishContractionNormalization",
+      category: "spelling",
+      messageKey: "review_msg_contraction",
+      original: "dont",
+      range: { start: 4, end: 8 },
+      alternatives: [
+        { edits: [{ start: 4, end: 8, original: "dont", replacement: "don't" }], preview: "don't" },
+        {
+          edits: [{ start: 4, end: 8, original: "dont", replacement: "doesn't" }],
+          preview: "doesn't",
+          localAi: true,
+        },
+      ],
+      bulk: { eligible: true, alternative: 0 },
+    });
+    ui.render(state({ diagnostics: [disputed] }));
+    ui.openCard(disputed, null);
+    const options = [...$(".card").querySelectorAll<HTMLButtonElement>(".alternatives button")];
+    expect(options.map((button) => button.getAttribute("aria-pressed"))).toEqual(["true", "false"]);
+    expect(options[0].querySelector(".tag")).toBeNull();
+    expect(options[1].textContent).toContain("doesn't");
+    expect(options[1].querySelector(".tag")!.textContent).toBe("Local AI");
+  });
+
   test("coverage lines are distinct, and none claims AI completion when it did not", () => {
     const line = (
       coverage: ReviewAiViewState["coverage"],
@@ -501,7 +527,7 @@ describe("ReviewUi: Local AI", () => {
       expect($<HTMLButtonElement>("[data-action=rewrite-generate]").disabled).toBe(true);
       rewriting({ status: "rejected", rejection: "number", after: "The results show 3 problems." });
       expect($(".rewrite-msg").textContent).toBe(
-        "The rewrite changed a number, so it was discarded. Try again.",
+        "The rewrite was discarded: it changed a number, which could change a fact. Your text is unchanged. Generate again or try another style.",
       );
       expect($<HTMLButtonElement>("[data-action=rewrite-apply]").disabled).toBe(true);
       rewriting({ status: "failed", failure: "timeout" });

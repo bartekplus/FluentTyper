@@ -358,5 +358,15 @@
       "mustKeep": ["release/1.2", "fix"],
       "forbid": ["przepraszam", "gwarantuję", "Szanowni"]
     }
+  },
+  {
+    "id": "rw-dense-01",
+    "lang": "en_US",
+    "style": "keep-voice",
+    "text": "I dont think this feature work correctly when user paste a long texts into editor. Yesterday we was testing the new version and find several issue with suggestions. The application should automatically detect language, but sometime it choose a wrong one. My manager asked me if I can finished the report before friday afternoon. There is too many informations displayed on this screen and its difficult to understand them. She have been working on this project since three years, but she still dont know all the details. We need to improve performance because the current implementation is more slower then before. If the user click this button, all changes is saved immediatly without any confirmation. The new grammar checker looks really good however, it still miss some obvious mistakes. Me and my colleague discussed about this problem, and we decided to not change nothing for now.",
+    "invariants": {
+      "mustKeep": ["three years", "Friday", "manager", "report"],
+      "forbid": []
+    }
   }
 ]

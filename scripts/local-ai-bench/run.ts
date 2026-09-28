@@ -2,7 +2,7 @@
  * Real-device Local AI Review benchmark (opt-in; needs a WebGPU GPU with shader-f16).
  *
  *   bun scripts/local-ai-bench/run.ts --real [--models=Qwen3-1.7B-q4f16_1-MLC,...]
- *     [--smoke] [--limit=N] [--modes=correct,rewrite,cancel] [--json=schema|object|none]
+ *     [--smoke] [--limit=N] [--ids=case-a,case-b] [--modes=correct,rewrite,cancel] [--json=schema|object|none]
  *     [--prompt=product] [--tag=name] [--headful]
  *
  * Launches Puppeteer's Chrome for Testing with --enable-unsafe-webgpu and a

@@ -164,12 +164,15 @@ export async function runFixtures(
   correctParams: GenParams,
 ): Promise<void> {
   const limit = Number(args.get("limit") ?? Infinity);
+  const ids = args.get("ids")?.split(",");
+  const selected = <T extends { id: string }>(cases: T[]) =>
+    (ids ? cases.filter((fixture) => ids.includes(fixture.id)) : cases).slice(0, limit);
   const modes = (args.get("modes") ?? "correct,rewrite,cancel").split(",");
   const rewriteParams: GenParams = { ...correctParams, temperature: 0.4 };
   run.params.rewrite = rewriteParams;
 
   if (modes.includes("correct")) {
-    const cases = loadCorrectCases().slice(0, limit);
+    const cases = selected(loadCorrectCases());
     for (const [index, fixture] of cases.entries()) {
       const { raws, ...result } = await generateCase(page, fixture, null, correctParams);
       const score = scoreCorrectCase(fixture, raws);
@@ -188,7 +191,7 @@ export async function runFixtures(
       );
     }
   }
-  const rewriteCases = loadRewriteCases().slice(0, limit);
+  const rewriteCases = selected(loadRewriteCases());
   if (modes.includes("rewrite")) {
     for (const [index, fixture] of rewriteCases.entries()) {
       const { raws, ...result } = await generateCase(page, fixture, fixture.style, rewriteParams);

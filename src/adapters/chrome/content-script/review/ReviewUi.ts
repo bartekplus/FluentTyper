@@ -1372,6 +1372,9 @@ export class ReviewUi {
           { type: "button", "aria-pressed": String(index === this.cardAlternative), dir: "auto" },
           visibleWhitespace(option.preview),
         );
+        if (option.localAi) {
+          button.append(" ", element(doc, "span", { class: "tag" }, this.t("review_ai_tag")));
+        }
         button.addEventListener("click", () => {
           this.cardAlternative = index;
           this.renderCard(diagnostic);
@@ -1426,11 +1429,16 @@ export class ReviewUi {
           class: "suggestion",
           "data-action": "pick",
           "data-index": String(index),
-          "aria-label": this.t("review_card_replace_label", { word: option.preview }),
+          "aria-label": option.localAi
+            ? `${this.t("review_card_replace_label", { word: option.preview })}, ${this.t("review_ai_tag")}`
+            : this.t("review_card_replace_label", { word: option.preview }),
           dir: "auto",
         },
         option.preview,
       );
+      if (option.localAi) {
+        button.append(" ", element(doc, "span", { class: "tag" }, this.t("review_ai_tag")));
+      }
       button.disabled = !canApply;
       button.addEventListener("click", (event) =>
         this.callbacks.apply(diagnostic.id, index, event.detail === 0),

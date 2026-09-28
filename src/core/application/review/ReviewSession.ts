@@ -1451,13 +1451,48 @@ export class ReviewSession {
    * rather than composed with it. Runs again as spelling findings arrive.
    */
   private mergeAiFindings(): void {
-    const checks = this.diagnostics.filter((d) => d.ruleId !== REVIEW_LOCAL_AI_CHECK);
-    const shown = this.aiFindings.filter(
-      (finding) =>
-        !checks.some((d) => sameChange(d, finding) || rangesOverlap(d.range, finding.range)),
+    // The checks as they found them (without options added by an earlier merge).
+    const checks = this.diagnostics
+      .filter((d) => d.ruleId !== REVIEW_LOCAL_AI_CHECK)
+      .map((d) =>
+        d.alternatives.some((alternative) => alternative.localAi)
+          ? { ...d, alternatives: d.alternatives.filter((alternative) => !alternative.localAi) }
+          : d,
+      );
+    const shown: ReviewDiagnostic[] = [];
+    const extra = new Map<ReviewDiagnostic, ReviewDiagnostic["alternatives"]>();
+    for (const finding of this.aiFindings) {
+      if (checks.some((d) => sameChange(d, finding))) continue;
+      const overlapping = checks.filter((d) => rangesOverlap(d.range, finding.range));
+      if (overlapping.length === 0) {
+        shown.push(finding);
+        continue;
+      }
+      // A different fix for exactly the text a check flags ("dont" -> "don't" or
+      // "doesn't"): an explicit choice on that finding. Anything else is left out.
+      const [check] = overlapping;
+      const alternative = finding.alternatives[0];
+      if (
+        overlapping.length === 1 &&
+        alternative &&
+        check.range.start === finding.range.start &&
+        check.range.end === finding.range.end
+      ) {
+        extra.set(check, [...(extra.get(check) ?? []), { ...alternative, localAi: true }]);
+      }
+    }
+    const merged = checks.map((d) =>
+      extra.has(d) ? { ...d, alternatives: [...d.alternatives, ...extra.get(d)!] } : d,
     );
-    if (shown.length === 0 && checks.length === this.diagnostics.length) return;
-    this.diagnostics = mergeInTextOrder(checks, shown);
+    if (
+      shown.length === 0 &&
+      extra.size === 0 &&
+      merged.length === this.diagnostics.length &&
+      merged.every((d, index) => d === this.diagnostics[index])
+    ) {
+      return;
+    }
+    this.diagnostics = mergeInTextOrder(merged, shown);
     if (this.selectedId && !this.visibleDiagnostics().some((d) => d.id === this.selectedId)) {
       this.selectedId = null;
     }

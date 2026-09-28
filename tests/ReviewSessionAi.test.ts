@@ -161,6 +161,7 @@ function harness(
   {
     ai = new FakeAi() as FakeAi | null,
     deps = {} as Partial<Pick<ReviewSessionDependencies, "addToDictionary" | "lookupSpelling">>,
+    rules = ["englishTypoWhitelistCorrection"],
   } = {},
 ) {
   const editor = new FakeEditor(text);
@@ -170,7 +171,7 @@ function harness(
     target: editor,
     options: {
       lang: "en_US",
-      enabledRules: ["englishTypoWhitelistCorrection"],
+      enabledRules: rules,
       userDictionary: [],
       insertSpaceAfterAutocomplete: true,
     },
@@ -462,6 +463,27 @@ describe("ReviewSession with Local AI: Correct", () => {
     expect(h.ai.requests[0].signal.aborted).toBe(true);
     expect(h.last().ai.availability).toBe("unsupported");
     expect(h.last().ai.coverage).toBe("cancelled");
+  });
+});
+
+describe("ReviewSession with Local AI: disagreeing with a check", () => {
+  test("a different AI fix for the same word is a labelled second option (user report)", async () => {
+    const h = harness("Yesterday she still dont know the details.", {
+      rules: ["englishContractionNormalization"],
+    });
+    h.ai.fix = (text) => text.replace("dont", "doesn't");
+    await h.start();
+    const findings = h.last().diagnostics;
+    expect(findings).toHaveLength(1);
+    expect(findings[0].ruleId).toBe("englishContractionNormalization");
+    expect(findings[0].alternatives.map((a) => [a.preview, a.localAi ?? false])).toEqual([
+      ["don't", false],
+      ["doesn't", true],
+    ]);
+    // Fix all still plans the check's own proven fix only.
+    expect(h.last().bulk.count).toBe(1);
+    await Promise.all([h.session.apply(findings[0].id, 1), h.settle()]);
+    expect(h.editor.text).toBe("Yesterday she still doesn't know the details.");
   });
 });
 

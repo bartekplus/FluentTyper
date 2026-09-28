@@ -24,7 +24,13 @@ export interface AiChunkOptions {
   maxTotalChars?: number;
 }
 
-const DEFAULT_CHUNK_CHARS = 1_200;
+/**
+ * Correct sends a few sentences per request so findings appear progressively
+ * (a 900-character paragraph in one request showed nothing for ~9 s); Rewrite
+ * keeps larger chunks so each request sees more of the passage.
+ */
+const DEFAULT_CORRECT_CHUNK_CHARS = 400;
+const DEFAULT_REWRITE_CHUNK_CHARS = 1_200;
 const DEFAULT_CONTEXT_CHARS = 300;
 const DEFAULT_CORRECT_TOTAL_CHARS = 12_000;
 const DEFAULT_REWRITE_TOTAL_CHARS = 2_000;
@@ -63,7 +69,11 @@ interface SegmentDraft {
 export function buildAiChunks(prepared: PreparedReview, options: AiChunkOptions): AiChunkPlan {
   const source = prepared.snapshot.text;
   const scope = prepared.snapshot.scope;
-  const chunkChars = clamp(options.maxChunkChars ?? DEFAULT_CHUNK_CHARS, MAX_AI_REQUEST_TEXT_CHARS);
+  const chunkChars = clamp(
+    options.maxChunkChars ??
+      (options.mode === "rewrite" ? DEFAULT_REWRITE_CHUNK_CHARS : DEFAULT_CORRECT_CHUNK_CHARS),
+    MAX_AI_REQUEST_TEXT_CHARS,
+  );
   const contextChars = clamp(options.contextChars ?? DEFAULT_CONTEXT_CHARS, MAX_AI_CONTEXT_CHARS);
   const totalChars =
     options.maxTotalChars ??
