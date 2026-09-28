@@ -17,8 +17,10 @@ installs a model.
 `ort/ort-wasm-simd-threaded.asyncify.wasm` and `.mjs` are copied unmodified from the
 onnxruntime-web npm package (SHA-256 pinned in `scripts/check-local-ai-artifact.ts`). The
 WebAssembly build of ONNX Runtime incorporates third-party components; their notices, from
-ONNX Runtime commit `8d85527a010e294a26b274749f74294b2a32cec5`, are in
-`ONNXRUNTIME_THIRD_PARTY_NOTICES.txt` next to this file.
+ONNX Runtime commit `8d85527a010e294a26b274749f74294b2a32cec5` and limited to the components in
+that build (the file explains how the list was derived), are in
+`ONNXRUNTIME_THIRD_PARTY_NOTICES.txt` next to this file. The full file is at
+<https://github.com/microsoft/onnxruntime/blob/8d85527a010e294a26b274749f74294b2a32cec5/ThirdPartyNotices.txt>.
 
 No model code ships with the extension. Model files (ONNX graphs, weights, tokenizer and
 configuration) are data, downloaded only after the user's explicit consent from pinned
