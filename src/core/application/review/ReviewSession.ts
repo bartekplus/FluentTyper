@@ -18,6 +18,7 @@ import {
 import {
   applyEdits,
   diffTexts,
+  rangesOverlap,
   positionMapper,
   remapRange,
   remapRangeThroughEdits,
@@ -32,9 +33,38 @@ import type {
   ReviewOptions,
   TextRange,
 } from "@core/domain/grammar/review/types";
-import { REVIEW_CATEGORIES, REVIEW_SPELLING_CHECK } from "@core/domain/grammar/review/types";
-import type { AiBatchPreview, ReviewAiViewState, ReviewMode, RewriteViewState } from "./reviewAi";
-import type { EditorContextHint, RewriteStyle } from "@core/domain/grammar/review/ai/types";
+import {
+  REVIEW_CATEGORIES,
+  REVIEW_LOCAL_AI_CHECK,
+  REVIEW_SPELLING_CHECK,
+} from "@core/domain/grammar/review/types";
+import {
+  aiCacheKey,
+  conflictFreeFindings,
+  reviewAiAvailability,
+  sameChange,
+  type AiBatchPreview,
+  type ReviewAiAvailability,
+  type ReviewAiCoverage,
+  type ReviewAiProvider,
+  type ReviewAiViewState,
+  type ReviewMode,
+  type RewriteViewState,
+} from "./reviewAi";
+import type { LocalAiStatus } from "@core/domain/contracts/localAi";
+import type {
+  AiChunk,
+  AiChunkPlan,
+  AiErrorCode,
+  AiGenerationOutcome,
+  EditorContextHint,
+  RewriteProposal,
+  RewriteStyle,
+} from "@core/domain/grammar/review/ai/types";
+import { AI_PROMPT_VERSION } from "@core/domain/grammar/review/ai/prompts";
+import { aiRequestForChunk, buildAiChunks } from "@core/domain/grammar/review/ai/segments";
+import { resolveRewriteStyle } from "@core/domain/grammar/review/ai/style";
+import { correctionFindings, rewriteProposal } from "@core/domain/grammar/review/ai/validate";
 import {
   rankSpellingSuggestions,
   spellingCandidates,
@@ -154,18 +184,23 @@ export interface ReviewViewState {
   aiBatch: AiBatchPreview | null;
 }
 
-const AI_OFF: ReviewAiViewState = {
-  availability: "off",
-  coverage: "idle",
-  status: null,
-  checkedChars: 0,
-  eligibleChars: 0,
-  skippedChars: 0,
-  findings: 0,
-  rejected: 0,
-  failure: null,
-  offerSetup: false,
-};
+/** Session-local AI answers kept for reuse (per chunk key, model and prompt version). */
+const AI_CACHE_ENTRIES = 256;
+
+/** Errors after which the next chunk would fail the same way: the pass stops. */
+const AI_PASS_FATAL: ReadonlySet<AiErrorCode> = new Set<AiErrorCode>([
+  "unavailable",
+  "not-installed",
+  "not-ready",
+  "device-lost",
+]);
+
+type AiSegments = ReadonlyArray<{ id: string; text: string }>;
+
+/** Individually reviewed only: never planned into Fix all, counted as left for the user. */
+function individualOnly(diagnostic: ReviewDiagnostic): boolean {
+  return diagnostic.ruleId === REVIEW_SPELLING_CHECK || diagnostic.ruleId === REVIEW_LOCAL_AI_CHECK;
+}
 
 export interface ReviewSessionDependencies {
   target: ReviewTargetPort;
@@ -179,6 +214,10 @@ export interface ReviewSessionDependencies {
   setTimer?: (callback: () => void, delayMs: number) => unknown;
   clearTimer?: (handle: unknown) => void;
   recheckDelayMs?: number;
+  /** Optional on-device model; without it Review works exactly as without Local AI. */
+  ai?: ReviewAiProvider;
+  /** Pause after a text change before new text goes to the model (slower than rule rechecks). */
+  aiRecheckDelayMs?: number;
 }
 
 /**
@@ -314,6 +353,44 @@ export class ReviewSession {
   private readonly setTimer: (callback: () => void, delayMs: number) => unknown;
   private readonly clearTimer: (handle: unknown) => void;
 
+  // Local AI. Mode, pause and style are this review's own: never persisted.
+  private mode: ReviewMode = "correct";
+  private aiEnabled = true;
+  private aiPaused = false;
+  private aiStatus: LocalAiStatus | null = null;
+  // The setup offer was answered in this review (opened or declined).
+  private aiOfferAnswered = false;
+  private aiUnsubscribe: (() => void) | null = null;
+  // Bumped to drop an AI pass: whatever it awaits is discarded when it lands.
+  private aiToken = 0;
+  private aiAbort: AbortController | null = null;
+  private aiTimer: unknown = null;
+  // The results the current or last AI pass was for; null lets the next one start.
+  private aiPassFor: PreparedReview | null = null;
+  // The text changed: new text waits a pause before it goes to the model.
+  private aiDelayNext = false;
+  // Validated AI findings for `prepared`, before deduplication against the checks.
+  private aiFindings: ReviewDiagnostic[] = [];
+  // Answers by chunk key, model and prompt version; a hit must match the whole request.
+  private readonly aiCache = new Map<string, { request: string; segments: AiSegments }>();
+  private aiCoverage: ReviewAiCoverage = "idle";
+  private aiCounts = { checked: 0, eligible: 0, skipped: 0, rejected: 0 };
+  private aiFailure: AiErrorCode | null = null;
+  private rewriteStyle: RewriteStyle = "keep-voice";
+  private rewriteHint: EditorContextHint = "general";
+  private rewrite: RewriteViewState | null = null;
+  // The validated proposal's edits, and the text and generation they were made for.
+  private rewriteEdits: { edits: ReviewEdit[]; generation: number; text: string } | null = null;
+  private rewriteToken = 0;
+  private rewriteAbort: AbortController | null = null;
+  // The preview, with the list it was made from: it stands only while that list is shown.
+  private aiBatch: {
+    preview: AiBatchPreview;
+    edits: ReviewEdit[];
+    generation: number;
+    list: ReviewDiagnostic[];
+  } | null = null;
+
   constructor(private readonly deps: ReviewSessionDependencies) {
     this.options = deps.options;
     this.scope = deps.initialScope ? { ...deps.initialScope } : null;
@@ -334,12 +411,26 @@ export class ReviewSession {
   /** Reads and scans. Resolves once the first results (or an error) are shown. */
   async start(): Promise<void> {
     this.emit();
+    const ai = this.deps.ai;
+    if (ai) {
+      this.aiUnsubscribe = ai.onStatus((status) => this.onAiStatus(status));
+      this.fetchAiStatus(ai);
+    }
     await this.refresh();
   }
 
   close(): void {
     this.generation += 1;
     this.cancelRecheck();
+    this.cancelAi();
+    this.cancelRewriteRun();
+    this.aiUnsubscribe?.();
+    this.aiUnsubscribe = null;
+    this.aiCache.clear();
+    this.aiFindings = [];
+    this.rewrite = null;
+    this.rewriteEdits = null;
+    this.aiBatch = null;
     this.status = "closed";
     this.diagnostics = [];
     this.planCache = null;
@@ -351,6 +442,7 @@ export class ReviewSession {
   notifySourceChanged(): void {
     if (this.status === "closed" || this.status === "applying" || this.scopeLost) return;
     this.generation += 1;
+    this.textChanging();
     // "Fixed: 3" describes our last write; after the user's own edit (say, an
     // undo) it no longer describes the text.
     const changed = this.notice !== null || this.status !== "updating" || this.selectedId !== null;
@@ -420,6 +512,8 @@ export class ReviewSession {
     this.options = { ...this.options, userDictionary: [...this.options.userDictionary, word] };
     this.notice = { kind: "dictionary-added", word };
     this.generation += 1;
+    // The findings are rebuilt for the new dictionary; so is the AI pass.
+    this.cancelAi();
     await this.refresh();
   }
 
@@ -475,52 +569,174 @@ export class ReviewSession {
       spelling: this.spelling,
       notice: this.notice,
       text: this.text,
-      mode: "correct",
-      ai: AI_OFF,
-      rewrite: null,
-      aiBatch: null,
+      mode: this.mode,
+      ai: this.aiViewState(),
+      rewrite:
+        this.mode === "rewrite" && this.rewrite
+          ? {
+              ...this.rewrite,
+              canApply: this.rewriteApplicable(),
+              previewOnly: !this.capabilities.apply,
+            }
+          : null,
+      aiBatch: this.openAiBatch()?.preview ?? null,
     };
   }
 
-  // ------------------------------------------------------- local AI (pre-wired)
+  // ---------------------------------------------------------------- local AI
 
+  /** Correct (conservative findings) or Rewrite (explicit proposal); never persisted. */
   setMode(mode: ReviewMode): void {
-    void mode;
+    if (this.isClosed || mode === this.mode) return;
+    this.mode = mode;
+    this.aiBatch = null;
+    if (mode === "rewrite") {
+      // Findings already shown stay; the pass stops where it is.
+      this.cancelAi();
+      this.rewrite = this.idleRewrite();
+    } else {
+      this.cancelRewriteRun();
+      this.rewrite = null;
+      this.rewriteEdits = null;
+      this.startAi();
+    }
+    this.emit();
   }
 
+  /** Pauses Local AI for this review only; findings already shown stay. */
   setAiPaused(paused: boolean): void {
-    void paused;
+    if (this.isClosed || paused === this.aiPaused) return;
+    this.aiPaused = paused;
+    if (paused) {
+      this.cancelAi();
+      this.stopRewriteGeneration("idle");
+    } else {
+      this.startAi();
+    }
+    this.emit();
   }
 
-  openAiSetup(): void {}
+  /** The persistent preference changed while the review is open. */
+  setAiEnabled(enabled: boolean): void {
+    if (this.isClosed || enabled === this.aiEnabled) return;
+    this.aiEnabled = enabled;
+    if (enabled && this.deps.ai) this.fetchAiStatus(this.deps.ai, true);
+    if (enabled) this.startAi();
+    else this.aiOff();
+    this.emit();
+  }
 
-  dismissAiSetup(): void {}
+  openAiSetup(): void {
+    if (!this.deps.ai || this.isClosed) return;
+    this.deps.ai.openSetup();
+    this.aiOfferAnswered = true;
+    this.emit();
+  }
 
+  dismissAiSetup(): void {
+    if (!this.deps.ai || this.isClosed) return;
+    this.deps.ai.dismissSetupOffer();
+    this.aiOfferAnswered = true;
+    this.emit();
+  }
+
+  /** Changes the style only: never generates. A ready proposal no longer matches it. */
   setRewriteStyle(style: RewriteStyle): void {
-    void style;
+    if (!this.rewrite || this.rewrite.status === "applying" || style === this.rewriteStyle) return;
+    this.rewriteStyle = style;
+    this.rewriteSettingsChanged();
   }
 
   setRewriteContext(hint: EditorContextHint): void {
-    void hint;
+    if (!this.rewrite || this.rewrite.status === "applying" || hint === this.rewriteHint) return;
+    this.rewriteHint = hint;
+    this.rewriteSettingsChanged();
   }
 
-  generateRewrite(): void {}
-
-  cancelRewrite(): void {}
-
-  applyRewrite(): Promise<ReviewApplyResult | null> {
-    return Promise.resolve(null);
+  /** One proposal for the scope in the chosen style; nothing is written until applyRewrite(). */
+  generateRewrite(): void {
+    const { rewrite, prepared } = this;
+    const ai = this.deps.ai;
+    if (
+      !rewrite ||
+      !prepared ||
+      !ai ||
+      this.status !== "ready" ||
+      rewrite.status === "generating" ||
+      rewrite.status === "applying" ||
+      // Pause stops automatic checking; an explicit Generate still works.
+      (this.aiAvailability() !== "ready" && this.aiAvailability() !== "paused")
+    ) {
+      return;
+    }
+    void this.runRewrite(ai, prepared, this.generation);
   }
 
+  cancelRewrite(): void {
+    if (this.rewrite?.status !== "generating") return;
+    this.stopRewriteGeneration("idle");
+    this.emit();
+  }
+
+  /** Writes a complete, validated proposal through the verified target transaction. */
+  async applyRewrite(): Promise<ReviewApplyResult | null> {
+    const pending = this.rewriteEdits;
+    if (!this.rewrite || !pending || !this.rewriteApplicable()) return null;
+    this.rewriteEdits = null;
+    this.rewrite = { ...this.rewrite, status: "applying" };
+    const result = await this.write(pending.edits, pending.edits.length, 0);
+    if (this.isClosed || !this.rewrite) return result;
+    this.rewrite =
+      result.status === "applied" ? this.idleRewrite() : { ...this.rewrite, status: "stale" };
+    this.emit();
+    return result;
+  }
+
+  /** Opens the combined diff of the shown AI findings (or `ids` among them). */
   previewAiBatch(ids?: readonly string[]): void {
-    void ids;
+    const prepared = this.prepared;
+    if (this.status !== "ready" || !prepared) return;
+    const wanted = ids ? new Set(ids) : null;
+    const selected = this.visibleDiagnostics().filter(
+      (d) => d.ruleId === REVIEW_LOCAL_AI_CHECK && (!wanted || wanted.has(d.id)),
+    );
+    const { included, excluded } = conflictFreeFindings(this.text, selected);
+    const edits = included.flatMap((d) => d.alternatives[0]?.edits ?? []);
+    const { start, end } = prepared.snapshot.scope;
+    const before = this.text.slice(start, end);
+    const after = applyEdits(
+      before,
+      edits.map((edit) => ({ ...edit, start: edit.start - start, end: edit.end - start })),
+    );
+    if (after === null || selected.length === 0) return;
+    this.aiBatch = {
+      preview: {
+        diagnosticIds: included.map((d) => d.id),
+        excluded,
+        before,
+        after,
+        canApply: this.capabilities.apply && this.capabilities.bulk && included.length > 0,
+      },
+      edits,
+      generation: this.generation,
+      list: this.visibleDiagnostics(),
+    };
+    this.emit();
   }
 
-  applyAiBatch(): Promise<ReviewApplyResult | null> {
-    return Promise.resolve(null);
+  /** Applies the open preview as one verified multi-edit write; never part of Fix all. */
+  async applyAiBatch(): Promise<ReviewApplyResult | null> {
+    const batch = this.openAiBatch();
+    if (!batch?.preview.canApply || !this.canWrite()) return null;
+    this.aiBatch = null;
+    return this.write(batch.edits, batch.preview.diagnosticIds.length, 0);
   }
 
-  cancelAiBatch(): void {}
+  cancelAiBatch(): void {
+    if (!this.aiBatch) return;
+    this.aiBatch = null;
+    this.emit();
+  }
 
   // ------------------------------------------------------------------ internals
 
@@ -557,10 +773,9 @@ export class ReviewSession {
     return [this.prepared, this.text, this.ruleDiagnostics, this.ignored, this.categories];
   }
 
-  /** Findings Fix all leaves for the user: the plan's, plus every shown spelling finding. */
+  /** Findings Fix all leaves for the user: the plan's, plus every shown spelling and AI finding. */
   private deferredCount(plan: BulkPlan): number {
-    const spelling = this.visibleDiagnostics().filter((d) => d.ruleId === REVIEW_SPELLING_CHECK);
-    return plan.deferred.length + spelling.length;
+    return plan.deferred.length + this.visibleDiagnostics().filter(individualOnly).length;
   }
 
   /**
@@ -576,9 +791,7 @@ export class ReviewSession {
     if (this.planPending && sameKey(this.planPending.key, key)) return null;
     const prepared = this.prepared;
     // What is shown: ignored findings and hidden categories are neither fixed nor counted.
-    const ruleFindings = this.visibleDiagnostics().filter(
-      (d) => d.ruleId !== REVIEW_SPELLING_CHECK,
-    );
+    const ruleFindings = this.visibleDiagnostics().filter((d) => !individualOnly(d));
     const steps = planBulkFixSteps(this.text, ruleFindings, { prove: true });
     let budget = SYNC_PROOF_CHECKS;
     let step = steps.next();
@@ -651,7 +864,7 @@ export class ReviewSession {
       // The planner failed while finishing: the same as having no plan.
     }
     const deferred = this.visibleDiagnostics()
-      .filter((d) => d.ruleId !== REVIEW_SPELLING_CHECK)
+      .filter((d) => !individualOnly(d))
       .map((d) => ({ id: d.id, reason: "unproven" as const }));
     return { diagnosticIds: [], edits: [], expectedText: text, deferred };
   }
@@ -665,6 +878,7 @@ export class ReviewSession {
     if (after === null) return { status: "stale" };
     this.generation += 1;
     this.cancelRecheck();
+    this.textChanging();
     this.status = "applying";
     this.selectedId = null;
     this.emit();
@@ -818,6 +1032,11 @@ export class ReviewSession {
     this.prepared = prepared;
     this.ruleDiagnostics = result.diagnostics;
     this.diagnostics = result.diagnostics;
+    this.aiFindings = [];
+    // A rewrite not generated yet is for the text as it is now.
+    if (this.rewrite?.status === "idle" || this.rewrite?.status === "too-long") {
+      this.rewrite = this.idleRewrite();
+    }
     this.coverage = result.coverage;
     this.status = "ready";
     if (this.selectedId && !this.visibleDiagnostics().some((d) => d.id === this.selectedId)) {
@@ -828,6 +1047,8 @@ export class ReviewSession {
     if (spelling) this.spellingCache = this.cacheFor(prepared.options.lang);
     this.spelling = !spelling ? "off" : this.spellingCache.unavailable ? "unavailable" : "checking";
     this.emit();
+    // Local AI starts only now, after the checks' results are on screen.
+    this.startAi();
     if (this.spelling !== "checking") return;
     // Not awaited: results are usable now, and suggestions join them as they come.
     this.checkSpelling(generation, prepared, lookup!).catch(() => {
@@ -950,7 +1171,440 @@ export class ReviewSession {
     }
     if (found.length === 0) return;
     this.diagnostics = mergeInTextOrder(this.diagnostics, found);
+    // An AI finding a spelling finding now covers steps aside.
+    if (this.aiFindings.length) this.mergeAiFindings();
     this.emit();
+  }
+
+  // ------------------------------------------------------- local AI internals
+
+  /**
+   * The open batch preview while it still describes what is shown: the same
+   * text and the same list (an ignore, a filter or new findings close it, so
+   * its ids are always among the shown findings).
+   */
+  private openAiBatch(): ReviewSession["aiBatch"] {
+    const batch = this.aiBatch;
+    return batch &&
+      this.status === "ready" &&
+      batch.generation === this.generation &&
+      batch.list === this.visibleDiagnostics()
+      ? batch
+      : null;
+  }
+
+  private aiAvailability(): ReviewAiAvailability {
+    return this.deps.ai
+      ? reviewAiAvailability(this.aiStatus, this.aiEnabled, this.aiPaused)
+      : "off";
+  }
+
+  private aiViewState(): ReviewAiViewState {
+    const availability = this.aiAvailability();
+    const coverage = availability === "off" ? "idle" : this.aiCoverage;
+    return {
+      availability,
+      coverage:
+        coverage === "checking" && this.aiStatus?.runtime === "loading" ? "loading" : coverage,
+      status: this.deps.ai ? this.aiStatus : null,
+      checkedChars: this.aiCounts.checked,
+      eligibleChars: this.aiCounts.eligible,
+      skippedChars: this.aiCounts.skipped,
+      findings:
+        this.status === "ready"
+          ? this.visibleDiagnostics().filter((d) => d.ruleId === REVIEW_LOCAL_AI_CHECK).length
+          : 0,
+      rejected: this.aiCounts.rejected,
+      failure: this.aiFailure,
+      offerSetup:
+        availability === "setup-needed" &&
+        this.aiStatus?.offerSetup === true &&
+        !this.aiOfferAnswered,
+    };
+  }
+
+  /** A pushed status wins over an older answer still on its way. */
+  private fetchAiStatus(ai: ReviewAiProvider, replace = false): void {
+    ai.status().then(
+      (status) => {
+        if (replace || this.aiStatus === null) this.onAiStatus(status);
+      },
+      () => {
+        // No answer: Local AI stays off for this review; the checks are unaffected.
+      },
+    );
+  }
+
+  private onAiStatus(status: LocalAiStatus): void {
+    if (this.isClosed) return;
+    const modelChanged = this.aiStatus !== null && this.aiStatus.modelId !== status.modelId;
+    this.aiStatus = status;
+    const availability = this.aiAvailability();
+    if (availability === "off") {
+      this.aiOff();
+    } else if (modelChanged || availability !== "ready") {
+      // Another model's answers do not describe this one's: they go.
+      this.cancelAi();
+      this.stopRewriteGeneration("idle");
+      if (modelChanged) this.dropAiFindings();
+    }
+    this.startAi();
+    this.emit();
+  }
+
+  /** Local AI turned off: its work, findings, previews and Rewrite mode end. */
+  private aiOff(): void {
+    this.cancelAi();
+    this.cancelRewriteRun();
+    this.dropAiFindings();
+    this.aiCoverage = "idle";
+    this.aiBatch = null;
+    this.mode = "correct";
+    this.rewrite = null;
+    this.rewriteEdits = null;
+  }
+
+  private dropAiFindings(): void {
+    this.aiFindings = [];
+    this.aiCounts = { checked: 0, eligible: 0, skipped: 0, rejected: 0 };
+    this.aiFailure = null;
+    this.mergeAiFindings();
+  }
+
+  /** Starts the Correct pass for the shown results, unless one ran or something stops it. */
+  private startAi(): void {
+    const { prepared } = this;
+    const ai = this.deps.ai;
+    if (
+      !ai ||
+      !prepared ||
+      this.status !== "ready" ||
+      this.mode !== "correct" ||
+      this.aiAvailability() !== "ready" ||
+      this.aiPassFor === prepared
+    ) {
+      return;
+    }
+    void this.runAiPass(ai, prepared, this.generation);
+  }
+
+  /** Aborts the model request in flight; whatever the pass awaits is dropped when it lands. */
+  private cancelAi(): void {
+    this.aiToken += 1;
+    this.aiAbort?.abort();
+    this.aiAbort = null;
+    if (this.aiTimer !== null) {
+      this.clearTimer(this.aiTimer);
+      this.aiTimer = null;
+    }
+    this.aiPassFor = null;
+    if (this.aiCoverage === "waiting" || this.aiCoverage === "checking") {
+      this.aiCoverage = "cancelled";
+    }
+  }
+
+  /** The text is changing: AI work for the old text is dropped; a proposal or preview for it is stale. */
+  private textChanging(): void {
+    this.cancelAi();
+    if (this.aiAvailability() === "ready" && this.mode === "correct") this.aiCoverage = "waiting";
+    this.aiDelayNext = true;
+    this.aiBatch = null;
+    this.rewriteEdits = null;
+    if (this.rewrite?.status === "ready") this.rewrite = { ...this.rewrite, status: "stale" };
+    this.stopRewriteGeneration("stale");
+  }
+
+  /**
+   * The Correct pass over the results just shown: answers this review already
+   * has are used at once, then one chunk at a time goes to the model in
+   * document order (after a pause when the text just changed). Each validated
+   * answer joins the list as it lands; anything that changes what the model
+   * saw drops the pass.
+   */
+  private async runAiPass(
+    ai: ReviewAiProvider,
+    prepared: PreparedReview,
+    generation: number,
+  ): Promise<void> {
+    this.cancelAi();
+    const token = this.aiToken;
+    const abort = new AbortController();
+    this.aiAbort = abort;
+    this.aiPassFor = prepared;
+    const live = () => token === this.aiToken && generation === this.generation && !this.isClosed;
+    const delayed = this.aiDelayNext;
+    this.aiDelayNext = false;
+    this.aiFindings = [];
+    this.aiFailure = null;
+    let plan: AiChunkPlan;
+    try {
+      plan = buildAiChunks(prepared, { mode: "correct", style: null });
+    } catch {
+      plan = { chunks: [], skipped: { protected: 0, unsafe: 0, limit: 0 } };
+      this.aiFailure = "invalid-request";
+    }
+    const { protected: protectedChars, unsafe, limit } = plan.skipped;
+    const counts = {
+      checked: 0,
+      eligible: 0,
+      // Text the checks did not read either is unchecked by the model too.
+      skipped: protectedChars + unsafe + limit + this.truncated + this.unread,
+      rejected: 0,
+    };
+    for (const chunk of plan.chunks) counts.eligible += chunk.range.end - chunk.range.start;
+    this.aiCounts = counts;
+    let checkedChunks = 0;
+    const accept = (chunk: AiChunk, segments: AiSegments) => {
+      try {
+        const result = correctionFindings(prepared, chunk, segments);
+        this.aiFindings.push(...result.diagnostics);
+        for (const count of Object.values(result.rejected)) counts.rejected += count ?? 0;
+        counts.checked += chunk.range.end - chunk.range.start;
+        checkedChunks += 1;
+      } catch {
+        this.aiFailure = "malformed";
+      }
+    };
+    const finish = () => {
+      this.aiAbort = null;
+      this.aiCoverage =
+        this.aiFailure === "invalid-request" || (checkedChunks === 0 && plan.chunks.length > 0)
+          ? "failed"
+          : checkedChunks < plan.chunks.length || counts.skipped > 0
+            ? "partial"
+            : "complete";
+    };
+
+    const modelId = this.aiStatus?.modelId ?? "";
+    const pending: AiChunk[] = [];
+    const requestFor = (chunk: AiChunk) =>
+      aiRequestForChunk(chunk, prepared.options.lang, "correct", null);
+    for (const chunk of plan.chunks) {
+      const cached = this.aiCache.get(aiCacheKey(chunk.key, modelId, AI_PROMPT_VERSION));
+      if (cached?.request === JSON.stringify(requestFor(chunk))) accept(chunk, cached.segments);
+      else pending.push(chunk);
+    }
+    if (pending.length === 0) finish();
+    else this.aiCoverage = delayed ? "waiting" : "checking";
+    this.mergeAiFindings();
+    this.emit();
+    if (pending.length === 0) return;
+
+    if (delayed) {
+      await new Promise<void>((resolve) => {
+        this.aiTimer = this.setTimer(() => {
+          this.aiTimer = null;
+          resolve();
+        }, this.deps.aiRecheckDelayMs ?? 1500);
+      });
+      if (!live()) return;
+      this.aiCoverage = "checking";
+      this.emit();
+    }
+    for (const chunk of pending) {
+      let answer: { outcome: AiGenerationOutcome; modelId: string; promptVersion: string };
+      const request = requestFor(chunk);
+      try {
+        answer = await ai.generate(request, abort.signal);
+      } catch {
+        answer = { outcome: { ok: false, error: "engine-failed" }, modelId: "", promptVersion: "" };
+      }
+      if (!live()) return;
+      const { outcome } = answer;
+      if (!outcome.ok) {
+        this.aiFailure = outcome.error;
+        // The runtime dropped it (not us): a later trigger may start again.
+        if (outcome.error === "cancelled") {
+          this.aiAbort = null;
+          this.aiPassFor = null;
+          this.aiCoverage = "cancelled";
+          this.emit();
+          return;
+        }
+        if (AI_PASS_FATAL.has(outcome.error)) break;
+        continue;
+      }
+      this.rememberAi(aiCacheKey(chunk.key, answer.modelId, answer.promptVersion), {
+        request: JSON.stringify(request),
+        segments: outcome.segments,
+      });
+      accept(chunk, outcome.segments);
+      this.mergeAiFindings();
+      this.emit();
+    }
+    finish();
+    this.emit();
+  }
+
+  /** Bounded and session-local; the oldest answer goes first. */
+  private rememberAi(key: string, entry: { request: string; segments: AiSegments }): void {
+    if (this.aiCache.size >= AI_CACHE_ENTRIES) {
+      this.aiCache.delete(this.aiCache.keys().next().value!);
+    }
+    this.aiCache.set(key, entry);
+  }
+
+  /**
+   * Shows the AI findings no check already covers: an identical change stays
+   * the check's, and one overlapping a rule or spelling finding is left out
+   * rather than composed with it. Runs again as spelling findings arrive.
+   */
+  private mergeAiFindings(): void {
+    const checks = this.diagnostics.filter((d) => d.ruleId !== REVIEW_LOCAL_AI_CHECK);
+    const shown = this.aiFindings.filter(
+      (finding) =>
+        !checks.some((d) => sameChange(d, finding) || rangesOverlap(d.range, finding.range)),
+    );
+    if (shown.length === 0 && checks.length === this.diagnostics.length) return;
+    this.diagnostics = mergeInTextOrder(checks, shown);
+    if (this.selectedId && !this.visibleDiagnostics().some((d) => d.id === this.selectedId)) {
+      this.selectedId = null;
+    }
+  }
+
+  private scopeText(): string {
+    if (!this.prepared) return "";
+    const { start, end } = this.prepared.snapshot.scope;
+    return this.prepared.snapshot.text.slice(start, end);
+  }
+
+  private idleRewrite(): RewriteViewState {
+    const before = this.scopeText();
+    return {
+      style: this.rewriteStyle,
+      resolvedStyle: resolveRewriteStyle(this.rewriteStyle, this.rewriteHint, before),
+      contextHint: this.rewriteHint,
+      status: "idle",
+      before,
+      after: null,
+      hunks: [],
+      rejection: null,
+      failure: null,
+      canApply: false,
+      previewOnly: !this.capabilities.apply,
+    };
+  }
+
+  /** Style or context changed: a proposal in the old one stays visible, marked stale. */
+  private rewriteSettingsChanged(): void {
+    if (!this.rewrite) return;
+    const shown = this.rewrite.status === "ready" || this.rewrite.status === "stale";
+    this.cancelRewriteRun();
+    this.rewriteEdits = null;
+    const next = this.idleRewrite();
+    this.rewrite = shown
+      ? {
+          ...this.rewrite,
+          style: next.style,
+          resolvedStyle: next.resolvedStyle,
+          contextHint: next.contextHint,
+          status: "stale",
+        }
+      : next;
+    this.emit();
+  }
+
+  private rewriteApplicable(): boolean {
+    return (
+      this.rewrite?.status === "ready" &&
+      this.rewriteEdits?.generation === this.generation &&
+      this.rewriteEdits.text === this.text &&
+      this.canWrite()
+    );
+  }
+
+  private cancelRewriteRun(): void {
+    this.rewriteToken += 1;
+    this.rewriteAbort?.abort();
+    this.rewriteAbort = null;
+  }
+
+  private stopRewriteGeneration(next: "idle" | "stale"): void {
+    if (this.rewrite?.status !== "generating") return;
+    this.cancelRewriteRun();
+    this.rewrite = { ...this.rewrite, status: next };
+  }
+
+  /**
+   * One proposal for the whole scope: every chunk must come back, then the
+   * proposal is validated as a whole. Long scopes are not rewritten piecemeal:
+   * the user is asked to select a passage and nothing is sent.
+   */
+  private async runRewrite(
+    ai: ReviewAiProvider,
+    prepared: PreparedReview,
+    generation: number,
+  ): Promise<void> {
+    this.cancelRewriteRun();
+    const token = this.rewriteToken;
+    const abort = new AbortController();
+    this.rewriteAbort = abort;
+    const live = () =>
+      token === this.rewriteToken && generation === this.generation && !this.isClosed;
+    const base = this.idleRewrite();
+    const style = base.resolvedStyle;
+    const done = (update: Partial<RewriteViewState>) => {
+      this.rewriteAbort = null;
+      this.rewrite = { ...base, ...update };
+      this.emit();
+    };
+    let plan: AiChunkPlan;
+    try {
+      plan = buildAiChunks(prepared, { mode: "rewrite", style });
+    } catch {
+      done({ status: "failed", failure: "invalid-request" });
+      return;
+    }
+    if (plan.skipped.limit > 0 || this.truncated > 0 || this.unread > 0) {
+      done({ status: "too-long" });
+      return;
+    }
+    if (plan.chunks.length === 0) {
+      done({ status: "failed", failure: "invalid-request" });
+      return;
+    }
+    this.rewrite = { ...base, status: "generating" };
+    this.emit();
+    const outputs: AiSegments[] = [];
+    for (const chunk of plan.chunks) {
+      let outcome: AiGenerationOutcome;
+      try {
+        const request = aiRequestForChunk(chunk, prepared.options.lang, "rewrite", style);
+        outcome = (await ai.generate(request, abort.signal)).outcome;
+      } catch {
+        outcome = { ok: false, error: "engine-failed" };
+      }
+      if (!live()) return;
+      if (!outcome.ok) {
+        const cancelled = outcome.error === "cancelled";
+        done({ status: cancelled ? "idle" : "failed", failure: cancelled ? null : outcome.error });
+        return;
+      }
+      outputs.push(outcome.segments);
+    }
+    let proposal: RewriteProposal;
+    try {
+      proposal = rewriteProposal(prepared, plan.chunks, outputs, style);
+    } catch {
+      proposal = { ok: false, reason: "shape" };
+    }
+    if (!proposal.ok) {
+      done({ status: "rejected", rejection: proposal.reason });
+      return;
+    }
+    const offset = prepared.snapshot.scope.start;
+    const hunks = proposal.edits.map((edit) => ({
+      ...edit,
+      start: edit.start - offset,
+      end: edit.end - offset,
+    }));
+    // What the diff shows must be exactly what Apply writes.
+    if (proposal.before !== base.before || applyEdits(proposal.before, hunks) !== proposal.after) {
+      done({ status: "rejected", rejection: "shape" });
+      return;
+    }
+    this.rewriteEdits = { edits: proposal.edits, generation, text: this.text };
+    done({ status: "ready", after: proposal.after, hunks });
   }
 
   private cancelRecheck(): void {

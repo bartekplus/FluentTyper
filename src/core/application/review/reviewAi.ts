@@ -8,7 +8,8 @@ import type {
   RewriteStyle,
   AiRejectionReason,
 } from "@core/domain/grammar/review/ai/types";
-import type { ReviewEdit } from "@core/domain/grammar/review/types";
+import { applyEdits, rangesOverlap } from "@core/domain/grammar/review/textRanges";
+import type { ReviewDiagnostic, ReviewEdit } from "@core/domain/grammar/review/types";
 
 /**
  * Optional Local AI provider for a ReviewSession (application port).
@@ -122,4 +123,74 @@ export interface AiBatchPreview {
   after: string;
   /** Target supports a verified multi-edit transaction. */
   canApply: boolean;
+}
+
+/** Where Local AI stands, from the provider's status and this review's own switches. */
+export function reviewAiAvailability(
+  status: LocalAiStatus | null,
+  enabled: boolean,
+  paused: boolean,
+): ReviewAiAvailability {
+  if (!enabled || !status?.enabled) return "off";
+  if (status.runtime === "unavailable" || status.unavailable) return "unsupported";
+  if (!status.consented) return "setup-needed";
+  // A download in progress is a partial install: it is installing, not missing.
+  if (status.runtime === "downloading") return "installing";
+  if (status.install === "none" || status.install === "partial") return "install-needed";
+  return paused ? "paused" : "ready";
+}
+
+/** Session-local cache key: everything the model consumed, plus what produced the answer. */
+export function aiCacheKey(chunkKey: string, modelId: string, promptVersion: string): string {
+  return JSON.stringify([chunkKey, modelId, promptVersion]);
+}
+
+function editsOf(diagnostic: ReviewDiagnostic): ReviewEdit[] {
+  return diagnostic.alternatives[0]?.edits ?? [];
+}
+
+/** Both change exactly the same characters in the same way. */
+export function sameChange(a: ReviewDiagnostic, b: ReviewDiagnostic): boolean {
+  const edits = editsOf(b);
+  return a.alternatives.some(
+    (alternative) =>
+      alternative.edits.length === edits.length &&
+      alternative.edits.every(
+        (edit, index) =>
+          edit.start === edits[index].start &&
+          edit.end === edits[index].end &&
+          edit.replacement === edits[index].replacement,
+      ),
+  );
+}
+
+/**
+ * Splits selected AI findings into those that can be applied together and
+ * those that overlap (or cannot be combined with) another selected one; a
+ * conflicting pair is left out entirely rather than silently composed.
+ */
+export function conflictFreeFindings(
+  text: string,
+  findings: readonly ReviewDiagnostic[],
+): { included: ReviewDiagnostic[]; excluded: AiBatchPreview["excluded"] } {
+  const conflicting = new Set<string>();
+  // ponytail: pairwise O(n²) over one review's AI findings (tens); sort + sweep if that grows.
+  for (let i = 0; i < findings.length; i += 1) {
+    for (let j = i + 1; j < findings.length; j += 1) {
+      const a = findings[i];
+      const b = findings[j];
+      if (
+        rangesOverlap(a.range, b.range) ||
+        applyEdits(text, [...editsOf(a), ...editsOf(b)]) === null
+      ) {
+        conflicting.add(a.id).add(b.id);
+      }
+    }
+  }
+  return {
+    included: findings.filter((finding) => !conflicting.has(finding.id)),
+    excluded: findings
+      .filter((finding) => conflicting.has(finding.id))
+      .map((finding) => ({ id: finding.id, reason: "conflict" as const })),
+  };
 }

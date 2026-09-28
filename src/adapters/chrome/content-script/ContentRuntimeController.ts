@@ -21,6 +21,7 @@ import { ShadowRootInterceptor } from "./ShadowRootInterceptor";
 import { ThemeApplicator } from "./ThemeApplicator";
 import { SuggestionManagerRuntime } from "./suggestions/SuggestionManagerRuntime";
 import { ReviewController } from "./review/ReviewController";
+import { LocalAiReviewProvider } from "./review/LocalAiReviewProvider";
 import { ReviewLauncher } from "./review/ReviewLauncher";
 import { whenDocumentFocused } from "./review/whenDocumentFocused";
 import { reviewRuleIds } from "@core/domain/grammar/review/reviewCatalog";
@@ -248,6 +249,12 @@ export class ContentRuntimeController {
       },
       getDocsSurface: () => (this.googleDocs ? this.docsReviewSurface : null),
       onActiveChange: () => this.reviewLauncher?.refresh(),
+      // Local AI is optional: off by preference, or where the runtime cannot open a port.
+      createAiProvider: () =>
+        this.config.localAiReviewEnabled === false || typeof chrome.runtime?.connect !== "function"
+          ? null
+          : new LocalAiReviewProvider(chrome.runtime),
+      aiEnabled: () => this.config.localAiReviewEnabled !== false,
     });
   }
 

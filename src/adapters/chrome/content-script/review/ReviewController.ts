@@ -5,6 +5,7 @@ import {
   type ReviewSpellingLookup,
   type ReviewViewState,
 } from "@core/application/review/ReviewSession";
+import type { ReviewAiProvider } from "@core/application/review/reviewAi";
 import { reviewText, type ReviewTextKey } from "@core/domain/grammar/review/reviewMessages";
 import type {
   ReviewCategory,
@@ -40,6 +41,13 @@ export interface ReviewControllerDependencies {
   getDocsSurface(): GoogleDocsReviewSurface | null;
   /** UI locale, or a lookup read on each use so a settings change applies at once. */
   uiLanguage?: string | (() => string);
+  /**
+   * A Local AI provider for one review (disposed when it closes), or null when
+   * the preference is off or this build/browser has no runtime for it.
+   */
+  createAiProvider?(): ReviewAiProvider | null;
+  /** The persistent "Local AI corrections in Review" preference, read on settings changes. */
+  aiEnabled?(): boolean;
 }
 
 type HighlightRegistry = Map<string, unknown>;
@@ -214,6 +222,7 @@ export class ReviewController {
         ? highlightApi()
         : null;
 
+    const ai = this.deps.createAiProvider?.() ?? undefined;
     const session = new ReviewSession({
       target,
       options: this.deps.getOptions(),
@@ -221,6 +230,7 @@ export class ReviewController {
       onChange: (state) => this.onState(state),
       addToDictionary: (word) => this.deps.addToDictionary(word),
       lookupSpelling: this.deps.lookupSpelling,
+      ai,
     });
     const active: ActiveReview = {
       target,
@@ -239,6 +249,8 @@ export class ReviewController {
     active.cleanup.push(() => {
       if (active.writing) this.deps.resume(target.element);
     });
+    // Runs after session.close() has aborted its requests: the port goes with the review.
+    if (ai) active.cleanup.push(() => ai.dispose());
     if (onClose) active.cleanup.push(onClose);
     this.listen(active);
     void session.start().catch((error: unknown) => {
@@ -390,6 +402,7 @@ export class ReviewController {
     const active = this.active;
     if (!active) return;
     active.session.updateOptions(this.deps.getOptions());
+    if (this.deps.aiEnabled) active.session.setAiEnabled(this.deps.aiEnabled());
     if (active.uiLanguage !== this.lang) this.rebuildUi(active);
   }
 
@@ -759,10 +772,12 @@ export class ReviewController {
     if (!active || event.key !== "Escape" || event.isComposing || active.ui.owns(event)) return;
     const element = active.target.element;
     if (!event.composedPath().includes(element) || this.deps.suggestionsOpen?.(element)) return;
-    // Escape closes the card first, then the review.
+    // Escape closes an AI batch preview or the card first, then the review.
     event.preventDefault();
     event.stopPropagation();
-    if (active.ui.isCardOpen()) {
+    if (active.state?.aiBatch) {
+      active.session.cancelAiBatch();
+    } else if (active.ui.isCardOpen()) {
       active.ui.closeCard();
       active.session.select(null);
     } else {

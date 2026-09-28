@@ -28,6 +28,8 @@ import {
 import { REVIEW_HIGHLIGHT_NAMES } from "../src/adapters/chrome/content-script/review/reviewStyles";
 import { GRAMMAR_RULE_IDS } from "../src/core/domain/grammar/ruleCatalog";
 import type { ReviewEdit } from "../src/core/domain/grammar/review/types";
+import type { ReviewAiProvider } from "../src/core/application/review/reviewAi";
+import type { LocalAiStatus } from "../src/core/domain/contracts/localAi";
 import { installDomRect } from "./domRect";
 import * as fs from "fs";
 import path from "path";
@@ -1658,4 +1660,145 @@ test("setCaret helper keeps its contract", () => {
   const root = createEditor("<p>x</p>");
   setCaret(root.querySelector("p")!.firstChild!);
   expect(document.getSelection()?.isCollapsed).toBe(true);
+});
+
+describe("review controller with Local AI", () => {
+  async function until(predicate: () => boolean): Promise<void> {
+    for (let i = 0; i < 200; i += 1) {
+      if (predicate()) return;
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    }
+    throw new Error("condition not reached");
+  }
+
+  const readyStatus: LocalAiStatus = {
+    enabled: true,
+    consented: true,
+    tier: "standard",
+    modelId: "model-a",
+    displayName: "Standard",
+    downloadBytes: 1,
+    install: "complete",
+    runtime: "ready",
+    offerSetup: false,
+  };
+
+  /** A provider whose generations wait forever, or answer "She go" -> "She goes". */
+  function fakeProvider(answer: boolean) {
+    const signals: AbortSignal[] = [];
+    const provider: ReviewAiProvider & { disposed: boolean } = {
+      disposed: false,
+      status: () => Promise.resolve(readyStatus),
+      onStatus: () => () => {},
+      generate: (request, signal) => {
+        signals.push(signal);
+        if (!answer) return new Promise(() => {});
+        const segments = request.segments.map(({ id, text }) => ({
+          id,
+          text: text.replace("She go ", "She goes "),
+        }));
+        return Promise.resolve({
+          outcome: { ok: true as const, segments },
+          modelId: "model-a",
+          promptVersion: "v1",
+        });
+      },
+      openSetup: () => {},
+      dismissSetupOffer: () => {},
+      dispose() {
+        this.disposed = true;
+      },
+    };
+    return { provider, signals };
+  }
+
+  function controller(options: { aiEnabled?: () => boolean; answer?: boolean } = {}) {
+    const providers: Array<ReturnType<typeof fakeProvider>> = [];
+    const review = new ReviewController({
+      getOptions: () => ({
+        lang: "en_US",
+        enabledRules: GRAMMAR_RULE_IDS,
+        userDictionary: [],
+        insertSpaceAfterAutocomplete: true,
+      }),
+      suspend: jest.fn(),
+      resume: jest.fn(),
+      addToDictionary: async () => true,
+      getDocsSurface: () => null,
+      uiLanguage: "en",
+      createAiProvider: () => {
+        const fake = fakeProvider(options.answer ?? false);
+        providers.push(fake);
+        return fake.provider;
+      },
+      aiEnabled: options.aiEnabled,
+    });
+    return { review, providers };
+  }
+
+  test("each review gets its own provider, asked only after the checks, disposed on Escape", async () => {
+    const field = textarea("We saw teh cat. She go home.");
+    const { review, providers } = controller();
+    review.invoke();
+    expect(providers).toHaveLength(1);
+    await until(() => providers[0].signals.length === 1);
+    expect(field.value).toBe("We saw teh cat. She go home.");
+
+    const KeyboardEventCtor = (window as unknown as { KeyboardEvent: typeof KeyboardEvent })
+      .KeyboardEvent;
+    field.dispatchEvent(new KeyboardEventCtor("keydown", { key: "Escape", bubbles: true }));
+    expect(review.isActive).toBe(false);
+    expect(providers[0].signals[0].aborted).toBe(true);
+    expect(providers[0].provider.disposed).toBe(true);
+
+    field.focus();
+    review.invoke();
+    expect(providers).toHaveLength(2);
+    review.close();
+    expect(providers[1].provider.disposed).toBe(true);
+  });
+
+  test("leaving the page disposes the provider", async () => {
+    textarea("We saw teh cat. She go home.");
+    const { review, providers } = controller();
+    review.invoke();
+    await until(() => providers[0].signals.length === 1);
+    window.dispatchEvent(new Event("pagehide"));
+    expect(review.isActive).toBe(false);
+    expect(providers[0].provider.disposed).toBe(true);
+  });
+
+  test("turning the preference off while a review is open stops its AI work", async () => {
+    textarea("We saw teh cat. She go home.");
+    let enabled = true;
+    const { review, providers } = controller({ aiEnabled: () => enabled });
+    review.invoke();
+    await until(() => providers[0].signals.length === 1);
+    enabled = false;
+    review.handleOptionsChanged();
+    expect(providers[0].signals[0].aborted).toBe(true);
+    expect(review.isActive).toBe(true);
+    review.close();
+  });
+
+  test("Escape in the editor closes an open AI batch preview before the review", async () => {
+    const field = textarea("We saw teh cat. She go home now. She go there too.");
+    const { review } = controller({ answer: true });
+    review.invoke();
+    const shadow = () => document.querySelector("[data-fluenttyper-review]")!.shadowRoot!;
+    const batchButton = () => shadow().querySelector<HTMLButtonElement>("[data-action=ai-batch]")!;
+    await until(() => !batchButton().hidden);
+    batchButton().click();
+    const preview = () => shadow().querySelector<HTMLElement>("section.batch")!;
+    expect(preview().hidden).toBe(false);
+
+    const KeyboardEventCtor = (window as unknown as { KeyboardEvent: typeof KeyboardEvent })
+      .KeyboardEvent;
+    field.dispatchEvent(new KeyboardEventCtor("keydown", { key: "Escape", bubbles: true }));
+    expect(review.isActive).toBe(true);
+    expect(preview().hidden).toBe(true);
+    field.dispatchEvent(new KeyboardEventCtor("keydown", { key: "Escape", bubbles: true }));
+    expect(review.isActive).toBe(false);
+    expect(field.value).toBe("We saw teh cat. She go home now. She go there too.");
+  });
 });
