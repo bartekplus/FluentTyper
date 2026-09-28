@@ -933,7 +933,7 @@ export function rewriteProposal(
   if (hedgeCount(originalWords) !== hedgeCount(proposedWords)) return fail("uncertainty");
   const commitmentsBefore = commitmentCounts(originalWords);
   for (const [key, count] of commitmentCounts(proposedWords)) {
-    if (count > (commitmentsBefore.get(key) ?? 0)) return fail("drift");
+    if (count > (commitmentsBefore.get(key) ?? 0)) return fail("invented");
   }
 
   const before = originalText.length;

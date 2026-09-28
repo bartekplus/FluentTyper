@@ -110,6 +110,8 @@ export type AiRejectionReason =
   | "uncertainty"
   | "quoted"
   | "drift"
+  /** Rewrite added a commitment, deadline, apology, greeting or sign-off not in the original. */
+  | "invented"
   | "length"
   | "too-many-edits"
   | "unsafe-boundary";

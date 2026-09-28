@@ -1724,6 +1724,17 @@ const UI = {
     "Nowa wersja zmieniała zbyt wiele, więc ją odrzucono. Spróbuj ponownie lub wybierz inny styl.",
     "A reescrita alterava demais e foi descartada. Tente novamente ou escolha outro estilo.",
   ],
+  review_reject_invented: [
+    "The rewrite added a promise, deadline, apology or greeting you did not write, so it was discarded. Try again.",
+    "La réécriture ajoutait une promesse, une échéance, des excuses ou une formule que vous n'aviez pas écrites ; elle a été écartée. Réessayez.",
+    "Preoblikovanje je dodalo obećanje, rok, ispriku ili pozdrav koje niste napisali pa je odbačeno. Pokušajte ponovno.",
+    "La reescritura añadía una promesa, un plazo, una disculpa o un saludo que usted no escribió, así que se descartó. Inténtelo de nuevo.",
+    "Η αναδιατύπωση πρόσθετε υπόσχεση, προθεσμία, συγγνώμη ή χαιρετισμό που δεν γράψατε, οπότε απορρίφθηκε. Δοκιμάστε ξανά.",
+    "Omskrivningen lade till ett löfte, en tidsgräns, en ursäkt eller en hälsning som du inte skrev och förkastades. Försök igen.",
+    "Die Umschreibung hat ein Versprechen, eine Frist, eine Entschuldigung oder einen Gruß hinzugefügt, den Sie nicht geschrieben haben, und wurde verworfen. Erneut versuchen.",
+    "Nowa wersja dodawała obietnicę, termin, przeprosiny lub powitanie, których nie było, więc ją odrzucono. Spróbuj ponownie.",
+    "A reescrita acrescentava uma promessa, um prazo, um pedido de desculpa ou uma saudação que não escreveu e foi descartada. Tente novamente.",
+  ],
   review_reject_incomplete: [
     "The rewrite came back incomplete, so it was discarded. Try again.",
     "La réécriture était incomplète ; elle a été écartée. Réessayez.",

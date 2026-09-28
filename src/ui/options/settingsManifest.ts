@@ -139,7 +139,7 @@ const DEV_PREDICTOR_SETTINGS: FieldConfig[] = [
       i18n.get("enable_ai_predictor_label"),
       i18n.get("enable_ai_predictor_desc"),
     ),
-    default: true,
+    default: false,
   },
 ];
 

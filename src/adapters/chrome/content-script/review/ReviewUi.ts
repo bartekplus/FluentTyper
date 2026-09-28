@@ -101,6 +101,7 @@ const REJECTION_KEY: Record<AiRejectionReason, ReviewTextKey> = {
   placeholder: "review_reject_protected",
   "technical-token": "review_reject_protected",
   drift: "review_reject_too_much",
+  invented: "review_reject_invented",
   length: "review_reject_too_much",
   "too-many-edits": "review_reject_too_much",
   shape: "review_reject_incomplete",

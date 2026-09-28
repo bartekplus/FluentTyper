@@ -375,7 +375,7 @@ describe("rewriteProposal", () => {
       "The report is attached. Regards",
       "Thanks, the report is attached.",
     ]) {
-      expect(rejection(text, [invented], "friendly")).toBe("drift");
+      expect(rejection(text, [invented], "friendly")).toBe("invented");
     }
     // Keeping one that was there is fine.
     expect(
