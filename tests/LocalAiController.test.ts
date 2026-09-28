@@ -273,6 +273,25 @@ describe("LocalAiController authorization", () => {
 });
 
 describe("LocalAiController status", () => {
+  test("overlapping host configurations end on the newest settings", async () => {
+    const { state, send, chromeFake } = setup({ consent: consented });
+    await send({ command: CMD_LOCAL_AI_ENSURE_HOST });
+    const tab = { id: 1 } as chrome.tabs.Tab;
+    const port = new FakePort(LOCAL_AI_REVIEW_PORT, { id: "ftext", tab, url: "https://a.b/" });
+    chromeFake.connect(port);
+    await flush();
+    // A slow configure that read "enabled", then the user turns Local AI off.
+    state.readDelayMs = 30;
+    const slow = send({ command: CMD_LOCAL_AI_ENSURE_HOST });
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    state.readDelayMs = 0;
+    state.enabled = false;
+    chromeFake.storageChanged("store.settings.localAiReviewEnabled");
+    await slow;
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(port.messages.at(-1)).toMatchObject({ type: "status", status: { enabled: false } });
+  });
+
   test("status broadcasts arrive in the order their changes happened", async () => {
     const { state, chromeFake } = setup();
     state.readDelayMs = 30;

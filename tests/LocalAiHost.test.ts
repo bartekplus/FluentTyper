@@ -537,6 +537,27 @@ describe("LocalAiHost install", () => {
     expect(calls.at(-1)).toBe("unload");
   });
 
+  test("a successful install removes the other tiers' files; a failed one removes nothing", async () => {
+    const deleted: string[] = [];
+    const ok = makeHost({
+      cacheState: async () => "none",
+      delete: async (modelId) => void deleted.push(modelId),
+    });
+    await flush(5);
+    await ok.host.installModel("standard", Promise.resolve());
+    expect(deleted).toEqual(
+      LOCAL_AI_MODELS.filter((m) => m.modelId !== STANDARD.modelId).map((m) => m.modelId),
+    );
+
+    const failed = makeHost({
+      cacheState: async () => "none",
+      install: async () => ({ ok: false, error: "download-failed" }),
+    });
+    await flush(5);
+    await failed.host.installModel("standard", Promise.resolve());
+    expect(failed.count("delete")).toBe(0);
+  });
+
   test("nothing downloads before consent is recorded; the status never flashes download-required", async () => {
     let recordConsent!: () => void;
     const { host, states, count } = makeHost(

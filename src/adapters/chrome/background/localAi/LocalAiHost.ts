@@ -7,6 +7,7 @@ import type {
   ReviewPortHostMessage,
 } from "@core/domain/contracts/localAi";
 import {
+  LOCAL_AI_MODELS,
   localAiModelById,
   localAiModelForTier,
   type LocalAiModelTier,
@@ -263,6 +264,14 @@ export class LocalAiHost {
               this.options.loadTimeoutMs ?? DEFAULT_LOAD_TIMEOUT_MS,
             );
             this.loadedModelId = result.ok ? modelId : null;
+            if (result.ok) {
+              // The new model replaces any other tier's files (consent now names this one).
+              for (const other of LOCAL_AI_MODELS) {
+                if (other.modelId !== modelId) {
+                  await this.engine.delete(other.modelId).catch(() => undefined);
+                }
+              }
+            }
           }
         }
       } catch {

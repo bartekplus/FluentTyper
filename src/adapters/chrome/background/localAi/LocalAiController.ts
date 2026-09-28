@@ -50,6 +50,7 @@ export class LocalAiController {
   /** Null where the build ships no engine (Firefox). */
   private readonly host: LocalAiHost | null;
   private broadcasts: Promise<void> = Promise.resolve();
+  private configuring: Promise<void> = Promise.resolve();
 
   constructor(
     private readonly settings: LocalAiSettings,
@@ -208,9 +209,13 @@ export class LocalAiController {
   }
 
   /** Tells the host the consented model (null without consent) and whether it may run it. */
-  private async configureHost(): Promise<void> {
-    const status = await this.getStatus();
-    this.host?.configure(status.consented ? { modelId: status.modelId } : null, status.enabled);
+  /** One at a time, each reading the settings on its turn, so the newest settings win. */
+  private configureHost(): Promise<void> {
+    this.configuring = this.configuring.then(async () => {
+      const status = await this.getStatus();
+      this.host?.configure(status.consented ? { modelId: status.modelId } : null, status.enabled);
+    });
+    return this.configuring;
   }
 
   /** Review ports come only from this extension's content scripts, in web pages. */

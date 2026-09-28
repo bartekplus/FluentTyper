@@ -109,7 +109,8 @@ downloading → loading → ready ⇄ generating → unloading`, plus `unavailab
   alone) refuses every network URL outside an install, so a missing file fails as
   `cache-failed` (shown as not installed) instead of downloading. A loader request for a
   file missing from the registry fails the install and is logged with its path (no text).
-- **Delete** removes exactly the record's file URLs and its marker.
+- **Delete** removes exactly the record's file URLs and its marker. A successful install
+  deletes the other tier's files (consent names one model; the confirm step says so).
 - No host permission is requested. `__FT_DEV_BUILD__` and runtime test hooks stay
   decoupled from Local AI inclusion: production keeps `__FT_DEV_BUILD__ = false` and the
   no-op test hooks.
