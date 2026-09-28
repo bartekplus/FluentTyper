@@ -16,6 +16,10 @@ import {
   KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
   KEY_SHOW_SUGGESTION_FOOTER,
   KEY_SHOW_REVIEW_BUTTON,
+  KEY_LOCAL_AI_REVIEW_ENABLED,
+  KEY_LOCAL_AI_REVIEW_TIER,
+  KEY_LOCAL_AI_REVIEW_CONSENT,
+  KEY_LOCAL_AI_SETUP_OFFER_DISMISSED,
   KEY_DOMAIN_LIST_MODE,
   KEY_ENABLED_GRAMMAR_RULES,
   KEY_ENABLED_LANGUAGES,
@@ -75,6 +79,10 @@ const SETTINGS_KEYS = {
   horizontalSuggestions: KEY_HORIZONTAL_SUGGESTIONS,
   showSuggestionFooter: KEY_SHOW_SUGGESTION_FOOTER,
   showReviewButton: KEY_SHOW_REVIEW_BUTTON,
+  localAiReviewEnabled: KEY_LOCAL_AI_REVIEW_ENABLED,
+  localAiReviewTier: KEY_LOCAL_AI_REVIEW_TIER,
+  localAiReviewConsent: KEY_LOCAL_AI_REVIEW_CONSENT,
+  localAiSetupOfferDismissed: KEY_LOCAL_AI_SETUP_OFFER_DISMISSED,
   autoCapitalize: KEY_AUTO_CAPITALIZE,
   autoLanguageSitePriors: KEY_AUTO_LANGUAGE_SITE_PRIORS,
   insertSpaceAfterAutocomplete: KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE,
@@ -134,6 +142,11 @@ export interface SettingsSchema {
   horizontalSuggestions: boolean;
   showSuggestionFooter: boolean;
   showReviewButton: boolean;
+  localAiReviewEnabled: boolean;
+  localAiReviewTier: "standard" | "quality";
+  /** Written only by the explicit Install action; never inferred or migrated. */
+  localAiReviewConsent: { modelId: string; tier: "standard" | "quality"; at: number } | null;
+  localAiSetupOfferDismissed: boolean;
   autoCapitalize: boolean;
   autoLanguageSitePriors: Record<string, Record<string, number>>;
   insertSpaceAfterAutocomplete: boolean;
