@@ -369,8 +369,8 @@ export class ReviewSession {
   private detected: { prepared: PreparedReview; lang: string } | null = null;
   /** The snapshot whose language is being identified, if any. */
   private detectingFor: PreparedReview | null = null;
-  /** Generate was pressed while the text's language was being identified. */
-  private generateAfterIdentify = false;
+  /** Generate was pressed while this snapshot's language was being identified. */
+  private generateAfterIdentify: PreparedReview | null = null;
   private aiStatus: LocalAiStatus | null = null;
   // The setup offer was answered in this review (opened or declined).
   private aiOfferAnswered = false;
@@ -685,8 +685,8 @@ export class ReviewSession {
       return;
     }
     if (this.identifyLanguage(prepared)) {
-      // Runs once the text's language is known (a few milliseconds).
-      this.generateAfterIdentify = true;
+      // Runs once the text's language is known (a few milliseconds), for this text only.
+      this.generateAfterIdentify = prepared;
       return;
     }
     void this.runRewrite(ai, prepared, this.generation);
@@ -1239,8 +1239,8 @@ export class ReviewSession {
         if (this.isClosed || this.prepared !== prepared) return;
         this.detected = { prepared, lang: lang ?? "und" };
         this.startAi();
-        if (this.generateAfterIdentify) {
-          this.generateAfterIdentify = false;
+        if (this.generateAfterIdentify === prepared) {
+          this.generateAfterIdentify = null;
           this.generateRewrite();
         }
         this.emit();

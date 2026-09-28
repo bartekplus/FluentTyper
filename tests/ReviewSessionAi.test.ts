@@ -487,6 +487,31 @@ describe("ReviewSession with Local AI: Correct", () => {
     expect(h.ai.requests).toHaveLength(requests);
   });
 
+  test("a Generate queued behind identification is dropped when the text changes", async () => {
+    const answers: Array<(lang: string) => void> = [];
+    const h = harness(TEXT, {
+      lang: "auto_detect",
+      deps: {
+        detectLanguage: () => new Promise<string | null>((resolve) => answers.push(resolve)),
+      },
+    });
+    await h.start();
+    answers[0]("en");
+    await h.settle();
+    h.session.setMode("rewrite");
+    h.editor.text = "We saw teh cat. They goes out.";
+    h.session.notifySourceChanged();
+    await h.settle({ aiDelay: false });
+    // Identification of this text is pending; Generate waits for it.
+    h.session.generateRewrite();
+    h.editor.text = "Something else entirely, teh end.";
+    h.session.notifySourceChanged();
+    await h.settle({ aiDelay: false });
+    for (const answer of answers.slice(1)) answer("en");
+    await h.settle();
+    expect(h.ai.requests.filter(({ request }) => request.mode === "rewrite")).toHaveLength(0);
+  });
+
   test("a language identified for text that has since changed is discarded", async () => {
     const answers: Array<(lang: string) => void> = [];
     const h = harness("Wir sahen teh Katze.", {
