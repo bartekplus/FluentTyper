@@ -120,12 +120,31 @@ export function localAiModelById(modelId: unknown): LocalAiModelRecord | null {
  * also form the production CSP connect-src. Executable WASM never comes from
  * the network.
  */
+/**
+ * True when `url` is served from one of `origins`. An entry "https://*.example"
+ * matches HTTPS subdomains of example only, as in CSP source expressions.
+ */
+export function matchesDownloadOrigin(url: string, origins: readonly string[]): boolean {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return false;
+  }
+  return origins.some((entry) => {
+    if (!entry.startsWith("https://*.")) return parsed.origin === entry;
+    const suffix = entry.slice("https://*".length);
+    return parsed.protocol === "https:" && !parsed.port && parsed.hostname.endsWith(suffix);
+  });
+}
+
 export const LOCAL_AI_DOWNLOAD_ORIGINS: readonly string[] = [
   "https://huggingface.co",
   "https://cdn-lfs.huggingface.co",
   "https://cdn-lfs-us-1.huggingface.co",
   "https://cdn-lfs-us-1.hf.co",
   "https://cas-bridge.xethub.hf.co",
-  // Xet-backed files (weights, tokenizer) redirect here from /resolve/<rev>/.
-  "https://us.aws.cdn.hf.co",
+  // Xet-backed files (weights, tokenizer) redirect from /resolve/<rev>/ to a
+  // regional Hugging Face CDN host (us.aws.cdn.hf.co, …): any subdomain of cdn.hf.co.
+  "https://*.cdn.hf.co",
 ];

@@ -13,6 +13,8 @@
  * a partial cache fails honestly instead of silently downloading.
  */
 
+import { matchesDownloadOrigin } from "@core/domain/localAi/modelRegistry";
+
 export const NETWORK_BLOCKED_ERROR_NAME = "LocalAiNetworkBlockedError";
 
 class NetworkBlockedError extends Error {
@@ -40,13 +42,7 @@ export function installNetworkGuard(
   const nativeFetch = scope.fetch.bind(scope);
   const extensionPrefix = `${scope.location.origin}/`;
 
-  const isAllowedDownload = (url: string): boolean => {
-    try {
-      return allowedOrigins.includes(new URL(url).origin);
-    } catch {
-      return false;
-    }
-  };
+  const isAllowedDownload = (url: string): boolean => matchesDownloadOrigin(url, allowedOrigins);
 
   const guardedFetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     const request = new Request(input, init);

@@ -397,6 +397,23 @@ describe("network guard", () => {
     });
   });
 
+  test("the xet CDN is regional: any *.cdn.hf.co host is allowed, look-alikes are not", async () => {
+    for (const [landed, ok] of [
+      ["https://eu.aws.cdn.hf.co/xet-bridge-eu/0123?filename=tokenizer.json", true],
+      ["https://cdn.hf.co.evil.example/x", false],
+      ["https://evilcdn.hf.co/x", false],
+      ["http://us.aws.cdn.hf.co/x", false],
+    ] as const) {
+      const nativeFetch = jest.fn(async () => ({ ok: true, url: landed }));
+      const scope = { fetch: nativeFetch as unknown as typeof fetch, location: { origin: ORIGIN } };
+      const guard = installNetworkGuard(scope, LOCAL_AI_DOWNLOAD_ORIGINS);
+      guard.setNetworkAllowed(true);
+      const result = scope.fetch(`${modelWeightsUrl(STANDARD)}tokenizer.json`);
+      if (ok) await expect(result).resolves.toMatchObject({ url: landed });
+      else await expect(result).rejects.toThrow();
+    }
+  });
+
   test("a redirect off the allowlist is rejected", async () => {
     const { scope, guard } = makeScope("https://evil.example/landed");
     guard.setNetworkAllowed(true);
