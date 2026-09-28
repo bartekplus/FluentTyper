@@ -15,17 +15,9 @@ export interface WorkerLike {
   onmessageerror: ((event: MessageEvent) => void) | null;
 }
 
-/** Rejection reason of calls pending when the worker is torn down or crashes. */
-export class WorkerGoneError extends Error {
-  constructor(readonly crashed: boolean) {
-    super(crashed ? "Local AI worker crashed" : "Local AI worker terminated");
-    this.name = "WorkerGoneError";
-  }
-}
-
 interface PendingCall {
   resolve(result: unknown): void;
-  reject(error: WorkerGoneError): void;
+  reject(error: Error): void;
   onProgress?: (phase: WorkerProgressPhase, progress: number) => void;
 }
 
@@ -69,7 +61,7 @@ export class WorkerClient {
   }
 
   terminate(): void {
-    this.teardown(false);
+    this.teardown();
   }
 
   private ensureWorker(): WorkerLike {
@@ -102,11 +94,11 @@ export class WorkerClient {
     if (this.worker !== worker) {
       return;
     }
-    this.teardown(true);
+    this.teardown();
     this.onCrash();
   }
 
-  private teardown(crashed: boolean): void {
+  private teardown(): void {
     const worker = this.worker;
     this.worker = null;
     if (worker) {
@@ -118,7 +110,7 @@ export class WorkerClient {
     const pending = [...this.pending.values()];
     this.pending.clear();
     for (const call of pending) {
-      call.reject(new WorkerGoneError(crashed));
+      call.reject(new Error("Local AI worker stopped"));
     }
   }
 }

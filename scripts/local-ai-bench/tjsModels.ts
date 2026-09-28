@@ -29,7 +29,7 @@ export interface BenchModel {
 
 const MB = 1e6;
 
-export const TJS_MODELS: readonly BenchModel[] = [
+const TJS_MODELS: readonly BenchModel[] = [
   {
     id: "tjs-gemma-4-E2B-it",
     repo: "onnx-community/gemma-4-E2B-it-ONNX",

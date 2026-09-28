@@ -127,10 +127,6 @@ function makeHost(
       workers.push(worker);
       return worker;
     },
-    validateRequest: (value) =>
-      value && typeof value === "object" && "segments" in value
-        ? (value as AiGenerationRequest)
-        : null,
     idleMs: options.idleMs ?? 10_000,
     cancelSettleMs: 20,
     jobTimeoutMs: 5_000,
@@ -141,7 +137,7 @@ function makeHost(
   if (options.configure !== false) {
     background.emit({
       type: "configure",
-      model: { modelId: STANDARD.modelId, tier: "standard" },
+      model: { modelId: STANDARD.modelId },
       enabled: true,
     });
   }
@@ -297,7 +293,7 @@ describe("LocalAiHost review ports", () => {
     expect(port.results()).toEqual([]);
     unconfigured.background.emit({
       type: "configure",
-      model: { modelId: STANDARD.modelId, tier: "standard" },
+      model: { modelId: STANDARD.modelId },
       enabled: true,
     });
     await flush(5);
@@ -534,7 +530,7 @@ describe("LocalAiHost lifecycle", () => {
     // The consent write re-configures the host while the install message arrives.
     background.emit({
       type: "configure",
-      model: { modelId: STANDARD.modelId, tier: "standard" },
+      model: { modelId: STANDARD.modelId },
       enabled: true,
     });
     background.emit({ type: "install", tier: "standard" });

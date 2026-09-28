@@ -28,17 +28,7 @@ import {
   type CacheStorageLike,
 } from "./modelArtifacts";
 
-/**
- * The only Local AI engine (Transformers.js on WebGPU, inside the dedicated worker).
- *
- * - One model at a time. Loads are single-flight per model id; an epoch
- *   discards (disposes) a load that finishes after unload/delete/model switch.
- * - Install downloads exactly the registry's files, verifying each one's size
- *   and SHA-256; loading then reads only from the cache, network denied.
- * - Each generation is independent: fresh input ids from the chat template,
- *   greedy decoding, no history. Output text is decoded, never forwarded.
- * - Errors become bounded codes by error name; no message text leaves.
- */
+/** Dedicated worker engine. Its epoch discards loads completed after unload. */
 
 /** Just the tensor surface used here. */
 export interface TensorLike {
@@ -71,7 +61,7 @@ export interface ModelLike {
 }
 
 /** The Transformers.js calls the engine makes (the worker entry binds the real library). */
-export interface TransformersRuntime {
+interface TransformersRuntime {
   loadTokenizer(record: LocalAiModelRecord): Promise<TokenizerLike>;
   loadModel(record: LocalAiModelRecord): Promise<ModelLike>;
   createStopper(): StopperLike;
@@ -96,12 +86,6 @@ export interface WorkerEngineDeps {
   fetch: (url: string) => Promise<Response>;
   /** Registry lookup (tests use tiny synthetic records). */
   findModel?: (modelId: unknown) => LocalAiModelRecord | null;
-  /** Domain prompt/parse functions (injected in tests). */
-  ai?: {
-    buildAiMessages: typeof buildAiMessages;
-    aiMaxOutputTokens: typeof aiMaxOutputTokens;
-    parseAiResponse: typeof parseAiResponse;
-  };
 }
 
 interface LoadedModel {
@@ -115,7 +99,7 @@ function errorName(error: unknown): string {
   return typeof name === "string" ? name : "";
 }
 
-export function installErrorCode(error: unknown): LocalAiErrorCode {
+function installErrorCode(error: unknown): LocalAiErrorCode {
   switch (errorName(error)) {
     case INTEGRITY_ERROR_NAME:
       return "integrity-failed";
@@ -155,11 +139,9 @@ export class LocalAiWorkerEngine {
   private epoch = 0;
   private stopper: StopperLike | null = null;
   private interruptRequested = false;
-  private readonly ai: NonNullable<WorkerEngineDeps["ai"]>;
   private readonly findModel: (modelId: unknown) => LocalAiModelRecord | null;
 
   constructor(private readonly deps: WorkerEngineDeps) {
-    this.ai = deps.ai ?? { buildAiMessages, aiMaxOutputTokens, parseAiResponse };
     this.findModel = deps.findModel ?? localAiModelById;
   }
 
@@ -362,7 +344,7 @@ export class LocalAiWorkerEngine {
     const stopper = this.deps.runtime.createStopper();
     this.stopper = stopper;
     try {
-      const inputs = loaded.tokenizer.apply_chat_template(this.ai.buildAiMessages(request), {
+      const inputs = loaded.tokenizer.apply_chat_template(buildAiMessages(request), {
         add_generation_prompt: true,
         return_dict: true,
         ...(record.disableThinking ? { enable_thinking: false } : {}),
@@ -375,7 +357,7 @@ export class LocalAiWorkerEngine {
         return { ok: false, error: "cancelled" };
       }
       const promptTokens = inputIds.dims.at(-1) ?? 0;
-      const maxNewTokens = this.ai.aiMaxOutputTokens(request);
+      const maxNewTokens = aiMaxOutputTokens(request);
       const output = (await loaded.model.generate({
         input_ids: inputIds,
         attention_mask: inputs.attention_mask,
@@ -394,7 +376,7 @@ export class LocalAiWorkerEngine {
       if (raw.length > MAX_AI_RAW_OUTPUT_CHARS) {
         return { ok: false, error: "malformed" };
       }
-      return this.ai.parseAiResponse(raw, request);
+      return parseAiResponse(raw, request);
     } catch {
       return { ok: false, error: "engine-failed" };
     } finally {

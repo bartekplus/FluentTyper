@@ -17,7 +17,6 @@ interface TreeEntry {
   type: string;
   path: string;
   size: number;
-  oid: string;
   lfs?: { oid: string; size: number };
 }
 

@@ -28,23 +28,14 @@ import type { GenParams, GenResult } from "./page";
 export interface ModelRun {
   environment: Record<string, unknown>;
   modelId: string;
-  repo?: string;
+  repo: string;
   revision: string;
   dtype?: string;
-  /** WebLLM-era results only (historical files in .cache). */
-  libSha256?: string;
   downloadBytes: number;
   params: Record<string, GenParams>;
   downloadMs: number | null;
   coldLoadMs: number | null;
   warmupMs: number | null;
-  /** WebLLM-era results only. */
-  thinkingProbe?: Array<{
-    enableThinking: boolean | null;
-    hasThinkMarkup: boolean;
-    head: string;
-    completionTokens: number | null;
-  }>;
   correct: Array<CaseRun & { score: CorrectScore }>;
   rewrite: Array<CaseRun & { score: RewriteScore }>;
   cancel: Array<{
@@ -63,7 +54,7 @@ export interface ModelRun {
   unlistedFiles?: string[];
 }
 
-export interface RunLimits {
+interface RunLimits {
   generationMs: number;
   /** Epoch ms after which the model run stops. */
   deadline: number;
@@ -77,7 +68,7 @@ function bounded<T>(promise: Promise<T>, ms: number, label: string): Promise<T> 
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
-export interface CaseRun {
+interface CaseRun {
   id: string;
   style: ConcreteRewriteStyle | null;
   input: string;

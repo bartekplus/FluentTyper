@@ -123,8 +123,6 @@ export interface AiCorrectionResult {
   rejected: Partial<Record<AiRejectionReason, number>>;
 }
 
-export type RewriteHunk = ReviewEdit;
-
 export type RewriteProposal =
   | {
       ok: true;
@@ -133,7 +131,7 @@ export type RewriteProposal =
       before: string;
       after: string;
       /** Non-overlapping edits against the snapshot, applied atomically on accept. */
-      edits: RewriteHunk[];
+      edits: ReviewEdit[];
       /** Segments kept as written because their rewrite failed validation, by reason. */
       kept: Partial<Record<AiRejectionReason, number>>;
     }

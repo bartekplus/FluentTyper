@@ -105,7 +105,7 @@ export type HostPortDownMessage =
   | {
       type: "configure";
       /** Model the user consented to; null disables review jobs (no consent, or preference off). */
-      model: { modelId: string; tier: LocalAiModelTier } | null;
+      model: { modelId: string } | null;
       enabled: boolean;
     }
   | { type: "install"; tier: LocalAiModelTier }

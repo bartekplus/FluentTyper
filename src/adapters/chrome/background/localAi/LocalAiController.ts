@@ -27,20 +27,9 @@ import type {
 } from "@core/domain/messageTypes";
 import type { LocalAiSettingsRepository } from "@core/application/repositories/LocalAiSettingsRepository";
 import { createLogger } from "@core/application/logging/Logger";
+import { isObjectRecord } from "@core/domain/guards";
 
-/**
- * Local AI Review, background side: the settings/consent authority and owner
- * of the offscreen runtime host (Chrome/Edge).
- *
- * - The offscreen document is created only for a Review with consent and the
- *   preference on (ENSURE_HOST), or an explicit install/cancel/delete/probe
- *   from the options page. Never at startup, never pre-consent from a page.
- * - Only the options page may install, cancel, delete or probe; content
- *   scripts get `forbidden`.
- * - The host port is accepted only from the offscreen document's own URL.
- *   Review ports are for the offscreen host and are ignored here.
- * - Without chrome.offscreen (Firefox) everything reports `host-unsupported`.
- */
+/** Background owner of consent and the optional offscreen host. */
 
 export type LocalAiSettings = Pick<
   LocalAiSettingsRepository,
@@ -79,10 +68,6 @@ const OFFSCREEN_JUSTIFICATION =
   "Runs FluentTyper's optional on-device Local AI Review model in a dedicated worker.";
 
 const logger = createLogger("LocalAiController");
-
-function asRecord(value: unknown): Record<string, unknown> | null {
-  return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : null;
-}
 
 function optionalString<T extends string>(value: unknown): T | undefined {
   return typeof value === "string" ? (value as T) : undefined;
@@ -416,7 +401,7 @@ export class LocalAiController {
     if (port !== this.hostPort) {
       return;
     }
-    const message = asRecord(value);
+    const message = isObjectRecord(value) ? value : null;
     switch (message?.type) {
       case "state":
         if (
@@ -470,8 +455,7 @@ export class LocalAiController {
     const status = await this.getStatus();
     const message: HostPortDownMessage = {
       type: "configure",
-      model:
-        status.consented && status.enabled ? { modelId: status.modelId, tier: status.tier } : null,
+      model: status.consented && status.enabled ? { modelId: status.modelId } : null,
       enabled: status.enabled,
     };
     const key = JSON.stringify(message);

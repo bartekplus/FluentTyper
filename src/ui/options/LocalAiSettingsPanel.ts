@@ -26,7 +26,7 @@ import {
 } from "./workspacePanelUtils.js";
 
 /** URL fragment the Review panel's "Set up local AI…" opens (options/options.html#local-ai). */
-export const LOCAL_AI_SECTION_ID = "local-ai";
+const LOCAL_AI_SECTION_ID = "local-ai";
 
 const t = (key: string) => i18n.get(key);
 const DOWNLOAD_HOST = new URL(LOCAL_AI_DOWNLOAD_ORIGINS[0]).hostname;
@@ -42,12 +42,12 @@ interface LocalAiView {
   modelChoice: boolean;
 }
 
-function formatGigabytes(bytes: number, maximumFractionDigits = 2): string {
+function formatGigabytes(bytes: number): string {
   const locale = i18n.lang === "pr" ? "pt" : i18n.lang;
   return new Intl.NumberFormat(locale, {
     style: "unit",
     unit: "gigabyte",
-    maximumFractionDigits,
+    maximumFractionDigits: 2,
   }).format(bytes / 1e9);
 }
 

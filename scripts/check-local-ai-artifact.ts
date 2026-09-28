@@ -95,7 +95,7 @@ const PLATFORMS: Record<string, PlatformExpectation> = {
   firefox: { permissions: ["activeTab", "storage"], localAi: false },
 };
 
-export interface ArtifactReport {
+interface ArtifactReport {
   failures: string[];
   notes: string[];
 }

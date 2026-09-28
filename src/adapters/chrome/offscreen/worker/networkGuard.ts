@@ -1,16 +1,4 @@
-/**
- * Network guard for the Local AI worker.
- *
- * Replaces the worker's `fetch` (Transformers.js is also pointed at it
- * through `env.fetch`) so that:
- * - extension-origin URLs are always allowed (packaged runtime WASM, no network);
- * - network URLs are allowed ONLY while an explicit install downloads, and
- *   only the exact pinned file URLs of the model being installed; a redirect
- *   must land on an allowlisted download origin;
- * - every network request goes out without credentials, referrer or HTTP caching.
- * Outside an install (review loads, generation) every network request fails,
- * so a partial cache fails honestly instead of silently downloading.
- */
+/** Denies remote fetches except exact pinned files during an explicit install. */
 
 import { matchesDownloadOrigin } from "@core/domain/localAi/modelRegistry";
 

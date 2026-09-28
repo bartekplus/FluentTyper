@@ -5,16 +5,7 @@ import {
 } from "@core/domain/localAi/modelRegistry";
 import { Sha256 } from "./sha256";
 
-/**
- * A registry model's files in CacheStorage.
- *
- * Files live in Transformers.js's own cache ("transformers-cache"), keyed by
- * their pinned download URL, which is exactly where its loader looks. The
- * install downloads them itself, hashing each one while it streams into the
- * cache, so the loader later finds every file cached and never needs the
- * network. A marker in FluentTyper's own cache records that all files of the
- * model were verified and loaded once; without it the model is never "complete".
- */
+/** A separate marker records that all pinned files were verified and loaded. */
 
 export const MODEL_CACHE = "transformers-cache";
 const MARKER_CACHE = "fluenttyper-local-ai";
@@ -26,13 +17,6 @@ class IntegrityError extends Error {
   constructor() {
     super("Local AI model file failed verification");
     this.name = INTEGRITY_ERROR_NAME;
-  }
-}
-
-class DownloadError extends Error {
-  constructor() {
-    super("Local AI model file download failed");
-    this.name = "LocalAiDownloadError";
   }
 }
 
@@ -90,7 +74,7 @@ export async function markModelVerified(
 /** Passes `body` through SHA-256; `result()` is final once the stream is fully read. */
 function hashingStream(
   body: ReadableStream<Uint8Array>,
-  onChunk: (bytes: number) => void = () => undefined,
+  onChunk: (bytes: number) => void,
 ): {
   stream: ReadableStream<Uint8Array>;
   result: () => { bytes: number; sha256: string };
@@ -159,7 +143,7 @@ export async function downloadModelFiles(
     await cache.delete(url);
     const response = await fetchFile(url);
     if (!response.ok || !response.body) {
-      throw new DownloadError();
+      throw new Error("Local AI model file download failed");
     }
     const { stream, result } = hashingStream(response.body, count);
     const headers = new Headers({ "content-length": String(file.bytes) });

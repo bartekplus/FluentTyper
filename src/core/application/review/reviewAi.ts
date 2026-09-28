@@ -82,7 +82,7 @@ export interface ReviewAiViewState {
 
 export type ReviewMode = "correct" | "rewrite";
 
-export type RewriteStatus =
+type RewriteStatus =
   /** Nothing generated yet for this scope/style. */
   | "idle"
   | "generating"

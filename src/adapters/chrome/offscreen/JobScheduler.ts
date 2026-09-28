@@ -23,7 +23,7 @@ export interface ScheduledJob<P> {
   cancelled: boolean;
 }
 
-export type EnqueueResult = "queued" | "joined" | "busy";
+type EnqueueResult = "queued" | "joined" | "busy";
 
 export class JobScheduler<P> {
   /** Map order is the round-robin order: a served port moves to the back. */

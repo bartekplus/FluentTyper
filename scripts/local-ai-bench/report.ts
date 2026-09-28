@@ -61,10 +61,9 @@ const ms = (value: number | null) => (value === null ? "—" : `${Math.round(val
 const pct = (num: number, den: number) =>
   den === 0 ? "—" : `${((100 * num) / den).toFixed(1)}% (${num}/${den})`;
 
-export interface ModelSummary {
+interface ModelSummary {
   modelId: string;
   revision: string;
-  /** Transformers.js runs: repo@revision/dtype; WebLLM-era runs: model-lib sha256. */
   artifact: string;
   downloadBytes: number;
   downloadMs: number | null;
@@ -99,7 +98,7 @@ export interface ModelSummary {
   completionTokensP50: number | null;
 }
 
-export function summarize(run: ModelRun): ModelSummary {
+function summarize(run: ModelRun): ModelSummary {
   const cases = new Map(loadCorrectCases().map((c) => [c.id, c]));
   const unchanged = run.correct.filter((r) => cases.get(r.id)?.expect === "unchanged");
   const correction = run.correct.filter((r) => cases.get(r.id)?.expect !== "unchanged");
@@ -151,9 +150,7 @@ export function summarize(run: ModelRun): ModelSummary {
   return {
     modelId: run.modelId,
     revision: run.revision,
-    artifact: run.repo
-      ? `${run.repo}@${run.revision} ${run.dtype ?? ""}`
-      : `lib sha256 ${run.libSha256 ?? "?"}`,
+    artifact: `${run.repo}@${run.revision} ${run.dtype ?? ""}`,
     downloadBytes: run.downloadBytes,
     downloadMs: run.downloadMs,
     coldLoadMs: run.coldLoadMs,
@@ -214,7 +211,7 @@ const list = (map: Record<string, string[]>) =>
     .map(([flag, ids]) => `${flag}: ${ids.join(", ")}`)
     .join("; ") || "none";
 
-export function modelMarkdown(run: ModelRun, s: ModelSummary): string {
+function modelMarkdown(run: ModelRun, s: ModelSummary): string {
   return [
     `# ${s.modelId}`,
     "",

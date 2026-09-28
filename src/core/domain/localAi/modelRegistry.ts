@@ -17,9 +17,6 @@ export const LOCAL_AI_RUNTIME_VERSION = "4.3.0";
 
 export type LocalAiModelTier = "standard" | "compact";
 
-/** Evaluation status; a model is promoted only with recorded real-device evidence. */
-export type LocalAiQualityStatus = "unevaluated" | "evaluated" | "rejected";
-
 export interface LocalAiModelFile {
   /** Path inside the pinned repository revision. */
   path: string;
@@ -45,16 +42,12 @@ export interface LocalAiModelRecord {
   files: readonly LocalAiModelFile[];
   /** Sum of `files` bytes. */
   downloadBytes: number;
-  /** Request budget in tokens (the model's own window is larger; requests are one sentence). */
-  contextWindow: number;
   requiredFeatures: readonly string[];
   /** Pass `enable_thinking: false` to the chat template (models with a thinking switch). */
   disableThinking: boolean;
   /** Languages evaluated for Correct / Rewrite. */
   languages: readonly string[];
-  quality: LocalAiQualityStatus;
   license: string;
-  source: string;
 }
 
 const sum = (files: readonly LocalAiModelFile[]) =>
@@ -203,13 +196,10 @@ export const LOCAL_AI_MODELS: readonly LocalAiModelRecord[] = [
     loader: "gemma4",
     files: GEMMA_4_E4B_FILES,
     downloadBytes: sum(GEMMA_4_E4B_FILES),
-    contextWindow: 4096,
     requiredFeatures: ["shader-f16"],
     disableThinking: true,
     languages: ["en"],
-    quality: "evaluated",
     license: "Apache-2.0 (google/gemma-4-E4B-it); ONNX export by onnx-community",
-    source: "https://huggingface.co/onnx-community/gemma-4-E4B-it-ONNX",
   },
   {
     tier: "compact",
@@ -221,13 +211,10 @@ export const LOCAL_AI_MODELS: readonly LocalAiModelRecord[] = [
     loader: "causal-lm",
     files: QWEN3_4B_2507_FILES,
     downloadBytes: sum(QWEN3_4B_2507_FILES),
-    contextWindow: 4096,
     requiredFeatures: ["shader-f16"],
     disableThinking: false,
     languages: ["en"],
-    quality: "evaluated",
     license: "Apache-2.0 (Qwen/Qwen3-4B-Instruct-2507); ONNX export by onnx-community",
-    source: "https://huggingface.co/onnx-community/Qwen3-4B-Instruct-2507-ONNX",
   },
 ];
 

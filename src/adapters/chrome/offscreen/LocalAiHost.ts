@@ -14,6 +14,7 @@ import {
   type LocalAiModelTier,
 } from "@core/domain/localAi/modelRegistry";
 import { AI_PROMPT_VERSION } from "@core/domain/grammar/review/ai/prompts";
+import { isObjectRecord } from "@core/domain/guards";
 import { validateAiRequest } from "@core/domain/grammar/review/ai/parse";
 import type {
   AiErrorCode,
@@ -24,26 +25,7 @@ import { JobScheduler, type ScheduledJob } from "./JobScheduler";
 import { WorkerClient, type WorkerLike } from "./WorkerClient";
 import type { WorkerLoadResult } from "./workerProtocol";
 
-/**
- * Local AI runtime host, running in the offscreen document.
- *
- * - Background port (outbound, lazily reconnected): receives `configure` and
- *   explicit install/cancel/delete/probe/unload; reports `state`, `installed`,
- *   `deleted`, `idle`. The background is the settings/consent authority.
- * - Review ports (inbound, content scripts only): every message is validated;
- *   jobs are bound to their port; results and progress go only to that port.
- * - Jobs run one at a time on the worker's single engine, and only when the
- *   host is configured (consent + preference) and the model is fully cached.
- * - GPU memory is held only while a Review with Local AI is open. When the
- *   last review port closes (or an install ends with none open) the GPU is
- *   released at once: running work settles, the engine unloads, the worker is
- *   terminated (that frees the WebGPU device), and `idle` lets the background
- *   close this document. An open but idle review releases the same way after
- *   the idle interval, without closing. The next job starts a fresh worker and
- *   loads from cache.
- * - Nothing here logs, stores or forwards text; worker replies are rebuilt
- *   into contract messages, never passed through.
- */
+/** Offscreen owner of the optional model worker and review ports. */
 
 /** chrome.runtime.Port subset (fakeable in tests). */
 export interface PortLike {
@@ -55,20 +37,12 @@ export interface PortLike {
   onDisconnect: { addListener(callback: () => void): void };
 }
 
-export interface LocalAiHostOptions {
+interface LocalAiHostOptions {
   connectBackground(): PortLike;
   createWorker(): WorkerLike;
-  validateRequest?: (value: unknown) => AiGenerationRequest | null;
-  /**
-   * The extension's own origin ("chrome-extension://<id>/"). Review ports are for
-   * content scripts only: an extension page that happens to run in a tab (the
-   * options page) is refused.
-   */
-  extensionOrigin?: string;
-  /**
-   * With a review open, release the GPU this long after the last job. With none
-   * open (and nothing ever connected), close the document after this long.
-   */
+  /** Used to reject extension pages that happen to have a tab. */
+  extensionOrigin: string;
+  /** GPU idle timeout with a review open; document idle timeout otherwise. */
   idleMs?: number;
   /** After an interrupt, tear the worker down if generation has not settled by then. */
   cancelSettleMs?: number;
@@ -91,12 +65,8 @@ const MAX_RECOVERIES = 1;
 type Activity = "idle" | "checking" | "downloading" | "loading" | "generating" | "unloading";
 
 interface HostConfig {
-  model: { modelId: string; tier: LocalAiModelTier } | null;
+  model: { modelId: string } | null;
   enabled: boolean;
-}
-
-function asRecord(value: unknown): Record<string, unknown> | null {
-  return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : null;
 }
 
 function sanitizeOutcome(outcome: AiGenerationOutcome): AiGenerationOutcome {
@@ -142,7 +112,6 @@ export class LocalAiHost {
   private readonly reviewPorts = new Set<PortLike>();
   private readonly scheduler = new JobScheduler<PortLike>();
   private readonly worker: WorkerClient;
-  private readonly validateRequest: (value: unknown) => AiGenerationRequest | null;
   private readonly idleMs: number;
   private readonly cancelSettleMs: number;
   private readonly jobTimeoutMs: number;
@@ -153,7 +122,6 @@ export class LocalAiHost {
       () => options.createWorker(),
       () => this.recordFailure("worker-crashed"),
     );
-    this.validateRequest = options.validateRequest ?? validateAiRequest;
     this.idleMs = options.idleMs ?? DEFAULT_IDLE_MS;
     this.cancelSettleMs = options.cancelSettleMs ?? DEFAULT_CANCEL_SETTLE_MS;
     this.jobTimeoutMs = options.jobTimeoutMs ?? DEFAULT_JOB_TIMEOUT_MS;
@@ -198,15 +166,12 @@ export class LocalAiHost {
   }
 
   private onBackgroundMessage(value: unknown): void {
-    const message = asRecord(value);
+    const message = isObjectRecord(value) ? value : null;
     switch (message?.type) {
       case "configure": {
-        const model = asRecord(message.model);
+        const model = isObjectRecord(message.model) ? message.model : null;
         const record = model ? localAiModelById(model.modelId) : null;
-        this.configure(
-          record ? { modelId: record.modelId, tier: record.tier } : null,
-          message.enabled === true,
-        );
+        this.configure(record ? { modelId: record.modelId } : null, message.enabled === true);
         return;
       }
       case "install":
@@ -447,7 +412,7 @@ export class LocalAiHost {
       return;
     }
     const origin = this.options.extensionOrigin;
-    const fromExtensionPage = origin !== undefined && port.sender?.url?.startsWith(origin) === true;
+    const fromExtensionPage = port.sender?.url?.startsWith(origin) === true;
     if (!port.sender?.tab || fromExtensionPage || this.reviewPorts.size >= MAX_REVIEW_PORTS) {
       port.disconnect();
       return;
@@ -467,7 +432,7 @@ export class LocalAiHost {
     if (!this.reviewPorts.has(port)) {
       return;
     }
-    const message = asRecord(value);
+    const message = isObjectRecord(value) ? value : null;
     const requestId = message?.requestId;
     if (
       typeof requestId !== "string" ||
@@ -487,7 +452,7 @@ export class LocalAiHost {
     }
     let request: AiGenerationRequest | null;
     try {
-      request = this.validateRequest(message.request);
+      request = validateAiRequest(message.request);
     } catch {
       request = null;
     }

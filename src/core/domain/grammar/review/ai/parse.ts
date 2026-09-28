@@ -10,7 +10,7 @@ export const MAX_AI_RAW_OUTPUT_CHARS = 32_000;
 /** Segments per request. */
 export const MAX_AI_SEGMENTS = 32;
 /** Characters of one segment's text. */
-export const MAX_AI_SEGMENT_CHARS = 2_000;
+const MAX_AI_SEGMENT_CHARS = 2_000;
 /** Characters of all segment texts of one request. */
 export const MAX_AI_REQUEST_TEXT_CHARS = 4_000;
 /** Characters of each read-only context. */

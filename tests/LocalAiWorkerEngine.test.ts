@@ -26,6 +26,7 @@ import {
   type LocalAiModelRecord,
 } from "../src/core/domain/localAi/modelRegistry";
 import type { AiGenerationRequest } from "../src/core/domain/grammar/review/ai/types";
+import { aiMaxOutputTokens } from "../src/core/domain/grammar/review/ai/prompts";
 import type { WorkerReply } from "../src/adapters/chrome/offscreen/workerProtocol";
 
 const SENTINEL = "SENTINEL-7f3a-private-text";
@@ -65,13 +66,10 @@ function makeRecord(
     loader,
     files,
     downloadBytes: files.reduce((total, file) => total + file.bytes, 0),
-    contextWindow: 4096,
     requiredFeatures: ["shader-f16"],
     disableThinking: loader === "gemma4",
     languages: ["en"],
-    quality: "evaluated",
     license: "test",
-    source: "test",
   };
   const served = new Map(
     files.map((file, i) => [localAiModelFileUrl(record, file), Object.values(contents)[i]]),
@@ -155,7 +153,7 @@ class FakeModel implements ModelLike {
   calls: Array<Record<string, unknown>> = [];
   disposed = 0;
   generateImpl: (options: { stopping_criteria: StopperLike[] }) => Promise<unknown> = async () =>
-    tensor(13, '{"segments":[]}');
+    tensor(13, '{"segments":[{"id":"s0","text":"fixed"}]}');
   async generate(options: Parameters<ModelLike["generate"]>[0]) {
     this.calls.push(options as unknown as Record<string, unknown>);
     return this.generateImpl(options);
@@ -198,10 +196,6 @@ function makeEngine(setup: Setup = {}) {
   const caches = new FakeCaches();
   const tokenizer = new FakeTokenizer();
   const model = new FakeModel();
-  const parse = jest.fn((raw: string) => ({
-    ok: true as const,
-    segments: [{ id: "s0", text: `parsed:${raw.length}` }],
-  }));
   const deps: WorkerEngineDeps = {
     runtime: {
       loadTokenizer: async () => tokenizer,
@@ -214,14 +208,6 @@ function makeEngine(setup: Setup = {}) {
     guard,
     fetch: (url) => scope.fetch(url),
     findModel,
-    ai: {
-      buildAiMessages: () => [
-        { role: "system", content: "sys" },
-        { role: "user", content: "data" },
-      ],
-      aiMaxOutputTokens: () => 50,
-      parseAiResponse: parse,
-    },
   };
   return {
     engine: new LocalAiWorkerEngine(deps),
@@ -231,7 +217,6 @@ function makeEngine(setup: Setup = {}) {
     caches,
     tokenizer,
     model,
-    parse,
   };
 }
 
@@ -406,17 +391,16 @@ describe("lifecycle and generation", () => {
   });
 
   test("greedy, bounded generation; the thinking switch goes to Gemma's chat template", async () => {
-    const { engine, model, tokenizer, parse } = await loaded();
+    const { engine, model, tokenizer } = await loaded();
     const outcome = await engine.generate(GEMMA.record.modelId, REQUEST);
-    expect(outcome).toEqual({ ok: true, segments: [{ id: "s0", text: "parsed:15" }] });
-    expect(parse).toHaveBeenCalledWith('{"segments":[]}', REQUEST);
+    expect(outcome).toEqual({ ok: true, segments: [{ id: "s0", text: "fixed" }] });
     expect(tokenizer.templateOptions[0]).toEqual({
       add_generation_prompt: true,
       return_dict: true,
       enable_thinking: false,
     });
     expect(model.calls[0]).toMatchObject({
-      max_new_tokens: 50,
+      max_new_tokens: aiMaxOutputTokens(REQUEST),
       do_sample: false,
       attention_mask: "mask",
     });
@@ -438,7 +422,7 @@ describe("lifecycle and generation", () => {
       ok: false,
       error: "cancelled",
     });
-    model.generateImpl = async () => tensor(60, "{");
+    model.generateImpl = async () => tensor(10 + aiMaxOutputTokens(REQUEST), "{");
     expect(await engine.generate(GEMMA.record.modelId, REQUEST)).toEqual({
       ok: false,
       error: "truncated",

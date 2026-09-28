@@ -83,7 +83,7 @@ export interface ReviewCapabilities {
   undo: "single-step" | "per-edit" | "host-history" | "none";
 }
 
-export interface ReviewTargetText {
+interface ReviewTargetText {
   text: string;
   /** Code, non-editable islands and virtual block separators, in `text` offsets. */
   protectedRanges: ProtectedRange[];
@@ -96,7 +96,7 @@ export interface ReviewTargetText {
   unread?: number;
 }
 
-export type ReviewUnavailable = "detached" | "ineligible" | "composing" | "unsupported";
+type ReviewUnavailable = "detached" | "ineligible" | "composing" | "unsupported";
 
 export type ReviewTargetRead =
   ({ ok: true } & ReviewTargetText) | { ok: false; reason: ReviewUnavailable };
@@ -125,7 +125,7 @@ export interface ReviewTargetPort {
   }): Promise<ReviewApplyResult>;
 }
 
-export type ReviewStatus =
+type ReviewStatus =
   | "loading"
   | "ready"
   | "updating"
@@ -135,7 +135,7 @@ export type ReviewStatus =
   | "error"
   | "closed";
 
-export type ReviewNotice =
+type ReviewNotice =
   | { kind: "applied"; count: number; deferred: number }
   | { kind: "stale" }
   | { kind: "partial"; applied: number }

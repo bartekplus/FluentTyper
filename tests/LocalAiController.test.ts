@@ -187,7 +187,7 @@ describe("LocalAiController authorization", () => {
     chromeFake.connect(host);
     await flush();
     expect(host.messages).toEqual([
-      { type: "configure", model: { modelId: STANDARD.modelId, tier: "standard" }, enabled: true },
+      { type: "configure", model: { modelId: STANDARD.modelId }, enabled: true },
       { type: "install", tier: "standard" },
     ]);
   });

@@ -18,6 +18,7 @@ import type {
 } from "@core/domain/grammar/review/ai/types";
 import type { LocalAiCommandResponse } from "@core/domain/messageTypes";
 import { randomUUID } from "@core/domain/randomId";
+import { isObjectRecord } from "@core/domain/guards";
 
 /** The slice of a runtime port the provider uses (chrome.runtime.Port fits). */
 export interface LocalAiPort {
@@ -60,26 +61,24 @@ const AI_ERROR_CODES: ReadonlySet<string> = new Set<AiErrorCode>([
   "invalid-request",
 ]);
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
 function isOutcome(value: unknown): value is AiGenerationOutcome {
-  if (!isRecord(value)) return false;
+  if (!isObjectRecord(value)) return false;
   if (value.ok === false) return typeof value.error === "string" && AI_ERROR_CODES.has(value.error);
   return (
     value.ok === true &&
     Array.isArray(value.segments) &&
     value.segments.every(
       (segment) =>
-        isRecord(segment) && typeof segment.id === "string" && typeof segment.text === "string",
+        isObjectRecord(segment) &&
+        typeof segment.id === "string" &&
+        typeof segment.text === "string",
     )
   );
 }
 
 function isStatus(value: unknown): value is LocalAiStatus {
   return (
-    isRecord(value) &&
+    isObjectRecord(value) &&
     typeof value.enabled === "boolean" &&
     typeof value.consented === "boolean" &&
     typeof value.tier === "string" &&
@@ -94,7 +93,7 @@ function isStatus(value: unknown): value is LocalAiStatus {
 
 /** Runtime check of a port message from the host; anything else is dropped. */
 function hostMessage(value: unknown): ReviewPortHostMessage | null {
-  if (!isRecord(value)) return null;
+  if (!isObjectRecord(value)) return null;
   if (value.type === "status")
     return isStatus(value.status) ? (value as ReviewPortHostMessage) : null;
   if (typeof value.requestId !== "string") return null;

@@ -54,7 +54,7 @@ export function hunks(a: readonly string[], b: readonly string[]): string[] {
   return out;
 }
 
-export type Group = "dense" | "heldout" | "control" | "trap" | "other";
+type Group = "dense" | "heldout" | "control" | "trap" | "other";
 export function groupOf(id: string): Group {
   if (/^(dense-ok|heldout-ok)-/.test(id)) return "control";
   if (/^(dense|dense-para)-\d+$/.test(id)) return "dense";
@@ -69,7 +69,7 @@ function quantile(values: number[], q: number): number | null {
   return sorted[Math.min(sorted.length - 1, Math.floor(q * sorted.length))]!;
 }
 
-export interface Screening {
+interface Screening {
   run: string;
   recall: Record<
     "dense" | "heldout" | "rest",
@@ -152,7 +152,7 @@ export function screen(name: string, run: ModelRun): Screening {
 const pct = (num: number, den: number) =>
   den === 0 ? "—" : `${Math.round((100 * num) / den)}% (${num}/${den})`;
 
-export function screeningRow(s: Screening): string {
+function screeningRow(s: Screening): string {
   const ms = (v: number | null) => (v === null ? "—" : `${Math.round(v)}`);
   return `| ${s.run} | ${pct(s.recall.dense.model, s.recall.dense.expected)} | ${pct(s.recall.heldout.model, s.recall.heldout.expected)} | ${pct(s.recall.dense.accepted, s.recall.dense.expected)} | ${pct(s.recall.heldout.accepted, s.recall.heldout.expected)} | ${s.fpModel.length} ${s.fpModel.length ? `(${s.fpModel.join(", ")})` : ""} | ${s.fpAccepted.length} ${s.fpAccepted.length ? `(${s.fpAccepted.join(", ")})` : ""} | ${s.recall.rest.expected ? pct(s.recall.rest.accepted, s.recall.rest.expected) : "—"} | ${s.extraAccepted.length} ${s.extraAccepted.length ? `(${s.extraAccepted.join(", ")})` : ""} | ${s.invalidRequests}/${s.requests} | ${ms(s.p50)} / ${ms(s.p90)} | ${ms(s.coldLoadMs)} |`;
 }
