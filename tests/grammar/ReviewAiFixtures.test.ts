@@ -31,6 +31,8 @@ const PARTIAL_DENSE: Record<string, { reason: string; minOffered: number }> = {
   // Inserting "it" ("like it when") is not a closed-class correction; "dont" is one
   // word away and shares its unit.
   "dense-11": { reason: "drift", minOffered: 2 },
+  // "Our team have" is valid British usage (team takes either verb number); "we has" is still fixed.
+  "dense-13": { reason: "drift", minOffered: 2 },
   // Held-out: "three advices" -> "three pieces of advice" is a restructure; the
   // comma after "yesterday" shares its unit.
   "heldout-02": { reason: "drift", minOffered: 2 },

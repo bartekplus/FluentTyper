@@ -1033,6 +1033,7 @@ function correctUnit(
       .slice(hunk.p0, hunk.p1)
       .filter((token) => SENTENCE_MARK.test(token.text));
     if (addedMarks.length > 0 && hunk.o1 < original.length) return { reason: "drift" };
+    if (styleChoice(original, next, hunk, originalStarts)) return { reason: "drift" };
   }
 
   // Underline from the first to the last change of the unit.
@@ -1094,6 +1095,64 @@ function correctUnit(
       },
     },
   };
+}
+
+/** Words after which a comma is the writer's choice ("Ok cool", "Well I agree"). */
+const INTERJECTIONS = wordSet("ok okay yeah yep yes no nope well oh hey thanks sure cool");
+/** Nouns that take a singular or plural verb by dialect ("the data are", "the team have"). */
+const DUAL_NUMBER_NOUNS = wordSet("data media staff team committee family audience public");
+/** Subjects that end the search for a verb's subject. */
+const SUBJECT_PRONOUNS = wordSet("i you he she it we they who which that this these those there");
+/** Verb forms that differ only in number. */
+const VERB_NUMBER_PAIRS = new Set(["is are", "was were", "has have", "does do"]);
+const OPENING_QUOTES = /^["“„«‘]$/;
+
+/**
+ * True when a hunk only makes a style or dialect choice that correct text may
+ * go either way on: a comma after a sentence-initial interjection or before an
+ * opening quote, subjunctive "were" after "if"/"wish", the case of the first
+ * letter after a colon, or verb number with a noun used both ways
+ * ("the data are", "the staff is").
+ */
+function styleChoice(
+  original: readonly Token[],
+  next: readonly Token[],
+  hunk: Hunk,
+  starts: readonly boolean[],
+): boolean {
+  const removed = original.slice(hunk.o0, hunk.o1).filter((token) => token.kind !== "space");
+  const added = next.slice(hunk.p0, hunk.p1).filter((token) => token.kind !== "space");
+  let before = hunk.o0 - 1;
+  while (original[before]?.kind === "space") before -= 1;
+  let after = hunk.o1;
+  while (original[after]?.kind === "space") after += 1;
+
+  if (removed.length === 0 && added.length === 1 && added[0].text === ",") {
+    const word = original[before];
+    if (word?.kind === "word" && starts[before] && INTERJECTIONS.has(lower(word.text))) return true;
+    if (OPENING_QUOTES.test(original[after]?.text ?? "")) return true;
+  }
+  if (removed.length !== 1 || added.length !== 1) return false;
+  const [from, to] = [lower(removed[0].text), lower(added[0].text)];
+  if (from === to && original[before]?.text === ":") return true;
+  const verbPair = VERB_NUMBER_PAIRS.has(`${from} ${to}`) || VERB_NUMBER_PAIRS.has(`${to} ${from}`);
+  if (verbPair && (from === "was" || from === "were")) {
+    // "If I was you" / "I wish it was": subject, then if/wish/though.
+    const subject = wordBefore(original, hunk.o0);
+    const index = subject ? original.indexOf(subject) : -1;
+    const trigger = index >= 0 ? lower(wordBefore(original, index)?.text ?? "") : "";
+    if (["if", "wish", "wished", "though"].includes(trigger)) return true;
+  }
+  if (verbPair || pluralOf(from, to) !== null) {
+    // Walk back to the verb's subject: a pronoun ends the search.
+    for (let index = hunk.o0 - 1; index >= 0; index -= 1) {
+      if (original[index].kind !== "word") continue;
+      const word = lower(original[index].text);
+      if (DUAL_NUMBER_NOUNS.has(word)) return true;
+      if (SUBJECT_PRONOUNS.has(word)) return false;
+    }
+  }
+  return false;
 }
 
 const COMPARATIVE_OR_MORE = /^(?:more|less|\p{L}{2,}er|better|worse)$/u;

@@ -252,6 +252,39 @@ describe("correctionFindings", () => {
     expectRejected("We need more tests here.", "We need tests here.", "drift");
   });
 
+  test("style and dialect choices are not corrections (Gemma 4 E4B full suite)", () => {
+    // Comma after a sentence-initial interjection.
+    expectRejected("Ok cool.", "Ok, cool.", "drift");
+    expectRejected("Well I agree with that.", "Well, I agree with that.", "drift");
+    expect(correctOne("However we left.", "However, we left.").applied).toBe("However, we left.");
+    // Comma before an opening quotation mark.
+    expectRejected("The sign said “Open 24 hours.”", "The sign said, “Open 24 hours.”", "drift");
+    // Subjunctive "were" after "if"/"wish".
+    expectRejected("If I was you, I would ask.", "If I were you, I would ask.", "drift");
+    expectRejected("I wish it was sunny today.", "I wish it were sunny today.", "drift");
+    expect(correctOne("They was late again.", "They were late again.").applied).toBe(
+      "They were late again.",
+    );
+    // Case after a colon.
+    expectRejected("Assistant: sure, here it is.", "Assistant: Sure, here it is.", "drift");
+    // Verb number with nouns used both ways.
+    expectRejected(
+      "The data are stored locally and never leave the device.",
+      "The data is stored locally and never leaves the device.",
+      "drift",
+    );
+    expectRejected("Our staff is small this year.", "Our staff are small this year.", "drift");
+    expect(
+      correctOne(
+        "Our team have reviewed it and we has questions.",
+        "Our team has reviewed it and we have questions.",
+      ).applied,
+    ).toBe("Our team have reviewed it and we have questions.");
+    expect(correctOne("They goes home early.", "They go home early.").applied).toBe(
+      "They go home early.",
+    );
+  });
+
   test("uncountable nouns lose a wrong plural (held-out set)", () => {
     const fixed = (text: string, proposed: string) => correctOne(text, proposed).applied;
     expect(fixed("The informations here is old.", "The information here is old.")).toBe(
