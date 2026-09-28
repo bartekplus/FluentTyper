@@ -34,7 +34,12 @@
   --ft-border: var(--suggestion-border-color-light);
   --ft-highlight-bg: var(--suggestion-highlight-bg-light);
   --ft-highlight-fg: var(--suggestion-highlight-text-light);
-  --ft-accent: var(--suggestion-match-light);
+  /* Readable accents computed for the user's theme (ThemeApplicator), else the design's. */
+  --ft-accent: var(--ft-theme-suggestion-accent-light, var(--suggestion-match-light));
+  --ft-highlight-accent: var(
+    --ft-theme-suggestion-highlight-accent-light,
+    var(--suggestion-match-light)
+  );
 
   /* --- Layout & Positioning --- */
   top: 0;
@@ -115,7 +120,11 @@
 .ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"]
   li.highlight {
   background-color: var(--ft-highlight-bg) !important;
-  border-color: color-mix(in srgb, var(--ft-highlight-bg) 60%, var(--ft-accent)) !important;
+  border-color: color-mix(
+    in srgb,
+    var(--ft-highlight-bg) 60%,
+    var(--ft-highlight-accent)
+  ) !important;
   color: var(--ft-highlight-fg) !important;
 }
 
@@ -163,11 +172,11 @@
   font-size: 0.86em !important;
 }
 
-/* Selected row: mixed from its own text color, which the theme contrasts with its background. */
+/* Selected row: its own accent, checked against that row's background. */
 .ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"]
   li.highlight
   .ft-suggestion-match {
-  color: color-mix(in srgb, var(--ft-accent) 45%, var(--ft-highlight-fg)) !important;
+  color: var(--ft-highlight-accent) !important;
 }
 
 /* Matched text inside a suggestion */
@@ -217,7 +226,11 @@
     --ft-border: var(--suggestion-border-color-dark);
     --ft-highlight-bg: var(--suggestion-highlight-bg-dark);
     --ft-highlight-fg: var(--suggestion-highlight-text-dark);
-    --ft-accent: var(--suggestion-match-dark);
+    --ft-accent: var(--ft-theme-suggestion-accent-dark, var(--suggestion-match-dark));
+    --ft-highlight-accent: var(
+      --ft-theme-suggestion-highlight-accent-dark,
+      var(--suggestion-match-dark)
+    );
     box-shadow:
       0 16px 40px rgba(0, 0, 0, 0.5),
       0 2px 6px rgba(0, 0, 0, 0.35) !important;

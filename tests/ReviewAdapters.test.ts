@@ -974,12 +974,17 @@ describe("review controller lifecycle", () => {
     review.invoke();
     await until(() => root()?.querySelector(".status")?.textContent === "Issues: 1");
     expect(root()!.querySelector("h2")?.textContent).toBe("Review");
+    // A finding's card is open when the language changes.
+    root()!.querySelector<HTMLElement>(".item")!.click();
+    expect(root()!.querySelector<HTMLElement>(".card")!.hidden).toBe(false);
 
     language = "de_DE";
     review.handleOptionsChanged();
 
     expect(root()!.querySelector("h2")?.textContent).toBe("Prüfung");
     expect(root()!.querySelector(".item .change")?.textContent).toBe("teh \u2192 the");
+    // The card is still open, now in German.
+    expect(root()!.querySelector<HTMLElement>(".card")!.hidden).toBe(false);
     expect(document.querySelectorAll("[data-fluenttyper-review]")).toHaveLength(1);
     review.close();
     expect(field.value).toBe("We saw teh cat.");

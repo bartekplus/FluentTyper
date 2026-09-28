@@ -387,6 +387,10 @@ export class ReviewController {
   private rebuildUi(active: ActiveReview): void {
     const previous = active.ui;
     const hadFocus = previous.hasFocus();
+    // The open card, its chosen alternative and focus in it survive the rebuild.
+    const cardId = previous.cardDiagnosticId();
+    const cardAlternative = previous.cardAlternativeIndex();
+    const cardHadFocus = previous.cardHasFocus();
     const ui = this.createUi(active.target);
     active.target.setMeasurementRoot(ui.root);
     ui.placeAwayFrom(active.target.element.getBoundingClientRect());
@@ -397,7 +401,14 @@ export class ReviewController {
       ui.render(active.state);
       this.paint(active);
     }
-    if (hadFocus) ui.focusPanel();
+    const cardDiagnostic = cardId
+      ? active.state?.diagnostics.find((diagnostic) => diagnostic.id === cardId)
+      : undefined;
+    if (cardDiagnostic) {
+      ui.openCard(cardDiagnostic, this.anchorFor(active, cardDiagnostic.id), cardAlternative);
+    }
+    if (cardDiagnostic && cardHadFocus) ui.focusCard();
+    else if (hadFocus) ui.focusPanel();
   }
 
   private createUi(target: ReviewTargetHandle): ReviewUi {

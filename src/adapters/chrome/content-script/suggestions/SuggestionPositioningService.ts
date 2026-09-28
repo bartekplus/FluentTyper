@@ -297,7 +297,11 @@ export class SuggestionPositioningService {
       return locked;
     }
     // Judge by the room a longer list will need, not only the current one.
-    const needed = Math.max(menuHeight, SuggestionPositioningService.PREFERRED_MENU_HEIGHT_PX);
+    // A row stays one row however many suggestions arrive: only a list needs room to grow.
+    const needed =
+      menu.getAttribute(SUGGESTION_MENU_LAYOUT_ATTR) === "horizontal"
+        ? menuHeight
+        : Math.max(menuHeight, SuggestionPositioningService.PREFERRED_MENU_HEIGHT_PX);
     const placement =
       availableBelow >= needed || availableBelow >= availableAbove ? "below" : "above";
     menu.setAttribute(SUGGESTION_MENU_PLACEMENT_ATTR, placement);

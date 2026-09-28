@@ -128,6 +128,26 @@ describe("SuggestionPositioningService", () => {
     expect(menu.style.left).toBe("120px");
   });
 
+  test("a row near the bottom stays below while it fits: it never grows taller", () => {
+    // 100px below the caret on a 768px viewport, more above; the row is 40px.
+    const service = new CaretPositioningService(createRect(50, 660, 0, 16));
+    const menu = document.createElement("div");
+    const target = document.createElement("input");
+    Object.defineProperty(menu, "offsetWidth", { value: 300, configurable: true });
+    Object.defineProperty(menu, "offsetHeight", { value: 40, configurable: true });
+
+    menu.setAttribute("data-ft-layout", "horizontal");
+    service.positionMenu(menu, target);
+    expect(menu.getAttribute("data-ft-placement")).toBe("below");
+
+    // A list of the same height keeps room to grow, so it opens above.
+    const list = document.createElement("div");
+    Object.defineProperty(list, "offsetWidth", { value: 300, configurable: true });
+    Object.defineProperty(list, "offsetHeight", { value: 40, configurable: true });
+    service.positionMenu(list, target);
+    expect(list.getAttribute("data-ft-placement")).toBe("above");
+  });
+
   test("returns false when caret rect cannot be resolved", () => {
     const service = new CaretPositioningService(null);
     const menu = document.createElement("div");

@@ -64,5 +64,8 @@ describe("SuggestionMenuView", () => {
       /\[data-ft-placement="above"\]:not\(\s*\[data-ft-layout="horizontal"\]\s*\)\s+ul\s*\{\s*flex-direction:\s*column-reverse/,
     );
     expect(css).toMatch(/\[data-ft-layout="horizontal"\]\s+ul\s*\{\s*flex-direction:\s*row/);
+    // The readable accents computed for the user's theme, as in the shadow popup.
+    expect(css).toContain("var(--ft-theme-suggestion-accent-light");
+    expect(css).toContain("--ft-theme-suggestion-highlight-accent-dark");
   });
 });

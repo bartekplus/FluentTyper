@@ -577,8 +577,10 @@ export class ReviewUi {
     return this.items.get(id) ?? null;
   }
 
-  openCard(diagnostic: ReviewDiagnostic, anchor: DOMRect | null): void {
+  /** `alternative` restores a choice made in an earlier card for this finding. */
+  openCard(diagnostic: ReviewDiagnostic, anchor: DOMRect | null, alternative?: number): void {
     if (this.cardId !== diagnostic.id) this.cardAlternative = 0;
+    if (alternative !== undefined) this.cardAlternative = alternative;
     this.cardId = diagnostic.id;
     this.cardAnchor = anchor;
     this.cardMemory = {
@@ -608,6 +610,17 @@ export class ReviewUi {
 
   cardDiagnosticId(): string | null {
     return this.cardId;
+  }
+
+  /** The alternative chosen in the open card. */
+  cardAlternativeIndex(): number {
+    return this.cardAlternative;
+  }
+
+  /** True when the keyboard focus is in the open card. */
+  cardHasFocus(): boolean {
+    const active = getDeepActiveElement(this.doc);
+    return !this.card.hidden && !!active && this.card.contains(active);
   }
 
   private renderCard(diagnostic: ReviewDiagnostic): void {
