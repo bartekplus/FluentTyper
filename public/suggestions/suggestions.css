@@ -1,7 +1,7 @@
 /*
-  FluentTyper suggestion popup, light-DOM fallback and the options preview.
-  Mirrors the shadow-root popup (SuggestionPopupShadowStyles.ts). `!important`
-  keeps host pages from restyling it.
+  FluentTyper suggestion popup, light-DOM fallback (no shadow DOM). Mirrors the
+  shadow-root popup (core/domain/suggestionPopup/styles.ts). `!important` keeps
+  host pages from restyling it.
 */
 
 :root {
@@ -69,6 +69,28 @@
   margin: 0 !important;
   padding: 0 !important;
   list-style: none !important;
+}
+
+/* Same layouts as the shadow-root popup (core/domain/suggestionPopup/styles.ts):
+   above the caret the list is drawn bottom-up, and the row layout is one row. */
+.ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"][data-ft-placement="above"]:not(
+    [data-ft-layout="horizontal"]
+  )
+  ul {
+  flex-direction: column-reverse !important;
+}
+
+.ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"][data-ft-layout="horizontal"]
+  ul {
+  flex-direction: row !important;
+  gap: 4px !important;
+  overflow: hidden !important;
+}
+
+.ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"][data-ft-layout="horizontal"]
+  li {
+  flex: none !important;
+  max-width: 240px !important;
 }
 
 /* --- Row: [number] label [detail] --- */

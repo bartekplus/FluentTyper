@@ -946,7 +946,7 @@ describe("review controller lifecycle", () => {
     throw new Error("condition not reached");
   }
 
-  function controller() {
+  function controller(uiLanguage: string | (() => string) = "en") {
     const suspend = jest.fn();
     const resume = jest.fn();
     const review = new ReviewController({
@@ -960,12 +960,30 @@ describe("review controller lifecycle", () => {
       resume,
       addToDictionary: async () => true,
       getDocsSurface: () => null,
-      uiLanguage: "en",
+      uiLanguage,
     });
     return { review, suspend, resume };
   }
 
   const root = () => document.querySelector("[data-fluenttyper-review]")?.shadowRoot ?? null;
+
+  test("an open review switches to a new UI language, keeping its findings", async () => {
+    const field = textarea("We saw teh cat.");
+    let language = "en";
+    const { review } = controller(() => language);
+    review.invoke();
+    await until(() => root()?.querySelector(".status")?.textContent === "Issues: 1");
+    expect(root()!.querySelector("h2")?.textContent).toBe("Review");
+
+    language = "de_DE";
+    review.handleOptionsChanged();
+
+    expect(root()!.querySelector("h2")?.textContent).toBe("Prüfung");
+    expect(root()!.querySelector(".item .change")?.textContent).toBe("teh \u2192 the");
+    expect(document.querySelectorAll("[data-fluenttyper-review]")).toHaveLength(1);
+    review.close();
+    expect(field.value).toBe("We saw teh cat.");
+  });
 
   test("invoke reads only, shows results, and Escape restores everything", async () => {
     const field = textarea("We saw teh cat.");

@@ -84,6 +84,8 @@ interface ActiveReview {
   target: ReviewTargetHandle;
   session: ReviewSession;
   ui: ReviewUi;
+  /** The UI language the panel was built in (its fixed labels are set once). */
+  uiLanguage: string;
   state: ReviewViewState | null;
   /** CSS highlights are only styled in the document's own style scope. */
   cssHighlights: ReturnType<typeof highlightApi>;
@@ -194,32 +196,7 @@ export class ReviewController {
     onClose?: () => void,
   ): void {
     const doc = target.element.ownerDocument;
-    const capabilityKeys: ReviewTextKey[] = [];
-    // Docs without its text runs (not rendered yet, or hidden): list only, until they appear.
-    if (target instanceof GoogleDocsReviewTarget) {
-      if (!target.canHighlight()) capabilityKeys.push("review_cap_docs");
-    } else if (!target.capabilities.inline) capabilityKeys.push("review_cap_no_inline");
-    if (!target.capabilities.apply) capabilityKeys.push("review_cap_review_only");
-    else if (target.capabilities.undo === "per-edit" && target.capabilities.bulk) {
-      capabilityKeys.push("review_cap_undo_per_edit");
-    }
-    const ui = new ReviewUi(
-      doc,
-      this.lang,
-      {
-        close: () => this.close(),
-        select: (id, options) => this.select(id, options),
-        apply: (id, alternative, viaKeyboard) => void this.apply(id, alternative, viaKeyboard),
-        ignore: (id) => this.ignore(id),
-        addToDictionary: (id) => void this.active?.session.addToDictionary(id),
-        fixAll: (viaKeyboard) => void this.fixAll(viaKeyboard),
-        toggleCategory: (category: ReviewCategory, shown) =>
-          this.active?.session.setCategory(category, shown),
-        navigate: (step) => this.navigate(step),
-      },
-      capabilityKeys,
-      reviewMountFor(target.element),
-    );
+    const ui = this.createUi(target);
     target.setMeasurementRoot(ui.root);
     ui.placeAwayFrom(target.element.getBoundingClientRect());
 
@@ -242,6 +219,7 @@ export class ReviewController {
       target,
       session,
       ui,
+      uiLanguage: this.lang,
       state: null,
       cssHighlights,
       cleanup: [],
@@ -396,7 +374,59 @@ export class ReviewController {
   }
 
   handleOptionsChanged(): void {
-    this.active?.session.updateOptions(this.deps.getOptions());
+    const active = this.active;
+    if (!active) return;
+    active.session.updateOptions(this.deps.getOptions());
+    if (active.uiLanguage !== this.lang) this.rebuildUi(active);
+  }
+
+  /**
+   * The open panel in the current UI language: its fixed labels are set when it
+   * is built, so a language change builds it again with the same state.
+   */
+  private rebuildUi(active: ActiveReview): void {
+    const previous = active.ui;
+    const hadFocus = previous.hasFocus();
+    const ui = this.createUi(active.target);
+    active.target.setMeasurementRoot(ui.root);
+    ui.placeAwayFrom(active.target.element.getBoundingClientRect());
+    active.ui = ui;
+    active.uiLanguage = this.lang;
+    previous.destroy();
+    if (active.state) {
+      ui.render(active.state);
+      this.paint(active);
+    }
+    if (hadFocus) ui.focusPanel();
+  }
+
+  private createUi(target: ReviewTargetHandle): ReviewUi {
+    const capabilityKeys: ReviewTextKey[] = [];
+    // Docs without its text runs (not rendered yet, or hidden): list only, until they appear.
+    if (target instanceof GoogleDocsReviewTarget) {
+      if (!target.canHighlight()) capabilityKeys.push("review_cap_docs");
+    } else if (!target.capabilities.inline) capabilityKeys.push("review_cap_no_inline");
+    if (!target.capabilities.apply) capabilityKeys.push("review_cap_review_only");
+    else if (target.capabilities.undo === "per-edit" && target.capabilities.bulk) {
+      capabilityKeys.push("review_cap_undo_per_edit");
+    }
+    return new ReviewUi(
+      target.element.ownerDocument,
+      this.lang,
+      {
+        close: () => this.close(),
+        select: (id, options) => this.select(id, options),
+        apply: (id, alternative, viaKeyboard) => void this.apply(id, alternative, viaKeyboard),
+        ignore: (id) => this.ignore(id),
+        addToDictionary: (id) => void this.active?.session.addToDictionary(id),
+        fixAll: (viaKeyboard) => void this.fixAll(viaKeyboard),
+        toggleCategory: (category: ReviewCategory, shown) =>
+          this.active?.session.setCategory(category, shown),
+        navigate: (step) => this.navigate(step),
+      },
+      capabilityKeys,
+      reviewMountFor(target.element),
+    );
   }
 
   close(): void {

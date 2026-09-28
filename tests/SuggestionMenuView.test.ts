@@ -1,4 +1,6 @@
 import { describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { SuggestionMenuView } from "../src/adapters/chrome/content-script/suggestions/SuggestionMenuView";
 
 describe("SuggestionMenuView", () => {
@@ -50,5 +52,17 @@ describe("SuggestionMenuView", () => {
         configurable: true,
       });
     }
+  });
+
+  test("the light-DOM fallback stylesheet mirrors the bottom-up and row layouts", () => {
+    const css = readFileSync(
+      path.resolve(import.meta.dir, "../public/suggestions/suggestions.css"),
+      "utf8",
+    );
+    // Arrow keys reverse on data-ft-placement="above", so the list must be drawn bottom-up too.
+    expect(css).toMatch(
+      /\[data-ft-placement="above"\]:not\(\s*\[data-ft-layout="horizontal"\]\s*\)\s+ul\s*\{\s*flex-direction:\s*column-reverse/,
+    );
+    expect(css).toMatch(/\[data-ft-layout="horizontal"\]\s+ul\s*\{\s*flex-direction:\s*row/);
   });
 });
