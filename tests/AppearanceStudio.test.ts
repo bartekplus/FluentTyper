@@ -14,6 +14,8 @@ import {
   KEY_HORIZONTAL_SUGGESTIONS,
   KEY_SELECT_BY_DIGIT,
   KEY_SHOW_SUGGESTION_FOOTER,
+  KEY_LANGUAGE,
+  KEY_FALLBACK_LANGUAGE,
   KEY_SUGGESTION_BG_DARK,
   KEY_SUGGESTION_BG_LIGHT,
   KEY_SUGGESTION_BORDER_DARK,
@@ -277,6 +279,27 @@ describe("AppearanceStudio theme value compatibility", () => {
 
     expect(keys()).toEqual(["↑↓", "Tab ⏎ Space", "Esc"]);
     expect(preview().dataset.ftLayout).toBe("horizontal");
+  });
+
+  test("preview names the fallback language while auto-detect is on, never 'Auto detect'", () => {
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    const { registry } = createRegistry({
+      ...DEFAULT_THEME,
+      [KEY_SHOW_SUGGESTION_FOOTER]: true,
+      [KEY_LANGUAGE]: "auto_detect",
+      [KEY_FALLBACK_LANGUAGE]: "de_DE",
+    });
+
+    new AppearanceStudio(root, registry as never, {
+      default: DEFAULT_THEME,
+      compact: COMPACT_THEME,
+    });
+
+    const lang = (
+      root.querySelector(".appearance-preview") as HTMLElement
+    ).shadowRoot!.querySelector(".ft-suggestion-lang");
+    expect(lang?.textContent).toBe("Lang: German");
   });
 
   test("preview drops the whole footer when the key hints and language setting is off", () => {

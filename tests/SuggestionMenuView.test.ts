@@ -73,5 +73,8 @@ describe("SuggestionMenuView", () => {
     // The readable accents computed for the user's theme, as in the shadow popup.
     expect(css).toContain("var(--ft-theme-suggestion-accent-light");
     expect(css).toContain("--ft-theme-suggestion-highlight-accent-dark");
+    // Rows follow the sizes computed from the page and Appearance settings.
+    expect(css).toContain("min-height: var(--ft-row-height, 32px)");
+    expect(css).toContain("calc(var(--ft-row-height, 32px) + 4px)");
   });
 });

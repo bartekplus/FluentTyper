@@ -334,6 +334,27 @@ describe("Google Docs review writes", () => {
   });
 });
 
+describe("text control measuring", () => {
+  test("a new measurement root (a rebuilt panel) moves the mirror into it", () => {
+    const field = textarea("We saw teh cat.");
+    const target = new TextControlReviewTarget(field);
+    const first = document.createElement("div").attachShadow({ mode: "open" });
+    const second = document.createElement("div").attachShadow({ mode: "open" });
+    const mirrorIn = (root: ShadowRoot) =>
+      root.querySelector("[data-fluenttyper-review-mirror]") !== null;
+
+    target.setMeasurementRoot(first);
+    target.rangeRects({ start: 7, end: 10 });
+    expect(mirrorIn(first)).toBe(true);
+
+    target.setMeasurementRoot(second);
+    target.rangeRects({ start: 7, end: 10 });
+    expect(mirrorIn(first)).toBe(false);
+    expect(mirrorIn(second)).toBe(true);
+    target.dispose();
+  });
+});
+
 describe("text control writes", () => {
   test("one verified native edit for several fixes; selection is carried through", async () => {
     setExecCommand(textControlInsert);

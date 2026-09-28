@@ -57,7 +57,7 @@
   background-color: var(--ft-bg) !important;
   color: var(--ft-fg) !important;
   border: 1px solid var(--ft-border) !important;
-  border-radius: 8px !important;
+  border-radius: var(--ft-radius, 8px) !important;
   box-shadow:
     0 12px 32px rgba(15, 23, 42, 0.14),
     0 2px 6px rgba(15, 23, 42, 0.08) !important;
@@ -96,6 +96,9 @@
   li {
   flex: none !important;
   max-width: 240px !important;
+  min-height: calc(var(--ft-row-height, 32px) + 4px) !important;
+  padding: 0 calc(var(--ft-pad-x, 10px) + 2px) 0 var(--ft-pad-x, 10px) !important;
+  border-radius: 6px !important;
 }
 
 .ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"]
@@ -120,8 +123,9 @@
   align-items: center !important;
   column-gap: 10px !important;
   box-sizing: border-box !important;
-  min-height: 32px !important;
-  padding: 0 10px 0 8px !important;
+  /* Sized like the shadow popup: syncMenuTypography sets these on the host. */
+  min-height: var(--ft-row-height, 32px) !important;
+  padding: 0 var(--ft-pad-x, 10px) 0 calc(var(--ft-pad-x, 10px) - 2px) !important;
   border: 1px solid transparent !important;
   border-radius: 5px !important;
   font-size: var(--suggestion-font-size) !important;

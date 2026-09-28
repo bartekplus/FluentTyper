@@ -347,6 +347,10 @@ export class TextControlReviewTarget implements ReviewTargetHandle {
   constructor(readonly element: HTMLInputElement | HTMLTextAreaElement) {}
 
   setMeasurementRoot(root: ShadowRoot): void {
+    if (root === this.measurementRoot) return;
+    // A rebuilt panel has a new root: a mirror in the old one goes with it.
+    this.mirror?.dispose();
+    this.mirror = null;
     this.measurementRoot = root;
   }
 

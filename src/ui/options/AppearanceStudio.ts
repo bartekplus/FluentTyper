@@ -17,6 +17,7 @@ import {
   KEY_AUTOCOMPLETE_ON_ENTER,
   KEY_AUTOCOMPLETE_ON_TAB,
   KEY_SHOW_SUGGESTION_FOOTER,
+  KEY_FALLBACK_LANGUAGE,
   KEY_HORIZONTAL_SUGGESTIONS,
   KEY_LANGUAGE,
   KEY_SELECT_BY_DIGIT,
@@ -73,6 +74,7 @@ const PREVIEW_OPTION_KEYS = [
   KEY_HORIZONTAL_SUGGESTIONS,
   KEY_SHOW_SUGGESTION_FOOTER,
   KEY_LANGUAGE,
+  KEY_FALLBACK_LANGUAGE,
 ];
 function previewCanvasContext(): CanvasRenderingContext2D | null {
   try {
@@ -493,7 +495,18 @@ export class AppearanceStudio {
       i18n.get("appearance_sample_three"),
     ];
     const showShortcutDigits = setting(KEY_SELECT_BY_DIGIT) === true;
-    const languageName = SUPPORTED_LANGUAGES[String(setting(KEY_LANGUAGE))];
+    // Auto-detect always predicts in a concrete language, falling back to the
+    // fallback language while unsure: show that, never "Auto detect".
+    const text = (key: string) => {
+      const value = setting(key);
+      return typeof value === "string" ? value : "";
+    };
+    const language = text(KEY_LANGUAGE);
+    const concrete =
+      language === "auto_detect"
+        ? text(KEY_FALLBACK_LANGUAGE) || "en_US" // The settings' default fallback.
+        : language;
+    const languageName = concrete !== "auto_detect" ? SUPPORTED_LANGUAGES[concrete] : undefined;
     // The footer (key hints and language) is off unless turned on.
     const showFooter = setting(KEY_SHOW_SUGGESTION_FOOTER) === true;
     return buildSuggestionPanelHtml({
