@@ -246,6 +246,9 @@ export class LocalAiHost {
   }
 
   private async installModel(tier: LocalAiModelTier): Promise<void> {
+    // One install at a time (two options pages can both click Install): the first one owns
+    // the shared install state until it reports; cancel it to install something else.
+    if (this.installing) return;
     const record = localAiModelForTier(tier);
     const modelId = record.modelId;
     this.fatal = false;

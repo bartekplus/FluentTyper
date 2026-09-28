@@ -527,6 +527,19 @@ describe("LocalAiHost lifecycle", () => {
     expect(runtimes).not.toContain("download-required");
   });
 
+  test("an install arriving while another runs is ignored", async () => {
+    const { background, upStates } = makeHost({
+      "cache-state": () => ({ install: "none" }),
+      install: () => new Promise(() => undefined),
+    });
+    await flush(5);
+    background.emit({ type: "install", tier: "standard" });
+    await flush(5);
+    background.emit({ type: "install", tier: "compact" });
+    await flush(5);
+    expect(upStates().at(-1)).toMatchObject({ runtime: "downloading", modelId: STANDARD.modelId });
+  });
+
   test("install streams numeric progress; cancel tears down and reports download-cancelled", async () => {
     const { background, workers, upStates } = makeHost({
       "cache-state": () => ({ install: "none" }),
