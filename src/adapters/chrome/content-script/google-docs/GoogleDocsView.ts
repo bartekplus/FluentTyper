@@ -86,7 +86,11 @@ export class GoogleDocsView {
   private readonly presenter = new SuggestionMenuPresenter(new DocsPositioning());
   private readonly live = document.createElement("div");
   private readonly font = document.createElement("div");
-  private readonly labels = LABELS[(navigator.language || "en").split(/[-_]/)[0]] ?? LABELS.en;
+  /** In the "Extension UI Language" (the browser's when not set), like the key hints. */
+  private get labels(): (typeof LABELS)[string] {
+    const language = this.options.uiLanguage || navigator.language || "en";
+    return LABELS[language.split(/[-_]/)[0].toLowerCase()] ?? LABELS.en;
+  }
   private target: HTMLElement | null = null;
   constructor(
     private readonly options: {

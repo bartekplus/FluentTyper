@@ -19,7 +19,11 @@ function mountCaret(): HTMLElement {
 function renderDocs(
   typed: string,
   candidate: string,
-  { inline = true, snippetShortcut = null as string | null } = {},
+  {
+    inline = true,
+    snippetShortcut = null as string | null,
+    uiLanguage = undefined as string | undefined,
+  } = {},
 ): GoogleDocsView {
   const view = new GoogleDocsView({
     inline,
@@ -27,6 +31,7 @@ function renderDocs(
     horizontal: false,
     acceptKeys: undefined,
     showFooter: false,
+    uiLanguage,
     findToken: () => ({ token: typed }),
     accept: () => undefined,
   });
@@ -104,5 +109,14 @@ describe("GoogleDocsView inline ghost guard", () => {
 
     expect(menu.getAttribute("data-ft-placement")).toBe("above");
     expect(view.isReversed()).toBe(false);
+  });
+
+  test("labels the popup in the Extension UI Language, not the browser's", () => {
+    caret = mountCaret();
+    view = renderDocs("adr", "123 Main Street", { inline: false, uiLanguage: "de_DE" });
+    const menu = document.getElementById(SuggestionMenuView.resolveHostId(DOCS_SESSION_ID));
+    expect(SuggestionMenuView.resolvePanel(menu as HTMLDivElement).getAttribute("aria-label")).toBe(
+      "FluentTyper-Vorschläge",
+    );
   });
 });

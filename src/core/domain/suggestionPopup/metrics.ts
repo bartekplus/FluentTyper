@@ -29,10 +29,16 @@ export const NEUTRAL_THEME_SCALE: SuggestionPopupThemeScale = {
  * for, and clamped, so they nudge the popup's sizes rather than set them.
  */
 export const THEME_SCALE_REFERENCES = {
-  fontSize: { reference: "0.9rem", min: 0.85 },
-  paddingVertical: { reference: "0.6rem", min: 0.75 },
-  paddingHorizontal: { reference: "0.8rem", min: 0.75 },
+  fontSize: { reference: "0.9rem", min: 0.85, property: "font-size" },
+  paddingVertical: { reference: "0.6rem", min: 0.75, property: "padding-top" },
+  paddingHorizontal: { reference: "0.8rem", min: 0.75, property: "padding-left" },
 } as const;
+
+/** Resolves a CSS length to px for the CSS `property` it is used as; null when it can't. */
+export type CssLengthResolver = (
+  value: string,
+  property: (typeof THEME_SCALE_REFERENCES)[keyof SuggestionPopupThemeScale]["property"],
+) => number | null;
 const THEME_SCALE_MAX = 1.2;
 
 export function themeScaleFor(
@@ -63,16 +69,20 @@ export function parseCssLengthPx(
   return Number.parseFloat(match[1]) * unitPx;
 }
 
-/** The popup's theme scale from Appearance values written in px, rem or em. */
+/**
+ * The popup's theme scale from Appearance values. px, rem and em are read
+ * directly; pass `resolveLength` (the browser) for any other CSS length, as the
+ * popup on web pages does.
+ */
 export function themeScaleFromValues(
   values: Record<keyof SuggestionPopupThemeScale, string>,
+  resolveLength: CssLengthResolver = (value) => parseCssLengthPx(value),
 ): SuggestionPopupThemeScale {
-  const scale = (key: keyof SuggestionPopupThemeScale) =>
-    themeScaleFor(
-      parseCssLengthPx(values[key]),
-      parseCssLengthPx(THEME_SCALE_REFERENCES[key].reference),
-      THEME_SCALE_REFERENCES[key].min,
-    );
+  const scale = (key: keyof SuggestionPopupThemeScale) => {
+    const { reference, min, property } = THEME_SCALE_REFERENCES[key];
+    const toPx = (value: string) => parseCssLengthPx(value) ?? resolveLength(value, property);
+    return themeScaleFor(toPx(values[key]), toPx(reference), min);
+  };
   return {
     fontSize: scale("fontSize"),
     paddingVertical: scale("paddingVertical"),

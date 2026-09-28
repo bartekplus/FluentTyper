@@ -82,6 +82,32 @@ function previewCanvasContext(): CanvasRenderingContext2D | null {
   }
 }
 
+/**
+ * Any CSS length (vw, %, calc(), ...) in px, measured the way the popup on web
+ * pages measures theme sizes: on a hidden probe in a 16px, unsized container.
+ */
+function measurePreviewLengthPx(value: string, property: string): number | null {
+  const root = document.body ?? document.documentElement;
+  if (!root) {
+    return null;
+  }
+  const container = document.createElement("div");
+  container.style.position = "absolute";
+  container.style.visibility = "hidden";
+  container.style.pointerEvents = "none";
+  container.style.fontSize = `${PREVIEW_TEXT_FONT_SIZE_PX}px`;
+  const probe = document.createElement("div");
+  probe.style.setProperty(property, value);
+  container.appendChild(probe);
+  root.appendChild(container);
+  try {
+    const px = Number.parseFloat(window.getComputedStyle(probe).getPropertyValue(property));
+    return Number.isFinite(px) ? px : null;
+  } finally {
+    container.remove();
+  }
+}
+
 /** Page text the preview sizes the popup for: 16px on a 1.4 line. */
 const PREVIEW_TEXT_FONT_SIZE_PX = 16;
 const PREVIEW_TEXT_LINE_HEIGHT_PX = 22.4;
@@ -508,11 +534,14 @@ export class AppearanceStudio {
     const sizeVars = computeSuggestionPopupStyleVars({
       fontSizePx: PREVIEW_TEXT_FONT_SIZE_PX,
       lineHeightPx: PREVIEW_TEXT_LINE_HEIGHT_PX,
-      themeScale: themeScaleFromValues({
-        fontSize: theme[KEY_SUGGESTION_FONT_SIZE],
-        paddingVertical: theme[KEY_SUGGESTION_PADDING_VERTICAL],
-        paddingHorizontal: theme[KEY_SUGGESTION_PADDING_HORIZONTAL],
-      }),
+      themeScale: themeScaleFromValues(
+        {
+          fontSize: theme[KEY_SUGGESTION_FONT_SIZE],
+          paddingVertical: theme[KEY_SUGGESTION_PADDING_VERTICAL],
+          paddingHorizontal: theme[KEY_SUGGESTION_PADDING_HORIZONTAL],
+        },
+        measurePreviewLengthPx,
+      ),
       viewportWidthPx: window.innerWidth,
     });
     for (const [name, value] of Object.entries(sizeVars)) {
