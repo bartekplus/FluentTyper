@@ -447,6 +447,22 @@ export class ReviewController {
         toggleCategory: (category: ReviewCategory, shown) =>
           this.active?.session.setCategory(category, shown),
         navigate: (step) => this.navigate(step),
+        setMode: (mode) => this.active?.session.setMode(mode),
+        toggleAiPause: () => {
+          const session = this.active?.session;
+          const state = this.active?.state;
+          if (session && state) session.setAiPaused(state.ai.availability !== "paused");
+        },
+        aiSetup: () => this.active?.session.openAiSetup(),
+        aiDismissSetup: () => this.active?.session.dismissAiSetup(),
+        setRewriteStyle: (style) => this.active?.session.setRewriteStyle(style),
+        setRewriteContext: (hint) => this.active?.session.setRewriteContext(hint),
+        generateRewrite: () => this.active?.session.generateRewrite(),
+        cancelRewrite: () => this.active?.session.cancelRewrite(),
+        applyRewrite: () => void this.active?.session.applyRewrite(),
+        previewAiBatch: () => this.active?.session.previewAiBatch(),
+        applyAiBatch: () => void this.active?.session.applyAiBatch(),
+        cancelAiBatch: () => this.active?.session.cancelAiBatch(),
       },
       capabilityKeys,
       reviewMountFor(target.element),
@@ -828,6 +844,18 @@ const NOTICE_CALLBACKS: ReviewUiCallbacks = {
   fixAll: () => {},
   toggleCategory: () => {},
   navigate: () => {},
+  setMode: () => {},
+  toggleAiPause: () => {},
+  aiSetup: () => {},
+  aiDismissSetup: () => {},
+  setRewriteStyle: () => {},
+  setRewriteContext: () => {},
+  generateRewrite: () => {},
+  cancelRewrite: () => {},
+  applyRewrite: () => {},
+  previewAiBatch: () => {},
+  applyAiBatch: () => {},
+  cancelAiBatch: () => {},
 };
 
 /** How often an open review checks for changes that fire no event. */

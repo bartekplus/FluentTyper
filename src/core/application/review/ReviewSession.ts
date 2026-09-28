@@ -33,6 +33,8 @@ import type {
   TextRange,
 } from "@core/domain/grammar/review/types";
 import { REVIEW_CATEGORIES, REVIEW_SPELLING_CHECK } from "@core/domain/grammar/review/types";
+import type { AiBatchPreview, ReviewAiViewState, ReviewMode, RewriteViewState } from "./reviewAi";
+import type { EditorContextHint, RewriteStyle } from "@core/domain/grammar/review/ai/types";
 import {
   rankSpellingSuggestions,
   spellingCandidates,
@@ -142,7 +144,28 @@ export interface ReviewViewState {
   notice: ReviewNotice | null;
   /** The text the diagnostics' offsets refer to. */
   text: string;
+  /** Correct (default for every new review) or Rewrite (explicit). */
+  mode: ReviewMode;
+  /** Local AI state for this review, tracked apart from rule coverage. */
+  ai: ReviewAiViewState;
+  /** Rewrite panel state; null in Correct mode. */
+  rewrite: RewriteViewState | null;
+  /** Open "Apply selected AI corrections" preview, if any. */
+  aiBatch: AiBatchPreview | null;
 }
+
+const AI_OFF: ReviewAiViewState = {
+  availability: "off",
+  coverage: "idle",
+  status: null,
+  checkedChars: 0,
+  eligibleChars: 0,
+  skippedChars: 0,
+  findings: 0,
+  rejected: 0,
+  failure: null,
+  offerSetup: false,
+};
 
 export interface ReviewSessionDependencies {
   target: ReviewTargetPort;
@@ -452,8 +475,52 @@ export class ReviewSession {
       spelling: this.spelling,
       notice: this.notice,
       text: this.text,
+      mode: "correct",
+      ai: AI_OFF,
+      rewrite: null,
+      aiBatch: null,
     };
   }
+
+  // ------------------------------------------------------- local AI (pre-wired)
+
+  setMode(mode: ReviewMode): void {
+    void mode;
+  }
+
+  setAiPaused(paused: boolean): void {
+    void paused;
+  }
+
+  openAiSetup(): void {}
+
+  dismissAiSetup(): void {}
+
+  setRewriteStyle(style: RewriteStyle): void {
+    void style;
+  }
+
+  setRewriteContext(hint: EditorContextHint): void {
+    void hint;
+  }
+
+  generateRewrite(): void {}
+
+  cancelRewrite(): void {}
+
+  applyRewrite(): Promise<ReviewApplyResult | null> {
+    return Promise.resolve(null);
+  }
+
+  previewAiBatch(ids?: readonly string[]): void {
+    void ids;
+  }
+
+  applyAiBatch(): Promise<ReviewApplyResult | null> {
+    return Promise.resolve(null);
+  }
+
+  cancelAiBatch(): void {}
 
   // ------------------------------------------------------------------ internals
 

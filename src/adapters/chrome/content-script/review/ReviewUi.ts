@@ -8,6 +8,8 @@ import {
   type ReviewDiagnostic,
 } from "@core/domain/grammar/review/types";
 import { REVIEW_SHADOW_CSS, createOverlayHost, enterTopLayer } from "./reviewStyles";
+import type { ReviewMode } from "@core/application/review/reviewAi";
+import type { EditorContextHint, RewriteStyle } from "@core/domain/grammar/review/ai/types";
 
 export interface ReviewUiCallbacks {
   close(): void;
@@ -19,6 +21,20 @@ export interface ReviewUiCallbacks {
   fixAll(viaKeyboard: boolean): void;
   toggleCategory(category: ReviewCategory, shown: boolean): void;
   navigate(step: 1 | -1): void;
+  // Local AI (see src/core/application/review/reviewAi.ts)
+  setMode(mode: ReviewMode): void;
+  toggleAiPause(): void;
+  /** Opens the extension's Local AI setup page (explicit consent happens there). */
+  aiSetup(): void;
+  aiDismissSetup(): void;
+  setRewriteStyle(style: RewriteStyle): void;
+  setRewriteContext(hint: EditorContextHint): void;
+  generateRewrite(): void;
+  cancelRewrite(): void;
+  applyRewrite(viaKeyboard: boolean): void;
+  previewAiBatch(): void;
+  applyAiBatch(viaKeyboard: boolean): void;
+  cancelAiBatch(): void;
 }
 
 export interface ReviewMark {
