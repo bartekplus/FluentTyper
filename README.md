@@ -23,10 +23,11 @@ Type less, do more. FluentTyper brings smart autocomplete, spell checking, and t
 FluentTyper helps you write faster and with fewer mistakes:
 
 - Predictive autocomplete while typing
-- Local prediction with libPresage (WebLLM path is currently dev/debug-only)
+- Local prediction with libPresage (autocomplete never uses an AI model in store builds)
 - Spelling suggestions
 - Offline [measurement-unit spacing](docs/measurement-formatting.md) in verified prose contexts
 - Offline [Review text](docs/review-mode.md): proofread a field you already wrote, with categorized highlights, one-click fixes and "Fix all safe" (`Alt+Shift+R`)
+- Optional [Local AI in Review](docs/review-mode.md#local-ai-optional) (Chrome and Edge): an on-device model adds context-aware corrections and, only when you ask, rewrites in a style you pick. It downloads once after you set it up, then runs offline; your text never leaves the device
 - Text expansion snippets for repeated phrases
 - Keyboard-first suggestion selection with arrow keys and `Tab`
 
@@ -81,14 +82,16 @@ Google Docs support activates on any document edit page when FluentTyper is enab
 
 If you hit an unsupported site, please open a bug report so compatibility can be improved.
 
-## AI Predictor (WebLLM, Dev/Debug Only)
+## Local AI (WebLLM)
 
-WebLLM is currently available only in development/debug builds.
-
-- Production store builds (Chrome, Firefox, Edge) currently run libPresage-only.
-- The AI predictor toggle is not exposed to end users in production builds.
-- In dev/debug builds, WebLLM can run in parallel with Presage and falls back automatically when unavailable.
-- In dev/debug builds, first AI use downloads model artifacts once; subsequent runs use browser cache.
+- **Autocomplete** is Presage-only in every store build (Chrome, Firefox, Edge). The AI
+  autocomplete predictor is a developer experiment: dev builds only, off unless switched on.
+- **Review** can use an optional on-device model on Chrome and Edge (WebGPU). It is set up
+  explicitly under **Settings → Grammar → Local AI**, which shows the download size first;
+  nothing is downloaded before that. The model runs in the extension's own worker, never in
+  the page, and never while you type. Firefox keeps the rule-based Review. See
+  [docs/review-mode.md](docs/review-mode.md#local-ai-optional) and the design note
+  [docs/local-ai-review.md](docs/local-ai-review.md).
 
 ## Privacy
 
@@ -98,7 +101,10 @@ FluentTyper is privacy-first:
 - Works offline
 - Predictions are generated locally on your computer
 - Review text checks the field in the page itself; the reviewed text is never uploaded, logged or stored
-- In dev/debug builds, when AI predictor is enabled, only model artifacts are downloaded; typed content stays local
+- Local AI in Review runs on your device. Setting it up downloads model files once from
+  Hugging Face (which sees ordinary connection data such as your IP address and which files
+  are requested, never your text); after that it works offline. Prompts, reviewed text and
+  results are kept in memory only while a review is open
 
 ## Development Setup
 

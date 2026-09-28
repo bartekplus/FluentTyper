@@ -92,7 +92,7 @@ Note that `teh` inside the code span, the bold text and the link are untouched.
 - The panel takes focus when a review starts (except in Google Docs, which
   needs its own focus). **Tab** moves through the panel. Arrow keys move
   through the list. **Enter** or **Space** opens the card for a finding.
-- **Escape** closes the card first, then the review. Focus returns to the editor.
+- **Escape** closes an open Local AI preview first, then the card, then the review. Focus returns to the editor.
 - Pressing the shortcut again while the panel has focus keeps the review.
 - In the editor, review never captures **Tab** or **Enter**.
 
@@ -234,6 +234,65 @@ A finding whose fix depends on context another fix changes is batched only
 when re-detection proves both still hold together. Otherwise both are left
 for individual review. A fix that would create a new finding is never chained:
 the new finding appears on the recheck.
+
+## Local AI (optional)
+
+On Chrome and Edge, Review can also use a small language model that runs on your
+device (WebGPU). It is off until you set it up, and basic Review works the same with or
+without it. It never runs while you type: suggestions and autocomplete stay Presage-only.
+
+**Setting it up.** The first review offers "Set up local AI…" once (with the download
+size), or open **Settings → Grammar → Local AI**. There you choose **Standard** or
+**Higher quality**, see the download size and an estimate of GPU memory, and press
+**Download and enable**, which asks you to confirm first. The model files come from
+Hugging Face once, from a pinned revision; the model's executable code ships inside the
+extension. After that it works offline. **Delete model** frees the disk space; nothing is
+downloaded again until you press Download. Turning the switch off keeps the model but
+stops using it. On a browser or device that cannot run it (no WebGPU, no 16-bit float
+shader support, Firefox), the settings say why and Review never asks again.
+
+**Correct (the default).** When a review opens, the rule and dictionary results appear
+first, as always. Then the model checks the scope in the background, a paragraph at a
+time ("Checking context locally…"), and adds what it finds to the same list, tagged
+**Local AI**. It is asked to fix clear spelling, grammar and punctuation mistakes only,
+not to polish or rephrase, and every proposal is checked before it is shown:
+
+- only the reviewed scope is sent, with at most a few hundred characters of nearby text
+  from the same field as read-only context; code, URLs, e-mail addresses, paths and other
+  protected text are never editable (they are sent, at most, as opaque markers);
+- a proposal is dropped if it changes a number, a name, a technical token, a negation
+  ("not", "never"…), a hedge ("may", "maybe"…), quoted text, or line breaks, or if it
+  swaps words for synonyms or rewrites more than a correction needs;
+- the changes in one sentence form one fix, so a subject/verb pair is applied together;
+- a proposal identical to a rule's fix is shown once (as the rule's), and one that
+  overlaps a rule's finding is left out.
+
+Local AI fixes are **never part of Fix all safe**. Apply them one at a time from the card,
+or with **Apply selected AI corrections**, which first previews the combined change (and
+leaves out fixes that overlap each other) and applies it only when you confirm; that
+button appears only where the editor supports verified multi-edit writes. The panel says
+whether the Local AI check is running, complete, partial (for example text over its size
+limit or a paragraph that failed), paused, or did not finish; "No issues found" never
+claims more than the checks that actually ran. **Pause** stops it for this review. If
+you edit the text, results are dropped and the check reruns after a pause (a paragraph
+whose text and surrounding context are unchanged is not checked again).
+
+**Rewrite (only when you ask).** Switch the panel to **Rewrite**, choose a style (**Keep
+my voice** by default, Professional, Friendly, Concise, Clearer, or Context-aware, which
+shows the style it picked and lets you say whether you are writing a chat message, an
+e-mail or something general) and press **Generate**. You get one proposal for the
+selection or field, shown as a before/after diff. Nothing changes until you press
+**Apply**, which is enabled only for a complete proposal that passed the same fact checks
+(numbers, names, technical tokens, negation, certainty) and adds no promise, deadline,
+apology or greeting you did not write. Editing the text makes the proposal stale.
+Rewrite works on up to about 2,000 characters; select a passage for longer text. In a
+review-only editor there is no Apply: **Copy** puts the proposal on the clipboard when you
+click it. Every new review starts in Correct.
+
+**Privacy.** The text goes from the page's content script to the extension's own
+offscreen document and worker and back, bound to that tab and review; it is never
+uploaded, logged or stored, and the model's conversation is reset between requests.
+Nothing is downloaded or loaded before you set it up.
 
 ## What is protected
 

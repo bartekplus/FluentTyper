@@ -16,11 +16,23 @@ FluentTyper is designed with privacy as a core principle:
 - All text predictions run locally (Presage WASM engine)
 - No typed content is uploaded or transmitted
 - Works fully offline
-- Minimal browser permissions: `storage` and `activeTab` only
+- Minimal browser permissions: `storage` and `activeTab`, plus `offscreen` on Chrome and
+  Edge (it hosts the optional Local AI model's worker; no install warning, no page access)
 - Host permissions are opt-in per site
-- Content Security Policy: `script-src 'self' 'wasm-unsafe-eval'; object-src 'self'`
+- Content Security Policy: `script-src 'self' 'wasm-unsafe-eval'; object-src 'self'`; on
+  Chrome and Edge, `connect-src` is limited to the extension itself and the Hugging Face
+  origins that serve the optional model's data files
 
-In development/debug builds, the WebLLM predictor downloads model artifacts only. Typed content never leaves the device.
+**Optional Local AI in Review (Chrome, Edge).** Inference runs on the device (WebGPU) in an
+extension worker. The model's executable libraries ship inside the extension and are
+checked by hash; only model weights, tokenizer and configuration are downloaded, from a
+pinned revision, after the user's explicit setup action. Reviewed text, prompts and model
+output are never uploaded, logged or persisted; they live in memory for the open review.
+Model output is treated as untrusted data: it is parsed strictly, validated against the
+original text, rendered as text, and applied only through the user's explicit action and
+the existing verified editor write. Autocomplete never uses the model. GPU and operating
+system memory are not cryptographically erased; the engine is unloaded after an idle
+interval and conversation state is reset between jobs.
 
 ## Reporting a Vulnerability
 
