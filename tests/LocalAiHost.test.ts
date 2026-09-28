@@ -410,6 +410,38 @@ describe("LocalAiHost lifecycle", () => {
     expect(host.state().error).toBeUndefined();
   });
 
+  test("cancelling the only job during a cold load abandons the load, not as a failure", async () => {
+    const { review, host, count } = makeHost({ load: never }, { loadTimeoutMs: 60_000 });
+    const port = review();
+    await flush();
+    port.emit({ type: "generate", requestId: "r1", request: request("x") });
+    await flush(5);
+    expect(count("load")).toBe(1);
+    port.emit({ type: "cancel", requestId: "r1" });
+    await flush(5);
+    expect(count("unload")).toBeGreaterThan(0);
+    expect(port.results()).toEqual([
+      expect.objectContaining({ outcome: { ok: false, error: "cancelled" } }),
+    ]);
+    expect(host.state().error).toBeUndefined();
+  });
+
+  test("a load that succeeds after a failed one clears the load error", async () => {
+    let fail = true;
+    const { review, host } = makeHost({
+      load: async () => (fail ? { ok: false, error: "load-failed" } : { ok: true }),
+    });
+    const port = review();
+    await flush();
+    port.emit({ type: "generate", requestId: "r1", request: request("x") });
+    await flush(5);
+    expect(host.state().error).toBe("load-failed");
+    fail = false;
+    port.emit({ type: "generate", requestId: "r2", request: request("y") });
+    await flush(5);
+    expect(host.state().error).toBeUndefined();
+  });
+
   test("model loads that keep failing end in error instead of retrying", async () => {
     const { review, host, count } = makeHost({
       load: async () => ({ ok: false, error: "load-failed" }),

@@ -594,11 +594,14 @@ export class LocalAiHost {
       this.activity = "idle";
       this.progress = undefined;
       if (!result.ok) {
+        // A load abandoned for a cancel is not a failure (the job was already answered).
+        if (job.cancelled) return;
         this.onLoadFailure(result);
         this.deliver(job, { ok: false, error: loadFailureCode(result) });
         return;
       }
       this.loadedModelId = modelId;
+      if (this.error === "load-failed") this.error = undefined;
     }
     if (job.cancelled) {
       return;
@@ -616,22 +619,30 @@ export class LocalAiHost {
     this.deliver(job, outcome);
   }
 
-  /** A load that never finishes is abandoned, so the queue never waits forever. */
+  /**
+   * A load that never finishes is abandoned, so the queue never waits forever. So is
+   * one whose only job was cancelled (or whose port left) while nothing else waits.
+   */
   private async loadModel(modelId: string): Promise<LoadResult> {
     let timer: ReturnType<typeof setTimeout> | undefined;
-    const timedOut = new Promise<LoadResult>((resolve) => {
-      timer = setTimeout(() => {
+    const stopped = new Promise<LoadResult>((resolve) => {
+      const abandon = () => {
         this.dropEngine();
         resolve({ ok: false, error: "load-failed" });
-      }, this.options.loadTimeoutMs ?? DEFAULT_LOAD_TIMEOUT_MS);
+      };
+      timer = setTimeout(abandon, this.options.loadTimeoutMs ?? DEFAULT_LOAD_TIMEOUT_MS);
+      this.interruptRunning = () => {
+        if (this.scheduler.pending === 0) abandon();
+      };
     });
     try {
       return await Promise.race([
         this.engine.load(modelId, (_phase, progress) => this.setProgress(progress)),
-        timedOut,
+        stopped,
       ]);
     } finally {
       clearTimeout(timer);
+      this.interruptRunning = null;
     }
   }
 
