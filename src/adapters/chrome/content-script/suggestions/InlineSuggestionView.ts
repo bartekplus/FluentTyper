@@ -631,12 +631,19 @@ export class InlineSuggestionView {
   }
 
   static removeForEntry(entryId: number | undefined, doc: Document = document): void {
-    const entryFilter = entryId === undefined ? "" : `[${ENTRY_ID_ATTR}="${entryId}"]`;
     doc
-      .querySelectorAll(
-        `[${InlineSuggestionView.OWNED_ATTR}="true"][${InlineSuggestionView.ROLE_ATTR}="${InlineSuggestionView.INLINE_ROLE}"]${entryFilter}`,
-      )
+      .querySelectorAll(InlineSuggestionView.selectorForEntry(entryId))
       .forEach((node) => node.remove());
+  }
+
+  /** A preview is drawn for this entry (an armed no-op completion draws none). */
+  static hasForEntry(entryId: number, doc: Document = document): boolean {
+    return doc.querySelector(InlineSuggestionView.selectorForEntry(entryId)) !== null;
+  }
+
+  private static selectorForEntry(entryId: number | undefined): string {
+    const entryFilter = entryId === undefined ? "" : `[${ENTRY_ID_ATTR}="${entryId}"]`;
+    return `[${InlineSuggestionView.OWNED_ATTR}="true"][${InlineSuggestionView.ROLE_ATTR}="${InlineSuggestionView.INLINE_ROLE}"]${entryFilter}`;
   }
 
   private static createOverlay(doc: Document, entryId: number | undefined): HTMLDivElement {

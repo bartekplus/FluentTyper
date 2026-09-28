@@ -7653,11 +7653,29 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         (p) => p.status === "No issues found by the review checks.",
       );
       await page.focus("#test-textarea");
-      // Live grammar is suspended in the reviewed editor, so "Teh" stays as typed.
+      // Suggestions keep working in the reviewed editor; Escape closes their
+      // popup first, then the review.
+      await page.keyboard.type(" h");
+      await waitForVisibleSuggestions(page);
+      await page.keyboard.press("Escape");
+      await waitForNoVisibleSuggestions(page);
+      expect((await readReviewPanel(page)).open).toBe(true);
+      await page.keyboard.press("Escape");
+      await waitForReview(page, "closed after popup", (p) => !p.open);
+
+      await setTextarea("Short.", [6, 6]);
+      await triggerReview(worker!);
+      await waitForReview(
+        page,
+        "clean again",
+        (p) => p.status === "No issues found by the review checks.",
+      );
+      await page.focus("#test-textarea");
       await page.keyboard.type(" Teh");
       await waitForReview(page, "recheck after typing", (p) => p.status === "Issues: 1");
       expect(await textareaValue()).toBe("Short. Teh");
-      await page.keyboard.press("Escape");
+      await clickReviewControl(page, "[data-action=close]");
+      await waitForReview(page, "closed", (p) => !p.open);
 
       // Marks follow the textarea's own scrolling.
       const lines = Array.from({ length: 30 }, (_, i) => `Line ${i} is fine.`).join("\n");

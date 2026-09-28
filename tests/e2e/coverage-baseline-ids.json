@@ -173,6 +173,7 @@
     "review_unknown_word_choice",
     "review_in_field_button",
     "review_runs_all_supported_rules",
+    "review_suggestions_coexist",
     "popup_first_suggestion_stays_at_caret",
     "popup_row_layout",
     "popup_footer_key_hints",

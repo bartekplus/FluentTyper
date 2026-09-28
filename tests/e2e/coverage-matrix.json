@@ -3219,6 +3219,32 @@
       ]
     },
     {
+      "id": "review_suggestions_coexist",
+      "description": "Suggestions and typing-time corrections keep working in the reviewed editor (Google Docs excepted) and pause only while the review writes a fix; Escape closes an open suggestion popup before the review.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review mode reviews only the selection, rechecks after edits, and follows scrolling"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "Escape closes an open suggestion popup first, not the review"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "suggestions pause only while a fix is written"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "closing a review in the middle of a write resumes suggestions"
+        }
+      ]
+    },
+    {
       "id": "popup_first_suggestion_stays_at_caret",
       "description": "The suggestion popup keeps its first suggestion next to the caret: a popup above the caret lists bottom-up, keeps its side per caret line, and arrow keys follow screen order.",
       "coverage": [

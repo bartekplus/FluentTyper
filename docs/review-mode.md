@@ -48,8 +48,11 @@ What gets reviewed:
 - In a modal dialog the review opens inside the dialog, so it stays usable.
 
 Starting a review changes nothing: not the text, formatting, selection,
-settings or learning data. While a review is open, typing-time corrections
-and suggestions pause for that editor, and resume when it closes.
+settings or learning data. Suggestions and typing-time corrections keep
+working while a review is open; the review rechecks once you pause typing.
+They pause only while the review writes a fix. Escape closes an open
+suggestion popup first, then the card, then the review. In Google Docs,
+typing-time corrections and suggestions still pause for the whole review.
 
 ### Highlights and the card
 

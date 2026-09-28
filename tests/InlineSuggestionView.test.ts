@@ -1045,4 +1045,21 @@ describe("InlineSuggestionView", () => {
     expect(remaining.length).toBe(1);
     expect(remaining[0]!.textContent).toBe("bbb");
   });
+
+  test("hasForEntry reports only a drawn preview for that entry", () => {
+    const caretRect = { left: 0, top: 0, width: 0, height: 16 } as DOMRect;
+    InlineSuggestionView.removeAll(document);
+    expect(InlineSuggestionView.hasForEntry(1, document)).toBe(false);
+    InlineSuggestionView.render({
+      target: document.body,
+      text: "aaa",
+      caretRect,
+      entryId: 1,
+      doc: document,
+    });
+    expect(InlineSuggestionView.hasForEntry(1, document)).toBe(true);
+    expect(InlineSuggestionView.hasForEntry(2, document)).toBe(false);
+    InlineSuggestionView.removeForEntry(1, document);
+    expect(InlineSuggestionView.hasForEntry(1, document)).toBe(false);
+  });
 });

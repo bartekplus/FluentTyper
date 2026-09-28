@@ -967,9 +967,10 @@ describe("review controller lifecycle", () => {
     throw new Error("condition not reached");
   }
 
-  function controller(uiLanguage: string | (() => string) = "en") {
+  function controller(uiLanguage: string | (() => string) = "en", suggestionsOpen = () => false) {
     const suspend = jest.fn();
     const resume = jest.fn();
+    const onActiveChange = jest.fn();
     const review = new ReviewController({
       getOptions: () => ({
         lang: "en_US",
@@ -979,11 +980,13 @@ describe("review controller lifecycle", () => {
       }),
       suspend,
       resume,
+      suggestionsOpen,
+      onActiveChange,
       addToDictionary: async () => true,
       getDocsSurface: () => null,
       uiLanguage,
     });
-    return { review, suspend, resume };
+    return { review, suspend, resume, onActiveChange };
   }
 
   const root = () => document.querySelector("[data-fluenttyper-review]")?.shadowRoot ?? null;
@@ -1032,10 +1035,11 @@ describe("review controller lifecycle", () => {
 
   test("invoke reads only, shows results, and Escape restores everything", async () => {
     const field = textarea("We saw teh cat.");
-    const { review, suspend, resume } = controller();
+    const { review, suspend } = controller();
     review.invoke();
     expect(field.value).toBe("We saw teh cat.");
-    expect(suspend).toHaveBeenCalledWith(field);
+    // Suggestions keep working while a review is open.
+    expect(suspend).not.toHaveBeenCalled();
     await until(() => root()?.querySelector(".status")?.textContent === "Issues: 1");
     expect(root()!.querySelector(".item .change")?.textContent).toBe("teh \u2192 the");
     // No CSS Custom Highlight API here: the overlay path is used and nothing is registered.
@@ -1045,12 +1049,58 @@ describe("review controller lifecycle", () => {
       .KeyboardEvent;
     field.dispatchEvent(new KeyboardEventCtor("keydown", { key: "Escape", bubbles: true }));
     expect(review.isActive).toBe(false);
-    expect(resume).toHaveBeenCalledWith(field);
     expect(root()).toBeNull();
     // Listeners are gone: edits after closing are not observed.
     field.value = "changed";
     field.dispatchEvent(new Event("input"));
     expect(field.value).toBe("changed");
+  });
+
+  test("Escape closes an open suggestion popup first, not the review", async () => {
+    const field = textarea("We saw teh cat.");
+    let popup = true;
+    const { review } = controller("en", () => popup);
+    review.invoke();
+    await until(() => root()?.querySelector(".status")?.textContent === "Issues: 1");
+    const KeyboardEventCtor = (window as unknown as { KeyboardEvent: typeof KeyboardEvent })
+      .KeyboardEvent;
+    const escape = () =>
+      field.dispatchEvent(
+        new KeyboardEventCtor("keydown", { key: "Escape", bubbles: true, cancelable: true }),
+      );
+    expect(escape()).toBe(true);
+    expect(review.isActive).toBe(true);
+    popup = false;
+    expect(escape()).toBe(false);
+    expect(review.isActive).toBe(false);
+  });
+
+  test("suggestions pause only while a fix is written", async () => {
+    const field = textarea("We saw teh cat.");
+    const { review, suspend, resume } = controller();
+    review.invoke();
+    await until(() => root()?.querySelector(".status")?.textContent === "Issues: 1");
+    expect(suspend).not.toHaveBeenCalled();
+    root()!.querySelector<HTMLElement>(".item")!.click();
+    root()!.querySelector<HTMLElement>(".card [data-action=apply]")!.click();
+    expect(suspend).toHaveBeenCalledWith(field);
+    expect(resume).not.toHaveBeenCalled();
+    await until(() => resume.mock.calls.length === 1);
+    expect(resume).toHaveBeenCalledWith(field);
+    review.close();
+  });
+
+  test("closing a review in the middle of a write resumes suggestions", async () => {
+    const field = textarea("We saw teh cat.");
+    const { review, suspend, resume } = controller();
+    review.invoke();
+    await until(() => root()?.querySelector(".status")?.textContent === "Issues: 1");
+    root()!.querySelector<HTMLElement>(".item")!.click();
+    root()!.querySelector<HTMLElement>(".card [data-action=apply]")!.click();
+    expect(suspend).toHaveBeenCalledWith(field);
+    review.close();
+    expect(resume).toHaveBeenCalledTimes(1);
+    expect(resume).toHaveBeenCalledWith(field);
   });
 
   test("editing invalidates at once; results come back after the pause", async () => {
@@ -1068,10 +1118,10 @@ describe("review controller lifecycle", () => {
 
   test("invoking again on the same editor focuses the panel instead of restarting", async () => {
     textarea("teh");
-    const { review, suspend } = controller();
+    const { review, onActiveChange } = controller();
     review.invoke();
     review.invoke();
-    expect(suspend).toHaveBeenCalledTimes(1);
+    expect(onActiveChange).toHaveBeenCalledTimes(1);
     expect(document.querySelectorAll("[data-fluenttyper-review]")).toHaveLength(1);
     review.close();
   });
@@ -1079,7 +1129,7 @@ describe("review controller lifecycle", () => {
   test("invoking again after the selection was lost starts a new review", async () => {
     const field = textarea("Outside teh. Inside teh.");
     field.setSelectionRange(13, 24);
-    const { review, suspend } = controller();
+    const { review, onActiveChange } = controller();
     review.invoke();
     const status = () => root()?.querySelector(".status")?.textContent;
     await until(() => status() === "Issues: 1");
@@ -1092,7 +1142,8 @@ describe("review controller lifecycle", () => {
     // The shortcut again reviews the field anew instead of focusing a dead panel.
     field.setSelectionRange(0, 0);
     review.invoke();
-    expect(suspend).toHaveBeenCalledTimes(2);
+    // Closed once, then opened again.
+    expect(onActiveChange).toHaveBeenCalledTimes(3);
     await until(() => status() === "Issues: 2");
     expect(stale).not.toBe(status());
     review.close();
@@ -1214,11 +1265,12 @@ describe("adversarial review regressions", () => {
 
   test("pressing the shortcut again from the panel keeps the review", async () => {
     textarea("We saw teh cat.");
-    const suspend = jest.fn();
+    const onActiveChange = jest.fn();
     const review = new ReviewController({
       getOptions: options,
-      suspend,
+      suspend: jest.fn(),
       resume: jest.fn(),
+      onActiveChange,
       addToDictionary: async () => true,
       getDocsSurface: () => null,
       uiLanguage: "en",
@@ -1231,7 +1283,7 @@ describe("adversarial review regressions", () => {
     (hosts()[0].shadowRoot!.querySelector("[data-action=close]") as HTMLElement).focus();
     review.invoke();
     expect(review.isActive).toBe(true);
-    expect(suspend).toHaveBeenCalledTimes(1);
+    expect(onActiveChange).toHaveBeenCalledTimes(1);
     expect(hosts()).toHaveLength(1);
     review.close();
   });
