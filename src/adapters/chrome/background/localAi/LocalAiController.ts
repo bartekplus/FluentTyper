@@ -204,6 +204,7 @@ export class LocalAiController {
       unavailable,
       error: hostDescribes ? host.error : undefined,
       progress: hostDescribes ? host.progress : undefined,
+      installing: hostDescribes && host.installing ? true : undefined,
       offerSetup: enabled && !consented && !dismissed && this.host !== null && !unavailable,
     };
   }

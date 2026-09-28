@@ -327,6 +327,18 @@ describe("Local AI settings section", () => {
     expect(localAiCommands()).toEqual([{ command: CMD_LOCAL_AI_CANCEL_INSTALL, context: {} }]);
   });
 
+  test("an install's GPU load keeps Cancel; a Review's load does not offer it", async () => {
+    const { card } = await renderOptions();
+    broadcast({ ...NOT_SET_UP, consented: true, runtime: "loading", installing: true });
+    sent.length = 0;
+    visibleButton(card, "Cancel download")!.click();
+    await flush();
+    expect(localAiCommands()).toEqual([{ command: CMD_LOCAL_AI_CANCEL_INSTALL, context: {} }]);
+
+    broadcast({ ...NOT_SET_UP, consented: true, install: "complete", runtime: "loading" });
+    expect(visibleButton(card, "Cancel download")).toBeUndefined();
+  });
+
   test("#local-ai opens the Grammar tab and focuses the section heading", async () => {
     window.location.hash = "#local-ai";
     const { card } = await renderOptions();

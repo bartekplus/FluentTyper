@@ -187,7 +187,7 @@ describe("LocalAiController authorization", () => {
     expect(state.consent).toMatchObject({ modelId: STANDARD.modelId, tier: "standard" });
     expect(response).toMatchObject({
       ok: true,
-      status: { consented: true, runtime: "downloading" },
+      status: { consented: true, runtime: "downloading", installing: true },
     });
     await flush();
     expect(engineCalls).toContain("probe");

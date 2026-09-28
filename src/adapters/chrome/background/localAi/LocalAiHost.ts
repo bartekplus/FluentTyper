@@ -52,6 +52,7 @@ export interface HostState {
   unavailable?: LocalAiUnavailableReason;
   error?: LocalAiErrorCode;
   progress?: number;
+  installing: boolean;
 }
 
 interface LocalAiHostOptions {
@@ -177,7 +178,15 @@ export class LocalAiHost {
 
   state(): HostState {
     const { runtime, install, unavailable, error, progress } = this.status();
-    return { runtime, install, modelId: this.stateModelId, unavailable, error, progress };
+    return {
+      runtime,
+      install,
+      modelId: this.stateModelId,
+      unavailable,
+      error,
+      progress,
+      installing: this.installing,
+    };
   }
 
   // ------------------------------------------------------------ explicit actions

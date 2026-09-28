@@ -61,6 +61,8 @@ export interface LocalAiStatus {
   error?: LocalAiErrorCode;
   /** Stage progress for downloading/loading, 0..1. */
   progress?: number;
+  /** An explicit install is running (its load phase included): Cancel applies. */
+  installing?: boolean;
   /** The Review panel may show its one-time setup offer. */
   offerSetup: boolean;
 }

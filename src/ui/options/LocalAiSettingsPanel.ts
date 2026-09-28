@@ -97,6 +97,8 @@ function describeStatus(
       return {
         message: t("local_ai_status_loading"),
         progress: status.progress ?? 0,
+        // The install's own load can be cancelled; a Review's load cannot from here.
+        cancel: status.installing === true,
         modelChoice: true,
       };
   }
