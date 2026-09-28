@@ -497,6 +497,28 @@ describe("ReviewSession with Local AI: disagreeing with a check", () => {
   });
 });
 
+describe("ReviewSession with Local AI: agreeing with a check", () => {
+  test("an AI fix that includes a check's own fix is shown too (user report)", async () => {
+    const h = harness("All changes is saved teh same way.", {
+      rules: ["englishTypoWhitelistCorrection"],
+    });
+    h.ai.fix = (text) => text.replace("is saved teh", "are saved the");
+    await h.start();
+    const [check] = h.last().diagnostics.filter((d) => d.ruleId !== REVIEW_LOCAL_AI_CHECK);
+    expect(check.original).toBe("teh");
+    expect(h.aiFindings().map((d) => d.alternatives[0].preview)).toEqual(["are saved the"]);
+  });
+
+  test("an AI fix that contradicts a check's fix on part of its range is left out", async () => {
+    const h = harness("All changes is saved teh same way.", {
+      rules: ["englishTypoWhitelistCorrection"],
+    });
+    h.ai.fix = (text) => text.replace("is saved teh", "are saved ten");
+    await h.start();
+    expect(h.aiFindings()).toEqual([]);
+  });
+});
+
 describe("ReviewSession with Local AI: Rewrite", () => {
   const rewriteFix = (text: string, request: AiGenerationRequest) =>
     request.mode === "rewrite" ? text.replace("teh", "the").replace("She go ", "She goes ") : text;

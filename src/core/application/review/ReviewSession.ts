@@ -1462,9 +1462,11 @@ export class ReviewSession {
     const shown: ReviewDiagnostic[] = [];
     const extra = new Map<ReviewDiagnostic, ReviewDiagnostic["alternatives"]>();
     for (const finding of this.aiFindings) {
-      if (checks.some((d) => sameChange(d, finding))) continue;
+      if (checks.some((d) => sameChange(d, finding) || this.sameResult(finding, d))) continue;
       const overlapping = checks.filter((d) => rangesOverlap(d.range, finding.range));
-      if (overlapping.length === 0) {
+      if (overlapping.every((d) => this.includesCheckFix(finding, d))) {
+        // No overlap, or the AI fix makes each overlapping check's own fix and more
+        // ("is saved immediatly" -> "are saved immediately"): both can be offered.
         shown.push(finding);
         continue;
       }
@@ -1496,6 +1498,47 @@ export class ReviewSession {
     if (this.selectedId && !this.visibleDiagnostics().some((d) => d.id === this.selectedId)) {
       this.selectedId = null;
     }
+  }
+
+  /** The AI's text for its range, or null when its edits do not apply. */
+  private aiReplacement(finding: ReviewDiagnostic): string | null {
+    const replaced = applyEdits(this.text, finding.alternatives[0]?.edits ?? []);
+    if (replaced === null) return null;
+    return replaced.slice(
+      finding.range.start,
+      replaced.length - (this.text.length - finding.range.end),
+    );
+  }
+
+  /** Same range, same corrected text as one of the check's own fixes, however the edits are split. */
+  private sameResult(finding: ReviewDiagnostic, check: ReviewDiagnostic): boolean {
+    if (finding.range.start !== check.range.start || finding.range.end !== check.range.end) {
+      return false;
+    }
+    const aiText = this.aiReplacement(finding);
+    return check.alternatives.some(
+      (alternative) => !alternative.localAi && alternative.preview === aiText,
+    );
+  }
+
+  /**
+   * The AI finding's replacement contains one of the check's own corrections
+   * in the check's place, at the start or end of the AI's range. A check fix in
+   * the middle of a larger AI change is not matched: it stays excluded.
+   */
+  private includesCheckFix(finding: ReviewDiagnostic, check: ReviewDiagnostic): boolean {
+    const outer = finding.range;
+    if (check.range.start < outer.start || check.range.end > outer.end) return false;
+    const aiText = this.aiReplacement(finding);
+    if (aiText === null) return false;
+    const head = this.text.slice(outer.start, check.range.start);
+    const tail = this.text.slice(check.range.end, outer.end);
+    return check.alternatives.some(
+      (alternative) =>
+        !alternative.localAi &&
+        (aiText.startsWith(head + alternative.preview) ||
+          aiText.endsWith(alternative.preview + tail)),
+    );
   }
 
   private scopeText(): string {
