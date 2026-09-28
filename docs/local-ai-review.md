@@ -1,7 +1,8 @@
 # Local AI Review: design note
 
-Status: in implementation (branch `feat/local-ai-review`). This note records the
-boundaries and decisions; [review-mode.md](review-mode.md) remains the user-facing
+Status: implemented on branch `feat/local-ai-review`, not released; see
+[local-ai-implementation-report.md](local-ai-implementation-report.md) for evidence and
+remaining release blockers. This note records the boundaries and decisions; [review-mode.md](review-mode.md) remains the user-facing
 Review documentation.
 
 ## Promise
