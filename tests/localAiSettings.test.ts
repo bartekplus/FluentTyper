@@ -250,6 +250,9 @@ describe("Local AI settings section", () => {
 
     broadcast({ ...NOT_SET_UP, consented: true, install: "none", runtime: "download-required" });
     expect(statusText(card)).toContain("no longer on this device");
+
+    broadcast({ ...NOT_SET_UP, consented: true, install: "partial", error: "download-failed" });
+    expect(statusText(card)).toContain("The download failed.");
   });
 
   test("an unsupported browser or device hides install controls and explains why", async () => {

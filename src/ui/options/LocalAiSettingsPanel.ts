@@ -16,7 +16,10 @@ import {
   type LocalAiModelRecord,
   type LocalAiModelTier,
 } from "@core/domain/localAi/modelRegistry";
-import type { LocalAiCommandResponse } from "@core/domain/messageTypes";
+import type {
+  LocalAiCommandResponse,
+  LocalAiStatusChangedMessage,
+} from "@core/domain/messageTypes";
 import { sendRuntimeMessage } from "@ui/shared/runtimeMessaging";
 import { formatTranslation, i18n } from "./fluenttyperI18n.js";
 import {
@@ -55,17 +58,6 @@ function modelLabel(model: LocalAiModelRecord): string {
   const family = /\(([^)]+)\)/.exec(model.displayName)?.[1];
   const tier = t(`local_ai_tier_${model.tier}`);
   return family ? `${tier} (${family})` : tier;
-}
-
-function isLocalAiStatus(value: unknown): value is LocalAiStatus {
-  const status = value as Partial<LocalAiStatus> | null;
-  return (
-    typeof status === "object" &&
-    status !== null &&
-    typeof status.runtime === "string" &&
-    typeof status.install === "string" &&
-    typeof status.tier === "string"
-  );
 }
 
 /** Maps the background's status to what the section shows; `undefined` = no answer yet. */
@@ -118,10 +110,8 @@ function describeStatus(
       modelChoice: true,
     };
   }
-  const error =
-    status.runtime === "error" && status.error
-      ? `${t(`local_ai_error_${status.error.replaceAll("-", "_")}`)} `
-      : "";
+  // The last failure (install, load or crash) stays visible until the next attempt clears it.
+  const error = status.error ? `${t(`local_ai_error_${status.error.replaceAll("-", "_")}`)} ` : "";
   if (status.install === "complete") {
     return { message: error + t("local_ai_status_ready"), delete: true, modelChoice: true };
   }
@@ -146,13 +136,6 @@ function createButton(className: string, onClick: () => void): HTMLButtonElement
   button.className = `button is-small ${className}`;
   button.addEventListener("click", onClick);
   return button;
-}
-
-function setText(element: HTMLElement, text: string): void {
-  // Only real changes reach the live region, so progress ticks are never announced.
-  if (element.textContent !== text) {
-    element.textContent = text;
-  }
 }
 
 /**
@@ -225,7 +208,6 @@ export function mountLocalAiSettings(anchor: HTMLElement, registry: SettingsRegi
   const statusText = document.createElement("p");
   statusText.className = "local-ai-status";
   statusText.setAttribute("role", "status");
-  statusText.setAttribute("aria-live", "polite");
   statusText.tabIndex = -1;
 
   const progressRow = document.createElement("div");
@@ -290,7 +272,11 @@ export function mountLocalAiSettings(anchor: HTMLElement, registry: SettingsRegi
       confirming = null;
     }
 
-    setText(statusText, notice ? `${view.message} ${notice}` : view.message);
+    const message = notice ? `${view.message} ${notice}` : view.message;
+    // Only real changes reach the live region, so progress ticks are never announced.
+    if (statusText.textContent !== message) {
+      statusText.textContent = message;
+    }
 
     for (const radio of radios) {
       radio.checked = radio.value === tier;
@@ -343,7 +329,7 @@ export function mountLocalAiSettings(anchor: HTMLElement, registry: SettingsRegi
     render();
     const response = await sendRuntimeMessage<LocalAiCommandResponse>(message);
     busy = false;
-    if (response?.ok && isLocalAiStatus(response.status)) {
+    if (response?.ok) {
       status = response.status;
     } else if (status === undefined) {
       status = null;
@@ -395,17 +381,9 @@ export function mountLocalAiSettings(anchor: HTMLElement, registry: SettingsRegi
 
   bindControlEvents(tierControl, [["change", render]]);
   chrome.runtime.onMessage.addListener((message: unknown) => {
-    const payload = message as {
-      command?: string;
-      status?: unknown;
-      context?: { status?: unknown };
-    } | null;
-    if (payload?.command !== CMD_LOCAL_AI_STATUS_CHANGED) {
-      return;
-    }
-    const next = payload.context?.status ?? payload.status;
-    if (isLocalAiStatus(next)) {
-      status = next;
+    const payload = message as LocalAiStatusChangedMessage | null;
+    if (payload?.command === CMD_LOCAL_AI_STATUS_CHANGED && payload.context?.status) {
+      status = payload.context.status;
       render();
     }
   });
