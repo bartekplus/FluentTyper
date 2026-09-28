@@ -149,6 +149,7 @@ export class LocalAiHost {
     if (!model || !enabled) {
       this.cancelAllJobs("not-ready");
       this.releaseNow();
+      this.publish();
       return;
     }
     if (previous?.model && previous.model.modelId !== model.modelId) {
@@ -339,8 +340,12 @@ export class LocalAiHost {
     }
     port.onMessage.addListener((message) => this.onReviewMessage(port, message));
     port.onDisconnect.addListener(() => this.onReviewDisconnect(port));
-    this.post(port, { type: "status", status: this.status() });
-    this.publish();
+    // A fresh host (after a service-worker restart) says nothing until configured: its
+    // default status reads as "off" and would end the review's first request.
+    if (this.config) {
+      this.post(port, { type: "status", status: this.status() });
+      this.publish();
+    }
   }
 
   private onReviewMessage(port: PortLike, value: unknown): void {

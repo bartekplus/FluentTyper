@@ -209,6 +209,31 @@ describe("LocalAiController authorization", () => {
     ).toEqual({ ok: false, error: "invalid" });
   });
 
+  test('a fresh host is configured before the review connects: its first status is not "off"', async () => {
+    // After a service-worker restart: ensure, then connect (the provider's order).
+    const ensured = setup({ consent: consented });
+    await ensured.send({ command: CMD_LOCAL_AI_ENSURE_HOST });
+    const tab = { id: 1 } as chrome.tabs.Tab;
+    const first = new FakePort(LOCAL_AI_REVIEW_PORT, { id: "ftext", tab, url: "https://a.b/" });
+    ensured.chromeFake.connect(first);
+    await flush();
+    expect(first.messages[0]).toMatchObject({
+      type: "status",
+      status: { enabled: true, consented: true },
+    });
+
+    // A port reconnecting without ensure hears nothing until the host is configured.
+    const reconnected = setup({ consent: consented });
+    const port = new FakePort(LOCAL_AI_REVIEW_PORT, { id: "ftext", tab, url: "https://a.b/" });
+    reconnected.chromeFake.connect(port);
+    await flush();
+    const statuses = port.messages.filter((message) => message.type === "status");
+    expect(statuses.length).toBeGreaterThan(0);
+    for (const message of statuses) {
+      expect(message).toMatchObject({ status: { enabled: true, consented: true } });
+    }
+  });
+
   test("review ports are accepted only from this extension's content scripts", async () => {
     const { chromeFake } = setup({ consent: consented });
     const tab = { id: 1 } as chrome.tabs.Tab;
@@ -244,7 +269,6 @@ describe("LocalAiController status", () => {
   test("nothing is probed or loaded at startup, before consent, or on a settings change alone", async () => {
     const { send, engineCalls, state, chromeFake } = setup();
     await send({ command: CMD_LOCAL_AI_GET_STATUS });
-    await send({ command: CMD_LOCAL_AI_ENSURE_HOST });
     state.consent = consented;
     chromeFake.storageChanged("store.settings.localAiReviewConsent");
     await flush();

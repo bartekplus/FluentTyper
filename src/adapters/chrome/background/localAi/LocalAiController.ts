@@ -106,7 +106,8 @@ export class LocalAiController {
         }
         return this.ok();
       case CMD_LOCAL_AI_ENSURE_HOST:
-        // The host runs in this service worker; the review port connects straight to it.
+        // The host runs in this service worker; configured before the review port connects.
+        if (this.host) await this.configureHost();
         return this.ok();
       case CMD_LOCAL_AI_INSTALL:
       case CMD_LOCAL_AI_CANCEL_INSTALL:
