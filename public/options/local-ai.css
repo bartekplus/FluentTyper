@@ -94,11 +94,6 @@
 }
 
 @media (forced-colors: active) {
-  .local-ai-model,
-  .local-ai-confirm {
-    border-color: CanvasText;
-  }
-
   .local-ai-model:has(input:checked) {
     border-color: Highlight;
   }

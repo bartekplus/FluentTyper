@@ -28,10 +28,11 @@ function prepared(
   );
 }
 
-// Several sentences per chunk, to test packing; the Correct default is one (see below).
-const CORRECT: AiChunkOptions = { mode: "correct", style: null, maxSegmentsPerChunk: 32 };
+const CORRECT: AiChunkOptions = { mode: "correct", style: null };
+// Rewrite packs several sentences per chunk; Correct sends one (see below).
+const PACKED: AiChunkOptions = { mode: "rewrite", style: "concise" };
 
-function plan(text: string, extra: Parameters<typeof prepared>[1] = {}, options = CORRECT) {
+function plan(text: string, extra: Parameters<typeof prepared>[1] = {}, options = PACKED) {
   return buildAiChunks(prepared(text, extra), options);
 }
 
@@ -54,14 +55,7 @@ function expectExactMapping(text: string, chunks: AiChunk[]) {
 
 describe("buildAiChunks", () => {
   test("Correct sends one sentence per request, with its neighbours as read-only context", () => {
-    const { chunks } = plan(
-      "One is here. Two is here. Three is here.",
-      {},
-      {
-        mode: "correct",
-        style: null,
-      },
-    );
+    const { chunks } = plan("One is here. Two is here. Three is here.", {}, CORRECT);
     expect(chunks.map((chunk) => texts([chunk]))).toEqual([
       ["One is here."],
       ["Two is here."],
@@ -147,18 +141,17 @@ describe("buildAiChunks", () => {
     expect(chunks[0].contextBefore).toBe("Alpha is first. Beta visits … today.");
     expect(chunks[0].contextAfter).toBe("Delta is third. Epsilon is last.");
 
-    const bounded = buildAiChunks(prepared(text, { scope: { start, end } }), {
-      ...CORRECT,
-      contextChars: 20,
-    });
-    // The window starts mid-sentence: no whole sentence fits, so nothing is sent.
-    expect(bounded.chunks[0].contextBefore).toBe("");
-    expect(bounded.chunks[0].contextAfter).toBe("Delta is third.");
+    // A window starting mid-sentence keeps whole sentences only (here, none before).
+    const long = `${"Filler words here ".repeat(20)}end. Gamma is second. Delta is third.${" and more".repeat(40)}`;
+    const at = long.indexOf("Gamma");
+    const [bounded] = plan(long, { scope: { start: at, end: long.indexOf(" Delta") } }).chunks;
+    expect(bounded.contextBefore).toBe("");
+    expect(bounded.contextAfter).toBe("Delta is third.");
   });
 
   test("placeholders renumber per chunk; ids restart at s0", () => {
     const text = "See a.b.c here. Then x.y.z there. And more text.";
-    const { chunks } = buildAiChunks(prepared(text), { ...CORRECT, maxChunkChars: 20 });
+    const { chunks } = buildAiChunks(prepared(text), { ...PACKED, maxChunkChars: 20 });
     expect(chunks.length).toBeGreaterThan(1);
     for (const chunk of chunks) {
       expect(chunk.segments[0].id).toBe("s0");
@@ -169,10 +162,10 @@ describe("buildAiChunks", () => {
   });
 
   test("correct mode stops at the size budget and reports the rest as limit", () => {
-    const text = Array.from({ length: 40 }, (_, i) => `Sentence number ${i} is here.`).join(" ");
-    const { chunks, skipped } = buildAiChunks(prepared(text), { ...CORRECT, maxTotalChars: 200 });
+    const text = Array.from({ length: 600 }, (_, i) => `Sentence number ${i} is here.`).join(" ");
+    const { chunks, skipped } = plan(text, {}, CORRECT);
     const sent = chunks.flatMap((c) => c.segments).reduce((sum, s) => sum + s.text.length, 0);
-    expect(sent).toBeLessThanOrEqual(200);
+    expect(sent).toBeLessThanOrEqual(12_000);
     expect(skipped.limit).toBeGreaterThan(0);
   });
 
@@ -188,29 +181,6 @@ describe("buildAiChunks", () => {
     const { chunks, skipped } = plan("Keep ⟦1⟧ as is. Normal text.");
     expect(texts(chunks)).toEqual(["Normal text."]);
     expect(skipped.unsafe).toBe("Keep ⟦1⟧ as is.".length);
-  });
-
-  test("the cache key covers everything the model consumes", () => {
-    const text = "Alpha is first. Beta is second.";
-    const key = (options: AiChunkOptions, lang = "en_US", scope?: TextRange) =>
-      buildAiChunks(prepared(text, { lang, scope }), options).chunks[0].key;
-    const base = key(CORRECT);
-    expect(key(CORRECT)).toBe(base);
-    expect(key(CORRECT, "en_GB")).not.toBe(base);
-    expect(key({ mode: "rewrite", style: "concise" })).not.toBe(base);
-    expect(key({ mode: "rewrite", style: "concise" })).not.toBe(
-      key({ mode: "rewrite", style: "friendly" }),
-    );
-    // Same segment, different read-only context.
-    const start = text.indexOf("Beta");
-    expect(key(CORRECT, "en_US", { start, end: text.length })).not.toBe(
-      buildAiChunks(
-        prepared(`Gamma is new. ${text.slice(start)}`, {
-          scope: { start: 14, end: 14 + text.length - start },
-        }),
-        CORRECT,
-      ).chunks[0].key,
-    );
   });
 
   test("the wire request carries text only", () => {

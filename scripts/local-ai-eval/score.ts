@@ -3,8 +3,8 @@
  *
  * Scores raw model outputs for the synthetic fixtures in tests/fixtures/local-ai
  * through the SAME parse and validation code the extension uses, so a score
- * reflects what a user would actually be shown. The benchmark runner imports
- * these helpers; the CLI scores a saved run:
+ * reflects what a user would actually be shown. tests/grammar/ReviewAiFixtures.test.ts
+ * imports these helpers; the CLI scores a saved run:
  *
  *   bun scripts/local-ai-eval/score.ts outputs.json [--kind=correct|rewrite]
  *

@@ -112,26 +112,8 @@ function isLocalAi(diagnostic: ReviewDiagnostic): boolean {
   return diagnostic.ruleId === REVIEW_LOCAL_AI_CHECK;
 }
 
-/** "≈ 0.97 GB" in the UI language ("pr" is how the options page stores Portuguese). */
-function formatDownloadSize(bytes: number, lang: string): string {
-  const locale = lang === "pr" ? "pt" : lang;
-  const giga = bytes >= 1e8;
-  const options: Intl.NumberFormatOptions = {
-    style: "unit",
-    unit: giga ? "gigabyte" : "megabyte",
-    maximumFractionDigits: giga ? 2 : 0,
-  };
-  const value = giga ? bytes / 1e9 : Math.max(1, Math.round(bytes / 1e6));
-  try {
-    return new Intl.NumberFormat(locale, options).format(value);
-  } catch {
-    return new Intl.NumberFormat("en", options).format(value);
-  }
-}
-
-function formatPercent(fraction: number, lang: string): string {
-  const options: Intl.NumberFormatOptions = { style: "percent", maximumFractionDigits: 0 };
-  const value = Math.max(0, Math.min(1, fraction));
+/** A number in the UI language ("pr" is how the options page stores Portuguese). */
+function formatNumber(value: number, lang: string, options: Intl.NumberFormatOptions): string {
   try {
     return new Intl.NumberFormat(lang === "pr" ? "pt" : lang, options).format(value);
   } catch {
@@ -139,35 +121,30 @@ function formatPercent(fraction: number, lang: string): string {
   }
 }
 
-/**
- * The changed regions of a rewrite on each side: from its hunks when they
- * rebuild `after` exactly, else the one changed middle (common prefix/suffix).
- */
-function rewriteRegions(
-  before: string,
-  after: string,
-  hunks: RewriteViewState["hunks"],
-): { from: Array<[number, number]>; to: Array<[number, number]> } {
-  const sorted = [...hunks].sort((a, b) => a.start - b.start);
+/** "0.97 GB" or "40 MB". */
+function formatDownloadSize(bytes: number, lang: string): string {
+  const giga = bytes >= 1e8;
+  return formatNumber(giga ? bytes / 1e9 : Math.max(1, Math.round(bytes / 1e6)), lang, {
+    style: "unit",
+    unit: giga ? "gigabyte" : "megabyte",
+    maximumFractionDigits: giga ? 2 : 0,
+  });
+}
+
+/** The changed regions of a rewrite on each side (the session checked the hunks rebuild `after`). */
+function rewriteRegions(hunks: RewriteViewState["hunks"]): {
+  from: Array<[number, number]>;
+  to: Array<[number, number]>;
+} {
   const from: Array<[number, number]> = [];
   const to: Array<[number, number]> = [];
-  let rebuilt = "";
-  let cursor = 0;
-  for (const hunk of sorted) {
-    if (hunk.start < cursor || hunk.end > before.length) break;
-    rebuilt += before.slice(cursor, hunk.start);
-    from.push([hunk.start, hunk.end]);
-    to.push([rebuilt.length, rebuilt.length + hunk.replacement.length]);
-    rebuilt += hunk.replacement;
-    cursor = hunk.end;
+  let shift = 0;
+  for (const { start, end, replacement } of [...hunks].sort((a, b) => a.start - b.start)) {
+    from.push([start, end]);
+    to.push([start + shift, start + shift + replacement.length]);
+    shift += replacement.length - (end - start);
   }
-  rebuilt += before.slice(cursor);
-  if (sorted.length > 0 && rebuilt === after) return { from, to };
-  const { prefix, suffix } = commonAffixes(before, after);
-  return {
-    from: [[prefix, before.length - suffix]],
-    to: [[prefix, after.length - suffix]],
-  };
+  return { from, to };
 }
 
 /** Text with `regions` wrapped in `tag` (<del>/<ins>), built from text nodes only. */
@@ -837,7 +814,10 @@ export class ReviewUi {
       case "installing":
         return ai.status?.progress !== undefined
           ? this.t("review_ai_installing_progress", {
-              percent: formatPercent(ai.status.progress, this.lang),
+              percent: formatNumber(ai.status.progress, this.lang, {
+                style: "percent",
+                maximumFractionDigits: 0,
+              }),
             })
           : this.t("review_ai_installing");
       case "paused":
@@ -926,25 +906,12 @@ export class ReviewUi {
 
   private renderRewrite(state: ReviewViewState): void {
     const view = this.rewrite;
-    view.root.hidden = state.mode !== "rewrite";
-    if (view.root.hidden) {
+    const rewrite = state.rewrite;
+    view.root.hidden = !rewrite;
+    if (!rewrite) {
       this.announcedRewrite = null;
       return;
     }
-    const rewrite: RewriteViewState = state.rewrite ?? {
-      style: "keep-voice",
-      resolvedStyle: "keep-voice",
-      contextHint: "general",
-      status: "idle",
-      before: "",
-      after: null,
-      hunks: [],
-      rejection: null,
-      kept: {},
-      failure: null,
-      canApply: false,
-      previewOnly: false,
-    };
     if (view.style.value !== rewrite.style) view.style.value = rewrite.style;
     if (view.context.value !== rewrite.contextHint) view.context.value = rewrite.contextHint;
     const contextAware = rewrite.style === "context-aware";
@@ -982,7 +949,7 @@ export class ReviewUi {
   /** Before and after, changed regions marked; model text only ever as text nodes. */
   private renderRewriteDiff(rewrite: RewriteViewState, after: string): void {
     const doc = this.doc;
-    const regions = rewriteRegions(rewrite.before, after, rewrite.hunks);
+    const regions = rewriteRegions(rewrite.hunks);
     const from = element(doc, "p", { class: "before", dir: "auto" });
     const to = element(doc, "p", { class: "after", dir: "auto" });
     appendRegions(doc, from, rewrite.before, regions.from, "del");
@@ -1000,12 +967,11 @@ export class ReviewUi {
     const preview = state.mode === "correct" ? state.aiBatch : null;
     this.batch.hidden = preview === null;
     const key = preview
-      ? `${preview.diagnosticIds.join(" ")}|${preview.excluded.length}|${preview.canApply}`
+      ? `${preview.diagnosticIds.join(" ")}|${preview.excluded}|${preview.canApply}`
       : null;
     const opened = this.batchKey === null;
-    const apply = () => this.batch.querySelector<HTMLButtonElement>("[data-action=ai-batch-apply]");
     if (key === this.batchKey) {
-      const button = apply();
+      const button = this.batch.querySelector<HTMLButtonElement>("[data-action=ai-batch-apply]");
       if (button && preview) button.disabled = !preview.canApply || state.status !== "ready";
       return;
     }
@@ -1029,13 +995,13 @@ export class ReviewUi {
       ),
       changes,
     ];
-    if (preview.excluded.length > 0) {
+    if (preview.excluded > 0) {
       parts.push(
         element(
           doc,
           "p",
           { class: "hint" },
-          this.t("review_ai_batch_excluded", { count: preview.excluded.length }),
+          this.t("review_ai_batch_excluded", { count: preview.excluded }),
         ),
       );
     }

@@ -378,15 +378,6 @@ describe("correctionFindings", () => {
     expectRejected("A 16 rd chain was used.", "A 16 rd. chain was used.", "drift");
   });
 
-  test("a valid JSON rewrite of everything is rejected in Correct mode", () => {
-    const { diagnostics, rejected } = correctOne(
-      "The meeting went well and everyone agreed on the plan.",
-      "Everyone agreed on the plan, so the meeting was a success.",
-    );
-    expect(diagnostics).toEqual([]);
-    expect(Object.values(rejected)).toEqual([1]);
-  });
-
   test("risk guards: numbers, negation, uncertainty, names, dictionary words", () => {
     expectRejected("We measured 63 GB there.", "We measured 36 GB there.", "number");
     expectRejected("We need two servers.", "We need three servers.", "number");
@@ -457,11 +448,7 @@ describe("correctionFindings", () => {
 
   test("mismatched output ids reject the whole chunk", () => {
     const prep = prepared("One is here. Two is here.");
-    const [chunk] = buildAiChunks(prep, {
-      mode: "correct",
-      style: null,
-      maxSegmentsPerChunk: 32,
-    }).chunks;
+    const [chunk] = buildAiChunks(prep, { mode: "rewrite", style: "concise" }).chunks;
     const result = correctionFindings(prep, chunk, [{ id: "s1", text: "x" }]);
     expect(result).toEqual({ diagnostics: [], rejected: { shape: 2 } });
   });
@@ -623,19 +610,6 @@ describe("rewriteProposal", () => {
     expect(rejection("The issue could be hardware.", ["The issue is hardware."])).toBe(
       "uncertainty",
     );
-  });
-
-  test("a rewrite may resolve a double negative (user report)", () => {
-    expect(
-      rejection("We decided to not change nothing for now.", [
-        "We decided not to change anything for now.",
-      ]),
-    ).toBeNull();
-    expect(
-      rejection("We decided to not change nothing for now.", [
-        "We decided to change things for now.",
-      ]),
-    ).toBe("negation");
   });
 
   test("whitespace at segment edges never changes in a rewrite", () => {

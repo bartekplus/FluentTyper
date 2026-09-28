@@ -1,8 +1,4 @@
-import type {
-  AiErrorCode,
-  AiGenerationOutcome,
-  AiGenerationRequest,
-} from "../grammar/review/ai/types";
+import type { AiGenerationOutcome, AiGenerationRequest } from "../grammar/review/ai/types";
 import type { LocalAiModelTier } from "../localAi/modelRegistry";
 
 /**
@@ -39,12 +35,7 @@ export type LocalAiRuntimeState =
   | "error";
 
 export type LocalAiUnavailableReason =
-  | "no-webgpu"
-  | "no-adapter"
-  | "missing-feature"
-  | "insufficient-limits"
-  | "host-unsupported"
-  | "not-in-build";
+  "no-webgpu" | "no-adapter" | "missing-feature" | "host-unsupported" | "not-in-build";
 
 /** Sanitized, bounded error codes: never dependency error strings. */
 export type LocalAiErrorCode =
@@ -111,8 +102,7 @@ export type HostPortDownMessage =
   | { type: "install"; tier: LocalAiModelTier }
   | { type: "cancel-install" }
   | { type: "delete-model"; modelId: string }
-  | { type: "probe" }
-  | { type: "unload" };
+  | { type: "probe" };
 
 /** Offscreen -> background. */
 export type HostPortUpMessage =
@@ -126,8 +116,5 @@ export type HostPortUpMessage =
       progress?: number;
     }
   | { type: "installed"; modelId: string; ok: boolean; error?: LocalAiErrorCode }
-  | { type: "deleted"; modelId: string; ok: boolean }
   /** Engine unloaded after its idle interval; the background may close the document. */
   | { type: "idle" };
-
-export type { AiErrorCode };

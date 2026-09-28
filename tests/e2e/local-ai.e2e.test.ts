@@ -14,13 +14,6 @@ import {
   KEY_MIN_WORD_LENGTH_TO_PREDICT,
 } from "../../src/core/domain/constants";
 import { localAiModelForTier } from "../../src/core/domain/localAi/modelRegistry";
-
-/** Storage keys of the removed dev-only WebLLM autocomplete experiment; stale values are ignored. */
-const LEGACY_AI_PREDICTOR_KEYS = {
-  aiPredictorEnabled: true,
-  debugAiPredictorEnabled: true,
-  aiModelId: "Qwen2.5-0.5B-Instruct-q4f16_1-MLC",
-};
 import type { BackgroundContext, RecordedRequest } from "./e2e-helpers";
 import {
   BROWSER_TYPE,
@@ -56,6 +49,13 @@ const TEST_PAGE_HTML = fs.readFileSync(path.resolve(__dirname, "test-page.html")
 const SETTINGS_PREFIX = "store.settings.";
 const REVIEW_TEXT = "i think teh release is ready , but their is one problem.";
 const TIMEOUT = suiteTimeout(30000, 60000);
+
+/** Storage keys of the removed dev-only WebLLM autocomplete experiment; stale values are ignored. */
+const LEGACY_AI_PREDICTOR_KEYS = {
+  aiPredictorEnabled: true,
+  debugAiPredictorEnabled: true,
+  aiModelId: "Qwen2.5-0.5B-Instruct-q4f16_1-MLC",
+};
 
 async function setSetting(worker: BackgroundContext, key: string, value: unknown): Promise<void> {
   await worker.evaluate(

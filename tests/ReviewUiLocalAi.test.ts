@@ -97,12 +97,7 @@ function ai(overrides: Partial<ReviewAiViewState> = {}): ReviewAiViewState {
     availability: "ready",
     coverage: "idle",
     status: STATUS,
-    checkedChars: 0,
-    eligibleChars: 0,
     skippedChars: 0,
-    findings: 0,
-    rejected: 0,
-    failure: null,
     offerSetup: false,
     ...overrides,
   };
@@ -119,7 +114,6 @@ function rewrite(overrides: Partial<RewriteViewState> = {}): RewriteViewState {
     hunks: [],
     rejection: null,
     kept: {},
-    failure: null,
     canApply: false,
     previewOnly: false,
     ...overrides,
@@ -368,9 +362,7 @@ describe("ReviewUi: Local AI", () => {
     ];
     const preview: AiBatchPreview = {
       diagnosticIds: ["a", "b"],
-      excluded: [{ id: "c", reason: "conflict" }],
-      before: "The results shows a problem.",
-      after: "The result show a problem.",
+      excluded: 1,
       canApply: false,
     };
     ui.render(state({ diagnostics }));
@@ -538,7 +530,7 @@ describe("ReviewUi: Local AI", () => {
         "The rewrite was discarded: it changed a number, which could change a fact. Your text is unchanged. Generate again or try another style.",
       );
       expect($<HTMLButtonElement>("[data-action=rewrite-apply]").disabled).toBe(true);
-      rewriting({ status: "failed", failure: "timeout" });
+      rewriting({ status: "failed" });
       expect($(".rewrite-msg").textContent).toBe(
         "Local AI could not finish the rewrite. Try again.",
       );

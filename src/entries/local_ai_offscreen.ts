@@ -20,6 +20,5 @@ chrome.runtime.onMessage.addListener((message: unknown, sender) => {
   ) {
     host.connect();
   }
-  return false;
 });
 host.start();

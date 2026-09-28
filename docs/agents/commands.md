@@ -30,8 +30,8 @@ Chrome and Edge builds package the Local AI Review runtime, because Chrome MV3 f
 
 - The ONNX Runtime files (`ort-wasm-simd-threaded.asyncify.wasm` and its `.mjs` glue) are pinned by SHA-256 and size in `LOCAL_AI_ORT_FILES` (`scripts/check-local-ai-artifact.ts`). `build.ts` fails if `node_modules` holds anything else. When upgrading Transformers.js, review the new runtime, then update those hashes. The worker points `env.backends.onnx.wasm.wasmPaths` at the extension's `local-ai/ort/`, so the default CDN is never used.
 - Models are data only (ONNX graph, weights, tokenizer, config). They are downloaded after consent from the pinned Hugging Face revisions and files listed in `src/core/domain/localAi/modelRegistry.ts`. `bun run probe:local-ai` re-lists each record's files (size and SHA-256) at the pinned revision, flags drift, and reports whether the repository has moved.
-- Every runtime component is published under MIT or Apache-2.0 by its authors, and no per-model executable ships, which removes the earlier license blocker on WebLLM's `binary-mlc-llm-libs`. Notices are in `public/local-ai/THIRD_PARTY_NOTICES.md` and `public/local-ai/ONNXRUNTIME_THIRD_PARTY_NOTICES.txt`.
-- The `offscreen` permission (Chrome/Edge only) hosts the optional on-device model worker; it shows no install-time warning.
+- License notices: `public/local-ai/THIRD_PARTY_NOTICES.md` and `public/local-ai/ONNXRUNTIME_THIRD_PARTY_NOTICES.txt`.
+- Real-GPU end-to-end run of the production build (opt-in, downloads the model): `bun run test:local-ai:real [--tier=compact] [--plumbing-only]`.
 
 ## Local Browser Loading
 

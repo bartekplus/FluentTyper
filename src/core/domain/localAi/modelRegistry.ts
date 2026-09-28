@@ -9,11 +9,8 @@
  * worker downloads nothing else, only after explicit consent, and verifies
  * each file's hash after download.
  *
- * Refresh file lists with `bun scripts/fetch-local-ai-assets.ts --probe`.
+ * Refresh file lists with `bun run probe:local-ai`.
  */
-
-/** @huggingface/transformers version these records were validated against (bun.lock). */
-export const LOCAL_AI_RUNTIME_VERSION = "4.3.0";
 
 export type LocalAiModelTier = "standard" | "compact";
 
@@ -181,9 +178,9 @@ const QWEN3_4B_2507_FILES: readonly LocalAiModelFile[] = [
 
 /**
  * Chosen from the real-GPU evaluation (docs/local-ai-evaluation.md): Gemma 4
- * E4B found the most errors of every model tested (dense 78%, held-out 84%
- * accepted) with one extra change to correct text; Qwen3-4B-Instruct-2507 is
- * the smaller option with the fewest changes to correct text.
+ * E4B-it found the most errors of every model tested (dense 78%, held-out 84%
+ * accepted) with no changes to correct text; Qwen3-4B-Instruct-2507 is the
+ * smaller option.
  */
 export const LOCAL_AI_MODELS: readonly LocalAiModelRecord[] = [
   {

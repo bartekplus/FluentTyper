@@ -2,14 +2,7 @@
 
 import { matchesDownloadOrigin } from "@core/domain/localAi/modelRegistry";
 
-export const NETWORK_BLOCKED_ERROR_NAME = "LocalAiNetworkBlockedError";
-
-class NetworkBlockedError extends Error {
-  constructor() {
-    super("Local AI network request blocked");
-    this.name = NETWORK_BLOCKED_ERROR_NAME;
-  }
-}
+export class NetworkBlockedError extends Error {}
 
 export interface GuardScope {
   fetch: typeof fetch;

@@ -27,7 +27,6 @@ import type {
 } from "@core/domain/messageTypes";
 import type { LocalAiSettingsRepository } from "@core/application/repositories/LocalAiSettingsRepository";
 import { createLogger } from "@core/application/logging/Logger";
-import { isObjectRecord } from "@core/domain/guards";
 
 /** Background owner of consent and the optional offscreen host. */
 
@@ -51,27 +50,10 @@ const SETTINGS_KEYS = [
   KEY_LOCAL_AI_REVIEW_CONSENT,
   KEY_LOCAL_AI_SETUP_OFFER_DISMISSED,
 ];
-const RUNTIME_STATES = new Set<string>([
-  "unconfigured",
-  "checking-support",
-  "download-required",
-  "downloading",
-  "loading",
-  "ready",
-  "generating",
-  "unloading",
-  "unavailable",
-  "error",
-]);
-const INSTALL_STATES = new Set<string>(["unknown", "none", "partial", "complete"]);
 const OFFSCREEN_JUSTIFICATION =
   "Runs FluentTyper's optional on-device Local AI Review model in a dedicated worker.";
 
 const logger = createLogger("LocalAiController");
-
-function optionalString<T extends string>(value: unknown): T | undefined {
-  return typeof value === "string" ? (value as T) : undefined;
-}
 
 export class LocalAiController {
   private hostPort: chrome.runtime.Port | null = null;
@@ -165,7 +147,31 @@ export class LocalAiController {
         if (!this.hostSupported) {
           return { ok: false, error: "unavailable" };
         }
-        return this.handleModelAction(request);
+        if (request.command === CMD_LOCAL_AI_INSTALL) {
+          const tier = request.context?.tier;
+          if (tier !== "standard" && tier !== "compact") {
+            return { ok: false, error: "invalid" };
+          }
+          const record = localAiModelForTier(tier);
+          // Consent is recorded at the moment of the explicit action, then acted on.
+          await this.settings.setLocalAiReviewConsent({
+            modelId: record.modelId,
+            tier: record.tier,
+            at: Date.now(),
+          });
+          this.installInFlight = true;
+          await this.sendToHost({ type: "install", tier: record.tier });
+        } else if (request.command === CMD_LOCAL_AI_DELETE_MODEL) {
+          const record = localAiModelById(request.context?.modelId);
+          if (!record) {
+            return { ok: false, error: "invalid" };
+          }
+          // Consent and preference stay; nothing re-downloads until Install is pressed again.
+          await this.sendToHost({ type: "delete-model", modelId: record.modelId });
+        } else if (this.hostPort || (await this.documentExists())) {
+          await this.sendToHost({ type: "cancel-install" });
+        }
+        return this.ok();
       case CMD_LOCAL_AI_OPEN_SETUP:
         await this.api.tabs.create({
           url: this.api.runtime.getURL("options/options.html#local-ai"),
@@ -176,51 +182,6 @@ export class LocalAiController {
         return this.ok();
       default:
         return { ok: false, error: "invalid" };
-    }
-  }
-
-  private async handleModelAction(
-    request: Extract<
-      LocalAiRequest,
-      {
-        command:
-          | typeof CMD_LOCAL_AI_INSTALL
-          | typeof CMD_LOCAL_AI_CANCEL_INSTALL
-          | typeof CMD_LOCAL_AI_DELETE_MODEL;
-      }
-    >,
-  ): Promise<LocalAiCommandResponse> {
-    switch (request.command) {
-      case CMD_LOCAL_AI_INSTALL: {
-        const tier = request.context?.tier;
-        if (tier !== "standard" && tier !== "compact") {
-          return { ok: false, error: "invalid" };
-        }
-        const record = localAiModelForTier(tier);
-        // Consent is recorded at the moment of the explicit action, then acted on.
-        await this.settings.setLocalAiReviewConsent({
-          modelId: record.modelId,
-          tier: record.tier,
-          at: Date.now(),
-        });
-        this.installInFlight = true;
-        await this.sendToHost({ type: "install", tier: record.tier });
-        return this.ok();
-      }
-      case CMD_LOCAL_AI_CANCEL_INSTALL:
-        if (this.hostPort || (await this.documentExists())) {
-          await this.sendToHost({ type: "cancel-install" });
-        }
-        return this.ok();
-      case CMD_LOCAL_AI_DELETE_MODEL: {
-        const record = localAiModelById(request.context?.modelId);
-        if (!record) {
-          return { ok: false, error: "invalid" };
-        }
-        // Consent and preference stay; nothing re-downloads until Install is pressed again.
-        await this.sendToHost({ type: "delete-model", modelId: record.modelId });
-        return this.ok();
-      }
     }
   }
 
@@ -318,17 +279,17 @@ export class LocalAiController {
     this.hostPort = null;
     if (this.hostState) {
       // A closed host keeps nothing warm; cached artifacts stay as last seen.
-      const install = this.hostState.install;
+      const { runtime, install } = this.hostState;
       this.hostState = {
         ...this.hostState,
         runtime:
-          this.hostState.runtime === "unavailable"
-            ? "unavailable"
+          runtime === "unavailable"
+            ? runtime
             : install === "complete"
               ? "ready"
-              : install === "none" || install === "partial"
-                ? "download-required"
-                : "unconfigured",
+              : install === "unknown"
+                ? "unconfigured"
+                : "download-required",
         progress: undefined,
       };
     }
@@ -397,36 +358,19 @@ export class LocalAiController {
     });
   }
 
+  /** The port's sender was verified in onConnect: this is our own offscreen host. */
   private onHostMessage(port: chrome.runtime.Port, value: unknown): void {
     if (port !== this.hostPort) {
       return;
     }
-    const message = isObjectRecord(value) ? value : null;
+    const message = value as HostPortUpMessage | null;
     switch (message?.type) {
       case "state":
-        if (
-          typeof message.runtime === "string" &&
-          RUNTIME_STATES.has(message.runtime) &&
-          typeof message.install === "string" &&
-          INSTALL_STATES.has(message.install)
-        ) {
-          const record = localAiModelById(message.modelId);
-          this.hostState = {
-            runtime: message.runtime as HostState["runtime"],
-            install: message.install as HostState["install"],
-            modelId: record?.modelId ?? null,
-            unavailable: optionalString(message.unavailable),
-            error: optionalString(message.error),
-            progress: typeof message.progress === "number" ? message.progress : undefined,
-          };
-          void this.broadcastStatus();
-        }
+        this.hostState = message;
+        void this.broadcastStatus();
         return;
       case "installed":
         this.installInFlight = false;
-        void this.broadcastStatus();
-        return;
-      case "deleted":
         void this.broadcastStatus();
         return;
       case "idle":

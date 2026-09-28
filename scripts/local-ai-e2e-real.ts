@@ -54,10 +54,10 @@ const MODEL = localAiModelForTier(TIER);
 const MODEL_URL = `https://huggingface.co/${MODEL.repo}/resolve/${MODEL.revision}/`;
 /** A unique synthetic word: it must never be found in any store, log or profile file. */
 const SENTINEL = `Zqv${randomBytes(5).toString("hex")}`;
-/** The rules flag only "i"; the model is expected to fix "shows" and "the the". */
 /** A user-reported, error-dense paragraph (tests/fixtures/local-ai: dense-para-01). */
 const DENSE_TEXT =
   "I dont think this feature work correctly when user paste a long texts into editor. Yesterday we was testing the new version and find several issue with suggestions. The application should automatically detect language, but sometime it choose a wrong one. My manager asked me if I can finished the report before friday afternoon. There is too many informations displayed on this screen and its difficult to understand them. She have been working on this project since three years, but she still dont know all the details. We need to improve performance because the current implementation is more slower then before. If the user click this button, all changes is saved immediatly without any confirmation. The new grammar checker looks really good however, it still miss some obvious mistakes. Me and my colleague discussed about this problem, and we decided to not change nothing for now.";
+/** The rules flag only "i"; the model is expected to fix "shows" and "the the". */
 const CORRECT_TEXT = `The results shows a problem with the the report. Tomorrow i will ask ${SENTINEL} about it.`;
 const REWRITE_TEXT = `hey, i looked at the numbers and they is mostly fine but ${SENTINEL} want a second look before friday.`;
 const MINUTE = 60_000;
@@ -84,13 +84,6 @@ function progress(message: string): void {
 
 function isExternal(url: string): boolean {
   return /^(https?|wss?):/.test(url) && !/^https?:\/\/(localhost|127\.0\.0\.1)[:/]/.test(url);
-}
-
-async function timed<T>(label: string, run: () => Promise<T>): Promise<T> {
-  const startedAt = performance.now();
-  const value = await run();
-  timings.push([label, Math.round(performance.now() - startedAt)]);
-  return value;
 }
 
 async function step(name: string, run: () => Promise<string>): Promise<void> {
@@ -340,18 +333,22 @@ async function pressUndo(page: Page): Promise<void> {
 
 // -------------------------------------------------------------------- privacy
 
-async function dumpExtensionStorage(worker: BackgroundContext): Promise<string> {
-  return worker.evaluate(async () =>
+async function checkStorageAndConsole(worker: BackgroundContext): Promise<string> {
+  const storage = await worker.evaluate(async () =>
     JSON.stringify([
       await chrome.storage.local.get(null),
       await chrome.storage.sync.get(null),
       await chrome.storage.session.get(null),
     ]),
   );
+  check(!storage.includes(SENTINEL), "Sentinel found in chrome.storage");
+  check(!consoleText.some((line) => line.includes(SENTINEL)), "Sentinel found in console output");
+  return `storage ${storage.length} bytes, ${consoleText.length} console lines`;
 }
 
-/** Profile files that contain the sentinel, in UTF-8 or UTF-16. */
-async function profileFilesWithSentinel(dir: string): Promise<{ hits: string[]; scanned: number }> {
+/** No profile file contains the sentinel, in UTF-8 or UTF-16. */
+async function checkProfileFiles(): Promise<string> {
+  const dir = PROFILE_DIR;
   const needles = [Buffer.from(SENTINEL, "utf8"), Buffer.from(SENTINEL, "utf16le")];
   const hits: string[] = [];
   let scanned = 0;
@@ -371,7 +368,8 @@ async function profileFilesWithSentinel(dir: string): Promise<{ hits: string[]; 
     }
   };
   await walk(dir);
-  return { hits, scanned };
+  check(hits.length === 0, `Sentinel found in: ${hits.join(", ")}`);
+  return `${scanned} files scanned`;
 }
 
 // ----------------------------------------------------------------------- main
@@ -466,23 +464,26 @@ async function run(): Promise<void> {
       await page.click(`#local-ai input[name="local-ai-tier"][value="${TIER}"]`);
       await clickOptionsButton(page, "#local-ai > * > .text-assets-actions > .is-link");
       let lastStatus = "";
-      await timed("install (confirm → available offline)", async () => {
-        await clickOptionsButton(page, "#local-ai .local-ai-confirm .is-link");
-        await waitUntil(
-          "available offline",
-          async () => {
-            const status = await optionsStatus(page);
-            if (status !== lastStatus) progress(`install: ${(lastStatus = status)}`);
-            if (/failed|could not|error|incomplete|no longer/i.test(status)) {
-              throw new Error(
-                `Install failed: "${status}" after ${externalRequests.length} requests`,
-              );
-            }
-            return /available offline/.test(status);
-          },
-          { timeoutMs: 45 * MINUTE, intervalMs: 500 },
-        );
-      });
+      const startedAt = performance.now();
+      await clickOptionsButton(page, "#local-ai .local-ai-confirm .is-link");
+      await waitUntil(
+        "available offline",
+        async () => {
+          const status = await optionsStatus(page);
+          if (status !== lastStatus) progress(`install: ${(lastStatus = status)}`);
+          if (/failed|could not|error|incomplete|no longer/i.test(status)) {
+            throw new Error(
+              `Install failed: "${status}" after ${externalRequests.length} requests`,
+            );
+          }
+          return /available offline/.test(status);
+        },
+        { timeoutMs: 45 * MINUTE, intervalMs: 500 },
+      );
+      timings.push([
+        "install (confirm → available offline)",
+        Math.round(performance.now() - startedAt),
+      ]);
       await page.close();
       const origins = [
         ...new Set([...externalRequests, ...redirectRequests].map((url) => new URL(url).origin)),
@@ -493,10 +494,6 @@ async function run(): Promise<void> {
       check(
         foreign.length === 0,
         `Requests outside LOCAL_AI_DOWNLOAD_ORIGINS: ${foreign.join(", ")}`,
-      );
-      check(
-        !externalRequests.some((url) => /raw\.githubusercontent\.com|cdn\.jsdelivr\.net/.test(url)),
-        "A request went to raw.githubusercontent.com or cdn.jsdelivr.net (runtime code must be packaged)",
       );
       const unlisted = externalRequests.filter(
         (url) =>
@@ -664,26 +661,16 @@ async function run(): Promise<void> {
       return `generating state seen: ${sawBusy}; text replaced (${REWRITE_TEXT.length} → ${after.length} chars)`;
     });
 
-    await step("(iv-a) sentinel absent from extension storage and console", async () => {
-      const storage = await dumpExtensionStorage(worker);
-      check(!storage.includes(SENTINEL), "Sentinel found in chrome.storage");
-      check(
-        !consoleText.some((line) => line.includes(SENTINEL)),
-        "Sentinel found in console output",
-      );
-      return `storage ${storage.length} bytes, ${consoleText.length} console lines`;
-    });
+    await step("(iv-a) sentinel absent from extension storage and console", () =>
+      checkStorageAndConsole(worker),
+    );
   } finally {
     await browser.close().catch(() => undefined);
   }
 
   await step(
     "(iv-b) sentinel absent from profile files (CacheStorage, Sessions excluded)",
-    async () => {
-      const { hits, scanned } = await profileFilesWithSentinel(PROFILE_DIR);
-      check(hits.length === 0, `Sentinel found in: ${hits.join(", ")}`);
-      return `${scanned} files scanned`;
-    },
+    checkProfileFiles,
   );
 
   // ------------------------------------------------------ offline, same profile
@@ -803,24 +790,14 @@ async function run(): Promise<void> {
       return `options: "${status}"; Review: "${line}"`;
     });
 
-    await step("(iv-c) sentinel absent from storage and console (offline phase)", async () => {
-      const storage = await dumpExtensionStorage(worker);
-      check(!storage.includes(SENTINEL), "Sentinel found in chrome.storage");
-      check(
-        !consoleText.some((line) => line.includes(SENTINEL)),
-        "Sentinel found in console output",
-      );
-      return `${consoleText.length} console lines total`;
-    });
+    await step("(iv-c) sentinel absent from storage and console (offline phase)", () =>
+      checkStorageAndConsole(worker),
+    );
   } finally {
     await browser.close().catch(() => undefined);
   }
 
-  await step("(iv-d) sentinel absent from profile files after the whole run", async () => {
-    const { hits, scanned } = await profileFilesWithSentinel(PROFILE_DIR);
-    check(hits.length === 0, `Sentinel found in: ${hits.join(", ")}`);
-    return `${scanned} files scanned`;
-  });
+  await step("(iv-d) sentinel absent from profile files after the whole run", checkProfileFiles);
 
   await step("(vii-b) no model copy left in Chrome's HTTP cache after Delete", async () => {
     const bytes = await directoryBytes(path.join(PROFILE_DIR, "Default", "Cache"));

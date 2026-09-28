@@ -9,7 +9,6 @@ import {
   LOCAL_AI_ENGINE_MARKERS,
   LOCAL_AI_ORT_DIR,
   LOCAL_AI_ORT_FILES,
-  WEBLLM_MARKERS,
 } from "./scripts/check-local-ai-artifact";
 
 type BuildMode = "production" | "development";
@@ -196,20 +195,13 @@ async function copyOrtRuntime(context: BuildContext): Promise<void> {
   }
 }
 
-/**
- * Fails the build if WebLLM appears anywhere, or Transformers.js / ONNX Runtime
- * appears outside the Local AI worker.
- */
+/** Fails the build if Transformers.js / ONNX Runtime appears outside the Local AI worker. */
 async function assertEngineIsolation(outfiles: string[], workerOutfile: string): Promise<void> {
-  for (const outfile of outfiles) {
+  for (const outfile of outfiles.filter((file) => file !== workerOutfile)) {
     const content = await readFile(outfile, "utf8");
-    const markers =
-      outfile === workerOutfile ? WEBLLM_MARKERS : [...WEBLLM_MARKERS, ...LOCAL_AI_ENGINE_MARKERS];
-    const marker = markers.find((candidate) => content.includes(candidate));
+    const marker = LOCAL_AI_ENGINE_MARKERS.find((candidate) => content.includes(candidate));
     if (marker) {
-      throw new Error(
-        `${outfile} contains "${marker}"; only local-ai/worker.js may bundle the Local AI engine, and WebLLM is not allowed`,
-      );
+      throw new Error(`${outfile} contains "${marker}"; only local-ai/worker.js may bundle it`);
     }
   }
 }

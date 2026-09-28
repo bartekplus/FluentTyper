@@ -28,12 +28,9 @@ type EnqueueResult = "queued" | "joined" | "busy";
 export class JobScheduler<P> {
   /** Map order is the round-robin order: a served port moves to the back. */
   private readonly queues = new Map<P, Array<ScheduledJob<P>>>();
-  private pending = 0;
+  /** Queued jobs across all ports (not the running one). */
+  pending = 0;
   running: ScheduledJob<P> | null = null;
-
-  get pendingCount(): number {
-    return this.pending;
-  }
 
   enqueue(port: P, requestId: string, request: AiGenerationRequest): EnqueueResult {
     const key = JSON.stringify(request);

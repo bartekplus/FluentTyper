@@ -3,11 +3,6 @@ import type { AiGenerationRequest, ConcreteRewriteStyle } from "./types";
 /** Bumped whenever templates or the response contract change; part of every cache key. */
 export const AI_PROMPT_VERSION = "review-ai-3";
 
-export interface AiChatMessage {
-  role: "system" | "user";
-  content: string;
-}
-
 const CONTRACT = [
   'Return only JSON matching this response contract: {"segments":[{"id":"s0","text":"..."}]}.',
   "Return each editable segment exactly once, in its supplied order, with no other keys or text.",
@@ -71,10 +66,6 @@ const LANGUAGE_NAMES: Record<string, string> = {
   nl: "Dutch",
 };
 
-function languageName(lang: string): string {
-  return LANGUAGE_NAMES[lang.slice(0, 2).toLowerCase()] ?? lang;
-}
-
 // Input text travels under "original" and the answer under "text": with one key
 // for both, small Qwen3 models copy the input back (docs/local-ai-evaluation.md).
 const INPUT_KEY_NOTE =
@@ -99,7 +90,9 @@ const REWRITE_EXAMPLE = [
  * System + user messages for one request. Editor text is embedded as JSON
  * data, never as instructions; the task is restated in the user turn.
  */
-export function buildAiMessages(request: AiGenerationRequest): AiChatMessage[] {
+export function buildAiMessages(
+  request: AiGenerationRequest,
+): Array<{ role: "system" | "user"; content: string }> {
   const style = request.mode === "rewrite" ? request.style : null;
   const system = style
     ? [
@@ -112,7 +105,9 @@ export function buildAiMessages(request: AiGenerationRequest): AiChatMessage[] {
     : [CORRECT_TEMPLATE, CORRECT_EXAMPLE];
   const data = JSON.stringify({
     // Correct was measured without it; Rewrite names the language to keep it.
-    ...(style ? { language: languageName(request.lang) } : {}),
+    ...(style
+      ? { language: LANGUAGE_NAMES[request.lang.slice(0, 2).toLowerCase()] ?? request.lang }
+      : {}),
     contextBefore: request.contextBefore,
     segments: request.segments.map((segment) => ({ id: segment.id, original: segment.text })),
     contextAfter: request.contextAfter,

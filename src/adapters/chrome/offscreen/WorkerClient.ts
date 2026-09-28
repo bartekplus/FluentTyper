@@ -23,7 +23,7 @@ interface PendingCall {
 
 /**
  * Request/response client for the engine worker. The worker is created on
- * first use; terminate() (teardown) and a crash both reject every pending call,
+ * first use; terminate() and a crash both reject every pending call,
  * and the next call starts a fresh worker.
  */
 export class WorkerClient {
@@ -47,21 +47,13 @@ export class WorkerClient {
     const worker = this.ensureWorker();
     const id = this.nextId++;
     return new Promise((resolve, reject) => {
-      this.pending.set(id, {
-        resolve,
-        reject,
-        onProgress,
-      });
+      this.pending.set(id, { resolve, reject, onProgress });
       worker.postMessage({ ...call, id });
     });
   }
 
   interrupt(): void {
     this.worker?.postMessage({ type: "interrupt" });
-  }
-
-  terminate(): void {
-    this.teardown();
   }
 
   private ensureWorker(): WorkerLike {
@@ -94,11 +86,11 @@ export class WorkerClient {
     if (this.worker !== worker) {
       return;
     }
-    this.teardown();
+    this.terminate();
     this.onCrash();
   }
 
-  private teardown(): void {
+  terminate(): void {
     const worker = this.worker;
     this.worker = null;
     if (worker) {

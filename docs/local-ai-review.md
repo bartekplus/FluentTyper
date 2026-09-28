@@ -1,9 +1,9 @@
 # Local AI Review: design note
 
-Status: implemented on branch `feat/local-ai-review`, not released; see
-[local-ai-implementation-report.md](local-ai-implementation-report.md) for evidence and
-remaining release blockers. This note records the boundaries and decisions; [review-mode.md](review-mode.md) remains the user-facing
-Review documentation.
+Status: implemented, not released (see [release blockers](#release-blockers-and-limitations)).
+This note records the boundaries and decisions; [review-mode.md](review-mode.md) is the
+user-facing Review documentation and [local-ai-evaluation.md](local-ai-evaluation.md) the
+measurements.
 
 ## Promise
 
@@ -104,8 +104,7 @@ downloading → loading → ready ⇄ generating → unloading`, plus `unavailab
 ## Models
 
 Curated registry: `src/core/domain/localAi/modelRegistry.ts`, pinned to Transformers.js
-4.3.0. Two tiers, chosen from the real-GPU evaluation
-([local-ai-evaluation.md](local-ai-evaluation.md)): **Recommended = Gemma 4 E4B** (default;
+4.3.0. Two tiers, chosen from the evaluation: **Recommended = Gemma 4 E4B** (default;
 found the most errors, loaded as `Gemma4ForConditionalGeneration` and used for text only,
 `enable_thinking: false` in its chat template) and **Compact = Qwen3 4B Instruct 2507**
 (smaller, fewest changes to correct text; no thinking switch). Both ONNX `q4f16`.
@@ -136,3 +135,21 @@ Writes go only through `ReviewTargetPort.apply`.
 No cloud endpoint or fallback, no telemetry, no text in logs/storage/debug views/errors.
 Dependency errors are mapped to bounded codes. The download host sees ordinary
 connection metadata (IP address, requested model files), never reviewed text.
+
+## Release blockers and limitations
+
+1. **ONNX Runtime Web is a dev pre-release** (`1.31.0-dev.20260914`, pinned exactly by
+   Transformers.js 4.3.0); adopt a stable ORT with a compatible Transformers.js before a
+   store release.
+2. **Store review** is untested: nothing executable is downloaded (MV3 remote-code rules),
+   but the package has not been submitted.
+3. **Size and speed:** Recommended is a 5.2 GB download, and since the GPU is released after
+   every Review, each Review waits ~8 s for the model before the first Local AI finding
+   (rule findings still appear at once).
+4. **Coverage:** one GPU and OS measured, memory not measured; Edge and Firefox not run in a
+   browser (Firefox has no offscreen documents, so Review works without AI there).
+5. **Recall:** Gemma 4 E4B still misses about 1 in 5 errors on the dense fixtures; it
+   abstains rather than guesses. English only.
+6. **Validator limits:** hedge swaps in rewrites (`might` → `may`) pass because hedges are
+   counted, not matched; a plausible wrong "correction" of a valid word would need a
+   dictionary check.

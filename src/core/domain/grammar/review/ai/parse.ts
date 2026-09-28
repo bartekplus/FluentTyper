@@ -37,11 +37,6 @@ function hasExactKeys(value: Record<string, unknown>, keys: readonly string[]): 
   return own.length === keys.length && own.every((key, index) => key === keys[index]);
 }
 
-/** Longest proposed text accepted for an original segment. */
-export function maxProposedChars(original: string): number {
-  return original.length * 2 + 200;
-}
-
 /**
  * Strict, bounded parse of raw model output against the request: JSON object
  * with exactly `segments`, each requested id exactly once in order, string
@@ -74,7 +69,7 @@ export function parseAiResponse(raw: string, request: AiGenerationRequest): AiGe
     const expected = request.segments[index];
     if (!isPlainObject(item) || !hasExactKeys(item, ["id", "text"])) return malformed;
     if (item.id !== expected.id || typeof item.text !== "string") return malformed;
-    if (item.text.length > maxProposedChars(expected.text)) return malformed;
+    if (item.text.length > expected.text.length * 2 + 200) return malformed;
     segments.push({ id: expected.id, text: item.text });
   }
   return { ok: true, segments };

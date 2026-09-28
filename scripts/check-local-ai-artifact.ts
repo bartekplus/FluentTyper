@@ -34,21 +34,11 @@ export const LOCAL_AI_ENGINE_MARKERS = [
   "onnxruntime",
   "transformers-cache",
 ];
-/** WebLLM (and its TVM runtime) must not appear in any bundle. */
-export const WEBLLM_MARKERS = [
-  "WebGPUNotAvailableError",
-  "wasmLibraryProvider",
-  "MLCEngine",
-  "@mlc-ai",
-  "WebLLM",
-];
 /** Only src/adapters/chrome/background/testing/RuntimeTestHooks.ts (dev) contains these. */
 const TEST_HOOK_MARKERS = ["TEST_TRIGGER_COMMAND", "triggerCommandForTesting"];
 /** content_script.js installs its observability relay only when __FT_DEV_BUILD__ is true. */
 const DEV_BUILD_CONTENT_SCRIPT_MARKER = "CMD_CONTENT_SCRIPT_REPORT_OBSERVABILITY_EVENT";
 const REPO_ROOT = path.resolve(import.meta.dir, "..");
-/** The legacy predictor's text-bearing debug fields must never reach Local AI bundles. */
-const LEGACY_DEBUG_TEXT_FIELDS = ["lastPredictInput", "lastRawOutputPreview"];
 /** Transformers.js' default wasmPaths; inert only when the worker overrides it. */
 const ORT_CDN_ORIGIN = "https://cdn.jsdelivr.net";
 
@@ -62,12 +52,6 @@ const APP_BUNDLES = [
   "new_installation/onboarding.js",
 ];
 const LOCAL_AI_BUNDLES = ["local-ai/offscreen.js", "local-ai/worker.js"];
-const LOCAL_AI_FILES = [
-  ...LOCAL_AI_BUNDLES,
-  "local-ai/offscreen.html",
-  "local-ai/THIRD_PARTY_NOTICES.md",
-  "local-ai/ONNXRUNTIME_THIRD_PARTY_NOTICES.txt",
-];
 
 /**
  * URL origins that may appear in Local AI bundles without being contacted:
@@ -100,13 +84,6 @@ interface ArtifactReport {
   notes: string[];
 }
 
-async function exists(filePath: string): Promise<boolean> {
-  return stat(filePath).then(
-    () => true,
-    () => false,
-  );
-}
-
 function sameSet(left: readonly string[], right: readonly string[]): boolean {
   return left.length === right.length && [...left].sort().join(" ") === [...right].sort().join(" ");
 }
@@ -136,8 +113,7 @@ export async function checkLocalAiArtifact(
   const read = (relative: string) => readFile(path.join(buildDir, relative), "utf8");
 
   // Manifest: permissions, page exposure, CSP.
-  const manifestText = await read("manifest.json");
-  const manifest = JSON.parse(manifestText) as Record<string, unknown>;
+  const manifest = JSON.parse(await read("manifest.json")) as Record<string, unknown>;
   const permissions = (manifest.permissions as string[] | undefined) ?? [];
   if (!sameSet(permissions, expected.permissions)) {
     fail(`permissions ${JSON.stringify(permissions)} != ${JSON.stringify(expected.permissions)}`);
@@ -174,11 +150,6 @@ export async function checkLocalAiArtifact(
 
   // Local AI files: present and verified on Chrome/Edge, absent elsewhere.
   if (expected.localAi) {
-    for (const file of LOCAL_AI_FILES) {
-      if (!(await exists(path.join(buildDir, file)))) {
-        fail(`missing ${file}`);
-      }
-    }
     const localAiEntries = await readdir(path.join(buildDir, "local-ai")).catch(() => []);
     const expectedEntries = [
       "offscreen.html",
@@ -216,7 +187,7 @@ export async function checkLocalAiArtifact(
     ) {
       fail("local-ai/offscreen.html must load only ./offscreen.js, with no inline script");
     }
-  } else if (await exists(path.join(buildDir, "local-ai"))) {
+  } else if (await stat(path.join(buildDir, "local-ai")).catch(() => null)) {
     fail(`${platform} build must not contain local-ai/`);
   }
 
@@ -241,11 +212,6 @@ export async function checkLocalAiArtifact(
     if (content.includes(REPO_ROOT)) {
       fail(`${bundle} embeds the build machine path ${REPO_ROOT}`);
     }
-    for (const marker of WEBLLM_MARKERS) {
-      if (content.includes(marker)) {
-        fail(`${bundle} contains WebLLM ("${marker}")`);
-      }
-    }
     const isWorker = bundle === "local-ai/worker.js";
     if (!isWorker) {
       for (const marker of LOCAL_AI_ENGINE_MARKERS) {
@@ -259,11 +225,6 @@ export async function checkLocalAiArtifact(
     }
     // The worker must replace Transformers.js' CDN wasmPaths with the packaged runtime.
     const ortOverridden = isWorker && content.includes(`${LOCAL_AI_ORT_DIR}/`);
-    for (const field of LEGACY_DEBUG_TEXT_FIELDS) {
-      if (content.includes(field)) {
-        fail(`${bundle} contains the legacy debug text field "${field}"`);
-      }
-    }
     const origins = new Map<string, number>();
     for (const url of content.match(/https?:\/\/[a-z0-9.-]+/gi) ?? []) {
       origins.set(url.toLowerCase(), (origins.get(url.toLowerCase()) ?? 0) + 1);

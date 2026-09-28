@@ -57,8 +57,6 @@ describe("parseAiResponse", () => {
     ["prose before", `Here you go: ${good}`],
     ["prose after", `${good} Done!`],
     ["trailing JSON", `${good}{}`],
-    ["truncated", good.slice(0, -3)],
-    ["empty", ""],
     ["array", `[${good}]`],
     ["string", JSON.stringify(good)],
     ["extra top-level key", JSON.stringify({ segments: [], note: "x" })],

@@ -25,10 +25,6 @@ export class LocalAiSettingsRepository extends SettingsRepositoryBase {
     return value === "standard" || value === "compact" ? value : DEFAULT_LOCAL_AI_TIER;
   }
 
-  async setLocalAiReviewTier(tier: LocalAiModelTier): Promise<void> {
-    await this.setField("localAiReviewTier", tier);
-  }
-
   /** A consent record naming a registry model of the recorded tier, else null. */
   async getLocalAiReviewConsent(): Promise<LocalAiReviewConsent | null> {
     const value: unknown = await this.getField("localAiReviewConsent");

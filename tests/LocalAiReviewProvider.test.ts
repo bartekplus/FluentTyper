@@ -7,7 +7,6 @@ import {
 import {
   CMD_LOCAL_AI_DISMISS_SETUP_OFFER,
   CMD_LOCAL_AI_ENSURE_HOST,
-  CMD_LOCAL_AI_GET_STATUS,
   CMD_LOCAL_AI_OPEN_SETUP,
 } from "../src/core/domain/constants";
 import {
@@ -80,9 +79,6 @@ function runtime({ ensure = { ok: true, status: STATUS } as unknown } = {}) {
     sendMessage: (message) => {
       sent.push(message.command);
       if (message.command === CMD_LOCAL_AI_ENSURE_HOST) return Promise.resolve(ensure);
-      if (message.command === CMD_LOCAL_AI_GET_STATUS) {
-        return Promise.resolve({ ok: true, status: STATUS });
-      }
       return Promise.resolve({ ok: true, status: STATUS });
     },
     connect: ({ name }) => {

@@ -1,7 +1,6 @@
 import type { LocalAiStatus } from "@core/domain/contracts/localAi";
 import { localAiModelForTier } from "@core/domain/localAi/modelRegistry";
 import type {
-  AiErrorCode,
   AiGenerationOutcome,
   AiGenerationRequest,
   ConcreteRewriteStyle,
@@ -66,16 +65,8 @@ export interface ReviewAiViewState {
   coverage: ReviewAiCoverage;
   /** Status snapshot for the setup/unsupported/install notes (no text). */
   status: LocalAiStatus | null;
-  /** Characters of scope checked by the model so far / eligible for it. */
-  checkedChars: number;
-  eligibleChars: number;
   /** Characters not sent (protected, unsafe boundaries, AI size limit). */
   skippedChars: number;
-  /** Current AI findings (already merged into `diagnostics`). */
-  findings: number;
-  /** Proposals the validator rejected on this text (counts only). */
-  rejected: number;
-  failure: AiErrorCode | null;
   /** The panel should show its one-time setup offer. */
   offerSetup: boolean;
 }
@@ -112,7 +103,6 @@ export interface RewriteViewState {
   rejection: AiRejectionReason | null;
   /** Sentences kept as written because their rewrite failed a check, by reason. */
   kept: Partial<Record<AiRejectionReason, number>>;
-  failure: AiErrorCode | null;
   /** True only for a complete validated proposal on a target that can apply it. */
   canApply: boolean;
   /** Apply is impossible here (review-only editor): the UI offers Copy instead. */
@@ -123,9 +113,7 @@ export interface RewriteViewState {
 export interface AiBatchPreview {
   diagnosticIds: string[];
   /** Findings left out because they overlap another selected finding. */
-  excluded: Array<{ id: string; reason: "conflict" }>;
-  before: string;
-  after: string;
+  excluded: number;
   /** Target supports a verified multi-edit transaction. */
   canApply: boolean;
 }
@@ -153,11 +141,6 @@ export function reviewAiAvailability(
   return paused ? "paused" : "ready";
 }
 
-/** Session-local cache key: everything the model consumed, plus what produced the answer. */
-export function aiCacheKey(chunkKey: string, modelId: string, promptVersion: string): string {
-  return JSON.stringify([chunkKey, modelId, promptVersion]);
-}
-
 function editsOf(diagnostic: ReviewDiagnostic): ReviewEdit[] {
   return diagnostic.alternatives[0]?.edits ?? [];
 }
@@ -178,14 +161,13 @@ export function sameChange(a: ReviewDiagnostic, b: ReviewDiagnostic): boolean {
 }
 
 /**
- * Splits selected AI findings into those that can be applied together and
- * those that overlap (or cannot be combined with) another selected one; a
- * conflicting pair is left out entirely rather than silently composed.
+ * The selected AI findings that can be applied together: a pair that overlaps
+ * (or cannot be combined) is left out entirely rather than silently composed.
  */
 export function conflictFreeFindings(
   text: string,
   findings: readonly ReviewDiagnostic[],
-): { included: ReviewDiagnostic[]; excluded: AiBatchPreview["excluded"] } {
+): ReviewDiagnostic[] {
   const conflicting = new Set<string>();
   // ponytail: pairwise O(n²) over one review's AI findings (tens); sort + sweep if that grows.
   for (let i = 0; i < findings.length; i += 1) {
@@ -200,10 +182,5 @@ export function conflictFreeFindings(
       }
     }
   }
-  return {
-    included: findings.filter((finding) => !conflicting.has(finding.id)),
-    excluded: findings
-      .filter((finding) => conflicting.has(finding.id))
-      .map((finding) => ({ id: finding.id, reason: "conflict" as const })),
-  };
+  return findings.filter((finding) => !conflicting.has(finding.id));
 }

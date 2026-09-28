@@ -5667,17 +5667,6 @@ i18n.extend({
     pl: "Twoja karta graficzna nie obsługuje 16-bitowych shaderów zmiennoprzecinkowych, których wymaga model.",
     pr: "Sua placa de vídeo não oferece suporte a shaders de ponto flutuante de 16 bits, necessários ao modelo.",
   },
-  local_ai_unavailable_insufficient_limits: {
-    en: "Your graphics card's limits are too low for the model.",
-    fr: "Les limites de votre carte graphique sont trop basses pour le modèle.",
-    hr: "Ograničenja vaše grafičke kartice preniska su za model.",
-    es: "Los límites de su tarjeta gráfica son demasiado bajos para el modelo.",
-    el: "Τα όρια της κάρτας γραφικών σας είναι πολύ χαμηλά για το μοντέλο.",
-    sv: "Ditt grafikkorts gränser är för låga för modellen.",
-    de: "Die Grenzwerte Ihrer Grafikkarte reichen für das Modell nicht aus.",
-    pl: "Limity Twojej karty graficznej są zbyt niskie dla modelu.",
-    pr: "Os limites da sua placa de vídeo são baixos demais para o modelo.",
-  },
   local_ai_unavailable_host_unsupported: {
     en: "This browser can't run Local AI yet (for example, Firefox).",
     fr: "Ce navigateur ne peut pas encore exécuter l'IA locale (par exemple Firefox).",

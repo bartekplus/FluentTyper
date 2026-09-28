@@ -46,24 +46,9 @@ interface PendingJob {
 /** How long an aborted job waits for the host to settle it before it is given up. */
 const CANCEL_SETTLE_MS = 5000;
 
-const AI_ERROR_CODES: ReadonlySet<string> = new Set<AiErrorCode>([
-  "not-ready",
-  "not-installed",
-  "unavailable",
-  "busy",
-  "cancelled",
-  "timeout",
-  "too-large",
-  "truncated",
-  "malformed",
-  "engine-failed",
-  "device-lost",
-  "invalid-request",
-]);
-
 function isOutcome(value: unknown): value is AiGenerationOutcome {
   if (!isObjectRecord(value)) return false;
-  if (value.ok === false) return typeof value.error === "string" && AI_ERROR_CODES.has(value.error);
+  if (value.ok === false) return typeof value.error === "string";
   return (
     value.ok === true &&
     Array.isArray(value.segments) &&
@@ -96,10 +81,9 @@ function hostMessage(value: unknown): ReviewPortHostMessage | null {
   if (!isObjectRecord(value)) return null;
   if (value.type === "status")
     return isStatus(value.status) ? (value as ReviewPortHostMessage) : null;
-  if (typeof value.requestId !== "string") return null;
-  if (value.type === "progress") return value as ReviewPortHostMessage;
   if (
     value.type === "result" &&
+    typeof value.requestId === "string" &&
     typeof value.modelId === "string" &&
     typeof value.promptVersion === "string" &&
     isOutcome(value.outcome)
@@ -235,17 +219,12 @@ export class LocalAiReviewProvider implements ReviewAiProvider {
       return;
     }
     if (message.type !== "result") return;
-    const job = this.pending.get(message.requestId);
-    if (!job) return;
+    const { requestId, outcome, modelId, promptVersion } = message;
     this.settle(
-      message.requestId,
-      job.cancelled
-        ? { ...failed("cancelled"), modelId: message.modelId, promptVersion: message.promptVersion }
-        : {
-            outcome: message.outcome,
-            modelId: message.modelId,
-            promptVersion: message.promptVersion,
-          },
+      requestId,
+      this.pending.get(requestId)?.cancelled
+        ? failed("cancelled")
+        : { outcome, modelId, promptVersion },
     );
   }
 

@@ -29,13 +29,12 @@ ships inside the extension and is checked by hash at build time; nothing executa
 downloaded. Only the model's files (weights, tokenizer, configuration) are downloaded, from a
 pinned revision, after the user's explicit setup action; the worker fetches only the files
 listed for that revision and verifies each one's SHA-256 before the model counts as installed.
-The model uses GPU memory only while a Review with Local AI is open. Reviewed text, prompts and model
-output are never uploaded, logged or persisted; they live in memory for the open review.
-Model output is treated as untrusted data: it is parsed strictly, validated against the
-original text, rendered as text, and applied only through the user's explicit action and
-the existing verified editor write. Autocomplete never uses the model. GPU and operating
-system memory are not cryptographically erased; the engine is unloaded after an idle
-interval and conversation state is reset between jobs.
+Reviewed text, prompts and model output are never uploaded, logged or persisted; they live
+in memory for the open review, and the model is unloaded when the last Review closes (GPU
+and operating system memory are not cryptographically erased). Model output is treated as
+untrusted data: it is parsed strictly, validated against the original text, rendered as
+text, and applied only through the user's explicit action and the existing verified editor
+write. Autocomplete never uses the model.
 
 ## Reporting a Vulnerability
 

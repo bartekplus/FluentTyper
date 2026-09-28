@@ -111,7 +111,7 @@ const DEFAULT_HANDLERS: Record<WorkerCall["type"], Handler> = {
     segments: (call as Extract<WorkerCall, { type: "generate" }>).request.segments,
   }),
   unload: () => null,
-  delete: (): WorkerResults["delete"] => ({ ok: true }),
+  delete: () => null,
 };
 
 function makeHost(
@@ -164,8 +164,8 @@ describe("JobScheduler", () => {
     }
     expect(scheduler.enqueue("a", "a-extra", request("a-extra"))).toBe("busy");
     let port = 0;
-    while (scheduler.pendingCount < MAX_PENDING_TOTAL) {
-      scheduler.enqueue(`p${port}`, "r", request(`p${port}-${scheduler.pendingCount}`));
+    while (scheduler.pending < MAX_PENDING_TOTAL) {
+      scheduler.enqueue(`p${port}`, "r", request(`p${port}-${scheduler.pending}`));
       port += 1;
     }
     expect(scheduler.enqueue("fresh", "r", request("fresh"))).toBe("busy");
@@ -418,20 +418,6 @@ describe("LocalAiHost lifecycle", () => {
     expect(port.results()).toHaveLength(1);
   });
 
-  test("closing the last review releases the GPU at once: unload, terminate, then idle", async () => {
-    const { review, background, workers } = makeHost();
-    const port = review();
-    await flush();
-    port.emit({ type: "generate", requestId: "r1", request: request("x") });
-    await flush(5);
-    expect(workers[0].terminated).toBe(false);
-    port.close();
-    await flush(5);
-    expect(workers[0].calls.at(-1)?.type).toBe("unload");
-    expect(workers[0].terminated).toBe(true);
-    expect(background.messages.at(-1)).toEqual({ type: "idle" });
-  });
-
   test("closing the last review mid-job settles the job first, then releases", async () => {
     const { review, background, workers } = makeHost({
       generate: () =>
@@ -464,6 +450,7 @@ describe("LocalAiHost lifecycle", () => {
     expect(background.messages).not.toContainEqual({ type: "idle" });
     b.close();
     await flush(5);
+    expect(workers[0].calls.at(-1)?.type).toBe("unload");
     expect(workers[0].terminated).toBe(true);
     expect(background.messages.at(-1)).toEqual({ type: "idle" });
   });
@@ -537,7 +524,6 @@ describe("LocalAiHost lifecycle", () => {
     await flush(10);
     const runtimes = upStates().map((state) => state.runtime);
     expect(runtimes.at(-1)).toBe("downloading");
-    expect(runtimes.slice(runtimes.indexOf("downloading"))).not.toContain("download-required");
     expect(runtimes).not.toContain("download-required");
   });
 

@@ -81,7 +81,7 @@ const engine = new LocalAiWorkerEngine({
   caches: scope.caches,
   gpu: scope.navigator.gpu,
   guard,
-  fetch: (url) => scope.fetch(url),
+  fetch: scope.fetch,
 });
 
 scope.onmessage = (event) => {

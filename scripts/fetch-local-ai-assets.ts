@@ -1,7 +1,7 @@
 /**
  * Maintainer probe for the Local AI model registry.
  *
- *   bun scripts/fetch-local-ai-assets.ts --probe
+ *   bun run probe:local-ai
  *
  * For every record in src/core/domain/localAi/modelRegistry.ts, lists the files
  * of its pinned Hugging Face revision that the registry names (size + SHA-256,
@@ -10,7 +10,6 @@
  * model files are data fetched by the extension after consent, and the ONNX
  * Runtime files come from node_modules (pinned in scripts/check-local-ai-artifact.ts).
  */
-import { parseArgs } from "node:util";
 import { LOCAL_AI_MODELS } from "../src/core/domain/localAi/modelRegistry";
 
 interface TreeEntry {
@@ -89,14 +88,6 @@ async function probe(): Promise<boolean> {
 }
 
 if (import.meta.main) {
-  const { values } = parseArgs({
-    args: process.argv.slice(2),
-    options: { probe: { type: "boolean" } },
-  });
-  if (!values.probe) {
-    console.error("Usage: bun scripts/fetch-local-ai-assets.ts --probe");
-    process.exit(2);
-  }
   const clean = await probe();
   console.log(clean ? "Registry matches the pinned revisions." : "DRIFT: update the registry.");
   process.exit(clean ? 0 : 1);

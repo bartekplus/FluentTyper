@@ -52,12 +52,6 @@ export interface AiChunk {
   contextAfter: string;
   /** Covering snapshot range of the editable segments. */
   range: TextRange;
-  /**
-   * Session-local cache key over EVERYTHING the model consumes for this chunk
-   * (segment texts, context, placeholders, lang, mode, style, prompt version).
-   * Never persisted.
-   */
-  key: string;
 }
 
 export interface AiChunkPlan {

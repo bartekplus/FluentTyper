@@ -75,10 +75,9 @@ function sanitizeOutcome(outcome: AiGenerationOutcome): AiGenerationOutcome {
     : { ok: false, error: outcome.error };
 }
 
-function loadFailureCode(result: WorkerLoadResult): AiErrorCode {
-  if (result.ok) {
-    return "engine-failed";
-  }
+type LoadFailure = Exclude<WorkerLoadResult, { ok: true }>;
+
+function loadFailureCode(result: LoadFailure): AiErrorCode {
   if (result.unavailable) {
     return "unavailable";
   }
@@ -134,14 +133,10 @@ export class LocalAiHost {
     this.touchIdle();
   }
 
-  /** The background asked this host to (re)connect after a service-worker restart. */
-  connect(): void {
-    this.ensureBackground();
-  }
-
   // ------------------------------------------------------------ background
 
-  private ensureBackground(): PortLike {
+  /** Also called when the background asks this host to reconnect after a service-worker restart. */
+  connect(): PortLike {
     if (this.background) {
       return this.background;
     }
@@ -159,7 +154,7 @@ export class LocalAiHost {
 
   private sendUp(message: HostPortUpMessage): void {
     try {
-      this.ensureBackground().postMessage(message);
+      this.connect().postMessage(message);
     } catch {
       this.background = null;
     }
@@ -187,9 +182,6 @@ export class LocalAiHost {
         return;
       case "probe":
         void this.refresh();
-        return;
-      case "unload":
-        this.releaseNow();
         return;
       default:
         return;
@@ -329,28 +321,24 @@ export class LocalAiHost {
     }
   }
 
-  private async deleteModel(modelId: string): Promise<void> {
-    let ok = false;
-    if (localAiModelById(modelId)) {
-      await this.exclusive(async () => {
-        this.activity = "unloading";
-        this.publish();
-        try {
-          ok = (await this.worker.call({ type: "delete", modelId })).ok;
-          if (this.loadedModelId === modelId) {
-            this.loadedModelId = null;
-          }
-          if (this.stateModelId === modelId) {
-            this.install = (await this.worker.call({ type: "cache-state", modelId })).install;
-          }
-        } catch {
-          ok = false;
+  /** The resulting `state` messages tell the background what changed. */
+  private deleteModel(modelId: string): Promise<void> {
+    return this.exclusive(async () => {
+      this.activity = "unloading";
+      this.publish();
+      try {
+        await this.worker.call({ type: "delete", modelId });
+        if (this.loadedModelId === modelId) {
+          this.loadedModelId = null;
         }
-        this.activity = "idle";
-      });
-    }
-    this.sendUp({ type: "deleted", modelId, ok });
-    this.settle();
+        if (this.stateModelId === modelId) {
+          this.install = (await this.worker.call({ type: "cache-state", modelId })).install;
+        }
+      } catch {
+        // Worker gone: the crash policy already recorded it.
+      }
+      this.activity = "idle";
+    }).finally(() => this.settle());
   }
 
   /**
@@ -661,10 +649,7 @@ export class LocalAiHost {
     this.deliver(job, outcome);
   }
 
-  private onLoadFailure(result: WorkerLoadResult): void {
-    if (result.ok) {
-      return;
-    }
+  private onLoadFailure(result: LoadFailure): void {
     if (result.unavailable) {
       this.unavailable = result.unavailable;
       return;
@@ -727,7 +712,7 @@ export class LocalAiHost {
   // ------------------------------------------------------------ idle
 
   private busy(): boolean {
-    return this.scheduler.running !== null || this.scheduler.pendingCount > 0 || this.installing;
+    return this.scheduler.running !== null || this.scheduler.pending > 0 || this.installing;
   }
 
   private settle(): void {

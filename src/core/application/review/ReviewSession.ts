@@ -39,7 +39,6 @@ import {
   REVIEW_SPELLING_CHECK,
 } from "@core/domain/grammar/review/types";
 import {
-  aiCacheKey,
   conflictFreeFindings,
   reviewAiAvailability,
   sameChange,
@@ -57,6 +56,7 @@ import type {
   AiChunkPlan,
   AiErrorCode,
   AiGenerationOutcome,
+  AiGenerationRequest,
   EditorContextHint,
   RewriteProposal,
   RewriteStyle,
@@ -372,10 +372,10 @@ export class ReviewSession {
   // Validated AI findings for `prepared`, before deduplication against the checks.
   private aiFindings: ReviewDiagnostic[] = [];
   // Answers by chunk key, model and prompt version; a hit must match the whole request.
-  private readonly aiCache = new Map<string, { request: string; segments: AiSegments }>();
+  private readonly aiCache = new Map<string, AiSegments>();
   private aiCoverage: ReviewAiCoverage = "idle";
-  private aiCounts = { checked: 0, eligible: 0, skipped: 0, rejected: 0 };
-  private aiFailure: AiErrorCode | null = null;
+  // Characters the model did not see (protected, unsafe, over its limit, unread by the checks).
+  private aiSkipped = 0;
   private rewriteStyle: RewriteStyle = "keep-voice";
   private rewriteHint: EditorContextHint = "general";
   private rewrite: RewriteViewState | null = null;
@@ -693,32 +693,19 @@ export class ReviewSession {
     return result;
   }
 
-  /** Opens the combined diff of the shown AI findings (or `ids` among them). */
-  previewAiBatch(ids?: readonly string[]): void {
-    const prepared = this.prepared;
-    if (this.status !== "ready" || !prepared) return;
-    const wanted = ids ? new Set(ids) : null;
-    const selected = this.visibleDiagnostics().filter(
-      (d) => d.ruleId === REVIEW_LOCAL_AI_CHECK && (!wanted || wanted.has(d.id)),
-    );
-    const { included, excluded } = conflictFreeFindings(this.text, selected);
-    const edits = included.flatMap((d) => d.alternatives[0]?.edits ?? []);
-    const { start, end } = prepared.snapshot.scope;
-    const before = this.text.slice(start, end);
-    const after = applyEdits(
-      before,
-      edits.map((edit) => ({ ...edit, start: edit.start - start, end: edit.end - start })),
-    );
-    if (after === null || selected.length === 0) return;
+  /** Opens the combined preview of the shown AI findings. */
+  previewAiBatch(): void {
+    if (this.status !== "ready") return;
+    const selected = this.visibleDiagnostics().filter((d) => d.ruleId === REVIEW_LOCAL_AI_CHECK);
+    if (selected.length === 0) return;
+    const included = conflictFreeFindings(this.text, selected);
     this.aiBatch = {
       preview: {
         diagnosticIds: included.map((d) => d.id),
-        excluded,
-        before,
-        after,
+        excluded: selected.length - included.length,
         canApply: this.capabilities.apply && this.capabilities.bulk && included.length > 0,
       },
-      edits,
+      edits: included.flatMap((d) => d.alternatives[0]?.edits ?? []),
       generation: this.generation,
       list: this.visibleDiagnostics(),
     };
@@ -1207,16 +1194,8 @@ export class ReviewSession {
       availability,
       coverage:
         coverage === "checking" && this.aiStatus?.runtime === "loading" ? "loading" : coverage,
-      status: this.deps.ai ? this.aiStatus : null,
-      checkedChars: this.aiCounts.checked,
-      eligibleChars: this.aiCounts.eligible,
-      skippedChars: this.aiCounts.skipped,
-      findings:
-        this.status === "ready"
-          ? this.visibleDiagnostics().filter((d) => d.ruleId === REVIEW_LOCAL_AI_CHECK).length
-          : 0,
-      rejected: this.aiCounts.rejected,
-      failure: this.aiFailure,
+      status: this.aiStatus,
+      skippedChars: this.aiSkipped,
       offerSetup:
         availability === "setup-needed" &&
         this.aiStatus?.offerSetup === true &&
@@ -1267,8 +1246,7 @@ export class ReviewSession {
 
   private dropAiFindings(): void {
     this.aiFindings = [];
-    this.aiCounts = { checked: 0, eligible: 0, skipped: 0, rejected: 0 };
-    this.aiFailure = null;
+    this.aiSkipped = 0;
     this.mergeAiFindings();
   }
 
@@ -1336,53 +1314,46 @@ export class ReviewSession {
     const delayed = this.aiDelayNext;
     this.aiDelayNext = false;
     this.aiFindings = [];
-    this.aiFailure = null;
+    let invalid = false;
     let plan: AiChunkPlan;
     try {
       plan = buildAiChunks(prepared, { mode: "correct", style: null });
     } catch {
       plan = { chunks: [], skipped: { protected: 0, unsafe: 0, limit: 0 } };
-      this.aiFailure = "invalid-request";
+      invalid = true;
     }
     const { protected: protectedChars, unsafe, limit } = plan.skipped;
-    const counts = {
-      checked: 0,
-      eligible: 0,
-      // Text the checks did not read either is unchecked by the model too.
-      skipped: protectedChars + unsafe + limit + this.truncated + this.unread,
-      rejected: 0,
-    };
-    for (const chunk of plan.chunks) counts.eligible += chunk.range.end - chunk.range.start;
-    this.aiCounts = counts;
+    // Text the checks did not read either is unchecked by the model too.
+    this.aiSkipped = protectedChars + unsafe + limit + this.truncated + this.unread;
     let checkedChunks = 0;
     const accept = (chunk: AiChunk, segments: AiSegments) => {
       try {
-        const result = correctionFindings(prepared, chunk, segments);
-        this.aiFindings.push(...result.diagnostics);
-        for (const count of Object.values(result.rejected)) counts.rejected += count ?? 0;
-        counts.checked += chunk.range.end - chunk.range.start;
+        this.aiFindings.push(...correctionFindings(prepared, chunk, segments).diagnostics);
         checkedChunks += 1;
       } catch {
-        this.aiFailure = "malformed";
+        // A malformed answer leaves its chunk unchecked.
       }
     };
     const finish = () => {
       this.aiAbort = null;
       this.aiCoverage =
-        this.aiFailure === "invalid-request" || (checkedChunks === 0 && plan.chunks.length > 0)
+        invalid || (checkedChunks === 0 && plan.chunks.length > 0)
           ? "failed"
-          : checkedChunks < plan.chunks.length || counts.skipped > 0
+          : checkedChunks < plan.chunks.length || this.aiSkipped > 0
             ? "partial"
             : "complete";
     };
 
-    const modelId = this.aiStatus?.modelId ?? "";
+    // Session-local cache key: everything the model consumed, plus what produced the answer.
+    const cacheKey = (request: AiGenerationRequest, modelId: string, promptVersion: string) =>
+      JSON.stringify([request, modelId, promptVersion]);
     const pending: AiChunk[] = [];
     const requestFor = (chunk: AiChunk) =>
       aiRequestForChunk(chunk, prepared.options.lang, "correct", null);
     for (const chunk of plan.chunks) {
-      const cached = this.aiCache.get(aiCacheKey(chunk.key, modelId, AI_PROMPT_VERSION));
-      if (cached?.request === JSON.stringify(requestFor(chunk))) accept(chunk, cached.segments);
+      const key = cacheKey(requestFor(chunk), this.aiStatus?.modelId ?? "", AI_PROMPT_VERSION);
+      const cached = this.aiCache.get(key);
+      if (cached) accept(chunk, cached);
       else pending.push(chunk);
     }
     if (pending.length === 0) finish();
@@ -1413,7 +1384,6 @@ export class ReviewSession {
       if (!live()) return;
       const { outcome } = answer;
       if (!outcome.ok) {
-        this.aiFailure = outcome.error;
         // The runtime dropped it (not us): a later trigger may start again.
         if (outcome.error === "cancelled") {
           this.aiAbort = null;
@@ -1425,24 +1395,17 @@ export class ReviewSession {
         if (AI_PASS_FATAL.has(outcome.error)) break;
         continue;
       }
-      this.rememberAi(aiCacheKey(chunk.key, answer.modelId, answer.promptVersion), {
-        request: JSON.stringify(request),
-        segments: outcome.segments,
-      });
+      // Bounded and session-local; the oldest answer goes first.
+      if (this.aiCache.size >= AI_CACHE_ENTRIES) {
+        this.aiCache.delete(this.aiCache.keys().next().value!);
+      }
+      this.aiCache.set(cacheKey(request, answer.modelId, answer.promptVersion), outcome.segments);
       accept(chunk, outcome.segments);
       this.mergeAiFindings();
       this.emit();
     }
     finish();
     this.emit();
-  }
-
-  /** Bounded and session-local; the oldest answer goes first. */
-  private rememberAi(key: string, entry: { request: string; segments: AiSegments }): void {
-    if (this.aiCache.size >= AI_CACHE_ENTRIES) {
-      this.aiCache.delete(this.aiCache.keys().next().value!);
-    }
-    this.aiCache.set(key, entry);
   }
 
   /**
@@ -1541,14 +1504,9 @@ export class ReviewSession {
     );
   }
 
-  private scopeText(): string {
-    if (!this.prepared) return "";
-    const { start, end } = this.prepared.snapshot.scope;
-    return this.prepared.snapshot.text.slice(start, end);
-  }
-
   private idleRewrite(): RewriteViewState {
-    const before = this.scopeText();
+    const snapshot = this.prepared?.snapshot;
+    const before = snapshot ? snapshot.text.slice(snapshot.scope.start, snapshot.scope.end) : "";
     return {
       style: this.rewriteStyle,
       resolvedStyle: resolveRewriteStyle(this.rewriteStyle, this.rewriteHint, before),
@@ -1559,7 +1517,6 @@ export class ReviewSession {
       hunks: [],
       rejection: null,
       kept: {},
-      failure: null,
       canApply: false,
       previewOnly: !this.capabilities.apply,
     };
@@ -1632,7 +1589,7 @@ export class ReviewSession {
     try {
       plan = buildAiChunks(prepared, { mode: "rewrite", style });
     } catch {
-      done({ status: "failed", failure: "invalid-request" });
+      done({ status: "failed" });
       return;
     }
     if (plan.skipped.limit > 0 || this.truncated > 0 || this.unread > 0) {
@@ -1640,7 +1597,7 @@ export class ReviewSession {
       return;
     }
     if (plan.chunks.length === 0) {
-      done({ status: "failed", failure: "invalid-request" });
+      done({ status: "failed" });
       return;
     }
     this.rewrite = { ...base, status: "generating" };
@@ -1656,8 +1613,7 @@ export class ReviewSession {
       }
       if (!live()) return;
       if (!outcome.ok) {
-        const cancelled = outcome.error === "cancelled";
-        done({ status: cancelled ? "idle" : "failed", failure: cancelled ? null : outcome.error });
+        done({ status: outcome.error === "cancelled" ? "idle" : "failed" });
         return;
       }
       outputs.push(outcome.segments);

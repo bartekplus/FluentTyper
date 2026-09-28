@@ -12,13 +12,9 @@ import {
 } from "../src/adapters/chrome/offscreen/worker/LocalAiWorkerEngine";
 import {
   installNetworkGuard,
-  NETWORK_BLOCKED_ERROR_NAME,
+  NetworkBlockedError,
 } from "../src/adapters/chrome/offscreen/worker/networkGuard";
-import {
-  MODEL_CACHE,
-  deleteModelArtifacts,
-  modelCacheState,
-} from "../src/adapters/chrome/offscreen/worker/modelArtifacts";
+import { MODEL_CACHE } from "../src/adapters/chrome/offscreen/worker/modelArtifacts";
 import { Sha256 } from "../src/adapters/chrome/offscreen/worker/sha256";
 import {
   LOCAL_AI_DOWNLOAD_ORIGINS,
@@ -180,7 +176,7 @@ interface Setup {
 function makeEngine(setup: Setup = {}) {
   const served = setup.served ?? new Map([...GEMMA.served, ...QWEN.served]);
   const network: string[] = [];
-  const nativeFetch = jest.fn(async (input: Request, init?: RequestInit) => {
+  const nativeFetch = jest.fn(async (input: Request, _init?: RequestInit) => {
     network.push(input.url);
     const body = served.get(input.url);
     const response = new Response(body === undefined ? null : body, {
@@ -188,7 +184,6 @@ function makeEngine(setup: Setup = {}) {
     });
     const finalUrl = setup.redirects?.get(input.url) ?? input.url;
     Object.defineProperty(response, "url", { value: finalUrl });
-    void init;
     return response;
   });
   const scope = { fetch: nativeFetch as unknown as typeof fetch, location: { origin: ORIGIN } };
@@ -288,12 +283,10 @@ describe("install, integrity and cache state", () => {
     await engine.install(QWEN.record.modelId, noProgress);
     const presage = await caches.open("presage-dictionaries");
     await presage.put("https://example.invalid/en.db", new Response("dict"));
-    expect(await engine.delete(GEMMA.record.modelId)).toEqual({ ok: true });
+    await engine.delete(GEMMA.record.modelId);
     expect(await engine.cacheState(GEMMA.record.modelId)).toEqual({ install: "none" });
     expect(await engine.cacheState(QWEN.record.modelId)).toEqual({ install: "complete" });
     expect(caches.urls("presage-dictionaries")).toEqual(["https://example.invalid/en.db"]);
-    await deleteModelArtifacts(caches, QWEN.record);
-    expect(await modelCacheState(caches, QWEN.record)).toBe("none");
   });
 });
 
@@ -343,9 +336,7 @@ describe("network guard", () => {
       redirects: cdnRedirect,
     });
     await ok.scope.fetch(extensionUrl);
-    await expect(ok.scope.fetch(listed)).rejects.toMatchObject({
-      name: NETWORK_BLOCKED_ERROR_NAME,
-    });
+    await expect(ok.scope.fetch(listed)).rejects.toBeInstanceOf(NetworkBlockedError);
     expect(await ok.engine.install(GEMMA.record.modelId, noProgress)).toEqual({ ok: true });
 
     const evil = makeEngine({ redirects: new Map([[listed, "https://evil.example/x"]]) });

@@ -552,7 +552,7 @@ function sentenceStarts(tokens: readonly Token[]): boolean[] {
       atStart = false;
       return start;
     }
-    if (token.kind === "punct" && /^[.!?…]$/.test(token.text)) atStart = true;
+    if (token.kind === "punct" && SENTENCE_MARK.test(token.text)) atStart = true;
     else if (token.kind === "placeholder") atStart = false;
     return false;
   });
@@ -594,11 +594,6 @@ const negationCount = (words: readonly string[]) => words.filter(isNegation).len
 /** Negative-polarity forms that replace a second negative ("not … nothing" -> "not … anything"). */
 const NEGATIVE_POLARITY = wordSet("anything anybody anyone ever anywhere any either");
 
-/**
- * True when the polarity may have changed. Resolving a double negative is not
- * a change: every dropped negation became its negative-polarity counterpart
- * ("nothing" -> "anything", "no one" -> "anyone") and a negation remains.
- */
 /** Negative quantifiers that make a nonstandard double negative with another negation. */
 const NEGATIVE_QUANTIFIERS = wordSet("nothing nobody none never nowhere no neither nor");
 const CLAUSE_WORDS = wordSet("and but or so because while although though if when whereas");
@@ -628,6 +623,11 @@ function doubleNegativeAllowance(words: readonly string[]): number {
   return allowance;
 }
 
+/**
+ * True when the polarity may have changed. Resolving a double negative is not
+ * a change: every dropped negation became its negative-polarity counterpart
+ * ("nothing" -> "anything", "no one" -> "anyone") and a negation remains.
+ */
 function negationChanged(before: readonly string[], after: readonly string[]): boolean {
   const dropped = negationCount(before) - negationCount(after);
   if (dropped === 0) return false;
@@ -637,13 +637,11 @@ function negationChanged(before: readonly string[], after: readonly string[]): b
     words.filter((word) => NEGATIVE_POLARITY.has(word)).length;
   return polarity(after) - polarity(before) < dropped;
 }
+/** Numbers in order, not as a multiset: "pay 3 now and 5 later" must not become "5 now and 3 later". */
 const numbersOf = (tokens: readonly Token[]) =>
-  tokens
-    .filter(
-      (token) =>
-        token.kind === "word" && (/\p{N}/u.test(token.text) || NUMBER_WORDS.has(lower(token.text))),
-    )
-    .map((token) => lower(token.text));
+  wordsOf(tokens)
+    .filter((word) => /\p{N}/u.test(word) || NUMBER_WORDS.has(word))
+    .join("\u0000");
 
 /** Literal pieces of a segment: segment-text offsets and their snapshot start. */
 interface Piece {
@@ -770,10 +768,7 @@ function hunkEdit(
     [...removed, ...added, ...neighbours].some(
       (token) => CODE_SYMBOL.test(token.text) || /\p{Ll}\p{Lu}/u.test(token.text),
     ) ||
-    replacement.split(/\s+/).some((piece) => {
-      const core = piece.replace(/^[("'“‘[<]+|[.,;:!?)\]"'”’>]+$/gu, "");
-      return core !== "" && isTechnicalToken(core);
-    })
+    technicalPieces(replacement).size > 0
   ) {
     return { ok: false, reason: "technical-token" };
   }
@@ -948,9 +943,7 @@ function correctUnit(
   if (variant === null) return { reason: "shape" };
   if (edgesOf(variant) !== edgesOf(segment.text)) return { reason: "shape" };
   const changed = tokenize(variant);
-  if (numbersOf(original).join("\u0000") !== numbersOf(changed).join("\u0000")) {
-    return { reason: "number" };
-  }
+  if (numbersOf(original) !== numbersOf(changed)) return { reason: "number" };
   const originalWords = wordsOf(original);
   const changedWords = wordsOf(changed);
   if (negationChanged(originalWords, changedWords)) return { reason: "negation" };
@@ -1029,10 +1022,8 @@ function correctUnit(
       return { reason: "drift" };
     }
     // A new sentence break inside the segment ("16 rd. chain") is not a correction.
-    const addedMarks = next
-      .slice(hunk.p0, hunk.p1)
-      .filter((token) => SENTENCE_MARK.test(token.text));
-    if (addedMarks.length > 0 && hunk.o1 < original.length) return { reason: "drift" };
+    const addsMark = next.slice(hunk.p0, hunk.p1).some((token) => SENTENCE_MARK.test(token.text));
+    if (addsMark && hunk.o1 < original.length) return { reason: "drift" };
     if (styleChoice(original, next, hunk, originalStarts)) return { reason: "drift" };
   }
 
@@ -1343,10 +1334,7 @@ function rewriteSegment(
   if (applyEdits(segment.text, localEdits(hunkEdits)) !== proposed) return { reason: "shape" };
 
   const { original, proposed: next } = diff;
-  // In order, not as a multiset: "pay 3 now and 5 later" must not become "5 now and 3 later".
-  if (numbersOf(original).join("\u0000") !== numbersOf(next).join("\u0000")) {
-    return { reason: "number" };
-  }
+  if (numbersOf(original) !== numbersOf(next)) return { reason: "number" };
   const originalTechnical = technicalPieces(segment.text);
   for (const piece of technicalPieces(proposed)) {
     if (!originalTechnical.has(piece)) return { reason: "technical-token" };

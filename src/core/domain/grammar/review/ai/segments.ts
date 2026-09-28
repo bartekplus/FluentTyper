@@ -1,8 +1,7 @@
 import type { PreparedReview } from "../reviewDiagnostics";
 import { isGraphemeBoundary } from "../textRanges";
 import type { ProtectedRange, TextRange } from "../types";
-import { MAX_AI_CONTEXT_CHARS, MAX_AI_REQUEST_TEXT_CHARS, MAX_AI_SEGMENTS } from "./parse";
-import { AI_PROMPT_VERSION } from "./prompts";
+import { MAX_AI_SEGMENTS } from "./parse";
 import type {
   AiChunk,
   AiChunkPlan,
@@ -18,12 +17,6 @@ export interface AiChunkOptions {
   style: ConcreteRewriteStyle | null;
   /** Editable characters per chunk (conservative pre-check before the runtime's token budget). */
   maxChunkChars?: number;
-  /** Read-only context characters on each side. */
-  contextChars?: number;
-  /** Editable segments per request. */
-  maxSegmentsPerChunk?: number;
-  /** Cap on total editable characters sent for this pass. */
-  maxTotalChars?: number;
 }
 
 /**
@@ -33,12 +26,13 @@ export interface AiChunkOptions {
  * The neighbouring sentences still go along as read-only context. Rewrite
  * keeps larger chunks so each request sees more of the passage.
  */
-const DEFAULT_CORRECT_CHUNK_CHARS = 400;
-const DEFAULT_CORRECT_SEGMENTS_PER_CHUNK = 1;
-const DEFAULT_REWRITE_CHUNK_CHARS = 1_200;
-const DEFAULT_CONTEXT_CHARS = 300;
-const DEFAULT_CORRECT_TOTAL_CHARS = 12_000;
-const DEFAULT_REWRITE_TOTAL_CHARS = 2_000;
+const CORRECT_CHUNK_CHARS = 400;
+const REWRITE_CHUNK_CHARS = 1_200;
+/** Read-only context characters on each side. */
+const CONTEXT_CHARS = 300;
+/** Cap on total editable characters sent for one pass. */
+const CORRECT_TOTAL_CHARS = 12_000;
+const REWRITE_TOTAL_CHARS = 2_000;
 /** Inline code longer than this (or spanning lines) is a boundary, not a placeholder. */
 const MAX_INLINE_CODE_CHARS = 100;
 
@@ -74,23 +68,10 @@ interface SegmentDraft {
 export function buildAiChunks(prepared: PreparedReview, options: AiChunkOptions): AiChunkPlan {
   const source = prepared.snapshot.text;
   const scope = prepared.snapshot.scope;
-  const segmentsPerChunk = Math.max(
-    1,
-    Math.min(
-      MAX_AI_SEGMENTS,
-      options.maxSegmentsPerChunk ??
-        (options.mode === "rewrite" ? MAX_AI_SEGMENTS : DEFAULT_CORRECT_SEGMENTS_PER_CHUNK),
-    ),
-  );
-  const chunkChars = clamp(
-    options.maxChunkChars ??
-      (options.mode === "rewrite" ? DEFAULT_REWRITE_CHUNK_CHARS : DEFAULT_CORRECT_CHUNK_CHARS),
-    MAX_AI_REQUEST_TEXT_CHARS,
-  );
-  const contextChars = clamp(options.contextChars ?? DEFAULT_CONTEXT_CHARS, MAX_AI_CONTEXT_CHARS);
-  const totalChars =
-    options.maxTotalChars ??
-    (options.mode === "rewrite" ? DEFAULT_REWRITE_TOTAL_CHARS : DEFAULT_CORRECT_TOTAL_CHARS);
+  const rewrite = options.mode === "rewrite";
+  const segmentsPerChunk = rewrite ? MAX_AI_SEGMENTS : 1;
+  const chunkChars = options.maxChunkChars ?? (rewrite ? REWRITE_CHUNK_CHARS : CORRECT_CHUNK_CHARS);
+  const totalChars = rewrite ? REWRITE_TOTAL_CHARS : CORRECT_TOTAL_CHARS;
   const skipped = { protected: 0, unsafe: 0, limit: 0 };
 
   const { blocking, placeholders } = classifyProtected(prepared);
@@ -142,7 +123,7 @@ export function buildAiChunks(prepared: PreparedReview, options: AiChunkOptions)
   const sendable = drafts.reduce((sum, draft) => sum + draftLength(draft), 0);
   // A rewrite is all or nothing: never a silently truncated proposal.
   if (
-    options.mode === "rewrite" &&
+    rewrite &&
     (sendable > totalChars || drafts.some((draft) => draftLength(draft) > chunkChars))
   ) {
     skipped.limit += sendable;
@@ -173,8 +154,6 @@ export function buildAiChunks(prepared: PreparedReview, options: AiChunkOptions)
   }
   if (group.length > 0) groups.push(group);
 
-  const lang = prepared.options.lang;
-  const style = options.mode === "rewrite" ? options.style : null;
   const chunks = groups.map((members) => {
     let counter = 0;
     const segments: AiSegment[] = members.map((draft, index) => {
@@ -195,34 +174,14 @@ export function buildAiChunks(prepared: PreparedReview, options: AiChunkOptions)
     };
     const contextBefore = readableContext(
       prepared,
-      range.start - contextChars,
+      range.start - CONTEXT_CHARS,
       range.start,
       "before",
     );
-    const contextAfter = readableContext(prepared, range.end, range.end + contextChars, "after");
-    const chunk: AiChunk = { segments, contextBefore, contextAfter, range, key: "" };
-    chunk.key = hashText(
-      JSON.stringify([
-        AI_PROMPT_VERSION,
-        options.mode,
-        style,
-        lang,
-        contextBefore,
-        contextAfter,
-        segments.map((segment) => [
-          segment.id,
-          segment.text,
-          segment.placeholders.map((holder) => holder.token),
-        ]),
-      ]),
-    );
-    return chunk;
+    const contextAfter = readableContext(prepared, range.end, range.end + CONTEXT_CHARS, "after");
+    return { segments, contextBefore, contextAfter, range };
   });
   return { chunks, skipped };
-}
-
-function clamp(value: number, max: number): number {
-  return Math.max(1, Math.min(max, Math.floor(value)));
 }
 
 /**

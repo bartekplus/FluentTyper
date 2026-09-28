@@ -26,8 +26,6 @@ export type WorkerCall =
   | { type: "unload" }
   | { type: "delete"; modelId: string };
 
-export type WorkerCallType = WorkerCall["type"];
-
 export type WorkerLoadResult =
   { ok: true } | { ok: false; error?: LocalAiErrorCode; unavailable?: LocalAiUnavailableReason };
 
@@ -38,7 +36,7 @@ export interface WorkerResults {
   load: WorkerLoadResult;
   generate: AiGenerationOutcome;
   unload: null;
-  delete: { ok: boolean };
+  delete: null;
 }
 
 export type WorkerProgressPhase = "download" | "load";
@@ -49,4 +47,4 @@ export type WorkerRequest = (WorkerCall & { id: number }) | { type: "interrupt" 
 /** Worker -> host. */
 export type WorkerReply =
   | { id: number; type: "progress"; phase: WorkerProgressPhase; progress: number }
-  | { id: number; type: "result"; result: WorkerResults[WorkerCallType] };
+  | { id: number; type: "result"; result: WorkerResults[WorkerCall["type"]] };

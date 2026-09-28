@@ -21,9 +21,9 @@ If you change message shapes:
 ## Predictor Constraints
 
 - Autocomplete (popup and inline predictions) is Presage-only in every build, dev and production. Local AI Review settings never feed prediction config; stale legacy AI predictor keys in storage are ignored.
-- Production Chrome/Edge builds MAY include the Local AI Review runtime: `local-ai/offscreen.html` hosting one module worker (`local-ai/worker.js`) with Transformers.js and ONNX Runtime Web. It is isolated from prediction: only `src/entries/local_ai_worker.ts` may import `@huggingface/transformers`, and the build fails if any other bundle contains the engine. WebLLM is not used anywhere. Firefox builds ship no Local AI runtime.
+- Chrome/Edge builds include the Local AI Review runtime (`local-ai/offscreen.html` hosting the module worker `local-ai/worker.js`), isolated from prediction (see [architecture.md](architecture.md)); Firefox builds ship none. Packaging: [commands.md](commands.md#local-ai-review-assets).
 - `__FT_DEV_BUILD__`, runtime test hooks and text-bearing predictor debug traces stay development-only; including the Local AI runtime never enables them.
-- The ONNX Runtime WASM is packaged under `local-ai/ort/` (pinned SHA-256), and models are data only. `connect-src` allows only `'self'` and the Hugging Face origins in `LOCAL_AI_DOWNLOAD_ORIGINS`, and no `blob:` or remote script source is needed: the worker is single-threaded, ORT's proxy worker is off and `env.useWasmCache` is false. Check a production build with `bun run check:local-ai:artifact`.
+- `connect-src` allows only `'self'` and the Hugging Face origins in `LOCAL_AI_DOWNLOAD_ORIGINS`; no `blob:` or remote script source is needed (single-threaded worker, ORT proxy worker off, `env.useWasmCache` false). Check a production build with `bun run check:local-ai:artifact`.
 - Do not make Local AI required for normal operation, and keep Review working when it is unavailable.
 
 ## Text Expansions and Dynamic Variables

@@ -18,9 +18,9 @@ import type {
   WorkerRequest,
   WorkerResults,
 } from "../workerProtocol";
-import { NETWORK_BLOCKED_ERROR_NAME, type NetworkGuard } from "./networkGuard";
+import { NetworkBlockedError, type NetworkGuard } from "./networkGuard";
 import {
-  INTEGRITY_ERROR_NAME,
+  IntegrityError,
   deleteModelArtifacts,
   downloadModelFiles,
   markModelVerified,
@@ -94,20 +94,13 @@ interface LoadedModel {
   model: ModelLike;
 }
 
-function errorName(error: unknown): string {
-  const name = (error as { name?: unknown } | null)?.name;
-  return typeof name === "string" ? name : "";
-}
-
 function installErrorCode(error: unknown): LocalAiErrorCode {
-  switch (errorName(error)) {
-    case INTEGRITY_ERROR_NAME:
-      return "integrity-failed";
-    case "QuotaExceededError":
-      return "storage-full";
-    default:
-      return "download-failed";
+  if (error instanceof IntegrityError) {
+    return "integrity-failed";
   }
+  return (error as Error | null)?.name === "QuotaExceededError"
+    ? "storage-full"
+    : "download-failed";
 }
 
 export async function probeGpu(
@@ -288,7 +281,7 @@ export class LocalAiWorkerEngine {
    */
   private loadErrorCode(record: LocalAiModelRecord, error: unknown): LocalAiErrorCode {
     const blocked = this.deps.guard.takeBlockedUrl();
-    if (errorName(error) === NETWORK_BLOCKED_ERROR_NAME && blocked) {
+    if (error instanceof NetworkBlockedError && blocked) {
       const listed = record.files.some((file) => localAiModelFileUrl(record, file) === blocked);
       if (listed) {
         return "cache-failed";
@@ -313,20 +306,17 @@ export class LocalAiWorkerEngine {
     }
   }
 
-  async delete(modelId: string): Promise<WorkerResults["delete"]> {
+  /** The host reads the outcome back with `cache-state`. */
+  async delete(modelId: string): Promise<null> {
     const record = this.findModel(modelId);
     if (!record) {
-      return { ok: false };
+      return null;
     }
     if (this.loaded?.modelId === modelId || this.loading?.modelId === modelId) {
       await this.unload();
     }
-    try {
-      await deleteModelArtifacts(this.deps.caches, record);
-      return { ok: (await this.cacheState(modelId)).install === "none" };
-    } catch {
-      return { ok: false };
-    }
+    await deleteModelArtifacts(this.deps.caches, record).catch(() => undefined);
+    return null;
   }
 
   interrupt(): void {

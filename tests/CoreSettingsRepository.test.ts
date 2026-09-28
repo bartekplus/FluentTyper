@@ -183,16 +183,6 @@ describe("LocalAiSettingsRepository", () => {
     }
   });
 
-  test("legacy predictor keys are not consent", async () => {
-    const legacy = repository({
-      aiPredictorEnabled: true,
-      aiModelId: "Qwen3-1.7B-q4f16_1-MLC",
-      debugAiPredictorEnabled: true,
-    });
-    await expect(legacy.getLocalAiReviewConsent()).resolves.toBeNull();
-    await expect(legacy.getLocalAiSetupOfferDismissed()).resolves.toBe(false);
-  });
-
   test("setters write only their own keys; null revokes consent", async () => {
     const store: Record<string, unknown> = {};
     const manager = {
@@ -205,12 +195,7 @@ describe("LocalAiSettingsRepository", () => {
 
     await writer.setLocalAiReviewConsent(consent as never);
     await writer.setLocalAiSetupOfferDismissed(true);
-    await writer.setLocalAiReviewTier("compact");
-    expect(store).toEqual({
-      localAiReviewConsent: consent,
-      localAiSetupOfferDismissed: true,
-      localAiReviewTier: "compact",
-    });
+    expect(store).toEqual({ localAiReviewConsent: consent, localAiSetupOfferDismissed: true });
     await expect(writer.getLocalAiSetupOfferDismissed()).resolves.toBe(true);
 
     await writer.setLocalAiReviewConsent(null);

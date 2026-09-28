@@ -9,16 +9,10 @@ import { Sha256 } from "./sha256";
 
 export const MODEL_CACHE = "transformers-cache";
 const MARKER_CACHE = "fluenttyper-local-ai";
-export const INTEGRITY_ERROR_NAME = "IntegrityError";
 
 export type CacheStorageLike = Pick<CacheStorage, "has" | "open">;
 
-class IntegrityError extends Error {
-  constructor() {
-    super("Local AI model file failed verification");
-    this.name = INTEGRITY_ERROR_NAME;
-  }
-}
+export class IntegrityError extends Error {}
 
 /** Cache keys must be http(s); this host is reserved and never resolved. */
 function markerUrl(record: LocalAiModelRecord): string {
@@ -106,10 +100,7 @@ async function cachedFileMatches(
     return false;
   }
   const { stream, result } = hashingStream(response.body, onChunk);
-  const reader = stream.getReader();
-  while (!(await reader.read()).done) {
-    // Drain: hashing happens in the transform.
-  }
+  await stream.pipeTo(new WritableStream());
   const { bytes, sha256 } = result();
   return bytes === file.bytes && sha256 === file.sha256;
 }
