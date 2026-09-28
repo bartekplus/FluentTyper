@@ -118,6 +118,7 @@ function rewrite(overrides: Partial<RewriteViewState> = {}): RewriteViewState {
     after: null,
     hunks: [],
     rejection: null,
+    kept: {},
     failure: null,
     canApply: false,
     previewOnly: false,
@@ -491,6 +492,13 @@ describe("ReviewUi: Local AI", () => {
       apply.click();
       expect(cb.applyRewrite).toHaveBeenCalledTimes(1);
       expect(shown("[data-action=rewrite-copy]")).toBe(false);
+    });
+
+    test("a ready proposal says how many sentences were kept as written", () => {
+      rewriting({ status: "ready", after: "The result shows a problem.", kept: { invented: 1 } });
+      expect($(".rewrite-msg").textContent).toContain(
+        "Sentences kept as you wrote them: 1 (their rewrite did not pass the safety checks).",
+      );
     });
 
     test("preview-only offers Copy (trusted clicks only) instead of Apply", async () => {

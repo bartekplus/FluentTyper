@@ -1658,6 +1658,17 @@ const UI = {
     "Ten edytor służy tylko do sprawdzania: skopiuj nową wersję i wklej ją samodzielnie.",
     "Este editor é somente para revisão: copie a reescrita e cole você mesmo.",
   ],
+  review_rewrite_kept: [
+    "Sentences kept as you wrote them: {count} (their rewrite did not pass the safety checks).",
+    "Phrases conservées telles que vous les avez écrites : {count} (leur réécriture n'a pas passé les vérifications).",
+    "Rečenice zadržane kako ste ih napisali: {count} (njihovo preoblikovanje nije prošlo provjere).",
+    "Frases conservadas como las escribió: {count} (su reescritura no pasó las comprobaciones).",
+    "Προτάσεις που έμειναν όπως τις γράψατε: {count} (η αναδιατύπωσή τους δεν πέρασε τους ελέγχους).",
+    "Meningar som behölls som du skrev dem: {count} (omskrivningen klarade inte kontrollerna).",
+    "Sätze, die so bleiben, wie Sie sie geschrieben haben: {count} (ihre Umschreibung hat die Prüfungen nicht bestanden).",
+    "Zdania pozostawione tak, jak je napisano: {count} (ich przepisanie nie przeszło kontroli bezpieczeństwa).",
+    "Frases mantidas como você as escreveu: {count} (a reescrita delas não passou nas verificações).",
+  ],
   review_reject_number: [
     "The rewrite was discarded: it changed a number, which could change a fact. Your text is unchanged. Generate again or try another style.",
     "La réécriture a été écartée : elle modifiait un nombre, ce qui pouvait changer un fait. Votre texte n'a pas été modifié. Générez-la à nouveau ou essayez un autre style.",

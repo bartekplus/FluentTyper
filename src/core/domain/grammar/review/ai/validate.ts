@@ -566,10 +566,40 @@ const NEGATIVE_POLARITY = wordSet("anything anybody anyone ever anywhere any eit
  * a change: every dropped negation became its negative-polarity counterpart
  * ("nothing" -> "anything", "no one" -> "anyone") and a negation remains.
  */
+/** Negative quantifiers that make a nonstandard double negative with another negation. */
+const NEGATIVE_QUANTIFIERS = wordSet("nothing nobody none never nowhere no neither nor");
+const CLAUSE_WORDS = wordSet("and but or so because while although though if when whereas");
+
+/**
+ * How many negations a fix may drop by resolving double negatives: per clause
+ * with two or more negations, its extra negative quantifiers ("to not change
+ * nothing" -> "not to change anything" / "to make no changes"). Two plain
+ * "not"s are logical, not a double negative ("I don't not like it"): none.
+ */
+function doubleNegativeAllowance(words: readonly string[]): number {
+  let allowance = 0;
+  let clause: string[] = [];
+  const flush = () => {
+    const negations = clause.filter(isNegation);
+    if (negations.length >= 2) {
+      const quantifiers = negations.filter((word) => NEGATIVE_QUANTIFIERS.has(word)).length;
+      allowance += Math.min(negations.length - 1, quantifiers);
+    }
+    clause = [];
+  };
+  for (const word of words) {
+    if (CLAUSE_WORDS.has(word)) flush();
+    else clause.push(word);
+  }
+  flush();
+  return allowance;
+}
+
 function negationChanged(before: readonly string[], after: readonly string[]): boolean {
   const dropped = negationCount(before) - negationCount(after);
   if (dropped === 0) return false;
   if (dropped < 0 || negationCount(after) === 0) return true;
+  if (dropped <= doubleNegativeAllowance(before)) return false;
   const polarity = (words: readonly string[]) =>
     words.filter((word) => NEGATIVE_POLARITY.has(word)).length;
   return polarity(after) - polarity(before) < dropped;
@@ -1123,10 +1153,17 @@ function technicalPieces(text: string): Set<string> {
 
 /**
  * Builds one validated rewrite proposal for the whole requested scope from
- * all chunks' parsed outputs, or a rejection. Facts (numbers, names, technical
- * tokens), negation and uncertainty must be preserved; no new commitments,
- * apologies, deadlines, greetings or sign-offs; length within the style's
- * bounds. Edits are word hunks, so untouched words (and their formatting) stay.
+ * all chunks' parsed outputs, or a rejection.
+ *
+ * Every sentence (segment) is checked on its own: facts (numbers in order,
+ * names, technical tokens) stay in their sentence, negation and uncertainty
+ * are preserved, no new commitments, apologies, deadlines, greetings or
+ * sign-offs, no translation, quotes untouched, length within the style's
+ * bounds. A failing sentence is kept as written and counted in `kept`; the
+ * proposal stands when at least one changed sentence passed. Structural
+ * problems (ids, line breaks, placeholders) reject the whole proposal, and so
+ * does a proposal whose every changed sentence failed (most frequent reason).
+ * Edits are word hunks, so untouched words (and their formatting) stay.
  */
 export function rewriteProposal(
   prepared: PreparedReview,
@@ -1137,10 +1174,8 @@ export function rewriteProposal(
   const fail = (reason: AiRejectionReason): RewriteProposal => ({ ok: false, reason });
   if (chunks.length === 0 || outputs.length !== chunks.length) return fail("shape");
   const edits: ReviewEdit[] = [];
-  const originalTokens: Token[][] = [];
-  const proposedTokens: Token[][] = [];
-  let originalText = "";
-  let proposedText = "";
+  const kept: Partial<Record<AiRejectionReason, number>> = {};
+  let passed = 0;
   for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex += 1) {
     const chunk = chunks[chunkIndex];
     const output = outputs[chunkIndex];
@@ -1149,69 +1184,23 @@ export function rewriteProposal(
       const segment = chunk.segments[index];
       if (output[index].id !== segment.id) return fail("shape");
       const proposed = output[index].text;
+      if (proposed === segment.text) continue;
       const diff = diffSegment(prepared, segment, proposed);
       if ("reason" in diff) return fail(diff.reason);
-      if (edgesOf(proposed) !== edgesOf(segment.text)) return fail("shape");
-      if (bracketsOf(proposed) !== bracketsOf(segment.text)) return fail("technical-token");
-      const hunkEdits: Array<{ edit: ReviewEdit; local: TextRange }> = [];
-      for (const hunk of diff.hunks) {
-        const result = hunkEdit(prepared, segment, diff, hunk);
-        if (!result.ok) return fail(result.reason);
-        hunkEdits.push(result);
+      const result = rewriteSegment(prepared, segment, proposed, diff, style);
+      if ("reason" in result) {
+        kept[result.reason] = (kept[result.reason] ?? 0) + 1;
+      } else {
+        edits.push(...result.edits);
+        passed += 1;
       }
-      if (applyEdits(segment.text, localEdits(hunkEdits)) !== proposed) return fail("shape");
-      edits.push(...hunkEdits.map((item) => item.edit));
-      originalTokens.push(diff.original);
-      proposedTokens.push(diff.proposed);
-      originalText += `${segment.text}\n`;
-      proposedText += `${proposed}\n`;
     }
   }
-
-  // In order, not as a multiset: "pay 3 now and 5 later" must not become "5 now and 3 later".
-  const inOrder = (values: string[]) => values.join("\u0000");
-  if (inOrder(originalTokens.flatMap(numbersOf)) !== inOrder(proposedTokens.flatMap(numbersOf))) {
-    return fail("number");
+  const reasons = Object.entries(kept) as Array<[AiRejectionReason, number]>;
+  if (passed === 0 && reasons.length > 0) {
+    // Most frequent; ties go to the first reason met.
+    return fail(reasons.reduce((best, entry) => (entry[1] > best[1] ? entry : best))[0]);
   }
-  const originalTechnical = technicalPieces(originalText);
-  for (const piece of technicalPieces(proposedText)) {
-    if (!originalTechnical.has(piece)) return fail("technical-token");
-  }
-
-  const originalWords = originalTokens.flatMap(wordsOf);
-  const proposedWords = proposedTokens.flatMap(wordsOf);
-  const proposedExact = new Set(proposedTokens.flat().map((token) => token.text));
-  const originalLower = new Set(originalWords);
-  for (let index = 0; index < originalTokens.length; index += 1) {
-    const tokens = originalTokens[index];
-    const starts = sentenceStarts(tokens);
-    if (
-      tokens.some((token, at) => isNameAt(tokens, starts, at) && !proposedExact.has(token.text))
-    ) {
-      return fail("name");
-    }
-    const next = proposedTokens[index];
-    const nextStarts = sentenceStarts(next);
-    if (
-      next.some(
-        (token, at) => isNameAt(next, nextStarts, at) && !originalLower.has(lower(token.text)),
-      )
-    ) {
-      return fail("name");
-    }
-  }
-  if (negationChanged(originalWords, proposedWords)) return fail("negation");
-  if (languageShifted(originalWords, proposedWords)) return fail("drift");
-  if (hedgeCount(originalWords) !== hedgeCount(proposedWords)) return fail("uncertainty");
-  const commitmentsBefore = commitmentCounts(originalWords);
-  for (const [key, count] of commitmentCounts(proposedWords)) {
-    if (count > (commitmentsBefore.get(key) ?? 0)) return fail("invented");
-  }
-
-  const before = originalText.length;
-  const after = proposedText.length;
-  const [low, high] = style === "concise" ? [0.3, 1.2] : [0.5, 2];
-  if (after < before * low || after > Math.max(before * high, before + 20)) return fail("length");
 
   const source = prepared.snapshot.text;
   const { scope } = prepared.snapshot;
@@ -1224,5 +1213,67 @@ export function rewriteProposal(
     before: source.slice(scope.start, scope.end),
     after: rewritten.slice(scope.start, scope.end + delta),
     edits: edits.sort((a, b) => a.start - b.start),
+    kept,
   };
+}
+
+/** One sentence of a rewrite: its edits, or why it must stay as written. */
+function rewriteSegment(
+  prepared: PreparedReview,
+  segment: AiSegment,
+  proposed: string,
+  diff: SegmentDiff,
+  style: ConcreteRewriteStyle,
+): { edits: ReviewEdit[] } | { reason: AiRejectionReason } {
+  if (edgesOf(proposed) !== edgesOf(segment.text)) return { reason: "shape" };
+  if (bracketsOf(proposed) !== bracketsOf(segment.text)) return { reason: "technical-token" };
+  const hunkEdits: Array<{ edit: ReviewEdit; local: TextRange }> = [];
+  for (const hunk of diff.hunks) {
+    const result = hunkEdit(prepared, segment, diff, hunk);
+    if (!result.ok) return { reason: result.reason };
+    hunkEdits.push(result);
+  }
+  if (applyEdits(segment.text, localEdits(hunkEdits)) !== proposed) return { reason: "shape" };
+
+  const { original, proposed: next } = diff;
+  // In order, not as a multiset: "pay 3 now and 5 later" must not become "5 now and 3 later".
+  if (numbersOf(original).join("\u0000") !== numbersOf(next).join("\u0000")) {
+    return { reason: "number" };
+  }
+  const originalTechnical = technicalPieces(segment.text);
+  for (const piece of technicalPieces(proposed)) {
+    if (!originalTechnical.has(piece)) return { reason: "technical-token" };
+  }
+  const originalWords = wordsOf(original);
+  const proposedWords = wordsOf(next);
+  const proposedExact = new Set(next.map((token) => token.text));
+  const originalLower = new Set(originalWords);
+  const starts = sentenceStarts(original);
+  const nextStarts = sentenceStarts(next);
+  if (
+    original.some((token, at) => isNameAt(original, starts, at) && !proposedExact.has(token.text))
+  ) {
+    return { reason: "name" };
+  }
+  if (
+    next.some(
+      (token, at) => isNameAt(next, nextStarts, at) && !originalLower.has(lower(token.text)),
+    )
+  ) {
+    return { reason: "name" };
+  }
+  if (negationChanged(originalWords, proposedWords)) return { reason: "negation" };
+  if (languageShifted(originalWords, proposedWords)) return { reason: "drift" };
+  if (hedgeCount(originalWords) !== hedgeCount(proposedWords)) return { reason: "uncertainty" };
+  const commitmentsBefore = commitmentCounts(originalWords);
+  for (const [key, count] of commitmentCounts(proposedWords)) {
+    if (count > (commitmentsBefore.get(key) ?? 0)) return { reason: "invented" };
+  }
+  const before = segment.text.length;
+  const after = proposed.length;
+  const [low, high] = style === "concise" ? [0.3, 1.2] : [0.5, 2];
+  if (after < before * low || after > Math.max(before * high, before + 20)) {
+    return { reason: "length" };
+  }
+  return { edits: hunkEdits.map((item) => item.edit) };
 }

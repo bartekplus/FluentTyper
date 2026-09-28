@@ -387,7 +387,11 @@ describe("correctionFindings", () => {
 
   test("mismatched output ids reject the whole chunk", () => {
     const prep = prepared("One is here. Two is here.");
-    const [chunk] = buildAiChunks(prep, { mode: "correct", style: null }).chunks;
+    const [chunk] = buildAiChunks(prep, {
+      mode: "correct",
+      style: null,
+      maxSegmentsPerChunk: 32,
+    }).chunks;
     const result = correctionFindings(prep, chunk, [{ id: "s1", text: "x" }]);
     expect(result).toEqual({ diagnostics: [], rejected: { shape: 2 } });
   });
@@ -491,6 +495,18 @@ const rejection = (text: string, outputs: string[], style: ConcreteRewriteStyle 
 };
 
 describe("rewriteProposal", () => {
+  test("a double negative may collapse to one negation; a logical one may not (user report)", () => {
+    expect(
+      rejection("We decided to not change nothing for now.", [
+        "We decided to make no changes for now.",
+      ]),
+    ).toBeNull();
+    expect(rejection("I don't not like it.", ["I don't like it."])).toBe("negation");
+    expect(rejection("We decided to not change nothing.", ["We decided to change it."])).toBe(
+      "negation",
+    );
+  });
+
   test("numbers must keep their order, not just their multiset (review finding)", () => {
     expect(rejection("Pay 3 now and 5 later.", ["Pay 5 now and 3 later."])).toBe("number");
   });
@@ -572,6 +588,49 @@ describe("rewriteProposal", () => {
     expect(applyEdits(TEXT, proposal.edits)).toBe(proposal.after);
     // Untouched words stay untouched (their formatting survives).
     expect(proposal.edits.map((edit) => edit.original)).toEqual(["hey", "can", "the"]);
+    expect(proposal.kept).toEqual({});
+  });
+
+  test("a failing sentence is kept as written; the rest of the rewrite stays (user report)", () => {
+    const text = "the report is ready. Send it before Friday.";
+    const { proposal } = rewrite(text, ["The report is ready now.", "Send it by Friday."]);
+    expect(proposal.ok).toBe(true);
+    if (!proposal.ok) return;
+    expect(proposal.kept).toEqual({ invented: 1 });
+    expect(proposal.after).toBe("The report is ready now. Send it before Friday.");
+    expect(applyEdits(text, proposal.edits)).toBe(proposal.after);
+    const sendAt = text.indexOf("Send");
+    expect(proposal.edits.every((edit) => edit.end <= sendAt)).toBe(true);
+  });
+
+  test("with no passing changed sentence, the most frequent reason rejects the rewrite", () => {
+    const text = "The report is ready. Send it before Friday. We met Anna today.";
+    expect(
+      rejection(text, ["Sorry, the report is ready.", "Send it by Friday.", "We met Ann today."]),
+    ).toBe("invented");
+  });
+
+  test("facts cannot move between sentences", () => {
+    expect(rejection("Pay 3 now. Pay 5 later.", ["Pay 5 now.", "Pay 3 later."])).toBe("number");
+    expect(
+      rejection("Ask Priya today. Then call the team.", [
+        "Ask the team today.",
+        "Then call Priya.",
+      ]),
+    ).toBe("name");
+    // Only the sentence that lost its number is kept.
+    const { proposal } = rewrite("Pay 3 now. Pay 5 later.", ["Pay 3 right now.", "Pay later."]);
+    expect(proposal.ok && proposal.kept).toEqual({ number: 1 });
+    expect(proposal.ok && proposal.after).toBe("Pay 3 right now. Pay 5 later.");
+  });
+
+  test("structural problems still reject the whole rewrite", () => {
+    expect(
+      rejection("Visit https://example.com today. The build is red.", [
+        "Visit today.",
+        "The build is failing.",
+      ]),
+    ).toBe("placeholder");
   });
 
   test("facts, polarity and uncertainty are preserved", () => {

@@ -110,6 +110,8 @@ export interface RewriteViewState {
   /** Changed regions against `before` (offsets into `before`). */
   hunks: ReviewEdit[];
   rejection: AiRejectionReason | null;
+  /** Sentences kept as written because their rewrite failed a check, by reason. */
+  kept: Partial<Record<AiRejectionReason, number>>;
   failure: AiErrorCode | null;
   /** True only for a complete validated proposal on a target that can apply it. */
   canApply: boolean;

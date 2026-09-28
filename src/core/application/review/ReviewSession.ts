@@ -1515,6 +1515,7 @@ export class ReviewSession {
       after: null,
       hunks: [],
       rejection: null,
+      kept: {},
       failure: null,
       canApply: false,
       previewOnly: !this.capabilities.apply,
@@ -1640,7 +1641,7 @@ export class ReviewSession {
       return;
     }
     this.rewriteEdits = { edits: proposal.edits, generation, text: this.text };
-    done({ status: "ready", after: proposal.after, hunks });
+    done({ status: "ready", after: proposal.after, hunks, kept: proposal.kept });
   }
 
   private cancelRecheck(): void {

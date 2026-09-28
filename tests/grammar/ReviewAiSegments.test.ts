@@ -28,7 +28,8 @@ function prepared(
   );
 }
 
-const CORRECT: AiChunkOptions = { mode: "correct", style: null };
+// Several sentences per chunk, to test packing; the Correct default is one (see below).
+const CORRECT: AiChunkOptions = { mode: "correct", style: null, maxSegmentsPerChunk: 32 };
 
 function plan(text: string, extra: Parameters<typeof prepared>[1] = {}, options = CORRECT) {
   return buildAiChunks(prepared(text, extra), options);
@@ -52,6 +53,24 @@ function expectExactMapping(text: string, chunks: AiChunk[]) {
 }
 
 describe("buildAiChunks", () => {
+  test("Correct sends one sentence per request, with its neighbours as read-only context", () => {
+    const { chunks } = plan(
+      "One is here. Two is here. Three is here.",
+      {},
+      {
+        mode: "correct",
+        style: null,
+      },
+    );
+    expect(chunks.map((chunk) => texts([chunk]))).toEqual([
+      ["One is here."],
+      ["Two is here."],
+      ["Three is here."],
+    ]);
+    expect(chunks[1].contextBefore).toContain("One is here.");
+    expect(chunks[1].contextAfter).toContain("Three is here.");
+  });
+
   test("splits sentences, keeps abbreviations, and turns a URL into a placeholder", () => {
     const text = "The results shows a problem. Visit https://example.com/a now. Mr. Smith is here.";
     const { chunks, skipped } = plan(text);

@@ -52,6 +52,9 @@ const MODEL_URL = `https://huggingface.co/${MODEL.weightsRepo}/resolve/${MODEL.w
 /** A unique synthetic word: it must never be found in any store, log or profile file. */
 const SENTINEL = `Zqv${randomBytes(5).toString("hex")}`;
 /** The rules flag only "i"; the model is expected to fix "shows" and "the the". */
+/** A user-reported, error-dense paragraph (tests/fixtures/local-ai: dense-para-01). */
+const DENSE_TEXT =
+  "I dont think this feature work correctly when user paste a long texts into editor. Yesterday we was testing the new version and find several issue with suggestions. The application should automatically detect language, but sometime it choose a wrong one. My manager asked me if I can finished the report before friday afternoon. There is too many informations displayed on this screen and its difficult to understand them. She have been working on this project since three years, but she still dont know all the details. We need to improve performance because the current implementation is more slower then before. If the user click this button, all changes is saved immediatly without any confirmation. The new grammar checker looks really good however, it still miss some obvious mistakes. Me and my colleague discussed about this problem, and we decided to not change nothing for now.";
 const CORRECT_TEXT = `The results shows a problem with the the report. Tomorrow i will ask ${SENTINEL} about it.`;
 const REWRITE_TEXT = `hey, i looked at the numbers and they is mostly fine but ${SENTINEL} want a second look before friday.`;
 const MINUTE = 60_000;
@@ -504,6 +507,32 @@ async function run(): Promise<void> {
         return `AI findings: ${aiFindings.length}; applied one, undo restored (changed ${applied.length - CORRECT_TEXT.length} chars net)`;
       },
     );
+
+    await step("(ii-b) dense paragraph: Local AI findings arrive progressively", async () => {
+      const page = await openEditor(browser, DENSE_TEXT);
+      const startedAt = performance.now();
+      await review(worker);
+      await waitForRuleFinding(page);
+      await waitUntil("first Local AI finding", async () => (await aiItemIds(page)).length > 0, {
+        timeoutMs: 5 * MINUTE,
+        intervalMs: 100,
+      });
+      timings.push([
+        "Dense paragraph: Review open → first Local AI finding",
+        Math.round(performance.now() - startedAt),
+      ]);
+      const line = await waitForAiLine(page, /complete|checked|did not finish/i, 5 * MINUTE);
+      timings.push([
+        "Dense paragraph: Review open → Local AI check finished",
+        Math.round(performance.now() - startedAt),
+      ]);
+      const panel = await readReviewPanel(page);
+      const ai = (await readReviewAi(page)).aiItems;
+      await page.close();
+      console.log(`[local-ai-e2e] dense paragraph Local AI findings:\n  ${ai.join("\n  ")}`);
+      check(ai.length >= 5, `only ${ai.length} Local AI findings on the dense paragraph`);
+      return `${ai.length} Local AI findings of ${panel.items.length} in total; "${line}"`;
+    });
 
     await step("(iii) Rewrite (Keep my voice): diff, Apply only when ready, apply", async () => {
       const page = await openEditor(browser, REWRITE_TEXT);

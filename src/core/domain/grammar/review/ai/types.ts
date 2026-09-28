@@ -134,5 +134,7 @@ export type RewriteProposal =
       after: string;
       /** Non-overlapping edits against the snapshot, applied atomically on accept. */
       edits: RewriteHunk[];
+      /** Segments kept as written because their rewrite failed validation, by reason. */
+      kept: Partial<Record<AiRejectionReason, number>>;
     }
   | { ok: false; reason: AiRejectionReason };

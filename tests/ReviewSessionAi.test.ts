@@ -230,7 +230,13 @@ describe("ReviewSession with Local AI: Correct", () => {
       "style",
     ]);
 
+    // One sentence per request, in document order, one at a time.
+    expect(h.ai.requests[0].request.segments.map((s) => s.text)).toEqual(["We saw teh cat."]);
     h.ai.requests[0].answer();
+    await h.settle();
+    expect(h.last().ai.coverage).toBe("checking");
+    expect(h.ai.requests).toHaveLength(2);
+    h.ai.requests[1].answer();
     await h.settle();
     expect(h.aiFindings().map((d) => d.original)).toEqual(["go"]);
     expect(h.last().diagnostics.map((d) => d.ruleId === REVIEW_LOCAL_AI_CHECK)).toEqual([
@@ -309,8 +315,10 @@ describe("ReviewSession with Local AI: Correct", () => {
     expect(h.aiFindings()).toEqual([]);
     await h.settle();
     expect(h.ai.requests).toHaveLength(2);
-    expect(h.ai.requests[1].request.segments.map((s) => s.text).join(" ")).toContain("school");
     h.ai.requests[1].answer();
+    await h.settle();
+    expect(h.ai.requests[2].request.segments.map((s) => s.text).join(" ")).toContain("school");
+    h.ai.requests[2].answer();
     await h.settle();
     expect(h.aiFindings().map((d) => d.original)).toEqual(["go"]);
     expect(h.aiFindings()[0].range.start).toBe(TEXT.indexOf("go"));
@@ -335,22 +343,24 @@ describe("ReviewSession with Local AI: Correct", () => {
   test("answers are reused only for identical requests", async () => {
     const h = harness(TEXT);
     await h.start();
-    expect(h.ai.requests).toHaveLength(1);
-    // Same text again (an unrelated mutation): the answer is reused, nothing is sent.
-    h.session.notifySourceChanged();
-    await h.settle();
-    expect(h.ai.requests).toHaveLength(1);
-    expect(h.aiFindings().map((d) => d.original)).toEqual(["go"]);
-    expect(h.last().ai.coverage).toBe("complete");
-    // Changed text: asked again.
-    h.editor.text = "We saw teh cat. She go home today.";
+    expect(h.ai.requests).toHaveLength(2);
+    // Same text again (an unrelated mutation): the answers are reused, nothing is sent.
     h.session.notifySourceChanged();
     await h.settle();
     expect(h.ai.requests).toHaveLength(2);
+    expect(h.aiFindings().map((d) => d.original)).toEqual(["go"]);
+    expect(h.last().ai.coverage).toBe("complete");
+    // Changed text: asked again.
+    // Changed text: asked again, for the changed sentence and for the one whose
+    // read-only context changed.
+    h.editor.text = "We saw teh cat. She go home today.";
+    h.session.notifySourceChanged();
+    await h.settle();
+    expect(h.ai.requests).toHaveLength(4);
     // Another model: its own answers.
     h.ai.push({ modelId: "model-b" });
     await h.settle();
-    expect(h.ai.requests).toHaveLength(3);
+    expect(h.ai.requests).toHaveLength(6);
   });
 
   test("pause stops the pass and keeps what was shown; resume finishes it", async () => {
@@ -399,7 +409,7 @@ describe("ReviewSession with Local AI: Correct", () => {
     // Setup completes while the review is open: the pass starts.
     h.ai.push({});
     await h.settle();
-    expect(h.ai.requests).toHaveLength(1);
+    expect(h.ai.requests).toHaveLength(2);
     expect(h.aiFindings()).toHaveLength(1);
   });
 
@@ -448,8 +458,8 @@ describe("ReviewSession with Local AI: Correct", () => {
     const b = harness(TEXT);
     await a.start();
     await b.start();
-    expect(a.ai.requests).toHaveLength(1);
-    expect(b.ai.requests).toHaveLength(1);
+    expect(a.ai.requests).toHaveLength(2);
+    expect(b.ai.requests).toHaveLength(2);
     a.session.close();
     await b.settle();
     expect(b.aiFindings().map((d) => d.original)).toEqual(["go"]);
@@ -591,6 +601,20 @@ describe("ReviewSession with Local AI: Rewrite", () => {
     expect(h.last().rewrite!.status).toBe("ready");
     await Promise.all([h.session.addToDictionary(spelling!.id), h.settle()]);
     expect(h.last().rewrite).toMatchObject({ status: "stale", canApply: false });
+  });
+
+  test("a sentence whose rewrite fails a check is kept; the rest applies (user report)", async () => {
+    const h = harness("We saw teh cat before Friday. She go home now.");
+    h.ai.fix = (text, request) =>
+      request.mode !== "rewrite"
+        ? text
+        : text.replace("before Friday", "by Friday").replace("She go ", "She goes ");
+    await h.start();
+    h.session.setMode("rewrite");
+    h.session.generateRewrite();
+    await h.settle();
+    expect(h.last().rewrite).toMatchObject({ status: "ready", kept: { invented: 1 } });
+    expect(h.last().rewrite!.after).toBe("We saw teh cat before Friday. She goes home now.");
   });
 
   test("a review-only editor previews a rewrite but never applies it", async () => {

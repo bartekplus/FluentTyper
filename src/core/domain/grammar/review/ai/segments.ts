@@ -20,16 +20,21 @@ export interface AiChunkOptions {
   maxChunkChars?: number;
   /** Read-only context characters on each side. */
   contextChars?: number;
+  /** Editable segments per request. */
+  maxSegmentsPerChunk?: number;
   /** Cap on total editable characters sent for this pass. */
   maxTotalChars?: number;
 }
 
 /**
- * Correct sends a few sentences per request so findings appear progressively
- * (a 900-character paragraph in one request showed nothing for ~9 s); Rewrite
+ * Correct sends one sentence per request: with several sentences in one
+ * request, small models fixed the first and copied the rest back (real-GPU
+ * run on a user's paragraph), and results now appear sentence by sentence.
+ * The neighbouring sentences still go along as read-only context. Rewrite
  * keeps larger chunks so each request sees more of the passage.
  */
 const DEFAULT_CORRECT_CHUNK_CHARS = 400;
+const DEFAULT_CORRECT_SEGMENTS_PER_CHUNK = 1;
 const DEFAULT_REWRITE_CHUNK_CHARS = 1_200;
 const DEFAULT_CONTEXT_CHARS = 300;
 const DEFAULT_CORRECT_TOTAL_CHARS = 12_000;
@@ -69,6 +74,14 @@ interface SegmentDraft {
 export function buildAiChunks(prepared: PreparedReview, options: AiChunkOptions): AiChunkPlan {
   const source = prepared.snapshot.text;
   const scope = prepared.snapshot.scope;
+  const segmentsPerChunk = Math.max(
+    1,
+    Math.min(
+      MAX_AI_SEGMENTS,
+      options.maxSegmentsPerChunk ??
+        (options.mode === "rewrite" ? MAX_AI_SEGMENTS : DEFAULT_CORRECT_SEGMENTS_PER_CHUNK),
+    ),
+  );
   const chunkChars = clamp(
     options.maxChunkChars ??
       (options.mode === "rewrite" ? DEFAULT_REWRITE_CHUNK_CHARS : DEFAULT_CORRECT_CHUNK_CHARS),
@@ -146,7 +159,10 @@ export function buildAiChunks(prepared: PreparedReview, options: AiChunkOptions)
       skipped.limit += length;
       continue;
     }
-    if (group.length > 0 && (groupChars + length > chunkChars || group.length >= MAX_AI_SEGMENTS)) {
+    if (
+      group.length > 0 &&
+      (groupChars + length > chunkChars || group.length >= segmentsPerChunk)
+    ) {
       groups.push(group);
       group = [];
       groupChars = 0;

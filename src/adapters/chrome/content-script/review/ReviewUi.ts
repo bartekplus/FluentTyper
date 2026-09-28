@@ -905,8 +905,12 @@ export class ReviewUi {
         return this.t("review_rewrite_idle");
       case "generating":
         return this.t("review_rewrite_generating");
-      case "ready":
-        return this.t("review_rewrite_ready");
+      case "ready": {
+        const kept = Object.values(rewrite.kept).reduce((sum, count) => sum + (count ?? 0), 0);
+        return kept > 0
+          ? `${this.t("review_rewrite_ready")} ${this.t("review_rewrite_kept", { count: kept })}`
+          : this.t("review_rewrite_ready");
+      }
       case "rejected":
         return this.t(REJECTION_KEY[rewrite.rejection ?? "shape"]);
       case "failed":
@@ -936,6 +940,7 @@ export class ReviewUi {
       after: null,
       hunks: [],
       rejection: null,
+      kept: {},
       failure: null,
       canApply: false,
       previewOnly: false,
