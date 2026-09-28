@@ -264,8 +264,15 @@ describe("install, integrity and cache state", () => {
     await engine.install(GEMMA.record.modelId, noProgress);
     network.length = 0;
     await engine.unload();
-    expect(await engine.install(GEMMA.record.modelId, noProgress)).toEqual({ ok: true });
+    const progress: number[] = [];
+    const onProgress = (phase: string, value: number) => {
+      if (phase === "download") progress.push(value);
+    };
+    expect(await engine.install(GEMMA.record.modelId, onProgress)).toEqual({ ok: true });
     expect(network).toEqual([]);
+    // Verification of the cached files is visible as progress, not silence.
+    expect(progress.filter((value) => value > 0 && value < 1).length).toBeGreaterThan(0);
+    expect(progress.at(-1)).toBe(1);
   });
 
   test("a tampered file fails integrity and removes the model's entries", async () => {

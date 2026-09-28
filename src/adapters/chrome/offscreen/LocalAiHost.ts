@@ -828,6 +828,10 @@ export class LocalAiHost {
       default:
         return this.activity;
     }
+    if (this.installing) {
+      // Install requested, waiting for other work: never flash "download-required" meanwhile.
+      return "downloading";
+    }
     if (this.install === "complete") {
       // Usable: warm, or loaded on the next job.
       return "ready";

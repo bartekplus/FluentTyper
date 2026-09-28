@@ -210,6 +210,40 @@ describe("LocalAiController authorization", () => {
     expect(chromeFake.closeDocument).toHaveBeenCalledTimes(1);
   });
 
+  test("from the Install click until the host reports installed, status is downloading", async () => {
+    const { send, chromeFake } = setup();
+    const response = await send(
+      { command: CMD_LOCAL_AI_INSTALL, context: { tier: "standard" } },
+      optionsPage,
+    );
+    expect(response).toMatchObject({ ok: true, status: { runtime: "downloading" } });
+    const host = chromeFake.hostPort();
+    chromeFake.connect(host);
+    host.emit({ type: "state", runtime: "unconfigured", install: "unknown", modelId: null });
+    host.emit({
+      type: "state",
+      runtime: "download-required",
+      install: "none",
+      modelId: STANDARD.modelId,
+    });
+    await flush();
+    expect(await send({ command: CMD_LOCAL_AI_GET_STATUS })).toMatchObject({
+      status: { runtime: "downloading" },
+    });
+    host.emit({
+      type: "state",
+      runtime: "download-required",
+      install: "partial",
+      modelId: STANDARD.modelId,
+      error: "load-failed",
+    });
+    host.emit({ type: "installed", modelId: STANDARD.modelId, ok: false, error: "load-failed" });
+    await flush();
+    expect(await send({ command: CMD_LOCAL_AI_GET_STATUS })).toMatchObject({
+      status: { runtime: "download-required", install: "partial", error: "load-failed" },
+    });
+  });
+
   test("delete keeps consent and preference", async () => {
     const { send, chromeFake, state } = setup({ consent: consented });
     const host = chromeFake.hostPort();

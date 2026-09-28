@@ -266,6 +266,15 @@ export class LocalAiController {
       host !== null && (host.modelId === null || host.modelId === record.modelId);
     const unavailable = !this.hostSupported ? "host-unsupported" : (host?.unavailable ?? undefined);
     const error = this.hostFailed ? "host-failed" : hostDescribes ? host.error : undefined;
+    // From the Install click until the host reports `installed`, the host's own
+    // intermediate states (unconfigured, checking, not yet downloaded) are not news.
+    const installing =
+      this.installInFlight &&
+      !this.hostFailed &&
+      !unavailable &&
+      host?.runtime !== "downloading" &&
+      host?.runtime !== "loading";
+    const runtime = unavailable ? "unavailable" : hostDescribes ? host.runtime : "unconfigured";
     return {
       enabled,
       consented,
@@ -274,7 +283,7 @@ export class LocalAiController {
       displayName: record.displayName,
       downloadBytes: record.downloadBytes,
       install: host?.modelId === record.modelId ? host.install : "unknown",
-      runtime: unavailable ? "unavailable" : hostDescribes ? host.runtime : "unconfigured",
+      runtime: installing ? "downloading" : runtime,
       unavailable,
       error,
       progress: hostDescribes ? host.progress : undefined,

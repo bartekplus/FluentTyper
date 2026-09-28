@@ -19,7 +19,7 @@ import { randomBytes } from "node:crypto";
 import { readdir, readFile, rm, stat } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
-import puppeteer, { type Browser, type Page } from "puppeteer";
+import puppeteer, { type Browser, type CDPSession, type Page } from "puppeteer";
 import {
   KEY_LANGUAGE,
   KEY_LOCAL_AI_REVIEW_CONSENT,
@@ -72,6 +72,8 @@ const results: StepResult[] = [];
 const timings: Array<[string, number]> = [];
 const consoleText: string[] = [];
 const externalRequests: string[] = [];
+/** Redirect hops (the Hugging Face resolve → CDN / resolve-cache legs); checked by origin only. */
+const redirectRequests: string[] = [];
 const blockedRequests: string[] = [];
 /** External requests that failed or answered with an HTTP error: URL and reason only. */
 const failedRequests: string[] = [];
@@ -130,7 +132,7 @@ async function launch(offline: boolean): Promise<{ browser: Browser; worker: Bac
     { timeout: 15000 },
   );
   const worker = (await target.worker())!;
-  await watchTargets(browser, async (session, watched) => {
+  const instrument = async (session: CDPSession, targetType: string): Promise<void> => {
     session.on("Runtime.consoleAPICalled", (event) => {
       consoleText.push(
         event.args.map((arg) => String(arg.value ?? arg.description ?? "")).join(" "),
@@ -145,7 +147,7 @@ async function launch(offline: boolean): Promise<{ browser: Browser; worker: Bac
     const externalIds = new Map<string, string>();
     session.on("Network.requestWillBeSent", (event) => {
       if (!isExternal(event.request.url)) return;
-      externalRequests.push(event.request.url);
+      (event.redirectResponse ? redirectRequests : externalRequests).push(event.request.url);
       externalIds.set(event.requestId, event.request.url);
     });
     session.on("Network.responseReceived", (event) => {
@@ -162,7 +164,7 @@ async function launch(offline: boolean): Promise<{ browser: Browser; worker: Bac
       // Every request that is not the extension's own or the local test page fails.
       session.on("Fetch.requestPaused", (event) => {
         const allowed = !isExternal(event.request.url);
-        if (!allowed) blockedRequests.push(`${watched.type()} ${event.request.url}`);
+        if (!allowed) blockedRequests.push(`${targetType} ${event.request.url}`);
         void (
           allowed
             ? session.send("Fetch.continueRequest", { requestId: event.requestId })
@@ -181,8 +183,39 @@ async function launch(offline: boolean): Promise<{ browser: Browser; worker: Bac
       session.send("Log.enable").catch(() => undefined),
       session.send("Network.enable").catch(() => undefined),
     ]);
-  });
+  };
+  await watchTargets(browser, (session, watched) => instrument(session, watched.type()));
+  await watchWorkerTargets(browser, (session) => instrument(session, "worker"));
   return { browser, worker };
+}
+
+/**
+ * The Local AI engine is a dedicated (module) worker of the offscreen document and
+ * does its own downloads; puppeteer's `targetcreated` does not report such workers,
+ * so they are discovered and attached from a browser-level session.
+ */
+async function watchWorkerTargets(
+  browser: Browser,
+  attach: (session: CDPSession) => Promise<void>,
+): Promise<void> {
+  const root = await browser.target().createCDPSession();
+  const seen = new Set<string>();
+  const attachNew = async () => {
+    const { targetInfos } = await root.send("Target.getTargets");
+    for (const info of targetInfos) {
+      if (info.type !== "worker" || seen.has(info.targetId)) continue;
+      seen.add(info.targetId);
+      const { sessionId } = await root.send("Target.attachToTarget", {
+        targetId: info.targetId,
+        flatten: true,
+      });
+      const session = root.connection()?.session(sessionId);
+      if (session) await attach(session).catch(() => undefined);
+    }
+  };
+  root.on("Target.targetCreated", () => void attachNew().catch(() => undefined));
+  await root.send("Target.setDiscoverTargets", { discover: true });
+  await attachNew();
 }
 
 async function openOptions(browser: Browser, worker: BackgroundContext): Promise<Page> {
@@ -451,7 +484,9 @@ async function run(): Promise<void> {
         );
       });
       await page.close();
-      const origins = [...new Set(externalRequests.map((url) => new URL(url).origin))];
+      const origins = [
+        ...new Set([...externalRequests, ...redirectRequests].map((url) => new URL(url).origin)),
+      ];
       const foreign = origins.filter(
         (origin) => !matchesDownloadOrigin(`${origin}/`, LOCAL_AI_DOWNLOAD_ORIGINS),
       );
@@ -653,6 +688,7 @@ async function run(): Promise<void> {
 
   // ------------------------------------------------------ offline, same profile
   externalRequests.length = 0;
+  redirectRequests.length = 0;
   ({ browser, worker } = await launch(true));
   try {
     await step("(v) offline cold start: Local AI finding from the cache", async () => {

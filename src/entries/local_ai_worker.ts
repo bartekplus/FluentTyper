@@ -5,7 +5,10 @@ import {
   InterruptableStoppingCriteria,
   env,
 } from "@huggingface/transformers";
-import { LOCAL_AI_DOWNLOAD_ORIGINS } from "@core/domain/localAi/modelRegistry";
+import {
+  LOCAL_AI_DOWNLOAD_ORIGINS,
+  type LocalAiModelRecord,
+} from "@core/domain/localAi/modelRegistry";
 import {
   LocalAiWorkerEngine,
   type GpuLike,
@@ -47,13 +50,25 @@ if (onnxWasm) {
   onnxWasm.numThreads = 1;
 }
 
+/**
+ * Some Transformers.js 4.3.0 lookups ignore the `revision` option (the tokenizer's
+ * `tokenizer_config.json` probe asks for `resolve/main/`). Pinning the revision in the
+ * path template makes every request name the pinned, cached file. One model loads at a time.
+ */
+function pinRevision(record: LocalAiModelRecord): void {
+  env.remotePathTemplate = `{model}/resolve/${record.revision}/`;
+}
+
 const engine = new LocalAiWorkerEngine({
   runtime: {
-    loadTokenizer: async (record): Promise<TokenizerLike> =>
-      (await AutoTokenizer.from_pretrained(record.repo, {
+    loadTokenizer: async (record): Promise<TokenizerLike> => {
+      pinRevision(record);
+      return (await AutoTokenizer.from_pretrained(record.repo, {
         revision: record.revision,
-      })) as unknown as TokenizerLike,
+      })) as unknown as TokenizerLike;
+    },
     loadModel: async (record): Promise<ModelLike> => {
+      pinRevision(record);
       const options = { revision: record.revision, dtype: record.dtype, device: "webgpu" } as const;
       const model =
         record.loader === "gemma4"

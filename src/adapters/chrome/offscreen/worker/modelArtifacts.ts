@@ -110,12 +110,18 @@ function hashingStream(
   return { stream, result: () => ({ bytes, sha256: hash.digestHex() }) };
 }
 
-async function cachedFileMatches(cache: Cache, url: string, file: LocalAiModelFile) {
+/** Re-hashes a cached file (resumed install), reporting bytes as it goes. */
+async function cachedFileMatches(
+  cache: Cache,
+  url: string,
+  file: LocalAiModelFile,
+  onChunk: (bytes: number) => void,
+) {
   const response = await cache.match(url);
   if (!response?.body) {
     return false;
   }
-  const { stream, result } = hashingStream(response.body);
+  const { stream, result } = hashingStream(response.body, onChunk);
   const reader = stream.getReader();
   while (!(await reader.read()).done) {
     // Drain: hashing happens in the transform.
@@ -140,21 +146,22 @@ export async function downloadModelFiles(
   let done = 0;
   for (const file of record.files) {
     const url = localAiModelFileUrl(record, file);
-    if (await cachedFileMatches(cache, url, file)) {
-      done += file.bytes;
-      onBytes(done);
+    const base = done;
+    const count = (bytes: number) => {
+      done += bytes;
+      onBytes(Math.min(done, base + file.bytes));
+    };
+    if (await cachedFileMatches(cache, url, file, count)) {
+      done = base + file.bytes;
       continue;
     }
+    done = base;
     await cache.delete(url);
     const response = await fetchFile(url);
     if (!response.ok || !response.body) {
       throw new DownloadError();
     }
-    const base = done;
-    const { stream, result } = hashingStream(response.body, (bytes) => {
-      done += bytes;
-      onBytes(Math.min(done, base + file.bytes));
-    });
+    const { stream, result } = hashingStream(response.body, count);
     const headers = new Headers({ "content-length": String(file.bytes) });
     const type = response.headers.get("content-type");
     if (type) {

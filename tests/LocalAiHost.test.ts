@@ -526,6 +526,25 @@ describe("LocalAiHost lifecycle", () => {
     expect(background.messages.at(-1)).toEqual({ type: "idle" });
   });
 
+  test("a configure racing an install never reports download-required in between", async () => {
+    const { background, upStates } = makeHost(
+      { "cache-state": () => ({ install: "none" }), install: () => new Promise(() => undefined) },
+      { configure: false },
+    );
+    // The consent write re-configures the host while the install message arrives.
+    background.emit({
+      type: "configure",
+      model: { modelId: STANDARD.modelId, tier: "standard" },
+      enabled: true,
+    });
+    background.emit({ type: "install", tier: "standard" });
+    await flush(10);
+    const runtimes = upStates().map((state) => state.runtime);
+    expect(runtimes.at(-1)).toBe("downloading");
+    expect(runtimes.slice(runtimes.indexOf("downloading"))).not.toContain("download-required");
+    expect(runtimes).not.toContain("download-required");
+  });
+
   test("install streams numeric progress; cancel tears down and reports download-cancelled", async () => {
     const { background, workers, upStates } = makeHost({
       "cache-state": () => ({ install: "none" }),
