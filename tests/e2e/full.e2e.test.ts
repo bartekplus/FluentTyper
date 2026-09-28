@@ -3469,7 +3469,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     browserTimeout(20000, 35000),
   );
 
-  test(
+  // Reads text-bearing predictor traces, which only development builds keep.
+  devRuntimeTest(
     "block-local prediction in Lexical/Reddit contenteditable",
     async () => {
       const selector = "#test-contenteditable";
@@ -3547,7 +3548,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     browserTimeout(20000, 35000),
   );
 
-  test(
+  // Reads text-bearing predictor traces, which only development builds keep.
+  devRuntimeTest(
     "restores prediction immediately after Enter in Lexical/Reddit contenteditable",
     async () => {
       const selector = "#test-contenteditable";
@@ -3651,7 +3653,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     browserTimeout(20000, 35000),
   );
 
-  test(
+  // Reads text-bearing predictor traces, which only development builds keep.
+  devRuntimeTest(
     "keeps second-line prediction block-local in br-separated contenteditable",
     async () => {
       const selector = "#test-contenteditable";
@@ -3814,7 +3817,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     browserTimeout(20000, 35000),
   );
 
-  test(
+  // Reads text-bearing predictor traces, which only development builds keep.
+  devRuntimeTest(
     "keeps second-line prediction block-local after Enter in real Lexical editor",
     async () => {
       await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");

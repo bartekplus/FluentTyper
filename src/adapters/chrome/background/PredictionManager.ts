@@ -22,8 +22,19 @@ import { DEFAULT_AI_PREDICTION_TIMEOUT_MS } from "@core/domain/constants";
 import { PredictorError, getErrorMessage } from "@core/domain/error";
 import type { PersonalizationRankingSnapshot } from "@core/domain/personalization/types";
 
+declare const __FT_DEV_BUILD__: boolean | undefined;
+
+const IS_DEV_BUILD = typeof __FT_DEV_BUILD__ !== "undefined" && Boolean(__FT_DEV_BUILD__);
+
 interface PredictionManagerOptions {
   getPersonalizationSnapshot?: () => PersonalizationRankingSnapshot;
+  /**
+   * Development builds only: wire the AI autocomplete experiment and keep
+   * text-bearing debug traces. Production is Presage-only and keeps no text.
+   */
+  isDevBuild?: boolean;
+  /** Presage engine loader; tests pass a fake engine. */
+  loadPresage?: () => Promise<PresageModule>;
 }
 
 interface PredictionDebugRequestMeta {
@@ -76,10 +87,12 @@ export class PredictionManager {
   private debugTraceById: Map<string, PredictorDebugTrace> = new Map();
   private currentConfig: PredictionConfig | null = null;
   private readonly getPersonalizationSnapshot: () => PersonalizationRankingSnapshot;
+  private readonly isDevBuild: boolean;
 
   constructor(options: PredictionManagerOptions = {}) {
-    this.libPresageMod = libPresageMod as () => Promise<PresageModule>;
+    this.libPresageMod = options.loadPresage ?? (libPresageMod as () => Promise<PresageModule>);
     this.getPersonalizationSnapshot = options.getPersonalizationSnapshot ?? (() => ({}));
+    this.isDevBuild = options.isDevBuild ?? IS_DEV_BUILD;
     void this.initialize();
   }
 
@@ -94,9 +107,10 @@ export class PredictionManager {
       this.presageHandler = new PresageHandler(Module, {
         getPersonalizationSnapshot: this.getPersonalizationSnapshot,
       });
+      // Production never routes typing to the AI predictor, whatever is stored.
       this.predictionOrchestrator = new PredictionOrchestrator(
         this.presageHandler,
-        this.webLLMPredictor,
+        this.isDevBuild ? this.webLLMPredictor : undefined,
       );
       if (this.currentConfig) {
         this.predictionOrchestrator.setConfig(this.currentConfig);
@@ -199,6 +213,10 @@ export class PredictionManager {
 
   getPredictorDebugSnapshot(): PredictorDebugSnapshot {
     const webllmDebugState = this.webLLMPredictor.getDebugState();
+    if (!this.isDevBuild) {
+      webllmDebugState.lastPredictInput = null;
+      webllmDebugState.lastRawOutputPreview = null;
+    }
     const presageDebugState = this.presageHandler?.getDebugState();
     const orchestratorDebugState = this.predictionOrchestrator?.getDebugState().predictorConfig;
     const aiPredictorEnabled =
@@ -259,6 +277,9 @@ export class PredictionManager {
     detail?: string,
     timestampMs: number = Date.now(),
   ): string {
+    if (!this.isDevBuild) {
+      return this.ensureTraceId(debugMeta?.traceId);
+    }
     const trace = this.upsertTrace(debugMeta);
     this.appendTimelineEvent(trace, timestampMs, stage.trim() || "event", detail);
     return trace.traceId;
@@ -268,6 +289,10 @@ export class PredictionManager {
     debugEvent: PredictionDebugEvent,
     debugMeta?: PredictionDebugRequestMeta,
   ): void {
+    // Traces hold typed text; production keeps none.
+    if (!this.isDevBuild) {
+      return;
+    }
     const trace = this.upsertTrace(debugMeta);
 
     Object.assign(trace, {

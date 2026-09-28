@@ -1,7 +1,6 @@
 import {
   clampAIPredictionTimeoutMs,
   DEFAULT_AI_MODEL_ID,
-  DEFAULT_AI_PREDICTOR_ENABLED,
   DEFAULT_DEBUG_AI_PREDICTOR_ENABLED,
   DEFAULT_DEBUG_PRESAGE_PREDICTOR_ENABLED,
 } from "@core/domain/constants";
@@ -32,8 +31,8 @@ export class PredictorSettingsRepository extends SettingsRepositoryBase {
     ]);
 
     return {
-      aiPredictorEnabled:
-        typeof aiPredictorEnabled === "boolean" ? aiPredictorEnabled : DEFAULT_AI_PREDICTOR_ENABLED,
+      // Dev-only AI autocomplete experiment: off unless explicitly switched on.
+      aiPredictorEnabled: aiPredictorEnabled === true,
       aiModelId:
         typeof aiModelId === "string" && aiModelId.trim().length > 0
           ? aiModelId

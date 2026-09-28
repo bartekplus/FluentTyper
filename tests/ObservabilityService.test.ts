@@ -113,6 +113,25 @@ describe("ObservabilityService", () => {
     expect(snapshot.events).toHaveLength(0);
   });
 
+  test("keeps no reported events in non-dev builds", () => {
+    const service = new ObservabilityService({
+      isDevBuild: false,
+      getPredictorSnapshot: () => createPredictorSnapshot(),
+      getAutoLanguageRuntimes: () => [],
+    });
+
+    service.recordEvent({
+      id: "cs-1",
+      timestampMs: 10,
+      source: "content_script",
+      moduleId: "Review",
+      level: "warn",
+      message: "sentinel-7f3a",
+    });
+
+    expect((service as unknown as { events: unknown[] }).events).toHaveLength(0);
+  });
+
   test("marks options modules as registered after forwarding option events", () => {
     const service = new ObservabilityService({
       isDevBuild: true,

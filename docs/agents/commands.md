@@ -19,8 +19,20 @@ Use Bun for installs, scripts, and versioning. `bun.lock` is the canonical lockf
 - Dev-runtime e2e: `bun run test:e2e:dev`
 - E2E coverage validation: `bun run check:e2e:coverage`
 - Autofix lint and format: `bun run fix`
+- Fetch/verify packaged Local AI model libraries: `bun run fetch:local-ai`
+- Local AI release gate on a production build: `bun run check:local-ai:artifact [--platform=edge|firefox] [--dir=build]`
 
 Production builds write the unpacked extension output to `build/`.
+
+## Local AI Review Assets
+
+Chrome and Edge builds package the Local AI Review model libraries (executable WASM) under `local-ai/libs/`, because Chrome MV3 forbids remotely hosted code.
+
+- Source: `mlc-ai/binary-mlc-llm-libs` at the commit pinned in `scripts/fetch-local-ai-assets.ts` (`LOCAL_AI_LIBS_COMMIT`), ABI directory `LOCAL_AI_MODEL_LIB_ABI` from `src/core/domain/localAi/modelRegistry.ts`.
+- The files are gitignored under `public/local-ai/libs/` (about 11 MB of reproducible binaries). `build.ts` fetches missing ones, and verifies the SHA-256, SRI and size of every library it copies into the build against the registry; any mismatch fails the build. The first Chrome/Edge build therefore needs network access to `raw.githubusercontent.com`; afterwards builds work offline.
+- Bumping a model or the WebLLM version: run `bun scripts/fetch-local-ai-assets.ts --probe [--lib-commit=<sha>]`, which prints the latest Hugging Face revisions, weight bytes, and library SHA-256/SRI/size next to the pinned values. Update the registry and `LOCAL_AI_LIBS_COMMIT` together, then rebuild and run `bun run check:local-ai:artifact`.
+- Licenses for the bundled runtime and libraries are in `public/local-ai/THIRD_PARTY_NOTICES.md`.
+- The `offscreen` permission (Chrome/Edge only) hosts the optional on-device model worker; it shows no install-time warning.
 
 ## Local Browser Loading
 
