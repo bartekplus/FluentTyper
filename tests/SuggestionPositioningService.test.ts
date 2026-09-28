@@ -98,6 +98,16 @@ describe("SuggestionPositioningService", () => {
     service.positionMenu(menu, target);
     expect(menu.getAttribute("data-ft-placement")).toBe("above");
 
+    // A resized viewport changes the room on each side: decided afresh.
+    const originalHeight = window.innerHeight;
+    Object.defineProperty(window, "innerHeight", { value: 2000, configurable: true });
+    try {
+      service.positionMenu(menu, target);
+      expect(menu.getAttribute("data-ft-placement")).toBe("below");
+    } finally {
+      Object.defineProperty(window, "innerHeight", { value: originalHeight, configurable: true });
+    }
+
     // Caret on a line with room below: a fresh decision.
     const nextLine = new CaretPositioningService(createRect(50, 100, 0, 16));
     nextLine.positionMenu(menu, target);

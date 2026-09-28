@@ -278,7 +278,8 @@ export class SuggestionPositioningService {
 
   /**
    * Picks a side once per caret line and keeps it: flipping as the list grows or
-   * shrinks would move the first suggestion away from the caret.
+   * shrinks would move the first suggestion away from the caret. A resized
+   * viewport changes the room on each side, so it decides afresh.
    */
   private resolvePlacement(
     menu: HTMLDivElement,
@@ -287,7 +288,7 @@ export class SuggestionPositioningService {
     availableAbove: number,
     menuHeight: number,
   ): "above" | "below" {
-    const line = String(Math.round(rect.top));
+    const line = `${Math.round(rect.top)}:${window.innerHeight}`;
     const locked = menu.getAttribute(SUGGESTION_MENU_PLACEMENT_ATTR);
     if (
       menu.getAttribute(SUGGESTION_MENU_PLACEMENT_LINE_ATTR) === line &&
