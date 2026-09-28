@@ -462,18 +462,23 @@ export class LocalAiHost {
       ok: false,
       error: "cancelled",
     });
-    if (cancelled.orphaned && cancelled.job === this.scheduler.running) {
-      this.interruptRunning?.();
-    }
+    this.interruptIfOrphaned();
+  }
+
+  /**
+   * After any cancel or port removal: a running job nobody wants any more is
+   * interrupted (a load only once nothing else waits for the model).
+   */
+  private interruptIfOrphaned(): void {
+    if (this.scheduler.running?.cancelled) this.interruptRunning?.();
   }
 
   private onReviewDisconnect(port: PortLike): void {
     if (!this.reviewPorts.delete(port)) {
       return;
     }
-    if (this.scheduler.removePort(port)) {
-      this.interruptRunning?.();
-    }
+    this.scheduler.removePort(port);
+    this.interruptIfOrphaned();
     if (this.reviewPorts.size === 0 && !this.installing) {
       // The last review closed: release behind its settling job, no grace period.
       this.releaseNow();

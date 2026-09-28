@@ -451,6 +451,22 @@ describe("LocalAiHost lifecycle", () => {
     expect(host.state().error).toBeUndefined();
   });
 
+  test("a load kept for a queued job is abandoned once that job is cancelled too", async () => {
+    const { review, count } = makeHost({ load: never }, { loadTimeoutMs: 60_000 });
+    const port = review();
+    await flush();
+    port.emit({ type: "generate", requestId: "r1", request: request("x") });
+    await flush(5);
+    port.emit({ type: "generate", requestId: "r2", request: request("y") });
+    port.emit({ type: "cancel", requestId: "r1" });
+    await flush(5);
+    // r2 still needs the model: the load goes on.
+    expect(count("unload")).toBe(0);
+    port.emit({ type: "cancel", requestId: "r2" });
+    await flush(5);
+    expect(count("unload")).toBeGreaterThan(0);
+  });
+
   test("a load that succeeds after a failed one clears the load error", async () => {
     let fail = true;
     const { review, host } = makeHost({
