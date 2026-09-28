@@ -1,7 +1,7 @@
 # Local AI Review: model evaluation
 
-Status: first real-device measurement, 2026-09-28. One device, synthetic fixtures,
-sentence-sized inputs. This is a regression gate and a model-selection input, not
+Status: real-device measurement of the shipped configuration, 2026-09-28. One device,
+synthetic fixtures, sentence-sized inputs, each fixture run once. This is a regression gate and a model-selection input, not
 evidence of population-wide accuracy. Design context: [local-ai-review.md](local-ai-review.md).
 
 ## How it was measured
@@ -9,8 +9,8 @@ evidence of population-wide accuracy. Design context: [local-ai-review.md](local
 Harness: `scripts/local-ai-bench/` (opt-in, real GPU only).
 
 ```sh
-bun scripts/local-ai-bench/run.ts --real [--models=<id>,…] [--prompt=product|v2] [--tag=name]
-bun scripts/local-ai-bench/report.ts     # per-model Markdown/JSON + headline table
+bun run bench:local-ai --real [--models=<id>,…] [--tag=name]   # scripts/local-ai-bench/run.ts
+bun run bench:local-ai:report                                  # per-model Markdown/JSON + table
 ```
 
 Registry models use the packaged libraries in `public/local-ai/libs/`. Non-registry
@@ -23,7 +23,8 @@ candidates need `FT_LOCAL_AI_LIBS` (directory with their `*_cs1k-webgpu.wasm`) a
 - The run exits non-zero without `--real`, and fails loudly (`no usable WebGPU adapter`,
   exit 1) when there is no adapter or no `shader-f16`; verified by launching Chrome with
   WebGPU disabled. There is no CPU or mock fallback.
-- The page bundles the **real** `@mlc-ai/web-llm` and the product's `buildAiMessages`,
+- The page bundles the **real** `@mlc-ai/web-llm` and the product's `buildAiMessages`
+  (shipped templates only since `review-ai-2`),
   `aiMaxOutputTokens` and `parseAiResponse`. The model record is built like the product's:
   `https://huggingface.co/<repo>/resolve/<pinned revision>/`, `model_lib` served locally,
   `integrity.model_lib` SRI (sha384, `onFailure: "error"`), `required_features:
@@ -31,8 +32,8 @@ candidates need `FT_LOCAL_AI_LIBS` (directory with their `*_cs1k-webgpu.wasm`) a
 - Generation: `n: 1`, `stream: true` with `include_usage`, `seed: 42`, temperature 0
   (Correct) / 0.4 (Rewrite), `max_tokens = aiMaxOutputTokens(request)`,
   `extra_body.enable_thinking: false` for Qwen3 and Qwen3.5 (omitted for Qwen2.5),
-  `resetChat()` before every request, and `response_format: { type: "json_object", schema }`
-  with the response contract as a JSON schema (see finding 1).
+  `resetChat()` before every request, and `response_format: { type: "json_object", schema:
+AI_RESPONSE_SCHEMA }`, as the product worker sends it (see runtime finding 1).
 - Requests are built exactly like the product: whole fixture text as a textarea snapshot
   (`fixturePrepared` from `scripts/local-ai-eval/score.ts`) → `buildAiChunks` →
   `aiRequestForChunk`. Outputs are scored by the Domain scorer (`scoreCorrectCase`,
@@ -51,9 +52,9 @@ candidates need `FT_LOCAL_AI_LIBS` (directory with their `*_cs1k-webgpu.wasm`) a
 | OS / device    | macOS 27.0 (26A428), Apple M2 Max                                                                                                                    |
 | GPU (adapter)  | `apple` / `metal-3` (Metal), `shader-f16` available                                                                                                  |
 | Context window | 4096                                                                                                                                                 |
-| Prompt         | `review-ai-1` (shipped templates) and `v2` (harness-only experiment)                                                                                 |
+| Prompt         | final: `review-ai-2` (shipped); history: `review-ai-1` and the harness-only `v2` it was derived from                                                 |
 | Fixtures       | 157 Correct (87 expected unchanged, 70 expected corrections; 16 Polish), 34 Rewrite (8 keep-voice, 9 professional, 7 concise, 6 clearer, 4 friendly) |
-| Samples        | one pass per fixture per model/prompt; 5 cancel runs                                                                                                 |
+| Samples        | each fixture ran **once** per model and prompt (157 Correct + 34 Rewrite = 191 fixture runs per model); 5 cancel runs per model                      |
 
 | Model                               | Pinned revision                            | Lib sha256 (first 16) | Weights download |
 | ----------------------------------- | ------------------------------------------ | --------------------- | ---------------: |
@@ -66,13 +67,111 @@ candidates need `FT_LOCAL_AI_LIBS` (directory with their `*_cs1k-webgpu.wasm`) a
 Download bytes are the pinned revisions' weight shards (registry / probe), not measured
 transfer. Memory was not measured (registry VRAM estimates only).
 
-## Findings that affect the product regardless of model
+## Final shipped configuration (prompt `review-ai-2`)
+
+Run 2026-09-28 against the committed product code (df79cf37): prompt `review-ai-2`,
+`response_format` with `AI_RESPONSE_SCHEMA`, `seed: 42`, temperature 0 (Correct) / 0.4
+(Rewrite), `enable_thinking: false` for Qwen3, and the updated validator. Registry:
+**Recommended (`standard`) = Qwen3-4B**, **Compact (`compact`) = Qwen3-1.7B**. Qwen2.5-1.5B
+is a non-registry reference only.
+
+Samples: 157 Correct fixtures (87 expected unchanged, 70 expected corrections, 16 of them
+Polish) and 34 Rewrite fixtures, **each run once** per model (no repeats, so no run-to-run
+variance estimate); 5 cancel runs per model.
+
+Columns: FP = a finding offered on an expected-unchanged fixture; Corrected = applying the
+offered findings yields exactly the expected text; Wrong/partial = findings on a correction
+fixture that do not yield the expected text; Rewrite changed / inv. ok = a validated,
+non-identical proposal / and the fixture's must-keep and forbidden-word invariants hold.
+Latency is per fixture (one sentence each: ~400 prompt tokens, ~20 completion tokens at p50),
+request start to validated result.
+
+| Model                                 | Valid   | FP on unchanged | Corrected       | Wrong/partial | Correct p50 / p90 | Rewrite changed / inv. ok | Rewrite p50 / p90 | Cold load | 1st gen | Cancel p50 / max |
+| ------------------------------------- | ------- | --------------- | --------------- | ------------- | ----------------- | ------------------------- | ----------------- | --------- | ------- | ---------------- |
+| **Qwen3-4B** (Recommended)            | 157/157 | **0/87**        | **46/70 (66%)** | 1/70          | 1173 / 1379 ms    | 12/34 / 11/34             | 1749 / 1874 ms    | 2.6 s     | 0.95 s  | 812 / 855 ms     |
+| **Qwen3-1.7B** (Compact)              | 157/157 | **0/87**        | 21/70 (30%)     | 1/70          | 644 / 746 ms      | 12/34 / 11/34             | 748 / 951 ms      | 1.4 s     | 0.50 s  | 76 / 141 ms      |
+| Qwen2.5-1.5B (reference, not shipped) | 157/157 | 3/87 (3.4%)     | 51/70 (73%)     | 1/70          | 690 / 847 ms      | 12/34 / 11/34             | 856 / 975 ms      | 2.1 s     | 0.72 s  | 39 / 71 ms       |
+
+The one wrong/partial fix for both Qwen3 models is fix-02 (`She dont know` → `She don't
+know`, expected `doesn't`): an incomplete but not meaning-changing correction. Qwen3-4B still
+returned 23/70 correction fixtures verbatim (Qwen3-1.7B: 48/70), i.e. it abstains rather than
+guesses. Polish (not advertised): Qwen3-4B corrected 4/16, Qwen3-1.7B 0/16, no false positives.
+
+Rewrite by style (changed / invariants ok): Qwen3-4B keep-voice 1/8, professional 6/9 (5),
+concise 2/7, clearer 3/6, friendly 0/4. Qwen3-1.7B keep-voice 2/8, professional 4/9 (3),
+concise 2/7, clearer 4/6, friendly 0/4. The single invariant miss for both is rw-22
+(`about 40%` → `approximately 40%`, a synonym; the number is kept).
+
+Validator rejections: Qwen3-4B rewrite: uncertainty 2 (rw-23, rw-28), technical-token 1
+(rw-29, `retries=3` → `retries to 3`), negation 1 (rw-31). Qwen3-1.7B Correct: length 2;
+rewrite: placeholder 2, uncertainty 2, technical-token 1, negation 1, name 1, quoted 1.
+Qwen2.5-1.5B Correct: drift 8, placeholder 7, quoted 2, shape 1; rewrite: placeholder 3,
+technical-token 2, shape 1.
+
+### Meaning changes that still reached the user (human-checked, final run)
+
+| Model        | Correct mode                                                                                                         | Rewrite                                                                                      |
+| ------------ | -------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| Qwen3-4B     | none                                                                                                                 | **rw-pl-02** (Polish, professional): `wrzuciłem` → `Włoniłem`, a non-word replacing the verb |
+| Qwen3-1.7B   | none                                                                                                                 | **rw-pl-02**: `wrzuciłem` ("I pushed") → `Wyśliję` (malformed "I will send"; tense changed)  |
+| Qwen2.5-1.5B | **tech-11** `--dry-run` → `-- dry-run` (breaks a CLI flag); mixed-04 adds `.` after `!`; ambiguous-16 `was` → `were` | rw-04 `the thing` → `the system` (invented referent); rw-27 `14 May` → `May 14`              |
+
+No accepted change on the golden spec-12.2 fixtures, and no accepted change to a number,
+negation or hedge in English, for either shipped model. Residual validator gaps for Domain:
+(a) in-place corruption of a Polish verb in Rewrite (both shipped models, rw-pl-02): the
+translation guard does not catch a same-language wrong word; either restrict Rewrite to
+advertised languages or add a changed-word check for non-English text; (b) whitespace inserted
+inside a `--flag` token (tech-11, Qwen2.5 only); (c) doubled terminal punctuation `!.`
+(mixed-04, Qwen2.5 only).
+
+### Rewrite quality (final, reading the accepted outputs)
+
+Qwen3-4B stays close to the author and keeps facts and hedges: "The thing with the cache is
+that it doesn't get cleared when the thing restarts." becomes "The cache isn't cleared when
+the thing restarts."; "we didnt get the invoice for march, can u resend" becomes "We did not
+receive the invoice for March; could you resend it" (the question mark is lost). It leaves
+most keep-voice and all friendly fixtures unchanged, so those styles feel inert on short
+text. Qwen3-1.7B cuts harder under concise ("I just wanted to quickly let you know that the
+build is, as far as I can tell, probably broken again." → "The build is probably broken
+again.") and shifts register under keep-voice ("hey, can you check…" → "Could you check…"),
+which is outside "keep my voice". Neither model added greetings, sign-offs, apologies,
+promises or deadlines.
+
+## Recommendation (final)
+
+Criteria, in order: abstention / no false positives, zero meaning changes on golden
+unchanged fixtures, correction usefulness, then latency.
+
+- **Keep Recommended = Qwen3-4B with `review-ai-2`.** 0/87 false positives, no accepted
+  English meaning change, 46/70 exact corrections, ~1.2 s p50 / 1.4 s p90 per sentence on this
+  device. Costs: 2.26 GB download, ~3.4 GB registry VRAM estimate (not measured), cancel settles
+  in ~0.8 s (prefill-bound), so the worker-teardown bound should stay well above 1.5 s.
+- **Keep Compact = Qwen3-1.7B** for devices that cannot fit 4B: same 0/87 false positives at
+  about half the latency, but fewer than half the corrections (21/70). Label it as giving fewer
+  corrections.
+- **No higher-quality tier.** Qwen3.5-4B (history below) had more recall but changed a golden
+  fixture and grammatical number; it was not re-run on `review-ai-2`.
+- Qwen2.5-1.5B has the best recall of the small models but still produced accepted false
+  positives, including a broken CLI flag; not recommended.
+- Rewrite: restrict to English (the advertised language) until gap (a) is closed; both shipped
+  models damaged the Polish rewrite fixture.
+
+### Not verified
+
+Other GPUs, integrated/low-memory GPUs, Windows/Linux/ChromeOS, Edge; measured memory use;
+the integrated extension path (offscreen document + worker, port transport, concurrent typing
+and popup predictions while generating); multi-sentence paragraphs and multi-chunk requests at
+realistic sizes; run-to-run variance (each fixture ran once); Qwen3.5-2B, Qwen3.5-4B and
+Qwen2.5-1.5B were not re-run beyond what is listed; Firefox (no runtime host). Fixtures are
+synthetic and finite: a regression gate, not proof of semantic safety. Polish is not advertised.
+
+## Runtime findings (all runs)
 
 1. **`response_format: { type: "json_object" }` without a schema always fails in WebLLM
    0.2.85** (`GrammarMatcherInitError: … Cannot pass non-string to std::string`): the engine
    passes the undefined schema to xgrammar's `compileJSONSchema`. Reproduced on all five
-   models. Workaround used here: pass `schema` (a JSON-schema string of the response
-   contract). A generic schema string is compiled once and reused across requests.
+   models. The product now passes `schema: AI_RESPONSE_SCHEMA`; a fixed schema string is compiled
+   once and reused across requests.
 2. **Thinking switch.** `enable_thinking: false` makes WebLLM prepend `<think>\n\n</think>\n\n`
    to the output, for any model (it is not family-checked; on Qwen2.5 it would inject the
    markup too, so the harness omits it there). Qwen3 1.7B/4B without it spend the budget
@@ -84,31 +183,22 @@ transfer. Memory was not measured (registry VRAM estimates only).
    Correct outputs with a stray `\"` before `}]}` (unterminated string, `finish: stop`);
    Qwen2.5-1.5B twice spun on whitespace (the schema allows any whitespace) until the token
    budget, which the parser correctly treats as truncation. Keep treating these as failures.
-4. **Cancel-to-settle is bounded by prefill, not decode.** 1.5–1.7B models: 1–22 ms. Qwen3-4B:
-   270–720 ms; Qwen3.5-2B: 340–560 ms; Qwen3.5-4B: ~1.2 s. In every slow case only the
+4. **Cancel-to-settle is bounded by prefill, not decode.** 1.5–1.7B models: 1–22 ms first pass, 39–141 ms final. Qwen3-4B:
+   270–720 ms (first pass), 812–855 ms (final); Qwen3.5-2B: 340–560 ms; Qwen3.5-4B: ~1.2 s. In every slow case only the
    injected think block had streamed: the interrupt lands after the (uninterruptible)
    prefill. The worker-teardown bound should be well above 1.5 s for 4B-class models.
-5. **Validator gaps observed (Domain):** accepted in Correct mode: `user.save()` →
-   `user.save(` (Qwen2.5 v2, tech-04), British→American spelling (ambiguous-10/11), a
-   trailing space (pl-06), grammatical number flips `My friends is` → `My friend is`
-   (fix-07/08), `cant` → `cante` (spec-06), Polish `Zadzwonię` → `Zadzwoń` (pl-07, person/mood
-   change). In Rewrite: rw-pl-02 was **translated from Polish to English** and accepted
-   (Qwen3-1.7B v2 even changed "I pushed" into "I will send"; Qwen3.5-2B v2 kept Polish but
-   replaced the verb with "I returned"); hedges replaced by synonyms
-   (`probably` → `likely`, `might` → `may`) pass. Over-strict rejections: `nope, not
-happening` → `No, not happening` rejected as negation; `Not sure…` → `Not sure…. Could
-someone…` rejected as uncertainty.
+5. The validator gaps found in the first pass (British/American spelling, edge whitespace,
+   code-adjacent brackets, noun-number flips after determiners, rewrite translation) and the
+   two over-strict rejections were addressed before the final run; residual gaps are listed
+   under the final results.
 
-## Headline results
+## History: first pass (prompt `review-ai-1` and harness-only `v2`)
 
-Correct = 157 fixtures; FP = a finding offered on an expected-unchanged fixture; Corrected =
-applying the offered findings yields exactly the expected text; Wrong/partial = findings
-offered on a correction fixture that do not yield the expected text. Rewrite "changed" = a
-validated, non-identical proposal; "inv. ok" = changed and the fixture's must-keep /
-forbidden-word invariants hold. Latency is per fixture (mostly one sentence, ~315–420 prompt
-tokens, ~20 completion tokens at p50).
+Earlier the same day, before the prompt change, the validator fixes and the tier rename. Same
+fixtures, device and harness; each fixture ran once. These numbers are superseded by the
+final section above and kept for the record.
 
-### Shipped prompt (`review-ai-1`)
+### Prompt `review-ai-1` (shipped at the time)
 
 | Model        | Valid   | FP on unchanged | Corrected   | Wrong/partial | Correct p50 / p90 | Rewrite changed / inv. ok | Rewrite p50 / p90 | Cold load | 1st gen | Cancel p50 |
 | ------------ | ------- | --------------- | ----------- | ------------- | ----------------- | ------------------------- | ----------------- | --------- | ------- | ---------- |
@@ -122,7 +212,7 @@ The Qwen3/3.5 models **echo the input** under the shipped prompt: the model retu
 correction fixture verbatim in 70/70 (1.7B), 68/70 (3.5-2B) and 66/70 (3-4B) cases, and
 almost every rewrite. Zero false positives here is abstention, not skill.
 
-### Experimental prompt `v2` (harness only, `scripts/local-ai-bench/promptVariants.ts`)
+### Experimental prompt `v2` (harness-only at the time; now `review-ai-2`)
 
 | Model        | Valid   | FP on unchanged | Corrected       | Wrong/partial | Correct p50 / p90 | Rewrite changed / inv. ok | Rewrite p50 / p90 | Cancel p50 |
 | ------------ | ------- | --------------- | --------------- | ------------- | ----------------- | ------------------------- | ----------------- | ---------- |
@@ -188,7 +278,7 @@ short and plausible but over-cut under concise ("Meeting moved to Thursday at 10
 by the name guard; "Tests are flaky on Windows." — rejected for dropped uncertainty). Qwen2.5-1.5B
 mostly echoes. No model invented greetings, sign-offs, apologies or deadlines on these fixtures.
 
-## Recommendation
+### First-pass recommendation (adopted)
 
 Criteria, in order: abstention / no false positives, zero meaning changes on golden
 unchanged fixtures, correction usefulness, then latency.
@@ -212,7 +302,7 @@ unchanged fixtures, correction usefulness, then latency.
   concurrent typing), multi-sentence paragraphs, Firefox. Polish is not advertised and the
   Polish rows are indicative only.
 
-### Prompt-template changes that clearly helped (for `prompts.ts`; orchestrator decides)
+### First-pass prompt proposal (adopted as `review-ai-2`)
 
 Measured as `v2` vs `review-ai-1` with parse and contract unchanged:
 
