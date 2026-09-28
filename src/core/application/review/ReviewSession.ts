@@ -512,8 +512,9 @@ export class ReviewSession {
     this.options = { ...this.options, userDictionary: [...this.options.userDictionary, word] };
     this.notice = { kind: "dictionary-added", word };
     this.generation += 1;
-    // The findings are rebuilt for the new dictionary; so is the AI pass.
-    this.cancelAi();
+    // The findings are rebuilt for the new dictionary; so is the AI pass, and a
+    // proposal or preview made before it is stale.
+    this.textChanging();
     await this.refresh();
   }
 

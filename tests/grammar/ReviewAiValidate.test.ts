@@ -83,6 +83,23 @@ function expectRejected(text: string, proposed: string, reason: string, extra: E
 }
 
 describe("correctionFindings", () => {
+  test("a negating prefix is never a spelling fix (review finding)", () => {
+    const likely = correctOne(
+      "This bug is likely to reappear.",
+      "This bug is unlikely to reappear.",
+    );
+    expect(likely.diagnostics).toEqual([]);
+    const needed = correctOne("That step is necessary here.", "That step is unnecessary here.");
+    expect(needed.diagnostics).toEqual([]);
+    const agree = correctOne("I agree with the plan.", "I disagree with the plan.");
+    expect(agree.diagnostics).toEqual([]);
+  });
+
+  test("a unit next to a number is never changed (review finding)", () => {
+    expectRejected("We measured 300 kb of data.", "We measured 300 mb of data.", "number");
+    expectRejected("Add 5 ml of water.", "Add 5 mg of water.", "number");
+  });
+
   test("agreement fix becomes one Local AI finding", () => {
     const text = "The results shows a problem.";
     const { diagnostics, rejected, applied } = correctOne(text, "The results show a problem.");
@@ -333,6 +350,10 @@ const rejection = (text: string, outputs: string[], style: ConcreteRewriteStyle 
 };
 
 describe("rewriteProposal", () => {
+  test("numbers must keep their order, not just their multiset (review finding)", () => {
+    expect(rejection("Pay 3 now and 5 later.", ["Pay 5 now and 3 later."])).toBe("number");
+  });
+
   const TEXT = "hey, can you check the logs from 3 pm? the deploy failed twice.";
 
   test("a valid rewrite becomes one proposal of word hunks", () => {

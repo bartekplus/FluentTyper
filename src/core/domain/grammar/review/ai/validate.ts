@@ -303,6 +303,16 @@ const bare = (word: string) => word.replace(/['’-]/g, "");
 
 type CloseKind = "case" | "form" | "spelling";
 
+// A negating affix turns a word into its opposite at a tiny edit distance
+// ("likely" -> "unlikely", "careful" -> "careless"): never a correction.
+const NEGATING_PREFIXES = ["un", "in", "im", "il", "ir", "dis", "non", "non-", "mis", "anti", "a"];
+
+function oppositePolarity(x: string, y: string): boolean {
+  if (NEGATING_PREFIXES.some((prefix) => y === prefix + x || x === prefix + y)) return true;
+  const root = (word: string) => word.replace(/(?:ful|less)$/u, "");
+  return /(?:ful|less)$/u.test(x) && /(?:ful|less)$/u.test(y) && x !== y && root(x) === root(y);
+}
+
 /**
  * How two words relate, if a proofreader could swap them: case only, a
  * grammatical form (apostrophe, family, inflection) or a spelling fix (small
@@ -312,6 +322,7 @@ function closeKind(a: string, b: string): CloseKind | null {
   const x = lower(a);
   const y = lower(b);
   if (x === y) return "case";
+  if (oppositePolarity(x, y)) return null;
   if (bare(x) === bare(y) || foldDiacritics(x) === foldDiacritics(y)) return "spelling";
   const family = familyOf(x);
   if (family !== undefined && family === familyOf(y)) return "form";
@@ -681,6 +692,11 @@ function correctSegment(
   const originalStarts = sentenceStarts(original);
   const proposedStarts = sentenceStarts(next);
   const wordAt = (index: number) => original[index]?.kind === "word";
+  // A word right after a number is its unit ("300 kb", "5ml"): changing it changes the quantity.
+  const afterNumber = (tokens: readonly { kind: string; text: string }[], index: number) => {
+    const digits = (at: number) => /\p{N}/u.test(tokens[at]?.text ?? "");
+    return digits(index - 1) || (tokens[index - 1]?.kind === "space" && digits(index - 2));
+  };
   for (const hunk of hunks) {
     const removedIndexes: number[] = [];
     for (let index = hunk.o0; index < hunk.o1; index += 1) {
@@ -688,6 +704,10 @@ function correctSegment(
     }
     const removed = removedIndexes.map((index) => original[index]);
     const added = next.slice(hunk.p0, hunk.p1).filter((token) => token.kind === "word");
+    if (removedIndexes.some((index) => afterNumber(original, index))) return { reason: "number" };
+    for (let index = hunk.p0; index < hunk.p1; index += 1) {
+      if (next[index].kind === "word" && afterNumber(next, index)) return { reason: "number" };
+    }
     if (removedIndexes.some((index) => isNameAt(original, originalStarts, index))) {
       return { reason: "name" };
     }
@@ -898,8 +918,9 @@ export function rewriteProposal(
     }
   }
 
-  const sorted = (values: string[]) => values.sort().join("\u0000");
-  if (sorted(originalTokens.flatMap(numbersOf)) !== sorted(proposedTokens.flatMap(numbersOf))) {
+  // In order, not as a multiset: "pay 3 now and 5 later" must not become "5 now and 3 later".
+  const inOrder = (values: string[]) => values.join("\u0000");
+  if (inOrder(originalTokens.flatMap(numbersOf)) !== inOrder(proposedTokens.flatMap(numbersOf))) {
     return fail("number");
   }
   const originalTechnical = technicalPieces(originalText);

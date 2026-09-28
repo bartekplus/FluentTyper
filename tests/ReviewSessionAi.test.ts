@@ -3,6 +3,7 @@ import {
   ReviewSession,
   type ReviewApplyResult,
   type ReviewCapabilities,
+  type ReviewSessionDependencies,
   type ReviewTargetPort,
   type ReviewTargetRead,
   type ReviewViewState,
@@ -155,7 +156,13 @@ class FakeAi implements ReviewAiProvider {
   }
 }
 
-function harness(text: string, { ai = new FakeAi() as FakeAi | null } = {}) {
+function harness(
+  text: string,
+  {
+    ai = new FakeAi() as FakeAi | null,
+    deps = {} as Partial<Pick<ReviewSessionDependencies, "addToDictionary" | "lookupSpelling">>,
+  } = {},
+) {
   const editor = new FakeEditor(text);
   const timers: Array<{ callback: () => void; delay: number }> = [];
   const states: ReviewViewState[] = [];
@@ -171,6 +178,7 @@ function harness(text: string, { ai = new FakeAi() as FakeAi | null } = {}) {
     onChange: (state) => states.push(state),
     ai: ai ?? undefined,
     aiRecheckDelayMs: AI_DELAY,
+    ...deps,
     setTimer: (callback, delay) => {
       const timer = { callback, delay };
       timers.push(timer);
@@ -541,6 +549,26 @@ describe("ReviewSession with Local AI: Rewrite", () => {
     expect(h.last().rewrite).toMatchObject({ status: "stale", canApply: false });
     expect(await h.session.applyRewrite()).toBeNull();
     expect(h.editor.applyCalls).toEqual([]);
+  });
+
+  test("adding a word to the dictionary marks a ready proposal stale (review finding)", async () => {
+    const h = harness(`${TEXT} I like zorbs.`, {
+      deps: {
+        lookupSpelling: (_lang, words) =>
+          Promise.resolve(words.map(({ word }) => (word === "zorbs" ? ["sorbs"] : null))),
+        addToDictionary: () => Promise.resolve(true),
+      },
+    });
+    h.ai.fix = rewriteFix;
+    await h.start();
+    const spelling = h.last().diagnostics.find((d) => d.dictionaryWord === "zorbs");
+    expect(spelling).toBeDefined();
+    h.session.setMode("rewrite");
+    h.session.generateRewrite();
+    await h.settle();
+    expect(h.last().rewrite!.status).toBe("ready");
+    await Promise.all([h.session.addToDictionary(spelling!.id), h.settle()]);
+    expect(h.last().rewrite).toMatchObject({ status: "stale", canApply: false });
   });
 
   test("a review-only editor previews a rewrite but never applies it", async () => {
