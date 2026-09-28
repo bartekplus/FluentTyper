@@ -458,7 +458,7 @@ describe("ReviewSession with Local AI: Correct", () => {
     const h = harness(TEXT);
     h.ai.auto = false;
     await h.start();
-    h.ai.push({ runtime: "unavailable", unavailable: "host-unsupported" });
+    h.ai.push({ runtime: "unavailable", unavailable: "no-adapter" });
     expect(h.ai.requests[0].signal.aborted).toBe(true);
     expect(h.last().ai.availability).toBe("unsupported");
     expect(h.last().ai.coverage).toBe("cancelled");
@@ -703,6 +703,23 @@ describe("Local AI review helpers", () => {
     expect(reviewAiAvailability(status({ runtime: "unavailable" }), true, false)).toBe(
       "unsupported",
     );
+    // A browser or build without the runtime keeps today's Review: no AI UI at all (e2e finding).
+    for (const reason of ["host-unsupported", "not-in-build"] as const) {
+      expect(
+        reviewAiAvailability(
+          status({ runtime: "unavailable", unavailable: reason, consented: false }),
+          true,
+          false,
+        ),
+      ).toBe("off");
+    }
+    expect(
+      reviewAiAvailability(
+        status({ runtime: "unavailable", unavailable: "no-webgpu" }),
+        true,
+        false,
+      ),
+    ).toBe("unsupported");
     expect(reviewAiAvailability(status({ consented: false }), true, false)).toBe("setup-needed");
     expect(reviewAiAvailability(status({ install: "partial" }), true, false)).toBe(
       "install-needed",

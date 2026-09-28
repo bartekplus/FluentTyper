@@ -132,6 +132,10 @@ export function reviewAiAvailability(
   paused: boolean,
 ): ReviewAiAvailability {
   if (!enabled || !status?.enabled) return "off";
+  // No runtime host in this browser or build (Firefox): Review stays exactly as without AI.
+  if (status.unavailable === "host-unsupported" || status.unavailable === "not-in-build") {
+    return "off";
+  }
   if (status.runtime === "unavailable" || status.unavailable) return "unsupported";
   if (!status.consented) return "setup-needed";
   // A download in progress is a partial install: it is installing, not missing.
