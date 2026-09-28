@@ -49,6 +49,8 @@ export type ReviewAiAvailability =
   | "install-needed"
   | "installing"
   | "unsupported"
+  /** The engine kept failing (host gave up until the next Review): AI controls go. */
+  | "failed"
   /** Ready (engine may still need to load from cache). */
   | "ready"
   /** Paused by the user for this review. */
@@ -138,6 +140,7 @@ export function reviewAiAvailability(
   // A download in progress is a partial install: it is installing, not missing.
   if (status.runtime === "downloading") return "installing";
   if (status.install === "none" || status.install === "partial") return "install-needed";
+  if (status.runtime === "error") return "failed";
   return paused ? "paused" : "ready";
 }
 

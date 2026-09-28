@@ -180,13 +180,17 @@ describe("ReviewUi: Local AI", () => {
     ui.destroy();
   });
 
-  test("the mode switch is hidden while Local AI is off or unsupported", () => {
+  test("the mode switch is hidden while Local AI is off, unsupported or failed", () => {
     ui.render(state({ ai: ai({ availability: "off" }) }));
     expect(shown(".modes")).toBe(false);
     ui.render(state({ ai: ai({ availability: "unsupported" }) }));
     expect(shown(".modes")).toBe(false);
     expect($(".ai-line").textContent).toContain("isn't available");
     expect(shown("[data-action=ai-setup]")).toBe(false);
+    ui.render(state({ ai: ai({ availability: "failed" }) }));
+    expect(shown(".modes")).toBe(false);
+    expect(shown("[data-action=ai-pause]")).toBe(false);
+    expect($(".ai-line").textContent).toContain("did not finish");
     ui.render(state({ ai: ai({ availability: "language" }) }));
     expect(shown(".modes")).toBe(false);
     expect($(".ai-line").textContent).toContain("English text only");

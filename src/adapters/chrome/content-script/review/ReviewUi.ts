@@ -791,7 +791,10 @@ export class ReviewUi {
     const { availability } = state.ai;
     this.modes.hidden =
       state.mode !== "rewrite" &&
-      (availability === "off" || availability === "unsupported" || availability === "language");
+      (availability === "off" ||
+        availability === "unsupported" ||
+        availability === "failed" ||
+        availability === "language");
     for (const [mode, button] of this.modeButtons) {
       button.setAttribute("aria-pressed", String(state.mode === mode));
     }
@@ -806,6 +809,8 @@ export class ReviewUi {
         return rewriting ? this.t("review_ai_off") : null;
       case "unsupported":
         return this.t("review_ai_unsupported");
+      case "failed":
+        return this.t("review_ai_failed");
       case "language":
         return this.t("review_ai_language");
       case "setup-needed":

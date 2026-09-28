@@ -799,6 +799,8 @@ describe("Local AI review helpers", () => {
     );
     expect(reviewAiAvailability(status({ runtime: "loading" }), true, false)).toBe("ready");
     expect(reviewAiAvailability(status(), true, true)).toBe("paused");
+    // The host gave up after repeated engine failures: nothing to pause or generate.
+    expect(reviewAiAvailability(status({ runtime: "error" }), true, true)).toBe("failed");
   });
 
   test("overlapping selected findings are left out, both of them", () => {
