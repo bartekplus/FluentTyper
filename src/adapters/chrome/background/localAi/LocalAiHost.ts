@@ -7,7 +7,6 @@ import type {
   ReviewPortHostMessage,
 } from "@core/domain/contracts/localAi";
 import {
-  LOCAL_AI_MODELS,
   localAiModelById,
   localAiModelForTier,
   type LocalAiModelTier,
@@ -40,7 +39,15 @@ export interface PortLike {
 
 export type EngineLike = Pick<
   LocalAiEngine,
-  "probe" | "cacheState" | "install" | "load" | "generate" | "interrupt" | "unload" | "delete"
+  | "probe"
+  | "cacheState"
+  | "install"
+  | "load"
+  | "generate"
+  | "interrupt"
+  | "unload"
+  | "delete"
+  | "deleteAllExcept"
 >;
 
 /** What the controller merges into LocalAiStatus. */
@@ -300,15 +307,12 @@ export class LocalAiHost {
   }
 
   /**
-   * Consent names one model, so another tier's files are unusable: they go. A refusal
+   * Consent names one model, so any other cached model (another tier, or a revision a
+   * release dropped from the registry) is unusable: it goes. A refusal
    * leaves them for the next refresh to retry (Delete here would remove the current model).
    */
   private async removeOtherTiers(modelId: string): Promise<void> {
-    for (const other of LOCAL_AI_MODELS) {
-      if (other.modelId !== modelId) {
-        await this.engine.delete(other.modelId).catch(() => undefined);
-      }
-    }
+    await this.engine.deleteAllExcept(modelId).catch(() => undefined);
   }
 
   /** Aborts the download; a file cut short is never marked verified. */

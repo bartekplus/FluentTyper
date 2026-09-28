@@ -464,6 +464,29 @@ describe("ReviewSession with Local AI: Correct", () => {
     }
   });
 
+  test("a language identified for text that has since changed is discarded", async () => {
+    const answers: Array<(lang: string) => void> = [];
+    const h = harness("Wir sahen teh Katze.", {
+      lang: "auto_detect",
+      deps: {
+        detectLanguage: () => new Promise<string | null>((resolve) => answers.push(resolve)),
+      },
+    });
+    await h.start();
+    expect(answers).toHaveLength(1);
+    h.editor.text = TEXT;
+    h.session.notifySourceChanged();
+    await h.settle({ aiDelay: false });
+    // The answer for the old (German) text lands after the change: it is not used.
+    answers[0]("de");
+    await h.settle({ aiDelay: false });
+    expect(answers).toHaveLength(2);
+    answers[1]("en");
+    await h.settle();
+    expect(h.last().ai.availability).toBe("ready");
+    expect(h.ai.requests.length).toBeGreaterThan(0);
+  });
+
   test("coverage is partial when text was protected or a chunk failed", async () => {
     const h = harness(TEXT);
     h.editor.protectedRanges = [{ start: 3, end: 6, reason: "code" }];

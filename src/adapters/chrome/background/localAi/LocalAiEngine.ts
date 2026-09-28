@@ -14,6 +14,7 @@ import { NetworkBlockedError, type NetworkGuard } from "./networkGuard";
 import {
   IntegrityError,
   deleteModelArtifacts,
+  deleteModelArtifactsExcept,
   downloadModelFiles,
   markModelVerified,
   modelCacheState,
@@ -341,6 +342,12 @@ export class LocalAiEngine {
       await this.unload();
     }
     await deleteModelArtifacts(this.deps.caches, record);
+  }
+
+  /** Removes every other model's cached files (other tiers, dropped revisions). */
+  async deleteAllExcept(modelId: string): Promise<void> {
+    const record = this.findModel(modelId);
+    if (record) await deleteModelArtifactsExcept(this.deps.caches, record);
   }
 
   interrupt(): void {

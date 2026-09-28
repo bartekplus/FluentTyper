@@ -75,6 +75,7 @@ function fakeEngine(overrides: Partial<EngineLike>) {
     interrupt: () => undefined,
     unload: async () => undefined,
     delete: async () => undefined,
+    deleteAllExcept: async () => undefined,
   };
   const engine = Object.fromEntries(
     Object.entries(defaults).map(([name, fallback]) => [
@@ -593,16 +594,14 @@ describe("LocalAiHost install", () => {
   });
 
   test("a successful install removes the other tiers' files; a failed one removes nothing", async () => {
-    const deleted: string[] = [];
+    const kept: string[] = [];
     const ok = makeHost({
       cacheState: async () => "none",
-      delete: async (modelId) => void deleted.push(modelId),
+      deleteAllExcept: async (modelId) => void kept.push(modelId),
     });
     await flush(5);
     await ok.host.installModel("standard", Promise.resolve());
-    expect(deleted).toEqual(
-      LOCAL_AI_MODELS.filter((m) => m.modelId !== STANDARD.modelId).map((m) => m.modelId),
-    );
+    expect(kept).toEqual([STANDARD.modelId]);
 
     const failed = makeHost({
       cacheState: async () => "none",
@@ -610,25 +609,23 @@ describe("LocalAiHost install", () => {
     });
     await flush(5);
     await failed.host.installModel("standard", Promise.resolve());
-    expect(failed.count("delete")).toBe(0);
+    expect(failed.count("deleteAllExcept")).toBe(0);
   });
 
   test("a replaced tier whose cleanup failed is removed on a later refresh", async () => {
     let refuse = true;
-    const deleted: string[] = [];
+    const kept: string[] = [];
     const { host } = makeHost({
-      delete: async (modelId) => {
+      deleteAllExcept: async (modelId) => {
         if (refuse) throw new DOMException("refused", "UnknownError");
-        deleted.push(modelId);
+        kept.push(modelId);
       },
     });
     await flush(5);
-    expect(deleted).toEqual([]);
+    expect(kept).toEqual([]);
     refuse = false;
     await host.refresh();
-    expect(deleted).toEqual(
-      LOCAL_AI_MODELS.filter((m) => m.modelId !== STANDARD.modelId).map((m) => m.modelId),
-    );
+    expect(kept).toEqual([STANDARD.modelId]);
   });
 
   test("nothing downloads before consent is recorded; the status never flashes download-required", async () => {

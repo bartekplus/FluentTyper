@@ -389,6 +389,23 @@ describe("install, integrity and cache state", () => {
     expect(model.disposed).toBe(1);
   });
 
+  test("cleanup keeps only the named model: other tiers and dropped revisions go", async () => {
+    const { engine, caches } = makeEngine();
+    await engine.install(GEMMA.record.modelId, noProgress, signal, LOAD_MS);
+    await engine.install(QWEN.record.modelId, noProgress, signal, LOAD_MS);
+    // A revision a release removed from the registry: no record names it.
+    const dropped = "https://huggingface.co/onnx-community/old/resolve/0ld/onnx/model.onnx_data";
+    await (await caches.open(MODEL_CACHE)).put(dropped, new Response("old"));
+    const presage = await caches.open("presage-dictionaries");
+    await presage.put("https://example.invalid/en.db", new Response("dict"));
+
+    await engine.deleteAllExcept(QWEN.record.modelId);
+    expect(caches.urls().sort()).toEqual([...QWEN.served.keys()].sort());
+    expect(await engine.cacheState(QWEN.record.modelId)).toBe("complete");
+    expect(await engine.cacheState(GEMMA.record.modelId)).toBe("none");
+    expect(caches.urls("presage-dictionaries")).toEqual(["https://example.invalid/en.db"]);
+  });
+
   test("files present without the verified marker are partial, never complete", async () => {
     const { engine, caches } = makeEngine();
     const store = await caches.open(MODEL_CACHE);

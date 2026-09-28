@@ -1222,8 +1222,9 @@ export class ReviewSession {
       .catch(() => null)
       .then((lang) => {
         this.detecting = false;
-        this.detectedLang = lang ?? "und";
         if (this.isClosed) return;
+        // The text changed while identifying: the new text is identified instead.
+        if (this.prepared === prepared) this.detectedLang = lang ?? "und";
         this.startAi();
         this.emit();
       });
