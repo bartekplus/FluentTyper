@@ -181,10 +181,83 @@ footer .fix-note { padding: 0; }
   background: color-mix(in srgb, var(--ft-cat) 14%, transparent);
 }
 .hint { font-size: 11px; color: var(--ft-muted); }
+/* Local AI: a restrained mode switch, one status line, provenance in words. */
+.modes {
+  display: inline-flex;
+  align-self: flex-start;
+  margin: 0 12px 8px;
+  border: 1px solid var(--ft-border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.modes button { border: none; border-radius: 0; min-height: 26px; padding: 2px 10px; font-size: 12px; }
+.modes button + button { border-inline-start: 1px solid var(--ft-border); }
+.modes button[aria-pressed="true"] { background: var(--ft-accent); color: var(--ft-accent-fg); font-weight: 600; }
+.ai { display: grid; gap: 6px; padding: 0 12px 6px; font-size: 12px; }
+.ai-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.ai-line { margin: 0; flex: 1 1 12em; color: var(--ft-muted); }
+.ai button, .batch button, .rewrite .actions button { font-size: 12px; }
+.setup, .batch, .rewrite-diff {
+  display: grid;
+  gap: 6px;
+  border: 1px solid var(--ft-border);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+.setup p, .batch p, .rewrite p { margin: 0; }
+.setup-title, .batch-title { font-weight: 650; }
+.setup-size { color: var(--ft-muted); }
+.tag {
+  display: inline-block;
+  padding: 0 4px;
+  border: 1px solid var(--ft-border);
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--ft-fg);
+  white-space: nowrap;
+}
+.batch { margin: 0 12px 8px; font-size: 12px; }
+.batch ol { margin: 0; padding-inline-start: 18px; max-height: 30vh; overflow: auto; overflow-wrap: anywhere; }
+.rewrite { display: grid; gap: 8px; padding: 0 12px 10px; }
+.rewrite label { display: grid; gap: 2px; font-size: 11px; color: var(--ft-muted); }
+.rewrite .using, .rewrite-msg { font-size: 12px; }
+.rewrite-msg { color: var(--ft-fg); }
+select {
+  font: inherit;
+  font-size: 13px;
+  color: var(--ft-fg);
+  background: var(--ft-bg);
+  border: 1px solid var(--ft-border);
+  border-radius: 6px;
+  padding: 3px 6px;
+  min-height: 28px;
+}
+select:focus-visible { outline: 2px solid var(--ft-focus); outline-offset: 2px; }
+.rewrite-diff { max-height: 40vh; overflow: auto; }
+.rewrite-diff p.before, .rewrite-diff p.after { white-space: pre-wrap; overflow-wrap: anywhere; }
+.rewrite-diff p.label { font-size: 11px; color: var(--ft-muted); }
+/* Changes read without color: struck through and underlined. */
+del { text-decoration: line-through; background: color-mix(in srgb, var(--ft-spelling) 14%, transparent); color: inherit; }
+ins { text-decoration: underline; background: color-mix(in srgb, #16a34a 18%, transparent); color: inherit; }
+.copied { align-self: center; font-size: 12px; color: var(--ft-muted); }
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
 @media (forced-colors: active) {
   .mark { border-bottom-color: Highlight; background: transparent; forced-color-adjust: none; }
   .mark[data-selected="true"] { box-shadow: 0 0 0 2px Highlight; }
   .badge, .item { border-color: CanvasText; color: CanvasText; }
+  .modes, .modes button + button, .tag, .setup, .batch, .rewrite-diff, select { border-color: CanvasText; }
+  .modes button[aria-pressed="true"] { forced-color-adjust: none; background: Highlight; color: HighlightText; }
+  del, ins { background: transparent; }
 }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }

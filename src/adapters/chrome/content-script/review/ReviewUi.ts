@@ -4,12 +4,18 @@ import { reviewText, type ReviewTextKey } from "@core/domain/grammar/review/revi
 import { commonAffixes } from "@core/domain/grammar/review/textRanges";
 import {
   REVIEW_CATEGORIES,
+  REVIEW_LOCAL_AI_CHECK,
   type ReviewCategory,
   type ReviewDiagnostic,
 } from "@core/domain/grammar/review/types";
 import { REVIEW_SHADOW_CSS, createOverlayHost, enterTopLayer } from "./reviewStyles";
-import type { ReviewMode } from "@core/application/review/reviewAi";
-import type { EditorContextHint, RewriteStyle } from "@core/domain/grammar/review/ai/types";
+import type { ReviewMode, RewriteViewState } from "@core/application/review/reviewAi";
+import {
+  REWRITE_STYLES,
+  type AiRejectionReason,
+  type EditorContextHint,
+  type RewriteStyle,
+} from "@core/domain/grammar/review/ai/types";
 
 export interface ReviewUiCallbacks {
   close(): void;
@@ -65,6 +71,123 @@ const CATEGORY_KEY: Record<ReviewCategory, ReviewTextKey> = {
   punctuation: "review_cat_punctuation",
   typography: "review_cat_typography",
 };
+
+const MODES: readonly ReviewMode[] = ["correct", "rewrite"];
+const MODE_KEY: Record<ReviewMode, ReviewTextKey> = {
+  correct: "review_mode_correct",
+  rewrite: "review_mode_rewrite",
+};
+const STYLE_KEY: Record<RewriteStyle, ReviewTextKey> = {
+  "keep-voice": "review_style_keep_voice",
+  professional: "review_style_professional",
+  friendly: "review_style_friendly",
+  concise: "review_style_concise",
+  clearer: "review_style_clearer",
+  "context-aware": "review_style_context_aware",
+};
+const CONTEXTS: readonly EditorContextHint[] = ["general", "chat", "email"];
+const CONTEXT_KEY: Record<EditorContextHint, ReviewTextKey> = {
+  general: "review_context_general",
+  chat: "review_context_chat",
+  email: "review_context_email",
+};
+const REJECTION_KEY: Record<AiRejectionReason, ReviewTextKey> = {
+  number: "review_reject_number",
+  name: "review_reject_name",
+  negation: "review_reject_negation",
+  uncertainty: "review_reject_uncertainty",
+  quoted: "review_reject_quoted",
+  protected: "review_reject_protected",
+  placeholder: "review_reject_protected",
+  "technical-token": "review_reject_protected",
+  drift: "review_reject_too_much",
+  length: "review_reject_too_much",
+  "too-many-edits": "review_reject_too_much",
+  shape: "review_reject_incomplete",
+  "unsafe-boundary": "review_reject_incomplete",
+};
+
+function isLocalAi(diagnostic: ReviewDiagnostic): boolean {
+  return diagnostic.ruleId === REVIEW_LOCAL_AI_CHECK;
+}
+
+/** "≈ 0.97 GB" in the UI language ("pr" is how the options page stores Portuguese). */
+function formatDownloadSize(bytes: number, lang: string): string {
+  const locale = lang === "pr" ? "pt" : lang;
+  const giga = bytes >= 1e8;
+  const options: Intl.NumberFormatOptions = {
+    style: "unit",
+    unit: giga ? "gigabyte" : "megabyte",
+    maximumFractionDigits: giga ? 2 : 0,
+  };
+  const value = giga ? bytes / 1e9 : Math.max(1, Math.round(bytes / 1e6));
+  try {
+    return new Intl.NumberFormat(locale, options).format(value);
+  } catch {
+    return new Intl.NumberFormat("en", options).format(value);
+  }
+}
+
+function formatPercent(fraction: number, lang: string): string {
+  const options: Intl.NumberFormatOptions = { style: "percent", maximumFractionDigits: 0 };
+  const value = Math.max(0, Math.min(1, fraction));
+  try {
+    return new Intl.NumberFormat(lang === "pr" ? "pt" : lang, options).format(value);
+  } catch {
+    return new Intl.NumberFormat("en", options).format(value);
+  }
+}
+
+/**
+ * The changed regions of a rewrite on each side: from its hunks when they
+ * rebuild `after` exactly, else the one changed middle (common prefix/suffix).
+ */
+function rewriteRegions(
+  before: string,
+  after: string,
+  hunks: RewriteViewState["hunks"],
+): { from: Array<[number, number]>; to: Array<[number, number]> } {
+  const sorted = [...hunks].sort((a, b) => a.start - b.start);
+  const from: Array<[number, number]> = [];
+  const to: Array<[number, number]> = [];
+  let rebuilt = "";
+  let cursor = 0;
+  for (const hunk of sorted) {
+    if (hunk.start < cursor || hunk.end > before.length) break;
+    rebuilt += before.slice(cursor, hunk.start);
+    from.push([hunk.start, hunk.end]);
+    to.push([rebuilt.length, rebuilt.length + hunk.replacement.length]);
+    rebuilt += hunk.replacement;
+    cursor = hunk.end;
+  }
+  rebuilt += before.slice(cursor);
+  if (sorted.length > 0 && rebuilt === after) return { from, to };
+  const { prefix, suffix } = commonAffixes(before, after);
+  return {
+    from: [[prefix, before.length - suffix]],
+    to: [[prefix, after.length - suffix]],
+  };
+}
+
+/** Text with `regions` wrapped in `tag` (<del>/<ins>), built from text nodes only. */
+function appendRegions(
+  doc: Document,
+  parent: HTMLElement,
+  text: string,
+  regions: Array<[number, number]>,
+  tag: "del" | "ins",
+): void {
+  let cursor = 0;
+  for (const [start, end] of regions) {
+    if (end <= start) continue;
+    parent.append(doc.createTextNode(text.slice(cursor, start)));
+    const node = doc.createElement(tag);
+    node.textContent = text.slice(start, end);
+    parent.append(node);
+    cursor = end;
+  }
+  parent.append(doc.createTextNode(text.slice(cursor)));
+}
 
 /** Makes spaces visible in a short change preview ("word ," -> "word\u2423,"). */
 function visibleWhitespace(text: string): string {
@@ -151,6 +274,41 @@ export class ReviewUi {
   private readonly next: HTMLButtonElement;
   private readonly fixAll: HTMLButtonElement;
   private readonly fixNote: HTMLElement;
+  private readonly nav: HTMLElement;
+  private readonly footer: HTMLElement;
+  // Local AI: mode switch, status line and setup offer, batch preview, rewrite view.
+  private readonly modes: HTMLElement;
+  private readonly modeButtons = new Map<ReviewMode, HTMLButtonElement>();
+  private readonly ai: HTMLElement;
+  private readonly aiLine: HTMLElement;
+  private readonly aiPause: HTMLButtonElement;
+  private readonly aiSettings: HTMLButtonElement;
+  private readonly setup: HTMLElement;
+  private readonly setupSize: HTMLElement;
+  private readonly aiBatchButton: HTMLButtonElement;
+  private readonly batch: HTMLElement;
+  /** What the batch preview and rewrite diff were last built for (content, not identity). */
+  private batchKey: string | null = null;
+  private readonly rewrite: {
+    root: HTMLElement;
+    style: HTMLSelectElement;
+    contextRow: HTMLElement;
+    context: HTMLSelectElement;
+    using: HTMLElement;
+    generate: HTMLButtonElement;
+    cancel: HTMLButtonElement;
+    message: HTMLElement;
+    diff: HTMLElement;
+    apply: HTMLButtonElement;
+    copy: HTMLButtonElement;
+    copied: HTMLElement;
+    previewOnly: HTMLElement;
+  };
+  private diffKey: string | null = null;
+  /** Restrained announcements: an AI pass ending, a rewrite becoming ready/rejected/failed. */
+  private readonly announcer: HTMLElement;
+  private announcedCoverage: string | null = null;
+  private announcedRewrite: string | null = null;
   private readonly card: HTMLElement;
   private readonly marks: HTMLElement;
   private readonly clip: HTMLElement;
@@ -215,14 +373,89 @@ export class ReviewUi {
       "\u00D7",
     );
     header.append(this.heading, this.scopeLabel, element(doc, "span", { class: "spacer" }), close);
+    this.modes = element(doc, "div", {
+      class: "modes",
+      role: "group",
+      "aria-label": this.t("review_mode_label"),
+      hidden: "",
+    });
+    for (const mode of MODES) {
+      const button = element(
+        doc,
+        "button",
+        { type: "button", "data-action": `mode-${mode}`, "aria-pressed": "false" },
+        this.t(MODE_KEY[mode]),
+      );
+      button.addEventListener("click", () => {
+        if (this.state?.mode !== mode) this.callbacks.setMode(mode);
+      });
+      this.modeButtons.set(mode, button);
+      this.modes.append(button);
+    }
     this.status = element(doc, "p", { class: "status", role: "status", "aria-live": "polite" });
+    this.announcer = element(doc, "p", { class: "sr-only", role: "status", "aria-live": "polite" });
+    this.ai = element(doc, "div", { class: "ai", hidden: "" });
+    const aiRow = element(doc, "div", { class: "ai-row" });
+    this.aiLine = element(doc, "p", { class: "ai-line" });
+    this.aiPause = element(doc, "button", { type: "button", "data-action": "ai-pause" });
+    this.aiPause.addEventListener("click", () => this.callbacks.toggleAiPause());
+    this.aiSettings = element(
+      doc,
+      "button",
+      { type: "button", "data-action": "ai-settings" },
+      this.t("review_ai_open_settings"),
+    );
+    // Opening setup is the start of a consent flow: only the user's own click counts.
+    this.aiSettings.addEventListener("click", (event) => {
+      if (event.isTrusted) this.callbacks.aiSetup();
+    });
+    aiRow.append(this.aiLine, this.aiPause, this.aiSettings);
+    this.setup = element(doc, "div", {
+      class: "setup",
+      role: "group",
+      "aria-labelledby": "ft-review-ai-setup",
+    });
+    this.setupSize = element(doc, "p", { class: "setup-size" });
+    const setupStart = element(
+      doc,
+      "button",
+      { type: "button", class: "primary", "data-action": "ai-setup" },
+      this.t("review_ai_setup_start"),
+    );
+    setupStart.addEventListener("click", (event) => {
+      if (event.isTrusted) this.callbacks.aiSetup();
+    });
+    const setupLater = element(
+      doc,
+      "button",
+      { type: "button", "data-action": "ai-setup-later" },
+      this.t("review_ai_setup_later"),
+    );
+    setupLater.addEventListener("click", (event) => {
+      if (event.isTrusted) this.callbacks.aiDismissSetup();
+    });
+    const setupActions = element(doc, "div", { class: "actions" });
+    setupActions.append(setupStart, setupLater);
+    this.setup.append(
+      element(
+        doc,
+        "p",
+        { class: "setup-title", id: "ft-review-ai-setup" },
+        this.t("review_ai_setup_title"),
+      ),
+      element(doc, "p", {}, this.t("review_ai_setup_body")),
+      this.setupSize,
+      setupActions,
+    );
+    this.ai.append(aiRow, this.setup);
+    this.rewrite = this.buildRewrite();
     this.notes = element(doc, "div", { class: "notes" });
     this.filters = element(doc, "div", {
       class: "filters",
       role: "group",
       "aria-label": this.t("review_filters"),
     });
-    const nav = element(doc, "div", { class: "nav" });
+    const nav = (this.nav = element(doc, "div", { class: "nav" }));
     this.prev = element(
       doc,
       "button",
@@ -239,7 +472,12 @@ export class ReviewUi {
     this.next.title = this.t("review_next");
     nav.append(this.prev, this.next);
     this.list = element(doc, "ol", { class: "list", "aria-label": this.t("review_list_label") });
-    const footer = element(doc, "footer");
+    this.batch = element(doc, "section", {
+      class: "batch",
+      "aria-labelledby": "ft-review-batch-title",
+      hidden: "",
+    });
+    const footer = (this.footer = element(doc, "footer"));
     this.fixAll = element(doc, "button", {
       type: "button",
       class: "primary",
@@ -247,8 +485,28 @@ export class ReviewUi {
     });
     this.fixNote = element(doc, "p", { class: "fix-note", id: "ft-review-fix-note" });
     this.fixAll.setAttribute("aria-describedby", "ft-review-fix-note");
-    footer.append(this.fixAll, this.fixNote);
-    this.panel.append(header, this.status, this.notes, this.filters, nav, this.list, footer);
+    // Never part of Fix all safe: AI findings get their own preview first.
+    this.aiBatchButton = element(doc, "button", {
+      type: "button",
+      "data-action": "ai-batch",
+      hidden: "",
+    });
+    this.aiBatchButton.addEventListener("click", () => this.callbacks.previewAiBatch());
+    footer.append(this.fixAll, this.fixNote, this.aiBatchButton);
+    this.panel.append(
+      header,
+      this.modes,
+      this.status,
+      this.announcer,
+      this.ai,
+      this.rewrite.root,
+      this.notes,
+      this.filters,
+      nav,
+      this.list,
+      this.batch,
+      footer,
+    );
 
     this.card = element(doc, "div", {
       class: "card",
@@ -271,6 +529,101 @@ export class ReviewUi {
 
   private t(key: ReviewTextKey, params?: Record<string, string | number>): string {
     return reviewText(key, this.lang, params);
+  }
+
+  /** The Rewrite view's controls; they persist so an open select or focus survives renders. */
+  private buildRewrite(): ReviewUi["rewrite"] {
+    const doc = this.doc;
+    const root = element(doc, "div", { class: "rewrite", hidden: "" });
+    const styleLabel = element(doc, "label", {}, this.t("review_rewrite_style"));
+    const style = element(doc, "select", { "data-action": "rewrite-style" });
+    for (const value of REWRITE_STYLES) {
+      style.append(element(doc, "option", { value }, this.t(STYLE_KEY[value])));
+    }
+    // Choosing a style never generates: Generate is always a separate step.
+    style.addEventListener("change", () =>
+      this.callbacks.setRewriteStyle(style.value as RewriteStyle),
+    );
+    styleLabel.append(style);
+    const contextRow = element(doc, "label", {}, this.t("review_rewrite_context"));
+    const context = element(doc, "select", { "data-action": "rewrite-context" });
+    for (const value of CONTEXTS) {
+      context.append(element(doc, "option", { value }, this.t(CONTEXT_KEY[value])));
+    }
+    context.addEventListener("change", () =>
+      this.callbacks.setRewriteContext(context.value as EditorContextHint),
+    );
+    contextRow.append(context);
+    const using = element(doc, "p", { class: "using" });
+    const generate = element(doc, "button", {
+      type: "button",
+      class: "primary",
+      "data-action": "rewrite-generate",
+    });
+    generate.addEventListener("click", () => this.callbacks.generateRewrite());
+    const cancel = element(
+      doc,
+      "button",
+      { type: "button", "data-action": "rewrite-cancel" },
+      this.t("review_cancel"),
+    );
+    cancel.addEventListener("click", () => this.callbacks.cancelRewrite());
+    const run = element(doc, "div", { class: "actions" });
+    run.append(generate, cancel);
+    const message = element(doc, "p", { class: "rewrite-msg" });
+    const diff = element(doc, "div", {
+      class: "rewrite-diff",
+      role: "group",
+      "aria-label": this.t("review_rewrite_changes"),
+    });
+    const apply = element(
+      doc,
+      "button",
+      { type: "button", class: "primary", "data-action": "rewrite-apply" },
+      this.t("review_rewrite_apply"),
+    );
+    apply.addEventListener("click", (event) => this.callbacks.applyRewrite(event.detail === 0));
+    const copy = element(
+      doc,
+      "button",
+      { type: "button", "data-action": "rewrite-copy" },
+      this.t("review_rewrite_copy"),
+    );
+    const copied = element(doc, "span", { class: "copied", role: "status" });
+    // Only ever on the user's own click; never automatically.
+    copy.addEventListener("click", (event) => {
+      const text = this.state?.rewrite?.after;
+      if (!event.isTrusted || !this.state?.rewrite?.previewOnly || !text) return;
+      const clipboard = this.doc.defaultView?.navigator.clipboard;
+      const done = (ok: boolean) => {
+        copied.textContent = this.t(ok ? "review_rewrite_copied" : "review_rewrite_copy_failed");
+      };
+      if (!clipboard) done(false);
+      else
+        clipboard.writeText(text).then(
+          () => done(true),
+          () => done(false),
+        );
+    });
+    const accept = element(doc, "div", { class: "actions" });
+    accept.append(apply, copy, copied);
+    const previewOnly = element(doc, "p", { class: "hint" }, this.t("review_rewrite_preview_only"));
+    root.append(styleLabel, contextRow, using, run, message, diff, accept, previewOnly);
+    return {
+      root,
+      style,
+      contextRow,
+      context,
+      using,
+      generate,
+      cancel,
+      message,
+      diff,
+      apply,
+      copy,
+      copied,
+      previewOnly,
+    };
   }
 
   /**
@@ -307,11 +660,16 @@ export class ReviewUi {
   showMessage(text: string): void {
     for (const part of [
       this.scopeLabel,
+      this.modes,
+      this.ai,
+      this.rewrite.root,
+      this.batch,
       this.notes,
       this.filters,
       this.list,
       this.prev,
       this.next,
+      this.aiBatchButton,
     ]) {
       part.hidden = true;
     }
@@ -341,7 +699,22 @@ export class ReviewUi {
   render(state: ReviewViewState): void {
     const previousFocus = this.root.activeElement as HTMLElement | null;
     const focusedId = previousFocus?.dataset?.id ?? null;
+    // A panel control other than a finding (those are refocused by id below).
+    const panelFocus =
+      previousFocus && !focusedId && this.panel.contains(previousFocus) ? previousFocus : null;
     this.state = state;
+    const rewriting = state.mode === "rewrite";
+    // Rewrite replaces the findings view; a finding's card has nothing to act on there.
+    if (rewriting && this.cardId) this.closeCard();
+    for (const part of [this.notes, this.filters, this.nav, this.list, this.footer]) {
+      part.hidden = rewriting;
+    }
+    // Rewrite has its own message line; the review status still says why nothing works.
+    this.status.hidden = rewriting && state.status === "ready";
+    this.renderModes(state);
+    this.renderAi(state);
+    this.renderRewrite(state);
+    this.renderBatch(state);
     this.scopeLabel.textContent = this.t(
       state.scopeKind === "selection"
         ? "review_scope_selection"
@@ -372,7 +745,26 @@ export class ReviewUi {
       noteParts.push(this.t("review_fix_all_deferred", { count: state.bulk.deferred }));
     }
     this.fixNote.textContent = state.capabilities.bulk ? noteParts.join(" ") : "";
+    const aiFindings = state.diagnostics.filter(isLocalAi).length;
+    this.aiBatchButton.hidden = !(
+      state.capabilities.apply &&
+      state.capabilities.bulk &&
+      aiFindings >= 2
+    );
+    this.aiBatchButton.textContent = this.t("review_ai_batch", { count: aiFindings });
+    this.aiBatchButton.disabled = state.status !== "ready" || state.aiBatch !== null;
     if (focusedId) this.itemFor(focusedId)?.focus({ preventScroll: true });
+    // A control that just went away (Generate while generating, a closed preview)
+    // must not drop the keyboard focus out of the panel.
+    const active = this.root.activeElement as HTMLElement | null;
+    if (panelFocus && (!active || !active.isConnected || active.closest("[hidden]"))) {
+      const fallback = rewriting
+        ? [this.rewrite.cancel, this.rewrite.generate, this.rewrite.style]
+        : [this.aiBatchButton, this.fixAll];
+      (fallback.find((control) => this.canFocus(control)) ?? this.heading).focus({
+        preventScroll: true,
+      });
+    }
 
     if (this.cardId) {
       const diagnostic = state.diagnostics.find((d) => d.id === this.cardId);
@@ -401,6 +793,268 @@ export class ReviewUi {
         }
       }
     }
+  }
+
+  private canFocus(control: HTMLElement): boolean {
+    return (
+      control.isConnected &&
+      !control.closest("[hidden]") &&
+      !(control as HTMLButtonElement | HTMLSelectElement).disabled
+    );
+  }
+
+  private announce(text: string): void {
+    this.announcer.textContent = "";
+    this.announcer.textContent = text;
+  }
+
+  private renderModes(state: ReviewViewState): void {
+    const { availability } = state.ai;
+    this.modes.hidden =
+      state.mode !== "rewrite" && (availability === "off" || availability === "unsupported");
+    for (const [mode, button] of this.modeButtons) {
+      button.setAttribute("aria-pressed", String(state.mode === mode));
+    }
+  }
+
+  /** The one Local AI line for this review (null: nothing worth saying). */
+  private aiLineText(state: ReviewViewState): string | null {
+    const { ai } = state;
+    const rewriting = state.mode === "rewrite";
+    switch (ai.availability) {
+      case "off":
+        return rewriting ? this.t("review_ai_off") : null;
+      case "unsupported":
+        return this.t("review_ai_unsupported");
+      case "setup-needed":
+        return rewriting && !ai.offerSetup ? this.t("review_ai_rewrite_setup") : null;
+      case "install-needed":
+        return this.t("review_ai_install_needed");
+      case "installing":
+        return ai.status?.progress !== undefined
+          ? this.t("review_ai_installing_progress", {
+              percent: formatPercent(ai.status.progress, this.lang),
+            })
+          : this.t("review_ai_installing");
+      case "paused":
+        return rewriting ? null : this.t("review_ai_paused");
+      case "ready":
+        break;
+    }
+    if (rewriting) return null;
+    switch (ai.coverage) {
+      case "idle":
+        return null;
+      case "waiting":
+      case "loading":
+        return this.t("review_ai_loading");
+      case "checking":
+        return this.t("review_ai_checking");
+      case "complete":
+        return this.t("review_ai_complete");
+      case "partial":
+        return ai.skippedChars > 0
+          ? this.t("review_ai_partial_skipped", { count: ai.skippedChars })
+          : this.t("review_ai_partial");
+      case "failed":
+        return this.t("review_ai_failed");
+      case "cancelled":
+        return this.t("review_ai_stopped");
+    }
+  }
+
+  private renderAi(state: ReviewViewState): void {
+    const { ai } = state;
+    const rewriting = state.mode === "rewrite";
+    const line = this.aiLineText(state);
+    const offer = ai.offerSetup && ai.availability === "setup-needed";
+    const pause = !rewriting && (ai.availability === "ready" || ai.availability === "paused");
+    const settings =
+      ai.availability === "install-needed" ||
+      (rewriting &&
+        (ai.availability === "off" || (ai.availability === "setup-needed" && !ai.offerSetup)));
+    this.aiLine.textContent = line ?? "";
+    this.aiLine.hidden = line === null;
+    this.aiPause.hidden = !pause;
+    this.aiPause.textContent = this.t(
+      ai.availability === "paused" ? "review_ai_resume" : "review_ai_pause",
+    );
+    this.aiSettings.hidden = !settings;
+    this.setup.hidden = !offer;
+    const bytes = ai.status?.downloadBytes ?? 0;
+    this.setupSize.hidden = bytes <= 0;
+    this.setupSize.textContent =
+      bytes > 0
+        ? this.t("review_ai_setup_size", { size: formatDownloadSize(bytes, this.lang) })
+        : "";
+    this.ai.hidden = line === null && !offer && !pause && !settings;
+    // Announce only an AI pass ending, once per change.
+    const ended =
+      !rewriting && ["complete", "partial", "failed"].includes(ai.coverage) ? ai.coverage : null;
+    if (ended && ended !== this.announcedCoverage && line) this.announce(line);
+    this.announcedCoverage = ended;
+  }
+
+  private rewriteMessage(rewrite: RewriteViewState): string {
+    switch (rewrite.status) {
+      case "idle":
+        return this.t("review_rewrite_idle");
+      case "generating":
+        return this.t("review_rewrite_generating");
+      case "ready":
+        return this.t("review_rewrite_ready");
+      case "rejected":
+        return this.t(REJECTION_KEY[rewrite.rejection ?? "shape"]);
+      case "failed":
+        return this.t("review_rewrite_failed");
+      case "stale":
+        return this.t("review_rewrite_stale");
+      case "too-long":
+        return this.t("review_rewrite_too_long");
+      case "applying":
+        return this.t("review_status_applying");
+    }
+  }
+
+  private renderRewrite(state: ReviewViewState): void {
+    const view = this.rewrite;
+    view.root.hidden = state.mode !== "rewrite";
+    if (view.root.hidden) {
+      this.announcedRewrite = null;
+      return;
+    }
+    const rewrite: RewriteViewState = state.rewrite ?? {
+      style: "keep-voice",
+      resolvedStyle: "keep-voice",
+      contextHint: "general",
+      status: "idle",
+      before: "",
+      after: null,
+      hunks: [],
+      rejection: null,
+      failure: null,
+      canApply: false,
+      previewOnly: false,
+    };
+    if (view.style.value !== rewrite.style) view.style.value = rewrite.style;
+    if (view.context.value !== rewrite.contextHint) view.context.value = rewrite.contextHint;
+    const contextAware = rewrite.style === "context-aware";
+    view.contextRow.hidden = !contextAware;
+    view.using.hidden = !contextAware;
+    view.using.textContent = this.t("review_rewrite_using", {
+      style: this.t(STYLE_KEY[rewrite.resolvedStyle]),
+    });
+    const busy = rewrite.status === "generating" || rewrite.status === "applying";
+    const usable = state.ai.availability === "ready" || state.ai.availability === "paused";
+    view.generate.hidden = busy;
+    view.generate.textContent = this.t(
+      rewrite.status === "ready" ? "review_rewrite_regenerate" : "review_rewrite_generate",
+    );
+    view.generate.disabled = !usable || state.status !== "ready" || rewrite.status === "too-long";
+    view.cancel.hidden = rewrite.status !== "generating";
+    view.message.textContent = this.rewriteMessage(rewrite);
+
+    const after = rewrite.after;
+    view.diff.hidden = after === null;
+    const diffKey = after === null ? null : `${rewrite.before}\u0000${after}`;
+    if (after !== null && diffKey !== this.diffKey) this.renderRewriteDiff(rewrite, after);
+    this.diffKey = diffKey;
+    view.apply.hidden = after === null || rewrite.previewOnly;
+    view.apply.disabled = !rewrite.canApply || state.status !== "ready";
+    view.copy.hidden = !(rewrite.previewOnly && after !== null && rewrite.status === "ready");
+    view.copied.hidden = view.copy.hidden;
+    view.previewOnly.hidden = !rewrite.previewOnly;
+
+    const ended = ["ready", "rejected", "failed"].includes(rewrite.status) ? rewrite.status : null;
+    if (ended && ended !== this.announcedRewrite) this.announce(view.message.textContent);
+    this.announcedRewrite = ended;
+  }
+
+  /** Before and after, changed regions marked; model text only ever as text nodes. */
+  private renderRewriteDiff(rewrite: RewriteViewState, after: string): void {
+    const doc = this.doc;
+    const regions = rewriteRegions(rewrite.before, after, rewrite.hunks);
+    const from = element(doc, "p", { class: "before", dir: "auto" });
+    const to = element(doc, "p", { class: "after", dir: "auto" });
+    appendRegions(doc, from, rewrite.before, regions.from, "del");
+    appendRegions(doc, to, after, regions.to, "ins");
+    this.rewrite.diff.replaceChildren(
+      element(doc, "p", { class: "label" }, this.t("review_rewrite_before")),
+      from,
+      element(doc, "p", { class: "label" }, this.t("review_rewrite_after")),
+      to,
+    );
+    this.rewrite.copied.textContent = "";
+  }
+
+  private renderBatch(state: ReviewViewState): void {
+    const preview = state.mode === "correct" ? state.aiBatch : null;
+    this.batch.hidden = preview === null;
+    const key = preview
+      ? `${preview.diagnosticIds.join(" ")}|${preview.excluded.length}|${preview.canApply}`
+      : null;
+    const opened = this.batchKey === null;
+    const apply = () => this.batch.querySelector<HTMLButtonElement>("[data-action=ai-batch-apply]");
+    if (key === this.batchKey) {
+      const button = apply();
+      if (button && preview) button.disabled = !preview.canApply || state.status !== "ready";
+      return;
+    }
+    this.batchKey = key;
+    if (!preview) {
+      this.batch.replaceChildren();
+      return;
+    }
+    const doc = this.doc;
+    const changes = element(doc, "ol", {});
+    for (const id of preview.diagnosticIds) {
+      const diagnostic = state.diagnostics.find((d) => d.id === id);
+      if (diagnostic) changes.append(element(doc, "li", { dir: "auto" }, listPreview(diagnostic)));
+    }
+    const parts: HTMLElement[] = [
+      element(
+        doc,
+        "p",
+        { class: "batch-title", id: "ft-review-batch-title" },
+        this.t("review_ai_batch_title"),
+      ),
+      changes,
+    ];
+    if (preview.excluded.length > 0) {
+      parts.push(
+        element(
+          doc,
+          "p",
+          { class: "hint" },
+          this.t("review_ai_batch_excluded", { count: preview.excluded.length }),
+        ),
+      );
+    }
+    if (!preview.canApply) {
+      parts.push(element(doc, "p", { class: "hint" }, this.t("review_ai_batch_unsupported")));
+    }
+    const applyButton = element(
+      doc,
+      "button",
+      { type: "button", class: "primary", "data-action": "ai-batch-apply" },
+      this.t("review_ai_batch_apply"),
+    );
+    applyButton.disabled = !preview.canApply || state.status !== "ready";
+    applyButton.addEventListener("click", (event) =>
+      this.callbacks.applyAiBatch(event.detail === 0),
+    );
+    const cancel = element(
+      doc,
+      "button",
+      { type: "button", "data-action": "ai-batch-cancel" },
+      this.t("review_cancel"),
+    );
+    cancel.addEventListener("click", () => this.callbacks.cancelAiBatch());
+    const actions = element(doc, "div", { class: "actions" });
+    actions.append(applyButton, cancel);
+    parts.push(actions);
+    this.replaceKeepingFocus(this.batch, parts);
+    if (opened) (applyButton.disabled ? cancel : applyButton).focus({ preventScroll: false });
   }
 
   private statusText(state: ReviewViewState): string {
@@ -562,6 +1216,16 @@ export class ReviewUi {
       });
       const change = element(this.doc, "span", { class: "change", dir: "auto" });
       change.textContent = listPreview(diagnostic);
+      const why = element(
+        this.doc,
+        "span",
+        { class: "why" },
+        `${this.t(CATEGORY_KEY[diagnostic.category])}: ${this.t(diagnostic.messageKey)}`,
+      );
+      // Provenance in words (part of the item's name), beside the unchanged category signals.
+      if (isLocalAi(diagnostic)) {
+        why.prepend(element(this.doc, "span", { class: "tag" }, this.t("review_ai_tag")), " ");
+      }
       button.append(
         element(
           this.doc,
@@ -570,12 +1234,7 @@ export class ReviewUi {
           BADGES[diagnostic.category],
         ),
         change,
-        element(
-          this.doc,
-          "span",
-          { class: "why" },
-          `${this.t(CATEGORY_KEY[diagnostic.category])}: ${this.t(diagnostic.messageKey)}`,
-        ),
+        why,
       );
       button.addEventListener("click", () => {
         this.callbacks.select(diagnostic.id, { openCard: true, focusList: false });
@@ -643,17 +1302,20 @@ export class ReviewUi {
     const state = this.state;
     const doc = this.doc;
     const canApply = !!state && state.capabilities.apply && state.status === "ready";
+    const ai = isLocalAi(diagnostic);
+    const category = this.t(CATEGORY_KEY[diagnostic.category]);
     this.card.dataset.category = diagnostic.category;
     this.card.setAttribute(
       "aria-label",
-      `${this.t(CATEGORY_KEY[diagnostic.category])}: ${this.t(diagnostic.messageKey)}`,
+      `${ai ? `${category}, ${this.t("review_ai_tag")}` : category}: ${this.t(diagnostic.messageKey)}`,
     );
     const header = element(doc, "header");
     header.append(
       element(doc, "span", { class: "badge", "aria-hidden": "true" }, BADGES[diagnostic.category]),
-      element(doc, "span", { class: "category" }, this.t(CATEGORY_KEY[diagnostic.category])),
-      element(doc, "span", { class: "spacer" }),
+      element(doc, "span", { class: "category" }, category),
     );
+    if (ai) header.append(element(doc, "span", { class: "tag" }, this.t("review_ai_tag")));
+    header.append(element(doc, "span", { class: "spacer" }));
     const close = element(
       doc,
       "button",
@@ -730,7 +1392,7 @@ export class ReviewUi {
     }
     if (!state?.capabilities.apply)
       parts.push(element(doc, "p", { class: "hint" }, this.t("review_cap_review_only")));
-    this.replaceCard(parts);
+    this.replaceKeepingFocus(this.card, parts);
   }
 
   /**
@@ -786,7 +1448,7 @@ export class ReviewUi {
         this.t(this.state?.capabilities.apply ? "review_card_pick_hint" : "review_cap_review_only"),
       ),
     ];
-    this.replaceCard(parts);
+    this.replaceKeepingFocus(this.card, parts);
   }
 
   /** A card's buttons: `lead` (Apply), then Ignore and, for a single word, Add to dictionary. */
@@ -818,19 +1480,19 @@ export class ReviewUi {
     return actions;
   }
 
-  /** Swaps the card's content, keeping keyboard focus on the same control. */
-  private replaceCard(parts: HTMLElement[]): void {
+  /** Swaps a container's content (the card, the batch preview), keeping focus on the same control. */
+  private replaceKeepingFocus(container: HTMLElement, parts: HTMLElement[]): void {
     const focused = this.root.activeElement as HTMLElement | null;
-    const inCard = !!focused && this.card.contains(focused);
-    const focusedAction = inCard ? focused.dataset.action : undefined;
-    const focusedIndex = inCard ? focused.dataset.index : undefined;
-    this.card.replaceChildren(...parts);
+    const inside = !!focused && container.contains(focused);
+    const focusedAction = inside ? focused.dataset.action : undefined;
+    const focusedIndex = inside ? focused.dataset.index : undefined;
+    container.replaceChildren(...parts);
     if (focusedAction) {
       const selector =
         focusedIndex === undefined
           ? `[data-action="${focusedAction}"]`
           : `[data-action="${focusedAction}"][data-index="${focusedIndex}"]`;
-      this.card.querySelector<HTMLElement>(selector)?.focus();
+      container.querySelector<HTMLElement>(selector)?.focus();
     }
   }
 
@@ -919,7 +1581,10 @@ export class ReviewUi {
     if (event.key === "Escape") {
       event.preventDefault();
       event.stopPropagation();
-      if (this.cardId) {
+      // The AI batch preview first, then the card, then the review.
+      if (this.state?.aiBatch && !this.batch.hidden) {
+        this.callbacks.cancelAiBatch();
+      } else if (this.cardId) {
         const id = this.cardId;
         this.closeCard();
         this.callbacks.select(id, { openCard: false, focusList: true });

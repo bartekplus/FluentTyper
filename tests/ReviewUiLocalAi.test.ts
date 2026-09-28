@@ -1,0 +1,519 @@
+import { afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
+import {
+  ReviewUi,
+  type ReviewUiCallbacks,
+} from "../src/adapters/chrome/content-script/review/ReviewUi";
+import type { ReviewViewState } from "../src/core/application/review/ReviewSession";
+import type {
+  AiBatchPreview,
+  ReviewAiViewState,
+  RewriteViewState,
+} from "../src/core/application/review/reviewAi";
+import type { LocalAiStatus } from "../src/core/domain/contracts/localAi";
+import {
+  REVIEW_CATEGORIES,
+  REVIEW_LOCAL_AI_CHECK,
+  type ReviewDiagnostic,
+} from "../src/core/domain/grammar/review/types";
+
+type Listener = (event: Event) => void;
+
+// jsdom events are never trusted and isTrusted cannot be redefined, so the
+// listeners are recorded and called with a trusted-looking click instead.
+const listeners = new WeakMap<EventTarget, Array<{ type: string; listener: Listener }>>();
+const EventTargetProto = (window as unknown as { EventTarget: typeof EventTarget }).EventTarget
+  .prototype;
+const nativeAdd = EventTargetProto.addEventListener;
+
+function trustedClick(target: Element): void {
+  const event = { type: "click", isTrusted: true, detail: 1, target } as unknown as Event;
+  for (const entry of listeners.get(target) ?? []) {
+    if (entry.type === "click") entry.listener(event);
+  }
+}
+
+function callbacks(): { [K in keyof ReviewUiCallbacks]: ReturnType<typeof jest.fn> } {
+  const names: Array<keyof ReviewUiCallbacks> = [
+    "close",
+    "select",
+    "apply",
+    "ignore",
+    "addToDictionary",
+    "fixAll",
+    "toggleCategory",
+    "navigate",
+    "setMode",
+    "toggleAiPause",
+    "aiSetup",
+    "aiDismissSetup",
+    "setRewriteStyle",
+    "setRewriteContext",
+    "generateRewrite",
+    "cancelRewrite",
+    "applyRewrite",
+    "previewAiBatch",
+    "applyAiBatch",
+    "cancelAiBatch",
+  ];
+  return Object.fromEntries(names.map((name) => [name, jest.fn()])) as never;
+}
+
+function finding(id: string, overrides: Partial<ReviewDiagnostic> = {}): ReviewDiagnostic {
+  return {
+    id,
+    snapshotId: "s1",
+    ruleId: REVIEW_LOCAL_AI_CHECK,
+    category: "grammar",
+    messageKey: "review_msg_local_ai",
+    lang: "en",
+    range: { start: 4, end: 11 },
+    original: "results",
+    alternatives: [
+      {
+        edits: [{ start: 4, end: 11, original: "results", replacement: "result" }],
+        preview: "result",
+      },
+    ],
+    bulk: { eligible: false, reason: "local-ai" },
+    context: { start: 0, end: 20 },
+    ...overrides,
+  };
+}
+
+const STATUS: LocalAiStatus = {
+  enabled: true,
+  consented: false,
+  tier: "standard",
+  modelId: "m",
+  displayName: "Standard",
+  downloadBytes: 970_000_000,
+  install: "none",
+  runtime: "unconfigured",
+  offerSetup: true,
+};
+
+function ai(overrides: Partial<ReviewAiViewState> = {}): ReviewAiViewState {
+  return {
+    availability: "ready",
+    coverage: "idle",
+    status: STATUS,
+    checkedChars: 0,
+    eligibleChars: 0,
+    skippedChars: 0,
+    findings: 0,
+    rejected: 0,
+    failure: null,
+    offerSetup: false,
+    ...overrides,
+  };
+}
+
+function rewrite(overrides: Partial<RewriteViewState> = {}): RewriteViewState {
+  return {
+    style: "keep-voice",
+    resolvedStyle: "keep-voice",
+    contextHint: "general",
+    status: "idle",
+    before: "The results shows a problem.",
+    after: null,
+    hunks: [],
+    rejection: null,
+    failure: null,
+    canApply: false,
+    previewOnly: false,
+    ...overrides,
+  };
+}
+
+function state(overrides: Partial<ReviewViewState> = {}): ReviewViewState {
+  return {
+    status: "ready",
+    scopeKind: "field",
+    capabilities: { inline: true, apply: true, bulk: true, undo: "single-step" },
+    diagnostics: [],
+    ignoredCount: 0,
+    resolvedCount: 0,
+    categories: new Set(REVIEW_CATEGORIES),
+    selectedId: null,
+    coverage: null,
+    truncated: 0,
+    unread: 0,
+    languageSkipped: 0,
+    noRules: false,
+    bulk: { count: 0, deferred: 0, pending: false },
+    spelling: "done",
+    notice: null,
+    text: "The results shows a problem.",
+    mode: "correct",
+    ai: ai(),
+    rewrite: null,
+    aiBatch: null,
+    ...overrides,
+  };
+}
+
+describe("ReviewUi: Local AI", () => {
+  let cb: ReturnType<typeof callbacks>;
+  let ui: ReviewUi;
+  const $ = <T extends Element = HTMLElement>(selector: string) =>
+    ui.root.querySelector<T>(selector)!;
+  const shown = (selector: string) => {
+    const node = ui.root.querySelector<HTMLElement>(selector);
+    return !!node && !node.closest("[hidden]");
+  };
+
+  beforeEach(() => {
+    EventTargetProto.addEventListener = function (
+      this: EventTarget,
+      type: string,
+      listener: EventListenerOrEventListenerObject | null,
+      options?: boolean | AddEventListenerOptions,
+    ) {
+      if (typeof listener === "function") {
+        const list = listeners.get(this) ?? [];
+        list.push({ type, listener: listener as Listener });
+        listeners.set(this, list);
+      }
+      return nativeAdd.call(this, type, listener, options);
+    };
+    cb = callbacks();
+    ui = new ReviewUi(document, "en", cb, []);
+  });
+
+  afterEach(() => {
+    EventTargetProto.addEventListener = nativeAdd;
+    ui.destroy();
+  });
+
+  test("the mode switch is hidden while Local AI is off or unsupported", () => {
+    ui.render(state({ ai: ai({ availability: "off" }) }));
+    expect(shown(".modes")).toBe(false);
+    ui.render(state({ ai: ai({ availability: "unsupported" }) }));
+    expect(shown(".modes")).toBe(false);
+    expect($(".ai-line").textContent).toContain("isn't available");
+    expect(shown("[data-action=ai-setup]")).toBe(false);
+
+    ui.render(state());
+    const group = $(".modes");
+    expect(shown(".modes")).toBe(true);
+    expect(group.getAttribute("role")).toBe("group");
+    expect(group.getAttribute("aria-label")).toBe("Review mode");
+    expect($("[data-action=mode-correct]").getAttribute("aria-pressed")).toBe("true");
+    expect($("[data-action=mode-rewrite]").getAttribute("aria-pressed")).toBe("false");
+    $<HTMLButtonElement>("[data-action=mode-rewrite]").click();
+    expect(cb.setMode).toHaveBeenCalledWith("rewrite");
+  });
+
+  test("the setup offer shows the download size and acts only on trusted clicks", () => {
+    ui.render(state({ ai: ai({ availability: "setup-needed", offerSetup: true }) }));
+    expect(shown(".setup")).toBe(true);
+    expect($(".setup-size").textContent).toBe("One-time download: ≈ 0.97 GB");
+    expect($(".setup").textContent).toContain("never uploaded");
+
+    $<HTMLButtonElement>("[data-action=ai-setup]").click();
+    $<HTMLButtonElement>("[data-action=ai-setup-later]").click();
+    expect(cb.aiSetup).not.toHaveBeenCalled();
+    expect(cb.aiDismissSetup).not.toHaveBeenCalled();
+
+    trustedClick($("[data-action=ai-setup]"));
+    expect(cb.aiSetup).toHaveBeenCalledTimes(1);
+    trustedClick($("[data-action=ai-setup-later]"));
+    expect(cb.aiDismissSetup).toHaveBeenCalledTimes(1);
+
+    // Basic review stays usable around it.
+    expect(shown(".list")).toBe(true);
+    ui.render(state({ ai: ai({ availability: "setup-needed", offerSetup: false }) }));
+    expect(shown(".setup")).toBe(false);
+  });
+
+  test("install-needed offers settings; installing reports progress", () => {
+    ui.render(state({ ai: ai({ availability: "install-needed" }) }));
+    expect(shown("[data-action=ai-settings]")).toBe(true);
+    trustedClick($("[data-action=ai-settings]"));
+    expect(cb.aiSetup).toHaveBeenCalledTimes(1);
+    ui.render(
+      state({ ai: ai({ availability: "installing", status: { ...STATUS, progress: 0.42 } }) }),
+    );
+    expect($(".ai-line").textContent).toBe("Local AI model is downloading: 42% (see settings).");
+  });
+
+  test("AI findings carry a Local AI tag and keep their category badge", () => {
+    const rule = finding("rule", { ruleId: "reviewSpelling", category: "spelling" });
+    ui.render(state({ diagnostics: [finding("a"), rule] }));
+    const item = $("[data-id=a]");
+    expect(item.dataset.category).toBe("grammar");
+    expect(item.querySelector(".badge")!.textContent).toBe("G");
+    expect(item.querySelector(".tag")!.textContent).toBe("Local AI");
+    expect(item.textContent).toContain("Local AI");
+    expect($("[data-id=rule]").querySelector(".tag")).toBeNull();
+
+    ui.openCard(finding("a"), null);
+    const card = $(".card");
+    expect(card.getAttribute("aria-label")).toBe(
+      "Grammar, Local AI: Local AI correction. Check that the meaning is unchanged before applying.",
+    );
+    expect(card.querySelector(".tag")!.textContent).toBe("Local AI");
+    expect(card.querySelector(".badge")!.textContent).toBe("G");
+    expect(card.querySelector(".to")!.textContent).toBe("result");
+    expect(card.textContent).toContain("Not included in Fix all");
+  });
+
+  test("coverage lines are distinct, and none claims AI completion when it did not", () => {
+    const line = (
+      coverage: ReviewAiViewState["coverage"],
+      extra: Partial<ReviewAiViewState> = {},
+    ) => {
+      ui.render(state({ ai: ai({ coverage, ...extra }) }));
+      return shown(".ai-line") ? $(".ai-line").textContent : null;
+    };
+    expect(line("idle")).toBeNull();
+    expect(line("loading")).toBe("Local AI: loading model…");
+    expect(line("checking")).toBe("Checking context locally…");
+    expect(line("complete")).toBe("Local AI check complete.");
+    expect(line("partial", { skippedChars: 120 })).toBe(
+      "Local AI checked part of the text; 120 characters were not checked.",
+    );
+    expect(line("partial")).toBe("Local AI checked only part of the text.");
+    expect(line("failed")).toBe("Local AI did not finish; basic checks are shown.");
+    // "No issues found" (basic checks) is its own statement.
+    expect($(".status").textContent).toBe("No issues found by the review checks.");
+
+    ui.render(state({ ai: ai({ availability: "paused", coverage: "cancelled" }) }));
+    expect($(".ai-line").textContent).toBe("Local AI paused.");
+    expect($("[data-action=ai-pause]").textContent).toBe("Resume local AI");
+    $<HTMLButtonElement>("[data-action=ai-pause]").click();
+    expect(cb.toggleAiPause).toHaveBeenCalledTimes(1);
+  });
+
+  test("only an AI pass ending is announced, once", () => {
+    const announcer = () => $(".sr-only").textContent;
+    ui.render(state({ ai: ai({ coverage: "checking" }) }));
+    expect(announcer()).toBe("");
+    ui.render(state({ ai: ai({ coverage: "complete" }) }));
+    expect(announcer()).toBe("Local AI check complete.");
+    ui.render(state({ ai: ai({ coverage: "failed" }) }));
+    expect(announcer()).toBe("Local AI did not finish; basic checks are shown.");
+  });
+
+  test("Fix all keeps its label; AI corrections have their own button", () => {
+    const diagnostics = [
+      finding("a"),
+      finding("b", { range: { start: 12, end: 17 } }),
+      finding("r", { ruleId: "reviewSpelling", bulk: { eligible: true, alternative: 0 } }),
+    ];
+    ui.render(state({ diagnostics, bulk: { count: 1, deferred: 0, pending: false } }));
+    expect($("[data-action=fix-all]").textContent).toBe("Fix all safe (1)");
+    const batch = $<HTMLButtonElement>("[data-action=ai-batch]");
+    expect(shown("[data-action=ai-batch]")).toBe(true);
+    expect(batch.textContent).toBe("Apply selected AI corrections (2)");
+    expect(batch.classList.contains("primary")).toBe(false);
+    batch.click();
+    expect(cb.previewAiBatch).toHaveBeenCalledTimes(1);
+    expect(cb.fixAll).not.toHaveBeenCalled();
+
+    // One AI finding, or no bulk support: no batch button.
+    ui.render(state({ diagnostics: [finding("a")] }));
+    expect(shown("[data-action=ai-batch]")).toBe(false);
+    ui.render(
+      state({
+        diagnostics,
+        capabilities: { inline: true, apply: true, bulk: false, undo: "none" },
+      }),
+    );
+    expect(shown("[data-action=ai-batch]")).toBe(false);
+  });
+
+  test("the batch preview lists the changes, explains exclusions, and Escape closes it first", () => {
+    const diagnostics = [
+      finding("a"),
+      finding("b", {
+        original: "shows",
+        alternatives: [
+          {
+            edits: [{ start: 12, end: 17, original: "shows", replacement: "show" }],
+            preview: "show",
+          },
+        ],
+      }),
+    ];
+    const preview: AiBatchPreview = {
+      diagnosticIds: ["a", "b"],
+      excluded: [{ id: "c", reason: "conflict" }],
+      before: "The results shows a problem.",
+      after: "The result show a problem.",
+      canApply: false,
+    };
+    ui.render(state({ diagnostics }));
+    ui.openCard(diagnostics[0], null);
+    ui.render(state({ diagnostics, aiBatch: preview }));
+    expect(shown(".batch")).toBe(true);
+    expect(Array.from(ui.root.querySelectorAll(".batch li")).map((li) => li.textContent)).toEqual([
+      "results → result",
+      "shows → show",
+    ]);
+    expect($(".batch").textContent).toContain("Left out: 1.");
+    expect($<HTMLButtonElement>("[data-action=ai-batch-apply]").disabled).toBe(true);
+
+    const escape = () =>
+      $(".panel").dispatchEvent(
+        new (window as unknown as { KeyboardEvent: typeof KeyboardEvent }).KeyboardEvent(
+          "keydown",
+          { key: "Escape", bubbles: true, composed: true },
+        ),
+      );
+    escape();
+    expect(cb.cancelAiBatch).toHaveBeenCalledTimes(1);
+    expect(ui.isCardOpen()).toBe(true);
+    expect(cb.close).not.toHaveBeenCalled();
+
+    ui.render(state({ diagnostics, aiBatch: { ...preview, canApply: true } }));
+    const apply = $<HTMLButtonElement>("[data-action=ai-batch-apply]");
+    expect(apply.disabled).toBe(false);
+    apply.focus();
+    // An equal preview in a new state object is not rebuilt out from under the focus.
+    ui.render(state({ diagnostics, aiBatch: { ...preview, canApply: true } }));
+    expect(ui.root.activeElement).toBe(apply);
+    apply.click();
+    expect(cb.applyAiBatch).toHaveBeenCalledTimes(1);
+
+    ui.render(state({ diagnostics }));
+    expect(shown(".batch")).toBe(false);
+    escape();
+    expect(ui.isCardOpen()).toBe(false);
+    escape();
+    expect(cb.close).toHaveBeenCalledTimes(1);
+  });
+
+  describe("Rewrite", () => {
+    const rewriting = (r: Partial<RewriteViewState> = {}, extra: Partial<ReviewViewState> = {}) =>
+      ui.render(state({ mode: "rewrite", rewrite: rewrite(r), ...extra }));
+
+    test("replaces the findings view; choosing a style never generates", () => {
+      rewriting();
+      expect(shown(".rewrite")).toBe(true);
+      for (const part of [".list", ".filters", "footer", ".status"]) {
+        expect(shown(part)).toBe(false);
+      }
+      expect($("[data-action=mode-rewrite]").getAttribute("aria-pressed")).toBe("true");
+      const style = $<HTMLSelectElement>("[data-action=rewrite-style]");
+      expect(Array.from(style.options).map((o) => o.textContent)).toEqual([
+        "Keep my voice",
+        "Professional",
+        "Friendly",
+        "Concise",
+        "Clearer",
+        "Context-aware",
+      ]);
+      expect(style.value).toBe("keep-voice");
+      expect(shown("[data-action=rewrite-context]")).toBe(false);
+      style.value = "concise";
+      style.dispatchEvent(new Event("change"));
+      expect(cb.setRewriteStyle).toHaveBeenCalledWith("concise");
+      expect(cb.generateRewrite).not.toHaveBeenCalled();
+      $<HTMLButtonElement>("[data-action=rewrite-generate]").click();
+      expect(cb.generateRewrite).toHaveBeenCalledTimes(1);
+    });
+
+    test("context-aware shows what it writes for and what it resolved to", () => {
+      rewriting({ style: "context-aware", resolvedStyle: "friendly", contextHint: "chat" });
+      expect(shown("[data-action=rewrite-context]")).toBe(true);
+      const context = $<HTMLSelectElement>("[data-action=rewrite-context]");
+      expect(context.value).toBe("chat");
+      expect($(".using").textContent).toBe("Using: Friendly");
+      context.value = "email";
+      context.dispatchEvent(new Event("change"));
+      expect(cb.setRewriteContext).toHaveBeenCalledWith("email");
+    });
+
+    test("generating offers Cancel, keeps focus in the panel, and never shows Apply", () => {
+      rewriting();
+      const generate = $<HTMLButtonElement>("[data-action=rewrite-generate]");
+      generate.focus();
+      rewriting({ status: "generating" });
+      expect($(".rewrite-msg").textContent).toBe("Rewriting locally…");
+      expect(shown("[data-action=rewrite-generate]")).toBe(false);
+      expect(ui.root.activeElement).toBe($("[data-action=rewrite-cancel]"));
+      $<HTMLButtonElement>("[data-action=rewrite-cancel]").click();
+      expect(cb.cancelRewrite).toHaveBeenCalledTimes(1);
+      expect(shown("[data-action=rewrite-apply]")).toBe(false);
+    });
+
+    test("a ready proposal shows a diff as text; Apply follows canApply", () => {
+      const after = 'The result shows <img src=x onerror="alert(1)"> a problem.';
+      const hunks = [
+        { start: 4, end: 11, original: "results", replacement: "result" },
+        { start: 17, end: 17, original: "", replacement: ' <img src=x onerror="alert(1)">' },
+      ];
+      rewriting({ status: "ready", after, hunks, canApply: false });
+      expect(ui.root.querySelector("img")).toBeNull();
+      expect($(".rewrite-diff .after").textContent).toBe(after);
+      expect(
+        Array.from(ui.root.querySelectorAll(".rewrite-diff ins")).map((n) => n.textContent),
+      ).toEqual(["result", ' <img src=x onerror="alert(1)">']);
+      expect($(".rewrite-diff .before del").textContent).toBe("results");
+      expect($("[data-action=rewrite-generate]").textContent).toBe("Regenerate");
+      const apply = $<HTMLButtonElement>("[data-action=rewrite-apply]");
+      expect(shown("[data-action=rewrite-apply]")).toBe(true);
+      expect(apply.disabled).toBe(true);
+      expect($(".sr-only").textContent).toBe("Rewrite ready. Check the changes before applying.");
+
+      rewriting({ status: "ready", after, hunks, canApply: true });
+      expect(apply.disabled).toBe(false);
+      apply.click();
+      expect(cb.applyRewrite).toHaveBeenCalledTimes(1);
+      expect(shown("[data-action=rewrite-copy]")).toBe(false);
+    });
+
+    test("preview-only offers Copy (trusted clicks only) instead of Apply", async () => {
+      const writeText = jest.fn(() => Promise.resolve());
+      Object.defineProperty(window.navigator, "clipboard", {
+        value: { writeText },
+        configurable: true,
+      });
+      rewriting({ status: "ready", after: "The result shows a problem.", previewOnly: true });
+      expect(shown("[data-action=rewrite-apply]")).toBe(false);
+      expect(shown("[data-action=rewrite-copy]")).toBe(true);
+      expect($(".rewrite").textContent).toContain("review-only");
+      expect(writeText).not.toHaveBeenCalled();
+
+      $<HTMLButtonElement>("[data-action=rewrite-copy]").click();
+      expect(writeText).not.toHaveBeenCalled();
+      trustedClick($("[data-action=rewrite-copy]"));
+      expect(writeText).toHaveBeenCalledWith("The result shows a problem.");
+      await Promise.resolve();
+      expect($(".copied").textContent).toBe("Copied");
+      // A re-render of the same proposal keeps the confirmation.
+      rewriting({ status: "ready", after: "The result shows a problem.", previewOnly: true });
+      expect($(".copied").textContent).toBe("Copied");
+      Reflect.deleteProperty(window.navigator, "clipboard");
+    });
+
+    test("stale, too-long, rejected and failed say what happened", () => {
+      rewriting({ status: "stale" });
+      expect($(".rewrite-msg").textContent).toBe("Text changed. Generate again.");
+      rewriting({ status: "too-long" });
+      expect($(".rewrite-msg").textContent).toBe(
+        "Select a shorter passage (up to about 2,000 characters) to rewrite.",
+      );
+      expect($<HTMLButtonElement>("[data-action=rewrite-generate]").disabled).toBe(true);
+      rewriting({ status: "rejected", rejection: "number", after: "The results show 3 problems." });
+      expect($(".rewrite-msg").textContent).toBe(
+        "The rewrite changed a number, so it was discarded. Try again.",
+      );
+      expect($<HTMLButtonElement>("[data-action=rewrite-apply]").disabled).toBe(true);
+      rewriting({ status: "failed", failure: "timeout" });
+      expect($(".rewrite-msg").textContent).toBe(
+        "Local AI could not finish the rewrite. Try again.",
+      );
+    });
+
+    test("Rewrite without a usable model points to settings instead of generating", () => {
+      rewriting({}, { ai: ai({ availability: "setup-needed", offerSetup: false }) });
+      expect($(".ai-line").textContent).toBe(
+        "Rewriting needs the local AI model. Set it up in settings.",
+      );
+      expect(shown("[data-action=ai-settings]")).toBe(true);
+      expect($<HTMLButtonElement>("[data-action=rewrite-generate]").disabled).toBe(true);
+    });
+  });
+});
