@@ -24,7 +24,7 @@ Optional on-device proofreading inside the existing Review panel (Chrome and Edg
 
 | Layer                   | Main files                                                                                                                                                                                                                                                |
 | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Domain (pure)           | `src/core/domain/grammar/review/ai/*` (chunking, prompts `review-ai-2`, strict parser, validator/diff), `src/core/domain/localAi/modelRegistry.ts`, `src/core/domain/contracts/localAi.ts`                                                                |
+| Domain (pure)           | `src/core/domain/grammar/review/ai/*` (chunking, prompts `review-ai-3`, strict parser, validator/diff), `src/core/domain/localAi/modelRegistry.ts`, `src/core/domain/contracts/localAi.ts`                                                                |
 | Application             | `src/core/application/review/ReviewSession.ts`, `reviewAi.ts`, `repositories/LocalAiSettingsRepository.ts`                                                                                                                                                |
 | Background              | `background/localAi/LocalAiController.ts` (consent authority, offscreen lifecycle), `MessageRouter.ts` handlers, `ConfigAssembler.ts`, `PredictionManager.ts` (production never wires the AI predictor)                                                   |
 | Offscreen (new adapter) | `offscreen/LocalAiHost.ts`, `JobScheduler.ts`, `WorkerClient.ts`, `worker/LocalAiWorkerEngine.ts`, `worker/networkGuard.ts`, `worker/modelArtifacts.ts`; entries `local_ai_offscreen.ts`, `local_ai_worker.ts`                                            |
@@ -83,17 +83,20 @@ Round 2 found no issues at or above its confidence threshold.
 
 ## Measured model results
 
-Apple M2 Max (Metal), Chrome for Testing 154, WebLLM 0.2.85, prompt `review-ai-2`, each
-fixture once (157 Correct: 87 expected unchanged, 70 expected corrections; 34 Rewrite).
+Apple M2 Max (Metal), Chrome for Testing 154, WebLLM 0.2.85, prompt `review-ai-3`, each
+fixture once (200 Correct: 109 expected unchanged, 91 expected corrections including 21
+error-dense cases; 35 Rewrite).
 
-| Model                  | False positives | Exact corrections | Correct p50 / p90 | Cold load |
-| ---------------------- | --------------- | ----------------- | ----------------- | --------- |
-| Qwen3 4B (Recommended) | 0/87            | 46/70             | 1173 / 1379 ms    | 2.6 s     |
-| Qwen3 1.7B (Compact)   | 0/87            | 21/70             | 644 / 746 ms      | 1.4 s     |
+| Model                  | False positives on correct text  | Exact corrections | Correct p50 / p90 (one sentence) |
+| ---------------------- | -------------------------------- | ----------------- | -------------------------------- |
+| Qwen3 4B (Recommended) | 1/109 (subjunctive `was → were`) | 62/91             | 1514 / 1838 ms                   |
+| Qwen3 1.7B (Compact)   | 0/109                            | 48/91             | 687 / 801 ms                     |
 
-No accepted English meaning change (numbers, negation, hedges, names) for either model.
-Integrated extension run (Qwen3 4B): install 37 s; Review open → first rule finding
-87 ms, → first Local AI finding 2.7 s (warm); offline cold start → first AI finding 5.7 s.
+No accepted English change to a number, negation, hedge or name for either model.
+Integrated extension run (Qwen3 4B): install 36 s; Review open → first rule finding
+47 ms, → first Local AI finding 1.9 s (warm); a user's 10-sentence, error-dense
+paragraph → first Local AI finding 2.7 s, complete 19.7 s, 8 Local AI findings; offline
+cold start → first AI finding 4.4 s. Details: [local-ai-evaluation.md](local-ai-evaluation.md).
 
 ## Verified support
 

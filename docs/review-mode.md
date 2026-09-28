@@ -257,10 +257,12 @@ were evaluated on. For another review language the panel says so once, and the r
 dictionary checks work as always.
 
 **Correct (the default).** When a review opens, the rule and dictionary results appear
-first, as always. Then the model checks the scope in the background, a paragraph at a
-time ("Checking context locally…"), and adds what it finds to the same list, tagged
-**Local AI**. It is asked to fix clear spelling, grammar and punctuation mistakes only,
-not to polish or rephrase, and every proposal is checked before it is shown:
+first, as always. Then the model checks the scope in the background, one sentence at a
+time with its neighbours as read-only context ("Checking context locally…"), and adds
+what it finds to the same list as it goes, tagged **Local AI**. It is asked to fix clear
+errors (spelling, missing apostrophes, agreement, verb forms, articles, wrong words such
+as "then/than", day and month capitals, double negatives) and to leave correct wording
+alone: no polishing or rephrasing. Every proposal is checked before it is shown:
 
 - only the reviewed scope is sent, with at most a few hundred characters of nearby text
   from the same field as read-only context; code, URLs, e-mail addresses, paths and other
@@ -268,9 +270,14 @@ not to polish or rephrase, and every proposal is checked before it is shown:
 - a proposal is dropped if it changes a number, a name, a technical token, a negation
   ("not", "never"…), a hedge ("may", "maybe"…), quoted text, or line breaks, or if it
   swaps words for synonyms or rewrites more than a correction needs;
-- the changes in one sentence form one fix, so a subject/verb pair is applied together;
-- a proposal identical to a rule's fix is shown once (as the rule's), and one that
-  overlaps a rule's finding is left out.
+- each change is checked on its own, so one doubtful change does not hide the good ones
+  in the same sentence; changes a word apart form one fix, so "user paste" → "a user
+  pastes" is applied together;
+- a proposal identical to a rule's fix is shown once (as the rule's); one that makes a
+  rule's fix and more ("is saved immediatly" → "are saved immediately") is shown too;
+  where the model and a rule disagree about the same word ("dont" → "don't" or
+  "doesn't"), the model's fix is a second option on that finding, labelled **Local AI**
+  and never preselected; any other overlap is left out.
 
 Local AI fixes are **never part of Fix all safe**. Apply them one at a time from the card,
 or with **Apply selected AI corrections**, which first previews the combined change (and
@@ -287,9 +294,12 @@ my voice** by default, Professional, Friendly, Concise, Clearer, or Context-awar
 shows the style it picked and lets you say whether you are writing a chat message, an
 e-mail or something general) and press **Generate**. You get one proposal for the
 selection or field, shown as a before/after diff. Nothing changes until you press
-**Apply**, which is enabled only for a complete proposal that passed the same fact checks
-(numbers, names, technical tokens, negation, certainty) and adds no promise, deadline,
-apology or greeting you did not write. Editing the text makes the proposal stale.
+**Apply**, which is enabled only for a complete proposal. Each sentence of it must pass
+the same fact checks (numbers, names, technical tokens, negation, certainty) and add no
+promise, deadline, apology or greeting you did not write; a sentence that fails is kept
+exactly as you wrote it, and the panel says how many were kept. Resolving a double
+negative ("not change nothing" → "not change anything") is allowed. Editing the text
+makes the proposal stale.
 Rewrite works on up to about 2,000 characters; select a passage for longer text. In a
 review-only editor there is no Apply: **Copy** puts the proposal on the clipboard when you
 click it. Every new review starts in Correct.

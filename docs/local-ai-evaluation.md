@@ -67,7 +67,55 @@ AI_RESPONSE_SCHEMA }`, as the product worker sends it (see runtime finding 1).
 Download bytes are the pinned revisions' weight shards (registry / probe), not measured
 transfer. Memory was not measured (registry VRAM estimates only).
 
-## Final shipped configuration (prompt `review-ai-2`)
+## Error-dense text (user report, prompt `review-ai-3`)
+
+A user reviewed a 10-sentence paragraph with 27 listed mistakes (now fixtures
+`dense-01`…`dense-10` and `dense-para-01`, plus 10 synthetic dense sentences and 22
+correct-prose controls `dense-ok-*`). With `review-ai-2`, Correct found almost nothing and
+Rewrite was discarded. Three causes, all fixed:
+
+1. **The model copied dense sentences back.** The generic "conservative proofreader"
+   prompt made Qwen3 return error-dense sentences unchanged. `review-ai-3` names the error
+   classes to fix and shows a multi-error example. Several sentences per request made it
+   fix only the first, so Correct now sends one sentence per request (neighbours as
+   read-only context).
+2. **The validator was all-or-nothing per sentence** and lacked agreement and
+   double-negative rules: even a perfect answer was rejected for 7 of 20 dense sentences.
+   Changes are now checked one unit at a time (see `validate.ts`).
+3. **Rewrite discarded everything for one sentence** (`before Friday` → `by Friday`,
+   a changed deadline). A failing sentence is now kept as written.
+
+Model-level recall on the 20 dense sentences (expected word-level fixes made by the raw
+model output, before validation), Qwen3 4B: **11/57 with `review-ai-2` → 32/57 with
+`review-ai-3`**, controls untouched in both.
+
+| Qwen3 4B (Recommended)                       | `review-ai-2`  | `review-ai-3`                                                  |
+| -------------------------------------------- | -------------- | -------------------------------------------------------------- |
+| False positives on correct text (full suite) | 0/87           | 1/109 (`If I was you` → `were`: subjunctive, a dialect choice) |
+| Exact corrections (full suite)               | 46/70          | 62/91                                                          |
+| Dense sentences fully fixed / partly fixed   | 3/20 / 7       | 6/21 / 13                                                      |
+| Correct-prose controls changed               | 0/22           | 0/22                                                           |
+| Correct latency p50 / p90 (one sentence)     | 1173 / 1379 ms | 1514 / 1838 ms (longer prompt)                                 |
+
+| Qwen3 1.7B (Compact)            | `review-ai-2` | `review-ai-3` |
+| ------------------------------- | ------------- | ------------- |
+| False positives on correct text | 0/87          | 0/109         |
+| Exact corrections               | 21/70         | 48/91         |
+| Correct latency p50 / p90       | 644 / 746 ms  | 687 / 801 ms  |
+
+The user's paragraph in the **real extension** (production build, Qwen3 4B,
+`bun run test:local-ai:real` step ii-b): 13 findings, 8 of them Local AI (`work → works`,
+`was → were`, `find several issue → found several issues`, `sometime it choose →
+sometimes it chooses`, `finished → finish`, `have → has`, `click → clicks`, `is saved
+immediatly → are saved immediately`) and 5 from rules and the dictionary, plus `doesn't`
+offered as the Local AI option on the rule's `dont → don't`. First Local AI finding after
+2.7 s, check complete after 19.7 s. Still missed by the model: `user paste`, `too many
+informations`, `since three years`, `more slower then`, `however`, `it still miss`,
+`discussed about`, `to not change nothing`; left alone by design: `Me and my colleague`
+(a reorder). Rewrite proposals rejected (Qwen3 4B, 35 cases): 5 → 4 after per-sentence
+acceptance. Every fixture ran once.
+
+## Previous configuration (prompt `review-ai-2`)
 
 Run 2026-09-28 against the committed product code (df79cf37): prompt `review-ai-2`,
 `response_format` with `AI_RESPONSE_SCHEMA`, `seed: 42`, temperature 0 (Correct) / 0.4

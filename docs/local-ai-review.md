@@ -94,8 +94,9 @@ bare `json_object` request.
 
 1. `buildAiChunks(prepared)`: sentence/paragraph chunks of editable prose, host ids,
    placeholders for protected tokens, bounded read-only context from the same scope.
-2. `buildAiMessages(request)`: versioned templates (`AI_PROMPT_VERSION`); editor text is
-   JSON data, never instructions.
+2. `buildAiMessages(request)`: versioned templates (`AI_PROMPT_VERSION`, now
+   `review-ai-3`); editor text is JSON data, never instructions. Correct sends one
+   sentence per request.
 3. `parseAiResponse(raw, request)`: strict JSON `{"segments":[{"id","text"}]}`, every id
    once, in order; truncation/cancel/extra content ⇒ failure.
 4. `correctionFindings` / `rewriteProposal`: word-level diff mapped to snapshot offsets,
