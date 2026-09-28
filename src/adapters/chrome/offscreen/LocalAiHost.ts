@@ -41,7 +41,7 @@ import type { WorkerLoadResult } from "./workerProtocol";
 /** chrome.runtime.Port subset (fakeable in tests). */
 export interface PortLike {
   name: string;
-  sender?: { tab?: unknown };
+  sender?: { tab?: unknown; url?: string };
   postMessage(message: unknown): void;
   disconnect(): void;
   onMessage: { addListener(callback: (message: unknown) => void): void };
@@ -52,6 +52,12 @@ export interface LocalAiHostOptions {
   connectBackground(): PortLike;
   createWorker(): WorkerLike;
   validateRequest?: (value: unknown) => AiGenerationRequest | null;
+  /**
+   * The extension's own origin ("chrome-extension://<id>/"). Review ports are for
+   * content scripts only: an extension page that happens to run in a tab (the
+   * options page) is refused.
+   */
+  extensionOrigin?: string;
   /** Unload the engine this long after the last job. */
   idleMs?: number;
   /** After an interrupt, tear the worker down if generation has not settled by then. */
@@ -407,7 +413,9 @@ export class LocalAiHost {
     if (port.name !== LOCAL_AI_REVIEW_PORT) {
       return;
     }
-    if (!port.sender?.tab || this.reviewPorts.size >= MAX_REVIEW_PORTS) {
+    const origin = this.options.extensionOrigin;
+    const fromExtensionPage = origin !== undefined && port.sender?.url?.startsWith(origin) === true;
+    if (!port.sender?.tab || fromExtensionPage || this.reviewPorts.size >= MAX_REVIEW_PORTS) {
       port.disconnect();
       return;
     }

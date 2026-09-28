@@ -6,6 +6,7 @@ import { LOCAL_AI_WORKER_PATH } from "@adapters/chrome/offscreen/workerProtocol"
 const host = new LocalAiHost({
   connectBackground: () => chrome.runtime.connect({ name: LOCAL_AI_HOST_PORT }),
   createWorker: () => new Worker(chrome.runtime.getURL(LOCAL_AI_WORKER_PATH)),
+  extensionOrigin: chrome.runtime.getURL(""),
 });
 
 chrome.runtime.onConnect.addListener((port) => host.acceptReviewPort(port));

@@ -45,7 +45,7 @@ class FakePort implements PortLike {
 
   constructor(
     readonly name: string,
-    readonly sender?: { tab?: unknown },
+    readonly sender?: { tab?: unknown; url?: string },
   ) {}
 
   postMessage(message: unknown): void {
@@ -135,6 +135,7 @@ function makeHost(
     cancelSettleMs: 20,
     jobTimeoutMs: 5_000,
     loadTimeoutMs: options.loadTimeoutMs ?? 5_000,
+    extensionOrigin: "chrome-extension://ft/",
   });
   host.start();
   if (options.configure !== false) {
@@ -199,6 +200,13 @@ describe("LocalAiHost review ports", () => {
     const noTab = new FakePort(LOCAL_AI_REVIEW_PORT, {});
     host.acceptReviewPort(noTab);
     expect(noTab.disconnected).toBe(true);
+    // An extension page in a tab (the options page) is not a content script.
+    const page = new FakePort(LOCAL_AI_REVIEW_PORT, {
+      tab: { id: 2 },
+      url: "chrome-extension://ft/options/options.html",
+    });
+    host.acceptReviewPort(page);
+    expect(page.disconnected).toBe(true);
     const other = new FakePort("something-else", { tab: { id: 1 } });
     host.acceptReviewPort(other);
     expect(other.disconnected).toBe(false);
