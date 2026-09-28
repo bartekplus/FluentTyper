@@ -85,7 +85,11 @@ export interface EngineDeps {
   guard: NetworkGuard;
   /** Registry lookup (tests use tiny synthetic records). */
   findModel?: (modelId: unknown) => LocalAiModelRecord | null;
+  /** Upper bound on one `dispose()`; a hung one is abandoned (tests shorten it). */
+  disposeTimeoutMs?: number;
 }
+
+const DISPOSE_TIMEOUT_MS = 10_000;
 
 interface LoadedModel {
   modelId: string;
@@ -267,7 +271,7 @@ export class LocalAiEngine {
       const model = await this.deps.runtime.loadModel(record);
       if (epoch !== this.epoch) {
         // Unloaded, deleted or switched while loading: discard the late model.
-        await model.dispose().catch(() => undefined);
+        await this.dispose(model);
         return { ok: false, error: "load-failed" };
       }
       this.loaded = { modelId: record.modelId, tokenizer, model };
@@ -307,8 +311,20 @@ export class LocalAiEngine {
     this.loaded = null;
     this.loading = null;
     if (loaded) {
-      await loaded.model.dispose().catch(() => undefined);
+      await this.dispose(loaded.model);
     }
+  }
+
+  /** A dispose that hangs (e.g. on a lost GPU device) must not hold the host's lock. */
+  private async dispose(model: ModelLike): Promise<void> {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    await Promise.race([
+      model.dispose().catch(() => undefined),
+      new Promise((resolve) => {
+        timer = setTimeout(resolve, this.deps.disposeTimeoutMs ?? DISPOSE_TIMEOUT_MS);
+      }),
+    ]);
+    clearTimeout(timer);
   }
 
   /** Throws if the cache refuses; the host reads the outcome back with `cacheState`. */

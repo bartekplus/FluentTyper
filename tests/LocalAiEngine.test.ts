@@ -215,6 +215,7 @@ function makeEngine(setup: Setup = {}) {
     gpu: undefined,
     guard,
     findModel,
+    disposeTimeoutMs: 20,
   };
   return {
     engine: new LocalAiEngine(deps),
@@ -322,6 +323,16 @@ describe("install, integrity and cache state", () => {
     while ((await cancelled.engine.cacheState(GEMMA.record.modelId)) !== "partial") await flush();
     abort.abort();
     expect(await installing).toEqual({ ok: false, error: "download-cancelled" });
+  });
+
+  test("a dispose that never settles is abandoned, so unload and the next load go on", async () => {
+    const { engine, model } = makeEngine();
+    expect(await engine.install(GEMMA.record.modelId, noProgress, signal, LOAD_MS)).toEqual({
+      ok: true,
+    });
+    model.dispose = () => new Promise(() => undefined);
+    await engine.unload();
+    expect(await engine.load(GEMMA.record.modelId, noProgress)).toEqual({ ok: true });
   });
 
   test("a marker that cannot be written fails the install and unloads the model", async () => {
