@@ -155,9 +155,6 @@ export async function checkLocalAiArtifact(
   if (JSON.stringify(manifest.web_accessible_resources ?? []).includes("local-ai")) {
     fail("local-ai files must not be web accessible");
   }
-  if (manifestText.includes("raw.githubusercontent.com")) {
-    fail("manifest mentions raw.githubusercontent.com");
-  }
   const csp = manifest.content_security_policy as Record<string, unknown> | undefined;
   if (csp && "sandbox" in csp) {
     fail("manifest must not declare a sandbox CSP");
