@@ -385,7 +385,8 @@ registry records repo + revision + dtype + per-file SHA-256 of the ONNX/tokenize
 of model-lib path/SRI (the downloaded files are data; verify hashes after download since
 Transformers.js has no SRI option); build/packaging ships the ORT WASM + loader instead of
 `local-ai/libs/*.wasm` and drops `scripts/fetch-local-ai-assets.ts`' lib step; CSP keeps
-`'wasm-unsafe-eval'` and `connect-src` gains the HF CDN redirect host(s); the artifact check
+`'wasm-unsafe-eval'` and today's `connect-src` (`huggingface.co` + `*.cdn.hf.co`) already
+covers the downloads; the artifact check
 swaps the WebLLM markers for ORT/Transformers.js markers. Unchanged: prompts, parse, validator,
 segments, session, consent/UI, port protocol, cache-deletion UX (different cache name).
 
