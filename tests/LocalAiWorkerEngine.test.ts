@@ -17,7 +17,10 @@ import {
   modelCacheState,
   modelWeightsUrl,
 } from "../src/adapters/chrome/offscreen/worker/modelArtifacts";
-import { LOCAL_AI_MODELS } from "../src/core/domain/localAi/modelRegistry";
+import {
+  LOCAL_AI_DOWNLOAD_ORIGINS,
+  LOCAL_AI_MODELS,
+} from "../src/core/domain/localAi/modelRegistry";
 import { AI_RESPONSE_SCHEMA } from "../src/core/domain/grammar/review/ai/prompts";
 import type { AiGenerationRequest } from "../src/core/domain/grammar/review/ai/types";
 import type { WorkerReply } from "../src/adapters/chrome/offscreen/workerProtocol";
@@ -360,7 +363,7 @@ describe("network guard", () => {
     expect(nativeFetch).toHaveBeenCalledTimes(1);
   });
 
-  test("during an install only allowlisted origins pass, without credentials or referrer", async () => {
+  test("during an install only allowlisted origins pass, without credentials, referrer or HTTP caching", async () => {
     const { scope, guard, nativeFetch } = makeScope();
     guard.setNetworkAllowed(true);
     await expect(scope.fetch("https://evil.example/a")).rejects.toMatchObject({
@@ -369,9 +372,28 @@ describe("network guard", () => {
     const cache = new (scope.Cache as unknown as typeof FakeCache)();
     await (cache as unknown as Cache).add("https://huggingface.co/model/a");
     expect(cache.puts).toEqual(["https://huggingface.co/model/a"]);
+    // no-store: the model lives in CacheStorage only, not a second copy in the HTTP cache
+    // that deleting the model would leave behind.
     expect(nativeFetch.mock.calls[0][1]).toEqual({
+      cache: "no-store",
       credentials: "omit",
       referrerPolicy: "no-referrer",
+    });
+  });
+
+  test("the shipped allowlist follows Hugging Face's redirect of weights and tokenizer to its xet CDN", async () => {
+    // Observed on the pinned revisions (2026-09): /resolve/<rev>/tokenizer.json and
+    // params_shard_*.bin answer 302 to https://us.aws.cdn.hf.co/xet-bridge-us/...
+    const landed = "https://us.aws.cdn.hf.co/xet-bridge-us/0123/abcd?filename=tokenizer.json";
+    const nativeFetch = jest.fn(async () => ({ ok: true, url: landed }));
+    const scope = {
+      fetch: nativeFetch as unknown as typeof fetch,
+      location: { origin: ORIGIN },
+    };
+    const guard = installNetworkGuard(scope, LOCAL_AI_DOWNLOAD_ORIGINS);
+    guard.setNetworkAllowed(true);
+    await expect(scope.fetch(`${modelWeightsUrl(STANDARD)}tokenizer.json`)).resolves.toMatchObject({
+      url: landed,
     });
   });
 

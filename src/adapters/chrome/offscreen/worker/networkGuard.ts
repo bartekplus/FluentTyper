@@ -8,7 +8,7 @@
  * - extension-origin URLs are always allowed (packaged WASM, no network);
  * - network URLs are allowed ONLY while an explicit install runs, and only for
  *   the allowlisted download origins, including the final URL after redirects;
- * - every network request goes out without credentials or referrer.
+ * - every network request goes out without credentials, referrer or HTTP caching.
  * Outside an install (review loads, generation) all network requests fail, so
  * a partial cache fails honestly instead of silently downloading.
  */
@@ -57,6 +57,8 @@ export function installNetworkGuard(
       throw new NetworkBlockedError();
     }
     const response = await nativeFetch(request, {
+      // The model is stored once, in CacheStorage; an HTTP-cache copy would outlive Delete.
+      cache: "no-store",
       credentials: "omit",
       referrerPolicy: "no-referrer",
     });

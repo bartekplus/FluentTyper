@@ -5,7 +5,7 @@
  * its pinned Hugging Face revision on every run. Fails loudly without a
  * WebGPU adapter that has shader-f16.
  *
- *   bun scripts/local-ai-e2e-real.ts [--headed] [--plumbing-only]
+ *   bun scripts/local-ai-e2e-real.ts [--headed] [--plumbing-only] [--tier=compact]
  *
  * --plumbing-only builds, launches and checks the options Local AI section,
  * without touching the GPU or the network.
@@ -15,11 +15,12 @@
  */
 import { createServer } from "node:http";
 import { randomBytes } from "node:crypto";
-import { readdir, readFile, rm } from "node:fs/promises";
+import { readdir, readFile, rm, stat } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import puppeteer, { type Browser, type Page } from "puppeteer";
 import {
+  KEY_LANGUAGE,
   KEY_LOCAL_AI_REVIEW_CONSENT,
   KEY_LOCAL_AI_REVIEW_ENABLED,
 } from "../src/core/domain/constants";
@@ -44,11 +45,13 @@ const EXTENSION_DIR = path.join(WORK_DIR, "extension");
 const PROFILE_DIR = path.join(WORK_DIR, "profile");
 const HEADED = process.argv.includes("--headed");
 const PLUMBING_ONLY = process.argv.includes("--plumbing-only");
-const MODEL = localAiModelForTier("standard");
+const TIER = process.argv.includes("--tier=compact") ? "compact" : "standard";
+const MODEL = localAiModelForTier(TIER);
 const MODEL_URL = `https://huggingface.co/${MODEL.weightsRepo}/resolve/${MODEL.weightsRevision}/`;
 /** A unique synthetic word: it must never be found in any store, log or profile file. */
 const SENTINEL = `Zqv${randomBytes(5).toString("hex")}`;
-const CORRECT_TEXT = `The results shows a problem with the the report. Please ask ${SENTINEL} about it.`;
+/** The rules flag only "i"; the model is expected to fix "shows" and "the the". */
+const CORRECT_TEXT = `The results shows a problem with the the report. Tomorrow i will ask ${SENTINEL} about it.`;
 const REWRITE_TEXT = `hey, i looked at the numbers and they is mostly fine but ${SENTINEL} want a second look before friday.`;
 const MINUTE = 60_000;
 
@@ -63,6 +66,12 @@ const timings: Array<[string, number]> = [];
 const consoleText: string[] = [];
 const externalRequests: string[] = [];
 const blockedRequests: string[] = [];
+/** External requests that failed or answered with an HTTP error: URL and reason only. */
+const failedRequests: string[] = [];
+
+function progress(message: string): void {
+  console.error(`[local-ai-e2e] ${message}`);
+}
 
 function isExternal(url: string): boolean {
   return /^(https?|wss?):/.test(url) && !/^https?:\/\/(localhost|127\.0\.0\.1)[:/]/.test(url);
@@ -76,6 +85,7 @@ async function timed<T>(label: string, run: () => Promise<T>): Promise<T> {
 }
 
 async function step(name: string, run: () => Promise<string>): Promise<void> {
+  progress(`step: ${name}`);
   try {
     results.push({ step: name, ok: true, detail: await run() });
   } catch (error) {
@@ -125,8 +135,21 @@ async function launch(offline: boolean): Promise<{ browser: Browser; worker: Bac
       );
     });
     session.on("Log.entryAdded", (event) => consoleText.push(event.entry.text));
+    const externalIds = new Map<string, string>();
     session.on("Network.requestWillBeSent", (event) => {
-      if (isExternal(event.request.url)) externalRequests.push(event.request.url);
+      if (!isExternal(event.request.url)) return;
+      externalRequests.push(event.request.url);
+      externalIds.set(event.requestId, event.request.url);
+    });
+    session.on("Network.responseReceived", (event) => {
+      if (externalIds.has(event.requestId) && event.response.status >= 400) {
+        failedRequests.push(`${event.response.status} ${event.response.url}`);
+      }
+    });
+    session.on("Network.loadingFailed", (event) => {
+      const url = externalIds.get(event.requestId);
+      if (url)
+        failedRequests.push(`${event.errorText}${event.canceled ? " (canceled)" : ""} ${url}`);
     });
     if (offline) {
       // Every request that is not the extension's own or the local test page fails.
@@ -287,7 +310,7 @@ async function dumpExtensionStorage(worker: BackgroundContext): Promise<string> 
   );
 }
 
-/** Profile files (not CacheStorage, which holds the model blobs) that contain the sentinel. */
+/** Profile files that contain the sentinel, in UTF-8 or UTF-16. */
 async function profileFilesWithSentinel(dir: string): Promise<{ hits: string[]; scanned: number }> {
   const needles = [Buffer.from(SENTINEL, "utf8"), Buffer.from(SENTINEL, "utf16le")];
   const hits: string[] = [];
@@ -296,7 +319,9 @@ async function profileFilesWithSentinel(dir: string): Promise<{ hits: string[]; 
     for (const entry of await readdir(current, { withFileTypes: true })) {
       const full = path.join(current, entry.name);
       if (entry.isDirectory()) {
-        if (entry.name !== "CacheStorage") await walk(full);
+        // CacheStorage holds the model blobs; Sessions is Chrome's own tab restore,
+        // which saves every page's form field values (the textarea) with or without the extension.
+        if (entry.name !== "CacheStorage" && entry.name !== "Sessions") await walk(full);
       } else if (entry.isFile()) {
         const bytes = await readFile(full).catch(() => null);
         if (!bytes) continue;
@@ -347,6 +372,11 @@ async function main(): Promise<void> {
 async function run(): Promise<void> {
   let { browser, worker } = await launch(false);
   try {
+    // Local AI runs only for English reviews; the profile persists for the offline phase.
+    await worker.evaluate(
+      (key) => chrome.storage.local.set({ [key]: JSON.stringify("en_US") }),
+      `store.settings.${KEY_LANGUAGE}`,
+    );
     if (PLUMBING_ONLY) {
       await step("plumbing: options Local AI section renders, nothing downloads", async () => {
         const page = await openOptions(browser, worker);
@@ -386,23 +416,28 @@ async function run(): Promise<void> {
       return `adapter: ${gpu.vendor}`;
     });
 
-    await step("(i) install Standard from the options page", async () => {
+    await step(`(i) install ${MODEL.displayName} from the options page`, async () => {
       const page = await openOptions(browser, worker);
       await page.waitForFunction(() =>
         /Not set up yet/.test(
           document.querySelector("#local-ai .local-ai-status")?.textContent ?? "",
         ),
       );
-      await page.click('#local-ai input[name="local-ai-tier"][value="standard"]');
+      await page.click(`#local-ai input[name="local-ai-tier"][value="${TIER}"]`);
       await clickOptionsButton(page, "#local-ai > * > .text-assets-actions > .is-link");
+      let lastStatus = "";
       await timed("install (confirm → available offline)", async () => {
         await clickOptionsButton(page, "#local-ai .local-ai-confirm .is-link");
         await waitUntil(
           "available offline",
           async () => {
             const status = await optionsStatus(page);
-            if (/Download failed|could not|error/i.test(status))
-              throw new Error(`Install failed: ${status}`);
+            if (status !== lastStatus) progress(`install: ${(lastStatus = status)}`);
+            if (/failed|could not|error|incomplete|no longer/i.test(status)) {
+              throw new Error(
+                `Install failed: "${status}" after ${externalRequests.length} requests`,
+              );
+            }
             return /available offline/.test(status);
           },
           { timeoutMs: 45 * MINUTE, intervalMs: 500 },
@@ -530,11 +565,14 @@ async function run(): Promise<void> {
     await browser.close().catch(() => undefined);
   }
 
-  await step("(iv-b) sentinel absent from profile files (CacheStorage excluded)", async () => {
-    const { hits, scanned } = await profileFilesWithSentinel(PROFILE_DIR);
-    check(hits.length === 0, `Sentinel found in: ${hits.join(", ")}`);
-    return `${scanned} files scanned`;
-  });
+  await step(
+    "(iv-b) sentinel absent from profile files (CacheStorage, Sessions excluded)",
+    async () => {
+      const { hits, scanned } = await profileFilesWithSentinel(PROFILE_DIR);
+      check(hits.length === 0, `Sentinel found in: ${hits.join(", ")}`);
+      return `${scanned} files scanned`;
+    },
+  );
 
   // ------------------------------------------------------ offline, same profile
   externalRequests.length = 0;
@@ -666,6 +704,21 @@ async function run(): Promise<void> {
     check(hits.length === 0, `Sentinel found in: ${hits.join(", ")}`);
     return `${scanned} files scanned`;
   });
+
+  await step("(vii-b) no model copy left in Chrome's HTTP cache after Delete", async () => {
+    const bytes = await directoryBytes(path.join(PROFILE_DIR, "Default", "Cache"));
+    check(bytes < 50e6, `HTTP cache holds ${Math.round(bytes / 1e6)} MB`);
+    return `HTTP cache ${Math.round(bytes / 1e6)} MB`;
+  });
+}
+
+async function directoryBytes(dir: string): Promise<number> {
+  let total = 0;
+  for (const entry of await readdir(dir, { withFileTypes: true }).catch(() => [])) {
+    const full = path.join(dir, entry.name);
+    total += entry.isDirectory() ? await directoryBytes(full) : (await stat(full)).size;
+  }
+  return total;
 }
 
 function printSummary(): void {
@@ -685,6 +738,16 @@ function printSummary(): void {
     "| --- | ---: |",
     ...timings.map(([label, ms]) => `| ${label} | ${ms} |`),
   ];
+  if (results.some((result) => !result.ok)) {
+    lines.push(
+      "",
+      "Failed external requests (last 20):",
+      ...failedRequests.slice(-20).map((line) => `- ${line}`),
+      "",
+      "Console (last 30 lines):",
+      ...consoleText.slice(-30).map((line) => `- ${line.slice(0, 300)}`),
+    );
+  }
   console.log(lines.join("\n"));
 }
 

@@ -126,4 +126,6 @@ export const LOCAL_AI_DOWNLOAD_ORIGINS: readonly string[] = [
   "https://cdn-lfs-us-1.huggingface.co",
   "https://cdn-lfs-us-1.hf.co",
   "https://cas-bridge.xethub.hf.co",
+  // Xet-backed files (weights, tokenizer) redirect here from /resolve/<rev>/.
+  "https://us.aws.cdn.hf.co",
 ];
