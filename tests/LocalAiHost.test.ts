@@ -346,6 +346,23 @@ describe("LocalAiHost lifecycle", () => {
     expect(host.state()).toMatchObject({ runtime: "error", error: "load-failed" });
   });
 
+  test("model loads that keep failing end in error instead of retrying", async () => {
+    const { review, host, count } = makeHost({
+      load: async () => ({ ok: false, error: "load-failed" }),
+    });
+    const port = review();
+    await flush();
+    port.emit({ type: "generate", requestId: "r1", request: request("x") });
+    await flush(5);
+    port.emit({ type: "generate", requestId: "r2", request: request("y") });
+    await flush(5);
+    expect(count("load")).toBe(2);
+    expect(host.state()).toMatchObject({ runtime: "error", error: "load-failed" });
+    port.emit({ type: "generate", requestId: "r3", request: request("z") });
+    await flush(5);
+    expect(count("load")).toBe(2);
+  });
+
   test("disable during a load answers the job and unloads", async () => {
     let finishLoad!: () => void;
     const { review, host, calls } = makeHost({

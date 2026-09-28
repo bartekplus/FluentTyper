@@ -603,6 +603,9 @@ export class LocalAiHost {
     if (result.error === "cache-failed") {
       // The cache is not complete after all (evicted or damaged): never claim offline readiness.
       this.install = "partial";
+    } else {
+      // Same budget as failed generations: loads that keep failing end in `error`, not retries.
+      this.recordFailure();
     }
   }
 

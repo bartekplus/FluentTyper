@@ -49,6 +49,7 @@ const logger = createLogger("LocalAiController");
 export class LocalAiController {
   /** Null where the build ships no engine (Firefox). */
   private readonly host: LocalAiHost | null;
+  private broadcasts: Promise<void> = Promise.resolve();
 
   constructor(
     private readonly settings: LocalAiSettings,
@@ -239,15 +240,23 @@ export class LocalAiController {
     await this.broadcastStatus();
   }
 
-  private async broadcastStatus(): Promise<void> {
-    const message: LocalAiStatusChangedMessage = {
-      command: CMD_LOCAL_AI_STATUS_CHANGED,
-      context: { status: await this.getStatus() },
-    };
-    try {
-      await this.api.runtime.sendMessage(message);
-    } catch {
-      // No extension page is listening.
-    }
+  /**
+   * Each broadcast snapshots the host when it is triggered and is sent in trigger
+   * order, so a slower, older snapshot never lands after a newer one.
+   */
+  private broadcastStatus(): Promise<void> {
+    const status = this.getStatus();
+    this.broadcasts = this.broadcasts.then(async () => {
+      try {
+        const message: LocalAiStatusChangedMessage = {
+          command: CMD_LOCAL_AI_STATUS_CHANGED,
+          context: { status: await status },
+        };
+        await this.api.runtime.sendMessage(message);
+      } catch {
+        // No extension page is listening.
+      }
+    });
+    return this.broadcasts;
   }
 }

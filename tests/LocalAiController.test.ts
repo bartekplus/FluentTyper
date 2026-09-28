@@ -17,6 +17,7 @@ import {
 import type { EngineLike } from "../src/adapters/chrome/background/localAi/LocalAiHost";
 import { LOCAL_AI_REVIEW_PORT } from "../src/core/domain/contracts/localAi";
 import { LOCAL_AI_MODELS } from "../src/core/domain/localAi/modelRegistry";
+import type { LocalAiStatusChangedMessage } from "../src/core/domain/messageTypes";
 
 const STANDARD = LOCAL_AI_MODELS[0];
 const QUALITY = LOCAL_AI_MODELS[1];
@@ -39,9 +40,15 @@ function makeSettings(
     tier: initial.tier ?? ("standard" as "standard" | "compact"),
     consent: initial.consent ?? null,
     dismissed: initial.dismissed ?? false,
+    /** Delays the next "enabled" reads, to reorder concurrent status reads. */
+    readDelayMs: 0,
   };
   const settings: LocalAiSettings = {
-    getLocalAiReviewEnabled: async () => state.enabled,
+    getLocalAiReviewEnabled: async () => {
+      const value = state.enabled;
+      if (state.readDelayMs) await new Promise((resolve) => setTimeout(resolve, state.readDelayMs));
+      return value;
+    },
     getLocalAiReviewTier: async () => state.tier,
     getLocalAiReviewConsent: async () => state.consent,
     setLocalAiReviewConsent: async (consent) => {
@@ -266,6 +273,20 @@ describe("LocalAiController authorization", () => {
 });
 
 describe("LocalAiController status", () => {
+  test("status broadcasts arrive in the order their changes happened", async () => {
+    const { state, chromeFake } = setup();
+    state.readDelayMs = 30;
+    chromeFake.storageChanged("store.settings.localAiReviewEnabled");
+    state.readDelayMs = 0;
+    state.enabled = false;
+    chromeFake.storageChanged("store.settings.localAiReviewEnabled");
+    await new Promise((resolve) => setTimeout(resolve, 60));
+    const sent = (chromeFake.api.runtime.sendMessage as jest.Mock).mock.calls.map(
+      ([message]) => (message as LocalAiStatusChangedMessage).context.status.enabled,
+    );
+    expect(sent).toEqual([true, false]);
+  });
+
   test("nothing is probed or loaded at startup, before consent, or on a settings change alone", async () => {
     const { send, engineCalls, state, chromeFake } = setup();
     await send({ command: CMD_LOCAL_AI_GET_STATUS });
