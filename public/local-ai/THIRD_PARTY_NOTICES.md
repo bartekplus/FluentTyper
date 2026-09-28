@@ -4,73 +4,87 @@ This directory (`local-ai/`) is present only in the Chrome and Edge builds. It c
 optional on-device model runtime used by Local AI Review. Nothing here runs unless the user
 installs a model.
 
-## Bundled in `offscreen.js` / `worker.js`
+## Bundled in `worker.js` and shipped in `ort/`
 
-| Component                                                          | Version     | License    | Notes                                                                                            |
-| ------------------------------------------------------------------ | ----------- | ---------- | ------------------------------------------------------------------------------------------------ |
-| [@mlc-ai/web-llm](https://github.com/mlc-ai/web-llm)               | 0.2.85      | Apache-2.0 | Copyright MLC contributors                                                                       |
-| [@mlc-ai/web-runtime](https://github.com/apache/tvm/tree/main/web) | 0.26.0-dev0 | Apache-2.0 | Apache TVM WebAssembly/WebGPU runtime, bundled inside web-llm                                    |
-| [@mlc-ai/web-tokenizers](https://github.com/mlc-ai/tokenizers-cpp) | 0.1.6       | Apache-2.0 | Embedded WASM wrapping HuggingFace tokenizers (Apache-2.0) and Google sentencepiece (Apache-2.0) |
-| [@mlc-ai/web-xgrammar](https://github.com/mlc-ai/xgrammar)         | 0.1.27      | Apache-2.0 | Embedded WASM; Copyright (c) 2024 by XGrammar Contributors                                       |
-| [loglevel](https://github.com/pimterry/loglevel)                   | 1.9.2       | MIT        | Copyright (c) 2013 Tim Perry                                                                     |
+| Component                                                                   | Version                                  | License    | Notes                                                                                  |
+| --------------------------------------------------------------------------- | ---------------------------------------- | ---------- | -------------------------------------------------------------------------------------- |
+| [@huggingface/transformers](https://github.com/huggingface/transformers.js) | 4.3.0                                    | Apache-2.0 | Transformers.js; Copyright Hugging Face                                                |
+| [@huggingface/tokenizers](https://github.com/huggingface/tokenizers.js)     | 0.2.0                                    | Apache-2.0 | Copyright Hugging Face                                                                 |
+| [@huggingface/jinja](https://github.com/huggingface/huggingface.js)         | 0.5.10                                   | MIT        | Copyright (c) 2023 Hugging Face; chat templates are interpreted, not evaluated as code |
+| [onnxruntime-web](https://github.com/microsoft/onnxruntime)                 | 1.31.0-dev.20260914-8d85527a0            | MIT        | Copyright (c) Microsoft Corporation; JavaScript in `worker.js`, WebAssembly in `ort/`  |
+| [onnxruntime-common](https://github.com/microsoft/onnxruntime)              | 1.30.0 and 1.31.0-dev.20260911-2a43ec07e | MIT        | Copyright (c) Microsoft Corporation                                                    |
 
-Apache TVM NOTICE:
+`ort/ort-wasm-simd-threaded.asyncify.wasm` and `.mjs` are copied unmodified from the
+onnxruntime-web npm package (SHA-256 pinned in `scripts/check-local-ai-artifact.ts`). The
+WebAssembly build of ONNX Runtime incorporates third-party components; their notices, from
+ONNX Runtime commit `8d85527a010e294a26b274749f74294b2a32cec5`, are in
+`ONNXRUNTIME_THIRD_PARTY_NOTICES.txt` next to this file.
+
+No model code ships with the extension. Model files (ONNX graphs, weights, tokenizer and
+configuration) are data, downloaded only after the user's explicit consent from pinned
+Hugging Face revisions, under the model licenses below.
+
+| Model                                                                                                           | License                                                                 |
+| --------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| [onnx-community/gemma-4-E4B-it-ONNX](https://huggingface.co/onnx-community/gemma-4-E4B-it-ONNX)                 | Apache-2.0 (google/gemma-4-E4B-it); ONNX export by onnx-community       |
+| [onnx-community/Qwen3-4B-Instruct-2507-ONNX](https://huggingface.co/onnx-community/Qwen3-4B-Instruct-2507-ONNX) | Apache-2.0 (Qwen/Qwen3-4B-Instruct-2507); ONNX export by onnx-community |
+
+## MIT License (onnxruntime-web, onnxruntime-common)
 
 ```text
-Apache TVM
-Copyright 2019-2023 The Apache Software Foundation
+MIT License
 
-This product includes software developed at
-The Apache Software Foundation (http://www.apache.org/).
+Copyright (c) Microsoft Corporation
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 ```
 
-## Packaged model libraries (`libs/*.wasm`)
-
-Compiled model libraries from [mlc-ai/binary-mlc-llm-libs](https://github.com/mlc-ai/binary-mlc-llm-libs),
-commit `025bcaf3780fa8254f5e5efd3bfea0a5397248f4`, directory `web-llm-models/v0_2_84/base/`, fetched and
-SHA-256-verified at build time by `scripts/fetch-local-ai-assets.ts`. They are produced by the MLC-LLM
-toolchain (Apache-2.0) with Apache TVM (Apache-2.0). The binary-mlc-llm-libs repository does not declare a
-license file at the pinned commit; its redistribution terms must be confirmed before a store release.
-
-| File                                  | Model           | Model license                        |
-| ------------------------------------- | --------------- | ------------------------------------ |
-| `Qwen3-1.7B-q4f16_1_cs1k-webgpu.wasm` | Qwen/Qwen3-1.7B | Apache-2.0; MLC conversion by mlc-ai |
-| `Qwen3-4B-q4f16_1_cs1k-webgpu.wasm`   | Qwen/Qwen3-4B   | Apache-2.0; MLC conversion by mlc-ai |
-
-Model weights, tokenizer and configuration are not part of the extension. They are downloaded only after
-the user's explicit consent, from pinned Hugging Face revisions (`mlc-ai/Qwen3-1.7B-q4f16_1-MLC`,
-`mlc-ai/Qwen3-4B-q4f16_1-MLC`), under the model licenses above.
-
-## MIT License (loglevel)
+## MIT License (@huggingface/jinja)
 
 ```text
-Copyright (c) 2013 Tim Perry
+MIT License
 
-Permission is hereby granted, free of charge, to any person
-obtaining a copy of this software and associated documentation
-files (the "Software"), to deal in the Software without
-restriction, including without limitation the rights to use,
-copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the
-Software is furnished to do so, subject to the following
-conditions:
+Copyright (c) 2023 Hugging Face
 
-The above copyright notice and this permission notice shall be
-included in all copies or substantial portions of the Software.
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
-OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
-HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
-OTHER DEALINGS IN THE SOFTWARE.
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 ```
 
-## Apache License 2.0
+## Apache License 2.0 (@huggingface/transformers, @huggingface/tokenizers)
 
 ```text
+
                                  Apache License
                            Version 2.0, January 2004
                         http://www.apache.org/licenses/
@@ -272,14 +286,4 @@ OTHER DEALINGS IN THE SOFTWARE.
    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
    See the License for the specific language governing permissions and
    limitations under the License.
-
-------------------------------------------------------------------------------------
-This product bundles various third-party components under other open source licenses.
-This section summarizes those components and their licenses. See licenses/
-for text of these licenses.
-
-Apache Software Foundation License 2.0
---------------------------------------
-
-src/openai_api_protocols
 ```

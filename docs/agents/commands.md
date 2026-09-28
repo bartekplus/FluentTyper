@@ -19,19 +19,18 @@ Use Bun for installs, scripts, and versioning. `bun.lock` is the canonical lockf
 - Dev-runtime e2e: `bun run test:e2e:dev`
 - E2E coverage validation: `bun run check:e2e:coverage`
 - Autofix lint and format: `bun run fix`
-- Fetch/verify packaged Local AI model libraries: `bun run fetch:local-ai`
+- Probe the Local AI model registry against Hugging Face: `bun run probe:local-ai`
 - Local AI release gate on a production build: `bun run check:local-ai:artifact [--platform=edge|firefox] [--dir=build]`
 
 Production builds write the unpacked extension output to `build/`.
 
 ## Local AI Review Assets
 
-Chrome and Edge builds package the Local AI Review model libraries (executable WASM) under `local-ai/libs/`, because Chrome MV3 forbids remotely hosted code.
+Chrome and Edge builds package the Local AI Review runtime, because Chrome MV3 forbids remotely hosted code: Transformers.js (`@huggingface/transformers`, exact version) bundled into `local-ai/worker.js` (an ES module worker), and the ONNX Runtime WebGPU files it loads, copied unmodified from the `onnxruntime-web` that Transformers.js resolves into `local-ai/ort/`.
 
-- Source: `mlc-ai/binary-mlc-llm-libs` at the commit pinned in `scripts/fetch-local-ai-assets.ts` (`LOCAL_AI_LIBS_COMMIT`), ABI directory `LOCAL_AI_MODEL_LIB_ABI` from `src/core/domain/localAi/modelRegistry.ts`.
-- The files are gitignored under `public/local-ai/libs/` (about 11 MB of reproducible binaries). `build.ts` fetches missing ones, and verifies the SHA-256, SRI and size of every library it copies into the build against the registry; any mismatch fails the build. The first Chrome/Edge build therefore needs network access to `raw.githubusercontent.com`; afterwards builds work offline.
-- Bumping a model or the WebLLM version: run `bun scripts/fetch-local-ai-assets.ts --probe [--lib-commit=<sha>]`, which prints the latest Hugging Face revisions, weight bytes, and library SHA-256/SRI/size next to the pinned values. Update the registry and `LOCAL_AI_LIBS_COMMIT` together, then rebuild and run `bun run check:local-ai:artifact`.
-- Licenses for the bundled runtime and libraries are in `public/local-ai/THIRD_PARTY_NOTICES.md`.
+- The ONNX Runtime files (`ort-wasm-simd-threaded.asyncify.wasm` and its `.mjs` glue) are pinned by SHA-256 and size in `LOCAL_AI_ORT_FILES` (`scripts/check-local-ai-artifact.ts`). `build.ts` fails if `node_modules` holds anything else. When upgrading Transformers.js, review the new runtime, then update those hashes. The worker points `env.backends.onnx.wasm.wasmPaths` at the extension's `local-ai/ort/`, so the default CDN is never used.
+- Models are data only (ONNX graph, weights, tokenizer, config). They are downloaded after consent from the pinned Hugging Face revisions and files listed in `src/core/domain/localAi/modelRegistry.ts`. `bun run probe:local-ai` re-lists each record's files (size and SHA-256) at the pinned revision, flags drift, and reports whether the repository has moved.
+- Every runtime component is published under MIT or Apache-2.0 by its authors, and no per-model executable ships, which removes the earlier license blocker on WebLLM's `binary-mlc-llm-libs`. Notices are in `public/local-ai/THIRD_PARTY_NOTICES.md` and `public/local-ai/ONNXRUNTIME_THIRD_PARTY_NOTICES.txt`.
 - The `offscreen` permission (Chrome/Edge only) hosts the optional on-device model worker; it shows no install-time warning.
 
 ## Local Browser Loading

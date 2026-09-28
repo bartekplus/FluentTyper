@@ -243,11 +243,12 @@ without it. It never runs while you type: suggestions and autocomplete stay Pres
 
 **Setting it up.** The first review offers "Set up local AI…" once (with the download
 size), or open **Settings → Grammar → Local AI**. There you choose **Recommended**
-(Qwen3 4B, about 2.3 GB) or **Compact** (Qwen3 1.7B, about 1 GB, finds far fewer
-mistakes), see the download size and an estimate of GPU memory, and press
-**Download and enable**, which asks you to confirm first. The model files come from
-Hugging Face once, from a pinned revision; the model's executable code ships inside the
-extension. After that it works offline. **Delete model** frees the disk space; nothing is
+(Gemma 4 E4B, about 5.2 GB) or **Compact** (Qwen3 4B Instruct, about 2.9 GB, finds fewer
+mistakes), see the download size, and press **Download and enable**, which asks you to
+confirm first. The model files come from Hugging Face once, from a pinned revision, and each
+file is checked against its known hash; the runtime that executes them ships inside the
+extension. After that it works offline. The model occupies GPU memory only while a review
+with Local AI is open; opening a review loads it from disk (a few seconds). **Delete model** frees the disk space; nothing is
 downloaded again until you press Download. Turning the switch off keeps the model but
 stops using it. On a browser or device that cannot run it (no WebGPU, no 16-bit float
 shader support, Firefox), the settings say why and Review never asks again.

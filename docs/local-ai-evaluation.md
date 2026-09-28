@@ -1,21 +1,40 @@
 # Local AI Review: model evaluation
 
-Status: real-device measurement of the shipped configuration, 2026-09-28. One device,
-synthetic fixtures, sentence-sized inputs, each fixture run once. This is a regression gate and a model-selection input, not
+Status: 2026-09-28. **Decision: the engine is Transformers.js (ONNX Runtime Web on WebGPU);
+Recommended = Gemma 4 E4B, Compact = Qwen3-4B-Instruct-2507** (see
+[Gemma 4](#gemma-4-transformersjs)). WebLLM was dropped; its sections below are history.
+One device, synthetic fixtures, sentence-sized inputs, each fixture run once. This is a regression gate and a model-selection input, not
 evidence of population-wide accuracy. Design context: [local-ai-review.md](local-ai-review.md).
 
 ## How it was measured
 
-Harness: `scripts/local-ai-bench/` (opt-in, real GPU only).
+Harness: `scripts/local-ai-bench/` (opt-in, real GPU only). It now drives only the product
+engine, Transformers.js:
 
 ```sh
-bun run bench:local-ai --real [--models=<id>,…] [--tag=name]   # scripts/local-ai-bench/run.ts
-bun run bench:local-ai:report                                  # per-model Markdown/JSON + table
+bun run bench:local-ai --real [--models=standard,compact,<tjsModels id>,…] [--ids=…] [--tag=name]
+bun run bench:local-ai:report                  # per-model Markdown/JSON + table
+bun scripts/local-ai-bench/recall.ts <results>.json …   # word-level recall / FP screening table
 ```
 
-Registry models use the packaged libraries in `public/local-ai/libs/`. Non-registry
-candidates need `FT_LOCAL_AI_LIBS` (directory with their `*_cs1k-webgpu.wasm`) and
-`FT_LOCAL_AI_PROBE` (JSON with pinned revision, weight bytes, lib sha256/SRI per model id).
+- By default it runs the registry's models (`src/core/domain/localAi/modelRegistry.ts`: repo,
+  revision, dtype, loader, `disableThinking`), so it measures exactly what ships; it records the
+  pinned-revision files the page fetched and warns about any file not in the record's `files`.
+  Extra candidates live in `scripts/local-ai-bench/tjsModels.ts`.
+- Puppeteer's Chrome for Testing with `--enable-unsafe-webgpu`, a persistent profile and
+  results under `.cache/local-ai-bench/` (git-ignored); page served from
+  `http://localhost:47811`, ONNX Runtime Web's WASM served locally (never from a CDN).
+- Exits non-zero without `--real`; fails (exit 1) without a WebGPU adapter with
+  `shader-f16`; no CPU or mock fallback. Hard limits: load ≤ 10 min, generation ≤ 90 s
+  (interrupted, counted as a timeout), model run ≤ 20 min.
+- Generation: the model's chat template (`enable_thinking: false` where the template has the
+  switch), greedy for Correct, temperature 0.4 sampling for Rewrite, `max_new_tokens =
+aiMaxOutputTokens(request)`; the product's `buildAiMessages`, `parseAiResponse`,
+  `correctionFindings`/`rewriteProposal` and the Domain scorer, as before.
+
+### Earlier WebLLM runs (history)
+
+The sections marked WebLLM below used this setup (harness code since removed):
 
 - Puppeteer's Chrome for Testing with `--enable-unsafe-webgpu`, a persistent profile and
   results under `.cache/local-ai-bench/` (git-ignored). The page is served from
@@ -66,6 +85,78 @@ AI_RESPONSE_SCHEMA }`, as the product worker sends it (see runtime finding 1).
 
 Download bytes are the pinned revisions' weight shards (registry / probe), not measured
 transfer. Memory was not measured (registry VRAM estimates only).
+
+## Gemma 4 (Transformers.js)
+
+Screening set (112 fixtures, 122 requests: dense, held-out, correct-text controls and traps;
+see [model screening](#model-screening-and-prompt-experiments-webllm-review-ai-3--not-adopted-product-prompt-unchanged)),
+Correct mode, prompt `review-ai-3`, JSON contract (unconstrained), greedy, Transformers.js
+4.3.0 / onnxruntime-web 1.31.0-dev.20260914, Chrome for Testing 154, Apple M2 Max. **Each
+sentence ran once.** Gemma 4 uses the multimodal ONNX export
+(`Gemma4ForConditionalGeneration`, text only; the audio/vision encoders are downloaded and
+loaded but unused). Recall denominators: dense 91, held-out 45 expected word-level fixes.
+
+| Model (repo @ revision)                                                                   | Download | Invalid | Recall dense / held-out (model) | Accepted dense / held-out | Fully / partly fixed (of 41) | Correct text changed (model)                                                        | Correct text changed (accepted)           | p50 / p90 ms per sentence | First token p50 | Cold load |
+| ----------------------------------------------------------------------------------------- | -------: | ------- | ------------------------------- | ------------------------- | ---------------------------- | ----------------------------------------------------------------------------------- | ----------------------------------------- | ------------------------- | --------------- | --------- |
+| **Gemma 4 E4B** (`onnx-community/gemma-4-E4B-it-ONNX` @ `843f250f`)                       |  5.20 GB | 0/122   | 85% / 89%                       | **78% / 84%**             | **28 / 12**                  | 6 (spec-08, ambiguous-08, -10, -11, -16, dense-ok-17)                               | 2: ambiguous-16, dense-ok-17              | 1921 / 2190               | 1094            | 9.6 s     |
+| Gemma 4 E2B (`onnx-community/gemma-4-E2B-it-ONNX` @ `9f4bef82`)                           |  3.38 GB | 3/122   | 76% / 78%                       | 69% / 76%                 | 22 / 18                      | 11 (spec-07, -08, -10, tech-02, -03, -04, ambiguous-10, -11, -16, dense-ok-15, -17) | 3: ambiguous-16, dense-ok-15, dense-ok-17 | 1838 / 2053               | 573             | 6.5 s     |
+| **Qwen3-4B-Instruct-2507** (`onnx-community/Qwen3-4B-Instruct-2507-ONNX` @ `41a4dd4d`)    |  2.90 GB | 0/122   | 63% / 60%                       | 63% / 58%                 | 18 / 19                      | 1 (ambiguous-16)                                                                    | 1: ambiguous-16                           | 1570 / 1747               | 1052            | 4.5 s     |
+| Qwen3-4B (`onnx-community/Qwen3-4B-ONNX` @ `98ddba15`), previous engine default's weights |  2.83 GB | 0/122   | 49% / 42%                       | 49% / 42%                 | 11 / 21                      | 1 (ambiguous-16)                                                                    | 1: ambiguous-16                           | 1719 / 1881               | 1189            | 6.4 s     |
+
+Accepted changes to correct text, human-checked: `ambiguous-16` (`If I was you` → `were`,
+every model); `dense-ok-17` `The data are stored locally and never leave the device.` →
+Gemma 4 E4B `The data is stored … never leaves` (consistent, singular _data_; a style choice,
+not a meaning change) and E2B `The data is stored … never leave` (breaks agreement);
+`dense-ok-15` (E2B) `fewer settings means` → `mean`. No golden spec fixture was changed after
+validation by any of the four. Accepted edits on correction fixtures that differ from the
+expected text (valid alternatives or partial fixes, human-checked), E4B: `user paste a` →
+`user pastes` (dense-01, drops the article instead of adding one), `choose` → `chooses`
+(dense-03), `many equipments` → `much equipment` (heldout-06). Gemma 4 E4B is the only model
+tested on either engine that reaches both ≥ 78% dense and ≥ 84% held-out accepted recall
+(WebLLM's best were Qwen3.5-9B 78% / 69% and gemma-2-9b 70% / 84%, both 5+ GB), at about the
+latency of Qwen3-4B. Costs: the largest download of the shipped options (5.20 GB, of which
+~0.27 GB are unused audio/vision encoders), the slowest cold load (9.6 s), memory not measured.
+**Full suite, Gemma 4 E4B vs Qwen3-4B-Instruct-2507** (230 Correct fixtures / 246 requests;
+Gemma also 35 Rewrite and 5 cancel runs; each fixture once):
+
+|                                                     | Gemma 4 E4B                                                                 | Qwen3-4B-Instruct-2507                   |
+| --------------------------------------------------- | --------------------------------------------------------------------------- | ---------------------------------------- |
+| Invalid responses                                   | 0/246                                                                       | 0/246                                    |
+| Accepted recall dense / held-out                    | 78% (71/91) / 84% (38/45)                                                   | 63% (57/91) / 58% (26/45)                |
+| Other corrections accepted (non-dense, 69 fixes)    | **100% (69/69)**                                                            | 93% (64/69)                              |
+| Exact corrections (scorer, 111 correction fixtures) | 98/111                                                                      | 83/111                                   |
+| Correct text changed, accepted (of 119), at the run | 6: casual-08, quoted-02, quoted-03, ambiguous-16, injection-06, dense-ok-17 | 3: casual-08, ambiguous-16, injection-06 |
+| … re-scored with the current validator (`16fac67b`) | **0**                                                                       | 0                                        |
+| Correct p50 / p90 per sentence                      | 1798 / 2147 ms                                                              | 1491 / 1712 ms                           |
+| Cold load from cache                                | 10.6 s                                                                      | 4.2 s                                    |
+| Cancel-to-settle (5 runs)                           | 1.26–1.46 s                                                                 | not measured                             |
+
+All six accepted changes to correct text are punctuation or style, none changes meaning:
+`Ok cool.` → `Ok, cool.`; a comma before a quotation (quoted-02, quoted-03); `If I was you` →
+`were`; `Assistant: sure` → `Sure`; `The data are … never leave` → `The data is … never
+leaves`. The validator now rejects these classes (interjection commas, a comma before an
+opening quote, subjunctive `was`/`were`, case after a colon, verb number with collective nouns
+such as "data" or "team"); re-scoring the stored outputs gives **0 of 119** for both models,
+with Gemma 4 E4B's exact corrections unchanged (98/111). The only recall given up is
+`Our team have` → `has` (both are standard).
+
+Rewrite (Gemma 4 E4B, 35 fixtures, temperature 0.4): 23 changed and validated, 18 with all
+fixture invariants; 8 rejected (uncertainty 4, technical-token 2, negation 1, quoted 1).
+Invariant misses, human-checked: synonym-level for rw-02 (`Not sure yet` → `I am not certain at
+this time`), rw-14 (`might` → `may`), rw-15 (`forever` → `indefinitely`) and rw-pl-02
+(Polish kept, `fix` → `poprawkę`); one real drift, rw-04 (`when the thing restarts` → `when
+the system restarts`, an invented referent). Also noted: rw-21 `Email support@example.com with
+the log file` → `… the log file` (drops "with"). The user's dense paragraph (rw-dense-01,
+keep-voice) came back fully corrected in one pass. No greeting, sign-off, apology or deadline
+was invented. Compact's Rewrite was not run on Transformers.js.
+
+### Decision
+
+**Transformers.js replaces WebLLM. Recommended (`standard`) = Gemma 4 E4B; Compact
+(`compact`) = Qwen3-4B-Instruct-2507** (registry `src/core/domain/localAi/modelRegistry.ts`,
+prompt `review-ai-3`). Gemma 4 E4B finds the most errors of every model tested; with the current validator it changes no correct text on the full suite (0 of 119, re-scored),
+the same as Compact. Compact has the fewest changes to
+correct text at 56% of the download and ~40% of the cold-load time. The WebLLM recommendations further down are superseded.
 
 ## Error-dense text (user report, prompt `review-ai-3`)
 
@@ -355,6 +446,9 @@ WebLLM; extra accepted edits on correction fixtures are valid alternatives or pa
 
 ### Recommendation: engine
 
+**Decided:** switch to Transformers.js; Recommended = Gemma 4 E4B, Compact =
+Qwen3-4B-Instruct-2507 (see [decision](#decision)).
+
 Criteria: no more correct-text changes than today, no new meaning changes, speed within ~1.5×
 of WebLLM for the same model, packaging that clears the license blocker.
 
@@ -460,7 +554,10 @@ again.") and shifts register under keep-voice ("hey, can you check…" → "Coul
 which is outside "keep my voice". Neither model added greetings, sign-offs, apologies,
 promises or deadlines.
 
-## Recommendation (final)
+## Recommendation (WebLLM, `review-ai-2`) — superseded
+
+Superseded by the [decision](#decision): Transformers.js with Gemma 4 E4B (Recommended) and
+Qwen3-4B-Instruct-2507 (Compact).
 
 Criteria, in order: abstention / no false positives, zero meaning changes on golden
 unchanged fixtures, correction usefulness, then latency.

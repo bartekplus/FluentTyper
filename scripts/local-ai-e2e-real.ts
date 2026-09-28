@@ -1,8 +1,9 @@
 /**
  * Opt-in, real-GPU end-to-end run of Local AI Review against the production
  * Chrome build: install, Correct, Rewrite, privacy sentinel, offline cold
- * start, partial cache and delete. Downloads the Standard model (~1 GB) from
- * its pinned Hugging Face revision on every run. Fails loudly without a
+ * start, partial cache and delete. Downloads the selected registry model's
+ * pinned files (Recommended: Gemma 4 E4B, ~5.2 GB; Compact: Qwen3 4B Instruct
+ * 2507, ~2.9 GB) from its Hugging Face revision on every run. Fails loudly without a
  * WebGPU adapter that has shader-f16.
  *
  *   bun scripts/local-ai-e2e-real.ts [--headed] [--plumbing-only] [--tier=compact]
@@ -29,6 +30,7 @@ import {
   matchesDownloadOrigin,
   localAiModelForTier,
 } from "../src/core/domain/localAi/modelRegistry";
+import { MODEL_CACHE } from "../src/adapters/chrome/offscreen/worker/modelArtifacts";
 import {
   clickReviewControl,
   getOffscreenDocumentUrls,
@@ -48,7 +50,8 @@ const HEADED = process.argv.includes("--headed");
 const PLUMBING_ONLY = process.argv.includes("--plumbing-only");
 const TIER = process.argv.includes("--tier=compact") ? "compact" : "standard";
 const MODEL = localAiModelForTier(TIER);
-const MODEL_URL = `https://huggingface.co/${MODEL.weightsRepo}/resolve/${MODEL.weightsRevision}/`;
+/** Every pinned file URL of the model starts with this (see localAiModelFileUrl). */
+const MODEL_URL = `https://huggingface.co/${MODEL.repo}/resolve/${MODEL.revision}/`;
 /** A unique synthetic word: it must never be found in any store, log or profile file. */
 const SENTINEL = `Zqv${randomBytes(5).toString("hex")}`;
 /** The rules flag only "i"; the model is expected to fix "shows" and "the the". */
@@ -208,19 +211,19 @@ async function getSetting(worker: BackgroundContext, key: string): Promise<unkno
   return raw === undefined ? undefined : JSON.parse(raw);
 }
 
-/** Cached entries under the pinned model URL, per WebLLM scope (read from an extension page). */
+/** Cached entries under the pinned model URL in the model cache (read from an extension page). */
 async function cachedModelKeys(page: Page): Promise<string[]> {
-  return page.evaluate(async (base) => {
-    const keys: string[] = [];
-    for (const scope of ["webllm/config", "webllm/model"]) {
-      if (!(await caches.has(scope))) continue;
+  return page.evaluate(
+    async (base, scope) => {
+      if (!(await caches.has(scope))) return [];
       const cache = await caches.open(scope);
-      for (const request of await cache.keys()) {
-        if (request.url.startsWith(base)) keys.push(request.url);
-      }
-    }
-    return keys;
-  }, MODEL_URL);
+      return (await cache.keys())
+        .map((request) => request.url)
+        .filter((url) => url.startsWith(base));
+    },
+    MODEL_URL,
+    MODEL_CACHE,
+  );
 }
 
 // -------------------------------------------------------------- review page
@@ -457,8 +460,24 @@ async function run(): Promise<void> {
         `Requests outside LOCAL_AI_DOWNLOAD_ORIGINS: ${foreign.join(", ")}`,
       );
       check(
-        !externalRequests.some((url) => url.includes("raw.githubusercontent.com")),
-        "A request went to raw.githubusercontent.com",
+        !externalRequests.some((url) => /raw\.githubusercontent\.com|cdn\.jsdelivr\.net/.test(url)),
+        "A request went to raw.githubusercontent.com or cdn.jsdelivr.net (runtime code must be packaged)",
+      );
+      const unlisted = externalRequests.filter(
+        (url) =>
+          url.startsWith("https://huggingface.co/") &&
+          !MODEL.files.some((file) => url === `${MODEL_URL}${file.path}`),
+      );
+      check(
+        unlisted.length === 0,
+        `Requests for files outside the registry record: ${unlisted.join(", ")}`,
+      );
+      const cachePage = await openOptions(browser, worker);
+      const cached = await cachedModelKeys(cachePage);
+      await cachePage.close();
+      check(
+        cached.length === MODEL.files.length,
+        `${cached.length} of ${MODEL.files.length} pinned files cached`,
       );
       check(await getSetting(worker, KEY_LOCAL_AI_REVIEW_CONSENT), "Consent was not recorded");
       return `${externalRequests.length} requests; origins: ${origins.join(", ") || "none"}`;
@@ -667,16 +686,20 @@ async function run(): Promise<void> {
 
     await step("(vi) partial cache fails honestly, without network", async () => {
       const options = await openOptions(browser, worker);
-      const removed = await options.evaluate(async (base) => {
-        const cache = await caches.open("webllm/model");
-        const shard = (await cache.keys()).find(
-          (request) => request.url.startsWith(base) && /params_shard_\d+\.bin$/.test(request.url),
-        );
-        return shard && (await cache.delete(shard)) ? shard.url : null;
-      }, MODEL_URL);
-      check(removed, "No weight shard found in CacheStorage");
+      const removed = await options.evaluate(
+        async (base, scope) => {
+          const cache = await caches.open(scope);
+          const weights = (await cache.keys()).find(
+            (request) => request.url.startsWith(base) && /\.onnx_data(_\d+)?$/.test(request.url),
+          );
+          return weights && (await cache.delete(weights)) ? weights.url : null;
+        },
+        MODEL_URL,
+        MODEL_CACHE,
+      );
+      check(removed, "No ONNX weight file found in CacheStorage");
       await options.close();
-      // Cold host: the warm engine must not hide the missing shard.
+      // Cold host: the warm engine must not hide the missing weights.
       await worker.evaluate(() => chrome.offscreen.closeDocument().catch(() => undefined));
       await waitUntil(
         "host closed",
@@ -783,7 +806,7 @@ function printSummary(): void {
   const lines = [
     "## Local AI Review: real-GPU e2e",
     "",
-    `Model: ${MODEL.modelId} @ ${MODEL.weightsRevision.slice(0, 12)}; headless: ${!HEADED}`,
+    `Model: ${MODEL.modelId} (${MODEL.repo} @ ${MODEL.revision.slice(0, 12)}, ${(MODEL.downloadBytes / 1e9).toFixed(2)} GB); headless: ${!HEADED}`,
     "",
     "| Step | Result | Detail |",
     "| --- | --- | --- |",

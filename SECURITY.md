@@ -24,9 +24,12 @@ FluentTyper is designed with privacy as a core principle:
   origins that serve the optional model's data files
 
 **Optional Local AI in Review (Chrome, Edge).** Inference runs on the device (WebGPU) in an
-extension worker. The model's executable libraries ship inside the extension and are
-checked by hash; only model weights, tokenizer and configuration are downloaded, from a
-pinned revision, after the user's explicit setup action. Reviewed text, prompts and model
+extension worker. The inference runtime (Transformers.js and ONNX Runtime Web, Apache-2.0/MIT)
+ships inside the extension and is checked by hash at build time; nothing executable is
+downloaded. Only the model's files (weights, tokenizer, configuration) are downloaded, from a
+pinned revision, after the user's explicit setup action; the worker fetches only the files
+listed for that revision and verifies each one's SHA-256 before the model counts as installed.
+The model uses GPU memory only while a Review with Local AI is open. Reviewed text, prompts and model
 output are never uploaded, logged or persisted; they live in memory for the open review.
 Model output is treated as untrusted data: it is parsed strictly, validated against the
 original text, rendered as text, and applied only through the user's explicit action and

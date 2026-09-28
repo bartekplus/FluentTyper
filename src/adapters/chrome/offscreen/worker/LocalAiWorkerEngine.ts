@@ -1,19 +1,12 @@
-import type {
-  AppConfig,
-  ChatCompletionChunk,
-  ChatCompletionRequestStreaming,
-  InitProgressReport,
-} from "@mlc-ai/web-llm";
 import type { LocalAiErrorCode, LocalAiUnavailableReason } from "@core/domain/contracts/localAi";
-import { localAiModelById, type LocalAiModelRecord } from "@core/domain/localAi/modelRegistry";
 import {
-  AI_RESPONSE_SCHEMA,
-  aiMaxOutputTokens,
-  buildAiMessages,
-} from "@core/domain/grammar/review/ai/prompts";
+  localAiModelById,
+  localAiModelFileUrl,
+  type LocalAiModelRecord,
+} from "@core/domain/localAi/modelRegistry";
+import { aiMaxOutputTokens, buildAiMessages } from "@core/domain/grammar/review/ai/prompts";
 import { MAX_AI_RAW_OUTPUT_CHARS, parseAiResponse } from "@core/domain/grammar/review/ai/parse";
 import type {
-  AiErrorCode,
   AiGenerationOutcome,
   AiGenerationRequest,
 } from "@core/domain/grammar/review/ai/types";
@@ -27,43 +20,65 @@ import type {
 } from "../workerProtocol";
 import { NETWORK_BLOCKED_ERROR_NAME, type NetworkGuard } from "./networkGuard";
 import {
+  INTEGRITY_ERROR_NAME,
   deleteModelArtifacts,
-  localAiAppConfig,
+  downloadModelFiles,
+  markModelVerified,
   modelCacheState,
   type CacheStorageLike,
 } from "./modelArtifacts";
 
 /**
- * The only WebLLM engine (runs inside the dedicated worker).
+ * The only Local AI engine (Transformers.js on WebGPU, inside the dedicated worker).
  *
- * - One engine, one model at a time. Loads are single-flight per model id; an
- *   epoch discards a load that finishes after unload/delete/model switch.
- * - Network is allowed only during an explicit install (see networkGuard).
- * - Every generation starts and ends with resetChat(): no history, no
- *   resumable generation. Deltas are collected, never forwarded.
- * - Errors become bounded codes by error class name; no message text leaves.
+ * - One model at a time. Loads are single-flight per model id; an epoch
+ *   discards (disposes) a load that finishes after unload/delete/model switch.
+ * - Install downloads exactly the registry's files, verifying each one's size
+ *   and SHA-256; loading then reads only from the cache, network denied.
+ * - Each generation is independent: fresh input ids from the chat template,
+ *   greedy decoding, no history. Output text is decoded, never forwarded.
+ * - Errors become bounded codes by error name; no message text leaves.
  */
 
-/** The subset of MLCEngine used here (keeps the engine fakeable in tests). */
-export interface EngineLike {
-  chat: {
-    completions: {
-      create(request: ChatCompletionRequestStreaming): Promise<AsyncIterable<ChatCompletionChunk>>;
-    };
-  };
-  interruptGenerate(): unknown;
-  resetChat(): Promise<void>;
-  unload(): Promise<void>;
+/** Just the tensor surface used here. */
+export interface TensorLike {
+  dims: readonly number[];
+  slice(...slices: Array<number | Array<number | null> | null>): TensorLike;
+}
+
+export interface TokenizerLike {
+  apply_chat_template(
+    messages: Array<{ role: string; content: string }>,
+    options: { add_generation_prompt: true; return_dict: true; enable_thinking?: boolean },
+  ): unknown;
+  batch_decode(batch: TensorLike, options: { skip_special_tokens: boolean }): string[];
+}
+
+export interface StopperLike {
+  interrupted: boolean;
+  interrupt(): void;
+}
+
+export interface ModelLike {
+  generate(options: {
+    input_ids: TensorLike;
+    attention_mask: unknown;
+    max_new_tokens: number;
+    do_sample: false;
+    stopping_criteria: StopperLike[];
+  }): Promise<unknown>;
+  dispose(): Promise<unknown>;
+}
+
+/** The Transformers.js calls the engine makes (the worker entry binds the real library). */
+export interface TransformersRuntime {
+  loadTokenizer(record: LocalAiModelRecord): Promise<TokenizerLike>;
+  loadModel(record: LocalAiModelRecord): Promise<ModelLike>;
+  createStopper(): StopperLike;
 }
 
 interface GpuAdapterLike {
   features: { has(feature: string): boolean };
-  limits: {
-    maxBufferSize: number;
-    maxStorageBufferBindingSize: number;
-    maxComputeWorkgroupStorageSize: number;
-    maxStorageBuffersPerShaderStage: number;
-  };
 }
 
 export interface GpuLike {
@@ -73,15 +88,14 @@ export interface GpuLike {
 }
 
 export interface WorkerEngineDeps {
-  createEngine(
-    modelId: string,
-    appConfig: AppConfig,
-    onProgress: (report: InitProgressReport) => void,
-  ): Promise<EngineLike>;
+  runtime: TransformersRuntime;
   caches: CacheStorageLike;
   gpu: GpuLike | undefined;
   guard: NetworkGuard;
-  extensionOrigin: string;
+  /** The worker's guarded fetch (downloads go through the guard). */
+  fetch: (url: string) => Promise<Response>;
+  /** Registry lookup (tests use tiny synthetic records). */
+  findModel?: (modelId: unknown) => LocalAiModelRecord | null;
   /** Domain prompt/parse functions (injected in tests). */
   ai?: {
     buildAiMessages: typeof buildAiMessages;
@@ -90,68 +104,26 @@ export interface WorkerEngineDeps {
   };
 }
 
-/** Minimums WebLLM 0.2.85 enforces in detectGPUDevice (its fallback values). */
-const MIN_GPU_LIMITS = {
-  maxBufferSize: 1 << 28,
-  maxStorageBufferBindingSize: 1 << 27,
-  maxComputeWorkgroupStorageSize: 32 << 10,
-  maxStorageBuffersPerShaderStage: 10,
-} as const;
-
-const CORRECT_TEMPERATURE = 0;
-const REWRITE_TEMPERATURE = 0.4;
-// Fixed, as in the evaluation; low variance, not a promise of identical output across devices.
-const GENERATION_SEED = 42;
+interface LoadedModel {
+  modelId: string;
+  tokenizer: TokenizerLike;
+  model: ModelLike;
+}
 
 function errorName(error: unknown): string {
   const name = (error as { name?: unknown } | null)?.name;
   return typeof name === "string" ? name : "";
 }
 
-export function unavailableReasonForError(error: unknown): LocalAiUnavailableReason | null {
+export function installErrorCode(error: unknown): LocalAiErrorCode {
   switch (errorName(error)) {
-    case "WebGPUNotAvailableError":
-    case "WebGPUNotFoundError":
-      return "no-webgpu";
-    case "ShaderF16SupportError":
-    case "FeatureSupportError":
-      return "missing-feature";
-    default:
-      return null;
-  }
-}
-
-export function loadErrorCode(error: unknown, downloading: boolean): LocalAiErrorCode {
-  switch (errorName(error)) {
-    case "DeviceLostError":
-      return "device-lost";
-    case "IntegrityError":
+    case INTEGRITY_ERROR_NAME:
       return "integrity-failed";
     case "QuotaExceededError":
       return "storage-full";
-    case NETWORK_BLOCKED_ERROR_NAME:
-      return downloading ? "download-failed" : "cache-failed";
     default:
-      return downloading ? "download-failed" : "load-failed";
+      return "download-failed";
   }
-}
-
-export function generationErrorCode(error: unknown): AiErrorCode {
-  switch (errorName(error)) {
-    case "DeviceLostError":
-      return "device-lost";
-    case "ContextWindowSizeExceededError":
-      return "too-large";
-    default:
-      return "engine-failed";
-  }
-}
-
-function progressPhase(report: InitProgressReport, installing: boolean): WorkerProgressPhase {
-  const text = typeof report.text === "string" ? report.text : "";
-  return installing && (text.startsWith("Fetching") || text.startsWith("Start to fetch"))
-    ? "download"
-    : "load";
 }
 
 export async function probeGpu(
@@ -170,28 +142,25 @@ export async function probeGpu(
   if (!adapter) {
     return "no-adapter";
   }
-  if (!record.requiredFeatures.every((feature) => adapter.features.has(feature))) {
-    return "missing-feature";
-  }
-  const limits = adapter.limits;
-  const sufficient = (Object.keys(MIN_GPU_LIMITS) as Array<keyof typeof MIN_GPU_LIMITS>).every(
-    (key) => typeof limits[key] === "number" && limits[key] >= MIN_GPU_LIMITS[key],
-  );
-  return sufficient ? null : "insufficient-limits";
+  return record.requiredFeatures.every((feature) => adapter.features.has(feature))
+    ? null
+    : "missing-feature";
 }
 
 type ProgressSink = (phase: WorkerProgressPhase, progress: number) => void;
 
 export class LocalAiWorkerEngine {
-  private engine: EngineLike | null = null;
-  private engineModelId: string | null = null;
+  private loaded: LoadedModel | null = null;
   private loading: { modelId: string; promise: Promise<WorkerLoadResult> } | null = null;
   private epoch = 0;
+  private stopper: StopperLike | null = null;
   private interruptRequested = false;
   private readonly ai: NonNullable<WorkerEngineDeps["ai"]>;
+  private readonly findModel: (modelId: unknown) => LocalAiModelRecord | null;
 
   constructor(private readonly deps: WorkerEngineDeps) {
     this.ai = deps.ai ?? { buildAiMessages, aiMaxOutputTokens, parseAiResponse };
+    this.findModel = deps.findModel ?? localAiModelById;
   }
 
   /** Serves one host request; replies only with bounded, text-free data. */
@@ -218,7 +187,7 @@ export class LocalAiWorkerEngine {
       case "install":
         return this.install(call.modelId, onProgress);
       case "load":
-        return this.load(call.modelId, false, onProgress);
+        return this.load(call.modelId, onProgress);
       case "generate":
         return this.generate(call.modelId, call.request);
       case "unload":
@@ -229,12 +198,12 @@ export class LocalAiWorkerEngine {
   }
 
   async probe(modelId: string): Promise<WorkerResults["probe"]> {
-    const record = localAiModelById(modelId);
+    const record = this.findModel(modelId);
     return { unavailable: record ? await probeGpu(this.deps.gpu, record) : "not-in-build" };
   }
 
   async cacheState(modelId: string): Promise<WorkerResults["cache-state"]> {
-    const record = localAiModelById(modelId);
+    const record = this.findModel(modelId);
     if (!record) {
       return { install: "none" };
     }
@@ -245,38 +214,56 @@ export class LocalAiWorkerEngine {
     }
   }
 
-  /** Explicit install: the only time network is allowed. Leaves the engine warm. */
+  /**
+   * Explicit install, the only time network is allowed: download and verify
+   * the listed files, load once from the cache (network denied), then mark
+   * the model verified. Leaves the model loaded.
+   */
   async install(modelId: string, onProgress: ProgressSink): Promise<WorkerLoadResult> {
-    if (
-      this.engine &&
-      this.engineModelId === modelId &&
-      (await this.cacheState(modelId)).install === "complete"
-    ) {
-      return { ok: true };
+    const record = this.findModel(modelId);
+    if (!record) {
+      return { ok: false, error: "download-failed" };
     }
     await this.unload();
-    return this.load(modelId, true, onProgress);
+    this.deps.guard.allowDownloads(
+      new Set(record.files.map((file) => localAiModelFileUrl(record, file))),
+    );
+    try {
+      onProgress("download", 0);
+      await downloadModelFiles(this.deps.caches, record, this.deps.fetch, (bytes) =>
+        onProgress("download", Math.min(1, bytes / record.downloadBytes)),
+      );
+    } catch (error) {
+      return { ok: false, error: installErrorCode(error) };
+    } finally {
+      this.deps.guard.allowDownloads(null);
+    }
+    const result = await this.load(modelId, onProgress);
+    if (result.ok) {
+      try {
+        await markModelVerified(this.deps.caches, record);
+      } catch (error) {
+        return { ok: false, error: installErrorCode(error) };
+      }
+    }
+    return result;
   }
 
   /** Single-flight per model id: concurrent loads of the same model share one promise. */
-  load(
-    modelId: string,
-    allowNetwork: boolean,
-    onProgress: ProgressSink,
-  ): Promise<WorkerLoadResult> {
-    if (this.engine && this.engineModelId === modelId) {
+  load(modelId: string, onProgress: ProgressSink): Promise<WorkerLoadResult> {
+    if (this.loaded?.modelId === modelId) {
       return Promise.resolve({ ok: true });
     }
     if (this.loading?.modelId === modelId) {
       return this.loading.promise;
     }
-    const record = localAiModelById(modelId);
+    const record = this.findModel(modelId);
     if (!record) {
       return Promise.resolve({ ok: false, error: "load-failed" });
     }
     const unloading = this.unload();
     const epoch = this.epoch;
-    const promise = unloading.then(() => this.runLoad(record, allowNetwork, onProgress, epoch));
+    const promise = unloading.then(() => this.runLoad(record, onProgress, epoch));
     const loading = { modelId, promise };
     this.loading = loading;
     void promise.finally(() => {
@@ -289,54 +276,55 @@ export class LocalAiWorkerEngine {
 
   private async runLoad(
     record: LocalAiModelRecord,
-    allowNetwork: boolean,
     onProgress: ProgressSink,
     epoch: number,
   ): Promise<WorkerLoadResult> {
     if (epoch !== this.epoch) {
       return { ok: false, error: "load-failed" };
     }
-    let phase: WorkerProgressPhase = allowNetwork ? "download" : "load";
-    this.deps.guard.setNetworkAllowed(allowNetwork);
+    onProgress("load", 0);
+    this.deps.guard.takeBlockedUrl();
     try {
-      const engine = await this.deps.createEngine(
-        record.modelId,
-        localAiAppConfig(record, this.deps.extensionOrigin),
-        (report) => {
-          phase = progressPhase(report, allowNetwork);
-          const progress = Number.isFinite(report.progress) ? report.progress : 0;
-          onProgress(phase, Math.max(0, Math.min(1, progress)));
-        },
-      );
+      const tokenizer = await this.deps.runtime.loadTokenizer(record);
+      const model = await this.deps.runtime.loadModel(record);
       if (epoch !== this.epoch) {
-        // Unloaded, deleted or switched while loading: discard the late engine.
-        await engine.unload().catch(() => undefined);
+        // Unloaded, deleted or switched while loading: discard the late model.
+        await model.dispose().catch(() => undefined);
         return { ok: false, error: "load-failed" };
       }
-      this.engine = engine;
-      this.engineModelId = record.modelId;
+      this.loaded = { modelId: record.modelId, tokenizer, model };
+      onProgress("load", 1);
       return { ok: true };
     } catch (error) {
-      const unavailable = unavailableReasonForError(error);
-      return unavailable
-        ? { ok: false, unavailable }
-        : { ok: false, error: loadErrorCode(error, allowNetwork && phase === "download") };
-    } finally {
-      if (epoch === this.epoch) {
-        this.deps.guard.setNetworkAllowed(false);
-      }
+      return { ok: false, error: this.loadErrorCode(record, error) };
     }
+  }
+
+  /**
+   * A load reads only from the cache. A refused request for a listed file means
+   * the cache is incomplete; for an unlisted file, the registry is missing it.
+   */
+  private loadErrorCode(record: LocalAiModelRecord, error: unknown): LocalAiErrorCode {
+    const blocked = this.deps.guard.takeBlockedUrl();
+    if (errorName(error) === NETWORK_BLOCKED_ERROR_NAME && blocked) {
+      const listed = record.files.some((file) => localAiModelFileUrl(record, file) === blocked);
+      if (listed) {
+        return "cache-failed";
+      }
+      // A model file path (never user text), so maintainers can add it to the registry.
+      console.warn("Local AI: the loader requested a file missing from the registry", blocked);
+    }
+    return "load-failed";
   }
 
   async unload(): Promise<void> {
     this.epoch += 1;
-    this.deps.guard.setNetworkAllowed(false);
-    const engine = this.engine;
+    this.deps.guard.allowDownloads(null);
+    const loaded = this.loaded;
     const loading = this.loading;
-    this.engine = null;
-    this.engineModelId = null;
-    if (engine) {
-      await engine.unload().catch(() => undefined);
+    this.loaded = null;
+    if (loaded) {
+      await loaded.model.dispose().catch(() => undefined);
     }
     if (loading) {
       await loading.promise;
@@ -344,11 +332,11 @@ export class LocalAiWorkerEngine {
   }
 
   async delete(modelId: string): Promise<WorkerResults["delete"]> {
-    const record = localAiModelById(modelId);
+    const record = this.findModel(modelId);
     if (!record) {
       return { ok: false };
     }
-    if (this.engineModelId === modelId || this.loading?.modelId === modelId) {
+    if (this.loaded?.modelId === modelId || this.loading?.modelId === modelId) {
       await this.unload();
     }
     try {
@@ -361,63 +349,56 @@ export class LocalAiWorkerEngine {
 
   interrupt(): void {
     this.interruptRequested = true;
-    void Promise.resolve(this.engine?.interruptGenerate()).catch(() => undefined);
+    this.stopper?.interrupt();
   }
 
   async generate(modelId: string, request: AiGenerationRequest): Promise<AiGenerationOutcome> {
-    const engine = this.engine;
-    const record = localAiModelById(modelId);
-    if (!engine || this.engineModelId !== modelId || !record) {
+    const loaded = this.loaded;
+    const record = this.findModel(modelId);
+    if (!loaded || loaded.modelId !== modelId || !record) {
       return { ok: false, error: "not-ready" };
     }
     this.interruptRequested = false;
+    const stopper = this.deps.runtime.createStopper();
+    this.stopper = stopper;
     try {
-      await engine.resetChat();
+      const inputs = loaded.tokenizer.apply_chat_template(this.ai.buildAiMessages(request), {
+        add_generation_prompt: true,
+        return_dict: true,
+        ...(record.disableThinking ? { enable_thinking: false } : {}),
+      }) as { input_ids?: TensorLike; attention_mask?: unknown } | null;
+      const inputIds = inputs?.input_ids;
+      if (!inputIds) {
+        return { ok: false, error: "engine-failed" };
+      }
       if (this.interruptRequested) {
         return { ok: false, error: "cancelled" };
       }
-      const stream = await engine.chat.completions.create({
-        messages: this.ai.buildAiMessages(request),
-        stream: true,
-        n: 1,
-        temperature: request.mode === "rewrite" ? REWRITE_TEMPERATURE : CORRECT_TEMPERATURE,
-        max_tokens: this.ai.aiMaxOutputTokens(request),
-        seed: GENERATION_SEED,
-        response_format: { type: "json_object", schema: AI_RESPONSE_SCHEMA },
-        ...(record.thinking === "qwen3-enable-thinking"
-          ? { extra_body: { enable_thinking: false } }
-          : {}),
-      });
-      let raw = "";
-      let finishReason: string | null = null;
-      let overflow = false;
-      for await (const chunk of stream) {
-        const choice = chunk.choices[0];
-        const delta = choice?.delta?.content ?? "";
-        if (raw.length + delta.length > MAX_AI_RAW_OUTPUT_CHARS) {
-          if (!overflow) {
-            overflow = true;
-            this.interrupt();
-          }
-        } else {
-          raw += delta;
-        }
-        finishReason = choice?.finish_reason ?? finishReason;
-      }
-      if (overflow) {
-        return { ok: false, error: "malformed" };
-      }
-      if (this.interruptRequested || finishReason === "abort") {
+      const promptTokens = inputIds.dims.at(-1) ?? 0;
+      const maxNewTokens = this.ai.aiMaxOutputTokens(request);
+      const output = (await loaded.model.generate({
+        input_ids: inputIds,
+        attention_mask: inputs.attention_mask,
+        max_new_tokens: maxNewTokens,
+        do_sample: false,
+        stopping_criteria: [stopper],
+      })) as TensorLike;
+      if (stopper.interrupted || this.interruptRequested) {
         return { ok: false, error: "cancelled" };
       }
-      if (finishReason === "length") {
+      const generated = output.slice(null, [promptTokens, null]);
+      if ((generated.dims.at(-1) ?? 0) >= maxNewTokens) {
         return { ok: false, error: "truncated" };
       }
+      const raw = loaded.tokenizer.batch_decode(generated, { skip_special_tokens: true })[0] ?? "";
+      if (raw.length > MAX_AI_RAW_OUTPUT_CHARS) {
+        return { ok: false, error: "malformed" };
+      }
       return this.ai.parseAiResponse(raw, request);
-    } catch (error) {
-      return { ok: false, error: generationErrorCode(error) };
+    } catch {
+      return { ok: false, error: "engine-failed" };
     } finally {
-      await engine.resetChat().catch(() => undefined);
+      this.stopper = null;
     }
   }
 }

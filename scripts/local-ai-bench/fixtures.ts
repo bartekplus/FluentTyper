@@ -28,24 +28,23 @@ import type { GenParams, GenResult } from "./page";
 export interface ModelRun {
   environment: Record<string, unknown>;
   modelId: string;
+  repo?: string;
   revision: string;
-  libSha256: string;
+  dtype?: string;
+  /** WebLLM-era results only (historical files in .cache). */
+  libSha256?: string;
   downloadBytes: number;
   params: Record<string, GenParams>;
   downloadMs: number | null;
   coldLoadMs: number | null;
   warmupMs: number | null;
-  thinkingProbe: Array<{
+  /** WebLLM-era results only. */
+  thinkingProbe?: Array<{
     enableThinking: boolean | null;
     hasThinkMarkup: boolean;
     head: string;
     completionTokens: number | null;
   }>;
-  smoke: GenResult[];
-  /** Set when the model run stopped early (timeout, load failure); results are partial. */
-  failure?: string;
-  /** Origins the page requested during the run (download/CSP evidence). */
-  requestOrigins?: string[];
   correct: Array<CaseRun & { score: CorrectScore }>;
   rewrite: Array<CaseRun & { score: RewriteScore }>;
   cancel: Array<{
@@ -54,6 +53,14 @@ export interface ModelRun {
     charsBeforeCancel: number;
     error: string | null;
   }>;
+  /** Set when the model run stopped early (timeout, load failure); results are partial. */
+  failure?: string;
+  /** Origins the page requested during the run (download/CSP evidence). */
+  requestOrigins?: string[];
+  /** Pinned-revision file paths the page fetched. */
+  fetchedFiles?: string[];
+  /** Registry models: fetched files missing from the record's `files` (must be empty). */
+  unlistedFiles?: string[];
 }
 
 export interface RunLimits {
@@ -181,9 +188,7 @@ async function generateCase(
             result.outcome?.ok
             ? JSON.stringify({ segments: result.outcome.segments })
             : ""
-          : params.thinkBudget
-            ? result.raw.replace(/^\s*<think>[\s\S]*?<\/think>\s*/, "")
-            : result.raw,
+          : result.raw,
     );
     if (!result.outcome?.ok) {
       complete = false;

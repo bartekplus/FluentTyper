@@ -1,6 +1,6 @@
 /**
- * Release gate for a PRODUCTION build: permissions, CSP, packaged model
- * libraries, WebLLM isolation, and dev-only code stripped.
+ * Release gate for a PRODUCTION build: permissions, CSP, the packaged ONNX
+ * Runtime files, Local AI engine isolation, and dev-only code stripped.
  *
  *   bun run build [--platform=edge|firefox]
  *   bun run check:local-ai:artifact [--platform=edge|firefox] [--dir=build]
@@ -8,28 +8,49 @@
 import path from "path";
 import { readFile, readdir, stat } from "fs/promises";
 import { parseArgs } from "node:util";
-import {
-  LOCAL_AI_DOWNLOAD_ORIGINS,
-  LOCAL_AI_MODELS,
-} from "../src/core/domain/localAi/modelRegistry";
-import { verifyLocalAiLibFile } from "./fetch-local-ai-assets";
+import { LOCAL_AI_DOWNLOAD_ORIGINS } from "../src/core/domain/localAi/modelRegistry";
 
-/** Strings only present when the real WebLLM engine / TVM runtime is bundled. */
-export const WEBLLM_ENGINE_MARKERS = ["WebGPUNotAvailableError", "wasmLibraryProvider"];
-/** Error message of src/adapters/chrome/background/webllm-disabled-runtime.ts. */
-const DISABLED_RUNTIME_MARKER = "WebLLM runtime is disabled in this build";
-/** Only src/adapters/chrome/background/testing/RuntimeTestHooks.ts (dev) contains these. */
-const TEST_HOOK_MARKERS = [
-  "TEST_TRIGGER_COMMAND",
-  "TEST_SET_WEBLLM_PREDICTIONS",
-  "TEST_GET_WEBLLM_PREDICTION_CALLS",
-  "__fluentTyperWebLLMTestOverride__",
+/** Build directory the worker loads ONNX Runtime from (env.backends.onnx.wasm.wasmPaths). */
+export const LOCAL_AI_ORT_DIR = "local-ai/ort";
+/**
+ * The ONNX Runtime files shipped for `onnxruntime-web/webgpu` (the asyncify
+ * build that Transformers.js imports), pinned by SHA-256. The .mjs is the
+ * WASM glue ORT imports when wasmPaths names a directory.
+ * onnxruntime-web 1.31.0-dev.20260914-8d85527a0 (pinned by @huggingface/transformers 4.3.0).
+ */
+export const LOCAL_AI_ORT_FILES: Record<string, { bytes: number; sha256: string }> = {
+  "ort-wasm-simd-threaded.asyncify.wasm": {
+    bytes: 26_861_777,
+    sha256: "49871f5a4409519797e127440868a6d1923339d9185907f301a5b2a1d90af082",
+  },
+  "ort-wasm-simd-threaded.asyncify.mjs": {
+    bytes: 53_057,
+    sha256: "0966b6105cd936744498aa60df7a22cbd47af3374dbc64a9ab561c08a71e3611",
+  },
+};
+/** String literals of ONNX Runtime / Transformers.js (survive minification): only in local-ai/worker.js. */
+export const LOCAL_AI_ENGINE_MARKERS = [
+  "ort-wasm-simd-threaded",
+  "onnxruntime",
+  "transformers-cache",
 ];
+/** WebLLM (and its TVM runtime) must not appear in any bundle. */
+export const WEBLLM_MARKERS = [
+  "WebGPUNotAvailableError",
+  "wasmLibraryProvider",
+  "MLCEngine",
+  "@mlc-ai",
+  "WebLLM",
+];
+/** Only src/adapters/chrome/background/testing/RuntimeTestHooks.ts (dev) contains these. */
+const TEST_HOOK_MARKERS = ["TEST_TRIGGER_COMMAND", "triggerCommandForTesting"];
 /** content_script.js installs its observability relay only when __FT_DEV_BUILD__ is true. */
 const DEV_BUILD_CONTENT_SCRIPT_MARKER = "CMD_CONTENT_SCRIPT_REPORT_OBSERVABILITY_EVENT";
 const REPO_ROOT = path.resolve(import.meta.dir, "..");
 /** The legacy predictor's text-bearing debug fields must never reach Local AI bundles. */
 const LEGACY_DEBUG_TEXT_FIELDS = ["lastPredictInput", "lastRawOutputPreview"];
+/** Transformers.js' default wasmPaths; inert only when the worker overrides it. */
+const ORT_CDN_ORIGIN = "https://cdn.jsdelivr.net";
 
 const APP_BUNDLES = [
   "background.js",
@@ -45,24 +66,20 @@ const LOCAL_AI_FILES = [
   ...LOCAL_AI_BUNDLES,
   "local-ai/offscreen.html",
   "local-ai/THIRD_PARTY_NOTICES.md",
+  "local-ai/ONNXRUNTIME_THIRD_PARTY_NOTICES.txt",
 ];
 
 /**
  * URL origins that may appear in Local AI bundles without being contacted:
- * WebLLM's built-in prebuiltAppConfig (never used: the worker passes an
- * appConfig built from our registry, whose model_lib is extension-local) and
- * documentation links in dependency comments/error strings. CSP connect-src
+ * documentation links in dependency error/warning strings. CSP connect-src
  * blocks all of them at runtime regardless.
  */
 const INERT_URL_ORIGINS: Record<string, string> = {
-  "https://raw.githubusercontent.com": "WebLLM prebuiltAppConfig model_lib entries (unused)",
   "https://github.com": "dependency error/help links",
-  "https://www.apache.org": "license header text",
-  "http://www.apache.org": "license header text",
-  "https://llm.mlc.ai": "WebLLM documentation links",
-  "https://developer.chrome.com": "WebGPU documentation links",
-  "https://webgpureport.org": "WebGPU troubleshooting link",
-  "https://gpuweb.github.io": "WebGPU specification links",
+  "https://gist.github.com": "Transformers.js help link",
+  "https://developer.mozilla.org": "dependency help link",
+  "https://web.dev": "ONNX Runtime cross-origin-isolation help link",
+  "https://fluenttyper.invalid": "synthetic CacheStorage key (RFC 2606 .invalid, never resolves)",
   "http://www.w3.org": "XML/SVG namespace constants",
   "https://www.w3.org": "XML/SVG namespace constants",
 };
@@ -165,16 +182,33 @@ export async function checkLocalAiArtifact(
         fail(`missing ${file}`);
       }
     }
-    const libsDir = path.join(buildDir, "local-ai", "libs");
-    const shipped = await readdir(libsDir).catch(() => [] as string[]);
-    const registry = LOCAL_AI_MODELS.map((model) => path.posix.basename(model.modelLibPath));
-    if (!sameSet(shipped, registry)) {
-      fail(`local-ai/libs holds ${JSON.stringify(shipped)}, expected ${JSON.stringify(registry)}`);
-    }
-    for (const model of LOCAL_AI_MODELS) {
-      await verifyLocalAiLibFile(path.join(buildDir, model.modelLibPath), model).catch(
-        (error: unknown) => fail(String(error)),
+    const localAiEntries = await readdir(path.join(buildDir, "local-ai")).catch(() => []);
+    const expectedEntries = [
+      "offscreen.html",
+      "offscreen.js",
+      "worker.js",
+      "ort",
+      "THIRD_PARTY_NOTICES.md",
+      "ONNXRUNTIME_THIRD_PARTY_NOTICES.txt",
+    ];
+    if (!sameSet(localAiEntries, expectedEntries)) {
+      fail(
+        `local-ai/ holds ${JSON.stringify(localAiEntries)}, expected ${JSON.stringify(expectedEntries)}`,
       );
+    }
+    const ortDir = path.join(buildDir, LOCAL_AI_ORT_DIR);
+    const shipped = await readdir(ortDir).catch(() => [] as string[]);
+    if (!sameSet(shipped, Object.keys(LOCAL_AI_ORT_FILES))) {
+      fail(
+        `${LOCAL_AI_ORT_DIR} holds ${JSON.stringify(shipped)}, expected ${JSON.stringify(Object.keys(LOCAL_AI_ORT_FILES))}`,
+      );
+    }
+    for (const [name, pinned] of Object.entries(LOCAL_AI_ORT_FILES)) {
+      const bytes = await readFile(path.join(ortDir, name)).catch(() => null);
+      const sha256 = bytes && new Bun.CryptoHasher("sha256").update(bytes).digest("hex");
+      if (!bytes || sha256 !== pinned.sha256 || bytes.byteLength !== pinned.bytes) {
+        fail(`${LOCAL_AI_ORT_DIR}/${name} does not match its pinned SHA-256/size`);
+      }
     }
     const offscreenHtml = await read("local-ai/offscreen.html").catch(() => "");
     const scripts = offscreenHtml.match(/<script\b[^>]*>/gi) ?? [];
@@ -189,7 +223,7 @@ export async function checkLocalAiArtifact(
     fail(`${platform} build must not contain local-ai/`);
   }
 
-  // Bundles: WebLLM isolation and production stripping.
+  // Bundles: engine isolation and production stripping.
   const bundles = [...APP_BUNDLES, ...(expected.localAi ? LOCAL_AI_BUNDLES : [])];
   const contents = new Map<string, string>();
   for (const bundle of bundles) {
@@ -210,14 +244,24 @@ export async function checkLocalAiArtifact(
     if (content.includes(REPO_ROOT)) {
       fail(`${bundle} embeds the build machine path ${REPO_ROOT}`);
     }
-    if (!isLocalAi) {
-      for (const marker of WEBLLM_ENGINE_MARKERS) {
+    for (const marker of WEBLLM_MARKERS) {
+      if (content.includes(marker)) {
+        fail(`${bundle} contains WebLLM ("${marker}")`);
+      }
+    }
+    const isWorker = bundle === "local-ai/worker.js";
+    if (!isWorker) {
+      for (const marker of LOCAL_AI_ENGINE_MARKERS) {
         if (content.includes(marker)) {
-          fail(`${bundle} contains the WebLLM engine ("${marker}")`);
+          fail(`${bundle} contains the Local AI engine ("${marker}")`);
         }
       }
+    }
+    if (!isLocalAi) {
       continue;
     }
+    // The worker must replace Transformers.js' CDN wasmPaths with the packaged runtime.
+    const ortOverridden = isWorker && content.includes(`${LOCAL_AI_ORT_DIR}/`);
     for (const field of LEGACY_DEBUG_TEXT_FIELDS) {
       if (content.includes(field)) {
         fail(`${bundle} contains the legacy debug text field "${field}"`);
@@ -230,6 +274,10 @@ export async function checkLocalAiArtifact(
     for (const [origin, count] of origins) {
       if (LOCAL_AI_DOWNLOAD_ORIGINS.includes(origin)) {
         notes.push(`${bundle}: ${origin} x${count} (allowlisted download origin)`);
+      } else if (origin === ORT_CDN_ORIGIN && ortOverridden) {
+        notes.push(
+          `${bundle}: ${origin} x${count} (inert: Transformers.js default wasmPaths, overridden with ${LOCAL_AI_ORT_DIR}/)`,
+        );
       } else if (origin in INERT_URL_ORIGINS) {
         notes.push(`${bundle}: ${origin} x${count} (inert: ${INERT_URL_ORIGINS[origin]})`);
       } else {
@@ -240,12 +288,12 @@ export async function checkLocalAiArtifact(
   if (contents.get("content_script.js")?.includes(DEV_BUILD_CONTENT_SCRIPT_MARKER)) {
     fail("content_script.js was built with __FT_DEV_BUILD__ = true");
   }
-  const background = contents.get("background.js") ?? "";
-  if (!background.includes(DISABLED_RUNTIME_MARKER)) {
-    fail("background.js does not use the disabled WebLLM runtime stub");
+  const worker = contents.get("local-ai/worker.js");
+  if (expected.localAi && !worker?.includes(LOCAL_AI_ENGINE_MARKERS[0])) {
+    fail("local-ai/worker.js does not contain the Local AI engine");
   }
-  if (expected.localAi && !contents.get("local-ai/worker.js")?.includes(WEBLLM_ENGINE_MARKERS[0])) {
-    fail("local-ai/worker.js does not contain the WebLLM engine");
+  if (worker && !worker.includes(`${LOCAL_AI_ORT_DIR}/`)) {
+    fail(`local-ai/worker.js does not point ONNX Runtime at ${LOCAL_AI_ORT_DIR}/`);
   }
 
   return { failures, notes };

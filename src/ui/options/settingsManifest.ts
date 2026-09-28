@@ -18,11 +18,7 @@ import {
   KEY_FALLBACK_LANGUAGE,
   KEY_MIN_WORD_LENGTH_TO_PREDICT,
   KEY_NUM_SUGGESTIONS,
-  KEY_AI_PREDICTOR_ENABLED,
-  KEY_AI_MODEL_ID,
-  KEY_AI_PREDICTION_TIMEOUT_MS,
   KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
-  KEY_DEBUG_AI_PREDICTOR_ENABLED,
   KEY_OBSERVABILITY_DEFAULT_LEVEL,
   KEY_OBSERVABILITY_ENABLED,
   KEY_OBSERVABILITY_MODULE_OVERRIDES,
@@ -58,8 +54,6 @@ import {
   KEY_PREFIX_ONLY_MODE,
   KEY_PERSONALIZATION_ENABLED,
   DEFAULT_NUM_SUGGESTIONS,
-  DEFAULT_AI_MODEL_ID,
-  DEFAULT_AI_PREDICTION_TIMEOUT_MS,
 } from "@core/domain/constants";
 import {
   DEFAULT_SUGGESTION_THEME_SETTINGS,
@@ -80,18 +74,6 @@ import {
 } from "@core/domain/grammar/GrammarRuleSettings";
 
 const IS_DEV_BUILD = typeof __FT_DEV_BUILD__ !== "undefined" && Boolean(__FT_DEV_BUILD__);
-
-const WEBLLM_DEV_MODEL_OPTIONS: OptionTuple[] = [
-  ["SmolLM2-360M-Instruct-q4f16_1-MLC", "SmolLM2 360M q4f16 (fastest)"],
-  ["Qwen2.5-0.5B-Instruct-q4f16_1-MLC", "Qwen2.5 0.5B q4f16 (default)"],
-  ["Qwen3-0.6B-q4f16_1-MLC", "Qwen3 0.6B q4f16"],
-  ["Llama-3.2-1B-Instruct-q4f16_1-MLC", "Llama 3.2 1B q4f16"],
-  ["SmolLM2-1.7B-Instruct-q4f16_1-MLC", "SmolLM2 1.7B q4f16"],
-  ["Qwen2.5-1.5B-Instruct-q4f16_1-MLC", "Qwen2.5 1.5B q4f16"],
-  ["Qwen2.5-3B-Instruct-q4f16_1-MLC", "Qwen2.5 3B q4f16"],
-  ["Qwen2.5-7B-Instruct-q4f16_1-MLC", "Qwen2.5 7B q4f16"],
-  ["Mistral-7B-Instruct-v0.3-q4f16_1-MLC", "Mistral 7B Instruct v0.3 q4f16"],
-];
 
 const LOG_LEVEL_OPTIONS: OptionTuple[] = [
   ["debug", "Debug"],
@@ -127,20 +109,6 @@ const DEV_TABS: ManifestDefinition["tabs"] = [
     "observability_tab",
     "observability_dashboard_group",
   ]),
-];
-
-const DEV_PREDICTOR_SETTINGS: FieldConfig[] = [
-  {
-    tab: "core_settings",
-    group: i18n.get("prediction_engine"),
-    name: KEY_AI_PREDICTOR_ENABLED,
-    type: "checkbox",
-    label: buildFieldLabel(
-      i18n.get("enable_ai_predictor_label"),
-      i18n.get("enable_ai_predictor_desc"),
-    ),
-    default: false,
-  },
 ];
 
 const DEV_OBSERVABILITY_SETTINGS: FieldConfig[] = [
@@ -200,44 +168,6 @@ const DEV_OBSERVABILITY_SETTINGS: FieldConfig[] = [
       i18n.get("predictor_debug_presage_desc"),
     ),
     default: true,
-  },
-  {
-    tab: "observability_tab",
-    group: i18n.get("observability_predictor_group"),
-    name: KEY_DEBUG_AI_PREDICTOR_ENABLED,
-    type: "checkbox",
-    label: buildFieldLabel(
-      i18n.get("predictor_debug_webllm_label"),
-      i18n.get("predictor_debug_webllm_desc"),
-    ),
-    default: true,
-  },
-  {
-    tab: "observability_tab",
-    group: i18n.get("observability_predictor_group"),
-    name: KEY_AI_MODEL_ID,
-    type: "popupButton",
-    options: WEBLLM_DEV_MODEL_OPTIONS,
-    label: buildFieldLabel(
-      i18n.get("predictor_debug_model_label"),
-      i18n.get("predictor_debug_model_desc"),
-    ),
-    default: DEFAULT_AI_MODEL_ID,
-  },
-  {
-    tab: "observability_tab",
-    group: i18n.get("observability_predictor_group"),
-    name: KEY_AI_PREDICTION_TIMEOUT_MS,
-    type: "slider",
-    min: 20,
-    max: 2000,
-    step: 10,
-    display: true,
-    label: buildFieldLabel(
-      i18n.get("predictor_debug_timeout_label"),
-      i18n.get("predictor_debug_timeout_desc"),
-    ),
-    default: DEFAULT_AI_PREDICTION_TIMEOUT_MS,
   },
   {
     tab: "observability_tab",
@@ -436,7 +366,6 @@ const manifest: ManifestDefinition = {
       label: buildFieldLabel(i18n.get("min_chars_label"), i18n.get("min_chars_desc")),
       default: 1,
     },
-    ...(IS_DEV_BUILD ? DEV_PREDICTOR_SETTINGS : []),
     {
       tab: "core_settings",
       group: i18n.get("accept_predictions"),

@@ -5,7 +5,8 @@ import { LOCAL_AI_WORKER_PATH } from "@adapters/chrome/offscreen/workerProtocol"
 /** Local AI offscreen document (Chrome/Edge): hosts the engine worker and review ports. */
 const host = new LocalAiHost({
   connectBackground: () => chrome.runtime.connect({ name: LOCAL_AI_HOST_PORT }),
-  createWorker: () => new Worker(chrome.runtime.getURL(LOCAL_AI_WORKER_PATH)),
+  // A module worker: Transformers.js and ONNX Runtime keep `import.meta.url` after bundling.
+  createWorker: () => new Worker(chrome.runtime.getURL(LOCAL_AI_WORKER_PATH), { type: "module" }),
   extensionOrigin: chrome.runtime.getURL(""),
 });
 

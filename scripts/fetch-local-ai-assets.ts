@@ -1,191 +1,104 @@
 /**
- * Packaged Local AI Review model libraries (executable WASM).
+ * Maintainer probe for the Local AI model registry.
  *
- * The libraries ship inside the extension (Chrome MV3 forbids remote code), so
- * they are fetched at build time from a pinned commit of mlc-ai/binary-mlc-llm-libs
- * and verified against the SHA-256, SRI and size recorded in the model registry.
- * They are gitignored under public/local-ai/libs/; build.ts calls
- * ensureLocalAiLibs() and re-verifies every copied file.
+ *   bun scripts/fetch-local-ai-assets.ts --probe
  *
- *   bun scripts/fetch-local-ai-assets.ts            fetch missing libs, verify all
- *   bun scripts/fetch-local-ai-assets.ts --probe    print refreshed registry metadata
- *   ... --probe --lib-commit=<sha>                  probe libs at another commit
+ * For every record in src/core/domain/localAi/modelRegistry.ts, lists the files
+ * of its pinned Hugging Face revision that the registry names (size + SHA-256,
+ * as used to write the registry), flags drift against the registry and whether
+ * the repository's main branch has moved. Nothing is downloaded into the repo:
+ * model files are data fetched by the extension after consent, and the ONNX
+ * Runtime files come from node_modules (pinned in scripts/check-local-ai-artifact.ts).
  */
-import path from "path";
-import { mkdir, readFile, rename, writeFile } from "fs/promises";
 import { parseArgs } from "node:util";
-import {
-  LOCAL_AI_MODEL_LIB_ABI,
-  LOCAL_AI_MODELS,
-  type LocalAiModelRecord,
-} from "../src/core/domain/localAi/modelRegistry";
+import { LOCAL_AI_MODELS } from "../src/core/domain/localAi/modelRegistry";
 
-export const LOCAL_AI_LIBS_REPO = "mlc-ai/binary-mlc-llm-libs";
-/** Pinned binary-mlc-llm-libs commit; the registry hashes were verified at it. */
-export const LOCAL_AI_LIBS_COMMIT = "025bcaf3780fa8254f5e5efd3bfea0a5397248f4";
-
-const ROOT_DIR = path.resolve(import.meta.dir, "..");
-export const LOCAL_AI_PUBLIC_DIR = path.join(ROOT_DIR, "public");
-
-export function localAiLibSourceUrl(
-  model: LocalAiModelRecord,
-  commit = LOCAL_AI_LIBS_COMMIT,
-): string {
-  const file = path.posix.basename(model.modelLibPath);
-  return `https://raw.githubusercontent.com/${LOCAL_AI_LIBS_REPO}/${commit}/web-llm-models/${LOCAL_AI_MODEL_LIB_ABI}/${file}`;
+interface TreeEntry {
+  type: string;
+  path: string;
+  size: number;
+  oid: string;
+  lfs?: { oid: string; size: number };
 }
 
-function describeBytes(bytes: Uint8Array) {
-  return {
-    sha256: new Bun.CryptoHasher("sha256").update(bytes).digest("hex"),
-    sri: `sha384-${new Bun.CryptoHasher("sha384").update(bytes).digest("base64")}`,
-    bytes: bytes.byteLength,
-  };
-}
-
-/** Throws unless `bytes` is exactly the registry's library for `model`. */
-export function assertLocalAiLib(bytes: Uint8Array, model: LocalAiModelRecord, label: string) {
-  const actual = describeBytes(bytes);
-  const expected = {
-    sha256: model.modelLibSha256,
-    sri: model.modelLibSri,
-    bytes: model.modelLibBytes,
-  };
-  if (
-    actual.sha256 !== expected.sha256 ||
-    actual.sri !== expected.sri ||
-    actual.bytes !== expected.bytes
-  ) {
-    throw new Error(
-      `Local AI model library verification failed for ${label}: ` +
-        `expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`,
-    );
-  }
-}
-
-export async function verifyLocalAiLibFile(filePath: string, model: LocalAiModelRecord) {
-  assertLocalAiLib(new Uint8Array(await readFile(filePath)), model, filePath);
-}
-
-async function download(url: string): Promise<Uint8Array> {
-  const response = await fetch(url, { redirect: "error" });
-  if (!response.ok) {
-    throw new Error(`Download failed (${response.status}) for ${url}`);
-  }
-  return new Uint8Array(await response.arrayBuffer());
-}
-
-async function readIfPresent(filePath: string): Promise<Uint8Array | null> {
-  try {
-    return new Uint8Array(await readFile(filePath));
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Makes `<publicDir>/<modelLibPath>` hold the verified library for every
- * registry model, downloading only missing or mismatching files.
- */
-export async function ensureLocalAiLibs(
-  publicDir = LOCAL_AI_PUBLIC_DIR,
-  log: (message: string) => void = console.log,
-): Promise<void> {
-  for (const model of LOCAL_AI_MODELS) {
-    const target = path.join(publicDir, model.modelLibPath);
-    const existing = await readIfPresent(target);
-    if (existing) {
-      try {
-        assertLocalAiLib(existing, model, target);
-        continue;
-      } catch {
-        log(`[local-ai] ${model.modelLibPath} does not match the registry; re-fetching`);
-      }
-    }
-    const url = localAiLibSourceUrl(model);
-    log(`[local-ai] fetching ${url}`);
-    const bytes = await download(url);
-    assertLocalAiLib(bytes, model, url);
-    await mkdir(path.dirname(target), { recursive: true });
-    const temporary = `${target}.${process.pid}.tmp`;
-    await writeFile(temporary, bytes);
-    await rename(temporary, target);
-  }
-}
-
-async function fetchJson(url: string): Promise<Record<string, unknown>> {
+async function fetchJson<T>(url: string): Promise<T> {
   const response = await fetch(url);
   if (!response.ok) {
     throw new Error(`Request failed (${response.status}) for ${url}`);
   }
-  return (await response.json()) as Record<string, unknown>;
+  return (await response.json()) as T;
 }
 
-async function weightBytes(repo: string, revision: string): Promise<number> {
-  const cache = await fetchJson(
-    `https://huggingface.co/${repo}/resolve/${revision}/tensor-cache.json`,
-  );
-  const records = Array.isArray(cache.records)
-    ? (cache.records as Array<{ nbytes?: unknown }>)
-    : [];
-  return records.reduce((sum, record) => sum + (Number(record.nbytes) || 0), 0);
-}
-
-/** Maintainer helper: current upstream metadata next to what the registry pins. */
-async function probe(libCommit: string): Promise<void> {
-  const libsHead = await fetchJson(
-    `https://api.github.com/repos/${LOCAL_AI_LIBS_REPO}/commits/HEAD`,
-  ).catch(() => ({ sha: "unavailable" }));
-  const models = [];
-  for (const model of LOCAL_AI_MODELS) {
-    const info = await fetchJson(`https://huggingface.co/api/models/${model.weightsRepo}`);
-    const latestRevision = String(info.sha);
-    const lib = describeBytes(await download(localAiLibSourceUrl(model, libCommit)));
-    models.push({
-      modelId: model.modelId,
-      weightsRevision: { pinned: model.weightsRevision, latest: latestRevision },
-      downloadBytes: {
-        pinned: model.downloadBytes,
-        atPinnedRevision: await weightBytes(model.weightsRepo, model.weightsRevision),
-        atLatestRevision: await weightBytes(model.weightsRepo, latestRevision),
-      },
-      modelLib: {
-        commit: libCommit,
-        registry: {
-          sha256: model.modelLibSha256,
-          sri: model.modelLibSri,
-          bytes: model.modelLibBytes,
-        },
-        fetched: lib,
-        matchesRegistry:
-          lib.sha256 === model.modelLibSha256 &&
-          lib.sri === model.modelLibSri &&
-          lib.bytes === model.modelLibBytes,
-      },
-    });
+/** SHA-256 of a file: the LFS oid for LFS files, else hashed from the pinned content. */
+async function fileSha256(repo: string, revision: string, entry: TreeEntry): Promise<string> {
+  if (entry.lfs) {
+    return entry.lfs.oid;
   }
-  console.log(
-    JSON.stringify(
-      {
-        abi: LOCAL_AI_MODEL_LIB_ABI,
-        libsCommit: { pinned: LOCAL_AI_LIBS_COMMIT, head: libsHead.sha },
-        models,
-      },
-      null,
-      2,
-    ),
-  );
+  const response = await fetch(`https://huggingface.co/${repo}/resolve/${revision}/${entry.path}`);
+  if (!response.ok) {
+    throw new Error(`Download failed (${response.status}) for ${entry.path}`);
+  }
+  const bytes = new Uint8Array(await response.arrayBuffer());
+  return new Bun.CryptoHasher("sha256").update(bytes).digest("hex");
+}
+
+async function probe(): Promise<boolean> {
+  let drift = false;
+  for (const record of LOCAL_AI_MODELS) {
+    const [tree, info] = await Promise.all([
+      fetchJson<TreeEntry[]>(
+        `https://huggingface.co/api/models/${record.repo}/tree/${record.revision}?recursive=true`,
+      ),
+      fetchJson<{ sha: string }>(`https://huggingface.co/api/models/${record.repo}`),
+    ]);
+    const byPath = new Map(tree.filter((e) => e.type === "file").map((e) => [e.path, e]));
+    const files = [];
+    for (const pinned of record.files) {
+      const entry = byPath.get(pinned.path);
+      if (!entry) {
+        drift = true;
+        files.push({ path: pinned.path, status: "missing at pinned revision" });
+        continue;
+      }
+      const bytes = entry.lfs?.size ?? entry.size;
+      const sha256 = await fileSha256(record.repo, record.revision, entry);
+      const matches = bytes === pinned.bytes && sha256 === pinned.sha256;
+      drift ||= !matches;
+      files.push({ path: pinned.path, bytes, sha256, status: matches ? "ok" : "DRIFT" });
+    }
+    const downloadBytes = files.reduce((sum, file) => sum + (file.bytes ?? 0), 0);
+    console.log(
+      JSON.stringify(
+        {
+          modelId: record.modelId,
+          repo: record.repo,
+          revision: {
+            pinned: record.revision,
+            latest: info.sha,
+            moved: info.sha !== record.revision,
+          },
+          dtype: record.dtype,
+          downloadBytes: { registry: record.downloadBytes, probed: downloadBytes },
+          files,
+        },
+        null,
+        2,
+      ),
+    );
+  }
+  return !drift;
 }
 
 if (import.meta.main) {
   const { values } = parseArgs({
     args: process.argv.slice(2),
-    options: { probe: { type: "boolean" }, "lib-commit": { type: "string" } },
+    options: { probe: { type: "boolean" } },
   });
-  if (values.probe) {
-    await probe(values["lib-commit"] ?? LOCAL_AI_LIBS_COMMIT);
-  } else {
-    await ensureLocalAiLibs();
-    console.log(`[local-ai] ${LOCAL_AI_MODELS.length} model libraries verified`);
+  if (!values.probe) {
+    console.error("Usage: bun scripts/fetch-local-ai-assets.ts --probe");
+    process.exit(2);
   }
+  const clean = await probe();
+  console.log(clean ? "Registry matches the pinned revisions." : "DRIFT: update the registry.");
+  process.exit(clean ? 0 : 1);
 }

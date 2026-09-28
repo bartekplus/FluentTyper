@@ -10,7 +10,7 @@ import type { LocalAiModelTier } from "../localAi/modelRegistry";
  *
  * Topology (Chrome/Edge):
  *   options page ──runtime messages──> background (settings/consent authority)
- *   background  <──port LOCAL_AI_HOST_PORT── offscreen document ──> dedicated worker (WebLLM)
+ *   background  <──port LOCAL_AI_HOST_PORT── offscreen document ──> dedicated worker (Transformers.js)
  *   content script ──port LOCAL_AI_REVIEW_PORT──> offscreen document (review jobs)
  *
  * The port IS the session: the offscreen host binds every job to the port it

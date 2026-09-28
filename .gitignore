@@ -11,4 +11,3 @@ scripts/community-oscar
 .worktrees
 .claude
 __pycache__/
-public/local-ai/libs/

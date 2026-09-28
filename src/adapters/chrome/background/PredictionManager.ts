@@ -8,7 +8,6 @@ import {
   type PredictorDebugConfig,
 } from "./PredictionOrchestrator";
 import type {
-  AIPredictorStageDebugInfo,
   PredictionDebugEvent,
   PredictionResult,
   PredictionRunConfig,
@@ -16,9 +15,7 @@ import type {
   PredictorStageDebugInfo,
 } from "./PredictionTypes";
 import libPresageMod from "@third-party/libpresage/libpresage.js";
-import { WebLLMPredictor, type WebLLMPredictorDebugState } from "./WebLLMPredictor";
 import { createLogger } from "@core/application/logging/Logger";
-import { DEFAULT_AI_PREDICTION_TIMEOUT_MS } from "@core/domain/constants";
 import { PredictorError, getErrorMessage } from "@core/domain/error";
 import type { PersonalizationRankingSnapshot } from "@core/domain/personalization/types";
 
@@ -28,10 +25,7 @@ const IS_DEV_BUILD = typeof __FT_DEV_BUILD__ !== "undefined" && Boolean(__FT_DEV
 
 interface PredictionManagerOptions {
   getPersonalizationSnapshot?: () => PersonalizationRankingSnapshot;
-  /**
-   * Development builds only: wire the AI autocomplete experiment and keep
-   * text-bearing debug traces. Production is Presage-only and keeps no text.
-   */
+  /** Development builds only: keep text-bearing debug traces. Production keeps no text. */
   isDevBuild?: boolean;
   /** Presage engine loader; tests pass a fake engine. */
   loadPresage?: () => Promise<PresageModule>;
@@ -67,7 +61,6 @@ export interface PredictorDebugSnapshot {
     presage: {
       languageEngineCount: number;
     };
-    webllm: WebLLMPredictorDebugState;
   };
   traces: PredictorDebugTrace[];
 }
@@ -81,7 +74,6 @@ export class PredictionManager {
   private libPresageMod: () => Promise<PresageModule>;
   private presageHandler: PresageHandler | undefined;
   private predictionOrchestrator: PredictionOrchestrator | undefined;
-  private readonly webLLMPredictor = new WebLLMPredictor();
   private initializationPromise: Promise<void> | null = null;
   private debugTraces: PredictorDebugTrace[] = [];
   private debugTraceById: Map<string, PredictorDebugTrace> = new Map();
@@ -107,11 +99,7 @@ export class PredictionManager {
       this.presageHandler = new PresageHandler(Module, {
         getPersonalizationSnapshot: this.getPersonalizationSnapshot,
       });
-      // Production never routes typing to the AI predictor, whatever is stored.
-      this.predictionOrchestrator = new PredictionOrchestrator(
-        this.presageHandler,
-        this.isDevBuild ? this.webLLMPredictor : undefined,
-      );
+      this.predictionOrchestrator = new PredictionOrchestrator(this.presageHandler);
       if (this.currentConfig) {
         this.predictionOrchestrator.setConfig(this.currentConfig);
       }
@@ -193,9 +181,7 @@ export class PredictionManager {
       ...config,
     };
     logger.info("Applying prediction manager config", {
-      aiPredictorEnabled: config.aiPredictorEnabled,
       debugPresagePredictorEnabled: config.debugPresagePredictorEnabled,
-      debugAIPredictorEnabled: config.debugAIPredictorEnabled,
     });
     if (!this.predictionOrchestrator) {
       throw new PredictorError("Prediction orchestrator not initialized", {
@@ -212,42 +198,20 @@ export class PredictionManager {
   }
 
   getPredictorDebugSnapshot(): PredictorDebugSnapshot {
-    const webllmDebugState = this.webLLMPredictor.getDebugState();
-    if (!this.isDevBuild) {
-      webllmDebugState.lastPredictInput = null;
-      webllmDebugState.lastRawOutputPreview = null;
-    }
     const presageDebugState = this.presageHandler?.getDebugState();
     const orchestratorDebugState = this.predictionOrchestrator?.getDebugState().predictorConfig;
-    const aiPredictorEnabled =
-      orchestratorDebugState?.aiPredictorEnabled ?? this.currentConfig?.aiPredictorEnabled ?? false;
 
     return {
       generatedAtMs: Date.now(),
       config: {
-        aiPredictorEnabled,
-        aiModelId: orchestratorDebugState?.aiModelId ?? this.currentConfig?.aiModelId ?? "",
-        aiPredictionTimeoutMs:
-          orchestratorDebugState?.aiPredictionTimeoutMs ??
-          this.currentConfig?.aiPredictionTimeoutMs ??
-          DEFAULT_AI_PREDICTION_TIMEOUT_MS,
         debugPresagePredictorEnabled:
           orchestratorDebugState?.debugPresagePredictorEnabled ??
           this.currentConfig?.debugPresagePredictorEnabled ??
-          true,
-        debugAIPredictorEnabled:
-          orchestratorDebugState?.debugAIPredictorEnabled ??
-          this.currentConfig?.debugAIPredictorEnabled ??
           true,
       },
       runtime: {
         presage: {
           languageEngineCount: presageDebugState?.languageEngineCount ?? 0,
-        },
-        webllm: {
-          ...webllmDebugState,
-          enabled: aiPredictorEnabled && webllmDebugState.enabled,
-          lastInitProgressLog: webllmDebugState.lastInitProgressLog.slice(),
         },
       },
       traces: this.debugTraces.map((trace) => ({
@@ -256,11 +220,6 @@ export class PredictionManager {
           ...trace.presage,
           predictions: trace.presage.predictions.slice(),
         },
-        webllm: {
-          ...trace.webllm,
-          predictions: trace.webllm.predictions.slice(),
-        },
-        mergedPredictions: trace.mergedPredictions.slice(),
         finalPredictions: trace.finalPredictions.slice(),
         timeline: trace.timeline.map((event) => ({ ...event })),
       })),
@@ -298,8 +257,6 @@ export class PredictionManager {
     Object.assign(trace, {
       ...debugEvent,
       presage: { ...debugEvent.presage, predictions: debugEvent.presage.predictions.slice() },
-      webllm: { ...debugEvent.webllm, predictions: debugEvent.webllm.predictions.slice() },
-      mergedPredictions: debugEvent.mergedPredictions.slice(),
       finalPredictions: debugEvent.finalPredictions.slice(),
     });
 
@@ -376,15 +333,6 @@ export class PredictionManager {
       predictions: [],
       skipReason: undefined,
     };
-    const emptyAIPredictorStage: AIPredictorStageDebugInfo = {
-      enabled: false,
-      attempted: false,
-      durationMs: 0,
-      timedOut: false,
-      predictions: [],
-      skipReason: undefined,
-      modelId: "",
-    };
     return {
       traceId,
       timestampMs: 0,
@@ -396,8 +344,6 @@ export class PredictionManager {
       doPrediction: false,
       totalDurationMs: 0,
       presage: emptyPresageStage,
-      webllm: emptyAIPredictorStage,
-      mergedPredictions: [],
       finalPredictions: [],
       requestId: typeof debugMeta.requestId === "number" ? debugMeta.requestId : null,
       tabId: typeof debugMeta.tabId === "number" ? debugMeta.tabId : null,

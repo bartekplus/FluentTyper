@@ -4,7 +4,13 @@
  * document). Loads one model on WebGPU inside a Worker and runs one short
  * greedy generation. Benchmark-only.
  */
-import { AutoModelForCausalLM, AutoTokenizer, env, type Tensor } from "@huggingface/transformers";
+import {
+  AutoModelForCausalLM,
+  AutoTokenizer,
+  Gemma4ForConditionalGeneration,
+  env,
+  type Tensor,
+} from "@huggingface/transformers";
 
 env.allowLocalModels = false;
 env.useWasmCache = false;
@@ -16,17 +22,19 @@ if (onnxWasm) {
   };
 }
 
-self.onmessage = async (event: MessageEvent<{ repo: string; revision: string }>) => {
-  const { repo, revision } = event.data;
+self.onmessage = async (
+  event: MessageEvent<{ repo: string; revision: string; loader?: string }>,
+) => {
+  const { repo, revision, loader } = event.data;
   try {
     const hasGpu = "gpu" in navigator;
     const t0 = performance.now();
     const tokenizer = await AutoTokenizer.from_pretrained(repo, { revision });
-    const model = await AutoModelForCausalLM.from_pretrained(repo, {
-      revision,
-      dtype: "q4f16",
-      device: "webgpu",
-    });
+    const options = { revision, dtype: "q4f16", device: "webgpu" } as const;
+    const model =
+      loader === "gemma4"
+        ? await Gemma4ForConditionalGeneration.from_pretrained(repo, options)
+        : await AutoModelForCausalLM.from_pretrained(repo, options);
     const loadMs = performance.now() - t0;
     const inputs = tokenizer.apply_chat_template(
       [{ role: "user", content: "Correct the spelling: She dont know." }],

@@ -224,7 +224,6 @@ export class BackgroundServiceWorker {
     this.productivityStatsManager.setSnippetShortcuts(runtimeConfig.textExpansions);
     this.runtimeConfigReady = true;
     logger.info("Broadcasting runtime config update", {
-      aiPredictorEnabled: runtimeConfig.predictionConfig.aiPredictorEnabled,
       observabilityEnabled: runtimeConfig.observabilityConfig?.enabled,
     });
     await this.tabMessenger.sendToAllTabs(

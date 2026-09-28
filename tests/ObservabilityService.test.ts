@@ -5,41 +5,10 @@ import { ObservabilityService } from "../src/adapters/chrome/background/Observab
 function createPredictorSnapshot() {
   return {
     generatedAtMs: 1,
-    config: {
-      aiPredictorEnabled: true,
-      aiModelId: "model",
-      aiPredictionTimeoutMs: 120,
-      debugPresagePredictorEnabled: true,
-      debugAIPredictorEnabled: true,
-    },
-    runtime: {
-      presage: { languageEngineCount: 1 },
-      webllm: {
-        enabled: true,
-        modelId: "model",
-        status: "ready",
-        hasWebGPU: true,
-        initAttemptCount: 1,
-        isGenerating: false,
-        lastFailureAt: null,
-        lastInitStartedAt: null,
-        lastInitDurationMs: null,
-        lastInitProgress: null,
-        lastInitProgressAt: null,
-        lastInitProgressText: null,
-        lastInitError: null,
-        lastInitProgressLog: [],
-        lastPredictAt: null,
-        lastPredictDurationMs: null,
-        lastPredictSource: "none",
-        lastPredictInput: null,
-        lastRawOutputPreview: null,
-        lastPredictOutputCount: 0,
-        lastPredictError: null,
-      },
-    },
+    config: { debugPresagePredictorEnabled: true },
+    runtime: { presage: { languageEngineCount: 1 } },
     traces: [],
-  } as const;
+  };
 }
 
 describe("ObservabilityService", () => {
@@ -74,7 +43,7 @@ describe("ObservabilityService", () => {
     expect(snapshot.predictor).toEqual(
       expect.objectContaining({
         config: expect.objectContaining({
-          aiModelId: "model",
+          debugPresagePredictorEnabled: true,
         }),
       }),
     );
@@ -85,23 +54,7 @@ describe("ObservabilityService", () => {
       isDevBuild: false,
       getPredictorSnapshot: () => ({
         ...createPredictorSnapshot(),
-        config: {
-          ...createPredictorSnapshot().config,
-          aiPredictorEnabled: false,
-          aiModelId: "",
-        },
-        runtime: {
-          ...createPredictorSnapshot().runtime,
-          presage: { languageEngineCount: 0 },
-          webllm: {
-            ...createPredictorSnapshot().runtime.webllm,
-            enabled: false,
-            modelId: "",
-            status: "idle",
-            hasWebGPU: false,
-            initAttemptCount: 0,
-          },
-        },
+        runtime: { presage: { languageEngineCount: 0 } },
       }),
       getAutoLanguageRuntimes: () => [],
     });

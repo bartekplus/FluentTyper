@@ -136,7 +136,11 @@ describe("CoreSettingsRepository", () => {
 describe("LocalAiSettingsRepository", () => {
   const repository = (seed: Record<string, unknown>) =>
     new LocalAiSettingsRepository(createSettingsManagerMock(seed));
-  const consent = { modelId: "Qwen3-4B-q4f16_1-MLC", tier: "standard", at: 1_700_000_000_000 };
+  const consent = {
+    modelId: "gemma-4-E4B-it-onnx-q4f16@843f250f",
+    tier: "standard",
+    at: 1_700_000_000_000,
+  };
 
   test("the preference defaults on; upgrade: an existing explicit false is preserved", async () => {
     await expect(repository({}).getLocalAiReviewEnabled()).resolves.toBe(true);

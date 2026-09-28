@@ -64,7 +64,8 @@ const pct = (num: number, den: number) =>
 export interface ModelSummary {
   modelId: string;
   revision: string;
-  libSha256: string;
+  /** Transformers.js runs: repo@revision/dtype; WebLLM-era runs: model-lib sha256. */
+  artifact: string;
   downloadBytes: number;
   downloadMs: number | null;
   coldLoadMs: number | null;
@@ -96,7 +97,6 @@ export interface ModelSummary {
   cancelMax: number | null;
   promptTokensP50: number | null;
   completionTokensP50: number | null;
-  thinking: ModelRun["thinkingProbe"];
 }
 
 export function summarize(run: ModelRun): ModelSummary {
@@ -151,7 +151,9 @@ export function summarize(run: ModelRun): ModelSummary {
   return {
     modelId: run.modelId,
     revision: run.revision,
-    libSha256: run.libSha256,
+    artifact: run.repo
+      ? `${run.repo}@${run.revision} ${run.dtype ?? ""}`
+      : `lib sha256 ${run.libSha256 ?? "?"}`,
     downloadBytes: run.downloadBytes,
     downloadMs: run.downloadMs,
     coldLoadMs: run.coldLoadMs,
@@ -204,7 +206,6 @@ export function summarize(run: ModelRun): ModelSummary {
       gens.flatMap((g) => (g.usage ? [g.usage.completion_tokens] : [])),
       0.5,
     ),
-    thinking: run.thinkingProbe,
   };
 }
 
@@ -217,7 +218,7 @@ export function modelMarkdown(run: ModelRun, s: ModelSummary): string {
   return [
     `# ${s.modelId}`,
     "",
-    `revision ${s.revision}, lib sha256 ${s.libSha256}, prompt ${String(run.environment.promptVersion)}, ${String(run.environment.browser)}, GPU ${String(run.environment.gpu)}, ${String(run.environment.date)}`,
+    `${s.artifact}, prompt ${String(run.environment.promptVersion)}, ${String(run.environment.browser)}, GPU ${String(run.environment.gpu)}, ${String(run.environment.date)}`,
     "",
     `- Valid responses (correct): ${pct(s.valid, s.correctN)}; rewrite: ${pct(s.rewriteValid, s.rewriteN)}`,
     `- False positives on expected-unchanged: ${pct(s.falsePositivesOnUnchanged, s.unchangedN)} (model proposed a change before validation: ${pct(s.proposedOnUnchanged, s.unchangedN)})`,

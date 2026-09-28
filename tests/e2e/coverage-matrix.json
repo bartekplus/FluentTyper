@@ -47,17 +47,6 @@
       ]
     },
     {
-      "id": "prod_ai_predictor_disabled",
-      "description": "Production predictor debug snapshot reports AI runtime disabled.",
-      "coverage": [
-        {
-          "layer": "e2e-smoke",
-          "file": "tests/e2e/smoke.e2e.test.ts",
-          "test": "reports AI predictor runtime disabled"
-        }
-      ]
-    },
-    {
       "id": "domain_whitelist_exact_host",
       "description": "Domain whitelist enables helper attachment for the exact host.",
       "coverage": [
@@ -122,40 +111,8 @@
       ]
     },
     {
-      "id": "dev_ai_predictor_merge",
-      "description": "Dev runtime merges WebLLM and Presage suggestions.",
-      "coverage": [
-        {
-          "layer": "e2e-full",
-          "file": "tests/e2e/full.e2e.test.ts",
-          "test": "AI predictor merges WebLLM suggestions with Presage in one suggestion list"
-        },
-        {
-          "layer": "unit",
-          "file": "tests/PredictionOrchestrator.test.ts",
-          "test": "handles rejected AI predictions without failing request"
-        }
-      ]
-    },
-    {
-      "id": "dev_ai_predictor_latency_fallback",
-      "description": "Dev runtime falls back when AI predictor exceeds latency budget.",
-      "coverage": [
-        {
-          "layer": "e2e-full",
-          "file": "tests/e2e/full.e2e.test.ts",
-          "test": "AI predictor respects latency budget and falls back to Presage when AI is slow"
-        },
-        {
-          "layer": "unit",
-          "file": "tests/PredictionOrchestrator.test.ts",
-          "test": "falls back when AI timeout interrupt throws"
-        }
-      ]
-    },
-    {
       "id": "dev_predictor_debug_toggle",
-      "description": "Dev predictor debug dashboard toggles runtime predictor flags.",
+      "description": "Dev predictor debug dashboard toggles the Presage route flag.",
       "coverage": [
         {
           "layer": "e2e-full",
@@ -3419,7 +3376,7 @@
     },
     {
       "id": "local_ai_autocomplete_separation",
-      "description": "Typing and popup predictions stay Presage-only in production even with stale legacy AI predictor settings stored; no Local AI host or model request is created.",
+      "description": "Typing and popup predictions stay Presage-only even with stale legacy AI predictor settings stored; no Local AI host or model request is created.",
       "coverage": [
         {
           "layer": "e2e-full",
@@ -3429,12 +3386,12 @@
         {
           "layer": "unit",
           "file": "tests/PredictionOrchestrator.separation.test.ts",
-          "test": "production never calls the AI predictor, whatever is stored"
+          "test": "production debug snapshot carries no typed text"
         },
         {
           "layer": "unit",
           "file": "tests/ConfigAssembler.localAi.test.ts",
-          "test": "production never enables AI autocomplete, even with stale legacy settings"
+          "test": "stale legacy AI predictor settings never reach prediction config"
         }
       ]
     },

@@ -22,8 +22,8 @@ const NOT_SET_UP: LocalAiStatus = {
   enabled: true,
   consented: false,
   tier: "standard",
-  modelId: "Qwen3-4B-q4f16_1-MLC",
-  displayName: "Recommended (Qwen3 4B)",
+  modelId: "gemma-4-E4B-it-onnx-q4f16@843f250f",
+  displayName: "Recommended (Gemma 4 E4B)",
   downloadBytes: 968_001_536,
   install: "none",
   runtime: "download-required",
@@ -156,9 +156,9 @@ describe("Local AI settings section", () => {
 
     expect(sent).toEqual([{ command: CMD_LOCAL_AI_GET_STATUS, context: { probe: true } }]);
     expect(statusText(card)).toContain("Not set up yet");
-    expect(visibleButton(card, "Download and enable (≈ 2.26 GB)")).toBeDefined();
+    expect(visibleButton(card, "Download and enable (≈ 5.2 GB)")).toBeDefined();
     expect(card.textContent).toContain("Hugging Face");
-    expect(card.textContent).toContain("estimated GPU memory");
+    expect(card.textContent).toContain("runs on your GPU while a review is open");
     expect(card.querySelectorAll('input[type="radio"]')).toHaveLength(2);
   });
 
@@ -201,8 +201,8 @@ describe("Local AI settings section", () => {
       CMD_OPTIONS_PAGE_CONFIG_CHANGE,
       CMD_OPTIONS_PAGE_CONFIG_CHANGE,
     ]);
-    expect(statusText(card)).toContain("Compact (Qwen3 1.7B) isn't installed yet");
-    expect(visibleButton(card, "Download and enable (≈ 0.97 GB)")).toBeDefined();
+    expect(statusText(card)).toContain("Compact (Qwen3 4B Instruct 2507) isn't installed yet");
+    expect(visibleButton(card, "Download and enable (≈ 2.9 GB)")).toBeDefined();
   });
 
   test("install needs the inline confirm and sends the selected tier only after it", async () => {
@@ -217,7 +217,7 @@ describe("Local AI settings section", () => {
     expect(localAiCommands()).toEqual([]);
     const confirm = card.querySelector<HTMLElement>(".local-ai-confirm")!;
     expect(confirm.hidden).toBe(false);
-    expect(confirm.textContent).toContain("0.97 GB");
+    expect(confirm.textContent).toContain("2.9 GB");
     expect(confirm.textContent).toContain("huggingface.co");
 
     visibleButton(card, "Not now")!.click();
@@ -241,7 +241,7 @@ describe("Local AI settings section", () => {
     broadcast({ ...NOT_SET_UP, consented: true, install: "partial", runtime: "unconfigured" });
     expect(statusText(card)).toContain("Download incomplete");
     expect(statusText(card)).not.toContain("available offline");
-    expect(visibleButton(card, "Install again (≈ 2.26 GB)")).toBeDefined();
+    expect(visibleButton(card, "Install again (≈ 5.2 GB)")).toBeDefined();
 
     broadcast({ ...NOT_SET_UP, consented: true, install: "complete", runtime: "ready" });
     expect(statusText(card)).toBe("Installed — available offline.");
@@ -279,7 +279,10 @@ describe("Local AI settings section", () => {
     visibleButton(card, "Delete model")!.click();
     await flush();
     expect(localAiCommands()).toEqual([
-      { command: CMD_LOCAL_AI_DELETE_MODEL, context: { modelId: "Qwen3-4B-q4f16_1-MLC" } },
+      {
+        command: CMD_LOCAL_AI_DELETE_MODEL,
+        context: { modelId: "gemma-4-E4B-it-onnx-q4f16@843f250f" },
+      },
     ]);
   });
 

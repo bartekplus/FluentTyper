@@ -8,15 +8,19 @@ import {
   CMD_LOCAL_AI_GET_STATUS,
   CMD_LOCAL_AI_INSTALL,
   CMD_OPTIONS_GET_PREDICTOR_DEBUG_SNAPSHOT,
-  KEY_AI_MODEL_ID,
-  KEY_AI_PREDICTOR_ENABLED,
-  KEY_DEBUG_AI_PREDICTOR_ENABLED,
   KEY_LOCAL_AI_REVIEW_CONSENT,
   KEY_LOCAL_AI_REVIEW_ENABLED,
   KEY_LOCAL_AI_SETUP_OFFER_DISMISSED,
   KEY_MIN_WORD_LENGTH_TO_PREDICT,
 } from "../../src/core/domain/constants";
 import { localAiModelForTier } from "../../src/core/domain/localAi/modelRegistry";
+
+/** Storage keys of the removed dev-only WebLLM autocomplete experiment; stale values are ignored. */
+const LEGACY_AI_PREDICTOR_KEYS = {
+  aiPredictorEnabled: true,
+  debugAiPredictorEnabled: true,
+  aiModelId: "Qwen2.5-0.5B-Instruct-q4f16_1-MLC",
+};
 import type { BackgroundContext, RecordedRequest } from "./e2e-helpers";
 import {
   BROWSER_TYPE,
@@ -190,9 +194,9 @@ describeE2E(`Local AI Review E2E [${BROWSER_TYPE}]`, () => {
   chromeTest(
     "legacy AI predictor settings do not route typing to a model",
     async () => {
-      await setSetting(worker, KEY_AI_PREDICTOR_ENABLED, true);
-      await setSetting(worker, KEY_DEBUG_AI_PREDICTOR_ENABLED, true);
-      await setSetting(worker, KEY_AI_MODEL_ID, localAiModelForTier("standard").modelId);
+      for (const [key, value] of Object.entries(LEGACY_AI_PREDICTOR_KEYS)) {
+        await setSetting(worker, key, value);
+      }
       await setSetting(worker, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
       try {
         page = await openReviewPage();
@@ -213,8 +217,7 @@ describeE2E(`Local AI Review E2E [${BROWSER_TYPE}]`, () => {
             (command) => chrome.runtime.sendMessage({ command, context: {} }),
             CMD_OPTIONS_GET_PREDICTOR_DEBUG_SNAPSHOT,
           );
-          expect(snapshot?.config?.aiPredictorEnabled).toBe(false);
-          expect(snapshot?.runtime?.webllm?.enabled).toBe(false);
+          expect(JSON.stringify(snapshot)).not.toMatch(/aiPredictor|aiModelId|webllm/i);
         } finally {
           await optionsPage.close();
         }
@@ -222,9 +225,9 @@ describeE2E(`Local AI Review E2E [${BROWSER_TYPE}]`, () => {
         expect(await getSetting(worker, KEY_LOCAL_AI_REVIEW_CONSENT)).toBeUndefined();
         expect(outsideRequests()).toEqual([]);
       } finally {
-        await removeSetting(worker, KEY_AI_PREDICTOR_ENABLED);
-        await removeSetting(worker, KEY_DEBUG_AI_PREDICTOR_ENABLED);
-        await removeSetting(worker, KEY_AI_MODEL_ID);
+        for (const key of Object.keys(LEGACY_AI_PREDICTOR_KEYS)) {
+          await removeSetting(worker, key);
+        }
         await removeSetting(worker, KEY_MIN_WORD_LENGTH_TO_PREDICT);
       }
     },

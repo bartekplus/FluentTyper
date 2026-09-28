@@ -22,11 +22,7 @@ describe("ConfigAssembler.assemblePredictionRuntimeConfig prefixOnlyMode", () =>
     timeFormat: "",
     dateFormat: "",
     userDictionaryList: [],
-    aiPredictorEnabled: false,
-    aiModelId: "",
-    aiPredictionTimeoutMs: 120,
     debugPresagePredictorEnabled: true,
-    debugAiPredictorEnabled: true,
     personalizationEnabled: false,
   };
 

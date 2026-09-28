@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from "fs/promises";
+import { appendFile, mkdtemp, rm } from "fs/promises";
 import os from "os";
 import path from "path";
 import { checkLocalAiArtifact } from "../scripts/check-local-ai-artifact";
@@ -28,21 +28,25 @@ describe("Local AI production artifact", () => {
     await rm(tempRoot, { recursive: true, force: true });
   });
 
-  test.each(["chrome", "firefox"])(
-    "%s production build passes the release gate",
-    async (platform) => {
-      const report = await checkLocalAiArtifact(await build(platform, "production"), platform);
-      expect(report.failures).toEqual([]);
-    },
-    60_000,
-  );
+  test("chrome production build passes the release gate; a changed ORT file fails it", async () => {
+    const outDir = await build("chrome", "production");
+    expect((await checkLocalAiArtifact(outDir, "chrome")).failures).toEqual([]);
+
+    await appendFile(path.join(outDir, "local-ai/ort/ort-wasm-simd-threaded.asyncify.wasm"), "x");
+    expect((await checkLocalAiArtifact(outDir, "chrome")).failures.join("\n")).toContain(
+      "does not match its pinned SHA-256",
+    );
+  }, 60_000);
+
+  test("firefox production build passes the release gate (no Local AI runtime)", async () => {
+    const report = await checkLocalAiArtifact(await build("firefox", "production"), "firefox");
+    expect(report.failures).toEqual([]);
+  }, 60_000);
 
   test("the gate rejects a development build (markers are not vacuous)", async () => {
     const report = await checkLocalAiArtifact(await build("chrome", "development"), "chrome");
     const failures = report.failures.join("\n");
     expect(failures).toContain("runtime test hooks");
     expect(failures).toContain("__FT_DEV_BUILD__ = true");
-    expect(failures).toContain("contains the WebLLM engine");
-    expect(failures).toContain("connect-src");
   }, 60_000);
 });

@@ -83,11 +83,7 @@ export const KEY_GRAMMAR_RULES_V3_BACKUP = "grammarRulesV3Backup";
 export const KEY_SUGGESTION_THEME_V1_MIGRATED = "suggestionThemeV1Migrated";
 export const KEY_SUGGESTION_THEME_V2_MIGRATED = "suggestionThemeV2Migrated";
 export const KEY_DOMAIN_LIST_MODE = "domainListMode";
-export const KEY_AI_PREDICTOR_ENABLED = "aiPredictorEnabled";
-export const KEY_AI_MODEL_ID = "aiModelId";
-export const KEY_AI_PREDICTION_TIMEOUT_MS = "aiPredictionTimeoutMs";
 export const KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED = "debugPresagePredictorEnabled";
-export const KEY_DEBUG_AI_PREDICTOR_ENABLED = "debugAiPredictorEnabled";
 export const KEY_OBSERVABILITY_ENABLED = "observabilityEnabled";
 export const KEY_OBSERVABILITY_DEFAULT_LEVEL = "observabilityDefaultLevel";
 export const KEY_OBSERVABILITY_MODULE_OVERRIDES = "observabilityModuleOverrides";
@@ -133,18 +129,7 @@ export const CMD_STATUS_COMMAND = "CMD_STATUS_COMMAND";
 
 export const DEFAULT_NUM_SUGGESTIONS = 5;
 export const MAX_NUM_SUGGESTIONS = 10;
-export const DEFAULT_AI_PREDICTOR_ENABLED = true;
-export const DEFAULT_AI_MODEL_ID = "Qwen2.5-0.5B-Instruct-q4f16_1-MLC";
-export const DEFAULT_AI_PREDICTION_TIMEOUT_MS = 120;
 export const DEFAULT_DEBUG_PRESAGE_PREDICTOR_ENABLED = true;
-export const DEFAULT_DEBUG_AI_PREDICTOR_ENABLED = true;
 export const DEFAULT_OBSERVABILITY_ENABLED = true;
 export const DEFAULT_OBSERVABILITY_DEFAULT_LEVEL = "debug";
 export const DEFAULT_LOCAL_AI_REVIEW_ENABLED = true;
-
-export function clampAIPredictionTimeoutMs(value: unknown): number {
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    return DEFAULT_AI_PREDICTION_TIMEOUT_MS;
-  }
-  return Math.min(2000, Math.max(20, Math.round(value)));
-}

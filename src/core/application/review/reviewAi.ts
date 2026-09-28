@@ -17,7 +17,7 @@ import type { ReviewDiagnostic, ReviewEdit } from "@core/domain/grammar/review/t
  *
  * One provider instance per review session; `dispose` ends it (and cancels
  * everything it started). The adapter behind it owns the transport; the
- * session never sees browser or WebLLM types.
+ * session never sees browser or engine types.
  */
 export interface ReviewAiProvider {
   /** Current status (preference, consent, install, runtime). Never starts a download. */

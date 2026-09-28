@@ -82,13 +82,13 @@ Google Docs support activates on any document edit page when FluentTyper is enab
 
 If you hit an unsupported site, please open a bug report so compatibility can be improved.
 
-## Local AI (WebLLM)
+## Local AI (Transformers.js)
 
-- **Autocomplete** is Presage-only in every store build (Chrome, Firefox, Edge). The AI
-  autocomplete predictor is a developer experiment: dev builds only, off unless switched on.
+- **Autocomplete** is Presage-only in every build (Chrome, Firefox, Edge); no model runs while
+  you type.
 - **Review** can use an optional on-device model on Chrome and Edge (WebGPU). It is set up
-  explicitly under **Settings → Grammar → Local AI**, which shows the download size first;
-  nothing is downloaded before that. The model runs in the extension's own worker, never in
+  explicitly under **Settings → Grammar → Local AI** (Recommended: Gemma 4 E4B; Compact: Qwen3
+  4B Instruct), which shows the download size first; nothing is downloaded before that. The model runs in the extension's own worker, never in
   the page, and never while you type. Firefox keeps the rule-based Review. See
   [docs/review-mode.md](docs/review-mode.md#local-ai-optional) and the design note
   [docs/local-ai-review.md](docs/local-ai-review.md).

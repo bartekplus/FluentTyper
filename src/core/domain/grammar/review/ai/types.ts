@@ -1,7 +1,7 @@
 import type { ReviewDiagnostic, ReviewEdit, TextRange } from "../types";
 
 /**
- * Local AI Review contract (pure; no browser, DOM or WebLLM types).
+ * Local AI Review contract (pure; no browser, DOM or engine types).
  *
  * The model only ever sees editable segment text and read-only context. It
  * returns proposed text per host-assigned segment id; offsets, protection and

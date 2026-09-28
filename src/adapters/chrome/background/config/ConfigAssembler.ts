@@ -1,6 +1,5 @@
 import {
   CMD_BACKGROUND_PAGE_SET_CONFIG,
-  DEFAULT_DEBUG_AI_PREDICTOR_ENABLED,
   DEFAULT_DEBUG_PRESAGE_PREDICTOR_ENABLED,
 } from "@core/domain/constants";
 import type { SettingsManager } from "@core/application/settingsManager";
@@ -155,15 +154,9 @@ export class ConfigAssembler {
         timeFormat,
         dateFormat,
         userDictionaryList,
-        aiPredictorEnabled: this.options.isDevBuild ? predictorSettings.aiPredictorEnabled : false,
-        aiModelId: predictorSettings.aiModelId,
-        aiPredictionTimeoutMs: predictorSettings.aiPredictionTimeoutMs,
         debugPresagePredictorEnabled: this.options.isDevBuild
           ? predictorSettings.debugPresagePredictorEnabled
           : DEFAULT_DEBUG_PRESAGE_PREDICTOR_ENABLED,
-        debugAIPredictorEnabled: this.options.isDevBuild
-          ? predictorSettings.debugAIPredictorEnabled
-          : DEFAULT_DEBUG_AI_PREDICTOR_ENABLED,
       },
     };
   }

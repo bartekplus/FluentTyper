@@ -208,7 +208,6 @@ export function mountLocalAiSettings(anchor: HTMLElement, registry: SettingsRegi
     meta.className = "local-ai-model-meta";
     meta.textContent = formatTranslation("local_ai_model_meta", {
       size: formatGigabytes(model.downloadBytes),
-      memory: formatGigabytes(model.vramEstimateMB * 1_048_576, 1),
     });
     const hint = document.createElement("span");
     hint.className = "local-ai-model-meta";

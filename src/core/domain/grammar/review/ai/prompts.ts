@@ -132,28 +132,6 @@ export function buildAiMessages(request: AiGenerationRequest): AiChatMessage[] {
   ];
 }
 
-/**
- * The response contract as a JSON schema for constrained decoding. WebLLM
- * 0.2.85 fails a bare `json_object` request, so the schema always goes with it.
- * Syntax only: the parser and validator still check every answer.
- */
-export const AI_RESPONSE_SCHEMA = JSON.stringify({
-  type: "object",
-  properties: {
-    segments: {
-      type: "array",
-      items: {
-        type: "object",
-        properties: { id: { type: "string" }, text: { type: "string" } },
-        required: ["id", "text"],
-        additionalProperties: false,
-      },
-    },
-  },
-  required: ["segments"],
-  additionalProperties: false,
-});
-
 /** Upper bound on generated tokens for any request. */
 export const MAX_AI_OUTPUT_TOKENS = 1_536;
 

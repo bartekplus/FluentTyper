@@ -20,12 +20,11 @@ If you change message shapes:
 
 ## Predictor Constraints
 
-- Production autocomplete (popup and inline predictions) is Presage-only in every build. `PredictionManager` wires the legacy WebLLM predictor only in development builds, and `ConfigAssembler` forces `aiPredictorEnabled` off in production whatever is stored.
-- In development builds the AI autocomplete experiment stays off until `aiPredictorEnabled` is explicitly switched on; Local AI Review settings never feed prediction config.
-- Production Chrome/Edge builds MAY include the Local AI Review runtime: `local-ai/offscreen.html` hosting one worker (`local-ai/worker.js`) with the real WebLLM. It is isolated from prediction: only `src/entries/local_ai_offscreen.ts` and `src/entries/local_ai_worker.ts` may import `@mlc-ai/web-llm`, and the build fails if another production bundle contains the engine. Firefox builds ship no Local AI runtime.
+- Autocomplete (popup and inline predictions) is Presage-only in every build, dev and production. Local AI Review settings never feed prediction config; stale legacy AI predictor keys in storage are ignored.
+- Production Chrome/Edge builds MAY include the Local AI Review runtime: `local-ai/offscreen.html` hosting one module worker (`local-ai/worker.js`) with Transformers.js and ONNX Runtime Web. It is isolated from prediction: only `src/entries/local_ai_worker.ts` may import `@huggingface/transformers`, and the build fails if any other bundle contains the engine. WebLLM is not used anywhere. Firefox builds ship no Local AI runtime.
 - `__FT_DEV_BUILD__`, runtime test hooks and text-bearing predictor debug traces stay development-only; including the Local AI runtime never enables them.
-- Model libraries (executable WASM) are packaged under `local-ai/libs/`; production `connect-src` allows only `'self'` and the Hugging Face origins in `LOCAL_AI_DOWNLOAD_ORIGINS` (model data after consent). Check a production build with `bun run check:local-ai:artifact`.
-- Do not make WebLLM required for normal operation, and preserve safe fallbacks when it is unavailable or times out.
+- The ONNX Runtime WASM is packaged under `local-ai/ort/` (pinned SHA-256), and models are data only. `connect-src` allows only `'self'` and the Hugging Face origins in `LOCAL_AI_DOWNLOAD_ORIGINS`, and no `blob:` or remote script source is needed: the worker is single-threaded, ORT's proxy worker is off and `env.useWasmCache` is false. Check a production build with `bun run check:local-ai:artifact`.
+- Do not make Local AI required for normal operation, and keep Review working when it is unavailable.
 
 ## Text Expansions and Dynamic Variables
 

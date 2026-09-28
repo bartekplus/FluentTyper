@@ -1,26 +1,56 @@
 /**
- * Transformers.js benchmark candidates (benchmark-only; nothing here ships).
- * Repos are onnx-community or official exports; revisions are the commits
- * probed on 2026-09-28. `bytes` = the q4f16 ONNX graph + external data files
- * of that revision (tokenizer/config files are small and not included).
+ * Models the benchmark can run. The shipped models come from the product
+ * registry (src/core/domain/localAi/modelRegistry.ts), so the bench loads
+ * exactly the repo/revision/dtype/loader that ships; `TJS_MODELS` below are
+ * extra, benchmark-only candidates (onnx-community or official exports; the
+ * revisions are the commits probed on 2026-09-28). `bytes` = the dtype's ONNX
+ * graph + external data (+ small files for registry models).
  */
-export interface TjsModel {
+import { LOCAL_AI_MODELS } from "../../src/core/domain/localAi/modelRegistry";
+
+export interface BenchModel {
   /** Short id used for --models and result file names. */
   id: string;
   repo: string;
   revision: string;
   dtype: "q4f16" | "q4";
   bytes: number;
-  /** Pass enable_thinking=false to the chat template (templates with a thinking switch: Qwen3, SmolLM3). */
+  /** Pass enable_thinking=false to the chat template (templates with a thinking switch). */
   disableThinking: boolean;
   license: string;
-  /** WebLLM model with the same weights family, for the like-for-like table. */
-  webllm?: string;
+  /**
+   * "gemma4": multimodal export (embed_tokens + decoder + audio/vision encoders),
+   * loaded with Gemma4ForConditionalGeneration and used for text only.
+   */
+  loader?: "causal-lm" | "gemma4";
+  /** Registry models only: every file the product fetches (checked against what the bench fetched). */
+  files?: readonly string[];
 }
 
 const MB = 1e6;
 
-export const TJS_MODELS: readonly TjsModel[] = [
+export const TJS_MODELS: readonly BenchModel[] = [
+  {
+    id: "tjs-gemma-4-E2B-it",
+    repo: "onnx-community/gemma-4-E2B-it-ONNX",
+    revision: "9f4bef82ea6e296bc69f8a2f5939f73af81b07a6",
+    dtype: "q4f16",
+    // decoder + embed_tokens + audio/vision encoders (loaded, unused for text)
+    bytes: (1520 + 1590 + 170 + 100) * MB,
+    disableThinking: true,
+    license: "apache-2.0 (google/gemma-4-E2B-it)",
+    loader: "gemma4",
+  },
+  {
+    id: "tjs-gemma-4-E4B-it",
+    repo: "onnx-community/gemma-4-E4B-it-ONNX",
+    revision: "843f250f23bc91754def1e0f0db390dacd1e6b05",
+    dtype: "q4f16",
+    bytes: (2890 + 2020 + 170 + 100) * MB,
+    disableThinking: true,
+    license: "apache-2.0 (google/gemma-4-E4B-it)",
+    loader: "gemma4",
+  },
   {
     id: "tjs-Qwen3-4B",
     repo: "onnx-community/Qwen3-4B-ONNX",
@@ -29,7 +59,6 @@ export const TJS_MODELS: readonly TjsModel[] = [
     bytes: (59 + 2096 + 677) * MB,
     disableThinking: true,
     license: "apache-2.0 (Qwen/Qwen3-4B)",
-    webllm: "Qwen3-4B-q4f16_1-MLC",
   },
   {
     id: "tjs-Phi-4-mini-instruct",
@@ -39,7 +68,6 @@ export const TJS_MODELS: readonly TjsModel[] = [
     bytes: (26 + 2087 + 438) * MB,
     disableThinking: false,
     license: "mit (microsoft/Phi-4-mini-instruct)",
-    webllm: "Phi-4-mini-instruct-q4f16_1-MLC",
   },
   {
     id: "tjs-Llama-3.2-3B-Instruct",
@@ -49,7 +77,6 @@ export const TJS_MODELS: readonly TjsModel[] = [
     bytes: (2095 + 311) * MB,
     disableThinking: false,
     license: "llama3.2",
-    webllm: "Llama-3.2-3B-Instruct-q4f16_1-MLC",
   },
   {
     id: "tjs-Qwen3-1.7B",
@@ -59,7 +86,6 @@ export const TJS_MODELS: readonly TjsModel[] = [
     bytes: 1426 * MB,
     disableThinking: true,
     license: "apache-2.0 (Qwen/Qwen3-1.7B)",
-    webllm: "Qwen3-1.7B-q4f16_1-MLC",
   },
   {
     id: "tjs-Qwen3-4B-Instruct-2507",
@@ -126,6 +152,25 @@ export const TJS_MODELS: readonly TjsModel[] = [
   },
 ];
 
-export function tjsModel(id: string): TjsModel | undefined {
-  return TJS_MODELS.find((model) => model.id === id);
+/** Registry records as bench models; `--models=standard|compact` or the record's modelId selects one. */
+export const REGISTRY_MODELS: readonly (BenchModel & { tier: string })[] = LOCAL_AI_MODELS.map(
+  (record) => ({
+    id: record.modelId,
+    tier: record.tier,
+    repo: record.repo,
+    revision: record.revision,
+    dtype: record.dtype,
+    bytes: record.downloadBytes,
+    disableThinking: record.disableThinking,
+    license: record.license,
+    loader: record.loader,
+    files: record.files.map((file) => file.path),
+  }),
+);
+
+export function benchModel(id: string): BenchModel | undefined {
+  return (
+    REGISTRY_MODELS.find((model) => model.id === id || model.tier === id) ??
+    TJS_MODELS.find((model) => model.id === id)
+  );
 }

@@ -353,7 +353,7 @@ export class LocalAiHost {
     }
   }
 
-  /** WebLLM cannot abort a download, so a running install tears the worker down. */
+  /** A running install is cancelled by tearing the worker down (downloads stop with it). */
   private cancelInstall(): void {
     if (!this.installing) {
       return;

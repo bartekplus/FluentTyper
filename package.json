@@ -12,7 +12,7 @@
     "bench:local-ai": "bun scripts/local-ai-bench/run.ts",
     "bench:local-ai:report": "bun scripts/local-ai-bench/report.ts",
     "test:local-ai:real": "bun scripts/local-ai-e2e-real.ts",
-    "fetch:local-ai": "bun scripts/fetch-local-ai-assets.ts",
+    "probe:local-ai": "bun scripts/fetch-local-ai-assets.ts --probe",
     "lint": "oxlint --type-aware --deny-warnings --report-unused-disable-directives .",
     "typecheck": "bun tsc --noEmit",
     "test": "bun scripts/run-unit-tests.ts",
@@ -43,7 +43,6 @@
   },
   "homepage": "https://github.com/bartekplus/FluentTyper#readme",
   "devDependencies": {
-    "@huggingface/transformers": "4.3.0",
     "@lexical/rich-text": "^0.51.0",
     "@types/chrome": "^0.3.0",
     "@types/luxon": "^3.7.5",
@@ -58,7 +57,7 @@
     "typescript": "7.0.2"
   },
   "dependencies": {
-    "@mlc-ai/web-llm": "^0.2.85",
+    "@huggingface/transformers": "4.3.0",
     "buffer": "^6.0.3",
     "csv-parse": "^7.0.2",
     "csv-stringify": "^6.8.3",
