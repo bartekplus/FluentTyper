@@ -116,7 +116,7 @@ const DEFAULT_HANDLERS: Record<WorkerCall["type"], Handler> = {
 
 function makeHost(
   handlers: Partial<Record<WorkerCall["type"], Handler>> = {},
-  options: { configure?: boolean; idleMs?: number } = {},
+  options: { configure?: boolean; idleMs?: number; loadTimeoutMs?: number } = {},
 ) {
   const background = new FakePort(LOCAL_AI_HOST_PORT);
   const workers: FakeWorker[] = [];
@@ -134,6 +134,7 @@ function makeHost(
     idleMs: options.idleMs ?? 10_000,
     cancelSettleMs: 20,
     jobTimeoutMs: 5_000,
+    loadTimeoutMs: options.loadTimeoutMs ?? 5_000,
   });
   host.start();
   if (options.configure !== false) {
@@ -336,6 +337,20 @@ describe("LocalAiHost lifecycle", () => {
     await flush(5);
     expect(workers).toHaveLength(2);
     expect(workers[1].calls.map((call) => call.type)).toContain("load");
+  });
+
+  test("a model load that never finishes tears the worker down and answers the job", async () => {
+    const { review, workers } = makeHost(
+      { load: () => new Promise(() => undefined) },
+      { loadTimeoutMs: 30 },
+    );
+    const port = review();
+    await flush();
+    port.emit({ type: "generate", requestId: "r1", request: request("x") });
+    await flush(60);
+    expect(workers[0].terminated).toBe(true);
+    expect(port.results()).toHaveLength(1);
+    expect(port.results()[0]).toMatchObject({ outcome: { ok: false } });
   });
 
   test("a generation that settles after interrupt keeps the worker", async () => {

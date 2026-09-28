@@ -58,11 +58,15 @@ export interface LocalAiHostOptions {
   cancelSettleMs?: number;
   /** Upper bound on one generation before it is interrupted as a timeout. */
   jobTimeoutMs?: number;
+  /** Upper bound on loading a cached model into the GPU; a hung load tears the worker down. */
+  loadTimeoutMs?: number;
 }
 
 const DEFAULT_IDLE_MS = 5 * 60_000;
 const DEFAULT_CANCEL_SETTLE_MS = 3_000;
 const DEFAULT_JOB_TIMEOUT_MS = 60_000;
+// Generous: a cold load of the larger model from disk on a slow GPU; never an unbounded wait.
+const DEFAULT_LOAD_TIMEOUT_MS = 180_000;
 const MAX_REVIEW_PORTS = 32;
 const MAX_REQUEST_ID_LENGTH = 64;
 /** Automatic worker recreations after a crash/device loss before staying in `error`. */
@@ -126,6 +130,7 @@ export class LocalAiHost {
   private readonly idleMs: number;
   private readonly cancelSettleMs: number;
   private readonly jobTimeoutMs: number;
+  private readonly loadTimeoutMs: number;
 
   constructor(private readonly options: LocalAiHostOptions) {
     this.worker = new WorkerClient(
@@ -136,6 +141,7 @@ export class LocalAiHost {
     this.idleMs = options.idleMs ?? DEFAULT_IDLE_MS;
     this.cancelSettleMs = options.cancelSettleMs ?? DEFAULT_CANCEL_SETTLE_MS;
     this.jobTimeoutMs = options.jobTimeoutMs ?? DEFAULT_JOB_TIMEOUT_MS;
+    this.loadTimeoutMs = options.loadTimeoutMs ?? DEFAULT_LOAD_TIMEOUT_MS;
   }
 
   /** Connects to the background, which answers with `configure`. */
@@ -609,12 +615,16 @@ export class LocalAiHost {
       this.publish();
       this.notify(job, "loading");
       let result: WorkerLoadResult;
+      // Terminating the worker rejects the pending load, so the queue never waits forever.
+      const loadTimer = setTimeout(() => this.teardownWorker(), this.loadTimeoutMs);
       try {
         result = await this.worker.call({ type: "load", modelId }, (_phase, progress) =>
           this.setProgress(progress),
         );
       } catch {
         result = { ok: false, error: "load-failed" };
+      } finally {
+        clearTimeout(loadTimer);
       }
       this.activity = "idle";
       this.progress = undefined;
