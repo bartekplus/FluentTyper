@@ -831,6 +831,20 @@ describe("in-field review button", () => {
     expect(document.querySelector("[data-fluenttyper-review-launcher]")).toBeNull();
   });
 
+  test("follows a UI language change while the page stays open", () => {
+    const field = sized(textarea("We saw teh cat."));
+    let language = "en";
+    const { instance } = launcher({ uiLanguage: () => language });
+    focusIn(field);
+    expect(launcherButton()!.getAttribute("aria-label")).toBe("Review this text (FluentTyper)");
+
+    language = "de_DE";
+    instance.refresh();
+
+    expect(launcherButton()!.getAttribute("aria-label")).toBe("Diesen Text prüfen (FluentTyper)");
+    instance.dispose();
+  });
+
   test("hidden without text, while typing, during its review, and when turned off", async () => {
     const field = sized(textarea(""));
     let reviewed: HTMLElement | null = null;

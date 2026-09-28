@@ -36,7 +36,8 @@ export interface ReviewControllerDependencies {
   onActiveChange?(): void;
   /** The Google Docs adapter when this page is a Docs editor. */
   getDocsSurface(): GoogleDocsReviewSurface | null;
-  uiLanguage?: string;
+  /** UI locale, or a lookup read on each use so a settings change applies at once. */
+  uiLanguage?: string | (() => string);
 }
 
 type HighlightRegistry = Map<string, unknown>;
@@ -118,7 +119,8 @@ export class ReviewController {
   }
 
   private get lang(): string {
-    return this.deps.uiLanguage ?? navigator.language;
+    const uiLanguage = this.deps.uiLanguage;
+    return (typeof uiLanguage === "function" ? uiLanguage() : uiLanguage) ?? navigator.language;
   }
 
   /** Starts (or focuses) a review of the focused editor or its selection. */

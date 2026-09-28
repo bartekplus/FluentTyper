@@ -1,11 +1,13 @@
 import { TextTargetAdapter } from "./TextTargetAdapter";
 import {
+  SUGGESTION_MENU_LAYOUT_ATTR,
   SUGGESTION_MENU_PLACEMENT_ATTR,
   SUGGESTION_MENU_PLACEMENT_LINE_ATTR,
 } from "./SuggestionMenuHost";
 import { MIRROR_LAYOUT_PROPERTIES } from "./InlineSuggestionView";
 import {
   NEUTRAL_THEME_SCALE,
+  SUGGESTION_POPUP_MAX_WIDTH_PX,
   THEME_SCALE_REFERENCES,
   computeSuggestionPopupStyleVars,
   themeScaleFor,
@@ -22,7 +24,6 @@ interface MenuCoordinates {
   left: number;
   top: number;
   maxHeight: number;
-  maxWidth: number;
 }
 
 type ThemeLengthProperty = "font-size" | "padding-top" | "padding-left";
@@ -72,6 +73,17 @@ export class SuggestionPositioningService {
       return false;
     }
 
+    // The host's inline \`all: initial\` overrides the stylesheet's :host caps, so
+    // the layout's cap goes inline, before the menu is measured under it.
+    const cap =
+      menu.getAttribute(SUGGESTION_MENU_LAYOUT_ATTR) === "horizontal"
+        ? SUGGESTION_POPUP_MAX_WIDTH_PX.row
+        : SUGGESTION_POPUP_MAX_WIDTH_PX.list;
+    const maxWidth = Math.max(
+      1,
+      Math.min(cap, window.innerWidth - SuggestionPositioningService.VIEWPORT_PADDING_PX * 2),
+    );
+    menu.style.setProperty("max-width", `${maxWidth}px`, "important");
     const coordinates = this.getMenuCoordinatesForRect(menu, rect, elem);
 
     menu.style.setProperty("position", "fixed", "important");
@@ -80,7 +92,6 @@ export class SuggestionPositioningService {
     menu.style.setProperty("right", "auto", "important");
     menu.style.setProperty("bottom", "auto", "important");
     menu.style.setProperty("max-height", `${coordinates.maxHeight}px`, "important");
-    menu.style.setProperty("max-width", `${coordinates.maxWidth}px`, "important");
     menu.style.setProperty("z-index", "2147483647", "important");
     return true;
   }
@@ -262,7 +273,6 @@ export class SuggestionPositioningService {
       left,
       top,
       maxHeight,
-      maxWidth: Math.max(1, window.innerWidth - viewportPadding * 2),
     };
   }
 

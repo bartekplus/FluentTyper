@@ -211,7 +211,7 @@ export class ContentRuntimeController {
 
   private createReviewController(): ReviewController {
     return new ReviewController({
-      uiLanguage: this.uiLanguage(),
+      uiLanguage: () => this.uiLanguage(),
       getOptions: () => ({
         lang: this.config.lang,
         // Every rule review supports, whatever is switched on for typing; none in code mode.
@@ -344,7 +344,7 @@ export class ContentRuntimeController {
       return;
     }
     this.reviewLauncher = new ReviewLauncher(document, {
-      uiLanguage: this.uiLanguage(),
+      uiLanguage: () => this.uiLanguage(),
       isEnabled: () =>
         this.enabled &&
         this.config.showReviewButton !== false &&

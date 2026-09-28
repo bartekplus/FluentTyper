@@ -1,3 +1,4 @@
+import { SUGGESTION_POPUP_MAX_WIDTH_PX } from "./metrics";
 import { SUGGESTION_POPUP_ACCENT } from "./palette";
 import {
   SUGGESTION_POPUP_FONT_FAMILY,
@@ -103,7 +104,7 @@ ${LIGHT_PALETTE}  --ft-font-family: ${SUGGESTION_POPUP_FONT_FAMILY};
   left: 0;
   z-index: 2147483647;
   display: none;
-  max-width: min(460px, calc(100vw - 16px));
+  max-width: min(${SUGGESTION_POPUP_MAX_WIDTH_PX.list}px, calc(100vw - 16px));
   max-height: calc(100vh - 16px);
   pointer-events: none;
   color-scheme: light dark;
@@ -377,7 +378,7 @@ ${DARK_PALETTE}
 }
 
 :host([data-ft-layout="horizontal"]) {
-  max-width: min(640px, calc(100vw - 16px));
+  max-width: min(${SUGGESTION_POPUP_MAX_WIDTH_PX.row}px, calc(100vw - 16px));
 }
 
 :host([data-ft-layout="horizontal"]) .ft-suggestion-panel {

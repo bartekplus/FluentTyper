@@ -8,6 +8,9 @@ import {
   SUGGESTION_POPUP_WORD_SPACING,
 } from "./typography";
 
+/** The popup's widest size per layout (never wider than the viewport allows). */
+export const SUGGESTION_POPUP_MAX_WIDTH_PX = { list: 460, row: 640 } as const;
+
 /** How much the user's Appearance sizes scale the popup; 1 is the default size. */
 export interface SuggestionPopupThemeScale {
   fontSize: number;

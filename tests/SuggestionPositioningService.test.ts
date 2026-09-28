@@ -71,6 +71,11 @@ describe("SuggestionPositioningService", () => {
     expect(positioned).toBe(true);
     expect(menu.style.position).toBe("fixed");
     expect(menu.style.zIndex).toBe("2147483647");
+    // Capped per layout, inline (the host's \`all: initial\` beats :host rules).
+    expect(menu.style.maxWidth).toBe("460px");
+    menu.setAttribute("data-ft-layout", "horizontal");
+    service.positionMenu(menu, target);
+    expect(menu.style.maxWidth).toBe("640px");
   });
 
   test("keeps the side of the caret line while the list grows or shrinks", () => {
