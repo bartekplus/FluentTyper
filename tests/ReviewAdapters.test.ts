@@ -967,6 +967,25 @@ describe("review controller lifecycle", () => {
 
   const root = () => document.querySelector("[data-fluenttyper-review]")?.shadowRoot ?? null;
 
+  test("an open notice switches to a new UI language", () => {
+    (document.activeElement as HTMLElement | null)?.blur?.();
+    let language = "en";
+    const { review } = controller(() => language);
+    review.invoke();
+    expect(root()!.querySelector(".status")?.textContent).toBe(
+      "Click into a text field, then start the review.",
+    );
+
+    language = "de_DE";
+    review.handleOptionsChanged();
+
+    expect(root()!.querySelector(".status")?.textContent).toBe(
+      "Klicken Sie in ein Textfeld und starten Sie dann die Prüfung.",
+    );
+    expect(document.querySelectorAll("[data-fluenttyper-review]")).toHaveLength(1);
+    review.dispose();
+  });
+
   test("an open review switches to a new UI language, keeping its findings", async () => {
     const field = textarea("We saw teh cat.");
     let language = "en";

@@ -45,6 +45,9 @@ describe("SuggestionMenuView", () => {
       expect(menu.getAttribute("data-ft-suggestion-owned")).toBe("true");
       expect(menu.getAttribute("data-ft-suggestion-role")).toBe("menu");
       expect(list.getRootNode()).toBe(document);
+      // List and footer share a flex column, so the footer can go above a bottom-up list.
+      expect(list.parentElement?.classList.contains("ft-suggestion-fallback-panel")).toBe(true);
+      expect(SuggestionMenuView.resolveFooter(menu)?.parentElement).toBe(list.parentElement);
       expect(menu.shadowRoot).toBeNull();
     } finally {
       Object.defineProperty(HTMLElement.prototype, "attachShadow", {
@@ -64,6 +67,9 @@ describe("SuggestionMenuView", () => {
       /\[data-ft-placement="above"\]:not\(\s*\[data-ft-layout="horizontal"\]\s*\)\s+ul\s*\{\s*flex-direction:\s*column-reverse/,
     );
     expect(css).toMatch(/\[data-ft-layout="horizontal"\]\s+ul\s*\{\s*flex-direction:\s*row/);
+    expect(css).toMatch(
+      /\[data-ft-placement="above"\]\s+\.ft-suggestion-footer:not\(\[hidden\]\)\s*\{\s*order:\s*-1/,
+    );
     // The readable accents computed for the user's theme, as in the shadow popup.
     expect(css).toContain("var(--ft-theme-suggestion-accent-light");
     expect(css).toContain("--ft-theme-suggestion-highlight-accent-dark");

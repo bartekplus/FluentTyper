@@ -68,17 +68,25 @@ export function suggestionLanguageLabel(languageName: string): string {
   return `Lang: ${languageName}`;
 }
 
-/** Key hints, and the prediction language at the end of the same line. */
+/** Id of the prediction language in the footer; the listbox is described by it. */
+export const SUGGESTION_POPUP_LANGUAGE_ID = "ft-suggestion-lang";
+
+/**
+ * Key hints, and the prediction language at the end of the same line. The hints
+ * only repeat keys, so assistive technology skips them; the language is read.
+ */
 export function buildSuggestionFooterHtml(
   hints: SuggestionKeyHint[],
   language: string | null,
 ): string {
   const items = hints.map(
     ({ keys, label }) =>
-      `<span class="ft-suggestion-hint"><kbd>${escapeHtml(keys)}</kbd> ${escapeHtml(label)}</span>`,
+      `<span class="ft-suggestion-hint" aria-hidden="true"><kbd>${escapeHtml(keys)}</kbd> ${escapeHtml(label)}</span>`,
   );
   if (language) {
-    items.push(`<span class="ft-suggestion-lang">${escapeHtml(language)}</span>`);
+    items.push(
+      `<span class="ft-suggestion-lang" id="${SUGGESTION_POPUP_LANGUAGE_ID}">${escapeHtml(language)}</span>`,
+    );
   }
   return items.join("");
 }
@@ -109,9 +117,10 @@ export function buildSuggestionPanelHtml(args: {
     })}</li>`;
   });
   const footer = buildSuggestionFooterHtml(args.hints, args.language);
-  return `<div class="${SUGGESTION_POPUP_CLASS.panel} ${SUGGESTION_POPUP_CLASS.container}" part="panel" role="listbox"><ul class="${SUGGESTION_POPUP_CLASS.list}" part="list">${rows.join(
+  const describedBy = args.language ? ` aria-describedby="${SUGGESTION_POPUP_LANGUAGE_ID}"` : "";
+  return `<div class="${SUGGESTION_POPUP_CLASS.panel} ${SUGGESTION_POPUP_CLASS.container}" part="panel" role="listbox"${describedBy}><ul class="${SUGGESTION_POPUP_CLASS.list}" part="list">${rows.join(
     "",
-  )}</ul><div class="${SUGGESTION_POPUP_CLASS.footer}" part="footer" aria-hidden="true"${
+  )}</ul><div class="${SUGGESTION_POPUP_CLASS.footer}" part="footer"${
     footer ? "" : " hidden"
   }>${footer}</div></div>`;
 }

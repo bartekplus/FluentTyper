@@ -15,6 +15,7 @@ export class SuggestionMenuView {
   static readonly PANEL_CLASS = SUGGESTION_POPUP_CLASS.panel;
   static readonly LIST_CLASS = SUGGESTION_POPUP_CLASS.list;
   static readonly FOOTER_CLASS = SUGGESTION_POPUP_CLASS.footer;
+  static readonly FALLBACK_PANEL_CLASS = "ft-suggestion-fallback-panel";
 
   static resolveHostId(entryId: number | string): string {
     return resolveSuggestionMenuHostId(entryId);
@@ -43,8 +44,11 @@ export class SuggestionMenuView {
       menu.setAttribute(SuggestionMenuView.ROLE_ATTR, SuggestionMenuView.MENU_ROLE);
       list = doc.createElement("ul");
       list.className = SuggestionMenuView.LIST_CLASS;
-      menu.appendChild(list);
-      menu.appendChild(this.createFooter(doc));
+      // A flex column (see suggestions.css), so the footer can go above a bottom-up list.
+      const panel = doc.createElement("div");
+      panel.className = SuggestionMenuView.FALLBACK_PANEL_CLASS;
+      panel.append(list, this.createFooter(doc));
+      menu.appendChild(panel);
     }
 
     container.appendChild(menu);
@@ -89,12 +93,11 @@ export class SuggestionMenuView {
     return panel;
   }
 
-  /** Key hints and the language under the list; decorative, the keys work without it. */
+  /** Key hints (hidden from assistive technology) and the prediction language. */
   private static createFooter(doc: Document): HTMLDivElement {
     const footer = doc.createElement("div");
     footer.className = SuggestionMenuView.FOOTER_CLASS;
     footer.setAttribute("part", "footer");
-    footer.setAttribute("aria-hidden", "true");
     footer.hidden = true;
     return footer;
   }

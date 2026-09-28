@@ -98,6 +98,22 @@
   max-width: 240px !important;
 }
 
+.ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"]
+  .ft-suggestion-fallback-panel {
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+/* Above the caret the key hints go on top, so the first suggestion stays next to it. */
+.ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"][data-ft-placement="above"]
+  .ft-suggestion-footer:not([hidden]) {
+  order: -1 !important;
+  margin: 0 0 4px !important;
+  padding: 4px 8px 8px !important;
+  border-top: 0 !important;
+  border-bottom: 1px solid var(--ft-border) !important;
+}
+
 /* --- Row: [number] label [detail] --- */
 .ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"] li {
   display: flex !important;

@@ -30,6 +30,12 @@ describe("SuggestionMenuPresenter", () => {
     const footer = SuggestionMenuView.resolveFooter(menu);
     expect(footer?.hidden).toBe(false);
     expect(footer?.querySelector(".ft-suggestion-lang")?.textContent).toBe("Lang: English");
+    // Screen readers get the language (it describes the listbox), not the key hints.
+    expect(footer?.getAttribute("aria-hidden")).toBeNull();
+    const panel = SuggestionMenuView.resolvePanel(menu);
+    expect(panel.getAttribute("aria-describedby")).toBe(
+      footer?.querySelector(".ft-suggestion-lang")?.id,
+    );
     expect(list.querySelectorAll("li").length).toBe(2);
     // Each item resolves its own base direction (Arabic with trailing digits in an LTR page).
     expect(
@@ -129,6 +135,11 @@ describe("SuggestionMenuPresenter", () => {
 
     presenter.render({ ...model, acceptKeys: ["Tab", "⏎"] });
     expect(footer().hidden).toBe(false);
+    expect(
+      Array.from(footer().querySelectorAll(".ft-suggestion-hint"), (hint) =>
+        hint.getAttribute("aria-hidden"),
+      ),
+    ).toEqual(["true", "true", "true", "true"]);
     expect(Array.from(footer().querySelectorAll("kbd"), (kbd) => kbd.textContent)).toEqual([
       "↑↓",
       "Tab ⏎",

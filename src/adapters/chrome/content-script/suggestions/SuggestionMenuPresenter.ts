@@ -5,6 +5,7 @@ import { SuggestionPositioningService } from "./SuggestionPositioningService";
 import { SuggestionMenuView } from "./SuggestionMenuView";
 import { buildSuggestionKeyHints } from "@core/domain/suggestionPopup/keyHints";
 import {
+  SUGGESTION_POPUP_LANGUAGE_ID,
   buildSuggestionFooterHtml,
   buildSuggestionRowHtml,
   formatShortcutDigit,
@@ -147,5 +148,12 @@ export class SuggestionMenuPresenter {
       : [];
     footer.innerHTML = buildSuggestionFooterHtml(hints, model.menuHeader);
     footer.hidden = footer.childElementCount === 0;
+    // The listbox is described by the prediction language, when shown.
+    const panel = SuggestionMenuView.resolvePanel(model.menu);
+    if (model.menuHeader) {
+      panel.setAttribute("aria-describedby", SUGGESTION_POPUP_LANGUAGE_ID);
+    } else {
+      panel.removeAttribute("aria-describedby");
+    }
   }
 }

@@ -104,6 +104,9 @@ export class ReviewController {
   private active: ActiveReview | null = null;
   private notice: ReviewUi | null = null;
   private noticeReturnFocus: HTMLElement | null = null;
+  /** What the open notice says, and in which UI language it was built. */
+  private noticeKey: ReviewTextKey | null = null;
+  private noticeLanguage: string | null = null;
   private startToken = 0;
   private docsStarting = false;
   // Where the last press on the reviewed editor started.
@@ -374,6 +377,9 @@ export class ReviewController {
   }
 
   handleOptionsChanged(): void {
+    if (this.notice && this.noticeKey && this.noticeLanguage !== this.lang) {
+      this.rebuildNotice(this.notice, this.noticeKey);
+    }
     const active = this.active;
     if (!active) return;
     active.session.updateOptions(this.deps.getOptions());
@@ -750,18 +756,32 @@ export class ReviewController {
   /** Explains why nothing could be reviewed; closes itself on Escape or its button. */
   private showNotice(key: ReviewTextKey): void {
     const focused = getDeepActiveElement(document) as HTMLElement | null;
+    this.notice = this.createNotice(key, focused ?? document.activeElement);
+    this.noticeReturnFocus = focused;
+    this.notice.focusPanel();
+  }
+
+  /** The open notice in the current UI language, same message and return focus. */
+  private rebuildNotice(previous: ReviewUi, key: ReviewTextKey): void {
+    const hadFocus = previous.hasFocus();
+    previous.destroy();
+    this.notice = this.createNotice(key, this.noticeReturnFocus ?? document.activeElement);
+    if (hadFocus) this.notice.focusPanel();
+  }
+
+  private createNotice(key: ReviewTextKey, mountFrom: Element | null): ReviewUi {
     const ui = new ReviewUi(
       document,
       this.lang,
       { ...NOTICE_CALLBACKS, close: () => this.dismissNotice() },
       [],
       // In a modal dialog (a password field in a sign-in dialog), outside it is inert.
-      reviewMountFor(focused ?? document.activeElement),
+      reviewMountFor(mountFrom),
     );
     ui.showMessage(reviewText(key, this.lang));
-    this.notice = ui;
-    this.noticeReturnFocus = focused;
-    ui.focusPanel();
+    this.noticeKey = key;
+    this.noticeLanguage = this.lang;
+    return ui;
   }
 
   private dismissNotice(): void {
@@ -771,6 +791,8 @@ export class ReviewController {
     notice.destroy();
     this.notice = null;
     this.noticeReturnFocus = null;
+    this.noticeKey = null;
+    this.noticeLanguage = null;
     if (returnFocus?.isConnected) returnFocus.focus?.({ preventScroll: true });
   }
 
