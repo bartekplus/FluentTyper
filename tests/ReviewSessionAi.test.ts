@@ -464,6 +464,29 @@ describe("ReviewSession with Local AI: Correct", () => {
     }
   });
 
+  test("with auto-detect, the language is identified again when the text changes", async () => {
+    const seen: string[] = [];
+    const h = harness(TEXT, {
+      lang: "auto_detect",
+      deps: {
+        detectLanguage: async (text) => {
+          seen.push(text);
+          return text.startsWith("Nous") ? "fr" : "en";
+        },
+      },
+    });
+    await h.start();
+    await h.settle();
+    expect(h.last().ai.availability).toBe("ready");
+    const requests = h.ai.requests.length;
+    h.editor.text = "Nous avons vu teh chat.";
+    h.session.notifySourceChanged();
+    await h.settle();
+    expect(seen).toHaveLength(2);
+    expect(h.last().ai.availability).toBe("language");
+    expect(h.ai.requests).toHaveLength(requests);
+  });
+
   test("a language identified for text that has since changed is discarded", async () => {
     const answers: Array<(lang: string) => void> = [];
     const h = harness("Wir sahen teh Katze.", {

@@ -365,9 +365,12 @@ export class ReviewSession {
   private mode: ReviewMode = "correct";
   private aiEnabled = true;
   private aiPaused = false;
-  /** With "auto_detect": the reviewed text's language (null: not identified yet). */
-  private detectedLang: string | null = null;
-  private detecting = false;
+  /** With "auto_detect": the language identified for one reviewed snapshot. */
+  private detected: { prepared: PreparedReview; lang: string } | null = null;
+  /** The snapshot whose language is being identified, if any. */
+  private detectingFor: PreparedReview | null = null;
+  /** Generate was pressed while the text's language was being identified. */
+  private generateAfterIdentify = false;
   private aiStatus: LocalAiStatus | null = null;
   // The setup offer was answered in this review (opened or declined).
   private aiOfferAnswered = false;
@@ -676,10 +679,14 @@ export class ReviewSession {
       this.status !== "ready" ||
       rewrite.status === "generating" ||
       rewrite.status === "applying" ||
-      this.detecting ||
       // Pause stops automatic checking; an explicit Generate still works.
       (this.aiAvailability() !== "ready" && this.aiAvailability() !== "paused")
     ) {
+      return;
+    }
+    if (this.identifyLanguage(prepared)) {
+      // Runs once the text's language is known (a few milliseconds).
+      this.generateAfterIdentify = true;
       return;
     }
     void this.runRewrite(ai, prepared, this.generation);
@@ -1201,31 +1208,41 @@ export class ReviewSession {
 
   /**
    * The language Local AI works in: the setting, or with "auto_detect" the language
-   * identified in this review's text. Unidentifiable text counts as not English.
-   * ponytail: identified once per review; re-identify on text change if mixed-language
-   * editing turns out to matter.
+   * identified for the text being reviewed now (re-identified whenever it changes).
+   * Pending: "auto_detect" (AI waits); without a detector, or unidentifiable: not English.
    */
   private aiLang(): string {
     if (this.options.lang !== AUTO_DETECT) return this.options.lang;
-    return this.detecting ? AUTO_DETECT : (this.detectedLang ?? "und");
+    if (!this.deps.detectLanguage) return "und";
+    return this.detected && this.detected.prepared === this.prepared
+      ? this.detected.lang
+      : AUTO_DETECT;
   }
 
-  /** With "auto_detect", identifies the reviewed text's language once, then starts AI. */
+  /**
+   * With "auto_detect", identifies the language of `prepared` unless known. True while
+   * that is pending (AI waits and starts, or Generate runs, once it lands).
+   */
   private identifyLanguage(prepared: PreparedReview): boolean {
-    if (this.options.lang !== AUTO_DETECT || this.detectedLang !== null) return false;
-    if (this.detecting) return true;
     const detect = this.deps.detectLanguage;
-    if (!detect) return false;
-    this.detecting = true;
+    if (this.options.lang !== AUTO_DETECT || !detect || this.detected?.prepared === prepared) {
+      return false;
+    }
+    if (this.detectingFor === prepared) return true;
+    this.detectingFor = prepared;
     const { text, scope } = prepared.snapshot;
     void detect(text.slice(scope.start, Math.min(scope.end, scope.start + 4000)))
       .catch(() => null)
       .then((lang) => {
-        this.detecting = false;
-        if (this.isClosed) return;
-        // The text changed while identifying: the new text is identified instead.
-        if (this.prepared === prepared) this.detectedLang = lang ?? "und";
+        if (this.detectingFor === prepared) this.detectingFor = null;
+        // A result for text that has since changed is dropped: the new text gets its own.
+        if (this.isClosed || this.prepared !== prepared) return;
+        this.detected = { prepared, lang: lang ?? "und" };
         this.startAi();
+        if (this.generateAfterIdentify) {
+          this.generateAfterIdentify = false;
+          this.generateRewrite();
+        }
         this.emit();
       });
     return true;

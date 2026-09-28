@@ -1,5 +1,6 @@
 import type { LocalAiErrorCode, LocalAiUnavailableReason } from "@core/domain/contracts/localAi";
 import {
+  LOCAL_AI_MODELS,
   localAiModelById,
   localAiModelFileUrl,
   type LocalAiModelRecord,
@@ -86,6 +87,8 @@ export interface EngineDeps {
   guard: NetworkGuard;
   /** Registry lookup (tests use tiny synthetic records). */
   findModel?: (modelId: unknown) => LocalAiModelRecord | null;
+  /** The registry's records (tests use tiny synthetic ones). */
+  models?: readonly LocalAiModelRecord[];
   /** Upper bound on one `dispose()`; a hung one is abandoned (tests shorten it). */
   disposeTimeoutMs?: number;
 }
@@ -347,7 +350,12 @@ export class LocalAiEngine {
   /** Removes every other model's cached files (other tiers, dropped revisions). */
   async deleteAllExcept(modelId: string): Promise<void> {
     const record = this.findModel(modelId);
-    if (record) await deleteModelArtifactsExcept(this.deps.caches, record);
+    if (record) await deleteModelArtifactsExcept(this.deps.caches, [record]);
+  }
+
+  /** Removes cached revisions a release dropped from the registry (no consent needed). */
+  async deleteDropped(): Promise<void> {
+    await deleteModelArtifactsExcept(this.deps.caches, this.deps.models ?? LOCAL_AI_MODELS);
   }
 
   interrupt(): void {

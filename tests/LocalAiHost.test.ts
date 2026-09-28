@@ -76,6 +76,7 @@ function fakeEngine(overrides: Partial<EngineLike>) {
     unload: async () => undefined,
     delete: async () => undefined,
     deleteAllExcept: async () => undefined,
+    deleteDropped: async () => undefined,
   };
   const engine = Object.fromEntries(
     Object.entries(defaults).map(([name, fallback]) => [
@@ -610,6 +611,13 @@ describe("LocalAiHost install", () => {
     await flush(5);
     await failed.host.installModel("standard", Promise.resolve());
     expect(failed.count("deleteAllExcept")).toBe(0);
+  });
+
+  test("a refresh removes dropped revisions even without consent or a new install", async () => {
+    const { host, count } = makeHost({}, { configure: false });
+    host.configure(null, true);
+    await host.refresh();
+    expect(count("deleteDropped")).toBe(1);
   });
 
   test("a replaced tier whose cleanup failed is removed on a later refresh", async () => {

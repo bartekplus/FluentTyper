@@ -59,22 +59,25 @@ export async function deleteModelArtifacts(
 }
 
 /**
- * Deletes every cached model file and marker except `keep`'s: other tiers, and
+ * Deletes every cached model file and marker not belonging to `keep`: other tiers, and
  * revisions a release has dropped from the registry (no record names them any more).
  * The model cache only ever holds registry file URLs (the guard allows nothing else).
  */
 export async function deleteModelArtifactsExcept(
   caches: CacheStorageLike,
-  keep: LocalAiModelRecord,
+  keep: readonly LocalAiModelRecord[],
 ): Promise<void> {
-  const keepFiles = new Set(keep.files.map((file) => localAiModelFileUrl(keep, file)));
+  const keepFiles = new Set(
+    keep.flatMap((record) => record.files.map((file) => localAiModelFileUrl(record, file))),
+  );
+  const keepMarkers = new Set(keep.map(markerUrl));
   const files = await openIfPresent(caches, MODEL_CACHE);
   for (const request of (await files?.keys()) ?? []) {
     if (!keepFiles.has(request.url)) await files!.delete(request);
   }
   const markers = await openIfPresent(caches, MARKER_CACHE);
   for (const request of (await markers?.keys()) ?? []) {
-    if (request.url !== markerUrl(keep)) await markers!.delete(request);
+    if (!keepMarkers.has(request.url)) await markers!.delete(request);
   }
 }
 

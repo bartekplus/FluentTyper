@@ -216,6 +216,7 @@ function makeEngine(setup: Setup = {}) {
     gpu: undefined,
     guard,
     findModel,
+    models: [GEMMA.record, QWEN.record],
     disposeTimeoutMs: 20,
   };
   return {
@@ -404,6 +405,19 @@ describe("install, integrity and cache state", () => {
     expect(await engine.cacheState(QWEN.record.modelId)).toBe("complete");
     expect(await engine.cacheState(GEMMA.record.modelId)).toBe("none");
     expect(caches.urls("presage-dictionaries")).toEqual(["https://example.invalid/en.db"]);
+  });
+
+  test("a revision the registry dropped is removed without a new install", async () => {
+    const { engine, caches } = makeEngine();
+    await engine.install(GEMMA.record.modelId, noProgress, signal, LOAD_MS);
+    await engine.install(QWEN.record.modelId, noProgress, signal, LOAD_MS);
+    const dropped = "https://huggingface.co/onnx-community/old/resolve/0ld/onnx/model.onnx_data";
+    await (await caches.open(MODEL_CACHE)).put(dropped, new Response("old"));
+    await engine.deleteDropped();
+    expect(caches.urls()).not.toContain(dropped);
+    // Current tiers stay, installed or not consented.
+    expect(await engine.cacheState(GEMMA.record.modelId)).toBe("complete");
+    expect(await engine.cacheState(QWEN.record.modelId)).toBe("complete");
   });
 
   test("files present without the verified marker are partial, never complete", async () => {

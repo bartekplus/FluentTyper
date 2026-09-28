@@ -48,6 +48,7 @@ export type EngineLike = Pick<
   | "unload"
   | "delete"
   | "deleteAllExcept"
+  | "deleteDropped"
 >;
 
 /** What the controller merges into LocalAiStatus. */
@@ -218,6 +219,8 @@ export class LocalAiHost {
       this.activity = "checking";
       this.publish();
       try {
+        // Revisions an extension update dropped go even without a new install.
+        await this.engine.deleteDropped().catch(() => undefined);
         this.unavailable = (await this.engine.probe(modelId)) ?? undefined;
         if (this.stateModelId) {
           this.install = await this.engine.cacheState(this.stateModelId);
