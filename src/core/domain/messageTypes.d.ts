@@ -309,7 +309,11 @@ export type Message =
       command: "CMD_GET_AUTO_LANGUAGE_STATUS";
       context: GetAutoLanguageStatusContext;
     }
-  | { command: "CMD_LOCAL_AI_GET_STATUS"; context?: Record<string, never> }
+  | {
+      command: "CMD_LOCAL_AI_GET_STATUS";
+      /** `probe` (options page only) re-checks hardware support through the runtime host. */
+      context?: { probe?: boolean };
+    }
   | { command: "CMD_LOCAL_AI_ENSURE_HOST"; context?: Record<string, never> }
   | { command: "CMD_LOCAL_AI_INSTALL"; context: { tier: "standard" | "quality" } }
   | { command: "CMD_LOCAL_AI_CANCEL_INSTALL"; context?: Record<string, never> }
@@ -347,6 +351,11 @@ export interface ReviewSpellingRequestContext {
  * Presage's candidates. `ok: false`: no dictionary for the language.
  */
 export type ReviewSpellingResponse = { ok: true; results: Array<string[] | null> } | { ok: false };
+/** Background -> extension pages broadcast (runtime.sendMessage); not routed, not in MESSAGE_COMMANDS. */
+export interface LocalAiStatusChangedMessage {
+  command: "CMD_LOCAL_AI_STATUS_CHANGED";
+  context: { status: import("./contracts/localAi").LocalAiStatus };
+}
 /** Response to every CMD_LOCAL_AI_* request. */
 export type LocalAiCommandResponse =
   | { ok: true; status: import("./contracts/localAi").LocalAiStatus }

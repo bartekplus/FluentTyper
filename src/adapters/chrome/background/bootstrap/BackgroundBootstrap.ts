@@ -19,6 +19,7 @@ export class BackgroundBootstrap {
     chrome.runtime.onMessage.addListener((request, sender, sendResponse) =>
       this.messageRouter.handle(request, sender, sendResponse),
     );
+    this.worker.localAiController.register();
 
     registerRuntimeTestHooks(this.commandRouter);
     this.loadLastVersionAndInitialize();
