@@ -2,6 +2,7 @@ import {
   calculateThemeContrast,
   clampAlpha,
   clampColorChannel,
+  normalizeCssColor,
   parseThemeColor,
   resolveOpaqueColor,
   toHex,
@@ -73,6 +74,14 @@ const PREVIEW_OPTION_KEYS = [
   KEY_SHOW_SUGGESTION_FOOTER,
   KEY_LANGUAGE,
 ];
+function previewCanvasContext(): CanvasRenderingContext2D | null {
+  try {
+    return document.createElement("canvas").getContext("2d");
+  } catch {
+    return null;
+  }
+}
+
 /** Page text the preview sizes the popup for: 16px on a 1.4 line. */
 const PREVIEW_TEXT_FONT_SIZE_PX = 16;
 const PREVIEW_TEXT_LINE_HEIGHT_PX = 22.4;
@@ -477,7 +486,8 @@ export class AppearanceStudio {
               autocomplete: setting(KEY_AUTOCOMPLETE) === true,
             }),
             digitCount: showShortcutDigits ? suggestions.length : 0,
-            language: navigator.language || "en",
+            // The options page's own language, which follows "Extension UI Language".
+            language: i18n.lang,
           }),
       language: showFooter && languageName ? suggestionLanguageLabel(languageName) : null,
     });
@@ -519,7 +529,10 @@ export class AppearanceStudio {
       : theme[KEY_SUGGESTION_HIGHLIGHT_TEXT_DARK];
     const border = isLight ? theme[KEY_SUGGESTION_BORDER_LIGHT] : theme[KEY_SUGGESTION_BORDER_DARK];
 
-    const accents = resolveSuggestionAccents(theme)[this.previewMode];
+    const context = previewCanvasContext();
+    const accents = resolveSuggestionAccents(theme, (color) => normalizeCssColor(color, context))[
+      this.previewMode
+    ];
     // The preview mirrors the selected mode into both light and dark variables.
     for (const suffix of ["light", "dark"]) {
       preview.style.setProperty(`--suggestion-accent-${suffix}`, accents.accent);

@@ -275,6 +275,7 @@ export class GoogleDocsAdapter {
           })
         : undefined,
       showFooter: options.showSuggestionFooter,
+      uiLanguage: options.uiLanguage,
       findToken: (text) => this.prediction.findMentionToken(text),
       accept: (index) => {
         this.accept(index);

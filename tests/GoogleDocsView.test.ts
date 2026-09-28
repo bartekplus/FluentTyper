@@ -92,4 +92,17 @@ describe("GoogleDocsView inline ghost guard", () => {
     expect(row?.querySelector(".ft-suggestion-label")?.textContent).toBe("123 Main Street");
     expect(row?.querySelector(".ft-suggestion-detail")?.textContent).toBe("address");
   });
+
+  test("a hidden menu's last placement does not reverse arrows for an inline ghost", () => {
+    caret = mountCaret();
+    view = renderDocs("adr", "123 Main Street", { inline: false });
+    const menu = document.getElementById(SuggestionMenuView.resolveHostId(DOCS_SESSION_ID))!;
+    menu.setAttribute("data-ft-placement", "above");
+    expect(view.isReversed()).toBe(true);
+
+    view.clear();
+
+    expect(menu.getAttribute("data-ft-placement")).toBe("above");
+    expect(view.isReversed()).toBe(false);
+  });
 });

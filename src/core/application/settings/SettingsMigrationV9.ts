@@ -28,10 +28,16 @@ const PREVIOUS_DEFAULTS: ReadonlyArray<Partial<Record<ThemeColorField, string>>>
   },
 ];
 
-function isPreviousDefault(stored: unknown, previous: string): boolean {
-  return (
-    stored === undefined || (typeof stored === "string" && stored.trim().toLowerCase() === previous)
-  );
+/**
+ * Unset, still the previous default, or already the new one: a run that failed
+ * part way through a mode finishes it on the next start instead of skipping it.
+ */
+function isUntouched(stored: unknown, previous: string, next: string): boolean {
+  if (stored === undefined) {
+    return true;
+  }
+  const value = typeof stored === "string" ? stored.trim().toLowerCase() : null;
+  return value === previous || value === next.toLowerCase();
 }
 
 /**
@@ -46,7 +52,11 @@ export async function migrateSettingsV9(settings: SettingsManager): Promise<void
     for (const mode of PREVIOUS_DEFAULTS) {
       const fields = Object.keys(mode) as ThemeColorField[];
       const stored = await Promise.all(fields.map((field) => settings.getRaw(field)));
-      if (fields.every((field, index) => isPreviousDefault(stored[index], mode[field]!))) {
+      if (
+        fields.every((field, index) =>
+          isUntouched(stored[index], mode[field]!, DEFAULT_SUGGESTION_THEME_SETTINGS[field]),
+        )
+      ) {
         for (const field of fields) {
           await settings.setRaw(field, DEFAULT_SUGGESTION_THEME_SETTINGS[field]);
         }

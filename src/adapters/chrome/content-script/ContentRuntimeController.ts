@@ -1,3 +1,4 @@
+import { resolveUiLanguage } from "@core/domain/lang";
 import { createLogger, setGlobalObservabilityRuntime } from "@core/application/logging/Logger";
 import { getDeepActiveElement, isInDocument } from "@core/application/dom-utils";
 import {
@@ -203,8 +204,14 @@ export class ContentRuntimeController {
     whenDocumentFocused(document, run, POPUP_FOCUS_WAIT_MS);
   }
 
+  /** FluentTyper's own UI text follows the "Extension UI Language" setting. */
+  private uiLanguage(): string {
+    return resolveUiLanguage(this.config.extensionLanguage, navigator.language);
+  }
+
   private createReviewController(): ReviewController {
     return new ReviewController({
+      uiLanguage: this.uiLanguage(),
       getOptions: () => ({
         lang: this.config.lang,
         // Every rule review supports, whatever is switched on for typing; none in code mode.
@@ -337,6 +344,7 @@ export class ContentRuntimeController {
       return;
     }
     this.reviewLauncher = new ReviewLauncher(document, {
+      uiLanguage: this.uiLanguage(),
       isEnabled: () =>
         this.enabled &&
         this.config.showReviewButton !== false &&
@@ -526,6 +534,7 @@ export class ContentRuntimeController {
       lang: this.config.lang,
       selectByDigit: this.config.selectByDigit,
       horizontalSuggestions: this.config.horizontalSuggestions,
+      uiLanguage: this.uiLanguage(),
       showSuggestionFooter: this.config.showSuggestionFooter,
       inline_suggestion: this.config.inline_suggestion,
       preferNativeAutocomplete: this.config.preferNativeAutocomplete,

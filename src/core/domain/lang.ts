@@ -87,3 +87,16 @@ export const LANG_SEPARATOR_CHARS_REGEX: Record<string, RegExp> = {
 export const LANG_ADDITIONAL_SEPARATOR_REGEX: Record<string, RegExp | undefined> = {
   fr_FR: /['\u2019]/g,
 };
+
+/**
+ * The locale FluentTyper's own UI text uses: the "Extension UI Language"
+ * setting, or the browser's language when it is unset or "auto_detect".
+ */
+export function resolveUiLanguage(
+  extensionLanguage: string | undefined,
+  browserLanguage: string,
+): string {
+  return extensionLanguage && extensionLanguage !== "auto_detect"
+    ? extensionLanguage
+    : browserLanguage || "en";
+}

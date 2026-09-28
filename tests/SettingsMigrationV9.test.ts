@@ -62,6 +62,23 @@ describe("migrateSettingsV9", () => {
     );
   });
 
+  test("finishes a mode that a failed earlier run left half migrated", async () => {
+    const settings = createMockSettingsManager({
+      ...PREVIOUS_DARK,
+      suggestionBgDark: DEFAULT_SUGGESTION_THEME_SETTINGS.suggestionBgDark,
+      suggestionTextDark: DEFAULT_SUGGESTION_THEME_SETTINGS.suggestionTextDark,
+    });
+
+    await migrateSettingsV9(settings);
+
+    expect(settings.store.suggestionHighlightBgDark).toBe(
+      DEFAULT_SUGGESTION_THEME_SETTINGS.suggestionHighlightBgDark,
+    );
+    expect(settings.store.suggestionBorderDark).toBe(
+      DEFAULT_SUGGESTION_THEME_SETTINGS.suggestionBorderDark,
+    );
+  });
+
   test("runs once", async () => {
     const settings = createMockSettingsManager({
       ...PREVIOUS_DARK,

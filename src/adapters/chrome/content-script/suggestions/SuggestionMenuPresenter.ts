@@ -26,6 +26,8 @@ interface SuggestionMenuRenderModel {
   horizontal?: boolean;
   /** Keys that insert the selected suggestion; given, a key-hint footer is shown. */
   acceptKeys?: string[];
+  /** Locale for the key hints; the browser's when not given. */
+  uiLanguage?: string;
 }
 
 export class SuggestionMenuPresenter {
@@ -140,7 +142,7 @@ export class SuggestionMenuPresenter {
           acceptKeys: model.acceptKeys,
           // Digit keys reach the first nine suggestions ("0" is the tenth, not hinted).
           digitCount: model.showShortcutDigits ? Math.min(model.suggestions.length, 9) : 0,
-          language: navigator.language || "en",
+          language: model.uiLanguage || navigator.language || "en",
         })
       : [];
     footer.innerHTML = buildSuggestionFooterHtml(hints, model.menuHeader);

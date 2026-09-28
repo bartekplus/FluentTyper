@@ -120,3 +120,24 @@ export function calculateThemeContrast(
   const darker = Math.min(backgroundLuminance, foregroundLuminance);
   return (lighter + 0.05) / (darker + 0.05);
 }
+
+/**
+ * `value` as the browser serializes it through a canvas 2D context's
+ * fillStyle ("black" or "hsl(...)" become "#000000" or "rgba(...)"), so any CSS
+ * color the browser accepts can be parsed. Unchanged without a context, or when
+ * the browser rejects it.
+ */
+export function normalizeCssColor(value: string, context: { fillStyle: unknown } | null): string {
+  if (!context) {
+    return value;
+  }
+  // An invalid value leaves fillStyle as it was; two sentinels tell that apart.
+  const serialize = (sentinel: string) => {
+    context.fillStyle = sentinel;
+    context.fillStyle = value;
+    return context.fillStyle;
+  };
+  const first = serialize("#000000");
+  const second = serialize("#ffffff");
+  return typeof first === "string" && first === second ? first : value;
+}

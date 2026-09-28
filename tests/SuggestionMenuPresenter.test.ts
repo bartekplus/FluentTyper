@@ -136,6 +136,10 @@ describe("SuggestionMenuPresenter", () => {
       "Esc",
     ]);
 
+    // The hints follow the "Extension UI Language" passed in, not the browser's.
+    presenter.render({ ...model, acceptKeys: ["Tab"], uiLanguage: "de_DE" });
+    expect(footer().textContent).toContain("übernehmen");
+
     presenter.render(model);
     expect(footer().hidden).toBe(true);
     menu.remove();

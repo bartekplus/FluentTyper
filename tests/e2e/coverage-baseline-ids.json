@@ -172,6 +172,12 @@
     "review_dialog_focus_rtl_small_viewport",
     "review_unknown_word_choice",
     "review_in_field_button",
-    "review_runs_all_supported_rules"
+    "review_runs_all_supported_rules",
+    "popup_first_suggestion_stays_at_caret",
+    "popup_row_layout",
+    "popup_footer_key_hints",
+    "popup_theme_accents_readable",
+    "popup_theme_palette_migration",
+    "appearance_preview_matches_popup"
   ]
 }

@@ -7,6 +7,17 @@ export const SUGGESTION_POPUP_ACCENT = { light: "#185fa8", dark: "#7cc4ff" } as 
 /** What the popup is drawn over when its own colors are translucent. */
 const BACKDROP = { light: "#ffffff", dark: "#020617" } as const;
 
+const COLOR_KEYS = [
+  "suggestionBgLight",
+  "suggestionTextLight",
+  "suggestionHighlightBgLight",
+  "suggestionHighlightTextLight",
+  "suggestionBgDark",
+  "suggestionTextDark",
+  "suggestionHighlightBgDark",
+  "suggestionHighlightTextDark",
+] as const;
+
 /** WCAG AA for normal text. */
 const MIN_CONTRAST = 4.5;
 
@@ -53,8 +64,14 @@ export function readableAccent(
  * the selected row (`highlightAccent`), which themes often color differently.
  */
 export function resolveSuggestionAccents(
-  theme: SuggestionThemeSettings,
+  rawTheme: SuggestionThemeSettings,
+  /** Serializes any CSS color the browser accepts (see normalizeCssColor). */
+  normalizeColor: (color: string) => string = (color) => color,
 ): Record<"light" | "dark", { accent: string; highlightAccent: string }> {
+  const theme = { ...rawTheme };
+  for (const key of COLOR_KEYS) {
+    theme[key] = normalizeColor(theme[key]);
+  }
   const forMode = (mode: "light" | "dark") => {
     const bg = mode === "light" ? theme.suggestionBgLight : theme.suggestionBgDark;
     const panel = toOpaqueHex(resolveOpaqueColor(bg, BACKDROP[mode]));

@@ -55,6 +55,8 @@ export interface SuggestionManagerOptions {
   lang: string;
   selectByDigit: boolean;
   horizontalSuggestions: boolean;
+  /** Locale for FluentTyper's own text in the popup (key hints). */
+  uiLanguage?: string;
   showSuggestionFooter: boolean;
   inline_suggestion: boolean;
   preferNativeAutocomplete: boolean;

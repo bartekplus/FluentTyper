@@ -103,6 +103,11 @@ export class CoreSettingsRepository extends SettingsRepositoryBase {
     return this.getBooleanField("autocompleteOnTab", true);
   }
 
+  /** The "Extension UI Language" setting; "auto_detect" follows the browser. */
+  async getExtensionLanguage(): Promise<string> {
+    return this.getStringField("extensionLanguage", "auto_detect");
+  }
+
   async getSelectByDigit(): Promise<boolean> {
     return this.getBooleanField("selectByDigit");
   }

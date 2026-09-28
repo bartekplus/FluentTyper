@@ -81,6 +81,7 @@ export class SuggestionManagerRuntime {
   private readonly selectByDigit: boolean;
   private readonly horizontalSuggestions: boolean;
   private readonly acceptKeys: string[] | undefined;
+  private readonly uiLanguage: string | undefined;
   private readonly nativeAutocompleteConflictDetector = new NativeAutocompleteConflictDetector();
 
   private lang: string;
@@ -110,6 +111,7 @@ export class SuggestionManagerRuntime {
     this.horizontalSuggestions = options.horizontalSuggestions;
     // No footer: no key hints (the language is left out by the session).
     this.acceptKeys = options.showSuggestionFooter ? acceptKeyLabels(options) : undefined;
+    this.uiLanguage = options.uiLanguage;
     this.manualAttachUiManager = new ManualAttachUiManager({
       iconUrl: resolveManualAttachIconUrl(),
       onActivate: this.handleManualAttachActivate.bind(this),
@@ -682,6 +684,7 @@ export class SuggestionManagerRuntime {
           showShortcutDigits: this.selectByDigit,
           horizontal: this.horizontalSuggestions,
           acceptKeys: this.acceptKeys,
+          uiLanguage: this.uiLanguage,
           menuHeader,
           mentionText,
         }),

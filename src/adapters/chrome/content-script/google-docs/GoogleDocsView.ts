@@ -1,5 +1,8 @@
 import { RTL_LETTER_REGEX, SUPPORTED_LANGUAGES } from "@core/domain/lang";
-import { isSuggestionMenuReversed } from "../suggestions/SuggestionMenuHost";
+import {
+  isSuggestionMenuHostVisible,
+  isSuggestionMenuReversed,
+} from "../suggestions/SuggestionMenuHost";
 import { SuggestionMenuView } from "../suggestions/SuggestionMenuView";
 import { SuggestionMenuPresenter } from "../suggestions/SuggestionMenuPresenter";
 import { SuggestionPositioningService } from "../suggestions/SuggestionPositioningService";
@@ -94,6 +97,8 @@ export class GoogleDocsView {
       acceptKeys: string[] | undefined;
       /** The popup's bottom line: key hints and the prediction language. */
       showFooter: boolean;
+      /** Locale for the key hints; the browser's when not given. */
+      uiLanguage?: string;
       findToken: (text: string) => { token: string };
       accept: (index: number) => void;
     },
@@ -186,6 +191,7 @@ export class GoogleDocsView {
         showShortcutDigits: this.options.digits,
         horizontal: this.options.horizontal,
         acceptKeys: this.options.acceptKeys,
+        uiLanguage: this.options.uiLanguage,
         menuHeader: this.options.showFooter ? (SUPPORTED_LANGUAGES[language] ?? language) : null,
         mentionText: context.selectedText || token,
       });
@@ -200,9 +206,15 @@ export class GoogleDocsView {
    * and showing it again replays the panel's pop-in animation: the popup blinks on every
    * arrow press. False when there is no open menu to move within (the inline ghost).
    */
-  /** The menu lists suggestions bottom-up (opened above the caret). */
+  /**
+   * The open menu lists suggestions bottom-up (opened above the caret). A hidden
+   * menu keeps its last placement, which must not flip arrows for an inline ghost.
+   */
   isReversed(): boolean {
-    return isSuggestionMenuReversed(this.elements.menu);
+    return (
+      isSuggestionMenuHostVisible(this.elements.menu) &&
+      isSuggestionMenuReversed(this.elements.menu)
+    );
   }
   highlight(suggestions: string[], index: number): boolean {
     if (!this.presenter.isVisible(this.elements.menu, suggestions.length)) return false;

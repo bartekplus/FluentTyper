@@ -13,6 +13,8 @@ const LABELS: Record<string, HintLabels> = {
   pl: ["nawigacja", "akceptuj", "wybierz", "zamknij"],
   pt: ["navegar", "aceitar", "escolher", "fechar"],
 };
+// The options UI calls Portuguese "pr".
+LABELS.pr = LABELS.pt;
 
 /** Key caps for the enabled "accept with" settings. */
 export function acceptKeyLabels(options: {

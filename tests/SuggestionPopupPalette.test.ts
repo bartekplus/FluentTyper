@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { calculateThemeContrast } from "../src/core/domain/color";
+import { calculateThemeContrast, normalizeCssColor } from "../src/core/domain/color";
 import {
   SUGGESTION_POPUP_ACCENT,
   readableAccent,
@@ -83,6 +83,32 @@ describe("suggestion popup accents", () => {
     expect(resolveSuggestionAccents(COMPACT).light.highlightAccent).toBe(
       SUGGESTION_POPUP_ACCENT.dark,
     );
+  });
+
+  test("read colors the browser accepts beyond hex and rgb(), through the normalizer", () => {
+    const theme = { ...DEFAULT_SUGGESTION_THEME_SETTINGS, suggestionBgLight: "black" };
+    // Without normalizing, "black" would be read as the white backdrop.
+    const accents = resolveSuggestionAccents(theme, (color) =>
+      color === "black" ? "#000000" : color,
+    );
+    expect(accents.light.accent).toBe(SUGGESTION_POPUP_ACCENT.dark);
+  });
+
+  test("normalizeCssColor serializes through fillStyle and keeps rejected values", () => {
+    // A stand-in for a canvas context: accepts "black", rejects anything unknown.
+    let fillStyle = "#000000";
+    const context = {
+      get fillStyle() {
+        return fillStyle;
+      },
+      set fillStyle(value: string) {
+        if (value === "black") fillStyle = "#000000";
+        else if (/^#[0-9a-f]{6}$/i.test(value)) fillStyle = value.toLowerCase();
+      },
+    };
+    expect(normalizeCssColor("black", context)).toBe("#000000");
+    expect(normalizeCssColor("not-a-color", context)).toBe("not-a-color");
+    expect(normalizeCssColor("black", null)).toBe("black");
   });
 
   test("blend toward the row's text only when no design accent reads", () => {
