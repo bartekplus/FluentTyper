@@ -138,10 +138,12 @@ async function main(): Promise<void> {
     return;
   }
 
-  const productionTestFile =
-    options.suite === "smoke" ? "tests/e2e/smoke.e2e.test.ts" : "tests/e2e/full.e2e.test.ts";
+  const productionTestFiles =
+    options.suite === "smoke"
+      ? ["tests/e2e/smoke.e2e.test.ts"]
+      : ["tests/e2e/full.e2e.test.ts", "tests/e2e/local-ai.e2e.test.ts"];
   await runCommand(
-    [bunExecutable, "test", productionTestFile, ...options.passthroughArgs],
+    [bunExecutable, "test", ...productionTestFiles, ...options.passthroughArgs],
     sharedE2EEnv,
   );
 }

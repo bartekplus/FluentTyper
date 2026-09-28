@@ -1,4 +1,4 @@
-import type { Browser, Page, WebWorker } from "puppeteer";
+import type { Browser, CDPSession, Page, Target, WebWorker } from "puppeteer";
 import puppeteer from "puppeteer";
 import path from "path";
 
@@ -832,4 +832,154 @@ export async function textPoint(
   );
   if (!point) throw new Error(`Text not found: ${needle}`);
   return point;
+}
+
+// -------------------------------------------------------------- local AI review
+
+export interface ReviewAiSnapshot {
+  /** Correct/Rewrite switch shown. */
+  modes: boolean;
+  /** Any Local AI block (status line, setup offer, pause/settings) shown. */
+  ai: boolean;
+  line: string;
+  setup: boolean;
+  setupSize: string;
+  pause: boolean;
+  settings: boolean;
+  /** Findings tagged as coming from Local AI. */
+  aiItems: string[];
+}
+
+/** The Local AI parts of the review panel, as a user sees them (hidden = absent). */
+export async function readReviewAi(page: Page): Promise<ReviewAiSnapshot> {
+  return page.evaluate((hostSelector) => {
+    const root = document.querySelector(hostSelector)?.shadowRoot ?? null;
+    const shown = (selector: string) => {
+      const element = root?.querySelector<HTMLElement>(selector);
+      return !!element && !element.closest("[hidden]");
+    };
+    const text = (selector: string) =>
+      shown(selector) ? (root?.querySelector(selector)?.textContent ?? "") : "";
+    return {
+      modes: shown(".modes"),
+      ai: shown(".ai"),
+      line: text(".ai-line"),
+      setup: shown(".setup"),
+      setupSize: text(".setup-size"),
+      pause: shown("[data-action=ai-pause]"),
+      settings: shown("[data-action=ai-settings]"),
+      aiItems: Array.from(root?.querySelectorAll<HTMLElement>(".item") ?? [])
+        .filter((item) => !!item.querySelector(".why .tag"))
+        .map((item) => item.querySelector(".change")?.textContent ?? ""),
+    };
+  }, REVIEW_HOST_SELECTOR);
+}
+
+/** URLs of the extension's offscreen documents (Chrome background context only). */
+export async function getOffscreenDocumentUrls(context: BackgroundContext): Promise<string[]> {
+  return context.evaluate(async () => {
+    const contexts = await chrome.runtime.getContexts({
+      contextTypes: ["OFFSCREEN_DOCUMENT" as chrome.runtime.ContextType],
+    });
+    return contexts.map((entry) => entry.documentUrl ?? "");
+  });
+}
+
+export interface RecordedRequest {
+  url: string;
+  /** Kind and URL of the target (page, service worker, offscreen document, worker) that sent it. */
+  targetType: string;
+  targetUrl: string;
+}
+
+/**
+ * Opens a CDP session on every target (pages, the service worker, offscreen
+ * documents and their workers), existing and new, and hands it to `attach`.
+ * Chrome only. A target created later may send its very first requests
+ * before `attach` finishes.
+ */
+export async function watchTargets(
+  browser: Browser,
+  attach: (session: CDPSession, target: Target) => Promise<void>,
+): Promise<() => void> {
+  const sessions: CDPSession[] = [];
+  let stopped = false;
+  const watch = async (target: Target) => {
+    if (stopped || target.type() === "browser") return;
+    try {
+      // Let puppeteer finish initializing the target first; an extra session on
+      // a target still waiting for the debugger stalls it.
+      if (target.type() === "service_worker") await target.worker();
+      else if (target.type() === "page") await target.page();
+      const session = await target.createCDPSession();
+      sessions.push(session);
+      await attach(session, target);
+    } catch {
+      // The target closed before it could be watched.
+    }
+  };
+  const onTarget = (target: Target) => void watch(target);
+  browser.on("targetcreated", onTarget);
+  await Promise.all(browser.targets().map(watch));
+  return () => {
+    stopped = true;
+    browser.off("targetcreated", onTarget);
+    for (const session of sessions) void session.detach().catch(() => undefined);
+  };
+}
+
+/** Records the URL (only) of every network request from every target. Chrome only. */
+export async function recordNetworkRequests(
+  browser: Browser,
+): Promise<{ requests: RecordedRequest[]; stop(): void }> {
+  const requests: RecordedRequest[] = [];
+  const stop = await watchTargets(browser, async (session, target) => {
+    session.on("Network.requestWillBeSent", (event) => {
+      requests.push({ url: event.request.url, targetType: target.type(), targetUrl: target.url() });
+    });
+    await session.send("Network.enable");
+  });
+  return { requests, stop };
+}
+
+/**
+ * Evaluates `expression` in the extension's own content-script world of the
+ * page's main frame (the isolated world whose origin is the extension), so
+ * chrome.runtime messages carry the content script's sender. Chrome only.
+ */
+export async function evaluateInContentScript<T>(page: Page, expression: string): Promise<T> {
+  const session = await page.createCDPSession();
+  try {
+    const contexts: Array<{
+      id: number;
+      origin: string;
+      name: string;
+      auxData?: { frameId?: string; type?: string };
+    }> = [];
+    session.on("Runtime.executionContextCreated", (event) => contexts.push(event.context));
+    await session.send("Runtime.enable");
+    const { frameTree } = await session.send("Page.getFrameTree");
+    const context = await waitUntil("content script world", () => {
+      return (
+        contexts.find(
+          (candidate) =>
+            candidate.auxData?.type === "isolated" &&
+            candidate.auxData.frameId === frameTree.frame.id &&
+            candidate.origin.startsWith("chrome-extension://"),
+        ) ?? false
+      );
+    });
+    const { result, exceptionDetails } = await session.send("Runtime.evaluate", {
+      expression,
+      contextId: context.id,
+      awaitPromise: true,
+      returnByValue: true,
+    });
+    if (exceptionDetails) {
+      throw new Error(`Content script evaluation failed: ${exceptionDetails.text}`);
+    }
+    return result.value as T;
+  } finally {
+    await session.detach().catch(() => undefined);
+  }
 }

@@ -3359,6 +3359,132 @@
           "test": "preview renders the real popup, following the options that change it"
         }
       ]
+    },
+    {
+      "id": "local_ai_pre_consent_no_requests",
+      "description": "Before download consent, opening Review creates no Local AI runtime host (offscreen document) and sends no request outside the extension and the page; rule findings still appear.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/local-ai.e2e.test.ts",
+          "test": "fresh profile: Review shows rule findings and a one-time setup offer, with no AI host and no downloads"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/LocalAiController.test.ts",
+          "test": "never creates the host at startup or before consent"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSessionAi.test.ts",
+          "test": "setup, install and support states never send text; the offer can be declined"
+        }
+      ]
+    },
+    {
+      "id": "local_ai_setup_offer",
+      "description": "The Review panel shows a one-time Local AI setup offer with the download size; \"Not now\" dismisses it for good; \"Set up local AI…\" opens the options Local AI section focused, whose page only asks for status and installs only after an inline confirm.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/local-ai.e2e.test.ts",
+          "test": "fresh profile: Review shows rule findings and a one-time setup offer, with no AI host and no downloads"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/local-ai.e2e.test.ts",
+          "test": "\"Not now\" dismisses the setup offer for good"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/local-ai.e2e.test.ts",
+          "test": "\"Set up local AI…\" opens the Local AI settings; installing needs the inline confirm"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewUiLocalAi.test.ts",
+          "test": "the setup offer shows the download size and acts only on trusted clicks"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/localAiSettings.test.ts",
+          "test": "install needs the inline confirm and sends the selected tier only after it"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/localAiSettings.test.ts",
+          "test": "#local-ai opens the Grammar tab and focuses the section heading"
+        }
+      ]
+    },
+    {
+      "id": "local_ai_autocomplete_separation",
+      "description": "Typing and popup predictions stay Presage-only in production even with stale legacy AI predictor settings stored; no Local AI host or model request is created.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/local-ai.e2e.test.ts",
+          "test": "legacy AI predictor settings do not route typing to a model"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/PredictionOrchestrator.separation.test.ts",
+          "test": "production never calls the AI predictor, whatever is stored"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ConfigAssembler.localAi.test.ts",
+          "test": "production never enables AI autocomplete, even with stale legacy settings"
+        }
+      ]
+    },
+    {
+      "id": "local_ai_install_authorization",
+      "description": "Only the extension options page may install or delete a Local AI model; a content script gets forbidden and nothing is created or downloaded.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/local-ai.e2e.test.ts",
+          "test": "a content script cannot install or delete a model"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/LocalAiController.test.ts",
+          "test": "content scripts cannot install, cancel, delete or probe"
+        }
+      ]
+    },
+    {
+      "id": "local_ai_preference_off",
+      "description": "With the Local AI Review preference off, Review shows no AI controls (no mode switch, no offer) and starts no runtime host.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/local-ai.e2e.test.ts",
+          "test": "with the Local AI preference off, Review shows no AI controls"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSessionAi.test.ts",
+          "test": "the preference turned off ends AI work and findings; no provider means off"
+        }
+      ]
+    },
+    {
+      "id": "local_ai_host_unsupported",
+      "description": "Where no runtime host exists (Firefox), Review works with no Local AI controls.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/local-ai.e2e.test.ts",
+          "test": "Firefox has no runtime host: Review works with no AI controls"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/LocalAiController.test.ts",
+          "test": "without chrome.offscreen (Firefox) everything is host-unsupported"
+        }
+      ]
     }
   ]
 }
