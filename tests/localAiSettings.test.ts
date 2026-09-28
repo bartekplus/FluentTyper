@@ -34,6 +34,8 @@ let sent: SentMessage[];
 let listeners: Array<(message: unknown) => void>;
 let storage: Record<string, unknown>;
 let currentStatus: LocalAiStatus;
+/** While set, Local AI command replies (snapshotted at send time) wait for it. */
+let replyGate: Promise<void> | null = null;
 const originalChrome = (globalThis as { chrome?: unknown }).chrome;
 const originalReplaceState = window.history.replaceState;
 
@@ -49,8 +51,11 @@ function installFakeChrome(): void {
         const response = message.command.startsWith("CMD_LOCAL_AI_")
           ? { ok: true, status: currentStatus }
           : undefined;
-        callback?.(response);
-        return Promise.resolve(response);
+        const reply = () => {
+          callback?.(response);
+          return response;
+        };
+        return replyGate ? replyGate.then(reply) : Promise.resolve(reply());
       },
       onMessage: { addListener: (fn: (message: unknown) => void) => listeners.push(fn) },
     },
@@ -253,6 +258,21 @@ describe("Local AI settings section", () => {
 
     broadcast({ ...NOT_SET_UP, consented: true, install: "partial", error: "download-failed" });
     expect(statusText(card)).toContain("The download failed.");
+  });
+
+  test("a command reply older than a pushed status does not overwrite it", async () => {
+    let release!: () => void;
+    replyGate = new Promise((resolve) => (release = resolve));
+    try {
+      const { card } = await renderOptions();
+      // The probe's reply (not set up) is still on its way when the install completes.
+      broadcast({ ...NOT_SET_UP, consented: true, install: "complete", runtime: "ready" });
+      release();
+      await flush();
+      expect(statusText(card)).toBe("Installed — available offline.");
+    } finally {
+      replyGate = null;
+    }
   });
 
   test("an unsupported browser or device hides install controls and explains why", async () => {

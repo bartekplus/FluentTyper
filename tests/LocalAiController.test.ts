@@ -42,9 +42,15 @@ function makeSettings(
     dismissed: initial.dismissed ?? false,
     /** Delays the next "enabled" reads, to reorder concurrent status reads. */
     readDelayMs: 0,
+    /** The next "enabled" read rejects (a transient storage error). */
+    failRead: false,
   };
   const settings: LocalAiSettings = {
     getLocalAiReviewEnabled: async () => {
+      if (state.failRead) {
+        state.failRead = false;
+        throw new Error("storage");
+      }
       const value = state.enabled;
       if (state.readDelayMs) await new Promise((resolve) => setTimeout(resolve, state.readDelayMs));
       return value;
@@ -273,6 +279,18 @@ describe("LocalAiController authorization", () => {
 });
 
 describe("LocalAiController status", () => {
+  test("a failed settings read does not stall later host configuration", async () => {
+    const { state, send, chromeFake } = setup({ consent: consented });
+    state.failRead = true;
+    await send({ command: CMD_LOCAL_AI_ENSURE_HOST });
+    await send({ command: CMD_LOCAL_AI_ENSURE_HOST });
+    const tab = { id: 1 } as chrome.tabs.Tab;
+    const port = new FakePort(LOCAL_AI_REVIEW_PORT, { id: "ftext", tab, url: "https://a.b/" });
+    chromeFake.connect(port);
+    await flush();
+    expect(port.messages[0]).toMatchObject({ type: "status", status: { enabled: true } });
+  });
+
   test("overlapping host configurations end on the newest settings", async () => {
     const { state, send, chromeFake } = setup({ consent: consented });
     await send({ command: CMD_LOCAL_AI_ENSURE_HOST });

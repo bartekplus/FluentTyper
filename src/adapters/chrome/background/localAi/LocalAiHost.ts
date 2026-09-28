@@ -205,6 +205,10 @@ export class LocalAiHost {
         this.unavailable = (await this.engine.probe(modelId)) ?? undefined;
         if (this.stateModelId) {
           this.install = await this.engine.cacheState(this.stateModelId);
+          if (this.install === "complete" && this.config?.model?.modelId === this.stateModelId) {
+            // Retries a replaced tier's cleanup that failed (e.g. after a restart).
+            await this.removeOtherTiers(this.stateModelId);
+          }
         }
         if (this.probeFailed) {
           this.probeFailed = false;
@@ -264,14 +268,7 @@ export class LocalAiHost {
               this.options.loadTimeoutMs ?? DEFAULT_LOAD_TIMEOUT_MS,
             );
             this.loadedModelId = result.ok ? modelId : null;
-            if (result.ok) {
-              // The new model replaces any other tier's files (consent now names this one).
-              for (const other of LOCAL_AI_MODELS) {
-                if (other.modelId !== modelId) {
-                  await this.engine.delete(other.modelId).catch(() => undefined);
-                }
-              }
-            }
+            if (result.ok) await this.removeOtherTiers(modelId);
           }
         }
       } catch {
@@ -289,6 +286,18 @@ export class LocalAiHost {
       this.releaseNow();
     } else {
       this.settle();
+    }
+  }
+
+  /**
+   * Consent names one model, so another tier's files are unusable: they go. A refusal
+   * leaves them for the next refresh to retry (Delete here would remove the current model).
+   */
+  private async removeOtherTiers(modelId: string): Promise<void> {
+    for (const other of LOCAL_AI_MODELS) {
+      if (other.modelId !== modelId) {
+        await this.engine.delete(other.modelId).catch(() => undefined);
+      }
     }
   }
 

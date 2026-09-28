@@ -211,11 +211,13 @@ export class LocalAiController {
   /** Tells the host the consented model (null without consent) and whether it may run it. */
   /** One at a time, each reading the settings on its turn, so the newest settings win. */
   private configureHost(): Promise<void> {
-    this.configuring = this.configuring.then(async () => {
+    const run = this.configuring.then(async () => {
       const status = await this.getStatus();
       this.host?.configure(status.consented ? { modelId: status.modelId } : null, status.enabled);
     });
-    return this.configuring;
+    // A failed settings read fails this call only; the next one reads storage again.
+    this.configuring = run.catch(() => undefined);
+    return run;
   }
 
   /** Review ports come only from this extension's content scripts, in web pages. */

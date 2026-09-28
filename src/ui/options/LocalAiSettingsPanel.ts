@@ -323,14 +323,19 @@ export function mountLocalAiSettings(anchor: HTMLElement, registry: SettingsRegi
     }
   }
 
+  /** Status broadcasts seen so far: a command reply older than one of them is dropped. */
+  let pushes = 0;
+
   async function send(message: { command: string; context: object }): Promise<void> {
     busy = true;
     notice = "";
     render();
+    const pushesBefore = pushes;
     const response = await sendRuntimeMessage<LocalAiCommandResponse>(message);
     busy = false;
     if (response?.ok) {
-      status = response.status;
+      // A status pushed while this command ran is newer than the command's own reply.
+      if (pushes === pushesBefore) status = response.status;
     } else if (status === undefined) {
       status = null;
     } else {
@@ -383,6 +388,7 @@ export function mountLocalAiSettings(anchor: HTMLElement, registry: SettingsRegi
   chrome.runtime.onMessage.addListener((message: unknown) => {
     const payload = message as LocalAiStatusChangedMessage | null;
     if (payload?.command === CMD_LOCAL_AI_STATUS_CHANGED && payload.context?.status) {
+      pushes += 1;
       status = payload.context.status;
       render();
     }

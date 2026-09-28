@@ -558,6 +558,24 @@ describe("LocalAiHost install", () => {
     expect(failed.count("delete")).toBe(0);
   });
 
+  test("a replaced tier whose cleanup failed is removed on a later refresh", async () => {
+    let refuse = true;
+    const deleted: string[] = [];
+    const { host } = makeHost({
+      delete: async (modelId) => {
+        if (refuse) throw new DOMException("refused", "UnknownError");
+        deleted.push(modelId);
+      },
+    });
+    await flush(5);
+    expect(deleted).toEqual([]);
+    refuse = false;
+    await host.refresh();
+    expect(deleted).toEqual(
+      LOCAL_AI_MODELS.filter((m) => m.modelId !== STANDARD.modelId).map((m) => m.modelId),
+    );
+  });
+
   test("nothing downloads before consent is recorded; the status never flashes download-required", async () => {
     let recordConsent!: () => void;
     const { host, states, count } = makeHost(
