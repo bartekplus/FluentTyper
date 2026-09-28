@@ -246,6 +246,17 @@ const EXPLANATIONS: Record<ReviewMessageKey, Translations> = {
     "Tego słowa nie ma w słowniku. Wybierz właściwe słowo.",
     "Esta palavra não está no dicionário. Escolha a palavra que queria.",
   ],
+  review_msg_local_ai: [
+    "Local AI correction. Check that the meaning is unchanged before applying.",
+    "Correction par l'IA locale. Vérifiez que le sens reste le même avant d'appliquer.",
+    "Ispravak lokalne umjetne inteligencije. Prije primjene provjerite je li značenje isto.",
+    "Corrección de la IA local. Compruebe que el significado no cambia antes de aplicarla.",
+    "Διόρθωση από την τοπική ΤΝ. Ελέγξτε ότι το νόημα δεν αλλάζει πριν την εφαρμόσετε.",
+    "Korrigering av lokal AI. Kontrollera att betydelsen är oförändrad innan du tillämpar den.",
+    "Korrektur der lokalen KI. Prüfen Sie vor dem Übernehmen, ob die Bedeutung gleich bleibt.",
+    "Poprawka lokalnej SI. Przed zastosowaniem sprawdź, czy znaczenie się nie zmieniło.",
+    "Correção da IA local. Verifique se o significado se mantém antes de aplicar.",
+  ],
 };
 
 const UI = {

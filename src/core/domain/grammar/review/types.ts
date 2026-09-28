@@ -21,7 +21,13 @@ export const REVIEW_CATEGORIES: readonly ReviewCategory[] = [
  * corrections as suggestions), so it has an id outside the rule catalog.
  */
 export const REVIEW_SPELLING_CHECK = "reviewSpelling" as const;
-export type ReviewCheckId = CatalogRuleId | typeof REVIEW_SPELLING_CHECK;
+/**
+ * Local AI corrections (optional on-device model). Outside the rule catalog,
+ * always individual: never part of Fix all safe.
+ */
+export const REVIEW_LOCAL_AI_CHECK = "reviewLocalAi" as const;
+export type ReviewCheckId =
+  CatalogRuleId | typeof REVIEW_SPELLING_CHECK | typeof REVIEW_LOCAL_AI_CHECK;
 
 export interface TextRange {
   start: number;
@@ -62,11 +68,15 @@ export type ReviewMessageKey =
   | "review_msg_duplicate_punctuation"
   | "review_msg_measurement_spacing"
   | "review_msg_currency_spacing"
-  | "review_msg_unknown_word";
+  | "review_msg_unknown_word"
+  | "review_msg_local_ai";
 
 export type BulkDecision =
   | { eligible: true; alternative: number }
-  | { eligible: false; reason: "rule-not-batch-approved" | "ambiguous" | "context-dependent" };
+  | {
+      eligible: false;
+      reason: "rule-not-batch-approved" | "ambiguous" | "context-dependent" | "local-ai";
+    };
 
 export interface ReviewDiagnostic {
   /** Unique within its snapshot: rule, range and replacement. */

@@ -28,6 +28,8 @@ export interface SetConfigContext {
   showSuggestionFooter: boolean;
   /** Show the "Review text" button on the focused multi-line field. */
   showReviewButton?: boolean;
+  /** "Local AI corrections in Review" preference (setup/consent is checked separately). */
+  localAiReviewEnabled?: boolean;
   enabledGrammarRules: string[];
   userDictionaryList: string[];
   // Theme configuration is reused by settings and options payloads.
@@ -306,7 +308,14 @@ export type Message =
   | {
       command: "CMD_GET_AUTO_LANGUAGE_STATUS";
       context: GetAutoLanguageStatusContext;
-    };
+    }
+  | { command: "CMD_LOCAL_AI_GET_STATUS"; context?: Record<string, never> }
+  | { command: "CMD_LOCAL_AI_ENSURE_HOST"; context?: Record<string, never> }
+  | { command: "CMD_LOCAL_AI_INSTALL"; context: { tier: "standard" | "quality" } }
+  | { command: "CMD_LOCAL_AI_CANCEL_INSTALL"; context?: Record<string, never> }
+  | { command: "CMD_LOCAL_AI_DELETE_MODEL"; context: { modelId: string } }
+  | { command: "CMD_LOCAL_AI_OPEN_SETUP"; context?: Record<string, never> }
+  | { command: "CMD_LOCAL_AI_DISMISS_SETUP_OFFER"; context?: Record<string, never> };
 export type ConfigMessage = Extract<Message, { command: "CMD_BACKGROUND_PAGE_SET_CONFIG" }>;
 export type PredictRequestMessage = Extract<
   Message,
@@ -338,6 +347,10 @@ export interface ReviewSpellingRequestContext {
  * Presage's candidates. `ok: false`: no dictionary for the language.
  */
 export type ReviewSpellingResponse = { ok: true; results: Array<string[] | null> } | { ok: false };
+/** Response to every CMD_LOCAL_AI_* request. */
+export type LocalAiCommandResponse =
+  | { ok: true; status: import("./contracts/localAi").LocalAiStatus }
+  | { ok: false; error: "forbidden" | "invalid" | "unavailable" };
 export type UpdateLangConfigMessage = Extract<
   Message,
   { command: "CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG" }

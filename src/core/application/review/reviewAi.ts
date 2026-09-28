@@ -1,0 +1,125 @@
+import type { LocalAiStatus } from "@core/domain/contracts/localAi";
+import type {
+  AiErrorCode,
+  AiGenerationOutcome,
+  AiGenerationRequest,
+  ConcreteRewriteStyle,
+  EditorContextHint,
+  RewriteStyle,
+  AiRejectionReason,
+} from "@core/domain/grammar/review/ai/types";
+import type { ReviewEdit } from "@core/domain/grammar/review/types";
+
+/**
+ * Optional Local AI provider for a ReviewSession (application port).
+ *
+ * One provider instance per review session; `dispose` ends it (and cancels
+ * everything it started). The adapter behind it owns the transport; the
+ * session never sees browser or WebLLM types.
+ */
+export interface ReviewAiProvider {
+  /** Current status (preference, consent, install, runtime). Never starts a download. */
+  status(): Promise<LocalAiStatus>;
+  /** Subscribe to status pushes while the session is open; returns an unsubscribe. */
+  onStatus(listener: (status: LocalAiStatus) => void): () => void;
+  /**
+   * One generation. Resolves with the outcome; rejects never (errors are
+   * outcomes). Aborting the signal cancels it on the runtime and resolves
+   * `{ ok: false, error: "cancelled" }` once the runtime has settled it.
+   */
+  generate(
+    request: AiGenerationRequest,
+    signal: AbortSignal,
+  ): Promise<{ outcome: AiGenerationOutcome; modelId: string; promptVersion: string }>;
+  /** Opens the extension's setup page (explicit consent happens there). */
+  openSetup(): void;
+  /** The user declined the one-time setup offer. */
+  dismissSetupOffer(): void;
+  dispose(): void;
+}
+
+/** Where Local AI stands for this review; the UI turns this into one status line. */
+export type ReviewAiAvailability =
+  /** Preference off, or no provider (Firefox, build without the runtime). */
+  | "off"
+  /** Preference on, setup not done: the panel may offer setup once. */
+  | "setup-needed"
+  /** Setup done but model artifacts missing/partial: explicit reinstall needed. */
+  | "install-needed"
+  | "installing"
+  | "unsupported"
+  /** Ready (engine may still need to load from cache). */
+  | "ready"
+  /** Paused by the user for this review. */
+  | "paused";
+
+/** Local AI coverage of the CURRENT text, tracked apart from rule coverage. */
+export type ReviewAiCoverage =
+  "idle" | "waiting" | "loading" | "checking" | "complete" | "partial" | "cancelled" | "failed";
+
+export interface ReviewAiViewState {
+  availability: ReviewAiAvailability;
+  coverage: ReviewAiCoverage;
+  /** Status snapshot for the setup/unsupported/install notes (no text). */
+  status: LocalAiStatus | null;
+  /** Characters of scope checked by the model so far / eligible for it. */
+  checkedChars: number;
+  eligibleChars: number;
+  /** Characters not sent (protected, unsafe boundaries, AI size limit). */
+  skippedChars: number;
+  /** Current AI findings (already merged into `diagnostics`). */
+  findings: number;
+  /** Proposals the validator rejected on this text (counts only). */
+  rejected: number;
+  failure: AiErrorCode | null;
+  /** The panel should show its one-time setup offer. */
+  offerSetup: boolean;
+}
+
+export type ReviewMode = "correct" | "rewrite";
+
+export type RewriteStatus =
+  /** Nothing generated yet for this scope/style. */
+  | "idle"
+  | "generating"
+  /** Complete, validated proposal: Apply may be enabled. */
+  | "ready"
+  /** Generated but failed validation: shown with the reason, never applicable. */
+  | "rejected"
+  | "failed"
+  /** The text changed after generation: regenerate. */
+  | "stale"
+  /** Scope longer than the rewrite budget: select a passage. */
+  | "too-long"
+  | "applying";
+
+export interface RewriteViewState {
+  style: RewriteStyle;
+  /** What "context-aware" resolved to (shown), or the style itself. */
+  resolvedStyle: ConcreteRewriteStyle;
+  contextHint: EditorContextHint;
+  status: RewriteStatus;
+  /** Scope text the proposal is for. */
+  before: string;
+  /** Proposed scope text (null until a complete, parsed result exists). */
+  after: string | null;
+  /** Changed regions against `before` (offsets into `before`). */
+  hunks: ReviewEdit[];
+  rejection: AiRejectionReason | null;
+  failure: AiErrorCode | null;
+  /** True only for a complete validated proposal on a target that can apply it. */
+  canApply: boolean;
+  /** Apply is impossible here (review-only editor): the UI offers Copy instead. */
+  previewOnly: boolean;
+}
+
+/** Preview of "Apply selected AI corrections": one combined, conflict-free diff. */
+export interface AiBatchPreview {
+  diagnosticIds: string[];
+  /** Findings left out because they overlap another selected finding. */
+  excluded: Array<{ id: string; reason: "conflict" }>;
+  before: string;
+  after: string;
+  /** Target supports a verified multi-edit transaction. */
+  canApply: boolean;
+}

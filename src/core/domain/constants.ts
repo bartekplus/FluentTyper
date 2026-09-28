@@ -34,6 +34,23 @@ export const CMD_OPTIONS_REPORT_OBSERVABILITY_EVENT = "CMD_OPTIONS_REPORT_OBSERV
 export const CMD_CONTENT_SCRIPT_REPORT_OBSERVABILITY_MODULES =
   "CMD_CONTENT_SCRIPT_REPORT_OBSERVABILITY_MODULES";
 export const CMD_OPTIONS_REPORT_OBSERVABILITY_MODULES = "CMD_OPTIONS_REPORT_OBSERVABILITY_MODULES";
+// Local AI Review (optional on-device model; see src/core/domain/contracts/localAi.ts)
+/** Any extension context or content script: current LocalAiStatus (no side effects). */
+export const CMD_LOCAL_AI_GET_STATUS = "CMD_LOCAL_AI_GET_STATUS";
+/** Content script, when a Review opens and setup is complete: make sure the runtime host exists. */
+export const CMD_LOCAL_AI_ENSURE_HOST = "CMD_LOCAL_AI_ENSURE_HOST";
+/** Options page only (explicit consent): download and install the selected model. */
+export const CMD_LOCAL_AI_INSTALL = "CMD_LOCAL_AI_INSTALL";
+/** Options page only. */
+export const CMD_LOCAL_AI_CANCEL_INSTALL = "CMD_LOCAL_AI_CANCEL_INSTALL";
+/** Options page only: delete FluentTyper-owned artifacts of one model. */
+export const CMD_LOCAL_AI_DELETE_MODEL = "CMD_LOCAL_AI_DELETE_MODEL";
+/** Content script: open the options page at the Local AI setup section. */
+export const CMD_LOCAL_AI_OPEN_SETUP = "CMD_LOCAL_AI_OPEN_SETUP";
+/** Content script: the user declined the Review panel's one-time setup offer. */
+export const CMD_LOCAL_AI_DISMISS_SETUP_OFFER = "CMD_LOCAL_AI_DISMISS_SETUP_OFFER";
+/** Background -> extension pages broadcast; not routed by the background. */
+export const CMD_LOCAL_AI_STATUS_CHANGED = "CMD_LOCAL_AI_STATUS_CHANGED";
 
 // Config Keys
 export const KEY_AUTOCOMPLETE = "autocomplete";
@@ -78,6 +95,14 @@ export const KEY_SHOW_SUGGESTION_FOOTER = "showSuggestionFooter";
 /** @deprecated Legacy "Show language of prediction" key – kept only for migration in SettingsMigrationV10. */
 export const KEY_LEGACY_DISPLAY_LANG_HEADER = "displayLangHeader";
 export const KEY_SHOW_REVIEW_BUTTON = "showReviewButton";
+/** "Local AI corrections in Review" preference; on for new users, blocked until setup. */
+export const KEY_LOCAL_AI_REVIEW_ENABLED = "localAiReviewEnabled";
+/** Selected model tier: "standard" | "quality". */
+export const KEY_LOCAL_AI_REVIEW_TIER = "localAiReviewTier";
+/** Explicit download consent record `{ modelId, tier, at }`, or absent. Never inferred. */
+export const KEY_LOCAL_AI_REVIEW_CONSENT = "localAiReviewConsent";
+/** The Review panel's one-time setup offer was declined. */
+export const KEY_LOCAL_AI_SETUP_OFFER_DISMISSED = "localAiSetupOfferDismissed";
 export const KEY_INLINE_SUGGESTION = "inline_suggestion";
 export const KEY_PREFIX_ONLY_MODE = "prefixOnlyMode";
 export const KEY_PERSONALIZATION_ENABLED = "personalizationEnabled";
@@ -115,6 +140,7 @@ export const DEFAULT_DEBUG_PRESAGE_PREDICTOR_ENABLED = true;
 export const DEFAULT_DEBUG_AI_PREDICTOR_ENABLED = true;
 export const DEFAULT_OBSERVABILITY_ENABLED = true;
 export const DEFAULT_OBSERVABILITY_DEFAULT_LEVEL = "debug";
+export const DEFAULT_LOCAL_AI_REVIEW_ENABLED = true;
 
 export function clampAIPredictionTimeoutMs(value: unknown): number {
   if (typeof value !== "number" || !Number.isFinite(value)) {
