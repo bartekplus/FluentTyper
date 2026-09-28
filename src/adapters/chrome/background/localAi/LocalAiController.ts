@@ -90,6 +90,8 @@ function optionalString<T extends string>(value: unknown): T | undefined {
 
 export class LocalAiController {
   private hostPort: chrome.runtime.Port | null = null;
+  /** An explicit install was sent and has not reported back: the document must stay. */
+  private installInFlight = false;
   private hostState: HostState | null = null;
   private hostFailed = false;
   private documentPromise: Promise<void> | null = null;
@@ -216,6 +218,7 @@ export class LocalAiController {
           tier: record.tier,
           at: Date.now(),
         });
+        this.installInFlight = true;
         await this.sendToHost({ type: "install", tier: record.tier });
         return this.ok();
       }
@@ -385,6 +388,7 @@ export class LocalAiController {
     port.onDisconnect.addListener(() => {
       if (this.hostPort === port) {
         this.hostPort = null;
+        this.installInFlight = false;
       }
     });
     // `configure` always goes first; explicit actions queued meanwhile follow it.
@@ -425,13 +429,22 @@ export class LocalAiController {
         }
         return;
       case "installed":
+        this.installInFlight = false;
+        void this.broadcastStatus();
+        return;
       case "deleted":
         void this.broadcastStatus();
         return;
       case "idle":
         // The host released the GPU and no Review is open. Keep the document if a
-        // Review is being opened on it right now or an explicit action is queued.
-        if (this.pendingDown.length === 0 && this.ensuring === 0 && !this.closingPromise) {
+        // Review is being opened on it right now, an explicit action is queued, or
+        // an install is under way (an idle sent before the host saw it can cross it).
+        if (
+          this.pendingDown.length === 0 &&
+          this.ensuring === 0 &&
+          !this.installInFlight &&
+          !this.closingPromise
+        ) {
           this.closingPromise = this.closeDocument().finally(() => {
             this.closingPromise = null;
           });

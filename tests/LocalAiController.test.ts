@@ -192,6 +192,24 @@ describe("LocalAiController authorization", () => {
     ]);
   });
 
+  test("an idle that crosses an install never closes the document mid-install (real-GPU e2e)", async () => {
+    const { send, chromeFake } = setup();
+    await send({ command: CMD_LOCAL_AI_INSTALL, context: { tier: "standard" } }, optionsPage);
+    const host = chromeFake.hostPort();
+    chromeFake.connect(host);
+    await flush();
+    expect(host.messages.at(-1)).toEqual({ type: "install", tier: "standard" });
+    // The host released an earlier (pre-consent) state and says idle while install is on its way.
+    host.emit({ type: "idle" });
+    await flush();
+    expect(chromeFake.closeDocument).not.toHaveBeenCalled();
+    // Once the install has finished, idle closes it as usual.
+    host.emit({ type: "installed", modelId: STANDARD.modelId, ok: true });
+    host.emit({ type: "idle" });
+    await flush();
+    expect(chromeFake.closeDocument).toHaveBeenCalledTimes(1);
+  });
+
   test("delete keeps consent and preference", async () => {
     const { send, chromeFake, state } = setup({ consent: consented });
     const host = chromeFake.hostPort();
