@@ -7653,11 +7653,17 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         (p) => p.status === "No issues found by the review checks.",
       );
       await page.focus("#test-textarea");
-      // Live grammar is suspended in the reviewed editor, so "Teh" stays as typed.
+      // Suggestions keep working in the reviewed editor.
       await page.keyboard.type(" Teh");
+      await waitForVisibleSuggestions(page);
       await waitForReview(page, "recheck after typing", (p) => p.status === "Issues: 1");
       expect(await textareaValue()).toBe("Short. Teh");
+      // Escape closes the suggestion popup first, then the review.
       await page.keyboard.press("Escape");
+      await waitForNoVisibleSuggestions(page);
+      expect((await readReviewPanel(page)).open).toBe(true);
+      await page.keyboard.press("Escape");
+      await waitForReview(page, "closed after popup", (p) => !p.open);
 
       // Marks follow the textarea's own scrolling.
       const lines = Array.from({ length: 30 }, (_, i) => `Line ${i} is fine.`).join("\n");

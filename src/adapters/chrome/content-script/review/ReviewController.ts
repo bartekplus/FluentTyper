@@ -26,9 +26,11 @@ const logger = createLogger("ReviewController");
 export interface ReviewControllerDependencies {
   /** Current review settings: the rules to run (reviewRuleIds), language, dictionary. */
   getOptions(): ReviewOptions;
-  /** Pauses live grammar/suggestions for this editor only; resume restores them. */
+  /** Pauses live grammar/suggestions for this editor while review writes to it; resume restores them. */
   suspend(element: HTMLElement): void;
   resume(element: HTMLElement): void;
+  /** A suggestion popup is showing for this editor: its Escape closes that first. */
+  suggestionsOpen?(element: HTMLElement): boolean;
   addToDictionary(word: string): Promise<boolean>;
   /** Local dictionary lookups for unknown words (the extension's own Presage engine). */
   lookupSpelling?: ReviewSpellingLookup;
@@ -231,8 +233,6 @@ export class ReviewController {
     };
     this.active = active;
     this.deps.onActiveChange?.();
-    this.deps.suspend(target.element);
-    active.cleanup.push(() => this.deps.resume(target.element));
     if (onClose) active.cleanup.push(onClose);
     this.listen(active);
     void session.start().catch((error: unknown) => {
@@ -269,7 +269,8 @@ export class ReviewController {
         session.notifySourceChanged();
       });
       on<MouseEvent>(element, "click", (event) => this.onEditorClick(event));
-      on<KeyboardEvent>(element, "keydown", (event) => this.onEditorKeyDown(event), true);
+      // On the window, ahead of the suggestion popup's own Escape on the editor.
+      on<KeyboardEvent>(view, "keydown", (event) => this.onEditorKeyDown(event), true);
       // Programmatic edits and formatting-only changes (text turned into code).
       if (element.isContentEditable) {
         const observer = new MutationObserver(() => session.notifySourceChanged());
@@ -527,7 +528,7 @@ export class ReviewController {
     const active = this.active;
     if (!active) return;
     active.ui.closeCard();
-    await active.session.apply(id, alternative);
+    await this.whileWriting(active, () => active.session.apply(id, alternative));
     if (this.active === active && viaKeyboard) this.focusAfterWrite(active);
   }
 
@@ -549,8 +550,19 @@ export class ReviewController {
   private async fixAll(viaKeyboard: boolean): Promise<void> {
     const active = this.active;
     if (!active) return;
-    await active.session.fixAll();
+    await this.whileWriting(active, () => active.session.fixAll());
     if (this.active === active && viaKeyboard) this.focusAfterWrite(active);
+  }
+
+  /** Review's own edits must not open suggestions or trigger typing-time corrections. */
+  private async whileWriting(active: ActiveReview, write: () => Promise<unknown>): Promise<void> {
+    const element = active.target.element;
+    this.deps.suspend(element);
+    try {
+      await write();
+    } finally {
+      this.deps.resume(element);
+    }
   }
 
   /** Writes focus the editor; a keyboard user continues in the review panel. */
@@ -727,6 +739,8 @@ export class ReviewController {
   private onEditorKeyDown(event: KeyboardEvent): void {
     const active = this.active;
     if (!active || event.key !== "Escape" || event.isComposing || active.ui.owns(event)) return;
+    const element = active.target.element;
+    if (!event.composedPath().includes(element) || this.deps.suggestionsOpen?.(element)) return;
     // Escape closes the card first, then the review.
     event.preventDefault();
     event.stopPropagation();

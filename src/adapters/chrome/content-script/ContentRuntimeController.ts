@@ -227,6 +227,7 @@ export class ContentRuntimeController {
         this.reviewSuspended = null;
         this.suggestionManager?.resumeAfterReview(element);
       },
+      suggestionsOpen: (element) => this.suggestionManager?.hasOpenSuggestions(element) ?? false,
       addToDictionary: async (word) => {
         const message: ContentScriptAddToDictionaryMessage = {
           command: CMD_CONTENT_SCRIPT_ADD_TO_DICTIONARY,

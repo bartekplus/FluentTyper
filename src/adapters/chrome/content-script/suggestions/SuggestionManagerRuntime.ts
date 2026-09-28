@@ -245,12 +245,12 @@ export class SuggestionManagerRuntime {
     return false;
   }
 
-  /** Detaches the helper from an editor for the duration of a review. */
   /** True while the "enable FluentTyper here" icon owns `element` (one icon per field). */
   public isAwaitingManualAttach(element: HTMLElement): boolean {
     return this.manualAttachUiManager.has(element);
   }
 
+  /** Detaches the helper from an editor while a review writes its fixes into it. */
   public suspendForReview(elem: HTMLElement): void {
     this.reviewSuspended.add(elem);
     for (const [id, entry] of [...this.entryRegistry.entriesById()]) {
@@ -260,10 +260,24 @@ export class SuggestionManagerRuntime {
     }
   }
 
-  /** Restores normal behavior after a review; no setting was changed meanwhile. */
+  /** Restores normal behavior after a review's write; no setting was changed meanwhile. */
   public resumeAfterReview(elem: HTMLElement): void {
     this.reviewSuspended.delete(elem);
     if (isInDocument(elem)) this.queryAndAttachHelper(elem);
+  }
+
+  /** A suggestion menu or inline suggestion is showing in (or around) this editor. */
+  public hasOpenSuggestions(elem: HTMLElement): boolean {
+    for (const [, entry] of this.entryRegistry.entriesById()) {
+      if (entry.elem !== elem && !elem.contains(entry.elem) && !entry.elem.contains(elem)) continue;
+      if (
+        entry.inlineSuggestion ||
+        this.menuPresenter.isVisible(entry.menu, entry.suggestions.length)
+      ) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private isReviewSuspended(elem: HTMLElement): boolean {
