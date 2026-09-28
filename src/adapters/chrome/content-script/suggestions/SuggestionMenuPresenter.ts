@@ -117,11 +117,16 @@ export class SuggestionMenuPresenter {
   }
 
   public updateHighlight(list: HTMLUListElement, selectedIndex: number): void {
+    // The element render() describes: the shadow panel, or the fallback menu
+    // (whose list sits in a wrapper, so not simply the list's parent).
+    const panel = list.closest<HTMLElement>(
+      `.${SuggestionMenuView.PANEL_CLASS}, .${SuggestionMenuView.CONTAINER_CLASS}`,
+    );
     list.querySelectorAll("li").forEach((item, index) => {
       if (index === selectedIndex) {
         item.classList.add("highlight");
         item.setAttribute("aria-selected", "true");
-        list.parentElement?.setAttribute("aria-activedescendant", item.id);
+        panel?.setAttribute("aria-activedescendant", item.id);
         if (typeof item.scrollIntoView === "function") {
           item.scrollIntoView({ block: "nearest", inline: "nearest" });
         }

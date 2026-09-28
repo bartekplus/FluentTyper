@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import { SuggestionMenuPresenter } from "../src/adapters/chrome/content-script/suggestions/SuggestionMenuPresenter";
+import type { SuggestionPositioningService } from "../src/adapters/chrome/content-script/suggestions/SuggestionPositioningService";
 import { SuggestionMenuView } from "../src/adapters/chrome/content-script/suggestions/SuggestionMenuView";
 
 describe("SuggestionMenuView", () => {
@@ -48,6 +50,26 @@ describe("SuggestionMenuView", () => {
       // List and footer share a flex column, so the footer can go above a bottom-up list.
       expect(list.parentElement?.classList.contains("ft-suggestion-fallback-panel")).toBe(true);
       expect(SuggestionMenuView.resolveFooter(menu)?.parentElement).toBe(list.parentElement);
+
+      // Keyboard selection moves aria-activedescendant on the menu, as render() set it.
+      const presenter = new SuggestionMenuPresenter({
+        syncMenuTypography: () => undefined,
+        positionMenu: () => true,
+      } as unknown as SuggestionPositioningService);
+      presenter.render({
+        menuId: 7,
+        menu,
+        list,
+        target: document.createElement("input"),
+        suggestions: ["one", "two"],
+        selectedIndex: 0,
+        showShortcutDigits: false,
+        menuHeader: null,
+        mentionText: "",
+      });
+      presenter.updateHighlight(list, 1);
+      expect(menu.getAttribute("aria-activedescendant")).toBe("ft-suggestion-option-7-1");
+      expect(list.parentElement?.hasAttribute("aria-activedescendant")).toBe(false);
       expect(menu.shadowRoot).toBeNull();
     } finally {
       Object.defineProperty(HTMLElement.prototype, "attachShadow", {
