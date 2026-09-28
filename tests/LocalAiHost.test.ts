@@ -357,6 +357,24 @@ describe("LocalAiHost lifecycle", () => {
     expect(host.state()).toMatchObject({ install: "complete", error: "delete-failed" });
   });
 
+  test("a delete that succeeds on retry clears the earlier delete error", async () => {
+    let refuse = true;
+    let cached: "complete" | "none" = "complete";
+    const { host } = makeHost({
+      cacheState: async () => cached,
+      delete: async () => {
+        if (refuse) throw new DOMException("refused", "UnknownError");
+        cached = "none";
+      },
+    });
+    await flush(5);
+    await host.deleteModel(STANDARD.modelId);
+    refuse = false;
+    await host.deleteModel(STANDARD.modelId);
+    expect(host.state()).toMatchObject({ install: "none" });
+    expect(host.state().error).toBeUndefined();
+  });
+
   test("a probe requested while one is still queued runs once", async () => {
     const { host, count } = makeHost({}, { configure: false });
     host.configure({ modelId: STANDARD.modelId }, true);

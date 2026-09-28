@@ -286,6 +286,7 @@ export class LocalAiHost {
       this.publish();
       try {
         await this.engine.delete(modelId);
+        if (this.error === "delete-failed") this.error = undefined;
       } catch {
         // The files stay (the cache state below says so); the options page shows why.
         this.error = "delete-failed";
