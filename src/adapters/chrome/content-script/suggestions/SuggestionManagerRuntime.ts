@@ -3,6 +3,7 @@ import { getDeepActiveElement, isInDocument } from "@core/application/dom-utils"
 import { createLogger } from "@core/application/logging/Logger";
 import { LANG_SEPARATOR_CHARS_REGEX } from "@core/domain/lang";
 import { InlineSuggestionPresenter } from "./InlineSuggestionPresenter";
+import { InlineSuggestionView } from "./InlineSuggestionView";
 import {
   ManualAttachUiManager,
   type ManualAttachTarget,
@@ -266,13 +267,13 @@ export class SuggestionManagerRuntime {
     if (isInDocument(elem)) this.queryAndAttachHelper(elem);
   }
 
-  /** A suggestion menu or inline suggestion is showing in (or around) this editor. */
+  /** A suggestion menu or inline preview is showing in (or around) this editor. */
   public hasOpenSuggestions(elem: HTMLElement): boolean {
     for (const [, entry] of this.entryRegistry.entriesById()) {
       if (entry.elem !== elem && !elem.contains(entry.elem) && !entry.elem.contains(elem)) continue;
       if (
-        entry.inlineSuggestion ||
-        this.menuPresenter.isVisible(entry.menu, entry.suggestions.length)
+        this.menuPresenter.isVisible(entry.menu, entry.suggestions.length) ||
+        InlineSuggestionView.hasForEntry(entry.id, entry.elem.ownerDocument)
       ) {
         return true;
       }
