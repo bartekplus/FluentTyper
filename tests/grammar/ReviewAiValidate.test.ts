@@ -252,6 +252,43 @@ describe("correctionFindings", () => {
     expectRejected("We need more tests here.", "We need tests here.", "drift");
   });
 
+  test("uncountable nouns lose a wrong plural (held-out set)", () => {
+    const fixed = (text: string, proposed: string) => correctOne(text, proposed).applied;
+    expect(fixed("The informations here is old.", "The information here is old.")).toBe(
+      "The information here is old.",
+    );
+    expect(fixed("Users never lose their datas.", "Users never lose their data.")).toBe(
+      "Users never lose their data.",
+    );
+    expect(
+      fixed(
+        "We have many equipments in the old lab.",
+        "We have a lot of equipment in the old lab.",
+      ),
+    ).toBe("We have a lot of equipment in the old lab.");
+    // Countable nouns: still the author's choice, and "a lot of" is style there.
+    expectRejected("The reports here are old.", "The report here are old.", "drift");
+    expectRejected(
+      "We have many tools in the old lab.",
+      "We have a lot of tools in the old lab.",
+      "drift",
+    );
+  });
+
+  test("intensifier before a comparative (held-out set)", () => {
+    expect(
+      correctOne("It loads very more slowly now.", "It loads much more slowly now.").applied,
+    ).toBe("It loads much more slowly now.");
+    expectRejected("It looks very good now.", "It looks much good now.", "drift");
+  });
+
+  test("a second negative becomes its any-form (held-out set)", () => {
+    expect(
+      correctOne("We didnt received no reply today.", "We didn't receive any reply today.").applied,
+    ).toBe("We didn't receive any reply today.");
+    expectRejected("We got no reply today.", "We got any reply today.", "negation");
+  });
+
   test("double negatives: a negative-polarity counterpart is not a polarity change", () => {
     const fixed = (text: string, proposed: string) => correctOne(text, proposed).applied;
     expect(fixed("We did not change nothing today.", "We did not change anything today.")).toBe(

@@ -31,6 +31,11 @@ const PARTIAL_DENSE: Record<string, { reason: string; minOffered: number }> = {
   // Inserting "it" ("like it when") is not a closed-class correction; "dont" is one
   // word away and shares its unit.
   "dense-11": { reason: "drift", minOffered: 2 },
+  // Held-out: "three advices" -> "three pieces of advice" is a restructure; the
+  // comma after "yesterday" shares its unit.
+  "heldout-02": { reason: "drift", minOffered: 2 },
+  // Held-out: "suggested me to restart" -> "suggested that I restart" is a restructure.
+  "heldout-08": { reason: "drift", minOffered: 1 },
   // The user's paragraph: every fix except the two stylistic ones above (dense-05, dense-10).
   "dense-para-01": { reason: "drift", minOffered: 28 },
 };

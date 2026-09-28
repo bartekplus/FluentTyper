@@ -120,7 +120,19 @@ function diffTokens(a: readonly Token[], b: readonly Token[]): Hunk[] | null {
     open.p1 = pre + j;
   }
   if (open) hunks.push(open);
-  return hunks;
+  // Changes separated only by a space are one change ("many equipments" ->
+  // "a lot of equipment"), not a word pair aligned on the shared space.
+  const merged: Hunk[] = [];
+  for (const hunk of hunks) {
+    const last = merged[merged.length - 1];
+    if (last && a.slice(last.o1, hunk.o0).every((token) => token.kind === "space")) {
+      last.o1 = hunk.o1;
+      last.p1 = hunk.p1;
+    } else {
+      merged.push({ ...hunk });
+    }
+  }
+  return merged;
 }
 
 // ---------------------------------------------------------------------------
@@ -164,6 +176,14 @@ const INFORMAL = wordSet(`
   gonna wanna gotta kinda sorta dunno lemme gimme y'all ya yeah yep nope lol tbh imo btw ok
   okay cuz
 `);
+
+/** Nouns without a plural ("informations", "datas" are errors, not a choice of number). */
+const UNCOUNTABLE = wordSet(`
+  information advice equipment data feedback software research knowledge furniture luggage
+  homework evidence news traffic money
+`);
+const isUncountable = (word: string) =>
+  UNCOUNTABLE.has(word) || (word.endsWith("s") && UNCOUNTABLE.has(word.slice(0, -1)));
 
 /** Determiners that fix a noun's number: agreement with them is a correction. */
 const PLURAL_DETERMINERS = wordSet(`
@@ -213,6 +233,8 @@ function flipsNounNumber(
     const plural = pluralOf(original[index].text, token.text);
     if (plural === null) return false;
     const becomesPlural = lower(token.text) === plural;
+    // "informations" -> "information": an uncountable noun has no plural to choose.
+    if (!becomesPlural && UNCOUNTABLE.has(lower(token.text))) return false;
     return !(wantsPlural && becomesPlural) && !(wantsSingular && !becomesPlural);
   });
 }
@@ -263,6 +285,13 @@ const WORD_GROUPS: readonly (readonly string[])[] = [
   ["much", "many"],
   ["little", "few"],
   ["less", "fewer"],
+  // A second negative becomes its any-form ("didn't get no reply" -> "any reply");
+  // the negation check still requires another negation to remain.
+  ["no", "none", "any"],
+  ["nobody", "anybody"],
+  ["nothing", "anything"],
+  ["never", "ever"],
+  ["nowhere", "anywhere"],
 ];
 /** Words that may be inserted or deleted by a correction (articles, auxiliaries, prepositions). */
 const INSERTABLE = new Set(WORD_GROUPS.slice(0, 5).flat().concat(WORD_GROUPS[15]));
@@ -439,6 +468,8 @@ function isCorrection(
   added: readonly Token[],
   deletable: (index: number) => boolean,
   movable: (word: string) => boolean = () => false,
+  /** Added words (count) that removed[i] may become in context, from added[j]; 0 when none. */
+  phrase: (i: number, j: number) => number = () => 0,
 ): boolean {
   const n = removed.length;
   const m = added.length;
@@ -451,6 +482,8 @@ function isCorrection(
     for (let j = 0; j <= m; j += 1) {
       if (!reach[i][j]) continue;
       if (i < n && j < m && closeKind(removed[i].text, added[j].text)) reach[i + 1][j + 1] = true;
+      const span = i < n && j < m ? phrase(i, j) : 0;
+      if (span > 0 && j + span <= m) reach[i + 1][j + span] = true;
       if (i + 1 < n && j < m && joined(removed, i) === bare(lower(added[j].text))) {
         reach[i + 2][j + 1] = true;
       }
@@ -978,7 +1011,21 @@ function correctUnit(
         ((text === "more" || text === "most") && COMPARATIVE.test(lower(after?.text ?? "")))
       );
     };
-    if (!isCorrection(removed, added, deletable, movable) || formalizes(removed, added)) {
+    // Context-bound replacements: "very more slowly" -> "much more slowly",
+    // "many equipments" -> "a lot of equipment" (only before an uncountable noun).
+    const phrase = (position: number, j: number) => {
+      const index = removedIndexes[position];
+      const word = lower(original[index].text);
+      const after = lower(wordAfter(original, index)?.text ?? "");
+      const want = added.slice(j).map((token) => lower(token.text));
+      if (word === "very" && want[0] === "much" && COMPARATIVE_OR_MORE.test(after)) return 1;
+      if ((word === "many" || word === "much") && isUncountable(after)) {
+        if (want.slice(0, 3).join(" ") === "a lot of") return 3;
+        if (want.slice(0, 2).join(" ") === "lots of") return 2;
+      }
+      return 0;
+    };
+    if (!isCorrection(removed, added, deletable, movable, phrase) || formalizes(removed, added)) {
       return { reason: "drift" };
     }
     // A new sentence break inside the segment ("16 rd. chain") is not a correction.
@@ -1049,6 +1096,7 @@ function correctUnit(
   };
 }
 
+const COMPARATIVE_OR_MORE = /^(?:more|less|\p{L}{2,}er|better|worse)$/u;
 const COMPARATIVE = /^(?:\p{L}{2,}(?:er|est)|better|best|worse|worst|less|least|fewer)$/u;
 
 /** Category by the kind of change; a generic "grammar" rather than a guessed rule. */

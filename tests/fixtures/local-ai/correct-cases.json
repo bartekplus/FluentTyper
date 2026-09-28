@@ -1580,5 +1580,255 @@
       "text": "I don't think this feature works correctly when a user pastes a long text into the editor. Yesterday we were testing the new version and found several issues with suggestions. The application should automatically detect the language, but sometimes it chooses the wrong one. My manager asked me if I can finish the report before Friday afternoon. There is too much information displayed on this screen, and it's difficult to understand. She has been working on this project for three years, but she still doesn't know all the details. We need to improve performance because the current implementation is slower than before. If the user clicks this button, all changes are saved immediately without any confirmation. The new grammar checker looks really good; however, it still misses some obvious mistakes. My colleague and I discussed this problem, and we decided not to change anything for now."
     },
     "tags": ["dense", "user-report", "paragraph"]
+  },
+  {
+    "id": "heldout-01",
+    "lang": "en_US",
+    "text": "The team were discuss about the budget since two weeks.",
+    "expect": {
+      "text": "The team has been discussing the budget for two weeks."
+    },
+    "tags": ["dense", "heldout"]
+  },
+  {
+    "id": "heldout-02",
+    "lang": "en_US",
+    "text": "He give me three advices yesterday and all of them was useful.",
+    "expect": {
+      "text": "He gave me three pieces of advice yesterday, and all of them were useful."
+    },
+    "tags": ["dense", "heldout"]
+  },
+  {
+    "id": "heldout-03",
+    "lang": "en_US",
+    "text": "If customer open the app, the dashboard load very more slowly then usual.",
+    "expect": {
+      "text": "If a customer opens the app, the dashboard loads much more slowly than usual."
+    },
+    "tags": ["dense", "heldout"]
+  },
+  {
+    "id": "heldout-04",
+    "lang": "en_US",
+    "text": "We didnt received no reply from the vendor on wednesday.",
+    "expect": {
+      "text": "We didn't receive any reply from the vendor on Wednesday."
+    },
+    "tags": ["dense", "heldout"]
+  },
+  {
+    "id": "heldout-05",
+    "lang": "en_US",
+    "text": "The report look fine however, the charts has wrong labels.",
+    "expect": {
+      "text": "The report looks fine; however, the charts have wrong labels."
+    },
+    "tags": ["dense", "heldout"]
+  },
+  {
+    "id": "heldout-06",
+    "lang": "en_US",
+    "text": "There is many equipments in the lab that nobody use.",
+    "expect": {
+      "text": "There is a lot of equipment in the lab that nobody uses."
+    },
+    "tags": ["dense", "heldout"]
+  },
+  {
+    "id": "heldout-07",
+    "lang": "en_US",
+    "text": "My brother and me has been living here since five years.",
+    "expect": {
+      "text": "My brother and I have been living here for five years."
+    },
+    "tags": ["dense", "heldout"]
+  },
+  {
+    "id": "heldout-08",
+    "lang": "en_US",
+    "text": "She suggested me to restart the server before it crash again.",
+    "expect": {
+      "text": "She suggested that I restart the server before it crashes again."
+    },
+    "tags": ["dense", "heldout"]
+  },
+  {
+    "id": "heldout-09",
+    "lang": "en_US",
+    "text": "Neither the tests nor the build pass on the new branch.",
+    "expect": {
+      "text": "Neither the tests nor the build passes on the new branch."
+    },
+    "tags": ["dense", "heldout"]
+  },
+  {
+    "id": "heldout-10",
+    "lang": "en_US",
+    "text": "I am agree that this approach are more simpler.",
+    "expect": {
+      "text": "I agree that this approach is simpler."
+    },
+    "tags": ["dense", "heldout"]
+  },
+  {
+    "id": "heldout-11",
+    "lang": "en_US",
+    "text": "Every developers should reviews their own code first.",
+    "expect": {
+      "text": "Every developer should review their own code first."
+    },
+    "tags": ["dense", "heldout"]
+  },
+  {
+    "id": "heldout-12",
+    "lang": "en_US",
+    "text": "The meeting have been moved to next monday because of holiday.",
+    "expect": {
+      "text": "The meeting has been moved to next Monday because of the holiday."
+    },
+    "tags": ["dense", "heldout"]
+  },
+  {
+    "id": "heldout-13",
+    "lang": "en_US",
+    "text": "He explained us how the cache work in details.",
+    "expect": {
+      "text": "He explained to us how the cache works in detail."
+    },
+    "tags": ["dense", "heldout"]
+  },
+  {
+    "id": "heldout-14",
+    "lang": "en_US",
+    "text": "Its important that user dont lose their datas.",
+    "expect": {
+      "text": "It's important that users don't lose their data."
+    },
+    "tags": ["dense", "heldout"]
+  },
+  {
+    "id": "heldout-15",
+    "lang": "en_US",
+    "text": "We was waiting for an answer during three hours.",
+    "expect": {
+      "text": "We were waiting for an answer for three hours."
+    },
+    "tags": ["dense", "heldout"]
+  },
+  {
+    "id": "heldout-16",
+    "lang": "en_US",
+    "text": "The informations in this document is outdated.",
+    "expect": {
+      "text": "The information in this document is outdated."
+    },
+    "tags": ["dense", "heldout"]
+  },
+  {
+    "id": "heldout-17",
+    "lang": "en_US",
+    "text": "Can you tell me where is the config file?",
+    "expect": {
+      "text": "Can you tell me where the config file is?"
+    },
+    "tags": ["dense", "heldout"]
+  },
+  {
+    "id": "heldout-18",
+    "lang": "en_US",
+    "text": "The new feature allow users to exports the report as PDF.",
+    "expect": {
+      "text": "The new feature allows users to export the report as PDF."
+    },
+    "tags": ["dense", "heldout"]
+  },
+  {
+    "id": "heldout-19",
+    "lang": "en_US",
+    "text": "I look forward to hear from you soon.",
+    "expect": {
+      "text": "I look forward to hearing from you soon."
+    },
+    "tags": ["dense", "heldout"]
+  },
+  {
+    "id": "heldout-20",
+    "lang": "en_US",
+    "text": "Less people used the old version then we expected.",
+    "expect": {
+      "text": "Fewer people used the old version than we expected."
+    },
+    "tags": ["dense", "heldout"]
+  },
+  {
+    "id": "heldout-ok-01",
+    "lang": "en_US",
+    "text": "We'll ship the patch once the tests are green.",
+    "expect": "unchanged",
+    "tags": ["heldout", "correct-prose"]
+  },
+  {
+    "id": "heldout-ok-02",
+    "lang": "en_US",
+    "text": "The API returns a 404 when the item doesn't exist.",
+    "expect": "unchanged",
+    "tags": ["heldout", "correct-prose"]
+  },
+  {
+    "id": "heldout-ok-03",
+    "lang": "en_US",
+    "text": "Nobody expected the migration to take all weekend.",
+    "expect": "unchanged",
+    "tags": ["heldout", "correct-prose"]
+  },
+  {
+    "id": "heldout-ok-04",
+    "lang": "en_US",
+    "text": "I'm fine with either option, honestly.",
+    "expect": "unchanged",
+    "tags": ["heldout", "correct-prose"]
+  },
+  {
+    "id": "heldout-ok-05",
+    "lang": "en_US",
+    "text": "She's been on call since Monday, so let's not page her tonight.",
+    "expect": "unchanged",
+    "tags": ["heldout", "correct-prose"]
+  },
+  {
+    "id": "heldout-ok-06",
+    "lang": "en_US",
+    "text": "The build used to take ten minutes; now it takes three.",
+    "expect": "unchanged",
+    "tags": ["heldout", "correct-prose"]
+  },
+  {
+    "id": "heldout-ok-07",
+    "lang": "en_US",
+    "text": "Whatever you decide, please write it down.",
+    "expect": "unchanged",
+    "tags": ["heldout", "correct-prose"]
+  },
+  {
+    "id": "heldout-ok-08",
+    "lang": "en_US",
+    "text": "Few people read the release notes, but everyone reads the changelog.",
+    "expect": "unchanged",
+    "tags": ["heldout", "correct-prose"]
+  },
+  {
+    "id": "heldout-ok-09",
+    "lang": "en_US",
+    "text": "If it ain't broke, don't fix it.",
+    "expect": "unchanged",
+    "tags": ["heldout", "correct-prose"]
+  },
+  {
+    "id": "heldout-ok-10",
+    "lang": "en_US",
+    "text": "Thanks for the quick turnaround — much appreciated!",
+    "expect": "unchanged",
+    "tags": ["heldout", "correct-prose"]
   }
 ]
