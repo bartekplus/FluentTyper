@@ -14,7 +14,7 @@ import {
   KEY_DATE_FORMAT,
   KEY_DEBUG_AI_PREDICTOR_ENABLED,
   KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
-  KEY_DISPLAY_LANG_HEADER,
+  KEY_SHOW_SUGGESTION_FOOTER,
   KEY_SHOW_REVIEW_BUTTON,
   KEY_DOMAIN_LIST_MODE,
   KEY_ENABLED_GRAMMAR_RULES,
@@ -32,6 +32,7 @@ import {
   KEY_CODE_MODE,
   KEY_PRODUCTIVITY_STATS,
   KEY_SELECT_BY_DIGIT,
+  KEY_HORIZONTAL_SUGGESTIONS,
   KEY_SITE_PROFILES,
   KEY_TEXT_EXPANSIONS,
   KEY_TIME_FORMAT,
@@ -71,7 +72,8 @@ const SETTINGS_KEYS = {
   autocompleteOnEnter: KEY_AUTOCOMPLETE_ON_ENTER,
   autocompleteOnTab: KEY_AUTOCOMPLETE_ON_TAB,
   selectByDigit: KEY_SELECT_BY_DIGIT,
-  displayLangHeader: KEY_DISPLAY_LANG_HEADER,
+  horizontalSuggestions: KEY_HORIZONTAL_SUGGESTIONS,
+  showSuggestionFooter: KEY_SHOW_SUGGESTION_FOOTER,
   showReviewButton: KEY_SHOW_REVIEW_BUTTON,
   autoCapitalize: KEY_AUTO_CAPITALIZE,
   autoLanguageSitePriors: KEY_AUTO_LANGUAGE_SITE_PRIORS,
@@ -129,7 +131,8 @@ export interface SettingsSchema {
   autocompleteOnEnter: boolean;
   autocompleteOnTab: boolean;
   selectByDigit: boolean;
-  displayLangHeader: boolean;
+  horizontalSuggestions: boolean;
+  showSuggestionFooter: boolean;
   showReviewButton: boolean;
   autoCapitalize: boolean;
   autoLanguageSitePriors: Record<string, Record<string, number>>;

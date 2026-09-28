@@ -1,18 +1,17 @@
 import { describe, expect, jest, test } from "bun:test";
 import { SuggestionMenuPresenter } from "../src/adapters/chrome/content-script/suggestions/SuggestionMenuPresenter";
+import { SuggestionMenuView } from "../src/adapters/chrome/content-script/suggestions/SuggestionMenuView";
 import type { SuggestionPositioningService } from "../src/adapters/chrome/content-script/suggestions/SuggestionPositioningService";
 
 describe("SuggestionMenuPresenter", () => {
-  test("renders suggestions with header and highlight", () => {
+  test("renders suggestions with the language and highlight", () => {
     const positioning = {
       syncMenuTypography: jest.fn(),
       positionMenu: jest.fn(() => true),
     } as unknown as SuggestionPositioningService;
     const presenter = new SuggestionMenuPresenter(positioning);
-    const menu = document.createElement("div");
-    const list = document.createElement("ul");
+    const { menu, list } = SuggestionMenuView.ensureMenu();
     const target = document.createElement("input");
-    menu.appendChild(list);
 
     const rendered = presenter.render({
       menuId: 1,
@@ -27,7 +26,16 @@ describe("SuggestionMenuPresenter", () => {
     });
 
     expect(rendered).toBe(true);
-    expect(menu.querySelector(".ft-suggestion-header")?.textContent).toBe("Lang: English");
+    // The language sits at the end of the footer line.
+    const footer = SuggestionMenuView.resolveFooter(menu);
+    expect(footer?.hidden).toBe(false);
+    expect(footer?.querySelector(".ft-suggestion-lang")?.textContent).toBe("Lang: English");
+    // Screen readers get the language (it describes the listbox), not the key hints.
+    expect(footer?.getAttribute("aria-hidden")).toBeNull();
+    const panel = SuggestionMenuView.resolvePanel(menu);
+    expect(panel.getAttribute("aria-describedby")).toBe(
+      footer?.querySelector(".ft-suggestion-lang")?.id,
+    );
     expect(list.querySelectorAll("li").length).toBe(2);
     // Each item resolves its own base direction (Arabic with trailing digits in an LTR page).
     expect(
@@ -39,6 +47,38 @@ describe("SuggestionMenuPresenter", () => {
     expect(list.querySelector("li .ft-suggestion-label")?.innerHTML).toContain(
       '<span class="ft-suggestion-match">he</span>',
     );
+  });
+
+  test("marks the menu horizontal before positioning it, and clears the mark again", () => {
+    const menu = document.createElement("div");
+    const layoutWhenPositioned: Array<string | null> = [];
+    const positioning = {
+      syncMenuTypography: jest.fn(),
+      positionMenu: jest.fn(() => {
+        layoutWhenPositioned.push(menu.getAttribute("data-ft-layout"));
+        return true;
+      }),
+    } as unknown as SuggestionPositioningService;
+    const presenter = new SuggestionMenuPresenter(positioning);
+    const list = document.createElement("ul");
+    menu.appendChild(list);
+    const model = {
+      menuId: 1,
+      menu,
+      list,
+      target: document.createElement("input"),
+      suggestions: ["hello"],
+      selectedIndex: 0,
+      showShortcutDigits: false,
+      menuHeader: null,
+      mentionText: "he",
+    };
+
+    presenter.render({ ...model, horizontal: true });
+    presenter.render({ ...model, horizontal: false });
+
+    // Measured with the row layout applied, so its size is the row's.
+    expect(layoutWhenPositioned).toEqual(["horizontal", null]);
   });
 
   test("labels snippet suggestions with their shortcut", () => {
@@ -64,12 +104,56 @@ describe("SuggestionMenuPresenter", () => {
       mentionText: "ad",
     });
 
-    const labels = list.querySelectorAll(".ft-suggestion-label");
-    expect(labels[0].querySelector(".ft-suggestion-snippet")).toBeNull();
-    expect(labels[1].querySelector(".ft-suggestion-snippet")?.innerHTML).toBe(
-      '<span class="ft-suggestion-match">ad</span>dress →',
+    const [word, snippet] = Array.from(list.querySelectorAll("li"));
+    expect(word.querySelector(".ft-suggestion-detail")).toBeNull();
+    // A snippet shows its expansion, with the shortcut (typed text highlighted) on the right.
+    expect(snippet.querySelector(".ft-suggestion-label")?.textContent).toBe("1 <Main> St");
+    expect(snippet.querySelector(".ft-suggestion-detail")?.innerHTML).toBe(
+      '<span class="ft-suggestion-match">ad</span>dress',
     );
-    expect(labels[1].textContent).toBe("address → 1 <Main> St");
+  });
+
+  test("shows the keys that work in a footer, and none without accept keys", () => {
+    const positioning = {
+      syncMenuTypography: jest.fn(),
+      positionMenu: jest.fn(() => true),
+    } as unknown as SuggestionPositioningService;
+    const presenter = new SuggestionMenuPresenter(positioning);
+    const { menu, list } = SuggestionMenuView.ensureMenu();
+    const model = {
+      menuId: 1,
+      menu,
+      list,
+      target: document.createElement("input"),
+      suggestions: ["hello", "help", "helm"],
+      selectedIndex: 0,
+      showShortcutDigits: true,
+      menuHeader: null,
+      mentionText: "he",
+    };
+    const footer = () => SuggestionMenuView.resolveFooter(menu)!;
+
+    presenter.render({ ...model, acceptKeys: ["Tab", "⏎"] });
+    expect(footer().hidden).toBe(false);
+    expect(
+      Array.from(footer().querySelectorAll(".ft-suggestion-hint"), (hint) =>
+        hint.getAttribute("aria-hidden"),
+      ),
+    ).toEqual(["true", "true", "true", "true"]);
+    expect(Array.from(footer().querySelectorAll("kbd"), (kbd) => kbd.textContent)).toEqual([
+      "↑↓",
+      "Tab ⏎",
+      "1–3",
+      "Esc",
+    ]);
+
+    // The hints follow the "Extension UI Language" passed in, not the browser's.
+    presenter.render({ ...model, acceptKeys: ["Tab"], uiLanguage: "de_DE" });
+    expect(footer().textContent).toContain("übernehmen");
+
+    presenter.render(model);
+    expect(footer().hidden).toBe(true);
+    menu.remove();
   });
 
   test("hides menu when positioning fails", () => {

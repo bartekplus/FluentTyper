@@ -45,7 +45,7 @@ fixture.startDocs = (options = {}) => {
     minWordLengthToPredict: 0,
     insertSpaceAfterAutocomplete: false,
     selectByDigit: true,
-    displayLangHeader: true,
+    showSuggestionFooter: true,
     inline_suggestion: false,
     preferNativeAutocomplete: true,
     userDictionaryList: [],

@@ -5,7 +5,7 @@ import {
   SUGGESTION_POPUP_FONT_WEIGHT,
   SUGGESTION_POPUP_LETTER_SPACING,
   SUGGESTION_POPUP_TEXT_TRANSFORM,
-} from "../src/adapters/chrome/content-script/suggestions/SuggestionPopupTypography";
+} from "../src/core/domain/suggestionPopup/typography";
 import { createRect } from "./suggestionTestUtils";
 
 class CaretPositioningService extends SuggestionPositioningService {
@@ -71,6 +71,92 @@ describe("SuggestionPositioningService", () => {
     expect(positioned).toBe(true);
     expect(menu.style.position).toBe("fixed");
     expect(menu.style.zIndex).toBe("2147483647");
+    // Capped per layout, inline (the host's \`all: initial\` beats :host rules).
+    expect(menu.style.maxWidth).toBe("460px");
+    menu.setAttribute("data-ft-layout", "horizontal");
+    service.positionMenu(menu, target);
+    expect(menu.style.maxWidth).toBe("640px");
+  });
+
+  test("keeps the side of the caret line while the list grows or shrinks", () => {
+    // Caret low on a 768px viewport: 90px below it, far more above.
+    const service = new CaretPositioningService(createRect(50, 660, 0, 16));
+    const menu = document.createElement("div");
+    const target = document.createElement("input");
+    const setHeight = (height: number) =>
+      Object.defineProperty(menu, "offsetHeight", { value: height, configurable: true });
+    Object.defineProperty(menu, "offsetWidth", { value: 200, configurable: true });
+
+    setHeight(30);
+    service.positionMenu(menu, target);
+    // A one-row list would fit below, but a longer one would not: open above.
+    expect(menu.getAttribute("data-ft-placement")).toBe("above");
+    // Bottom edge sits 4px above the caret line.
+    expect(menu.style.top).toBe(`${660 - 4 - 30}px`);
+
+    setHeight(20);
+    service.positionMenu(menu, target);
+    expect(menu.getAttribute("data-ft-placement")).toBe("above");
+
+    // A resized viewport changes the room on each side: decided afresh.
+    const originalHeight = window.innerHeight;
+    Object.defineProperty(window, "innerHeight", { value: 2000, configurable: true });
+    try {
+      service.positionMenu(menu, target);
+      expect(menu.getAttribute("data-ft-placement")).toBe("below");
+    } finally {
+      Object.defineProperty(window, "innerHeight", { value: originalHeight, configurable: true });
+    }
+
+    // A width-only resize re-decides too (it changes the width cap and wrapping).
+    const originalWidth = window.innerWidth;
+    Object.defineProperty(window, "innerWidth", { value: originalWidth + 1, configurable: true });
+    menu.setAttribute("data-ft-placement", "below");
+    try {
+      service.positionMenu(menu, target);
+      expect(menu.getAttribute("data-ft-placement")).toBe("above");
+    } finally {
+      Object.defineProperty(window, "innerWidth", { value: originalWidth, configurable: true });
+    }
+
+    // Caret on a line with room below: a fresh decision.
+    const nextLine = new CaretPositioningService(createRect(50, 100, 0, 16));
+    nextLine.positionMenu(menu, target);
+    expect(menu.getAttribute("data-ft-placement")).toBe("below");
+    expect(menu.style.top).toBe(`${100 + 16 + 4}px`);
+  });
+
+  test("puts the panel's edge at the caret", () => {
+    const service = new CaretPositioningService(createRect(120, 60, 0, 16));
+    const menu = document.createElement("div");
+    const target = document.createElement("input");
+    Object.defineProperty(menu, "offsetWidth", { value: 200, configurable: true });
+    Object.defineProperty(menu, "offsetHeight", { value: 60, configurable: true });
+    menu.style.setProperty("--ft-pad-x", "7px");
+
+    service.positionMenu(menu, target);
+
+    expect(menu.style.left).toBe("120px");
+  });
+
+  test("a row near the bottom stays below while it fits: it never grows taller", () => {
+    // 100px below the caret on a 768px viewport, more above; the row is 40px.
+    const service = new CaretPositioningService(createRect(50, 660, 0, 16));
+    const menu = document.createElement("div");
+    const target = document.createElement("input");
+    Object.defineProperty(menu, "offsetWidth", { value: 300, configurable: true });
+    Object.defineProperty(menu, "offsetHeight", { value: 40, configurable: true });
+
+    menu.setAttribute("data-ft-layout", "horizontal");
+    service.positionMenu(menu, target);
+    expect(menu.getAttribute("data-ft-placement")).toBe("below");
+
+    // A list of the same height keeps room to grow, so it opens above.
+    const list = document.createElement("div");
+    Object.defineProperty(list, "offsetWidth", { value: 300, configurable: true });
+    Object.defineProperty(list, "offsetHeight", { value: 40, configurable: true });
+    service.positionMenu(list, target);
+    expect(list.getAttribute("data-ft-placement")).toBe("above");
   });
 
   test("returns false when caret rect cannot be resolved", () => {
@@ -119,7 +205,8 @@ describe("SuggestionPositioningService", () => {
       SUGGESTION_POPUP_TEXT_TRANSFORM,
     );
     expect(menu.style.getPropertyValue("--ft-font-size")).toBe("15px");
-    expect(menu.style.getPropertyValue("--ft-row-height")).toBe("27px");
+    // 18px page text: taller than the design's 32px rows for 16px text.
+    expect(menu.style.getPropertyValue("--ft-row-height")).toBe("36px");
     expect(menu.style.getPropertyValue("--ft-panel-min-width")).toBe("148px");
   });
 
@@ -245,8 +332,8 @@ describe("SuggestionPositioningService", () => {
 
     expect(menu.style.getPropertyValue("--ft-font-size")).toBe("12px");
     expect(menu.style.getPropertyValue("--ft-pad-y")).toBe("3px");
-    expect(menu.style.getPropertyValue("--ft-pad-x")).toBe("6px");
-    expect(menu.style.getPropertyValue("--ft-row-height")).toBe("27px");
+    expect(menu.style.getPropertyValue("--ft-pad-x")).toBe("8px");
+    expect(menu.style.getPropertyValue("--ft-row-height")).toBe("28px");
     expect(menu.style.getPropertyValue("--ft-panel-min-width")).toBe("148px");
   });
 

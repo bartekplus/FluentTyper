@@ -54,7 +54,10 @@ export interface SuggestionManagerOptions {
   insertSpaceAfterAutocomplete: boolean;
   lang: string;
   selectByDigit: boolean;
-  displayLangHeader: boolean;
+  horizontalSuggestions: boolean;
+  /** Locale for FluentTyper's own text in the popup (key hints). */
+  uiLanguage?: string;
+  showSuggestionFooter: boolean;
   inline_suggestion: boolean;
   preferNativeAutocomplete: boolean;
   enabledGrammarRules: string[];
@@ -168,7 +171,7 @@ export interface SuggestionEntrySessionOptions {
   hideMenu: () => void;
   clearInlinePresenter: () => void;
   isFocused: () => boolean;
-  displayLangHeader: boolean;
+  showSuggestionFooter: boolean;
   inlineSuggestionEnabled: boolean;
   predictionCoordinator: Pick<
     SuggestionPredictionCoordinator,

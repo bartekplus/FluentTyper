@@ -1,49 +1,25 @@
 /*
-  Improved CSS for FluentTyper Suggestion Popup
-  ---------------------------------------------------------
-  Improvements:
-  - Uses CSS variables for easy theming (light/dark).
-  - Softer, more modern box-shadow and rounded corners.
-  - Improved typography and spacing for better readability.
-  - Smoother transitions for a better user experience.
-  - Retained `!important` as it can be necessary for browser extensions
-    to override host website styles, but organized them for clarity.
+  FluentTyper suggestion popup, light-DOM fallback (no shadow DOM). Mirrors the
+  shadow-root popup (core/domain/suggestionPopup/styles.ts). `!important` keeps
+  host pages from restyling it.
 */
 
 :root {
   /* --- Light Theme Variables --- */
   --suggestion-bg-light: #ffffff;
-  --suggestion-text-light: #2d3748; /* A softer black */
-  --suggestion-header-bg-light: #f7fafc;
-  --suggestion-header-text-light: #718096; /* Gray for less emphasis */
-  --suggestion-highlight-bg-light: #0f172a;
-  --suggestion-highlight-text-light: #ffffff;
-  --suggestion-border-color-light: #e2e8f0;
-  --suggestion-shadow-color-light: rgba(0, 0, 0, 0.1);
-  --suggestion-shortcut-bg-light: #eef2f7;
-  --suggestion-shortcut-text-light: #334155;
-  --suggestion-shortcut-border-light: #cbd5e1;
-  --suggestion-shortcut-bg-light-active: #e2e8f0;
-  --suggestion-shortcut-text-light-active: #0f172a;
-  --suggestion-shortcut-border-light-active: #94a3b8;
+  --suggestion-text-light: #1f2329;
+  --suggestion-highlight-bg-light: #e3edf9;
+  --suggestion-highlight-text-light: #1f2329;
+  --suggestion-border-color-light: #d5dae3;
+  --suggestion-match-light: #185fa8;
 
   /* --- Dark Theme Variables --- */
-  --suggestion-bg-dark: #0f172a;
-  --suggestion-text-dark: #e2e8f0;
-  --suggestion-header-bg-dark: #1a202c;
-  --suggestion-header-text-dark: #a0aec0;
-  --suggestion-highlight-bg-dark: #1e293b;
-  --suggestion-highlight-text-dark: #f8fafc;
-  --suggestion-border-color-dark: #334155;
-  --suggestion-shadow-color-dark: rgba(0, 0, 0, 0.4);
-  --suggestion-shortcut-bg-dark: #1e293b;
-  --suggestion-shortcut-text-dark: #e2e8f0;
-  --suggestion-shortcut-border-dark: #475569;
-  --suggestion-shortcut-bg-dark-active: #334155;
-  --suggestion-shortcut-text-dark-active: #f8fafc;
-  --suggestion-shortcut-border-dark-active: #64748b;
-  --suggestion-match-light: #73451a;
-  --suggestion-match-dark: #f4c38f;
+  --suggestion-bg-dark: #22252c;
+  --suggestion-text-dark: #e6e7eb;
+  --suggestion-highlight-bg-dark: #2c3b52;
+  --suggestion-highlight-text-dark: #f3f4f6;
+  --suggestion-border-color-dark: #373b46;
+  --suggestion-match-dark: #7cc4ff;
 
   /* --- Typography Variables --- */
   --suggestion-font-size: 0.85rem;
@@ -52,6 +28,19 @@
 }
 
 .ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"] {
+  /* Active palette; the dark media query swaps it. */
+  --ft-bg: var(--suggestion-bg-light);
+  --ft-fg: var(--suggestion-text-light);
+  --ft-border: var(--suggestion-border-color-light);
+  --ft-highlight-bg: var(--suggestion-highlight-bg-light);
+  --ft-highlight-fg: var(--suggestion-highlight-text-light);
+  /* Readable accents computed for the user's theme (ThemeApplicator), else the design's. */
+  --ft-accent: var(--ft-theme-suggestion-accent-light, var(--suggestion-match-light));
+  --ft-highlight-accent: var(
+    --ft-theme-suggestion-highlight-accent-light,
+    var(--suggestion-match-light)
+  );
+
   /* --- Layout & Positioning --- */
   top: 0;
   left: 0;
@@ -59,17 +48,19 @@
   overflow: hidden !important;
   z-index: 2147483647 !important;
   display: block;
+  box-sizing: border-box !important;
   width: max-content !important;
   min-width: 9.5rem !important;
+  padding: 4px !important;
 
   /* --- Aesthetics & Theming --- */
-  background-color: var(--suggestion-bg-light) !important;
-  color: var(--suggestion-text-light) !important;
-  border: 1px solid var(--suggestion-border-color-light) !important;
-  border-radius: 10px !important;
+  background-color: var(--ft-bg) !important;
+  color: var(--ft-fg) !important;
+  border: 1px solid var(--ft-border) !important;
+  border-radius: var(--ft-radius, 8px) !important;
   box-shadow:
-    0 18px 42px rgba(15, 23, 42, 0.12),
-    0 2px 10px rgba(15, 23, 42, 0.06) !important;
+    0 12px 32px rgba(15, 23, 42, 0.14),
+    0 2px 6px rgba(15, 23, 42, 0.08) !important;
   font-family:
     -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
   font-weight: 500 !important;
@@ -77,60 +68,113 @@
 
 /* --- List Reset --- */
 .ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"] ul {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 2px !important;
   margin: 0 !important;
   padding: 0 !important;
   list-style: none !important;
 }
 
-/* --- General List Item Styling --- */
-.ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"] li {
-  padding: var(--suggestion-padding-vertical) var(--suggestion-padding-horizontal) !important;
-  font-size: var(--suggestion-font-size) !important;
-  min-height: 1.7rem !important;
-  cursor: pointer !important;
+/* Same layouts as the shadow-root popup (core/domain/suggestionPopup/styles.ts):
+   above the caret the list is drawn bottom-up, and the row layout is one row. */
+.ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"][data-ft-placement="above"]:not(
+    [data-ft-layout="horizontal"]
+  )
+  ul {
+  flex-direction: column-reverse !important;
+}
+
+.ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"][data-ft-layout="horizontal"]
+  ul {
+  flex-direction: row !important;
+  gap: 4px !important;
   overflow: hidden !important;
-  text-overflow: ellipsis !important;
-  white-space: nowrap !important;
-  border-radius: 0.45rem !important;
-  transition:
-    background-color 0.15s ease-in-out,
-    color 0.15s ease-in-out,
-    box-shadow 0.15s ease-in-out !important;
+}
+
+.ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"][data-ft-layout="horizontal"]
+  li {
+  flex: none !important;
+  max-width: 240px !important;
+  min-height: calc(var(--ft-row-height, 32px) + 4px) !important;
+  padding: 0 calc(var(--ft-pad-x, 10px) + 2px) 0 var(--ft-pad-x, 10px) !important;
+  border-radius: 6px !important;
 }
 
 .ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"]
-  li.has-shortcut {
-  display: grid !important;
-  grid-template-columns: minmax(0, 1fr) auto !important;
+  .ft-suggestion-fallback-panel {
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+/* Above the caret the key hints go on top, so the first suggestion stays next to it. */
+.ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"][data-ft-placement="above"]
+  .ft-suggestion-footer:not([hidden]) {
+  order: -1 !important;
+  margin: 0 0 4px !important;
+  padding: 4px 8px 8px !important;
+  border-top: 0 !important;
+  border-bottom: 1px solid var(--ft-border) !important;
+}
+
+/* --- Row: [number] label [detail] --- */
+.ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"] li {
+  display: flex !important;
   align-items: center !important;
-  column-gap: 0.5rem !important;
+  column-gap: 10px !important;
+  box-sizing: border-box !important;
+  /* Sized like the shadow popup: syncMenuTypography sets these on the host. */
+  min-height: var(--ft-row-height, 32px) !important;
+  padding: 0 var(--ft-pad-x, 10px) 0 calc(var(--ft-pad-x, 10px) - 2px) !important;
+  border: 1px solid transparent !important;
+  border-radius: 5px !important;
+  font-size: var(--suggestion-font-size) !important;
+  cursor: pointer !important;
+  white-space: nowrap !important;
+  transition:
+    background-color 0.12s ease,
+    border-color 0.12s ease,
+    color 0.12s ease !important;
+}
+
+.ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"]
+  li.highlight {
+  background-color: var(--ft-highlight-bg) !important;
+  border-color: color-mix(
+    in srgb,
+    var(--ft-highlight-bg) 60%,
+    var(--ft-highlight-accent)
+  ) !important;
+  color: var(--ft-highlight-fg) !important;
+}
+
+.ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"]
+  li:not(.highlight):hover {
+  background-color: color-mix(in srgb, var(--ft-bg) 92%, var(--ft-fg)) !important;
 }
 
 .ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"]
   li
   .ft-suggestion-shortcut {
-  display: grid !important;
-  place-items: center !important;
-  box-sizing: border-box !important;
-  order: 2 !important;
-  justify-self: end !important;
-  min-width: 1.15rem !important;
-  height: 1.15rem !important;
-  padding: 0 0.35rem !important;
-  border: 1px solid var(--suggestion-shortcut-border-light) !important;
-  border-radius: 999px !important;
-  background-color: var(--suggestion-shortcut-bg-light) !important;
-  color: var(--suggestion-shortcut-text-light) !important;
-  font-size: 0.72em !important;
+  display: flex !important;
+  flex: none !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 18px !important;
+  height: 18px !important;
+  border-radius: 4px !important;
+  background-color: color-mix(in srgb, var(--ft-fg) 9%, var(--ft-bg)) !important;
+  color: color-mix(in srgb, var(--ft-fg) 72%, var(--ft-bg)) !important;
+  font-size: 11px !important;
   line-height: 1 !important;
-  font-weight: 700 !important;
+  font-weight: 600 !important;
   font-variant-numeric: tabular-nums !important;
 }
 
 .ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"]
   li
   .ft-suggestion-label {
-  order: 1 !important;
+  flex: 1 1 auto !important;
   min-width: 0 !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
@@ -138,121 +182,78 @@
 }
 
 .ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"]
+  li
+  .ft-suggestion-detail {
+  flex: 0 1 auto !important;
+  max-width: 45% !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  color: color-mix(in srgb, var(--ft-fg) 68%, var(--ft-bg)) !important;
+  font-size: 0.86em !important;
+}
+
+/* Selected row: its own accent, checked against that row's background. */
+.ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"]
   li.highlight
-  .ft-suggestion-shortcut {
-  border-color: var(--suggestion-shortcut-border-light-active) !important;
-  background-color: var(--suggestion-shortcut-bg-light-active) !important;
-  color: var(--suggestion-shortcut-text-light-active) !important;
-}
-
-/* --- List Header --- */
-.ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"] lh {
-  display: block !important;
-  padding: var(--suggestion-padding-vertical) var(--suggestion-padding-horizontal) !important;
-  background-color: var(--suggestion-header-bg-light) !important;
-  color: var(--suggestion-header-text-light) !important;
-  font-size: 0.72rem !important;
-  font-weight: 600 !important;
-  text-transform: none !important;
-  letter-spacing: 0.02em !important;
-  border-bottom: 1px solid var(--suggestion-border-color-light) !important;
-  cursor: default !important;
-}
-
-/* --- Highlighted/Active Item --- */
-.ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"]
-  li.highlight {
-  background-color: var(--suggestion-highlight-bg-light) !important;
-  color: var(--suggestion-highlight-text-light) !important;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.12),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.1) !important;
-}
-
-.ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"]
-  li:not(.highlight):hover {
-  background-color: rgba(15, 23, 42, 0.05) !important;
+  .ft-suggestion-match {
+  color: var(--ft-highlight-accent) !important;
 }
 
 /* Matched text inside a suggestion */
 .ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"]
   li
   .ft-suggestion-match {
-  color: var(--suggestion-match-light) !important;
+  color: var(--ft-accent) !important;
   font-weight: 700 !important;
 }
 
 .ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"]
-  li.highlight
-  .ft-suggestion-match {
-  color: inherit !important;
+  .ft-suggestion-lang {
+  margin-inline-start: auto !important;
+  font-weight: 600 !important;
 }
 
-/* --- "No Match" Item --- */
 .ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"]
-  li.no-match {
-  color: var(
-    --suggestion-header-text-light
-  ) !important; /* Use header text color for less emphasis */
-  cursor: default !important;
+  .ft-suggestion-footer:not([hidden]) {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 4px 14px !important;
+  margin-top: 4px !important;
+  padding: 8px 8px 4px !important;
+  border-top: 1px solid var(--ft-border) !important;
+  color: color-mix(in srgb, var(--ft-fg) 68%, var(--ft-bg)) !important;
+  font-size: 11.5px !important;
+  line-height: 18px !important;
+  white-space: nowrap !important;
 }
 
-/* ======================================================= */
-/* --- Dark Mode using CSS Media Query --- */
-/* ======================================================= */
+.ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"]
+  .ft-suggestion-footer
+  kbd {
+  margin-inline-end: 4px !important;
+  padding: 1px 5px !important;
+  border: 1px solid color-mix(in srgb, var(--ft-fg) 24%, var(--ft-bg)) !important;
+  border-radius: 3px !important;
+  color: color-mix(in srgb, var(--ft-fg) 84%, var(--ft-bg)) !important;
+  font-family: inherit !important;
+  font-size: inherit !important;
+}
+
 @media (prefers-color-scheme: dark) {
   .ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"] {
-    background-color: var(--suggestion-bg-dark) !important;
-    color: var(--suggestion-text-dark) !important;
-    border-color: var(--suggestion-border-color-dark) !important;
+    --ft-bg: var(--suggestion-bg-dark);
+    --ft-fg: var(--suggestion-text-dark);
+    --ft-border: var(--suggestion-border-color-dark);
+    --ft-highlight-bg: var(--suggestion-highlight-bg-dark);
+    --ft-highlight-fg: var(--suggestion-highlight-text-dark);
+    --ft-accent: var(--ft-theme-suggestion-accent-dark, var(--suggestion-match-dark));
+    --ft-highlight-accent: var(
+      --ft-theme-suggestion-highlight-accent-dark,
+      var(--suggestion-match-dark)
+    );
     box-shadow:
-      0 20px 46px rgba(2, 6, 23, 0.34),
-      0 4px 12px rgba(2, 6, 23, 0.18) !important;
-  }
-
-  .ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"] lh {
-    background-color: var(--suggestion-header-bg-dark) !important;
-    color: var(--suggestion-header-text-dark) !important;
-    border-bottom-color: var(--suggestion-border-color-dark) !important;
-  }
-
-  .ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"]
-    li.highlight {
-    background-color: var(--suggestion-highlight-bg-dark) !important;
-    color: var(--suggestion-highlight-text-dark) !important;
-  }
-
-  .ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"]
-    li
-    .ft-suggestion-shortcut {
-    border-color: var(--suggestion-shortcut-border-dark) !important;
-    background-color: var(--suggestion-shortcut-bg-dark) !important;
-    color: var(--suggestion-shortcut-text-dark) !important;
-  }
-
-  .ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"]
-    li.highlight
-    .ft-suggestion-shortcut {
-    border-color: var(--suggestion-shortcut-border-dark-active) !important;
-    background-color: var(--suggestion-shortcut-bg-dark-active) !important;
-    color: var(--suggestion-shortcut-text-dark-active) !important;
-  }
-
-  .ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"]
-    li.no-match {
-    color: var(--suggestion-header-text-dark) !important;
-  }
-
-  .ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"]
-    li
-    .ft-suggestion-match {
-    color: var(--suggestion-match-dark) !important;
-  }
-
-  .ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"]
-    li.highlight
-    .ft-suggestion-match {
-    color: inherit !important;
+      0 16px 40px rgba(0, 0, 0, 0.5),
+      0 2px 6px rgba(0, 0, 0, 0.35) !important;
   }
 }
 

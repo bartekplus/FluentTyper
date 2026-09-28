@@ -36,7 +36,8 @@ export interface ReviewControllerDependencies {
   onActiveChange?(): void;
   /** The Google Docs adapter when this page is a Docs editor. */
   getDocsSurface(): GoogleDocsReviewSurface | null;
-  uiLanguage?: string;
+  /** UI locale, or a lookup read on each use so a settings change applies at once. */
+  uiLanguage?: string | (() => string);
 }
 
 type HighlightRegistry = Map<string, unknown>;
@@ -83,6 +84,8 @@ interface ActiveReview {
   target: ReviewTargetHandle;
   session: ReviewSession;
   ui: ReviewUi;
+  /** The UI language the panel was built in (its fixed labels are set once). */
+  uiLanguage: string;
   state: ReviewViewState | null;
   /** CSS highlights are only styled in the document's own style scope. */
   cssHighlights: ReturnType<typeof highlightApi>;
@@ -101,6 +104,9 @@ export class ReviewController {
   private active: ActiveReview | null = null;
   private notice: ReviewUi | null = null;
   private noticeReturnFocus: HTMLElement | null = null;
+  /** What the open notice says, and in which UI language it was built. */
+  private noticeKey: ReviewTextKey | null = null;
+  private noticeLanguage: string | null = null;
   private startToken = 0;
   private docsStarting = false;
   // Where the last press on the reviewed editor started.
@@ -118,7 +124,8 @@ export class ReviewController {
   }
 
   private get lang(): string {
-    return this.deps.uiLanguage ?? navigator.language;
+    const uiLanguage = this.deps.uiLanguage;
+    return (typeof uiLanguage === "function" ? uiLanguage() : uiLanguage) ?? navigator.language;
   }
 
   /** Starts (or focuses) a review of the focused editor or its selection. */
@@ -192,32 +199,7 @@ export class ReviewController {
     onClose?: () => void,
   ): void {
     const doc = target.element.ownerDocument;
-    const capabilityKeys: ReviewTextKey[] = [];
-    // Docs without its text runs (not rendered yet, or hidden): list only, until they appear.
-    if (target instanceof GoogleDocsReviewTarget) {
-      if (!target.canHighlight()) capabilityKeys.push("review_cap_docs");
-    } else if (!target.capabilities.inline) capabilityKeys.push("review_cap_no_inline");
-    if (!target.capabilities.apply) capabilityKeys.push("review_cap_review_only");
-    else if (target.capabilities.undo === "per-edit" && target.capabilities.bulk) {
-      capabilityKeys.push("review_cap_undo_per_edit");
-    }
-    const ui = new ReviewUi(
-      doc,
-      this.lang,
-      {
-        close: () => this.close(),
-        select: (id, options) => this.select(id, options),
-        apply: (id, alternative, viaKeyboard) => void this.apply(id, alternative, viaKeyboard),
-        ignore: (id) => this.ignore(id),
-        addToDictionary: (id) => void this.active?.session.addToDictionary(id),
-        fixAll: (viaKeyboard) => void this.fixAll(viaKeyboard),
-        toggleCategory: (category: ReviewCategory, shown) =>
-          this.active?.session.setCategory(category, shown),
-        navigate: (step) => this.navigate(step),
-      },
-      capabilityKeys,
-      reviewMountFor(target.element),
-    );
+    const ui = this.createUi(target);
     target.setMeasurementRoot(ui.root);
     ui.placeAwayFrom(target.element.getBoundingClientRect());
 
@@ -240,6 +222,7 @@ export class ReviewController {
       target,
       session,
       ui,
+      uiLanguage: this.lang,
       state: null,
       cssHighlights,
       cleanup: [],
@@ -394,7 +377,73 @@ export class ReviewController {
   }
 
   handleOptionsChanged(): void {
-    this.active?.session.updateOptions(this.deps.getOptions());
+    if (this.notice && this.noticeKey && this.noticeLanguage !== this.lang) {
+      this.rebuildNotice(this.notice, this.noticeKey);
+    }
+    const active = this.active;
+    if (!active) return;
+    active.session.updateOptions(this.deps.getOptions());
+    if (active.uiLanguage !== this.lang) this.rebuildUi(active);
+  }
+
+  /**
+   * The open panel in the current UI language: its fixed labels are set when it
+   * is built, so a language change builds it again with the same state.
+   */
+  private rebuildUi(active: ActiveReview): void {
+    const previous = active.ui;
+    const hadFocus = previous.hasFocus();
+    // The open card, its chosen alternative and focus in it survive the rebuild.
+    const cardId = previous.cardDiagnosticId();
+    const cardAlternative = previous.cardAlternativeIndex();
+    const cardHadFocus = previous.cardHasFocus();
+    const ui = this.createUi(active.target);
+    active.target.setMeasurementRoot(ui.root);
+    ui.placeAwayFrom(active.target.element.getBoundingClientRect());
+    active.ui = ui;
+    active.uiLanguage = this.lang;
+    previous.destroy();
+    if (active.state) {
+      ui.render(active.state);
+      this.paint(active);
+    }
+    const cardDiagnostic = cardId
+      ? active.state?.diagnostics.find((diagnostic) => diagnostic.id === cardId)
+      : undefined;
+    if (cardDiagnostic) {
+      ui.openCard(cardDiagnostic, this.anchorFor(active, cardDiagnostic.id), cardAlternative);
+    }
+    if (cardDiagnostic && cardHadFocus) ui.focusCard();
+    else if (hadFocus) ui.focusPanel();
+  }
+
+  private createUi(target: ReviewTargetHandle): ReviewUi {
+    const capabilityKeys: ReviewTextKey[] = [];
+    // Docs without its text runs (not rendered yet, or hidden): list only, until they appear.
+    if (target instanceof GoogleDocsReviewTarget) {
+      if (!target.canHighlight()) capabilityKeys.push("review_cap_docs");
+    } else if (!target.capabilities.inline) capabilityKeys.push("review_cap_no_inline");
+    if (!target.capabilities.apply) capabilityKeys.push("review_cap_review_only");
+    else if (target.capabilities.undo === "per-edit" && target.capabilities.bulk) {
+      capabilityKeys.push("review_cap_undo_per_edit");
+    }
+    return new ReviewUi(
+      target.element.ownerDocument,
+      this.lang,
+      {
+        close: () => this.close(),
+        select: (id, options) => this.select(id, options),
+        apply: (id, alternative, viaKeyboard) => void this.apply(id, alternative, viaKeyboard),
+        ignore: (id) => this.ignore(id),
+        addToDictionary: (id) => void this.active?.session.addToDictionary(id),
+        fixAll: (viaKeyboard) => void this.fixAll(viaKeyboard),
+        toggleCategory: (category: ReviewCategory, shown) =>
+          this.active?.session.setCategory(category, shown),
+        navigate: (step) => this.navigate(step),
+      },
+      capabilityKeys,
+      reviewMountFor(target.element),
+    );
   }
 
   close(): void {
@@ -707,18 +756,32 @@ export class ReviewController {
   /** Explains why nothing could be reviewed; closes itself on Escape or its button. */
   private showNotice(key: ReviewTextKey): void {
     const focused = getDeepActiveElement(document) as HTMLElement | null;
+    this.notice = this.createNotice(key, focused ?? document.activeElement);
+    this.noticeReturnFocus = focused;
+    this.notice.focusPanel();
+  }
+
+  /** The open notice in the current UI language, same message and return focus. */
+  private rebuildNotice(previous: ReviewUi, key: ReviewTextKey): void {
+    const hadFocus = previous.hasFocus();
+    previous.destroy();
+    this.notice = this.createNotice(key, this.noticeReturnFocus ?? document.activeElement);
+    if (hadFocus) this.notice.focusPanel();
+  }
+
+  private createNotice(key: ReviewTextKey, mountFrom: Element | null): ReviewUi {
     const ui = new ReviewUi(
       document,
       this.lang,
       { ...NOTICE_CALLBACKS, close: () => this.dismissNotice() },
       [],
       // In a modal dialog (a password field in a sign-in dialog), outside it is inert.
-      reviewMountFor(focused ?? document.activeElement),
+      reviewMountFor(mountFrom),
     );
     ui.showMessage(reviewText(key, this.lang));
-    this.notice = ui;
-    this.noticeReturnFocus = focused;
-    ui.focusPanel();
+    this.noticeKey = key;
+    this.noticeLanguage = this.lang;
+    return ui;
   }
 
   private dismissNotice(): void {
@@ -728,6 +791,8 @@ export class ReviewController {
     notice.destroy();
     this.notice = null;
     this.noticeReturnFocus = null;
+    this.noticeKey = null;
+    this.noticeLanguage = null;
     if (returnFocus?.isConnected) returnFocus.focus?.({ preventScroll: true });
   }
 

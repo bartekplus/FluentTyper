@@ -6,7 +6,7 @@ import { LanguageSettingsPanel } from "../src/ui/options/LanguageSettingsPanel.j
 import { SiteManagementPanel } from "../src/ui/options/SiteManagementPanel.js";
 import { i18n } from "../src/ui/options/fluenttyperI18n.js";
 import {
-  KEY_DISPLAY_LANG_HEADER,
+  KEY_SHOW_SUGGESTION_FOOTER,
   KEY_DOMAIN_LIST_MODE,
   KEY_ENABLED_LANGUAGES,
   KEY_EXTENSION_LANGUAGE,
@@ -76,8 +76,8 @@ function createRegistry(initialValues: SettingsMap): SettingsRegistry {
       initialValues[KEY_EXTENSION_LANGUAGE],
       "Extension Language",
     ),
-    [KEY_DISPLAY_LANG_HEADER]: new MockControl(
-      initialValues[KEY_DISPLAY_LANG_HEADER],
+    [KEY_SHOW_SUGGESTION_FOOTER]: new MockControl(
+      initialValues[KEY_SHOW_SUGGESTION_FOOTER],
       "Show language of prediction",
     ),
     [KEY_DOMAIN_LIST_MODE]: new MockControl(initialValues[KEY_DOMAIN_LIST_MODE]),
@@ -222,13 +222,13 @@ describe.serial("options panel reactivity", () => {
     );
   });
 
-  test("language workspace moves prediction language display into a full-width row", async () => {
+  test("language workspace keeps the language grid full-width, without the popup footer setting", async () => {
     const values: SettingsMap = {
       [KEY_ENABLED_LANGUAGES]: ["en_US", "de_DE"],
       [KEY_LANGUAGE]: "en_US",
       [KEY_FALLBACK_LANGUAGE]: "en_US",
       [KEY_EXTENSION_LANGUAGE]: "auto_detect",
-      [KEY_DISPLAY_LANG_HEADER]: true,
+      [KEY_SHOW_SUGGESTION_FOOTER]: true,
       [KEY_SITE_PROFILES]: {},
     };
     const store = createStore(values);
@@ -241,9 +241,9 @@ describe.serial("options panel reactivity", () => {
 
     expect(root.querySelector(".workspace-top-grid")).not.toBeNull();
     const fullWidthCards = root.querySelectorAll(".workspace-main-grid > .workspace-span-full");
-    expect(fullWidthCards.length).toBeGreaterThanOrEqual(2);
-    expect(root.textContent).toContain(i18n.get("language_display"));
-    expect(root.textContent).toContain(i18n.get("show_lang_header_label"));
+    expect(fullWidthCards.length).toBeGreaterThanOrEqual(1);
+    // It controls the whole popup footer now, in General.
+    expect(root.textContent).not.toContain(i18n.get("show_suggestion_footer_label"));
   });
 
   test("sites UI refreshes immediately when enabled languages change", async () => {

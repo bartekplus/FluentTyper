@@ -1,8 +1,15 @@
 import { EARLY_TAB_ACCEPT_VISIBLE_ATTR } from "./EarlyTabAcceptBridgeProtocol";
-import { isSuggestionMenuHostVisible } from "./SuggestionMenuHost";
+import { SUGGESTION_MENU_LAYOUT_ATTR, isSuggestionMenuHostVisible } from "./SuggestionMenuHost";
 import { resolveSuggestionStateHost } from "./SuggestionStateHost";
 import { SuggestionPositioningService } from "./SuggestionPositioningService";
 import { SuggestionMenuView } from "./SuggestionMenuView";
+import { buildSuggestionKeyHints } from "@core/domain/suggestionPopup/keyHints";
+import {
+  SUGGESTION_POPUP_LANGUAGE_ID,
+  buildSuggestionFooterHtml,
+  buildSuggestionRowHtml,
+  formatShortcutDigit,
+} from "@core/domain/suggestionPopup/markup";
 import type { SuggestionElement } from "./types";
 
 interface SuggestionMenuRenderModel {
@@ -16,6 +23,12 @@ interface SuggestionMenuRenderModel {
   showShortcutDigits: boolean;
   menuHeader: string | null;
   mentionText: string;
+  /** Single row of suggestions instead of a list. */
+  horizontal?: boolean;
+  /** Keys that insert the selected suggestion; given, a key-hint footer is shown. */
+  acceptKeys?: string[];
+  /** Locale for the key hints; the browser's when not given. */
+  uiLanguage?: string;
 }
 
 export class SuggestionMenuPresenter {
@@ -25,32 +38,17 @@ export class SuggestionMenuPresenter {
 
   public render(model: SuggestionMenuRenderModel): boolean {
     model.list.innerHTML = "";
-    const header = SuggestionMenuView.resolveHeader(model.menu);
     const panel = SuggestionMenuView.resolvePanel(model.menu);
-
-    if (header) {
-      if (model.menuHeader) {
-        header.textContent = model.menuHeader;
-        header.hidden = false;
-      } else {
-        header.textContent = "";
-        header.hidden = true;
-      }
-    } else if (model.menuHeader) {
-      const fallbackHeader = document.createElement("div");
-      fallbackHeader.className = SuggestionMenuView.HEADER_CLASS;
-      fallbackHeader.textContent = model.menuHeader;
-      model.menu.insertBefore(fallbackHeader, model.list);
-    }
 
     model.suggestions.forEach((suggestion, index) => {
       const li = document.createElement("li");
       li.id = `ft-suggestion-option-${model.menuId}-${index}`;
-      li.innerHTML = this.buildSuggestionMenuItemHtml({
+      const snippetShortcut = model.snippetShortcuts?.[index] ?? null;
+      li.innerHTML = buildSuggestionRowHtml({
         mentionText: model.mentionText,
         suggestion,
-        snippetShortcut: model.snippetShortcuts?.[index] ?? null,
-        shortcutDigit: model.showShortcutDigits ? this.formatShortcutDigit(index) : null,
+        snippetShortcut,
+        shortcutDigit: model.showShortcutDigits ? formatShortcutDigit(index) : null,
       });
       li.setAttribute("data-index", String(index));
       li.setAttribute("role", "option");
@@ -59,7 +57,7 @@ export class SuggestionMenuPresenter {
       li.setAttribute("aria-selected", index === model.selectedIndex ? "true" : "false");
       if (model.showShortcutDigits) {
         li.classList.add("has-shortcut");
-        li.setAttribute("data-shortcut", this.formatShortcutDigit(index));
+        li.setAttribute("data-shortcut", formatShortcutDigit(index));
       }
       if (index === model.selectedIndex) {
         li.classList.add("highlight");
@@ -71,7 +69,13 @@ export class SuggestionMenuPresenter {
       this.hide(model.menu, model.list, model.target);
       return false;
     }
+    this.renderFooter(model);
 
+    if (model.horizontal) {
+      model.menu.setAttribute(SUGGESTION_MENU_LAYOUT_ATTR, "horizontal");
+    } else {
+      model.menu.removeAttribute(SUGGESTION_MENU_LAYOUT_ATTR);
+    }
     model.menu.style.setProperty("display", "block", "important");
     model.menu.style.setProperty("visibility", "hidden", "important");
     this.positioningService.syncMenuTypography(model.menu, model.target);
@@ -92,16 +96,16 @@ export class SuggestionMenuPresenter {
   }
 
   public hide(menu: HTMLDivElement, list: HTMLUListElement, target?: SuggestionElement): void {
-    const header = SuggestionMenuView.resolveHeader(menu);
     const panel = SuggestionMenuView.resolvePanel(menu);
     menu.style.setProperty("display", "none", "important");
     menu.style.setProperty("visibility", "visible", "important");
     if (target) {
       resolveSuggestionStateHost(target).setAttribute(EARLY_TAB_ACCEPT_VISIBLE_ATTR, "false");
     }
-    if (header) {
-      header.textContent = "";
-      header.hidden = true;
+    const footer = SuggestionMenuView.resolveFooter(menu);
+    if (footer) {
+      footer.replaceChildren();
+      footer.hidden = true;
     }
     panel.setAttribute("aria-hidden", "true");
     panel.removeAttribute("aria-activedescendant");
@@ -113,13 +117,18 @@ export class SuggestionMenuPresenter {
   }
 
   public updateHighlight(list: HTMLUListElement, selectedIndex: number): void {
+    // The element render() describes: the shadow panel, or the fallback menu
+    // (whose list sits in a wrapper, so not simply the list's parent).
+    const panel = list.closest<HTMLElement>(
+      `.${SuggestionMenuView.PANEL_CLASS}, .${SuggestionMenuView.CONTAINER_CLASS}`,
+    );
     list.querySelectorAll("li").forEach((item, index) => {
       if (index === selectedIndex) {
         item.classList.add("highlight");
         item.setAttribute("aria-selected", "true");
-        list.parentElement?.setAttribute("aria-activedescendant", item.id);
+        panel?.setAttribute("aria-activedescendant", item.id);
         if (typeof item.scrollIntoView === "function") {
-          item.scrollIntoView({ block: "nearest" });
+          item.scrollIntoView({ block: "nearest", inline: "nearest" });
         }
       } else {
         item.classList.remove("highlight");
@@ -128,55 +137,28 @@ export class SuggestionMenuPresenter {
     });
   }
 
-  private formatShortcutDigit(index: number): string {
-    return index === 9 ? "0" : String(index + 1);
-  }
-
-  private buildSuggestionMenuItemHtml(args: {
-    mentionText: string;
-    suggestion: string;
-    snippetShortcut: string | null;
-    shortcutDigit: string | null;
-  }): string {
-    const shortcutMarkup = args.shortcutDigit
-      ? `<span class="ft-suggestion-shortcut" aria-hidden="true">${args.shortcutDigit}</span>`
-      : "";
-    // Snippet: "shortcut → expansion", so fuzzy matches explain themselves and the
-    // shortcut can be learned. The typed text is highlighted in the shortcut.
-    const content = args.snippetShortcut
-      ? `<span class="ft-suggestion-snippet">${this.buildSuggestionLabelHtml(
-          args.mentionText,
-          args.snippetShortcut,
-        )} →</span> ${this.escapeHtml(args.suggestion)}`
-      : this.buildSuggestionLabelHtml(args.mentionText, args.suggestion);
-    const labelMarkup = `<span class="ft-suggestion-label">${content}</span>`;
-    return `${shortcutMarkup}${labelMarkup}`;
-  }
-
-  private buildSuggestionLabelHtml(mentionText: string, suggestion: string): string {
-    const safeSuggestion = this.escapeHtml(suggestion);
-    const mention = (mentionText || "").trim();
-    if (!mention) {
-      return safeSuggestion;
+  /** Key hints, and the prediction language at the end of the same line. */
+  private renderFooter(model: SuggestionMenuRenderModel): void {
+    const footer = SuggestionMenuView.resolveFooter(model.menu);
+    if (!footer) {
+      return;
     }
-
-    const matchIndex = suggestion.toLowerCase().indexOf(mention.toLowerCase());
-    if (matchIndex < 0) {
-      return safeSuggestion;
+    const hints = model.acceptKeys
+      ? buildSuggestionKeyHints({
+          acceptKeys: model.acceptKeys,
+          // Digit keys reach the first nine suggestions ("0" is the tenth, not hinted).
+          digitCount: model.showShortcutDigits ? Math.min(model.suggestions.length, 9) : 0,
+          language: model.uiLanguage || navigator.language || "en",
+        })
+      : [];
+    footer.innerHTML = buildSuggestionFooterHtml(hints, model.menuHeader);
+    footer.hidden = footer.childElementCount === 0;
+    // The listbox is described by the prediction language, when shown.
+    const panel = SuggestionMenuView.resolvePanel(model.menu);
+    if (model.menuHeader) {
+      panel.setAttribute("aria-describedby", SUGGESTION_POPUP_LANGUAGE_ID);
+    } else {
+      panel.removeAttribute("aria-describedby");
     }
-
-    const before = this.escapeHtml(suggestion.slice(0, matchIndex));
-    const match = this.escapeHtml(suggestion.slice(matchIndex, matchIndex + mention.length));
-    const after = this.escapeHtml(suggestion.slice(matchIndex + mention.length));
-    return `${before}<span class="ft-suggestion-match">${match}</span>${after}`;
-  }
-
-  private escapeHtml(value: string): string {
-    return value
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll('"', "&quot;")
-      .replaceAll("'", "&#39;");
   }
 }

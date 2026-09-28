@@ -29,7 +29,7 @@ function makeSession({
   },
   clearPendingFallback = () => undefined,
   isFocused = true,
-  displayLangHeader = true,
+  showSuggestionFooter = true,
   inlineSuggestionEnabled = false,
   hideMenu = jest.fn(),
   clearInlinePresenter = jest.fn(),
@@ -76,7 +76,7 @@ function makeSession({
   };
   clearPendingFallback?: () => void;
   isFocused?: boolean;
-  displayLangHeader?: boolean;
+  showSuggestionFooter?: boolean;
   inlineSuggestionEnabled?: boolean;
   hideMenu?: () => void;
   clearInlinePresenter?: () => void;
@@ -117,7 +117,7 @@ function makeSession({
     hideMenu,
     clearInlinePresenter,
     isFocused: () => isFocused,
-    displayLangHeader,
+    showSuggestionFooter,
     inlineSuggestionEnabled,
     predictionCoordinator,
     grammarCoordinator,
@@ -1196,7 +1196,7 @@ test("dispose clears timers and UI state for one entry", () => {
     hideMenu,
     clearInlinePresenter,
     isFocused: () => true,
-    displayLangHeader: true,
+    showSuggestionFooter: true,
     inlineSuggestionEnabled: false,
     predictionCoordinator: {
       shouldProcessResponse: () => true,

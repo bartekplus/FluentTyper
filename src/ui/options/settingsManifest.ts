@@ -12,6 +12,7 @@ import {
   KEY_AUTOCOMPLETE_ON_TAB,
   KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE,
   KEY_SELECT_BY_DIGIT,
+  KEY_HORIZONTAL_SUGGESTIONS,
   KEY_LANGUAGE,
   KEY_ENABLED_LANGUAGES,
   KEY_FALLBACK_LANGUAGE,
@@ -31,7 +32,7 @@ import {
   KEY_TEXT_EXPANSIONS,
   KEY_USER_DICTIONARY_LIST,
   KEY_DOMAIN_LIST_MODE,
-  KEY_DISPLAY_LANG_HEADER,
+  KEY_SHOW_SUGGESTION_FOOTER,
   KEY_SHOW_REVIEW_BUTTON,
   KEY_EXTENSION_LANGUAGE,
   KEY_SITE_PROFILES,
@@ -371,6 +372,28 @@ const manifest: ManifestDefinition = {
     {
       tab: "core_settings",
       group: i18n.get("General"),
+      name: KEY_HORIZONTAL_SUGGESTIONS,
+      type: "checkbox",
+      label: buildFieldLabel(
+        i18n.get("horizontal_suggestions_label"),
+        i18n.get("horizontal_suggestions_desc"),
+      ),
+      default: false,
+    },
+    {
+      tab: "core_settings",
+      group: i18n.get("General"),
+      name: KEY_SHOW_SUGGESTION_FOOTER,
+      type: "checkbox",
+      label: buildFieldLabel(
+        i18n.get("show_suggestion_footer_label"),
+        i18n.get("show_suggestion_footer_desc"),
+      ),
+      default: false,
+    },
+    {
+      tab: "core_settings",
+      group: i18n.get("General"),
       name: KEY_PREFIX_ONLY_MODE,
       type: "checkbox",
       label: buildFieldLabel(i18n.get("prefix_only_mode_label"), i18n.get("prefix_only_mode_desc")),
@@ -577,14 +600,6 @@ const manifest: ManifestDefinition = {
       name: KEY_FALLBACK_LANGUAGE,
       type: "valueOnly",
       default: "en_US",
-    },
-    {
-      tab: "language_tab",
-      group: i18n.get("language_display"),
-      name: KEY_DISPLAY_LANG_HEADER,
-      type: "checkbox",
-      label: buildFieldLabel(i18n.get("show_lang_header_label"), i18n.get("show_lang_header_desc")),
-      default: false,
     },
 
     // =========================================================================

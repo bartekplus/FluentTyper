@@ -334,6 +334,27 @@ describe("Google Docs review writes", () => {
   });
 });
 
+describe("text control measuring", () => {
+  test("a new measurement root (a rebuilt panel) moves the mirror into it", () => {
+    const field = textarea("We saw teh cat.");
+    const target = new TextControlReviewTarget(field);
+    const first = document.createElement("div").attachShadow({ mode: "open" });
+    const second = document.createElement("div").attachShadow({ mode: "open" });
+    const mirrorIn = (root: ShadowRoot) =>
+      root.querySelector("[data-fluenttyper-review-mirror]") !== null;
+
+    target.setMeasurementRoot(first);
+    target.rangeRects({ start: 7, end: 10 });
+    expect(mirrorIn(first)).toBe(true);
+
+    target.setMeasurementRoot(second);
+    target.rangeRects({ start: 7, end: 10 });
+    expect(mirrorIn(first)).toBe(false);
+    expect(mirrorIn(second)).toBe(true);
+    target.dispose();
+  });
+});
+
 describe("text control writes", () => {
   test("one verified native edit for several fixes; selection is carried through", async () => {
     setExecCommand(textControlInsert);
@@ -831,6 +852,20 @@ describe("in-field review button", () => {
     expect(document.querySelector("[data-fluenttyper-review-launcher]")).toBeNull();
   });
 
+  test("follows a UI language change while the page stays open", () => {
+    const field = sized(textarea("We saw teh cat."));
+    let language = "en";
+    const { instance } = launcher({ uiLanguage: () => language });
+    focusIn(field);
+    expect(launcherButton()!.getAttribute("aria-label")).toBe("Review this text (FluentTyper)");
+
+    language = "de_DE";
+    instance.refresh();
+
+    expect(launcherButton()!.getAttribute("aria-label")).toBe("Diesen Text prüfen (FluentTyper)");
+    instance.dispose();
+  });
+
   test("hidden without text, while typing, during its review, and when turned off", async () => {
     const field = sized(textarea(""));
     let reviewed: HTMLElement | null = null;
@@ -932,7 +967,7 @@ describe("review controller lifecycle", () => {
     throw new Error("condition not reached");
   }
 
-  function controller() {
+  function controller(uiLanguage: string | (() => string) = "en") {
     const suspend = jest.fn();
     const resume = jest.fn();
     const review = new ReviewController({
@@ -946,12 +981,54 @@ describe("review controller lifecycle", () => {
       resume,
       addToDictionary: async () => true,
       getDocsSurface: () => null,
-      uiLanguage: "en",
+      uiLanguage,
     });
     return { review, suspend, resume };
   }
 
   const root = () => document.querySelector("[data-fluenttyper-review]")?.shadowRoot ?? null;
+
+  test("an open notice switches to a new UI language", () => {
+    (document.activeElement as HTMLElement | null)?.blur?.();
+    let language = "en";
+    const { review } = controller(() => language);
+    review.invoke();
+    expect(root()!.querySelector(".status")?.textContent).toBe(
+      "Click into a text field, then start the review.",
+    );
+
+    language = "de_DE";
+    review.handleOptionsChanged();
+
+    expect(root()!.querySelector(".status")?.textContent).toBe(
+      "Klicken Sie in ein Textfeld und starten Sie dann die Prüfung.",
+    );
+    expect(document.querySelectorAll("[data-fluenttyper-review]")).toHaveLength(1);
+    review.dispose();
+  });
+
+  test("an open review switches to a new UI language, keeping its findings", async () => {
+    const field = textarea("We saw teh cat.");
+    let language = "en";
+    const { review } = controller(() => language);
+    review.invoke();
+    await until(() => root()?.querySelector(".status")?.textContent === "Issues: 1");
+    expect(root()!.querySelector("h2")?.textContent).toBe("Review");
+    // A finding's card is open when the language changes.
+    root()!.querySelector<HTMLElement>(".item")!.click();
+    expect(root()!.querySelector<HTMLElement>(".card")!.hidden).toBe(false);
+
+    language = "de_DE";
+    review.handleOptionsChanged();
+
+    expect(root()!.querySelector("h2")?.textContent).toBe("Prüfung");
+    expect(root()!.querySelector(".item .change")?.textContent).toBe("teh \u2192 the");
+    // The card is still open, now in German.
+    expect(root()!.querySelector<HTMLElement>(".card")!.hidden).toBe(false);
+    expect(document.querySelectorAll("[data-fluenttyper-review]")).toHaveLength(1);
+    review.close();
+    expect(field.value).toBe("We saw teh cat.");
+  });
 
   test("invoke reads only, shows results, and Escape restores everything", async () => {
     const field = textarea("We saw teh cat.");

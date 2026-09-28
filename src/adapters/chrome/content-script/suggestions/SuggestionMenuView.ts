@@ -1,5 +1,6 @@
 import { resolveSuggestionMenuHostId } from "./SuggestionMenuHost";
-import { SUGGESTION_POPUP_SHADOW_CSS } from "./SuggestionPopupShadowStyles";
+import { SUGGESTION_POPUP_CLASS } from "@core/domain/suggestionPopup/markup";
+import { SUGGESTION_POPUP_SHADOW_CSS } from "@core/domain/suggestionPopup/styles";
 
 interface SuggestionMenuElements {
   menu: HTMLDivElement;
@@ -7,13 +8,14 @@ interface SuggestionMenuElements {
 }
 
 export class SuggestionMenuView {
-  static readonly CONTAINER_CLASS = "ft-suggestion-container";
+  static readonly CONTAINER_CLASS = SUGGESTION_POPUP_CLASS.container;
   static readonly OWNED_ATTR = "data-ft-suggestion-owned";
   static readonly ROLE_ATTR = "data-ft-suggestion-role";
   static readonly MENU_ROLE = "menu";
-  static readonly PANEL_CLASS = "ft-suggestion-panel";
-  static readonly HEADER_CLASS = "ft-suggestion-header";
-  static readonly LIST_CLASS = "ft-suggestion-list";
+  static readonly PANEL_CLASS = SUGGESTION_POPUP_CLASS.panel;
+  static readonly LIST_CLASS = SUGGESTION_POPUP_CLASS.list;
+  static readonly FOOTER_CLASS = SUGGESTION_POPUP_CLASS.footer;
+  static readonly FALLBACK_PANEL_CLASS = "ft-suggestion-fallback-panel";
 
   static resolveHostId(entryId: number | string): string {
     return resolveSuggestionMenuHostId(entryId);
@@ -42,18 +44,21 @@ export class SuggestionMenuView {
       menu.setAttribute(SuggestionMenuView.ROLE_ATTR, SuggestionMenuView.MENU_ROLE);
       list = doc.createElement("ul");
       list.className = SuggestionMenuView.LIST_CLASS;
-      menu.appendChild(this.createHeader(doc));
-      menu.appendChild(list);
+      // A flex column (see suggestions.css), so the footer can go above a bottom-up list.
+      const panel = doc.createElement("div");
+      panel.className = SuggestionMenuView.FALLBACK_PANEL_CLASS;
+      panel.append(list, this.createFooter(doc));
+      menu.appendChild(panel);
     }
 
     container.appendChild(menu);
     return { menu, list };
   }
 
-  static resolveHeader(menu: HTMLDivElement): HTMLDivElement | null {
+  static resolveFooter(menu: HTMLDivElement): HTMLDivElement | null {
     return (
-      menu.shadowRoot?.querySelector<HTMLDivElement>(`.${SuggestionMenuView.HEADER_CLASS}`) ??
-      menu.querySelector<HTMLDivElement>(`.${SuggestionMenuView.HEADER_CLASS}`)
+      menu.shadowRoot?.querySelector<HTMLDivElement>(`.${SuggestionMenuView.FOOTER_CLASS}`) ??
+      menu.querySelector<HTMLDivElement>(`.${SuggestionMenuView.FOOTER_CLASS}`)
     );
   }
 
@@ -79,22 +84,22 @@ export class SuggestionMenuView {
     panel.setAttribute("role", "listbox");
     panel.setAttribute("aria-hidden", "true");
 
-    const header = this.createHeader(doc);
     const list = doc.createElement("ul");
     list.className = SuggestionMenuView.LIST_CLASS;
     list.setAttribute("part", "list");
     onListCreated(list);
 
-    panel.append(header, list);
+    panel.append(list, this.createFooter(doc));
     return panel;
   }
 
-  private static createHeader(doc: Document): HTMLDivElement {
-    const header = doc.createElement("div");
-    header.className = SuggestionMenuView.HEADER_CLASS;
-    header.setAttribute("part", "header");
-    header.hidden = true;
-    return header;
+  /** Key hints (hidden from assistive technology) and the prediction language. */
+  private static createFooter(doc: Document): HTMLDivElement {
+    const footer = doc.createElement("div");
+    footer.className = SuggestionMenuView.FOOTER_CLASS;
+    footer.setAttribute("part", "footer");
+    footer.hidden = true;
+    return footer;
   }
 
   private static applyBaseHostStyles(menu: HTMLDivElement, shadowEnabled: boolean): void {

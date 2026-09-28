@@ -15,13 +15,17 @@ export interface SetConfigContext {
   autocompleteOnTab: boolean;
   insertSpaceAfterAutocomplete: boolean;
   selectByDigit: boolean;
+  /** "Extension UI Language" for FluentTyper's own text on pages; "auto_detect" follows the browser. */
+  extensionLanguage?: string;
+  /** Show suggestions in one row instead of a list. */
+  horizontalSuggestions: boolean;
   lang: string;
   minWordLengthToPredict: number;
   inline_suggestion: boolean;
   preferNativeAutocomplete: boolean;
   codeMode: boolean;
   enabled: boolean;
-  displayLangHeader: boolean;
+  showSuggestionFooter: boolean;
   /** Show the "Review text" button on the focused multi-line field. */
   showReviewButton?: boolean;
   enabledGrammarRules: string[];

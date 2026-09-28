@@ -19,12 +19,19 @@ function mountCaret(): HTMLElement {
 function renderDocs(
   typed: string,
   candidate: string,
-  { inline = true, snippetShortcut = null as string | null } = {},
+  {
+    inline = true,
+    snippetShortcut = null as string | null,
+    uiLanguage = undefined as string | undefined,
+  } = {},
 ): GoogleDocsView {
   const view = new GoogleDocsView({
     inline,
     digits: false,
-    langHeader: false,
+    horizontal: false,
+    acceptKeys: undefined,
+    showFooter: false,
+    uiLanguage,
     findToken: () => ({ token: typed }),
     accept: () => undefined,
   });
@@ -86,7 +93,30 @@ describe("GoogleDocsView inline ghost guard", () => {
     caret = mountCaret();
     view = renderDocs("adr", "123 Main Street", { inline: false, snippetShortcut: "address" });
     const menu = document.getElementById(SuggestionMenuView.resolveHostId(DOCS_SESSION_ID));
-    const label = menu?.shadowRoot?.querySelector(".ft-suggestion-label");
-    expect(label?.textContent).toBe("address → 123 Main Street");
+    const row = menu?.shadowRoot?.querySelector("li");
+    expect(row?.querySelector(".ft-suggestion-label")?.textContent).toBe("123 Main Street");
+    expect(row?.querySelector(".ft-suggestion-detail")?.textContent).toBe("address");
+  });
+
+  test("a hidden menu's last placement does not reverse arrows for an inline ghost", () => {
+    caret = mountCaret();
+    view = renderDocs("adr", "123 Main Street", { inline: false });
+    const menu = document.getElementById(SuggestionMenuView.resolveHostId(DOCS_SESSION_ID))!;
+    menu.setAttribute("data-ft-placement", "above");
+    expect(view.isReversed()).toBe(true);
+
+    view.clear();
+
+    expect(menu.getAttribute("data-ft-placement")).toBe("above");
+    expect(view.isReversed()).toBe(false);
+  });
+
+  test("labels the popup in the Extension UI Language, not the browser's", () => {
+    caret = mountCaret();
+    view = renderDocs("adr", "123 Main Street", { inline: false, uiLanguage: "de_DE" });
+    const menu = document.getElementById(SuggestionMenuView.resolveHostId(DOCS_SESSION_ID));
+    expect(SuggestionMenuView.resolvePanel(menu as HTMLDivElement).getAttribute("aria-label")).toBe(
+      "FluentTyper-Vorschläge",
+    );
   });
 });

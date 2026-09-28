@@ -1061,9 +1061,12 @@ async function typeInInput(page: Page, selector: string, text: string): Promise<
 
 async function pressNativeUndo(page: Page, selector: string): Promise<void> {
   await page.focus(selector);
-  const modifier = process.platform === "darwin" ? "Meta" : "Control";
+  const isMac = process.platform === "darwin";
+  const modifier = isMac ? "Meta" : "Control";
   await page.keyboard.down(modifier);
-  await page.keyboard.press("z");
+  // macOS maps Cmd+Z to undo in the OS key bindings, which synthetic key events
+  // skip; name the editing command so native fields undo like a real keypress.
+  await page.keyboard.press("z", isMac ? { commands: ["Undo"] } : undefined);
   await page.keyboard.up(modifier);
 }
 
@@ -1314,7 +1317,7 @@ async function getVisibleSuggestionTexts(page: Page): Promise<string[]> {
         continue;
       }
       const visibleTexts = Array.from(getMenuRoot(container).querySelectorAll("li[data-index]"))
-        .map((li) => li.textContent ?? "")
+        .map((li) => (li.querySelector(".ft-suggestion-label") ?? li).textContent ?? "")
         .filter((text) => text.length > 0);
       if (visibleTexts.length > 0) {
         return visibleTexts;
@@ -2505,8 +2508,17 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         const throughIndex = suggestions.map(normalizeSuggestionText).indexOf("through");
         expect(throughIndex).toBeGreaterThanOrEqual(0);
 
+        // Arrows follow the screen: a menu opened above the caret lists bottom-up.
+        const reversed = await page.evaluate(() =>
+          Array.from(document.querySelectorAll<HTMLElement>('[id^="ft-menu-"]')).some(
+            (menu) =>
+              getComputedStyle(menu).display !== "none" &&
+              menu.getAttribute("data-ft-placement") === "above" &&
+              menu.getAttribute("data-ft-layout") !== "horizontal",
+          ),
+        );
         for (let index = 0; index < throughIndex; index += 1) {
-          await page.keyboard.press("ArrowDown");
+          await page.keyboard.press(reversed ? "ArrowUp" : "ArrowDown");
         }
         await page.keyboard.press("Tab");
         await waitUntil(
@@ -7034,13 +7046,6 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   const textareaValue = () =>
     page.$eval("#test-textarea", (el) => (el as HTMLTextAreaElement).value);
 
-  async function pressUndo(selector: string) {
-    await page.focus(selector);
-    await page.keyboard.down("Control");
-    await page.keyboard.press("z");
-    await page.keyboard.up("Control");
-  }
-
   test(
     "Review mode reviews a textarea read-only, paints categorized marks and fixes all safe issues as one undo step",
     async () => {
@@ -7084,7 +7089,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       );
 
       // One native undo step restores the text as it was.
-      await pressUndo("#test-textarea");
+      await pressNativeUndo(page, "#test-textarea");
       await waitUntil("undone batch", async () => (await textareaValue()) === REVIEW_DEMO, {
         timeoutMs: 5000,
       });
@@ -7129,7 +7134,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         "resolved",
         (p) => p.status === "All found issues are resolved. Fixed: 1.",
       );
-      await pressUndo("#test-textarea");
+      await pressNativeUndo(page, "#test-textarea");
       await waitUntil("undone", async () => (await textareaValue()) === "Where wa it?", {
         timeoutMs: 5000,
       });
@@ -7172,6 +7177,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         "#second-textarea",
         (el) => getComputedStyle(el).paddingRight,
       );
+      // The button hides while its corner is off-screen; the window's height varies by OS.
+      await page.$eval("#second-textarea", (el) => el.scrollIntoView({ block: "center" }));
       await page.focus("#second-textarea");
       await waitUntil("review button", async () => (await launcher()) !== null, {
         timeoutMs: 5000,
@@ -7443,7 +7450,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       );
 
       // Native undo reverts review fixes (one per edit in plain contenteditable).
-      await pressUndo(selector);
+      await pressNativeUndo(page, selector);
       await waitUntil(
         "one fix undone",
         async () => (await page.$eval(selector, (el) => el.innerHTML)) !== html,
@@ -7494,7 +7501,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       // Native undo restores it exactly (Firefox takes two steps, see ReviewTargets).
       let presses = 0;
       while ((await html()) !== original && presses < 4) {
-        await pressUndo(selector);
+        await pressNativeUndo(page, selector);
         presses += 1;
       }
       expect(await html()).toBe(original);
@@ -7512,7 +7519,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       );
       presses = 0;
       while ((await html()) !== original && presses < 8) {
-        await pressUndo(selector);
+        await pressNativeUndo(page, selector);
         presses += 1;
       }
       expect(await html()).toBe(original);
@@ -7564,7 +7571,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         { insert: " with a lot of care.\n" },
       ]);
       // Quill's history merges quick successive changes: one undo reverts the batch.
-      await pressUndo(QUILL_SELECTOR);
+      await pressNativeUndo(page, QUILL_SELECTOR);
       await waitUntil("quill undo", async () => (await quillText()) === original, {
         timeoutMs: 5000,
       });

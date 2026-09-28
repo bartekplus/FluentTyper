@@ -1,3 +1,4 @@
+import { acceptKeyLabels } from "@core/domain/suggestionPopup/keyHints";
 import { getDeepActiveElement, isInDocument } from "@core/application/dom-utils";
 import { createLogger } from "@core/application/logging/Logger";
 import { LANG_SEPARATOR_CHARS_REGEX } from "@core/domain/lang";
@@ -72,12 +73,15 @@ export class SuggestionManagerRuntime {
   private readonly personalization: SuggestionPersonalization;
   private readonly pendingKeyFallbacks = new Map<number, PendingKeyFallback>();
 
-  private readonly displayLangHeader: boolean;
+  private readonly showSuggestionFooter: boolean;
   private readonly autocompleteOnTab: boolean;
   private readonly inlineSuggestionEnabled: boolean;
   private readonly insertSpaceAfterAutocomplete: boolean;
   private readonly preferNativeAutocomplete: boolean;
   private readonly selectByDigit: boolean;
+  private readonly horizontalSuggestions: boolean;
+  private readonly acceptKeys: string[] | undefined;
+  private readonly uiLanguage: string | undefined;
   private readonly nativeAutocompleteConflictDetector = new NativeAutocompleteConflictDetector();
 
   private lang: string;
@@ -98,12 +102,16 @@ export class SuggestionManagerRuntime {
       reconcileEntrySelection: (entry) => this.reconcileEntrySelection(entry),
     });
 
-    this.displayLangHeader = options.displayLangHeader;
+    this.showSuggestionFooter = options.showSuggestionFooter;
     this.autocompleteOnTab = options.autocompleteOnTab;
     this.inlineSuggestionEnabled = options.inline_suggestion;
     this.insertSpaceAfterAutocomplete = options.insertSpaceAfterAutocomplete;
     this.preferNativeAutocomplete = options.preferNativeAutocomplete;
     this.selectByDigit = options.selectByDigit;
+    this.horizontalSuggestions = options.horizontalSuggestions;
+    // No footer: no key hints (the language is left out by the session).
+    this.acceptKeys = options.showSuggestionFooter ? acceptKeyLabels(options) : undefined;
+    this.uiLanguage = options.uiLanguage;
     this.manualAttachUiManager = new ManualAttachUiManager({
       iconUrl: resolveManualAttachIconUrl(),
       onActivate: this.handleManualAttachActivate.bind(this),
@@ -657,7 +665,7 @@ export class SuggestionManagerRuntime {
       hideMenu: () => this.menuPresenter.hide(entry.menu, entry.list, entry.elem),
       clearInlinePresenter: () => this.inlinePresenter.clearForEntry(entry.id),
       isFocused: () => this.isEntryFocused(entry),
-      displayLangHeader: this.displayLangHeader,
+      showSuggestionFooter: this.showSuggestionFooter,
       inlineSuggestionEnabled: this.inlineSuggestionEnabled,
       predictionCoordinator: this.predictionCoordinator,
       grammarCoordinator: this.grammarCoordinator,
@@ -674,6 +682,9 @@ export class SuggestionManagerRuntime {
           snippetShortcuts,
           selectedIndex,
           showShortcutDigits: this.selectByDigit,
+          horizontal: this.horizontalSuggestions,
+          acceptKeys: this.acceptKeys,
+          uiLanguage: this.uiLanguage,
           menuHeader,
           mentionText,
         }),

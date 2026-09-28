@@ -207,7 +207,7 @@ type ConstructorArgs = {
   insertSpaceAfterAutocomplete: boolean;
   lang: string;
   selectByDigit: boolean;
-  displayLangHeader: boolean;
+  showSuggestionFooter: boolean;
   inline_suggestion: boolean;
   preferNativeAutocomplete: boolean;
   enabledGrammarRules: string[];
@@ -227,7 +227,7 @@ async function createManager(overrides: Partial<ConstructorArgs> = {}) {
     insertSpaceAfterAutocomplete: true,
     lang: "en_US",
     selectByDigit: true,
-    displayLangHeader: true,
+    showSuggestionFooter: true,
     inline_suggestion: false,
     preferNativeAutocomplete: true,
     enabledGrammarRules: ["commaPeriodSpacing"],
@@ -418,7 +418,9 @@ describe("SuggestionManager", () => {
         request.afterCursorTokenSuffix,
       );
       manager.fulfillPrediction(buildResponse(request, result));
-      expect(querySuggestionMenuItems()[0]?.textContent?.trim()).toBe("was");
+      expect(
+        querySuggestionMenuItems()[0]?.querySelector(".ft-suggestion-label")?.textContent?.trim(),
+      ).toBe("was");
       dispatchKeydown(root, "Tab");
       expect(root.querySelector(".ql-code-block")?.textContent?.trimEnd()).toBe("what . was");
     } finally {

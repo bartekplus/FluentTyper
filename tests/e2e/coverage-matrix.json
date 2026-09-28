@@ -3217,6 +3217,122 @@
           "test": "review runs every review-supported rule whatever is on for typing; code mode leaves none"
         }
       ]
+    },
+    {
+      "id": "popup_first_suggestion_stays_at_caret",
+      "description": "The suggestion popup keeps its first suggestion next to the caret: a popup above the caret lists bottom-up, keeps its side per caret line, and arrow keys follow screen order.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionPositioningService.test.ts",
+          "test": "keeps the side of the caret line while the list grows or shrinks"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionKeyboardHandler.test.ts",
+          "test": "moves selection the other way when the menu lists suggestions bottom-up"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/GoogleDocsView.test.ts",
+          "test": "a hidden menu's last placement does not reverse arrows for an inline ghost"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Personalized menu and inline ranking survives runtime restart and clears locally"
+        }
+      ]
+    },
+    {
+      "id": "popup_row_layout",
+      "description": "\"Show predictions in a row\" lays the popup out as a single row.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionMenuPresenter.test.ts",
+          "test": "marks the menu horizontal before positioning it, and clears the mark again"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/AppearanceStudio.test.ts",
+          "test": "preview renders the real popup, following the options that change it"
+        }
+      ]
+    },
+    {
+      "id": "popup_footer_key_hints",
+      "description": "The popup footer lists the keys that work under the user's settings and the prediction language, in the extension UI language, only when its setting is on.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionMenuPresenter.test.ts",
+          "test": "shows the keys that work in a footer, and none without accept keys"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionMenuHints.test.ts",
+          "test": "lists exactly the accept keys enabled in the options"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/AppearanceStudio.test.ts",
+          "test": "preview drops the whole footer when the key hints and language setting is off"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/UiLanguage.test.ts",
+          "test": "uses the Extension UI Language setting, or the browser's when it is auto"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SettingsMigrationV10.test.ts",
+          "test": "keeps the prediction language on for users who had turned it on"
+        }
+      ]
+    },
+    {
+      "id": "popup_theme_accents_readable",
+      "description": "Typed-text accents read at 4.5:1 or better on every popup row for the default, previous and compact palettes, with the design colors kept on defaults.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionPopupPalette.test.ts",
+          "test": "read at 4.5:1 or better on every row of the %s palette"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionPopupPalette.test.ts",
+          "test": "keep the design's accent on the default palettes, selected row included"
+        }
+      ]
+    },
+    {
+      "id": "popup_theme_palette_migration",
+      "description": "Users on the previous default popup palette move to the redesigned one per color mode; customized modes stay.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/SettingsMigrationV9.test.ts",
+          "test": "moves the previous default palette to the redesigned one"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SettingsMigrationV9.test.ts",
+          "test": "finishes a mode that a failed earlier run left half migrated"
+        }
+      ]
+    },
+    {
+      "id": "appearance_preview_matches_popup",
+      "description": "The options Appearance preview renders the web-page popup's own stylesheet and markup.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/AppearanceStudio.test.ts",
+          "test": "preview renders the real popup, following the options that change it"
+        }
+      ]
     }
   ]
 }

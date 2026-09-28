@@ -1,21 +1,29 @@
 import { TextTargetAdapter } from "./TextTargetAdapter";
+import {
+  SUGGESTION_MENU_LAYOUT_ATTR,
+  SUGGESTION_MENU_PLACEMENT_ATTR,
+  SUGGESTION_MENU_PLACEMENT_LINE_ATTR,
+} from "./SuggestionMenuHost";
 import { MIRROR_LAYOUT_PROPERTIES } from "./InlineSuggestionView";
 import {
+  NEUTRAL_THEME_SCALE,
+  SUGGESTION_POPUP_MAX_WIDTH_PX,
+  THEME_SCALE_REFERENCES,
+  computeSuggestionPopupStyleVars,
+  themeScaleFor,
+  type SuggestionPopupThemeScale,
+} from "@core/domain/suggestionPopup/metrics";
+import {
   SUGGESTION_POPUP_FONT_FAMILY,
-  SUGGESTION_POPUP_FONT_STRETCH,
   SUGGESTION_POPUP_FONT_STYLE,
   SUGGESTION_POPUP_FONT_WEIGHT,
-  SUGGESTION_POPUP_LETTER_SPACING,
-  SUGGESTION_POPUP_TEXT_TRANSFORM,
-  SUGGESTION_POPUP_WORD_SPACING,
-} from "./SuggestionPopupTypography";
+} from "@core/domain/suggestionPopup/typography";
 import type { SuggestionElement } from "./types";
 
 interface MenuCoordinates {
   left: number;
   top: number;
   maxHeight: number;
-  maxWidth: number;
 }
 
 type ThemeLengthProperty = "font-size" | "padding-top" | "padding-left";
@@ -33,60 +41,30 @@ const MENU_MEASURE_STYLES = {
 
 export class SuggestionPositioningService {
   private static readonly VIEWPORT_PADDING_PX = 8;
-  private static readonly CARET_GAP_PX = 8;
-  private static readonly HORIZONTAL_OFFSET_PX = 12;
+  private static readonly CARET_GAP_PX = 4;
+  private static readonly PREFERRED_MENU_HEIGHT_PX = 200;
   private static readonly DEFAULT_FONT_SIZE_PX = 16;
-  private static readonly LEGACY_THEME_FONT_SIZE = "0.9rem";
-  private static readonly LEGACY_THEME_PADDING_VERTICAL = "0.6rem";
-  private static readonly LEGACY_THEME_PADDING_HORIZONTAL = "0.8rem";
 
   public syncMenuTypography(menu: HTMLDivElement, elem: SuggestionElement): void {
     const typographyAnchor = this.resolveTypographyAnchor(elem);
     const computed = window.getComputedStyle(typographyAnchor);
     const fontSizePx = this.resolveFontSizePx(computed.fontSize);
-    const lineHeightPx = this.resolveLineHeightPx(computed.lineHeight, fontSizePx);
-    const themeScale = this.resolveLegacyThemeScale(menu, typographyAnchor, fontSizePx);
-    const popupFontSizePx = Math.round(this.clamp(fontSizePx * 0.84 * themeScale.fontSize, 12, 15));
-    const popupLineHeightPx = Math.round(
-      this.clamp(lineHeightPx * 0.86 * themeScale.fontSize, 16, 22),
-    );
-    const padX = Math.round(this.clamp(fontSizePx * 0.44 * themeScale.paddingHorizontal, 6, 10));
-    const padY = Math.round(this.clamp(fontSizePx * 0.14 * themeScale.paddingVertical, 3, 6));
-    const rowHeightPx = Math.round(
-      this.clamp(popupLineHeightPx + fontSizePx * 0.24 * themeScale.paddingVertical, 27, 34),
-    );
-    const radiusPx = Math.round(this.clamp(fontSizePx * 0.56, 9, 12));
-    const availableViewportWidth = Math.max(
-      152,
-      window.innerWidth - SuggestionPositioningService.VIEWPORT_PADDING_PX * 2,
-    );
+    const vars = computeSuggestionPopupStyleVars({
+      fontSizePx,
+      lineHeightPx: this.resolveLineHeightPx(computed.lineHeight, fontSizePx),
+      themeScale: this.resolveLegacyThemeScale(menu, typographyAnchor, fontSizePx),
+      viewportWidthPx: window.innerWidth,
+    });
 
-    menu.style.fontSize = `${popupFontSizePx}px`;
-    menu.style.lineHeight = `${popupLineHeightPx}px`;
+    menu.style.fontSize = vars["--ft-font-size"];
+    menu.style.lineHeight = vars["--ft-line-height"];
     menu.style.direction = computed.direction;
     menu.style.fontFamily = SUGGESTION_POPUP_FONT_FAMILY;
     menu.style.fontWeight = SUGGESTION_POPUP_FONT_WEIGHT;
     menu.style.fontStyle = SUGGESTION_POPUP_FONT_STYLE;
-    menu.style.setProperty("--ft-font-size", `${popupFontSizePx}px`);
-    menu.style.setProperty("--ft-line-height", `${popupLineHeightPx}px`);
-    menu.style.setProperty("--ft-row-height", `${rowHeightPx}px`);
-    menu.style.setProperty("--ft-pad-x", `${padX}px`);
-    menu.style.setProperty("--ft-pad-y", `${padY}px`);
-    menu.style.setProperty("--ft-radius", `${radiusPx}px`);
-    menu.style.setProperty(
-      "--ft-panel-min-width",
-      `${Math.round(this.clamp(Math.max(popupFontSizePx * 9, 148), 148, availableViewportWidth))}px`,
-    );
-    menu.style.setProperty("--suggestion-font-size", `${popupFontSizePx}px`);
-    menu.style.setProperty("--suggestion-padding-vertical", `${padY}px`);
-    menu.style.setProperty("--suggestion-padding-horizontal", `${padX}px`);
-    menu.style.setProperty("--ft-font-family", SUGGESTION_POPUP_FONT_FAMILY);
-    menu.style.setProperty("--ft-font-weight", SUGGESTION_POPUP_FONT_WEIGHT);
-    menu.style.setProperty("--ft-font-style", SUGGESTION_POPUP_FONT_STYLE);
-    menu.style.setProperty("--ft-font-stretch", SUGGESTION_POPUP_FONT_STRETCH);
-    menu.style.setProperty("--ft-letter-spacing", SUGGESTION_POPUP_LETTER_SPACING);
-    menu.style.setProperty("--ft-word-spacing", SUGGESTION_POPUP_WORD_SPACING);
-    menu.style.setProperty("--ft-text-transform", SUGGESTION_POPUP_TEXT_TRANSFORM);
+    for (const [name, value] of Object.entries(vars)) {
+      menu.style.setProperty(name, value);
+    }
   }
 
   public positionMenu(menu: HTMLDivElement, elem: SuggestionElement): boolean {
@@ -95,6 +73,17 @@ export class SuggestionPositioningService {
       return false;
     }
 
+    // The host's inline \`all: initial\` overrides the stylesheet's :host caps, so
+    // the layout's cap goes inline, before the menu is measured under it.
+    const cap =
+      menu.getAttribute(SUGGESTION_MENU_LAYOUT_ATTR) === "horizontal"
+        ? SUGGESTION_POPUP_MAX_WIDTH_PX.row
+        : SUGGESTION_POPUP_MAX_WIDTH_PX.list;
+    const maxWidth = Math.max(
+      1,
+      Math.min(cap, window.innerWidth - SuggestionPositioningService.VIEWPORT_PADDING_PX * 2),
+    );
+    menu.style.setProperty("max-width", `${maxWidth}px`, "important");
     const coordinates = this.getMenuCoordinatesForRect(menu, rect, elem);
 
     menu.style.setProperty("position", "fixed", "important");
@@ -103,7 +92,6 @@ export class SuggestionPositioningService {
     menu.style.setProperty("right", "auto", "important");
     menu.style.setProperty("bottom", "auto", "important");
     menu.style.setProperty("max-height", `${coordinates.maxHeight}px`, "important");
-    menu.style.setProperty("max-width", `${coordinates.maxWidth}px`, "important");
     menu.style.setProperty("z-index", "2147483647", "important");
     return true;
   }
@@ -253,11 +241,10 @@ export class SuggestionPositioningService {
     const gap = SuggestionPositioningService.CARET_GAP_PX;
     const availableBelow = Math.max(0, window.innerHeight - rect.bottom - gap - viewportPadding);
     const availableAbove = Math.max(0, rect.top - gap - viewportPadding);
-    const maxHeight = Math.max(
-      96,
-      availableBelow >= availableAbove ? availableBelow : availableAbove,
-    );
-    const showBelow = availableBelow >= menuDimensions.height || availableBelow >= availableAbove;
+    const showBelow =
+      this.resolvePlacement(menu, rect, availableBelow, availableAbove, menuDimensions.height) ===
+      "below";
+    const maxHeight = Math.max(96, showBelow ? availableBelow : availableAbove);
     const rawTop = showBelow
       ? rect.bottom + gap
       : rect.top - gap - Math.min(menuDimensions.height, maxHeight);
@@ -270,10 +257,9 @@ export class SuggestionPositioningService {
       ),
     );
 
+    // The panel's inline-start edge sits at the caret.
     const isRtl = window.getComputedStyle(elem).direction === "rtl";
-    const rawLeft = isRtl
-      ? rect.right - menuDimensions.width + SuggestionPositioningService.HORIZONTAL_OFFSET_PX
-      : rect.left - SuggestionPositioningService.HORIZONTAL_OFFSET_PX;
+    const rawLeft = isRtl ? rect.right - menuDimensions.width : rect.left;
     const left = this.clamp(
       rawLeft,
       viewportPadding,
@@ -287,8 +273,41 @@ export class SuggestionPositioningService {
       left,
       top,
       maxHeight,
-      maxWidth: Math.max(1, window.innerWidth - viewportPadding * 2),
     };
+  }
+
+  /**
+   * Picks a side once per caret line and keeps it: flipping as the list grows or
+   * shrinks would move the first suggestion away from the caret. A resized
+   * viewport changes the room on each side, so it decides afresh.
+   */
+  private resolvePlacement(
+    menu: HTMLDivElement,
+    rect: DOMRect,
+    availableBelow: number,
+    availableAbove: number,
+    menuHeight: number,
+  ): "above" | "below" {
+    // Width counts too: it changes the width cap, the wrapping and so the height.
+    const line = `${Math.round(rect.top)}:${window.innerWidth}x${window.innerHeight}`;
+    const locked = menu.getAttribute(SUGGESTION_MENU_PLACEMENT_ATTR);
+    if (
+      menu.getAttribute(SUGGESTION_MENU_PLACEMENT_LINE_ATTR) === line &&
+      (locked === "above" || locked === "below")
+    ) {
+      return locked;
+    }
+    // Judge by the room a longer list will need, not only the current one.
+    // A row stays one row however many suggestions arrive: only a list needs room to grow.
+    const needed =
+      menu.getAttribute(SUGGESTION_MENU_LAYOUT_ATTR) === "horizontal"
+        ? menuHeight
+        : Math.max(menuHeight, SuggestionPositioningService.PREFERRED_MENU_HEIGHT_PX);
+    const placement =
+      availableBelow >= needed || availableBelow >= availableAbove ? "below" : "above";
+    menu.setAttribute(SUGGESTION_MENU_PLACEMENT_ATTR, placement);
+    menu.setAttribute(SUGGESTION_MENU_PLACEMENT_LINE_ATTR, line);
+    return placement;
   }
 
   private getMenuDimensions(menu: HTMLDivElement): { width: number; height: number } {
@@ -325,37 +344,28 @@ export class SuggestionPositioningService {
     return elem;
   }
 
+  /** The user's Appearance sizes (theme CSS variables on the page root) as a scale. */
   private resolveLegacyThemeScale(
     menu: HTMLDivElement,
     typographyAnchor: HTMLElement,
     contextFontSizePx: number,
-  ): {
-    fontSize: number;
-    paddingVertical: number;
-    paddingHorizontal: number;
-  } {
+  ): SuggestionPopupThemeScale {
     const root = menu.ownerDocument?.documentElement;
     if (!root) {
-      return {
-        fontSize: 1,
-        paddingVertical: 1,
-        paddingHorizontal: 1,
-      };
+      return NEUTRAL_THEME_SCALE;
     }
 
     const rootComputedStyle = window.getComputedStyle(root);
-    // The theme value's scale relative to its legacy default, clamped.
+    const rootFontSizePx = this.resolveFontSizePx(rootComputedStyle.fontSize);
     const scale = (
+      key: keyof SuggestionPopupThemeScale,
       variableName: string,
-      legacyDefaultValue: string,
       property: ThemeLengthProperty,
-      minScale: number,
     ): number => {
       const rawThemeValue = rootComputedStyle.getPropertyValue(variableName).trim();
       if (!rawThemeValue) {
         return 1;
       }
-      const rootFontSizePx = this.resolveFontSizePx(rootComputedStyle.fontSize);
       const toPx = (value: string) =>
         this.resolveCssLengthPx(
           value,
@@ -364,38 +374,21 @@ export class SuggestionPositioningService {
           rootFontSizePx,
           contextFontSizePx,
         );
-      const themePx = toPx(rawThemeValue);
-      const legacyDefaultPx = toPx(legacyDefaultValue);
-      if (
-        !themePx ||
-        !legacyDefaultPx ||
-        legacyDefaultPx <= 0 ||
-        !Number.isFinite(themePx) ||
-        !Number.isFinite(legacyDefaultPx)
-      ) {
-        return 1;
-      }
-      return this.clamp(themePx / legacyDefaultPx, minScale, 1.2);
+      const { reference, min } = THEME_SCALE_REFERENCES[key];
+      return themeScaleFor(toPx(rawThemeValue), toPx(reference), min);
     };
 
     return {
-      fontSize: scale(
-        "--ft-theme-suggestion-font-size",
-        SuggestionPositioningService.LEGACY_THEME_FONT_SIZE,
-        "font-size",
-        0.85,
-      ),
+      fontSize: scale("fontSize", "--ft-theme-suggestion-font-size", "font-size"),
       paddingVertical: scale(
+        "paddingVertical",
         "--ft-theme-suggestion-padding-vertical",
-        SuggestionPositioningService.LEGACY_THEME_PADDING_VERTICAL,
         "padding-top",
-        0.75,
       ),
       paddingHorizontal: scale(
+        "paddingHorizontal",
         "--ft-theme-suggestion-padding-horizontal",
-        SuggestionPositioningService.LEGACY_THEME_PADDING_HORIZONTAL,
         "padding-left",
-        0.75,
       ),
     };
   }

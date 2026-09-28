@@ -1,4 +1,8 @@
 import { RTL_LETTER_REGEX, SUPPORTED_LANGUAGES } from "@core/domain/lang";
+import {
+  isSuggestionMenuHostVisible,
+  isSuggestionMenuReversed,
+} from "../suggestions/SuggestionMenuHost";
 import { SuggestionMenuView } from "../suggestions/SuggestionMenuView";
 import { SuggestionMenuPresenter } from "../suggestions/SuggestionMenuPresenter";
 import { SuggestionPositioningService } from "../suggestions/SuggestionPositioningService";
@@ -82,13 +86,23 @@ export class GoogleDocsView {
   private readonly presenter = new SuggestionMenuPresenter(new DocsPositioning());
   private readonly live = document.createElement("div");
   private readonly font = document.createElement("div");
-  private readonly labels = LABELS[(navigator.language || "en").split(/[-_]/)[0]] ?? LABELS.en;
+  /** In the "Extension UI Language" (the browser's when not set), like the key hints. */
+  private get labels(): (typeof LABELS)[string] {
+    const language = this.options.uiLanguage || navigator.language || "en";
+    return LABELS[language.split(/[-_]/)[0].toLowerCase()] ?? LABELS.en;
+  }
   private target: HTMLElement | null = null;
   constructor(
     private readonly options: {
       inline: boolean;
       digits: boolean;
-      langHeader: boolean;
+      horizontal: boolean;
+      /** Key hints, undefined without a footer. */
+      acceptKeys: string[] | undefined;
+      /** The popup's bottom line: key hints and the prediction language. */
+      showFooter: boolean;
+      /** Locale for the key hints; the browser's when not given. */
+      uiLanguage?: string;
       findToken: (text: string) => { token: string };
       accept: (index: number) => void;
     },
@@ -179,7 +193,10 @@ export class GoogleDocsView {
         snippetShortcuts,
         selectedIndex: index,
         showShortcutDigits: this.options.digits,
-        menuHeader: this.options.langHeader ? (SUPPORTED_LANGUAGES[language] ?? language) : null,
+        horizontal: this.options.horizontal,
+        acceptKeys: this.options.acceptKeys,
+        uiLanguage: this.options.uiLanguage,
+        menuHeader: this.options.showFooter ? (SUPPORTED_LANGUAGES[language] ?? language) : null,
         mentionText: context.selectedText || token,
       });
     const panel = SuggestionMenuView.resolvePanel(this.elements.menu);
@@ -193,6 +210,16 @@ export class GoogleDocsView {
    * and showing it again replays the panel's pop-in animation: the popup blinks on every
    * arrow press. False when there is no open menu to move within (the inline ghost).
    */
+  /**
+   * The open menu lists suggestions bottom-up (opened above the caret). A hidden
+   * menu keeps its last placement, which must not flip arrows for an inline ghost.
+   */
+  isReversed(): boolean {
+    return (
+      isSuggestionMenuHostVisible(this.elements.menu) &&
+      isSuggestionMenuReversed(this.elements.menu)
+    );
+  }
   highlight(suggestions: string[], index: number): boolean {
     if (!this.presenter.isVisible(this.elements.menu, suggestions.length)) return false;
     this.presenter.updateHighlight(this.elements.list, index);

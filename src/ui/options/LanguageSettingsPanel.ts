@@ -6,7 +6,6 @@ import {
   KEY_EXTENSION_LANGUAGE,
   KEY_FALLBACK_LANGUAGE,
   KEY_LANGUAGE,
-  KEY_DISPLAY_LANG_HEADER,
   KEY_SITE_PROFILES,
 } from "@core/domain/constants";
 import { resolveSiteProfiles } from "@core/domain/siteProfiles";
@@ -69,12 +68,9 @@ export class LanguageSettingsPanel {
     );
 
     const lowerGrid = createWorkspaceShell("workspace-main-grid");
-    const languageDisplayCard = this.createControlCard("language_display", KEY_DISPLAY_LANG_HEADER);
-    languageDisplayCard.classList.add("workspace-span-full");
     const languageGridSection = this.createLanguageGridSection(enabledLanguages, usageCounts);
     languageGridSection.classList.add("workspace-span-full");
     lowerGrid.append(
-      languageDisplayCard,
       languageGridSection,
       ...this.createBehaviorCards(enabledLanguages, language, fallbackLanguage),
     );

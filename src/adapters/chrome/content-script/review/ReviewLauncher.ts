@@ -24,7 +24,8 @@ export interface ReviewLauncherDependencies {
   reviewedElement(): HTMLElement | null;
   /** Reviews `field`; it already holds focus and its selection. */
   review(field: HTMLElement): void;
-  uiLanguage?: string;
+  /** UI locale, or a lookup read on each use so a settings change applies at once. */
+  uiLanguage?: string | (() => string);
 }
 
 /**
@@ -67,7 +68,6 @@ export class ReviewLauncher {
   private frame: number | null = null;
   private resizeObserver: ResizeObserver | null = null;
   private readonly view: Window;
-  private readonly lang: string;
 
   private readonly onFocusIn = (event: Event) => {
     this.setField(launcherFieldFor(event.composedPath()[0] as Element | null));
@@ -95,7 +95,6 @@ export class ReviewLauncher {
     private readonly deps: ReviewLauncherDependencies,
   ) {
     this.view = doc.defaultView ?? window;
-    this.lang = deps.uiLanguage ?? navigator.language;
     doc.addEventListener("focusin", this.onFocusIn, true);
     doc.addEventListener("focusout", this.onFocusOut, true);
     doc.addEventListener("input", this.onInput, true);
@@ -191,12 +190,25 @@ export class ReviewLauncher {
     if (this.button) this.button.hidden = true;
   }
 
+  /** In the current UI language, which can change while the page is open. */
+  private label(button: HTMLButtonElement): void {
+    const uiLanguage = this.deps.uiLanguage;
+    const lang =
+      (typeof uiLanguage === "function" ? uiLanguage() : uiLanguage) ?? navigator.language;
+    const label = reviewText("review_launcher_label", lang);
+    button.title = label;
+    button.setAttribute("aria-label", label);
+  }
+
   private ensureButton(field: HTMLElement): HTMLButtonElement {
     // Inside a modal dialog everything outside it is inert: the button goes in the dialog.
     // Otherwise it goes on the document element, never in the body: an editable
     // body (TinyMCE and CKEditor 4 frames, designMode) would save it with the text.
     const mount = reviewMountFor(field) ?? this.doc.documentElement;
-    if (this.button && this.host?.isConnected && this.host.parentNode === mount) return this.button;
+    if (this.button && this.host?.isConnected && this.host.parentNode === mount) {
+      this.label(this.button);
+      return this.button;
+    }
     this.host?.remove();
     const { host, root } = createOverlayHost(this.doc, REVIEW_LAUNCHER_ATTRIBUTE, 2147483000);
     const style = this.doc.createElement("style");
@@ -206,9 +218,6 @@ export class ReviewLauncher {
     button.hidden = true;
     // Not a tab stop: the keyboard shortcut reviews the field without leaving it.
     button.tabIndex = -1;
-    const label = reviewText("review_launcher_label", this.lang);
-    button.title = label;
-    button.setAttribute("aria-label", label);
     button.append(icon(this.doc));
     // Keep the field's focus and selection: the review reads both.
     const keepFocus = (event: Event) => event.preventDefault();
@@ -223,6 +232,7 @@ export class ReviewLauncher {
       this.hide();
       this.deps.review(field);
     });
+    this.label(button);
     root.append(style, button);
     mount.append(host);
     enterTopLayer(host);

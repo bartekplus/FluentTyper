@@ -1,3 +1,4 @@
+import { acceptKeyLabels } from "@core/domain/suggestionPopup/keyHints";
 import { LANG_SEPARATOR_CHARS_REGEX } from "@core/domain/lang";
 import type { GrammarEventType } from "@core/domain/grammar/types";
 import type { PredictionInputAction } from "@core/domain/messageTypes";
@@ -266,7 +267,15 @@ export class GoogleDocsAdapter {
     this.view = new GoogleDocsView({
       inline: options.inline_suggestion,
       digits: options.selectByDigit,
-      langHeader: options.displayLangHeader,
+      horizontal: options.horizontalSuggestions,
+      acceptKeys: options.showSuggestionFooter
+        ? acceptKeyLabels({
+            ...options,
+            autocompleteOnTab: options.autocompleteOnTab || options.inline_suggestion,
+          })
+        : undefined,
+      showFooter: options.showSuggestionFooter,
+      uiLanguage: options.uiLanguage,
       findToken: (text) => this.prediction.findMentionToken(text),
       accept: (index) => {
         this.accept(index);
@@ -761,9 +770,9 @@ export class GoogleDocsAdapter {
       return true;
     }
     if (key === "ArrowDown" || key === "ArrowUp") {
+      const step = (key === "ArrowDown") !== this.view.isReversed() ? 1 : -1;
       this.selectedIndex =
-        (this.selectedIndex + (key === "ArrowDown" ? 1 : -1) + this.suggestions.length) %
-        this.suggestions.length;
+        (this.selectedIndex + step + this.suggestions.length) % this.suggestions.length;
       if (!this.view.highlight(this.suggestions, this.selectedIndex)) this.render();
       return true;
     }

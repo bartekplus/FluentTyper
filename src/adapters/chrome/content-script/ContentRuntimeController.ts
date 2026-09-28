@@ -1,3 +1,4 @@
+import { resolveUiLanguage } from "@core/domain/lang";
 import { createLogger, setGlobalObservabilityRuntime } from "@core/application/logging/Logger";
 import { getDeepActiveElement, isInDocument } from "@core/application/dom-utils";
 import {
@@ -50,8 +51,9 @@ export class ContentRuntimeController {
     insertSpaceAfterAutocomplete: true,
     lang: "en_US",
     selectByDigit: false,
+    horizontalSuggestions: false,
     minWordLengthToPredict: 0,
-    displayLangHeader: true,
+    showSuggestionFooter: false,
     showReviewButton: true,
     inline_suggestion: false,
     preferNativeAutocomplete: true,
@@ -202,8 +204,14 @@ export class ContentRuntimeController {
     whenDocumentFocused(document, run, POPUP_FOCUS_WAIT_MS);
   }
 
+  /** FluentTyper's own UI text follows the "Extension UI Language" setting. */
+  private uiLanguage(): string {
+    return resolveUiLanguage(this.config.extensionLanguage, navigator.language);
+  }
+
   private createReviewController(): ReviewController {
     return new ReviewController({
+      uiLanguage: () => this.uiLanguage(),
       getOptions: () => ({
         lang: this.config.lang,
         // Every rule review supports, whatever is switched on for typing; none in code mode.
@@ -336,6 +344,7 @@ export class ContentRuntimeController {
       return;
     }
     this.reviewLauncher = new ReviewLauncher(document, {
+      uiLanguage: () => this.uiLanguage(),
       isEnabled: () =>
         this.enabled &&
         this.config.showReviewButton !== false &&
@@ -524,7 +533,9 @@ export class ContentRuntimeController {
       insertSpaceAfterAutocomplete: this.config.insertSpaceAfterAutocomplete,
       lang: this.config.lang,
       selectByDigit: this.config.selectByDigit,
-      displayLangHeader: this.config.displayLangHeader,
+      horizontalSuggestions: this.config.horizontalSuggestions,
+      uiLanguage: this.uiLanguage(),
+      showSuggestionFooter: this.config.showSuggestionFooter,
       inline_suggestion: this.config.inline_suggestion,
       preferNativeAutocomplete: this.config.preferNativeAutocomplete,
       // Code mode keeps FluentTyper from rewriting code: only rules that never
