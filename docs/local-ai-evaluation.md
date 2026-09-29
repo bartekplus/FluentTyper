@@ -252,7 +252,7 @@ changes do not have evidence of a safe quality/performance tradeoff.
 Three follow-up changes keep Gemma's pinned revision, q4f16 text weights, instructions,
 context and validation intact:
 
-- **Fixed instruction prefix:** reuse the first 400 tokens only after matching them to
+- **Original fixed instruction prefix:** reuse the first 400 tokens only after matching them to
   a synthetic, text-free Correct prompt. The cache is 22,937,600 bytes (21.875 MiB) on
   the CPU, bounded to 32 MiB. Each generation gets its own mutable KV cache, disposed
   on success or failure. CPU downloads explicitly release the former GPU tensors.
@@ -329,6 +329,67 @@ separate, narrowly proved rule for compound-subject pronouns and agreement; the 
 stress sentence's large change unit currently exceeds the four-word guard. The existing
 quoted-example and style restrictions remain intentional.
 
+## Longer instruction prefix (2026-09-29)
+
+The final 400-token wrapper was re-profiled on the M2 Max with the pinned Gemma 4
+text-only loader and the same eight Correct requests in alternating order. A synthetic
+prompt varied `contextBefore`, `contextAfter` and segment text; its first differing token
+was 485. The runtime also checks the exact token prefix for every request. Thus 512 and
+576 tokens cannot be reused safely, regardless of memory budget. We compared 400, 448
+and 480 tokens. The 480-token cache is 27,525,120 bytes (26.25 MiB), below the existing
+32 MiB cap; 400 tokens used 21.875 MiB.
+
+| Measure, one warm model                                 | No prefix | 400 tokens | 448 tokens | 480 tokens |
+| ------------------------------------------------------- | --------: | ---------: | ---------: | ---------: |
+| Eight requests, including first request and preparation |   24.63 s |    19.34 s |    19.02 s |    18.80 s |
+| First two requests, including preparation               |    5.74 s |     5.56 s |     5.54 s |     5.63 s |
+| Last six requests, cache prepared                       |   18.89 s |    13.78 s |    13.48 s |    13.17 s |
+| Last six, before first generated token                  |    8.47 s |     3.59 s |     3.17 s |     2.90 s |
+
+All 32 responses were byte-identical. Prefix preparation took 0.95, 0.99 and
+1.12 seconds for 400, 448 and 480 tokens; downloading its GPU tensors to CPU took
+54, 20 and 21 ms respectively in this run. The preparation samples are noisy, so
+the small whole-review gain is more useful than an isolated prefill number. The
+400-token baseline spent **26.0%** of the last six requests before their
+first token; 480 tokens spent **22.0%**. The older **43.1%** measurement predates
+prefix reuse and is not the current optimization budget.
+
+The queue probe saw 2–4 MiB of `writeBuffer` traffic and 18–40 ms in each request,
+without a detectable difference between baseline and cached modes. This does not
+isolate every possible transfer path in Transformers.js/ONNX Runtime, particularly on
+an M2 Max with unified memory. The full CPU-backed 480-token wrapper reproduced the
+accepted findings from all 117 stress requests and 230 fixtures, with no generation errors.
+Local raw data: `.cache/local-ai-bench/results/gemma-prefix-lengths-2026-09-29.json`
+and `gemma-prefix480-full-2026-09-29.json` (ignored, synthetic text only).
+
+## GPU-resident instruction prefix (2026-09-29)
+
+The next experiment kept the verified 480-token prefix on the WebGPU device. The
+master owns the output GPU buffers (28 MiB of actual buffer allocations). Every
+request wraps those buffers in its own non-owning ONNX Runtime tensors, so
+`DynamicCache.update()` and `dispose()` release only that request's wrappers;
+unload waits for active requests before disposing the master. No GPU tensor is
+downloaded to CPU to prepare the prefix. This follows the resource lifecycle in
+[ONNX Runtime's WebGPU guidance](https://onnxruntime.ai/docs/tutorials/web/ep-webgpu.html)
+and [Transformers.js's cache API](https://huggingface.co/docs/transformers.js/api/generation/cache).
+
+The same eight-request paired probe, with one warm model and alternating order,
+measured **17.945 s CPU-backed versus 17.915 s GPU-resident** for all eight;
+the last six were **12.921 s versus 12.923 s**. All responses were byte-identical.
+Across the 117 stress requests on the production GPU wrapper, time before the
+first generated token was **61.72 of 267.21 seconds (23.1%)**, with a 505 ms
+median. This replaces the pre-prefix 43.1% figure as the measured current
+breakdown for that workload.
+These differences are below run-to-run noise on the M2 Max. The GPU path is kept
+to avoid a separate-memory transfer on other devices; its benefit there is
+unverified. Raw data: `.cache/local-ai-bench/results/gemma-gpu-v-cpu-prefix-2026-09-29.json`
+(ignored, synthetic text only).
+
+The production GPU wrapper reproduced the recorded raw responses and accepted
+findings for all 117 stress requests, and the accepted findings for all 230
+fixtures. No generation failed. Raw results:
+`.cache/local-ai-bench/results/gemma-prefix480-gpu-full-2026-09-29.json`.
+
 ## Languages
 
 English only. Both earlier shipped models damaged the Polish rewrite fixture rw-pl-02
@@ -353,6 +414,12 @@ reinstall state without network access, and deletion left no model copy. Privacy
 sentinel checks passed. These are individual runs, not controlled latency comparisons.
 The final follow-up clears a misleading save-error message from that partial-cache
 state; its host regression test passes.
+
+The GPU-resident production build passed all 14 real-GPU Chrome steps on 2026-09-29,
+including multi-request Correct, unload, Rewrite, offline reload, incomplete-cache
+handling, privacy checks and deletion. First Local AI finding: 8.20 s; dense review
+complete: 19.22 s; unload: 103 ms. These are one integrated run, not a paired
+performance comparison with the CPU-backed build.
 
 ## Not verified
 

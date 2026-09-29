@@ -2,8 +2,8 @@ import type { DynamicCache, Tensor, PreTrainedModel, PreTrainedTokenizer } from 
 import { buildAiMessages } from "@core/domain/grammar/review/ai/prompts";
 import type { ModelLike } from "./LocalAiEngine";
 
-// Gemma's evaluated prefix: about 22 MiB on the CPU, never editor content.
-const PREFIX_TOKENS = 400;
+// Verified against a text-free prompt; the GPU buffer allocation is below 32 MiB.
+const PREFIX_TOKENS = 480;
 const MAX_PREFIX_BYTES = 32 * 1024 * 1024;
 
 /** One immutable instruction prefix per loaded Gemma; each request owns its mutable KV cache. */
@@ -32,67 +32,115 @@ export function withPromptPrefix(
   if (ids.length !== PREFIX_TOKENS || ids.some((id, i) => id !== b.input_ids.data[i])) {
     return model as unknown as ModelLike;
   }
-  let entries: Record<string, Tensor> | null = null;
+  let prefix: DynamicCache | null = null;
+  let preparing: Promise<void> | null = null;
   let disposed = false;
   let checkedOnce = false;
+  const running = new Set<Promise<unknown>>();
   const generate = model.generate.bind(model);
-  return {
-    async generate(options) {
-      if (disposed) throw new Error("Instruction prefix model disposed");
-      const input = options.input_ids as Tensor;
-      const native = options as unknown as Parameters<PreTrainedModel["generate"]>[0];
-      if (ids.some((id, i) => id !== input.data[i])) return generate(native);
-      // A one-request review needs no reusable cache; show its result without setup.
-      if (!checkedOnce) {
-        const result = await generate(native);
-        checkedOnce = !options.stopping_criteria.some((stopper) => stopper.interrupted);
-        return result;
-      }
-      if (!entries) {
-        const output = (await generate({
-          input_ids: a.input_ids.slice(null, [0, PREFIX_TOKENS]),
-          attention_mask: a.attention_mask.slice(null, [0, PREFIX_TOKENS]),
-          max_new_tokens: 1,
-          do_sample: false,
-          return_dict_in_generate: true,
-          stopping_criteria: native.stopping_criteria,
-        })) as { past_key_values: DynamicCache };
-        try {
-          const saved: Record<string, Tensor> = {};
-          let bytes = 0;
-          for (const [name, tensor] of Object.entries(output.past_key_values)) {
-            // getData changes the location to CPU; release here, before DynamicCache
-            // would skip disposal of the former GPU buffer.
-            const data = await tensor.ort_tensor.getData(true);
-            if (Array.isArray(data)) throw new Error("Invalid instruction prefix tensor");
-            bytes += data.byteLength;
-            if (bytes > MAX_PREFIX_BYTES || tensor.dims.at(-2) !== PREFIX_TOKENS) {
-              throw new Error("Invalid instruction prefix cache");
+  const run: ModelLike["generate"] = async (options) => {
+    if (disposed) throw new Error("Instruction prefix model disposed");
+    const input = options.input_ids as Tensor;
+    const native = options as unknown as Parameters<PreTrainedModel["generate"]>[0];
+    if (ids.some((id, i) => id !== input.data[i])) return generate(native);
+    // A one-request review needs no reusable cache; show its result without setup.
+    if (!checkedOnce) {
+      const result = await generate(native);
+      checkedOnce = !options.stopping_criteria.some((stopper) => stopper.interrupted);
+      return result;
+    }
+    while (!prefix) {
+      const own = !preparing;
+      if (!preparing)
+        preparing = (async () => {
+          const output = (await generate({
+            input_ids: a.input_ids.slice(null, [0, PREFIX_TOKENS]),
+            attention_mask: a.attention_mask.slice(null, [0, PREFIX_TOKENS]),
+            max_new_tokens: 1,
+            do_sample: false,
+            return_dict_in_generate: true,
+            stopping_criteria: native.stopping_criteria,
+          })) as { past_key_values: DynamicCache };
+          let keep = false;
+          try {
+            let bytes = 0;
+            for (const tensor of Object.values(output.past_key_values)) {
+              if (tensor.location !== "gpu-buffer" || tensor.dims.at(-2) !== PREFIX_TOKENS) {
+                throw new Error("Invalid GPU instruction prefix tensor");
+              }
+              bytes += tensor.ort_tensor.gpuBuffer.size;
+              if (bytes > MAX_PREFIX_BYTES)
+                throw new Error("Instruction prefix exceeds GPU budget");
             }
-            saved[name] = new Tensor(tensor.type, data.slice(), tensor.dims.slice());
+            if (bytes === 0) throw new Error("Empty instruction prefix cache");
+            if (!disposed && !options.stopping_criteria.some((stopper) => stopper.interrupted)) {
+              prefix = output.past_key_values;
+              keep = true;
+            }
+          } finally {
+            if (!keep) await output.past_key_values.dispose();
           }
-          if (bytes === 0) throw new Error("Empty instruction prefix cache");
-          if (!disposed && !options.stopping_criteria.some((stopper) => stopper.interrupted)) {
-            entries = saved;
-          }
-        } finally {
-          await output.past_key_values.dispose();
+        })();
+      const task = preparing;
+      try {
+        await task;
+      } catch (error) {
+        if (own || disposed || options.stopping_criteria.some((stopper) => stopper.interrupted)) {
+          throw error;
         }
+      } finally {
+        if (preparing === task) preparing = null;
       }
       if (disposed || options.stopping_criteria.some((stopper) => stopper.interrupted)) {
         throw new Error("Instruction prefix generation cancelled");
       }
-      const cache = new DynamicCache(entries!);
-      try {
-        return await generate({ ...native, past_key_values: cache });
-      } finally {
-        await cache.dispose();
-      }
+    }
+    if (disposed || options.stopping_criteria.some((stopper) => stopper.interrupted)) {
+      throw new Error("Instruction prefix generation cancelled");
+    }
+    // Borrow each GPU buffer through a separate ORT tensor. Disposing the mutable
+    // request cache invalidates its wrappers, while the master owns the buffers.
+    const borrowed: Record<string, Tensor> = {};
+    for (const [name, tensor] of Object.entries(prefix)) {
+      const ort = tensor.ort_tensor;
+      const OrtTensor = ort.constructor as unknown as {
+        fromGpuBuffer: (
+          buffer: typeof ort.gpuBuffer,
+          options: { dataType: typeof tensor.type; dims: number[] },
+        ) => typeof ort;
+      };
+      borrowed[name] = new Tensor(
+        OrtTensor.fromGpuBuffer(ort.gpuBuffer, {
+          dataType: tensor.type,
+          dims: tensor.dims.slice(),
+        }),
+      );
+    }
+    const cache = new DynamicCache(borrowed);
+    try {
+      return await generate({ ...native, past_key_values: cache });
+    } finally {
+      await cache.dispose();
+    }
+  };
+  return {
+    generate(options) {
+      const task = run(options);
+      running.add(task);
+      void task.then(
+        () => running.delete(task),
+        () => running.delete(task),
+      );
+      return task;
     },
     async dispose() {
       disposed = true;
-      entries = null;
-      await model.dispose();
+      // A hung generation must not prevent the model's own disposal from starting.
+      const [modelDisposal] = await Promise.allSettled([model.dispose(), ...running]);
+      const master = prefix;
+      prefix = null;
+      if (master) await master.dispose();
+      if (modelDisposal.status === "rejected") throw modelDisposal.reason;
     },
   };
 }

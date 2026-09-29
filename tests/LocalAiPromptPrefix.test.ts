@@ -8,14 +8,41 @@ import type {
 import { withPromptPrefix } from "../src/adapters/chrome/background/localAi/promptPrefix";
 
 // Only the injected surface used by the prefix wrapper; no engine/runtime startup.
-class TestTensor {
-  readonly location = "cpu";
-  readonly ort_tensor = { getData: async (_release?: boolean) => this.data };
+class TestOrtTensor {
+  readonly location = "gpu-buffer";
+  readonly type = "float16";
   constructor(
-    readonly type: string,
-    readonly data: BigInt64Array | Uint16Array,
+    readonly gpuBuffer: { size: number; destroyed: boolean },
     readonly dims: number[],
+    private readonly ownsBuffer: boolean,
   ) {}
+  static fromGpuBuffer(buffer: { size: number; destroyed: boolean }, options: { dims: number[] }) {
+    return new TestOrtTensor(buffer, options.dims, false);
+  }
+  dispose() {
+    if (this.ownsBuffer) this.gpuBuffer.destroyed = true;
+  }
+}
+class TestTensor {
+  readonly ort_tensor: TestOrtTensor | { getData: (_release?: boolean) => Promise<BigInt64Array> };
+  readonly type: string;
+  readonly data: BigInt64Array;
+  readonly dims: number[];
+  constructor(type: string, data: BigInt64Array, dims: number[]);
+  constructor(ort: TestOrtTensor);
+  constructor(typeOrOrt: string | TestOrtTensor, data?: BigInt64Array, dims?: number[]) {
+    this.type = typeof typeOrOrt === "string" ? typeOrOrt : typeOrOrt.type;
+    this.data = data ?? new BigInt64Array();
+    this.dims = dims ?? (typeOrOrt as TestOrtTensor).dims;
+    this.ort_tensor =
+      typeof typeOrOrt === "string" ? { getData: async () => this.data } : typeOrOrt;
+  }
+  get location() {
+    return this.ort_tensor instanceof TestOrtTensor ? "gpu-buffer" : "cpu";
+  }
+  dispose() {
+    if (this.ort_tensor instanceof TestOrtTensor) this.ort_tensor.dispose();
+  }
   slice(_axis: null, range: [number, number]) {
     return new TestTensor(this.type, this.data.slice(...range), [1, range[1] - range[0]]);
   }
@@ -26,6 +53,10 @@ class TestCache {
     Object.assign(this, entries);
   }
   update(entries: Record<string, unknown>) {
+    for (const [name, value] of Object.entries(entries)) {
+      const old = this[name] as { location?: string; dispose?: () => void } | undefined;
+      if (old && old !== value && old.location === "gpu-buffer") old.dispose?.();
+    }
     Object.assign(this, entries);
   }
   async dispose() {
@@ -36,33 +67,43 @@ class TestCache {
   }
 }
 
-function harness() {
+function harness(templateMismatchAt?: number, prefixBytes = 480 * 2) {
   const input = () => new TestTensor("int64", new BigInt64Array(500).fill(1n), [1, 500]);
+  let templates = 0;
   const tokenizer = {
-    apply_chat_template: () => ({ input_ids: input(), attention_mask: input() }),
+    apply_chat_template: () => {
+      const input_ids = input();
+      if (++templates === 2 && templateMismatchAt !== undefined) {
+        (input_ids.data as BigInt64Array)[templateMismatchAt] = 2n;
+      }
+      return { input_ids, attention_mask: input() };
+    },
   };
-  const prefix = new TestTensor("float16", new Uint16Array(400), [1, 1, 400, 1]);
-  const prefixRead = jest.spyOn(prefix.ort_tensor, "getData");
+  const prefixBuffer = { size: prefixBytes, destroyed: false };
+  const prefix = new TestTensor(new TestOrtTensor(prefixBuffer, [1, 1, 480, 1], true));
   const prefixCache = new TestCache({ "past_key_values.0.key": prefix });
   const prefixDispose = jest.spyOn(prefixCache, "dispose");
   const generatedDispose = jest.fn(() => {});
   const generated = { location: "gpu-buffer", dispose: generatedDispose } as unknown as Tensor;
   const seeds: Tensor[] = [];
   let fail = false;
-  let duringPrefix = () => {};
+  let duringPrefix: () => void | Promise<void> = () => {};
+  let blocked: Promise<void> | null = null;
   const generate = jest.fn(async (options: Record<string, unknown>) => {
     if (options.return_dict_in_generate) {
-      duringPrefix();
+      await duringPrefix();
       return { past_key_values: prefixCache };
     }
     const cache = options.past_key_values as TestCache | undefined;
     if (cache) {
       const seed = cache["past_key_values.0.key"] as Tensor;
-      expect(seed.location).toBe("cpu");
-      expect(await seed.ort_tensor.getData()).toHaveLength(400);
+      expect(seed.location).toBe("gpu-buffer");
+      expect(seed).not.toBe(prefix);
+      expect(seed.ort_tensor.gpuBuffer).toBe(prefixBuffer);
       seeds.push(seed);
     }
     cache?.update({ "past_key_values.0.key": generated });
+    if (blocked) await blocked;
     if (fail) throw new Error("lost device");
     return input();
   });
@@ -94,20 +135,31 @@ function harness() {
     generate,
     dispose,
     prefixDispose,
-    prefixRead,
+    prefixBuffer,
     generatedDispose,
     stopper,
     options,
     fail: () => {
       fail = true;
     },
-    duringPrefix: (fn: () => void) => {
+    duringPrefix: (fn: () => void | Promise<void>) => {
       duringPrefix = fn;
+    },
+    blockGeneration: (wait: Promise<void>) => {
+      blocked = wait;
     },
   };
 }
 
 describe("Gemma instruction prefix", () => {
+  test("rejects a candidate when synthetic context enters its last token", async () => {
+    const h = harness(479);
+    await h.wrapped.generate(h.options());
+    await h.wrapped.generate(h.options());
+    expect(h.generate).toHaveBeenCalledTimes(2);
+    expect(h.prefixDispose).not.toHaveBeenCalled();
+  });
+
   test("reuses only matching instruction tokens, with a separate disposable cache per request", async () => {
     const h = harness();
     await h.wrapped.generate(h.options());
@@ -116,22 +168,20 @@ describe("Gemma instruction prefix", () => {
     await h.wrapped.generate(h.options());
     await h.wrapped.generate(h.options());
     expect(h.generate).toHaveBeenCalledTimes(4);
-    expect(h.prefixDispose).toHaveBeenCalledTimes(1);
-    expect(h.prefixRead).toHaveBeenCalledWith(true);
+    expect(h.prefixDispose).not.toHaveBeenCalled();
     const first = h.generate.mock.calls[2][0].past_key_values;
     const second = h.generate.mock.calls[3][0].past_key_values;
     expect(first).not.toBe(second);
     expect(h.generatedDispose).toHaveBeenCalledTimes(2);
-    expect(h.seeds[0]).toBe(h.seeds[1]);
-    expect(await h.seeds[0].ort_tensor.getData()).toHaveLength(400);
-    // The injected cache models the pinned dependency's GPU-only disposal contract.
-    await new TestCache({ "past_key_values.0.key": h.seeds[0] }).dispose();
-    expect(await h.seeds[0].ort_tensor.getData()).toHaveLength(400);
+    expect(h.seeds[0]).not.toBe(h.seeds[1]);
+    expect(h.prefixBuffer.destroyed).toBe(false);
     const different = h.options();
     (different.input_ids.data as BigInt64Array)[0] = 2n;
     await h.wrapped.generate(different);
     expect(h.generate.mock.calls[4][0].past_key_values).toBeUndefined();
     await h.wrapped.dispose();
+    expect(h.prefixDispose).toHaveBeenCalledTimes(1);
+    expect(h.prefixBuffer.destroyed).toBe(true);
     expect(h.dispose).toHaveBeenCalledTimes(1);
     await expect(h.wrapped.generate(h.options())).rejects.toThrow("disposed");
   });
@@ -141,10 +191,12 @@ describe("Gemma instruction prefix", () => {
     await h.wrapped.generate(h.options());
     expect(h.generate).toHaveBeenCalledTimes(1);
     expect(h.prefixDispose).not.toHaveBeenCalled();
+    let unloading: Promise<void>;
     h.duringPrefix(() => {
-      void h.wrapped.dispose();
+      unloading = h.wrapped.dispose();
     });
     await expect(h.wrapped.generate(h.options())).rejects.toThrow("cancelled");
+    await unloading!;
     expect(h.generate).toHaveBeenCalledTimes(2);
     expect(h.prefixDispose).toHaveBeenCalledTimes(1);
     expect(h.dispose).toHaveBeenCalledTimes(1);
@@ -158,7 +210,44 @@ describe("Gemma instruction prefix", () => {
     h.fail();
     await expect(h.wrapped.generate(h.options())).rejects.toThrow("lost device");
     expect(h.generatedDispose).toHaveBeenCalledTimes(1);
+    expect(h.prefixDispose).not.toHaveBeenCalled();
+    await h.wrapped.dispose();
     expect(h.prefixDispose).toHaveBeenCalledTimes(1);
+  });
+
+  test("rejects a GPU prefix that exceeds the memory budget", async () => {
+    const h = harness(undefined, 32 * 1024 * 1024 + 1);
+    await h.wrapped.generate(h.options());
+    await expect(h.wrapped.generate(h.options())).rejects.toThrow("budget");
+    expect(h.prefixDispose).toHaveBeenCalledTimes(1);
+    expect(h.prefixBuffer.destroyed).toBe(true);
+  });
+
+  test("concurrent requests prepare one master and borrow separate caches", async () => {
+    const h = harness();
+    await h.wrapped.generate(h.options());
+    let entered!: () => void;
+    const started = new Promise<void>((resolve) => (entered = resolve));
+    let release!: () => void;
+    h.duringPrefix(
+      () =>
+        new Promise<void>((resolve) => {
+          release = resolve;
+          entered();
+        }),
+    );
+    const second = h.wrapped.generate(h.options());
+    await started;
+    const third = h.wrapped.generate(h.options());
+    release();
+    await Promise.all([second, third]);
+    expect(
+      h.generate.mock.calls.filter(([options]) => options.return_dict_in_generate),
+    ).toHaveLength(1);
+    expect(h.seeds[0]).not.toBe(h.seeds[1]);
+    expect(h.prefixBuffer.destroyed).toBe(false);
+    await h.wrapped.dispose();
+    expect(h.prefixBuffer.destroyed).toBe(true);
   });
 
   test("cancellation during prefix preparation releases its cache and does not generate text", async () => {
@@ -174,6 +263,24 @@ describe("Gemma instruction prefix", () => {
     h.duringPrefix(() => {});
     await h.wrapped.generate(h.options());
     expect(h.generate).toHaveBeenCalledTimes(4);
+    expect(h.prefixDispose).toHaveBeenCalledTimes(1);
+    await h.wrapped.dispose();
     expect(h.prefixDispose).toHaveBeenCalledTimes(2);
+  });
+
+  test("unload waits for a borrowing request before freeing the GPU prefix", async () => {
+    const h = harness();
+    await h.wrapped.generate(h.options());
+    await h.wrapped.generate(h.options());
+    let release!: () => void;
+    h.blockGeneration(new Promise<void>((resolve) => (release = resolve)));
+    const request = h.wrapped.generate(h.options());
+    const unloading = h.wrapped.dispose();
+    expect(h.dispose).toHaveBeenCalledTimes(1);
+    expect(h.prefixBuffer.destroyed).toBe(false);
+    release();
+    await request;
+    await unloading;
+    expect(h.prefixBuffer.destroyed).toBe(true);
   });
 });
