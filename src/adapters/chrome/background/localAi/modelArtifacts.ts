@@ -81,6 +81,14 @@ export async function deleteModelArtifactsExcept(
   }
 }
 
+/** Withdraws the verified marker (the files stay, as a partial install). */
+export async function unmarkModelVerified(
+  caches: CacheStorageLike,
+  record: LocalAiModelRecord,
+): Promise<void> {
+  await (await openIfPresent(caches, MARKER_CACHE))?.delete(markerUrl(record));
+}
+
 export async function markModelVerified(
   caches: CacheStorageLike,
   record: LocalAiModelRecord,

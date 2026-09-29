@@ -374,6 +374,33 @@ describe("install, integrity and cache state", () => {
     expect(await installing).toEqual({ ok: false, error: "download-cancelled" });
   });
 
+  test("cancel during the marker write withdraws the marker and unloads", async () => {
+    const { engine, caches, model } = makeEngine();
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let writing = false;
+    const open = caches.open.bind(caches);
+    caches.open = async (name: string) => {
+      const cache = await open(name);
+      if (name !== "fluenttyper-local-ai") return cache;
+      const put = cache.put.bind(cache);
+      cache.put = (async (request: RequestInfo | URL, response: Response) => {
+        writing = true;
+        await gate;
+        return put(request, response);
+      }) as Cache["put"];
+      return cache;
+    };
+    const abort = new AbortController();
+    const installing = engine.install(GEMMA.record.modelId, noProgress, abort.signal, LOAD_MS);
+    while (!writing) await flush();
+    abort.abort();
+    release();
+    expect(await installing).toEqual({ ok: false, error: "download-cancelled" });
+    expect(await engine.cacheState(GEMMA.record.modelId)).toBe("partial");
+    expect(model.disposed).toBe(1);
+  });
+
   test("a marker that cannot be written fails the install and unloads the model", async () => {
     const { engine, caches, model } = makeEngine();
     const open = caches.open.bind(caches);

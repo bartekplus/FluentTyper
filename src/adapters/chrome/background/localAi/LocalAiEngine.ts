@@ -18,6 +18,7 @@ import {
   deleteModelArtifactsExcept,
   downloadModelFiles,
   markModelVerified,
+  unmarkModelVerified,
   modelCacheState,
   type CacheStorageLike,
 } from "./modelArtifacts";
@@ -230,6 +231,12 @@ export class LocalAiEngine {
         // Not installed after all: the loaded model must not outlive the failure.
         await this.unload();
         return { ok: false, error: installErrorCode(error) };
+      }
+      if (signal.aborted) {
+        // Cancelled while the marker was written: withdraw it (files stay, partial).
+        await unmarkModelVerified(this.deps.caches, record).catch(() => undefined);
+        await this.unload();
+        return { ok: false, error: "download-cancelled" };
       }
     }
     return result;
