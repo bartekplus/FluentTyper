@@ -15,6 +15,17 @@ type Translations = readonly [
 ];
 
 const EXPLANATIONS: Record<ReviewMessageKey, Translations> = {
+  review_msg_repeated_words: [
+    "This word may have been repeated accidentally.",
+    "Ce mot a peut-être été répété par accident.",
+    "Ova je riječ možda slučajno ponovljena.",
+    "Puede que esta palabra se haya repetido por accidente.",
+    "Αυτή η λέξη ίσως επαναλήφθηκε κατά λάθος.",
+    "Det här ordet kan ha upprepats av misstag.",
+    "Dieses Wort wurde möglicherweise versehentlich wiederholt.",
+    "To słowo mogło zostać przypadkowo powtórzone.",
+    "Esta palavra pode ter sido repetida por engano.",
+  ],
   review_msg_sentence_start: [
     "Start a sentence with a capital letter.",
     "Commencez la phrase par une majuscule.",

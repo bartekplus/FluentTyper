@@ -6981,6 +6981,35 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   );
 
   test(
+    "Review repeated words applies one individual deletion with native undo",
+    async () => {
+      await prepareReviewPage();
+      const source = "I opened the the report.";
+      await setTextarea(source);
+      await triggerReview(worker!);
+      const panel = await waitForReview(page, "repeated word", (p) =>
+        p.items.some((item) => item.text === "the␣the → the"),
+      );
+      expect(await textareaValue()).toBe(source);
+      expect(panel.fixAll).toMatchObject({ text: "Fix all safe (0)", disabled: true });
+      await clickReviewControl(page, ".item");
+      await waitForReview(page, "repeat card", (p) => p.card.open);
+      await clickReviewControl(page, ".card [data-action=apply]");
+      await waitUntil(
+        "deleted duplicate",
+        async () => (await textareaValue()) === "I opened the report.",
+        { timeoutMs: 5000 },
+      );
+      await pressNativeUndo(page, "#test-textarea");
+      await waitUntil("undone duplicate", async () => (await textareaValue()) === source, {
+        timeoutMs: 5000,
+      });
+      await finishReview();
+    },
+    browserTimeout(20000, 30000),
+  );
+
+  test(
     "Review mode offers suggestions for an unknown word and changes nothing until one is picked",
     async () => {
       await prepareReviewPage();

@@ -3567,6 +3567,27 @@
           "test": "closing during the cache recheck never starts a late model allocation"
         }
       ]
+    },
+    {
+      "id": "review_repeated_words",
+      "description": "Native repeated-word suggestions preserve protected text and typing settings, stay individual-only, and apply one deletion with native undo.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review repeated words applies one individual deletion with native undo"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewRepeatedWords.test.ts",
+          "test": "protects dictionary, scope, language and editor islands"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewRepeatedWords.test.ts",
+          "test": "Review-only rules cannot enter typing runtime or stored typing choices"
+        }
+      ]
     }
   ]
 }

@@ -7,7 +7,7 @@ import { RuleToggleCardsControl } from "../src/ui/settings-engine/controls/RuleT
 import { Store } from "../src/core/application/storage/Store.js";
 import {
   DEFAULT_CURRENT_GRAMMAR_RULES,
-  GRAMMAR_RULE_IDS,
+  TYPING_RULE_IDS,
   RECOMMENDED_CURRENT_GRAMMAR_RULES,
   TYPOGRAPHY_GRAMMAR_RULES,
 } from "../src/core/domain/grammar/ruleCatalog.js";
@@ -383,7 +383,7 @@ describe("ruleToggleCards setting", () => {
     bundle.set(["commaPeriodSpacing"]);
     await flushStorage();
     const stored = (await store.get(KEY_ENABLED_GRAMMAR_RULES)) as Record<string, boolean>;
-    expect(Object.keys(stored)).toHaveLength(GRAMMAR_RULE_IDS.length);
+    expect(Object.keys(stored)).toHaveLength(TYPING_RULE_IDS.length);
     expect(stored.futureRule).toBeUndefined();
     expect(stored.commaPeriodSpacing).toBe(true);
   });
@@ -424,7 +424,7 @@ describe("ruleToggleCards setting", () => {
 
     const stored = (await store.get(KEY_ENABLED_GRAMMAR_RULES)) as Record<string, boolean>;
     expect(control.get()).toEqual(["commaPeriodSpacing"]);
-    expect(Object.keys(stored)).toHaveLength(GRAMMAR_RULE_IDS.length);
+    expect(Object.keys(stored)).toHaveLength(TYPING_RULE_IDS.length);
     expect(stored.commaPeriodSpacing).toBe(true);
     expect(stored.capitalizeSentenceStart).toBe(false);
   });

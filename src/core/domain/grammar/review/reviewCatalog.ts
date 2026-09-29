@@ -25,6 +25,7 @@ export type ReviewRuleMetadata =
   | { review: "excluded"; reason: string };
 
 export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
+  englishRepeatedWords: { review: "supported", category: "grammar", bulk: "individual" },
   capitalizeSentenceStart: { review: "supported", category: "typography", bulk: "eligible" },
   capitalizeAfterLineBreak: {
     review: "supported",

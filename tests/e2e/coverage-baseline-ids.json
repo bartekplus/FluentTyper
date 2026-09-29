@@ -187,6 +187,7 @@
     "local_ai_review_progress",
     "local_ai_prompt_prefix",
     "local_ai_stable_recheck_pairs",
-    "local_ai_cold_cache_recheck"
+    "local_ai_cold_cache_recheck",
+    "review_repeated_words"
   ]
 }

@@ -1040,8 +1040,44 @@ function measurementLike(
   return findings;
 }
 
+// ponytail: a small function-word allowlist; expand only with ambiguity fixtures.
+const repeatedWords: Detector = (ctx) => {
+  const findings: RawFinding[] = [];
+  const regex =
+    /(?<![\p{L}\p{M}\p{N}_'’–—-])(the|an|a|is|are|was|were|in|on|at|for|with|from|of)[ \t\u00a0]{1,8}\1(?![\p{L}\p{M}\p{N}_'’–—-])/giu;
+  for (const match of ownedMatches(ctx, regex)) {
+    const start = match.index;
+    const end = start + match[0].length;
+    const context = {
+      start: Math.max(0, start - PHRASE_WINDOW),
+      end: Math.min(ctx.text.length, end + 2),
+    };
+    const before = ctx.text.slice(context.start, start);
+    const word = match[1].toLowerCase();
+    if (ctx.dictionary.has(word) || isGluedToTechnical(ctx.text, start, end)) continue;
+    // A run gets one repair, including when a later pair belongs to another chunk.
+    if (before.match(/([A-Za-z]+)[ \t\u00a0]{1,8}$/)?.[1].toLowerCase() === word) continue;
+    // A named, quoted example is evidence, not prose to repair. Normal quotations still run.
+    if (
+      /\b(?:write|type|spell|phrase|words?|example|literal|text|says?|reads?)[ :\t]*["“'‘]$/i.test(
+        before,
+      )
+    )
+      continue;
+    findings.push({
+      ruleId: "englishRepeatedWords",
+      messageKey: "review_msg_repeated_words",
+      range: { start, end },
+      alternatives: [ctx.source.slice(start, start + match[1].length)],
+      context,
+    });
+  }
+  return findings;
+};
+
 /** Review detectors by rule. Rules absent here are excluded from review (see reviewCatalog). */
 export const REVIEW_DETECTORS: ReadonlyArray<{ rules: CatalogRuleId[]; detect: Detector }> = [
+  { rules: ["englishRepeatedWords"], detect: repeatedWords },
   { rules: ["capitalizeSentenceStart", "capitalizeAfterLineBreak"], detect: capitalizeStarts },
   { rules: ["englishPronounICapitalization"], detect: pronounI },
   {

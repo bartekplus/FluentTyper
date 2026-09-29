@@ -6,6 +6,7 @@ import { CapitalizeSentenceStartRule } from "../../src/core/domain/grammar/imple
 import {
   GRAMMAR_RULE_CATALOG,
   GRAMMAR_RULE_IDS,
+  TYPING_RULE_IDS,
   RECOMMENDED_CURRENT_GRAMMAR_RULES,
   TYPOGRAPHY_GRAMMAR_RULES,
 } from "../../src/core/domain/grammar/ruleCatalog";
@@ -464,7 +465,7 @@ describe("rule contract: every rule has a positive and a negative case", () => {
   };
 
   test("every catalog rule is listed", () => {
-    expect(Object.keys(CASES).sort()).toEqual([...GRAMMAR_RULE_IDS].sort());
+    expect(Object.keys(CASES).sort()).toEqual([...TYPING_RULE_IDS].sort());
   });
 
   test.each(Object.entries(CASES))("%s", (ruleId, { fires, skips }) => {

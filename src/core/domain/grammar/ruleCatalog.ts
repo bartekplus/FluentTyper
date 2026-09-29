@@ -2,6 +2,19 @@ import type { GrammarRuleCatalogEntry, GrammarRuleId } from "./types";
 
 export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   {
+    id: "englishRepeatedWords",
+    typing: false,
+    name: "Accidental repeated words",
+    titleI18nKey: "review_msg_repeated_words",
+    descriptionI18nKey: "review_msg_repeated_words",
+    exampleI18nKey: "",
+    languageScope: "en_US",
+    safetyTier: "advanced",
+    defaultRollout: "off",
+    recommended: false,
+    priority: 140,
+  },
+  {
     id: "capitalizeSentenceStart",
     name: "Capitalize sentence starts",
     titleI18nKey: "grammar_rule_capitalize_sentence_start",

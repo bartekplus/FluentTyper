@@ -53,6 +53,7 @@ interface ReviewAlternative {
 }
 
 export type ReviewMessageKey =
+  | "review_msg_repeated_words"
   | "review_msg_sentence_start"
   | "review_msg_line_start"
   | "review_msg_pronoun_i"
