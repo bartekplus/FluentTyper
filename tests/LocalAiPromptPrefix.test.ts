@@ -276,6 +276,7 @@ describe("Gemma instruction prefix", () => {
     h.blockGeneration(new Promise<void>((resolve) => (release = resolve)));
     const request = h.wrapped.generate(h.options());
     const unloading = h.wrapped.dispose();
+    expect(h.dispose).toHaveBeenCalledTimes(1);
     expect(h.prefixBuffer.destroyed).toBe(false);
     release();
     await request;

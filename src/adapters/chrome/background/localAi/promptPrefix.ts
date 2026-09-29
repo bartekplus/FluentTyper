@@ -135,11 +135,12 @@ export function withPromptPrefix(
     },
     async dispose() {
       disposed = true;
-      await Promise.allSettled(running);
+      // A hung generation must not prevent the model's own disposal from starting.
+      const [modelDisposal] = await Promise.allSettled([model.dispose(), ...running]);
       const master = prefix;
       prefix = null;
       if (master) await master.dispose();
-      await model.dispose();
+      if (modelDisposal.status === "rejected") throw modelDisposal.reason;
     },
   };
 }
