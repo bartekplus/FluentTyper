@@ -201,8 +201,8 @@ Excluded (typing conveniences, not errors in finished text):
 Besides the rules, review checks each prose word against the language's
 dictionary: the same local Presage engine (Hunspell and Aspell predictors) that
 offers spelling corrections while you type. A word the dictionary does not know
-("Where **wa** it?") is listed with the closest words Presage suggests for it,
-ranked for the words before it: `wa → was / way / war`.
+("Where **wa** it?") is listed with Presage's single-word suggestions,
+ranked for the words before it.
 
 ![Choosing a replacement for an unknown word](images/review-mode/7-spelling-choice.png)
 
@@ -211,10 +211,10 @@ ranked for the words before it: `wa → was / way / war`.
   replaces the word with it, as one native undo step. Arrow keys move between
   suggestions; **Ignore** and **Add to dictionary** work as for any finding.
 - **Never in Fix all.** These findings count as left for individual review.
-- **Only close suggestions.** A suggestion must be one edit away for a word of up
-  to five letters, two for a longer one; completions ("wa" → "water") are
-  dropped. A word with no close suggestion is not listed at all, and neither is
-  a compound the dictionary can split into two words ("changelog", "webhook").
+- **Presage's suggestions.** Review offers up to five single-word candidates in
+  Presage's order, without an edit-distance cutoff. It skips words the dictionary
+  knows and likely compounds whose split ranks ahead of every single-word choice
+  ("changelog", "webhook"). Nothing is listed when no usable candidate remains.
 - **Left out:** names (a capitalized word inside a sentence), acronyms and
   mixed case ("NASA", "iPhone"), words glued to digits, symbols or hyphens,
   anything touching code or protected text, words another rule already flags,

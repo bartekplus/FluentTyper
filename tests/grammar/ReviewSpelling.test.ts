@@ -9,7 +9,6 @@ import {
   parseSpellingRequest,
   rankSpellingSuggestions,
   spellingCandidates,
-  spellingDistance,
 } from "../../src/core/domain/grammar/review/reviewSpelling";
 import type { ProtectedRange, ReviewOptions } from "../../src/core/domain/grammar/review/types";
 
@@ -107,7 +106,7 @@ describe("review spelling: which words are looked up", () => {
       words: candidates.map(({ lookup, before }) => ({ word: lookup, before })),
     };
     expect(parseSpellingRequest(request)?.words).toHaveLength(candidates.length);
-    // A decomposed accent is one edit away from its composed suggestion, like any other.
+    // Presage's composed suggestion is offered for the original spelling.
     expect(rankSpellingSuggestions("cafe\u0301e", ["caf\u00e9"])).toEqual(["caf\u00e9"]);
   });
 
@@ -128,16 +127,16 @@ describe("review spelling: which words are looked up", () => {
 });
 
 describe("review spelling: suggestions", () => {
-  test("distance counts one transposition as one step", () => {
-    expect(spellingDistance("recieve", "receive")).toBe(1);
-    expect(spellingDistance("wa", "was")).toBe(1);
-    expect(spellingDistance("wa", "water")).toBe(3);
-  });
-
-  test("close corrections are kept, closest first; completions and phrases are dropped", () => {
+  test("Presage's single-word corrections keep their order without an edit cutoff", () => {
     // Presage's candidates for "Where wa", in its order.
     const presage = ["was", "way", "want", "wanted", "water", "war", "walked", "walk"];
-    expect(rankSpellingSuggestions("wa", presage)).toEqual(["was", "way", "war"]);
+    expect(rankSpellingSuggestions("wa", presage)).toEqual([
+      "was",
+      "way",
+      "want",
+      "wanted",
+      "water",
+    ]);
     expect(
       rankSpellingSuggestions("recieve", [
         "receive",
@@ -147,17 +146,25 @@ describe("review spelling: suggestions", () => {
         "Recife",
         "received",
       ]),
-    ).toEqual(["receive", "relieve", "receiver", "received", "Recife"]);
+    ).toEqual(["receive", "relieve", "receiver", "reverie", "Recife"]);
     // Multi-word candidates are never offered as replacements.
     expect(rankSpellingSuggestions("colr", ["color", "co lr", "col-r"])).toEqual(["color"]);
-    // Nothing close: nothing offered (a name, not a typo).
     expect(rankSpellingSuggestions("Bartek", ["barter", "Bartok"])).toEqual(["Barter", "Bartok"]);
-    expect(rankSpellingSuggestions("Fluenttyper", ["Fluently", "Superfluity"])).toEqual([]);
-    // A compound of two dictionary words is deliberate, not a typo; fragments are not words.
+    expect(rankSpellingSuggestions("Fluenttyper", ["Fluently", "Superfluity"])).toEqual([
+      "Fluently",
+      "Superfluity",
+    ]);
+    // A split ranked first suggests a correct compound missing from the dictionary.
     expect(
       rankSpellingSuggestions("changelog", ["change log", "change-log", "changeling", "change"]),
     ).toEqual([]);
     expect(rankSpellingSuggestions("webhook", ["web hook", "weblog"])).toEqual([]);
+    expect(rankSpellingSuggestions("needeed", ["needed", "nee deed", "nee-deed"])).toEqual([
+      "needed",
+    ]);
+    expect(rankSpellingSuggestions("needdeed", ["needed", "need deed", "need-deed"])).toEqual([
+      "needed",
+    ]);
     expect(rankSpellingSuggestions("occured", ["occurred", "occur ed", "occur-ed"])).toEqual([
       "occurred",
     ]);
@@ -169,7 +176,11 @@ describe("review spelling: suggestions", () => {
   });
 
   test("a capitalized word gets capitalized suggestions; at most five", () => {
-    expect(rankSpellingSuggestions("Thsi", ["this", "thus", "tsi"])).toEqual(["This", "Tsi"]);
+    expect(rankSpellingSuggestions("Thsi", ["this", "thus", "tsi"])).toEqual([
+      "This",
+      "Thus",
+      "Tsi",
+    ]);
     expect(
       rankSpellingSuggestions("bat", ["bad", "bag", "ban", "bar", "bay", "bet", "bit"]),
     ).toHaveLength(5);

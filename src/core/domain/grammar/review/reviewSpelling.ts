@@ -126,73 +126,36 @@ function wordsBefore(text: string, start: number): string {
   return last.length > 0 ? `${last.join(" ")} ` : "";
 }
 
-/** Edit distance with adjacent transpositions ("recieve" is one step from "receive"). */
-export function spellingDistance(a: string, b: string): number {
-  const x = [...a];
-  const y = [...b];
-  const rows: number[][] = [];
-  for (let i = 0; i <= x.length; i += 1) rows.push([i, ...new Array<number>(y.length).fill(0)]);
-  for (let j = 1; j <= y.length; j += 1) rows[0][j] = j;
-  for (let i = 1; i <= x.length; i += 1) {
-    for (let j = 1; j <= y.length; j += 1) {
-      const cost = x[i - 1] === y[j - 1] ? 0 : 1;
-      let best = Math.min(rows[i - 1][j] + 1, rows[i][j - 1] + 1, rows[i - 1][j - 1] + cost);
-      if (i > 1 && j > 1 && x[i - 1] === y[j - 2] && x[i - 2] === y[j - 1]) {
-        best = Math.min(best, rows[i - 2][j - 2] + 1);
-      }
-      rows[i][j] = best;
-    }
-  }
-  return rows[x.length][y.length];
-}
-
 /**
- * How far a suggestion may be from the word. Real typos are one or two edits
- * away ("wich", "recieve", "definately", "irregardless"); a word only reachable
- * by more ("changelog" -> "changeling") is more likely correct and unlisted.
- */
-function maxDistance(word: string): number {
-  return [...word].length <= 5 ? 1 : 2;
-}
-
-/**
- * The replacements to offer for an unknown `word`, best first, from Presage's
- * candidates (already ranked for the preceding words). Only single words close
- * to what was written are kept, closest first; Presage's order breaks ties.
- * Completions ("wa" -> "water") are not corrections and fall out here, and a
- * word the dictionary can split into two words gets no suggestions at all.
+ * Single-word replacements for an unknown word, in Presage's order. Presage
+ * already ranks them for context; Review offers them without an edit cutoff.
+ * Likely unlisted compounds are left alone when their split ranks first.
  */
 export function rankSpellingSuggestions(word: string, candidates: readonly string[]): string[] {
   const lower = lookupForm(word).toLowerCase();
-  if (isCompound(lower, candidates)) return [];
-  const limit = maxDistance(lower);
   const seen = new Set<string>([lower]);
-  const lowercase = !/\p{Lu}/u.test(word);
-  const ranked: Array<{ text: string; distance: number; order: number }> = [];
+  const ranked: Array<{ text: string; order: number }> = [];
   candidates.forEach((candidate, order) => {
     const text = candidate.trim();
     if (!SUGGESTION.test(text)) return;
     const key = lookupForm(text).toLowerCase();
     if (seen.has(key)) return;
     seen.add(key);
-    const distance = spellingDistance(lower, key);
-    if (distance > limit) return;
-    // A lowercase word is rarely a misspelled name: names rank after words.
-    const name = lowercase && /\p{Lu}/u.test(text[0]);
-    ranked.push({ text, distance: distance + (name ? 1 : 0), order });
+    ranked.push({ text, order });
   });
-  ranked.sort((a, b) => a.distance - b.distance || a.order - b.order);
+  const splitAt = compoundIndex(lower, candidates);
+  if (splitAt >= 0 && !ranked.some(({ order }) => order < splitAt)) return [];
   return ranked.slice(0, MAX_SPELLING_SUGGESTIONS).map(({ text }) => matchStyle(word, text));
 }
 
 /**
- * True when the dictionary offers the word split into two words of three or
+ * Position where the dictionary offers the word split into two words of three or
  * more letters ("changelog" -> "change log", "webhook" -> "web hook"): a
  * compound the dictionary lacks, usually deliberate, not a typo. Real typos
  * split only into fragments ("occured" -> "occur ed").
  */
-function isCompound(lower: string, candidates: readonly string[]): boolean {
-  return candidates.some((candidate) => {
+function compoundIndex(lower: string, candidates: readonly string[]): number {
+  return candidates.findIndex((candidate) => {
     const parts = /^(\p{L}{3,})[ -](\p{L}{3,})$/u.exec(candidate.trim());
     return !!parts && (parts[1] + parts[2]).toLowerCase() === lower;
   });

@@ -1565,7 +1565,8 @@ describe("adversarial review regressions", () => {
     const root = () => hosts()[0]!.shadowRoot!;
     await until(
       () =>
-        root().querySelector(".item .change")?.textContent === "wa \u2192 was / way / war / \u2026",
+        root().querySelector(".item .change")?.textContent ===
+        "wa \u2192 was / way / want / \u2026",
     );
     expect(field.value).toBe("Where wa it?");
     expect(lookups).toContain("wa");
@@ -1575,7 +1576,13 @@ describe("adversarial review regressions", () => {
     // No preselected fix: no Apply button, one button per suggestion, focus on the first.
     expect(card.querySelector("[data-action=apply]")).toBeNull();
     const choices = () => Array.from(card.querySelectorAll<HTMLButtonElement>("button.suggestion"));
-    expect(choices().map((button) => button.textContent)).toEqual(["was", "way", "war", "wax"]);
+    expect(choices().map((button) => button.textContent)).toEqual([
+      "was",
+      "way",
+      "want",
+      "war",
+      "wax",
+    ]);
     expect(choices()[1].getAttribute("aria-label")).toBe("Replace with \u201Cway\u201D");
     expect(root().activeElement).toBe(choices()[0]);
     expect(card.textContent).toContain("Nothing changes until you pick a word.");

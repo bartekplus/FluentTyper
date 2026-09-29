@@ -3044,7 +3044,7 @@
     },
     {
       "id": "review_unknown_word_choice",
-      "description": "Review looks unknown words up in the local Presage dictionary and offers close suggestions to pick from; nothing is preselected, auto-applied or batched, and the lookup stays inside the extension.",
+      "description": "Review looks unknown words up in the local Presage dictionary and offers its single-word suggestions to pick from; nothing is preselected, auto-applied or batched, and the lookup stays inside the extension.",
       "coverage": [
         {
           "layer": "e2e-full",
