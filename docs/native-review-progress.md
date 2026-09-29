@@ -26,7 +26,7 @@ Execute sequentially: 1, 2, 3, 4, 8, 5, 6, 7, 9–20. Native TypeScript, individ
 | 17  | Brand/acronym casing           | Implemented; Chrome verified; Firefox permission blocked |
 | 18  | Preferred terminology          | Implemented; Chrome verified; Firefox permission blocked |
 | 19  | Incremental rechecks           | Implemented; Chrome verified; Firefox permission blocked |
-| 20  | Optional style hints           | Pending; default off                                     |
+| 20  | Optional style hints           | Readability core tested; settings and UI pending         |
 
 ## Validation
 
@@ -623,3 +623,15 @@ Final gates: **5,139 unit tests passed** (4,987 main + 152 isolated); full Chrom
 Production JS delta versus #18 (`production-chrome-full-6888-1790716334843`): content script **+1,560 bytes**; other JS artifacts unchanged. Candidate: `production-chrome-full-8491-1790717366305`. Paired domain timing and retained-payload limits remain in the prior checkpoint; these are authored local measurements, not universal responsiveness or heap guarantees. No permissions, dependencies, uploads, AI/model changes or typing behavior added.
 
 **19/20 implemented**, with Chrome validation. Next: #20 default-off optional style/readability advice, separate from error counts and safe bulk fixes. Full roadmap completion still requires Firefox runtime validation.
+
+### #20 bounded readability sentence view
+
+Added the domain-only `longSentenceRanges` helper and threshold normalization. **It is not connected to Review and does not enable any advice.** It uses native English `Intl.Segmenter` sentence boundaries, reuses the existing capitalization abbreviation guard without changing typing behavior, and repairs soft-line-wrap/title/initial boundaries. Ambiguous abbreviation endings such as `etc. Next...` abstain instead of joining two possibly separate sentences into a warning. Blank paragraph segments reset pending evidence; numbered/bulleted list lines remain excluded even when native segmentation splits their markers. Complete selected sentences are accepted only after segmentation of the full bounded source, so cropped selection edges cannot invent a complete sentence.
+
+The threshold defaults to **35 words**, accepts integers **10–200**, and is explicitly a preference rather than a quality score. Words include Unicode letters/numbers and internal apostrophes, hyphens and dots (a decimal counts once). Hints require terminal punctuation; dangling fragments, unread windows and sources over 50k abstain. Protected sentences are excluded, with a narrow exception for literal decimals and e.g./i.e./U.S./U.K. technical spans used as ordinary prose. Later complete unprotected sentences remain eligible. This helper returns ranges only: no replacement, split, AI invocation or mutation.
+
+Six authored tests cover threshold boundaries/invalid values, titles/initials/abbreviations/decimals, soft wraps, list markers, partial scopes, paragraph boundaries after protected tokens, code/structure protection and an explicitly over-50k source. The tests exposed and fixed initial/list ambiguity, soft-line splitting, and pending abbreviation state incorrectly crossing a blank paragraph. Final focused run: **6 pass, 46 assertions** (`/tmp/ft-style-readability-tests-final.log`). `bun run check` passed; full unit suite **5,145 passed** (4,993 main + 152 isolated), with the final oversized-fixture strengthening checked separately. Logs: `/tmp/ft-style-readability-{check,unit}-final.log`.
+
+Local Bun 1.4.2 / M2 Max measurement (five warmups, median 21, repeated authored 15-word sentences, threshold 10): 1k **0.024 ms**, 10k **0.132 ms**, 50k **0.632 ms**. A separate adversarial 50k repeated-title input returned no ranges in **7.262 ms**; bounded token lookback avoids repeatedly slicing the growing pending sentence. Log: `/tmp/ft-style-readability-benchmark.jsonl`. These measure this helper only, not end-to-end Review.
+
+Remaining #20 work: default-off catalog/settings channel and configurable threshold persistence, PIN number/ATM machine suggestions with quotation protection, integration into native diagnostics, distinct advice counts/filters/accessibility/translations, warning-only and individual-Apply controls, migration/default-off proof, and production browser validation. Integration must preserve the existing protected-range validation while accommodating the explicitly recognized decimal/abbreviation prose in long-sentence warnings, and report unavailable native segmentation honestly. Existing AI sentence chunking and Rewrite are untouched. **19/20 implemented; #20 in progress.**
