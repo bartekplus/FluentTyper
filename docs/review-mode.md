@@ -623,3 +623,19 @@ bun run test:e2e:docs                         # Google Docs fixture
 bun run check:e2e:coverage                    # review_* behaviors in tests/e2e/coverage-matrix.json
 E2E_EXTENSION_PATH=$PWD/build bun scripts/review-demo.ts   # demo and screenshots
 ```
+
+### Quotation warnings
+
+`unclosedQuotation` checks complete English fields for unmatched opening straight double,
+curly double/single and guillemet quotation marks. It supports nested styles and
+paragraph continuation marks. A warning highlights the opening mark, explains the
+problem and offers Ignore/Disable actions; it has no replacement, Apply button or
+Fix all safe path. Keyboard focus enters the card at its close control.
+
+Partial selections, unread windows, fields over the Review limit and any protected
+text suppress this check because the missing closing mark cannot be established.
+Straight single quotes, escaped or named quote symbols, unfamiliar/mixed quotation
+conventions and ambiguous nesting abstain. Apostrophes and measurement marks are
+preserved. This check does not insert punctuation, repair brackets, enforce Oxford
+commas or infer comma splices. Warning labels are localized in all nine UI languages;
+the rule is Review-only and can be disabled independently.

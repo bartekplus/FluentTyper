@@ -97,6 +97,7 @@ export interface DetectContext {
   lang: string;
   dictionary: ReadonlySet<string>;
   insertSpaceAfterAutocomplete: boolean;
+  quotationFindings?: readonly RawFinding[];
 }
 
 export interface RawFinding {
@@ -105,6 +106,7 @@ export interface RawFinding {
   range: TextRange;
   /** Replacement for `range`, per alternative. */
   alternatives: string[];
+  warningOnly?: true;
   /** Evidence the decision depended on; defaults to `range`. */
   context?: TextRange;
   /** A finding the rule's metadata would batch but this instance must not. */
@@ -1090,6 +1092,14 @@ const repeatedWords: Detector = (ctx) => {
 
 /** Review detectors by rule. Rules absent here are excluded from review (see reviewCatalog). */
 export const REVIEW_DETECTORS: ReadonlyArray<{ rules: CatalogRuleId[]; detect: Detector }> = [
+  {
+    rules: ["unclosedQuotation"],
+    detect: (ctx) =>
+      (ctx.quotationFindings ?? []).filter(
+        (d) => d.range.start >= ctx.from && d.range.start < ctx.to,
+      ),
+  },
+
   {
     rules: ["englishItsContext", "englishLetsContext", "englishElsePossessive"],
     detect: contextualPossessives,

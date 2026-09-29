@@ -202,6 +202,7 @@
     "review_countability",
     "review_doubled_degree",
     "review_usage_phrases",
-    "review_session_matching_ignores"
+    "review_session_matching_ignores",
+    "review_quotation_warnings"
   ]
 }

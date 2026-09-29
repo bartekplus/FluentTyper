@@ -53,6 +53,8 @@ interface ReviewAlternative {
 }
 
 export type ReviewMessageKey =
+  | "review_msg_quotation_balance"
+  | "review_msg_unclosed_quote"
   | "review_msg_usage_phrases"
   | "review_msg_intents_purposes"
   | "review_msg_one_same"
@@ -117,7 +119,8 @@ export type BulkDecision =
   | { eligible: true; alternative: number }
   | {
       eligible: false;
-      reason: "rule-not-batch-approved" | "ambiguous" | "context-dependent" | "local-ai";
+      reason:
+        "rule-not-batch-approved" | "ambiguous" | "context-dependent" | "local-ai" | "warning-only";
     };
 
 export interface ReviewDiagnostic {
@@ -133,6 +136,8 @@ export interface ReviewDiagnostic {
   /** Snapshot text of `range`. */
   original: string;
   alternatives: ReviewAlternative[];
+  /** A diagnostic to inspect, with no replacement or write path. */
+  warningOnly?: true;
   bulk: BulkDecision;
   /**
    * Text the decision depended on (the evidence), at least `range`. Another
@@ -169,6 +174,8 @@ export interface ReviewSourceSnapshot {
    * virtual block separators). Nothing inside may be read as prose or edited.
    */
   protectedRanges: ProtectedRange[];
+  /** The adapter omitted text outside its available window. */
+  incomplete?: true;
 }
 
 export interface ReviewOptions {

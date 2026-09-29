@@ -85,7 +85,7 @@ export function* planBulkFixSteps(
   const deferred: BulkPlan["deferred"] = [];
   const candidates: Array<{ diagnostic: ReviewDiagnostic; edits: ReviewEdit[] }> = [];
   for (const diagnostic of diagnostics) {
-    if (!diagnostic.bulk.eligible) {
+    if (diagnostic.warningOnly || !diagnostic.bulk.eligible) {
       deferred.push({ id: diagnostic.id, reason: "not-batch-approved" });
       continue;
     }

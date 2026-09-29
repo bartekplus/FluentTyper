@@ -242,6 +242,27 @@ describe("ReviewUi: Local AI", () => {
     expect($(".ai-line").textContent).toBe("Local AI model is downloading: 42% (see settings).");
   });
 
+  test("warning-only cards label the issue and offer no replacement action", () => {
+    const diagnostic = finding("warning", {
+      ruleId: "unclosedQuotation",
+      messageKey: "review_msg_unclosed_quote",
+      category: "punctuation",
+      original: "“",
+      warningOnly: true,
+      alternatives: [],
+      bulk: { eligible: false, reason: "warning-only" },
+    });
+    ui.render(state({ diagnostics: [diagnostic] }));
+    expect(ui.root.textContent).toContain("Warning: “");
+    ui.openCard(diagnostic, null);
+    expect($(".card").getAttribute("aria-label")).toContain("Punctuation & spacing, Warning:");
+    expect($(".card").querySelector("[data-action=apply]")).toBeNull();
+    expect($(".card").querySelector(".diff")).toBeNull();
+    trustedClick($("[data-action=ignore]"));
+    expect(cb.ignore).toHaveBeenCalledWith("warning");
+    expect(cb.apply).not.toHaveBeenCalled();
+  });
+
   test("matching ignores show session scope, stay separate from disable, and exclude AI", () => {
     const diagnostic = finding("native", {
       ruleId: "englishRepeatedWords",

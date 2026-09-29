@@ -724,6 +724,18 @@ describe("ReviewSession with Local AI: Correct", () => {
 });
 
 describe("ReviewSession with Local AI: disagreeing with a check", () => {
+  test("AI alternatives never turn a native warning into a replacement card", async () => {
+    const h = harness("He wrote, “The build is ready.", { rules: ["unclosedQuotation"] });
+    h.ai.fix = (text) => text.replace("“", '"');
+    await h.start();
+    const warning = h.last().diagnostics.find((d) => d.warningOnly);
+    expect(warning).toBeDefined();
+    expect(warning!.alternatives).toEqual([]);
+    expect(await h.session.apply(warning!.id)).toBeNull();
+    expect(h.editor.applyCalls).toEqual([]);
+    h.session.close();
+  });
+
   test("a different AI fix for the same word is a labelled second option (user report)", async () => {
     const h = harness("Yesterday she still dont know the details.", {
       rules: ["englishContractionNormalization"],

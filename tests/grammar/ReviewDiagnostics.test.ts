@@ -126,6 +126,7 @@ describe("review rule coverage map", () => {
     // Intentional whitespace is never turned into punctuation, brackets never inserted.
     expect(review('Hello  world (unclosed "quote')).toEqual([
       expect.objectContaining({ ruleId: "collapseRepeatedSpaces" }),
+      expect.objectContaining({ ruleId: "unclosedQuotation", warningOnly: true, alternatives: [] }),
     ]);
   });
 });

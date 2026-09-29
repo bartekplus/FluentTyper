@@ -2,6 +2,19 @@ import type { GrammarRuleCatalogEntry, GrammarRuleId } from "./types";
 
 export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   {
+    id: "unclosedQuotation",
+    typing: false,
+    name: "Unclosed quotation marks",
+    titleI18nKey: "review_msg_quotation_balance",
+    descriptionI18nKey: "review_msg_quotation_balance",
+    exampleI18nKey: "",
+    languageScope: "en_US",
+    safetyTier: "advanced",
+    defaultRollout: "off",
+    recommended: false,
+    priority: 158,
+  },
+  {
     id: "englishUsagePhrases",
     typing: false,
     name: "Established usage phrases",

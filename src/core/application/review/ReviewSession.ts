@@ -600,6 +600,7 @@ export class ReviewSession {
       d.lang,
       d.category,
       d.requiresChoice === true,
+      d.warningOnly === true,
       normalize(this.text.slice(d.context.start, d.range.start)),
       normalize(d.original),
       normalize(this.text.slice(d.range.end, d.context.end)),
@@ -659,7 +660,7 @@ export class ReviewSession {
   async apply(id: string, alternativeIndex = 0): Promise<ReviewApplyResult | null> {
     const diagnostic = this.diagnostics.find((d) => d.id === id);
     const alternative = diagnostic?.alternatives[alternativeIndex];
-    if (!diagnostic || !alternative || !this.canWrite()) return null;
+    if (!diagnostic || diagnostic.warningOnly || !alternative || !this.canWrite()) return null;
     return this.write(alternative.edits, 1, 0);
   }
 
@@ -1179,6 +1180,7 @@ export class ReviewSession {
         text: this.text,
         scope: { start: fullScope.start, end: cutEnd },
         protectedRanges: this.protectedRanges,
+        incomplete: this.unread > 0 ? true : undefined,
       },
       this.options.lang === AUTO_DETECT && this.reviewLang
         ? { ...this.options, lang: this.reviewLang }
@@ -1729,6 +1731,7 @@ export class ReviewSession {
       const alternative = finding.alternatives[0];
       if (
         overlapping.length === 1 &&
+        !check.warningOnly &&
         alternative &&
         check.range.start === finding.range.start &&
         check.range.end === finding.range.end

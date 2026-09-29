@@ -27,6 +27,12 @@ export type ReviewRuleMetadata =
   | { review: "excluded"; reason: string };
 
 export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
+  unclosedQuotation: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "punctuation",
+    bulk: "individual",
+  },
   englishUsagePhrases: {
     review: "supported",
     defaultEnabled: true,

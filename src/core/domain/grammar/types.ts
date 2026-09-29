@@ -72,6 +72,7 @@ export interface GrammarRuleCatalogEntry {
     | GrammarRuleId
     | "englishRepeatedWords"
     | "englishAuxiliaryBaseVerb"
+    | "unclosedQuotation"
     | "englishUsagePhrases"
     | "englishDoubledDegree"
     | "englishCountability"

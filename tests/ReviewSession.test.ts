@@ -23,6 +23,7 @@ class FakeEditor implements ReviewTargetPort {
   capabilities: ReviewCapabilities = { inline: true, apply: true, bulk: true, undo: "single-step" };
   protectedRanges: ProtectedRange[] = [];
   composing = false;
+  unread = 0;
   applyCalls: Array<{ edits: ReviewEdit[]; before: string; after: string }> = [];
   /** Forces the next apply result. */
   nextResult: ReviewApplyResult | null = null;
@@ -34,6 +35,7 @@ class FakeEditor implements ReviewTargetPort {
     return {
       ok: true,
       text: this.text,
+      unread: this.unread,
       protectedRanges: this.protectedRanges,
       signature: JSON.stringify(this.protectedRanges),
     };
@@ -1167,5 +1169,40 @@ test("ambiguous duplicate insertion releases matching ignores rather than guessi
   await h.settle();
   expect(h.last().ignoredCount).toBe(0);
   expect(h.last().diagnostics).toHaveLength(3);
+  h.session.close();
+});
+
+test("quotation warnings filter, ignore and recheck without any write path", async () => {
+  const h = harness("He wrote, “The build is ready.", { rules: ["unclosedQuotation"] });
+  await Promise.all([h.session.start(), h.settle()]);
+  const d = h.last().diagnostics[0];
+  expect(d.warningOnly).toBe(true);
+  expect(h.last().bulk.count).toBe(0);
+  expect(await h.session.apply(d.id)).toBeNull();
+  expect(await h.session.fixAll()).toBeNull();
+  expect(h.editor.applyCalls).toEqual([]);
+  h.session.setCategory("punctuation", false);
+  expect(h.originals()).toEqual([]);
+  h.session.setCategory("punctuation", true);
+  expect(h.originals()).toEqual(["“"]);
+  h.session.ignore(d.id);
+  expect(h.originals()).toEqual([]);
+  h.session.resetIgnores();
+  await h.settle();
+  expect(h.originals()).toEqual(["“"]);
+  h.editor.text += "”";
+  h.session.notifySourceChanged();
+  await h.settle();
+  expect(h.originals()).toEqual([]);
+  expect(h.editor.applyCalls).toEqual([]);
+  h.session.close();
+});
+
+test("unread adapter content suppresses quotation warnings", async () => {
+  const h = harness("He wrote, “The build is ready.", { rules: ["unclosedQuotation"] });
+  h.editor.unread = 100;
+  await Promise.all([h.session.start(), h.settle()]);
+  expect(h.last().unread).toBe(100);
+  expect(h.originals()).toEqual([]);
   h.session.close();
 });

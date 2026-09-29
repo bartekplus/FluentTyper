@@ -15,6 +15,28 @@ type Translations = readonly [
 ];
 
 const EXPLANATIONS: Record<ReviewMessageKey, Translations> = {
+  review_msg_quotation_balance: [
+    "Check for unclosed quotation marks.",
+    "Vérifiez les guillemets non fermés.",
+    "Provjerite nezatvorene navodnike.",
+    "Revise las comillas sin cerrar.",
+    "Ελέγξτε για εισαγωγικά που δεν έχουν κλείσει.",
+    "Kontrollera oavslutade citattecken.",
+    "Prüfen Sie nicht geschlossene Anführungszeichen.",
+    "Sprawdź niedomknięte cudzysłowy.",
+    "Verifique aspas não fechadas.",
+  ],
+  review_msg_unclosed_quote: [
+    "This opening quotation mark has no matching closing mark in the complete text.",
+    "Ce guillemet ouvrant n’a pas de guillemet fermant correspondant dans le texte complet.",
+    "Ovaj početni navodnik nema odgovarajući završni navodnik u cijelom tekstu.",
+    "Esta comilla de apertura no tiene una comilla de cierre correspondiente en el texto completo.",
+    "Αυτό το εισαγωγικό ανοίγματος δεν έχει αντίστοιχο κλείσιμο στο πλήρες κείμενο.",
+    "Det här inledande citattecknet saknar ett motsvarande avslutande tecken i hela texten.",
+    "Zu diesem öffnenden Anführungszeichen fehlt im vollständigen Text das schließende Zeichen.",
+    "Ten cudzysłów otwierający nie ma odpowiednika zamykającego w pełnym tekście.",
+    "Esta aspa de abertura não tem uma aspa de fechamento correspondente no texto completo.",
+  ],
   review_msg_usage_phrases: [
     "Check established phrases in context.",
     "Vérifiez les expressions établies en contexte.",
@@ -1361,6 +1383,28 @@ const UI = {
     "Ignorierte Befunde wieder anzeigen",
     "Przywróć zignorowane wyniki",
     "Restaurar resultados ignorados",
+  ],
+  review_warning: [
+    "Warning",
+    "Avertissement",
+    "Upozorenje",
+    "Advertencia",
+    "Προειδοποίηση",
+    "Varning",
+    "Hinweis",
+    "Ostrzeżenie",
+    "Aviso",
+  ],
+  review_warning_hint: [
+    "Review this manually. No automatic edit is suggested.",
+    "Vérifiez manuellement. Aucune modification automatique n’est proposée.",
+    "Provjerite ručno. Nije predložena automatska izmjena.",
+    "Revíselo manualmente. No se propone ningún cambio automático.",
+    "Ελέγξτε το χειροκίνητα. Δεν προτείνεται αυτόματη αλλαγή.",
+    "Granska detta manuellt. Ingen automatisk ändring föreslås.",
+    "Prüfen Sie dies manuell. Es wird keine automatische Änderung vorgeschlagen.",
+    "Sprawdź to ręcznie. Nie zaproponowano automatycznej zmiany.",
+    "Revise manualmente. Nenhuma alteração automática é sugerida.",
   ],
   review_card_ignore: [
     "Ignore once",

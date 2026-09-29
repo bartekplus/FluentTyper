@@ -7318,6 +7318,42 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   );
 
   test(
+    "Review quotation warnings support keyboard and filters without Apply or batch edits",
+    async () => {
+      await prepareReviewPage();
+      const source = "He wrote, “The build is ready.";
+      await setTextarea(source);
+      await triggerReview(worker!);
+      let panel = await waitForReview(page, "quotation warning", (p) => p.status === "Issues: 1");
+      expect(panel.items[0].text).toBe("Warning: “");
+      expect(panel.fixAll).toMatchObject({ text: "Fix all safe (0)", disabled: true });
+      await clickReviewControl(page, '.filter[data-category="punctuation"]');
+      await waitForReview(page, "warning filtered", (p) => p.items.length === 0);
+      await clickReviewControl(page, '.filter[data-category="punctuation"]');
+      await waitForReview(page, "warning restored", (p) => p.items.length === 1);
+      for (let i = 0; i < 12 && (await readReviewPanel(page)).focus !== "button.item"; i++) {
+        await page.keyboard.press("Tab");
+      }
+      expect((await readReviewPanel(page)).focus).toBe("button.item");
+      await page.keyboard.press("Enter");
+      panel = await waitForReview(page, "warning card", (p) => p.card.open);
+      expect(panel.card.text).toContain("no matching closing mark");
+      expect(panel.focus).not.toBe("button.item");
+      expect(
+        await page.evaluate(() => {
+          const root = document.querySelector("[data-fluenttyper-review]")?.shadowRoot;
+          return !!root?.querySelector('.card [data-action="apply"]');
+        }),
+      ).toBe(false);
+      await page.keyboard.press("Escape");
+      await waitForReview(page, "warning card closed", (p) => !p.card.open && p.open);
+      expect(await textareaValue()).toBe(source);
+      await finishReview();
+    },
+    browserTimeout(20000, 30000),
+  );
+
+  test(
     "Review matching ignores remap, reset and expire on close without persisting prose",
     async () => {
       await prepareReviewPage();

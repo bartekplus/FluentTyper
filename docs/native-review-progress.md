@@ -22,7 +22,7 @@ Execute sequentially: 1, 2, 3, 4, 8, 5, 6, 7, 9–20. Native TypeScript, individ
 | 13  | Comparatives                   | Implemented; Chrome verified; Firefox permission blocked |
 | 14  | Fixed phrases                  | Implemented; Chrome verified; Firefox permission blocked |
 | 15  | Session ignore-all             | Implemented; Chrome verified; Firefox permission blocked |
-| 16  | Punctuation warnings           | Pending                                                  |
+| 16  | Punctuation warnings           | Implemented; Chrome verified; Firefox permission blocked |
 | 17  | Brand/acronym casing           | Pending                                                  |
 | 18  | Preferred terminology          | Pending                                                  |
 | 19  | Incremental rechecks           | Pending; profile first, retain simple path if no benefit |
@@ -439,3 +439,31 @@ Each cycle asserts all expected findings are suppressed and then restored. The r
 Production JS delta against #14's retained build (`production-chrome-full-84329-1790710823561`): content script **+5,090 bytes**, settings **+2,550**; background and popup unchanged. Candidate: `production-chrome-full-92282-1790711677535`. No dependency, permission or typing behavior added.
 
 Next: #16 punctuation warnings and explicit warning-only diagnostics. Fifteen of twenty features implemented; full completion requires the remaining five features and Firefox runtime validation.
+
+## #16 punctuation warnings and explicit warning-only diagnostics
+
+`unclosedQuotation` scans complete English fields once per prepared snapshot with a bounded quotation stack. Straight double, curly double/single and guillemet styles support different-style nesting and repeated paragraph openings. The diagnostic highlights the unmatched opening mark without proposing a closing position. Partial selections, unread windows, protected/technical text, over-limit fields, unsupported conventions and ambiguous nesting abstain. Straight single quotes remain outside the supported scope because apostrophes are ambiguous.
+
+Warning-only findings explicitly contain no alternatives and cannot enter individual writes or batch plans. The shared deduplicator now retains distinct warnings instead of treating their empty edit lists as the same fix. AI alternatives cannot attach to a warning. Cards/list labels explain the warning, keep Ignore/Disable actions and focus the close control for keyboard access. All nine UI languages have labels and explanations; typing and existing four categories remain unchanged.
+
+The authored detector corpus covers 12 warning examples and 32 preservation/ambiguity examples, plus complete-scope/protection, chunk ownership and forged-bulk guards. No supported misses or false positives in those fixtures; this does not establish general quotation accuracy. Session/UI/AI tests cover zero write calls, filters, ignore/reset, manual closing-mark recheck, unread adapter content and accessible labels. The browser workflow covers keyboard entry/Escape, filters and no Apply/Fix-all path. An existing test expecting only whitespace correction now also expects the deliberately added warning, while still excluding automatic punctuation insertion.
+
+- Focused detector/session/UI suite: **123 pass**, with **44 AI session tests** separately passing.
+- Full unit command passed: **4,839 main-suite tests plus 152 isolated tests**, **4,991 total**, zero failures. Earlier feature entries reported the main-suite count only.
+- Final full Chrome suite: **113 pass, 10 existing skips, 0 fail**. `bun run check`, production Chrome/Firefox builds and coverage mapping (**202 behaviors**) passed.
+- Firefox runtime remains blocked by the previously reported macOS Files & Folders permission; builds do not establish Firefox runtime correctness.
+- Logs: `/tmp/ft-native-quotes-{focused,ai,check-final,unit-complete,full-chrome-final,build-chrome,build-firefox-final,benchmark}.log`.
+
+Native scan costs (Bun 1.4.2, 5 warmups, median of 21 runs; only this rule, full native preparation/conversion):
+
+| Characters | Balanced (ms) | Unclosed (ms) |
+| ---------- | ------------- | ------------- |
+| 1,000      | 0.097         | 0.105         |
+| 10,000     | 0.594         | 0.587         |
+| 50,000     | 2.704         | 2.774         |
+
+The fixture is `He wrote, “` followed by repeated `The build is ready. `, ending with a closing mark or period. Every timed run asserts zero or one warning as appropriate. Costs are local fixture measurements, not a before/after production performance claim.
+
+Production JS delta against #15 (`production-chrome-full-92282-1790711677535`): content script **+4,856 bytes**, settings **+2,487**, background/popup **+370 each**. Candidate: `production-chrome-full-99126-1790713624759`. No dependency, permission, persistence or typing behavior added.
+
+Next: #17 canonical brand/acronym casing. Sixteen of twenty features implemented; remaining four features and Firefox runtime validation are still required.

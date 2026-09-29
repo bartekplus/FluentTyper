@@ -201,7 +201,8 @@ function changePreview(from: string, to: string): [string, string] {
 const LIST_CHOICES = 3;
 
 /** "teh → the"; a pick-one finding lists its first suggestions: "wa → was / way / war". */
-function listPreview(diagnostic: ReviewDiagnostic): string {
+function listPreview(diagnostic: ReviewDiagnostic, warningLabel: string): string {
+  if (diagnostic.warningOnly) return `${warningLabel}: ${diagnostic.original}`;
   if (diagnostic.requiresChoice) {
     const choices = diagnostic.alternatives.map((alternative) => alternative.preview);
     const shown = choices.slice(0, LIST_CHOICES).join(" / ");
@@ -1013,7 +1014,10 @@ export class ReviewUi {
     const changes = element(doc, "ol", {});
     for (const id of preview.diagnosticIds) {
       const diagnostic = state.diagnostics.find((d) => d.id === id);
-      if (diagnostic) changes.append(element(doc, "li", { dir: "auto" }, listPreview(diagnostic)));
+      if (diagnostic)
+        changes.append(
+          element(doc, "li", { dir: "auto" }, listPreview(diagnostic, this.t("review_warning"))),
+        );
     }
     const parts: HTMLElement[] = [
       element(
@@ -1223,7 +1227,7 @@ export class ReviewUi {
         "aria-current": String(diagnostic.id === state.selectedId),
       });
       const change = element(this.doc, "span", { class: "change", dir: "auto" });
-      change.textContent = listPreview(diagnostic);
+      change.textContent = listPreview(diagnostic, this.t("review_warning"));
       const why = element(
         this.doc,
         "span",
@@ -1286,9 +1290,10 @@ export class ReviewUi {
 
   focusCard(): void {
     // A pick-one card has no default: focus lands on its first suggestion.
-    this.card
-      .querySelector<HTMLElement>("button.primary, button.suggestion")
-      ?.focus({ preventScroll: true });
+    (
+      this.card.querySelector<HTMLElement>("button.primary, button.suggestion") ??
+      this.card.querySelector<HTMLElement>("button")
+    )?.focus({ preventScroll: true });
   }
 
   cardDiagnosticId(): string | null {
@@ -1341,6 +1346,19 @@ export class ReviewUi {
     });
     header.append(close);
 
+    if (diagnostic.warningOnly) {
+      this.card.setAttribute(
+        "aria-label",
+        `${category}, ${this.t("review_warning")}: ${this.t(diagnostic.messageKey)}`,
+      );
+      this.replaceKeepingFocus(this.card, [
+        header,
+        element(doc, "p", {}, this.t(diagnostic.messageKey)),
+        element(doc, "p", { class: "hint" }, this.t("review_warning_hint")),
+        this.cardActions(diagnostic),
+      ]);
+      return;
+    }
     if (diagnostic.requiresChoice) {
       this.renderChoiceCard(diagnostic, header, canApply);
       return;

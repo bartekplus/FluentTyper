@@ -3912,6 +3912,27 @@
           "test": "matching ignores show session scope, stay separate from disable, and exclude AI"
         }
       ]
+    },
+    {
+      "id": "review_quotation_warnings",
+      "description": "Complete-field quotation warnings have zero alternatives, no write path, accessible keyboard cards and conservative scope/protection guards.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review quotation warnings support keyboard and filters without Apply or batch edits"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewQuotationWarnings.test.ts",
+          "test": "quotation warnings require complete unprotected evidence"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSession.test.ts",
+          "test": "unread adapter content suppresses quotation warnings"
+        }
+      ]
     }
   ]
 }
