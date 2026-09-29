@@ -15,6 +15,17 @@ type Translations = readonly [
 ];
 
 const EXPLANATIONS: Record<ReviewMessageKey, Translations> = {
+  review_msg_canonical_casing: [
+    "Use the established capitalization of this brand or technology name.",
+    "Utilisez les majuscules et minuscules établies pour ce nom de marque ou de technologie.",
+    "Upotrijebite ustaljena velika i mala slova u ovom nazivu marke ili tehnologije.",
+    "Use las mayúsculas y minúsculas establecidas para este nombre de marca o tecnología.",
+    "Χρησιμοποιήστε την καθιερωμένη γραφή κεφαλαίων και πεζών για αυτή την επωνυμία ή τεχνολογία.",
+    "Använd den etablerade skrivningen med stora och små bokstäver för detta varumärke eller tekniknamn.",
+    "Verwenden Sie die etablierte Groß- und Kleinschreibung dieses Marken- oder Technologienamens.",
+    "Użyj ustalonej pisowni wielkich i małych liter w tej nazwie marki lub technologii.",
+    "Use as maiúsculas e minúsculas estabelecidas para este nome de marca ou tecnologia.",
+  ],
   review_msg_quotation_balance: [
     "Check for unclosed quotation marks.",
     "Vérifiez les guillemets non fermés.",

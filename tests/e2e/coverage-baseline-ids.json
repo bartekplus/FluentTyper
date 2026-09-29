@@ -203,6 +203,7 @@
     "review_doubled_degree",
     "review_usage_phrases",
     "review_session_matching_ignores",
-    "review_quotation_warnings"
+    "review_quotation_warnings",
+    "review_canonical_casing"
   ]
 }

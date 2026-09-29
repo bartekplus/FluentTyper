@@ -3933,6 +3933,32 @@
           "test": "unread adapter content suppresses quotation warnings"
         }
       ]
+    },
+    {
+      "id": "review_canonical_casing",
+      "description": "Review-only explicit canonical names preserve technical/quoted/dictionary text and deliberate casing, suppress competing sentence-start suggestions, and retain native undo and formatting.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review bounded grammar applies individual edits with native undo: %s"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review canonical casing preserves split formatting and native undo"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewCanonicalCasing.test.ts",
+          "test": "canonical casing owns sentence starts only when its suggestion is enabled"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewCanonicalCasing.test.ts",
+          "test": "canonical casing respects dictionary, scope, protection, language and typing separation"
+        }
+      ]
     }
   ]
 }

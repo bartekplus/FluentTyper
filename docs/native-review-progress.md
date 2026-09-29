@@ -23,7 +23,7 @@ Execute sequentially: 1, 2, 3, 4, 8, 5, 6, 7, 9–20. Native TypeScript, individ
 | 14  | Fixed phrases                  | Implemented; Chrome verified; Firefox permission blocked |
 | 15  | Session ignore-all             | Implemented; Chrome verified; Firefox permission blocked |
 | 16  | Punctuation warnings           | Implemented; Chrome verified; Firefox permission blocked |
-| 17  | Brand/acronym casing           | Pending                                                  |
+| 17  | Brand/acronym casing           | Implemented; Chrome verified; Firefox permission blocked |
 | 18  | Preferred terminology          | Pending                                                  |
 | 19  | Incremental rechecks           | Pending; profile first, retain simple path if no benefit |
 | 20  | Optional style hints           | Pending; default off                                     |
@@ -467,3 +467,32 @@ The fixture is `He wrote, “` followed by repeated `The build is ready. `, endi
 Production JS delta against #15 (`production-chrome-full-92282-1790711677535`): content script **+4,856 bytes**, settings **+2,487**, background/popup **+370 each**. Candidate: `production-chrome-full-99126-1790713624759`. No dependency, permission, persistence or typing behavior added.
 
 Next: #17 canonical brand/acronym casing. Sixteen of twenty features implemented; remaining four features and Firefox runtime validation are still required.
+
+## #17 canonical brand and acronym casing
+
+The independently configurable, English Review-only `englishCanonicalCasing` check uses eight explicit canonical forms: GitHub, JavaScript, TypeScript, WebRTC, FluentTyper, iPhone, macOS and eBay. Lowercase and ordinary title-case inputs receive the exact form, never generic title casing. Deliberate uppercase, arbitrary mixed-case tokens, glued identifiers/possessives, links, file names, paths, handles, code, dictionary entries and named quoted spellings abstain. Isolated quoted names also abstain. Common words such as go/rust/may are not entries. The explanation is localized in all nine UI languages and the rule remains individual-only.
+
+Shared deduplication yields sentence-start/line-start findings only when a canonical finding covers that start. Disabling the canonical rule retains the existing capitalization behavior. The existing internal-capital guard preserves corrected iPhone/macOS/eBay starts without a new typing exception.
+
+A real browser test exposed formatting movement: replacing `javas` with `JavaS` across `<b>java</b><i>script</i>` produced `<b>JavaS</b><i>cript</i>`. The shared minimal-edit builder now emits only the changed ASCII letters for case-only repairs. This preserves exact formatting and reuses existing editor transactions. Textareas retain single-step undo; contenteditable retains its existing advertised per-edit undo, verified one step per changed letter. The failed initial one-step expectation was corrected to match that adapter contract, with intermediate and final markup assertions. No DOM-write bypass or new history manager.
+
+The authored corpus has 16 positives and 41 preservation cases, plus dictionary/scope/language/typing isolation, sentence-start ownership, every Unicode/CRLF chunk split and exact case-edit checks: **61 focused tests passed**. No supported misses or false positives in that corpus; arbitrary brand recognition is not claimed. Browser cases cover the three required examples, a lower-camel sentence start, and split formatting/native undo.
+
+- Full unit command: **4,900 main-suite tests plus 152 isolated tests = 5,052 pass**, zero failures.
+- Full Chrome suite: **118 pass, 10 existing skips, 0 fail**. `bun run check`, production Chrome/Firefox builds and coverage mapping (**203 behaviors**) passed.
+- Firefox runtime remains blocked by the previously reported macOS permission; no claim of Firefox runtime validation.
+- Logs: `/tmp/ft-native-casing-{focused-final,unit-final,full-chrome,check-complete,build-chrome,build-firefox,benchmark}.log`. Initial formatting evidence: `format-probe.log`; initial per-edit undo expectation failure: `format-fixed.log`.
+
+Native scan costs after broad checks (Bun 1.4.2; 5 warmups then median of 21; canonical and sentence-start rules enabled, native preparation/conversion included):
+
+| Characters | Clean (ms) | Repeated errors (ms) | Error findings |
+| ---------- | ---------- | -------------------- | -------------- |
+| 1,000      | 0.104      | 0.254                | 47             |
+| 10,000     | 0.624      | 1.888                | 462            |
+| 50,000     | 3.321      | 9.598                | 2,308          |
+
+Fixture: repeated/truncated `github hosts code. javascript runs here. iphone sales increased. `; clean version uses GitHub/JavaScript/iPhone. Clean counts are zero; error counts include any sentence-start finding in a truncated final token. These are local costs, not a before/after performance claim.
+
+Production JS delta against #16 (`production-chrome-full-99126-1790713624759`): content script **+2,875 bytes**, background **+515**, settings **+1,301**, popup **+384**. Candidate: `production-chrome-full-1715-1790714106596`. No dependency, permission or typing behavior added.
+
+Next: #18 optional user-authored preferred terminology. Seventeen of twenty features implemented; the remaining three features and Firefox runtime validation are still required.

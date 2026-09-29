@@ -639,3 +639,23 @@ conventions and ambiguous nesting abstain. Apostrophes and measurement marks are
 preserved. This check does not insert punctuation, repair brackets, enforce Oxford
 commas or infer comma splices. Warning labels are localized in all nine UI languages;
 the rule is Review-only and can be disabled independently.
+
+### Canonical brand and acronym casing
+
+`englishCanonicalCasing` offers the established forms GitHub, JavaScript, TypeScript,
+WebRTC, FluentTyper, iPhone, macOS and eBay in English prose. It accepts lowercase or
+ordinary title-case input and inserts the exact canonical form; it does not apply
+sentence title casing to brand names. The native sentence-start suggestion yields
+only when an enabled canonical suggestion covers that start. Existing mixed-case
+sentence-start protection keeps corrected lower-camel names stable.
+
+All-uppercase emphasis, arbitrary mixed-case identifiers, URLs, paths, handles,
+file names, glued/possessive tokens, code, dictionary words and named quoted
+spellings are preserved. Isolated quoted names also abstain as potentially literal
+spellings. Ambiguous common words such as go, rust and may are not brand entries.
+This independently configurable Review check remains individual-only, adds no
+terminology preferences and does not change typing behavior.
+
+Case-only ASCII repairs change only the affected letters, preserving formatting
+between them. Textareas keep their existing single-step transaction; contenteditable
+fields keep the adapter's advertised per-edit native undo behavior.

@@ -7070,6 +7070,14 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     ["Thanks for the helpful advices.", "Thanks for the helpful advice.", "advices → advice"],
     ["This is one important criteria.", "This is one important criterion.", "criteria → criterion"],
     ["We need the new equipments.", "We need the new equipment.", "equipments → equipment"],
+    ["We host the project on github.", "We host the project on GitHub.", "github → GitHub"],
+    [
+      "The implementation uses javascript.",
+      "The implementation uses JavaScript.",
+      "javascript → JavaScript",
+    ],
+    ["The transport is based on webrtc.", "The transport is based on WebRTC.", "webrtc → WebRTC"],
+    ["iphone sales increased.", "iPhone sales increased.", "iphone → iPhone"],
     ["I use this tool everyday.", "I use this tool every day.", "everyday → every␣day"],
     ["Please login to continue.", "Please log in to continue.", "login → log␣in"],
     ["We need to setup the environment.", "We need to set up the environment.", "setup → set␣up"],
@@ -7096,6 +7104,61 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await waitUntil("grammar undo", async () => (await textareaValue()) === source, {
         timeoutMs: 5000,
       });
+      await finishReview();
+    },
+    browserTimeout(15000, 25000),
+  );
+
+  test(
+    "Review canonical casing preserves split formatting and native undo",
+    async () => {
+      await prepareReviewPage();
+      const selector = "#test-contenteditable";
+      const original = "<p>We use <b>java</b><i>script</i>.</p>";
+      await page.evaluate(
+        ({ selector, original }) => {
+          const root = document.querySelector(selector) as HTMLElement;
+          root.innerHTML = original;
+          root.focus();
+        },
+        { selector, original },
+      );
+      await triggerReview(worker!);
+      await waitForReview(page, "formatted canonical name", (p) =>
+        p.items.some((i) => i.text === "javascript → JavaScript"),
+      );
+      await clickReviewControl(page, ".item");
+      await waitForReview(page, "canonical card", (p) => p.card.open);
+      await clickReviewControl(page, ".card [data-action=apply]");
+      await waitUntil(
+        "canonical text",
+        async () => (await page.$eval(selector, (el) => el.textContent)) === "We use JavaScript.",
+        { timeoutMs: 5000 },
+      );
+      await waitUntil(
+        "canonical formatting",
+        async () =>
+          await page.$eval(
+            selector,
+            (el) => el.innerHTML === "<p>We use <b>Java</b><i>Script</i>.</p>",
+          ),
+        { timeoutMs: 5000 },
+      );
+      // Contenteditable advertises per-edit native undo; each changed letter is one edit.
+      await pressNativeUndo(page, selector);
+      await waitUntil(
+        "first canonical undo",
+        async () =>
+          (await page.$eval(selector, (el) => el.innerHTML)) ===
+          "<p>We use <b>java</b><i>Script</i>.</p>",
+        { timeoutMs: 5000 },
+      );
+      await pressNativeUndo(page, selector);
+      await waitUntil(
+        "canonical undo",
+        async () => (await page.$eval(selector, (el) => el.innerHTML)) === original,
+        { timeoutMs: 5000 },
+      );
       await finishReview();
     },
     browserTimeout(15000, 25000),

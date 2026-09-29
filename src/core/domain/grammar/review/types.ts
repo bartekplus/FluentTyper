@@ -53,6 +53,7 @@ interface ReviewAlternative {
 }
 
 export type ReviewMessageKey =
+  | "review_msg_canonical_casing"
   | "review_msg_quotation_balance"
   | "review_msg_unclosed_quote"
   | "review_msg_usage_phrases"

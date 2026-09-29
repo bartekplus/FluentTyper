@@ -285,7 +285,21 @@ function dropDuplicateFixes(diagnostics: ReviewDiagnostic[]): ReviewDiagnostic[]
       byFix.set(key, diagnostic);
     }
   }
-  const kept = new Set(byFix.values());
+  // A canonical name owns its casing, including lower-camel names at sentence starts.
+  const canonical = new Map(
+    diagnostics
+      .filter((d) => d.ruleId === "englishCanonicalCasing")
+      .map((d) => [d.range.start, d.range.end]),
+  );
+  const kept = new Set(
+    [...byFix.values()].filter(
+      (d) =>
+        !(
+          (d.ruleId === "capitalizeSentenceStart" || d.ruleId === "capitalizeAfterLineBreak") &&
+          d.range.end <= (canonical.get(d.range.start) ?? -1)
+        ),
+    ),
+  );
   return diagnostics.filter((diagnostic) => kept.has(diagnostic));
 }
 
@@ -346,7 +360,9 @@ function toDiagnostic(prepared: PreparedReview, finding: Finding): ReviewDiagnos
   if (
     prepared.protectedRanges.some(
       (protectedRange) =>
-        (finding.warningOnly || protectedRange.reason !== "technical") &&
+        (finding.warningOnly ||
+          finding.ruleId === "englishCanonicalCasing" ||
+          protectedRange.reason !== "technical") &&
         rangesOverlap(range, protectedRange),
     )
   ) {

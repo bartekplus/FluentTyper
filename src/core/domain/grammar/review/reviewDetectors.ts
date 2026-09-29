@@ -1,3 +1,4 @@
+import { canonicalCasing } from "./canonicalCasing";
 import { usagePhrases } from "./englishUsagePhrases";
 import { doubledDegree } from "./englishDegree";
 import { countability } from "./englishCountability";
@@ -1092,6 +1093,7 @@ const repeatedWords: Detector = (ctx) => {
 
 /** Review detectors by rule. Rules absent here are excluded from review (see reviewCatalog). */
 export const REVIEW_DETECTORS: ReadonlyArray<{ rules: CatalogRuleId[]; detect: Detector }> = [
+  { rules: ["englishCanonicalCasing"], detect: canonicalCasing },
   {
     rules: ["unclosedQuotation"],
     detect: (ctx) =>
@@ -1155,6 +1157,24 @@ export function minimalEdits(
 ): ReviewEdit[] {
   const original = source.slice(start, end);
   if (original === replacement) return [];
+  // Case-only ASCII changes must not replace unchanged letters across formatting nodes.
+  if (
+    /^[A-Za-z]+$/.test(original + replacement) &&
+    original.toLowerCase() === replacement.toLowerCase()
+  ) {
+    return [...original].flatMap((letter, index) =>
+      letter === replacement[index]
+        ? []
+        : [
+            {
+              start: start + index,
+              end: start + index + 1,
+              original: letter,
+              replacement: replacement[index],
+            },
+          ],
+    );
+  }
   const originalTokens = original.split(/(\s+)/);
   const replacementTokens = replacement.split(/(\s+)/);
   const aligned =
