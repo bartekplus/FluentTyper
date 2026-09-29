@@ -20,6 +20,9 @@ export interface SetConfigContext {
   /** Show suggestions in one row instead of a list. */
   horizontalSuggestions: boolean;
   lang: string;
+  /** With lang "auto_detect": the enabled languages and the one to use when unsure. */
+  enabledLanguages?: string[];
+  fallbackLanguage?: string;
   minWordLengthToPredict: number;
   inline_suggestion: boolean;
   preferNativeAutocomplete: boolean;

@@ -58,6 +58,7 @@ export class ConfigAssembler {
       userDictionaryList,
       themeConfig,
       observability,
+      fallbackLanguage,
     ] = await Promise.all([
       this.coreSettingsRepository.isEnabled(),
       this.coreSettingsRepository.getAutocomplete(),
@@ -74,7 +75,9 @@ export class ConfigAssembler {
       this.coreSettingsRepository.getUserDictionaryList(),
       this.coreSettingsRepository.getThemeSettings(),
       this.getObservabilityConfig(),
+      this.coreSettingsRepository.getFallbackLanguage(),
     ]);
+    const { enabledLanguages } = domainSettings;
 
     return {
       command: CMD_BACKGROUND_PAGE_SET_CONFIG,
@@ -88,6 +91,11 @@ export class ConfigAssembler {
         horizontalSuggestions,
         extensionLanguage,
         lang: domainSettings.language,
+        enabledLanguages,
+        // As the language detector resolves it: the setting if enabled, else the first enabled.
+        fallbackLanguage: enabledLanguages.includes(fallbackLanguage)
+          ? fallbackLanguage
+          : enabledLanguages[0],
         minWordLengthToPredict,
         showSuggestionFooter,
         showReviewButton,

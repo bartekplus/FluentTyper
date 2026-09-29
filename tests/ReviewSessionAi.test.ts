@@ -160,7 +160,10 @@ function harness(
   {
     ai = new FakeAi() as FakeAi | null,
     deps = {} as Partial<
-      Pick<ReviewSessionDependencies, "addToDictionary" | "lookupSpelling" | "detectLanguage">
+      Pick<
+        ReviewSessionDependencies,
+        "addToDictionary" | "lookupSpelling" | "detectLanguage" | "resolveAutoLanguage"
+      >
     >,
     rules = ["englishTypoWhitelistCorrection"],
     lang = "en_US",
@@ -439,6 +442,33 @@ describe("ReviewSession with Local AI: Correct", () => {
     await h.settle();
     expect(h.last().ai.availability).toBe("ready");
     expect(h.aiFindings().length).toBeGreaterThan(0);
+  });
+
+  test("with auto-detect, rules use the language resolved for the text, resolved once", async () => {
+    let resolves = 0;
+    const resolved = harness(TEXT, {
+      ai: null,
+      lang: "auto_detect",
+      deps: {
+        resolveAutoLanguage: async () => {
+          resolves += 1;
+          return "en_US";
+        },
+      },
+    });
+    await resolved.start();
+    await resolved.settle();
+    // An English-only rule applies: the review runs as en_US, not "auto_detect".
+    expect(resolved.last().diagnostics.map((d) => d.original)).toEqual(["teh"]);
+    resolved.editor.text = `${TEXT} More text, teh again.`;
+    resolved.session.notifySourceChanged();
+    await resolved.settle();
+    expect(resolves).toBe(1);
+
+    const unresolved = harness(TEXT, { ai: null, lang: "auto_detect" });
+    await unresolved.start();
+    await unresolved.settle();
+    expect(unresolved.last().diagnostics).toEqual([]);
   });
 
   test("with auto-detect, the text's identified language gates Local AI and names the request", async () => {

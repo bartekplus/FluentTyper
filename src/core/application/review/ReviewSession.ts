@@ -226,6 +226,11 @@ export interface ReviewSessionDependencies {
    * language setting is "auto_detect"; null when it cannot tell.
    */
   detectLanguage?: (text: string) => Promise<string | null>;
+  /**
+   * The "auto_detect" setting as one of the user's enabled languages, for the
+   * reviewed text (identified locally); rules and spelling use it.
+   */
+  resolveAutoLanguage?: (text: string) => Promise<string>;
 }
 
 /**
@@ -365,6 +370,11 @@ export class ReviewSession {
   private mode: ReviewMode = "correct";
   private aiEnabled = true;
   private aiPaused = false;
+  /**
+   * With "auto_detect": the language rules and spelling use, resolved once per review
+   * from its first text (null: not yet).
+   */
+  private reviewLang: string | null = null;
   /** With "auto_detect": the language identified for one reviewed snapshot. */
   private detected: { prepared: PreparedReview; lang: string } | null = null;
   /** The snapshot whose language is being identified, if any. */
@@ -1016,6 +1026,12 @@ export class ReviewSession {
       if (lineBreak > fullScope.start) cutEnd = lineBreak + 1;
     }
     this.truncated = fullScope.end - cutEnd;
+    const resolve = this.deps.resolveAutoLanguage;
+    if (this.options.lang === AUTO_DETECT && this.reviewLang === null && resolve) {
+      const sample = this.text.slice(fullScope.start, Math.min(cutEnd, fullScope.start + 4000));
+      this.reviewLang = await resolve(sample).catch(() => AUTO_DETECT);
+      if (generation !== this.generation || this.isClosed) return;
+    }
     const prepared = prepareReview(
       {
         id: `g${generation}`,
@@ -1023,7 +1039,9 @@ export class ReviewSession {
         scope: { start: fullScope.start, end: cutEnd },
         protectedRanges: this.protectedRanges,
       },
-      this.options,
+      this.options.lang === AUTO_DETECT && this.reviewLang
+        ? { ...this.options, lang: this.reviewLang }
+        : this.options,
     );
     const scans: ChunkScan[] = [];
     for (const chunk of reviewChunks(prepared)) {

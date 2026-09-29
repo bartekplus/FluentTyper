@@ -130,7 +130,9 @@ typing-time switches, which decide what is corrected automatically as you
 type, do not gate it. Typing-time corrections still follow your settings
 exactly. Code mode is the exception: it keeps only code-safe rules, none of
 which review supports, so a review there finds nothing and the panel says so.
-English rules are skipped for other languages, and the panel says so.
+English rules are skipped for other languages, and the panel says so. With the language
+set to auto-detect, Review first identifies the text's language on the device (the
+browser's own detector) and uses the matching enabled language, or the fallback language.
 
 Supported (**Typing** is the rule's default for typing; review runs it either way):
 

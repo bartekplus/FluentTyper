@@ -50,6 +50,8 @@ export interface ReviewControllerDependencies {
   aiEnabled?(): boolean;
   /** Local identification of the reviewed text's language (language setting "auto_detect"). */
   detectLanguage?(text: string): Promise<string | null>;
+  /** The "auto_detect" language setting resolved to an enabled language for the text. */
+  resolveAutoLanguage?(text: string): Promise<string>;
 }
 
 type HighlightRegistry = Map<string, unknown>;
@@ -234,6 +236,8 @@ export class ReviewController {
       lookupSpelling: this.deps.lookupSpelling,
       ai,
       detectLanguage: this.deps.detectLanguage && ((text) => this.deps.detectLanguage!(text)),
+      resolveAutoLanguage:
+        this.deps.resolveAutoLanguage && ((text) => this.deps.resolveAutoLanguage!(text)),
     });
     // The preference as it is now; later changes arrive through handleOptionsChanged.
     if (this.deps.aiEnabled) session.setAiEnabled(this.deps.aiEnabled());

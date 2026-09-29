@@ -1,4 +1,4 @@
-import { resolveUiLanguage } from "@core/domain/lang";
+import { resolveAutoLanguage, resolveUiLanguage } from "@core/domain/lang";
 import { createLogger, setGlobalObservabilityRuntime } from "@core/application/logging/Logger";
 import { getDeepActiveElement, isInDocument } from "@core/application/dom-utils";
 import {
@@ -32,6 +32,19 @@ import { DOCS_SESSION_ID } from "./google-docs/GoogleDocsModel";
 import { isGoogleDocsPage, isGoogleDocsInputFrame } from "./google-docs/GoogleDocsEnvironment";
 
 const logger = createLogger("ContentRuntimeController");
+/**
+ * The browser's own on-device language identification (CLD; chrome/browser.i18n,
+ * no permission): the text stays local. A base code such as "en", or null when unsure.
+ */
+async function detectTextLanguage(text: string): Promise<string | null> {
+  try {
+    const result = await chrome.i18n.detectLanguage(text);
+    return result.isReliable ? (result.languages[0]?.language ?? null) : null;
+  } catch {
+    return null;
+  }
+}
+
 // How long a review asked for from the popup waits for the page to regain focus.
 const POPUP_FOCUS_WAIT_MS = 1500;
 
@@ -256,14 +269,11 @@ export class ContentRuntimeController {
           ? new LocalAiReviewProvider(chrome.runtime)
           : null,
       aiEnabled: () => this.config.localAiReviewEnabled !== false,
-      // The browser's own on-device language identification (CLD); the text stays local.
-      detectLanguage: async (text) => {
-        try {
-          const result = await chrome.i18n.detectLanguage(text);
-          return result.isReliable ? (result.languages[0]?.language ?? null) : null;
-        } catch {
-          return null;
-        }
+      detectLanguage: detectTextLanguage,
+      resolveAutoLanguage: async (text) => {
+        const enabled = this.config.enabledLanguages ?? [];
+        const fallback = this.config.fallbackLanguage ?? enabled[0] ?? "auto_detect";
+        return resolveAutoLanguage(await detectTextLanguage(text), enabled, fallback);
       },
     });
   }
