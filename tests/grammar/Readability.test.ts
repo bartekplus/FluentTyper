@@ -21,7 +21,7 @@ function scan(text: string, threshold = 10, extra: Partial<ReviewSourceSnapshot>
     userDictionary: [],
     insertSpaceAfterAutocomplete: true,
   });
-  return longSentenceRanges(snapshot, prepared.protectedRanges, threshold);
+  return longSentenceRanges(snapshot, prepared.protectedRanges, prepared.text, threshold);
 }
 
 test("readability counts only sentences exceeding the configured word threshold", () => {
@@ -91,4 +91,11 @@ test("readability is bounded and normalizes invalid thresholds", () => {
 
 test("readability does not combine complete sentences merely because the next starts lowercase", () => {
   expect(scan(`${sentence.toLowerCase()} `.repeat(12), 20)).toEqual([]);
+});
+
+test("readability never uses punctuation inside protected text as a prose sentence boundary", () => {
+  const prefix = "opaque. ";
+  expect(
+    scan(prefix + sentence, 10, { protectedRanges: [{ start: 0, end: 7, reason: "code" }] }),
+  ).toEqual([]);
 });

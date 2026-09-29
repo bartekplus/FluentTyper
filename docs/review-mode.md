@@ -1,7 +1,7 @@
 # Review Text
 
 "Review text" proofreads text you have already written, in the editor you are
-using, with the same local grammar rules that can correct you while typing. It runs
+using, with local grammar and spelling checks and optional style advice. It runs
 entirely in the page: no text leaves the browser, nothing is logged or stored,
 and it needs no extra permissions.
 
@@ -62,6 +62,7 @@ typing-time corrections and suggestions still pause for the whole review.
 | Grammar                       | amber  | double underline | `G`   |
 | Punctuation and spacing       | blue   | dotted underline | `,.`  |
 | Capitalization and typography | purple | dashed underline | `Aa`  |
+| Optional style advice         | teal   | dotted underline | `S`   |
 
 Color is never the only signal: each category also has its own line style and
 badge, and the card and list name the category in words. The underline colors
@@ -129,7 +130,8 @@ Each catalog rule is classified in
 [`reviewCatalog.ts`](../src/core/domain/grammar/review/reviewCatalog.ts), and
 its `Record` type makes an unclassified new rule a compile error. Native Review
 checks have independent switches in **Settings → Grammar → Review text**.
-Current checks default on; typing switches still control only automatic corrections.
+Core checks default on. The two optional style checks default off; restoring defaults
+keeps them off. Typing switches still control only automatic corrections.
 A native finding's **Disable this check in Review** action saves that rule's choice
 and refreshes open reviews. Restore it in settings, individually or with **Restore defaults**.
 Disabling every native check leaves dictionary spelling and separately configured Local AI available.
@@ -718,3 +720,36 @@ dictionary and selection protections. Longest overlapping phrases win. Settings,
 matching and import/export work locally; analyzed prose is never persisted. The
 50,000-character Review window also bounds terminology work; oversized direct
 scans report their skipped coverage.
+
+## Optional style and readability advice
+
+In **Settings → Grammar → Review text**, enable either optional style check explicitly.
+Both start off, remain off when defaults are restored, and never run while typing or
+enter **Fix all safe**. The panel has a separate **Style advice** count and filter;
+these findings do not count as grammar/spelling errors. Applying or ignoring advice
+also stays separate from resolved/ignored errors. Correct mode works as before with
+these checks disabled; Rewrite remains its own user-selected action.
+
+- **Redundancy advice** offers `PIN` for `PIN number` and `ATM` for `ATM machine`.
+  These are optional individual suggestions, not declarations that the original is
+  ungrammatical. Quoted wording, code, dictionary entries, identifiers, plurals and
+  ambiguous casing are left alone. Hedges, politeness, negation, adverbs, emphasis
+  and numerical values are not rewritten.
+- **Long-sentence advice** shows a warning for a fully visible English prose sentence
+  exceeding the **Long-sentence word threshold**. The default is **35 words**; the
+  settings field accepts whole numbers from **10 to 200**. This is your preference,
+  not a universal quality score. Changing it saves locally and rechecks an open
+  review, but does not enable advice. There is no suggested split and no Apply button.
+
+Readability counting treats internal apostrophes/hyphens and decimal dots as part of
+one word. Titles, initials and recognized abbreviations do not spuriously end a
+sentence; ambiguous endings are skipped. Lists, protected text, dangling unpunctuated
+fragments, cropped sentences and unread/over-50k sources are excluded. A complete
+sentence wholly inside a selection can still receive advice. Literal decimals and
+a small set of dotted prose abbreviations remain readable; URLs and code remain
+protected. If native sentence segmentation is unavailable, coverage reports that
+check as incomplete instead of claiming a successful check.
+
+These checks use native local logic, no AI calls, model changes or remote processing.
+Spelling and independently enabled Local AI corrections remain visible alongside
+style advice. All edits use the existing editor transaction and native undo behavior.

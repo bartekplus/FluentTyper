@@ -21,6 +21,7 @@ import {
   KEY_ENABLED_GRAMMAR_RULES,
   KEY_REVIEW_RULE_OVERRIDES,
   KEY_PREFERRED_TERMINOLOGY,
+  KEY_REVIEW_LONG_SENTENCE_WORDS,
   KEY_ENABLED_LANGUAGES,
   KEY_EXTENSION_LANGUAGE,
   KEY_FALLBACK_LANGUAGE,
@@ -100,6 +101,7 @@ const SETTINGS_KEYS = {
   enabledGrammarRules: KEY_ENABLED_GRAMMAR_RULES,
   reviewRuleOverrides: KEY_REVIEW_RULE_OVERRIDES,
   preferredTerminology: KEY_PREFERRED_TERMINOLOGY,
+  reviewLongSentenceWords: KEY_REVIEW_LONG_SENTENCE_WORDS,
   suggestionBgLight: KEY_SUGGESTION_BG_LIGHT,
   suggestionTextLight: KEY_SUGGESTION_TEXT_LIGHT,
   suggestionHighlightBgLight: KEY_SUGGESTION_HIGHLIGHT_BG_LIGHT,
@@ -162,6 +164,7 @@ export interface SettingsSchema {
   enabledGrammarRules: GrammarRuleOverrides | string[];
   reviewRuleOverrides: Record<string, boolean>;
   preferredTerminology: PreferredTerminology;
+  reviewLongSentenceWords: number;
   suggestionBgLight: string;
   suggestionTextLight: string;
   suggestionHighlightBgLight: string;

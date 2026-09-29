@@ -11,6 +11,7 @@ import {
   KEY_AUTOCOMPLETE_ON_ENTER,
   KEY_AUTOCOMPLETE_ON_TAB,
   KEY_ENABLED_GRAMMAR_RULES,
+  KEY_REVIEW_LONG_SENTENCE_WORDS,
   KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
   KEY_INLINE_SUGGESTION,
   KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE,
@@ -194,6 +195,29 @@ describe("options workspace panels", () => {
     expect(
       panelRoot.querySelectorAll(".workspace-panel-stack > .settings-inline-card"),
     ).toHaveLength(3);
+  });
+
+  test("readability threshold uses validated native input and does not enable advice", () => {
+    const root = document.createElement("div");
+    document.body.append(root);
+    const threshold = new MockPanelControl("Threshold", "bad");
+    const registry = {
+      [KEY_ENABLED_GRAMMAR_RULES]: new MockPanelControl("Rules"),
+      [KEY_REVIEW_LONG_SENTENCE_WORDS]: threshold,
+    } as unknown as SettingsRegistry;
+    renderGrammarWorkspacePanel(root, registry);
+    const input = root.querySelector<HTMLInputElement>("#review-long-sentence-words")!;
+    expect(input.value).toBe("35");
+    expect(input.closest("label")?.textContent).toContain("Long-sentence word threshold");
+    expect(input.getAttribute("aria-describedby")).toBe("review-long-sentence-help");
+    for (const value of ["", "9", "201", "10.5"]) {
+      input.value = value;
+      input.dispatchEvent(new Event("change"));
+      expect(threshold.get()).toBe("bad");
+    }
+    input.value = "40";
+    input.dispatchEvent(new Event("change"));
+    expect(threshold.get()).toBe(40);
   });
 
   test("grammar workspace wraps the rule selector in the shared card layout", () => {

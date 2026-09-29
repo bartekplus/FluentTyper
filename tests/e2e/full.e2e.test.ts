@@ -7110,6 +7110,86 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   );
 
   test(
+    "Readability settings persist a validated threshold and recheck without enabling advice",
+    async () => {
+      const key = "reviewLongSentenceWords";
+      const previous = await getSetting(worker!, key);
+      const overrides = await getSetting(worker!, KEY_REVIEW_RULE_OVERRIDES);
+      await setSettingAndWait(worker!, key, 35);
+      await setSettingAndWait(worker!, KEY_REVIEW_RULE_OVERRIDES, {});
+      await prepareReviewPage();
+      const source =
+        "The team reviewed every part of the detailed proposal before recording all of their conclusions.";
+      await setTextarea(source);
+      await triggerReview(worker!);
+      await waitForReview(
+        page,
+        "initial default",
+        (p) => p.status === "No issues found by the review checks.",
+      );
+      let options = await openOptionsPage(browser, worker!);
+      const selector = "#review-long-sentence-words";
+      try {
+        await options.click('a[href="#grammar_tab"]');
+        await options.waitForSelector(selector);
+        expect(await options.$eval(selector, (e) => (e as HTMLInputElement).value)).toBe("35");
+        const change = async (value: string) =>
+          options.$eval(
+            selector,
+            (e, value) => {
+              const input = e as HTMLInputElement;
+              input.value = value;
+              input.dispatchEvent(new Event("change", { bubbles: true }));
+            },
+            value,
+          );
+        await change("9");
+        expect(await getSetting(worker!, key)).toBe(35);
+        await change("10");
+        await waitUntil("threshold saved", async () => (await getSetting(worker!, key)) === 10, {
+          timeoutMs: 5000,
+        });
+        expect(await getSetting(worker!, KEY_REVIEW_RULE_OVERRIDES)).toEqual({});
+        await page.bringToFront();
+        await waitForReview(
+          page,
+          "advice still off",
+          (p) => p.items.length === 0 && !p.status.includes("Style advice"),
+        );
+        await setSettingAndWait(worker!, KEY_REVIEW_RULE_OVERRIDES, { styleLongSentence: true });
+        await applyConfigChange(browser, worker!);
+        await waitForReview(
+          page,
+          "threshold ten warning",
+          (p) => p.items.length === 1 && p.items[0].category === "style",
+        );
+        await options.bringToFront();
+        await change("200");
+        await waitUntil(
+          "larger threshold saved",
+          async () => (await getSetting(worker!, key)) === 200,
+          { timeoutMs: 5000 },
+        );
+        await page.bringToFront();
+        await waitForReview(page, "threshold rechecks active Review", (p) => p.items.length === 0);
+        expect(await textareaValue()).toBe(source);
+        await options.close();
+        options = await openOptionsPage(browser, worker!);
+        await options.click('a[href="#grammar_tab"]');
+        await options.waitForSelector(selector);
+        expect(await options.$eval(selector, (e) => (e as HTMLInputElement).value)).toBe("200");
+      } finally {
+        await options.close();
+        await finishReview();
+        await setSettingAndWait(worker!, key, previous ?? 35);
+        await setSettingAndWait(worker!, KEY_REVIEW_RULE_OVERRIDES, overrides ?? {});
+        await applyConfigChange(browser, worker!);
+      }
+    },
+    browserTimeout(25000, 35000),
+  );
+
+  test(
     "Optional style advice stays off by default and separates counts warnings and native undo",
     async () => {
       const previous = await getSetting(worker!, KEY_REVIEW_RULE_OVERRIDES);

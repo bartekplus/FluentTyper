@@ -128,3 +128,31 @@ test("unavailable sentence segmentation reports incomplete coverage without losi
     Object.defineProperty(Intl, "Segmenter", descriptor);
   }
 });
+
+test("readability warnings coexist with preferred terminology because they propose no edit", () => {
+  const text =
+    "The team reviewed Acme Suite and carefully considered the complete proposal before making a decision.";
+  const result = scan(text, {
+    enabledRules: ["preferredTerminology", "styleLongSentence"],
+    preferredTerminology: {
+      version: 1,
+      enabled: true,
+      entries: [
+        {
+          id: "acme",
+          source: "Acme Suite",
+          replacement: "Acme Workspace",
+          casePolicy: "exact",
+          explanation: "Our name",
+          language: "en_US",
+          scope: "all-prose",
+          enabled: true,
+        },
+      ],
+    },
+  });
+  expect(result.diagnostics.map((d) => d.ruleId).toSorted()).toEqual([
+    "preferredTerminology",
+    "styleLongSentence",
+  ]);
+});

@@ -236,6 +236,7 @@ export class ContentRuntimeController {
           overrides: this.config.reviewRuleOverrides,
         }),
         preferredTerminology: this.config.preferredTerminology,
+        longSentenceWords: this.config.reviewLongSentenceWords,
         userDictionary: this.config.userDictionaryList ?? [],
         insertSpaceAfterAutocomplete: this.config.insertSpaceAfterAutocomplete,
       }),

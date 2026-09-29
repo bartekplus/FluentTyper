@@ -26,7 +26,7 @@ Execute sequentially: 1, 2, 3, 4, 8, 5, 6, 7, 9–20. Native TypeScript, individ
 | 17  | Brand/acronym casing           | Implemented; Chrome verified; Firefox permission blocked |
 | 18  | Preferred terminology          | Implemented; Chrome verified; Firefox permission blocked |
 | 19  | Incremental rechecks           | Implemented; Chrome verified; Firefox permission blocked |
-| 20  | Optional style hints           | Native advice and UI verified; threshold setting pending |
+| 20  | Optional style hints           | Implemented; Chrome verified; Firefox permission blocked |
 
 ## Validation
 
@@ -653,3 +653,25 @@ Final gates: **5,170 unit tests passed** (5,018 main + 152 isolated), full Chrom
 Logs: `/tmp/ft-style-wiring-{check-final,coverage,unit-final,chrome-final,build-chrome,build-firefox}.log`; focused browser: `/tmp/ft-style-wiring-browser.log`. Production JS delta against #19 (`production-chrome-full-8491-1790717366305`): content **+8,363 bytes**, settings **+3,814**, background/popup **+733 each**. Candidate: `production-chrome-full-10197-1790718678645`. The final redundant-guard deletion is behavior-equivalent and not included in that measured artifact.
 
 Still outstanding: persisted/config-delivered threshold control with localized settings/help and validation, final user documentation/performance measurement and verification of that final configuration. The domain currently accepts a threshold of 10–200 and defaults to 35, but the user cannot yet change it through settings. **19/20 implemented; #20 remains in progress.**
+
+### #20 threshold configuration and final validation
+
+The existing settings registry now persists `reviewLongSentenceWords`, delivers it through validated runtime configuration, and rechecks an open Review when it changes. A labeled native number input accepts whole numbers from 10 through 200; missing or malformed persisted values resolve to 35. Help text is localized in all nine UI languages. Changing the threshold does not enable either style rule and does not enter prediction configuration. The browser test verifies invalid-input rejection, persistence after reopening settings, and a live warning appearing/disappearing without changing editor text. User documentation now describes enablement, thresholds, exclusions and separate counts.
+
+Final self-review found two interactions and added failing regressions before fixing them. Readability had segmented raw source, allowing punctuation inside protected content to invent a prose sentence boundary; it now consumes the existing masked analysis view. The terminology conflict filter had hidden a non-editing long-sentence warning spanning a preferred term; it now permits that specific warning while retaining reservations against competing edits. Focused readability/style/terminology validation: **53 pass**. Failure/recovery logs: `/tmp/ft-style-protection-{before,after}.log` and `/tmp/ft-style-overlap-{before,after}.log`.
+
+Final source gates: **5,174 unit tests passed** (5,022 main + 152 isolated), full Chrome **123 pass / 10 existing skips / 0 fail**, repository check and coverage mapping (**206 behaviors**) passed, and both Chrome and Firefox production builds passed. Logs: `/tmp/ft-style-complete-{check,coverage,unit,chrome,build-chrome,build-firefox}.log`. Firefox runtime remains unverified due to the documented macOS permission blocker. No push, PR or merge performed.
+
+Reproducible style-only pipeline measurement: `bun scripts/profile-style-review.ts`, authored clean/mixed fixtures, five warmups and median of 21 scans, Bun 1.4.2. Includes preparation/detection/finalization, excludes browser UI, AI and spelling. Final run was after browser validation completed; log `/tmp/ft-style-cost-final.jsonl`.
+
+| Characters | Clean off/on (ms) | Mixed off/on (ms) | Mixed enabled findings |
+| ---------- | ----------------- | ----------------- | ---------------------- |
+| 1,000      | 0.040 / 0.118     | 0.020 / 0.088     | 11                     |
+| 10,000     | 0.201 / 0.589     | 0.176 / 0.643     | 107                    |
+| 50,000     | 0.868 / 2.582     | 0.899 / 3.663     | 530                    |
+
+Clean fixtures yielded zero advice; disabled checks yielded zero advice in both corpora. These narrow authored measurements are not open-ended accuracy or browser responsiveness claims.
+
+Final retained production artifact: `production-chrome-full-12569-1790719717915`. Total #20 JS delta versus #19 (`production-chrome-full-8491-1790717366305`): content **+8,481 bytes**, settings **+6,659**, background **+1,062**, popup **+3,007**, onboarding **+2,032**. Settings help translations are included in the shared UI dictionary. Dependency files and all three platform manifests remain unchanged against the roadmap base.
+
+**20/20 features implemented locally.** The goal remains active for the final roadmap requirement audit and Firefox runtime validation; builds do not replace that browser gate.

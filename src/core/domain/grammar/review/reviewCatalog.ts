@@ -402,3 +402,12 @@ export function reviewRuleIds({
     );
   });
 }
+
+export const DEFAULT_LONG_SENTENCE_WORDS = 35;
+
+/** A preference, not a quality score. Invalid persisted values use the documented default. */
+export function longSentenceThreshold(value: unknown): number {
+  return typeof value === "number" && Number.isInteger(value) && value >= 10 && value <= 200
+    ? value
+    : DEFAULT_LONG_SENTENCE_WORDS;
+}

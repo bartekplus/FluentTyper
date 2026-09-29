@@ -4050,6 +4050,16 @@
           "layer": "e2e-full",
           "file": "tests/e2e/full.e2e.test.ts",
           "test": "Optional style advice stays off by default and separates counts warnings and native undo"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ConfigAssembler.localAi.test.ts",
+          "test": "readability threshold defaults and validation stay outside prediction config and opt-in choices"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Readability settings persist a validated threshold and recheck without enabling advice"
         }
       ]
     }

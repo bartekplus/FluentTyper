@@ -5,6 +5,7 @@ import {
 } from "@core/domain/grammar/review/preferredTerminology";
 import {
   isReviewSupportedRule,
+  longSentenceThreshold,
   normalizeReviewRuleOverrides,
 } from "@core/domain/grammar/review/reviewCatalog";
 import { DEFAULT_NUM_SUGGESTIONS } from "@core/domain/constants";
@@ -159,6 +160,10 @@ export class CoreSettingsRepository extends SettingsRepositoryBase {
 
   async getEnabledGrammarRules(): Promise<string[]> {
     return resolveGrammarRuleSelection(await this.getField("enabledGrammarRules"));
+  }
+
+  async getReviewLongSentenceWords(): Promise<number> {
+    return longSentenceThreshold(await this.getField("reviewLongSentenceWords"));
   }
 
   async getPreferredTerminology(): Promise<PreferredTerminology> {

@@ -122,7 +122,7 @@ export function prepareReview(
       styleFindings.push(
         ...(ruleId === "styleRedundancy"
           ? redundantAcronyms(snapshot, protectedRanges, dictionary)
-          : longSentenceRanges(snapshot, protectedRanges, options.longSentenceWords).map(
+          : longSentenceRanges(snapshot, protectedRanges, text, options.longSentenceWords).map(
               (range) => ({
                 ruleId,
                 messageKey: "review_msg_style_long_sentence" as const,
@@ -406,6 +406,7 @@ function toDiagnostic(prepared: PreparedReview, finding: Finding): ReviewDiagnos
   }
   if (
     finding.ruleId !== "preferredTerminology" &&
+    !(finding.ruleId === "styleLongSentence" && finding.warningOnly) &&
     overlapsSortedRanges(prepared.terminology.ranges, range)
   )
     return null;

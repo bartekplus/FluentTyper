@@ -2,14 +2,8 @@ import { closesAbbreviation } from "../implementations/CapitalizeSentenceStartRu
 import { MAX_REVIEW_CHARS } from "./reviewDiagnostics";
 import type { ProtectedRange, ReviewSourceSnapshot, TextRange } from "./types";
 
-export const DEFAULT_LONG_SENTENCE_WORDS = 35;
-
-/** A preference, not a quality score. Invalid persisted values use the documented default. */
-export function longSentenceThreshold(value: unknown): number {
-  return typeof value === "number" && Number.isInteger(value) && value >= 10 && value <= 200
-    ? value
-    : DEFAULT_LONG_SENTENCE_WORDS;
-}
+import { DEFAULT_LONG_SENTENCE_WORDS, longSentenceThreshold } from "./reviewCatalog";
+export { DEFAULT_LONG_SENTENCE_WORDS, longSentenceThreshold } from "./reviewCatalog";
 
 /** Technical spans that are literal prose for a non-editing readability warning. */
 export function isReadabilityLiteral(text: string): boolean {
@@ -18,14 +12,17 @@ export function isReadabilityLiteral(text: string): boolean {
 
 /**
  * Fully visible English prose sentences only. No sentence is split or rewritten.
- * Scan the bounded source before applying the scope so cropped edges cannot look complete.
+ * Segment the full bounded, masked analysis view before applying the scope so neither
+ * cropped edges nor punctuation inside protected content can invent a sentence start.
  */
 export function longSentenceRanges(
   snapshot: ReviewSourceSnapshot,
   protectedRanges: readonly ProtectedRange[],
+  analysisText: string,
   threshold: number = DEFAULT_LONG_SENTENCE_WORDS,
 ): TextRange[] {
-  const text = snapshot.text;
+  const text = analysisText;
+  if (text.length !== snapshot.text.length) return [];
   if (snapshot.incomplete || text.length > MAX_REVIEW_CHARS) return [];
   const limit = longSentenceThreshold(threshold);
   const result: TextRange[] = [];

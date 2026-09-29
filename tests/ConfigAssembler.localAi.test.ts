@@ -84,3 +84,18 @@ test("preferred terminology reaches Review config only after validation and neve
     expect(JSON.stringify(await predictionConfig(seed, false))).not.toContain("Acme");
   }
 });
+
+test("readability threshold defaults and validation stay outside prediction config and opt-in choices", async () => {
+  for (const raw of [undefined, null, "40", 9, 201, 10.5, 10, 35, 200]) {
+    const seed = { reviewLongSentenceWords: raw };
+    const assembler = new ConfigAssembler(createSettingsManagerMock(seed), { isDevBuild: false });
+    const context = (await assembler.assembleBackgroundPageSetConfig()).context;
+    expect(context.reviewLongSentenceWords).toBe(
+      typeof raw === "number" && Number.isInteger(raw) && raw >= 10 && raw <= 200 ? raw : 35,
+    );
+    expect(context.reviewRuleOverrides).toEqual({});
+    expect(JSON.stringify(await predictionConfig(seed, false))).not.toContain(
+      "reviewLongSentenceWords",
+    );
+  }
+});

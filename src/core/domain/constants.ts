@@ -73,6 +73,7 @@ export const KEY_FALLBACK_LANGUAGE = "fallbackLanguage";
 export const KEY_ENABLED_LANGUAGES = "enabled_languages";
 export const KEY_AUTO_LANGUAGE_SITE_PRIORS = "autoLanguageSitePriors";
 export const KEY_REVIEW_RULE_OVERRIDES = "reviewRuleOverrides";
+export const KEY_REVIEW_LONG_SENTENCE_WORDS = "reviewLongSentenceWords";
 export const KEY_PREFERRED_TERMINOLOGY = "preferredTerminology";
 export const KEY_ENABLED_GRAMMAR_RULES = "enabledGrammarRules";
 /** @deprecated Legacy key – kept only for one-time migration in SettingsMigrationV3. */

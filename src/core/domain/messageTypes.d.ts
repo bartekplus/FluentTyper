@@ -37,6 +37,7 @@ export interface SetConfigContext {
   enabledGrammarRules: string[];
   reviewRuleOverrides?: Record<string, boolean>;
   preferredTerminology?: PreferredTerminology;
+  reviewLongSentenceWords?: number;
   userDictionaryList: string[];
   // Theme configuration is reused by settings and options payloads.
   themeConfig?: SuggestionThemeConfig;
