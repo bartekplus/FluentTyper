@@ -1,20 +1,49 @@
 import { describe, expect, jest, test } from "bun:test";
-import {
+import type {
   DynamicCache,
   Tensor,
-  type PreTrainedModel,
-  type PreTrainedTokenizer,
-} from "@huggingface/transformers";
+  PreTrainedModel,
+  PreTrainedTokenizer,
+} from "../src/adapters/chrome/background/localAi/engineRuntime";
 import { withPromptPrefix } from "../src/adapters/chrome/background/localAi/promptPrefix";
 
+// Only the injected surface used by the prefix wrapper; no engine/runtime startup.
+class TestTensor {
+  readonly location = "cpu";
+  readonly ort_tensor = { getData: async (_release?: boolean) => this.data };
+  constructor(
+    readonly type: string,
+    readonly data: BigInt64Array | Uint16Array,
+    readonly dims: number[],
+  ) {}
+  slice(_axis: null, range: [number, number]) {
+    return new TestTensor(this.type, this.data.slice(...range), [1, range[1] - range[0]]);
+  }
+}
+class TestCache {
+  [key: string]: unknown;
+  constructor(entries: Record<string, unknown> = {}) {
+    Object.assign(this, entries);
+  }
+  update(entries: Record<string, unknown>) {
+    Object.assign(this, entries);
+  }
+  async dispose() {
+    for (const tensor of Object.values(this)) {
+      const item = tensor as { location: string; dispose(): void };
+      if (item.location === "gpu-buffer") item.dispose();
+    }
+  }
+}
+
 function harness() {
-  const input = () => new Tensor("int64", new BigInt64Array(500).fill(1n), [1, 500]);
+  const input = () => new TestTensor("int64", new BigInt64Array(500).fill(1n), [1, 500]);
   const tokenizer = {
     apply_chat_template: () => ({ input_ids: input(), attention_mask: input() }),
   };
-  const prefix = new Tensor("float16", new Uint16Array(400), [1, 1, 400, 1]);
+  const prefix = new TestTensor("float16", new Uint16Array(400), [1, 1, 400, 1]);
   const prefixRead = jest.spyOn(prefix.ort_tensor, "getData");
-  const prefixCache = new DynamicCache({ "past_key_values.0.key": prefix });
+  const prefixCache = new TestCache({ "past_key_values.0.key": prefix });
   const prefixDispose = jest.spyOn(prefixCache, "dispose");
   const generatedDispose = jest.fn(() => {});
   const generated = { location: "gpu-buffer", dispose: generatedDispose } as unknown as Tensor;
@@ -26,9 +55,9 @@ function harness() {
       duringPrefix();
       return { past_key_values: prefixCache };
     }
-    const cache = options.past_key_values as DynamicCache | undefined;
+    const cache = options.past_key_values as TestCache | undefined;
     if (cache) {
-      const seed = cache["past_key_values.0.key"];
+      const seed = cache["past_key_values.0.key"] as Tensor;
       expect(seed.location).toBe("cpu");
       expect(await seed.ort_tensor.getData()).toHaveLength(400);
       seeds.push(seed);
@@ -41,7 +70,10 @@ function harness() {
   const wrapped = withPromptPrefix(
     { generate, dispose } as unknown as PreTrainedModel,
     tokenizer as unknown as PreTrainedTokenizer,
-    { DynamicCache, Tensor },
+    {
+      DynamicCache: TestCache as unknown as typeof DynamicCache,
+      Tensor: TestTensor as unknown as typeof Tensor,
+    },
   );
   const stopper = {
     interrupted: false,
@@ -92,8 +124,8 @@ describe("Gemma instruction prefix", () => {
     expect(h.generatedDispose).toHaveBeenCalledTimes(2);
     expect(h.seeds[0]).toBe(h.seeds[1]);
     expect(await h.seeds[0].ort_tensor.getData()).toHaveLength(400);
-    // DynamicCache also leaves a CPU seed alive when generation never replaces it.
-    await new DynamicCache({ "past_key_values.0.key": h.seeds[0] }).dispose();
+    // The injected cache models the pinned dependency's GPU-only disposal contract.
+    await new TestCache({ "past_key_values.0.key": h.seeds[0] }).dispose();
     expect(await h.seeds[0].ort_tensor.getData()).toHaveLength(400);
     const different = h.options();
     (different.input_ids.data as BigInt64Array)[0] = 2n;
