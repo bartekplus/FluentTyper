@@ -128,6 +128,9 @@ describe("correctionFindings", () => {
       "She doesn't cross.",
     );
     expect(correctOne("She dont has.", "She doesn't have.").applied).toBe("She doesn't have.");
+    expect(correctOne("She dont quizzes.", "She doesn't quiz.").applied).toBe("She doesn't quiz.");
+    expect(correctOne("She dont echoes.", "She doesn't echo.").applied).toBe("She doesn't echo.");
+    expect(correctOne("She dont radios.", "She doesn't radio.").applied).toBe("She doesn't radio.");
     expect(correctOne("She dont tries.", "She doesn't try.").applied).toBe("She doesn't try.");
     const dense = correctOne(
       "She dont knows, but he dont cares.",

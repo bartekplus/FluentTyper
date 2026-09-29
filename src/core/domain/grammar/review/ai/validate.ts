@@ -815,20 +815,16 @@ const MAX_UNIT_WORDS = 4;
 /** Above this share of changed words a proposal is a rewrite, not a correction. */
 const MAX_CHANGED_SHARE = 0.5;
 
-/** Exact English third-person spelling; a suffix alone would turn "miss" into "mis". */
+/** Verified third-person spellings; a suffix alone would turn "miss" into "mis". */
 function isThirdPersonForm(base: string, inflected: string): boolean {
   const family = familyOf(inflected);
   if (family !== undefined && family !== familyOf(base)) return false;
-  const expected =
-    base === "have"
-      ? "has"
-      : base === "do" || base === "go"
-        ? `${base}es`
-        : /[^aeiou]y$/.test(base)
-          ? `${base.slice(0, -1)}ies`
-          : /(?:s|x|z|ch|sh)$/.test(base)
-            ? `${base}es`
-            : `${base}s`;
+  let expected = `${base}s`;
+  if (base === "have") expected = "has";
+  else if (base === "quiz" || base === "whiz") expected = `${base}zes`;
+  else if (["do", "go", "echo", "veto", "torpedo"].includes(base)) expected = `${base}es`;
+  else if (/[^aeiou]y$/.test(base)) expected = `${base.slice(0, -1)}ies`;
+  else if (/(?:s|x|z|ch|sh)$/.test(base)) expected = `${base}es`;
   return inflected === expected;
 }
 
