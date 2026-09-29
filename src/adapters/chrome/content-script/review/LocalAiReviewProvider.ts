@@ -114,6 +114,8 @@ export class LocalAiReviewProvider implements ReviewAiProvider {
   private readonly pending = new Map<string, PendingJob>();
   private readonly listeners = new Set<(status: LocalAiStatus) => void>();
   private pollTimer: ReturnType<typeof setTimeout> | null = null;
+  /** This review already opened its port to give a failed engine a fresh start. */
+  private retried = false;
 
   constructor(
     private readonly runtime: LocalAiRuntime,
@@ -141,6 +143,12 @@ export class LocalAiReviewProvider implements ReviewAiProvider {
     const status = statusOf(await this.runtime.sendMessage({ command: CMD_LOCAL_AI_GET_STATUS }));
     if (!status) throw new Error("Local AI status unavailable");
     this.watchWhileChanging(status);
+    if (status.runtime === "error" && !this.port && !this.retried) {
+      // A new review is a fresh start after repeated engine failures, but the host
+      // resets only when a review connects: connect once; its status then arrives.
+      this.retried = true;
+      void this.connect();
+    }
     return status;
   }
 

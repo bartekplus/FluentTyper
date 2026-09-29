@@ -237,6 +237,36 @@ describe("LocalAiReviewProvider", () => {
     expect(r.sent).toEqual([CMD_LOCAL_AI_GET_STATUS]);
   });
 
+  test("a review that finds the engine failed connects once, for the host's fresh start", async () => {
+    const failed: LocalAiStatus = { ...STATUS, runtime: "error", error: "load-failed" };
+    const ports: FakePort[] = [];
+    const sent: string[] = [];
+    const fake: LocalAiRuntime = {
+      sendMessage: (message) => {
+        sent.push(message.command);
+        return Promise.resolve({ ok: true, status: failed });
+      },
+      connect: () => {
+        const port = new FakePort();
+        ports.push(port);
+        return port;
+      },
+    };
+    const provider = new LocalAiReviewProvider(fake, 5, 5);
+    const statuses: string[] = [];
+    provider.onStatus((status) => statuses.push(status.runtime));
+    await provider.status();
+    await tick();
+    expect(sent).toContain(CMD_LOCAL_AI_ENSURE_HOST);
+    expect(ports).toHaveLength(1);
+    ports[0].send({ type: "status", status: STATUS });
+    expect(statuses.at(-1)).toBe(STATUS.runtime);
+    await provider.status();
+    await tick();
+    expect(ports).toHaveLength(1);
+    provider.dispose();
+  });
+
   test("without a port, a status still changing (install) is re-read until it settles", async () => {
     const answers: LocalAiStatus[] = [
       { ...STATUS, runtime: "downloading" },
