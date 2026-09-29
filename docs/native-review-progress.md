@@ -24,7 +24,7 @@ Execute sequentially: 1, 2, 3, 4, 8, 5, 6, 7, 9–20. Native TypeScript, individ
 | 15  | Session ignore-all             | Implemented; Chrome verified; Firefox permission blocked |
 | 16  | Punctuation warnings           | Implemented; Chrome verified; Firefox permission blocked |
 | 17  | Brand/acronym casing           | Implemented; Chrome verified; Firefox permission blocked |
-| 18  | Preferred terminology          | Pending                                                  |
+| 18  | Preferred terminology          | In progress: validated domain settings; integration next |
 | 19  | Incremental rechecks           | Pending; profile first, retain simple path if no benefit |
 | 20  | Optional style hints           | Pending; default off                                     |
 
@@ -496,3 +496,15 @@ Fixture: repeated/truncated `github hosts code. javascript runs here. iphone sal
 Production JS delta against #16 (`production-chrome-full-99126-1790713624759`): content script **+2,875 bytes**, background **+515**, settings **+1,301**, popup **+384**. Candidate: `production-chrome-full-1715-1790714106596`. No dependency, permission or typing behavior added.
 
 Next: #18 optional user-authored preferred terminology. Seventeen of twenty features implemented; the remaining three features and Firefox runtime validation are still required.
+
+## #18 preferred terminology — domain contract checkpoint (incomplete)
+
+Added a strict pure-domain settings/import boundary in `preferredTerminology.ts`. Version 1 contains an explicit off-by-default global switch and user-authored entries with stable IDs, literal source/replacement, exact or insensitive case policy, explanation, concrete language, all-prose or selection scope, and per-entry enabled state. No runtime registration, persisted key or settings UI is connected yet, so this checkpoint does not expose the feature or change existing Review behavior.
+
+Bounds: 64 entries; 80/120/240 UTF-16 units for source/replacement/explanation; 64-character IDs; 65,536 UTF-8 import bytes. Unknown fields, controls, non-NFC/untrimmed text, invalid languages, malformed types, no-op exact entries, duplicate IDs and conflicting duplicate sources fail as a whole. HTML and regex-looking strings are data, never executed. Successful validation returns a copy and retains IDs. Import uses JSON only.
+
+Cycle validation builds a bounded dependency graph, including whole-phrase prefix/suffix transitions completed by untouched neighboring words (A → B, B C → A C). It rejects potential cyclic dependencies conservatively, including disabled entries so later enabling cannot activate a latent cycle. A standalone case repair is stable at its preferred literal spelling; opposing case mappings are rejected. Different languages are independent. Acyclic chains are allowed. Scope does not weaken cycle checks because all-prose entries can also run in selections.
+
+Validation: **42 focused domain tests passed**, final `bun run check` passed. Runtime/browser/build gates have not been rerun for this unconnected module. Logs: `/tmp/ft-native-terms-{schema-final,check-final}.log`.
+
+Remaining #18 work: settings/repository/config wiring; accessible localized entry editor plus explicit bounded import/export; native literal detection with technical/dictionary/scope protection, stable per-entry diagnostic identity, overlap and canonical/other-rule loop handling; user-authored explanation rendered as text; live removal/recheck; full unit and browser validation, privacy independence, docs and costs. The roadmap remains **17/20 implemented**.
