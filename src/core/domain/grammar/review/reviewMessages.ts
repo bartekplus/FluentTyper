@@ -15,6 +15,17 @@ type Translations = readonly [
 ];
 
 const EXPLANATIONS: Record<ReviewMessageKey, Translations> = {
+  review_msg_perfect_participle: [
+    "This perfect-tense construction needs the past participle; keep the auxiliary and tense.",
+    "Cette construction au parfait demande le participe passé ; conservez l’auxiliaire et le temps.",
+    "Ova konstrukcija perfekta zahtijeva particip prošli; zadržite pomoćni glagol i vrijeme.",
+    "Esta construcción de tiempo perfecto requiere el participio pasado; conserve el auxiliar y el tiempo.",
+    "Αυτή η σύνταξη συντελεσμένου χρόνου χρειάζεται μετοχή παρακειμένου· διατηρήστε το βοηθητικό ρήμα και τον χρόνο.",
+    "Den här perfektkonstruktionen behöver perfekt particip; behåll hjälpverbet och tempus.",
+    "Diese Perfektkonstruktion benötigt das Partizip Perfekt; Hilfsverb und Zeitform bleiben erhalten.",
+    "Ta konstrukcja czasu perfect wymaga imiesłowu przeszłego; zachowaj czasownik pomocniczy i czas.",
+    "Esta construção de tempo perfeito pede o particípio passado; mantenha o auxiliar e o tempo.",
+  ],
   review_msg_verb_complements: [
     "Check infinitive and gerund complements.",
     "Vérifiez les compléments infinitifs et en -ing.",

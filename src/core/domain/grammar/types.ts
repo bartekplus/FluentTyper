@@ -72,6 +72,7 @@ export interface GrammarRuleCatalogEntry {
     | GrammarRuleId
     | "englishRepeatedWords"
     | "englishAuxiliaryBaseVerb"
+    | "englishPerfectParticiples"
     | "englishVerbComplements"
     | "englishFixedPrepositions"
     | "englishItsContext"

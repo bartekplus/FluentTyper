@@ -2,6 +2,19 @@ import type { GrammarRuleCatalogEntry, GrammarRuleId } from "./types";
 
 export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   {
+    id: "englishPerfectParticiples",
+    typing: false,
+    name: "Perfect-tense participles",
+    titleI18nKey: "review_msg_perfect_participle",
+    descriptionI18nKey: "review_msg_perfect_participle",
+    exampleI18nKey: "",
+    languageScope: "en_US",
+    safetyTier: "advanced",
+    defaultRollout: "off",
+    recommended: false,
+    priority: 152,
+  },
+  {
     id: "englishVerbComplements",
     typing: false,
     name: "Verb complement constructions",

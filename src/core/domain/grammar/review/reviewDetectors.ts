@@ -1,3 +1,4 @@
+import { perfectParticiples } from "./englishParticiples";
 import { verbComplements } from "./englishComplements";
 import { fixedPrepositions } from "./englishPrepositions";
 import { contextualPossessives } from "./englishPossessives";
@@ -1089,6 +1090,7 @@ export const REVIEW_DETECTORS: ReadonlyArray<{ rules: CatalogRuleId[]; detect: D
   },
   { rules: ["englishFixedPrepositions"], detect: fixedPrepositions },
   { rules: ["englishVerbComplements"], detect: verbComplements },
+  { rules: ["englishPerfectParticiples"], detect: perfectParticiples },
   { rules: ["englishRepeatedWords"], detect: repeatedWords },
   { rules: ["englishAuxiliaryBaseVerb"], detect: auxiliaryForms },
   {

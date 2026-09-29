@@ -3735,6 +3735,27 @@
           "test": "missing-to insertion uses the existing one-grapheme anchor and preserves separators"
         }
       ]
+    },
+    {
+      "id": "review_perfect_participles",
+      "description": "Native perfect-tense checks use shared irregular forms, preserve tense/negation and noun or ambiguous uses, defer wrong auxiliaries to agreement, and apply individual edits with undo.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review native grammar applies individual edits with native undo"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewParticiples.test.ts",
+          "test": "agreement owns a wrong auxiliary, then the participle recheck only changes the verb"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewParticiples.test.ts",
+          "test": "perfect participles preserve dictionary, language, scope and protected evidence"
+        }
+      ]
     }
   ]
 }

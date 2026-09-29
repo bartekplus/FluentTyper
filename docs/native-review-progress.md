@@ -15,7 +15,7 @@ Execute sequentially: 1, 2, 3, 4, 8, 5, 6, 7, 9–20. Native TypeScript, individ
 | 6   | Fixed prepositions             | Implemented; Chrome verified; Firefox launch blocked     |
 | 7   | Verb complements               | Implemented; Chrome verified; Firefox launch blocked     |
 | 8   | Independent Review controls    | Implemented; Chrome verified; Firefox launch blocked     |
-| 9   | Participles                    | Pending                                                  |
+| 9   | Participles                    | Implemented; Chrome verified; Firefox permission blocked |
 | 10  | Demonstratives and noun number | Pending                                                  |
 | 11  | Compounds                      | Pending                                                  |
 | 12  | Countability                   | Pending                                                  |
@@ -235,3 +235,36 @@ Error phrase: `We need fix this bug. They plan deploy tomorrow. I look forward t
 Production JS delta against #6's retained build (`production-chrome-full-45650-1790706527758`): content script **+4,649 bytes**, background **+507**, settings **+2,412**, popup **+379**. Candidate: `production-chrome-full-47095-1790707038158`. No dependencies, permissions or typing behavior added.
 
 Next: #9 perfect-tense participles; #8 controls are already implemented. Overall completion remains pending all remaining features and Firefox runtime validation.
+
+## Firefox launch diagnosis (2026-09-29)
+
+The profile-folder error is now attributed to macOS 27 application-data protection, not FluentTyper or an absent temporary directory. Current host: macOS 27.0; cached Firefox 156.0.1. Bun and Node launches both fail with fresh profiles. A direct Python subprocess also fails with either `-profile` or `--profile` under `/private/tmp`. The new profile directories exist, and Puppeteer writes `user.js` before launch.
+
+Opening only the Firefox application-data directory (`~/Library/Application Support/Firefox`) with `os.open(..., O_RDONLY | O_DIRECTORY)` fails with **PermissionError 1, Operation not permitted**; no directory contents were read. This matches [Mozilla bug 2060476](https://bugzilla.mozilla.org/show_bug.cgi?id=2060476) and its documented Files & Folders permission requirement. Asked the user to enable Firefox access for Codex under System Settings → Privacy & Security → Files & Folders. No OS permission, personal profile, app installation or security setting was changed. Firefox runtime remains pending this user action. Logs: `/tmp/ft-firefox-launch-debug.log`, `/tmp/ft-firefox-node-probe.log`; temporary probe source is `.tmp/firefox-profile-probe.mjs` (untracked/ignored).
+
+## #9 perfect-tense participles
+
+A separate Review-only `englishPerfectParticiples` identity reuses the original irregular verb-form table. Thirteen complete verb/argument frames establish auxiliary-have context; only the affected past-form token changes. Past forms that are already participles are preserved. At most two listed adverbs, including negation, and unambiguous have contractions are supported; ambiguous has/is and had/would contractions abstain. Incorrect have/has agreement is left to #4, then the participle is reconsidered after that repair. One explanation translated into all nine UI languages.
+
+Focused corpus: **83 pass**: 20 repairs, 60 preservation cases and three pipeline/ownership tests. No supported misses or target-family findings on the preservation corpus; corrected text produces no repeat finding. Noun/causative uses, shared forms, unknown morphology, regional alternatives, protected evidence, dictionary, scope and every chunk split in a Unicode/quoted mixed fixture are covered. These are authored cases, not general linguistic accuracy claims.
+
+- Full unit suite: **4,186 pass, 0 fail**.
+- Chrome full browser rerun: **94 pass, 10 skip, 0 fail**. Focused individual Apply/Undo fixture passed all 23 examples, including the three #9 requirements.
+- The first full/focused browser runs exposed a real test-helper defect: an 85px finding inside a 40px scrolling list was clicked at its center, under the footer. A geometry/hit-test probe confirmed the footer received that point. The shared click helper now intersects clipping ancestors/viewport and verifies the hit target before a real click; no production UI or editor behavior was changed.
+- `bun run check`, Chrome/Firefox production builds: passed. Coverage mapping: **195 behaviors**.
+- Firefox runtime remains blocked on the macOS permission described above.
+- Logs: `/tmp/ft-native-participles-{focused,check,unit,browser,full-chrome,click-probe,build-chrome,build-firefox,benchmark}.log`.
+
+Synthetic scan costs (Bun 1.4.2, this ID only, 5 warmups then median of 21 full native scans; no AI/spelling/DOM):
+
+| Characters | Clean (ms) | Dense errors (ms) | Dense findings |
+| ---------- | ---------- | ----------------- | -------------- |
+| 1,000      | 0.073      | 0.166             | 34             |
+| 10,000     | 0.418      | 1.458             | 344            |
+| 50,000     | 2.258      | 7.794             | 1,724          |
+
+Error phrase: `I have went through the report. She has wrote the summary. We had took the wrong turn. `. Clean phrase applies all three intended repairs. Repeat/truncate to size, whole-text scope. These local fixture costs are not an isolated before/after performance claim.
+
+Production JS delta against #7's retained build (`production-chrome-full-47095-1790707038158`): content script **+3,334 bytes**, background **+694**, settings **+1,407**, popup **+385**. Candidate: `production-chrome-full-48207-1790707458323`; subsequent changes only repair the browser test helper. No dependency, permission or typing behavior added.
+
+Next: #10 demonstratives and noun number. Overall completion remains pending the remaining features and Firefox runtime validation.
