@@ -201,6 +201,7 @@
     "review_contextual_compounds",
     "review_countability",
     "review_doubled_degree",
-    "review_usage_phrases"
+    "review_usage_phrases",
+    "review_session_matching_ignores"
   ]
 }

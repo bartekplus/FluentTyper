@@ -988,3 +988,184 @@ test("degree deletion rechecks then-than and refuses the previous diagnostic id"
   expect(h.last().diagnostics).toEqual([]);
   h.session.close();
 });
+
+const matchingPrefix = "Plain context. ".repeat(9);
+const repeatedPair = `${matchingPrefix}the the cat. `;
+async function matchingHarness() {
+  const h = harness(repeatedPair + repeatedPair + `${matchingPrefix}a a cat.`, {
+    rules: ["englishRepeatedWords"],
+  });
+  await Promise.all([h.session.start(), h.settle()]);
+  return h;
+}
+
+test("matching ignores use evidence and alternatives, reset restores current occurrences", async () => {
+  const h = await matchingHarness();
+  expect(h.last().diagnostics).toHaveLength(3);
+  h.session.ignoreMatching(h.last().diagnostics[0].id);
+  expect(h.originals()).toEqual(["a a"]);
+  expect(h.last().ignoredCount).toBe(2);
+  expect(h.last().selectedId).toBeNull();
+  expect(h.editor.applyCalls).toEqual([]);
+  h.session.resetIgnores();
+  expect(h.last().ignoredCount).toBe(0);
+  expect(h.last().diagnostics).toHaveLength(3);
+  h.session.close();
+});
+
+test("matching ignores survive insertion before unchanged evidence", async () => {
+  const h = await matchingHarness();
+  h.session.ignoreMatching(h.last().diagnostics[0].id);
+  h.editor.text = "New introduction. " + h.editor.text;
+  h.session.notifySourceChanged();
+  await h.settle();
+  expect(h.originals()).toEqual(["a a"]);
+  expect(h.last().ignoredCount).toBe(2);
+  h.session.close();
+});
+
+test("changes inside ignored evidence release only the changed occurrence", async () => {
+  const h = await matchingHarness();
+  h.session.ignoreMatching(h.last().diagnostics[0].id);
+  const pos = matchingPrefix.length - 15;
+  h.editor.text = h.editor.text.slice(0, pos) + "Fresh" + h.editor.text.slice(pos + 5);
+  h.session.notifySourceChanged();
+  await h.settle();
+  expect(h.originals()).toEqual(["the the", "a a"]);
+  expect(h.last().ignoredCount).toBe(1);
+  h.session.close();
+});
+
+test("deletion and reinsertion do not resurrect a matching ignore", async () => {
+  const h = await matchingHarness();
+  const source = h.editor.text;
+  const range = h.last().diagnostics[0].range;
+  h.session.ignoreMatching(h.last().diagnostics[0].id);
+  h.editor.text = source.slice(0, range.start) + source.slice(range.end);
+  h.session.notifySourceChanged();
+  await h.settle();
+  h.editor.text = source;
+  h.session.notifySourceChanged();
+  await h.settle();
+  expect(h.originals()).toEqual(["the the", "a a"]);
+  expect(h.last().ignoredCount).toBe(1);
+  h.session.close();
+});
+
+test("protection changes invalidate matching suppression permanently", async () => {
+  const h = await matchingHarness();
+  const range = h.last().diagnostics[0].range;
+  h.session.ignoreMatching(h.last().diagnostics[0].id);
+  h.editor.protectedRanges = [{ ...range, reason: "code" }];
+  h.session.notifySourceChanged();
+  await h.settle();
+  expect(h.last().ignoredCount).toBe(1);
+  h.editor.protectedRanges = [];
+  h.session.notifySourceChanged();
+  await h.settle();
+  expect(h.originals()).toEqual(["the the", "a a"]);
+  expect(h.last().ignoredCount).toBe(1);
+  h.session.close();
+});
+
+test("matching ignores affect filters and batch plans without changing dictionary or settings", async () => {
+  let dictionaryWrites = 0;
+  let settingWrites = 0;
+  const h = harness("teh cat and teh dog. recieve it.", {
+    rules: ["englishTypoWhitelistCorrection"],
+    dictionary: async () => {
+      dictionaryWrites++;
+      return true;
+    },
+    disableReviewRule: async () => {
+      settingWrites++;
+      return true;
+    },
+  });
+  await Promise.all([h.session.start(), h.settle()]);
+  expect(h.last().bulk.count).toBe(3);
+  h.session.ignoreMatching(h.last().diagnostics[0].id);
+  await h.settle();
+  expect(h.originals()).toEqual(["recieve"]);
+  expect(h.last().bulk.count).toBe(1);
+  h.session.setCategory("spelling", false);
+  expect(h.originals()).toEqual([]);
+  expect(h.last().ignoredCount).toBe(2);
+  h.session.resetIgnores();
+  h.session.setCategory("spelling", true);
+  await h.settle();
+  expect(h.last().bulk.count).toBe(3);
+  expect(dictionaryWrites).toBe(0);
+  expect(settingWrites).toBe(0);
+  h.session.close();
+});
+
+test("closing and another editor never retain matching exceptions", async () => {
+  const h = await matchingHarness();
+  h.session.ignoreMatching(h.last().diagnostics[0].id);
+  const other = await matchingHarness();
+  expect(other.last().diagnostics).toHaveLength(3);
+  h.session.close();
+  expect(h.last().ignoredCount).toBe(0);
+  const reopened = await matchingHarness();
+  expect(reopened.last().diagnostics).toHaveLength(3);
+  other.session.close();
+  reopened.session.close();
+});
+
+test("same source word in a different then-than context is not suppressed", async () => {
+  const h = harness(
+    "This is better then the old model. That was faster then the previous version. Then we left.",
+    { rules: ["englishThenThan"] },
+  );
+  await Promise.all([h.session.start(), h.settle()]);
+  expect(h.last().diagnostics).toHaveLength(2);
+  h.session.ignoreMatching(h.last().diagnostics[0].id);
+  expect(h.last().diagnostics).toHaveLength(1);
+  expect(h.last().ignoredCount).toBe(1);
+  h.session.close();
+});
+
+test("matching ignores remap through verified edits and do not learn new occurrences", async () => {
+  const h = harness("teh introduction. " + repeatedPair + repeatedPair, {
+    rules: ["englishRepeatedWords", "englishTypoWhitelistCorrection"],
+  });
+  await Promise.all([h.session.start(), h.settle()]);
+  const repeated = h.last().diagnostics.find((d) => d.ruleId === "englishRepeatedWords")!;
+  h.session.ignoreMatching(repeated.id);
+  const fixing = h.session.apply(h.last().diagnostics[0].id);
+  await h.settle();
+  expect(await fixing).toEqual({ status: "applied" });
+  expect(h.last().ignoredCount).toBe(2);
+  expect(h.originals()).toEqual([]);
+  // A distinct ending makes this insertion unambiguous to the native snapshot diff.
+  h.editor.text += "\nNew section.\n" + repeatedPair + "New ending.";
+  h.session.notifySourceChanged();
+  await h.settle();
+  expect(h.originals()).toEqual(["the the"]);
+  expect(h.last().ignoredCount).toBe(2);
+  h.session.close();
+});
+
+test("ignore once and matching ignores reset together without changing another rule", async () => {
+  const h = await matchingHarness();
+  h.session.ignore(h.last().diagnostics[2].id);
+  h.session.ignoreMatching(h.last().diagnostics[0].id);
+  expect(h.last().ignoredCount).toBe(3);
+  h.session.resetIgnores();
+  expect(h.last().diagnostics).toHaveLength(3);
+  expect(h.last().ignoredCount).toBe(0);
+  h.session.close();
+});
+
+test("ambiguous duplicate insertion releases matching ignores rather than guessing positions", async () => {
+  const h = harness(repeatedPair + repeatedPair, { rules: ["englishRepeatedWords"] });
+  await Promise.all([h.session.start(), h.settle()]);
+  h.session.ignoreMatching(h.last().diagnostics[0].id);
+  h.editor.text += repeatedPair;
+  h.session.notifySourceChanged();
+  await h.settle();
+  expect(h.last().ignoredCount).toBe(0);
+  expect(h.last().diagnostics).toHaveLength(3);
+  h.session.close();
+});

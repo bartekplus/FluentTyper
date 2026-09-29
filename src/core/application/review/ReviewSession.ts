@@ -271,6 +271,20 @@ interface IgnoredOccurrence {
   ruleId: string;
   range: TextRange;
   original: string;
+  /** Present only for a context-matched group; Ignore once retains its original semantics. */
+  evidence?: { range: TextRange; identity: string; protection: string };
+}
+
+function protectionIdentity(ranges: readonly ProtectedRange[], context: TextRange): string {
+  return JSON.stringify(
+    ranges
+      .filter((r) => rangesOverlap(r, context))
+      .map((r) => [
+        Math.max(r.start, context.start) - context.start,
+        Math.min(r.end, context.end) - context.start,
+        r.reason,
+      ]),
+  );
 }
 
 function sameOptions(a: ReviewOptions, b: ReviewOptions): boolean {
@@ -364,7 +378,10 @@ export class ReviewSession {
   // getState() runs on every change; the plan only depends on these inputs.
   private listCache: { key: readonly unknown[]; visible: ReviewDiagnostic[] } | null = null;
   // Lookup set for `ignored`, rebuilt when the list is replaced.
-  private ignoredKeys: { list: IgnoredOccurrence[]; keys: Set<string> } | null = null;
+  private ignoredKeys: {
+    list: IgnoredOccurrence[];
+    entries: Map<string, IgnoredOccurrence>;
+  } | null = null;
   private planCache: { key: readonly unknown[]; plan: BulkPlan } | null = null;
   private planPending: { key: readonly unknown[]; promise: Promise<BulkPlan | null> } | null = null;
   private resolvedCount = 0;
@@ -469,6 +486,9 @@ export class ReviewSession {
     this.rewriteEdits = null;
     this.aiBatch = null;
     this.status = "closed";
+    this.ignored = [];
+    this.ignoredKeys = null;
+    this.listCache = null;
     this.diagnostics = [];
     this.planCache = null;
     this.planPending = null;
@@ -533,6 +553,66 @@ export class ReviewSession {
     ];
     if (this.selectedId === id) this.selectedId = null;
     this.emit();
+  }
+
+  /** Suppress only currently equivalent occurrences; never learn a future text pattern. */
+  ignoreMatching(id: string): void {
+    if (this.status !== "ready") return;
+    const diagnostic = this.visibleDiagnostics().find((d) => d.id === id);
+    if (!diagnostic || diagnostic.ruleId === REVIEW_LOCAL_AI_CHECK) return;
+    const identity = this.matchingIdentity(diagnostic);
+    const matches = this.diagnostics.filter(
+      (d) =>
+        !this.isIgnored(d) &&
+        d.ruleId !== REVIEW_LOCAL_AI_CHECK &&
+        this.matchingIdentity(d) === identity,
+    );
+    this.ignored = [
+      ...this.ignored,
+      ...matches.map((d) => ({
+        ruleId: d.ruleId,
+        range: { ...d.range },
+        original: d.original,
+        evidence: {
+          range: { ...d.context },
+          identity,
+          protection: protectionIdentity(this.protectedRanges, d.context),
+        },
+      })),
+    ];
+    this.selectedId = null;
+    this.emit();
+  }
+
+  resetIgnores(): void {
+    if (this.status !== "ready" || this.ignored.length === 0) return;
+    this.ignored = [];
+    this.selectedId = null;
+    this.emit();
+  }
+
+  /** Relative evidence/edits, not absolute offsets or just a source word. Session memory only. */
+  private matchingIdentity(d: ReviewDiagnostic): string {
+    const normalize = (text: string) => text.normalize("NFC").replace(/[ \t\u00a0]+/g, " ");
+    return JSON.stringify([
+      d.ruleId,
+      d.messageKey,
+      d.lang,
+      d.category,
+      d.requiresChoice === true,
+      normalize(this.text.slice(d.context.start, d.range.start)),
+      normalize(d.original),
+      normalize(this.text.slice(d.range.end, d.context.end)),
+      d.alternatives.map((a) =>
+        a.edits.map((e) => [
+          e.start - d.range.start,
+          e.end - d.range.start,
+          normalize(e.original),
+          normalize(e.replacement),
+        ]),
+      ),
+      protectionIdentity(this.protectedRanges, d.context),
+    ]);
   }
 
   async disableReviewRule(id: string): Promise<void> {
@@ -815,9 +895,16 @@ export class ReviewSession {
 
   private isIgnored(diagnostic: ReviewDiagnostic): boolean {
     if (this.ignoredKeys?.list !== this.ignored) {
-      this.ignoredKeys = { list: this.ignored, keys: new Set(this.ignored.map(occurrenceKey)) };
+      this.ignoredKeys = {
+        list: this.ignored,
+        entries: new Map(this.ignored.map((entry) => [occurrenceKey(entry), entry])),
+      };
     }
-    return this.ignoredKeys.keys.has(occurrenceKey(diagnostic));
+    const entry = this.ignoredKeys.entries.get(occurrenceKey(diagnostic));
+    return (
+      entry !== undefined &&
+      (!entry.evidence || entry.evidence.identity === this.matchingIdentity(diagnostic))
+    );
   }
 
   private planKey(): readonly unknown[] | null {
@@ -958,7 +1045,8 @@ export class ReviewSession {
       // Our own edits are exactly known: carry scope and ignores through them.
       const delta = after.length - before.length;
       if (this.scope) this.scope = { start: this.scope.start, end: this.scope.end + delta };
-      this.remapIgnored(edits);
+      const map = positionMapper(edits);
+      this.remapIgnored((range) => remapRangeThroughEdits(range, edits, map));
       this.text = after;
     } else if (result.status === "stale") {
       this.notice = { kind: "stale" };
@@ -976,13 +1064,20 @@ export class ReviewSession {
     return result;
   }
 
-  /** Our own edits are exactly known: each ignore moves with them, or goes if one touches it. */
-  private remapIgnored(edits: ReviewEdit[]): void {
+  /** Native remapping drops an occurrence if its text or matched evidence was touched. */
+  private remapIgnored(map: (range: TextRange) => TextRange | null): void {
     if (this.ignored.length === 0) return;
-    const map = positionMapper(edits);
     this.ignored = this.ignored.flatMap((entry) => {
-      const range = remapRangeThroughEdits(entry.range, edits, map);
-      return range ? [{ ...entry, range }] : [];
+      const range = map(entry.range);
+      const context = entry.evidence ? map(entry.evidence.range) : null;
+      if (!range || (entry.evidence && !context)) return [];
+      return [
+        {
+          ...entry,
+          range,
+          evidence: entry.evidence && context ? { ...entry.evidence, range: context } : undefined,
+        },
+      ];
     });
   }
 
@@ -1043,10 +1138,7 @@ export class ReviewSession {
           }
           this.scope = next;
         }
-        this.ignored = this.ignored.flatMap((entry) => {
-          const range = remapRange(entry.range, diff);
-          return range ? [{ ...entry, range }] : [];
-        });
+        this.remapIgnored((range) => remapRange(range, diff));
       }
     }
     // Formatting-only change: same text, different protection. Old ignores
@@ -1054,6 +1146,12 @@ export class ReviewSession {
     this.text = read.text;
     this.signature = read.signature;
     this.protectedRanges = read.protectedRanges;
+    this.ignored = this.ignored.filter(
+      (entry) =>
+        !entry.evidence ||
+        entry.evidence.protection ===
+          protectionIdentity(this.protectedRanges, entry.evidence.range),
+    );
     this.unread = read.unread ?? 0;
     await this.scan(generation);
   }

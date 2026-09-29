@@ -972,6 +972,10 @@ describe("ReviewSession with Local AI: Apply selected AI corrections", () => {
     await h.start();
     h.session.previewAiBatch();
     expect(h.last().aiBatch!.diagnosticIds).toHaveLength(2);
+    const aiCount = h.aiFindings().length;
+    h.session.ignoreMatching(h.aiFindings()[0].id);
+    expect(h.aiFindings()).toHaveLength(aiCount);
+    expect(h.last().ignoredCount).toBe(0);
     h.session.ignore(h.aiFindings()[0].id);
     expect(h.last().aiBatch).toBeNull();
     expect(await h.session.applyAiBatch()).toBeNull();

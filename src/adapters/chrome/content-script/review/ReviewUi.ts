@@ -24,6 +24,8 @@ export interface ReviewUiCallbacks {
   /** `viaKeyboard`: activated without a pointer, so focus should stay in the panel. */
   apply(id: string, alternative: number, viaKeyboard: boolean): void;
   ignore(id: string): void;
+  ignoreMatching(id: string): void;
+  resetIgnores(): void;
   disableRule?(id: string): void;
   addToDictionary(id: string): void;
   fixAll(viaKeyboard: boolean): void;
@@ -257,6 +259,7 @@ export class ReviewUi {
   private readonly prev: HTMLButtonElement;
   private readonly next: HTMLButtonElement;
   private readonly fixAll: HTMLButtonElement;
+  private readonly resetIgnores: HTMLButtonElement;
   private readonly fixNote: HTMLElement;
   private readonly nav: HTMLElement;
   private readonly footer: HTMLElement;
@@ -476,7 +479,14 @@ export class ReviewUi {
       hidden: "",
     });
     this.aiBatchButton.addEventListener("click", () => this.callbacks.previewAiBatch());
-    footer.append(this.fixAll, this.fixNote, this.aiBatchButton);
+    this.resetIgnores = element(
+      doc,
+      "button",
+      { type: "button", "data-action": "reset-ignores", hidden: "" },
+      this.t("review_reset_ignores"),
+    );
+    this.resetIgnores.addEventListener("click", () => this.callbacks.resetIgnores());
+    footer.append(this.fixAll, this.fixNote, this.aiBatchButton, this.resetIgnores);
     this.panel.append(
       header,
       this.modes,
@@ -723,6 +733,8 @@ export class ReviewUi {
       count: state.bulk.pending ? "\u2026" : state.bulk.count,
     });
     this.fixAll.disabled = !bulkAvailable || state.bulk.pending || state.bulk.count === 0;
+    this.resetIgnores.hidden = state.ignoredCount === 0;
+    this.resetIgnores.disabled = state.status !== "ready";
     const filtered = state.categories.size < REVIEW_CATEGORIES.length;
     const noteParts = [this.t(filtered ? "review_fix_all_filtered" : "review_fix_all_whole")];
     if (state.bulk.deferred > 0) {
@@ -1467,6 +1479,29 @@ export class ReviewUi {
     );
     ignore.addEventListener("click", () => this.callbacks.ignore(diagnostic.id));
     actions.append(...lead, ignore);
+    if (diagnostic.ruleId !== REVIEW_LOCAL_AI_CHECK) {
+      const matching = element(
+        doc,
+        "button",
+        {
+          type: "button",
+          "data-action": "ignore-matching",
+          "aria-describedby": "ft-review-ignore-matching-hint",
+        },
+        this.t("review_ignore_matching"),
+      );
+      matching.disabled = this.state?.status !== "ready";
+      matching.addEventListener("click", () => this.callbacks.ignoreMatching(diagnostic.id));
+      actions.append(
+        matching,
+        element(
+          doc,
+          "p",
+          { class: "hint ignore-matching-hint", id: "ft-review-ignore-matching-hint" },
+          this.t("review_ignore_matching_hint"),
+        ),
+      );
+    }
     if (this.callbacks.disableRule && isReviewSupportedRule(diagnostic.ruleId)) {
       const disable = element(
         doc,

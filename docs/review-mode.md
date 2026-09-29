@@ -70,8 +70,12 @@ keep at least 3:1 contrast on light and dark pages alike, whatever the OS theme.
 
 Click a highlight, or choose a finding in the list, to open its card:
 category, explanation, the change (original and replacement), any
-alternatives, and **Apply**, **Ignore** and, for single-word spelling findings,
+alternatives, and **Apply**, **Ignore once** and, for single-word spelling findings,
 **Add "word" to dictionary** (the existing FluentTyper dictionary).
+
+Native and dictionary cards also offer **Ignore matching occurrences in this review**. It suppresses current findings with the same rule, language, normalized evidence and suggested edits, including the protected context. It is deliberately more specific than ignoring every use of a word. The visible hint explains that new occurrences are not automatically ignored. AI findings retain Ignore once only.
+
+**Restore ignored findings** in the footer resets both kinds of session ignores. Counts, filters, navigation and Fix all planning use the remaining findings. Matching ignores track their occurrence and evidence with the existing position remapper: edits before unchanged evidence can move them, while evidence edits, protection changes, deletion/reinsertion or ambiguous placement release suppression. Close and reopen Review to clear every ignore. Another editor has its own session. No dictionary learning, setting changes, sentence hashes or reviewed prose are saved by either ignore action. **Disable this check in Review** remains a separate persistent preference.
 
 ![The correction card](images/review-mode/2-correction-card.png)
 
@@ -599,7 +603,7 @@ Known costs:
 - Chrome may turn a space next to an edit into a no-break space. Review
   accepts only that change next to the edit; any other difference, or text the
   browser put outside the link or formatting it came from, is reported.
-- An ignore belongs to one occurrence and is dropped when an edit (including
+- Ignore once belongs to one occurrence and is dropped when an edit (including
   an undo) spans the ignored text.
 - Chains of more than 8 mutually dependent fixes are left for individual review.
 - A lowercase "i" before "is", or named by the word before it ("the variable

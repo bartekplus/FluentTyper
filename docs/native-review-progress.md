@@ -21,7 +21,7 @@ Execute sequentially: 1, 2, 3, 4, 8, 5, 6, 7, 9–20. Native TypeScript, individ
 | 12  | Countability                   | Implemented; Chrome verified; Firefox permission blocked |
 | 13  | Comparatives                   | Implemented; Chrome verified; Firefox permission blocked |
 | 14  | Fixed phrases                  | Implemented; Chrome verified; Firefox permission blocked |
-| 15  | Session ignore-all             | Pending                                                  |
+| 15  | Session ignore-all             | Implemented; Chrome verified; Firefox permission blocked |
 | 16  | Punctuation warnings           | Pending                                                  |
 | 17  | Brand/acronym casing           | Pending                                                  |
 | 18  | Preferred terminology          | Pending                                                  |
@@ -411,3 +411,31 @@ Error phrase: `For all intensive purposes, the test is complete. They are one in
 Production JS delta against #13's retained build (`production-chrome-full-74398-1790709936446`): content script **+4,560 bytes**, background **+1,519**, settings **+3,046**, popup **+363**. Final candidate: `production-chrome-full-84329-1790710823561`; all runtime JS is byte-identical to the earlier `production-chrome-full-78768-1790710331475` and typecheck build `production-chrome-usage-typecheck`. No dependency, permission or typing behavior added.
 
 Next: #15 context-aware ignore-all within a Review session. Fourteen of twenty features implemented; full completion requires the remaining six features and Firefox runtime validation.
+
+## #15 context-aware matching ignores within a Review session
+
+Native and dictionary cards now distinguish Ignore once, Ignore matching occurrences in this review, and the existing persistent Disable this check in Review. A visible localized explanation states the matching scope: current findings with the same rule, language, category, normalized evidence and alternative edits. It captures existing equivalent occurrences rather than learning a pattern for future text. AI findings retain Ignore once only. Restore ignored findings in the footer resets both session-ignore forms. Labels and explanations cover all nine UI languages.
+
+The existing occurrence list now optionally retains matched evidence and relative protection identity. Both verified writes and external snapshot diffs use the existing native remappers through one shared session method. Edits outside unchanged evidence preserve suppression after shifting offsets; edits touching evidence, changed protection and deletion/reinsertion release the affected entry. Ambiguous duplicate insertion follows the native remapper’s conservative behavior and releases suppression rather than guessing identity. A regression fixture with a distinct ending verifies that unambiguous new occurrences remain visible while old entries stay ignored. Complete evidence equality is deliberately more specific than matching a word alone.
+
+Reset and matching ignores invalidate the existing list/batch caches through their input identities, update counts/filters/navigation and preserve keyboard focus through the controller. Close explicitly clears exception entries, their lookup and the list cache. No persistence callback, dictionary learning, sentence hash, telemetry or new permission is involved. The real browser test verifies storage does not contain the reviewed fixture and that dictionary and rule preferences are unchanged.
+
+- Session/AI/UI focused suite: **116 pass, 0 fail**. Includes remapping, evidence edits, deletion/reinsertion, protection changes, verified writes, new occurrences, ambiguous placement, filters/batches/reset, independent editors, closure, then/than context separation and AI exclusion.
+- Full unit suite: **4,788 pass, 0 fail**. Full Chrome browser suite: **112 pass, 10 skip, 0 fail**.
+- Browser workflow verifies three repeated-word findings, suppresses only two equivalent occurrences, inserts text before unchanged evidence, restores findings with reset, and closes/reopens with no retained ignores.
+- `bun run check`, production Chrome/Firefox builds: passed. Coverage mapping: **201 behaviors**. Firefox runtime remains pending the previously requested macOS permission.
+- Logs: `/tmp/ft-native-ignore-{session-ui-final,browser,check,unit,full-chrome,build-chrome,build-firefox,benchmark}.log`.
+
+Session action costs after broad validation (Bun 1.4.2, 5 warmups then median of 21 ignore/reset cycles; existing native findings, no DOM/AI/spelling or scan timing):
+
+| Matching findings | Characters | Ignore matching (ms) | Reset (ms) |
+| ----------------- | ---------- | -------------------- | ---------- |
+| 10                | 1,480      | 0.047                | 0.004      |
+| 100               | 14,800     | 0.321                | 0.021      |
+| 300               | 44,400     | 0.880                | 0.069      |
+
+Each cycle asserts all expected findings are suppressed and then restored. The repeated paragraph has nine `Plain context. ` sentences before `the the cat. `, supplying identical bounded evidence. These local action costs are not a before/after production speedup claim.
+
+Production JS delta against #14's retained build (`production-chrome-full-84329-1790710823561`): content script **+5,090 bytes**, settings **+2,550**; background and popup unchanged. Candidate: `production-chrome-full-92282-1790711677535`. No dependency, permission or typing behavior added.
+
+Next: #16 punctuation warnings and explicit warning-only diagnostics. Fifteen of twenty features implemented; full completion requires the remaining five features and Firefox runtime validation.

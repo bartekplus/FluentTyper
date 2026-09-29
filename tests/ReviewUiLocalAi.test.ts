@@ -38,6 +38,8 @@ function callbacks(): { [K in keyof ReviewUiCallbacks]: ReturnType<typeof jest.f
     "select",
     "apply",
     "ignore",
+    "ignoreMatching",
+    "resetIgnores",
     "disableRule",
     "addToDictionary",
     "fixAll",
@@ -238,6 +240,36 @@ describe("ReviewUi: Local AI", () => {
       state({ ai: ai({ availability: "installing", status: { ...STATUS, progress: 0.42 } }) }),
     );
     expect($(".ai-line").textContent).toBe("Local AI model is downloading: 42% (see settings).");
+  });
+
+  test("matching ignores show session scope, stay separate from disable, and exclude AI", () => {
+    const diagnostic = finding("native", {
+      ruleId: "englishRepeatedWords",
+      messageKey: "review_msg_repeated_words",
+    });
+    ui.render(state({ diagnostics: [diagnostic] }));
+    ui.openCard(diagnostic, null);
+    expect($("[data-action=ignore]").textContent).toBe("Ignore once");
+    expect($("[data-action=ignore-matching]").textContent).toBe(
+      "Ignore matching occurrences in this review",
+    );
+    expect($("#ft-review-ignore-matching-hint").textContent).toContain(
+      "new occurrences are not ignored",
+    );
+    expect($("[data-action=disable-rule]")).toBeDefined();
+    trustedClick($("[data-action=ignore-matching]"));
+    expect(cb.ignoreMatching).toHaveBeenCalledWith("native");
+    expect(cb.ignore).not.toHaveBeenCalled();
+    expect(cb.disableRule).not.toHaveBeenCalled();
+    ui.render(state({ ignoredCount: 2 }));
+    expect(shown("[data-action=reset-ignores]")).toBe(true);
+    trustedClick($("[data-action=reset-ignores]"));
+    expect(cb.resetIgnores).toHaveBeenCalledTimes(1);
+    ui.render(state({ ignoredCount: 0 }));
+    expect(shown("[data-action=reset-ignores]")).toBe(false);
+    ui.openCard(finding("ai"), null);
+    expect($(".card").querySelector("[data-action=ignore-matching]")).toBeNull();
+    expect($("[data-action=ignore]")).toBeDefined();
   });
 
   test("only native cards offer an accessible disable action and untrusted clicks do nothing", () => {

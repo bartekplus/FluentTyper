@@ -3881,6 +3881,37 @@
           "test": "usage phrase offsets belong to one chunk in ordinary quoted Unicode prose"
         }
       ]
+    },
+    {
+      "id": "review_session_matching_ignores",
+      "description": "Session-local context-aware ignore matching and reset preserve remapping and privacy, invalidate changed evidence, update counts/filters/batches, exclude AI and expire on close.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review matching ignores remap, reset and expire on close without persisting prose"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSession.test.ts",
+          "test": "changes inside ignored evidence release only the changed occurrence"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSession.test.ts",
+          "test": "protection changes invalidate matching suppression permanently"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSession.test.ts",
+          "test": "matching ignores affect filters and batch plans without changing dictionary or settings"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewUiLocalAi.test.ts",
+          "test": "matching ignores show session scope, stay separate from disable, and exclude AI"
+        }
+      ]
     }
   ]
 }

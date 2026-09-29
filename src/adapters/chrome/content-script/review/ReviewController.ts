@@ -468,6 +468,12 @@ export class ReviewController {
         select: (id, options) => this.select(id, options),
         apply: (id, alternative, viaKeyboard) => void this.apply(id, alternative, viaKeyboard),
         ignore: (id) => this.ignore(id),
+        ignoreMatching: (id) => this.ignore(id, true),
+        resetIgnores: () => {
+          this.active?.ui.closeCard();
+          this.active?.session.resetIgnores();
+          this.active?.ui.focusPanel();
+        },
         disableRule: this.deps.disableReviewRule
           ? (id) => {
               this.active?.ui.closeCard();
@@ -594,12 +600,13 @@ export class ReviewController {
     if (this.active === active && viaKeyboard) this.focusAfterWrite(active);
   }
 
-  private ignore(id: string): void {
+  private ignore(id: string, matching = false): void {
     const active = this.active;
     if (!active) return;
     const index = active.state?.diagnostics.findIndex((d) => d.id === id) ?? -1;
     active.ui.closeCard();
-    active.session.ignore(id);
+    if (matching) active.session.ignoreMatching(id);
+    else active.session.ignore(id);
     // Keep keyboard users in the list, on the issue that took this one's place.
     const next =
       active.state?.diagnostics[
@@ -875,6 +882,8 @@ const NOTICE_CALLBACKS: ReviewUiCallbacks = {
   select: () => {},
   apply: () => {},
   ignore: () => {},
+  ignoreMatching: () => {},
+  resetIgnores: () => {},
   addToDictionary: () => {},
   fixAll: () => {},
   toggleCategory: () => {},

@@ -7318,6 +7318,76 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   );
 
   test(
+    "Review matching ignores remap, reset and expire on close without persisting prose",
+    async () => {
+      await prepareReviewPage();
+      const prefix = "Plain context. ".repeat(9);
+      const source = `${prefix}The the cat. ${prefix}The the cat. ${prefix}A a cat.`;
+      const dictionary = await getLocalStorageValue<string[]>(
+        worker!,
+        `${SETTINGS_PREFIX}userDictionaryList`,
+      );
+      const overrides = await getSetting(worker!, KEY_REVIEW_RULE_OVERRIDES);
+      await setTextarea(source);
+      await triggerReview(worker!);
+      const initial = await waitForReview(
+        page,
+        "three repeated words",
+        (p) => p.items.length === 3,
+      );
+      await clickReviewControl(page, `.item[data-id="${initial.items[0].id}"]`);
+      await waitForReview(page, "matching-ignore card", (p) => p.card.open);
+      await clickReviewControl(page, "[data-action=ignore-matching]");
+      const ignored = await waitForReview(
+        page,
+        "two matching occurrences ignored",
+        (p) => p.items.length === 1 && p.notes.includes("Ignored: 2"),
+      );
+      expect(ignored.items[0].text).toBe("A␣a → A");
+      expect(ignored.fixAll).toMatchObject({ text: "Fix all safe (0)", disabled: true });
+      expect(await textareaValue()).toBe(source);
+      await page.focus("#test-textarea");
+      await page.$eval("#test-textarea", (el) =>
+        (el as HTMLTextAreaElement).setSelectionRange(0, 0),
+      );
+      await page.keyboard.type("Hello. ");
+      await waitForReview(
+        page,
+        "ignored evidence moved",
+        (p) => p.items.length === 1 && p.notes.includes("Ignored: 2"),
+      );
+      expect(await textareaValue()).toBe("Hello. " + source);
+      await clickReviewControl(page, "[data-action=reset-ignores]");
+      const restored = await waitForReview(
+        page,
+        "all ignored findings restored",
+        (p) => p.items.length === 3 && !p.notes.includes("Ignored:"),
+      );
+      await clickReviewControl(page, `.item[data-id="${restored.items[0].id}"]`);
+      await waitForReview(page, "ignore again", (p) => p.card.open);
+      await clickReviewControl(page, "[data-action=ignore-matching]");
+      await waitForReview(page, "ignored again", (p) => p.items.length === 1);
+      await clickReviewControl(page, "[data-action=close]");
+      await page.focus("#test-textarea");
+      await triggerReview(worker!);
+      await waitForReview(
+        page,
+        "new session has no ignores",
+        (p) => p.items.length === 3 && !p.notes.includes("Ignored:"),
+      );
+      expect(
+        await getLocalStorageValue<string[]>(worker!, `${SETTINGS_PREFIX}userDictionaryList`),
+      ).toEqual(dictionary);
+      expect(await getSetting(worker!, KEY_REVIEW_RULE_OVERRIDES)).toEqual(overrides);
+      expect(
+        JSON.stringify(await worker!.evaluate(async () => await chrome.storage.local.get(null))),
+      ).not.toContain("Plain context");
+      await finishReview();
+    },
+    browserTimeout(20000, 30000),
+  );
+
+  test(
     "Review rule controls persist one disabled check and restore it from settings",
     async () => {
       await setSettingAndWait(worker!, KEY_REVIEW_RULE_OVERRIDES, {});
