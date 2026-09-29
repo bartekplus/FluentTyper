@@ -170,6 +170,14 @@ Supported (**Typing** is the rule's default for typing; Review has separate swit
 | `duplicatePunctuationCollapse`         | all      | off         | punctuation | yes                                                                                               |
 
 Agreement retains the six original typing pairs and their existing bulk rules.
+Three native Review-only contextual apostrophe checks are independently configurable:
+
+- `englishItsContext`: possessive `its` after a listed transitive verb and before a complete known noun phrase, or in a clause-opening noun phrase with a supported predicate. Conversely, clause-opening `its` before listed complete predicates such as `ready to use`, `cold outside`, `working now` or `been fixed` becomes `it's`.
+- `englishLetsContext`: clause-opening `lets` before a complete listed suggestion such as `try again`, `go home` or `take a break` becomes `let's`. Lexical `lets` with a subject is preserved.
+- `englishElsePossessive`: `elses` after someone/somebody/anyone/anybody/everyone/nobody/no one and before a complete known noun phrase becomes `else's`. Capitalized `Elses` is preserved as a possible name.
+
+All three change only the target token, remain outside Fix all safe, and leave existing contraction normalization and typing untouched. Existing straight or curly apostrophes are accepted for possessive `it's`; new apostrophes follow the existing normalizer's straight-apostrophe convention. No global quote normalization occurs. Evidence uses bounded horizontal spacing, listed nouns/adjectives/predicates and a phrase boundary. Unknown noun phrases, unlisted predicates, arbitrary names, singular/plural owners, multiline evidence and technical tokens abstain. Named quoted examples are protected; supported ordinary nested quotations remain eligible. These are bounded recognizers, not general ownership inference.
+
 Additional Review-only constructions run under `englishPronounVerbWhitelistAgreement`:
 clause-opening we/they/you with is/am/was/has/does, and he/she/it with are/am/were/have/do.
 One listed adverb (really, still, always, never) may intervene. These new forms

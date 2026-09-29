@@ -3667,6 +3667,27 @@
           "test": "disabling a Review rule invalidates its old batch and keeps unrelated findings"
         }
       ]
+    },
+    {
+      "id": "review_contextual_possessives",
+      "description": "Native contextual apostrophe suggestions preserve ambiguous ownership and protected source, remain individual-only and apply with native undo.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review native grammar applies individual edits with native undo"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewPossessives.test.ts",
+          "test": "contextual apostrophes preserve pipeline protections, dictionary, scope and language"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewPossessives.test.ts",
+          "test": "normal nested quotations run while quoted instructions and protected evidence abstain"
+        }
+      ]
     }
   ]
 }

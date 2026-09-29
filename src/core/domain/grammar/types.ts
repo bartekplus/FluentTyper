@@ -72,6 +72,9 @@ export interface GrammarRuleCatalogEntry {
     | GrammarRuleId
     | "englishRepeatedWords"
     | "englishAuxiliaryBaseVerb"
+    | "englishItsContext"
+    | "englishLetsContext"
+    | "englishElsePossessive"
     | "englishExistentialAgreement"
     | "englishThenThan"
     | "englishYourYouAre"

@@ -11,7 +11,7 @@ Execute sequentially: 1, 2, 3, 4, 8, 5, 6, 7, 9–20. Native TypeScript, individ
 | 2   | Auxiliary base verbs           | Implemented; Chrome verified; Firefox launch blocked     |
 | 3   | Contextual word confusions     | Implemented; Chrome verified; Firefox launch blocked     |
 | 4   | Agreement extensions           | Implemented; Chrome verified; Firefox launch blocked     |
-| 5   | Contractions and possessives   | Pending                                                  |
+| 5   | Contractions and possessives   | Implemented; Chrome verified; Firefox launch blocked     |
 | 6   | Fixed prepositions             | Pending                                                  |
 | 7   | Verb complements               | Pending                                                  |
 | 8   | Independent Review controls    | Implemented; Chrome verified; Firefox launch blocked     |
@@ -150,4 +150,33 @@ Native cards offer **Disable this check in Review**; settings restore individual
 
 Production JS delta against #4's retained full-suite build (`production-chrome-full-41958-1790704599116`): content script **+6,713 bytes**, background **+5,307**, settings **+95,479**, popup **+4,864**. The settings page now includes the existing nine-language Review message catalog to name Review-only rules; no dependency or permission added. Measurements use the first #8 full-suite build; the later selector identity adds only a small DOM assignment.
 
-Next: #5 contextual contractions and bounded possessives, then #6 and #7. The overall roadmap and Firefox runtime gate remain incomplete.
+Next after #8: #5 contextual contractions and bounded possessives, then #6 and #7. The overall roadmap and Firefox runtime gate remain incomplete.
+
+## #5 contextual contractions and bounded possessives
+
+Three independently configurable native Review-only identities: `englishItsContext`, `englishLetsContext`, `englishElsePossessive`. The new module reuses shared word-case handling; existing contraction normalization retains sole ownership of its words and its original behavior. Each finding changes one token and stays individual-only. Four specific explanations are translated into all nine UI languages.
+
+Supported evidence consists of complete listed predicate/noun phrases: possessive its after selected transitive verbs or before a supported noun/predicate, it-is/it-has contractions at clause openings, twelve complete let-us suggestions, and seven indefinite-pronoun forms before else's plus a known noun phrase. Straight and curly input apostrophes work; inserted apostrophes follow existing straight-apostrophe normalization. Arbitrary owners, plural possessives, names, unknown phrases and technical/multiline evidence abstain. Exact bounded coverage and exclusions are in `docs/review-mode.md`.
+
+Focused corpus: **126 pass**, including 36 authored repairs (12 per identity), 86 distinct preservation cases and four pipeline tests. All supported errors detected, no target-family findings on the negative corpus, and no recorrection after repair. These authored results are not a general English accuracy estimate. Self-review found capitalized Elses could be a name; the new detector now preserves it. Nested normal quotations were added and checked separately from metalinguistic quoted evidence.
+
+- `bun run check`: passed.
+- Full unit suite: **3,883 pass, 0 fail**.
+- Chrome full browser suite: **93 pass, 10 skip, 0 fail**, including all four required #5 examples through individual Apply and native undo, with Fix all unavailable.
+- Production Chrome and Firefox builds: passed. Coverage mapping: **192 behaviors**.
+- Firefox runtime remains unverified due to the previously reproduced launch blocker; browser tests were not rerun for this detector-only checkpoint.
+- Logs: `/tmp/ft-native-possessives-{focused,red,check,unit,full-chrome,build-chrome,build-firefox,benchmark}.log`.
+
+Synthetic scan costs (Bun 1.4.2, only these three IDs enabled, 5 warmups then median of 21 full native scans; no AI/spelling/DOM):
+
+| Characters | Clean (ms) | Dense errors (ms) | Dense findings |
+| ---------- | ---------- | ----------------- | -------------- |
+| 1,000      | 0.056      | 0.149             | 40             |
+| 10,000     | 0.308      | 1.033             | 412            |
+| 50,000     | 1.639      | 9.650             | 2,061          |
+
+Error phrase: `The router lost it's connection. Its ready to use. Lets try again. This is someone elses folder. `. Clean phrase applies all four intended repairs. Repeat/truncate to size with whole-text scope. These fixture costs are not an isolated before/after performance claim.
+
+Production JS delta against #8's final full-suite build (`production-chrome-full-43744-1790705611229`): content script **+7,050 bytes**, background **+1,215**, settings **+4,052**, popup **+1,106**. Candidate: `production-chrome-full-44849-1790706188375`. No new dependencies, permissions or typing behavior.
+
+Next: #6 fixed prepositions. Six of twenty features implemented; full roadmap completion still requires the remaining features and Firefox runtime validation.

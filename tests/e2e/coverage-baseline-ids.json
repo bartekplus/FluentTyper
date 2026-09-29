@@ -192,6 +192,7 @@
     "local_ai_stable_recheck_pairs",
     "local_ai_cold_cache_recheck",
     "review_repeated_words",
-    "review_independent_rule_controls"
+    "review_independent_rule_controls",
+    "review_contextual_possessives"
   ]
 }

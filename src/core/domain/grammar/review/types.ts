@@ -53,6 +53,10 @@ interface ReviewAlternative {
 }
 
 export type ReviewMessageKey =
+  | "review_msg_its_possessive"
+  | "review_msg_its_contraction"
+  | "review_msg_lets_contraction"
+  | "review_msg_else_possessive"
   | "review_msg_existential_agreement"
   | "review_msg_then_than"
   | "review_msg_your_you_are"

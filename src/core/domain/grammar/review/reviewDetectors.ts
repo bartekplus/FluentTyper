@@ -1,3 +1,4 @@
+import { contextualPossessives } from "./englishPossessives";
 import { additionalPronounAgreement, existentialAgreement } from "./englishAgreement";
 import { wordConfusions } from "./englishWordConfusions";
 import { auxiliaryForms } from "./englishAuxiliaryForms";
@@ -1080,6 +1081,10 @@ const repeatedWords: Detector = (ctx) => {
 
 /** Review detectors by rule. Rules absent here are excluded from review (see reviewCatalog). */
 export const REVIEW_DETECTORS: ReadonlyArray<{ rules: CatalogRuleId[]; detect: Detector }> = [
+  {
+    rules: ["englishItsContext", "englishLetsContext", "englishElsePossessive"],
+    detect: contextualPossessives,
+  },
   { rules: ["englishRepeatedWords"], detect: repeatedWords },
   { rules: ["englishAuxiliaryBaseVerb"], detect: auxiliaryForms },
   {
