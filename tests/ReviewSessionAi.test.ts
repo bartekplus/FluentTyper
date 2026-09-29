@@ -471,6 +471,27 @@ describe("ReviewSession with Local AI: Correct", () => {
     expect(unresolved.last().diagnostics).toEqual([]);
   });
 
+  test("with auto-detect, a language resolved for text that changed meanwhile is not kept", async () => {
+    const answers: Array<(lang: string) => void> = [];
+    const h = harness("Nous avons vu teh chat.", {
+      ai: null,
+      lang: "auto_detect",
+      deps: { resolveAutoLanguage: () => new Promise<string>((resolve) => answers.push(resolve)) },
+    });
+    const started = h.start();
+    await h.settle({ aiDelay: false });
+    h.editor.text = TEXT;
+    h.session.notifySourceChanged();
+    answers[0]("fr_FR");
+    await h.settle({ aiDelay: false });
+    // The new text resolves its own language.
+    expect(answers).toHaveLength(2);
+    answers[1]("en_US");
+    await started;
+    await h.settle();
+    expect(h.last().diagnostics.map((d) => d.original)).toEqual(["teh"]);
+  });
+
   test("with auto-detect, the text's identified language gates Local AI and names the request", async () => {
     const english = harness(TEXT, {
       lang: "auto_detect",

@@ -1029,8 +1029,10 @@ export class ReviewSession {
     const resolve = this.deps.resolveAutoLanguage;
     if (this.options.lang === AUTO_DETECT && this.reviewLang === null && resolve) {
       const sample = this.text.slice(fullScope.start, Math.min(cutEnd, fullScope.start + 4000));
-      this.reviewLang = await resolve(sample).catch(() => AUTO_DETECT);
+      const lang = await resolve(sample).catch(() => AUTO_DETECT);
+      // Kept only for the text it was resolved from: a newer scan resolves its own.
       if (generation !== this.generation || this.isClosed) return;
+      this.reviewLang = lang;
     }
     const prepared = prepareReview(
       {
