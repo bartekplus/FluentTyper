@@ -323,8 +323,8 @@ check. This uses the existing cache-state verifier and does not add a network re
 Validator experiment (2026-09-29): `She dont knows.` → `She doesn't know.`
 now passes as one atomic finding. The same local pattern works inside longer
 sentences and for `I`, `you`, `we`, or `they` with `doesn't` → `don't`. The
-subject's text must be unchanged, the following verb must return to its base
-form, and spacing/punctuation inside each change must be unchanged. Multiple
+subject's text must be unchanged, the following verb must match its exact
+third-person spelling, and spacing/punctuation inside each change must be unchanged. Multiple
 proved repairs can exceed the 50% changed-word share together; the four-word
 unit limit and other guards still apply. Correct-mode rejection counts now
 distinguish changed-word share, lexical substitution, optional style, and

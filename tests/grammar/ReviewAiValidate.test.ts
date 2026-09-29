@@ -114,6 +114,21 @@ describe("correctionFindings", () => {
         .applied,
     ).toBe("Yesterday she doesn't know the answer.");
     expect(correctOne("They doesnt knows.", "They don't know.").applied).toBe("They don't know.");
+    expect(correctOne("She dont miss.", "She doesn't mis.").rejected).toEqual({
+      "drift.changed_word_share": 1,
+    });
+    expect(correctOne("She dont cross.", "She doesn't cros.").rejected).toEqual({
+      "drift.changed_word_share": 1,
+    });
+    expect(correctOne("She dont has.", "She doesn't ha.").rejected).toEqual({
+      "drift.changed_word_share": 1,
+    });
+    expect(correctOne("She dont misses.", "She doesn't miss.").applied).toBe("She doesn't miss.");
+    expect(correctOne("She dont crosses.", "She doesn't cross.").applied).toBe(
+      "She doesn't cross.",
+    );
+    expect(correctOne("She dont has.", "She doesn't have.").applied).toBe("She doesn't have.");
+    expect(correctOne("She dont tries.", "She doesn't try.").applied).toBe("She doesn't try.");
     const dense = correctOne(
       "She dont knows, but he dont cares.",
       "She doesn't know, but he doesn't care.",

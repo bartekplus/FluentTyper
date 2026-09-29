@@ -815,6 +815,23 @@ const MAX_UNIT_WORDS = 4;
 /** Above this share of changed words a proposal is a rewrite, not a correction. */
 const MAX_CHANGED_SHARE = 0.5;
 
+/** Exact English third-person spelling; a suffix alone would turn "miss" into "mis". */
+function isThirdPersonForm(base: string, inflected: string): boolean {
+  const family = familyOf(inflected);
+  if (family !== undefined && family !== familyOf(base)) return false;
+  const expected =
+    base === "have"
+      ? "has"
+      : base === "do" || base === "go"
+        ? `${base}es`
+        : /[^aeiou]y$/.test(base)
+          ? `${base.slice(0, -1)}ies`
+          : /(?:s|x|z|ch|sh)$/.test(base)
+            ? `${base}es`
+            : `${base}s`;
+  return inflected === expected;
+}
+
 /** A local subject–negative auxiliary–base verb repair, with every other token untouched. */
 function negativeAuxiliaryAgreement(
   original: readonly Token[],
@@ -835,7 +852,7 @@ function negativeAuxiliaryAgreement(
     after.length === 2 &&
     ((singular && ["dont", "don't"].includes(before[0]) && after[0] === "doesn't") ||
       (plural && ["doesnt", "doesn't"].includes(before[0]) && after[0] === "don't")) &&
-    pluralOf(after[1], before[1]) === before[1] &&
+    isThirdPersonForm(after[1], before[1]) &&
     removed
       .filter((token) => token.kind !== "word")
       .map((token) => token.text)
