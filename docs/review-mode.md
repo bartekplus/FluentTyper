@@ -170,6 +170,10 @@ Supported (**Typing** is the rule's default for typing; Review has separate swit
 | `duplicatePunctuationCollapse`         | all      | off         | punctuation | yes                                                                                               |
 
 Agreement retains the six original typing pairs and their existing bulk rules.
+`englishNounNumber` is a separate native Review-only check using the shared authored noun-pair map (now including device/devices). It handles complete `one of the` clauses, explicit counts zero–ten or up to four ungrouped digits, and these/those followed by a known singular noun and a supported predicate. Explicit counts retain their value and change only noun inflection; `one of the` pluralizes the set noun while leaving its outer singular subject and verb untouched.
+
+For these/those, a following are/were establishes plural and is/was establishes singular. Past predicates such as failed/arrived/returned do not establish number: the existing choice-card UI offers either pluralizing the noun or changing the demonstrative to this/that, with nothing preselected. All findings remain individual-only. Complete bounded predicates/locations prevent noun-modifier edits such as `those file names`. Unknown/invariant nouns, data/news/series, units, ordinal tokens, grouped/decimal/fractional numbers, technical model labels and hyphenated measurements abstain. Quantity repair can make a separate existential-agreement finding available on the next scan; it never changes the number to fit the verb.
+
 `englishPerfectParticiples` is a separate Review-only check for pronoun + have/has/had followed by a known simple-past form where the shared verb table specifies a different participle. Thirteen listed verb/argument frames supply complete grammatical evidence. It changes only that verb. Up to two listed adverbs (including not), negative auxiliaries and unambiguous `'ve`/`’ve` contractions are supported. Wrong have/has agreement is left to the existing agreement check, with the participle reconsidered on the next scan.
 
 Possessive and causative have, noun uses such as `have saw blades`, shared past/participle forms (read/cut/set), unlisted morphology, unknown complements and ambiguous `'s`/`'d` contractions abstain. Regional learned/learnt, burned/burnt, got/gotten and other unlisted forms remain untouched. Existing auxiliary, spelling and typing behavior is unchanged; findings stay individual-only.
@@ -200,7 +204,7 @@ examples, technical/mixed-case identifiers and unfinished phrases abstain.
 The independent `englishExistentialAgreement` check recognizes clause-opening
 There is/are + optional not + an explicit quantity + a known countable noun,
 optionally with one listed adjective and a simple location phrase. Quantity and
-noun number must agree before the verb can be repaired. Its 14 authored noun pairs
+noun number must agree before the verb can be repaired. Its 15 authored noun pairs
 include child/children, person/people and mouse/mice; no noun suffix guessing is used.
 Unknown, collective and invariant-number nouns, coordinated subjects, relative
 clauses, hard-wrapped continuations and contradictory quantity/noun combinations

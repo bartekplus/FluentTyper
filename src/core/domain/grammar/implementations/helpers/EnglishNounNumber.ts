@@ -1,5 +1,6 @@
 /** Authored countable nouns; no suffix inference, collectives or invariant-number guesses. */
 const PAIRS = [
+  ["device", "devices"],
   ["error", "errors"],
   ["problem", "problems"],
   ["file", "files"],
@@ -16,16 +17,21 @@ const PAIRS = [
   ["mouse", "mice"],
 ] as const;
 
-const NUMBER = new Map<string, "singular" | "plural">(
-  PAIRS.flatMap(
-    ([singular, plural]) =>
-      [
-        [singular, "singular"],
-        [plural, "plural"],
-      ] as [string, "singular" | "plural"][],
-  ),
+const FORMS = new Map<string, { singular: string; plural: string }>(
+  PAIRS.flatMap(([singular, plural]) => {
+    const forms = { singular, plural };
+    return [
+      [singular, forms],
+      [plural, forms],
+    ] as const;
+  }),
 );
 
+export function englishNounForms(word: string): { singular: string; plural: string } | null {
+  return FORMS.get(word.toLowerCase()) ?? null;
+}
+
 export function knownEnglishNounNumber(word: string): "singular" | "plural" | null {
-  return NUMBER.get(word.toLowerCase()) ?? null;
+  const forms = englishNounForms(word);
+  return forms ? (word.toLowerCase() === forms.singular ? "singular" : "plural") : null;
 }

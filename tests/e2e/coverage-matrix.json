@@ -3756,6 +3756,32 @@
           "test": "perfect participles preserve dictionary, language, scope and protected evidence"
         }
       ]
+    },
+    {
+      "id": "review_noun_number",
+      "description": "Native noun-number checks preserve explicit quantity and outer agreement, protect noun modifiers/invariant forms, and require a user choice when demonstrative number is ambiguous.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review native grammar applies individual edits with native undo"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review noun-number alternatives require a choice and preserve the chosen quantity"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewNounNumber.test.ts",
+          "test": "shared noun forms are explicit and existential agreement follows quantity repair"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewNounNumber.test.ts",
+          "test": "number findings preserve dictionary, scope, language and protected evidence"
+        }
+      ]
     }
   ]
 }

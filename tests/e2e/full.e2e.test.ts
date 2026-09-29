@@ -6998,6 +6998,13 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         ["They forgot there own password.", "They forgot their own password.", "there → their"],
         ["Your going to like this.", "You're going to like this.", "Your → You're"],
         ["The box is to heavy to lift.", "The box is too heavy to lift.", "to → too"],
+        ["One of the device failed.", "One of the devices failed.", "device → devices"],
+        [
+          "We found two error in the report.",
+          "We found two errors in the report.",
+          "error → errors",
+        ],
+        ["Those file are missing.", "Those files are missing.", "file → files"],
         ["I have went through the report.", "I have gone through the report.", "went → gone"],
         ["She has wrote the summary.", "She has written the summary.", "wrote → written"],
         ["We had took the wrong turn.", "We had taken the wrong turn.", "took → taken"],
@@ -7038,6 +7045,40 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       }
     },
     browserTimeout(30000, 45000),
+  );
+
+  test(
+    "Review noun-number alternatives require a choice and preserve the chosen quantity",
+    async () => {
+      for (const [index, expected] of [
+        [0, "Those files failed."],
+        [1, "That file failed."],
+      ] as const) {
+        await prepareReviewPage();
+        const source = "Those file failed.";
+        await setTextarea(source);
+        await triggerReview(worker!);
+        const panel = await waitForReview(page, "number alternatives", (p) =>
+          p.items.some((item) => item.text === "Those file → Those files / That file"),
+        );
+        expect(panel.fixAll).toMatchObject({ text: "Fix all safe (0)", disabled: true });
+        await clickReviewControl(page, ".item");
+        const card = await waitForReview(page, "number choice", (p) => p.card.open);
+        expect(card.card.text).toContain("Choose singular or plural");
+        expect(await textareaValue()).toBe(source);
+        await clickReviewControl(page, `.card button.suggestion[data-index="${index}"]`);
+        await waitUntil("chosen number", async () => (await textareaValue()) === expected, {
+          timeoutMs: 5000,
+        });
+        await waitForReview(page, "number rechecked", (p) => p.items.length === 0);
+        await pressNativeUndo(page, "#test-textarea");
+        await waitUntil("number undo", async () => (await textareaValue()) === source, {
+          timeoutMs: 5000,
+        });
+        await finishReview();
+      }
+    },
+    browserTimeout(20000, 30000),
   );
 
   test(

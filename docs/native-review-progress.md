@@ -16,7 +16,7 @@ Execute sequentially: 1, 2, 3, 4, 8, 5, 6, 7, 9–20. Native TypeScript, individ
 | 7   | Verb complements               | Implemented; Chrome verified; Firefox launch blocked     |
 | 8   | Independent Review controls    | Implemented; Chrome verified; Firefox launch blocked     |
 | 9   | Participles                    | Implemented; Chrome verified; Firefox permission blocked |
-| 10  | Demonstratives and noun number | Pending                                                  |
+| 10  | Demonstratives and noun number | Implemented; Chrome verified; Firefox permission blocked |
 | 11  | Compounds                      | Pending                                                  |
 | 12  | Countability                   | Pending                                                  |
 | 13  | Comparatives                   | Pending                                                  |
@@ -268,3 +268,31 @@ Error phrase: `I have went through the report. She has wrote the summary. We had
 Production JS delta against #7's retained build (`production-chrome-full-47095-1790707038158`): content script **+3,334 bytes**, background **+694**, settings **+1,407**, popup **+385**. Candidate: `production-chrome-full-48207-1790707458323`; subsequent changes only repair the browser test helper. No dependency, permission or typing behavior added.
 
 Next: #10 demonstratives and noun number. Overall completion remains pending the remaining features and Firefox runtime validation.
+
+## #10 demonstratives and noun-number constructions
+
+The Review-only `englishNounNumber` identity reuses the shared noun-pair map, adding device/devices and exposing explicit singular/plural forms. Fifteen known pairs; no suffix-based number inference. Complete one-of-the clauses preserve the outer singular subject/verb while pluralizing the set noun. Explicit ungrouped counts preserve their number and repair only the noun. Demonstrative clauses use are/were versus is/was as evidence; failed/arrived/returned leave quantity ambiguous, so the existing choice-card UI offers plural-noun and singular-demonstrative repairs with no preselection. Four localized explanations cover all nine UI languages. All new findings remain individual-only.
+
+Focused #10 corpus: **126 pass**: 36 single-repair examples, four ambiguous two-choice examples, 83 preservation cases and three pipeline tests. Combined with the existing #4 corpus: **243 pass**. Authored cases produce the expected repair(s), no target-family findings on preservation cases and no recorrection. These results do not establish general English accuracy. Noun modifiers, invariant/plural-looking nouns, data/news/series, ordinal tokens, model labels, units, measurements, grouped counts, Unicode, protected evidence and all chunk splits are covered. A chained test proves quantity repair occurs before the independent existential-agreement repair.
+
+Self-review caught a grouped-number boundary error: the suffix `001` of `1,001` could have been interpreted as singular. Grouped numeric tokens with comma, ordinary space, NBSP or narrow NBSP now abstain. Final tests exercise the actual new guard. A prior concurrently started unit run loaded the earlier detector before those three additional fixtures; final-source rerun is the authoritative result below.
+
+- Final-source full unit suite: **4,312 pass, 0 fail**. Final-source Chrome full browser suite: **95 pass, 10 skip, 0 fail**.
+- First Chrome run: **95 pass, 10 skip, 0 fail**, including all three required #10 repairs and both ambiguous quantity choices through native Apply/recheck/undo. Final-source rerun covers the added grouped-number guards.
+- `bun run check`: passed. Coverage mapping: **196 behaviors**.
+- Production Chrome/Firefox builds: passed. Firefox runtime is still pending the previously requested macOS permission.
+- Logs: `/tmp/ft-native-number-{focused,check,unit-final,full-chrome-final,build-chrome,build-firefox,benchmark}.log`.
+
+Synthetic scan costs (Bun 1.4.2, this ID only, 5 warmups then median of 21 full native scans; no AI/spelling/DOM):
+
+| Characters | Clean (ms) | Dense errors (ms) | Dense findings |
+| ---------- | ---------- | ----------------- | -------------- |
+| 1,000      | 0.098      | 0.146             | 35             |
+| 10,000     | 0.696      | 1.045             | 357            |
+| 50,000     | 3.793      | 7.417             | 1,785          |
+
+Error phrase: `One of the device failed. We found two error in the report. Those file are missing. `. Clean phrase applies the three intended repairs. Repeat/truncate with whole-text scope. These local fixture costs are not an isolated before/after performance claim.
+
+Production JS delta against #9's retained build (`production-chrome-full-48207-1790707458323`): content script **+5,860 bytes**, background **+1,142**, settings **+3,360**, popup **+378**. Candidate: `production-chrome-full-54178-1790708264999`. No dependency, permission or typing behavior added.
+
+Next: #11 compounds. Full completion still requires the remaining ten features and Firefox runtime validation.

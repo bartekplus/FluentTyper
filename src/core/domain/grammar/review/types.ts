@@ -53,6 +53,10 @@ interface ReviewAlternative {
 }
 
 export type ReviewMessageKey =
+  | "review_msg_noun_count"
+  | "review_msg_noun_choice"
+  | "review_msg_demonstrative_number"
+  | "review_msg_one_of"
   | "review_msg_perfect_participle"
   | "review_msg_verb_complements"
   | "review_msg_missing_to"

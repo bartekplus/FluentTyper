@@ -1,3 +1,4 @@
+import { nounNumberConstructions } from "./englishNounNumber";
 import { perfectParticiples } from "./englishParticiples";
 import { verbComplements } from "./englishComplements";
 import { fixedPrepositions } from "./englishPrepositions";
@@ -105,6 +106,7 @@ export interface RawFinding {
   /** A finding the rule's metadata would batch but this instance must not. */
   bulkBlock?: "context-dependent" | "ambiguous";
   dictionaryWord?: string;
+  requiresChoice?: true;
 }
 
 type Detector = (ctx: DetectContext) => RawFinding[];
@@ -1091,6 +1093,7 @@ export const REVIEW_DETECTORS: ReadonlyArray<{ rules: CatalogRuleId[]; detect: D
   { rules: ["englishFixedPrepositions"], detect: fixedPrepositions },
   { rules: ["englishVerbComplements"], detect: verbComplements },
   { rules: ["englishPerfectParticiples"], detect: perfectParticiples },
+  { rules: ["englishNounNumber"], detect: nounNumberConstructions },
   { rules: ["englishRepeatedWords"], detect: repeatedWords },
   { rules: ["englishAuxiliaryBaseVerb"], detect: auxiliaryForms },
   {
