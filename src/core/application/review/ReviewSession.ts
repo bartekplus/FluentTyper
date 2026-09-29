@@ -1400,7 +1400,12 @@ export class ReviewSession {
     let invalid = false;
     let plan: AiChunkPlan;
     try {
-      plan = buildAiChunks(prepared, { mode: "correct", style: null });
+      plan = buildAiChunks(prepared, {
+        mode: "correct",
+        style: null,
+        // Pairing was evaluated on Gemma; Compact keeps single-sentence requests.
+        pairSentences: this.aiStatus?.tier === "standard",
+      });
     } catch {
       plan = { chunks: [], skipped: { protected: 0, unsafe: 0, limit: 0 } };
       invalid = true;

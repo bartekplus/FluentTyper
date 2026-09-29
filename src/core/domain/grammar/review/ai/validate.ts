@@ -1100,9 +1100,9 @@ const OPENING_QUOTES = /^["“„«‘]$/;
 
 /**
  * True when a hunk only makes a style or dialect choice that correct text may
- * go either way on: a comma after a sentence-initial interjection or before an
- * opening quote, subjunctive "were" after "if"/"wish", the case of the first
- * letter after a colon, or verb number with a noun used both ways
+ * go either way on: a comma after a sentence-initial interjection, before
+ * "too" or an opening quote, subjunctive "were" after "if"/"wish", the case
+ * of the first letter after a colon, or verb number with a noun used both ways
  * ("the data are", "the staff is").
  */
 function styleChoice(
@@ -1122,6 +1122,7 @@ function styleChoice(
     const word = original[before];
     if (word?.kind === "word" && starts[before] && INTERJECTIONS.has(lower(word.text))) return true;
     if (OPENING_QUOTES.test(original[after]?.text ?? "")) return true;
+    if (lower(original[after]?.text ?? "") === "too") return true;
   }
   if (removed.length !== 1 || added.length !== 1) return false;
   const [from, to] = [lower(removed[0].text), lower(added[0].text)];

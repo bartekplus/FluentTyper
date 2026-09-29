@@ -17,14 +17,16 @@ export interface AiChunkOptions {
   style: ConcreteRewriteStyle | null;
   /** Editable characters per chunk (conservative pre-check before the runtime's token budget). */
   maxChunkChars?: number;
+  /** Correct only: disable for models evaluated with one sentence per request. */
+  pairSentences?: boolean;
 }
 
 /**
- * Correct sends one sentence per request: with several sentences in one
- * request, small models fixed the first and copied the rest back (real-GPU
- * run on a user's paragraph), and results now appear sentence by sentence.
- * The neighbouring sentences still go along as read-only context. Rewrite
- * keeps larger chunks so each request sees more of the passage.
+ * Correct pairs short sentences to amortize the prompt, retaining separate
+ * editable ranges and read-only context. Pairs stay within 200 characters;
+ * longer sentences keep the 400-character allowance on their own. Larger
+ * pairs missed a quantifier correction in the Gemma stress test.
+ * Rewrite keeps larger chunks (docs/local-ai-evaluation.md).
  */
 const CORRECT_CHUNK_CHARS = 400;
 const REWRITE_CHUNK_CHARS = 1_200;
@@ -69,7 +71,7 @@ export function buildAiChunks(prepared: PreparedReview, options: AiChunkOptions)
   const source = prepared.snapshot.text;
   const scope = prepared.snapshot.scope;
   const rewrite = options.mode === "rewrite";
-  const segmentsPerChunk = rewrite ? MAX_AI_SEGMENTS : 1;
+  const segmentsPerChunk = rewrite ? MAX_AI_SEGMENTS : options.pairSentences === false ? 1 : 2;
   const chunkChars = options.maxChunkChars ?? (rewrite ? REWRITE_CHUNK_CHARS : CORRECT_CHUNK_CHARS);
   const totalChars = rewrite ? REWRITE_TOTAL_CHARS : CORRECT_TOTAL_CHARS;
   const skipped = { protected: 0, unsafe: 0, limit: 0 };
@@ -154,7 +156,16 @@ export function buildAiChunks(prepared: PreparedReview, options: AiChunkOptions)
   }
   if (group.length > 0) groups.push(group);
 
-  const chunks = groups.map((members) => {
+  // Keep pair boundaries stable: greedily repacking after a long sentence
+  // shifted its neighbours and missed article fixes in the Gemma evaluation.
+  const boundedGroups = rewrite
+    ? groups
+    : groups.flatMap((members) =>
+        members.length === 2 && members.reduce((sum, draft) => sum + draftLength(draft), 0) > 200
+          ? members.map((draft) => [draft])
+          : [members],
+      );
+  const chunks = boundedGroups.map((members) => {
     let counter = 0;
     const segments: AiSegment[] = members.map((draft, index) => {
       const holders: AiPlaceholder[] = draft.placeholders.map((range) => ({

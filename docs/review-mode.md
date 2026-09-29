@@ -260,12 +260,21 @@ were evaluated on. For another review language the panel says so once, and the r
 dictionary checks work as always.
 
 **Correct (the default).** When a review opens, the rule and dictionary results appear
-first, as always. Then the model checks the scope in the background, one sentence at a
-time with its neighbours as read-only context ("Checking context locally…"), and adds
+first, as always. Then the model checks the scope in the background, up to two short
+sentences per request with their neighbours as read-only context ("Checking context
+locally…"), and adds
 what it finds to the same list as it goes, tagged **Local AI**. It is asked to fix clear
 errors (spelling, missing apostrophes, agreement, verb forms, articles, wrong words such
 as "then/than", day and month capitals, double negatives) and to leave correct wording
-alone: no polishing or rephrasing. Every proposal is checked before it is shown:
+alone: no polishing or rephrasing.
+
+Gemma pairs contain at most 200 editable characters and keep separate IDs and ranges. Larger
+pairs are sent as two individual requests without regrouping their neighbours; a lone
+sentence retains its 400-character limit. Compact keeps single-sentence requests.
+See the measured tradeoffs in
+[Local AI evaluation](local-ai-evaluation.md#gemma-correct-batching-2026-09-29).
+
+Every proposal is checked before it is shown:
 
 - only the reviewed scope is sent, with at most a few hundred characters of nearby text
   from the same field as read-only context; code, URLs, e-mail addresses, paths and other

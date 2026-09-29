@@ -29,7 +29,7 @@ function prepared(
 }
 
 const CORRECT: AiChunkOptions = { mode: "correct", style: null };
-// Rewrite packs several sentences per chunk; Correct sends one (see below).
+// Rewrite packs several sentences per chunk; Correct packs at most two.
 const PACKED: AiChunkOptions = { mode: "rewrite", style: "concise" };
 
 function plan(text: string, extra: Parameters<typeof prepared>[1] = {}, options = PACKED) {
@@ -54,15 +54,41 @@ function expectExactMapping(text: string, chunks: AiChunk[]) {
 }
 
 describe("buildAiChunks", () => {
-  test("Correct sends one sentence per request, with its neighbours as read-only context", () => {
-    const { chunks } = plan("One is here. Two is here. Three is here.", {}, CORRECT);
+  test("Correct pairs sentences, keeping separate ids, ranges and surrounding context", () => {
+    const text = "One is here. Two is here. Three is here.";
+    const { chunks } = plan(text, {}, CORRECT);
     expect(chunks.map((chunk) => texts([chunk]))).toEqual([
-      ["One is here."],
-      ["Two is here."],
+      ["One is here.", "Two is here."],
       ["Three is here."],
     ]);
-    expect(chunks[1].contextBefore).toContain("One is here.");
-    expect(chunks[1].contextAfter).toContain("Three is here.");
+    expect(chunks[0].segments.map((segment) => segment.id)).toEqual(["s0", "s1"]);
+    expect(chunks[1].segments[0].id).toBe("s0");
+    expect(chunks[0].contextAfter).toBe("Three is here.");
+    expect(chunks[1].contextBefore).toBe("One is here. Two is here.");
+    expectExactMapping(text, chunks);
+  });
+
+  test("Correct pairs respect the character cap and give protected tokens unique ids", () => {
+    const text = "See https://one.example here. Then https://two.example there. Last sentence.";
+    const { chunks } = plan(text, {}, CORRECT);
+    expect(texts([chunks[0]])).toEqual(["See ⟦1⟧ here.", "Then ⟦2⟧ there."]);
+    expectExactMapping(text, chunks);
+    const bounded = plan(text, {}, { ...CORRECT, maxChunkChars: 20 });
+    expect(bounded.chunks).toHaveLength(3);
+    expectExactMapping(text, bounded.chunks);
+  });
+
+  test("Correct splits oversized pairs without splitting sentences or repacking neighbours", () => {
+    const long = `This sentence ${"has more detail ".repeat(14)}at the end.`;
+    const text = `${long} Next sentence. Third sentence. Last sentence.`;
+    const { chunks, skipped } = plan(text, {}, CORRECT);
+    expect(chunks.map((chunk) => texts([chunk]))).toEqual([
+      [long],
+      ["Next sentence."],
+      ["Third sentence.", "Last sentence."],
+    ]);
+    expect(skipped).toEqual({ protected: 0, unsafe: 0, limit: 0 });
+    expectExactMapping(text, chunks);
   });
 
   test("splits sentences, keeps abbreviations, and turns a URL into a placeholder", () => {

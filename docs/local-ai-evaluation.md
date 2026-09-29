@@ -107,6 +107,83 @@ faster but raised correct-text changes for most models; not adopted.
 - Four further Correct-prompt variants gained at most 4 of 45 held-out fixes, on a held-out
   set that had informed them; not adopted.
 
+## Gemma Correct batching (2026-09-29)
+
+**Applied for Recommended (Gemma); Compact keeps single-sentence requests.** Form pairs
+in document order, then send a pair together only when its
+editable text fits within 200 characters. Split larger pairs into two single requests
+without regrouping their neighbours. Individual sentences retain the existing
+400-character limit; context remains 300 characters on each side. Segment IDs, protected
+markers, validation, cancellation, the session cache and the `review-ai-3` prompt stay
+on the existing paths. Gemma 4 E4B, its revision and precision are unchanged.
+
+Real-GPU evaluation used the pinned `843f250f23bc91754def1e0f0db390dacd1e6b05`
+ONNX export, q4f16, Transformers.js 4.3.0, Chrome 154 and Apple Metal WebGPU. The base was
+`f61e6bd5`, including the pending validator guard against optional commas before “too”.
+
+| Check                                             |           One segment |          Stable pairs |
+| ------------------------------------------------- | --------------------: | --------------------: |
+| Requests for the supplied broken stress passage   |                    98 |                    58 |
+| Requests for its corrected reference              |                   102 |                    59 |
+| Accepted changes to the corrected reference       |                     0 |                     0 |
+| Regression fixtures with identical accepted text  |                     — |               230/230 |
+| Correct-text fixtures changed                     |                 0/119 |                 0/119 |
+| Accepted expected fixes: dense / held-out / other | 70/91 / 38/45 / 69/69 | 70/91 / 38/45 / 69/69 |
+| Fresh timing round 1: same 24 sentences           |               55.07 s |               37.92 s |
+| Fresh timing round 2: same 24 sentences           |               55.65 s |               38.41 s |
+
+The two timing rounds alternated single-first and pair-first order with a warm model,
+without overlapping builds or browser tests. Paired work took **31.1% less generation
+time** overall (31.1% and 31.0% in the individual rounds), using 48.2% fewer input tokens.
+This is a measurement of the sentences eligible for pairing, not a claim that the whole
+review is 31.1% faster. Median time to one response increased from 2.28 s for a single
+sentence to 3.19 s for a pair; the rules still appear immediately.
+
+All 24 fresh pair outputs and 48 fresh single outputs exactly matched the evaluated outputs. Quality evaluation
+first generated both complete stress passages and all 230 regression fixtures with
+400-character pairs. The final planner's 117 stress requests and 234 fixture requests
+all matched a measured prompt and response shape from that run or the saved single-segment requests;
+we replayed their raw results through the current validator. No unmeasured request was
+substituted. The fixtures' accepted text stayed identical, including the dense paragraph.
+The 70/91 baseline includes the existing decision to preserve the dialect choice
+“Our team have”; the older table above predates that validator guard.
+
+In the complete ReviewSession replay, including rules and Presage spelling, the broken
+passage produces 154 cards versus 155 before: “User” becomes “The user” rather than
+“Users”, and an optional comma after an introductory date phrase is no longer offered.
+The month capitalization remains covered by the rules. Neither change loses a required
+grammar correction. The corrected passage produces zero cards through this combined path as well.
+Finding counts are not recall: multiple cards can refer to one expected correction, and
+quoted examples, protected content and style choices remain deliberately restricted.
+
+Two rejected alternatives explain the limits:
+
+- Unrestricted two-segment/400-character pairs were faster and passed the 230 fixtures,
+  but the stress passage lost “many” → “much” before “useful feedback”.
+- Greedily packing to 200 characters moved pair boundaries and copied an article-heavy
+  sentence unchanged, losing four previously accepted fixes. Splitting oversized pairs
+  without regrouping preserves those fixes.
+
+The smaller 24-sentence probe had missed both effects. Removing context was also left
+out: its roughly 9% speed gain came with changed findings, including a missed punctuation
+fix. Prompt shortening and changing the JSON contract were not part of this change.
+
+The temporary benchmark driver was restored from `250a077b` under
+`/tmp/fluenttyper-stress-root/scripts/local-ai-bench/`; it imports the current product
+prompt, chunker, parser and validator. Raw local evidence is in
+`.cache/local-ai-bench/results/gemma-stable-pairs-2026-09-29.json` and the corresponding
+`gemma-wide-pairs-2026-09-29.json`. These ignored files contain the supplied test passage
+and are not packaged with the extension. Regression tests cover pair boundaries,
+character limits, protected markers, independent validation, progressive findings,
+staleness and cache reuse.
+
+Validation: `bun run check`, the complete unit suite, Chrome smoke and full E2E,
+coverage-matrix validation, and Chrome/Firefox production artifact checks passed.
+Firefox full E2E remains unverified: after installing the required Puppeteer Firefox,
+both it and the system Firefox exited before startup with “Could not find profile
+folder”, including explicit temporary profiles. This was a browser-startup failure,
+not a passing Firefox regression run.
+
 ## Languages
 
 English only. Both earlier shipped models damaged the Polish rewrite fixture rw-pl-02

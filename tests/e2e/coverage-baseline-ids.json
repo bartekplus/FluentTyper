@@ -182,6 +182,7 @@
     "local_ai_autocomplete_separation",
     "local_ai_install_authorization",
     "local_ai_preference_off",
-    "local_ai_host_unsupported"
+    "local_ai_host_unsupported",
+    "local_ai_correct_pairing"
   ]
 }

@@ -3442,6 +3442,52 @@
           "test": "without an engine (Firefox) everything is host-unsupported"
         }
       ]
+    },
+    {
+      "id": "local_ai_correct_pairing",
+      "description": "Gemma Correct batches at most two segments within 200 characters, splits oversized pairs without regrouping or shortening lone sentences, and keeps separate offsets, protected markers, progressive results, cancellation and exact-request caching. Compact keeps single-sentence requests.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewAiSegments.test.ts",
+          "test": "Correct pairs sentences, keeping separate ids, ranges and surrounding context"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewAiSegments.test.ts",
+          "test": "Correct pairs respect the character cap and give protected tokens unique ids"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewAiSegments.test.ts",
+          "test": "Correct splits oversized pairs without splitting sentences or repacking neighbours"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewAiValidate.test.ts",
+          "test": "a rejected segment in a Correct pair does not hide its neighbour's fix"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSessionAi.test.ts",
+          "test": "rule findings are shown first; AI findings join when the model answers"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSessionAi.test.ts",
+          "test": "typing during generation drops the answer; the pass restarts after the AI pause"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSessionAi.test.ts",
+          "test": "answers are reused only for identical requests"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSessionAi.test.ts",
+          "test": "Compact keeps single-sentence requests; Gemma pairs them"
+        }
+      ]
     }
   ]
 }

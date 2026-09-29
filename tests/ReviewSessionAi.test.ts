@@ -217,7 +217,7 @@ const TEXT = "We saw teh cat. She go home now.";
 
 describe("ReviewSession with Local AI: Correct", () => {
   test("rule findings are shown first; AI findings join when the model answers", async () => {
-    const h = harness(TEXT);
+    const h = harness(`${TEXT} Everything is ready.`);
     h.ai.auto = false;
     await h.start();
     expect(h.last().status).toBe("ready");
@@ -235,11 +235,15 @@ describe("ReviewSession with Local AI: Correct", () => {
       "style",
     ]);
 
-    // One sentence per request, in document order, one at a time.
-    expect(h.ai.requests[0].request.segments.map((s) => s.text)).toEqual(["We saw teh cat."]);
+    // Two separately editable sentences per request, one request at a time.
+    expect(h.ai.requests[0].request.segments).toEqual([
+      { id: "s0", text: "We saw teh cat." },
+      { id: "s1", text: "She go home now." },
+    ]);
     h.ai.requests[0].answer();
     await h.settle();
     expect(h.last().ai.coverage).toBe("checking");
+    expect(h.aiFindings().map((d) => d.original)).toEqual(["go"]);
     expect(h.ai.requests).toHaveLength(2);
     h.ai.requests[1].answer();
     await h.settle();
@@ -250,6 +254,24 @@ describe("ReviewSession with Local AI: Correct", () => {
     ]);
     expect(h.last().ai.coverage).toBe("complete");
     expect(h.editor.applyCalls).toEqual([]);
+  });
+
+  test("Compact keeps single-sentence requests; Gemma pairs them", async () => {
+    const compact = harness(TEXT);
+    compact.ai.current = status({ tier: "compact" });
+    await compact.start();
+    expect(compact.ai.requests.map(({ request }) => request.segments.map((s) => s.text))).toEqual([
+      ["We saw teh cat."],
+      ["She go home now."],
+    ]);
+    const gemma = harness(TEXT);
+    await gemma.start();
+    expect(gemma.ai.requests.map(({ request }) => request.segments.map((s) => s.text))).toEqual([
+      ["We saw teh cat.", "She go home now."],
+    ]);
+    expect(compact.aiFindings().map((d) => d.alternatives[0].preview)).toEqual(
+      gemma.aiFindings().map((d) => d.alternatives[0].preview),
+    );
   });
 
   test("an AI failure keeps the rule findings and reports failed coverage", async () => {
@@ -317,11 +339,10 @@ describe("ReviewSession with Local AI: Correct", () => {
     expect(h.aiFindings()).toEqual([]);
     await h.settle();
     expect(h.ai.requests).toHaveLength(2);
+    expect(h.ai.requests[1].request.segments.map((s) => s.text).join(" ")).toContain("school");
     h.ai.requests[1].answer();
     await h.settle();
-    expect(h.ai.requests[2].request.segments.map((s) => s.text).join(" ")).toContain("school");
-    h.ai.requests[2].answer();
-    await h.settle();
+    expect(h.ai.requests).toHaveLength(2);
     expect(h.aiFindings().map((d) => d.original)).toEqual(["go"]);
     expect(h.aiFindings()[0].range.start).toBe(TEXT.indexOf("go"));
   });
@@ -343,7 +364,7 @@ describe("ReviewSession with Local AI: Correct", () => {
   });
 
   test("answers are reused only for identical requests", async () => {
-    const h = harness(TEXT);
+    const h = harness(`${TEXT} Everything is ready.`);
     await h.start();
     expect(h.ai.requests).toHaveLength(2);
     // Same text again (an unrelated mutation): the answers are reused, nothing is sent.
@@ -352,9 +373,9 @@ describe("ReviewSession with Local AI: Correct", () => {
     expect(h.ai.requests).toHaveLength(2);
     expect(h.aiFindings().map((d) => d.original)).toEqual(["go"]);
     expect(h.last().ai.coverage).toBe("complete");
-    // Changed text: asked again, for the changed sentence and for the one whose
+    // Changed text: asked again, for the changed pair and for the sentence whose
     // read-only context changed.
-    h.editor.text = "We saw teh cat. She go home today.";
+    h.editor.text = "We saw teh cat. She go home today. Everything is ready.";
     h.session.notifySourceChanged();
     await h.settle();
     expect(h.ai.requests).toHaveLength(4);
@@ -410,7 +431,7 @@ describe("ReviewSession with Local AI: Correct", () => {
     // Setup completes while the review is open: the pass starts.
     h.ai.push({});
     await h.settle();
-    expect(h.ai.requests).toHaveLength(2);
+    expect(h.ai.requests).toHaveLength(1);
     expect(h.aiFindings()).toHaveLength(1);
   });
 
@@ -613,8 +634,8 @@ describe("ReviewSession with Local AI: Correct", () => {
     const b = harness(TEXT);
     await a.start();
     await b.start();
-    expect(a.ai.requests).toHaveLength(2);
-    expect(b.ai.requests).toHaveLength(2);
+    expect(a.ai.requests).toHaveLength(1);
+    expect(b.ai.requests).toHaveLength(1);
     a.session.close();
     await b.settle();
     expect(b.aiFindings().map((d) => d.original)).toEqual(["go"]);
