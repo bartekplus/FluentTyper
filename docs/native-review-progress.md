@@ -17,7 +17,7 @@ Execute sequentially: 1, 2, 3, 4, 8, 5, 6, 7, 9–20. Native TypeScript, individ
 | 8   | Independent Review controls    | Implemented; Chrome verified; Firefox launch blocked     |
 | 9   | Participles                    | Implemented; Chrome verified; Firefox permission blocked |
 | 10  | Demonstratives and noun number | Implemented; Chrome verified; Firefox permission blocked |
-| 11  | Compounds                      | Pending                                                  |
+| 11  | Compounds                      | Implemented; Chrome verified; Firefox permission blocked |
 | 12  | Countability                   | Pending                                                  |
 | 13  | Comparatives                   | Pending                                                  |
 | 14  | Fixed phrases                  | Pending                                                  |
@@ -296,3 +296,30 @@ Error phrase: `One of the device failed. We found two error in the report. Those
 Production JS delta against #9's retained build (`production-chrome-full-48207-1790707458323`): content script **+5,860 bytes**, background **+1,142**, settings **+3,360**, popup **+378**. Candidate: `production-chrome-full-54178-1790708264999`. No dependency, permission or typing behavior added.
 
 Next: #11 compounds. Full completion still requires the remaining ten features and Firefox runtime validation.
+
+## #11 contextual compounds
+
+The Review-only `englishContextualCompounds` identity recognizes bounded grammatical slots for everyday → every day, login → log in, and setup → set up. Twelve explicit daily-action frames and complete verb/complement frames supply the evidence. Only the affected lowercase token changes. Capitalized product candidates, mixed-case identifiers, noun/adjective readings, house-style noun spellings, incomplete contexts and unfamiliar complements abstain. Four explanations are translated into all nine UI languages. Findings remain individual-only and use existing spelling-overlap suppression.
+
+Focused corpus: **116 pass**: 36 repairs (12 per subfamily), 77 preservation cases and three pipeline tests. Expected repairs, no target-family findings on preservation cases, and no recorrection. Tests cover exact Unicode offsets, tabs/NBSP, dictionary, protected evidence, scope, every chunk split and native-over-spelling ownership. These authored results do not establish general linguistic accuracy.
+
+The three required examples pass individual Apply/recheck/native undo in Chrome. A separate browser case inserts the compound space across `<b>set</b><i>up</i>`, preserves formatting and restores exact original markup with native undo. New browser cases run independently rather than extending the existing long shared fixture.
+
+- Full unit suite: **4,428 pass, 0 fail**. Chrome full browser suite: **99 pass, 10 skip, 0 fail**.
+- `bun run check`, production Chrome/Firefox builds: passed. Coverage mapping: **197 behaviors**.
+- Firefox runtime remains pending the previously requested macOS permission.
+- Logs: `/tmp/ft-native-compounds-{focused,check,unit,full-chrome,build-chrome,build-firefox,benchmark}.log`.
+
+Synthetic scan costs (Bun 1.4.2, this ID only, 5 warmups then median of 21 full native scans; no AI/spelling/DOM):
+
+| Characters | Clean (ms) | Dense errors (ms) | Dense findings |
+| ---------- | ---------- | ----------------- | -------------- |
+| 1,000      | 0.070      | 0.150             | 35             |
+| 10,000     | 0.379      | 0.977             | 349            |
+| 50,000     | 2.344      | 6.489             | 1,744          |
+
+Error phrase: `I use this tool everyday. Please login to continue. We need to setup the environment. `. Clean phrase applies the three intended repairs. Repeat/truncate with whole-text scope. These local fixture costs are not an isolated before/after performance claim.
+
+Production JS delta against #10's retained build (`production-chrome-full-54178-1790708264999`): content script **+5,487 bytes**, background **+1,721**, settings **+3,177**, popup **+369**. Candidate: `production-chrome-full-59985-1790708754356`. No dependency, permission or typing behavior added.
+
+Next: #12 countability. Eleven of twenty features implemented; full completion requires the remaining nine features and Firefox runtime validation.

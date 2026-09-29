@@ -53,6 +53,10 @@ interface ReviewAlternative {
 }
 
 export type ReviewMessageKey =
+  | "review_msg_compounds"
+  | "review_msg_every_day"
+  | "review_msg_log_in"
+  | "review_msg_set_up"
   | "review_msg_noun_count"
   | "review_msg_noun_choice"
   | "review_msg_demonstrative_number"

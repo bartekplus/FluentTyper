@@ -7047,6 +7047,86 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     browserTimeout(30000, 45000),
   );
 
+  test.each([
+    ["I use this tool everyday.", "I use this tool every day.", "everyday → every␣day"],
+    ["Please login to continue.", "Please log in to continue.", "login → log␣in"],
+    ["We need to setup the environment.", "We need to set up the environment.", "setup → set␣up"],
+  ])(
+    "Review compounds apply individual edits with native undo: %s",
+    async (source, expected, highlight) => {
+      await prepareReviewPage();
+      await setTextarea(source);
+      await triggerReview(worker!);
+      const panel = await waitForReview(page, "compound finding", (p) =>
+        p.items.some((item) => item.text === highlight),
+      );
+      expect(panel.items).toHaveLength(1);
+      expect(panel.fixAll).toMatchObject({ text: "Fix all safe (0)", disabled: true });
+      expect(await textareaValue()).toBe(source);
+      await clickReviewControl(page, ".item");
+      await waitForReview(page, "compound card", (p) => p.card.open);
+      await clickReviewControl(page, ".card [data-action=apply]");
+      await waitUntil("compound repair", async () => (await textareaValue()) === expected, {
+        timeoutMs: 5000,
+      });
+      await waitForReview(page, "compound recheck", (p) => p.items.length === 0);
+      await pressNativeUndo(page, "#test-textarea");
+      await waitUntil("compound undo", async () => (await textareaValue()) === source, {
+        timeoutMs: 5000,
+      });
+      await finishReview();
+    },
+    browserTimeout(15000, 25000),
+  );
+
+  test(
+    "Review compound insertion preserves a formatted word boundary",
+    async () => {
+      await prepareReviewPage();
+      const selector = "#test-contenteditable";
+      const original = "<p>We need to <b>set</b><i>up</i> the environment.</p>";
+      await page.evaluate(
+        ({ selector, original }) => {
+          const root = document.querySelector(selector) as HTMLElement;
+          root.innerHTML = original;
+          root.focus();
+        },
+        { selector, original },
+      );
+      await triggerReview(worker!);
+      await waitForReview(page, "formatted compound", (p) =>
+        p.items.some((item) => item.text === "setup → set␣up"),
+      );
+      await clickReviewControl(page, ".item");
+      await waitForReview(page, "formatted compound card", (p) => p.card.open);
+      await clickReviewControl(page, ".card [data-action=apply]");
+      await waitUntil(
+        "formatted compound repair",
+        async () =>
+          await page.$eval(
+            selector,
+            (el) =>
+              el.textContent?.replace(/\u00a0/g, " ") === "We need to set up the environment.",
+          ),
+        { timeoutMs: 5000 },
+      );
+      expect(
+        await page.$eval(selector, (el) => [
+          el.querySelector("b")?.textContent?.replace(/\u00a0/g, " "),
+          el.querySelector("i")?.textContent,
+        ]),
+      ).toEqual(["set ", "up"]);
+      await pressNativeUndo(page, selector);
+      await waitUntil(
+        "formatted compound undo",
+        async () => (await page.$eval(selector, (el) => el.innerHTML)) === original,
+        { timeoutMs: 5000 },
+      );
+      await finishReview();
+    },
+    browserTimeout(15000, 25000),
+  );
+
   test(
     "Review noun-number alternatives require a choice and preserve the chosen quantity",
     async () => {

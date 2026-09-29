@@ -3782,6 +3782,32 @@
           "test": "number findings preserve dictionary, scope, language and protected evidence"
         }
       ]
+    },
+    {
+      "id": "review_contextual_compounds",
+      "description": "Native compound checks use grammatical context, protect technical and noun/adjective uses, own spelling spans and preserve formatting/undo when inserting a word boundary.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review compounds apply individual edits with native undo: %s"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review compound insertion preserves a formatted word boundary"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewCompounds.test.ts",
+          "test": "native compound findings own spelling spans without touching candidate ordering"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewCompounds.test.ts",
+          "test": "compound replacements respect dictionary, read-only segments, language and scope"
+        }
+      ]
     }
   ]
 }

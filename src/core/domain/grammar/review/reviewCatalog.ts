@@ -27,6 +27,12 @@ export type ReviewRuleMetadata =
   | { review: "excluded"; reason: string };
 
 export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
+  englishContextualCompounds: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "grammar",
+    bulk: "individual",
+  },
   englishNounNumber: {
     review: "supported",
     defaultEnabled: true,
