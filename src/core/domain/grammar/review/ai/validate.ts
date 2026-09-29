@@ -810,11 +810,6 @@ const localEdits = (hunkEdits: ReadonlyArray<{ edit: ReviewEdit; local: TextRang
 // ---------------------------------------------------------------------------
 // Correct mode
 
-/** Most words one change unit may remove or add. */
-const MAX_UNIT_WORDS = 4;
-/** Above this share of changed words a proposal is a rewrite, not a correction. */
-const MAX_CHANGED_SHARE = 2 / 3;
-
 /**
  * Turns one chunk's parsed Correct-mode output into guarded findings against
  * the prepared snapshot: word-level diff, placeholder restore, protection and
@@ -825,8 +820,7 @@ const MAX_CHANGED_SHARE = 2 / 3;
  * ("user paste" -> "a user pastes") form one unit, applied atomically so a
  * dependent edit is never applied halfway. Each unit is validated on its own
  * against the original sentence; a rejected unit is counted and dropped
- * without sinking the others. A proposal changing most of a sentence is a
- * rewrite and is rejected whole.
+ * without sinking the others.
  */
 export function correctionFindings(
   prepared: PreparedReview,
@@ -880,14 +874,8 @@ function correctSegment(
 ): { diagnostics: ReviewDiagnostic[]; rejected: AiRejectionReason[] } {
   const diff = diffSegment(prepared, segment, proposed);
   if ("reason" in diff) return { diagnostics: [], rejected: [diff.reason] };
-  const { original, proposed: next, hunks } = diff;
+  const { original, hunks } = diff;
   if (hunks.length === 0) return { diagnostics: [], rejected: ["shape"] };
-
-  const removedWords = hunks.reduce((sum, h) => sum + wordCount(original.slice(h.o0, h.o1)), 0);
-  const addedWords = hunks.reduce((sum, h) => sum + wordCount(next.slice(h.p0, h.p1)), 0);
-  const exceedsShare =
-    removedWords > wordCount(original) * MAX_CHANGED_SHARE ||
-    addedWords > wordCount(next) * MAX_CHANGED_SHARE;
 
   const diagnostics: ReviewDiagnostic[] = [];
   const rejected: AiRejectionReason[] = [];
@@ -895,9 +883,6 @@ function correctSegment(
     const result = correctUnit(prepared, segment, diff, unit);
     if ("reason" in result) rejected.push(result.reason);
     else diagnostics.push(result.diagnostic);
-  }
-  if (exceedsShare) {
-    return { diagnostics: [], rejected: rejected.length ? rejected : ["drift.changed_word_share"] };
   }
   return { diagnostics, rejected };
 }
@@ -934,9 +919,8 @@ function correctUnit(
   }
   const unitRemoved = unit.flatMap((h) => original.slice(h.o0, h.o1));
   const unitAdded = unit.flatMap((h) => next.slice(h.p0, h.p1));
-  if (wordCount(unitRemoved) > MAX_UNIT_WORDS || wordCount(unitAdded) > MAX_UNIT_WORDS) {
-    return { reason: "unit.too_many_changed_words" };
-  }
+  // Dense edits are shown as review cards; the user judges their wording.
+  const dense = Math.max(wordCount(unitRemoved), wordCount(unitAdded)) >= 3;
 
   // The sentence with only this unit applied: the unit must stand on its own.
   const variant = applyEdits(segment.text, localEdits(hunkEdits));
@@ -950,7 +934,9 @@ function correctUnit(
   if (hedgeCount(originalWords) !== hedgeCount(changedWords)) return { reason: "uncertainty" };
   // Terminating a fragment ("lol same" -> "Lol, same.") formalizes it.
   const terminated = (text: string) => /[.!?…]["'”’»)\]]*\s*$/u.test(text);
-  if (!terminated(segment.text) && terminated(variant)) return { reason: "drift.optional_style" };
+  if (!dense && !terminated(segment.text) && terminated(variant)) {
+    return { reason: "drift.optional_style" };
+  }
 
   // "to not change" -> "not to change": "not" moves across one word; the
   // negation count is unchanged (checked above).
@@ -1018,7 +1004,10 @@ function correctUnit(
       }
       return 0;
     };
-    if (!isCorrection(removed, added, deletable, movable, phrase) || formalizes(removed, added)) {
+    if (
+      !dense &&
+      (!isCorrection(removed, added, deletable, movable, phrase) || formalizes(removed, added))
+    ) {
       return {
         reason: formalizes(removed, added) ? "drift.optional_style" : "drift.lexical_substitution",
       };
@@ -1026,7 +1015,7 @@ function correctUnit(
     // A new sentence break inside the segment ("16 rd. chain") is not a correction.
     const addsMark = next.slice(hunk.p0, hunk.p1).some((token) => SENTENCE_MARK.test(token.text));
     if (addsMark && hunk.o1 < original.length) return { reason: "drift.optional_style" };
-    if (styleChoice(original, next, hunk, originalStarts))
+    if (!dense && styleChoice(original, next, hunk, originalStarts))
       return { reason: "drift.optional_style" };
   }
 

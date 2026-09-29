@@ -121,19 +121,30 @@ describe("correctionFindings", () => {
     expect(dense.diagnostics).toHaveLength(2);
     expect(dense.applied).toBe("She doesn't know, but he doesn't care.");
   });
-  test("rejection counts distinguish share, lexical, style, and unit limits", () => {
+  test("connected dense edits can be offered for user review", () => {
+    const original = "I makes a much of mistake!";
+    for (const proposed of [
+      "I make a lot of mistakes!",
+      "I made a big mistake!",
+      "I make many mistakes!",
+    ]) {
+      const result = correctOne(original, proposed);
+      expect(result.rejected).toEqual({});
+      expect(result.diagnostics).toHaveLength(1);
+      expect(result.diagnostics[0].bulk.eligible).toBe(false);
+      expect(result.applied).toBe(proposed);
+    }
+    const questionable = correctOne("I love blue cats today.", "I hate red dogs today.");
+    expect(questionable.diagnostics).toHaveLength(1);
+    expect(questionable.diagnostics[0].bulk.eligible).toBe(false);
+  });
+  test("rejection counts distinguish lexical and optional style edits", () => {
     expect(correctOne("The big dog ran home.", "The large dog ran home.").rejected).toEqual({
       "drift.lexical_substitution": 1,
     });
     expect(correctOne("Ok cool.", "Ok, cool.").rejected).toEqual({
       "drift.optional_style": 1,
     });
-    expect(
-      correctOne(
-        "The meeting went well and everyone agreed on the plan.",
-        "The meeting was a big success because all agreed on the plan.",
-      ).rejected,
-    ).toEqual({ "unit.too_many_changed_words": 1 });
   });
   test("a negating prefix is never a spelling fix (review finding)", () => {
     const likely = correctOne(
@@ -256,32 +267,28 @@ describe("correctionFindings", () => {
 
   test("a rejected unit is dropped without sinking the rest of the sentence", () => {
     const result = correctOne(
-      "Me and my colleague discussed about this problem, and we decided to not change nothing for now.",
-      "My colleague and I discussed this problem, and we decided not to change anything for now.",
+      "We measured 300 kb and she go home.",
+      "We measured 300 mb and she goes home.",
     );
-    expect(Object.keys(result.rejected).length).toBeGreaterThan(0);
-    expect(result.applied).toContain("we decided not to change anything for now.");
-    expect(result.applied).toContain("Me and my colleague");
+    expect(result.rejected).toEqual({ number: 1 });
+    expect(result.applied).toBe("We measured 300 kb and she goes home.");
   });
 
-  test("dense text: per-unit bounds and the rewrite guard", () => {
+  test("dense text is offered without a percentage cap", () => {
     expect(correctOne("She has cats.", "She have cat.").diagnostics).toHaveLength(1);
-    expectRejected("Teh wrng.", "The wrong.", "drift.changed_word_share");
-    expectRejected(
-      "The meeting went well and everyone agreed on the plan.",
-      "Everyone agreed that the plan and the meeting were great.",
-      "unit.too_many_changed_words",
-    );
+    expect(correctOne("Teh wrng.", "The wrong.").applied).toBe("The wrong.");
     const long = correctOne(
       "We should deploy the new version on the staging cluster first today.",
       "We ought to roll out that fresh release onto the staging cluster first today.",
     );
-    expect(long.diagnostics).toEqual([]);
-    expectRejected(
-      "The meeting went well and everyone agreed on the plan.",
-      "The meeting was a big success because all agreed on the plan.",
-      "too-many-edits",
-    );
+    expect(long.diagnostics).toHaveLength(1);
+    expect(long.diagnostics[0].bulk.eligible).toBe(false);
+    expect(
+      correctOne(
+        "The meeting went well and everyone agreed on the plan.",
+        "The meeting was a big success because all agreed on the plan.",
+      ).diagnostics.length,
+    ).toBeGreaterThan(0);
   });
 
   test("closed-class swaps and proofreader deletions", () => {
@@ -362,13 +369,12 @@ describe("correctionFindings", () => {
         "We have a lot of equipment in the old lab.",
       ),
     ).toBe("We have a lot of equipment in the old lab.");
-    // Countable nouns: still the author's choice, and "a lot of" is style there.
+    // An unchanged determiner still protects the author's choice of number.
     expectRejected("The reports here are old.", "The report here are old.", "drift");
-    expectRejected(
-      "We have many tools in the old lab.",
-      "We have a lot of tools in the old lab.",
-      "drift",
-    );
+    expect(
+      correctOne("We have many tools in the old lab.", "We have a lot of tools in the old lab.")
+        .diagnostics,
+    ).toHaveLength(1);
   });
 
   test("intensifier before a comparative (held-out set)", () => {

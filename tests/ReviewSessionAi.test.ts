@@ -216,6 +216,18 @@ function harness(
 const TEXT = "We saw teh cat. She go home now.";
 
 describe("ReviewSession with Local AI: Correct", () => {
+  test("regular Review offers a dense AI correction for manual acceptance", async () => {
+    const h = harness("I makes a much of mistake!");
+    h.ai.fix = () => "I make many mistakes!";
+    await h.start();
+    expect(h.last().ai.coverage).toBe("complete");
+    expect(h.last().diagnostics).toHaveLength(1);
+    expect(h.aiFindings()).toHaveLength(1);
+    expect(h.aiFindings()[0].alternatives[0].preview).toBe("make many mistakes");
+    expect(h.editor.text).toBe("I makes a much of mistake!");
+    expect(h.last().bulk.count).toBe(0);
+  });
+
   test("rule findings are shown first; AI findings join when the model answers", async () => {
     const h = harness(`${TEXT} Everything is ready.`);
     h.ai.auto = false;

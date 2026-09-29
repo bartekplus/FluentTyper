@@ -70,8 +70,8 @@ misses are synonym-level (`might` → `may`, `forever` → `indefinitely`). rw-2
 came back fully corrected in one pass. No greeting, sign-off, apology or deadline was
 invented. Compact's Rewrite was not run on Transformers.js.
 
-**Decision.** Gemma 4 E4B found the most errors of every model tested and, with the current
-validator, changes no correct text on the full suite. Qwen3-4B-Instruct-2507 is the smaller
+**Decision at the original run.** Gemma 4 E4B found the most errors of every model tested.
+Current-validator replay results are recorded below. Qwen3-4B-Instruct-2507 is the smaller
 option at 56% of the download and ~40% of the cold-load time.
 
 **Other candidates.** Of the other models screened (13 on WebLLM 0.2.85, 7 more
@@ -320,37 +320,27 @@ check. This uses the existing cache-state verifier and does not add a network re
 
 ### Remaining quality limits
 
-Validator experiment (2026-09-29): the changed-word share limit is now two
-thirds. `She dont knows.` → `She doesn't know.` passes as one atomic finding
-through the ordinary unit checks. The same general limit covers other dense
-corrections without a verb list or a special auxiliary rule. Unit validation
-runs before the sentence-wide share decision, so a specific unit failure is
-reported first. The four-word unit limit and meaning/protection guards still
-apply. Correct-mode rejection counts distinguish changed-word share, lexical
-substitution, optional style, and oversized units; counts remain text-free.
+Validator follow-up (2026-09-29): Correct mode no longer has a sentence-wide
+changed-word share limit or a changed-word count per connected unit. Units with
+three or more changed words can include wording changes and are offered as one
+manual review card. Smaller units still use the ordinary spelling/form and
+optional-style checks. The prompt still asks Gemma to preserve correct wording;
+the validator retains number, negation, uncertainty, name, quotation, protected
+text, and edit-boundary guards. AI cards never enter Fix all.
 
-This deliberately leaves grammatical judgment to the user: the broader limit
-also accepts `She has cats.` → `She have cat.` as a review card. It is never
-auto-applied. Re-scoring 222 parsed outputs from the saved Gemma full run
-produced the same accepted results as before this adjustment (eight saved
-outputs did not parse through the current replay format).
+For `I makes a much of mistake!`, the validator now offers each of `I made a big
+mistake!`, `I make a lot of mistakes!`, and `I make many mistakes!` when proposed
+by the model. Regular Review itself does not generate these alternatives; it
+shows what Correct mode actually returns. A model echo would still produce no
+card. The saved Gemma full run was replayed through the current scorer: 222/230
+outputs parsed, 98 exact corrections, and 12 false positives by fixture target,
+versus 97 and 11 before this follow-up. The eight unparsed saved outputs were
+not scored. The wider rule admits some unwanted rewrites; the user chooses
+whether to apply each card.
 
-Manual sample from the saved Gemma 4 E4B full Correct run, checked against the
-explicit fixture targets (four selected rejections, not a representative
-rate): `dense-05` correctly blocked a pronoun substitution; `dense-10`
-correctly blocked a stylistic subject reorder; `dense-13` correctly blocked
-a dialect-dependent collective-noun agreement change; `heldout-08` lost a
-legitimate correction because it requires a broader clause restructure.
-The last case remains blocked pending a specific rule for that construction.
-
-The original stress run rejected 33 proposed change units as wording drift, 10 as
-quoted text, 3 as number changes, 2 as negation changes, and one each as too many changed
-words, a technical-token change and a name change. These counts are not all missed
-errors: the corrected reference also had four proposals rejected correctly. Increasing
-all guard limits would therefore be unsafe. A useful next quality experiment is a
-separate, narrowly proved rule for compound-subject pronouns and agreement; the first
-stress sentence's large change unit currently exceeds the four-word guard. The existing
-quoted-example and style restrictions remain intentional.
+The original stress run's rejection counts and the earlier four-case manual
+classification described the stricter validator at that time. In particular,
+`dense-10` is now offered, while `dense-05` and `heldout-08` remain partial.
 
 ## Longer instruction prefix (2026-09-29)
 
