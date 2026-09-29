@@ -960,3 +960,31 @@ test("missing-to insertion rechecks and leaves no stale verb-complement finding"
   expect(h.editor.applyCalls).toHaveLength(1);
   expect(h.last().bulk.count).toBe(0);
 });
+
+test("degree deletion rechecks then-than and refuses the previous diagnostic id", async () => {
+  const h = harness("The result is more better then the old result.", {
+    rules: ["englishDoubledDegree", "englishThenThan"],
+  });
+  await Promise.all([h.session.start(), h.settle()]);
+  expect(h.last().diagnostics).toHaveLength(1);
+  const degree = h.last().diagnostics[0];
+  expect(degree.ruleId).toBe("englishDoubledDegree");
+  const applying = h.session.apply(degree.id);
+  await h.settle();
+  expect(await applying).toEqual({ status: "applied" });
+  expect(h.editor.text).toBe("The result is better then the old result.");
+  expect(h.last().diagnostics).toHaveLength(1);
+  const than = h.last().diagnostics[0];
+  expect(than.ruleId).toBe("englishThenThan");
+  expect(than.original).toBe("then");
+  expect(than.id).not.toBe(degree.id);
+  await h.session.apply(degree.id);
+  expect(h.editor.applyCalls).toHaveLength(1);
+  expect(h.last().bulk.count).toBe(0);
+  const second = h.session.apply(than.id);
+  await h.settle();
+  expect(await second).toEqual({ status: "applied" });
+  expect(h.editor.text).toBe("The result is better than the old result.");
+  expect(h.last().diagnostics).toEqual([]);
+  h.session.close();
+});

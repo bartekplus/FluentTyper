@@ -19,7 +19,7 @@ Execute sequentially: 1, 2, 3, 4, 8, 5, 6, 7, 9–20. Native TypeScript, individ
 | 10  | Demonstratives and noun number | Implemented; Chrome verified; Firefox permission blocked |
 | 11  | Compounds                      | Implemented; Chrome verified; Firefox permission blocked |
 | 12  | Countability                   | Implemented; Chrome verified; Firefox permission blocked |
-| 13  | Comparatives                   | Pending                                                  |
+| 13  | Comparatives                   | Implemented; Chrome verified; Firefox permission blocked |
 | 14  | Fixed phrases                  | Pending                                                  |
 | 15  | Session ignore-all             | Pending                                                  |
 | 16  | Punctuation warnings           | Pending                                                  |
@@ -353,3 +353,31 @@ Error phrase: `The page contains useful informations. Thanks for the helpful adv
 Production JS delta against #11's retained build (`production-chrome-full-59985-1790708754356`): content script **+5,077 bytes**, background **+660**, settings **+2,431**, popup **+366**. Candidate: `production-chrome-full-67248-1790709478615`. No dependency, permission or typing behavior added.
 
 Next: #13 malformed comparatives/superlatives. Twelve of twenty features implemented; full completion requires the remaining eight features and Firefox runtime validation.
+
+## #13 malformed comparatives and superlatives
+
+The Review-only `englishDoubledDegree` identity removes redundant more/most in complete is/was clauses with known subjects and comparison tails. The ten original comparative words now live in `EnglishDegreeForms.ts` and are reused unchanged by then/than; the new detector additionally knows easier and eleven explicit superlatives. No suffix inference. Only the redundant marker and its following whitespace are deleted through existing minimal edits. Comparison targets, numbers and adjective spelling are preserved. The explanation is localized in all nine UI languages.
+
+Focused degree corpus: **88 pass**: 24 authored repairs, 61 preservation cases and three pipeline tests. Combined with word-confusion and session tests: **284 pass**. No supported misses or target-family findings on preservation cases; intended repairs do not recur. These authored results do not establish general English accuracy. Known-noun syntax, quantity phrases, hyphenation, multiword adjectives, emphasis, named quoted examples, dictionary, scope, protected spans, mixed case, Unicode/CRLF and all chunk splits are covered. A grouped numeric target initially matched only its prefix; the regression now passes because commas and decimal continuations abstain. The final guard reads only bounded evidence inside the declared context.
+
+The session test applies degree deletion first, discovers then/than on the new snapshot, rejects the old diagnostic ID and applies the new card with correct offsets. No Fix all promotion. Browser coverage includes all three required examples and deletion of bold more while retaining italic easier, with exact original markup restored by native undo.
+
+- Final-source unit suite: **4,666 pass, 0 fail**. Final-source `bun run check`, Chrome/Firefox production builds: passed. Coverage mapping: **199 behaviors**.
+- First Chrome run: **107 pass, 10 skip**, but the Local AI suite cleanup hook timed out at 5 seconds, so the command failed. The degree and formatting cases passed. No production or test timeout was changed.
+- Final-source Chrome rerun: **107 pass, 10 skip, 0 fail**.
+- Firefox runtime remains pending the previously requested macOS permission.
+- Logs: `/tmp/ft-native-degree-{focused,check-final,unit-final,full-chrome,full-chrome-final,build-chrome-final,build-firefox-final,benchmark-final}.log`.
+
+Synthetic scan costs after validation finished (Bun 1.4.2, this ID only, 5 warmups then median of 21 full native scans; no AI/spelling/DOM):
+
+| Characters | Clean (ms) | Dense errors (ms) | Dense findings |
+| ---------- | ---------- | ----------------- | -------------- |
+| 1,000      | 0.052      | 0.118             | 28             |
+| 10,000     | 0.303      | 0.940             | 283            |
+| 50,000     | 1.631      | 6.519             | 1,415          |
+
+Error phrase: `This approach is more easier to test. The revised result is more better. This is the most fastest option. `. Clean phrase applies the three intended repairs. Repeat/truncate with whole-text scope. These local fixture costs are not an isolated before/after performance claim. The earlier measurement overlapped broad validation and is retained separately in `benchmark.log`; the table uses `benchmark-final.log` after the jobs completed.
+
+Production JS delta against #12's retained build (`production-chrome-full-67248-1790709478615`): content script **+2,999 bytes**, background **+1,249**, settings **+1,208**, popup **+379**. Candidate: `production-chrome-full-74398-1790709936446`. No dependency, permission or typing behavior added.
+
+Next: #14 fixed-phrase mistakes. Thirteen of twenty features implemented; full completion requires the remaining seven features and Firefox runtime validation.

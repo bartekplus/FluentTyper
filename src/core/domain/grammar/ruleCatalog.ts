@@ -2,6 +2,19 @@ import type { GrammarRuleCatalogEntry, GrammarRuleId } from "./types";
 
 export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   {
+    id: "englishDoubledDegree",
+    typing: false,
+    name: "Doubled comparatives and superlatives",
+    titleI18nKey: "review_msg_doubled_degree",
+    descriptionI18nKey: "review_msg_doubled_degree",
+    exampleI18nKey: "",
+    languageScope: "en_US",
+    safetyTier: "advanced",
+    defaultRollout: "off",
+    recommended: false,
+    priority: 156,
+  },
+  {
     id: "englishCountability",
     typing: false,
     name: "Countability in ordinary prose",

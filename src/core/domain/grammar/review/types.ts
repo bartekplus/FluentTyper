@@ -53,6 +53,7 @@ interface ReviewAlternative {
 }
 
 export type ReviewMessageKey =
+  | "review_msg_doubled_degree"
   | "review_msg_countability"
   | "review_msg_mass_noun"
   | "review_msg_countable_number"

@@ -15,6 +15,17 @@ type Translations = readonly [
 ];
 
 const EXPLANATIONS: Record<ReviewMessageKey, Translations> = {
+  review_msg_doubled_degree: [
+    "This word already expresses the degree of comparison; remove the redundant marker.",
+    "Ce mot exprime déjà le degré de comparaison ; supprimez le marqueur redondant.",
+    "Ova riječ već izražava stupanj usporedbe; uklonite suvišnu oznaku.",
+    "Esta palabra ya expresa el grado de comparación; quite el marcador redundante.",
+    "Αυτή η λέξη εκφράζει ήδη τον βαθμό σύγκρισης· αφαιρέστε τον περιττό δείκτη.",
+    "Ordet uttrycker redan jämförelsegraden; ta bort den överflödiga markören.",
+    "Dieses Wort drückt bereits die Vergleichsstufe aus; entfernen Sie die überflüssige Steigerung.",
+    "To słowo już wyraża stopień porównania; usuń zbędny określnik.",
+    "Esta palavra já expressa o grau de comparação; remova o marcador redundante.",
+  ],
   review_msg_countability: [
     "Check noun countability in ordinary prose.",
     "Vérifiez les noms dénombrables dans la prose courante.",

@@ -7049,6 +7049,13 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
 
   test.each([
     [
+      "This approach is more easier to test.",
+      "This approach is easier to test.",
+      "more␣easier → easier",
+    ],
+    ["The revised result is more better.", "The revised result is better.", "more␣better → better"],
+    ["This is the most fastest option.", "This is the fastest option.", "most␣fastest → fastest"],
+    [
       "The page contains useful informations.",
       "The page contains useful information.",
       "informations → information",
@@ -7127,6 +7134,48 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await pressNativeUndo(page, selector);
       await waitUntil(
         "formatted compound undo",
+        async () => (await page.$eval(selector, (el) => el.innerHTML)) === original,
+        { timeoutMs: 5000 },
+      );
+      await finishReview();
+    },
+    browserTimeout(15000, 25000),
+  );
+
+  test(
+    "Review degree deletion preserves the formatted comparison",
+    async () => {
+      await prepareReviewPage();
+      const selector = "#test-contenteditable";
+      const original = "<p>This approach is <b>more </b><i>easier</i> to test.</p>";
+      await page.evaluate(
+        ({ selector, original }) => {
+          const root = document.querySelector(selector) as HTMLElement;
+          root.innerHTML = original;
+          root.focus();
+        },
+        { selector, original },
+      );
+      await triggerReview(worker!);
+      await waitForReview(page, "formatted degree", (p) =>
+        p.items.some((item) => item.text === "more␣easier → easier"),
+      );
+      await clickReviewControl(page, ".item");
+      await waitForReview(page, "formatted degree card", (p) => p.card.open);
+      await clickReviewControl(page, ".card [data-action=apply]");
+      await waitUntil(
+        "formatted degree repair",
+        async () =>
+          await page.$eval(
+            selector,
+            (el) => el.textContent?.replace(/\u00a0/g, " ") === "This approach is easier to test.",
+          ),
+        { timeoutMs: 5000 },
+      );
+      expect(await page.$eval(selector, (el) => el.querySelector("i")?.textContent)).toBe("easier");
+      await pressNativeUndo(page, selector);
+      await waitUntil(
+        "formatted degree undo",
         async () => (await page.$eval(selector, (el) => el.innerHTML)) === original,
         { timeoutMs: 5000 },
       );

@@ -3829,6 +3829,32 @@
           "test": "countability owns one chunk and exposes all specialist evidence"
         }
       ]
+    },
+    {
+      "id": "review_doubled_degree",
+      "description": "Doubled-degree corrections preserve comparison targets and quantity, abstain on modifiers and quoted examples, and recheck then/than through existing transactions.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review bounded grammar applies individual edits with native undo: %s"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review degree deletion preserves the formatted comparison"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewDegree.test.ts",
+          "test": "degree checks retain boundaries, dictionary protections and individual scope"
+        },
+        {
+          "layer": "integration",
+          "file": "tests/ReviewSession.test.ts",
+          "test": "degree deletion rechecks then-than and refuses the previous diagnostic id"
+        }
+      ]
     }
   ]
 }

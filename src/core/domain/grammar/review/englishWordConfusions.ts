@@ -1,3 +1,4 @@
+import { ENGLISH_COMPARATIVES } from "../implementations/helpers/EnglishDegreeForms";
 import { applyWordCase, detectWordCase } from "../implementations/helpers/GenericRuleShared";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 import type { ReviewMessageKey } from "./types";
@@ -7,7 +8,7 @@ const NOUN =
   "(?:passwords?|accounts?|files?|documents?|names?|address(?:es)?|keys?|reports?|versions?|models?|results?|plans?|answers?)";
 const END_WORD = "(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])";
 const COMPLETE = `${END_WORD}(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:)]|$))`;
-const COMPARATIVE = "(?:faster|slower|larger|smaller|better|worse|newer|older|cheaper|safer)";
+const COMPARATIVE = `(?:${ENGLISH_COMPARATIVES.join("|")})`;
 const ARGUMENT = `(?:(?:the|my|your|our|their)${SPACE}(?:(?:old|new|previous|other)${SPACE})?${NOUN}|me|him|her|us|them)`;
 
 function* matches(ctx: DetectContext, pattern: string): Generator<RegExpExecArray> {
