@@ -25,20 +25,14 @@ const DENSE = CORRECT.filter((fixture) => fixture.tags.includes("dense"));
 const PARTIAL_DENSE: Record<string, { reason: string; minOffered: number }> = {
   // Dropping "them" (a pronoun, not a closed-class insertion) is a content change.
   "dense-05": { reason: "drift", minOffered: 4 },
-  // "Me and my colleague" -> "My colleague and I" is a stylistic reorder; it shares
-  // a unit with "discussed about" (one word apart), so both are refused together.
-  "dense-10": { reason: "drift", minOffered: 3 },
   // Inserting "it" ("like it when") is not a closed-class correction; "dont" is one
   // word away and shares its unit.
   "dense-11": { reason: "drift", minOffered: 2 },
   // "Our team have" is valid British usage (team takes either verb number); "we has" is still fixed.
   "dense-13": { reason: "drift", minOffered: 2 },
-  // Held-out: "three advices" -> "three pieces of advice" is a restructure; the
-  // comma after "yesterday" shares its unit.
-  "heldout-02": { reason: "drift", minOffered: 2 },
   // Held-out: "suggested me to restart" -> "suggested that I restart" is a restructure.
   "heldout-08": { reason: "drift", minOffered: 1 },
-  // The user's paragraph: every fix except the two stylistic ones above (dense-05, dense-10).
+  // The user's paragraph: the pronoun deletion in dense-05 is still refused.
   "dense-para-01": { reason: "drift", minOffered: 28 },
 };
 
