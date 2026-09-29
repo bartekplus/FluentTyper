@@ -320,15 +320,20 @@ check. This uses the existing cache-state verifier and does not add a network re
 
 ### Remaining quality limits
 
-Validator experiment (2026-09-29): `She dont knows.` → `She doesn't know.`
-now passes as one atomic finding. The same local pattern works inside longer
-sentences and for `I`, `you`, `we`, or `they` with `doesn't` → `don't`. The
-subject's text must be unchanged, the following verb must match its exact
-third-person spelling, and spacing/punctuation inside each change must be unchanged. Multiple
-proved repairs can exceed the 50% changed-word share together; the four-word
-unit limit and other guards still apply. Correct-mode rejection counts now
-distinguish changed-word share, lexical substitution, optional style, and
-oversized units; counts remain text-free.
+Validator experiment (2026-09-29): the changed-word share limit is now two
+thirds. `She dont knows.` → `She doesn't know.` passes as one atomic finding
+through the ordinary unit checks. The same general limit covers other dense
+corrections without a verb list or a special auxiliary rule. Unit validation
+runs before the sentence-wide share decision, so a specific unit failure is
+reported first. The four-word unit limit and meaning/protection guards still
+apply. Correct-mode rejection counts distinguish changed-word share, lexical
+substitution, optional style, and oversized units; counts remain text-free.
+
+This deliberately leaves grammatical judgment to the user: the broader limit
+also accepts `She has cats.` → `She have cat.` as a review card. It is never
+auto-applied. Re-scoring 222 parsed outputs from the saved Gemma full run
+produced the same accepted results as before this adjustment (eight saved
+outputs did not parse through the current replay format).
 
 Manual sample from the saved Gemma 4 E4B full Correct run, checked against the
 explicit fixture targets (four selected rejections, not a representative

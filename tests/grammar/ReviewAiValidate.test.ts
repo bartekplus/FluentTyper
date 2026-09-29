@@ -90,39 +90,20 @@ function expectRejected(text: string, proposed: string, reason: string, extra: E
 }
 
 describe("correctionFindings", () => {
-  test("negative auxiliary agreement and its dependent verb stay atomic", () => {
+  test("dense corrections use the same unit checks and stay atomic", () => {
     const result = correctOne("She dont knows.", "She doesn't know.");
     expect(result.rejected).toEqual({});
     expect(result.diagnostics).toHaveLength(1);
     expect(result.diagnostics[0].alternatives[0].edits).toHaveLength(1);
     expect(result.applied).toBe("She doesn't know.");
     expect(correctOne("She dont knows.", "She doesn't believe.").rejected).toEqual({
-      "drift.changed_word_share": 1,
-    });
-    expect(correctOne("They dont knows.", "They doesn't know.").rejected).toEqual({
-      "drift.changed_word_share": 1,
-    });
-    expect(correctOne("She dont knows.", "she doesn't know.").rejected).toEqual({
-      "drift.changed_word_share": 1,
+      "drift.lexical_substitution": 1,
     });
     expect(correctOne("She don't knows.", "She doesn't know.").applied).toBe("She doesn't know.");
-    expect(correctOne("She dont knows.", "She doesn't know!").rejected).toEqual({
-      "drift.changed_word_share": 1,
-    });
     expect(
       correctOne("Yesterday she dont knows the answer.", "Yesterday she doesn't know the answer.")
         .applied,
     ).toBe("Yesterday she doesn't know the answer.");
-    expect(correctOne("They doesnt knows.", "They don't know.").applied).toBe("They don't know.");
-    expect(correctOne("She dont miss.", "She doesn't mis.").rejected).toEqual({
-      "drift.changed_word_share": 1,
-    });
-    expect(correctOne("She dont cross.", "She doesn't cros.").rejected).toEqual({
-      "drift.changed_word_share": 1,
-    });
-    expect(correctOne("She dont has.", "She doesn't ha.").rejected).toEqual({
-      "drift.changed_word_share": 1,
-    });
     expect(correctOne("She dont misses.", "She doesn't miss.").applied).toBe("She doesn't miss.");
     expect(correctOne("She dont crosses.", "She doesn't cross.").applied).toBe(
       "She doesn't cross.",
@@ -284,10 +265,12 @@ describe("correctionFindings", () => {
   });
 
   test("dense text: per-unit bounds and the rewrite guard", () => {
+    expect(correctOne("She has cats.", "She have cat.").diagnostics).toHaveLength(1);
+    expectRejected("Teh wrng.", "The wrong.", "drift.changed_word_share");
     expectRejected(
       "The meeting went well and everyone agreed on the plan.",
       "Everyone agreed that the plan and the meeting were great.",
-      "drift",
+      "unit.too_many_changed_words",
     );
     const long = correctOne(
       "We should deploy the new version on the staging cluster first today.",

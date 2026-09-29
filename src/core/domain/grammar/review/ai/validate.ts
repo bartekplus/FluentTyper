@@ -813,52 +813,7 @@ const localEdits = (hunkEdits: ReadonlyArray<{ edit: ReviewEdit; local: TextRang
 /** Most words one change unit may remove or add. */
 const MAX_UNIT_WORDS = 4;
 /** Above this share of changed words a proposal is a rewrite, not a correction. */
-const MAX_CHANGED_SHARE = 0.5;
-
-/** Verified third-person spellings; a suffix alone would turn "miss" into "mis". */
-function isThirdPersonForm(base: string, inflected: string): boolean {
-  const family = familyOf(inflected);
-  if (family !== undefined && family !== familyOf(base)) return false;
-  let expected = `${base}s`;
-  if (base === "have") expected = "has";
-  else if (base === "quiz" || base === "whiz") expected = `${base}zes`;
-  else if (["do", "go", "echo", "veto", "torpedo"].includes(base)) expected = `${base}es`;
-  else if (/[^aeiou]y$/.test(base)) expected = `${base.slice(0, -1)}ies`;
-  else if (/(?:s|x|z|ch|sh)$/.test(base)) expected = `${base}es`;
-  return inflected === expected;
-}
-
-/** A local subject–negative auxiliary–base verb repair, with every other token untouched. */
-function negativeAuxiliaryAgreement(
-  original: readonly Token[],
-  proposed: readonly Token[],
-  hunk: Hunk,
-): boolean {
-  const subject = wordBefore(original, hunk.o0);
-  const nextSubject = wordBefore(proposed, hunk.p0);
-  if (!subject || subject.text !== nextSubject?.text) return false;
-  const removed = original.slice(hunk.o0, hunk.o1);
-  const added = proposed.slice(hunk.p0, hunk.p1);
-  const before = wordsOf(removed);
-  const after = wordsOf(added);
-  const singular = ["he", "she", "it"].includes(lower(subject.text));
-  const plural = ["i", "you", "we", "they"].includes(lower(subject.text));
-  return (
-    before.length === 2 &&
-    after.length === 2 &&
-    ((singular && ["dont", "don't"].includes(before[0]) && after[0] === "doesn't") ||
-      (plural && ["doesnt", "doesn't"].includes(before[0]) && after[0] === "don't")) &&
-    isThirdPersonForm(after[1], before[1]) &&
-    removed
-      .filter((token) => token.kind !== "word")
-      .map((token) => token.text)
-      .join("") ===
-      added
-        .filter((token) => token.kind !== "word")
-        .map((token) => token.text)
-        .join("")
-  );
-}
+const MAX_CHANGED_SHARE = 2 / 3;
 
 /**
  * Turns one chunk's parsed Correct-mode output into guarded findings against
@@ -871,7 +826,7 @@ function negativeAuxiliaryAgreement(
  * dependent edit is never applied halfway. Each unit is validated on its own
  * against the original sentence; a rejected unit is counted and dropped
  * without sinking the others. A proposal changing most of a sentence is a
- * rewrite and is rejected whole, except for proved negative auxiliary agreement repairs.
+ * rewrite and is rejected whole.
  */
 export function correctionFindings(
   prepared: PreparedReview,
@@ -930,14 +885,9 @@ function correctSegment(
 
   const removedWords = hunks.reduce((sum, h) => sum + wordCount(original.slice(h.o0, h.o1)), 0);
   const addedWords = hunks.reduce((sum, h) => sum + wordCount(next.slice(h.p0, h.p1)), 0);
-  if (
+  const exceedsShare =
     removedWords > wordCount(original) * MAX_CHANGED_SHARE ||
-    addedWords > wordCount(next) * MAX_CHANGED_SHARE
-  ) {
-    if (!hunks.every((hunk) => negativeAuxiliaryAgreement(original, next, hunk))) {
-      return { diagnostics: [], rejected: ["drift.changed_word_share"] };
-    }
-  }
+    addedWords > wordCount(next) * MAX_CHANGED_SHARE;
 
   const diagnostics: ReviewDiagnostic[] = [];
   const rejected: AiRejectionReason[] = [];
@@ -945,6 +895,9 @@ function correctSegment(
     const result = correctUnit(prepared, segment, diff, unit);
     if ("reason" in result) rejected.push(result.reason);
     else diagnostics.push(result.diagnostic);
+  }
+  if (exceedsShare) {
+    return { diagnostics: [], rejected: rejected.length ? rejected : ["drift.changed_word_share"] };
   }
   return { diagnostics, rejected };
 }
@@ -1065,11 +1018,7 @@ function correctUnit(
       }
       return 0;
     };
-    const knownAgreement = unit.every((hunk) => negativeAuxiliaryAgreement(original, next, hunk));
-    if (
-      (!isCorrection(removed, added, deletable, movable, phrase) && !knownAgreement) ||
-      formalizes(removed, added)
-    ) {
+    if (!isCorrection(removed, added, deletable, movable, phrase) || formalizes(removed, added)) {
       return {
         reason: formalizes(removed, added) ? "drift.optional_style" : "drift.lexical_substitution",
       };
