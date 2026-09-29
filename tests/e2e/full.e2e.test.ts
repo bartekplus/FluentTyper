@@ -7110,6 +7110,82 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   );
 
   test(
+    "Optional style advice stays off by default and separates counts warnings and native undo",
+    async () => {
+      const previous = await getSetting(worker!, KEY_REVIEW_RULE_OVERRIDES);
+      await setSettingAndWait(worker!, KEY_REVIEW_RULE_OVERRIDES, {});
+      await prepareReviewPage();
+      const source =
+        "Use your PIN number. The team reviewed every part of the detailed proposal and carefully considered all of the important information before making any decision about the next stage of the project because there were still several questions about the final report.";
+      try {
+        await setTextarea(source);
+        await triggerReview(worker!);
+        await waitForReview(
+          page,
+          "style disabled",
+          (p) => p.status === "No issues found by the review checks." && p.items.length === 0,
+        );
+        await setSettingAndWait(worker!, KEY_REVIEW_RULE_OVERRIDES, {
+          styleRedundancy: true,
+          styleLongSentence: true,
+        });
+        await applyConfigChange(browser, worker!);
+        const panel = await waitForReview(
+          page,
+          "style enabled",
+          (p) => p.items.length === 2 && p.items.every((i) => i.category === "style"),
+        );
+        expect(panel.status).toContain("No issues found");
+        expect(panel.status).toContain("Style advice: 2.");
+        expect(panel.fixAll.disabled).toBe(true);
+        await clickReviewControl(page, '.filter[data-category="style"]');
+        await waitForReview(page, "style filter off", (p) => p.items.length === 0);
+        await clickReviewControl(page, '.filter[data-category="style"]');
+        await waitForReview(page, "style filter on", (p) => p.items.length === 2);
+        await clickReviewControl(page, '.item[data-id*="styleRedundancy"]');
+        await waitForReview(page, "style repair card", (p) => p.card.open);
+        await clickReviewControl(page, '.card [data-action="apply"]');
+        await waitUntil(
+          "style repair",
+          async () => (await textareaValue()) === source.replace("PIN number", "PIN"),
+          { timeoutMs: 5000 },
+        );
+        await waitForReview(page, "style recheck", (p) => p.items.length === 1);
+        await pressNativeUndo(page, "#test-textarea");
+        await waitForReview(page, "style undo", (p) => p.items.length === 2);
+        expect(await textareaValue()).toBe(source);
+        await clickReviewControl(page, '.item[data-id*="styleLongSentence"]');
+        const warning = await waitForReview(
+          page,
+          "readability warning",
+          (p) => p.card.open && p.card.text.includes("word threshold"),
+        );
+        expect(warning.card.applyDisabled).toBe(true);
+        expect(
+          await page.evaluate(
+            () =>
+              document
+                .querySelector("[data-fluenttyper-review]")
+                ?.shadowRoot?.querySelectorAll('.card [data-action="apply"]').length,
+          ),
+        ).toBe(0);
+        await setSettingAndWait(worker!, KEY_REVIEW_RULE_OVERRIDES, {});
+        await applyConfigChange(browser, worker!);
+        await waitForReview(
+          page,
+          "style disabled again",
+          (p) => p.items.length === 0 && !p.status.includes("Style advice"),
+        );
+      } finally {
+        await finishReview();
+        await setSettingAndWait(worker!, KEY_REVIEW_RULE_OVERRIDES, previous ?? {});
+        await applyConfigChange(browser, worker!);
+      }
+    },
+    browserTimeout(25000, 35000),
+  );
+
+  test(
     "Long Review rechecks preserve native apply undo and invalidate an opening code fence",
     async () => {
       await prepareReviewPage();
@@ -7951,7 +8027,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   );
 
   test(
-    "Review mode runs every supported rule, even ones off for typing, and none in code mode",
+    "Review mode uses native defaults independently of typing and disables them in code mode",
     async () => {
       const selector = "#test-textarea";
       const launcherShown = () =>

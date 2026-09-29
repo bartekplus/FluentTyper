@@ -145,6 +145,7 @@ type ReviewStatus =
 
 type ReviewNotice =
   | { kind: "applied"; count: number; deferred: number }
+  | { kind: "advice-applied" }
   | { kind: "stale" }
   | { kind: "partial"; applied: number }
   | { kind: "unverified" }
@@ -162,6 +163,7 @@ export interface ReviewViewState {
   /** Current, not ignored. */
   diagnostics: ReviewDiagnostic[];
   ignoredCount: number;
+  ignoredAdviceCount?: number;
   resolvedCount: number;
   categories: ReadonlySet<ReviewCategory>;
   selectedId: string | null;
@@ -294,6 +296,7 @@ function sameOptions(a: ReviewOptions, b: ReviewOptions): boolean {
   return (
     a.lang === b.lang &&
     a.spellingEnabled === b.spellingEnabled &&
+    a.longSentenceWords === b.longSentenceWords &&
     a.insertSpaceAfterAutocomplete === b.insertSpaceAfterAutocomplete &&
     sameKey(a.enabledRules, b.enabledRules) &&
     sameKey(a.userDictionary, b.userDictionary) &&
@@ -669,7 +672,7 @@ export class ReviewSession {
     const diagnostic = this.diagnostics.find((d) => d.id === id);
     const alternative = diagnostic?.alternatives[alternativeIndex];
     if (!diagnostic || diagnostic.warningOnly || !alternative || !this.canWrite()) return null;
-    return this.write(alternative.edits, 1, 0);
+    return this.write(alternative.edits, 1, 0, diagnostic.category === "style");
   }
 
   /** Applies every safe fix in the shown categories as one planned batch. */
@@ -699,7 +702,8 @@ export class ReviewSession {
       scopeKind: this.scopeKind,
       capabilities: this.capabilities,
       diagnostics: this.status === "ready" ? this.visibleDiagnostics() : NO_DIAGNOSTICS,
-      ignoredCount: this.ignoredDiagnostics().length,
+      ignoredCount: this.ignoredDiagnostics().filter((d) => d.category !== "style").length,
+      ignoredAdviceCount: this.ignoredDiagnostics().filter((d) => d.category === "style").length,
       resolvedCount: this.resolvedCount,
       categories: new Set(this.categories),
       selectedId: this.selectedId,
@@ -1022,6 +1026,7 @@ export class ReviewSession {
     edits: ReviewEdit[],
     count: number,
     deferred: number,
+    advice = false,
   ): Promise<ReviewApplyResult> {
     const after = applyEdits(this.text, edits);
     if (after === null) return { status: "stale" };
@@ -1049,8 +1054,8 @@ export class ReviewSession {
     if (result.status === "applied") {
       // A verified extension write is complete; only user typing needs the AI pause.
       this.aiDelayNext = false;
-      this.resolvedCount += count;
-      this.notice = { kind: "applied", count, deferred };
+      this.resolvedCount += advice ? 0 : count;
+      this.notice = advice ? { kind: "advice-applied" } : { kind: "applied", count, deferred };
       // Our own edits are exactly known: carry scope and ignores through them.
       const delta = after.length - before.length;
       if (this.scope) this.scope = { start: this.scope.start, end: this.scope.end + delta };
@@ -1269,7 +1274,7 @@ export class ReviewSession {
     const occurrences = new Map<string, SpellingCandidate[]>();
     for (const candidate of spellingCandidates(
       prepared,
-      this.ruleDiagnostics.map((d) => d.range),
+      this.ruleDiagnostics.filter((d) => d.category !== "style").map((d) => d.range),
     )) {
       const key = candidate.lookup.toLowerCase();
       const list = occurrences.get(key);
@@ -1734,13 +1739,15 @@ export class ReviewSession {
           ? { ...d, alternatives: d.alternatives.filter((alternative) => !alternative.localAi) }
           : d,
       );
+    const correctionChecks = checks.filter((d) => d.category !== "style");
     const shown: ReviewDiagnostic[] = [];
     const extra = new Map<ReviewDiagnostic, ReviewDiagnostic["alternatives"]>();
     for (const finding of this.aiFindings) {
       if (this.prepared && overlapsSortedRanges(this.prepared.terminology.ranges, finding.range))
         continue;
-      if (checks.some((d) => sameChange(d, finding) || this.sameResult(finding, d))) continue;
-      const overlapping = checks.filter((d) => rangesOverlap(d.range, finding.range));
+      if (correctionChecks.some((d) => sameChange(d, finding) || this.sameResult(finding, d)))
+        continue;
+      const overlapping = correctionChecks.filter((d) => rangesOverlap(d.range, finding.range));
       if (overlapping.every((d) => this.includesCheckFix(finding, d))) {
         // No overlap, or the AI fix makes each overlapping check's own fix and more
         // ("is saved immediatly" -> "are saved immediately"): both can be offered.

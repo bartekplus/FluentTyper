@@ -17,6 +17,7 @@ export const REVIEW_SHADOW_CSS = `
   --ft-grammar: #b87400;
   --ft-punctuation: #3b82f6;
   --ft-typography: #9061f9;
+  --ft-style: #168578;
   --ft-focus: #2563eb;
   color-scheme: light dark;
 }
@@ -62,6 +63,8 @@ export const REVIEW_SHADOW_CSS = `
 [data-category="grammar"] { --ft-cat: var(--ft-grammar); }
 [data-category="punctuation"] { --ft-cat: var(--ft-punctuation); }
 [data-category="typography"] { --ft-cat: var(--ft-typography); }
+[data-category="style"] { --ft-cat: var(--ft-style); }
+.mark[data-category="style"] { border-bottom-style: dotted; }
 .panel, .card {
   position: fixed;
   pointer-events: auto;
@@ -275,6 +278,7 @@ export const REVIEW_HIGHLIGHT_NAMES = {
   grammar: "fluenttyper-review-grammar",
   punctuation: "fluenttyper-review-punctuation",
   typography: "fluenttyper-review-typography",
+  style: "fluenttyper-review-style",
   selected: "fluenttyper-review-selected",
 } as const;
 

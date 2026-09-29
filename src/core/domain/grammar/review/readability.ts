@@ -11,6 +11,11 @@ export function longSentenceThreshold(value: unknown): number {
     : DEFAULT_LONG_SENTENCE_WORDS;
 }
 
+/** Technical spans that are literal prose for a non-editing readability warning. */
+export function isReadabilityLiteral(text: string): boolean {
+  return /^(?:(?:e\.g|i\.e|U\.S|U\.K)\.?|\d+\.\d+)$/i.test(text);
+}
+
 /**
  * Fully visible English prose sentences only. No sentence is split or rewritten.
  * Scan the bounded source before applying the scope so cropped edges cannot look complete.
@@ -29,8 +34,7 @@ export function longSentenceRanges(
     ...protectedRanges.filter((range) => {
       // Dotted prose abbreviations remain literal words, not opaque technical content.
       return !(
-        range.reason === "technical" &&
-        /^(?:(?:e\.g|i\.e|U\.S|U\.K)\.?|\d+\.\d+)$/i.test(text.slice(range.start, range.end))
+        range.reason === "technical" && isReadabilityLiteral(text.slice(range.start, range.end))
       );
     }),
     ...Array.from(
@@ -44,8 +48,7 @@ export function longSentenceRanges(
   let blockedIndex = 0;
   let pendingStart: number | undefined;
   let ambiguous = false;
-  const segmenter = new Intl.Segmenter("en", { granularity: "sentence" });
-  for (const segment of segmenter.segment(text)) {
+  for (const segment of sentenceSegments(text)) {
     const start = pendingStart ?? segment.index;
     const trimmed = segment.segment.trimEnd();
     if (!trimmed) {
@@ -92,4 +95,21 @@ export function longSentenceRanges(
     if ((words?.length ?? 0) > limit) result.push({ start: from, end });
   }
   return result;
+}
+
+/** ICU can join a period followed by lowercase prose; retain explicit known sentence ends. */
+function* sentenceSegments(text: string): Generator<{ index: number; segment: string }> {
+  const segmenter = new Intl.Segmenter("en", { granularity: "sentence" });
+  for (const segment of segmenter.segment(text)) {
+    let from = 0;
+    for (const end of segment.segment.matchAll(/[.!?]["'”’»)\]]*[ \t]+/gu)) {
+      const mark = segment.index + end.index;
+      if (text[mark] === "." && closesAbbreviation(text, mark, "en_US")) continue;
+      const to = end.index + end[0].length;
+      yield { index: segment.index + from, segment: segment.segment.slice(from, to) };
+      from = to;
+    }
+    if (from < segment.segment.length)
+      yield { index: segment.index + from, segment: segment.segment.slice(from) };
+  }
 }

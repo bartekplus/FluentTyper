@@ -13,7 +13,7 @@ import {
   CMD_TRIGGER_FT_ACTIVE_TAB,
 } from "../src/core/domain/constants";
 import { ContentRuntimeController } from "../src/adapters/chrome/content-script/ContentRuntimeController";
-import { REVIEW_SUPPORTED_RULE_IDS } from "../src/core/domain/grammar/review/reviewCatalog";
+import { reviewRuleIds } from "../src/core/domain/grammar/review/reviewCatalog";
 import {
   EARLY_TAB_ACCEPT_MESSAGE_TYPE,
   EARLY_TAB_ACCEPT_REQUEST_EVENT,
@@ -545,7 +545,7 @@ describe("content_script behavior", () => {
     expect(suggestionInstances.at(-1)?.options?.enabledGrammarRules).toEqual(["autoBracketClose"]);
   });
 
-  test("review runs every review-supported rule whatever is on for typing; code mode leaves none", async () => {
+  test("review defaults stay independent of typing and leave optional style off", async () => {
     const { fluentTyper, suggestionInstances } = await loadContentScript();
     // The options the review controller reads when a review starts or rechecks.
     const reviewRules = () =>
@@ -559,10 +559,12 @@ describe("content_script behavior", () => {
         .createReviewController()
         .deps.getOptions().enabledRules;
 
-    // Every rule off for typing ("Disable all"): typing gets none, review still runs all it supports.
+    // Every rule off for typing ("Disable all"): typing gets none, Review keeps its own defaults.
     fluentTyper.setConfig(defaultConfig({ enabledGrammarRules: [] }));
     expect(suggestionInstances.at(-1)?.options?.enabledGrammarRules).toEqual([]);
-    expect(reviewRules()).toEqual([...REVIEW_SUPPORTED_RULE_IDS]);
+    expect(reviewRules()).toEqual(reviewRuleIds({ codeMode: false }));
+    expect(reviewRules()).not.toContain("styleRedundancy");
+    expect(reviewRules()).not.toContain("styleLongSentence");
     expect(reviewRules()).toContain("duplicatePunctuationCollapse");
 
     fluentTyper.setConfig(

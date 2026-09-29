@@ -256,6 +256,30 @@ describe("ReviewUi: Local AI", () => {
     expect($(".card").getAttribute("aria-label")).toContain("user-authored advice");
   });
 
+  test("optional style advice has a separate count/filter and no default filter", () => {
+    ui.render(state({ ai: ai({ availability: "off" }) }));
+    expect(ui.root.querySelector('[data-category="style"]')).toBeNull();
+    const advice = finding("style", {
+      ruleId: "styleRedundancy",
+      category: "style",
+      messageKey: "review_msg_style_redundancy",
+      bulk: { eligible: false, reason: "rule-not-batch-approved" },
+    });
+    ui.render(state({ diagnostics: [advice] }));
+    expect($(".status").textContent).toContain("No issues found");
+    expect($(".status").textContent).toContain("Style advice: 1.");
+    expect($('.filter[data-category="style"]').textContent).toContain("Style advice (1)");
+    trustedClick($('.filter[data-category="style"]'));
+    expect(cb.toggleCategory).toHaveBeenCalledWith("style", false);
+    ui.render(state({ diagnostics: [advice, finding("grammar")] }));
+    expect($(".status").textContent).toContain("Issues: 1");
+    expect($(".status").textContent).toContain("Style advice: 1.");
+    ui.render(state({ ignoredAdviceCount: 1 }));
+    expect($(".status").textContent).toContain("No issues found");
+    expect($(".notes").textContent).toContain("Ignored style advice: 1.");
+    expect(shown('[data-action="reset-ignores"]')).toBe(true);
+  });
+
   test("warning-only cards label the issue and offer no replacement action", () => {
     const diagnostic = finding("warning", {
       ruleId: "unclosedQuotation",

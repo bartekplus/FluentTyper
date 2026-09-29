@@ -8,13 +8,14 @@ import type { CatalogRuleId } from "../ruleCatalog";
  * end-exclusive bounds ([start, end)). Visual highlight ranges are kept apart
  * from mutation ranges: a finding may underline a phrase but change one word.
  */
-export type ReviewCategory = "spelling" | "grammar" | "punctuation" | "typography";
+export type ReviewCategory = "spelling" | "grammar" | "punctuation" | "typography" | "style";
 
 export const REVIEW_CATEGORIES: readonly ReviewCategory[] = [
   "spelling",
   "grammar",
   "punctuation",
   "typography",
+  "style",
 ];
 
 /**
@@ -54,6 +55,8 @@ interface ReviewAlternative {
 }
 
 export type ReviewMessageKey =
+  | "review_msg_style_redundancy"
+  | "review_msg_style_long_sentence"
   | "review_msg_preferred_terminology"
   | "review_msg_canonical_casing"
   | "review_msg_quotation_balance"
@@ -185,6 +188,7 @@ export interface ReviewSourceSnapshot {
 }
 
 export interface ReviewOptions {
+  longSentenceWords?: number;
   preferredTerminology?: PreferredTerminology;
   /** Explicitly keep dictionary suggestions independent of native rule choices. */
   spellingEnabled?: boolean;

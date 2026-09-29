@@ -1,3 +1,5 @@
+import { redundantAcronyms } from "./styleAdvice";
+import { longSentenceRanges, isReadabilityLiteral } from "./readability";
 import { matchTerminology } from "./terminologyMatcher";
 import type { NativeReviewCache } from "./nativeReviewCache";
 import { unclosedQuotations } from "./quotationWarnings";
@@ -55,6 +57,8 @@ export interface PreparedReview {
   languageSkipped: CatalogRuleId[];
   dictionary: ReadonlySet<string>;
   quotationFindings: RawFinding[];
+  styleFindings: RawFinding[];
+  styleFailedRules: CatalogRuleId[];
   terminology: { findings: RawFinding[]; ranges: TextRange[]; limitedChars?: number };
 }
 
@@ -110,6 +114,30 @@ export function prepareReview(
   }
 
   const dictionary = normalizeWordSet(options.userDictionary);
+  const styleFindings: RawFinding[] = [];
+  const styleFailedRules: CatalogRuleId[] = [];
+  for (const ruleId of ["styleRedundancy", "styleLongSentence"] as const) {
+    if (!rules.has(ruleId)) continue;
+    try {
+      styleFindings.push(
+        ...(ruleId === "styleRedundancy"
+          ? redundantAcronyms(snapshot, protectedRanges, dictionary)
+          : longSentenceRanges(snapshot, protectedRanges, options.longSentenceWords).map(
+              (range) => ({
+                ruleId,
+                messageKey: "review_msg_style_long_sentence" as const,
+                range,
+                context: range,
+                alternatives: [],
+                warningOnly: true as const,
+              }),
+            )),
+      );
+    } catch {
+      styleFailedRules.push(ruleId);
+    }
+  }
+
   return {
     snapshot,
     options,
@@ -118,6 +146,8 @@ export function prepareReview(
     rules,
     languageSkipped,
     dictionary,
+    styleFindings,
+    styleFailedRules,
     terminology: rules.has("preferredTerminology")
       ? matchTerminology(snapshot, options, protectedRanges, dictionary)
       : { findings: [], ranges: [] },
@@ -198,7 +228,7 @@ export function scanReviewChunk(
   cache?: NativeReviewCache,
 ): ChunkScan {
   const findings: RawFinding[] = [];
-  const failedRules: CatalogRuleId[] = [];
+  const failedRules: CatalogRuleId[] = [...prepared.styleFailedRules];
   const scanEnd = chunk.end + SCAN_LOOKAHEAD;
   const context = {
     source: prepared.snapshot.text,
@@ -214,6 +244,7 @@ export function scanReviewChunk(
     dictionary: prepared.dictionary,
     insertSpaceAfterAutocomplete: prepared.options.insertSpaceAfterAutocomplete,
     quotationFindings: prepared.quotationFindings,
+    styleFindings: prepared.styleFindings,
     terminologyFindings: prepared.terminology.findings,
   };
   for (const detector of REVIEW_DETECTORS) {
@@ -382,6 +413,12 @@ function toDiagnostic(prepared: PreparedReview, finding: Finding): ReviewDiagnos
   if (
     prepared.protectedRanges.some(
       (protectedRange) =>
+        !(
+          finding.ruleId === "styleLongSentence" &&
+          finding.warningOnly &&
+          protectedRange.reason === "technical" &&
+          isReadabilityLiteral(source.slice(protectedRange.start, protectedRange.end))
+        ) &&
         (finding.warningOnly ||
           finding.ruleId === "englishCanonicalCasing" ||
           finding.ruleId === "preferredTerminology" ||

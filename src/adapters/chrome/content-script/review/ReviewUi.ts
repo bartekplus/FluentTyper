@@ -68,12 +68,14 @@ const BADGES: Record<ReviewCategory, string> = {
   grammar: "G",
   punctuation: ",.",
   typography: "Aa",
+  style: "S",
 };
 const CATEGORY_KEY: Record<ReviewCategory, ReviewTextKey> = {
   spelling: "review_cat_spelling",
   grammar: "review_cat_grammar",
   punctuation: "review_cat_punctuation",
   typography: "review_cat_typography",
+  style: "review_cat_style",
 };
 
 const MODES: readonly ReviewMode[] = ["correct", "rewrite"];
@@ -734,7 +736,7 @@ export class ReviewUi {
       count: state.bulk.pending ? "\u2026" : state.bulk.count,
     });
     this.fixAll.disabled = !bulkAvailable || state.bulk.pending || state.bulk.count === 0;
-    this.resetIgnores.hidden = state.ignoredCount === 0;
+    this.resetIgnores.hidden = state.ignoredCount + (state.ignoredAdviceCount ?? 0) === 0;
     this.resetIgnores.disabled = state.status !== "ready";
     const filtered = state.categories.size < REVIEW_CATEGORIES.length;
     const noteParts = [this.t(filtered ? "review_fix_all_filtered" : "review_fix_all_whole")];
@@ -1092,7 +1094,8 @@ export class ReviewUi {
     }
     if (state.noRules) return this.t("review_status_no_rules");
     const notice = this.noticeText(state);
-    const count = state.diagnostics.length;
+    const advice = state.diagnostics.filter((d) => d.category === "style").length;
+    const count = state.diagnostics.length - advice;
     let summary: string;
     if (count > 0) summary = this.t("review_status_count", { count });
     else if (state.ignoredCount > 0) summary = this.t("review_status_all_ignored");
@@ -1101,6 +1104,7 @@ export class ReviewUi {
     else summary = this.t("review_status_none");
     // "All resolved" already reports the fixes; don't say it twice.
     const redundant = count === 0 && state.ignoredCount === 0 && state.notice?.kind === "applied";
+    if (advice > 0) summary += ` ${this.t("review_status_advice", { count: advice })}`;
     return notice && !redundant ? `${notice} ${summary}` : summary;
   }
 
@@ -1108,6 +1112,8 @@ export class ReviewUi {
     const notice = state.notice;
     if (!notice) return "";
     switch (notice.kind) {
+      case "advice-applied":
+        return this.t("review_notice_advice_applied");
       case "applied":
         return this.t("review_notice_applied", { count: notice.count });
       case "stale":
@@ -1162,6 +1168,8 @@ export class ReviewUi {
       if (state.ignoredCount > 0)
         lines.push(this.t("review_status_ignored", { count: state.ignoredCount }));
     }
+    if (state.ignoredAdviceCount)
+      lines.push(this.t("review_status_advice_ignored", { count: state.ignoredAdviceCount }));
     this.notes.replaceChildren(...lines.map((line) => element(this.doc, "p", {}, line)));
   }
 
@@ -1172,7 +1180,14 @@ export class ReviewUi {
     }
     const focused = (this.root.activeElement as HTMLElement | null)?.dataset?.category;
     this.filters.replaceChildren(
-      ...REVIEW_CATEGORIES.map((category) => {
+      ...REVIEW_CATEGORIES.filter(
+        (category) =>
+          category !== "style" ||
+          [...(state.coverage?.checkedRules ?? []), ...(state.coverage?.failedRules ?? [])].some(
+            (id) => id === "styleRedundancy" || id === "styleLongSentence",
+          ) ||
+          state.diagnostics.some((d) => d.category === "style"),
+      ).map((category) => {
         const shown = state.categories.has(category);
         const button = element(this.doc, "button", {
           type: "button",

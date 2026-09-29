@@ -3224,17 +3224,17 @@
         {
           "layer": "e2e-full",
           "file": "tests/e2e/full.e2e.test.ts",
-          "test": "Review mode runs every supported rule, even ones off for typing, and none in code mode"
+          "test": "Review mode uses native defaults independently of typing and disables them in code mode"
         },
         {
           "layer": "unit",
           "file": "tests/grammar/ReviewDiagnostics.test.ts",
-          "test": "review runs every supported rule, whatever is on for typing, and none in code mode"
+          "test": "review defaults are independent of typing and leave optional style off"
         },
         {
           "layer": "unit",
           "file": "tests/content_script.behavior.test.ts",
-          "test": "review runs every review-supported rule whatever is on for typing; code mode leaves none"
+          "test": "review defaults stay independent of typing and leave optional style off"
         }
       ]
     },
@@ -4024,6 +4024,32 @@
           "layer": "e2e-full",
           "file": "tests/e2e/full.e2e.test.ts",
           "test": "Long Review rechecks preserve native apply undo and invalidate an opening code fence"
+        }
+      ]
+    },
+    {
+      "id": "review_optional_style_advice",
+      "description": "Style checks default off, remain separate from error counts and safe bulk, preserve quoted wording, and offer individual acronym repairs or warning-only readability advice with native undo.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/grammar/StyleAdvice.test.ts",
+          "test": "style is explicitly opt-in, never typing, recommended or safe bulk"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSession.test.ts",
+          "test": "readability advice does not hide spelling and cannot be applied"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewUiLocalAi.test.ts",
+          "test": "optional style advice has a separate count/filter and no default filter"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Optional style advice stays off by default and separates counts warnings and native undo"
         }
       ]
     }

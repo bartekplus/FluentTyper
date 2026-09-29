@@ -2,6 +2,32 @@ import type { GrammarRuleCatalogEntry, GrammarRuleId } from "./types";
 
 export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   {
+    id: "styleRedundancy",
+    typing: false,
+    name: "Optional redundancy advice",
+    titleI18nKey: "review_msg_style_redundancy",
+    descriptionI18nKey: "review_msg_style_redundancy",
+    exampleI18nKey: "",
+    languageScope: "en_US",
+    safetyTier: "advanced",
+    defaultRollout: "off",
+    recommended: false,
+    priority: 162,
+  },
+  {
+    id: "styleLongSentence",
+    typing: false,
+    name: "Optional long-sentence advice",
+    titleI18nKey: "review_msg_style_long_sentence",
+    descriptionI18nKey: "review_msg_style_long_sentence",
+    exampleI18nKey: "",
+    languageScope: "en_US",
+    safetyTier: "advanced",
+    defaultRollout: "off",
+    recommended: false,
+    priority: 161,
+  },
+  {
     id: "preferredTerminology",
     typing: false,
     name: "Your preferred terminology",

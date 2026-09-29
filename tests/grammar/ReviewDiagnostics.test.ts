@@ -83,7 +83,10 @@ describe("review rule coverage map", () => {
     expect(map.map((entry) => entry.ruleId)).toEqual(GRAMMAR_RULE_CATALOG.map((e) => e.id));
     for (const entry of map) {
       if (entry.review === "excluded") expect(entry.reason.length).toBeGreaterThan(10);
-      else expect(["spelling", "grammar", "punctuation", "typography"]).toContain(entry.category);
+      else
+        expect(["spelling", "grammar", "punctuation", "typography", "style"]).toContain(
+          entry.category,
+        );
     }
   });
 
@@ -95,12 +98,14 @@ describe("review rule coverage map", () => {
     }
   });
 
-  test("review runs every supported rule, whatever is on for typing, and none in code mode", () => {
+  test("review defaults are independent of typing and leave optional style off", () => {
     const supported = reviewCoverageMap()
       .filter((entry) => entry.review === "supported")
       .map((entry) => entry.ruleId);
     expect(REVIEW_SUPPORTED_RULE_IDS).toEqual(supported);
-    expect(reviewRuleIds({ codeMode: false })).toEqual(supported);
+    expect(reviewRuleIds({ codeMode: false })).toEqual(
+      supported.filter((id) => id !== "styleRedundancy" && id !== "styleLongSentence"),
+    );
     // Off for typing by default, yet review finds it.
     expect(DEFAULT_CURRENT_GRAMMAR_RULES).not.toContain("duplicatePunctuationCollapse");
     expect(

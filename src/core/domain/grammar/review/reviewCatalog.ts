@@ -27,6 +27,18 @@ export type ReviewRuleMetadata =
   | { review: "excluded"; reason: string };
 
 export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
+  styleRedundancy: {
+    review: "supported",
+    defaultEnabled: false,
+    category: "style",
+    bulk: "individual",
+  },
+  styleLongSentence: {
+    review: "supported",
+    defaultEnabled: false,
+    category: "style",
+    bulk: "individual",
+  },
   preferredTerminology: {
     review: "supported",
     defaultEnabled: true,

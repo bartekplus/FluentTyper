@@ -1372,3 +1372,41 @@ test("closing a yielded native recheck releases cache and cancels remaining dete
     clear.mockRestore();
   }
 });
+
+test("style Apply and ignores stay separate from resolved and ignored errors", async () => {
+  const h = harness("Use your PIN number.", { rules: ["styleRedundancy"] });
+  await Promise.all([h.session.start(), h.settle()]);
+  h.session.ignore(h.last().diagnostics[0].id);
+  expect(h.last().ignoredCount).toBe(0);
+  expect(h.last().ignoredAdviceCount).toBe(1);
+  h.session.resetIgnores();
+  const applied = h.session.apply(h.last().diagnostics[0].id);
+  await h.settle();
+  await applied;
+  expect(h.editor.text).toBe("Use your PIN.");
+  expect(h.last().resolvedCount).toBe(0);
+  expect(h.last().notice).toEqual({ kind: "advice-applied" });
+  h.session.close();
+});
+
+test("readability advice does not hide spelling and cannot be applied", async () => {
+  const words: string[] = [];
+  const text =
+    "The team reviewed every part of the detailed proposal and carefully considered all of the important information before making any decision about the next stage of the project because there were still several questions about the mispelt word.";
+  const h = harness(text, {
+    rules: ["styleLongSentence"],
+    spellingEnabled: true,
+    lookupSpelling: async (_lang, batch) => {
+      words.push(...batch.map((item) => item.word));
+      return batch.map((item) => (item.word === "mispelt" ? ["misspelt"] : null));
+    },
+  });
+  await Promise.all([h.session.start(), h.settle()]);
+  expect(words).toContain("mispelt");
+  const warning = h.last().diagnostics.find((d) => d.ruleId === "styleLongSentence")!;
+  expect(warning.warningOnly).toBe(true);
+  expect(h.last().diagnostics.some((d) => d.ruleId === "reviewSpelling")).toBe(true);
+  expect(await h.session.apply(warning.id)).toBeNull();
+  expect(h.editor.applyCalls).toEqual([]);
+  h.session.close();
+});

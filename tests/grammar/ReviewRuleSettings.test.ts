@@ -8,18 +8,22 @@ import {
 } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { resolveGrammarRuleSelection } from "../../src/core/domain/grammar/GrammarRuleSettings";
 
+const DEFAULT_REVIEW_IDS = REVIEW_SUPPORTED_RULE_IDS.filter(
+  (id) => id !== "styleRedundancy" && id !== "styleLongSentence",
+);
+
 test("absent Review preferences retain explicit catalog defaults independently of typing", () => {
-  expect(reviewRuleIds({ codeMode: false })).toEqual(REVIEW_SUPPORTED_RULE_IDS);
+  expect(reviewRuleIds({ codeMode: false })).toEqual(DEFAULT_REVIEW_IDS);
   expect(normalizeReviewRuleOverrides(undefined)).toEqual({});
   expect(resolveGrammarRuleSelection([])).toEqual([]);
   expect(reviewRuleIds({ codeMode: false })).toContain("englishRepeatedWords");
-  for (const id of REVIEW_SUPPORTED_RULE_IDS)
+  for (const id of DEFAULT_REVIEW_IDS)
     expect(REVIEW_RULE_METADATA[id]).toMatchObject({ defaultEnabled: true });
 });
 test("one choice is sparse, independent and reversible; code mode stays empty", () => {
   const overrides = { englishRepeatedWords: false };
   expect(reviewRuleIds({ codeMode: false, overrides })).toEqual(
-    REVIEW_SUPPORTED_RULE_IDS.filter((id) => id !== "englishRepeatedWords"),
+    DEFAULT_REVIEW_IDS.filter((id) => id !== "englishRepeatedWords"),
   );
   expect(reviewRuleIds({ codeMode: false, overrides: { englishRepeatedWords: true } })).toContain(
     "englishRepeatedWords",
@@ -30,7 +34,7 @@ test("one choice is sparse, independent and reversible; code mode stays empty", 
       overrides: reviewRuleSelectionToOverrides(REVIEW_SUPPORTED_RULE_IDS),
     }),
   ).toEqual([]);
-  expect(reviewRuleIds({ codeMode: false, overrides: {} })).toEqual(REVIEW_SUPPORTED_RULE_IDS);
+  expect(reviewRuleIds({ codeMode: false, overrides: {} })).toEqual(DEFAULT_REVIEW_IDS);
 });
 test("only supported native IDs and boolean choices survive storage validation", () => {
   expect(
@@ -45,7 +49,7 @@ test("only supported native IDs and boolean choices survive storage validation",
     }),
   ).toEqual({ englishRepeatedWords: false, englishToToo: false });
   expect(reviewRuleIds({ codeMode: false, overrides: { future: true } })).toEqual(
-    REVIEW_SUPPORTED_RULE_IDS,
+    DEFAULT_REVIEW_IDS,
   );
   for (const malformed of [null, 42, "sentence", ["englishRepeatedWords"]])
     expect(reviewRuleIds({ codeMode: false, overrides: malformed })).toEqual([]);
@@ -61,7 +65,5 @@ test("selection serialization and reset never copy typing choices or invalid IDs
   expect(reviewRuleIds({ codeMode: false, overrides: reviewRuleSelectionToOverrides([]) })).toEqual(
     [],
   );
-  expect(reviewRuleIds({ codeMode: false, overrides: undefined })).toEqual(
-    REVIEW_SUPPORTED_RULE_IDS,
-  );
+  expect(reviewRuleIds({ codeMode: false, overrides: undefined })).toEqual(DEFAULT_REVIEW_IDS);
 });

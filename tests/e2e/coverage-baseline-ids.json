@@ -206,6 +206,7 @@
     "review_quotation_warnings",
     "review_canonical_casing",
     "review_preferred_terminology",
-    "review_incremental_native_rechecks"
+    "review_incremental_native_rechecks",
+    "review_optional_style_advice"
   ]
 }

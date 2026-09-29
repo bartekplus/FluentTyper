@@ -26,7 +26,7 @@ Execute sequentially: 1, 2, 3, 4, 8, 5, 6, 7, 9–20. Native TypeScript, individ
 | 17  | Brand/acronym casing           | Implemented; Chrome verified; Firefox permission blocked |
 | 18  | Preferred terminology          | Implemented; Chrome verified; Firefox permission blocked |
 | 19  | Incremental rechecks           | Implemented; Chrome verified; Firefox permission blocked |
-| 20  | Optional style hints           | Readability core tested; settings and UI pending         |
+| 20  | Optional style hints           | Native advice and UI verified; threshold setting pending |
 
 ## Validation
 
@@ -635,3 +635,21 @@ Six authored tests cover threshold boundaries/invalid values, titles/initials/ab
 Local Bun 1.4.2 / M2 Max measurement (five warmups, median 21, repeated authored 15-word sentences, threshold 10): 1k **0.024 ms**, 10k **0.132 ms**, 50k **0.632 ms**. A separate adversarial 50k repeated-title input returned no ranges in **7.262 ms**; bounded token lookback avoids repeatedly slicing the growing pending sentence. Log: `/tmp/ft-style-readability-benchmark.jsonl`. These measure this helper only, not end-to-end Review.
 
 Remaining #20 work: default-off catalog/settings channel and configurable threshold persistence, PIN number/ATM machine suggestions with quotation protection, integration into native diagnostics, distinct advice counts/filters/accessibility/translations, warning-only and individual-Apply controls, migration/default-off proof, and production browser validation. Integration must preserve the existing protected-range validation while accommodating the explicitly recognized decimal/abbreviation prose in long-sentence warnings, and report unavailable native segmentation honestly. Existing AI sentence chunking and Rewrite are untouched. **19/20 implemented; #20 in progress.**
+
+### #20 opt-in native checks and separate advice presentation
+
+Added two English Review-only catalog checks, `styleRedundancy` and `styleLongSentence`, both explicitly **default off**, not recommended and individual-only. Existing Review preference controls can enable them independently; absent/legacy overrides keep them off. Typing rule IDs remain unchanged. The style filter is hidden unless advice is enabled/present, keeping the default Correct view unchanged.
+
+Redundancy advice recognizes only exact `PIN number` → `PIN` and `ATM machine` → `ATM`. It respects token boundaries, dictionary entries, scope, protection and bounded source size. Quote state spans paragraphs and sentences, handles straight/curly/nested quotes and apostrophes, masks protected content, and abstains on ambiguous unmatched closers. Its evidence covers the source whose quote state it read. It does not remove hedges, negation, emphasis, adverbs or numeric values. Native diagnostics and existing minimal editor transactions supply the optional individual Apply action.
+
+Long-sentence advice uses the prior bounded sentence view and returns warning-only diagnostics, with no replacement, split or batch edit. Protected-range validation allows only the explicitly recognized literal decimals/abbreviations for this non-editing warning; other protection remains intact. Missing native sentence segmentation is reported as failed-rule coverage while redundancy advice continues. A regression exposed native segmentation joining complete sentences followed by lowercase prose; explicit sentence-end checks using the existing abbreviation guard now prevent false combined warnings. The previous bulk-proof fixture therefore retains its original result without excluding optional checks from its test.
+
+The new style category has its own accessible badge/filter, highlights and localized explanations in all nine UI languages. Advice is counted separately from errors. Ignored advice has a separate count, and applying a style suggestion reports advice applied rather than incrementing resolved errors. Warning cards keep no Apply control. Readability highlights do not suppress spelling candidates, and style findings neither hide independent AI corrections nor receive AI replacement alternatives. AI generation/settings and Rewrite remain unchanged.
+
+Focused tests cover opt-in/default behavior, no typing/recommendation/bulk promotion, exact optional repairs with hedges/negation intact, quoted wording/code/identifiers/plurals/casing, dictionaries/language/partial scope, configurable domain threshold, warnings, unavailable segmentation, counts/filters/ignores/Apply, spelling coexistence and independent AI corrections. The browser workflow verifies no advice by default, explicit enablement, separate counts, toggling the style filter, Apply/recheck/native undo, warning-only controls, and disabling advice again. Settings tests that formerly assumed every supported rule defaults on now explicitly require the two style checks to stay off.
+
+Final gates: **5,170 unit tests passed** (5,018 main + 152 isolated), full Chrome **122 pass / 10 existing skips / 0 fail**. Repository checks, coverage mapping (**206 behaviors**) and Chrome/Firefox production builds passed. A redundant style guard was removed after these gates; the focused AI session suite passed again (`/tmp/ft-style-wiring-ai-final.log`). Firefox runtime remains blocked by the documented macOS permission.
+
+Logs: `/tmp/ft-style-wiring-{check-final,coverage,unit-final,chrome-final,build-chrome,build-firefox}.log`; focused browser: `/tmp/ft-style-wiring-browser.log`. Production JS delta against #19 (`production-chrome-full-8491-1790717366305`): content **+8,363 bytes**, settings **+3,814**, background/popup **+733 each**. Candidate: `production-chrome-full-10197-1790718678645`. The final redundant-guard deletion is behavior-equivalent and not included in that measured artifact.
+
+Still outstanding: persisted/config-delivered threshold control with localized settings/help and validation, final user documentation/performance measurement and verification of that final configuration. The domain currently accepts a threshold of 10–200 and defaults to 35, but the user cannot yet change it through settings. **19/20 implemented; #20 remains in progress.**

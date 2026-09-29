@@ -756,6 +756,20 @@ describe("ReviewSession with Local AI: disagreeing with a check", () => {
     h.session.close();
   });
 
+  test("style warnings do not suppress separately enabled AI corrections", async () => {
+    const text =
+      "The team reviewed every part of the detailed proposal and carefully considered all of the important information before making any decision about the next stage of the project because there were still several questions about teh final report.";
+    const h = harness(text, { rules: ["styleLongSentence"] });
+    h.ai.fix = (text) => text.replace("teh", "the");
+    await h.start();
+    expect(
+      h.last().diagnostics.some((d) => d.ruleId === "styleLongSentence" && d.warningOnly),
+    ).toBe(true);
+    expect(h.last().diagnostics.some((d) => d.ruleId === REVIEW_LOCAL_AI_CHECK)).toBe(true);
+    expect(h.editor.applyCalls).toEqual([]);
+    h.session.close();
+  });
+
   test("AI alternatives never turn a native warning into a replacement card", async () => {
     const h = harness("He wrote, “The build is ready.", { rules: ["unclosedQuotation"] });
     h.ai.fix = (text) => text.replace("“", '"');

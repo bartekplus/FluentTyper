@@ -288,6 +288,10 @@
   text-decoration: underline dashed #9061f9;
   text-decoration-thickness: 1.5px;
 }
+::highlight(fluenttyper-review-style) {
+  background-color: rgba(22, 133, 120, 0.1);
+  text-decoration: underline dotted #168578;
+}
 ::highlight(fluenttyper-review-selected) {
   background-color: rgba(59, 130, 246, 0.3);
 }
@@ -296,7 +300,8 @@
   ::highlight(fluenttyper-review-spelling),
   ::highlight(fluenttyper-review-grammar),
   ::highlight(fluenttyper-review-punctuation),
-  ::highlight(fluenttyper-review-typography) {
+  ::highlight(fluenttyper-review-typography),
+  ::highlight(fluenttyper-review-style) {
     background-color: transparent;
     text-decoration-color: CanvasText;
   }

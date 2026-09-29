@@ -99,6 +99,7 @@ export interface DetectContext {
   dictionary: ReadonlySet<string>;
   insertSpaceAfterAutocomplete: boolean;
   quotationFindings?: readonly RawFinding[];
+  styleFindings?: readonly RawFinding[];
   terminologyFindings?: readonly RawFinding[];
 }
 
@@ -1095,6 +1096,11 @@ const repeatedWords: Detector = (ctx) => {
 
 /** Review detectors by rule. Rules absent here are excluded from review (see reviewCatalog). */
 export const REVIEW_DETECTORS: ReadonlyArray<{ rules: CatalogRuleId[]; detect: Detector }> = [
+  {
+    rules: ["styleRedundancy", "styleLongSentence"],
+    detect: (ctx) =>
+      (ctx.styleFindings ?? []).filter((f) => f.range.start >= ctx.from && f.range.start < ctx.to),
+  },
   {
     rules: ["preferredTerminology"],
     detect: (ctx) =>

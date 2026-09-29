@@ -15,6 +15,29 @@ type Translations = readonly [
 ];
 
 const EXPLANATIONS: Record<ReviewMessageKey, Translations> = {
+  review_msg_style_redundancy: [
+    "Optional style advice: the acronym already includes this word.",
+    "Conseil de style facultatif : le sigle inclut déjà ce mot.",
+    "Neobavezni stilski savjet: kratica već uključuje ovu riječ.",
+    "Consejo de estilo opcional: la sigla ya incluye esta palabra.",
+    "Προαιρετική συμβουλή ύφους: το ακρωνύμιο περιλαμβάνει ήδη αυτή τη λέξη.",
+    "Valfritt stilråd: förkortningen innehåller redan detta ord.",
+    "Optionaler Stilhinweis: Das Akronym enthält dieses Wort bereits.",
+    "Opcjonalna wskazówka stylistyczna: skrót już zawiera to słowo.",
+    "Conselho de estilo opcional: a sigla já inclui esta palavra.",
+  ],
+  review_msg_style_long_sentence: [
+    "Optional readability advice: this sentence exceeds your chosen word threshold. No split is suggested.",
+    "Conseil de lisibilité facultatif : cette phrase dépasse votre seuil de mots. Aucune division n’est proposée.",
+    "Neobavezni savjet za čitljivost: ova rečenica prelazi vaš prag broja riječi. Ne predlaže se podjela.",
+    "Consejo de legibilidad opcional: esta oración supera su límite de palabras. No se propone dividirla.",
+    "Προαιρετική συμβουλή αναγνωσιμότητας: αυτή η πρόταση υπερβαίνει το όριο λέξεων που επιλέξατε. Δεν προτείνεται διαίρεση.",
+    "Valfritt läsbarhetsråd: meningen överskrider din valda ordgräns. Ingen uppdelning föreslås.",
+    "Optionaler Lesbarkeitshinweis: Dieser Satz überschreitet Ihre gewählte Wortgrenze. Es wird keine Aufteilung vorgeschlagen.",
+    "Opcjonalna wskazówka czytelności: zdanie przekracza wybrany limit słów. Nie proponujemy podziału.",
+    "Conselho de legibilidade opcional: esta frase excede o limite de palavras escolhido. Não é proposta uma divisão.",
+  ],
+
   review_msg_preferred_terminology: [
     "Your preferred terminology (user-authored advice).",
     "Votre terminologie préférée (conseil rédigé par vous).",
@@ -712,6 +735,52 @@ const EXPLANATIONS: Record<ReviewMessageKey, Translations> = {
 };
 
 const UI = {
+  review_notice_advice_applied: [
+    "Style suggestion applied.",
+    "Suggestion de style appliquée.",
+    "Stilski prijedlog primijenjen.",
+    "Sugerencia de estilo aplicada.",
+    "Εφαρμόστηκε η πρόταση ύφους.",
+    "Stilförslaget har tillämpats.",
+    "Stilvorschlag angewendet.",
+    "Zastosowano wskazówkę stylistyczną.",
+    "Sugestão de estilo aplicada.",
+  ],
+  review_status_advice_ignored: [
+    "Ignored style advice: {count}.",
+    "Conseils de style ignorés : {count}.",
+    "Zanemareni stilski savjeti: {count}.",
+    "Consejos de estilo ignorados: {count}.",
+    "Συμβουλές ύφους που αγνοήθηκαν: {count}.",
+    "Ignorerade stilråd: {count}.",
+    "Ignorierte Stilhinweise: {count}.",
+    "Zignorowane wskazówki stylistyczne: {count}.",
+    "Conselhos de estilo ignorados: {count}.",
+  ],
+
+  review_cat_style: [
+    "Style advice",
+    "Conseils de style",
+    "Stilski savjeti",
+    "Consejos de estilo",
+    "Συμβουλές ύφους",
+    "Stilråd",
+    "Stilhinweise",
+    "Wskazówki stylistyczne",
+    "Conselhos de estilo",
+  ],
+  review_status_advice: [
+    "Style advice: {count}.",
+    "Conseils de style : {count}.",
+    "Stilski savjeti: {count}.",
+    "Consejos de estilo: {count}.",
+    "Συμβουλές ύφους: {count}.",
+    "Stilråd: {count}.",
+    "Stilhinweise: {count}.",
+    "Wskazówki stylistyczne: {count}.",
+    "Conselhos de estilo: {count}.",
+  ],
+
   review_disable_rule: [
     "Disable this check in Review",
     "Désactiver cette vérification dans Review",

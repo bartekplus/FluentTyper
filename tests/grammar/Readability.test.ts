@@ -88,3 +88,7 @@ test("readability is bounded and normalizes invalid thresholds", () => {
   expect(longSentenceThreshold(10)).toBe(10);
   expect(longSentenceThreshold(200)).toBe(200);
 });
+
+test("readability does not combine complete sentences merely because the next starts lowercase", () => {
+  expect(scan(`${sentence.toLowerCase()} `.repeat(12), 20)).toEqual([]);
+});
