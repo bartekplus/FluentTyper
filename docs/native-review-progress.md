@@ -5,28 +5,28 @@ Base: `d0d0996f`. Branch: `codex/native-review-roadmap`.
 
 Execute sequentially: 1, 2, 3, 4, 8, 5, 6, 7, 9–20. Native TypeScript, individual suggestions, existing editor transactions. No push, PR or merge authorized.
 
-| #   | Feature                        | Status                                                    |
-| --- | ------------------------------ | --------------------------------------------------------- |
-| 1   | Repeated words                 | Implemented; Chrome verified; Firefox launch blocked      |
-| 2   | Auxiliary base verbs           | Implemented; Chrome verified; Firefox launch blocked      |
-| 3   | Contextual word confusions     | Implemented; Chrome verified; Firefox launch blocked      |
-| 4   | Agreement extensions           | Implemented; Chrome verified; Firefox launch blocked      |
-| 5   | Contractions and possessives   | Implemented; Chrome verified; Firefox launch blocked      |
-| 6   | Fixed prepositions             | Implemented; Chrome verified; Firefox launch blocked      |
-| 7   | Verb complements               | Implemented; Chrome verified; Firefox launch blocked      |
-| 8   | Independent Review controls    | Implemented; Chrome verified; Firefox launch blocked      |
-| 9   | Participles                    | Implemented; Chrome verified; Firefox permission blocked  |
-| 10  | Demonstratives and noun number | Implemented; Chrome verified; Firefox permission blocked  |
-| 11  | Compounds                      | Implemented; Chrome verified; Firefox permission blocked  |
-| 12  | Countability                   | Implemented; Chrome verified; Firefox permission blocked  |
-| 13  | Comparatives                   | Implemented; Chrome verified; Firefox permission blocked  |
-| 14  | Fixed phrases                  | Implemented; Chrome verified; Firefox permission blocked  |
-| 15  | Session ignore-all             | Implemented; Chrome verified; Firefox permission blocked  |
-| 16  | Punctuation warnings           | Implemented; Chrome verified; Firefox permission blocked  |
-| 17  | Brand/acronym casing           | Implemented; Chrome verified; Firefox permission blocked  |
-| 18  | Preferred terminology          | In progress: native matching verified; editor/import next |
-| 19  | Incremental rechecks           | Pending; profile first, retain simple path if no benefit  |
-| 20  | Optional style hints           | Pending; default off                                      |
+| #   | Feature                        | Status                                                   |
+| --- | ------------------------------ | -------------------------------------------------------- |
+| 1   | Repeated words                 | Implemented; Chrome verified; Firefox launch blocked     |
+| 2   | Auxiliary base verbs           | Implemented; Chrome verified; Firefox launch blocked     |
+| 3   | Contextual word confusions     | Implemented; Chrome verified; Firefox launch blocked     |
+| 4   | Agreement extensions           | Implemented; Chrome verified; Firefox launch blocked     |
+| 5   | Contractions and possessives   | Implemented; Chrome verified; Firefox launch blocked     |
+| 6   | Fixed prepositions             | Implemented; Chrome verified; Firefox launch blocked     |
+| 7   | Verb complements               | Implemented; Chrome verified; Firefox launch blocked     |
+| 8   | Independent Review controls    | Implemented; Chrome verified; Firefox launch blocked     |
+| 9   | Participles                    | Implemented; Chrome verified; Firefox permission blocked |
+| 10  | Demonstratives and noun number | Implemented; Chrome verified; Firefox permission blocked |
+| 11  | Compounds                      | Implemented; Chrome verified; Firefox permission blocked |
+| 12  | Countability                   | Implemented; Chrome verified; Firefox permission blocked |
+| 13  | Comparatives                   | Implemented; Chrome verified; Firefox permission blocked |
+| 14  | Fixed phrases                  | Implemented; Chrome verified; Firefox permission blocked |
+| 15  | Session ignore-all             | Implemented; Chrome verified; Firefox permission blocked |
+| 16  | Punctuation warnings           | Implemented; Chrome verified; Firefox permission blocked |
+| 17  | Brand/acronym casing           | Implemented; Chrome verified; Firefox permission blocked |
+| 18  | Preferred terminology          | Implemented; Chrome verified; Firefox permission blocked |
+| 19  | Incremental rechecks           | Pending; profile first, retain simple path if no benefit |
+| 20  | Optional style hints           | Pending; default off                                     |
 
 ## Validation
 
@@ -547,3 +547,23 @@ Repeated/truncated fixtures use `We use Acme Suite today. ` or the preferred `Ac
 Production JS delta against the configuration checkpoint (`production-chrome-full-2888-1790714674785`): content script **+6,296 bytes**, background/popup **+461 each**, settings **+1,038**. Candidate: `production-chrome-full-5012-1790715326921`. No dependency, permission or typing change.
 
 The visible settings editor, authored-entry CRUD, localized controls/errors and explicit bounded import/export remain outstanding. Roadmap count remains **17/20 implemented**.
+
+### #18 editor and import/export completion
+
+The Grammar workspace now exposes Preferred terminology with labeled native fields for literal source/replacement, authored explanation, case policy, language, scope and per-entry enablement. Entries receive stable UUIDs on creation and retain them through editing and import/export. Saving an entry does not enable the feature; the separate global switch is off by default. Edit, cancel, remove, explicit JSON import-and-replace and JSON export use existing workspace controls and local storage. All labels, help and validation errors cover the nine UI languages. Settings-only translations live in the options UI module, keeping them out of page content scripts.
+
+Imports check file size before reading, then use the existing complete schema validation and byte bound. Malformed/duplicate/cyclic data does not partially change storage. A version check against the current control value prevents a delayed file read from overwriting a newer saved edit. Export contains only validated authored configuration; HTML-like strings render as text. User documentation now explains enablement, precedence, boundaries, conservative cycle handling, limits and the versioned JSON shape.
+
+A real browser test exposed stale active Review findings after removal from the settings editor. Root cause: controls fired their action before their asynchronous storage write completed, allowing the runtime config refresh to read old data. The shared storage-success path now emits `persisted`; runtime refresh listeners (including UI-language reload) wait for that event. Existing immediate UI actions remain intact. A delayed-storage regression verifies notification ordering. The previously failing editor-to-active-Review removal now passes without a test-side forced config refresh.
+
+Visual inspection of the editor in the production browser confirmed label/readability and exposed native select/checkbox alignment issues, fixed by reusing the existing select wrappers, checkbox labels, action groups and workspace spacing. Screenshot: `/tmp/ft-terms-editor.png`; temporary screenshot instrumentation was removed from the test.
+
+Seven editor tests cover CRUD/stable IDs, explicit enablement, whole-config rejection, HTML-safe rendering, cancellation, bounded import/read rejection, stale import protection, exact JSON export and all nine locales. Combined editor/settings/local-AI settings checks: **49 passed**. The browser workflow covers authoring, enabling, editing, ID preservation, import/removal, live native Review and dictionary/expansion independence. The earlier native browser workflow separately verifies Apply, recheck, native undo and safe explanation rendering.
+
+Final validation: **5,133 unit tests passed** (4,981 main + 152 isolated), full Chrome **120 pass, 10 existing skips, 0 fail**. `bun run check`, Chrome/Firefox production builds and coverage mapping (**204 behaviors**) passed. Firefox runtime remains blocked by the previously reported macOS permission.
+
+Logs: `/tmp/ft-native-terms-ui-verified-{check,unit,chrome,build-chrome,build-firefox}.log`. Original live-removal failure: `/tmp/ft-native-terms-ui-browser-complete.log`; fixed browser workflow: `browser-fixed.log`. Final editor/local-AI/settings focused run: `label-tests.log`.
+
+Moving the editor translations out of the shared Review table removed an observed **11,871-byte** content-script increase. Relative to the native matcher checkpoint, final content/background/popup JS are unchanged; settings JS adds **19,037 bytes**. For all of #18 against #17 (`production-chrome-full-1715-1790714106596`), final deltas are content **+6,431 bytes**, background **+3,175**, settings **+20,269**, popup **+3,088**. Final candidate: `production-chrome-full-6888-1790716334843`. Native scan costs remain recorded in the matching checkpoint above. No new dependencies, permissions, external services or typing activation.
+
+Item #18 is implemented with Chrome validation. **18/20 implemented.** Next: #19 profile native rechecks before choosing bounded result reuse; #20 optional style hints remains afterward. Complete roadmap delivery still requires Firefox runtime validation.

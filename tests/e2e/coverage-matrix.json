@@ -3978,6 +3978,26 @@
           "layer": "unit",
           "file": "tests/grammar/PreferredTerminology.test.ts",
           "test": "terminology import and entry counts have hard bounds"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Terminology settings author, edit, import and remove entries without changing text assets"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/PreferredTerminologyPanel.test.ts",
+          "test": "imports are bounded before reading, validated as a whole, and retain authored IDs"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/PreferredTerminologyPanel.test.ts",
+          "test": "export downloads only the validated authored configuration as JSON"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/settingsEngine.controls.test.ts",
+          "test": "settings announce persistence only after the storage write finishes"
         }
       ]
     }

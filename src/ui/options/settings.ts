@@ -245,7 +245,7 @@ export function wireRuntimeSettingsHandlers(registry: SettingsRegistry): void {
     applyInlineSuggestionLocks(registry, registry[KEY_INLINE_SUGGESTION].get() as boolean);
   });
 
-  registry[KEY_EXTENSION_LANGUAGE]?.addEvent("action", () => {
+  registry[KEY_EXTENSION_LANGUAGE]?.addEvent("persisted", () => {
     const langValue = registry[KEY_EXTENSION_LANGUAGE].get();
     const storageKey = `store.settings.${KEY_EXTENSION_LANGUAGE}`;
     localStorage.setItem(storageKey, JSON.stringify(langValue));
@@ -258,7 +258,7 @@ export function wireRuntimeSettingsHandlers(registry: SettingsRegistry): void {
     if (!setting || typeof setting.addEvent !== "function") {
       continue;
     }
-    setting.addEvent("action", () => handleConfigRefreshTrigger(registry, key));
+    setting.addEvent("persisted", () => handleConfigRefreshTrigger(registry, key));
   }
 }
 

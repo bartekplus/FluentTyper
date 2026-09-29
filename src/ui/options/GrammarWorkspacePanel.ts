@@ -1,3 +1,4 @@
+import { mountPreferredTerminology } from "./PreferredTerminologyPanel";
 import type { SettingsRegistry } from "@ui/settings-engine/SettingsEngine.js";
 import {
   KEY_ENABLED_GRAMMAR_RULES,
@@ -33,5 +34,6 @@ export function renderGrammarWorkspacePanel(root: HTMLElement, registry: Setting
   root.replaceChildren(shell);
   // Mounted after the shell is attached so it can observe its own visibility.
   mountLocalAiSettings(review.card, registry);
+  mountPreferredTerminology(shell, registry);
   pruneEmptySettingsGroups(root);
 }

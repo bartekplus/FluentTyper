@@ -659,3 +659,55 @@ terminology preferences and does not change typing behavior.
 Case-only ASCII repairs change only the affected letters, preserving formatting
 between them. Textareas keep their existing single-step transaction; contenteditable
 fields keep the adapter's advertised per-edit native undo behavior.
+
+### Your preferred terminology
+
+In **Settings → Grammar → Preferred terminology**, add a source phrase, preferred
+phrase and your own explanation. Choose the language, exact or insensitive case
+matching, and whether the entry applies to any reviewed prose or only an explicit
+selection. Save the entry, then enable preferred terminology in Review. The list
+starts empty and disabled; there are no default vendor renamings. The separate
+Review check must also remain enabled.
+
+Edit preserves the entry's ID; Remove deletes it and rechecks an open Review.
+Insensitive matching still inserts the preferred phrase exactly as authored.
+Findings are labeled as user-authored advice, display the explanation as plain
+text and require individual Apply. They do not create typing snippets or modify
+the dictionary. Preferred wording takes precedence over overlapping native,
+spelling and local-AI correction suggestions, preventing recheck loops.
+
+Import accepts a versioned JSON file and explicitly **replaces the list and its
+enabled state**. Export contains only this authored configuration. Limits are 64
+entries, 64 KiB per import, 80 characters for sources, 120 for replacements and
+240 for explanations (UTF-16 units). Text must be nonempty, trimmed and NFC;
+control characters are rejected. Imports are validated as a whole, including
+IDs, supported concrete languages, duplicate sources and potential replacement
+cycles. Cycle detection is conservative for phrase overlaps and Unicode casing.
+An import cannot overwrite a newer save made while its file is being read.
+
+Example configuration (an authored preference, not a mandatory correction):
+
+```json
+{
+  "version": 1,
+  "enabled": true,
+  "entries": [
+    {
+      "id": "acme-suite",
+      "source": "Acme Suite",
+      "replacement": "Acme Workspace",
+      "casePolicy": "exact",
+      "explanation": "Our preferred product name.",
+      "language": "en_US",
+      "scope": "all-prose",
+      "enabled": true
+    }
+  ]
+}
+```
+
+Matching is literal, with complete phrase boundaries and existing code, technical,
+dictionary and selection protections. Longest overlapping phrases win. Settings,
+matching and import/export work locally; analyzed prose is never persisted. The
+50,000-character Review window also bounds terminology work; oversized direct
+scans report their skipped coverage.

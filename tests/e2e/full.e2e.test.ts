@@ -7110,6 +7110,100 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   );
 
   test(
+    "Terminology settings author, edit, import and remove entries without changing text assets",
+    async () => {
+      await prepareReviewPage();
+      const key = "preferredTerminology";
+      const previous = await getSetting(worker!, key);
+      const dictionary = await getSetting(worker!, "userDictionaryList");
+      const expansions = await getSetting(worker!, "textExpansions");
+      const importPath = path.resolve(".tmp", `terminology-${process.pid}.json`);
+      await setSettingAndWait(worker!, key, { version: 1, enabled: false, entries: [] });
+      const options = await openOptionsPage(browser, worker!);
+      try {
+        await options.click('a[href="#grammar_tab"]');
+        const root = "#preferred-terminology";
+        await options.waitForSelector(`${root} [name=source]`, { visible: true });
+        await options.type(`${root} [name=source]`, "Acme Suite");
+        await options.type(`${root} [name=replacement]`, "Acme Workspace");
+        await options.type(`${root} [name=explanation]`, "Our preferred name.");
+        await options.click(`${root} [data-terms-action=save]`);
+        await waitUntil(
+          "authored terminology saved",
+          async () =>
+            (await getSetting<{ entries: unknown[] }>(worker!, key))?.entries.length === 1,
+          { timeoutMs: 5000 },
+        );
+        const saved = await getSetting<{
+          version: number;
+          enabled: boolean;
+          entries: Array<{ id: string; source: string; replacement: string; explanation: string }>;
+        }>(worker!, key);
+        expect(saved.enabled).toBe(false);
+        await options.click(`${root} [data-terms-action=enabled]`);
+        await options.click(`${root} [data-terms-action=edit]`);
+        await options.$eval(`${root} [name=explanation]`, (el) => {
+          (el as HTMLInputElement).value = "A local explanation.";
+        });
+        await options.click(`${root} [data-terms-action=save]`);
+        await waitUntil(
+          "terminology edit saved",
+          async () =>
+            (await getSetting<typeof saved>(worker!, key)).entries[0].explanation ===
+            "A local explanation.",
+          { timeoutMs: 5000 },
+        );
+        const edited = await getSetting<typeof saved>(worker!, key);
+        expect(edited.entries[0].id).toBe(saved.entries[0].id);
+        expect(edited.enabled).toBe(true);
+        fs.writeFileSync(importPath, JSON.stringify(edited));
+        await options.click(`${root} [data-terms-action=remove]`);
+        await waitUntil(
+          "terminology removed",
+          async () => (await getSetting<typeof saved>(worker!, key)).entries.length === 0,
+          { timeoutMs: 5000 },
+        );
+        const file = await options.$(`${root} [data-terms-action=import-file]`);
+        await file!.uploadFile(importPath);
+        await waitUntil(
+          "terminology import",
+          async () => (await getSetting<typeof saved>(worker!, key)).entries.length === 1,
+          { timeoutMs: 5000 },
+        );
+        expect(await getSetting(worker!, key)).toEqual(edited);
+        await page.bringToFront();
+        await setTextarea("We use Acme Suite.");
+        await triggerReview(worker!);
+        await waitForReview(page, "UI-authored term reaches Review", (p) =>
+          p.items.some((i) => i.text === "Acme Suite → Acme Workspace"),
+        );
+        await options.bringToFront();
+        await options.click(`${root} [data-terms-action=remove]`);
+        await waitUntil(
+          "UI removes imported term",
+          async () => (await getSetting<typeof saved>(worker!, key)).entries.length === 0,
+          { timeoutMs: 5000 },
+        );
+        await page.bringToFront();
+        await waitForReview(page, "UI removal clears active Review", (p) => p.items.length === 0);
+        await finishReview();
+        expect(await getSetting(worker!, "userDictionaryList")).toEqual(dictionary);
+        expect(await getSetting(worker!, "textExpansions")).toEqual(expansions);
+      } finally {
+        await options.close();
+        if (fs.existsSync(importPath)) fs.unlinkSync(importPath);
+        await setSettingAndWait(
+          worker!,
+          key,
+          previous ?? { version: 1, enabled: false, entries: [] },
+        );
+        await applyConfigChange(browser, worker!);
+      }
+    },
+    browserTimeout(25000, 35000),
+  );
+
+  test(
     "Review authored terminology applies safely and disappears when removed",
     async () => {
       await prepareReviewPage();
