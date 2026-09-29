@@ -186,6 +186,7 @@
     "local_ai_correct_pairing",
     "local_ai_review_progress",
     "local_ai_prompt_prefix",
-    "local_ai_stable_recheck_pairs"
+    "local_ai_stable_recheck_pairs",
+    "local_ai_cold_cache_recheck"
   ]
 }

@@ -3551,6 +3551,22 @@
           "test": "deleting an early sentence reuses distant paired answers"
         }
       ]
+    },
+    {
+      "id": "local_ai_cold_cache_recheck",
+      "description": "Review verifies the installed cache again before each cold model allocation; eviction yields reinstall promptly and closing during the check prevents late GPU allocation.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/LocalAiHost.test.ts",
+          "test": "an evicted cache is detected before a cold load"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/LocalAiHost.test.ts",
+          "test": "closing during the cache recheck never starts a late model allocation"
+        }
+      ]
     }
   ]
 }

@@ -39,6 +39,7 @@ export function withPromptPrefix(
   }
   let entries: Record<string, Tensor> | null = null;
   let disposed = false;
+  let checkedOnce = false;
   const generate = model.generate.bind(model);
   return {
     async generate(options) {
@@ -46,6 +47,12 @@ export function withPromptPrefix(
       const input = options.input_ids as Tensor;
       const native = options as unknown as Parameters<PreTrainedModel["generate"]>[0];
       if (ids.some((id, i) => id !== input.data[i])) return generate(native);
+      // A one-request review needs no reusable cache; show its result without setup.
+      if (!checkedOnce) {
+        const result = await generate(native);
+        checkedOnce = !options.stopping_criteria.some((stopper) => stopper.interrupted);
+        return result;
+      }
       if (!entries) {
         const output = (await generate({
           input_ids: a.input_ids.slice(null, [0, PREFIX_TOKENS]),

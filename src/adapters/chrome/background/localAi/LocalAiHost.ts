@@ -647,9 +647,11 @@ export class LocalAiHost {
    * one whose only job was cancelled (or whose port left) while nothing else waits.
    */
   private async loadModel(modelId: string): Promise<LoadResult> {
+    let abandoned = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const stopped = new Promise<LoadResult>((resolve) => {
       const abandon = () => {
+        abandoned = true;
         this.dropEngine();
         resolve({ ok: false, error: "load-failed" });
       };
@@ -658,11 +660,16 @@ export class LocalAiHost {
         if (this.scheduler.pending === 0) abandon();
       };
     });
+    const load = async (): Promise<LoadResult> => {
+      // Files can be evicted after the status probe. ONNX may hang while opening
+      // an incomplete graph, so check the installed cache before allocating the GPU.
+      const cached = await this.engine.cacheState(modelId);
+      if (abandoned) return { ok: false, error: "load-failed" };
+      if (cached !== "complete") return { ok: false, error: "cache-failed" };
+      return this.engine.load(modelId, (_phase, progress) => this.setProgress(progress));
+    };
     try {
-      return await Promise.race([
-        this.engine.load(modelId, (_phase, progress) => this.setProgress(progress)),
-        stopped,
-      ]);
+      return await Promise.race([load(), stopped]);
     } finally {
       clearTimeout(timer);
       this.interruptRunning = null;
@@ -676,7 +683,8 @@ export class LocalAiHost {
     }
     this.error = result.error;
     if (result.error === "cache-failed") {
-      // The cache is not complete after all (evicted or damaged): never claim offline readiness.
+      // Missing files are not a failed save: the partial-install status explains recovery.
+      this.error = undefined;
       this.install = "partial";
     } else {
       // Same budget as failed generations: loads that keep failing end in `error`, not retries.

@@ -71,18 +71,21 @@ describe("Gemma instruction prefix", () => {
   test("reuses only matching instruction tokens, with a separate disposable cache per request", async () => {
     const h = harness();
     await h.wrapped.generate(h.options());
+    expect(h.generate).toHaveBeenCalledTimes(1);
+    expect(h.prefixDispose).not.toHaveBeenCalled();
     await h.wrapped.generate(h.options());
-    expect(h.generate).toHaveBeenCalledTimes(3);
+    await h.wrapped.generate(h.options());
+    expect(h.generate).toHaveBeenCalledTimes(4);
     expect(h.prefixDispose).toHaveBeenCalledTimes(1);
     expect(h.prefixRead).toHaveBeenCalledWith(true);
-    const first = h.generate.mock.calls[1][0].past_key_values;
-    const second = h.generate.mock.calls[2][0].past_key_values;
+    const first = h.generate.mock.calls[2][0].past_key_values;
+    const second = h.generate.mock.calls[3][0].past_key_values;
     expect(first).not.toBe(second);
     expect(h.generatedDispose).toHaveBeenCalledTimes(2);
     const different = h.options();
     (different.input_ids.data as BigInt64Array)[0] = 2n;
     await h.wrapped.generate(different);
-    expect(h.generate.mock.calls[3][0].past_key_values).toBeUndefined();
+    expect(h.generate.mock.calls[4][0].past_key_values).toBeUndefined();
     await h.wrapped.dispose();
     expect(h.dispose).toHaveBeenCalledTimes(1);
     await expect(h.wrapped.generate(h.options())).rejects.toThrow("disposed");
@@ -90,17 +93,23 @@ describe("Gemma instruction prefix", () => {
 
   test("unload during prefix preparation prevents a late cache or generation", async () => {
     const h = harness();
+    await h.wrapped.generate(h.options());
+    expect(h.generate).toHaveBeenCalledTimes(1);
+    expect(h.prefixDispose).not.toHaveBeenCalled();
     h.duringPrefix(() => {
       void h.wrapped.dispose();
     });
     await expect(h.wrapped.generate(h.options())).rejects.toThrow("cancelled");
-    expect(h.generate).toHaveBeenCalledTimes(1);
+    expect(h.generate).toHaveBeenCalledTimes(2);
     expect(h.prefixDispose).toHaveBeenCalledTimes(1);
     expect(h.dispose).toHaveBeenCalledTimes(1);
   });
 
   test("failed generations dispose request tensors", async () => {
     const h = harness();
+    await h.wrapped.generate(h.options());
+    expect(h.generate).toHaveBeenCalledTimes(1);
+    expect(h.prefixDispose).not.toHaveBeenCalled();
     h.fail();
     await expect(h.wrapped.generate(h.options())).rejects.toThrow("lost device");
     expect(h.generatedDispose).toHaveBeenCalledTimes(1);
@@ -109,14 +118,17 @@ describe("Gemma instruction prefix", () => {
 
   test("cancellation during prefix preparation releases its cache and does not generate text", async () => {
     const h = harness();
+    await h.wrapped.generate(h.options());
+    expect(h.generate).toHaveBeenCalledTimes(1);
+    expect(h.prefixDispose).not.toHaveBeenCalled();
     h.duringPrefix(() => h.stopper.interrupt());
     await expect(h.wrapped.generate(h.options())).rejects.toThrow("cancelled");
-    expect(h.generate).toHaveBeenCalledTimes(1);
+    expect(h.generate).toHaveBeenCalledTimes(2);
     expect(h.prefixDispose).toHaveBeenCalledTimes(1);
     h.stopper.interrupted = false;
     h.duringPrefix(() => {});
     await h.wrapped.generate(h.options());
-    expect(h.generate).toHaveBeenCalledTimes(3);
+    expect(h.generate).toHaveBeenCalledTimes(4);
     expect(h.prefixDispose).toHaveBeenCalledTimes(2);
   });
 });

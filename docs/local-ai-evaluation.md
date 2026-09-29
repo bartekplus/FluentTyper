@@ -250,6 +250,8 @@ context and validation intact:
   a synthetic, text-free Correct prompt. The cache is 22,937,600 bytes (21.875 MiB) on
   the CPU, bounded to 32 MiB. Each generation gets its own mutable KV cache, disposed
   on success or failure. CPU downloads explicitly release the former GPU tensors.
+  A first Correct request runs normally: the prefix is prepared only when a second
+  request needs it, so a one-request review pays no setup cost.
   Cancellation during preparation never counts as an engine failure. Closing the
   last Review still unloads the model and discards this cache.
 - **Incremental grouping:** unchanged pairs in the previous review plan anchor the
@@ -287,7 +289,10 @@ An A/B/B/A comparison of conditional versus text-only loading, with the actual p
 wrapper, measured mean cached-model load times of **6.276 s versus 5.100 s**. Time from
 load start to the first completed correction was **9.024 s versus 7.768 s**. All four
 outputs matched. The runs confirmed four inference sessions before and only the two
-text sessions afterward. This is a same-browser, disk-cache comparison on the test Mac;
+text sessions afterward. A second A/B/B/A run with deferred prefix preparation gave
+4.924 s versus 3.587 s for loading and 7.417 s versus 6.109 s to the first completed
+correction, again with all outputs identical. Cache warmth produced substantial variance
+between runs; these timings are observations, not fixed latency guarantees. This is a same-browser, disk-cache comparison on the test Mac;
 it does not promise the same savings on other devices or after a machine restart.
 
 On the supplied stress passage, deleting its first sentence now reuses **55 of 57**
@@ -300,6 +305,12 @@ Rejected: resetting pairs at paragraph boundaries also reduced deletion rechecks
 2 requests, but increased the initial plan to 62 requests and lost the accepted
 “many useful feedbacks” → “much useful feedback” correction. Preserving prior pairs
 avoids changing the initial prompt grouping.
+
+The integrated extension test also exposed a cold-load failure: after a verified install,
+evicting a weight file could leave ONNX loading for over two minutes. The host now checks
+cache completeness again before allocating the GPU, returns the existing reinstall state
+for an incomplete cache, and does not start a late load after cancellation during that
+check. This uses the existing cache-state verifier and does not add a network request.
 
 ### Remaining quality limits
 
@@ -327,6 +338,15 @@ user's 10-sentence paragraph complete in 29 s; model unloaded 1.1 s after the Re
 Rewrite 7.8 s; offline cold start → first finding 7.5 s; a partial cache fails honestly;
 Delete leaves no copy (HTTP cache included); no sentinel text in storage, console or
 profile files.
+
+The optimized production extension was rerun on 2026-09-29: all 14 steps passed.
+First rule finding: 52 ms; first Local AI finding: 7.94 s; dense paragraph first AI
+finding: 7.98 s and complete: 18.65 s; unload: 102 ms; Rewrite: 7.24 s; offline cold
+first finding: 6.86 s. Installation took 101 s. The partial-cache check returned the
+reinstall state without network access, and deletion left no model copy. Privacy
+sentinel checks passed. These are individual runs, not controlled latency comparisons.
+The final follow-up clears a misleading save-error message from that partial-cache
+state; its host regression test passes.
 
 ## Not verified
 
