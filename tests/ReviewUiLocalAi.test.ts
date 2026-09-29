@@ -295,6 +295,9 @@ describe("ReviewUi: Local AI", () => {
       return shown(".ai-line") ? $(".ai-line").textContent : null;
     };
     expect(line("idle")).toBeNull();
+    expect(line("waiting")).toBe("Local AI: waiting for edits to settle…");
+    expect(line("checking", { progress: 0.5 })).toBe("Checking context locally… 50%");
+    expect(line("loading", { progress: 0 })).toBe("Local AI: loading model…");
     expect(line("loading")).toBe("Local AI: loading model…");
     expect(line("checking")).toBe("Checking context locally…");
     expect(line("complete")).toBe("Local AI check complete.");
@@ -315,7 +318,8 @@ describe("ReviewUi: Local AI", () => {
 
   test("only an AI pass ending is announced, once", () => {
     const announcer = () => $(".sr-only").textContent;
-    ui.render(state({ ai: ai({ coverage: "checking" }) }));
+    ui.render(state({ ai: ai({ coverage: "checking", progress: 0 }) }));
+    ui.render(state({ ai: ai({ coverage: "checking", progress: 0.5 }) }));
     expect(announcer()).toBe("");
     ui.render(state({ ai: ai({ coverage: "complete" }) }));
     expect(announcer()).toBe("Local AI check complete.");

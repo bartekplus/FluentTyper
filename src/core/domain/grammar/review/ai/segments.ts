@@ -17,14 +17,18 @@ export interface AiChunkOptions {
   style: ConcreteRewriteStyle | null;
   /** Editable characters per chunk (conservative pre-check before the runtime's token budget). */
   maxChunkChars?: number;
+  /** Correct only: disable for models evaluated with one sentence per request. */
+  pairSentences?: boolean;
+  /** Previous plan in this review; unchanged pairs anchor grouping after edits. */
+  previous?: { text: string; chunks: readonly AiChunk[] };
 }
 
 /**
- * Correct sends one sentence per request: with several sentences in one
- * request, small models fixed the first and copied the rest back (real-GPU
- * run on a user's paragraph), and results now appear sentence by sentence.
- * The neighbouring sentences still go along as read-only context. Rewrite
- * keeps larger chunks so each request sees more of the passage.
+ * Correct pairs short sentences to amortize the prompt, retaining separate
+ * editable ranges and read-only context. Pairs stay within 200 characters;
+ * longer sentences keep the 400-character allowance on their own. Larger
+ * pairs missed a quantifier correction in the Gemma stress test.
+ * Rewrite keeps larger chunks (docs/local-ai-evaluation.md).
  */
 const CORRECT_CHUNK_CHARS = 400;
 const REWRITE_CHUNK_CHARS = 1_200;
@@ -69,7 +73,7 @@ export function buildAiChunks(prepared: PreparedReview, options: AiChunkOptions)
   const source = prepared.snapshot.text;
   const scope = prepared.snapshot.scope;
   const rewrite = options.mode === "rewrite";
-  const segmentsPerChunk = rewrite ? MAX_AI_SEGMENTS : 1;
+  const segmentsPerChunk = rewrite ? MAX_AI_SEGMENTS : options.pairSentences === false ? 1 : 2;
   const chunkChars = options.maxChunkChars ?? (rewrite ? REWRITE_CHUNK_CHARS : CORRECT_CHUNK_CHARS);
   const totalChars = rewrite ? REWRITE_TOTAL_CHARS : CORRECT_TOTAL_CHARS;
   const skipped = { protected: 0, unsafe: 0, limit: 0 };
@@ -130,11 +134,34 @@ export function buildAiChunks(prepared: PreparedReview, options: AiChunkOptions)
     return { chunks: [], skipped };
   }
 
+  const previousPairs = new Set(
+    !rewrite && segmentsPerChunk === 2
+      ? (options.previous?.chunks ?? [])
+          .filter((chunk) => chunk.segments.length === 2)
+          .map((chunk) =>
+            JSON.stringify(
+              chunk.segments.map((segment) =>
+                options.previous!.text.slice(segment.range.start, segment.range.end),
+              ),
+            ),
+          )
+      : [],
+  );
+  const pairStarts = new Set<number>();
+  if (previousPairs.size > 0) {
+    for (let i = 0; i + 1 < drafts.length; i += 1) {
+      const text = drafts
+        .slice(i, i + 2)
+        .map((draft) => source.slice(draft.range.start, draft.range.end));
+      if (previousPairs.has(JSON.stringify(text))) pairStarts.add(i);
+    }
+  }
+
   const groups: SegmentDraft[][] = [];
   let group: SegmentDraft[] = [];
   let groupChars = 0;
   let sent = 0;
-  for (const draft of drafts) {
+  for (const [index, draft] of drafts.entries()) {
     const length = draftLength(draft);
     if (length > chunkChars || sent + length > totalChars) {
       skipped.limit += length;
@@ -142,7 +169,9 @@ export function buildAiChunks(prepared: PreparedReview, options: AiChunkOptions)
     }
     if (
       group.length > 0 &&
-      (groupChars + length > chunkChars || group.length >= segmentsPerChunk)
+      (groupChars + length > chunkChars ||
+        group.length >= segmentsPerChunk ||
+        (group.length === 1 && pairStarts.has(index) && !pairStarts.has(index - 1)))
     ) {
       groups.push(group);
       group = [];
@@ -154,7 +183,16 @@ export function buildAiChunks(prepared: PreparedReview, options: AiChunkOptions)
   }
   if (group.length > 0) groups.push(group);
 
-  const chunks = groups.map((members) => {
+  // Preserve the evaluated 400-character greedy groups when applying the 200-character
+  // pair cap. Repacking at the smaller cap shifted neighbours and missed article fixes.
+  const boundedGroups = rewrite
+    ? groups
+    : groups.flatMap((members) =>
+        members.length === 2 && members.reduce((sum, draft) => sum + draftLength(draft), 0) > 200
+          ? members.map((draft) => [draft])
+          : [members],
+      );
+  const chunks = boundedGroups.map((members) => {
     let counter = 0;
     const segments: AiSegment[] = members.map((draft, index) => {
       const holders: AiPlaceholder[] = draft.placeholders.map((range) => ({

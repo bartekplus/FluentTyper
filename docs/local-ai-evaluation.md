@@ -36,8 +36,9 @@ Screening set, Correct mode:
 | **Qwen3-4B-Instruct-2507** (`onnx-community/Qwen3-4B-Instruct-2507-ONNX` @ `41a4dd4d`)    |  2.90 GB | 0/122   | 63% / 60%                       | 63% / 58%                 | 18 / 19                      | 1: ambiguous-16                           | 1570 / 1747               | 4.5 s     |
 | Qwen3-4B (`onnx-community/Qwen3-4B-ONNX` @ `98ddba15`), previous engine default's weights |  2.83 GB | 0/122   | 49% / 42%                       | 49% / 42%                 | 11 / 21                      | 1: ambiguous-16                           | 1719 / 1881               | 6.4 s     |
 
-Gemma 4 uses the multimodal ONNX export (`Gemma4ForConditionalGeneration`, text only; ~0.27
-GB of the download are unused audio/vision encoders).
+This original evaluation used `Gemma4ForConditionalGeneration` for Gemma 4, including
+about 0.27 GB of unused audio/vision encoders. The later text-only loader evaluation
+below uses the same pinned text weights without those encoders.
 
 Full suite (230 Correct fixtures / 246 requests; Gemma also 35 Rewrite and 5 cancel runs):
 
@@ -107,6 +108,227 @@ faster but raised correct-text changes for most models; not adopted.
 - Four further Correct-prompt variants gained at most 4 of 45 held-out fixes, on a held-out
   set that had informed them; not adopted.
 
+For saved Correct outputs, the evaluator defaults to the current Standard/Gemma
+chunking policy. Pass `--tier=compact` to `bun scripts/local-ai-eval/score.ts outputs.json`
+for Compact single-sentence outputs. This selects request reconstruction only; it does
+not run or change the model.
+
+## Gemma Correct batching (2026-09-29)
+
+**Applied for Recommended (Gemma); Compact keeps single-sentence requests.** Form greedy
+groups of at most two sentences within the existing 400-character budget, then send
+a pair together only when its
+editable text fits within 200 characters. Split larger pairs into two single requests
+without regrouping their neighbours. Individual sentences retain the existing
+400-character limit; context remains 300 characters on each side. Segment IDs, protected
+markers, validation, cancellation, the session cache and the `review-ai-3` prompt stay
+on the existing paths. Gemma 4 E4B, its revision and precision are unchanged.
+
+Real-GPU evaluation used the pinned `843f250f23bc91754def1e0f0db390dacd1e6b05`
+ONNX export, q4f16, Transformers.js 4.3.0, Chrome 154 and Apple Metal WebGPU. The base was
+`f61e6bd5`, including the pending validator guard against optional commas before “too”.
+
+| Check                                             |           One segment |          Stable pairs |
+| ------------------------------------------------- | --------------------: | --------------------: |
+| Requests for the supplied broken stress passage   |                    98 |                    58 |
+| Requests for its corrected reference              |                   102 |                    59 |
+| Accepted changes to the corrected reference       |                     0 |                     0 |
+| Regression fixtures with identical accepted text  |                     — |               230/230 |
+| Correct-text fixtures changed                     |                 0/119 |                 0/119 |
+| Accepted expected fixes: dense / held-out / other | 70/91 / 38/45 / 69/69 | 70/91 / 38/45 / 69/69 |
+| Fresh timing round 1: same 24 sentences           |               55.07 s |               37.92 s |
+| Fresh timing round 2: same 24 sentences           |               55.65 s |               38.41 s |
+
+The two timing rounds alternated single-first and pair-first order with a warm model,
+without overlapping builds or browser tests. Paired work took **31.1% less generation
+time** overall (31.1% and 31.0% in the individual rounds), using 48.2% fewer input tokens.
+This is a measurement of the sentences eligible for pairing, not a claim that the whole
+review is 31.1% faster. Median time to one response increased from 2.28 s for a single
+sentence to 3.19 s for a pair; the rules still appear immediately.
+
+All 24 fresh pair outputs and 48 fresh single outputs exactly matched the evaluated outputs. Quality evaluation
+first generated both complete stress passages and all 230 regression fixtures with
+400-character pairs. The final planner's 117 stress requests and 234 fixture requests
+all matched a measured prompt and response shape from that run or the saved single-segment requests;
+we replayed their raw results through the current validator. No unmeasured request was
+substituted. The fixtures' accepted text stayed identical, including the dense paragraph.
+The 70/91 baseline includes the existing decision to preserve the dialect choice
+“Our team have”; the older table above predates that validator guard.
+
+In the complete ReviewSession replay, including rules and Presage spelling, the broken
+passage produces 154 cards versus 155 before: “User” becomes “The user” rather than
+“Users”, and an optional comma after an introductory date phrase is no longer offered.
+The month capitalization remains covered by the rules. Neither change loses a required
+grammar correction. The corrected passage produces zero cards through this combined path as well.
+Finding counts are not recall: multiple cards can refer to one expected correction, and
+quoted examples, protected content and style choices remain deliberately restricted.
+
+Two rejected alternatives explain the limits:
+
+- Unrestricted two-segment/400-character pairs were faster and passed the 230 fixtures,
+  but the stress passage lost “many” → “much” before “useful feedback”.
+- Greedily packing to 200 characters moved pair boundaries and copied an article-heavy
+  sentence unchanged, losing four previously accepted fixes. Splitting oversized pairs
+  without regrouping preserves those fixes.
+
+The smaller 24-sentence probe had missed both effects. Removing context was also left
+out: its roughly 9% speed gain came with changed findings, including a missed punctuation
+fix. Prompt shortening and changing the JSON contract were not part of this change.
+
+The temporary benchmark driver was restored from `250a077b` under
+`/tmp/fluenttyper-stress-root/scripts/local-ai-bench/`; it imports the current product
+prompt, chunker, parser and validator. Raw local evidence is in
+`.cache/local-ai-bench/results/gemma-stable-pairs-2026-09-29.json` and the corresponding
+`gemma-wide-pairs-2026-09-29.json`. These ignored files contain the supplied test passage
+and are not packaged with the extension. Regression tests cover pair boundaries,
+character limits, protected markers, independent validation, progressive findings,
+staleness and cache reuse.
+
+Validation: `bun run check`, the complete unit suite, Chrome smoke and full E2E,
+coverage-matrix validation, and Chrome/Firefox production artifact checks passed.
+Firefox full E2E remains unverified: after installing the required Puppeteer Firefox,
+both it and the system Firefox exited before startup with “Could not find profile
+folder”, including explicit temporary profiles. This was a browser-startup failure,
+not a passing Firefox regression run.
+
+## Remaining latency and review UX (2026-09-29)
+
+The follow-up keeps the evaluated model requests unchanged. Review now shows a
+localized percentage during checking (successful chunks, including cache hits), and
+labels the 1.5-second edit debounce as waiting for edits instead of loading the model.
+Percentages are not time estimates; chunks differ in length. Only pass completion is
+announced to screen readers, so incremental results do not cause repeated announcements.
+
+A request-key experiment used the actual chunker and `aiRequestForChunk`, with the
+supplied broken passage and a fully populated session cache. Each row is one independent
+edit against the original passage, not cumulative edits:
+
+| Edit                                               | Cached requests reused | New requests |
+| -------------------------------------------------- | ---------------------: | -----------: |
+| Opening `last monday` → `Last Monday`              |                     55 |            3 |
+| Middle `more faster` → `faster`                    |                     54 |            4 |
+| Final `nobody have checked` → `nobody has checked` |                     56 |            2 |
+| Delete the opening sentence and following space    |                     10 |           47 |
+
+The baseline is 58 requests. Small edits already reuse most completed work. A sentence
+removal shifts pair boundaries, so many requests really change; reusing their old
+answers would weaken the exact-input guarantee. Applying the opening fix after only
+one request has completed leaves zero cache hits and 58 requests to do. After ten
+completed requests, seven are reused and 51 remain. The active request is also cancelled,
+and rechecking waits 1.5 seconds. This explains why applying early results can feel slow
+even though the engine is making progress. The existing AI batch preview applies multiple
+reviewed fixes in one verified transaction and avoids repeating that cycle per fix.
+
+In the two fresh interleaved timing rounds above, paired requests spent 32.91 of 76.33
+seconds (43.1%) before their first generated token; median time to first token was 1.37
+seconds. This includes prompt processing and runtime overhead, not just tokenization.
+The remaining 43.42 seconds were spent after the first token. The engine currently
+reprocesses the complete prompt for every request. Lowering `max_new_tokens` alone will
+not speed up responses that already stop naturally, and risks truncation instead.
+
+Next experiments, in priority order:
+
+1. **Reuse the fixed prompt prefix in the same loaded engine.** This targets repeated
+   prompt processing without shortening instructions or changing Gemma. The installed
+   runtime exposes past key/value tensors, but safe cross-request reuse, correct positions,
+   cancellation, GPU memory ownership and identical outputs still need a dedicated real-GPU
+   experiment. The 43.1% figure is not a promised saving: only part of that work is reusable.
+2. **Make batching resilient to sentence insertion/deletion.** Paragraph boundaries are
+   a candidate. The 47-request invalidation above is the measured motivation. Different
+   neighbours have already changed correction quality, so this needs the full stress and
+   negative-control evaluation before shipping.
+3. **Reduce time to the first AI result.** Cold model loads measured 6–10 seconds in the
+   benchmark runs. Keeping Review open avoids reloading; closing the last Review deliberately
+   releases GPU memory. A warm-retention policy requires measured GPU memory and an explicit
+   resource-lifetime decision. Splitting just the first pair could improve first-result
+   latency but increases total work and must preserve later pair boundaries.
+
+Not adopted: removing context (measured quality loss), weaker output validation, automatic
+application of AI findings, or speculative concurrent generations on the same GPU. These
+changes do not have evidence of a safe quality/performance tradeoff.
+
+## Prompt reuse, incremental pairs and text-only loading (2026-09-29)
+
+Three follow-up changes keep Gemma's pinned revision, q4f16 text weights, instructions,
+context and validation intact:
+
+- **Fixed instruction prefix:** reuse the first 400 tokens only after matching them to
+  a synthetic, text-free Correct prompt. The cache is 22,937,600 bytes (21.875 MiB) on
+  the CPU, bounded to 32 MiB. Each generation gets its own mutable KV cache, disposed
+  on success or failure. CPU downloads explicitly release the former GPU tensors.
+  A first Correct request runs normally: the prefix is prepared only when a second
+  request needs it, so a one-request review pays no setup cost.
+  Cancellation during preparation never counts as an engine failure. Closing the
+  last Review still unloads the model and discards this cache.
+- **Incremental grouping:** unchanged pairs in the previous review plan anchor the
+  next plan. Answers are still reused only for identical complete requests, including
+  surrounding context, model and prompt version. All offsets and protected markers
+  are rebuilt against the current snapshot. Initial grouping is unchanged: verified
+  on both stress passages and all 230 fixtures (232/232 identical plans).
+- **Text-only loading:** `Gemma4ForCausalLM` uses the same text embedding and decoder
+  sessions as the conditional loader; its inherited forward implementation is unchanged.
+  Audio and vision encoders are neither loaded nor included in new installs. This
+  removes 273,379,300 bytes from the download (now 4,924,964,491 bytes), while existing
+  verified installs remain usable. The existing obsolete-file cleanup removes the
+  unneeded cached files. No GPU warm-retention period was added.
+
+### Measurements
+
+The prefix probe ran eight stress requests twice, in opposite baseline/prefix order
+with one warm model. Total generation time fell from **47.478 s to 34.672 s (27.0%)**.
+All 16 raw outputs matched exactly. Prefix preparation cost 1.037 s once per load;
+that setup cost is excluded from the warm-generation percentage. This gain is measured
+on top of short-sentence pairing, not independently additive to its earlier 31.1% gain.
+
+The complete prefix experiment checked 117 stress requests and 230 regression fixtures.
+Both stress passages retained identical accepted findings. 229/230 fixtures retained
+identical accepted text; the dense paragraph additionally gained a comma before an
+independent clause joined by “and”. No accepted correction was lost, and none of the
+119 unchanged controls was changed. Small numerical differences from splitting prompt
+processing can alter model output, so prefix caching is quality-tested, not assumed
+bit-identical. The final runtime wrapper, using the text-only loader, repeated the full corpus: all
+117 stress requests and all 230 fixtures parsed successfully and reproduced the same
+accepted findings, including that one additional comma. The final snapshot-deletion
+run generated only two fresh requests and preserved every surviving baseline finding.
+
+An A/B/B/A comparison of conditional versus text-only loading, with the actual prefix
+wrapper, measured mean cached-model load times of **6.276 s versus 5.100 s**. Time from
+load start to the first completed correction was **9.024 s versus 7.768 s**. All four
+outputs matched. The runs confirmed four inference sessions before and only the two
+text sessions afterward. A second A/B/B/A run with deferred prefix preparation gave
+4.924 s versus 3.587 s for loading and 7.417 s versus 6.109 s to the first completed
+correction, again with all outputs identical. Cache warmth produced substantial variance
+between runs; these timings are observations, not fixed latency guarantees. This is a same-browser, disk-cache comparison on the test Mac;
+it does not promise the same savings on other devices or after a machine restart.
+
+On the supplied stress passage, deleting its first sentence now reuses **55 of 57**
+requests: **2 new requests instead of 47**. The initial plan still has 58 requests. The real-Gemma deletion replay lost no accepted
+findings and added none.
+Small word edits still invalidate only the affected text and nearby context (2–4
+requests in the measured cases).
+
+Rejected: resetting pairs at paragraph boundaries also reduced deletion rechecks to
+2 requests, but increased the initial plan to 62 requests and lost the accepted
+“many useful feedbacks” → “much useful feedback” correction. Preserving prior pairs
+avoids changing the initial prompt grouping.
+
+The integrated extension test also exposed a cold-load failure: after a verified install,
+evicting a weight file could leave ONNX loading for over two minutes. The host now checks
+cache completeness again before allocating the GPU, returns the existing reinstall state
+for an incomplete cache, and does not start a late load after cancellation during that
+check. This uses the existing cache-state verifier and does not add a network request.
+
+### Remaining quality limits
+
+The original stress run rejected 33 proposed change units as wording drift, 10 as
+quoted text, 3 as number changes, 2 as negation changes, and one each as too many changed
+words, a technical-token change and a name change. These counts are not all missed
+errors: the corrected reference also had four proposals rejected correctly. Increasing
+all guard limits would therefore be unsafe. A useful next quality experiment is a
+separate, narrowly proved rule for compound-subject pronouns and agreement; the first
+stress sentence's large change unit currently exceeds the four-word guard. The existing
+quoted-example and style restrictions remain intentional.
+
 ## Languages
 
 English only. Both earlier shipped models damaged the Polish rewrite fixture rw-pl-02
@@ -122,6 +344,15 @@ user's 10-sentence paragraph complete in 29 s; model unloaded 1.1 s after the Re
 Rewrite 7.8 s; offline cold start → first finding 7.5 s; a partial cache fails honestly;
 Delete leaves no copy (HTTP cache included); no sentinel text in storage, console or
 profile files.
+
+The optimized production extension was rerun on 2026-09-29: all 14 steps passed.
+First rule finding: 52 ms; first Local AI finding: 7.94 s; dense paragraph first AI
+finding: 7.98 s and complete: 18.65 s; unload: 102 ms; Rewrite: 7.24 s; offline cold
+first finding: 6.86 s. Installation took 101 s. The partial-cache check returned the
+reinstall state without network access, and deletion left no model copy. Privacy
+sentinel checks passed. These are individual runs, not controlled latency comparisons.
+The final follow-up clears a misleading save-error message from that partial-cache
+state; its host regression test passes.
 
 ## Not verified
 

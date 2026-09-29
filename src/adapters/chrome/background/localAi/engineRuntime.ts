@@ -1,9 +1,12 @@
 import {
   AutoModelForCausalLM,
   AutoTokenizer,
-  Gemma4ForConditionalGeneration,
+  Gemma4ForCausalLM,
   InterruptableStoppingCriteria,
+  DynamicCache,
+  Tensor,
   env,
+  type PreTrainedTokenizer,
 } from "@huggingface/transformers";
 import {
   LOCAL_AI_DOWNLOAD_ORIGINS,
@@ -11,6 +14,7 @@ import {
 } from "@core/domain/localAi/modelRegistry";
 import { LocalAiEngine, type GpuLike, type ModelLike, type TokenizerLike } from "./LocalAiEngine";
 import { createNetworkGuard } from "./networkGuard";
+import { withPromptPrefix } from "./promptPrefix";
 import { MODEL_CACHE } from "./modelArtifacts";
 
 /**
@@ -61,14 +65,19 @@ export const localAiEngine: LocalAiEngine | null = new LocalAiEngine({
         revision: record.revision,
       })) as unknown as TokenizerLike;
     },
-    loadModel: async (record): Promise<ModelLike> => {
+    loadModel: async (record, tokenizer): Promise<ModelLike> => {
       pinRevision(record);
       const options = { revision: record.revision, dtype: record.dtype, device: "webgpu" } as const;
       const model =
         record.loader === "gemma4"
-          ? await Gemma4ForConditionalGeneration.from_pretrained(record.repo, options)
+          ? await Gemma4ForCausalLM.from_pretrained(record.repo, options)
           : await AutoModelForCausalLM.from_pretrained(record.repo, options);
-      return model as unknown as ModelLike;
+      return record.loader === "gemma4"
+        ? withPromptPrefix(model, tokenizer as unknown as PreTrainedTokenizer, {
+            DynamicCache,
+            Tensor,
+          })
+        : (model as unknown as ModelLike);
     },
     createStopper: () => new InterruptableStoppingCriteria(),
   },
@@ -76,3 +85,11 @@ export const localAiEngine: LocalAiEngine | null = new LocalAiEngine({
   gpu: (globalThis.navigator as Navigator & { gpu?: GpuLike }).gpu,
   guard,
 });
+
+// Erased types for the prefix helper; keep all Transformers imports at this boundary.
+export type {
+  DynamicCache,
+  Tensor,
+  PreTrainedModel,
+  PreTrainedTokenizer,
+} from "@huggingface/transformers";

@@ -2,7 +2,7 @@
  * Opt-in, real-GPU end-to-end run of Local AI Review against the production
  * Chrome build: install, Correct, Rewrite, privacy sentinel, offline cold
  * start, partial cache and delete. Downloads the selected registry model's
- * pinned files (Recommended: Gemma 4 E4B, ~5.2 GB; Compact: Qwen3 4B Instruct
+ * pinned files (Recommended: Gemma 4 E4B, ~4.9 GB; Compact: Qwen3 4B Instruct
  * 2507, ~2.9 GB) from its Hugging Face revision on every run. Fails loudly without a
  * WebGPU adapter that has shader-f16.
  *

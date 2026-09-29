@@ -1031,6 +1031,17 @@ const UI = {
     "Lokalna SI",
     "IA local",
   ],
+  review_ai_waiting: [
+    "Local AI: waiting for edits to settle…",
+    "IA locale : en attente de la fin des modifications…",
+    "Lokalna UI: čeka se završetak uređivanja…",
+    "IA local: esperando a que terminen los cambios…",
+    "Τοπική ΤΝ: αναμονή ολοκλήρωσης των αλλαγών…",
+    "Lokal AI: väntar på att redigeringen ska avslutas…",
+    "Lokale KI: wartet auf das Ende der Bearbeitung…",
+    "Lokalna SI: oczekiwanie na zakończenie edycji…",
+    "IA local: aguardando o fim das alterações…",
+  ],
   review_ai_loading: [
     "Local AI: loading model…",
     "IA locale : chargement du modèle…",

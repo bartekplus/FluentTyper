@@ -6,7 +6,7 @@
  * reflects what a user would actually be shown. tests/grammar/ReviewAiFixtures.test.ts
  * imports these helpers; the CLI scores a saved run:
  *
- *   bun scripts/local-ai-eval/score.ts outputs.json [--kind=correct|rewrite]
+ *   bun scripts/local-ai-eval/score.ts outputs.json [--kind=correct|rewrite] [--tier=standard|compact]
  *
  * outputs.json: [{ "id": "<fixture id>", "raw": "<model output>" | ["<chunk 0>", …] }]
  * Prints a Markdown summary (ids and counts only, never text).
@@ -89,8 +89,9 @@ function chunksFor(
   prepared: PreparedReview,
   mode: "correct" | "rewrite",
   style: ConcreteRewriteStyle | null,
+  pairSentences = true,
 ): AiChunk[] {
-  return buildAiChunks(prepared, { mode, style }).chunks;
+  return buildAiChunks(prepared, { mode, style, pairSentences }).chunks;
 }
 
 const asArray = (raw: string | readonly string[]) => (typeof raw === "string" ? [raw] : [...raw]);
@@ -127,9 +128,10 @@ export function oracleOutputs(
 export function scoreCorrectCase(
   fixture: CorrectCase,
   raw: string | readonly string[],
+  pairSentences = true,
 ): CorrectScore {
   const prepared = fixturePrepared(fixture.text, fixture.lang);
-  const chunks = chunksFor(prepared, "correct", null);
+  const chunks = chunksFor(prepared, "correct", null, pairSentences);
   const outputs = asArray(raw);
   const rejectedReasons: Partial<Record<AiRejectionReason, number>> = {};
   const edits: ReviewEdit[] = [];
@@ -274,9 +276,14 @@ export function loadRewriteCases(): RewriteCase[] {
 if (import.meta.main) {
   const file = process.argv[2];
   const kind = process.argv.find((arg) => arg.startsWith("--kind="))?.slice(7) ?? "correct";
-  if (!file || (kind !== "correct" && kind !== "rewrite")) {
+  const tier = process.argv.find((arg) => arg.startsWith("--tier="))?.slice(7) ?? "standard";
+  if (
+    !file ||
+    (kind !== "correct" && kind !== "rewrite") ||
+    (tier !== "standard" && tier !== "compact")
+  ) {
     console.error(
-      "usage: bun scripts/local-ai-eval/score.ts outputs.json [--kind=correct|rewrite]",
+      "usage: bun scripts/local-ai-eval/score.ts outputs.json [--kind=correct|rewrite] [--tier=standard|compact]",
     );
     process.exit(2);
   }
@@ -288,7 +295,7 @@ if (import.meta.main) {
   if (kind === "correct") {
     const scores = loadCorrectCases()
       .filter((fixture) => byId.has(fixture.id))
-      .map((fixture) => scoreCorrectCase(fixture, byId.get(fixture.id) ?? ""));
+      .map((fixture) => scoreCorrectCase(fixture, byId.get(fixture.id) ?? "", tier === "standard"));
     console.log(correctSummary(scores));
   } else {
     const scores = loadRewriteCases()

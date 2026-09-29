@@ -316,6 +316,46 @@ describe("LocalAiHost lifecycle", () => {
     expect(port.results()).toHaveLength(1);
   });
 
+  test("an evicted cache is detected before a cold load", async () => {
+    let cached: "complete" | "partial" = "complete";
+    const { review, host, count } = makeHost({ cacheState: async () => cached });
+    const port = review();
+    await flush();
+    cached = "partial";
+    port.emit({ type: "generate", requestId: "r1", request: request("x") });
+    await flush(5);
+    expect(count("load")).toBe(0);
+    expect(count("generate")).toBe(0);
+    expect(host.state().install).toBe("partial");
+    expect(host.state().error).toBeUndefined();
+    expect(port.results()).toHaveLength(1);
+    expect(port.results()[0].outcome).toEqual({ ok: false, error: "not-installed" });
+  });
+
+  test("closing during the cache recheck never starts a late model allocation", async () => {
+    let release: (() => void) | undefined;
+    let hold = false;
+    const { review, count } = makeHost({
+      cacheState: async () => {
+        if (hold)
+          await new Promise<void>((resolve) => {
+            release = resolve;
+          });
+        return "complete";
+      },
+    });
+    const port = review();
+    await flush();
+    hold = true;
+    port.emit({ type: "generate", requestId: "r1", request: request("x") });
+    await flush();
+    port.close();
+    release!();
+    await flush(5);
+    expect(count("load")).toBe(0);
+    expect(count("generate")).toBe(0);
+  });
+
   test("a model load that never finishes is abandoned and the job answered", async () => {
     const { review, count } = makeHost({ load: never }, { loadTimeoutMs: 30 });
     const port = review();
@@ -594,7 +634,7 @@ describe("LocalAiHost lifecycle", () => {
     second.emit({ type: "generate", requestId: "r2", request: request("y") });
     finishUnload();
     await flush(5);
-    expect(calls.slice(-3)).toEqual(["unload", "load", "generate"]);
+    expect(calls.slice(-4)).toEqual(["unload", "cacheState", "load", "generate"]);
     expect(second.results()).toEqual([
       expect.objectContaining({ requestId: "r2", outcome: expect.objectContaining({ ok: true }) }),
     ]);

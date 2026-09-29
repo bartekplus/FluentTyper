@@ -245,7 +245,7 @@ without it. It never runs while you type: suggestions and autocomplete stay Pres
 
 **Setting it up.** The first review offers "Set up local AI…" once (with the download
 size), or open **Settings → Grammar → Local AI**. There you choose **Recommended**
-(Gemma 4 E4B, about 5.2 GB) or **Compact** (Qwen3 4B Instruct, about 2.9 GB, finds fewer
+(Gemma 4 E4B, about 4.9 GB) or **Compact** (Qwen3 4B Instruct, about 2.9 GB, finds fewer
 mistakes), see the download size, and press **Download and enable**, which asks you to
 confirm first. The model files come from Hugging Face once, from a pinned revision, and each
 file is checked against its known hash; the runtime that executes them ships inside the
@@ -260,12 +260,21 @@ were evaluated on. For another review language the panel says so once, and the r
 dictionary checks work as always.
 
 **Correct (the default).** When a review opens, the rule and dictionary results appear
-first, as always. Then the model checks the scope in the background, one sentence at a
-time with its neighbours as read-only context ("Checking context locally…"), and adds
+first, as always. Then the model checks the scope in the background, up to two short
+sentences per request with their neighbours as read-only context ("Checking context
+locally…"), and adds
 what it finds to the same list as it goes, tagged **Local AI**. It is asked to fix clear
 errors (spelling, missing apostrophes, agreement, verb forms, articles, wrong words such
 as "then/than", day and month capitals, double negatives) and to leave correct wording
-alone: no polishing or rephrasing. Every proposal is checked before it is shown:
+alone: no polishing or rephrasing.
+
+Gemma pairs contain at most 200 editable characters and keep separate IDs and ranges. Larger
+pairs are sent as two individual requests without regrouping their neighbours; a lone
+sentence retains its 400-character limit. Compact keeps single-sentence requests.
+See the measured tradeoffs in
+[Local AI evaluation](local-ai-evaluation.md#gemma-correct-batching-2026-09-29).
+
+Every proposal is checked before it is shown:
 
 - only the reviewed scope is sent, with at most a few hundred characters of nearby text
   from the same field as read-only context; code, URLs, e-mail addresses, paths and other
@@ -281,6 +290,12 @@ alone: no polishing or rephrasing. Every proposal is checked before it is shown:
   where the model and a rule disagree about the same word ("dont" → "don't" or
   "doesn't"), the model's fix is a second option on that finding, labelled **Local AI**
   and never preselected; any other overlap is left out.
+
+After an edit, unchanged sentence pairs keep their grouping so a sentence deletion does not
+force the rest of the document to be checked again. Only identical requests reuse answers.
+
+Local AI shows checking progress as a percentage of planned chunks, including cached answers.
+After an edit, its waiting message is separate from model loading; progress is not a time estimate.
 
 Local AI fixes are **never part of Fix all safe**. Apply them one at a time from the card,
 or with **Apply selected AI corrections**, which first previews the combined change (and

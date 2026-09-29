@@ -66,7 +66,7 @@ export interface ModelLike {
 /** The Transformers.js calls the engine makes (engineRuntime.ts binds the real library). */
 interface TransformersRuntime {
   loadTokenizer(record: LocalAiModelRecord): Promise<TokenizerLike>;
-  loadModel(record: LocalAiModelRecord): Promise<ModelLike>;
+  loadModel(record: LocalAiModelRecord, tokenizer: TokenizerLike): Promise<ModelLike>;
   createStopper(): StopperLike;
 }
 
@@ -292,7 +292,7 @@ export class LocalAiEngine {
         // Abandoned while the tokenizer loaded: never start an obsolete GPU allocation.
         return { ok: false, error: "load-failed" };
       }
-      const model = await this.deps.runtime.loadModel(record);
+      const model = await this.deps.runtime.loadModel(record, tokenizer);
       if (epoch !== this.epoch) {
         // Unloaded, deleted or switched while loading: discard the late model.
         await this.dispose(model);
@@ -425,7 +425,7 @@ export class LocalAiEngine {
       }
       return parseAiResponse(raw, request);
     } catch {
-      return { ok: false, error: "engine-failed" };
+      return { ok: false, error: stopper.interrupted ? "cancelled" : "engine-failed" };
     } finally {
       // A generation abandoned by the host may settle after a newer one started.
       if (this.stopper === stopper) {

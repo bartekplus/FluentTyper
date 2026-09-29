@@ -217,13 +217,14 @@ const TEXT = "We saw teh cat. She go home now.";
 
 describe("ReviewSession with Local AI: Correct", () => {
   test("rule findings are shown first; AI findings join when the model answers", async () => {
-    const h = harness(TEXT);
+    const h = harness(`${TEXT} Everything is ready.`);
     h.ai.auto = false;
     await h.start();
     expect(h.last().status).toBe("ready");
     expect(h.last().diagnostics.map((d) => d.original)).toEqual(["teh"]);
     expect(h.last().ai.availability).toBe("ready");
     expect(h.last().ai.coverage).toBe("checking");
+    expect(h.last().ai.progress).toBe(0);
     expect(h.ai.requests).toHaveLength(1);
     // Nothing identifying the page or offsets crosses the transport.
     expect(Object.keys(h.ai.requests[0].request).sort()).toEqual([
@@ -235,13 +236,23 @@ describe("ReviewSession with Local AI: Correct", () => {
       "style",
     ]);
 
-    // One sentence per request, in document order, one at a time.
-    expect(h.ai.requests[0].request.segments.map((s) => s.text)).toEqual(["We saw teh cat."]);
+    // Two separately editable sentences per request, one request at a time.
+    expect(h.ai.requests[0].request.segments).toEqual([
+      { id: "s0", text: "We saw teh cat." },
+      { id: "s1", text: "She go home now." },
+    ]);
     h.ai.requests[0].answer();
     await h.settle();
     expect(h.last().ai.coverage).toBe("checking");
+    expect(h.aiFindings().map((d) => d.original)).toEqual(["go"]);
     expect(h.ai.requests).toHaveLength(2);
-    h.ai.requests[1].answer();
+    expect(h.last().ai.progress).toBe(0.5);
+    h.session.setAiPaused(true);
+    expect(h.last().ai.progress).toBeUndefined();
+    h.session.setAiPaused(false);
+    await h.settle();
+    expect(h.last().ai.progress).toBe(0.5); // Cached first pair still counts.
+    h.ai.requests.at(-1)!.answer();
     await h.settle();
     expect(h.aiFindings().map((d) => d.original)).toEqual(["go"]);
     expect(h.last().diagnostics.map((d) => d.ruleId === REVIEW_LOCAL_AI_CHECK)).toEqual([
@@ -249,7 +260,26 @@ describe("ReviewSession with Local AI: Correct", () => {
       true,
     ]);
     expect(h.last().ai.coverage).toBe("complete");
+    expect(h.last().ai.progress).toBeUndefined();
     expect(h.editor.applyCalls).toEqual([]);
+  });
+
+  test("Compact keeps single-sentence requests; Gemma pairs them", async () => {
+    const compact = harness(TEXT);
+    compact.ai.current = status({ tier: "compact" });
+    await compact.start();
+    expect(compact.ai.requests.map(({ request }) => request.segments.map((s) => s.text))).toEqual([
+      ["We saw teh cat."],
+      ["She go home now."],
+    ]);
+    const gemma = harness(TEXT);
+    await gemma.start();
+    expect(gemma.ai.requests.map(({ request }) => request.segments.map((s) => s.text))).toEqual([
+      ["We saw teh cat.", "She go home now."],
+    ]);
+    expect(compact.aiFindings().map((d) => d.alternatives[0].preview)).toEqual(
+      gemma.aiFindings().map((d) => d.alternatives[0].preview),
+    );
   });
 
   test("an AI failure keeps the rule findings and reports failed coverage", async () => {
@@ -317,11 +347,10 @@ describe("ReviewSession with Local AI: Correct", () => {
     expect(h.aiFindings()).toEqual([]);
     await h.settle();
     expect(h.ai.requests).toHaveLength(2);
+    expect(h.ai.requests[1].request.segments.map((s) => s.text).join(" ")).toContain("school");
     h.ai.requests[1].answer();
     await h.settle();
-    expect(h.ai.requests[2].request.segments.map((s) => s.text).join(" ")).toContain("school");
-    h.ai.requests[2].answer();
-    await h.settle();
+    expect(h.ai.requests).toHaveLength(2);
     expect(h.aiFindings().map((d) => d.original)).toEqual(["go"]);
     expect(h.aiFindings()[0].range.start).toBe(TEXT.indexOf("go"));
   });
@@ -343,7 +372,7 @@ describe("ReviewSession with Local AI: Correct", () => {
   });
 
   test("answers are reused only for identical requests", async () => {
-    const h = harness(TEXT);
+    const h = harness(`${TEXT} Everything is ready.`);
     await h.start();
     expect(h.ai.requests).toHaveLength(2);
     // Same text again (an unrelated mutation): the answers are reused, nothing is sent.
@@ -352,9 +381,9 @@ describe("ReviewSession with Local AI: Correct", () => {
     expect(h.ai.requests).toHaveLength(2);
     expect(h.aiFindings().map((d) => d.original)).toEqual(["go"]);
     expect(h.last().ai.coverage).toBe("complete");
-    // Changed text: asked again, for the changed sentence and for the one whose
+    // Changed text: asked again, for the changed pair and for the sentence whose
     // read-only context changed.
-    h.editor.text = "We saw teh cat. She go home today.";
+    h.editor.text = "We saw teh cat. She go home today. Everything is ready.";
     h.session.notifySourceChanged();
     await h.settle();
     expect(h.ai.requests).toHaveLength(4);
@@ -362,6 +391,21 @@ describe("ReviewSession with Local AI: Correct", () => {
     h.ai.push({ modelId: "model-b" });
     await h.settle();
     expect(h.ai.requests).toHaveLength(6);
+  });
+
+  test("deleting an early sentence reuses distant paired answers", async () => {
+    const sentences = Array.from(
+      { length: 30 },
+      (_, i) => `Sentence number ${i} has enough context to review.`,
+    );
+    const h = harness(sentences.join(" "));
+    await h.start();
+    const count = h.ai.requests.length;
+    h.editor.text = sentences.slice(1).join(" ");
+    h.session.notifySourceChanged();
+    await h.settle();
+    expect(h.ai.requests.length - count).toBeLessThanOrEqual(5);
+    expect(h.last().ai.coverage).toBe("complete");
   });
 
   test("pause stops the pass and keeps what was shown; resume finishes it", async () => {
@@ -410,7 +454,7 @@ describe("ReviewSession with Local AI: Correct", () => {
     // Setup completes while the review is open: the pass starts.
     h.ai.push({});
     await h.settle();
-    expect(h.ai.requests).toHaveLength(2);
+    expect(h.ai.requests).toHaveLength(1);
     expect(h.aiFindings()).toHaveLength(1);
   });
 
@@ -613,8 +657,8 @@ describe("ReviewSession with Local AI: Correct", () => {
     const b = harness(TEXT);
     await a.start();
     await b.start();
-    expect(a.ai.requests).toHaveLength(2);
-    expect(b.ai.requests).toHaveLength(2);
+    expect(a.ai.requests).toHaveLength(1);
+    expect(b.ai.requests).toHaveLength(1);
     a.session.close();
     await b.settle();
     expect(b.aiFindings().map((d) => d.original)).toEqual(["go"]);

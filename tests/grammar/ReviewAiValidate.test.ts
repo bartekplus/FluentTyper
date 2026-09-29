@@ -256,6 +256,16 @@ describe("correctionFindings", () => {
     // Comma after a sentence-initial interjection.
     expectRejected("Ok cool.", "Ok, cool.", "drift");
     expectRejected("Well I agree with that.", "Well, I agree with that.", "drift");
+    // A required clause boundary before degree/quantifier "too" stays eligible.
+    expect(
+      correctOne(
+        "If you go too many people will follow.",
+        "If you go, too many people will follow.",
+      ).applied,
+    ).toBe("If you go, too many people will follow.");
+    expectRejected("I too think this is wrong.", "I, too, think this is wrong.", "drift");
+    // Optional comma before "too".
+    expectRejected("This needs improvement too.", "This needs improvement, too.", "drift");
     expect(correctOne("However we left.", "However, we left.").applied).toBe("However, we left.");
     // Comma before an opening quotation mark.
     expectRejected("The sign said “Open 24 hours.”", "The sign said, “Open 24 hours.”", "drift");
@@ -448,9 +458,20 @@ describe("correctionFindings", () => {
 
   test("mismatched output ids reject the whole chunk", () => {
     const prep = prepared("One is here. Two is here.");
-    const [chunk] = buildAiChunks(prep, { mode: "rewrite", style: "concise" }).chunks;
+    const [chunk] = buildAiChunks(prep, { mode: "correct", style: null }).chunks;
     const result = correctionFindings(prep, chunk, [{ id: "s1", text: "x" }]);
     expect(result).toEqual({ diagnostics: [], rejected: { shape: 2 } });
+  });
+
+  test("a rejected segment in a Correct pair does not hide its neighbour's fix", () => {
+    const text = "Visit https://one.example now. She go to https://two.example today.";
+    const result = correct(text, ["Visit ⟦2⟧ now.", "She goes to ⟦2⟧ today."]);
+    expect(result.rejected).toEqual({ placeholder: 1 });
+    expect(result.applied).toBe(
+      "Visit https://one.example now. She goes to https://two.example today.",
+    );
+    expect(result.diagnostics).toHaveLength(1);
+    expect(result.diagnostics[0].range.start).toBe(text.indexOf("go to"));
   });
 
   test("a chunk from another snapshot is refused", () => {

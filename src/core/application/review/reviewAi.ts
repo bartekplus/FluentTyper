@@ -65,6 +65,8 @@ export type ReviewAiCoverage =
 export interface ReviewAiViewState {
   availability: ReviewAiAvailability;
   coverage: ReviewAiCoverage;
+  /** Fraction of planned chunks checked, including cached answers; only while checking. */
+  progress?: number;
   /** Status snapshot for the setup/unsupported/install notes (no text). */
   status: LocalAiStatus | null;
   /** Characters not sent (protected, unsafe boundaries, AI size limit). */

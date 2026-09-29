@@ -161,7 +161,7 @@ describe("Local AI settings section", () => {
 
     expect(sent).toEqual([{ command: CMD_LOCAL_AI_GET_STATUS, context: { probe: true } }]);
     expect(statusText(card)).toContain("Not set up yet");
-    expect(visibleButton(card, "Download and enable (≈ 5.2 GB)")).toBeDefined();
+    expect(visibleButton(card, "Download and enable (≈ 4.92 GB)")).toBeDefined();
     expect(card.textContent).toContain("Hugging Face");
     expect(card.textContent).toContain("runs on your GPU while a review is open");
     expect(card.querySelectorAll('input[type="radio"]')).toHaveLength(2);
@@ -246,7 +246,7 @@ describe("Local AI settings section", () => {
     broadcast({ ...NOT_SET_UP, consented: true, install: "partial", runtime: "unconfigured" });
     expect(statusText(card)).toContain("Download incomplete");
     expect(statusText(card)).not.toContain("available offline");
-    expect(visibleButton(card, "Install again (≈ 5.2 GB)")).toBeDefined();
+    expect(visibleButton(card, "Install again (≈ 4.92 GB)")).toBeDefined();
 
     broadcast({ ...NOT_SET_UP, consented: true, install: "complete", runtime: "ready" });
     expect(statusText(card)).toBe("Installed — available offline.");

@@ -669,6 +669,14 @@ describe("lifecycle and generation", () => {
       ok: false,
       error: "cancelled",
     });
+    model.generateImpl = async () => {
+      engine.interrupt();
+      throw new Error("cancelled during prefix preparation");
+    };
+    expect(await engine.generate(GEMMA.record.modelId, REQUEST)).toEqual({
+      ok: false,
+      error: "cancelled",
+    });
     model.generateImpl = async () => tensor(10 + aiMaxOutputTokens(REQUEST), "{");
     expect(await engine.generate(GEMMA.record.modelId, REQUEST)).toEqual({
       ok: false,

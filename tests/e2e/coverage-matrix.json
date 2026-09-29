@@ -3340,7 +3340,7 @@
     },
     {
       "id": "local_ai_setup_offer",
-      "description": "The Review panel shows a one-time Local AI setup offer with the download size; \"Not now\" dismisses it for good; \"Set up local AI…\" opens the options Local AI section focused, whose page only asks for status and installs only after an inline confirm.",
+      "description": "The Review panel shows a one-time Local AI setup offer with the download size; \"Not now\" dismisses it for good; \"Set up local AI\u2026\" opens the options Local AI section focused, whose page only asks for status and installs only after an inline confirm.",
       "coverage": [
         {
           "layer": "e2e-full",
@@ -3355,7 +3355,7 @@
         {
           "layer": "e2e-full",
           "file": "tests/e2e/local-ai.e2e.test.ts",
-          "test": "\"Set up local AI…\" opens the Local AI settings; installing needs the inline confirm"
+          "test": "\"Set up local AI\u2026\" opens the Local AI settings; installing needs the inline confirm"
         },
         {
           "layer": "unit",
@@ -3440,6 +3440,131 @@
           "layer": "unit",
           "file": "tests/LocalAiController.test.ts",
           "test": "without an engine (Firefox) everything is host-unsupported"
+        }
+      ]
+    },
+    {
+      "id": "local_ai_correct_pairing",
+      "description": "Gemma Correct batches at most two segments within 200 characters, splits oversized pairs without regrouping or shortening lone sentences, and keeps separate offsets, protected markers, progressive results, cancellation and exact-request caching. Compact keeps single-sentence requests.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewAiSegments.test.ts",
+          "test": "Correct pairs sentences, keeping separate ids, ranges and surrounding context"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewAiSegments.test.ts",
+          "test": "Correct pairs respect the character cap and give protected tokens unique ids"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewAiSegments.test.ts",
+          "test": "Correct splits oversized pairs without splitting sentences or repacking neighbours"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewAiValidate.test.ts",
+          "test": "a rejected segment in a Correct pair does not hide its neighbour's fix"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSessionAi.test.ts",
+          "test": "rule findings are shown first; AI findings join when the model answers"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSessionAi.test.ts",
+          "test": "typing during generation drops the answer; the pass restarts after the AI pause"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSessionAi.test.ts",
+          "test": "answers are reused only for identical requests"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSessionAi.test.ts",
+          "test": "Compact keeps single-sentence requests; Gemma pairs them"
+        }
+      ]
+    },
+    {
+      "id": "local_ai_review_progress",
+      "description": "Correct shows progress including cached chunks, resets it for new passes, and distinguishes the edit debounce from model loading without announcing each percentage.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSessionAi.test.ts",
+          "test": "rule findings are shown first; AI findings join when the model answers"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewUiLocalAi.test.ts",
+          "test": "coverage lines are distinct, and none claims AI completion when it did not"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewUiLocalAi.test.ts",
+          "test": "only an AI pass ending is announced, once"
+        }
+      ]
+    },
+    {
+      "id": "local_ai_prompt_prefix",
+      "description": "Gemma reuses only the fixed instruction prefix in a bounded CPU cache; per-request caches are disposed on success, failure, cancellation and unload.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/LocalAiPromptPrefix.test.ts",
+          "test": "reuses only matching instruction tokens, with a separate disposable cache per request"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/LocalAiPromptPrefix.test.ts",
+          "test": "unload during prefix preparation prevents a late cache or generation"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/LocalAiPromptPrefix.test.ts",
+          "test": "failed generations dispose request tensors"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/LocalAiPromptPrefix.test.ts",
+          "test": "cancellation during prefix preparation releases its cache and does not generate text"
+        }
+      ]
+    },
+    {
+      "id": "local_ai_stable_recheck_pairs",
+      "description": "After a sentence deletion, unchanged Gemma pairs anchor the new plan; identical requests reuse validated answers with fresh offsets and context. Initial review grouping, Compact and Rewrite stay unchanged.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewAiSegments.test.ts",
+          "test": "unchanged pairs survive sentence deletion without changing initial grouping"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSessionAi.test.ts",
+          "test": "deleting an early sentence reuses distant paired answers"
+        }
+      ]
+    },
+    {
+      "id": "local_ai_cold_cache_recheck",
+      "description": "Review verifies the installed cache again before each cold model allocation; eviction yields reinstall promptly and closing during the check prevents late GPU allocation.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/LocalAiHost.test.ts",
+          "test": "an evicted cache is detected before a cold load"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/LocalAiHost.test.ts",
+          "test": "closing during the cache recheck never starts a late model allocation"
         }
       ]
     }
