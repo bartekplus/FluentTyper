@@ -105,6 +105,7 @@ export class ConfigAssembler {
         codeMode: domainSettings.codeMode,
         enabledGrammarRules: await this.coreSettingsRepository.getEnabledGrammarRules(),
         reviewRuleOverrides: await this.coreSettingsRepository.getReviewRuleOverrides(),
+        preferredTerminology: await this.coreSettingsRepository.getPreferredTerminology(),
         userDictionaryList,
         themeConfig,
         observability,

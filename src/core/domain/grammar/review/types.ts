@@ -1,3 +1,4 @@
+import type { PreferredTerminology } from "./preferredTerminology";
 import type { CatalogRuleId } from "../ruleCatalog";
 
 /**
@@ -180,6 +181,7 @@ export interface ReviewSourceSnapshot {
 }
 
 export interface ReviewOptions {
+  preferredTerminology?: PreferredTerminology;
   /** Explicitly keep dictionary suggestions independent of native rule choices. */
   spellingEnabled?: boolean;
   lang: string;

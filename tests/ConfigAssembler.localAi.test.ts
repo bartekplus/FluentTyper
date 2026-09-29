@@ -53,3 +53,34 @@ describe("ConfigAssembler prediction config", () => {
     });
   });
 });
+
+test("preferred terminology reaches Review config only after validation and never the predictor", async () => {
+  const valid = {
+    version: 1,
+    enabled: true,
+    entries: [
+      {
+        id: "acme",
+        source: "Acme Suite",
+        replacement: "Acme Workspace",
+        casePolicy: "exact",
+        explanation: "Our preferred name.",
+        language: "en_US",
+        scope: "all-prose",
+        enabled: true,
+      },
+    ],
+  };
+  for (const raw of [valid, undefined, { version: 1, enabled: true, entries: "invalid" }]) {
+    const seed = { preferredTerminology: raw };
+    const assembler = new ConfigAssembler(createSettingsManagerMock(seed), { isDevBuild: false });
+    const context = (await assembler.assembleBackgroundPageSetConfig()).context;
+    expect(context.preferredTerminology).toEqual(
+      raw === valid ? valid : { version: 1, enabled: false, entries: [] },
+    );
+    expect(JSON.stringify(await predictionConfig(seed, false))).not.toContain(
+      "preferredTerminology",
+    );
+    expect(JSON.stringify(await predictionConfig(seed, false))).not.toContain("Acme");
+  }
+});

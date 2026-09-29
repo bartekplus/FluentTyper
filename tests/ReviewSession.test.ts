@@ -1206,3 +1206,29 @@ test("unread adapter content suppresses quotation warnings", async () => {
   expect(h.originals()).toEqual([]);
   h.session.close();
 });
+
+test("preferred terminology config changes invalidate Review but identical broadcasts do not", async () => {
+  const h = harness("Plain text.", { rules: [] });
+  await Promise.all([h.session.start(), h.settle()]);
+  const options = {
+    lang: "en_US",
+    enabledRules: [],
+    userDictionary: [],
+    insertSpaceAfterAutocomplete: true,
+    preferredTerminology: { version: 1 as const, enabled: false, entries: [] },
+  };
+  h.session.updateOptions(options);
+  await h.settle();
+  const count = h.states.length;
+  h.session.updateOptions(structuredClone(options));
+  await h.settle();
+  expect(h.states).toHaveLength(count);
+  h.session.updateOptions({
+    ...options,
+    preferredTerminology: { ...options.preferredTerminology, enabled: true },
+  });
+  expect(h.states.length).toBeGreaterThan(count);
+  await h.settle();
+  expect(h.editor.applyCalls).toEqual([]);
+  h.session.close();
+});

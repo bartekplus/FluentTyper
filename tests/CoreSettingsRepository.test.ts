@@ -236,3 +236,46 @@ test("Review rule preferences serialize concurrent card choices without storing 
     reviewRuleOverrides: { englishRepeatedWords: false, englishThenThan: false },
   });
 });
+
+test("preferred terminology fails closed and writes only validated authored settings", async () => {
+  const store: Record<string, unknown> = {
+    userDictionaryList: ["custom"],
+    textExpansions: [["sig", "My name"]],
+  };
+  const repository = new CoreSettingsRepository({
+    get: async (key: string) => store[key] as never,
+    getRaw: async (key: string) => store[key] as never,
+    set: async (key: string, value: unknown) => {
+      store[key] = value;
+    },
+  } as unknown as SettingsManager);
+  const empty = { version: 1, enabled: false, entries: [] };
+  expect(await repository.getPreferredTerminology()).toEqual(empty);
+  store.preferredTerminology = { enabled: true, entries: [{ source: "broken" }] };
+  expect(await repository.getPreferredTerminology()).toEqual(empty);
+  const before = structuredClone(store);
+  expect(await repository.setPreferredTerminology({ enabled: true })).toBe(false);
+  expect(store).toEqual(before);
+  const valid = {
+    version: 1,
+    enabled: true,
+    entries: [
+      {
+        id: "acme",
+        source: "Acme Suite",
+        replacement: "Acme Workspace",
+        casePolicy: "exact",
+        explanation: "Our preferred name.",
+        language: "en_US",
+        scope: "all-prose",
+        enabled: true,
+      },
+    ],
+  };
+  expect(await repository.setPreferredTerminology(valid)).toBe(true);
+  expect(await repository.getPreferredTerminology()).toEqual(valid);
+  expect(store.userDictionaryList).toEqual(["custom"]);
+  expect(store.textExpansions).toEqual([["sig", "My name"]]);
+  expect(await repository.setPreferredTerminology(empty)).toBe(true);
+  expect(await repository.getPreferredTerminology()).toEqual(empty);
+});

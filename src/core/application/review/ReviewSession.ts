@@ -293,7 +293,8 @@ function sameOptions(a: ReviewOptions, b: ReviewOptions): boolean {
     a.spellingEnabled === b.spellingEnabled &&
     a.insertSpaceAfterAutocomplete === b.insertSpaceAfterAutocomplete &&
     sameKey(a.enabledRules, b.enabledRules) &&
-    sameKey(a.userDictionary, b.userDictionary)
+    sameKey(a.userDictionary, b.userDictionary) &&
+    JSON.stringify(a.preferredTerminology) === JSON.stringify(b.preferredTerminology)
   );
 }
 

@@ -24,7 +24,7 @@ Execute sequentially: 1, 2, 3, 4, 8, 5, 6, 7, 9–20. Native TypeScript, individ
 | 15  | Session ignore-all             | Implemented; Chrome verified; Firefox permission blocked |
 | 16  | Punctuation warnings           | Implemented; Chrome verified; Firefox permission blocked |
 | 17  | Brand/acronym casing           | Implemented; Chrome verified; Firefox permission blocked |
-| 18  | Preferred terminology          | In progress: validated domain settings; integration next |
+| 18  | Preferred terminology          | In progress: validated settings/config; matcher/UI next  |
 | 19  | Incremental rechecks           | Pending; profile first, retain simple path if no benefit |
 | 20  | Optional style hints           | Pending; default off                                     |
 
@@ -508,3 +508,13 @@ Cycle validation builds a bounded dependency graph, including whole-phrase prefi
 Validation: **42 focused domain tests passed**, final `bun run check` passed. Runtime/browser/build gates have not been rerun for this unconnected module. Logs: `/tmp/ft-native-terms-{schema-final,check-final}.log`.
 
 Remaining #18 work: settings/repository/config wiring; accessible localized entry editor plus explicit bounded import/export; native literal detection with technical/dictionary/scope protection, stable per-entry diagnostic identity, overlap and canonical/other-rule loop handling; user-authored explanation rendered as text; live removal/recheck; full unit and browser validation, privacy independence, docs and costs. The roadmap remains **17/20 implemented**.
+
+### #18 settings/configuration checkpoint (still incomplete)
+
+Added the `preferredTerminology` setting to the existing settings contract, hidden value control and config-refresh list. The repository validates reads and writes, defaults missing/corrupt values to an empty disabled configuration, and rejects invalid writes without changing storage. Background set-config carries only validated terminology; prediction configuration does not carry the preferences or authored phrases. Content Review options receive the setting. Session option equality includes terminology so actual changes trigger rechecks while identical broadcasts do not.
+
+Focused repository/config/session tests: **76 pass**. These verify safe defaults, rejected writes, explicit save/removal, unchanged dictionary/expansion settings, predictor isolation and recheck invalidation. No terminology matcher or visible editor is connected yet; this remains a preparation checkpoint rather than a delivered feature.
+
+Broad validation: **5,097 unit tests passed** (4,945 main + 152 isolated); full Chrome **118 pass, 10 existing skips, 0 fail**. `bun run check`, Chrome/Firefox production builds and coverage mapping (203 behaviors) passed. Firefox runtime remains permission-blocked. Logs: `/tmp/ft-native-terms-wire-{focused,check,unit,full-chrome,build-chrome,build-firefox}.log`.
+
+Implementation follow-up: the Grammar workspace can mount an editor using the existing `ValueOnlyControl`, `createWorkspaceCard`, `createStackField`, `bindControlEvents` and `downloadBlob` helpers. Validate before setting the control and bound files before reading them. Existing Review messages can label user-authored advice, but explanation text needs its own safe text-content path. Native findings still need per-entry identity, explicit selection-scope metadata and preferred-phrase ownership to prevent conflicts with canonical casing and other native/spelling checks.

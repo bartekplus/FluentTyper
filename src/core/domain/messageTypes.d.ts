@@ -1,3 +1,4 @@
+import type { PreferredTerminology } from "./grammar/review/preferredTerminology";
 import type {
   ObservabilityConfig,
   ObservabilityEvent,
@@ -35,6 +36,7 @@ export interface SetConfigContext {
   localAiReviewEnabled?: boolean;
   enabledGrammarRules: string[];
   reviewRuleOverrides?: Record<string, boolean>;
+  preferredTerminology?: PreferredTerminology;
   userDictionaryList: string[];
   // Theme configuration is reused by settings and options payloads.
   themeConfig?: SuggestionThemeConfig;

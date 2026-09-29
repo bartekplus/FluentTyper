@@ -1,4 +1,9 @@
 import {
+  emptyTerminology,
+  validateTerminology,
+  type PreferredTerminology,
+} from "@core/domain/grammar/review/preferredTerminology";
+import {
   isReviewSupportedRule,
   normalizeReviewRuleOverrides,
 } from "@core/domain/grammar/review/reviewCatalog";
@@ -154,6 +159,18 @@ export class CoreSettingsRepository extends SettingsRepositoryBase {
 
   async getEnabledGrammarRules(): Promise<string[]> {
     return resolveGrammarRuleSelection(await this.getField("enabledGrammarRules"));
+  }
+
+  async getPreferredTerminology(): Promise<PreferredTerminology> {
+    const result = validateTerminology(await this.getField("preferredTerminology"));
+    return result.ok ? result.value : emptyTerminology();
+  }
+
+  async setPreferredTerminology(value: unknown): Promise<boolean> {
+    const result = validateTerminology(value);
+    if (!result.ok) return false;
+    await this.setField("preferredTerminology", result.value);
+    return true;
   }
 
   async getReviewRuleOverrides(): Promise<Record<string, boolean>> {

@@ -1,3 +1,4 @@
+import { emptyTerminology } from "@core/domain/grammar/review/preferredTerminology";
 import { reviewText, type ReviewTextKey } from "@core/domain/grammar/review/reviewMessages";
 import {
   REVIEW_RULE_METADATA,
@@ -33,6 +34,7 @@ import {
   KEY_OBSERVABILITY_MODULE_OVERRIDES,
   KEY_ENABLED_GRAMMAR_RULES,
   KEY_REVIEW_RULE_OVERRIDES,
+  KEY_PREFERRED_TERMINOLOGY,
   KEY_TIME_FORMAT,
   KEY_DATE_FORMAT,
   KEY_TEXT_EXPANSIONS,
@@ -454,6 +456,13 @@ const manifest: ManifestDefinition = {
       name: KEY_LOCAL_AI_REVIEW_TIER,
       type: "valueOnly",
       default: DEFAULT_LOCAL_AI_TIER,
+    },
+    {
+      tab: "grammar_tab",
+      group: i18n.get("grammar_rules"),
+      name: KEY_PREFERRED_TERMINOLOGY,
+      type: "valueOnly",
+      default: emptyTerminology(),
     },
     {
       tab: "grammar_tab",
