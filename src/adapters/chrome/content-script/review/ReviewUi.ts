@@ -1232,7 +1232,7 @@ export class ReviewUi {
         this.doc,
         "span",
         { class: "why" },
-        `${this.t(CATEGORY_KEY[diagnostic.category])}: ${this.t(diagnostic.messageKey)}`,
+        `${this.t(CATEGORY_KEY[diagnostic.category])}: ${this.explanation(diagnostic)}`,
       );
       // Provenance in words (part of the item's name), beside the unchanged category signals.
       if (isLocalAi(diagnostic)) {
@@ -1288,6 +1288,11 @@ export class ReviewUi {
     this.card.replaceChildren();
   }
 
+  private explanation(diagnostic: ReviewDiagnostic): string {
+    const label = this.t(diagnostic.messageKey);
+    return diagnostic.terminology ? `${label} ${diagnostic.terminology.explanation}` : label;
+  }
+
   focusCard(): void {
     // A pick-one card has no default: focus lands on its first suggestion.
     (
@@ -1320,7 +1325,7 @@ export class ReviewUi {
     this.card.dataset.category = diagnostic.category;
     this.card.setAttribute(
       "aria-label",
-      `${ai ? `${category}, ${this.t("review_ai_tag")}` : category}: ${this.t(diagnostic.messageKey)}`,
+      `${ai ? `${category}, ${this.t("review_ai_tag")}` : category}: ${this.explanation(diagnostic)}`,
     );
     const header = element(doc, "header");
     header.append(
@@ -1349,11 +1354,11 @@ export class ReviewUi {
     if (diagnostic.warningOnly) {
       this.card.setAttribute(
         "aria-label",
-        `${category}, ${this.t("review_warning")}: ${this.t(diagnostic.messageKey)}`,
+        `${category}, ${this.t("review_warning")}: ${this.explanation(diagnostic)}`,
       );
       this.replaceKeepingFocus(this.card, [
         header,
-        element(doc, "p", {}, this.t(diagnostic.messageKey)),
+        element(doc, "p", {}, this.explanation(diagnostic)),
         element(doc, "p", { class: "hint" }, this.t("review_warning_hint")),
         this.cardActions(diagnostic),
       ]);
@@ -1378,7 +1383,7 @@ export class ReviewUi {
 
     const parts: HTMLElement[] = [
       header,
-      element(doc, "p", {}, this.t(diagnostic.messageKey)),
+      element(doc, "p", {}, this.explanation(diagnostic)),
       diff,
     ];
     if (diagnostic.alternatives.length > 1) {
@@ -1470,7 +1475,7 @@ export class ReviewUi {
     const actions = this.cardActions(diagnostic);
     const parts: HTMLElement[] = [
       header,
-      element(doc, "p", {}, this.t(diagnostic.messageKey)),
+      element(doc, "p", {}, this.explanation(diagnostic)),
       word,
       element(doc, "p", { class: "label" }, this.t("review_card_replace_with")),
       group,

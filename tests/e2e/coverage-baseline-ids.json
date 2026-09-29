@@ -204,6 +204,7 @@
     "review_usage_phrases",
     "review_session_matching_ignores",
     "review_quotation_warnings",
-    "review_canonical_casing"
+    "review_canonical_casing",
+    "review_preferred_terminology"
   ]
 }

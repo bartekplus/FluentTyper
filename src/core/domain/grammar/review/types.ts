@@ -54,6 +54,7 @@ interface ReviewAlternative {
 }
 
 export type ReviewMessageKey =
+  | "review_msg_preferred_terminology"
   | "review_msg_canonical_casing"
   | "review_msg_quotation_balance"
   | "review_msg_unclosed_quote"
@@ -126,6 +127,7 @@ export type BulkDecision =
     };
 
 export interface ReviewDiagnostic {
+  terminology?: { id: string; explanation: string };
   /** Unique within its snapshot: rule, range and replacement. */
   id: string;
   snapshotId: string;
@@ -166,6 +168,8 @@ export interface ProtectedRange extends TextRange {
 }
 
 export interface ReviewSourceSnapshot {
+  /** The user explicitly selected this scope, even when it spans the whole field. */
+  selection?: true;
   /** Changes whenever the text or its structure changes. */
   id: string;
   text: string;

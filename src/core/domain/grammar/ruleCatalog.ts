@@ -2,6 +2,19 @@ import type { GrammarRuleCatalogEntry, GrammarRuleId } from "./types";
 
 export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   {
+    id: "preferredTerminology",
+    typing: false,
+    name: "Your preferred terminology",
+    titleI18nKey: "review_msg_preferred_terminology",
+    descriptionI18nKey: "review_msg_preferred_terminology",
+    exampleI18nKey: "",
+    languageScope: "all",
+    safetyTier: "advanced",
+    defaultRollout: "off",
+    recommended: false,
+    priority: 160,
+  },
+  {
     id: "englishCanonicalCasing",
     typing: false,
     name: "Canonical brand and acronym casing",

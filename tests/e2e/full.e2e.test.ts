@@ -7110,6 +7110,79 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   );
 
   test(
+    "Review authored terminology applies safely and disappears when removed",
+    async () => {
+      await prepareReviewPage();
+      const key = "preferredTerminology";
+      const previous = await getSetting(worker!, key);
+      const source = "We use Acme Suite.";
+      const config = {
+        version: 1,
+        enabled: true,
+        entries: [
+          {
+            id: "acme",
+            source: "Acme Suite",
+            replacement: "Acme Workspace",
+            casePolicy: "exact",
+            explanation: '<img src=x onerror="alert(1)">',
+            language: "en_US",
+            scope: "all-prose",
+            enabled: true,
+          },
+        ],
+      };
+      try {
+        await setSettingAndWait(worker!, key, config);
+        await applyConfigChange(browser, worker!);
+        await setTextarea(source);
+        await triggerReview(worker!);
+        const panel = await waitForReview(page, "authored term", (p) =>
+          p.items.some((i) => i.text === "Acme Suite → Acme Workspace"),
+        );
+        expect(panel.items).toHaveLength(1);
+        expect(panel.fixAll.disabled).toBe(true);
+        await clickReviewControl(page, ".item");
+        const card = await waitForReview(page, "authored term card", (p) => p.card.open);
+        expect(card.card.text).toContain('<img src=x onerror="alert(1)">');
+        expect(
+          await page.evaluate(
+            () =>
+              document
+                .querySelector("[data-fluenttyper-review]")
+                ?.shadowRoot?.querySelectorAll(".card img").length,
+          ),
+        ).toBe(0);
+        await clickReviewControl(page, ".card [data-action=apply]");
+        await waitUntil(
+          "preferred repair",
+          async () => (await textareaValue()) === "We use Acme Workspace.",
+          { timeoutMs: 5000 },
+        );
+        await waitForReview(page, "preferred recheck", (p) => p.items.length === 0);
+        await pressNativeUndo(page, "#test-textarea");
+        await waitForReview(page, "preferred undo", (p) =>
+          p.items.some((i) => i.text === "Acme Suite → Acme Workspace"),
+        );
+        expect(await textareaValue()).toBe(source);
+        await setSettingAndWait(worker!, key, { version: 1, enabled: true, entries: [] });
+        await applyConfigChange(browser, worker!);
+        await waitForReview(page, "preference removed", (p) => p.items.length === 0);
+        expect(await textareaValue()).toBe(source);
+      } finally {
+        await finishReview();
+        await setSettingAndWait(
+          worker!,
+          key,
+          previous ?? { version: 1, enabled: false, entries: [] },
+        );
+        await applyConfigChange(browser, worker!);
+      }
+    },
+    browserTimeout(20000, 30000),
+  );
+
+  test(
     "Review canonical casing preserves split formatting and native undo",
     async () => {
       await prepareReviewPage();

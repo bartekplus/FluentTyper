@@ -52,6 +52,11 @@ function boundedText(value: unknown, max: number): value is string {
   );
 }
 
+// Conservative Unicode fold also unifies final sigma/long s for the insensitive matcher.
+function foldCase(text: string): string {
+  return text.toUpperCase().toLowerCase();
+}
+
 function includesPhrase(text: string, phrase: string): boolean {
   for (let at = text.indexOf(phrase); at >= 0; at = text.indexOf(phrase, at + 1)) {
     if (!WORD.test(text[at - 1] ?? "") && !WORD.test(text[at + phrase.length] ?? "")) return true;
@@ -62,12 +67,11 @@ function includesPhrase(text: string, phrase: string): boolean {
 /** Also catches transitions completed by untouched neighboring words: A -> B, B C -> A C. */
 function canFeed(from: PreferredTerm, to: PreferredTerm): boolean {
   if (from.language !== to.language) return false;
-  const fold = (text: string) => (to.casePolicy === "insensitive" ? text.toLowerCase() : text);
+  const fold = (text: string) => (to.casePolicy === "insensitive" ? foldCase(text) : text);
   const replacement = fold(from.replacement);
   const source = fold(to.source);
   // A self-contained case repair stabilizes at its literal preferred form.
-  if (from.id === to.id && from.source.toLowerCase() === from.replacement.toLowerCase())
-    return false;
+  if (from.id === to.id && foldCase(from.source) === foldCase(from.replacement)) return false;
   if (includesPhrase(replacement, source) || includesPhrase(source, replacement)) return true;
   for (let length = 1; length < Math.min(source.length, replacement.length); length++) {
     if (
@@ -128,7 +132,7 @@ export function validateTerminology(value: unknown): TerminologyValidation {
         (other) =>
           other.language === entry.language &&
           (other.casePolicy === "insensitive" || entry.casePolicy === "insensitive"
-            ? other.source.toLowerCase() === entry.source.toLowerCase()
+            ? foldCase(other.source) === foldCase(entry.source)
             : other.source === entry.source),
       )
     )

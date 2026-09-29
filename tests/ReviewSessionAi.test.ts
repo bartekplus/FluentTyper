@@ -724,6 +724,38 @@ describe("ReviewSession with Local AI: Correct", () => {
 });
 
 describe("ReviewSession with Local AI: disagreeing with a check", () => {
+  test("AI corrections leave explicitly preferred wording unchanged", async () => {
+    const h = harness("We saw teh cat.", { rules: ["preferredTerminology"] });
+    h.session.updateOptions({
+      lang: "en_US",
+      enabledRules: ["preferredTerminology"],
+      userDictionary: [],
+      insertSpaceAfterAutocomplete: true,
+      preferredTerminology: {
+        version: 1,
+        enabled: true,
+        entries: [
+          {
+            id: "literal",
+            source: "the",
+            replacement: "teh",
+            casePolicy: "exact",
+            explanation: "Deliberate wording.",
+            language: "en_US",
+            scope: "all-prose",
+            enabled: true,
+          },
+        ],
+      },
+    });
+    h.ai.fix = (text) => text.replace("teh", "the");
+    await h.start();
+    expect(h.ai.requests.length).toBeGreaterThan(0);
+    expect(h.last().diagnostics).toEqual([]);
+    expect(h.editor.applyCalls).toEqual([]);
+    h.session.close();
+  });
+
   test("AI alternatives never turn a native warning into a replacement card", async () => {
     const h = harness("He wrote, “The build is ready.", { rules: ["unclosedQuotation"] });
     h.ai.fix = (text) => text.replace("“", '"');

@@ -255,3 +255,15 @@ export function remapRangeThroughEdits(
   if (edits.some((edit) => edit.start <= range.end && edit.end >= range.start)) return null;
   return { start: map(range.start), end: map(range.end) };
 }
+
+/** Overlap in sorted, disjoint nonempty ranges (for repeated lookups in one snapshot). */
+export function overlapsSortedRanges(ranges: readonly TextRange[], target: TextRange): boolean {
+  let low = 0;
+  let high = ranges.length;
+  while (low < high) {
+    const mid = (low + high) >>> 1;
+    if (ranges[mid].end <= target.start) low = mid + 1;
+    else high = mid;
+  }
+  return low < ranges.length && ranges[low].start < target.end;
+}

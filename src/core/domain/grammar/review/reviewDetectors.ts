@@ -99,9 +99,11 @@ export interface DetectContext {
   dictionary: ReadonlySet<string>;
   insertSpaceAfterAutocomplete: boolean;
   quotationFindings?: readonly RawFinding[];
+  terminologyFindings?: readonly RawFinding[];
 }
 
 export interface RawFinding {
+  terminology?: { id: string; explanation: string };
   ruleId: CatalogRuleId;
   messageKey: ReviewMessageKey;
   range: TextRange;
@@ -1093,6 +1095,13 @@ const repeatedWords: Detector = (ctx) => {
 
 /** Review detectors by rule. Rules absent here are excluded from review (see reviewCatalog). */
 export const REVIEW_DETECTORS: ReadonlyArray<{ rules: CatalogRuleId[]; detect: Detector }> = [
+  {
+    rules: ["preferredTerminology"],
+    detect: (ctx) =>
+      (ctx.terminologyFindings ?? []).filter(
+        (f) => f.range.start >= ctx.from && f.range.start < ctx.to,
+      ),
+  },
   { rules: ["englishCanonicalCasing"], detect: canonicalCasing },
   {
     rules: ["unclosedQuotation"],

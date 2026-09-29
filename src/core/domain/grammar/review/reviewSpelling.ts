@@ -49,7 +49,7 @@ export function spellingCandidates(
   const { text } = prepared;
   const { scope } = prepared.snapshot;
   const protectedRanges = prepared.protectedRanges;
-  const taken = [...covered].sort((a, b) => a.start - b.start);
+  const taken = [...covered, ...prepared.terminology.ranges].sort((a, b) => a.start - b.start);
   let nextProtected = 0;
   let nextTaken = 0;
   const candidates: SpellingCandidate[] = [];

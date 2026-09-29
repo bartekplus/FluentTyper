@@ -1,3 +1,4 @@
+import { matchTerminology } from "./terminologyMatcher";
 import { unclosedQuotations } from "./quotationWarnings";
 import { GRAMMAR_RULE_CATALOG, type CatalogRuleId } from "../ruleCatalog";
 import { findMarkdownCodeRanges } from "../implementations/helpers/ProtectedSpanShared";
@@ -10,6 +11,7 @@ import {
   isGraphemeBoundary,
   positionMapper,
   rangesOverlap,
+  overlapsSortedRanges,
 } from "./textRanges";
 import type { SpellingCandidate } from "./reviewSpelling";
 import {
@@ -52,6 +54,7 @@ export interface PreparedReview {
   languageSkipped: CatalogRuleId[];
   dictionary: ReadonlySet<string>;
   quotationFindings: RawFinding[];
+  terminology: { findings: RawFinding[]; ranges: TextRange[]; limitedChars?: number };
 }
 
 /** Resolves rules, protection and the masked analysis text. Pure; no DOM. */
@@ -105,6 +108,7 @@ export function prepareReview(
     text = parts.join("");
   }
 
+  const dictionary = normalizeWordSet(options.userDictionary);
   return {
     snapshot,
     options,
@@ -112,7 +116,10 @@ export function prepareReview(
     protectedRanges,
     rules,
     languageSkipped,
-    dictionary: normalizeWordSet(options.userDictionary),
+    dictionary,
+    terminology: rules.has("preferredTerminology")
+      ? matchTerminology(snapshot, options, protectedRanges, dictionary)
+      : { findings: [], ranges: [] },
     quotationFindings:
       rules.has("unclosedQuotation") &&
       !snapshot.incomplete &&
@@ -202,6 +209,7 @@ export function scanReviewChunk(prepared: PreparedReview, chunk: TextRange): Chu
     dictionary: prepared.dictionary,
     insertSpaceAfterAutocomplete: prepared.options.insertSpaceAfterAutocomplete,
     quotationFindings: prepared.quotationFindings,
+    terminologyFindings: prepared.terminology.findings,
   };
   for (const detector of REVIEW_DETECTORS) {
     const active = detector.rules.filter((ruleId) => prepared.rules.has(ruleId));
@@ -248,6 +256,8 @@ export function finalizeReview(
   for (const reason of Object.keys(protectedChars) as CoverageGap[]) {
     skipped[reason] = (skipped[reason] ?? 0) + (protectedChars[reason] ?? 0);
   }
+  if (prepared.terminology.limitedChars)
+    skipped["size-limit"] = (skipped["size-limit"] ?? 0) + prepared.terminology.limitedChars;
   if (failed.size > 0) skipped["rule-error"] = failed.size;
 
   return {
@@ -356,12 +366,18 @@ function toDiagnostic(prepared: PreparedReview, finding: Finding): ReviewDiagnos
   ) {
     return null;
   }
+  if (
+    finding.ruleId !== "preferredTerminology" &&
+    overlapsSortedRanges(prepared.terminology.ranges, range)
+  )
+    return null;
   // The underline itself may not cross code or a structural boundary.
   if (
     prepared.protectedRanges.some(
       (protectedRange) =>
         (finding.warningOnly ||
           finding.ruleId === "englishCanonicalCasing" ||
+          finding.ruleId === "preferredTerminology" ||
           protectedRange.reason !== "technical") &&
         rangesOverlap(range, protectedRange),
     )
@@ -408,7 +424,8 @@ function toDiagnostic(prepared: PreparedReview, finding: Finding): ReviewDiagnos
     ? "warning-only"
     : alternatives.map((alternative) => alternative.preview).join("\u0000");
   return {
-    id: `${snapshot.id}/${finding.ruleId}@${range.start}-${range.end}#${hash(signature)}`,
+    id: `${snapshot.id}/${finding.ruleId}${finding.terminology ? ":" + finding.terminology.id : ""}@${range.start}-${range.end}#${hash(signature)}`,
+    ...(finding.terminology ? { terminology: finding.terminology } : {}),
     snapshotId: snapshot.id,
     ruleId: finding.ruleId,
     category: metadata.category,
@@ -496,6 +513,7 @@ function* proofSteps(
   const shifted = {
     id: `${snapshot.id}~`,
     incomplete: snapshot.incomplete,
+    selection: snapshot.selection,
     text,
     scope: { start: shift(snapshot.scope.start), end: shift(snapshot.scope.end) },
     protectedRanges: snapshot.protectedRanges.map((range) => ({

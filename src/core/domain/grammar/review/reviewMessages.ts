@@ -15,6 +15,17 @@ type Translations = readonly [
 ];
 
 const EXPLANATIONS: Record<ReviewMessageKey, Translations> = {
+  review_msg_preferred_terminology: [
+    "Your preferred terminology (user-authored advice).",
+    "Votre terminologie préférée (conseil rédigé par vous).",
+    "Vaše željeno nazivlje (vaš vlastiti savjet).",
+    "Su terminología preferida (consejo definido por usted).",
+    "Η προτιμώμενη ορολογία σας (δική σας συμβουλή).",
+    "Din föredragna terminologi (råd som du har skrivit).",
+    "Ihre bevorzugte Terminologie (selbst verfasster Hinweis).",
+    "Twoja preferowana terminologia (własna wskazówka).",
+    "Sua terminologia preferida (conselho definido por você).",
+  ],
   review_msg_canonical_casing: [
     "Use the established capitalization of this brand or technology name.",
     "Utilisez les majuscules et minuscules établies pour ce nom de marque ou de technologie.",

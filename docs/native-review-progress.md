@@ -5,28 +5,28 @@ Base: `d0d0996f`. Branch: `codex/native-review-roadmap`.
 
 Execute sequentially: 1, 2, 3, 4, 8, 5, 6, 7, 9–20. Native TypeScript, individual suggestions, existing editor transactions. No push, PR or merge authorized.
 
-| #   | Feature                        | Status                                                   |
-| --- | ------------------------------ | -------------------------------------------------------- |
-| 1   | Repeated words                 | Implemented; Chrome verified; Firefox launch blocked     |
-| 2   | Auxiliary base verbs           | Implemented; Chrome verified; Firefox launch blocked     |
-| 3   | Contextual word confusions     | Implemented; Chrome verified; Firefox launch blocked     |
-| 4   | Agreement extensions           | Implemented; Chrome verified; Firefox launch blocked     |
-| 5   | Contractions and possessives   | Implemented; Chrome verified; Firefox launch blocked     |
-| 6   | Fixed prepositions             | Implemented; Chrome verified; Firefox launch blocked     |
-| 7   | Verb complements               | Implemented; Chrome verified; Firefox launch blocked     |
-| 8   | Independent Review controls    | Implemented; Chrome verified; Firefox launch blocked     |
-| 9   | Participles                    | Implemented; Chrome verified; Firefox permission blocked |
-| 10  | Demonstratives and noun number | Implemented; Chrome verified; Firefox permission blocked |
-| 11  | Compounds                      | Implemented; Chrome verified; Firefox permission blocked |
-| 12  | Countability                   | Implemented; Chrome verified; Firefox permission blocked |
-| 13  | Comparatives                   | Implemented; Chrome verified; Firefox permission blocked |
-| 14  | Fixed phrases                  | Implemented; Chrome verified; Firefox permission blocked |
-| 15  | Session ignore-all             | Implemented; Chrome verified; Firefox permission blocked |
-| 16  | Punctuation warnings           | Implemented; Chrome verified; Firefox permission blocked |
-| 17  | Brand/acronym casing           | Implemented; Chrome verified; Firefox permission blocked |
-| 18  | Preferred terminology          | In progress: validated settings/config; matcher/UI next  |
-| 19  | Incremental rechecks           | Pending; profile first, retain simple path if no benefit |
-| 20  | Optional style hints           | Pending; default off                                     |
+| #   | Feature                        | Status                                                    |
+| --- | ------------------------------ | --------------------------------------------------------- |
+| 1   | Repeated words                 | Implemented; Chrome verified; Firefox launch blocked      |
+| 2   | Auxiliary base verbs           | Implemented; Chrome verified; Firefox launch blocked      |
+| 3   | Contextual word confusions     | Implemented; Chrome verified; Firefox launch blocked      |
+| 4   | Agreement extensions           | Implemented; Chrome verified; Firefox launch blocked      |
+| 5   | Contractions and possessives   | Implemented; Chrome verified; Firefox launch blocked      |
+| 6   | Fixed prepositions             | Implemented; Chrome verified; Firefox launch blocked      |
+| 7   | Verb complements               | Implemented; Chrome verified; Firefox launch blocked      |
+| 8   | Independent Review controls    | Implemented; Chrome verified; Firefox launch blocked      |
+| 9   | Participles                    | Implemented; Chrome verified; Firefox permission blocked  |
+| 10  | Demonstratives and noun number | Implemented; Chrome verified; Firefox permission blocked  |
+| 11  | Compounds                      | Implemented; Chrome verified; Firefox permission blocked  |
+| 12  | Countability                   | Implemented; Chrome verified; Firefox permission blocked  |
+| 13  | Comparatives                   | Implemented; Chrome verified; Firefox permission blocked  |
+| 14  | Fixed phrases                  | Implemented; Chrome verified; Firefox permission blocked  |
+| 15  | Session ignore-all             | Implemented; Chrome verified; Firefox permission blocked  |
+| 16  | Punctuation warnings           | Implemented; Chrome verified; Firefox permission blocked  |
+| 17  | Brand/acronym casing           | Implemented; Chrome verified; Firefox permission blocked  |
+| 18  | Preferred terminology          | In progress: native matching verified; editor/import next |
+| 19  | Incremental rechecks           | Pending; profile first, retain simple path if no benefit  |
+| 20  | Optional style hints           | Pending; default off                                      |
 
 ## Validation
 
@@ -518,3 +518,32 @@ Focused repository/config/session tests: **76 pass**. These verify safe defaults
 Broad validation: **5,097 unit tests passed** (4,945 main + 152 isolated); full Chrome **118 pass, 10 existing skips, 0 fail**. `bun run check`, Chrome/Firefox production builds and coverage mapping (203 behaviors) passed. Firefox runtime remains permission-blocked. Logs: `/tmp/ft-native-terms-wire-{focused,check,unit,full-chrome,build-chrome,build-firefox}.log`.
 
 Implementation follow-up: the Grammar workspace can mount an editor using the existing `ValueOnlyControl`, `createWorkspaceCard`, `createStackField`, `bindControlEvents` and `downloadBlob` helpers. Validate before setting the control and bound files before reading them. Existing Review messages can label user-authored advice, but explanation text needs its own safe text-content path. Native findings still need per-entry identity, explicit selection-scope metadata and preferred-phrase ownership to prevent conflicts with canonical casing and other native/spelling checks.
+
+### #18 native matching checkpoint (editor still pending)
+
+Registered `preferredTerminology` as a Review-only native rule. Its catalog switch permits the check, but no terms run without the separately enabled user configuration and enabled entries. The matcher validates config, uses escaped literal patterns with exact/insensitive case policy, preserves UTF-16 offsets and grapheme boundaries, and restricts matching to complete protected/dictionary-safe prose tokens in the current language and requested field/selection scope. Selection intent is explicit even when it covers the full field. Work is bounded by the existing 64-entry/phrase limits and a 50,000-character window; oversized direct calls report skipped coverage. Native UI sessions already enforce that window.
+
+Each finding carries the authored entry ID and explanation, has a stable per-entry diagnostic identity and stays outside Fix all safe. Longest complete overlapping source wins; ties use position then stable ID. A bounded occupancy buffer chooses nonoverlapping findings without all-pairs comparisons. Source and exact preferred-form spans reserve ownership against conflicting native/spelling/AI suggestions so a user preference such as GitHub → github stays stable. Ownership is session/snapshot-local, does not teach the dictionary, and ends when the preference is removed. Merged sorted spans use binary overlap lookup for native/AI filtering. Ignore-matching identity includes entry metadata.
+
+Review cards/list accessibility text label the result as user-authored advice and append the explanation as text content, not markup. Nine-language labels are present. A browser test writes an explicit preference through the existing settings path, checks safe HTML-like explanation rendering, applies through the native textarea transaction, verifies recheck and undo, then removes the preference and verifies live disappearance without modifying the source.
+
+Focused matcher tests cover 24 scenarios including literal metacharacters, dictionary/code/technical protection, scope/language, explicit enable/removal, overlap, stable IDs, every Unicode chunk split, native/spelling ownership and direct-call limits. Session/UI focused coverage and a separate AI regression verify live invalidation, safe rendering and no recorrection of preferred wording. Final review added a failing Unicode regression: insensitive matching equates Greek sigma forms, but lowercasing alone did not expose their cycle/duplicate edges. Conservative upper-then-lower folding now rejects those cases; the regression passes. This is deliberately conservative for Unicode expansions.
+
+Final checks: **5,125 unit tests passed** (4,973 main + 152 isolated), full Chrome **119 pass, 10 existing skips, 0 fail**. `bun run check`, Chrome/Firefox production builds and coverage mapping (**204 behaviors**) passed. Firefox runtime is still blocked by the previously reported OS permission. Logs: `/tmp/ft-native-terms-match-verified-{check,unit,chrome,build-chrome,build-firefox}.log`; focused Unicode evidence: `/tmp/ft-native-terms-unicode-{before,after}.log`.
+
+Native preparation/detection/conversion costs after broad validation (Bun 1.4.2; 5 warmups then median of 21 runs; only terminology enabled):
+
+| Entries | Characters | Preferred text (ms) | Source text (ms) | Findings |
+| ------- | ---------- | ------------------- | ---------------- | -------- |
+| 1       | 1,000      | 0.071               | 0.148            | 40       |
+| 1       | 10,000     | 0.309               | 0.929            | 400      |
+| 1       | 50,000     | 1.465               | 5.392            | 2,000    |
+| 64      | 1,000      | 0.809               | 0.832            | 40       |
+| 64      | 10,000     | 1.096               | 1.982            | 400      |
+| 64      | 50,000     | 2.714               | 6.273            | 2,000    |
+
+Repeated/truncated fixtures use `We use Acme Suite today. ` or the preferred `Acme Workspace` form; the 64-entry case adds 63 distinct nonmatching LegacyN → PreferredN preferences. Preferred-text counts are zero. These are local costs, not a production speedup claim. Log: `/tmp/ft-native-terms-match-benchmark.log`.
+
+Production JS delta against the configuration checkpoint (`production-chrome-full-2888-1790714674785`): content script **+6,296 bytes**, background/popup **+461 each**, settings **+1,038**. Candidate: `production-chrome-full-5012-1790715326921`. No dependency, permission or typing change.
+
+The visible settings editor, authored-entry CRUD, localized controls/errors and explicit bounded import/export remain outstanding. Roadmap count remains **17/20 implemented**.

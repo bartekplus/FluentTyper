@@ -3959,6 +3959,27 @@
           "test": "canonical casing respects dictionary, scope, protection, language and typing separation"
         }
       ]
+    },
+    {
+      "id": "review_preferred_terminology",
+      "description": "Explicitly configured literal terminology uses stable per-entry native diagnostics, safe authored explanations, native Apply/undo/removal, protections and preferred-word ownership.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review authored terminology applies safely and disappears when removed"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewTerminology.test.ts",
+          "test": "preferred words own native and spelling corrections without changing the dictionary"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/PreferredTerminology.test.ts",
+          "test": "terminology import and entry counts have hard bounds"
+        }
+      ]
     }
   ]
 }

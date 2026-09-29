@@ -1232,3 +1232,42 @@ test("preferred terminology config changes invalidate Review but identical broad
   expect(h.editor.applyCalls).toEqual([]);
   h.session.close();
 });
+
+test("removing a preferred term rechecks immediately and restores native ownership", async () => {
+  const h = harness("We use Acme Suite.", { rules: ["preferredTerminology"] });
+  const opts = {
+    lang: "en_US",
+    enabledRules: ["preferredTerminology"],
+    userDictionary: [],
+    insertSpaceAfterAutocomplete: true,
+    preferredTerminology: {
+      version: 1 as const,
+      enabled: true,
+      entries: [
+        {
+          id: "acme",
+          source: "Acme Suite",
+          replacement: "Acme Workspace",
+          casePolicy: "exact" as const,
+          explanation: "Our preferred name.",
+          language: "en_US",
+          scope: "all-prose" as const,
+          enabled: true,
+        },
+      ],
+    },
+  };
+  h.session.updateOptions(opts);
+  await Promise.all([h.session.start(), h.settle()]);
+  expect(h.last().diagnostics[0].terminology?.id).toBe("acme");
+  expect(h.last().bulk.count).toBe(0);
+  h.session.updateOptions({
+    ...opts,
+    preferredTerminology: { ...opts.preferredTerminology, entries: [] },
+  });
+  await h.settle();
+  expect(h.last().diagnostics).toEqual([]);
+  expect(h.editor.text).toBe("We use Acme Suite.");
+  expect(h.editor.applyCalls).toEqual([]);
+  h.session.close();
+});

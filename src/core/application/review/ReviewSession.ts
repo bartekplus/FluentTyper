@@ -1,3 +1,4 @@
+import { overlapsSortedRanges } from "@core/domain/grammar/review/textRanges";
 import { isReviewSupportedRule } from "@core/domain/grammar/review/reviewCatalog";
 import type { CatalogRuleId } from "@core/domain/grammar/ruleCatalog";
 import {
@@ -598,6 +599,7 @@ export class ReviewSession {
     return JSON.stringify([
       d.ruleId,
       d.messageKey,
+      d.terminology,
       d.lang,
       d.category,
       d.requiresChoice === true,
@@ -1182,6 +1184,7 @@ export class ReviewSession {
         scope: { start: fullScope.start, end: cutEnd },
         protectedRanges: this.protectedRanges,
         incomplete: this.unread > 0 ? true : undefined,
+        selection: this.scopeKind === "selection" ? true : undefined,
       },
       this.options.lang === AUTO_DETECT && this.reviewLang
         ? { ...this.options, lang: this.reviewLang }
@@ -1718,6 +1721,8 @@ export class ReviewSession {
     const shown: ReviewDiagnostic[] = [];
     const extra = new Map<ReviewDiagnostic, ReviewDiagnostic["alternatives"]>();
     for (const finding of this.aiFindings) {
+      if (this.prepared && overlapsSortedRanges(this.prepared.terminology.ranges, finding.range))
+        continue;
       if (checks.some((d) => sameChange(d, finding) || this.sameResult(finding, d))) continue;
       const overlapping = checks.filter((d) => rangesOverlap(d.range, finding.range));
       if (overlapping.every((d) => this.includesCheckFix(finding, d))) {

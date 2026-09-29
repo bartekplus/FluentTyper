@@ -27,6 +27,13 @@ export type ReviewRuleMetadata =
   | { review: "excluded"; reason: string };
 
 export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
+  preferredTerminology: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "grammar",
+    bulk: "individual",
+    note: "Requires an explicitly enabled user-authored terminology configuration.",
+  },
   englishCanonicalCasing: {
     review: "supported",
     defaultEnabled: true,

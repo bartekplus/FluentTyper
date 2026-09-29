@@ -191,3 +191,22 @@ test("opposing exact-case preferences are a cycle even though each case repair i
     ),
   ).toMatchObject({ ok: false, error: "cycle" });
 });
+
+test("Unicode insensitive folds cannot hide duplicate sources or replacement cycles", () => {
+  expect(
+    validateTerminology(
+      config([
+        entry({ id: "first", source: "A", replacement: "σ", casePolicy: "insensitive" }),
+        entry({ id: "second", source: "ς", replacement: "A", casePolicy: "insensitive" }),
+      ]),
+    ),
+  ).toMatchObject({ ok: false, error: "cycle" });
+  expect(
+    validateTerminology(
+      config([
+        entry({ id: "first", source: "σ", replacement: "one", casePolicy: "insensitive" }),
+        entry({ id: "second", source: "ς", replacement: "two", casePolicy: "insensitive" }),
+      ]),
+    ),
+  ).toMatchObject({ ok: false, error: "duplicate" });
+});

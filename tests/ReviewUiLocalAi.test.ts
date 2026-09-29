@@ -242,6 +242,20 @@ describe("ReviewUi: Local AI", () => {
     expect($(".ai-line").textContent).toBe("Local AI model is downloading: 42% (see settings).");
   });
 
+  test("user-authored terminology explanations render only as text", () => {
+    const diagnostic = finding("term", {
+      ruleId: "preferredTerminology",
+      messageKey: "review_msg_preferred_terminology",
+      terminology: { id: "user-term", explanation: '<img src=x onerror="alert(1)">' },
+    });
+    ui.render(state({ diagnostics: [diagnostic] }));
+    ui.openCard(diagnostic, null);
+    expect($(".card").textContent).toContain('<img src=x onerror="alert(1)">');
+    expect($(".card").textContent).toContain("user-authored advice");
+    expect($(".card").querySelector("img")).toBeNull();
+    expect($(".card").getAttribute("aria-label")).toContain("user-authored advice");
+  });
+
   test("warning-only cards label the issue and offer no replacement action", () => {
     const diagnostic = finding("warning", {
       ruleId: "unclosedQuotation",
