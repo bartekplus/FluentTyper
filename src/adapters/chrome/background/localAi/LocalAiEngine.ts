@@ -148,6 +148,8 @@ export class LocalAiEngine {
   private loaded: LoadedModel | null = null;
   private loading: { modelId: string; promise: Promise<LoadResult> } | null = null;
   private epoch = 0;
+  /** Disposals in flight, chained (each is bounded, so this always settles). */
+  private disposing: Promise<void> = Promise.resolve();
   private stopper: StopperLike | null = null;
   private interruptRequested = false;
   private readonly findModel: (modelId: unknown) => LocalAiModelRecord | null;
@@ -234,7 +236,12 @@ export class LocalAiEngine {
       }
       if (signal.aborted) {
         // Cancelled while the marker was written: withdraw it (files stay, partial).
-        await unmarkModelVerified(this.deps.caches, record).catch(() => undefined);
+        try {
+          await unmarkModelVerified(this.deps.caches, record);
+        } catch {
+          // The marker stays: the model is verified and installed after all, so say so.
+          return result;
+        }
         await this.unload();
         return { ok: false, error: "download-cancelled" };
       }
@@ -326,8 +333,10 @@ export class LocalAiEngine {
     this.loaded = null;
     this.loading = null;
     if (loaded) {
-      await this.dispose(loaded.model);
+      this.disposing = this.disposing.then(() => this.dispose(loaded.model));
     }
+    // Every caller (a load included) waits for earlier disposals: never two models at once.
+    await this.disposing;
   }
 
   /** A dispose that hangs (e.g. on a lost GPU device) must not hold the host's lock. */

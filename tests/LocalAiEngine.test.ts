@@ -171,6 +171,7 @@ interface Setup {
   /** This URL sends a few bytes, then waits until its request is aborted. */
   stall?: string;
   loadTokenizer?: () => Promise<TokenizerLike>;
+  disposeTimeoutMs?: number;
   /** A fake loader; `engineFetch` is the engine's guarded fetch. */
   loadModel?: (record: LocalAiModelRecord, engineFetch: typeof fetch) => Promise<ModelLike>;
 }
@@ -217,7 +218,7 @@ function makeEngine(setup: Setup = {}) {
     guard,
     findModel,
     models: [GEMMA.record, QWEN.record],
-    disposeTimeoutMs: 20,
+    disposeTimeoutMs: setup.disposeTimeoutMs ?? 20,
   };
   return {
     engine: new LocalAiEngine(deps),
@@ -399,6 +400,56 @@ describe("install, integrity and cache state", () => {
     expect(await installing).toEqual({ ok: false, error: "download-cancelled" });
     expect(await engine.cacheState(GEMMA.record.modelId)).toBe("partial");
     expect(model.disposed).toBe(1);
+  });
+
+  test("a load waits for an earlier disposal: never two models at once", async () => {
+    const models: FakeModel[] = [];
+    const loadModel = jest.fn(async () => {
+      const made = new FakeModel();
+      models.push(made);
+      return made;
+    });
+    const { engine } = makeEngine({ loadModel, disposeTimeoutMs: 60_000 });
+    await engine.install(GEMMA.record.modelId, noProgress, signal, LOAD_MS);
+    let disposed!: () => void;
+    models[0].dispose = () => new Promise<void>((resolve) => (disposed = resolve));
+    void engine.unload();
+    const loading = engine.load(GEMMA.record.modelId, noProgress);
+    await flush(5);
+    expect(loadModel).toHaveBeenCalledTimes(1);
+    disposed();
+    expect(await loading).toEqual({ ok: true });
+    expect(loadModel).toHaveBeenCalledTimes(2);
+  });
+
+  test("a cancel whose marker cannot be withdrawn reports the model installed", async () => {
+    const { engine, caches, model } = makeEngine();
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let writing = false;
+    const open = caches.open.bind(caches);
+    caches.open = async (name: string) => {
+      const cache = await open(name);
+      if (name !== "fluenttyper-local-ai") return cache;
+      const put = cache.put.bind(cache);
+      cache.put = (async (request: RequestInfo | URL, response: Response) => {
+        writing = true;
+        await gate;
+        return put(request, response);
+      }) as Cache["put"];
+      cache.delete = (async () => {
+        throw new DOMException("refused", "UnknownError");
+      }) as Cache["delete"];
+      return cache;
+    };
+    const abort = new AbortController();
+    const installing = engine.install(GEMMA.record.modelId, noProgress, abort.signal, LOAD_MS);
+    while (!writing) await flush();
+    abort.abort();
+    release();
+    expect(await installing).toEqual({ ok: true });
+    expect(await engine.cacheState(GEMMA.record.modelId)).toBe("complete");
+    expect(model.disposed).toBe(0);
   });
 
   test("a marker that cannot be written fails the install and unloads the model", async () => {
