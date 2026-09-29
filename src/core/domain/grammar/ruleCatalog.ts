@@ -2,6 +2,19 @@ import type { GrammarRuleCatalogEntry, GrammarRuleId } from "./types";
 
 export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   {
+    id: "englishExistentialAgreement",
+    typing: false,
+    name: "Existential noun agreement",
+    titleI18nKey: "review_msg_existential_agreement",
+    descriptionI18nKey: "review_msg_existential_agreement",
+    exampleI18nKey: "",
+    languageScope: "en_US",
+    safetyTier: "advanced",
+    defaultRollout: "off",
+    recommended: false,
+    priority: 146,
+  },
+  {
     id: "englishThenThan",
     typing: false,
     name: "Comparison then/than",

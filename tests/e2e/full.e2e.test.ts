@@ -6994,6 +6994,10 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         ["They forgot there own password.", "They forgot their own password.", "there → their"],
         ["Your going to like this.", "You're going to like this.", "Your → You're"],
         ["The box is to heavy to lift.", "The box is too heavy to lift.", "to → too"],
+        ["They has the updated files.", "They have the updated files.", "has → have"],
+        ["We was ready.", "We were ready.", "was → were"],
+        ["She have a new keyboard.", "She has a new keyboard.", "have → has"],
+        ["There is two errors in the report.", "There are two errors in the report.", "is → are"],
       ]) {
         await prepareReviewPage();
         await setTextarea(source);

@@ -10,7 +10,7 @@ Execute sequentially: 1, 2, 3, 4, 8, 5, 6, 7, 9–20. Native TypeScript, individ
 | 1   | Repeated words                 | Implemented; Chrome verified; Firefox launch blocked     |
 | 2   | Auxiliary base verbs           | Implemented; Chrome verified; Firefox launch blocked     |
 | 3   | Contextual word confusions     | Implemented; Chrome verified; Firefox launch blocked     |
-| 4   | Agreement extensions           | Pending                                                  |
+| 4   | Agreement extensions           | Implemented; Chrome verified; Firefox launch blocked     |
 | 5   | Contractions and possessives   | Pending                                                  |
 | 6   | Fixed prepositions             | Pending                                                  |
 | 7   | Verb complements               | Pending                                                  |
@@ -102,3 +102,33 @@ Local synthetic scan costs (Bun 1.4.2, only these four IDs enabled, 5 warmups, m
 Error phrase: `This version is faster then the old version. They forgot there own password. Your going to like this. The box is to heavy to lift. `. Clean phrase replaces then/there/to with than/their/too and Your with You are. Repeat/truncate to size; scope covers all characters. These local fixture costs are not an isolated before/after performance result.
 
 Production JS delta from #2's retained Chrome build (`production-chrome-full-39426-1790703299908`): content script **+7,123 bytes**, background **+1,396**, settings **+1,043**, popup **+1,043**. No dependency, permission or typing-rule addition.
+
+## #4 agreement extensions
+
+Extended the existing native pronoun detector under its existing ID; the six typing pairs and old per-instance bulk behavior are unchanged. Extra be/have/do forms require a clause-opening pronoun, optionally one listed adverb, and a following word. New findings change only the verb and carry the native individual-only block.
+
+The separate `englishExistentialAgreement` ID uses an authored 14-pair noun-number table. Quantity and noun number must agree; only the verb changes. Coordinated, collective, invariant-number, unknown and contradictory noun phrases abstain, as do unsupported clause tails. Explanation translated into nine UI languages.
+
+Focused corpus: **117 pass**, with 32 repairs (18 pronoun, 14 existential), 80 preservation cases, and five pipeline/typing/ownership/number/casing tests. A self-review regression caught mixed-case pronoun identifiers and was fixed. The have/do forms reuse #2's verb table; be forms remain explicit. Combined #2/#4 focused run: **194 pass**.
+
+- `bun run check`: passed.
+- Final-source full unit suite: **3,745 pass, 0 fail**. Final-source Chrome full browser suite: **92 pass, 10 skip, 0 fail**.
+- All four required #4 acceptance repairs were added to the existing browser Apply/Undo fixture; all stay outside Fix all safe.
+- Production Chrome and Firefox builds: passed.
+- Coverage mapping: passed, 190 behaviors.
+- Firefox browser validation remains unverified due to the launch blocker under #1.
+- Logs: `/tmp/ft-native-agreement-{focused,red,check,unit,full-chrome,build-chrome,build-firefox,benchmark}.log`.
+
+Authored corpus: all 32 supported errors detected; no findings from the target family in 80 preservation cases; no target-family findings after repair. This does not establish general agreement accuracy. Supported and excluded clause shapes are documented in `docs/review-mode.md`.
+
+Local synthetic costs (Bun 1.4.2, both agreement IDs enabled, including the unchanged old pronoun detector; 5 warmups, median of 21 full native scans; no AI/spelling/DOM):
+
+| Characters | Clean (ms) | Dense errors (ms) | Dense findings |
+| ---------- | ---------- | ----------------- | -------------- |
+| 1,000      | 0.184      | 0.303             | 45             |
+| 10,000     | 1.437      | 2.175             | 445            |
+| 50,000     | 6.947      | 10.285            | 2,223          |
+
+Error phrase: `They has the files. We was ready. She have a keyboard. There is two errors in the report. `. Clean phrase: `They have the files. We were ready. She has a keyboard. There are two errors in the report. `. Repeat/truncate to size; scope covers all characters. These are local fixture costs, not isolated before/after performance claims.
+
+Production JS delta against #3's retained final-source Chrome build (`production-chrome-full-40989-1790704043997`): content script **+4,295 bytes**, background **+656**, settings **+292**, popup **+292**. No dependency or permission addition, no change to typing behavior.

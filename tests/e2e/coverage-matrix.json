@@ -3,6 +3,27 @@
   "capturedAt": "2026-09-15",
   "behaviors": [
     {
+      "id": "review_agreement_extensions",
+      "description": "Expanded native pronoun agreement retains the original typing whitelist and bulk ownership. Separate existential suggestions preserve stated quantities and nouns, abstain on ambiguous coordination, and apply individually with native undo.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewAgreementExtensions.test.ts",
+          "test": "existing six typing mappings and their Review ownership stay unchanged"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewAgreementExtensions.test.ts",
+          "test": "verb ownership crosses chunks without changing quantity, noun or Unicode offsets"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review native grammar applies individual edits with native undo"
+        }
+      ]
+    },
+    {
       "id": "review_word_confusions",
       "description": "Four independently selectable native word-confusion families require bounded grammatical evidence, preserve ambiguous and protected content, avoid existing-rule duplicates, and use individual verified edits with native undo.",
       "coverage": [

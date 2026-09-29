@@ -1,3 +1,4 @@
+import { additionalPronounAgreement, existentialAgreement } from "./englishAgreement";
 import { wordConfusions } from "./englishWordConfusions";
 import { auxiliaryForms } from "./englishAuxiliaryForms";
 import type { CatalogRuleId } from "../ruleCatalog";
@@ -654,7 +655,7 @@ const YOU_SUBJECT_BEFORE = new Set([
 ]);
 
 const pronounVerb: Detector = (ctx) => {
-  const findings: RawFinding[] = [];
+  const findings = additionalPronounAgreement(ctx);
   for (const { match, end } of phraseMatches(ctx, AGREEMENT_REGEX, 3)) {
     const phrase = match[1];
     const corrected = AGREEMENT_CORRECTIONS.get(phrase.toLowerCase().replace(/\s+/, " "));
@@ -1099,6 +1100,7 @@ export const REVIEW_DETECTORS: ReadonlyArray<{ rules: CatalogRuleId[]; detect: D
   { rules: ["englishYourWelcomeCorrection"], detect: yourWelcome },
   { rules: ["englishTheirThereBeVerb"], detect: theirThere },
   { rules: ["englishPronounVerbWhitelistAgreement"], detect: pronounVerb },
+  { rules: ["englishExistentialAgreement"], detect: existentialAgreement },
   { rules: ["englishArticleAnCorrection"], detect: articleAn },
   { rules: ["englishOrdinalSuffix"], detect: ordinal },
   { rules: ["englishProperNounCapitalization"], detect: properNoun },

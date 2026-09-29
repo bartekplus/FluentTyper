@@ -15,6 +15,17 @@ type Translations = readonly [
 ];
 
 const EXPLANATIONS: Record<ReviewMessageKey, Translations> = {
+  review_msg_existential_agreement: [
+    "Use a verb that agrees with the stated number of nouns after “there”.",
+    "Accordez le verbe avec le nombre indiqué après « there ».",
+    "Uskladite glagol s navedenim brojem imenica nakon „there”.",
+    "Use un verbo que concuerde con la cantidad indicada después de «there».",
+    "Χρησιμοποιήστε ρήμα που συμφωνεί με τον αριθμό μετά το «there».",
+    "Använd ett verb som stämmer med det angivna antalet efter ”there”.",
+    "Passen Sie das Verb an die angegebene Anzahl nach „there“ an.",
+    "Dopasuj czasownik do podanej liczby rzeczowników po „there”.",
+    "Use um verbo que concorde com a quantidade indicada depois de “there”.",
+  ],
   review_msg_then_than: [
     "This comparison calls for “than”.",
     "Cette comparaison demande « than ».",

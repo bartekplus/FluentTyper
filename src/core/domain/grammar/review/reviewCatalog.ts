@@ -25,6 +25,7 @@ export type ReviewRuleMetadata =
   | { review: "excluded"; reason: string };
 
 export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
+  englishExistentialAgreement: { review: "supported", category: "grammar", bulk: "individual" },
   englishThenThan: { review: "supported", category: "grammar", bulk: "individual" },
   englishYourYouAre: { review: "supported", category: "grammar", bulk: "individual" },
   englishTheirThereTheyAre: { review: "supported", category: "grammar", bulk: "individual" },

@@ -53,6 +53,7 @@ interface ReviewAlternative {
 }
 
 export type ReviewMessageKey =
+  | "review_msg_existential_agreement"
   | "review_msg_then_than"
   | "review_msg_your_you_are"
   | "review_msg_they_are"

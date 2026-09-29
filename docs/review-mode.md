@@ -138,6 +138,7 @@ Supported (**Typing** is the rule's default for typing; review runs it either wa
 
 | Rule                                   | Language | Typing      | Category    | Fix all                                                                                           |
 | -------------------------------------- | -------- | ----------- | ----------- | ------------------------------------------------------------------------------------------------- |
+| `englishExistentialAgreement`          | English  | unavailable | grammar     | individual only                                                                                   |
 | `englishThenThan`                      | English  | unavailable | grammar     | individual only                                                                                   |
 | `englishYourYouAre`                    | English  | unavailable | grammar     | individual only                                                                                   |
 | `englishTheirThereTheyAre`             | English  | unavailable | grammar     | individual only                                                                                   |
@@ -153,7 +154,7 @@ Supported (**Typing** is the rule's default for typing; review runs it either wa
 | `englishYourWelcomeCorrection`         | English  | on          | grammar     | yes                                                                                               |
 | `englishTheirThereBeVerb`              | English  | on          | grammar     | yes                                                                                               |
 | `englishAlotCorrection`                | English  | on          | spelling    | yes                                                                                               |
-| `englishPronounVerbWhitelistAgreement` | English  | on          | grammar     | yes ("you was" away from a clause start: individual only)                                         |
+| `englishPronounVerbWhitelistAgreement` | English  | on          | grammar     | original pairs only; expanded forms and contextual "you was" are individual only                  |
 | `englishArticleAnCorrection`           | English  | off         | grammar     | individual only: word-list heuristic; a letter or identifier can look like an article             |
 | `englishOrdinalSuffix`                 | English  | off         | typography  | yes                                                                                               |
 | `englishProperNounCapitalization`      | English  | on          | typography  | yes (months that need a date as evidence: individual only)                                        |
@@ -162,6 +163,23 @@ Supported (**Typing** is the rule's default for typing; review runs it either wa
 | `commaPeriodSpacing`                   | all      | on          | punctuation | yes                                                                                               |
 | `collapseRepeatedSpaces`               | all      | on          | punctuation | yes (alignment gaps and Markdown table padding are left alone)                                    |
 | `duplicatePunctuationCollapse`         | all      | off         | punctuation | yes                                                                                               |
+
+Agreement retains the six original typing pairs and their existing bulk rules.
+Additional Review-only constructions run under `englishPronounVerbWhitelistAgreement`:
+clause-opening we/they/you with is/am/was/has/does, and he/she/it with are/am/were/have/do.
+One listed adverb (really, still, always, never) may intervene. These new forms
+change only the finite verb, retain negation, and are individual-only. Object
+pronouns, coordinated subjects, subjunctives after a preceding clause, named quoted
+examples, technical/mixed-case identifiers and unfinished phrases abstain.
+
+The independent `englishExistentialAgreement` check recognizes clause-opening
+There is/are + optional not + an explicit quantity + a known countable noun,
+optionally with one listed adjective and a simple location phrase. Quantity and
+noun number must agree before the verb can be repaired. Its 14 authored noun pairs
+include child/children, person/people and mouse/mice; no noun suffix guessing is used.
+Unknown, collective and invariant-number nouns, coordinated subjects, relative
+clauses, hard-wrapped continuations and contradictory quantity/noun combinations
+abstain. The quantity, noun, adjective and negation are never rewritten.
 
 Contextual word confusions have four independent Review-only identities:
 
