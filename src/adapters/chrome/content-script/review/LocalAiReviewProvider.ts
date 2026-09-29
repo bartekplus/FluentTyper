@@ -45,6 +45,9 @@ interface PendingJob {
 
 /** How long an aborted job waits for the host to settle it before it is given up. */
 const CANCEL_SETTLE_MS = 5000;
+/** How often a portless review re-reads a status that is still changing (install, load). */
+const STATUS_POLL_MS = 2000;
+const TRANSITIONAL = new Set(["checking-support", "downloading", "loading", "unloading"]);
 
 function isOutcome(value: unknown): value is AiGenerationOutcome {
   if (!isObjectRecord(value)) return false;
@@ -110,10 +113,12 @@ export class LocalAiReviewProvider implements ReviewAiProvider {
   private disposed = false;
   private readonly pending = new Map<string, PendingJob>();
   private readonly listeners = new Set<(status: LocalAiStatus) => void>();
+  private pollTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
     private readonly runtime: LocalAiRuntime,
     private readonly cancelSettleMs = CANCEL_SETTLE_MS,
+    private readonly pollMs = STATUS_POLL_MS,
   ) {
     document.addEventListener("visibilitychange", this.onVisible);
   }
@@ -135,7 +140,21 @@ export class LocalAiReviewProvider implements ReviewAiProvider {
   async status(): Promise<LocalAiStatus> {
     const status = statusOf(await this.runtime.sendMessage({ command: CMD_LOCAL_AI_GET_STATUS }));
     if (!status) throw new Error("Local AI status unavailable");
+    this.watchWhileChanging(status);
     return status;
+  }
+
+  /**
+   * Nothing pushes status to a review without a port: while an install or load is
+   * under way, it is re-read (tab visible only) until it settles or a port opens.
+   */
+  private watchWhileChanging(status: LocalAiStatus): void {
+    if (this.pollTimer !== null || !TRANSITIONAL.has(status.runtime)) return;
+    this.pollTimer = setTimeout(() => {
+      this.pollTimer = null;
+      if (this.disposed || this.port || document.visibilityState !== "visible") return;
+      this.onVisible();
+    }, this.pollMs);
   }
 
   onStatus(listener: (status: LocalAiStatus) => void): () => void {
@@ -167,6 +186,7 @@ export class LocalAiReviewProvider implements ReviewAiProvider {
     this.disposed = true;
     this.listeners.clear();
     document.removeEventListener("visibilitychange", this.onVisible);
+    if (this.pollTimer !== null) clearTimeout(this.pollTimer);
     const port = this.port;
     this.port = null;
     try {

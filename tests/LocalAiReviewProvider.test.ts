@@ -236,4 +236,26 @@ describe("LocalAiReviewProvider", () => {
     await tick();
     expect(r.sent).toEqual([CMD_LOCAL_AI_GET_STATUS]);
   });
+
+  test("without a port, a status still changing (install) is re-read until it settles", async () => {
+    const answers: LocalAiStatus[] = [
+      { ...STATUS, runtime: "downloading" },
+      { ...STATUS, runtime: "loading" },
+      STATUS,
+    ];
+    let reads = 0;
+    const fake: LocalAiRuntime = {
+      sendMessage: () => Promise.resolve({ ok: true, status: answers[Math.min(reads++, 2)] }),
+      connect: () => new FakePort(),
+    };
+    const provider = new LocalAiReviewProvider(fake, 5, 5);
+    const statuses: string[] = [];
+    provider.onStatus((status) => statuses.push(status.runtime));
+    await provider.status();
+    await new Promise((resolve) => setTimeout(resolve, 60));
+    expect(statuses).toEqual(["loading", STATUS.runtime]);
+    // Settled: no more reads.
+    expect(reads).toBe(3);
+    provider.dispose();
+  });
 });
