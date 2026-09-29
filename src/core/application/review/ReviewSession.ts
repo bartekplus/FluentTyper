@@ -398,6 +398,7 @@ export class ReviewSession {
   // Answers by chunk key, model and prompt version; a hit must match the whole request.
   private readonly aiCache = new Map<string, AiSegments>();
   private aiCoverage: ReviewAiCoverage = "idle";
+  private aiProgress = 0;
   // Characters the model did not see (protected, unsafe, over its limit, unread by the checks).
   private aiSkipped = 0;
   private rewriteStyle: RewriteStyle = "keep-voice";
@@ -1275,6 +1276,10 @@ export class ReviewSession {
       availability,
       coverage:
         coverage === "checking" && this.aiStatus?.runtime === "loading" ? "loading" : coverage,
+      progress:
+        coverage === "checking" && this.aiStatus?.runtime !== "loading"
+          ? this.aiProgress
+          : undefined,
       status: this.aiStatus,
       skippedChars: this.aiSkipped,
       offerSetup:
@@ -1414,10 +1419,12 @@ export class ReviewSession {
     // Text the checks did not read either is unchecked by the model too.
     this.aiSkipped = protectedChars + unsafe + limit + this.truncated + this.unread;
     let checkedChunks = 0;
+    this.aiProgress = 0;
     const accept = (chunk: AiChunk, segments: AiSegments) => {
       try {
         this.aiFindings.push(...correctionFindings(prepared, chunk, segments).diagnostics);
         checkedChunks += 1;
+        this.aiProgress = checkedChunks / plan.chunks.length;
       } catch {
         // A malformed answer leaves its chunk unchecked.
       }

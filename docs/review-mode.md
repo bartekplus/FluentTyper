@@ -291,6 +291,9 @@ Every proposal is checked before it is shown:
   "doesn't"), the model's fix is a second option on that finding, labelled **Local AI**
   and never preselected; any other overlap is left out.
 
+Local AI shows checking progress as a percentage of planned chunks, including cached answers.
+After an edit, its waiting message is separate from model loading; progress is not a time estimate.
+
 Local AI fixes are **never part of Fix all safe**. Apply them one at a time from the card,
 or with **Apply selected AI corrections**, which first previews the combined change (and
 leaves out fixes that overlap each other) and applies it only when you confirm; that

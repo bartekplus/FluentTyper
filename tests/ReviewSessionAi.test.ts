@@ -224,6 +224,7 @@ describe("ReviewSession with Local AI: Correct", () => {
     expect(h.last().diagnostics.map((d) => d.original)).toEqual(["teh"]);
     expect(h.last().ai.availability).toBe("ready");
     expect(h.last().ai.coverage).toBe("checking");
+    expect(h.last().ai.progress).toBe(0);
     expect(h.ai.requests).toHaveLength(1);
     // Nothing identifying the page or offsets crosses the transport.
     expect(Object.keys(h.ai.requests[0].request).sort()).toEqual([
@@ -245,7 +246,13 @@ describe("ReviewSession with Local AI: Correct", () => {
     expect(h.last().ai.coverage).toBe("checking");
     expect(h.aiFindings().map((d) => d.original)).toEqual(["go"]);
     expect(h.ai.requests).toHaveLength(2);
-    h.ai.requests[1].answer();
+    expect(h.last().ai.progress).toBe(0.5);
+    h.session.setAiPaused(true);
+    expect(h.last().ai.progress).toBeUndefined();
+    h.session.setAiPaused(false);
+    await h.settle();
+    expect(h.last().ai.progress).toBe(0.5); // Cached first pair still counts.
+    h.ai.requests.at(-1)!.answer();
     await h.settle();
     expect(h.aiFindings().map((d) => d.original)).toEqual(["go"]);
     expect(h.last().diagnostics.map((d) => d.ruleId === REVIEW_LOCAL_AI_CHECK)).toEqual([
@@ -253,6 +260,7 @@ describe("ReviewSession with Local AI: Correct", () => {
       true,
     ]);
     expect(h.last().ai.coverage).toBe("complete");
+    expect(h.last().ai.progress).toBeUndefined();
     expect(h.editor.applyCalls).toEqual([]);
   });
 

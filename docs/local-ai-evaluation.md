@@ -184,6 +184,62 @@ both it and the system Firefox exited before startup with “Could not find prof
 folder”, including explicit temporary profiles. This was a browser-startup failure,
 not a passing Firefox regression run.
 
+## Remaining latency and review UX (2026-09-29)
+
+The follow-up keeps the evaluated model requests unchanged. Review now shows a
+localized percentage during checking (successful chunks, including cache hits), and
+labels the 1.5-second edit debounce as waiting for edits instead of loading the model.
+Percentages are not time estimates; chunks differ in length. Only pass completion is
+announced to screen readers, so incremental results do not cause repeated announcements.
+
+A request-key experiment used the actual chunker and `aiRequestForChunk`, with the
+supplied broken passage and a fully populated session cache. Each row is one independent
+edit against the original passage, not cumulative edits:
+
+| Edit                                               | Cached requests reused | New requests |
+| -------------------------------------------------- | ---------------------: | -----------: |
+| Opening `last monday` → `Last Monday`              |                     55 |            3 |
+| Middle `more faster` → `faster`                    |                     54 |            4 |
+| Final `nobody have checked` → `nobody has checked` |                     56 |            2 |
+| Delete the opening sentence and following space    |                     10 |           47 |
+
+The baseline is 58 requests. Small edits already reuse most completed work. A sentence
+removal shifts pair boundaries, so many requests really change; reusing their old
+answers would weaken the exact-input guarantee. Applying the opening fix after only
+one request has completed leaves zero cache hits and 58 requests to do. After ten
+completed requests, seven are reused and 51 remain. The active request is also cancelled,
+and rechecking waits 1.5 seconds. This explains why applying early results can feel slow
+even though the engine is making progress. The existing AI batch preview applies multiple
+reviewed fixes in one verified transaction and avoids repeating that cycle per fix.
+
+In the two fresh interleaved timing rounds above, paired requests spent 32.91 of 76.33
+seconds (43.1%) before their first generated token; median time to first token was 1.37
+seconds. This includes prompt processing and runtime overhead, not just tokenization.
+The remaining 43.42 seconds were spent after the first token. The engine currently
+reprocesses the complete prompt for every request. Lowering `max_new_tokens` alone will
+not speed up responses that already stop naturally, and risks truncation instead.
+
+Next experiments, in priority order:
+
+1. **Reuse the fixed prompt prefix in the same loaded engine.** This targets repeated
+   prompt processing without shortening instructions or changing Gemma. The installed
+   runtime exposes past key/value tensors, but safe cross-request reuse, correct positions,
+   cancellation, GPU memory ownership and identical outputs still need a dedicated real-GPU
+   experiment. The 43.1% figure is not a promised saving: only part of that work is reusable.
+2. **Make batching resilient to sentence insertion/deletion.** Paragraph boundaries are
+   a candidate. The 47-request invalidation above is the measured motivation. Different
+   neighbours have already changed correction quality, so this needs the full stress and
+   negative-control evaluation before shipping.
+3. **Reduce time to the first AI result.** Cold model loads measured 6–10 seconds in the
+   benchmark runs. Keeping Review open avoids reloading; closing the last Review deliberately
+   releases GPU memory. A warm-retention policy requires measured GPU memory and an explicit
+   resource-lifetime decision. Splitting just the first pair could improve first-result
+   latency but increases total work and must preserve later pair boundaries.
+
+Not adopted: removing context (measured quality loss), weaker output validation, automatic
+application of AI findings, or speculative concurrent generations on the same GPU. These
+changes do not have evidence of a safe quality/performance tradeoff.
+
 ## Languages
 
 English only. Both earlier shipped models damaged the Polish rewrite fixture rw-pl-02

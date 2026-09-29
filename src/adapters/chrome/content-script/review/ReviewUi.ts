@@ -836,10 +836,16 @@ export class ReviewUi {
       case "idle":
         return null;
       case "waiting":
+        return this.t("review_ai_waiting");
       case "loading":
         return this.t("review_ai_loading");
       case "checking":
-        return this.t("review_ai_checking");
+        return ai.progress === undefined
+          ? this.t("review_ai_checking")
+          : `${this.t("review_ai_checking")} ${formatNumber(ai.progress, this.lang, {
+              style: "percent",
+              maximumFractionDigits: 0,
+            })}`;
       case "complete":
         return this.t("review_ai_complete");
       case "partial":

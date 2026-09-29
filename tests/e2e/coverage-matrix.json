@@ -3340,7 +3340,7 @@
     },
     {
       "id": "local_ai_setup_offer",
-      "description": "The Review panel shows a one-time Local AI setup offer with the download size; \"Not now\" dismisses it for good; \"Set up local AI…\" opens the options Local AI section focused, whose page only asks for status and installs only after an inline confirm.",
+      "description": "The Review panel shows a one-time Local AI setup offer with the download size; \"Not now\" dismisses it for good; \"Set up local AI\u2026\" opens the options Local AI section focused, whose page only asks for status and installs only after an inline confirm.",
       "coverage": [
         {
           "layer": "e2e-full",
@@ -3355,7 +3355,7 @@
         {
           "layer": "e2e-full",
           "file": "tests/e2e/local-ai.e2e.test.ts",
-          "test": "\"Set up local AI…\" opens the Local AI settings; installing needs the inline confirm"
+          "test": "\"Set up local AI\u2026\" opens the Local AI settings; installing needs the inline confirm"
         },
         {
           "layer": "unit",
@@ -3486,6 +3486,27 @@
           "layer": "unit",
           "file": "tests/ReviewSessionAi.test.ts",
           "test": "Compact keeps single-sentence requests; Gemma pairs them"
+        }
+      ]
+    },
+    {
+      "id": "local_ai_review_progress",
+      "description": "Correct shows progress including cached chunks, resets it for new passes, and distinguishes the edit debounce from model loading without announcing each percentage.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSessionAi.test.ts",
+          "test": "rule findings are shown first; AI findings join when the model answers"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewUiLocalAi.test.ts",
+          "test": "coverage lines are distinct, and none claims AI completion when it did not"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewUiLocalAi.test.ts",
+          "test": "only an AI pass ending is announced, once"
         }
       ]
     }
