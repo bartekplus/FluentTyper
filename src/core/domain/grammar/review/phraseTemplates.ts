@@ -7,7 +7,10 @@ export type PhraseTemplate = {
   messageKey: RawFinding["messageKey"];
 };
 
-/** Shared bounded phrase matching; templates provide explicit grammatical context. */
+/**
+ * Shared bounded phrase matching; templates provide explicit grammatical context.
+ * Changes to reads/pattern bounds must also audit NativeReviewCache's read contract.
+ */
 export function detectPhraseTemplates(
   ctx: DetectContext,
   templates: readonly PhraseTemplate[],

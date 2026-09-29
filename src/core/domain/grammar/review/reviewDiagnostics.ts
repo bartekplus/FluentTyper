@@ -1,4 +1,5 @@
 import { matchTerminology } from "./terminologyMatcher";
+import type { NativeReviewCache } from "./nativeReviewCache";
 import { unclosedQuotations } from "./quotationWarnings";
 import { GRAMMAR_RULE_CATALOG, type CatalogRuleId } from "../ruleCatalog";
 import { findMarkdownCodeRanges } from "../implementations/helpers/ProtectedSpanShared";
@@ -191,7 +192,11 @@ export interface ChunkScan {
 }
 
 /** Runs every enabled detector over one chunk. A throwing detector is reported, not fatal. */
-export function scanReviewChunk(prepared: PreparedReview, chunk: TextRange): ChunkScan {
+export function scanReviewChunk(
+  prepared: PreparedReview,
+  chunk: TextRange,
+  cache?: NativeReviewCache,
+): ChunkScan {
   const findings: RawFinding[] = [];
   const failedRules: CatalogRuleId[] = [];
   const scanEnd = chunk.end + SCAN_LOOKAHEAD;
@@ -215,7 +220,9 @@ export function scanReviewChunk(prepared: PreparedReview, chunk: TextRange): Chu
     const active = detector.rules.filter((ruleId) => prepared.rules.has(ruleId));
     if (active.length === 0) continue;
     try {
-      for (const finding of detector.detect(context)) {
+      for (const finding of cache
+        ? cache.detect(prepared, context, detector)
+        : detector.detect(context)) {
         if (prepared.rules.has(finding.ruleId)) findings.push(finding);
       }
     } catch {
