@@ -7049,6 +7049,13 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
 
   test.each([
     [
+      "For all intensive purposes, the test is complete.",
+      "For all intents and purposes, the test is complete.",
+      "intensive → intents␣and",
+    ],
+    ["They are one in the same.", "They are one and the same.", "in → and"],
+    ["That feature peaked my interest.", "That feature piqued my interest.", "peaked → piqued"],
+    [
       "This approach is more easier to test.",
       "This approach is easier to test.",
       "more␣easier → easier",
@@ -7134,6 +7141,55 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await pressNativeUndo(page, selector);
       await waitUntil(
         "formatted compound undo",
+        async () => (await page.$eval(selector, (el) => el.innerHTML)) === original,
+        { timeoutMs: 5000 },
+      );
+      await finishReview();
+    },
+    browserTimeout(15000, 25000),
+  );
+
+  test(
+    "Review usage phrase replacement preserves split formatting",
+    async () => {
+      await prepareReviewPage();
+      const selector = "#test-contenteditable";
+      const original = "<p>For all <b>int</b><i>ensive</i> purposes, the test is complete.</p>";
+      await page.evaluate(
+        ({ selector, original }) => {
+          const root = document.querySelector(selector) as HTMLElement;
+          root.innerHTML = original;
+          root.focus();
+        },
+        { selector, original },
+      );
+      await triggerReview(worker!);
+      await waitForReview(page, "formatted usage phrase", (p) =>
+        p.items.some((item) => item.text === "intensive → intents␣and"),
+      );
+      await clickReviewControl(page, ".item");
+      await waitForReview(page, "formatted usage phrase card", (p) => p.card.open);
+      await clickReviewControl(page, ".card [data-action=apply]");
+      await waitUntil(
+        "formatted usage phrase repair",
+        async () =>
+          await page.$eval(
+            selector,
+            (el) =>
+              el.textContent?.replace(/\u00a0/g, " ") ===
+              "For all intents and purposes, the test is complete.",
+          ),
+        { timeoutMs: 5000 },
+      );
+      expect(
+        await page.$eval(selector, (el) => [
+          el.querySelector("b")?.textContent?.replace(/\u00a0/g, " "),
+          el.querySelector("i")?.textContent,
+        ]),
+      ).toEqual(["int", "ents and"]);
+      await pressNativeUndo(page, selector);
+      await waitUntil(
+        "formatted usage phrase undo",
         async () => (await page.$eval(selector, (el) => el.innerHTML)) === original,
         { timeoutMs: 5000 },
       );

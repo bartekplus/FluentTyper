@@ -20,7 +20,7 @@ Execute sequentially: 1, 2, 3, 4, 8, 5, 6, 7, 9–20. Native TypeScript, individ
 | 11  | Compounds                      | Implemented; Chrome verified; Firefox permission blocked |
 | 12  | Countability                   | Implemented; Chrome verified; Firefox permission blocked |
 | 13  | Comparatives                   | Implemented; Chrome verified; Firefox permission blocked |
-| 14  | Fixed phrases                  | Pending                                                  |
+| 14  | Fixed phrases                  | Implemented; Chrome verified; Firefox permission blocked |
 | 15  | Session ignore-all             | Pending                                                  |
 | 16  | Punctuation warnings           | Pending                                                  |
 | 17  | Brand/acronym casing           | Pending                                                  |
@@ -381,3 +381,33 @@ Error phrase: `This approach is more easier to test. The revised result is more 
 Production JS delta against #12's retained build (`production-chrome-full-67248-1790709478615`): content script **+2,999 bytes**, background **+1,249**, settings **+1,208**, popup **+379**. Candidate: `production-chrome-full-74398-1790709936446`. No dependency, permission or typing behavior added.
 
 Next: #14 fixed-phrase mistakes. Thirteen of twenty features implemented; full completion requires the remaining seven features and Firefox runtime validation.
+
+## #14 established usage phrases
+
+The Review-only `englishUsagePhrases` identity implements the three requested constructions with explicit grammatical frames: for all intensive purposes before a known completion clause; plural identity clauses with one in the same; and peak/peaks/peaked/peaking a possessive determiner’s interest with known subjects and audited modal/progressive forms. Minimal changes preserve case, tense, possessives and whitespace. Four explanations are localized in all nine UI languages. Cards use the existing grammar category with usage explanations, remain individual-only and are independently configurable.
+
+The matching loop from fixed prepositions is now a shared `phraseTemplates.ts` helper with two concrete callers. Preposition patterns and identity are unchanged; named quotation guards also recognize term, heading, title and label. No phrase DSL, external database or broad replacement engine. Literal uses, incomplete/unknown frames, technical tokens, dictionary words, quoted examples and recognized creative/dialect cues abstain.
+
+Focused usage corpus: **110 pass**: 36 repairs, 72 preservation cases and two pipeline tests. Combined with existing preposition coverage: **221 pass**. No supported misses or usage-family findings on the preservation corpus, and no recorrection. Uppercase repairs, modal/progressive/past forms, all six possessive determiners, protected evidence, scope, Unicode/CRLF and every chunk split are covered. These authored cases do not establish general English accuracy.
+
+Browser additions cover all three required examples with individual Apply/recheck/native undo, one native card and no duplicate spelling card. A rich-text fixture replaces intensive across bold/italic nodes while preserving formatting and restoring exact markup with native undo.
+
+- Full unit suite: **4,776 pass, 0 fail**. Final Chrome rerun with the repaired test helper: **111 pass, 10 skip, 0 fail**. Final `bun run check` passed.
+- Initial Chrome run: **110 pass, 10 skip, 2 fail** (dictionary-to-Fix-all timeout and teardown timeout). Focused reruns reproduced the first failure. A pointerdown probe captured the actual target as `BUTTON`, action `fix-all`, **disabled: true**, label `Fix all safe (0)` during a dictionary-triggered recheck. The shared browser click helper now waits for an enabled native/ARIA control before computing the existing clipped hit point. No production behavior or test timeout changed. The original failing card-flow test passes with the fix; temporary probes were removed. Evidence: `/tmp/ft-native-usage-card-event-probe.log`; verification: `card-fixed.log`.
+- Initial typecheck found optional-context annotations at the usage filter. The helper always supplies context; explicit assertions fix the caller type. The rebuilt production Chrome JavaScript is **byte-identical in every JS file** to the browser suite’s build, so this type-only change does not invalidate that runtime validation.
+- Chrome/Firefox production builds passed. Coverage mapping: **200 behaviors**. Firefox runtime remains pending the previously requested macOS permission.
+- Logs: `/tmp/ft-native-usage-{focused,check-helper,unit,full-chrome,full-chrome-final,card-event-probe,card-fixed,build-chrome-final,build-firefox-final,benchmark}.log`.
+
+Synthetic scan costs after broad validation finished (Bun 1.4.2, this ID only, 5 warmups then median of 21 full native scans; no AI/spelling/DOM):
+
+| Characters | Clean (ms) | Dense errors (ms) | Dense findings |
+| ---------- | ---------- | ----------------- | -------------- |
+| 1,000      | 0.079      | 0.124             | 27             |
+| 10,000     | 0.343      | 0.934             | 275            |
+| 50,000     | 1.866      | 6.668             | 1,376          |
+
+Error phrase: `For all intensive purposes, the test is complete. They are one in the same. That feature peaked my interest. `. Clean phrase applies all three intended repairs. Repeat/truncate with whole-text scope. These local fixture costs are not an isolated before/after performance claim.
+
+Production JS delta against #13's retained build (`production-chrome-full-74398-1790709936446`): content script **+4,560 bytes**, background **+1,519**, settings **+3,046**, popup **+363**. Final candidate: `production-chrome-full-84329-1790710823561`; all runtime JS is byte-identical to the earlier `production-chrome-full-78768-1790710331475` and typecheck build `production-chrome-usage-typecheck`. No dependency, permission or typing behavior added.
+
+Next: #15 context-aware ignore-all within a Review session. Fourteen of twenty features implemented; full completion requires the remaining six features and Firefox runtime validation.

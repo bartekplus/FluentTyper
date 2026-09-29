@@ -1,3 +1,4 @@
+import { usagePhrases } from "./englishUsagePhrases";
 import { doubledDegree } from "./englishDegree";
 import { countability } from "./englishCountability";
 import { contextualCompounds } from "./englishCompounds";
@@ -1097,6 +1098,7 @@ export const REVIEW_DETECTORS: ReadonlyArray<{ rules: CatalogRuleId[]; detect: D
   { rules: ["englishVerbComplements"], detect: verbComplements },
   { rules: ["englishPerfectParticiples"], detect: perfectParticiples },
   { rules: ["englishNounNumber"], detect: nounNumberConstructions },
+  { rules: ["englishUsagePhrases"], detect: usagePhrases },
   { rules: ["englishDoubledDegree"], detect: doubledDegree },
   { rules: ["englishCountability"], detect: countability },
   { rules: ["englishContextualCompounds"], detect: contextualCompounds },

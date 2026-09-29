@@ -3855,6 +3855,32 @@
           "test": "degree deletion rechecks then-than and refuses the previous diagnostic id"
         }
       ]
+    },
+    {
+      "id": "review_usage_phrases",
+      "description": "Contextual fixed-phrase usage checks preserve literal, creative and quoted meanings; inflections and possessives survive individual repairs with formatting and native undo.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review bounded grammar applies individual edits with native undo: %s"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review usage phrase replacement preserves split formatting"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewUsagePhrases.test.ts",
+          "test": "usage phrases preserve case, tense, possessives and protected evidence"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewUsagePhrases.test.ts",
+          "test": "usage phrase offsets belong to one chunk in ordinary quoted Unicode prose"
+        }
+      ]
     }
   ]
 }
