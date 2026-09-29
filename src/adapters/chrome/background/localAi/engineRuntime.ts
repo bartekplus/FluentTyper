@@ -85,3 +85,11 @@ export const localAiEngine: LocalAiEngine | null = new LocalAiEngine({
   gpu: (globalThis.navigator as Navigator & { gpu?: GpuLike }).gpu,
   guard,
 });
+
+// Erased types for the prefix helper; keep all Transformers imports at this boundary.
+export type {
+  DynamicCache,
+  Tensor,
+  PreTrainedModel,
+  PreTrainedTokenizer,
+} from "@huggingface/transformers";

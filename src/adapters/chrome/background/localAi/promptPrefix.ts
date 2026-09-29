@@ -1,9 +1,4 @@
-import type {
-  DynamicCache,
-  Tensor,
-  PreTrainedModel,
-  PreTrainedTokenizer,
-} from "@huggingface/transformers";
+import type { DynamicCache, Tensor, PreTrainedModel, PreTrainedTokenizer } from "./engineRuntime";
 import { buildAiMessages } from "@core/domain/grammar/review/ai/prompts";
 import type { ModelLike } from "./LocalAiEngine";
 

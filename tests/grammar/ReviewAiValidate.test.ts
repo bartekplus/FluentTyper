@@ -263,6 +263,7 @@ describe("correctionFindings", () => {
         "If you go, too many people will follow.",
       ).applied,
     ).toBe("If you go, too many people will follow.");
+    expectRejected("I too think this is wrong.", "I, too, think this is wrong.", "drift");
     // Optional comma before "too".
     expectRejected("This needs improvement too.", "This needs improvement, too.", "drift");
     expect(correctOne("However we left.", "However, we left.").applied).toBe("However, we left.");

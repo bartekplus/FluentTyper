@@ -1125,7 +1125,15 @@ function styleChoice(
     if (lower(original[after]?.text ?? "") === "too") {
       let following = after + 1;
       while (original[following]?.kind === "space") following += 1;
-      // Only additive, clause-final "too"; "too many" may start the next clause.
+      // Paired commas mark additive "too"; "too many" may start the next clause.
+      let proposedAfter = hunk.p1;
+      while (next[proposedAfter]?.kind === "space") proposedAfter += 1;
+      if (lower(next[proposedAfter]?.text ?? "") === "too") {
+        proposedAfter += 1;
+        while (next[proposedAfter]?.kind === "space") proposedAfter += 1;
+        if (next[proposedAfter]?.text === ",") return true;
+      }
+      // An unpaired comma is optional only before clause-final "too".
       if (!original[following] || /^[.!?…]$/.test(original[following].text)) return true;
     }
   }
