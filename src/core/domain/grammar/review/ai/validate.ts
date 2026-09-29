@@ -815,26 +815,32 @@ const MAX_UNIT_WORDS = 4;
 /** Above this share of changed words a proposal is a rewrite, not a correction. */
 const MAX_CHANGED_SHARE = 0.5;
 
-/** One tightly checked agreement repair that can change most of a short sentence. */
-function singularNegativeAgreement(
+/** A local subject–negative auxiliary–base verb repair, with every other token untouched. */
+function negativeAuxiliaryAgreement(
   original: readonly Token[],
   proposed: readonly Token[],
+  hunk: Hunk,
 ): boolean {
-  const before = wordsOf(original);
-  const after = wordsOf(proposed);
+  const subject = wordBefore(original, hunk.o0);
+  const nextSubject = wordBefore(proposed, hunk.p0);
+  if (!subject || subject.text !== nextSubject?.text) return false;
+  const removed = original.slice(hunk.o0, hunk.o1);
+  const added = proposed.slice(hunk.p0, hunk.p1);
+  const before = wordsOf(removed);
+  const after = wordsOf(added);
+  const singular = ["he", "she", "it"].includes(lower(subject.text));
+  const plural = ["i", "you", "we", "they"].includes(lower(subject.text));
   return (
-    before.length === 3 &&
-    after.length === 3 &&
-    ["he", "she", "it"].includes(before[0]) &&
-    after[0] === before[0] &&
-    ["dont", "don't"].includes(before[1]) &&
-    after[1] === "doesn't" &&
-    pluralOf(after[2], before[2]) === before[2] &&
-    original
+    before.length === 2 &&
+    after.length === 2 &&
+    ((singular && ["dont", "don't"].includes(before[0]) && after[0] === "doesn't") ||
+      (plural && ["doesnt", "doesn't"].includes(before[0]) && after[0] === "don't")) &&
+    pluralOf(after[1], before[1]) === before[1] &&
+    removed
       .filter((token) => token.kind !== "word")
       .map((token) => token.text)
       .join("") ===
-      proposed
+      added
         .filter((token) => token.kind !== "word")
         .map((token) => token.text)
         .join("")
@@ -852,7 +858,7 @@ function singularNegativeAgreement(
  * dependent edit is never applied halfway. Each unit is validated on its own
  * against the original sentence; a rejected unit is counted and dropped
  * without sinking the others. A proposal changing most of a sentence is a
- * rewrite and is rejected whole, except for a proved singular negative agreement repair.
+ * rewrite and is rejected whole, except for proved negative auxiliary agreement repairs.
  */
 export function correctionFindings(
   prepared: PreparedReview,
@@ -915,7 +921,7 @@ function correctSegment(
     removedWords > wordCount(original) * MAX_CHANGED_SHARE ||
     addedWords > wordCount(next) * MAX_CHANGED_SHARE
   ) {
-    if (!singularNegativeAgreement(original, next)) {
+    if (!hunks.every((hunk) => negativeAuxiliaryAgreement(original, next, hunk))) {
       return { diagnostics: [], rejected: ["drift.changed_word_share"] };
     }
   }
@@ -1046,8 +1052,7 @@ function correctUnit(
       }
       return 0;
     };
-    const knownAgreement =
-      unit.length === diff.hunks.length && singularNegativeAgreement(original, next);
+    const knownAgreement = unit.every((hunk) => negativeAuxiliaryAgreement(original, next, hunk));
     if (
       (!isCorrection(removed, added, deletable, movable, phrase) && !knownAgreement) ||
       formalizes(removed, added)

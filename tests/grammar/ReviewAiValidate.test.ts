@@ -90,7 +90,7 @@ function expectRejected(text: string, proposed: string, reason: string, extra: E
 }
 
 describe("correctionFindings", () => {
-  test("a singular negative auxiliary and its dependent verb are one correction", () => {
+  test("negative auxiliary agreement and its dependent verb stay atomic", () => {
     const result = correctOne("She dont knows.", "She doesn't know.");
     expect(result.rejected).toEqual({});
     expect(result.diagnostics).toHaveLength(1);
@@ -102,10 +102,25 @@ describe("correctionFindings", () => {
     expect(correctOne("They dont knows.", "They doesn't know.").rejected).toEqual({
       "drift.changed_word_share": 1,
     });
+    expect(correctOne("She dont knows.", "she doesn't know.").rejected).toEqual({
+      "drift.changed_word_share": 1,
+    });
     expect(correctOne("She don't knows.", "She doesn't know.").applied).toBe("She doesn't know.");
     expect(correctOne("She dont knows.", "She doesn't know!").rejected).toEqual({
       "drift.changed_word_share": 1,
     });
+    expect(
+      correctOne("Yesterday she dont knows the answer.", "Yesterday she doesn't know the answer.")
+        .applied,
+    ).toBe("Yesterday she doesn't know the answer.");
+    expect(correctOne("They doesnt knows.", "They don't know.").applied).toBe("They don't know.");
+    const dense = correctOne(
+      "She dont knows, but he dont cares.",
+      "She doesn't know, but he doesn't care.",
+    );
+    expect(dense.rejected).toEqual({});
+    expect(dense.diagnostics).toHaveLength(2);
+    expect(dense.applied).toBe("She doesn't know, but he doesn't care.");
   });
   test("rejection counts distinguish share, lexical, style, and unit limits", () => {
     expect(correctOne("The big dog ran home.", "The large dog ran home.").rejected).toEqual({
