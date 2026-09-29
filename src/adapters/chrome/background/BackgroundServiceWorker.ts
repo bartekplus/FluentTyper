@@ -34,6 +34,9 @@ import { ObservabilityService } from "./ObservabilityService";
 import { ChromeStorageBackend } from "@core/application/storage/ChromeStorageBackend";
 import { PersonalizationRepository } from "@core/application/personalization/PersonalizationRepository";
 import { PersonalizationService } from "@core/application/personalization/PersonalizationService";
+import { LocalAiSettingsRepository } from "@core/application/repositories/LocalAiSettingsRepository";
+import { LocalAiController } from "./localAi/LocalAiController";
+import type { EngineLike } from "./localAi/LocalAiHost";
 
 declare const __FT_DEV_BUILD__: boolean | undefined;
 
@@ -51,12 +54,13 @@ export class BackgroundServiceWorker {
   observabilityService!: ObservabilityService;
   configAssembler!: ConfigAssembler;
   personalizationService!: PersonalizationService;
+  localAiController!: LocalAiController;
   language!: string;
   private runtimeConfigReady = false;
   private runtimeConfigLoadPromise: Promise<void> | null = null;
   private initializationPromise: Promise<void> | null = null;
 
-  constructor() {
+  constructor(localAiEngine: EngineLike | null = null) {
     if (BackgroundServiceWorker.instance) {
       return BackgroundServiceWorker.instance;
     }
@@ -85,6 +89,10 @@ export class BackgroundServiceWorker {
       getAutoLanguageRuntimes: () => this.languageDetector.getDebugState().liveRuntimes,
     });
     this.configAssembler = new ConfigAssembler(this.settingsManager, { isDevBuild: IS_DEV_BUILD });
+    this.localAiController = new LocalAiController(
+      new LocalAiSettingsRepository(this.settingsManager),
+      localAiEngine,
+    );
     this.language = "auto_detect";
     BackgroundServiceWorker.instance = this;
   }
@@ -218,7 +226,6 @@ export class BackgroundServiceWorker {
     this.productivityStatsManager.setSnippetShortcuts(runtimeConfig.textExpansions);
     this.runtimeConfigReady = true;
     logger.info("Broadcasting runtime config update", {
-      aiPredictorEnabled: runtimeConfig.predictionConfig.aiPredictorEnabled,
       observabilityEnabled: runtimeConfig.observabilityConfig?.enabled,
     });
     await this.tabMessenger.sendToAllTabs(

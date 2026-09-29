@@ -1,8 +1,5 @@
 import type { GrammarRuleOverrides } from "../grammar/GrammarRuleSettings";
 import {
-  KEY_AI_MODEL_ID,
-  KEY_AI_PREDICTION_TIMEOUT_MS,
-  KEY_AI_PREDICTOR_ENABLED,
   KEY_OBSERVABILITY_DEFAULT_LEVEL,
   KEY_OBSERVABILITY_ENABLED,
   KEY_OBSERVABILITY_MODULE_OVERRIDES,
@@ -12,10 +9,13 @@ import {
   KEY_AUTOCOMPLETE_ON_ENTER,
   KEY_AUTOCOMPLETE_ON_TAB,
   KEY_DATE_FORMAT,
-  KEY_DEBUG_AI_PREDICTOR_ENABLED,
   KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
   KEY_SHOW_SUGGESTION_FOOTER,
   KEY_SHOW_REVIEW_BUTTON,
+  KEY_LOCAL_AI_REVIEW_ENABLED,
+  KEY_LOCAL_AI_REVIEW_TIER,
+  KEY_LOCAL_AI_REVIEW_CONSENT,
+  KEY_LOCAL_AI_SETUP_OFFER_DISMISSED,
   KEY_DOMAIN_LIST_MODE,
   KEY_ENABLED_GRAMMAR_RULES,
   KEY_ENABLED_LANGUAGES,
@@ -75,6 +75,10 @@ const SETTINGS_KEYS = {
   horizontalSuggestions: KEY_HORIZONTAL_SUGGESTIONS,
   showSuggestionFooter: KEY_SHOW_SUGGESTION_FOOTER,
   showReviewButton: KEY_SHOW_REVIEW_BUTTON,
+  localAiReviewEnabled: KEY_LOCAL_AI_REVIEW_ENABLED,
+  localAiReviewTier: KEY_LOCAL_AI_REVIEW_TIER,
+  localAiReviewConsent: KEY_LOCAL_AI_REVIEW_CONSENT,
+  localAiSetupOfferDismissed: KEY_LOCAL_AI_SETUP_OFFER_DISMISSED,
   autoCapitalize: KEY_AUTO_CAPITALIZE,
   autoLanguageSitePriors: KEY_AUTO_LANGUAGE_SITE_PRIORS,
   insertSpaceAfterAutocomplete: KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE,
@@ -85,11 +89,7 @@ const SETTINGS_KEYS = {
   userDictionaryList: KEY_USER_DICTIONARY_LIST,
   extensionLanguage: KEY_EXTENSION_LANGUAGE,
   siteProfiles: KEY_SITE_PROFILES,
-  aiPredictorEnabled: KEY_AI_PREDICTOR_ENABLED,
-  aiModelId: KEY_AI_MODEL_ID,
-  aiPredictionTimeoutMs: KEY_AI_PREDICTION_TIMEOUT_MS,
   debugPresagePredictorEnabled: KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
-  debugAiPredictorEnabled: KEY_DEBUG_AI_PREDICTOR_ENABLED,
   observabilityEnabled: KEY_OBSERVABILITY_ENABLED,
   observabilityDefaultLevel: KEY_OBSERVABILITY_DEFAULT_LEVEL,
   observabilityModuleOverrides: KEY_OBSERVABILITY_MODULE_OVERRIDES,
@@ -134,6 +134,11 @@ export interface SettingsSchema {
   horizontalSuggestions: boolean;
   showSuggestionFooter: boolean;
   showReviewButton: boolean;
+  localAiReviewEnabled: boolean;
+  localAiReviewTier: "standard" | "compact";
+  /** Written only by the explicit Install action; never inferred or migrated. */
+  localAiReviewConsent: { modelId: string; tier: "standard" | "compact"; at: number } | null;
+  localAiSetupOfferDismissed: boolean;
   autoCapitalize: boolean;
   autoLanguageSitePriors: Record<string, Record<string, number>>;
   insertSpaceAfterAutocomplete: boolean;
@@ -144,11 +149,7 @@ export interface SettingsSchema {
   userDictionaryList: string[];
   extensionLanguage: string;
   siteProfiles: SiteProfiles;
-  aiPredictorEnabled: boolean;
-  aiModelId: string;
-  aiPredictionTimeoutMs: number;
   debugPresagePredictorEnabled: boolean;
-  debugAiPredictorEnabled: boolean;
   observabilityEnabled: boolean;
   observabilityDefaultLevel: LogLevel;
   observabilityModuleOverrides: Record<string, ObservabilityModuleOverride>;

@@ -1,4 +1,4 @@
-import type { Browser, Page, WebWorker } from "puppeteer";
+import type { Browser, CDPSession, Page, Target, WebWorker } from "puppeteer";
 import puppeteer from "puppeteer";
 import path from "path";
 
@@ -522,146 +522,6 @@ export async function triggerCommandForTesting(
   }, command);
 }
 
-export interface WebLLMTestPredictionCall {
-  lang: string;
-  predictionInput: string;
-  numSuggestions: number;
-}
-
-async function sendTestRuntimeMessage(
-  context: BackgroundContext,
-  message: Record<string, unknown>,
-  failureMessage: string,
-): Promise<Record<string, unknown> | undefined> {
-  return await context.evaluate(
-    (messageInner, failureMessageInner) => {
-      return new Promise<Record<string, unknown> | undefined>((resolve, reject) => {
-        const testGlobals = globalThis as typeof globalThis & {
-          triggerCommandForTesting?: (command: string) => Promise<void> | void;
-          __fluentTyperWebLLMTestOverride__?: {
-            predictions: string[];
-            delayMs: number;
-            calls: Array<{
-              lang: string;
-              predictionInput: string;
-              numSuggestions: number;
-            }>;
-          };
-        };
-        const messageType = messageInner.type;
-        if (
-          typeof messageType === "string" &&
-          typeof testGlobals.triggerCommandForTesting === "function"
-        ) {
-          if (messageType === "TEST_SET_WEBLLM_PREDICTIONS") {
-            const predictions = Array.isArray(messageInner.predictions)
-              ? messageInner.predictions
-                  .filter((item): item is string => typeof item === "string")
-                  .map((item) => item.trim())
-                  .filter((item) => item.length > 0)
-              : [];
-            const delayMs =
-              typeof messageInner.delayMs === "number" && Number.isFinite(messageInner.delayMs)
-                ? Math.max(0, Math.round(messageInner.delayMs))
-                : 0;
-            testGlobals.__fluentTyperWebLLMTestOverride__ = {
-              predictions,
-              delayMs,
-              calls: [],
-            };
-            resolve({ ok: true });
-            return;
-          }
-          if (messageType === "TEST_CLEAR_WEBLLM_PREDICTIONS") {
-            delete testGlobals.__fluentTyperWebLLMTestOverride__;
-            resolve({ ok: true });
-            return;
-          }
-          if (messageType === "TEST_GET_WEBLLM_PREDICTION_CALLS") {
-            resolve({
-              ok: true,
-              calls: testGlobals.__fluentTyperWebLLMTestOverride__?.calls?.slice() ?? [],
-            });
-            return;
-          }
-        }
-
-        chrome.runtime.sendMessage(
-          messageInner,
-          (response: Record<string, unknown> | undefined) => {
-            if (chrome.runtime.lastError) {
-              reject(new Error(chrome.runtime.lastError.message));
-              return;
-            }
-            if (!response || response.ok !== true) {
-              reject(new Error(failureMessageInner));
-              return;
-            }
-            resolve(response);
-          },
-        );
-      });
-    },
-    message,
-    failureMessage,
-  );
-}
-
-export async function setWebLLMPredictionsForTesting(
-  context: BackgroundContext,
-  predictions: string[],
-  delayMs = 0,
-): Promise<void> {
-  await sendTestRuntimeMessage(
-    context,
-    {
-      type: "TEST_SET_WEBLLM_PREDICTIONS",
-      predictions,
-      delayMs,
-    },
-    "Failed to set test WebLLM predictions",
-  );
-}
-
-export async function clearWebLLMPredictionsForTesting(context: BackgroundContext): Promise<void> {
-  await sendTestRuntimeMessage(
-    context,
-    { type: "TEST_CLEAR_WEBLLM_PREDICTIONS" },
-    "Failed to clear test WebLLM predictions",
-  );
-}
-
-export async function getWebLLMPredictionCallsForTesting(
-  context: BackgroundContext,
-): Promise<WebLLMTestPredictionCall[]> {
-  const response = await sendTestRuntimeMessage(
-    context,
-    { type: "TEST_GET_WEBLLM_PREDICTION_CALLS" },
-    "Failed to read test WebLLM prediction calls",
-  );
-  if (!response || !Array.isArray(response.calls)) {
-    return [];
-  }
-  return response.calls
-    .map((call) => {
-      if (
-        typeof call !== "object" ||
-        !call ||
-        typeof (call as Record<string, unknown>).lang !== "string" ||
-        typeof (call as Record<string, unknown>).predictionInput !== "string" ||
-        typeof (call as Record<string, unknown>).numSuggestions !== "number"
-      ) {
-        return null;
-      }
-      return {
-        lang: (call as Record<string, unknown>).lang as string,
-        predictionInput: (call as Record<string, unknown>).predictionInput as string,
-        numSuggestions: (call as Record<string, unknown>).numSuggestions as number,
-      };
-    })
-    .filter((call): call is WebLLMTestPredictionCall => call !== null);
-}
-
 // ---------------------------------------------------------------- review mode
 
 export const REVIEW_HOST_SELECTOR = "[data-fluenttyper-review]";
@@ -832,4 +692,144 @@ export async function textPoint(
   );
   if (!point) throw new Error(`Text not found: ${needle}`);
   return point;
+}
+
+// -------------------------------------------------------------- local AI review
+
+export interface ReviewAiSnapshot {
+  /** Correct/Rewrite switch shown. */
+  modes: boolean;
+  /** Any Local AI block (status line, setup offer, pause/settings) shown. */
+  ai: boolean;
+  line: string;
+  setup: boolean;
+  setupSize: string;
+  pause: boolean;
+  settings: boolean;
+  /** Findings tagged as coming from Local AI. */
+  aiItems: string[];
+}
+
+/** The Local AI parts of the review panel, as a user sees them (hidden = absent). */
+export async function readReviewAi(page: Page): Promise<ReviewAiSnapshot> {
+  return page.evaluate((hostSelector) => {
+    const root = document.querySelector(hostSelector)?.shadowRoot ?? null;
+    const shown = (selector: string) => {
+      const element = root?.querySelector<HTMLElement>(selector);
+      return !!element && !element.closest("[hidden]");
+    };
+    const text = (selector: string) =>
+      shown(selector) ? (root?.querySelector(selector)?.textContent ?? "") : "";
+    return {
+      modes: shown(".modes"),
+      ai: shown(".ai"),
+      line: text(".ai-line"),
+      setup: shown(".setup"),
+      setupSize: text(".setup-size"),
+      pause: shown("[data-action=ai-pause]"),
+      settings: shown("[data-action=ai-settings]"),
+      aiItems: Array.from(root?.querySelectorAll<HTMLElement>(".item") ?? [])
+        .filter((item) => !!item.querySelector(".why .tag"))
+        .map((item) => item.querySelector(".change")?.textContent ?? ""),
+    };
+  }, REVIEW_HOST_SELECTOR);
+}
+
+export interface RecordedRequest {
+  url: string;
+  /** Kind and URL of the target (page, service worker, worker) that sent it. */
+  targetType: string;
+  targetUrl: string;
+}
+
+/**
+ * Opens a CDP session on every target (pages, the service worker), existing and
+ * new, and hands it to `attach`.
+ * Chrome only. A target created later may send its very first requests
+ * before `attach` finishes.
+ */
+export async function watchTargets(
+  browser: Browser,
+  attach: (session: CDPSession, target: Target) => Promise<void>,
+): Promise<() => void> {
+  const sessions: CDPSession[] = [];
+  let stopped = false;
+  const watch = async (target: Target) => {
+    if (stopped || target.type() === "browser") return;
+    try {
+      // Let puppeteer finish initializing the target first; an extra session on
+      // a target still waiting for the debugger stalls it.
+      if (target.type() === "service_worker") await target.worker();
+      else if (target.type() === "page") await target.page();
+      const session = await target.createCDPSession();
+      sessions.push(session);
+      await attach(session, target);
+    } catch {
+      // The target closed before it could be watched.
+    }
+  };
+  const onTarget = (target: Target) => void watch(target);
+  browser.on("targetcreated", onTarget);
+  await Promise.all(browser.targets().map(watch));
+  return () => {
+    stopped = true;
+    browser.off("targetcreated", onTarget);
+    for (const session of sessions) void session.detach().catch(() => undefined);
+  };
+}
+
+/** Records the URL (only) of every network request from every target. Chrome only. */
+export async function recordNetworkRequests(
+  browser: Browser,
+): Promise<{ requests: RecordedRequest[]; stop(): void }> {
+  const requests: RecordedRequest[] = [];
+  const stop = await watchTargets(browser, async (session, target) => {
+    session.on("Network.requestWillBeSent", (event) => {
+      requests.push({ url: event.request.url, targetType: target.type(), targetUrl: target.url() });
+    });
+    await session.send("Network.enable");
+  });
+  return { requests, stop };
+}
+
+/**
+ * Evaluates `expression` in the extension's own content-script world of the
+ * page's main frame (the isolated world whose origin is the extension), so
+ * chrome.runtime messages carry the content script's sender. Chrome only.
+ */
+export async function evaluateInContentScript<T>(page: Page, expression: string): Promise<T> {
+  const session = await page.createCDPSession();
+  try {
+    const contexts: Array<{
+      id: number;
+      origin: string;
+      name: string;
+      auxData?: { frameId?: string; type?: string };
+    }> = [];
+    session.on("Runtime.executionContextCreated", (event) => contexts.push(event.context));
+    await session.send("Runtime.enable");
+    const { frameTree } = await session.send("Page.getFrameTree");
+    const context = await waitUntil("content script world", () => {
+      return (
+        contexts.find(
+          (candidate) =>
+            candidate.auxData?.type === "isolated" &&
+            candidate.auxData.frameId === frameTree.frame.id &&
+            candidate.origin.startsWith("chrome-extension://"),
+        ) ?? false
+      );
+    });
+    const { result, exceptionDetails } = await session.send("Runtime.evaluate", {
+      expression,
+      contextId: context.id,
+      awaitPromise: true,
+      returnByValue: true,
+    });
+    if (exceptionDetails) {
+      throw new Error(`Content script evaluation failed: ${exceptionDetails.text}`);
+    }
+    return result.value as T;
+  } finally {
+    await session.detach().catch(() => undefined);
+  }
 }

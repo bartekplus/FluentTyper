@@ -20,11 +20,11 @@ If you change message shapes:
 
 ## Predictor Constraints
 
-- Production store builds are Presage-only.
-- WebLLM is allowed only in development and debug builds.
-- Do not make WebLLM required for normal operation.
-- Preserve safe fallbacks when the AI predictor is unavailable or times out.
-- Avoid expanding the network surface area in production builds.
+- Autocomplete (popup and inline predictions) is Presage-only in every build, dev and production. Local AI Review settings never feed prediction config; stale legacy AI predictor keys in storage are ignored.
+- Chrome/Edge builds include the Local AI Review runtime in the background service worker (`background.js`), never used by prediction (see [architecture.md](architecture.md)); Firefox builds ship none. Packaging: [commands.md](commands.md#local-ai-review-assets).
+- `__FT_DEV_BUILD__`, runtime test hooks and text-bearing predictor debug traces stay development-only; including the Local AI runtime never enables them.
+- `connect-src` allows only `'self'` and the Hugging Face origins in `LOCAL_AI_DOWNLOAD_ORIGINS`; no `blob:` or remote script source is needed (single-threaded WASM, no ORT proxy worker, `env.useWasmCache` false). Check a production build with `bun run check:local-ai:artifact`.
+- Do not make Local AI required for normal operation, and keep Review working when it is unavailable.
 
 ## Text Expansions and Dynamic Variables
 

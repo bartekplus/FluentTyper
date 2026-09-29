@@ -1,8 +1,5 @@
 import type { SettingsRegistry } from "@ui/settings-engine/SettingsEngine.js";
 import {
-  KEY_AI_MODEL_ID,
-  KEY_AI_PREDICTION_TIMEOUT_MS,
-  KEY_DEBUG_AI_PREDICTOR_ENABLED,
   KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
   KEY_OBSERVABILITY_DEFAULT_LEVEL,
   KEY_OBSERVABILITY_ENABLED,
@@ -36,9 +33,6 @@ export function renderObservabilityWorkspacePanel(
     i18n.get("predictor_debug_desc"),
   );
   moveControlToBody(registry, KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED, predictor.body);
-  moveControlToBody(registry, KEY_DEBUG_AI_PREDICTOR_ENABLED, predictor.body);
-  moveControlToBody(registry, KEY_AI_MODEL_ID, predictor.body);
-  moveControlToBody(registry, KEY_AI_PREDICTION_TIMEOUT_MS, predictor.body);
   shell.appendChild(predictor.card);
 
   const dashboard = createWorkspaceCard(

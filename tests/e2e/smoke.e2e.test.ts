@@ -23,7 +23,6 @@ import {
   waitForReview,
 } from "./e2e-helpers";
 import {
-  CMD_OPTIONS_GET_PREDICTOR_DEBUG_SNAPSHOT,
   CMD_OPTIONS_PAGE_CONFIG_CHANGE,
   KEY_DOMAIN_LIST_MODE,
   KEY_EXTENSION_LANGUAGE,
@@ -47,17 +46,6 @@ const TEST_PAGE_PATH = path.resolve(__dirname, "test-page.html");
 const TEST_HOST = "localhost";
 const SETTINGS_PREFIX = "store.settings.";
 const timeoutProfile = getTimeoutProfile();
-
-type PredictorDebugSnapshot = {
-  config?: {
-    aiPredictorEnabled?: boolean;
-  };
-  runtime?: {
-    webllm?: {
-      enabled?: boolean;
-    };
-  };
-};
 
 type TestNameContext = {
   fullName?: string;
@@ -1257,37 +1245,6 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
           (buttons) => buttons.length,
         );
         expect(toggleButtonCount).toBe(0);
-      } finally {
-        if (!optionsPage.isClosed()) {
-          await optionsPage.close();
-        }
-      }
-    },
-    suiteTimeout(7000, 12000),
-  );
-
-  test(
-    "reports AI predictor runtime disabled",
-    async () => {
-      const optionsPage = await openOptionsPage(browser, worker);
-      try {
-        const snapshot = await optionsPage.evaluate((command) => {
-          return new Promise<PredictorDebugSnapshot>((resolve, reject) => {
-            chrome.runtime.sendMessage(
-              { command, context: {} },
-              (response: PredictorDebugSnapshot | undefined) => {
-                if (chrome.runtime.lastError) {
-                  reject(new Error(chrome.runtime.lastError.message));
-                  return;
-                }
-                resolve(response || {});
-              },
-            );
-          });
-        }, CMD_OPTIONS_GET_PREDICTOR_DEBUG_SNAPSHOT);
-
-        expect(snapshot.config?.aiPredictorEnabled).toBe(false);
-        expect(snapshot.runtime?.webllm?.enabled).toBe(false);
       } finally {
         if (!optionsPage.isClosed()) {
           await optionsPage.close();

@@ -5,8 +5,6 @@ export const OBSERVABILITY_MODULE_IDS = [
   "PredictionManager",
   "PredictionOrchestrator",
   "PresageHandler",
-  "WebLLMPredictor",
-  "EngineLifecycleService",
   "MessageRouter",
   "CommandRouter",
   "LanguageDetector",

@@ -9,10 +9,8 @@ import {
   CMD_OPTIONS_GET_PREDICTOR_DEBUG_SNAPSHOT,
   CMD_OPTIONS_CLEAR_PERSONALIZATION,
   CMD_OPTIONS_PAGE_CONFIG_CHANGE,
-  KEY_AI_PREDICTOR_ENABLED,
   KEY_AUTOCOMPLETE_ON_TAB,
   KEY_AUTO_LANGUAGE_SITE_PRIORS,
-  KEY_DEBUG_AI_PREDICTOR_ENABLED,
   KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
   KEY_ENABLED_LANGUAGES,
   KEY_FALLBACK_LANGUAGE,
@@ -45,9 +43,6 @@ import {
   openPopupPage,
   sleep,
   triggerCommandForTesting,
-  setWebLLMPredictionsForTesting,
-  clearWebLLMPredictionsForTesting,
-  getWebLLMPredictionCallsForTesting,
   suiteTimeout,
   waitUntil,
   isFirefox,
@@ -815,7 +810,6 @@ async function sendOptionsPageConfigChange(optionsPage: Page): Promise<void> {
 interface PredictorDebugSnapshot {
   config?: {
     debugPresagePredictorEnabled?: boolean;
-    debugAIPredictorEnabled?: boolean;
   };
   traces?: Array<{
     traceId?: string;
@@ -908,11 +902,7 @@ async function waitForSnapshotValue(
     `predictor snapshot ${key}=${String(expectedValue)}`,
     async () => {
       const snapshot = await getPredictorDebugSnapshot(optionsPage);
-      const currentValue =
-        key === KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED
-          ? snapshot.config?.debugPresagePredictorEnabled
-          : snapshot.config?.debugAIPredictorEnabled;
-      return currentValue === expectedValue ? true : false;
+      return snapshot.config?.debugPresagePredictorEnabled === expectedValue;
     },
     { timeoutMs, intervalMs: 100 },
   );
@@ -1707,27 +1697,6 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
 
   afterEach(async () => {
     try {
-      if (worker) {
-        let workerContext = worker;
-        for (let attempt = 1; attempt <= 3; attempt++) {
-          try {
-            await clearWebLLMPredictionsForTesting(workerContext);
-            worker = workerContext;
-            latestWorkerContext = workerContext;
-            break;
-          } catch (error) {
-            if (!isRetriableWorkerError(error) || attempt === 3) {
-              throw error;
-            }
-            workerContext = await recoverWorkerForRetry(workerContext);
-            await sleep(100);
-          }
-        }
-      }
-    } catch {
-      // Ignore cleanup failures if the background context is restarting.
-    }
-    try {
       if (page && typeof page.isClosed === "function" && !page.isClosed()) {
         await page.close();
       }
@@ -2151,100 +2120,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     browserTimeout(15000, 25000),
   );
 
-  devRuntimeTest(
-    "AI predictor merges WebLLM suggestions with Presage in one suggestion list",
-    async () => {
-      const selector = "#test-input";
-      const aiSuggestions = ["webllmtestalpha", "webllmtestbeta", "webllmtestgamma"];
-      try {
-        await setSettingAndWait(worker!, "enable", true);
-        await setSettingAndWait(worker!, KEY_DOMAIN_LIST_MODE, "blackList");
-        await setSettingAndWait(worker!, "domainBlackList", []);
-        await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
-        await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-        await setSettingAndWait(worker!, KEY_SITE_PROFILES, {});
-        await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
-        await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-        await setSettingAndWait(worker!, KEY_NUM_SUGGESTIONS, 6);
-        await setSettingAndWait(worker!, KEY_AI_PREDICTOR_ENABLED, true);
-        await setWebLLMPredictionsForTesting(worker!, aiSuggestions, 0);
-        await applyConfigChange(browser, worker!);
-
-        await gotoTestPage(page);
-        await page.bringToFront();
-        await waitForInputReady(page, selector);
-        await clearInputContent(page, selector);
-        await typeInInput(page, selector, "th");
-
-        const suggestionTexts = await waitForVisibleSuggestionTexts(
-          page,
-          browserTimeout(15000, 25000),
-        );
-        const normalizedSuggestions = suggestionTexts.map(normalizeSuggestionText);
-        expect(normalizedSuggestions.length).toBeGreaterThanOrEqual(3);
-        expect(normalizedSuggestions.slice(0, 2)).not.toContain(aiSuggestions[0]);
-        expect(normalizedSuggestions.slice(0, 3)).toContain(aiSuggestions[0]);
-
-        const calls = await getWebLLMPredictionCallsForTesting(worker!);
-        expect(calls.some((call) => call.predictionInput.toLowerCase().endsWith("th"))).toBe(true);
-      } finally {
-        await clearWebLLMPredictionsForTesting(worker!);
-        await setSettingAndWait(worker!, KEY_NUM_SUGGESTIONS, 5);
-        await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
-        await setSettingAndWait(worker!, KEY_SITE_PROFILES, {});
-        await applyConfigChange(browser, worker!);
-      }
-    },
-    browserTimeout(30000, 50000),
-  );
-
-  devRuntimeTest(
-    "AI predictor respects latency budget and falls back to Presage when AI is slow",
-    async () => {
-      const selector = "#test-input";
-      const slowAiSuggestions = ["webllmtimeouttoken"];
-      try {
-        await setSettingAndWait(worker!, "enable", true);
-        await setSettingAndWait(worker!, KEY_DOMAIN_LIST_MODE, "blackList");
-        await setSettingAndWait(worker!, "domainBlackList", []);
-        await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
-        await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-        await setSettingAndWait(worker!, KEY_SITE_PROFILES, {});
-        await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
-        await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-        await setSettingAndWait(worker!, KEY_NUM_SUGGESTIONS, 6);
-        await setSettingAndWait(worker!, KEY_AI_PREDICTOR_ENABLED, true);
-        await setWebLLMPredictionsForTesting(worker!, slowAiSuggestions, 500);
-        await applyConfigChange(browser, worker!);
-
-        await gotoTestPage(page);
-        await page.bringToFront();
-        await waitForInputReady(page, selector);
-        await clearInputContent(page, selector);
-        await typeInInput(page, selector, "th");
-
-        const suggestionTexts = await waitForVisibleSuggestionTexts(
-          page,
-          browserTimeout(15000, 25000),
-        );
-        const normalizedSuggestions = suggestionTexts.map(normalizeSuggestionText);
-        expect(normalizedSuggestions.length).toBeGreaterThan(0);
-        expect(normalizedSuggestions).not.toContain(slowAiSuggestions[0]);
-
-        const calls = await getWebLLMPredictionCallsForTesting(worker!);
-        expect(calls.length).toBeGreaterThan(0);
-      } finally {
-        await clearWebLLMPredictionsForTesting(worker!);
-        await setSettingAndWait(worker!, KEY_NUM_SUGGESTIONS, 5);
-        await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
-        await setSettingAndWait(worker!, KEY_SITE_PROFILES, {});
-        await applyConfigChange(browser, worker!);
-      }
-    },
-    browserTimeout(30000, 50000),
-  );
-
-  devRuntimeEach([KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED, KEY_DEBUG_AI_PREDICTOR_ENABLED])(
+  devRuntimeEach([KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED])(
     "applies %s from predictor debug dashboard",
     async (key) => {
       const optionsPage = await openExtensionPage(browser, worker!, "options/options.html");
@@ -3469,7 +3345,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     browserTimeout(20000, 35000),
   );
 
-  test(
+  // Reads text-bearing predictor traces, which only development builds keep.
+  devRuntimeTest(
     "block-local prediction in Lexical/Reddit contenteditable",
     async () => {
       const selector = "#test-contenteditable";
@@ -3547,7 +3424,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     browserTimeout(20000, 35000),
   );
 
-  test(
+  // Reads text-bearing predictor traces, which only development builds keep.
+  devRuntimeTest(
     "restores prediction immediately after Enter in Lexical/Reddit contenteditable",
     async () => {
       const selector = "#test-contenteditable";
@@ -3651,7 +3529,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     browserTimeout(20000, 35000),
   );
 
-  test(
+  // Reads text-bearing predictor traces, which only development builds keep.
+  devRuntimeTest(
     "keeps second-line prediction block-local in br-separated contenteditable",
     async () => {
       const selector = "#test-contenteditable";
@@ -3814,7 +3693,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     browserTimeout(20000, 35000),
   );
 
-  test(
+  // Reads text-bearing predictor traces, which only development builds keep.
+  devRuntimeTest(
     "keeps second-line prediction block-local after Enter in real Lexical editor",
     async () => {
       await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");

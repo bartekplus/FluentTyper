@@ -1,12 +1,12 @@
 import {
   CMD_BACKGROUND_PAGE_SET_CONFIG,
-  DEFAULT_DEBUG_AI_PREDICTOR_ENABLED,
   DEFAULT_DEBUG_PRESAGE_PREDICTOR_ENABLED,
 } from "@core/domain/constants";
 import type { SettingsManager } from "@core/application/settingsManager";
 import type { ConfigMessage } from "@core/domain/messageTypes";
 import type { PredictionConfig } from "../PredictionOrchestrator";
 import { CoreSettingsRepository } from "@core/application/repositories/CoreSettingsRepository";
+import { LocalAiSettingsRepository } from "@core/application/repositories/LocalAiSettingsRepository";
 import { ObservabilitySettingsRepository } from "@core/application/repositories/ObservabilitySettingsRepository";
 import { PredictorSettingsRepository } from "@core/application/repositories/PredictorSettingsRepository";
 import { resolveActiveLanguage, resolveDomainRuntimeSettings } from "./runtimeSettings";
@@ -27,6 +27,7 @@ export class ConfigAssembler {
   private readonly settingsManager: SettingsManager;
   private readonly coreSettingsRepository: CoreSettingsRepository;
   private readonly predictorSettingsRepository: PredictorSettingsRepository;
+  private readonly localAiSettingsRepository: LocalAiSettingsRepository;
   private readonly observabilitySettingsRepository: ObservabilitySettingsRepository;
   private readonly options: ConfigAssemblerOptions;
 
@@ -34,6 +35,7 @@ export class ConfigAssembler {
     this.settingsManager = settingsManager;
     this.coreSettingsRepository = new CoreSettingsRepository(settingsManager);
     this.predictorSettingsRepository = new PredictorSettingsRepository(settingsManager);
+    this.localAiSettingsRepository = new LocalAiSettingsRepository(settingsManager);
     this.observabilitySettingsRepository = new ObservabilitySettingsRepository(settingsManager);
     this.options = options;
   }
@@ -52,9 +54,11 @@ export class ConfigAssembler {
       minWordLengthToPredict,
       showSuggestionFooter,
       showReviewButton,
+      localAiReviewEnabled,
       userDictionaryList,
       themeConfig,
       observability,
+      fallbackLanguage,
     ] = await Promise.all([
       this.coreSettingsRepository.isEnabled(),
       this.coreSettingsRepository.getAutocomplete(),
@@ -67,10 +71,13 @@ export class ConfigAssembler {
       this.coreSettingsRepository.getMinWordLengthToPredict(),
       this.coreSettingsRepository.getShowSuggestionFooter(),
       this.coreSettingsRepository.getShowReviewButton(),
+      this.localAiSettingsRepository.getLocalAiReviewEnabled(),
       this.coreSettingsRepository.getUserDictionaryList(),
       this.coreSettingsRepository.getThemeSettings(),
       this.getObservabilityConfig(),
+      this.coreSettingsRepository.getFallbackLanguage(),
     ]);
+    const { enabledLanguages } = domainSettings;
 
     return {
       command: CMD_BACKGROUND_PAGE_SET_CONFIG,
@@ -84,9 +91,15 @@ export class ConfigAssembler {
         horizontalSuggestions,
         extensionLanguage,
         lang: domainSettings.language,
+        enabledLanguages,
+        // As the language detector resolves it: the setting if enabled, else the first enabled.
+        fallbackLanguage: enabledLanguages.includes(fallbackLanguage)
+          ? fallbackLanguage
+          : enabledLanguages[0],
         minWordLengthToPredict,
         showSuggestionFooter,
         showReviewButton,
+        localAiReviewEnabled,
         inline_suggestion: domainSettings.inlineSuggestion,
         preferNativeAutocomplete: domainSettings.preferNativeAutocomplete,
         codeMode: domainSettings.codeMode,
@@ -149,15 +162,9 @@ export class ConfigAssembler {
         timeFormat,
         dateFormat,
         userDictionaryList,
-        aiPredictorEnabled: this.options.isDevBuild ? predictorSettings.aiPredictorEnabled : false,
-        aiModelId: predictorSettings.aiModelId,
-        aiPredictionTimeoutMs: predictorSettings.aiPredictionTimeoutMs,
         debugPresagePredictorEnabled: this.options.isDevBuild
           ? predictorSettings.debugPresagePredictorEnabled
           : DEFAULT_DEBUG_PRESAGE_PREDICTOR_ENABLED,
-        debugAIPredictorEnabled: this.options.isDevBuild
-          ? predictorSettings.debugAIPredictorEnabled
-          : DEFAULT_DEBUG_AI_PREDICTOR_ENABLED,
       },
     };
   }

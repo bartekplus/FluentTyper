@@ -35,9 +35,6 @@ import {
   KEY_AUTOCOMPLETE,
   KEY_AUTOCOMPLETE_ON_ENTER,
   KEY_AUTOCOMPLETE_ON_TAB,
-  KEY_AI_PREDICTOR_ENABLED,
-  KEY_AI_MODEL_ID,
-  KEY_AI_PREDICTION_TIMEOUT_MS,
   KEY_AUTO_LANGUAGE_SITE_PRIORS,
   KEY_LANGUAGE,
   KEY_FALLBACK_LANGUAGE,
@@ -55,6 +52,8 @@ import {
   KEY_DOMAIN_LIST_MODE,
   KEY_SHOW_SUGGESTION_FOOTER,
   KEY_SHOW_REVIEW_BUTTON,
+  KEY_LOCAL_AI_REVIEW_ENABLED,
+  KEY_LOCAL_AI_REVIEW_TIER,
   KEY_INLINE_SUGGESTION,
   KEY_PREFIX_ONLY_MODE,
   KEY_PERSONALIZATION_ENABLED,
@@ -62,7 +61,6 @@ import {
   KEY_SITE_PROFILES,
   KEY_ENABLED_GRAMMAR_RULES,
   KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
-  KEY_DEBUG_AI_PREDICTOR_ENABLED,
   KEY_OBSERVABILITY_DEFAULT_LEVEL,
   KEY_OBSERVABILITY_ENABLED,
   KEY_OBSERVABILITY_MODULE_OVERRIDES,
@@ -157,16 +155,14 @@ const CONFIG_REFRESH_KEYS = [
   KEY_USER_DICTIONARY_LIST,
   KEY_SHOW_SUGGESTION_FOOTER,
   KEY_SHOW_REVIEW_BUTTON,
+  KEY_LOCAL_AI_REVIEW_ENABLED,
+  KEY_LOCAL_AI_REVIEW_TIER,
   KEY_INLINE_SUGGESTION,
   KEY_PREFER_NATIVE_AUTOCOMPLETE,
   KEY_CODE_MODE,
   KEY_PERSONALIZATION_ENABLED,
   KEY_EXTENSION_LANGUAGE,
-  KEY_AI_PREDICTOR_ENABLED,
-  KEY_AI_MODEL_ID,
-  KEY_AI_PREDICTION_TIMEOUT_MS,
   KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
-  KEY_DEBUG_AI_PREDICTOR_ENABLED,
   KEY_OBSERVABILITY_ENABLED,
   KEY_OBSERVABILITY_DEFAULT_LEVEL,
   ...Object.keys(DEFAULT_SUGGESTION_THEME_SETTINGS),
@@ -174,9 +170,6 @@ const CONFIG_REFRESH_KEYS = [
 
 const OBSERVABILITY_REFRESH_KEYS = new Set([
   KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
-  KEY_DEBUG_AI_PREDICTOR_ENABLED,
-  KEY_AI_MODEL_ID,
-  KEY_AI_PREDICTION_TIMEOUT_MS,
   KEY_OBSERVABILITY_ENABLED,
   KEY_OBSERVABILITY_DEFAULT_LEVEL,
 ]);
@@ -243,7 +236,7 @@ function applyInlineSuggestionLocks(registry: SettingsRegistry, enabled: boolean
   registry[KEY_SHOW_SUGGESTION_FOOTER]?.setDisabled(enabled);
 }
 
-function wireRuntimeSettingsHandlers(registry: SettingsRegistry): void {
+export function wireRuntimeSettingsHandlers(registry: SettingsRegistry): void {
   registry[KEY_INLINE_SUGGESTION]?.addEvent("action", () => {
     applyInlineSuggestionLocks(registry, registry[KEY_INLINE_SUGGESTION].get() as boolean);
   });
@@ -1320,10 +1313,7 @@ function renderObservabilitySnapshot(
       : {};
   const predictorConfig = predictor?.config as
     | {
-        aiPredictorEnabled?: boolean;
-        aiModelId?: string;
         debugPresagePredictorEnabled?: boolean;
-        debugAIPredictorEnabled?: boolean;
       }
     | undefined;
   const predictorTraces = Array.isArray(predictor?.traces) ? predictor.traces : [];
@@ -1441,23 +1431,8 @@ function renderObservabilitySnapshot(
   if (predictor) {
     appendObservabilityInfoItem(
       predictorCard,
-      "AI predictor",
-      predictorConfig?.aiPredictorEnabled ? "enabled" : "disabled",
-    );
-    appendObservabilityInfoItem(
-      predictorCard,
       "Presage route",
       predictorConfig?.debugPresagePredictorEnabled ? "enabled" : "disabled",
-    );
-    appendObservabilityInfoItem(
-      predictorCard,
-      "WebLLM route",
-      predictorConfig?.debugAIPredictorEnabled ? "enabled" : "disabled",
-    );
-    appendObservabilityInfoItem(
-      predictorCard,
-      "Model",
-      String(predictorConfig?.aiModelId || "n/a"),
     );
     appendObservabilityInfoItem(predictorCard, "Recent traces", String(predictorTraces.length));
     predictorCard.appendChild(
@@ -1465,13 +1440,6 @@ function renderObservabilitySnapshot(
         "Presage route toggle",
         KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
         Boolean(predictorConfig?.debugPresagePredictorEnabled),
-      ),
-    );
-    predictorCard.appendChild(
-      createPredictorToggleAction(
-        "WebLLM route toggle",
-        KEY_DEBUG_AI_PREDICTOR_ENABLED,
-        Boolean(predictorConfig?.debugAIPredictorEnabled),
       ),
     );
   } else {
@@ -2032,11 +2000,7 @@ window.addEventListener("DOMContentLoaded", function () {
   const registry = engine.buildFromManifest(manifest);
 
   void (async () => {
-    renderEssentialsWorkspacePanel(
-      registry.essentialsWorkspacePanel.element,
-      registry,
-      IS_DEV_BUILD,
-    );
+    renderEssentialsWorkspacePanel(registry.essentialsWorkspacePanel.element, registry);
     renderGrammarWorkspacePanel(registry.grammarWorkspacePanel.element, registry);
     new LanguageSettingsPanel(registry.languagePreferencesPanel.element, registry, store);
     new TextAssetsPanel(registry.writingAssetsPanel.element, registry, store);

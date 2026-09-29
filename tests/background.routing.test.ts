@@ -22,13 +22,9 @@ import {
   CMD_REVIEW_FT_ACTIVE_TAB,
   CMD_CONTENT_SCRIPT_ADD_TO_DICTIONARY,
   CMD_CONTENT_SCRIPT_REVIEW_SPELLING,
-  DEFAULT_AI_PREDICTION_TIMEOUT_MS,
-  DEFAULT_AI_MODEL_ID,
-  DEFAULT_DEBUG_AI_PREDICTOR_ENABLED,
   DEFAULT_DEBUG_PRESAGE_PREDICTOR_ENABLED,
   KEY_LANGUAGE,
   KEY_SITE_PROFILES,
-  KEY_DEBUG_AI_PREDICTOR_ENABLED,
   KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
 } from "../src/core/domain/constants";
 import { REVIEW_SPELLING_BUDGET_MS } from "../src/adapters/chrome/background/PresageEngine";
@@ -397,6 +393,7 @@ async function loadBackgroundHarness(stateOverrides: Record<string, unknown> = {
   (BackgroundServiceWorker as unknown as { instance?: unknown }).instance = undefined;
 
   const module = await import(freshModulePath("../src/adapters/chrome/background/background"));
+  module.startBackground();
 
   const onInstalled = onInstalledAddListener.mock.calls[0][0] as (
     details: chrome.runtime.InstalledDetails,
@@ -462,9 +459,7 @@ describe("background routing and lifecycle", () => {
     expect(harness.personalizationInitialize).toHaveBeenCalled();
     expect(harness.predictionSetConfig).toHaveBeenCalledWith(
       expect.objectContaining({
-        aiPredictorEnabled: false,
-        aiModelId: DEFAULT_AI_MODEL_ID,
-        aiPredictionTimeoutMs: DEFAULT_AI_PREDICTION_TIMEOUT_MS,
+        debugPresagePredictorEnabled: DEFAULT_DEBUG_PRESAGE_PREDICTOR_ENABLED,
       }),
     );
     expect(harness.tabSendToAll).toHaveBeenCalled();
@@ -488,16 +483,13 @@ describe("background routing and lifecycle", () => {
   test("startup ignores debug predictor routing toggles outside dev builds", async () => {
     const harness = await loadBackgroundHarness({
       [KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED]: false,
-      [KEY_DEBUG_AI_PREDICTOR_ENABLED]: false,
     });
 
     await harness.startupHandler({ lastVersion: "2025.12.0" });
 
     expect(harness.predictionSetConfig).toHaveBeenCalledWith(
       expect.objectContaining({
-        aiPredictorEnabled: false,
         debugPresagePredictorEnabled: DEFAULT_DEBUG_PRESAGE_PREDICTOR_ENABLED,
-        debugAIPredictorEnabled: DEFAULT_DEBUG_AI_PREDICTOR_ENABLED,
       }),
     );
   });

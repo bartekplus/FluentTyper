@@ -1,0 +1,107 @@
+/* Local AI card in Settings → Grammar (src/ui/options/LocalAiSettingsPanel.ts). */
+
+.local-ai-card {
+  scroll-margin-top: 1rem;
+}
+
+.local-ai-facts {
+  display: grid;
+  gap: 0.3rem;
+  margin: 0;
+  padding-left: 1.2rem;
+  list-style: disc;
+}
+
+.local-ai-models {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.local-ai-models legend {
+  margin-bottom: 0.35rem;
+  padding: 0;
+  font-weight: 700;
+}
+
+.local-ai-model {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--input-border-color);
+  border-radius: 0.75rem;
+  cursor: pointer;
+}
+
+.local-ai-model:has(input:checked) {
+  border-color: var(--accent-color);
+}
+
+.local-ai-models:disabled .local-ai-model {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.local-ai-model input {
+  margin-top: 0.3rem;
+  accent-color: var(--accent-color);
+}
+
+.local-ai-model-meta {
+  display: block;
+  color: var(--text-color-light);
+  font-size: 0.875em;
+}
+
+.local-ai-status {
+  margin: 0;
+  font-weight: 600;
+}
+
+.local-ai-progress {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+}
+
+.local-ai-progress progress {
+  flex: 1;
+  margin: 0;
+}
+
+.local-ai-confirm {
+  display: grid;
+  gap: 0.6rem;
+  padding: 0.75rem;
+  border: 1px solid var(--accent-color);
+  border-radius: 0.75rem;
+}
+
+.local-ai-card [hidden] {
+  display: none !important;
+}
+
+.local-ai-card h4:focus,
+.local-ai-status:focus,
+.local-ai-model input:focus-visible,
+.local-ai-card .button:focus-visible {
+  outline: 2px solid var(--accent-color);
+  outline-offset: 2px;
+}
+
+@media (forced-colors: active) {
+  .local-ai-model:has(input:checked) {
+    border-color: Highlight;
+  }
+
+  .local-ai-card h4:focus,
+  .local-ai-status:focus,
+  .local-ai-model input:focus-visible,
+  .local-ai-card .button:focus-visible {
+    outline-color: Highlight;
+  }
+}

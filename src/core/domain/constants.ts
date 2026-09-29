@@ -34,6 +34,23 @@ export const CMD_OPTIONS_REPORT_OBSERVABILITY_EVENT = "CMD_OPTIONS_REPORT_OBSERV
 export const CMD_CONTENT_SCRIPT_REPORT_OBSERVABILITY_MODULES =
   "CMD_CONTENT_SCRIPT_REPORT_OBSERVABILITY_MODULES";
 export const CMD_OPTIONS_REPORT_OBSERVABILITY_MODULES = "CMD_OPTIONS_REPORT_OBSERVABILITY_MODULES";
+// Local AI Review (optional on-device model; see src/core/domain/contracts/localAi.ts)
+/** Any extension context or content script: current LocalAiStatus (no side effects). */
+export const CMD_LOCAL_AI_GET_STATUS = "CMD_LOCAL_AI_GET_STATUS";
+/** Content script, when a Review opens and setup is complete: make sure the runtime host exists. */
+export const CMD_LOCAL_AI_ENSURE_HOST = "CMD_LOCAL_AI_ENSURE_HOST";
+/** Options page only (explicit consent): download and install the selected model. */
+export const CMD_LOCAL_AI_INSTALL = "CMD_LOCAL_AI_INSTALL";
+/** Options page only. */
+export const CMD_LOCAL_AI_CANCEL_INSTALL = "CMD_LOCAL_AI_CANCEL_INSTALL";
+/** Options page only: delete FluentTyper-owned artifacts of one model. */
+export const CMD_LOCAL_AI_DELETE_MODEL = "CMD_LOCAL_AI_DELETE_MODEL";
+/** Content script: open the options page at the Local AI setup section. */
+export const CMD_LOCAL_AI_OPEN_SETUP = "CMD_LOCAL_AI_OPEN_SETUP";
+/** Content script: the user declined the Review panel's one-time setup offer. */
+export const CMD_LOCAL_AI_DISMISS_SETUP_OFFER = "CMD_LOCAL_AI_DISMISS_SETUP_OFFER";
+/** Background -> extension pages broadcast; not routed by the background. */
+export const CMD_LOCAL_AI_STATUS_CHANGED = "CMD_LOCAL_AI_STATUS_CHANGED";
 
 // Config Keys
 export const KEY_AUTOCOMPLETE = "autocomplete";
@@ -66,11 +83,7 @@ export const KEY_GRAMMAR_RULES_V3_BACKUP = "grammarRulesV3Backup";
 export const KEY_SUGGESTION_THEME_V1_MIGRATED = "suggestionThemeV1Migrated";
 export const KEY_SUGGESTION_THEME_V2_MIGRATED = "suggestionThemeV2Migrated";
 export const KEY_DOMAIN_LIST_MODE = "domainListMode";
-export const KEY_AI_PREDICTOR_ENABLED = "aiPredictorEnabled";
-export const KEY_AI_MODEL_ID = "aiModelId";
-export const KEY_AI_PREDICTION_TIMEOUT_MS = "aiPredictionTimeoutMs";
 export const KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED = "debugPresagePredictorEnabled";
-export const KEY_DEBUG_AI_PREDICTOR_ENABLED = "debugAiPredictorEnabled";
 export const KEY_OBSERVABILITY_ENABLED = "observabilityEnabled";
 export const KEY_OBSERVABILITY_DEFAULT_LEVEL = "observabilityDefaultLevel";
 export const KEY_OBSERVABILITY_MODULE_OVERRIDES = "observabilityModuleOverrides";
@@ -78,6 +91,14 @@ export const KEY_SHOW_SUGGESTION_FOOTER = "showSuggestionFooter";
 /** @deprecated Legacy "Show language of prediction" key – kept only for migration in SettingsMigrationV10. */
 export const KEY_LEGACY_DISPLAY_LANG_HEADER = "displayLangHeader";
 export const KEY_SHOW_REVIEW_BUTTON = "showReviewButton";
+/** "Local AI corrections in Review" preference; on for new users, blocked until setup. */
+export const KEY_LOCAL_AI_REVIEW_ENABLED = "localAiReviewEnabled";
+/** Selected model tier: "standard" | "compact". */
+export const KEY_LOCAL_AI_REVIEW_TIER = "localAiReviewTier";
+/** Explicit download consent record `{ modelId, tier, at }`, or absent. Never inferred. */
+export const KEY_LOCAL_AI_REVIEW_CONSENT = "localAiReviewConsent";
+/** The Review panel's one-time setup offer was declined. */
+export const KEY_LOCAL_AI_SETUP_OFFER_DISMISSED = "localAiSetupOfferDismissed";
 export const KEY_INLINE_SUGGESTION = "inline_suggestion";
 export const KEY_PREFIX_ONLY_MODE = "prefixOnlyMode";
 export const KEY_PERSONALIZATION_ENABLED = "personalizationEnabled";
@@ -108,17 +129,7 @@ export const CMD_STATUS_COMMAND = "CMD_STATUS_COMMAND";
 
 export const DEFAULT_NUM_SUGGESTIONS = 5;
 export const MAX_NUM_SUGGESTIONS = 10;
-export const DEFAULT_AI_PREDICTOR_ENABLED = true;
-export const DEFAULT_AI_MODEL_ID = "Qwen2.5-0.5B-Instruct-q4f16_1-MLC";
-export const DEFAULT_AI_PREDICTION_TIMEOUT_MS = 120;
 export const DEFAULT_DEBUG_PRESAGE_PREDICTOR_ENABLED = true;
-export const DEFAULT_DEBUG_AI_PREDICTOR_ENABLED = true;
 export const DEFAULT_OBSERVABILITY_ENABLED = true;
 export const DEFAULT_OBSERVABILITY_DEFAULT_LEVEL = "debug";
-
-export function clampAIPredictionTimeoutMs(value: unknown): number {
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    return DEFAULT_AI_PREDICTION_TIMEOUT_MS;
-  }
-  return Math.min(2000, Math.max(20, Math.round(value)));
-}
+export const DEFAULT_LOCAL_AI_REVIEW_ENABLED = true;

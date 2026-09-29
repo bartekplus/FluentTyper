@@ -65,6 +65,19 @@ export const SUPPORTED_LANGUAGES_SHORT_CODE: Record<string, string> = {
   pt: "pt_BR",
 };
 
+/**
+ * The "auto_detect" setting as one of the user's enabled languages: the language
+ * identified in the text (a base code such as "en") when it is enabled, else `fallback`.
+ */
+export function resolveAutoLanguage(
+  detected: string | null,
+  enabledLanguages: readonly string[],
+  fallback: string,
+): string {
+  const lang = detected ? SUPPORTED_LANGUAGES_SHORT_CODE[detected.slice(0, 2).toLowerCase()] : "";
+  return lang && enabledLanguages.includes(lang) ? lang : fallback;
+}
+
 const BASE_SEPARATOR_CHARS_REGEX_SOURCE =
   '\\s+|!|"|#|\\$|%|&|\\(|\\)|\\*|\\+|,|-|\\.|\\/|:|;|<|=|>|\\?|@|\\[|\\\\|\\]|\\^|_|`|{|\\||}|~';
 const TYPOGRAPHIC_SEPARATOR_CHARS_REGEX_SOURCE = [

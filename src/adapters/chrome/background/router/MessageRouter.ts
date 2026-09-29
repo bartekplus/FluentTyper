@@ -11,6 +11,13 @@ import {
   CMD_CONTENT_SCRIPT_USAGE_EVENT,
   CMD_CONTENT_SCRIPT_PERSONALIZATION_EVENT,
   CMD_GET_AUTO_LANGUAGE_STATUS,
+  CMD_LOCAL_AI_CANCEL_INSTALL,
+  CMD_LOCAL_AI_DELETE_MODEL,
+  CMD_LOCAL_AI_DISMISS_SETUP_OFFER,
+  CMD_LOCAL_AI_ENSURE_HOST,
+  CMD_LOCAL_AI_GET_STATUS,
+  CMD_LOCAL_AI_INSTALL,
+  CMD_LOCAL_AI_OPEN_SETUP,
   CMD_OPTIONS_CLEAR_OBSERVABILITY_EVENTS,
   CMD_OPTIONS_CLEAR_PREDICTOR_DEBUG_TRACE,
   CMD_OPTIONS_GET_OBSERVABILITY_SNAPSHOT,
@@ -52,6 +59,16 @@ import { mapRuntimeError } from "./RuntimeErrorMapper";
 
 const logger = createLogger("MessageRouter");
 
+const LOCAL_AI_COMMANDS = [
+  CMD_LOCAL_AI_GET_STATUS,
+  CMD_LOCAL_AI_ENSURE_HOST,
+  CMD_LOCAL_AI_INSTALL,
+  CMD_LOCAL_AI_CANCEL_INSTALL,
+  CMD_LOCAL_AI_DELETE_MODEL,
+  CMD_LOCAL_AI_OPEN_SETUP,
+  CMD_LOCAL_AI_DISMISS_SETUP_OFFER,
+] as const;
+
 const ROUTED_MESSAGE_COMMANDS = [
   CMD_CONTENT_SCRIPT_PREDICT_REQ,
   CMD_CONTENT_SCRIPT_ADD_TO_DICTIONARY,
@@ -75,6 +92,7 @@ const ROUTED_MESSAGE_COMMANDS = [
   CMD_OPTIONS_CLEAR_OBSERVABILITY_EVENTS,
   CMD_OPTIONS_REPORT_OBSERVABILITY_EVENT,
   CMD_OPTIONS_REPORT_OBSERVABILITY_MODULES,
+  ...LOCAL_AI_COMMANDS,
 ] as const;
 
 type RoutedMessageCommand = (typeof ROUTED_MESSAGE_COMMANDS)[number];
@@ -212,6 +230,9 @@ export class MessageRouter {
       CMD_OPTIONS_REPORT_OBSERVABILITY_MODULES,
       this.handleOptionsReportObservabilityModules.bind(this),
     );
+    for (const command of LOCAL_AI_COMMANDS) {
+      register(command, this.handleLocalAi.bind(this));
+    }
   }
 
   handle(
@@ -600,6 +621,14 @@ export class MessageRouter {
       source: "options",
     });
     this.respondOk(sendResponse);
+  }
+
+  /** Local AI Review: authorization and effects live in the LocalAiController. */
+  private async handleLocalAi(
+    payload: CommandPayload<(typeof LOCAL_AI_COMMANDS)[number]>,
+  ): Promise<void> {
+    const { request, sender, sendResponse, worker } = payload;
+    sendResponse(await worker.localAiController.handleMessage(request, sender));
   }
 
   private handleOptionsReportObservabilityModules(

@@ -7,13 +7,10 @@ import { renderGrammarWorkspacePanel } from "../src/ui/options/GrammarWorkspaceP
 import { renderObservabilityWorkspacePanel } from "../src/ui/options/ObservabilityWorkspacePanel.js";
 import { i18n } from "../src/ui/options/fluenttyperI18n.js";
 import {
-  KEY_AI_MODEL_ID,
-  KEY_AI_PREDICTION_TIMEOUT_MS,
   KEY_AUTOCOMPLETE,
   KEY_AUTOCOMPLETE_ON_ENTER,
   KEY_AUTOCOMPLETE_ON_TAB,
   KEY_ENABLED_GRAMMAR_RULES,
-  KEY_DEBUG_AI_PREDICTOR_ENABLED,
   KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
   KEY_INLINE_SUGGESTION,
   KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE,
@@ -116,7 +113,7 @@ describe("options workspace panels", () => {
       registry[KEY_INLINE_SUGGESTION] as unknown as MockPanelControl,
     ]);
 
-    renderEssentialsWorkspacePanel(panelRoot, registry, false);
+    renderEssentialsWorkspacePanel(panelRoot, registry);
 
     expect(panelRoot.textContent).toContain("Enable FluentTyper");
     expect(panelRoot.textContent).toContain("Prefer native autocomplete");
@@ -177,9 +174,6 @@ describe("options workspace panels", () => {
       [KEY_OBSERVABILITY_DEFAULT_LEVEL]: new MockPanelControl("Default log level"),
       [KEY_OBSERVABILITY_MODULE_OVERRIDES]: new MockPanelControl("Overrides"),
       [KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED]: new MockPanelControl("Trace Presage"),
-      [KEY_DEBUG_AI_PREDICTOR_ENABLED]: new MockPanelControl("Trace AI"),
-      [KEY_AI_MODEL_ID]: new MockPanelControl("Model"),
-      [KEY_AI_PREDICTION_TIMEOUT_MS]: new MockPanelControl("Timeout"),
     } as unknown as SettingsRegistry;
 
     createGroup(tab, "Controls", [
@@ -189,9 +183,6 @@ describe("options workspace panels", () => {
     ]);
     createGroup(tab, "Predictor", [
       registry[KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED] as unknown as MockPanelControl,
-      registry[KEY_DEBUG_AI_PREDICTOR_ENABLED] as unknown as MockPanelControl,
-      registry[KEY_AI_MODEL_ID] as unknown as MockPanelControl,
-      registry[KEY_AI_PREDICTION_TIMEOUT_MS] as unknown as MockPanelControl,
     ]);
     createGroup(tab, "Dashboard", [registry.observabilityPanel as unknown as MockPanelControl]);
 

@@ -1,6 +1,5 @@
 import type { SettingsRegistry } from "@ui/settings-engine/SettingsEngine.js";
 import {
-  KEY_AI_PREDICTOR_ENABLED,
   KEY_AUTOCOMPLETE,
   KEY_AUTOCOMPLETE_ON_ENTER,
   KEY_AUTOCOMPLETE_ON_TAB,
@@ -27,7 +26,6 @@ import {
 export function renderEssentialsWorkspacePanel(
   root: HTMLElement,
   registry: SettingsRegistry,
-  isDevBuild: boolean,
 ): void {
   const shell = createWorkspaceShell();
 
@@ -44,9 +42,6 @@ export function renderEssentialsWorkspacePanel(
   moveControlToBody(registry, KEY_PERSONALIZATION_ENABLED, prediction.body);
   moveControlToBody(registry, KEY_NUM_SUGGESTIONS, prediction.body);
   moveControlToBody(registry, KEY_MIN_WORD_LENGTH_TO_PREDICT, prediction.body);
-  if (isDevBuild) {
-    moveControlToBody(registry, KEY_AI_PREDICTOR_ENABLED, prediction.body);
-  }
 
   const acceptance = createWorkspaceCard(i18n.get("accept_predictions"));
   moveControlToBody(registry, KEY_AUTOCOMPLETE_ON_TAB, acceptance.body);

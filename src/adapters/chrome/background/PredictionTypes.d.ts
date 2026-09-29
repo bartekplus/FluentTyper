@@ -19,10 +19,6 @@ export interface PredictorStageDebugInfo {
   skipReason?: string;
 }
 
-export interface AIPredictorStageDebugInfo extends PredictorStageDebugInfo {
-  modelId: string;
-}
-
 export interface PredictionDebugEvent {
   timestampMs: number;
   text: string;
@@ -33,8 +29,6 @@ export interface PredictionDebugEvent {
   doPrediction: boolean;
   totalDurationMs: number;
   presage: PredictorStageDebugInfo;
-  webllm: AIPredictorStageDebugInfo;
-  mergedPredictions: string[];
   finalPredictions: string[];
 }
 
@@ -47,25 +41,4 @@ export interface PredictionConfigOverride {
 export interface PredictionRunConfig extends PredictionConfigOverride {
   tabId?: number;
   debugListener?: (debugEvent: PredictionDebugEvent) => void;
-}
-
-export interface SecondaryPredictorConfig {
-  enabled?: boolean;
-  modelId?: string;
-}
-
-export interface SecondaryPredictorRequest {
-  lang: string;
-  predictionInput: string;
-  numSuggestions: number;
-}
-
-export interface SecondaryPredictor {
-  setConfig(config: SecondaryPredictorConfig): void;
-  predict(request: SecondaryPredictorRequest): Promise<string[]>;
-  preload?(): void | Promise<void>;
-  interruptActiveGeneration?(
-    reason?: string,
-    expectedRequest?: Pick<SecondaryPredictorRequest, "lang" | "predictionInput">,
-  ): boolean;
 }

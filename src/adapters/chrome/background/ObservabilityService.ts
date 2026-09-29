@@ -97,6 +97,10 @@ export class ObservabilityService {
   }
 
   recordEvent(event: ObservabilityEvent): void {
+    // Production exposes no events, so it keeps none (they may carry log context).
+    if (!this.isDevBuild) {
+      return;
+    }
     this.events.unshift(cloneEvent(event));
     this.lastEventAt.set(event.moduleId, event.timestampMs);
     const sourceSet =

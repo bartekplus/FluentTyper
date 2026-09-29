@@ -1,0 +1,388 @@
+import { describe, expect, jest, test } from "bun:test";
+import {
+  LocalAiController,
+  type LocalAiRequest,
+  type LocalAiSettings,
+} from "../src/adapters/chrome/background/localAi/LocalAiController";
+import {
+  CMD_LOCAL_AI_CANCEL_INSTALL,
+  CMD_LOCAL_AI_DELETE_MODEL,
+  CMD_LOCAL_AI_DISMISS_SETUP_OFFER,
+  CMD_LOCAL_AI_ENSURE_HOST,
+  CMD_LOCAL_AI_GET_STATUS,
+  CMD_LOCAL_AI_INSTALL,
+  CMD_LOCAL_AI_OPEN_SETUP,
+  CMD_LOCAL_AI_STATUS_CHANGED,
+} from "../src/core/domain/constants";
+import type { EngineLike } from "../src/adapters/chrome/background/localAi/LocalAiHost";
+import { LOCAL_AI_REVIEW_PORT } from "../src/core/domain/contracts/localAi";
+import { LOCAL_AI_MODELS } from "../src/core/domain/localAi/modelRegistry";
+import type { LocalAiStatusChangedMessage } from "../src/core/domain/messageTypes";
+
+const STANDARD = LOCAL_AI_MODELS[0];
+const QUALITY = LOCAL_AI_MODELS[1];
+const EXT = "chrome-extension://ftext/";
+
+const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+type Consent = { modelId: string; tier: "standard" | "compact"; at: number } | null;
+
+function makeSettings(
+  initial: {
+    enabled?: boolean;
+    tier?: "standard" | "compact";
+    consent?: Consent;
+    dismissed?: boolean;
+  } = {},
+) {
+  const state = {
+    enabled: initial.enabled ?? true,
+    tier: initial.tier ?? ("standard" as "standard" | "compact"),
+    consent: initial.consent ?? null,
+    dismissed: initial.dismissed ?? false,
+    /** Delays the next "enabled" reads, to reorder concurrent status reads. */
+    readDelayMs: 0,
+    /** The next "enabled" read rejects (a transient storage error). */
+    failRead: false,
+  };
+  const settings: LocalAiSettings = {
+    getLocalAiReviewEnabled: async () => {
+      if (state.failRead) {
+        state.failRead = false;
+        throw new Error("storage");
+      }
+      const value = state.enabled;
+      if (state.readDelayMs) await new Promise((resolve) => setTimeout(resolve, state.readDelayMs));
+      return value;
+    },
+    getLocalAiReviewTier: async () => state.tier,
+    getLocalAiReviewConsent: async () => state.consent,
+    setLocalAiReviewConsent: async (consent) => {
+      state.consent = consent;
+    },
+    getLocalAiSetupOfferDismissed: async () => state.dismissed,
+    setLocalAiSetupOfferDismissed: async (dismissed) => {
+      state.dismissed = dismissed;
+    },
+  };
+  return { settings, state };
+}
+
+class FakePort {
+  messages: Array<Record<string, unknown>> = [];
+  disconnect = jest.fn();
+  onMessage = { addListener: () => undefined };
+  onDisconnect = { addListener: () => undefined };
+  constructor(
+    readonly name: string,
+    readonly sender: chrome.runtime.MessageSender,
+  ) {}
+  postMessage(message: unknown): void {
+    this.messages.push(message as Record<string, unknown>);
+  }
+}
+
+/** Nothing is cached, and an install stays in progress. */
+function pendingEngine() {
+  const calls: string[] = [];
+  const results: Record<string, unknown> = { probe: null, cacheState: "none" };
+  const engine = new Proxy(
+    {},
+    {
+      get: (_target, name) => () => {
+        calls.push(String(name));
+        return name === "install"
+          ? new Promise(() => undefined)
+          : Promise.resolve(results[String(name)]);
+      },
+    },
+  ) as EngineLike;
+  return { engine, calls };
+}
+
+function makeChrome() {
+  const connectListeners: Array<(port: chrome.runtime.Port) => void> = [];
+  const storageListeners: Array<(changes: object, area: string) => void> = [];
+  const api = {
+    runtime: {
+      id: "ftext",
+      getURL: (path: string) => `${EXT}${path}`,
+      getPlatformInfo: jest.fn(async () => ({})),
+      sendMessage: jest.fn(async () => undefined),
+      onConnect: {
+        addListener: (listener: (port: chrome.runtime.Port) => void) =>
+          connectListeners.push(listener),
+      },
+    },
+    tabs: { create: jest.fn(async () => ({})) },
+    storage: {
+      onChanged: {
+        addListener: (listener: (changes: object, area: string) => void) =>
+          storageListeners.push(listener),
+      },
+    },
+  };
+  return {
+    api: api as unknown as typeof chrome,
+    raw: api,
+    connect: (port: FakePort) =>
+      connectListeners.forEach((listener) => listener(port as unknown as chrome.runtime.Port)),
+    storageChanged: (key: string) =>
+      storageListeners.forEach((listener) => listener({ [key]: {} }, "local")),
+    listenerCounts: () => ({ connect: connectListeners.length, storage: storageListeners.length }),
+  };
+}
+
+const contentScript: chrome.runtime.MessageSender = {
+  id: "ftext",
+  tab: { id: 7 } as chrome.tabs.Tab,
+  url: "https://example.com/page",
+};
+// The options page opens in a tab, so `tab` is set; its URL is the extension's.
+const optionsPage: chrome.runtime.MessageSender = {
+  id: "ftext",
+  tab: { id: 9 } as chrome.tabs.Tab,
+  url: `${EXT}options/options.html#local-ai`,
+};
+
+function setup(settingsInit: Parameters<typeof makeSettings>[0] = {}, withEngine = true) {
+  const { settings, state } = makeSettings(settingsInit);
+  const chromeFake = makeChrome();
+  const { engine, calls } = pendingEngine();
+  const controller = new LocalAiController(settings, withEngine ? engine : null, chromeFake.api);
+  controller.register();
+  const send = (request: LocalAiRequest, sender = contentScript) =>
+    controller.handleMessage(request, sender);
+  return { controller, state, chromeFake, send, engineCalls: calls };
+}
+
+const consented: Consent = { modelId: STANDARD.modelId, tier: "standard", at: 1 };
+
+describe("LocalAiController authorization", () => {
+  test("content scripts cannot install, cancel, delete or probe", async () => {
+    const { send, state, engineCalls } = setup();
+    expect(await send({ command: CMD_LOCAL_AI_INSTALL, context: { tier: "standard" } })).toEqual({
+      ok: false,
+      error: "forbidden",
+    });
+    expect(await send({ command: CMD_LOCAL_AI_CANCEL_INSTALL })).toEqual({
+      ok: false,
+      error: "forbidden",
+    });
+    expect(
+      await send({ command: CMD_LOCAL_AI_DELETE_MODEL, context: { modelId: STANDARD.modelId } }),
+    ).toEqual({ ok: false, error: "forbidden" });
+    const status = await send({ command: CMD_LOCAL_AI_GET_STATUS, context: { probe: true } });
+    expect(status.ok).toBe(true);
+    expect(state.consent).toBeNull();
+    expect(engineCalls).toEqual([]);
+  });
+
+  test("the options page installs: consent is recorded, status is downloading at once", async () => {
+    const { send, state, engineCalls } = setup();
+    const response = await send(
+      { command: CMD_LOCAL_AI_INSTALL, context: { tier: "standard" } },
+      optionsPage,
+    );
+    expect(state.consent).toMatchObject({ modelId: STANDARD.modelId, tier: "standard" });
+    expect(response).toMatchObject({
+      ok: true,
+      status: { consented: true, runtime: "downloading", installing: true },
+    });
+    await flush();
+    expect(engineCalls).toContain("probe");
+  });
+
+  test("an install while another runs changes neither consent nor the running install", async () => {
+    const { send, state } = setup();
+    await send({ command: CMD_LOCAL_AI_INSTALL, context: { tier: "standard" } }, optionsPage);
+    const response = await send(
+      { command: CMD_LOCAL_AI_INSTALL, context: { tier: "compact" } },
+      optionsPage,
+    );
+    expect(state.consent).toMatchObject({ modelId: STANDARD.modelId, tier: "standard" });
+    expect(response).toMatchObject({
+      ok: true,
+      status: { modelId: STANDARD.modelId, runtime: "downloading" },
+    });
+  });
+
+  test("delete keeps consent and preference", async () => {
+    const { send, state, engineCalls } = setup({ consent: consented });
+    await send(
+      { command: CMD_LOCAL_AI_DELETE_MODEL, context: { modelId: STANDARD.modelId } },
+      optionsPage,
+    );
+    await flush();
+    expect(engineCalls).toContain("delete");
+    expect(state.consent).toEqual(consented);
+    expect(state.enabled).toBe(true);
+    expect(
+      await send({ command: CMD_LOCAL_AI_DELETE_MODEL, context: { modelId: "evil" } }, optionsPage),
+    ).toEqual({ ok: false, error: "invalid" });
+  });
+
+  test('a fresh host is configured before the review connects: its first status is not "off"', async () => {
+    // After a service-worker restart: ensure, then connect (the provider's order).
+    const ensured = setup({ consent: consented });
+    await ensured.send({ command: CMD_LOCAL_AI_ENSURE_HOST });
+    const tab = { id: 1 } as chrome.tabs.Tab;
+    const first = new FakePort(LOCAL_AI_REVIEW_PORT, { id: "ftext", tab, url: "https://a.b/" });
+    ensured.chromeFake.connect(first);
+    await flush();
+    expect(first.messages[0]).toMatchObject({
+      type: "status",
+      status: { enabled: true, consented: true },
+    });
+
+    // A port reconnecting without ensure hears nothing until the host is configured.
+    const reconnected = setup({ consent: consented });
+    const port = new FakePort(LOCAL_AI_REVIEW_PORT, { id: "ftext", tab, url: "https://a.b/" });
+    reconnected.chromeFake.connect(port);
+    await flush();
+    const statuses = port.messages.filter((message) => message.type === "status");
+    expect(statuses.length).toBeGreaterThan(0);
+    for (const message of statuses) {
+      expect(message).toMatchObject({ status: { enabled: true, consented: true } });
+    }
+  });
+
+  test("review ports are accepted only from this extension's content scripts", async () => {
+    const { chromeFake } = setup({ consent: consented });
+    const tab = { id: 1 } as chrome.tabs.Tab;
+    const content = new FakePort(LOCAL_AI_REVIEW_PORT, { id: "ftext", tab, url: "https://a.b/" });
+    const otherExtension = new FakePort(LOCAL_AI_REVIEW_PORT, {
+      id: "evil",
+      tab,
+      url: "https://a.b/",
+    });
+    const noTab = new FakePort(LOCAL_AI_REVIEW_PORT, { id: "ftext", url: `${EXT}x.html` });
+    const extensionPage = new FakePort(LOCAL_AI_REVIEW_PORT, {
+      id: "ftext",
+      tab,
+      url: `${EXT}options/options.html`,
+    });
+    const otherName = new FakePort("something-else", { id: "evil" });
+    for (const port of [content, otherExtension, noTab, extensionPage, otherName]) {
+      chromeFake.connect(port);
+    }
+    await flush();
+    expect(content.disconnect).not.toHaveBeenCalled();
+    expect(content.messages[0]).toMatchObject({ type: "status" });
+    for (const refused of [otherExtension, noTab, extensionPage]) {
+      expect(refused.disconnect).toHaveBeenCalled();
+      expect(refused.messages).toEqual([]);
+    }
+    expect(otherName.disconnect).not.toHaveBeenCalled();
+    expect(otherName.messages).toEqual([]);
+  });
+});
+
+describe("LocalAiController status", () => {
+  test("a failed settings read does not stall later host configuration", async () => {
+    const { state, send, chromeFake } = setup({ consent: consented });
+    state.failRead = true;
+    await send({ command: CMD_LOCAL_AI_ENSURE_HOST });
+    await send({ command: CMD_LOCAL_AI_ENSURE_HOST });
+    const tab = { id: 1 } as chrome.tabs.Tab;
+    const port = new FakePort(LOCAL_AI_REVIEW_PORT, { id: "ftext", tab, url: "https://a.b/" });
+    chromeFake.connect(port);
+    await flush();
+    expect(port.messages[0]).toMatchObject({ type: "status", status: { enabled: true } });
+  });
+
+  test("overlapping host configurations end on the newest settings", async () => {
+    const { state, send, chromeFake } = setup({ consent: consented });
+    await send({ command: CMD_LOCAL_AI_ENSURE_HOST });
+    const tab = { id: 1 } as chrome.tabs.Tab;
+    const port = new FakePort(LOCAL_AI_REVIEW_PORT, { id: "ftext", tab, url: "https://a.b/" });
+    chromeFake.connect(port);
+    await flush();
+    // A slow configure that read "enabled", then the user turns Local AI off.
+    state.readDelayMs = 30;
+    const slow = send({ command: CMD_LOCAL_AI_ENSURE_HOST });
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    state.readDelayMs = 0;
+    state.enabled = false;
+    chromeFake.storageChanged("store.settings.localAiReviewEnabled");
+    await slow;
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(port.messages.at(-1)).toMatchObject({ type: "status", status: { enabled: false } });
+  });
+
+  test("status broadcasts arrive in the order their changes happened", async () => {
+    const { state, chromeFake } = setup();
+    state.readDelayMs = 30;
+    chromeFake.storageChanged("store.settings.localAiReviewEnabled");
+    state.readDelayMs = 0;
+    state.enabled = false;
+    chromeFake.storageChanged("store.settings.localAiReviewEnabled");
+    await new Promise((resolve) => setTimeout(resolve, 60));
+    const sent = (chromeFake.api.runtime.sendMessage as jest.Mock).mock.calls.map(
+      ([message]) => (message as LocalAiStatusChangedMessage).context.status.enabled,
+    );
+    expect(sent).toEqual([true, false]);
+  });
+
+  test("nothing is probed or loaded at startup, before consent, or on a settings change alone", async () => {
+    const { send, engineCalls, state, chromeFake } = setup();
+    await send({ command: CMD_LOCAL_AI_GET_STATUS });
+    state.consent = consented;
+    chromeFake.storageChanged("store.settings.localAiReviewConsent");
+    await flush();
+    expect(engineCalls).toEqual([]);
+  });
+
+  test("offer setup only when enabled, not consented, not dismissed and supported", async () => {
+    const fresh = setup();
+    expect((await fresh.controller.getStatus()).offerSetup).toBe(true);
+    await fresh.send({ command: CMD_LOCAL_AI_DISMISS_SETUP_OFFER });
+    expect((await fresh.controller.getStatus()).offerSetup).toBe(false);
+    expect((await setup({ enabled: false }).controller.getStatus()).offerSetup).toBe(false);
+    expect((await setup({ consent: consented }).controller.getStatus()).offerSetup).toBe(false);
+  });
+
+  test("consent is per tier and model", async () => {
+    const switched = setup({ consent: consented, tier: "compact" });
+    expect(await switched.controller.getStatus()).toMatchObject({
+      consented: false,
+      tier: "compact",
+      modelId: QUALITY.modelId,
+      install: "unknown",
+    });
+  });
+
+  test("without an engine (Firefox) everything is host-unsupported", async () => {
+    const firefox = setup({}, false);
+    expect(firefox.chromeFake.listenerCounts()).toEqual({ connect: 0, storage: 0 });
+    expect(await firefox.controller.getStatus()).toMatchObject({
+      runtime: "unavailable",
+      unavailable: "host-unsupported",
+      offerSetup: false,
+    });
+    expect(
+      await firefox.send(
+        { command: CMD_LOCAL_AI_INSTALL, context: { tier: "standard" } },
+        optionsPage,
+      ),
+    ).toEqual({ ok: false, error: "unavailable" });
+  });
+
+  test("open setup opens the options page at the Local AI section", async () => {
+    const { send, chromeFake } = setup();
+    await send({ command: CMD_LOCAL_AI_OPEN_SETUP });
+    expect(chromeFake.raw.tabs.create).toHaveBeenCalledWith({
+      url: `${EXT}options/options.html#local-ai`,
+    });
+  });
+
+  test("a status change is broadcast to extension pages", async () => {
+    const { send, chromeFake } = setup();
+    await send({ command: CMD_LOCAL_AI_INSTALL, context: { tier: "standard" } }, optionsPage);
+    await flush();
+    expect(chromeFake.raw.runtime.sendMessage).toHaveBeenCalledWith({
+      command: CMD_LOCAL_AI_STATUS_CHANGED,
+      context: { status: expect.objectContaining({ runtime: "downloading" }) },
+    });
+  });
+});

@@ -4,12 +4,17 @@ import { BackgroundServiceWorker } from "../BackgroundServiceWorker";
 import { migrateToLocalStore } from "../Migration";
 import { CommandRouter } from "../router/CommandRouter";
 import { MessageRouter } from "../router/MessageRouter";
+import type { EngineLike } from "../localAi/LocalAiHost";
 import { registerRuntimeTestHooks } from "@adapters/chrome/background/testing/RuntimeTestHooks";
 
 export class BackgroundBootstrap {
-  private readonly worker = new BackgroundServiceWorker();
+  private readonly worker: BackgroundServiceWorker;
   private readonly commandRouter = new CommandRouter(() => this.worker);
   private readonly messageRouter = new MessageRouter(() => this.worker);
+
+  constructor(localAiEngine: EngineLike | null = null) {
+    this.worker = new BackgroundServiceWorker(localAiEngine);
+  }
 
   register(): void {
     chrome.runtime.onInstalled.addListener(this.onInstalled.bind(this));
@@ -19,6 +24,7 @@ export class BackgroundBootstrap {
     chrome.runtime.onMessage.addListener((request, sender, sendResponse) =>
       this.messageRouter.handle(request, sender, sendResponse),
     );
+    this.worker.localAiController.register();
 
     registerRuntimeTestHooks(this.commandRouter);
     this.loadLastVersionAndInitialize();

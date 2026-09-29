@@ -6,13 +6,10 @@
     "popup_page_loads",
     "prod_runtime_hook_hidden",
     "prod_predictor_debug_hidden",
-    "prod_ai_predictor_disabled",
     "domain_whitelist_exact_host",
     "site_profiles_storage_roundtrip",
     "dev_toggle_active_lang_global",
     "dev_toggle_active_lang_site",
-    "dev_ai_predictor_merge",
-    "dev_ai_predictor_latency_fallback",
     "dev_predictor_debug_toggle",
     "prediction_accept_tab_and_click",
     "inline_preview_midword_trailing_token",
@@ -179,6 +176,12 @@
     "popup_footer_key_hints",
     "popup_theme_accents_readable",
     "popup_theme_palette_migration",
-    "appearance_preview_matches_popup"
+    "appearance_preview_matches_popup",
+    "local_ai_pre_consent_no_requests",
+    "local_ai_setup_offer",
+    "local_ai_autocomplete_separation",
+    "local_ai_install_authorization",
+    "local_ai_preference_off",
+    "local_ai_host_unsupported"
   ]
 }

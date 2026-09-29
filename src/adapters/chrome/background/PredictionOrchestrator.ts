@@ -1,38 +1,19 @@
-import {
-  clampAIPredictionTimeoutMs,
-  DEFAULT_AI_MODEL_ID,
-  DEFAULT_AI_PREDICTION_TIMEOUT_MS,
-  DEFAULT_DEBUG_AI_PREDICTOR_ENABLED,
-  DEFAULT_DEBUG_PRESAGE_PREDICTOR_ENABLED,
-} from "@core/domain/constants";
+import { DEFAULT_DEBUG_PRESAGE_PREDICTOR_ENABLED } from "@core/domain/constants";
 import { createLogger } from "@core/application/logging/Logger";
 import { getErrorMessage } from "@core/domain/error";
 import type {
-  AIPredictorStageDebugInfo,
   PredictionDebugEvent,
   PredictionCandidate,
   PredictionResult,
   PredictionRunConfig,
   PredictorStageDebugInfo,
-  SecondaryPredictor,
 } from "./PredictionTypes";
 import type { PresageConfig, PresageHandler, PresagePredictionContext } from "./PresageHandler";
-import { mergePredictions } from "./PredictionMerger";
 
 const logger = createLogger("PredictionOrchestrator");
 
-interface AIPredictionResult {
-  predictions: string[];
-  durationMs: number;
-  timedOut: boolean;
-}
-
 export interface PredictionConfig extends PresageConfig {
-  aiPredictorEnabled?: boolean;
-  aiModelId?: string;
-  aiPredictionTimeoutMs?: number;
   debugPresagePredictorEnabled?: boolean;
-  debugAIPredictorEnabled?: boolean;
 }
 
 export type PredictorDebugConfig = Required<Omit<PredictionConfig, keyof PresageConfig>>;
@@ -43,61 +24,26 @@ interface PredictionOrchestratorDebugState {
 
 export class PredictionOrchestrator {
   private readonly presageHandler: PresageHandler;
-  private readonly aiPredictor: SecondaryPredictor | null;
-  private aiPredictorEnabled = false;
-  private aiModelId = DEFAULT_AI_MODEL_ID;
-  private aiPredictionTimeoutMs = DEFAULT_AI_PREDICTION_TIMEOUT_MS;
   private debugPresagePredictorEnabled = DEFAULT_DEBUG_PRESAGE_PREDICTOR_ENABLED;
-  private debugAIPredictorEnabled = DEFAULT_DEBUG_AI_PREDICTOR_ENABLED;
 
-  constructor(presageHandler: PresageHandler, aiPredictor?: SecondaryPredictor) {
+  constructor(presageHandler: PresageHandler) {
     this.presageHandler = presageHandler;
-    this.aiPredictor = aiPredictor || null;
   }
 
   setConfig(config: PredictionConfig): void {
-    const {
-      aiPredictorEnabled,
-      aiModelId,
-      aiPredictionTimeoutMs,
-      debugPresagePredictorEnabled,
-      debugAIPredictorEnabled,
-      ...presageConfig
-    } = config;
+    const { debugPresagePredictorEnabled, ...presageConfig } = config;
 
     this.presageHandler.setConfig(presageConfig);
-    this.aiPredictorEnabled = aiPredictorEnabled ?? false;
-    this.aiModelId =
-      typeof aiModelId === "string" && aiModelId.trim().length > 0
-        ? aiModelId
-        : DEFAULT_AI_MODEL_ID;
-    this.aiPredictionTimeoutMs = clampAIPredictionTimeoutMs(aiPredictionTimeoutMs);
     this.debugPresagePredictorEnabled =
       typeof debugPresagePredictorEnabled === "boolean"
         ? debugPresagePredictorEnabled
         : DEFAULT_DEBUG_PRESAGE_PREDICTOR_ENABLED;
-    this.debugAIPredictorEnabled =
-      typeof debugAIPredictorEnabled === "boolean"
-        ? debugAIPredictorEnabled
-        : DEFAULT_DEBUG_AI_PREDICTOR_ENABLED;
-
-    this.aiPredictor?.setConfig({
-      enabled: this.aiPredictorEnabled,
-      modelId: this.aiModelId,
-    });
-    if (this.aiPredictorEnabled && this.aiPredictor?.preload) {
-      void this.aiPredictor.preload();
-    }
   }
 
   getDebugState(): PredictionOrchestratorDebugState {
     return {
       predictorConfig: {
-        aiPredictorEnabled: this.aiPredictorEnabled,
-        aiModelId: this.aiModelId,
-        aiPredictionTimeoutMs: this.aiPredictionTimeoutMs,
         debugPresagePredictorEnabled: this.debugPresagePredictorEnabled,
-        debugAIPredictorEnabled: this.debugAIPredictorEnabled,
       },
     };
   }
@@ -128,39 +74,12 @@ export class PredictionOrchestrator {
       predictions: [],
       skipReason: undefined,
     };
-    const aiDebug: AIPredictorStageDebugInfo = {
-      enabled: this.aiPredictorEnabled && this.debugAIPredictorEnabled,
-      attempted: false,
-      durationMs: 0,
-      timedOut: false,
-      predictions: [],
-      skipReason: undefined,
-      modelId: this.aiModelId,
-    };
 
-    const canRunPredictionBase = context.doPrediction && context.effectiveNumSuggestions > 0;
     const canRunPresage =
-      canRunPredictionBase &&
+      context.doPrediction &&
+      context.effectiveNumSuggestions > 0 &&
       this.debugPresagePredictorEnabled &&
       this.presageHandler.hasLanguageEngine(lang);
-
-    const canRunAI =
-      canRunPredictionBase &&
-      this.debugAIPredictorEnabled &&
-      this.aiPredictorEnabled &&
-      this.aiPredictor !== null;
-
-    let aiPromise: Promise<AIPredictionResult> | null = null;
-    if (canRunAI) {
-      aiDebug.attempted = true;
-      aiPromise = this.runAIPredictionWithTimeout(
-        lang,
-        context.predictionInput,
-        context.effectiveNumSuggestions,
-      );
-    } else {
-      aiDebug.skipReason = this.resolveAISkipReason(context);
-    }
 
     let presagePredictions: PredictionCandidate[] = [];
     if (canRunPresage) {
@@ -173,27 +92,7 @@ export class PredictionOrchestrator {
       presageDebug.skipReason = this.resolvePresageSkipReason(context);
     }
 
-    let mergedPredictions = presagePredictions;
-    if (aiPromise) {
-      let aiResult: AIPredictionResult;
-      try {
-        aiResult = await aiPromise;
-      } catch {
-        aiResult = this.createEmptyAIPredictionResult();
-      }
-
-      aiDebug.durationMs = aiResult.durationMs;
-      aiDebug.timedOut = aiResult.timedOut;
-      aiDebug.predictions = aiResult.predictions.slice();
-
-      mergedPredictions = mergePredictions(
-        presagePredictions,
-        aiResult.predictions.map((text): PredictionCandidate => ({ text })),
-        context.effectiveNumSuggestions,
-      );
-    }
-
-    const result = this.presageHandler.finalizePrediction(mergedPredictions, context);
+    const result = this.presageHandler.finalizePrediction(presagePredictions, context);
 
     this.emitDebugEvent(configOverride?.debugListener, {
       timestampMs: Date.now(),
@@ -205,92 +104,10 @@ export class PredictionOrchestrator {
       doPrediction: context.doPrediction,
       totalDurationMs: Date.now() - startedAt,
       presage: presageDebug,
-      webllm: aiDebug,
-      mergedPredictions: mergedPredictions.map(({ text }) => text),
       finalPredictions: result.predictions.slice(),
     });
 
     return result;
-  }
-
-  private async runAIPredictionWithTimeout(
-    lang: string,
-    predictionInput: string,
-    numSuggestions: number,
-  ): Promise<AIPredictionResult> {
-    if (!this.aiPredictor) {
-      return this.createEmptyAIPredictionResult();
-    }
-
-    this.aiPredictor.interruptActiveGeneration?.("newer_request");
-
-    const startedAt = Date.now();
-    let timeoutId: ReturnType<typeof setTimeout> | null = null;
-
-    const timeoutPromise = new Promise<{
-      predictions: string[];
-      timedOut: boolean;
-    }>((resolve) => {
-      timeoutId = setTimeout(() => {
-        this.interruptAIPrediction("timeout", {
-          lang,
-          predictionInput,
-        });
-        resolve(this.createEmptyAIPredictionResult(true));
-      }, this.aiPredictionTimeoutMs);
-    });
-
-    const predictionPromise = this.aiPredictor
-      .predict({
-        lang,
-        predictionInput,
-        numSuggestions,
-      })
-      .then((predictions) => ({
-        predictions,
-        timedOut: false,
-      }))
-      .catch(() => this.createEmptyAIPredictionResult());
-
-    const result = await Promise.race([predictionPromise, timeoutPromise]);
-    if (timeoutId) {
-      clearTimeout(timeoutId);
-    }
-
-    return {
-      predictions: result.predictions,
-      durationMs: Date.now() - startedAt,
-      timedOut: result.timedOut,
-    };
-  }
-
-  private interruptAIPrediction(
-    reason: string,
-    expectedRequest?: {
-      lang: string;
-      predictionInput: string;
-    },
-  ): void {
-    if (!this.aiPredictor?.interruptActiveGeneration) {
-      return;
-    }
-    try {
-      this.aiPredictor.interruptActiveGeneration(reason, expectedRequest);
-    } catch (error) {
-      logger.warn("Failed to interrupt WebLLM generation", {
-        reason,
-        expectedRequest,
-        error: getErrorMessage(error),
-      });
-    }
-  }
-
-  private createEmptyAIPredictionResult(timedOut = false): AIPredictionResult {
-    return {
-      predictions: [],
-      durationMs: 0,
-      timedOut,
-    };
   }
 
   private emitDebugEvent(
@@ -315,25 +132,6 @@ export class PredictionOrchestrator {
     }
     if (!this.presageHandler.hasLanguageEngine(context.lang)) {
       return "language_engine_missing";
-    }
-    if (!context.doPrediction) {
-      return "input_not_predictable";
-    }
-    if (context.effectiveNumSuggestions <= 0) {
-      return "num_suggestions_zero";
-    }
-    return "unknown";
-  }
-
-  private resolveAISkipReason(context: PresagePredictionContext): string {
-    if (!this.aiPredictorEnabled) {
-      return "disabled_in_settings";
-    }
-    if (!this.debugAIPredictorEnabled) {
-      return "disabled_by_debug_toggle";
-    }
-    if (!this.aiPredictor) {
-      return "predictor_unavailable";
     }
     if (!context.doPrediction) {
       return "input_not_predictable";

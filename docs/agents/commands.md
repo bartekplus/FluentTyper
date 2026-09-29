@@ -19,8 +19,19 @@ Use Bun for installs, scripts, and versioning. `bun.lock` is the canonical lockf
 - Dev-runtime e2e: `bun run test:e2e:dev`
 - E2E coverage validation: `bun run check:e2e:coverage`
 - Autofix lint and format: `bun run fix`
+- Probe the Local AI model registry against Hugging Face: `bun run probe:local-ai`
+- Local AI release gate on a production build: `bun run check:local-ai:artifact [--platform=edge|firefox] [--dir=build]`
 
 Production builds write the unpacked extension output to `build/`.
+
+## Local AI Review Assets
+
+Chrome and Edge builds package the Local AI Review runtime, because Chrome MV3 forbids remotely hosted code: Transformers.js (`@huggingface/transformers`, exact version) and ONNX Runtime's bundle build (JavaScript + WASM glue) bundled into `background.js` (an ES module service worker), and the ONNX Runtime WebGPU `.wasm`, copied unmodified from the `onnxruntime-web` that Transformers.js resolves into `local-ai/ort/`.
+
+- The ONNX Runtime file (`ort-wasm-simd-threaded.asyncify.wasm`) is pinned by SHA-256 and size in `LOCAL_AI_ORT_FILES` (`scripts/check-local-ai-artifact.ts`). `build.ts` fails if `node_modules` holds anything else. When upgrading Transformers.js, review the new runtime, then update that hash. `engineRuntime.ts` points `env.backends.onnx.wasm.wasmPaths` at that file only (a service worker cannot `import()` a separate `.mjs` glue), so the default CDN is never used.
+- Models are data only (ONNX graph, weights, tokenizer, config). They are downloaded after consent from the pinned Hugging Face revisions and files listed in `src/core/domain/localAi/modelRegistry.ts`. `bun run probe:local-ai` re-lists each record's files (size and SHA-256) at the pinned revision, flags drift, and reports whether the repository has moved.
+- License notices: `public/local-ai/THIRD_PARTY_NOTICES.md` and `public/local-ai/ONNXRUNTIME_THIRD_PARTY_NOTICES.txt`.
+- Real-GPU end-to-end run of the production build (opt-in, downloads the model): `bun run test:local-ai:real [--tier=compact] [--plumbing-only]`.
 
 ## Local Browser Loading
 

@@ -13,6 +13,8 @@ FluentTyper uses a layered architecture. Keep imports and responsibilities flowi
 
 - `src/adapters/chrome/background/**` must not import from `src/adapters/chrome/content-script/**`.
 - `src/adapters/chrome/content-script/**` must not import from `src/adapters/chrome/background/**`.
+- The Local AI Review runtime (engine, job host, consent controller) lives in `src/adapters/chrome/background/localAi/` and runs in the background service worker; content scripts reach it only through the review port and messages in `src/core/domain/contracts/localAi.ts`.
+- Only `src/adapters/chrome/background/localAi/engineRuntime.ts` may import `@huggingface/transformers` (Transformers.js + ONNX Runtime Web). Only `src/entries/background.ts` imports it (tests get no engine); builds without the runtime (Firefox) swap it for `engineRuntime.noop.ts`. The build fails if the engine appears in any bundle but a Chrome/Edge `background.js`.
 
 ## Entry Points
 

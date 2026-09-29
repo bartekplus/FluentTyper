@@ -125,7 +125,7 @@ async function main(): Promise<void> {
       [
         bunExecutable,
         "test",
-        "--test-name-pattern=CMD_TOGGLE_FT_ACTIVE_LANG|CMD_REVIEW_FT_ACTIVE_TAB|AI predictor|predictor debug dashboard",
+        "--test-name-pattern=CMD_TOGGLE_FT_ACTIVE_LANG|CMD_REVIEW_FT_ACTIVE_TAB|predictor debug dashboard|block-local prediction in Lexical|restores prediction immediately after Enter in Lexical|keeps second-line prediction block-local in br-separated contenteditable|keeps second-line prediction block-local after Enter in real Lexical",
         "tests/e2e/full.e2e.test.ts",
         ...options.passthroughArgs,
       ],
@@ -138,10 +138,12 @@ async function main(): Promise<void> {
     return;
   }
 
-  const productionTestFile =
-    options.suite === "smoke" ? "tests/e2e/smoke.e2e.test.ts" : "tests/e2e/full.e2e.test.ts";
+  const productionTestFiles =
+    options.suite === "smoke"
+      ? ["tests/e2e/smoke.e2e.test.ts"]
+      : ["tests/e2e/full.e2e.test.ts", "tests/e2e/local-ai.e2e.test.ts"];
   await runCommand(
-    [bunExecutable, "test", productionTestFile, ...options.passthroughArgs],
+    [bunExecutable, "test", ...productionTestFiles, ...options.passthroughArgs],
     sharedE2EEnv,
   );
 }
