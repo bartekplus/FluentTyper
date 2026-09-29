@@ -375,6 +375,30 @@ describe("install, integrity and cache state", () => {
     expect(await installing).toEqual({ ok: false, error: "download-cancelled" });
   });
 
+  test("a cancel as the last file finishes never starts the GPU load", async () => {
+    const loadModel = jest.fn(async () => new FakeModel());
+    const { engine, caches } = makeEngine({ loadModel });
+    const abort = new AbortController();
+    const lastFile = GEMMA.record.files.at(-1)!;
+    const open = caches.open.bind(caches);
+    caches.open = async (name: string) => {
+      const cache = await open(name);
+      const put = cache.put.bind(cache);
+      cache.put = (async (request: RequestInfo | URL, response: Response) => {
+        await put(request, response);
+        if (String(request instanceof Request ? request.url : request).endsWith(lastFile.path)) {
+          abort.abort();
+        }
+      }) as Cache["put"];
+      return cache;
+    };
+    expect(await engine.install(GEMMA.record.modelId, noProgress, abort.signal, LOAD_MS)).toEqual({
+      ok: false,
+      error: "download-cancelled",
+    });
+    expect(loadModel).not.toHaveBeenCalled();
+  });
+
   test("cancel during the marker write withdraws the marker and unloads", async () => {
     const { engine, caches, model } = makeEngine();
     let release!: () => void;

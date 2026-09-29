@@ -210,6 +210,8 @@ export class LocalAiEngine {
     } finally {
       this.deps.guard.allowDownloads(null);
     }
+    // A cancel that landed as the last file finished: never start the GPU load.
+    if (signal.aborted) return { ok: false, error: "download-cancelled" };
     let timer: ReturnType<typeof setTimeout> | undefined;
     const stopped = new Promise<LoadResult>((resolve) => {
       timer = setTimeout(() => resolve({ ok: false, error: "load-failed" }), loadTimeoutMs);
