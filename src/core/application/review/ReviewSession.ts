@@ -199,6 +199,10 @@ const AI_PASS_FATAL: ReadonlySet<AiErrorCode> = new Set<AiErrorCode>([
 ]);
 
 type AiSegments = ReadonlyArray<{ id: string; text: string }>;
+type AiPendingRequest = {
+  abort: AbortController;
+  promise: Promise<{ outcome: AiGenerationOutcome; modelId: string; promptVersion: string }>;
+};
 
 /** Individually reviewed only: never planned into Fix all, counted as left for the user. */
 function individualOnly(diagnostic: ReviewDiagnostic): boolean {
@@ -387,7 +391,7 @@ export class ReviewSession {
   private aiUnsubscribe: (() => void) | null = null;
   // Bumped to drop an AI pass: whatever it awaits is discarded when it lands.
   private aiToken = 0;
-  private aiAbort: AbortController | null = null;
+  private readonly aiPending = new Map<string, AiPendingRequest>();
   private aiTimer: unknown = null;
   // The results the current or last AI pass was for; null lets the next one start.
   private aiPassFor: PreparedReview | null = null;
@@ -918,6 +922,8 @@ export class ReviewSession {
     if (this.isClosed) return result;
 
     if (result.status === "applied") {
+      // A verified extension write is complete; only user typing needs the AI pause.
+      this.aiDelayNext = false;
       this.resolvedCount += count;
       this.notice = { kind: "applied", count, deferred };
       // Our own edits are exactly known: carry scope and ignores through them.
@@ -958,6 +964,7 @@ export class ReviewSession {
       await this.readAndScan(generation);
     } catch {
       if (this.isClosed || this.generation !== generation) return;
+      this.cancelAi();
       this.status = "error";
       this.diagnostics = [];
       this.selectedId = null;
@@ -975,6 +982,7 @@ export class ReviewSession {
     }
     if (generation !== this.generation || this.isClosed) return;
     if (!read.ok) {
+      this.cancelAi();
       this.status = "unavailable";
       this.unavailable = read.reason;
       this.diagnostics = [];
@@ -996,6 +1004,7 @@ export class ReviewSession {
           if (!next) {
             this.scopeLost = true;
             this.cancelRecheck();
+            this.cancelAi();
             this.status = "stale-scope";
             this.diagnostics = [];
             this.selectedId = null;
@@ -1349,19 +1358,24 @@ export class ReviewSession {
       this.status !== "ready" ||
       this.identifyLanguage(prepared) ||
       this.mode !== "correct" ||
-      this.aiAvailability() !== "ready" ||
       this.aiPassFor === prepared
     ) {
+      return;
+    }
+    if (this.aiAvailability() !== "ready") {
+      if (this.aiPending.size) this.cancelAi();
       return;
     }
     void this.runAiPass(ai, prepared, this.generation);
   }
 
-  /** Aborts the model request in flight; whatever the pass awaits is dropped when it lands. */
-  private cancelAi(): void {
+  /** Drops this pass; an edit can leave exact requests running for the rebuilt plan. */
+  private cancelAi(keepPending = false): void {
     this.aiToken += 1;
-    this.aiAbort?.abort();
-    this.aiAbort = null;
+    if (!keepPending) {
+      for (const pending of this.aiPending.values()) pending.abort.abort();
+      this.aiPending.clear();
+    }
     if (this.aiTimer !== null) {
       this.clearTimer(this.aiTimer);
       this.aiTimer = null;
@@ -1372,9 +1386,9 @@ export class ReviewSession {
     }
   }
 
-  /** The text is changing: AI work for the old text is dropped; a proposal or preview for it is stale. */
+  /** The text is changing: findings and proposals are stale, but exact requests may survive. */
   private textChanging(): void {
-    this.cancelAi();
+    this.cancelAi(true);
     if (this.aiAvailability() === "ready" && this.mode === "correct") this.aiCoverage = "waiting";
     this.aiDelayNext = true;
     this.aiBatch = null;
@@ -1395,10 +1409,8 @@ export class ReviewSession {
     prepared: PreparedReview,
     generation: number,
   ): Promise<void> {
-    this.cancelAi();
+    this.cancelAi(true);
     const token = this.aiToken;
-    const abort = new AbortController();
-    this.aiAbort = abort;
     this.aiPassFor = prepared;
     const live = () => token === this.aiToken && generation === this.generation && !this.isClosed;
     const delayed = this.aiDelayNext;
@@ -1434,7 +1446,6 @@ export class ReviewSession {
       }
     };
     const finish = () => {
-      this.aiAbort = null;
       this.aiCoverage =
         invalid || (checkedChunks === 0 && plan.chunks.length > 0)
           ? "failed"
@@ -1446,36 +1457,95 @@ export class ReviewSession {
     // Session-local cache key: everything the model consumed, plus what produced the answer.
     const cacheKey = (request: AiGenerationRequest, modelId: string, promptVersion: string) =>
       JSON.stringify([request, modelId, promptVersion]);
-    const pending: AiChunk[] = [];
+    const pending: Array<{ chunk: AiChunk; key: string; retained: boolean }> = [];
     const requestFor = (chunk: AiChunk) => aiRequestForChunk(chunk, this.aiLang(), "correct", null);
+    const keys = new Set(
+      plan.chunks.map((chunk) =>
+        cacheKey(requestFor(chunk), this.aiStatus?.modelId ?? "", AI_PROMPT_VERSION),
+      ),
+    );
+    for (const [key, task] of this.aiPending) {
+      if (!keys.has(key)) {
+        task.abort.abort();
+        this.aiPending.delete(key);
+      }
+    }
     for (const chunk of plan.chunks) {
       const key = cacheKey(requestFor(chunk), this.aiStatus?.modelId ?? "", AI_PROMPT_VERSION);
       const cached = this.aiCache.get(key);
       if (cached) accept(chunk, cached);
-      else pending.push(chunk);
+      else pending.push({ chunk, key, retained: this.aiPending.has(key) });
     }
     if (pending.length === 0) finish();
-    else this.aiCoverage = delayed ? "waiting" : "checking";
+    else
+      this.aiCoverage =
+        delayed && !pending.some(({ retained }) => retained) ? "waiting" : "checking";
     this.mergeAiFindings();
     this.emit();
     if (pending.length === 0) return;
 
-    if (delayed) {
-      await new Promise<void>((resolve) => {
-        this.aiTimer = this.setTimer(() => {
-          this.aiTimer = null;
-          resolve();
-        }, this.deps.aiRecheckDelayMs ?? 1500);
-      });
-      if (!live()) return;
-      this.aiCoverage = "checking";
-      this.emit();
-    }
-    for (const chunk of pending) {
+    // Finish already-running work before starting new work for the edited text.
+    pending.sort((a, b) => Number(b.retained) - Number(a.retained));
+    let waited = false;
+    for (const { chunk, key, retained } of pending) {
+      if (delayed && !retained && !waited) {
+        waited = true;
+        await new Promise<void>((resolve) => {
+          this.aiTimer = this.setTimer(() => {
+            this.aiTimer = null;
+            resolve();
+          }, this.deps.aiRecheckDelayMs ?? 1500);
+        });
+        if (!live()) return;
+        this.aiCoverage = "checking";
+        this.emit();
+      }
       let answer: { outcome: AiGenerationOutcome; modelId: string; promptVersion: string };
       const request = requestFor(chunk);
+      const cached = this.aiCache.get(key);
+      if (cached) {
+        accept(chunk, cached);
+        this.mergeAiFindings();
+        this.emit();
+        continue;
+      }
       try {
-        answer = await ai.generate(request, abort.signal);
+        let task = this.aiPending.get(key);
+        if (!task) {
+          const abort = new AbortController();
+          const fresh: AiPendingRequest = {
+            abort,
+            promise: ai
+              .generate(request, abort.signal)
+              .then(
+                (result) => {
+                  if (
+                    this.aiPending.get(key) === fresh &&
+                    !abort.signal.aborted &&
+                    result.outcome.ok &&
+                    key === cacheKey(request, result.modelId, result.promptVersion)
+                  ) {
+                    if (this.aiCache.size >= AI_CACHE_ENTRIES) {
+                      this.aiCache.delete(this.aiCache.keys().next().value!);
+                    }
+                    this.aiCache.set(key, result.outcome.segments);
+                  }
+                  return result;
+                },
+                () => ({
+                  outcome: { ok: false as const, error: "engine-failed" as const },
+                  modelId: "",
+                  promptVersion: "",
+                }),
+              )
+              .finally(() => {
+                if (this.aiPending.get(key) === fresh) this.aiPending.delete(key);
+              }),
+          };
+          task = fresh;
+          this.aiPending.set(key, fresh);
+        }
+        answer = await task.promise;
       } catch {
         answer = { outcome: { ok: false, error: "engine-failed" }, modelId: "", promptVersion: "" };
       }
@@ -1484,7 +1554,6 @@ export class ReviewSession {
       if (!outcome.ok) {
         // The runtime dropped it (not us): a later trigger may start again.
         if (outcome.error === "cancelled") {
-          this.aiAbort = null;
           this.aiPassFor = null;
           this.aiCoverage = "cancelled";
           this.emit();
@@ -1493,11 +1562,7 @@ export class ReviewSession {
         if (AI_PASS_FATAL.has(outcome.error)) break;
         continue;
       }
-      // Bounded and session-local; the oldest answer goes first.
-      if (this.aiCache.size >= AI_CACHE_ENTRIES) {
-        this.aiCache.delete(this.aiCache.keys().next().value!);
-      }
-      this.aiCache.set(cacheKey(request, answer.modelId, answer.promptVersion), outcome.segments);
+      if (key !== cacheKey(request, answer.modelId, answer.promptVersion)) continue;
       accept(chunk, outcome.segments);
       this.mergeAiFindings();
       this.emit();

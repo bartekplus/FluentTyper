@@ -27,6 +27,7 @@ import {
 } from "../src/adapters/chrome/content-script/google-docs/GoogleDocsModel";
 import { REVIEW_HIGHLIGHT_NAMES } from "../src/adapters/chrome/content-script/review/reviewStyles";
 import { GRAMMAR_RULE_IDS } from "../src/core/domain/grammar/ruleCatalog";
+import { AI_PROMPT_VERSION } from "../src/core/domain/grammar/review/ai/prompts";
 import type { ReviewEdit } from "../src/core/domain/grammar/review/types";
 import type { ReviewAiProvider } from "../src/core/application/review/reviewAi";
 import type { LocalAiStatus } from "../src/core/domain/contracts/localAi";
@@ -1700,7 +1701,7 @@ describe("review controller with Local AI", () => {
         return Promise.resolve({
           outcome: { ok: true as const, segments },
           modelId: "model-a",
-          promptVersion: "v1",
+          promptVersion: AI_PROMPT_VERSION,
         });
       },
       openSetup: () => {},
