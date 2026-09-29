@@ -1,4 +1,5 @@
 import { overlapsSortedRanges } from "@core/domain/grammar/review/textRanges";
+import { NativeReviewCache } from "@core/domain/grammar/review/nativeReviewCache";
 import { isReviewSupportedRule } from "@core/domain/grammar/review/reviewCatalog";
 import type { CatalogRuleId } from "@core/domain/grammar/ruleCatalog";
 import {
@@ -8,6 +9,7 @@ import {
 } from "@core/domain/grammar/review/bulkPlanner";
 import {
   MAX_REVIEW_CHARS,
+  REVIEW_CHUNK_CHARS,
   finalizeReview,
   prepareReview,
   reviewChunks,
@@ -348,6 +350,7 @@ function mergeInTextOrder(
  * Starting a review reads only: no text, formatting, setting or learning changes.
  */
 export class ReviewSession {
+  private readonly nativeCache = new NativeReviewCache();
   private generation = 0;
   private status: ReviewStatus = "loading";
   private unavailable: ReviewUnavailable | undefined;
@@ -476,6 +479,7 @@ export class ReviewSession {
 
   close(): void {
     this.generation += 1;
+    this.nativeCache.clear();
     this.cancelRecheck();
     this.cancelAi();
     this.cancelRewriteRun();
@@ -522,6 +526,7 @@ export class ReviewSession {
   /** Settings broadcasts repeat unchanged values; only a real change rechecks. */
   updateOptions(options: ReviewOptions): void {
     if (this.status === "closed" || sameOptions(this.options, options)) return;
+    this.nativeCache.clear();
     this.options = options;
     this.notifySourceChanged();
   }
@@ -1110,6 +1115,7 @@ export class ReviewSession {
     }
     if (generation !== this.generation || this.isClosed) return;
     if (!read.ok) {
+      this.nativeCache.clear();
       this.cancelAi();
       this.status = "unavailable";
       this.unavailable = read.reason;
@@ -1147,6 +1153,7 @@ export class ReviewSession {
     }
     // Formatting-only change: same text, different protection. Old ignores
     // still refer to the same characters; findings are recomputed below.
+    if (this.signature !== read.signature) this.nativeCache.clear();
     this.text = read.text;
     this.signature = read.signature;
     this.protectedRanges = read.protectedRanges;
@@ -1191,8 +1198,17 @@ export class ReviewSession {
         : this.options,
     );
     const scans: ChunkScan[] = [];
+    // Short drafts showed no benefit. Partial/oversized sources keep the full scan.
+    const cache =
+      this.scopeKind === "field" &&
+      !this.unread &&
+      this.text.length > REVIEW_CHUNK_CHARS * 2 &&
+      this.text.length <= MAX_REVIEW_CHARS
+        ? this.nativeCache
+        : undefined;
+    if (!cache) this.nativeCache.clear();
     for (const chunk of reviewChunks(prepared)) {
-      scans.push(scanReviewChunk(prepared, chunk));
+      scans.push(scanReviewChunk(prepared, chunk, cache));
       // Yield between chunks so typing is never blocked by a long scan.
       await this.pause();
       if (generation !== this.generation || this.isClosed) return;

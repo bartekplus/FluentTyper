@@ -1,3 +1,4 @@
+import { GRAMMAR_RULE_IDS } from "../../src/core/domain/grammar/ruleCatalog";
 import { expect, test, spyOn } from "bun:test";
 import { NativeReviewCache } from "../../src/core/domain/grammar/review/nativeReviewCache";
 import {
@@ -104,7 +105,7 @@ test("seeded edits preserve exact full-scan diagnostics, context, coverage and b
       text.slice(0, at) +
       inserts[random(inserts.length)] +
       text.slice(Math.min(text.length, at + random(4)));
-    scan(cache, text, `edit${n}`);
+    scan(cache, text, `edit${n}`, { ...options, enabledRules: GRAMMAR_RULE_IDS });
   }
 });
 

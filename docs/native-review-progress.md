@@ -25,7 +25,7 @@ Execute sequentially: 1, 2, 3, 4, 8, 5, 6, 7, 9–20. Native TypeScript, individ
 | 16  | Punctuation warnings           | Implemented; Chrome verified; Firefox permission blocked |
 | 17  | Brand/acronym casing           | Implemented; Chrome verified; Firefox permission blocked |
 | 18  | Preferred terminology          | Implemented; Chrome verified; Firefox permission blocked |
-| 19  | Incremental rechecks           | Baseline profiled; bounded reuse and validation pending  |
+| 19  | Incremental rechecks           | Implemented; Chrome verified; Firefox permission blocked |
 | 20  | Optional style hints           | Pending; default off                                     |
 
 ## Validation
@@ -611,3 +611,15 @@ The initial candidate duplicated source/masked/scan strings in each key and regr
 | 50,000     | 115.551        | 97.879                 |
 
 This supports continuing the candidate for longer drafts, not a production speedup claim. Small drafts gain nothing; the session integration should retain the simple scan there. Logs: `/tmp/ft-native-cache-paired{,-compact}.jsonl`, `/tmp/ft-native-cache-domain-{tests,unit,check}.log`. Final full unit gate passed **5,137 tests** (4,985 main + 152 isolated), as did `bun run check`; focused tests also passed after key compaction. Final unit log: `/tmp/ft-native-cache-domain-unit-final.log`. Runtime/editor validation is pending because the cache is not connected. **18/20 implemented; #19 remains in progress.**
+
+### #19 session integration and validation
+
+ReviewSession now owns the bounded native cache and passes it only for complete whole-field drafts over 8,000 and at most 50,000 UTF-16 characters. Short drafts showed no benefit and retain the simple scan. Partial selections, unread windows and oversized sources clear the cache and rescan. Real settings changes, editor structure-signature changes, unavailable reads and close clear retained entries. Existing generation checks after every yield prevent cancelled scans from publishing or resuming detector work after close. The cache remains session-local; spelling/AI caches and safe-batch proof are unchanged.
+
+Session tests prove fewer detector calls after an isolated paragraph edit, exact equality with a fresh full scan, full detector reruns after structure-only changes, dictionary invalidation, downstream code-fence invalidation, and cache release/no later detector calls when closing during a yielded scan. The seeded domain property test now compares **all native rules**, including diagnostic IDs, ranges, alternatives, context, coverage and bulk plans, over 100 reproducible edits. Its all-rule run passed separately after broadening coverage (`/tmp/ft-native-cache-all-rules-property.log`). The production browser test applies a phrase repair in a draft over 8k, waits for recheck, restores exact source through native undo, and inserts an opening code fence to verify the finding disappears with protected-text coverage.
+
+Final gates: **5,139 unit tests passed** (4,987 main + 152 isolated); full Chrome **121 pass / 10 existing skips / 0 fail**. `bun run check`, coverage mapping (**205 behaviors**), and Chrome/Firefox production builds passed. Firefox runtime is still unverified because of the previously documented macOS permission blocker. Logs: `/tmp/ft-native-cache-final-{check,coverage,unit,chrome,build-chrome,build-firefox}.log`; focused browser: `/tmp/ft-native-cache-browser-focused.log`.
+
+Production JS delta versus #18 (`production-chrome-full-6888-1790716334843`): content script **+1,560 bytes**; other JS artifacts unchanged. Candidate: `production-chrome-full-8491-1790717366305`. Paired domain timing and retained-payload limits remain in the prior checkpoint; these are authored local measurements, not universal responsiveness or heap guarantees. No permissions, dependencies, uploads, AI/model changes or typing behavior added.
+
+**19/20 implemented**, with Chrome validation. Next: #20 default-off optional style/readability advice, separate from error counts and safe bulk fixes. Full roadmap completion still requires Firefox runtime validation.

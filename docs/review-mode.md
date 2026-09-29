@@ -534,6 +534,13 @@ Limits: 50,000 characters per review (a larger scope is cut, and the panel
 says so), scanned in chunks of about 4,000 characters that yield to the page.
 Rechecks after edits are debounced by 400 ms and cancel stale work.
 
+Whole-field drafts over 8,000 characters can reuse unchanged fixed-preposition
+and usage-phrase results within the open session. Reuse compares the source and
+surrounding evidence, settings, dictionary and protection; structure changes
+clear it. Other detectors and safe-batch proof still rescan. Partial selections,
+unread/oversized sources and short drafts use the full scan. The cache retains
+at most 64 entries and 500,000 serialized UTF-16 units, and is cleared on close.
+
 ## Performance
 
 These are measurements, not a budget. Environment: 4 vCPU Xeon (2.8 GHz),

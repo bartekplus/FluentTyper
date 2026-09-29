@@ -4000,6 +4000,32 @@
           "test": "settings announce persistence only after the storage write finishes"
         }
       ]
+    },
+    {
+      "id": "review_incremental_native_rechecks",
+      "description": "Bounded native phrase reuse equals full scans, invalidates evidence and structure, releases on close, and preserves long-draft native undo and code protection.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/grammar/NativeReviewCache.test.ts",
+          "test": "seeded edits preserve exact full-scan diagnostics, context, coverage and bulk decisions"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSession.test.ts",
+          "test": "long Review rechecks reuse native phrases and invalidate structure, settings and fences"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSession.test.ts",
+          "test": "closing a yielded native recheck releases cache and cancels remaining detector calls"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Long Review rechecks preserve native apply undo and invalidate an opening code fence"
+        }
+      ]
     }
   ]
 }

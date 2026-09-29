@@ -7110,6 +7110,49 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   );
 
   test(
+    "Long Review rechecks preserve native apply undo and invalidate an opening code fence",
+    async () => {
+      await prepareReviewPage();
+      const source =
+        "We discussed about the plan.\n\n" +
+        "The team reviewed the evidence today.\n\n".repeat(260);
+      await setTextarea(source);
+      await triggerReview(worker!);
+      const panel = await waitForReview(page, "long native finding", (p) =>
+        p.items.some((i) => i.text === "about␣ → "),
+      );
+      expect(panel.items).toHaveLength(1);
+      await clickReviewControl(page, ".item");
+      await waitForReview(page, "long finding card", (p) => p.card.open);
+      await clickReviewControl(page, ".card [data-action=apply]");
+      await waitUntil(
+        "long individual repair",
+        async () => (await textareaValue()) === source.replace("about ", ""),
+        { timeoutMs: 5000 },
+      );
+      await waitForReview(page, "long recheck", (p) => p.items.length === 0);
+      await pressNativeUndo(page, "#test-textarea");
+      await waitForReview(page, "long native undo", (p) => p.items.length === 1);
+      expect(await textareaValue()).toBe(source);
+      await page.evaluate(() => {
+        const field = document.querySelector("#test-textarea") as HTMLTextAreaElement;
+        field.value = "```\n" + field.value;
+        field.dispatchEvent(
+          new InputEvent("input", { bubbles: true, inputType: "insertText", data: "```\n" }),
+        );
+      });
+      await waitForReview(
+        page,
+        "fence invalidation",
+        (p) => p.items.length === 0 && p.notes.includes("Skipped as code or protected text"),
+      );
+      expect(await textareaValue()).toBe("```\n" + source);
+      await finishReview();
+    },
+    browserTimeout(20000, 30000),
+  );
+
+  test(
     "Terminology settings author, edit, import and remove entries without changing text assets",
     async () => {
       await prepareReviewPage();

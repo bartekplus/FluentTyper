@@ -1,4 +1,7 @@
-import { describe, expect, test } from "bun:test";
+import { NativeReviewCache } from "../src/core/domain/grammar/review/nativeReviewCache";
+import { REVIEW_DETECTORS } from "../src/core/domain/grammar/review/reviewDetectors";
+import { detectReviewDiagnostics } from "../src/core/domain/grammar/review/reviewDiagnostics";
+import { describe, expect, test, spyOn } from "bun:test";
 import {
   ReviewSession,
   SPELLING_UNKNOWN_PER_PASS,
@@ -1270,4 +1273,102 @@ test("removing a preferred term rechecks immediately and restores native ownersh
   expect(h.editor.text).toBe("We use Acme Suite.");
   expect(h.editor.applyCalls).toEqual([]);
   h.session.close();
+});
+
+test("long Review rechecks reuse native phrases and invalidate structure, settings and fences", async () => {
+  const text = Array.from(
+    { length: 120 },
+    (_, i) => `We discussed about the plan. They are one in the same. Record ${i}.\n\n`,
+  ).join("");
+  const rules = ["englishFixedPrepositions", "englishUsagePhrases"];
+  const h = harness(text, { rules });
+  const detector = REVIEW_DETECTORS.find((d) => d.rules[0] === rules[0])!;
+  const spy = spyOn(detector, "detect");
+  try {
+    await Promise.all([h.session.start(), h.settle()]);
+    const firstCalls = spy.mock.calls.length;
+    expect(firstCalls).toBeGreaterThan(1);
+    spy.mockClear();
+    h.editor.text = text.replace("Record 3.", "Record 4.");
+    h.session.notifySourceChanged();
+    await h.settle();
+    const reusedCalls = spy.mock.calls.length;
+    expect(reusedCalls).toBeLessThan(firstCalls);
+    expect(reusedCalls).toBeGreaterThan(0);
+    const id = h.last().diagnostics[0].id.split("/")[0];
+    const full = detectReviewDiagnostics(
+      {
+        id,
+        text: h.editor.text,
+        scope: { start: 0, end: h.editor.text.length },
+        protectedRanges: [],
+      },
+      {
+        lang: "en_US",
+        enabledRules: rules,
+        userDictionary: [],
+        insertSpaceAfterAutocomplete: true,
+      },
+    );
+    expect(h.last().diagnostics).toEqual(full.diagnostics);
+    const originalRead = h.editor.read.bind(h.editor);
+    const readSpy = spyOn(h.editor, "read").mockImplementation(() => {
+      const read = originalRead();
+      return read.ok ? { ...read, signature: read.signature + "structure" } : read;
+    });
+    spy.mockClear();
+    h.session.notifySourceChanged();
+    await h.settle();
+    expect(spy.mock.calls.length).toBe(firstCalls);
+    readSpy.mockRestore();
+    h.session.updateOptions({
+      lang: "en_US",
+      enabledRules: rules,
+      userDictionary: ["discussed", "same"],
+      insertSpaceAfterAutocomplete: true,
+    });
+    await h.settle();
+    expect(h.last().diagnostics).toEqual([]);
+    h.session.updateOptions({
+      lang: "en_US",
+      enabledRules: rules,
+      userDictionary: [],
+      insertSpaceAfterAutocomplete: true,
+    });
+    await h.settle();
+    expect(h.last().diagnostics.length).toBeGreaterThan(0);
+    h.editor.text = "```\n" + h.editor.text;
+    h.session.notifySourceChanged();
+    await h.settle();
+    expect(h.last().diagnostics).toEqual([]);
+  } finally {
+    h.session.close();
+    spy.mockRestore();
+  }
+});
+
+test("closing a yielded native recheck releases cache and cancels remaining detector calls", async () => {
+  const h = harness("We discussed about the plan.\n\n".repeat(400), {
+    rules: ["englishFixedPrepositions"],
+  });
+  const detector = REVIEW_DETECTORS.find((d) => d.rules[0] === "englishFixedPrepositions")!;
+  const spy = spyOn(detector, "detect");
+  const clear = spyOn(NativeReviewCache.prototype, "clear");
+  try {
+    const started = h.session.start();
+    for (let i = 0; i < 5; i++) await Promise.resolve();
+    expect(spy.mock.calls.length).toBeGreaterThan(0);
+    const calls = spy.mock.calls.length;
+    const cleared = clear.mock.calls.length;
+    h.session.close();
+    expect(clear.mock.calls.length).toBe(cleared + 1);
+    await h.settle();
+    await started;
+    expect(spy.mock.calls.length).toBe(calls);
+    expect(h.last().status).toBe("closed");
+    expect(h.states.some((s) => s.status === "ready")).toBe(false);
+  } finally {
+    spy.mockRestore();
+    clear.mockRestore();
+  }
 });
