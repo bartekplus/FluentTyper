@@ -971,18 +971,6 @@ function correctUnit(
     ) {
       return { reason: "negation" };
     }
-    if (
-      dense &&
-      removedIndexes.some(
-        (index) =>
-          originalStarts[index] &&
-          /^\p{Lu}/u.test(original[index].text) &&
-          !PRONOUN_I.test(original[index].text) &&
-          !added.some((token) => closeKind(original[index].text, token.text)),
-      )
-    ) {
-      return { reason: "name" };
-    }
     if (removedIndexes.some((index) => afterNumber(original, index))) return { reason: "number" };
     for (let index = hunk.p0; index < hunk.p1; index += 1) {
       if (next[index].kind === "word" && afterNumber(next, index)) return { reason: "number" };

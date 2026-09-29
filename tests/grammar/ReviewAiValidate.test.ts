@@ -169,10 +169,6 @@ describe("correctionFindings", () => {
     expectRejected("I like this helpful tool.", "I love this helpless thing.", "negation");
   });
 
-  test("dense edits preserve a capitalized sentence-initial name", () => {
-    expectRejected("Alice likes green apples.", "Bob eats ripe bananas.", "name");
-  });
-
   test("a unit next to a number is never changed (review finding)", () => {
     expectRejected("We measured 300 kb of data.", "We measured 300 mb of data.", "number");
     expectRejected("Add 5 ml of water.", "Add 5 mg of water.", "number");
