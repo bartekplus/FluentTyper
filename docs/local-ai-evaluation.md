@@ -320,6 +320,22 @@ check. This uses the existing cache-state verifier and does not add a network re
 
 ### Remaining quality limits
 
+Validator experiment (2026-09-29): the short `She dont knows.` → `She doesn't know.`
+case now passes as one atomic finding only when the unchanged subject is `he`,
+`she`, or `it`, the negative auxiliary becomes `doesn't`, the following verb
+returns to its base form, and spacing/punctuation are unchanged. The 50% and
+four-word limits remain in place for other proposals. Correct-mode rejection
+counts now distinguish changed-word share, lexical substitution, optional
+style, and oversized units; counts remain text-free.
+
+Manual sample from the saved Gemma 4 E4B full Correct run, checked against the
+explicit fixture targets (four selected rejections, not a representative
+rate): `dense-05` correctly blocked a pronoun substitution; `dense-10`
+correctly blocked a stylistic subject reorder; `dense-13` correctly blocked
+a dialect-dependent collective-noun agreement change; `heldout-08` lost a
+legitimate correction because it requires a broader clause restructure.
+The last case remains blocked pending a specific rule for that construction.
+
 The original stress run rejected 33 proposed change units as wording drift, 10 as
 quoted text, 3 as number changes, 2 as negation changes, and one each as too many changed
 words, a technical-token change and a name change. These counts are not all missed

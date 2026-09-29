@@ -815,6 +815,32 @@ const MAX_UNIT_WORDS = 4;
 /** Above this share of changed words a proposal is a rewrite, not a correction. */
 const MAX_CHANGED_SHARE = 0.5;
 
+/** One tightly checked agreement repair that can change most of a short sentence. */
+function singularNegativeAgreement(
+  original: readonly Token[],
+  proposed: readonly Token[],
+): boolean {
+  const before = wordsOf(original);
+  const after = wordsOf(proposed);
+  return (
+    before.length === 3 &&
+    after.length === 3 &&
+    ["he", "she", "it"].includes(before[0]) &&
+    after[0] === before[0] &&
+    ["dont", "don't"].includes(before[1]) &&
+    after[1] === "doesn't" &&
+    pluralOf(after[2], before[2]) === before[2] &&
+    original
+      .filter((token) => token.kind !== "word")
+      .map((token) => token.text)
+      .join("") ===
+      proposed
+        .filter((token) => token.kind !== "word")
+        .map((token) => token.text)
+        .join("")
+  );
+}
+
 /**
  * Turns one chunk's parsed Correct-mode output into guarded findings against
  * the prepared snapshot: word-level diff, placeholder restore, protection and
@@ -826,7 +852,7 @@ const MAX_CHANGED_SHARE = 0.5;
  * dependent edit is never applied halfway. Each unit is validated on its own
  * against the original sentence; a rejected unit is counted and dropped
  * without sinking the others. A proposal changing most of a sentence is a
- * rewrite and is rejected whole.
+ * rewrite and is rejected whole, except for a proved singular negative agreement repair.
  */
 export function correctionFindings(
   prepared: PreparedReview,
@@ -889,7 +915,9 @@ function correctSegment(
     removedWords > wordCount(original) * MAX_CHANGED_SHARE ||
     addedWords > wordCount(next) * MAX_CHANGED_SHARE
   ) {
-    return { diagnostics: [], rejected: ["drift"] };
+    if (!singularNegativeAgreement(original, next)) {
+      return { diagnostics: [], rejected: ["drift.changed_word_share"] };
+    }
   }
 
   const diagnostics: ReviewDiagnostic[] = [];
@@ -935,7 +963,7 @@ function correctUnit(
   const unitRemoved = unit.flatMap((h) => original.slice(h.o0, h.o1));
   const unitAdded = unit.flatMap((h) => next.slice(h.p0, h.p1));
   if (wordCount(unitRemoved) > MAX_UNIT_WORDS || wordCount(unitAdded) > MAX_UNIT_WORDS) {
-    return { reason: "too-many-edits" };
+    return { reason: "unit.too_many_changed_words" };
   }
 
   // The sentence with only this unit applied: the unit must stand on its own.
@@ -950,7 +978,7 @@ function correctUnit(
   if (hedgeCount(originalWords) !== hedgeCount(changedWords)) return { reason: "uncertainty" };
   // Terminating a fragment ("lol same" -> "Lol, same.") formalizes it.
   const terminated = (text: string) => /[.!?…]["'”’»)\]]*\s*$/u.test(text);
-  if (!terminated(segment.text) && terminated(variant)) return { reason: "drift" };
+  if (!terminated(segment.text) && terminated(variant)) return { reason: "drift.optional_style" };
 
   // "to not change" -> "not to change": "not" moves across one word; the
   // negation count is unchanged (checked above).
@@ -975,7 +1003,7 @@ function correctUnit(
       if (next[index].kind === "word" && afterNumber(next, index)) return { reason: "number" };
     }
     if (removedIndexes.some((index) => flipsNounNumber(original, index, unit, added))) {
-      return { reason: "drift" };
+      return { reason: "drift.lexical_substitution" };
     }
     if (removedIndexes.some((index) => isNameAt(original, originalStarts, index))) {
       return { reason: "name" };
@@ -1018,13 +1046,21 @@ function correctUnit(
       }
       return 0;
     };
-    if (!isCorrection(removed, added, deletable, movable, phrase) || formalizes(removed, added)) {
-      return { reason: "drift" };
+    const knownAgreement =
+      unit.length === diff.hunks.length && singularNegativeAgreement(original, next);
+    if (
+      (!isCorrection(removed, added, deletable, movable, phrase) && !knownAgreement) ||
+      formalizes(removed, added)
+    ) {
+      return {
+        reason: formalizes(removed, added) ? "drift.optional_style" : "drift.lexical_substitution",
+      };
     }
     // A new sentence break inside the segment ("16 rd. chain") is not a correction.
     const addsMark = next.slice(hunk.p0, hunk.p1).some((token) => SENTENCE_MARK.test(token.text));
-    if (addsMark && hunk.o1 < original.length) return { reason: "drift" };
-    if (styleChoice(original, next, hunk, originalStarts)) return { reason: "drift" };
+    if (addsMark && hunk.o1 < original.length) return { reason: "drift.optional_style" };
+    if (styleChoice(original, next, hunk, originalStarts))
+      return { reason: "drift.optional_style" };
   }
 
   // Underline from the first to the last change of the unit.

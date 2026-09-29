@@ -80,10 +80,47 @@ function expectRejected(text: string, proposed: string, reason: string, extra: E
   const result = correctOne(text, proposed, extra);
   expect(result.diagnostics).toEqual([]);
   // Every change unit of the proposal was rejected, all for this reason.
-  expect(Object.keys(result.rejected)).toEqual([reason]);
+  const reasons = Object.keys(result.rejected);
+  expect(reasons).toHaveLength(1);
+  expect(
+    reasons[0] === reason ||
+      reasons[0]?.startsWith(`${reason}.`) ||
+      (reason === "too-many-edits" && reasons[0] === "unit.too_many_changed_words"),
+  ).toBe(true);
 }
 
 describe("correctionFindings", () => {
+  test("a singular negative auxiliary and its dependent verb are one correction", () => {
+    const result = correctOne("She dont knows.", "She doesn't know.");
+    expect(result.rejected).toEqual({});
+    expect(result.diagnostics).toHaveLength(1);
+    expect(result.diagnostics[0].alternatives[0].edits).toHaveLength(1);
+    expect(result.applied).toBe("She doesn't know.");
+    expect(correctOne("She dont knows.", "She doesn't believe.").rejected).toEqual({
+      "drift.changed_word_share": 1,
+    });
+    expect(correctOne("They dont knows.", "They doesn't know.").rejected).toEqual({
+      "drift.changed_word_share": 1,
+    });
+    expect(correctOne("She don't knows.", "She doesn't know.").applied).toBe("She doesn't know.");
+    expect(correctOne("She dont knows.", "She doesn't know!").rejected).toEqual({
+      "drift.changed_word_share": 1,
+    });
+  });
+  test("rejection counts distinguish share, lexical, style, and unit limits", () => {
+    expect(correctOne("The big dog ran home.", "The large dog ran home.").rejected).toEqual({
+      "drift.lexical_substitution": 1,
+    });
+    expect(correctOne("Ok cool.", "Ok, cool.").rejected).toEqual({
+      "drift.optional_style": 1,
+    });
+    expect(
+      correctOne(
+        "The meeting went well and everyone agreed on the plan.",
+        "The meeting was a big success because all agreed on the plan.",
+      ).rejected,
+    ).toEqual({ "unit.too_many_changed_words": 1 });
+  });
   test("a negating prefix is never a spelling fix (review finding)", () => {
     const likely = correctOne(
       "This bug is likely to reappear.",

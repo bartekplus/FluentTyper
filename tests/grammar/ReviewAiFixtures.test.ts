@@ -160,7 +160,13 @@ describe("Local AI fixtures", () => {
       const partial = PARTIAL_DENSE[fixture.id];
       if (partial) {
         // Known partial: the stated unit is rejected, not accepted wrongly.
-        expect(rejected[partial.reason]).toBeGreaterThan(0);
+        expect(
+          Object.entries(rejected)
+            .filter(
+              ([reason]) => reason === partial.reason || reason.startsWith(`${partial.reason}.`),
+            )
+            .reduce((sum, [, count]) => sum + count, 0),
+        ).toBeGreaterThan(0);
         expect(offered).toBeGreaterThanOrEqual(partial.minOffered);
       } else {
         expect(all).toBe(target);
