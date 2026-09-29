@@ -278,8 +278,10 @@ identical accepted text; the dense paragraph additionally gained a comma before 
 independent clause joined by “and”. No accepted correction was lost, and none of the
 119 unchanged controls was changed. Small numerical differences from splitting prompt
 processing can alter model output, so prefix caching is quality-tested, not assumed
-bit-identical. This run used the isolated probe; the final runtime wrapper is validated
-separately before delivery.
+bit-identical. The final runtime wrapper, using the text-only loader, repeated the full corpus: all
+117 stress requests and all 230 fixtures parsed successfully and reproduced the same
+accepted findings, including that one additional comma. The final snapshot-deletion
+run generated only two fresh requests and preserved every surviving baseline finding.
 
 An A/B/B/A comparison of conditional versus text-only loading, with the actual prefix
 wrapper, measured mean cached-model load times of **6.276 s versus 5.100 s**. Time from
@@ -289,7 +291,8 @@ text sessions afterward. This is a same-browser, disk-cache comparison on the te
 it does not promise the same savings on other devices or after a machine restart.
 
 On the supplied stress passage, deleting its first sentence now reuses **55 of 57**
-requests: **2 new requests instead of 47**. The initial plan still has 58 requests.
+requests: **2 new requests instead of 47**. The initial plan still has 58 requests. The real-Gemma deletion replay lost no accepted
+findings and added none.
 Small word edits still invalidate only the affected text and nearby context (2–4
 requests in the measured cases).
 
