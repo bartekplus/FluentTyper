@@ -6998,6 +6998,9 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         ["They forgot there own password.", "They forgot their own password.", "there → their"],
         ["Your going to like this.", "You're going to like this.", "Your → You're"],
         ["The box is to heavy to lift.", "The box is too heavy to lift.", "to → too"],
+        ["We need fix this bug.", "We need to fix this bug.", "fix → to␣fix"],
+        ["They plan deploy tomorrow.", "They plan to deploy tomorrow.", "deploy → to␣deploy"],
+        ["I look forward to meet you.", "I look forward to meeting you.", "meet → meeting"],
         ["Despite of the delay, we finished.", "Despite the delay, we finished.", "of␣ → "],
         ["We discussed about the release.", "We discussed the release.", "about␣ → "],
         ["I am interested on learning Rust.", "I am interested in learning Rust.", "on → in"],
@@ -7032,6 +7035,49 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       }
     },
     browserTimeout(30000, 45000),
+  );
+
+  test(
+    "Review missing-to insertion preserves a split formatted verb and native undo",
+    async () => {
+      await prepareReviewPage();
+      const selector = "#test-contenteditable";
+      const original = "<p>We need <b>f</b><i>ix</i> this bug.</p>";
+      await page.evaluate(
+        ({ selector, original }) => {
+          const root = document.querySelector(selector) as HTMLElement;
+          root.innerHTML = original;
+          root.focus();
+        },
+        { selector, original },
+      );
+      await triggerReview(worker!);
+      const panel = await waitForReview(page, "split complement", (p) =>
+        p.items.some((item) => item.text === "fix → to␣fix"),
+      );
+      expect(panel.fixAll).toMatchObject({ text: "Fix all safe (0)", disabled: true });
+      await clickReviewControl(page, ".item");
+      await waitForReview(page, "split complement card", (p) => p.card.open);
+      await clickReviewControl(page, ".card [data-action=apply]");
+      await waitUntil(
+        "split insertion",
+        async () =>
+          (await page.$eval(selector, (el) => el.textContent)) === "We need to fix this bug.",
+        { timeoutMs: 5000 },
+      );
+      expect(await page.$eval(selector, (el) => el.innerHTML)).toBe(
+        "<p>We need <b>to f</b><i>ix</i> this bug.</p>",
+      );
+      await waitForReview(page, "insertion recheck", (p) => p.items.length === 0);
+      await pressNativeUndo(page, selector);
+      await waitUntil(
+        "split insertion undo",
+        async () => (await page.$eval(selector, (el) => el.innerHTML)) === original,
+        { timeoutMs: 5000 },
+      );
+      await finishReview();
+    },
+    browserTimeout(20000, 30000),
   );
 
   test(

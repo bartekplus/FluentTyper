@@ -15,6 +15,39 @@ type Translations = readonly [
 ];
 
 const EXPLANATIONS: Record<ReviewMessageKey, Translations> = {
+  review_msg_verb_complements: [
+    "Check infinitive and gerund complements.",
+    "Vérifiez les compléments infinitifs et en -ing.",
+    "Provjerite infinitivne i gerundne dopune.",
+    "Revise los complementos de infinitivo y gerundio.",
+    "Ελέγξτε τα απαρέμφατα και τα συμπληρώματα σε -ing.",
+    "Kontrollera infinitiv- och gerundiumkomplement.",
+    "Infinitiv- und Gerundiumergänzungen prüfen.",
+    "Sprawdź dopełnienia bezokolicznikowe i formy -ing.",
+    "Verifique os complementos de infinitivo e gerúndio.",
+  ],
+  review_msg_missing_to: [
+    "This complete verb construction needs “to” before the following action.",
+    "Cette construction verbale complète demande « to » avant l’action suivante.",
+    "Ova potpuna glagolska konstrukcija zahtijeva „to” prije sljedeće radnje.",
+    "Esta construcción verbal completa requiere «to» antes de la acción siguiente.",
+    "Αυτή η πλήρης ρηματική σύνταξη χρειάζεται «to» πριν από την επόμενη ενέργεια.",
+    "Den här fullständiga verbkonstruktionen behöver ”to” före nästa handling.",
+    "Diese vollständige Verbkonstruktion benötigt „to“ vor der folgenden Handlung.",
+    "Ta pełna konstrukcja czasownikowa wymaga „to” przed następującą czynnością.",
+    "Esta construção verbal completa pede “to” antes da ação seguinte.",
+  ],
+  review_msg_forward_gerund: [
+    "After “look forward to”, use the action’s -ing form.",
+    "Après « look forward to », utilisez la forme en -ing de l’action.",
+    "Nakon „look forward to” upotrijebite oblik radnje na -ing.",
+    "Después de «look forward to», use la forma en -ing de la acción.",
+    "Μετά το «look forward to», χρησιμοποιήστε τη μορφή της ενέργειας σε -ing.",
+    "Efter ”look forward to” används handlingens -ing-form.",
+    "Verwenden Sie nach „look forward to“ die -ing-Form der Handlung.",
+    "Po „look forward to” użyj formy czynności z końcówką -ing.",
+    "Depois de “look forward to”, use a forma em -ing da ação.",
+  ],
   review_msg_fixed_prepositions: [
     "Check prepositions in established constructions.",
     "Vérifiez les prépositions dans les constructions établies.",

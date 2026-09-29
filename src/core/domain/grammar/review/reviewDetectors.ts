@@ -1,3 +1,4 @@
+import { verbComplements } from "./englishComplements";
 import { fixedPrepositions } from "./englishPrepositions";
 import { contextualPossessives } from "./englishPossessives";
 import { additionalPronounAgreement, existentialAgreement } from "./englishAgreement";
@@ -1087,6 +1088,7 @@ export const REVIEW_DETECTORS: ReadonlyArray<{ rules: CatalogRuleId[]; detect: D
     detect: contextualPossessives,
   },
   { rules: ["englishFixedPrepositions"], detect: fixedPrepositions },
+  { rules: ["englishVerbComplements"], detect: verbComplements },
   { rules: ["englishRepeatedWords"], detect: repeatedWords },
   { rules: ["englishAuxiliaryBaseVerb"], detect: auxiliaryForms },
   {

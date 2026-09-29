@@ -194,6 +194,7 @@
     "review_repeated_words",
     "review_independent_rule_controls",
     "review_contextual_possessives",
-    "review_fixed_prepositions"
+    "review_fixed_prepositions",
+    "review_verb_complements"
   ]
 }

@@ -13,7 +13,7 @@ Execute sequentially: 1, 2, 3, 4, 8, 5, 6, 7, 9–20. Native TypeScript, individ
 | 4   | Agreement extensions           | Implemented; Chrome verified; Firefox launch blocked     |
 | 5   | Contractions and possessives   | Implemented; Chrome verified; Firefox launch blocked     |
 | 6   | Fixed prepositions             | Implemented; Chrome verified; Firefox launch blocked     |
-| 7   | Verb complements               | Pending                                                  |
+| 7   | Verb complements               | Implemented; Chrome verified; Firefox launch blocked     |
 | 8   | Independent Review controls    | Implemented; Chrome verified; Firefox launch blocked     |
 | 9   | Participles                    | Pending                                                  |
 | 10  | Demonstratives and noun number | Pending                                                  |
@@ -207,3 +207,31 @@ Error phrase: `Despite of the delay, we finished. We discussed about the release
 Production JS delta against #5's retained full-suite build (`production-chrome-full-44849-1790706188375`): content script **+5,042 bytes**, background **+1,495**, settings **+2,997**, popup **+389**. Candidate: `production-chrome-full-45650-1790706527758`. No dependencies, permissions, typing changes or generalized rule interpreter added.
 
 Next: #7 verb complements. Seven of twenty features implemented; full completion remains pending the rest of the roadmap and Firefox runtime validation.
+
+## #7 verb complement constructions
+
+A separate Review-only `englishVerbComplements` identity recognizes complete pronoun-led need/want/plan frames and look-forward-to frames. It inserts only `to` using the existing one-grapheme anchor, or selects an explicitly stored gerund for the affected verb. Fourteen audited verb/argument pairs; gerund spellings live in the existing shared verb-form helper without changing #2's auxiliary forms. Negation and contracted do-not forms are retained. Three messages are translated into all nine UI languages.
+
+Focused grammar corpus: **108 pass**: 30 repairs (including six negated/contracted constructions), 75 preservation cases, and three offset/morphology/pipeline checks. All authored errors detected, no findings on the preservation corpus, no recorrection after repair. Subjectless headings/fragments, incomplete and unknown complements, noun readings, need-not and optional/forbidden-to constructions abstain. These authored results do not establish general English coverage.
+
+Application coverage verifies a recheck after insertion, updated offsets, and refusal of the old diagnostic ID. The real browser fixture inserts `to` into `<b>f</b><i>ix</i>`, verifies `<b>to f</b><i>ix</i>`, and restores the exact original markup with native undo. The three required acceptance examples also run through the common individual Apply/Undo fixture. No adapter bypass or Fix all promotion.
+
+- Combined grammar/session focused suite: **150 pass, 0 fail**.
+- Final-source full unit suite: **4,103 pass, 0 fail**. Final-source Chrome full browser suite: **94 pass, 10 skip, 0 fail**.
+- `bun run check`, production Chrome and Firefox builds: passed. Coverage mapping: **194 behaviors**.
+- Firefox runtime remains unverified due to the previously reproduced launch blocker; not rerun for this checkpoint.
+- Logs: `/tmp/ft-native-complements-{focused,check,unit,full-chrome,build-chrome,build-firefox,benchmark,benchmark-before}.log`.
+
+Synthetic scan costs (Bun 1.4.2, this ID only, 5 warmups then median of 21 full native scans; no AI/spelling/DOM):
+
+| Characters | Clean (ms) | Dense errors (ms) | Dense findings |
+| ---------- | ---------- | ----------------- | -------------- |
+| 1,000      | 0.050      | 0.154             | 39             |
+| 10,000     | 0.326      | 1.131             | 389            |
+| 50,000     | 1.705      | 8.286             | 1,948          |
+
+Error phrase: `We need fix this bug. They plan deploy tomorrow. I look forward to meet you. `. Clean phrase applies all three intended repairs. Repeat/truncate with whole-text scope. An initial scan per lexical verb cost 10.140/33.849 ms at 50,000 characters clean/error. Two frame scans with bounded argument validation lowered that to 1.705/8.286 ms, with unchanged counts and the focused corpus passing. These sequential local fixture measurements are not a controlled production speedup claim.
+
+Production JS delta against #6's retained build (`production-chrome-full-45650-1790706527758`): content script **+4,649 bytes**, background **+507**, settings **+2,412**, popup **+379**. Candidate: `production-chrome-full-47095-1790707038158`. No dependencies, permissions or typing behavior added.
+
+Next: #9 perfect-tense participles; #8 controls are already implemented. Overall completion remains pending all remaining features and Firefox runtime validation.

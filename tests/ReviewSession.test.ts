@@ -941,3 +941,22 @@ test("disabling all native checks preserves explicit spelling and offers no AI o
   expect(h.last().diagnostics).toHaveLength(1);
   h.session.close();
 });
+
+test("missing-to insertion rechecks and leaves no stale verb-complement finding", async () => {
+  const h = harness("We need fix this bug. I look forward to meet you.", {
+    rules: ["englishVerbComplements"],
+  });
+  await Promise.all([h.session.start(), h.settle()]);
+  const first = h.last().diagnostics[0];
+  const pending = h.session.apply(first.id);
+  await h.settle();
+  expect(await pending).toEqual({ status: "applied" });
+  expect(h.editor.text).toBe("We need to fix this bug. I look forward to meet you.");
+  expect(h.editor.applyCalls[0].edits).toEqual([
+    { start: 8, end: 9, original: "f", replacement: "to f" },
+  ]);
+  expect(h.originals()).toEqual(["meet"]);
+  await h.session.apply(first.id);
+  expect(h.editor.applyCalls).toHaveLength(1);
+  expect(h.last().bulk.count).toBe(0);
+});

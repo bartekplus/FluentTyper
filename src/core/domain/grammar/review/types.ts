@@ -53,6 +53,9 @@ interface ReviewAlternative {
 }
 
 export type ReviewMessageKey =
+  | "review_msg_verb_complements"
+  | "review_msg_missing_to"
+  | "review_msg_forward_gerund"
   | "review_msg_fixed_prepositions"
   | "review_msg_despite_of"
   | "review_msg_discuss_about"

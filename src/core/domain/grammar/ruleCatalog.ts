@@ -2,6 +2,19 @@ import type { GrammarRuleCatalogEntry, GrammarRuleId } from "./types";
 
 export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   {
+    id: "englishVerbComplements",
+    typing: false,
+    name: "Verb complement constructions",
+    titleI18nKey: "review_msg_verb_complements",
+    descriptionI18nKey: "review_msg_verb_complements",
+    exampleI18nKey: "",
+    languageScope: "en_US",
+    safetyTier: "advanced",
+    defaultRollout: "off",
+    recommended: false,
+    priority: 151,
+  },
+  {
     id: "englishFixedPrepositions",
     typing: false,
     name: "Fixed preposition constructions",

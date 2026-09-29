@@ -3709,6 +3709,32 @@
           "test": "full phrase evidence owns one chunk and preserves Unicode, CRLF and ordinary quotations"
         }
       ]
+    },
+    {
+      "id": "review_verb_complements",
+      "description": "Native complement checks insert missing to or select explicit gerunds while preserving negation, optional-to constructions, formatted boundaries, recheck and native undo.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review native grammar applies individual edits with native undo"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review missing-to insertion preserves a split formatted verb and native undo"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSession.test.ts",
+          "test": "missing-to insertion rechecks and leaves no stale verb-complement finding"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewComplements.test.ts",
+          "test": "missing-to insertion uses the existing one-grapheme anchor and preserves separators"
+        }
+      ]
     }
   ]
 }
