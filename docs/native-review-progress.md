@@ -675,3 +675,11 @@ Clean fixtures yielded zero advice; disabled checks yielded zero advice in both 
 Final retained production artifact: `production-chrome-full-12569-1790719717915`. Total #20 JS delta versus #19 (`production-chrome-full-8491-1790717366305`): content **+8,481 bytes**, settings **+6,659**, background **+1,062**, popup **+3,007**, onboarding **+2,032**. Settings help translations are included in the shared UI dictionary. Dependency files and all three platform manifests remain unchanged against the roadmap base.
 
 **20/20 features implemented locally.** The goal remains active for the final roadmap requirement audit and Firefox runtime validation; builds do not replace that browser gate.
+
+## Final requirement audit (2026-09-30)
+
+Completed the [requirement-by-requirement audit](native-review-audit.md) against implementation `56c94339`. Direct roadmap-derived checks passed **46 required repairs and 101 preservation examples** through the native pipeline. Final Chrome smoke passed **26 tests**. Added one session regression proving both AI corrections around unchanged preferred terminology remain visible; the complete AI session suite passed **47 tests**, and `bun run check` passed. No production code changed during this audit.
+
+A fresh `bun run test:e2e:full --platform=firefox` still fails before extension startup with **“Could not find profile folder.”** Both suite setup hooks fail; no Firefox runtime feature result can be claimed. Logs: `/tmp/ft-roadmap-{acceptance-audit,audit-smoke,audit-firefox,ai-overlap-after,audit-check}.log`.
+
+All twenty implementations and the final source/requirements audit are complete. The sole remaining gate is the previously requested macOS Firefox Application Support access, followed by full Firefox runtime validation and repair of any actual test failures. The same external blocker has persisted across multiple goal checkpoints; no safe implementation work remains that can satisfy that runtime gate without the permission change. The goal is blocked, not complete. No push, PR, merge or release performed.

@@ -756,6 +756,38 @@ describe("ReviewSession with Local AI: disagreeing with a check", () => {
     h.session.close();
   });
 
+  test("AI corrections around unchanged preferred wording remain visible", async () => {
+    const source = "She go with Acme Workspace and they goes home.";
+    const h = harness(source, { rules: ["preferredTerminology"] });
+    h.session.updateOptions({
+      lang: "en_US",
+      enabledRules: ["preferredTerminology"],
+      userDictionary: [],
+      insertSpaceAfterAutocomplete: true,
+      preferredTerminology: {
+        version: 1,
+        enabled: true,
+        entries: [
+          {
+            id: "acme",
+            source: "Acme Suite",
+            replacement: "Acme Workspace",
+            casePolicy: "exact",
+            explanation: "Our name",
+            language: "en_US",
+            scope: "all-prose",
+            enabled: true,
+          },
+        ],
+      },
+    });
+    h.ai.fix = (text) => text.replace("She go ", "She goes ").replace("they goes ", "they go ");
+    await h.start();
+    expect(h.aiFindings().map((d) => d.original)).toEqual(["go", "goes"]);
+    expect(h.editor.text).toBe(source);
+    h.session.close();
+  });
+
   test("style warnings do not suppress separately enabled AI corrections", async () => {
     const text =
       "The team reviewed every part of the detailed proposal and carefully considered all of the important information before making any decision about the next stage of the project because there were still several questions about teh final report.";
