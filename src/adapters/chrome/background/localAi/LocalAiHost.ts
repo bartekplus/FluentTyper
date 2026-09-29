@@ -566,8 +566,9 @@ export class LocalAiHost {
     if (running && !running.cancelled) {
       this.deliver(running, { ok: false, error });
       running.cancelled = true;
-      this.interruptRunning?.();
     }
+    // Also a load an earlier cancel kept for the queued work drained just now.
+    this.interruptIfOrphaned();
   }
 
   private pump(): void {

@@ -467,6 +467,21 @@ describe("LocalAiHost lifecycle", () => {
     expect(count("unload")).toBeGreaterThan(0);
   });
 
+  test("disabling Local AI ends a load an earlier cancel kept for queued work", async () => {
+    const { review, host, count } = makeHost({ load: never }, { loadTimeoutMs: 60_000 });
+    const port = review();
+    await flush();
+    port.emit({ type: "generate", requestId: "r1", request: request("x") });
+    await flush(5);
+    port.emit({ type: "generate", requestId: "r2", request: request("y") });
+    port.emit({ type: "cancel", requestId: "r1" });
+    await flush(5);
+    expect(count("unload")).toBe(0);
+    host.configure({ modelId: STANDARD.modelId }, false);
+    await flush(5);
+    expect(count("unload")).toBeGreaterThan(0);
+  });
+
   test("a load that succeeds after a failed one clears the load error", async () => {
     let fail = true;
     const { review, host } = makeHost({
