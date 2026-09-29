@@ -256,6 +256,13 @@ describe("correctionFindings", () => {
     // Comma after a sentence-initial interjection.
     expectRejected("Ok cool.", "Ok, cool.", "drift");
     expectRejected("Well I agree with that.", "Well, I agree with that.", "drift");
+    // A required clause boundary before degree/quantifier "too" stays eligible.
+    expect(
+      correctOne(
+        "If you go too many people will follow.",
+        "If you go, too many people will follow.",
+      ).applied,
+    ).toBe("If you go, too many people will follow.");
     // Optional comma before "too".
     expectRejected("This needs improvement too.", "This needs improvement, too.", "drift");
     expect(correctOne("However we left.", "However, we left.").applied).toBe("However, we left.");

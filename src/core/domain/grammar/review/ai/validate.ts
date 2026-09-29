@@ -1122,7 +1122,12 @@ function styleChoice(
     const word = original[before];
     if (word?.kind === "word" && starts[before] && INTERJECTIONS.has(lower(word.text))) return true;
     if (OPENING_QUOTES.test(original[after]?.text ?? "")) return true;
-    if (lower(original[after]?.text ?? "") === "too") return true;
+    if (lower(original[after]?.text ?? "") === "too") {
+      let following = after + 1;
+      while (original[following]?.kind === "space") following += 1;
+      // Only additive, clause-final "too"; "too many" may start the next clause.
+      if (!original[following] || /^[.!?…]$/.test(original[following].text)) return true;
+    }
   }
   if (removed.length !== 1 || added.length !== 1) return false;
   const [from, to] = [lower(removed[0].text), lower(added[0].text)];

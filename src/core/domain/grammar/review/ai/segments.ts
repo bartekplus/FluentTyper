@@ -183,8 +183,8 @@ export function buildAiChunks(prepared: PreparedReview, options: AiChunkOptions)
   }
   if (group.length > 0) groups.push(group);
 
-  // Keep pair boundaries stable: greedily repacking after a long sentence
-  // shifted its neighbours and missed article fixes in the Gemma evaluation.
+  // Preserve the evaluated 400-character greedy groups when applying the 200-character
+  // pair cap. Repacking at the smaller cap shifted neighbours and missed article fixes.
   const boundedGroups = rewrite
     ? groups
     : groups.flatMap((members) =>

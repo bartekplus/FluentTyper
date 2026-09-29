@@ -108,10 +108,16 @@ faster but raised correct-text changes for most models; not adopted.
 - Four further Correct-prompt variants gained at most 4 of 45 held-out fixes, on a held-out
   set that had informed them; not adopted.
 
+For saved Correct outputs, the evaluator defaults to the current Standard/Gemma
+chunking policy. Pass `--tier=compact` to `bun scripts/local-ai-eval/score.ts outputs.json`
+for Compact single-sentence outputs. This selects request reconstruction only; it does
+not run or change the model.
+
 ## Gemma Correct batching (2026-09-29)
 
-**Applied for Recommended (Gemma); Compact keeps single-sentence requests.** Form pairs
-in document order, then send a pair together only when its
+**Applied for Recommended (Gemma); Compact keeps single-sentence requests.** Form greedy
+groups of at most two sentences within the existing 400-character budget, then send
+a pair together only when its
 editable text fits within 200 characters. Split larger pairs into two single requests
 without regrouping their neighbours. Individual sentences retain the existing
 400-character limit; context remains 300 characters on each side. Segment IDs, protected

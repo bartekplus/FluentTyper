@@ -220,3 +220,18 @@ describe("Local AI fixtures", () => {
     expect(rewrites).not.toContain(REWRITE[0].text);
   });
 });
+
+test("Compact evaluation reconstructs single-sentence requests", () => {
+  const fixture = {
+    id: "compact-two",
+    lang: "en",
+    text: "This works. That works.",
+    expect: "unchanged" as const,
+    tags: [],
+  };
+  const raw = ["This works.", "That works."].map((text) =>
+    JSON.stringify({ segments: [{ id: "s0", text }] }),
+  );
+  expect(scoreCorrectCase(fixture, raw, false).unchangedOk).toBe(true);
+  expect(scoreCorrectCase(fixture, raw).valid).toBe(false);
+});

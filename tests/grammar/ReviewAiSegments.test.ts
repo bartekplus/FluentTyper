@@ -119,6 +119,20 @@ describe("buildAiChunks", () => {
     expectExactMapping(text, chunks);
   });
 
+  test("the 200-character cap preserves the evaluated greedy 400-character boundaries", () => {
+    const first = `First ${"detail ".repeat(35)}ends.`;
+    const second = `Second ${"detail ".repeat(23)}ends.`;
+    const text = `${first} ${second} Third sentence. Last sentence.`;
+    expect(first.length + second.length).toBeGreaterThan(400);
+    const { chunks } = plan(text, {}, CORRECT);
+    expect(chunks.map((chunk) => texts([chunk]))).toEqual([
+      [first],
+      [second, "Third sentence."],
+      ["Last sentence."],
+    ]);
+    expectExactMapping(text, chunks);
+  });
+
   test("splits sentences, keeps abbreviations, and turns a URL into a placeholder", () => {
     const text = "The results shows a problem. Visit https://example.com/a now. Mr. Smith is here.";
     const { chunks, skipped } = plan(text);

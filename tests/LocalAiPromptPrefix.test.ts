@@ -18,6 +18,7 @@ function harness() {
   const prefixDispose = jest.spyOn(prefixCache, "dispose");
   const generatedDispose = jest.fn(() => {});
   const generated = { location: "gpu-buffer", dispose: generatedDispose } as unknown as Tensor;
+  const seeds: Tensor[] = [];
   let fail = false;
   let duringPrefix = () => {};
   const generate = jest.fn(async (options: Record<string, unknown>) => {
@@ -26,6 +27,12 @@ function harness() {
       return { past_key_values: prefixCache };
     }
     const cache = options.past_key_values as DynamicCache | undefined;
+    if (cache) {
+      const seed = cache["past_key_values.0.key"];
+      expect(seed.location).toBe("cpu");
+      expect(await seed.ort_tensor.getData()).toHaveLength(400);
+      seeds.push(seed);
+    }
     cache?.update({ "past_key_values.0.key": generated });
     if (fail) throw new Error("lost device");
     return input();
@@ -51,6 +58,7 @@ function harness() {
   });
   return {
     wrapped,
+    seeds,
     generate,
     dispose,
     prefixDispose,
@@ -82,6 +90,11 @@ describe("Gemma instruction prefix", () => {
     const second = h.generate.mock.calls[3][0].past_key_values;
     expect(first).not.toBe(second);
     expect(h.generatedDispose).toHaveBeenCalledTimes(2);
+    expect(h.seeds[0]).toBe(h.seeds[1]);
+    expect(await h.seeds[0].ort_tensor.getData()).toHaveLength(400);
+    // DynamicCache also leaves a CPU seed alive when generation never replaces it.
+    await new DynamicCache({ "past_key_values.0.key": h.seeds[0] }).dispose();
+    expect(await h.seeds[0].ort_tensor.getData()).toHaveLength(400);
     const different = h.options();
     (different.input_ids.data as BigInt64Array)[0] = 2n;
     await h.wrapped.generate(different);
