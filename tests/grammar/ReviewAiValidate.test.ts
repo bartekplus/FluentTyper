@@ -156,6 +156,21 @@ describe("correctionFindings", () => {
     expect(needed.diagnostics).toEqual([]);
     const agree = correctOne("I agree with the plan.", "I disagree with the plan.");
     expect(agree.diagnostics).toEqual([]);
+    expectRejected(
+      "It is helpful, careful, and useful.",
+      "It is helpless, careless, and useless.",
+      "negation",
+    );
+    expectRejected(
+      "It is likely, legal, and possible.",
+      "It is unlikely, illegal, and impossible.",
+      "negation",
+    );
+    expectRejected("I like this helpful tool.", "I love this helpless thing.", "negation");
+  });
+
+  test("dense edits preserve a capitalized sentence-initial name", () => {
+    expectRejected("Alice likes green apples.", "Bob eats ripe bananas.", "name");
   });
 
   test("a unit next to a number is never changed (review finding)", () => {

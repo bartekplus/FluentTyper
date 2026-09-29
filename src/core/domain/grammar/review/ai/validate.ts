@@ -956,6 +956,33 @@ function correctUnit(
     }
     const removed = removedIndexes.map((index) => original[index]);
     const added = next.slice(hunk.p0, hunk.p1).filter((token) => token.kind === "word");
+    const splitOrJoined =
+      (removed.length === 1 &&
+        added.length === 2 &&
+        bare(lower(removed[0].text)) === bare(lower(added.map((token) => token.text).join("")))) ||
+      (removed.length === 2 &&
+        added.length === 1 &&
+        bare(lower(removed.map((token) => token.text).join(""))) === bare(lower(added[0].text)));
+    if (
+      !splitOrJoined &&
+      removed.some((before) =>
+        added.some((after) => oppositePolarity(lower(before.text), lower(after.text))),
+      )
+    ) {
+      return { reason: "negation" };
+    }
+    if (
+      dense &&
+      removedIndexes.some(
+        (index) =>
+          originalStarts[index] &&
+          /^\p{Lu}/u.test(original[index].text) &&
+          !PRONOUN_I.test(original[index].text) &&
+          !added.some((token) => closeKind(original[index].text, token.text)),
+      )
+    ) {
+      return { reason: "name" };
+    }
     if (removedIndexes.some((index) => afterNumber(original, index))) return { reason: "number" };
     for (let index = hunk.p0; index < hunk.p1; index += 1) {
       if (next[index].kind === "word" && afterNumber(next, index)) return { reason: "number" };
