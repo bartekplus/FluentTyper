@@ -333,10 +333,10 @@ describe("ReviewSession with Local AI: Correct", () => {
     const stale = h.ai.requests[0];
     h.editor.text = "We saw teh cat. She go to school.";
     h.session.notifySourceChanged();
-    expect(stale.signal.aborted).toBe(true);
     expect(h.last().ai.coverage).toBe("waiting");
     // The rule recheck runs; the model waits for its longer pause.
     await h.settle({ aiDelay: false });
+    expect(stale.signal.aborted).toBe(true);
     expect(h.last().diagnostics.map((d) => d.original)).toEqual(["teh"]);
     expect(h.last().ai.coverage).toBe("waiting");
     expect(h.ai.requests).toHaveLength(1);
@@ -406,6 +406,42 @@ describe("ReviewSession with Local AI: Correct", () => {
     await h.settle();
     expect(h.ai.requests.length - count).toBeLessThanOrEqual(5);
     expect(h.last().ai.coverage).toBe("complete");
+  });
+
+  test("Apply keeps an identical later request running and maps its answer to the new text", async () => {
+    const sentences = [
+      "This is teh first sentence.",
+      ...Array.from({ length: 18 }, (_, i) => `Sentence number ${i} has enough context to review.`),
+      "She go home now.",
+      "Everything else is ready.",
+    ];
+    const h = harness(sentences.join(" "));
+    h.ai.auto = false;
+    await h.start();
+    while (!h.ai.requests.at(-1)!.request.segments.some((s) => s.text.includes("She go"))) {
+      h.ai.requests.at(-1)!.answer();
+      await h.settle();
+    }
+    const later = h.ai.requests.at(-1)!;
+    const requestKey = JSON.stringify(later.request);
+    const first = h.last().diagnostics.find((d) => d.original === "teh")!;
+    const applying = h.session.apply(first.id);
+    await h.settle({ aiDelay: false });
+    expect(await applying).toEqual({ status: "applied" });
+    expect(later.signal.aborted).toBe(false);
+    expect(h.timers.some((timer) => timer.delay === AI_DELAY)).toBe(false);
+    h.ai.auto = true;
+    later.answer();
+    await h.settle();
+    expect(
+      h.ai.requests.filter(({ request }) => JSON.stringify(request) === requestKey),
+    ).toHaveLength(1);
+    const finding = h.aiFindings().find((d) => d.original === "go")!;
+    expect(finding.range.start).toBe(h.editor.text.indexOf("go home"));
+    const applyingFinding = h.session.apply(finding.id);
+    await h.settle();
+    expect(await applyingFinding).toEqual({ status: "applied" });
+    expect(h.editor.text).toContain("She goes home now.");
   });
 
   test("pause stops the pass and keeps what was shown; resume finishes it", async () => {
