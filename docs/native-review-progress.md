@@ -25,7 +25,7 @@ Execute sequentially: 1, 2, 3, 4, 8, 5, 6, 7, 9–20. Native TypeScript, individ
 | 16  | Punctuation warnings           | Implemented; Chrome verified; Firefox permission blocked |
 | 17  | Brand/acronym casing           | Implemented; Chrome verified; Firefox permission blocked |
 | 18  | Preferred terminology          | Implemented; Chrome verified; Firefox permission blocked |
-| 19  | Incremental rechecks           | Pending; profile first, retain simple path if no benefit |
+| 19  | Incremental rechecks           | Baseline profiled; bounded reuse and validation pending  |
 | 20  | Optional style hints           | Pending; default off                                     |
 
 ## Validation
@@ -567,3 +567,27 @@ Logs: `/tmp/ft-native-terms-ui-verified-{check,unit,chrome,build-chrome,build-fi
 Moving the editor translations out of the shared Review table removed an observed **11,871-byte** content-script increase. Relative to the native matcher checkpoint, final content/background/popup JS are unchanged; settings JS adds **19,037 bytes**. For all of #18 against #17 (`production-chrome-full-1715-1790714106596`), final deltas are content **+6,431 bytes**, background **+3,175**, settings **+20,269**, popup **+3,088**. Final candidate: `production-chrome-full-6888-1790716334843`. Native scan costs remain recorded in the matching checkpoint above. No new dependencies, permissions, external services or typing activation.
 
 Item #18 is implemented with Chrome validation. **18/20 implemented.** Next: #19 profile native rechecks before choosing bounded result reuse; #20 optional style hints remains afterward. Complete roadmap delivery still requires Firefox runtime validation.
+
+## #19 profiling checkpoint
+
+Reproducible baseline at runtime commit `7bb09dfe`: `bun scripts/profile-native-review.ts`. The script uses authored repeated/truncated clean, error-bearing and context-dependent proof paragraphs, exactly 1k/10k/50k UTF-16 characters. All native catalog rules are requested in English; authored terminology is unconfigured, spelling/AI and DOM work are excluded. Bun **1.4.2**, Apple M2 Max, arm64. Five warmups, 21 measured samples per fixture; values below are phase medians in milliseconds. Detection includes chunk construction, finalization includes diagnostic validation/deduplication/coverage, bulk includes planning and its actual proof requests. Proof time is a subset of bulk time; phase medians are not an end-to-end percentile.
+
+| Fixture | Characters | Prepare | Detect  | Finalize | Bulk    | Proof within bulk | Detection calls | Proof calls |
+| ------- | ---------- | ------- | ------- | -------- | ------- | ----------------- | --------------- | ----------- |
+| clean   | 1,000      | 0.067   | 0.494   | 0.003    | 0.004   | 0.000             | 31              | 0           |
+| clean   | 10,000     | 0.321   | 26.059  | 0.006    | 0.004   | 0.000             | 93              | 0           |
+| clean   | 50,000     | 1.529   | 110.111 | 0.010    | 0.007   | 0.000             | 403             | 0           |
+| proof   | 1,000      | 0.037   | 0.426   | 0.041    | 1.032   | 0.975             | 31              | 62          |
+| proof   | 10,000     | 0.341   | 26.811  | 0.360    | 65.331  | 64.940            | 93              | 186         |
+| proof   | 50,000     | 1.672   | 92.677  | 1.515    | 187.270 | 184.934           | 403             | 806         |
+| errors  | 1,000      | 0.035   | 0.467   | 0.058    | 0.009   | 0.000             | 31              | 0           |
+| errors  | 10,000     | 0.334   | 20.146  | 0.588    | 0.075   | 0.000             | 93              | 0           |
+| errors  | 50,000     | 1.955   | 126.166 | 3.419    | 0.357   | 0.000             | 403             | 0           |
+
+Each size scans 1/3/13 chunks and calls 31 enabled detector groups per chunk (including empty document-wide result distributors). The proof fixture really invokes two proof requests, producing another 2/6/26 chunk scans; clean and ordinary error fixtures invoke no proof. At 50k there are 0/2,326/1,483 diagnostics for clean/proof/errors respectively. The benchmark asserts no rule failures, expected clean/error presence, actual proof invocation and exact equality of the instrumented output with the ordinary full-scan result. Per-detector call/time instrumentation runs separately after the median samples and restores every detector in `finally`; its clocks do not inflate the median measurements. Raw output: `/tmp/ft-native-review-baseline.jsonl`.
+
+Detection dominates full-scan cost on the long authored drafts; preparation and finalization are much smaller. In a separate instrumented 50k clean scan, usage phrases took 13.196 ms, contextual possessives 12.487 ms, word confusions 8.993 ms and countability 8.245 ms. These single-run attribution values are directional, not paired performance results. Dense context-dependent batches add significant proof work (184.934 ms median at 50k); reuse must not weaken or bypass that proof. Timing variation between the initial probe and final run means any candidate still needs paired before/after measurement.
+
+Next implementation target: bounded, session-local reuse for explicitly audited dependency scopes, starting with the shared phrase-template path (`englishFixedPrepositions` and `englishUsagePhrases`). It reads from 256 characters before chunk ownership, has explicit named/literal evidence 96 characters before a match, scans with the existing 1,024-character lookahead, and reads phrase-end evidence. These actual reads must be captured, including negative-match evidence and edge conditions; current diagnostic context alone is insufficient. Continue full preparation for Markdown/structure and document-wide rules, rebuild diagnostics through finalization, and leave safe-batch proof on the full-scan path. Expand reuse only after source auditing and measured benefit. No runtime cache is implemented in this checkpoint.
+
+`bun run check` passed; the benchmark's runnable assertions passed for all nine fixtures. This checkpoint changes profiling/documentation only, so browser/runtime gates remain those of #18. **18/20 implemented**, #19 still in progress: exact full-scan/property comparisons, invalidation/limits/cancellation/undo coverage, candidate timing and runtime validation remain outstanding.
