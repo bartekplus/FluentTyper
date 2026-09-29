@@ -53,6 +53,12 @@ interface ReviewAlternative {
 }
 
 export type ReviewMessageKey =
+  | "review_msg_then_than"
+  | "review_msg_your_you_are"
+  | "review_msg_they_are"
+  | "review_msg_your_possessive"
+  | "review_msg_their_possessive"
+  | "review_msg_to_too"
   | "review_msg_auxiliary_base"
   | "review_msg_repeated_words"
   | "review_msg_sentence_start"

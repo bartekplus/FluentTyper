@@ -3,6 +3,27 @@
   "capturedAt": "2026-09-15",
   "behaviors": [
     {
+      "id": "review_word_confusions",
+      "description": "Four independently selectable native word-confusion families require bounded grammatical evidence, preserve ambiguous and protected content, avoid existing-rule duplicates, and use individual verified edits with native undo.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewWordConfusions.test.ts",
+          "test": "each family has independent selection, language and dictionary guards"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewWordConfusions.test.ts",
+          "test": "chunk ownership follows the corrected word even when its evidence starts earlier"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review native grammar applies individual edits with native undo"
+        }
+      ]
+    },
+    {
       "id": "review_auxiliary_forms",
       "description": "Native auxiliary-form suggestions use authored forms, preserve ambiguous syntax and protected scope, stay individual-only, and support verified native undo.",
       "coverage": [

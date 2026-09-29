@@ -138,6 +138,10 @@ Supported (**Typing** is the rule's default for typing; review runs it either wa
 
 | Rule                                   | Language | Typing      | Category    | Fix all                                                                                           |
 | -------------------------------------- | -------- | ----------- | ----------- | ------------------------------------------------------------------------------------------------- |
+| `englishThenThan`                      | English  | unavailable | grammar     | individual only                                                                                   |
+| `englishYourYouAre`                    | English  | unavailable | grammar     | individual only                                                                                   |
+| `englishTheirThereTheyAre`             | English  | unavailable | grammar     | individual only                                                                                   |
+| `englishToToo`                         | English  | unavailable | grammar     | individual only                                                                                   |
 | `englishAuxiliaryBaseVerb`             | English  | unavailable | grammar     | individual only                                                                                   |
 | `englishRepeatedWords`                 | English  | unavailable | grammar     | individual only                                                                                   |
 | `capitalizeSentenceStart`              | all      | on          | typography  | yes (after a quote or bracket closing a period: individual only)                                  |
@@ -158,6 +162,25 @@ Supported (**Typing** is the rule's default for typing; review runs it either wa
 | `commaPeriodSpacing`                   | all      | on          | punctuation | yes                                                                                               |
 | `collapseRepeatedSpaces`               | all      | on          | punctuation | yes (alignment gaps and Markdown table padding are left alone)                                    |
 | `duplicatePunctuationCollapse`         | all      | off         | punctuation | yes                                                                                               |
+
+Contextual word confusions have four independent Review-only identities:
+
+- `englishThenThan`: a copula, a listed comparative and a complete comparison
+  argument (a known noun phrase or object pronoun). Temporal "then", unknown noun
+  phrases and following finite clauses abstain.
+- `englishYourYouAre`: clause-opening "your going to" with a listed verb and
+  object, or an object-taking verb followed by "you're own" and a known noun.
+  Possessive gerunds ("your going away", "I dislike your going…") abstain.
+- `englishTheirThereTheyAre`: the same bounded future construction for
+  "their/there going to", and "there/they're own" in a complete object noun phrase.
+- `englishToToo`: copular "to + listed adjective + to + listed verb". Ambiguous
+  adjectives that are also verbs ("fast", "slow", "light") are not included.
+
+These checks replace only the confused word and record the surrounding evidence.
+They do not depend on dictionary misspellings. Existing "your welcome" and
+"their is" checks retain sole ownership. Named quoted examples, technical glue,
+protected islands and newline-spanning constructions are excluded. These finite
+lists provide bounded coverage, not a general homophone or English parser.
 
 Auxiliary verb forms are Review-only. A small authored table covers 24 common
 verbs, with no suffix guessing. Pronoun-led clauses and inverted pronoun questions

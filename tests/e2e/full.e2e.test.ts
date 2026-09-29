@@ -6986,6 +6986,14 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       for (const [source, expected, highlight] of [
         ["I opened the the report.", "I opened the report.", "the␣the → the"],
         ["Did she went home?", "Did she go home?", "Did she went → Did she go"],
+        [
+          "This version is faster then the old version.",
+          "This version is faster than the old version.",
+          "then → than",
+        ],
+        ["They forgot there own password.", "They forgot their own password.", "there → their"],
+        ["Your going to like this.", "You're going to like this.", "Your → You're"],
+        ["The box is to heavy to lift.", "The box is too heavy to lift.", "to → too"],
       ]) {
         await prepareReviewPage();
         await setTextarea(source);

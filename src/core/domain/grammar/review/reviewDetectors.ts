@@ -1,3 +1,4 @@
+import { wordConfusions } from "./englishWordConfusions";
 import { auxiliaryForms } from "./englishAuxiliaryForms";
 import type { CatalogRuleId } from "../ruleCatalog";
 import { SPACE_CHARS } from "../../spacingRules";
@@ -1080,6 +1081,10 @@ const repeatedWords: Detector = (ctx) => {
 export const REVIEW_DETECTORS: ReadonlyArray<{ rules: CatalogRuleId[]; detect: Detector }> = [
   { rules: ["englishRepeatedWords"], detect: repeatedWords },
   { rules: ["englishAuxiliaryBaseVerb"], detect: auxiliaryForms },
+  {
+    rules: ["englishThenThan", "englishYourYouAre", "englishTheirThereTheyAre", "englishToToo"],
+    detect: wordConfusions,
+  },
   { rules: ["capitalizeSentenceStart", "capitalizeAfterLineBreak"], detect: capitalizeStarts },
   { rules: ["englishPronounICapitalization"], detect: pronounI },
   {

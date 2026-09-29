@@ -68,7 +68,14 @@ export interface GrammarRule {
 }
 
 export interface GrammarRuleCatalogEntry {
-  id: GrammarRuleId | "englishRepeatedWords" | "englishAuxiliaryBaseVerb";
+  id:
+    | GrammarRuleId
+    | "englishRepeatedWords"
+    | "englishAuxiliaryBaseVerb"
+    | "englishThenThan"
+    | "englishYourYouAre"
+    | "englishTheirThereTheyAre"
+    | "englishToToo";
   /** Absent for existing typing rules; false for native Review-only checks. */
   typing?: false;
   name: string;

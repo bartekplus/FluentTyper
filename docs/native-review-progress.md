@@ -9,7 +9,7 @@ Execute sequentially: 1, 2, 3, 4, 8, 5, 6, 7, 9–20. Native TypeScript, individ
 | --- | ------------------------------ | -------------------------------------------------------- |
 | 1   | Repeated words                 | Implemented; Chrome verified; Firefox launch blocked     |
 | 2   | Auxiliary base verbs           | Implemented; Chrome verified; Firefox launch blocked     |
-| 3   | Contextual word confusions     | Pending                                                  |
+| 3   | Contextual word confusions     | Implemented; Chrome verified; Firefox launch blocked     |
 | 4   | Agreement extensions           | Pending                                                  |
 | 5   | Contractions and possessives   | Pending                                                  |
 | 6   | Fixed prepositions             | Pending                                                  |
@@ -74,3 +74,31 @@ Measured on Bun 1.4.2 locally, new detector only, 5 warmups then median of 21 co
 Clean phrase: `Did she read the document? We did cut the cable. `; error phrase: `Did she went home? He can works remotely. `. Repeat and truncate to size. Snapshot scope covers all characters; only `englishAuxiliaryBaseVerb` enabled. No AI/spelling or DOM cost included. A million alternating known/unknown table lookups took 35.11 ms (500,000 hits). These are local synthetic costs, not an isolated performance comparison or an accuracy claim.
 
 Production JS byte delta against #1's saved Chrome full-suite build: content script **+3,589**, background **+1,760**, settings **+276**, popup **+276**. No dependencies added. Existing `.tmp/e2e-builds/production-chrome-full-38473-1790702874427` is the baseline and `production-chrome-full-39426-1790703299908` the candidate.
+
+## #3 contextual word confusions
+
+Four native Review-only identities: `englishThenThan`, `englishYourYouAre`, `englishTheirThereTheyAre`, `englishToToo`. Native pattern evidence requires a complete comparison argument, a bounded future clause, a complete possessive object phrase, or an intensifier construction. Original your-welcome and their-is rules retain sole ownership. All new findings are individual-only. Six contextual explanations are translated into all nine UI languages.
+
+Focused corpus: **153 pass**: 48 authored repairs (12 per subfamily), 100 preservation cases (24/26/26/24), plus five pipeline, isolation, source-boundary, overlap and chunk-ownership checks. Self-review added four failing possessive-gerund regressions; requiring a clause opening fixed them without changing the acceptance examples. Broader sentence shapes remain documented exclusions.
+
+- `bun run check`: passed.
+- Full unit suite on the final source: **3,628 pass, 0 fail**.
+- Chrome full browser suite: **92 pass, 10 skip, 0 fail**, including all four required #3 repairs, individual-only availability, and native undo. Focused final-source rerun after the mixed-case guard: **1 pass, 0 fail**, covering all six #1–#3 native edit/undo fixtures.
+- Production Chrome and Firefox builds: passed.
+- Coverage mapping: passed, 189 behaviors.
+- Firefox runtime remains unverified due to the launch blocker documented under #1.
+- Logs: `/tmp/ft-native-confusions-{focused,red,check,unit,full-chrome,browser,build-chrome,build-firefox,benchmark}.log`.
+
+Authored-corpus result: 48/48 supported errors detected, 0/100 preservation cases flagged by their target subfamily, and no target-family finding after each intended repair. This does not measure open-ended linguistic accuracy. Unlisted predicates/nouns, clause-internal future phrases, unknown comparison arguments and other documented exclusions remain unsupported.
+
+Local synthetic scan costs (Bun 1.4.2, only these four IDs enabled, 5 warmups, median of 21 full native scans; no AI/spelling/DOM):
+
+| Characters | Clean (ms) | Dense errors (ms) | Dense findings |
+| ---------- | ---------- | ----------------- | -------------- |
+| 1,000      | 0.050      | 0.113             | 30             |
+| 10,000     | 0.362      | 1.243             | 305            |
+| 50,000     | 1.859      | 5.420             | 1,526          |
+
+Error phrase: `This version is faster then the old version. They forgot there own password. Your going to like this. The box is to heavy to lift. `. Clean phrase replaces then/there/to with than/their/too and Your with You are. Repeat/truncate to size; scope covers all characters. These local fixture costs are not an isolated before/after performance result.
+
+Production JS delta from #2's retained Chrome build (`production-chrome-full-39426-1790703299908`): content script **+7,123 bytes**, background **+1,396**, settings **+1,043**, popup **+1,043**. No dependency, permission or typing-rule addition.
