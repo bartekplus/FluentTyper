@@ -138,6 +138,7 @@ Supported (**Typing** is the rule's default for typing; review runs it either wa
 
 | Rule                                   | Language | Typing      | Category    | Fix all                                                                                           |
 | -------------------------------------- | -------- | ----------- | ----------- | ------------------------------------------------------------------------------------------------- |
+| `englishAuxiliaryBaseVerb`             | English  | unavailable | grammar     | individual only                                                                                   |
 | `englishRepeatedWords`                 | English  | unavailable | grammar     | individual only                                                                                   |
 | `capitalizeSentenceStart`              | all      | on          | typography  | yes (after a quote or bracket closing a period: individual only)                                  |
 | `capitalizeAfterLineBreak`             | all      | on          | typography  | individual only: line starts in poems, lists and hard-wrapped text are often lowercase on purpose |
@@ -157,6 +158,16 @@ Supported (**Typing** is the rule's default for typing; review runs it either wa
 | `commaPeriodSpacing`                   | all      | on          | punctuation | yes                                                                                               |
 | `collapseRepeatedSpaces`               | all      | on          | punctuation | yes (alignment gaps and Markdown table padding are left alone)                                    |
 | `duplicatePunctuationCollapse`         | all      | off         | punctuation | yes                                                                                               |
+
+Auxiliary verb forms are Review-only. A small authored table covers 24 common
+verbs, with no suffix guessing. Pronoun-led clauses and inverted pronoun questions
+support do/does/did, modals, straight/curly negative contractions, and up to two
+listed intervening adverbs. The auxiliary, subject and negation are preserved.
+Independent base homographs (`read`, `cut`, `set`, `saw`, `found`), noun readings
+such as "do works"/"do runs", unknown forms, mixed-case identifiers, protected text,
+and directly named quoted examples are left alone. Clause-internal subordinate
+syntax ("What I did works"), noun subjects and newline-spanning phrases are outside
+this initial scope. Existing modal-of and agreement checks retain their ownership.
 
 Repeated words are Review-only: a bounded allowlist (`the`, `a`, `an`, `is`,
 `are`, `was`, `were`, `in`, `on`, `at`, `for`, `with`, `from`, `of`) separated by

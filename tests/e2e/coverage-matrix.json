@@ -3,6 +3,27 @@
   "capturedAt": "2026-09-15",
   "behaviors": [
     {
+      "id": "review_auxiliary_forms",
+      "description": "Native auxiliary-form suggestions use authored forms, preserve ambiguous syntax and protected scope, stay individual-only, and support verified native undo.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewAuxiliaryForms.test.ts",
+          "test": "preserves dictionary, language, selected scope and code islands"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewAuxiliaryForms.test.ts",
+          "test": "native overlap stays distinct and typing never instantiates this rule"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review native grammar applies individual edits with native undo"
+        }
+      ]
+    },
+    {
       "id": "install_page_reachable",
       "description": "Extension installation page is reachable after startup.",
       "coverage": [
@@ -3575,7 +3596,7 @@
         {
           "layer": "e2e-full",
           "file": "tests/e2e/full.e2e.test.ts",
-          "test": "Review repeated words applies one individual deletion with native undo"
+          "test": "Review native grammar applies individual edits with native undo"
         },
         {
           "layer": "unit",

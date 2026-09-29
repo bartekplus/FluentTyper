@@ -15,6 +15,17 @@ type Translations = readonly [
 ];
 
 const EXPLANATIONS: Record<ReviewMessageKey, Translations> = {
+  review_msg_auxiliary_base: [
+    "Use the base form of the verb after this auxiliary.",
+    "Utilisez la forme de base du verbe après cet auxiliaire.",
+    "Nakon ovog pomoćnog glagola upotrijebite osnovni oblik glagola.",
+    "Use la forma base del verbo después de este auxiliar.",
+    "Μετά από αυτό το βοηθητικό ρήμα χρησιμοποιήστε τη βασική μορφή του ρήματος.",
+    "Använd verbets grundform efter detta hjälpverb.",
+    "Nach diesem Hilfsverb steht die Grundform des Verbs.",
+    "Po tym czasowniku pomocniczym użyj podstawowej formy czasownika.",
+    "Use a forma base do verbo depois deste auxiliar.",
+  ],
   review_msg_repeated_words: [
     "This word may have been repeated accidentally.",
     "Ce mot a peut-être été répété par accident.",

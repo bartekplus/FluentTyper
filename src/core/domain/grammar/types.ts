@@ -68,7 +68,7 @@ export interface GrammarRule {
 }
 
 export interface GrammarRuleCatalogEntry {
-  id: GrammarRuleId | "englishRepeatedWords";
+  id: GrammarRuleId | "englishRepeatedWords" | "englishAuxiliaryBaseVerb";
   /** Absent for existing typing rules; false for native Review-only checks. */
   typing?: false;
   name: string;

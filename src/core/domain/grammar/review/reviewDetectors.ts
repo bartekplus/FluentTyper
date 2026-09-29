@@ -1,3 +1,4 @@
+import { auxiliaryForms } from "./englishAuxiliaryForms";
 import type { CatalogRuleId } from "../ruleCatalog";
 import { SPACE_CHARS } from "../../spacingRules";
 import { usesFrenchPunctuationSpacing } from "../typographyProfiles";
@@ -70,7 +71,7 @@ import type { ReviewEdit, ReviewMessageKey, TextRange } from "./types";
  * helpers, evaluated at positions in the finished text. No typing events are
  * simulated and no delimiter is appended at the end of the input.
  */
-interface DetectContext {
+export interface DetectContext {
   source: string;
   text: string;
   /**
@@ -1078,6 +1079,7 @@ const repeatedWords: Detector = (ctx) => {
 /** Review detectors by rule. Rules absent here are excluded from review (see reviewCatalog). */
 export const REVIEW_DETECTORS: ReadonlyArray<{ rules: CatalogRuleId[]; detect: Detector }> = [
   { rules: ["englishRepeatedWords"], detect: repeatedWords },
+  { rules: ["englishAuxiliaryBaseVerb"], detect: auxiliaryForms },
   { rules: ["capitalizeSentenceStart", "capitalizeAfterLineBreak"], detect: capitalizeStarts },
   { rules: ["englishPronounICapitalization"], detect: pronounI },
   {
