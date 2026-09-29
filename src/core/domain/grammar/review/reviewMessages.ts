@@ -15,6 +15,39 @@ type Translations = readonly [
 ];
 
 const EXPLANATIONS: Record<ReviewMessageKey, Translations> = {
+  review_msg_countability: [
+    "Check noun countability in ordinary prose.",
+    "Vérifiez les noms dénombrables dans la prose courante.",
+    "Provjerite brojivost imenica u običnom tekstu.",
+    "Revise los sustantivos contables en la prosa común.",
+    "Ελέγξτε τα μετρήσιμα ουσιαστικά στον καθημερινό λόγο.",
+    "Kontrollera substantivs räknebarhet i vanlig text.",
+    "Prüfen Sie die Zählbarkeit von Substantiven in Alltagstexten.",
+    "Sprawdź policzalność rzeczowników w zwykłym tekście.",
+    "Verifique os substantivos contáveis na prosa comum.",
+  ],
+  review_msg_mass_noun: [
+    "This noun normally has no plural ending in this ordinary-prose context.",
+    "Dans ce contexte courant, ce nom ne prend normalement pas de marque du pluriel.",
+    "U ovom običnom kontekstu ova imenica obično nema nastavak za množinu.",
+    "En este contexto común, este sustantivo normalmente no lleva terminación plural.",
+    "Σε αυτό το καθημερινό πλαίσιο, το ουσιαστικό συνήθως δεν παίρνει κατάληξη πληθυντικού.",
+    "I det här vanliga sammanhanget har substantivet normalt ingen pluraländelse.",
+    "In diesem alltäglichen Kontext hat dieses Substantiv normalerweise keine Pluralendung.",
+    "W tym zwykłym kontekście ten rzeczownik zazwyczaj nie ma końcówki liczby mnogiej.",
+    "Neste contexto comum, este substantivo normalmente não tem terminação de plural.",
+  ],
+  review_msg_countable_number: [
+    "Use the noun form that matches the stated number.",
+    "Utilisez la forme du nom correspondant au nombre indiqué.",
+    "Upotrijebite oblik imenice koji odgovara navedenom broju.",
+    "Use la forma del sustantivo que corresponde al número indicado.",
+    "Χρησιμοποιήστε τη μορφή του ουσιαστικού που αντιστοιχεί στον αριθμό.",
+    "Använd substantivformen som passar det angivna antalet.",
+    "Verwenden Sie die Substantivform, die zur angegebenen Zahl passt.",
+    "Użyj formy rzeczownika zgodnej z podaną liczbą.",
+    "Use a forma do substantivo que corresponde ao número indicado.",
+  ],
   review_msg_compounds: [
     "Check compound words in context.",
     "Vérifiez les mots composés en contexte.",

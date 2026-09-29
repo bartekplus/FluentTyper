@@ -2,6 +2,19 @@ import type { GrammarRuleCatalogEntry, GrammarRuleId } from "./types";
 
 export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   {
+    id: "englishCountability",
+    typing: false,
+    name: "Countability in ordinary prose",
+    titleI18nKey: "review_msg_countability",
+    descriptionI18nKey: "review_msg_countability",
+    exampleI18nKey: "",
+    languageScope: "en_US",
+    safetyTier: "advanced",
+    defaultRollout: "off",
+    recommended: false,
+    priority: 155,
+  },
+  {
     id: "englishContextualCompounds",
     typing: false,
     name: "Contextual compound words",

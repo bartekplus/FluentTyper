@@ -1,3 +1,17 @@
+export const ENGLISH_COUNT_WORDS = [
+  "zero",
+  "one",
+  "two",
+  "three",
+  "four",
+  "five",
+  "six",
+  "seven",
+  "eight",
+  "nine",
+  "ten",
+];
+
 /** Authored countable nouns; no suffix inference, collectives or invariant-number guesses. */
 const PAIRS = [
   ["device", "devices"],

@@ -18,7 +18,7 @@ Execute sequentially: 1, 2, 3, 4, 8, 5, 6, 7, 9–20. Native TypeScript, individ
 | 9   | Participles                    | Implemented; Chrome verified; Firefox permission blocked |
 | 10  | Demonstratives and noun number | Implemented; Chrome verified; Firefox permission blocked |
 | 11  | Compounds                      | Implemented; Chrome verified; Firefox permission blocked |
-| 12  | Countability                   | Pending                                                  |
+| 12  | Countability                   | Implemented; Chrome verified; Firefox permission blocked |
 | 13  | Comparatives                   | Pending                                                  |
 | 14  | Fixed phrases                  | Pending                                                  |
 | 15  | Session ignore-all             | Pending                                                  |
@@ -323,3 +323,33 @@ Error phrase: `I use this tool everyday. Please login to continue. We need to se
 Production JS delta against #10's retained build (`production-chrome-full-54178-1790708264999`): content script **+5,487 bytes**, background **+1,721**, settings **+3,177**, popup **+369**. Candidate: `production-chrome-full-59985-1790708754356`. No dependency, permission or typing behavior added.
 
 Next: #12 countability. Eleven of twenty features implemented; full completion requires the remaining nine features and Firefox runtime validation.
+
+## #12 conservative countability
+
+The Review-only `englishCountability` identity covers informations, advices and equipments in documented ordinary-prose frames. It also selects criterion/criteria or phenomenon/phenomena from explicit one–ten or single-digit counts, without changing quantities. The existing zero–ten count-word list now lives in the shared noun helper and is reused by #10 and #12. The two special noun pairs remain confined to the countability detector so disabling that family does not leave equivalent findings enabled under general noun number. Three explanations are translated into all nine UI languages.
+
+Quantified mass nouns and a/an constructions abstain instead of inventing an amount or unit; no incomplete determiner repair is offered. Legal, banking, commercial, regional and archaic vocabulary in the bounded 128-character context causes abstention. Unknown syntax, quoted examples, product-name casing, grouped counts, technical tokens, user-dictionary words and protected evidence are preserved. Data agreement and fewer/less style are unchanged; experience/work/paper/coffee are excluded.
+
+Focused corpus: **149 pass**: 48 authored repairs, 99 preservation cases and two pipeline tests. Expected repairs, no target-family findings on preservation cases, no recorrection. Combined countability/noun-number suite: **275 pass**. Self-review added three quoted-term/heading/label cases that failed before the quotation guard was extended; ordinary quoted prose still produces findings. These authored results do not establish general linguistic accuracy. Context covers every specialist or quoted-evidence character read, including following qualifiers, and every chunk split in the Unicode/CRLF fixture yields the same findings.
+
+The existing parameterized individual Apply/recheck/native-undo browser fixture now includes the three required examples and equipment. Every case verifies unchanged source before Apply, one native card, no duplicate spelling card, and no Fix all eligibility.
+
+- Full unit and Chrome suites after the quotation fix: **4,577 unit pass**; **103 Chrome pass, 10 skip, 0 fail**.
+- Final-source suites after extracting the shared count list: **4,577 unit pass, 0 fail**; **103 Chrome pass, 10 skip, 0 fail**.
+- Final-source `bun run check`, production Chrome/Firefox builds: passed. Coverage mapping: **198 behaviors**.
+- Firefox runtime remains pending the previously requested macOS permission.
+- Logs: `/tmp/ft-native-countability-{focused,quote-regression-before,shared,check-shared,unit-shared,full-chrome-shared,build-chrome-shared,build-firefox-shared,benchmark-shared}.log`.
+
+Synthetic scan costs (Bun 1.4.2, this ID only, 5 warmups then median of 21 full native scans; no AI/spelling/DOM):
+
+| Characters | Clean (ms) | Dense errors (ms) | Dense findings |
+| ---------- | ---------- | ----------------- | -------------- |
+| 1,000      | 0.068      | 0.128             | 29             |
+| 10,000     | 0.466      | 1.014             | 291            |
+| 50,000     | 2.340      | 6.454             | 1,456          |
+
+Error phrase: `The page contains useful informations. Thanks for the helpful advices. This is one important criteria. `. Clean phrase applies the three intended repairs. Repeat/truncate with whole-text scope. These local fixture costs are not an isolated before/after performance claim.
+
+Production JS delta against #11's retained build (`production-chrome-full-59985-1790708754356`): content script **+5,077 bytes**, background **+660**, settings **+2,431**, popup **+366**. Candidate: `production-chrome-full-67248-1790709478615`. No dependency, permission or typing behavior added.
+
+Next: #13 malformed comparatives/superlatives. Twelve of twenty features implemented; full completion requires the remaining eight features and Firefox runtime validation.

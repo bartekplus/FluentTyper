@@ -1,3 +1,4 @@
+import { countability } from "./englishCountability";
 import { contextualCompounds } from "./englishCompounds";
 import { nounNumberConstructions } from "./englishNounNumber";
 import { perfectParticiples } from "./englishParticiples";
@@ -1095,6 +1096,7 @@ export const REVIEW_DETECTORS: ReadonlyArray<{ rules: CatalogRuleId[]; detect: D
   { rules: ["englishVerbComplements"], detect: verbComplements },
   { rules: ["englishPerfectParticiples"], detect: perfectParticiples },
   { rules: ["englishNounNumber"], detect: nounNumberConstructions },
+  { rules: ["englishCountability"], detect: countability },
   { rules: ["englishContextualCompounds"], detect: contextualCompounds },
   { rules: ["englishRepeatedWords"], detect: repeatedWords },
   { rules: ["englishAuxiliaryBaseVerb"], detect: auxiliaryForms },

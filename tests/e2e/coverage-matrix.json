@@ -3790,7 +3790,7 @@
         {
           "layer": "e2e-full",
           "file": "tests/e2e/full.e2e.test.ts",
-          "test": "Review compounds apply individual edits with native undo: %s"
+          "test": "Review bounded grammar applies individual edits with native undo: %s"
         },
         {
           "layer": "e2e-full",
@@ -3806,6 +3806,27 @@
           "layer": "unit",
           "file": "tests/grammar/ReviewCompounds.test.ts",
           "test": "compound replacements respect dictionary, read-only segments, language and scope"
+        }
+      ]
+    },
+    {
+      "id": "review_countability",
+      "description": "Ordinary-prose mass nouns and explicit criterion/phenomenon counts preserve quantities, specialist uses and protected evidence; individual repairs recheck and undo in the browser.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review bounded grammar applies individual edits with native undo: %s"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewCountability.test.ts",
+          "test": "countability preserves quantities, protected evidence and independent controls"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewCountability.test.ts",
+          "test": "countability owns one chunk and exposes all specialist evidence"
         }
       ]
     }

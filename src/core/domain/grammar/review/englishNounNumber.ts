@@ -1,4 +1,7 @@
-import { englishNounForms } from "../implementations/helpers/EnglishNounNumber";
+import {
+  englishNounForms,
+  ENGLISH_COUNT_WORDS,
+} from "../implementations/helpers/EnglishNounNumber";
 import { applyWordCase, detectWordCase } from "../implementations/helpers/GenericRuleShared";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 
@@ -8,22 +11,10 @@ const ADJECTIVE = `(?:(?:new|old|missing|broken|small|large|updated)${SPACE})?`;
 const END = "(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))";
 const STATUS = "(?:missing|broken|ready|new|old|available|useful)";
 const PAST = "(?:failed|arrived|returned)";
-const COUNTS = [
-  "zero",
-  "one",
-  "two",
-  "three",
-  "four",
-  "five",
-  "six",
-  "seven",
-  "eight",
-  "nine",
-  "ten",
-];
+
 const templates = [
   `(?<one>one${SPACE}of${SPACE}the)${SPACE}${ADJECTIVE}(?<noun>[A-Za-z]+)(?<tail>${SPACE}(?:${PAST}|(?:is|was)${SPACE}${STATUS}|has${SPACE}failed))${END}`,
-  `(?<count>${COUNTS.join("|")}|[0-9]{1,4})${SPACE}${ADJECTIVE}(?<noun>[A-Za-z]+)(?<tail>(?:${SPACE}(?:${PAST}|(?:in|on|near)${SPACE}the${SPACE}(?:report|folder|office|table|room|screen)))?)${END}`,
+  `(?<count>${ENGLISH_COUNT_WORDS.join("|")}|[0-9]{1,4})${SPACE}${ADJECTIVE}(?<noun>[A-Za-z]+)(?<tail>(?:${SPACE}(?:${PAST}|(?:in|on|near)${SPACE}the${SPACE}(?:report|folder|office|table|room|screen)))?)${END}`,
   `(?<dem>these|those)(?<gap>${SPACE}${ADJECTIVE})(?<noun>[A-Za-z]+)(?<tail>${SPACE}(?:(?<verb>are|were|is|was)${SPACE}${STATUS}|${PAST}))${END}`,
 ];
 

@@ -7048,30 +7048,38 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   );
 
   test.each([
+    [
+      "The page contains useful informations.",
+      "The page contains useful information.",
+      "informations → information",
+    ],
+    ["Thanks for the helpful advices.", "Thanks for the helpful advice.", "advices → advice"],
+    ["This is one important criteria.", "This is one important criterion.", "criteria → criterion"],
+    ["We need the new equipments.", "We need the new equipment.", "equipments → equipment"],
     ["I use this tool everyday.", "I use this tool every day.", "everyday → every␣day"],
     ["Please login to continue.", "Please log in to continue.", "login → log␣in"],
     ["We need to setup the environment.", "We need to set up the environment.", "setup → set␣up"],
   ])(
-    "Review compounds apply individual edits with native undo: %s",
+    "Review bounded grammar applies individual edits with native undo: %s",
     async (source, expected, highlight) => {
       await prepareReviewPage();
       await setTextarea(source);
       await triggerReview(worker!);
-      const panel = await waitForReview(page, "compound finding", (p) =>
+      const panel = await waitForReview(page, "grammar finding", (p) =>
         p.items.some((item) => item.text === highlight),
       );
       expect(panel.items).toHaveLength(1);
       expect(panel.fixAll).toMatchObject({ text: "Fix all safe (0)", disabled: true });
       expect(await textareaValue()).toBe(source);
       await clickReviewControl(page, ".item");
-      await waitForReview(page, "compound card", (p) => p.card.open);
+      await waitForReview(page, "grammar card", (p) => p.card.open);
       await clickReviewControl(page, ".card [data-action=apply]");
-      await waitUntil("compound repair", async () => (await textareaValue()) === expected, {
+      await waitUntil("grammar repair", async () => (await textareaValue()) === expected, {
         timeoutMs: 5000,
       });
-      await waitForReview(page, "compound recheck", (p) => p.items.length === 0);
+      await waitForReview(page, "grammar recheck", (p) => p.items.length === 0);
       await pressNativeUndo(page, "#test-textarea");
-      await waitUntil("compound undo", async () => (await textareaValue()) === source, {
+      await waitUntil("grammar undo", async () => (await textareaValue()) === source, {
         timeoutMs: 5000,
       });
       await finishReview();
