@@ -53,6 +53,10 @@ interface ReviewAlternative {
 }
 
 export type ReviewMessageKey =
+  | "review_msg_fixed_prepositions"
+  | "review_msg_despite_of"
+  | "review_msg_discuss_about"
+  | "review_msg_interested_on"
   | "review_msg_its_possessive"
   | "review_msg_its_contraction"
   | "review_msg_lets_contraction"

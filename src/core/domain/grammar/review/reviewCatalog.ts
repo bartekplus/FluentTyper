@@ -27,6 +27,12 @@ export type ReviewRuleMetadata =
   | { review: "excluded"; reason: string };
 
 export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
+  englishFixedPrepositions: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "grammar",
+    bulk: "individual",
+  },
   englishItsContext: {
     review: "supported",
     defaultEnabled: true,

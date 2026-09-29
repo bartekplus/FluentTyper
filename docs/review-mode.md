@@ -170,6 +170,10 @@ Supported (**Typing** is the rule's default for typing; Review has separate swit
 | `duplicatePunctuationCollapse`         | all      | off         | punctuation | yes                                                                                               |
 
 Agreement retains the six original typing pairs and their existing bulk rules.
+`englishFixedPrepositions` is a separate Review-only check for three established constructions. It removes `of` plus its following horizontal separator after `despite` before a complete listed noun phrase; removes `about` plus its separator after pronoun-led `discuss/discussed/discusses` or be + `discussing`, or `please discuss`, before a complete listed topic; and changes `on` to `in` in pronoun + be + `interested on` before a listed activity/topic. Complete phrase evidence and punctuation/end boundaries are required. Known adjectives are bounded; multiline and protected evidence abstain.
+
+This is not a global preposition replacement. Approximate quantities (`discussed about five issues`), embedded questions (`discussed what the book was about`), noun uses (`discussion about`), temporal/location attachments (`interested on Monday`, `interested on screen`), incomplete complements and unlisted objects remain untouched. Existing correct `in spite of`, `talked/asked about`, `interested in` and `depends on` are preserved. Findings stay individual-only and do not alter typing.
+
 Three native Review-only contextual apostrophe checks are independently configurable:
 
 - `englishItsContext`: possessive `its` after a listed transitive verb and before a complete known noun phrase, or in a clause-opening noun phrase with a supported predicate. Conversely, clause-opening `its` before listed complete predicates such as `ready to use`, `cold outside`, `working now` or `been fixed` becomes `it's`.

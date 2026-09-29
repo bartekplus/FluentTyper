@@ -2,6 +2,19 @@ import type { GrammarRuleCatalogEntry, GrammarRuleId } from "./types";
 
 export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   {
+    id: "englishFixedPrepositions",
+    typing: false,
+    name: "Fixed preposition constructions",
+    titleI18nKey: "review_msg_fixed_prepositions",
+    descriptionI18nKey: "review_msg_fixed_prepositions",
+    exampleI18nKey: "",
+    languageScope: "en_US",
+    safetyTier: "advanced",
+    defaultRollout: "off",
+    recommended: false,
+    priority: 150,
+  },
+  {
     id: "englishItsContext",
     typing: false,
     name: "Its and it is in context",

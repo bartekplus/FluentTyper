@@ -3688,6 +3688,27 @@
           "test": "normal nested quotations run while quoted instructions and protected evidence abstain"
         }
       ]
+    },
+    {
+      "id": "review_fixed_prepositions",
+      "description": "Native fixed-preposition templates require complete complements, preserve alternative attachments, remain individual-only and apply minimal edits with native undo.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review native grammar applies individual edits with native undo"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewPrepositions.test.ts",
+          "test": "new prepositions stay isolated from typing and protected or out-of-scope evidence"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewPrepositions.test.ts",
+          "test": "full phrase evidence owns one chunk and preserves Unicode, CRLF and ordinary quotations"
+        }
+      ]
     }
   ]
 }

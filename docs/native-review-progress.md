@@ -12,7 +12,7 @@ Execute sequentially: 1, 2, 3, 4, 8, 5, 6, 7, 9–20. Native TypeScript, individ
 | 3   | Contextual word confusions     | Implemented; Chrome verified; Firefox launch blocked     |
 | 4   | Agreement extensions           | Implemented; Chrome verified; Firefox launch blocked     |
 | 5   | Contractions and possessives   | Implemented; Chrome verified; Firefox launch blocked     |
-| 6   | Fixed prepositions             | Pending                                                  |
+| 6   | Fixed prepositions             | Implemented; Chrome verified; Firefox launch blocked     |
 | 7   | Verb complements               | Pending                                                  |
 | 8   | Independent Review controls    | Implemented; Chrome verified; Firefox launch blocked     |
 | 9   | Participles                    | Pending                                                  |
@@ -180,3 +180,30 @@ Error phrase: `The router lost it's connection. Its ready to use. Lets try again
 Production JS delta against #8's final full-suite build (`production-chrome-full-43744-1790705611229`): content script **+7,050 bytes**, background **+1,215**, settings **+4,052**, popup **+1,106**. Candidate: `production-chrome-full-44849-1790706188375`. No new dependencies, permissions or typing behavior.
 
 Next: #6 fixed prepositions. Six of twenty features implemented; full roadmap completion still requires the remaining features and Firefox runtime validation.
+
+## #6 fixed preposition constructions
+
+One independently configurable Review-only identity, `englishFixedPrepositions`, with three native phrase templates and separate explanations. It removes only `of`/`about` and their following horizontal separator, or replaces only `on` with `in`. Complete complements are mandatory: listed noun phrases after despite, listed ordinary topics after audited discuss inflections, and listed activities/topics after pronoun + be + interested. Existing protections, immutable ranges, per-chunk ownership, context dependencies and individual-only policy are retained. Four catalog/explanation messages are translated into all nine UI languages.
+
+Focused corpus: **111 pass**: 36 authored repairs (12 per construction), 73 distinct preservation cases, and two pipeline checks. Every supported error is repaired; none of the preservation cases produces this rule, and corrected phrases produce no repeat finding. Coverage includes approximate quantities (`about five issues`), embedded questions, temporal/location attachments, incomplete complements, noun uses, quoted evidence, technical tokens, Unicode and protected/partial scopes. Tests exercise every possible chunk split in a mixed two-finding fixture. Authored cases do not establish open-ended English accuracy.
+
+- `bun run check`: passed.
+- Full unit suite: **3,994 pass, 0 fail**.
+- Chrome full browser suite: **93 pass, 10 skip, 0 fail**, including all three required #6 repairs through individual Apply/native undo and no Fix all promotion.
+- Production Chrome and Firefox builds: passed. Coverage mapping: **193 behaviors**.
+- Firefox runtime remains unverified due to the launch blocker recorded under #1; not rerun for this detector-only checkpoint.
+- Logs: `/tmp/ft-native-prepositions-{focused,check,unit,full-chrome,build-chrome,build-firefox,benchmark}.log`.
+
+Synthetic scan costs (Bun 1.4.2, only this ID enabled; 5 warmups then median of 21 full native scans, no AI/spelling/DOM):
+
+| Characters | Clean (ms) | Dense errors (ms) | Dense findings |
+| ---------- | ---------- | ----------------- | -------------- |
+| 1,000      | 0.048      | 0.127             | 29             |
+| 10,000     | 0.288      | 0.828             | 297            |
+| 50,000     | 1.457      | 6.214             | 1,485          |
+
+Error phrase: `Despite of the delay, we finished. We discussed about the release. I am interested on learning Rust. `. Clean phrase applies all three intended repairs. Repeat/truncate to size, whole-text scope. These local fixture costs are not an isolated before/after performance result.
+
+Production JS delta against #5's retained full-suite build (`production-chrome-full-44849-1790706188375`): content script **+5,042 bytes**, background **+1,495**, settings **+2,997**, popup **+389**. Candidate: `production-chrome-full-45650-1790706527758`. No dependencies, permissions, typing changes or generalized rule interpreter added.
+
+Next: #7 verb complements. Seven of twenty features implemented; full completion remains pending the rest of the roadmap and Firefox runtime validation.
