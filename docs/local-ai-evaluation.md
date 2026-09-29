@@ -36,8 +36,9 @@ Screening set, Correct mode:
 | **Qwen3-4B-Instruct-2507** (`onnx-community/Qwen3-4B-Instruct-2507-ONNX` @ `41a4dd4d`)    |  2.90 GB | 0/122   | 63% / 60%                       | 63% / 58%                 | 18 / 19                      | 1: ambiguous-16                           | 1570 / 1747               | 4.5 s     |
 | Qwen3-4B (`onnx-community/Qwen3-4B-ONNX` @ `98ddba15`), previous engine default's weights |  2.83 GB | 0/122   | 49% / 42%                       | 49% / 42%                 | 11 / 21                      | 1: ambiguous-16                           | 1719 / 1881               | 6.4 s     |
 
-Gemma 4 uses the multimodal ONNX export (`Gemma4ForConditionalGeneration`, text only; ~0.27
-GB of the download are unused audio/vision encoders).
+This original evaluation used `Gemma4ForConditionalGeneration` for Gemma 4, including
+about 0.27 GB of unused audio/vision encoders. The later text-only loader evaluation
+below uses the same pinned text weights without those encoders.
 
 Full suite (230 Correct fixtures / 246 requests; Gemma also 35 Rewrite and 5 cancel runs):
 
@@ -239,6 +240,74 @@ Next experiments, in priority order:
 Not adopted: removing context (measured quality loss), weaker output validation, automatic
 application of AI findings, or speculative concurrent generations on the same GPU. These
 changes do not have evidence of a safe quality/performance tradeoff.
+
+## Prompt reuse, incremental pairs and text-only loading (2026-09-29)
+
+Three follow-up changes keep Gemma's pinned revision, q4f16 text weights, instructions,
+context and validation intact:
+
+- **Fixed instruction prefix:** reuse the first 400 tokens only after matching them to
+  a synthetic, text-free Correct prompt. The cache is 22,937,600 bytes (21.875 MiB) on
+  the CPU, bounded to 32 MiB. Each generation gets its own mutable KV cache, disposed
+  on success or failure. CPU downloads explicitly release the former GPU tensors.
+  Cancellation during preparation never counts as an engine failure. Closing the
+  last Review still unloads the model and discards this cache.
+- **Incremental grouping:** unchanged pairs in the previous review plan anchor the
+  next plan. Answers are still reused only for identical complete requests, including
+  surrounding context, model and prompt version. All offsets and protected markers
+  are rebuilt against the current snapshot. Initial grouping is unchanged: verified
+  on both stress passages and all 230 fixtures (232/232 identical plans).
+- **Text-only loading:** `Gemma4ForCausalLM` uses the same text embedding and decoder
+  sessions as the conditional loader; its inherited forward implementation is unchanged.
+  Audio and vision encoders are neither loaded nor included in new installs. This
+  removes 273,379,300 bytes from the download (now 4,924,964,491 bytes), while existing
+  verified installs remain usable. The existing obsolete-file cleanup removes the
+  unneeded cached files. No GPU warm-retention period was added.
+
+### Measurements
+
+The prefix probe ran eight stress requests twice, in opposite baseline/prefix order
+with one warm model. Total generation time fell from **47.478 s to 34.672 s (27.0%)**.
+All 16 raw outputs matched exactly. Prefix preparation cost 1.037 s once per load;
+that setup cost is excluded from the warm-generation percentage. This gain is measured
+on top of short-sentence pairing, not independently additive to its earlier 31.1% gain.
+
+The complete prefix experiment checked 117 stress requests and 230 regression fixtures.
+Both stress passages retained identical accepted findings. 229/230 fixtures retained
+identical accepted text; the dense paragraph additionally gained a comma before an
+independent clause joined by “and”. No accepted correction was lost, and none of the
+119 unchanged controls was changed. Small numerical differences from splitting prompt
+processing can alter model output, so prefix caching is quality-tested, not assumed
+bit-identical. This run used the isolated probe; the final runtime wrapper is validated
+separately before delivery.
+
+An A/B/B/A comparison of conditional versus text-only loading, with the actual prefix
+wrapper, measured mean cached-model load times of **6.276 s versus 5.100 s**. Time from
+load start to the first completed correction was **9.024 s versus 7.768 s**. All four
+outputs matched. The runs confirmed four inference sessions before and only the two
+text sessions afterward. This is a same-browser, disk-cache comparison on the test Mac;
+it does not promise the same savings on other devices or after a machine restart.
+
+On the supplied stress passage, deleting its first sentence now reuses **55 of 57**
+requests: **2 new requests instead of 47**. The initial plan still has 58 requests.
+Small word edits still invalidate only the affected text and nearby context (2–4
+requests in the measured cases).
+
+Rejected: resetting pairs at paragraph boundaries also reduced deletion rechecks to
+2 requests, but increased the initial plan to 62 requests and lost the accepted
+“many useful feedbacks” → “much useful feedback” correction. Preserving prior pairs
+avoids changing the initial prompt grouping.
+
+### Remaining quality limits
+
+The original stress run rejected 33 proposed change units as wording drift, 10 as
+quoted text, 3 as number changes, 2 as negation changes, and one each as too many changed
+words, a technical-token change and a name change. These counts are not all missed
+errors: the corrected reference also had four proposals rejected correctly. Increasing
+all guard limits would therefore be unsafe. A useful next quality experiment is a
+separate, narrowly proved rule for compound-subject pronouns and agreement; the first
+stress sentence's large change unit currently exceeds the four-word guard. The existing
+quoted-example and style restrictions remain intentional.
 
 ## Languages
 

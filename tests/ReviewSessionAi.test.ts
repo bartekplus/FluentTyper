@@ -393,6 +393,21 @@ describe("ReviewSession with Local AI: Correct", () => {
     expect(h.ai.requests).toHaveLength(6);
   });
 
+  test("deleting an early sentence reuses distant paired answers", async () => {
+    const sentences = Array.from(
+      { length: 30 },
+      (_, i) => `Sentence number ${i} has enough context to review.`,
+    );
+    const h = harness(sentences.join(" "));
+    await h.start();
+    const count = h.ai.requests.length;
+    h.editor.text = sentences.slice(1).join(" ");
+    h.session.notifySourceChanged();
+    await h.settle();
+    expect(h.ai.requests.length - count).toBeLessThanOrEqual(5);
+    expect(h.last().ai.coverage).toBe("complete");
+  });
+
   test("pause stops the pass and keeps what was shown; resume finishes it", async () => {
     const h = harness("She go home now.\n\nThey goes there too. " + "Fine words here. ".repeat(80));
     h.ai.auto = false;

@@ -54,6 +54,34 @@ function expectExactMapping(text: string, chunks: AiChunk[]) {
 }
 
 describe("buildAiChunks", () => {
+  test("unchanged pairs survive sentence deletion without changing initial grouping", () => {
+    const sentences = Array.from(
+      { length: 30 },
+      (_, i) => `Sentence number ${i} has enough context to review.`,
+    );
+    const text = sentences.join(" ");
+    const original = plan(text, {}, CORRECT).chunks;
+    const previous = { text, chunks: original };
+    expect(plan(text, {}, { ...CORRECT, previous }).chunks).toEqual(original);
+    const after = sentences.slice(1).join(" ");
+    const next = plan(after, {}, { ...CORRECT, previous }).chunks;
+    expect(next[0].segments.map((s) => s.text)).toEqual([sentences[1]]);
+    expect(next.slice(1).map((c) => c.segments.map((s) => s.text))).toEqual(
+      original.slice(1).map((c) => c.segments.map((s) => s.text)),
+    );
+    const request = (chunk: AiChunk) =>
+      JSON.stringify(aiRequestForChunk(chunk, "en_US", "correct", null));
+    const cached = new Set(original.map(request));
+    expect(next.filter((chunk) => !cached.has(request(chunk))).length).toBeLessThanOrEqual(5);
+    expectExactMapping(after, next);
+    expect(
+      plan(after, {}, { ...CORRECT, pairSentences: false, previous }).chunks.every(
+        (c) => c.segments.length === 1,
+      ),
+    ).toBe(true);
+    expect(plan(after, {}, { ...PACKED, previous })).toEqual(plan(after, {}, PACKED));
+  });
+
   test("Correct pairs sentences, keeping separate ids, ranges and surrounding context", () => {
     const text = "One is here. Two is here. Three is here.";
     const { chunks } = plan(text, {}, CORRECT);

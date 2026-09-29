@@ -67,16 +67,6 @@ const GEMMA_4_E4B_FILES: readonly LocalAiModelFile[] = [
     sha256: "e6a0b50de21a511f15ac4857b7f227f68ee60ecb1f11255d07b75e0bdc60e155",
   },
   {
-    path: "onnx/audio_encoder_q4f16.onnx",
-    bytes: 260_446,
-    sha256: "abf9f3db89b336579c786704e147747085ccca23f28ecdf33f6736a93e3fbc47",
-  },
-  {
-    path: "onnx/audio_encoder_q4f16.onnx_data",
-    bytes: 172_167_424,
-    sha256: "814635b03d618d2513d377e051d491d0a5448f1407864fb2535e4b8182f9eced",
-  },
-  {
     path: "onnx/decoder_model_merged_q4f16.onnx",
     bytes: 850_610,
     sha256: "43aa27452be3dd7fbb9524257dd66af957add748ddab20ea63ae71923e59aa08",
@@ -100,16 +90,6 @@ const GEMMA_4_E4B_FILES: readonly LocalAiModelFile[] = [
     path: "onnx/embed_tokens_q4f16.onnx_data",
     bytes: 2_017_460_224,
     sha256: "fd0f39c08f7e20a31145c2351a76a408b6c4ab60d15cc33f40e29cf30c0b2451",
-  },
-  {
-    path: "onnx/vision_encoder_q4f16.onnx",
-    bytes: 189_126,
-    sha256: "7475ce3d5d98d74003410367cc53f23ddb38891e1847cce0a4535fb6d953c540",
-  },
-  {
-    path: "onnx/vision_encoder_q4f16.onnx_data",
-    bytes: 100_762_304,
-    sha256: "6cada2b035aed2284ef3a379fb6523906b95da1c1a24af7182161342d1269a52",
   },
   {
     path: "preprocessor_config.json",

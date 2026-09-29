@@ -119,7 +119,7 @@ downloading → loading → ready ⇄ generating → unloading`, plus `unavailab
 
 Curated registry: `src/core/domain/localAi/modelRegistry.ts`, pinned to Transformers.js
 4.3.0. Two tiers, chosen from the evaluation: **Recommended = Gemma 4 E4B** (default;
-found the most errors, loaded as `Gemma4ForConditionalGeneration` and used for text only,
+found the most errors, loaded as `Gemma4ForCausalLM` and used for text only,
 `enable_thinking: false` in its chat template) and **Compact = Qwen3 4B Instruct 2507**
 (smaller, fewest changes to correct text; no thinking switch). Both ONNX `q4f16`.
 Local AI runs only for review languages listed in the model record (`languages: ["en"]`).
@@ -157,7 +157,7 @@ connection metadata (IP address, requested model files), never reviewed text.
    store release.
 2. **Store review** is untested: nothing executable is downloaded (MV3 remote-code rules),
    but the package has not been submitted.
-3. **Size and speed:** Recommended is a 5.2 GB download, and since the GPU is released after
+3. **Size and speed:** Recommended is a 4.9 GB download, and since the GPU is released after
    every Review, each Review waits ~8 s for the model before the first Local AI finding
    (rule findings still appear at once).
 4. **Coverage:** one GPU and OS measured, memory not measured; Edge and Firefox not run in a

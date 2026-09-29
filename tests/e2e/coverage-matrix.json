@@ -3509,6 +3509,48 @@
           "test": "only an AI pass ending is announced, once"
         }
       ]
+    },
+    {
+      "id": "local_ai_prompt_prefix",
+      "description": "Gemma reuses only the fixed instruction prefix in a bounded CPU cache; per-request caches are disposed on success, failure, cancellation and unload.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/LocalAiPromptPrefix.test.ts",
+          "test": "reuses only matching instruction tokens, with a separate disposable cache per request"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/LocalAiPromptPrefix.test.ts",
+          "test": "unload during prefix preparation prevents a late cache or generation"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/LocalAiPromptPrefix.test.ts",
+          "test": "failed generations dispose request tensors"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/LocalAiPromptPrefix.test.ts",
+          "test": "cancellation during prefix preparation releases its cache and does not generate text"
+        }
+      ]
+    },
+    {
+      "id": "local_ai_stable_recheck_pairs",
+      "description": "After a sentence deletion, unchanged Gemma pairs anchor the new plan; identical requests reuse validated answers with fresh offsets and context. Initial review grouping, Compact and Rewrite stay unchanged.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewAiSegments.test.ts",
+          "test": "unchanged pairs survive sentence deletion without changing initial grouping"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSessionAi.test.ts",
+          "test": "deleting an early sentence reuses distant paired answers"
+        }
+      ]
     }
   ]
 }

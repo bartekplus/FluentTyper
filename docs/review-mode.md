@@ -245,7 +245,7 @@ without it. It never runs while you type: suggestions and autocomplete stay Pres
 
 **Setting it up.** The first review offers "Set up local AI…" once (with the download
 size), or open **Settings → Grammar → Local AI**. There you choose **Recommended**
-(Gemma 4 E4B, about 5.2 GB) or **Compact** (Qwen3 4B Instruct, about 2.9 GB, finds fewer
+(Gemma 4 E4B, about 4.9 GB) or **Compact** (Qwen3 4B Instruct, about 2.9 GB, finds fewer
 mistakes), see the download size, and press **Download and enable**, which asks you to
 confirm first. The model files come from Hugging Face once, from a pinned revision, and each
 file is checked against its known hash; the runtime that executes them ships inside the
@@ -290,6 +290,9 @@ Every proposal is checked before it is shown:
   where the model and a rule disagree about the same word ("dont" → "don't" or
   "doesn't"), the model's fix is a second option on that finding, labelled **Local AI**
   and never preselected; any other overlap is left out.
+
+After an edit, unchanged sentence pairs keep their grouping so a sentence deletion does not
+force the rest of the document to be checked again. Only identical requests reuse answers.
 
 Local AI shows checking progress as a percentage of planned chunks, including cached answers.
 After an edit, its waiting message is separate from model loading; progress is not a time estimate.

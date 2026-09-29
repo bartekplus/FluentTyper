@@ -184,6 +184,8 @@
     "local_ai_preference_off",
     "local_ai_host_unsupported",
     "local_ai_correct_pairing",
-    "local_ai_review_progress"
+    "local_ai_review_progress",
+    "local_ai_prompt_prefix",
+    "local_ai_stable_recheck_pairs"
   ]
 }
