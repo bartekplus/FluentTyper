@@ -627,7 +627,13 @@ describe("ReviewSession spelling", () => {
       original: "wa",
       requiresChoice: true,
     });
-    expect(finding.alternatives.map((a) => a.preview)).toEqual(["was", "way", "war"]);
+    expect(finding.alternatives.map((a) => a.preview)).toEqual([
+      "was",
+      "way",
+      "want",
+      "water",
+      "war",
+    ]);
     expect(fake.calls[0]).toContainEqual({ word: "wa", before: "Where " });
     // Never batched, and nothing was written.
     expect(h.last().bulk).toMatchObject({ count: 0, deferred: 1 });
@@ -637,6 +643,17 @@ describe("ReviewSession spelling", () => {
     await Promise.all([h.session.apply(finding.id, 1), h.settle()]);
     expect(h.editor.text).toBe("Where way it?");
     expect(h.last().diagnostics).toEqual([]);
+  });
+
+  test("a known word stays out of review while an unknown word gets Presage's correction", async () => {
+    const h = harness("This needed it. This needdeed it.", {
+      lookupSpelling: (_lang, words) =>
+        Promise.resolve(words.map(({ word }) => (word === "needdeed" ? ["needed"] : null))),
+    });
+    await Promise.all([h.session.start(), h.settle()]);
+    expect(h.last().diagnostics.map((d) => [d.original, d.alternatives[0].preview])).toEqual([
+      ["needdeed", "needed"],
+    ]);
   });
 
   test("a word with combining marks never makes the dictionary check unavailable", async () => {
