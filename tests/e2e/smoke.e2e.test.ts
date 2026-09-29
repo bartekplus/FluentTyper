@@ -1279,7 +1279,9 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
             const visibleTab = Array.from(document.querySelectorAll(".content-tab")).find(
               (tab) => !tab.classList.contains("is-hidden"),
             );
-            const candidate = visibleTab?.querySelector(".grammar-rule-selector");
+            const candidate = visibleTab?.querySelector(
+              '[data-setting="enabledGrammarRules"] .grammar-rule-selector',
+            );
             if (candidate) {
               grammarRoot = candidate;
               break;

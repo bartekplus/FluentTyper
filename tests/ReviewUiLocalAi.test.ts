@@ -38,6 +38,7 @@ function callbacks(): { [K in keyof ReviewUiCallbacks]: ReturnType<typeof jest.f
     "select",
     "apply",
     "ignore",
+    "disableRule",
     "addToDictionary",
     "fixAll",
     "toggleCategory",
@@ -237,6 +238,29 @@ describe("ReviewUi: Local AI", () => {
       state({ ai: ai({ availability: "installing", status: { ...STATUS, progress: 0.42 } }) }),
     );
     expect($(".ai-line").textContent).toBe("Local AI model is downloading: 42% (see settings).");
+  });
+
+  test("only native cards offer an accessible disable action and untrusted clicks do nothing", () => {
+    for (const ruleId of [
+      REVIEW_LOCAL_AI_CHECK,
+      "reviewSpelling",
+      "englishRepeatedWords",
+    ] as const) {
+      const diagnostic = finding("card", { ruleId });
+      ui.render(state({ diagnostics: [diagnostic] }));
+      ui.openCard(diagnostic, null);
+      const button = $(".card").querySelector<HTMLButtonElement>('[data-action="disable-rule"]');
+      if (ruleId !== "englishRepeatedWords") {
+        expect(button).toBeNull();
+        continue;
+      }
+      expect(button?.textContent).toBe("Disable this check in Review");
+      expect(button?.disabled).toBe(false);
+      button!.click();
+      expect(cb.disableRule).not.toHaveBeenCalled();
+      trustedClick(button!);
+      expect(cb.disableRule).toHaveBeenCalledWith("card");
+    }
   });
 
   test("AI findings carry a Local AI tag and keep their category badge", () => {

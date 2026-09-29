@@ -12,6 +12,7 @@ export const CMD_TOGGLE_FT_ACTIVE_TAB = "CMD_TOGGLE_FT_ACTIVE_TAB";
 export const CMD_TRIGGER_FT_ACTIVE_TAB = "CMD_TRIGGER_FT_ACTIVE_TAB";
 export const CMD_TOGGLE_FT_ACTIVE_LANG = "CMD_TOGGLE_FT_ACTIVE_LANG";
 export const CMD_REVIEW_FT_ACTIVE_TAB = "CMD_REVIEW_FT_ACTIVE_TAB";
+export const CMD_CONTENT_SCRIPT_DISABLE_REVIEW_RULE = "CMD_CONTENT_SCRIPT_DISABLE_REVIEW_RULE";
 export const CMD_CONTENT_SCRIPT_ADD_TO_DICTIONARY = "CMD_CONTENT_SCRIPT_ADD_TO_DICTIONARY";
 export const CMD_CONTENT_SCRIPT_REVIEW_SPELLING = "CMD_CONTENT_SCRIPT_REVIEW_SPELLING";
 export const CMD_GET_HOSTNAME = "CMD_GET_HOSTNAME";
@@ -71,6 +72,7 @@ export const KEY_LANGUAGE = "language";
 export const KEY_FALLBACK_LANGUAGE = "fallbackLanguage";
 export const KEY_ENABLED_LANGUAGES = "enabled_languages";
 export const KEY_AUTO_LANGUAGE_SITE_PRIORS = "autoLanguageSitePriors";
+export const KEY_REVIEW_RULE_OVERRIDES = "reviewRuleOverrides";
 export const KEY_ENABLED_GRAMMAR_RULES = "enabledGrammarRules";
 /** @deprecated Legacy key – kept only for one-time migration in SettingsMigrationV3. */
 export const KEY_LEGACY_APPLY_SPACING_RULES = "applySpacingRules";

@@ -202,3 +202,37 @@ describe("LocalAiSettingsRepository", () => {
     await expect(writer.getLocalAiReviewConsent()).resolves.toBeNull();
   });
 });
+
+test("Review rule preferences serialize concurrent card choices without storing text or changing typing", async () => {
+  const store: Record<string, unknown> = { enabledGrammarRules: { commaPeriodSpacing: false } };
+  const repository = new CoreSettingsRepository({
+    get: async (key: string) => {
+      await Promise.resolve();
+      return store[key];
+    },
+    getRaw: async (key: string) => store[key],
+    set: async (key: string, value: unknown) => {
+      await Promise.resolve();
+      store[key] = value;
+    },
+  } as unknown as SettingsManager);
+  expect(await repository.getReviewRuleOverrides()).toEqual({});
+  for (const id of [
+    "reviewLocalAi",
+    "reviewSpelling",
+    "autoBracketClose",
+    "I opened the the report.",
+    "__proto__",
+  ])
+    expect(await repository.disableReviewRule(id)).toBe(false);
+  expect(
+    await Promise.all([
+      repository.disableReviewRule("englishRepeatedWords"),
+      repository.disableReviewRule("englishThenThan"),
+    ]),
+  ).toEqual([true, true]);
+  expect(store).toEqual({
+    enabledGrammarRules: { commaPeriodSpacing: false },
+    reviewRuleOverrides: { englishRepeatedWords: false, englishThenThan: false },
+  });
+});

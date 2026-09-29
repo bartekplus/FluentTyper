@@ -63,11 +63,15 @@ function harness(
   {
     scope = null,
     dictionary,
+    disableReviewRule,
+    spellingEnabled,
     rules = ["englishTypoWhitelistCorrection"],
     lookupSpelling,
   }: {
     scope?: TextRange | null;
     dictionary?: (word: string) => Promise<boolean>;
+    disableReviewRule?: (ruleId: string) => Promise<boolean>;
+    spellingEnabled?: boolean;
     rules?: readonly string[];
     lookupSpelling?: ReviewSpellingLookup;
   } = {},
@@ -80,12 +84,14 @@ function harness(
     options: {
       lang: "en_US",
       enabledRules: rules,
+      spellingEnabled,
       userDictionary: [],
       insertSpaceAfterAutocomplete: true,
     },
     initialScope: scope,
     onChange: (state) => states.push(state),
     addToDictionary: dictionary,
+    disableReviewRule,
     lookupSpelling,
     setTimer: (callback, delay) => {
       const timer = { callback, delay };
@@ -854,4 +860,84 @@ describe("ReviewSession spelling", () => {
     expect(none.last().spelling).toBe("off");
     expect(off.calls).toEqual([]);
   });
+});
+
+test("disabling a Review rule invalidates its old batch and keeps unrelated findings", async () => {
+  const saved: string[] = [];
+  const h = harness("teh cat. I opened the the report.", {
+    rules: ["englishTypoWhitelistCorrection", "englishRepeatedWords"],
+    disableReviewRule: async (id) => {
+      saved.push(id);
+      return true;
+    },
+  });
+  await Promise.all([h.session.start(), h.settle()]);
+  const old = h.last().diagnostics.find((d) => d.ruleId === "englishTypoWhitelistCorrection")!;
+  await h.session.disableReviewRule(old.id);
+  expect(h.last().status).toBe("updating");
+  await h.session.fixAll();
+  expect(h.editor.applyCalls).toHaveLength(0);
+  await h.settle();
+  expect(saved).toEqual(["englishTypoWhitelistCorrection"]);
+  expect(h.last().diagnostics.map((d) => d.ruleId)).toEqual(["englishRepeatedWords"]);
+  await h.session.apply(old.id, 0);
+  expect(h.editor.applyCalls).toHaveLength(0);
+  expect(h.editor.text).toBe("teh cat. I opened the the report.");
+  h.session.close();
+});
+
+test("a failed Review preference write retains findings and reports failure", async () => {
+  const h = harness("teh cat", {
+    disableReviewRule: async () => {
+      throw new Error("storage unavailable");
+    },
+  });
+  await Promise.all([h.session.start(), h.settle()]);
+  await h.session.disableReviewRule(h.last().diagnostics[0].id);
+  expect(h.originals()).toEqual(["teh"]);
+  expect(h.last().notice).toEqual({ kind: "rule-setting-failed" });
+  h.session.close();
+});
+
+test("Review settings broadcasts cancel in-progress scans in multiple sessions", async () => {
+  const sessions = [harness("teh cat.\n".repeat(1200)), harness("teh dog.\n".repeat(1200))];
+  const starts = sessions.map((h) => h.session.start());
+  for (let i = 0; i < 5; i++) await Promise.resolve();
+  for (const h of sessions) {
+    expect(h.last().status).toBe("loading");
+    h.session.updateOptions({
+      lang: "en_US",
+      enabledRules: [],
+      userDictionary: [],
+      insertSpaceAfterAutocomplete: true,
+    });
+  }
+  await Promise.all(sessions.map((h) => h.settle()));
+  await Promise.all(starts);
+  for (const h of sessions) {
+    expect(h.last().diagnostics).toEqual([]);
+    expect(h.last().noRules).toBe(true);
+    expect(h.editor.applyCalls).toHaveLength(0);
+    h.session.close();
+  }
+});
+
+test("disabling all native checks preserves explicit spelling and offers no AI or spelling disable action", async () => {
+  const calls: string[] = [];
+  const h = harness("wa", {
+    rules: [],
+    spellingEnabled: true,
+    lookupSpelling: async (_lang, words) => words.map(() => ["was"]),
+    disableReviewRule: async (id) => {
+      calls.push(id);
+      return true;
+    },
+  });
+  await Promise.all([h.session.start(), h.settle()]);
+  expect(h.last().noRules).toBe(false);
+  expect(h.last().diagnostics[0].ruleId).toBe("reviewSpelling");
+  await h.session.disableReviewRule(h.last().diagnostics[0].id);
+  expect(calls).toEqual([]);
+  expect(h.last().diagnostics).toHaveLength(1);
+  h.session.close();
 });

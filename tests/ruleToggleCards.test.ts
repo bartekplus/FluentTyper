@@ -1,6 +1,6 @@
 import "./setup";
 import { afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
-import { KEY_ENABLED_GRAMMAR_RULES } from "../src/core/domain/constants";
+import { KEY_ENABLED_GRAMMAR_RULES, KEY_REVIEW_RULE_OVERRIDES } from "../src/core/domain/constants";
 import { manifest } from "../src/ui/options/settingsManifest.js";
 import { i18n } from "../src/ui/options/fluenttyperI18n.js";
 import { RuleToggleCardsControl } from "../src/ui/settings-engine/controls/RuleToggleCardsControl.js";
@@ -428,4 +428,31 @@ describe("ruleToggleCards setting", () => {
     expect(stored.commaPeriodSpacing).toBe(true);
     expect(stored.capitalizeSentenceStart).toBe(false);
   });
+});
+
+test("Review settings cards restore a disabled check without touching typing preferences", async () => {
+  const config = manifest.settings.find(
+    (entry) => entry.name === KEY_REVIEW_RULE_OVERRIDES,
+  ) as RuleToggleCardsConfig;
+  const store = localStore("review-rule-choices");
+  await store.set(KEY_ENABLED_GRAMMAR_RULES, { englishTypoWhitelistCorrection: false });
+  await store.set(KEY_REVIEW_RULE_OVERRIDES, { englishRepeatedWords: false, unknown: true });
+  const host = document.createElement("div");
+  document.body.appendChild(host);
+  const control = new RuleToggleCardsControl(config, store);
+  host.appendChild(control.rootElement);
+  await flushStorage();
+  expect(control.get()).not.toContain("englishRepeatedWords");
+  expect(control.get()).toContain("englishTypoWhitelistCorrection");
+  const input = findRuleCard(host, "englishRepeatedWords").querySelector(
+    "input",
+  ) as HTMLInputElement;
+  input.checked = true;
+  input.dispatchEvent(new Event("change"));
+  await flushStorage();
+  expect(await store.get(KEY_REVIEW_RULE_OVERRIDES)).toEqual({ englishRepeatedWords: true });
+  expect(await store.get(KEY_ENABLED_GRAMMAR_RULES)).toEqual({
+    englishTypoWhitelistCorrection: false,
+  });
+  expect(config.helpText).toContain("Typing autocorrection");
 });

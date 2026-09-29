@@ -1,3 +1,7 @@
+import {
+  isReviewSupportedRule,
+  normalizeReviewRuleOverrides,
+} from "@core/domain/grammar/review/reviewCatalog";
 import { DEFAULT_NUM_SUGGESTIONS } from "@core/domain/constants";
 import type { SettingField } from "@core/domain/contracts/settings";
 import { resolveGrammarRuleSelection } from "@core/domain/grammar/GrammarRuleSettings";
@@ -15,6 +19,7 @@ const DEFAULT_MIN_WORD_LENGTH_TO_PREDICT = 1;
 type ThemeField = keyof SuggestionThemeSettings & SettingField;
 
 /** Pending user-dictionary writes, applied one after another. */
+let reviewRuleWrites: Promise<unknown> = Promise.resolve();
 let dictionaryWrites: Promise<unknown> = Promise.resolve();
 
 export class CoreSettingsRepository extends SettingsRepositoryBase {
@@ -149,6 +154,21 @@ export class CoreSettingsRepository extends SettingsRepositoryBase {
 
   async getEnabledGrammarRules(): Promise<string[]> {
     return resolveGrammarRuleSelection(await this.getField("enabledGrammarRules"));
+  }
+
+  async getReviewRuleOverrides(): Promise<Record<string, boolean>> {
+    return normalizeReviewRuleOverrides(await this.getField("reviewRuleOverrides"));
+  }
+
+  async disableReviewRule(ruleId: string): Promise<boolean> {
+    if (!isReviewSupportedRule(ruleId)) return false;
+    const write = reviewRuleWrites.then(async () => {
+      const overrides = await this.getReviewRuleOverrides();
+      await this.setField("reviewRuleOverrides", { ...overrides, [ruleId]: false });
+      return true;
+    });
+    reviewRuleWrites = write.catch(() => undefined);
+    return write;
   }
 
   async getTextExpansions(): Promise<Array<[string, object]>> {

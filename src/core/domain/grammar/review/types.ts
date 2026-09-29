@@ -144,6 +144,8 @@ export interface ReviewSourceSnapshot {
 }
 
 export interface ReviewOptions {
+  /** Explicitly keep dictionary suggestions independent of native rule choices. */
+  spellingEnabled?: boolean;
   lang: string;
   enabledRules: readonly string[];
   userDictionary: readonly string[];

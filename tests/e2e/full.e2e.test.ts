@@ -25,6 +25,7 @@ import {
   KEY_SITE_PROFILES,
   KEY_TEXT_EXPANSIONS,
   KEY_ENABLED_GRAMMAR_RULES,
+  KEY_REVIEW_RULE_OVERRIDES,
   KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE,
   KEY_AUTOCOMPLETE_ON_ENTER,
   KEY_CODE_MODE,
@@ -5405,7 +5406,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
 
       optionsPage = await openOptionsPage(browser, worker!);
       try {
-        const selector = '.grammar-rule-card-toggle[value="measurementUnitFormatting"]';
+        const selector =
+          '[data-setting="enabledGrammarRules"] .grammar-rule-card-toggle[value="measurementUnitFormatting"]';
         await optionsPage.waitForSelector(selector);
         await optionsPage.waitForFunction(
           (inputSelector) =>
@@ -5428,8 +5430,10 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
 
       optionsPage = await openOptionsPage(browser, worker!);
       try {
-        const selector = '.grammar-rule-card-toggle[value="measurementUnitFormatting"]';
-        const readySelector = '.grammar-rule-card-toggle[value="capitalizeSentenceStart"]';
+        const selector =
+          '[data-setting="enabledGrammarRules"] .grammar-rule-card-toggle[value="measurementUnitFormatting"]';
+        const readySelector =
+          '[data-setting="enabledGrammarRules"] .grammar-rule-card-toggle[value="capitalizeSentenceStart"]';
         await optionsPage.waitForSelector(selector);
         await optionsPage.waitForFunction(
           (inputSelector, loadedSelector) => {
@@ -7021,6 +7025,72 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       }
     },
     browserTimeout(30000, 45000),
+  );
+
+  test(
+    "Review rule controls persist one disabled check and restore it from settings",
+    async () => {
+      await setSettingAndWait(worker!, KEY_REVIEW_RULE_OVERRIDES, {});
+      await prepareReviewPage();
+      const source = "I opened the the report. He can works remotely.";
+      const typing = await getSetting(worker!, KEY_ENABLED_GRAMMAR_RULES);
+      try {
+        await setTextarea(source);
+        await triggerReview(worker!);
+        await waitForReview(page, "two native findings", (p) => p.items.length === 2);
+        await clickReviewControl(page, ".item");
+        await waitForReview(page, "rule card", (p) => p.card.open);
+        await clickReviewControl(page, "[data-action=disable-rule]");
+        await waitForReview(
+          page,
+          "only auxiliary remains",
+          (p) => p.items.length === 1 && p.items[0].text.includes("works"),
+        );
+        expect(await getSetting(worker!, KEY_REVIEW_RULE_OVERRIDES)).toEqual({
+          englishRepeatedWords: false,
+        });
+        expect(await getSetting(worker!, KEY_ENABLED_GRAMMAR_RULES)).toEqual(typing);
+        expect(await textareaValue()).toBe(source);
+        await page.keyboard.press("Escape");
+        await setTextarea(source);
+        await triggerReview(worker!);
+        await waitForReview(
+          page,
+          "disabled after reopen",
+          (p) => p.items.length === 1 && p.items[0].text.includes("works"),
+        );
+        const options = await openOptionsPage(browser, worker!);
+        try {
+          await options.click('a[href="#grammar_tab"]');
+          const selector = 'input.grammar-rule-card-toggle[value="englishRepeatedWords"]';
+          await options.waitForSelector(selector, { visible: true });
+          expect(await options.$eval(selector, (el) => (el as HTMLInputElement).checked)).toBe(
+            false,
+          );
+          await options.click(selector);
+          await waitUntil(
+            "restored Review preference",
+            async () =>
+              (await getSetting<Record<string, boolean>>(worker!, KEY_REVIEW_RULE_OVERRIDES))
+                ?.englishRepeatedWords === true,
+            { timeoutMs: 5000 },
+          );
+        } finally {
+          await options.close();
+        }
+        await page.bringToFront();
+        await waitForReview(page, "restored live findings", (p) => p.items.length === 2);
+        await setGrammarRulesAndWait(worker!, []);
+        await applyConfigChange(browser, worker!);
+        await waitForReview(page, "typing disable stays separate", (p) => p.items.length === 2);
+        expect(await textareaValue()).toBe(source);
+      } finally {
+        await setSettingAndWait(worker!, KEY_REVIEW_RULE_OVERRIDES, {});
+        await applyConfigChange(browser, worker!);
+        await finishReview();
+      }
+    },
+    browserTimeout(35000, 50000),
   );
 
   test(

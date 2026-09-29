@@ -104,6 +104,7 @@ export class ConfigAssembler {
         preferNativeAutocomplete: domainSettings.preferNativeAutocomplete,
         codeMode: domainSettings.codeMode,
         enabledGrammarRules: await this.coreSettingsRepository.getEnabledGrammarRules(),
+        reviewRuleOverrides: await this.coreSettingsRepository.getReviewRuleOverrides(),
         userDictionaryList,
         themeConfig,
         observability,

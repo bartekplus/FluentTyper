@@ -1,5 +1,9 @@
 import type { SettingsRegistry } from "@ui/settings-engine/SettingsEngine.js";
-import { KEY_ENABLED_GRAMMAR_RULES, KEY_SHOW_REVIEW_BUTTON } from "@core/domain/constants";
+import {
+  KEY_ENABLED_GRAMMAR_RULES,
+  KEY_SHOW_REVIEW_BUTTON,
+  KEY_REVIEW_RULE_OVERRIDES,
+} from "@core/domain/constants";
 import { i18n } from "./fluenttyperI18n.js";
 import { mountLocalAiSettings } from "./LocalAiSettingsPanel.js";
 import {
@@ -20,9 +24,10 @@ export function renderGrammarWorkspacePanel(root: HTMLElement, registry: Setting
   card.className = "settings-inline-card";
   card.appendChild(control.rootElement);
 
-  // Review runs all its rules, not only those on for typing; its in-field button is switched here.
+  // Review has its own preferences, separate from typing autocorrection.
   const review = createWorkspaceCard(i18n.get("popup_review_text"));
   moveControlToBody(registry, KEY_SHOW_REVIEW_BUTTON, review.body);
+  moveControlToBody(registry, KEY_REVIEW_RULE_OVERRIDES, review.body);
 
   shell.append(review.card, card);
   root.replaceChildren(shell);

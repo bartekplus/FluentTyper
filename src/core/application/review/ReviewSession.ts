@@ -1,3 +1,5 @@
+import { isReviewSupportedRule } from "@core/domain/grammar/review/reviewCatalog";
+import type { CatalogRuleId } from "@core/domain/grammar/ruleCatalog";
 import {
   planBulkFixSteps,
   type BulkPlan,
@@ -145,7 +147,9 @@ type ReviewNotice =
   | { kind: "unverified" }
   | { kind: "refused" }
   | { kind: "dictionary-added"; word: string }
-  | { kind: "dictionary-failed" };
+  | { kind: "dictionary-failed" }
+  | { kind: "rule-disabled" }
+  | { kind: "rule-setting-failed" };
 
 export interface ReviewViewState {
   status: ReviewStatus;
@@ -216,6 +220,7 @@ export interface ReviewSessionDependencies {
   initialScope: TextRange | null;
   onChange: (state: ReviewViewState) => void;
   addToDictionary?: (word: string) => Promise<boolean>;
+  disableReviewRule?: (ruleId: CatalogRuleId) => Promise<boolean>;
   /** Local dictionary lookups (see ReviewSpellingLookup). */
   lookupSpelling?: ReviewSpellingLookup;
   setTimer?: (callback: () => void, delayMs: number) => unknown;
@@ -271,6 +276,7 @@ interface IgnoredOccurrence {
 function sameOptions(a: ReviewOptions, b: ReviewOptions): boolean {
   return (
     a.lang === b.lang &&
+    a.spellingEnabled === b.spellingEnabled &&
     a.insertSpaceAfterAutocomplete === b.insertSpaceAfterAutocomplete &&
     sameKey(a.enabledRules, b.enabledRules) &&
     sameKey(a.userDictionary, b.userDictionary)
@@ -529,6 +535,26 @@ export class ReviewSession {
     this.emit();
   }
 
+  async disableReviewRule(id: string): Promise<void> {
+    const diagnostic = this.diagnostics.find((d) => d.id === id);
+    if (
+      !diagnostic ||
+      !isReviewSupportedRule(diagnostic.ruleId) ||
+      !this.deps.disableReviewRule ||
+      this.status !== "ready"
+    )
+      return;
+    const saved = await this.deps.disableReviewRule(diagnostic.ruleId).catch(() => false);
+    if (this.isClosed) return;
+    this.notice = { kind: saved ? "rule-disabled" : "rule-setting-failed" };
+    if (saved)
+      this.updateOptions({
+        ...this.options,
+        enabledRules: this.options.enabledRules.filter((ruleId) => ruleId !== diagnostic.ruleId),
+      });
+    this.emit();
+  }
+
   async addToDictionary(id: string): Promise<void> {
     const diagnostic = this.diagnostics.find((d) => d.id === id);
     const word = diagnostic?.dictionaryWord;
@@ -592,7 +618,10 @@ export class ReviewSession {
       truncated: this.truncated,
       unread: this.unread,
       languageSkipped: this.prepared?.languageSkipped.length ?? 0,
-      noRules: this.prepared !== null && this.prepared.rules.size === 0,
+      noRules:
+        this.prepared !== null &&
+        this.prepared.rules.size === 0 &&
+        !(this.options.spellingEnabled && this.deps.lookupSpelling),
       bulk: {
         count: plan?.diagnosticIds.length ?? 0,
         deferred: plan ? this.deferredCount(plan) : 0,
@@ -1082,7 +1111,7 @@ export class ReviewSession {
       this.selectedId = null;
     }
     const lookup = this.deps.lookupSpelling;
-    const spelling = lookup && prepared.rules.size > 0;
+    const spelling = lookup && (prepared.options.spellingEnabled ?? prepared.rules.size > 0);
     if (spelling) this.spellingCache = this.cacheFor(prepared.options.lang);
     this.spelling = !spelling ? "off" : this.spellingCache.unavailable ? "unavailable" : "checking";
     this.emit();

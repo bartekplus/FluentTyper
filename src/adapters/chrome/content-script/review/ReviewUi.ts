@@ -1,3 +1,4 @@
+import { isReviewSupportedRule } from "@core/domain/grammar/review/reviewCatalog";
 import { getDeepActiveElement } from "@core/application/dom-utils";
 import type { ReviewViewState } from "@core/application/review/ReviewSession";
 import { reviewText, type ReviewTextKey } from "@core/domain/grammar/review/reviewMessages";
@@ -23,6 +24,7 @@ export interface ReviewUiCallbacks {
   /** `viaKeyboard`: activated without a pointer, so focus should stay in the panel. */
   apply(id: string, alternative: number, viaKeyboard: boolean): void;
   ignore(id: string): void;
+  disableRule?(id: string): void;
   addToDictionary(id: string): void;
   fixAll(viaKeyboard: boolean): void;
   toggleCategory(category: ReviewCategory, shown: boolean): void;
@@ -1102,6 +1104,10 @@ export class ReviewUi {
         return this.t("review_notice_refused");
       case "dictionary-added":
         return this.t("review_notice_dictionary_added", { word: notice.word });
+      case "rule-disabled":
+        return this.t("review_notice_rule_disabled");
+      case "rule-setting-failed":
+        return this.t("review_notice_rule_setting_failed");
       case "dictionary-failed":
         return this.t("review_notice_dictionary_failed");
     }
@@ -1461,6 +1467,19 @@ export class ReviewUi {
     );
     ignore.addEventListener("click", () => this.callbacks.ignore(diagnostic.id));
     actions.append(...lead, ignore);
+    if (this.callbacks.disableRule && isReviewSupportedRule(diagnostic.ruleId)) {
+      const disable = element(
+        doc,
+        "button",
+        { type: "button", "data-action": "disable-rule" },
+        this.t("review_disable_rule"),
+      );
+      disable.disabled = this.state?.status !== "ready";
+      disable.addEventListener("click", (event) => {
+        if (event.isTrusted) this.callbacks.disableRule?.(diagnostic.id);
+      });
+      actions.append(disable);
+    }
     if (diagnostic.dictionaryWord) {
       const add = element(
         doc,

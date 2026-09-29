@@ -14,7 +14,7 @@ Execute sequentially: 1, 2, 3, 4, 8, 5, 6, 7, 9–20. Native TypeScript, individ
 | 5   | Contractions and possessives   | Pending                                                  |
 | 6   | Fixed prepositions             | Pending                                                  |
 | 7   | Verb complements               | Pending                                                  |
-| 8   | Independent Review controls    | Pending; follows #4                                      |
+| 8   | Independent Review controls    | Implemented; Chrome verified; Firefox launch blocked     |
 | 9   | Participles                    | Pending                                                  |
 | 10  | Demonstratives and noun number | Pending                                                  |
 | 11  | Compounds                      | Pending                                                  |
@@ -132,3 +132,22 @@ Local synthetic costs (Bun 1.4.2, both agreement IDs enabled, including the unch
 Error phrase: `They has the files. We was ready. She have a keyboard. There is two errors in the report. `. Clean phrase: `They have the files. We were ready. She has a keyboard. There are two errors in the report. `. Repeat/truncate to size; scope covers all characters. These are local fixture costs, not isolated before/after performance claims.
 
 Production JS delta against #3's retained final-source Chrome build (`production-chrome-full-40989-1790704043997`): content script **+4,295 bytes**, background **+656**, settings **+292**, popup **+292**. No dependency or permission addition, no change to typing behavior.
+
+## #8 independent Review controls
+
+Added validated native rule overrides to the existing repository, config broadcast, Review session and settings cards. Missing choices inherit explicit per-rule defaults; all current native checks retain their existing enabled default. Malformed known choices fail closed; unknown, spelling and AI identities cannot become native preferences. No migration from typing choices and no reviewed text stored.
+
+Native cards offer **Disable this check in Review**; settings restore individual checks or declared defaults. Changes cancel scans and invalidate old Apply/Fix all results. Dictionary spelling remains available with every native check disabled, and the Review launcher stays available outside code mode. Existing Local AI controls, language/site policy, typing and autocomplete remain separate. New control labels and notices use all nine existing UI languages.
+
+- Full unit suite: **3,756 pass, 0 fail**. Additional final card-action test: **18 pass, 0 fail** in `ReviewUiLocalAi.test.ts`, verifying no native disable action for spelling/AI and rejecting untrusted clicks.
+- Chrome full browser suite: **93 pass, 10 skip, 0 fail**. The new test disables one check, reopens Review, restores it through options while Review is open, and verifies unchanged text and independent typing settings.
+- Chrome options/runtime smoke suite: **26 pass, 0 fail**.
+- Unit coverage includes absent/malformed/reset choices, concurrent card writes, persistence failure, multiple sessions during scans, stale batch/apply attempts and spelling with all native rules disabled.
+- Self-review: existing browser selectors matched the first of two controls for the same rule. Added the control's setting identity and scoped typing test selectors; the full suite passed after repair.
+- `bun run check`, coverage mapping (**191 behaviors**) and production Chrome/Firefox builds: passed.
+- Firefox focused browser test still fails before extension startup: `Could not find profile folder`. No Firefox runtime claim.
+- Logs: `/tmp/ft-native-controls-{focused,ui,check,unit,browser,full-chrome,smoke,firefox,build-chrome,build-firefox}.log`.
+
+Production JS delta against #4's retained full-suite build (`production-chrome-full-41958-1790704599116`): content script **+6,713 bytes**, background **+5,307**, settings **+95,479**, popup **+4,864**. The settings page now includes the existing nine-language Review message catalog to name Review-only rules; no dependency or permission added. Measurements use the first #8 full-suite build; the later selector identity adds only a small DOM assignment.
+
+Next: #5 contextual contractions and bounded possessives, then #6 and #7. The overall roadmap and Firefox runtime gate remain incomplete.

@@ -18,6 +18,7 @@ import {
   KEY_LOCAL_AI_SETUP_OFFER_DISMISSED,
   KEY_DOMAIN_LIST_MODE,
   KEY_ENABLED_GRAMMAR_RULES,
+  KEY_REVIEW_RULE_OVERRIDES,
   KEY_ENABLED_LANGUAGES,
   KEY_EXTENSION_LANGUAGE,
   KEY_FALLBACK_LANGUAGE,
@@ -95,6 +96,7 @@ const SETTINGS_KEYS = {
   observabilityModuleOverrides: KEY_OBSERVABILITY_MODULE_OVERRIDES,
   productivityStats: KEY_PRODUCTIVITY_STATS,
   enabledGrammarRules: KEY_ENABLED_GRAMMAR_RULES,
+  reviewRuleOverrides: KEY_REVIEW_RULE_OVERRIDES,
   suggestionBgLight: KEY_SUGGESTION_BG_LIGHT,
   suggestionTextLight: KEY_SUGGESTION_TEXT_LIGHT,
   suggestionHighlightBgLight: KEY_SUGGESTION_HIGHLIGHT_BG_LIGHT,
@@ -155,6 +157,7 @@ export interface SettingsSchema {
   observabilityModuleOverrides: Record<string, ObservabilityModuleOverride>;
   productivityStats: Record<string, unknown>;
   enabledGrammarRules: GrammarRuleOverrides | string[];
+  reviewRuleOverrides: Record<string, boolean>;
   suggestionBgLight: string;
   suggestionTextLight: string;
   suggestionHighlightBgLight: string;

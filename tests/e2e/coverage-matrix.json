@@ -3651,6 +3651,22 @@
           "test": "Review-only rules cannot enter typing runtime or stored typing choices"
         }
       ]
+    },
+    {
+      "id": "review_independent_rule_controls",
+      "description": "Native Review preferences persist independently from typing, disable a card check, restore from settings and invalidate old scan results without changing text.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review rule controls persist one disabled check and restore it from settings"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSession.test.ts",
+          "test": "disabling a Review rule invalidates its old batch and keeps unrelated findings"
+        }
+      ]
     }
   ]
 }

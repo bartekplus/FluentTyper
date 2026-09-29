@@ -123,18 +123,23 @@ The panel names every state:
 Review reuses the typing-time rules' own patterns, word lists and helpers.
 Each catalog rule is classified in
 [`reviewCatalog.ts`](../src/core/domain/grammar/review/reviewCatalog.ts), and
-its `Record` type makes an unclassified new rule a compile error. Review runs
-every supported rule, whether or not it is switched on for typing (even after
-"Disable all"): review never changes text until you apply a fix, so the
-typing-time switches, which decide what is corrected automatically as you
-type, do not gate it. Typing-time corrections still follow your settings
-exactly. Code mode is the exception: it keeps only code-safe rules, none of
-which review supports, so a review there finds nothing and the panel says so.
+its `Record` type makes an unclassified new rule a compile error. Native Review
+checks have independent switches in **Settings → Grammar → Review text**.
+Current checks default on; typing switches still control only automatic corrections.
+A native finding's **Disable this check in Review** action saves that rule's choice
+and refreshes open reviews. Restore it in settings, individually or with **Restore defaults**.
+Disabling every native check leaves dictionary spelling and separately configured Local AI available.
+Code mode disables Review checks.
+
+Only supported native rule IDs and boolean choices are stored. Missing choices
+inherit explicit catalog defaults; malformed known choices are disabled and unknown
+IDs are discarded. Existing typing preferences are never migrated into Review choices.
+No reviewed text is stored by these controls.
 English rules are skipped for other languages, and the panel says so. With the language
 set to auto-detect, Review first identifies the text's language on the device (the
 browser's own detector) and uses the matching enabled language, or the fallback language.
 
-Supported (**Typing** is the rule's default for typing; review runs it either way):
+Supported (**Typing** is the rule's default for typing; Review has separate switches):
 
 | Rule                                   | Language | Typing      | Category    | Fix all                                                                                           |
 | -------------------------------------- | -------- | ----------- | ----------- | ------------------------------------------------------------------------------------------------- |

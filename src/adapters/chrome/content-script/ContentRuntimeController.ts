@@ -3,6 +3,7 @@ import { createLogger, setGlobalObservabilityRuntime } from "@core/application/l
 import { getDeepActiveElement, isInDocument } from "@core/application/dom-utils";
 import {
   CMD_CONTENT_SCRIPT_ADD_TO_DICTIONARY,
+  CMD_CONTENT_SCRIPT_DISABLE_REVIEW_RULE,
   CMD_CONTENT_SCRIPT_REVIEW_SPELLING,
 } from "@core/domain/constants";
 import { filterCodeSafeGrammarRules } from "@core/domain/grammar/ruleCatalog";
@@ -227,9 +228,13 @@ export class ContentRuntimeController {
     return new ReviewController({
       uiLanguage: () => this.uiLanguage(),
       getOptions: () => ({
+        spellingEnabled: !this.config.codeMode,
         lang: this.config.lang,
-        // Every rule review supports, whatever is switched on for typing; none in code mode.
-        enabledRules: reviewRuleIds({ codeMode: this.config.codeMode }),
+        // Review choices are independent of typing switches; none run in code mode.
+        enabledRules: reviewRuleIds({
+          codeMode: this.config.codeMode,
+          overrides: this.config.reviewRuleOverrides,
+        }),
         userDictionary: this.config.userDictionaryList ?? [],
         insertSpaceAfterAutocomplete: this.config.insertSpaceAfterAutocomplete,
       }),
@@ -242,6 +247,13 @@ export class ContentRuntimeController {
         this.suggestionManager?.resumeAfterReview(element);
       },
       suggestionsOpen: (element) => this.suggestionManager?.hasOpenSuggestions(element) ?? false,
+      disableReviewRule: async (ruleId) => {
+        const response: unknown = await chrome.runtime.sendMessage({
+          command: CMD_CONTENT_SCRIPT_DISABLE_REVIEW_RULE,
+          context: { ruleId },
+        });
+        return (response as { ok?: unknown } | undefined)?.ok === true;
+      },
       addToDictionary: async (word) => {
         const message: ContentScriptAddToDictionaryMessage = {
           command: CMD_CONTENT_SCRIPT_ADD_TO_DICTIONARY,
@@ -376,8 +388,8 @@ export class ContentRuntimeController {
       isEnabled: () =>
         this.enabled &&
         this.config.showReviewButton !== false &&
-        // Code mode leaves no rule review supports: the button would find nothing.
-        reviewRuleIds({ codeMode: this.config.codeMode }).length > 0,
+        // Dictionary suggestions stay available when native checks are disabled.
+        !this.config.codeMode,
       canShowFor: (field) => !this.suggestionManager?.isAwaitingManualAttach(field),
       reviewedElement: () => this.review?.reviewedElement ?? null,
       review: () => {
