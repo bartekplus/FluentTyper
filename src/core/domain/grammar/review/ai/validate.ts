@@ -813,7 +813,7 @@ const localEdits = (hunkEdits: ReadonlyArray<{ edit: ReviewEdit; local: TextRang
 /** Most words one change unit may remove or add. */
 const MAX_UNIT_WORDS = 4;
 /** Above this share of changed words a proposal is a rewrite, not a correction. */
-const MAX_CHANGED_SHARE = 0.5;
+const MAX_CHANGED_SHARE = 2 / 3;
 
 /**
  * Turns one chunk's parsed Correct-mode output into guarded findings against
@@ -885,12 +885,9 @@ function correctSegment(
 
   const removedWords = hunks.reduce((sum, h) => sum + wordCount(original.slice(h.o0, h.o1)), 0);
   const addedWords = hunks.reduce((sum, h) => sum + wordCount(next.slice(h.p0, h.p1)), 0);
-  if (
+  const exceedsShare =
     removedWords > wordCount(original) * MAX_CHANGED_SHARE ||
-    addedWords > wordCount(next) * MAX_CHANGED_SHARE
-  ) {
-    return { diagnostics: [], rejected: ["drift"] };
-  }
+    addedWords > wordCount(next) * MAX_CHANGED_SHARE;
 
   const diagnostics: ReviewDiagnostic[] = [];
   const rejected: AiRejectionReason[] = [];
@@ -898,6 +895,9 @@ function correctSegment(
     const result = correctUnit(prepared, segment, diff, unit);
     if ("reason" in result) rejected.push(result.reason);
     else diagnostics.push(result.diagnostic);
+  }
+  if (exceedsShare) {
+    return { diagnostics: [], rejected: rejected.length ? rejected : ["drift.changed_word_share"] };
   }
   return { diagnostics, rejected };
 }
@@ -935,7 +935,7 @@ function correctUnit(
   const unitRemoved = unit.flatMap((h) => original.slice(h.o0, h.o1));
   const unitAdded = unit.flatMap((h) => next.slice(h.p0, h.p1));
   if (wordCount(unitRemoved) > MAX_UNIT_WORDS || wordCount(unitAdded) > MAX_UNIT_WORDS) {
-    return { reason: "too-many-edits" };
+    return { reason: "unit.too_many_changed_words" };
   }
 
   // The sentence with only this unit applied: the unit must stand on its own.
@@ -950,7 +950,7 @@ function correctUnit(
   if (hedgeCount(originalWords) !== hedgeCount(changedWords)) return { reason: "uncertainty" };
   // Terminating a fragment ("lol same" -> "Lol, same.") formalizes it.
   const terminated = (text: string) => /[.!?…]["'”’»)\]]*\s*$/u.test(text);
-  if (!terminated(segment.text) && terminated(variant)) return { reason: "drift" };
+  if (!terminated(segment.text) && terminated(variant)) return { reason: "drift.optional_style" };
 
   // "to not change" -> "not to change": "not" moves across one word; the
   // negation count is unchanged (checked above).
@@ -975,7 +975,7 @@ function correctUnit(
       if (next[index].kind === "word" && afterNumber(next, index)) return { reason: "number" };
     }
     if (removedIndexes.some((index) => flipsNounNumber(original, index, unit, added))) {
-      return { reason: "drift" };
+      return { reason: "drift.lexical_substitution" };
     }
     if (removedIndexes.some((index) => isNameAt(original, originalStarts, index))) {
       return { reason: "name" };
@@ -1019,12 +1019,15 @@ function correctUnit(
       return 0;
     };
     if (!isCorrection(removed, added, deletable, movable, phrase) || formalizes(removed, added)) {
-      return { reason: "drift" };
+      return {
+        reason: formalizes(removed, added) ? "drift.optional_style" : "drift.lexical_substitution",
+      };
     }
     // A new sentence break inside the segment ("16 rd. chain") is not a correction.
     const addsMark = next.slice(hunk.p0, hunk.p1).some((token) => SENTENCE_MARK.test(token.text));
-    if (addsMark && hunk.o1 < original.length) return { reason: "drift" };
-    if (styleChoice(original, next, hunk, originalStarts)) return { reason: "drift" };
+    if (addsMark && hunk.o1 < original.length) return { reason: "drift.optional_style" };
+    if (styleChoice(original, next, hunk, originalStarts))
+      return { reason: "drift.optional_style" };
   }
 
   // Underline from the first to the last change of the unit.

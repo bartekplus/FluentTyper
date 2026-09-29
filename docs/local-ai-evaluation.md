@@ -320,6 +320,29 @@ check. This uses the existing cache-state verifier and does not add a network re
 
 ### Remaining quality limits
 
+Validator experiment (2026-09-29): the changed-word share limit is now two
+thirds. `She dont knows.` → `She doesn't know.` passes as one atomic finding
+through the ordinary unit checks. The same general limit covers other dense
+corrections without a verb list or a special auxiliary rule. Unit validation
+runs before the sentence-wide share decision, so a specific unit failure is
+reported first. The four-word unit limit and meaning/protection guards still
+apply. Correct-mode rejection counts distinguish changed-word share, lexical
+substitution, optional style, and oversized units; counts remain text-free.
+
+This deliberately leaves grammatical judgment to the user: the broader limit
+also accepts `She has cats.` → `She have cat.` as a review card. It is never
+auto-applied. Re-scoring 222 parsed outputs from the saved Gemma full run
+produced the same accepted results as before this adjustment (eight saved
+outputs did not parse through the current replay format).
+
+Manual sample from the saved Gemma 4 E4B full Correct run, checked against the
+explicit fixture targets (four selected rejections, not a representative
+rate): `dense-05` correctly blocked a pronoun substitution; `dense-10`
+correctly blocked a stylistic subject reorder; `dense-13` correctly blocked
+a dialect-dependent collective-noun agreement change; `heldout-08` lost a
+legitimate correction because it requires a broader clause restructure.
+The last case remains blocked pending a specific rule for that construction.
+
 The original stress run rejected 33 proposed change units as wording drift, 10 as
 quoted text, 3 as number changes, 2 as negation changes, and one each as too many changed
 words, a technical-token change and a name change. These counts are not all missed

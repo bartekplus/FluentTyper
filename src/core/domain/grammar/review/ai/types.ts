@@ -104,10 +104,13 @@ export type AiRejectionReason =
   | "uncertainty"
   | "quoted"
   | "drift"
+  | "drift.changed_word_share"
+  | "drift.lexical_substitution"
+  | "drift.optional_style"
   /** Rewrite added a commitment, deadline, apology, greeting or sign-off not in the original. */
   | "invented"
   | "length"
-  | "too-many-edits"
+  | "unit.too_many_changed_words"
   /** Rewrite returned every sentence as written: nothing to apply. */
   | "unchanged"
   | "unsafe-boundary";

@@ -80,10 +80,61 @@ function expectRejected(text: string, proposed: string, reason: string, extra: E
   const result = correctOne(text, proposed, extra);
   expect(result.diagnostics).toEqual([]);
   // Every change unit of the proposal was rejected, all for this reason.
-  expect(Object.keys(result.rejected)).toEqual([reason]);
+  const reasons = Object.keys(result.rejected);
+  expect(reasons).toHaveLength(1);
+  expect(
+    reasons[0] === reason ||
+      reasons[0]?.startsWith(`${reason}.`) ||
+      (reason === "too-many-edits" && reasons[0] === "unit.too_many_changed_words"),
+  ).toBe(true);
 }
 
 describe("correctionFindings", () => {
+  test("dense corrections use the same unit checks and stay atomic", () => {
+    const result = correctOne("She dont knows.", "She doesn't know.");
+    expect(result.rejected).toEqual({});
+    expect(result.diagnostics).toHaveLength(1);
+    expect(result.diagnostics[0].alternatives[0].edits).toHaveLength(1);
+    expect(result.applied).toBe("She doesn't know.");
+    expect(correctOne("She dont knows.", "She doesn't believe.").rejected).toEqual({
+      "drift.lexical_substitution": 1,
+    });
+    expect(correctOne("She don't knows.", "She doesn't know.").applied).toBe("She doesn't know.");
+    expect(
+      correctOne("Yesterday she dont knows the answer.", "Yesterday she doesn't know the answer.")
+        .applied,
+    ).toBe("Yesterday she doesn't know the answer.");
+    expect(correctOne("She dont misses.", "She doesn't miss.").applied).toBe("She doesn't miss.");
+    expect(correctOne("She dont crosses.", "She doesn't cross.").applied).toBe(
+      "She doesn't cross.",
+    );
+    expect(correctOne("She dont has.", "She doesn't have.").applied).toBe("She doesn't have.");
+    expect(correctOne("She dont quizzes.", "She doesn't quiz.").applied).toBe("She doesn't quiz.");
+    expect(correctOne("She dont echoes.", "She doesn't echo.").applied).toBe("She doesn't echo.");
+    expect(correctOne("She dont radios.", "She doesn't radio.").applied).toBe("She doesn't radio.");
+    expect(correctOne("She dont tries.", "She doesn't try.").applied).toBe("She doesn't try.");
+    const dense = correctOne(
+      "She dont knows, but he dont cares.",
+      "She doesn't know, but he doesn't care.",
+    );
+    expect(dense.rejected).toEqual({});
+    expect(dense.diagnostics).toHaveLength(2);
+    expect(dense.applied).toBe("She doesn't know, but he doesn't care.");
+  });
+  test("rejection counts distinguish share, lexical, style, and unit limits", () => {
+    expect(correctOne("The big dog ran home.", "The large dog ran home.").rejected).toEqual({
+      "drift.lexical_substitution": 1,
+    });
+    expect(correctOne("Ok cool.", "Ok, cool.").rejected).toEqual({
+      "drift.optional_style": 1,
+    });
+    expect(
+      correctOne(
+        "The meeting went well and everyone agreed on the plan.",
+        "The meeting was a big success because all agreed on the plan.",
+      ).rejected,
+    ).toEqual({ "unit.too_many_changed_words": 1 });
+  });
   test("a negating prefix is never a spelling fix (review finding)", () => {
     const likely = correctOne(
       "This bug is likely to reappear.",
@@ -214,10 +265,12 @@ describe("correctionFindings", () => {
   });
 
   test("dense text: per-unit bounds and the rewrite guard", () => {
+    expect(correctOne("She has cats.", "She have cat.").diagnostics).toHaveLength(1);
+    expectRejected("Teh wrng.", "The wrong.", "drift.changed_word_share");
     expectRejected(
       "The meeting went well and everyone agreed on the plan.",
       "Everyone agreed that the plan and the meeting were great.",
-      "drift",
+      "unit.too_many_changed_words",
     );
     const long = correctOne(
       "We should deploy the new version on the staging cluster first today.",
