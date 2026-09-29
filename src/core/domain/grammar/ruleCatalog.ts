@@ -1,4 +1,4 @@
-import type { GrammarRuleCatalogEntry } from "./types";
+import type { GrammarRuleCatalogEntry, GrammarRuleId } from "./types";
 
 export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   {
@@ -366,6 +366,12 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
 
 export type CatalogRuleId = (typeof GRAMMAR_RULE_CATALOG)[number]["id"];
 
+export const TYPING_RULE_CATALOG = GRAMMAR_RULE_CATALOG.filter(
+  (entry): entry is GrammarRuleCatalogEntry & { id: GrammarRuleId } => entry.typing !== false,
+);
+
+export const TYPING_RULE_IDS = TYPING_RULE_CATALOG.map((entry) => entry.id);
+
 export const GRAMMAR_RULE_IDS: CatalogRuleId[] = GRAMMAR_RULE_CATALOG.map((entry) => entry.id);
 
 // Historical snapshots below are exact stored values, compared against real
@@ -418,7 +424,7 @@ export const DEFAULT_V3_GRAMMAR_RULES: string[] = [
   "neutralPunctuationPolicy",
 ];
 
-export const DEFAULT_CURRENT_GRAMMAR_RULES: CatalogRuleId[] = GRAMMAR_RULE_CATALOG.filter(
+export const DEFAULT_CURRENT_GRAMMAR_RULES: CatalogRuleId[] = TYPING_RULE_CATALOG.filter(
   (entry) => entry.defaultRollout === "on",
 ).map((entry) => entry.id);
 
@@ -435,7 +441,7 @@ export function filterCodeSafeGrammarRules(ruleIds: readonly string[]): string[]
   return ruleIds.filter(isCodeSafeGrammarRule);
 }
 
-export const RECOMMENDED_CURRENT_GRAMMAR_RULES: CatalogRuleId[] = GRAMMAR_RULE_CATALOG.filter(
+export const RECOMMENDED_CURRENT_GRAMMAR_RULES: CatalogRuleId[] = TYPING_RULE_CATALOG.filter(
   (entry) => entry.recommended,
 ).map((entry) => entry.id);
 
@@ -482,5 +488,5 @@ export function normalizeGrammarRuleSelection(selection: unknown): CatalogRuleId
   }
 
   const unique = new Set(expanded);
-  return GRAMMAR_RULE_IDS.filter((id) => unique.has(id));
+  return TYPING_RULE_IDS.filter((id) => unique.has(id));
 }

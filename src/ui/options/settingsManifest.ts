@@ -61,8 +61,8 @@ import {
 } from "@core/domain/themeDefaults";
 import { DEFAULT_LOCAL_AI_TIER } from "@core/domain/localAi/modelRegistry";
 import {
-  GRAMMAR_RULE_CATALOG,
-  GRAMMAR_RULE_IDS,
+  TYPING_RULE_CATALOG,
+  TYPING_RULE_IDS,
   RECOMMENDED_CURRENT_GRAMMAR_RULES,
   TYPOGRAPHY_GRAMMAR_RULES,
 } from "@core/domain/grammar/ruleCatalog";
@@ -188,7 +188,7 @@ function themeValueSetting(groupKey: string, name: keyof SuggestionThemeSettings
   };
 }
 
-const GRAMMAR_RULE_OPTIONS = GRAMMAR_RULE_CATALOG.map((rule) => {
+const GRAMMAR_RULE_OPTIONS = TYPING_RULE_CATALOG.map((rule) => {
   const rolloutBadge =
     rule.defaultRollout === "on"
       ? i18n.get("grammar_rule_rollout_safe_badge")
@@ -477,7 +477,7 @@ const manifest: ManifestDefinition = {
         {
           actionKey: "enable_all",
           text: i18n.get("grammar_rules_enable_all"),
-          values: GRAMMAR_RULE_IDS,
+          values: TYPING_RULE_IDS,
         },
         {
           actionKey: "disable_all",
