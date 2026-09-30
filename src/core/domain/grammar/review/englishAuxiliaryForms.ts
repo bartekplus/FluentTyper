@@ -7,6 +7,17 @@ const SUBJECT = "(?:I|you|he|she|it|we|they)";
 const AUXILIARY =
   "(?:did(?:n['’]t)?|does(?:n['’]t)?|do(?:n['’]t)?|can(?:not|['’]t)?|could(?:n['’]t)?|will|won['’]t|would(?:n['’]t)?|shall|should(?:n['’]t)?|may|might|must(?:n['’]t)?)";
 const ADVERB = "(?:not|really|just|ever|even|always|still|actually)";
+// Third-person forms that are also plural nouns, so "do/did" can be the main verb.
+const DO_OBJECT_NOUNS = new Set(
+  (
+    "bears beats bends bets binds bites blows breaks breeds builds bursts buys catches costs " +
+    "cuts deals digs draws drinks drives falls feeds fights finds flies goes hangs hits holds " +
+    "keeps leads leaves lies lights means meets mistakes puts reads rebuilds reruns resets " +
+    "rewrites rides rings rises runs sets shakes shoots sinks sits slides spins splits spreads " +
+    "springs stands steals sticks stings strikes sweeps swims swings takes tears throws " +
+    "upsets wakes wins winds works"
+  ).split(" "),
+);
 const PREFIX = `(?:${SUBJECT}${SPACE}${AUXILIARY}|${AUXILIARY}${SPACE}${SUBJECT})`;
 const PATTERN = new RegExp(
   `(?<![\\p{L}\\p{M}\\p{N}_'’@/#.\\\\-])${PREFIX}(?:${SPACE}${ADVERB}){0,2}${SPACE}([A-Za-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])`,
@@ -54,12 +65,8 @@ export function auxiliaryForms(ctx: DetectContext): RawFinding[] {
     if (token !== token.toLowerCase() && token !== token.toUpperCase()) continue;
     const after = ctx.text.slice(end, end + 32);
     if (/^\uFFFC|^\.[\p{L}\p{N}_]/u.test(after)) continue;
-    // Lexical "do works of art", "do cuts", "do sets" are not auxiliary errors.
-    if (
-      /\b(?:do|does|did)(?:n['’]t)?\b/i.test(match[0]) &&
-      ["works", "cuts", "sets", "runs", "reads", "takes", "goes", "buys", "finds"].includes(word)
-    )
-      continue;
+    // Lexical "do works of art", "did builds", "do rides" are not auxiliary errors.
+    if (/\b(?:do|does|did)(?:n['’]t)?\b/i.test(match[0]) && DO_OBJECT_NOUNS.has(word)) continue;
     const replacement = applyWordCase(entry.lemma, detectWordCase(token));
     const verbStart = end - token.length;
     findings.push({

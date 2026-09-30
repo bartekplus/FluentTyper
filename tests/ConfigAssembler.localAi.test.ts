@@ -99,3 +99,14 @@ test("readability threshold defaults and validation stay outside prediction conf
     );
   }
 });
+
+test("typing-time grammar proposals reach the page config, on unless turned off", async () => {
+  for (const [seed, expected] of [
+    [{}, true],
+    [{ liveGrammarProposals: false }, false],
+  ] as const) {
+    const assembler = new ConfigAssembler(createSettingsManagerMock(seed), { isDevBuild: false });
+    const context = (await assembler.assembleBackgroundPageSetConfig()).context;
+    expect(context.liveGrammarProposals).toBe(expected);
+  }
+});

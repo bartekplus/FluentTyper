@@ -13,6 +13,7 @@ import {
   KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
   KEY_SHOW_SUGGESTION_FOOTER,
   KEY_SHOW_REVIEW_BUTTON,
+  KEY_LIVE_GRAMMAR_PROPOSALS,
   KEY_LOCAL_AI_REVIEW_ENABLED,
   KEY_LOCAL_AI_REVIEW_TIER,
   KEY_LOCAL_AI_REVIEW_CONSENT,
@@ -79,6 +80,7 @@ const SETTINGS_KEYS = {
   horizontalSuggestions: KEY_HORIZONTAL_SUGGESTIONS,
   showSuggestionFooter: KEY_SHOW_SUGGESTION_FOOTER,
   showReviewButton: KEY_SHOW_REVIEW_BUTTON,
+  liveGrammarProposals: KEY_LIVE_GRAMMAR_PROPOSALS,
   localAiReviewEnabled: KEY_LOCAL_AI_REVIEW_ENABLED,
   localAiReviewTier: KEY_LOCAL_AI_REVIEW_TIER,
   localAiReviewConsent: KEY_LOCAL_AI_REVIEW_CONSENT,
@@ -141,6 +143,7 @@ export interface SettingsSchema {
   horizontalSuggestions: boolean;
   showSuggestionFooter: boolean;
   showReviewButton: boolean;
+  liveGrammarProposals: boolean;
   localAiReviewEnabled: boolean;
   localAiReviewTier: "standard" | "compact";
   /** Written only by the explicit Install action; never inferred or migrated. */

@@ -17,6 +17,10 @@ import {
   syncAcceptedSuggestionTrailingSpaceState,
 } from "./SuggestionAcceptedState";
 import { rangeInsideTarget, TextTargetAdapter } from "./TextTargetAdapter";
+import {
+  nextLiveGrammarProposal,
+  type LiveGrammarProposal,
+} from "@core/domain/grammar/review/liveProposals";
 import { measurementEditingContext } from "./MeasurementEditingContext";
 import { buildCaretTrace, clipTraceText, collapseTraceWhitespace } from "./traceUtils";
 import type {
@@ -87,9 +91,13 @@ export class SuggestionEntrySession {
   private readonly insertSpaceAfterAutocomplete: boolean;
   private readonly logRenderedSuggestionPopup: SuggestionEntrySessionOptions["logRenderedSuggestionPopup"];
   private readonly logNoVisibleSuggestions: (context: PredictionResponse) => void;
+  private readonly findGrammarProposals: SuggestionEntrySessionOptions["findGrammarProposals"];
   private lastAcceptedSuggestion: string | null = null;
   // Snippet expansions among the current suggestions: never learned as words.
   private snippetSuggestions = new Set<string>();
+  private snippetShortcuts: Array<string | null> | undefined;
+  // Grammar proposals already shown, dismissed or in the text before typing; never offered again.
+  private seenGrammarProposals: Set<string> | null = null;
 
   constructor(options: SuggestionEntrySessionOptions) {
     this.entry = options.entry;
@@ -105,6 +113,7 @@ export class SuggestionEntrySession {
     this.textEditService = options.textEditService;
     this.contentEditableAdapter = options.contentEditableAdapter;
     this.getPendingFallback = options.getPendingFallback ?? (() => undefined);
+    this.findGrammarProposals = options.findGrammarProposals;
     this.renderMenu = options.renderMenu;
     this.renderInline = options.renderInline;
     this.recordSuggestionShown = options.recordSuggestionShown;
@@ -136,6 +145,8 @@ export class SuggestionEntrySession {
   }
 
   public handleFocus(): void {
+    // What is already written when the field is entered is not "just typed".
+    this.readGrammarProposals();
     if (!this.inlineSuggestionEnabled) {
       return;
     }
@@ -233,6 +244,7 @@ export class SuggestionEntrySession {
 
   public handleInput(event: Event): void {
     this.pushInteractionTrace(this.describeInputInteraction(event));
+    this.dropGrammarProposal();
     const context = this.editableContextResolver.resolve(this.entry.elem);
     if (!context) {
       this.handleSuppressedInput();
@@ -336,7 +348,10 @@ export class SuggestionEntrySession {
 
   public clearSuggestions(): void {
     this.entry.suggestions = [];
+    this.entry.grammarProposal = null;
+    this.entry.grammarProposalSelected = false;
     this.snippetSuggestions.clear();
+    this.snippetShortcuts = undefined;
     this.entry.selectedIndex = 0;
     this.entry.visibleSuggestionBeforeCursorText = null;
     this.entry.visibleSuggestionFullText = null;
@@ -359,6 +374,7 @@ export class SuggestionEntrySession {
     }
 
     this.entry.suggestions = Array.isArray(context.predictions) ? context.predictions.slice() : [];
+    this.snippetShortcuts = context.snippetShortcuts;
     this.snippetSuggestions = new Set(
       this.entry.suggestions.filter((_, index) => context.snippetShortcuts?.[index]),
     );
@@ -380,18 +396,12 @@ export class SuggestionEntrySession {
     this.entry.inlineRenderRejected = false;
     if (this.inlineSuggestionEnabled) {
       this.entry.inlineSuggestion = this.entry.suggestions[0] ?? null;
-      this.hideMenu();
+      this.renderMenuRows();
       this.renderInline();
     } else {
       this.entry.inlineSuggestion = null;
       this.clearInlinePresenter();
-      this.renderMenu({
-        suggestions: this.entry.suggestions,
-        snippetShortcuts: context.snippetShortcuts,
-        selectedIndex: this.entry.selectedIndex,
-        menuHeader: this.entry.menuHeader,
-        mentionText: this.entry.latestMentionText,
-      });
+      this.renderMenuRows();
     }
 
     if (this.entry.pendingInlineAccept) {
@@ -418,6 +428,102 @@ export class SuggestionEntrySession {
     this.logNoVisibleSuggestions(context);
   }
 
+  /** The menu's rows: the suggestions (unless they show inline) and any grammar proposal. */
+  private renderMenuRows(): void {
+    if (this.inlineSuggestionEnabled && !this.entry.grammarProposal) {
+      this.hideMenu();
+      return;
+    }
+    this.renderMenu({
+      suggestions: this.inlineSuggestionEnabled ? [] : this.entry.suggestions,
+      snippetShortcuts: this.snippetShortcuts,
+      selectedIndex: this.entry.selectedIndex,
+      menuHeader: this.entry.menuHeader,
+      mentionText: this.entry.latestMentionText,
+    });
+  }
+
+  /**
+   * Review findings for the text before the caret, or null where no proposal may
+   * be made: proposals off, a sensitive, locked or code field, or no plain caret.
+   */
+  private readGrammarProposals(): {
+    proposals: LiveGrammarProposal[];
+    context: ReturnType<SuggestionEntrySession["resolveEditableCursorContext"]>;
+  } | null {
+    if (
+      !this.findGrammarProposals ||
+      this.resolveUnstableInputSkipReason(this.entry) !== null ||
+      measurementEditingContext(this.entry.elem) !== "prose"
+    ) {
+      return null;
+    }
+    const context = this.resolveEditableCursorContext(
+      this.entry,
+      TextTargetAdapter.snapshot(this.entry.elem),
+    );
+    if (!context.safeForGrammar) {
+      return null;
+    }
+    const proposals = this.findGrammarProposals(context.beforeCursor);
+    // The first read (on focus) only records what the field already contains.
+    if (this.seenGrammarProposals === null) {
+      this.seenGrammarProposals = new Set(proposals.map((proposal) => proposal.key));
+    }
+    return { proposals, context };
+  }
+
+  /** On a pause: offer the newest finding not seen before as the menu's last row. */
+  private refreshGrammarProposal(): void {
+    const firstRead = this.seenGrammarProposals === null;
+    const read = this.readGrammarProposals();
+    if (!read || firstRead || !this.seenGrammarProposals) {
+      return;
+    }
+    const proposal = nextLiveGrammarProposal(read.proposals, this.seenGrammarProposals);
+    if (!proposal) {
+      return;
+    }
+    this.entry.grammarProposal = proposal;
+    this.entry.grammarProposalSelected = false;
+    this.renderMenuRows();
+  }
+
+  /** Typing on ignores the proposal; it is not offered again. */
+  private dropGrammarProposal(): void {
+    if (!this.entry.grammarProposal) {
+      return;
+    }
+    this.entry.grammarProposal = null;
+    this.entry.grammarProposalSelected = false;
+    this.renderMenuRows();
+  }
+
+  /**
+   * Applies the shown proposal after finding it again, with the same fix, in the
+   * text as it is now; a changed or vanished span is never written.
+   */
+  public acceptGrammarProposal(): boolean {
+    const proposal = this.entry.grammarProposal;
+    this.clearSuggestions();
+    const read = proposal ? this.readGrammarProposals() : null;
+    const current = read?.proposals.filter((candidate) => candidate.key === proposal?.key).at(-1);
+    if (!read || !current) {
+      return false;
+    }
+    const { beforeCursor, snapshot, applyContext } = read.context;
+    return this.textEditService.applyGrammarEdit(
+      this.entry,
+      {
+        replacement: current.replacement + beforeCursor.slice(current.end),
+        deleteBackwards: beforeCursor.length - current.start,
+        deleteForwards: 0,
+        strict: true,
+      },
+      { snapshot, contentEditableContext: applyContext },
+    ).applied;
+  }
+
   public handleKeyFallbackReconcile(
     pending: PendingKeyFallback,
     controls: {
@@ -426,6 +532,7 @@ export class SuggestionEntrySession {
       rescheduleFallback: (delayMs: number) => void;
     },
   ): void {
+    this.dropGrammarProposal();
     if (!this.isFocused()) {
       controls.clearPendingFallback();
       controls.dismissEntry();
@@ -1514,7 +1621,7 @@ export class SuggestionEntrySession {
   }
 
   private scheduleIdleGrammar(): void {
-    if (!this.grammarCoordinator.hasEnabledRules()) {
+    if (!this.grammarCoordinator.hasEnabledRules() && !this.findGrammarProposals) {
       return;
     }
     this.clearPendingIdleTimer();
@@ -1574,14 +1681,15 @@ export class SuggestionEntrySession {
           triggers: ["idle"],
         })
       : null;
-    if (!grammarEdit) {
-      return;
-    }
-    const applyResult = this.textEditService.applyGrammarEdit(this.entry, grammarEdit, {
-      snapshot: grammarContext.snapshot,
-      contentEditableContext: grammarContext.applyContext,
-    });
-    if (!applyResult.applied) {
+    const applyResult = grammarEdit
+      ? this.textEditService.applyGrammarEdit(this.entry, grammarEdit, {
+          snapshot: grammarContext.snapshot,
+          contentEditableContext: grammarContext.applyContext,
+        })
+      : null;
+    if (!applyResult?.applied) {
+      // Automatic fixes first; what only Review would fix is then offered, never applied.
+      this.refreshGrammarProposal();
       return;
     }
     this.clearSuggestions();

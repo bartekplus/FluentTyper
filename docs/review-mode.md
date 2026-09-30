@@ -131,6 +131,36 @@ The panel names every state:
 - **Planning:** "Fix all safe (…)" while dependent fixes in a very large,
   error-dense text are still being proven; Fix all waits for the proof
 
+## Proposals while typing
+
+Typing rules fix only what is certain, and they fix it on their own. What
+Review would apply one at a time (never in "Fix all") is offered while you
+type instead, and is never applied without you:
+
+- When you pause (about 220 ms), the Review checks run on up to 500 characters
+  before the cursor. The newest finding that ends before the word you are
+  typing, and that was not in the field when you entered it, becomes the last
+  row of the suggestion popup: "is → are" and the short explanation (the full
+  explanation is its tooltip). With suggestions shown inline, the popup holds
+  only that row.
+- The row is never preselected. **Tab**, **Enter** and **Space** keep
+  accepting the first suggestion, or stay the page's when only the proposal
+  shows. Move onto it with the arrow keys and press an accept key, or click it.
+- Before writing, the span is found again, with the same fix, in the text as
+  it is now; a changed or vanished span is never written. The fix is one edit
+  that the undo shortcut reverts.
+- Typing on, **Escape**, a click in the field or leaving it dismisses the
+  proposal. A dismissed or shown span is not offered again while the page is
+  open.
+- Only native checks with a single fix are proposed: never dictionary
+  spelling, Local AI, warnings or choices between several fixes, never what
+  "Fix all" could apply (the typing rules cover that), and never a check a
+  typing rule already runs while that rule is on. They follow the Review
+  switches and the language, as Review does. Sensitive, locked and code fields
+  and code mode get none, and nothing is sent anywhere.
+- Turn it off under **Settings → Grammar → Review text → Show grammar
+  proposals while typing**. Google Docs has no proposals; use Review there.
+
 ## Rules and categories
 
 Review reuses the typing-time rules' own patterns, word lists and helpers.
@@ -199,7 +229,7 @@ Supported (**Typing** is the rule's default for typing; Review has separate swit
 
 Agreement retains the six original typing pairs and their existing bulk rules.
 
-`englishArticleAnCorrection` picks a or an by the next word's initial sound, not its spelling: a silent h (an hour, an honest), u, eu and one said with a consonant (a university, a European, a one-way street), and initialisms by letter name (an HDMI, a USB). It abstains when both articles are heard or the sound is unknown (SQL, NASA, herb, historic, ukulele, numbers), on mass nouns (a information), single lowercase letters, short or unpronounceable lowercase initialisms (an sla, a usb), user-dictionary words, quoted words, code and paths. Typing checks lowercase words only and stays off by default; Review also checks capitalized words and initialisms, individual-only. Some checks were inspired by Harper (https://github.com/Automattic/harper).
+`englishArticleAnCorrection` picks a or an by the next word's initial sound, not its spelling: a silent h (an hour, an honest), u, eu and one said with a consonant (a university, a European, a one-way street), and initialisms by letter name (an HDMI, a USB). It abstains when both articles are heard or the sound is unknown (SQL, NASA, herb, historic, ukulele, numbers), on mass nouns (a information), single lowercase letters, short or unpronounceable lowercase initialisms (an sla, a usb), user-dictionary words, quoted words, code and paths. Typing checks lowercase words only and stays off by default; Review also checks capitalized words and initialisms, individual-only.
 `englishContextualCompounds` is a separate Review-only check for curated compound pairs. It splits everyday into every day after a complete listed pronoun-led action, and splits login/setup into log in/set up in explicit modal, infinitive or please-imperative slots with complete listed complements. New spaces use the existing grapheme-anchored editor transaction; unrelated formatting remains intact. Findings own their spans before dictionary spelling runs, so the same token does not receive redundant spelling cards. Presage candidates and ranking are unchanged.
 
 Noun/adjective uses such as everyday tasks, the login and the setup are preserved. This check does not join two-word noun spellings or impose a login/log-in or setup/set-up house style. Unknown compounds, incomplete contexts, command arguments, URL components, mixed-case identifiers, capitalized product-name candidates and user-dictionary words abstain. The listed lowercase tokens, including aswell after tested/checked/reviewed, are split; every finding remains individual-only and typing is unchanged.
@@ -220,9 +250,9 @@ Specialist legal, banking, commercial, regional and archaic evidence in the boun
 
 For these/those, a following are/were establishes plural and is/was establishes singular. Past predicates such as failed/arrived/returned do not establish number: the existing choice-card UI offers either pluralizing the noun or changing the demonstrative to this/that, with nothing preselected. All findings remain individual-only. Complete bounded predicates/locations prevent noun-modifier edits such as `those file names`. Unknown/invariant nouns, data/news/series, units, ordinal tokens, grouped/decimal/fractional numbers, technical model labels and hyphenated measurements abstain. Quantity repair can make a separate existential-agreement finding available on the next scan; it never changes the number to fit the verb.
 
-`englishPerfectParticiples` is a separate Review-only check for pronoun + have/has/had followed by a known simple-past form where the shared verb table specifies a different participle. Thirteen listed verb/argument frames supply complete grammatical evidence. It changes only that verb. Up to two listed adverbs (including not), negative auxiliaries and unambiguous `'ve`/`’ve` contractions are supported. Wrong have/has agreement is left to the existing agreement check, with the participle reconsidered on the next scan.
+`englishPerfectParticiples` is a separate Review-only check for pronoun + have/has/had (optionally after a modal: "could have went") followed by a known simple-past form where the shared verb table specifies a different participle. A past-only form ("went", "wrote", "forgot") is enough evidence; a past form that is also a noun or another verb ("saw", "fell", "rose") needs a listed argument ("saw the results", "fell asleep"). It changes only that verb. Up to two listed adverbs (including not), negative auxiliaries and unambiguous `'ve`/`’ve` contractions are supported. Wrong have/has agreement is left to the existing agreement check, with the participle reconsidered on the next scan.
 
-Possessive and causative have, noun uses such as `have saw blades`, shared past/participle forms (read/cut/set), unlisted morphology, unknown complements and ambiguous `'s`/`'d` contractions abstain. Regional learned/learnt, burned/burnt, got/gotten and other unlisted forms remain untouched. Existing auxiliary, spelling and typing behavior is unchanged; findings stay individual-only.
+Possessive and causative have, noun uses such as `have saw blades` and `have rose bushes`, shared lemma/past or past/participle forms (beat, read/cut/set), names ("have Drew"), unlisted morphology and ambiguous `'s`/`'d` contractions abstain. Regional learned/learnt, burned/burnt, got/gotten and other unlisted forms remain untouched. Existing auxiliary, spelling and typing behavior is unchanged; findings stay individual-only.
 
 `englishVerbComplements` is a separate Review-only check for complete pronoun-led complement frames. It inserts `to` after audited need/want/plan forms before a known base verb with a listed argument; after `look forward to` (including inflected and progressive forms), it replaces that verb with an explicitly stored gerund. Fourteen lexical argument frames cover fix a specified bug, deploy today/tomorrow, meet a person, make the change, take a break, write the report, run the tests, come/go home, see the results, learn a listed language, visit the office, read the file and send the message. Optional do-not/don't negation is preserved, as is not before progressive looking. Contractions accept straight or curly apostrophes.
 
@@ -252,8 +282,9 @@ examples, technical/mixed-case identifiers and unfinished phrases abstain.
 The independent `englishExistentialAgreement` check recognizes clause-opening
 There is/are/was/were + optional not/still/also + an explicit quantity, many/several or a lot of + a known countable noun,
 optionally with one listed adjective and a simple location phrase. Quantity and
-noun number must agree before the verb can be repaired. Its 15 authored noun pairs
-include child/children, person/people and mouse/mice; no noun suffix guessing is used.
+noun number must agree before the verb can be repaired. Its authored noun pairs
+include about 50 irregular plurals (child/children, woman/women, criterion/criteria);
+same-form and shared plurals (sheep, axes) are left out and no noun suffix guessing is used.
 Known plural phrases may continue with that/which/with. Unknown, collective and
 invariant-number nouns, coordinated subjects, singular relative clauses, hard-wrapped
 continuations and contradictory quantity/noun combinations abstain. The quantity, noun, adjective and negation are never rewritten.
@@ -277,12 +308,12 @@ They do not depend on dictionary misspellings. Existing "your welcome" and
 protected islands and newline-spanning constructions are excluded. These finite
 lists provide bounded coverage, not a general homophone or English parser.
 
-Auxiliary verb forms are Review-only. A small authored table covers 24 common
-verbs, with no suffix guessing. Pronoun-led clauses and inverted pronoun questions
+Auxiliary verb forms are Review-only. An authored table covers about 140 common
+(mostly irregular) verbs, with no suffix guessing. Pronoun-led clauses and inverted pronoun questions
 support do/does/did, modals, straight/curly negative contractions, and up to two
 listed intervening adverbs. The auxiliary, subject and negation are preserved.
-Independent base homographs (`read`, `cut`, `set`, `saw`, `found`), noun readings
-such as "do works"/"do runs", unknown forms, mixed-case identifiers, protected text,
+Independent base, noun and adjective homographs (`read`, `cut`, `saw`, `found`, `fell`,
+`left`, `bit`; "lay" is both lay and lie), noun readings such as "do works"/"did builds", unknown forms, mixed-case identifiers, protected text,
 and directly named quoted examples are left alone. Clause-internal subordinate
 syntax ("What I did works"), noun subjects and newline-spanning phrases are outside
 this initial scope. Existing modal-of and agreement checks retain their ownership.
@@ -364,6 +395,10 @@ ranked for the words before it.
   Presage's order, without an edit-distance cutoff. It skips words the dictionary
   knows and likely compounds whose split ranks ahead of every single-word choice
   ("changelog", "webhook"). Nothing is listed when no usable candidate remains.
+- **Irregular forms first.** In English, an unknown word that puts a regular
+  ending on an irregular verb, noun or adjective from the authored tables
+  ("finded", "runned", "childs", "gooder") lists the irregular form first
+  ("found", "ran"/"run", "children", "better"), still as one choice among several.
 - **Left out:** names (a capitalized word inside a sentence), acronyms and
   mixed case ("NASA", "iPhone"), words glued to digits, symbols or hyphens,
   anything touching code or protected text, words another rule already flags,
@@ -808,3 +843,5 @@ Ordinary dialogue still receives checks. Finite rules do not infer narrative ten
 article definiteness, dialect intent or the meaning of ambiguous effect/affect uses.
 See [the corpus evaluation](native-review-corpus-evaluation.md) for measured coverage
 and remaining gaps.
+
+Some checks were inspired by Harper (https://github.com/Automattic/harper).

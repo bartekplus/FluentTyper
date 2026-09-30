@@ -47,6 +47,12 @@ const positives = [
   ["We cannot chose for you.", "We cannot choose for you."],
   ["You may began now.", "You may begin now."],
   ["She can worked.", "She can work."],
+  ["Did you thought about it?", "Did you think about it?"],
+  ["She didn’t drew the map.", "She didn’t draw the map."],
+  ["We can't forgot this.", "We can't forget this."],
+  ["Will you told them?", "Will you tell them?"],
+  ["Would they undertook it?", "Would they undertake it?"],
+  ["I DID NOT HEARD IT.", "I DID NOT HEAR IT."],
   ["I\t did not really understood this.", "I\t did not really understand this."],
   ['He shouted, "I did not understood it!"', 'He shouted, "I did not understand it!"'],
 ];
@@ -116,6 +122,19 @@ const negatives = [
   "He can workś remotely.",
   "He can 42works remotely.",
   "He can works-in-progress.",
+  // Homographs of another verb, noun or adjective, and "do" as a main verb.
+  "Did you left the keys?",
+  "They will fell the old oak.",
+  "Could you bore a hole here?",
+  "We did ground checks.",
+  "Can you lay the table?",
+  "Did he lay the cards down?",
+  "We did builds every night.",
+  "They do rides at the fair.",
+  "I did splits in gym class.",
+  "We do resets on Mondays.",
+  "Did you ask Drew?",
+  "Will you Drew it?",
 ];
 test.each(negatives)("preserves %s", (text) => expect(review(text)).toEqual([]));
 
@@ -136,6 +155,17 @@ test("bounded lookups preserve ambiguous homographs and never guess unknown suff
   expect(englishVerbForms("found")?.ambiguous).toContain("found");
   expect(englishVerbForms("read")?.lemma).toBe("read");
   expect(englishVerbForms("fabricatedUnknowned")).toBeNull();
+  // "lay" is lay's lemma and lie's past: no guess.
+  expect(englishVerbForms("lay")).toBeNull();
+  expect(englishVerbForms("laid")?.lemma).toBe("lay");
+  expect(englishVerbForms("lain")?.lemma).toBe("lie");
+  expect(englishVerbForms("Fell")?.ambiguous).toContain("fell");
+  expect(englishVerbForms("underwent")).toMatchObject({
+    lemma: "undergo",
+    participle: "undergone",
+  });
+  for (const regular of ["showed", "proved", "gotten", "dove"])
+    expect(englishVerbForms(regular)).toBeNull();
 });
 
 test("chunk-edge evidence, emoji and CRLF keep exact offsets", () => {
