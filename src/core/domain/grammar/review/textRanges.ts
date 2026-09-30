@@ -267,3 +267,11 @@ export function overlapsSortedRanges(ranges: readonly TextRange[], target: TextR
   }
   return low < ranges.length && ranges[low].start < target.end;
 }
+
+/** `replacement` in the text's own apostrophe style: curly when only ’ is used nearby. */
+export function withTextApostrophes(text: string, index: number, replacement: string): string {
+  const nearby = text.slice(Math.max(0, index - 400), index + 400);
+  return nearby.includes("’") && !nearby.includes("'")
+    ? replacement.replaceAll("'", "’")
+    : replacement;
+}

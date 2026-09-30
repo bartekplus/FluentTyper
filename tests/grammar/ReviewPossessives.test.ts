@@ -253,7 +253,7 @@ test("normal nested quotations run while quoted instructions and protected evide
   const text = 'She said, "‘Lets try again.’"';
   const d = only(text, ids[1]);
   expect(d).toHaveLength(1);
-  expect(applyEdits(text, d[0].alternatives[0].edits)).toBe('She said, "‘Let\'s try again.’"');
+  expect(applyEdits(text, d[0].alternatives[0].edits)).toBe('She said, "‘Let’s try again.’"');
   for (const source of [
     'Type "‘Lets try again.’" exactly.',
     'The literal "‘Its ready to use.’" is wrong.',
