@@ -82,6 +82,7 @@ export type ReviewMessageKey =
   | "review_msg_canonical_casing"
   | "review_msg_quotation_balance"
   | "review_msg_unclosed_quote"
+  | "review_msg_quote_spacing"
   | "review_msg_usage_phrases"
   | "review_msg_intents_purposes"
   | "review_msg_one_same"

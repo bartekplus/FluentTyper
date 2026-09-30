@@ -211,6 +211,42 @@ describe("typed dashes (emdashShortcut, optional)", () => {
   });
 });
 
+describe("space outside quotation marks (quoteSpacing)", () => {
+  const rule = "quoteSpacing";
+  const offered = (text: string, lang = "en_US") =>
+    review(text, rule, lang).map((d) => d.alternatives.map((a) => applyEdits(text, a.edits)));
+
+  test("a straight quote offers both sides, the paragraph's open quotes deciding the order", () => {
+    expect(offered('We called it "plan B"because it failed.')).toEqual([
+      ['We called it "plan B" because it failed.', 'We called it "plan B "because it failed.'],
+    ]);
+    expect(offered('We called it"plan B" twice.')).toEqual([
+      ['We called it "plan B" twice.', 'We called it" plan B" twice.'],
+    ]);
+    // A new paragraph starts counting again.
+    expect(offered('One "a" two.\n\nThen"b" end.')[0][0]).toBe('One "a" two.\n\nThen "b" end.');
+  });
+
+  test.each([
+    ["😀 Try “quick”mode.", "😀 Try “quick” mode."],
+    ["Try“quick” mode.", "Try “quick” mode."],
+    ["Er nannte es „neu“heute.", "Er nannte es „neu“ heute.", "de_DE"],
+  ])("a curly quote says its side: %p", (input, expected, lang = "en_US") => {
+    expect(offered(input, lang)).toEqual([[expected]]);
+    expect(review(input, rule, lang)[0].bulk.eligible).toBe(false);
+  });
+
+  test.each([
+    'A 5"x7" print.',
+    'Set title="Home" here.',
+    'He said "stop" and left.',
+    "She’s here, isn’t she?",
+    "Er sagte »stopp«und ging.",
+  ])("keeps %p", (input) => {
+    expect(review(input, rule, input.startsWith("Er") ? "de_DE" : "en_US")).toEqual([]);
+  });
+});
+
 describe("ellipsis length (duplicatePunctuationCollapse)", () => {
   const rule = "duplicatePunctuationCollapse";
   test.each([

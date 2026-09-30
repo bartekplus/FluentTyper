@@ -25,7 +25,11 @@ import { wordConfusions } from "./englishWordConfusions";
 import { auxiliaryForms } from "./englishAuxiliaryForms";
 import type { CatalogRuleId } from "../ruleCatalog";
 import { SPACE_CHARS } from "../../spacingRules";
-import { isGreekQuestionMark, usesFrenchPunctuationSpacing } from "../typographyProfiles";
+import {
+  isGreekQuestionMark,
+  resolveTypographyProfile,
+  usesFrenchPunctuationSpacing,
+} from "../typographyProfiles";
 import { parseMeasurementExpression } from "../measurement/parser";
 import { resolveMeasurementLocale } from "../measurement/registry";
 import {
@@ -1093,6 +1097,46 @@ const duplicatePunctuation: Detector = (ctx) => {
 };
 
 /**
+ * A double quotation mark glued to words on both sides ('the "fast"way'): a
+ * space is missing outside it. The language's own opening and closing marks
+ * say which side; a straight or same-glyph mark (sv ”) is decided by how many
+ * marks the paragraph opened before it, and the other side is offered too.
+ * Inches and seconds ('5"x7"') are left alone.
+ */
+const quoteSpacing: Detector = (ctx) => {
+  const findings: RawFinding[] = [];
+  const [open, close] = resolveTypographyProfile(ctx.lang).double;
+  const directional = open !== close;
+  const marks = directional ? `"${open}${close}` : `"${open}`;
+  const regex = new RegExp(`(?<=[\\p{L}\\p{N}])[${marks}](?=[\\p{L}\\p{N}])`, "gu");
+  const paragraphBefore = lastIndexFinder(ctx.text, "\n\n");
+  for (const match of ownedMatches(ctx, regex)) {
+    const start = match.index;
+    const mark = match[0];
+    const spaceBefore = ` ${ctx.source[start]}`;
+    const spaceAfter = `${ctx.source[start]} `;
+    let alternatives: string[];
+    if (directional && mark !== '"') {
+      alternatives = [mark === open ? spaceBefore : spaceAfter];
+    } else {
+      if (/\p{N}/u.test(ctx.text[start - 1])) continue;
+      const paragraphStart = paragraphBefore(start);
+      const paragraph = ctx.text.slice(paragraphStart < 0 ? 0 : paragraphStart + 2, start);
+      const opened = paragraph.split(mark).length % 2 === 0;
+      alternatives = opened ? [spaceAfter, spaceBefore] : [spaceBefore, spaceAfter];
+    }
+    findings.push({
+      ruleId: "quoteSpacing",
+      messageKey: "review_msg_quote_spacing",
+      range: { start, end: start + 1 },
+      alternatives,
+      context: { start: Math.max(0, start - 1), end: start + 2 },
+    });
+  }
+  return findings;
+};
+
+/**
  * Optional typography: three periods as the one ellipsis character. Longer runs,
  * ranges ("1...5"), paths ("../") and spread syntax ("[...items]") are not ellipses.
  */
@@ -1360,6 +1404,7 @@ export const REVIEW_DETECTORS: ReadonlyArray<{ rules: CatalogRuleId[]; detect: D
   { rules: ["collapseRepeatedSpaces"], detect: repeatedSpaces },
   { rules: ["duplicatePunctuationCollapse"], detect: duplicatePunctuation },
   { rules: ["ellipsisShortcut"], detect: ellipsisCharacter },
+  { rules: ["quoteSpacing"], detect: quoteSpacing },
   { rules: ["emdashShortcut"], detect: typedDashes },
   {
     rules: ["measurementUnitFormatting"],

@@ -93,7 +93,8 @@ export interface GrammarRuleCatalogEntry {
     | "englishThenThan"
     | "englishYourYouAre"
     | "englishTheirThereTheyAre"
-    | "englishToToo";
+    | "englishToToo"
+    | "quoteSpacing";
   /** Absent for existing typing rules; false for native Review-only checks. */
   typing?: false;
   name: string;

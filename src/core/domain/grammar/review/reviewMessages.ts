@@ -82,6 +82,17 @@ const EXPLANATIONS: Record<ReviewMessageKey, Translations> = {
     "Ten cudzysłów otwierający nie ma odpowiednika zamykającego w pełnym tekście.",
     "Esta aspa de abertura não tem uma aspa de fechamento correspondente no texto completo.",
   ],
+  review_msg_quote_spacing: [
+    "Add a space outside this quotation mark.",
+    "Ajoutez une espace à l’extérieur de ce guillemet.",
+    "Dodajte razmak s vanjske strane ovog navodnika.",
+    "Añada un espacio por fuera de estas comillas.",
+    "Προσθέστε κενό έξω από αυτό το εισαγωγικό.",
+    "Lägg till ett mellanslag utanför citattecknet.",
+    "Setzen Sie außerhalb dieses Anführungszeichens ein Leerzeichen.",
+    "Dodaj spację na zewnątrz tego cudzysłowu.",
+    "Adicione um espaço do lado de fora destas aspas.",
+  ],
   review_msg_usage_phrases: [
     "Check established phrases in context.",
     "Vérifiez les expressions établies en contexte.",

@@ -88,6 +88,14 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     kind: "marks",
     bulk: "individual",
   },
+  quoteSpacing: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "punctuation",
+    kind: "spacing",
+    bulk: "individual",
+    note: "A straight quotation mark does not say whether it opens or closes.",
+  },
   englishUsagePhrases: {
     review: "supported",
     defaultEnabled: true,

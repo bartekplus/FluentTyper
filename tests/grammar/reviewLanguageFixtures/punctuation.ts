@@ -510,3 +510,166 @@ export const duplicatePunctuation: RuleFixtures = {
     ],
   },
 };
+
+export const quoteSpacing: RuleFixtures = {
+  en_US: {
+    pos: [
+      ['He said "stop"and left.', 'He said "stop" and left.'],
+      ['He said"stop" and left.', 'He said "stop" and left.'],
+      ["The “fast”way works.", "The “fast” way works."],
+      ["The“fast” way works.", "The “fast” way works."],
+      ['Call it "done"now.', 'Call it "done" now.'],
+    ],
+    neg: [
+      'He said "stop" and left.',
+      'The board is 5"x7" wide.',
+      'Use the key="value" pair.',
+      "It’s fine, isn’t it?",
+      "She wrote “yes” twice.",
+    ],
+  },
+  fr_FR: {
+    pos: [
+      ["Il a dit «stop»et il est parti.", "Il a dit «stop» et il est parti."],
+      ["Il a dit«stop» puis rien.", "Il a dit «stop» puis rien."],
+      ['Il a dit "stop"et il est parti.', 'Il a dit "stop" et il est parti.'],
+      ['Le mot"oui" suffit.', 'Le mot "oui" suffit.'],
+      ["Un «vrai»problème.", "Un «vrai» problème."],
+    ],
+    neg: [
+      "Il a dit « stop » et il est parti.",
+      'Il mesure 5"x7".',
+      "C’est l’été.",
+      "Un «vrai» problème.",
+      'Le mot "oui" suffit.',
+    ],
+  },
+  de_DE: {
+    pos: [
+      ["Er sagte „stopp“und ging.", "Er sagte „stopp“ und ging."],
+      ["Er sagte„stopp“ und ging.", "Er sagte „stopp“ und ging."],
+      ['Er sagte "stopp"und ging.', 'Er sagte "stopp" und ging.'],
+      ['Das Wort"ja" reicht.', 'Das Wort "ja" reicht.'],
+      ["Ein „echtes“Problem.", "Ein „echtes“ Problem."],
+    ],
+    neg: [
+      "Er sagte „stopp“ und ging.",
+      'Das Brett ist 5"x7" groß.',
+      "Er sagte »stopp« und ging.",
+      "Geht’s gut?",
+      'Das Wort "ja" reicht.',
+    ],
+  },
+  pl_PL: {
+    pos: [
+      ["Powiedział „stop”i wyszedł.", "Powiedział „stop” i wyszedł."],
+      ["Powiedział„stop” i wyszedł.", "Powiedział „stop” i wyszedł."],
+      ['Powiedział "stop"i wyszedł.', 'Powiedział "stop" i wyszedł.'],
+      ['Słowo"tak" wystarczy.', 'Słowo "tak" wystarczy.'],
+      ["To „prawdziwy”problem.", "To „prawdziwy” problem."],
+    ],
+    neg: [
+      "Powiedział „stop” i wyszedł.",
+      'Deska ma 5"x7".',
+      'Słowo "tak" wystarczy.',
+      "To «prawdziwy» problem.",
+      "Gra rock’n’roll.",
+    ],
+  },
+  es_ES: {
+    pos: [
+      ['Dijo "basta"y se fue.', 'Dijo "basta" y se fue.'],
+      ['Dijo"basta" y se fue.', 'Dijo "basta" y se fue.'],
+      ["Dijo “basta”y se fue.", "Dijo “basta” y se fue."],
+      ["Dijo“basta” y se fue.", "Dijo “basta” y se fue."],
+      ['Un "gran"problema.', 'Un "gran" problema.'],
+    ],
+    neg: [
+      'Dijo "basta" y se fue.',
+      'Mide 5"x7".',
+      "Dijo «basta» y se fue.",
+      "¿Qué dijo?",
+      "Dijo “basta” y se fue.",
+    ],
+  },
+  pt_BR: {
+    pos: [
+      ['Ele disse "chega"e saiu.', 'Ele disse "chega" e saiu.'],
+      ['Ele disse"chega" e saiu.', 'Ele disse "chega" e saiu.'],
+      ["Ele disse “chega”e saiu.", "Ele disse “chega” e saiu."],
+      ["Ele disse“chega” e saiu.", "Ele disse “chega” e saiu."],
+      ['Um "grande"problema.', 'Um "grande" problema.'],
+    ],
+    neg: [
+      'Ele disse "chega" e saiu.',
+      'Mede 5"x7".',
+      "Ele disse «chega» e saiu.",
+      "Copo d’água.",
+      "Ele disse “chega” e saiu.",
+    ],
+  },
+  sv_SE: {
+    pos: [
+      ["Han sa ”stopp”och gick.", "Han sa ”stopp” och gick."],
+      ["Han sa”stopp” och gick.", "Han sa ”stopp” och gick."],
+      ['Han sa "stopp"och gick.', 'Han sa "stopp" och gick.'],
+      ['Ordet"ja" räcker.', 'Ordet "ja" räcker.'],
+      ["Ett ”riktigt”problem.", "Ett ”riktigt” problem."],
+    ],
+    neg: [
+      "Han sa ”stopp” och gick.",
+      'Brädan är 5"x7".',
+      'Ordet "ja" räcker.',
+      "Han sa »stopp» och gick.",
+      "Det är bra.",
+    ],
+  },
+  hr_HR: {
+    pos: [
+      ["Rekao je „stop“i otišao.", "Rekao je „stop“ i otišao."],
+      ["Rekao je„stop“ i otišao.", "Rekao je „stop“ i otišao."],
+      ['Rekao je "stop"i otišao.', 'Rekao je "stop" i otišao.'],
+      ['Riječ"da" je dovoljna.', 'Riječ "da" je dovoljna.'],
+      ["Pravi „problem“danas.", "Pravi „problem“ danas."],
+    ],
+    neg: [
+      "Rekao je „stop“ i otišao.",
+      'Daska je 5"x7".',
+      'Riječ "da" je dovoljna.',
+      "Rekao je »stop« i otišao.",
+      "Sve je u redu.",
+    ],
+  },
+  el_GR: {
+    pos: [
+      ["Είπε «στοπ»και έφυγε.", "Είπε «στοπ» και έφυγε."],
+      ["Είπε«στοπ» και έφυγε.", "Είπε «στοπ» και έφυγε."],
+      ['Είπε "στοπ"και έφυγε.', 'Είπε "στοπ" και έφυγε.'],
+      ['Η λέξη"ναι" αρκεί.', 'Η λέξη "ναι" αρκεί.'],
+      ["Ένα «πραγματικό»πρόβλημα.", "Ένα «πραγματικό» πρόβλημα."],
+    ],
+    neg: [
+      "Είπε «στοπ» και έφυγε.",
+      'Είναι 5"x7".',
+      'Η λέξη "ναι" αρκεί.',
+      "Τι κάνεις; Καλά.",
+      "Είπε “στοπ” και έφυγε.",
+    ],
+  },
+  ar_SA: {
+    pos: [
+      ['قال "توقف"ثم ذهب.', 'قال "توقف" ثم ذهب.'],
+      ['قال"توقف" ثم ذهب.', 'قال "توقف" ثم ذهب.'],
+      ["قال “توقف”ثم ذهب.", "قال “توقف” ثم ذهب."],
+      ['كلمة"نعم" تكفي.', 'كلمة "نعم" تكفي.'],
+      ['مشكلة "حقيقية"اليوم.', 'مشكلة "حقيقية" اليوم.'],
+    ],
+    neg: [
+      'قال "توقف" ثم ذهب.',
+      'الحجم 5"x7".',
+      "قال «توقف» ثم ذهب.",
+      "كيف حالك؟ بخير.",
+      'كلمة "نعم" تكفي.',
+    ],
+  },
+};
