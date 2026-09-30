@@ -296,7 +296,16 @@ Contextual word confusions have four independent Review-only identities:
   object, or an object-taking verb followed by "you're own" and a known noun.
   Possessive gerunds ("your going away", "I dislike your going…") abstain.
 - `englishTheirThereTheyAre`: the same bounded future construction for
-  "their/there going to", and "there/they're own" in a complete object noun phrase.
+  "their/there going to", and "there/they're own" before a following word ("there own"
+  needs a clause start, preposition or listed verb before it, so "people there own cars"
+  is kept). A clause-opening "their" (or one after think/heard/because…) before a listed
+  predicate plus a function word ("Their not ready for…", "Their in the garage"), an
+  article, or modal/perfect/negative "be" ("Their won't be…") becomes "they're" or
+  "there"; "their's a/no/the…" becomes "there's"; "their" after a place verb before a
+  preposition or clause end ("waited their until", "been their.") or directly before a
+  preposition phrase becomes "there"; "they're" after a preposition or before a word
+  plus is/was/has ("They're tickets were…") becomes "their". Gerund subjects
+  ("Their going to school took an hour") abstain.
 - `englishToToo`: copular "to + listed adjective + to + listed verb". Ambiguous
   adjectives that are also verbs ("fast", "slow", "light") are not included.
 

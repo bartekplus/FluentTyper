@@ -95,16 +95,9 @@ export function wordConfusions(ctx: DetectContext): RawFinding[] {
   // An object-taking verb + own + a known noun supplies a complete possessive phrase.
   for (const match of matches(
     ctx,
-    `(?:check|checked|reset|update|updated|save|saved|change|changed|remember|remembered|forgot|entered|used|found|lost)${SPACE}(?<target>there|they['’]re|you['’]re)${SPACE}own${SPACE}${NOUN}${COMPLETE}`,
+    `(?:check|checked|reset|update|updated|save|saved|change|changed|remember|remembered|forgot|entered|used|found|lost)${SPACE}(?<target>you['’]re)${SPACE}own${SPACE}${NOUN}${COMPLETE}`,
   )) {
-    const your = /^you/i.test(match.groups!.target);
-    const result = finding(
-      ctx,
-      match,
-      your ? "englishYourYouAre" : "englishTheirThereTheyAre",
-      your ? "review_msg_your_possessive" : "review_msg_their_possessive",
-      your ? "your" : "their",
-    );
+    const result = finding(ctx, match, "englishYourYouAre", "review_msg_your_possessive", "your");
     if (result) findings.push(result);
   }
   // No light/fast/slow: those adjectives are also base verbs after prospective "is to".
@@ -115,5 +108,102 @@ export function wordConfusions(ctx: DetectContext): RawFinding[] {
     const result = finding(ctx, match, "englishToToo", "review_msg_to_too", "too");
     if (result) findings.push(result);
   }
+  return theirConfusions(ctx, findings);
+}
+
+const opensClause = (ctx: DetectContext, index: number) =>
+  /(?:^|[.!?;:\n"“(][ \t ]*|,[ \t ]*(?:and|but|so)[ \t ]+)$/i.test(
+    ctx.text.slice(Math.max(0, index - 96), index),
+  );
+// Words after which a new clause (and so a subject) starts.
+const CLAUSE_CUE =
+  "(?:think|thought|guess|hope|know|knew|heard|suspect|promise|realized|realised|said|says|sure|maybe|perhaps|because|since|if|when|that|(?:looks|seems|sounds|feels)[ \\t\\u00a0]+like|(?:tell|told|remind|reminded)[ \\t\\u00a0]+them)";
+const THEY_ARE = `(?<target>their)${SPACE}(?:(?:not|already|still|probably|always|just|also|really|all|both|never|definitely|actually|so)${SPACE})?(?:(?<pred>going|gonna|coming|leaving|trying|planning|running|moving|waiting|looking|getting|doing|making|taking|kidding|joking|working|staying|sitting|standing|playing|talking|arriving|ready|sure|here|late|early|busy|done|able|allowed|available|invited|supposed|happy|right|wrong|fine|okay|away|finished|tired|aware|afraid|excited|interested|responsible)${SPACE}(?<follow>to|for|at|in|on|with|about|until|by|from|over|into|now|today|tonight|tomorrow|again|yet|anymore|here|there|home|back|out|up|away|off|a|an|the|this|that|it|them|us|me|him|her|you|my|your|our|his|their|some|any|next|last|where|what|how|why)${END_WORD}|(?<pred2>ready|sure|here|there|late|early|busy|done|right|wrong|fine|okay|home|back|away|gone|finished|tired|kidding|joking|coming|leaving|waiting|working|offline|online)${COMPLETE}|(?:in|on|at|off)${SPACE}(?:the|a|an|my|your|our|his|her|their|this|that|work|home|school|lunch|risk)|to${SPACE}(?:blame|meet|be|see|go)|far${SPACE}(?:too|more|less|better|worse)|(?<pred3>(?:probably|definitely|obviously|currently|actually|still|just|always|already|really|also|never)${SPACE}[a-z]{3,}ing)${SPACE}(?:to|for|at|in|on|with|about|over|into|a|an|the|this|that|it|them|us|me|him|her|you|my|your|our|his|their|where|what|how|why)|the|a|an)${END_WORD}`;
+// Finite verbs that show a "their going to…" clause is a gerund subject ("…surprised me").
+const LATER_PREDICATE =
+  /^[^.!?;:,\n]*?\b(?:is|was|are|were|has|had|surprised|upset|made|caused|seemed|became|annoyed|worried|shocked|pleased|helped|meant|took|cost|lasted|went|felt|looked)\b/i;
+const cued = (ctx: DetectContext, index: number) =>
+  new RegExp(`\\b${CLAUSE_CUE}[ \\t\\u00a0]+$`, "i").test(
+    ctx.text.slice(Math.max(0, index - 96), index),
+  );
+const PREPOSITION =
+  "(?:of|for|about|with|from|into|onto|at|by|against|between|among|without|toward|towards|under|through|during|despite|to|on|in)";
+const LOCATIVE =
+  "(?:been|go|goes|went|gone|going|stay|stayed|staying|stand|standing|sit|sitting|put|left|leave|meet|park|wait|waited|waiting|sat|stood|stop|stopped|paused|live|lived|get|got|over|right|safer|back|up|down|out)";
+// Only intransitive place verbs before a clause end: "They left their." may be "theirs".
+const PLACE_END =
+  /^(?:been|go|goes|went|gone|going|stay|stayed|staying|stand|standing|sit|sitting|live|lived|wait|waited|waiting|sat|stood|park|paused|stop|stopped|safer|over|right|up|down|out)$/i;
+
+/** their/there/they're in frames where only one reading is grammatical. */
+function theirConfusions(ctx: DetectContext, findings: RawFinding[]): RawFinding[] {
+  const push = (match: RegExpExecArray, key: ReviewMessageKey, replacement: string) => {
+    const result = finding(ctx, match, "englishTheirThereTheyAre", key, replacement);
+    if (result && !findings.some((f) => f.range.start === result.range.start))
+      findings.push(result);
+  };
+  // Existential there: modal/perfect "be", negative contractions and "their's a …".
+  for (const match of matches(
+    ctx,
+    `(?<target>their)${SPACE}(?:(?:will|won['’]t|can|could|should|would|may|might|must)(?:n['’]t)?${SPACE}(?:not${SPACE})?be|(?:has|have)(?:n['’]t)?${SPACE}been|(?:isn|aren|wasn|weren)['’]t|used${SPACE}to${SPACE}be)${END_WORD}`,
+  ))
+    if (opensClause(ctx, match.index) || cued(ctx, match.index))
+      push(match, "review_msg_their_there", "there");
+  for (const match of matches(
+    ctx,
+    `(?<target>their['’]s)${SPACE}(?:a|an|the|no|another|enough|nothing|something|always|still|also|just|plenty|some|more|lots|one|only)${END_WORD}`,
+  ))
+    push(match, "review_msg_their_there", "there's");
+  // Location there: a possessive never precedes a preposition or ends a clause.
+  for (const match of matches(
+    ctx,
+    `(?<verb>${LOCATIVE})${SPACE}(?<target>their)(?:${SPACE}(?:on|in|at|by|near|beside|until|after|before|among|inside|outside|under|behind|during|without|within|to|and|again|yet|anymore|once|already|now|today|tonight|tomorrow|mid)${END_WORD}|(?<end>(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))))`,
+  ))
+    if (match.groups!.end === undefined || PLACE_END.test(match.groups!.verb))
+      push(match, "review_msg_their_there", "there");
+  // They're: a clause-opening "their" before a predicate, a participle or an article.
+  for (const match of matches(ctx, THEY_ARE)) {
+    if (!opensClause(ctx, match.index) && !cued(ctx, match.index)) continue;
+    const { pred, follow } = match.groups!;
+    if (pred === "right" && follow === "to") continue;
+    const end = match.index + match[0].length;
+    if (
+      (/^(?:going|gonna)$/i.test(pred ?? "") || /^their\s+not\b/i.test(match[0])) &&
+      LATER_PREDICATE.test(ctx.text.slice(end, end + 96))
+    )
+      continue;
+    push(match, "review_msg_they_are", "they're");
+  }
+  // A determiner never precedes a preposition phrase: "the keys their on the counter"; a clause-opening one is "they're".
+  for (const match of matches(
+    ctx,
+    `(?<target>their)${SPACE}(?:on|in|at|by|near|beside|behind|inside|outside|under|until|among)${SPACE}(?:the|a|an|my|your|our|his|her|this|that)${END_WORD}`,
+  ))
+    if (!opensClause(ctx, match.index)) push(match, "review_msg_their_there", "there");
+  // Possessive: a preposition never takes "they're"; "they're X were" has no room for a verb.
+  for (const match of matches(
+    ctx,
+    `${PREPOSITION}${SPACE}(?<target>they['’]?re)${SPACE}[a-z]+${END_WORD}`,
+  ))
+    push(match, "review_msg_their_possessive", "their");
+  for (const match of matches(
+    ctx,
+    `(?<target>they['’]?re)${SPACE}(?!(?:not|all|both|each|also|still|just|really|never|always|so|too|very|already|probably|certainly|here|there|now|then|what|who|which|whoever|whatever|where|how|why|when|that|this|it|one|someone|something|everything|everyone|anything|nothing)${END_WORD})[a-z]+${SPACE}(?:is|are|was|were|has|have|had)(?:n['’]t)?${END_WORD}`,
+  ))
+    push(match, "review_msg_their_possessive", "their");
+  // "they're own" + a word is only ever the possessive; "there own" also reads
+  // "people there own cars", so it needs a clause start, preposition or verb before it.
+  for (const match of matches(
+    ctx,
+    `(?<target>there|they['’]?re)${SPACE}own${SPACE}[a-z]+${END_WORD}`,
+  ))
+    if (
+      !/^there$/i.test(match.groups!.target) ||
+      opensClause(ctx, match.index) ||
+      new RegExp(
+        `(?:\\b${PREPOSITION}|ing|\\bto[ \\t\\u00a0]+[a-z]+|\\b(?:create|creates|created|make|makes|made|have|has|had|get|gets|got|build|builds|built|find|found|choose|chose|bring|brought|use|uses|used|pay|paid|run|runs|ran|do|does|did|manage|managed|keep|keeps|kept|set|sets|write|wrote|host|hosted|provide|provides|provided|become|became|define|defined|pick|picks|picked|want|wants|wanted|need|needs|needed|take|takes|took|bring|brings|like|likes|prefer|prefers|love|loves)|\\b(?:check|checked|reset|update|updated|save|saved|change|changed|remember|remembered|forgot|entered|lost))[ \\t\\u00a0]+$`,
+        "i",
+      ).test(ctx.text.slice(Math.max(0, match.index - 96), match.index))
+    )
+      push(match, "review_msg_their_possessive", "their");
   return findings;
 }

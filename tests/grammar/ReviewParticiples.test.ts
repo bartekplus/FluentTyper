@@ -214,9 +214,17 @@ test("perfect participles own one chunk and retain UTF-16 offsets through quoted
 const progressive: [string, string, string][] = [
   ["I've looking at the logs.", "I'm looking at the logs.", "I've been looking at the logs."],
   ["We have fixing it now.", "We are fixing it now.", "We have been fixing it now."],
-  ["She has cleaning the kitchen.", "She is cleaning the kitchen.", "She has been cleaning the kitchen."],
+  [
+    "She has cleaning the kitchen.",
+    "She is cleaning the kitchen.",
+    "She has been cleaning the kitchen.",
+  ],
   ["They’ve waiting for us.", "They’re waiting for us.", "They’ve been waiting for us."],
-  ["😀 You've reading it again.", "😀 You're reading it again.", "😀 You've been reading it again."],
+  [
+    "😀 You've reading it again.",
+    "😀 You're reading it again.",
+    "😀 You've been reading it again.",
+  ],
   ["WE HAVE SENDING THEM.", "WE ARE SENDING THEM.", "WE HAVE BEEN SENDING THEM."],
 ];
 test.each(progressive)("progressive after have offers be or have been: %s", (source, be, been) => {
