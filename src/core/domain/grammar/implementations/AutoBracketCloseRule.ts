@@ -39,7 +39,8 @@ function closesOpenQuote(beforeQuote: string, quote: string): boolean {
 
 export class AutoBracketCloseRule implements GrammarRule {
   readonly id = "autoBracketClose" as const;
-  readonly triggers: GrammarEventType[] = ["insertChar"];
+  // A space is a wordBoundary in the content script.
+  readonly triggers: GrammarEventType[] = ["insertChar", "wordBoundary"];
 
   apply(context: GrammarContext): GrammarEdit | null {
     if (isDeleteInputAction(context)) {
@@ -48,6 +49,17 @@ export class AutoBracketCloseRule implements GrammarRule {
 
     const { beforeCursor, afterCursor } = context;
     const typed = beforeCursor[beforeCursor.length - 1];
+
+    // "3 < 4": a space right after "<" makes it a comparison; no tag or
+    // generic opens with one, so the ">" auto-inserted with it goes.
+    if (beforeCursor.endsWith("< ") && afterCursor[0] === ">") {
+      return {
+        replacement: " ",
+        deleteBackwards: 1,
+        deleteForwards: 1,
+        sourceRuleId: "autoBracketClose",
+      };
+    }
 
     // Check for overtype first: user typed a closing char and afterCursor starts with the same.
     // For symmetric quotes (', ", `), both the opening and closing char are identical,

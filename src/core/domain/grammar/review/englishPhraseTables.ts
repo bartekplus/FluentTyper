@@ -356,6 +356,16 @@ export const CLOSED_COMPOUNDS: readonly PhraseRow[] = [
   ["ever present", "ever-present"],
 ];
 
+/**
+ * Chat abbreviations whose ALL-CAPS form means only the chat phrase. The rest
+ * abstain in capitals: "IMO" is also an organization, "IRL" a country code,
+ * "NVM" memory.
+ */
+export const UNAMBIGUOUS_CAPS_ABBREVIATIONS: ReadonlySet<string> = new Set([
+  ...["btw", "fyi", "imho", "afaik", "afaict", "tbh", "idk", "iirc", "asap", "lmk"],
+  ...["brb", "ttyl", "otoh", "icymi", "fwiw", "ptal"],
+]);
+
 /** Optional style advice: chat abbreviations and wordy or redundant phrasing. */
 export const STYLE_PHRASES: readonly PhraseRow[] = [
   ["btw", "by the way"],

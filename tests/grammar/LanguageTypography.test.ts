@@ -378,7 +378,7 @@ describe("rule contract: every rule has a positive and a negative case", () => {
       fires: ["en_US", "done. next ", "Done. Next "],
       skips: ["en_US", "e.g. next "],
     },
-    capitalizeAfterLineBreak: { fires: ["en_US", "a\nb", "a\nB"], skips: ["en_US", "a b"] },
+    capitalizeAfterLineBreak: { fires: ["en_US", "a\nbe ", "a\nBe "], skips: ["en_US", "a be "] },
     englishPronounICapitalization: {
       fires: ["en_US", "so i think ", "so I think "],
       skips: ["en_US", "for i in x "],

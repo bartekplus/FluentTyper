@@ -105,6 +105,10 @@ describe("default-on rules never rewrite ambiguous input", () => {
     // Brand casing at a sentence start.
     "iPhone sales grew ",
     "Done. eBay works ",
+    // ...and at a line start.
+    "Notes\niPhone sales grew ",
+    "Notes\n  eBay works\n",
+    "Notes\n\nmacOS and jQuery ",
     "Ratio 1.5 and 2.5 ",
     // Dotted identifiers, paths and mentions: a period inside a token is not a
     // sentence end, and its first letter is not a sentence start.
@@ -158,6 +162,9 @@ describe("unambiguous corrections still apply", () => {
     ["this is awsome. ", "This is awsome. "],
     ["Hello . ", "Hello. "],
     ["Hello. world ", "Hello. World "],
+    ["Notes\nnext line ", "Notes\nNext line "],
+    ["Notes\n\n  ¿qué tal ", "Notes\n\n  ¿Qué tal "],
+    ["Notes\nmid-May\n", "Notes\nMid-May\n"],
     ["see [link](http://x.test) here ", "See [link](http://x.test) here "],
     // A citation followed by a parenthesis: the user's space stays.
     ["see [1] (the paper) ", "See [1] (the paper) "],
