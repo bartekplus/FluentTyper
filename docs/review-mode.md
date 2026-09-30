@@ -271,8 +271,13 @@ Three native Review-only contextual apostrophe checks are independently configur
 All three change only the target token, remain outside Fix all safe, and leave existing contraction normalization and typing untouched. Existing straight or curly apostrophes are accepted for possessive `it's`; new apostrophes follow the existing normalizer's straight-apostrophe convention. No global quote normalization occurs. Evidence uses bounded horizontal spacing, listed nouns/adjectives/predicates and a phrase boundary. Unknown noun phrases, unlisted predicates, arbitrary names, singular/plural owners, multiline evidence and technical tokens abstain. Named quoted examples are protected; supported ordinary nested quotations remain eligible. These are bounded recognizers, not general ownership inference.
 
 Additional Review-only constructions run under `englishPronounVerbWhitelistAgreement`:
-clause-opening we/they/you with is/am/was/has/does, and he/she/it with are/am/were/have/do.
-One listed adverb (really, still, also, always, never) may intervene. These new forms
+clause-opening we/they/you with is/am/was/has/does, and he/she/it with are/am/were/have/do,
+and "I" with are/is/does (anywhere except after a capitalized word or and/or/nor, as in
+"Part I is" or "Sam and I are"). A clause-opening pronoun before a verb from the authored
+irregular table also agrees: "He always forget" becomes "forgets", "They goes" becomes
+"go"; forms shared with the past or a noun ("He cut", "They bear") abstain. The phrase
+may end at punctuation ("It don't."). One listed adverb (really, still, also, always,
+never, usually, often, just) may intervene. These new forms
 change only the finite verb, retain negation, and are individual-only. Object
 pronouns, coordinated subjects, subjunctives after a preceding clause, named quoted
 examples, technical/mixed-case identifiers and unfinished phrases abstain.

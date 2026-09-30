@@ -13,7 +13,11 @@ const SPACE = "[ \\t\\u00a0]{1,8}";
 const WORD_END = "(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])";
 const CLAUSE_START = "(?<![\\p{L}\\p{M}\\p{N}_'’@/#.\\\\-])";
 
-function* clauseMatches(ctx: DetectContext, pattern: string): Generator<RegExpExecArray> {
+function* clauseMatches(
+  ctx: DetectContext,
+  pattern: string,
+  anywhere: (match: RegExpExecArray, before: string) => boolean = () => false,
+): Generator<RegExpExecArray> {
   const regex = new RegExp(`${CLAUSE_START}${pattern}`, "gidu");
   regex.lastIndex = Math.max(0, ctx.from - 256);
   for (
@@ -27,7 +31,8 @@ function* clauseMatches(ctx: DetectContext, pattern: string): Generator<RegExpEx
     // Only a clause opening establishes the subject; do not reinterpret object pronouns.
     if (
       !(match.index <= 96 && /^[ \t\u00a0]*$/.test(before)) &&
-      !/[.!?;:\n"“][ \t\u00a0]{0,8}$/.test(before)
+      !/[.!?;:\n"“][ \t\u00a0]{0,8}$/.test(before) &&
+      !anywhere(match, before)
     )
       continue;
     if (
@@ -54,8 +59,15 @@ const SINGULAR_BE: Readonly<Record<string, string>> = { are: "is", am: "is", wer
 /** Additional finished-text coverage under the existing agreement identity. */
 export function additionalPronounAgreement(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
-  const pattern = `(?<subject>we|they|you|he|she|it)(?<gap>${SPACE}(?:(?:really|still|also|always|never)${SPACE})?)(?<verb>is|are|am|was|were|has|have|does(?:n['’]t)?|do(?:n['’]t)?)${SPACE}(?:not${SPACE})?[A-Za-z]+${WORD_END}`;
-  for (const match of clauseMatches(ctx, pattern)) {
+  // A clause end may follow ("It don't."); a lexical verb must come from the authored table.
+  const pattern = `(?<subject>I|we|they|you|he|she|it)(?<gap>${SPACE}(?:(?:really|still|also|always|never|usually|often|just)${SPACE})?)(?<verb>[A-Za-z]+(?:n['’]t)?)(?:${SPACE}(?:not${SPACE})?[A-Za-z]+${WORD_END}|(?=[ \t\u00a0]{0,8}[.!?,;:]))`;
+  // "I" is only ever a subject, so it needs no clause start; a capitalized word before it (a title or
+  // numeral: "Part I is", "World War I") or a coordination ("Sam and I are") abstains.
+  const subjectI = (match: RegExpExecArray, before: string) =>
+    match.groups!.subject === "I" &&
+    !/\p{Lu}[\p{L}.]*[ \t\u00a0]+$/u.test(before) &&
+    !/\b(?:and|or|nor)[ \t\u00a0]+$/i.test(before);
+  for (const match of clauseMatches(ctx, pattern, subjectI)) {
     const { subject, verb, gap } = match.groups!;
     const pronoun = subject.toLowerCase();
     if (applyWordCase(subject, detectWordCase(subject)) !== subject) continue;
@@ -63,15 +75,25 @@ export function additionalPronounAgreement(ctx: DetectContext): RawFinding[] {
     // Let the old detector retain its precise guards and bulk behavior for its six pairs.
     if (/^[ \t\u00a0]+$/.test(gap) && AGREEMENT_CORRECTIONS.has(`${pronoun} ${verb.toLowerCase()}`))
       continue;
-    const plural = /^(?:we|they|you)$/.test(pronoun);
+    const plural = /^(?:i|we|they|you)$/.test(pronoun);
     const negative = /n['’]t$/i.exec(verb)?.[0] ?? "";
-    const forms = englishVerbForms(negative ? verb.slice(0, -negative.length) : verb);
-    const corrected =
-      forms && (forms.lemma === "have" || forms.lemma === "do")
-        ? plural
-          ? forms.lemma + negative
-          : forms.third + negative
-        : (plural ? PLURAL_BE : SINGULAR_BE)[verb.toLowerCase()];
+    const word = (negative ? verb.slice(0, -negative.length) : verb).toLowerCase();
+    const forms = englishVerbForms(word);
+    let corrected: string | undefined;
+    if (/^(?:is|are|am|was|were)$/.test(word) && !negative)
+      corrected =
+        pronoun === "i" ? { are: "am", is: "am" }[word] : (plural ? PLURAL_BE : SINGULAR_BE)[word];
+    else if (/^(?:has|have|does|do)$/.test(word))
+      corrected = (plural ? forms!.lemma : forms!.third) + negative;
+    // Lexical verbs: past-shared or noun-shared forms ("He cut", "They bear") abstain.
+    else if (forms && !negative && !forms.ambiguous.includes(word))
+      corrected = plural
+        ? word === forms.third && word !== forms.lemma
+          ? forms.lemma
+          : undefined
+        : word === forms.lemma && word !== forms.past && word !== forms.participle
+          ? forms.third
+          : undefined;
     if (!corrected || corrected === verb.toLowerCase()) continue;
     const [start, end] = match.indices!.groups!.verb;
     findings.push({
