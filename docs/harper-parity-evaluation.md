@@ -34,3 +34,36 @@ Misses are mostly by design. FluentTyper's contextual rules (its/it's, their/the
 Also deliberately unchanged: a bare final `i` (may be a variable), wrong ordinal suffixes such as `2st` outside the existing ordinal frames, full-width CJK commas, `than` → `then`, and `to to` after a noun (`the way to to do`). Removing the 11 false `to to` repairs cost 3 true ones (5/8 → 2/8).
 
 The harness and corpus stay outside the repository; rerun them from a local Harper checkout when these rules change.
+
+## Whole-checker coverage of Harper's English cases
+
+Every Harper `fix`/`lint` case (5,907) was run through Review with all native rules on (`en_US`, no dictionary). A case counts as detected when any finding overlaps the expected change, and exact when applying FluentTyper's suggestions yields Harper's expected text.
+
+| Snapshot                       | Detected | Exact |
+| ------------------------------ | -------: | ----: |
+| Baseline `c7f91676`            |      475 |   356 |
+| After the Harper-inspired work |    1,016 |   857 |
+
+Most remaining misses need part-of-speech data (noun/verb confusions, possessive `'s`, "me and Alex"), dialect choices, or Harper's style opinions that FluentTyper leaves off by default.
+
+## Architecture comparison and proposals
+
+Harper lexes text once into tokens that carry dictionary metadata (part of speech, inflection, countability) and matches rules against that token stream; most of its recall comes from lexical data plus general rule shapes, not from its engine alone. FluentTyper's editor safety, snapshot validation and proven Fix all were already stricter than Harper's apply-one-at-a-time model, so the proposals borrow ideas and data _shapes_ (never Harper's code or data):
+
+| #   | Proposal                                                                 | Status                                                                                                                                           |
+| --- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1   | Authored irregular verb and noun tables with ambiguity marking           | Done: 140 verbs, ~50 irregular plurals                                                                                                           |
+| 2   | General "have + past-only form" participle check                         | Done, individual-only                                                                                                                            |
+| 3   | Irregular forms first for regularized unknown words (`finded`, `childs`) | Done, pick-one choice                                                                                                                            |
+| 4   | a/an by initial sound instead of word lists                              | Done: typing rule stays opt-in, Review individual-only                                                                                           |
+| 5   | One shared frame matcher and quoted-example guard                        | Done: 13 detectors migrated, output byte-identical, net fewer lines                                                                              |
+| 6   | Data-driven fixed phrases, compounds, names and style advice             | Done: own tables for 9 languages, table-driven tests                                                                                             |
+| 7   | Skip spelling in paragraphs written in another language                  | Done: reported as a coverage gap                                                                                                                 |
+| 8   | Overlap resolution (longest span wins)                                   | Measured and rejected: realistic prose has no colliding fixes, and the Fix all planner already defers collisions; a guard test keeps it that way |
+| 9   | Typo-shaped re-ranking of spelling candidates                            | Deferred: would undo Presage's recently tuned context order                                                                                      |
+| 10  | Per-unit result caching for every detector                               | Deferred: scans are 1–2 ms per 50k characters                                                                                                    |
+| 11  | Build-time English lexicon with part of speech                           | Open (maintainer decision): unlocks the remaining misses above, costs bundle size                                                                |
+| 12  | harper.js as an optional extra Review source                             | Open (maintainer decision): several MB of WASM, English-only                                                                                     |
+| –   | Persistent context-hash ignores                                          | Rejected: would persist hashes of typed text, which Review promises not to do                                                                    |
+
+Beyond the proposals, Harper's grouping inspired Review _kinds_ (agreement, confused words, usage, split/joined words, …) shown on each card and used to group Settings, and its live underline-then-choose model inspired **grammar proposals while typing**: uncertain Review fixes are offered as an unselected popup row and applied only on explicit choice, while typing rules keep auto-applying only certain fixes.
