@@ -26,7 +26,7 @@ export function nounNumberConstructions(ctx: DetectContext): RawFinding[] {
     const regex = new RegExp(`(?<![.])(?<!${EDGE})${pattern}(?!${EDGE})`, "gidu");
     regex.lastIndex = Math.max(0, ctx.from - 256);
     for (let m = regex.exec(ctx.scanText); m && m.index < ctx.to; m = regex.exec(ctx.scanText)) {
-      const { one, count, dem, gap, noun, verb } = m.groups!;
+      const { one, count, dem, gap, noun, verb, tail } = m.groups!;
       const phraseEnd = m.index + m[0].length;
       if (/^\.[\p{L}\p{N}_]/u.test(ctx.text.slice(phraseEnd, phraseEnd + 2))) continue;
       const forms = englishNounForms(noun);
@@ -39,6 +39,9 @@ export function nounNumberConstructions(ctx: DetectContext): RawFinding[] {
       )
         continue;
       if (count && hasCountPrefix(before)) continue;
+      // Clause-initial "One leaves." is the pronoun and a verb; "One files arrived." is a count.
+      if (count?.toLowerCase() === "one" && !tail && /(?:^|[.!?:;"“(][ \t\u00a0]*)$/.test(before))
+        continue;
       if (
         (m[0].match(/[A-Za-z]+/g) ?? []).some(
           (w) => ctx.dictionary.has(w.toLowerCase()) || applyWordCase(w, detectWordCase(w)) !== w,

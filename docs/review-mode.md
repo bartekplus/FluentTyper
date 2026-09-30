@@ -233,8 +233,9 @@ examples, technical/mixed-case identifiers and unfinished phrases abstain.
 The independent `englishExistentialAgreement` check recognizes clause-opening
 There is/are/was/were + optional not/still/also + an explicit quantity, many/several or a lot of + a known countable noun,
 optionally with one listed adjective and a simple location phrase. Quantity and
-noun number must agree before the verb can be repaired. Its 15 authored noun pairs
-include child/children, person/people and mouse/mice; no noun suffix guessing is used.
+noun number must agree before the verb can be repaired. Its authored noun pairs
+include about 50 irregular plurals (child/children, woman/women, criterion/criteria);
+same-form and shared plurals (sheep, axes) are left out and no noun suffix guessing is used.
 Known plural phrases may continue with that/which/with. Unknown, collective and
 invariant-number nouns, coordinated subjects, singular relative clauses, hard-wrapped
 continuations and contradictory quantity/noun combinations abstain. The quantity, noun, adjective and negation are never rewritten.
@@ -258,12 +259,12 @@ They do not depend on dictionary misspellings. Existing "your welcome" and
 protected islands and newline-spanning constructions are excluded. These finite
 lists provide bounded coverage, not a general homophone or English parser.
 
-Auxiliary verb forms are Review-only. A small authored table covers 24 common
-verbs, with no suffix guessing. Pronoun-led clauses and inverted pronoun questions
+Auxiliary verb forms are Review-only. An authored table covers about 140 common
+(mostly irregular) verbs, with no suffix guessing. Pronoun-led clauses and inverted pronoun questions
 support do/does/did, modals, straight/curly negative contractions, and up to two
 listed intervening adverbs. The auxiliary, subject and negation are preserved.
-Independent base homographs (`read`, `cut`, `set`, `saw`, `found`), noun readings
-such as "do works"/"do runs", unknown forms, mixed-case identifiers, protected text,
+Independent base, noun and adjective homographs (`read`, `cut`, `saw`, `found`, `fell`,
+`left`, `bit`; "lay" is both lay and lie), noun readings such as "do works"/"did builds", unknown forms, mixed-case identifiers, protected text,
 and directly named quoted examples are left alone. Clause-internal subordinate
 syntax ("What I did works"), noun subjects and newline-spanning phrases are outside
 this initial scope. Existing modal-of and agreement checks retain their ownership.
