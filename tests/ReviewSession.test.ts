@@ -681,6 +681,31 @@ describe("ReviewSession spelling", () => {
     ]);
   });
 
+  test("an unknown regular form of an irregular word offers the irregular form first", async () => {
+    const h = harness("They buyed two childs.", {
+      lookupSpelling: (_lang, words) =>
+        Promise.resolve(
+          words.map(({ word }) =>
+            word === "buyed" ? ["bayed", "busied"] : word === "childs" ? ["child's"] : null,
+          ),
+        ),
+    });
+    await Promise.all([h.session.start(), h.settle()]);
+    expect(
+      h
+        .last()
+        .diagnostics.map((d) => [
+          d.original,
+          d.requiresChoice,
+          d.alternatives.map((a) => a.preview),
+        ]),
+    ).toEqual([
+      ["buyed", true, ["bought", "bayed", "busied"]],
+      ["childs", true, ["children", "child's"]],
+    ]);
+    expect(h.last().bulk).toMatchObject({ count: 0, deferred: 2 });
+  });
+
   test("a word with combining marks never makes the dictionary check unavailable", async () => {
     // Exactly what the background does: a request it refuses is answered with nothing.
     const lookup: ReviewSpellingLookup = (lang, words) => {
