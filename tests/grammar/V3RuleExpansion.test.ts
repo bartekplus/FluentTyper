@@ -252,6 +252,12 @@ describe("V3 rule expansion", () => {
       deleteBackwards: "a error ".length,
       deleteForwards: 0,
     });
+    expect(rule.apply(context("a awkward ", hints))?.replacement).toBe("an awkward ");
+    // The user's own words (often names or initialisms) are left alone.
+    expect(rule.apply(context("a awkward ", { ...hints, userDictionary: ["awkward"] }))).toBeNull();
+    expect(
+      new EnglishArticleAnCorrectionRule(["Awkward"]).apply(context("a awkward ", hints)),
+    ).toBeNull();
   });
 
   test("EnglishPronounVerbWhitelistAgreementRule applies strict whitelist", () => {

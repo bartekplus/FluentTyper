@@ -436,6 +436,58 @@ describe("review detectors: grammar", () => {
       only("grade A apples; option a early; Qur'an idea", "englishArticleAnCorrection"),
     ).toEqual([]);
   });
+
+  describe("englishArticleAnCorrection by initial sound", () => {
+    const rule = "englishArticleAnCorrection";
+    const fixed = (text: string) =>
+      review(text, { enabledRules: [rule] }).map((d) => fixOne(text, d));
+    for (const [text, expected] of [
+      ["She had a essay due.", "She had an essay due."],
+      ["It was an tough week.", "It was a tough week."],
+      ["It is an one-way street.", "It is a one-way street."],
+      ["We need an European partner.", "We need a European partner."],
+      ["It is a honorable choice.", "It is an honorable choice."],
+      ["I got a unexpected reply.", "I got an unexpected reply."],
+      ["It is an unanimous decision.", "It is a unanimous decision."],
+      // Initialisms read letter by letter, and the case of the article is kept.
+      ["It is a HDMI cable.", "It is an HDMI cable."],
+      ["A MRI scan is booked.", "An MRI scan is booked."],
+      ["It is an USB stick.", "It is a USB stick."],
+      ["We need a SDK-based build.", "We need an SDK-based build."],
+      ["It is a iPad case.", "It is an iPad case."],
+      ["It is a Error here.", "It is an Error here."],
+      ["It is an Garden party.", "It is a Garden party."],
+      // A curly apostrophe in the word before, and an emoji earlier on.
+      ["🙂 it’s a easy fix.", "🙂 it’s an easy fix."],
+    ])
+      test(`fixes ${JSON.stringify(text)}`, () => expect(fixed(text)).toEqual([expected]));
+
+    for (const text of [
+      // Both articles are heard, or the sound is unknown.
+      "It is a SQL table. It is an SQL table.",
+      "It is a NASA probe. It is an NASA probe.",
+      "It is a herb garden. It is an herb garden.",
+      "It was a historic win. It was an historic win.",
+      "She plays a ukulele. She plays an ukulele.",
+      "It is a 8 hour shift. It is an 11 year plan.",
+      // Letters, grades and lowercase initialisms.
+      "Vowels are a e i o u.",
+      "Is 90 an A there? Plan A is fine.",
+      "It is an sla breach. It is a usb stick.",
+      // Mass nouns: the fix is to drop the article.
+      "We need a information about it.",
+      // Quoted words, code, paths and the user's own words.
+      "It is a 'error' and a “error”.",
+      "Type `it is a error` in the box.",
+      "Open http://example.com/is/a/error now.",
+    ])
+      test(`leaves ${JSON.stringify(text)}`, () => expect(only(text, rule)).toEqual([]));
+
+    test("leaves user-dictionary words", () => {
+      expect(only("It is a Oolong tea.", rule)).toHaveLength(1);
+      expect(only("It is a Oolong tea.", rule, { userDictionary: ["oolong"] })).toEqual([]);
+    });
+  });
 });
 
 describe("adversarial review regressions: detection", () => {
