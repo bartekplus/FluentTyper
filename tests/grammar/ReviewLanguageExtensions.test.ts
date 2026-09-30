@@ -337,6 +337,40 @@ const EXTENSIONS: Array<[CatalogRuleId, Record<string, Fixture>]> = [
           "Quel que soit le prix, on achète.",
         ],
       },
+      es_ES: {
+        pos: [
+          ["Ojalá que no haiga problemas.", "Ojalá que no haya problemas."],
+          ["¿Qué le dijistes ayer?", "¿Qué le dijiste ayer?"],
+          ["Aquí no hay nadien.", "Aquí no hay nadie."],
+          ["En la fiesta hubieron muchos invitados.", "En la fiesta hubo muchos invitados."],
+          ["Es difícil preveer el resultado.", "Es difícil prever el resultado."],
+          ["Habían varias opciones.", "Había varias opciones."],
+        ],
+        neg: [
+          "Ojalá que no haya problemas.",
+          "Hubieron de marcharse temprano.",
+          "Ya habían llegado todos.",
+          "Tú vistes muy bien.",
+          "El IVA sube en enero.",
+          "La palabra «haiga» es vulgar.",
+        ],
+      },
+      pt_BR: {
+        pos: [
+          ["Espero que seje fácil.", "Espero que seja fácil."],
+          ["Tomara que ele esteje bem.", "Tomara que ele esteja bem."],
+          ["Hoje tem menas gente.", "Hoje tem menos gente."],
+          ["Houveram muitos problemas.", "Houve muitos problemas."],
+          ["Isso é uma excessão.", "Isso é uma exceção."],
+        ],
+        neg: [
+          "Espero que seja fácil.",
+          "Eles houveram por bem sair.",
+          "Hoje tem menos gente.",
+          "A palavra “seje” está errada.",
+          "Houve muitos problemas.",
+        ],
+      },
     },
   ],
   [
@@ -375,6 +409,22 @@ const EXTENSIONS: Array<[CatalogRuleId, Record<string, Fixture>]> = [
           "C'est à Paris que je vis.",
         ],
       },
+      es_ES: {
+        pos: [
+          ["Yo tam bien quiero.", "Yo también quiero."],
+          ["Porsupuesto que sí.", "Por supuesto que sí."],
+          ["Llovía, asique me quedé.", "Llovía, así que me quedé."],
+          ["Ella tam bien vino.", "Ella también vino."],
+          ["Sí, porsupuesto.", "Sí, por supuesto."],
+        ],
+        neg: [
+          "Yo también quiero.",
+          "Lo hizo tan bien.",
+          "Por supuesto que sí.",
+          "Así que me quedé.",
+          "La palabra «asique» no existe.",
+        ],
+      },
     },
   ],
   [
@@ -410,6 +460,38 @@ const EXTENSIONS: Array<[CatalogRuleId, Record<string, Fixture>]> = [
           "Nous allons sortir.",
           "Il est parti, puis, ensuite, il a appelé.",
           "Le mot « au jour d'aujourd'hui » est lourd.",
+        ],
+      },
+      es_ES: {
+        pos: [
+          ["Vamos a subir arriba.", "Vamos a subir."],
+          ["Hay que bajar abajo.", "Hay que bajar."],
+          ["Quiero salir afuera.", "Quiero salir."],
+          ["Puedes entrar adentro.", "Puedes entrar."],
+          ["Lo vi hace años atrás.", "Lo vi hace años."],
+        ],
+        neg: [
+          "Vamos a subir.",
+          "Lo vi hace años.",
+          "Lo vi años atrás.",
+          "Quiero salir a correr.",
+          "La frase «subir arriba» es redundante.",
+        ],
+      },
+      pt_BR: {
+        pos: [
+          ["Vamos subir para cima.", "Vamos subir."],
+          ["Pode entrar para dentro.", "Pode entrar."],
+          ["Ele quer sair para fora.", "Ele quer sair."],
+          ["Ele é o elo de ligação.", "Ele é o elo."],
+          ["Eu o vi há anos atrás.", "Eu o vi há anos."],
+        ],
+        neg: [
+          "Vamos subir.",
+          "Eu o vi há anos.",
+          "Ele quer sair para jantar.",
+          "O elo mais fraco quebrou.",
+          "A frase “subir para cima” é redundante.",
         ],
       },
     },
