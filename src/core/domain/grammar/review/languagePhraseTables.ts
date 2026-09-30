@@ -1,0 +1,155 @@
+import type { PhraseRow } from "./englishPhraseTables";
+
+/**
+ * The English phrase checks for the other review languages, by language code.
+ * Same row format and matching as the English tables; a row is only here when
+ * its typed form is never correct in that language, or is narrowed to a frame
+ * where it cannot be. Merged words that are always two live in
+ * `multilingualLexicon.ts` (`englishAlotCorrection`).
+ */
+export interface LanguagePhraseTables {
+  /** Misspelled words (`englishPhraseCorrections`). */
+  words?: readonly PhraseRow[];
+  /** A wrong word form inside a fixed frame (`englishPhraseCorrections`). */
+  phrases?: readonly PhraseRow[];
+  /** Compounds written apart or without their hyphens (`englishClosedCompounds`). */
+  compounds?: readonly PhraseRow[];
+  /** Optional wording advice: pleonasms (`stylePhrasing`). */
+  style?: readonly PhraseRow[];
+}
+
+export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTables>> = {
+  de: {
+    words: [
+      ["Standart", "Standard"],
+      ["Standarts", "Standards"],
+      ["standartmäßig", "standardmäßig"],
+      ["wiederspiegeln", "widerspiegeln"],
+      ["wiederspiegelt", "widerspiegelt"],
+      ["wiederspiegelte", "widerspiegelte"],
+      ["nähmlich", "nämlich"],
+      [["Rythmus", "Rhytmus"], "Rhythmus"],
+      ["vorraus", "voraus"],
+      ["vorrausgesetzt", "vorausgesetzt"],
+      ["Vorraussetzung", "Voraussetzung"],
+      ["Vorraussetzungen", "Voraussetzungen"],
+      ["vorraussichtlich", "voraussichtlich"],
+      ["Addresse", "Adresse"],
+      ["Maschiene", "Maschine"],
+      ["Maschienen", "Maschinen"],
+      ["Wiederstand", "Widerstand"],
+      ["Widerholung", "Wiederholung"],
+      ["Reperatur", "Reparatur"],
+      ["entgültig", "endgültig"],
+      ["Ergebniss", "Ergebnis"],
+      ["vieleicht", "vielleicht"],
+      ["interresant", "interessant"],
+      ["Terasse", "Terrasse"],
+      ["Rückrad", "Rückgrat"],
+      ["Stehgreif", "Stegreif"],
+      ["dilletantisch", "dilettantisch"],
+      ["Agression", "Aggression"],
+      ["Karierre", "Karriere"],
+      ["tollerant", "tolerant"],
+      ["Wehrmutstropfen", "Wermutstropfen"],
+      ["seperat", "separat"],
+      ["Rethorik", "Rhetorik"],
+    ],
+    phrases: [
+      // Genitive or "nach" with the dative: the two are blended.
+      ["meines Wissens nach", ["meines Wissens", "meinem Wissen nach"]],
+      ["unseres Wissens nach", ["unseres Wissens", "unserem Wissen nach"]],
+    ],
+    compounds: [
+      ["aufwiedersehen", "auf Wiedersehen"],
+      ["zuende", "zu Ende"],
+      ["nichts desto trotz", "nichtsdestotrotz"],
+      ["nichts desto weniger", "nichtsdestoweniger"],
+      ["das selbe", "dasselbe"],
+      ["der selbe", "derselbe"],
+      ["die selbe", "dieselbe"],
+      ["den selben", "denselben"],
+      ["dem selben", "demselben"],
+      ["des selben", "desselben"],
+      ["zu erst", "zuerst"],
+      ["zu mindest", "zumindest"],
+      ["in so fern", "insofern"],
+      ["in wie fern", "inwiefern"],
+      ["irgend etwas", "irgendetwas"],
+      ["irgend jemand", "irgendjemand"],
+      ["irgend wann", "irgendwann"],
+      ["irgend wo", "irgendwo"],
+    ],
+    style: [
+      ["bereits schon", ["bereits", "schon"]],
+      ["tote Leiche", "Leiche"],
+      ["runder Kreis", "Kreis"],
+      ["neu renoviert", "renoviert"],
+    ],
+  },
+  fr: {
+    words: [
+      ["language", "langage"],
+      ["languages", "langages"],
+      ["connection", "connexion"],
+      ["connections", "connexions"],
+      ["dévelopement", "développement"],
+      ["parmis", "parmi"],
+      [["apeller", "appeller"], "appeler"],
+      ["rapeller", "rappeler"],
+      ["addresse", "adresse"],
+      ["apartement", "appartement"],
+      ["cauchemard", "cauchemar"],
+      ["dilemne", "dilemme"],
+      ["occurence", "occurrence"],
+      ["malgrès", "malgré"],
+      ["néamoins", "néanmoins"],
+      ["notament", "notamment"],
+      ["pécunier", "pécuniaire"],
+      ["infractus", "infarctus"],
+      ["aréoport", "aéroport"],
+      ["comission", "commission"],
+      ["professionel", "professionnel"],
+      ["traditionel", "traditionnel"],
+    ],
+    phrases: [
+      // "quel" agrees with the subject after "être": the writer picks the gender.
+      ["quelque soit", ["quel que soit", "quelle que soit"]],
+      [
+        ["quelque soient", "quelques soient"],
+        ["quels que soient", "quelles que soient"],
+      ],
+      ["comme même", "quand même"],
+      ["en faite", "en fait"],
+      ["sa va", "ça va"],
+    ],
+    compounds: [
+      ["vis à vis", "vis-à-vis"],
+      ["au delà", "au-delà"],
+      ["au dessus", "au-dessus"],
+      ["au dessous", "au-dessous"],
+      ["là bas", "là-bas"],
+      ["c'est à dire", "c'est-à-dire"],
+      ["celui ci", "celui-ci"],
+      ["celle ci", "celle-ci"],
+      ["ceux ci", "ceux-ci"],
+      ["celles ci", "celles-ci"],
+      ["celui là", "celui-là"],
+      ["celle là", "celle-là"],
+      ["ceux là", "ceux-là"],
+      ["celles là", "celles-là"],
+    ],
+    // "monter en haut de la tour" names a destination: left out.
+    style: [
+      ["au jour d'aujourd'hui", "aujourd'hui"],
+      ["sortir dehors", "sortir"],
+      ["reculer en arrière", "reculer"],
+      ["prévoir à l'avance", "prévoir"],
+      ["collaborer ensemble", "collaborer"],
+      ["s'entraider mutuellement", "s'entraider"],
+      ["comme par exemple", ["comme", "par exemple"]],
+      ["puis ensuite", ["puis", "ensuite"]],
+      ["car en effet", ["car", "en effet"]],
+    ],
+  },
+};

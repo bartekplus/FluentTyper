@@ -298,6 +298,122 @@ const EXTENSIONS: Array<[CatalogRuleId, Record<string, Fixture>]> = [
       },
     },
   ],
+  [
+    "englishPhraseCorrections",
+    {
+      de_DE: {
+        pos: [
+          ["Das ist nicht der Standart für uns.", "Das ist nicht der Standard für uns."],
+          ["Die Zahlen wiederspiegeln den Trend.", "Die Zahlen widerspiegeln den Trend."],
+          ["Er kommt nähmlich später.", "Er kommt nämlich später."],
+          ["Wir planen im vorraus.", "Wir planen im voraus."],
+          ["Meines Wissens nach ist das erledigt.", "Meines Wissens ist das erledigt."],
+          ["Schick mir deine Addresse.", "Schick mir deine Adresse."],
+        ],
+        neg: [
+          "Die Standarte wehte im Wind.",
+          "Sie spiegeln die Stimmung wider.",
+          "Wir gehen voraus.",
+          "Meinem Wissen nach ist das erledigt.",
+          "Das Wort „Standart“ ist falsch.",
+          "Die Datei standart.txt fehlt.",
+        ],
+      },
+      fr_FR: {
+        pos: [
+          ["Le language de la loi est précis.", "Le langage de la loi est précis."],
+          ["Il reste parmis nous.", "Il reste parmi nous."],
+          ["Je vais l'apeller ce soir.", "Je vais l'appeler ce soir."],
+          ["Quelque soit le prix, on achète.", "Quel que soit le prix, on achète."],
+          ["C'est comme même bizarre.", "C'est quand même bizarre."],
+          ["La connection est lente.", "La connexion est lente."],
+        ],
+        neg: [
+          "Quelques amis sont venus.",
+          "Parmi nous, il y a un médecin.",
+          "Il est venu comme toujours, en fait.",
+          "Sa valise est lourde.",
+          "Le mot « parmis » est fautif.",
+          "Quel que soit le prix, on achète.",
+        ],
+      },
+    },
+  ],
+  [
+    "englishClosedCompounds",
+    {
+      de_DE: {
+        pos: [
+          ["Wir haben das selbe Problem.", "Wir haben dasselbe Problem."],
+          ["Nichts desto trotz machen wir weiter.", "Nichtsdestotrotz machen wir weiter."],
+          ["Das Spiel ist zuende.", "Das Spiel ist zu Ende."],
+          ["Das kostet zu mindest zehn Euro.", "Das kostet zumindest zehn Euro."],
+          ["Irgend jemand hat angerufen.", "Irgendjemand hat angerufen."],
+        ],
+        neg: [
+          "Wir haben dasselbe Problem.",
+          "Am selben Tag kam er.",
+          "Zur selben Zeit regnete es.",
+          "Der Zug fährt zuerst nach Bonn.",
+          "Er sagt nichts, desto besser.",
+          "Irgendwo in der Stadt.",
+        ],
+      },
+      fr_FR: {
+        pos: [
+          ["Il habite au dessus du café.", "Il habite au-dessus du café."],
+          ["C'est à dire que non.", "C'est-à-dire que non."],
+          ["Regarde là bas.", "Regarde là-bas."],
+          ["Je préfère celui ci.", "Je préfère celui-ci."],
+          ["Vis à vis de la loi, rien ne change.", "Vis-à-vis de la loi, rien ne change."],
+        ],
+        neg: [
+          "Il habite au-dessus du café.",
+          "Je préfère celui-ci.",
+          "Celle là-bas est rouge.",
+          "Au-delà du pont.",
+          "C'est à Paris que je vis.",
+        ],
+      },
+    },
+  ],
+  [
+    "stylePhrasing",
+    {
+      de_DE: {
+        pos: [
+          ["Er ist bereits schon da.", "Er ist bereits da."],
+          ["Bereits schon am Morgen regnete es.", "Bereits am Morgen regnete es."],
+          ["Man fand eine tote Leiche.", "Man fand eine Leiche."],
+          ["Das ist ein runder Kreis.", "Das ist ein Kreis."],
+          ["Das Bad wurde neu renoviert.", "Das Bad wurde renoviert."],
+        ],
+        neg: [
+          "Er ist bereits da.",
+          "Er ist schon da.",
+          "Er hat bereits, schon wieder, gewonnen.",
+          "Das neu renovierte Bad ist schön.",
+          "Das Wort „bereits schon“ ist doppelt.",
+        ],
+      },
+      fr_FR: {
+        pos: [
+          ["Au jour d'aujourd'hui, tout change.", "Aujourd'hui, tout change."],
+          ["Nous allons sortir dehors.", "Nous allons sortir."],
+          ["Il faut prévoir à l'avance.", "Il faut prévoir."],
+          ["Il faut collaborer ensemble.", "Il faut collaborer."],
+          ["Il est parti, puis ensuite il a appelé.", "Il est parti, puis il a appelé."],
+        ],
+        neg: [
+          "Aujourd'hui, tout change.",
+          "Il faut monter en haut de la tour.",
+          "Nous allons sortir.",
+          "Il est parti, puis, ensuite, il a appelé.",
+          "Le mot « au jour d'aujourd'hui » est lourd.",
+        ],
+      },
+    },
+  ],
 ];
 
 describe.each(EXTENSIONS)("%s", (ruleId, byLanguage) => {
@@ -307,7 +423,8 @@ describe.each(EXTENSIONS)("%s", (ruleId, byLanguage) => {
     }
     expect(runsInReviewLanguage(ruleId, "auto_detect")).toBe(false);
     expect(reviewLanguageScope(ruleId)).toBe("all");
-    expect(reviewRuleIds({ codeMode: false })).toContain(ruleId);
+    // Optional style advice runs once the user turns it on.
+    expect(reviewRuleIds({ codeMode: false, overrides: { [ruleId]: true } })).toContain(ruleId);
   });
   for (const [lang, fixture] of Object.entries(byLanguage)) {
     test(`${lang}: at least 5 positives and 5 negatives`, () => {

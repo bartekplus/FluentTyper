@@ -8,6 +8,7 @@ import {
   type ReviewCheckId,
   type ReviewKind,
 } from "./types";
+import { LANGUAGE_PHRASE_TABLES, type LanguagePhraseTables } from "./languagePhraseTables";
 
 interface SupportedReviewMetadata {
   review: "supported";
@@ -50,6 +51,13 @@ const NAMED_LANGUAGES: readonly string[] = SUPPORTED_PREDICTION_LANGUAGE_KEYS.fi
   (lang) => lang !== TEXT_EXPANDER_LANG,
 );
 
+/** English and every language with an authored phrase table of these kinds. */
+const withPhraseTables = (...kinds: Array<keyof LanguagePhraseTables>): readonly string[] =>
+  NAMED_LANGUAGES.filter(
+    (lang) =>
+      lang === "en_US" || kinds.some((kind) => LANGUAGE_PHRASE_TABLES[lang.slice(0, 2)]?.[kind]),
+  );
+
 export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
   englishPhraseCorrections: {
     review: "supported",
@@ -57,6 +65,7 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     category: "grammar",
     kind: "usage",
     bulk: "individual",
+    languages: withPhraseTables("words", "phrases"),
   },
   englishClosedCompounds: {
     review: "supported",
@@ -64,6 +73,7 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     category: "spelling",
     kind: "boundary",
     bulk: "individual",
+    languages: withPhraseTables("compounds"),
   },
   stylePhrasing: {
     review: "supported",
@@ -71,6 +81,7 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     category: "style",
     kind: "redundancy",
     bulk: "individual",
+    languages: withPhraseTables("style"),
   },
   styleRedundancy: {
     review: "supported",
