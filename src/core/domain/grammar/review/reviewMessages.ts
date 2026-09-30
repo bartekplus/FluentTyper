@@ -545,6 +545,17 @@ const EXPLANATIONS: Record<ReviewMessageKey, Translations> = {
     "W tej formie skróconej brakuje apostrofu.",
     "Falta o apóstrofo nesta contração.",
   ],
+  review_msg_apostrophe_mark: [
+    "Use an apostrophe here, not an accent or another mark.",
+    "Utilisez ici une apostrophe, pas un accent ni un autre signe.",
+    "Ovdje upotrijebite apostrof, a ne naglasak ili drugi znak.",
+    "Use aquí un apóstrofo, no un acento ni otro signo.",
+    "Χρησιμοποιήστε εδώ απόστροφο, όχι τόνο ή άλλο σημάδι.",
+    "Använd en apostrof här, inte en accent eller ett annat tecken.",
+    "Verwenden Sie hier einen Apostroph, keinen Akzent oder ein anderes Zeichen.",
+    "Użyj tu apostrofu, a nie akcentu ani innego znaku.",
+    "Use aqui um apóstrofo, não um acento ou outro sinal.",
+  ],
   review_msg_typo: [
     "This is a common misspelling.",
     "C'est une faute de frappe courante.",

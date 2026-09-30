@@ -6,6 +6,7 @@ import {
   doubledDegreeByLanguage,
   frenchElisions,
   germanNounCapitals,
+  markedApostrophes,
   splitWords,
 } from "./multilingualLexicon";
 import { countability } from "./englishCountability";
@@ -1262,8 +1263,10 @@ export const REVIEW_DETECTORS: ReadonlyArray<{ rules: CatalogRuleId[]; detect: D
       "englishAlotCorrection",
     ],
     // English word lists; other languages have their own tables.
-    detect: (ctx) =>
-      ctx.lang === "en_US" ? wordSpelling(ctx) : [...splitWords(ctx), ...frenchElisions(ctx)],
+    detect: (ctx) => [
+      ...(ctx.lang === "en_US" ? wordSpelling(ctx) : [...splitWords(ctx), ...frenchElisions(ctx)]),
+      ...markedApostrophes(ctx),
+    ],
   },
   { rules: ["englishModalOfCorrection"], detect: modalOf },
   { rules: ["englishYourWelcomeCorrection"], detect: yourWelcome },

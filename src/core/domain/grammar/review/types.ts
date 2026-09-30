@@ -103,6 +103,7 @@ export type ReviewMessageKey =
   | "review_msg_line_start"
   | "review_msg_pronoun_i"
   | "review_msg_contraction"
+  | "review_msg_apostrophe_mark"
   | "review_msg_typo"
   | "review_msg_modal_of"
   | "review_msg_your_welcome"

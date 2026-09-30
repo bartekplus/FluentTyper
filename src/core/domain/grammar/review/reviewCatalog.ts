@@ -215,7 +215,7 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     defaultEnabled: true,
     category: "spelling",
     bulk: "eligible",
-    languages: ["en_US", "fr_FR"],
+    languages: ["en_US", "fr_FR", "de_DE", "pt_BR"],
   },
   englishTypoWhitelistCorrection: {
     review: "supported",

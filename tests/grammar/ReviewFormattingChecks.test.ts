@@ -90,6 +90,38 @@ describe("ordinal suffix casing (englishOrdinalSuffix)", () => {
   });
 });
 
+describe("apostrophe look-alikes (englishContractionNormalization)", () => {
+  const rule = "englishContractionNormalization";
+  test.each([
+    ["We don´t know yet.", "We don't know yet.", true],
+    ["I´m on my way.", "I'm on my way.", true],
+    ["The team´s plan works.", "The team's plan works.", true],
+    ["THEY´RE LATE.", "THEY'RE LATE.", true],
+    ["😀 You´ll see.", "😀 You'll see.", true],
+    ["It doesn`t matter.", "It doesn't matter.", false],
+    ["Sorry, I can;t come.", "Sorry, I can't come.", false],
+    ["Let;s go home.", "Let's go home.", false],
+    ["I think we;ve met.", "I think we've met.", false],
+    ["She said it’s fine but won´t stay.", "She said it’s fine but won’t stay.", true],
+  ])("repairs %p", (input, expected, batched) => {
+    const found = review(input, rule);
+    expect(found).toHaveLength(1);
+    expect(found[0].bulk.eligible).toBe(batched);
+    expect(repaired(input, rule)).toBe(expected);
+  });
+
+  test.each([
+    "We don't know yet.",
+    "Run `git`s help.",
+    "Use a;s as a separator.",
+    "Values: x;t and y;s.",
+    "The sign ´ alone.",
+    'Never write "don´t" like that.',
+  ])("keeps %p", (input) => {
+    expect(review(input, rule)).toEqual([]);
+  });
+});
+
 describe("ellipsis length (duplicatePunctuationCollapse)", () => {
   const rule = "duplicatePunctuationCollapse";
   test.each([
