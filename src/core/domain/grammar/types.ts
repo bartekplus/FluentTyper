@@ -88,6 +88,7 @@ export interface GrammarRuleCatalogEntry {
     | "englishItsContext"
     | "englishLetsContext"
     | "englishElsePossessive"
+    | "englishSubjectVerbAgreement"
     | "englishExistentialAgreement"
     | "englishThenThan"
     | "englishYourYouAre"

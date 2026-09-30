@@ -9,6 +9,7 @@ const PAIRS: Readonly<Record<string, string>> = {
 };
 const CLOSERS = new Set(Object.values(PAIRS));
 const LETTER = /[\p{L}\p{M}]/u;
+export const ELIDED_QUOTE_START = /^(?:tis|twas|em|cause|bout|til|round|\d{2}s)\b/i;
 
 /** One full, unprotected field. Uncertain conventions abort; no closing location is invented. */
 export function unclosedQuotations(text: string): RawFinding[] {
@@ -27,11 +28,7 @@ export function unclosedQuotations(text: string): RawFinding[] {
     const after = text[index + 1] ?? "";
     if (before === "\\") return [];
     if (mark === "’" && LETTER.test(before) && LETTER.test(after)) continue;
-    if (
-      mark === "‘" &&
-      /^(?:tis|twas|em|cause|bout|til|round|\d{2}s)\b/i.test(text.slice(index + 1, index + 12))
-    )
-      return [];
+    if (mark === "‘" && ELIDED_QUOTE_START.test(text.slice(index + 1, index + 12))) return [];
     if (
       /\b(?:character|symbol|mark|quote)(?:[ \t]+is)?[ :\t]*$/i.test(
         text.slice(Math.max(0, index - 48), index),

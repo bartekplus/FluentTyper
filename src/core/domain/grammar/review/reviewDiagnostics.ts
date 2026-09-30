@@ -1,3 +1,4 @@
+import { proseQuotations } from "./proseQuotations";
 import { redundantAcronyms } from "./styleAdvice";
 import { longSentenceRanges, isReadabilityLiteral } from "./readability";
 import { matchTerminology } from "./terminologyMatcher";
@@ -57,6 +58,7 @@ export interface PreparedReview {
   languageSkipped: CatalogRuleId[];
   dictionary: ReadonlySet<string>;
   quotationFindings: RawFinding[];
+  quotations: ReturnType<typeof proseQuotations>;
   styleFindings: RawFinding[];
   styleFailedRules: CatalogRuleId[];
   terminology: { findings: RawFinding[]; ranges: TextRange[]; limitedChars?: number };
@@ -146,6 +148,7 @@ export function prepareReview(
     rules,
     languageSkipped,
     dictionary,
+    quotations: proseQuotations(text),
     styleFindings,
     styleFailedRules,
     terminology: rules.has("preferredTerminology")
@@ -244,6 +247,8 @@ export function scanReviewChunk(
     dictionary: prepared.dictionary,
     insertSpaceAfterAutocomplete: prepared.options.insertSpaceAfterAutocomplete,
     quotationFindings: prepared.quotationFindings,
+    quotationRanges: prepared.quotations.ranges,
+    exampleRanges: prepared.quotations.examples,
     styleFindings: prepared.styleFindings,
     terminologyFindings: prepared.terminology.findings,
   };
@@ -410,6 +415,7 @@ function toDiagnostic(prepared: PreparedReview, finding: Finding): ReviewDiagnos
     overlapsSortedRanges(prepared.terminology.ranges, range)
   )
     return null;
+  if (overlapsSortedRanges(prepared.quotations.examples, range)) return null;
   // The underline itself may not cross code or a structural boundary.
   if (
     prepared.protectedRanges.some(

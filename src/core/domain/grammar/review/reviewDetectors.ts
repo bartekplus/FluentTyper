@@ -8,7 +8,11 @@ import { perfectParticiples } from "./englishParticiples";
 import { verbComplements } from "./englishComplements";
 import { fixedPrepositions } from "./englishPrepositions";
 import { contextualPossessives } from "./englishPossessives";
-import { additionalPronounAgreement, existentialAgreement } from "./englishAgreement";
+import {
+  additionalPronounAgreement,
+  existentialAgreement,
+  subjectAgreement,
+} from "./englishAgreement";
 import { wordConfusions } from "./englishWordConfusions";
 import { auxiliaryForms } from "./englishAuxiliaryForms";
 import type { CatalogRuleId } from "../ruleCatalog";
@@ -63,12 +67,8 @@ import {
 } from "../implementations/EnglishProperNounCapitalizationRule";
 import { CURRENCY_MARKERS } from "../implementations/CurrencySpacingRule";
 import { isProsePrefix } from "../implementations/MeasurementUnitFormattingRule";
-import {
-  PROTECTED_SPAN_OPENERS,
-  isInsideProtectedSpan,
-} from "../implementations/helpers/ProtectedSpanShared";
 import { isLowercaseLetter, isTechnicalToken } from "../implementations/helpers/GenericRuleShared";
-import { commonAffixes, isGraphemeBoundary } from "./textRanges";
+import { commonAffixes, isGraphemeBoundary, overlapsSortedRanges } from "./textRanges";
 import type { ReviewEdit, ReviewMessageKey, TextRange } from "./types";
 
 /**
@@ -99,6 +99,8 @@ export interface DetectContext {
   dictionary: ReadonlySet<string>;
   insertSpaceAfterAutocomplete: boolean;
   quotationFindings?: readonly RawFinding[];
+  quotationRanges?: readonly TextRange[];
+  exampleRanges?: readonly TextRange[];
   styleFindings?: readonly RawFinding[];
   terminologyFindings?: readonly RawFinding[];
 }
@@ -272,6 +274,8 @@ const capitalizeStarts: Detector = (ctx) => {
     if (startsSentence(ctx.text, wordStart, ctx.lang)) {
       const end = sentenceEndBefore(ctx.text, wordStart);
       const mark = ctx.text[end.mark];
+      if (overlapsSortedRanges(ctx.exampleRanges ?? [], { start: end.mark, end: end.mark + 1 }))
+        continue;
       // "“Stop!” she shouted", "(really?) and": a quoted or bracketed "!" or
       // "?" before a lowercase word ends the quotation, not the sentence.
       if (end.closed && mark !== ".") continue;
@@ -755,56 +759,28 @@ const articleAn: Detector = (ctx) => {
 
 // ------------------------------------------------------------------ typography
 
-// How much of a paragraph the quotation check re-reads for one finding.
-const MAX_QUOTE_LOOKBACK = 4_000;
-
-/** Positions in [from, to) of characters that can open a quotation or code span. */
-function openerPositions(text: string, from: number, to: number): number[] {
-  const positions: number[] = [];
-  for (let i = from; i < to; i += 1) {
-    if (PROTECTED_SPAN_OPENERS.includes(text[i])) positions.push(i);
-  }
-  return positions;
-}
-
-/** True when sorted `positions` has one in [from, to). */
-function hasPositionIn(positions: readonly number[], from: number, to: number): boolean {
-  let low = 0;
-  let high = positions.length;
-  while (low < high) {
-    const middle = (low + high) >> 1;
-    if (positions[middle] < from) low = middle + 1;
-    else high = middle;
-  }
-  return low < positions.length && positions[low] < to;
-}
-
 const ordinal: Detector = (ctx) => {
   const findings: RawFinding[] = [];
-  let openers: number[] | null = null;
-  // A blank line ends a paragraph, with LF or CRLF line endings.
-  const blankLineBefore = lastIndexFinder(ctx.text, "\n\n");
-  const blankCrlfLineBefore = lastIndexFinder(ctx.text, "\n\r\n");
-  const regex = /(?<=^|[\s([])(\d+)(nd|th)(?![\p{L}\p{N}])/gu;
+  const regex = /(?<=^|[\s([])(\d+)(st|nd|th)(?![\p{L}\p{N}])/gu;
   for (const match of ownedMatches(ctx, regex)) {
     const start = match.index;
     const [token, digits, suffix] = match;
     const expected = ordinalSuffix(digits);
     const end = start + token.length;
     if (suffix === expected || isGluedToTechnical(ctx.text, start, end)) continue;
-    // Quoted text is often a deliberate example; the typing rule leaves it too.
-    const paragraphStart = Math.max(0, blankLineBefore(start) + 1, blankCrlfLineBefore(start) + 1);
-    openers ??= openerPositions(ctx.text, paragraphStart, ctx.to);
-    if (hasPositionIn(openers, paragraphStart, start)) {
-      // Too far to re-read per match: leave it rather than guess.
-      if (start - paragraphStart > MAX_QUOTE_LOOKBACK) continue;
-      if (isInsideProtectedSpan(ctx.text.slice(paragraphStart, start), { quotations: true })) {
-        continue;
-      }
-    }
+    // "st" is also stone. Only a named month disambiguates this new coverage.
+    if (
+      suffix === "st" &&
+      !/\b(?:January|February|March|April|May|June|July|August|September|October|November|December)[ \t\u00a0]+$/i.test(
+        ctx.text.slice(Math.max(0, start - 24), start),
+      )
+    )
+      continue;
+    if (overlapsSortedRanges(ctx.quotationRanges ?? [], { start, end })) continue;
     findings.push({
       ruleId: "englishOrdinalSuffix",
       messageKey: "review_msg_ordinal",
+      context: { start: 0, end },
       range: { start, end },
       alternatives: [`${digits}${expected}`],
     });
@@ -1040,7 +1016,18 @@ function measurementLike(
     if (!parsed || parsed.unitStart !== parsed.numberEnd) continue;
     const unit = prefix.slice(parsed.unitStart);
     if (ruleId === "measurementUnitFormatting" && /^([A-Z]|[dg])$/.test(unit)) continue;
-    if (!isProsePrefix(prefix.slice(0, parsed.start))) continue;
+    let prosePrefix = prefix.slice(0, parsed.start);
+    // A prose list retains the evidence before its first measurement. Every
+    // preceding item must itself parse; identifiers and arithmetic still abstain.
+    while (!isProsePrefix(prosePrefix)) {
+      const item = /(?:^|[ \t])([^\s]+),[ \t]+$/.exec(prosePrefix);
+      if (!item || parseMeasurementExpression(item[1], locale)?.start !== 0) break;
+      prosePrefix = prosePrefix.slice(
+        0,
+        item.index + (item[0].startsWith(" ") || item[0].startsWith("\t") ? 1 : 0),
+      );
+    }
+    if (!isProsePrefix(prosePrefix)) continue;
     const start = windowStart + parsed.start;
     if (!owned(ctx, start)) continue;
     const numberEnd = windowStart + parsed.numberEnd;
@@ -1054,6 +1041,7 @@ function measurementLike(
       alternatives: [
         `${ctx.source.slice(start, numberEnd)}${locale.separator}${ctx.source.slice(numberEnd, tokenEnd)}`,
       ],
+      context: { start: windowStart, end: tokenEnd },
     });
   }
   return findings;
@@ -1063,7 +1051,7 @@ function measurementLike(
 const repeatedWords: Detector = (ctx) => {
   const findings: RawFinding[] = [];
   const regex =
-    /(?<![\p{L}\p{M}\p{N}_'’–—-])(the|an|a|is|are|was|were|in|on|at|for|with|from|of)[ \t\u00a0]{1,8}\1(?![\p{L}\p{M}\p{N}_'’–—-])/giu;
+    /(?<![\p{L}\p{M}\p{N}_'’–—-])(the|an|a|is|are|was|were|in|on|at|for|with|from|of|to)[ \t\u00a0]{1,8}\1(?![\p{L}\p{M}\p{N}_'’–—-])/giu;
   for (const match of ownedMatches(ctx, regex)) {
     const start = match.index;
     const end = start + match[0].length;
@@ -1149,6 +1137,7 @@ export const REVIEW_DETECTORS: ReadonlyArray<{ rules: CatalogRuleId[]; detect: D
   { rules: ["englishYourWelcomeCorrection"], detect: yourWelcome },
   { rules: ["englishTheirThereBeVerb"], detect: theirThere },
   { rules: ["englishPronounVerbWhitelistAgreement"], detect: pronounVerb },
+  { rules: ["englishSubjectVerbAgreement"], detect: subjectAgreement },
   { rules: ["englishExistentialAgreement"], detect: existentialAgreement },
   { rules: ["englishArticleAnCorrection"], detect: articleAn },
   { rules: ["englishOrdinalSuffix"], detect: ordinal },

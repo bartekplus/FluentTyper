@@ -7081,6 +7081,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     ["I use this tool everyday.", "I use this tool every day.", "everyday → every␣day"],
     ["Please login to continue.", "Please log in to continue.", "login → log␣in"],
     ["We need to setup the environment.", "We need to set up the environment.", "setup → set␣up"],
+    ["The feature look promising.", "The feature looks promising.", "look → looks"],
   ])(
     "Review bounded grammar applies individual edits with native undo: %s",
     async (source, expected, highlight) => {
@@ -7130,7 +7131,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       let options = await openOptionsPage(browser, worker!);
       const selector = "#review-long-sentence-words";
       try {
-        await options.click('a[href="#grammar_tab"]');
+        await options.$eval('a[href="#grammar_tab"]', (el) => (el as HTMLElement).click());
         await options.waitForSelector(selector);
         expect(await options.$eval(selector, (e) => (e as HTMLInputElement).value)).toBe("35");
         const change = async (value: string) =>
@@ -7175,7 +7176,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         expect(await textareaValue()).toBe(source);
         await options.close();
         options = await openOptionsPage(browser, worker!);
-        await options.click('a[href="#grammar_tab"]');
+        await options.$eval('a[href="#grammar_tab"]', (el) => (el as HTMLElement).click());
         await options.waitForSelector(selector);
         expect(await options.$eval(selector, (e) => (e as HTMLInputElement).value)).toBe("200");
       } finally {
@@ -7320,13 +7321,27 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await setSettingAndWait(worker!, key, { version: 1, enabled: false, entries: [] });
       const options = await openOptionsPage(browser, worker!);
       try {
-        await options.click('a[href="#grammar_tab"]');
+        await options.$eval('a[href="#grammar_tab"]', (el) => (el as HTMLElement).click());
         const root = "#preferred-terminology";
         await options.waitForSelector(`${root} [name=source]`, { visible: true });
-        await options.type(`${root} [name=source]`, "Acme Suite");
-        await options.type(`${root} [name=replacement]`, "Acme Workspace");
-        await options.type(`${root} [name=explanation]`, "Our preferred name.");
-        await options.click(`${root} [data-terms-action=save]`);
+        // Firefox BiDi cannot synthesize keyboard actions in extension pages.
+        for (const [name, value] of [
+          ["source", "Acme Suite"],
+          ["replacement", "Acme Workspace"],
+          ["explanation", "Our preferred name."],
+        ]) {
+          await options.$eval(
+            `${root} [name=${name}]`,
+            (el, value) => {
+              (el as HTMLInputElement).value = value;
+              el.dispatchEvent(new Event("input", { bubbles: true }));
+            },
+            value,
+          );
+        }
+        await options.$eval(`${root} [data-terms-action=save]`, (el) =>
+          (el as HTMLElement).click(),
+        );
         await waitUntil(
           "authored terminology saved",
           async () =>
@@ -7339,12 +7354,18 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           entries: Array<{ id: string; source: string; replacement: string; explanation: string }>;
         }>(worker!, key);
         expect(saved.enabled).toBe(false);
-        await options.click(`${root} [data-terms-action=enabled]`);
-        await options.click(`${root} [data-terms-action=edit]`);
+        await options.$eval(`${root} [data-terms-action=enabled]`, (el) =>
+          (el as HTMLElement).click(),
+        );
+        await options.$eval(`${root} [data-terms-action=edit]`, (el) =>
+          (el as HTMLElement).click(),
+        );
         await options.$eval(`${root} [name=explanation]`, (el) => {
           (el as HTMLInputElement).value = "A local explanation.";
         });
-        await options.click(`${root} [data-terms-action=save]`);
+        await options.$eval(`${root} [data-terms-action=save]`, (el) =>
+          (el as HTMLElement).click(),
+        );
         await waitUntil(
           "terminology edit saved",
           async () =>
@@ -7356,7 +7377,9 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         expect(edited.entries[0].id).toBe(saved.entries[0].id);
         expect(edited.enabled).toBe(true);
         fs.writeFileSync(importPath, JSON.stringify(edited));
-        await options.click(`${root} [data-terms-action=remove]`);
+        await options.$eval(`${root} [data-terms-action=remove]`, (el) =>
+          (el as HTMLElement).click(),
+        );
         await waitUntil(
           "terminology removed",
           async () => (await getSetting<typeof saved>(worker!, key)).entries.length === 0,
@@ -7377,7 +7400,9 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           p.items.some((i) => i.text === "Acme Suite → Acme Workspace"),
         );
         await options.bringToFront();
-        await options.click(`${root} [data-terms-action=remove]`);
+        await options.$eval(`${root} [data-terms-action=remove]`, (el) =>
+          (el as HTMLElement).click(),
+        );
         await waitUntil(
           "UI removes imported term",
           async () => (await getSetting<typeof saved>(worker!, key)).entries.length === 0,
@@ -7730,7 +7755,12 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         async () =>
           (await page.$eval(selector, (el) => el.textContent)) === "We need to fix this bug.",
         { timeoutMs: 5000 },
-      );
+      ).catch(async (cause) => {
+        throw new Error(
+          `Split insertion left ${await page.$eval(selector, (el) => el.innerHTML)}`,
+          { cause },
+        );
+      });
       expect(await page.$eval(selector, (el) => el.innerHTML)).toBe(
         "<p>We need <b>to f</b><i>ix</i> this bug.</p>",
       );
@@ -7886,13 +7916,13 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         );
         const options = await openOptionsPage(browser, worker!);
         try {
-          await options.click('a[href="#grammar_tab"]');
+          await options.$eval('a[href="#grammar_tab"]', (el) => (el as HTMLElement).click());
           const selector = 'input.grammar-rule-card-toggle[value="englishRepeatedWords"]';
           await options.waitForSelector(selector, { visible: true });
           expect(await options.$eval(selector, (el) => (el as HTMLInputElement).checked)).toBe(
             false,
           );
-          await options.click(selector);
+          await options.$eval(selector, (el) => (el as HTMLElement).click());
           await waitUntil(
             "restored Review preference",
             async () =>

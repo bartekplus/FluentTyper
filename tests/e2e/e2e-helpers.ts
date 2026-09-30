@@ -224,7 +224,7 @@ async function openChromeExtensionPageContext(
 }
 
 async function wakeChromeBackgroundWorker(browser: Browser, extensionId: string): Promise<void> {
-  if (!browser.isConnected()) {
+  if (!browser.connected) {
     return;
   }
   let wakePage: Page | null = null;

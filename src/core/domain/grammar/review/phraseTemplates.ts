@@ -5,6 +5,7 @@ export type PhraseTemplate = {
   pattern: string;
   replacement: string;
   messageKey: RawFinding["messageKey"];
+  clauseStart?: true;
 };
 
 /**
@@ -17,7 +18,7 @@ export function detectPhraseTemplates(
   ruleId: RawFinding["ruleId"],
 ): RawFinding[] {
   const findings: RawFinding[] = [];
-  for (const { pattern, replacement, messageKey } of templates) {
+  for (const { pattern, replacement, messageKey, clauseStart } of templates) {
     const regex = new RegExp(`(?<![.])(?<!${EDGE})${pattern}`, "gidu");
     regex.lastIndex = Math.max(0, ctx.from - 256);
     for (
@@ -30,6 +31,12 @@ export function detectPhraseTemplates(
       const phraseEnd = match.index + match[0].length;
       if (/^\.[\p{L}\p{N}_]/u.test(ctx.text.slice(phraseEnd, phraseEnd + 2))) continue;
       const before = ctx.scanText.slice(Math.max(0, match.index - 96), match.index);
+      if (
+        clauseStart &&
+        !(match.index <= 96 && /^[ \t\u00a0]*$/.test(before)) &&
+        !/(?:[.!?;:][ \t\r\n\u00a0]{0,8}|\n\r?\n[ \t\u00a0]{0,8})$/.test(before)
+      )
+        continue;
       if (
         /\b(?:write|type|spell|phrase|words?|example|literal|text|term|form|heading|title|label|says?|reads?)(?:[ \t]+(?:is|was))?[ :\t]*["“'‘][^\r\n\uFFFC]{0,80}$/i.test(
           before,

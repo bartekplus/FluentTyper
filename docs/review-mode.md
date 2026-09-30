@@ -176,21 +176,21 @@ Supported (**Typing** is the rule's default for typing; Review has separate swit
 | `duplicatePunctuationCollapse`         | all      | off         | punctuation | yes                                                                                               |
 
 Agreement retains the six original typing pairs and their existing bulk rules.
-`englishContextualCompounds` is a separate Review-only check for three curated pairs. It splits everyday into every day after a complete listed pronoun-led action, and splits login/setup into log in/set up in explicit modal, infinitive or please-imperative slots with complete listed complements. New spaces use the existing grapheme-anchored editor transaction; unrelated formatting remains intact. Findings own their spans before dictionary spelling runs, so the same token does not receive redundant spelling cards. Presage candidates and ranking are unchanged.
+`englishContextualCompounds` is a separate Review-only check for curated compound pairs. It splits everyday into every day after a complete listed pronoun-led action, and splits login/setup into log in/set up in explicit modal, infinitive or please-imperative slots with complete listed complements. New spaces use the existing grapheme-anchored editor transaction; unrelated formatting remains intact. Findings own their spans before dictionary spelling runs, so the same token does not receive redundant spelling cards. Presage candidates and ranking are unchanged.
 
-Noun/adjective uses such as everyday tasks, the login and the setup are preserved. This check does not join two-word noun spellings or impose a login/log-in or setup/set-up house style. Unknown compounds, incomplete contexts, command arguments, URL components, mixed-case identifiers, capitalized product-name candidates and user-dictionary words abstain. Only the three listed lowercase tokens are split; every finding remains individual-only and typing is unchanged.
+Noun/adjective uses such as everyday tasks, the login and the setup are preserved. This check does not join two-word noun spellings or impose a login/log-in or setup/set-up house style. Unknown compounds, incomplete contexts, command arguments, URL components, mixed-case identifiers, capitalized product-name candidates and user-dictionary words abstain. The listed lowercase tokens, including aswell after tested/checked/reviewed, are split; every finding remains individual-only and typing is unchanged.
 
-The established-usage check covers for all intensive purposes before a known completion clause, one in the same in explicit plural identity clauses, and peak/peaks/peaked/peaking someone’s interest with known subjects, modals and progressive auxiliaries. It changes only intensive → intents and, in → and, or the audited peak inflection → pique inflection. Case, tense, possessive determiners and surrounding whitespace are preserved. The phrase-matching loop is shared with fixed prepositions; there is no general search/replace engine or external phrase database.
+The established-usage check covers for all intensive purposes before a known completion clause, one in the same in explicit plural identity clauses, and peak/peaks/peaked/peaking someone’s interest with known subjects, modals and progressive auxiliaries. It also recognizes bounded indirect-question, pronoun-case, lexical-confusion and malformed finded constructions; meaning-ambiguous effect/affect uses abstain. Case, tense, possessive determiners and surrounding whitespace are preserved. The phrase-matching loop is shared with fixed prepositions; there is no general search/replace engine or external phrase database.
 
 Literal peak meanings and locative one in the same room, unrecognized frames, recognized creative/dialect cues, named quotations, technical tokens, dictionaries and protected text abstain. These are grammar-category cards with usage-specific explanations, independently configurable and individual-only. Native spelling-span ownership prevents duplicate spelling cards. Typing and existing modal-of corrections are unchanged.
 
-The doubled-degree check removes redundant more/most only in complete this/that/it or known-noun clauses with is/was. It uses the same ten explicit comparative words as then/than, plus easier, and eleven explicit superlatives. Supported tails are bounded to known to-infinitives, known comparison targets, ungrouped integer targets, or a complete sentence ending; superlatives require a known noun. Numerical values and comparison targets are preserved. A then/than error can become detectable after removing the redundant degree marker; the normal snapshot recheck supplies fresh offsets and invalidates the previous card.
+The doubled-degree check removes redundant more/most only in complete this/that/it or known-noun clauses with is/was. It uses the same ten explicit comparative words as then/than, plus easier/simpler, and eleven explicit superlatives. Supported tails are bounded to known to-infinitives, known comparison targets, ungrouped integer targets, or a complete sentence ending; superlatives require a known noun. Numerical values and comparison targets are preserved. A then/than error can become detectable after removing the redundant degree marker; the normal snapshot recheck supplies fresh offsets and invalidates the previous card.
 
 Quantity phrases, hyphenated noun modifiers, heading fragments, quoted examples, unknown degree forms, capitalized names and mixed-case identifiers abstain. Valid multiword adjectives, very unique, far better and repeated emphatic better and better are untouched. No suffix inference, style enforcement, typing correction or Fix all eligibility is added. The rule can be disabled independently in Review settings.
 
 The native countability check covers ordinary-prose malformed plurals of information, advice and equipment in bounded complete frames: a page/guide/report/document contains/provides/includes useful information; thanks/appreciation for helpful advice; and we/they/you need/use/bought/ordered/checked/tested specified equipment. Small adjective lists supply context. It also repairs criterion/criteria and phenomenon/phenomena after explicit one–ten or single-digit counts, preserving the count exactly. These special noun pairs stay within the individually suppressible countability family rather than expanding the shared general noun-number rule.
 
-Specialist legal, banking, commercial, regional and archaic evidence in the bounded context causes abstention. Quoted examples, identifiers, capitalized names and dictionary words are protected. Quantified mass nouns and a/an constructions abstain rather than inventing a unit or amount; no partial determiner repair is exposed. Data agreement, fewer/less preferences, coffee, experience, work and paper are outside this check. All findings are individual-only; typing is unchanged.
+Specialist legal, banking, commercial, regional and archaic evidence in the bounded context causes abstention. Quoted examples, identifiers, capitalized names and dictionary words are protected. Known quantified feedback/information/advice and a information frames can show a warning without an edit; other quantified mass-noun constructions abstain. No unit, amount or partial determiner repair is invented. Data agreement, fewer/less preferences, coffee, experience, work and paper are outside this check. All findings are individual-only; typing is unchanged.
 
 `englishNounNumber` is a separate native Review-only check using the shared authored noun-pair map (now including device/devices). It handles complete `one of the` clauses, explicit counts zero–ten or up to four ungrouped digits, and these/those followed by a known singular noun and a supported predicate. Explicit counts retain their value and change only noun inflection; `one of the` pluralizes the set noun while leaving its outer singular subject and verb untouched.
 
@@ -202,9 +202,11 @@ Possessive and causative have, noun uses such as `have saw blades`, shared past/
 
 `englishVerbComplements` is a separate Review-only check for complete pronoun-led complement frames. It inserts `to` after audited need/want/plan forms before a known base verb with a listed argument; after `look forward to` (including inflected and progressive forms), it replaces that verb with an explicitly stored gerund. Fourteen lexical argument frames cover fix a specified bug, deploy today/tomorrow, meet a person, make the change, take a break, write the report, run the tests, come/go home, see the results, learn a listed language, visit the office, read the file and send the message. Optional do-not/don't negation is preserved, as is not before progressive looking. Contractions accept straight or curly apostrophes.
 
+Additional bounded frames cover enjoy/avoid, decide, suggest, make/let and help. Gerund content clauses after decide and restrictive participles after allows remain protected.
+
 These checks abstain on subjectless fragments/headings, incomplete or unknown arguments, noun readings such as `need work` and `need input data`, existing infinitives/gerunds, `need not`, and optional/forbidden-to frames such as `help fix`, `let me know` and `make it work`. They do not infer gerunds by adding a suffix. Missing `to` uses the existing one-grapheme insertion anchor, retaining the following verb's formatting; no adapter bypass is used. Malformed auxiliary forms remain owned by the auxiliary checker. Every finding is individual-only; typing behavior is unchanged.
 
-`englishFixedPrepositions` is a separate Review-only check for three established constructions. It removes `of` plus its following horizontal separator after `despite` before a complete listed noun phrase; removes `about` plus its separator after pronoun-led `discuss/discussed/discusses` or be + `discussing`, or `please discuss`, before a complete listed topic; and changes `on` to `in` in pronoun + be + `interested on` before a listed activity/topic. Complete phrase evidence and punctuation/end boundaries are required. Known adjectives are bounded; multiline and protected evidence abstain.
+`englishFixedPrepositions` checks established constructions in bounded contexts. It removes `of` plus its following horizontal separator after `despite` before a complete listed noun phrase; removes `about` plus its separator after pronoun-led `discuss/discussed/discusses` or be + `discussing`, or `please discuss`, before a complete listed topic; and changes `on` to `in` in pronoun + be + `interested on` before a listed activity/topic. Additional frames cover responsible for, duration for/since, arrive at, wait for and investigate, with known predicates and objects. Complete phrase evidence and punctuation/end boundaries are required. Known adjectives are bounded; multiline and protected evidence abstain.
 
 This is not a global preposition replacement. Approximate quantities (`discussed about five issues`), embedded questions (`discussed what the book was about`), noun uses (`discussion about`), temporal/location attachments (`interested on Monday`, `interested on screen`), incomplete complements and unlisted objects remain untouched. Existing correct `in spite of`, `talked/asked about`, `interested in` and `depends on` are preserved. Findings stay individual-only and do not alter typing.
 
@@ -218,19 +220,19 @@ All three change only the target token, remain outside Fix all safe, and leave e
 
 Additional Review-only constructions run under `englishPronounVerbWhitelistAgreement`:
 clause-opening we/they/you with is/am/was/has/does, and he/she/it with are/am/were/have/do.
-One listed adverb (really, still, always, never) may intervene. These new forms
+One listed adverb (really, still, also, always, never) may intervene. These new forms
 change only the finite verb, retain negation, and are individual-only. Object
 pronouns, coordinated subjects, subjunctives after a preceding clause, named quoted
 examples, technical/mixed-case identifiers and unfinished phrases abstain.
 
 The independent `englishExistentialAgreement` check recognizes clause-opening
-There is/are + optional not + an explicit quantity + a known countable noun,
+There is/are/was/were + optional not/still/also + an explicit quantity, many/several or a lot of + a known countable noun,
 optionally with one listed adjective and a simple location phrase. Quantity and
 noun number must agree before the verb can be repaired. Its 15 authored noun pairs
 include child/children, person/people and mouse/mice; no noun suffix guessing is used.
-Unknown, collective and invariant-number nouns, coordinated subjects, relative
-clauses, hard-wrapped continuations and contradictory quantity/noun combinations
-abstain. The quantity, noun, adjective and negation are never rewritten.
+Known plural phrases may continue with that/which/with. Unknown, collective and
+invariant-number nouns, coordinated subjects, singular relative clauses, hard-wrapped
+continuations and contradictory quantity/noun combinations abstain. The quantity, noun, adjective and negation are never rewritten.
 
 Contextual word confusions have four independent Review-only identities:
 
@@ -262,7 +264,7 @@ syntax ("What I did works"), noun subjects and newline-spanning phrases are outs
 this initial scope. Existing modal-of and agreement checks retain their ownership.
 
 Repeated words are Review-only: a bounded allowlist (`the`, `a`, `an`, `is`,
-`are`, `was`, `were`, `in`, `on`, `at`, `for`, `with`, `from`, `of`) separated by
+`are`, `was`, `were`, `in`, `on`, `at`, `for`, `with`, `from`, `of`, `to`) separated by
 1–8 spaces, tabs or no-break spaces. The first word keeps its casing; one
 suggestion deletes one duplicate and its separator. Longer runs recheck after
 each repair. Newlines, hyphens, protected islands, dictionary words and directly
@@ -753,3 +755,17 @@ check as incomplete instead of claiming a successful check.
 These checks use native local logic, no AI calls, model changes or remote processing.
 Spelling and independently enabled Local AI corrections remain visible alongside
 style advice. All edits use the existing editor transaction and native undo behavior.
+
+### Coverage added from the prose regression corpus
+
+Native Review recognizes additional bounded subject/verb, preposition, comparison,
+possessive, complement and indirect-question constructions. These remain individual
+suggestions and do not enable typing corrections or bulk application. Known quantified
+mass-noun cases can produce a warning without an Apply action: the checker does not
+invent how many pieces or kinds the writer meant.
+
+Explicitly named quoted error examples remain unchanged by native grammar and spelling.
+Ordinary dialogue still receives checks. Finite rules do not infer narrative tense,
+article definiteness, dialect intent or the meaning of ambiguous effect/affect uses.
+See [the corpus evaluation](native-review-corpus-evaluation.md) for measured coverage
+and remaining gaps.

@@ -27,6 +27,11 @@ const templates: ReadonlyArray<{
   messageKey: RawFinding["messageKey"];
 }> = [
   {
+    pattern: `(?:tested|checked|reviewed)${SPACE}(?<target>aswell)${COMPLETE}`,
+    replacement: "as well",
+    messageKey: "review_msg_contextual_grammar",
+  },
+  {
     pattern: `${SUBJECT}${SPACE}(?:${DAILY})${SPACE}(?<target>everyday)${COMPLETE}`,
     replacement: "every day",
     messageKey: "review_msg_every_day",

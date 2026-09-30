@@ -963,7 +963,9 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
       await sendConfigChange(browser, worker);
       settingsDirty = false;
     }
-  });
+    // Worker recovery and storage reset each have their own bounded waits;
+    // the hook must allow both before Bun tears down the shared browser.
+  }, 15000);
 
   afterAll(async () => {
     if (domainTestServer?.listening) {

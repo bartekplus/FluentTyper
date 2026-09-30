@@ -42,7 +42,7 @@ export class NativeReviewCache {
     const text = ctx.text.slice(left, right);
     const scanText = ctx.scanText.slice(left, right);
     const key = JSON.stringify([
-      1, // Audited detector/read-contract version; bump when either changes.
+      2, // Audited detector/read-contract version; bump when either changes.
       detector.rules[0],
       prepared.options,
       [...prepared.rules],

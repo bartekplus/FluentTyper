@@ -148,6 +148,17 @@ const EXPLANATIONS: Record<ReviewMessageKey, Translations> = {
     "Sprawdź policzalność rzeczowników w zwykłym tekście.",
     "Verifique os substantivos contáveis na prosa comum.",
   ],
+  review_msg_contextual_grammar: [
+    "Check this grammatical form in this construction.",
+    "Vérifiez cette forme grammaticale dans cette construction.",
+    "Provjerite ovaj gramatički oblik u ovoj konstrukciji.",
+    "Revisa esta forma gramatical en esta construcción.",
+    "Ελέγξτε αυτόν τον γραμματικό τύπο σε αυτή τη σύνταξη.",
+    "Kontrollera den grammatiska formen i den här konstruktionen.",
+    "Prüfe diese grammatische Form in dieser Konstruktion.",
+    "Sprawdź tę formę gramatyczną w tej konstrukcji.",
+    "Verifique esta forma gramatical nesta construção.",
+  ],
   review_msg_mass_noun: [
     "This noun normally has no plural ending in this ordinary-prose context.",
     "Dans ce contexte courant, ce nom ne prend normalement pas de marque du pluriel.",

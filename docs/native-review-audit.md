@@ -53,3 +53,7 @@ Implementation commit `56c94339` passed `bun run check`, `bun run test` (**5,174
 Final Chrome smoke: **26 pass, 0 fail**, `/tmp/ft-roadmap-audit-smoke.log`. Fresh final Firefox command: `bun run test:e2e:full --platform=firefox` built successfully but failed both suite setup hooks before extension startup: **“Could not find profile folder.”** Log: `/tmp/ft-roadmap-audit-firefox.log`. This reproduces the previously diagnosed macOS Files & Folders permission blocker. It is not a Firefox feature test failure or a runtime pass.
 
 **Remaining:** enable the previously requested Firefox Application Support access for Codex, then run the full Firefox browser suite and fix any actual runtime failures. Until that gate passes, the roadmap goal is not complete. No further implementation gap was found by this audit; no push, PR, merge or release is authorized.
+
+## Subsequent authorization and corpus follow-up
+
+The user subsequently authorized review fixes and PR creation; PR #424 is open. The corpus-driven follow-up and current verification supersede the earlier delivery status above. See `native-review-progress.md` and `native-review-corpus-evaluation.md` for bounded coverage, rejected ambiguous rewrites and the latest local/CI evidence. Firefox runtime must be verified on the current head, not inferred from its build or from earlier checks.

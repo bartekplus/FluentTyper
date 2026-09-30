@@ -7,6 +7,54 @@ const END = `(?!${EDGE})(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))`;
 const SUBJECT = `(?:(?:this|that|the)${SPACE}(?:(?:new|old|latest)${SPACE})?(?:feature|idea|story|proposal|question|book|article|design|project|topic)|it)`;
 const templates: readonly PhraseTemplate[] = [
   {
+    pattern: `(?:we|I|they)${SPACE}(?:finally${SPACE})?(?<target>finded)${SPACE}the${SPACE}(?:problem|bug|issue)${END}`,
+    replacement: "found",
+    messageKey: "review_msg_contextual_grammar",
+  },
+
+  ...(
+    [
+      [
+        `(?:do${SPACE}you${SPACE}know|can${SPACE}you${SPACE}tell${SPACE}me|I${SPACE}wonder)${SPACE}where${SPACE}(?<target>is${SPACE}the${SPACE}configuration${SPACE}file)${END}`,
+        "the configuration file is",
+      ],
+      [
+        `(?:do${SPACE}you${SPACE}know|can${SPACE}you${SPACE}tell${SPACE}me|I${SPACE}wonder)${SPACE}why${SPACE}(?<target>did${SPACE}the${SPACE}process${SPACE}crash)${END}`,
+        "the process crashed",
+      ],
+      [
+        `(?:do${SPACE}you${SPACE}know|can${SPACE}you${SPACE}tell${SPACE}me|I${SPACE}wonder)${SPACE}what${SPACE}(?<target>does${SPACE}this${SPACE}option${SPACE}do)${END}`,
+        "this option does",
+      ],
+      [
+        `(?:nobody|no${SPACE}one)${SPACE}knows${SPACE}when${SPACE}(?<target>will${SPACE}the${SPACE}new${SPACE}version${SPACE}be${SPACE}released)${END}`,
+        "the new version will be released",
+      ],
+      [`between${SPACE}(?<target>you${SPACE}and${SPACE}I)(?=,)`, "you and me"],
+      [
+        `(?:a|the)${SPACE}(?:(?:big|large|small|positive|negative)${SPACE})?(?<target>affect)${SPACE}on${SPACE}(?:performance|stability|the${SPACE}(?:results|system))${END}`,
+        "effect",
+      ],
+      [
+        `(?:know|knows|wonder|wondered)${SPACE}(?<target>weather)${SPACE}(?:they|we|you)${SPACE}will${SPACE}(?:finish|complete)${SPACE}it(?:${SPACE}today)?${END}`,
+        "whether",
+      ],
+      [
+        `(?:developer|user|person)${SPACE}(?<target>who['’]s)${SPACE}(?:laptop|computer|phone)${SPACE}(?:crashed|broke)${SPACE}(?:said|reported)(?!${EDGE})`,
+        "whose",
+      ],
+      [`(?:by|with)${SPACE}a${SPACE}(?<target>lose)${SPACE}(?:cable|connection)${END}`, "loose"],
+      [
+        `(?:intuitive|simple|clear),?${SPACE}(?<target>accept)${SPACE}for${SPACE}the${SPACE}(?:(?:advanced|new)${SPACE})?(?:settings|options)${SPACE}page${END}`,
+        "except",
+      ],
+    ] as const
+  ).map(([pattern, replacement]) => ({
+    pattern,
+    replacement,
+    messageKey: "review_msg_contextual_grammar" as const,
+  })),
+  {
     pattern: `for${SPACE}all${SPACE}(?<target>intensive)${SPACE}purposes,${SPACE}(?:the|this|that)${SPACE}(?:test|project|work|task|report|plan|design|review|process|document|proposal|update)${SPACE}(?:is|was)${SPACE}(?:complete|finished|ready|done|final|successful)${END}`,
     replacement: "intents and",
     messageKey: "review_msg_intents_purposes",

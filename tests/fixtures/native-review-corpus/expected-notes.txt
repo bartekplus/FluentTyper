@@ -1,0 +1,196 @@
+A good checker should catch roughly these categories and corrections. Some style fixes are subjective, so I’d keep them separate from strict grammar errors.
+Broken	Expected
+last monday	Last Monday
+me and my colleague	my colleague and I
+was discussing with plural subject	were discussing
+discussing about	discussing
+since two years	for two years
+The feature look	The feature looks
+alot	a lot
+there is still ... problems	there are still ... problems
+problems that needs	problems that need
+We didnt had	We didn't have
+weeks has been	weeks have been
+everyone have	everyone has
+issue ... were	issues ... were / issue ... was
+recieve	receive
+seperate	separate
+definately	definitely
+occured	occurred
+immediatly	immediately
+enviroment	environment
+wierd	weird
+succesful	successful
+untill	until
+particulary	particularly
+easilly	easily
+It also dont	It also doesn't
+the the	remove duplicate
+to to	remove duplicate
+sentence starting sometimes	capitalize Sometimes
+word ... remain	word ... remains
+the same after period	The same
+monday, january, september	Monday, January, September
+can also causes	can also cause
+users writes	users write
+i work	I work
+microsoft	Microsoft
+portugal	Portugal
+august	August
+pronoun i	pronoun I
+doesnt	doesn't
+There is also several	There are also several
+feature work	feature works
+results looks	results look
+these option is	these options are
+each ... have	each ... has
+Neither ... sentence are	None of those sentences are or rephrase
+some ... isn't	some ... aren't
+system ... struggle	system ... struggles
+there is many	there are many
+there was several	there were several
+there's two	there are two
+detection ... need	detection ... needs
+Yesterday we test	Yesterday we tested
+and find	and found
+Before that, we have tested	Before that, we had tested
+we already wait	we had already been waiting
+If we would have tested	If we had tested
+could found	could have found
+Tomorrow we tested	Tomorrow we will test
+if the build will be ready	if the build is ready
+software make	software makes
+User can	A user can / Users can
+open editor	open an editor/the editor
+paste text into document	paste text into a document
+click button	click a/the button
+Application should	The application should
+show list	show a list
+it suggest	it suggests
+a information	information / some information
+an user	a user
+a apple	an apple
+it ... forget	it ... forgets
+I bought new computer	I bought a new computer
+Plural ... nouns is	Plural ... nouns are
+feedbacks	feedback
+informations	information
+advices	advice
+equipments	equipment
+datas	data
+criterias	criteria
+Prepositions ... causes	Prepositions ... cause
+since three years	for three years
+from 2021	since 2021
+discussed about	discussed
+investigate on it	investigate it
+responsible of	responsible for
+interested on	interested in
+arrived to	arrived at
+waited the manager	waited for the manager
+more faster	faster
+more simpler	simpler
+most easiest	easiest
+then yours	than yours
+performs good	performs well
+second ... best of two	second ... better
+lesser memory	less memory
+Me and him	He and I
+Sarah and I after asked	Sarah and me
+gave ... to myself	gave ... to me
+when he finish	when they finish / when he finishes
+Between you and I	Between you and me
+doesnt	doesn't
+it's policy	its policy
+its unclear	it's unclear
+dont need no	don't need any
+nobody didnt	nobody reported
+cant hardly	can hardly
+never doesn't finish	never finishes
+didn't do nothing	didn't do anything
+to not change nothing	not to change anything
+untill	until
+missing punctuation before however	semicolon/period + however,
+Chrome Firefox Edge and Safari	add commas
+missing comma after introductory conditional	If ..., we ...
+comma splice successfully, unfortunately	semicolon/period
+aswell	as well
+10kg	10 kg
+25km	25 km
+100ms	100 ms
+5GB	5 GB
+20%CPU	20% CPU
+spaces before commas	remove
+missing spaces after commas	add
+double spaces	single space
+space before period	remove
+.Parentheses	. Parentheses
+too(	too (
+Numbers and dates creates	Numbers and dates create
+5th of september	5th of September / September 5
+test's	tests
+machine's	machines
+gb of ram	GB of RAM
+32GB	32 GB
+1,5 seconds	locale dependent; English usually 1.5 seconds
+0.75 sec	preferably 0.75 seconds
+5 percents	5 percent
+september 21th	September 21st
+october 3st	October 3rd
+affect on performance noun	effect on performance
+effect stability verb	affect stability
+insure that	usually ensure that
+accept for	except for
+Their going	They're going
+weather they	whether they
+who's laptop	whose laptop
+lose cable	loose cable
+revert back	revert
+collaborate together	collaborate
+reason is because	reason is that
+at this point in time	now/currently
+currently testing after at this point	redundancy
+each and every	often simplify to each
+personal opinion, I think	redundant
+If I will find	If I find
+If I would know	If I had known
+I would fix	I would have fixed
+wouldn't have crashed ... would finish	hadn't crashed ... would have finished
+Unless you don't	Unless you
+wont	won't
+would worked	worked
+where is the configuration file	where the configuration file is
+why did the process crash in indirect question	why the process crashed
+what does this option do	what this option does
+asked did we finished	asked whether we had finished
+when will ... be released indirect	when ... will be released
+enjoy to work	enjoy working
+avoid to work	avoid working
+allows users editing	allows users to edit
+helps them to finding	helps them find
+decided testing	decided to test
+suggested to add	suggested adding
+made me to restart	made me restart
+let me to check	let me check
+yesterday start	Yesterday
+me and john	John and I
+john	John
+was working with compound subject	were working
+which don't works	that doesn't work
+we was	we were
+why does it crashes	why it crashes
+every few minute	every few minutes
+after ... two hour	after ... two hours
+finded	found
+too much threads	too many threads
+at same time	at the same time
+each ... were	each ... was
+then they should	than they should
+should of	should have
+everything seem	everything seemed
+work good	work well
+nobody have checked	nobody has checked
+solution ... solve	solution ... solves
+
+
+A few of these are intentionally style warnings rather than hard errors: revert back, collaborate together, each and every, at this point in time, and in my personal opinion, I think. For FluentTyper I'd show them differently from red grammar/spelling errors.

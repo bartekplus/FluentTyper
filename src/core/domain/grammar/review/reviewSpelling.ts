@@ -49,7 +49,9 @@ export function spellingCandidates(
   const { text } = prepared;
   const { scope } = prepared.snapshot;
   const protectedRanges = prepared.protectedRanges;
-  const taken = [...covered, ...prepared.terminology.ranges].sort((a, b) => a.start - b.start);
+  const taken = [...covered, ...prepared.terminology.ranges, ...prepared.quotations.examples].sort(
+    (a, b) => a.start - b.start,
+  );
   let nextProtected = 0;
   let nextTaken = 0;
   const candidates: SpellingCandidate[] = [];
@@ -70,6 +72,15 @@ export function spellingCandidates(
       continue;
     }
     if (word.length < MIN_WORD_CHARS || word.length > MAX_WORD_CHARS) continue;
+    // A number supplies unit context for the conventional abbreviation; this
+    // does not expand or convert the user's measurement.
+    if (
+      /^secs?$/i.test(word) &&
+      /(?:^|[ \t])[0-9]+(?:[.,][0-9]+)?[ \t\u00a0]+$/.test(
+        text.slice(Math.max(0, start - 32), start),
+      )
+    )
+      continue;
     const previous = text[start - 1] ?? "";
     const next = text[end] ?? "";
     // A selection that starts inside a word ("c|arefully") holds only part of it:

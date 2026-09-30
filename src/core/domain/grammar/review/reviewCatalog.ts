@@ -124,6 +124,12 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     category: "grammar",
     bulk: "individual",
   },
+  englishSubjectVerbAgreement: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "grammar",
+    bulk: "individual",
+  },
   englishExistentialAgreement: {
     review: "supported",
     defaultEnabled: true,

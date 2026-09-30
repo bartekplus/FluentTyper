@@ -6,7 +6,7 @@ const EDGE = "[\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]";
 const END = "(?=[ \\t\\u00a0]{0,8}[.!?,;:]|[ \\t\\u00a0]{0,8}$)";
 const ADJECTIVE = `(?:(?:new|old|cold|warm|red|blue|main|original|updated|private)${SPACE})?`;
 const NOUN =
-  "(?:connection|surface|folder|file|password|screen|keyboard|owner|name|settings|color|cover|door|engine|battery|address)";
+  "(?:policy|connection|surface|folder|file|password|screen|keyboard|owner|name|settings|color|cover|door|engine|battery|address)";
 
 /** Full bounded phrases, never a guess about arbitrary names or singular/plural ownership. */
 export function contextualPossessives(ctx: DetectContext): RawFinding[] {
@@ -34,7 +34,7 @@ export function contextualPossessives(ctx: DetectContext): RawFinding[] {
     {
       ruleId: "englishItsContext",
       messageKey: "review_msg_its_contraction",
-      pattern: `(?<target>its)${SPACE}(?:ready${SPACE}to${SPACE}(?:use|go|open|start)|(?:cold|warm)${SPACE}outside|(?:working|raining|snowing)${SPACE}(?:now|again|today)|been${SPACE}(?:fixed|updated|removed|replaced)|already${SPACE}(?:been${SPACE})?(?:fixed|updated|removed|replaced))${END}`,
+      pattern: `(?<target>its)${SPACE}(?:unclear${SPACE}whether${SPACE}(?:the${SPACE}change${SPACE}will${SPACE}affect${SPACE}us|it${SPACE}will${SPACE}work)|ready${SPACE}to${SPACE}(?:use|go|open|start)|(?:cold|warm)${SPACE}outside|(?:working|raining|snowing)${SPACE}(?:now|again|today)|been${SPACE}(?:fixed|updated|removed|replaced)|already${SPACE}(?:been${SPACE})?(?:fixed|updated|removed|replaced))${END}`,
       replacement: "it's",
       clause: true,
     },
@@ -62,7 +62,9 @@ export function contextualPossessives(ctx: DetectContext): RawFinding[] {
       if (
         clause &&
         !(m.index <= 96 && /^[ \t\u00a0]*$/.test(before)) &&
-        !/(?:[.!?;:\n][ \t\u00a0]*|,[ \t\u00a0]*["“'‘])["“'‘]{0,3}[ \t\u00a0]*$/.test(before) &&
+        !/(?:,[ \t\u00a0]*(?:but|and)[ \t\u00a0]+|[.!?;:\n][ \t\u00a0]*|,[ \t\u00a0]*["“'‘])["“'‘]{0,3}[ \t\u00a0]*$/.test(
+          before,
+        ) &&
         !/^[ \t\u00a0]*["“'‘]{1,3}$/.test(before)
       )
         continue;

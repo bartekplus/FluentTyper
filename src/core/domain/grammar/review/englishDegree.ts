@@ -6,14 +6,14 @@ const SPACE = "[ \\t\\u00a0]{1,8}";
 const EDGE = "[\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]";
 const END = `(?!${EDGE})(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))`;
 const NOUN =
-  "(?:approach|result|option|route|method|plan|model|version|device|answer|solution|test)";
-const SUBJECT = `(?:this|that|it|(?:this|that|the)${SPACE}(?:(?:new|old|revised|previous)${SPACE})?${NOUN})${SPACE}(?:is|was)`;
-const COMPARATIVE = `(?:${ENGLISH_COMPARATIVES.join("|")}|easier)`;
+  "(?:algorithm|approach|result|option|route|method|plan|model|version|device|answer|solution|test)";
+const SUBJECT = `(?:this|that|it|(?:this|that|the)${SPACE}(?:(?:new|old|revised|previous)${SPACE})?${NOUN})${SPACE}(?:is|was)(?:${SPACE}also)?`;
+const COMPARATIVE = `(?:${ENGLISH_COMPARATIVES.join("|")}|easier|simpler)`;
 const SUPERLATIVE =
   "(?:fastest|slowest|largest|smallest|best|worst|newest|oldest|cheapest|safest|easiest)";
 const patterns = [
-  `${SUBJECT}${SPACE}(?<target>more${SPACE}(?<word>${COMPARATIVE}))(?:(?:${SPACE}to${SPACE}(?:test|use|read|find|check|build))|(?:${SPACE}(?:than|then)${SPACE}(?:before|expected|(?:the|my|your|our)${SPACE}(?:(?:old|new|previous)${SPACE})?${NOUN}|[0-9]{1,6}(?!,|[.][0-9]))))?${END}`,
-  `${SUBJECT}${SPACE}the${SPACE}(?<target>most${SPACE}(?<word>${SUPERLATIVE}))${SPACE}${NOUN}${END}`,
+  `${SUBJECT}${SPACE}(?:much${SPACE})?(?<target>more${SPACE}(?<word>${COMPARATIVE}))(?:(?:${SPACE}to${SPACE}(?:test|use|read|find|check|build))|(?:${SPACE}(?:than|then)${SPACE}(?:before|expected|(?:the|my|your|our)${SPACE}(?:(?:old|new|previous)${SPACE})?(?:${NOUN}|one)|[0-9]{1,6}(?!,|[.][0-9]))))?${END}`,
+  `${SUBJECT}${SPACE}the${SPACE}(?<target>most${SPACE}(?<word>${SUPERLATIVE}))${SPACE}${NOUN}(?:${SPACE}we${SPACE}(?:tried|tested)${SPACE}so${SPACE}far)?${END}`,
 ];
 
 /** Finite predicative clauses establish degree, rather than quantity or noun modifiers. */

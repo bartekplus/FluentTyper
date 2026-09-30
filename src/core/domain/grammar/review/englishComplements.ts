@@ -1,3 +1,4 @@
+import { detectPhraseTemplates } from "./phraseTemplates";
 import { englishVerbForms, englishVerbGerund } from "../implementations/helpers/EnglishVerbForms";
 import { applyWordCase, detectWordCase } from "../implementations/helpers/GenericRuleShared";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
@@ -26,7 +27,40 @@ const COMPLEMENTS: Readonly<Record<string, string>> = {
 
 /** Only complete complement frames; missing subjects and ambiguous fragments abstain. */
 export function verbComplements(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
+  const findings = detectPhraseTemplates(
+    ctx,
+    [
+      ...(
+        [
+          [
+            `${SUBJECT}${SPACE}(?:enjoy|enjoys|enjoyed|avoid|avoids|avoided)${SPACE}(?<target>to${SPACE}work)${SPACE}(?:on${SPACE}(?:(?:difficult|technical)${SPACE}){0,2}problems|late${SPACE}at${SPACE}night)`,
+            "working",
+          ],
+          [
+            `${SUBJECT}${SPACE}(?:decided|decide|decides)${SPACE}(?<target>testing)${SPACE}the${SPACE}(?:feature|application)(?:${SPACE}again)?(?:${SPACE}tomorrow)?`,
+            "to test",
+          ],
+          [
+            `(?:and${SPACE})?(?:suggested|suggest|suggests)${SPACE}(?<target>to${SPACE}add)${SPACE}more${SPACE}(?:unit${SPACE})?tests`,
+            "adding",
+          ],
+          [
+            `(?:made|let)${SPACE}(?:me|him|her|us|them)${SPACE}(?<target>to${SPACE})(?:restart${SPACE}the${SPACE}service|check${SPACE}the${SPACE}logs)`,
+            "",
+          ],
+          [
+            `(?:helps?|helped)${SPACE}(?:me|him|her|us|them)${SPACE}to${SPACE}(?<target>finding)${SPACE}mistakes`,
+            "find",
+          ],
+        ] as const
+      ).map(([pattern, replacement]) => ({
+        pattern: `${pattern}(?!${EDGE})(?=[ \\t\\u00a0]{0,8}${replacement === "to test" ? "(?:[.!?]|$)" : `(?:[.!?,;:]|$|(?:and|but)${SPACE})`})`,
+        replacement,
+        messageKey: "review_msg_contextual_grammar" as const,
+      })),
+    ],
+    "englishVerbComplements",
+  );
   for (const gerundFrame of [false, true]) {
     const governor = gerundFrame
       ? `(?:${NEGATIVE}(?:look|looks|looked)|(?:am|is|are|was|were)${SPACE}(?:not${SPACE})?looking)${SPACE}forward${SPACE}to`

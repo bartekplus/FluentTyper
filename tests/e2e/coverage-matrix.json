@@ -3,6 +3,32 @@
   "capturedAt": "2026-09-15",
   "behaviors": [
     {
+      "id": "review_corpus_grammar",
+      "description": "Corpus-derived native grammar repairs preserve named error quotations, units and ambiguous interpretations; subject agreement is Review-only and individually applied with native undo.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewCorpus.test.ts",
+          "test": "corpus regression %s: %s"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewCorpus.test.ts",
+          "test": "nearby valid grammar and ambiguous interpretations remain untouched"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewCorpus.test.ts",
+          "test": "quantified mass nouns warn without inventing a quantity or repair"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review bounded grammar applies individual edits with native undo: %s"
+        }
+      ]
+    },
+    {
       "id": "review_agreement_extensions",
       "description": "Expanded native pronoun agreement retains the original typing whitelist and bulk ownership. Separate existential suggestions preserve stated quantities and nouns, abstain on ambiguous coordination, and apply individually with native undo.",
       "coverage": [
@@ -3403,7 +3429,7 @@
     },
     {
       "id": "local_ai_setup_offer",
-      "description": "The Review panel shows a one-time Local AI setup offer with the download size; \"Not now\" dismisses it for good; \"Set up local AI\u2026\" opens the options Local AI section focused, whose page only asks for status and installs only after an inline confirm.",
+      "description": "The Review panel shows a one-time Local AI setup offer with the download size; \"Not now\" dismisses it for good; \"Set up local AI…\" opens the options Local AI section focused, whose page only asks for status and installs only after an inline confirm.",
       "coverage": [
         {
           "layer": "e2e-full",
@@ -3418,7 +3444,7 @@
         {
           "layer": "e2e-full",
           "file": "tests/e2e/local-ai.e2e.test.ts",
-          "test": "\"Set up local AI\u2026\" opens the Local AI settings; installing needs the inline confirm"
+          "test": "\"Set up local AI…\" opens the Local AI settings; installing needs the inline confirm"
         },
         {
           "layer": "unit",
