@@ -69,6 +69,14 @@ badge, and the card and list name the category in words. The underline colors
 keep at least 3:1 contrast on light and dark pages alike, whatever the OS theme. In forced-colors
 (high-contrast) mode the highlights use system colors with the same line styles.
 
+The card header also names the kind of problem a native check finds, for
+example **Grammar · Agreement** or **Punctuation and spacing · Spacing**. Kinds
+are finer than categories and are only a label: filters, colors and Fix all
+still follow the category. The kinds are typo, split or joined words,
+agreement, word form, confused words, usage, capitalization, repetition,
+spacing, numbers and units, punctuation marks, redundancy, readability and
+terminology. Dictionary spelling and Local AI cards show only the category.
+
 Click a highlight, or choose a finding in the list, to open its card:
 category, explanation, the change (original and replacement), any
 alternatives, and **Apply**, **Ignore once** and, for single-word spelling findings,
@@ -128,8 +136,13 @@ The panel names every state:
 Review reuses the typing-time rules' own patterns, word lists and helpers.
 Each catalog rule is classified in
 [`reviewCatalog.ts`](../src/core/domain/grammar/review/reviewCatalog.ts), and
-its `Record` type makes an unclassified new rule a compile error. Native Review
-checks have independent switches in **Settings → Grammar → Review text**.
+its `Record` type makes an unclassified new rule a compile error: every
+supported rule names its category and kind, and every excluded typing rule its
+category. Native Review checks have independent switches in
+**Settings → Grammar → Review text**. They are listed under the Review
+categories, each card badged with its kind, "Off by default" for optional
+checks and "English only" where that applies. Typing switches are listed under
+the same categories.
 Core checks default on. The optional style and typography checks (long sentences, redundancy, the ellipsis character, typed dashes) default off; restoring defaults
 keeps them off. Typing switches still control only automatic corrections.
 A native finding's **Disable this check in Review** action saves that rule's choice
@@ -152,37 +165,39 @@ browser's own detector) and uses the matching enabled language, or the fallback 
 
 Supported (**Typing** is the rule's default for typing; Review has separate switches):
 
-| Rule                                   | Language       | Typing      | Category    | Fix all                                                                                                                                        |
-| -------------------------------------- | -------------- | ----------- | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| `englishExistentialAgreement`          | English        | unavailable | grammar     | individual only                                                                                                                                |
-| `englishThenThan`                      | English        | unavailable | grammar     | individual only                                                                                                                                |
-| `englishYourYouAre`                    | English        | unavailable | grammar     | individual only                                                                                                                                |
-| `englishTheirThereTheyAre`             | English        | unavailable | grammar     | individual only                                                                                                                                |
-| `englishToToo`                         | English        | unavailable | grammar     | individual only                                                                                                                                |
-| `englishAuxiliaryBaseVerb`             | English        | unavailable | grammar     | individual only                                                                                                                                |
-| `englishRepeatedWords`                 | all            | unavailable | grammar     | individual only                                                                                                                                |
-| `capitalizeSentenceStart`              | all            | on          | typography  | yes (after a quote or bracket closing a period: individual only)                                                                               |
-| `capitalizeAfterLineBreak`             | all            | on          | typography  | individual only: line starts in poems, lists and hard-wrapped text are often lowercase on purpose                                              |
-| `englishPronounICapitalization`        | English        | on          | typography  | yes                                                                                                                                            |
-| `englishContractionNormalization`      | en, fr, de, pt | on          | spelling    | English yes (an apostrophe typed as `;` or a backtick: individual only); French elisions and other languages' apostrophe marks individual only |
-| `englishTypoWhitelistCorrection`       | English        | on          | spelling    | yes                                                                                                                                            |
-| `englishModalOfCorrection`             | English        | on          | grammar     | yes                                                                                                                                            |
-| `englishYourWelcomeCorrection`         | English        | on          | grammar     | yes                                                                                                                                            |
-| `englishTheirThereBeVerb`              | English        | on          | grammar     | yes                                                                                                                                            |
-| `englishAlotCorrection`                | 8 langs        | on          | spelling    | English yes; other languages' merged words individual only                                                                                     |
-| `englishPronounVerbWhitelistAgreement` | English        | on          | grammar     | original pairs only; expanded forms and contextual "you was" are individual only                                                               |
-| `englishArticleAnCorrection`           | English        | off         | grammar     | individual only: word-list heuristic; a letter or identifier can look like an article                                                          |
-| `englishOrdinalSuffix`                 | English        | off         | typography  | yes (a capitalized suffix such as "2ND": individual only)                                                                                      |
-| `englishProperNounCapitalization`      | en, de         | on          | typography  | English yes (German nouns individual only; months that need a date as evidence: individual only)                                               |
-| `measurementUnitFormatting`            | all            | on          | punctuation | individual only: units in technical prose are meaning-sensitive (also "°K" → "K")                                                              |
-| `currencySpacing`                      | all            | on          | punctuation | yes                                                                                                                                            |
-| `commaPeriodSpacing`                   | all            | on          | punctuation | yes (Greek `;`, Arabic `؟ ؛` and Spanish `¿ ¡` padding: individual only)                                                                       |
-| `collapseRepeatedSpaces`               | all            | on          | punctuation | yes (alignment gaps and Markdown table padding are left alone)                                                                                 |
-| `duplicatePunctuationCollapse`         | all            | off         | punctuation | yes (a four-dot ellipsis: individual only)                                                                                                     |
-| `emdashShortcut`                       | all            | off         | typography  | individual only; off by default in Review (optional dash for "--" or "---")                                                                    |
-| `ellipsisShortcut`                     | all            | off         | typography  | individual only; off by default in Review (optional "…" for "...")                                                                             |
+| Rule                                   | Language       | Typing      | Category    | Kind               | Fix all                                                                                                                                        |
+| -------------------------------------- | -------------- | ----------- | ----------- | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `englishExistentialAgreement`          | English        | unavailable | grammar     | agreement          | individual only                                                                                                                                |
+| `englishThenThan`                      | English        | unavailable | grammar     | confused words     | individual only                                                                                                                                |
+| `englishYourYouAre`                    | English        | unavailable | grammar     | confused words     | individual only                                                                                                                                |
+| `englishTheirThereTheyAre`             | English        | unavailable | grammar     | confused words     | individual only                                                                                                                                |
+| `englishToToo`                         | English        | unavailable | grammar     | confused words     | individual only                                                                                                                                |
+| `englishAuxiliaryBaseVerb`             | English        | unavailable | grammar     | word form          | individual only                                                                                                                                |
+| `englishRepeatedWords`                 | all            | unavailable | grammar     | repetition         | individual only                                                                                                                                |
+| `capitalizeSentenceStart`              | all            | on          | typography  | capitalization     | yes (after a quote or bracket closing a period: individual only)                                                                               |
+| `capitalizeAfterLineBreak`             | all            | on          | typography  | capitalization     | individual only: line starts in poems, lists and hard-wrapped text are often lowercase on purpose                                              |
+| `englishPronounICapitalization`        | English        | on          | typography  | capitalization     | yes                                                                                                                                            |
+| `englishContractionNormalization`      | en, fr, de, pt | on          | spelling    | typo               | English yes (an apostrophe typed as `;` or a backtick: individual only); French elisions and other languages' apostrophe marks individual only |
+| `englishTypoWhitelistCorrection`       | English        | on          | spelling    | typo               | yes                                                                                                                                            |
+| `englishModalOfCorrection`             | English        | on          | grammar     | confused words     | yes                                                                                                                                            |
+| `englishYourWelcomeCorrection`         | English        | on          | grammar     | confused words     | yes                                                                                                                                            |
+| `englishTheirThereBeVerb`              | English        | on          | grammar     | confused words     | yes                                                                                                                                            |
+| `englishAlotCorrection`                | 8 langs        | on          | spelling    | split/joined words | English yes; other languages' merged words individual only                                                                                     |
+| `englishPronounVerbWhitelistAgreement` | English        | on          | grammar     | agreement          | original pairs only; expanded forms and contextual "you was" are individual only                                                               |
+| `englishArticleAnCorrection`           | English        | off         | grammar     | agreement          | individual only: initial-sound heuristic; a letter, name or identifier can look like an article                                                |
+| `englishOrdinalSuffix`                 | English        | off         | typography  | numbers and units  | yes (a capitalized suffix such as "2ND": individual only)                                                                                      |
+| `englishProperNounCapitalization`      | en, de         | on          | typography  | capitalization     | English yes (German nouns individual only; months that need a date as evidence: individual only)                                               |
+| `measurementUnitFormatting`            | all            | on          | punctuation | numbers and units  | individual only: units in technical prose are meaning-sensitive (also "°K" → "K")                                                              |
+| `currencySpacing`                      | all            | on          | punctuation | numbers and units  | yes                                                                                                                                            |
+| `commaPeriodSpacing`                   | all            | on          | punctuation | spacing            | yes (Greek `;`, Arabic `؟ ؛` and Spanish `¿ ¡` padding: individual only)                                                                       |
+| `collapseRepeatedSpaces`               | all            | on          | punctuation | spacing            | yes (alignment gaps and Markdown table padding are left alone)                                                                                 |
+| `duplicatePunctuationCollapse`         | all            | off         | punctuation | repetition         | yes (a four-dot ellipsis: individual only)                                                                                                     |
+| `ellipsisShortcut`                     | all            | off         | typography  | punctuation marks  | individual only; off by default in Review (optional "…" for "...")                                                                             |
+| `emdashShortcut`                       | all            | off         | typography  | punctuation marks  | individual only; off by default in Review (optional dash for "--" or "---")                                                                    |
 
 Agreement retains the six original typing pairs and their existing bulk rules.
+
+`englishArticleAnCorrection` picks a or an by the next word's initial sound, not its spelling: a silent h (an hour, an honest), u, eu and one said with a consonant (a university, a European, a one-way street), and initialisms by letter name (an HDMI, a USB). It abstains when both articles are heard or the sound is unknown (SQL, NASA, herb, historic, ukulele, numbers), on mass nouns (a information), single lowercase letters, short or unpronounceable lowercase initialisms (an sla, a usb), user-dictionary words, quoted words, code and paths. Typing checks lowercase words only and stays off by default; Review also checks capitalized words and initialisms, individual-only. Some checks were inspired by Harper (https://github.com/Automattic/harper).
 `englishContextualCompounds` is a separate Review-only check for curated compound pairs. It splits everyday into every day after a complete listed pronoun-led action, and splits login/setup into log in/set up in explicit modal, infinitive or please-imperative slots with complete listed complements. New spaces use the existing grapheme-anchored editor transaction; unrelated formatting remains intact. Findings own their spans before dictionary spelling runs, so the same token does not receive redundant spelling cards. Presage candidates and ranking are unchanged.
 
 Noun/adjective uses such as everyday tasks, the login and the setup are preserved. This check does not join two-word noun spellings or impose a login/log-in or setup/set-up house style. Unknown compounds, incomplete contexts, command arguments, URL components, mixed-case identifiers, capitalized product-name candidates and user-dictionary words abstain. The listed lowercase tokens, including aswell after tested/checked/reviewed, are split; every finding remains individual-only and typing is unchanged.
@@ -672,7 +687,9 @@ WebRTC, FluentTyper, iPhone, macOS and eBay in prose of any review language. It 
 ordinary title-case input and inserts the exact canonical form; it does not apply
 sentence title casing to brand names. The native sentence-start suggestion yields
 only when an enabled canonical suggestion covers that start. Existing mixed-case
-sentence-start protection keeps corrected lower-camel names stable.
+sentence-start protection keeps corrected lower-camel names stable. Its
+findings are in the Capitalization and typography category, with every other
+capitalization check.
 
 All-uppercase emphasis, arbitrary mixed-case identifiers, URLs, paths, handles,
 file names, glued/possessive tokens, code, dictionary words and named quoted

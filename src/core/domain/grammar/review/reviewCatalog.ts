@@ -6,31 +6,40 @@ import {
   REVIEW_SPELLING_CHECK,
   type ReviewCategory,
   type ReviewCheckId,
+  type ReviewKind,
 } from "./types";
+
+interface SupportedReviewMetadata {
+  review: "supported";
+  defaultEnabled: boolean;
+  category: ReviewCategory;
+  bulk: "eligible" | "individual";
+  /** Why a supported rule stays individual-only, when it does. */
+  note?: string;
+  /**
+   * Review languages, when they differ from the catalog's typing
+   * `languageScope` (a Review-only extension of an English typing rule).
+   */
+  languages?: readonly string[];
+}
 
 /**
  * Review metadata for every catalog rule. The Record type makes a new catalog
  * rule a compile error until it is explicitly classified here, so no rule is
- * silently omitted from review or assumed safe to batch.
+ * silently omitted from review or assumed safe to batch. Every supported rule
+ * also names its `kind`.
  *
  * `bulk: "eligible"` means the rule's fix is deterministic and batch-approved for
  * "Fix all". The typing-time `safetyTier` is NOT used for that decision.
  */
 export type ReviewRuleMetadata =
+  | (SupportedReviewMetadata & { kind: ReviewKind })
   | {
-      review: "supported";
-      defaultEnabled: boolean;
+      review: "excluded";
+      /** Groups the typing rule in settings next to Review's checks. */
       category: ReviewCategory;
-      bulk: "eligible" | "individual";
-      /** Why a supported rule stays individual-only, when it does. */
-      note?: string;
-      /**
-       * Review languages, when they differ from the catalog's typing
-       * `languageScope` (a Review-only extension of an English typing rule).
-       */
-      languages?: readonly string[];
-    }
-  | { review: "excluded"; reason: string };
+      reason: string;
+    };
 
 /**
  * Every named review language. Rules that need to know the language (a word
@@ -46,18 +55,21 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     review: "supported",
     defaultEnabled: false,
     category: "style",
+    kind: "redundancy",
     bulk: "individual",
   },
   styleLongSentence: {
     review: "supported",
     defaultEnabled: false,
     category: "style",
+    kind: "readability",
     bulk: "individual",
   },
   preferredTerminology: {
     review: "supported",
     defaultEnabled: true,
     category: "grammar",
+    kind: "terminology",
     bulk: "individual",
     note: "Requires an explicitly enabled user-authored terminology configuration.",
     languages: NAMED_LANGUAGES,
@@ -65,25 +77,29 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
   englishCanonicalCasing: {
     review: "supported",
     defaultEnabled: true,
-    category: "grammar",
+    category: "typography",
+    kind: "capitalization",
     bulk: "individual",
   },
   unclosedQuotation: {
     review: "supported",
     defaultEnabled: true,
     category: "punctuation",
+    kind: "marks",
     bulk: "individual",
   },
   englishUsagePhrases: {
     review: "supported",
     defaultEnabled: true,
     category: "grammar",
+    kind: "usage",
     bulk: "individual",
   },
   englishDoubledDegree: {
     review: "supported",
     defaultEnabled: true,
     category: "grammar",
+    kind: "wordForm",
     bulk: "individual",
     languages: ["en_US", "fr_FR", "es_ES", "pt_BR", "pl_PL", "hr_HR", "sv_SE", "el_GR"],
   },
@@ -91,90 +107,105 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     review: "supported",
     defaultEnabled: true,
     category: "grammar",
+    kind: "agreement",
     bulk: "individual",
   },
   englishContextualCompounds: {
     review: "supported",
     defaultEnabled: true,
     category: "grammar",
+    kind: "boundary",
     bulk: "individual",
   },
   englishNounNumber: {
     review: "supported",
     defaultEnabled: true,
     category: "grammar",
+    kind: "agreement",
     bulk: "individual",
   },
   englishPerfectParticiples: {
     review: "supported",
     defaultEnabled: true,
     category: "grammar",
+    kind: "wordForm",
     bulk: "individual",
   },
   englishVerbComplements: {
     review: "supported",
     defaultEnabled: true,
     category: "grammar",
+    kind: "wordForm",
     bulk: "individual",
   },
   englishFixedPrepositions: {
     review: "supported",
     defaultEnabled: true,
     category: "grammar",
+    kind: "usage",
     bulk: "individual",
   },
   englishItsContext: {
     review: "supported",
     defaultEnabled: true,
     category: "grammar",
+    kind: "confusedWords",
     bulk: "individual",
   },
   englishLetsContext: {
     review: "supported",
     defaultEnabled: true,
     category: "grammar",
+    kind: "confusedWords",
     bulk: "individual",
   },
   englishElsePossessive: {
     review: "supported",
     defaultEnabled: true,
     category: "grammar",
+    kind: "wordForm",
     bulk: "individual",
   },
   englishSubjectVerbAgreement: {
     review: "supported",
     defaultEnabled: true,
     category: "grammar",
+    kind: "agreement",
     bulk: "individual",
   },
   englishExistentialAgreement: {
     review: "supported",
     defaultEnabled: true,
     category: "grammar",
+    kind: "agreement",
     bulk: "individual",
   },
   englishThenThan: {
     review: "supported",
     defaultEnabled: true,
     category: "grammar",
+    kind: "confusedWords",
     bulk: "individual",
   },
   englishYourYouAre: {
     review: "supported",
     defaultEnabled: true,
     category: "grammar",
+    kind: "confusedWords",
     bulk: "individual",
   },
   englishTheirThereTheyAre: {
     review: "supported",
     defaultEnabled: true,
     category: "grammar",
+    kind: "confusedWords",
     bulk: "individual",
   },
   englishToToo: {
     review: "supported",
     defaultEnabled: true,
     category: "grammar",
+    kind: "confusedWords",
     bulk: "individual",
   },
 
@@ -182,12 +213,14 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     review: "supported",
     defaultEnabled: true,
     category: "grammar",
+    kind: "wordForm",
     bulk: "individual",
   },
   englishRepeatedWords: {
     review: "supported",
     defaultEnabled: true,
     category: "grammar",
+    kind: "repetition",
     bulk: "individual",
     languages: NAMED_LANGUAGES,
   },
@@ -195,12 +228,14 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     review: "supported",
     defaultEnabled: true,
     category: "typography",
+    kind: "capitalization",
     bulk: "eligible",
   },
   capitalizeAfterLineBreak: {
     review: "supported",
     defaultEnabled: true,
     category: "typography",
+    kind: "capitalization",
     bulk: "individual",
     note: "Line starts in poems, lists and hard-wrapped text are often lowercase on purpose.",
   },
@@ -208,12 +243,14 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     review: "supported",
     defaultEnabled: true,
     category: "typography",
+    kind: "capitalization",
     bulk: "eligible",
   },
   englishContractionNormalization: {
     review: "supported",
     defaultEnabled: true,
     category: "spelling",
+    kind: "typo",
     bulk: "eligible",
     languages: ["en_US", "fr_FR", "de_DE", "pt_BR"],
   },
@@ -221,34 +258,40 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     review: "supported",
     defaultEnabled: true,
     category: "spelling",
+    kind: "typo",
     bulk: "eligible",
   },
   doubleSpaceToPeriod: {
     review: "excluded",
+    category: "punctuation",
     reason: "Typing shortcut: existing double spaces are not sentence ends.",
   },
   englishModalOfCorrection: {
     review: "supported",
     defaultEnabled: true,
     category: "grammar",
+    kind: "confusedWords",
     bulk: "eligible",
   },
   englishYourWelcomeCorrection: {
     review: "supported",
     defaultEnabled: true,
     category: "grammar",
+    kind: "confusedWords",
     bulk: "eligible",
   },
   englishTheirThereBeVerb: {
     review: "supported",
     defaultEnabled: true,
     category: "grammar",
+    kind: "confusedWords",
     bulk: "eligible",
   },
   englishAlotCorrection: {
     review: "supported",
     defaultEnabled: true,
     category: "spelling",
+    kind: "boundary",
     bulk: "eligible",
     languages: ["en_US", "de_DE", "fr_FR", "es_ES", "pt_BR", "pl_PL", "sv_SE", "hr_HR"],
   },
@@ -256,40 +299,47 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     review: "supported",
     defaultEnabled: true,
     category: "grammar",
+    kind: "agreement",
     bulk: "eligible",
   },
   englishArticleAnCorrection: {
     review: "supported",
     defaultEnabled: true,
     category: "grammar",
+    kind: "agreement",
     bulk: "individual",
-    note: "Word-list heuristic; a letter or identifier can look like an article.",
+    note: "Initial-sound heuristic; a letter, name or identifier can look like an article.",
   },
   englishOrdinalSuffix: {
     review: "supported",
     defaultEnabled: true,
     category: "typography",
+    kind: "numbers",
     bulk: "eligible",
   },
   englishProperNounCapitalization: {
     review: "supported",
     defaultEnabled: true,
     category: "typography",
+    kind: "capitalization",
     bulk: "eligible",
     languages: ["en_US", "de_DE"],
   },
   technicalTokenCompaction: {
     review: "excluded",
+    category: "punctuation",
     reason: 'Ambiguous in finished text: "Chapter 3: 5 tips" is not a clock time.',
   },
   mathOperatorSpacing: {
     review: "excluded",
+    category: "punctuation",
     reason: "Typing-time style; existing operators are often code or notation.",
   },
   measurementUnitFormatting: {
     review: "supported",
     defaultEnabled: true,
     category: "punctuation",
+    kind: "numbers",
     bulk: "individual",
     note: "Units in technical prose (CSS, product names) are meaning-sensitive.",
     languages: NAMED_LANGUAGES,
@@ -298,41 +348,49 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     review: "supported",
     defaultEnabled: true,
     category: "punctuation",
+    kind: "numbers",
     bulk: "eligible",
     languages: NAMED_LANGUAGES,
   },
   slashContextSpacing: {
     review: "excluded",
+    category: "punctuation",
     reason: "Typing convenience; spacing around an existing slash is style, not an error.",
   },
   openingBracketSpacing: {
     review: "excluded",
+    category: "punctuation",
     reason: 'Typing convenience that only spaces code-like "){"; not prose proofreading.',
   },
   closingBracketSpacing: {
     review: "excluded",
+    category: "punctuation",
     reason: "Bracket spacing in finished text is often notation, Markdown or intervals.",
   },
   commaPeriodSpacing: {
     review: "supported",
     defaultEnabled: true,
     category: "punctuation",
+    kind: "spacing",
     bulk: "eligible",
   },
   collapseRepeatedSpaces: {
     review: "supported",
     defaultEnabled: true,
     category: "punctuation",
+    kind: "spacing",
     bulk: "eligible",
   },
   trimSpaceBeforeLineBreak: {
     review: "excluded",
+    category: "punctuation",
     reason: "Invisible, and two trailing spaces are a Markdown line break.",
   },
   ellipsisShortcut: {
     review: "supported",
     defaultEnabled: false,
     category: "typography",
+    kind: "marks",
     bulk: "individual",
     note: "Optional typography: three periods are correct too.",
   },
@@ -340,31 +398,36 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     review: "supported",
     defaultEnabled: false,
     category: "typography",
+    kind: "marks",
     bulk: "individual",
     note: "Optional typography; en or em dash is a house style.",
   },
   smartQuoteNormalization: {
     review: "excluded",
+    category: "typography",
     reason: "Typing convenience; straight quotes in finished text may be code or deliberate.",
   },
   frenchPunctuationSpacing: {
     review: "excluded",
+    category: "punctuation",
     reason: "Typing-time typography convention; invisible no-break space changes.",
   },
   duplicatePunctuationCollapse: {
     review: "supported",
     defaultEnabled: true,
     category: "punctuation",
+    kind: "repetition",
     bulk: "eligible",
   },
   autoBracketClose: {
     review: "excluded",
+    category: "punctuation",
     reason: "Typing convenience: review never inserts closing brackets.",
   },
 };
 
 /** Review's dictionary check: individual only, and the user always picks the word. */
-const REVIEW_SPELLING_METADATA: ReviewRuleMetadata = {
+const REVIEW_SPELLING_METADATA: SupportedReviewMetadata = {
   review: "supported",
   defaultEnabled: true,
   category: "spelling",
@@ -373,7 +436,7 @@ const REVIEW_SPELLING_METADATA: ReviewRuleMetadata = {
 };
 
 /** Local AI corrections: generated text, so never batched; the category is set per finding. */
-const REVIEW_LOCAL_AI_METADATA: ReviewRuleMetadata = {
+const REVIEW_LOCAL_AI_METADATA: SupportedReviewMetadata = {
   review: "supported",
   defaultEnabled: false,
   category: "grammar",
@@ -381,10 +444,18 @@ const REVIEW_LOCAL_AI_METADATA: ReviewRuleMetadata = {
   note: "Generated by the optional local model: the user accepts each correction.",
 };
 
-export function reviewMetadataFor(ruleId: ReviewCheckId): ReviewRuleMetadata {
+export function reviewMetadataFor(
+  ruleId: ReviewCheckId,
+): SupportedReviewMetadata | ReviewRuleMetadata {
   if (ruleId === REVIEW_SPELLING_CHECK) return REVIEW_SPELLING_METADATA;
   if (ruleId === REVIEW_LOCAL_AI_CHECK) return REVIEW_LOCAL_AI_METADATA;
   return REVIEW_RULE_METADATA[ruleId];
+}
+
+/** A native rule's kind; none for the dictionary check (its category says it) or Local AI. */
+export function reviewKind(ruleId: ReviewCheckId): ReviewKind | undefined {
+  const metadata = isReviewSupportedRule(ruleId) ? REVIEW_RULE_METADATA[ruleId] : undefined;
+  return metadata?.review === "supported" ? metadata.kind : undefined;
 }
 
 /** Catalog order; the coverage map shown in docs and asserted by tests. */

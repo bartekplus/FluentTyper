@@ -1289,7 +1289,7 @@
     },
     {
       "id": "grammar_english_article_an",
-      "description": "Opt-in a/an correction fixes listed words and leaves names, identifiers, code and literals unchanged.",
+      "description": "Opt-in a/an correction fixes lowercase words by initial sound and leaves names, initialisms, identifiers, user-dictionary words, code and literals unchanged.",
       "coverage": [
         {
           "layer": "unit",
