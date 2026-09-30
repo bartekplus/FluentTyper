@@ -280,6 +280,16 @@ describe("ReviewUi: Local AI", () => {
     expect(shown('[data-action="reset-ignores"]')).toBe(true);
   });
 
+  test("paragraphs in another language are reported as a spelling gap", () => {
+    const coverage = { checkedRules: [], failedRules: [], skipped: {} };
+    ui.render(state({ coverage }));
+    expect($(".notes").textContent).not.toContain("another language");
+    ui.render(state({ coverage: { ...coverage, skipped: { "other-language": 84 } } }));
+    expect($(".notes").textContent).toContain(
+      "Spelling not checked in 84 characters that look like another language.",
+    );
+  });
+
   test("warning-only cards label the issue and offer no replacement action", () => {
     const diagnostic = finding("warning", {
       ruleId: "unclosedQuotation",
@@ -293,7 +303,10 @@ describe("ReviewUi: Local AI", () => {
     ui.render(state({ diagnostics: [diagnostic] }));
     expect(ui.root.textContent).toContain("Warning: “");
     ui.openCard(diagnostic, null);
-    expect($(".card").getAttribute("aria-label")).toContain("Punctuation & spacing, Warning:");
+    expect($(".card").getAttribute("aria-label")).toContain(
+      "Punctuation & spacing · Punctuation marks, Warning:",
+    );
+    expect($(".card .category").textContent).toBe("Punctuation & spacing · Punctuation marks");
     expect($(".card").querySelector("[data-action=apply]")).toBeNull();
     expect($(".card").querySelector(".diff")).toBeNull();
     trustedClick($("[data-action=ignore]"));
@@ -371,8 +384,12 @@ describe("ReviewUi: Local AI", () => {
     );
     expect(card.querySelector(".tag")!.textContent).toBe("Local AI");
     expect(card.querySelector(".badge")!.textContent).toBe("G");
+    expect(card.querySelector(".category")!.textContent).toBe("Grammar");
     expect(card.querySelector(".to")!.textContent).toBe("result");
     expect(card.textContent).toContain("Not included in Fix all");
+    // The dictionary check has no kind: its category already says it.
+    ui.openCard(rule, null);
+    expect($(".card .category").textContent).toBe("Spelling");
   });
 
   test("a check's finding shows the Local AI option as labelled, not preselected", () => {

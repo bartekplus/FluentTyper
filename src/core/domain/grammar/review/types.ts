@@ -19,6 +19,27 @@ export const REVIEW_CATEGORIES: readonly ReviewCategory[] = [
 ];
 
 /**
+ * What kind of problem a native rule finds, within its category. Shown next
+ * to the category and on settings cards; never used for filtering, colors or
+ * Fix all.
+ */
+export type ReviewKind =
+  | "typo"
+  | "boundary"
+  | "agreement"
+  | "wordForm"
+  | "confusedWords"
+  | "usage"
+  | "capitalization"
+  | "repetition"
+  | "spacing"
+  | "numbers"
+  | "marks"
+  | "redundancy"
+  | "readability"
+  | "terminology";
+
+/**
  * Review's own dictionary check: not a typing rule (typing offers spelling
  * corrections as suggestions), so it has an id outside the rule catalog.
  */
@@ -56,11 +77,17 @@ interface ReviewAlternative {
 
 export type ReviewMessageKey =
   | "review_msg_style_redundancy"
+  | "review_msg_style_phrasing"
+  | "review_msg_phrase_correction"
+  | "review_msg_closed_compound"
+  | "review_msg_name_casing"
   | "review_msg_style_long_sentence"
   | "review_msg_preferred_terminology"
   | "review_msg_canonical_casing"
   | "review_msg_quotation_balance"
   | "review_msg_unclosed_quote"
+  | "review_msg_quote_spacing"
+  | "review_msg_prime_symbols"
   | "review_msg_usage_phrases"
   | "review_msg_intents_purposes"
   | "review_msg_one_same"
@@ -72,13 +99,19 @@ export type ReviewMessageKey =
   | "review_msg_countable_number"
   | "review_msg_compounds"
   | "review_msg_every_day"
+  | "review_msg_everyday_adjective"
+  | "review_msg_a_few"
+  | "review_msg_double_negative"
+  | "review_msg_since_duration"
   | "review_msg_log_in"
   | "review_msg_set_up"
   | "review_msg_noun_count"
   | "review_msg_noun_choice"
   | "review_msg_demonstrative_number"
   | "review_msg_one_of"
+  | "review_msg_decade_plural"
   | "review_msg_perfect_participle"
+  | "review_msg_progressive_be"
   | "review_msg_verb_complements"
   | "review_msg_missing_to"
   | "review_msg_forward_gerund"
@@ -92,17 +125,22 @@ export type ReviewMessageKey =
   | "review_msg_else_possessive"
   | "review_msg_existential_agreement"
   | "review_msg_then_than"
+  | "review_msg_then_than_temporal"
   | "review_msg_your_you_are"
   | "review_msg_they_are"
   | "review_msg_your_possessive"
   | "review_msg_their_possessive"
   | "review_msg_to_too"
+  | "review_msg_to_infinitive"
+  | "review_msg_ever_every"
+  | "review_msg_were_where"
   | "review_msg_auxiliary_base"
   | "review_msg_repeated_words"
   | "review_msg_sentence_start"
   | "review_msg_line_start"
   | "review_msg_pronoun_i"
   | "review_msg_contraction"
+  | "review_msg_apostrophe_mark"
   | "review_msg_typo"
   | "review_msg_modal_of"
   | "review_msg_your_welcome"
@@ -111,17 +149,24 @@ export type ReviewMessageKey =
   | "review_msg_pronoun_verb"
   | "review_msg_article"
   | "review_msg_ordinal"
+  | "review_msg_ordinal_case"
   | "review_msg_proper_noun"
   | "review_msg_space_before_comma"
   | "review_msg_space_after_comma"
+  | "review_msg_wide_comma"
   | "review_msg_space_before_mark"
   | "review_msg_space_after_opening_mark"
   | "review_msg_split_words"
   | "review_msg_german_noun_capital"
   | "review_msg_repeated_spaces"
   | "review_msg_duplicate_punctuation"
+  | "review_msg_ellipsis_length"
+  | "review_msg_ellipsis_character"
+  | "review_msg_typed_dash"
   | "review_msg_measurement_spacing"
+  | "review_msg_kelvin_degree"
   | "review_msg_currency_spacing"
+  | "review_msg_currency_placement"
   | "review_msg_unknown_word"
   | "review_msg_two_initial_capitals"
   | "review_msg_local_ai";
@@ -204,7 +249,14 @@ export interface ReviewOptions {
 }
 
 export type CoverageGap =
-  "code" | "technical" | "structure" | "size-limit" | "outside-window" | "rule-error";
+  | "code"
+  | "technical"
+  | "structure"
+  | "size-limit"
+  | "outside-window"
+  | "rule-error"
+  /** Characters of paragraphs in another language, where spelling was not checked. */
+  | "other-language";
 
 export interface ReviewCoverage {
   /** Review-supported rules that ran. */

@@ -5,10 +5,10 @@ import { SpacingRuleShared } from "./helpers/SpacingRuleShared";
 import { resolveMeasurementLocale } from "../measurement/registry";
 import { isGreekQuestionMark, usesFrenchPunctuationSpacing } from "../typographyProfiles";
 
-// A standalone number ending right before a comma: "2", "-1.5", "(١٫٥",
+// A standalone number ending right before a comma: "2", "-1.5", "(١٫٥", "$4",
 // "1,500,000". Deferral and repair must both use it, or a deferred space can
 // never be restored.
-const NUMERIC_PREFIX = /(?:^|[\s([{])[-+]?\p{Nd}+(?:[.,\u066B]\p{Nd}*)*$/u;
+const NUMERIC_PREFIX = /(?:^|[\s([{\p{Sc}])[-+]?\p{Nd}+(?:[.,\u066B]\p{Nd}*)*$/u;
 const numericPrefixBefore = (text: string, index: number): boolean =>
   NUMERIC_PREFIX.test(text.slice(Math.max(0, index - 34), index));
 

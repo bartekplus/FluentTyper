@@ -58,6 +58,7 @@ Review mode proofreads an existing field on demand (command `CMD_REVIEW_FT_ACTIV
 - Diagnostics are UTF-16, end-exclusive offsets into one immutable snapshot; writes re-validate the target, text, signature, scope and IME state, then verify by reading back. Never locate a finding by text search.
 - Highlights use CSS Custom Highlights under `fluenttyper-review-*` or an overlay in FluentTyper's shadow root; never mutate the host editor's DOM or clear the whole registry.
 - Sensitive fields (`FieldEligibility.ts`) are refused at every entry point and before writes. Model-backed editors are review-only.
+- Typing-time proposals (`liveGrammarProposals`, default on) reuse Review detection through `review/liveProposals.ts`: the selector stays pure, the suggestion session offers one unseen finding per pause as the popup's last row, never preselected, and applies it only after re-detecting the same key, as a `strict` grammar edit. Never auto-apply a proposal or let it take the default Tab/Enter accept.
 - Reviewed text is ephemeral: never log, persist or send it. "Add to dictionary" goes through the existing settings path (`CMD_CONTENT_SCRIPT_ADD_TO_DICTIONARY`).
 
 ## Logging

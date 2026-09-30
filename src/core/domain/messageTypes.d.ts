@@ -32,6 +32,8 @@ export interface SetConfigContext {
   showSuggestionFooter: boolean;
   /** Show the "Review text" button on the focused multi-line field. */
   showReviewButton?: boolean;
+  /** Offer single-apply Review fixes in the suggestion popup while typing. */
+  liveGrammarProposals?: boolean;
   /** "Local AI corrections in Review" preference (setup/consent is checked separately). */
   localAiReviewEnabled?: boolean;
   enabledGrammarRules: string[];

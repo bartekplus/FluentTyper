@@ -5,6 +5,7 @@ const NB = " ";
 export const measurement: RuleFixtures = {
   en_US: {
     pos: [
+      ["Water boils at 373°K today.", `Water boils at 373${NB}K today.`],
       ["It weighs 10kg in total.", `It weighs 10${NB}kg in total.`],
       ["We walked 5km today.", `We walked 5${NB}km today.`],
       ["The board is 20cm wide.", `The board is 20${NB}cm wide.`],
@@ -21,6 +22,7 @@ export const measurement: RuleFixtures = {
   },
   fr_FR: {
     pos: [
+      ["L'eau bout à 373°K environ.", `L'eau bout à 373${NB}K environ.`],
       ["Il pèse 10kg au total.", `Il pèse 10${NB}kg au total.`],
       ["Nous avons marché 5km.", `Nous avons marché 5${NB}km.`],
       ["La planche fait 20cm de large.", `La planche fait 20${NB}cm de large.`],
@@ -37,6 +39,7 @@ export const measurement: RuleFixtures = {
   },
   de_DE: {
     pos: [
+      ["Wasser kocht bei 373°K etwa.", `Wasser kocht bei 373${NB}K etwa.`],
       ["Es wiegt 10kg insgesamt.", `Es wiegt 10${NB}kg insgesamt.`],
       ["Wir liefen 5km heute.", `Wir liefen 5${NB}km heute.`],
       ["Das Brett ist 20cm breit.", `Das Brett ist 20${NB}cm breit.`],
@@ -53,6 +56,7 @@ export const measurement: RuleFixtures = {
   },
   pl_PL: {
     pos: [
+      ["Woda wrze w 373°K mniej więcej.", `Woda wrze w 373${NB}K mniej więcej.`],
       ["Waży 10kg w sumie.", `Waży 10${NB}kg w sumie.`],
       ["Przeszliśmy 5km dzisiaj.", `Przeszliśmy 5${NB}km dzisiaj.`],
       ["Deska ma 20cm szerokości.", `Deska ma 20${NB}cm szerokości.`],
@@ -69,6 +73,7 @@ export const measurement: RuleFixtures = {
   },
   es_ES: {
     pos: [
+      ["El agua hierve a 373°K más o menos.", `El agua hierve a 373${NB}K más o menos.`],
       ["Pesa 10kg en total.", `Pesa 10${NB}kg en total.`],
       ["Caminamos 5km hoy.", `Caminamos 5${NB}km hoy.`],
       ["La tabla mide 20cm de ancho.", `La tabla mide 20${NB}cm de ancho.`],
@@ -85,6 +90,7 @@ export const measurement: RuleFixtures = {
   },
   pt_BR: {
     pos: [
+      ["A água ferve a 373°K mais ou menos.", `A água ferve a 373${NB}K mais ou menos.`],
       ["Pesa 10kg no total.", `Pesa 10${NB}kg no total.`],
       ["Andamos 5km hoje.", `Andamos 5${NB}km hoje.`],
       ["A tábua tem 20cm de largura.", `A tábua tem 20${NB}cm de largura.`],
@@ -101,6 +107,7 @@ export const measurement: RuleFixtures = {
   },
   sv_SE: {
     pos: [
+      ["Vatten kokar vid 373°K ungefär.", `Vatten kokar vid 373${NB}K ungefär.`],
       ["Den väger 10kg totalt.", `Den väger 10${NB}kg totalt.`],
       ["Vi gick 5km idag.", `Vi gick 5${NB}km idag.`],
       ["Brädan är 20cm bred.", `Brädan är 20${NB}cm bred.`],
@@ -117,6 +124,7 @@ export const measurement: RuleFixtures = {
   },
   hr_HR: {
     pos: [
+      ["Voda vrije na 373°K otprilike.", `Voda vrije na 373${NB}K otprilike.`],
       ["Teži 10kg ukupno.", `Teži 10${NB}kg ukupno.`],
       ["Hodali smo 5km danas.", `Hodali smo 5${NB}km danas.`],
       ["Daska je široka 20cm.", `Daska je široka 20${NB}cm.`],
@@ -133,6 +141,7 @@ export const measurement: RuleFixtures = {
   },
   el_GR: {
     pos: [
+      ["Το νερό βράζει στους 373°K περίπου.", `Το νερό βράζει στους 373${NB}K περίπου.`],
       ["Ζυγίζει 10kg συνολικά.", `Ζυγίζει 10${NB}kg συνολικά.`],
       ["Περπατήσαμε 5km σήμερα.", `Περπατήσαμε 5${NB}km σήμερα.`],
       ["Η σανίδα είναι 20cm φαρδιά.", `Η σανίδα είναι 20${NB}cm φαρδιά.`],
@@ -149,6 +158,7 @@ export const measurement: RuleFixtures = {
   },
   ar_SA: {
     pos: [
+      ["يغلي الماء عند 373°K تقريبا.", `يغلي الماء عند 373${NB}K تقريبا.`],
       ["الوزن 10kg تقريبا.", `الوزن 10${NB}kg تقريبا.`],
       ["مشينا 5km اليوم.", `مشينا 5${NB}km اليوم.`],
       ["العرض 20cm فقط.", `العرض 20${NB}cm فقط.`],

@@ -16,6 +16,7 @@ import {
   positionMapper,
   rangesOverlap,
   overlapsSortedRanges,
+  withTextApostrophes,
 } from "./textRanges";
 import type { SpellingCandidate } from "./reviewSpelling";
 import {
@@ -253,6 +254,7 @@ export function scanReviewChunk(
     quotationRanges: prepared.quotations.ranges,
     exampleRanges: prepared.quotations.examples,
     styleFindings: prepared.styleFindings,
+    rules: prepared.rules,
     terminologyFindings: prepared.terminology.findings,
   };
   for (const detector of REVIEW_DETECTORS) {
@@ -460,7 +462,9 @@ function toDiagnostic(prepared: PreparedReview, finding: Finding): ReviewDiagnos
   )
     return null;
   const alternatives = [];
-  for (const replacement of finding.alternatives) {
+  for (const alternative of finding.alternatives) {
+    // A new apostrophe follows the text's own style: "It’s … don’t", not "don't".
+    const replacement = withTextApostrophes(source, range.start, alternative);
     const edits = minimalEdits(source, range.start, range.end, replacement);
     if (edits.length === 0) continue;
     const valid = edits.every(

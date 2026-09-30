@@ -5981,8 +5981,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await waitForInputReady(page, selector);
 
       await clearInputContent(page, selector);
-      await typeInInput(page, selector, "hello\nw");
-      await waitForInputContentEqual(page, selector, "hello\nW", browserTimeout(5000, 9000));
+      await typeInInput(page, selector, "hello\nworld ");
+      await waitForInputContentEqual(page, selector, "hello\nWorld ", browserTimeout(5000, 9000));
 
       await setGrammarRulesAndWait(worker!, []);
       await applyConfigChange(browser, worker!);
@@ -8196,6 +8196,74 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       expect(await launcher()).toBeNull();
       await setSettingAndWait(worker!, "showReviewButton", true);
       await applyConfigChange(browser, worker!);
+      await finishReview();
+    },
+    browserTimeout(30000, 45000),
+  );
+
+  test(
+    "Grammar proposals while typing are shown after a pause and applied only when picked",
+    async () => {
+      await prepareReviewPage();
+      await setTextarea("");
+      // The proposal row of the visible popup: its text and whether it is selected.
+      const proposal = () =>
+        page.evaluate(() => {
+          for (const menu of Array.from(document.querySelectorAll('[id^="ft-menu-"]'))) {
+            if (getComputedStyle(menu).display === "none") continue;
+            const row = (menu.shadowRoot ?? menu).querySelector("li[data-proposal]");
+            if (row) {
+              return {
+                text: row.querySelector(".ft-suggestion-label")?.textContent ?? "",
+                selected: row.getAttribute("aria-selected") === "true",
+              };
+            }
+          }
+          return null;
+        });
+
+      await page.keyboard.type("We is ready. ");
+      await waitUntil("proposal shown", async () => (await proposal()) !== null, {
+        timeoutMs: SUGGESTION_TIMEOUT_MS,
+      });
+      expect(await proposal()).toEqual({ text: "is → are", selected: false });
+      expect(await textareaValue()).toBe("We is ready. ");
+
+      // Only once selected does an accept key apply it.
+      for (let step = 0; step < 12 && !(await proposal())?.selected; step += 1) {
+        await page.keyboard.press("ArrowDown");
+      }
+      expect((await proposal())?.selected).toBe(true);
+      await page.keyboard.press("Tab");
+      await waitUntil(
+        "proposal applied",
+        async () => (await textareaValue()) === "We are ready. ",
+        {
+          timeoutMs: SUGGESTION_TIMEOUT_MS,
+        },
+      );
+      expect(await proposal()).toBeNull();
+
+      // Esc dismisses it, and the same span is not offered again.
+      await page.keyboard.type("They has left. ");
+      await waitUntil("second proposal", async () => (await proposal())?.text === "has → have", {
+        timeoutMs: SUGGESTION_TIMEOUT_MS,
+      });
+      await page.keyboard.press("Escape");
+      await page.keyboard.type("So");
+      // Absence can only be seen after the typing pause (220 ms) has passed.
+      await sleep(600);
+      expect(await proposal()).toBeNull();
+      expect(await textareaValue()).toBe("We are ready. They has left. So");
+
+      // Turned off in settings: nothing is proposed.
+      await setSettingAndWait(worker!, "liveGrammarProposals", false);
+      await applyConfigChange(browser, worker!);
+      await setTextarea("");
+      await page.keyboard.type("We is ready. ");
+      await sleep(600);
+      expect(await proposal()).toBeNull();
+      await setSettingAndWait(worker!, "liveGrammarProposals", true);
       await finishReview();
     },
     browserTimeout(30000, 45000),

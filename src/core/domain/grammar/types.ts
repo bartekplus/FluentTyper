@@ -73,6 +73,9 @@ export interface GrammarRuleCatalogEntry {
     | "englishRepeatedWords"
     | "englishAuxiliaryBaseVerb"
     | "styleRedundancy"
+    | "stylePhrasing"
+    | "englishPhraseCorrections"
+    | "englishClosedCompounds"
     | "styleLongSentence"
     | "preferredTerminology"
     | "englishCanonicalCasing"
@@ -93,7 +96,10 @@ export interface GrammarRuleCatalogEntry {
     | "englishThenThan"
     | "englishYourYouAre"
     | "englishTheirThereTheyAre"
-    | "englishToToo";
+    | "englishToToo"
+    | "englishWereWhere"
+    | "quoteSpacing"
+    | "primeSymbols";
   /** Absent for existing typing rules; false for native Review-only checks. */
   typing?: false;
   name: string;

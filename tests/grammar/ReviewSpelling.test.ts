@@ -6,6 +6,7 @@ import {
   spellingDiagnostic,
 } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import {
+  otherLanguageParagraphs,
   parseSpellingRequest,
   rankSpellingSuggestions,
   spellingCandidates,
@@ -185,6 +186,41 @@ describe("review spelling: suggestions", () => {
       rankSpellingSuggestions("bat", ["bad", "bag", "ban", "bar", "bay", "bet", "bit"]),
     ).toHaveLength(5);
   });
+
+  test("an English regular ending on an irregular stem offers the irregular form first", () => {
+    const en = (word: string, candidates: string[] = []) =>
+      rankSpellingSuggestions(word, candidates, "en_US");
+    expect(en("finded", ["fined", "fender"])).toEqual(["found", "fined", "fender"]);
+    expect(en("Buyed", ["Bayed"])).toEqual(["Bought", "Bayed"]);
+    // A doubled final consonant and a dropped silent "e".
+    expect(en("runned", ["runner"])).toEqual(["ran", "run", "runner"]);
+    expect(en("resetted")).toEqual(["reset"]);
+    expect(en("digged")).toEqual(["dug"]);
+    expect(en("writed")).toEqual(["wrote", "written"]);
+    expect(en("feeded", ["fed"])).toEqual(["fed"]);
+    expect(en("thinked")).toEqual(["thought"]);
+    expect(en("goed")).toEqual(["went", "gone"]);
+    // Plurals: "-s" and "-es".
+    expect(en("childs", ["child's", "chills"])).toEqual(["children", "child's", "chills"]);
+    expect(en("oxes")).toEqual(["oxen"]);
+    expect(en("womans")).toEqual(["women"]);
+    expect(en("criterions")).toEqual(["criteria"]);
+    expect(en("Tooths")).toEqual(["Teeth"]);
+    // Degree.
+    expect(en("gooder", ["goodies"])).toEqual(["better", "goodies"]);
+    expect(en("baddest")).toEqual(["worst"]);
+    // An irregular form ranks ahead of a split, so the word is not taken for a compound.
+    expect(en("childs", ["chi lds"])).toEqual(["children"]);
+    expect(rankSpellingSuggestions("childs", ["chi lds"])).toEqual([]);
+    // No guess: "lay" is two verbs, unknown stems, other languages and no language.
+    expect(en("layed", ["laid"])).toEqual(["laid"]);
+    expect(en("jumped")).toEqual([]);
+    expect(en("colors")).toEqual([]);
+    expect(en("s")).toEqual([]);
+    expect(en("ed")).toEqual([]);
+    expect(rankSpellingSuggestions("finded", ["fined"], "fr_FR")).toEqual(["fined"]);
+    expect(rankSpellingSuggestions("finded", ["fined"])).toEqual(["fined"]);
+  });
 });
 
 describe("review spelling: findings", () => {
@@ -217,5 +253,63 @@ describe("review spelling: findings", () => {
       options(),
     ).diagnostics;
     expect(found).toEqual([]);
+  });
+});
+
+describe("review spelling: paragraphs in another language", () => {
+  // A stand-in English dictionary: the words these examples use correctly.
+  const ENGLISH = new Set(
+    "hi thanks for the notes i will send my reply tonight we got package this morning but address on label was wrong again die an so".split(
+      " ",
+    ),
+  );
+
+  function marked(text: string, scope = { start: 0, end: text.length }) {
+    const review = prepareReview(
+      { id: "s", text, scope, protectedRanges: [] },
+      options({ enabledRules: [] }),
+    );
+    const lookups = spellingCandidates(review, []).map(({ range, lookup }) => ({
+      range,
+      known: ENGLISH.has(lookup.toLowerCase()),
+    }));
+    return otherLanguageParagraphs(review, lookups).map(({ start, end }) => text.slice(start, end));
+  }
+
+  const german = "Wir haben die Unterlagen gestern bekommen, aber die Adresse war leider falsch.";
+
+  test("a paragraph with mostly unknown words is marked; the English ones around it are not", () => {
+    const text = `Hi,\nThanks for the notes.\n${german}\nI will send my reply tonight.`;
+    expect(marked(text)).toEqual([german]);
+    // Also as the only paragraph, and cut to the reviewed scope.
+    expect(marked(german)).toEqual([german]);
+    const start = german.indexOf("gestern");
+    expect(marked(german, { start, end: german.length })).toEqual([]);
+    expect(marked(`${german}\n${german}`, { start: 4, end: german.length })).toEqual([
+      german.slice(4),
+    ]);
+  });
+
+  test("typos, even many of them, leave most words known: nothing is marked", () => {
+    // 4 of 13 looked-up words misspelled.
+    expect(
+      marked("We got the pakage this mornign but the adress on the lable was wrong again."),
+    ).toEqual([]);
+    // Half the words unknown is still not another language.
+    expect(marked("We got teh pakage this mornign but teh adress again")).toEqual([]);
+  });
+
+  test("too few looked-up words to tell: nothing is marked", () => {
+    // Seven words, none known; capitalized nouns and names are never looked up.
+    expect(marked("Danke, bis morgen und schönes Wochenende, Anna!")).toEqual([]);
+    expect(marked("Viele Grüße aus Berlin und bis bald dann")).toEqual([]);
+  });
+
+  test("the threshold: under 40% known words", () => {
+    // Ten looked-up words: three known is another language, four is not.
+    const three = "die an so zwei drei vier fünf sechs sieben acht";
+    const four = "die an so we drei vier fünf sechs sieben acht";
+    expect(marked(three)).toEqual([three]);
+    expect(marked(four)).toEqual([]);
   });
 });

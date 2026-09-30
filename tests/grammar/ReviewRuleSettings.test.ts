@@ -8,8 +8,16 @@ import {
 } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { resolveGrammarRuleSelection } from "../../src/core/domain/grammar/GrammarRuleSettings";
 
+const OPTIONAL_REVIEW_IDS: readonly string[] = [
+  "styleRedundancy",
+  "styleLongSentence",
+  "ellipsisShortcut",
+  "emdashShortcut",
+  "primeSymbols",
+  "stylePhrasing",
+];
 const DEFAULT_REVIEW_IDS = REVIEW_SUPPORTED_RULE_IDS.filter(
-  (id) => id !== "styleRedundancy" && id !== "styleLongSentence",
+  (id) => !OPTIONAL_REVIEW_IDS.includes(id),
 );
 
 test("absent Review preferences retain explicit catalog defaults independently of typing", () => {

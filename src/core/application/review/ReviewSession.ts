@@ -72,6 +72,7 @@ import { aiRequestForChunk, buildAiChunks } from "@core/domain/grammar/review/ai
 import { resolveRewriteStyle } from "@core/domain/grammar/review/ai/style";
 import { correctionFindings, rewriteProposal } from "@core/domain/grammar/review/ai/validate";
 import {
+  otherLanguageParagraphs,
   rankSpellingSuggestions,
   spellingCandidates,
   type SpellingCandidate,
@@ -1273,10 +1274,11 @@ export class ReviewSession {
   ): Promise<void> {
     const cache = this.spellingCache;
     const occurrences = new Map<string, SpellingCandidate[]>();
-    for (const candidate of spellingCandidates(
+    const candidates = spellingCandidates(
       prepared,
       this.ruleDiagnostics.filter((d) => d.category !== "style").map((d) => d.range),
-    )) {
+    );
+    for (const candidate of candidates) {
       const key = candidate.lookup.toLowerCase();
       const list = occurrences.get(key);
       if (list) list.push(candidate);
@@ -1289,13 +1291,22 @@ export class ReviewSession {
     }
     // Words answered on an earlier pass are shown at once.
     const ranked = new Map<string, string[]>();
-    this.showSpelling(prepared, occurrences, ranked, [...occurrences.keys()]);
+    // Paragraphs found to be in another language this pass: sorted, never un-marked.
+    const otherLanguage: TextRange[] = [];
+    const show = (keys: readonly string[]) =>
+      this.showSpelling(prepared, candidates, occurrences, ranked, otherLanguage, keys);
+    show([...occurrences.keys()]);
     let next = 0;
-    let unknown = 0;
+    // Unknown words count toward the limit unless all their occurrences are in another language.
+    const passUnknown: string[] = [];
+    const unknown = () =>
+      passUnknown.filter((key) =>
+        occurrences.get(key)!.some(({ range }) => !overlapsSortedRanges(otherLanguage, range)),
+      ).length;
     while (
       next < queue.length &&
       next < SPELLING_WORDS_PER_PASS &&
-      unknown < SPELLING_UNKNOWN_PER_PASS
+      unknown() < SPELLING_UNKNOWN_PER_PASS
     ) {
       const batch = queue.slice(
         next,
@@ -1319,24 +1330,17 @@ export class ReviewSession {
         return;
       }
       const answered = batch.slice(0, results.length);
-      const unknownKeys: string[] = [];
       answered.forEach(({ key }, position) => {
         const result = results[position];
         if (result === null) {
           cache.known.add(key);
         } else {
           cache.candidates.set(key, result);
-          unknownKeys.push(key);
+          passUnknown.push(key);
         }
       });
       next += answered.length;
-      unknown += unknownKeys.length;
-      this.showSpelling(
-        prepared,
-        occurrences,
-        ranked,
-        answered.map(({ key }) => key),
-      );
+      show(answered.map(({ key }) => key));
     }
     this.spelling = next < queue.length ? "partial" : "done";
     this.emit();
@@ -1346,20 +1350,49 @@ export class ReviewSession {
    * Adds the findings for newly answered words to those already shown, in
    * text order. Earlier findings are kept as they are, and suggestions are
    * ranked once per written form of a word; nothing is emitted when nothing
-   * new was found.
+   * new was found. A paragraph found to be in another language (see
+   * otherLanguageParagraphs) loses its spelling findings and is reported as
+   * a coverage gap: its unknown words are not typos.
    */
   private showSpelling(
     prepared: PreparedReview,
+    candidates: readonly SpellingCandidate[],
     occurrences: ReadonlyMap<string, readonly SpellingCandidate[]>,
     ranked: Map<string, string[]>,
+    otherLanguage: TextRange[],
     keys: readonly string[],
   ): void {
+    const cache = this.spellingCache;
+    const lookups: Array<{ range: TextRange; known: boolean }> = [];
+    for (const { lookup, range } of candidates) {
+      const key = lookup.toLowerCase();
+      if (cache.known.has(key)) lookups.push({ range, known: true });
+      else if (cache.candidates.has(key)) lookups.push({ range, known: false });
+    }
+    const marked = otherLanguageParagraphs(prepared, lookups).filter(
+      (paragraph) => !otherLanguage.some(({ start }) => start === paragraph.start),
+    );
+    if (marked.length > 0) {
+      otherLanguage.push(...marked);
+      otherLanguage.sort((a, b) => a.start - b.start);
+      this.diagnostics = this.diagnostics.filter(
+        (d) => d.ruleId !== REVIEW_SPELLING_CHECK || !overlapsSortedRanges(otherLanguage, d.range),
+      );
+      if (this.coverage) {
+        const chars = otherLanguage.reduce((sum, { start, end }) => sum + end - start, 0);
+        this.coverage = {
+          ...this.coverage,
+          skipped: { ...this.coverage.skipped, "other-language": chars },
+        };
+      }
+    }
     const found: ReviewDiagnostic[] = [];
     for (const key of keys) {
-      const answer = this.spellingCache.candidates.get(key);
-      const known = this.spellingCache.known.has(key);
+      const answer = cache.candidates.get(key);
+      const known = cache.known.has(key);
       if (!answer && !known) continue;
       for (const candidate of occurrences.get(key) ?? []) {
+        if (overlapsSortedRanges(otherLanguage, candidate.range)) continue;
         if (candidate.casing) {
           const diagnostic = known ? casingDiagnostic(prepared, candidate) : null;
           if (diagnostic) found.push(diagnostic);
@@ -1368,15 +1401,18 @@ export class ReviewSession {
         if (!answer) continue;
         let suggestions = ranked.get(candidate.word);
         if (!suggestions) {
-          suggestions = rankSpellingSuggestions(candidate.word, answer);
+          suggestions = rankSpellingSuggestions(candidate.word, answer, prepared.options.lang);
           ranked.set(candidate.word, suggestions);
         }
         const diagnostic = spellingDiagnostic(prepared, candidate, suggestions);
         if (diagnostic) found.push(diagnostic);
       }
     }
-    if (found.length === 0) return;
+    if (found.length === 0 && marked.length === 0) return;
     this.diagnostics = mergeInTextOrder(this.diagnostics, found);
+    if (this.selectedId && !this.visibleDiagnostics().some((d) => d.id === this.selectedId)) {
+      this.selectedId = null;
+    }
     // An AI finding a spelling finding now covers steps aside.
     if (this.aiFindings.length) this.mergeAiFindings();
     this.emit();

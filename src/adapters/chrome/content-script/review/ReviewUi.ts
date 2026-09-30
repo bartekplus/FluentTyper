@@ -1,4 +1,4 @@
-import { isReviewSupportedRule } from "@core/domain/grammar/review/reviewCatalog";
+import { isReviewSupportedRule, reviewKind } from "@core/domain/grammar/review/reviewCatalog";
 import { getDeepActiveElement } from "@core/application/dom-utils";
 import type { ReviewViewState } from "@core/application/review/ReviewSession";
 import { reviewText, type ReviewTextKey } from "@core/domain/grammar/review/reviewMessages";
@@ -1162,6 +1162,8 @@ export class ReviewUi {
         lines.push(this.t("review_status_spelling_unavailable"));
       }
       if (state.spelling === "partial") lines.push(this.t("review_status_spelling_partial"));
+      if (skipped["other-language"])
+        lines.push(this.t("review_status_other_language", { count: skipped["other-language"] }));
       if ((state.coverage?.failedRules.length ?? 0) > 0)
         lines.push(this.t("review_status_rule_error"));
       if (state.languageSkipped > 0) lines.push(this.t("review_status_language"));
@@ -1336,7 +1338,10 @@ export class ReviewUi {
     const doc = this.doc;
     const canApply = !!state && state.capabilities.apply && state.status === "ready";
     const ai = isLocalAi(diagnostic);
-    const category = this.t(CATEGORY_KEY[diagnostic.category]);
+    const kind = reviewKind(diagnostic.ruleId);
+    const category = kind
+      ? `${this.t(CATEGORY_KEY[diagnostic.category])} · ${this.t(`review_kind_${kind}`)}`
+      : this.t(CATEGORY_KEY[diagnostic.category]);
     this.card.dataset.category = diagnostic.category;
     this.card.setAttribute(
       "aria-label",

@@ -54,6 +54,9 @@ const errors: Array<[(typeof ids)[number], string, string]> = [
   [ids[0], "Its been fixed.", "It's been fixed."],
   [ids[0], "Its already been updated.", "It's already been updated."],
   [ids[0], "Its raining again.", "It's raining again."],
+  [ids[0], "Its a sunny morning.", "It's a sunny morning."],
+  [ids[0], "I think its not ready.", "I think it's not ready."],
+  [ids[0], "Its because the cable broke.", "It's because the cable broke."],
   ...[
     "try again",
     "go home",
@@ -125,6 +128,8 @@ const negatives: Record<(typeof ids)[number], string[]> = {
     "Its cold surface.",
     "We checked it's working now.",
     "Its warming temperature was unexpected.",
+    "The team and its a-side lineup.",
+    "The lamp kept its always-on glow.",
     "Its ready to usé.",
     "It's James's folder.",
     "It's 'cold' outside.",
@@ -253,7 +258,7 @@ test("normal nested quotations run while quoted instructions and protected evide
   const text = 'She said, "‘Lets try again.’"';
   const d = only(text, ids[1]);
   expect(d).toHaveLength(1);
-  expect(applyEdits(text, d[0].alternatives[0].edits)).toBe('She said, "‘Let\'s try again.’"');
+  expect(applyEdits(text, d[0].alternatives[0].edits)).toBe('She said, "‘Let’s try again.’"');
   for (const source of [
     'Type "‘Lets try again.’" exactly.',
     'The literal "‘Its ready to use.’" is wrong.',
@@ -275,3 +280,42 @@ test("normal nested quotations run while quoted instructions and protected evide
   ])
     expect(scan(source).filter((d) => ids.includes(d.ruleId as (typeof ids)[number]))).toEqual([]);
 });
+
+test.each([
+  ["Its been a busy month.", "It's been a busy month."],
+  ["I think its got a loose wire.", "I think it's got a loose wire."],
+  ["Its a quiet street.", "It's a quiet street."],
+  ["Honestly, its not my call.", "Honestly, it's not my call."],
+  ["Its so late already.", "It's so late already."],
+  ["Its important to back up first.", "It's important to back up first."],
+  ["Maybe it works, but its hard for beginners.", "Maybe it works, but it's hard for beginners."],
+  ["We think its Priya.", "We think it's Priya."],
+  ["The kettle has it's own switch.", "The kettle has its own switch."],
+  ["Each app runs in it's sandbox.", "Each app runs in its sandbox."],
+  ["The club marked it's 25th season.", "The club marked its 25th season."],
+  ["It\u2019s wheels are loose.", "Its wheels are loose."],
+  ["\uD83D\uDE00 Its time to go.", "\uD83D\uDE00 It's time to go."],
+])("its/it's frames repair %s", (source, expected) => {
+  const findings = only(source, "englishItsContext");
+  expect(findings).toHaveLength(1);
+  expect(findings[0].bulk.eligible).toBe(false);
+  expect(applyEdits(source, findings[0].alternatives[0].edits)).toBe(expected);
+  expect(only(expected, "englishItsContext")).toEqual([]);
+});
+test.each([
+  "The team celebrated its victory.",
+  "The tool and its important files.",
+  "Its hard drive failed.",
+  "Its time complexity is linear.",
+  "We hope its accuracy improves.",
+  "I think its Google product launch.",
+  "Its Google Pixel lineup is impressive.",
+  "What about it's color?",
+  "It's what we need.",
+  "It's kind of slow.",
+  "It's hard to tell.",
+  "Curiosity was at its highest.",
+  "The value comes from its measuring of output.",
+  "It's 5th in the rankings.",
+  "The company revised its policies.",
+])("its/it's frames preserve %s", (text) => expect(only(text, "englishItsContext")).toEqual([]));

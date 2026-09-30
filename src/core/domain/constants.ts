@@ -95,6 +95,8 @@ export const KEY_SHOW_SUGGESTION_FOOTER = "showSuggestionFooter";
 /** @deprecated Legacy "Show language of prediction" key – kept only for migration in SettingsMigrationV10. */
 export const KEY_LEGACY_DISPLAY_LANG_HEADER = "displayLangHeader";
 export const KEY_SHOW_REVIEW_BUTTON = "showReviewButton";
+/** Offer single-apply Review fixes in the suggestion popup while typing; never applied unasked. */
+export const KEY_LIVE_GRAMMAR_PROPOSALS = "liveGrammarProposals";
 /** "Local AI corrections in Review" preference; on for new users, blocked until setup. */
 export const KEY_LOCAL_AI_REVIEW_ENABLED = "localAiReviewEnabled";
 /** Selected model tier: "standard" | "compact". */

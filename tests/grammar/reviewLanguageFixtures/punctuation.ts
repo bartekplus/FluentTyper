@@ -8,6 +8,7 @@ export const commaPeriodSpacing: RuleFixtures = {
       ["Really ? Yes.", "Really? Yes."],
       ["Apples,pears and plums.", "Apples, pears and plums."],
       ["Stop ! Now.", "Stop! Now."],
+      ["Tea，milk and bread.", "Tea, milk and bread."],
     ],
     neg: [
       "It costs 3,50 today.",
@@ -15,6 +16,7 @@ export const commaPeriodSpacing: RuleFixtures = {
       "Use the a,b notation.",
       "Press . to repeat.",
       "Wait ... what?",
+      "東京、大阪に行った。",
     ],
   },
   fr_FR: {
@@ -24,6 +26,7 @@ export const commaPeriodSpacing: RuleFixtures = {
       ["Pommes,poires et prunes.", "Pommes, poires et prunes."],
       ["Oui , non.", "Oui, non."],
       ["Il part . Elle reste.", "Il part. Elle reste."],
+      ["Thé，lait et pain.", "Thé, lait et pain."],
     ],
     neg: [
       "Quoi ? Rien.",
@@ -40,6 +43,7 @@ export const commaPeriodSpacing: RuleFixtures = {
       ["Wirklich ? Ja.", "Wirklich? Ja."],
       ["Äpfel,Birnen und Pflaumen.", "Äpfel, Birnen und Pflaumen."],
       ["Halt ! Jetzt.", "Halt! Jetzt."],
+      ["Tee，Milch und Brot.", "Tee, Milch und Brot."],
     ],
     neg: [
       "Es kostet 3,50 Euro.",
@@ -56,6 +60,7 @@ export const commaPeriodSpacing: RuleFixtures = {
       ["Naprawdę ? Tak.", "Naprawdę? Tak."],
       ["Jabłka,gruszki i śliwki.", "Jabłka, gruszki i śliwki."],
       ["Stop ! Teraz.", "Stop! Teraz."],
+      ["Herbata，mleko i chleb.", "Herbata, mleko i chleb."],
     ],
     neg: [
       "Kosztuje 3,50 zł.",
@@ -72,6 +77,7 @@ export const commaPeriodSpacing: RuleFixtures = {
       ["¿ Qué pasa?", "¿Qué pasa?"],
       ["¡ Hola! Bien.", "¡Hola! Bien."],
       ["Manzanas,peras y ciruelas.", "Manzanas, peras y ciruelas."],
+      ["Té、leche y pan.", "Té, leche y pan."],
     ],
     neg: [
       "¿Qué pasa?",
@@ -88,6 +94,7 @@ export const commaPeriodSpacing: RuleFixtures = {
       ["Sério ? Sim.", "Sério? Sim."],
       ["Maçãs,peras e ameixas.", "Maçãs, peras e ameixas."],
       ["Pare ! Agora.", "Pare! Agora."],
+      ["Chá，leite e pão.", "Chá, leite e pão."],
     ],
     neg: [
       "Custa 3,50 reais.",
@@ -104,6 +111,7 @@ export const commaPeriodSpacing: RuleFixtures = {
       ["Verkligen ? Ja.", "Verkligen? Ja."],
       ["Äpplen,päron och plommon.", "Äpplen, päron och plommon."],
       ["Stopp ! Nu.", "Stopp! Nu."],
+      ["Te，mjölk och bröd.", "Te, mjölk och bröd."],
     ],
     neg: [
       "Det kostar 3,50 kronor.",
@@ -120,6 +128,7 @@ export const commaPeriodSpacing: RuleFixtures = {
       ["Stvarno ? Da.", "Stvarno? Da."],
       ["Jabuke,kruške i šljive.", "Jabuke, kruške i šljive."],
       ["Stani ! Sada.", "Stani! Sada."],
+      ["Čaj，mlijeko i kruh.", "Čaj, mlijeko i kruh."],
     ],
     neg: [
       "Košta 3,50 eura.",
@@ -136,6 +145,7 @@ export const commaPeriodSpacing: RuleFixtures = {
       ["Τι κάνεις ; Καλά.", "Τι κάνεις; Καλά."],
       ["Μήλα,αχλάδια και δαμάσκηνα.", "Μήλα, αχλάδια και δαμάσκηνα."],
       ["Στοπ ! Τώρα.", "Στοπ! Τώρα."],
+      ["Τσάι，γάλα και ψωμί.", "Τσάι, γάλα και ψωμί."],
     ],
     neg: [
       "Κοστίζει 3,50 ευρώ.",
@@ -152,6 +162,7 @@ export const commaPeriodSpacing: RuleFixtures = {
       ["أولا ؛ ثانيا.", "أولا؛ ثانيا."],
       ["انتهى .", "انتهى."],
       ["تفاح،كمثرى وخوخ.", "تفاح، كمثرى وخوخ."],
+      ["استخدم Python，Rust.", "استخدم Python, Rust."],
     ],
     neg: [
       "مرحبا، كيف حالك؟",
@@ -334,6 +345,7 @@ export const duplicatePunctuation: RuleFixtures = {
       ["Red, , blue.", "Red, blue."],
       ["It is done..", "It is done."],
       ["Ok,,, go.", "Ok, go."],
+      ["Wait..... what?", "Wait... what?"],
     ],
     neg: [
       "Wait... what?",
@@ -341,6 +353,7 @@ export const duplicatePunctuation: RuleFixtures = {
       "Use std::vector here.",
       "Really?! Yes.",
       "Wow!! Great.",
+      "Chapter 1 .......... 5",
     ],
   },
   fr_FR: {
@@ -350,6 +363,7 @@ export const duplicatePunctuation: RuleFixtures = {
       ["Rouge, , bleu.", "Rouge, bleu."],
       ["C'est fini..", "C'est fini."],
       ["Bon,,, allez.", "Bon, allez."],
+      ["Attends..... quoi ?", "Attends... quoi ?"],
     ],
     neg: [
       "Attends... quoi ?",
@@ -366,6 +380,7 @@ export const duplicatePunctuation: RuleFixtures = {
       ["Rot, , blau.", "Rot, blau."],
       ["Es ist fertig..", "Es ist fertig."],
       ["Gut,,, los.", "Gut, los."],
+      ["Warte..... was?", "Warte... was?"],
     ],
     neg: [
       "Warte... was?",
@@ -382,6 +397,7 @@ export const duplicatePunctuation: RuleFixtures = {
       ["Czerwony, , niebieski.", "Czerwony, niebieski."],
       ["To koniec..", "To koniec."],
       ["Dobra,,, idziemy.", "Dobra, idziemy."],
+      ["Czekaj..... co?", "Czekaj... co?"],
     ],
     neg: [
       "Czekaj... co?",
@@ -398,6 +414,7 @@ export const duplicatePunctuation: RuleFixtures = {
       ["Rojo, , azul.", "Rojo, azul."],
       ["Está hecho..", "Está hecho."],
       ["Bueno,,, vamos.", "Bueno, vamos."],
+      ["Espera..... ¿qué?", "Espera... ¿qué?"],
     ],
     neg: [
       "Espera... ¿qué?",
@@ -414,6 +431,7 @@ export const duplicatePunctuation: RuleFixtures = {
       ["Vermelho, , azul.", "Vermelho, azul."],
       ["Está feito..", "Está feito."],
       ["Bom,,, vamos.", "Bom, vamos."],
+      ["Espera..... o quê?", "Espera... o quê?"],
     ],
     neg: [
       "Espera... o quê?",
@@ -430,6 +448,7 @@ export const duplicatePunctuation: RuleFixtures = {
       ["Röd, , blå.", "Röd, blå."],
       ["Det är klart..", "Det är klart."],
       ["Bra,,, kör.", "Bra, kör."],
+      ["Vänta..... vad?", "Vänta... vad?"],
     ],
     neg: [
       "Vänta... vad?",
@@ -446,6 +465,7 @@ export const duplicatePunctuation: RuleFixtures = {
       ["Crvena, , plava.", "Crvena, plava."],
       ["Gotovo je..", "Gotovo je."],
       ["Dobro,,, idemo.", "Dobro, idemo."],
+      ["Čekaj..... što?", "Čekaj... što?"],
     ],
     neg: [
       "Čekaj... što?",
@@ -462,6 +482,7 @@ export const duplicatePunctuation: RuleFixtures = {
       ["Τελείωσε..", "Τελείωσε."],
       ["Καλά,,, πάμε.", "Καλά, πάμε."],
       ["Ένα,, δύο.", "Ένα, δύο."],
+      ["Περίμενε..... τι;", "Περίμενε... τι;"],
     ],
     neg: [
       "Περίμενε... τι;",
@@ -478,6 +499,7 @@ export const duplicatePunctuation: RuleFixtures = {
       ["أحمر، ، أزرق.", "أحمر، أزرق."],
       ["انتهى..", "انتهى."],
       ["حسنا،،، هيا.", "حسنا، هيا."],
+      ["انتظر..... ماذا؟", "انتظر... ماذا؟"],
     ],
     neg: [
       "انتظر... ماذا؟",
@@ -485,6 +507,169 @@ export const duplicatePunctuation: RuleFixtures = {
       "حقا؟! نعم.",
       "السعر 3,50 ريال.",
       "أولا، ثانيا؛ ثالثا.",
+    ],
+  },
+};
+
+export const quoteSpacing: RuleFixtures = {
+  en_US: {
+    pos: [
+      ['He said "stop"and left.', 'He said "stop" and left.'],
+      ['He said"stop" and left.', 'He said "stop" and left.'],
+      ["The “fast”way works.", "The “fast” way works."],
+      ["The“fast” way works.", "The “fast” way works."],
+      ['Call it "done"now.', 'Call it "done" now.'],
+    ],
+    neg: [
+      'He said "stop" and left.',
+      'The board is 5"x7" wide.',
+      'Use the key="value" pair.',
+      "It’s fine, isn’t it?",
+      "She wrote “yes” twice.",
+    ],
+  },
+  fr_FR: {
+    pos: [
+      ["Il a dit «stop»et il est parti.", "Il a dit «stop» et il est parti."],
+      ["Il a dit«stop» puis rien.", "Il a dit «stop» puis rien."],
+      ['Il a dit "stop"et il est parti.', 'Il a dit "stop" et il est parti.'],
+      ['Le mot"oui" suffit.', 'Le mot "oui" suffit.'],
+      ["Un «vrai»problème.", "Un «vrai» problème."],
+    ],
+    neg: [
+      "Il a dit « stop » et il est parti.",
+      'Il mesure 5"x7".',
+      "C’est l’été.",
+      "Un «vrai» problème.",
+      'Le mot "oui" suffit.',
+    ],
+  },
+  de_DE: {
+    pos: [
+      ["Er sagte „stopp“und ging.", "Er sagte „stopp“ und ging."],
+      ["Er sagte„stopp“ und ging.", "Er sagte „stopp“ und ging."],
+      ['Er sagte "stopp"und ging.', 'Er sagte "stopp" und ging.'],
+      ['Das Wort"ja" reicht.', 'Das Wort "ja" reicht.'],
+      ["Ein „echtes“Problem.", "Ein „echtes“ Problem."],
+    ],
+    neg: [
+      "Er sagte „stopp“ und ging.",
+      'Das Brett ist 5"x7" groß.',
+      "Er sagte »stopp« und ging.",
+      "Geht’s gut?",
+      'Das Wort "ja" reicht.',
+    ],
+  },
+  pl_PL: {
+    pos: [
+      ["Powiedział „stop”i wyszedł.", "Powiedział „stop” i wyszedł."],
+      ["Powiedział„stop” i wyszedł.", "Powiedział „stop” i wyszedł."],
+      ['Powiedział "stop"i wyszedł.', 'Powiedział "stop" i wyszedł.'],
+      ['Słowo"tak" wystarczy.', 'Słowo "tak" wystarczy.'],
+      ["To „prawdziwy”problem.", "To „prawdziwy” problem."],
+    ],
+    neg: [
+      "Powiedział „stop” i wyszedł.",
+      'Deska ma 5"x7".',
+      'Słowo "tak" wystarczy.',
+      "To «prawdziwy» problem.",
+      "Gra rock’n’roll.",
+    ],
+  },
+  es_ES: {
+    pos: [
+      ['Dijo "basta"y se fue.', 'Dijo "basta" y se fue.'],
+      ['Dijo"basta" y se fue.', 'Dijo "basta" y se fue.'],
+      ["Dijo “basta”y se fue.", "Dijo “basta” y se fue."],
+      ["Dijo“basta” y se fue.", "Dijo “basta” y se fue."],
+      ['Un "gran"problema.', 'Un "gran" problema.'],
+    ],
+    neg: [
+      'Dijo "basta" y se fue.',
+      'Mide 5"x7".',
+      "Dijo «basta» y se fue.",
+      "¿Qué dijo?",
+      "Dijo “basta” y se fue.",
+    ],
+  },
+  pt_BR: {
+    pos: [
+      ['Ele disse "chega"e saiu.', 'Ele disse "chega" e saiu.'],
+      ['Ele disse"chega" e saiu.', 'Ele disse "chega" e saiu.'],
+      ["Ele disse “chega”e saiu.", "Ele disse “chega” e saiu."],
+      ["Ele disse“chega” e saiu.", "Ele disse “chega” e saiu."],
+      ['Um "grande"problema.', 'Um "grande" problema.'],
+    ],
+    neg: [
+      'Ele disse "chega" e saiu.',
+      'Mede 5"x7".',
+      "Ele disse «chega» e saiu.",
+      "Copo d’água.",
+      "Ele disse “chega” e saiu.",
+    ],
+  },
+  sv_SE: {
+    pos: [
+      ["Han sa ”stopp”och gick.", "Han sa ”stopp” och gick."],
+      ["Han sa”stopp” och gick.", "Han sa ”stopp” och gick."],
+      ['Han sa "stopp"och gick.', 'Han sa "stopp" och gick.'],
+      ['Ordet"ja" räcker.', 'Ordet "ja" räcker.'],
+      ["Ett ”riktigt”problem.", "Ett ”riktigt” problem."],
+    ],
+    neg: [
+      "Han sa ”stopp” och gick.",
+      'Brädan är 5"x7".',
+      'Ordet "ja" räcker.',
+      "Han sa »stopp» och gick.",
+      "Det är bra.",
+    ],
+  },
+  hr_HR: {
+    pos: [
+      ["Rekao je „stop“i otišao.", "Rekao je „stop“ i otišao."],
+      ["Rekao je„stop“ i otišao.", "Rekao je „stop“ i otišao."],
+      ['Rekao je "stop"i otišao.', 'Rekao je "stop" i otišao.'],
+      ['Riječ"da" je dovoljna.', 'Riječ "da" je dovoljna.'],
+      ["Pravi „problem“danas.", "Pravi „problem“ danas."],
+    ],
+    neg: [
+      "Rekao je „stop“ i otišao.",
+      'Daska je 5"x7".',
+      'Riječ "da" je dovoljna.',
+      "Rekao je »stop« i otišao.",
+      "Sve je u redu.",
+    ],
+  },
+  el_GR: {
+    pos: [
+      ["Είπε «στοπ»και έφυγε.", "Είπε «στοπ» και έφυγε."],
+      ["Είπε«στοπ» και έφυγε.", "Είπε «στοπ» και έφυγε."],
+      ['Είπε "στοπ"και έφυγε.', 'Είπε "στοπ" και έφυγε.'],
+      ['Η λέξη"ναι" αρκεί.', 'Η λέξη "ναι" αρκεί.'],
+      ["Ένα «πραγματικό»πρόβλημα.", "Ένα «πραγματικό» πρόβλημα."],
+    ],
+    neg: [
+      "Είπε «στοπ» και έφυγε.",
+      'Είναι 5"x7".',
+      'Η λέξη "ναι" αρκεί.',
+      "Τι κάνεις; Καλά.",
+      "Είπε “στοπ” και έφυγε.",
+    ],
+  },
+  ar_SA: {
+    pos: [
+      ['قال "توقف"ثم ذهب.', 'قال "توقف" ثم ذهب.'],
+      ['قال"توقف" ثم ذهب.', 'قال "توقف" ثم ذهب.'],
+      ["قال “توقف”ثم ذهب.", "قال “توقف” ثم ذهب."],
+      ['كلمة"نعم" تكفي.', 'كلمة "نعم" تكفي.'],
+      ['مشكلة "حقيقية"اليوم.', 'مشكلة "حقيقية" اليوم.'],
+    ],
+    neg: [
+      'قال "توقف" ثم ذهب.',
+      'الحجم 5"x7".',
+      "قال «توقف» ثم ذهب.",
+      "كيف حالك؟ بخير.",
+      'كلمة "نعم" تكفي.',
     ],
   },
 };

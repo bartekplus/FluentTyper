@@ -1,9 +1,13 @@
 import { applyWordCase, detectWordCase } from "../implementations/helpers/GenericRuleShared";
+import {
+  COMPLETE,
+  frameMatches,
+  hasUserOrCasedWord,
+  SPACE,
+  WORD_END as END_WORD,
+} from "./phraseTemplates";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
-const SPACE = "[ \\t\\u00a0]{1,8}";
-const EDGE = "[\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]";
 const SUBJECT = "(?:I|you|we|they|he|she)";
-const COMPLETE = `(?!${EDGE})(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))`;
 const VERB_SLOT = `(?:please|${SUBJECT}${SPACE}(?:can|will|should|must|need${SPACE}to|want${SPACE}to|plan${SPACE}to))`;
 const DAILY = [
   "(?:use|uses|used) this tool",
@@ -36,6 +40,23 @@ const templates: ReadonlyArray<{
     replacement: "every day",
     messageKey: "review_msg_every_day",
   },
+  // Adverb after a lowercase verb or object, before a clause end or a linking word.
+  {
+    pattern: `(?<!\\b(?:the|an?|word|is|are|was|were|be|so|very|quite|more|most|less|such|of|called|named|my|your|our|their|his|her|its)${SPACE})(?<=[a-z]${SPACE})(?<target>everyday)(?=[ \t ]{0,8}(?:[.!?,;:)]|$)|${SPACE}(?:without|and|but|so|at|in|for|until|while|since|now|anyway)${END_WORD})`,
+    replacement: "every day",
+    messageKey: "review_msg_every_day",
+  },
+  {
+    pattern: `each${SPACE}and${SPACE}(?<target>everyday)${END_WORD}`,
+    replacement: "every day",
+    messageKey: "review_msg_every_day",
+  },
+  // Adjective before a listed noun after a determiner: "an every day thing".
+  {
+    pattern: `(?:a|an|the|my|our|your|their|his|her|its|of|in|for|beyond|these|those|such|and)${SPACE}(?<target>every${SPACE}day)${SPACE}(?:life|thing|things|problem|routine|routines|use|items|objects|language|tasks|activities|situations|problems|clothes|people|essentials|conversation|conversations|basis|tools|work)${END_WORD}`,
+    replacement: "everyday",
+    messageKey: "review_msg_everyday_adjective",
+  },
   {
     pattern: `${VERB_SLOT}${SPACE}(?<target>login)${SPACE}(?:to${SPACE}(?:continue|your${SPACE}account|the${SPACE}account|view${SPACE}the${SPACE}report|open${SPACE}the${SPACE}file|check${SPACE}your${SPACE}messages)|again|today|tomorrow|now|before${SPACE}continuing|(?:with|using)${SPACE}your${SPACE}password)${COMPLETE}`,
     replacement: "log in",
@@ -51,27 +72,12 @@ const templates: ReadonlyArray<{
 export function contextualCompounds(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   for (const { pattern, replacement, messageKey } of templates) {
-    const regex = new RegExp(`(?<![.])(?<!${EDGE})${pattern}`, "gidu");
-    regex.lastIndex = Math.max(0, ctx.from - 256);
-    for (let m = regex.exec(ctx.scanText); m && m.index < ctx.to; m = regex.exec(ctx.scanText)) {
+    for (const m of frameMatches(ctx, pattern)) {
       const [start, end] = m.indices!.groups!.target;
-      if (start < ctx.from || start >= ctx.to) continue;
       if (m.groups!.target !== m.groups!.target.toLowerCase()) continue;
       const phraseEnd = m.index + m[0].length;
-      if (/^\.[\p{L}\p{N}_]/u.test(ctx.text.slice(phraseEnd, phraseEnd + 2))) continue;
-      const before = ctx.scanText.slice(Math.max(0, m.index - 96), m.index);
-      if (
-        /\b(?:write|type|spell|phrase|words?|example|literal|text|says?|reads?)[ :\t]*["“'‘][^\r\n\uFFFC]{0,80}$/i.test(
-          before,
-        )
-      )
-        continue;
-      if (
-        (m[0].match(/[A-Za-z]+/g) ?? []).some(
-          (w) => ctx.dictionary.has(w.toLowerCase()) || applyWordCase(w, detectWordCase(w)) !== w,
-        )
-      )
-        continue;
+      if (hasUserOrCasedWord(ctx, m[0])) continue;
+      if (findings.some((f) => f.range.start === start)) continue;
       findings.push({
         ruleId: "englishContextualCompounds",
         messageKey,

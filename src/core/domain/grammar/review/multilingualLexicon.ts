@@ -1,4 +1,5 @@
-import { INSIDE_NAMED_EXAMPLE } from "./exampleCues";
+import { namedExampleBefore } from "./exampleCues";
+import { SPACE, WORD_START as EDGE_BEFORE } from "./phraseTemplates";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 
 /**
@@ -7,9 +8,7 @@ import type { DetectContext, RawFinding } from "./reviewDetectors";
  * left out, and every finding is individual-only.
  */
 
-const EDGE_BEFORE = "(?<![\\p{L}\\p{M}\\p{N}_'’@/#\\\\.-])";
 const EDGE_AFTER = "(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]|\\.[\\p{L}\\p{N}])";
-const SPACE = "[ \\t\\u00a0]{1,8}";
 
 /** The replacement in the typed word's case: all capitals, or its leading capital. */
 function withLeadingCase(typed: string, replacement: string): string {
@@ -30,10 +29,6 @@ function* ownedWords(ctx: DetectContext, regex: RegExp): Generator<RegExpExecArr
   for (let m = regex.exec(ctx.scanText); m && m.index < ctx.to; m = regex.exec(ctx.scanText)) {
     yield m;
   }
-}
-
-function citedAt(ctx: DetectContext, start: number): boolean {
-  return INSIDE_NAMED_EXAMPLE.test(ctx.text.slice(Math.max(0, start - 128), start));
 }
 
 // ------------------------------------------------------------ doubled degree
@@ -103,7 +98,7 @@ export function doubledDegreeByLanguage(ctx: DetectContext): RawFinding[] {
     const { marker, word } = m.groups!;
     const before = ctx.text.slice(Math.max(0, start - 64), start);
     if (table.negation?.test(before) || table.blockedBefore?.test(before)) continue;
-    if (citedAt(ctx, start)) continue;
+    if (namedExampleBefore(ctx.text, start)) continue;
     if (ctx.dictionary.has(marker.toLowerCase()) || ctx.dictionary.has(word.toLowerCase()))
       continue;
     findings.push({
@@ -217,7 +212,7 @@ export function splitWords(ctx: DetectContext): RawFinding[] {
   for (const m of ownedWords(ctx, table.regex)) {
     const typed = m[0];
     const lower = typed.toLowerCase();
-    if (ctx.dictionary.has(lower) || citedAt(ctx, m.index)) continue;
+    if (ctx.dictionary.has(lower) || namedExampleBefore(ctx.text, m.index)) continue;
     const replacement = table.map.get(lower)!;
     findings.push({
       ruleId: "englishAlotCorrection",
@@ -252,6 +247,12 @@ const FRENCH_ELISIONS = wordTable({
   puisquil: "puisqu'il",
 });
 
+/** The text's own apostrophe style near `index`: curly only where no straight one is used. */
+function apostropheAt(ctx: DetectContext, index: number): string {
+  const nearby = ctx.text.slice(Math.max(0, index - 400), index + 400);
+  return nearby.includes("’") && !nearby.includes("'") ? "’" : "'";
+}
+
 /** "cest", "jai", "aujourdhui": a French elision missing its apostrophe. */
 export function frenchElisions(ctx: DetectContext): RawFinding[] {
   if (ctx.lang.slice(0, 2) !== "fr") return [];
@@ -259,18 +260,69 @@ export function frenchElisions(ctx: DetectContext): RawFinding[] {
   for (const m of ownedWords(ctx, FRENCH_ELISIONS.regex)) {
     const typed = m[0];
     const lower = typed.toLowerCase();
-    if (ctx.dictionary.has(lower) || citedAt(ctx, m.index)) continue;
-    // The text's own apostrophe style.
-    const nearby = ctx.text.slice(Math.max(0, m.index - 400), m.index + 400);
-    const curly = nearby.includes("’") && !nearby.includes("'");
-    let replacement = FRENCH_ELISIONS.map.get(lower)!;
-    if (curly) replacement = replacement.replaceAll("'", "’");
+    if (ctx.dictionary.has(lower) || namedExampleBefore(ctx.text, m.index)) continue;
+    const replacement = FRENCH_ELISIONS.map.get(lower)!.replaceAll("'", apostropheAt(ctx, m.index));
     findings.push({
       ruleId: "englishContractionNormalization",
       messageKey: "review_msg_contraction",
       range: { start: m.index, end: m.index + typed.length },
       alternatives: [withLeadingCase(typed, replacement)],
       bulkBlock: "context-dependent",
+    });
+  }
+  return findings;
+}
+
+// ------------------------------------------------- apostrophe look-alikes
+
+// An acute accent or a backtick typed for an apostrophe ("don´t", "c´est",
+// "geht´s", "d´água"): a spacing accent is never a letter of these languages.
+// Group 1 is the mark. English also slips to ";" on the neighbouring key.
+const MARKED_APOSTROPHE: Record<string, RegExp> = {
+  en: /(?<![\p{L}\p{M}\p{N}_])(?<base>\p{L}+)([´`;])(?<end>t|s|m|d|ll|re|ve)(?![\p{L}\p{M}\p{N}_])/giu,
+  fr: /(?<![\p{L}\p{M}\p{N}_])(?:c|d|j|l|m|n|s|t|qu|jusqu|lorsqu|puisqu|quoiqu|presqu)([´`])(?=[aeiouyhàâæéèêëîïôœùûü])/giu,
+  de: /(?<=\p{L})([´`])s(?![\p{L}\p{M}\p{N}_])/gu,
+  pt: /(?<![\p{L}\p{M}\p{N}_])d([´`])(?=[aeiouáâãàéêíóôõú])/giu,
+};
+// "don;t" is only read as a contraction with a base that takes that ending.
+const SEMICOLON_BASES: Record<string, RegExp> = {
+  t: /^(?:don|can|won|isn|aren|wasn|weren|didn|doesn|haven|hasn|hadn|shouldn|couldn|wouldn|mustn|needn|ain)$/i,
+  m: /^i$/i,
+  s: /^(?:it|let|that|there|here|he|she|what|who|where|how)$/i,
+  d: /^(?:i|you|we|they|he|she|it|that|there|who)$/i,
+  ll: /^(?:i|you|we|they|he|she|it|that|there|who)$/i,
+  re: /^(?:you|we|they|there|who|what)$/i,
+  ve: /^(?:i|you|we|they|who|could|would|should|might|must)$/i,
+};
+
+/** "don´t", "I;m", "c´est", "gibt´s": an apostrophe typed as another mark. */
+export function markedApostrophes(ctx: DetectContext): RawFinding[] {
+  const lang = ctx.lang.slice(0, 2);
+  const regex = MARKED_APOSTROPHE[lang];
+  if (!regex) return [];
+  const findings: RawFinding[] = [];
+  for (const m of ownedWords(ctx, regex)) {
+    const mark = m[lang === "en" ? 2 : 1];
+    const start = m.index + m[0].indexOf(mark, m.groups?.base.length ?? 0);
+    if (namedExampleBefore(ctx.text, start)) continue;
+    if (mark === ";" && !SEMICOLON_BASES[m.groups!.end.toLowerCase()].test(m.groups!.base)) {
+      continue;
+    }
+    // "`code`s": a backtick pair on the line is Markdown code, not an apostrophe.
+    if (mark === "`") {
+      const lineStart = ctx.text.lastIndexOf("\n", start) + 1;
+      const lineEnd = ctx.text.indexOf("\n", start);
+      if (ctx.text.slice(lineStart, lineEnd < 0 ? undefined : lineEnd).split("`").length > 2)
+        continue;
+    }
+    findings.push({
+      ruleId: "englishContractionNormalization",
+      messageKey: "review_msg_apostrophe_mark",
+      range: { start, end: start + 1 },
+      alternatives: [apostropheAt(ctx, start)],
+      context: { start: m.index, end: Math.min(ctx.text.length, m.index + m[0].length + 1) },
+      // Only the English accent is certain; a semicolon or backtick may be meant.
+      bulkBlock: lang === "en" && mark === "´" ? undefined : "context-dependent",
     });
   }
   return findings;
@@ -295,7 +347,7 @@ export function germanNounCapitals(ctx: DetectContext): RawFinding[] {
     const typed = m[0];
     const before = ctx.text.slice(Math.max(0, m.index - 24), m.index);
     if (typed === "august" && !AUGUST_CONTEXT.test(before)) continue;
-    if (ctx.dictionary.has(typed) || citedAt(ctx, m.index)) continue;
+    if (ctx.dictionary.has(typed) || namedExampleBefore(ctx.text, m.index)) continue;
     findings.push({
       ruleId: "englishProperNounCapitalization",
       messageKey: "review_msg_german_noun_capital",

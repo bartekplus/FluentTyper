@@ -14,6 +14,7 @@ describe("SuggestionKeyboardHandler", () => {
     });
     const updateSelectionHighlight = jest.fn();
     const handler = createHandler({
+      inlineSuggestionEnabled: false,
       consumeKeyboardEvent,
       isMenuVisible: jest.fn(() => true),
       updateSelectionHighlight,
@@ -32,6 +33,7 @@ describe("SuggestionKeyboardHandler", () => {
 
   test("moves selection the other way when the menu lists suggestions bottom-up", () => {
     const handler = createHandler({
+      inlineSuggestionEnabled: false,
       consumeKeyboardEvent: jest.fn((event: KeyboardEvent) => event.preventDefault()),
       isMenuVisible: jest.fn(() => true),
     });
@@ -140,5 +142,88 @@ describe("SuggestionKeyboardHandler", () => {
     handler.handle(createSuggestionEntry(), createEvent("Backspace"));
 
     expect(tryUndoLastExtensionEdit).not.toHaveBeenCalled();
+  });
+});
+
+describe("SuggestionKeyboardHandler grammar proposals", () => {
+  const proposal = {
+    key: "k",
+    ruleId: "englishPronounVerbWhitelistAgreement" as const,
+    messageKey: "review_msg_pronoun_verb" as const,
+    start: 3,
+    end: 5,
+    original: "is",
+    replacement: "are",
+  };
+
+  function setup(inlineSuggestionEnabled: boolean, suggestions: string[]) {
+    const acceptGrammarProposal = jest.fn(() => true);
+    const acceptSuggestionAtIndex = jest.fn(() => true);
+    const acceptSuggestion = jest.fn(() => true);
+    const consumeKeyboardEvent = jest.fn((event: KeyboardEvent) => event.preventDefault());
+    const handler = createHandler({
+      inlineSuggestionEnabled,
+      isMenuVisible: jest.fn(() => true),
+      acceptGrammarProposal,
+      acceptSuggestionAtIndex,
+      acceptSuggestion,
+      consumeKeyboardEvent,
+    });
+    const entry = createSuggestionEntry({ suggestions, selectedIndex: 0 });
+    entry.grammarProposal = proposal;
+    entry.grammarProposalSelected = false;
+    return { handler, entry, acceptGrammarProposal, acceptSuggestionAtIndex, acceptSuggestion };
+  }
+
+  test("an unselected proposal alone leaves Tab, Enter and Space to the page", () => {
+    const { handler, entry, acceptGrammarProposal, acceptSuggestionAtIndex } = setup(false, []);
+    for (const key of ["Tab", "Enter", " "]) {
+      const event = createEvent(key);
+      handler.handle(entry, event);
+      expect(event.defaultPrevented).toBe(false);
+    }
+    expect(acceptGrammarProposal).not.toHaveBeenCalled();
+    expect(acceptSuggestionAtIndex).not.toHaveBeenCalled();
+  });
+
+  test("the arrow keys reach the proposal; an accept key then applies it", () => {
+    const { handler, entry, acceptGrammarProposal } = setup(false, []);
+    handler.handle(entry, createEvent("ArrowDown"));
+    expect(entry.grammarProposalSelected).toBe(true);
+    const event = createEvent("Tab");
+    handler.handle(entry, event);
+    expect(event.defaultPrevented).toBe(true);
+    expect(acceptGrammarProposal).toHaveBeenCalledWith(entry);
+  });
+
+  test("the default accept stays with the first suggestion; the proposal is the row after them", () => {
+    const { handler, entry, acceptGrammarProposal, acceptSuggestionAtIndex } = setup(false, [
+      "one",
+      "two",
+    ]);
+    handler.handle(entry, createEvent("Tab"));
+    expect(acceptSuggestionAtIndex).toHaveBeenLastCalledWith(entry, 0);
+    expect(acceptGrammarProposal).not.toHaveBeenCalled();
+
+    handler.handle(entry, createEvent("ArrowDown"));
+    handler.handle(entry, createEvent("ArrowDown"));
+    expect(entry.grammarProposalSelected).toBe(true);
+    handler.handle(entry, createEvent("Enter"));
+    expect(acceptGrammarProposal).toHaveBeenCalledTimes(1);
+
+    // Moving on wraps back to the first suggestion.
+    handler.handle(entry, createEvent("ArrowDown"));
+    expect(entry.grammarProposalSelected).toBe(false);
+    expect(entry.selectedIndex).toBe(0);
+  });
+
+  test("inline Tab applies a selected proposal instead of the inline suggestion", () => {
+    const { handler, entry, acceptGrammarProposal, acceptSuggestion } = setup(true, ["one"]);
+    entry.inlineSuggestion = "one";
+    handler.handle(entry, createEvent("ArrowDown"));
+    expect(entry.grammarProposalSelected).toBe(true);
+    handler.handle(entry, createEvent("Tab"));
+    expect(acceptGrammarProposal).toHaveBeenCalledTimes(1);
+    expect(acceptSuggestion).not.toHaveBeenCalled();
   });
 });

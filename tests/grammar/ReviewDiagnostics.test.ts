@@ -90,6 +90,15 @@ describe("review rule coverage map", () => {
     }
   });
 
+  test("every capitalization check shares one category, so one filter and color cover it", () => {
+    const categories = new Set(
+      reviewCoverageMap().flatMap((entry) =>
+        entry.review === "supported" && entry.kind === "capitalization" ? [entry.category] : [],
+      ),
+    );
+    expect([...categories]).toEqual(["typography"]);
+  });
+
   test("every supported rule has exactly one detector, and excluded rules have none", () => {
     const detected = REVIEW_DETECTORS.flatMap((detector) => detector.rules);
     expect(new Set(detected).size).toBe(detected.length);
@@ -104,7 +113,17 @@ describe("review rule coverage map", () => {
       .map((entry) => entry.ruleId);
     expect(REVIEW_SUPPORTED_RULE_IDS).toEqual(supported);
     expect(reviewRuleIds({ codeMode: false })).toEqual(
-      supported.filter((id) => id !== "styleRedundancy" && id !== "styleLongSentence"),
+      supported.filter(
+        (id) =>
+          ![
+            "styleRedundancy",
+            "styleLongSentence",
+            "ellipsisShortcut",
+            "emdashShortcut",
+            "primeSymbols",
+            "stylePhrasing",
+          ].includes(id),
+      ),
     );
     // Off for typing by default, yet review finds it.
     expect(DEFAULT_CURRENT_GRAMMAR_RULES).not.toContain("duplicatePunctuationCollapse");
@@ -122,8 +141,6 @@ describe("review rule coverage map", () => {
     for (const ruleId of [
       "doubleSpaceToPeriod",
       "autoBracketClose",
-      "ellipsisShortcut",
-      "emdashShortcut",
       "smartQuoteNormalization",
     ] as const) {
       expect(REVIEW_RULE_METADATA[ruleId].review).toBe("excluded");
@@ -161,6 +178,10 @@ describe("review detectors: capitalization and typography", () => {
       ["capitalizeAfterLineBreak", "s", [12, 13], "S"],
       ["capitalizeAfterLineBreak", "n", [38, 39], "N"],
     ]);
+    // Deliberate brand casing at a line start stays.
+    expect(
+      only("Done.\niPhone.\n\neBay.\n\nmacOS.\n\njQuery ok", "capitalizeAfterLineBreak"),
+    ).toEqual([]);
     const [finding] = review("Done.\nthen", { enabledRules: ["capitalizeAfterLineBreak"] });
     expect(finding.bulk).toEqual({ eligible: false, reason: "rule-not-batch-approved" });
   });
@@ -427,6 +448,58 @@ describe("review detectors: grammar", () => {
       only("grade A apples; option a early; Qur'an idea", "englishArticleAnCorrection"),
     ).toEqual([]);
   });
+
+  describe("englishArticleAnCorrection by initial sound", () => {
+    const rule = "englishArticleAnCorrection";
+    const fixed = (text: string) =>
+      review(text, { enabledRules: [rule] }).map((d) => fixOne(text, d));
+    for (const [text, expected] of [
+      ["She had a essay due.", "She had an essay due."],
+      ["It was an tough week.", "It was a tough week."],
+      ["It is an one-way street.", "It is a one-way street."],
+      ["We need an European partner.", "We need a European partner."],
+      ["It is a honorable choice.", "It is an honorable choice."],
+      ["I got a unexpected reply.", "I got an unexpected reply."],
+      ["It is an unanimous decision.", "It is a unanimous decision."],
+      // Initialisms read letter by letter, and the case of the article is kept.
+      ["It is a HDMI cable.", "It is an HDMI cable."],
+      ["A MRI scan is booked.", "An MRI scan is booked."],
+      ["It is an USB stick.", "It is a USB stick."],
+      ["We need a SDK-based build.", "We need an SDK-based build."],
+      ["It is a iPad case.", "It is an iPad case."],
+      ["It is a Error here.", "It is an Error here."],
+      ["It is an Garden party.", "It is a Garden party."],
+      // A curly apostrophe in the word before, and an emoji earlier on.
+      ["🙂 it’s a easy fix.", "🙂 it’s an easy fix."],
+    ])
+      test(`fixes ${JSON.stringify(text)}`, () => expect(fixed(text)).toEqual([expected]));
+
+    for (const text of [
+      // Both articles are heard, or the sound is unknown.
+      "It is a SQL table. It is an SQL table.",
+      "It is a NASA probe. It is an NASA probe.",
+      "It is a herb garden. It is an herb garden.",
+      "It was a historic win. It was an historic win.",
+      "She plays a ukulele. She plays an ukulele.",
+      "It is a 8 hour shift. It is an 11 year plan.",
+      // Letters, grades and lowercase initialisms.
+      "Vowels are a e i o u.",
+      "Is 90 an A there? Plan A is fine.",
+      "It is an sla breach. It is a usb stick.",
+      // Mass nouns: the fix is to drop the article.
+      "We need a information about it.",
+      // Quoted words, code, paths and the user's own words.
+      "It is a 'error' and a “error”.",
+      "Type `it is a error` in the box.",
+      "Open http://example.com/is/a/error now.",
+    ])
+      test(`leaves ${JSON.stringify(text)}`, () => expect(only(text, rule)).toEqual([]));
+
+    test("leaves user-dictionary words", () => {
+      expect(only("It is a Oolong tea.", rule)).toHaveLength(1);
+      expect(only("It is a Oolong tea.", rule, { userDictionary: ["oolong"] })).toEqual([]);
+    });
+  });
 });
 
 describe("adversarial review regressions: detection", () => {
@@ -598,7 +671,9 @@ describe("adversarial review regressions: detection", () => {
   });
 
   test("a double hyphen is a dash, not a hyphen joining a longer name", () => {
-    const findings = review("I dont--really--care.");
+    const findings = review("I dont--really--care.", {
+      enabledRules: reviewRuleIds({ codeMode: false }),
+    });
     expect(summary(findings)).toEqual([
       ["englishContractionNormalization", "dont", [2, 6], "don't"],
     ]);
@@ -740,6 +815,7 @@ describe("review detectors: punctuation and spacing", () => {
       ["measurementUnitFormatting", "10kg", [10, 14], "10\u00A0kg"],
     ]);
     expect(only("a 4K screen and 5g phone", "measurementUnitFormatting")).toEqual([]);
+    expect(only("Back in the 1970s and '80s, 100s of", "measurementUnitFormatting")).toEqual([]);
     expect(only("Price: 120zł today", "currencySpacing", { lang: "pl_PL" })).toEqual([
       ["currencySpacing", "120zł", [7, 12], "120\u00A0zł"],
     ]);

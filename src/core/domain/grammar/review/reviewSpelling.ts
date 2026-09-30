@@ -1,4 +1,6 @@
 import { startsSentence } from "../implementations/CapitalizeSentenceStartRule";
+import { englishNounForms } from "../implementations/helpers/EnglishNounNumber";
+import { englishVerbForms } from "../implementations/helpers/EnglishVerbForms";
 import { MASK_CHAR } from "./reviewDetectors";
 import type { PreparedReview } from "./reviewDiagnostics";
 import type { TextRange } from "./types";
@@ -145,6 +147,44 @@ export function spellingCandidates(
   return candidates;
 }
 
+// Measured with the bundled dictionaries (words the candidates filter keeps,
+// so names and capitalized nouns are not counted): paragraphs in another
+// language had 0-38% known words; English with many typos, slang or
+// technical terms 60-75%, and Polish typed without diacritics 45%. Fewer
+// than 8 looked-up words is too little to tell.
+const OTHER_LANGUAGE_MIN_WORDS = 8;
+const OTHER_LANGUAGE_MAX_KNOWN = 0.4;
+
+/**
+ * Paragraphs (lines) in the scope that look written in another language than
+ * the review's: enough looked-up words, and too few of them known to the
+ * dictionary. Their unknown words are other-language words, not typos.
+ * `lookups` are answered candidates, in document order.
+ */
+export function otherLanguageParagraphs(
+  prepared: PreparedReview,
+  lookups: ReadonlyArray<{ range: TextRange; known: boolean }>,
+): TextRange[] {
+  const { text } = prepared;
+  const { scope } = prepared.snapshot;
+  const paragraphs: TextRange[] = [];
+  for (let i = 0; i < lookups.length;) {
+    const start = text.lastIndexOf("\n", lookups[i].range.start - 1) + 1;
+    const newline = text.indexOf("\n", start);
+    const end = newline < 0 ? text.length : newline;
+    let words = 0;
+    let known = 0;
+    for (; i < lookups.length && lookups[i].range.start < end; i += 1) {
+      words += 1;
+      if (lookups[i].known) known += 1;
+    }
+    if (words >= OTHER_LANGUAGE_MIN_WORDS && known < words * OTHER_LANGUAGE_MAX_KNOWN) {
+      paragraphs.push({ start: Math.max(start, scope.start), end: Math.min(end, scope.end) });
+    }
+  }
+  return paragraphs;
+}
+
 function opensSentence(prepared: PreparedReview, start: number): boolean {
   const { text } = prepared;
   let i = start - 1;
@@ -176,11 +216,19 @@ function wordsBefore(text: string, start: number): string {
  * Single-word replacements for an unknown word, in Presage's order. Presage
  * already ranks them for context; Review offers them without an edit cutoff.
  * Likely unlisted compounds are left alone when their split ranks first.
+ * An English word with a regular ending on an irregular stem ("finded",
+ * "childs") offers the irregular form first, which Presage rarely suggests.
  */
-export function rankSpellingSuggestions(word: string, candidates: readonly string[]): string[] {
+export function rankSpellingSuggestions(
+  word: string,
+  candidates: readonly string[],
+  lang = "",
+): string[] {
   const lower = lookupForm(word).toLowerCase();
   const seen = new Set<string>([lower]);
   const ranked: Array<{ text: string; order: number }> = [];
+  const irregular = lang.startsWith("en") ? irregularForms(lower) : [];
+  if (irregular.length > 0) candidates = [...irregular, ...candidates];
   candidates.forEach((candidate, order) => {
     const text = candidate.trim();
     if (!SUGGESTION.test(text)) return;
@@ -192,6 +240,39 @@ export function rankSpellingSuggestions(word: string, candidates: readonly strin
   const splitAt = compoundIndex(lower, candidates);
   if (splitAt >= 0 && !ranked.some(({ order }) => order < splitAt)) return [];
   return ranked.slice(0, MAX_SPELLING_SUGGESTIONS).map(({ text }) => matchStyle(word, text));
+}
+
+const IRREGULAR_DEGREE: Readonly<Record<string, string>> = {
+  gooder: "better",
+  goodest: "best",
+  badder: "worse",
+  baddest: "worst",
+  worser: "worse",
+};
+
+/**
+ * Irregular forms for a lowercase word built with a regular ending on a stem
+ * from the authored tables: "-ed" on a verb ("finded", "writed", "runned") and
+ * "-s"/"-es" on a noun ("childs", "oxes"). Only asked for words the dictionary
+ * does not know, so real regular forms never reach it.
+ */
+function irregularForms(lower: string): string[] {
+  if (Object.hasOwn(IRREGULAR_DEGREE, lower)) return [IRREGULAR_DEGREE[lower]];
+  const forms: string[] = [];
+  if (lower.endsWith("ed")) {
+    const stems = [lower.slice(0, -2), lower.slice(0, -1)];
+    if (lower.at(-3) === lower.at(-4)) stems.push(lower.slice(0, -3));
+    for (const stem of stems) {
+      const verb = englishVerbForms(stem);
+      if (verb?.lemma === stem) forms.push(verb.past, verb.participle);
+    }
+  } else if (lower.endsWith("s")) {
+    for (const stem of [lower.slice(0, -1), lower.replace(/es$/, "")]) {
+      const noun = englishNounForms(stem);
+      if (noun?.singular === stem) forms.push(noun.plural);
+    }
+  }
+  return forms;
 }
 
 /**

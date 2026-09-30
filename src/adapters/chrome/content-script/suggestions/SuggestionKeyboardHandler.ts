@@ -16,7 +16,24 @@ interface SuggestionKeyboardHandlerOptions {
   updateSelectionHighlight: (entry: SuggestionEntry) => void;
   acceptSuggestion: (entry: SuggestionEntry, suggestion: string) => boolean;
   acceptSuggestionAtIndex: (entry: SuggestionEntry, index: number) => boolean;
+  acceptGrammarProposal: (entry: SuggestionEntry) => boolean;
   requestInlineSuggestion: (entry: SuggestionEntry) => void;
+}
+
+/** Suggestion rows in the menu: none when suggestions show inline instead. */
+export function menuSuggestionRows(entry: SuggestionEntry, inline: boolean): number {
+  return inline ? 0 : entry.suggestions.length;
+}
+
+/**
+ * The highlighted menu row: suggestions come first, the grammar proposal is the
+ * row after them, and -1 means none (a proposal alone is never preselected).
+ */
+export function highlightedMenuRow(entry: SuggestionEntry, rows: number): number {
+  if (entry.grammarProposal && entry.grammarProposalSelected) {
+    return rows;
+  }
+  return rows > 0 ? entry.selectedIndex : -1;
 }
 
 export class SuggestionKeyboardHandler {
@@ -39,15 +56,26 @@ export class SuggestionKeyboardHandler {
 
     const digitIndex = this.options.selectByDigit ? this.mapDigitToIndex(key) : null;
     const isInlineTab = this.options.inlineSuggestionEnabled && key === "Tab";
-    const isActiveKey =
-      key === "Escape" ||
-      key === "ArrowUp" ||
-      key === "ArrowDown" ||
-      key === " " ||
+    const isAcceptKey =
+      (key === "Tab" && this.options.autocompleteOnTab) ||
       (key === "Enter" && this.options.autocompleteOnEnter) ||
-      (key === "Tab" && this.options.autocompleteOnTab);
+      (key === " " && this.options.autocompleteOnSpace);
+    const isActiveKey =
+      key === "Escape" || key === "ArrowUp" || key === "ArrowDown" || key === " " || isAcceptKey;
 
     if (!isActiveKey && !isInlineTab && digitIndex === null) {
+      return;
+    }
+
+    // A grammar proposal is applied only once the user has moved onto it.
+    if (
+      entry.grammarProposal &&
+      entry.grammarProposalSelected &&
+      (isAcceptKey || isInlineTab) &&
+      this.options.isMenuVisible(entry)
+    ) {
+      this.options.consumeKeyboardEvent(keyboardEvent);
+      this.options.acceptGrammarProposal(entry);
       return;
     }
 
@@ -78,37 +106,39 @@ export class SuggestionKeyboardHandler {
       return;
     }
 
+    const rows = menuSuggestionRows(entry, this.options.inlineSuggestionEnabled);
     if (key === "ArrowDown" || key === "ArrowUp") {
       this.options.consumeKeyboardEvent(keyboardEvent);
       // Arrows follow the screen: a reversed menu lists the next item above.
       const reversed = isSuggestionMenuReversed(entry.menu);
-      this.moveSelection(entry, (key === "ArrowDown") !== reversed ? 1 : -1);
+      this.moveSelection(entry, rows, (key === "ArrowDown") !== reversed ? 1 : -1);
       return;
     }
 
-    if (digitIndex !== null && digitIndex < entry.suggestions.length) {
+    if (digitIndex !== null && digitIndex < rows) {
       this.options.consumeKeyboardEvent(keyboardEvent);
       this.options.acceptSuggestionAtIndex(entry, digitIndex);
       return;
     }
 
-    if (
-      (key === "Tab" && this.options.autocompleteOnTab) ||
-      (key === "Enter" && this.options.autocompleteOnEnter) ||
-      (key === " " && this.options.autocompleteOnSpace)
-    ) {
+    // With only an unselected proposal showing, the key stays the host's.
+    if (isAcceptKey && rows > 0) {
       this.options.consumeKeyboardEvent(keyboardEvent);
       this.options.acceptSuggestionAtIndex(entry, entry.selectedIndex);
     }
   }
 
-  private moveSelection(entry: SuggestionEntry, direction: number): void {
-    if (entry.suggestions.length === 0) {
+  private moveSelection(entry: SuggestionEntry, rows: number, direction: number): void {
+    const count = rows + (entry.grammarProposal ? 1 : 0);
+    if (count === 0) {
       return;
     }
 
-    entry.selectedIndex =
-      (entry.selectedIndex + direction + entry.suggestions.length) % entry.suggestions.length;
+    const next = (highlightedMenuRow(entry, rows) + direction + count) % count;
+    entry.grammarProposalSelected = next === rows;
+    if (next < rows) {
+      entry.selectedIndex = next;
+    }
     this.options.updateSelectionHighlight(entry);
   }
 

@@ -252,6 +252,12 @@ describe("V3 rule expansion", () => {
       deleteBackwards: "a error ".length,
       deleteForwards: 0,
     });
+    expect(rule.apply(context("a awkward ", hints))?.replacement).toBe("an awkward ");
+    // The user's own words (often names or initialisms) are left alone.
+    expect(rule.apply(context("a awkward ", { ...hints, userDictionary: ["awkward"] }))).toBeNull();
+    expect(
+      new EnglishArticleAnCorrectionRule(["Awkward"]).apply(context("a awkward ", hints)),
+    ).toBeNull();
   });
 
   test("EnglishPronounVerbWhitelistAgreementRule applies strict whitelist", () => {
@@ -273,5 +279,21 @@ describe("V3 rule expansion", () => {
     );
 
     expect(rule.apply(context("they is ", { lang: "en_US", inputAction: "insert" }))).toBeNull();
+
+    // "you" as the object of a preposition, verb or opening gerund is not the subject.
+    for (const text of [
+      "Hiding from you was pointless ",
+      "What I owed you was nothing ",
+      "Meeting you was fun ",
+    ]) {
+      expect(rule.apply(context(text, { lang: "en_US", inputAction: "insert" }))).toBeNull();
+    }
+    expect(
+      rule.apply(context("Knowing you was home ", { lang: "en_US", inputAction: "insert" })),
+    ).toEqual({
+      replacement: "you were home ",
+      deleteBackwards: "you was home ".length,
+      deleteForwards: 0,
+    });
   });
 });

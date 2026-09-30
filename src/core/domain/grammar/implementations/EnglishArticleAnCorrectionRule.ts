@@ -1,10 +1,16 @@
 import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "../types";
-import { isPartOfTechnicalToken, resolveEnglishBoundaryContext } from "./helpers/EnglishRuleShared";
+import { englishInitialSound } from "./helpers/EnglishInitialSound";
+import {
+  isPartOfTechnicalToken,
+  resolveEnglishBoundaryContext,
+  resolveUserDictionarySet,
+} from "./helpers/EnglishRuleShared";
+import { normalizeWordSet } from "./helpers/GenericRuleShared";
 
 // Article, then a finished word. The article must start a token: after a space,
 // or after an opening quote/bracket that itself starts a token, so the "an" in
 // "Qur'an" or "Xi'an" is never an article.
-export const ARTICLE_REGEX = /(?:^|(?<=\s)|(?<=(?:^|\s)["'([“‘]))(a|an|A|An)\s+([a-z]+)$/;
+export const ARTICLE_REGEX = /(?:^|(?<=\s)|(?<=(?:^|\s)["'([“‘]))(a|an|A|An)\s+([A-Za-z]+)$/;
 // A capital article is only an article at a sentence start; "grade A apples",
 // "Plan A is" use the letter.
 export const SENTENCE_START_REGEX = /(?:^|[.!?]\s+|\n\s*)["'([“‘]?$/;
@@ -23,43 +29,22 @@ const ARTICLE_CONTEXT_WORDS = new Set(
 // "Is a important here?": a sentence-initial verb inverts a question, so the
 // word after it is the subject, which may be a variable.
 const QUESTION_OPENERS = new Set(["is", "was", "are", "were", "isn't", "wasn't"]);
-const PRECEDING_WORD_REGEX = /(^|\s)([A-Za-z']+)\s+$/;
+const PRECEDING_WORD_REGEX = /(^|\s)([A-Za-z'’]+)\s+$/;
 
-// Whole words only, never spelling prefixes: "unit" takes "a" but "unitemized"
-// takes "an", "one" takes "a" but "onerous" takes "an". Anything unlisted is
-// left alone, and so is any word with more than one accepted initial sound
-// ("a ukulele" and "an ukulele" are both correct).
-const TAKES_AN = new Set(
-  (
-    "hour hourly honest honor honour honorable honourable heir error idea example image item " +
-    "article apple application app office officer event element engineer employee egg " +
-    "elephant orange umbrella uncle important interesting easy excellent old awful awesome " +
-    "amazing early extra entire unusual unknown unexpected ugly obvious independent internal " +
-    "external additional average official original ordinary effective efficient elegant " +
-    "essential enormous expensive extreme evil opinion opportunity argument adult animal " +
-    "actor artist author agent airport island insect invoice iphone ocean understanding " +
-    "unfair unhappy unlikely"
-  ).split(" "),
-);
-const TAKES_A = new Set(
-  // Vowel letter, consonant sound.
-  (
-    "university universe universal unit union unique uniform unicorn united user username " +
-    "useful useless usual utility utensil unanimous euro eulogy ewe one " +
-    // Consonant words that are never read as initialisms.
-    "good great big small new year book car day man woman person problem question little bit " +
-    "very really simple single short long large nice bad different specific special " +
-    "particular company team test file website page table list number name word way time " +
-    "thing place group project meeting message friend family child house home job world " +
-    "story second minute week month bug feature request response server function method value"
-  ).split(" "),
-);
+// A lowercase single letter is usually a variable or list item ("vowels are a e
+// i"). Lowercase initialisms are read letter by letter ("an sla", "an fyi", "a
+// usb"), and only letters whose name sounds unlike their words matter there:
+// F H L M N R S X ("ef", "aitch") and U ("you"). Such a word counts as a word
+// when it is long and reads like one; these common words do not.
+const WORDS_NOT_INITIALISMS = new Set("man new small short friend".split(" "));
+// "a information" needs the article dropped, not changed.
+const MASS_NOUNS = new Set("information advice equipment evidence".split(" "));
 
 export function isArticleContext(beforeArticle: string): boolean {
   if (SENTENCE_START_REGEX.test(beforeArticle)) return true;
   const match = beforeArticle.match(PRECEDING_WORD_REGEX);
   if (!match || match.index === undefined) return false;
-  const preceding = match[2].toLowerCase();
+  const preceding = match[2].toLowerCase().replace("’", "'");
   const beforePreceding = beforeArticle.slice(0, match.index + match[1].length);
   if (QUESTION_OPENERS.has(preceding) && SENTENCE_START_REGEX.test(beforePreceding)) {
     return false;
@@ -71,6 +56,12 @@ export class EnglishArticleAnCorrectionRule implements GrammarRule {
   readonly id = "englishArticleAnCorrection" as const;
   readonly triggers: GrammarEventType[] = ["wordBoundary"];
 
+  private readonly fallbackUserDictionary: Set<string>;
+
+  constructor(userDictionaryList: string[] = []) {
+    this.fallbackUserDictionary = normalizeWordSet(userDictionaryList);
+  }
+
   apply(context: GrammarContext): GrammarEdit | null {
     const boundaryContext = resolveEnglishBoundaryContext(context);
     if (!boundaryContext) {
@@ -79,7 +70,8 @@ export class EnglishArticleAnCorrectionRule implements GrammarRule {
 
     const { core } = boundaryContext;
     const match = core.match(ARTICLE_REGEX);
-    if (!match || match.index === undefined) {
+    // Typing fixes lowercase words only: names and initialisms are left to Review.
+    if (!match || match.index === undefined || match[2] !== match[2].toLowerCase()) {
       return null;
     }
 
@@ -97,7 +89,11 @@ export class EnglishArticleAnCorrectionRule implements GrammarRule {
       return null;
     }
 
-    const corrected = correctArticle(article, word);
+    const corrected = correctArticle(
+      article,
+      word,
+      resolveUserDictionarySet(context, this.fallbackUserDictionary),
+    );
     if (!corrected) {
       return null;
     }
@@ -111,11 +107,33 @@ export class EnglishArticleAnCorrectionRule implements GrammarRule {
   }
 }
 
-/** The article `word` takes when it differs from `article` ("a" before "hour" -> "an"). */
-export function correctArticle(article: string, word: string): string | null {
-  const fix = article.length === 2 ? TAKES_A.has(word) && "a" : TAKES_AN.has(word) && "an";
-  if (!fix) {
+/**
+ * The article `word` takes when it differs from `article` ("a" before "hour" ->
+ * "an"), or null when it matches or the sound is uncertain. Words in `dictionary`
+ * (the user's own terms, often names or initialisms) are left alone.
+ */
+export function correctArticle(
+  article: string,
+  word: string,
+  dictionary?: ReadonlySet<string>,
+): string | null {
+  const lower = word.toLowerCase();
+  if (dictionary?.has(lower) || MASS_NOUNS.has(lower) || (word === lower && mayBeLetters(lower))) {
+    return null;
+  }
+  const sound = englishInitialSound(word);
+  const fix = sound === "vowel" ? "an" : sound === "consonant" ? "a" : null;
+  if (!fix || fix === article.toLowerCase()) {
     return null;
   }
   return article[0] === "A" ? `A${fix.slice(1)}` : fix;
+}
+
+function mayBeLetters(word: string): boolean {
+  if (word.length === 1) return true;
+  if (WORDS_NOT_INITIALISMS.has(word) || !/^[fhlmnrsxu]/.test(word)) return false;
+  // "sla", "html", "usb", "usps"; "house", "ugly", "unit" read as words.
+  return (
+    word.length < 4 || !(word[0] === "u" ? /[aeiouy]/.test(word.slice(1)) : /^.[aeiouy]/.test(word))
+  );
 }
