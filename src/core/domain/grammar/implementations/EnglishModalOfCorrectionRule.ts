@@ -54,7 +54,7 @@ export class EnglishModalOfCorrectionRule implements GrammarRule {
 
     const style = detectWordCase(modal);
     const normalizedModal = applyWordCase(modal, style);
-    const haveWord = modalHaveWord(modal);
+    const haveWord = modalHaveWord(modal, match[0].slice(modal.length).trimStart().slice(0, 2));
 
     return {
       replacement: `${normalizedModal} ${haveWord} ${following}${boundaryContext.trailing}`,
@@ -64,7 +64,8 @@ export class EnglishModalOfCorrectionRule implements GrammarRule {
   }
 }
 
-/** "have" in the case of the modal it follows: "COULD OF" -> "HAVE". */
-export function modalHaveWord(modal: string): string {
-  return detectWordCase(modal) === "upper" ? "HAVE" : "have";
+/** "have" in the case of the "of" it replaces: "COULD OF" -> "HAVE", "Could Of" -> "Have". */
+export function modalHaveWord(modal: string, of: string): string {
+  if (detectWordCase(modal) === "upper") return "HAVE";
+  return of === "Of" ? "Have" : "have";
 }

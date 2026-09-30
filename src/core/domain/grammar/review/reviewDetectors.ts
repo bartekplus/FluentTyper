@@ -582,7 +582,9 @@ const modalOf: Detector = (ctx) => {
       ruleId: "englishModalOfCorrection",
       messageKey: "review_msg_modal_of",
       range: { start, end: ofRange.end },
-      alternatives: [`${ctx.source.slice(start, ofRange.start)}${modalHaveWord(match[1])}`],
+      alternatives: [
+        `${ctx.source.slice(start, ofRange.start)}${modalHaveWord(match[1], ctx.text.slice(ofRange.start, ofRange.end))}`,
+      ],
       context: { start, end },
     });
   }

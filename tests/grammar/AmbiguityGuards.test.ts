@@ -126,6 +126,8 @@ describe("unambiguous corrections still apply", () => {
   for (const [input, expected] of [
     ["and so did i. Then we left ", "And so did I. Then we left "],
     ["They could of gone ", "They could have gone "],
+    ["We Could Of Won ", "We Could Have Won "],
+    ["WE COULD OF WON ", "WE COULD HAVE WON "],
     ["Your welcome! ", "You're welcome! "],
     ["I dont know ", "I don't know "],
     ["im going now ", "I'm going now "],
