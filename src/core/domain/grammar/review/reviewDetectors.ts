@@ -1023,6 +1023,20 @@ const duplicatePunctuation: Detector = (ctx) => {
       alternatives: ["."],
     });
   }
+  // An ellipsis has three dots: "So..... anyway". Digits
+  // or a path around the run ("1....5", "..../") and dot leaders (10+) are not one.
+  const ellipsis = /(?<![.\p{N}])\.{4,9}(?![.\p{N}/\\])/gu;
+  for (const match of ownedMatches(ctx, ellipsis)) {
+    const start = match.index;
+    findings.push({
+      ruleId: "duplicatePunctuationCollapse",
+      messageKey: "review_msg_ellipsis_length",
+      range: { start, end: start + match[0].length },
+      alternatives: ["..."],
+      // Four dots can be a sentence period plus an ellipsis: one at a time.
+      bulkBlock: match[0].length === 4 ? "context-dependent" : undefined,
+    });
+  }
   return findings;
 };
 

@@ -334,6 +334,7 @@ export const duplicatePunctuation: RuleFixtures = {
       ["Red, , blue.", "Red, blue."],
       ["It is done..", "It is done."],
       ["Ok,,, go.", "Ok, go."],
+      ["Wait..... what?", "Wait... what?"],
     ],
     neg: [
       "Wait... what?",
@@ -341,6 +342,7 @@ export const duplicatePunctuation: RuleFixtures = {
       "Use std::vector here.",
       "Really?! Yes.",
       "Wow!! Great.",
+      "Chapter 1 .......... 5",
     ],
   },
   fr_FR: {
@@ -350,6 +352,7 @@ export const duplicatePunctuation: RuleFixtures = {
       ["Rouge, , bleu.", "Rouge, bleu."],
       ["C'est fini..", "C'est fini."],
       ["Bon,,, allez.", "Bon, allez."],
+      ["Attends..... quoi ?", "Attends... quoi ?"],
     ],
     neg: [
       "Attends... quoi ?",
@@ -366,6 +369,7 @@ export const duplicatePunctuation: RuleFixtures = {
       ["Rot, , blau.", "Rot, blau."],
       ["Es ist fertig..", "Es ist fertig."],
       ["Gut,,, los.", "Gut, los."],
+      ["Warte..... was?", "Warte... was?"],
     ],
     neg: [
       "Warte... was?",
@@ -382,6 +386,7 @@ export const duplicatePunctuation: RuleFixtures = {
       ["Czerwony, , niebieski.", "Czerwony, niebieski."],
       ["To koniec..", "To koniec."],
       ["Dobra,,, idziemy.", "Dobra, idziemy."],
+      ["Czekaj..... co?", "Czekaj... co?"],
     ],
     neg: [
       "Czekaj... co?",
@@ -398,6 +403,7 @@ export const duplicatePunctuation: RuleFixtures = {
       ["Rojo, , azul.", "Rojo, azul."],
       ["Está hecho..", "Está hecho."],
       ["Bueno,,, vamos.", "Bueno, vamos."],
+      ["Espera..... ¿qué?", "Espera... ¿qué?"],
     ],
     neg: [
       "Espera... ¿qué?",
@@ -414,6 +420,7 @@ export const duplicatePunctuation: RuleFixtures = {
       ["Vermelho, , azul.", "Vermelho, azul."],
       ["Está feito..", "Está feito."],
       ["Bom,,, vamos.", "Bom, vamos."],
+      ["Espera..... o quê?", "Espera... o quê?"],
     ],
     neg: [
       "Espera... o quê?",
@@ -430,6 +437,7 @@ export const duplicatePunctuation: RuleFixtures = {
       ["Röd, , blå.", "Röd, blå."],
       ["Det är klart..", "Det är klart."],
       ["Bra,,, kör.", "Bra, kör."],
+      ["Vänta..... vad?", "Vänta... vad?"],
     ],
     neg: [
       "Vänta... vad?",
@@ -446,6 +454,7 @@ export const duplicatePunctuation: RuleFixtures = {
       ["Crvena, , plava.", "Crvena, plava."],
       ["Gotovo je..", "Gotovo je."],
       ["Dobro,,, idemo.", "Dobro, idemo."],
+      ["Čekaj..... što?", "Čekaj... što?"],
     ],
     neg: [
       "Čekaj... što?",
@@ -462,6 +471,7 @@ export const duplicatePunctuation: RuleFixtures = {
       ["Τελείωσε..", "Τελείωσε."],
       ["Καλά,,, πάμε.", "Καλά, πάμε."],
       ["Ένα,, δύο.", "Ένα, δύο."],
+      ["Περίμενε..... τι;", "Περίμενε... τι;"],
     ],
     neg: [
       "Περίμενε... τι;",
@@ -478,6 +488,7 @@ export const duplicatePunctuation: RuleFixtures = {
       ["أحمر، ، أزرق.", "أحمر، أزرق."],
       ["انتهى..", "انتهى."],
       ["حسنا،،، هيا.", "حسنا، هيا."],
+      ["انتظر..... ماذا؟", "انتظر... ماذا؟"],
     ],
     neg: [
       "انتظر... ماذا؟",

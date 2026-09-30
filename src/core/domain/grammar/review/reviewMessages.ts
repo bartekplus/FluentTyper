@@ -732,6 +732,17 @@ const EXPLANATIONS: Record<ReviewMessageKey, Translations> = {
     "Ten znak interpunkcyjny się powtarza.",
     "Este sinal de pontuação está repetido.",
   ],
+  review_msg_ellipsis_length: [
+    "An ellipsis has three dots.",
+    "Des points de suspension comptent trois points.",
+    "Trotočje ima tri točke.",
+    "Los puntos suspensivos son tres puntos.",
+    "Τα αποσιωπητικά έχουν τρεις τελείες.",
+    "En ellips har tre punkter.",
+    "Auslassungspunkte bestehen aus drei Punkten.",
+    "Wielokropek ma trzy kropki.",
+    "As reticências têm três pontos.",
+  ],
   review_msg_measurement_spacing: [
     "Separate the number from its unit.",
     "Séparez le nombre de son unité.",

@@ -178,7 +178,7 @@ Supported (**Typing** is the rule's default for typing; Review has separate swit
 | `currencySpacing`                      | all      | on          | punctuation | yes                                                                                               |
 | `commaPeriodSpacing`                   | all      | on          | punctuation | yes (Greek `;`, Arabic `؟ ؛` and Spanish `¿ ¡` padding: individual only)                          |
 | `collapseRepeatedSpaces`               | all      | on          | punctuation | yes (alignment gaps and Markdown table padding are left alone)                                    |
-| `duplicatePunctuationCollapse`         | all      | off         | punctuation | yes                                                                                               |
+| `duplicatePunctuationCollapse`         | all      | off         | punctuation | yes (a four-dot ellipsis: individual only)                                                        |
 
 Agreement retains the six original typing pairs and their existing bulk rules.
 `englishContextualCompounds` is a separate Review-only check for curated compound pairs. It splits everyday into every day after a complete listed pronoun-led action, and splits login/setup into log in/set up in explicit modal, infinitive or please-imperative slots with complete listed complements. New spaces use the existing grapheme-anchored editor transaction; unrelated formatting remains intact. Findings own their spans before dictionary spelling runs, so the same token does not receive redundant spelling cards. Presage candidates and ranking are unchanged.
@@ -319,6 +319,8 @@ Excluded (typing conveniences, not errors in finished text):
 | `smartQuoteNormalization`            | Straight quotes in finished text may be code or deliberate.                |
 | `frenchPunctuationSpacing`           | Typing-time convention; invisible no-break space changes.                  |
 | `autoBracketClose`                   | Review never inserts closing brackets.                                     |
+
+Some checks were inspired by Harper (https://github.com/Automattic/harper).
 
 ### Unknown words
 

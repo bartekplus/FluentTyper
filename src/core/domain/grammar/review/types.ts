@@ -120,6 +120,7 @@ export type ReviewMessageKey =
   | "review_msg_german_noun_capital"
   | "review_msg_repeated_spaces"
   | "review_msg_duplicate_punctuation"
+  | "review_msg_ellipsis_length"
   | "review_msg_measurement_spacing"
   | "review_msg_currency_spacing"
   | "review_msg_unknown_word"
