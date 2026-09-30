@@ -5188,7 +5188,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
 
         // 4. Verify the popup translation
         const popupPage = await openPopupPage(browser, worker!);
-        await popupPage.waitForSelector(".control-card", {
+        await popupPage.waitForSelector("#pageStatePanel", {
           timeout: browserTimeout(1000, 5000),
         });
         await popupPage.waitForFunction(
