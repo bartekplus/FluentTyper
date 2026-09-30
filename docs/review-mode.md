@@ -187,7 +187,7 @@ No reviewed text is stored by these controls.
 Each rule runs only in the languages it supports, and the panel says how many enabled
 rules were skipped for the language. Some English rules have Review-only tables for
 other languages (doubled comparatives, merged words, French elisions, German day and
-month capitals); those findings are always individual-only. The full rule × language
+month capitals, fixed phrases, compounds and common misspellings); those findings are always individual-only. The full rule × language
 matrix, with the reason for every unsupported cell, is in
 [review-language-matrix.md](review-language-matrix.md). With the language
 set to auto-detect, Review first identifies the text's language on the device (the
@@ -204,8 +204,8 @@ Supported (**Typing** is the rule's default for typing; Review has separate swit
 | `englishToToo`                         | English  | unavailable | grammar     | confused words     | individual only                                                                                   |
 | `englishAuxiliaryBaseVerb`             | English  | unavailable | grammar     | word form          | individual only                                                                                   |
 | `englishRepeatedWords`                 | all      | unavailable | grammar     | repetition         | individual only                                                                                   |
-| `englishPhraseCorrections`             | English  | unavailable | grammar     | usage              | individual only                                                                                   |
-| `englishClosedCompounds`               | English  | unavailable | spelling    | split/joined words | individual only                                                                                   |
+| `englishPhraseCorrections`             | 9 langs  | unavailable | grammar     | usage              | individual only                                                                                   |
+| `englishClosedCompounds`               | 6 langs  | unavailable | spelling    | split/joined words | individual only                                                                                   |
 | `capitalizeSentenceStart`              | all      | on          | typography  | capitalization     | yes (after a quote or bracket closing a period: individual only)                                  |
 | `capitalizeAfterLineBreak`             | all      | on          | typography  | capitalization     | individual only: line starts in poems, lists and hard-wrapped text are often lowercase on purpose |
 | `englishPronounICapitalization`        | English  | on          | typography  | capitalization     | yes                                                                                               |
@@ -734,6 +734,17 @@ Dictionary words, mixed-case identifiers, dotted names, URLs, code, quoted menti
 and named examples abstain. When a more specific rule proposes the same edit, that
 rule explains it. Both checks are Review-only and individual-only. Some of these
 checks were inspired by Harper (https://github.com/Automattic/harper).
+
+The same checks run with authored tables for German, French, Spanish, Portuguese,
+Polish, Croatian, Swedish and Greek
+([`languagePhraseTables.ts`](../src/core/domain/grammar/review/languagePhraseTables.ts)):
+misspellings that are never words ("Standart", "parmis", "haiga", "seje", "poszłem",
+"uopče", "alldrig", "εντάξη"), wrong forms in a fixed frame ("quelque soit" → "quel
+que soit" or "quelle que soit", "hubieron muchos" → "hubo muchos", "półtorej roku" →
+"półtora roku"), compounds ("das selbe" → "dasselbe", "au dessus" → "au-dessus", "z
+pod" → "spod") and, as optional wording advice, pleonasms ("bereits schon", "sortir
+dehors", "subir arriba", "há anos atrás"). Each table runs only in its own language,
+and a French word is also found after an elided article ("l'addresse").
 
 ### Canonical brand and acronym casing
 

@@ -404,6 +404,39 @@ const EXTENSIONS: Array<[CatalogRuleId, Record<string, Fixture>]> = [
           "Riječ „gdije” je pogrešna.",
         ],
       },
+      sv_SE: {
+        pos: [
+          ["Vad menar du igentligen?", "Vad menar du egentligen?"],
+          ["Antligen är det fredag.", "Äntligen är det fredag."],
+          ["Jag har alldrig varit där.", "Jag har aldrig varit där."],
+          ["Det var en intresant bok.", "Det var en intressant bok."],
+          ["Vi äter tillsamans.", "Vi äter tillsammans."],
+        ],
+        neg: [
+          "Vad menar du egentligen?",
+          "Äntligen är det fredag.",
+          "Kommunikationen fungerar bra.",
+          "Vi har ett bra samarbete.",
+          "Ordet ”alldrig” är fel.",
+        ],
+      },
+      el_GR: {
+        pos: [
+          ["Όλα εντάξη;", "Όλα εντάξει;"],
+          ["Σε ευχαριστό πολύ.", "Σε ευχαριστώ πολύ."],
+          ["Είναι πιό καλό.", "Είναι πιο καλό."],
+          ["Αυτό είναι καλήτερα.", "Αυτό είναι καλύτερα."],
+          ["Θέλω μιά καρέκλα.", "Θέλω μια καρέκλα."],
+          ["Περίμενε γιά λίγο.", "Περίμενε για λίγο."],
+        ],
+        neg: [
+          "Όλα εντάξει;",
+          "Σε ευχαριστώ πολύ.",
+          "Είναι ένα ευχάριστο ταξίδι.",
+          "Μία φορά την εβδομάδα.",
+          "Η λέξη «εντάξη» είναι λάθος.",
+        ],
+      },
     },
   ],
   [

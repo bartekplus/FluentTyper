@@ -318,4 +318,34 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
       ["sobzirom", "s obzirom"],
     ],
   },
+  sv: {
+    words: [
+      ["igentligen", "egentligen"],
+      ["antligen", "äntligen"],
+      ["alldrig", "aldrig"],
+      ["intresant", "intressant"],
+      ["komunikation", "kommunikation"],
+      ["sammarbete", "samarbete"],
+      ["tillsamans", "tillsammans"],
+      ["definitift", "definitivt"],
+      ["skilnad", "skillnad"],
+      ["sjävklart", "självklart"],
+      ["anorlunda", "annorlunda"],
+      ["rekomendera", "rekommendera"],
+      ["resturang", "restaurang"],
+    ],
+  },
+  el: {
+    // Monosyllables take no accent; "μία" (the numeral) and "ευχάριστο" are words.
+    words: [
+      ["εντάξη", "εντάξει"],
+      ["ευχαριστό", "ευχαριστώ"],
+      ["παρακαλό", "παρακαλώ"],
+      ["καλήτερα", "καλύτερα"],
+      ["αφτό", "αυτό"],
+      ["πιό", "πιο"],
+      ["γιά", "για"],
+      ["μιά", "μια"],
+    ],
+  },
 };
