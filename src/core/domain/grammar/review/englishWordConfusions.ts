@@ -104,7 +104,9 @@ export function wordConfusions(ctx: DetectContext): RawFinding[] {
   return comparisonAndDegree(ctx, theirConfusions(ctx, findings));
 }
 
-const opensClause = (ctx: DetectContext, index: number) =>
+// Stricter than EnglishRuleShared's opensClause: a comma opens a clause only
+// with "and", "but" or "so" after it, and dashes or brackets never do.
+const opensMainClause = (ctx: DetectContext, index: number) =>
   /(?:^|[.!?;:\n"“(][ \t ]*|,[ \t ]*(?:and|but|so)[ \t ]+)$/i.test(
     ctx.text.slice(Math.max(0, index - 96), index),
   );
@@ -141,7 +143,7 @@ function theirConfusions(ctx: DetectContext, findings: RawFinding[]): RawFinding
     ctx,
     `(?<target>their)${SPACE}(?:(?:will|won['’]t|can|could|should|would|may|might|must)(?:n['’]t)?${SPACE}(?:not${SPACE})?be|(?:has|have)(?:n['’]t)?${SPACE}been|(?:isn|aren|wasn|weren)['’]t|used${SPACE}to${SPACE}be)${END_WORD}`,
   ))
-    if (opensClause(ctx, match.index) || cued(ctx, match.index))
+    if (opensMainClause(ctx, match.index) || cued(ctx, match.index))
       push(match, "review_msg_their_there", "there");
   for (const match of frameMatches(
     ctx,
@@ -157,7 +159,7 @@ function theirConfusions(ctx: DetectContext, findings: RawFinding[]): RawFinding
       push(match, "review_msg_their_there", "there");
   // They're: a clause-opening "their" before a predicate, a participle or an article.
   for (const match of frameMatches(ctx, THEY_ARE)) {
-    if (!opensClause(ctx, match.index) && !cued(ctx, match.index)) continue;
+    if (!opensMainClause(ctx, match.index) && !cued(ctx, match.index)) continue;
     const { pred, follow } = match.groups!;
     if (pred === "right" && follow === "to") continue;
     const end = match.index + match[0].length;
@@ -175,7 +177,7 @@ function theirConfusions(ctx: DetectContext, findings: RawFinding[]): RawFinding
     ctx,
     `(?<target>their)${SPACE}(?:on|in|at|by|near|beside|behind|inside|outside|under|until|among)${SPACE}(?:the|a|an|my|your|our|his|her|this|that)${END_WORD}`,
   ))
-    if (!opensClause(ctx, match.index)) push(match, "review_msg_their_there", "there");
+    if (!opensMainClause(ctx, match.index)) push(match, "review_msg_their_there", "there");
   // Possessive: a preposition never takes "they're"; "they're X were" has no room for a verb.
   for (const match of frameMatches(
     ctx,
@@ -195,7 +197,7 @@ function theirConfusions(ctx: DetectContext, findings: RawFinding[]): RawFinding
   ))
     if (
       !/^there$/i.test(match.groups!.target) ||
-      opensClause(ctx, match.index) ||
+      opensMainClause(ctx, match.index) ||
       new RegExp(
         `(?:\\b${PREPOSITION}|ing|\\bto[ \\t\\u00a0]+[a-z]+|\\b(?:create|creates|created|make|makes|made|have|has|had|get|gets|got|build|builds|built|find|found|choose|chose|bring|brought|use|uses|used|pay|paid|run|runs|ran|do|does|did|manage|managed|keep|keeps|kept|set|sets|write|wrote|host|hosted|provide|provides|provided|become|became|define|defined|pick|picks|picked|want|wants|wanted|need|needs|needed|take|takes|took|bring|brings|like|likes|prefer|prefers|love|loves)|\\b(?:check|checked|reset|update|updated|save|saved|change|changed|remember|remembered|forgot|entered|lost))[ \\t\\u00a0]+$`,
         "i",
@@ -250,7 +252,7 @@ function comparisonAndDegree(ctx: DetectContext, findings: RawFinding[]): RawFin
     `(?<target>your)${SPACE}(?:(?:completely|totally|still|already)${SPACE})?out${SPACE}(?:of|at|on|in|with|under|for)${END_WORD}`,
     `(?<target>your)(?:${SPACE}(?:so|very|really|too|totally|completely|absolutely|pretty|quite|extremely|barely|surprisingly)){1,3}${SPACE}(?!own${END_WORD})[a-z]+${COMPLETE}`,
   ].flatMap((pattern) => [...frameMatches(ctx, pattern)])) {
-    if (!opensClause(ctx, match.index) && !cued(ctx, match.index)) continue;
+    if (!opensMainClause(ctx, match.index) && !cued(ctx, match.index)) continue;
     const end = match.index + match[0].length;
     if (
       (/^(?:going|gonna)$/i.test(match.groups!.pred ?? "") || /^\w+\s+not\b/i.test(match[0])) &&
