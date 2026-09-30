@@ -395,6 +395,21 @@ export function spellingDiagnostic(
   });
 }
 
+/** A known word typed with two initial capitals ("LEt's"): one fix, first capital only. */
+export function casingDiagnostic(
+  prepared: PreparedReview,
+  candidate: SpellingCandidate,
+): ReviewDiagnostic | null {
+  if (!candidate.casing) return null;
+  return toDiagnostic(prepared, {
+    ruleId: REVIEW_SPELLING_CHECK,
+    messageKey: "review_msg_two_initial_capitals",
+    range: candidate.range,
+    alternatives: [candidate.casing],
+    dictionaryWord: candidate.word,
+  });
+}
+
 function toDiagnostic(prepared: PreparedReview, finding: Finding): ReviewDiagnostic | null {
   const { snapshot, options } = prepared;
   const source = snapshot.text;

@@ -121,8 +121,9 @@ const cleanups: Array<() => void> = [];
 afterEach(() => {
   while (cleanups.length) cleanups.pop()!();
 });
-function harness(mode: ClipboardMode = "firefox") {
+function harness(mode: ClipboardMode = "firefox", href?: string) {
   const win = new HostWindow(mode);
+  if (href) win.location.href = href;
   const model = { text: "hel", anchor: 3, focus: 3, pastes: 0, payloads: [] as string[] };
   let ignorePaste = false;
   const attachEditor = () => {
@@ -240,6 +241,14 @@ describe("Google Docs MAIN-world acceptance", () => {
       expect(h.model.pastes).toBe(1);
     });
   }
+  test("a new document opened at /create works once Docs swaps in its edit URL", async () => {
+    const h = harness("chromium", "https://docs.google.com/document/create");
+    expect(
+      (h.win as unknown as { _docs_annotate_canvas_by_ext?: string })._docs_annotate_canvas_by_ext,
+    ).toBeString();
+    h.win.location.href = "https://docs.google.com/document/d/new/edit?tab=t.0";
+    expect((await h.request("read")).status).toBe("ready");
+  });
   test("preserves edge spaces, Unicode and multiline replacement", async () => {
     const h = harness();
     const replacement = "  Zażółć 👩‍💻\n\nline two  ";

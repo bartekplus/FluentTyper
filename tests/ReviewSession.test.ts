@@ -623,6 +623,20 @@ describe("ReviewSession spelling", () => {
     return { lookup, calls, words: () => calls.flat().map((item) => item.word) };
   }
 
+  test("a known word typed with two initial capitals gets one casing fix; unknown ones are left alone", async () => {
+    const fake = fakeLookup({ Oauth: ["auth"] });
+    const h = harness("LEt’s go! Let us go! We use OAuth and IDs.", {
+      lookupSpelling: fake.lookup,
+    });
+    await Promise.all([h.session.start(), h.settle()]);
+    expect(fake.words()).toContain("Let's");
+    expect(fake.words()).not.toContain("IDs");
+    expect(
+      h.last().diagnostics.map((d) => [d.original, d.alternatives.map((a) => a.preview)]),
+    ).toEqual([["LEt’s", ["Let’s"]]]);
+    expect(h.last().diagnostics[0].messageKey).toBe("review_msg_two_initial_capitals");
+  });
+
   test("an unknown word becomes a pick-one finding after the rule results; nothing is applied", async () => {
     const fake = fakeLookup();
     const h = harness("Where wa it?", { lookupSpelling: fake.lookup });

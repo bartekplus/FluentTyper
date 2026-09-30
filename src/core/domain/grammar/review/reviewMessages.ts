@@ -732,6 +732,17 @@ const EXPLANATIONS: Record<ReviewMessageKey, Translations> = {
     "Tego słowa nie ma w słowniku. Wybierz właściwe słowo.",
     "Esta palavra não está no dicionário. Escolha a palavra que queria.",
   ],
+  review_msg_two_initial_capitals: [
+    "Only the first letter of this word should be a capital.",
+    "Seule la première lettre de ce mot doit être en majuscule.",
+    "Samo prvo slovo ove riječi treba biti veliko.",
+    "Solo la primera letra de esta palabra debe ir en mayúscula.",
+    "Μόνο το πρώτο γράμμα αυτής της λέξης πρέπει να είναι κεφαλαίο.",
+    "Endast den första bokstaven i det här ordet ska vara versal.",
+    "Nur der erste Buchstabe dieses Wortes sollte großgeschrieben sein.",
+    "Tylko pierwsza litera tego słowa powinna być wielka.",
+    "Apenas a primeira letra desta palavra deve ser maiúscula.",
+  ],
   review_msg_local_ai: [
     "Local AI correction. Check that the meaning is unchanged before applying.",
     "Correction par l'IA locale. Vérifiez que le sens reste le même avant d'appliquer.",
