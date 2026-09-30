@@ -94,7 +94,8 @@ export interface GrammarRuleCatalogEntry {
     | "englishYourYouAre"
     | "englishTheirThereTheyAre"
     | "englishToToo"
-    | "quoteSpacing";
+    | "quoteSpacing"
+    | "primeSymbols";
   /** Absent for existing typing rules; false for native Review-only checks. */
   typing?: false;
   name: string;

@@ -143,7 +143,7 @@ category. Native Review checks have independent switches in
 categories, each card badged with its kind, "Off by default" for optional
 checks and "English only" where that applies. Typing switches are listed under
 the same categories.
-Core checks default on. The optional style and typography checks (long sentences, redundancy, the ellipsis character, typed dashes) default off; restoring defaults
+Core checks default on. The optional style and typography checks (long sentences, redundancy, the ellipsis character, typed dashes, prime marks) default off; restoring defaults
 keeps them off. Typing switches still control only automatic corrections.
 A native finding's **Disable this check in Review** action saves that rule's choice
 and refreshes open reviews. Restore it in settings, individually or with **Restore defaults**.
@@ -194,6 +194,7 @@ Supported (**Typing** is the rule's default for typing; Review has separate swit
 | `duplicatePunctuationCollapse`         | all            | off         | punctuation | repetition         | yes (a four-dot ellipsis: individual only)                                                                                                     |
 | `ellipsisShortcut`                     | all            | off         | typography  | punctuation marks  | individual only; off by default in Review (optional "…" for "...")                                                                             |
 | `emdashShortcut`                       | all            | off         | typography  | punctuation marks  | individual only; off by default in Review (optional dash for "--" or "---")                                                                    |
+| `primeSymbols`                         | all            | unavailable | typography  | numbers and units  | individual only; off by default (optional ′ ″ for "5'7\"" and "48°51'")                                                                        |
 | `quoteSpacing`                         | all            | unavailable | punctuation | spacing            | individual only: a straight quote does not say which side needs the space, so both are offered                                                 |
 
 Agreement retains the six original typing pairs and their existing bulk rules.

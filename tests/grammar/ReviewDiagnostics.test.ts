@@ -115,9 +115,13 @@ describe("review rule coverage map", () => {
     expect(reviewRuleIds({ codeMode: false })).toEqual(
       supported.filter(
         (id) =>
-          !["styleRedundancy", "styleLongSentence", "ellipsisShortcut", "emdashShortcut"].includes(
-            id,
-          ),
+          ![
+            "styleRedundancy",
+            "styleLongSentence",
+            "ellipsisShortcut",
+            "emdashShortcut",
+            "primeSymbols",
+          ].includes(id),
       ),
     );
     // Off for typing by default, yet review finds it.

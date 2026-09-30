@@ -1136,6 +1136,41 @@ const quoteSpacing: Detector = (ctx) => {
   return findings;
 };
 
+// A number, a single mark, a number and a double mark: feet and inches or
+// minutes and seconds ("5'7\"", "30′ 15\""). Group 1 and 3 are the marks.
+const PRIME_PAIR =
+  /(?<=(?<![\p{L}\p{N}.,])\d+[  ]?)(['’‘′])([  ]?\d+(?:[.,]\d+)?[  ]?)(["”“″])(?!\p{N})/gu;
+// Degrees then minutes with no seconds after them ("48°51'N").
+const DEGREE_MINUTE = /(?<=\d°[  ]?\d+[  ]?)['’‘](?![  ]?\d|\p{L}{2})/gu;
+
+/** Optional typography: prime marks for feet, inches, minutes and seconds typed as quotes. */
+const primeSymbols: Detector = (ctx) => {
+  const findings: RawFinding[] = [];
+  for (const match of ownedMatches(ctx, PRIME_PAIR)) {
+    if (match[1] === "′" && match[3] === "″") continue;
+    const start = match.index;
+    const end = start + match[0].length;
+    findings.push({
+      ruleId: "primeSymbols",
+      messageKey: "review_msg_prime_symbols",
+      range: { start, end },
+      alternatives: [`′${ctx.source.slice(start + 1, end - 1)}″`],
+      context: { start: Math.max(0, start - 8), end: Math.min(ctx.text.length, end + 1) },
+    });
+  }
+  for (const match of ownedMatches(ctx, DEGREE_MINUTE)) {
+    const start = match.index;
+    findings.push({
+      ruleId: "primeSymbols",
+      messageKey: "review_msg_prime_symbols",
+      range: { start, end: start + 1 },
+      alternatives: ["′"],
+      context: { start: Math.max(0, start - 8), end: Math.min(ctx.text.length, start + 2) },
+    });
+  }
+  return findings;
+};
+
 /**
  * Optional typography: three periods as the one ellipsis character. Longer runs,
  * ranges ("1...5"), paths ("../") and spread syntax ("[...items]") are not ellipses.
@@ -1405,6 +1440,7 @@ export const REVIEW_DETECTORS: ReadonlyArray<{ rules: CatalogRuleId[]; detect: D
   { rules: ["duplicatePunctuationCollapse"], detect: duplicatePunctuation },
   { rules: ["ellipsisShortcut"], detect: ellipsisCharacter },
   { rules: ["quoteSpacing"], detect: quoteSpacing },
+  { rules: ["primeSymbols"], detect: primeSymbols },
   { rules: ["emdashShortcut"], detect: typedDashes },
   {
     rules: ["measurementUnitFormatting"],

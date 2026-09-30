@@ -96,6 +96,14 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     bulk: "individual",
     note: "A straight quotation mark does not say whether it opens or closes.",
   },
+  primeSymbols: {
+    review: "supported",
+    defaultEnabled: false,
+    category: "typography",
+    kind: "numbers",
+    bulk: "individual",
+    note: "Optional typography: typewriter quotes for feet and minutes are common.",
+  },
   englishUsagePhrases: {
     review: "supported",
     defaultEnabled: true,

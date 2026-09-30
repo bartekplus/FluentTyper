@@ -93,6 +93,17 @@ const EXPLANATIONS: Record<ReviewMessageKey, Translations> = {
     "Dodaj spację na zewnątrz tego cudzysłowu.",
     "Adicione um espaço do lado de fora destas aspas.",
   ],
+  review_msg_prime_symbols: [
+    "Optional typography: use prime marks (′ ″) for feet, inches, minutes and seconds.",
+    "Typographie facultative : utilisez les primes (′ ″) pour les pieds, pouces, minutes et secondes.",
+    "Neobavezna tipografija: za stope, inče, minute i sekunde koristite oznake ′ ″.",
+    "Tipografía opcional: use las primas (′ ″) para pies, pulgadas, minutos y segundos.",
+    "Προαιρετική τυπογραφία: χρησιμοποιήστε τόνους (′ ″) για πόδια, ίντσες, λεπτά και δευτερόλεπτα.",
+    "Valfri typografi: använd primtecken (′ ″) för fot, tum, minuter och sekunder.",
+    "Optionale Typografie: Verwenden Sie Striche (′ ″) für Fuß, Zoll, Minuten und Sekunden.",
+    "Opcjonalna typografia: użyj znaków prim (′ ″) dla stóp, cali, minut i sekund.",
+    "Tipografia opcional: use os sinais de linha (′ ″) para pés, polegadas, minutos e segundos.",
+  ],
   review_msg_usage_phrases: [
     "Check established phrases in context.",
     "Vérifiez les expressions établies en contexte.",
