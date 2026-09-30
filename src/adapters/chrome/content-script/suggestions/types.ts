@@ -3,6 +3,7 @@ import type {
   PredictResponseContext,
   PredictionInputAction,
 } from "@core/domain/messageTypes";
+import type { LiveGrammarProposal } from "@core/domain/grammar/review/liveProposals";
 import type { ContentEditableAdapter } from "./ContentEditableAdapter";
 import type { SuggestionGrammarCoordinator } from "./SuggestionGrammarCoordinator";
 import type { SuggestionPredictionCoordinator } from "./SuggestionPredictionCoordinator";
@@ -61,6 +62,8 @@ export interface SuggestionManagerOptions {
   inline_suggestion: boolean;
   preferNativeAutocomplete: boolean;
   enabledGrammarRules: string[];
+  /** Review checks offered as proposals while typing; none (or absent) turns proposals off. */
+  grammarProposalRules?: string[];
   userDictionaryList: string[];
   getPrediction: (context: PredictionRequest) => void;
   telemetry?: SuggestionTelemetry;
@@ -147,6 +150,10 @@ export interface SuggestionEntry {
   pendingIdleTimer: ReturnType<typeof setTimeout> | null;
   pendingGrammarPaste: boolean;
   recentInteractionTrail: string[];
+  /** A Review fix offered as the popup's last row; applied only when the user picks it. */
+  grammarProposal?: LiveGrammarProposal | null;
+  /** The proposal row is highlighted: accept keys apply it instead of a suggestion. */
+  grammarProposalSelected?: boolean;
   handlers: {
     beforeinput: EventListener;
     input: EventListener;
@@ -195,6 +202,8 @@ export interface SuggestionEntrySessionOptions {
     | "hasMultipleBlockDescendants"
   >;
   getPendingFallback?: () => PendingKeyFallback | undefined;
+  /** Review findings to propose for the text before the caret; absent when proposals are off. */
+  findGrammarProposals?: (beforeCursor: string) => LiveGrammarProposal[];
   renderMenu: (context: {
     suggestions: string[];
     snippetShortcuts?: Array<string | null>;

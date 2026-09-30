@@ -84,6 +84,7 @@ export function createHandler(
     updateSelectionHighlight: jest.fn(),
     acceptSuggestion: jest.fn(),
     acceptSuggestionAtIndex: jest.fn(),
+    acceptGrammarProposal: jest.fn(() => false),
     requestInlineSuggestion: jest.fn(),
     ...overrides,
   });

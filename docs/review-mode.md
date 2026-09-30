@@ -131,6 +131,36 @@ The panel names every state:
 - **Planning:** "Fix all safe (…)" while dependent fixes in a very large,
   error-dense text are still being proven; Fix all waits for the proof
 
+## Proposals while typing
+
+Typing rules fix only what is certain, and they fix it on their own. What
+Review would apply one at a time (never in "Fix all") is offered while you
+type instead, and is never applied without you:
+
+- When you pause (about 220 ms), the Review checks run on up to 500 characters
+  before the cursor. The newest finding that ends before the word you are
+  typing, and that was not in the field when you entered it, becomes the last
+  row of the suggestion popup: "is → are" and the short explanation (the full
+  explanation is its tooltip). With suggestions shown inline, the popup holds
+  only that row.
+- The row is never preselected. **Tab**, **Enter** and **Space** keep
+  accepting the first suggestion, or stay the page's when only the proposal
+  shows. Move onto it with the arrow keys and press an accept key, or click it.
+- Before writing, the span is found again, with the same fix, in the text as
+  it is now; a changed or vanished span is never written. The fix is one edit
+  that the undo shortcut reverts.
+- Typing on, **Escape**, a click in the field or leaving it dismisses the
+  proposal. A dismissed or shown span is not offered again while the page is
+  open.
+- Only native checks with a single fix are proposed: never dictionary
+  spelling, Local AI, warnings or choices between several fixes, never what
+  "Fix all" could apply (the typing rules cover that), and never a check a
+  typing rule already runs while that rule is on. They follow the Review
+  switches and the language, as Review does. Sensitive, locked and code fields
+  and code mode get none, and nothing is sent anywhere.
+- Turn it off under **Settings → Grammar → Review text → Show grammar
+  proposals while typing**. Google Docs has no proposals; use Review there.
+
 ## Rules and categories
 
 Review reuses the typing-time rules' own patterns, word lists and helpers.

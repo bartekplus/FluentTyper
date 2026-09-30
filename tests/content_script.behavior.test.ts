@@ -545,6 +545,28 @@ describe("content_script behavior", () => {
     expect(suggestionInstances.at(-1)?.options?.enabledGrammarRules).toEqual(["autoBracketClose"]);
   });
 
+  test("typing-time grammar proposals follow the Review switches and stay off in code mode", async () => {
+    const { fluentTyper, suggestionInstances } = await loadContentScript();
+    const proposalRules = () => suggestionInstances.at(-1)?.options?.grammarProposalRules;
+
+    fluentTyper.setConfig(defaultConfig({ enabledGrammarRules: [] }));
+    expect(proposalRules()).toEqual(reviewRuleIds({ codeMode: false }));
+
+    const overrides = { englishCountability: false };
+    fluentTyper.setConfig(defaultConfig({ reviewRuleOverrides: overrides }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(proposalRules()).toEqual(reviewRuleIds({ codeMode: false, overrides }));
+    expect(proposalRules()).not.toContain("englishCountability");
+
+    fluentTyper.setConfig(defaultConfig({ liveGrammarProposals: false }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(proposalRules()).toEqual([]);
+
+    fluentTyper.setConfig(defaultConfig({ enabledGrammarRules: [], codeMode: true }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(proposalRules()).toEqual([]);
+  });
+
   test("review defaults stay independent of typing and leave optional style off", async () => {
     const { fluentTyper, suggestionInstances } = await loadContentScript();
     // The options the review controller reads when a review starts or rechecks.
