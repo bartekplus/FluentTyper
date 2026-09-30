@@ -1040,7 +1040,7 @@ function measurementLike(
 // + article), fr "nous nous"/"vous vous" (reflexive), es/pt "para para" (verb +
 // preposition), hr "je je" (verb + clitic), el "με με" (pronoun + preposition).
 const REPEATABLE_WORDS: Record<string, string> = {
-  en: "the|an|a|is|are|was|were|in|on|at|for|with|from|of|to",
+  en: "the|an|a|and|as|is|are|was|were|in|on|at|for|with|from|of|to",
   de: "ein|eine|einen|einem|einer|eines|im|mit|von|für|auf|bei|aus|nach|zum|zur",
   fr: "le|les|un|une|des|du|au|aux|dans|pour|avec|sur",
   es: "el|los|las|un|una|en|con|del|al",

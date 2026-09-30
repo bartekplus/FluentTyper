@@ -270,8 +270,8 @@ and directly named quoted examples are left alone. Clause-internal subordinate
 syntax ("What I did works"), noun subjects and newline-spanning phrases are outside
 this initial scope. Existing modal-of and agreement checks retain their ownership.
 
-Repeated words are Review-only: a bounded per-language allowlist (English `the`, `a`, `an`, `is`,
-`are`, `was`, `were`, `in`, `on`, `at`, `for`, `with`, `from`, `of`, `to`; plus short lists of
+Repeated words are Review-only: a bounded per-language allowlist (English `the`, `a`, `an`, `and`,
+`as`, `is`, `are`, `was`, `were`, `in`, `on`, `at`, `for`, `with`, `from`, `of`, `to`; plus short lists of
 articles and prepositions for every other supported language) separated by
 1–8 spaces, tabs or no-break spaces. The first word keeps its casing; one
 suggestion deletes one duplicate and its separator. Longer runs recheck after
@@ -280,7 +280,10 @@ named quoted examples are excluded. This intentionally misses arbitrary repeated
 words and distant metalinguistic context; it is not a general repetition parser.
 Words that legitimately double are never listed: German `die die`/`das das`, French
 `nous nous`/`vous vous`, Spanish and Portuguese `para para`, Croatian `je je`, Greek
-`με με`, Polish `to to`. An unresolved auto-detect language runs no list.
+`με με`, Polish `to to`. English `to to` is repaired only before a determiner,
+number or name, or right after an infinitive verb with no clause gap: a stranded
+preposition ("the club I wrote to to complain") and an elided infinitive ("do
+whatever you have to to win") are correct. An unresolved auto-detect language runs no list.
 Normal quoted prose remains eligible. No typing rule or automatic fix is installed.
 
 Some text is left alone because it only looks like an error: "you" as an

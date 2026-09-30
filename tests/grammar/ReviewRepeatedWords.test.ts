@@ -45,6 +45,8 @@ const positives = [
   ['He shouted, "The the door is open!"', 'He shouted, "The door is open!"'],
   ["I have to to go home.", "I have to go home."],
   ["Please send it to to the team.", "Please send it to the team."],
+  ["Bread and and butter.", "Bread and butter."],
+  ["It looks as as good as new.", "It looks as good as new."],
 ];
 test.each(positives)("repairs %s", (source, expected) => {
   const findings = review(source);
