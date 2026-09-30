@@ -196,6 +196,7 @@ body.fluenttyper-options .settings-group .field {
 
 .workspace-section-body {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 0.875rem;
 }
 
@@ -227,18 +228,23 @@ body.fluenttyper-options .settings-group .label small,
   line-height: 1.45;
 }
 
-/* Sliders: value sits beside the track, not under it. */
+/* Sliders: value sits beside the track, not under it. Flex, not grid: a
+   max-content column let the help text widen the whole page. */
 
 body.fluenttyper-options .field:has(.slider-wrapper) .control {
-  display: grid;
-  grid-template-columns: minmax(0, 24rem) max-content;
-  justify-content: start;
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
   column-gap: 1rem;
 }
 
 body.fluenttyper-options .field:has(.slider-wrapper) .label {
-  grid-column: 1 / -1;
+  flex-basis: 100%;
+}
+
+body.fluenttyper-options .slider-wrapper {
+  flex: 0 1 24rem;
+  min-width: 0;
 }
 
 body.fluenttyper-options .slider-output {
@@ -247,12 +253,8 @@ body.fluenttyper-options .slider-output {
   font-weight: 600;
 }
 
-body.fluenttyper-options .slider-wrapper,
 body.fluenttyper-options input[type="range"].slider.is-fullwidth.has-output {
   width: 100%;
-}
-
-body.fluenttyper-options .slider.is-fullwidth {
   margin: 0.5rem 0;
 }
 

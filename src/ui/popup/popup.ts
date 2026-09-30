@@ -644,18 +644,18 @@ function initializeFooterLinks(): void {
   optionsLink.href = chrome.runtime.getURL("options/options.html");
 }
 
-function renderWeeklyRecapCard(stats: ProductivityDashboardStats): void {
+/** Returns whether the recap is showing; the popup shows one notice at a time. */
+function renderWeeklyRecapCard(stats: ProductivityDashboardStats): boolean {
   const cardNode = document.getElementById("weeklyRecapCard") as HTMLElement;
   const titleNode = document.getElementById("weeklyRecapTitle") as HTMLElement;
   const summaryNode = document.getElementById("weeklyRecapSummary") as HTMLElement;
   const dismissButton = document.getElementById("weeklyRecapDismissBtn") as HTMLButtonElement;
   const viewButton = document.getElementById("weeklyRecapViewBtn") as HTMLButtonElement;
   const shareButton = document.getElementById("weeklyRecapShareBtn") as HTMLButtonElement;
-  const supportLink = document.getElementById("weeklyRecapSupportLink") as HTMLAnchorElement;
 
   if (!stats.shouldShowWeeklyRecap) {
     cardNode.classList.add("is-hidden");
-    return;
+    return false;
   }
 
   cardNode.classList.remove("is-hidden");
@@ -683,7 +683,6 @@ function renderWeeklyRecapCard(stats: ProductivityDashboardStats): void {
     cardNode.classList.add("is-hidden");
   };
   dismissButton.onclick = dismiss;
-  supportLink.onclick = dismiss;
   shareButton.onclick = () => {
     void copyTextToClipboard(recapShareText);
     dismiss();
@@ -692,6 +691,7 @@ function renderWeeklyRecapCard(stats: ProductivityDashboardStats): void {
     dismiss();
     openOptionsPageAtAnchor(OPTIONS_ANCHOR_ADVANCED);
   };
+  return true;
 }
 
 function renderMilestoneHint(stats: ProductivityDashboardStats): void {
@@ -734,17 +734,21 @@ function renderMilestoneHint(stats: ProductivityDashboardStats): void {
 }
 
 function renderDashboard(stats: ProductivityDashboardStats): void {
+  // No-break spaces keep each number on the same line as its unit.
   const periodSummary = `${i18n.get("popup_short_last7")}: ${formatNumber(
     stats.last7Days.acceptedSuggestions,
-  )} ${i18n.get("popup_short_accepted")} • ${formatNumber(
+  )}\u00a0${i18n.get("popup_short_accepted")} • ${formatNumber(
     stats.last7Days.charactersSaved,
-  )} ${i18n.get("popup_short_chars")} • ${formatNumber(
+  )}\u00a0${i18n.get("popup_short_chars")} • ${formatNumber(
     stats.last7Days.estimatedMinutesSaved,
-  )} ${i18n.get("popup_short_minutes")}`;
+  )}\u00a0${i18n.get("popup_short_minutes")}`;
 
   (document.getElementById("dashboardPeriodSummary") as HTMLElement).textContent = periodSummary;
-  renderWeeklyRecapCard(stats);
-  renderMilestoneHint(stats);
+  if (renderWeeklyRecapCard(stats)) {
+    document.getElementById("dashboardMilestoneHint")?.classList.add("is-hidden");
+  } else {
+    renderMilestoneHint(stats);
+  }
 }
 
 function clearProductivityDashboardRetryTimer(): void {
@@ -878,6 +882,8 @@ function init() {
       const currentTab = tabs.length === 1 ? tabs[0] : undefined;
       currentTabId = typeof currentTab?.id === "number" ? currentTab.id : null;
       currentPageState = getCurrentPageState(currentTab?.url);
+      // The website-access ask only belongs on pages FluentTyper could run on.
+      document.body.dataset.pageKind = currentPageState.kind;
       currentDomainURL =
         currentPageState.kind === "actionable" ? getDomain(currentTab?.url || "") : undefined;
       if (currentPageState.kind !== "actionable") {

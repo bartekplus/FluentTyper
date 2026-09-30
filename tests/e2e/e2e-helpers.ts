@@ -865,3 +865,61 @@ export async function evaluateInContentScript<T>(page: Page, expression: string)
     await session.detach().catch(() => undefined);
   }
 }
+
+export interface LayoutOverflow {
+  element: string;
+  container: string;
+  overflowPx: number;
+}
+
+/**
+ * Elements that poke out of their surface (card, header, toolbar or the page itself), plus
+ * the page scrolling sideways. `maxHeight` also flags vertical page scroll (e.g. popups).
+ */
+export async function findLayoutOverflow(
+  page: import("puppeteer").Page,
+  maxHeight?: number,
+): Promise<LayoutOverflow[]> {
+  return page.evaluate((heightLimit) => {
+    const surfaces =
+      ".popup-card, .settings-inline-card, .popup-header, .toolbar, .popup-stats-row";
+    const describe = (el: Element) =>
+      el.id ? `#${el.id}` : `${el.tagName.toLowerCase()}.${[...el.classList].join(".")}`;
+    const found: Array<{ element: string; container: string; overflowPx: number }> = [];
+    const root = document.documentElement;
+    if (root.scrollWidth > window.innerWidth + 0.5) {
+      found.push({
+        element: "document",
+        container: "viewport",
+        overflowPx: root.scrollWidth - window.innerWidth,
+      });
+    }
+    if (heightLimit !== undefined && root.scrollHeight > heightLimit + 0.5) {
+      found.push({
+        element: "document",
+        container: `height ${heightLimit}`,
+        overflowPx: root.scrollHeight - heightLimit,
+      });
+    }
+    for (const el of document.body.querySelectorAll("*")) {
+      const rect = el.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0 || el.closest(".sr-only, .is-sr-only")) continue;
+      // A closed <details> still lays out its body; only its summary is on screen.
+      const closed = el.closest("details:not([open])");
+      if (closed && !el.closest("summary") && el !== closed) continue;
+      const surface = el.parentElement?.closest(surfaces);
+      if (!surface) continue;
+      const box = surface.getBoundingClientRect();
+      const overflowPx = Math.max(
+        box.left - rect.left,
+        rect.right - box.right,
+        box.top - rect.top,
+        rect.bottom - box.bottom,
+      );
+      if (overflowPx > 0.5) {
+        found.push({ element: describe(el), container: describe(surface), overflowPx });
+      }
+    }
+    return found;
+  }, maxHeight);
+}

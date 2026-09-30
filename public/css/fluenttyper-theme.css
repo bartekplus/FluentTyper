@@ -17,7 +17,7 @@
   --accent-color-darker: #4338ca;
 
   --on-accent-color: #ffffff;
-  --success-color: #059669;
+  --success-color: #047857;
   --warning-color: #b45309;
   --danger-color: #dc2626;
 
@@ -150,6 +150,8 @@
 .settings-inline-card,
 .popup-card {
   display: grid;
+  /* A shrinkable column: a wide control never pushes its card wider. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 0.75rem;
   padding: 1.25rem;
   border: 1px solid var(--divider-color);
@@ -229,6 +231,13 @@
 :is(.fluenttyper-options, .fluenttyper-popup) .switch[type="checkbox"][disabled] + label,
 .fluenttyper-options .field.is-disabled .switch + label {
   opacity: 0.55;
+}
+
+/* Disclosure summaries get the same focus ring as every other control. */
+:is(.fluenttyper-options, .fluenttyper-popup) summary:focus-visible {
+  outline: 2px solid var(--accent-color);
+  outline-offset: 2px;
+  border-radius: 0.25rem;
 }
 
 /* Buttons */
@@ -321,24 +330,19 @@ body.fluenttyper-popup {
   font-weight: 700;
 }
 
+.popup-header .popup-select {
+  max-width: 12rem;
+}
+
 .popup-header .switch[type="checkbox"] + label {
   padding-left: 2.25rem;
 }
 
-/* Wide rather than tall: Chrome caps popups at 800x600, so rows go side by side. */
+/* Wide rather than tall: Chrome caps popups at 800x600, so the site card lays out in two columns. */
 .popup-main {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.625rem;
   padding: 0.625rem;
-}
-
-.popup-main {
-  align-items: start;
-}
-
-.popup-main > :is(.page-state-panel, .permission-status) {
-  grid-column: 1 / -1;
 }
 
 .popup-card {
@@ -358,14 +362,26 @@ body.fluenttyper-popup {
   min-width: 0;
 }
 
+/* The select gives way to its label instead of spilling out of the card. */
+.popup-row > .popup-select {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.popup-card:has(> .popup-row:only-child) {
+  align-content: center;
+}
+
 .popup-row .switch[type="checkbox"] + label {
   flex: none;
   padding-left: 2.25rem;
 }
 
+/* Side-by-side site rows line their switches up with their titles. */
 .page-state-panel > .popup-row,
 .popup-profile > .popup-row {
   align-self: start;
+  align-items: flex-start;
   padding-top: 0.625rem;
   border-top: 1px solid var(--divider-color);
 }
@@ -405,6 +421,7 @@ body.fluenttyper-popup {
     "head head"
     "body action"
     "meta action"
+    "access access"
     "site profile"
     "details details";
   gap: 0 1rem;
@@ -451,6 +468,32 @@ body.fluenttyper-popup {
 
 .profile-customize {
   grid-area: details;
+}
+
+/* Website access: one line and one button inside the site card, only on real websites. */
+.page-state-panel > .permission-status {
+  grid-area: access;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--divider-color);
+}
+
+.page-state-panel > .permission-status :is(.permission-status__badge, .permission-status__title),
+.page-state-panel:has(> .permission-status:not(.is-hidden)) > .page-state-body,
+body:not([data-page-kind="actionable"]) #permissionBanner {
+  display: none;
+}
+
+.page-state-panel > .permission-status.is-hidden {
+  display: none;
+}
+
+.page-state-panel > .permission-status .button {
+  flex: none;
 }
 
 .page-state-panel:not(:has(.page-state-action:not(.is-hidden)))
@@ -531,16 +574,10 @@ body.fluenttyper-popup {
   margin-left: auto;
   padding: 0 0.375rem;
   border-radius: 0.25rem;
-  background: color-mix(in srgb, var(--on-accent-color) 18%, transparent);
+  background: color-mix(in srgb, var(--text-color) 22%, transparent);
   font: inherit;
   font-size: 0.75rem;
   font-weight: 500;
-}
-
-.profile-details {
-  display: grid;
-  gap: 0.5rem;
-  margin-top: 0.625rem;
 }
 
 .profile-customize > summary {
@@ -570,42 +607,17 @@ body.fluenttyper-popup {
   font-size: 0.8125rem;
 }
 
+.profile-row--wide {
+  grid-column: span 2;
+}
+
 .profile-row .popup-select {
   width: 100%;
   min-width: 0;
   max-width: none;
 }
 
-/* Website access */
-
-.permission-status {
-  border-color: color-mix(in srgb, var(--warning-color) 45%, var(--divider-color));
-  background: color-mix(in srgb, var(--warning-color) 8%, var(--box-background-color));
-}
-
-.permission-status[data-permission-state="granted"] {
-  border-color: color-mix(in srgb, var(--success-color) 45%, var(--divider-color));
-  background: color-mix(in srgb, var(--success-color) 8%, var(--box-background-color));
-}
-
-.permission-status[data-permission-state="unavailable"] {
-  border-color: var(--divider-color);
-  background: var(--box-background-color);
-}
-
-.permission-status__badge {
-  color: var(--warning-color);
-  font-size: 0.8125rem;
-  font-weight: 600;
-}
-
-.permission-status[data-permission-state="granted"] .permission-status__badge {
-  color: var(--success-color);
-}
-
-.permission-status[data-permission-state="unavailable"] .permission-status__badge {
-  color: var(--text-color-light);
-}
+/* Website access (text shared with onboarding) */
 
 .permission-status__title {
   margin: 0;
@@ -693,14 +705,27 @@ body.fluenttyper-popup {
   margin: 0;
 }
 
-/* The weekly recap stands in for the running summary while it is shown. */
-.popup-stats:has(#weeklyRecapCard:not(.is-hidden)) .popup-stats-row {
+/* One notice at a time, as a single strip; hidden while the site is being customized. */
+.popup-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.625rem 0.75rem 0.625rem 1rem;
+}
+
+.popup-notice.is-hidden,
+.popup-main:has(#siteProfileDetails[open]) .popup-notice {
   display: none;
+}
+
+.popup-notice-copy {
+  min-width: 0;
 }
 
 .popup-notice-actions {
   display: flex;
-  flex-wrap: wrap;
+  flex: none;
   align-items: center;
   gap: 0.5rem;
 }

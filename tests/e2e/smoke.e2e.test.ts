@@ -16,6 +16,7 @@ import {
   launchBrowser,
   openExtensionPage,
   openPopupPage,
+  findLayoutOverflow,
   waitUntil,
   suiteTimeout,
   clickReviewControl,
@@ -1082,6 +1083,8 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
         await popupPage.waitForSelector("body", {
           timeout: suiteTimeout(3000, 7000),
         });
+        // Chrome caps popups at 600px tall: nothing may scroll or spill out of its card.
+        expect(await findLayoutOverflow(popupPage, 600)).toEqual([]);
       } finally {
         if (!popupPage.isClosed()) {
           await popupPage.close();
@@ -1197,6 +1200,14 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
         }));
 
         expect(state.activeTabId).toBe("site_mgmt_tab");
+        for (const tab of ["core_settings", "grammar_tab", "advanced_tab"]) {
+          await optionsPage.evaluate((hash) => (window.location.hash = hash), tab);
+          await optionsPage.waitForSelector(`#${tab}:not(.is-hidden)`);
+          expect({ tab, overflow: await findLayoutOverflow(optionsPage) }).toEqual({
+            tab,
+            overflow: [],
+          });
+        }
       } finally {
         if (!optionsPage.isClosed()) {
           await optionsPage.close();

@@ -105,11 +105,13 @@ describe("onboarding permission status", () => {
     const button = document.getElementById("grant-permissions-btn") as HTMLButtonElement;
 
     expect(container.dataset.permissionState).toBe("missing");
-    expect(document.getElementById("permissions-title")?.textContent).toBe("Allow page access");
-    expect(document.getElementById("permissions-copy")?.textContent).toBe(
-      "FluentTyper needs website access to show suggestions in text fields, and everything stays local in your browser.",
+    expect(document.getElementById("permissions-title")?.textContent).toBe(
+      "Allow FluentTyper on websites",
     );
-    expect(button.textContent).toBe("Allow page access");
+    expect(document.getElementById("permissions-copy")?.textContent).toBe(
+      "Everything runs on your device; nothing you type leaves your browser. FluentTyper needs access to all websites to help in their text fields.",
+    );
+    expect(button.textContent).toBe("Allow on all websites");
     expect(document.getElementById("permissions-title")?.textContent).not.toContain(
       "permission_status_",
     );
