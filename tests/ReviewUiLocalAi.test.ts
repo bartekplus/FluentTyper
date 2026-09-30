@@ -280,6 +280,16 @@ describe("ReviewUi: Local AI", () => {
     expect(shown('[data-action="reset-ignores"]')).toBe(true);
   });
 
+  test("paragraphs in another language are reported as a spelling gap", () => {
+    const coverage = { checkedRules: [], failedRules: [], skipped: {} };
+    ui.render(state({ coverage }));
+    expect($(".notes").textContent).not.toContain("another language");
+    ui.render(state({ coverage: { ...coverage, skipped: { "other-language": 84 } } }));
+    expect($(".notes").textContent).toContain(
+      "Spelling not checked in 84 characters that look like another language.",
+    );
+  });
+
   test("warning-only cards label the issue and offer no replacement action", () => {
     const diagnostic = finding("warning", {
       ruleId: "unclosedQuotation",

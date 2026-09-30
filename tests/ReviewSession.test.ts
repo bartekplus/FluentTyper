@@ -801,7 +801,8 @@ describe("ReviewSession spelling", () => {
     // Unknown words (each gets a close suggestion): the check stops soon after the limit.
     const unknown = distinctWords(SPELLING_UNKNOWN_PER_PASS + 60);
     const asked: string[] = [];
-    const h = harness(unknown.join(" "), {
+    // Short lines: too few words each to be taken for another language.
+    const h = harness(unknown.join(" ").replace(/((?:\S+ ){4}\S+) /g, "$1\n"), {
       lookupSpelling: (_lang, words) => {
         asked.push(...words.map(({ word }) => word));
         return Promise.resolve(words.map(({ word }) => [`${word}s`]));
@@ -903,6 +904,46 @@ describe("ReviewSession spelling", () => {
     await Promise.all([none.session.start(), none.settle()]);
     expect(none.last().spelling).toBe("off");
     expect(off.calls).toEqual([]);
+  });
+
+  test("a paragraph in another language gets no spelling findings and is reported; rules still run", async () => {
+    const english = new Set(
+      "thanks for the notes i will send my reply tonight we got this morning die".split(" "),
+    );
+    const german =
+      "Wir haben die Unterlagen gestern bekommen, aber teh Adresse war leider falsch und wir warten.";
+    const h = harness(
+      `Thanks for the notes, I will send my reply tonight.\n${german}\nWe got the pakage this morning.`,
+      {
+        lookupSpelling: (_lang, words) =>
+          Promise.resolve(
+            words.map(({ word }) => (english.has(word.toLowerCase()) ? null : ["package"])),
+          ),
+      },
+    );
+    await Promise.all([h.session.start(), h.settle()]);
+    expect(h.last().spelling).toBe("done");
+    // The rule finding inside the German paragraph stays; its unknown words are not typos.
+    expect(h.originals()).toEqual(["teh", "pakage"]);
+    expect(h.last().coverage?.skipped["other-language"]).toBe(german.length);
+  });
+
+  test("another language's unknown words do not use up the per-pass limit", async () => {
+    const foreign = distinctWords(SPELLING_UNKNOWN_PER_PASS + 50);
+    const h = harness(`${foreign.join(" ")}\nWhere wa it?`, {
+      lookupSpelling: (_lang, words) =>
+        Promise.resolve(
+          words.map(({ word }) => (word.startsWith("q") || word === "wa" ? ["was"] : null)),
+        ),
+    });
+    await Promise.all([h.session.start(), h.settle()]);
+    expect(h.last().spelling).toBe("done");
+    // Marked with the first answers: none of its words was ever listed.
+    expect(h.states.flatMap((state) => state.diagnostics.map((d) => d.original))).not.toContain(
+      foreign[0],
+    );
+    expect(h.originals()).toEqual(["wa"]);
+    expect(h.last().coverage?.skipped["other-language"]).toBe(foreign.join(" ").length);
   });
 });
 
