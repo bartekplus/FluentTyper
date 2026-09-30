@@ -42,6 +42,15 @@ export class MathOperatorSpacingRule extends SpacingRuleShared implements Gramma
     if (operatorChar === "=" && /[-?&`<]/.test(beforeOperand)) {
       return null;
     }
+    // '<span title="x">': an attribute inside an open HTML tag.
+    if (
+      operatorChar === "=" &&
+      /<[A-Za-z][\w:-]*\s[^<>]*$/.test(
+        inputStr.slice(Math.max(0, leftOperand.start - 256), leftOperand.start),
+      )
+    ) {
+      return null;
+    }
     // A number ending a name ("FOO2", "var1") is part of that name.
     const standaloneNumber =
       leftOperand.kind === "number" && !this.isIdentifierChar(inputStr[leftOperand.start - 1]);
