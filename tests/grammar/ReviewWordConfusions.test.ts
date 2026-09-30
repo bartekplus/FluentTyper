@@ -66,6 +66,11 @@ const positives: Record<(typeof ids)[number], [string, string][]> = {
       "The files are slightly larger than the documents.",
     ],
     ["The result is better then the answer.", "The result is better than the answer."],
+    ["She is taller then me.", "She is taller than me."],
+    ["We paid more then them.", "We paid more than them."],
+    ["The station is busier then ever.", "The station is busier than ever."],
+    ["Use tea rather then coffee.", "Use tea rather than coffee."],
+    ["Easier said then done.", "Easier said than done."],
   ],
   englishYourYouAre: [
     ["Your going to like this.", "You're going to like this."],
@@ -153,6 +158,13 @@ const negatives: Record<(typeof ids)[number], string[]> = {
     "This is faster `then` the old version.",
     "This is faster then\nthe old version.",
     "This is faster then the old version.js",
+    // A sequence or a new clause after "then".
+    "I met her earlier then him.",
+    "I would rather then wait.",
+    "I'd rather then go home.",
+    "If the box is bigger then you should wait.",
+    "It got colder then it snowed.",
+    "We checked the printer then them.",
     "This is faster then the old versions_are_ready.",
   ],
   englishYourYouAre: [

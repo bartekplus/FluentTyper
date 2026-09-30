@@ -66,11 +66,11 @@ export class SlashContextSpacingRule extends SpacingRuleShared implements Gramma
       return false;
     }
 
-    const previousSignificant = this.findPreviousSignificantChar(inputStr, slashIndex - 1);
-    return this.isSlashOperandLike(previousSignificant);
-  }
-
-  private isSlashOperandLike(ch: string | null): boolean {
-    return !!ch && ([")", "]", "}"].includes(ch) || /[\p{L}\p{N}]/u.test(ch));
+    // Only a math operand: a number, a single letter or a closing bracket
+    // ("10 /", "x /", "(a+b) /"). After a word, "/" opens a path or switch:
+    // "Open /etc/hosts", "Type /help".
+    return /(?:^|\s)(?:[-+]?\p{N}+(?:[.,]\p{N}+)*|\p{L})[ \t\u00a0]+\/$|[)\]}][ \t\u00a0]+\/$/u.test(
+      inputStr.slice(Math.max(0, slashIndex - 64), slashIndex + 1),
+    );
   }
 }

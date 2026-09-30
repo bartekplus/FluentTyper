@@ -96,7 +96,9 @@ export interface GrammarRuleCatalogEntry {
     | "englishThenThan"
     | "englishYourYouAre"
     | "englishTheirThereTheyAre"
-    | "englishToToo";
+    | "englishToToo"
+    | "quoteSpacing"
+    | "primeSymbols";
   /** Absent for existing typing rules; false for native Review-only checks. */
   typing?: false;
   name: string;

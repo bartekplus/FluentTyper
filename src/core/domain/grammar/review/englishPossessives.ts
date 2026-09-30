@@ -38,6 +38,14 @@ export function contextualPossessives(ctx: DetectContext): RawFinding[] {
       replacement: "it's",
       clause: true,
     },
+    // Possessive "its" is followed by its noun phrase, never an article, "been",
+    // "not" or a clause: "its a", "its been", "its because" are "it's".
+    {
+      ruleId: "englishItsContext",
+      messageKey: "review_msg_its_contraction",
+      pattern: `(?<target>its)${SPACE}(?:a|an|been|because|not|never|always|too|called|named|got)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])`,
+      replacement: "it's",
+    },
     {
       ruleId: "englishLetsContext",
       messageKey: "review_msg_lets_contraction",

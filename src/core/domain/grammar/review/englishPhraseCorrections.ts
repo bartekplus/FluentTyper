@@ -5,6 +5,7 @@ import {
   NAME_CASING,
   PHRASE_CORRECTIONS,
   STYLE_PHRASES,
+  UNAMBIGUOUS_CAPS_ABBREVIATIONS,
   type PhraseRow,
 } from "./englishPhraseTables";
 import { LANGUAGE_PHRASE_TABLES } from "./languagePhraseTables";
@@ -163,6 +164,12 @@ function toFinding(
     typed.includes("’") ||
     (!typed.includes("'") && ctx.text.slice(Math.max(0, start - 200), end + 200).includes("’"));
   const abbreviation = phrase.ruleId === "stylePhrasing" && !/\s/.test(typed);
+  if (
+    abbreviation &&
+    typed === typed.toUpperCase() &&
+    !UNAMBIGUOUS_CAPS_ABBREVIATIONS.has(typed.toLowerCase())
+  )
+    return null;
   const alternatives = phrase.replacements.map((replacement) => {
     const cased = casing ? replacement : matchCase(typed, replacement, abbreviation, sentenceStart);
     return curly ? cased.replace(/'/g, "’") : cased;

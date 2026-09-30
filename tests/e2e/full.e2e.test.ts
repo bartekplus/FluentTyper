@@ -5981,8 +5981,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await waitForInputReady(page, selector);
 
       await clearInputContent(page, selector);
-      await typeInInput(page, selector, "hello\nw");
-      await waitForInputContentEqual(page, selector, "hello\nW", browserTimeout(5000, 9000));
+      await typeInInput(page, selector, "hello\nworld ");
+      await waitForInputContentEqual(page, selector, "hello\nWorld ", browserTimeout(5000, 9000));
 
       await setGrammarRulesAndWait(worker!, []);
       await applyConfigChange(browser, worker!);

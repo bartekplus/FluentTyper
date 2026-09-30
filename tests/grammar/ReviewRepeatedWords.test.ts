@@ -43,6 +43,10 @@ const positives = [
   ["The the report is here.", "The report is here."],
   ["😀 Café́: the\t the report.\r\nDone.", "😀 Café́: the report.\r\nDone."],
   ['He shouted, "The the door is open!"', 'He shouted, "The door is open!"'],
+  ["I have to to go home.", "I have to go home."],
+  ["Please send it to to the team.", "Please send it to the team."],
+  ["Bread and and butter.", "Bread and butter."],
+  ["It looks as as good as new.", "It looks as good as new."],
 ];
 test.each(positives)("repairs %s", (source, expected) => {
   const findings = review(source);
@@ -96,6 +100,12 @@ const negatives = [
   "can can dancers",
   "that that",
   "the-the the report",
+  // A stranded preposition or an elided infinitive before "to".
+  "Here is the club I wrote to to complain.",
+  "Do whatever you have to to win.",
+  "Adjust it as you need to to finish.",
+  "This is the form we refer to to check totals.",
+  "The file being pointed to to load is missing.",
 ];
 test.each(negatives)("preserves %s", (text) => expect(review(text)).toEqual([]));
 
@@ -151,11 +161,37 @@ test.each([
   ["hr_HR", "Idem na na posao.", "Idem na posao."],
   ["el_GR", "Πάω στο στο σπίτι.", "Πάω στο σπίτι."],
   ["ar_SA", "ذهبت إلى إلى المدرسة.", "ذهبت إلى المدرسة."],
+  // Conjunctions, demonstratives and a few auxiliaries.
+  ["en_US", "Salt and and pepper.", "Salt and pepper."],
+  ["en_US", "It is as as good as new.", "It is as good as new."],
+  ["en_US", "Keep this this way.", "Keep this way."],
+  ["en_US", "😀 We would would like tea.", "😀 We would like tea."],
+  ["de_DE", "Ich weiß, dass dass du kommst.", "Ich weiß, dass du kommst."],
+  ["fr_FR", "Du pain et et du vin.", "Du pain et du vin."],
+  ["es_ES", "Pan y y vino.", "Pan y vino."],
+  ["pt_BR", "Pão e e vinho.", "Pão e vinho."],
+  ["pl_PL", "Chleb i i wino.", "Chleb i wino."],
+  ["sv_SE", "Bröd och och vin.", "Bröd och vin."],
+  ["hr_HR", "Kruh i i vino.", "Kruh i vino."],
+  ["el_GR", "Ψωμί αλλά αλλά κρασί.", "Ψωμί αλλά κρασί."],
+  ["ar_SA", "ذهبت مع مع صديقي.", "ذهبت مع صديقي."],
 ])("%s repairs %s", (lang, source, expected) => {
   const findings = review(source, {}, [], lang);
   expect(findings).toHaveLength(1);
   expect(applyEdits(source, findings[0].alternatives[0].edits)).toBe(expected);
   expect(review(expected, {}, [], lang)).toEqual([]);
+});
+
+test.each([
+  ["de_DE", "Es gab Brot und und und."],
+  ["es_ES", "Lo que es es verdad."],
+  ["pt_BR", "O que é é verdade."],
+  ["el_GR", "Και και οι δύο ήρθαν."],
+  ["sv_SE", "Var var du i går?"],
+  ["en_US", "I gave her her keys."],
+  ["en_US", "They can can fruit."],
+])("%s keeps the legitimate doubling %s", (lang, source) => {
+  expect(review(source, {}, [], lang)).toEqual([]);
 });
 
 test.each([
