@@ -336,7 +336,13 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     bulk: "individual",
     note: "Optional typography: three periods are correct too.",
   },
-  emdashShortcut: { review: "excluded", reason: "Typing shortcut, not an error." },
+  emdashShortcut: {
+    review: "supported",
+    defaultEnabled: false,
+    category: "typography",
+    bulk: "individual",
+    note: "Optional typography; en or em dash is a house style.",
+  },
   smartQuoteNormalization: {
     review: "excluded",
     reason: "Typing convenience; straight quotes in finished text may be code or deliberate.",

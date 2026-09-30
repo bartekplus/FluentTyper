@@ -130,7 +130,7 @@ Each catalog rule is classified in
 [`reviewCatalog.ts`](../src/core/domain/grammar/review/reviewCatalog.ts), and
 its `Record` type makes an unclassified new rule a compile error. Native Review
 checks have independent switches in **Settings → Grammar → Review text**.
-Core checks default on. The optional style and typography checks (long sentences, redundancy, the ellipsis character) default off; restoring defaults
+Core checks default on. The optional style and typography checks (long sentences, redundancy, the ellipsis character, typed dashes) default off; restoring defaults
 keeps them off. Typing switches still control only automatic corrections.
 A native finding's **Disable this check in Review** action saves that rule's choice
 and refreshes open reviews. Restore it in settings, individually or with **Restore defaults**.
@@ -179,6 +179,7 @@ Supported (**Typing** is the rule's default for typing; Review has separate swit
 | `commaPeriodSpacing`                   | all            | on          | punctuation | yes (Greek `;`, Arabic `؟ ؛` and Spanish `¿ ¡` padding: individual only)                                                                       |
 | `collapseRepeatedSpaces`               | all            | on          | punctuation | yes (alignment gaps and Markdown table padding are left alone)                                                                                 |
 | `duplicatePunctuationCollapse`         | all            | off         | punctuation | yes (a four-dot ellipsis: individual only)                                                                                                     |
+| `emdashShortcut`                       | all            | off         | typography  | individual only; off by default in Review (optional dash for "--" or "---")                                                                    |
 | `ellipsisShortcut`                     | all            | off         | typography  | individual only; off by default in Review (optional "…" for "...")                                                                             |
 
 Agreement retains the six original typing pairs and their existing bulk rules.
@@ -316,7 +317,6 @@ Excluded (typing conveniences, not errors in finished text):
 | `openingBracketSpacing`    | Only spaces code-like `){`; not prose proofreading.                        |
 | `closingBracketSpacing`    | Bracket spacing in finished text is often notation, Markdown or intervals. |
 | `trimSpaceBeforeLineBreak` | Invisible, and two trailing spaces are a Markdown line break.              |
-| `emdashShortcut`           | Typing shortcut, not an error.                                             |
 | `smartQuoteNormalization`  | Straight quotes in finished text may be code or deliberate.                |
 | `frenchPunctuationSpacing` | Typing-time convention; invisible no-break space changes.                  |
 | `autoBracketClose`         | Review never inserts closing brackets.                                     |

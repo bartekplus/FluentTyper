@@ -171,6 +171,46 @@ describe("ellipsis character (ellipsisShortcut, optional)", () => {
   });
 });
 
+describe("typed dashes (emdashShortcut, optional)", () => {
+  const rule = "emdashShortcut";
+  const offered = (text: string, lang = "en_US") =>
+    review(text, rule, lang).map((d) => [d.original, d.alternatives.map((a) => a.preview)]);
+
+  test("is off by default", () => {
+    expect(reviewRuleIds({ codeMode: false })).not.toContain(rule);
+  });
+
+  test.each([
+    ["It was late--too late.", "It was late—too late."],
+    ["It was late -- too late.", "It was late — too late."],
+    ["The answer --- none.", "The answer — none."],
+    ["See pages 10--20.", "See pages 10–20."],
+    ["😀 Wait--what?", "😀 Wait—what?"],
+    ["I was going to--", "I was going to—"],
+  ])("offers %p", (input, expected) => {
+    expect(review(input, rule).every((d) => !d.bulk.eligible)).toBe(true);
+    expect(repaired(input, rule)).toBe(expected);
+  });
+
+  test("offers both dashes for a double hyphen, in the language's order", () => {
+    expect(offered("late -- too late")).toEqual([["--", ["—", "–"]]]);
+    expect(offered("spät -- zu spät", "de_DE")).toEqual([["--", ["–", "—"]]]);
+    expect(offered("10--20", "fr_FR")).toEqual([["--", ["–"]]]);
+  });
+
+  test.each([
+    "Run it with --force now.",
+    "---\ntitle: notes",
+    "-- a list item",
+    "Hide <!-- this --> part.",
+    "Go a --> b quickly.",
+    "Rules ---- here.",
+    "A well-known fact.",
+  ])("keeps %p", (input) => {
+    expect(review(input, rule)).toEqual([]);
+  });
+});
+
 describe("ellipsis length (duplicatePunctuationCollapse)", () => {
   const rule = "duplicatePunctuationCollapse";
   test.each([

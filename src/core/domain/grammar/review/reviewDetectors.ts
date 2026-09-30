@@ -1113,6 +1113,43 @@ const ellipsisCharacter: Detector = (ctx) => {
   return findings;
 };
 
+/**
+ * Optional typography: "--" and "---" typed for a dash. "---" is an em dash;
+ * "--" is an en dash between numbers ("10--20") and otherwise either dash,
+ * English preferring the em dash and the other languages the spaced en dash.
+ * Line-leading runs (rules, list markers, SQL comments, signatures), command
+ * options ("--force") and HTML comments are not dashes.
+ */
+const typedDashes: Detector = (ctx) => {
+  const findings: RawFinding[] = [];
+  const english = ctx.lang.startsWith("en");
+  for (const match of ownedMatches(ctx, /(?<![-<!])-{2,3}(?![->])/gu)) {
+    const start = match.index;
+    const end = start + match[0].length;
+    const before = ctx.text[start - 1] ?? "";
+    const after = ctx.text[end] ?? "";
+    const lineStart = ctx.text.lastIndexOf("\n", start - 1) + 1;
+    if (ctx.text.slice(lineStart, start).trim() === "") continue;
+    if (/\s/.test(before) && /[\p{L}\p{N}]/u.test(after)) continue;
+    const alternatives =
+      match[0].length === 3
+        ? ["—"]
+        : /\p{N}/u.test(before) && /\p{N}/u.test(after)
+          ? ["–"]
+          : english
+            ? ["—", "–"]
+            : ["–", "—"];
+    findings.push({
+      ruleId: "emdashShortcut",
+      messageKey: "review_msg_typed_dash",
+      range: { start, end },
+      alternatives,
+      context: { start: Math.max(0, start - 1), end: Math.min(ctx.text.length, end + 1) },
+    });
+  }
+  return findings;
+};
+
 /** "300°K" is "300 K": the kelvin is an absolute unit and takes no degree sign. */
 function kelvinDegree(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
@@ -1323,6 +1360,7 @@ export const REVIEW_DETECTORS: ReadonlyArray<{ rules: CatalogRuleId[]; detect: D
   { rules: ["collapseRepeatedSpaces"], detect: repeatedSpaces },
   { rules: ["duplicatePunctuationCollapse"], detect: duplicatePunctuation },
   { rules: ["ellipsisShortcut"], detect: ellipsisCharacter },
+  { rules: ["emdashShortcut"], detect: typedDashes },
   {
     rules: ["measurementUnitFormatting"],
     detect: (ctx) => [...measurementLike(ctx, "measurementUnitFormatting"), ...kelvinDegree(ctx)],

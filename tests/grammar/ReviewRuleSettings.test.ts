@@ -12,6 +12,7 @@ const OPTIONAL_REVIEW_IDS: readonly string[] = [
   "styleRedundancy",
   "styleLongSentence",
   "ellipsisShortcut",
+  "emdashShortcut",
 ];
 const DEFAULT_REVIEW_IDS = REVIEW_SUPPORTED_RULE_IDS.filter(
   (id) => !OPTIONAL_REVIEW_IDS.includes(id),

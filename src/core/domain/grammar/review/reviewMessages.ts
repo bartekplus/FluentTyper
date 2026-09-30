@@ -787,6 +787,17 @@ const EXPLANATIONS: Record<ReviewMessageKey, Translations> = {
     "Opcjonalna typografia: użyj pojedynczego znaku wielokropka (…).",
     "Tipografia opcional: use o caractere único de reticências (…).",
   ],
+  review_msg_typed_dash: [
+    "Optional typography: use a dash instead of hyphens.",
+    "Typographie facultative : utilisez un tiret plutôt que des traits d’union.",
+    "Neobavezna tipografija: upotrijebite crticu umjesto spojnica.",
+    "Tipografía opcional: use una raya o un guion largo en lugar de guiones.",
+    "Προαιρετική τυπογραφία: χρησιμοποιήστε παύλα αντί για ενωτικά.",
+    "Valfri typografi: använd ett tankstreck i stället för bindestreck.",
+    "Optionale Typografie: Verwenden Sie einen Gedankenstrich statt Bindestrichen.",
+    "Opcjonalna typografia: użyj myślnika zamiast łączników.",
+    "Tipografia opcional: use um travessão em vez de hífens.",
+  ],
   review_msg_measurement_spacing: [
     "Separate the number from its unit.",
     "Séparez le nombre de son unité.",
