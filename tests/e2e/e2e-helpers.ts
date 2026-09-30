@@ -77,7 +77,9 @@ const EXTENSION_NAVIGATION_TIMEOUT_MS = isFirefox() ? 300 : 5000;
 const FIREFOX_EXTENSION_ID = "{22ce0bca-91d0-4eac-8fd3-9b2045c7a6db}";
 const FIREFOX_EXTENSION_HOST = "3f1c8a52-6b7e-4d19-9a0e-5c2f7b8d4e61";
 const FIREFOX_NAVIGATION_RECOVERY_TIMEOUT_MS = 3000;
-const EXTENSION_NAVIGATION_RECOVERY_TIMEOUT_MS = 3000;
+// These waits end as soon as the page is there. Firefox's first moz-extension load after
+// install can outlast 3s on CI runners, so its cap matches the suite's own Firefox budget.
+const EXTENSION_NAVIGATION_RECOVERY_TIMEOUT_MS = suiteTimeout(3000, 10000);
 
 export function isChrome(): boolean {
   return BROWSER_TYPE === "chrome";

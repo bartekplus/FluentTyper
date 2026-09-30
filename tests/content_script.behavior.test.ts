@@ -652,6 +652,44 @@ describe("content_script behavior", () => {
     }
   });
 
+  test("Review text sent before the page's settings arrive runs once they enable it", async () => {
+    const hasFocus = jest.spyOn(document, "hasFocus").mockReturnValue(true);
+    try {
+      const notice = () =>
+        document.querySelector("[data-fluenttyper-review]")?.shadowRoot?.querySelector(".status")
+          ?.textContent ?? null;
+      const input = document.createElement("input");
+      input.type = "password";
+      document.body.append(input);
+      input.focus();
+      const review = { command: CMD_REVIEW_FT_ACTIVE_TAB, context: { source: "popup" } } as const;
+
+      // The request lands while GET_CONFIG is still in flight.
+      const { fluentTyper } = await loadContentScript();
+      fluentTyper.messageHandler(review);
+      expect(notice()).toBeNull();
+      fluentTyper.messageHandler({
+        command: CMD_BACKGROUND_PAGE_SET_CONFIG,
+        context: defaultConfig(),
+      });
+      expect(notice()).toContain("excluded from review");
+
+      // Settings that leave FluentTyper off drop the request.
+      fluentTyper.destroy();
+      document.querySelector("[data-fluenttyper-review]")?.remove();
+      const off = (await loadContentScript()).fluentTyper;
+      off.messageHandler(review);
+      off.messageHandler({
+        command: CMD_BACKGROUND_PAGE_SET_CONFIG,
+        context: defaultConfig({ enabled: false }),
+      });
+      off.enabled = true;
+      expect(notice()).toBeNull();
+    } finally {
+      hasFocus.mockRestore();
+    }
+  });
+
   test("turning FluentTyper off dismisses a review notice; a settings restart keeps it", async () => {
     const { fluentTyper } = await loadContentScript();
     fluentTyper.enabled = true;
