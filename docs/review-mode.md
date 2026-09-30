@@ -123,7 +123,8 @@ The panel names every state:
 - **Stale selection:** after an edit at the selection's edge
 - **Unsupported, review-only or sensitive editor:** says which
 - **Partial coverage:** protected text skipped, the size limit, rules
-  skipped for the language, or (Google Docs, past 50,000 characters) text outside
+  skipped for the language, paragraphs whose spelling was not checked because
+  they look like another language, or (Google Docs, past 50,000 characters) text outside
   the window around the cursor, with the scope shown as "Part of the document"
 - **Fix outcomes:** a fix the editor refused, or one it only partly applied
 - **Error:** "Review failed. Close it and try again." (a scan that fails never
@@ -455,10 +456,18 @@ ranked for the words before it.
   Each different word is looked up once, and each request to the background
   engine stops after about 40 ms, so typing suggestions in other tabs never wait
   long. One pass checks at most 2,000 different words, and stops early once 100
-  are unknown (text in another language, say); the panel then says spelling was
-  checked only in the first part, and a recheck continues from there.
+  are unknown; the panel then says spelling was checked only in the first part,
+  and a recheck continues from there.
   It does not run in code mode, and it needs a Presage dictionary for the
   language; without one the panel says spelling suggestions are unavailable.
+- **Other languages.** A paragraph (line) with at least 8 looked-up words of
+  which under 40% are known looks written in another language (a German reply
+  inside an English email): its spelling findings are dropped, its unknown words
+  do not count toward the 100, and the panel says how many characters were not
+  checked. Rule findings there are kept. The thresholds come from the bundled
+  dictionaries: paragraphs in another language measured 0–38% known words, while
+  English full of typos, slang or technical terms stayed above 60%, and Polish
+  typed without diacritics near 45%. Shorter paragraphs are always checked.
 - **Local:** the words go from the page's content script to the extension's own
   background engine and back; nothing leaves the browser, nothing is stored or
   logged, and the engine does not learn from them.

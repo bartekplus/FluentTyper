@@ -249,7 +249,14 @@ export interface ReviewOptions {
 }
 
 export type CoverageGap =
-  "code" | "technical" | "structure" | "size-limit" | "outside-window" | "rule-error";
+  | "code"
+  | "technical"
+  | "structure"
+  | "size-limit"
+  | "outside-window"
+  | "rule-error"
+  /** Characters of paragraphs in another language, where spelling was not checked. */
+  | "other-language";
 
 export interface ReviewCoverage {
   /** Review-supported rules that ran. */

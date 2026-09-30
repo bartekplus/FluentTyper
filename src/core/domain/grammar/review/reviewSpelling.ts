@@ -147,6 +147,44 @@ export function spellingCandidates(
   return candidates;
 }
 
+// Measured with the bundled dictionaries (words the candidates filter keeps,
+// so names and capitalized nouns are not counted): paragraphs in another
+// language had 0-38% known words; English with many typos, slang or
+// technical terms 60-75%, and Polish typed without diacritics 45%. Fewer
+// than 8 looked-up words is too little to tell.
+const OTHER_LANGUAGE_MIN_WORDS = 8;
+const OTHER_LANGUAGE_MAX_KNOWN = 0.4;
+
+/**
+ * Paragraphs (lines) in the scope that look written in another language than
+ * the review's: enough looked-up words, and too few of them known to the
+ * dictionary. Their unknown words are other-language words, not typos.
+ * `lookups` are answered candidates, in document order.
+ */
+export function otherLanguageParagraphs(
+  prepared: PreparedReview,
+  lookups: ReadonlyArray<{ range: TextRange; known: boolean }>,
+): TextRange[] {
+  const { text } = prepared;
+  const { scope } = prepared.snapshot;
+  const paragraphs: TextRange[] = [];
+  for (let i = 0; i < lookups.length;) {
+    const start = text.lastIndexOf("\n", lookups[i].range.start - 1) + 1;
+    const newline = text.indexOf("\n", start);
+    const end = newline < 0 ? text.length : newline;
+    let words = 0;
+    let known = 0;
+    for (; i < lookups.length && lookups[i].range.start < end; i += 1) {
+      words += 1;
+      if (lookups[i].known) known += 1;
+    }
+    if (words >= OTHER_LANGUAGE_MIN_WORDS && known < words * OTHER_LANGUAGE_MAX_KNOWN) {
+      paragraphs.push({ start: Math.max(start, scope.start), end: Math.min(end, scope.end) });
+    }
+  }
+  return paragraphs;
+}
+
 function opensSentence(prepared: PreparedReview, start: number): boolean {
   const { text } = prepared;
   let i = start - 1;

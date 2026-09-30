@@ -1354,6 +1354,17 @@ const UI = {
     "Pominięto jako kod lub tekst chroniony: {count} znaków.",
     "Ignorado como código ou texto protegido: {count} caracteres.",
   ],
+  review_status_other_language: [
+    "Spelling not checked in {count} characters that look like another language.",
+    "Orthographe non vérifiée dans {count} caractères qui semblent dans une autre langue.",
+    "Pravopis nije provjeren u {count} znakova koji izgledaju kao drugi jezik.",
+    "Ortografía sin comprobar en {count} caracteres que parecen de otro idioma.",
+    "Η ορθογραφία δεν ελέγχθηκε σε {count} χαρακτήρες που μοιάζουν με άλλη γλώσσα.",
+    "Stavningen kontrollerades inte i {count} tecken som ser ut att vara ett annat språk.",
+    "Rechtschreibung nicht geprüft in {count} Zeichen, die nach einer anderen Sprache aussehen.",
+    "Nie sprawdzono pisowni w {count} znakach, które wyglądają na inny język.",
+    "Ortografia não verificada em {count} caracteres que parecem de outro idioma.",
+  ],
   review_status_size_limit: [
     "Only the first part was reviewed; {count} characters were not checked.",
     "Seule la première partie a été relue ; {count} caractères non vérifiés.",

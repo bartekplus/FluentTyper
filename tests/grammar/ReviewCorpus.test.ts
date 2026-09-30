@@ -2,14 +2,20 @@ import { expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { reviewRuleIds } from "../../src/core/domain/grammar/review/reviewCatalog";
-import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
+import { applyEdits, editTouches } from "../../src/core/domain/grammar/review/textRanges";
 import { prepareReview } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { spellingCandidates } from "../../src/core/domain/grammar/review/reviewSpelling";
-function scan(text: string) {
+import type { ReviewEdit } from "../../src/core/domain/grammar/review/types";
+import * as capitalization from "./reviewLanguageFixtures/capitalization";
+import * as measurement from "./reviewLanguageFixtures/measurement";
+import * as punctuation from "./reviewLanguageFixtures/punctuation";
+import * as words from "./reviewLanguageFixtures/words";
+import { MATRIX_LANGUAGES, type RuleFixtures } from "./reviewLanguageFixtures/types";
+function scan(text: string, lang = "en_US") {
   return detectReviewDiagnostics(
     { id: "corpus", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
     {
-      lang: "en_US",
+      lang,
       enabledRules: reviewRuleIds({ codeMode: false }),
       userDictionary: [],
       insertSpaceAfterAutocomplete: true,
@@ -428,4 +434,44 @@ test("supplied full prose retains supported repairs and its reference stays clea
     ).toBe(true);
   }
   expect(scan(reference)).toEqual([]);
+});
+
+/** Overlap, a shared insertion point, or an insertion inside the other edit (as Fix all plans). */
+function collide(a: ReviewEdit, b: ReviewEdit): boolean {
+  return a.start === a.end ? editTouches(a, b) : editTouches(b, a);
+}
+
+test("realistic prose never gets two findings whose fixes collide", () => {
+  // Measured before choosing an overlap policy: nowhere in this corpus or the
+  // language fixtures do two findings' fixes touch the same characters. Pairs
+  // that do (a capital at a lowercase sentence start inside a longer fix: "a
+  // apple") only appear in fragments; Fix all defers or proves such a group
+  // (bulkPlanner) and applying one card rechecks the other, so no finding is
+  // dropped in favour of another. This guards that choice.
+  const texts: Array<[string, string]> = ["broken.txt", "reference.txt"].map((name) => [
+    "en_US",
+    readFileSync(new URL(`../fixtures/native-review-corpus/${name}`, import.meta.url), "utf8"),
+  ]);
+  for (const [, source, expected] of repairs) texts.push(["en_US", source], ["en_US", expected]);
+  for (const fixtures of [capitalization, measurement, punctuation, words].flatMap((module) =>
+    Object.values(module).filter((value): value is RuleFixtures => "en_US" in Object(value)),
+  )) {
+    for (const lang of MATRIX_LANGUAGES) {
+      for (const [input] of fixtures[lang].pos) texts.push([lang, input]);
+      for (const input of fixtures[lang].neg) texts.push([lang, input]);
+    }
+  }
+  const collisions: string[] = [];
+  for (const [lang, text] of texts) {
+    const fixes = scan(text, lang).filter((d) => !d.warningOnly && d.alternatives.length > 0);
+    fixes.forEach((a, i) => {
+      for (const b of fixes.slice(i + 1)) {
+        const [editsA, editsB] = [a, b].map((d) => d.alternatives[0].edits);
+        if (editsA.some((x) => editsB.some((y) => collide(x, y))))
+          collisions.push(`${lang} ${a.ruleId} x ${b.ruleId}: ${text}`);
+      }
+    });
+  }
+  expect(texts.length).toBeGreaterThan(500);
+  expect(collisions).toEqual([]);
 });
