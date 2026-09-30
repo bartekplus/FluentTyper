@@ -10,7 +10,7 @@ import { normalizeWordSet } from "./helpers/GenericRuleShared";
 // Article, then a finished word. The article must start a token: after a space,
 // or after an opening quote/bracket that itself starts a token, so the "an" in
 // "Qur'an" or "Xi'an" is never an article.
-export const ARTICLE_REGEX = /(?:^|(?<=\s)|(?<=(?:^|\s)["'([“‘]))(a|an|A|An)\s+([a-z]+)$/;
+export const ARTICLE_REGEX = /(?:^|(?<=\s)|(?<=(?:^|\s)["'([“‘]))(a|an|A|An)\s+([A-Za-z]+)$/;
 // A capital article is only an article at a sentence start; "grade A apples",
 // "Plan A is" use the letter.
 export const SENTENCE_START_REGEX = /(?:^|[.!?]\s+|\n\s*)["'([“‘]?$/;
@@ -29,7 +29,7 @@ const ARTICLE_CONTEXT_WORDS = new Set(
 // "Is a important here?": a sentence-initial verb inverts a question, so the
 // word after it is the subject, which may be a variable.
 const QUESTION_OPENERS = new Set(["is", "was", "are", "were", "isn't", "wasn't"]);
-const PRECEDING_WORD_REGEX = /(^|\s)([A-Za-z']+)\s+$/;
+const PRECEDING_WORD_REGEX = /(^|\s)([A-Za-z'’]+)\s+$/;
 
 // A lowercase single letter is usually a variable or list item ("vowels are a e
 // i"). Lowercase initialisms are read letter by letter ("an sla", "an fyi", "a
@@ -37,12 +37,14 @@ const PRECEDING_WORD_REGEX = /(^|\s)([A-Za-z']+)\s+$/;
 // F H L M N R S X ("ef", "aitch") and U ("you"). Such a word counts as a word
 // when it is long and reads like one; these common words do not.
 const WORDS_NOT_INITIALISMS = new Set("man new small short friend".split(" "));
+// "a information" needs the article dropped, not changed.
+const MASS_NOUNS = new Set("information advice equipment evidence".split(" "));
 
 export function isArticleContext(beforeArticle: string): boolean {
   if (SENTENCE_START_REGEX.test(beforeArticle)) return true;
   const match = beforeArticle.match(PRECEDING_WORD_REGEX);
   if (!match || match.index === undefined) return false;
-  const preceding = match[2].toLowerCase();
+  const preceding = match[2].toLowerCase().replace("’", "'");
   const beforePreceding = beforeArticle.slice(0, match.index + match[1].length);
   if (QUESTION_OPENERS.has(preceding) && SENTENCE_START_REGEX.test(beforePreceding)) {
     return false;
@@ -68,7 +70,8 @@ export class EnglishArticleAnCorrectionRule implements GrammarRule {
 
     const { core } = boundaryContext;
     const match = core.match(ARTICLE_REGEX);
-    if (!match || match.index === undefined) {
+    // Typing fixes lowercase words only: names and initialisms are left to Review.
+    if (!match || match.index === undefined || match[2] !== match[2].toLowerCase()) {
       return null;
     }
 
@@ -115,7 +118,7 @@ export function correctArticle(
   dictionary?: ReadonlySet<string>,
 ): string | null {
   const lower = word.toLowerCase();
-  if (dictionary?.has(lower) || (word === lower && mayBeLetters(lower))) {
+  if (dictionary?.has(lower) || MASS_NOUNS.has(lower) || (word === lower && mayBeLetters(lower))) {
     return null;
   }
   const sound = englishInitialSound(word);

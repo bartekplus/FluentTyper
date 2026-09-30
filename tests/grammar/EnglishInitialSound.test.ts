@@ -67,6 +67,7 @@ const CASES: Record<"vowel" | "consonant" | "either", string[]> = {
     "ubiquitous",
     "Ukrainian",
     "Ugandan",
+    "udev",
     "euro",
     "European",
     "eulogy",

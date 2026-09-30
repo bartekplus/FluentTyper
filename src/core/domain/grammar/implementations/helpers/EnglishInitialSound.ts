@@ -38,6 +38,7 @@ const PREFIX_SOUNDS = new Map<string, InitialSound>([
   ["ubi", "consonant"],
   ["uga", "consonant"],
   ["uk", "consonant"],
+  ["ude", "consonant"],
   ["ukul", "either"],
   ["eu", "consonant"],
   ["euler", "vowel"],

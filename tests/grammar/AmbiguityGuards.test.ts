@@ -251,6 +251,7 @@ describe("opt-in a/an correction", () => {
     ["It was an unanimous vote ", "It was a unanimous vote "],
     ["It is an eucalyptus tree ", "It is a eucalyptus tree "],
     ["It is an house ", "It is a house "],
+    ["He said it’s a error ", "He said it’s an error "],
     ["It was a outright lie ", "It was an outright lie "],
   ])
     test(`corrects ${JSON.stringify(input)}`, () =>
@@ -292,6 +293,7 @@ describe("opt-in a/an correction", () => {
     "It is an 8 ",
     "It is a 11 ",
     "Vowels are a e i o u ",
+    "We need a information desk ",
     "It is a error-prone step ",
     // Both pronunciations are accepted.
     "She plays an ukulele ",

@@ -763,7 +763,7 @@ const articleAn: Detector = (ctx) => {
     const beforeArticle = `${sliceStart > lineStart ? "x " : ""}${ctx.text.slice(sliceStart, start)}`;
     if (article[0] === "A" && !SENTENCE_START_REGEX.test(beforeArticle)) continue;
     if (!isArticleContext(beforeArticle)) continue;
-    const corrected = correctArticle(article, word);
+    const corrected = correctArticle(article, word, ctx.dictionary);
     if (!corrected) continue;
     const articleRange = groupRange(match, 1);
     findings.push({
