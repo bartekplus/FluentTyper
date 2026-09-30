@@ -1059,6 +1059,14 @@ function measurementLike(
     if (!parsed || parsed.unitStart !== parsed.numberEnd) continue;
     const unit = prefix.slice(parsed.unitStart);
     if (ruleId === "measurementUnitFormatting" && /^([A-Z]|[dg])$/.test(unit)) continue;
+    // Decades and round plurals, not seconds: "the 1990s", "the 80s", "100s of".
+    if (
+      unit === "s" &&
+      (/^(?:1[0-9]{2}0|20[0-9]0)$/.test(prefix.slice(parsed.start, parsed.numberEnd)) ||
+        /(?:\bthe[ \t ]+|['’])[1-9]0$/i.test(prefix.slice(0, parsed.numberEnd)) ||
+        /^[ \t ]+of[ \t ]/.test(ctx.text.slice(tokenEnd, tokenEnd + 4)))
+    )
+      continue;
     let prosePrefix = prefix.slice(0, parsed.start);
     // A prose list retains the evidence before its first measurement. Every
     // preceding item must itself parse; identifiers and arithmetic still abstain.

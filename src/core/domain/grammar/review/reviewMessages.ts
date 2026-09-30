@@ -313,6 +313,17 @@ const EXPLANATIONS: Record<ReviewMessageKey, Translations> = {
     "„One of the” wybiera jeden element grupy; zachowaj podmiot w liczbie pojedynczej.",
     "“One of the” seleciona um membro de um grupo plural; mantenha o sujeito no singular.",
   ],
+  review_msg_decade_plural: [
+    "A decade or a round number in the plural takes no apostrophe: “the 1990s”, “the ’80s”, “100s of”.",
+    "Une décennie ou un nombre rond au pluriel s’écrit sans apostrophe : « the 1990s », « the ’80s », « 100s of ».",
+    "Desetljeće ili okrugli broj u množini piše se bez apostrofa: „the 1990s”, „the ’80s”, „100s of”.",
+    "Una década o un número redondo en plural no lleva apóstrofo: «the 1990s», «the ’80s», «100s of».",
+    "Μια δεκαετία ή ένας στρογγυλός αριθμός στον πληθυντικό γράφεται χωρίς απόστροφο: «the 1990s», «the ’80s», «100s of».",
+    "Ett decennium eller ett jämnt tal i plural skrivs utan apostrof: ”the 1990s”, ”the ’80s”, ”100s of”.",
+    "Ein Jahrzehnt oder eine runde Zahl im Plural steht ohne Apostroph: „the 1990s“, „the ’80s“, „100s of“.",
+    "Dekada lub okrągła liczba w liczbie mnogiej nie ma apostrofu: „the 1990s”, „the ’80s”, „100s of”.",
+    "Uma década ou um número redondo no plural não leva apóstrofo: “the 1990s”, “the ’80s”, “100s of”.",
+  ],
   review_msg_perfect_participle: [
     "This perfect-tense construction needs the past participle; keep the auxiliary and tense.",
     "Cette construction au parfait demande le participe passé ; conservez l’auxiliaire et le temps.",

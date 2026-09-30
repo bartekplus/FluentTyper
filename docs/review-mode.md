@@ -244,7 +244,7 @@ The native countability check covers ordinary-prose malformed plurals of informa
 
 Specialist legal, banking, commercial, regional and archaic evidence in the bounded context causes abstention. Quoted examples, identifiers, capitalized names and dictionary words are protected. Known quantified feedback/information/advice and a information frames can show a warning without an edit; other quantified mass-noun constructions abstain. No unit, amount or partial determiner repair is invented. Data agreement, fewer/less preferences, coffee, experience, work and paper are outside this check. All findings are individual-only; typing is unchanged.
 
-`englishNounNumber` is a separate native Review-only check using the shared authored noun-pair map (now including device/devices). It handles complete `one of the` clauses, explicit counts zero–ten or up to four ungrouped digits, and these/those followed by a known singular noun and a supported predicate. Explicit counts retain their value and change only noun inflection; `one of the` pluralizes the set noun while leaving its outer singular subject and verb untouched.
+`englishNounNumber` is a separate native Review-only check using the shared authored noun-pair map (now including device/devices). It handles complete `one of the` clauses, explicit counts zero–ten or up to four ungrouped digits, and these/those followed by a known singular noun and a supported predicate. Explicit counts retain their value and change only noun inflection; `one of the` pluralizes the set noun while leaving its outer singular subject and verb untouched. `one of the/my/these…` with up to three free modifiers before a known singular noun also pluralizes it when the noun ends the phrase (a clause end, a verb such as is/has, a pronoun or a preposition follows), so "one of the file formats" abstains. Decades and round plurals written with an apostrophe become plain plurals: "the 1960's" or a four-digit decade before a clause end becomes "1960s", "the 90's" offers "'90s" or "90s", and "100's of" becomes "100s of"; years and versions with a possessive ("Windows 10's", "1977's best month", "2020's biggest hits") abstain. The measurement check no longer reads the s of "1990s", "the 80s" or "100s of" as seconds.
 
 For these/those, a following are/were establishes plural and is/was establishes singular. Past predicates such as failed/arrived/returned do not establish number: the existing choice-card UI offers either pluralizing the noun or changing the demonstrative to this/that, with nothing preselected. All findings remain individual-only. Complete bounded predicates/locations prevent noun-modifier edits such as `those file names`. Unknown/invariant nouns, data/news/series, units, ordinal tokens, grouped/decimal/fractional numbers, technical model labels and hyphenated measurements abstain. Quantity repair can make a separate existential-agreement finding available on the next scan; it never changes the number to fit the verb.
 
@@ -286,6 +286,13 @@ same-form and shared plurals (sheep, axes) are left out and no noun suffix guess
 Known plural phrases may continue with that/which/with. Unknown, collective and
 invariant-number nouns, coordinated subjects, singular relative clauses, hard-wrapped
 continuations and contradictory quantity/noun combinations abstain. The quantity, noun, adjective and negation are never rewritten.
+The noun pairs also list about 80 everyday regular count nouns (thing, issue, bug, example, user, day…).
+A known plural noun right after existential there ("there is warnings", "there's bugs",
+"Is there examples…?") changes only the verb to are/were. A known singular noun after
+there are/were (or opening "Are there…") followed by a preposition, that/which or a clause
+end offers a choice between "there is a bug" and "there are bugs". "there" must open its
+clause or follow a conjunction or a verb such as think/see; "Over there is…" and
+"the idea there is…" abstain.
 
 Contextual word confusions have four independent Review-only identities:
 

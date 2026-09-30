@@ -1,7 +1,11 @@
 import { detectPhraseTemplates, type PhraseTemplate } from "./phraseTemplates";
 import { AGREEMENT_CORRECTIONS } from "../implementations/EnglishPronounVerbWhitelistAgreementRule";
 import { englishVerbForms } from "../implementations/helpers/EnglishVerbForms";
-import { knownEnglishNounNumber } from "../implementations/helpers/EnglishNounNumber";
+import {
+  englishNounForms,
+  knownEnglishNounNumber,
+} from "../implementations/helpers/EnglishNounNumber";
+import { englishInitialSound } from "../implementations/helpers/EnglishInitialSound";
 import { applyWordCase, detectWordCase } from "../implementations/helpers/GenericRuleShared";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 
@@ -112,6 +116,84 @@ export function existentialAgreement(ctx: DetectContext): RawFinding[] {
       context: {
         start: Math.max(0, match.index - 96),
         end: Math.min(ctx.text.length, match.index + match[0].length + 2),
+      },
+    });
+  }
+  return [...findings, ...bareExistentialAgreement(ctx)];
+}
+
+const BARE_EXISTENTIAL = new RegExp(
+  `(?<![\\p{L}\\p{M}\\p{N}_'’@/#.\\\\-])(?:(?<there>there)(?:${SPACE}(?<verb>is|was|are|were)|(?<contracted>['’]s))|(?<qverb>is|was|are|were)${SPACE}there)${SPACE}(?<noun>[A-Za-z]+)${WORD_END}(?<tail>[ \\t\\u00a0]{0,8}(?:[.!?,;:)]|$)|${SPACE}(?:in|on|at|with|for|about|regarding|that|which|when|where|from|of|to|running|missing|left)${WORD_END})?`,
+  "gidu",
+);
+
+/** "there is things", "are there solution…": a bare known noun right after existential there. */
+function bareExistentialAgreement(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  BARE_EXISTENTIAL.lastIndex = Math.max(0, ctx.from - 256);
+  for (
+    let m = BARE_EXISTENTIAL.exec(ctx.scanText);
+    m && m.index < ctx.to;
+    m = BARE_EXISTENTIAL.exec(ctx.scanText)
+  ) {
+    const { there, verb, contracted, qverb, noun, tail } = m.groups!;
+    const number = knownEnglishNounNumber(noun);
+    if (!number || ctx.dictionary.has(noun.toLowerCase())) continue;
+    if (noun !== noun.toLowerCase()) continue;
+    const typed = verb ?? contracted ?? qverb;
+    const past = /^(?:was|were)$/i.test(typed);
+    const plural = number === "plural";
+    if (plural === /^(?:are|were)$/i.test(typed)) continue;
+    // A singular noun can still head a compound ("there are key differences").
+    if (!plural && tail === undefined) continue;
+    const before = ctx.scanText.slice(Math.max(0, m.index - 96), m.index);
+    // Existential there opens its clause; "Over there is…" and "the idea there is (that)…" abstain.
+    if (
+      there &&
+      !/(?:^|[.!?;:,(\n"“][ \t ]*|\b(?:if|when|whether|that|because|since|so|and|but|or|then|where|as|while|unless|until|once|now|currently|also|still|maybe|perhaps|think|guess|see|saw|seems|noticed|sure|know|knew|hope|realized|believe|said)[ \t ]+)$/i.test(
+        before,
+      )
+    )
+      continue;
+    if (qverb && !/(?:^|[.!?;:,(\n"“][ \t ]*|\b(?:and|but|or|so)[ \t ]+)$/i.test(before)) continue;
+    if (
+      /\b(?:write|type|spell|phrase|words?|example|literal|text|says?|reads?)[ :\t]*["“'‘][^\r\n￼]{0,80}$/i.test(
+        before,
+      )
+    )
+      continue;
+    const phraseEnd = m.index + m[0].length;
+    if (/^￼|^\.[\p{L}\p{N}_]/u.test(ctx.text.slice(phraseEnd, phraseEnd + 2))) continue;
+    const kase = detectWordCase(typed.replace(/^['’]/, ""));
+    const group = verb ? "verb" : contracted ? "contracted" : "qverb";
+    let [start, end] = m.indices!.groups![group];
+    let alternatives: string[];
+    if (plural) {
+      const fixed = applyWordCase(past ? "were" : "are", kase);
+      alternatives = [contracted ? ` ${fixed}` : fixed];
+    } else {
+      // Singular after are/were: "is a bug" or "are bugs"; the whole phrase changes.
+      start = m.index;
+      end = m.indices!.groups!.noun[1];
+      const lead = ctx.text.slice(m.index, m.indices!.groups!.noun[0]);
+      const swap = applyWordCase(past ? "was" : "is", kase);
+      const article = englishInitialSound(noun) === "vowel" ? "an" : "a";
+      const verbAt = qverb ? 0 : m.indices!.groups!.verb[0] - m.index;
+      alternatives = [
+        `${lead.slice(0, verbAt)}${swap}${lead.slice(verbAt + typed.length)}${article} ${noun}`,
+        `${lead}${applyWordCase(englishNounForms(noun)!.plural, detectWordCase(noun))}`,
+      ];
+    }
+    if (start < ctx.from || start >= ctx.to) continue;
+    findings.push({
+      ruleId: "englishExistentialAgreement",
+      messageKey: "review_msg_existential_agreement",
+      range: { start, end },
+      alternatives,
+      requiresChoice: plural ? undefined : true,
+      context: {
+        start: Math.max(0, m.index - 96),
+        end: Math.min(ctx.text.length, phraseEnd + 2),
       },
     });
   }
