@@ -476,6 +476,44 @@ describe("ruleToggleCards setting", () => {
   });
 });
 
+test("Review settings cards are grouped by category and show kind and default badges", () => {
+  const config = manifest.settings.find(
+    (entry) => entry.name === KEY_REVIEW_RULE_OVERRIDES,
+  ) as RuleToggleCardsConfig;
+  const option = (value: string) => config.options.find((rule) => rule.value === value);
+  expect(option("englishSubjectVerbAgreement")).toMatchObject({
+    section: "grammar",
+    badge: "Agreement · English only",
+    safetyTier: "safe",
+  });
+  expect(option("englishCanonicalCasing")).toMatchObject({
+    section: "typography",
+    badge: "Capitalization",
+  });
+  expect(option("styleLongSentence")).toMatchObject({
+    section: "style",
+    badge: "Readability · Off by default",
+    safetyTier: "advanced",
+  });
+
+  const host = document.createElement("div");
+  document.body.appendChild(host);
+  host.appendChild(new RuleToggleCardsControl(config, localStore("review-groups")).rootElement);
+  const visibleSections = () =>
+    Array.from(host.querySelectorAll<HTMLElement>(".grammar-rule-section"))
+      .filter((section) => !section.classList.contains("is-hidden"))
+      .map((section) => section.dataset.section);
+  expect(visibleSections()).toEqual(["spelling", "grammar", "punctuation", "typography", "style"]);
+  expect(
+    findRuleCard(host, "englishCanonicalCasing").closest<HTMLElement>(".grammar-rule-section")!
+      .dataset.section,
+  ).toBe("typography");
+  // The Optional filter still narrows to off-by-default checks, across sections.
+  clickFilter(host, "advanced");
+  expect(visibleRuleValues(host)).toEqual(["styleRedundancy", "styleLongSentence"]);
+  expect(visibleSections()).toEqual(["style"]);
+});
+
 test("Review settings cards restore a disabled check without touching typing preferences", async () => {
   const config = manifest.settings.find(
     (entry) => entry.name === KEY_REVIEW_RULE_OVERRIDES,

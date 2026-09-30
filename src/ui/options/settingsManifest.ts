@@ -493,10 +493,7 @@ const manifest: ManifestDefinition = {
       emptyStateText: i18n.get("grammar_rules_empty_state"),
       noMatchesText: i18n.get("grammar_rules_no_matches"),
       searchPlaceholder: i18n.get("grammar_rules_search_placeholder"),
-      sections: [
-        { key: "safe", label: reviewText("review_rules_default", i18n.lang) },
-        { key: "advanced", label: reviewText("review_rules_optional", i18n.lang) },
-      ],
+      sections: RULE_CATEGORY_SECTIONS,
       filterAllLabel: i18n.get("grammar_rules_filter_all"),
       filterSafeLabel: reviewText("review_rules_default", i18n.lang),
       filterAdvancedLabel: reviewText("review_rules_optional", i18n.lang),
@@ -510,23 +507,30 @@ const manifest: ManifestDefinition = {
         },
         { actionKey: "disable_all", text: i18n.get("grammar_rules_disable_all"), values: [] },
       ],
-      options: GRAMMAR_RULE_CATALOG.filter((rule) => isReviewSupportedRule(rule.id)).map((rule) => {
+      options: GRAMMAR_RULE_CATALOG.flatMap((rule) => {
         const metadata = REVIEW_RULE_METADATA[rule.id];
-        const tier =
-          metadata.review === "supported" && metadata.defaultEnabled
-            ? ("safe" as const)
-            : ("advanced" as const);
-        return {
-          value: rule.id,
-          text:
-            rule.typing === false
-              ? reviewText(rule.titleI18nKey as ReviewTextKey, i18n.lang)
-              : i18n.get(rule.titleI18nKey),
-          description: rule.typing === false ? undefined : i18n.get(rule.descriptionI18nKey),
-          section: tier,
-          safetyTier: tier,
-          languageScope: reviewLanguageScope(rule.id),
-        };
+        if (metadata.review !== "supported") return [];
+        const languageScope = reviewLanguageScope(rule.id);
+        return [
+          {
+            value: rule.id,
+            text:
+              rule.typing === false
+                ? reviewText(rule.titleI18nKey as ReviewTextKey, i18n.lang)
+                : i18n.get(rule.titleI18nKey),
+            description: rule.typing === false ? undefined : i18n.get(rule.descriptionI18nKey),
+            badge: [
+              reviewText(`review_kind_${metadata.kind}`, i18n.lang),
+              metadata.defaultEnabled ? "" : reviewText("review_rule_optional_badge", i18n.lang),
+              languageScope === "en_US" ? i18n.get("grammar_rule_scope_en_us_badge") : "",
+            ]
+              .filter(Boolean)
+              .join(" · "),
+            section: metadata.category,
+            safetyTier: metadata.defaultEnabled ? ("safe" as const) : ("advanced" as const),
+            languageScope,
+          },
+        ];
       }),
       default: {},
       storageAdapter: {

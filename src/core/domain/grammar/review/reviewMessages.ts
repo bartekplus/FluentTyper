@@ -913,6 +913,17 @@ const UI = {
     "Reguły opcjonalne",
     "Verificações opcionais",
   ],
+  review_rule_optional_badge: [
+    "Off by default",
+    "Désactivée par défaut",
+    "Zadano isključeno",
+    "Desactivada por defecto",
+    "Ανενεργός από προεπιλογή",
+    "Av som standard",
+    "Standardmäßig aus",
+    "Domyślnie wyłączona",
+    "Desativada por padrão",
+  ],
   review_rules_restore: [
     "Restore Review defaults",
     "Rétablir les réglages Review",
