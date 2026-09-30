@@ -740,6 +740,7 @@ describe("review detectors: punctuation and spacing", () => {
       ["measurementUnitFormatting", "10kg", [10, 14], "10\u00A0kg"],
     ]);
     expect(only("a 4K screen and 5g phone", "measurementUnitFormatting")).toEqual([]);
+    expect(only("Back in the 1970s and '80s, 100s of", "measurementUnitFormatting")).toEqual([]);
     expect(only("Price: 120zł today", "currencySpacing", { lang: "pl_PL" })).toEqual([
       ["currencySpacing", "120zł", [7, 12], "120\u00A0zł"],
     ]);
