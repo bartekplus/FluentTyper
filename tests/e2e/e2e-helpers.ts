@@ -894,11 +894,13 @@ export async function findLayoutOverflow(
         overflowPx: root.scrollWidth - window.innerWidth,
       });
     }
-    if (heightLimit !== undefined && root.scrollHeight > heightLimit + 0.5) {
+    // Content height, not the window: Firefox opens the popup as a full tab.
+    const contentHeight = document.body.scrollHeight;
+    if (heightLimit !== undefined && contentHeight > heightLimit + 0.5) {
       found.push({
         element: "document",
         container: `height ${heightLimit}`,
-        overflowPx: root.scrollHeight - heightLimit,
+        overflowPx: contentHeight - heightLimit,
       });
     }
     for (const el of document.body.querySelectorAll("*")) {
