@@ -37,6 +37,17 @@ const EXPLANATIONS: Record<ReviewMessageKey, Translations> = {
     "Zapisz to złożenie w standardowy sposób: łącznie, rozdzielnie lub z łącznikiem, jak pokazano.",
     "Escreva este composto da forma padrão: junto, separado ou com hífen, como indicado.",
   ],
+  review_msg_style_phrasing: [
+    "Optional style advice: a shorter or more formal wording is available.",
+    "Conseil de style facultatif : une formulation plus courte ou plus soutenue est possible.",
+    "Neobavezni stilski savjet: dostupna je kraća ili formalnija formulacija.",
+    "Consejo de estilo opcional: hay una redacción más breve o más formal.",
+    "Προαιρετική συμβουλή ύφους: υπάρχει συντομότερη ή πιο επίσημη διατύπωση.",
+    "Valfritt stilråd: det finns en kortare eller mer formell formulering.",
+    "Optionaler Stilhinweis: Es gibt eine kürzere oder förmlichere Formulierung.",
+    "Opcjonalna wskazówka stylistyczna: dostępne jest krótsze lub bardziej formalne sformułowanie.",
+    "Conselho de estilo opcional: existe uma formulação mais curta ou mais formal.",
+  ],
   review_msg_name_casing: [
     "Use the established capitalization of this name.",
     "Utilisez les majuscules établies pour ce nom.",

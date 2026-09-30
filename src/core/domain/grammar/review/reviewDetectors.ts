@@ -1160,7 +1160,12 @@ export const REVIEW_DETECTORS: ReadonlyArray<{ rules: CatalogRuleId[]; detect: D
       ),
   },
   {
-    rules: ["englishCanonicalCasing", "englishPhraseCorrections", "englishClosedCompounds"],
+    rules: [
+      "englishCanonicalCasing",
+      "englishPhraseCorrections",
+      "englishClosedCompounds",
+      "stylePhrasing",
+    ],
     detect: (ctx) => [...canonicalCasing(ctx), ...phraseCorrections(ctx)],
   },
   {

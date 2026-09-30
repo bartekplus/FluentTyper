@@ -7,6 +7,7 @@ import {
   CLOSED_COMPOUNDS,
   NAME_CASING,
   PHRASE_CORRECTIONS,
+  STYLE_PHRASES,
   type PhraseRow,
 } from "../../src/core/domain/grammar/review/englishPhraseTables";
 import type { ProtectedRange, ReviewDiagnostic } from "../../src/core/domain/grammar/review/types";
@@ -15,6 +16,7 @@ import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
 const IDS: CatalogRuleId[] = [
   "englishPhraseCorrections",
   "englishClosedCompounds",
+  "stylePhrasing",
   "englishCanonicalCasing",
 ];
 function scan(
@@ -36,6 +38,7 @@ const previews = (d: ReviewDiagnostic) => d.alternatives.map((a) => a.preview);
 const TABLES: [CatalogRuleId, readonly PhraseRow[], (form: string) => string][] = [
   ["englishPhraseCorrections", PHRASE_CORRECTIONS, (form) => `Later she said ${form} there.`],
   ["englishClosedCompounds", CLOSED_COMPOUNDS, (form) => `Later she said ${form} there.`],
+  ["stylePhrasing", STYLE_PHRASES, (form) => `Later she said ${form} there.`],
   [
     "englishCanonicalCasing",
     NAME_CASING.map((name) => [name.toLowerCase(), name]),
@@ -235,7 +238,37 @@ test.each(EXAMPLES)("example: %s", (bad, good) => {
   expect(findings).toHaveLength(1);
   const fixed = findings[0].alternatives.map((a) => applyEdits(bad, a.edits));
   expect(fixed).toContain(good);
-  expect(scan(good)).toEqual([]);
+  expect(scan(good).filter((d) => d.ruleId !== "stylePhrasing")).toEqual([]);
+});
+
+const STYLE_EXAMPLES: [bad: string, good: string][] = [
+  ["Thanks, and btw the deploy finished.", "Thanks, and by the way the deploy finished."],
+  ["BTW, the deploy finished.", "By the way, the deploy finished."],
+  ["The deploy finished BTW.", "The deploy finished by the way."],
+  ["IN ORDER TO WIN, PRACTICE.", "TO WIN, PRACTICE."],
+  ["Imo the second option is cleaner.", "In my opinion the second option is cleaner."],
+  ["Idk why it failed.", "I don't know why it failed."],
+  ["Send it asap, please.", "Send it as soon as possible, please."],
+  ["We added tests in order to catch regressions.", "We added tests to catch regressions."],
+  [
+    "It was late due to the fact that the server crashed.",
+    "It was late because the server crashed.",
+  ],
+  ["The end result was better.", "The result was better."],
+  ["Please revert back the change.", "Please revert the change."],
+  ["Check the logs prior to the release.", "Check the logs before the release."],
+  ["We back up the data on a daily basis.", "We back up the data daily."],
+];
+test.each(STYLE_EXAMPLES)("optional style example: %s", (bad, good) => {
+  const [d] = scan(bad);
+  expect(d.ruleId).toBe("stylePhrasing");
+  expect(d.alternatives.map((a) => applyEdits(bad, a.edits))).toContain(good);
+  // Style advice stays off unless the user turns it on.
+  expect(
+    scan(bad, { enabledRules: reviewRuleIds({ codeMode: false }) as CatalogRuleId[] }).filter(
+      (f) => f.ruleId === "stylePhrasing",
+    ),
+  ).toEqual([]);
 });
 
 // Lookalikes that are ordinary English, names, mentions and technical text.
@@ -330,7 +363,9 @@ test("user dictionary words, protected code and other languages abstain", () => 
   const text = "Run code base now.";
   expect(scan(text, { protectedRanges: [{ start: 4, end: 13, reason: "code" }] })).toEqual([]);
   expect(scan("We live in new york, all the sudden.", { lang: "fr_FR" })).toEqual([]);
-  expect(scan("All the sudden.", { enabledRules: ["englishClosedCompounds"] })).toEqual([]);
+  expect(
+    scan("All the sudden.", { enabledRules: ["englishClosedCompounds", "stylePhrasing"] }),
+  ).toEqual([]);
 });
 
 test("ranges stay on grapheme boundaries after emoji and line breaks", () => {
@@ -370,8 +405,9 @@ test("a more specific rule explains a duplicate fix", () => {
   expect(findings.map((d) => d.ruleId)).toEqual(["englishUsagePhrases"]);
 });
 
-test("fixed phrases and compounds are on by default", () => {
+test("fixed phrases and compounds are on by default, wording advice is optional", () => {
   const defaults = reviewRuleIds({ codeMode: false });
   expect(defaults).toContain("englishPhraseCorrections");
   expect(defaults).toContain("englishClosedCompounds");
+  expect(defaults).not.toContain("stylePhrasing");
 });

@@ -113,7 +113,9 @@ describe("review rule coverage map", () => {
       .map((entry) => entry.ruleId);
     expect(REVIEW_SUPPORTED_RULE_IDS).toEqual(supported);
     expect(reviewRuleIds({ codeMode: false })).toEqual(
-      supported.filter((id) => id !== "styleRedundancy" && id !== "styleLongSentence"),
+      supported.filter(
+        (id) => id !== "styleRedundancy" && id !== "styleLongSentence" && id !== "stylePhrasing",
+      ),
     );
     // Off for typing by default, yet review finds it.
     expect(DEFAULT_CURRENT_GRAMMAR_RULES).not.toContain("duplicatePunctuationCollapse");

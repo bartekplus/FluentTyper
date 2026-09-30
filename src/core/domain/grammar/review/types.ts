@@ -77,6 +77,7 @@ interface ReviewAlternative {
 
 export type ReviewMessageKey =
   | "review_msg_style_redundancy"
+  | "review_msg_style_phrasing"
   | "review_msg_phrase_correction"
   | "review_msg_closed_compound"
   | "review_msg_name_casing"

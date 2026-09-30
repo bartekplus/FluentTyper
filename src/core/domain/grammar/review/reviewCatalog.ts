@@ -65,6 +65,13 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     kind: "boundary",
     bulk: "individual",
   },
+  stylePhrasing: {
+    review: "supported",
+    defaultEnabled: false,
+    category: "style",
+    kind: "redundancy",
+    bulk: "individual",
+  },
   styleRedundancy: {
     review: "supported",
     defaultEnabled: false,

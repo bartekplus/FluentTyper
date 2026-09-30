@@ -9,7 +9,7 @@ import {
 import { resolveGrammarRuleSelection } from "../../src/core/domain/grammar/GrammarRuleSettings";
 
 const DEFAULT_REVIEW_IDS = REVIEW_SUPPORTED_RULE_IDS.filter(
-  (id) => id !== "styleRedundancy" && id !== "styleLongSentence",
+  (id) => id !== "styleRedundancy" && id !== "styleLongSentence" && id !== "stylePhrasing",
 );
 
 test("absent Review preferences retain explicit catalog defaults independently of typing", () => {

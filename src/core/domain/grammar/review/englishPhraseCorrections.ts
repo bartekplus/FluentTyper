@@ -4,6 +4,7 @@ import {
   CLOSED_COMPOUNDS,
   NAME_CASING,
   PHRASE_CORRECTIONS,
+  STYLE_PHRASES,
   type PhraseRow,
 } from "./englishPhraseTables";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
@@ -53,6 +54,7 @@ function index(
 }
 index(PHRASE_CORRECTIONS, "englishPhraseCorrections", "review_msg_phrase_correction");
 index(CLOSED_COMPOUNDS, "englishClosedCompounds", "review_msg_closed_compound");
+index(STYLE_PHRASES, "stylePhrasing", "review_msg_style_phrasing");
 index(
   NAME_CASING.map((name) => [name.toLowerCase(), name]),
   "englishCanonicalCasing",
@@ -60,10 +62,18 @@ index(
 );
 
 /** The typed casing carried onto a replacement written in its ordinary form. */
-function matchCase(typed: string, replacement: string): string {
+function matchCase(
+  typed: string,
+  replacement: string,
+  abbreviation: boolean,
+  sentenceStart: boolean,
+): string {
   const letters = typed.replace(/\P{L}/gu, "");
-  if (letters.length > 1 && letters === letters.toUpperCase()) return replacement.toUpperCase();
-  if (!/^\P{L}*\p{Lu}/u.test(typed)) return replacement;
+  // "ALL THE SUDDEN" shouts; "BTW" is just how the abbreviation is written.
+  if (letters.length > 1 && letters === letters.toUpperCase()) {
+    if (!abbreviation) return replacement.toUpperCase();
+    if (!sentenceStart) return replacement;
+  } else if (!/^\P{L}*\p{Lu}/u.test(typed)) return replacement;
   // "Eagle Eyed" in a title keeps every word capitalized: "Eagle-Eyed".
   const titled = /^\p{Lu}\p{Ll}*(?:\P{L}+\p{Lu}\p{Ll}*)+$/u.test(typed);
   return replacement.replace(titled ? /(?<!\p{L})\p{L}/gu : /\p{L}/u, (letter) =>
@@ -124,12 +134,16 @@ function toFinding(
   const casing = phrase.ruleId === "englishCanonicalCasing";
   // Capitals kept for emphasis are the writer's choice.
   if (casing && typed === typed.toUpperCase()) return null;
+  const before = ctx.text.slice(Math.max(0, start - 8), start);
+  const sentenceStart =
+    /(?:[.!?]["”’)]*\s+|\n\s*)$/.test(before) || (start <= 8 && /^\s*$/.test(before));
   // Apostrophes follow the typed phrase, or the nearby text when it has none.
   const curly =
     typed.includes("’") ||
     (!typed.includes("'") && ctx.text.slice(Math.max(0, start - 200), end + 200).includes("’"));
+  const abbreviation = phrase.ruleId === "stylePhrasing" && !/\s/.test(typed);
   const alternatives = phrase.replacements.map((replacement) => {
-    const cased = casing ? replacement : matchCase(typed, replacement);
+    const cased = casing ? replacement : matchCase(typed, replacement, abbreviation, sentenceStart);
     return curly ? cased.replace(/'/g, "’") : cased;
   });
   if (alternatives.includes(typed)) return null;

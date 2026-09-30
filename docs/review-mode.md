@@ -143,7 +143,7 @@ category. Native Review checks have independent switches in
 categories, each card badged with its kind, "Off by default" for optional
 checks and "English only" where that applies. Typing switches are listed under
 the same categories.
-Core checks default on. The two optional style checks default off; restoring defaults
+Core checks default on. The three optional style checks default off; restoring defaults
 keeps them off. Typing switches still control only automatic corrections.
 A native finding's **Disable this check in Review** action saves that rule's choice
 and refreshes open reviews. Restore it in settings, individually or with **Restore defaults**.
@@ -776,8 +776,8 @@ scans report their skipped coverage.
 
 ## Optional style and readability advice
 
-In **Settings → Grammar → Review text**, enable either optional style check explicitly.
-Both start off, remain off when defaults are restored, and never run while typing or
+In **Settings → Grammar → Review text**, enable any optional style check explicitly.
+They start off, remain off when defaults are restored, and never run while typing or
 enter **Fix all safe**. The panel has a separate **Style advice** count and filter;
 these findings do not count as grammar/spelling errors. Applying or ignoring advice
 also stays separate from resolved/ignored errors. Correct mode works as before with
@@ -788,6 +788,11 @@ these checks disabled; Rewrite remains its own user-selected action.
   ungrammatical. Quoted wording, code, dictionary entries, identifiers, plurals and
   ambiguous casing are left alone. Hedges, politeness, negation, adverbs, emphasis
   and numerical values are not rewritten.
+- **Wording advice** (`stylePhrasing`) offers a longer form for chat abbreviations
+  ("btw" → "by the way", "idk" → "I don't know") and a shorter one for wordy or
+  redundant phrases ("in order to" → "to", "due to the fact that" → "because" or
+  "since", "revert back" → "revert"). A shouted abbreviation stays lowercase inside
+  a sentence. Like redundancy advice, it is optional and individual-only.
 - **Long-sentence advice** shows a warning for a fully visible prose sentence (segmented with
   the review language's sentence rules and abbreviations)
   exceeding the **Long-sentence word threshold**. The default is **35 words**; the
