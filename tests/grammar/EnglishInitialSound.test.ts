@@ -16,6 +16,11 @@ const CASES: Record<"vowel" | "consonant" | "either", string[]> = {
     // "un-" as a negation, and u said "uh".
     "unimportant",
     "uninstall",
+    "unidentified",
+    "unidiomatic",
+    "unissued",
+    "unitemized",
+    "unironic",
     "unusual",
     "unaware",
     "umpire",
@@ -51,6 +56,9 @@ const CASES: Record<"vowel" | "consonant" | "either", string[]> = {
   ],
   consonant: [
     "book",
+    "unidirectional",
+    "unison",
+    "united",
     "Garden",
     "yellow",
     "university",

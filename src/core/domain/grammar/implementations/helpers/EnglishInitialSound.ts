@@ -1,4 +1,4 @@
-export type InitialSound = "vowel" | "consonant" | "either";
+type InitialSound ="vowel" | "consonant" | "either";
 
 // Letters whose spoken name starts with a vowel sound: "an F" (ef), "an H"
 // (aitch), "an X" (ex); "a U" (you), "a B" (bee).
@@ -23,6 +23,11 @@ const PREFIX_SOUNDS = new Map<string, InitialSound>([
   ["uni", "consonant"],
   ["unin", "vowel"],
   ["unim", "vowel"],
+  ["unident", "vowel"],
+  ["unidio", "vowel"],
+  ["uniss", "vowel"],
+  ["unitem", "vowel"],
+  ["uniro", "vowel"],
   ["unanim", "consonant"],
   ["use", "consonant"],
   ["usu", "consonant"],
