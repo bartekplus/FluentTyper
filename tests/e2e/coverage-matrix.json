@@ -1076,7 +1076,7 @@
         {
           "layer": "unit",
           "file": "tests/grammar/V1GrammarRules.test.ts",
-          "test": "capitalizes after one or more line breaks"
+          "test": "capitalizes a completed word after one or more line breaks"
         }
       ]
     },
