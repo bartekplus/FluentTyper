@@ -9,6 +9,8 @@ const NOUN =
 const END_WORD = "(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])";
 const COMPLETE = `${END_WORD}(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:)]|$))`;
 const COMPARATIVE = `(?:${ENGLISH_COMPARATIVES.join("|")})`;
+const MORE_COMPARATIVES =
+  "(?:more|less|fewer|other|bigger|taller|shorter|longer|higher|lower|younger|stronger|weaker|smarter|harder|easier|simpler|busier|happier|greater|closer|quicker|louder|quieter|heavier|lighter|wider|warmer|colder|hotter|nicer)";
 const ARGUMENT = `(?:(?:the|my|your|our|their)${SPACE}(?:(?:old|new|previous|other)${SPACE})?${NOUN}|me|him|her|us|them)`;
 
 function* matches(ctx: DetectContext, pattern: string): Generator<RegExpExecArray> {
@@ -69,6 +71,20 @@ export function wordConfusions(ctx: DetectContext): RawFinding[] {
   )) {
     const result = finding(ctx, match, "englishThenThan", "review_msg_then_than", "than");
     if (result) findings.push(result);
+  }
+  // A comparison closed by an object pronoun or "ever": "taller then me", "busier then ever",
+  // and the fixed "rather then" and "easier said then done". "earlier then him" and
+  // "then you/her/it" can be a sequence or a new clause, so they are left out.
+  for (const pattern of [
+    `(?:${COMPARATIVE}|${MORE_COMPARATIVES})${SPACE}(?<target>then)${SPACE}(?:me|him|us|them|mine|yours|hers|ours|theirs|ever|usual|expected)${END_WORD}`,
+    // "I would rather then leave" may be "rather, then,": only "X rather then Y".
+    `(?<!(?:would|had|should|['’]d)${SPACE})rather${SPACE}(?<target>then)${END_WORD}`,
+    `easier${SPACE}said${SPACE}(?<target>then)${SPACE}done${END_WORD}`,
+  ]) {
+    for (const match of matches(ctx, pattern)) {
+      const result = finding(ctx, match, "englishThenThan", "review_msg_then_than", "than");
+      if (result) findings.push(result);
+    }
   }
   // "going to" + a known lexical verb and object, closed before another predicate.
   // "Your going away upset us" and "Your going to work upset us" remain noun phrases.

@@ -189,7 +189,7 @@ The established-usage check covers for all intensive purposes before a known com
 
 Literal peak meanings and locative one in the same room, unrecognized frames, recognized creative/dialect cues, named quotations, technical tokens, dictionaries and protected text abstain. These are grammar-category cards with usage-specific explanations, independently configurable and individual-only. Native spelling-span ownership prevents duplicate spelling cards. Typing and existing modal-of corrections are unchanged.
 
-The doubled-degree check removes redundant more/most only in complete this/that/it or known-noun clauses with is/was. It uses the same ten explicit comparative words as then/than, plus easier/simpler, and eleven explicit superlatives. Supported tails are bounded to known to-infinitives, known comparison targets, ungrouped integer targets, or a complete sentence ending; superlatives require a known noun. Numerical values and comparison targets are preserved. A then/than error can become detectable after removing the redundant degree marker; the normal snapshot recheck supplies fresh offsets and invalidates the previous card.
+The doubled-degree check removes redundant more/most only in complete this/that/it or known-noun clauses with is/was. It uses the ten explicit comparative words of the copular then/than frame, plus easier/simpler, and eleven explicit superlatives. Supported tails are bounded to known to-infinitives, known comparison targets, ungrouped integer targets, or a complete sentence ending; superlatives require a known noun. Numerical values and comparison targets are preserved. A then/than error can become detectable after removing the redundant degree marker; the normal snapshot recheck supplies fresh offsets and invalidates the previous card.
 
 Quantity phrases, hyphenated noun modifiers, heading fragments, quoted examples, unknown degree forms, capitalized names and mixed-case identifiers abstain. Valid multiword adjectives, very unique, far better and repeated emphatic better and better are untouched. No suffix inference, style enforcement, typing correction or Fix all eligibility is added. The rule can be disabled independently in Review settings.
 
@@ -242,8 +242,10 @@ continuations and contradictory quantity/noun combinations abstain. The quantity
 Contextual word confusions have four independent Review-only identities:
 
 - `englishThenThan`: a copula, a listed comparative and a complete comparison
-  argument (a known noun phrase or object pronoun). Temporal "then", unknown noun
-  phrases and following finite clauses abstain.
+  argument (a known noun phrase or object pronoun); a listed comparative before
+  an object pronoun or "ever"/"usual"; "X rather then Y"; "easier said then done".
+  Temporal "then", unknown noun phrases, following finite clauses, "would rather
+  then" and sequences such as "earlier then him" abstain.
 - `englishYourYouAre`: clause-opening "your going to" with a listed verb and
   object, or an object-taking verb followed by "you're own" and a known noun.
   Possessive gerunds ("your going away", "I dislike your going…") abstain.
