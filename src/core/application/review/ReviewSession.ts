@@ -14,6 +14,7 @@ import {
   prepareReview,
   reviewChunks,
   scanReviewChunk,
+  casingDiagnostic,
   spellingDiagnostic,
   stillDetectedAfter,
   stillDetectedAfterAsync,
@@ -1330,7 +1331,12 @@ export class ReviewSession {
       });
       next += answered.length;
       unknown += unknownKeys.length;
-      this.showSpelling(prepared, occurrences, ranked, unknownKeys);
+      this.showSpelling(
+        prepared,
+        occurrences,
+        ranked,
+        answered.map(({ key }) => key),
+      );
     }
     this.spelling = next < queue.length ? "partial" : "done";
     this.emit();
@@ -1351,8 +1357,15 @@ export class ReviewSession {
     const found: ReviewDiagnostic[] = [];
     for (const key of keys) {
       const answer = this.spellingCache.candidates.get(key);
-      if (!answer) continue;
+      const known = this.spellingCache.known.has(key);
+      if (!answer && !known) continue;
       for (const candidate of occurrences.get(key) ?? []) {
+        if (candidate.casing) {
+          const diagnostic = known ? casingDiagnostic(prepared, candidate) : null;
+          if (diagnostic) found.push(diagnostic);
+          continue;
+        }
+        if (!answer) continue;
         let suggestions = ranked.get(candidate.word);
         if (!suggestions) {
           suggestions = rankSpellingSuggestions(candidate.word, answer);

@@ -8,6 +8,7 @@ import {
   INPUT_FRAME_SELECTOR,
   parseObject,
   readModel,
+  isGoogleDocsCreateURL,
   type DocsEdit,
 } from "./GoogleDocsModel";
 import { getDocsInput, isGoogleDocsPage, isGoogleDocsInputFrame } from "./GoogleDocsEnvironment";
@@ -27,7 +28,8 @@ const COMPOSING_ATTR = "data-ft-docs-composing";
 /** Page-visible messages are not an authentication boundary and grant no extension APIs. */
 export function installGoogleDocsMainWorld(win: Window = window): () => void {
   if (win.top !== win) return installFrameKeys(win);
-  if (!isGoogleDocsPage(win)) return () => {};
+  // Each request re-checks the edit URL; "create" installs the bridge before that swap.
+  if (!isGoogleDocsPage(win) && !isGoogleDocsCreateURL(win.location.href)) return () => {};
   const docs = win as DocsWindow;
   try {
     // Use FluentTyper's own ID, never impersonate another extension.

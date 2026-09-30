@@ -20,6 +20,8 @@ export interface SpellingCandidate {
   /** The word as looked up: typographic apostrophes made plain, composed (NFC). */
   lookup: string;
   before: string;
+  /** "LEt's": the word with only its first capital, offered when the dictionary knows it. */
+  casing?: string;
 }
 
 const MAX_SPELLING_SUGGESTIONS = 5;
@@ -33,6 +35,7 @@ const CONTEXT_WORD = /\p{L}[\p{L}\p{M}]*(?:['’]\p{L}[\p{L}\p{M}]*)*/gu;
 const SUGGESTION = /^\p{L}[\p{L}\p{M}]*(?:['’]\p{L}[\p{L}\p{M}]*)*$/u;
 // A word glued to these is part of a number, path, handle, identifier or compound.
 const GLUE = /[\p{N}_@#$%&/\\=+*<>~^`|-]/u;
+const TWO_INITIAL_CAPITALS = /^\p{Lu}\p{Lu}\p{Ll}+(?:['’]\p{Ll}+)*$/u;
 const SENTENCE_BREAK = /[.!?\n￼]/u;
 
 /**
@@ -94,6 +97,21 @@ export function spellingCandidates(
     if (next === "." && /\p{L}/u.test(text[end + 1] ?? "")) continue;
     if (previous === "." && start >= 2 && /\p{L}/u.test(text[start - 2])) continue;
     const rest = word.slice(1);
+    // "LEt's", "THe": a held Shift, unless an acronym plural ("IDs", "TVs").
+    if (TWO_INITIAL_CAPITALS.test(word) && !/^\p{Lu}{2}s$/u.test(word)) {
+      const casing = word[0] + rest.toLowerCase();
+      const lookup = lookupForm(casing);
+      if (isLookupWord(lookup) && !prepared.dictionary.has(word.toLowerCase())) {
+        candidates.push({
+          range: { start, end },
+          word,
+          lookup,
+          before: wordsBefore(text, start),
+          casing,
+        });
+      }
+      continue;
+    }
     if (/\p{Lu}/u.test(rest)) continue;
     if (/\p{Lu}/u.test(word[0]) && !opensSentence(prepared, start)) continue;
     // "cafe\u0301" is looked up as "café"; the snapshot and its offsets keep the word as written.

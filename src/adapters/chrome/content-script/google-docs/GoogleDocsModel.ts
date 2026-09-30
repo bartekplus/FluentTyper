@@ -76,6 +76,19 @@ export function isGoogleDocsURL(href: string): boolean {
   }
 }
 
+/** A new document starts here; Docs then swaps the URL to its edit URL without a reload. */
+export function isGoogleDocsCreateURL(href: string): boolean {
+  try {
+    const url = new URL(href);
+    return (
+      url.origin === "https://docs.google.com" &&
+      /^\/document\/(?:u\/\d+\/)?create\/?$/.test(url.pathname)
+    );
+  } catch {
+    return false;
+  }
+}
+
 /** Page messages: typing reads, writes, keys and requests stay within this. */
 export const MAX_MESSAGE = 200_000;
 /** Only a review read's reply may be larger: REVIEW_WINDOW characters, some of them JSON-escaped. */

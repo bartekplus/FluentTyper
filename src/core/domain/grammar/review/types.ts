@@ -120,6 +120,7 @@ export type ReviewMessageKey =
   | "review_msg_measurement_spacing"
   | "review_msg_currency_spacing"
   | "review_msg_unknown_word"
+  | "review_msg_two_initial_capitals"
   | "review_msg_local_ai";
 
 export type BulkDecision =
