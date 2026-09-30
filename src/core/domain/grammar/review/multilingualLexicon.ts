@@ -1,0 +1,309 @@
+import { INSIDE_NAMED_EXAMPLE } from "./exampleCues";
+import type { DetectContext, RawFinding } from "./reviewDetectors";
+
+/**
+ * Review-only extensions of English rules to the other supported languages.
+ * Each is a bounded word table; a form that also reads correctly somewhere is
+ * left out, and every finding is individual-only.
+ */
+
+const EDGE_BEFORE = "(?<![\\p{L}\\p{M}\\p{N}_'’@/#\\\\.-])";
+const EDGE_AFTER = "(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]|\\.[\\p{L}\\p{N}])";
+const SPACE = "[ \\t\\u00a0]{1,8}";
+
+/** The replacement in the typed word's case: all capitals, or its leading capital. */
+function withLeadingCase(typed: string, replacement: string): string {
+  if (typed.length > 1 && typed === typed.toUpperCase()) return replacement.toUpperCase();
+  return /^\p{Lu}/u.test(typed) ? replacement[0].toUpperCase() + replacement.slice(1) : replacement;
+}
+
+function wordTable(entries: Record<string, string>): { regex: RegExp; map: Map<string, string> } {
+  const map = new Map(Object.entries(entries));
+  return {
+    regex: new RegExp(`${EDGE_BEFORE}(?:${[...map.keys()].join("|")})${EDGE_AFTER}`, "giu"),
+    map,
+  };
+}
+
+function* ownedWords(ctx: DetectContext, regex: RegExp): Generator<RegExpExecArray> {
+  regex.lastIndex = ctx.from;
+  for (let m = regex.exec(ctx.scanText); m && m.index < ctx.to; m = regex.exec(ctx.scanText)) {
+    yield m;
+  }
+}
+
+function citedAt(ctx: DetectContext, start: number): boolean {
+  return INSIDE_NAMED_EXAMPLE.test(ctx.text.slice(Math.max(0, start - 128), start));
+}
+
+// ------------------------------------------------------------ doubled degree
+
+interface DegreeTable {
+  marker: string;
+  words: string;
+  /** A negation in the clause before: "ne … plus meilleur" is "no longer better". */
+  negation?: RegExp;
+  regex?: RegExp;
+  /** Words right before the marker that make it another phrase ("de plus", "en plus"). */
+  blockedBefore?: RegExp;
+}
+
+const DEGREE: Record<string, DegreeTable> = {
+  fr: {
+    marker: "plus",
+    words: "meilleure?s?|pires?",
+    negation: /(?<![\p{L}])(?:ne(?![\p{L}])|n['’])[^.!?;:\n]{0,40}$/iu,
+    blockedBefore: /(?<![\p{L}])(?:de|en)[ \t ]+$/iu,
+  },
+  // "cuanto más mejor", "quanto mais melhor": "the more the better".
+  es: {
+    marker: "más",
+    words: "mejor(?:es)?|peor(?:es)?",
+    blockedBefore: /(?<![\p{L}])cu[aá]nto[ \t\u00a0]+$/iu,
+  },
+  pt: {
+    marker: "mais",
+    words: "melhor(?:es)?|pior(?:es)?",
+    negation: /(?<![\p{L}])(?:não|nunca|jamais)(?![\p{L}])[^.!?;:\n]{0,40}$/iu,
+    blockedBefore: /(?<![\p{L}])quanto[ \t\u00a0]+$/iu,
+  },
+  pl: {
+    marker: "bardziej",
+    words:
+      "lepsz(?:y|a|e|ego|ej|ym|ych|ymi|ą)|lepsi|lepiej|gorsz(?:y|a|e|ego|ej|ym|ych|ymi|ą)|gorsi|gorzej",
+  },
+  hr: {
+    marker: "više",
+    // "gori" (burns), "gora" (mountain) and "gore" (up) are other words.
+    words: "bolj(?:i|a|eg|em|oj|ih|im|u)",
+    negation:
+      /(?<![\p{L}])(?:ne|ni|nije|nisu|nisam|nisi|nismo|niste|nikad)(?![\p{L}])[^.!?;:\n]{0,40}$/iu,
+  },
+  sv: { marker: "mera?", words: "bättre|sämre" },
+  el: {
+    marker: "πιο",
+    words: "καλύτερ(?:ος|η|ο|οι|ες|α|ου|ης|ων|ους)|χειρότερ(?:ος|η|ο|οι|ες|α|ου|ης|ων|ους)",
+  },
+};
+for (const table of Object.values(DEGREE)) {
+  table.regex = new RegExp(
+    `${EDGE_BEFORE}(?<target>(?<marker>${table.marker})${SPACE}(?<word>${table.words}))${EDGE_AFTER}`,
+    "giu",
+  );
+}
+
+/** "plus meilleur", "más mejor", "bardziej lepszy", "πιο καλύτερος": the word is already comparative. */
+export function doubledDegreeByLanguage(ctx: DetectContext): RawFinding[] {
+  const table = DEGREE[ctx.lang.slice(0, 2)];
+  if (!table) return [];
+  const findings: RawFinding[] = [];
+  for (const m of ownedWords(ctx, table.regex!)) {
+    const start = m.index;
+    const end = start + m[0].length;
+    const { marker, word } = m.groups!;
+    const before = ctx.text.slice(Math.max(0, start - 64), start);
+    if (table.negation?.test(before) || table.blockedBefore?.test(before)) continue;
+    if (citedAt(ctx, start)) continue;
+    if (ctx.dictionary.has(marker.toLowerCase()) || ctx.dictionary.has(word.toLowerCase()))
+      continue;
+    findings.push({
+      ruleId: "englishDoubledDegree",
+      messageKey: "review_msg_doubled_degree",
+      range: { start, end },
+      alternatives: [withLeadingCase(marker, word)],
+      context: { start: Math.max(0, start - 64), end },
+      bulkBlock: "context-dependent",
+    });
+  }
+  return findings;
+}
+
+// --------------------------------------------------------------- split words
+
+// Closed spellings that are always two words. Left out because the joined form
+// is a real word too: fr "entrain", es "entorno"/"sobretodo"/"talvez"/"osea"
+// (ósea, typed without its accent), pt
+// "agente", pl "niema", hr "dali"/"nemam"/"neću", sv "hursomhelst".
+const SPLIT_WORDS: Record<string, Record<string, string>> = {
+  de: {
+    garnicht: "gar nicht",
+    garnichts: "gar nichts",
+    garkein: "gar kein",
+    garkeine: "gar keine",
+    garkeinen: "gar keinen",
+    garkeinem: "gar keinem",
+    garkeiner: "gar keiner",
+    vorallem: "vor allem",
+    aufjedenfall: "auf jeden Fall",
+    desweiteren: "des Weiteren",
+  },
+  fr: {
+    parcontre: "par contre",
+    biensûr: "bien sûr",
+    biensur: "bien sûr",
+    tanpis: "tant pis",
+    toutdesuite: "tout de suite",
+    parceque: "parce que",
+    desfois: "des fois",
+  },
+  es: {
+    aveces: "a veces",
+    enserio: "en serio",
+    porfavor: "por favor",
+    apesar: "a pesar",
+    sinembargo: "sin embargo",
+    almenos: "al menos",
+    deacuerdo: "de acuerdo",
+  },
+  pt: {
+    derrepente: "de repente",
+    concerteza: "com certeza",
+    apartir: "a partir",
+    porisso: "por isso",
+    denovo: "de novo",
+    emcima: "em cima",
+    atoa: "à toa",
+    porfavor: "por favor",
+  },
+  pl: {
+    napewno: "na pewno",
+    wogóle: "w ogóle",
+    narazie: "na razie",
+    poprostu: "po prostu",
+    niewiem: "nie wiem",
+    niemam: "nie mam",
+    conajmniej: "co najmniej",
+    wkońcu: "w końcu",
+    naprzykład: "na przykład",
+    przedewszystkim: "przede wszystkim",
+    odrazu: "od razu",
+    niemożna: "nie można",
+  },
+  sv: {
+    iallafall: "i alla fall",
+    iallfall: "i alla fall",
+    förmycket: "för mycket",
+    tillsist: "till sist",
+    iochmed: "i och med",
+    tillochmed: "till och med",
+    förövrigt: "för övrigt",
+  },
+  hr: {
+    nemogu: "ne mogu",
+    nemožeš: "ne možeš",
+    nemože: "ne može",
+    nemožemo: "ne možemo",
+    nemožete: "ne možete",
+    neznam: "ne znam",
+    neznaš: "ne znaš",
+    nezna: "ne zna",
+    neznamo: "ne znamo",
+    neznate: "ne znate",
+    nebi: "ne bi",
+    nebih: "ne bih",
+    nebismo: "ne bismo",
+    nebiste: "ne biste",
+  },
+};
+const SPLIT_TABLES = new Map(
+  Object.entries(SPLIT_WORDS).map(([lang, entries]) => [lang, wordTable(entries)]),
+);
+
+/** Two words written as one ("napewno", "aveces"): the "alot" rule for other languages. */
+export function splitWords(ctx: DetectContext): RawFinding[] {
+  const table = SPLIT_TABLES.get(ctx.lang.slice(0, 2));
+  if (!table) return [];
+  const findings: RawFinding[] = [];
+  for (const m of ownedWords(ctx, table.regex)) {
+    const typed = m[0];
+    const lower = typed.toLowerCase();
+    if (ctx.dictionary.has(lower) || citedAt(ctx, m.index)) continue;
+    const replacement = table.map.get(lower)!;
+    findings.push({
+      ruleId: "englishAlotCorrection",
+      messageKey: "review_msg_split_words",
+      range: { start: m.index, end: m.index + typed.length },
+      alternatives: [withLeadingCase(typed, replacement)],
+      dictionaryWord: typed,
+      bulkBlock: "context-dependent",
+    });
+  }
+  return findings;
+}
+
+// ----------------------------------------------------------- French elision
+
+// Forms that are no French word without their apostrophe. "nest", "sil",
+// "quelle" and "jen" are words (or English words) and stay out.
+const FRENCH_ELISIONS = wordTable({
+  cest: "c'est",
+  cétait: "c'était",
+  jai: "j'ai",
+  jaime: "j'aime",
+  jétais: "j'étais",
+  jespère: "j'espère",
+  quil: "qu'il",
+  quils: "qu'ils",
+  quon: "qu'on",
+  aujourdhui: "aujourd'hui",
+  daccord: "d'accord",
+  dailleurs: "d'ailleurs",
+  lorsquil: "lorsqu'il",
+  puisquil: "puisqu'il",
+});
+
+/** "cest", "jai", "aujourdhui": a French elision missing its apostrophe. */
+export function frenchElisions(ctx: DetectContext): RawFinding[] {
+  if (ctx.lang.slice(0, 2) !== "fr") return [];
+  const findings: RawFinding[] = [];
+  for (const m of ownedWords(ctx, FRENCH_ELISIONS.regex)) {
+    const typed = m[0];
+    const lower = typed.toLowerCase();
+    if (ctx.dictionary.has(lower) || citedAt(ctx, m.index)) continue;
+    // The text's own apostrophe style.
+    const nearby = ctx.text.slice(Math.max(0, m.index - 400), m.index + 400);
+    const curly = nearby.includes("’") && !nearby.includes("'");
+    let replacement = FRENCH_ELISIONS.map.get(lower)!;
+    if (curly) replacement = replacement.replaceAll("'", "’");
+    findings.push({
+      ruleId: "englishContractionNormalization",
+      messageKey: "review_msg_contraction",
+      range: { start: m.index, end: m.index + typed.length },
+      alternatives: [withLeadingCase(typed, replacement)],
+      bulkBlock: "context-dependent",
+    });
+  }
+  return findings;
+}
+
+// ------------------------------------------------- German days and months
+
+// Nouns, so always capitalized; the adverbs ("montags") and compounds stay as
+// typed. "august" is also an adjective: only after a date word.
+const GERMAN_NOUNS = new RegExp(
+  `${EDGE_BEFORE}(?:montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonnabend|sonntag|januar|jänner|februar|märz|april|mai|juni|juli|september|oktober|november|dezember|weihnachten|ostern|pfingsten|august)${EDGE_AFTER}`,
+  "gu",
+);
+const AUGUST_CONTEXT =
+  /(?:(?<![\p{L}])(?:im|anfang|ende|mitte|seit|bis|ab|vom|zum|nächsten|letzten|diesen|kommenden)|\d{1,2}\.)[ \t ]+$/iu;
+
+/** "am montag", "im märz": German days, months and holidays are nouns. */
+export function germanNounCapitals(ctx: DetectContext): RawFinding[] {
+  if (ctx.lang.slice(0, 2) !== "de") return [];
+  const findings: RawFinding[] = [];
+  for (const m of ownedWords(ctx, GERMAN_NOUNS)) {
+    const typed = m[0];
+    const before = ctx.text.slice(Math.max(0, m.index - 24), m.index);
+    if (typed === "august" && !AUGUST_CONTEXT.test(before)) continue;
+    if (ctx.dictionary.has(typed) || citedAt(ctx, m.index)) continue;
+    findings.push({
+      ruleId: "englishProperNounCapitalization",
+      messageKey: "review_msg_german_noun_capital",
+      range: { start: m.index, end: m.index + 1 },
+      alternatives: [typed[0].toUpperCase()],
+      context: { start: Math.max(0, m.index - 24), end: m.index + typed.length },
+      bulkBlock: "context-dependent",
+    });
+  }
+  return findings;
+}

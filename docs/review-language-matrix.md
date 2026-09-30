@@ -1,0 +1,107 @@
+# Review rule × language matrix
+
+Every native Review check, for every supported language and for text whose
+language is still unresolved under the **Auto detect** setting (`auto`).
+
+- **S**: supported, with fixtures (file in the last column).
+- **U**: intentionally unsupported; the last column gives the linguistic reason.
+- **X**: excluded from Review for every language (typing-only convenience); reason given.
+
+The S/U/X cells are asserted against the code (`runsInReviewLanguage` in
+`src/core/domain/grammar/review/reviewCatalog.ts`) by
+`tests/grammar/ReviewLanguageMatrixDoc.test.ts`, so this page cannot drift.
+
+Fixture files (all under `tests/grammar/`):
+
+- **M**: `ReviewLanguageMatrix.test.ts` with `reviewLanguageFixtures/*` — at least 5
+  positives and 5 tricky negatives per language (abbreviations, ordinals, decimal
+  commas, thousands separators, native quotation styles, French spacing, the Greek
+  `;` question mark, Spanish `¿¡`, Arabic `، ؛ ؟` and uncased script, names,
+  technical tokens).
+- **E**: `ReviewLanguageExtensions.test.ts` — the per-language tables of extended
+  English rules, 5+ repairs and 5+ legitimate lookalikes each.
+- **SP**: `ReviewSpellingLanguages.test.ts` — lookup selection and held-Shift casing.
+- **EN**: the rule's own English suite (`Review*.test.ts`, `V*Rules.test.ts`).
+- **AD**: the unresolved auto-detect test in `LanguageTypography.test.ts`.
+
+## Native rules
+
+| Rule                                   | en  | fr  | de  | pl  | es  | pt  | sv  | hr  | el  | ar  | auto | Fixtures / reason                                                                                                                                                                            |
+| -------------------------------------- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `capitalizeSentenceStart`              | S   | S   | S   | S   | S   | S   | S   | S   | S   | S   | S    | M, AD. Per-language abbreviation lists; ar: Latin runs only (Arabic script is uncased). auto: every language's abbreviations.                                                                |
+| `capitalizeAfterLineBreak`             | S   | S   | S   | S   | S   | S   | S   | S   | S   | S   | S    | M, AD. A wrapped line ending on an abbreviation is not a sentence end; el `;` and ar `؟` end lines.                                                                                          |
+| `commaPeriodSpacing`                   | S   | S   | S   | S   | S   | S   | S   | S   | S   | S   | S    | M, AD. fr keeps its space before `? ! ;`; el `;`; es `¿ ¡` padding; ar `، ؛ ؟`.                                                                                                              |
+| `collapseRepeatedSpaces`               | S   | S   | S   | S   | S   | S   | S   | S   | S   | S   | S    | M. Script-independent; alignment and Markdown tables abstain.                                                                                                                                |
+| `duplicatePunctuationCollapse`         | S   | S   | S   | S   | S   | S   | S   | S   | S   | S   | S    | M. Includes ar `،، ؛؛`; el excludes `;;` (question marks).                                                                                                                                   |
+| `measurementUnitFormatting`            | S   | S   | S   | S   | S   | S   | S   | S   | S   | S   | U    | M. Locale decimal mark (period-decimal "2.5kg" too); ar Arabic-Indic digits. auto: no number locale to parse with.                                                                           |
+| `currencySpacing`                      | S   | S   | S   | S   | S   | S   | S   | S   | S   | S   | U    | M. auto: no number locale to parse with.                                                                                                                                                     |
+| `preferredTerminology`                 | S   | S   | S   | S   | S   | S   | S   | S   | S   | S   | U    | M, `ReviewTerminology.test.ts`. auto: terms are authored per named language.                                                                                                                 |
+| `englishRepeatedWords`                 | S   | S   | S   | S   | S   | S   | S   | S   | S   | S   | U    | M. Per-language allowlists without legitimate doublings (de "die die", fr "nous nous", es/pt "para para", hr "je je", el "με με", pl "to to"). auto: no list without a language.             |
+| `englishCanonicalCasing`               | S   | S   | S   | S   | S   | S   | S   | S   | S   | S   | S    | M. Brand names are spelled the same in every language.                                                                                                                                       |
+| `unclosedQuotation`                    | S   | S   | S   | S   | S   | S   | S   | S   | S   | S   | S    | M, `ReviewQuotationWarnings.test.ts`. Pairs by convention: de „“ ‚‘ »«; pl „” «»; hr „” »«; sv ”” »»; others “” ‘’ «». auto: default pairs; another convention abstains.                     |
+| `styleLongSentence`                    | S   | S   | S   | S   | S   | S   | S   | S   | S   | S   | S    | M, `Readability.test.ts`. Language's sentence segmentation and abbreviations; ar `؟` ends sentences. auto: English segmentation, every abbreviation.                                         |
+| `englishDoubledDegree`                 | S   | S   | U   | S   | S   | S   | S   | S   | S   | U   | U    | E. de: "mehr besser" is rare and "mehr" collocations are ambiguous. ar: comparatives are morphological (أفعل), no bounded doubled form. auto: word lists need a language.                    |
+| `englishAlotCorrection`                | S   | S   | S   | S   | S   | S   | S   | S   | U   | U   | U    | E (merged words that are always two: "napewno", "aveces", "garnicht"). el: the common merges are elisions (γι' αυτό), not splits. ar: prefixes attach by rule (وفي). auto: needs a language. |
+| `englishContractionNormalization`      | S   | S   | U   | U   | U   | U   | U   | U   | U   | U   | U    | E (fr elisions "cest", "jai"). de "gehts" is an accepted spelling; es/pt/pl/sv/hr have no apostrophe contractions; el elision forms are also full words; ar has none.                        |
+| `englishProperNounCapitalization`      | S   | U   | S   | U   | U   | U   | U   | U   | U   | U   | U    | E (de days, months, holidays are nouns). fr/pl/es/pt/sv/hr/el write days and months lowercase and a capital is also correct at starts and in titles; ar is uncased.                          |
+| `englishSubjectVerbAgreement`          | S   | U   | U   | U   | U   | U   | U   | U   | U   | U   | U    | EN. Agreement in inflected languages needs morphology (person, gender, case), not a bounded pronoun/verb table.                                                                              |
+| `englishExistentialAgreement`          | S   | U   | U   | U   | U   | U   | U   | U   | U   | U   | U    | EN. "there is/are" has no counterpart: il y a, es gibt, hay, há, jest/są are invariant or case-governed.                                                                                     |
+| `englishPronounVerbWhitelistAgreement` | S   | U   | U   | U   | U   | U   | U   | U   | U   | U   | U    | EN. Same as subject agreement: other languages' verb forms are not a closed whitelist.                                                                                                       |
+| `englishAuxiliaryBaseVerb`             | S   | U   | U   | U   | U   | U   | U   | U   | U   | U   | U    | EN. English modal + base form; other languages inflect or use infinitive markers with different rules.                                                                                       |
+| `englishPerfectParticiples`            | S   | U   | U   | U   | U   | U   | U   | U   | U   | U   | U    | EN. English irregular past/participle pairs.                                                                                                                                                 |
+| `englishVerbComplements`               | S   | U   | U   | U   | U   | U   | U   | U   | U   | U   | U    | EN. English to-infinitive/gerund frames.                                                                                                                                                     |
+| `englishFixedPrepositions`             | S   | U   | U   | U   | U   | U   | U   | U   | U   | U   | U    | EN. English collocations ("despite of", "discuss about").                                                                                                                                    |
+| `englishUsagePhrases`                  | S   | U   | U   | U   | U   | U   | U   | U   | U   | U   | U    | EN. Curated English idioms.                                                                                                                                                                  |
+| `englishCountability`                  | S   | U   | U   | U   | U   | U   | U   | U   | U   | U   | U    | EN. much/many and less/fewer; other languages mark count/mass by morphology or case.                                                                                                         |
+| `englishNounNumber`                    | S   | U   | U   | U   | U   | U   | U   | U   | U   | U   | U    | EN. Numeral + noun agreement elsewhere is case-governed (pl/hr 2–4 vs 5+, ar dual and 3–10 plural).                                                                                          |
+| `englishContextualCompounds`           | S   | U   | U   | U   | U   | U   | U   | U   | U   | U   | U    | EN. English open/closed compound pairs; other languages' merges are handled by `englishAlotCorrection` tables.                                                                               |
+| `englishItsContext`                    | S   | U   | U   | U   | U   | U   | U   | U   | U   | U   | U    | EN. English apostrophe homophone.                                                                                                                                                            |
+| `englishLetsContext`                   | S   | U   | U   | U   | U   | U   | U   | U   | U   | U   | U    | EN. English apostrophe homophone.                                                                                                                                                            |
+| `englishElsePossessive`                | S   | U   | U   | U   | U   | U   | U   | U   | U   | U   | U    | EN. English possessive clitic.                                                                                                                                                               |
+| `englishThenThan`                      | S   | U   | U   | U   | U   | U   | U   | U   | U   | U   | U    | EN. English homophones; analogous pairs (fr a/à, de das/dass, es haber/a ver) need syntax, not bounded contexts.                                                                             |
+| `englishYourYouAre`                    | S   | U   | U   | U   | U   | U   | U   | U   | U   | U   | U    | EN. English homophones.                                                                                                                                                                      |
+| `englishTheirThereTheyAre`             | S   | U   | U   | U   | U   | U   | U   | U   | U   | U   | U    | EN. English homophones.                                                                                                                                                                      |
+| `englishToToo`                         | S   | U   | U   | U   | U   | U   | U   | U   | U   | U   | U    | EN. English homophones.                                                                                                                                                                      |
+| `englishYourWelcomeCorrection`         | S   | U   | U   | U   | U   | U   | U   | U   | U   | U   | U    | EN. English fixed phrase.                                                                                                                                                                    |
+| `englishTheirThereBeVerb`              | S   | U   | U   | U   | U   | U   | U   | U   | U   | U   | U    | EN. English homophones.                                                                                                                                                                      |
+| `englishModalOfCorrection`             | S   | U   | U   | U   | U   | U   | U   | U   | U   | U   | U    | EN. "could of" is an English phonetic confusion.                                                                                                                                             |
+| `englishPronounICapitalization`        | S   | U   | U   | U   | U   | U   | U   | U   | U   | U   | U    | EN. Only English capitalizes the first-person pronoun.                                                                                                                                       |
+| `englishTypoWhitelistCorrection`       | S   | U   | U   | U   | U   | U   | U   | U   | U   | U   | U    | EN. Curated English typos; other languages get the dictionary spelling check (SP).                                                                                                           |
+| `englishArticleAnCorrection`           | S   | U   | U   | U   | U   | U   | U   | U   | U   | U   | U    | EN. a/an allomorphy is English-only.                                                                                                                                                         |
+| `englishOrdinalSuffix`                 | S   | U   | U   | U   | U   | U   | U   | U   | U   | U   | U    | EN. st/nd/rd/th; other languages write "1." or "1º", covered by abbreviation handling.                                                                                                       |
+| `styleRedundancy`                      | S   | U   | U   | U   | U   | U   | U   | U   | U   | U   | U    | EN. "PIN number" / "ATM machine" are English pleonasms; "PIN-Nummer" or "código PIN" are standard elsewhere.                                                                                 |
+| `doubleSpaceToPeriod`                  | X   | X   | X   | X   | X   | X   | X   | X   | X   | X   | X    | Typing shortcut: existing double spaces are not sentence ends.                                                                                                                               |
+| `technicalTokenCompaction`             | X   | X   | X   | X   | X   | X   | X   | X   | X   | X   | X    | Ambiguous in finished text ("Chapter 3: 5 tips").                                                                                                                                            |
+| `mathOperatorSpacing`                  | X   | X   | X   | X   | X   | X   | X   | X   | X   | X   | X    | Typing-time style; existing operators are often code or notation.                                                                                                                            |
+| `slashContextSpacing`                  | X   | X   | X   | X   | X   | X   | X   | X   | X   | X   | X    | Spacing around an existing slash is style.                                                                                                                                                   |
+| `openingBracketSpacing`                | X   | X   | X   | X   | X   | X   | X   | X   | X   | X   | X    | Code-like spacing, not prose proofreading.                                                                                                                                                   |
+| `closingBracketSpacing`                | X   | X   | X   | X   | X   | X   | X   | X   | X   | X   | X    | Often notation, Markdown or intervals.                                                                                                                                                       |
+| `trimSpaceBeforeLineBreak`             | X   | X   | X   | X   | X   | X   | X   | X   | X   | X   | X    | Invisible; two trailing spaces are a Markdown line break.                                                                                                                                    |
+| `ellipsisShortcut`                     | X   | X   | X   | X   | X   | X   | X   | X   | X   | X   | X    | Typing shortcut, not an error.                                                                                                                                                               |
+| `emdashShortcut`                       | X   | X   | X   | X   | X   | X   | X   | X   | X   | X   | X    | Typing shortcut, not an error.                                                                                                                                                               |
+| `smartQuoteNormalization`              | X   | X   | X   | X   | X   | X   | X   | X   | X   | X   | X    | Straight quotes in finished text may be code or deliberate.                                                                                                                                  |
+| `frenchPunctuationSpacing`             | X   | X   | X   | X   | X   | X   | X   | X   | X   | X   | X    | Typing-time convention with invisible no-break spaces; Review instead never flags fr's own spacing.                                                                                          |
+| `autoBracketClose`                     | X   | X   | X   | X   | X   | X   | X   | X   | X   | X   | X    | Review never inserts closing brackets.                                                                                                                                                       |
+
+## Dictionary checks
+
+| Check                 | en  | fr  | de  | pl  | es  | pt  | sv  | hr  | el  | ar  | auto | Fixtures / reason                                                                                                                                                          |
+| --------------------- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Spelling (dictionary) | S   | S   | S   | S   | S   | S   | S   | S   | S   | S   | U    | SP. The language's Presage dictionary. de: capitalized words inside a sentence (nouns and names alike) are not looked up. auto: no dictionary until the language is known. |
+| Two initial capitals  | S   | S   | S   | S   | S   | S   | S   | S   | S   | S   | U    | SP. Acronym plurals ("IDs") abstain except the language's own short words ("LEs", "LOs", "DAs", "WAs"). ar: Latin runs only. auto: no dictionary.                          |
+
+## Shared helpers
+
+- **Abbreviation lists** (`CapitalizeSentenceStartRule.ts`, used by typing and Review):
+  per language; words that often end a sentence in their own language are left out
+  (en "no"; fr "art", "vol", "ex", "bd", "prof"; de "art", "dir", "tab", "mag"; pl
+  "gen", "por", "im", "min", "ok", "zł", "gr"; es "col"; sv "kap", "kr", "sek"; hr
+  "kn"; el "εκ").
+- **Named-example guards** (`exampleCues.ts`): write/type/word/example cues in every
+  language, applied to every text (they only suppress findings). Speech verbs
+  ("says", "dit", "sagt") only cite an error right at the quotation's start; narrative
+  past tenses ("a écrit", "escribió") never do.
+- **Quotation pairs** (`quotationWarnings.ts`, `proseQuotations.ts`): per-language
+  conventions as above.
+- **Sentence marks**: `؟` ends a sentence wherever `. ! ?` do; Greek `;` where the
+  language is Greek.

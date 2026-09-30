@@ -1,0 +1,490 @@
+import type { RuleFixtures } from "./types";
+
+export const commaPeriodSpacing: RuleFixtures = {
+  en_US: {
+    pos: [
+      ["Hello , world.", "Hello, world."],
+      ["It is done .", "It is done."],
+      ["Really ? Yes.", "Really? Yes."],
+      ["Apples,pears and plums.", "Apples, pears and plums."],
+      ["Stop ! Now.", "Stop! Now."],
+    ],
+    neg: [
+      "It costs 3,50 today.",
+      "We sold 1,000 units.",
+      "Use the a,b notation.",
+      "Press . to repeat.",
+      "Wait ... what?",
+    ],
+  },
+  fr_FR: {
+    pos: [
+      ["Bonjour , monde.", "Bonjour, monde."],
+      ["C'est fini .", "C'est fini."],
+      ["Pommes,poires et prunes.", "Pommes, poires et prunes."],
+      ["Oui , non.", "Oui, non."],
+      ["Il part . Elle reste.", "Il part. Elle reste."],
+    ],
+    neg: [
+      "Quoi ? Rien.",
+      "Super ! On y va.",
+      "Il coûte 3,50 euros.",
+      "Il y a 1 000 personnes.",
+      "Voici : la liste.",
+    ],
+  },
+  de_DE: {
+    pos: [
+      ["Hallo , Welt.", "Hallo, Welt."],
+      ["Es ist fertig .", "Es ist fertig."],
+      ["Wirklich ? Ja.", "Wirklich? Ja."],
+      ["Äpfel,Birnen und Pflaumen.", "Äpfel, Birnen und Pflaumen."],
+      ["Halt ! Jetzt.", "Halt! Jetzt."],
+    ],
+    neg: [
+      "Es kostet 3,50 Euro.",
+      "Es waren 1.000 Leute.",
+      "Das ist z. B. gut.",
+      "Am 3. Mai ist Feiertag.",
+      "Nutze die a,b Notation.",
+    ],
+  },
+  pl_PL: {
+    pos: [
+      ["Cześć , świecie.", "Cześć, świecie."],
+      ["To koniec .", "To koniec."],
+      ["Naprawdę ? Tak.", "Naprawdę? Tak."],
+      ["Jabłka,gruszki i śliwki.", "Jabłka, gruszki i śliwki."],
+      ["Stop ! Teraz.", "Stop! Teraz."],
+    ],
+    neg: [
+      "Kosztuje 3,50 zł.",
+      "Było 1 000 osób.",
+      "To np. dobre.",
+      "Dnia 3. maja.",
+      "Użyj notacji a,b.",
+    ],
+  },
+  es_ES: {
+    pos: [
+      ["Hola , mundo.", "Hola, mundo."],
+      ["Está hecho .", "Está hecho."],
+      ["¿ Qué pasa?", "¿Qué pasa?"],
+      ["¡ Hola! Bien.", "¡Hola! Bien."],
+      ["Manzanas,peras y ciruelas.", "Manzanas, peras y ciruelas."],
+    ],
+    neg: [
+      "¿Qué pasa?",
+      "Cuesta 3,50 euros.",
+      "Había 1.000 personas.",
+      "Usa la notación a,b.",
+      "Dijo: «¡Hola!» y se fue.",
+    ],
+  },
+  pt_BR: {
+    pos: [
+      ["Olá , mundo.", "Olá, mundo."],
+      ["Está feito .", "Está feito."],
+      ["Sério ? Sim.", "Sério? Sim."],
+      ["Maçãs,peras e ameixas.", "Maçãs, peras e ameixas."],
+      ["Pare ! Agora.", "Pare! Agora."],
+    ],
+    neg: [
+      "Custa 3,50 reais.",
+      "Eram 1.000 pessoas.",
+      "Use a notação a,b.",
+      "Veja pág. dez.",
+      "Ela disse: “Pare!” e saiu.",
+    ],
+  },
+  sv_SE: {
+    pos: [
+      ["Hej , världen.", "Hej, världen."],
+      ["Det är klart .", "Det är klart."],
+      ["Verkligen ? Ja.", "Verkligen? Ja."],
+      ["Äpplen,päron och plommon.", "Äpplen, päron och plommon."],
+      ["Stopp ! Nu.", "Stopp! Nu."],
+    ],
+    neg: [
+      "Det kostar 3,50 kronor.",
+      "Det var 1 000 personer.",
+      "Se bl.a. katter.",
+      "Använd notationen a,b.",
+      "Han sa: ”Stopp!” och gick.",
+    ],
+  },
+  hr_HR: {
+    pos: [
+      ["Bok , svijete.", "Bok, svijete."],
+      ["Gotovo je .", "Gotovo je."],
+      ["Stvarno ? Da.", "Stvarno? Da."],
+      ["Jabuke,kruške i šljive.", "Jabuke, kruške i šljive."],
+      ["Stani ! Sada.", "Stani! Sada."],
+    ],
+    neg: [
+      "Košta 3,50 eura.",
+      "Bilo je 1.000 ljudi.",
+      "Npr. ovo je dobro.",
+      "Rođen je 3. svibnja.",
+      "Koristi notaciju a,b.",
+    ],
+  },
+  el_GR: {
+    pos: [
+      ["Γεια , κόσμε.", "Γεια, κόσμε."],
+      ["Τελείωσε .", "Τελείωσε."],
+      ["Τι κάνεις ; Καλά.", "Τι κάνεις; Καλά."],
+      ["Μήλα,αχλάδια και δαμάσκηνα.", "Μήλα, αχλάδια και δαμάσκηνα."],
+      ["Στοπ ! Τώρα.", "Στοπ! Τώρα."],
+    ],
+    neg: [
+      "Κοστίζει 3,50 ευρώ.",
+      "Ήταν 1.000 άτομα.",
+      "Τι κάνεις; Καλά.",
+      "Δες σελ. δέκα.",
+      "Χρησιμοποίησε τον συμβολισμό a,b.",
+    ],
+  },
+  ar_SA: {
+    pos: [
+      ["مرحبا ، كيف حالك؟", "مرحبا، كيف حالك؟"],
+      ["كيف حالك ؟ بخير.", "كيف حالك؟ بخير."],
+      ["أولا ؛ ثانيا.", "أولا؛ ثانيا."],
+      ["انتهى .", "انتهى."],
+      ["تفاح،كمثرى وخوخ.", "تفاح، كمثرى وخوخ."],
+    ],
+    neg: [
+      "مرحبا، كيف حالك؟",
+      "السعر 3,50 ريال.",
+      "كان هناك 1,000 شخص.",
+      "قال: «نعم!» ثم ذهب.",
+      "أولا؛ ثانيا.",
+    ],
+  },
+};
+
+export const repeatedSpaces: RuleFixtures = {
+  en_US: {
+    pos: [
+      ["Hello  world.", "Hello world."],
+      ["It is   done.", "It is done."],
+      ["One.  Two.", "One. Two."],
+      ["A  b.", "A b."],
+      ["Yes,  sure.", "Yes, sure."],
+    ],
+    neg: [
+      "Name   Age   City",
+      "| a  | b |",
+      "  Indented line.",
+      "Trailing spaces  \nnext.",
+      "Single spaces only.",
+    ],
+  },
+  fr_FR: {
+    pos: [
+      ["Bonjour  monde.", "Bonjour monde."],
+      ["C'est   fini.", "C'est fini."],
+      ["Un.  Deux.", "Un. Deux."],
+      ["Oui,  bien sûr.", "Oui, bien sûr."],
+      ["Il  part.", "Il part."],
+    ],
+    neg: [
+      "Nom   Âge   Ville",
+      "| a  | b |",
+      "  Ligne indentée.",
+      "Quoi ? Rien.",
+      "« Oui » dit-il.",
+    ],
+  },
+  de_DE: {
+    pos: [
+      ["Hallo  Welt.", "Hallo Welt."],
+      ["Es ist   fertig.", "Es ist fertig."],
+      ["Eins.  Zwei.", "Eins. Zwei."],
+      ["Ja,  gern.", "Ja, gern."],
+      ["Er  geht.", "Er geht."],
+    ],
+    neg: [
+      "Name   Alter   Stadt",
+      "| a  | b |",
+      "  Eingerückte Zeile.",
+      "Es kostet 3,50 €.",
+      "Nur einfache Leerzeichen.",
+    ],
+  },
+  pl_PL: {
+    pos: [
+      ["Cześć  świecie.", "Cześć świecie."],
+      ["To   koniec.", "To koniec."],
+      ["Jeden.  Dwa.", "Jeden. Dwa."],
+      ["Tak,  jasne.", "Tak, jasne."],
+      ["On  idzie.", "On idzie."],
+    ],
+    neg: [
+      "Imię   Wiek   Miasto",
+      "| a  | b |",
+      "  Wcięta linia.",
+      "Było 1 000 osób.",
+      "Tylko pojedyncze spacje.",
+    ],
+  },
+  es_ES: {
+    pos: [
+      ["Hola  mundo.", "Hola mundo."],
+      ["Está   hecho.", "Está hecho."],
+      ["Uno.  Dos.", "Uno. Dos."],
+      ["Sí,  claro.", "Sí, claro."],
+      ["¿Vienes  hoy?", "¿Vienes hoy?"],
+    ],
+    neg: [
+      "Nombre   Edad   Ciudad",
+      "| a  | b |",
+      "  Línea sangrada.",
+      "¿Qué pasa?",
+      "Solo espacios simples.",
+    ],
+  },
+  pt_BR: {
+    pos: [
+      ["Olá  mundo.", "Olá mundo."],
+      ["Está   feito.", "Está feito."],
+      ["Um.  Dois.", "Um. Dois."],
+      ["Sim,  claro.", "Sim, claro."],
+      ["Ele  vai.", "Ele vai."],
+    ],
+    neg: [
+      "Nome   Idade   Cidade",
+      "| a  | b |",
+      "  Linha recuada.",
+      "Custa R$ 10.",
+      "Apenas espaços simples.",
+    ],
+  },
+  sv_SE: {
+    pos: [
+      ["Hej  världen.", "Hej världen."],
+      ["Det är   klart.", "Det är klart."],
+      ["Ett.  Två.", "Ett. Två."],
+      ["Ja,  visst.", "Ja, visst."],
+      ["Han  går.", "Han går."],
+    ],
+    neg: [
+      "Namn   Ålder   Stad",
+      "| a  | b |",
+      "  Indragen rad.",
+      "Det var 1 000 personer.",
+      "Bara enkla mellanslag.",
+    ],
+  },
+  hr_HR: {
+    pos: [
+      ["Bok  svijete.", "Bok svijete."],
+      ["Gotovo   je.", "Gotovo je."],
+      ["Jedan.  Dva.", "Jedan. Dva."],
+      ["Da,  naravno.", "Da, naravno."],
+      ["On  ide.", "On ide."],
+    ],
+    neg: [
+      "Ime   Dob   Grad",
+      "| a  | b |",
+      "  Uvučeni red.",
+      "Košta 10 €.",
+      "Samo jednostruki razmaci.",
+    ],
+  },
+  el_GR: {
+    pos: [
+      ["Γεια  σου κόσμε.", "Γεια σου κόσμε."],
+      ["Τελείωσε   σήμερα.", "Τελείωσε σήμερα."],
+      ["Ένα.  Δύο.", "Ένα. Δύο."],
+      ["Ναι,  βέβαια.", "Ναι, βέβαια."],
+      ["Αυτός  πάει.", "Αυτός πάει."],
+    ],
+    neg: [
+      "Όνομα   Ηλικία   Πόλη",
+      "| a  | b |",
+      "  Εσοχή γραμμής.",
+      "Τι κάνεις; Καλά.",
+      "Μόνο απλά κενά.",
+    ],
+  },
+  ar_SA: {
+    pos: [
+      ["مرحبا  بالعالم.", "مرحبا بالعالم."],
+      ["انتهى   اليوم.", "انتهى اليوم."],
+      ["واحد.  اثنان.", "واحد. اثنان."],
+      ["نعم،  بالتأكيد.", "نعم، بالتأكيد."],
+      ["هو  يذهب.", "هو يذهب."],
+    ],
+    neg: [
+      "الاسم   العمر   المدينة",
+      "| a  | b |",
+      "  سطر مسبوق بمسافة.",
+      "كيف حالك؟ بخير.",
+      "مسافات مفردة فقط.",
+    ],
+  },
+};
+
+export const duplicatePunctuation: RuleFixtures = {
+  en_US: {
+    pos: [
+      ["Yes,, sure.", "Yes, sure."],
+      ["One;; two.", "One; two."],
+      ["Red, , blue.", "Red, blue."],
+      ["It is done..", "It is done."],
+      ["Ok,,, go.", "Ok, go."],
+    ],
+    neg: [
+      "Wait... what?",
+      "Open ../config now.",
+      "Use std::vector here.",
+      "Really?! Yes.",
+      "Wow!! Great.",
+    ],
+  },
+  fr_FR: {
+    pos: [
+      ["Oui,, bien sûr.", "Oui, bien sûr."],
+      ["Un ;; deux.", "Un ; deux."],
+      ["Rouge, , bleu.", "Rouge, bleu."],
+      ["C'est fini..", "C'est fini."],
+      ["Bon,,, allez.", "Bon, allez."],
+    ],
+    neg: [
+      "Attends... quoi ?",
+      "Ouvre ../config maintenant.",
+      "Vraiment ?! Oui.",
+      "Il coûte 3,50 euros.",
+      "Et alors ?? Rien.",
+    ],
+  },
+  de_DE: {
+    pos: [
+      ["Ja,, gern.", "Ja, gern."],
+      ["Eins;; zwei.", "Eins; zwei."],
+      ["Rot, , blau.", "Rot, blau."],
+      ["Es ist fertig..", "Es ist fertig."],
+      ["Gut,,, los.", "Gut, los."],
+    ],
+    neg: [
+      "Warte... was?",
+      "Öffne ../config jetzt.",
+      "Das ist z. B. gut.",
+      "Es kostet 3,50 Euro.",
+      "Wirklich?! Ja.",
+    ],
+  },
+  pl_PL: {
+    pos: [
+      ["Tak,, jasne.", "Tak, jasne."],
+      ["Jeden;; dwa.", "Jeden; dwa."],
+      ["Czerwony, , niebieski.", "Czerwony, niebieski."],
+      ["To koniec..", "To koniec."],
+      ["Dobra,,, idziemy.", "Dobra, idziemy."],
+    ],
+    neg: [
+      "Czekaj... co?",
+      "Otwórz ../config teraz.",
+      "To np. dobre.",
+      "Kosztuje 3,50 zł.",
+      "Naprawdę?! Tak.",
+    ],
+  },
+  es_ES: {
+    pos: [
+      ["Sí,, claro.", "Sí, claro."],
+      ["Uno;; dos.", "Uno; dos."],
+      ["Rojo, , azul.", "Rojo, azul."],
+      ["Está hecho..", "Está hecho."],
+      ["Bueno,,, vamos.", "Bueno, vamos."],
+    ],
+    neg: [
+      "Espera... ¿qué?",
+      "Abre ../config ahora.",
+      "¿¡En serio!?",
+      "Cuesta 3,50 euros.",
+      "Ver pág. diez.",
+    ],
+  },
+  pt_BR: {
+    pos: [
+      ["Sim,, claro.", "Sim, claro."],
+      ["Um;; dois.", "Um; dois."],
+      ["Vermelho, , azul.", "Vermelho, azul."],
+      ["Está feito..", "Está feito."],
+      ["Bom,,, vamos.", "Bom, vamos."],
+    ],
+    neg: [
+      "Espera... o quê?",
+      "Abra ../config agora.",
+      "Sério?! Sim.",
+      "Custa 3,50 reais.",
+      "Veja pág. dez.",
+    ],
+  },
+  sv_SE: {
+    pos: [
+      ["Ja,, visst.", "Ja, visst."],
+      ["Ett;; två.", "Ett; två."],
+      ["Röd, , blå.", "Röd, blå."],
+      ["Det är klart..", "Det är klart."],
+      ["Bra,,, kör.", "Bra, kör."],
+    ],
+    neg: [
+      "Vänta... vad?",
+      "Öppna ../config nu.",
+      "Se bl.a. katter.",
+      "Det kostar 3,50 kronor.",
+      "Verkligen?! Ja.",
+    ],
+  },
+  hr_HR: {
+    pos: [
+      ["Da,, naravno.", "Da, naravno."],
+      ["Jedan;; dva.", "Jedan; dva."],
+      ["Crvena, , plava.", "Crvena, plava."],
+      ["Gotovo je..", "Gotovo je."],
+      ["Dobro,,, idemo.", "Dobro, idemo."],
+    ],
+    neg: [
+      "Čekaj... što?",
+      "Otvori ../config sada.",
+      "Npr. ovo je dobro.",
+      "Košta 3,50 eura.",
+      "Stvarno?! Da.",
+    ],
+  },
+  el_GR: {
+    pos: [
+      ["Ναι,, βέβαια.", "Ναι, βέβαια."],
+      ["Κόκκινο, , μπλε.", "Κόκκινο, μπλε."],
+      ["Τελείωσε..", "Τελείωσε."],
+      ["Καλά,,, πάμε.", "Καλά, πάμε."],
+      ["Ένα,, δύο.", "Ένα, δύο."],
+    ],
+    neg: [
+      "Περίμενε... τι;",
+      "Άνοιξε ../config τώρα.",
+      "Τι κάνεις; Καλά.",
+      "Κοστίζει 3,50 ευρώ.",
+      "Δες σελ. δέκα.",
+    ],
+  },
+  ar_SA: {
+    pos: [
+      ["نعم،، بالتأكيد.", "نعم، بالتأكيد."],
+      ["أولا؛؛ ثانيا.", "أولا؛ ثانيا."],
+      ["أحمر، ، أزرق.", "أحمر، أزرق."],
+      ["انتهى..", "انتهى."],
+      ["حسنا،،، هيا.", "حسنا، هيا."],
+    ],
+    neg: [
+      "انتظر... ماذا؟",
+      "افتح ../config الآن.",
+      "حقا؟! نعم.",
+      "السعر 3,50 ريال.",
+      "أولا، ثانيا؛ ثالثا.",
+    ],
+  },
+};

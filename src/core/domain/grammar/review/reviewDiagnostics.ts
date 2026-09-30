@@ -7,7 +7,7 @@ import { unclosedQuotations } from "./quotationWarnings";
 import { GRAMMAR_RULE_CATALOG, type CatalogRuleId } from "../ruleCatalog";
 import { findMarkdownCodeRanges } from "../implementations/helpers/ProtectedSpanShared";
 import { isTechnicalToken, normalizeWordSet } from "../implementations/helpers/GenericRuleShared";
-import { isReviewSupportedRule, reviewMetadataFor } from "./reviewCatalog";
+import { isReviewSupportedRule, reviewMetadataFor, runsInReviewLanguage } from "./reviewCatalog";
 import { MASK_CHAR, REVIEW_DETECTORS, minimalEdits, type RawFinding } from "./reviewDetectors";
 import {
   applyEdits,
@@ -43,10 +43,6 @@ const SCAN_LOOKAHEAD = 1_024;
 // Context read around the scope; enough for every rule's look-behind.
 const CONTEXT_MARGIN = 512;
 
-const LANGUAGE_SCOPE = new Map(
-  GRAMMAR_RULE_CATALOG.map((entry) => [entry.id, entry.languageScope]),
-);
-
 export interface PreparedReview {
   snapshot: ReviewSourceSnapshot;
   options: ReviewOptions;
@@ -74,7 +70,7 @@ export function prepareReview(
   const languageSkipped: CatalogRuleId[] = [];
   for (const ruleId of options.enabledRules) {
     if (!isReviewSupportedRule(ruleId)) continue;
-    if (LANGUAGE_SCOPE.get(ruleId) === "en_US" && options.lang !== "en_US") {
+    if (!runsInReviewLanguage(ruleId, options.lang)) {
       languageSkipped.push(ruleId);
       continue;
     }
@@ -124,16 +120,20 @@ export function prepareReview(
       styleFindings.push(
         ...(ruleId === "styleRedundancy"
           ? redundantAcronyms(snapshot, protectedRanges, dictionary)
-          : longSentenceRanges(snapshot, protectedRanges, text, options.longSentenceWords).map(
-              (range) => ({
-                ruleId,
-                messageKey: "review_msg_style_long_sentence" as const,
-                range,
-                context: range,
-                alternatives: [],
-                warningOnly: true as const,
-              }),
-            )),
+          : longSentenceRanges(
+              snapshot,
+              protectedRanges,
+              text,
+              options.longSentenceWords,
+              options.lang,
+            ).map((range) => ({
+              ruleId,
+              messageKey: "review_msg_style_long_sentence" as const,
+              range,
+              context: range,
+              alternatives: [],
+              warningOnly: true as const,
+            }))),
       );
     } catch {
       styleFailedRules.push(ruleId);
@@ -161,7 +161,7 @@ export function prepareReview(
       snapshot.scope.end === source.length &&
       source.length <= MAX_REVIEW_CHARS &&
       protectedRanges.length === 0
-        ? unclosedQuotations(text)
+        ? unclosedQuotations(text, options.lang)
         : [],
   };
 }
@@ -171,6 +171,9 @@ export function prepareReview(
  * protected outright, which also keeps per-token pattern checks linear.
  */
 const MAX_PROSE_TOKEN_CHARS = 100;
+
+/** A period-decimal quantity ("2.5", "2.5kg", "3.50€") is prose, not a dotted name. */
+const DECIMAL_QUANTITY = /^\p{Nd}{1,9}\.\p{Nd}{1,9}(?:\p{L}{1,4}|[€$£¥%])?$/u;
 
 /** URLs, e-mail addresses, paths, mentions, dotted names and overlong tokens in [from, to). */
 function technicalRanges(source: string, from: number, to: number): ProtectedRange[] {
@@ -186,7 +189,7 @@ function technicalRanges(source: string, from: number, to: number): ProtectedRan
     }
     const lead = match[0].match(/^["'(“‘[<]*/)![0].length;
     const bare = match[0].slice(lead).replace(/[.,;:!?)\]"'”’>]+$/u, "");
-    if (bare && isTechnicalToken(bare)) {
+    if (bare && isTechnicalToken(bare) && !DECIMAL_QUANTITY.test(bare)) {
       const start = match.index + lead;
       ranges.push({ start, end: start + bare.length, reason: "technical" });
     }

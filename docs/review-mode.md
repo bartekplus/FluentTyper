@@ -141,7 +141,12 @@ Only supported native rule IDs and boolean choices are stored. Missing choices
 inherit explicit catalog defaults; malformed known choices are disabled and unknown
 IDs are discarded. Existing typing preferences are never migrated into Review choices.
 No reviewed text is stored by these controls.
-English rules are skipped for other languages, and the panel says so. With the language
+Each rule runs only in the languages it supports, and the panel says how many enabled
+rules were skipped for the language. Some English rules have Review-only tables for
+other languages (doubled comparatives, merged words, French elisions, German day and
+month capitals); those findings are always individual-only. The full rule × language
+matrix, with the reason for every unsupported cell, is in
+[review-language-matrix.md](review-language-matrix.md). With the language
 set to auto-detect, Review first identifies the text's language on the device (the
 browser's own detector) and uses the matching enabled language, or the fallback language.
 
@@ -155,23 +160,23 @@ Supported (**Typing** is the rule's default for typing; Review has separate swit
 | `englishTheirThereTheyAre`             | English  | unavailable | grammar     | individual only                                                                                   |
 | `englishToToo`                         | English  | unavailable | grammar     | individual only                                                                                   |
 | `englishAuxiliaryBaseVerb`             | English  | unavailable | grammar     | individual only                                                                                   |
-| `englishRepeatedWords`                 | English  | unavailable | grammar     | individual only                                                                                   |
+| `englishRepeatedWords`                 | all      | unavailable | grammar     | individual only                                                                                   |
 | `capitalizeSentenceStart`              | all      | on          | typography  | yes (after a quote or bracket closing a period: individual only)                                  |
 | `capitalizeAfterLineBreak`             | all      | on          | typography  | individual only: line starts in poems, lists and hard-wrapped text are often lowercase on purpose |
 | `englishPronounICapitalization`        | English  | on          | typography  | yes                                                                                               |
-| `englishContractionNormalization`      | English  | on          | spelling    | yes                                                                                               |
+| `englishContractionNormalization`      | en, fr   | on          | spelling    | English yes; French elisions individual only                                                      |
 | `englishTypoWhitelistCorrection`       | English  | on          | spelling    | yes                                                                                               |
 | `englishModalOfCorrection`             | English  | on          | grammar     | yes                                                                                               |
 | `englishYourWelcomeCorrection`         | English  | on          | grammar     | yes                                                                                               |
 | `englishTheirThereBeVerb`              | English  | on          | grammar     | yes                                                                                               |
-| `englishAlotCorrection`                | English  | on          | spelling    | yes                                                                                               |
+| `englishAlotCorrection`                | 8 langs  | on          | spelling    | English yes; other languages' merged words individual only                                        |
 | `englishPronounVerbWhitelistAgreement` | English  | on          | grammar     | original pairs only; expanded forms and contextual "you was" are individual only                  |
 | `englishArticleAnCorrection`           | English  | off         | grammar     | individual only: word-list heuristic; a letter or identifier can look like an article             |
 | `englishOrdinalSuffix`                 | English  | off         | typography  | yes                                                                                               |
-| `englishProperNounCapitalization`      | English  | on          | typography  | yes (months that need a date as evidence: individual only)                                        |
+| `englishProperNounCapitalization`      | en, de   | on          | typography  | English yes (German nouns individual only; months that need a date as evidence: individual only)  |
 | `measurementUnitFormatting`            | all      | on          | punctuation | individual only: units in technical prose are meaning-sensitive                                   |
 | `currencySpacing`                      | all      | on          | punctuation | yes                                                                                               |
-| `commaPeriodSpacing`                   | all      | on          | punctuation | yes                                                                                               |
+| `commaPeriodSpacing`                   | all      | on          | punctuation | yes (Greek `;`, Arabic `؟ ؛` and Spanish `¿ ¡` padding: individual only)                          |
 | `collapseRepeatedSpaces`               | all      | on          | punctuation | yes (alignment gaps and Markdown table padding are left alone)                                    |
 | `duplicatePunctuationCollapse`         | all      | off         | punctuation | yes                                                                                               |
 
@@ -263,13 +268,17 @@ and directly named quoted examples are left alone. Clause-internal subordinate
 syntax ("What I did works"), noun subjects and newline-spanning phrases are outside
 this initial scope. Existing modal-of and agreement checks retain their ownership.
 
-Repeated words are Review-only: a bounded allowlist (`the`, `a`, `an`, `is`,
-`are`, `was`, `were`, `in`, `on`, `at`, `for`, `with`, `from`, `of`, `to`) separated by
+Repeated words are Review-only: a bounded per-language allowlist (English `the`, `a`, `an`, `is`,
+`are`, `was`, `were`, `in`, `on`, `at`, `for`, `with`, `from`, `of`, `to`; plus short lists of
+articles and prepositions for every other supported language) separated by
 1–8 spaces, tabs or no-break spaces. The first word keeps its casing; one
 suggestion deletes one duplicate and its separator. Longer runs recheck after
 each repair. Newlines, hyphens, protected islands, dictionary words and directly
 named quoted examples are excluded. This intentionally misses arbitrary repeated
 words and distant metalinguistic context; it is not a general repetition parser.
+Words that legitimately double are never listed: German `die die`/`das das`, French
+`nous nous`/`vous vous`, Spanish and Portuguese `para para`, Croatian `je je`, Greek
+`με με`, Polish `to to`. An unresolved auto-detect language runs no list.
 Normal quoted prose remains eligible. No typing rule or automatic fix is installed.
 
 Some text is left alone because it only looks like an error: "you" as an
@@ -637,8 +646,10 @@ E2E_EXTENSION_PATH=$PWD/build bun scripts/review-demo.ts   # demo and screenshot
 
 ### Quotation warnings
 
-`unclosedQuotation` checks complete English fields for unmatched opening straight double,
-curly double/single and guillemet quotation marks. It supports nested styles and
+`unclosedQuotation` checks complete fields for unmatched opening quotation marks in the
+review language's convention: straight double, curly double/single and guillemets by
+default; German „…“, ‚…‘ and »…«; Polish „…” and «…»; Croatian „…” and »…«; Swedish ”…”
+and »…». A mark that opens in one convention but closes in another abstains. It supports nested styles and
 paragraph continuation marks. A warning highlights the opening mark, explains the
 problem and offers Ignore/Disable actions; it has no replacement, Apply button or
 Fix all safe path. Keyboard focus enters the card at its close control.
@@ -654,7 +665,7 @@ the rule is Review-only and can be disabled independently.
 ### Canonical brand and acronym casing
 
 `englishCanonicalCasing` offers the established forms GitHub, JavaScript, TypeScript,
-WebRTC, FluentTyper, iPhone, macOS and eBay in English prose. It accepts lowercase or
+WebRTC, FluentTyper, iPhone, macOS and eBay in prose of any review language. It accepts lowercase or
 ordinary title-case input and inserts the exact canonical form; it does not apply
 sentence title casing to brand names. The native sentence-start suggestion yields
 only when an enabled canonical suggestion covers that start. Existing mixed-case
@@ -737,7 +748,8 @@ these checks disabled; Rewrite remains its own user-selected action.
   ungrammatical. Quoted wording, code, dictionary entries, identifiers, plurals and
   ambiguous casing are left alone. Hedges, politeness, negation, adverbs, emphasis
   and numerical values are not rewritten.
-- **Long-sentence advice** shows a warning for a fully visible English prose sentence
+- **Long-sentence advice** shows a warning for a fully visible prose sentence (segmented with
+  the review language's sentence rules and abbreviations)
   exceeding the **Long-sentence word threshold**. The default is **35 words**; the
   settings field accepts whole numbers from **10 to 200**. This is your preference,
   not a universal quality score. Changing it saves locally and rechecks an open

@@ -1338,6 +1338,26 @@
           "layer": "unit",
           "file": "tests/grammar/LanguageTypography.test.ts",
           "test": "language-aware typography preset"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/LanguageTypography.test.ts",
+          "test": "%s: %s"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/LanguageTypography.test.ts",
+          "test": "words that end sentences in their own language still do"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/LanguageTypography.test.ts",
+          "test": "Review removes a space before the Greek question mark only in Greek"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/LanguageTypography.test.ts",
+          "test": "an abbreviation of one language still ends a sentence in another"
         }
       ]
     },
@@ -3659,7 +3679,7 @@
     },
     {
       "id": "review_repeated_words",
-      "description": "Native repeated-word suggestions preserve protected text and typing settings, stay individual-only, and apply one deletion with native undo.",
+      "description": "Native repeated-word suggestions (per-language allowlists for every supported language) preserve protected text and typing settings, stay individual-only, and apply one deletion with native undo.",
       "coverage": [
         {
           "layer": "e2e-full",
@@ -3675,6 +3695,16 @@
           "layer": "unit",
           "file": "tests/grammar/ReviewRepeatedWords.test.ts",
           "test": "Review-only rules cannot enter typing runtime or stored typing choices"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewRepeatedWords.test.ts",
+          "test": "%s repairs %s"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewRepeatedWords.test.ts",
+          "test": "%s keeps %s"
         }
       ]
     },
@@ -3946,7 +3976,7 @@
     },
     {
       "id": "review_quotation_warnings",
-      "description": "Complete-field quotation warnings have zero alternatives, no write path, accessible keyboard cards and conservative scope/protection guards.",
+      "description": "Complete-field quotation warnings in the review language's quotation convention have zero alternatives, no write path, accessible keyboard cards and conservative scope/protection guards.",
       "coverage": [
         {
           "layer": "e2e-full",
@@ -3962,6 +3992,21 @@
           "layer": "unit",
           "file": "tests/ReviewSession.test.ts",
           "test": "unread adapter content suppresses quotation warnings"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewQuotationWarnings.test.ts",
+          "test": "%s quotation marks pair by the language's convention"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewQuotationWarnings.test.ts",
+          "test": "another language's quotation style is not paired as the reviewed one"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewQuotationWarnings.test.ts",
+          "test": "German and Polish accept both closers of the low opening quote"
         }
       ]
     },
@@ -3987,7 +4032,7 @@
         {
           "layer": "unit",
           "file": "tests/grammar/ReviewCanonicalCasing.test.ts",
-          "test": "canonical casing respects dictionary, scope, protection, language and typing separation"
+          "test": "canonical casing respects dictionary, scope, protection and typing separation"
         }
       ]
     },
@@ -4091,6 +4136,63 @@
           "layer": "e2e-full",
           "file": "tests/e2e/full.e2e.test.ts",
           "test": "Readability settings persist a validated threshold and recheck without enabling advice"
+        }
+      ]
+    },
+    {
+      "id": "review_language_matrix",
+      "description": "Every native Review rule runs only in its documented languages (en, fr, de, pl, es, pt, sv, hr, el, ar, unresolved auto-detect); language-independent rules have 5+ positives and 5+ tricky negatives per language, extended English rules use bounded per-language tables with individual-only findings, and the matrix document matches the code.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewLanguageMatrix.test.ts",
+          "test": "%s: at least 5 positives and 5 tricky negatives"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewLanguageExtensions.test.ts",
+          "test": "runs exactly in English and its fixture languages"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewLanguageExtensions.test.ts",
+          "test": "English word lists never run on other languages' text"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewLanguageExtensions.test.ts",
+          "test": "new language punctuation findings stay individual-only; older ones keep Fix all"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewLanguageMatrixDoc.test.ts",
+          "test": "the language matrix has one examined row per catalog rule, matching the code"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/LanguageTypography.test.ts",
+          "test": "runs only the language-independent rules"
+        }
+      ]
+    },
+    {
+      "id": "review_spelling_languages",
+      "description": "Review spelling selects lookups per language, offers the first-capital form for held-Shift words in every cased language (the language's own short -s words are not acronym plurals), and asks no dictionary for unresolved auto-detect.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewSpellingLanguages.test.ts",
+          "test": "offers the first-capital form in %p"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewSpellingLanguages.test.ts",
+          "test": "a language's own short -s word typed with a held Shift is not an acronym plural"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewSpellingLanguages.test.ts",
+          "test": "an unresolved auto-detect language asks no dictionary"
         }
       ]
     }
