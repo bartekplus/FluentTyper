@@ -340,6 +340,10 @@ ranked for the words before it.
   Presage's order, without an edit-distance cutoff. It skips words the dictionary
   knows and likely compounds whose split ranks ahead of every single-word choice
   ("changelog", "webhook"). Nothing is listed when no usable candidate remains.
+- **Irregular forms first.** In English, an unknown word that puts a regular
+  ending on an irregular verb, noun or adjective from the authored tables
+  ("finded", "runned", "childs", "gooder") lists the irregular form first
+  ("found", "ran"/"run", "children", "better"), still as one choice among several.
 - **Left out:** names (a capitalized word inside a sentence), acronyms and
   mixed case ("NASA", "iPhone"), words glued to digits, symbols or hyphens,
   anything touching code or protected text, words another rule already flags,
