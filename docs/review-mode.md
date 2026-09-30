@@ -374,8 +374,6 @@ Excluded (typing conveniences, not errors in finished text):
 | `frenchPunctuationSpacing` | Typing-time convention; invisible no-break space changes.                  |
 | `autoBracketClose`         | Review never inserts closing brackets.                                     |
 
-Some checks were inspired by Harper (https://github.com/Automattic/harper).
-
 ### Unknown words
 
 Besides the rules, review checks each prose word against the language's

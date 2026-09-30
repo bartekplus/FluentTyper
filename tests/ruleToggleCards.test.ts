@@ -510,8 +510,14 @@ test("Review settings cards are grouped by category and show kind and default ba
   ).toBe("typography");
   // The Optional filter still narrows to off-by-default checks, across sections.
   clickFilter(host, "advanced");
-  expect(visibleRuleValues(host)).toEqual(["styleRedundancy", "styleLongSentence"]);
-  expect(visibleSections()).toEqual(["style"]);
+  expect(visibleRuleValues(host)).toEqual([
+    "primeSymbols",
+    "ellipsisShortcut",
+    "emdashShortcut",
+    "styleRedundancy",
+    "styleLongSentence",
+  ]);
+  expect(visibleSections()).toEqual(["typography", "style"]);
 });
 
 test("Review settings cards restore a disabled check without touching typing preferences", async () => {
