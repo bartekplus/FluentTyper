@@ -198,3 +198,23 @@ test("full phrase evidence owns one chunk and preserves Unicode, CRLF and ordina
   expect(scan("I am interested on learning\uFFFC Rust.")).toEqual([]);
   expect(scan("We discussed about `the release`.")).toEqual([]);
 });
+
+test.each([
+  ["We have waited since three hours.", "We have waited for three hours."],
+  ["It runs fine since 2 weeks now.", "It runs fine for 2 weeks now."],
+  ["Since several years, I use it.", "For several years, I use it."],
+  ["It has been broken since more than 9 days.", "It has been broken for more than 9 days."],
+])("since + a length of time becomes for: %s", (source, expected) => {
+  const [d] = scan(source);
+  expect(scan(source)).toHaveLength(1);
+  expect(d.bulk.eligible).toBe(false);
+  expect(applyEdits(source, d.alternatives[0].edits)).toBe(expected);
+  expect(scan(expected)).toEqual([]);
+});
+test.each([
+  "It has worked since 2019.",
+  "Since two days were lost, we left early.",
+  "Since two weeks ago, it works.",
+  "I have been here since three o'clock.",
+  "It changed since the last two weeks.",
+])("since + time preserves %s", (text) => expect(scan(text)).toEqual([]));

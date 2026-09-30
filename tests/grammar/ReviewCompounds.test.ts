@@ -43,6 +43,9 @@ const repairs: [string, string][] = [
   ["They ran the tests everyday.", "They ran the tests every day."],
   ["I write code everyday.", "I write code every day."],
   ["We sent the report everyday.", "We sent the report every day."],
+  ["I use this unknownword everyday.", "I use this unknownword every day."],
+  ["We stretch everyday, even on weekends.", "We stretch every day, even on weekends."],
+  ["Each and everyday matters.", "Each and every day matters."],
   ["Please login to continue.", "Please log in to continue."],
   ["You can login to your account.", "You can log in to your account."],
   ["We need to login to the account.", "We need to log in to the account."],
@@ -85,7 +88,6 @@ const valid = [
   "Our everyday work is important.",
   "This is an everyday problem.",
   "I use this tool every day.",
-  "The every day routine helps.",
   "An every-day occurrence.",
   "Everyday life changes.",
   "I use everyday tools.",
@@ -101,7 +103,10 @@ const valid = [
   'Type "I use this tool everyday." exactly.',
   'The example "I use this tool everyday." is wrong.',
   "Every day is different.",
-  "I use this unknownword everyday.",
+  "It is everyday.",
+  "Our everyday.",
+  "These are everyday.",
+  "Everyday objects, everyday people.",
   "Everyday is a product name.",
   "I work on Everyday.",
   "I like the word everyday.",
@@ -217,3 +222,20 @@ test("compound findings belong to one chunk through Unicode and ordinary quoted 
     );
   }
 });
+
+test.each([
+  ["The every day routine helps.", "The everyday routine helps."],
+  ["It solves an every day problem.", "It solves an everyday problem."],
+  ["Beyond every day things, it helps.", "Beyond everyday things, it helps."],
+])("every day before a listed noun joins: %s", (source, expected) => {
+  const [d] = scan(source);
+  expect(scan(source)).toHaveLength(1);
+  expect(d.bulk.eligible).toBe(false);
+  expect(applyEdits(source, d.alternatives[0].edits)).toBe(expected);
+  expect(scan(expected)).toEqual([]);
+});
+test.each([
+  "I run every day routine checks.",
+  "Every day life changes.",
+  "We meet every day people.",
+])("every day without a determiner stays apart: %s", (text) => expect(scan(text)).toEqual([]));

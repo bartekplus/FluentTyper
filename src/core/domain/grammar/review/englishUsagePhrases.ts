@@ -54,6 +54,12 @@ const templates: readonly PhraseTemplate[] = [
     replacement,
     messageKey: "review_msg_contextual_grammar" as const,
   })),
+  // "few days ago" without "a" reads as "hardly any"; the time phrase means "a few".
+  {
+    pattern: `(?<!(?:a|very|quite|only|the|so|too|these|those|last|first|past|next|fewer|precious|relatively)${SPACE})(?<target>few)${SPACE}(?:seconds?|minutes?|hours?|days?|weeks?|weekends?|months?|years?|decades?|ms)${SPACE}ago(?!${EDGE})`,
+    replacement: "a few",
+    messageKey: "review_msg_a_few",
+  },
   {
     pattern: `for${SPACE}all${SPACE}(?<target>intensive)${SPACE}purposes,${SPACE}(?:the|this|that)${SPACE}(?:test|project|work|task|report|plan|design|review|process|document|proposal|update)${SPACE}(?:is|was)${SPACE}(?:complete|finished|ready|done|final|successful)${END}`,
     replacement: "intents and",

@@ -3,6 +3,7 @@ import type { DetectContext, RawFinding } from "./reviewDetectors";
 const SPACE = "[ \\t\\u00a0]{1,8}";
 const EDGE = "[\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]";
 const SUBJECT = "(?:I|you|we|they|he|she)";
+const END_WORD = `(?!${EDGE})`;
 const COMPLETE = `(?!${EDGE})(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))`;
 const VERB_SLOT = `(?:please|${SUBJECT}${SPACE}(?:can|will|should|must|need${SPACE}to|want${SPACE}to|plan${SPACE}to))`;
 const DAILY = [
@@ -35,6 +36,23 @@ const templates: ReadonlyArray<{
     pattern: `${SUBJECT}${SPACE}(?:${DAILY})${SPACE}(?<target>everyday)${COMPLETE}`,
     replacement: "every day",
     messageKey: "review_msg_every_day",
+  },
+  // Adverb after a lowercase verb or object, before a clause end or a linking word.
+  {
+    pattern: `(?<!\\b(?:the|an?|word|is|are|was|were|be|so|very|quite|more|most|less|such|of|called|named|my|your|our|their|his|her|its)${SPACE})(?<=[a-z]${SPACE})(?<target>everyday)(?=[ \t ]{0,8}(?:[.!?,;:)]|$)|${SPACE}(?:without|and|but|so|at|in|for|until|while|since|now|anyway)${END_WORD})`,
+    replacement: "every day",
+    messageKey: "review_msg_every_day",
+  },
+  {
+    pattern: `each${SPACE}and${SPACE}(?<target>everyday)${END_WORD}`,
+    replacement: "every day",
+    messageKey: "review_msg_every_day",
+  },
+  // Adjective before a listed noun after a determiner: "an every day thing".
+  {
+    pattern: `(?:a|an|the|my|our|your|their|his|her|its|of|in|for|beyond|these|those|such|and)${SPACE}(?<target>every${SPACE}day)${SPACE}(?:life|thing|things|problem|routine|routines|use|items|objects|language|tasks|activities|situations|problems|clothes|people|essentials|conversation|conversations|basis|tools|work)${END_WORD}`,
+    replacement: "everyday",
+    messageKey: "review_msg_everyday_adjective",
   },
   {
     pattern: `${VERB_SLOT}${SPACE}(?<target>login)${SPACE}(?:to${SPACE}(?:continue|your${SPACE}account|the${SPACE}account|view${SPACE}the${SPACE}report|open${SPACE}the${SPACE}file|check${SPACE}your${SPACE}messages)|again|today|tomorrow|now|before${SPACE}continuing|(?:with|using)${SPACE}your${SPACE}password)${COMPLETE}`,
@@ -72,6 +90,7 @@ export function contextualCompounds(ctx: DetectContext): RawFinding[] {
         )
       )
         continue;
+      if (findings.some((f) => f.range.start === start)) continue;
       findings.push({
         ruleId: "englishContextualCompounds",
         messageKey,
