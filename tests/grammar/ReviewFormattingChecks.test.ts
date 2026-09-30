@@ -279,6 +279,42 @@ describe("prime marks (primeSymbols, optional)", () => {
   });
 });
 
+describe("currency symbol placement (currencySpacing, English)", () => {
+  const rule = "currencySpacing";
+  test.each([
+    ["The ticket cost 40$ at the door.", "The ticket cost $40 at the door."],
+    ["Lunch was 12.50 £ each.", "Lunch was £12.50 each."],
+    ["It sold for 1,200$.", "It sold for $1,200."],
+    ["😀 Only 300¥ today!", "😀 Only ¥300 today!"],
+    ["Gum costs ¢50 now.", "Gum costs 50¢ now."],
+    ["Prices: 5$, 8$ or 9$.", "Prices: $5, $8 or $9."],
+  ])("offers %p individually", (input, expected) => {
+    const found = review(input, rule);
+    expect(found.every((d) => d.bulk.eligible === false)).toBe(true);
+    expect(repaired(input, rule)).toBe(expected);
+  });
+
+  test.each([
+    "The ticket cost $40 at the door.",
+    "Gum costs 50¢ now.",
+    "Solve $x + 5$ first.",
+    "Run echo 5$ in a shell with $HOME set.",
+    "Use var_5$ as a name.",
+  ])("keeps %p", (input) => {
+    expect(review(input, rule)).toEqual([]);
+  });
+
+  test.each([
+    ["Il a payé 40 $ hier.", "fr_FR"],
+    ["Pagou R$ 40 ontem.", "pt_BR"],
+    ["Er zahlte 40$ gestern.", "de_DE"],
+  ])("leaves other languages' placement alone: %p", (input, lang) => {
+    expect(
+      review(input, rule, lang).filter((d) => d.alternatives[0].preview.includes("$")),
+    ).toEqual([]);
+  });
+});
+
 describe("ellipsis length (duplicatePunctuationCollapse)", () => {
   const rule = "duplicatePunctuationCollapse";
   test.each([

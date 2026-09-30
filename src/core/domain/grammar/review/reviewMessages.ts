@@ -853,6 +853,17 @@ const EXPLANATIONS: Record<ReviewMessageKey, Translations> = {
     "Oddziel kwotę od waluty.",
     "Separe o valor da moeda.",
   ],
+  review_msg_currency_placement: [
+    "In English, this currency symbol goes before the amount (the cent sign after it).",
+    "En anglais, ce symbole monétaire se place avant le montant (le signe cent après).",
+    "U engleskom se ovaj simbol valute piše ispred iznosa (znak centa iza).",
+    "En inglés, este símbolo de moneda va antes del importe (el de centavo, después).",
+    "Στα αγγλικά, αυτό το σύμβολο νομίσματος μπαίνει πριν από το ποσό (το σεντ μετά).",
+    "På engelska står den här valutasymbolen före beloppet (centtecknet efter).",
+    "Im Englischen steht dieses Währungszeichen vor dem Betrag (das Centzeichen danach).",
+    "W angielskim ten symbol waluty stoi przed kwotą (znak centa po niej).",
+    "Em inglês, este símbolo de moeda vem antes do valor (o do centavo, depois).",
+  ],
   review_msg_unknown_word: [
     "This word is not in the dictionary. Choose the word you meant.",
     "Ce mot n'est pas dans le dictionnaire. Choisissez le mot voulu.",

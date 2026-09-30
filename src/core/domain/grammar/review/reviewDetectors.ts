@@ -1229,6 +1229,36 @@ const typedDashes: Detector = (ctx) => {
   return findings;
 };
 
+/**
+ * English writes "$", "£" and "¥" before the amount and "¢" after it: "25$"
+ * is "$25". Other languages place symbols by their own conventions ("25 $" in
+ * French Canada, "R$ 25"), so this is English only. A line with "$" before a
+ * name is math or a shell ("$x = 5$", "$HOME"), and is left alone.
+ */
+function currencyPlacement(ctx: DetectContext): RawFinding[] {
+  if (ctx.lang !== "en_US") return [];
+  const findings: RawFinding[] = [];
+  const regex =
+    /(?<![\p{L}\p{N}$£¥¢.,_])(?:(\d[\d,]*(?:\.\d+)?)[  ]*([$£¥])|¢(\d+))(?![\p{L}\p{N}$£¥¢_])/gu;
+  for (const match of ownedMatches(ctx, regex)) {
+    const start = match.index;
+    const end = start + match[0].length;
+    const lineStart = ctx.text.lastIndexOf("\n", start) + 1;
+    let lineEnd = ctx.text.indexOf("\n", end);
+    if (lineEnd < 0) lineEnd = ctx.text.length;
+    if (match[2] === "$" && /\$[\p{L}\\{(_]/u.test(ctx.text.slice(lineStart, lineEnd))) continue;
+    findings.push({
+      ruleId: "currencySpacing",
+      messageKey: "review_msg_currency_placement",
+      range: { start, end },
+      alternatives: [match[3] ? `${match[3]}¢` : `${match[2]}${match[1]}`],
+      context: { start: lineStart, end: lineEnd },
+      bulkBlock: "context-dependent",
+    });
+  }
+  return findings;
+}
+
 /** "300°K" is "300 K": the kelvin is an absolute unit and takes no degree sign. */
 function kelvinDegree(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
@@ -1446,7 +1476,10 @@ export const REVIEW_DETECTORS: ReadonlyArray<{ rules: CatalogRuleId[]; detect: D
     rules: ["measurementUnitFormatting"],
     detect: (ctx) => [...measurementLike(ctx, "measurementUnitFormatting"), ...kelvinDegree(ctx)],
   },
-  { rules: ["currencySpacing"], detect: (ctx) => measurementLike(ctx, "currencySpacing") },
+  {
+    rules: ["currencySpacing"],
+    detect: (ctx) => [...measurementLike(ctx, "currencySpacing"), ...currencyPlacement(ctx)],
+  },
 ];
 
 /** Minimal edits turning source[start, start+original.length) into `replacement`. */
