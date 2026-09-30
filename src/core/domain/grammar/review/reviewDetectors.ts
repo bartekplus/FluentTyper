@@ -31,6 +31,7 @@ import {
   CLOSING_CHARS,
   closesAbbreviation,
   CLOSING_PADDING_CHARS,
+  keepsOwnCasing,
   SENTENCE_OPENING_MARKS,
   TRAILING_PUNCTUATION_REGEX,
   startsSentence,
@@ -262,8 +263,7 @@ const capitalizeStarts: Detector = (ctx) => {
     const letterEnd = graphemeEnd(ctx.text, letterIndex);
     const letter = ctx.source.slice(letterIndex, letterEnd);
     const bare = word.replace(TRAILING_PUNCTUATION_REGEX, "");
-    // "iPhone", "eBay", "macOS": a capital later in the word means deliberate casing.
-    if (isTechnicalToken(bare) || /\p{Lu}/u.test(bare.slice(1)) || /\p{N}/u.test(bare)) continue;
+    if (isTechnicalToken(bare) || keepsOwnCasing(bare)) continue;
     const upper = letter.toUpperCase();
     if (upper === letter) continue;
     const range = { start: letterIndex, end: letterEnd };

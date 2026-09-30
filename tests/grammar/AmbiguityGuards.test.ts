@@ -99,6 +99,9 @@ describe("default-on rules never rewrite ambiguous input", () => {
     // After a word, a slash opens a path or a switch.
     "Open /etc/hosts now ",
     "Type /help for help ",
+    // Brand casing at a sentence start.
+    "iPhone sales grew ",
+    "Done. eBay works ",
     "Ratio 1.5 and 2.5 ",
     // Dotted identifiers, paths and mentions: a period inside a token is not a
     // sentence end, and its first letter is not a sentence start.

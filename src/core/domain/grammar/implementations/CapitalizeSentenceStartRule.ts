@@ -119,6 +119,12 @@ export const WORD_BOUNDARY_CHARS = [...SPACE_CHARS, "\n"];
 // "hello,", "(quietly)".
 export const TRAILING_PUNCTUATION_REGEX = /[.,!?;:)\]}"'”’“‘»›\u00A0\u202F]+$/u;
 
+/** "iPhone", "eBay", "x2": a later capital or a digit means deliberate casing ("mid-May" does not). */
+export function keepsOwnCasing(word: string): boolean {
+  const head = word.split("-")[0];
+  return /\p{Lu}/u.test(head.slice(1)) || /\p{N}/u.test(head);
+}
+
 export class CapitalizeSentenceStartRule implements GrammarRule {
   readonly id = "capitalizeSentenceStart" as const;
   // The first letter is only capitalized once the word is complete: "u" may
@@ -147,6 +153,7 @@ export class CapitalizeSentenceStartRule implements GrammarRule {
     if (
       !isLowercaseLetter(word[letter] ?? "") ||
       isTechnicalToken(word.replace(TRAILING_PUNCTUATION_REGEX, "")) ||
+      keepsOwnCasing(word.replace(TRAILING_PUNCTUATION_REGEX, "")) ||
       !startsSentence(text, wordStart, context.hints?.lang)
     ) {
       return null;
