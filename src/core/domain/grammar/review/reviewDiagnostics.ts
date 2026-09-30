@@ -254,6 +254,7 @@ export function scanReviewChunk(
     quotationRanges: prepared.quotations.ranges,
     exampleRanges: prepared.quotations.examples,
     styleFindings: prepared.styleFindings,
+    rules: prepared.rules,
     terminologyFindings: prepared.terminology.findings,
   };
   for (const detector of REVIEW_DETECTORS) {

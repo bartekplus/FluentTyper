@@ -3,6 +3,7 @@ import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/re
 import { reviewRuleIds } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { planBulkFix } from "../../src/core/domain/grammar/review/bulkPlanner";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
+import { phraseCorrections } from "../../src/core/domain/grammar/review/englishPhraseCorrections";
 import {
   CLOSED_COMPOUNDS,
   NAME_CASING,
@@ -425,4 +426,20 @@ test("fixed phrases and compounds are on by default, wording advice is optional"
   expect(defaults).toContain("englishPhraseCorrections");
   expect(defaults).toContain("englishClosedCompounds");
   expect(defaults).not.toContain("stylePhrasing");
+});
+
+test("rows of a disabled check are not matched, so they never hide an enabled one", () => {
+  const text = "Thanks, and btw we need to nip it in the butt.";
+  const found = phraseCorrections({
+    source: text,
+    text,
+    scanText: text,
+    from: 0,
+    to: text.length,
+    lang: "en_US",
+    dictionary: new Set(),
+    insertSpaceAfterAutocomplete: true,
+    rules: new Set(["englishPhraseCorrections"]),
+  });
+  expect(found.map((finding) => finding.ruleId)).toEqual(["englishPhraseCorrections"]);
 });

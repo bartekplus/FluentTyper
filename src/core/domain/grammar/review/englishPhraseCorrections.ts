@@ -116,6 +116,7 @@ export function phraseCorrections(ctx: DetectContext): RawFinding[] {
     const elided = ctx.lang.startsWith("fr") ? (FRENCH_ELIDED.exec(word[0])?.[0].length ?? 0) : 0;
     lookup: for (const at of elided ? [0, elided] : [0]) {
       for (const phrase of INDEX.get(wordKey(word[0].slice(at))) ?? []) {
+        if (ctx.rules && !ctx.rules.has(phrase.ruleId)) continue;
         phrase.pattern.lastIndex = word.index + at;
         const match = phrase.pattern.exec(ctx.scanText);
         if (!match) continue;

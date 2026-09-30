@@ -117,6 +117,8 @@ export interface DetectContext {
   lang: string;
   dictionary: ReadonlySet<string>;
   insertSpaceAfterAutocomplete: boolean;
+  /** Enabled checks; a detector serving several may skip the others' work. Absent: all. */
+  rules?: ReadonlySet<string>;
   quotationFindings?: readonly RawFinding[];
   quotationRanges?: readonly TextRange[];
   exampleRanges?: readonly TextRange[];
