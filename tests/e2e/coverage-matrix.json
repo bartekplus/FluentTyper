@@ -3688,6 +3688,11 @@
           "test": "Review rule controls persist one disabled check and restore it from settings"
         },
         {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review keeps a disabled rule disabled after reopening in an iframe"
+        },
+        {
           "layer": "unit",
           "file": "tests/ReviewSession.test.ts",
           "test": "disabling a Review rule invalidates its old batch and keeps unrelated findings"

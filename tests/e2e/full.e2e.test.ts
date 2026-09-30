@@ -7889,6 +7889,68 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   );
 
   test(
+    "Review keeps a disabled rule disabled after reopening in an iframe",
+    async () => {
+      await setSettingAndWait(worker!, KEY_REVIEW_RULE_OVERRIDES, {});
+      await prepareReviewPage();
+      try {
+        await page.evaluate(() => {
+          const iframe = document.createElement("iframe");
+          iframe.id = "review-frame";
+          iframe.style.cssText =
+            "position: fixed; inset: 0; width: 100%; height: 100%; border: 0; z-index: 2147483647;";
+          iframe.src = window.location.href;
+          document.body.prepend(iframe);
+        });
+        const frame = await waitUntil(
+          "review iframe",
+          async () => (await (await page.$("#review-frame"))?.contentFrame()) || false,
+        );
+        await frame.waitForSelector("#test-textarea[data-suggestion]");
+        await frame.$eval("#test-textarea", (el) => {
+          const field = el as HTMLTextAreaElement;
+          field.value = "I opened the the report. He can works remotely.";
+          field.focus();
+          field.setSelectionRange(0, 0);
+        });
+        const click = async (selector: string) => {
+          const button = await frame.waitForSelector(`pierce/${selector}:not(:disabled)`);
+          await button!.click();
+        };
+        await triggerReview(worker!);
+        await waitForReview(frame, "iframe findings", (p) => p.items.length === 2);
+        await click(".item");
+        await waitForReview(frame, "iframe card", (p) => p.card.open);
+        await frame.waitForFunction(() => {
+          const button = document
+            .querySelector("[data-fluenttyper-review]")
+            ?.shadowRoot?.querySelector<HTMLButtonElement>("[data-action=disable-rule]");
+          return button && !button.disabled;
+        });
+        await click("[data-action=disable-rule]");
+        await waitForReview(frame, "iframe rule disabled", (p) => p.items.length === 1);
+        await click("[data-action=close]");
+        await waitForReview(frame, "iframe closed", (p) => !p.open);
+        await frame.focus("#test-textarea");
+        await triggerReview(worker!);
+        await waitForReview(
+          frame,
+          "iframe reopened without disabled rule",
+          (p) => p.items.length === 1 && p.items[0].text.includes("works"),
+        );
+        expect(await getSetting(worker!, KEY_REVIEW_RULE_OVERRIDES)).toEqual({
+          englishRepeatedWords: false,
+        });
+      } finally {
+        await page.$eval("#review-frame", (el) => el.remove());
+        await setSettingAndWait(worker!, KEY_REVIEW_RULE_OVERRIDES, {});
+        await applyConfigChange(browser, worker!);
+      }
+    },
+    browserTimeout(25000, 35000),
+  );
+
+  test(
     "Review rule controls persist one disabled check and restore it from settings",
     async () => {
       await setSettingAndWait(worker!, KEY_REVIEW_RULE_OVERRIDES, {});

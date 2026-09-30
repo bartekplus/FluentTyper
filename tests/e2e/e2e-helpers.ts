@@ -1,4 +1,4 @@
-import type { Browser, CDPSession, Page, Target, WebWorker } from "puppeteer";
+import type { Browser, CDPSession, Frame, Page, Target, WebWorker } from "puppeteer";
 import puppeteer from "puppeteer";
 import path from "path";
 
@@ -561,7 +561,7 @@ export async function triggerReview(
   }, source);
 }
 
-export async function readReviewPanel(page: Page): Promise<ReviewPanelSnapshot> {
+export async function readReviewPanel(page: Page | Frame): Promise<ReviewPanelSnapshot> {
   return page.evaluate((hostSelector) => {
     const host = document.querySelector(hostSelector);
     const root = host?.shadowRoot ?? null;
@@ -614,7 +614,7 @@ export async function readReviewPanel(page: Page): Promise<ReviewPanelSnapshot> 
 }
 
 export async function waitForReview(
-  page: Page,
+  page: Page | Frame,
   label: string,
   predicate: (panel: ReviewPanelSnapshot) => boolean,
   timeoutMs = 8000,
