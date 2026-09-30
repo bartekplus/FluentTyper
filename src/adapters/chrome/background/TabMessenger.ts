@@ -167,7 +167,8 @@ export class TabMessenger {
           },
         };
         try {
-          void chrome.tabs.sendMessage(tab.id, messageForTab, { frameId: 0 });
+          // Settings apply to every injected frame, using the same tab-domain policy as GET_CONFIG.
+          await chrome.tabs.sendMessage(tabId, messageForTab);
         } catch (error) {
           console.warn(`sendToAllTabs failed: ${getErrorMessage(error)}`);
         }

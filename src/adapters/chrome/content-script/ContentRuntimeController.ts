@@ -254,11 +254,7 @@ export class ContentRuntimeController {
           command: CMD_CONTENT_SCRIPT_DISABLE_REVIEW_RULE,
           context: { ruleId },
         });
-        const saved = (response as { ok?: unknown } | undefined)?.ok === true;
-        // Config broadcasts target the top frame; retain the saved choice in this frame too.
-        if (saved)
-          this.config.reviewRuleOverrides = { ...this.config.reviewRuleOverrides, [ruleId]: false };
-        return saved;
+        return (response as { ok?: unknown } | undefined)?.ok === true;
       },
       addToDictionary: async (word) => {
         const message: ContentScriptAddToDictionaryMessage = {

@@ -7941,6 +7941,30 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         expect(await getSetting(worker!, KEY_REVIEW_RULE_OVERRIDES)).toEqual({
           englishRepeatedWords: false,
         });
+        const options = await openOptionsPage(browser, worker!);
+        try {
+          await options.$eval('a[href="#grammar_tab"]', (el) => (el as HTMLElement).click());
+          const selector = 'input.grammar-rule-card-toggle[value="englishRepeatedWords"]';
+          await options.waitForSelector(selector, { visible: true });
+          await options.$eval(selector, (el) => (el as HTMLElement).click());
+          await waitForReview(
+            frame,
+            "settings restore the iframe rule live",
+            (p) => p.items.length === 2,
+          );
+        } finally {
+          await options.close();
+        }
+        await page.bringToFront();
+        await click("[data-action=close]");
+        await waitForReview(frame, "iframe closed after settings", (p) => !p.open);
+        await frame.focus("#test-textarea");
+        await triggerReview(worker!);
+        await waitForReview(
+          frame,
+          "iframe reopened with restored rule",
+          (p) => p.items.length === 2,
+        );
       } finally {
         await page.$eval("#review-frame", (el) => el.remove());
         await setSettingAndWait(worker!, KEY_REVIEW_RULE_OVERRIDES, {});
