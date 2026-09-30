@@ -394,13 +394,16 @@ const pronounI: Detector = (ctx) => {
   for (const match of ownedMatches(ctx, regex)) {
     const start = match.index;
     const before = ctx.text[start - 1] ?? "";
-    if (/[@#/\\.=$\-([]/.test(before) || before === MASK_CHAR) continue;
+    if (/[@#/\\.=$\-[]/.test(before) || before === MASK_CHAR) continue;
     if (IDENTIFIER_BEFORE.test(ctx.text.slice(Math.max(0, start - 24), start))) continue;
     const rest = ctx.text.slice(start + 1, start + 1 + 40);
     let contextEnd = start + 1;
     let sentenceEnd = false;
     if (/^['’](?:m|ve|ll|d)(?![\p{L}\p{N}])/u.test(rest)) {
       contextEnd += rest.match(/^['’]\w+/)![0].length;
+    } else if (before === "(" && !/^[ \t ]/.test(rest)) {
+      // "(i think)" is the pronoun; "(i)", "(i, ii)" and "f(i)" are not.
+      continue;
     } else if (/^[,;!?]/.test(rest)) {
       contextEnd += 1;
     } else if (/^\.(?:\s|$)/u.test(rest)) {
