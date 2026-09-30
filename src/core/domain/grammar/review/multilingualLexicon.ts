@@ -1,4 +1,5 @@
 import { namedExampleBefore } from "./exampleCues";
+import { SPACE, WORD_START as EDGE_BEFORE } from "./phraseTemplates";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 
 /**
@@ -7,9 +8,7 @@ import type { DetectContext, RawFinding } from "./reviewDetectors";
  * left out, and every finding is individual-only.
  */
 
-const EDGE_BEFORE = "(?<![\\p{L}\\p{M}\\p{N}_'’@/#\\\\.-])";
 const EDGE_AFTER = "(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]|\\.[\\p{L}\\p{N}])";
-const SPACE = "[ \\t\\u00a0]{1,8}";
 
 /** The replacement in the typed word's case: all capitals, or its leading capital. */
 function withLeadingCase(typed: string, replacement: string): string {

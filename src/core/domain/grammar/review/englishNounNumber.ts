@@ -4,11 +4,17 @@ import {
   hasCountPrefix,
 } from "../implementations/helpers/EnglishNounNumber";
 import { applyWordCase, detectWordCase } from "../implementations/helpers/GenericRuleShared";
-import { EDGE, frameMatches, hasUserOrCasedWord, SPACE, WORD_END } from "./phraseTemplates";
+import {
+  COMPLETE as END,
+  EDGE,
+  frameMatches,
+  hasUserOrCasedWord,
+  SPACE,
+  WORD_END,
+} from "./phraseTemplates";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 
 const ADJECTIVE = `(?:(?:new|old|missing|broken|small|large|updated)${SPACE})?`;
-const END = "(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))";
 const STATUS = "(?:missing|broken|ready|new|old|available|useful)";
 const PAST = "(?:failed|arrived|returned)";
 

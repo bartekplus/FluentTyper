@@ -1,8 +1,7 @@
 import { applyWordCase, detectWordCase } from "../implementations/helpers/GenericRuleShared";
-import { EDGE, frameMatches, SPACE, WORD_END } from "./phraseTemplates";
+import { COMPLETE as END, EDGE, frameMatches, SPACE, WORD_END } from "./phraseTemplates";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 
-const END = "(?=[ \\t\\u00a0]{0,8}[.!?,;:]|[ \\t\\u00a0]{0,8}$)";
 const ADJECTIVE = `(?:(?:new|old|cold|warm|red|blue|main|original|updated|private)${SPACE})?`;
 const NOUN =
   "(?:policy|connection|surface|folder|file|password|screen|keyboard|owner|name|settings|color|cover|door|engine|battery|address)";
