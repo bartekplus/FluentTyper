@@ -1,9 +1,8 @@
 import { englishVerbForms } from "../implementations/helpers/EnglishVerbForms";
 import { applyWordCase, detectWordCase } from "../implementations/helpers/GenericRuleShared";
+import { EDGE, frameMatches, gluedAfter, hasUserOrCasedWord, SPACE } from "./phraseTemplates";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 
-const SPACE = "[ \\t\\u00a0]{1,8}";
-const EDGE = "[\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]";
 // A past form that is also a noun or another verb reads as possessive have ("I have saw blades"),
 // so it needs a complete verb argument. Other past-only forms need none.
 const ARGUMENTS: Readonly<Record<string, string>> = {
@@ -13,16 +12,13 @@ const ARGUMENTS: Readonly<Record<string, string>> = {
 const MODAL =
   "(?:(?:could|would|should|might|must)(?:n['’]t)?|may|will|won['’]t|shall|can(?:not|['’]t)?)(?:[ \\t\\u00a0]{1,8}not)?";
 // "'d" is had or would ("I'd went": gone or go), and "'s" is has or is: both abstain.
-const PATTERN = `(?<![.])(?<!${EDGE})(?<subject>I|you|we|they|he|she|it)(?:${SPACE}(?<modal>${MODAL}))?(?:${SPACE}(?<aux>have|has|had|haven['’]t|hasn['’]t|hadn['’]t)|(?<contract>['’]ve))(?:${SPACE}(?:not|already|just|never|ever|really|still)){0,2}${SPACE}(?<verb>[A-Za-z]+)(?!${EDGE})`;
+const PATTERN = `(?<subject>I|you|we|they|he|she|it)(?:${SPACE}(?<modal>${MODAL}))?(?:${SPACE}(?<aux>have|has|had|haven['’]t|hasn['’]t|hadn['’]t)|(?<contract>['’]ve))(?:${SPACE}(?:not|already|just|never|ever|really|still)){0,2}${SPACE}(?<verb>[A-Za-z]+)(?!${EDGE})`;
 
 /** Perfect-tense evidence, not a general past-tense or possessive-have normalizer. */
 export function perfectParticiples(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
-  const regex = new RegExp(PATTERN, "gidu");
-  regex.lastIndex = Math.max(0, ctx.from - 256);
-  for (let m = regex.exec(ctx.scanText); m && m.index < ctx.to; m = regex.exec(ctx.scanText)) {
+  for (const m of frameMatches(ctx, PATTERN, "verb")) {
     const [start, end] = m.indices!.groups!.verb;
-    if (start < ctx.from || start >= ctx.to) continue;
     const { subject, modal, aux, contract, verb } = m.groups!;
     const auxiliary = contract ? "have" : aux.toLowerCase().replace(/n['’]t$/, "");
     const singular = /^(?:he|she|it)$/i.test(subject);
@@ -49,22 +45,8 @@ export function perfectParticiples(ctx: DetectContext): RawFinding[] {
       if (!tail) continue;
       phraseEnd += tail[0].length;
     }
-    if (/^\uFFFC|^\.[\p{L}\p{N}_]/u.test(ctx.text.slice(phraseEnd, phraseEnd + 2))) continue;
-    const before = ctx.scanText.slice(Math.max(0, m.index - 96), m.index);
-    if (
-      /\b(?:write|type|spell|phrase|words?|example|literal|text|says?|reads?)[ :\t]*["“'‘][^\r\n\uFFFC]{0,80}$/i.test(
-        before,
-      )
-    )
-      continue;
-    if (
-      (ctx.scanText.slice(m.index, phraseEnd).match(/[A-Za-z]+(?:['’][A-Za-z]+)?/g) ?? []).some(
-        (word) =>
-          ctx.dictionary.has(word.toLowerCase()) ||
-          applyWordCase(word, detectWordCase(word)) !== word,
-      )
-    )
-      continue;
+    if (gluedAfter(ctx.text, phraseEnd)) continue;
+    if (hasUserOrCasedWord(ctx, ctx.scanText.slice(m.index, phraseEnd))) continue;
     findings.push({
       ruleId: "englishPerfectParticiples",
       messageKey: "review_msg_perfect_participle",
@@ -80,17 +62,16 @@ export function perfectParticiples(ctx: DetectContext): RawFinding[] {
 const NOUN_LIKE_ING =
   /^(?:reading|writing|testing|planning|building|training|meeting|painting|drawing|shopping|setting|spending|recording|funding|parking|housing|clothing|seating|heating|lighting|cooking|swimming|dancing|marketing|pricing|timing|booking|warning|opening|ending|beginning|feeling|morning|evening|ceiling|nothing|something|anything|everything|thing|king|ring|spring|string|wedding|pudding|sibling|during)$/;
 const OBJECT = "(?:it|them|him|her|us|me|this|that)";
-const PROGRESSIVE = `(?<![.])(?<!${EDGE})(?<subject>I|you|we|they|he|she|it)(?:${SPACE}(?<aux>have|has)|(?<contract>['’]ve))${SPACE}(?<verb>[A-Za-z]{2,}ing)${SPACE}(?<follow>${OBJECT}|(?:(?:on|into|about|at|for|with|to)${SPACE})?(?:${OBJECT}|the|a|an|my|your|our|his|her|their))(?!${EDGE})`;
+const PROGRESSIVE = `(?<subject>I|you|we|they|he|she|it)(?:${SPACE}(?<aux>have|has)|(?<contract>['’]ve))${SPACE}(?<verb>[A-Za-z]{2,}ing)${SPACE}(?<follow>${OBJECT}|(?:(?:on|into|about|at|for|with|to)${SPACE})?(?:${OBJECT}|the|a|an|my|your|our|his|her|their))(?!${EDGE})`;
 
 /** "I've looking into it": have in place of be before a progressive; both repairs are offered. */
 function progressiveAfterHave(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
-  const regex = new RegExp(PROGRESSIVE, "gidu");
-  regex.lastIndex = Math.max(0, ctx.from - 256);
-  for (let m = regex.exec(ctx.scanText); m && m.index < ctx.to; m = regex.exec(ctx.scanText)) {
+  const owner = (m: RegExpExecArray) =>
+    m.indices!.groups![m.groups!.contract ? "contract" : "aux"][0];
+  for (const m of frameMatches(ctx, PROGRESSIVE, owner)) {
     const { subject, aux, contract, verb, follow } = m.groups!;
     const [start, end] = m.indices!.groups![contract ? "contract" : "aux"];
-    if (start < ctx.from || start >= ctx.to) continue;
     const singular = /^(?:he|she|it)$/i.test(subject);
     if (contract ? singular : (aux.toLowerCase() === "has") !== singular) continue;
     const ing = verb.toLowerCase();
@@ -100,22 +81,11 @@ function progressiveAfterHave(ctx: DetectContext): RawFinding[] {
     if (
       /\b(?:could|would|should|might|must|may|will|to|what|why|how|where|when|which)[ \t ]+$/i.test(
         before,
-      ) ||
-      /\b(?:write|type|spell|phrase|words?|example|literal|text|says?|reads?)[ :\t]*["“'‘][^\r\n￼]{0,80}$/i.test(
-        before,
       )
     )
       continue;
     const phraseEnd = m.index + m[0].length;
-    if (/^￼|^\.[\p{L}\p{N}_]/u.test(ctx.text.slice(phraseEnd, phraseEnd + 2))) continue;
-    if (
-      (m[0].match(/[A-Za-z]+/g) ?? []).some(
-        (word) =>
-          ctx.dictionary.has(word.toLowerCase()) ||
-          applyWordCase(word, detectWordCase(word)) !== word,
-      )
-    )
-      continue;
+    if (hasUserOrCasedWord(ctx, m[0])) continue;
     const typed = contract ?? aux;
     const first = /^i$/i.test(subject);
     const be = contract

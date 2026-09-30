@@ -1,10 +1,15 @@
-import { detectPhraseTemplates } from "./phraseTemplates";
 import { englishVerbForms, englishVerbGerund } from "../implementations/helpers/EnglishVerbForms";
 import { applyWordCase, detectWordCase } from "../implementations/helpers/GenericRuleShared";
+import {
+  detectPhraseTemplates,
+  EDGE,
+  frameMatches,
+  gluedAfter,
+  hasUserOrCasedWord,
+  SPACE,
+} from "./phraseTemplates";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 
-const SPACE = "[ \\t\\u00a0]{1,8}";
-const EDGE = "[\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]";
 const SUBJECT = "(?:I|you|we|they|he|she|it)";
 const NEGATIVE = `(?:(?:(?:do|does|did)${SPACE}not|(?:don't|doesn't|didn't|don’t|doesn’t|didn’t))${SPACE})?`;
 // Complete arguments distinguish verbs from noun uses: "need work" is deliberately absent.
@@ -65,16 +70,9 @@ export function verbComplements(ctx: DetectContext): RawFinding[] {
     const governor = gerundFrame
       ? `(?:${NEGATIVE}(?:look|looks|looked)|(?:am|is|are|was|were)${SPACE}(?:not${SPACE})?looking)${SPACE}forward${SPACE}to`
       : `${NEGATIVE}(?:need|needs|needed|want|wants|wanted|plan|plans|planned)`;
-    const pattern = `(?<![.])(?<!${EDGE})${SUBJECT}${SPACE}${governor}${SPACE}(?<target>${Object.keys(COMPLEMENTS).join("|")})(?!${EDGE})`;
-    const regex = new RegExp(pattern, "gidu");
-    regex.lastIndex = Math.max(0, ctx.from - 256);
-    for (
-      let match = regex.exec(ctx.scanText);
-      match && match.index < ctx.to;
-      match = regex.exec(ctx.scanText)
-    ) {
+    const pattern = `${SUBJECT}${SPACE}${governor}${SPACE}(?<target>${Object.keys(COMPLEMENTS).join("|")})(?!${EDGE})`;
+    for (const match of frameMatches(ctx, pattern)) {
       const [start, end] = match.indices!.groups!.target;
-      if (start < ctx.from || start >= ctx.to) continue;
       const target = match.groups!.target;
       const lemma = target.toLowerCase();
       const known = englishVerbForms(lemma);
@@ -85,25 +83,9 @@ export function verbComplements(ctx: DetectContext): RawFinding[] {
         "iu",
       ).exec(ctx.scanText.slice(end, end + 128));
       if (!tail) continue;
-      const before = ctx.scanText.slice(Math.max(0, match.index - 96), match.index);
-      if (
-        /\b(?:write|type|spell|phrase|words?|example|literal|text|says?|reads?)[ :\t]*["“'‘][^\r\n\uFFFC]{0,80}$/i.test(
-          before,
-        )
-      )
-        continue;
       const phraseEnd = end + tail[0].length;
-      if (/^\.[\p{L}\p{N}_]/u.test(ctx.text.slice(phraseEnd, phraseEnd + 2))) continue;
-      if (
-        (
-          ctx.scanText.slice(match.index, phraseEnd).match(/[A-Za-z]+(?:['’][A-Za-z]+)?/g) ?? []
-        ).some(
-          (word) =>
-            ctx.dictionary.has(word.toLowerCase()) ||
-            applyWordCase(word, detectWordCase(word)) !== word,
-        )
-      )
-        continue;
+      if (gluedAfter(ctx.text, phraseEnd)) continue;
+      if (hasUserOrCasedWord(ctx, ctx.scanText.slice(match.index, phraseEnd))) continue;
       findings.push({
         ruleId: "englishVerbComplements",
         messageKey: gerundFrame ? "review_msg_forward_gerund" : "review_msg_missing_to",
