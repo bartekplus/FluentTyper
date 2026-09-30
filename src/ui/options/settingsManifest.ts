@@ -45,6 +45,7 @@ import {
   KEY_DOMAIN_LIST_MODE,
   KEY_SHOW_SUGGESTION_FOOTER,
   KEY_SHOW_REVIEW_BUTTON,
+  KEY_LIVE_GRAMMAR_PROPOSALS,
   KEY_LOCAL_AI_REVIEW_ENABLED,
   KEY_LOCAL_AI_REVIEW_TIER,
   DEFAULT_LOCAL_AI_REVIEW_ENABLED,
@@ -441,6 +442,17 @@ const manifest: ManifestDefinition = {
       label: buildFieldLabel(
         i18n.get("show_review_button_label"),
         i18n.get("show_review_button_desc"),
+      ),
+      default: true,
+    },
+    {
+      tab: "grammar_tab",
+      group: i18n.get("popup_review_text"),
+      name: KEY_LIVE_GRAMMAR_PROPOSALS,
+      type: "checkbox",
+      label: buildFieldLabel(
+        i18n.get("live_grammar_proposals_label"),
+        i18n.get("live_grammar_proposals_desc"),
       ),
       default: true,
     },

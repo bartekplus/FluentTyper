@@ -4,6 +4,7 @@ import type { SettingsRegistry } from "@ui/settings-engine/SettingsEngine.js";
 import {
   KEY_ENABLED_GRAMMAR_RULES,
   KEY_SHOW_REVIEW_BUTTON,
+  KEY_LIVE_GRAMMAR_PROPOSALS,
   KEY_REVIEW_RULE_OVERRIDES,
   KEY_REVIEW_LONG_SENTENCE_WORDS,
 } from "@core/domain/constants";
@@ -32,6 +33,7 @@ export function renderGrammarWorkspacePanel(root: HTMLElement, registry: Setting
   // Review has its own preferences, separate from typing autocorrection.
   const review = createWorkspaceCard(i18n.get("popup_review_text"));
   moveControlToBody(registry, KEY_SHOW_REVIEW_BUTTON, review.body);
+  moveControlToBody(registry, KEY_LIVE_GRAMMAR_PROPOSALS, review.body);
   moveControlToBody(registry, KEY_REVIEW_RULE_OVERRIDES, review.body);
   const threshold = registry[KEY_REVIEW_LONG_SENTENCE_WORDS];
   if (threshold) {
