@@ -24,6 +24,41 @@ function repaired(text: string, ruleId: CatalogRuleId, lang = "en_US"): string {
   );
 }
 
+describe("comma fixes (commaPeriodSpacing)", () => {
+  const rule = "commaPeriodSpacing";
+  test.each([
+    ["Pack the tent ,stove and map.", "Pack the tent, stove and map."],
+    ["Bring tea ，milk and bread.", "Bring tea, milk and bread."],
+    ["Colors: red，green、blue.", "Colors: red, green, blue."],
+    ["Call Anna， then leave.", "Call Anna, then leave."],
+    ["😀 Done、 thanks.", "😀 Done, thanks."],
+    ["Tick 3，4 and 5.", "Tick 3, 4 and 5."],
+    ["Ναι，εντάξει.", "Ναι, εντάξει."],
+    ["Oui ，merci.", "Oui, merci."],
+    ["It ends here，\nthen more.", "It ends here,\nthen more."],
+  ])("repairs %p", (input, expected) => {
+    expect(repaired(input, rule)).toBe(expected);
+  });
+
+  test.each([
+    "東京、大阪、京都に行きました。",
+    "我们去了北京，然后回家。",
+    "Mix ASCII、日本語 here.",
+    "Lists use a , b rarely.",
+    "Numbers like 1,000 stay.",
+  ])("keeps %p", (input) => {
+    expect(
+      review(input, rule)
+        .filter((d) => /[，、]/.test(d.original))
+        .map((d) => d.original),
+    ).toEqual([]);
+  });
+
+  test("a wide comma is batched", () => {
+    expect(review("tea，milk", rule)[0].bulk).toEqual({ eligible: true, alternative: 0 });
+  });
+});
+
 describe("ellipsis length (duplicatePunctuationCollapse)", () => {
   const rule = "duplicatePunctuationCollapse";
   test.each([

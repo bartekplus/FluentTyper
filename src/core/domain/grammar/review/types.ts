@@ -114,6 +114,7 @@ export type ReviewMessageKey =
   | "review_msg_proper_noun"
   | "review_msg_space_before_comma"
   | "review_msg_space_after_comma"
+  | "review_msg_wide_comma"
   | "review_msg_space_before_mark"
   | "review_msg_space_after_opening_mark"
   | "review_msg_split_words"

@@ -8,6 +8,7 @@ export const commaPeriodSpacing: RuleFixtures = {
       ["Really ? Yes.", "Really? Yes."],
       ["Apples,pears and plums.", "Apples, pears and plums."],
       ["Stop ! Now.", "Stop! Now."],
+      ["Tea，milk and bread.", "Tea, milk and bread."],
     ],
     neg: [
       "It costs 3,50 today.",
@@ -15,6 +16,7 @@ export const commaPeriodSpacing: RuleFixtures = {
       "Use the a,b notation.",
       "Press . to repeat.",
       "Wait ... what?",
+      "東京、大阪に行った。",
     ],
   },
   fr_FR: {
@@ -24,6 +26,7 @@ export const commaPeriodSpacing: RuleFixtures = {
       ["Pommes,poires et prunes.", "Pommes, poires et prunes."],
       ["Oui , non.", "Oui, non."],
       ["Il part . Elle reste.", "Il part. Elle reste."],
+      ["Thé，lait et pain.", "Thé, lait et pain."],
     ],
     neg: [
       "Quoi ? Rien.",
@@ -40,6 +43,7 @@ export const commaPeriodSpacing: RuleFixtures = {
       ["Wirklich ? Ja.", "Wirklich? Ja."],
       ["Äpfel,Birnen und Pflaumen.", "Äpfel, Birnen und Pflaumen."],
       ["Halt ! Jetzt.", "Halt! Jetzt."],
+      ["Tee，Milch und Brot.", "Tee, Milch und Brot."],
     ],
     neg: [
       "Es kostet 3,50 Euro.",
@@ -56,6 +60,7 @@ export const commaPeriodSpacing: RuleFixtures = {
       ["Naprawdę ? Tak.", "Naprawdę? Tak."],
       ["Jabłka,gruszki i śliwki.", "Jabłka, gruszki i śliwki."],
       ["Stop ! Teraz.", "Stop! Teraz."],
+      ["Herbata，mleko i chleb.", "Herbata, mleko i chleb."],
     ],
     neg: [
       "Kosztuje 3,50 zł.",
@@ -72,6 +77,7 @@ export const commaPeriodSpacing: RuleFixtures = {
       ["¿ Qué pasa?", "¿Qué pasa?"],
       ["¡ Hola! Bien.", "¡Hola! Bien."],
       ["Manzanas,peras y ciruelas.", "Manzanas, peras y ciruelas."],
+      ["Té、leche y pan.", "Té, leche y pan."],
     ],
     neg: [
       "¿Qué pasa?",
@@ -88,6 +94,7 @@ export const commaPeriodSpacing: RuleFixtures = {
       ["Sério ? Sim.", "Sério? Sim."],
       ["Maçãs,peras e ameixas.", "Maçãs, peras e ameixas."],
       ["Pare ! Agora.", "Pare! Agora."],
+      ["Chá，leite e pão.", "Chá, leite e pão."],
     ],
     neg: [
       "Custa 3,50 reais.",
@@ -104,6 +111,7 @@ export const commaPeriodSpacing: RuleFixtures = {
       ["Verkligen ? Ja.", "Verkligen? Ja."],
       ["Äpplen,päron och plommon.", "Äpplen, päron och plommon."],
       ["Stopp ! Nu.", "Stopp! Nu."],
+      ["Te，mjölk och bröd.", "Te, mjölk och bröd."],
     ],
     neg: [
       "Det kostar 3,50 kronor.",
@@ -120,6 +128,7 @@ export const commaPeriodSpacing: RuleFixtures = {
       ["Stvarno ? Da.", "Stvarno? Da."],
       ["Jabuke,kruške i šljive.", "Jabuke, kruške i šljive."],
       ["Stani ! Sada.", "Stani! Sada."],
+      ["Čaj，mlijeko i kruh.", "Čaj, mlijeko i kruh."],
     ],
     neg: [
       "Košta 3,50 eura.",
@@ -136,6 +145,7 @@ export const commaPeriodSpacing: RuleFixtures = {
       ["Τι κάνεις ; Καλά.", "Τι κάνεις; Καλά."],
       ["Μήλα,αχλάδια και δαμάσκηνα.", "Μήλα, αχλάδια και δαμάσκηνα."],
       ["Στοπ ! Τώρα.", "Στοπ! Τώρα."],
+      ["Τσάι，γάλα και ψωμί.", "Τσάι, γάλα και ψωμί."],
     ],
     neg: [
       "Κοστίζει 3,50 ευρώ.",
@@ -152,6 +162,7 @@ export const commaPeriodSpacing: RuleFixtures = {
       ["أولا ؛ ثانيا.", "أولا؛ ثانيا."],
       ["انتهى .", "انتهى."],
       ["تفاح،كمثرى وخوخ.", "تفاح، كمثرى وخوخ."],
+      ["استخدم Python，Rust.", "استخدم Python, Rust."],
     ],
     neg: [
       "مرحبا، كيف حالك؟",

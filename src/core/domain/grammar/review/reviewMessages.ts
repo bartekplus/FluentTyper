@@ -666,6 +666,17 @@ const EXPLANATIONS: Record<ReviewMessageKey, Translations> = {
     "Dodaj spację po przecinku.",
     "Adicione um espaço depois da vírgula.",
   ],
+  review_msg_wide_comma: [
+    "Use a regular comma in this text.",
+    "Utilisez une virgule ordinaire dans ce texte.",
+    "U ovom tekstu koristite običan zarez.",
+    "Use una coma normal en este texto.",
+    "Χρησιμοποιήστε κανονικό κόμμα σε αυτό το κείμενο.",
+    "Använd ett vanligt kommatecken i den här texten.",
+    "Verwenden Sie in diesem Text ein normales Komma.",
+    "Użyj w tym tekście zwykłego przecinka.",
+    "Use uma vírgula normal neste texto.",
+  ],
   review_msg_space_after_opening_mark: [
     "Remove the space after this opening mark.",
     "Supprimez l'espace après ce signe d'ouverture.",

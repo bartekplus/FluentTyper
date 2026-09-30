@@ -876,6 +876,14 @@ const properNoun: Detector = (ctx) => {
 // Spaces and a lowercase word (after an optional opening mark) on the same line.
 const STANDALONE_MARK_FOLLOWER = /^[ \t\u00A0]+["'“‘([¿¡]?\p{Ll}/u;
 
+// A fullwidth "，" or ideographic "、" comma between words of an alphabetic
+// script ("red，green") is an input-method slip; CJK text keeps its own.
+const ALPHABETIC = "[\\p{Script=Latin}\\p{Script=Greek}\\p{Script=Cyrillic}\\p{N}]";
+const WIDE_COMMA = new RegExp(
+  `(?<=${ALPHABETIC})[ \\u00A0]*[，、][ \\u00A0]*(?=${ALPHABETIC}|\\s|$)`,
+  "gu",
+);
+
 const commaPeriodSpacing: Detector = (ctx) => {
   const findings: RawFinding[] = [];
   // Space before a comma: "word , next".
@@ -884,13 +892,16 @@ const commaPeriodSpacing: Detector = (ctx) => {
   for (const match of ownedMatches(ctx, before)) {
     const start = match.index;
     const end = start + match[0].length;
+    // "word ,next": the space belongs after the comma.
+    const moveSpace =
+      ctx.insertSpaceAfterAutocomplete && /^\p{L}{2}/u.test(ctx.text.slice(end + 1, end + 3));
     findings.push({
       ruleId: "commaPeriodSpacing",
       messageKey:
         ctx.source[end] === "؛" ? "review_msg_space_before_mark" : "review_msg_space_before_comma",
       range: { start, end: end + 1 },
-      alternatives: [ctx.source[end]],
-      context: { start: start - 1, end: end + 1 },
+      alternatives: [moveSpace ? `${ctx.source[end]} ` : ctx.source[end]],
+      context: { start: start - 1, end: end + (moveSpace ? 2 : 1) },
       // Newer language extensions stay individual-only.
       bulkBlock: ctx.source[end] === "؛" ? "context-dependent" : undefined,
     });
@@ -935,6 +946,19 @@ const commaPeriodSpacing: Detector = (ctx) => {
       alternatives: [ctx.source[start - 1]],
       context: { start: start - 1, end: end + 1 },
       bulkBlock: "context-dependent",
+    });
+  }
+
+  for (const match of ownedMatches(ctx, WIDE_COMMA)) {
+    const start = match.index;
+    const end = start + match[0].length;
+    const wordFollows = end < ctx.text.length && !/\s/.test(ctx.text[end]);
+    findings.push({
+      ruleId: "commaPeriodSpacing",
+      messageKey: "review_msg_wide_comma",
+      range: { start, end },
+      alternatives: [wordFollows ? ", " : ","],
+      context: { start: start - 1, end: end + 1 },
     });
   }
 
