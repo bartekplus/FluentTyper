@@ -287,17 +287,22 @@ and directly named quoted examples are left alone. Clause-internal subordinate
 syntax ("What I did works"), noun subjects and newline-spanning phrases are outside
 this initial scope. Existing modal-of and agreement checks retain their ownership.
 
-Repeated words are Review-only: a bounded per-language allowlist (English `the`, `a`, `an`, `is`,
-`are`, `was`, `were`, `in`, `on`, `at`, `for`, `with`, `from`, `of`, `to`; plus short lists of
-articles and prepositions for every other supported language) separated by
-1–8 spaces, tabs or no-break spaces. The first word keeps its casing; one
+Repeated words are Review-only: a bounded per-language allowlist of closed-class
+words (English articles, prepositions, `and`, `or`, `but`, `nor`, `as`, `than`,
+`this`/`these`/`those`, `its`/`your`/`our`/`their`, `is`/`are`/`was`/`were`,
+`has`, `been`, `would`/`should`/`could`; plus short lists of articles,
+prepositions, conjunctions and demonstratives for every other supported language)
+separated by 1–8 spaces, tabs or no-break spaces. The first word keeps its casing; one
 suggestion deletes one duplicate and its separator. Longer runs recheck after
 each repair. Newlines, hyphens, protected islands, dictionary words and directly
 named quoted examples are excluded. This intentionally misses arbitrary repeated
-words and distant metalinguistic context; it is not a general repetition parser.
-Words that legitimately double are never listed: German `die die`/`das das`, French
-`nous nous`/`vous vous`, Spanish and Portuguese `para para`, Croatian `je je`, Greek
-`με με`, Polish `to to`. An unresolved auto-detect language runs no list.
+words ("very very", "record record profits": without a part of speech a slip
+cannot be told from emphasis or a homograph) and distant metalinguistic context;
+it is not a general repetition parser.
+Words that legitimately double are never listed: English `that that`/`had had`/`her her`,
+German `die die`/`das das`/`und und und`, French `nous nous`/`vous vous`, Spanish and
+Portuguese `para para` and `es es`/`é é`, Swedish `om om`/`var var`, Croatian `je je`,
+Greek `με με`/`και και`, Polish `to to`. An unresolved auto-detect language runs no list.
 Normal quoted prose remains eligible. No typing rule or automatic fix is installed.
 
 Some text is left alone because it only looks like an error: "you" as an

@@ -1340,21 +1340,27 @@ function measurementLike(
   return findings;
 }
 
-// ponytail: small function-word allowlists; expand only with ambiguity fixtures.
-// Words that legitimately double are left out: de "die die"/"das das" (relative
-// + article), fr "nous nous"/"vous vous" (reflexive), es/pt "para para" (verb +
-// preposition), hr "je je" (verb + clitic), el "με με" (pronoun + preposition).
+// ponytail: small closed-class allowlists (articles, prepositions,
+// conjunctions, demonstratives, a few auxiliaries); expand only with ambiguity
+// fixtures. Open-class words stay out: without a part of speech "record record
+// profits" or "very very" cannot be told from a slip. Words that legitimately
+// double are left out: en "that that"/"had had"/"can can"/"her her", de "die
+// die"/"das das" (relative + article) and "und und und", fr "nous nous"/"vous
+// vous" (reflexive), es "es es" and pt "é é" ("lo que es es"), es/pt "para para"
+// (verb + preposition), sv "om om"/"för för"/"var var", hr "je je" (verb +
+// clitic), el "με με" (pronoun + preposition), "και και" (both … and) and
+// "είναι είναι", ar "من من".
 const REPEATABLE_WORDS: Record<string, string> = {
-  en: "the|an|a|is|are|was|were|in|on|at|for|with|from|of|to",
-  de: "ein|eine|einen|einem|einer|eines|im|mit|von|für|auf|bei|aus|nach|zum|zur",
-  fr: "le|les|un|une|des|du|au|aux|dans|pour|avec|sur",
-  es: "el|los|las|un|una|en|con|del|al",
-  pt: "os|um|uma|em|com|do|da|dos|das|no|na",
-  pl: "się|na|do|od|dla|przez|że",
-  sv: "att|ett|på|till|med|av",
-  hr: "na|za|od|iz|do",
-  el: "στο|στη|στην|στον|στα|από|για|ένα|μια",
-  ar: "في|على|إلى|عن",
+  en: "the|an|a|is|are|was|were|in|on|at|for|with|from|of|to|and|or|but|nor|as|by|into|onto|about|than|this|these|those|its|your|our|their|would|should|could|has|been",
+  de: "ein|eine|einen|einem|einer|eines|im|mit|von|für|auf|bei|aus|nach|zum|zur|dass|weil|ist|sind|hat|wird|über|unter|durch|ohne|gegen",
+  fr: "le|les|un|une|des|du|au|aux|dans|pour|avec|sur|et|mais|est|sont|par|ce|cette|ces|sans",
+  es: "el|los|las|un|una|en|con|del|al|y|pero|por|sin|sobre|entre|desde|hasta|este|esta|estos|estas",
+  pt: "os|um|uma|em|com|do|da|dos|das|no|na|e|mas|por|pelo|pela|sem|sobre|entre|este|esta|isto|isso",
+  pl: "się|na|do|od|dla|przez|że|i|oraz|ale|lub|w|z|o|po|jest|są",
+  sv: "att|ett|på|till|med|av|och|men|eller|är|vid|från|under|över|utan",
+  hr: "na|za|od|iz|do|i|ali|ili|u|s|sa|o|po|pri|kod|prema",
+  el: "στο|στη|στην|στον|στα|από|για|ένα|μια|αλλά|στις|στους|προς|χωρίς",
+  ar: "في|على|إلى|عن|مع|هذا|هذه|ثم",
 };
 const REPEATED_WORD_REGEX = new Map(
   Object.entries(REPEATABLE_WORDS).map(([lang, words]) => [
