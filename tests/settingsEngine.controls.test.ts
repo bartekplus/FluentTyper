@@ -269,3 +269,22 @@ describe("BaseControl.destroy()", () => {
     expect(container.contains(ctrl.rootElement)).toBe(false);
   });
 });
+
+test("settings announce persistence only after the storage write finishes", async () => {
+  let complete!: () => void;
+  const stored = new Promise<void>((resolve) => {
+    complete = resolve;
+  });
+  const ctrl = new ValueOnlyControl({ type: "valueOnly", name: "test-key" }, {
+    get: async () => undefined,
+    set: () => stored,
+  } as unknown as Store);
+  const events: unknown[] = [];
+  ctrl.addEvent("persisted", (value) => events.push(value));
+  ctrl.set({ enabled: true });
+  expect(events).toEqual([]);
+  complete();
+  await stored;
+  await Promise.resolve();
+  expect(events).toEqual([{ enabled: true }]);
+});

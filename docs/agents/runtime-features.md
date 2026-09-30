@@ -54,7 +54,7 @@ Review mode proofreads an existing field on demand (command `CMD_REVIEW_FT_ACTIV
 
 - Domain: `src/core/domain/grammar/review/` (pure detection, catalog metadata, bulk planner). Application: `src/core/application/review/ReviewSession.ts`. Adapters and UI: `src/adapters/chrome/content-script/review/`.
 - Every catalog rule must be classified in `reviewCatalog.ts`; supported detectors reuse the typing rule's exported patterns and helpers.
-- Review runs every supported rule (`reviewRuleIds` in `reviewCatalog.ts`), not the typing-time `enabledGrammarRules`; code mode leaves it none. Keep typing-time grammar on `enabledGrammarRules`.
+- Review resolves independent `reviewRuleOverrides` through `reviewRuleIds` in `reviewCatalog.ts`; missing choices inherit explicit defaults. Keep typing-time grammar on `enabledGrammarRules`. Native switches never gate dictionary spelling or Local AI; code mode leaves Review no checks. Card disabling stores only validated native IDs and booleans, and config broadcasts invalidate open scans and batch plans.
 - Diagnostics are UTF-16, end-exclusive offsets into one immutable snapshot; writes re-validate the target, text, signature, scope and IME state, then verify by reading back. Never locate a finding by text search.
 - Highlights use CSS Custom Highlights under `fluenttyper-review-*` or an overlay in FluentTyper's shadow root; never mutate the host editor's DOM or clear the whole registry.
 - Sensitive fields (`FieldEligibility.ts`) are refused at every entry point and before writes. Model-backed editors are review-only.

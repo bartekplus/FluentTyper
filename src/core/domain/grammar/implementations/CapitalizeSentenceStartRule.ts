@@ -50,7 +50,7 @@ function abbreviationsFor(lang?: string): ReadonlySet<string> {
 const ORDINAL_PERIOD_LOCALES = new Set(["de_DE", "hr_HR", "pl_PL", "sv_SE"]);
 
 /** True when the period at `index` closes an initial or a known abbreviation. */
-function closesAbbreviation(text: string, index: number, lang?: string): boolean {
+export function closesAbbreviation(text: string, index: number, lang?: string): boolean {
   let start = index;
   while (start > 0 && /[\p{L}\p{N}.]/u.test(text[start - 1])) {
     start -= 1;

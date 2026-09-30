@@ -202,3 +202,77 @@ describe("LocalAiSettingsRepository", () => {
     await expect(writer.getLocalAiReviewConsent()).resolves.toBeNull();
   });
 });
+
+test("Review rule preferences serialize concurrent card choices without storing text or changing typing", async () => {
+  const store: Record<string, unknown> = { enabledGrammarRules: { commaPeriodSpacing: false } };
+  const repository = new CoreSettingsRepository({
+    get: async (key: string) => {
+      await Promise.resolve();
+      return store[key];
+    },
+    getRaw: async (key: string) => store[key],
+    set: async (key: string, value: unknown) => {
+      await Promise.resolve();
+      store[key] = value;
+    },
+  } as unknown as SettingsManager);
+  expect(await repository.getReviewRuleOverrides()).toEqual({});
+  for (const id of [
+    "reviewLocalAi",
+    "reviewSpelling",
+    "autoBracketClose",
+    "I opened the the report.",
+    "__proto__",
+  ])
+    expect(await repository.disableReviewRule(id)).toBe(false);
+  expect(
+    await Promise.all([
+      repository.disableReviewRule("englishRepeatedWords"),
+      repository.disableReviewRule("englishThenThan"),
+    ]),
+  ).toEqual([true, true]);
+  expect(store).toEqual({
+    enabledGrammarRules: { commaPeriodSpacing: false },
+    reviewRuleOverrides: { englishRepeatedWords: false, englishThenThan: false },
+  });
+});
+
+test("preferred terminology reads validated settings without changing other preferences", async () => {
+  const store: Record<string, unknown> = {
+    userDictionaryList: ["custom"],
+    textExpansions: [["sig", "My name"]],
+  };
+  const repository = new CoreSettingsRepository({
+    get: async (key: string) => store[key] as never,
+    getRaw: async (key: string) => store[key] as never,
+    set: async (key: string, value: unknown) => {
+      store[key] = value;
+    },
+  } as unknown as SettingsManager);
+  const empty = { version: 1, enabled: false, entries: [] };
+  expect(await repository.getPreferredTerminology()).toEqual(empty);
+  store.preferredTerminology = { enabled: true, entries: [{ source: "broken" }] };
+  expect(await repository.getPreferredTerminology()).toEqual(empty);
+  const valid = {
+    version: 1,
+    enabled: true,
+    entries: [
+      {
+        id: "acme",
+        source: "Acme Suite",
+        replacement: "Acme Workspace",
+        casePolicy: "exact",
+        explanation: "Our preferred name.",
+        language: "en_US",
+        scope: "all-prose",
+        enabled: true,
+      },
+    ],
+  };
+  store.preferredTerminology = valid;
+  expect(await repository.getPreferredTerminology()).toEqual(valid);
+  expect(store.userDictionaryList).toEqual(["custom"]);
+  expect(store.textExpansions).toEqual([["sig", "My name"]]);
+  store.preferredTerminology = empty;
+  expect(await repository.getPreferredTerminology()).toEqual(empty);
+});

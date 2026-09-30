@@ -21,6 +21,7 @@ import {
   CMD_TRIGGER_FT_ACTIVE_TAB,
   CMD_REVIEW_FT_ACTIVE_TAB,
   CMD_CONTENT_SCRIPT_ADD_TO_DICTIONARY,
+  CMD_CONTENT_SCRIPT_DISABLE_REVIEW_RULE,
   CMD_CONTENT_SCRIPT_REVIEW_SPELLING,
   DEFAULT_DEBUG_PRESAGE_PREDICTOR_ENABLED,
   KEY_LANGUAGE,
@@ -554,6 +555,39 @@ describe("background routing and lifecycle", () => {
     expect(harness.tabSendToActive).not.toHaveBeenCalled();
     // Starting a review changes no setting.
     expect(harness.settingsSet).not.toHaveBeenCalled();
+  });
+
+  test("Review disable messages validate IDs and broadcast only native preferences", async () => {
+    const harness = await loadBackgroundHarness({
+      reviewRuleOverrides: { englishThenThan: false },
+    });
+    const update = jest.spyOn(
+      harness.module.BackgroundServiceWorker.prototype,
+      "updatePresageConfig",
+    );
+    const sendResponse = jest.fn();
+    for (const [ruleId, ok] of [
+      ["englishRepeatedWords", true],
+      ["reviewLocalAi", false],
+      ["reviewSpelling", false],
+      ["private sentence", false],
+      [42, false],
+    ] as const) {
+      sendResponse.mockClear();
+      harness.onMessage(
+        { command: CMD_CONTENT_SCRIPT_DISABLE_REVIEW_RULE, context: { ruleId } },
+        { tab: { id: 1 } } as chrome.runtime.MessageSender,
+        sendResponse,
+      );
+      await flushPromises();
+      await flushPromises();
+      expect(sendResponse).toHaveBeenCalledWith({ ok });
+    }
+    expect(harness.settingsSet).toHaveBeenCalledWith("reviewRuleOverrides", {
+      englishThenThan: false,
+      englishRepeatedWords: false,
+    });
+    expect(update).toHaveBeenCalledTimes(1);
   });
 
   test("onMessage add to dictionary appends once and broadcasts the updated config", async () => {

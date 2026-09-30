@@ -25,6 +25,7 @@ import {
   KEY_SITE_PROFILES,
   KEY_TEXT_EXPANSIONS,
   KEY_ENABLED_GRAMMAR_RULES,
+  KEY_REVIEW_RULE_OVERRIDES,
   KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE,
   KEY_AUTOCOMPLETE_ON_ENTER,
   KEY_CODE_MODE,
@@ -5405,7 +5406,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
 
       optionsPage = await openOptionsPage(browser, worker!);
       try {
-        const selector = '.grammar-rule-card-toggle[value="measurementUnitFormatting"]';
+        const selector =
+          '[data-setting="enabledGrammarRules"] .grammar-rule-card-toggle[value="measurementUnitFormatting"]';
         await optionsPage.waitForSelector(selector);
         await optionsPage.waitForFunction(
           (inputSelector) =>
@@ -5428,8 +5430,10 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
 
       optionsPage = await openOptionsPage(browser, worker!);
       try {
-        const selector = '.grammar-rule-card-toggle[value="measurementUnitFormatting"]';
-        const readySelector = '.grammar-rule-card-toggle[value="capitalizeSentenceStart"]';
+        const selector =
+          '[data-setting="enabledGrammarRules"] .grammar-rule-card-toggle[value="measurementUnitFormatting"]';
+        const readySelector =
+          '[data-setting="enabledGrammarRules"] .grammar-rule-card-toggle[value="capitalizeSentenceStart"]';
         await optionsPage.waitForSelector(selector);
         await optionsPage.waitForFunction(
           (inputSelector, loadedSelector) => {
@@ -6981,6 +6985,1062 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   );
 
   test(
+    "Review native grammar applies individual edits with native undo",
+    async () => {
+      for (const [source, expected, highlight] of [
+        ["I opened the the report.", "I opened the report.", "the␣the → the"],
+        ["Did she went home?", "Did she go home?", "Did she went → Did she go"],
+        [
+          "This version is faster then the old version.",
+          "This version is faster than the old version.",
+          "then → than",
+        ],
+        ["They forgot there own password.", "They forgot their own password.", "there → their"],
+        ["Your going to like this.", "You're going to like this.", "Your → You're"],
+        ["The box is to heavy to lift.", "The box is too heavy to lift.", "to → too"],
+        ["One of the device failed.", "One of the devices failed.", "device → devices"],
+        [
+          "We found two error in the report.",
+          "We found two errors in the report.",
+          "error → errors",
+        ],
+        ["Those file are missing.", "Those files are missing.", "file → files"],
+        ["I have went through the report.", "I have gone through the report.", "went → gone"],
+        ["She has wrote the summary.", "She has written the summary.", "wrote → written"],
+        ["We had took the wrong turn.", "We had taken the wrong turn.", "took → taken"],
+        ["We need fix this bug.", "We need to fix this bug.", "fix → to␣fix"],
+        ["They plan deploy tomorrow.", "They plan to deploy tomorrow.", "deploy → to␣deploy"],
+        ["I look forward to meet you.", "I look forward to meeting you.", "meet → meeting"],
+        ["Despite of the delay, we finished.", "Despite the delay, we finished.", "of␣ → "],
+        ["We discussed about the release.", "We discussed the release.", "about␣ → "],
+        ["I am interested on learning Rust.", "I am interested in learning Rust.", "on → in"],
+        ["The router lost it's connection.", "The router lost its connection.", "it's → its"],
+        ["Its ready to use.", "It's ready to use.", "Its → It's"],
+        ["Lets try again.", "Let's try again.", "Lets → Let's"],
+        ["This is someone elses folder.", "This is someone else's folder.", "elses → else's"],
+        ["They has the updated files.", "They have the updated files.", "has → have"],
+        ["We was ready.", "We were ready.", "was → were"],
+        ["She have a new keyboard.", "She has a new keyboard.", "have → has"],
+        ["There is two errors in the report.", "There are two errors in the report.", "is → are"],
+      ]) {
+        await prepareReviewPage();
+        await setTextarea(source);
+        await triggerReview(worker!);
+        const panel = await waitForReview(page, "native grammar", (p) =>
+          p.items.some((item) => item.text === highlight),
+        );
+        expect(await textareaValue()).toBe(source);
+        expect(panel.fixAll).toMatchObject({ text: "Fix all safe (0)", disabled: true });
+        await clickReviewControl(page, ".item");
+        await waitForReview(page, "grammar card", (p) => p.card.open);
+        await clickReviewControl(page, ".card [data-action=apply]");
+        await waitUntil("individual repair", async () => (await textareaValue()) === expected, {
+          timeoutMs: 5000,
+        });
+        await pressNativeUndo(page, "#test-textarea");
+        await waitUntil("undone repair", async () => (await textareaValue()) === source, {
+          timeoutMs: 5000,
+        });
+        await finishReview();
+      }
+    },
+    browserTimeout(30000, 45000),
+  );
+
+  test.each([
+    [
+      "For all intensive purposes, the test is complete.",
+      "For all intents and purposes, the test is complete.",
+      "intensive → intents␣and",
+    ],
+    ["They are one in the same.", "They are one and the same.", "in → and"],
+    ["That feature peaked my interest.", "That feature piqued my interest.", "peaked → piqued"],
+    [
+      "This approach is more easier to test.",
+      "This approach is easier to test.",
+      "more␣easier → easier",
+    ],
+    ["The revised result is more better.", "The revised result is better.", "more␣better → better"],
+    ["This is the most fastest option.", "This is the fastest option.", "most␣fastest → fastest"],
+    [
+      "The page contains useful informations.",
+      "The page contains useful information.",
+      "informations → information",
+    ],
+    ["Thanks for the helpful advices.", "Thanks for the helpful advice.", "advices → advice"],
+    ["This is one important criteria.", "This is one important criterion.", "criteria → criterion"],
+    ["We need the new equipments.", "We need the new equipment.", "equipments → equipment"],
+    ["We host the project on github.", "We host the project on GitHub.", "github → GitHub"],
+    [
+      "The implementation uses javascript.",
+      "The implementation uses JavaScript.",
+      "javascript → JavaScript",
+    ],
+    ["The transport is based on webrtc.", "The transport is based on WebRTC.", "webrtc → WebRTC"],
+    ["iphone sales increased.", "iPhone sales increased.", "iphone → iPhone"],
+    ["I use this tool everyday.", "I use this tool every day.", "everyday → every␣day"],
+    ["Please login to continue.", "Please log in to continue.", "login → log␣in"],
+    ["We need to setup the environment.", "We need to set up the environment.", "setup → set␣up"],
+    ["The feature look promising.", "The feature looks promising.", "look → looks"],
+  ])(
+    "Review bounded grammar applies individual edits with native undo: %s",
+    async (source, expected, highlight) => {
+      await prepareReviewPage();
+      await setTextarea(source);
+      await triggerReview(worker!);
+      const panel = await waitForReview(page, "grammar finding", (p) =>
+        p.items.some((item) => item.text === highlight),
+      );
+      expect(panel.items).toHaveLength(1);
+      expect(panel.fixAll).toMatchObject({ text: "Fix all safe (0)", disabled: true });
+      expect(await textareaValue()).toBe(source);
+      await clickReviewControl(page, ".item");
+      await waitForReview(page, "grammar card", (p) => p.card.open);
+      await clickReviewControl(page, ".card [data-action=apply]");
+      await waitUntil("grammar repair", async () => (await textareaValue()) === expected, {
+        timeoutMs: 5000,
+      });
+      await waitForReview(page, "grammar recheck", (p) => p.items.length === 0);
+      await pressNativeUndo(page, "#test-textarea");
+      await waitUntil("grammar undo", async () => (await textareaValue()) === source, {
+        timeoutMs: 5000,
+      });
+      await finishReview();
+    },
+    browserTimeout(15000, 25000),
+  );
+
+  test(
+    "Readability settings persist a validated threshold and recheck without enabling advice",
+    async () => {
+      const key = "reviewLongSentenceWords";
+      const previous = await getSetting(worker!, key);
+      const overrides = await getSetting(worker!, KEY_REVIEW_RULE_OVERRIDES);
+      await setSettingAndWait(worker!, key, 35);
+      await setSettingAndWait(worker!, KEY_REVIEW_RULE_OVERRIDES, {});
+      await prepareReviewPage();
+      const source =
+        "The team reviewed every part of the detailed proposal before recording all of their conclusions.";
+      await setTextarea(source);
+      await triggerReview(worker!);
+      await waitForReview(
+        page,
+        "initial default",
+        (p) => p.status === "No issues found by the review checks.",
+      );
+      let options = await openOptionsPage(browser, worker!);
+      const selector = "#review-long-sentence-words";
+      try {
+        await options.$eval('a[href="#grammar_tab"]', (el) => (el as HTMLElement).click());
+        await options.waitForSelector(selector);
+        expect(await options.$eval(selector, (e) => (e as HTMLInputElement).value)).toBe("35");
+        const change = async (value: string) =>
+          options.$eval(
+            selector,
+            (e, value) => {
+              const input = e as HTMLInputElement;
+              input.value = value;
+              input.dispatchEvent(new Event("change", { bubbles: true }));
+            },
+            value,
+          );
+        await change("9");
+        expect(await getSetting(worker!, key)).toBe(35);
+        await change("10");
+        await waitUntil("threshold saved", async () => (await getSetting(worker!, key)) === 10, {
+          timeoutMs: 5000,
+        });
+        expect(await getSetting(worker!, KEY_REVIEW_RULE_OVERRIDES)).toEqual({});
+        await page.bringToFront();
+        await waitForReview(
+          page,
+          "advice still off",
+          (p) => p.items.length === 0 && !p.status.includes("Style advice"),
+        );
+        await setSettingAndWait(worker!, KEY_REVIEW_RULE_OVERRIDES, { styleLongSentence: true });
+        await applyConfigChange(browser, worker!);
+        await waitForReview(
+          page,
+          "threshold ten warning",
+          (p) => p.items.length === 1 && p.items[0].category === "style",
+        );
+        await change("200");
+        await waitUntil(
+          "larger threshold saved",
+          async () => (await getSetting(worker!, key)) === 200,
+          { timeoutMs: 5000 },
+        );
+        await page.bringToFront();
+        await waitForReview(page, "threshold rechecks active Review", (p) => p.items.length === 0);
+        expect(await textareaValue()).toBe(source);
+        await options.close();
+        options = await openOptionsPage(browser, worker!);
+        await options.$eval('a[href="#grammar_tab"]', (el) => (el as HTMLElement).click());
+        await options.waitForSelector(selector);
+        expect(await options.$eval(selector, (e) => (e as HTMLInputElement).value)).toBe("200");
+      } finally {
+        await options.close();
+        await finishReview();
+        await setSettingAndWait(worker!, key, previous ?? 35);
+        await setSettingAndWait(worker!, KEY_REVIEW_RULE_OVERRIDES, overrides ?? {});
+        await applyConfigChange(browser, worker!);
+      }
+    },
+    browserTimeout(25000, 35000),
+  );
+
+  test(
+    "Optional style advice stays off by default and separates counts warnings and native undo",
+    async () => {
+      const previous = await getSetting(worker!, KEY_REVIEW_RULE_OVERRIDES);
+      await setSettingAndWait(worker!, KEY_REVIEW_RULE_OVERRIDES, {});
+      await prepareReviewPage();
+      const source =
+        "Use your PIN number. The team reviewed every part of the detailed proposal and carefully considered all of the important information before making any decision about the next stage of the project because there were still several questions about the final report.";
+      try {
+        await setTextarea(source);
+        await triggerReview(worker!);
+        await waitForReview(
+          page,
+          "style disabled",
+          (p) => p.status === "No issues found by the review checks." && p.items.length === 0,
+        );
+        await setSettingAndWait(worker!, KEY_REVIEW_RULE_OVERRIDES, {
+          styleRedundancy: true,
+          styleLongSentence: true,
+        });
+        await applyConfigChange(browser, worker!);
+        const panel = await waitForReview(
+          page,
+          "style enabled",
+          (p) => p.items.length === 2 && p.items.every((i) => i.category === "style"),
+        );
+        expect(panel.status).toContain("No issues found");
+        expect(panel.status).toContain("Style advice: 2.");
+        expect(panel.fixAll.disabled).toBe(true);
+        await clickReviewControl(page, '.filter[data-category="style"]');
+        await waitForReview(page, "style filter off", (p) => p.items.length === 0);
+        await clickReviewControl(page, '.filter[data-category="style"]');
+        await waitForReview(page, "style filter on", (p) => p.items.length === 2);
+        await clickReviewControl(page, '.item[data-id*="styleRedundancy"]');
+        await waitForReview(page, "style repair card", (p) => p.card.open);
+        await clickReviewControl(page, '.card [data-action="apply"]');
+        await waitUntil(
+          "style repair",
+          async () => (await textareaValue()) === source.replace("PIN number", "PIN"),
+          { timeoutMs: 5000 },
+        );
+        await waitForReview(page, "style recheck", (p) => p.items.length === 1);
+        await pressNativeUndo(page, "#test-textarea");
+        await waitForReview(page, "style undo", (p) => p.items.length === 2);
+        expect(await textareaValue()).toBe(source);
+        await clickReviewControl(page, '.item[data-id*="styleLongSentence"]');
+        const warning = await waitForReview(
+          page,
+          "readability warning",
+          (p) => p.card.open && p.card.text.includes("word threshold"),
+        );
+        expect(warning.card.applyDisabled).toBe(true);
+        expect(
+          await page.evaluate(
+            () =>
+              document
+                .querySelector("[data-fluenttyper-review]")
+                ?.shadowRoot?.querySelectorAll('.card [data-action="apply"]').length,
+          ),
+        ).toBe(0);
+        await setSettingAndWait(worker!, KEY_REVIEW_RULE_OVERRIDES, {});
+        await applyConfigChange(browser, worker!);
+        await waitForReview(
+          page,
+          "style disabled again",
+          (p) => p.items.length === 0 && !p.status.includes("Style advice"),
+        );
+      } finally {
+        await finishReview();
+        await setSettingAndWait(worker!, KEY_REVIEW_RULE_OVERRIDES, previous ?? {});
+        await applyConfigChange(browser, worker!);
+      }
+    },
+    browserTimeout(25000, 35000),
+  );
+
+  test(
+    "Long Review rechecks preserve native apply undo and invalidate an opening code fence",
+    async () => {
+      await prepareReviewPage();
+      const source =
+        "We discussed about the plan.\n\n" +
+        "The team reviewed the evidence today.\n\n".repeat(260);
+      await setTextarea(source);
+      await triggerReview(worker!);
+      const panel = await waitForReview(page, "long native finding", (p) =>
+        p.items.some((i) => i.text === "about␣ → "),
+      );
+      expect(panel.items).toHaveLength(1);
+      await clickReviewControl(page, ".item");
+      await waitForReview(page, "long finding card", (p) => p.card.open);
+      await clickReviewControl(page, ".card [data-action=apply]");
+      await waitUntil(
+        "long individual repair",
+        async () => (await textareaValue()) === source.replace("about ", ""),
+        { timeoutMs: 5000 },
+      );
+      await waitForReview(page, "long recheck", (p) => p.items.length === 0);
+      await pressNativeUndo(page, "#test-textarea");
+      await waitForReview(page, "long native undo", (p) => p.items.length === 1);
+      expect(await textareaValue()).toBe(source);
+      await page.evaluate(() => {
+        const field = document.querySelector("#test-textarea") as HTMLTextAreaElement;
+        field.value = "```\n" + field.value;
+        field.dispatchEvent(
+          new InputEvent("input", { bubbles: true, inputType: "insertText", data: "```\n" }),
+        );
+      });
+      await waitForReview(
+        page,
+        "fence invalidation",
+        (p) => p.items.length === 0 && p.notes.includes("Skipped as code or protected text"),
+      );
+      expect(await textareaValue()).toBe("```\n" + source);
+      await finishReview();
+    },
+    browserTimeout(20000, 30000),
+  );
+
+  test(
+    "Terminology settings author, edit, import and remove entries without changing text assets",
+    async () => {
+      await prepareReviewPage();
+      const key = "preferredTerminology";
+      const previous = await getSetting(worker!, key);
+      const dictionary = await getSetting(worker!, "userDictionaryList");
+      const expansions = await getSetting(worker!, "textExpansions");
+      await setSettingAndWait(worker!, key, { version: 1, enabled: false, entries: [] });
+      const options = await openOptionsPage(browser, worker!);
+      try {
+        await options.$eval('a[href="#grammar_tab"]', (el) => (el as HTMLElement).click());
+        const root = "#preferred-terminology";
+        await options.waitForSelector(`${root} [name=source]`, { visible: true });
+        // Firefox BiDi cannot synthesize keyboard actions in extension pages.
+        for (const [name, value] of [
+          ["source", "Acme Suite"],
+          ["replacement", "Acme Workspace"],
+          ["explanation", "Our preferred name."],
+        ]) {
+          await options.$eval(
+            `${root} [name=${name}]`,
+            (el, value) => {
+              (el as HTMLInputElement).value = value;
+              el.dispatchEvent(new Event("input", { bubbles: true }));
+            },
+            value,
+          );
+        }
+        await options.$eval(`${root} [data-terms-action=save]`, (el) =>
+          (el as HTMLElement).click(),
+        );
+        await waitUntil(
+          "authored terminology saved",
+          async () =>
+            (await getSetting<{ entries: unknown[] }>(worker!, key))?.entries.length === 1,
+          { timeoutMs: 5000 },
+        );
+        const saved = await getSetting<{
+          version: number;
+          enabled: boolean;
+          entries: Array<{ id: string; source: string; replacement: string; explanation: string }>;
+        }>(worker!, key);
+        expect(saved.enabled).toBe(false);
+        await options.$eval(`${root} [data-terms-action=enabled]`, (el) =>
+          (el as HTMLElement).click(),
+        );
+        await options.$eval(`${root} [data-terms-action=edit]`, (el) =>
+          (el as HTMLElement).click(),
+        );
+        await options.$eval(`${root} [name=explanation]`, (el) => {
+          (el as HTMLInputElement).value = "A local explanation.";
+        });
+        await options.$eval(`${root} [data-terms-action=save]`, (el) =>
+          (el as HTMLElement).click(),
+        );
+        await waitUntil(
+          "terminology edit saved",
+          async () =>
+            (await getSetting<typeof saved>(worker!, key)).entries[0].explanation ===
+            "A local explanation.",
+          { timeoutMs: 5000 },
+        );
+        const edited = await getSetting<typeof saved>(worker!, key);
+        expect(edited.entries[0].id).toBe(saved.entries[0].id);
+        expect(edited.enabled).toBe(true);
+        await options.$eval(`${root} [data-terms-action=remove]`, (el) =>
+          (el as HTMLElement).click(),
+        );
+        await waitUntil(
+          "terminology removed",
+          async () => (await getSetting<typeof saved>(worker!, key)).entries.length === 0,
+          { timeoutMs: 5000 },
+        );
+        // Firefox BiDi cannot set files in extension pages; exercise the real change handler.
+        await options.$eval(
+          `${root} [data-terms-action=import-file]`,
+          (el, content) => {
+            const transfer = new DataTransfer();
+            transfer.items.add(
+              new File([content], "terminology.json", { type: "application/json" }),
+            );
+            (el as HTMLInputElement).files = transfer.files;
+            el.dispatchEvent(new Event("change", { bubbles: true }));
+          },
+          JSON.stringify(edited),
+        );
+        await waitUntil(
+          "terminology import",
+          async () => (await getSetting<typeof saved>(worker!, key)).entries.length === 1,
+          { timeoutMs: 5000 },
+        );
+        expect(await getSetting(worker!, key)).toEqual(edited);
+        await page.bringToFront();
+        await setTextarea("We use Acme Suite.");
+        await triggerReview(worker!);
+        await waitForReview(page, "UI-authored term reaches Review", (p) =>
+          p.items.some((i) => i.text === "Acme Suite → Acme Workspace"),
+        );
+        await options.$eval(`${root} [data-terms-action=remove]`, (el) =>
+          (el as HTMLElement).click(),
+        );
+        await waitUntil(
+          "UI removes imported term",
+          async () => (await getSetting<typeof saved>(worker!, key)).entries.length === 0,
+          { timeoutMs: 5000 },
+        );
+        await page.bringToFront();
+        await waitForReview(page, "UI removal clears active Review", (p) => p.items.length === 0);
+        await finishReview();
+        expect(await getSetting(worker!, "userDictionaryList")).toEqual(dictionary);
+        expect(await getSetting(worker!, "textExpansions")).toEqual(expansions);
+      } finally {
+        await options.close();
+        await setSettingAndWait(
+          worker!,
+          key,
+          previous ?? { version: 1, enabled: false, entries: [] },
+        );
+        await applyConfigChange(browser, worker!);
+      }
+    },
+    browserTimeout(25000, 35000),
+  );
+
+  test(
+    "Review authored terminology applies safely and disappears when removed",
+    async () => {
+      await prepareReviewPage();
+      const key = "preferredTerminology";
+      const previous = await getSetting(worker!, key);
+      const source = "We use Acme Suite.";
+      const config = {
+        version: 1,
+        enabled: true,
+        entries: [
+          {
+            id: "acme",
+            source: "Acme Suite",
+            replacement: "Acme Workspace",
+            casePolicy: "exact",
+            explanation: '<img src=x onerror="alert(1)">',
+            language: "en_US",
+            scope: "all-prose",
+            enabled: true,
+          },
+        ],
+      };
+      try {
+        await setSettingAndWait(worker!, key, config);
+        await applyConfigChange(browser, worker!);
+        await setTextarea(source);
+        await triggerReview(worker!);
+        const panel = await waitForReview(page, "authored term", (p) =>
+          p.items.some((i) => i.text === "Acme Suite → Acme Workspace"),
+        );
+        expect(panel.items).toHaveLength(1);
+        expect(panel.fixAll.disabled).toBe(true);
+        await clickReviewControl(page, ".item");
+        const card = await waitForReview(page, "authored term card", (p) => p.card.open);
+        expect(card.card.text).toContain('<img src=x onerror="alert(1)">');
+        expect(
+          await page.evaluate(
+            () =>
+              document
+                .querySelector("[data-fluenttyper-review]")
+                ?.shadowRoot?.querySelectorAll(".card img").length,
+          ),
+        ).toBe(0);
+        await clickReviewControl(page, ".card [data-action=apply]");
+        await waitUntil(
+          "preferred repair",
+          async () => (await textareaValue()) === "We use Acme Workspace.",
+          { timeoutMs: 5000 },
+        );
+        await waitForReview(page, "preferred recheck", (p) => p.items.length === 0);
+        await pressNativeUndo(page, "#test-textarea");
+        await waitForReview(page, "preferred undo", (p) =>
+          p.items.some((i) => i.text === "Acme Suite → Acme Workspace"),
+        );
+        expect(await textareaValue()).toBe(source);
+        await setSettingAndWait(worker!, key, { version: 1, enabled: true, entries: [] });
+        await applyConfigChange(browser, worker!);
+        await waitForReview(page, "preference removed", (p) => p.items.length === 0);
+        expect(await textareaValue()).toBe(source);
+      } finally {
+        await finishReview();
+        await setSettingAndWait(
+          worker!,
+          key,
+          previous ?? { version: 1, enabled: false, entries: [] },
+        );
+        await applyConfigChange(browser, worker!);
+      }
+    },
+    browserTimeout(20000, 30000),
+  );
+
+  test(
+    "Review canonical casing preserves split formatting and native undo",
+    async () => {
+      await prepareReviewPage();
+      const selector = "#test-contenteditable";
+      const original = "<p>We use <b>java</b><i>script</i>.</p>";
+      await page.evaluate(
+        ({ selector, original }) => {
+          const root = document.querySelector(selector) as HTMLElement;
+          root.innerHTML = original;
+          root.focus();
+        },
+        { selector, original },
+      );
+      await triggerReview(worker!);
+      await waitForReview(page, "formatted canonical name", (p) =>
+        p.items.some((i) => i.text === "javascript → JavaScript"),
+      );
+      await clickReviewControl(page, ".item");
+      await waitForReview(page, "canonical card", (p) => p.card.open);
+      await clickReviewControl(page, ".card [data-action=apply]");
+      await waitUntil(
+        "canonical text",
+        async () => (await page.$eval(selector, (el) => el.textContent)) === "We use JavaScript.",
+        { timeoutMs: 5000 },
+      );
+      await waitUntil(
+        "canonical formatting",
+        async () =>
+          await page.$eval(
+            selector,
+            (el) => el.innerHTML === "<p>We use <b>Java</b><i>Script</i>.</p>",
+          ),
+        { timeoutMs: 5000 },
+      );
+      // Contenteditable advertises per-edit native undo; each changed letter is one edit.
+      await pressNativeUndo(page, selector);
+      await waitUntil(
+        "first canonical undo",
+        async () =>
+          (await page.$eval(selector, (el) => el.innerHTML)) ===
+          "<p>We use <b>java</b><i>Script</i>.</p>",
+        { timeoutMs: 5000 },
+      );
+      await pressNativeUndo(page, selector);
+      await waitUntil(
+        "canonical undo",
+        async () => (await page.$eval(selector, (el) => el.innerHTML)) === original,
+        { timeoutMs: 5000 },
+      );
+      await finishReview();
+    },
+    browserTimeout(15000, 25000),
+  );
+
+  test(
+    "Review compound insertion preserves a formatted word boundary",
+    async () => {
+      await prepareReviewPage();
+      const selector = "#test-contenteditable";
+      const original = "<p>We need to <b>set</b><i>up</i> the environment.</p>";
+      await page.evaluate(
+        ({ selector, original }) => {
+          const root = document.querySelector(selector) as HTMLElement;
+          root.innerHTML = original;
+          root.focus();
+        },
+        { selector, original },
+      );
+      await triggerReview(worker!);
+      await waitForReview(page, "formatted compound", (p) =>
+        p.items.some((item) => item.text === "setup → set␣up"),
+      );
+      await clickReviewControl(page, ".item");
+      await waitForReview(page, "formatted compound card", (p) => p.card.open);
+      await clickReviewControl(page, ".card [data-action=apply]");
+      await waitUntil(
+        "formatted compound repair",
+        async () =>
+          await page.$eval(
+            selector,
+            (el) =>
+              el.textContent?.replace(/\u00a0/g, " ") === "We need to set up the environment.",
+          ),
+        { timeoutMs: 5000 },
+      );
+      expect(
+        await page.$eval(selector, (el) => [
+          el.querySelector("b")?.textContent?.replace(/\u00a0/g, " "),
+          el.querySelector("i")?.textContent,
+        ]),
+      ).toEqual(["set ", "up"]);
+      await pressNativeUndo(page, selector);
+      await waitUntil(
+        "formatted compound undo",
+        async () => (await page.$eval(selector, (el) => el.innerHTML)) === original,
+        { timeoutMs: 5000 },
+      );
+      await finishReview();
+    },
+    browserTimeout(15000, 25000),
+  );
+
+  test(
+    "Review usage phrase replacement preserves split formatting",
+    async () => {
+      await prepareReviewPage();
+      const selector = "#test-contenteditable";
+      const original = "<p>For all <b>int</b><i>ensive</i> purposes, the test is complete.</p>";
+      await page.evaluate(
+        ({ selector, original }) => {
+          const root = document.querySelector(selector) as HTMLElement;
+          root.innerHTML = original;
+          root.focus();
+        },
+        { selector, original },
+      );
+      await triggerReview(worker!);
+      await waitForReview(page, "formatted usage phrase", (p) =>
+        p.items.some((item) => item.text === "intensive → intents␣and"),
+      );
+      await clickReviewControl(page, ".item");
+      await waitForReview(page, "formatted usage phrase card", (p) => p.card.open);
+      await clickReviewControl(page, ".card [data-action=apply]");
+      await waitUntil(
+        "formatted usage phrase repair",
+        async () =>
+          await page.$eval(
+            selector,
+            (el) =>
+              el.textContent?.replace(/\u00a0/g, " ") ===
+              "For all intents and purposes, the test is complete.",
+          ),
+        { timeoutMs: 5000 },
+      );
+      expect(
+        await page.$eval(selector, (el) => [
+          el.querySelector("b")?.textContent?.replace(/\u00a0/g, " "),
+          el.querySelector("i")?.textContent,
+        ]),
+      ).toEqual(["int", "ents and"]);
+      await pressNativeUndo(page, selector);
+      await waitUntil(
+        "formatted usage phrase undo",
+        async () => (await page.$eval(selector, (el) => el.innerHTML)) === original,
+        { timeoutMs: 5000 },
+      );
+      await finishReview();
+    },
+    browserTimeout(15000, 25000),
+  );
+
+  test(
+    "Review degree deletion preserves the formatted comparison",
+    async () => {
+      await prepareReviewPage();
+      const selector = "#test-contenteditable";
+      const original = "<p>This approach is <b>more </b><i>easier</i> to test.</p>";
+      await page.evaluate(
+        ({ selector, original }) => {
+          const root = document.querySelector(selector) as HTMLElement;
+          root.innerHTML = original;
+          root.focus();
+        },
+        { selector, original },
+      );
+      await triggerReview(worker!);
+      await waitForReview(page, "formatted degree", (p) =>
+        p.items.some((item) => item.text === "more␣easier → easier"),
+      );
+      await clickReviewControl(page, ".item");
+      await waitForReview(page, "formatted degree card", (p) => p.card.open);
+      await clickReviewControl(page, ".card [data-action=apply]");
+      await waitUntil(
+        "formatted degree repair",
+        async () =>
+          await page.$eval(
+            selector,
+            (el) => el.textContent?.replace(/\u00a0/g, " ") === "This approach is easier to test.",
+          ),
+        { timeoutMs: 5000 },
+      );
+      expect(await page.$eval(selector, (el) => el.querySelector("i")?.textContent)).toBe("easier");
+      await pressNativeUndo(page, selector);
+      await waitUntil(
+        "formatted degree undo",
+        async () => (await page.$eval(selector, (el) => el.innerHTML)) === original,
+        { timeoutMs: 5000 },
+      );
+      await finishReview();
+    },
+    browserTimeout(15000, 25000),
+  );
+
+  test(
+    "Review noun-number alternatives require a choice and preserve the chosen quantity",
+    async () => {
+      for (const [index, expected] of [
+        [0, "Those files failed."],
+        [1, "That file failed."],
+      ] as const) {
+        await prepareReviewPage();
+        const source = "Those file failed.";
+        await setTextarea(source);
+        await triggerReview(worker!);
+        const panel = await waitForReview(page, "number alternatives", (p) =>
+          p.items.some((item) => item.text === "Those file → Those files / That file"),
+        );
+        expect(panel.fixAll).toMatchObject({ text: "Fix all safe (0)", disabled: true });
+        await clickReviewControl(page, ".item");
+        const card = await waitForReview(page, "number choice", (p) => p.card.open);
+        expect(card.card.text).toContain("Choose singular or plural");
+        expect(await textareaValue()).toBe(source);
+        await clickReviewControl(page, `.card button.suggestion[data-index="${index}"]`);
+        await waitUntil("chosen number", async () => (await textareaValue()) === expected, {
+          timeoutMs: 5000,
+        });
+        await waitForReview(page, "number rechecked", (p) => p.items.length === 0);
+        await pressNativeUndo(page, "#test-textarea");
+        await waitUntil("number undo", async () => (await textareaValue()) === source, {
+          timeoutMs: 5000,
+        });
+        await finishReview();
+      }
+    },
+    browserTimeout(20000, 30000),
+  );
+
+  test(
+    "Review missing-to insertion preserves a split formatted verb and native undo",
+    async () => {
+      await prepareReviewPage();
+      const selector = "#test-contenteditable";
+      const original = "<p>We need <b>f</b><i>ix</i> this bug.</p>";
+      await page.evaluate(
+        ({ selector, original }) => {
+          const root = document.querySelector(selector) as HTMLElement;
+          root.innerHTML = original;
+          root.focus();
+        },
+        { selector, original },
+      );
+      await triggerReview(worker!);
+      const panel = await waitForReview(page, "split complement", (p) =>
+        p.items.some((item) => item.text === "fix → to␣fix"),
+      );
+      expect(panel.fixAll).toMatchObject({ text: "Fix all safe (0)", disabled: true });
+      await clickReviewControl(page, ".item");
+      await waitForReview(page, "split complement card", (p) => p.card.open);
+      await clickReviewControl(page, ".card [data-action=apply]");
+      await waitUntil(
+        "split insertion",
+        async () =>
+          (await page.$eval(selector, (el) => el.textContent)) === "We need to fix this bug.",
+        { timeoutMs: 5000 },
+      ).catch(async (cause) => {
+        throw new Error(
+          `Split insertion left ${await page.$eval(selector, (el) => el.innerHTML)}`,
+          { cause },
+        );
+      });
+      expect(await page.$eval(selector, (el) => el.innerHTML)).toBe(
+        "<p>We need <b>to f</b><i>ix</i> this bug.</p>",
+      );
+      await waitForReview(page, "insertion recheck", (p) => p.items.length === 0);
+      await pressNativeUndo(page, selector);
+      await waitUntil(
+        "split insertion undo",
+        async () => (await page.$eval(selector, (el) => el.innerHTML)) === original,
+        { timeoutMs: 5000 },
+      );
+      await finishReview();
+    },
+    browserTimeout(20000, 30000),
+  );
+
+  test(
+    "Review quotation warnings support keyboard and filters without Apply or batch edits",
+    async () => {
+      await prepareReviewPage();
+      const source = "He wrote, “The build is ready.";
+      await setTextarea(source);
+      await triggerReview(worker!);
+      let panel = await waitForReview(page, "quotation warning", (p) => p.status === "Issues: 1");
+      expect(panel.items[0].text).toBe("Warning: “");
+      expect(panel.fixAll).toMatchObject({ text: "Fix all safe (0)", disabled: true });
+      await clickReviewControl(page, '.filter[data-category="punctuation"]');
+      await waitForReview(page, "warning filtered", (p) => p.items.length === 0);
+      await clickReviewControl(page, '.filter[data-category="punctuation"]');
+      await waitForReview(page, "warning restored", (p) => p.items.length === 1);
+      for (let i = 0; i < 12 && (await readReviewPanel(page)).focus !== "button.item"; i++) {
+        await page.keyboard.press("Tab");
+      }
+      expect((await readReviewPanel(page)).focus).toBe("button.item");
+      await page.keyboard.press("Enter");
+      panel = await waitForReview(page, "warning card", (p) => p.card.open);
+      expect(panel.card.text).toContain("no matching closing mark");
+      expect(panel.focus).not.toBe("button.item");
+      expect(
+        await page.evaluate(() => {
+          const root = document.querySelector("[data-fluenttyper-review]")?.shadowRoot;
+          return !!root?.querySelector('.card [data-action="apply"]');
+        }),
+      ).toBe(false);
+      await page.keyboard.press("Escape");
+      await waitForReview(page, "warning card closed", (p) => !p.card.open && p.open);
+      expect(await textareaValue()).toBe(source);
+      await finishReview();
+    },
+    browserTimeout(20000, 30000),
+  );
+
+  test(
+    "Review matching ignores remap, reset and expire on close without persisting prose",
+    async () => {
+      await prepareReviewPage();
+      const prefix = "Plain context. ".repeat(9);
+      const source = `${prefix}The the cat. ${prefix}The the cat. ${prefix}A a cat.`;
+      const dictionary = await getLocalStorageValue<string[]>(
+        worker!,
+        `${SETTINGS_PREFIX}userDictionaryList`,
+      );
+      const overrides = await getSetting(worker!, KEY_REVIEW_RULE_OVERRIDES);
+      await setTextarea(source);
+      await triggerReview(worker!);
+      const initial = await waitForReview(
+        page,
+        "three repeated words",
+        (p) => p.items.length === 3,
+      );
+      await clickReviewControl(page, `.item[data-id="${initial.items[0].id}"]`);
+      await waitForReview(page, "matching-ignore card", (p) => p.card.open);
+      await clickReviewControl(page, "[data-action=ignore-matching]");
+      const ignored = await waitForReview(
+        page,
+        "two matching occurrences ignored",
+        (p) => p.items.length === 1 && p.notes.includes("Ignored: 2"),
+      );
+      expect(ignored.items[0].text).toBe("A␣a → A");
+      expect(ignored.fixAll).toMatchObject({ text: "Fix all safe (0)", disabled: true });
+      expect(await textareaValue()).toBe(source);
+      await page.focus("#test-textarea");
+      await page.$eval("#test-textarea", (el) =>
+        (el as HTMLTextAreaElement).setSelectionRange(0, 0),
+      );
+      await page.keyboard.type("Hello. ");
+      await waitForReview(
+        page,
+        "ignored evidence moved",
+        (p) => p.items.length === 1 && p.notes.includes("Ignored: 2"),
+      );
+      expect(await textareaValue()).toBe("Hello. " + source);
+      await clickReviewControl(page, "[data-action=reset-ignores]");
+      const restored = await waitForReview(
+        page,
+        "all ignored findings restored",
+        (p) => p.items.length === 3 && !p.notes.includes("Ignored:"),
+      );
+      await clickReviewControl(page, `.item[data-id="${restored.items[0].id}"]`);
+      await waitForReview(page, "ignore again", (p) => p.card.open);
+      await clickReviewControl(page, "[data-action=ignore-matching]");
+      await waitForReview(page, "ignored again", (p) => p.items.length === 1);
+      await clickReviewControl(page, "[data-action=close]");
+      await page.focus("#test-textarea");
+      await triggerReview(worker!);
+      await waitForReview(
+        page,
+        "new session has no ignores",
+        (p) => p.items.length === 3 && !p.notes.includes("Ignored:"),
+      );
+      expect(
+        await getLocalStorageValue<string[]>(worker!, `${SETTINGS_PREFIX}userDictionaryList`),
+      ).toEqual(dictionary);
+      expect(await getSetting(worker!, KEY_REVIEW_RULE_OVERRIDES)).toEqual(overrides);
+      expect(
+        JSON.stringify(await worker!.evaluate(async () => await chrome.storage.local.get(null))),
+      ).not.toContain("Plain context");
+      await finishReview();
+    },
+    browserTimeout(20000, 30000),
+  );
+
+  test(
+    "Review keeps a disabled rule disabled after reopening in an iframe",
+    async () => {
+      await setSettingAndWait(worker!, KEY_REVIEW_RULE_OVERRIDES, {});
+      await prepareReviewPage();
+      try {
+        await page.evaluate(() => {
+          const iframe = document.createElement("iframe");
+          iframe.id = "review-frame";
+          iframe.style.cssText =
+            "position: fixed; inset: 0; width: 100%; height: 100%; border: 0; z-index: 2147483647;";
+          iframe.src = window.location.href;
+          document.body.prepend(iframe);
+        });
+        const frame = await waitUntil(
+          "review iframe",
+          async () => (await (await page.$("#review-frame"))?.contentFrame()) || false,
+        );
+        await frame.waitForSelector("#test-textarea[data-suggestion]");
+        await frame.$eval("#test-textarea", (el) => {
+          const field = el as HTMLTextAreaElement;
+          field.value = "I opened the the report. He can works remotely.";
+          field.focus();
+          field.setSelectionRange(0, 0);
+        });
+        const click = async (selector: string) => {
+          const button = await frame.waitForSelector(`pierce/${selector}:not(:disabled)`);
+          await button!.click();
+        };
+        await triggerReview(worker!);
+        await waitForReview(frame, "iframe findings", (p) => p.items.length === 2);
+        await click(".item");
+        await waitForReview(frame, "iframe card", (p) => p.card.open);
+        await frame.waitForFunction(() => {
+          const button = document
+            .querySelector("[data-fluenttyper-review]")
+            ?.shadowRoot?.querySelector<HTMLButtonElement>("[data-action=disable-rule]");
+          return button && !button.disabled;
+        });
+        await click("[data-action=disable-rule]");
+        await waitForReview(frame, "iframe rule disabled", (p) => p.items.length === 1);
+        await click("[data-action=close]");
+        await waitForReview(frame, "iframe closed", (p) => !p.open);
+        await frame.focus("#test-textarea");
+        await triggerReview(worker!);
+        await waitForReview(
+          frame,
+          "iframe reopened without disabled rule",
+          (p) => p.items.length === 1 && p.items[0].text.includes("works"),
+        );
+        expect(await getSetting(worker!, KEY_REVIEW_RULE_OVERRIDES)).toEqual({
+          englishRepeatedWords: false,
+        });
+        const options = await openOptionsPage(browser, worker!);
+        try {
+          await options.$eval('a[href="#grammar_tab"]', (el) => (el as HTMLElement).click());
+          const selector = 'input.grammar-rule-card-toggle[value="englishRepeatedWords"]';
+          await options.waitForSelector(selector, { visible: true });
+          await options.$eval(selector, (el) => (el as HTMLElement).click());
+          await waitForReview(
+            frame,
+            "settings restore the iframe rule live",
+            (p) => p.items.length === 2,
+          );
+        } finally {
+          await options.close();
+        }
+        await page.bringToFront();
+        await click("[data-action=close]");
+        await waitForReview(frame, "iframe closed after settings", (p) => !p.open);
+        await frame.focus("#test-textarea");
+        await triggerReview(worker!);
+        await waitForReview(
+          frame,
+          "iframe reopened with restored rule",
+          (p) => p.items.length === 2,
+        );
+      } finally {
+        await page.$eval("#review-frame", (el) => el.remove());
+        await setSettingAndWait(worker!, KEY_REVIEW_RULE_OVERRIDES, {});
+        await applyConfigChange(browser, worker!);
+      }
+    },
+    browserTimeout(25000, 35000),
+  );
+
+  test(
+    "Review rule controls persist one disabled check and restore it from settings",
+    async () => {
+      await setSettingAndWait(worker!, KEY_REVIEW_RULE_OVERRIDES, {});
+      await prepareReviewPage();
+      const source = "I opened the the report. He can works remotely.";
+      const typing = await getSetting(worker!, KEY_ENABLED_GRAMMAR_RULES);
+      try {
+        await setTextarea(source);
+        await triggerReview(worker!);
+        await waitForReview(page, "two native findings", (p) => p.items.length === 2);
+        await clickReviewControl(page, ".item");
+        await waitForReview(page, "rule card", (p) => p.card.open);
+        await clickReviewControl(page, "[data-action=disable-rule]");
+        await waitForReview(
+          page,
+          "only auxiliary remains",
+          (p) => p.items.length === 1 && p.items[0].text.includes("works"),
+        );
+        expect(await getSetting(worker!, KEY_REVIEW_RULE_OVERRIDES)).toEqual({
+          englishRepeatedWords: false,
+        });
+        expect(await getSetting(worker!, KEY_ENABLED_GRAMMAR_RULES)).toEqual(typing);
+        expect(await textareaValue()).toBe(source);
+        await page.keyboard.press("Escape");
+        await setTextarea(source);
+        await triggerReview(worker!);
+        await waitForReview(
+          page,
+          "disabled after reopen",
+          (p) => p.items.length === 1 && p.items[0].text.includes("works"),
+        );
+        const options = await openOptionsPage(browser, worker!);
+        try {
+          await options.$eval('a[href="#grammar_tab"]', (el) => (el as HTMLElement).click());
+          const selector = 'input.grammar-rule-card-toggle[value="englishRepeatedWords"]';
+          await options.waitForSelector(selector, { visible: true });
+          expect(await options.$eval(selector, (el) => (el as HTMLInputElement).checked)).toBe(
+            false,
+          );
+          await options.$eval(selector, (el) => (el as HTMLElement).click());
+          await waitUntil(
+            "restored Review preference",
+            async () =>
+              (await getSetting<Record<string, boolean>>(worker!, KEY_REVIEW_RULE_OVERRIDES))
+                ?.englishRepeatedWords === true,
+            { timeoutMs: 5000 },
+          );
+        } finally {
+          await options.close();
+        }
+        await page.bringToFront();
+        await waitForReview(page, "restored live findings", (p) => p.items.length === 2);
+        await setGrammarRulesAndWait(worker!, []);
+        await applyConfigChange(browser, worker!);
+        await waitForReview(page, "typing disable stays separate", (p) => p.items.length === 2);
+        expect(await textareaValue()).toBe(source);
+      } finally {
+        await setSettingAndWait(worker!, KEY_REVIEW_RULE_OVERRIDES, {});
+        await applyConfigChange(browser, worker!);
+        await finishReview();
+      }
+    },
+    browserTimeout(35000, 50000),
+  );
+
+  test(
     "Review mode offers suggestions for an unknown word and changes nothing until one is picked",
     async () => {
       await prepareReviewPage();
@@ -7169,7 +8229,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   );
 
   test(
-    "Review mode runs every supported rule, even ones off for typing, and none in code mode",
+    "Review mode uses native defaults independently of typing and disables them in code mode",
     async () => {
       const selector = "#test-textarea";
       const launcherShown = () =>

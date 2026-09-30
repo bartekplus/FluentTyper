@@ -724,6 +724,96 @@ describe("ReviewSession with Local AI: Correct", () => {
 });
 
 describe("ReviewSession with Local AI: disagreeing with a check", () => {
+  test("AI corrections leave explicitly preferred wording unchanged", async () => {
+    const h = harness("We saw teh cat.", { rules: ["preferredTerminology"] });
+    h.session.updateOptions({
+      lang: "en_US",
+      enabledRules: ["preferredTerminology"],
+      userDictionary: [],
+      insertSpaceAfterAutocomplete: true,
+      preferredTerminology: {
+        version: 1,
+        enabled: true,
+        entries: [
+          {
+            id: "literal",
+            source: "the",
+            replacement: "teh",
+            casePolicy: "exact",
+            explanation: "Deliberate wording.",
+            language: "en_US",
+            scope: "all-prose",
+            enabled: true,
+          },
+        ],
+      },
+    });
+    h.ai.fix = (text) => text.replace("teh", "the");
+    await h.start();
+    expect(h.ai.requests.length).toBeGreaterThan(0);
+    expect(h.last().diagnostics).toEqual([]);
+    expect(h.editor.applyCalls).toEqual([]);
+    h.session.close();
+  });
+
+  test("AI corrections around unchanged preferred wording remain visible", async () => {
+    const source = "She go with Acme Workspace and they goes home.";
+    const h = harness(source, { rules: ["preferredTerminology"] });
+    h.session.updateOptions({
+      lang: "en_US",
+      enabledRules: ["preferredTerminology"],
+      userDictionary: [],
+      insertSpaceAfterAutocomplete: true,
+      preferredTerminology: {
+        version: 1,
+        enabled: true,
+        entries: [
+          {
+            id: "acme",
+            source: "Acme Suite",
+            replacement: "Acme Workspace",
+            casePolicy: "exact",
+            explanation: "Our name",
+            language: "en_US",
+            scope: "all-prose",
+            enabled: true,
+          },
+        ],
+      },
+    });
+    h.ai.fix = (text) => text.replace("She go ", "She goes ").replace("they goes ", "they go ");
+    await h.start();
+    expect(h.aiFindings().map((d) => d.original)).toEqual(["go", "goes"]);
+    expect(h.editor.text).toBe(source);
+    h.session.close();
+  });
+
+  test("style warnings do not suppress separately enabled AI corrections", async () => {
+    const text =
+      "The team reviewed every part of the detailed proposal and carefully considered all of the important information before making any decision about the next stage of the project because there were still several questions about teh final report.";
+    const h = harness(text, { rules: ["styleLongSentence"] });
+    h.ai.fix = (text) => text.replace("teh", "the");
+    await h.start();
+    expect(
+      h.last().diagnostics.some((d) => d.ruleId === "styleLongSentence" && d.warningOnly),
+    ).toBe(true);
+    expect(h.last().diagnostics.some((d) => d.ruleId === REVIEW_LOCAL_AI_CHECK)).toBe(true);
+    expect(h.editor.applyCalls).toEqual([]);
+    h.session.close();
+  });
+
+  test("AI alternatives never turn a native warning into a replacement card", async () => {
+    const h = harness("He wrote, “The build is ready.", { rules: ["unclosedQuotation"] });
+    h.ai.fix = (text) => text.replace("“", '"');
+    await h.start();
+    const warning = h.last().diagnostics.find((d) => d.warningOnly);
+    expect(warning).toBeDefined();
+    expect(warning!.alternatives).toEqual([]);
+    expect(await h.session.apply(warning!.id)).toBeNull();
+    expect(h.editor.applyCalls).toEqual([]);
+    h.session.close();
+  });
+
   test("a different AI fix for the same word is a labelled second option (user report)", async () => {
     const h = harness("Yesterday she still dont know the details.", {
       rules: ["englishContractionNormalization"],
@@ -972,6 +1062,10 @@ describe("ReviewSession with Local AI: Apply selected AI corrections", () => {
     await h.start();
     h.session.previewAiBatch();
     expect(h.last().aiBatch!.diagnosticIds).toHaveLength(2);
+    const aiCount = h.aiFindings().length;
+    h.session.ignoreMatching(h.aiFindings()[0].id);
+    expect(h.aiFindings()).toHaveLength(aiCount);
+    expect(h.last().ignoredCount).toBe(0);
     h.session.ignore(h.aiFindings()[0].id);
     expect(h.last().aiBatch).toBeNull();
     expect(await h.session.applyAiBatch()).toBeNull();

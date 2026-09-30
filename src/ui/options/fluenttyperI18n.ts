@@ -29,6 +29,28 @@ function applyStoredExtensionLanguage(target: I18n): void {
 applyStoredExtensionLanguage(i18n);
 
 i18n.extend({
+  review_long_sentence_label: {
+    en: "Long-sentence word threshold",
+    fr: "Seuil de mots des phrases longues",
+    hr: "Prag broja riječi za duge rečenice",
+    es: "Umbral de palabras para oraciones largas",
+    el: "Όριο λέξεων μεγάλης πρότασης",
+    sv: "Ordgräns för långa meningar",
+    de: "Wortgrenze für lange Sätze",
+    pl: "Limit słów w długim zdaniu",
+    pr: "Limite de palavras para frases longas",
+  },
+  review_long_sentence_help: {
+    en: "10–200 words; default 35. Used only when optional long-sentence advice is enabled. This is a preference, not a writing quality score.",
+    fr: "10–200 mots ; 35 par défaut. Utilisé uniquement si le conseil facultatif sur les phrases longues est activé. Il s’agit d’une préférence, pas d’une note de qualité.",
+    hr: "10–200 riječi; zadano 35. Primjenjuje se samo kad su uključeni neobavezni savjeti za duge rečenice. To je postavka, a ne ocjena kvalitete pisanja.",
+    es: "10–200 palabras; 35 por defecto. Solo se usa si está activado el consejo opcional sobre oraciones largas. Es una preferencia, no una puntuación de calidad.",
+    el: "10–200 λέξεις, προεπιλογή 35. Χρησιμοποιείται μόνο όταν είναι ενεργές οι προαιρετικές συμβουλές για μεγάλες προτάσεις. Είναι προτίμηση, όχι βαθμολογία ποιότητας γραφής.",
+    sv: "10–200 ord; standard 35. Används endast när valfria råd om långa meningar är aktiverade. Detta är en inställning, inte ett mått på skrivkvalitet.",
+    de: "10–200 Wörter; Standard 35. Nur bei aktivierten optionalen Hinweisen zu langen Sätzen. Dies ist eine Präferenz, keine Bewertung der Schreibqualität.",
+    pl: "10–200 słów; domyślnie 35. Działa tylko po włączeniu opcjonalnych wskazówek o długich zdaniach. To preferencja, a nie ocena jakości tekstu.",
+    pr: "10–200 palavras; padrão 35. Usado apenas quando os conselhos opcionais sobre frases longas estão ativados. É uma preferência, não uma pontuação de qualidade.",
+  },
   extension_ui_language: {
     en: "Extension UI Language",
     fr: "Langue de l'interface",

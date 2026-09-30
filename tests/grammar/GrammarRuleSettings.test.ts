@@ -8,7 +8,7 @@ import {
 } from "../../src/core/domain/grammar/GrammarRuleSettings";
 import {
   DEFAULT_CURRENT_GRAMMAR_RULES,
-  GRAMMAR_RULE_IDS,
+  TYPING_RULE_IDS,
   RECOMMENDED_CURRENT_GRAMMAR_RULES,
   RECOMMENDED_V1_GRAMMAR_RULES,
   RECOMMENDED_V2_GRAMMAR_RULES,
@@ -172,14 +172,14 @@ describe("GrammarRuleSettings", () => {
     test("is on only after an explicit opt-in", () => {
       expect(resolveGrammarRuleSelection({ [RULE]: true })).toContain(RULE);
       expect(
-        resolveGrammarRuleSelection(grammarRuleSelectionToOverrides(GRAMMAR_RULE_IDS)),
+        resolveGrammarRuleSelection(grammarRuleSelectionToOverrides(TYPING_RULE_IDS)),
       ).toContain(RULE);
     });
   });
 
   describe("upgrade after Disable all", () => {
     test("keeps every rule off, including rules added later", () => {
-      const beforeUpgrade = GRAMMAR_RULE_IDS.filter((id) => id !== "currencySpacing");
+      const beforeUpgrade = TYPING_RULE_IDS.filter((id) => id !== "currencySpacing");
       const stored = Object.fromEntries(beforeUpgrade.map((id) => [id, false]));
       expect(resolveGrammarRuleSelection(stored)).toEqual([]);
     });
@@ -192,7 +192,7 @@ describe("GrammarRuleSettings", () => {
     test("switching off just a couple of rules is not a disable-all", () => {
       const stored = { commaPeriodSpacing: false, mathOperatorSpacing: false };
       expect(resolveGrammarRuleSelection(stored)).toEqual(
-        GRAMMAR_RULE_IDS.filter((id) => {
+        TYPING_RULE_IDS.filter((id) => {
           if (id === "commaPeriodSpacing" || id === "mathOperatorSpacing") return false;
           return DEFAULT_CURRENT_GRAMMAR_RULES.includes(id);
         }),
@@ -238,7 +238,7 @@ describe("GrammarRuleSettings", () => {
     test("a Disable all saved while it existed still disables everything", () => {
       // Written from the catalog of that time: every rule, the retired one included.
       const stored = Object.fromEntries(
-        [...GRAMMAR_RULE_IDS, RETIRED].map((id) => [id, false] as const),
+        [...TYPING_RULE_IDS, RETIRED].map((id) => [id, false] as const),
       );
       expect(resolveGrammarRuleSelection(stored)).toEqual([]);
       const legacyInventory = Object.fromEntries(

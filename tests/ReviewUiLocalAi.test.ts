@@ -38,6 +38,9 @@ function callbacks(): { [K in keyof ReviewUiCallbacks]: ReturnType<typeof jest.f
     "select",
     "apply",
     "ignore",
+    "ignoreMatching",
+    "resetIgnores",
+    "disableRule",
     "addToDictionary",
     "fixAll",
     "toggleCategory",
@@ -237,6 +240,118 @@ describe("ReviewUi: Local AI", () => {
       state({ ai: ai({ availability: "installing", status: { ...STATUS, progress: 0.42 } }) }),
     );
     expect($(".ai-line").textContent).toBe("Local AI model is downloading: 42% (see settings).");
+  });
+
+  test("user-authored terminology explanations render only as text", () => {
+    const diagnostic = finding("term", {
+      ruleId: "preferredTerminology",
+      messageKey: "review_msg_preferred_terminology",
+      terminology: { id: "user-term", explanation: '<img src=x onerror="alert(1)">' },
+    });
+    ui.render(state({ diagnostics: [diagnostic] }));
+    ui.openCard(diagnostic, null);
+    expect($(".card").textContent).toContain('<img src=x onerror="alert(1)">');
+    expect($(".card").textContent).toContain("user-authored advice");
+    expect($(".card").querySelector("img")).toBeNull();
+    expect($(".card").getAttribute("aria-label")).toContain("user-authored advice");
+  });
+
+  test("optional style advice has a separate count/filter and no default filter", () => {
+    ui.render(state({ ai: ai({ availability: "off" }) }));
+    expect(ui.root.querySelector('[data-category="style"]')).toBeNull();
+    const advice = finding("style", {
+      ruleId: "styleRedundancy",
+      category: "style",
+      messageKey: "review_msg_style_redundancy",
+      bulk: { eligible: false, reason: "rule-not-batch-approved" },
+    });
+    ui.render(state({ diagnostics: [advice] }));
+    expect($(".status").textContent).toContain("No issues found");
+    expect($(".status").textContent).toContain("Style advice: 1.");
+    expect($('.filter[data-category="style"]').textContent).toContain("Style advice (1)");
+    trustedClick($('.filter[data-category="style"]'));
+    expect(cb.toggleCategory).toHaveBeenCalledWith("style", false);
+    ui.render(state({ diagnostics: [advice, finding("grammar")] }));
+    expect($(".status").textContent).toContain("Issues: 1");
+    expect($(".status").textContent).toContain("Style advice: 1.");
+    ui.render(state({ ignoredAdviceCount: 1 }));
+    expect($(".status").textContent).toContain("No issues found");
+    expect($(".notes").textContent).toContain("Ignored style advice: 1.");
+    expect(shown('[data-action="reset-ignores"]')).toBe(true);
+  });
+
+  test("warning-only cards label the issue and offer no replacement action", () => {
+    const diagnostic = finding("warning", {
+      ruleId: "unclosedQuotation",
+      messageKey: "review_msg_unclosed_quote",
+      category: "punctuation",
+      original: "“",
+      warningOnly: true,
+      alternatives: [],
+      bulk: { eligible: false, reason: "warning-only" },
+    });
+    ui.render(state({ diagnostics: [diagnostic] }));
+    expect(ui.root.textContent).toContain("Warning: “");
+    ui.openCard(diagnostic, null);
+    expect($(".card").getAttribute("aria-label")).toContain("Punctuation & spacing, Warning:");
+    expect($(".card").querySelector("[data-action=apply]")).toBeNull();
+    expect($(".card").querySelector(".diff")).toBeNull();
+    trustedClick($("[data-action=ignore]"));
+    expect(cb.ignore).toHaveBeenCalledWith("warning");
+    expect(cb.apply).not.toHaveBeenCalled();
+  });
+
+  test("matching ignores show session scope, stay separate from disable, and exclude AI", () => {
+    const diagnostic = finding("native", {
+      ruleId: "englishRepeatedWords",
+      messageKey: "review_msg_repeated_words",
+    });
+    ui.render(state({ diagnostics: [diagnostic] }));
+    ui.openCard(diagnostic, null);
+    expect($("[data-action=ignore]").textContent).toBe("Ignore once");
+    expect($("[data-action=ignore-matching]").textContent).toBe(
+      "Ignore matching occurrences in this review",
+    );
+    expect($("#ft-review-ignore-matching-hint").textContent).toContain(
+      "new occurrences are not ignored",
+    );
+    expect($("[data-action=disable-rule]")).toBeDefined();
+    trustedClick($("[data-action=ignore-matching]"));
+    expect(cb.ignoreMatching).toHaveBeenCalledWith("native");
+    expect(cb.ignore).not.toHaveBeenCalled();
+    expect(cb.disableRule).not.toHaveBeenCalled();
+    ui.render(state({ ignoredCount: 2 }));
+    expect(shown("[data-action=reset-ignores]")).toBe(true);
+    trustedClick($("[data-action=reset-ignores]"));
+    expect(cb.resetIgnores).toHaveBeenCalledTimes(1);
+    ui.render(state({ ignoredCount: 0 }));
+    expect(shown("[data-action=reset-ignores]")).toBe(false);
+    ui.openCard(finding("ai"), null);
+    expect($(".card").querySelector("[data-action=ignore-matching]")).toBeNull();
+    expect($("[data-action=ignore]")).toBeDefined();
+  });
+
+  test("only native cards offer an accessible disable action and untrusted clicks do nothing", () => {
+    for (const ruleId of [
+      REVIEW_LOCAL_AI_CHECK,
+      "reviewSpelling",
+      "englishRepeatedWords",
+    ] as const) {
+      const diagnostic = finding("card", { ruleId });
+      ui.render(state({ diagnostics: [diagnostic] }));
+      ui.openCard(diagnostic, null);
+      const button = $(".card").querySelector<HTMLButtonElement>('[data-action="disable-rule"]');
+      if (ruleId !== "englishRepeatedWords") {
+        expect(button).toBeNull();
+        continue;
+      }
+      expect(button?.textContent).toBe("Disable this check in Review");
+      expect(button?.disabled).toBe(false);
+      button!.click();
+      expect(cb.disableRule).not.toHaveBeenCalled();
+      trustedClick(button!);
+      expect(cb.disableRule).toHaveBeenCalledWith("card");
+    }
   });
 
   test("AI findings carry a Local AI tag and keep their category badge", () => {

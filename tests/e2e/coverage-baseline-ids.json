@@ -2,6 +2,10 @@
   "version": 1,
   "capturedAt": "2026-09-15",
   "baselineBehaviorIds": [
+    "review_corpus_grammar",
+    "review_agreement_extensions",
+    "review_word_confusions",
+    "review_auxiliary_forms",
     "install_page_reachable",
     "popup_page_loads",
     "prod_runtime_hook_hidden",
@@ -187,6 +191,23 @@
     "local_ai_review_progress",
     "local_ai_prompt_prefix",
     "local_ai_stable_recheck_pairs",
-    "local_ai_cold_cache_recheck"
+    "local_ai_cold_cache_recheck",
+    "review_repeated_words",
+    "review_independent_rule_controls",
+    "review_contextual_possessives",
+    "review_fixed_prepositions",
+    "review_verb_complements",
+    "review_perfect_participles",
+    "review_noun_number",
+    "review_contextual_compounds",
+    "review_countability",
+    "review_doubled_degree",
+    "review_usage_phrases",
+    "review_session_matching_ignores",
+    "review_quotation_warnings",
+    "review_canonical_casing",
+    "review_preferred_terminology",
+    "review_incremental_native_rechecks",
+    "review_optional_style_advice"
   ]
 }

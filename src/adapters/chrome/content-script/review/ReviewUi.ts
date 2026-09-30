@@ -1,3 +1,4 @@
+import { isReviewSupportedRule } from "@core/domain/grammar/review/reviewCatalog";
 import { getDeepActiveElement } from "@core/application/dom-utils";
 import type { ReviewViewState } from "@core/application/review/ReviewSession";
 import { reviewText, type ReviewTextKey } from "@core/domain/grammar/review/reviewMessages";
@@ -23,6 +24,9 @@ export interface ReviewUiCallbacks {
   /** `viaKeyboard`: activated without a pointer, so focus should stay in the panel. */
   apply(id: string, alternative: number, viaKeyboard: boolean): void;
   ignore(id: string): void;
+  ignoreMatching(id: string): void;
+  resetIgnores(): void;
+  disableRule?(id: string): void;
   addToDictionary(id: string): void;
   fixAll(viaKeyboard: boolean): void;
   toggleCategory(category: ReviewCategory, shown: boolean): void;
@@ -64,12 +68,14 @@ const BADGES: Record<ReviewCategory, string> = {
   grammar: "G",
   punctuation: ",.",
   typography: "Aa",
+  style: "S",
 };
 const CATEGORY_KEY: Record<ReviewCategory, ReviewTextKey> = {
   spelling: "review_cat_spelling",
   grammar: "review_cat_grammar",
   punctuation: "review_cat_punctuation",
   typography: "review_cat_typography",
+  style: "review_cat_style",
 };
 
 const MODES: readonly ReviewMode[] = ["correct", "rewrite"];
@@ -197,7 +203,8 @@ function changePreview(from: string, to: string): [string, string] {
 const LIST_CHOICES = 3;
 
 /** "teh → the"; a pick-one finding lists its first suggestions: "wa → was / way / war". */
-function listPreview(diagnostic: ReviewDiagnostic): string {
+function listPreview(diagnostic: ReviewDiagnostic, warningLabel: string): string {
+  if (diagnostic.warningOnly) return `${warningLabel}: ${diagnostic.original}`;
   if (diagnostic.requiresChoice) {
     const choices = diagnostic.alternatives.map((alternative) => alternative.preview);
     const shown = choices.slice(0, LIST_CHOICES).join(" / ");
@@ -255,6 +262,7 @@ export class ReviewUi {
   private readonly prev: HTMLButtonElement;
   private readonly next: HTMLButtonElement;
   private readonly fixAll: HTMLButtonElement;
+  private readonly resetIgnores: HTMLButtonElement;
   private readonly fixNote: HTMLElement;
   private readonly nav: HTMLElement;
   private readonly footer: HTMLElement;
@@ -474,7 +482,14 @@ export class ReviewUi {
       hidden: "",
     });
     this.aiBatchButton.addEventListener("click", () => this.callbacks.previewAiBatch());
-    footer.append(this.fixAll, this.fixNote, this.aiBatchButton);
+    this.resetIgnores = element(
+      doc,
+      "button",
+      { type: "button", "data-action": "reset-ignores", hidden: "" },
+      this.t("review_reset_ignores"),
+    );
+    this.resetIgnores.addEventListener("click", () => this.callbacks.resetIgnores());
+    footer.append(this.fixAll, this.fixNote, this.aiBatchButton, this.resetIgnores);
     this.panel.append(
       header,
       this.modes,
@@ -721,6 +736,8 @@ export class ReviewUi {
       count: state.bulk.pending ? "\u2026" : state.bulk.count,
     });
     this.fixAll.disabled = !bulkAvailable || state.bulk.pending || state.bulk.count === 0;
+    this.resetIgnores.hidden = state.ignoredCount + (state.ignoredAdviceCount ?? 0) === 0;
+    this.resetIgnores.disabled = state.status !== "ready";
     const filtered = state.categories.size < REVIEW_CATEGORIES.length;
     const noteParts = [this.t(filtered ? "review_fix_all_filtered" : "review_fix_all_whole")];
     if (state.bulk.deferred > 0) {
@@ -999,7 +1016,10 @@ export class ReviewUi {
     const changes = element(doc, "ol", {});
     for (const id of preview.diagnosticIds) {
       const diagnostic = state.diagnostics.find((d) => d.id === id);
-      if (diagnostic) changes.append(element(doc, "li", { dir: "auto" }, listPreview(diagnostic)));
+      if (diagnostic)
+        changes.append(
+          element(doc, "li", { dir: "auto" }, listPreview(diagnostic, this.t("review_warning"))),
+        );
     }
     const parts: HTMLElement[] = [
       element(
@@ -1074,7 +1094,8 @@ export class ReviewUi {
     }
     if (state.noRules) return this.t("review_status_no_rules");
     const notice = this.noticeText(state);
-    const count = state.diagnostics.length;
+    const advice = state.diagnostics.filter((d) => d.category === "style").length;
+    const count = state.diagnostics.length - advice;
     let summary: string;
     if (count > 0) summary = this.t("review_status_count", { count });
     else if (state.ignoredCount > 0) summary = this.t("review_status_all_ignored");
@@ -1083,6 +1104,7 @@ export class ReviewUi {
     else summary = this.t("review_status_none");
     // "All resolved" already reports the fixes; don't say it twice.
     const redundant = count === 0 && state.ignoredCount === 0 && state.notice?.kind === "applied";
+    if (advice > 0) summary += ` ${this.t("review_status_advice", { count: advice })}`;
     return notice && !redundant ? `${notice} ${summary}` : summary;
   }
 
@@ -1090,6 +1112,8 @@ export class ReviewUi {
     const notice = state.notice;
     if (!notice) return "";
     switch (notice.kind) {
+      case "advice-applied":
+        return this.t("review_notice_advice_applied");
       case "applied":
         return this.t("review_notice_applied", { count: notice.count });
       case "stale":
@@ -1102,6 +1126,10 @@ export class ReviewUi {
         return this.t("review_notice_refused");
       case "dictionary-added":
         return this.t("review_notice_dictionary_added", { word: notice.word });
+      case "rule-disabled":
+        return this.t("review_notice_rule_disabled");
+      case "rule-setting-failed":
+        return this.t("review_notice_rule_setting_failed");
       case "dictionary-failed":
         return this.t("review_notice_dictionary_failed");
     }
@@ -1140,6 +1168,8 @@ export class ReviewUi {
       if (state.ignoredCount > 0)
         lines.push(this.t("review_status_ignored", { count: state.ignoredCount }));
     }
+    if (state.ignoredAdviceCount)
+      lines.push(this.t("review_status_advice_ignored", { count: state.ignoredAdviceCount }));
     this.notes.replaceChildren(...lines.map((line) => element(this.doc, "p", {}, line)));
   }
 
@@ -1150,7 +1180,14 @@ export class ReviewUi {
     }
     const focused = (this.root.activeElement as HTMLElement | null)?.dataset?.category;
     this.filters.replaceChildren(
-      ...REVIEW_CATEGORIES.map((category) => {
+      ...REVIEW_CATEGORIES.filter(
+        (category) =>
+          category !== "style" ||
+          [...(state.coverage?.checkedRules ?? []), ...(state.coverage?.failedRules ?? [])].some(
+            (id) => id === "styleRedundancy" || id === "styleLongSentence",
+          ) ||
+          state.diagnostics.some((d) => d.category === "style"),
+      ).map((category) => {
         const shown = state.categories.has(category);
         const button = element(this.doc, "button", {
           type: "button",
@@ -1205,12 +1242,12 @@ export class ReviewUi {
         "aria-current": String(diagnostic.id === state.selectedId),
       });
       const change = element(this.doc, "span", { class: "change", dir: "auto" });
-      change.textContent = listPreview(diagnostic);
+      change.textContent = listPreview(diagnostic, this.t("review_warning"));
       const why = element(
         this.doc,
         "span",
         { class: "why" },
-        `${this.t(CATEGORY_KEY[diagnostic.category])}: ${this.t(diagnostic.messageKey)}`,
+        `${this.t(CATEGORY_KEY[diagnostic.category])}: ${this.explanation(diagnostic)}`,
       );
       // Provenance in words (part of the item's name), beside the unchanged category signals.
       if (isLocalAi(diagnostic)) {
@@ -1266,11 +1303,17 @@ export class ReviewUi {
     this.card.replaceChildren();
   }
 
+  private explanation(diagnostic: ReviewDiagnostic): string {
+    const label = this.t(diagnostic.messageKey);
+    return diagnostic.terminology ? `${label} ${diagnostic.terminology.explanation}` : label;
+  }
+
   focusCard(): void {
     // A pick-one card has no default: focus lands on its first suggestion.
-    this.card
-      .querySelector<HTMLElement>("button.primary, button.suggestion")
-      ?.focus({ preventScroll: true });
+    (
+      this.card.querySelector<HTMLElement>("button.primary, button.suggestion") ??
+      this.card.querySelector<HTMLElement>("button")
+    )?.focus({ preventScroll: true });
   }
 
   cardDiagnosticId(): string | null {
@@ -1297,7 +1340,7 @@ export class ReviewUi {
     this.card.dataset.category = diagnostic.category;
     this.card.setAttribute(
       "aria-label",
-      `${ai ? `${category}, ${this.t("review_ai_tag")}` : category}: ${this.t(diagnostic.messageKey)}`,
+      `${ai ? `${category}, ${this.t("review_ai_tag")}` : category}: ${this.explanation(diagnostic)}`,
     );
     const header = element(doc, "header");
     header.append(
@@ -1323,6 +1366,19 @@ export class ReviewUi {
     });
     header.append(close);
 
+    if (diagnostic.warningOnly) {
+      this.card.setAttribute(
+        "aria-label",
+        `${category}, ${this.t("review_warning")}: ${this.explanation(diagnostic)}`,
+      );
+      this.replaceKeepingFocus(this.card, [
+        header,
+        element(doc, "p", {}, this.explanation(diagnostic)),
+        element(doc, "p", { class: "hint" }, this.t("review_warning_hint")),
+        this.cardActions(diagnostic),
+      ]);
+      return;
+    }
     if (diagnostic.requiresChoice) {
       this.renderChoiceCard(diagnostic, header, canApply);
       return;
@@ -1342,7 +1398,7 @@ export class ReviewUi {
 
     const parts: HTMLElement[] = [
       header,
-      element(doc, "p", {}, this.t(diagnostic.messageKey)),
+      element(doc, "p", {}, this.explanation(diagnostic)),
       diff,
     ];
     if (diagnostic.alternatives.length > 1) {
@@ -1434,7 +1490,7 @@ export class ReviewUi {
     const actions = this.cardActions(diagnostic);
     const parts: HTMLElement[] = [
       header,
-      element(doc, "p", {}, this.t(diagnostic.messageKey)),
+      element(doc, "p", {}, this.explanation(diagnostic)),
       word,
       element(doc, "p", { class: "label" }, this.t("review_card_replace_with")),
       group,
@@ -1461,6 +1517,42 @@ export class ReviewUi {
     );
     ignore.addEventListener("click", () => this.callbacks.ignore(diagnostic.id));
     actions.append(...lead, ignore);
+    if (diagnostic.ruleId !== REVIEW_LOCAL_AI_CHECK) {
+      const matching = element(
+        doc,
+        "button",
+        {
+          type: "button",
+          "data-action": "ignore-matching",
+          "aria-describedby": "ft-review-ignore-matching-hint",
+        },
+        this.t("review_ignore_matching"),
+      );
+      matching.disabled = this.state?.status !== "ready";
+      matching.addEventListener("click", () => this.callbacks.ignoreMatching(diagnostic.id));
+      actions.append(
+        matching,
+        element(
+          doc,
+          "p",
+          { class: "hint ignore-matching-hint", id: "ft-review-ignore-matching-hint" },
+          this.t("review_ignore_matching_hint"),
+        ),
+      );
+    }
+    if (this.callbacks.disableRule && isReviewSupportedRule(diagnostic.ruleId)) {
+      const disable = element(
+        doc,
+        "button",
+        { type: "button", "data-action": "disable-rule" },
+        this.t("review_disable_rule"),
+      );
+      disable.disabled = this.state?.status !== "ready";
+      disable.addEventListener("click", (event) => {
+        if (event.isTrusted) this.callbacks.disableRule?.(diagnostic.id);
+      });
+      actions.append(disable);
+    }
     if (diagnostic.dictionaryWord) {
       const add = element(
         doc,

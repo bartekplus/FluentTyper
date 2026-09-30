@@ -1,3 +1,9 @@
+import { proseQuotations } from "./proseQuotations";
+import { redundantAcronyms } from "./styleAdvice";
+import { longSentenceRanges, isReadabilityLiteral } from "./readability";
+import { matchTerminology } from "./terminologyMatcher";
+import type { NativeReviewCache } from "./nativeReviewCache";
+import { unclosedQuotations } from "./quotationWarnings";
 import { GRAMMAR_RULE_CATALOG, type CatalogRuleId } from "../ruleCatalog";
 import { findMarkdownCodeRanges } from "../implementations/helpers/ProtectedSpanShared";
 import { isTechnicalToken, normalizeWordSet } from "../implementations/helpers/GenericRuleShared";
@@ -9,6 +15,7 @@ import {
   isGraphemeBoundary,
   positionMapper,
   rangesOverlap,
+  overlapsSortedRanges,
 } from "./textRanges";
 import type { SpellingCandidate } from "./reviewSpelling";
 import {
@@ -50,6 +57,11 @@ export interface PreparedReview {
   /** Enabled review rules not run because they do not cover this language. */
   languageSkipped: CatalogRuleId[];
   dictionary: ReadonlySet<string>;
+  quotationFindings: RawFinding[];
+  quotations: ReturnType<typeof proseQuotations>;
+  styleFindings: RawFinding[];
+  styleFailedRules: CatalogRuleId[];
+  terminology: { findings: RawFinding[]; ranges: TextRange[]; limitedChars?: number };
 }
 
 /** Resolves rules, protection and the masked analysis text. Pure; no DOM. */
@@ -103,6 +115,31 @@ export function prepareReview(
     text = parts.join("");
   }
 
+  const dictionary = normalizeWordSet(options.userDictionary);
+  const styleFindings: RawFinding[] = [];
+  const styleFailedRules: CatalogRuleId[] = [];
+  for (const ruleId of ["styleRedundancy", "styleLongSentence"] as const) {
+    if (!rules.has(ruleId)) continue;
+    try {
+      styleFindings.push(
+        ...(ruleId === "styleRedundancy"
+          ? redundantAcronyms(snapshot, protectedRanges, dictionary)
+          : longSentenceRanges(snapshot, protectedRanges, text, options.longSentenceWords).map(
+              (range) => ({
+                ruleId,
+                messageKey: "review_msg_style_long_sentence" as const,
+                range,
+                context: range,
+                alternatives: [],
+                warningOnly: true as const,
+              }),
+            )),
+      );
+    } catch {
+      styleFailedRules.push(ruleId);
+    }
+  }
+
   return {
     snapshot,
     options,
@@ -110,7 +147,22 @@ export function prepareReview(
     protectedRanges,
     rules,
     languageSkipped,
-    dictionary: normalizeWordSet(options.userDictionary),
+    dictionary,
+    quotations: proseQuotations(text),
+    styleFindings,
+    styleFailedRules,
+    terminology: rules.has("preferredTerminology")
+      ? matchTerminology(snapshot, options, protectedRanges, dictionary)
+      : { findings: [], ranges: [] },
+    quotationFindings:
+      rules.has("unclosedQuotation") &&
+      !snapshot.incomplete &&
+      snapshot.scope.start === 0 &&
+      snapshot.scope.end === source.length &&
+      source.length <= MAX_REVIEW_CHARS &&
+      protectedRanges.length === 0
+        ? unclosedQuotations(text)
+        : [],
   };
 }
 
@@ -173,9 +225,13 @@ export interface ChunkScan {
 }
 
 /** Runs every enabled detector over one chunk. A throwing detector is reported, not fatal. */
-export function scanReviewChunk(prepared: PreparedReview, chunk: TextRange): ChunkScan {
+export function scanReviewChunk(
+  prepared: PreparedReview,
+  chunk: TextRange,
+  cache?: NativeReviewCache,
+): ChunkScan {
   const findings: RawFinding[] = [];
-  const failedRules: CatalogRuleId[] = [];
+  const failedRules: CatalogRuleId[] = [...prepared.styleFailedRules];
   const scanEnd = chunk.end + SCAN_LOOKAHEAD;
   const context = {
     source: prepared.snapshot.text,
@@ -190,12 +246,19 @@ export function scanReviewChunk(prepared: PreparedReview, chunk: TextRange): Chu
     lang: prepared.options.lang,
     dictionary: prepared.dictionary,
     insertSpaceAfterAutocomplete: prepared.options.insertSpaceAfterAutocomplete,
+    quotationFindings: prepared.quotationFindings,
+    quotationRanges: prepared.quotations.ranges,
+    exampleRanges: prepared.quotations.examples,
+    styleFindings: prepared.styleFindings,
+    terminologyFindings: prepared.terminology.findings,
   };
   for (const detector of REVIEW_DETECTORS) {
     const active = detector.rules.filter((ruleId) => prepared.rules.has(ruleId));
     if (active.length === 0) continue;
     try {
-      for (const finding of detector.detect(context)) {
+      for (const finding of cache
+        ? cache.detect(prepared, context, detector)
+        : detector.detect(context)) {
         if (prepared.rules.has(finding.ruleId)) findings.push(finding);
       }
     } catch {
@@ -236,6 +299,8 @@ export function finalizeReview(
   for (const reason of Object.keys(protectedChars) as CoverageGap[]) {
     skipped[reason] = (skipped[reason] ?? 0) + (protectedChars[reason] ?? 0);
   }
+  if (prepared.terminology.limitedChars)
+    skipped["size-limit"] = (skipped["size-limit"] ?? 0) + prepared.terminology.limitedChars;
   if (failed.size > 0) skipped["rule-error"] = failed.size;
 
   return {
@@ -260,7 +325,9 @@ const PRIORITY = new Map<string, number>(
 function dropDuplicateFixes(diagnostics: ReviewDiagnostic[]): ReviewDiagnostic[] {
   const byFix = new Map<string, ReviewDiagnostic>();
   const keyOf = (diagnostic: ReviewDiagnostic) =>
-    JSON.stringify(diagnostic.alternatives.map((alternative) => alternative.edits));
+    diagnostic.warningOnly
+      ? diagnostic.id
+      : JSON.stringify(diagnostic.alternatives.map((alternative) => alternative.edits));
   for (const diagnostic of diagnostics) {
     const key = keyOf(diagnostic);
     const existing = byFix.get(key);
@@ -271,7 +338,21 @@ function dropDuplicateFixes(diagnostics: ReviewDiagnostic[]): ReviewDiagnostic[]
       byFix.set(key, diagnostic);
     }
   }
-  const kept = new Set(byFix.values());
+  // A canonical name owns its casing, including lower-camel names at sentence starts.
+  const canonical = new Map(
+    diagnostics
+      .filter((d) => d.ruleId === "englishCanonicalCasing")
+      .map((d) => [d.range.start, d.range.end]),
+  );
+  const kept = new Set(
+    [...byFix.values()].filter(
+      (d) =>
+        !(
+          (d.ruleId === "capitalizeSentenceStart" || d.ruleId === "capitalizeAfterLineBreak") &&
+          d.range.end <= (canonical.get(d.range.start) ?? -1)
+        ),
+    ),
+  );
   return diagnostics.filter((diagnostic) => kept.has(diagnostic));
 }
 
@@ -328,16 +409,38 @@ function toDiagnostic(prepared: PreparedReview, finding: Finding): ReviewDiagnos
   ) {
     return null;
   }
+  if (
+    finding.ruleId !== "preferredTerminology" &&
+    !(finding.ruleId === "styleLongSentence" && finding.warningOnly) &&
+    overlapsSortedRanges(prepared.terminology.ranges, range)
+  )
+    return null;
+  if (overlapsSortedRanges(prepared.quotations.examples, range)) return null;
   // The underline itself may not cross code or a structural boundary.
   if (
     prepared.protectedRanges.some(
       (protectedRange) =>
-        protectedRange.reason !== "technical" && rangesOverlap(range, protectedRange),
+        !(
+          finding.ruleId === "styleLongSentence" &&
+          finding.warningOnly &&
+          protectedRange.reason === "technical" &&
+          isReadabilityLiteral(source.slice(protectedRange.start, protectedRange.end))
+        ) &&
+        (finding.warningOnly ||
+          finding.ruleId === "englishCanonicalCasing" ||
+          finding.ruleId === "preferredTerminology" ||
+          protectedRange.reason !== "technical") &&
+        rangesOverlap(range, protectedRange),
     )
   ) {
     return null;
   }
 
+  if (
+    finding.warningOnly &&
+    (finding.alternatives.length !== 0 || finding.requiresChoice || finding.dictionaryWord)
+  )
+    return null;
   const alternatives = [];
   for (const replacement of finding.alternatives) {
     const edits = minimalEdits(source, range.start, range.end, replacement);
@@ -355,20 +458,25 @@ function toDiagnostic(prepared: PreparedReview, finding: Finding): ReviewDiagnos
     if (!valid) return null;
     alternatives.push({ edits, preview: replacement });
   }
-  if (alternatives.length === 0) return null;
+  if (alternatives.length === 0 && !finding.warningOnly) return null;
 
   const metadata = reviewMetadataFor(finding.ruleId);
   if (metadata.review !== "supported") return null;
   let bulk: BulkDecision;
-  if (metadata.bulk !== "eligible") bulk = { eligible: false, reason: "rule-not-batch-approved" };
+  if (finding.warningOnly) bulk = { eligible: false, reason: "warning-only" };
+  else if (metadata.bulk !== "eligible")
+    bulk = { eligible: false, reason: "rule-not-batch-approved" };
   else if (alternatives.length !== 1) bulk = { eligible: false, reason: "ambiguous" };
   else if (finding.bulkBlock) bulk = { eligible: false, reason: finding.bulkBlock };
   else bulk = { eligible: true, alternative: 0 };
 
   const context = finding.context ?? range;
-  const signature = alternatives.map((alternative) => alternative.preview).join("\u0000");
+  const signature = finding.warningOnly
+    ? "warning-only"
+    : alternatives.map((alternative) => alternative.preview).join("\u0000");
   return {
-    id: `${snapshot.id}/${finding.ruleId}@${range.start}-${range.end}#${hash(signature)}`,
+    id: `${snapshot.id}/${finding.ruleId}${finding.terminology ? ":" + finding.terminology.id : ""}@${range.start}-${range.end}#${hash(signature)}`,
+    ...(finding.terminology ? { terminology: finding.terminology } : {}),
     snapshotId: snapshot.id,
     ruleId: finding.ruleId,
     category: metadata.category,
@@ -377,6 +485,7 @@ function toDiagnostic(prepared: PreparedReview, finding: Finding): ReviewDiagnos
     range: { start: range.start, end: range.end },
     original: source.slice(range.start, range.end),
     alternatives,
+    ...(finding.warningOnly ? { warningOnly: true as const } : {}),
     bulk,
     context: {
       start: Math.max(0, Math.min(context.start, range.start)),
@@ -454,6 +563,8 @@ function* proofSteps(
   const shift = positionMapper(otherEdits);
   const shifted = {
     id: `${snapshot.id}~`,
+    incomplete: snapshot.incomplete,
+    selection: snapshot.selection,
     text,
     scope: { start: shift(snapshot.scope.start), end: shift(snapshot.scope.end) },
     protectedRanges: snapshot.protectedRanges.map((range) => ({
@@ -464,14 +575,23 @@ function* proofSteps(
   };
   const next = prepareReview(shifted, prepared.options);
   yield;
-  const expected = diagnostics.map((diagnostic) => ({
-    start: shift(diagnostic.range.start),
-    edits: JSON.stringify(
-      diagnostic.alternatives[diagnostic.bulk.eligible ? diagnostic.bulk.alternative : 0].edits.map(
-        (edit) => ({ ...edit, start: shift(edit.start), end: shift(edit.end) }),
-      ),
-    ),
-  }));
+  const expected = diagnostics.map((diagnostic) => {
+    const alternative = diagnostic.warningOnly
+      ? undefined
+      : diagnostic.alternatives[diagnostic.bulk.eligible ? diagnostic.bulk.alternative : 0];
+    return {
+      start: shift(diagnostic.range.start),
+      edits: alternative
+        ? JSON.stringify(
+            alternative.edits.map((edit) => ({
+              ...edit,
+              start: shift(edit.start),
+              end: shift(edit.end),
+            })),
+          )
+        : null,
+    };
+  });
   const found = new Map<number, Set<string>>();
   // A chunk with a few checked findings is scanned only where they start: the
   // findings a scan owns start in its range, and each detector reads its own
@@ -501,5 +621,7 @@ function* proofSteps(
     }
     yield;
   }
-  return expected.map(({ start, edits }) => found.get(start)?.has(edits) ?? false);
+  return expected.map(
+    ({ start, edits }) => edits !== null && (found.get(start)?.has(edits) ?? false),
+  );
 }

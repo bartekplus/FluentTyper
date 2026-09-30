@@ -1,6 +1,7 @@
 import {
   CMD_BACKGROUND_PAGE_PREDICT_REQ,
   CMD_CONTENT_SCRIPT_ADD_TO_DICTIONARY,
+  CMD_CONTENT_SCRIPT_DISABLE_REVIEW_RULE,
   CMD_CONTENT_SCRIPT_REVIEW_SPELLING,
   CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG,
   CMD_CONTENT_SCRIPT_GET_CONFIG,
@@ -72,6 +73,7 @@ const LOCAL_AI_COMMANDS = [
 const ROUTED_MESSAGE_COMMANDS = [
   CMD_CONTENT_SCRIPT_PREDICT_REQ,
   CMD_CONTENT_SCRIPT_ADD_TO_DICTIONARY,
+  CMD_CONTENT_SCRIPT_DISABLE_REVIEW_RULE,
   CMD_CONTENT_SCRIPT_REVIEW_SPELLING,
   CMD_OPTIONS_PAGE_CONFIG_CHANGE,
   CMD_CONTENT_SCRIPT_GET_CONFIG,
@@ -178,6 +180,7 @@ export class MessageRouter {
       CMD_CONTENT_SCRIPT_ADD_TO_DICTIONARY,
       this.handleContentScriptAddToDictionary.bind(this),
     );
+    register(CMD_CONTENT_SCRIPT_DISABLE_REVIEW_RULE, this.handleDisableReviewRule.bind(this));
     register(CMD_CONTENT_SCRIPT_REVIEW_SPELLING, this.handleContentScriptReviewSpelling.bind(this));
     register(CMD_CONTENT_SCRIPT_GET_CONFIG, this.handleContentScriptGetConfig.bind(this));
     register(CMD_CONTENT_SCRIPT_USAGE_EVENT, this.handleContentScriptUsageEvent.bind(this));
@@ -378,6 +381,20 @@ export class MessageRouter {
     // request picks up the new values without waiting for the TTL to expire.
     this.domainSettingsCache.invalidate();
     this.respondOk(sendResponse);
+  }
+
+  private async handleDisableReviewRule({
+    request,
+    sendResponse,
+    worker,
+  }: CommandPayload<typeof CMD_CONTENT_SCRIPT_DISABLE_REVIEW_RULE>): Promise<void> {
+    const ruleId = typeof request.context?.ruleId === "string" ? request.context.ruleId : "";
+    const ok = await new CoreSettingsRepository(worker.settingsManager).disableReviewRule(ruleId);
+    if (ok) {
+      await worker.updatePresageConfig();
+      this.domainSettingsCache.invalidate();
+    }
+    sendResponse({ ok });
   }
 
   /**

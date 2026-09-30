@@ -963,7 +963,9 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
       await sendConfigChange(browser, worker);
       settingsDirty = false;
     }
-  });
+    // Worker recovery and storage reset each have their own bounded waits;
+    // the hook must allow both before Bun tears down the shared browser.
+  }, 15000);
 
   afterAll(async () => {
     if (domainTestServer?.listening) {
@@ -1279,7 +1281,9 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
             const visibleTab = Array.from(document.querySelectorAll(".content-tab")).find(
               (tab) => !tab.classList.contains("is-hidden"),
             );
-            const candidate = visibleTab?.querySelector(".grammar-rule-selector");
+            const candidate = visibleTab?.querySelector(
+              '[data-setting="enabledGrammarRules"] .grammar-rule-selector',
+            );
             if (candidate) {
               grammarRoot = candidate;
               break;

@@ -1,7 +1,7 @@
 # Review Text
 
 "Review text" proofreads text you have already written, in the editor you are
-using, with the same local grammar rules that can correct you while typing. It runs
+using, with local grammar and spelling checks and optional style advice. It runs
 entirely in the page: no text leaves the browser, nothing is logged or stored,
 and it needs no extra permissions.
 
@@ -62,6 +62,7 @@ typing-time corrections and suggestions still pause for the whole review.
 | Grammar                       | amber  | double underline | `G`   |
 | Punctuation and spacing       | blue   | dotted underline | `,.`  |
 | Capitalization and typography | purple | dashed underline | `Aa`  |
+| Optional style advice         | teal   | dotted underline | `S`   |
 
 Color is never the only signal: each category also has its own line style and
 badge, and the card and list name the category in words. The underline colors
@@ -70,8 +71,12 @@ keep at least 3:1 contrast on light and dark pages alike, whatever the OS theme.
 
 Click a highlight, or choose a finding in the list, to open its card:
 category, explanation, the change (original and replacement), any
-alternatives, and **Apply**, **Ignore** and, for single-word spelling findings,
+alternatives, and **Apply**, **Ignore once** and, for single-word spelling findings,
 **Add "word" to dictionary** (the existing FluentTyper dictionary).
+
+Native and dictionary cards also offer **Ignore matching occurrences in this review**. It suppresses current findings with the same rule, language, normalized evidence and suggested edits, including the protected context. It is deliberately more specific than ignoring every use of a word. The visible hint explains that new occurrences are not automatically ignored. AI findings retain Ignore once only.
+
+**Restore ignored findings** in the footer resets both kinds of session ignores. Counts, filters, navigation and Fix all planning use the remaining findings. Matching ignores track their occurrence and evidence with the existing position remapper: edits before unchanged evidence can move them, while evidence edits, protection changes, deletion/reinsertion or ambiguous placement release suppression. Close and reopen Review to clear every ignore. Another editor has its own session. No dictionary learning, setting changes, sentence hashes or reviewed prose are saved by either ignore action. **Disable this check in Review** remains a separate persistent preference.
 
 ![The correction card](images/review-mode/2-correction-card.png)
 
@@ -123,39 +128,149 @@ The panel names every state:
 Review reuses the typing-time rules' own patterns, word lists and helpers.
 Each catalog rule is classified in
 [`reviewCatalog.ts`](../src/core/domain/grammar/review/reviewCatalog.ts), and
-its `Record` type makes an unclassified new rule a compile error. Review runs
-every supported rule, whether or not it is switched on for typing (even after
-"Disable all"): review never changes text until you apply a fix, so the
-typing-time switches, which decide what is corrected automatically as you
-type, do not gate it. Typing-time corrections still follow your settings
-exactly. Code mode is the exception: it keeps only code-safe rules, none of
-which review supports, so a review there finds nothing and the panel says so.
+its `Record` type makes an unclassified new rule a compile error. Native Review
+checks have independent switches in **Settings → Grammar → Review text**.
+Core checks default on. The two optional style checks default off; restoring defaults
+keeps them off. Typing switches still control only automatic corrections.
+A native finding's **Disable this check in Review** action saves that rule's choice
+and refreshes open reviews. Restore it in settings, individually or with **Restore defaults**.
+Disabling every native check leaves dictionary spelling and separately configured Local AI available.
+Code mode disables Review checks.
+
+Only supported native rule IDs and boolean choices are stored. Missing choices
+inherit explicit catalog defaults; malformed known choices are disabled and unknown
+IDs are discarded. Existing typing preferences are never migrated into Review choices.
+No reviewed text is stored by these controls.
 English rules are skipped for other languages, and the panel says so. With the language
 set to auto-detect, Review first identifies the text's language on the device (the
 browser's own detector) and uses the matching enabled language, or the fallback language.
 
-Supported (**Typing** is the rule's default for typing; review runs it either way):
+Supported (**Typing** is the rule's default for typing; Review has separate switches):
 
-| Rule                                   | Language | Typing | Category    | Fix all                                                                                           |
-| -------------------------------------- | -------- | ------ | ----------- | ------------------------------------------------------------------------------------------------- |
-| `capitalizeSentenceStart`              | all      | on     | typography  | yes (after a quote or bracket closing a period: individual only)                                  |
-| `capitalizeAfterLineBreak`             | all      | on     | typography  | individual only: line starts in poems, lists and hard-wrapped text are often lowercase on purpose |
-| `englishPronounICapitalization`        | English  | on     | typography  | yes                                                                                               |
-| `englishContractionNormalization`      | English  | on     | spelling    | yes                                                                                               |
-| `englishTypoWhitelistCorrection`       | English  | on     | spelling    | yes                                                                                               |
-| `englishModalOfCorrection`             | English  | on     | grammar     | yes                                                                                               |
-| `englishYourWelcomeCorrection`         | English  | on     | grammar     | yes                                                                                               |
-| `englishTheirThereBeVerb`              | English  | on     | grammar     | yes                                                                                               |
-| `englishAlotCorrection`                | English  | on     | spelling    | yes                                                                                               |
-| `englishPronounVerbWhitelistAgreement` | English  | on     | grammar     | yes ("you was" away from a clause start: individual only)                                         |
-| `englishArticleAnCorrection`           | English  | off    | grammar     | individual only: word-list heuristic; a letter or identifier can look like an article             |
-| `englishOrdinalSuffix`                 | English  | off    | typography  | yes                                                                                               |
-| `englishProperNounCapitalization`      | English  | on     | typography  | yes (months that need a date as evidence: individual only)                                        |
-| `measurementUnitFormatting`            | all      | on     | punctuation | individual only: units in technical prose are meaning-sensitive                                   |
-| `currencySpacing`                      | all      | on     | punctuation | yes                                                                                               |
-| `commaPeriodSpacing`                   | all      | on     | punctuation | yes                                                                                               |
-| `collapseRepeatedSpaces`               | all      | on     | punctuation | yes (alignment gaps and Markdown table padding are left alone)                                    |
-| `duplicatePunctuationCollapse`         | all      | off    | punctuation | yes                                                                                               |
+| Rule                                   | Language | Typing      | Category    | Fix all                                                                                           |
+| -------------------------------------- | -------- | ----------- | ----------- | ------------------------------------------------------------------------------------------------- |
+| `englishExistentialAgreement`          | English  | unavailable | grammar     | individual only                                                                                   |
+| `englishThenThan`                      | English  | unavailable | grammar     | individual only                                                                                   |
+| `englishYourYouAre`                    | English  | unavailable | grammar     | individual only                                                                                   |
+| `englishTheirThereTheyAre`             | English  | unavailable | grammar     | individual only                                                                                   |
+| `englishToToo`                         | English  | unavailable | grammar     | individual only                                                                                   |
+| `englishAuxiliaryBaseVerb`             | English  | unavailable | grammar     | individual only                                                                                   |
+| `englishRepeatedWords`                 | English  | unavailable | grammar     | individual only                                                                                   |
+| `capitalizeSentenceStart`              | all      | on          | typography  | yes (after a quote or bracket closing a period: individual only)                                  |
+| `capitalizeAfterLineBreak`             | all      | on          | typography  | individual only: line starts in poems, lists and hard-wrapped text are often lowercase on purpose |
+| `englishPronounICapitalization`        | English  | on          | typography  | yes                                                                                               |
+| `englishContractionNormalization`      | English  | on          | spelling    | yes                                                                                               |
+| `englishTypoWhitelistCorrection`       | English  | on          | spelling    | yes                                                                                               |
+| `englishModalOfCorrection`             | English  | on          | grammar     | yes                                                                                               |
+| `englishYourWelcomeCorrection`         | English  | on          | grammar     | yes                                                                                               |
+| `englishTheirThereBeVerb`              | English  | on          | grammar     | yes                                                                                               |
+| `englishAlotCorrection`                | English  | on          | spelling    | yes                                                                                               |
+| `englishPronounVerbWhitelistAgreement` | English  | on          | grammar     | original pairs only; expanded forms and contextual "you was" are individual only                  |
+| `englishArticleAnCorrection`           | English  | off         | grammar     | individual only: word-list heuristic; a letter or identifier can look like an article             |
+| `englishOrdinalSuffix`                 | English  | off         | typography  | yes                                                                                               |
+| `englishProperNounCapitalization`      | English  | on          | typography  | yes (months that need a date as evidence: individual only)                                        |
+| `measurementUnitFormatting`            | all      | on          | punctuation | individual only: units in technical prose are meaning-sensitive                                   |
+| `currencySpacing`                      | all      | on          | punctuation | yes                                                                                               |
+| `commaPeriodSpacing`                   | all      | on          | punctuation | yes                                                                                               |
+| `collapseRepeatedSpaces`               | all      | on          | punctuation | yes (alignment gaps and Markdown table padding are left alone)                                    |
+| `duplicatePunctuationCollapse`         | all      | off         | punctuation | yes                                                                                               |
+
+Agreement retains the six original typing pairs and their existing bulk rules.
+`englishContextualCompounds` is a separate Review-only check for curated compound pairs. It splits everyday into every day after a complete listed pronoun-led action, and splits login/setup into log in/set up in explicit modal, infinitive or please-imperative slots with complete listed complements. New spaces use the existing grapheme-anchored editor transaction; unrelated formatting remains intact. Findings own their spans before dictionary spelling runs, so the same token does not receive redundant spelling cards. Presage candidates and ranking are unchanged.
+
+Noun/adjective uses such as everyday tasks, the login and the setup are preserved. This check does not join two-word noun spellings or impose a login/log-in or setup/set-up house style. Unknown compounds, incomplete contexts, command arguments, URL components, mixed-case identifiers, capitalized product-name candidates and user-dictionary words abstain. The listed lowercase tokens, including aswell after tested/checked/reviewed, are split; every finding remains individual-only and typing is unchanged.
+
+The established-usage check covers for all intensive purposes before a known completion clause, one in the same in explicit plural identity clauses, and peak/peaks/peaked/peaking someone’s interest with known subjects, modals and progressive auxiliaries. It also recognizes bounded indirect-question, pronoun-case, lexical-confusion and malformed finded constructions; meaning-ambiguous effect/affect uses abstain. Case, tense, possessive determiners and surrounding whitespace are preserved. The phrase-matching loop is shared with fixed prepositions; there is no general search/replace engine or external phrase database.
+
+Literal peak meanings and locative one in the same room, unrecognized frames, recognized creative/dialect cues, named quotations, technical tokens, dictionaries and protected text abstain. These are grammar-category cards with usage-specific explanations, independently configurable and individual-only. Native spelling-span ownership prevents duplicate spelling cards. Typing and existing modal-of corrections are unchanged.
+
+The doubled-degree check removes redundant more/most only in complete this/that/it or known-noun clauses with is/was. It uses the same ten explicit comparative words as then/than, plus easier/simpler, and eleven explicit superlatives. Supported tails are bounded to known to-infinitives, known comparison targets, ungrouped integer targets, or a complete sentence ending; superlatives require a known noun. Numerical values and comparison targets are preserved. A then/than error can become detectable after removing the redundant degree marker; the normal snapshot recheck supplies fresh offsets and invalidates the previous card.
+
+Quantity phrases, hyphenated noun modifiers, heading fragments, quoted examples, unknown degree forms, capitalized names and mixed-case identifiers abstain. Valid multiword adjectives, very unique, far better and repeated emphatic better and better are untouched. No suffix inference, style enforcement, typing correction or Fix all eligibility is added. The rule can be disabled independently in Review settings.
+
+The native countability check covers ordinary-prose malformed plurals of information, advice and equipment in bounded complete frames: a page/guide/report/document contains/provides/includes useful information; thanks/appreciation for helpful advice; and we/they/you need/use/bought/ordered/checked/tested specified equipment. Small adjective lists supply context. It also repairs criterion/criteria and phenomenon/phenomena after explicit one–ten or single-digit counts, preserving the count exactly. These special noun pairs stay within the individually suppressible countability family rather than expanding the shared general noun-number rule.
+
+Specialist legal, banking, commercial, regional and archaic evidence in the bounded context causes abstention. Quoted examples, identifiers, capitalized names and dictionary words are protected. Known quantified feedback/information/advice and a information frames can show a warning without an edit; other quantified mass-noun constructions abstain. No unit, amount or partial determiner repair is invented. Data agreement, fewer/less preferences, coffee, experience, work and paper are outside this check. All findings are individual-only; typing is unchanged.
+
+`englishNounNumber` is a separate native Review-only check using the shared authored noun-pair map (now including device/devices). It handles complete `one of the` clauses, explicit counts zero–ten or up to four ungrouped digits, and these/those followed by a known singular noun and a supported predicate. Explicit counts retain their value and change only noun inflection; `one of the` pluralizes the set noun while leaving its outer singular subject and verb untouched.
+
+For these/those, a following are/were establishes plural and is/was establishes singular. Past predicates such as failed/arrived/returned do not establish number: the existing choice-card UI offers either pluralizing the noun or changing the demonstrative to this/that, with nothing preselected. All findings remain individual-only. Complete bounded predicates/locations prevent noun-modifier edits such as `those file names`. Unknown/invariant nouns, data/news/series, units, ordinal tokens, grouped/decimal/fractional numbers, technical model labels and hyphenated measurements abstain. Quantity repair can make a separate existential-agreement finding available on the next scan; it never changes the number to fit the verb.
+
+`englishPerfectParticiples` is a separate Review-only check for pronoun + have/has/had followed by a known simple-past form where the shared verb table specifies a different participle. Thirteen listed verb/argument frames supply complete grammatical evidence. It changes only that verb. Up to two listed adverbs (including not), negative auxiliaries and unambiguous `'ve`/`’ve` contractions are supported. Wrong have/has agreement is left to the existing agreement check, with the participle reconsidered on the next scan.
+
+Possessive and causative have, noun uses such as `have saw blades`, shared past/participle forms (read/cut/set), unlisted morphology, unknown complements and ambiguous `'s`/`'d` contractions abstain. Regional learned/learnt, burned/burnt, got/gotten and other unlisted forms remain untouched. Existing auxiliary, spelling and typing behavior is unchanged; findings stay individual-only.
+
+`englishVerbComplements` is a separate Review-only check for complete pronoun-led complement frames. It inserts `to` after audited need/want/plan forms before a known base verb with a listed argument; after `look forward to` (including inflected and progressive forms), it replaces that verb with an explicitly stored gerund. Fourteen lexical argument frames cover fix a specified bug, deploy today/tomorrow, meet a person, make the change, take a break, write the report, run the tests, come/go home, see the results, learn a listed language, visit the office, read the file and send the message. Optional do-not/don't negation is preserved, as is not before progressive looking. Contractions accept straight or curly apostrophes.
+
+Additional bounded frames cover enjoy/avoid, decide, suggest, make/let and help. Gerund content clauses after decide and restrictive participles after allows remain protected.
+
+These checks abstain on subjectless fragments/headings, incomplete or unknown arguments, noun readings such as `need work` and `need input data`, existing infinitives/gerunds, `need not`, and optional/forbidden-to frames such as `help fix`, `let me know` and `make it work`. They do not infer gerunds by adding a suffix. Missing `to` uses the existing one-grapheme insertion anchor, retaining the following verb's formatting; no adapter bypass is used. Malformed auxiliary forms remain owned by the auxiliary checker. Every finding is individual-only; typing behavior is unchanged.
+
+`englishFixedPrepositions` checks established constructions in bounded contexts. It removes `of` plus its following horizontal separator after `despite` before a complete listed noun phrase; removes `about` plus its separator after pronoun-led `discuss/discussed/discusses` or be + `discussing`, or `please discuss`, before a complete listed topic; and changes `on` to `in` in pronoun + be + `interested on` before a listed activity/topic. Additional frames cover responsible for, duration for/since, arrive at, wait for and investigate, with known predicates and objects. Complete phrase evidence and punctuation/end boundaries are required. Known adjectives are bounded; multiline and protected evidence abstain.
+
+This is not a global preposition replacement. Approximate quantities (`discussed about five issues`), embedded questions (`discussed what the book was about`), noun uses (`discussion about`), temporal/location attachments (`interested on Monday`, `interested on screen`), incomplete complements and unlisted objects remain untouched. Existing correct `in spite of`, `talked/asked about`, `interested in` and `depends on` are preserved. Findings stay individual-only and do not alter typing.
+
+Three native Review-only contextual apostrophe checks are independently configurable:
+
+- `englishItsContext`: possessive `its` after a listed transitive verb and before a complete known noun phrase, or in a clause-opening noun phrase with a supported predicate. Conversely, clause-opening `its` before listed complete predicates such as `ready to use`, `cold outside`, `working now` or `been fixed` becomes `it's`.
+- `englishLetsContext`: clause-opening `lets` before a complete listed suggestion such as `try again`, `go home` or `take a break` becomes `let's`. Lexical `lets` with a subject is preserved.
+- `englishElsePossessive`: `elses` after someone/somebody/anyone/anybody/everyone/nobody/no one and before a complete known noun phrase becomes `else's`. Capitalized `Elses` is preserved as a possible name.
+
+All three change only the target token, remain outside Fix all safe, and leave existing contraction normalization and typing untouched. Existing straight or curly apostrophes are accepted for possessive `it's`; new apostrophes follow the existing normalizer's straight-apostrophe convention. No global quote normalization occurs. Evidence uses bounded horizontal spacing, listed nouns/adjectives/predicates and a phrase boundary. Unknown noun phrases, unlisted predicates, arbitrary names, singular/plural owners, multiline evidence and technical tokens abstain. Named quoted examples are protected; supported ordinary nested quotations remain eligible. These are bounded recognizers, not general ownership inference.
+
+Additional Review-only constructions run under `englishPronounVerbWhitelistAgreement`:
+clause-opening we/they/you with is/am/was/has/does, and he/she/it with are/am/were/have/do.
+One listed adverb (really, still, also, always, never) may intervene. These new forms
+change only the finite verb, retain negation, and are individual-only. Object
+pronouns, coordinated subjects, subjunctives after a preceding clause, named quoted
+examples, technical/mixed-case identifiers and unfinished phrases abstain.
+
+The independent `englishExistentialAgreement` check recognizes clause-opening
+There is/are/was/were + optional not/still/also + an explicit quantity, many/several or a lot of + a known countable noun,
+optionally with one listed adjective and a simple location phrase. Quantity and
+noun number must agree before the verb can be repaired. Its 15 authored noun pairs
+include child/children, person/people and mouse/mice; no noun suffix guessing is used.
+Known plural phrases may continue with that/which/with. Unknown, collective and
+invariant-number nouns, coordinated subjects, singular relative clauses, hard-wrapped
+continuations and contradictory quantity/noun combinations abstain. The quantity, noun, adjective and negation are never rewritten.
+
+Contextual word confusions have four independent Review-only identities:
+
+- `englishThenThan`: a copula, a listed comparative and a complete comparison
+  argument (a known noun phrase or object pronoun). Temporal "then", unknown noun
+  phrases and following finite clauses abstain.
+- `englishYourYouAre`: clause-opening "your going to" with a listed verb and
+  object, or an object-taking verb followed by "you're own" and a known noun.
+  Possessive gerunds ("your going away", "I dislike your going…") abstain.
+- `englishTheirThereTheyAre`: the same bounded future construction for
+  "their/there going to", and "there/they're own" in a complete object noun phrase.
+- `englishToToo`: copular "to + listed adjective + to + listed verb". Ambiguous
+  adjectives that are also verbs ("fast", "slow", "light") are not included.
+
+These checks replace only the confused word and record the surrounding evidence.
+They do not depend on dictionary misspellings. Existing "your welcome" and
+"their is" checks retain sole ownership. Named quoted examples, technical glue,
+protected islands and newline-spanning constructions are excluded. These finite
+lists provide bounded coverage, not a general homophone or English parser.
+
+Auxiliary verb forms are Review-only. A small authored table covers 24 common
+verbs, with no suffix guessing. Pronoun-led clauses and inverted pronoun questions
+support do/does/did, modals, straight/curly negative contractions, and up to two
+listed intervening adverbs. The auxiliary, subject and negation are preserved.
+Independent base homographs (`read`, `cut`, `set`, `saw`, `found`), noun readings
+such as "do works"/"do runs", unknown forms, mixed-case identifiers, protected text,
+and directly named quoted examples are left alone. Clause-internal subordinate
+syntax ("What I did works"), noun subjects and newline-spanning phrases are outside
+this initial scope. Existing modal-of and agreement checks retain their ownership.
+
+Repeated words are Review-only: a bounded allowlist (`the`, `a`, `an`, `is`,
+`are`, `was`, `were`, `in`, `on`, `at`, `for`, `with`, `from`, `of`, `to`) separated by
+1–8 spaces, tabs or no-break spaces. The first word keeps its casing; one
+suggestion deletes one duplicate and its separator. Longer runs recheck after
+each repair. Newlines, hyphens, protected islands, dictionary words and directly
+named quoted examples are excluded. This intentionally misses arbitrary repeated
+words and distant metalinguistic context; it is not a general repetition parser.
+Normal quoted prose remains eligible. No typing rule or automatic fix is installed.
 
 Some text is left alone because it only looks like an error: "you" as an
 object ("Everything I told you was a lie"), a lowercase dialogue tag after a
@@ -423,6 +538,13 @@ Limits: 50,000 characters per review (a larger scope is cut, and the panel
 says so), scanned in chunks of about 4,000 characters that yield to the page.
 Rechecks after edits are debounced by 400 ms and cancel stale work.
 
+Whole-field drafts over 8,000 characters can reuse unchanged fixed-preposition
+and usage-phrase results within the open session. Reuse compares the source and
+surrounding evidence, settings, dictionary and protection; structure changes
+clear it. Other detectors and safe-batch proof still rescan. Partial selections,
+unread/oversized sources and short drafts use the full scan. The cache retains
+at most 64 entries and 500,000 serialized UTF-16 units, and is cleared on close.
+
 ## Performance
 
 These are measurements, not a budget. Environment: 4 vCPU Xeon (2.8 GHz),
@@ -492,7 +614,7 @@ Known costs:
 - Chrome may turn a space next to an edit into a no-break space. Review
   accepts only that change next to the edit; any other difference, or text the
   browser put outside the link or formatting it came from, is reported.
-- An ignore belongs to one occurrence and is dropped when an edit (including
+- Ignore once belongs to one occurrence and is dropped when an edit (including
   an undo) spans the ignored text.
 - Chains of more than 8 mutually dependent fixes are left for individual review.
 - A lowercase "i" before "is", or named by the word before it ("the variable
@@ -512,3 +634,138 @@ bun run test:e2e:docs                         # Google Docs fixture
 bun run check:e2e:coverage                    # review_* behaviors in tests/e2e/coverage-matrix.json
 E2E_EXTENSION_PATH=$PWD/build bun scripts/review-demo.ts   # demo and screenshots
 ```
+
+### Quotation warnings
+
+`unclosedQuotation` checks complete English fields for unmatched opening straight double,
+curly double/single and guillemet quotation marks. It supports nested styles and
+paragraph continuation marks. A warning highlights the opening mark, explains the
+problem and offers Ignore/Disable actions; it has no replacement, Apply button or
+Fix all safe path. Keyboard focus enters the card at its close control.
+
+Partial selections, unread windows, fields over the Review limit and any protected
+text suppress this check because the missing closing mark cannot be established.
+Straight single quotes, escaped or named quote symbols, unfamiliar/mixed quotation
+conventions and ambiguous nesting abstain. Apostrophes and measurement marks are
+preserved. This check does not insert punctuation, repair brackets, enforce Oxford
+commas or infer comma splices. Warning labels are localized in all nine UI languages;
+the rule is Review-only and can be disabled independently.
+
+### Canonical brand and acronym casing
+
+`englishCanonicalCasing` offers the established forms GitHub, JavaScript, TypeScript,
+WebRTC, FluentTyper, iPhone, macOS and eBay in English prose. It accepts lowercase or
+ordinary title-case input and inserts the exact canonical form; it does not apply
+sentence title casing to brand names. The native sentence-start suggestion yields
+only when an enabled canonical suggestion covers that start. Existing mixed-case
+sentence-start protection keeps corrected lower-camel names stable.
+
+All-uppercase emphasis, arbitrary mixed-case identifiers, URLs, paths, handles,
+file names, glued/possessive tokens, code, dictionary words and named quoted
+spellings are preserved. Isolated quoted names also abstain as potentially literal
+spellings. Ambiguous common words such as go, rust and may are not brand entries.
+This independently configurable Review check remains individual-only, adds no
+terminology preferences and does not change typing behavior.
+
+Case-only ASCII repairs change only the affected letters, preserving formatting
+between them. Textareas keep their existing single-step transaction; contenteditable
+fields keep the adapter's advertised per-edit native undo behavior.
+
+### Your preferred terminology
+
+In **Settings → Grammar → Preferred terminology**, add a source phrase, preferred
+phrase and your own explanation. Choose the language, exact or insensitive case
+matching, and whether the entry applies to any reviewed prose or only an explicit
+selection. Save the entry, then enable preferred terminology in Review. The list
+starts empty and disabled; there are no default vendor renamings. The separate
+Review check must also remain enabled.
+
+Edit preserves the entry's ID; Remove deletes it and rechecks an open Review.
+Insensitive matching still inserts the preferred phrase exactly as authored.
+Findings are labeled as user-authored advice, display the explanation as plain
+text and require individual Apply. They do not create typing snippets or modify
+the dictionary. Preferred wording takes precedence over overlapping native,
+spelling and local-AI correction suggestions, preventing recheck loops.
+
+Import accepts a versioned JSON file and explicitly **replaces the list and its
+enabled state**. Export contains only this authored configuration. Limits are 64
+entries, 64 KiB per import, 80 characters for sources, 120 for replacements and
+240 for explanations (UTF-16 units). Text must be nonempty, trimmed and NFC;
+control characters are rejected. Imports are validated as a whole, including
+IDs, supported concrete languages, duplicate sources and potential replacement
+cycles. Cycle detection is conservative for phrase overlaps and Unicode casing.
+An import cannot overwrite a newer save made while its file is being read.
+
+Example configuration (an authored preference, not a mandatory correction):
+
+```json
+{
+  "version": 1,
+  "enabled": true,
+  "entries": [
+    {
+      "id": "acme-suite",
+      "source": "Acme Suite",
+      "replacement": "Acme Workspace",
+      "casePolicy": "exact",
+      "explanation": "Our preferred product name.",
+      "language": "en_US",
+      "scope": "all-prose",
+      "enabled": true
+    }
+  ]
+}
+```
+
+Matching is literal, with complete phrase boundaries and existing code, technical,
+dictionary and selection protections. Longest overlapping phrases win. Settings,
+matching and import/export work locally; analyzed prose is never persisted. The
+50,000-character Review window also bounds terminology work; oversized direct
+scans report their skipped coverage.
+
+## Optional style and readability advice
+
+In **Settings → Grammar → Review text**, enable either optional style check explicitly.
+Both start off, remain off when defaults are restored, and never run while typing or
+enter **Fix all safe**. The panel has a separate **Style advice** count and filter;
+these findings do not count as grammar/spelling errors. Applying or ignoring advice
+also stays separate from resolved/ignored errors. Correct mode works as before with
+these checks disabled; Rewrite remains its own user-selected action.
+
+- **Redundancy advice** offers `PIN` for `PIN number` and `ATM` for `ATM machine`.
+  These are optional individual suggestions, not declarations that the original is
+  ungrammatical. Quoted wording, code, dictionary entries, identifiers, plurals and
+  ambiguous casing are left alone. Hedges, politeness, negation, adverbs, emphasis
+  and numerical values are not rewritten.
+- **Long-sentence advice** shows a warning for a fully visible English prose sentence
+  exceeding the **Long-sentence word threshold**. The default is **35 words**; the
+  settings field accepts whole numbers from **10 to 200**. This is your preference,
+  not a universal quality score. Changing it saves locally and rechecks an open
+  review, but does not enable advice. There is no suggested split and no Apply button.
+
+Readability counting treats internal apostrophes/hyphens and decimal dots as part of
+one word. Titles, initials and recognized abbreviations do not spuriously end a
+sentence; ambiguous endings are skipped. Lists, protected text, dangling unpunctuated
+fragments, cropped sentences and unread/over-50k sources are excluded. A complete
+sentence wholly inside a selection can still receive advice. Literal decimals and
+a small set of dotted prose abbreviations remain readable; URLs and code remain
+protected. If native sentence segmentation is unavailable, coverage reports that
+check as incomplete instead of claiming a successful check.
+
+These checks use native local logic, no AI calls, model changes or remote processing.
+Spelling and independently enabled Local AI corrections remain visible alongside
+style advice. All edits use the existing editor transaction and native undo behavior.
+
+### Coverage added from the prose regression corpus
+
+Native Review recognizes additional bounded subject/verb, preposition, comparison,
+possessive, complement and indirect-question constructions. These remain individual
+suggestions and do not enable typing corrections or bulk application. Known quantified
+mass-noun cases can produce a warning without an Apply action: the checker does not
+invent how many pieces or kinds the writer meant.
+
+Explicitly named quoted error examples remain unchanged by native grammar and spelling.
+Ordinary dialogue still receives checks. Finite rules do not infer narrative tense,
+article definiteness, dialect intent or the meaning of ambiguous effect/affect uses.
+See [the corpus evaluation](native-review-corpus-evaluation.md) for measured coverage
+and remaining gaps.

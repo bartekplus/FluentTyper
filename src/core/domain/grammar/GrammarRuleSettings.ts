@@ -2,7 +2,7 @@ import { isObjectRecord } from "../guards";
 import {
   DEFAULT_CURRENT_GRAMMAR_RULES,
   DEFAULT_V3_GRAMMAR_RULES,
-  GRAMMAR_RULE_IDS,
+  TYPING_RULE_IDS,
   isCatalogRuleId,
   normalizeGrammarRuleSelection,
   type CatalogRuleId,
@@ -68,7 +68,7 @@ export function resolveGrammarRuleSelection(value: unknown): CatalogRuleId[] {
     LEGACY_RULE_IDS.every((id) => choices[id] === false) &&
     Object.values(choices).every((choice) => choice === false);
   if (isExplicitDisableAll) return [];
-  return GRAMMAR_RULE_IDS.filter((id) => {
+  return TYPING_RULE_IDS.filter((id) => {
     const explicit = Object.hasOwn(choices, id) ? choices[id] : undefined;
     return explicit ?? DEFAULT_CURRENT_GRAMMAR_RULES.includes(id);
   });
@@ -79,5 +79,5 @@ export function grammarRuleSelectionToOverrides(
   selection: readonly string[],
 ): GrammarRuleOverrides {
   const selected = new Set(normalizeGrammarRuleSelection(selection));
-  return Object.fromEntries(GRAMMAR_RULE_IDS.map((id) => [id, selected.has(id)]));
+  return Object.fromEntries(TYPING_RULE_IDS.map((id) => [id, selected.has(id)]));
 }

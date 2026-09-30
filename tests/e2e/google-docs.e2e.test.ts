@@ -3,7 +3,7 @@ import { dirname, resolve as resolvePath } from "node:path";
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 import puppeteer, { type Browser, type Page, type CDPSession } from "puppeteer";
 import { waitUntil } from "./e2e-helpers";
-import { GRAMMAR_RULE_IDS } from "../../src/core/domain/grammar/ruleCatalog";
+import { TYPING_RULE_IDS } from "../../src/core/domain/grammar/ruleCatalog";
 import { MAX_CONTEXT } from "../../src/adapters/chrome/content-script/google-docs/GoogleDocsModel";
 
 /**
@@ -683,9 +683,9 @@ describe("Google Docs cross-world fixture (not live Docs)", () => {
     await new Promise((resolve) => setTimeout(resolve, 700));
     expect(await model()).toMatchObject({ text: "10kg and cat", pastes: 0 });
   });
-  test("every catalog rule is covered by a Docs typing case", async () => {
+  test("every typing rule is covered by a Docs typing case", async () => {
     const covered = new Set(GRAMMAR_CASES.map(([ruleId]) => ruleId));
-    expect(GRAMMAR_RULE_IDS.filter((ruleId) => !covered.has(ruleId))).toEqual([]);
+    expect(TYPING_RULE_IDS.filter((ruleId) => !covered.has(ruleId))).toEqual([]);
   });
   // Docs must correct exactly what an ordinary page corrects. Every catalog rule is
   // typed through the real cross-world path and compared against the generic helper

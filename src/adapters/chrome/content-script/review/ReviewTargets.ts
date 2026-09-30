@@ -261,13 +261,14 @@ function writeNative(
     range.endOffset - range.startOffset === edit.original.length;
   if (inOneNode && edit.replacement.length > 0) {
     // An insertion anchored on a neighboring character ("a" -> "a ") is written
-    // as a pure insertion strictly inside that character's node: browsers move
-    // text typed at the very edge of a link out of the link.
+    // as a pure insertion. At a link's leading edge browsers can move the new
+    // text outside the link. Gecko can retain a leading caret in other inline
+    // nodes; Blink still needs the anchored replacement at that boundary.
     const { prefix, suffix } = commonAffixes(edit.original, edit.replacement);
     const at = range.startOffset + prefix;
     if (
       prefix + suffix === edit.original.length &&
-      at > 0 &&
+      (at > 0 || (isGecko(doc) && !node.parentElement?.closest("a"))) &&
       at < (node as Text).data.length &&
       isGraphemeBoundary(text, edit.start + prefix)
     ) {

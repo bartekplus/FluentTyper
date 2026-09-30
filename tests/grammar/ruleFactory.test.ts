@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { createGrammarRuleCatalogRuntime } from "../../src/core/domain/grammar/ruleFactory";
-import { GRAMMAR_RULE_CATALOG } from "../../src/core/domain/grammar/ruleCatalog";
+import { TYPING_RULE_CATALOG } from "../../src/core/domain/grammar/ruleCatalog";
 import type { GrammarContext } from "../../src/core/domain/grammar/types";
 
 function context(beforeCursor: string): GrammarContext {
@@ -18,7 +18,7 @@ describe("ruleFactory", () => {
     });
 
     expect(runtimeRules.map((rule) => rule.id)).toEqual(
-      GRAMMAR_RULE_CATALOG.slice()
+      TYPING_RULE_CATALOG.slice()
         .sort((a, b) => a.priority - b.priority)
         .map((entry) => entry.id),
     );

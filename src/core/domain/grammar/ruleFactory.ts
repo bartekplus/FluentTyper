@@ -1,5 +1,5 @@
-import type { GrammarRule } from "./types";
-import { GRAMMAR_RULE_CATALOG, type CatalogRuleId } from "./ruleCatalog";
+import type { GrammarRule, GrammarRuleId } from "./types";
+import { TYPING_RULE_CATALOG } from "./ruleCatalog";
 import { CapitalizeSentenceStartRule } from "./implementations/CapitalizeSentenceStartRule";
 import { CapitalizeAfterLineBreakRule } from "./implementations/CapitalizeAfterLineBreakRule";
 import { CommaPeriodSpacingRule } from "./implementations/CommaPeriodSpacingRule";
@@ -37,7 +37,7 @@ export function createGrammarRuleCatalogRuntime(options: {
 }): GrammarRule[] {
   const insertSpaceAfterAutocomplete = options.insertSpaceAfterAutocomplete;
 
-  const ruleById: Record<CatalogRuleId, GrammarRule> = {
+  const ruleById: Record<GrammarRuleId, GrammarRule> = {
     // Core v1/v2 language rules.
     capitalizeSentenceStart: new CapitalizeSentenceStartRule(),
     capitalizeAfterLineBreak: new CapitalizeAfterLineBreakRule(),
@@ -79,7 +79,7 @@ export function createGrammarRuleCatalogRuntime(options: {
     autoBracketClose: new AutoBracketCloseRule(),
   };
 
-  return GRAMMAR_RULE_CATALOG.slice()
+  return TYPING_RULE_CATALOG.slice()
     .sort((a, b) => a.priority - b.priority)
     .map((entry) => ruleById[entry.id]);
 }

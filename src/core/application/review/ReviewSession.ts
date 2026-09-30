@@ -1,3 +1,7 @@
+import { overlapsSortedRanges } from "@core/domain/grammar/review/textRanges";
+import { NativeReviewCache } from "@core/domain/grammar/review/nativeReviewCache";
+import { isReviewSupportedRule } from "@core/domain/grammar/review/reviewCatalog";
+import type { CatalogRuleId } from "@core/domain/grammar/ruleCatalog";
 import {
   planBulkFixSteps,
   type BulkPlan,
@@ -5,6 +9,7 @@ import {
 } from "@core/domain/grammar/review/bulkPlanner";
 import {
   MAX_REVIEW_CHARS,
+  REVIEW_CHUNK_CHARS,
   finalizeReview,
   prepareReview,
   reviewChunks,
@@ -140,12 +145,15 @@ type ReviewStatus =
 
 type ReviewNotice =
   | { kind: "applied"; count: number; deferred: number }
+  | { kind: "advice-applied" }
   | { kind: "stale" }
   | { kind: "partial"; applied: number }
   | { kind: "unverified" }
   | { kind: "refused" }
   | { kind: "dictionary-added"; word: string }
-  | { kind: "dictionary-failed" };
+  | { kind: "dictionary-failed" }
+  | { kind: "rule-disabled" }
+  | { kind: "rule-setting-failed" };
 
 export interface ReviewViewState {
   status: ReviewStatus;
@@ -155,6 +163,7 @@ export interface ReviewViewState {
   /** Current, not ignored. */
   diagnostics: ReviewDiagnostic[];
   ignoredCount: number;
+  ignoredAdviceCount?: number;
   resolvedCount: number;
   categories: ReadonlySet<ReviewCategory>;
   selectedId: string | null;
@@ -216,6 +225,7 @@ export interface ReviewSessionDependencies {
   initialScope: TextRange | null;
   onChange: (state: ReviewViewState) => void;
   addToDictionary?: (word: string) => Promise<boolean>;
+  disableReviewRule?: (ruleId: CatalogRuleId) => Promise<boolean>;
   /** Local dictionary lookups (see ReviewSpellingLookup). */
   lookupSpelling?: ReviewSpellingLookup;
   setTimer?: (callback: () => void, delayMs: number) => unknown;
@@ -266,14 +276,31 @@ interface IgnoredOccurrence {
   ruleId: string;
   range: TextRange;
   original: string;
+  /** Present only for a context-matched group; Ignore once retains its original semantics. */
+  evidence?: { range: TextRange; identity: string; protection: string };
+}
+
+function protectionIdentity(ranges: readonly ProtectedRange[], context: TextRange): string {
+  return JSON.stringify(
+    ranges
+      .filter((r) => rangesOverlap(r, context))
+      .map((r) => [
+        Math.max(r.start, context.start) - context.start,
+        Math.min(r.end, context.end) - context.start,
+        r.reason,
+      ]),
+  );
 }
 
 function sameOptions(a: ReviewOptions, b: ReviewOptions): boolean {
   return (
     a.lang === b.lang &&
+    a.spellingEnabled === b.spellingEnabled &&
+    a.longSentenceWords === b.longSentenceWords &&
     a.insertSpaceAfterAutocomplete === b.insertSpaceAfterAutocomplete &&
     sameKey(a.enabledRules, b.enabledRules) &&
-    sameKey(a.userDictionary, b.userDictionary)
+    sameKey(a.userDictionary, b.userDictionary) &&
+    JSON.stringify(a.preferredTerminology) === JSON.stringify(b.preferredTerminology)
   );
 }
 
@@ -326,6 +353,7 @@ function mergeInTextOrder(
  * Starting a review reads only: no text, formatting, setting or learning changes.
  */
 export class ReviewSession {
+  private readonly nativeCache = new NativeReviewCache();
   private generation = 0;
   private status: ReviewStatus = "loading";
   private unavailable: ReviewUnavailable | undefined;
@@ -358,7 +386,10 @@ export class ReviewSession {
   // getState() runs on every change; the plan only depends on these inputs.
   private listCache: { key: readonly unknown[]; visible: ReviewDiagnostic[] } | null = null;
   // Lookup set for `ignored`, rebuilt when the list is replaced.
-  private ignoredKeys: { list: IgnoredOccurrence[]; keys: Set<string> } | null = null;
+  private ignoredKeys: {
+    list: IgnoredOccurrence[];
+    entries: Map<string, IgnoredOccurrence>;
+  } | null = null;
   private planCache: { key: readonly unknown[]; plan: BulkPlan } | null = null;
   private planPending: { key: readonly unknown[]; promise: Promise<BulkPlan | null> } | null = null;
   private resolvedCount = 0;
@@ -451,6 +482,7 @@ export class ReviewSession {
 
   close(): void {
     this.generation += 1;
+    this.nativeCache.clear();
     this.cancelRecheck();
     this.cancelAi();
     this.cancelRewriteRun();
@@ -463,6 +495,9 @@ export class ReviewSession {
     this.rewriteEdits = null;
     this.aiBatch = null;
     this.status = "closed";
+    this.ignored = [];
+    this.ignoredKeys = null;
+    this.listCache = null;
     this.diagnostics = [];
     this.planCache = null;
     this.planPending = null;
@@ -494,6 +529,7 @@ export class ReviewSession {
   /** Settings broadcasts repeat unchanged values; only a real change rechecks. */
   updateOptions(options: ReviewOptions): void {
     if (this.status === "closed" || sameOptions(this.options, options)) return;
+    this.nativeCache.clear();
     this.options = options;
     this.notifySourceChanged();
   }
@@ -529,6 +565,88 @@ export class ReviewSession {
     this.emit();
   }
 
+  /** Suppress only currently equivalent occurrences; never learn a future text pattern. */
+  ignoreMatching(id: string): void {
+    if (this.status !== "ready") return;
+    const diagnostic = this.visibleDiagnostics().find((d) => d.id === id);
+    if (!diagnostic || diagnostic.ruleId === REVIEW_LOCAL_AI_CHECK) return;
+    const identity = this.matchingIdentity(diagnostic);
+    const matches = this.diagnostics.filter(
+      (d) =>
+        !this.isIgnored(d) &&
+        d.ruleId !== REVIEW_LOCAL_AI_CHECK &&
+        this.matchingIdentity(d) === identity,
+    );
+    this.ignored = [
+      ...this.ignored,
+      ...matches.map((d) => ({
+        ruleId: d.ruleId,
+        range: { ...d.range },
+        original: d.original,
+        evidence: {
+          range: { ...d.context },
+          identity,
+          protection: protectionIdentity(this.protectedRanges, d.context),
+        },
+      })),
+    ];
+    this.selectedId = null;
+    this.emit();
+  }
+
+  resetIgnores(): void {
+    if (this.status !== "ready" || this.ignored.length === 0) return;
+    this.ignored = [];
+    this.selectedId = null;
+    this.emit();
+  }
+
+  /** Relative evidence/edits, not absolute offsets or just a source word. Session memory only. */
+  private matchingIdentity(d: ReviewDiagnostic): string {
+    const normalize = (text: string) => text.normalize("NFC").replace(/[ \t\u00a0]+/g, " ");
+    return JSON.stringify([
+      d.ruleId,
+      d.messageKey,
+      d.terminology,
+      d.lang,
+      d.category,
+      d.requiresChoice === true,
+      d.warningOnly === true,
+      normalize(this.text.slice(d.context.start, d.range.start)),
+      normalize(d.original),
+      normalize(this.text.slice(d.range.end, d.context.end)),
+      d.alternatives.map((a) =>
+        a.edits.map((e) => [
+          e.start - d.range.start,
+          e.end - d.range.start,
+          normalize(e.original),
+          normalize(e.replacement),
+        ]),
+      ),
+      protectionIdentity(this.protectedRanges, d.context),
+    ]);
+  }
+
+  async disableReviewRule(id: string): Promise<void> {
+    const diagnostic = this.diagnostics.find((d) => d.id === id);
+    if (
+      !diagnostic ||
+      !isReviewSupportedRule(diagnostic.ruleId) ||
+      !this.deps.disableReviewRule ||
+      this.status !== "ready"
+    )
+      return;
+    const saved = await this.deps.disableReviewRule(diagnostic.ruleId).catch(() => false);
+    if (this.isClosed) return;
+    this.notice = { kind: saved ? "rule-disabled" : "rule-setting-failed" };
+    if (saved)
+      this.updateOptions({
+        ...this.options,
+        enabledRules: this.options.enabledRules.filter((ruleId) => ruleId !== diagnostic.ruleId),
+      });
+    this.emit();
+  }
+
   async addToDictionary(id: string): Promise<void> {
     const diagnostic = this.diagnostics.find((d) => d.id === id);
     const word = diagnostic?.dictionaryWord;
@@ -553,8 +671,8 @@ export class ReviewSession {
   async apply(id: string, alternativeIndex = 0): Promise<ReviewApplyResult | null> {
     const diagnostic = this.diagnostics.find((d) => d.id === id);
     const alternative = diagnostic?.alternatives[alternativeIndex];
-    if (!diagnostic || !alternative || !this.canWrite()) return null;
-    return this.write(alternative.edits, 1, 0);
+    if (!diagnostic || diagnostic.warningOnly || !alternative || !this.canWrite()) return null;
+    return this.write(alternative.edits, 1, 0, diagnostic.category === "style");
   }
 
   /** Applies every safe fix in the shown categories as one planned batch. */
@@ -584,7 +702,8 @@ export class ReviewSession {
       scopeKind: this.scopeKind,
       capabilities: this.capabilities,
       diagnostics: this.status === "ready" ? this.visibleDiagnostics() : NO_DIAGNOSTICS,
-      ignoredCount: this.ignoredDiagnostics().length,
+      ignoredCount: this.ignoredDiagnostics().filter((d) => d.category !== "style").length,
+      ignoredAdviceCount: this.ignoredDiagnostics().filter((d) => d.category === "style").length,
       resolvedCount: this.resolvedCount,
       categories: new Set(this.categories),
       selectedId: this.selectedId,
@@ -592,7 +711,10 @@ export class ReviewSession {
       truncated: this.truncated,
       unread: this.unread,
       languageSkipped: this.prepared?.languageSkipped.length ?? 0,
-      noRules: this.prepared !== null && this.prepared.rules.size === 0,
+      noRules:
+        this.prepared !== null &&
+        this.prepared.rules.size === 0 &&
+        !(this.options.spellingEnabled && this.deps.lookupSpelling),
       bulk: {
         count: plan?.diagnosticIds.length ?? 0,
         deferred: plan ? this.deferredCount(plan) : 0,
@@ -786,9 +908,16 @@ export class ReviewSession {
 
   private isIgnored(diagnostic: ReviewDiagnostic): boolean {
     if (this.ignoredKeys?.list !== this.ignored) {
-      this.ignoredKeys = { list: this.ignored, keys: new Set(this.ignored.map(occurrenceKey)) };
+      this.ignoredKeys = {
+        list: this.ignored,
+        entries: new Map(this.ignored.map((entry) => [occurrenceKey(entry), entry])),
+      };
     }
-    return this.ignoredKeys.keys.has(occurrenceKey(diagnostic));
+    const entry = this.ignoredKeys.entries.get(occurrenceKey(diagnostic));
+    return (
+      entry !== undefined &&
+      (!entry.evidence || entry.evidence.identity === this.matchingIdentity(diagnostic))
+    );
   }
 
   private planKey(): readonly unknown[] | null {
@@ -897,6 +1026,7 @@ export class ReviewSession {
     edits: ReviewEdit[],
     count: number,
     deferred: number,
+    advice = false,
   ): Promise<ReviewApplyResult> {
     const after = applyEdits(this.text, edits);
     if (after === null) return { status: "stale" };
@@ -924,12 +1054,13 @@ export class ReviewSession {
     if (result.status === "applied") {
       // A verified extension write is complete; only user typing needs the AI pause.
       this.aiDelayNext = false;
-      this.resolvedCount += count;
-      this.notice = { kind: "applied", count, deferred };
+      this.resolvedCount += advice ? 0 : count;
+      this.notice = advice ? { kind: "advice-applied" } : { kind: "applied", count, deferred };
       // Our own edits are exactly known: carry scope and ignores through them.
       const delta = after.length - before.length;
       if (this.scope) this.scope = { start: this.scope.start, end: this.scope.end + delta };
-      this.remapIgnored(edits);
+      const map = positionMapper(edits);
+      this.remapIgnored((range) => remapRangeThroughEdits(range, edits, map));
       this.text = after;
     } else if (result.status === "stale") {
       this.notice = { kind: "stale" };
@@ -947,13 +1078,20 @@ export class ReviewSession {
     return result;
   }
 
-  /** Our own edits are exactly known: each ignore moves with them, or goes if one touches it. */
-  private remapIgnored(edits: ReviewEdit[]): void {
+  /** Native remapping drops an occurrence if its text or matched evidence was touched. */
+  private remapIgnored(map: (range: TextRange) => TextRange | null): void {
     if (this.ignored.length === 0) return;
-    const map = positionMapper(edits);
     this.ignored = this.ignored.flatMap((entry) => {
-      const range = remapRangeThroughEdits(entry.range, edits, map);
-      return range ? [{ ...entry, range }] : [];
+      const range = map(entry.range);
+      const context = entry.evidence ? map(entry.evidence.range) : null;
+      if (!range || (entry.evidence && !context)) return [];
+      return [
+        {
+          ...entry,
+          range,
+          evidence: entry.evidence && context ? { ...entry.evidence, range: context } : undefined,
+        },
+      ];
     });
   }
 
@@ -982,6 +1120,7 @@ export class ReviewSession {
     }
     if (generation !== this.generation || this.isClosed) return;
     if (!read.ok) {
+      this.nativeCache.clear();
       this.cancelAi();
       this.status = "unavailable";
       this.unavailable = read.reason;
@@ -1014,17 +1153,21 @@ export class ReviewSession {
           }
           this.scope = next;
         }
-        this.ignored = this.ignored.flatMap((entry) => {
-          const range = remapRange(entry.range, diff);
-          return range ? [{ ...entry, range }] : [];
-        });
+        this.remapIgnored((range) => remapRange(range, diff));
       }
     }
     // Formatting-only change: same text, different protection. Old ignores
     // still refer to the same characters; findings are recomputed below.
+    if (this.signature !== read.signature) this.nativeCache.clear();
     this.text = read.text;
     this.signature = read.signature;
     this.protectedRanges = read.protectedRanges;
+    this.ignored = this.ignored.filter(
+      (entry) =>
+        !entry.evidence ||
+        entry.evidence.protection ===
+          protectionIdentity(this.protectedRanges, entry.evidence.range),
+    );
     this.unread = read.unread ?? 0;
     await this.scan(generation);
   }
@@ -1052,14 +1195,25 @@ export class ReviewSession {
         text: this.text,
         scope: { start: fullScope.start, end: cutEnd },
         protectedRanges: this.protectedRanges,
+        incomplete: this.unread > 0 ? true : undefined,
+        selection: this.scopeKind === "selection" ? true : undefined,
       },
       this.options.lang === AUTO_DETECT && this.reviewLang
         ? { ...this.options, lang: this.reviewLang }
         : this.options,
     );
     const scans: ChunkScan[] = [];
+    // Short drafts showed no benefit. Partial/oversized sources keep the full scan.
+    const cache =
+      this.scopeKind === "field" &&
+      !this.unread &&
+      this.text.length > REVIEW_CHUNK_CHARS * 2 &&
+      this.text.length <= MAX_REVIEW_CHARS
+        ? this.nativeCache
+        : undefined;
+    if (!cache) this.nativeCache.clear();
     for (const chunk of reviewChunks(prepared)) {
-      scans.push(scanReviewChunk(prepared, chunk));
+      scans.push(scanReviewChunk(prepared, chunk, cache));
       // Yield between chunks so typing is never blocked by a long scan.
       await this.pause();
       if (generation !== this.generation || this.isClosed) return;
@@ -1082,7 +1236,7 @@ export class ReviewSession {
       this.selectedId = null;
     }
     const lookup = this.deps.lookupSpelling;
-    const spelling = lookup && prepared.rules.size > 0;
+    const spelling = lookup && (prepared.options.spellingEnabled ?? prepared.rules.size > 0);
     if (spelling) this.spellingCache = this.cacheFor(prepared.options.lang);
     this.spelling = !spelling ? "off" : this.spellingCache.unavailable ? "unavailable" : "checking";
     this.emit();
@@ -1120,7 +1274,7 @@ export class ReviewSession {
     const occurrences = new Map<string, SpellingCandidate[]>();
     for (const candidate of spellingCandidates(
       prepared,
-      this.ruleDiagnostics.map((d) => d.range),
+      this.ruleDiagnostics.filter((d) => d.category !== "style").map((d) => d.range),
     )) {
       const key = candidate.lookup.toLowerCase();
       const list = occurrences.get(key);
@@ -1585,11 +1739,15 @@ export class ReviewSession {
           ? { ...d, alternatives: d.alternatives.filter((alternative) => !alternative.localAi) }
           : d,
       );
+    const correctionChecks = checks.filter((d) => d.category !== "style");
     const shown: ReviewDiagnostic[] = [];
     const extra = new Map<ReviewDiagnostic, ReviewDiagnostic["alternatives"]>();
     for (const finding of this.aiFindings) {
-      if (checks.some((d) => sameChange(d, finding) || this.sameResult(finding, d))) continue;
-      const overlapping = checks.filter((d) => rangesOverlap(d.range, finding.range));
+      if (this.prepared && overlapsSortedRanges(this.prepared.terminology.ranges, finding.range))
+        continue;
+      if (correctionChecks.some((d) => sameChange(d, finding) || this.sameResult(finding, d)))
+        continue;
+      const overlapping = correctionChecks.filter((d) => rangesOverlap(d.range, finding.range));
       if (overlapping.every((d) => this.includesCheckFix(finding, d))) {
         // No overlap, or the AI fix makes each overlapping check's own fix and more
         // ("is saved immediatly" -> "are saved immediately"): both can be offered.
@@ -1602,6 +1760,7 @@ export class ReviewSession {
       const alternative = finding.alternatives[0];
       if (
         overlapping.length === 1 &&
+        !check.warningOnly &&
         alternative &&
         check.range.start === finding.range.start &&
         check.range.end === finding.range.end

@@ -1,3 +1,14 @@
+import { emptyTerminology } from "@core/domain/grammar/review/preferredTerminology";
+import { reviewText, type ReviewTextKey } from "@core/domain/grammar/review/reviewMessages";
+import {
+  DEFAULT_LONG_SENTENCE_WORDS,
+  REVIEW_RULE_METADATA,
+  isReviewSupportedRule,
+  normalizeReviewRuleOverrides,
+  reviewRuleIds,
+  reviewRuleSelectionToOverrides,
+} from "@core/domain/grammar/review/reviewCatalog";
+import { GRAMMAR_RULE_CATALOG } from "@core/domain/grammar/ruleCatalog";
 import { i18n } from "./fluenttyperI18n.js";
 import type {
   FieldConfig,
@@ -23,6 +34,9 @@ import {
   KEY_OBSERVABILITY_ENABLED,
   KEY_OBSERVABILITY_MODULE_OVERRIDES,
   KEY_ENABLED_GRAMMAR_RULES,
+  KEY_REVIEW_RULE_OVERRIDES,
+  KEY_PREFERRED_TERMINOLOGY,
+  KEY_REVIEW_LONG_SENTENCE_WORDS,
   KEY_TIME_FORMAT,
   KEY_DATE_FORMAT,
   KEY_TEXT_EXPANSIONS,
@@ -61,8 +75,8 @@ import {
 } from "@core/domain/themeDefaults";
 import { DEFAULT_LOCAL_AI_TIER } from "@core/domain/localAi/modelRegistry";
 import {
-  GRAMMAR_RULE_CATALOG,
-  GRAMMAR_RULE_IDS,
+  TYPING_RULE_CATALOG,
+  TYPING_RULE_IDS,
   RECOMMENDED_CURRENT_GRAMMAR_RULES,
   TYPOGRAPHY_GRAMMAR_RULES,
 } from "@core/domain/grammar/ruleCatalog";
@@ -188,7 +202,7 @@ function themeValueSetting(groupKey: string, name: keyof SuggestionThemeSettings
   };
 }
 
-const GRAMMAR_RULE_OPTIONS = GRAMMAR_RULE_CATALOG.map((rule) => {
+const GRAMMAR_RULE_OPTIONS = TYPING_RULE_CATALOG.map((rule) => {
   const rolloutBadge =
     rule.defaultRollout === "on"
       ? i18n.get("grammar_rule_rollout_safe_badge")
@@ -448,6 +462,72 @@ const manifest: ManifestDefinition = {
     {
       tab: "grammar_tab",
       group: i18n.get("grammar_rules"),
+      name: KEY_REVIEW_LONG_SENTENCE_WORDS,
+      type: "valueOnly",
+      default: DEFAULT_LONG_SENTENCE_WORDS,
+    },
+    {
+      tab: "grammar_tab",
+      group: i18n.get("grammar_rules"),
+      name: KEY_PREFERRED_TERMINOLOGY,
+      type: "valueOnly",
+      default: emptyTerminology(),
+    },
+    {
+      tab: "grammar_tab",
+      group: i18n.get("grammar_rules"),
+      name: KEY_REVIEW_RULE_OVERRIDES,
+      type: "ruleToggleCards",
+      label: reviewText("review_rules_title", i18n.lang),
+      helpText: reviewText("review_rules_help", i18n.lang),
+      summaryLabel: i18n.get("grammar_rules_summary_label"),
+      emptyStateText: i18n.get("grammar_rules_empty_state"),
+      noMatchesText: i18n.get("grammar_rules_no_matches"),
+      searchPlaceholder: i18n.get("grammar_rules_search_placeholder"),
+      sectionSafeLabel: reviewText("review_rules_default", i18n.lang),
+      sectionAdvancedLabel: reviewText("review_rules_optional", i18n.lang),
+      filterAllLabel: i18n.get("grammar_rules_filter_all"),
+      filterSafeLabel: reviewText("review_rules_default", i18n.lang),
+      filterAdvancedLabel: reviewText("review_rules_optional", i18n.lang),
+      filterEnglishOnlyLabel: i18n.get("grammar_rules_filter_english_only"),
+      filterEnabledOnlyLabel: i18n.get("grammar_rules_filter_enabled_only"),
+      actions: [
+        {
+          actionKey: "defaults",
+          text: reviewText("review_rules_restore", i18n.lang),
+          values: reviewRuleIds({ codeMode: false }),
+        },
+        { actionKey: "disable_all", text: i18n.get("grammar_rules_disable_all"), values: [] },
+      ],
+      options: GRAMMAR_RULE_CATALOG.filter((rule) => isReviewSupportedRule(rule.id)).map((rule) => {
+        const metadata = REVIEW_RULE_METADATA[rule.id];
+        return {
+          value: rule.id,
+          text:
+            rule.typing === false
+              ? reviewText(rule.titleI18nKey as ReviewTextKey, i18n.lang)
+              : i18n.get(rule.titleI18nKey),
+          description: rule.typing === false ? undefined : i18n.get(rule.descriptionI18nKey),
+          safetyTier:
+            metadata.review === "supported" && metadata.defaultEnabled
+              ? ("safe" as const)
+              : ("advanced" as const),
+          languageScope: rule.languageScope,
+        };
+      }),
+      default: {},
+      storageAdapter: {
+        getSelection: (value) => reviewRuleIds({ codeMode: false, overrides: value }),
+        setSelection: reviewRuleSelectionToOverrides,
+        setChoice: (value, rule, enabled) =>
+          isReviewSupportedRule(rule)
+            ? { ...normalizeReviewRuleOverrides(value), [rule]: enabled }
+            : normalizeReviewRuleOverrides(value),
+      },
+    },
+    {
+      tab: "grammar_tab",
+      group: i18n.get("grammar_rules"),
       name: KEY_ENABLED_GRAMMAR_RULES,
       type: "ruleToggleCards",
       label: i18n.get("grammar_rules_label"),
@@ -477,7 +557,7 @@ const manifest: ManifestDefinition = {
         {
           actionKey: "enable_all",
           text: i18n.get("grammar_rules_enable_all"),
-          values: GRAMMAR_RULE_IDS,
+          values: TYPING_RULE_IDS,
         },
         {
           actionKey: "disable_all",

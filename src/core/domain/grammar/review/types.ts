@@ -1,3 +1,4 @@
+import type { PreferredTerminology } from "./preferredTerminology";
 import type { CatalogRuleId } from "../ruleCatalog";
 
 /**
@@ -7,13 +8,14 @@ import type { CatalogRuleId } from "../ruleCatalog";
  * end-exclusive bounds ([start, end)). Visual highlight ranges are kept apart
  * from mutation ranges: a finding may underline a phrase but change one word.
  */
-export type ReviewCategory = "spelling" | "grammar" | "punctuation" | "typography";
+export type ReviewCategory = "spelling" | "grammar" | "punctuation" | "typography" | "style";
 
 export const REVIEW_CATEGORIES: readonly ReviewCategory[] = [
   "spelling",
   "grammar",
   "punctuation",
   "typography",
+  "style",
 ];
 
 /**
@@ -53,6 +55,50 @@ interface ReviewAlternative {
 }
 
 export type ReviewMessageKey =
+  | "review_msg_style_redundancy"
+  | "review_msg_style_long_sentence"
+  | "review_msg_preferred_terminology"
+  | "review_msg_canonical_casing"
+  | "review_msg_quotation_balance"
+  | "review_msg_unclosed_quote"
+  | "review_msg_usage_phrases"
+  | "review_msg_intents_purposes"
+  | "review_msg_one_same"
+  | "review_msg_pique_interest"
+  | "review_msg_doubled_degree"
+  | "review_msg_countability"
+  | "review_msg_contextual_grammar"
+  | "review_msg_mass_noun"
+  | "review_msg_countable_number"
+  | "review_msg_compounds"
+  | "review_msg_every_day"
+  | "review_msg_log_in"
+  | "review_msg_set_up"
+  | "review_msg_noun_count"
+  | "review_msg_noun_choice"
+  | "review_msg_demonstrative_number"
+  | "review_msg_one_of"
+  | "review_msg_perfect_participle"
+  | "review_msg_verb_complements"
+  | "review_msg_missing_to"
+  | "review_msg_forward_gerund"
+  | "review_msg_fixed_prepositions"
+  | "review_msg_despite_of"
+  | "review_msg_discuss_about"
+  | "review_msg_interested_on"
+  | "review_msg_its_possessive"
+  | "review_msg_its_contraction"
+  | "review_msg_lets_contraction"
+  | "review_msg_else_possessive"
+  | "review_msg_existential_agreement"
+  | "review_msg_then_than"
+  | "review_msg_your_you_are"
+  | "review_msg_they_are"
+  | "review_msg_your_possessive"
+  | "review_msg_their_possessive"
+  | "review_msg_to_too"
+  | "review_msg_auxiliary_base"
+  | "review_msg_repeated_words"
   | "review_msg_sentence_start"
   | "review_msg_line_start"
   | "review_msg_pronoun_i"
@@ -80,10 +126,12 @@ export type BulkDecision =
   | { eligible: true; alternative: number }
   | {
       eligible: false;
-      reason: "rule-not-batch-approved" | "ambiguous" | "context-dependent" | "local-ai";
+      reason:
+        "rule-not-batch-approved" | "ambiguous" | "context-dependent" | "local-ai" | "warning-only";
     };
 
 export interface ReviewDiagnostic {
+  terminology?: { id: string; explanation: string };
   /** Unique within its snapshot: rule, range and replacement. */
   id: string;
   snapshotId: string;
@@ -96,6 +144,8 @@ export interface ReviewDiagnostic {
   /** Snapshot text of `range`. */
   original: string;
   alternatives: ReviewAlternative[];
+  /** A diagnostic to inspect, with no replacement or write path. */
+  warningOnly?: true;
   bulk: BulkDecision;
   /**
    * Text the decision depended on (the evidence), at least `range`. Another
@@ -122,6 +172,8 @@ export interface ProtectedRange extends TextRange {
 }
 
 export interface ReviewSourceSnapshot {
+  /** The user explicitly selected this scope, even when it spans the whole field. */
+  selection?: true;
   /** Changes whenever the text or its structure changes. */
   id: string;
   text: string;
@@ -132,9 +184,15 @@ export interface ReviewSourceSnapshot {
    * virtual block separators). Nothing inside may be read as prose or edited.
    */
   protectedRanges: ProtectedRange[];
+  /** The adapter omitted text outside its available window. */
+  incomplete?: true;
 }
 
 export interface ReviewOptions {
+  longSentenceWords?: number;
+  preferredTerminology?: PreferredTerminology;
+  /** Explicitly keep dictionary suggestions independent of native rule choices. */
+  spellingEnabled?: boolean;
   lang: string;
   enabledRules: readonly string[];
   userDictionary: readonly string[];

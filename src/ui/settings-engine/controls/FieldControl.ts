@@ -160,6 +160,7 @@ export abstract class BaseControl<TValue> implements FieldControl<TValue> {
       .set(this.name, value)
       .then(() => {
         dispatchSettingsSaveStatus("saved");
+        this.emitter.fireEvent("persisted", value);
       })
       .catch((error) => {
         console.error(error);

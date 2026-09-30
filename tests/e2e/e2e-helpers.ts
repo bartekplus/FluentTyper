@@ -1,4 +1,4 @@
-import type { Browser, CDPSession, Page, Target, WebWorker } from "puppeteer";
+import type { Browser, CDPSession, Frame, Page, Target, WebWorker } from "puppeteer";
 import puppeteer from "puppeteer";
 import path from "path";
 
@@ -224,7 +224,7 @@ async function openChromeExtensionPageContext(
 }
 
 async function wakeChromeBackgroundWorker(browser: Browser, extensionId: string): Promise<void> {
-  if (!browser.isConnected()) {
+  if (!browser.connected) {
     return;
   }
   let wakePage: Page | null = null;
@@ -561,7 +561,7 @@ export async function triggerReview(
   }, source);
 }
 
-export async function readReviewPanel(page: Page): Promise<ReviewPanelSnapshot> {
+export async function readReviewPanel(page: Page | Frame): Promise<ReviewPanelSnapshot> {
   return page.evaluate((hostSelector) => {
     const host = document.querySelector(hostSelector);
     const root = host?.shadowRoot ?? null;
@@ -614,7 +614,7 @@ export async function readReviewPanel(page: Page): Promise<ReviewPanelSnapshot> 
 }
 
 export async function waitForReview(
-  page: Page,
+  page: Page | Frame,
   label: string,
   predicate: (panel: ReviewPanelSnapshot) => boolean,
   timeoutMs = 8000,
@@ -637,20 +637,50 @@ export async function waitForReview(
 
 /** A real mouse click on a control inside the review UI. */
 export async function clickReviewControl(page: Page, selector: string): Promise<void> {
-  const point = await page.evaluate(
-    (hostSelector, selectorInner) => {
-      const element = document
-        .querySelector(hostSelector)
-        ?.shadowRoot?.querySelector<HTMLElement>(selectorInner);
-      if (!element) return null;
-      element.scrollIntoView({ block: "nearest" });
-      const rect = element.getBoundingClientRect();
-      return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
-    },
-    REVIEW_HOST_SELECTOR,
-    selector,
+  const point = await waitUntil(`enabled Review control ${selector}`, () =>
+    page.evaluate(
+      (hostSelector, selectorInner) => {
+        const element = document
+          .querySelector(hostSelector)
+          ?.shadowRoot?.querySelector<HTMLElement>(selectorInner);
+        // Dictionary/preferences changes can still be rechecking after their cards disappear.
+        if (
+          !element ||
+          element.matches(":disabled") ||
+          element.getAttribute("aria-disabled") === "true"
+        )
+          return false;
+        element.scrollIntoView({ block: "nearest" });
+        const rect = element.getBoundingClientRect();
+        let left = Math.max(0, rect.left);
+        let right = Math.min(innerWidth, rect.right);
+        let top = Math.max(0, rect.top);
+        let bottom = Math.min(innerHeight, rect.bottom);
+        // A long finding can exceed its scrolling list: its center may be under the footer.
+        for (let parent = element.parentElement; parent; parent = parent.parentElement) {
+          const style = getComputedStyle(parent);
+          const box = parent.getBoundingClientRect();
+          if (/auto|scroll|hidden|clip/.test(style.overflowX)) {
+            left = Math.max(left, box.left + parent.clientLeft);
+            right = Math.min(right, box.left + parent.clientLeft + parent.clientWidth);
+          }
+          if (/auto|scroll|hidden|clip/.test(style.overflowY)) {
+            top = Math.max(top, box.top + parent.clientTop);
+            bottom = Math.min(bottom, box.top + parent.clientTop + parent.clientHeight);
+          }
+        }
+        if (right <= left || bottom <= top)
+          throw new Error(`Review control is clipped: ${selectorInner}`);
+        const point = { x: (left + right) / 2, y: (top + bottom) / 2 };
+        const hit = (element.getRootNode() as ShadowRoot).elementFromPoint(point.x, point.y);
+        if (!hit || !element.contains(hit))
+          throw new Error(`Review control is covered: ${selectorInner}`);
+        return point;
+      },
+      REVIEW_HOST_SELECTOR,
+      selector,
+    ),
   );
-  if (!point) throw new Error(`Review control not found: ${selector}`);
   await page.mouse.click(point.x, point.y);
 }
 

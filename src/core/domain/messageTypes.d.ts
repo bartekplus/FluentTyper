@@ -1,3 +1,4 @@
+import type { PreferredTerminology } from "./grammar/review/preferredTerminology";
 import type {
   ObservabilityConfig,
   ObservabilityEvent,
@@ -34,6 +35,9 @@ export interface SetConfigContext {
   /** "Local AI corrections in Review" preference (setup/consent is checked separately). */
   localAiReviewEnabled?: boolean;
   enabledGrammarRules: string[];
+  reviewRuleOverrides?: Record<string, boolean>;
+  preferredTerminology?: PreferredTerminology;
+  reviewLongSentenceWords?: number;
   userDictionaryList: string[];
   // Theme configuration is reused by settings and options payloads.
   themeConfig?: SuggestionThemeConfig;
@@ -216,6 +220,7 @@ export type Message =
   | { command: "CMD_TOGGLE_FT_ACTIVE_TAB" }
   | { command: "CMD_TRIGGER_FT_ACTIVE_TAB" }
   | { command: "CMD_REVIEW_FT_ACTIVE_TAB"; context?: { source?: "command" | "popup" } }
+  | { command: "CMD_CONTENT_SCRIPT_DISABLE_REVIEW_RULE"; context: { ruleId: string } }
   | {
       command: "CMD_CONTENT_SCRIPT_ADD_TO_DICTIONARY";
       context: { word: string };

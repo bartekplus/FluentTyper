@@ -53,3 +53,49 @@ describe("ConfigAssembler prediction config", () => {
     });
   });
 });
+
+test("preferred terminology reaches Review config only after validation and never the predictor", async () => {
+  const valid = {
+    version: 1,
+    enabled: true,
+    entries: [
+      {
+        id: "acme",
+        source: "Acme Suite",
+        replacement: "Acme Workspace",
+        casePolicy: "exact",
+        explanation: "Our preferred name.",
+        language: "en_US",
+        scope: "all-prose",
+        enabled: true,
+      },
+    ],
+  };
+  for (const raw of [valid, undefined, { version: 1, enabled: true, entries: "invalid" }]) {
+    const seed = { preferredTerminology: raw };
+    const assembler = new ConfigAssembler(createSettingsManagerMock(seed), { isDevBuild: false });
+    const context = (await assembler.assembleBackgroundPageSetConfig()).context;
+    expect(context.preferredTerminology).toEqual(
+      raw === valid ? valid : { version: 1, enabled: false, entries: [] },
+    );
+    expect(JSON.stringify(await predictionConfig(seed, false))).not.toContain(
+      "preferredTerminology",
+    );
+    expect(JSON.stringify(await predictionConfig(seed, false))).not.toContain("Acme");
+  }
+});
+
+test("readability threshold defaults and validation stay outside prediction config and opt-in choices", async () => {
+  for (const raw of [undefined, null, "40", 9, 201, 10.5, 10, 35, 200]) {
+    const seed = { reviewLongSentenceWords: raw };
+    const assembler = new ConfigAssembler(createSettingsManagerMock(seed), { isDevBuild: false });
+    const context = (await assembler.assembleBackgroundPageSetConfig()).context;
+    expect(context.reviewLongSentenceWords).toBe(
+      typeof raw === "number" && Number.isInteger(raw) && raw >= 10 && raw <= 200 ? raw : 35,
+    );
+    expect(context.reviewRuleOverrides).toEqual({});
+    expect(JSON.stringify(await predictionConfig(seed, false))).not.toContain(
+      "reviewLongSentenceWords",
+    );
+  }
+});

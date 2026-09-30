@@ -137,6 +137,15 @@ describeE2E(`Local AI Review E2E [${BROWSER_TYPE}]`, () => {
     browser = await launchBrowser();
     if (isChrome()) network = await recordNetworkRequests(browser);
     worker = await getBackgroundContext(browser);
+    if (isChrome()) {
+      // A fresh install opens an active onboarding tab; finish that before opening the test page.
+      const installed = await browser.waitForTarget(
+        (target) =>
+          target.type() === "page" && target.url().endsWith("/new_installation/index.html"),
+        { timeout: 10000 },
+      );
+      await (await installed.page())?.close();
+    }
   }, 60000);
 
   afterEach(async () => {

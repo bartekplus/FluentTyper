@@ -1,6 +1,6 @@
 export type GrammarEventType = "insertChar" | "wordBoundary" | "idle" | "paste";
 
-type GrammarRuleId =
+export type GrammarRuleId =
   | "measurementUnitFormatting"
   | "currencySpacing"
   | "capitalizeSentenceStart"
@@ -68,7 +68,34 @@ export interface GrammarRule {
 }
 
 export interface GrammarRuleCatalogEntry {
-  id: GrammarRuleId;
+  id:
+    | GrammarRuleId
+    | "englishRepeatedWords"
+    | "englishAuxiliaryBaseVerb"
+    | "styleRedundancy"
+    | "styleLongSentence"
+    | "preferredTerminology"
+    | "englishCanonicalCasing"
+    | "unclosedQuotation"
+    | "englishUsagePhrases"
+    | "englishDoubledDegree"
+    | "englishCountability"
+    | "englishContextualCompounds"
+    | "englishNounNumber"
+    | "englishPerfectParticiples"
+    | "englishVerbComplements"
+    | "englishFixedPrepositions"
+    | "englishItsContext"
+    | "englishLetsContext"
+    | "englishElsePossessive"
+    | "englishSubjectVerbAgreement"
+    | "englishExistentialAgreement"
+    | "englishThenThan"
+    | "englishYourYouAre"
+    | "englishTheirThereTheyAre"
+    | "englishToToo";
+  /** Absent for existing typing rules; false for native Review-only checks. */
+  typing?: false;
   name: string;
   titleI18nKey: string;
   descriptionI18nKey: string;

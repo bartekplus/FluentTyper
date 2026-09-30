@@ -1,3 +1,4 @@
+import { isObjectRecord } from "../../guards";
 import { GRAMMAR_RULE_CATALOG, isCodeSafeGrammarRule, type CatalogRuleId } from "../ruleCatalog";
 import {
   REVIEW_LOCAL_AI_CHECK,
@@ -17,6 +18,7 @@ import {
 export type ReviewRuleMetadata =
   | {
       review: "supported";
+      defaultEnabled: boolean;
       category: ReviewCategory;
       bulk: "eligible" | "individual";
       /** Why a supported rule stays individual-only, when it does. */
@@ -25,38 +27,233 @@ export type ReviewRuleMetadata =
   | { review: "excluded"; reason: string };
 
 export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
-  capitalizeSentenceStart: { review: "supported", category: "typography", bulk: "eligible" },
+  styleRedundancy: {
+    review: "supported",
+    defaultEnabled: false,
+    category: "style",
+    bulk: "individual",
+  },
+  styleLongSentence: {
+    review: "supported",
+    defaultEnabled: false,
+    category: "style",
+    bulk: "individual",
+  },
+  preferredTerminology: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "grammar",
+    bulk: "individual",
+    note: "Requires an explicitly enabled user-authored terminology configuration.",
+  },
+  englishCanonicalCasing: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "grammar",
+    bulk: "individual",
+  },
+  unclosedQuotation: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "punctuation",
+    bulk: "individual",
+  },
+  englishUsagePhrases: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "grammar",
+    bulk: "individual",
+  },
+  englishDoubledDegree: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "grammar",
+    bulk: "individual",
+  },
+  englishCountability: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "grammar",
+    bulk: "individual",
+  },
+  englishContextualCompounds: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "grammar",
+    bulk: "individual",
+  },
+  englishNounNumber: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "grammar",
+    bulk: "individual",
+  },
+  englishPerfectParticiples: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "grammar",
+    bulk: "individual",
+  },
+  englishVerbComplements: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "grammar",
+    bulk: "individual",
+  },
+  englishFixedPrepositions: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "grammar",
+    bulk: "individual",
+  },
+  englishItsContext: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "grammar",
+    bulk: "individual",
+  },
+  englishLetsContext: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "grammar",
+    bulk: "individual",
+  },
+  englishElsePossessive: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "grammar",
+    bulk: "individual",
+  },
+  englishSubjectVerbAgreement: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "grammar",
+    bulk: "individual",
+  },
+  englishExistentialAgreement: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "grammar",
+    bulk: "individual",
+  },
+  englishThenThan: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "grammar",
+    bulk: "individual",
+  },
+  englishYourYouAre: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "grammar",
+    bulk: "individual",
+  },
+  englishTheirThereTheyAre: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "grammar",
+    bulk: "individual",
+  },
+  englishToToo: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "grammar",
+    bulk: "individual",
+  },
+
+  englishAuxiliaryBaseVerb: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "grammar",
+    bulk: "individual",
+  },
+  englishRepeatedWords: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "grammar",
+    bulk: "individual",
+  },
+  capitalizeSentenceStart: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "typography",
+    bulk: "eligible",
+  },
   capitalizeAfterLineBreak: {
     review: "supported",
+    defaultEnabled: true,
     category: "typography",
     bulk: "individual",
     note: "Line starts in poems, lists and hard-wrapped text are often lowercase on purpose.",
   },
-  englishPronounICapitalization: { review: "supported", category: "typography", bulk: "eligible" },
-  englishContractionNormalization: { review: "supported", category: "spelling", bulk: "eligible" },
-  englishTypoWhitelistCorrection: { review: "supported", category: "spelling", bulk: "eligible" },
+  englishPronounICapitalization: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "typography",
+    bulk: "eligible",
+  },
+  englishContractionNormalization: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "spelling",
+    bulk: "eligible",
+  },
+  englishTypoWhitelistCorrection: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "spelling",
+    bulk: "eligible",
+  },
   doubleSpaceToPeriod: {
     review: "excluded",
     reason: "Typing shortcut: existing double spaces are not sentence ends.",
   },
-  englishModalOfCorrection: { review: "supported", category: "grammar", bulk: "eligible" },
-  englishYourWelcomeCorrection: { review: "supported", category: "grammar", bulk: "eligible" },
-  englishTheirThereBeVerb: { review: "supported", category: "grammar", bulk: "eligible" },
-  englishAlotCorrection: { review: "supported", category: "spelling", bulk: "eligible" },
+  englishModalOfCorrection: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "grammar",
+    bulk: "eligible",
+  },
+  englishYourWelcomeCorrection: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "grammar",
+    bulk: "eligible",
+  },
+  englishTheirThereBeVerb: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "grammar",
+    bulk: "eligible",
+  },
+  englishAlotCorrection: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "spelling",
+    bulk: "eligible",
+  },
   englishPronounVerbWhitelistAgreement: {
     review: "supported",
+    defaultEnabled: true,
     category: "grammar",
     bulk: "eligible",
   },
   englishArticleAnCorrection: {
     review: "supported",
+    defaultEnabled: true,
     category: "grammar",
     bulk: "individual",
     note: "Word-list heuristic; a letter or identifier can look like an article.",
   },
-  englishOrdinalSuffix: { review: "supported", category: "typography", bulk: "eligible" },
+  englishOrdinalSuffix: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "typography",
+    bulk: "eligible",
+  },
   englishProperNounCapitalization: {
     review: "supported",
+    defaultEnabled: true,
     category: "typography",
     bulk: "eligible",
   },
@@ -70,11 +267,17 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
   },
   measurementUnitFormatting: {
     review: "supported",
+    defaultEnabled: true,
     category: "punctuation",
     bulk: "individual",
     note: "Units in technical prose (CSS, product names) are meaning-sensitive.",
   },
-  currencySpacing: { review: "supported", category: "punctuation", bulk: "eligible" },
+  currencySpacing: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "punctuation",
+    bulk: "eligible",
+  },
   slashContextSpacing: {
     review: "excluded",
     reason: "Typing convenience; spacing around an existing slash is style, not an error.",
@@ -87,8 +290,18 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     review: "excluded",
     reason: "Bracket spacing in finished text is often notation, Markdown or intervals.",
   },
-  commaPeriodSpacing: { review: "supported", category: "punctuation", bulk: "eligible" },
-  collapseRepeatedSpaces: { review: "supported", category: "punctuation", bulk: "eligible" },
+  commaPeriodSpacing: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "punctuation",
+    bulk: "eligible",
+  },
+  collapseRepeatedSpaces: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "punctuation",
+    bulk: "eligible",
+  },
   trimSpaceBeforeLineBreak: {
     review: "excluded",
     reason: "Invisible, and two trailing spaces are a Markdown line break.",
@@ -103,7 +316,12 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     review: "excluded",
     reason: "Typing-time typography convention; invisible no-break space changes.",
   },
-  duplicatePunctuationCollapse: { review: "supported", category: "punctuation", bulk: "eligible" },
+  duplicatePunctuationCollapse: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "punctuation",
+    bulk: "eligible",
+  },
   autoBracketClose: {
     review: "excluded",
     reason: "Typing convenience: review never inserts closing brackets.",
@@ -113,6 +331,7 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
 /** Review's dictionary check: individual only, and the user always picks the word. */
 const REVIEW_SPELLING_METADATA: ReviewRuleMetadata = {
   review: "supported",
+  defaultEnabled: true,
   category: "spelling",
   bulk: "individual",
   note: "An unknown word has several possible corrections, or none: the user picks.",
@@ -121,6 +340,7 @@ const REVIEW_SPELLING_METADATA: ReviewRuleMetadata = {
 /** Local AI corrections: generated text, so never batched; the category is set per finding. */
 const REVIEW_LOCAL_AI_METADATA: ReviewRuleMetadata = {
   review: "supported",
+  defaultEnabled: false,
   category: "grammar",
   bulk: "individual",
   note: "Generated by the optional local model: the user accepts each correction.",
@@ -152,13 +372,48 @@ export const REVIEW_SUPPORTED_RULE_IDS: readonly CatalogRuleId[] = GRAMMAR_RULE_
   (entry) => entry.id,
 ).filter(isReviewSupportedRule);
 
-/**
- * The rules a review runs. Review never changes text without the user's click,
- * so the typing-time rule switches do not gate it: every supported rule runs.
- * Code mode keeps only code-safe rules, as while typing; review supports none.
- */
-export function reviewRuleIds({ codeMode }: { codeMode: boolean }): CatalogRuleId[] {
-  return codeMode
-    ? REVIEW_SUPPORTED_RULE_IDS.filter(isCodeSafeGrammarRule)
-    : [...REVIEW_SUPPORTED_RULE_IDS];
+/** Stored values contain only supported native IDs and booleans, never reviewed text. */
+export function normalizeReviewRuleOverrides(value: unknown): Record<string, boolean> {
+  if (value === undefined) return {};
+  if (!isObjectRecord(value)) return reviewRuleSelectionToOverrides([]);
+  return Object.fromEntries(
+    REVIEW_SUPPORTED_RULE_IDS.filter((id) => Object.hasOwn(value, id)).map((id) => [
+      id,
+      typeof value[id] === "boolean" ? value[id] : false,
+    ]),
+  );
+}
+
+export function reviewRuleSelectionToOverrides(
+  selection: readonly string[],
+): Record<string, boolean> {
+  const selected = new Set(selection);
+  return Object.fromEntries(REVIEW_SUPPORTED_RULE_IDS.map((id) => [id, selected.has(id)]));
+}
+
+/** Review preferences are independent from typing switches; absent choices inherit explicit defaults. */
+export function reviewRuleIds({
+  codeMode,
+  overrides,
+}: {
+  codeMode: boolean;
+  overrides?: unknown;
+}): CatalogRuleId[] {
+  const choices = normalizeReviewRuleOverrides(overrides);
+  return REVIEW_SUPPORTED_RULE_IDS.filter((id) => {
+    const metadata = REVIEW_RULE_METADATA[id];
+    return (
+      (!codeMode || isCodeSafeGrammarRule(id)) &&
+      (choices[id] ?? (metadata.review === "supported" && metadata.defaultEnabled))
+    );
+  });
+}
+
+export const DEFAULT_LONG_SENTENCE_WORDS = 35;
+
+/** A preference, not a quality score. Invalid persisted values use the documented default. */
+export function longSentenceThreshold(value: unknown): number {
+  return typeof value === "number" && Number.isInteger(value) && value >= 10 && value <= 200
+    ? value
+    : DEFAULT_LONG_SENTENCE_WORDS;
 }

@@ -3,6 +3,95 @@
   "capturedAt": "2026-09-15",
   "behaviors": [
     {
+      "id": "review_corpus_grammar",
+      "description": "Corpus-derived native grammar repairs preserve named error quotations, units and ambiguous interpretations; subject agreement is Review-only and individually applied with native undo.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewCorpus.test.ts",
+          "test": "corpus regression %s: %s"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewCorpus.test.ts",
+          "test": "nearby valid grammar and ambiguous interpretations remain untouched"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewCorpus.test.ts",
+          "test": "quantified mass nouns warn without inventing a quantity or repair"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review bounded grammar applies individual edits with native undo: %s"
+        }
+      ]
+    },
+    {
+      "id": "review_agreement_extensions",
+      "description": "Expanded native pronoun agreement retains the original typing whitelist and bulk ownership. Separate existential suggestions preserve stated quantities and nouns, abstain on ambiguous coordination, and apply individually with native undo.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewAgreementExtensions.test.ts",
+          "test": "existing six typing mappings and their Review ownership stay unchanged"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewAgreementExtensions.test.ts",
+          "test": "verb ownership crosses chunks without changing quantity, noun or Unicode offsets"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review native grammar applies individual edits with native undo"
+        }
+      ]
+    },
+    {
+      "id": "review_word_confusions",
+      "description": "Four independently selectable native word-confusion families require bounded grammatical evidence, preserve ambiguous and protected content, avoid existing-rule duplicates, and use individual verified edits with native undo.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewWordConfusions.test.ts",
+          "test": "each family has independent selection, language and dictionary guards"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewWordConfusions.test.ts",
+          "test": "chunk ownership follows the corrected word even when its evidence starts earlier"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review native grammar applies individual edits with native undo"
+        }
+      ]
+    },
+    {
+      "id": "review_auxiliary_forms",
+      "description": "Native auxiliary-form suggestions use authored forms, preserve ambiguous syntax and protected scope, stay individual-only, and support verified native undo.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewAuxiliaryForms.test.ts",
+          "test": "preserves dictionary, language, selected scope and code islands"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewAuxiliaryForms.test.ts",
+          "test": "native overlap stays distinct and typing never instantiates this rule"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review native grammar applies individual edits with native undo"
+        }
+      ]
+    },
+    {
       "id": "install_page_reachable",
       "description": "Extension installation page is reachable after startup.",
       "coverage": [
@@ -3161,17 +3250,17 @@
         {
           "layer": "e2e-full",
           "file": "tests/e2e/full.e2e.test.ts",
-          "test": "Review mode runs every supported rule, even ones off for typing, and none in code mode"
+          "test": "Review mode uses native defaults independently of typing and disables them in code mode"
         },
         {
           "layer": "unit",
           "file": "tests/grammar/ReviewDiagnostics.test.ts",
-          "test": "review runs every supported rule, whatever is on for typing, and none in code mode"
+          "test": "review defaults are independent of typing and leave optional style off"
         },
         {
           "layer": "unit",
           "file": "tests/content_script.behavior.test.ts",
-          "test": "review runs every review-supported rule whatever is on for typing; code mode leaves none"
+          "test": "review defaults stay independent of typing and leave optional style off"
         }
       ]
     },
@@ -3340,7 +3429,7 @@
     },
     {
       "id": "local_ai_setup_offer",
-      "description": "The Review panel shows a one-time Local AI setup offer with the download size; \"Not now\" dismisses it for good; \"Set up local AI\u2026\" opens the options Local AI section focused, whose page only asks for status and installs only after an inline confirm.",
+      "description": "The Review panel shows a one-time Local AI setup offer with the download size; \"Not now\" dismisses it for good; \"Set up local AI…\" opens the options Local AI section focused, whose page only asks for status and installs only after an inline confirm.",
       "coverage": [
         {
           "layer": "e2e-full",
@@ -3355,7 +3444,7 @@
         {
           "layer": "e2e-full",
           "file": "tests/e2e/local-ai.e2e.test.ts",
-          "test": "\"Set up local AI\u2026\" opens the Local AI settings; installing needs the inline confirm"
+          "test": "\"Set up local AI…\" opens the Local AI settings; installing needs the inline confirm"
         },
         {
           "layer": "unit",
@@ -3565,6 +3654,443 @@
           "layer": "unit",
           "file": "tests/LocalAiHost.test.ts",
           "test": "closing during the cache recheck never starts a late model allocation"
+        }
+      ]
+    },
+    {
+      "id": "review_repeated_words",
+      "description": "Native repeated-word suggestions preserve protected text and typing settings, stay individual-only, and apply one deletion with native undo.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review native grammar applies individual edits with native undo"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewRepeatedWords.test.ts",
+          "test": "protects dictionary, scope, language and editor islands"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewRepeatedWords.test.ts",
+          "test": "Review-only rules cannot enter typing runtime or stored typing choices"
+        }
+      ]
+    },
+    {
+      "id": "review_independent_rule_controls",
+      "description": "Native Review preferences persist independently from typing, disable a card check, restore from settings and invalidate old scan results without changing text.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review rule controls persist one disabled check and restore it from settings"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review keeps a disabled rule disabled after reopening in an iframe"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSession.test.ts",
+          "test": "disabling a Review rule invalidates its old batch and keeps unrelated findings"
+        }
+      ]
+    },
+    {
+      "id": "review_contextual_possessives",
+      "description": "Native contextual apostrophe suggestions preserve ambiguous ownership and protected source, remain individual-only and apply with native undo.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review native grammar applies individual edits with native undo"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewPossessives.test.ts",
+          "test": "contextual apostrophes preserve pipeline protections, dictionary, scope and language"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewPossessives.test.ts",
+          "test": "normal nested quotations run while quoted instructions and protected evidence abstain"
+        }
+      ]
+    },
+    {
+      "id": "review_fixed_prepositions",
+      "description": "Native fixed-preposition templates require complete complements, preserve alternative attachments, remain individual-only and apply minimal edits with native undo.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review native grammar applies individual edits with native undo"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewPrepositions.test.ts",
+          "test": "new prepositions stay isolated from typing and protected or out-of-scope evidence"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewPrepositions.test.ts",
+          "test": "full phrase evidence owns one chunk and preserves Unicode, CRLF and ordinary quotations"
+        }
+      ]
+    },
+    {
+      "id": "review_verb_complements",
+      "description": "Native complement checks insert missing to or select explicit gerunds while preserving negation, optional-to constructions, formatted boundaries, recheck and native undo.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review native grammar applies individual edits with native undo"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review missing-to insertion preserves a split formatted verb and native undo"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSession.test.ts",
+          "test": "missing-to insertion rechecks and leaves no stale verb-complement finding"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewComplements.test.ts",
+          "test": "missing-to insertion uses the existing one-grapheme anchor and preserves separators"
+        }
+      ]
+    },
+    {
+      "id": "review_perfect_participles",
+      "description": "Native perfect-tense checks use shared irregular forms, preserve tense/negation and noun or ambiguous uses, defer wrong auxiliaries to agreement, and apply individual edits with undo.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review native grammar applies individual edits with native undo"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewParticiples.test.ts",
+          "test": "agreement owns a wrong auxiliary, then the participle recheck only changes the verb"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewParticiples.test.ts",
+          "test": "perfect participles preserve dictionary, language, scope and protected evidence"
+        }
+      ]
+    },
+    {
+      "id": "review_noun_number",
+      "description": "Native noun-number checks preserve explicit quantity and outer agreement, protect noun modifiers/invariant forms, and require a user choice when demonstrative number is ambiguous.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review native grammar applies individual edits with native undo"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review noun-number alternatives require a choice and preserve the chosen quantity"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewNounNumber.test.ts",
+          "test": "shared noun forms are explicit and existential agreement follows quantity repair"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewNounNumber.test.ts",
+          "test": "number findings preserve dictionary, scope, language and protected evidence"
+        }
+      ]
+    },
+    {
+      "id": "review_contextual_compounds",
+      "description": "Native compound checks use grammatical context, protect technical and noun/adjective uses, own spelling spans and preserve formatting/undo when inserting a word boundary.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review bounded grammar applies individual edits with native undo: %s"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review compound insertion preserves a formatted word boundary"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewCompounds.test.ts",
+          "test": "native compound findings own spelling spans without touching candidate ordering"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewCompounds.test.ts",
+          "test": "compound replacements respect dictionary, read-only segments, language and scope"
+        }
+      ]
+    },
+    {
+      "id": "review_countability",
+      "description": "Ordinary-prose mass nouns and explicit criterion/phenomenon counts preserve quantities, specialist uses and protected evidence; individual repairs recheck and undo in the browser.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review bounded grammar applies individual edits with native undo: %s"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewCountability.test.ts",
+          "test": "countability preserves quantities, protected evidence and independent controls"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewCountability.test.ts",
+          "test": "countability owns one chunk and exposes all specialist evidence"
+        }
+      ]
+    },
+    {
+      "id": "review_doubled_degree",
+      "description": "Doubled-degree corrections preserve comparison targets and quantity, abstain on modifiers and quoted examples, and recheck then/than through existing transactions.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review bounded grammar applies individual edits with native undo: %s"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review degree deletion preserves the formatted comparison"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewDegree.test.ts",
+          "test": "degree checks retain boundaries, dictionary protections and individual scope"
+        },
+        {
+          "layer": "integration",
+          "file": "tests/ReviewSession.test.ts",
+          "test": "degree deletion rechecks then-than and refuses the previous diagnostic id"
+        }
+      ]
+    },
+    {
+      "id": "review_usage_phrases",
+      "description": "Contextual fixed-phrase usage checks preserve literal, creative and quoted meanings; inflections and possessives survive individual repairs with formatting and native undo.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review bounded grammar applies individual edits with native undo: %s"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review usage phrase replacement preserves split formatting"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewUsagePhrases.test.ts",
+          "test": "usage phrases preserve case, tense, possessives and protected evidence"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewUsagePhrases.test.ts",
+          "test": "usage phrase offsets belong to one chunk in ordinary quoted Unicode prose"
+        }
+      ]
+    },
+    {
+      "id": "review_session_matching_ignores",
+      "description": "Session-local context-aware ignore matching and reset preserve remapping and privacy, invalidate changed evidence, update counts/filters/batches, exclude AI and expire on close.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review matching ignores remap, reset and expire on close without persisting prose"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSession.test.ts",
+          "test": "changes inside ignored evidence release only the changed occurrence"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSession.test.ts",
+          "test": "protection changes invalidate matching suppression permanently"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSession.test.ts",
+          "test": "matching ignores affect filters and batch plans without changing dictionary or settings"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewUiLocalAi.test.ts",
+          "test": "matching ignores show session scope, stay separate from disable, and exclude AI"
+        }
+      ]
+    },
+    {
+      "id": "review_quotation_warnings",
+      "description": "Complete-field quotation warnings have zero alternatives, no write path, accessible keyboard cards and conservative scope/protection guards.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review quotation warnings support keyboard and filters without Apply or batch edits"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewQuotationWarnings.test.ts",
+          "test": "quotation warnings require complete unprotected evidence"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSession.test.ts",
+          "test": "unread adapter content suppresses quotation warnings"
+        }
+      ]
+    },
+    {
+      "id": "review_canonical_casing",
+      "description": "Review-only explicit canonical names preserve technical/quoted/dictionary text and deliberate casing, suppress competing sentence-start suggestions, and retain native undo and formatting.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review bounded grammar applies individual edits with native undo: %s"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review canonical casing preserves split formatting and native undo"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewCanonicalCasing.test.ts",
+          "test": "canonical casing owns sentence starts only when its suggestion is enabled"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewCanonicalCasing.test.ts",
+          "test": "canonical casing respects dictionary, scope, protection, language and typing separation"
+        }
+      ]
+    },
+    {
+      "id": "review_preferred_terminology",
+      "description": "Explicitly configured literal terminology uses stable per-entry native diagnostics, safe authored explanations, native Apply/undo/removal, protections and preferred-word ownership.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review authored terminology applies safely and disappears when removed"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewTerminology.test.ts",
+          "test": "preferred words own native and spelling corrections without changing the dictionary"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/PreferredTerminology.test.ts",
+          "test": "terminology import and entry counts have hard bounds"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Terminology settings author, edit, import and remove entries without changing text assets"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/PreferredTerminologyPanel.test.ts",
+          "test": "imports are bounded before reading, validated as a whole, and retain authored IDs"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/PreferredTerminologyPanel.test.ts",
+          "test": "export downloads only the validated authored configuration as JSON"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/settingsEngine.controls.test.ts",
+          "test": "settings announce persistence only after the storage write finishes"
+        }
+      ]
+    },
+    {
+      "id": "review_incremental_native_rechecks",
+      "description": "Bounded native phrase reuse equals full scans, invalidates evidence and structure, releases on close, and preserves long-draft native undo and code protection.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/grammar/NativeReviewCache.test.ts",
+          "test": "seeded edits preserve exact full-scan diagnostics, context, coverage and bulk decisions"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSession.test.ts",
+          "test": "long Review rechecks reuse native phrases and invalidate structure, settings and fences"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSession.test.ts",
+          "test": "closing a yielded native recheck releases cache and cancels remaining detector calls"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Long Review rechecks preserve native apply undo and invalidate an opening code fence"
+        }
+      ]
+    },
+    {
+      "id": "review_optional_style_advice",
+      "description": "Style checks default off, remain separate from error counts and safe bulk, preserve quoted wording, and offer individual acronym repairs or warning-only readability advice with native undo.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/grammar/StyleAdvice.test.ts",
+          "test": "style is explicitly opt-in, never typing, recommended or safe bulk"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSession.test.ts",
+          "test": "readability advice does not hide spelling and cannot be applied"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewUiLocalAi.test.ts",
+          "test": "optional style advice has a separate count/filter and no default filter"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Optional style advice stays off by default and separates counts warnings and native undo"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ConfigAssembler.localAi.test.ts",
+          "test": "readability threshold defaults and validation stay outside prediction config and opt-in choices"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Readability settings persist a validated threshold and recheck without enabling advice"
         }
       ]
     }

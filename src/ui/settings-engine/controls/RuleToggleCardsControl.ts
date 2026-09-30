@@ -43,6 +43,7 @@ export class RuleToggleCardsControl extends BaseControl<string[]> {
 
     const root = document.createElement("div");
     root.className = "field grammar-rule-selector-field";
+    root.dataset.setting = params.name;
     this._rootElement = root;
 
     const container = document.createElement("div");

@@ -1,4 +1,7 @@
-import { describe, expect, test } from "bun:test";
+import { NativeReviewCache } from "../src/core/domain/grammar/review/nativeReviewCache";
+import { REVIEW_DETECTORS } from "../src/core/domain/grammar/review/reviewDetectors";
+import { detectReviewDiagnostics } from "../src/core/domain/grammar/review/reviewDiagnostics";
+import { describe, expect, test, spyOn } from "bun:test";
 import {
   ReviewSession,
   SPELLING_UNKNOWN_PER_PASS,
@@ -23,6 +26,7 @@ class FakeEditor implements ReviewTargetPort {
   capabilities: ReviewCapabilities = { inline: true, apply: true, bulk: true, undo: "single-step" };
   protectedRanges: ProtectedRange[] = [];
   composing = false;
+  unread = 0;
   applyCalls: Array<{ edits: ReviewEdit[]; before: string; after: string }> = [];
   /** Forces the next apply result. */
   nextResult: ReviewApplyResult | null = null;
@@ -34,6 +38,7 @@ class FakeEditor implements ReviewTargetPort {
     return {
       ok: true,
       text: this.text,
+      unread: this.unread,
       protectedRanges: this.protectedRanges,
       signature: JSON.stringify(this.protectedRanges),
     };
@@ -63,11 +68,15 @@ function harness(
   {
     scope = null,
     dictionary,
+    disableReviewRule,
+    spellingEnabled,
     rules = ["englishTypoWhitelistCorrection"],
     lookupSpelling,
   }: {
     scope?: TextRange | null;
     dictionary?: (word: string) => Promise<boolean>;
+    disableReviewRule?: (ruleId: string) => Promise<boolean>;
+    spellingEnabled?: boolean;
     rules?: readonly string[];
     lookupSpelling?: ReviewSpellingLookup;
   } = {},
@@ -80,12 +89,14 @@ function harness(
     options: {
       lang: "en_US",
       enabledRules: rules,
+      spellingEnabled,
       userDictionary: [],
       insertSpaceAfterAutocomplete: true,
     },
     initialScope: scope,
     onChange: (state) => states.push(state),
     addToDictionary: dictionary,
+    disableReviewRule,
     lookupSpelling,
     setTimer: (callback, delay) => {
       const timer = { callback, delay };
@@ -854,4 +865,548 @@ describe("ReviewSession spelling", () => {
     expect(none.last().spelling).toBe("off");
     expect(off.calls).toEqual([]);
   });
+});
+
+test("disabling a Review rule invalidates its old batch and keeps unrelated findings", async () => {
+  const saved: string[] = [];
+  const h = harness("teh cat. I opened the the report.", {
+    rules: ["englishTypoWhitelistCorrection", "englishRepeatedWords"],
+    disableReviewRule: async (id) => {
+      saved.push(id);
+      return true;
+    },
+  });
+  await Promise.all([h.session.start(), h.settle()]);
+  const old = h.last().diagnostics.find((d) => d.ruleId === "englishTypoWhitelistCorrection")!;
+  await h.session.disableReviewRule(old.id);
+  expect(h.last().status).toBe("updating");
+  await h.session.fixAll();
+  expect(h.editor.applyCalls).toHaveLength(0);
+  await h.settle();
+  expect(saved).toEqual(["englishTypoWhitelistCorrection"]);
+  expect(h.last().diagnostics.map((d) => d.ruleId)).toEqual(["englishRepeatedWords"]);
+  await h.session.apply(old.id, 0);
+  expect(h.editor.applyCalls).toHaveLength(0);
+  expect(h.editor.text).toBe("teh cat. I opened the the report.");
+  h.session.close();
+});
+
+test("a failed Review preference write retains findings and reports failure", async () => {
+  const h = harness("teh cat", {
+    disableReviewRule: async () => {
+      throw new Error("storage unavailable");
+    },
+  });
+  await Promise.all([h.session.start(), h.settle()]);
+  await h.session.disableReviewRule(h.last().diagnostics[0].id);
+  expect(h.originals()).toEqual(["teh"]);
+  expect(h.last().notice).toEqual({ kind: "rule-setting-failed" });
+  h.session.close();
+});
+
+test("Review settings broadcasts cancel in-progress scans in multiple sessions", async () => {
+  const sessions = [harness("teh cat.\n".repeat(1200)), harness("teh dog.\n".repeat(1200))];
+  const starts = sessions.map((h) => h.session.start());
+  for (let i = 0; i < 5; i++) await Promise.resolve();
+  for (const h of sessions) {
+    expect(h.last().status).toBe("loading");
+    h.session.updateOptions({
+      lang: "en_US",
+      enabledRules: [],
+      userDictionary: [],
+      insertSpaceAfterAutocomplete: true,
+    });
+  }
+  await Promise.all(sessions.map((h) => h.settle()));
+  await Promise.all(starts);
+  for (const h of sessions) {
+    expect(h.last().diagnostics).toEqual([]);
+    expect(h.last().noRules).toBe(true);
+    expect(h.editor.applyCalls).toHaveLength(0);
+    h.session.close();
+  }
+});
+
+test("disabling all native checks preserves explicit spelling and offers no AI or spelling disable action", async () => {
+  const calls: string[] = [];
+  const h = harness("wa", {
+    rules: [],
+    spellingEnabled: true,
+    lookupSpelling: async (_lang, words) => words.map(() => ["was"]),
+    disableReviewRule: async (id) => {
+      calls.push(id);
+      return true;
+    },
+  });
+  await Promise.all([h.session.start(), h.settle()]);
+  expect(h.last().noRules).toBe(false);
+  expect(h.last().diagnostics[0].ruleId).toBe("reviewSpelling");
+  await h.session.disableReviewRule(h.last().diagnostics[0].id);
+  expect(calls).toEqual([]);
+  expect(h.last().diagnostics).toHaveLength(1);
+  h.session.close();
+});
+
+test("missing-to insertion rechecks and leaves no stale verb-complement finding", async () => {
+  const h = harness("We need fix this bug. I look forward to meet you.", {
+    rules: ["englishVerbComplements"],
+  });
+  await Promise.all([h.session.start(), h.settle()]);
+  const first = h.last().diagnostics[0];
+  const pending = h.session.apply(first.id);
+  await h.settle();
+  expect(await pending).toEqual({ status: "applied" });
+  expect(h.editor.text).toBe("We need to fix this bug. I look forward to meet you.");
+  expect(h.editor.applyCalls[0].edits).toEqual([
+    { start: 8, end: 9, original: "f", replacement: "to f" },
+  ]);
+  expect(h.originals()).toEqual(["meet"]);
+  await h.session.apply(first.id);
+  expect(h.editor.applyCalls).toHaveLength(1);
+  expect(h.last().bulk.count).toBe(0);
+});
+
+test("degree deletion rechecks then-than and refuses the previous diagnostic id", async () => {
+  const h = harness("The result is more better then the old result.", {
+    rules: ["englishDoubledDegree", "englishThenThan"],
+  });
+  await Promise.all([h.session.start(), h.settle()]);
+  expect(h.last().diagnostics).toHaveLength(1);
+  const degree = h.last().diagnostics[0];
+  expect(degree.ruleId).toBe("englishDoubledDegree");
+  const applying = h.session.apply(degree.id);
+  await h.settle();
+  expect(await applying).toEqual({ status: "applied" });
+  expect(h.editor.text).toBe("The result is better then the old result.");
+  expect(h.last().diagnostics).toHaveLength(1);
+  const than = h.last().diagnostics[0];
+  expect(than.ruleId).toBe("englishThenThan");
+  expect(than.original).toBe("then");
+  expect(than.id).not.toBe(degree.id);
+  await h.session.apply(degree.id);
+  expect(h.editor.applyCalls).toHaveLength(1);
+  expect(h.last().bulk.count).toBe(0);
+  const second = h.session.apply(than.id);
+  await h.settle();
+  expect(await second).toEqual({ status: "applied" });
+  expect(h.editor.text).toBe("The result is better than the old result.");
+  expect(h.last().diagnostics).toEqual([]);
+  h.session.close();
+});
+
+const matchingPrefix = "Plain context. ".repeat(9);
+const repeatedPair = `${matchingPrefix}the the cat. `;
+async function matchingHarness() {
+  const h = harness(repeatedPair + repeatedPair + `${matchingPrefix}a a cat.`, {
+    rules: ["englishRepeatedWords"],
+  });
+  await Promise.all([h.session.start(), h.settle()]);
+  return h;
+}
+
+test("matching ignores use evidence and alternatives, reset restores current occurrences", async () => {
+  const h = await matchingHarness();
+  expect(h.last().diagnostics).toHaveLength(3);
+  h.session.ignoreMatching(h.last().diagnostics[0].id);
+  expect(h.originals()).toEqual(["a a"]);
+  expect(h.last().ignoredCount).toBe(2);
+  expect(h.last().selectedId).toBeNull();
+  expect(h.editor.applyCalls).toEqual([]);
+  h.session.resetIgnores();
+  expect(h.last().ignoredCount).toBe(0);
+  expect(h.last().diagnostics).toHaveLength(3);
+  h.session.close();
+});
+
+test("matching ignores survive insertion before unchanged evidence", async () => {
+  const h = await matchingHarness();
+  h.session.ignoreMatching(h.last().diagnostics[0].id);
+  h.editor.text = "New introduction. " + h.editor.text;
+  h.session.notifySourceChanged();
+  await h.settle();
+  expect(h.originals()).toEqual(["a a"]);
+  expect(h.last().ignoredCount).toBe(2);
+  h.session.close();
+});
+
+test("changes inside ignored evidence release only the changed occurrence", async () => {
+  const h = await matchingHarness();
+  h.session.ignoreMatching(h.last().diagnostics[0].id);
+  const pos = matchingPrefix.length - 15;
+  h.editor.text = h.editor.text.slice(0, pos) + "Fresh" + h.editor.text.slice(pos + 5);
+  h.session.notifySourceChanged();
+  await h.settle();
+  expect(h.originals()).toEqual(["the the", "a a"]);
+  expect(h.last().ignoredCount).toBe(1);
+  h.session.close();
+});
+
+test("deletion and reinsertion do not resurrect a matching ignore", async () => {
+  const h = await matchingHarness();
+  const source = h.editor.text;
+  const range = h.last().diagnostics[0].range;
+  h.session.ignoreMatching(h.last().diagnostics[0].id);
+  h.editor.text = source.slice(0, range.start) + source.slice(range.end);
+  h.session.notifySourceChanged();
+  await h.settle();
+  h.editor.text = source;
+  h.session.notifySourceChanged();
+  await h.settle();
+  expect(h.originals()).toEqual(["the the", "a a"]);
+  expect(h.last().ignoredCount).toBe(1);
+  h.session.close();
+});
+
+test("protection changes invalidate matching suppression permanently", async () => {
+  const h = await matchingHarness();
+  const range = h.last().diagnostics[0].range;
+  h.session.ignoreMatching(h.last().diagnostics[0].id);
+  h.editor.protectedRanges = [{ ...range, reason: "code" }];
+  h.session.notifySourceChanged();
+  await h.settle();
+  expect(h.last().ignoredCount).toBe(1);
+  h.editor.protectedRanges = [];
+  h.session.notifySourceChanged();
+  await h.settle();
+  expect(h.originals()).toEqual(["the the", "a a"]);
+  expect(h.last().ignoredCount).toBe(1);
+  h.session.close();
+});
+
+test("matching ignores affect filters and batch plans without changing dictionary or settings", async () => {
+  let dictionaryWrites = 0;
+  let settingWrites = 0;
+  const h = harness("teh cat and teh dog. recieve it.", {
+    rules: ["englishTypoWhitelistCorrection"],
+    dictionary: async () => {
+      dictionaryWrites++;
+      return true;
+    },
+    disableReviewRule: async () => {
+      settingWrites++;
+      return true;
+    },
+  });
+  await Promise.all([h.session.start(), h.settle()]);
+  expect(h.last().bulk.count).toBe(3);
+  h.session.ignoreMatching(h.last().diagnostics[0].id);
+  await h.settle();
+  expect(h.originals()).toEqual(["recieve"]);
+  expect(h.last().bulk.count).toBe(1);
+  h.session.setCategory("spelling", false);
+  expect(h.originals()).toEqual([]);
+  expect(h.last().ignoredCount).toBe(2);
+  h.session.resetIgnores();
+  h.session.setCategory("spelling", true);
+  await h.settle();
+  expect(h.last().bulk.count).toBe(3);
+  expect(dictionaryWrites).toBe(0);
+  expect(settingWrites).toBe(0);
+  h.session.close();
+});
+
+test("closing and another editor never retain matching exceptions", async () => {
+  const h = await matchingHarness();
+  h.session.ignoreMatching(h.last().diagnostics[0].id);
+  const other = await matchingHarness();
+  expect(other.last().diagnostics).toHaveLength(3);
+  h.session.close();
+  expect(h.last().ignoredCount).toBe(0);
+  const reopened = await matchingHarness();
+  expect(reopened.last().diagnostics).toHaveLength(3);
+  other.session.close();
+  reopened.session.close();
+});
+
+test("same source word in a different then-than context is not suppressed", async () => {
+  const h = harness(
+    "This is better then the old model. That was faster then the previous version. Then we left.",
+    { rules: ["englishThenThan"] },
+  );
+  await Promise.all([h.session.start(), h.settle()]);
+  expect(h.last().diagnostics).toHaveLength(2);
+  h.session.ignoreMatching(h.last().diagnostics[0].id);
+  expect(h.last().diagnostics).toHaveLength(1);
+  expect(h.last().ignoredCount).toBe(1);
+  h.session.close();
+});
+
+test("matching ignores remap through verified edits and do not learn new occurrences", async () => {
+  const h = harness("teh introduction. " + repeatedPair + repeatedPair, {
+    rules: ["englishRepeatedWords", "englishTypoWhitelistCorrection"],
+  });
+  await Promise.all([h.session.start(), h.settle()]);
+  const repeated = h.last().diagnostics.find((d) => d.ruleId === "englishRepeatedWords")!;
+  h.session.ignoreMatching(repeated.id);
+  const fixing = h.session.apply(h.last().diagnostics[0].id);
+  await h.settle();
+  expect(await fixing).toEqual({ status: "applied" });
+  expect(h.last().ignoredCount).toBe(2);
+  expect(h.originals()).toEqual([]);
+  // A distinct ending makes this insertion unambiguous to the native snapshot diff.
+  h.editor.text += "\nNew section.\n" + repeatedPair + "New ending.";
+  h.session.notifySourceChanged();
+  await h.settle();
+  expect(h.originals()).toEqual(["the the"]);
+  expect(h.last().ignoredCount).toBe(2);
+  h.session.close();
+});
+
+test("ignore once and matching ignores reset together without changing another rule", async () => {
+  const h = await matchingHarness();
+  h.session.ignore(h.last().diagnostics[2].id);
+  h.session.ignoreMatching(h.last().diagnostics[0].id);
+  expect(h.last().ignoredCount).toBe(3);
+  h.session.resetIgnores();
+  expect(h.last().diagnostics).toHaveLength(3);
+  expect(h.last().ignoredCount).toBe(0);
+  h.session.close();
+});
+
+test("ambiguous duplicate insertion releases matching ignores rather than guessing positions", async () => {
+  const h = harness(repeatedPair + repeatedPair, { rules: ["englishRepeatedWords"] });
+  await Promise.all([h.session.start(), h.settle()]);
+  h.session.ignoreMatching(h.last().diagnostics[0].id);
+  h.editor.text += repeatedPair;
+  h.session.notifySourceChanged();
+  await h.settle();
+  expect(h.last().ignoredCount).toBe(0);
+  expect(h.last().diagnostics).toHaveLength(3);
+  h.session.close();
+});
+
+test("quotation warnings filter, ignore and recheck without any write path", async () => {
+  const h = harness("He wrote, “The build is ready.", { rules: ["unclosedQuotation"] });
+  await Promise.all([h.session.start(), h.settle()]);
+  const d = h.last().diagnostics[0];
+  expect(d.warningOnly).toBe(true);
+  expect(h.last().bulk.count).toBe(0);
+  expect(await h.session.apply(d.id)).toBeNull();
+  expect(await h.session.fixAll()).toBeNull();
+  expect(h.editor.applyCalls).toEqual([]);
+  h.session.setCategory("punctuation", false);
+  expect(h.originals()).toEqual([]);
+  h.session.setCategory("punctuation", true);
+  expect(h.originals()).toEqual(["“"]);
+  h.session.ignore(d.id);
+  expect(h.originals()).toEqual([]);
+  h.session.resetIgnores();
+  await h.settle();
+  expect(h.originals()).toEqual(["“"]);
+  h.editor.text += "”";
+  h.session.notifySourceChanged();
+  await h.settle();
+  expect(h.originals()).toEqual([]);
+  expect(h.editor.applyCalls).toEqual([]);
+  h.session.close();
+});
+
+test("unread adapter content suppresses quotation warnings", async () => {
+  const h = harness("He wrote, “The build is ready.", { rules: ["unclosedQuotation"] });
+  h.editor.unread = 100;
+  await Promise.all([h.session.start(), h.settle()]);
+  expect(h.last().unread).toBe(100);
+  expect(h.originals()).toEqual([]);
+  h.session.close();
+});
+
+test("preferred terminology config changes invalidate Review but identical broadcasts do not", async () => {
+  const h = harness("Plain text.", { rules: [] });
+  await Promise.all([h.session.start(), h.settle()]);
+  const options = {
+    lang: "en_US",
+    enabledRules: [],
+    userDictionary: [],
+    insertSpaceAfterAutocomplete: true,
+    preferredTerminology: { version: 1 as const, enabled: false, entries: [] },
+  };
+  h.session.updateOptions(options);
+  await h.settle();
+  const count = h.states.length;
+  h.session.updateOptions(structuredClone(options));
+  await h.settle();
+  expect(h.states).toHaveLength(count);
+  h.session.updateOptions({
+    ...options,
+    preferredTerminology: { ...options.preferredTerminology, enabled: true },
+  });
+  expect(h.states.length).toBeGreaterThan(count);
+  await h.settle();
+  expect(h.editor.applyCalls).toEqual([]);
+  h.session.close();
+});
+
+test("removing a preferred term rechecks immediately and restores native ownership", async () => {
+  const h = harness("We use Acme Suite.", { rules: ["preferredTerminology"] });
+  const opts = {
+    lang: "en_US",
+    enabledRules: ["preferredTerminology"],
+    userDictionary: [],
+    insertSpaceAfterAutocomplete: true,
+    preferredTerminology: {
+      version: 1 as const,
+      enabled: true,
+      entries: [
+        {
+          id: "acme",
+          source: "Acme Suite",
+          replacement: "Acme Workspace",
+          casePolicy: "exact" as const,
+          explanation: "Our preferred name.",
+          language: "en_US",
+          scope: "all-prose" as const,
+          enabled: true,
+        },
+      ],
+    },
+  };
+  h.session.updateOptions(opts);
+  await Promise.all([h.session.start(), h.settle()]);
+  expect(h.last().diagnostics[0].terminology?.id).toBe("acme");
+  expect(h.last().bulk.count).toBe(0);
+  h.session.updateOptions({
+    ...opts,
+    preferredTerminology: { ...opts.preferredTerminology, entries: [] },
+  });
+  await h.settle();
+  expect(h.last().diagnostics).toEqual([]);
+  expect(h.editor.text).toBe("We use Acme Suite.");
+  expect(h.editor.applyCalls).toEqual([]);
+  h.session.close();
+});
+
+test("long Review rechecks reuse native phrases and invalidate structure, settings and fences", async () => {
+  const text = Array.from(
+    { length: 120 },
+    (_, i) => `We discussed about the plan. They are one in the same. Record ${i}.\n\n`,
+  ).join("");
+  const rules = ["englishFixedPrepositions", "englishUsagePhrases"];
+  const h = harness(text, { rules });
+  const detector = REVIEW_DETECTORS.find((d) => d.rules[0] === rules[0])!;
+  const spy = spyOn(detector, "detect");
+  try {
+    await Promise.all([h.session.start(), h.settle()]);
+    const firstCalls = spy.mock.calls.length;
+    expect(firstCalls).toBeGreaterThan(1);
+    spy.mockClear();
+    h.editor.text = text.replace("Record 3.", "Record 4.");
+    h.session.notifySourceChanged();
+    await h.settle();
+    const reusedCalls = spy.mock.calls.length;
+    expect(reusedCalls).toBeLessThan(firstCalls);
+    expect(reusedCalls).toBeGreaterThan(0);
+    const id = h.last().diagnostics[0].id.split("/")[0];
+    const full = detectReviewDiagnostics(
+      {
+        id,
+        text: h.editor.text,
+        scope: { start: 0, end: h.editor.text.length },
+        protectedRanges: [],
+      },
+      {
+        lang: "en_US",
+        enabledRules: rules,
+        userDictionary: [],
+        insertSpaceAfterAutocomplete: true,
+      },
+    );
+    expect(h.last().diagnostics).toEqual(full.diagnostics);
+    const originalRead = h.editor.read.bind(h.editor);
+    const readSpy = spyOn(h.editor, "read").mockImplementation(() => {
+      const read = originalRead();
+      return read.ok ? { ...read, signature: read.signature + "structure" } : read;
+    });
+    spy.mockClear();
+    h.session.notifySourceChanged();
+    await h.settle();
+    expect(spy.mock.calls.length).toBe(firstCalls);
+    readSpy.mockRestore();
+    h.session.updateOptions({
+      lang: "en_US",
+      enabledRules: rules,
+      userDictionary: ["discussed", "same"],
+      insertSpaceAfterAutocomplete: true,
+    });
+    await h.settle();
+    expect(h.last().diagnostics).toEqual([]);
+    h.session.updateOptions({
+      lang: "en_US",
+      enabledRules: rules,
+      userDictionary: [],
+      insertSpaceAfterAutocomplete: true,
+    });
+    await h.settle();
+    expect(h.last().diagnostics.length).toBeGreaterThan(0);
+    h.editor.text = "```\n" + h.editor.text;
+    h.session.notifySourceChanged();
+    await h.settle();
+    expect(h.last().diagnostics).toEqual([]);
+  } finally {
+    h.session.close();
+    spy.mockRestore();
+  }
+});
+
+test("closing a yielded native recheck releases cache and cancels remaining detector calls", async () => {
+  const h = harness("We discussed about the plan.\n\n".repeat(400), {
+    rules: ["englishFixedPrepositions"],
+  });
+  const detector = REVIEW_DETECTORS.find((d) => d.rules[0] === "englishFixedPrepositions")!;
+  const spy = spyOn(detector, "detect");
+  const clear = spyOn(NativeReviewCache.prototype, "clear");
+  try {
+    const started = h.session.start();
+    for (let i = 0; i < 5; i++) await Promise.resolve();
+    expect(spy.mock.calls.length).toBeGreaterThan(0);
+    const calls = spy.mock.calls.length;
+    const cleared = clear.mock.calls.length;
+    h.session.close();
+    expect(clear.mock.calls.length).toBe(cleared + 1);
+    await h.settle();
+    await started;
+    expect(spy.mock.calls.length).toBe(calls);
+    expect(h.last().status).toBe("closed");
+    expect(h.states.some((s) => s.status === "ready")).toBe(false);
+  } finally {
+    spy.mockRestore();
+    clear.mockRestore();
+  }
+});
+
+test("style Apply and ignores stay separate from resolved and ignored errors", async () => {
+  const h = harness("Use your PIN number.", { rules: ["styleRedundancy"] });
+  await Promise.all([h.session.start(), h.settle()]);
+  h.session.ignore(h.last().diagnostics[0].id);
+  expect(h.last().ignoredCount).toBe(0);
+  expect(h.last().ignoredAdviceCount).toBe(1);
+  h.session.resetIgnores();
+  const applied = h.session.apply(h.last().diagnostics[0].id);
+  await h.settle();
+  await applied;
+  expect(h.editor.text).toBe("Use your PIN.");
+  expect(h.last().resolvedCount).toBe(0);
+  expect(h.last().notice).toEqual({ kind: "advice-applied" });
+  h.session.close();
+});
+
+test("readability advice does not hide spelling and cannot be applied", async () => {
+  const words: string[] = [];
+  const text =
+    "The team reviewed every part of the detailed proposal and carefully considered all of the important information before making any decision about the next stage of the project because there were still several questions about the mispelt word.";
+  const h = harness(text, {
+    rules: ["styleLongSentence"],
+    spellingEnabled: true,
+    lookupSpelling: async (_lang, batch) => {
+      words.push(...batch.map((item) => item.word));
+      return batch.map((item) => (item.word === "mispelt" ? ["misspelt"] : null));
+    },
+  });
+  await Promise.all([h.session.start(), h.settle()]);
+  expect(words).toContain("mispelt");
+  const warning = h.last().diagnostics.find((d) => d.ruleId === "styleLongSentence")!;
+  expect(warning.warningOnly).toBe(true);
+  expect(h.last().diagnostics.some((d) => d.ruleId === "reviewSpelling")).toBe(true);
+  expect(await h.session.apply(warning.id)).toBeNull();
+  expect(h.editor.applyCalls).toEqual([]);
+  h.session.close();
 });

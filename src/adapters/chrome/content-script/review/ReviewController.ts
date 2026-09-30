@@ -1,3 +1,4 @@
+import type { CatalogRuleId } from "@core/domain/grammar/ruleCatalog";
 import { getDeepActiveElement } from "@core/application/dom-utils";
 import { createLogger } from "@core/application/logging/Logger";
 import {
@@ -33,6 +34,7 @@ export interface ReviewControllerDependencies {
   /** A suggestion popup is showing for this editor: its Escape closes that first. */
   suggestionsOpen?(element: HTMLElement): boolean;
   addToDictionary(word: string): Promise<boolean>;
+  disableReviewRule?(ruleId: CatalogRuleId): Promise<boolean>;
   /** Local dictionary lookups for unknown words (the extension's own Presage engine). */
   lookupSpelling?: ReviewSpellingLookup;
   /** Called when a review opens or closes (the in-field button hides for the reviewed field). */
@@ -233,6 +235,8 @@ export class ReviewController {
       initialScope: scope,
       onChange: (state) => this.onState(state),
       addToDictionary: (word) => this.deps.addToDictionary(word),
+      disableReviewRule:
+        this.deps.disableReviewRule && ((ruleId) => this.deps.disableReviewRule!(ruleId)),
       lookupSpelling: this.deps.lookupSpelling,
       ai,
       detectLanguage: this.deps.detectLanguage && ((text) => this.deps.detectLanguage!(text)),
@@ -464,6 +468,19 @@ export class ReviewController {
         select: (id, options) => this.select(id, options),
         apply: (id, alternative, viaKeyboard) => void this.apply(id, alternative, viaKeyboard),
         ignore: (id) => this.ignore(id),
+        ignoreMatching: (id) => this.ignore(id, true),
+        resetIgnores: () => {
+          this.active?.ui.closeCard();
+          this.active?.session.resetIgnores();
+          this.active?.ui.focusPanel();
+        },
+        disableRule: this.deps.disableReviewRule
+          ? (id) => {
+              this.active?.ui.closeCard();
+              void this.active?.session.disableReviewRule(id);
+              this.active?.ui.focusPanel();
+            }
+          : undefined,
         addToDictionary: (id) => void this.active?.session.addToDictionary(id),
         fixAll: (viaKeyboard) => void this.fixAll(viaKeyboard),
         toggleCategory: (category: ReviewCategory, shown) =>
@@ -583,12 +600,13 @@ export class ReviewController {
     if (this.active === active && viaKeyboard) this.focusAfterWrite(active);
   }
 
-  private ignore(id: string): void {
+  private ignore(id: string, matching = false): void {
     const active = this.active;
     if (!active) return;
     const index = active.state?.diagnostics.findIndex((d) => d.id === id) ?? -1;
     active.ui.closeCard();
-    active.session.ignore(id);
+    if (matching) active.session.ignoreMatching(id);
+    else active.session.ignore(id);
     // Keep keyboard users in the list, on the issue that took this one's place.
     const next =
       active.state?.diagnostics[
@@ -864,6 +882,8 @@ const NOTICE_CALLBACKS: ReviewUiCallbacks = {
   select: () => {},
   apply: () => {},
   ignore: () => {},
+  ignoreMatching: () => {},
+  resetIgnores: () => {},
   addToDictionary: () => {},
   fixAll: () => {},
   toggleCategory: () => {},

@@ -703,6 +703,14 @@ describe("contenteditable writes", () => {
       // The replacement goes in before the last original character leaves: the node never empties.
       expect(outcome.commands).toEqual(["insertText", "delete"]);
 
+      outcome = await applyOne(
+        "<p>We need <b>f</b><i>ix</i> this bug.</p>",
+        edit(8, 9, "f", "to f"),
+      );
+      expect(outcome.result).toEqual({ status: "applied" });
+      expect(outcome.html).toBe("<p>We need <b>to f</b><i>ix</i> this bug.</p>");
+      expect(outcome.commands).toEqual(["insertText"]);
+
       outcome = await applyOne("<p>We <i>realy</i> like it</p>", edit(3, 8, "realy", "really"));
       expect(outcome.result).toEqual({ status: "applied" });
       expect(outcome.html).toBe("<p>We <i>really</i> like it</p>");

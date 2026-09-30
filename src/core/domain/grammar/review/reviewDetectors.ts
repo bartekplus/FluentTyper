@@ -1,3 +1,20 @@
+import { canonicalCasing } from "./canonicalCasing";
+import { usagePhrases } from "./englishUsagePhrases";
+import { doubledDegree } from "./englishDegree";
+import { countability } from "./englishCountability";
+import { contextualCompounds } from "./englishCompounds";
+import { nounNumberConstructions } from "./englishNounNumber";
+import { perfectParticiples } from "./englishParticiples";
+import { verbComplements } from "./englishComplements";
+import { fixedPrepositions } from "./englishPrepositions";
+import { contextualPossessives } from "./englishPossessives";
+import {
+  additionalPronounAgreement,
+  existentialAgreement,
+  subjectAgreement,
+} from "./englishAgreement";
+import { wordConfusions } from "./englishWordConfusions";
+import { auxiliaryForms } from "./englishAuxiliaryForms";
 import type { CatalogRuleId } from "../ruleCatalog";
 import { SPACE_CHARS } from "../../spacingRules";
 import { usesFrenchPunctuationSpacing } from "../typographyProfiles";
@@ -50,12 +67,8 @@ import {
 } from "../implementations/EnglishProperNounCapitalizationRule";
 import { CURRENCY_MARKERS } from "../implementations/CurrencySpacingRule";
 import { isProsePrefix } from "../implementations/MeasurementUnitFormattingRule";
-import {
-  PROTECTED_SPAN_OPENERS,
-  isInsideProtectedSpan,
-} from "../implementations/helpers/ProtectedSpanShared";
 import { isLowercaseLetter, isTechnicalToken } from "../implementations/helpers/GenericRuleShared";
-import { commonAffixes, isGraphemeBoundary } from "./textRanges";
+import { commonAffixes, isGraphemeBoundary, overlapsSortedRanges } from "./textRanges";
 import type { ReviewEdit, ReviewMessageKey, TextRange } from "./types";
 
 /**
@@ -70,7 +83,7 @@ import type { ReviewEdit, ReviewMessageKey, TextRange } from "./types";
  * helpers, evaluated at positions in the finished text. No typing events are
  * simulated and no delimiter is appended at the end of the input.
  */
-interface DetectContext {
+export interface DetectContext {
   source: string;
   text: string;
   /**
@@ -85,19 +98,27 @@ interface DetectContext {
   lang: string;
   dictionary: ReadonlySet<string>;
   insertSpaceAfterAutocomplete: boolean;
+  quotationFindings?: readonly RawFinding[];
+  quotationRanges?: readonly TextRange[];
+  exampleRanges?: readonly TextRange[];
+  styleFindings?: readonly RawFinding[];
+  terminologyFindings?: readonly RawFinding[];
 }
 
 export interface RawFinding {
+  terminology?: { id: string; explanation: string };
   ruleId: CatalogRuleId;
   messageKey: ReviewMessageKey;
   range: TextRange;
   /** Replacement for `range`, per alternative. */
   alternatives: string[];
+  warningOnly?: true;
   /** Evidence the decision depended on; defaults to `range`. */
   context?: TextRange;
   /** A finding the rule's metadata would batch but this instance must not. */
   bulkBlock?: "context-dependent" | "ambiguous";
   dictionaryWord?: string;
+  requiresChoice?: true;
 }
 
 type Detector = (ctx: DetectContext) => RawFinding[];
@@ -253,6 +274,8 @@ const capitalizeStarts: Detector = (ctx) => {
     if (startsSentence(ctx.text, wordStart, ctx.lang)) {
       const end = sentenceEndBefore(ctx.text, wordStart);
       const mark = ctx.text[end.mark];
+      if (overlapsSortedRanges(ctx.exampleRanges ?? [], { start: end.mark, end: end.mark + 1 }))
+        continue;
       // "“Stop!” she shouted", "(really?) and": a quoted or bracketed "!" or
       // "?" before a lowercase word ends the quotation, not the sentence.
       if (end.closed && mark !== ".") continue;
@@ -652,7 +675,7 @@ const YOU_SUBJECT_BEFORE = new Set([
 ]);
 
 const pronounVerb: Detector = (ctx) => {
-  const findings: RawFinding[] = [];
+  const findings = additionalPronounAgreement(ctx);
   for (const { match, end } of phraseMatches(ctx, AGREEMENT_REGEX, 3)) {
     const phrase = match[1];
     const corrected = AGREEMENT_CORRECTIONS.get(phrase.toLowerCase().replace(/\s+/, " "));
@@ -736,56 +759,28 @@ const articleAn: Detector = (ctx) => {
 
 // ------------------------------------------------------------------ typography
 
-// How much of a paragraph the quotation check re-reads for one finding.
-const MAX_QUOTE_LOOKBACK = 4_000;
-
-/** Positions in [from, to) of characters that can open a quotation or code span. */
-function openerPositions(text: string, from: number, to: number): number[] {
-  const positions: number[] = [];
-  for (let i = from; i < to; i += 1) {
-    if (PROTECTED_SPAN_OPENERS.includes(text[i])) positions.push(i);
-  }
-  return positions;
-}
-
-/** True when sorted `positions` has one in [from, to). */
-function hasPositionIn(positions: readonly number[], from: number, to: number): boolean {
-  let low = 0;
-  let high = positions.length;
-  while (low < high) {
-    const middle = (low + high) >> 1;
-    if (positions[middle] < from) low = middle + 1;
-    else high = middle;
-  }
-  return low < positions.length && positions[low] < to;
-}
-
 const ordinal: Detector = (ctx) => {
   const findings: RawFinding[] = [];
-  let openers: number[] | null = null;
-  // A blank line ends a paragraph, with LF or CRLF line endings.
-  const blankLineBefore = lastIndexFinder(ctx.text, "\n\n");
-  const blankCrlfLineBefore = lastIndexFinder(ctx.text, "\n\r\n");
-  const regex = /(?<=^|[\s([])(\d+)(nd|th)(?![\p{L}\p{N}])/gu;
+  const regex = /(?<=^|[\s([])(\d+)(st|nd|th)(?![\p{L}\p{N}])/gu;
   for (const match of ownedMatches(ctx, regex)) {
     const start = match.index;
     const [token, digits, suffix] = match;
     const expected = ordinalSuffix(digits);
     const end = start + token.length;
     if (suffix === expected || isGluedToTechnical(ctx.text, start, end)) continue;
-    // Quoted text is often a deliberate example; the typing rule leaves it too.
-    const paragraphStart = Math.max(0, blankLineBefore(start) + 1, blankCrlfLineBefore(start) + 1);
-    openers ??= openerPositions(ctx.text, paragraphStart, ctx.to);
-    if (hasPositionIn(openers, paragraphStart, start)) {
-      // Too far to re-read per match: leave it rather than guess.
-      if (start - paragraphStart > MAX_QUOTE_LOOKBACK) continue;
-      if (isInsideProtectedSpan(ctx.text.slice(paragraphStart, start), { quotations: true })) {
-        continue;
-      }
-    }
+    // "st" is also stone. Only a named month disambiguates this new coverage.
+    if (
+      suffix === "st" &&
+      !/\b(?:January|February|March|April|May|June|July|August|September|October|November|December)[ \t\u00a0]+$/i.test(
+        ctx.text.slice(Math.max(0, start - 24), start),
+      )
+    )
+      continue;
+    if (overlapsSortedRanges(ctx.quotationRanges ?? [], { start, end })) continue;
     findings.push({
       ruleId: "englishOrdinalSuffix",
       messageKey: "review_msg_ordinal",
+      context: { start: 0, end },
       range: { start, end },
       alternatives: [`${digits}${expected}`],
     });
@@ -1021,7 +1016,18 @@ function measurementLike(
     if (!parsed || parsed.unitStart !== parsed.numberEnd) continue;
     const unit = prefix.slice(parsed.unitStart);
     if (ruleId === "measurementUnitFormatting" && /^([A-Z]|[dg])$/.test(unit)) continue;
-    if (!isProsePrefix(prefix.slice(0, parsed.start))) continue;
+    let prosePrefix = prefix.slice(0, parsed.start);
+    // A prose list retains the evidence before its first measurement. Every
+    // preceding item must itself parse; identifiers and arithmetic still abstain.
+    while (!isProsePrefix(prosePrefix)) {
+      const item = /(?:^|[ \t])([^\s]+),[ \t]+$/.exec(prosePrefix);
+      if (!item || parseMeasurementExpression(item[1], locale)?.start !== 0) break;
+      prosePrefix = prosePrefix.slice(
+        0,
+        item.index + (item[0].startsWith(" ") || item[0].startsWith("\t") ? 1 : 0),
+      );
+    }
+    if (!isProsePrefix(prosePrefix)) continue;
     const start = windowStart + parsed.start;
     if (!owned(ctx, start)) continue;
     const numberEnd = windowStart + parsed.numberEnd;
@@ -1035,13 +1041,88 @@ function measurementLike(
       alternatives: [
         `${ctx.source.slice(start, numberEnd)}${locale.separator}${ctx.source.slice(numberEnd, tokenEnd)}`,
       ],
+      context: { start: windowStart, end: tokenEnd },
     });
   }
   return findings;
 }
 
+// ponytail: a small function-word allowlist; expand only with ambiguity fixtures.
+const repeatedWords: Detector = (ctx) => {
+  const findings: RawFinding[] = [];
+  const regex =
+    /(?<![\p{L}\p{M}\p{N}_'’–—-])(the|an|a|is|are|was|were|in|on|at|for|with|from|of|to)[ \t\u00a0]{1,8}\1(?![\p{L}\p{M}\p{N}_'’–—-])/giu;
+  for (const match of ownedMatches(ctx, regex)) {
+    const start = match.index;
+    const end = start + match[0].length;
+    const context = {
+      start: Math.max(0, start - PHRASE_WINDOW),
+      end: Math.min(ctx.text.length, end + 2),
+    };
+    const before = ctx.text.slice(context.start, start);
+    const word = match[1].toLowerCase();
+    if (ctx.dictionary.has(word) || isGluedToTechnical(ctx.text, start, end)) continue;
+    // A run gets one repair, including when a later pair belongs to another chunk.
+    if (before.match(/([A-Za-z]+)[ \t\u00a0]{1,8}$/)?.[1].toLowerCase() === word) continue;
+    // A named, quoted example is evidence, not prose to repair. Normal quotations still run.
+    if (
+      /\b(?:write|type|spell|phrase|words?|example|literal|text|says?|reads?)[ :\t]*["“'‘]$/i.test(
+        before,
+      )
+    )
+      continue;
+    findings.push({
+      ruleId: "englishRepeatedWords",
+      messageKey: "review_msg_repeated_words",
+      range: { start, end },
+      alternatives: [ctx.source.slice(start, start + match[1].length)],
+      context,
+    });
+  }
+  return findings;
+};
+
 /** Review detectors by rule. Rules absent here are excluded from review (see reviewCatalog). */
 export const REVIEW_DETECTORS: ReadonlyArray<{ rules: CatalogRuleId[]; detect: Detector }> = [
+  {
+    rules: ["styleRedundancy", "styleLongSentence"],
+    detect: (ctx) =>
+      (ctx.styleFindings ?? []).filter((f) => f.range.start >= ctx.from && f.range.start < ctx.to),
+  },
+  {
+    rules: ["preferredTerminology"],
+    detect: (ctx) =>
+      (ctx.terminologyFindings ?? []).filter(
+        (f) => f.range.start >= ctx.from && f.range.start < ctx.to,
+      ),
+  },
+  { rules: ["englishCanonicalCasing"], detect: canonicalCasing },
+  {
+    rules: ["unclosedQuotation"],
+    detect: (ctx) =>
+      (ctx.quotationFindings ?? []).filter(
+        (d) => d.range.start >= ctx.from && d.range.start < ctx.to,
+      ),
+  },
+
+  {
+    rules: ["englishItsContext", "englishLetsContext", "englishElsePossessive"],
+    detect: contextualPossessives,
+  },
+  { rules: ["englishFixedPrepositions"], detect: fixedPrepositions },
+  { rules: ["englishVerbComplements"], detect: verbComplements },
+  { rules: ["englishPerfectParticiples"], detect: perfectParticiples },
+  { rules: ["englishNounNumber"], detect: nounNumberConstructions },
+  { rules: ["englishUsagePhrases"], detect: usagePhrases },
+  { rules: ["englishDoubledDegree"], detect: doubledDegree },
+  { rules: ["englishCountability"], detect: countability },
+  { rules: ["englishContextualCompounds"], detect: contextualCompounds },
+  { rules: ["englishRepeatedWords"], detect: repeatedWords },
+  { rules: ["englishAuxiliaryBaseVerb"], detect: auxiliaryForms },
+  {
+    rules: ["englishThenThan", "englishYourYouAre", "englishTheirThereTheyAre", "englishToToo"],
+    detect: wordConfusions,
+  },
   { rules: ["capitalizeSentenceStart", "capitalizeAfterLineBreak"], detect: capitalizeStarts },
   { rules: ["englishPronounICapitalization"], detect: pronounI },
   {
@@ -1056,6 +1137,8 @@ export const REVIEW_DETECTORS: ReadonlyArray<{ rules: CatalogRuleId[]; detect: D
   { rules: ["englishYourWelcomeCorrection"], detect: yourWelcome },
   { rules: ["englishTheirThereBeVerb"], detect: theirThere },
   { rules: ["englishPronounVerbWhitelistAgreement"], detect: pronounVerb },
+  { rules: ["englishSubjectVerbAgreement"], detect: subjectAgreement },
+  { rules: ["englishExistentialAgreement"], detect: existentialAgreement },
   { rules: ["englishArticleAnCorrection"], detect: articleAn },
   { rules: ["englishOrdinalSuffix"], detect: ordinal },
   { rules: ["englishProperNounCapitalization"], detect: properNoun },
@@ -1078,6 +1161,24 @@ export function minimalEdits(
 ): ReviewEdit[] {
   const original = source.slice(start, end);
   if (original === replacement) return [];
+  // Case-only ASCII changes must not replace unchanged letters across formatting nodes.
+  if (
+    /^[A-Za-z]+$/.test(original + replacement) &&
+    original.toLowerCase() === replacement.toLowerCase()
+  ) {
+    return [...original].flatMap((letter, index) =>
+      letter === replacement[index]
+        ? []
+        : [
+            {
+              start: start + index,
+              end: start + index + 1,
+              original: letter,
+              replacement: replacement[index],
+            },
+          ],
+    );
+  }
   const originalTokens = original.split(/(\s+)/);
   const replacementTokens = replacement.split(/(\s+)/);
   const aligned =

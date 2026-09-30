@@ -60,6 +60,9 @@ import {
   KEY_EXTENSION_LANGUAGE,
   KEY_SITE_PROFILES,
   KEY_ENABLED_GRAMMAR_RULES,
+  KEY_REVIEW_RULE_OVERRIDES,
+  KEY_PREFERRED_TERMINOLOGY,
+  KEY_REVIEW_LONG_SENTENCE_WORDS,
   KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
   KEY_OBSERVABILITY_DEFAULT_LEVEL,
   KEY_OBSERVABILITY_ENABLED,
@@ -149,6 +152,9 @@ const CONFIG_REFRESH_KEYS = [
   KEY_SELECT_BY_DIGIT,
   KEY_HORIZONTAL_SUGGESTIONS,
   KEY_ENABLED_GRAMMAR_RULES,
+  KEY_REVIEW_RULE_OVERRIDES,
+  KEY_PREFERRED_TERMINOLOGY,
+  KEY_REVIEW_LONG_SENTENCE_WORDS,
   KEY_TIME_FORMAT,
   KEY_DATE_FORMAT,
   KEY_TEXT_EXPANSIONS,
@@ -241,7 +247,7 @@ export function wireRuntimeSettingsHandlers(registry: SettingsRegistry): void {
     applyInlineSuggestionLocks(registry, registry[KEY_INLINE_SUGGESTION].get() as boolean);
   });
 
-  registry[KEY_EXTENSION_LANGUAGE]?.addEvent("action", () => {
+  registry[KEY_EXTENSION_LANGUAGE]?.addEvent("persisted", () => {
     const langValue = registry[KEY_EXTENSION_LANGUAGE].get();
     const storageKey = `store.settings.${KEY_EXTENSION_LANGUAGE}`;
     localStorage.setItem(storageKey, JSON.stringify(langValue));
@@ -254,7 +260,7 @@ export function wireRuntimeSettingsHandlers(registry: SettingsRegistry): void {
     if (!setting || typeof setting.addEvent !== "function") {
       continue;
     }
-    setting.addEvent("action", () => handleConfigRefreshTrigger(registry, key));
+    setting.addEvent("persisted", () => handleConfigRefreshTrigger(registry, key));
   }
 }
 

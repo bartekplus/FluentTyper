@@ -17,6 +17,7 @@ export const REVIEW_SHADOW_CSS = `
   --ft-grammar: #b87400;
   --ft-punctuation: #3b82f6;
   --ft-typography: #9061f9;
+  --ft-style: #168578;
   --ft-focus: #2563eb;
   color-scheme: light dark;
 }
@@ -62,6 +63,8 @@ export const REVIEW_SHADOW_CSS = `
 [data-category="grammar"] { --ft-cat: var(--ft-grammar); }
 [data-category="punctuation"] { --ft-cat: var(--ft-punctuation); }
 [data-category="typography"] { --ft-cat: var(--ft-typography); }
+[data-category="style"] { --ft-cat: var(--ft-style); }
+.mark[data-category="style"] { border-bottom-style: dotted; }
 .panel, .card {
   position: fixed;
   pointer-events: auto;
@@ -173,6 +176,7 @@ footer .fix-note { padding: 0; }
 .alternatives { display: flex; flex-wrap: wrap; gap: 4px; }
 .alternatives button[aria-pressed="true"] { border-color: var(--ft-cat); background: color-mix(in srgb, var(--ft-cat) 14%, transparent); }
 .actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.ignore-matching-hint { flex-basis: 100%; margin: 0; }
 .card .word { font-size: 15px; font-weight: 600; }
 .card p.label { font-size: 11px; color: var(--ft-muted); }
 .suggestions button { font-weight: 600; min-width: 44px; }
@@ -274,6 +278,7 @@ export const REVIEW_HIGHLIGHT_NAMES = {
   grammar: "fluenttyper-review-grammar",
   punctuation: "fluenttyper-review-punctuation",
   typography: "fluenttyper-review-typography",
+  style: "fluenttyper-review-style",
   selected: "fluenttyper-review-selected",
 } as const;
 
