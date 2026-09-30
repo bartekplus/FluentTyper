@@ -62,6 +62,10 @@ export class MathOperatorSpacingRule extends SpacingRuleShared implements Gramma
       // "FOO=bar" and "FOO2=bar" are environment variables; "2=2" is arithmetic.
       return null;
     }
+    // "SameSite=Lax", "maxAge=60": a camel-case setting name, not algebra.
+    if (operatorChar === "=" && /\p{Ll}\p{Lu}/u.test(leftOperand.text)) {
+      return null;
+    }
 
     if (operatorChar === "=") {
       if (!this.isEqualsRightOperandLike(rightChar)) {

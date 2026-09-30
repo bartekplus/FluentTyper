@@ -98,6 +98,10 @@ export function closesAbbreviation(text: string, index: number, lang?: string): 
     start -= 1;
   }
   const token = text.slice(start, index);
+  // An ellipsis trails off inside the sentence, as "…" does: "wait ... what".
+  if (token.endsWith(".")) {
+    return true;
+  }
   if (!/\p{L}/u.test(token)) {
     // "2026." and "12." end sentences in English; elsewhere they are ordinals.
     return token.length > 0 && ORDINAL_PERIOD_LOCALES.has(lang ?? "");
