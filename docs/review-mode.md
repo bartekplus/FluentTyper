@@ -233,7 +233,7 @@ Agreement retains the six original typing pairs and their existing bulk rules.
 
 Noun/adjective uses such as everyday tasks, the login and the setup are preserved. This check does not join two-word noun spellings or impose a login/log-in or setup/set-up house style. Unknown compounds, incomplete contexts, command arguments, URL components, mixed-case identifiers, capitalized product-name candidates and user-dictionary words abstain. The listed lowercase tokens, including aswell after tested/checked/reviewed, are split; every finding remains individual-only and typing is unchanged.
 
-The established-usage check covers for all intensive purposes before a known completion clause, one in the same in explicit plural identity clauses, and peak/peaks/peaked/peaking someone’s interest with known subjects, modals and progressive auxiliaries. It also recognizes bounded indirect-question, pronoun-case, lexical-confusion and malformed finded constructions; meaning-ambiguous effect/affect uses abstain. "few" + a time unit + "ago" gains its article ("a few days ago") unless a/very/only/the/last… precedes it. Case, tense, possessive determiners and surrounding whitespace are preserved. The phrase-matching loop is shared with fixed prepositions; there is no general search/replace engine or external phrase database.
+The established-usage check covers for all intensive purposes before a known completion clause, one in the same in explicit plural identity clauses, and peak/peaks/peaked/peaking someone’s interest with known subjects, modals and progressive auxiliaries. It also recognizes bounded indirect-question, pronoun-case, lexical-confusion and malformed finded constructions; meaning-ambiguous effect/affect uses abstain. A negated verb (didn't/don't/can't/never + have/want/need/see/know…) before "no" + a word offers "any" ("didn't have no idea"); "take no for an answer", "say no", "no one", "no longer" and "no matter" abstain. "few" + a time unit + "ago" gains its article ("a few days ago") unless a/very/only/the/last… precedes it. Case, tense, possessive determiners and surrounding whitespace are preserved. The phrase-matching loop is shared with fixed prepositions; there is no general search/replace engine or external phrase database.
 
 Literal peak meanings and locative one in the same room, unrecognized frames, recognized creative/dialect cues, named quotations, technical tokens, dictionaries and protected text abstain. These are grammar-category cards with usage-specific explanations, independently configurable and individual-only. Native spelling-span ownership prevents duplicate spelling cards. Typing and existing modal-of corrections are unchanged.
 
@@ -308,6 +308,9 @@ Contextual word confusions have five independent Review-only identities:
 - `englishYourYouAre`: clause-opening "your going to" with a listed verb and
   object, or an object-taking verb followed by "you're own" and a known noun.
   Possessive gerunds ("your going away", "I dislike your going…") abstain.
+  The clause-opening they're frames below also apply to "your" ("I hope your safe
+  there", "Your very patient.", "when your out of the meeting"); "going to" needs the
+  rest of its clause as plain words on one line.
 - `englishTheirThereTheyAre`: the same bounded future construction for
   "their/there going to", and "there/they're own" before a following word ("there own"
   needs a clause start, preposition or listed verb before it, so "people there own cars"
@@ -326,6 +329,8 @@ Contextual word confusions have five independent Review-only identities:
   and in "way to much/long" (not after the/a/this…), and "too" as "to" before a
   determiner or object pronoun ("too the station") or a bare verb after want/need/going
   ("need too leave").
+  "every" between an auxiliary + subject pronoun and a following word ("Did you every
+  try…") becomes "ever"; time nouns ("Did you every day…") abstain.
 - `englishThenThan` also covers listed -er comparatives, more/less + a word (not an -er
   comparative, which the degree check owns first), "other" after nobody/nothing…, and
   "rather", when "then" is followed by an object or possessive pronoun, ever/before/usual,

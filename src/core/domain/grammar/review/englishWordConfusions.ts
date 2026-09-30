@@ -118,9 +118,11 @@ const opensClause = (ctx: DetectContext, index: number) =>
   );
 // Words after which a new clause (and so a subject) starts.
 const CLAUSE_CUE =
-  "(?:think|thought|guess|hope|know|knew|heard|suspect|promise|realized|realised|said|says|sure|maybe|perhaps|because|since|if|when|that|(?:looks|seems|sounds|feels)[ \\t\\u00a0]+like|(?:tell|told|remind|reminded)[ \\t\\u00a0]+them)";
-const THEY_ARE = `(?<target>their)${SPACE}(?:(?:not|already|still|probably|always|just|also|really|all|both|never|definitely|actually|so)${SPACE})?(?:(?<pred>going|gonna|coming|leaving|trying|planning|running|moving|waiting|looking|getting|doing|making|taking|kidding|joking|working|staying|sitting|standing|playing|talking|arriving|ready|sure|here|late|early|busy|done|able|allowed|available|invited|supposed|happy|right|wrong|fine|okay|away|finished|tired|aware|afraid|excited|interested|responsible)${SPACE}(?<follow>to|for|at|in|on|with|about|until|by|from|over|into|now|today|tonight|tomorrow|again|yet|anymore|here|there|home|back|out|up|away|off|a|an|the|this|that|it|them|us|me|him|her|you|my|your|our|his|their|some|any|next|last|where|what|how|why)${END_WORD}|(?<pred2>ready|sure|here|there|late|early|busy|done|right|wrong|fine|okay|home|back|away|gone|finished|tired|kidding|joking|coming|leaving|waiting|working|offline|online)${COMPLETE}|(?:in|on|at|off)${SPACE}(?:the|a|an|my|your|our|his|her|their|this|that|work|home|school|lunch|risk)|to${SPACE}(?:blame|meet|be|see|go)|far${SPACE}(?:too|more|less|better|worse)|(?<pred3>(?:probably|definitely|obviously|currently|actually|still|just|always|already|really|also|never)${SPACE}[a-z]{3,}ing)${SPACE}(?:to|for|at|in|on|with|about|over|into|a|an|the|this|that|it|them|us|me|him|her|you|my|your|our|his|their|where|what|how|why)|the|a|an)${END_WORD}`;
+  "(?:think|thought|guess|hope|know|knew|heard|suspect|promise|realized|realised|said|says|sure|maybe|perhaps|because|since|if|when|as|before|after|that|(?:looks|seems|sounds|feels)[ \\t\\u00a0]+like|(?:tell|told|remind|reminded)[ \\t\\u00a0]+them)";
+const THEY_ARE = `(?<target>their)${SPACE}(?:(?:not|already|still|probably|always|just|also|really|all|both|never|definitely|actually|so)${SPACE})?(?:(?<pred>going|gonna|coming|leaving|trying|planning|running|moving|waiting|looking|getting|doing|making|taking|kidding|joking|working|staying|sitting|standing|playing|talking|arriving|ready|sure|here|late|early|busy|done|able|allowed|available|invited|supposed|happy|right|wrong|fine|okay|away|finished|tired|aware|afraid|excited|interested|responsible|safe|cool|sorry|healthy|strong|serious|proud|loyal)${SPACE}(?<follow>to|for|at|in|on|with|about|until|by|from|over|into|now|today|tonight|tomorrow|again|yet|anymore|here|there|home|back|out|up|away|off|a|an|the|this|that|it|them|us|me|him|her|you|my|your|our|his|their|some|any|next|last|where|what|how|why)${END_WORD}|(?<pred2>ready|sure|here|there|late|early|busy|done|right|wrong|fine|okay|home|back|away|gone|finished|tired|kidding|joking|coming|leaving|waiting|working|offline|online|safe|cool|sorry|healthy|serious|proud|loyal|happy|excited)${COMPLETE}|(?:in|on|at|off)${SPACE}(?:the|a|an|my|your|our|his|her|their|this|that|work|home|school|lunch|risk)|to${SPACE}(?:blame|meet|be|see|go)|far${SPACE}(?:too|more|less|better|worse)|(?<pred3>(?:probably|definitely|obviously|currently|actually|still|just|always|already|really|also|never)${SPACE}[a-z]{3,}ing)${SPACE}(?:to|for|at|in|on|with|about|over|into|a|an|the|this|that|it|them|us|me|him|her|you|my|your|our|his|their|where|what|how|why)|the|a|an)${END_WORD}`;
 // Finite verbs that show a "their going to…" clause is a gerund subject ("…surprised me").
+// "going to" needs the rest of its clause as plain words on the same line.
+const PLAIN_CLAUSE = /^(?:[ \t\u00a0]{1,8}[A-Za-z'’]+)+(?=[ \t\u00a0]*(?:[.!?,;:)]|$))/;
 const LATER_PREDICATE =
   /^[^.!?;:,\n]*?\b(?:is|was|are|were|has|had|surprised|upset|made|caused|seemed|became|annoyed|worried|shocked|pleased|helped|meant|took|cost|lasted|went|felt|looked)\b/i;
 const cued = (ctx: DetectContext, index: number) =>
@@ -168,9 +170,11 @@ function theirConfusions(ctx: DetectContext, findings: RawFinding[]): RawFinding
     if (pred === "right" && follow === "to") continue;
     const end = match.index + match[0].length;
     if (
-      (/^(?:going|gonna)$/i.test(pred ?? "") || /^their\s+not\b/i.test(match[0])) &&
+      (/^(?:going|gonna)$/i.test(pred ?? "") || /^\w+\s+not\b/i.test(match[0])) &&
       LATER_PREDICATE.test(ctx.text.slice(end, end + 96))
     )
+      continue;
+    if (/^(?:going|gonna)$/i.test(pred ?? "") && !PLAIN_CLAUSE.test(ctx.text.slice(end, end + 200)))
       continue;
     push(match, "review_msg_they_are", "they're");
   }
@@ -248,6 +252,33 @@ function comparisonAndDegree(ctx: DetectContext, findings: RawFinding[]): RawFin
     `(?:now${SPACE}and|until|till|since|by|back)${SPACE}(?<target>than)(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:…)]|$))`,
   ))
     push(match, "englishThenThan", "review_msg_then_than_temporal", "then");
+  // you're: the they're frames for "your", plus "your out of/at…" and intensifier + adjective.
+  for (const match of [
+    THEY_ARE.replace("(?<target>their)", "(?<target>your)"),
+    `(?<target>your)${SPACE}(?:(?:completely|totally|still|already)${SPACE})?out${SPACE}(?:of|at|on|in|with|under|for)${END_WORD}`,
+    `(?<target>your)(?:${SPACE}(?:so|very|really|too|totally|completely|absolutely|pretty|quite|extremely|barely|surprisingly)){1,3}${SPACE}(?!own${END_WORD})[a-z]+${COMPLETE}`,
+  ].flatMap((pattern) => [...matches(ctx, pattern)])) {
+    if (!opensClause(ctx, match.index) && !cued(ctx, match.index)) continue;
+    const end = match.index + match[0].length;
+    if (
+      (/^(?:going|gonna)$/i.test(match.groups!.pred ?? "") || /^\w+\s+not\b/i.test(match[0])) &&
+      LATER_PREDICATE.test(ctx.text.slice(end, end + 96))
+    )
+      continue;
+    if (
+      /^(?:going|gonna)$/i.test(match.groups!.pred ?? "") &&
+      !PLAIN_CLAUSE.test(ctx.text.slice(end, end + 200))
+    )
+      continue;
+    if (match.groups!.pred === "right" && match.groups!.follow === "to") continue;
+    push(match, "englishYourYouAre", "review_msg_your_you_are", "you're");
+  }
+  // ever: "every" between an auxiliary + subject and a verb ("Did you every try…").
+  for (const match of matches(
+    ctx,
+    `(?:can|could|would|will|should|shall|might|may|did|do|does|have|has|had|don['’]?t|doesn['’]?t|didn['’]?t|won['’]t|wouldn['’]t|can['’]t|couldn['’]t)${SPACE}(?:I|you|we|they|he|she|it)${SPACE}(?<target>every)${SPACE}(?!(?:day|days|time|times|morning|night|week|weekend|month|year|hour|minute|second|one|single|other|so|now|last|bit|once|single|few|two|three)${END_WORD})[a-z]+${END_WORD}`,
+  ))
+    push(match, "englishToToo", "review_msg_ever_every", "ever");
   // Degree "too": a linking verb + to + adjective, then an infinitive, for-phrase or clause end.
   for (const match of matches(
     ctx,

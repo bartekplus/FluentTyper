@@ -223,7 +223,6 @@ const negatives: Record<(typeof ids)[number], string[]> = {
     "You're on your own.",
     "Your liking this surprises me.",
     "Your going to enjoy is incomplete.",
-    "Your going to play this.",
     'Do not write "Your going to like this.".',
     'The phrase "check you\'re own password" is wrong.',
     "Your `going` to like this.",
@@ -406,3 +405,37 @@ test("chunk ownership follows the corrected word even when its evidence starts e
   expect(owned).toHaveLength(1);
   expect(owned[0].range.start).toBe(cut);
 });
+
+test.each([
+  ["I hope your safe there.", "I hope you're safe there."],
+  ["Your very patient.", "You're very patient."],
+  ["Ping me when your out of the meeting.", "Ping me when you're out of the meeting."],
+  ["Your going to play this.", "You're going to play this."],
+])("you're frames repair %s", (source, expected) => {
+  const findings = only(source, "englishYourYouAre");
+  expect(findings).toHaveLength(1);
+  expect(applyEdits(source, findings[0].alternatives[0].edits)).toBe(expected);
+  expect(only(expected, "englishYourYouAre")).toEqual([]);
+});
+test.each([
+  ["Did you every fix that?", "Did you ever fix that?"],
+  ["Why would I every do that?", "Why would I ever do that?"],
+  ["Have they every met?", "Have they ever met?"],
+])("ever after an auxiliary + subject: %s", (source, expected) => {
+  const findings = only(source, "englishToToo");
+  expect(findings).toHaveLength(1);
+  expect(applyEdits(source, findings[0].alternatives[0].edits)).toBe(expected);
+});
+test.each([
+  "Is it your very own?",
+  "I hope your team wins.",
+  "As your manager, I agree.",
+  "Your late father was kind.",
+  "Did you every day go there?",
+  "Do they every time fail?",
+  "I check every file.",
+])("you're/ever frames preserve %s", (text) =>
+  expect(
+    scan(text).filter((d) => d.ruleId === "englishYourYouAre" || d.ruleId === "englishToToo"),
+  ).toEqual([]),
+);
