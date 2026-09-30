@@ -174,6 +174,8 @@ Supported (**Typing** is the rule's default for typing; Review has separate swit
 | `englishToToo`                         | English  | unavailable | grammar     | confused words     | individual only                                                                                   |
 | `englishAuxiliaryBaseVerb`             | English  | unavailable | grammar     | word form          | individual only                                                                                   |
 | `englishRepeatedWords`                 | all      | unavailable | grammar     | repetition         | individual only                                                                                   |
+| `englishPhraseCorrections`             | English  | unavailable | grammar     | usage              | individual only                                                                                   |
+| `englishClosedCompounds`               | English  | unavailable | spelling    | split/joined words | individual only                                                                                   |
 | `capitalizeSentenceStart`              | all      | on          | typography  | capitalization     | yes (after a quote or bracket closing a period: individual only)                                  |
 | `capitalizeAfterLineBreak`             | all      | on          | typography  | capitalization     | individual only: line starts in poems, lists and hard-wrapped text are often lowercase on purpose |
 | `englishPronounICapitalization`        | English  | on          | typography  | capitalization     | yes                                                                                               |
@@ -675,12 +677,35 @@ preserved. This check does not insert punctuation, repair brackets, enforce Oxfo
 commas or infer comma splices. Warning labels are localized in all nine UI languages;
 the rule is Review-only and can be disabled independently.
 
+### Fixed phrases and compounds
+
+`englishPhraseCorrections` and `englishClosedCompounds` look up authored English
+tables ([`englishPhraseTables.ts`](../src/core/domain/grammar/review/englishPhraseTables.ts)):
+misheard idioms and fixed phrases ("all the sudden" → "all of a sudden", "bare with
+me" → "bear with me", "in regards to" → "regarding" or "in regard to"), and compounds
+written apart or together by mistake ("code base" → "codebase", "atleast" → "at
+least", "mother in law" → "mother-in-law"). Phrases are matched as whole words,
+case-insensitively and across any run of spaces, through one first-word index, so a
+50k-character review stays a single pass. The replacement keeps the typed casing
+(sentence start, title case, all capitals) and apostrophe style. A row with several
+conventional forms asks you to choose; nothing is preselected.
+
+A row is left out when its typed form is also ordinary English ("every one of them",
+"keep on going", "walk straight forward", "lacking in tact"), or narrowed to the
+contexts where it cannot be ("remained in tact", "a straight forward fix").
+Dictionary words, mixed-case identifiers, dotted names, URLs, code, quoted mentions
+and named examples abstain. When a more specific rule proposes the same edit, that
+rule explains it. Both checks are Review-only and individual-only. Some of these
+checks were inspired by Harper (https://github.com/Automattic/harper).
+
 ### Canonical brand and acronym casing
 
 `englishCanonicalCasing` offers the established forms GitHub, JavaScript, TypeScript,
 WebRTC, FluentTyper, iPhone, macOS and eBay in prose of any review language. It accepts lowercase or
 ordinary title-case input and inserts the exact canonical form; it does not apply
-sentence title casing to brand names. The native sentence-start suggestion yields
+sentence title casing to brand names. In English text it also restores multi-word
+place and product names from a short authored list ("new york" → "New York", "google
+docs" → "Google Docs"). The native sentence-start suggestion yields
 only when an enabled canonical suggestion covers that start. Existing mixed-case
 sentence-start protection keeps corrected lower-camel names stable. Its
 findings are in the Capitalization and typography category, with every other

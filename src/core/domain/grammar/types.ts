@@ -73,6 +73,8 @@ export interface GrammarRuleCatalogEntry {
     | "englishRepeatedWords"
     | "englishAuxiliaryBaseVerb"
     | "styleRedundancy"
+    | "englishPhraseCorrections"
+    | "englishClosedCompounds"
     | "styleLongSentence"
     | "preferredTerminology"
     | "englishCanonicalCasing"
