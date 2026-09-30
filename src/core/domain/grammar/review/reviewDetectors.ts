@@ -45,6 +45,7 @@ import { correctWhitelistedTypo } from "../implementations/EnglishTypoWhitelistC
 import {
   MODAL_OF_REGEX,
   OF_IDIOMS,
+  isNounMight,
   modalHaveWord,
 } from "../implementations/EnglishModalOfCorrectionRule";
 import {
@@ -576,6 +577,7 @@ const modalOf: Detector = (ctx) => {
   const findings: RawFinding[] = [];
   for (const { match, start, end } of phraseMatches(ctx, MODAL_OF_REGEX, 3)) {
     if (OF_IDIOMS.has(match[2].toLowerCase())) continue;
+    if (isNounMight(match[1], ctx.text.slice(Math.max(0, start - 24), start))) continue;
     const modal = groupRange(match, 1);
     let ofStart = modal.end;
     while (/\s/.test(ctx.text[ofStart] ?? "")) ofStart += 1;

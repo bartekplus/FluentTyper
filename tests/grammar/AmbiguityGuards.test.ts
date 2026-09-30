@@ -50,6 +50,9 @@ describe("default-on rules never rewrite ambiguous input", () => {
     "You must of course agree ",
     "We should of course try ",
     "They could of necessity leave ",
+    // The noun "might".
+    "The might of Rome grew ",
+    "With all our might of arms ",
     // Possessive "your", not the phrase.
     "Your welcome package arrived ",
     // Ordinary English words that look like contractions.
@@ -129,6 +132,8 @@ describe("unambiguous corrections still apply", () => {
   for (const [input, expected] of [
     ["and so did i. Then we left ", "And so did I. Then we left "],
     ["They could of gone ", "They could have gone "],
+    ["We might of won ", "We might have won "],
+    ["They shouldn't of left ", "They shouldn't have left "],
     ["We Could Of Won ", "We Could Have Won "],
     ["WE COULD OF WON ", "WE COULD HAVE WON "],
     ["Your welcome! ", "You're welcome! "],
