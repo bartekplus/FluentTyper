@@ -1,4 +1,11 @@
-import { detectPhraseTemplates, type PhraseTemplate } from "./phraseTemplates";
+import {
+  detectPhraseTemplates,
+  frameMatches,
+  SPACE,
+  WORD_END,
+  WORD_START,
+  type PhraseTemplate,
+} from "./phraseTemplates";
 import { AGREEMENT_CORRECTIONS } from "../implementations/EnglishPronounVerbWhitelistAgreementRule";
 import { englishVerbForms } from "../implementations/helpers/EnglishVerbForms";
 import {
@@ -9,24 +16,12 @@ import { englishInitialSound } from "../implementations/helpers/EnglishInitialSo
 import { applyWordCase, detectWordCase } from "../implementations/helpers/GenericRuleShared";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 
-const SPACE = "[ \\t\\u00a0]{1,8}";
-const WORD_END = "(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])";
-const CLAUSE_START = "(?<![\\p{L}\\p{M}\\p{N}_'’@/#.\\\\-])";
-
 function* clauseMatches(
   ctx: DetectContext,
   pattern: string,
   anywhere: (match: RegExpExecArray, before: string) => boolean = () => false,
 ): Generator<RegExpExecArray> {
-  const regex = new RegExp(`${CLAUSE_START}${pattern}`, "gidu");
-  regex.lastIndex = Math.max(0, ctx.from - 256);
-  for (
-    let match = regex.exec(ctx.scanText);
-    match && match.index < ctx.to;
-    match = regex.exec(ctx.scanText)
-  ) {
-    const [start] = match.indices!.groups!.verb;
-    if (start < ctx.from || start >= ctx.to) continue;
+  for (const match of frameMatches(ctx, pattern, "verb")) {
     const before = ctx.text.slice(Math.max(0, match.index - 96), match.index);
     // Only a clause opening establishes the subject; do not reinterpret object pronouns.
     if (
@@ -35,20 +30,12 @@ function* clauseMatches(
       !anywhere(match, before)
     )
       continue;
-    if (
-      /\b(?:write|type|spell|phrase|words?|example|literal|text|says?|reads?)[ :\t]*["“][^"”\r\n\uFFFC]{0,64}$/i.test(
-        before,
-      )
-    )
-      continue;
     const verb = match.groups!.verb;
     if (
       ctx.dictionary.has(verb.toLowerCase()) ||
       (verb !== verb.toLowerCase() && verb !== verb.toUpperCase())
     )
       continue;
-    const end = match.index + match[0].length;
-    if (/^\uFFFC|^\.[\p{L}\p{N}_]/u.test(ctx.text.slice(end, end + 2))) continue;
     yield match;
   }
 }
@@ -145,19 +132,15 @@ export function existentialAgreement(ctx: DetectContext): RawFinding[] {
 }
 
 const BARE_EXISTENTIAL = new RegExp(
-  `(?<![\\p{L}\\p{M}\\p{N}_'’@/#.\\\\-])(?:(?<there>there)(?:${SPACE}(?<verb>is|was|are|were)|(?<contracted>['’]s))|(?<qverb>is|was|are|were)${SPACE}there)${SPACE}(?<noun>[A-Za-z]+)${WORD_END}(?<tail>[ \\t\\u00a0]{0,8}(?:[.!?,;:)]|$)|${SPACE}(?:in|on|at|with|for|about|regarding|that|which|when|where|from|of|to|running|missing|left)${WORD_END})?`,
+  `${WORD_START}(?:(?<there>there)(?:${SPACE}(?<verb>is|was|are|were)|(?<contracted>['’]s))|(?<qverb>is|was|are|were)${SPACE}there)${SPACE}(?<noun>[A-Za-z]+)${WORD_END}(?<tail>[ \\t\\u00a0]{0,8}(?:[.!?,;:)]|$)|${SPACE}(?:in|on|at|with|for|about|regarding|that|which|when|where|from|of|to|running|missing|left)${WORD_END})?`,
   "gidu",
 );
 
 /** "there is things", "are there solution…": a bare known noun right after existential there. */
 function bareExistentialAgreement(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
-  BARE_EXISTENTIAL.lastIndex = Math.max(0, ctx.from - 256);
-  for (
-    let m = BARE_EXISTENTIAL.exec(ctx.scanText);
-    m && m.index < ctx.to;
-    m = BARE_EXISTENTIAL.exec(ctx.scanText)
-  ) {
+  // Ownership waits for the repair: the verb, or the whole phrase for a singular noun.
+  for (const m of frameMatches(ctx, BARE_EXISTENTIAL, null)) {
     const { there, verb, contracted, qverb, noun, tail } = m.groups!;
     const number = knownEnglishNounNumber(noun);
     if (!number || ctx.dictionary.has(noun.toLowerCase())) continue;
@@ -178,14 +161,7 @@ function bareExistentialAgreement(ctx: DetectContext): RawFinding[] {
     )
       continue;
     if (qverb && !/(?:^|[.!?;:,(\n"“][ \t ]*|\b(?:and|but|or|so)[ \t ]+)$/i.test(before)) continue;
-    if (
-      /\b(?:write|type|spell|phrase|words?|example|literal|text|says?|reads?)[ :\t]*["“'‘][^\r\n￼]{0,80}$/i.test(
-        before,
-      )
-    )
-      continue;
     const phraseEnd = m.index + m[0].length;
-    if (/^￼|^\.[\p{L}\p{N}_]/u.test(ctx.text.slice(phraseEnd, phraseEnd + 2))) continue;
     const kase = detectWordCase(typed.replace(/^['’]/, ""));
     const group = verb ? "verb" : contracted ? "contracted" : "qverb";
     let [start, end] = m.indices!.groups![group];

@@ -1,9 +1,12 @@
-import { detectPhraseTemplates, type PhraseTemplate } from "./phraseTemplates";
+import {
+  COMPLETE,
+  detectPhraseTemplates,
+  EDGE,
+  SPACE,
+  type PhraseTemplate,
+} from "./phraseTemplates";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 
-const SPACE = "[ \\t\\u00a0]{1,8}";
-const EDGE = "[\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]";
-const COMPLETE = `(?!${EDGE})(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))`;
 const ADJUNCT = `(?:${SPACE}during${SPACE}(?:the|our|their)${SPACE}(?:meeting|test|review))?`;
 const TOPIC = `(?:the|this|that|our|your|their)${SPACE}(?:(?:new|old|current|latest|proposed)${SPACE})?(?:release|plan|report|problem|proposal|results|schedule|budget|design|issue|changes|project)`;
 const SUBJECT = "(?:I|you|we|they|he|she|it)";

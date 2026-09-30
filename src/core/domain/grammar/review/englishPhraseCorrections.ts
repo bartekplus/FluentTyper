@@ -1,5 +1,5 @@
 import { applyWordCase, detectWordCase } from "../implementations/helpers/GenericRuleShared";
-import { INSIDE_NAMED_EXAMPLE, OPENING_QUOTES } from "./exampleCues";
+import { namedExampleBefore, OPENING_QUOTES } from "./exampleCues";
 import {
   CLOSED_COMPOUNDS,
   NAME_CASING,
@@ -9,6 +9,7 @@ import {
   type PhraseRow,
 } from "./englishPhraseTables";
 import { LANGUAGE_PHRASE_TABLES } from "./languagePhraseTables";
+import { EDGE, SPACE } from "./phraseTemplates";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 
 type Phrase = {
@@ -20,8 +21,6 @@ type Phrase = {
 };
 
 const WORD = /[\p{L}\p{N}]+(?:['’][\p{L}\p{N}]+)*/gu;
-const EDGE = "[\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]";
-const SPACE = "[ \\t\\u00a0]{1,8}";
 const wordKey = (word: string) => word.toLowerCase().replace(/’/g, "'");
 
 // French elided articles and pronouns stay attached: "l'addresse", "d'apeller".
@@ -152,7 +151,7 @@ function toFinding(
     /["”'’“‘»«›‹]/.test(ctx.text[end] ?? "")
   )
     return null;
-  if (INSIDE_NAMED_EXAMPLE.test(ctx.text.slice(Math.max(0, start - 128), start))) return null;
+  if (namedExampleBefore(ctx.text, start)) return null;
   const casing = phrase.ruleId === "englishCanonicalCasing";
   // Capitals kept for emphasis are the writer's choice.
   if (casing && typed === typed.toUpperCase()) return null;

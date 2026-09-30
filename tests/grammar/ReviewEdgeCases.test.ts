@@ -5,6 +5,7 @@ import {
   reviewRuleIds,
   reviewRuleSelectionToOverrides,
 } from "../../src/core/domain/grammar/review/reviewCatalog";
+import { namedExampleBefore } from "../../src/core/domain/grammar/review/exampleCues";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type { ReviewDiagnostic } from "../../src/core/domain/grammar/review/types";
 
@@ -139,6 +140,20 @@ describe("quoted examples are evidence; quoted speech is prose", () => {
     expect(fixAll('She said "we could of won" loudly.')).toBe(
       'She said "we could have won" loudly.',
     ));
+
+  // The one frame guard covers every cue, link and quote style the detectors once split between them.
+  test.each([
+    ['Write "', true],
+    ["The label is 'Oh. ", true],
+    ["Replace “their ", true],
+    ['The heading: "Done." Then ', true],
+    ["It says « ", true],
+    ['She said "', false],
+    ['Write "done"\nThen ', false],
+    [`Write "${"x".repeat(81)}`, false],
+  ])("named example before %j: %p", (before, expected) =>
+    expect(namedExampleBefore(`${before}he go`, before.length)).toBe(expected as boolean),
+  );
 });
 
 describe("several findings in one sentence", () => {

@@ -1,42 +1,18 @@
 import { ENGLISH_COMPARATIVES } from "../implementations/helpers/EnglishDegreeForms";
 import { englishVerbForms } from "../implementations/helpers/EnglishVerbForms";
 import { applyWordCase, detectWordCase } from "../implementations/helpers/GenericRuleShared";
+import { frameMatches, SPACE, WORD_END as END_WORD } from "./phraseTemplates";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 import type { ReviewMessageKey } from "./types";
 
-const SPACE = "[ \\t\\u00a0]{1,8}";
 const NOUN =
   "(?:passwords?|accounts?|files?|documents?|names?|address(?:es)?|keys?|reports?|versions?|models?|results?|plans?|answers?)";
-const END_WORD = "(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])";
+// A closing parenthesis also ends these frames.
 const COMPLETE = `${END_WORD}(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:)]|$))`;
 const COMPARATIVE = `(?:${ENGLISH_COMPARATIVES.join("|")})`;
 const MORE_COMPARATIVES =
   "(?:more|less|fewer|other|bigger|taller|shorter|longer|higher|lower|younger|stronger|weaker|smarter|harder|easier|simpler|busier|happier|greater|closer|quicker|louder|quieter|heavier|lighter|wider|warmer|colder|hotter|nicer)";
 const ARGUMENT = `(?:(?:the|my|your|our|their)${SPACE}(?:(?:old|new|previous|other)${SPACE})?${NOUN}|me|him|her|us|them)`;
-
-function* matches(ctx: DetectContext, pattern: string): Generator<RegExpExecArray> {
-  const regex = new RegExp(`(?<![\\p{L}\\p{M}\\p{N}_'’@/#.\\\\-])${pattern}`, "gidu");
-  regex.lastIndex = Math.max(0, ctx.from - 256);
-  for (
-    let match = regex.exec(ctx.scanText);
-    match && match.index < ctx.to;
-    match = regex.exec(ctx.scanText)
-  ) {
-    const targetStart = match.indices!.groups!.target[0];
-    if (targetStart < ctx.from || targetStart >= ctx.to) continue;
-    const before = ctx.text.slice(Math.max(0, match.index - 96), match.index);
-    // Directly named quoted examples, including words before the matched evidence.
-    if (
-      /\b(?:write|replace|type|spell|phrase|words?|example|literal|text|says?|reads?)[ :\t]*["“‘'][^"”’'\r\n\uFFFC]{0,64}$/i.test(
-        before,
-      )
-    )
-      continue;
-    const end = match.index + match[0].length;
-    if (/^\uFFFC|^\.[\p{L}\p{N}_]/u.test(ctx.text.slice(end, end + 2))) continue;
-    yield match;
-  }
-}
 
 function finding(
   ctx: DetectContext,
@@ -66,7 +42,7 @@ function finding(
 export function wordConfusions(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   // Copular comparison + complete comparison argument; temporal sentence tails abstain.
-  for (const match of matches(
+  for (const match of frameMatches(
     ctx,
     `(?:is|are|was|were)${SPACE}(?:(?:much|even|far|slightly)${SPACE})?${COMPARATIVE}${SPACE}(?<target>then)${SPACE}${ARGUMENT}${COMPLETE}`,
   )) {
@@ -82,14 +58,14 @@ export function wordConfusions(ctx: DetectContext): RawFinding[] {
     `(?<!(?:would|had|should|['’]d)${SPACE})rather${SPACE}(?<target>then)${END_WORD}`,
     `easier${SPACE}said${SPACE}(?<target>then)${SPACE}done${END_WORD}`,
   ]) {
-    for (const match of matches(ctx, pattern)) {
+    for (const match of frameMatches(ctx, pattern)) {
       const result = finding(ctx, match, "englishThenThan", "review_msg_then_than", "than");
       if (result) findings.push(result);
     }
   }
   // "going to" + a known lexical verb and object, closed before another predicate.
   // "Your going away upset us" and "Your going to work upset us" remain noun phrases.
-  for (const match of matches(
+  for (const match of frameMatches(
     ctx,
     `(?<target>your|their|there)${SPACE}going${SPACE}to${SPACE}(?:like|enjoy|need|want|understand|remember)${SPACE}(?:this|that|it|them|us|me)${COMPLETE}`,
   )) {
@@ -110,7 +86,7 @@ export function wordConfusions(ctx: DetectContext): RawFinding[] {
     if (result) findings.push(result);
   }
   // An object-taking verb + own + a known noun supplies a complete possessive phrase.
-  for (const match of matches(
+  for (const match of frameMatches(
     ctx,
     `(?:check|checked|reset|update|updated|save|saved|change|changed|remember|remembered|forgot|entered|used|found|lost)${SPACE}(?<target>you['’]re)${SPACE}own${SPACE}${NOUN}${COMPLETE}`,
   )) {
@@ -118,7 +94,7 @@ export function wordConfusions(ctx: DetectContext): RawFinding[] {
     if (result) findings.push(result);
   }
   // No light/fast/slow: those adjectives are also base verbs after prospective "is to".
-  for (const match of matches(
+  for (const match of frameMatches(
     ctx,
     `(?:is|are|was|were|am|be|seems?|looks?)${SPACE}(?<target>to)${SPACE}(?:heavy|large|small|hot|cold|late|early|expensive|difficult|hard|tired)${SPACE}to${SPACE}(?:lift|carry|fit|eat|drink|finish|move|read|use|reach|leave|start|stop|understand)${END_WORD}`,
   )) {
@@ -161,26 +137,26 @@ function theirConfusions(ctx: DetectContext, findings: RawFinding[]): RawFinding
       findings.push(result);
   };
   // Existential there: modal/perfect "be", negative contractions and "their's a …".
-  for (const match of matches(
+  for (const match of frameMatches(
     ctx,
     `(?<target>their)${SPACE}(?:(?:will|won['’]t|can|could|should|would|may|might|must)(?:n['’]t)?${SPACE}(?:not${SPACE})?be|(?:has|have)(?:n['’]t)?${SPACE}been|(?:isn|aren|wasn|weren)['’]t|used${SPACE}to${SPACE}be)${END_WORD}`,
   ))
     if (opensClause(ctx, match.index) || cued(ctx, match.index))
       push(match, "review_msg_their_there", "there");
-  for (const match of matches(
+  for (const match of frameMatches(
     ctx,
     `(?<target>their['’]s)${SPACE}(?:a|an|the|no|another|enough|nothing|something|always|still|also|just|plenty|some|more|lots|one|only)${END_WORD}`,
   ))
     push(match, "review_msg_their_there", "there's");
   // Location there: a possessive never precedes a preposition or ends a clause.
-  for (const match of matches(
+  for (const match of frameMatches(
     ctx,
     `(?<verb>${LOCATIVE})${SPACE}(?<target>their)(?:${SPACE}(?:on|in|at|by|near|beside|until|after|before|among|inside|outside|under|behind|during|without|within|to|and|again|yet|anymore|once|already|now|today|tonight|tomorrow|mid)${END_WORD}|(?<end>(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))))`,
   ))
     if (match.groups!.end === undefined || PLACE_END.test(match.groups!.verb))
       push(match, "review_msg_their_there", "there");
   // They're: a clause-opening "their" before a predicate, a participle or an article.
-  for (const match of matches(ctx, THEY_ARE)) {
+  for (const match of frameMatches(ctx, THEY_ARE)) {
     if (!opensClause(ctx, match.index) && !cued(ctx, match.index)) continue;
     const { pred, follow } = match.groups!;
     if (pred === "right" && follow === "to") continue;
@@ -195,25 +171,25 @@ function theirConfusions(ctx: DetectContext, findings: RawFinding[]): RawFinding
     push(match, "review_msg_they_are", "they're");
   }
   // A determiner never precedes a preposition phrase: "the keys their on the counter"; a clause-opening one is "they're".
-  for (const match of matches(
+  for (const match of frameMatches(
     ctx,
     `(?<target>their)${SPACE}(?:on|in|at|by|near|beside|behind|inside|outside|under|until|among)${SPACE}(?:the|a|an|my|your|our|his|her|this|that)${END_WORD}`,
   ))
     if (!opensClause(ctx, match.index)) push(match, "review_msg_their_there", "there");
   // Possessive: a preposition never takes "they're"; "they're X were" has no room for a verb.
-  for (const match of matches(
+  for (const match of frameMatches(
     ctx,
     `${PREPOSITION}${SPACE}(?<target>they['’]?re)${SPACE}[a-z]+${END_WORD}`,
   ))
     push(match, "review_msg_their_possessive", "their");
-  for (const match of matches(
+  for (const match of frameMatches(
     ctx,
     `(?<target>they['’]?re)${SPACE}(?!(?:not|all|both|each|also|still|just|really|never|always|so|too|very|already|probably|certainly|here|there|now|then|what|who|which|whoever|whatever|where|how|why|when|that|this|it|one|someone|something|everything|everyone|anything|nothing)${END_WORD})[a-z]+${SPACE}(?:is|are|was|were|has|have|had)(?:n['’]t)?${END_WORD}`,
   ))
     push(match, "review_msg_their_possessive", "their");
   // "they're own" + a word is only ever the possessive; "there own" also reads
   // "people there own cars", so it needs a clause start, preposition or verb before it.
-  for (const match of matches(
+  for (const match of frameMatches(
     ctx,
     `(?<target>there|they['’]?re)${SPACE}own${SPACE}[a-z]+${END_WORD}`,
   ))
@@ -258,12 +234,12 @@ function comparisonAndDegree(ctx: DetectContext, findings: RawFinding[]): RawFin
     /\b(?:if|when|once|unless|after|before|until)\b[^.!?;:\n]*$/i.test(
       ctx.text.slice(Math.max(0, match.index - 96), match.index),
     );
-  for (const match of matches(
+  for (const match of frameMatches(
     ctx,
     `(?<!(?:more|most|less)${SPACE})(?:${COMPARATIVE}|${COMPARISON_WORDS}|(?:more|less)${SPACE}(?![a-z]+er${END_WORD})[a-z]+|(?<=(?:no${SPACE}one|nobody|nothing|anything|anyone|someone|something|none|no)${SPACE})other)${SPACE}(?<target>then)${SPACE}(?:${COMPARED}|(?:(?:the|a|an|my|your|our|their|its|this|that|those|these)(?:${SPACE}(?!(?:[a-z]+ed)${END_WORD})[a-z]+){1,3}|you|her)(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:)]|$)|${SPACE}(?:at|in|for|on|with|by|when|so)${END_WORD}))${END_WORD}`,
   ))
     if (!conditional(match)) push(match, "englishThenThan", "review_msg_then_than", "than");
-  for (const match of matches(
+  for (const match of frameMatches(
     ctx,
     `(?:now${SPACE}and|until|till|since|by|back)${SPACE}(?<target>than)(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:…)]|$))`,
   ))
@@ -273,7 +249,7 @@ function comparisonAndDegree(ctx: DetectContext, findings: RawFinding[]): RawFin
     THEY_ARE.replace("(?<target>their)", "(?<target>your)"),
     `(?<target>your)${SPACE}(?:(?:completely|totally|still|already)${SPACE})?out${SPACE}(?:of|at|on|in|with|under|for)${END_WORD}`,
     `(?<target>your)(?:${SPACE}(?:so|very|really|too|totally|completely|absolutely|pretty|quite|extremely|barely|surprisingly)){1,3}${SPACE}(?!own${END_WORD})[a-z]+${COMPLETE}`,
-  ].flatMap((pattern) => [...matches(ctx, pattern)])) {
+  ].flatMap((pattern) => [...frameMatches(ctx, pattern)])) {
     if (!opensClause(ctx, match.index) && !cued(ctx, match.index)) continue;
     const end = match.index + match[0].length;
     if (
@@ -290,29 +266,29 @@ function comparisonAndDegree(ctx: DetectContext, findings: RawFinding[]): RawFin
     push(match, "englishYourYouAre", "review_msg_your_you_are", "you're");
   }
   // ever: "every" between an auxiliary + subject and a verb ("Did you every try…").
-  for (const match of matches(
+  for (const match of frameMatches(
     ctx,
     `(?:can|could|would|will|should|shall|might|may|did|do|does|have|has|had|don['’]?t|doesn['’]?t|didn['’]?t|won['’]t|wouldn['’]t|can['’]t|couldn['’]t)${SPACE}(?:I|you|we|they|he|she|it)${SPACE}(?<target>every)${SPACE}(?!(?:day|days|time|times|morning|night|week|weekend|month|year|hour|minute|second|one|single|other|so|now|last|bit|once|single|few|two|three)${END_WORD})[a-z]+${END_WORD}`,
   ))
     push(match, "englishToToo", "review_msg_ever_every", "ever");
   // Degree "too": a linking verb + to + adjective, then an infinitive, for-phrase or clause end.
-  for (const match of matches(
+  for (const match of frameMatches(
     ctx,
     `${LINKING}${SPACE}(?:(?:not|way|far|just|a${SPACE}bit|much|still|also|really|simply)${SPACE})?(?<target>to)${SPACE}${DEGREE_ADJECTIVE}(?:${SPACE}(?:to|for)${SPACE}[a-z]+${END_WORD}|(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:)]|$)))`,
   ))
     push(match, "englishToToo", "review_msg_to_too", "too");
-  for (const match of matches(
+  for (const match of frameMatches(
     ctx,
     `(?:(?:go|goes|going|gone|went|take|takes|took|taken|push|pushed|carry|carried|speak|spoke|spoken|speaking|talk|talked|celebrate|celebrated|act|acted|judge|judged)${SPACE}(?<target>to)${SPACE}(?:far|soon)(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:)]|$)|${SPACE}(?:with|for|on|in|this|and|but|when|because|like)${END_WORD})|(?<![Tt]he${SPACE}|[Aa]${SPACE}|[Tt]his${SPACE}|[Tt]hat${SPACE}|[Oo]ne${SPACE}|[Nn]o${SPACE}|[Bb]est${SPACE}|[Ww]hich${SPACE})way${SPACE}(?<target>to)${SPACE}(?:much|many|long|big|small|far|late|early|hard|easy|fast|slow|good|bad|high|low|expensive|complicated|little|often))${END_WORD}`,
   ))
     push(match, "englishToToo", "review_msg_to_too", "too");
   // "too" never precedes a determiner or object pronoun, nor a bare verb after want/need…
-  for (const match of matches(
+  for (const match of frameMatches(
     ctx,
     `(?<target>too)${SPACE}(?:the|a|an|him|them|me|us|my|your|his|our|their)${END_WORD}`,
   ))
     push(match, "englishToToo", "review_msg_to_infinitive", "to");
-  for (const match of matches(
+  for (const match of frameMatches(
     ctx,
     `(?:want|wants|wanted|need|needs|needed|going|able|trying|try|tried|supposed|used|have|has|had|like|love|hope|plan|decided)${SPACE}(?<target>too)${SPACE}(?<verb>[a-z]+)${END_WORD}`,
   )) {
@@ -322,7 +298,7 @@ function comparisonAndDegree(ctx: DetectContext, findings: RawFinding[]): RawFin
       push(match, "englishToToo", "review_msg_to_infinitive", "to");
   }
   // were: a subject pronoun before where + a predicate that cannot start a place clause.
-  for (const match of matches(
+  for (const match of frameMatches(
     ctx,
     `(?:we|they|you)${SPACE}(?<target>where)${SPACE}(?:(?:not|all|still|just|already|also|never|always|almost)${SPACE})?(?:right|wrong|happy|able|told|asked|supposed|going|done|ready|sure|late|busy|here|there|the${SPACE}only|allowed|given|shown|sent|invited|expected|told|lucky|about|trying|waiting|working|looking|talking|finished|gone)${END_WORD}`,
   )) {
@@ -337,7 +313,7 @@ function comparisonAndDegree(ctx: DetectContext, findings: RawFinding[]): RawFin
     push(match, "englishWereWhere", "review_msg_were_where", "were");
   }
   // where: a verb of knowing or finding before were + a subject and more clause.
-  for (const match of matches(
+  for (const match of frameMatches(
     ctx,
     `(?:know|knows|knew|forgot|forget|remember|remembers|found|find|check|asked|ask|wonder|wondered|show|showed|tell|told|see|saw|sure|idea)${SPACE}(?:(?:me|us|him|her|them)${SPACE})?(?<target>were)${SPACE}(?:I|he|she|it|we|they|you|the${SPACE}[a-z]+${SPACE}(?:is|was|are|were))${END_WORD}`,
   ))

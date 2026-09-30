@@ -1,9 +1,12 @@
-import { detectPhraseTemplates, type PhraseTemplate } from "./phraseTemplates";
+import {
+  COMPLETE as END,
+  detectPhraseTemplates,
+  EDGE,
+  SPACE,
+  type PhraseTemplate,
+} from "./phraseTemplates";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 
-const SPACE = "[ \\t\\u00a0]{1,8}";
-const EDGE = "[\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]";
-const END = `(?!${EDGE})(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))`;
 const SUBJECT = `(?:(?:this|that|the)${SPACE}(?:(?:new|old|latest)${SPACE})?(?:feature|idea|story|proposal|question|book|article|design|project|topic)|it)`;
 const templates: readonly PhraseTemplate[] = [
   {

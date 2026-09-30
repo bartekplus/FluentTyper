@@ -1,10 +1,7 @@
 import { ENGLISH_COMPARATIVES } from "../implementations/helpers/EnglishDegreeForms";
-import { applyWordCase, detectWordCase } from "../implementations/helpers/GenericRuleShared";
+import { COMPLETE as END, frameMatches, hasUserOrCasedWord, SPACE } from "./phraseTemplates";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 
-const SPACE = "[ \\t\\u00a0]{1,8}";
-const EDGE = "[\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]";
-const END = `(?!${EDGE})(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))`;
 const NOUN =
   "(?:algorithm|approach|result|option|route|method|plan|model|version|device|answer|solution|test)";
 const SUBJECT = `(?:this|that|it|(?:this|that|the)${SPACE}(?:(?:new|old|revised|previous)${SPACE})?${NOUN})${SPACE}(?:is|was)(?:${SPACE}also)?`;
@@ -20,26 +17,10 @@ const patterns = [
 export function doubledDegree(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   for (const pattern of patterns) {
-    const regex = new RegExp(`(?<![.])(?<!${EDGE})${pattern}`, "gidu");
-    regex.lastIndex = Math.max(0, ctx.from - 256);
-    for (let m = regex.exec(ctx.scanText); m && m.index < ctx.to; m = regex.exec(ctx.scanText)) {
+    for (const m of frameMatches(ctx, pattern)) {
       const [start, end] = m.indices!.groups!.target;
-      if (start < ctx.from || start >= ctx.to) continue;
       const phraseEnd = m.index + m[0].length;
-      if (/^\.[\p{L}\p{N}_]/u.test(ctx.text.slice(phraseEnd, phraseEnd + 2))) continue;
-      const before = ctx.scanText.slice(Math.max(0, m.index - 128), m.index);
-      if (
-        /\b(?:write|type|spell|phrase|words?|example|literal|text|term|form|heading|title|label|says?|reads?)(?:[ \t]+(?:is|was))?[ :\t]*["“'‘][^\r\n\uFFFC]{0,80}$/i.test(
-          before,
-        )
-      )
-        continue;
-      if (
-        (m[0].match(/[A-Za-z]+/g) ?? []).some(
-          (w) => ctx.dictionary.has(w.toLowerCase()) || applyWordCase(w, detectWordCase(w)) !== w,
-        )
-      )
-        continue;
+      if (hasUserOrCasedWord(ctx, m[0])) continue;
       if (m.groups!.target !== m.groups!.target.toLowerCase()) continue;
       findings.push({
         ruleId: "englishDoubledDegree",
