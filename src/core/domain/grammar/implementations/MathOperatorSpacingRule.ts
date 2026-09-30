@@ -42,6 +42,15 @@ export class MathOperatorSpacingRule extends SpacingRuleShared implements Gramma
     if (operatorChar === "=" && /[-?&`<]/.test(beforeOperand)) {
       return null;
     }
+    // '<span title="x">': an attribute inside an open HTML tag.
+    if (
+      operatorChar === "=" &&
+      /<[A-Za-z][\w:-]*\s[^<>]*$/.test(
+        inputStr.slice(Math.max(0, leftOperand.start - 256), leftOperand.start),
+      )
+    ) {
+      return null;
+    }
     // A number ending a name ("FOO2", "var1") is part of that name.
     const standaloneNumber =
       leftOperand.kind === "number" && !this.isIdentifierChar(inputStr[leftOperand.start - 1]);
@@ -51,6 +60,10 @@ export class MathOperatorSpacingRule extends SpacingRuleShared implements Gramma
       leftOperand.text === leftOperand.text.toUpperCase()
     ) {
       // "FOO=bar" and "FOO2=bar" are environment variables; "2=2" is arithmetic.
+      return null;
+    }
+    // "SameSite=Lax", "maxAge=60": a camel-case setting name, not algebra.
+    if (operatorChar === "=" && /\p{Ll}\p{Lu}/u.test(leftOperand.text)) {
       return null;
     }
 

@@ -373,6 +373,16 @@ describe("V1 grammar rules", () => {
       expect(rule.apply(context("x==y"))).toBeNull();
       expect(rule.apply(context("foo+b"))).toBeNull();
     });
+
+    test("leaves HTML attributes inside an open tag alone", () => {
+      const rule = new MathOperatorSpacingRule(true);
+      expect(rule.apply(context('<span title="'))).toBeNull();
+      expect(rule.apply(context('<img src="a.png" alt="'))).toBeNull();
+      expect(rule.apply(context("Use <td colspan=2"))).toBeNull();
+      // A closed tag or a comparison does not hide later arithmetic.
+      expect(rule.apply(context("<b>Note</b> x=y"))?.replacement).toBe("x = y");
+      expect(rule.apply(context("if 3 < 4 then x=y"))?.replacement).toBe("x = y");
+    });
   });
 
   describe("TechnicalTokenCompactionRule", () => {

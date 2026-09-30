@@ -43,6 +43,10 @@ const positives = [
   ["The the report is here.", "The report is here."],
   ["😀 Café́: the\t the report.\r\nDone.", "😀 Café́: the report.\r\nDone."],
   ['He shouted, "The the door is open!"', 'He shouted, "The door is open!"'],
+  ["I have to to go home.", "I have to go home."],
+  ["Please send it to to the team.", "Please send it to the team."],
+  ["Bread and and butter.", "Bread and butter."],
+  ["It looks as as good as new.", "It looks as good as new."],
 ];
 test.each(positives)("repairs %s", (source, expected) => {
   const findings = review(source);
@@ -96,6 +100,12 @@ const negatives = [
   "can can dancers",
   "that that",
   "the-the the report",
+  // A stranded preposition or an elided infinitive before "to".
+  "Here is the club I wrote to to complain.",
+  "Do whatever you have to to win.",
+  "Adjust it as you need to to finish.",
+  "This is the form we refer to to check totals.",
+  "The file being pointed to to load is missing.",
 ];
 test.each(negatives)("preserves %s", (text) => expect(review(text)).toEqual([]));
 

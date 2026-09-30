@@ -37,6 +37,7 @@ import {
   CLOSING_CHARS,
   closesAbbreviation,
   CLOSING_PADDING_CHARS,
+  keepsOwnCasing,
   SENTENCE_OPENING_MARKS,
   TRAILING_PUNCTUATION_REGEX,
   startsSentence,
@@ -50,6 +51,7 @@ import { correctWhitelistedTypo } from "../implementations/EnglishTypoWhitelistC
 import {
   MODAL_OF_REGEX,
   OF_IDIOMS,
+  isNounMight,
   modalHaveWord,
 } from "../implementations/EnglishModalOfCorrectionRule";
 import {
@@ -64,8 +66,11 @@ import { ALOT_REGEX, correctAlot } from "../implementations/EnglishAlotCorrectio
 import {
   AGREEMENT_CORRECTIONS,
   AGREEMENT_REGEX,
+  PREVIOUS_WORD,
   correctPronounVerb,
+  isObjectYou,
 } from "../implementations/EnglishPronounVerbWhitelistAgreementRule";
+import { lastNonBlankBefore, opensClause } from "../implementations/helpers/EnglishRuleShared";
 import {
   ARTICLE_REGEX,
   SENTENCE_START_REGEX,
@@ -245,22 +250,9 @@ function previousTokensStart(text: string, index: number, count: number): number
   return position;
 }
 
-/** True when `index` opens a clause: text start, a line start, or after . ! ? , ; : or an opening mark. */
-function opensClause(text: string, index: number): boolean {
-  const i = lastNonBlankBefore(text, index);
-  return i < 0 || /[\n.!?,;:([{"“‘«—–-]/.test(text[i]);
-}
-
 /** Where the clause-opening evidence for a phrase at `index` starts. */
 function clauseEvidenceStart(text: string, index: number): number {
   return Math.max(0, lastNonBlankBefore(text, index));
-}
-
-/** Index of the last character before `index` that is not a space, tab or no-break space (-1: none). */
-function lastNonBlankBefore(text: string, index: number): number {
-  let i = index - 1;
-  while (i >= 0 && (text[i] === " " || text[i] === "\t" || text[i] === "\u00A0")) i -= 1;
-  return i;
 }
 
 // ---------------------------------------------------------------- capitalization
@@ -278,8 +270,7 @@ const capitalizeStarts: Detector = (ctx) => {
     const letterEnd = graphemeEnd(ctx.text, letterIndex);
     const letter = ctx.source.slice(letterIndex, letterEnd);
     const bare = word.replace(TRAILING_PUNCTUATION_REGEX, "");
-    // "iPhone", "eBay", "macOS": a capital later in the word means deliberate casing.
-    if (isTechnicalToken(bare) || /\p{Lu}/u.test(bare.slice(1)) || /\p{N}/u.test(bare)) continue;
+    if (isTechnicalToken(bare) || keepsOwnCasing(bare)) continue;
     const upper = letter.toUpperCase();
     if (upper === letter) continue;
     const range = { start: letterIndex, end: letterEnd };
@@ -410,13 +401,16 @@ const pronounI: Detector = (ctx) => {
   for (const match of ownedMatches(ctx, regex)) {
     const start = match.index;
     const before = ctx.text[start - 1] ?? "";
-    if (/[@#/\\.=$\-([]/.test(before) || before === MASK_CHAR) continue;
+    if (/[@#/\\.=$\-[]/.test(before) || before === MASK_CHAR) continue;
     if (IDENTIFIER_BEFORE.test(ctx.text.slice(Math.max(0, start - 24), start))) continue;
     const rest = ctx.text.slice(start + 1, start + 1 + 40);
     let contextEnd = start + 1;
     let sentenceEnd = false;
     if (/^['’](?:m|ve|ll|d)(?![\p{L}\p{N}])/u.test(rest)) {
       contextEnd += rest.match(/^['’]\w+/)![0].length;
+    } else if (before === "(" && !/^[ \t ]/.test(rest)) {
+      // "(i think)" is the pronoun; "(i)", "(i, ii)" and "f(i)" are not.
+      continue;
     } else if (/^[,;!?]/.test(rest)) {
       contextEnd += 1;
     } else if (/^\.(?:\s|$)/u.test(rest)) {
@@ -589,6 +583,7 @@ const modalOf: Detector = (ctx) => {
   const findings: RawFinding[] = [];
   for (const { match, start, end } of phraseMatches(ctx, MODAL_OF_REGEX, 3)) {
     if (OF_IDIOMS.has(match[2].toLowerCase())) continue;
+    if (isNounMight(match[1], ctx.text.slice(Math.max(0, start - 24), start))) continue;
     const modal = groupRange(match, 1);
     let ofStart = modal.end;
     while (/\s/.test(ctx.text[ofStart] ?? "")) ofStart += 1;
@@ -598,7 +593,9 @@ const modalOf: Detector = (ctx) => {
       ruleId: "englishModalOfCorrection",
       messageKey: "review_msg_modal_of",
       range: { start, end: ofRange.end },
-      alternatives: [`${ctx.source.slice(start, ofRange.start)}${modalHaveWord(match[1])}`],
+      alternatives: [
+        `${ctx.source.slice(start, ofRange.start)}${modalHaveWord(match[1], ctx.text.slice(ofRange.start, ofRange.end))}`,
+      ],
       context: { start, end },
     });
   }
@@ -648,52 +645,6 @@ const theirThere: Detector = (ctx) => {
   return findings;
 };
 
-// The word right before a phrase, on the same line.
-const PREVIOUS_WORD = /([A-Za-z]+)[ \t\u00A0]+$/;
-// Verbs and prepositions after which "you" can only be their object: "I told
-// you was" reads "(what) I told you was". Verbs that can introduce a clause
-// ("I heard you was sick", "I knew you was lying") are left out: after them
-// "you" is usually the subject of the new clause.
-const OBJECT_YOU_BEFORE = new Set([
-  ...["tell", "tells", "told", "give", "gives", "gave", "given", "show", "shows", "showed"],
-  ...["shown", "send", "sends", "sent", "ask", "asks", "asked", "thank", "thanks", "thanked"],
-  ...["teach", "teaches", "taught", "pay", "pays", "paid", "bring", "brings", "brought"],
-  ...["buy", "buys", "bought", "owe", "owes", "owed", "lend", "lends", "lent", "sell"],
-  ...["sells", "sold", "write", "writes", "wrote", "written", "remind", "reminds"],
-  ...["reminded", "warn", "warns", "warned", "offer", "offers", "offered", "promise"],
-  ...["promises", "promised", "meet", "met", "love", "hate", "help", "call", "leave", "left"],
-  ...["hit", "hurt", "keep", "kept", "miss", "choose", "chose", "chosen", "lose", "lost"],
-  ...["beat", "catch", "caught", "bless", "blessed", "make", "made", "let", "want", "wanted"],
-  ...["need", "needed"],
-  ...["to", "for", "with", "of", "about", "from", "at", "by", "on", "upon", "onto", "into"],
-  ...["toward", "towards", "against", "without", "behind", "beside", "besides", "around"],
-  ...["near", "among", "between", "beyond", "under", "over", "through", "unto", "within"],
-]);
-// Words ending in "ing" that are not gerunds taking an object.
-const NOT_GERUNDS = /^(?:\p{L}*thing|during|morning|evening|ceiling|king|spring|string)$/u;
-// Gerunds that can introduce a clause: "Knowing you was lying, I left".
-const CLAUSE_GERUNDS = new Set([
-  ...["knowing", "hearing", "seeing", "finding", "thinking", "believing", "feeling"],
-  ...["noticing", "realizing", "realising", "hoping", "wishing", "saying", "guessing"],
-  ...["supposing", "assuming", "figuring", "imagining", "remembering", "forgetting"],
-  ...["understanding", "learning", "reading", "deciding", "suspecting", "fearing"],
-  ...["expecting", "pretending", "claiming", "admitting", "doubting", "trusting"],
-]);
-
-/**
- * True when "you" after `word` can only be its object. A past tense or a
- * gerund elsewhere may take "you" as its object ("the man calling you") or
- * introduce a clause ("I assumed you was busy", "I was hoping you was"), so
- * its ending alone never decides it: such a finding stays, one at a time.
- */
-function takesObjectYou(word: string, opensItsClause: boolean): boolean {
-  if (OBJECT_YOU_BEFORE.has(word)) return true;
-  // A gerund opening its clause is the subject, and "you" its object:
-  // "Meeting you was great".
-  const gerund = word.length > 4 && word.endsWith("ing") && !NOT_GERUNDS.test(word);
-  return gerund && opensItsClause && !CLAUSE_GERUNDS.has(word);
-}
-
 // Subordinators after which "you" opens a clause as its subject: "if you was".
 const YOU_SUBJECT_BEFORE = new Set([
   ...["if", "when", "whenever", "because", "while", "although", "though", "unless"],
@@ -726,15 +677,10 @@ const pronounVerb: Detector = (ctx) => {
     if (inputPronoun.toLowerCase() === "you") {
       // "Everything I told you was", "Seeing you was", "the gift for you was":
       // "you" is the object of the word before it, and "was" is right.
-      const lookback = Math.max(0, phraseRange.start - 32);
-      const previousMatch = PREVIOUS_WORD.exec(ctx.text.slice(lookback, phraseRange.start));
-      const previous = previousMatch?.[1].toLowerCase();
-      if (
-        previous &&
-        takesObjectYou(previous, opensClause(ctx.text, lookback + previousMatch!.index))
-      ) {
-        continue;
-      }
+      if (isObjectYou(ctx.text, phraseRange.start)) continue;
+      const previous = PREVIOUS_WORD.exec(
+        ctx.text.slice(Math.max(0, phraseRange.start - 32), phraseRange.start),
+      )?.[1].toLowerCase();
       // Only a clause start says subject for sure ("You was late.", "if you
       // was there"); anywhere else ("I heard you was sick") the word before
       // may still take "you" as its object: one at a time.
@@ -1373,6 +1319,36 @@ const REPEATED_WORD_REGEX = new Map(
   ]),
 );
 
+// Verbs whose "to" opens an infinitive: "We need to to leave" doubles the marker.
+const INFINITIVE_TO_VERBS = new Set([
+  ...["need", "needs", "needed", "have", "has", "had", "want", "wants", "wanted", "going"],
+  ...["got", "ought", "able", "used", "try", "tries", "tried", "trying", "plan", "plans"],
+  ...["planned", "hope", "hopes", "hoped", "decide", "decided"],
+]);
+// Words that leave a gap for an elided infinitive: "whatever you need to to finish".
+const INFINITIVE_GAP = /\b(?:what|whatever|which|who|whom|that|as|where|when|how)\b/i;
+
+/**
+ * "to to" is also a stranded preposition before an infinitive ("the team I
+ * wrote to to complain") or an elided one ("do what you have to to win").
+ * Repair it only before a determiner, number or name ("sent to to the team"),
+ * or after an infinitive verb with no gap before it ("I have to to go").
+ */
+function doubledTo(before: string, after: string): boolean {
+  if (/^[ \t ]*(?:(?:the|a|an|my|your|his|her|its|our|their)\b|\p{Lu}|\p{N})/u.test(after)) {
+    return true;
+  }
+  const sentence = before.slice(
+    Math.max(...[".", "!", "?", "\n"].map((c) => before.lastIndexOf(c))) + 1,
+  );
+  const verb = /(\p{L}+)[ \t ]+$/u.exec(sentence);
+  return (
+    !!verb &&
+    INFINITIVE_TO_VERBS.has(verb[1].toLowerCase()) &&
+    !INFINITIVE_GAP.test(sentence.slice(0, verb.index))
+  );
+}
+
 const repeatedWords: Detector = (ctx) => {
   const findings: RawFinding[] = [];
   const regex = REPEATED_WORD_REGEX.get(ctx.lang.slice(0, 2));
@@ -1391,6 +1367,7 @@ const repeatedWords: Detector = (ctx) => {
     if (before.match(/(\p{L}+)[ \t\u00a0]{1,8}$/u)?.[1].toLowerCase() === word) continue;
     // A named, quoted example is evidence, not prose to repair. Normal quotations still run.
     if (CUE_AND_QUOTE.test(before)) continue;
+    if (word === "to" && !doubledTo(before, ctx.text.slice(end, end + 16))) continue;
     findings.push({
       ruleId: "englishRepeatedWords",
       messageKey: "review_msg_repeated_words",

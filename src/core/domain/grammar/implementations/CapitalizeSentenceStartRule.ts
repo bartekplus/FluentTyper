@@ -98,6 +98,10 @@ export function closesAbbreviation(text: string, index: number, lang?: string): 
     start -= 1;
   }
   const token = text.slice(start, index);
+  // An ellipsis trails off inside the sentence, as "…" does: "wait ... what".
+  if (token.endsWith(".")) {
+    return true;
+  }
   if (!/\p{L}/u.test(token)) {
     // "2026." and "12." end sentences in English; elsewhere they are ordinals.
     return token.length > 0 && ORDINAL_PERIOD_LOCALES.has(lang ?? "");
@@ -114,6 +118,12 @@ export const WORD_BOUNDARY_CHARS = [...SPACE_CHARS, "\n"];
 // Punctuation that closes a prose word without making it a token: "done.",
 // "hello,", "(quietly)".
 export const TRAILING_PUNCTUATION_REGEX = /[.,!?;:)\]}"'”’“‘»›\u00A0\u202F]+$/u;
+
+/** "iPhone", "eBay", "x2": a later capital or a digit means deliberate casing ("mid-May" does not). */
+export function keepsOwnCasing(word: string): boolean {
+  const head = word.split("-")[0];
+  return /\p{Lu}/u.test(head.slice(1)) || /\p{N}/u.test(head);
+}
 
 export class CapitalizeSentenceStartRule implements GrammarRule {
   readonly id = "capitalizeSentenceStart" as const;
@@ -143,6 +153,7 @@ export class CapitalizeSentenceStartRule implements GrammarRule {
     if (
       !isLowercaseLetter(word[letter] ?? "") ||
       isTechnicalToken(word.replace(TRAILING_PUNCTUATION_REGEX, "")) ||
+      keepsOwnCasing(word.replace(TRAILING_PUNCTUATION_REGEX, "")) ||
       !startsSentence(text, wordStart, context.hints?.lang)
     ) {
       return null;

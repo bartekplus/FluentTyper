@@ -54,6 +54,9 @@ const errors: Array<[(typeof ids)[number], string, string]> = [
   [ids[0], "Its been fixed.", "It's been fixed."],
   [ids[0], "Its already been updated.", "It's already been updated."],
   [ids[0], "Its raining again.", "It's raining again."],
+  [ids[0], "Its a sunny morning.", "It's a sunny morning."],
+  [ids[0], "I think its not ready.", "I think it's not ready."],
+  [ids[0], "Its because the cable broke.", "It's because the cable broke."],
   ...[
     "try again",
     "go home",
@@ -125,6 +128,8 @@ const negatives: Record<(typeof ids)[number], string[]> = {
     "Its cold surface.",
     "We checked it's working now.",
     "Its warming temperature was unexpected.",
+    "The team and its a-side lineup.",
+    "The lamp kept its always-on glow.",
     "Its ready to usé.",
     "It's James's folder.",
     "It's 'cold' outside.",
@@ -253,7 +258,7 @@ test("normal nested quotations run while quoted instructions and protected evide
   const text = 'She said, "‘Lets try again.’"';
   const d = only(text, ids[1]);
   expect(d).toHaveLength(1);
-  expect(applyEdits(text, d[0].alternatives[0].edits)).toBe('She said, "‘Let\'s try again.’"');
+  expect(applyEdits(text, d[0].alternatives[0].edits)).toBe('She said, "‘Let’s try again.’"');
   for (const source of [
     'Type "‘Lets try again.’" exactly.',
     'The literal "‘Its ready to use.’" is wrong.',

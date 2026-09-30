@@ -50,6 +50,9 @@ describe("default-on rules never rewrite ambiguous input", () => {
     "You must of course agree ",
     "We should of course try ",
     "They could of necessity leave ",
+    // The noun "might".
+    "The might of Rome grew ",
+    "With all our might of arms ",
     // Possessive "your", not the phrase.
     "Your welcome package arrived ",
     // Ordinary English words that look like contractions.
@@ -85,6 +88,23 @@ describe("default-on rules never rewrite ambiguous input", () => {
     "Spread [...arr] here ",
     "Call f(...args) now ",
     "Hmm... ok ",
+    // A spaced or leading ellipsis trails off; the sentence goes on.
+    "Wait ... what now ",
+    "... and then it broke ",
+    // Thousands after a currency sign, not a list.
+    "It cost $4,000 in total ",
+    "It cost €1,500,000 now ",
+    // A plus suffix before punctuation, not addition.
+    "Use Node (18+, or newer) here ",
+    "Needs v8.0+) here ",
+    // A camel-case setting, not algebra.
+    "Set SameSite=Lax now ",
+    // After a word, a slash opens a path or a switch.
+    "Open /etc/hosts now ",
+    "Type /help for help ",
+    // Brand casing at a sentence start.
+    "iPhone sales grew ",
+    "Done. eBay works ",
     "Ratio 1.5 and 2.5 ",
     // Dotted identifiers, paths and mentions: a period inside a token is not a
     // sentence end, and its first letter is not a sentence start.
@@ -112,6 +132,10 @@ describe("unambiguous corrections still apply", () => {
   for (const [input, expected] of [
     ["and so did i. Then we left ", "And so did I. Then we left "],
     ["They could of gone ", "They could have gone "],
+    ["We might of won ", "We might have won "],
+    ["They shouldn't of left ", "They shouldn't have left "],
+    ["We Could Of Won ", "We Could Have Won "],
+    ["WE COULD OF WON ", "WE COULD HAVE WON "],
     ["Your welcome! ", "You're welcome! "],
     ["I dont know ", "I don't know "],
     ["im going now ", "I'm going now "],
@@ -124,6 +148,8 @@ describe("unambiguous corrections still apply", () => {
     ["i was there too ", "I was there too "],
     ["i is wrong here ", "I am wrong here "],
     ["he are going ", "He is going "],
+    ["So 10 /2 now ", "So 10 / 2 now "],
+    ["Pay $5,then go ", "Pay $5, then go "],
     // Only the sentence-start capital changes; brackets and links are intact.
     ["set x = {a: 1} now ", "Set x = {a: 1} now "],
     // A sentence period is never spaced by the rule; the user's space after

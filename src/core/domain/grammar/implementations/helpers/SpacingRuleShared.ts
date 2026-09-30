@@ -153,8 +153,14 @@ export abstract class SpacingRuleShared {
       return false;
     }
 
-    if (leftOperand.kind === "number" || this.isDigit(rightChar)) {
+    if (this.isDigit(rightChar)) {
       return true;
+    }
+    // "18+," and "(8.0+)" are suffixes: punctuation is not a right operand.
+    if (leftOperand.kind === "number") {
+      return (
+        this.isIdentifierStartChar(rightChar) || SpacingRuleShared.OPENING_BRACKETS.has(rightChar)
+      );
     }
     // Single-letter identifiers on both sides: "a+b", "x*y".
     return (
