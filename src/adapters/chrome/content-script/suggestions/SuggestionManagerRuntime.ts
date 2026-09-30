@@ -2,6 +2,11 @@ import { acceptKeyLabels } from "@core/domain/suggestionPopup/keyHints";
 import { getDeepActiveElement, isInDocument } from "@core/application/dom-utils";
 import { createLogger } from "@core/application/logging/Logger";
 import { LANG_SEPARATOR_CHARS_REGEX } from "@core/domain/lang";
+import {
+  findLiveGrammarProposals,
+  type LiveGrammarProposal,
+} from "@core/domain/grammar/review/liveProposals";
+import { reviewText } from "@core/domain/grammar/review/reviewMessages";
 import { InlineSuggestionPresenter } from "./InlineSuggestionPresenter";
 import { InlineSuggestionView } from "./InlineSuggestionView";
 import {
@@ -14,7 +19,11 @@ import { isVisiblyInteractive, SuggestionElementDiscovery } from "./SuggestionEl
 import { SuggestionEntrySession } from "./SuggestionEntrySession";
 import { SuggestionEntryRegistry } from "./SuggestionEntryRegistry";
 import { SuggestionGrammarCoordinator } from "./SuggestionGrammarCoordinator";
-import { SuggestionKeyboardHandler } from "./SuggestionKeyboardHandler";
+import {
+  highlightedMenuRow,
+  menuSuggestionRows,
+  SuggestionKeyboardHandler,
+} from "./SuggestionKeyboardHandler";
 import { SuggestionLifecycleController } from "./SuggestionLifecycleController";
 import { SuggestionMenuPresenter } from "./SuggestionMenuPresenter";
 import { SuggestionPositioningService } from "./SuggestionPositioningService";
@@ -84,6 +93,7 @@ export class SuggestionManagerRuntime {
   private readonly acceptKeys: string[] | undefined;
   private readonly uiLanguage: string | undefined;
   private readonly nativeAutocompleteConflictDetector = new NativeAutocompleteConflictDetector();
+  private readonly findGrammarProposals?: (beforeCursor: string) => LiveGrammarProposal[];
 
   private lang: string;
 
@@ -161,15 +171,43 @@ export class SuggestionManagerRuntime {
         }),
       consumeKeyboardEvent: this.consumeCancelableEvent.bind(this),
       clearSuggestions: this.clearSuggestions.bind(this),
-      isMenuVisible: (entry) => this.menuPresenter.isVisible(entry.menu, entry.suggestions.length),
-      updateSelectionHighlight: (entry) =>
-        this.menuPresenter.updateHighlight(entry.list, entry.selectedIndex),
+      isMenuVisible: (entry) => this.menuPresenter.isVisible(entry.menu, this.menuRowCount(entry)),
+      updateSelectionHighlight: (entry) => this.updateSelectionHighlight(entry),
       acceptSuggestion: (entry, suggestion) =>
         this.getSession(entry.id)?.acceptSuggestion(suggestion) ?? false,
       acceptSuggestionAtIndex: (entry, index) =>
         this.getSession(entry.id)?.acceptSuggestionAtIndex(index) ?? false,
+      acceptGrammarProposal: (entry) => this.getSession(entry.id)?.acceptGrammarProposal() ?? false,
       requestInlineSuggestion: (entry) => this.getSession(entry.id)?.requestInlineSuggestion(),
     });
+    const proposalRules = options.grammarProposalRules ?? [];
+    this.findGrammarProposals =
+      proposalRules.length === 0
+        ? undefined
+        : (beforeCursor) =>
+            findLiveGrammarProposals(beforeCursor, {
+              lang: this.lang,
+              enabledRules: proposalRules,
+              liveRules: options.enabledGrammarRules,
+              userDictionary: options.userDictionaryList ?? [],
+              insertSpaceAfterAutocomplete: options.insertSpaceAfterAutocomplete,
+            });
+  }
+
+  /** Rows the menu shows: its suggestions (none when they show inline) and a proposal. */
+  private menuRowCount(entry: SuggestionEntry): number {
+    return (
+      menuSuggestionRows(entry, this.inlineSuggestionEnabled) + (entry.grammarProposal ? 1 : 0)
+    );
+  }
+
+  private updateSelectionHighlight(entry: SuggestionEntry): void {
+    const row = highlightedMenuRow(entry, menuSuggestionRows(entry, this.inlineSuggestionEnabled));
+    this.menuPresenter.updateHighlight(entry.list, row);
+    resolveSuggestionStateHost(entry.elem).setAttribute(
+      EARLY_TAB_ACCEPT_VISIBLE_ATTR,
+      String(row >= 0),
+    );
   }
 
   public fulfillPrediction(context: PredictionResponse): void {
@@ -231,6 +269,10 @@ export class SuggestionManagerRuntime {
 
     this.activeEntryId = entry.id;
 
+    if (entry.grammarProposal && entry.grammarProposalSelected) {
+      return session.acceptGrammarProposal();
+    }
+
     if (this.inlineSuggestionEnabled && entry.inlineSuggestion) {
       return session.acceptSuggestion(entry.inlineSuggestion);
     }
@@ -272,7 +314,7 @@ export class SuggestionManagerRuntime {
     for (const [, entry] of this.entryRegistry.entriesById()) {
       if (entry.elem !== elem && !elem.contains(entry.elem) && !entry.elem.contains(elem)) continue;
       if (
-        this.menuPresenter.isVisible(entry.menu, entry.suggestions.length) ||
+        this.menuPresenter.isVisible(entry.menu, this.menuRowCount(entry)) ||
         InlineSuggestionView.hasForEntry(entry.id, entry.elem.ownerDocument)
       ) {
         return true;
@@ -687,7 +729,8 @@ export class SuggestionManagerRuntime {
       textEditService: this.textEditService,
       contentEditableAdapter: this.contentEditableAdapter,
       getPendingFallback: () => this.pendingKeyFallbacks.get(entry.id),
-      renderMenu: ({ suggestions, snippetShortcuts, selectedIndex, menuHeader, mentionText }) =>
+      findGrammarProposals: this.findGrammarProposals,
+      renderMenu: ({ suggestions, snippetShortcuts, menuHeader, mentionText }) =>
         this.menuPresenter.render({
           menuId: entry.id,
           menu: entry.menu,
@@ -695,7 +738,17 @@ export class SuggestionManagerRuntime {
           target: entry.elem,
           suggestions,
           snippetShortcuts,
-          selectedIndex,
+          selectedIndex: highlightedMenuRow(entry, suggestions.length),
+          proposal: entry.grammarProposal
+            ? {
+                original: entry.grammarProposal.original,
+                replacement: entry.grammarProposal.replacement,
+                explanation: reviewText(
+                  entry.grammarProposal.messageKey,
+                  this.uiLanguage || navigator.language,
+                ),
+              }
+            : null,
           showShortcutDigits: this.selectByDigit,
           horizontal: this.horizontalSuggestions,
           acceptKeys: this.acceptKeys,
@@ -765,9 +818,14 @@ export class SuggestionManagerRuntime {
     this.activeEntryId = id;
     const item = (
       typeof event.composedPath === "function" ? event.composedPath() : [event.target]
-    ).find((node) => node instanceof HTMLElement && node.matches("li[data-index]")) as
-      HTMLElement | undefined;
+    ).find(
+      (node) => node instanceof HTMLElement && node.matches("li[data-index], li[data-proposal]"),
+    ) as HTMLElement | undefined;
     if (!item) {
+      return;
+    }
+    if (item.hasAttribute("data-proposal")) {
+      this.getSession(id)?.acceptGrammarProposal();
       return;
     }
 

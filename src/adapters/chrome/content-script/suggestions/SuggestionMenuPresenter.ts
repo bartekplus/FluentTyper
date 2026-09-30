@@ -6,6 +6,7 @@ import { SuggestionMenuView } from "./SuggestionMenuView";
 import { buildSuggestionKeyHints } from "@core/domain/suggestionPopup/keyHints";
 import {
   SUGGESTION_POPUP_LANGUAGE_ID,
+  buildProposalRowHtml,
   buildSuggestionFooterHtml,
   buildSuggestionRowHtml,
   formatShortcutDigit,
@@ -19,7 +20,10 @@ interface SuggestionMenuRenderModel {
   target: SuggestionElement;
   suggestions: string[];
   snippetShortcuts?: Array<string | null>;
+  /** Highlighted row; `suggestions.length` is the proposal row, -1 none. */
   selectedIndex: number;
+  /** A grammar proposal, shown as the last row. */
+  proposal?: { original: string; replacement: string; explanation: string } | null;
   showShortcutDigits: boolean;
   menuHeader: string | null;
   mentionText: string;
@@ -65,7 +69,22 @@ export class SuggestionMenuPresenter {
       model.list.appendChild(li);
     });
 
-    if (model.suggestions.length === 0) {
+    const proposalIndex = model.suggestions.length;
+    if (model.proposal) {
+      const li = document.createElement("li");
+      li.id = `ft-suggestion-option-${model.menuId}-${proposalIndex}`;
+      li.innerHTML = buildProposalRowHtml(model.proposal);
+      li.title = model.proposal.explanation;
+      li.setAttribute("data-proposal", "true");
+      li.setAttribute("role", "option");
+      li.setAttribute("dir", "auto");
+      const selected = model.selectedIndex === proposalIndex;
+      li.setAttribute("aria-selected", String(selected));
+      li.classList.toggle("highlight", selected);
+      model.list.appendChild(li);
+    }
+
+    if (model.list.childElementCount === 0) {
       this.hide(model.menu, model.list, model.target);
       return false;
     }
@@ -85,13 +104,21 @@ export class SuggestionMenuPresenter {
     }
 
     panel.setAttribute("aria-hidden", "false");
-    panel.setAttribute(
-      "aria-activedescendant",
-      `ft-suggestion-option-${model.menuId}-${model.selectedIndex}`,
-    );
+    if (model.selectedIndex >= 0) {
+      panel.setAttribute(
+        "aria-activedescendant",
+        `ft-suggestion-option-${model.menuId}-${model.selectedIndex}`,
+      );
+    } else {
+      panel.removeAttribute("aria-activedescendant");
+    }
     model.menu.style.setProperty("display", "block", "important");
     model.menu.style.setProperty("visibility", "visible", "important");
-    resolveSuggestionStateHost(model.target).setAttribute(EARLY_TAB_ACCEPT_VISIBLE_ATTR, "true");
+    // Tab is claimed only when it has a row to accept: an unselected proposal leaves it alone.
+    resolveSuggestionStateHost(model.target).setAttribute(
+      EARLY_TAB_ACCEPT_VISIBLE_ATTR,
+      String(model.selectedIndex >= 0),
+    );
     return true;
   }
 

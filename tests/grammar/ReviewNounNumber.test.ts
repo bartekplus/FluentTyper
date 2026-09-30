@@ -70,6 +70,12 @@ const repairs: [string, string][] = [
   ["These file is missing.", "This file is missing."],
   ["Those device was broken.", "That device was broken."],
   ["These new report is ready.", "This new report is ready."],
+  ["We hired three new woman.", "We hired three new women."],
+  ["One of the criterion failed.", "One of the criteria failed."],
+  ["Those tooth are broken.", "Those teeth are broken."],
+  ["These analysis were useful.", "These analyses were useful."],
+  ["She owns one knives.", "She owns one knife."],
+  ["We interviewed 2 fisherman.", "We interviewed 2 fishermen."],
 ];
 test.each(repairs)("noun number repairs %s", (source, expected) => {
   const findings = scan(source);
@@ -187,12 +193,22 @@ const valid = [
   "`We found two error in the report.`",
   "These FILE_ID are missing.",
   "These fIle are missing.",
+  // Pronoun "one" followed by a verb.
+  "No one answers.",
+  "Each one reports.",
+  "The one leaves.",
+  "She waited. One leaves.",
+  "“One lives.”",
+  // Measurements, same-form and shared plurals stay out of the table.
+  "He is six foot.",
+  "The two fish are ready.",
+  "Those axes are sharp.",
 ];
 test.each(valid)("noun number preserves %s", (text) => expect(scan(text)).toEqual([]));
 test("shared noun forms are explicit and existential agreement follows quantity repair", () => {
   expect(englishNounForms("child")).toEqual({ singular: "child", plural: "children" });
   expect(knownEnglishNounNumber("children")).toBe("plural");
-  for (const word of ["sheep", "news", "series", "data", "unknowns"])
+  for (const word of ["sheep", "news", "series", "data", "unknowns", "foot", "axes", "schemas"])
     expect(englishNounForms(word)).toBeNull();
   const source = "There is two error in the report.";
   expect(all(source).filter((d) => d.ruleId === "englishExistentialAgreement")).toEqual([]);

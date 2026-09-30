@@ -49,6 +49,44 @@ describe("SuggestionMenuPresenter", () => {
     );
   });
 
+  test("shows a grammar proposal as the last row and claims Tab only once it is selected", () => {
+    const positioning = {
+      syncMenuTypography: jest.fn(),
+      positionMenu: jest.fn(() => true),
+    } as unknown as SuggestionPositioningService;
+    const presenter = new SuggestionMenuPresenter(positioning);
+    const { menu, list } = SuggestionMenuView.ensureMenu();
+    const target = document.createElement("textarea");
+    const model = {
+      menuId: 1,
+      menu,
+      list,
+      target,
+      showShortcutDigits: true,
+      menuHeader: null,
+      mentionText: "",
+      proposal: { original: "is", replacement: "are", explanation: "Use <are> here." },
+    };
+
+    // Alone and unselected: shown, but Tab is left to the page.
+    expect(presenter.render({ ...model, suggestions: [], selectedIndex: -1 })).toBe(true);
+    const row = list.querySelector<HTMLElement>("li[data-proposal]");
+    expect(row?.querySelector(".ft-suggestion-label")?.textContent).toBe("is → are");
+    expect(row?.querySelector(".ft-suggestion-detail")?.textContent).toBe("Use <are> here.");
+    expect(row?.hasAttribute("data-index")).toBe(false);
+    expect(row?.classList.contains("highlight")).toBe(false);
+    expect(target.getAttribute("data-ft-suggestion-visible")).toBe("false");
+
+    // After the suggestions; highlighted when selected.
+    presenter.render({ ...model, suggestions: ["alpha"], selectedIndex: 1 });
+    expect(Array.from(list.querySelectorAll("li")).map((li) => li.dataset.proposal)).toEqual([
+      undefined,
+      "true",
+    ]);
+    expect(list.querySelector("li[data-proposal]")?.classList.contains("highlight")).toBe(true);
+    expect(target.getAttribute("data-ft-suggestion-visible")).toBe("true");
+  });
+
   test("marks the menu horizontal before positioning it, and clears the mark again", () => {
     const menu = document.createElement("div");
     const layoutWhenPositioned: Array<string | null> = [];

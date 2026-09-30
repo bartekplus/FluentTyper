@@ -69,6 +69,17 @@ describe("CoreSettingsRepository", () => {
     ).resolves.toBe(false);
   });
 
+  test("offers grammar proposals while typing unless they are turned off", async () => {
+    await expect(
+      new CoreSettingsRepository(createSettingsManagerMock({})).getLiveGrammarProposals(),
+    ).resolves.toBe(true);
+    await expect(
+      new CoreSettingsRepository(
+        createSettingsManagerMock({ liveGrammarProposals: false }),
+      ).getLiveGrammarProposals(),
+    ).resolves.toBe(false);
+  });
+
   test("defaults codeMode to false when the setting is absent", async () => {
     const repository = new CoreSettingsRepository(createSettingsManagerMock({}));
 

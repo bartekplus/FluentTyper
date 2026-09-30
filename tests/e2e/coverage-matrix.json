@@ -3,6 +3,42 @@
   "capturedAt": "2026-09-15",
   "behaviors": [
     {
+      "id": "live_grammar_proposals",
+      "description": "While typing, a one-at-a-time Review fix ending before the caret word appears after a pause as the popup's last row; it is never preselected (Tab/Enter stay with suggestions or the page), applies only when picked after re-detection, is dismissed for good by typing on or Esc, and is off in sensitive fields, code mode and when the setting is off.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/grammar/LiveGrammarProposals.test.ts",
+          "test": "offers a one-at-a-time Review fix that ends before the caret"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/LiveGrammarProposals.test.ts",
+          "test": "offers each span once, keyed on its text rather than its offset"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionKeyboardHandler.test.ts",
+          "test": "an unselected proposal alone leaves Tab, Enter and Space to the page"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/LiveGrammarProposals.runtime.test.ts",
+          "test": "shows a finding after a pause and applies it only when the user picks it"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/LiveGrammarProposals.runtime.test.ts",
+          "test": "nothing is proposed in sensitive fields or when proposals are off"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Grammar proposals while typing are shown after a pause and applied only when picked"
+        }
+      ]
+    },
+    {
       "id": "review_corpus_grammar",
       "description": "Corpus-derived native grammar repairs preserve named error quotations, units and ambiguous interpretations; subject agreement is Review-only and individually applied with native undo.",
       "coverage": [
@@ -1289,7 +1325,7 @@
     },
     {
       "id": "grammar_english_article_an",
-      "description": "Opt-in a/an correction fixes listed words and leaves names, identifiers, code and literals unchanged.",
+      "description": "Opt-in a/an correction fixes lowercase words by initial sound and leaves names, initialisms, identifiers, user-dictionary words, code and literals unchanged.",
       "coverage": [
         {
           "layer": "unit",

@@ -145,6 +145,11 @@ export class CoreSettingsRepository extends SettingsRepositoryBase {
     return this.getBooleanField("showReviewButton", true);
   }
 
+  /** Review fixes offered in the suggestion popup while typing; on unless turned off. */
+  async getLiveGrammarProposals(): Promise<boolean> {
+    return this.getBooleanField("liveGrammarProposals", true);
+  }
+
   async getInsertSpaceAfterAutocomplete(): Promise<boolean> {
     return this.getBooleanField("insertSpaceAfterAutocomplete");
   }

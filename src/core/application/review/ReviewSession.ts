@@ -1368,7 +1368,7 @@ export class ReviewSession {
         if (!answer) continue;
         let suggestions = ranked.get(candidate.word);
         if (!suggestions) {
-          suggestions = rankSpellingSuggestions(candidate.word, answer);
+          suggestions = rankSpellingSuggestions(candidate.word, answer, prepared.options.lang);
           ranked.set(candidate.word, suggestions);
         }
         const diagnostic = spellingDiagnostic(prepared, candidate, suggestions);

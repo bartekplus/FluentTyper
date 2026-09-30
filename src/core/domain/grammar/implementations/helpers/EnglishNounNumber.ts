@@ -26,9 +26,60 @@ const PAIRS = [
   ["keyboard", "keyboards"],
   ["message", "messages"],
   ["option", "options"],
-  ["child", "children"],
-  ["person", "people"],
-  ["mouse", "mice"],
+  // Irregular plurals. Left out: same-form plurals (sheep, species), plurals
+  // shared with another noun (axes, bases, ellipses), and words English mostly
+  // pluralizes regularly or uses as a mass noun (forums, schemas, data, media).
+  ...[
+    "child children",
+    "grandchild grandchildren",
+    "person people",
+    "man men",
+    "woman women",
+    "gentleman gentlemen",
+    "chairman chairmen",
+    "businessman businessmen",
+    "businesswoman businesswomen",
+    "salesman salesmen",
+    "spokesman spokesmen",
+    "spokeswoman spokeswomen",
+    "fisherman fishermen",
+    "policeman policemen",
+    "craftsman craftsmen",
+    "mouse mice",
+    "louse lice",
+    "goose geese",
+    "tooth teeth",
+    "ox oxen",
+    "knife knives",
+    "wife wives",
+    "life lives",
+    "leaf leaves",
+    "half halves",
+    "shelf shelves",
+    "thief thieves",
+    "wolf wolves",
+    "loaf loaves",
+    "calf calves",
+    "cactus cacti",
+    "fungus fungi",
+    "nucleus nuclei",
+    "radius radii",
+    "stimulus stimuli",
+    "alumnus alumni",
+    "analysis analyses",
+    "crisis crises",
+    "diagnosis diagnoses",
+    "hypothesis hypotheses",
+    "thesis theses",
+    "parenthesis parentheses",
+    "oasis oases",
+    "phenomenon phenomena",
+    "criterion criteria",
+    "bacterium bacteria",
+    "matrix matrices",
+    "vertex vertices",
+    "appendix appendices",
+  ].map((pair) => pair.split(" ") as [string, string]),
 ] as const;
 
 const FORMS = new Map<string, { singular: string; plural: string }>(
@@ -50,9 +101,13 @@ export function knownEnglishNounNumber(word: string): "singular" | "plural" | nu
   return forms ? (word.toLowerCase() === forms.singular ? "singular" : "plural") : null;
 }
 
-/** Do not interpret the tail of a compound quantity or numbered label as a whole count. */
+/**
+ * Do not interpret the tail of a compound quantity or numbered label as a whole
+ * count, nor the pronoun "one" ("No one answers.", "The one leaves.").
+ */
 export function hasCountPrefix(before: string): boolean {
   return (
+    /\b(?:no|any|each|every|the|this|that|which)[ \t ]+$/i.test(before) ||
     /\b(?:twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|million|billion|point|or|and|to)[ \t\u00a0]+$/i.test(
       before,
     ) ||

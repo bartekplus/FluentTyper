@@ -329,7 +329,7 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     category: "grammar",
     kind: "agreement",
     bulk: "individual",
-    note: "Word-list heuristic; a letter or identifier can look like an article.",
+    note: "Initial-sound heuristic; a letter, name or identifier can look like an article.",
   },
   englishOrdinalSuffix: {
     review: "supported",

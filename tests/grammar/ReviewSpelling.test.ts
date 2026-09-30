@@ -185,6 +185,41 @@ describe("review spelling: suggestions", () => {
       rankSpellingSuggestions("bat", ["bad", "bag", "ban", "bar", "bay", "bet", "bit"]),
     ).toHaveLength(5);
   });
+
+  test("an English regular ending on an irregular stem offers the irregular form first", () => {
+    const en = (word: string, candidates: string[] = []) =>
+      rankSpellingSuggestions(word, candidates, "en_US");
+    expect(en("finded", ["fined", "fender"])).toEqual(["found", "fined", "fender"]);
+    expect(en("Buyed", ["Bayed"])).toEqual(["Bought", "Bayed"]);
+    // A doubled final consonant and a dropped silent "e".
+    expect(en("runned", ["runner"])).toEqual(["ran", "run", "runner"]);
+    expect(en("resetted")).toEqual(["reset"]);
+    expect(en("digged")).toEqual(["dug"]);
+    expect(en("writed")).toEqual(["wrote", "written"]);
+    expect(en("feeded", ["fed"])).toEqual(["fed"]);
+    expect(en("thinked")).toEqual(["thought"]);
+    expect(en("goed")).toEqual(["went", "gone"]);
+    // Plurals: "-s" and "-es".
+    expect(en("childs", ["child's", "chills"])).toEqual(["children", "child's", "chills"]);
+    expect(en("oxes")).toEqual(["oxen"]);
+    expect(en("womans")).toEqual(["women"]);
+    expect(en("criterions")).toEqual(["criteria"]);
+    expect(en("Tooths")).toEqual(["Teeth"]);
+    // Degree.
+    expect(en("gooder", ["goodies"])).toEqual(["better", "goodies"]);
+    expect(en("baddest")).toEqual(["worst"]);
+    // An irregular form ranks ahead of a split, so the word is not taken for a compound.
+    expect(en("childs", ["chi lds"])).toEqual(["children"]);
+    expect(rankSpellingSuggestions("childs", ["chi lds"])).toEqual([]);
+    // No guess: "lay" is two verbs, unknown stems, other languages and no language.
+    expect(en("layed", ["laid"])).toEqual(["laid"]);
+    expect(en("jumped")).toEqual([]);
+    expect(en("colors")).toEqual([]);
+    expect(en("s")).toEqual([]);
+    expect(en("ed")).toEqual([]);
+    expect(rankSpellingSuggestions("finded", ["fined"], "fr_FR")).toEqual(["fined"]);
+    expect(rankSpellingSuggestions("finded", ["fined"])).toEqual(["fined"]);
+  });
 });
 
 describe("review spelling: findings", () => {

@@ -52,7 +52,7 @@ export function createGrammarRuleCatalogRuntime(options: {
     englishTheirThereBeVerb: new EnglishTheirThereBeVerbRule(),
     englishAlotCorrection: new EnglishAlotCorrectionRule(options.userDictionaryList),
     englishPronounVerbWhitelistAgreement: new EnglishPronounVerbWhitelistAgreementRule(),
-    englishArticleAnCorrection: new EnglishArticleAnCorrectionRule(),
+    englishArticleAnCorrection: new EnglishArticleAnCorrectionRule(options.userDictionaryList),
     englishOrdinalSuffix: new EnglishOrdinalSuffixRule(),
     englishProperNounCapitalization: new EnglishProperNounCapitalizationRule(
       options.userDictionaryList,

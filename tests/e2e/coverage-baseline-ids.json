@@ -2,6 +2,7 @@
   "version": 1,
   "capturedAt": "2026-09-15",
   "baselineBehaviorIds": [
+    "live_grammar_proposals",
     "review_corpus_grammar",
     "review_agreement_extensions",
     "review_word_confusions",
