@@ -1162,6 +1162,8 @@ export class ReviewUi {
         lines.push(this.t("review_status_spelling_unavailable"));
       }
       if (state.spelling === "partial") lines.push(this.t("review_status_spelling_partial"));
+      if (skipped["other-language"])
+        lines.push(this.t("review_status_other_language", { count: skipped["other-language"] }));
       if ((state.coverage?.failedRules.length ?? 0) > 0)
         lines.push(this.t("review_status_rule_error"));
       if (state.languageSkipped > 0) lines.push(this.t("review_status_language"));
