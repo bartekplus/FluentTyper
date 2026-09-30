@@ -1699,7 +1699,7 @@ describe("review controller with Local AI", () => {
     offerSetup: false,
   };
 
-  /** A provider whose generations wait forever, or answer "She go" -> "She goes". */
+  /** A provider whose generations wait forever, or answer "She walk" -> "She walks". */
   function fakeProvider(answer: boolean) {
     const signals: AbortSignal[] = [];
     const provider: ReviewAiProvider & { disposed: boolean } = {
@@ -1711,7 +1711,7 @@ describe("review controller with Local AI", () => {
         if (!answer) return new Promise(() => {});
         const segments = request.segments.map(({ id, text }) => ({
           id,
-          text: text.replace("She go ", "She goes "),
+          text: text.replace("She walk ", "She walks "),
         }));
         return Promise.resolve({
           outcome: { ok: true as const, segments },
@@ -1753,12 +1753,12 @@ describe("review controller with Local AI", () => {
   }
 
   test("each review gets its own provider, asked only after the checks, disposed on Escape", async () => {
-    const field = textarea("We saw teh cat. She go home.");
+    const field = textarea("We saw teh cat. She walk home.");
     const { review, providers } = controller();
     review.invoke();
     expect(providers).toHaveLength(1);
     await until(() => providers[0].signals.length === 1);
-    expect(field.value).toBe("We saw teh cat. She go home.");
+    expect(field.value).toBe("We saw teh cat. She walk home.");
 
     const KeyboardEventCtor = (window as unknown as { KeyboardEvent: typeof KeyboardEvent })
       .KeyboardEvent;
@@ -1775,7 +1775,7 @@ describe("review controller with Local AI", () => {
   });
 
   test("leaving the page disposes the provider", async () => {
-    textarea("We saw teh cat. She go home.");
+    textarea("We saw teh cat. She walk home.");
     const { review, providers } = controller();
     review.invoke();
     await until(() => providers[0].signals.length === 1);
@@ -1785,7 +1785,7 @@ describe("review controller with Local AI", () => {
   });
 
   test("turning the preference off while a review is open stops its AI work", async () => {
-    textarea("We saw teh cat. She go home.");
+    textarea("We saw teh cat. She walk home.");
     let enabled = true;
     const { review, providers } = controller({ aiEnabled: () => enabled });
     review.invoke();
@@ -1798,7 +1798,7 @@ describe("review controller with Local AI", () => {
   });
 
   test("turning the preference on while a review is open starts its AI work", async () => {
-    textarea("We saw teh cat. She go home.");
+    textarea("We saw teh cat. She walk home.");
     let enabled = false;
     const { review, providers } = controller({ aiEnabled: () => enabled });
     review.invoke();
@@ -1811,7 +1811,7 @@ describe("review controller with Local AI", () => {
   });
 
   test("Escape in the editor closes an open AI batch preview before the review", async () => {
-    const field = textarea("We saw teh cat. She go home now. She go there too.");
+    const field = textarea("We saw teh cat. She walk home now. She walk there too.");
     const { review } = controller({ answer: true });
     review.invoke();
     const shadow = () => document.querySelector("[data-fluenttyper-review]")!.shadowRoot!;
@@ -1828,6 +1828,6 @@ describe("review controller with Local AI", () => {
     expect(preview().hidden).toBe(true);
     field.dispatchEvent(new KeyboardEventCtor("keydown", { key: "Escape", bubbles: true }));
     expect(review.isActive).toBe(false);
-    expect(field.value).toBe("We saw teh cat. She go home now. She go there too.");
+    expect(field.value).toBe("We saw teh cat. She walk home now. She walk there too.");
   });
 });
