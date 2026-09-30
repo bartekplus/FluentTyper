@@ -102,10 +102,34 @@ test("quotation warnings require complete unprotected evidence", () => {
   expect(scan("He wrote, “Use `code` here.")).toEqual([]);
   expect(scan("He wrote, “Visit https://example.test here.")).toEqual([]);
   expect(scan(text + "x".repeat(50_000))).toEqual([]);
-  expect(
-    detectReviewDiagnostics(snapshot(text), { ...options, lang: "fr_FR" }).diagnostics,
-  ).toEqual([]);
   expect(TYPING_RULE_IDS as readonly string[]).not.toContain(rule);
+});
+const inLang = (text: string, lang: string) =>
+  detectReviewDiagnostics(snapshot(text), { ...options, lang }).diagnostics.filter(
+    (d) => d.ruleId === rule,
+  );
+test.each([
+  ["de_DE", "Er sagte „Hallo“ und ging.", "Er sagte „Hallo und ging."],
+  ["de_DE", "Er sagte »Hallo« und ging.", "Er sagte »Hallo und ging."],
+  ["pl_PL", "Powiedział „dobrze” i wyszedł.", "Powiedział „dobrze i wyszedł."],
+  ["hr_HR", "Rekao je „bok” i otišao.", "Rekao je „bok i otišao."],
+  ["sv_SE", "Han sa ”hej” och gick.", "Han sa ”hej och gick."],
+  ["fr_FR", "Il a dit « bonjour » et il est parti.", "Il a dit « bonjour et il est parti."],
+  ["es_ES", "Dijo «hola» y se fue.", "Dijo «hola y se fue."],
+  ["el_GR", "Είπε «γεια» και έφυγε.", "Είπε «γεια και έφυγε."],
+])("%s quotation marks pair by the language's convention", (lang, balanced, unclosed) => {
+  expect(inLang(balanced, lang)).toEqual([]);
+  expect(inLang(unclosed, lang).map((d) => d.original)).toHaveLength(1);
+});
+test("German and Polish accept both closers of the low opening quote", () => {
+  expect(inLang("Er sagte „Hallo” und ging.", "de_DE")).toEqual([]);
+  expect(inLang("Powiedział „dobrze“ i wyszedł.", "pl_PL")).toEqual([]);
+  expect(inLang("Rekao je „bok“ i otišao.", "hr_HR")).toEqual([]);
+});
+test("another language's quotation style is not paired as the reviewed one", () => {
+  // German closes with “, which opens in English: English abstains, German pairs.
+  expect(inLang("Er sagte „Hallo“ und ging.", "en_US")).toEqual([]);
+  expect(inLang("She said “hello“ and left.", "de_DE")).toEqual([]);
 });
 test("quotation warning ownership is independent of scan chunk splits", () => {
   const text =

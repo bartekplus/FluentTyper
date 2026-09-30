@@ -1,4 +1,5 @@
 import { isObjectRecord } from "../../guards";
+import { SUPPORTED_PREDICTION_LANGUAGE_KEYS, TEXT_EXPANDER_LANG } from "../../lang";
 import { GRAMMAR_RULE_CATALOG, isCodeSafeGrammarRule, type CatalogRuleId } from "../ruleCatalog";
 import {
   REVIEW_LOCAL_AI_CHECK,
@@ -23,8 +24,22 @@ export type ReviewRuleMetadata =
       bulk: "eligible" | "individual";
       /** Why a supported rule stays individual-only, when it does. */
       note?: string;
+      /**
+       * Review languages, when they differ from the catalog's typing
+       * `languageScope` (a Review-only extension of an English typing rule).
+       */
+      languages?: readonly string[];
     }
   | { review: "excluded"; reason: string };
+
+/**
+ * Every named review language. Rules that need to know the language (a word
+ * list, a number locale, terms authored per language) skip text whose
+ * auto-detected language is still unresolved.
+ */
+const NAMED_LANGUAGES: readonly string[] = SUPPORTED_PREDICTION_LANGUAGE_KEYS.filter(
+  (lang) => lang !== TEXT_EXPANDER_LANG,
+);
 
 export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
   styleRedundancy: {
@@ -45,6 +60,7 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     category: "grammar",
     bulk: "individual",
     note: "Requires an explicitly enabled user-authored terminology configuration.",
+    languages: NAMED_LANGUAGES,
   },
   englishCanonicalCasing: {
     review: "supported",
@@ -69,6 +85,7 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     defaultEnabled: true,
     category: "grammar",
     bulk: "individual",
+    languages: ["en_US", "fr_FR", "es_ES", "pt_BR", "pl_PL", "hr_HR", "sv_SE", "el_GR"],
   },
   englishCountability: {
     review: "supported",
@@ -172,6 +189,7 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     defaultEnabled: true,
     category: "grammar",
     bulk: "individual",
+    languages: NAMED_LANGUAGES,
   },
   capitalizeSentenceStart: {
     review: "supported",
@@ -197,6 +215,7 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     defaultEnabled: true,
     category: "spelling",
     bulk: "eligible",
+    languages: ["en_US", "fr_FR"],
   },
   englishTypoWhitelistCorrection: {
     review: "supported",
@@ -231,6 +250,7 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     defaultEnabled: true,
     category: "spelling",
     bulk: "eligible",
+    languages: ["en_US", "de_DE", "fr_FR", "es_ES", "pt_BR", "pl_PL", "sv_SE", "hr_HR"],
   },
   englishPronounVerbWhitelistAgreement: {
     review: "supported",
@@ -256,6 +276,7 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     defaultEnabled: true,
     category: "typography",
     bulk: "eligible",
+    languages: ["en_US", "de_DE"],
   },
   technicalTokenCompaction: {
     review: "excluded",
@@ -271,12 +292,14 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     category: "punctuation",
     bulk: "individual",
     note: "Units in technical prose (CSS, product names) are meaning-sensitive.",
+    languages: NAMED_LANGUAGES,
   },
   currencySpacing: {
     review: "supported",
     defaultEnabled: true,
     category: "punctuation",
     bulk: "eligible",
+    languages: NAMED_LANGUAGES,
   },
   slashContextSpacing: {
     review: "excluded",
@@ -358,6 +381,26 @@ export function reviewCoverageMap(): Array<{ ruleId: CatalogRuleId } & ReviewRul
     ruleId: entry.id,
     ...REVIEW_RULE_METADATA[entry.id],
   }));
+}
+
+const CATALOG_SCOPE = new Map(GRAMMAR_RULE_CATALOG.map((entry) => [entry.id, entry.languageScope]));
+
+/** True when Review runs `ruleId` for text in `lang` ("auto_detect" when unresolved). */
+export function runsInReviewLanguage(ruleId: CatalogRuleId, lang: string): boolean {
+  const metadata = REVIEW_RULE_METADATA[ruleId];
+  if (metadata.review === "supported" && metadata.languages)
+    return metadata.languages.includes(lang);
+  return CATALOG_SCOPE.get(ruleId) === "all" || lang === "en_US";
+}
+
+/** For the settings filter: "en_US" only when Review runs the rule for English alone. */
+export function reviewLanguageScope(ruleId: CatalogRuleId): "all" | "en_US" {
+  const metadata = REVIEW_RULE_METADATA[ruleId];
+  return metadata.review === "supported" && metadata.languages
+    ? metadata.languages.some((lang) => lang !== "en_US")
+      ? "all"
+      : "en_US"
+    : (CATALOG_SCOPE.get(ruleId) ?? "en_US");
 }
 
 export function isReviewSupportedRule(ruleId: string): ruleId is CatalogRuleId {

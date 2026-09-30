@@ -36,7 +36,21 @@ const SUGGESTION = /^\p{L}[\p{L}\p{M}]*(?:['’]\p{L}[\p{L}\p{M}]*)*$/u;
 // A word glued to these is part of a number, path, handle, identifier or compound.
 const GLUE = /[\p{N}_@#$%&/\\=+*<>~^`|-]/u;
 const TWO_INITIAL_CAPITALS = /^\p{Lu}\p{Lu}\p{Ll}+(?:['’]\p{Ll}+)*$/u;
-const SENTENCE_BREAK = /[.!?\n￼]/u;
+// "IDs", "TVs" are acronym plurals, but "LEs", "LOs" and "WAs" are the
+// language's own short words typed with a held Shift.
+const SHORT_S_WORDS: Record<string, ReadonlySet<string>> = {
+  en: new Set(["was", "has", "his", "yes", "its"]),
+  fr: new Set(["les", "des", "mes", "tes", "ses", "ces", "nos", "vos"]),
+  es: new Set(["los", "las", "les", "mis", "tus", "sus", "nos"]),
+  pt: new Set(["dos", "das", "nos", "nas", "mas"]),
+  de: new Set(["das", "des", "als", "bis", "uns", "was", "aus"]),
+  pl: new Set(["nas", "was"]),
+};
+
+function shortSWord(word: string, lang: string): boolean {
+  return SHORT_S_WORDS[lang.slice(0, 2)]?.has(word.toLowerCase()) ?? false;
+}
+const SENTENCE_BREAK = /[.!?؟\n￼]/u;
 
 /**
  * Words worth a dictionary lookup, in document order: prose words inside the
@@ -98,7 +112,10 @@ export function spellingCandidates(
     if (previous === "." && start >= 2 && /\p{L}/u.test(text[start - 2])) continue;
     const rest = word.slice(1);
     // "LEt's", "THe": a held Shift, unless an acronym plural ("IDs", "TVs").
-    if (TWO_INITIAL_CAPITALS.test(word) && !/^\p{Lu}{2}s$/u.test(word)) {
+    if (
+      TWO_INITIAL_CAPITALS.test(word) &&
+      (!/^\p{Lu}{2}s$/u.test(word) || shortSWord(word, prepared.options.lang))
+    ) {
       const casing = word[0] + rest.toLowerCase();
       const lookup = lookupForm(casing);
       if (isLookupWord(lookup) && !prepared.dictionary.has(word.toLowerCase())) {
@@ -134,7 +151,7 @@ function opensSentence(prepared: PreparedReview, start: number): boolean {
   while (i >= 0 && (text[i] === " " || text[i] === "\t" || text[i] === " ")) i -= 1;
   if (i < 0 || text[i] === "\n") return true;
   // An opening quote or bracket before the word: look past it.
-  if (/[("'“‘«¿¡[]/u.test(text[i])) return opensSentence(prepared, i);
+  if (/[("'“‘«»„‚”¿¡[]/u.test(text[i])) return opensSentence(prepared, i);
   return startsSentence(text, start, prepared.options.lang);
 }
 

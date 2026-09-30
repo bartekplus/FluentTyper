@@ -56,8 +56,16 @@ export function matchTerminology(
     }
     for (const range of matches(text, entry.source, entry.casePolicy === "insensitive", scope)) {
       const original = text.slice(range.start, range.end);
+      // An insensitive match typed capitalized ("Whitelist it.", a sentence start)
+      // keeps its leading capital; exact policies insert the authored form.
+      const replacement =
+        entry.casePolicy === "insensitive" &&
+        /^\p{Lu}(?:\P{Lu}|$)/u.test(original) &&
+        /^\p{Ll}/u.test(entry.replacement)
+          ? entry.replacement[0].toUpperCase() + entry.replacement.slice(1)
+          : entry.replacement;
       if (
-        original === entry.replacement ||
+        original === replacement ||
         protectedMatch(range) ||
         dictionary.has(original.toLowerCase()) ||
         (original.match(/[\p{L}\p{M}\p{N}]+/gu) ?? []).some((word) =>
@@ -70,7 +78,7 @@ export function matchTerminology(
         ruleId: "preferredTerminology",
         messageKey: "review_msg_preferred_terminology",
         range,
-        alternatives: [entry.replacement],
+        alternatives: [replacement],
         terminology: { id: entry.id, explanation: entry.explanation },
         context: { start: Math.max(0, range.start - 2), end: Math.min(text.length, range.end + 2) },
       });

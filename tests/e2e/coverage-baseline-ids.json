@@ -208,6 +208,8 @@
     "review_canonical_casing",
     "review_preferred_terminology",
     "review_incremental_native_rechecks",
-    "review_optional_style_advice"
+    "review_optional_style_advice",
+    "review_language_matrix",
+    "review_spelling_languages"
   ]
 }

@@ -114,7 +114,7 @@ const negatives = [
 test.each(negatives)("canonical casing preserves deliberate or technical text: %s", (text) =>
   expect(scan(text)).toEqual([]),
 );
-test("canonical casing respects dictionary, scope, protection, language and typing separation", () => {
+test("canonical casing respects dictionary, scope, protection and typing separation", () => {
   const text = positives[0][0];
   const start = text.indexOf("github");
   expect(
@@ -132,9 +132,14 @@ test("canonical casing respects dictionary, scope, protection, language and typi
       options,
     ).diagnostics,
   ).toEqual([]);
-  expect(
-    detectReviewDiagnostics(snapshot(text), { ...options, lang: "fr_FR" }).diagnostics,
-  ).toEqual([]);
+  // Brand names are spelled the same in every language.
+  for (const lang of ["fr_FR", "de_DE", "pl_PL", "el_GR"]) {
+    expect(
+      detectReviewDiagnostics(snapshot(text), { ...options, lang })
+        .diagnostics.filter((d) => d.ruleId === rule)
+        .map((d) => d.alternatives[0].preview),
+    ).toEqual(["GitHub"]);
+  }
   expect(TYPING_RULE_IDS as readonly string[]).not.toContain(rule);
 });
 test("canonical casing owns sentence starts only when its suggestion is enabled", () => {

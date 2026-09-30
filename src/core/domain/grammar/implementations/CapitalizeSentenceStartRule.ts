@@ -7,28 +7,70 @@ import {
   resolveInputAction,
 } from "./helpers/GenericRuleShared";
 
-const SENTENCE_ENDING_CHARS = new Set([".", "!", "?"]);
+// "؟" is the Arabic question mark: Latin text after it still starts a sentence.
+const SENTENCE_ENDING_CHARS = new Set([".", "!", "?", "؟"]);
 // Spanish opens a question or exclamation with an inverted mark: "¿Qué?".
 export const SENTENCE_OPENING_MARKS = new Set(["¿", "¡"]);
 // A period closing one of these is an abbreviation at least as often as a
 // sentence end, so the following word is left exactly as the user typed it.
 // Each language only gets its own list: "co." (pl "what"), "est." (fr "east"),
-// "ave." (pt "bird") and "min." (sv "my") end sentences elsewhere.
+// "ave." (pt "bird") and "min." (sv "my") end sentences elsewhere. Words that
+// often end a sentence in their own language stay out: en "no", fr "art",
+// "vol", "ex", "bd" and "prof", de "art", "dir", "tab" and "mag", pl "gen",
+// "por", "im", "min", "ok", "zł" and "gr", es "col", sv "kap", "kr" and "sek",
+// hr "kn", el "εκ".
 // ar_SA needs no entries: Arabic script is uncased, so the rule never fires on it.
-const SHARED_ABBREVIATIONS = ["etc", "vs", "cf", "al", "eg", "ie", "dr", "prof"];
+const SHARED_ABBREVIATIONS = ["etc", "vs", "cf", "al", "eg", "ie", "dr"];
 const ABBREVIATIONS_BY_LANGUAGE: Record<string, readonly string[]> = {
   en: [
-    ...["approx", "fig", "resp", "est", "min", "max", "mr", "mrs", "ms", "jr", "sr"],
-    ...["inc", "ltd", "co", "corp", "dept", "univ", "ave", "blvd"],
+    ...["approx", "fig", "resp", "est", "min", "max", "mr", "mrs", "ms", "jr", "sr", "prof"],
+    ...["inc", "ltd", "co", "corp", "dept", "univ", "ave", "blvd", "st", "mt", "ft", "sgt"],
+    ...["capt", "lt", "col", "rev", "esp", "ref", "vol", "ch", "pp", "eq", "rd"],
   ],
-  de: ["usw", "bzw", "evtl", "ggf", "vgl", "inkl", "ca", "bspw", "nr", "hr", "fr"],
-  pl: ["np", "tzn", "itd", "itp", "tj", "mgr", "inż", "ul", "godz", "wg", "św"],
-  es: ["sr", "sra", "srta", "ej", "aprox", "pág", "núm", "ud", "uds"],
-  pt: ["sr", "sra", "srta", "pág", "núm", "av", "dra"],
-  sv: ["dvs", "osv", "tys", "ca", "nr", "bl"],
-  hr: ["npr", "tzv", "itd", "sl", "br", "god"],
-  fr: ["env", "av", "apr", "mme", "mlle"],
-  el: ["κλπ", "δηλ", "βλ", "σελ", "αρ"],
+  de: [
+    ...["usw", "bzw", "evtl", "ggf", "vgl", "inkl", "ca", "bspw", "nr", "hr", "fr", "sog"],
+    ...["bzgl", "zzgl", "tel", "str", "geb", "jh", "mio", "mrd", "abb", "kap", "bd", "aufl"],
+    ...["hrsg", "prof", "tsd", "std", "min", "sek", "chr", "st", "dipl", "ing", "fa", "hbf"],
+    ...["pkt", "anm", "abs", "bsp", "ebd", "insb", "einschl", "usf", "etw", "jmd", "od"],
+    "gegr",
+  ],
+  pl: [
+    ...["np", "tzn", "itd", "itp", "tj", "mgr", "inż", "ul", "godz", "wg", "św", "tys"],
+    ...["mln", "mld", "tzw", "zob", "wyd", "ks", "hab", "pkt", "poz", "str", "nr", "tel"],
+    ...["prof", "pl", "os", "ds", "dyr", "mjr", "płk", "kpt", "ppor", "sierż", "cz", "rozdz"],
+    ...["tłum", "oprac", "red", "dot", "dn", "ob", "ang", "niem", "łac", "przyp", "jw"],
+    ...["wsp", "bp"],
+  ],
+  es: [
+    ...["sr", "sra", "srta", "ej", "aprox", "pág", "núm", "ud", "uds", "dra", "avda"],
+    ...["tel", "art", "cap", "vol", "máx", "mín", "dña", "lic", "ing", "prof", "págs"],
+    ...["fig", "pp", "dpto", "gral", "arq", "sto", "admón", "apdo", "atte", "cía", "vda"],
+    ...["dcha", "izq", "izda", "tfno", "hnos", "prov"],
+  ],
+  pt: [
+    ...["sr", "sra", "srta", "pág", "núm", "av", "dra", "profa", "tel", "art", "cap"],
+    ...["vol", "exmo", "ltda", "cia", "prof", "págs", "fig", "pp", "eng", "arq", "sto"],
+    ...["sta", "apto", "aprox", "máx", "mín", "obs", "ilmo", "séc", "cel"],
+  ],
+  sv: [
+    ...["dvs", "osv", "tys", "ca", "nr", "bl", "st", "kl", "jfr", "resp", "tel", "ang"],
+    ...["avd", "prof", "uppl", "tim", "ev", "pga", "mha", "enl", "inkl", "exkl", "forts"],
+    ...["sid", "ff", "dir", "hr", "tf"],
+  ],
+  hr: [
+    ...["npr", "tzv", "itd", "sl", "br", "god", "tj", "mr", "dipl", "ing", "tel", "ul"],
+    ...["sv", "gđa", "st", "str", "prof", "gđica", "odn", "tis", "mil", "mlrd", "pr", "kr"],
+    ...["vj", "gl", "hrv", "engl", "lat", "sur", "pog", "izd", "prir", "gosp"],
+  ],
+  fr: [
+    ...["env", "av", "apr", "mme", "mlle", "mm", "chap", "tél", "fig", "éd", "réf", "ste"],
+    ...["st", "pp", "hab", "min", "sq", "sqq", "suiv", "ibid", "op", "cit", "boul", "dép"],
+    ...["dir", "coll", "trad", "arr", "adj", "gén", "cie", "mgr", "pr"],
+  ],
+  el: [
+    ...["κλπ", "δηλ", "βλ", "σελ", "αρ", "κα", "τηλ", "οδ", "χλμ", "δρ", "κκ", "βλπ"],
+    ...["σημ", "υποσ", "λεπ", "εκατ", "δισ", "χιλ", "κεφ", "τομ", "εκδ", "καθ", "αγ"],
+  ],
 };
 const ALL_ABBREVIATIONS = new Set([
   ...SHARED_ABBREVIATIONS,

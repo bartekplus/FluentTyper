@@ -10,7 +10,7 @@ export function isReadabilityLiteral(text: string): boolean {
 }
 
 /**
- * Fully visible English prose sentences only. No sentence is split or rewritten.
+ * Fully visible prose sentences only, segmented for `lang`. No sentence is split or rewritten.
  * Segment the full bounded, masked analysis view before applying the scope so neither
  * cropped edges nor punctuation inside protected content can invent a sentence start.
  */
@@ -19,6 +19,7 @@ export function longSentenceRanges(
   protectedRanges: readonly ProtectedRange[],
   analysisText: string,
   threshold: number = DEFAULT_LONG_SENTENCE_WORDS,
+  lang = "en_US",
 ): TextRange[] {
   const text = analysisText;
   if (text.length !== snapshot.text.length) return [];
@@ -44,7 +45,7 @@ export function longSentenceRanges(
   let blockedIndex = 0;
   let pendingStart: number | undefined;
   let ambiguous = false;
-  for (const segment of sentenceSegments(text)) {
+  for (const segment of sentenceSegments(text, lang)) {
     const start = pendingStart ?? segment.index;
     const trimmed = segment.segment.trimEnd();
     if (!trimmed) {
@@ -53,7 +54,7 @@ export function longSentenceRanges(
       continue;
     }
     const end = segment.index + trimmed.length;
-    const ending = trimmed.match(/[.!?]["'”’»)\]]*$/u);
+    const ending = trimmed.match(/[.!?؟]["'”’“»«)\]]*$/u);
     const mark = ending ? segment.index + ending.index! : -1;
     if (
       mark < 0 &&
@@ -63,7 +64,7 @@ export function longSentenceRanges(
       pendingStart = start;
       continue;
     }
-    if (mark >= 0 && text[mark] === "." && closesAbbreviation(text, mark, "en_US")) {
+    if (mark >= 0 && text[mark] === "." && closesAbbreviation(text, mark, lang)) {
       if (/\r?\n[ \t]*\r?\n/.test(segment.segment)) {
         pendingStart = undefined;
         ambiguous = false;
@@ -94,13 +95,18 @@ export function longSentenceRanges(
 }
 
 /** ICU can join a period followed by lowercase prose; retain explicit known sentence ends. */
-function* sentenceSegments(text: string): Generator<{ index: number; segment: string }> {
-  const segmenter = new Intl.Segmenter("en", { granularity: "sentence" });
+function* sentenceSegments(
+  text: string,
+  lang: string,
+): Generator<{ index: number; segment: string }> {
+  // "auto_detect" (unresolved) is not a locale tag.
+  const locale = /^[a-z]{2}_[A-Z]{2}$/.test(lang) ? lang.replace("_", "-") : "en";
+  const segmenter = new Intl.Segmenter(locale, { granularity: "sentence" });
   for (const segment of segmenter.segment(text)) {
     let from = 0;
-    for (const end of segment.segment.matchAll(/[.!?]["'”’»)\]]*[ \t]+/gu)) {
+    for (const end of segment.segment.matchAll(/[.!?؟]["'”’“»«)\]]*[ \t]+/gu)) {
       const mark = segment.index + end.index;
-      if (text[mark] === "." && closesAbbreviation(text, mark, "en_US")) continue;
+      if (text[mark] === "." && closesAbbreviation(text, mark, lang)) continue;
       const to = end.index + end[0].length;
       yield { index: segment.index + from, segment: segment.segment.slice(from, to) };
       from = to;

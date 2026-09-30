@@ -1,6 +1,13 @@
+import { CUE_AND_QUOTE } from "./exampleCues";
 import { canonicalCasing } from "./canonicalCasing";
 import { usagePhrases } from "./englishUsagePhrases";
 import { doubledDegree } from "./englishDegree";
+import {
+  doubledDegreeByLanguage,
+  frenchElisions,
+  germanNounCapitals,
+  splitWords,
+} from "./multilingualLexicon";
 import { countability } from "./englishCountability";
 import { contextualCompounds } from "./englishCompounds";
 import { nounNumberConstructions } from "./englishNounNumber";
@@ -17,11 +24,12 @@ import { wordConfusions } from "./englishWordConfusions";
 import { auxiliaryForms } from "./englishAuxiliaryForms";
 import type { CatalogRuleId } from "../ruleCatalog";
 import { SPACE_CHARS } from "../../spacingRules";
-import { usesFrenchPunctuationSpacing } from "../typographyProfiles";
+import { isGreekQuestionMark, usesFrenchPunctuationSpacing } from "../typographyProfiles";
 import { parseMeasurementExpression } from "../measurement/parser";
 import { resolveMeasurementLocale } from "../measurement/registry";
 import {
   CLOSING_CHARS,
+  closesAbbreviation,
   CLOSING_PADDING_CHARS,
   SENTENCE_OPENING_MARKS,
   TRAILING_PUNCTUATION_REGEX,
@@ -306,7 +314,7 @@ const capitalizeStarts: Detector = (ctx) => {
       continue;
     }
     const lineBreak = lineBreakBefore(ctx.text, wordStart);
-    if (lineBreak !== null && previousLineEndsParagraphOrSentence(ctx.text, lineBreak)) {
+    if (lineBreak !== null && previousLineEndsParagraphOrSentence(ctx.text, lineBreak, ctx.lang)) {
       findings.push({
         ruleId: "capitalizeAfterLineBreak",
         messageKey: "review_msg_line_start",
@@ -371,11 +379,23 @@ function lineBreakBefore(text: string, wordStart: number): number | null {
  * Line starts are only flagged where the previous line closes a sentence or
  * a paragraph: continuation lines of hard-wrapped text stay lowercase.
  */
-function previousLineEndsParagraphOrSentence(text: string, lineBreak: number): boolean {
+function previousLineEndsParagraphOrSentence(
+  text: string,
+  lineBreak: number,
+  lang: string,
+): boolean {
   const previousStart = text.lastIndexOf("\n", lineBreak - 1) + 1;
   const previous = text.slice(previousStart, lineBreak).trim();
   if (previous === "") return true;
-  return /[.!?]["'”’)\]]*$/u.test(previous) && !previous.endsWith(MASK_CHAR);
+  if (previous.endsWith(MASK_CHAR)) return false;
+  // "siehe z. B.\nfolgendes": a wrapped line may end on an abbreviation.
+  let lineEnd = lineBreak - 1;
+  while (lineEnd > previousStart && /\s/.test(text[lineEnd])) lineEnd -= 1;
+  if (text[lineEnd] === "." && closesAbbreviation(text, lineEnd, lang)) return false;
+  return (
+    /[.!?؟]["'”’“»«)\]]*$/u.test(previous) ||
+    isGreekQuestionMark(previous.replace(/["'”’“»«)\]]+$/u, "").slice(-1), lang)
+  );
 }
 
 const pronounI: Detector = (ctx) => {
@@ -859,25 +879,31 @@ const STANDALONE_MARK_FOLLOWER = /^[ \t\u00A0]+["'“‘([¿¡]?\p{Ll}/u;
 const commaPeriodSpacing: Detector = (ctx) => {
   const findings: RawFinding[] = [];
   // Space before a comma: "word , next".
-  const before = /(?<=[\p{L}\p{N})\]"”’])[ \u00A0]+(?=[,،](?![,،]))/gu;
+  // "،" and "؛" are the Arabic comma and semicolon.
+  const before = /(?<=[\p{L}\p{N})\]"”’])[ \u00A0]+(?=[,،؛](?![,،؛]))/gu;
   for (const match of ownedMatches(ctx, before)) {
     const start = match.index;
     const end = start + match[0].length;
     findings.push({
       ruleId: "commaPeriodSpacing",
-      messageKey: "review_msg_space_before_comma",
+      messageKey:
+        ctx.source[end] === "؛" ? "review_msg_space_before_mark" : "review_msg_space_before_comma",
       range: { start, end: end + 1 },
       alternatives: [ctx.source[end]],
       context: { start: start - 1, end: end + 1 },
+      // Newer language extensions stay individual-only.
+      bulkBlock: ctx.source[end] === "؛" ? "context-dependent" : undefined,
     });
   }
 
   // Space before a sentence mark followed by whitespace or the end: "Hello . Next".
   const frenchSpacing = usesFrenchPunctuationSpacing(ctx.lang);
-  const mark = /(?<=[\p{L}\p{N})\]}"”’»])[ \u00A0]+([.?!])(?=\s|$)/gu;
+  // Greek writes its question mark as ";" (or U+037E); Arabic as "؟".
+  const mark = /(?<=[\p{L}\p{N})\]}"”’»])[ \u00A0]+([.?!;\u037E؟])(?=\s|$)/gu;
   for (const match of ownedMatches(ctx, mark)) {
     const start = match.index;
     if (match[1] !== "." && frenchSpacing) continue;
+    if (/[;\u037E]/.test(match[1]) && !isGreekQuestionMark(match[1], ctx.lang)) continue;
     const end = start + match[0].length;
     // "press . to repeat", "type ? for help": before a lowercase word, a
     // named mark is a symbol, not a sentence end.
@@ -893,6 +919,22 @@ const commaPeriodSpacing: Detector = (ctx) => {
       range: { start, end },
       alternatives: [match[1]],
       context: { start: start - 1, end },
+      bulkBlock: /[.?!]/.test(match[1]) ? undefined : "context-dependent",
+    });
+  }
+
+  // Spanish opening marks hug their sentence: "¿ Qué?" is "¿Qué?".
+  const opening = /(?<=(?:^|[\s([“"«])[¿¡]+)[ \u00A0]+(?=\p{L})/gu;
+  for (const match of ownedMatches(ctx, opening)) {
+    const start = match.index;
+    const end = start + match[0].length;
+    findings.push({
+      ruleId: "commaPeriodSpacing",
+      messageKey: "review_msg_space_after_opening_mark",
+      range: { start: start - 1, end },
+      alternatives: [ctx.source[start - 1]],
+      context: { start: start - 1, end: end + 1 },
+      bulkBlock: "context-dependent",
     });
   }
 
@@ -1047,11 +1089,36 @@ function measurementLike(
   return findings;
 }
 
-// ponytail: a small function-word allowlist; expand only with ambiguity fixtures.
+// ponytail: small function-word allowlists; expand only with ambiguity fixtures.
+// Words that legitimately double are left out: de "die die"/"das das" (relative
+// + article), fr "nous nous"/"vous vous" (reflexive), es/pt "para para" (verb +
+// preposition), hr "je je" (verb + clitic), el "με με" (pronoun + preposition).
+const REPEATABLE_WORDS: Record<string, string> = {
+  en: "the|an|a|is|are|was|were|in|on|at|for|with|from|of|to",
+  de: "ein|eine|einen|einem|einer|eines|im|mit|von|für|auf|bei|aus|nach|zum|zur",
+  fr: "le|les|un|une|des|du|au|aux|dans|pour|avec|sur",
+  es: "el|los|las|un|una|en|con|del|al",
+  pt: "os|um|uma|em|com|do|da|dos|das|no|na",
+  pl: "się|na|do|od|dla|przez|że",
+  sv: "att|ett|på|till|med|av",
+  hr: "na|za|od|iz|do",
+  el: "στο|στη|στην|στον|στα|από|για|ένα|μια",
+  ar: "في|على|إلى|عن",
+};
+const REPEATED_WORD_REGEX = new Map(
+  Object.entries(REPEATABLE_WORDS).map(([lang, words]) => [
+    lang,
+    new RegExp(
+      `(?<![\\p{L}\\p{M}\\p{N}_'’–—-])(${words})[ \\t\\u00a0]{1,8}\\1(?![\\p{L}\\p{M}\\p{N}_'’–—-])`,
+      "giu",
+    ),
+  ]),
+);
+
 const repeatedWords: Detector = (ctx) => {
   const findings: RawFinding[] = [];
-  const regex =
-    /(?<![\p{L}\p{M}\p{N}_'’–—-])(the|an|a|is|are|was|were|in|on|at|for|with|from|of|to)[ \t\u00a0]{1,8}\1(?![\p{L}\p{M}\p{N}_'’–—-])/giu;
+  const regex = REPEATED_WORD_REGEX.get(ctx.lang.slice(0, 2));
+  if (!regex) return findings;
   for (const match of ownedMatches(ctx, regex)) {
     const start = match.index;
     const end = start + match[0].length;
@@ -1063,14 +1130,9 @@ const repeatedWords: Detector = (ctx) => {
     const word = match[1].toLowerCase();
     if (ctx.dictionary.has(word) || isGluedToTechnical(ctx.text, start, end)) continue;
     // A run gets one repair, including when a later pair belongs to another chunk.
-    if (before.match(/([A-Za-z]+)[ \t\u00a0]{1,8}$/)?.[1].toLowerCase() === word) continue;
+    if (before.match(/(\p{L}+)[ \t\u00a0]{1,8}$/u)?.[1].toLowerCase() === word) continue;
     // A named, quoted example is evidence, not prose to repair. Normal quotations still run.
-    if (
-      /\b(?:write|type|spell|phrase|words?|example|literal|text|says?|reads?)[ :\t]*["“'‘]$/i.test(
-        before,
-      )
-    )
-      continue;
+    if (CUE_AND_QUOTE.test(before)) continue;
     findings.push({
       ruleId: "englishRepeatedWords",
       messageKey: "review_msg_repeated_words",
@@ -1114,7 +1176,10 @@ export const REVIEW_DETECTORS: ReadonlyArray<{ rules: CatalogRuleId[]; detect: D
   { rules: ["englishPerfectParticiples"], detect: perfectParticiples },
   { rules: ["englishNounNumber"], detect: nounNumberConstructions },
   { rules: ["englishUsagePhrases"], detect: usagePhrases },
-  { rules: ["englishDoubledDegree"], detect: doubledDegree },
+  {
+    rules: ["englishDoubledDegree"],
+    detect: (ctx) => (ctx.lang === "en_US" ? doubledDegree(ctx) : doubledDegreeByLanguage(ctx)),
+  },
   { rules: ["englishCountability"], detect: countability },
   { rules: ["englishContextualCompounds"], detect: contextualCompounds },
   { rules: ["englishRepeatedWords"], detect: repeatedWords },
@@ -1131,7 +1196,9 @@ export const REVIEW_DETECTORS: ReadonlyArray<{ rules: CatalogRuleId[]; detect: D
       "englishContractionNormalization",
       "englishAlotCorrection",
     ],
-    detect: wordSpelling,
+    // English word lists; other languages have their own tables.
+    detect: (ctx) =>
+      ctx.lang === "en_US" ? wordSpelling(ctx) : [...splitWords(ctx), ...frenchElisions(ctx)],
   },
   { rules: ["englishModalOfCorrection"], detect: modalOf },
   { rules: ["englishYourWelcomeCorrection"], detect: yourWelcome },
@@ -1141,7 +1208,10 @@ export const REVIEW_DETECTORS: ReadonlyArray<{ rules: CatalogRuleId[]; detect: D
   { rules: ["englishExistentialAgreement"], detect: existentialAgreement },
   { rules: ["englishArticleAnCorrection"], detect: articleAn },
   { rules: ["englishOrdinalSuffix"], detect: ordinal },
-  { rules: ["englishProperNounCapitalization"], detect: properNoun },
+  {
+    rules: ["englishProperNounCapitalization"],
+    detect: (ctx) => (ctx.lang === "en_US" ? properNoun(ctx) : germanNounCapitals(ctx)),
+  },
   { rules: ["commaPeriodSpacing"], detect: commaPeriodSpacing },
   { rules: ["collapseRepeatedSpaces"], detect: repeatedSpaces },
   { rules: ["duplicatePunctuationCollapse"], detect: duplicatePunctuation },

@@ -3,6 +3,7 @@ import { reviewText, type ReviewTextKey } from "@core/domain/grammar/review/revi
 import {
   DEFAULT_LONG_SENTENCE_WORDS,
   REVIEW_RULE_METADATA,
+  reviewLanguageScope,
   isReviewSupportedRule,
   normalizeReviewRuleOverrides,
   reviewRuleIds,
@@ -512,7 +513,7 @@ const manifest: ManifestDefinition = {
             metadata.review === "supported" && metadata.defaultEnabled
               ? ("safe" as const)
               : ("advanced" as const),
-          languageScope: rule.languageScope,
+          languageScope: reviewLanguageScope(rule.id),
         };
       }),
       default: {},

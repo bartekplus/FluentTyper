@@ -140,3 +140,38 @@ test("Review-only rules cannot enter typing runtime or stored typing choices", (
     }).map((r) => r.id),
   ).not.toContain(ruleId);
 });
+
+test.each([
+  ["de_DE", "Ich wohne in einem einem Haus.", "Ich wohne in einem Haus."],
+  ["fr_FR", "Il est dans dans la maison.", "Il est dans la maison."],
+  ["es_ES", "Vivo en en Madrid.", "Vivo en Madrid."],
+  ["pt_BR", "Moro em em São Paulo.", "Moro em São Paulo."],
+  ["pl_PL", "Cieszę się się bardzo.", "Cieszę się bardzo."],
+  ["sv_SE", "Jag vill att att du kommer.", "Jag vill att du kommer."],
+  ["hr_HR", "Idem na na posao.", "Idem na posao."],
+  ["el_GR", "Πάω στο στο σπίτι.", "Πάω στο σπίτι."],
+  ["ar_SA", "ذهبت إلى إلى المدرسة.", "ذهبت إلى المدرسة."],
+])("%s repairs %s", (lang, source, expected) => {
+  const findings = review(source, {}, [], lang);
+  expect(findings).toHaveLength(1);
+  expect(applyEdits(source, findings[0].alternatives[0].edits)).toBe(expected);
+  expect(review(expected, {}, [], lang)).toEqual([]);
+});
+
+test.each([
+  // Relative pronoun + article, reflexive pronouns, verb + preposition, verb + clitic.
+  ["de_DE", "Die Frau die die Blumen kauft."],
+  ["de_DE", "Ich weiß, dass das das Beste ist."],
+  ["fr_FR", "Nous nous levons tôt."],
+  ["fr_FR", "Vous vous trompez."],
+  ["es_ES", "Ella para para descansar."],
+  ["pt_BR", "Ele para para pensar."],
+  ["pl_PL", "To to jest problem."],
+  ["hr_HR", "Pitao je je jučer."],
+  ["el_GR", "Άσε με με την ησυχία μου."],
+  // Another language's list does not apply.
+  ["de_DE", "Read the the report."],
+  ["auto_detect", "Read the the report."],
+])("%s keeps %s", (lang, text) => {
+  expect(review(text, {}, [], lang)).toEqual([]);
+});

@@ -1,7 +1,10 @@
 import { expect, test } from "bun:test";
 import { longSentenceRanges } from "../../src/core/domain/grammar/review/readability";
 import { longSentenceThreshold } from "../../src/core/domain/grammar/review/reviewCatalog";
-import { prepareReview } from "../../src/core/domain/grammar/review/reviewDiagnostics";
+import {
+  detectReviewDiagnostics,
+  prepareReview,
+} from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import type { ReviewSourceSnapshot } from "../../src/core/domain/grammar/review/types";
 const sentence =
   "The team reviewed every part of the detailed proposal before recording all of their conclusions.";
@@ -96,4 +99,25 @@ test("readability never uses punctuation inside protected text as a prose senten
   expect(
     scan(prefix + sentence, 10, { protectedRanges: [{ start: 0, end: 7, reason: "code" }] }),
   ).toEqual([]);
+});
+
+test("long-sentence advice segments with the review language's abbreviations", () => {
+  const text =
+    "Das ist z. B. ein Satz mit usw. vielen Wörtern, der bzw. die immer weiter und weiter geht.";
+  const found = (lang: string) =>
+    detectReviewDiagnostics(
+      { id: "long", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
+      {
+        enabledRules: ["styleLongSentence"],
+        lang,
+        userDictionary: [],
+        insertSpaceAfterAutocomplete: true,
+        longSentenceWords: 10,
+      },
+    );
+  for (const lang of ["de_DE", "auto_detect"]) {
+    const result = found(lang);
+    expect(result.coverage.failedRules).toEqual([]);
+    expect(result.diagnostics.map((d) => d.original)).toEqual([text]);
+  }
 });

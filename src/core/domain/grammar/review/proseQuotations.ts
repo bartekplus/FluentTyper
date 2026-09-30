@@ -1,11 +1,32 @@
 import type { TextRange } from "./types";
 import { ELIDED_QUOTE_START } from "./quotationWarnings";
+import { CUE_BEFORE_QUOTE } from "./exampleCues";
+
+// ", " / " and " / ", or " between two named examples, in every supported language.
+const LIST_CONJUNCTIONS = "and|or|und|oder|et|ou|y|o|e|i|lub|albo|oraz|och|eller|ili|και|ή|و|أو";
+const LIST_CONTINUATION = new RegExp(
+  `^[ \\t]*(?:,[ \\t]*(?:(?:${LIST_CONJUNCTIONS})[ \\t]+)?|(?:${LIST_CONJUNCTIONS})[ \\t]+)$`,
+  "u",
+);
 
 /** One pass over masked prose; code punctuation cannot open or close a quotation. */
 export function proseQuotations(text: string): { ranges: TextRange[]; examples: TextRange[] } {
   const ranges: TextRange[] = [];
   const examples: TextRange[] = [];
-  const closers: Record<string, string> = { '"': '"', "'": "'", "“": "”", "‘": "’", "«": "»" };
+  // Each opener with the marks that may close it, across the supported conventions:
+  // „…“ (de) and „…” (pl, hr), »…« (de, hr) and »…» (sv), ”…” (sv).
+  const closers: Record<string, string> = {
+    '"': '"',
+    "'": "'",
+    "“": "”",
+    "‘": "’",
+    "«": "»",
+    "„": "“”",
+    "‚": "‘’",
+    "»": "«»",
+    "‹": "›",
+    "”": "”",
+  };
   let start = -1;
   let closer = "";
   let example = false;
@@ -26,7 +47,7 @@ export function proseQuotations(text: string): { ranges: TextRange[]; examples: 
       )
         continue;
       const paragraphEnd = text[i] === "\n" && /^\r?\n/.test(text.slice(i + 1, i + 3));
-      if (text[i] !== closer && !paragraphEnd) continue;
+      if (!closer.includes(text[i]) && !paragraphEnd) continue;
       const range = { start, end: paragraphEnd ? i : i + 1 };
       ranges.push(range);
       if (example) {
@@ -39,13 +60,8 @@ export function proseQuotations(text: string): { ranges: TextRange[]; examples: 
       closer = closers[text[i]];
       const before = text.slice(Math.max(0, i - 160), i);
       example =
-        /\b(?:writes?|types?|spells?|phrases?|words?|examples?|literals?|texts?|terms?|forms?|headings?|titles?|labels?)(?:[ \t]+(?:such[ \t]+as|like|is|was|are))?[ :\t]*$/i.test(
-          before,
-        ) ||
-        (previousExampleEnd >= 0 &&
-          /^[ \t]*(?:,[ \t]*(?:(?:and|or)[ \t]+)?|(?:and|or)[ \t]+)$/.test(
-            text.slice(previousExampleEnd, i),
-          ));
+        CUE_BEFORE_QUOTE.test(before) ||
+        (previousExampleEnd >= 0 && LIST_CONTINUATION.test(text.slice(previousExampleEnd, i)));
       if (!example && /['‘]/.test(text[i]) && ELIDED_QUOTE_START.test(text.slice(i + 1, i + 12)))
         closer = "";
     }

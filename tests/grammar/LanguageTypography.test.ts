@@ -1,4 +1,6 @@
 import { describe, expect, test } from "bun:test";
+import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
+import { reviewRuleIds } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { GrammarRuleEngine } from "../../src/core/domain/grammar/GrammarRuleEngine";
 import { applyGrammarEditToContext } from "../../src/core/domain/grammar/GrammarEditSequencing";
 import { createGrammarRuleCatalogRuntime } from "../../src/core/domain/grammar/ruleFactory";
@@ -473,5 +475,113 @@ describe("rule contract: every rule has a positive and a negative case", () => {
     expect(expected).not.toBe(typed);
     expect(type(typed, lang, "prose", [ruleId])).toBe(expected);
     expect(type(skips[1], skips[0], "prose", [ruleId])).toBe(skips[1]);
+  });
+});
+
+describe("sentence starts after language abbreviations", () => {
+  test.each([
+    ["pl_PL", "Mam 10 tys. zł i dom."],
+    ["pl_PL", "To tzw. problem."],
+    ["hr_HR", "Tj. ne znam."],
+    ["sv_SE", "Ca 5 st. äpplen."],
+    ["de_DE", "Das sog. Problem."],
+    ["es_ES", "Vive en la Avda. del Mar."],
+    ["fr_FR", "Voir chap. deux."],
+  ])("%s: %s", (lang, text) => {
+    const found = detectReviewDiagnostics(
+      { id: "abbr", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
+      {
+        enabledRules: ["capitalizeSentenceStart"],
+        lang,
+        userDictionary: [],
+        insertSpaceAfterAutocomplete: true,
+      },
+    ).diagnostics;
+    expect(found).toEqual([]);
+  });
+
+  test("words that end sentences in their own language still do", () => {
+    const text = "C'est de l'art. puis on part.";
+    const found = detectReviewDiagnostics(
+      { id: "abbr", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
+      {
+        enabledRules: ["capitalizeSentenceStart"],
+        lang: "fr_FR",
+        userDictionary: [],
+        insertSpaceAfterAutocomplete: true,
+      },
+    ).diagnostics;
+    expect(found.map((d) => d.original)).toEqual(["p"]);
+  });
+});
+
+test("Review removes a space before the Greek question mark only in Greek", () => {
+  const text = "Τι κάνεις ; Καλά. Ένα ; δύο.";
+  const found = (lang: string) =>
+    detectReviewDiagnostics(
+      { id: "gr", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
+      {
+        enabledRules: ["commaPeriodSpacing"],
+        lang,
+        userDictionary: [],
+        insertSpaceAfterAutocomplete: true,
+      },
+    ).diagnostics.map((d) => [d.original, d.alternatives[0].preview]);
+  expect(found("el_GR")).toEqual([
+    [" ;", ";"],
+    [" ;", ";"],
+  ]);
+  expect(found("en_US")).toEqual([]);
+});
+
+describe("typing capitalization after language abbreviations", () => {
+  test.each([
+    [
+      "sv_SE",
+      "vi köpte 5 st. äpplen och bl.a. päron. sen gick vi ",
+      "Vi köpte 5 st. äpplen och bl.a. päron. Sen gick vi ",
+    ],
+    ["sv_SE", "se jfr. kapitel två. klart ", "Se jfr. kapitel två. Klart "],
+    ["hr_HR", "tj. ne znam. dobro ", "Tj. ne znam. Dobro "],
+    ["hr_HR", "kupio sam npr. kruh. zatim ", "Kupio sam npr. kruh. Zatim "],
+    ["pl_PL", "mam 10 tys. zł i tzw. dom. potem ", "Mam 10 tys. zł i tzw. dom. Potem "],
+    ["pl_PL", "przy ul. długiej. dalej ", "Przy ul. długiej. Dalej "],
+    ["de_DE", "das sog. problem bzgl. geld. dann ", "Das sog. problem bzgl. geld. Dann "],
+    ["de_DE", "es kostet ca. 5 tsd. euro. gut ", "Es kostet ca. 5 tsd. euro. Gut "],
+  ])("%s: %s", (lang, input, expected) => {
+    expect(type(input, lang, "prose", ["capitalizeSentenceStart"])).toBe(expected);
+  });
+
+  test("an abbreviation of one language still ends a sentence in another", () => {
+    // Swedish "min." is "my": it is only an abbreviation in English.
+    expect(type("det är min. nu ", "sv_SE", "prose", ["capitalizeSentenceStart"])).toBe(
+      "Det är min. Nu ",
+    );
+    // French "art." ends a sentence; Spanish lists it.
+    expect(type("c'est de l'art. puis ", "fr_FR", "prose", ["capitalizeSentenceStart"])).toBe(
+      "C'est de l'art. Puis ",
+    );
+  });
+});
+
+describe("unresolved auto-detect", () => {
+  const text = "The the report is on monday, alot better. Hello , world.\n\nnext line.";
+  const found = (lang: string) =>
+    detectReviewDiagnostics(
+      { id: "auto", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
+      {
+        enabledRules: reviewRuleIds({ codeMode: false }),
+        lang,
+        userDictionary: [],
+        insertSpaceAfterAutocomplete: true,
+      },
+    ).diagnostics.map((d) => d.ruleId);
+
+  test("runs only the language-independent rules", () => {
+    const rules = new Set(found("auto_detect"));
+    expect(rules).toEqual(new Set(["commaPeriodSpacing", "capitalizeAfterLineBreak"]));
+    // The same text in English also gets the English rules.
+    expect(found("en_US")).toContain("englishRepeatedWords");
+    expect(found("en_US")).toContain("englishAlotCorrection");
   });
 });
