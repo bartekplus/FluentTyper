@@ -264,7 +264,7 @@ This is not a global preposition replacement. Approximate quantities (`discussed
 
 Three native Review-only contextual apostrophe checks are independently configurable:
 
-- `englishItsContext`: possessive `its` after a listed transitive verb and before a complete known noun phrase, or in a clause-opening noun phrase with a supported predicate. Conversely, clause-opening `its` before listed complete predicates such as `ready to use`, `cold outside`, `working now` or `been fixed` becomes `it's`.
+- `englishItsContext`: possessive `its` after a listed transitive verb and before a complete known noun phrase, or in a clause-opening noun phrase with a supported predicate. Conversely, clause-opening `its` before listed complete predicates such as `ready to use`, `cold outside`, `working now` or `been fixed` becomes `it's`. `its` directly before a verb, article, pronoun or function word (`its been`, `its a`, `its not`, `its someone`) is always `it's`; a clause-opening `its` before a listed adjective and to/for/that or a clause end (`Its important to…`), and `its` + a capitalized name after think/hope/guess (`I think its Priya.`) become `it's`. `it's` after a preposition (`in it's sandbox`), before `own`, before an ordinal after an -ed verb, or opening a clause before a word and are/were/have (`It's wheels are…`) becomes `its`.
 - `englishLetsContext`: clause-opening `lets` before a complete listed suggestion such as `try again`, `go home` or `take a break` becomes `let's`. Lexical `lets` with a subject is preserved.
 - `englishElsePossessive`: `elses` after someone/somebody/anyone/anybody/everyone/nobody/no one and before a complete known noun phrase becomes `else's`. Capitalized `Elses` is preserved as a possible name.
 
