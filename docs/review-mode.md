@@ -130,7 +130,7 @@ Each catalog rule is classified in
 [`reviewCatalog.ts`](../src/core/domain/grammar/review/reviewCatalog.ts), and
 its `Record` type makes an unclassified new rule a compile error. Native Review
 checks have independent switches in **Settings → Grammar → Review text**.
-Core checks default on. The two optional style checks default off; restoring defaults
+Core checks default on. The optional style and typography checks (long sentences, redundancy, the ellipsis character) default off; restoring defaults
 keeps them off. Typing switches still control only automatic corrections.
 A native finding's **Disable this check in Review** action saves that rule's choice
 and refreshes open reviews. Restore it in settings, individually or with **Restore defaults**.
@@ -179,6 +179,7 @@ Supported (**Typing** is the rule's default for typing; Review has separate swit
 | `commaPeriodSpacing`                   | all            | on          | punctuation | yes (Greek `;`, Arabic `؟ ؛` and Spanish `¿ ¡` padding: individual only)                                                                       |
 | `collapseRepeatedSpaces`               | all            | on          | punctuation | yes (alignment gaps and Markdown table padding are left alone)                                                                                 |
 | `duplicatePunctuationCollapse`         | all            | off         | punctuation | yes (a four-dot ellipsis: individual only)                                                                                                     |
+| `ellipsisShortcut`                     | all            | off         | typography  | individual only; off by default in Review (optional "…" for "...")                                                                             |
 
 Agreement retains the six original typing pairs and their existing bulk rules.
 `englishContextualCompounds` is a separate Review-only check for curated compound pairs. It splits everyday into every day after a complete listed pronoun-led action, and splits login/setup into log in/set up in explicit modal, infinitive or please-imperative slots with complete listed complements. New spaces use the existing grapheme-anchored editor transaction; unrelated formatting remains intact. Findings own their spans before dictionary spelling runs, so the same token does not receive redundant spelling cards. Presage candidates and ranking are unchanged.
@@ -306,19 +307,19 @@ fixes (never in Fix all), because the deciding words are only evidence:
 
 Excluded (typing conveniences, not errors in finished text):
 
-| Rule                                 | Why                                                                        |
-| ------------------------------------ | -------------------------------------------------------------------------- |
-| `doubleSpaceToPeriod`                | Typing shortcut: existing double spaces are not sentence ends.             |
-| `technicalTokenCompaction`           | Ambiguous in finished text: "Chapter 3: 5 tips" is not a clock time.       |
-| `mathOperatorSpacing`                | Typing-time style; existing operators are often code or notation.          |
-| `slashContextSpacing`                | Spacing around an existing slash is style, not an error.                   |
-| `openingBracketSpacing`              | Only spaces code-like `){`; not prose proofreading.                        |
-| `closingBracketSpacing`              | Bracket spacing in finished text is often notation, Markdown or intervals. |
-| `trimSpaceBeforeLineBreak`           | Invisible, and two trailing spaces are a Markdown line break.              |
-| `ellipsisShortcut`, `emdashShortcut` | Typing shortcuts, not errors.                                              |
-| `smartQuoteNormalization`            | Straight quotes in finished text may be code or deliberate.                |
-| `frenchPunctuationSpacing`           | Typing-time convention; invisible no-break space changes.                  |
-| `autoBracketClose`                   | Review never inserts closing brackets.                                     |
+| Rule                       | Why                                                                        |
+| -------------------------- | -------------------------------------------------------------------------- |
+| `doubleSpaceToPeriod`      | Typing shortcut: existing double spaces are not sentence ends.             |
+| `technicalTokenCompaction` | Ambiguous in finished text: "Chapter 3: 5 tips" is not a clock time.       |
+| `mathOperatorSpacing`      | Typing-time style; existing operators are often code or notation.          |
+| `slashContextSpacing`      | Spacing around an existing slash is style, not an error.                   |
+| `openingBracketSpacing`    | Only spaces code-like `){`; not prose proofreading.                        |
+| `closingBracketSpacing`    | Bracket spacing in finished text is often notation, Markdown or intervals. |
+| `trimSpaceBeforeLineBreak` | Invisible, and two trailing spaces are a Markdown line break.              |
+| `emdashShortcut`           | Typing shortcut, not an error.                                             |
+| `smartQuoteNormalization`  | Straight quotes in finished text may be code or deliberate.                |
+| `frenchPunctuationSpacing` | Typing-time convention; invisible no-break space changes.                  |
+| `autoBracketClose`         | Review never inserts closing brackets.                                     |
 
 Some checks were inspired by Harper (https://github.com/Automattic/harper).
 

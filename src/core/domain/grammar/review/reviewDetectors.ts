@@ -1092,6 +1092,27 @@ const duplicatePunctuation: Detector = (ctx) => {
   return findings;
 };
 
+/**
+ * Optional typography: three periods as the one ellipsis character. Longer runs,
+ * ranges ("1...5"), paths ("../") and spread syntax ("[...items]") are not ellipses.
+ */
+const ellipsisCharacter: Detector = (ctx) => {
+  const findings: RawFinding[] = [];
+  const regex = /(?<![.\p{N}])\.{3}(?![.\p{N}/\\])/gu;
+  for (const match of ownedMatches(ctx, regex)) {
+    const start = match.index;
+    if (/[[({]/.test(ctx.text[start - 1] ?? "") && /[\p{L}_$]/u.test(ctx.text[start + 3] ?? ""))
+      continue;
+    findings.push({
+      ruleId: "ellipsisShortcut",
+      messageKey: "review_msg_ellipsis_character",
+      range: { start, end: start + 3 },
+      alternatives: ["…"],
+    });
+  }
+  return findings;
+};
+
 /** "300°K" is "300 K": the kelvin is an absolute unit and takes no degree sign. */
 function kelvinDegree(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
@@ -1301,6 +1322,7 @@ export const REVIEW_DETECTORS: ReadonlyArray<{ rules: CatalogRuleId[]; detect: D
   { rules: ["commaPeriodSpacing"], detect: commaPeriodSpacing },
   { rules: ["collapseRepeatedSpaces"], detect: repeatedSpaces },
   { rules: ["duplicatePunctuationCollapse"], detect: duplicatePunctuation },
+  { rules: ["ellipsisShortcut"], detect: ellipsisCharacter },
   {
     rules: ["measurementUnitFormatting"],
     detect: (ctx) => [...measurementLike(ctx, "measurementUnitFormatting"), ...kelvinDegree(ctx)],

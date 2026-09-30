@@ -141,6 +141,36 @@ describe("kelvin degree sign (measurementUnitFormatting)", () => {
   );
 });
 
+describe("ellipsis character (ellipsisShortcut, optional)", () => {
+  const rule = "ellipsisShortcut";
+  test("is off by default", () => {
+    expect(reviewRuleIds({ codeMode: false })).not.toContain(rule);
+  });
+
+  test.each([
+    ["Hold on... I found it.", "Hold on… I found it."],
+    ["...and then it rained.", "…and then it rained."],
+    ["Really...?", "Really…?"],
+    ["He cut it short (...) later.", "He cut it short (…) later."],
+    ["«Et puis...» dit-il.", "«Et puis…» dit-il."],
+    ["😀 So... yes... fine.", "😀 So… yes… fine."],
+  ])("offers %p individually", (input, expected) => {
+    expect(review(input, rule).every((d) => !d.bulk.eligible)).toBe(true);
+    expect(repaired(input, rule)).toBe(expected);
+  });
+
+  test.each([
+    "Hold on… I found it.",
+    "Rows 1...5 are empty.",
+    "Open ../src first.",
+    "Merge [...items] and f(...args).",
+    "Too many.... dots.",
+    "Two dots.. here.",
+  ])("keeps %p", (input) => {
+    expect(review(input, rule)).toEqual([]);
+  });
+});
+
 describe("ellipsis length (duplicatePunctuationCollapse)", () => {
   const rule = "duplicatePunctuationCollapse";
   test.each([

@@ -329,7 +329,13 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     review: "excluded",
     reason: "Invisible, and two trailing spaces are a Markdown line break.",
   },
-  ellipsisShortcut: { review: "excluded", reason: "Typing shortcut, not an error." },
+  ellipsisShortcut: {
+    review: "supported",
+    defaultEnabled: false,
+    category: "typography",
+    bulk: "individual",
+    note: "Optional typography: three periods are correct too.",
+  },
   emdashShortcut: { review: "excluded", reason: "Typing shortcut, not an error." },
   smartQuoteNormalization: {
     review: "excluded",

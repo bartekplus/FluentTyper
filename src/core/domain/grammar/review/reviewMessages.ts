@@ -776,6 +776,17 @@ const EXPLANATIONS: Record<ReviewMessageKey, Translations> = {
     "Wielokropek ma trzy kropki.",
     "As reticências têm três pontos.",
   ],
+  review_msg_ellipsis_character: [
+    "Optional typography: use the single ellipsis character (…).",
+    "Typographie facultative : utilisez le caractère unique des points de suspension (…).",
+    "Neobavezna tipografija: upotrijebite jedan znak za trotočje (…).",
+    "Tipografía opcional: use el carácter único de puntos suspensivos (…).",
+    "Προαιρετική τυπογραφία: χρησιμοποιήστε τον ενιαίο χαρακτήρα αποσιωπητικών (…).",
+    "Valfri typografi: använd det enskilda ellipstecknet (…).",
+    "Optionale Typografie: Verwenden Sie das einzelne Auslassungszeichen (…).",
+    "Opcjonalna typografia: użyj pojedynczego znaku wielokropka (…).",
+    "Tipografia opcional: use o caractere único de reticências (…).",
+  ],
   review_msg_measurement_spacing: [
     "Separate the number from its unit.",
     "Séparez le nombre de son unité.",
