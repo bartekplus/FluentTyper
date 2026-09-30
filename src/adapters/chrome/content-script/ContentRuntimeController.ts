@@ -103,6 +103,9 @@ export class ContentRuntimeController {
   private review: ReviewController | null = null;
   private reviewLauncher: ReviewLauncher | null = null;
   private reviewSuspended: HTMLElement | null = null;
+  // A review asked for before the first config arrived; that config decides whether it runs.
+  private configured = false;
+  private reviewBeforeConfig: "command" | "popup" | null = null;
 
   constructor() {
     this.domObserver = new DomObserver(
@@ -150,6 +153,14 @@ export class ContentRuntimeController {
   }
 
   setConfig(config: SetConfigContext): void {
+    const pendingReview = this.configured ? null : this.reviewBeforeConfig;
+    this.configured = true;
+    this.reviewBeforeConfig = null;
+    this.applyConfig(config);
+    if (pendingReview) this.reviewActiveEditor(pendingReview);
+  }
+
+  private applyConfig(config: SetConfigContext): void {
     if (config.observability) {
       setGlobalObservabilityRuntime({
         config: config.observability,
@@ -198,7 +209,10 @@ export class ContentRuntimeController {
    * focus returns to the page once the popup closes.
    */
   reviewActiveEditor(source: "command" | "popup"): void {
-    if (!this.enabled || isGoogleDocsInputFrame()) {
+    if (isGoogleDocsInputFrame()) return;
+    if (!this.enabled) {
+      // The page's settings are still on their way (GET_CONFIG); they decide.
+      if (!this.configured) this.reviewBeforeConfig = source;
       return;
     }
     const run = () => {
