@@ -1,16 +1,13 @@
 import { detectReviewDiagnostics } from "./reviewDiagnostics";
+import { diffTexts, remapRange } from "./textRanges";
 import type { ReviewCheckId, ReviewDiagnostic, ReviewMessageKey, ReviewOptions } from "./types";
 
 /** How much text before the caret a typing-time check reads. */
 export const LIVE_PROPOSAL_WINDOW_CHARS = 500;
-// Text before a finding that identifies it while later text changes.
-const KEY_PREFIX_CHARS = 32;
 const WORD_CHAR = /[\p{L}\p{N}\p{M}_'’-]/u;
 
 /** A Review finding offered while typing: shown, never applied without the user. */
 export interface LiveGrammarProposal {
-  /** Same text span and fix, wherever it moves: what "already seen" is keyed on. */
-  key: string;
   ruleId: ReviewCheckId;
   messageKey: ReviewMessageKey;
   /** Offsets into the `beforeCursor` it was found in. */
@@ -81,12 +78,6 @@ export function findLiveGrammarProposals(
     const replacement = diagnostic.alternatives[0].preview;
     return [
       {
-        key: [
-          diagnostic.ruleId,
-          beforeCursor.slice(Math.max(0, start - KEY_PREFIX_CHARS), start),
-          diagnostic.original,
-          replacement,
-        ].join("\u0000"),
         ruleId: diagnostic.ruleId,
         messageKey: diagnostic.messageKey,
         start,
@@ -98,16 +89,42 @@ export function findLiveGrammarProposals(
   });
 }
 
+/** Proposals already seen, as spans of the text they were found in. */
+export interface SeenLiveProposals {
+  text: string;
+  spans: LiveGrammarProposal[];
+}
+
+/** The same fix for the same span of the same text. */
+export function sameLiveProposal(a: LiveGrammarProposal, b: LiveGrammarProposal): boolean {
+  return (
+    a.start === b.start &&
+    a.end === b.end &&
+    a.ruleId === b.ruleId &&
+    a.replacement === b.replacement
+  );
+}
+
 /**
- * The newest proposal not seen before, nearest the caret. Every current key is
- * marked seen, so a finding that was shown (or that already existed) is never
- * offered again for the same span.
+ * The newest proposal not seen before, nearest the caret. Seen spans follow
+ * edits elsewhere in `beforeCursor`; an edit touching one forgets it. Every
+ * current proposal is then marked seen, so a finding that was shown (or that
+ * already existed) is never offered again for the same span.
  */
 export function nextLiveGrammarProposal(
   proposals: readonly LiveGrammarProposal[],
-  seen: Set<string>,
+  beforeCursor: string,
+  seen: SeenLiveProposals,
 ): LiveGrammarProposal | null {
-  const fresh = proposals.filter((proposal) => !seen.has(proposal.key));
-  proposals.forEach((proposal) => seen.add(proposal.key));
+  const diff = diffTexts(seen.text, beforeCursor);
+  if (diff) {
+    seen.spans = seen.spans.flatMap((span) => {
+      const range = remapRange(span, diff);
+      return range ? [{ ...span, ...range }] : [];
+    });
+  }
+  seen.text = beforeCursor;
+  const fresh = proposals.filter((p) => !seen.spans.some((span) => sameLiveProposal(span, p)));
+  seen.spans.push(...fresh);
   return fresh.at(-1) ?? null;
 }

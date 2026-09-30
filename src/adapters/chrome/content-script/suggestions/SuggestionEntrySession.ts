@@ -19,7 +19,9 @@ import {
 import { rangeInsideTarget, TextTargetAdapter } from "./TextTargetAdapter";
 import {
   nextLiveGrammarProposal,
+  sameLiveProposal,
   type LiveGrammarProposal,
+  type SeenLiveProposals,
 } from "@core/domain/grammar/review/liveProposals";
 import { measurementEditingContext } from "./MeasurementEditingContext";
 import { buildCaretTrace, clipTraceText, collapseTraceWhitespace } from "./traceUtils";
@@ -97,7 +99,7 @@ export class SuggestionEntrySession {
   private snippetSuggestions = new Set<string>();
   private snippetShortcuts: Array<string | null> | undefined;
   // Grammar proposals already shown, dismissed or in the text before typing; never offered again.
-  private seenGrammarProposals: Set<string> | null = null;
+  private seenGrammarProposals: SeenLiveProposals | null = null;
 
   constructor(options: SuggestionEntrySessionOptions) {
     this.entry = options.entry;
@@ -146,7 +148,7 @@ export class SuggestionEntrySession {
 
   public handleFocus(): void {
     // What is already written when the field is entered is not "just typed".
-    this.readGrammarProposals();
+    if (this.seenGrammarProposals === null) this.readGrammarProposals();
     if (!this.inlineSuggestionEnabled) {
       return;
     }
@@ -468,7 +470,7 @@ export class SuggestionEntrySession {
     const proposals = this.findGrammarProposals(context.beforeCursor);
     // The first read (on focus) only records what the field already contains.
     if (this.seenGrammarProposals === null) {
-      this.seenGrammarProposals = new Set(proposals.map((proposal) => proposal.key));
+      this.seenGrammarProposals = { text: context.beforeCursor, spans: proposals };
     }
     return { proposals, context };
   }
@@ -477,10 +479,14 @@ export class SuggestionEntrySession {
   private refreshGrammarProposal(): void {
     const firstRead = this.seenGrammarProposals === null;
     const read = this.readGrammarProposals();
-    if (!read || firstRead || !this.seenGrammarProposals) {
+    if (!read || firstRead) {
       return;
     }
-    const proposal = nextLiveGrammarProposal(read.proposals, this.seenGrammarProposals);
+    const proposal = nextLiveGrammarProposal(
+      read.proposals,
+      read.context.beforeCursor,
+      this.seenGrammarProposals!,
+    );
     if (!proposal) {
       return;
     }
@@ -507,7 +513,7 @@ export class SuggestionEntrySession {
     const proposal = this.entry.grammarProposal;
     this.clearSuggestions();
     const read = proposal ? this.readGrammarProposals() : null;
-    const current = read?.proposals.filter((candidate) => candidate.key === proposal?.key).at(-1);
+    const current = read?.proposals.find((candidate) => sameLiveProposal(candidate, proposal!));
     if (!read || !current) {
       return false;
     }

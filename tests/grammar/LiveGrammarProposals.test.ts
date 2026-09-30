@@ -3,6 +3,7 @@ import {
   findLiveGrammarProposals,
   LIVE_PROPOSAL_WINDOW_CHARS,
   nextLiveGrammarProposal,
+  type SeenLiveProposals,
   type LiveProposalOptions,
 } from "../../src/core/domain/grammar/review/liveProposals";
 import { reviewRuleIds } from "../../src/core/domain/grammar/review/reviewCatalog";
@@ -87,31 +88,28 @@ describe("findLiveGrammarProposals", () => {
 });
 
 describe("nextLiveGrammarProposal", () => {
-  test("offers each span once, keyed on its text rather than its offset", () => {
-    const seen = new Set<string>();
-    const first = nextLiveGrammarProposal(findLiveGrammarProposals("We is ready. ", options), seen);
-    expect(first?.original).toBe("is");
+  const next = (text: string, seen: SeenLiveProposals) =>
+    nextLiveGrammarProposal(findLiveGrammarProposals(text, options), text, seen);
+
+  test("offers each span once, wherever later text moves it", () => {
+    const seen: SeenLiveProposals = { text: "", spans: [] };
+    expect(next("We is ready. ", seen)?.original).toBe("is");
     // Typing on does not bring the same finding back.
-    expect(
-      nextLiveGrammarProposal(findLiveGrammarProposals("We is ready. And so", options), seen),
-    ).toBeNull();
+    expect(next("We is ready. And so", seen)).toBeNull();
     // A new finding further on is offered; the older one stays dismissed.
-    const next = nextLiveGrammarProposal(
-      findLiveGrammarProposals("We is ready. They has left. ", options),
-      seen,
-    );
-    expect(next?.original).toBe("has");
-    expect(
-      nextLiveGrammarProposal(
-        findLiveGrammarProposals("We is ready. They has left. ", options),
-        seen,
-      ),
-    ).toBeNull();
+    expect(next("We is ready. They has left. ", seen)?.original).toBe("has");
+    expect(next("We is ready. They has left. ", seen)).toBeNull();
   });
 
-  test("keys differ when the text before the span differs", () => {
-    const [a] = findLiveGrammarProposals("We is ready. ", options);
-    const [b] = findLiveGrammarProposals("Yes. We is ready. ", options);
-    expect(a.key).not.toBe(b.key);
+  test("a dismissed span stays dismissed after an edit before it", () => {
+    const seen: SeenLiveProposals = { text: "", spans: [] };
+    expect(next("Yes. We is ready. ", seen)?.original).toBe("is");
+    expect(next("Oh yes. We is ready. ", seen)).toBeNull();
+  });
+
+  test("the same fix at another span is still offered", () => {
+    const seen: SeenLiveProposals = { text: "", spans: [] };
+    expect(next("We is ready. ", seen)?.start).toBe(3);
+    expect(next("We is ready. We is here. ", seen)?.start).toBe(16);
   });
 });
