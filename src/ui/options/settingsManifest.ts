@@ -1,7 +1,7 @@
-import { DEFAULT_LONG_SENTENCE_WORDS } from "@core/domain/grammar/review/reviewCatalog";
 import { emptyTerminology } from "@core/domain/grammar/review/preferredTerminology";
 import { reviewText, type ReviewTextKey } from "@core/domain/grammar/review/reviewMessages";
 import {
+  DEFAULT_LONG_SENTENCE_WORDS,
   REVIEW_RULE_METADATA,
   isReviewSupportedRule,
   normalizeReviewRuleOverrides,

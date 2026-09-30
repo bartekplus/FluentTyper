@@ -49,3 +49,14 @@ export function knownEnglishNounNumber(word: string): "singular" | "plural" | nu
   const forms = englishNounForms(word);
   return forms ? (word.toLowerCase() === forms.singular ? "singular" : "plural") : null;
 }
+
+/** Do not interpret the tail of a compound quantity or numbered label as a whole count. */
+export function hasCountPrefix(before: string): boolean {
+  return (
+    /\b(?:twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|million|billion|point|or|and|to)[ \t\u00a0]+$/i.test(
+      before,
+    ) ||
+    /[0-9](?:[.,][ \t\u00a0\u202f]*|[ \t\u00a0\u202f]+)$/.test(before) ||
+    /\b(?:model|version|chapter|section|code|row|column|label)[ \t]+$/i.test(before)
+  );
+}

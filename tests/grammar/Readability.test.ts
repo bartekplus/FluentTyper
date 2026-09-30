@@ -1,8 +1,6 @@
 import { expect, test } from "bun:test";
-import {
-  longSentenceRanges,
-  longSentenceThreshold,
-} from "../../src/core/domain/grammar/review/readability";
+import { longSentenceRanges } from "../../src/core/domain/grammar/review/readability";
+import { longSentenceThreshold } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { prepareReview } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import type { ReviewSourceSnapshot } from "../../src/core/domain/grammar/review/types";
 const sentence =

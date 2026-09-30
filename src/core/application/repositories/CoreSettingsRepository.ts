@@ -171,13 +171,6 @@ export class CoreSettingsRepository extends SettingsRepositoryBase {
     return result.ok ? result.value : emptyTerminology();
   }
 
-  async setPreferredTerminology(value: unknown): Promise<boolean> {
-    const result = validateTerminology(value);
-    if (!result.ok) return false;
-    await this.setField("preferredTerminology", result.value);
-    return true;
-  }
-
   async getReviewRuleOverrides(): Promise<Record<string, boolean>> {
     return normalizeReviewRuleOverrides(await this.getField("reviewRuleOverrides"));
   }

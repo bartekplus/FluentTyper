@@ -237,7 +237,7 @@ test("Review rule preferences serialize concurrent card choices without storing 
   });
 });
 
-test("preferred terminology fails closed and writes only validated authored settings", async () => {
+test("preferred terminology reads validated settings without changing other preferences", async () => {
   const store: Record<string, unknown> = {
     userDictionaryList: ["custom"],
     textExpansions: [["sig", "My name"]],
@@ -253,9 +253,6 @@ test("preferred terminology fails closed and writes only validated authored sett
   expect(await repository.getPreferredTerminology()).toEqual(empty);
   store.preferredTerminology = { enabled: true, entries: [{ source: "broken" }] };
   expect(await repository.getPreferredTerminology()).toEqual(empty);
-  const before = structuredClone(store);
-  expect(await repository.setPreferredTerminology({ enabled: true })).toBe(false);
-  expect(store).toEqual(before);
   const valid = {
     version: 1,
     enabled: true,
@@ -272,10 +269,10 @@ test("preferred terminology fails closed and writes only validated authored sett
       },
     ],
   };
-  expect(await repository.setPreferredTerminology(valid)).toBe(true);
+  store.preferredTerminology = valid;
   expect(await repository.getPreferredTerminology()).toEqual(valid);
   expect(store.userDictionaryList).toEqual(["custom"]);
   expect(store.textExpansions).toEqual([["sig", "My name"]]);
-  expect(await repository.setPreferredTerminology(empty)).toBe(true);
+  store.preferredTerminology = empty;
   expect(await repository.getPreferredTerminology()).toEqual(empty);
 });

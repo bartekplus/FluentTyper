@@ -3,7 +3,6 @@ import { MAX_REVIEW_CHARS } from "./reviewDiagnostics";
 import type { ProtectedRange, ReviewSourceSnapshot, TextRange } from "./types";
 
 import { DEFAULT_LONG_SENTENCE_WORDS, longSentenceThreshold } from "./reviewCatalog";
-export { DEFAULT_LONG_SENTENCE_WORDS, longSentenceThreshold } from "./reviewCatalog";
 
 /** Technical spans that are literal prose for a non-editing readability warning. */
 export function isReadabilityLiteral(text: string): boolean {

@@ -1,6 +1,7 @@
 import {
   englishNounForms,
   ENGLISH_COUNT_WORDS,
+  hasCountPrefix,
 } from "../implementations/helpers/EnglishNounNumber";
 import { applyWordCase, detectWordCase } from "../implementations/helpers/GenericRuleShared";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
@@ -37,9 +38,7 @@ export function nounNumberConstructions(ctx: DetectContext): RawFinding[] {
         )
       )
         continue;
-      if (count && /[0-9](?:[.,][ \t\u00a0\u202f]*|[ \t\u00a0\u202f]+)$/.test(before)) continue;
-      if (count && /\b(?:model|version|chapter|section|code|row|column|label)[ \t]+$/i.test(before))
-        continue;
+      if (count && hasCountPrefix(before)) continue;
       if (
         (m[0].match(/[A-Za-z]+/g) ?? []).some(
           (w) => ctx.dictionary.has(w.toLowerCase()) || applyWordCase(w, detectWordCase(w)) !== w,
