@@ -632,9 +632,9 @@ describe("Google Docs cross-world fixture (not live Docs)", () => {
   // Trimming the context to 512 characters is not the same as losing the boundary: a real
   // line break or full stop a few characters back is still right there in what is left.
   test.each([
-    ["capitalizeAfterLineBreak", `${"a".repeat(600)}\n`, "h", "H"],
+    ["capitalizeAfterLineBreak", `${"a".repeat(600)}\n`, "hello ", "Hello "],
     ["capitalizeSentenceStart", `${"lorem ".repeat(100)}done. `, "next ", "Next "],
-    ["capitalizeAfterLineBreak", `${"lorem ipsum ".repeat(1200)}\n`, "h", "H"],
+    ["capitalizeAfterLineBreak", `${"lorem ipsum ".repeat(1200)}\n`, "hello ", "Hello "],
     ["capitalizeSentenceStart", `${"lorem ipsum ".repeat(1200)}done. `, "next ", "Next "],
     // The cut is not a beginning: nothing here says this word opens a sentence.
     ["capitalizeSentenceStart", `${"a".repeat(600)}${" ".repeat(520)}`, "next ", "next "],

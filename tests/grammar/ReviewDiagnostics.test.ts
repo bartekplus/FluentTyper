@@ -178,6 +178,10 @@ describe("review detectors: capitalization and typography", () => {
       ["capitalizeAfterLineBreak", "s", [12, 13], "S"],
       ["capitalizeAfterLineBreak", "n", [38, 39], "N"],
     ]);
+    // Deliberate brand casing at a line start stays.
+    expect(
+      only("Done.\niPhone.\n\neBay.\n\nmacOS.\n\njQuery ok", "capitalizeAfterLineBreak"),
+    ).toEqual([]);
     const [finding] = review("Done.\nthen", { enabledRules: ["capitalizeAfterLineBreak"] });
     expect(finding.bulk).toEqual({ eligible: false, reason: "rule-not-batch-approved" });
   });

@@ -125,45 +125,59 @@ export function keepsOwnCasing(word: string): boolean {
   return /\p{Lu}/u.test(head.slice(1)) || /\p{N}/u.test(head);
 }
 
+/**
+ * Capitalizes the word a boundary just completed when `opens` says it starts a
+ * sentence or a line. The first letter waits for the whole word: "u" may
+ * become "user.save()" and "i" may become "iPhone", and no keystroke before
+ * the boundary says otherwise.
+ */
+export function capitalizeCompletedWord(
+  context: GrammarContext,
+  opens: (text: string, wordStart: number) => boolean,
+): GrammarEdit | null {
+  const text = context.beforeCursor;
+  const boundary = text.length - 1;
+  if (
+    boundary < 1 ||
+    !WORD_BOUNDARY_CHARS.includes(text[boundary]) ||
+    WORD_BOUNDARY_CHARS.includes(text[boundary - 1]) ||
+    resolveInputAction(context) === "delete"
+  ) {
+    return null;
+  }
+
+  let wordStart = boundary;
+  while (wordStart > 0 && !WORD_BOUNDARY_CHARS.includes(text[wordStart - 1])) {
+    wordStart -= 1;
+  }
+  const word = text.slice(wordStart, boundary);
+  const letter = SENTENCE_OPENING_MARKS.has(word[0]) ? 1 : 0;
+  const bare = word.replace(TRAILING_PUNCTUATION_REGEX, "");
+  if (
+    !isLowercaseLetter(word[letter] ?? "") ||
+    isTechnicalToken(bare) ||
+    keepsOwnCasing(bare) ||
+    !opens(text, wordStart)
+  ) {
+    return null;
+  }
+
+  return {
+    replacement: `${word.slice(0, letter)}${word[letter].toUpperCase()}${text.slice(wordStart + letter + 1)}`,
+    deleteBackwards: text.length - wordStart,
+    deleteForwards: 0,
+  };
+}
+
 export class CapitalizeSentenceStartRule implements GrammarRule {
   readonly id = "capitalizeSentenceStart" as const;
-  // The first letter is only capitalized once the word is complete: "u" may
-  // become "user.save()", and no keystroke before the boundary says otherwise.
   // A newline arrives as insertChar, hence both triggers.
   readonly triggers: GrammarEventType[] = ["insertChar", "wordBoundary"];
 
   apply(context: GrammarContext): GrammarEdit | null {
-    const text = context.beforeCursor;
-    const boundary = text.length - 1;
-    if (
-      boundary < 1 ||
-      !WORD_BOUNDARY_CHARS.includes(text[boundary]) ||
-      WORD_BOUNDARY_CHARS.includes(text[boundary - 1]) ||
-      resolveInputAction(context) === "delete"
-    ) {
-      return null;
-    }
-
-    let wordStart = boundary;
-    while (wordStart > 0 && !WORD_BOUNDARY_CHARS.includes(text[wordStart - 1])) {
-      wordStart -= 1;
-    }
-    const word = text.slice(wordStart, boundary);
-    const letter = SENTENCE_OPENING_MARKS.has(word[0]) ? 1 : 0;
-    if (
-      !isLowercaseLetter(word[letter] ?? "") ||
-      isTechnicalToken(word.replace(TRAILING_PUNCTUATION_REGEX, "")) ||
-      keepsOwnCasing(word.replace(TRAILING_PUNCTUATION_REGEX, "")) ||
-      !startsSentence(text, wordStart, context.hints?.lang)
-    ) {
-      return null;
-    }
-
-    return {
-      replacement: `${word.slice(0, letter)}${word[letter].toUpperCase()}${text.slice(wordStart + letter + 1)}`,
-      deleteBackwards: text.length - wordStart,
-      deleteForwards: 0,
-    };
+    return capitalizeCompletedWord(context, (text, wordStart) =>
+      startsSentence(text, wordStart, context.hints?.lang),
+    );
   }
 }
 
