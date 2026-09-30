@@ -4659,20 +4659,12 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         ).toBeGreaterThan(0);
 
         const popupSummary = await popupPage.evaluate(() => ({
-          accepted: document.getElementById("metricAccepted")?.textContent?.trim() || "",
-          chars: document.getElementById("metricCharsSaved")?.textContent?.trim() || "",
-          minutes: document.getElementById("metricMinutesSaved")?.textContent?.trim() || "",
           periodSummary: document.getElementById("dashboardPeriodSummary")?.textContent || "",
-          languageSummary: document.getElementById("dashboardLanguageSummary")?.textContent || "",
           hasTrendNode: Boolean(document.getElementById("dashboardTrendSummary")),
           hasTopSnippetsNode: Boolean(document.getElementById("topSnippetsList")),
         }));
 
-        expect(popupSummary.accepted.length).toBeGreaterThan(0);
-        expect(popupSummary.chars.length).toBeGreaterThan(0);
-        expect(popupSummary.minutes.length).toBeGreaterThan(0);
         expect(popupSummary.periodSummary).toContain("Last 7 days:");
-        expect(popupSummary.languageSummary).toContain("Last 7 days:");
         expect(popupSummary.hasTrendNode).toBe(false);
         expect(popupSummary.hasTopSnippetsNode).toBe(false);
         await popupPage.close();

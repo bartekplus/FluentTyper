@@ -644,41 +644,10 @@ function initializeFooterLinks(): void {
   optionsLink.href = chrome.runtime.getURL("options/options.html");
 }
 
-function formatLanguageSummary(stats: ProductivityDashboardStats): string {
-  const source = stats.perLanguageLast7Days.length
-    ? stats.perLanguageLast7Days
-    : stats.perLanguageLifetime;
-  if (!source.length) {
-    return i18n.get("popup_dashboard_languages_empty");
-  }
-  const topLanguages = source.slice(0, 2).map((entry) => {
-    return `${languageLabel(entry.language)}: ${formatNumber(entry.estimatedMinutesSaved)} ${i18n.get("popup_short_minutes")}`;
-  });
-  const periodLabel = stats.perLanguageLast7Days.length
-    ? i18n.get("popup_short_last7")
-    : i18n.get("popup_short_lifetime");
-  return `${periodLabel}: ${topLanguages.join(" • ")}`;
-}
-
-function renderMilestoneProgress(stats: ProductivityDashboardStats): void {
-  const fillNode = document.getElementById("dashboardProgressFill");
-  const labelNode = document.getElementById("dashboardProgressLabel");
-  if (!fillNode || !labelNode) {
-    return;
-  }
-  fillNode.style.width = `${stats.milestoneProgress.progressPct}%`;
-  labelNode.textContent = `${formatNumber(
-    stats.milestoneProgress.lifetimeHoursSaved,
-  )}h / ${stats.milestoneProgress.nextMilestoneHours}h`;
-}
-
 function renderWeeklyRecapCard(stats: ProductivityDashboardStats): void {
   const cardNode = document.getElementById("weeklyRecapCard") as HTMLElement;
   const titleNode = document.getElementById("weeklyRecapTitle") as HTMLElement;
   const summaryNode = document.getElementById("weeklyRecapSummary") as HTMLElement;
-  const snippetNode = document.getElementById("weeklyRecapSnippet") as HTMLElement;
-  const milestoneNode = document.getElementById("weeklyRecapMilestone") as HTMLElement;
-  const equivalentNode = document.getElementById("weeklyRecapEquivalent") as HTMLElement;
   const dismissButton = document.getElementById("weeklyRecapDismissBtn") as HTMLButtonElement;
   const viewButton = document.getElementById("weeklyRecapViewBtn") as HTMLButtonElement;
   const shareButton = document.getElementById("weeklyRecapShareBtn") as HTMLButtonElement;
@@ -700,23 +669,6 @@ function renderWeeklyRecapCard(stats: ProductivityDashboardStats): void {
   )} ${i18n.get("popup_short_chars")} • ${formatNumber(
     stats.weeklyRecap.estimatedMinutesSaved,
   )} ${i18n.get("popup_short_minutes")}`;
-  const milestones = stats.weeklyRecap.milestonesCrossedHours || [];
-  milestoneNode.textContent =
-    milestones.length > 0
-      ? `${i18n.get("popup_weekly_recap_milestone_label")}: ${milestones
-          .map((hours) => `${formatNumber(hours)}h`)
-          .join(", ")}`
-      : i18n.get("popup_weekly_recap_milestone_none");
-  const equivalentTaskLabel =
-    stats.weeklyRecap.equivalentTasks === 1
-      ? i18n.get("popup_weekly_recap_task_singular")
-      : i18n.get("popup_weekly_recap_task_plural");
-  equivalentNode.textContent = `${i18n.get(
-    "popup_weekly_recap_equivalent_prefix",
-  )} ${formatNumber(stats.weeklyRecap.equivalentTasks)} ${equivalentTaskLabel}.`;
-  snippetNode.textContent = stats.weeklyRecap.topSnippet
-    ? `${i18n.get("popup_weekly_recap_top_snippet")}: ${stats.weeklyRecap.topSnippet.snippet} (${stats.weeklyRecap.topSnippet.count}x)`
-    : i18n.get("popup_weekly_recap_top_snippet_empty");
 
   const recapShareText = `${i18n.get("popup_weekly_recap_title")} (${formatWeekRange(
     stats.weeklyRecap.weekKey,
@@ -782,16 +734,6 @@ function renderMilestoneHint(stats: ProductivityDashboardStats): void {
 }
 
 function renderDashboard(stats: ProductivityDashboardStats): void {
-  (document.getElementById("metricAccepted") as HTMLElement).textContent = formatNumber(
-    stats.lifetime.acceptedSuggestions,
-  );
-  (document.getElementById("metricCharsSaved") as HTMLElement).textContent = formatNumber(
-    stats.lifetime.charactersSaved,
-  );
-  (document.getElementById("metricMinutesSaved") as HTMLElement).textContent = formatNumber(
-    stats.lifetime.estimatedMinutesSaved,
-  );
-
   const periodSummary = `${i18n.get("popup_short_last7")}: ${formatNumber(
     stats.last7Days.acceptedSuggestions,
   )} ${i18n.get("popup_short_accepted")} • ${formatNumber(
@@ -801,9 +743,6 @@ function renderDashboard(stats: ProductivityDashboardStats): void {
   )} ${i18n.get("popup_short_minutes")}`;
 
   (document.getElementById("dashboardPeriodSummary") as HTMLElement).textContent = periodSummary;
-  (document.getElementById("dashboardLanguageSummary") as HTMLElement).textContent =
-    formatLanguageSummary(stats);
-  renderMilestoneProgress(stats);
   renderWeeklyRecapCard(stats);
   renderMilestoneHint(stats);
 }
@@ -816,15 +755,9 @@ function clearProductivityDashboardRetryTimer(): void {
 }
 
 function renderDashboardUnavailable(): void {
-  (document.getElementById("metricAccepted") as HTMLElement).textContent = "--";
-  (document.getElementById("metricCharsSaved") as HTMLElement).textContent = "--";
-  (document.getElementById("metricMinutesSaved") as HTMLElement).textContent = "--";
-  (document.getElementById("dashboardProgressFill") as HTMLElement).style.width = "0%";
-  (document.getElementById("dashboardProgressLabel") as HTMLElement).textContent = "--";
-  const unavailableLabel = i18n.get("popup_dashboard_stats_unavailable");
-  (document.getElementById("dashboardPeriodSummary") as HTMLElement).textContent = unavailableLabel;
-  (document.getElementById("dashboardLanguageSummary") as HTMLElement).textContent =
-    unavailableLabel;
+  (document.getElementById("dashboardPeriodSummary") as HTMLElement).textContent = i18n.get(
+    "popup_dashboard_stats_unavailable",
+  );
   document.getElementById("weeklyRecapCard")?.classList.add("is-hidden");
   document.getElementById("dashboardMilestoneHint")?.classList.add("is-hidden");
 }

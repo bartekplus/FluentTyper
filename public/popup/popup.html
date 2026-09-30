@@ -4,435 +4,270 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>FluentTyper Settings</title>
-
-    <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
-      rel="stylesheet"
-    />
-
-    <!-- Core Stylesheets -->
     <link rel="stylesheet" type="text/css" href="/third_party/bulma/bulma.min.css" />
     <link rel="stylesheet" type="text/css" href="/third_party/bulma/bulma-switch.min.css" />
-
-    <!-- CUSTOM THEME - Must be placed AFTER Bulma to override styles -->
     <link rel="stylesheet" type="text/css" href="/css/fluenttyper-theme.css" />
-
-    <!-- JavaScript -->
     <script src="/popup/popup.js"></script>
-    <style>
-      .permission-status {
-        display: grid;
-        gap: 0.45rem;
-        padding: 1rem;
-        border: 1px solid #f59e0b;
-        background: linear-gradient(135deg, #fff7ed, #ffedd5);
-      }
-
-      .permission-status[data-permission-state="granted"] {
-        border-color: #34d399;
-        background: linear-gradient(135deg, #ecfdf5, #d1fae5);
-      }
-
-      .permission-status[data-permission-state="unavailable"] {
-        border-color: #94a3b8;
-        background: linear-gradient(135deg, #f8fafc, #e2e8f0);
-      }
-
-      .permission-status__badge {
-        color: #9a3412;
-        font-size: 0.72rem;
-        font-weight: 800;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-      }
-
-      .permission-status[data-permission-state="granted"] .permission-status__badge {
-        color: #047857;
-      }
-
-      .permission-status[data-permission-state="unavailable"] .permission-status__badge {
-        color: #475569;
-      }
-
-      .permission-status__title {
-        color: #0f172a;
-        font-size: 1rem;
-        font-weight: 700;
-        margin: 0;
-      }
-
-      .permission-status__body {
-        color: #334155;
-        font-size: 0.86rem;
-        line-height: 1.45;
-        margin: 0;
-      }
-
-      .permission-status__action {
-        align-self: center;
-      }
-    </style>
   </head>
 
   <body class="fluenttyper-popup">
-    <!-- Header -->
-    <header class="popup-header" style="display: none">
-      <img src="/icon/LogoFluentTyper.png" alt="FluentTyper Logo" />
-      <h1 class="title is-5">FluentTyper</h1>
+    <header class="popup-header">
+      <img src="/icon/icon128.png" alt="" width="20" height="20" />
+      <h1 class="popup-title">FluentTyper</h1>
+      <input
+        id="checkboxEnableInput"
+        type="checkbox"
+        name="checkboxEnableInput"
+        class="switch is-rounded"
+        checked
+      />
+      <label for="checkboxEnableInput"
+        ><span class="sr-only" data-i18n="popup_global_enable_label"
+          >Enable FluentTyper</span
+        ></label
+      >
     </header>
 
-    <!-- Modern Compact UI -->
-    <main class="control-panel">
-      <div class="panel-body">
-        <div class="popup-primary-stack">
-          <div id="pageStatePanel" class="page-state-panel" data-page-state="active">
-            <div class="page-state-header">
-              <div class="page-state-title-group">
-                <span class="section-inline-label" data-i18n="popup_section_this_site"
-                  >This site</span
-                >
-                <h2 id="pageStateTitle" class="page-state-title">Current site</h2>
-              </div>
-              <span id="pageStateBadge" class="page-state-badge">Active here</span>
+    <main class="popup-main">
+      <section id="pageStatePanel" class="popup-card page-state-panel" data-page-state="active">
+        <div class="page-state-header">
+          <h2 id="pageStateTitle" class="page-state-title">Current site</h2>
+          <span id="pageStateBadge" class="page-state-badge">Active here</span>
+        </div>
+        <p id="pageStateBody" class="page-state-body"></p>
+        <p id="pageStateMeta" class="page-state-meta is-hidden">
+          <span id="pageStateLanguage"></span>
+          <span id="pageStateProfile"></span>
+        </p>
+
+        <div id="domainSectionWrapper" class="popup-row is-hidden">
+          <div class="popup-row-copy">
+            <span id="checkboxDomainLabel" class="field-title" data-i18n="popup_enable_on_site"
+              >Enable on this site</span
+            >
+            <span id="checkboxDomainHint" class="sr-only"></span>
+          </div>
+          <input
+            id="checkboxDomainInput"
+            type="checkbox"
+            name="checkboxDomainInput"
+            class="switch is-rounded"
+            aria-labelledby="checkboxDomainLabel"
+            checked
+          />
+          <label for="checkboxDomainInput"></label>
+        </div>
+
+        <div id="siteProfileSection" class="popup-profile is-hidden">
+          <div class="popup-row">
+            <div class="popup-row-copy">
+              <span id="siteProfileLabel" class="field-title" data-i18n="popup_site_profile_toggle"
+                >Use site profile</span
+              >
+              <small
+                id="siteProfileStatus"
+                data-i18n="popup_site_profile_status_global"
+                class="field-help"
+                >Using global settings</small
+              >
             </div>
-            <div class="page-state-summary">
-              <p id="pageStateBody" class="page-state-body"></p>
-              <div id="pageStateMeta" class="page-state-meta is-hidden">
-                <span id="pageStateLanguage" class="page-state-chip"></span>
-                <span id="pageStateProfile" class="page-state-chip"></span>
-              </div>
-              <!-- An action on this page, not a setting: it lives with the page's status. -->
-              <div id="reviewTextAction" class="page-state-action is-hidden">
-                <button
-                  id="reviewTextBtn"
-                  type="button"
-                  class="button is-small is-rounded is-link page-state-action-button"
-                  aria-describedby="reviewTextHint"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="15"
-                    height="15"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2.2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    aria-hidden="true"
-                  >
-                    <path d="M4 7h11" />
-                    <path d="M4 12h7" />
-                    <path d="M4 17h5" />
-                    <path d="m13 17 3 3 5-6" />
-                  </svg>
-                  <span data-i18n="popup_review_text">Review text</span>
-                  <kbd id="reviewTextShortcut" class="page-state-kbd is-hidden"></kbd>
-                </button>
-                <span id="reviewTextHint" class="sr-only" data-i18n="popup_review_text_hint"
-                  >Checks the focused field, or only the selected text, with every review check,
-                  including rules that are off for typing. Nothing changes until you apply a
-                  fix.</span
-                >
-              </div>
-            </div>
+            <input
+              id="checkboxSiteProfileInput"
+              type="checkbox"
+              name="checkboxSiteProfileInput"
+              class="switch is-rounded"
+              aria-labelledby="siteProfileLabel"
+            />
+            <label for="checkboxSiteProfileInput"></label>
           </div>
 
-          <div class="popup-control-grid">
-            <div
-              id="domainSectionWrapper"
-              class="setting-card setting-card--control setting-card--site is-hidden"
-            >
-              <div class="setting-card-header">
-                <div class="row-copy">
-                  <span id="checkboxDomainLabel" class="row-label" data-i18n="popup_enable_on_site"
-                    >Enable on this site</span
-                  >
-                  <span id="checkboxDomainHint" class="row-hint"></span>
-                </div>
-                <div class="field mb-0">
-                  <input
-                    id="checkboxDomainInput"
-                    type="checkbox"
-                    name="checkboxDomainInput"
-                    class="switch is-small is-rounded"
-                    checked
-                  />
-                  <label for="checkboxDomainInput"></label>
-                </div>
-              </div>
-            </div>
-
-            <div class="setting-card setting-card--control">
-              <div class="setting-card-header">
-                <div class="global-enable-meta">
-                  <div class="global-enable-title">
-                    <span class="section-inline-label" data-i18n="popup_section_global"
-                      >Global</span
-                    >
-                    <span class="row-label" data-i18n="popup_global_enable_label"
-                      >Enable FluentTyper</span
-                    >
-                  </div>
-                </div>
-                <div class="global-toggle-control">
-                  <div class="field mb-0">
-                    <input
-                      id="checkboxEnableInput"
-                      type="checkbox"
-                      name="checkboxEnableInput"
-                      class="switch is-small is-rounded"
-                      checked
-                    />
-                    <label for="checkboxEnableInput"></label>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div class="setting-card setting-card--control setting-card--language">
-              <label class="setting-card-header setting-card-header--stacked" for="languageSelect">
-                <span class="row-label" data-i18n="popup_language">Language</span>
-                <div class="select is-small is-rounded is-borderless popup-select">
-                  <select id="languageSelect"></select>
-                </div>
+          <details id="siteProfileDetails" class="profile-customize is-hidden">
+            <summary data-i18n="popup_site_profile_customize">Customize for this site</summary>
+            <div class="profile-details">
+              <label class="profile-row">
+                <span data-i18n="popup_site_profile_language">Language</span>
+                <select id="siteLanguageSelect" class="popup-select"></select>
+              </label>
+              <label class="profile-row">
+                <span data-i18n="popup_site_profile_num_suggestions">Suggestions Count</span>
+                <select id="siteNumSuggestionsSelect" class="popup-select"></select>
+              </label>
+              <label class="profile-row">
+                <span data-i18n="popup_site_profile_inline">Inline Mode</span>
+                <select id="siteInlineModeSelect" class="popup-select"></select>
+              </label>
+              <label class="profile-row">
+                <span data-i18n="popup_site_profile_prefer_native_autocomplete"
+                  >Prefer native autocomplete</span
+                >
+                <select id="sitePreferNativeAutocompleteSelect" class="popup-select"></select>
+              </label>
+              <label class="profile-row">
+                <span data-i18n="popup_site_profile_code_mode">Code mode</span>
+                <select id="siteCodeModeSelect" class="popup-select"></select>
               </label>
             </div>
+          </details>
+        </div>
 
-            <section
-              id="siteProfileSection"
-              class="setting-card setting-card--control setting-card--profile is-hidden"
-            >
-              <div class="setting-card-header">
-                <div class="row-copy">
-                  <span class="row-label" data-i18n="popup_site_profile_toggle"
-                    >Use site profile</span
-                  >
-                  <small
-                    id="siteProfileStatus"
-                    data-i18n="popup_site_profile_status_global"
-                    class="row-hint"
-                    >Using global settings</small
-                  >
-                </div>
-                <div class="field mb-0">
-                  <input
-                    id="checkboxSiteProfileInput"
-                    type="checkbox"
-                    name="checkboxSiteProfileInput"
-                    class="switch is-small is-rounded"
-                  />
-                  <label for="checkboxSiteProfileInput"></label>
-                </div>
-              </div>
-
-              <div id="siteProfileDetails" class="profile-details is-hidden">
-                <div class="profile-row">
-                  <span class="profile-label" data-i18n="popup_site_profile_language"
-                    >Language</span
-                  >
-                  <div class="select is-small is-rounded is-borderless popup-select">
-                    <select id="siteLanguageSelect"></select>
-                  </div>
-                </div>
-                <div class="profile-row">
-                  <span class="profile-label" data-i18n="popup_site_profile_num_suggestions"
-                    >Suggestions Count</span
-                  >
-                  <div class="select is-small is-rounded is-borderless popup-select">
-                    <select id="siteNumSuggestionsSelect"></select>
-                  </div>
-                </div>
-                <div class="profile-row">
-                  <span class="profile-label" data-i18n="popup_site_profile_inline"
-                    >Inline Mode</span
-                  >
-                  <div class="select is-small is-rounded is-borderless popup-select">
-                    <select id="siteInlineModeSelect"></select>
-                  </div>
-                </div>
-                <div class="profile-row">
-                  <span
-                    class="profile-label"
-                    data-i18n="popup_site_profile_prefer_native_autocomplete"
-                    >Prefer native autocomplete</span
-                  >
-                  <div class="select is-small is-rounded is-borderless popup-select">
-                    <select id="sitePreferNativeAutocompleteSelect"></select>
-                  </div>
-                </div>
-                <div class="profile-row">
-                  <span class="profile-label" data-i18n="popup_site_profile_code_mode"
-                    >Code mode</span
-                  >
-                  <div class="select is-small is-rounded is-borderless popup-select">
-                    <select id="siteCodeModeSelect"></select>
-                  </div>
-                </div>
-              </div>
-            </section>
-          </div>
-
-          <div
-            id="permissionBanner"
-            class="permission-status is-hidden"
-            data-permission-state="missing"
-            aria-live="polite"
+        <!-- An action on this page, not a setting: it lives with the page's status. -->
+        <div id="reviewTextAction" class="page-state-action is-hidden">
+          <button
+            id="reviewTextBtn"
+            type="button"
+            class="button is-primary page-state-action-button"
+            aria-describedby="reviewTextHint"
           >
-            <span id="permissionBadge" class="permission-status__badge">
-              Website access required
-            </span>
-            <h2 id="permissionTitle" class="permission-status__title">Allow page access</h2>
-            <p id="permissionBody" class="permission-status__body">
-              FluentTyper needs website access to show suggestions in text fields, and everything
-              stays local in your browser.
-            </p>
-            <button
-              id="grantPermissionBtn"
-              class="button is-warning is-small is-rounded permission-status__action"
-              style="font-weight: 600"
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
             >
-              Allow page access
+              <path d="M4 7h11" />
+              <path d="M4 12h7" />
+              <path d="M4 17h5" />
+              <path d="m13 17 3 3 5-6" />
+            </svg>
+            <span data-i18n="popup_review_text">Review text</span>
+            <kbd id="reviewTextShortcut" class="page-state-kbd is-hidden"></kbd>
+          </button>
+          <span id="reviewTextHint" class="sr-only" data-i18n="popup_review_text_hint"
+            >Checks the focused field, or only the selected text, with every review check, including
+            rules that are off for typing. Nothing changes until you apply a fix.</span
+          >
+        </div>
+      </section>
+
+      <div
+        id="permissionBanner"
+        class="popup-card permission-status is-hidden"
+        data-permission-state="missing"
+        aria-live="polite"
+      >
+        <span id="permissionBadge" class="permission-status__badge">Website access required</span>
+        <h2 id="permissionTitle" class="permission-status__title">Allow page access</h2>
+        <p id="permissionBody" class="permission-status__body">
+          FluentTyper needs website access to show suggestions in text fields, and everything stays
+          local in your browser.
+        </p>
+        <button id="grantPermissionBtn" class="button is-primary">Allow page access</button>
+      </div>
+
+      <section class="popup-card">
+        <label class="popup-row" for="languageSelect">
+          <span class="field-title" data-i18n="popup_language">Language</span>
+          <select id="languageSelect" class="popup-select"></select>
+        </label>
+      </section>
+
+      <section id="productivityDashboard" class="popup-stats">
+        <div class="popup-stats-row">
+          <p id="dashboardPeriodSummary" class="popup-stats-summary">
+            Last 7 days: 0 accepted • 0 chars • 0 min
+          </p>
+          <button
+            id="openStatsOptionsBtn"
+            class="popup-icon-button"
+            type="button"
+            data-i18n-title="popup_dashboard_advanced_stats"
+            title="Advanced Stats"
+          >
+            <span class="sr-only" data-i18n="popup_dashboard_advanced_stats">Advanced Stats</span>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="m9 18 6-6-6-6" />
+            </svg>
+          </button>
+        </div>
+        <div id="weeklyRecapCard" class="popup-card popup-notice is-hidden">
+          <p id="weeklyRecapTitle" class="field-title"></p>
+          <p id="weeklyRecapSummary" class="field-help"></p>
+          <div class="popup-notice-actions">
+            <button
+              id="weeklyRecapShareBtn"
+              class="button is-small"
+              type="button"
+              data-i18n="popup_weekly_recap_share_progress"
+            >
+              Share progress
+            </button>
+            <button
+              id="weeklyRecapViewBtn"
+              class="button is-small"
+              type="button"
+              data-i18n="popup_weekly_recap_view"
+            >
+              View details
+            </button>
+            <a
+              id="weeklyRecapSupportLink"
+              href="https://www.buymeacoffee.com/FluentTyper"
+              target="_blank"
+              class="button is-small"
+              data-i18n="popup_weekly_recap_support_development"
+              >Support development</a
+            >
+            <button
+              id="weeklyRecapDismissBtn"
+              class="popup-text-button"
+              type="button"
+              data-i18n="popup_weekly_recap_dismiss"
+            >
+              Dismiss
             </button>
           </div>
         </div>
-
-        <section id="productivityDashboard" class="control-card dashboard-card">
-          <div class="dashboard-card-header">
-            <div class="dashboard-card-heading">
-              <span class="row-label" data-i18n="popup_dashboard_title"
-                >Productivity Dashboard</span
-              >
-              <p id="dashboardPeriodSummary" class="dashboard-period-summary">
-                Last 7 days: 0 accepted • 0 chars • 0 min
-              </p>
-            </div>
-            <button
-              id="openStatsOptionsBtn"
-              class="mini-btn secondary-action-btn"
-              type="button"
-              data-i18n="popup_dashboard_advanced_stats"
+        <div id="dashboardMilestoneHint" class="popup-card popup-notice is-hidden">
+          <p id="dashboardMilestoneText" class="field-help"></p>
+          <div class="popup-notice-actions">
+            <a
+              id="dashboardMilestoneLink"
+              href="https://www.buymeacoffee.com/FluentTyper"
+              target="_blank"
+              class="button is-small"
+              data-i18n="popup_donation_support"
+              >Support</a
             >
-              Advanced Stats
+            <button
+              id="dashboardMilestoneLaterBtn"
+              class="popup-text-button"
+              type="button"
+              data-i18n="popup_donation_later"
+            >
+              Later
             </button>
           </div>
-
-          <div class="dashboard-content">
-            <div class="dashboard-metrics">
-              <div class="metric-box">
-                <span id="metricAccepted" class="metric-value">0</span>
-                <span class="metric-label" data-i18n="popup_dashboard_metric_accepted"
-                  >Accepted</span
-                >
-              </div>
-              <div class="metric-box">
-                <span id="metricCharsSaved" class="metric-value">0</span>
-                <span class="metric-label" data-i18n="popup_dashboard_metric_chars_saved"
-                  >Chars Saved</span
-                >
-              </div>
-              <div class="metric-box">
-                <span id="metricMinutesSaved" class="metric-value">0</span>
-                <span class="metric-label" data-i18n="popup_dashboard_metric_minutes_saved"
-                  >Minutes Saved</span
-                >
-              </div>
-            </div>
-
-            <div class="dashboard-progress">
-              <div class="dashboard-progress-header">
-                <span data-i18n="popup_dashboard_progress_title">Milestone progress</span>
-                <span id="dashboardProgressLabel">0h / 1h</span>
-              </div>
-              <div class="dashboard-progress-track">
-                <div id="dashboardProgressFill" class="dashboard-progress-fill"></div>
-              </div>
-            </div>
-
-            <p id="dashboardLanguageSummary" class="dashboard-language-summary">
-              Languages: no data yet
-            </p>
-            <div id="weeklyRecapCard" class="dashboard-recap-card is-hidden">
-              <p id="weeklyRecapTitle" class="dashboard-recap-title"></p>
-              <p id="weeklyRecapSummary" class="dashboard-recap-summary"></p>
-              <p id="weeklyRecapMilestone" class="dashboard-recap-detail"></p>
-              <p id="weeklyRecapEquivalent" class="dashboard-recap-detail"></p>
-              <p id="weeklyRecapSnippet" class="dashboard-recap-snippet"></p>
-              <div class="dashboard-recap-actions">
-                <button
-                  id="weeklyRecapShareBtn"
-                  class="mini-btn secondary-action-btn"
-                  type="button"
-                  data-i18n="popup_weekly_recap_share_progress"
-                >
-                  Share progress
-                </button>
-                <a
-                  id="weeklyRecapSupportLink"
-                  href="https://www.buymeacoffee.com/FluentTyper"
-                  target="_blank"
-                  class="mini-btn secondary-action-btn"
-                  data-i18n="popup_weekly_recap_support_development"
-                  >Support development</a
-                >
-                <button
-                  id="weeklyRecapDismissBtn"
-                  class="mini-btn secondary-action-btn"
-                  type="button"
-                  data-i18n="popup_weekly_recap_dismiss"
-                >
-                  Dismiss
-                </button>
-                <button
-                  id="weeklyRecapViewBtn"
-                  class="mini-btn secondary-action-btn"
-                  type="button"
-                  data-i18n="popup_weekly_recap_view"
-                >
-                  View details
-                </button>
-              </div>
-            </div>
-            <div id="dashboardMilestoneHint" class="dashboard-milestone is-hidden">
-              <span id="dashboardMilestoneText"></span>
-              <div class="dashboard-milestone-actions">
-                <button
-                  id="dashboardMilestoneLaterBtn"
-                  class="mini-btn secondary-action-btn"
-                  type="button"
-                  data-i18n="popup_donation_later"
-                >
-                  Later
-                </button>
-                <a
-                  id="dashboardMilestoneLink"
-                  href="https://www.buymeacoffee.com/FluentTyper"
-                  target="_blank"
-                  class="mini-btn secondary-action-btn"
-                  data-i18n="popup_donation_support"
-                  >Support</a
-                >
-              </div>
-            </div>
-          </div>
-        </section>
-      </div>
+        </div>
+      </section>
     </main>
 
     <footer class="toolbar">
       <div class="toolbar-actions toolbar-actions--quiet">
         <a
-          class="toolbar-link"
+          class="toolbar-link toolbar-link--primary"
           id="runOptions"
           target="_blank"
           rel="noopener"
           data-i18n-title="popup_advanced_options"
           title="Advanced Options"
         >
-          <span class="sr-only" data-i18n="popup_advanced_options">Advanced Options</span>
           <svg
             xmlns="http://www.w3.org/2000/svg"
             width="18"
@@ -443,12 +278,14 @@
             stroke-width="2"
             stroke-linecap="round"
             stroke-linejoin="round"
+            aria-hidden="true"
           >
             <circle cx="12" cy="12" r="3"></circle>
             <path
               d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"
             ></path>
           </svg>
+          <span data-i18n="settings">Settings</span>
         </a>
         <a
           id="reportIssueLink"

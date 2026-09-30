@@ -168,22 +168,6 @@ body.fluenttyper-options .settings-group .field {
 
 /* Cards */
 
-.settings-inline-card {
-  display: grid;
-  gap: 0.75rem;
-  padding: 1.25rem;
-  border: 1px solid var(--divider-color);
-  border-radius: 0.75rem;
-  background: var(--box-background-color);
-}
-
-.settings-inline-card h4 {
-  display: block;
-  margin: 0;
-  font-size: 1rem;
-  font-weight: 600;
-}
-
 .settings-inline-card > .settings-inline-help {
   margin: -0.5rem 0 0;
 }
@@ -243,45 +227,6 @@ body.fluenttyper-options .settings-group .label small,
   line-height: 1.45;
 }
 
-body.fluenttyper-options .switch[type="checkbox"] + label {
-  display: block;
-  height: auto;
-  min-height: 1.25rem;
-  margin: 0;
-  padding: 0 0 0 3.25rem;
-  line-height: 1.4;
-}
-
-body.fluenttyper-options .switch[type="checkbox"] + label::before {
-  top: 0.05rem;
-  width: 2.25rem;
-  height: 1.3rem;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--text-color-light) 45%, var(--box-background-color));
-  transition: background-color 150ms ease-out;
-}
-
-body.fluenttyper-options .switch[type="checkbox"] + label::after {
-  top: 0.25rem;
-  left: 0.25rem;
-  width: 0.9rem;
-  height: 0.9rem;
-  border-radius: 999px;
-  transition: left 150ms ease-out;
-}
-
-body.fluenttyper-options .switch[type="checkbox"]:checked + label::before {
-  background: var(--accent-color);
-}
-
-body.fluenttyper-options .switch[type="checkbox"]:checked + label::after {
-  left: 1.2rem;
-}
-
-body.fluenttyper-options .field.is-disabled .switch + label {
-  opacity: 0.55;
-}
-
 /* Sliders: value sits beside the track, not under it. */
 
 body.fluenttyper-options .field:has(.slider-wrapper) .control {
@@ -327,68 +272,6 @@ body.fluenttyper-options .field:has(> .control > .button) > .control {
 body.fluenttyper-options .field:has(> .control > .button) .label {
   margin: 0;
   font-weight: 400;
-}
-
-/* Buttons: one vocabulary for the whole page. */
-
-body.fluenttyper-options .button {
-  height: auto;
-  min-height: 2.25rem;
-  padding: 0.4rem 0.9rem;
-  border: 1px solid var(--input-border-color);
-  border-radius: 0.5rem;
-  background: var(--box-background-color);
-  color: var(--text-color);
-  font-size: 0.875rem;
-  font-weight: 600;
-  box-shadow: none;
-  transition:
-    background-color 150ms ease-out,
-    border-color 150ms ease-out;
-}
-
-body.fluenttyper-options .button:hover {
-  border-color: color-mix(in srgb, var(--text-color-light) 60%, var(--input-border-color));
-  background: color-mix(in srgb, var(--text-color) 5%, var(--box-background-color));
-}
-
-body.fluenttyper-options .button:focus-visible,
-body.fluenttyper-options label.button:focus-within {
-  outline: 2px solid var(--accent-color);
-  outline-offset: 2px;
-}
-
-body.fluenttyper-options .button.is-primary,
-body.fluenttyper-options .button.is-link {
-  border-color: var(--accent-color);
-  background: var(--accent-color);
-  color: var(--box-background-color);
-}
-
-body.fluenttyper-options .button.is-primary:hover,
-body.fluenttyper-options .button.is-link:hover {
-  border-color: var(--accent-color-darker);
-  background: var(--accent-color-darker);
-}
-
-body.fluenttyper-options .button.is-danger {
-  border-color: color-mix(in srgb, #dc2626 45%, var(--input-border-color));
-  background: transparent;
-  color: color-mix(in srgb, #dc2626 70%, var(--text-color));
-}
-
-body.fluenttyper-options .button.is-danger:hover {
-  background: color-mix(in srgb, #dc2626 10%, transparent);
-}
-
-body.fluenttyper-options .button.is-small {
-  min-height: 1.875rem;
-  padding: 0.2rem 0.65rem;
-  font-size: 0.8125rem;
-}
-
-body.fluenttyper-options .button[disabled] {
-  opacity: 0.5;
 }
 
 /* Disclosures ("Advanced", terminology form). */
@@ -564,7 +447,7 @@ body.fluenttyper-options .button[disabled] {
 .segmented-control {
   padding: 0.25rem;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--feature-box-bg) 94%, transparent);
+  background: color-mix(in srgb, var(--input-bg-color) 94%, transparent);
 }
 
 .segmented-control-button {
