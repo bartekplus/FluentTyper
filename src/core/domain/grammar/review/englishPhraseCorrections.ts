@@ -9,6 +9,7 @@ import {
   type PhraseRow,
 } from "./englishPhraseTables";
 import { LANGUAGE_PHRASE_TABLES } from "./languagePhraseTables";
+import { EDGE, SPACE } from "./phraseTemplates";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 
 type Phrase = {
@@ -20,8 +21,6 @@ type Phrase = {
 };
 
 const WORD = /[\p{L}\p{N}]+(?:['’][\p{L}\p{N}]+)*/gu;
-const EDGE = "[\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]";
-const SPACE = "[ \\t\\u00a0]{1,8}";
 const wordKey = (word: string) => word.toLowerCase().replace(/’/g, "'");
 
 // French elided articles and pronouns stay attached: "l'addresse", "d'apeller".
