@@ -243,6 +243,15 @@ describe("opt-in a/an correction", () => {
     ["This is a error in `code` here ", "This is an error in `code` here "],
     ["He said it's a error ", "He said it's an error "],
     ["```\ncode\n```\nThis is a error ", "```\ncode\n```\nThis is an error "],
+    // Any word, by its initial sound.
+    ["It was a awkward moment ", "It was an awkward moment "],
+    ["She is an talented singer ", "She is a talented singer "],
+    ["It is a heirloom ", "It is an heirloom "],
+    ["He is a unemployed actor ", "He is an unemployed actor "],
+    ["It was an unanimous vote ", "It was a unanimous vote "],
+    ["It is an eucalyptus tree ", "It is a eucalyptus tree "],
+    ["It is an house ", "It is a house "],
+    ["It was a outright lie ", "It was an outright lie "],
   ])
     test(`corrects ${JSON.stringify(input)}`, () =>
       expect(type(input, "en_US", withRule)).toBe(expected));
@@ -276,10 +285,28 @@ describe("opt-in a/an correction", () => {
     "Get an mri scan ",
     "It was a 8 hour day ",
     "It was an one-off ",
+    "Just an html page ",
+    "Write an smtp server ",
+    "Buy a usb stick ",
+    "Use a ui kit ",
+    "It is an 8 ",
+    "It is a 11 ",
+    "Vowels are a e i o u ",
+    "It is a error-prone step ",
     // Both pronunciations are accepted.
     "She plays an ukulele ",
     "I bought an ukulele yesterday ",
     "She plays a ukulele ",
+    "It is a herb ",
+    "It is an herb ",
+    "It was an historic day ",
+    "It was a historic day ",
+    // Typing sees lowercase words only: names and initialisms vary.
+    "We use a HTML page ",
+    "It is a Error ",
+    // Quoted words.
+    "It is a 'error' here ",
+    "It is a “error” here ",
     // The letter or a variable, not the article.
     "Let a equal b ",
     "Let a equals b ",
