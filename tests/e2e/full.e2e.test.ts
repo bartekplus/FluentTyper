@@ -7164,7 +7164,6 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           "threshold ten warning",
           (p) => p.items.length === 1 && p.items[0].category === "style",
         );
-        await options.bringToFront();
         await change("200");
         await waitUntil(
           "larger threshold saved",
@@ -7317,7 +7316,6 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       const previous = await getSetting(worker!, key);
       const dictionary = await getSetting(worker!, "userDictionaryList");
       const expansions = await getSetting(worker!, "textExpansions");
-      const importPath = path.resolve(".tmp", `terminology-${process.pid}.json`);
       await setSettingAndWait(worker!, key, { version: 1, enabled: false, entries: [] });
       const options = await openOptionsPage(browser, worker!);
       try {
@@ -7376,7 +7374,6 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         const edited = await getSetting<typeof saved>(worker!, key);
         expect(edited.entries[0].id).toBe(saved.entries[0].id);
         expect(edited.enabled).toBe(true);
-        fs.writeFileSync(importPath, JSON.stringify(edited));
         await options.$eval(`${root} [data-terms-action=remove]`, (el) =>
           (el as HTMLElement).click(),
         );
@@ -7385,8 +7382,19 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           async () => (await getSetting<typeof saved>(worker!, key)).entries.length === 0,
           { timeoutMs: 5000 },
         );
-        const file = await options.$(`${root} [data-terms-action=import-file]`);
-        await file!.uploadFile(importPath);
+        // Firefox BiDi cannot set files in extension pages; exercise the real change handler.
+        await options.$eval(
+          `${root} [data-terms-action=import-file]`,
+          (el, content) => {
+            const transfer = new DataTransfer();
+            transfer.items.add(
+              new File([content], "terminology.json", { type: "application/json" }),
+            );
+            (el as HTMLInputElement).files = transfer.files;
+            el.dispatchEvent(new Event("change", { bubbles: true }));
+          },
+          JSON.stringify(edited),
+        );
         await waitUntil(
           "terminology import",
           async () => (await getSetting<typeof saved>(worker!, key)).entries.length === 1,
@@ -7399,7 +7407,6 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         await waitForReview(page, "UI-authored term reaches Review", (p) =>
           p.items.some((i) => i.text === "Acme Suite → Acme Workspace"),
         );
-        await options.bringToFront();
         await options.$eval(`${root} [data-terms-action=remove]`, (el) =>
           (el as HTMLElement).click(),
         );
@@ -7415,7 +7422,6 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         expect(await getSetting(worker!, "textExpansions")).toEqual(expansions);
       } finally {
         await options.close();
-        if (fs.existsSync(importPath)) fs.unlinkSync(importPath);
         await setSettingAndWait(
           worker!,
           key,
