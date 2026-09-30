@@ -327,6 +327,19 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     recommended: false,
     priority: 145,
   },
+  {
+    id: "englishWereWhere",
+    typing: false,
+    name: "Were and where in context",
+    titleI18nKey: "review_msg_were_where",
+    descriptionI18nKey: "review_msg_were_where",
+    exampleI18nKey: "",
+    languageScope: "en_US",
+    safetyTier: "advanced",
+    defaultRollout: "off",
+    recommended: false,
+    priority: 164,
+  },
 
   {
     id: "englishAuxiliaryBaseVerb",

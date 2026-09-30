@@ -202,6 +202,7 @@ Supported (**Typing** is the rule's default for typing; Review has separate swit
 | `englishYourYouAre`                    | English  | unavailable | grammar     | confused words     | individual only                                                                                   |
 | `englishTheirThereTheyAre`             | English  | unavailable | grammar     | confused words     | individual only                                                                                   |
 | `englishToToo`                         | English  | unavailable | grammar     | confused words     | individual only                                                                                   |
+| `englishWereWhere`                     | English  | unavailable | grammar     | confused words     | individual only                                                                                   |
 | `englishAuxiliaryBaseVerb`             | English  | unavailable | grammar     | word form          | individual only                                                                                   |
 | `englishRepeatedWords`                 | all      | unavailable | grammar     | repetition         | individual only                                                                                   |
 | `englishPhraseCorrections`             | English  | unavailable | grammar     | usage              | individual only                                                                                   |
@@ -299,7 +300,7 @@ end offers a choice between "there is a bug" and "there are bugs". "there" must 
 clause or follow a conjunction or a verb such as think/see; "Over there is…" and
 "the idea there is…" abstain.
 
-Contextual word confusions have four independent Review-only identities:
+Contextual word confusions have five independent Review-only identities:
 
 - `englishThenThan`: a copula, a listed comparative and a complete comparison
   argument (a known noun phrase or object pronoun). Temporal "then", unknown noun
@@ -320,6 +321,21 @@ Contextual word confusions have four independent Review-only identities:
   ("Their going to school took an hour") abstain.
 - `englishToToo`: copular "to + listed adjective + to + listed verb". Ambiguous
   adjectives that are also verbs ("fast", "slow", "light") are not included.
+  Review also reads "to" as "too" after a linking verb before a listed degree adjective
+  followed by to/for or a clause end ("Life is to short."), in "went/spoke to far/soon"
+  and in "way to much/long" (not after the/a/this…), and "too" as "to" before a
+  determiner or object pronoun ("too the station") or a bare verb after want/need/going
+  ("need too leave").
+- `englishThenThan` also covers listed -er comparatives, more/less + a word (not an -er
+  comparative, which the degree check owns first), "other" after nobody/nothing…, and
+  "rather", when "then" is followed by an object or possessive pronoun, ever/before/usual,
+  a number, or a short noun phrase ending at a clause end or preposition; it abstains
+  after if/when/once/unless in the same clause and before -ed words ("then the old
+  version failed"). "now and/until/since/by/back than" at a clause end becomes "then".
+- `englishWereWhere`: "we/they/you where" before a listed predicate ("They where going",
+  "you where right") becomes "were", except after show/tell/know… ("show you where");
+  "were" after know/forgot/find/check… and before a subject pronoun or "the X is/was"
+  ("Do you know were they went?") becomes "where".
 
 These checks replace only the confused word and record the surrounding evidence.
 They do not depend on dictionary misspellings. Existing "your welcome" and

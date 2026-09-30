@@ -229,6 +229,13 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     kind: "confusedWords",
     bulk: "individual",
   },
+  englishWereWhere: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "grammar",
+    kind: "confusedWords",
+    bulk: "individual",
+  },
 
   englishAuxiliaryBaseVerb: {
     review: "supported",

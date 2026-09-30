@@ -1,4 +1,5 @@
 import { ENGLISH_COMPARATIVES } from "../implementations/helpers/EnglishDegreeForms";
+import { englishVerbForms } from "../implementations/helpers/EnglishVerbForms";
 import { applyWordCase, detectWordCase } from "../implementations/helpers/GenericRuleShared";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 import type { ReviewMessageKey } from "./types";
@@ -108,7 +109,7 @@ export function wordConfusions(ctx: DetectContext): RawFinding[] {
     const result = finding(ctx, match, "englishToToo", "review_msg_to_too", "too");
     if (result) findings.push(result);
   }
-  return theirConfusions(ctx, findings);
+  return comparisonAndDegree(ctx, theirConfusions(ctx, findings));
 }
 
 const opensClause = (ctx: DetectContext, index: number) =>
@@ -205,5 +206,94 @@ function theirConfusions(ctx: DetectContext, findings: RawFinding[]): RawFinding
       ).test(ctx.text.slice(Math.max(0, match.index - 96), match.index))
     )
       push(match, "review_msg_their_possessive", "their");
+  return findings;
+}
+
+// Comparatives beyond the shared list; "later" stays out ("later then we left").
+const MORE_COMPARATIVES =
+  "(?:bigger|higher|lower|longer|shorter|stronger|weaker|easier|harder|simpler|earlier|greater|wider|deeper|heavier|lighter|louder|quieter|clearer|cleaner|happier|busier|richer|poorer|taller|warmer|colder|hotter|cooler|thicker|thinner|closer|further|farther|crazier|smarter|stupider|more|less|fewer|rather)";
+// Only a comparison continues with these; "then" + a clause ("then we left") never does here.
+const COMPARED =
+  "(?:me|him|us|them|hers|his|ours|theirs|yours|mine|anyone|anything|anybody|nothing|nobody|ever|before|usual|expected|necessary|needed|last|[0-9]+)";
+const DEGREE_ADJECTIVE =
+  "(?:big|small|large|short|hot|cold|late|early|hard|easy|good|bad|high|loud|heavy|tired|hungry|busy|far|soon|much|many|expensive|difficult|complicated|ambitious|young|old|strict|risky|dangerous|tight|full|sweet|weak|strong|lazy)";
+const LINKING =
+  "(?:is|are|was|were|am|be|been|being|seems?|seemed|looks?|looked|feels?|felt|sounds?|sounded|gets?|got|became|becomes|['’]s|['’]re|['’]m)";
+
+/** then/than and to/too where the other reading has no grammatical slot. */
+function comparisonAndDegree(ctx: DetectContext, findings: RawFinding[]): RawFinding[] {
+  const push = (
+    match: RegExpExecArray,
+    ruleId: RawFinding["ruleId"],
+    key: ReviewMessageKey,
+    replacement: string,
+  ) => {
+    // Identifiers and names in the evidence ("versionName") abstain.
+    if ((match[0].match(/\p{L}+/gu) ?? []).some((w) => /\p{Ll}\p{Lu}/u.test(w))) return;
+    const result = finding(ctx, match, ruleId, key, replacement);
+    if (result && !findings.some((f) => f.range.start === result.range.start))
+      findings.push(result);
+  };
+  const conditional = (match: RegExpExecArray) =>
+    /\b(?:if|when|once|unless|after|before|until)\b[^.!?;:\n]*$/i.test(
+      ctx.text.slice(Math.max(0, match.index - 96), match.index),
+    );
+  for (const match of matches(
+    ctx,
+    `(?<!(?:more|most|less)${SPACE})(?:${COMPARATIVE}|${MORE_COMPARATIVES}|(?:more|less)${SPACE}(?![a-z]+er${END_WORD})[a-z]+|(?<=(?:no${SPACE}one|nobody|nothing|anything|anyone|someone|something|none|no)${SPACE})other)${SPACE}(?<target>then)${SPACE}(?:${COMPARED}|(?:(?:the|a|an|my|your|our|their|its|this|that|those|these)(?:${SPACE}(?!(?:[a-z]+ed)${END_WORD})[a-z]+){1,3}|you|her)(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:)]|$)|${SPACE}(?:at|in|for|on|with|by|when|so)${END_WORD}))${END_WORD}`,
+  ))
+    if (!conditional(match)) push(match, "englishThenThan", "review_msg_then_than", "than");
+  for (const match of matches(
+    ctx,
+    `(?:now${SPACE}and|until|till|since|by|back)${SPACE}(?<target>than)(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:…)]|$))`,
+  ))
+    push(match, "englishThenThan", "review_msg_then_than_temporal", "then");
+  // Degree "too": a linking verb + to + adjective, then an infinitive, for-phrase or clause end.
+  for (const match of matches(
+    ctx,
+    `${LINKING}${SPACE}(?:(?:not|way|far|just|a${SPACE}bit|much|still|also|really|simply)${SPACE})?(?<target>to)${SPACE}${DEGREE_ADJECTIVE}(?:${SPACE}(?:to|for)${SPACE}[a-z]+${END_WORD}|(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:)]|$)))`,
+  ))
+    push(match, "englishToToo", "review_msg_to_too", "too");
+  for (const match of matches(
+    ctx,
+    `(?:(?:go|goes|going|gone|went|take|takes|took|taken|push|pushed|carry|carried|speak|spoke|spoken|speaking|talk|talked|celebrate|celebrated|act|acted|judge|judged)${SPACE}(?<target>to)${SPACE}(?:far|soon)(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:)]|$)|${SPACE}(?:with|for|on|in|this|and|but|when|because|like)${END_WORD})|(?<![Tt]he${SPACE}|[Aa]${SPACE}|[Tt]his${SPACE}|[Tt]hat${SPACE}|[Oo]ne${SPACE}|[Nn]o${SPACE}|[Bb]est${SPACE}|[Ww]hich${SPACE})way${SPACE}(?<target>to)${SPACE}(?:much|many|long|big|small|far|late|early|hard|easy|fast|slow|good|bad|high|low|expensive|complicated|little|often))${END_WORD}`,
+  ))
+    push(match, "englishToToo", "review_msg_to_too", "too");
+  // "too" never precedes a determiner or object pronoun, nor a bare verb after want/need…
+  for (const match of matches(
+    ctx,
+    `(?<target>too)${SPACE}(?:the|a|an|him|them|me|us|my|your|his|our|their)${END_WORD}`,
+  ))
+    push(match, "englishToToo", "review_msg_to_infinitive", "to");
+  for (const match of matches(
+    ctx,
+    `(?:want|wants|wanted|need|needs|needed|going|able|trying|try|tried|supposed|used|have|has|had|like|love|hope|plan|decided)${SPACE}(?<target>too)${SPACE}(?<verb>[a-z]+)${END_WORD}`,
+  )) {
+    const verb = match.groups!.verb.toLowerCase();
+    const forms = englishVerbForms(verb);
+    if (verb === "be" || (forms?.lemma === verb && !forms.ambiguous.includes(verb)))
+      push(match, "englishToToo", "review_msg_to_infinitive", "to");
+  }
+  // were: a subject pronoun before where + a predicate that cannot start a place clause.
+  for (const match of matches(
+    ctx,
+    `(?:we|they|you)${SPACE}(?<target>where)${SPACE}(?:(?:not|all|still|just|already|also|never|always|almost)${SPACE})?(?:right|wrong|happy|able|told|asked|supposed|going|done|ready|sure|late|busy|here|there|the${SPACE}only|allowed|given|shown|sent|invited|expected|told|lucky|about|trying|waiting|working|looking|talking|finished|gone)${END_WORD}`,
+  )) {
+    const before = ctx.text.slice(Math.max(0, match.index - 96), match.index);
+    // "…show you where the exit is", "I know you where…": an object "you" before where.
+    if (
+      /\b(?:show|showed|shown|tell|told|ask|asked|know|knew|see|saw|remind|reminded|guide|guided|take|took)[ \t\u00a0]+$/i.test(
+        before,
+      )
+    )
+      continue;
+    push(match, "englishWereWhere", "review_msg_were_where", "were");
+  }
+  // where: a verb of knowing or finding before were + a subject and more clause.
+  for (const match of matches(
+    ctx,
+    `(?:know|knows|knew|forgot|forget|remember|remembers|found|find|check|asked|ask|wonder|wondered|show|showed|tell|told|see|saw|sure|idea)${SPACE}(?:(?:me|us|him|her|them)${SPACE})?(?<target>were)${SPACE}(?:I|he|she|it|we|they|you|the${SPACE}[a-z]+${SPACE}(?:is|was|are|were))${END_WORD}`,
+  ))
+    push(match, "englishWereWhere", "review_msg_were_where", "where");
   return findings;
 }
