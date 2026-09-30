@@ -1,8 +1,7 @@
 import { applyWordCase, detectWordCase } from "../implementations/helpers/GenericRuleShared";
+import { EDGE, frameMatches, SPACE, WORD_END } from "./phraseTemplates";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 
-const SPACE = "[ \\t\\u00a0]{1,8}";
-const EDGE = "[\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]";
 const END = "(?=[ \\t\\u00a0]{0,8}[.!?,;:]|[ \\t\\u00a0]{0,8}$)";
 const ADJECTIVE = `(?:(?:new|old|cold|warm|red|blue|main|original|updated|private)${SPACE})?`;
 const NOUN =
@@ -102,11 +101,9 @@ export function contextualPossessives(ctx: DetectContext): RawFinding[] {
     },
   ];
   for (const { ruleId, messageKey, pattern, replacement, clause, cue, name } of constructions) {
-    const regex = new RegExp(`(?<!${EDGE})${pattern}(?!${EDGE})`, "gidu");
-    regex.lastIndex = Math.max(0, ctx.from - 256);
-    for (let m = regex.exec(ctx.scanText); m && m.index < ctx.to; m = regex.exec(ctx.scanText)) {
+    const regex = new RegExp(`(?<!${EDGE})${pattern}${WORD_END}`, "gidu");
+    for (const m of frameMatches(ctx, regex)) {
       const [start, end] = m.indices!.groups!.target;
-      if (start < ctx.from || start >= ctx.to) continue;
       // A name after an opinion verb: "I hope its Katie." ("its accuracy" is possessive.)
       if (name && !/^[ \t\u00a0]+\p{Lu}\p{Ll}/u.test(ctx.text.slice(end, end + 10))) continue;
       const before = ctx.scanText.slice(Math.max(0, m.index - 96), m.index);
@@ -128,12 +125,6 @@ export function contextualPossessives(ctx: DetectContext): RawFinding[] {
         !/^[ \t\u00a0]*["“'‘]{1,3}$/.test(before)
       )
         continue;
-      if (
-        /\b(?:write|type|spell|phrase|words?|example|literal|text|says?|reads?)[ :\t]*["“'‘][^\r\n\uFFFC]{0,80}$/i.test(
-          before,
-        )
-      )
-        continue;
       const target = m.groups!.target;
       if (ruleId === "englishElsePossessive" && target !== "elses") continue;
       // Uppercase may be an acronym, mixed case an identifier. Protect evidence words too.
@@ -153,10 +144,6 @@ export function contextualPossessives(ctx: DetectContext): RawFinding[] {
         start: Math.max(0, m.index - 96),
         end: Math.min(ctx.text.length, m.index + m[0].length + 9),
       };
-      if (
-        /^\.[\p{L}\p{N}_]/u.test(ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 2))
-      )
-        continue;
       findings.push({
         ruleId,
         messageKey,
