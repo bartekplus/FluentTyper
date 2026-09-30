@@ -264,7 +264,7 @@ export function frenchElisions(ctx: DetectContext): RawFinding[] {
     const nearby = ctx.text.slice(Math.max(0, m.index - 400), m.index + 400);
     const curly = nearby.includes("’") && !nearby.includes("'");
     let replacement = FRENCH_ELISIONS.map.get(lower)!;
-    if (curly) replacement = replacement.replace("'", "’");
+    if (curly) replacement = replacement.replaceAll("'", "’");
     findings.push({
       ruleId: "englishContractionNormalization",
       messageKey: "review_msg_contraction",
