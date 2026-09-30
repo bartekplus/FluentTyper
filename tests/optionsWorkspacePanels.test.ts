@@ -11,6 +11,7 @@ import {
   KEY_AUTOCOMPLETE_ON_ENTER,
   KEY_AUTOCOMPLETE_ON_TAB,
   KEY_ENABLED_GRAMMAR_RULES,
+  KEY_REVIEW_RULE_OVERRIDES,
   KEY_REVIEW_LONG_SENTENCE_WORDS,
   KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
   KEY_INLINE_SUGGESTION,
@@ -220,26 +221,37 @@ describe("options workspace panels", () => {
     expect(threshold.get()).toBe(40);
   });
 
-  test("grammar workspace wraps the rule selector in the shared card layout", () => {
-    const tab = document.createElement("section");
-    tab.className = "content-tab";
-    const panelRoot = document.createElement("div");
-    tab.appendChild(panelRoot);
-    document.body.appendChild(tab);
-
+  test("grammar rule matrix edits typing and Review rules independently", () => {
+    const root = document.createElement("div");
+    document.body.append(root);
+    const typing = new MockPanelControl("Typing", {});
+    const review = new MockPanelControl("Review", {});
     const registry = {
-      [KEY_ENABLED_GRAMMAR_RULES]: new MockPanelControl("Enabled Grammar Rules"),
+      [KEY_ENABLED_GRAMMAR_RULES]: typing,
+      [KEY_REVIEW_RULE_OVERRIDES]: review,
     } as unknown as SettingsRegistry;
+    renderGrammarWorkspacePanel(root, registry);
 
-    createGroup(tab, "Grammar", [
-      registry[KEY_ENABLED_GRAMMAR_RULES] as unknown as MockPanelControl,
-    ]);
+    const matrix = root.querySelector(".rule-matrix")!;
+    const switchFor = (key: string, rule: string) =>
+      matrix.querySelector<HTMLInputElement>(`input[data-setting="${key}"][value="${rule}"]`);
 
-    renderGrammarWorkspacePanel(panelRoot, registry);
+    // Typing-only, Review-only and shared rules each get the right switches.
+    expect(switchFor(KEY_ENABLED_GRAMMAR_RULES, "doubleSpaceToPeriod")).not.toBeNull();
+    expect(switchFor(KEY_REVIEW_RULE_OVERRIDES, "doubleSpaceToPeriod")).toBeNull();
+    expect(switchFor(KEY_ENABLED_GRAMMAR_RULES, "englishRepeatedWords")).toBeNull();
+    expect(switchFor(KEY_REVIEW_RULE_OVERRIDES, "englishRepeatedWords")).not.toBeNull();
+    const shared = switchFor(KEY_ENABLED_GRAMMAR_RULES, "capitalizeSentenceStart")!;
+    expect(shared.checked).toBe(true);
+    expect(switchFor(KEY_REVIEW_RULE_OVERRIDES, "capitalizeSentenceStart")).not.toBeNull();
 
-    expect(panelRoot.querySelector(".workspace-panel-stack")).not.toBeNull();
-    expect(panelRoot.querySelector(".settings-inline-card")).not.toBeNull();
-    expect(panelRoot.textContent).toContain("Enabled Grammar Rules");
-    expect(tab.querySelectorAll(".settings-group.is-empty-workspace-group")).toHaveLength(1);
+    shared.checked = false;
+    shared.dispatchEvent(new Event("change"));
+    expect(typing.get()).toEqual({ capitalizeSentenceStart: false });
+    expect(review.get()).toEqual({});
+
+    matrix.querySelector<HTMLButtonElement>('[data-action="restore-defaults"]')!.click();
+    expect(typing.get()).toEqual({});
+    expect(review.get()).toEqual({});
   });
 });

@@ -1,16 +1,5 @@
 import { emptyTerminology } from "@core/domain/grammar/review/preferredTerminology";
-import { reviewText, type ReviewTextKey } from "@core/domain/grammar/review/reviewMessages";
-import {
-  DEFAULT_LONG_SENTENCE_WORDS,
-  REVIEW_RULE_METADATA,
-  reviewLanguageScope,
-  isReviewSupportedRule,
-  normalizeReviewRuleOverrides,
-  reviewRuleIds,
-  reviewRuleSelectionToOverrides,
-} from "@core/domain/grammar/review/reviewCatalog";
-import { REVIEW_CATEGORIES } from "@core/domain/grammar/review/types";
-import { GRAMMAR_RULE_CATALOG } from "@core/domain/grammar/ruleCatalog";
+import { DEFAULT_LONG_SENTENCE_WORDS } from "@core/domain/grammar/review/reviewCatalog";
 import { i18n } from "./fluenttyperI18n.js";
 import type {
   FieldConfig,
@@ -77,19 +66,6 @@ import {
   type SuggestionThemeSettings,
 } from "@core/domain/themeDefaults";
 import { DEFAULT_LOCAL_AI_TIER } from "@core/domain/localAi/modelRegistry";
-import {
-  TYPING_RULE_CATALOG,
-  TYPING_RULE_IDS,
-  RECOMMENDED_CURRENT_GRAMMAR_RULES,
-  TYPOGRAPHY_GRAMMAR_RULES,
-} from "@core/domain/grammar/ruleCatalog";
-import {
-  grammarRuleSelectionToOverrides,
-  isGrammarRuleOverrides,
-  migrateLegacyGrammarRuleSelection,
-  resolveGrammarRuleSelection,
-} from "@core/domain/grammar/GrammarRuleSettings";
-
 const IS_DEV_BUILD = typeof __FT_DEV_BUILD__ !== "undefined" && Boolean(__FT_DEV_BUILD__);
 
 const LOG_LEVEL_OPTIONS: OptionTuple[] = [
@@ -101,14 +77,13 @@ const LOG_LEVEL_OPTIONS: OptionTuple[] = [
 
 function buildFieldLabel(label: string, description: string): string {
   const normalizedLabel = label.replace(/[:\s]+$/, "");
-  return `${normalizedLabel}:&nbsp;<small>${description}</small>`;
+  return `<span class="field-title">${normalizedLabel}</span><small class="field-help">${description}</small>`;
 }
 
 function createTab(
   id: string,
   labelKey: string,
   shortDescriptionKey: string,
-  icon: string,
   keywordKeys: string[],
 ): TabConfig {
   return {
@@ -116,13 +91,12 @@ function createTab(
     label: i18n.get(labelKey),
     title: i18n.get(labelKey),
     shortDescription: i18n.get(shortDescriptionKey),
-    icon,
     keywords: keywordKeys.map((key) => i18n.get(key)),
   };
 }
 
 const DEV_TABS: ManifestDefinition["tabs"] = [
-  createTab("observability_tab", "observability_tab", "observability_tab_desc", "OB", [
+  createTab("observability_tab", "observability_tab", "observability_tab_desc", [
     "observability_tab",
     "observability_dashboard_group",
   ]),
@@ -205,76 +179,41 @@ function themeValueSetting(groupKey: string, name: keyof SuggestionThemeSettings
   };
 }
 
-/** Typing and Review switches are both grouped by Review's categories. */
-const RULE_CATEGORY_SECTIONS = REVIEW_CATEGORIES.map((category) => ({
-  key: category,
-  label: reviewText(`review_cat_${category}`, i18n.lang),
-}));
-
-const GRAMMAR_RULE_OPTIONS = TYPING_RULE_CATALOG.map((rule) => {
-  const rolloutBadge =
-    rule.defaultRollout === "on"
-      ? i18n.get("grammar_rule_rollout_safe_badge")
-      : i18n.get("grammar_rule_rollout_advanced_badge");
-  const scopeBadge =
-    rule.languageScope === "en_US" ? i18n.get("grammar_rule_scope_en_us_badge") : "";
-  const badge = [rolloutBadge, scopeBadge].filter(Boolean).join(" · ");
-  return {
-    value: rule.id,
-    text: i18n.get(rule.titleI18nKey) || rule.name,
-    description: i18n.get(rule.descriptionI18nKey),
-    example: i18n.get(rule.exampleI18nKey),
-    section: REVIEW_RULE_METADATA[rule.id].category,
-    safetyTier: rule.safetyTier,
-    languageScope: rule.languageScope,
-    ...(badge
-      ? {
-          badge,
-        }
-      : {}),
-  };
-});
-
 const manifest: ManifestDefinition = {
   name: i18n.get("options_page_title"),
   icon: "/icon/icon128.png",
   tabs: [
-    createTab("core_settings", "options_tab_essentials", "options_tab_essentials_desc", "ES", [
+    createTab("core_settings", "options_tab_essentials", "options_tab_essentials_desc", [
       "options_tab_essentials",
       "prediction_engine",
     ]),
-    createTab("grammar_tab", "grammar_tab", "options_tab_grammar_desc", "GR", [
-      "grammar_rules",
-      "grammar_tab",
-    ]),
-    createTab("language_tab", "options_tab_languages", "options_tab_languages_desc", "LA", [
-      "options_tab_languages",
-      "language_selection",
-    ]),
-    createTab(
-      "shortcuts_expansions_tab",
-      "options_tab_snippets",
-      "options_tab_snippets_desc",
-      "SD",
-      ["options_tab_snippets", "text_expander"],
-    ),
-    createTab("site_mgmt_tab", "options_tab_sites", "options_tab_sites_desc", "SI", [
-      "options_tab_sites",
-      "site_profiles",
-    ]),
-    createTab("theming_tab", "theming_tab", "options_tab_appearance_desc", "AP", [
+    createTab("theming_tab", "theming_tab", "options_tab_appearance_desc", [
       "theming_tab",
       "theme_presets",
     ]),
-    createTab("advanced_tab", "options_tab_data", "options_tab_data_desc", "DD", [
+    createTab("grammar_tab", "grammar_tab", "options_tab_grammar_desc", [
+      "grammar_rules",
+      "grammar_tab",
+    ]),
+    createTab("language_tab", "options_tab_languages", "options_tab_languages_desc", [
+      "options_tab_languages",
+      "language_selection",
+    ]),
+    createTab("shortcuts_expansions_tab", "options_tab_snippets", "options_tab_snippets_desc", [
+      "options_tab_snippets",
+      "text_expander",
+    ]),
+    createTab("site_mgmt_tab", "options_tab_sites", "options_tab_sites_desc", [
+      "options_tab_sites",
+      "site_profiles",
+    ]),
+    createTab("advanced_tab", "options_tab_data", "options_tab_data_desc", [
       "options_tab_data",
       "config_data",
-    ]),
-    ...(IS_DEV_BUILD ? DEV_TABS : []),
-    createTab("about_support_tab", "options_tab_about", "options_tab_about_desc", "AB", [
       "options_tab_about",
       "support_development_group",
     ]),
+    ...(IS_DEV_BUILD ? DEV_TABS : []),
   ],
   settings: [
     // =========================================================================
@@ -494,118 +433,20 @@ const manifest: ManifestDefinition = {
       type: "valueOnly",
       default: emptyTerminology(),
     },
-    {
-      tab: "grammar_tab",
-      group: i18n.get("grammar_rules"),
-      name: KEY_REVIEW_RULE_OVERRIDES,
-      type: "ruleToggleCards",
-      label: reviewText("review_rules_title", i18n.lang),
-      helpText: reviewText("review_rules_help", i18n.lang),
-      summaryLabel: i18n.get("grammar_rules_summary_label"),
-      emptyStateText: i18n.get("grammar_rules_empty_state"),
-      noMatchesText: i18n.get("grammar_rules_no_matches"),
-      searchPlaceholder: i18n.get("grammar_rules_search_placeholder"),
-      sections: RULE_CATEGORY_SECTIONS,
-      filterAllLabel: i18n.get("grammar_rules_filter_all"),
-      filterSafeLabel: reviewText("review_rules_default", i18n.lang),
-      filterAdvancedLabel: reviewText("review_rules_optional", i18n.lang),
-      filterEnglishOnlyLabel: i18n.get("grammar_rules_filter_english_only"),
-      filterEnabledOnlyLabel: i18n.get("grammar_rules_filter_enabled_only"),
-      actions: [
-        {
-          actionKey: "defaults",
-          text: reviewText("review_rules_restore", i18n.lang),
-          values: reviewRuleIds({ codeMode: false }),
-        },
-        { actionKey: "disable_all", text: i18n.get("grammar_rules_disable_all"), values: [] },
-      ],
-      options: GRAMMAR_RULE_CATALOG.flatMap((rule) => {
-        const metadata = REVIEW_RULE_METADATA[rule.id];
-        if (metadata.review !== "supported") return [];
-        const languageScope = reviewLanguageScope(rule.id);
-        return [
-          {
-            value: rule.id,
-            text:
-              rule.typing === false
-                ? reviewText(rule.titleI18nKey as ReviewTextKey, i18n.lang)
-                : i18n.get(rule.titleI18nKey),
-            description: rule.typing === false ? undefined : i18n.get(rule.descriptionI18nKey),
-            badge: [
-              reviewText(`review_kind_${metadata.kind}`, i18n.lang),
-              metadata.defaultEnabled ? "" : reviewText("review_rule_optional_badge", i18n.lang),
-              languageScope === "en_US" ? i18n.get("grammar_rule_scope_en_us_badge") : "",
-            ]
-              .filter(Boolean)
-              .join(" · "),
-            section: metadata.category,
-            safetyTier: metadata.defaultEnabled ? ("safe" as const) : ("advanced" as const),
-            languageScope,
-          },
-        ];
-      }),
-      default: {},
-      storageAdapter: {
-        getSelection: (value) => reviewRuleIds({ codeMode: false, overrides: value }),
-        setSelection: reviewRuleSelectionToOverrides,
-        setChoice: (value, rule, enabled) =>
-          isReviewSupportedRule(rule)
-            ? { ...normalizeReviewRuleOverrides(value), [rule]: enabled }
-            : normalizeReviewRuleOverrides(value),
-      },
-    },
+    // Both rule maps are edited together in the Grammar rule matrix (GrammarRuleMatrix).
     {
       tab: "grammar_tab",
       group: i18n.get("grammar_rules"),
       name: KEY_ENABLED_GRAMMAR_RULES,
-      type: "ruleToggleCards",
-      label: i18n.get("grammar_rules_label"),
-      helpText: i18n.get("grammar_rules_help"),
-      summaryLabel: i18n.get("grammar_rules_summary_label"),
-      emptyStateText: i18n.get("grammar_rules_empty_state"),
-      noMatchesText: i18n.get("grammar_rules_no_matches"),
-      searchPlaceholder: i18n.get("grammar_rules_search_placeholder"),
-      sections: RULE_CATEGORY_SECTIONS,
-      filterAllLabel: i18n.get("grammar_rules_filter_all"),
-      filterSafeLabel: i18n.get("grammar_rules_filter_safe"),
-      filterAdvancedLabel: i18n.get("grammar_rules_filter_advanced"),
-      filterEnglishOnlyLabel: i18n.get("grammar_rules_filter_english_only"),
-      filterEnabledOnlyLabel: i18n.get("grammar_rules_filter_enabled_only"),
-      actions: [
-        {
-          actionKey: "recommended",
-          text: i18n.get("grammar_rules_recommended"),
-          values: RECOMMENDED_CURRENT_GRAMMAR_RULES,
-        },
-        {
-          actionKey: "typography",
-          text: i18n.get("grammar_rules_typography"),
-          values: TYPOGRAPHY_GRAMMAR_RULES,
-        },
-        {
-          actionKey: "enable_all",
-          text: i18n.get("grammar_rules_enable_all"),
-          values: TYPING_RULE_IDS,
-        },
-        {
-          actionKey: "disable_all",
-          text: i18n.get("grammar_rules_disable_all"),
-          values: [],
-        },
-      ],
-      options: GRAMMAR_RULE_OPTIONS,
+      type: "valueOnly",
       default: {},
-      storageAdapter: {
-        getSelection: resolveGrammarRuleSelection,
-        setSelection: grammarRuleSelectionToOverrides,
-        setChoice(value, rule, enabled) {
-          const overrides = isGrammarRuleOverrides(value)
-            ? value
-            : (migrateLegacyGrammarRuleSelection(value) ??
-              (value === undefined ? {} : grammarRuleSelectionToOverrides([])));
-          return { ...overrides, [rule]: enabled };
-        },
-      },
+    },
+    {
+      tab: "grammar_tab",
+      group: i18n.get("grammar_rules"),
+      name: KEY_REVIEW_RULE_OVERRIDES,
+      type: "valueOnly",
+      default: {},
     },
 
     // =========================================================================
@@ -802,6 +643,7 @@ const manifest: ManifestDefinition = {
       group: i18n.get("productivity_dashboard_group"),
       name: "resetProductivityStatsButton",
       type: "button",
+      danger: true,
       text: i18n.get("reset_productivity_stats_btn"),
       label: i18n.get("reset_productivity_stats_desc"),
     },
@@ -810,6 +652,7 @@ const manifest: ManifestDefinition = {
       group: i18n.get("config_data"),
       name: "clearPersonalizationButton",
       type: "button",
+      danger: true,
       text: i18n.get("clear_personalization_btn"),
       label: i18n.get("clear_personalization_desc"),
     },
@@ -831,11 +674,8 @@ const manifest: ManifestDefinition = {
     },
     ...(IS_DEV_BUILD ? DEV_OBSERVABILITY_SETTINGS : []),
 
-    // =========================================================================
-    // TAB: About & Support
-    // =========================================================================
     {
-      tab: "about_support_tab",
+      tab: "advanced_tab",
       group: i18n.get("about_support_tab"),
       name: "aboutWorkspacePanel",
       type: "customPanel",

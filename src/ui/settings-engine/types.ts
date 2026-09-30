@@ -1,29 +1,5 @@
 export type OptionTuple = [string, string];
 
-export interface RuleOption {
-  value: string;
-  text: string;
-  description?: string;
-  example?: string;
-  badge?: string;
-  /** Key of the section (in `RuleToggleCardsConfig.sections`) the card is listed under. */
-  section: string;
-  safetyTier: "safe" | "advanced";
-  languageScope: "all" | "en_US";
-}
-
-interface RuleToggleAction {
-  actionKey?: string;
-  text: string;
-  values: string[];
-}
-
-export interface RuleToggleStorageAdapter {
-  getSelection(value: unknown): string[];
-  setSelection(selection: readonly string[]): unknown;
-  setChoice(value: unknown, rule: string, enabled: boolean): unknown;
-}
-
 export type CheckboxConfig = {
   type: "checkbox";
   tab: string;
@@ -64,6 +40,8 @@ export type ButtonConfig = {
   label?: string;
   text?: string;
   store?: false;
+  /** Styles the button as destructive. */
+  danger?: true;
 };
 
 export type DescriptionConfig = {
@@ -85,30 +63,6 @@ export type CustomPanelConfig = {
   keywords?: string[];
 };
 
-export type RuleToggleCardsConfig = {
-  type: "ruleToggleCards";
-  tab: string;
-  group: string;
-  name?: string;
-  label?: string;
-  helpText?: string;
-  searchPlaceholder: string;
-  /** Card sections in display order; a section with no visible card is hidden. */
-  sections: Array<{ key: string; label: string }>;
-  filterAllLabel: string;
-  filterSafeLabel: string;
-  filterAdvancedLabel: string;
-  filterEnglishOnlyLabel: string;
-  filterEnabledOnlyLabel: string;
-  summaryLabel: string;
-  emptyStateText: string;
-  noMatchesText: string;
-  options: RuleOption[];
-  actions: RuleToggleAction[];
-  default?: unknown;
-  storageAdapter: RuleToggleStorageAdapter;
-};
-
 export type ValueOnlyConfig = {
   type: "valueOnly";
   tab: string;
@@ -124,7 +78,6 @@ export type FieldConfig =
   | ButtonConfig
   | DescriptionConfig
   | CustomPanelConfig
-  | RuleToggleCardsConfig
   | ValueOnlyConfig;
 
 export interface TabConfig {
@@ -132,7 +85,6 @@ export interface TabConfig {
   label: string;
   title?: string;
   shortDescription?: string;
-  icon?: string;
   keywords?: string[];
 }
 

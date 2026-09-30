@@ -24,6 +24,17 @@ const LABELS = {
     "Ustawienia zmieniły się podczas odczytu pliku. Importuj ponownie, aby zastąpić bieżącą listę.",
     "As configurações mudaram durante a leitura. Importe novamente para substituir a lista atual.",
   ],
+  terms_add: [
+    "Add or import terms",
+    "Ajouter ou importer des termes",
+    "Dodaj ili uvezi pojmove",
+    "Añadir o importar términos",
+    "Προσθήκη ή εισαγωγή όρων",
+    "Lägg till eller importera termer",
+    "Begriffe hinzufügen oder importieren",
+    "Dodaj lub importuj terminy",
+    "Adicionar ou importar termos",
+  ],
   terms_title: [
     "Preferred terminology",
     "Terminologie préférée",

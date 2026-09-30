@@ -97,6 +97,12 @@ export function mountPreferredTerminology(root: HTMLElement, registry: SettingsR
   body.append(field(t("terms_enabled"), enabled));
   const list = document.createElement("ul");
   list.dataset.termsList = "";
+  // The entry form stays folded until someone adds, edits or imports terms.
+  const manage = document.createElement("details");
+  manage.className = "settings-disclosure";
+  const manageSummary = document.createElement("summary");
+  manageSummary.textContent = t("terms_add");
+  manage.append(manageSummary);
   const form = document.createElement("form");
   form.className = "workspace-section-body";
   form.noValidate = true;
@@ -194,6 +200,7 @@ export function mountPreferredTerminology(root: HTMLElement, registry: SettingsR
         language.value = entry.language;
         scope.value = entry.scope;
         entryEnabled.checked = entry.enabled;
+        manage.open = true;
         source.focus();
       });
       edit.setAttribute("aria-label", `${t("terms_edit")}: ${entry.source}`);
@@ -241,8 +248,7 @@ export function mountPreferredTerminology(root: HTMLElement, registry: SettingsR
         }
       })(),
   );
-  body.append(
-    list,
+  manage.append(
     form,
     createStackField(t("terms_import"), file),
     button("terms_export", "export", () => {
@@ -254,8 +260,8 @@ export function mountPreferredTerminology(root: HTMLElement, registry: SettingsR
         1000,
       );
     }),
-    status,
   );
+  body.append(list, manage, status);
   root.append(card);
   bindControlEvents(control, [["change", render]]);
   reset();

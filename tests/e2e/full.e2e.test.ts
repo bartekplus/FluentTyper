@@ -5407,7 +5407,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       optionsPage = await openOptionsPage(browser, worker!);
       try {
         const selector =
-          '[data-setting="enabledGrammarRules"] .grammar-rule-card-toggle[value="measurementUnitFormatting"]';
+          'input[data-setting="enabledGrammarRules"][value="measurementUnitFormatting"]';
         await optionsPage.waitForSelector(selector);
         await optionsPage.waitForFunction(
           (inputSelector) =>
@@ -5431,9 +5431,9 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       optionsPage = await openOptionsPage(browser, worker!);
       try {
         const selector =
-          '[data-setting="enabledGrammarRules"] .grammar-rule-card-toggle[value="measurementUnitFormatting"]';
+          'input[data-setting="enabledGrammarRules"][value="measurementUnitFormatting"]';
         const readySelector =
-          '[data-setting="enabledGrammarRules"] .grammar-rule-card-toggle[value="capitalizeSentenceStart"]';
+          'input[data-setting="enabledGrammarRules"][value="capitalizeSentenceStart"]';
         await optionsPage.waitForSelector(selector);
         await optionsPage.waitForFunction(
           (inputSelector, loadedSelector) => {
@@ -7944,7 +7944,12 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         const options = await openOptionsPage(browser, worker!);
         try {
           await options.$eval('a[href="#grammar_tab"]', (el) => (el as HTMLElement).click());
-          const selector = 'input.grammar-rule-card-toggle[value="englishRepeatedWords"]';
+          const selector =
+            'input[data-setting="reviewRuleOverrides"][value="englishRepeatedWords"]';
+          // Rule categories start folded; open the one holding this rule.
+          await options.$eval(selector, (el) => {
+            el.closest("details")!.open = true;
+          });
           await options.waitForSelector(selector, { visible: true });
           await options.$eval(selector, (el) => (el as HTMLElement).click());
           await waitForReview(
@@ -8009,7 +8014,12 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         const options = await openOptionsPage(browser, worker!);
         try {
           await options.$eval('a[href="#grammar_tab"]', (el) => (el as HTMLElement).click());
-          const selector = 'input.grammar-rule-card-toggle[value="englishRepeatedWords"]';
+          const selector =
+            'input[data-setting="reviewRuleOverrides"][value="englishRepeatedWords"]';
+          // Rule categories start folded; open the one holding this rule.
+          await options.$eval(selector, (el) => {
+            el.closest("details")!.open = true;
+          });
           await options.waitForSelector(selector, { visible: true });
           expect(await options.$eval(selector, (el) => (el as HTMLInputElement).checked)).toBe(
             false,
