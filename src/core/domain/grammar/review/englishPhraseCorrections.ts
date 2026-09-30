@@ -1,0 +1,157 @@
+import { applyWordCase, detectWordCase } from "../implementations/helpers/GenericRuleShared";
+import { INSIDE_NAMED_EXAMPLE, OPENING_QUOTES } from "./exampleCues";
+import {
+  CLOSED_COMPOUNDS,
+  NAME_CASING,
+  PHRASE_CORRECTIONS,
+  STYLE_PHRASES,
+  type PhraseRow,
+} from "./englishPhraseTables";
+import type { DetectContext, RawFinding } from "./reviewDetectors";
+
+type Phrase = {
+  pattern: RegExp;
+  replacements: readonly string[];
+  ruleId: RawFinding["ruleId"];
+  messageKey: RawFinding["messageKey"];
+  length: number;
+};
+
+const WORD = /[\p{L}\p{N}]+(?:['’][\p{L}\p{N}]+)*/gu;
+const EDGE = "[\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]";
+const SPACE = "[ \\t\\u00a0]{1,8}";
+const wordKey = (word: string) => word.toLowerCase().replace(/’/g, "'");
+
+// One lookup per word: phrases are indexed by their first word, longest first.
+const INDEX = new Map<string, Phrase[]>();
+function index(
+  rows: readonly PhraseRow[],
+  ruleId: Phrase["ruleId"],
+  messageKey: Phrase["messageKey"],
+) {
+  for (const [typed, replacement] of rows) {
+    for (const form of [typed].flat()) {
+      const body = form
+        .split(" ")
+        .map((word) => word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/'/g, "['’]"))
+        .join(SPACE);
+      const end = /[\p{L}\p{N}]$/u.test(form) ? `(?!${EDGE}|\\.[\\p{L}\\p{N}])` : "";
+      const key = wordKey(form.match(WORD)![0]);
+      const list = INDEX.get(key) ?? [];
+      list.push({
+        pattern: new RegExp(`(?<![.])(?<!${EDGE})${body}${end}`, "iuy"),
+        replacements: [replacement].flat(),
+        ruleId,
+        messageKey,
+        length: form.length,
+      });
+      INDEX.set(
+        key,
+        list.sort((a, b) => b.length - a.length),
+      );
+    }
+  }
+}
+index(PHRASE_CORRECTIONS, "englishPhraseCorrections", "review_msg_phrase_correction");
+index(CLOSED_COMPOUNDS, "englishClosedCompounds", "review_msg_closed_compound");
+index(STYLE_PHRASES, "stylePhrasing", "review_msg_style_phrasing");
+index(
+  NAME_CASING.map((name) => [name.toLowerCase(), name]),
+  "englishCanonicalCasing",
+  "review_msg_name_casing",
+);
+
+/** The typed casing carried onto a replacement written in its ordinary form. */
+function matchCase(
+  typed: string,
+  replacement: string,
+  abbreviation: boolean,
+  sentenceStart: boolean,
+): string {
+  const letters = typed.replace(/\P{L}/gu, "");
+  // "ALL THE SUDDEN" shouts; "BTW" is just how the abbreviation is written.
+  if (letters.length > 1 && letters === letters.toUpperCase()) {
+    if (!abbreviation) return replacement.toUpperCase();
+    if (!sentenceStart) return replacement;
+  } else if (!/^\P{L}*\p{Lu}/u.test(typed)) return replacement;
+  // "Eagle Eyed" in a title keeps every word capitalized: "Eagle-Eyed".
+  const titled = /^\p{Lu}\p{Ll}*(?:\P{L}+\p{Lu}\p{Ll}*)+$/u.test(typed);
+  return replacement.replace(titled ? /(?<!\p{L})\p{L}/gu : /\p{L}/u, (letter) =>
+    letter.toUpperCase(),
+  );
+}
+
+/**
+ * Fixed English phrases from the authored tables, matched as whole words.
+ * Names, mentions, quoted examples and user-dictionary words stay as typed.
+ */
+export function phraseCorrections(ctx: DetectContext): RawFinding[] {
+  if (ctx.lang !== "en_US") return [];
+  const findings: RawFinding[] = [];
+  const words = new RegExp(WORD);
+  words.lastIndex = ctx.from;
+  for (
+    let word = words.exec(ctx.scanText);
+    word && word.index < ctx.to;
+    word = words.exec(ctx.scanText)
+  ) {
+    for (const phrase of INDEX.get(wordKey(word[0])) ?? []) {
+      phrase.pattern.lastIndex = word.index;
+      const match = phrase.pattern.exec(ctx.scanText);
+      if (!match) continue;
+      const finding = toFinding(ctx, phrase, match[0], match.index);
+      if (finding) {
+        findings.push(finding);
+        words.lastIndex = finding.range.end;
+      }
+      break;
+    }
+  }
+  return findings;
+}
+
+function toFinding(
+  ctx: DetectContext,
+  phrase: Phrase,
+  typed: string,
+  start: number,
+): RawFinding | null {
+  const end = start + typed.length;
+  if (
+    (typed.match(/\p{L}+/gu) ?? []).some(
+      (word) =>
+        ctx.dictionary.has(word.toLowerCase()) ||
+        applyWordCase(word, detectWordCase(word)) !== word,
+    )
+  )
+    return null;
+  if (
+    OPENING_QUOTES.includes(ctx.text[start - 1] || "\n") &&
+    /["”'’“‘»«›‹]/.test(ctx.text[end] ?? "")
+  )
+    return null;
+  if (INSIDE_NAMED_EXAMPLE.test(ctx.text.slice(Math.max(0, start - 128), start))) return null;
+  const casing = phrase.ruleId === "englishCanonicalCasing";
+  // Capitals kept for emphasis are the writer's choice.
+  if (casing && typed === typed.toUpperCase()) return null;
+  const before = ctx.text.slice(Math.max(0, start - 8), start);
+  const sentenceStart =
+    /(?:[.!?]["”’)]*\s+|\n\s*)$/.test(before) || (start <= 8 && /^\s*$/.test(before));
+  // Apostrophes follow the typed phrase, or the nearby text when it has none.
+  const curly =
+    typed.includes("’") ||
+    (!typed.includes("'") && ctx.text.slice(Math.max(0, start - 200), end + 200).includes("’"));
+  const abbreviation = phrase.ruleId === "stylePhrasing" && !/\s/.test(typed);
+  const alternatives = phrase.replacements.map((replacement) => {
+    const cased = casing ? replacement : matchCase(typed, replacement, abbreviation, sentenceStart);
+    return curly ? cased.replace(/'/g, "’") : cased;
+  });
+  if (alternatives.includes(typed)) return null;
+  return {
+    ruleId: phrase.ruleId,
+    messageKey: phrase.messageKey,
+    range: { start, end },
+    alternatives,
+    ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+  };
+}

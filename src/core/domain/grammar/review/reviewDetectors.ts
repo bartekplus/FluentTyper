@@ -1,5 +1,6 @@
 import { CUE_AND_QUOTE } from "./exampleCues";
 import { canonicalCasing } from "./canonicalCasing";
+import { phraseCorrections } from "./englishPhraseCorrections";
 import { usagePhrases } from "./englishUsagePhrases";
 import { doubledDegree } from "./englishDegree";
 import {
@@ -1158,7 +1159,15 @@ export const REVIEW_DETECTORS: ReadonlyArray<{ rules: CatalogRuleId[]; detect: D
         (f) => f.range.start >= ctx.from && f.range.start < ctx.to,
       ),
   },
-  { rules: ["englishCanonicalCasing"], detect: canonicalCasing },
+  {
+    rules: [
+      "englishCanonicalCasing",
+      "englishPhraseCorrections",
+      "englishClosedCompounds",
+      "stylePhrasing",
+    ],
+    detect: (ctx) => [...canonicalCasing(ctx), ...phraseCorrections(ctx)],
+  },
   {
     rules: ["unclosedQuotation"],
     detect: (ctx) =>

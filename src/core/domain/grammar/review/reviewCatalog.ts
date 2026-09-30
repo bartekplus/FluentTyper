@@ -51,6 +51,27 @@ const NAMED_LANGUAGES: readonly string[] = SUPPORTED_PREDICTION_LANGUAGE_KEYS.fi
 );
 
 export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
+  englishPhraseCorrections: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "grammar",
+    kind: "usage",
+    bulk: "individual",
+  },
+  englishClosedCompounds: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "spelling",
+    kind: "boundary",
+    bulk: "individual",
+  },
+  stylePhrasing: {
+    review: "supported",
+    defaultEnabled: false,
+    category: "style",
+    kind: "redundancy",
+    bulk: "individual",
+  },
   styleRedundancy: {
     review: "supported",
     defaultEnabled: false,
