@@ -293,7 +293,10 @@ describe("ReviewUi: Local AI", () => {
     ui.render(state({ diagnostics: [diagnostic] }));
     expect(ui.root.textContent).toContain("Warning: “");
     ui.openCard(diagnostic, null);
-    expect($(".card").getAttribute("aria-label")).toContain("Punctuation & spacing, Warning:");
+    expect($(".card").getAttribute("aria-label")).toContain(
+      "Punctuation & spacing · Punctuation marks, Warning:",
+    );
+    expect($(".card .category").textContent).toBe("Punctuation & spacing · Punctuation marks");
     expect($(".card").querySelector("[data-action=apply]")).toBeNull();
     expect($(".card").querySelector(".diff")).toBeNull();
     trustedClick($("[data-action=ignore]"));
@@ -371,8 +374,12 @@ describe("ReviewUi: Local AI", () => {
     );
     expect(card.querySelector(".tag")!.textContent).toBe("Local AI");
     expect(card.querySelector(".badge")!.textContent).toBe("G");
+    expect(card.querySelector(".category")!.textContent).toBe("Grammar");
     expect(card.querySelector(".to")!.textContent).toBe("result");
     expect(card.textContent).toContain("Not included in Fix all");
+    // The dictionary check has no kind: its category already says it.
+    ui.openCard(rule, null);
+    expect($(".card .category").textContent).toBe("Spelling");
   });
 
   test("a check's finding shows the Local AI option as labelled, not preselected", () => {

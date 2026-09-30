@@ -90,6 +90,15 @@ describe("review rule coverage map", () => {
     }
   });
 
+  test("every capitalization check shares one category, so one filter and color cover it", () => {
+    const categories = new Set(
+      reviewCoverageMap().flatMap((entry) =>
+        entry.review === "supported" && entry.kind === "capitalization" ? [entry.category] : [],
+      ),
+    );
+    expect([...categories]).toEqual(["typography"]);
+  });
+
   test("every supported rule has exactly one detector, and excluded rules have none", () => {
     const detected = REVIEW_DETECTORS.flatMap((detector) => detector.rules);
     expect(new Set(detected).size).toBe(detected.length);
