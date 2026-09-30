@@ -122,6 +122,25 @@ describe("apostrophe look-alikes (englishContractionNormalization)", () => {
   });
 });
 
+describe("kelvin degree sign (measurementUnitFormatting)", () => {
+  const rule = "measurementUnitFormatting";
+  test.each([
+    ["The sample sat at 77°K overnight.", "The sample sat at 77 K overnight."],
+    ["Space is about 3 °K cold.", "Space is about 3 K cold."],
+    ["😀 Set it to 300°K.", "😀 Set it to 300 K."],
+    ["Temperatures (°K) are listed.", "Temperatures (K) are listed."],
+  ])("repairs %p", (input, expected) => {
+    expect(repaired(input, rule)).toBe(expected);
+  });
+
+  test.each(["It is 300 K now.", "Use °Kelvin rarely.", "Heat to 20 °C.", "Code x°K2 here."])(
+    "keeps %p",
+    (input) => {
+      expect(review(input, rule)).toEqual([]);
+    },
+  );
+});
+
 describe("ellipsis length (duplicatePunctuationCollapse)", () => {
   const rule = "duplicatePunctuationCollapse";
   test.each([

@@ -787,6 +787,17 @@ const EXPLANATIONS: Record<ReviewMessageKey, Translations> = {
     "Oddziel liczbę od jednostki.",
     "Separe o número da unidade.",
   ],
+  review_msg_kelvin_degree: [
+    "Kelvin takes no degree sign: write K.",
+    "Le kelvin s’écrit sans signe de degré : K.",
+    "Kelvin se piše bez znaka stupnja: K.",
+    "El kelvin se escribe sin signo de grado: K.",
+    "Το κέλβιν γράφεται χωρίς σύμβολο βαθμού: K.",
+    "Kelvin skrivs utan gradtecken: K.",
+    "Kelvin wird ohne Gradzeichen geschrieben: K.",
+    "Kelwin zapisuje się bez znaku stopnia: K.",
+    "O kelvin se escreve sem o sinal de grau: K.",
+  ],
   review_msg_currency_spacing: [
     "Separate the amount from its currency.",
     "Séparez le montant de la devise.",

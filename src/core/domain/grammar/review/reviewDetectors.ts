@@ -1092,6 +1092,24 @@ const duplicatePunctuation: Detector = (ctx) => {
   return findings;
 };
 
+/** "300°K" is "300 K": the kelvin is an absolute unit and takes no degree sign. */
+function kelvinDegree(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  const separator = resolveMeasurementLocale(ctx.lang)?.separator ?? " ";
+  for (const match of ownedMatches(ctx, /(?<=[\p{N}\s(])°K(?![\p{L}\p{N}_])/gu)) {
+    const start = match.index;
+    const glued = /\p{N}/u.test(ctx.text[start - 1]);
+    findings.push({
+      ruleId: "measurementUnitFormatting",
+      messageKey: "review_msg_kelvin_degree",
+      range: { start, end: start + 2 },
+      alternatives: [glued ? `${separator}K` : "K"],
+      context: { start: Math.max(0, start - 1), end: start + 2 },
+    });
+  }
+  return findings;
+}
+
 function measurementLike(
   ctx: DetectContext,
   ruleId: "measurementUnitFormatting" | "currencySpacing",
@@ -1285,7 +1303,7 @@ export const REVIEW_DETECTORS: ReadonlyArray<{ rules: CatalogRuleId[]; detect: D
   { rules: ["duplicatePunctuationCollapse"], detect: duplicatePunctuation },
   {
     rules: ["measurementUnitFormatting"],
-    detect: (ctx) => measurementLike(ctx, "measurementUnitFormatting"),
+    detect: (ctx) => [...measurementLike(ctx, "measurementUnitFormatting"), ...kelvinDegree(ctx)],
   },
   { rules: ["currencySpacing"], detect: (ctx) => measurementLike(ctx, "currencySpacing") },
 ];
