@@ -254,3 +254,52 @@ test("fixed and ambiguous ranges belong to one chunk in Unicode quoted prose", (
     );
   }
 });
+
+test.each([
+  ["One of the old ticket is still valid.", "One of the old tickets is still valid."],
+  ["She was one of the best teacher I had.", "She was one of the best teachers I had."],
+  ["We lost one of our user in the move.", "We lost one of our users in the move."],
+  ["Not a single one of the step, sadly.", "Not a single one of the steps, sadly."],
+  ["One of the user account is locked.", "One of the user accounts is locked."],
+  ["We saw one of these elephant.", "We saw one of these elephants."],
+])("one of + singular pluralizes %s", (source, expected) => {
+  const [d] = scan(source);
+  expect(scan(source)).toHaveLength(1);
+  expect(d.bulk.eligible).toBe(false);
+  expect(applyEdits(source, d.alternatives[0].edits)).toBe(expected);
+  expect(scan(expected)).toEqual([]);
+});
+test.each([
+  "One of the file formats is old.",
+  "One of the test cases failed.",
+  "One of the team is here.",
+  "One of the device",
+  "One of the best is here.",
+  "This is one of the ways.",
+])("one of + noun preserves %s", (text) => expect(scan(text)).toEqual([]));
+
+test.each([
+  ["Music from the 1960's still sells.", ["Music from the 1960s still sells."]],
+  ["It was big in the late 1990’s.", ["It was big in the late 1990s."]],
+  ["A radio (1950's) sat on the shelf.", ["A radio (1950s) sat on the shelf."]],
+  ["We loved the 90's.", ["We loved the '90s.", "We loved the 90s."]],
+  ["We loved the 90’s.", ["We loved the ’90s.", "We loved the 90s."]],
+  ["There were 100's of replies.", ["There were 100s of replies."]],
+])("decades and round plurals drop the apostrophe: %s", (source, expected) => {
+  const [d] = scan(source);
+  expect(scan(source)).toHaveLength(1);
+  expect(d.requiresChoice ?? false).toBe(expected.length > 1);
+  expect(d.alternatives.map((a) => applyEdits(source, a.edits))).toEqual(expected);
+  for (const text of expected) expect(all(text)).toEqual([]);
+});
+test.each([
+  "Windows 10's taskbar is new.",
+  "The HP 1910's fan is loud.",
+  "1977's best month was May.",
+  "2020's biggest hits were loud.",
+  "View user-2000's avatar.",
+  "We loved the 1990s.",
+  "We loved the '80s.",
+  "Version 3.10's changelog is short.",
+  "The 200's are rare.",
+])("decade plurals preserve %s", (text) => expect(scan(text)).toEqual([]));

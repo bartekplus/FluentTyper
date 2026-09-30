@@ -1428,7 +1428,13 @@ export const REVIEW_DETECTORS: ReadonlyArray<{ rules: CatalogRuleId[]; detect: D
   { rules: ["englishRepeatedWords"], detect: repeatedWords },
   { rules: ["englishAuxiliaryBaseVerb"], detect: auxiliaryForms },
   {
-    rules: ["englishThenThan", "englishYourYouAre", "englishTheirThereTheyAre", "englishToToo"],
+    rules: [
+      "englishThenThan",
+      "englishYourYouAre",
+      "englishTheirThereTheyAre",
+      "englishToToo",
+      "englishWereWhere",
+    ],
     detect: wordConfusions,
   },
   { rules: ["capitalizeSentenceStart", "capitalizeAfterLineBreak"], detect: capitalizeStarts },

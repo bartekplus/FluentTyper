@@ -202,6 +202,7 @@ Supported (**Typing** is the rule's default for typing; Review has separate swit
 | `englishYourYouAre`                    | English        | unavailable | grammar     | confused words     | individual only                                                                                                                                |
 | `englishTheirThereTheyAre`             | English        | unavailable | grammar     | confused words     | individual only                                                                                                                                |
 | `englishToToo`                         | English        | unavailable | grammar     | confused words     | individual only                                                                                                                                |
+| `englishWereWhere`                     | English        | unavailable | grammar     | confused words     | individual only                                                                                                                                |
 | `englishAuxiliaryBaseVerb`             | English        | unavailable | grammar     | word form          | individual only                                                                                                                                |
 | `englishRepeatedWords`                 | all            | unavailable | grammar     | repetition         | individual only                                                                                                                                |
 | `englishPhraseCorrections`             | 9 langs        | unavailable | grammar     | usage              | individual only                                                                                                                                |
@@ -236,7 +237,7 @@ Agreement retains the six original typing pairs and their existing bulk rules.
 
 Noun/adjective uses such as everyday tasks, the login and the setup are preserved. This check does not join two-word noun spellings or impose a login/log-in or setup/set-up house style. Unknown compounds, incomplete contexts, command arguments, URL components, mixed-case identifiers, capitalized product-name candidates and user-dictionary words abstain. The listed lowercase tokens, including aswell after tested/checked/reviewed, are split; every finding remains individual-only and typing is unchanged.
 
-The established-usage check covers for all intensive purposes before a known completion clause, one in the same in explicit plural identity clauses, and peak/peaks/peaked/peaking someone’s interest with known subjects, modals and progressive auxiliaries. It also recognizes bounded indirect-question, pronoun-case, lexical-confusion and malformed finded constructions; meaning-ambiguous effect/affect uses abstain. Case, tense, possessive determiners and surrounding whitespace are preserved. The phrase-matching loop is shared with fixed prepositions; there is no general search/replace engine or external phrase database.
+The established-usage check covers for all intensive purposes before a known completion clause, one in the same in explicit plural identity clauses, and peak/peaks/peaked/peaking someone’s interest with known subjects, modals and progressive auxiliaries. It also recognizes bounded indirect-question, pronoun-case, lexical-confusion and malformed finded constructions; meaning-ambiguous effect/affect uses abstain. A negated verb (didn't/don't/can't/never + have/want/need/see/know…) before "no" + a word offers "any" ("didn't have no idea"); "take no for an answer", "say no", "no one", "no longer" and "no matter" abstain. "few" + a time unit + "ago" gains its article ("a few days ago") unless a/very/only/the/last… precedes it. Case, tense, possessive determiners and surrounding whitespace are preserved. The phrase-matching loop is shared with fixed prepositions; there is no general search/replace engine or external phrase database.
 
 Literal peak meanings and locative one in the same room, unrecognized frames, recognized creative/dialect cues, named quotations, technical tokens, dictionaries and protected text abstain. These are grammar-category cards with usage-specific explanations, independently configurable and individual-only. Native spelling-span ownership prevents duplicate spelling cards. Typing and existing modal-of corrections are unchanged.
 
@@ -248,11 +249,11 @@ The native countability check covers ordinary-prose malformed plurals of informa
 
 Specialist legal, banking, commercial, regional and archaic evidence in the bounded context causes abstention. Quoted examples, identifiers, capitalized names and dictionary words are protected. Known quantified feedback/information/advice and a information frames can show a warning without an edit; other quantified mass-noun constructions abstain. No unit, amount or partial determiner repair is invented. Data agreement, fewer/less preferences, coffee, experience, work and paper are outside this check. All findings are individual-only; typing is unchanged.
 
-`englishNounNumber` is a separate native Review-only check using the shared authored noun-pair map (now including device/devices). It handles complete `one of the` clauses, explicit counts zero–ten or up to four ungrouped digits, and these/those followed by a known singular noun and a supported predicate. Explicit counts retain their value and change only noun inflection; `one of the` pluralizes the set noun while leaving its outer singular subject and verb untouched.
+`englishNounNumber` is a separate native Review-only check using the shared authored noun-pair map (now including device/devices). It handles complete `one of the` clauses, explicit counts zero–ten or up to four ungrouped digits, and these/those followed by a known singular noun and a supported predicate. Explicit counts retain their value and change only noun inflection; `one of the` pluralizes the set noun while leaving its outer singular subject and verb untouched. `one of the/my/these…` with up to three free modifiers before a known singular noun also pluralizes it when the noun ends the phrase (a clause end, a verb such as is/has, a pronoun or a preposition follows), so "one of the file formats" abstains. Decades and round plurals written with an apostrophe become plain plurals: "the 1960's" or a four-digit decade before a clause end becomes "1960s", "the 90's" offers "'90s" or "90s", and "100's of" becomes "100s of"; years and versions with a possessive ("Windows 10's", "1977's best month", "2020's biggest hits") abstain.
 
 For these/those, a following are/were establishes plural and is/was establishes singular. Past predicates such as failed/arrived/returned do not establish number: the existing choice-card UI offers either pluralizing the noun or changing the demonstrative to this/that, with nothing preselected. All findings remain individual-only. Complete bounded predicates/locations prevent noun-modifier edits such as `those file names`. Unknown/invariant nouns, data/news/series, units, ordinal tokens, grouped/decimal/fractional numbers, technical model labels and hyphenated measurements abstain. Quantity repair can make a separate existential-agreement finding available on the next scan; it never changes the number to fit the verb.
 
-`englishPerfectParticiples` is a separate Review-only check for pronoun + have/has/had (optionally after a modal: "could have went") followed by a known simple-past form where the shared verb table specifies a different participle. A past-only form ("went", "wrote", "forgot") is enough evidence; a past form that is also a noun or another verb ("saw", "fell", "rose") needs a listed argument ("saw the results", "fell asleep"). It changes only that verb. Up to two listed adverbs (including not), negative auxiliaries and unambiguous `'ve`/`’ve` contractions are supported. Wrong have/has agreement is left to the existing agreement check, with the participle reconsidered on the next scan.
+`englishPerfectParticiples` is a separate Review-only check for pronoun + have/has/had (optionally after a modal: "could have went") followed by a known simple-past form where the shared verb table specifies a different participle. A past-only form ("went", "wrote", "forgot") is enough evidence; a past form that is also a noun or another verb ("saw", "fell", "rose") needs a listed argument ("saw the results", "fell asleep"). It changes only that verb. Up to two listed adverbs (including not), negative auxiliaries and unambiguous `'ve`/`’ve` contractions are supported. Wrong have/has agreement is left to the existing agreement check, with the participle reconsidered on the next scan. The same check flags have/has/`'ve` right before an -ing verb with an object or determiner ("I've looking into it", "She has cleaning the kitchen") and offers a choice between be ("I'm looking") and have been ("I've been looking"). -ing words that are also everyday nouns (training, reading, meeting…) need an object pronoun, and modals or question words before have abstain.
 
 Possessive and causative have, noun uses such as `have saw blades` and `have rose bushes`, shared lemma/past or past/participle forms (beat, read/cut/set), names ("have Drew"), unlisted morphology and ambiguous `'s`/`'d` contractions abstain. Regional learned/learnt, burned/burnt, got/gotten and other unlisted forms remain untouched. Existing auxiliary, spelling and typing behavior is unchanged; findings stay individual-only.
 
@@ -268,15 +269,20 @@ This is not a global preposition replacement. Approximate quantities (`discussed
 
 Three native Review-only contextual apostrophe checks are independently configurable:
 
-- `englishItsContext`: possessive `its` after a listed transitive verb and before a complete known noun phrase, or in a clause-opening noun phrase with a supported predicate. Conversely, clause-opening `its` before listed complete predicates such as `ready to use`, `cold outside`, `working now` or `been fixed` becomes `it's`, as does `its` anywhere before words a possessive never precedes (`a`, `an`, `been`, `because`, `not`, `never`, `always`, `too`, `called`, `named`, `got`).
+- `englishItsContext`: possessive `its` after a listed transitive verb and before a complete known noun phrase, or in a clause-opening noun phrase with a supported predicate. Conversely, clause-opening `its` before listed complete predicates such as `ready to use`, `cold outside`, `working now` or `been fixed` becomes `it's`. `its` directly before a verb, article, pronoun or function word (`its been`, `its a`, `its not`, `its never`, `its always`, `its someone`) is always `it's`; a clause-opening `its` before a listed adjective and to/for/that or a clause end (`Its important to…`), and `its` + a capitalized name after think/hope/guess (`I think its Priya.`) become `it's`. `it's` after a preposition (`in it's sandbox`), before `own`, before an ordinal after an -ed verb, or opening a clause before a word and are/were/have (`It's wheels are…`) becomes `its`.
 - `englishLetsContext`: clause-opening `lets` before a complete listed suggestion such as `try again`, `go home` or `take a break` becomes `let's`. Lexical `lets` with a subject is preserved.
 - `englishElsePossessive`: `elses` after someone/somebody/anyone/anybody/everyone/nobody/no one and before a complete known noun phrase becomes `else's`. Capitalized `Elses` is preserved as a possible name.
 
 All three change only the target token, remain outside Fix all safe, and leave existing contraction normalization and typing untouched. Existing straight or curly apostrophes are accepted for possessive `it's`; new apostrophes follow the existing normalizer's straight-apostrophe convention. No global quote normalization occurs. Evidence uses bounded horizontal spacing, listed nouns/adjectives/predicates and a phrase boundary. Unknown noun phrases, unlisted predicates, arbitrary names, singular/plural owners, multiline evidence and technical tokens abstain. Named quoted examples are protected; supported ordinary nested quotations remain eligible. These are bounded recognizers, not general ownership inference.
 
 Additional Review-only constructions run under `englishPronounVerbWhitelistAgreement`:
-clause-opening we/they/you with is/am/was/has/does, and he/she/it with are/am/were/have/do.
-One listed adverb (really, still, also, always, never) may intervene. These new forms
+clause-opening we/they/you with is/am/was/has/does, and he/she/it with are/am/were/have/do,
+and "I" with are/is/does (anywhere except after a capitalized word or and/or/nor, as in
+"Part I is" or "Sam and I are"). A clause-opening pronoun before a verb from the authored
+irregular table also agrees: "He always forget" becomes "forgets", "They goes" becomes
+"go"; forms shared with the past or a noun ("He cut", "They bear") abstain. The phrase
+may end at punctuation ("It don't."). One listed adverb (really, still, also, always,
+never, usually, often, just) may intervene. These new forms
 change only the finite verb, retain negation, and are individual-only. Object
 pronouns, coordinated subjects, subjunctives after a preceding clause, named quoted
 examples, technical/mixed-case identifiers and unfinished phrases abstain.
@@ -290,8 +296,15 @@ same-form and shared plurals (sheep, axes) are left out and no noun suffix guess
 Known plural phrases may continue with that/which/with. Unknown, collective and
 invariant-number nouns, coordinated subjects, singular relative clauses, hard-wrapped
 continuations and contradictory quantity/noun combinations abstain. The quantity, noun, adjective and negation are never rewritten.
+The noun pairs also list about 80 everyday regular count nouns (thing, issue, bug, example, user, day…).
+A known plural noun right after existential there ("there is warnings", "there's bugs",
+"Is there examples…?") changes only the verb to are/were. A known singular noun after
+there are/were (or opening "Are there…") followed by a preposition, that/which or a clause
+end offers a choice between "there is a bug" and "there are bugs". "there" must open its
+clause or follow a conjunction or a verb such as think/see; "Over there is…" and
+"the idea there is…" abstain.
 
-Contextual word confusions have four independent Review-only identities:
+Contextual word confusions have five independent Review-only identities:
 
 - `englishThenThan`: a copula, a listed comparative and a complete comparison
   argument (a known noun phrase or object pronoun); a listed comparative before
@@ -301,10 +314,39 @@ Contextual word confusions have four independent Review-only identities:
 - `englishYourYouAre`: clause-opening "your going to" with a listed verb and
   object, or an object-taking verb followed by "you're own" and a known noun.
   Possessive gerunds ("your going away", "I dislike your going…") abstain.
+  The clause-opening they're frames below also apply to "your" ("I hope your safe
+  there", "Your very patient.", "when your out of the meeting"); "going to" needs the
+  rest of its clause as plain words on one line.
 - `englishTheirThereTheyAre`: the same bounded future construction for
-  "their/there going to", and "there/they're own" in a complete object noun phrase.
+  "their/there going to", and "there/they're own" before a following word ("there own"
+  needs a clause start, preposition or listed verb before it, so "people there own cars"
+  is kept). A clause-opening "their" (or one after think/heard/because…) before a listed
+  predicate plus a function word ("Their not ready for…", "Their in the garage"), an
+  article, or modal/perfect/negative "be" ("Their won't be…") becomes "they're" or
+  "there"; "their's a/no/the…" becomes "there's"; "their" after a place verb before a
+  preposition or clause end ("waited their until", "been their.") or directly before a
+  preposition phrase becomes "there"; "they're" after a preposition or before a word
+  plus is/was/has ("They're tickets were…") becomes "their". Gerund subjects
+  ("Their going to school took an hour") abstain.
 - `englishToToo`: copular "to + listed adjective + to + listed verb". Ambiguous
   adjectives that are also verbs ("fast", "slow", "light") are not included.
+  Review also reads "to" as "too" after a linking verb before a listed degree adjective
+  followed by to/for or a clause end ("Life is to short."), in "went/spoke to far/soon"
+  and in "way to much/long" (not after the/a/this…), and "too" as "to" before a
+  determiner or object pronoun ("too the station") or a bare verb after want/need/going
+  ("need too leave").
+  "every" between an auxiliary + subject pronoun and a following word ("Did you every
+  try…") becomes "ever"; time nouns ("Did you every day…") abstain.
+- `englishThenThan` also covers listed -er comparatives, more/less + a word (not an -er
+  comparative, which the degree check owns first), "other" after nobody/nothing…, and
+  "rather", when "then" is followed by an object or possessive pronoun, ever/before/usual,
+  a number, or a short noun phrase ending at a clause end or preposition; it abstains
+  after if/when/once/unless in the same clause and before -ed words ("then the old
+  version failed"). "now and/until/since/by/back than" at a clause end becomes "then".
+- `englishWereWhere`: "we/they/you where" before a listed predicate ("They where going",
+  "you where right") becomes "were", except after show/tell/know… ("show you where");
+  "were" after know/forgot/find/check… and before a subject pronoun or "the X is/was"
+  ("Do you know were they went?") becomes "where".
 
 These checks replace only the confused word and record the surrounding evidence.
 They do not depend on dictionary misspellings. Existing "your welcome" and

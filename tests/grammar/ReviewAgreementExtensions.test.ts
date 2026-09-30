@@ -267,3 +267,79 @@ test("ordinary quotations and uppercase verbs work, but mixed-case subjects rema
   );
   expect(only("tHeY has the files.", pronoun)).toEqual([]);
 });
+
+test.each([
+  ["If there is warnings, stop.", ["If there are warnings, stop."]],
+  ["There's bugs in the parser.", ["There are bugs in the parser."]],
+  ["I think there was issues with it.", ["I think there were issues with it."]],
+  ["Is there examples for this?", ["Are there examples for this?"]],
+  ["So, was there tickets left?", ["So, were there tickets left?"]],
+  [
+    "There are bug in the parser.",
+    ["There is a bug in the parser.", "There are bugs in the parser."],
+  ],
+  [
+    "There were issue with the build.",
+    ["There was an issue with the build.", "There were issues with the build."],
+  ],
+  ["Are there solution?", ["Is there a solution?", "Are there solutions?"]],
+])("bare existential agreement repairs %s", (source, expected) => {
+  const findings = only(source, existential);
+  expect(findings).toHaveLength(1);
+  expect(findings[0].bulk.eligible).toBe(false);
+  expect(findings[0].requiresChoice ?? false).toBe(expected.length > 1);
+  expect(findings[0].alternatives.map((a) => applyEdits(source, a.edits))).toEqual(expected);
+  for (const text of expected) expect(only(text, existential)).toEqual([]);
+});
+test.each([
+  "Over there is things to see.",
+  "Up there are issue trackers.",
+  "There are key differences.",
+  "There are test cases here.",
+  "This is there things.",
+  "What is there tickets for?",
+  "There's lots of issues.",
+  "There's news.",
+  "There is an issue.",
+  "There are issues.",
+  "there's Users",
+])("bare existential agreement preserves %s", (text) =>
+  expect(only(text, existential)).toEqual([]),
+);
+
+test.each([
+  ["I are glad you came.", "I am glad you came."],
+  ["It was late, so I are staying.", "It was late, so I am staying."],
+  ["It don't matter.", "It doesn't matter."],
+  ["She do.", "She does."],
+  ["He always forget his keys.", "He always forgets his keys."],
+  ["She write every morning.", "She writes every morning."],
+  ["They goes home at five.", "They go home at five."],
+  ["We usually takes the bus.", "We usually take the bus."],
+  ["I does the dishes.", "I do the dishes."],
+])("pronoun agreement covers I, clause ends and lexical verbs: %s", (source, expected) => {
+  const findings = only(source, pronoun);
+  expect(findings).toHaveLength(1);
+  expect(findings[0].bulk.eligible).toBe(false);
+  expect(applyEdits(source, findings[0].alternatives[0].edits)).toBe(expected);
+  expect(only(expected, pronoun)).toEqual([]);
+});
+test.each([
+  "He cut the rope.",
+  "She put it away.",
+  "It hit the wall.",
+  "He come home.",
+  "Does he like it?",
+  "Why does she go there?",
+  "I suggest he go now.",
+  "Let it go.",
+  "We made it break.",
+  "If I were you.",
+  "I didn't know.",
+  "I had left.",
+  "World War I was long.",
+  "They has",
+  "He Go Fast is a film.",
+  "Sam and I are here.",
+  "😀 It feel odd.",
+])("pronoun agreement preserves %s", (text) => expect(only(text, pronoun)).toEqual([]));

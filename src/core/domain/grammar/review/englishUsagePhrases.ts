@@ -54,6 +54,18 @@ const templates: readonly PhraseTemplate[] = [
     replacement,
     messageKey: "review_msg_contextual_grammar" as const,
   })),
+  // A negated verb already carries the negation: "didn't have no idea" -> "any".
+  {
+    pattern: `(?:didn['’]t|did${SPACE}not|don['’]t|do${SPACE}not|doesn['’]t|does${SPACE}not|can['’]t|cannot|couldn['’]t|won['’]t|wouldn['’]t|never)${SPACE}(?:have|had|want|make|get|need|see|know|do|give|find|hear|feel|mean|show)${SPACE}(?<target>no)${SPACE}(?!(?:one|longer|matter|more|less|doubt|further|sooner|way|thanks)(?!${EDGE}))[a-z]+(?!${EDGE})`,
+    replacement: "any",
+    messageKey: "review_msg_double_negative",
+  },
+  // "few days ago" without "a" reads as "hardly any"; the time phrase means "a few".
+  {
+    pattern: `(?<!(?:a|very|quite|only|the|so|too|these|those|last|first|past|next|fewer|precious|relatively)${SPACE})(?<target>few)${SPACE}(?:seconds?|minutes?|hours?|days?|weeks?|weekends?|months?|years?|decades?|ms)${SPACE}ago(?!${EDGE})`,
+    replacement: "a few",
+    messageKey: "review_msg_a_few",
+  },
   {
     pattern: `for${SPACE}all${SPACE}(?<target>intensive)${SPACE}purposes,${SPACE}(?:the|this|that)${SPACE}(?:test|project|work|task|report|plan|design|review|process|document|proposal|update)${SPACE}(?:is|was)${SPACE}(?:complete|finished|ready|done|final|successful)${END}`,
     replacement: "intents and",

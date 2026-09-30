@@ -18,6 +18,7 @@ const ids = [
   "englishYourYouAre",
   "englishTheirThereTheyAre",
   "englishToToo",
+  "englishWereWhere",
 ] as const;
 function scan(
   text: string,
@@ -66,6 +67,15 @@ const positives: Record<(typeof ids)[number], [string, string][]> = {
       "The files are slightly larger than the documents.",
     ],
     ["The result is better then the answer.", "The result is better than the answer."],
+    ["This is faster then the old.", "This is faster than the old."],
+    ["One rope was stronger then the other.", "One rope was stronger than the other."],
+    ["I sleep less then you.", "I sleep less than you."],
+    ["More then ever, we need rest.", "More than ever, we need rest."],
+    ["She was more careful then him at chess.", "She was more careful than him at chess."],
+    ["Nobody other then us came.", "Nobody other than us came."],
+    ["It costs more then 5 dollars.", "It costs more than 5 dollars."],
+    ["Let us wait until than.", "Let us wait until then."],
+    ["It happens every now and than, sadly.", "It happens every now and then, sadly."],
     ["She is taller then me.", "She is taller than me."],
     ["We paid more then them.", "We paid more than them."],
     ["The station is busier then ever.", "The station is busier than ever."],
@@ -99,6 +109,25 @@ const positives: Record<(typeof ids)[number], [string, string][]> = {
     ["There going to want them.", "They're going to want them."],
     ["Their going to understand that.", "They're going to understand that."],
     ["There going to remember me.", "They're going to remember me."],
+    ["Their going to be late again.", "They're going to be late again."],
+    ["I think their already at the station.", "I think they're already at the station."],
+    ["Their not ready for the demo.", "They're not ready for the demo."],
+    ["Their probably fixing it now.", "They're probably fixing it now."],
+    ["Their in the garage, I think.", "They're in the garage, I think."],
+    ["Tell them their invited to lunch.", "Tell them they're invited to lunch."],
+    ["We know their the strongest pair.", "We know they're the strongest pair."],
+    ["Their could be a simpler fix.", "There could be a simpler fix."],
+    ["Their won't be another chance.", "There won't be another chance."],
+    ["Their hasn't been any news.", "There hasn't been any news."],
+    ["I'm sure their's a spare key.", "I'm sure there's a spare key."],
+    ["Leave the boxes their by the gate.", "Leave the boxes there by the gate."],
+    ["We waited their until noon.", "We waited there until noon."],
+    ["I've never lived their.", "I've never lived there."],
+    ["It all depends on they're budget.", "It all depends on their budget."],
+    ["They're tickets were never printed.", "Their tickets were never printed."],
+    ["Teams can pick there own tools.", "Teams can pick their own tools."],
+    ["They are building theyre own tools.", "They are building their own tools."],
+    ["There own staff disagreed 😀.", "Their own staff disagreed 😀."],
   ],
   englishToToo: [
     ["The box is to heavy to lift.", "The box is too heavy to lift."],
@@ -116,6 +145,23 @@ const positives: Record<(typeof ids)[number], [string, string][]> = {
     ["She was to tired to finish.", "She was too tired to finish."],
     ["The task is to hard to finish.", "The task is too hard to finish."],
     ["They were to tired to move.", "They were too tired to move."],
+    ["It is to heavy.", "It is too heavy."],
+    ["Life is to short for bad coffee.", "Life is too short for bad coffee."],
+    ["The fee felt way to much.", "The fee felt way too much."],
+    ["That trip took way to long.", "That trip took way too long."],
+    ["I think we went to far this time.", "I think we went too far this time."],
+    ["Maybe I spoke to soon.", "Maybe I spoke too soon."],
+    ["We need too leave now.", "We need to leave now."],
+    ["Send it too them tomorrow.", "Send it to them tomorrow."],
+    ["I walked too the station.", "I walked to the station."],
+  ],
+  englishWereWhere: [
+    ["They where late again.", "They were late again."],
+    ["We where almost finished.", "We were almost finished."],
+    ["You where right about it.", "You were right about it."],
+    ["Do you know were they parked?", "Do you know where they parked?"],
+    ["I forgot were I left it.", "I forgot where I left it."],
+    ["Check were the log is.", "Check where the log is."],
   ],
 };
 for (const rule of ids) {
@@ -153,11 +199,14 @@ const negatives: Record<(typeof ids)[number], string[]> = {
     "This is faster then the.",
     "This is faster then a.",
     "This is faster then unknownword.",
-    "This is faster then the old.",
     "This is faster then the old versionName.",
     "This is faster `then` the old version.",
     "This is faster then\nthe old version.",
     "This is faster then the old version.js",
+    "If it is better then we ship it.",
+    "It was faster then the old version failed.",
+    "We saw each other then left.",
+    "Wait a bit and then you can go.",
     // A sequence or a new clause after "then".
     "I met her earlier then him.",
     "I would rather then wait.",
@@ -186,7 +235,6 @@ const negatives: Record<(typeof ids)[number], string[]> = {
     "You're on your own.",
     "Your liking this surprises me.",
     "Your going to enjoy is incomplete.",
-    "Your going to play this.",
     'Do not write "Your going to like this.".',
     'The phrase "check you\'re own password" is wrong.',
     "Your `going` to like this.",
@@ -216,12 +264,29 @@ const negatives: Record<(typeof ids)[number], string[]> = {
     "Their going to like is incomplete.",
     "There going to work is unusual.",
     "They forgot there own.",
-    "They used they're own unknownword.",
+    "They're owners of the shop.",
     'Do not write "Their going to like it.".',
     'The example "They forgot there own password." is wrong.',
     "They forgot `there` own password.",
     "They forgot there\nown password.",
     "They forgot there own password.txt",
+    "People there own nice cars.",
+    "Farmers there own the land.",
+    "Their not wanting to go was odd.",
+    "Their going to school took an hour.",
+    "I like their coming over.",
+    "Make sure their names are right.",
+    "Their late father was a baker.",
+    "Their right to vote matters.",
+    "Their already strained budget broke.",
+    "Their in-laws arrived.",
+    "The choice is their.",
+    "They got their.",
+    "They're what was promised.",
+    "They're not what was promised.",
+    "We need their and our approval.",
+    "Their will is strong.",
+    "They're sure it was fine.",
   ],
   englishToToo: [
     "The box is too heavy to lift.",
@@ -238,16 +303,33 @@ const negatives: Record<(typeof ids)[number], string[]> = {
     "To lift it, bend your knees.",
     "Too much work is tiring.",
     "It is heavy to lift.",
-    "It is to heavy.",
     "It is to heavy to.",
     "It is to strange to frobnicate.",
-    "It is to heavy to lifted.",
     'The example "The box is to heavy to lift." is wrong.',
     'Do not write "is to hot to eat".',
     "The box is `to` heavy to lift.",
     "The box is to\nheavy to lift.",
     "The box is to heavy to lift.js",
     "The box is to heavy to lift_now.",
+    "They are to fast to prepare.",
+    "The plan is to short the stock.",
+    "We go to far away places.",
+    "She showed the way to much better results.",
+    "Me too.",
+    "I have too much work.",
+    "We were going too fast.",
+    "It was to be expected.",
+  ],
+  englishWereWhere: [
+    "I'll show you where the exit is.",
+    "Tell them where we are.",
+    "Where were you?",
+    "Where you going?",
+    "The people I know were happy.",
+    "The ones I found were the best.",
+    "They were late.",
+    "We know where it is.",
+    'The phrase "they where late" is common.',
   ],
 };
 for (const rule of ids)
@@ -335,3 +417,37 @@ test("chunk ownership follows the corrected word even when its evidence starts e
   expect(owned).toHaveLength(1);
   expect(owned[0].range.start).toBe(cut);
 });
+
+test.each([
+  ["I hope your safe there.", "I hope you're safe there."],
+  ["Your very patient.", "You're very patient."],
+  ["Ping me when your out of the meeting.", "Ping me when you're out of the meeting."],
+  ["Your going to play this.", "You're going to play this."],
+])("you're frames repair %s", (source, expected) => {
+  const findings = only(source, "englishYourYouAre");
+  expect(findings).toHaveLength(1);
+  expect(applyEdits(source, findings[0].alternatives[0].edits)).toBe(expected);
+  expect(only(expected, "englishYourYouAre")).toEqual([]);
+});
+test.each([
+  ["Did you every fix that?", "Did you ever fix that?"],
+  ["Why would I every do that?", "Why would I ever do that?"],
+  ["Have they every met?", "Have they ever met?"],
+])("ever after an auxiliary + subject: %s", (source, expected) => {
+  const findings = only(source, "englishToToo");
+  expect(findings).toHaveLength(1);
+  expect(applyEdits(source, findings[0].alternatives[0].edits)).toBe(expected);
+});
+test.each([
+  "Is it your very own?",
+  "I hope your team wins.",
+  "As your manager, I agree.",
+  "Your late father was kind.",
+  "Did you every day go there?",
+  "Do they every time fail?",
+  "I check every file.",
+])("you're/ever frames preserve %s", (text) =>
+  expect(
+    scan(text).filter((d) => d.ruleId === "englishYourYouAre" || d.ruleId === "englishToToo"),
+  ).toEqual([]),
+);

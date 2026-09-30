@@ -236,3 +236,43 @@ test("usage phrase offsets belong to one chunk in ordinary quoted Unicode prose"
     );
   }
 });
+
+test.each([
+  ["I updated it few hours ago.", "I updated it a few hours ago."],
+  ["Few weeks ago, it broke.", "A few weeks ago, it broke."],
+  ["It worked just few days ago.", "It worked just a few days ago."],
+])("few + time + ago gains its article: %s", (source, expected) => {
+  const [d] = scan(source);
+  expect(scan(source)).toHaveLength(1);
+  expect(d.bulk.eligible).toBe(false);
+  expect(applyEdits(source, d.alternatives[0].edits)).toBe(expected);
+  expect(scan(expected)).toEqual([]);
+});
+test.each([
+  "It happened a few days ago.",
+  "Only few days ago did it work.",
+  "Very few years ago was it common.",
+  "The last few weeks ago were busy.",
+  "Few people came.",
+])("few + time preserves %s", (text) => expect(scan(text)).toEqual([]));
+
+test.each([
+  ["I didn't have no idea.", "I didn't have any idea."],
+  ["She doesn't need no help from us.", "She doesn't need any help from us."],
+  ["We did not see no signs of it.", "We did not see any signs of it."],
+])("a negated verb takes any, not no: %s", (source, expected) => {
+  const [d] = scan(source);
+  expect(scan(source)).toHaveLength(1);
+  expect(d.bulk.eligible).toBe(false);
+  expect(applyEdits(source, d.alternatives[0].edits)).toBe(expected);
+  expect(scan(expected)).toEqual([]);
+});
+test.each([
+  "We didn't take no for an answer.",
+  "I can't say no to her.",
+  "It doesn't make no sense-less claims.",
+  "I don't have no-code tools.",
+  "They don't have no one to ask.",
+  "It doesn't matter.",
+  "I have no idea.",
+])("double negatives preserve %s", (text) => expect(scan(text)).toEqual([]));

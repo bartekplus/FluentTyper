@@ -17,6 +17,8 @@ export function contextualPossessives(ctx: DetectContext): RawFinding[] {
     pattern: string;
     replacement: string;
     clause?: boolean;
+    cue?: boolean;
+    name?: boolean;
   }> = [
     {
       ruleId: "englishItsContext",
@@ -38,13 +40,52 @@ export function contextualPossessives(ctx: DetectContext): RawFinding[] {
       replacement: "it's",
       clause: true,
     },
-    // Possessive "its" is followed by its noun phrase, never an article, "been",
-    // "not" or a clause: "its a", "its been", "its because" are "it's".
+    // "its" never precedes a verb, an article or a function word.
     {
       ruleId: "englishItsContext",
       messageKey: "review_msg_its_contraction",
-      pattern: `(?<target>its)${SPACE}(?:a|an|been|because|not|never|always|too|called|named|got)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])`,
+      pattern: `(?<target>its)${SPACE}(?:been|got|had|gotten|a|an|the|my|your|our|his|her|their|not|never|always|so|too|because|like|about|called|named|raining|snowing|someone|something|anyone|anything|everyone|everything|nobody|nothing|somebody|anybody|everybody|somewhere|anywhere|everywhere|going${SPACE}to|getting${SPACE}(?:late|dark|better|worse|harder|easier|cold|warm|old)|time${SPACE}to)`,
       replacement: "it's",
+    },
+    {
+      ruleId: "englishItsContext",
+      messageKey: "review_msg_its_contraction",
+      pattern: `(?<target>its)${SPACE}(?:(?:also|just|still|really|very|pretty|quite|always|never)${SPACE})?(?:hard|easy|common|important|critical|crucial|essential|vital|necessary|possible|impossible|likely|unlikely|clear|obvious|true|amazing|nice|great|good|bad|fine|okay|ok|worth|better|best|worse|safe|fun|strange|weird|odd|interesting|useful|helpful|difficult|annoying|frustrating|sad|funny|normal|okay|free|done|over|here|there|now)(?=${SPACE}(?:to|for|that|if|when|because|how|what|why)(?!${EDGE})|${END})`,
+      replacement: "it's",
+      cue: true,
+    },
+    {
+      ruleId: "englishItsContext",
+      messageKey: "review_msg_its_contraction",
+      pattern: `(?<=(?:think|thinks|hope|hopes|guess|assume|doubt|suppose|believe|bet)${SPACE})(?<target>its)${SPACE}[a-z]+(?:${SPACE}[a-z]+)?${END}`,
+      replacement: "it's",
+      name: true,
+    },
+    // "it's" never follows a preposition or precedes "own".
+    {
+      ruleId: "englishItsContext",
+      messageKey: "review_msg_its_possessive",
+      pattern: `(?<!(?:how|what)${SPACE}about${SPACE})(?<=(?:of|for|with|from|into|onto|about|by|on|in|at|to|under|over|through|during|without|within|despite|toward|towards|against|among)${SPACE})(?<target>it['’]s)${SPACE}(?!(?:not|also|still|just|really|never|always|so|too|very|already|probably|a|an|the|all|been|going|getting|time|what|how|why|where|when|who|this|that|here|there|now|over|done|ok|okay|fine|true|possible|important|like)(?!${EDGE}))[a-z]+`,
+      replacement: "its",
+    },
+    {
+      ruleId: "englishItsContext",
+      messageKey: "review_msg_its_possessive",
+      pattern: `(?<target>it['’]s)${SPACE}own${SPACE}[a-z]+`,
+      replacement: "its",
+    },
+    {
+      ruleId: "englishItsContext",
+      messageKey: "review_msg_its_possessive",
+      pattern: `(?<=[a-z]{3,}ed${SPACE})(?<target>it['’]s)${SPACE}[0-9]{1,4}(?:st|nd|rd|th)`,
+      replacement: "its",
+    },
+    {
+      ruleId: "englishItsContext",
+      messageKey: "review_msg_its_possessive",
+      pattern: `(?<target>it['’]s)${SPACE}(?!(?:not|all|both|each|also|still|just|really|never|always|so|too|very|already|probably|certainly|here|there|now|then|what|who|which|whoever|whatever|where|how|why|when|that|this|it|one|someone|something|everything|everyone|anything|nothing|time|because|like|as|kind|sort|type|going|getting)(?!${EDGE}))[a-z]+${SPACE}(?:are|were|have)(?!${EDGE})`,
+      replacement: "its",
+      clause: true,
     },
     {
       ruleId: "englishLetsContext",
@@ -60,13 +101,24 @@ export function contextualPossessives(ctx: DetectContext): RawFinding[] {
       replacement: "else's",
     },
   ];
-  for (const { ruleId, messageKey, pattern, replacement, clause } of constructions) {
+  for (const { ruleId, messageKey, pattern, replacement, clause, cue, name } of constructions) {
     const regex = new RegExp(`(?<!${EDGE})${pattern}(?!${EDGE})`, "gidu");
     regex.lastIndex = Math.max(0, ctx.from - 256);
     for (let m = regex.exec(ctx.scanText); m && m.index < ctx.to; m = regex.exec(ctx.scanText)) {
       const [start, end] = m.indices!.groups!.target;
       if (start < ctx.from || start >= ctx.to) continue;
+      // A name after an opinion verb: "I hope its Katie." ("its accuracy" is possessive.)
+      if (name && !/^[ \t\u00a0]+\p{Lu}\p{Ll}/u.test(ctx.text.slice(end, end + 10))) continue;
       const before = ctx.scanText.slice(Math.max(0, m.index - 96), m.index);
+      if (
+        cue &&
+        !/\b(?:think|thinks|thought|hope|guess|know|sure|since|because|if|when|but|so|that|and)[ \t\u00a0]+$/i.test(
+          before,
+        ) &&
+        !(m.index <= 96 && /^[ \t\u00a0]*$/.test(before)) &&
+        !/[.!?;:\n"“(][ \t\u00a0]*$/.test(before)
+      )
+        continue;
       if (
         clause &&
         !(m.index <= 96 && /^[ \t\u00a0]*$/.test(before)) &&

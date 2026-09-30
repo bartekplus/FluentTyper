@@ -73,5 +73,68 @@ export function perfectParticiples(ctx: DetectContext): RawFinding[] {
       context: { start: Math.max(0, m.index - 96), end: Math.min(ctx.text.length, phraseEnd + 9) },
     });
   }
+  return [...findings, ...progressiveAfterHave(ctx)];
+}
+
+// -ing forms that are also everyday nouns ("We have training on Monday") need an object pronoun.
+const NOUN_LIKE_ING =
+  /^(?:reading|writing|testing|planning|building|training|meeting|painting|drawing|shopping|setting|spending|recording|funding|parking|housing|clothing|seating|heating|lighting|cooking|swimming|dancing|marketing|pricing|timing|booking|warning|opening|ending|beginning|feeling|morning|evening|ceiling|nothing|something|anything|everything|thing|king|ring|spring|string|wedding|pudding|sibling|during)$/;
+const OBJECT = "(?:it|them|him|her|us|me|this|that)";
+const PROGRESSIVE = `(?<![.])(?<!${EDGE})(?<subject>I|you|we|they|he|she|it)(?:${SPACE}(?<aux>have|has)|(?<contract>['’]ve))${SPACE}(?<verb>[A-Za-z]{2,}ing)${SPACE}(?<follow>${OBJECT}|(?:(?:on|into|about|at|for|with|to)${SPACE})?(?:${OBJECT}|the|a|an|my|your|our|his|her|their))(?!${EDGE})`;
+
+/** "I've looking into it": have in place of be before a progressive; both repairs are offered. */
+function progressiveAfterHave(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  const regex = new RegExp(PROGRESSIVE, "gidu");
+  regex.lastIndex = Math.max(0, ctx.from - 256);
+  for (let m = regex.exec(ctx.scanText); m && m.index < ctx.to; m = regex.exec(ctx.scanText)) {
+    const { subject, aux, contract, verb, follow } = m.groups!;
+    const [start, end] = m.indices!.groups![contract ? "contract" : "aux"];
+    if (start < ctx.from || start >= ctx.to) continue;
+    const singular = /^(?:he|she|it)$/i.test(subject);
+    if (contract ? singular : (aux.toLowerCase() === "has") !== singular) continue;
+    const ing = verb.toLowerCase();
+    if (NOUN_LIKE_ING.test(ing) && !new RegExp(`^${OBJECT}$`, "i").test(follow)) continue;
+    const before = ctx.scanText.slice(Math.max(0, m.index - 96), m.index);
+    // A modal or question word owns have ("Why have you…", "could have…").
+    if (
+      /\b(?:could|would|should|might|must|may|will|to|what|why|how|where|when|which)[ \t ]+$/i.test(
+        before,
+      ) ||
+      /\b(?:write|type|spell|phrase|words?|example|literal|text|says?|reads?)[ :\t]*["“'‘][^\r\n￼]{0,80}$/i.test(
+        before,
+      )
+    )
+      continue;
+    const phraseEnd = m.index + m[0].length;
+    if (/^￼|^\.[\p{L}\p{N}_]/u.test(ctx.text.slice(phraseEnd, phraseEnd + 2))) continue;
+    if (
+      (m[0].match(/[A-Za-z]+/g) ?? []).some(
+        (word) =>
+          ctx.dictionary.has(word.toLowerCase()) ||
+          applyWordCase(word, detectWordCase(word)) !== word,
+      )
+    )
+      continue;
+    const typed = contract ?? aux;
+    const first = /^i$/i.test(subject);
+    const be = contract
+      ? `${contract[0]}${first ? "m" : "re"}`
+      : first
+        ? "am"
+        : singular
+          ? "is"
+          : "are";
+    const been = `${contract ? `${contract[0]}ve` : aux.toLowerCase()} been`;
+    const kase = detectWordCase(typed);
+    findings.push({
+      ruleId: "englishPerfectParticiples",
+      messageKey: "review_msg_progressive_be",
+      range: { start, end },
+      alternatives: [applyWordCase(be, kase), applyWordCase(been, kase)],
+      requiresChoice: true,
+      context: { start: Math.max(0, m.index - 96), end: Math.min(ctx.text.length, phraseEnd + 9) },
+    });
+  }
   return findings;
 }
