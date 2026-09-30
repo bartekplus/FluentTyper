@@ -55,6 +55,8 @@ const INSIDE_NAMED_EXAMPLE = new RegExp(
   `${cue(`${CUE_WORDS}|${SPEECH_WORDS}|replace`)}[${OPENING_QUOTES}][^\\r\\n\\uFFFC]{0,80}$`,
   "iu",
 );
+const QUOTE_OPEN = new RegExp(`[${OPENING_QUOTES}][^\\r\\n\\uFFFC]{0,80}$`, "u");
+
 /**
  * The one quoted-example guard for Review frames: `index` sits inside a named
  * example (`write "he go"`, `the word is “teh”`) opened in the 128 characters
@@ -62,8 +64,11 @@ const INSIDE_NAMED_EXAMPLE = new RegExp(
  * word, speech verb and quote style, is/was links, closed quotes included), so
  * it only ever suppresses more than any one of them did.
  */
-export const namedExampleBefore = (text: string, index: number) =>
-  INSIDE_NAMED_EXAMPLE.test(text.slice(Math.max(0, index - 128), index));
+export function namedExampleBefore(text: string, index: number): boolean {
+  const before = text.slice(Math.max(0, index - 128), index);
+  // Most prose has no quotation open nearby: skip the long cue alternation.
+  return QUOTE_OPEN.test(before) && INSIDE_NAMED_EXAMPLE.test(before);
+}
 
 /** Words naming a quotation mark itself: `the character "`, `das Zeichen „`. */
 export const MARK_CUE = new RegExp(
