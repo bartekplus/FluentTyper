@@ -58,8 +58,11 @@ import { ALOT_REGEX, correctAlot } from "../implementations/EnglishAlotCorrectio
 import {
   AGREEMENT_CORRECTIONS,
   AGREEMENT_REGEX,
+  PREVIOUS_WORD,
   correctPronounVerb,
+  isObjectYou,
 } from "../implementations/EnglishPronounVerbWhitelistAgreementRule";
+import { lastNonBlankBefore, opensClause } from "../implementations/helpers/EnglishRuleShared";
 import {
   ARTICLE_REGEX,
   SENTENCE_START_REGEX,
@@ -239,22 +242,9 @@ function previousTokensStart(text: string, index: number, count: number): number
   return position;
 }
 
-/** True when `index` opens a clause: text start, a line start, or after . ! ? , ; : or an opening mark. */
-function opensClause(text: string, index: number): boolean {
-  const i = lastNonBlankBefore(text, index);
-  return i < 0 || /[\n.!?,;:([{"“‘«—–-]/.test(text[i]);
-}
-
 /** Where the clause-opening evidence for a phrase at `index` starts. */
 function clauseEvidenceStart(text: string, index: number): number {
   return Math.max(0, lastNonBlankBefore(text, index));
-}
-
-/** Index of the last character before `index` that is not a space, tab or no-break space (-1: none). */
-function lastNonBlankBefore(text: string, index: number): number {
-  let i = index - 1;
-  while (i >= 0 && (text[i] === " " || text[i] === "\t" || text[i] === "\u00A0")) i -= 1;
-  return i;
 }
 
 // ---------------------------------------------------------------- capitalization
@@ -642,52 +632,6 @@ const theirThere: Detector = (ctx) => {
   return findings;
 };
 
-// The word right before a phrase, on the same line.
-const PREVIOUS_WORD = /([A-Za-z]+)[ \t\u00A0]+$/;
-// Verbs and prepositions after which "you" can only be their object: "I told
-// you was" reads "(what) I told you was". Verbs that can introduce a clause
-// ("I heard you was sick", "I knew you was lying") are left out: after them
-// "you" is usually the subject of the new clause.
-const OBJECT_YOU_BEFORE = new Set([
-  ...["tell", "tells", "told", "give", "gives", "gave", "given", "show", "shows", "showed"],
-  ...["shown", "send", "sends", "sent", "ask", "asks", "asked", "thank", "thanks", "thanked"],
-  ...["teach", "teaches", "taught", "pay", "pays", "paid", "bring", "brings", "brought"],
-  ...["buy", "buys", "bought", "owe", "owes", "owed", "lend", "lends", "lent", "sell"],
-  ...["sells", "sold", "write", "writes", "wrote", "written", "remind", "reminds"],
-  ...["reminded", "warn", "warns", "warned", "offer", "offers", "offered", "promise"],
-  ...["promises", "promised", "meet", "met", "love", "hate", "help", "call", "leave", "left"],
-  ...["hit", "hurt", "keep", "kept", "miss", "choose", "chose", "chosen", "lose", "lost"],
-  ...["beat", "catch", "caught", "bless", "blessed", "make", "made", "let", "want", "wanted"],
-  ...["need", "needed"],
-  ...["to", "for", "with", "of", "about", "from", "at", "by", "on", "upon", "onto", "into"],
-  ...["toward", "towards", "against", "without", "behind", "beside", "besides", "around"],
-  ...["near", "among", "between", "beyond", "under", "over", "through", "unto", "within"],
-]);
-// Words ending in "ing" that are not gerunds taking an object.
-const NOT_GERUNDS = /^(?:\p{L}*thing|during|morning|evening|ceiling|king|spring|string)$/u;
-// Gerunds that can introduce a clause: "Knowing you was lying, I left".
-const CLAUSE_GERUNDS = new Set([
-  ...["knowing", "hearing", "seeing", "finding", "thinking", "believing", "feeling"],
-  ...["noticing", "realizing", "realising", "hoping", "wishing", "saying", "guessing"],
-  ...["supposing", "assuming", "figuring", "imagining", "remembering", "forgetting"],
-  ...["understanding", "learning", "reading", "deciding", "suspecting", "fearing"],
-  ...["expecting", "pretending", "claiming", "admitting", "doubting", "trusting"],
-]);
-
-/**
- * True when "you" after `word` can only be its object. A past tense or a
- * gerund elsewhere may take "you" as its object ("the man calling you") or
- * introduce a clause ("I assumed you was busy", "I was hoping you was"), so
- * its ending alone never decides it: such a finding stays, one at a time.
- */
-function takesObjectYou(word: string, opensItsClause: boolean): boolean {
-  if (OBJECT_YOU_BEFORE.has(word)) return true;
-  // A gerund opening its clause is the subject, and "you" its object:
-  // "Meeting you was great".
-  const gerund = word.length > 4 && word.endsWith("ing") && !NOT_GERUNDS.test(word);
-  return gerund && opensItsClause && !CLAUSE_GERUNDS.has(word);
-}
-
 // Subordinators after which "you" opens a clause as its subject: "if you was".
 const YOU_SUBJECT_BEFORE = new Set([
   ...["if", "when", "whenever", "because", "while", "although", "though", "unless"],
@@ -720,15 +664,10 @@ const pronounVerb: Detector = (ctx) => {
     if (inputPronoun.toLowerCase() === "you") {
       // "Everything I told you was", "Seeing you was", "the gift for you was":
       // "you" is the object of the word before it, and "was" is right.
-      const lookback = Math.max(0, phraseRange.start - 32);
-      const previousMatch = PREVIOUS_WORD.exec(ctx.text.slice(lookback, phraseRange.start));
-      const previous = previousMatch?.[1].toLowerCase();
-      if (
-        previous &&
-        takesObjectYou(previous, opensClause(ctx.text, lookback + previousMatch!.index))
-      ) {
-        continue;
-      }
+      if (isObjectYou(ctx.text, phraseRange.start)) continue;
+      const previous = PREVIOUS_WORD.exec(
+        ctx.text.slice(Math.max(0, phraseRange.start - 32), phraseRange.start),
+      )?.[1].toLowerCase();
       // Only a clause start says subject for sure ("You was late.", "if you
       // was there"); anywhere else ("I heard you was sick") the word before
       // may still take "you" as its object: one at a time.

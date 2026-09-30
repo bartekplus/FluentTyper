@@ -125,3 +125,16 @@ export function resolveUserDictionarySet(
   }
   return normalizeWordSet(dictionary);
 }
+
+/** True when `index` opens a clause: text start, a line start, or after . ! ? , ; : or an opening mark. */
+export function opensClause(text: string, index: number): boolean {
+  const i = lastNonBlankBefore(text, index);
+  return i < 0 || /[\n.!?,;:([{"“‘«—–-]/.test(text[i]);
+}
+
+/** Index of the last character before `index` that is not a space, tab or no-break space (-1: none). */
+export function lastNonBlankBefore(text: string, index: number): number {
+  let i = index - 1;
+  while (i >= 0 && (text[i] === " " || text[i] === "\t" || text[i] === "\u00A0")) i -= 1;
+  return i;
+}
