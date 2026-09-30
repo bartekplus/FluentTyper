@@ -210,3 +210,34 @@ test("perfect participles own one chunk and retain UTF-16 offsets through quoted
     );
   }
 });
+
+const progressive: [string, string, string][] = [
+  ["I've looking at the logs.", "I'm looking at the logs.", "I've been looking at the logs."],
+  ["We have fixing it now.", "We are fixing it now.", "We have been fixing it now."],
+  ["She has cleaning the kitchen.", "She is cleaning the kitchen.", "She has been cleaning the kitchen."],
+  ["They’ve waiting for us.", "They’re waiting for us.", "They’ve been waiting for us."],
+  ["😀 You've reading it again.", "😀 You're reading it again.", "😀 You've been reading it again."],
+  ["WE HAVE SENDING THEM.", "WE ARE SENDING THEM.", "WE HAVE BEEN SENDING THEM."],
+];
+test.each(progressive)("progressive after have offers be or have been: %s", (source, be, been) => {
+  const [d] = scan(source);
+  expect(scan(source)).toHaveLength(1);
+  expect(d.requiresChoice).toBe(true);
+  expect(d.bulk.eligible).toBe(false);
+  expect(d.alternatives.map((a) => applyEdits(source, a.edits))).toEqual([be, been]);
+  expect(scan(be)).toEqual([]);
+  expect(scan(been)).toEqual([]);
+});
+test.each([
+  "We have training on the new tools.",
+  "We have running water in the cabin.",
+  "I have reading to do tonight.",
+  "They have meeting notes for us.",
+  "I have nothing for you.",
+  "Why have you looking at it?",
+  "He have waiting for us.",
+  "I've been looking at the logs.",
+  "I have looked at the logs.",
+  "I have Looking Glass on my shelf.",
+  'Type "I have looking at it" to see.',
+])("progressive after have preserves %s", (text) => expect(scan(text)).toEqual([]));

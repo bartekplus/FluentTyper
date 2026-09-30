@@ -104,6 +104,7 @@ export type ReviewMessageKey =
   | "review_msg_demonstrative_number"
   | "review_msg_one_of"
   | "review_msg_perfect_participle"
+  | "review_msg_progressive_be"
   | "review_msg_verb_complements"
   | "review_msg_missing_to"
   | "review_msg_forward_gerund"

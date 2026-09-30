@@ -324,6 +324,17 @@ const EXPLANATIONS: Record<ReviewMessageKey, Translations> = {
     "Ta konstrukcja czasu perfect wymaga imiesłowu przeszłego; zachowaj czasownik pomocniczy i czas.",
     "Esta construção de tempo perfeito pede o particípio passado; mantenha o auxiliar e o tempo.",
   ],
+  review_msg_progressive_be: [
+    "An -ing verb after a subject needs “be” (“I'm looking”), or “have been” for an ongoing action.",
+    "Un verbe en -ing après le sujet demande « be » (« I'm looking ») ou « have been » pour une action en cours.",
+    "Glagol na -ing nakon subjekta traži „be” („I'm looking”) ili „have been” za radnju koja traje.",
+    "Un verbo en -ing tras el sujeto requiere «be» («I'm looking») o «have been» para una acción en curso.",
+    "Ένα ρήμα σε -ing μετά το υποκείμενο θέλει «be» («I'm looking») ή «have been» για συνεχιζόμενη πράξη.",
+    "Ett -ing-verb efter subjektet kräver ”be” (”I'm looking”) eller ”have been” för en pågående handling.",
+    "Ein Verb auf -ing nach dem Subjekt braucht „be“ („I'm looking“) oder „have been“ für eine andauernde Handlung.",
+    "Czasownik z -ing po podmiocie wymaga „be” („I'm looking”) lub „have been” dla trwającej czynności.",
+    "Um verbo em -ing após o sujeito pede “be” (“I'm looking”) ou “have been” para uma ação em curso.",
+  ],
   review_msg_verb_complements: [
     "Check infinitive and gerund complements.",
     "Vérifiez les compléments infinitifs et en -ing.",
