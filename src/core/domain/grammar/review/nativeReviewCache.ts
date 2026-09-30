@@ -2,7 +2,7 @@ import type { PreparedReview } from "./reviewDiagnostics";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 import type { CatalogRuleId } from "../ruleCatalog";
 
-// Only these two detectors use the audited phraseTemplates read contract.
+// Only these two detectors use the audited phraseTemplates/frameMatches read contract.
 const ELIGIBLE = new Set<CatalogRuleId>(["englishFixedPrepositions", "englishUsagePhrases"]);
 const MAX_ENTRIES = 64;
 const MAX_UNITS = 500_000;
@@ -34,15 +34,15 @@ export class NativeReviewCache {
     )
       return detector.detect(ctx);
 
-    // Phrase matching starts at from-256, reads another 96 behind a match,
-    // and sees the scan's 1024 lookahead. Include 10 more for end evidence.
-    const left = Math.max(0, ctx.from - 352);
+    // frameMatches starts at from-256, reads another 128 behind a match (the
+    // named-example guard), and sees the scan's 1024 lookahead. Include 10 more for end evidence.
+    const left = Math.max(0, ctx.from - 384);
     const right = Math.min(ctx.text.length, ctx.to + 1034);
     const source = ctx.source.slice(left, right);
     const text = ctx.text.slice(left, right);
     const scanText = ctx.scanText.slice(left, right);
     const key = JSON.stringify([
-      2, // Audited detector/read-contract version; bump when either changes.
+      3, // Audited detector/read-contract version; bump when either changes.
       detector.rules[0],
       prepared.options,
       [...prepared.rules],

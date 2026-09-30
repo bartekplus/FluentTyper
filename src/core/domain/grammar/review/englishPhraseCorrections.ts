@@ -1,5 +1,5 @@
 import { applyWordCase, detectWordCase } from "../implementations/helpers/GenericRuleShared";
-import { INSIDE_NAMED_EXAMPLE, OPENING_QUOTES } from "./exampleCues";
+import { namedExampleBefore, OPENING_QUOTES } from "./exampleCues";
 import {
   CLOSED_COMPOUNDS,
   NAME_CASING,
@@ -152,7 +152,7 @@ function toFinding(
     /["”'’“‘»«›‹]/.test(ctx.text[end] ?? "")
   )
     return null;
-  if (INSIDE_NAMED_EXAMPLE.test(ctx.text.slice(Math.max(0, start - 128), start))) return null;
+  if (namedExampleBefore(ctx.text, start)) return null;
   const casing = phrase.ruleId === "englishCanonicalCasing";
   // Capitals kept for emphasis are the writer's choice.
   if (casing && typed === typed.toUpperCase()) return null;

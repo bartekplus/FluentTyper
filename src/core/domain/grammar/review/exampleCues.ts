@@ -49,11 +49,21 @@ export const CUE_AND_QUOTE = new RegExp(
   `${CITING_CUE}[${OPENING_QUOTES}][ \\u00a0\\u202f]?$`,
   "iu",
 );
-/** Ends inside a named example, up to 80 characters past its opening quote. */
-export const INSIDE_NAMED_EXAMPLE = new RegExp(
-  `${CITING_CUE}[${OPENING_QUOTES}][^\\r\\n\\uFFFC]{0,80}$`,
+// Ends inside a named example, up to 80 characters past its opening quote. "replace" only
+// cites here: `replace "their going"` names the text to change.
+const INSIDE_NAMED_EXAMPLE = new RegExp(
+  `${cue(`${CUE_WORDS}|${SPEECH_WORDS}|replace`)}[${OPENING_QUOTES}][^\\r\\n\\uFFFC]{0,80}$`,
   "iu",
 );
+/**
+ * The one quoted-example guard for Review frames: `index` sits inside a named
+ * example (`write "he go"`, `the word is “teh”`) opened in the 128 characters
+ * before it. It is the union of the detectors' former variants (every cue
+ * word, speech verb and quote style, is/was links, closed quotes included), so
+ * it only ever suppresses more than any one of them did.
+ */
+export const namedExampleBefore = (text: string, index: number) =>
+  INSIDE_NAMED_EXAMPLE.test(text.slice(Math.max(0, index - 128), index));
 
 /** Words naming a quotation mark itself: `the character "`, `das Zeichen „`. */
 export const MARK_CUE = new RegExp(

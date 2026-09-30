@@ -1,4 +1,4 @@
-import { INSIDE_NAMED_EXAMPLE } from "./exampleCues";
+import { namedExampleBefore } from "./exampleCues";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 
 /**
@@ -30,10 +30,6 @@ function* ownedWords(ctx: DetectContext, regex: RegExp): Generator<RegExpExecArr
   for (let m = regex.exec(ctx.scanText); m && m.index < ctx.to; m = regex.exec(ctx.scanText)) {
     yield m;
   }
-}
-
-function citedAt(ctx: DetectContext, start: number): boolean {
-  return INSIDE_NAMED_EXAMPLE.test(ctx.text.slice(Math.max(0, start - 128), start));
 }
 
 // ------------------------------------------------------------ doubled degree
@@ -103,7 +99,7 @@ export function doubledDegreeByLanguage(ctx: DetectContext): RawFinding[] {
     const { marker, word } = m.groups!;
     const before = ctx.text.slice(Math.max(0, start - 64), start);
     if (table.negation?.test(before) || table.blockedBefore?.test(before)) continue;
-    if (citedAt(ctx, start)) continue;
+    if (namedExampleBefore(ctx.text, start)) continue;
     if (ctx.dictionary.has(marker.toLowerCase()) || ctx.dictionary.has(word.toLowerCase()))
       continue;
     findings.push({
@@ -217,7 +213,7 @@ export function splitWords(ctx: DetectContext): RawFinding[] {
   for (const m of ownedWords(ctx, table.regex)) {
     const typed = m[0];
     const lower = typed.toLowerCase();
-    if (ctx.dictionary.has(lower) || citedAt(ctx, m.index)) continue;
+    if (ctx.dictionary.has(lower) || namedExampleBefore(ctx.text, m.index)) continue;
     const replacement = table.map.get(lower)!;
     findings.push({
       ruleId: "englishAlotCorrection",
@@ -265,7 +261,7 @@ export function frenchElisions(ctx: DetectContext): RawFinding[] {
   for (const m of ownedWords(ctx, FRENCH_ELISIONS.regex)) {
     const typed = m[0];
     const lower = typed.toLowerCase();
-    if (ctx.dictionary.has(lower) || citedAt(ctx, m.index)) continue;
+    if (ctx.dictionary.has(lower) || namedExampleBefore(ctx.text, m.index)) continue;
     const replacement = FRENCH_ELISIONS.map.get(lower)!.replaceAll("'", apostropheAt(ctx, m.index));
     findings.push({
       ruleId: "englishContractionNormalization",
@@ -309,7 +305,7 @@ export function markedApostrophes(ctx: DetectContext): RawFinding[] {
   for (const m of ownedWords(ctx, regex)) {
     const mark = m[lang === "en" ? 2 : 1];
     const start = m.index + m[0].indexOf(mark, m.groups?.base.length ?? 0);
-    if (citedAt(ctx, start)) continue;
+    if (namedExampleBefore(ctx.text, start)) continue;
     if (mark === ";" && !SEMICOLON_BASES[m.groups!.end.toLowerCase()].test(m.groups!.base)) {
       continue;
     }
@@ -352,7 +348,7 @@ export function germanNounCapitals(ctx: DetectContext): RawFinding[] {
     const typed = m[0];
     const before = ctx.text.slice(Math.max(0, m.index - 24), m.index);
     if (typed === "august" && !AUGUST_CONTEXT.test(before)) continue;
-    if (ctx.dictionary.has(typed) || citedAt(ctx, m.index)) continue;
+    if (ctx.dictionary.has(typed) || namedExampleBefore(ctx.text, m.index)) continue;
     findings.push({
       ruleId: "englishProperNounCapitalization",
       messageKey: "review_msg_german_noun_capital",

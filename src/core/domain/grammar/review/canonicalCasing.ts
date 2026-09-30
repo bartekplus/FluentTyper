@@ -1,4 +1,4 @@
-import { INSIDE_NAMED_EXAMPLE, OPENING_QUOTES } from "./exampleCues";
+import { namedExampleBefore, OPENING_QUOTES } from "./exampleCues";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 
 const CANONICAL = new Map(
@@ -29,8 +29,7 @@ export function canonicalCasing(ctx: DetectContext): RawFinding[] {
       /["”'’“‘»«›‹]/.test(ctx.text[end] ?? "")
     )
       continue;
-    const before = ctx.text.slice(Math.max(0, start - 128), start);
-    if (INSIDE_NAMED_EXAMPLE.test(before)) continue;
+    if (namedExampleBefore(ctx.text, start)) continue;
     findings.push({
       ruleId: "englishCanonicalCasing",
       messageKey: "review_msg_canonical_casing",
