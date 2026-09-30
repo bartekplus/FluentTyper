@@ -19,6 +19,27 @@ export const REVIEW_CATEGORIES: readonly ReviewCategory[] = [
 ];
 
 /**
+ * What kind of problem a native rule finds, within its category. Shown next
+ * to the category and on settings cards; never used for filtering, colors or
+ * Fix all.
+ */
+export type ReviewKind =
+  | "typo"
+  | "boundary"
+  | "agreement"
+  | "wordForm"
+  | "confusedWords"
+  | "usage"
+  | "capitalization"
+  | "repetition"
+  | "spacing"
+  | "numbers"
+  | "marks"
+  | "redundancy"
+  | "readability"
+  | "terminology";
+
+/**
  * Review's own dictionary check: not a typing rule (typing offers spelling
  * corrections as suggestions), so it has an id outside the rule catalog.
  */

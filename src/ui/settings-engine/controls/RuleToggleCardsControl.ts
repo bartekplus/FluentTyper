@@ -17,14 +17,12 @@ interface FilterButton {
 interface SectionBundle {
   section: HTMLElement;
   list: HTMLElement;
-  details?: HTMLDetailsElement;
 }
 
 export class RuleToggleCardsControl extends BaseControl<string[]> {
   private readonly ruleControls: RuleControl[] = [];
   private readonly filterButtons: FilterButton[] = [];
-  private readonly safeSection: SectionBundle;
-  private readonly advancedSection: SectionBundle;
+  private readonly sections = new Map<string, SectionBundle>();
   private readonly summary: HTMLElement;
   private readonly noResults: HTMLElement;
   private activeFilter = "all";
@@ -164,16 +162,18 @@ export class RuleToggleCardsControl extends BaseControl<string[]> {
     const ruleList = document.createElement("div");
     ruleList.className = "grammar-rule-sections";
 
-    this.safeSection = this.createSection(params.sectionSafeLabel, "safe");
-    this.advancedSection = this.createSection(params.sectionAdvancedLabel, "advanced");
-    ruleList.appendChild(this.safeSection.section);
-    ruleList.appendChild(this.advancedSection.section);
+    for (const { key, label } of params.sections) {
+      const bundle = this.createSection(label, key);
+      this.sections.set(key, bundle);
+      ruleList.appendChild(bundle.section);
+    }
     container.appendChild(ruleList);
     root.appendChild(container);
 
     // --- Build rule cards ---
     for (const rule of params.options) {
-      const section = rule.safetyTier === "advanced" ? this.advancedSection : this.safeSection;
+      const section = this.sections.get(rule.section);
+      if (!section) throw new Error(`Rule ${rule.value} names unknown section ${rule.section}`);
       const ruleControl = this.createCard(rule, section.list);
       this.ruleControls.push(ruleControl);
     }
@@ -197,15 +197,14 @@ export class RuleToggleCardsControl extends BaseControl<string[]> {
     void this.loadSelectionFromStorage();
   }
 
-  private createSection(title: string, sectionType: "safe" | "advanced"): SectionBundle {
-    // Advanced rules live in a collapsible <details>; safe rules are always visible.
-    const isAdvanced = sectionType === "advanced";
-    const section = document.createElement(isAdvanced ? "details" : "section");
-    section.className = `grammar-rule-section grammar-rule-section-${sectionType}`;
+  private createSection(title: string, key: string): SectionBundle {
+    const section = document.createElement("section");
+    section.className = "grammar-rule-section";
+    section.dataset["section"] = key;
 
-    const heading = document.createElement(isAdvanced ? "summary" : "h4");
+    const heading = document.createElement("h4");
     heading.className = "grammar-rule-section-title";
-    heading.innerText = title;
+    heading.textContent = title;
     section.appendChild(heading);
 
     const list = document.createElement("div");
@@ -214,9 +213,7 @@ export class RuleToggleCardsControl extends BaseControl<string[]> {
     list.setAttribute("aria-label", title);
     section.appendChild(list);
 
-    return isAdvanced
-      ? { section, list, details: section as HTMLDetailsElement }
-      : { section, list };
+    return { section, list };
   }
 
   private createCard(rule: RuleOption, container: HTMLElement): RuleControl {
@@ -410,8 +407,7 @@ export class RuleToggleCardsControl extends BaseControl<string[]> {
   private updateStateUI(): void {
     let activeCount = 0;
     let visibleCount = 0;
-    let safeVisible = 0;
-    let advancedVisible = 0;
+    const visibleSections = new Set<string>();
 
     for (const ctrl of this.ruleControls) {
       const isChecked = ctrl.input.checked;
@@ -427,25 +423,12 @@ export class RuleToggleCardsControl extends BaseControl<string[]> {
       ctrl.card.setAttribute("aria-hidden", String(!visible));
       if (visible) {
         visibleCount++;
-        if (ctrl.rule.safetyTier === "advanced") {
-          advancedVisible++;
-        } else {
-          safeVisible++;
-        }
+        visibleSections.add(ctrl.rule.section);
       }
     }
 
-    this.safeSection.section.classList.toggle("is-hidden", safeVisible === 0);
-    this.advancedSection.section.classList.toggle("is-hidden", advancedVisible === 0);
-    if (this.advancedSection.details) {
-      this.advancedSection.details.open =
-        advancedVisible > 0 &&
-        (this.searchQuery.length > 0 ||
-          this.activeFilter === "advanced" ||
-          this.activeFilter === "enabled" ||
-          this.ruleControls.some(
-            (ctrl) => ctrl.rule.safetyTier === "advanced" && ctrl.input.checked,
-          ));
+    for (const [key, { section }] of this.sections) {
+      section.classList.toggle("is-hidden", !visibleSections.has(key));
     }
     this.noResults.classList.toggle("is-hidden", visibleCount > 0);
     this.syncRovingTabIndex();
