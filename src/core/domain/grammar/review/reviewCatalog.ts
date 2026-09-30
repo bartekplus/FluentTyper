@@ -33,7 +33,13 @@ interface SupportedReviewMetadata {
  * "Fix all". The typing-time `safetyTier` is NOT used for that decision.
  */
 export type ReviewRuleMetadata =
-  (SupportedReviewMetadata & { kind: ReviewKind }) | { review: "excluded"; reason: string };
+  | (SupportedReviewMetadata & { kind: ReviewKind })
+  | {
+      review: "excluded";
+      /** Groups the typing rule in settings next to Review's checks. */
+      category: ReviewCategory;
+      reason: string;
+    };
 
 /**
  * Every named review language. Rules that need to know the language (a word
@@ -257,6 +263,7 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
   },
   doubleSpaceToPeriod: {
     review: "excluded",
+    category: "punctuation",
     reason: "Typing shortcut: existing double spaces are not sentence ends.",
   },
   englishModalOfCorrection: {
@@ -320,10 +327,12 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
   },
   technicalTokenCompaction: {
     review: "excluded",
+    category: "punctuation",
     reason: 'Ambiguous in finished text: "Chapter 3: 5 tips" is not a clock time.',
   },
   mathOperatorSpacing: {
     review: "excluded",
+    category: "punctuation",
     reason: "Typing-time style; existing operators are often code or notation.",
   },
   measurementUnitFormatting: {
@@ -345,14 +354,17 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
   },
   slashContextSpacing: {
     review: "excluded",
+    category: "punctuation",
     reason: "Typing convenience; spacing around an existing slash is style, not an error.",
   },
   openingBracketSpacing: {
     review: "excluded",
+    category: "punctuation",
     reason: 'Typing convenience that only spaces code-like "){"; not prose proofreading.',
   },
   closingBracketSpacing: {
     review: "excluded",
+    category: "punctuation",
     reason: "Bracket spacing in finished text is often notation, Markdown or intervals.",
   },
   commaPeriodSpacing: {
@@ -371,16 +383,27 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
   },
   trimSpaceBeforeLineBreak: {
     review: "excluded",
+    category: "punctuation",
     reason: "Invisible, and two trailing spaces are a Markdown line break.",
   },
-  ellipsisShortcut: { review: "excluded", reason: "Typing shortcut, not an error." },
-  emdashShortcut: { review: "excluded", reason: "Typing shortcut, not an error." },
+  ellipsisShortcut: {
+    review: "excluded",
+    category: "typography",
+    reason: "Typing shortcut, not an error.",
+  },
+  emdashShortcut: {
+    review: "excluded",
+    category: "typography",
+    reason: "Typing shortcut, not an error.",
+  },
   smartQuoteNormalization: {
     review: "excluded",
+    category: "typography",
     reason: "Typing convenience; straight quotes in finished text may be code or deliberate.",
   },
   frenchPunctuationSpacing: {
     review: "excluded",
+    category: "punctuation",
     reason: "Typing-time typography convention; invisible no-break space changes.",
   },
   duplicatePunctuationCollapse: {
@@ -392,6 +415,7 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
   },
   autoBracketClose: {
     review: "excluded",
+    category: "punctuation",
     reason: "Typing convenience: review never inserts closing brackets.",
   },
 };

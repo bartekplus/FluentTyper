@@ -9,6 +9,7 @@ import {
   reviewRuleIds,
   reviewRuleSelectionToOverrides,
 } from "@core/domain/grammar/review/reviewCatalog";
+import { REVIEW_CATEGORIES } from "@core/domain/grammar/review/types";
 import { GRAMMAR_RULE_CATALOG } from "@core/domain/grammar/ruleCatalog";
 import { i18n } from "./fluenttyperI18n.js";
 import type {
@@ -203,6 +204,12 @@ function themeValueSetting(groupKey: string, name: keyof SuggestionThemeSettings
   };
 }
 
+/** Typing and Review switches are both grouped by Review's categories. */
+const RULE_CATEGORY_SECTIONS = REVIEW_CATEGORIES.map((category) => ({
+  key: category,
+  label: reviewText(`review_cat_${category}`, i18n.lang),
+}));
+
 const GRAMMAR_RULE_OPTIONS = TYPING_RULE_CATALOG.map((rule) => {
   const rolloutBadge =
     rule.defaultRollout === "on"
@@ -216,6 +223,7 @@ const GRAMMAR_RULE_OPTIONS = TYPING_RULE_CATALOG.map((rule) => {
     text: i18n.get(rule.titleI18nKey) || rule.name,
     description: i18n.get(rule.descriptionI18nKey),
     example: i18n.get(rule.exampleI18nKey),
+    section: REVIEW_RULE_METADATA[rule.id].category,
     safetyTier: rule.safetyTier,
     languageScope: rule.languageScope,
     ...(badge
@@ -485,8 +493,10 @@ const manifest: ManifestDefinition = {
       emptyStateText: i18n.get("grammar_rules_empty_state"),
       noMatchesText: i18n.get("grammar_rules_no_matches"),
       searchPlaceholder: i18n.get("grammar_rules_search_placeholder"),
-      sectionSafeLabel: reviewText("review_rules_default", i18n.lang),
-      sectionAdvancedLabel: reviewText("review_rules_optional", i18n.lang),
+      sections: [
+        { key: "safe", label: reviewText("review_rules_default", i18n.lang) },
+        { key: "advanced", label: reviewText("review_rules_optional", i18n.lang) },
+      ],
       filterAllLabel: i18n.get("grammar_rules_filter_all"),
       filterSafeLabel: reviewText("review_rules_default", i18n.lang),
       filterAdvancedLabel: reviewText("review_rules_optional", i18n.lang),
@@ -502,6 +512,10 @@ const manifest: ManifestDefinition = {
       ],
       options: GRAMMAR_RULE_CATALOG.filter((rule) => isReviewSupportedRule(rule.id)).map((rule) => {
         const metadata = REVIEW_RULE_METADATA[rule.id];
+        const tier =
+          metadata.review === "supported" && metadata.defaultEnabled
+            ? ("safe" as const)
+            : ("advanced" as const);
         return {
           value: rule.id,
           text:
@@ -509,10 +523,8 @@ const manifest: ManifestDefinition = {
               ? reviewText(rule.titleI18nKey as ReviewTextKey, i18n.lang)
               : i18n.get(rule.titleI18nKey),
           description: rule.typing === false ? undefined : i18n.get(rule.descriptionI18nKey),
-          safetyTier:
-            metadata.review === "supported" && metadata.defaultEnabled
-              ? ("safe" as const)
-              : ("advanced" as const),
+          section: tier,
+          safetyTier: tier,
           languageScope: reviewLanguageScope(rule.id),
         };
       }),
@@ -537,8 +549,7 @@ const manifest: ManifestDefinition = {
       emptyStateText: i18n.get("grammar_rules_empty_state"),
       noMatchesText: i18n.get("grammar_rules_no_matches"),
       searchPlaceholder: i18n.get("grammar_rules_search_placeholder"),
-      sectionSafeLabel: i18n.get("grammar_rules_section_safe"),
-      sectionAdvancedLabel: i18n.get("grammar_rules_section_advanced"),
+      sections: RULE_CATEGORY_SECTIONS,
       filterAllLabel: i18n.get("grammar_rules_filter_all"),
       filterSafeLabel: i18n.get("grammar_rules_filter_safe"),
       filterAdvancedLabel: i18n.get("grammar_rules_filter_advanced"),

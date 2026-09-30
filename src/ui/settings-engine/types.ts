@@ -6,6 +6,8 @@ export interface RuleOption {
   description?: string;
   example?: string;
   badge?: string;
+  /** Key of the section (in `RuleToggleCardsConfig.sections`) the card is listed under. */
+  section: string;
   safetyTier: "safe" | "advanced";
   languageScope: "all" | "en_US";
 }
@@ -91,8 +93,8 @@ export type RuleToggleCardsConfig = {
   label?: string;
   helpText?: string;
   searchPlaceholder: string;
-  sectionSafeLabel: string;
-  sectionAdvancedLabel: string;
+  /** Card sections in display order; a section with no visible card is hidden. */
+  sections: Array<{ key: string; label: string }>;
   filterAllLabel: string;
   filterSafeLabel: string;
   filterAdvancedLabel: string;

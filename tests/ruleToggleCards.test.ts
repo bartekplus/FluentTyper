@@ -29,8 +29,10 @@ function buildRuleToggleCardsHost(
       emptyStateText: "No grammar rules enabled.",
       noMatchesText: "No grammar rules match your search.",
       searchPlaceholder: "Search grammar rules...",
-      sectionSafeLabel: "Safe rules",
-      sectionAdvancedLabel: "Advanced (optional)",
+      sections: [
+        { key: "common", label: "Common" },
+        { key: "extra", label: "Extra" },
+      ],
       filterAllLabel: "All",
       filterSafeLabel: "Safe",
       filterAdvancedLabel: "Advanced",
@@ -56,6 +58,7 @@ function buildRuleToggleCardsHost(
       options: [
         {
           value: "safePunctuation",
+          section: "common",
           text: "Safe punctuation spacing",
           description: "Fixes punctuation spacing in common prose.",
           example: 'Example: "Hello ,world" -> "Hello, world"',
@@ -64,6 +67,7 @@ function buildRuleToggleCardsHost(
         },
         {
           value: "advancedEllipsis",
+          section: "extra",
           text: "Ellipsis shortcut",
           description: "Converts three dots into an ellipsis.",
           example: 'Example: "..." -> "…"',
@@ -72,6 +76,7 @@ function buildRuleToggleCardsHost(
         },
         {
           value: "englishPronounI",
+          section: "common",
           text: "English pronoun I",
           description: 'Capitalizes standalone English "i".',
           example: 'Example: "i am" -> "I am"',
@@ -164,8 +169,6 @@ describe("ruleToggleCards setting", () => {
       "grammar_rules_filter_advanced",
       "grammar_rules_filter_english_only",
       "grammar_rules_filter_enabled_only",
-      "grammar_rules_section_safe",
-      "grammar_rules_section_advanced",
     ] as const;
     for (const key of grammarUiI18nKeys) {
       const translated = i18n.get(key);
@@ -278,6 +281,49 @@ describe("ruleToggleCards setting", () => {
       '.grammar-rule-filter-button[data-filter="recommended"]',
     );
     expect(recommendedFilterButton).toBeNull();
+  });
+
+  test("lists cards under their sections and hides a section with no visible card", () => {
+    const { host } = buildRuleToggleCardsHost();
+    const sections = () =>
+      Array.from(host.querySelectorAll<HTMLElement>(".grammar-rule-section"))
+        .filter((section) => !section.classList.contains("is-hidden"))
+        .map((section) => [
+          section.querySelector(".grammar-rule-section-title")!.textContent,
+          Array.from(section.querySelectorAll<HTMLInputElement>(".grammar-rule-card-toggle")).map(
+            (input) => input.value,
+          ),
+        ]);
+    expect(sections()).toEqual([
+      ["Common", ["safePunctuation", "englishPronounI"]],
+      ["Extra", ["advancedEllipsis"]],
+    ]);
+    clickFilter(host, "english");
+    expect(sections().map(([title]) => title)).toEqual(["Common"]);
+  });
+
+  test("typing rules are grouped by Review category, including rules Review excludes", () => {
+    const config = manifest.settings.find(
+      (entry) => entry.name === KEY_ENABLED_GRAMMAR_RULES,
+    ) as RuleToggleCardsConfig;
+    expect(config.sections.map((section) => section.label)).toEqual([
+      "Spelling",
+      "Grammar",
+      "Punctuation & spacing",
+      "Capitalization & typography",
+      "Style advice",
+    ]);
+    const sectionOf = Object.fromEntries(config.options.map((rule) => [rule.value, rule.section]));
+    expect(sectionOf).toMatchObject({
+      englishTypoWhitelistCorrection: "spelling",
+      englishModalOfCorrection: "grammar",
+      commaPeriodSpacing: "punctuation",
+      capitalizeSentenceStart: "typography",
+      // Typing-only conveniences Review never runs.
+      doubleSpaceToPeriod: "punctuation",
+      smartQuoteNormalization: "typography",
+    });
+    expect(Object.keys(sectionOf)).toEqual([...TYPING_RULE_IDS]);
   });
 
   test("uses roving tabindex for cards and supports arrow and Space keyboard control", () => {
