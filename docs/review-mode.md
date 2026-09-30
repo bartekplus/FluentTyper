@@ -172,7 +172,7 @@ Supported (**Typing** is the rule's default for typing; Review has separate swit
 | `englishAlotCorrection`                | 8 langs  | on          | spelling    | English yes; other languages' merged words individual only                                        |
 | `englishPronounVerbWhitelistAgreement` | English  | on          | grammar     | original pairs only; expanded forms and contextual "you was" are individual only                  |
 | `englishArticleAnCorrection`           | English  | off         | grammar     | individual only: word-list heuristic; a letter or identifier can look like an article             |
-| `englishOrdinalSuffix`                 | English  | off         | typography  | yes                                                                                               |
+| `englishOrdinalSuffix`                 | English  | off         | typography  | yes (a capitalized suffix such as "2ND": individual only)                                         |
 | `englishProperNounCapitalization`      | en, de   | on          | typography  | English yes (German nouns individual only; months that need a date as evidence: individual only)  |
 | `measurementUnitFormatting`            | all      | on          | punctuation | individual only: units in technical prose are meaning-sensitive                                   |
 | `currencySpacing`                      | all      | on          | punctuation | yes                                                                                               |

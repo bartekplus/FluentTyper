@@ -633,6 +633,17 @@ const EXPLANATIONS: Record<ReviewMessageKey, Translations> = {
     "Ta liczba porządkowa ma złą końcówkę.",
     "Este ordinal tem o sufixo errado.",
   ],
+  review_msg_ordinal_case: [
+    "Write the ordinal suffix in lowercase.",
+    "Écrivez le suffixe ordinal en minuscules.",
+    "Nastavak rednog broja pišite malim slovima.",
+    "Escriba el sufijo ordinal en minúsculas.",
+    "Γράψτε την κατάληξη του τακτικού αριθμού με πεζά.",
+    "Skriv ordningstalets ändelse med gemener.",
+    "Schreiben Sie die Ordnungszahl-Endung klein.",
+    "Zapisz końcówkę liczebnika porządkowego małymi literami.",
+    "Escreva o sufixo ordinal em minúsculas.",
+  ],
   review_msg_proper_noun: [
     "Days, months, holidays and continents are capitalized.",
     "Les jours, mois, fêtes et continents anglais prennent une majuscule.",

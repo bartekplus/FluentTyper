@@ -779,15 +779,42 @@ const articleAn: Detector = (ctx) => {
 
 // ------------------------------------------------------------------ typography
 
+/** True when the word before or after [start, end) on its line is written in capitals ("THE 3RD ROUND"). */
+function isAllCapsContext(text: string, start: number, end: number): boolean {
+  const before = /(\p{L}+)[^\p{L}\n]*$/u.exec(text.slice(Math.max(0, start - 24), start))?.[1];
+  const after = /^[^\p{L}\n]*(\p{L}+)/u.exec(text.slice(end, end + 24))?.[1];
+  return [before, after].some((word) => word && word.length > 1 && word === word.toUpperCase());
+}
+
 const ordinal: Detector = (ctx) => {
   const findings: RawFinding[] = [];
-  const regex = /(?<=^|[\s([])(\d+)(st|nd|th)(?![\p{L}\p{N}])/gu;
+  const regex = /(?<=^|[\s([])(\d+)(st|nd|rd|th)(?![\p{L}\p{N}])/giu;
   for (const match of ownedMatches(ctx, regex)) {
     const start = match.index;
     const [token, digits, suffix] = match;
     const expected = ordinalSuffix(digits);
     const end = start + token.length;
     if (suffix === expected || isGluedToTechnical(ctx.text, start, end)) continue;
+    if (suffix !== suffix.toLowerCase()) {
+      // "2ND" is "2nd" in a sentence; "42RD" (road) and all-caps headings are not.
+      if (
+        suffix.toLowerCase() !== expected ||
+        isAllCapsContext(ctx.text, start, end) ||
+        overlapsSortedRanges(ctx.quotationRanges ?? [], { start, end })
+      )
+        continue;
+      findings.push({
+        ruleId: "englishOrdinalSuffix",
+        messageKey: "review_msg_ordinal_case",
+        context: { start: Math.max(0, start - 24), end: Math.min(ctx.text.length, end + 24) },
+        range: { start, end },
+        alternatives: [`${digits}${expected}`],
+        bulkBlock: "context-dependent",
+      });
+      continue;
+    }
+    // "rd" is also rod ("a 16rd chain").
+    if (suffix === "rd") continue;
     // "st" is also stone. Only a named month disambiguates this new coverage.
     if (
       suffix === "st" &&

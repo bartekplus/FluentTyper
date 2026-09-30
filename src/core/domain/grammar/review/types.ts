@@ -111,6 +111,7 @@ export type ReviewMessageKey =
   | "review_msg_pronoun_verb"
   | "review_msg_article"
   | "review_msg_ordinal"
+  | "review_msg_ordinal_case"
   | "review_msg_proper_noun"
   | "review_msg_space_before_comma"
   | "review_msg_space_after_comma"

@@ -59,6 +59,37 @@ describe("comma fixes (commaPeriodSpacing)", () => {
   });
 });
 
+describe("ordinal suffix casing (englishOrdinalSuffix)", () => {
+  const rule = "englishOrdinalSuffix";
+  test.each([
+    ["She finished 2ND in the race.", "She finished 2nd in the race."],
+    ["Our 3Rd attempt worked.", "Our 3rd attempt worked."],
+    ["It is the 21sT time.", "It is the 21st time."],
+    ["😀 the 11TH hour", "😀 the 11th hour"],
+    ["(4TH floor)", "(4th floor)"],
+    ["We placed 102nD overall.", "We placed 102nd overall."],
+  ])("repairs %p", (input, expected) => {
+    const findings = review(input, rule);
+    expect(findings.map((d) => d.bulk)).toEqual([{ eligible: false, reason: "context-dependent" }]);
+    expect(repaired(input, rule)).toBe(expected);
+  });
+
+  test.each([
+    "THE 3RD ROUND",
+    "Turn left on 42RD today.",
+    "Meet at 5TH AVE tonight.",
+    "the 2nd round",
+    "He is 16rd long.",
+    'Never write "2ND" there.',
+  ])("keeps %p", (input) => {
+    expect(review(input, rule)).toEqual([]);
+  });
+
+  test("still fixes a wrong lowercase suffix", () => {
+    expect(repaired("the 101nd run", rule)).toBe("the 101st run");
+  });
+});
+
 describe("ellipsis length (duplicatePunctuationCollapse)", () => {
   const rule = "duplicatePunctuationCollapse";
   test.each([
