@@ -5,8 +5,10 @@ import {
   NAME_CASING,
   PHRASE_CORRECTIONS,
   STYLE_PHRASES,
+  UNAMBIGUOUS_CAPS_ABBREVIATIONS,
   type PhraseRow,
 } from "./englishPhraseTables";
+import { LANGUAGE_PHRASE_TABLES } from "./languagePhraseTables";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 
 type Phrase = {
@@ -22,13 +24,21 @@ const EDGE = "[\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]";
 const SPACE = "[ \\t\\u00a0]{1,8}";
 const wordKey = (word: string) => word.toLowerCase().replace(/’/g, "'");
 
-// One lookup per word: phrases are indexed by their first word, longest first.
-const INDEX = new Map<string, Phrase[]>();
+// French elided articles and pronouns stay attached: "l'addresse", "d'apeller".
+const ELIDED = "(?:[cdjlmnst]|qu|jusqu|lorsqu|puisqu)['’]";
+const FRENCH_ELIDED = new RegExp(`^${ELIDED}(?=\\p{L})`, "iu");
+
+// One lookup per language and word: phrases are indexed by their first word, longest first.
+const INDEXES = new Map<string, Map<string, Phrase[]>>();
 function index(
-  rows: readonly PhraseRow[],
+  lang: string,
+  rows: readonly PhraseRow[] = [],
   ruleId: Phrase["ruleId"],
   messageKey: Phrase["messageKey"],
 ) {
+  const INDEX = INDEXES.get(lang) ?? new Map<string, Phrase[]>();
+  INDEXES.set(lang, INDEX);
+  const start = lang === "fr" ? `(?:(?<=(?<!\\p{L})${ELIDED})|(?<!${EDGE}))` : `(?<!${EDGE})`;
   for (const [typed, replacement] of rows) {
     for (const form of [typed].flat()) {
       const body = form
@@ -39,7 +49,7 @@ function index(
       const key = wordKey(form.match(WORD)![0]);
       const list = INDEX.get(key) ?? [];
       list.push({
-        pattern: new RegExp(`(?<![.])(?<!${EDGE})${body}${end}`, "iuy"),
+        pattern: new RegExp(`(?<![.])${start}${body}${end}`, "iuy"),
         replacements: [replacement].flat(),
         ruleId,
         messageKey,
@@ -52,14 +62,21 @@ function index(
     }
   }
 }
-index(PHRASE_CORRECTIONS, "englishPhraseCorrections", "review_msg_phrase_correction");
-index(CLOSED_COMPOUNDS, "englishClosedCompounds", "review_msg_closed_compound");
-index(STYLE_PHRASES, "stylePhrasing", "review_msg_style_phrasing");
+index("en", PHRASE_CORRECTIONS, "englishPhraseCorrections", "review_msg_phrase_correction");
+index("en", CLOSED_COMPOUNDS, "englishClosedCompounds", "review_msg_closed_compound");
+index("en", STYLE_PHRASES, "stylePhrasing", "review_msg_style_phrasing");
 index(
+  "en",
   NAME_CASING.map((name) => [name.toLowerCase(), name]),
   "englishCanonicalCasing",
   "review_msg_name_casing",
 );
+for (const [lang, tables] of Object.entries(LANGUAGE_PHRASE_TABLES)) {
+  index(lang, tables.words, "englishPhraseCorrections", "review_msg_typo");
+  index(lang, tables.phrases, "englishPhraseCorrections", "review_msg_contextual_grammar");
+  index(lang, tables.compounds, "englishClosedCompounds", "review_msg_closed_compound");
+  index(lang, tables.style, "stylePhrasing", "review_msg_style_phrasing");
+}
 
 /** The typed casing carried onto a replacement written in its ordinary form. */
 function matchCase(
@@ -82,11 +99,12 @@ function matchCase(
 }
 
 /**
- * Fixed English phrases from the authored tables, matched as whole words.
- * Names, mentions, quoted examples and user-dictionary words stay as typed.
+ * Fixed phrases from the review language's authored tables, matched as whole
+ * words. Names, mentions, quoted examples and user-dictionary words stay as typed.
  */
 export function phraseCorrections(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang !== "en_US") return [];
+  const INDEX = INDEXES.get(ctx.lang.slice(0, 2));
+  if (!INDEX) return [];
   const findings: RawFinding[] = [];
   const words = new RegExp(WORD);
   words.lastIndex = ctx.from;
@@ -95,16 +113,20 @@ export function phraseCorrections(ctx: DetectContext): RawFinding[] {
     word && word.index < ctx.to;
     word = words.exec(ctx.scanText)
   ) {
-    for (const phrase of INDEX.get(wordKey(word[0])) ?? []) {
-      phrase.pattern.lastIndex = word.index;
-      const match = phrase.pattern.exec(ctx.scanText);
-      if (!match) continue;
-      const finding = toFinding(ctx, phrase, match[0], match.index);
-      if (finding) {
-        findings.push(finding);
-        words.lastIndex = finding.range.end;
+    // A French word may also start after its elided article: "l'" + "addresse".
+    const elided = ctx.lang.startsWith("fr") ? (FRENCH_ELIDED.exec(word[0])?.[0].length ?? 0) : 0;
+    lookup: for (const at of elided ? [0, elided] : [0]) {
+      for (const phrase of INDEX.get(wordKey(word[0].slice(at))) ?? []) {
+        phrase.pattern.lastIndex = word.index + at;
+        const match = phrase.pattern.exec(ctx.scanText);
+        if (!match) continue;
+        const finding = toFinding(ctx, phrase, match[0], match.index);
+        if (finding) {
+          findings.push(finding);
+          words.lastIndex = finding.range.end;
+        }
+        break lookup;
       }
-      break;
     }
   }
   return findings;
@@ -142,6 +164,12 @@ function toFinding(
     typed.includes("’") ||
     (!typed.includes("'") && ctx.text.slice(Math.max(0, start - 200), end + 200).includes("’"));
   const abbreviation = phrase.ruleId === "stylePhrasing" && !/\s/.test(typed);
+  if (
+    abbreviation &&
+    typed === typed.toUpperCase() &&
+    !UNAMBIGUOUS_CAPS_ABBREVIATIONS.has(typed.toLowerCase())
+  )
+    return null;
   const alternatives = phrase.replacements.map((replacement) => {
     const cased = casing ? replacement : matchCase(typed, replacement, abbreviation, sentenceStart);
     return curly ? cased.replace(/'/g, "’") : cased;

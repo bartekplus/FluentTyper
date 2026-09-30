@@ -7,6 +7,7 @@ import { lineStart, sentenceStart } from "./reviewLanguageFixtures/capitalizatio
 import {
   commaPeriodSpacing,
   duplicatePunctuation,
+  quoteSpacing,
   repeatedSpaces,
 } from "./reviewLanguageFixtures/punctuation";
 import { currency, measurement } from "./reviewLanguageFixtures/measurement";
@@ -27,6 +28,7 @@ const MATRIX: Array<[CatalogRuleId, RuleFixtures]> = [
   ["commaPeriodSpacing", commaPeriodSpacing],
   ["collapseRepeatedSpaces", repeatedSpaces],
   ["duplicatePunctuationCollapse", duplicatePunctuation],
+  ["quoteSpacing", quoteSpacing],
   ["measurementUnitFormatting", measurement],
   ["currencySpacing", currency],
   ["preferredTerminology", terminology],

@@ -252,6 +252,12 @@ const FRENCH_ELISIONS = wordTable({
   puisquil: "puisqu'il",
 });
 
+/** The text's own apostrophe style near `index`: curly only where no straight one is used. */
+function apostropheAt(ctx: DetectContext, index: number): string {
+  const nearby = ctx.text.slice(Math.max(0, index - 400), index + 400);
+  return nearby.includes("’") && !nearby.includes("'") ? "’" : "'";
+}
+
 /** "cest", "jai", "aujourdhui": a French elision missing its apostrophe. */
 export function frenchElisions(ctx: DetectContext): RawFinding[] {
   if (ctx.lang.slice(0, 2) !== "fr") return [];
@@ -260,17 +266,68 @@ export function frenchElisions(ctx: DetectContext): RawFinding[] {
     const typed = m[0];
     const lower = typed.toLowerCase();
     if (ctx.dictionary.has(lower) || citedAt(ctx, m.index)) continue;
-    // The text's own apostrophe style.
-    const nearby = ctx.text.slice(Math.max(0, m.index - 400), m.index + 400);
-    const curly = nearby.includes("’") && !nearby.includes("'");
-    let replacement = FRENCH_ELISIONS.map.get(lower)!;
-    if (curly) replacement = replacement.replaceAll("'", "’");
+    const replacement = FRENCH_ELISIONS.map.get(lower)!.replaceAll("'", apostropheAt(ctx, m.index));
     findings.push({
       ruleId: "englishContractionNormalization",
       messageKey: "review_msg_contraction",
       range: { start: m.index, end: m.index + typed.length },
       alternatives: [withLeadingCase(typed, replacement)],
       bulkBlock: "context-dependent",
+    });
+  }
+  return findings;
+}
+
+// ------------------------------------------------- apostrophe look-alikes
+
+// An acute accent or a backtick typed for an apostrophe ("don´t", "c´est",
+// "geht´s", "d´água"): a spacing accent is never a letter of these languages.
+// Group 1 is the mark. English also slips to ";" on the neighbouring key.
+const MARKED_APOSTROPHE: Record<string, RegExp> = {
+  en: /(?<![\p{L}\p{M}\p{N}_])(?<base>\p{L}+)([´`;])(?<end>t|s|m|d|ll|re|ve)(?![\p{L}\p{M}\p{N}_])/giu,
+  fr: /(?<![\p{L}\p{M}\p{N}_])(?:c|d|j|l|m|n|s|t|qu|jusqu|lorsqu|puisqu|quoiqu|presqu)([´`])(?=[aeiouyhàâæéèêëîïôœùûü])/giu,
+  de: /(?<=\p{L})([´`])s(?![\p{L}\p{M}\p{N}_])/gu,
+  pt: /(?<![\p{L}\p{M}\p{N}_])d([´`])(?=[aeiouáâãàéêíóôõú])/giu,
+};
+// "don;t" is only read as a contraction with a base that takes that ending.
+const SEMICOLON_BASES: Record<string, RegExp> = {
+  t: /^(?:don|can|won|isn|aren|wasn|weren|didn|doesn|haven|hasn|hadn|shouldn|couldn|wouldn|mustn|needn|ain)$/i,
+  m: /^i$/i,
+  s: /^(?:it|let|that|there|here|he|she|what|who|where|how)$/i,
+  d: /^(?:i|you|we|they|he|she|it|that|there|who)$/i,
+  ll: /^(?:i|you|we|they|he|she|it|that|there|who)$/i,
+  re: /^(?:you|we|they|there|who|what)$/i,
+  ve: /^(?:i|you|we|they|who|could|would|should|might|must)$/i,
+};
+
+/** "don´t", "I;m", "c´est", "gibt´s": an apostrophe typed as another mark. */
+export function markedApostrophes(ctx: DetectContext): RawFinding[] {
+  const lang = ctx.lang.slice(0, 2);
+  const regex = MARKED_APOSTROPHE[lang];
+  if (!regex) return [];
+  const findings: RawFinding[] = [];
+  for (const m of ownedWords(ctx, regex)) {
+    const mark = m[lang === "en" ? 2 : 1];
+    const start = m.index + m[0].indexOf(mark, m.groups?.base.length ?? 0);
+    if (citedAt(ctx, start)) continue;
+    if (mark === ";" && !SEMICOLON_BASES[m.groups!.end.toLowerCase()].test(m.groups!.base)) {
+      continue;
+    }
+    // "`code`s": a backtick pair on the line is Markdown code, not an apostrophe.
+    if (mark === "`") {
+      const lineStart = ctx.text.lastIndexOf("\n", start) + 1;
+      const lineEnd = ctx.text.indexOf("\n", start);
+      if (ctx.text.slice(lineStart, lineEnd < 0 ? undefined : lineEnd).split("`").length > 2)
+        continue;
+    }
+    findings.push({
+      ruleId: "englishContractionNormalization",
+      messageKey: "review_msg_apostrophe_mark",
+      range: { start, end: start + 1 },
+      alternatives: [apostropheAt(ctx, start)],
+      context: { start: m.index, end: Math.min(ctx.text.length, m.index + m[0].length + 1) },
+      // Only the English accent is certain; a semicolon or backtick may be meant.
+      bulkBlock: lang === "en" && mark === "´" ? undefined : "context-dependent",
     });
   }
   return findings;

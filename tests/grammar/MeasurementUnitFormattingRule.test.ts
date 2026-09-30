@@ -97,6 +97,19 @@ describe("MeasurementUnitFormattingRule", () => {
     expect(apply(`${"Prose ".repeat(90)}Mass: 10kg `)).toBeNull();
   });
 
+  test("leaves decades and round-number plurals alone", () => {
+    for (const input of [
+      "Radio boomed in the 1920s ",
+      "the '80s ",
+      "the 80s ",
+      "100s ",
+      "It took 30s ",
+    ])
+      expect(apply(input)).toBeNull();
+    expect(result("It took 5s ")).toBe("It took 5\u00a0s ");
+    expect(result("It took 1.0s ")).toBe("It took 1.0\u00a0s ");
+  });
+
   test("does not run before the expression is completed", () => {
     expect(apply("Mass: 10kg")).toBeNull();
     expect(apply("Mass: 10kg. ")).toBeNull();

@@ -279,5 +279,21 @@ describe("V3 rule expansion", () => {
     );
 
     expect(rule.apply(context("they is ", { lang: "en_US", inputAction: "insert" }))).toBeNull();
+
+    // "you" as the object of a preposition, verb or opening gerund is not the subject.
+    for (const text of [
+      "Hiding from you was pointless ",
+      "What I owed you was nothing ",
+      "Meeting you was fun ",
+    ]) {
+      expect(rule.apply(context(text, { lang: "en_US", inputAction: "insert" }))).toBeNull();
+    }
+    expect(
+      rule.apply(context("Knowing you was home ", { lang: "en_US", inputAction: "insert" })),
+    ).toEqual({
+      replacement: "you were home ",
+      deleteBackwards: "you was home ".length,
+      deleteForwards: 0,
+    });
   });
 });

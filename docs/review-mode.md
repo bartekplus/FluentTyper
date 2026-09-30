@@ -173,7 +173,7 @@ category. Native Review checks have independent switches in
 categories, each card badged with its kind, "Off by default" for optional
 checks and "English only" where that applies. Typing switches are listed under
 the same categories.
-Core checks default on. The three optional style checks default off; restoring defaults
+Core checks default on. The optional style and typography checks (long sentences, redundancy, wording advice, the ellipsis character, typed dashes, prime marks) default off; restoring defaults
 keeps them off. Typing switches still control only automatic corrections.
 A native finding's **Disable this check in Review** action saves that rule's choice
 and refreshes open reviews. Restore it in settings, individually or with **Restore defaults**.
@@ -187,7 +187,7 @@ No reviewed text is stored by these controls.
 Each rule runs only in the languages it supports, and the panel says how many enabled
 rules were skipped for the language. Some English rules have Review-only tables for
 other languages (doubled comparatives, merged words, French elisions, German day and
-month capitals); those findings are always individual-only. The full rule × language
+month capitals, fixed phrases, compounds and common misspellings); those findings are always individual-only. The full rule × language
 matrix, with the reason for every unsupported cell, is in
 [review-language-matrix.md](review-language-matrix.md). With the language
 set to auto-detect, Review first identifies the text's language on the device (the
@@ -195,36 +195,40 @@ browser's own detector) and uses the matching enabled language, or the fallback 
 
 Supported (**Typing** is the rule's default for typing; Review has separate switches):
 
-| Rule                                   | Language | Typing      | Category    | Kind               | Fix all                                                                                           |
-| -------------------------------------- | -------- | ----------- | ----------- | ------------------ | ------------------------------------------------------------------------------------------------- |
-| `englishExistentialAgreement`          | English  | unavailable | grammar     | agreement          | individual only                                                                                   |
-| `englishThenThan`                      | English  | unavailable | grammar     | confused words     | individual only                                                                                   |
-| `englishYourYouAre`                    | English  | unavailable | grammar     | confused words     | individual only                                                                                   |
-| `englishTheirThereTheyAre`             | English  | unavailable | grammar     | confused words     | individual only                                                                                   |
-| `englishToToo`                         | English  | unavailable | grammar     | confused words     | individual only                                                                                   |
-| `englishWereWhere`                     | English  | unavailable | grammar     | confused words     | individual only                                                                                   |
-| `englishAuxiliaryBaseVerb`             | English  | unavailable | grammar     | word form          | individual only                                                                                   |
-| `englishRepeatedWords`                 | all      | unavailable | grammar     | repetition         | individual only                                                                                   |
-| `englishPhraseCorrections`             | English  | unavailable | grammar     | usage              | individual only                                                                                   |
-| `englishClosedCompounds`               | English  | unavailable | spelling    | split/joined words | individual only                                                                                   |
-| `capitalizeSentenceStart`              | all      | on          | typography  | capitalization     | yes (after a quote or bracket closing a period: individual only)                                  |
-| `capitalizeAfterLineBreak`             | all      | on          | typography  | capitalization     | individual only: line starts in poems, lists and hard-wrapped text are often lowercase on purpose |
-| `englishPronounICapitalization`        | English  | on          | typography  | capitalization     | yes                                                                                               |
-| `englishContractionNormalization`      | en, fr   | on          | spelling    | typo               | English yes; French elisions individual only                                                      |
-| `englishTypoWhitelistCorrection`       | English  | on          | spelling    | typo               | yes                                                                                               |
-| `englishModalOfCorrection`             | English  | on          | grammar     | confused words     | yes                                                                                               |
-| `englishYourWelcomeCorrection`         | English  | on          | grammar     | confused words     | yes                                                                                               |
-| `englishTheirThereBeVerb`              | English  | on          | grammar     | confused words     | yes                                                                                               |
-| `englishAlotCorrection`                | 8 langs  | on          | spelling    | split/joined words | English yes; other languages' merged words individual only                                        |
-| `englishPronounVerbWhitelistAgreement` | English  | on          | grammar     | agreement          | original pairs only; expanded forms and contextual "you was" are individual only                  |
-| `englishArticleAnCorrection`           | English  | off         | grammar     | agreement          | individual only: initial-sound heuristic; a letter, name or identifier can look like an article   |
-| `englishOrdinalSuffix`                 | English  | off         | typography  | numbers and units  | yes                                                                                               |
-| `englishProperNounCapitalization`      | en, de   | on          | typography  | capitalization     | English yes (German nouns individual only; months that need a date as evidence: individual only)  |
-| `measurementUnitFormatting`            | all      | on          | punctuation | numbers and units  | individual only: units in technical prose are meaning-sensitive                                   |
-| `currencySpacing`                      | all      | on          | punctuation | numbers and units  | yes                                                                                               |
-| `commaPeriodSpacing`                   | all      | on          | punctuation | spacing            | yes (Greek `;`, Arabic `؟ ؛` and Spanish `¿ ¡` padding: individual only)                          |
-| `collapseRepeatedSpaces`               | all      | on          | punctuation | spacing            | yes (alignment gaps and Markdown table padding are left alone)                                    |
-| `duplicatePunctuationCollapse`         | all      | off         | punctuation | repetition         | yes                                                                                               |
+| Rule                                   | Language       | Typing      | Category    | Kind               | Fix all                                                                                                                                        |
+| -------------------------------------- | -------------- | ----------- | ----------- | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `englishExistentialAgreement`          | English        | unavailable | grammar     | agreement          | individual only                                                                                                                                |
+| `englishThenThan`                      | English        | unavailable | grammar     | confused words     | individual only                                                                                                                                |
+| `englishYourYouAre`                    | English        | unavailable | grammar     | confused words     | individual only                                                                                                                                |
+| `englishTheirThereTheyAre`             | English        | unavailable | grammar     | confused words     | individual only                                                                                                                                |
+| `englishToToo`                         | English        | unavailable | grammar     | confused words     | individual only                                                                                                                                |
+| `englishWereWhere`                     | English        | unavailable | grammar     | confused words     | individual only                                                                                                                                |
+| `englishAuxiliaryBaseVerb`             | English        | unavailable | grammar     | word form          | individual only                                                                                                                                |
+| `englishRepeatedWords`                 | all            | unavailable | grammar     | repetition         | individual only                                                                                                                                |
+| `englishPhraseCorrections`             | 9 langs        | unavailable | grammar     | usage              | individual only                                                                                                                                |
+| `englishClosedCompounds`               | 6 langs        | unavailable | spelling    | split/joined words | individual only                                                                                                                                |
+| `capitalizeSentenceStart`              | all            | on          | typography  | capitalization     | yes (after a quote or bracket closing a period: individual only)                                                                               |
+| `capitalizeAfterLineBreak`             | all            | on          | typography  | capitalization     | individual only: line starts in poems, lists and hard-wrapped text are often lowercase on purpose                                              |
+| `englishPronounICapitalization`        | English        | on          | typography  | capitalization     | yes                                                                                                                                            |
+| `englishContractionNormalization`      | en, fr, de, pt | on          | spelling    | typo               | English yes (an apostrophe typed as `;` or a backtick: individual only); French elisions and other languages' apostrophe marks individual only |
+| `englishTypoWhitelistCorrection`       | English        | on          | spelling    | typo               | yes                                                                                                                                            |
+| `englishModalOfCorrection`             | English        | on          | grammar     | confused words     | yes                                                                                                                                            |
+| `englishYourWelcomeCorrection`         | English        | on          | grammar     | confused words     | yes                                                                                                                                            |
+| `englishTheirThereBeVerb`              | English        | on          | grammar     | confused words     | yes                                                                                                                                            |
+| `englishAlotCorrection`                | 8 langs        | on          | spelling    | split/joined words | English yes; other languages' merged words individual only                                                                                     |
+| `englishPronounVerbWhitelistAgreement` | English        | on          | grammar     | agreement          | original pairs only; expanded forms and contextual "you was" are individual only                                                               |
+| `englishArticleAnCorrection`           | English        | off         | grammar     | agreement          | individual only: initial-sound heuristic; a letter, name or identifier can look like an article                                                |
+| `englishOrdinalSuffix`                 | English        | off         | typography  | numbers and units  | yes (a capitalized suffix such as "2ND": individual only)                                                                                      |
+| `englishProperNounCapitalization`      | en, de         | on          | typography  | capitalization     | English yes (German nouns individual only; months that need a date as evidence: individual only)                                               |
+| `measurementUnitFormatting`            | all            | on          | punctuation | numbers and units  | individual only: units in technical prose are meaning-sensitive (also "°K" → "K")                                                              |
+| `currencySpacing`                      | all            | on          | punctuation | numbers and units  | yes (English "25$" → "$25": individual only)                                                                                                   |
+| `commaPeriodSpacing`                   | all            | on          | punctuation | spacing            | yes (Greek `;`, Arabic `؟ ؛` and Spanish `¿ ¡` padding: individual only)                                                                       |
+| `collapseRepeatedSpaces`               | all            | on          | punctuation | spacing            | yes (alignment gaps and Markdown table padding are left alone)                                                                                 |
+| `duplicatePunctuationCollapse`         | all            | off         | punctuation | repetition         | yes (a four-dot ellipsis: individual only)                                                                                                     |
+| `ellipsisShortcut`                     | all            | off         | typography  | punctuation marks  | individual only; off by default in Review (optional "…" for "...")                                                                             |
+| `emdashShortcut`                       | all            | off         | typography  | punctuation marks  | individual only; off by default in Review (optional dash for "--" or "---")                                                                    |
+| `primeSymbols`                         | all            | unavailable | typography  | numbers and units  | individual only; off by default (optional ′ ″ for "5'7\"" and "48°51'")                                                                        |
+| `quoteSpacing`                         | all            | unavailable | punctuation | spacing            | individual only: a straight quote does not say which side needs the space, so both are offered                                                 |
 
 Agreement retains the six original typing pairs and their existing bulk rules.
 
@@ -237,7 +241,7 @@ The established-usage check covers for all intensive purposes before a known com
 
 Literal peak meanings and locative one in the same room, unrecognized frames, recognized creative/dialect cues, named quotations, technical tokens, dictionaries and protected text abstain. These are grammar-category cards with usage-specific explanations, independently configurable and individual-only. Native spelling-span ownership prevents duplicate spelling cards. Typing and existing modal-of corrections are unchanged.
 
-The doubled-degree check removes redundant more/most only in complete this/that/it or known-noun clauses with is/was. It uses the same ten explicit comparative words as then/than, plus easier/simpler, and eleven explicit superlatives. Supported tails are bounded to known to-infinitives, known comparison targets, ungrouped integer targets, or a complete sentence ending; superlatives require a known noun. Numerical values and comparison targets are preserved. A then/than error can become detectable after removing the redundant degree marker; the normal snapshot recheck supplies fresh offsets and invalidates the previous card.
+The doubled-degree check removes redundant more/most only in complete this/that/it or known-noun clauses with is/was. It uses the ten explicit comparative words of the copular then/than frame, plus easier/simpler, and eleven explicit superlatives. Supported tails are bounded to known to-infinitives, known comparison targets, ungrouped integer targets, or a complete sentence ending; superlatives require a known noun. Numerical values and comparison targets are preserved. A then/than error can become detectable after removing the redundant degree marker; the normal snapshot recheck supplies fresh offsets and invalidates the previous card.
 
 Quantity phrases, hyphenated noun modifiers, heading fragments, quoted examples, unknown degree forms, capitalized names and mixed-case identifiers abstain. Valid multiword adjectives, very unique, far better and repeated emphatic better and better are untouched. No suffix inference, style enforcement, typing correction or Fix all eligibility is added. The rule can be disabled independently in Review settings.
 
@@ -245,7 +249,7 @@ The native countability check covers ordinary-prose malformed plurals of informa
 
 Specialist legal, banking, commercial, regional and archaic evidence in the bounded context causes abstention. Quoted examples, identifiers, capitalized names and dictionary words are protected. Known quantified feedback/information/advice and a information frames can show a warning without an edit; other quantified mass-noun constructions abstain. No unit, amount or partial determiner repair is invented. Data agreement, fewer/less preferences, coffee, experience, work and paper are outside this check. All findings are individual-only; typing is unchanged.
 
-`englishNounNumber` is a separate native Review-only check using the shared authored noun-pair map (now including device/devices). It handles complete `one of the` clauses, explicit counts zero–ten or up to four ungrouped digits, and these/those followed by a known singular noun and a supported predicate. Explicit counts retain their value and change only noun inflection; `one of the` pluralizes the set noun while leaving its outer singular subject and verb untouched. `one of the/my/these…` with up to three free modifiers before a known singular noun also pluralizes it when the noun ends the phrase (a clause end, a verb such as is/has, a pronoun or a preposition follows), so "one of the file formats" abstains. Decades and round plurals written with an apostrophe become plain plurals: "the 1960's" or a four-digit decade before a clause end becomes "1960s", "the 90's" offers "'90s" or "90s", and "100's of" becomes "100s of"; years and versions with a possessive ("Windows 10's", "1977's best month", "2020's biggest hits") abstain. The measurement check no longer reads the s of "1990s", "the 80s" or "100s of" as seconds.
+`englishNounNumber` is a separate native Review-only check using the shared authored noun-pair map (now including device/devices). It handles complete `one of the` clauses, explicit counts zero–ten or up to four ungrouped digits, and these/those followed by a known singular noun and a supported predicate. Explicit counts retain their value and change only noun inflection; `one of the` pluralizes the set noun while leaving its outer singular subject and verb untouched. `one of the/my/these…` with up to three free modifiers before a known singular noun also pluralizes it when the noun ends the phrase (a clause end, a verb such as is/has, a pronoun or a preposition follows), so "one of the file formats" abstains. Decades and round plurals written with an apostrophe become plain plurals: "the 1960's" or a four-digit decade before a clause end becomes "1960s", "the 90's" offers "'90s" or "90s", and "100's of" becomes "100s of"; years and versions with a possessive ("Windows 10's", "1977's best month", "2020's biggest hits") abstain.
 
 For these/those, a following are/were establishes plural and is/was establishes singular. Past predicates such as failed/arrived/returned do not establish number: the existing choice-card UI offers either pluralizing the noun or changing the demonstrative to this/that, with nothing preselected. All findings remain individual-only. Complete bounded predicates/locations prevent noun-modifier edits such as `those file names`. Unknown/invariant nouns, data/news/series, units, ordinal tokens, grouped/decimal/fractional numbers, technical model labels and hyphenated measurements abstain. Quantity repair can make a separate existential-agreement finding available on the next scan; it never changes the number to fit the verb.
 
@@ -265,7 +269,7 @@ This is not a global preposition replacement. Approximate quantities (`discussed
 
 Three native Review-only contextual apostrophe checks are independently configurable:
 
-- `englishItsContext`: possessive `its` after a listed transitive verb and before a complete known noun phrase, or in a clause-opening noun phrase with a supported predicate. Conversely, clause-opening `its` before listed complete predicates such as `ready to use`, `cold outside`, `working now` or `been fixed` becomes `it's`. `its` directly before a verb, article, pronoun or function word (`its been`, `its a`, `its not`, `its someone`) is always `it's`; a clause-opening `its` before a listed adjective and to/for/that or a clause end (`Its important to…`), and `its` + a capitalized name after think/hope/guess (`I think its Priya.`) become `it's`. `it's` after a preposition (`in it's sandbox`), before `own`, before an ordinal after an -ed verb, or opening a clause before a word and are/were/have (`It's wheels are…`) becomes `its`.
+- `englishItsContext`: possessive `its` after a listed transitive verb and before a complete known noun phrase, or in a clause-opening noun phrase with a supported predicate. Conversely, clause-opening `its` before listed complete predicates such as `ready to use`, `cold outside`, `working now` or `been fixed` becomes `it's`. `its` directly before a verb, article, pronoun or function word (`its been`, `its a`, `its not`, `its never`, `its always`, `its someone`) is always `it's`; a clause-opening `its` before a listed adjective and to/for/that or a clause end (`Its important to…`), and `its` + a capitalized name after think/hope/guess (`I think its Priya.`) become `it's`. `it's` after a preposition (`in it's sandbox`), before `own`, before an ordinal after an -ed verb, or opening a clause before a word and are/were/have (`It's wheels are…`) becomes `its`.
 - `englishLetsContext`: clause-opening `lets` before a complete listed suggestion such as `try again`, `go home` or `take a break` becomes `let's`. Lexical `lets` with a subject is preserved.
 - `englishElsePossessive`: `elses` after someone/somebody/anyone/anybody/everyone/nobody/no one and before a complete known noun phrase becomes `else's`. Capitalized `Elses` is preserved as a possible name.
 
@@ -303,8 +307,10 @@ clause or follow a conjunction or a verb such as think/see; "Over there is…" a
 Contextual word confusions have five independent Review-only identities:
 
 - `englishThenThan`: a copula, a listed comparative and a complete comparison
-  argument (a known noun phrase or object pronoun). Temporal "then", unknown noun
-  phrases and following finite clauses abstain.
+  argument (a known noun phrase or object pronoun); a listed comparative before
+  an object pronoun or "ever"/"usual"; "X rather then Y"; "easier said then done".
+  Temporal "then", unknown noun phrases, following finite clauses, "would rather
+  then" and sequences such as "earlier then him" abstain.
 - `englishYourYouAre`: clause-opening "your going to" with a listed verb and
   object, or an object-taking verb followed by "you're own" and a known noun.
   Possessive gerunds ("your going away", "I dislike your going…") abstain.
@@ -358,17 +364,25 @@ and directly named quoted examples are left alone. Clause-internal subordinate
 syntax ("What I did works"), noun subjects and newline-spanning phrases are outside
 this initial scope. Existing modal-of and agreement checks retain their ownership.
 
-Repeated words are Review-only: a bounded per-language allowlist (English `the`, `a`, `an`, `is`,
-`are`, `was`, `were`, `in`, `on`, `at`, `for`, `with`, `from`, `of`, `to`; plus short lists of
-articles and prepositions for every other supported language) separated by
-1–8 spaces, tabs or no-break spaces. The first word keeps its casing; one
+Repeated words are Review-only: a bounded per-language allowlist of closed-class
+words (English articles, prepositions, `and`, `or`, `but`, `nor`, `as`, `than`,
+`this`/`these`/`those`, `its`/`your`/`our`/`their`, `is`/`are`/`was`/`were`,
+`has`, `been`, `would`/`should`/`could`; plus short lists of articles,
+prepositions, conjunctions and demonstratives for every other supported language)
+separated by 1–8 spaces, tabs or no-break spaces. The first word keeps its casing; one
 suggestion deletes one duplicate and its separator. Longer runs recheck after
 each repair. Newlines, hyphens, protected islands, dictionary words and directly
 named quoted examples are excluded. This intentionally misses arbitrary repeated
-words and distant metalinguistic context; it is not a general repetition parser.
-Words that legitimately double are never listed: German `die die`/`das das`, French
-`nous nous`/`vous vous`, Spanish and Portuguese `para para`, Croatian `je je`, Greek
-`με με`, Polish `to to`. An unresolved auto-detect language runs no list.
+words ("very very", "record record profits": without a part of speech a slip
+cannot be told from emphasis or a homograph) and distant metalinguistic context;
+it is not a general repetition parser.
+Words that legitimately double are never listed: English `that that`/`had had`/`her her`,
+German `die die`/`das das`/`und und und`, French `nous nous`/`vous vous`, Spanish and
+Portuguese `para para` and `es es`/`é é`, Swedish `om om`/`var var`, Croatian `je je`,
+Greek `με με`/`και και`, Polish `to to`. English `to to` is repaired only before a determiner,
+number or name, or right after an infinitive verb with no clause gap: a stranded
+preposition ("the club I wrote to to complain") and an elided infinitive ("do
+whatever you have to to win") are correct. An unresolved auto-detect language runs no list.
 Normal quoted prose remains eligible. No typing rule or automatic fix is installed.
 
 Some text is left alone because it only looks like an error: "you" as an
@@ -396,19 +410,18 @@ fixes (never in Fix all), because the deciding words are only evidence:
 
 Excluded (typing conveniences, not errors in finished text):
 
-| Rule                                 | Why                                                                        |
-| ------------------------------------ | -------------------------------------------------------------------------- |
-| `doubleSpaceToPeriod`                | Typing shortcut: existing double spaces are not sentence ends.             |
-| `technicalTokenCompaction`           | Ambiguous in finished text: "Chapter 3: 5 tips" is not a clock time.       |
-| `mathOperatorSpacing`                | Typing-time style; existing operators are often code or notation.          |
-| `slashContextSpacing`                | Spacing around an existing slash is style, not an error.                   |
-| `openingBracketSpacing`              | Only spaces code-like `){`; not prose proofreading.                        |
-| `closingBracketSpacing`              | Bracket spacing in finished text is often notation, Markdown or intervals. |
-| `trimSpaceBeforeLineBreak`           | Invisible, and two trailing spaces are a Markdown line break.              |
-| `ellipsisShortcut`, `emdashShortcut` | Typing shortcuts, not errors.                                              |
-| `smartQuoteNormalization`            | Straight quotes in finished text may be code or deliberate.                |
-| `frenchPunctuationSpacing`           | Typing-time convention; invisible no-break space changes.                  |
-| `autoBracketClose`                   | Review never inserts closing brackets.                                     |
+| Rule                       | Why                                                                        |
+| -------------------------- | -------------------------------------------------------------------------- |
+| `doubleSpaceToPeriod`      | Typing shortcut: existing double spaces are not sentence ends.             |
+| `technicalTokenCompaction` | Ambiguous in finished text: "Chapter 3: 5 tips" is not a clock time.       |
+| `mathOperatorSpacing`      | Typing-time style; existing operators are often code or notation.          |
+| `slashContextSpacing`      | Spacing around an existing slash is style, not an error.                   |
+| `openingBracketSpacing`    | Only spaces code-like `){`; not prose proofreading.                        |
+| `closingBracketSpacing`    | Bracket spacing in finished text is often notation, Markdown or intervals. |
+| `trimSpaceBeforeLineBreak` | Invisible, and two trailing spaces are a Markdown line break.              |
+| `smartQuoteNormalization`  | Straight quotes in finished text may be code or deliberate.                |
+| `frenchPunctuationSpacing` | Typing-time convention; invisible no-break space changes.                  |
+| `autoBracketClose`         | Review never inserts closing brackets.                                     |
 
 ### Unknown words
 
@@ -776,6 +789,17 @@ Dictionary words, mixed-case identifiers, dotted names, URLs, code, quoted menti
 and named examples abstain. When a more specific rule proposes the same edit, that
 rule explains it. Both checks are Review-only and individual-only. Some of these
 checks were inspired by Harper (https://github.com/Automattic/harper).
+
+The same checks run with authored tables for German, French, Spanish, Portuguese,
+Polish, Croatian, Swedish and Greek
+([`languagePhraseTables.ts`](../src/core/domain/grammar/review/languagePhraseTables.ts)):
+misspellings that are never words ("Standart", "parmis", "haiga", "seje", "poszłem",
+"uopče", "alldrig", "εντάξη"), wrong forms in a fixed frame ("quelque soit" → "quel
+que soit" or "quelle que soit", "hubieron muchos" → "hubo muchos", "półtorej roku" →
+"półtora roku"), compounds ("das selbe" → "dasselbe", "au dessus" → "au-dessus", "z
+pod" → "spod") and, as optional wording advice, pleonasms ("bereits schon", "sortir
+dehors", "subir arriba", "há anos atrás"). Each table runs only in its own language,
+and a French word is also found after an elided article ("l'addresse").
 
 ### Canonical brand and acronym casing
 

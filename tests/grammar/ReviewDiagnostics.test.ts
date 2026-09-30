@@ -114,7 +114,15 @@ describe("review rule coverage map", () => {
     expect(REVIEW_SUPPORTED_RULE_IDS).toEqual(supported);
     expect(reviewRuleIds({ codeMode: false })).toEqual(
       supported.filter(
-        (id) => id !== "styleRedundancy" && id !== "styleLongSentence" && id !== "stylePhrasing",
+        (id) =>
+          ![
+            "styleRedundancy",
+            "styleLongSentence",
+            "ellipsisShortcut",
+            "emdashShortcut",
+            "primeSymbols",
+            "stylePhrasing",
+          ].includes(id),
       ),
     );
     // Off for typing by default, yet review finds it.
@@ -133,8 +141,6 @@ describe("review rule coverage map", () => {
     for (const ruleId of [
       "doubleSpaceToPeriod",
       "autoBracketClose",
-      "ellipsisShortcut",
-      "emdashShortcut",
       "smartQuoteNormalization",
     ] as const) {
       expect(REVIEW_RULE_METADATA[ruleId].review).toBe("excluded");
@@ -172,6 +178,10 @@ describe("review detectors: capitalization and typography", () => {
       ["capitalizeAfterLineBreak", "s", [12, 13], "S"],
       ["capitalizeAfterLineBreak", "n", [38, 39], "N"],
     ]);
+    // Deliberate brand casing at a line start stays.
+    expect(
+      only("Done.\niPhone.\n\neBay.\n\nmacOS.\n\njQuery ok", "capitalizeAfterLineBreak"),
+    ).toEqual([]);
     const [finding] = review("Done.\nthen", { enabledRules: ["capitalizeAfterLineBreak"] });
     expect(finding.bulk).toEqual({ eligible: false, reason: "rule-not-batch-approved" });
   });
@@ -661,7 +671,9 @@ describe("adversarial review regressions: detection", () => {
   });
 
   test("a double hyphen is a dash, not a hyphen joining a longer name", () => {
-    const findings = review("I dont--really--care.");
+    const findings = review("I dont--really--care.", {
+      enabledRules: reviewRuleIds({ codeMode: false }),
+    });
     expect(summary(findings)).toEqual([
       ["englishContractionNormalization", "dont", [2, 6], "don't"],
     ]);
@@ -803,6 +815,7 @@ describe("review detectors: punctuation and spacing", () => {
       ["measurementUnitFormatting", "10kg", [10, 14], "10\u00A0kg"],
     ]);
     expect(only("a 4K screen and 5g phone", "measurementUnitFormatting")).toEqual([]);
+    expect(only("Back in the 1970s and '80s, 100s of", "measurementUnitFormatting")).toEqual([]);
     expect(only("Price: 120zł today", "currencySpacing", { lang: "pl_PL" })).toEqual([
       ["currencySpacing", "120zł", [7, 12], "120\u00A0zł"],
     ]);

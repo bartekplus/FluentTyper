@@ -100,6 +100,18 @@ describe("AutoBracketCloseRule", () => {
       expect(result!.replacement).toBe("<>");
     });
 
+    test("a space right after < drops the auto-inserted >: a comparison, not a tag", () => {
+      expect(rule.apply(context("3 < ", "> rest", { inputAction: "insert" }))).toEqual({
+        replacement: " ",
+        deleteBackwards: 1,
+        deleteForwards: 1,
+        sourceRuleId: "autoBracketClose",
+      });
+      // Only "<": French spaces the inside of guillemets on purpose.
+      expect(rule.apply(context("« ", "»", { inputAction: "insert" }))).toBeNull();
+      expect(rule.apply(context("a <b ", ">", { inputAction: "insert" }))).toBeNull();
+    });
+
     test("does not auto-close when afterCursor starts with matching close char", () => {
       expect(rule.apply(context("(", ")", { inputAction: "insert" }))).toBeNull();
       expect(rule.apply(context("[", "]", { inputAction: "insert" }))).toBeNull();
@@ -187,8 +199,8 @@ describe("AutoBracketCloseRule", () => {
       expect(rule.id).toBe("autoBracketClose");
     });
 
-    test("triggers on insertChar", () => {
-      expect(rule.triggers).toEqual(["insertChar"]);
+    test("triggers on insertChar and on a typed space", () => {
+      expect(rule.triggers).toEqual(["insertChar", "wordBoundary"]);
     });
   });
 });
@@ -348,4 +360,31 @@ describe("GrammarRuleEngine integration with AutoBracketCloseRule", () => {
     expect(edits[0].replacement).toBe('"');
     expect(edits[0].deleteForwards).toBe(1);
   });
+});
+
+describe("typing through the engine", () => {
+  // Mirrors the content script: a space is a wordBoundary, anything else insertChar.
+  function type(input: string): string {
+    const engine = new GrammarRuleEngine();
+    engine.registerRule(new AutoBracketCloseRule());
+    let ctx: GrammarContext = {
+      beforeCursor: "",
+      afterCursor: "",
+      hints: { inputAction: "insert" },
+    };
+    for (const char of input) {
+      ctx = { ...ctx, beforeCursor: ctx.beforeCursor + char, charTyped: undefined };
+      for (const edit of engine.process(char === " " ? "wordBoundary" : "insertChar", ctx))
+        ctx = applyGrammarEditToContext(ctx, edit);
+    }
+    return ctx.beforeCursor + ctx.afterCursor;
+  }
+
+  test.each([
+    ["3 < 4", "3 < 4"],
+    ["if x < y then", "if x < y then"],
+    ["3<4", "3<4"],
+    ["see <b", "see <b>"],
+    ["<div", "<div>"],
+  ])("%s becomes %s", (input, expected) => expect(type(input)).toBe(expected));
 });

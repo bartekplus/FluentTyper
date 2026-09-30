@@ -8,6 +8,7 @@ import {
   type ReviewCheckId,
   type ReviewKind,
 } from "./types";
+import { LANGUAGE_PHRASE_TABLES, type LanguagePhraseTables } from "./languagePhraseTables";
 
 interface SupportedReviewMetadata {
   review: "supported";
@@ -50,6 +51,13 @@ const NAMED_LANGUAGES: readonly string[] = SUPPORTED_PREDICTION_LANGUAGE_KEYS.fi
   (lang) => lang !== TEXT_EXPANDER_LANG,
 );
 
+/** English and every language with an authored phrase table of these kinds. */
+const withPhraseTables = (...kinds: Array<keyof LanguagePhraseTables>): readonly string[] =>
+  NAMED_LANGUAGES.filter(
+    (lang) =>
+      lang === "en_US" || kinds.some((kind) => LANGUAGE_PHRASE_TABLES[lang.slice(0, 2)]?.[kind]),
+  );
+
 export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
   englishPhraseCorrections: {
     review: "supported",
@@ -57,6 +65,7 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     category: "grammar",
     kind: "usage",
     bulk: "individual",
+    languages: withPhraseTables("words", "phrases"),
   },
   englishClosedCompounds: {
     review: "supported",
@@ -64,6 +73,7 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     category: "spelling",
     kind: "boundary",
     bulk: "individual",
+    languages: withPhraseTables("compounds"),
   },
   stylePhrasing: {
     review: "supported",
@@ -71,6 +81,7 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     category: "style",
     kind: "redundancy",
     bulk: "individual",
+    languages: withPhraseTables("style"),
   },
   styleRedundancy: {
     review: "supported",
@@ -108,6 +119,22 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     category: "punctuation",
     kind: "marks",
     bulk: "individual",
+  },
+  quoteSpacing: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "punctuation",
+    kind: "spacing",
+    bulk: "individual",
+    note: "A straight quotation mark does not say whether it opens or closes.",
+  },
+  primeSymbols: {
+    review: "supported",
+    defaultEnabled: false,
+    category: "typography",
+    kind: "numbers",
+    bulk: "individual",
+    note: "Optional typography: typewriter quotes for feet and minutes are common.",
   },
   englishUsagePhrases: {
     review: "supported",
@@ -280,7 +307,7 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     category: "spelling",
     kind: "typo",
     bulk: "eligible",
-    languages: ["en_US", "fr_FR"],
+    languages: ["en_US", "fr_FR", "de_DE", "pt_BR"],
   },
   englishTypoWhitelistCorrection: {
     review: "supported",
@@ -415,14 +442,20 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     reason: "Invisible, and two trailing spaces are a Markdown line break.",
   },
   ellipsisShortcut: {
-    review: "excluded",
+    review: "supported",
+    defaultEnabled: false,
     category: "typography",
-    reason: "Typing shortcut, not an error.",
+    kind: "marks",
+    bulk: "individual",
+    note: "Optional typography: three periods are correct too.",
   },
   emdashShortcut: {
-    review: "excluded",
+    review: "supported",
+    defaultEnabled: false,
     category: "typography",
-    reason: "Typing shortcut, not an error.",
+    kind: "marks",
+    bulk: "individual",
+    note: "Optional typography; en or em dash is a house style.",
   },
   smartQuoteNormalization: {
     review: "excluded",

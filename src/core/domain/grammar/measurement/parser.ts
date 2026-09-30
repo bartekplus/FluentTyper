@@ -42,6 +42,14 @@ export function parseMeasurementExpression(
     if (unitStart === text.length || !isUnit(text, unitStart)) {
       continue;
     }
+    // "1940s", "'80s" and "100s" are decades and round-number plurals, not seconds.
+    if (
+      unitStart === numberEnd &&
+      text.slice(unitStart) === "s" &&
+      /^\d*0$/.test(text.slice(start, numberEnd))
+    ) {
+      continue;
+    }
 
     return { start, numberEnd, unitStart };
   }

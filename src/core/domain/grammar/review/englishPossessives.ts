@@ -44,7 +44,7 @@ export function contextualPossessives(ctx: DetectContext): RawFinding[] {
     {
       ruleId: "englishItsContext",
       messageKey: "review_msg_its_contraction",
-      pattern: `(?<target>its)${SPACE}(?:been|got|had|gotten|a|an|the|my|your|our|his|her|their|not|so|too|because|like|about|called|named|raining|snowing|someone|something|anyone|anything|everyone|everything|nobody|nothing|somebody|anybody|everybody|somewhere|anywhere|everywhere|going${SPACE}to|getting${SPACE}(?:late|dark|better|worse|harder|easier|cold|warm|old)|time${SPACE}to)`,
+      pattern: `(?<target>its)${SPACE}(?:been|got|had|gotten|a|an|the|my|your|our|his|her|their|not|never|always|so|too|because|like|about|called|named|raining|snowing|someone|something|anyone|anything|everyone|everything|nobody|nothing|somebody|anybody|everybody|somewhere|anywhere|everywhere|going${SPACE}to|getting${SPACE}(?:late|dark|better|worse|harder|easier|cold|warm|old)|time${SPACE}to)`,
       replacement: "it's",
     },
     {

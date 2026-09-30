@@ -8,6 +8,7 @@ import {
   NAME_CASING,
   PHRASE_CORRECTIONS,
   STYLE_PHRASES,
+  UNAMBIGUOUS_CAPS_ABBREVIATIONS,
   type PhraseRow,
 } from "../../src/core/domain/grammar/review/englishPhraseTables";
 import type { ProtectedRange, ReviewDiagnostic } from "../../src/core/domain/grammar/review/types";
@@ -247,6 +248,7 @@ const STYLE_EXAMPLES: [bad: string, good: string][] = [
   ["The deploy finished BTW.", "The deploy finished by the way."],
   ["IN ORDER TO WIN, PRACTICE.", "TO WIN, PRACTICE."],
   ["Imo the second option is cleaner.", "In my opinion the second option is cleaner."],
+  ["FYI, the build is green.", "For your information, the build is green."],
   ["Idk why it failed.", "I don't know why it failed."],
   ["Send it asap, please.", "Send it as soon as possible, please."],
   ["We added tests in order to catch regressions.", "We added tests to catch regressions."],
@@ -315,9 +317,22 @@ const ALLOWED = [
   "My self-esteem improved.",
   "It self-destructs after one use.",
   "Tout le monde est là.",
+  // All-caps forms that also name organizations, countries and hardware.
+  "She won a medal at the IMO last summer.",
+  "The ship follows IMO rules.",
+  "Flights to IRL were delayed.",
+  "The NVM controller failed.",
 ];
 test.each(ALLOWED)("no finding: %s", (text) => {
   expect(scan(text)).toEqual([]);
+});
+
+test("all-caps chat abbreviations fire only when the capitals are unambiguous", () => {
+  const forms = new Set(STYLE_PHRASES.flatMap(([typed]) => [typed].flat()));
+  for (const abbreviation of UNAMBIGUOUS_CAPS_ABBREVIATIONS) expect(forms).toContain(abbreviation);
+  expect(scan("The plan is fine IMO.")).toEqual([]);
+  expect(previews(scan("The plan is fine imo.")[0])).toEqual(["in my opinion"]);
+  expect(previews(scan("The plan is fine FWIW.")[0])).toEqual(["for what it's worth"]);
 });
 
 test("casing follows the typed phrase", () => {

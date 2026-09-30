@@ -84,26 +84,29 @@ describe("V1 grammar rules", () => {
   });
 
   describe("CapitalizeAfterLineBreakRule", () => {
-    test("capitalizes after one or more line breaks", () => {
+    test("capitalizes a completed word after one or more line breaks", () => {
       const rule = new CapitalizeAfterLineBreakRule();
 
-      expect(rule.apply(context("Hello\nw"))).toEqual({
-        replacement: "W",
-        deleteBackwards: 1,
+      expect(rule.apply(context("Hello\nworld "))).toEqual({
+        replacement: "World ",
+        deleteBackwards: 6,
         deleteForwards: 0,
       });
 
-      expect(rule.apply(context("Hello\n\n   w"))).toEqual({
-        replacement: "W",
-        deleteBackwards: 1,
+      expect(rule.apply(context("Hello\n\n   world\n"))).toEqual({
+        replacement: "World\n",
+        deleteBackwards: 6,
         deleteForwards: 0,
       });
     });
 
-    test("does not capitalize without line break context", () => {
+    test("does not capitalize without line break context or before the word is complete", () => {
       const rule = new CapitalizeAfterLineBreakRule();
-      expect(rule.apply(context("Hello w"))).toBeNull();
-      expect(rule.apply(context("Hello\nW"))).toBeNull();
+      expect(rule.apply(context("Hello w "))).toBeNull();
+      expect(rule.apply(context("Hello\nW "))).toBeNull();
+      // "i" may still become "iPhone".
+      expect(rule.apply(context("Hello\ni"))).toBeNull();
+      expect(rule.apply(context("Hello\niPhone "))).toBeNull();
     });
   });
 
@@ -372,6 +375,16 @@ describe("V1 grammar rules", () => {
       const rule = new MathOperatorSpacingRule(true);
       expect(rule.apply(context("x==y"))).toBeNull();
       expect(rule.apply(context("foo+b"))).toBeNull();
+    });
+
+    test("leaves HTML attributes inside an open tag alone", () => {
+      const rule = new MathOperatorSpacingRule(true);
+      expect(rule.apply(context('<span title="'))).toBeNull();
+      expect(rule.apply(context('<img src="a.png" alt="'))).toBeNull();
+      expect(rule.apply(context("Use <td colspan=2"))).toBeNull();
+      // A closed tag or a comparison does not hide later arithmetic.
+      expect(rule.apply(context("<b>Note</b> x=y"))?.replacement).toBe("x = y");
+      expect(rule.apply(context("if 3 < 4 then x=y"))?.replacement).toBe("x = y");
     });
   });
 
