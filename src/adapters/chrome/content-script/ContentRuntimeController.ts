@@ -599,6 +599,11 @@ export class ContentRuntimeController {
       enabledGrammarRules: this.config.codeMode
         ? filterCodeSafeGrammarRules(this.config.enabledGrammarRules)
         : this.config.enabledGrammarRules,
+      // Review's own switches decide what is proposed; code mode proposes nothing.
+      grammarProposalRules:
+        this.config.liveGrammarProposals === false || this.config.codeMode
+          ? []
+          : reviewRuleIds({ codeMode: false, overrides: this.config.reviewRuleOverrides }),
       userDictionaryList: this.config.userDictionaryList,
       getPrediction: (context: ContentScriptPredictRequestContext) =>
         this.onPredictionRequest?.({

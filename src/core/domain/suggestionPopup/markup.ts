@@ -63,6 +63,17 @@ export function buildSuggestionRowHtml(args: {
   return `${shortcut}<span class="ft-suggestion-label">${label}</span>${detail}`;
 }
 
+/** A grammar proposal row: "original → replacement", then why. */
+export function buildProposalRowHtml(args: {
+  original: string;
+  replacement: string;
+  explanation: string;
+}): string {
+  return `<span class="ft-suggestion-label">${escapeHtml(args.original)} → ${escapeHtml(
+    args.replacement,
+  )}</span><span class="ft-suggestion-detail">${escapeHtml(args.explanation)}</span>`;
+}
+
 /** The prediction language, as the popup's footer names it. */
 export function suggestionLanguageLabel(languageName: string): string {
   return `Lang: ${languageName}`;
