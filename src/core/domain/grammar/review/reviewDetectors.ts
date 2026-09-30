@@ -1054,6 +1054,36 @@ const REPEATED_WORD_REGEX = new Map(
   ]),
 );
 
+// Verbs whose "to" opens an infinitive: "We need to to leave" doubles the marker.
+const INFINITIVE_TO_VERBS = new Set([
+  ...["need", "needs", "needed", "have", "has", "had", "want", "wants", "wanted", "going"],
+  ...["got", "ought", "able", "used", "try", "tries", "tried", "trying", "plan", "plans"],
+  ...["planned", "hope", "hopes", "hoped", "decide", "decided"],
+]);
+// Words that leave a gap for an elided infinitive: "whatever you need to to finish".
+const INFINITIVE_GAP = /\b(?:what|whatever|which|who|whom|that|as|where|when|how)\b/i;
+
+/**
+ * "to to" is also a stranded preposition before an infinitive ("the team I
+ * wrote to to complain") or an elided one ("do what you have to to win").
+ * Repair it only before a determiner, number or name ("sent to to the team"),
+ * or after an infinitive verb with no gap before it ("I have to to go").
+ */
+function doubledTo(before: string, after: string): boolean {
+  if (/^[ \t ]*(?:(?:the|a|an|my|your|his|her|its|our|their)\b|\p{Lu}|\p{N})/u.test(after)) {
+    return true;
+  }
+  const sentence = before.slice(
+    Math.max(...[".", "!", "?", "\n"].map((c) => before.lastIndexOf(c))) + 1,
+  );
+  const verb = /(\p{L}+)[ \t ]+$/u.exec(sentence);
+  return (
+    !!verb &&
+    INFINITIVE_TO_VERBS.has(verb[1].toLowerCase()) &&
+    !INFINITIVE_GAP.test(sentence.slice(0, verb.index))
+  );
+}
+
 const repeatedWords: Detector = (ctx) => {
   const findings: RawFinding[] = [];
   const regex = REPEATED_WORD_REGEX.get(ctx.lang.slice(0, 2));
@@ -1072,6 +1102,7 @@ const repeatedWords: Detector = (ctx) => {
     if (before.match(/(\p{L}+)[ \t\u00a0]{1,8}$/u)?.[1].toLowerCase() === word) continue;
     // A named, quoted example is evidence, not prose to repair. Normal quotations still run.
     if (CUE_AND_QUOTE.test(before)) continue;
+    if (word === "to" && !doubledTo(before, ctx.text.slice(end, end + 16))) continue;
     findings.push({
       ruleId: "englishRepeatedWords",
       messageKey: "review_msg_repeated_words",
