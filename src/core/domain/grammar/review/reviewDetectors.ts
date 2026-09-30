@@ -7,6 +7,7 @@ import {
   doubledDegreeByLanguage,
   frenchElisions,
   germanNounCapitals,
+  markedApostrophes,
   splitWords,
 } from "./multilingualLexicon";
 import { countability } from "./englishCountability";
@@ -25,7 +26,11 @@ import { wordConfusions } from "./englishWordConfusions";
 import { auxiliaryForms } from "./englishAuxiliaryForms";
 import type { CatalogRuleId } from "../ruleCatalog";
 import { SPACE_CHARS } from "../../spacingRules";
-import { isGreekQuestionMark, usesFrenchPunctuationSpacing } from "../typographyProfiles";
+import {
+  isGreekQuestionMark,
+  resolveTypographyProfile,
+  usesFrenchPunctuationSpacing,
+} from "../typographyProfiles";
 import { parseMeasurementExpression } from "../measurement/parser";
 import { resolveMeasurementLocale } from "../measurement/registry";
 import {
@@ -780,15 +785,42 @@ const articleAn: Detector = (ctx) => {
 
 // ------------------------------------------------------------------ typography
 
+/** True when the word before or after [start, end) on its line is written in capitals ("THE 3RD ROUND"). */
+function isAllCapsContext(text: string, start: number, end: number): boolean {
+  const before = /(\p{L}+)[^\p{L}\n]*$/u.exec(text.slice(Math.max(0, start - 24), start))?.[1];
+  const after = /^[^\p{L}\n]*(\p{L}+)/u.exec(text.slice(end, end + 24))?.[1];
+  return [before, after].some((word) => word && word.length > 1 && word === word.toUpperCase());
+}
+
 const ordinal: Detector = (ctx) => {
   const findings: RawFinding[] = [];
-  const regex = /(?<=^|[\s([])(\d+)(st|nd|th)(?![\p{L}\p{N}])/gu;
+  const regex = /(?<=^|[\s([])(\d+)(st|nd|rd|th)(?![\p{L}\p{N}])/giu;
   for (const match of ownedMatches(ctx, regex)) {
     const start = match.index;
     const [token, digits, suffix] = match;
     const expected = ordinalSuffix(digits);
     const end = start + token.length;
     if (suffix === expected || isGluedToTechnical(ctx.text, start, end)) continue;
+    if (suffix !== suffix.toLowerCase()) {
+      // "2ND" is "2nd" in a sentence; "42RD" (road) and all-caps headings are not.
+      if (
+        suffix.toLowerCase() !== expected ||
+        isAllCapsContext(ctx.text, start, end) ||
+        overlapsSortedRanges(ctx.quotationRanges ?? [], { start, end })
+      )
+        continue;
+      findings.push({
+        ruleId: "englishOrdinalSuffix",
+        messageKey: "review_msg_ordinal_case",
+        context: { start: Math.max(0, start - 24), end: Math.min(ctx.text.length, end + 24) },
+        range: { start, end },
+        alternatives: [`${digits}${expected}`],
+        bulkBlock: "context-dependent",
+      });
+      continue;
+    }
+    // "rd" is also rod ("a 16rd chain").
+    if (suffix === "rd") continue;
     // "st" is also stone. Only a named month disambiguates this new coverage.
     if (
       suffix === "st" &&
@@ -877,6 +909,14 @@ const properNoun: Detector = (ctx) => {
 // Spaces and a lowercase word (after an optional opening mark) on the same line.
 const STANDALONE_MARK_FOLLOWER = /^[ \t\u00A0]+["'“‘([¿¡]?\p{Ll}/u;
 
+// A fullwidth "，" or ideographic "、" comma between words of an alphabetic
+// script ("red，green") is an input-method slip; CJK text keeps its own.
+const ALPHABETIC = "[\\p{Script=Latin}\\p{Script=Greek}\\p{Script=Cyrillic}\\p{N}]";
+const WIDE_COMMA = new RegExp(
+  `(?<=${ALPHABETIC})[ \\u00A0]*[，、][ \\u00A0]*(?=${ALPHABETIC}|\\s|$)`,
+  "gu",
+);
+
 const commaPeriodSpacing: Detector = (ctx) => {
   const findings: RawFinding[] = [];
   // Space before a comma: "word , next".
@@ -885,13 +925,16 @@ const commaPeriodSpacing: Detector = (ctx) => {
   for (const match of ownedMatches(ctx, before)) {
     const start = match.index;
     const end = start + match[0].length;
+    // "word ,next": the space belongs after the comma.
+    const moveSpace =
+      ctx.insertSpaceAfterAutocomplete && /^\p{L}{2}/u.test(ctx.text.slice(end + 1, end + 3));
     findings.push({
       ruleId: "commaPeriodSpacing",
       messageKey:
         ctx.source[end] === "؛" ? "review_msg_space_before_mark" : "review_msg_space_before_comma",
       range: { start, end: end + 1 },
-      alternatives: [ctx.source[end]],
-      context: { start: start - 1, end: end + 1 },
+      alternatives: [moveSpace ? `${ctx.source[end]} ` : ctx.source[end]],
+      context: { start: start - 1, end: end + (moveSpace ? 2 : 1) },
       // Newer language extensions stay individual-only.
       bulkBlock: ctx.source[end] === "؛" ? "context-dependent" : undefined,
     });
@@ -936,6 +979,19 @@ const commaPeriodSpacing: Detector = (ctx) => {
       alternatives: [ctx.source[start - 1]],
       context: { start: start - 1, end: end + 1 },
       bulkBlock: "context-dependent",
+    });
+  }
+
+  for (const match of ownedMatches(ctx, WIDE_COMMA)) {
+    const start = match.index;
+    const end = start + match[0].length;
+    const wordFollows = end < ctx.text.length && !/\s/.test(ctx.text[end]);
+    findings.push({
+      ruleId: "commaPeriodSpacing",
+      messageKey: "review_msg_wide_comma",
+      range: { start, end },
+      alternatives: [wordFollows ? ", " : ","],
+      context: { start: start - 1, end: end + 1 },
     });
   }
 
@@ -1024,8 +1080,203 @@ const duplicatePunctuation: Detector = (ctx) => {
       alternatives: ["."],
     });
   }
+  // An ellipsis has three dots: "So..... anyway". Digits
+  // or a path around the run ("1....5", "..../") and dot leaders (10+) are not one.
+  const ellipsis = /(?<![.\p{N}])\.{4,9}(?![.\p{N}/\\])/gu;
+  for (const match of ownedMatches(ctx, ellipsis)) {
+    const start = match.index;
+    findings.push({
+      ruleId: "duplicatePunctuationCollapse",
+      messageKey: "review_msg_ellipsis_length",
+      range: { start, end: start + match[0].length },
+      alternatives: ["..."],
+      // Four dots can be a sentence period plus an ellipsis: one at a time.
+      bulkBlock: match[0].length === 4 ? "context-dependent" : undefined,
+    });
+  }
   return findings;
 };
+
+/**
+ * A double quotation mark glued to words on both sides ('the "fast"way'): a
+ * space is missing outside it. The language's own opening and closing marks
+ * say which side; a straight or same-glyph mark (sv ”) is decided by how many
+ * marks the paragraph opened before it, and the other side is offered too.
+ * Inches and seconds ('5"x7"') are left alone.
+ */
+const quoteSpacing: Detector = (ctx) => {
+  const findings: RawFinding[] = [];
+  const [open, close] = resolveTypographyProfile(ctx.lang).double;
+  const directional = open !== close;
+  const marks = directional ? `"${open}${close}` : `"${open}`;
+  const regex = new RegExp(`(?<=[\\p{L}\\p{N}])[${marks}](?=[\\p{L}\\p{N}])`, "gu");
+  const paragraphBefore = lastIndexFinder(ctx.text, "\n\n");
+  for (const match of ownedMatches(ctx, regex)) {
+    const start = match.index;
+    const mark = match[0];
+    const spaceBefore = ` ${ctx.source[start]}`;
+    const spaceAfter = `${ctx.source[start]} `;
+    let alternatives: string[];
+    if (directional && mark !== '"') {
+      alternatives = [mark === open ? spaceBefore : spaceAfter];
+    } else {
+      if (/\p{N}/u.test(ctx.text[start - 1])) continue;
+      const paragraphStart = paragraphBefore(start);
+      const paragraph = ctx.text.slice(paragraphStart < 0 ? 0 : paragraphStart + 2, start);
+      const opened = paragraph.split(mark).length % 2 === 0;
+      alternatives = opened ? [spaceAfter, spaceBefore] : [spaceBefore, spaceAfter];
+    }
+    findings.push({
+      ruleId: "quoteSpacing",
+      messageKey: "review_msg_quote_spacing",
+      range: { start, end: start + 1 },
+      alternatives,
+      context: { start: Math.max(0, start - 1), end: start + 2 },
+    });
+  }
+  return findings;
+};
+
+// A number, a single mark, a number and a double mark: feet and inches or
+// minutes and seconds ("5'7\"", "30′ 15\""). Group 1 and 3 are the marks.
+const PRIME_PAIR =
+  /(?<=(?<![\p{L}\p{N}.,])\d+[  ]?)(['’‘′])([  ]?\d+(?:[.,]\d+)?[  ]?)(["”“″])(?!\p{N})/gu;
+// Degrees then minutes with no seconds after them ("48°51'N").
+const DEGREE_MINUTE = /(?<=\d°[  ]?\d+[  ]?)['’‘](?![  ]?\d|\p{L}{2})/gu;
+
+/** Optional typography: prime marks for feet, inches, minutes and seconds typed as quotes. */
+const primeSymbols: Detector = (ctx) => {
+  const findings: RawFinding[] = [];
+  for (const match of ownedMatches(ctx, PRIME_PAIR)) {
+    if (match[1] === "′" && match[3] === "″") continue;
+    const start = match.index;
+    const end = start + match[0].length;
+    findings.push({
+      ruleId: "primeSymbols",
+      messageKey: "review_msg_prime_symbols",
+      range: { start, end },
+      alternatives: [`′${ctx.source.slice(start + 1, end - 1)}″`],
+      context: { start: Math.max(0, start - 8), end: Math.min(ctx.text.length, end + 1) },
+    });
+  }
+  for (const match of ownedMatches(ctx, DEGREE_MINUTE)) {
+    const start = match.index;
+    findings.push({
+      ruleId: "primeSymbols",
+      messageKey: "review_msg_prime_symbols",
+      range: { start, end: start + 1 },
+      alternatives: ["′"],
+      context: { start: Math.max(0, start - 8), end: Math.min(ctx.text.length, start + 2) },
+    });
+  }
+  return findings;
+};
+
+/**
+ * Optional typography: three periods as the one ellipsis character. Longer runs,
+ * ranges ("1...5"), paths ("../") and spread syntax ("[...items]") are not ellipses.
+ */
+const ellipsisCharacter: Detector = (ctx) => {
+  const findings: RawFinding[] = [];
+  const regex = /(?<![.\p{N}])\.{3}(?![.\p{N}/\\])/gu;
+  for (const match of ownedMatches(ctx, regex)) {
+    const start = match.index;
+    if (/[[({]/.test(ctx.text[start - 1] ?? "") && /[\p{L}_$]/u.test(ctx.text[start + 3] ?? ""))
+      continue;
+    findings.push({
+      ruleId: "ellipsisShortcut",
+      messageKey: "review_msg_ellipsis_character",
+      range: { start, end: start + 3 },
+      alternatives: ["…"],
+    });
+  }
+  return findings;
+};
+
+/**
+ * Optional typography: "--" and "---" typed for a dash. "---" is an em dash;
+ * "--" is an en dash between numbers ("10--20") and otherwise either dash,
+ * English preferring the em dash and the other languages the spaced en dash.
+ * Line-leading runs (rules, list markers, SQL comments, signatures), command
+ * options ("--force") and HTML comments are not dashes.
+ */
+const typedDashes: Detector = (ctx) => {
+  const findings: RawFinding[] = [];
+  const english = ctx.lang.startsWith("en");
+  for (const match of ownedMatches(ctx, /(?<![-<!])-{2,3}(?![->])/gu)) {
+    const start = match.index;
+    const end = start + match[0].length;
+    const before = ctx.text[start - 1] ?? "";
+    const after = ctx.text[end] ?? "";
+    const lineStart = ctx.text.lastIndexOf("\n", start - 1) + 1;
+    if (ctx.text.slice(lineStart, start).trim() === "") continue;
+    if (/\s/.test(before) && /[\p{L}\p{N}]/u.test(after)) continue;
+    const alternatives =
+      match[0].length === 3
+        ? ["—"]
+        : /\p{N}/u.test(before) && /\p{N}/u.test(after)
+          ? ["–"]
+          : english
+            ? ["—", "–"]
+            : ["–", "—"];
+    findings.push({
+      ruleId: "emdashShortcut",
+      messageKey: "review_msg_typed_dash",
+      range: { start, end },
+      alternatives,
+      context: { start: Math.max(0, start - 1), end: Math.min(ctx.text.length, end + 1) },
+    });
+  }
+  return findings;
+};
+
+/**
+ * English writes "$", "£" and "¥" before the amount and "¢" after it: "25$"
+ * is "$25". Other languages place symbols by their own conventions ("25 $" in
+ * French Canada, "R$ 25"), so this is English only. A line with "$" before a
+ * name is math or a shell ("$x = 5$", "$HOME"), and is left alone.
+ */
+function currencyPlacement(ctx: DetectContext): RawFinding[] {
+  if (ctx.lang !== "en_US") return [];
+  const findings: RawFinding[] = [];
+  const regex =
+    /(?<![\p{L}\p{N}$£¥¢.,_])(?:(\d[\d,]*(?:\.\d+)?)[  ]*([$£¥])|¢(\d+))(?![\p{L}\p{N}$£¥¢_])/gu;
+  for (const match of ownedMatches(ctx, regex)) {
+    const start = match.index;
+    const end = start + match[0].length;
+    const lineStart = ctx.text.lastIndexOf("\n", start) + 1;
+    let lineEnd = ctx.text.indexOf("\n", end);
+    if (lineEnd < 0) lineEnd = ctx.text.length;
+    if (match[2] === "$" && /\$[\p{L}\\{(_]/u.test(ctx.text.slice(lineStart, lineEnd))) continue;
+    findings.push({
+      ruleId: "currencySpacing",
+      messageKey: "review_msg_currency_placement",
+      range: { start, end },
+      alternatives: [match[3] ? `${match[3]}¢` : `${match[2]}${match[1]}`],
+      context: { start: lineStart, end: lineEnd },
+      bulkBlock: "context-dependent",
+    });
+  }
+  return findings;
+}
+
+/** "300°K" is "300 K": the kelvin is an absolute unit and takes no degree sign. */
+function kelvinDegree(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  const separator = resolveMeasurementLocale(ctx.lang)?.separator ?? " ";
+  for (const match of ownedMatches(ctx, /(?<=[\p{N}\s(])°K(?![\p{L}\p{N}_])/gu)) {
+    const start = match.index;
+    const glued = /\p{N}/u.test(ctx.text[start - 1]);
+    findings.push({
+      ruleId: "measurementUnitFormatting",
+      messageKey: "review_msg_kelvin_degree",
+      range: { start, end: start + 2 },
+      alternatives: [glued ? `${separator}K` : "K"],
+      context: { start: Math.max(0, start - 1), end: start + 2 },
+    });
+  }
+  return findings;
+}
 
 function measurementLike(
   ctx: DetectContext,
@@ -1090,21 +1341,27 @@ function measurementLike(
   return findings;
 }
 
-// ponytail: small function-word allowlists; expand only with ambiguity fixtures.
-// Words that legitimately double are left out: de "die die"/"das das" (relative
-// + article), fr "nous nous"/"vous vous" (reflexive), es/pt "para para" (verb +
-// preposition), hr "je je" (verb + clitic), el "με με" (pronoun + preposition).
+// ponytail: small closed-class allowlists (articles, prepositions,
+// conjunctions, demonstratives, a few auxiliaries); expand only with ambiguity
+// fixtures. Open-class words stay out: without a part of speech "record record
+// profits" or "very very" cannot be told from a slip. Words that legitimately
+// double are left out: en "that that"/"had had"/"can can"/"her her", de "die
+// die"/"das das" (relative + article) and "und und und", fr "nous nous"/"vous
+// vous" (reflexive), es "es es" and pt "é é" ("lo que es es"), es/pt "para para"
+// (verb + preposition), sv "om om"/"för för"/"var var", hr "je je" (verb +
+// clitic), el "με με" (pronoun + preposition), "και και" (both … and) and
+// "είναι είναι", ar "من من".
 const REPEATABLE_WORDS: Record<string, string> = {
-  en: "the|an|a|is|are|was|were|in|on|at|for|with|from|of|to",
-  de: "ein|eine|einen|einem|einer|eines|im|mit|von|für|auf|bei|aus|nach|zum|zur",
-  fr: "le|les|un|une|des|du|au|aux|dans|pour|avec|sur",
-  es: "el|los|las|un|una|en|con|del|al",
-  pt: "os|um|uma|em|com|do|da|dos|das|no|na",
-  pl: "się|na|do|od|dla|przez|że",
-  sv: "att|ett|på|till|med|av",
-  hr: "na|za|od|iz|do",
-  el: "στο|στη|στην|στον|στα|από|για|ένα|μια",
-  ar: "في|على|إلى|عن",
+  en: "the|an|a|is|are|was|were|in|on|at|for|with|from|of|to|and|or|but|nor|as|by|into|onto|about|than|this|these|those|its|your|our|their|would|should|could|has|been",
+  de: "ein|eine|einen|einem|einer|eines|im|mit|von|für|auf|bei|aus|nach|zum|zur|dass|weil|ist|sind|hat|wird|über|unter|durch|ohne|gegen",
+  fr: "le|les|un|une|des|du|au|aux|dans|pour|avec|sur|et|mais|est|sont|par|ce|cette|ces|sans",
+  es: "el|los|las|un|una|en|con|del|al|y|pero|por|sin|sobre|entre|desde|hasta|este|esta|estos|estas",
+  pt: "os|um|uma|em|com|do|da|dos|das|no|na|e|mas|por|pelo|pela|sem|sobre|entre|este|esta|isto|isso",
+  pl: "się|na|do|od|dla|przez|że|i|oraz|ale|lub|w|z|o|po|jest|są",
+  sv: "att|ett|på|till|med|av|och|men|eller|är|vid|från|under|över|utan",
+  hr: "na|za|od|iz|do|i|ali|ili|u|s|sa|o|po|pri|kod|prema",
+  el: "στο|στη|στην|στον|στα|από|για|ένα|μια|αλλά|στις|στους|προς|χωρίς",
+  ar: "في|على|إلى|عن|مع|هذا|هذه|ثم",
 };
 const REPEATED_WORD_REGEX = new Map(
   Object.entries(REPEATABLE_WORDS).map(([lang, words]) => [
@@ -1206,8 +1463,10 @@ export const REVIEW_DETECTORS: ReadonlyArray<{ rules: CatalogRuleId[]; detect: D
       "englishAlotCorrection",
     ],
     // English word lists; other languages have their own tables.
-    detect: (ctx) =>
-      ctx.lang === "en_US" ? wordSpelling(ctx) : [...splitWords(ctx), ...frenchElisions(ctx)],
+    detect: (ctx) => [
+      ...(ctx.lang === "en_US" ? wordSpelling(ctx) : [...splitWords(ctx), ...frenchElisions(ctx)]),
+      ...markedApostrophes(ctx),
+    ],
   },
   { rules: ["englishModalOfCorrection"], detect: modalOf },
   { rules: ["englishYourWelcomeCorrection"], detect: yourWelcome },
@@ -1224,11 +1483,18 @@ export const REVIEW_DETECTORS: ReadonlyArray<{ rules: CatalogRuleId[]; detect: D
   { rules: ["commaPeriodSpacing"], detect: commaPeriodSpacing },
   { rules: ["collapseRepeatedSpaces"], detect: repeatedSpaces },
   { rules: ["duplicatePunctuationCollapse"], detect: duplicatePunctuation },
+  { rules: ["ellipsisShortcut"], detect: ellipsisCharacter },
+  { rules: ["quoteSpacing"], detect: quoteSpacing },
+  { rules: ["primeSymbols"], detect: primeSymbols },
+  { rules: ["emdashShortcut"], detect: typedDashes },
   {
     rules: ["measurementUnitFormatting"],
-    detect: (ctx) => measurementLike(ctx, "measurementUnitFormatting"),
+    detect: (ctx) => [...measurementLike(ctx, "measurementUnitFormatting"), ...kelvinDegree(ctx)],
   },
-  { rules: ["currencySpacing"], detect: (ctx) => measurementLike(ctx, "currencySpacing") },
+  {
+    rules: ["currencySpacing"],
+    detect: (ctx) => [...measurementLike(ctx, "currencySpacing"), ...currencyPlacement(ctx)],
+  },
 ];
 
 /** Minimal edits turning source[start, start+original.length) into `replacement`. */

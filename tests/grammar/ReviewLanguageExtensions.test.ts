@@ -266,6 +266,8 @@ const EXTENSIONS: Array<[CatalogRuleId, Record<string, Fixture>]> = [
           ["Aujourdhui il pleut.", "Aujourd'hui il pleut."],
           ["Il dit quil vient.", "Il dit qu'il vient."],
           ["L’homme dit daccord.", "L’homme dit d’accord."],
+          ["C´est la vie.", "C'est la vie."],
+          ["Il faut qu´il parte.", "Il faut qu'il parte."],
         ],
         neg: [
           "C'est vrai.",
@@ -273,6 +275,38 @@ const EXTENSIONS: Array<[CatalogRuleId, Record<string, Fixture>]> = [
           "Quelle belle journée.",
           "Un nest d'oiseaux en anglais.",
           "Le mot « cest » est fautif.",
+        ],
+      },
+      de_DE: {
+        pos: [
+          ["Wie geht´s dir?", "Wie geht's dir?"],
+          ["Das gibt´s nicht.", "Das gibt's nicht."],
+          ["So war´s gestern.", "So war's gestern."],
+          ["Mach`s gut.", "Mach's gut."],
+          ["😀 Klappt´s morgen?", "😀 Klappt's morgen?"],
+        ],
+        neg: [
+          "Wie geht's dir?",
+          "Wie gehts dir?",
+          "Der Akzent ´ steht allein.",
+          "Nutze `ls` und `cat`s Ausgabe.",
+          "Das Café´ ist zu.",
+        ],
+      },
+      pt_BR: {
+        pos: [
+          ["Um copo d´água, por favor.", "Um copo d'água, por favor."],
+          ["Caixa d`água cheia.", "Caixa d'água cheia."],
+          ["Estrela d´alva brilhou.", "Estrela d'alva brilhou."],
+          ["Pau d´arco é uma árvore.", "Pau d'arco é uma árvore."],
+          ["Mãe d´água chegou.", "Mãe d'água chegou."],
+        ],
+        neg: [
+          "Um copo d'água, por favor.",
+          "Um copo de água.",
+          "O acento ´ sozinho.",
+          "Ele disse d´ e parou.",
+          "Nota: d´10 é código.",
         ],
       },
     },

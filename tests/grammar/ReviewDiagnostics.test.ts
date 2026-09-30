@@ -114,7 +114,15 @@ describe("review rule coverage map", () => {
     expect(REVIEW_SUPPORTED_RULE_IDS).toEqual(supported);
     expect(reviewRuleIds({ codeMode: false })).toEqual(
       supported.filter(
-        (id) => id !== "styleRedundancy" && id !== "styleLongSentence" && id !== "stylePhrasing",
+        (id) =>
+          ![
+            "styleRedundancy",
+            "styleLongSentence",
+            "ellipsisShortcut",
+            "emdashShortcut",
+            "primeSymbols",
+            "stylePhrasing",
+          ].includes(id),
       ),
     );
     // Off for typing by default, yet review finds it.
@@ -133,8 +141,6 @@ describe("review rule coverage map", () => {
     for (const ruleId of [
       "doubleSpaceToPeriod",
       "autoBracketClose",
-      "ellipsisShortcut",
-      "emdashShortcut",
       "smartQuoteNormalization",
     ] as const) {
       expect(REVIEW_RULE_METADATA[ruleId].review).toBe("excluded");
@@ -661,7 +667,9 @@ describe("adversarial review regressions: detection", () => {
   });
 
   test("a double hyphen is a dash, not a hyphen joining a longer name", () => {
-    const findings = review("I dont--really--care.");
+    const findings = review("I dont--really--care.", {
+      enabledRules: reviewRuleIds({ codeMode: false }),
+    });
     expect(summary(findings)).toEqual([
       ["englishContractionNormalization", "dont", [2, 6], "don't"],
     ]);
