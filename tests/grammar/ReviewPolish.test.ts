@@ -232,6 +232,60 @@ export const POLISH_CASES: Array<[CatalogRuleId, string, Case]> = [
       ],
     },
   ],
+  [
+    "polishMisplacedComma",
+    "commas inside compound conjunctions and set phrases",
+    {
+      pos: [
+        ["Mimo, że padało, wyszliśmy.", "Mimo że padało, wyszliśmy."],
+        ["Zostałem w domu mimo, że chciałem iść.", "Zostałem w domu, mimo że chciałem iść."],
+        ["Czytał gazetę podczas, gdy ona spała.", "Czytał gazetę, podczas gdy ona spała."],
+        ["Przyjdę chyba, że zachoruję.", "Przyjdę, chyba że zachoruję."],
+        ["Jest późno, a, więc idziemy.", "Jest późno, a więc idziemy."],
+        ["Podaj numer o, ile go masz.", "Podaj numer, o ile go masz."],
+        ["Chcąc, nie chcąc poszedł.", "Chcąc nie chcąc poszedł."],
+        ["Kupił jabłka, gruszki, itd.", "Kupił jabłka, gruszki itd."],
+      ],
+      neg: [
+        "Zostałem w domu, mimo że chciałem iść.",
+        "Mówił wtedy nawet, gdy nikt nie słuchał.",
+        "Czy tak, czy owak, idziemy.",
+        "O, ile tu ludzi!",
+        "Kupił jabłka itp., itd.",
+        "Zjadł tyle, że pękł.",
+      ],
+    },
+  ],
+  [
+    "polishMissingComma",
+    "a comma before a subordinate clause",
+    {
+      pos: [
+        ["Myślę że masz rację.", "Myślę, że masz rację."],
+        ["Przyszedł żeby pomóc.", "Przyszedł, żeby pomóc."],
+        ["Został w domu ponieważ padało.", "Został w domu, ponieważ padało."],
+        ["To jest dom w którym mieszkam.", "To jest dom, w którym mieszkam."],
+        ["Znam człowieka który to zrobił.", "Znam człowieka, który to zrobił."],
+        ["Jest mały ale wygodny.", "Jest mały, ale wygodny."],
+        ["Zadzwoń jeśli możesz.", "Zadzwoń, jeśli możesz."],
+      ],
+      neg: [
+        "Myślę, że masz rację.",
+        "Wyszedł, mimo że padało.",
+        "Mówił tak że nikt nie rozumiał.",
+        "A że padało, zostaliśmy.",
+        "Wiem, że jeśli przyjdzie, to pomoże.",
+        "To ustawa, na podstawie której go skazano.",
+        "To młotek, za pomocą którego wbił gwóźdź.",
+        "Mało który uczeń to wie.",
+        "O której mogę przyjść?",
+        "Poślij którego z nich.",
+        "Nie ma żadnych ale.",
+        "Właśnie że nie pójdę.",
+        "Był w pokoju, w którym i w którego oknach paliło się światło.",
+      ],
+    },
+  ],
 ];
 
 /** Warnings without a fix: the range is flagged and nothing is offered. */

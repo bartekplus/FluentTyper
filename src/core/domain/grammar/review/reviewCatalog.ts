@@ -380,6 +380,22 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     bulk: "individual",
     languages: ["pl_PL"],
   },
+  polishMisplacedComma: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "punctuation",
+    kind: "marks",
+    bulk: "individual",
+    languages: ["pl_PL"],
+  },
+  polishMissingComma: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "punctuation",
+    kind: "marks",
+    bulk: "individual",
+    languages: ["pl_PL"],
+  },
 
   englishPronounCase: {
     review: "supported",

@@ -1496,6 +1496,28 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Po numerze dnia nazwa miesiąca stoi w dopełniaczu („1 stycznia”), bez kropki po dniu, albo jako liczba rzymska („1 I 2020”).",
     "Depois do número do dia, escreva o mês polonês no genitivo (“1 stycznia”), sem ponto após o dia, ou em algarismos romanos (“1 I 2020”).",
   ],
+  review_msg_pl_misplaced_comma: [
+    "Misplaced comma: in Polish it goes before a compound conjunction (“…, mimo że”), not inside it, and not inside set phrases or before “itd.”.",
+    "Virgule mal placée : en polonais, elle précède une conjonction composée (« …, mimo że »), pas à l’intérieur, ni dans les locutions figées ou avant « itd. ».",
+    "Zarez na krivom mjestu: u poljskom dolazi ispred složenog veznika („…, mimo że”), a ne unutar njega, ni u ustaljenim izrazima ili ispred „itd.”.",
+    "Coma mal colocada: en polaco va antes de una conjunción compuesta («…, mimo że»), no dentro de ella, ni en frases hechas o antes de «itd.».",
+    "Λάθος θέση κόμματος: στα πολωνικά μπαίνει πριν από τον σύνθετο σύνδεσμο («…, mimo że»), όχι μέσα του, ούτε σε στερεότυπες φράσεις ή πριν από το «itd.».",
+    "Felplacerat kommatecken: på polska står det före en sammansatt konjunktion (”…, mimo że”), inte inuti den, och inte i fasta uttryck eller före ”itd.”.",
+    "Komma an falscher Stelle: Im Polnischen steht es vor einer mehrteiligen Konjunktion („…, mimo że“), nicht in ihr, nicht in festen Wendungen und nicht vor „itd.“.",
+    "Przecinek nie na swoim miejscu: stawiamy go przed całym spójnikiem złożonym („…, mimo że”), nie w jego środku, nie w utartych zwrotach i nie przed „itd.”.",
+    "Vírgula mal colocada: em polonês ela vem antes de uma conjunção composta (“…, mimo że”), não dentro dela, nem em expressões fixas ou antes de “itd.”.",
+  ],
+  review_msg_pl_missing_comma: [
+    "Polish sets off a subordinate clause with a comma before its conjunction or relative pronoun: “Wiem, że…”, “dom, w którym…”.",
+    "Le polonais sépare la subordonnée par une virgule avant sa conjonction ou son pronom relatif : « Wiem, że… », « dom, w którym… ».",
+    "Poljski odvaja zavisnu rečenicu zarezom ispred veznika ili odnosne zamjenice: „Wiem, że…”, „dom, w którym…”.",
+    "El polaco separa la subordinada con una coma antes de su conjunción o pronombre relativo: «Wiem, że…», «dom, w którym…».",
+    "Τα πολωνικά χωρίζουν τη δευτερεύουσα πρόταση με κόμμα πριν από τον σύνδεσμο ή την αναφορική αντωνυμία: «Wiem, że…», «dom, w którym…».",
+    "Polskan avgränsar en bisats med kommatecken före konjunktionen eller relativpronomenet: ”Wiem, że…”, ”dom, w którym…”.",
+    "Im Polnischen steht vor der Konjunktion oder dem Relativpronomen eines Nebensatzes ein Komma: „Wiem, że…“, „dom, w którym…“.",
+    "Zdanie podrzędne oddzielamy przecinkiem przed spójnikiem lub zaimkiem względnym: „Wiem, że…”, „dom, w którym…”.",
+    "O polonês separa a oração subordinada com vírgula antes da conjunção ou do pronome relativo: “Wiem, że…”, “dom, w którym…”.",
+  ],
 };
 
 /**

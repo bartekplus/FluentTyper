@@ -1,6 +1,7 @@
 // Polish Review tables and detectors, one module per area (see english/index.ts).
 import type { LanguagePhraseTables } from "../languagePhraseTables";
 import type { ReviewDetectorEntry } from "../reviewDetectors";
+import * as commas from "./commas";
 import * as compounds from "./compounds";
 import * as confusions from "./confusions";
 import * as dates from "./dates";
@@ -18,4 +19,5 @@ export const POLISH_DETECTORS: readonly ReviewDetectorEntry[] = [
   ...confusions.DETECTORS,
   ...numbers.DETECTORS,
   ...dates.DETECTORS,
+  ...commas.DETECTORS,
 ];

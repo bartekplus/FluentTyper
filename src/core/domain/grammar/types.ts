@@ -115,6 +115,8 @@ export interface GrammarRuleCatalogEntry {
     // Polish-only Review checks (review/polish/).
     | "polishNumerals"
     | "polishDates"
+    | "polishMisplacedComma"
+    | "polishMissingComma"
     | "quoteSpacing"
     | "primeSymbols";
   /** Absent for existing typing rules; false for native Review-only checks. */
