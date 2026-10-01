@@ -1805,6 +1805,7 @@ const UI = {
     "Następny problem",
     "Próximo problema",
   ],
+  review_card_more: ["More", "Plus", "Više", "Más", "Περισσότερα", "Mer", "Mehr", "Więcej", "Mais"],
   review_close: [
     "Close review",
     "Fermer la relecture",

@@ -268,7 +268,7 @@ describe("ReviewUi: Local AI", () => {
     ui.render(state({ diagnostics: [advice] }));
     expect($(".status").textContent).toContain("No issues found");
     expect($(".status").textContent).toContain("Style advice: 1.");
-    expect($('.filter[data-category="style"]').textContent).toContain("Style advice (1)");
+    expect($('.filter[data-category="style"]').getAttribute("aria-label")).toBe("Style advice (1)");
     trustedClick($('.filter[data-category="style"]'));
     expect(cb.toggleCategory).toHaveBeenCalledWith("style", false);
     ui.render(state({ diagnostics: [advice, finding("grammar")] }));

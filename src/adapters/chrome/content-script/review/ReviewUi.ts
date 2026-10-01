@@ -226,6 +226,39 @@ function element<K extends keyof HTMLElementTagNameMap>(
   return node;
 }
 
+/** Line icons for icon buttons, drawn as SVG paths (stroke follows the button's color). */
+const ICONS = {
+  close: ["M6 6l12 12", "M18 6 6 18"],
+  up: ["m6 15 6-6 6 6"],
+  down: ["m6 9 6 6 6-6"],
+} as const;
+
+function iconButton(
+  doc: Document,
+  icon: keyof typeof ICONS,
+  label: string,
+  attributes: Record<string, string> = {},
+): HTMLButtonElement {
+  const button = element(doc, "button", {
+    type: "button",
+    class: "icon",
+    "aria-label": label,
+    title: label,
+    ...attributes,
+  });
+  const ns = "http://www.w3.org/2000/svg";
+  const svg = doc.createElementNS(ns, "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("aria-hidden", "true");
+  for (const d of ICONS[icon]) {
+    const path = doc.createElementNS(ns, "path");
+    path.setAttribute("d", d);
+    svg.append(path);
+  }
+  button.append(svg);
+  return button;
+}
+
 /** Text with its changed middle wrapped in <mark>, built from text nodes only. */
 function appendDiff(
   doc: Document,
@@ -305,6 +338,8 @@ export class ReviewUi {
   private state: ReviewViewState | null = null;
   private cardId: string | null = null;
   private cardAlternative = 0;
+  /** Whether the open card's More actions are shown. */
+  private cardMoreOpen = false;
   private cardAnchor: DOMRect | null = null;
   /** The open card's finding, kept while a recheck runs on unchanged text. */
   private cardMemory: { ruleId: string; start: number; end: number; text: string } | null = null;
@@ -350,19 +385,19 @@ export class ReviewUi {
       this.t("review_title"),
     );
     this.scopeLabel = element(doc, "span", { class: "scope" });
-    const close = element(
-      doc,
-      "button",
-      {
-        class: "icon",
-        type: "button",
-        "aria-label": this.t("review_close"),
-        title: this.t("review_close"),
-        "data-action": "close",
-      },
-      "\u00D7",
+    const close = iconButton(doc, "close", this.t("review_close"), { "data-action": "close" });
+    // Previous and next finding sit with the title, like a document's find bar.
+    const nav = (this.nav = element(doc, "div", { class: "nav" }));
+    this.prev = iconButton(doc, "up", this.t("review_prev"), { "data-action": "prev" });
+    this.next = iconButton(doc, "down", this.t("review_next"), { "data-action": "next" });
+    nav.append(this.prev, this.next);
+    header.append(
+      this.heading,
+      this.scopeLabel,
+      element(doc, "span", { class: "spacer" }),
+      nav,
+      close,
     );
-    header.append(this.heading, this.scopeLabel, element(doc, "span", { class: "spacer" }), close);
     this.modes = element(doc, "div", {
       class: "modes",
       role: "group",
@@ -445,22 +480,6 @@ export class ReviewUi {
       role: "group",
       "aria-label": this.t("review_filters"),
     });
-    const nav = (this.nav = element(doc, "div", { class: "nav" }));
-    this.prev = element(
-      doc,
-      "button",
-      { type: "button", "data-action": "prev", "aria-label": this.t("review_prev") },
-      "\u2191",
-    );
-    this.next = element(
-      doc,
-      "button",
-      { type: "button", "data-action": "next", "aria-label": this.t("review_next") },
-      "\u2193",
-    );
-    this.prev.title = this.t("review_prev");
-    this.next.title = this.t("review_next");
-    nav.append(this.prev, this.next);
     this.list = element(doc, "ol", { class: "list", "aria-label": this.t("review_list_label") });
     this.batch = element(doc, "section", {
       class: "batch",
@@ -485,23 +504,23 @@ export class ReviewUi {
     this.resetIgnores = element(
       doc,
       "button",
-      { type: "button", "data-action": "reset-ignores", hidden: "" },
+      { type: "button", class: "link", "data-action": "reset-ignores", hidden: "" },
       this.t("review_reset_ignores"),
     );
     this.resetIgnores.addEventListener("click", () => this.callbacks.resetIgnores());
     footer.append(this.fixAll, this.fixNote, this.aiBatchButton, this.resetIgnores);
+    // The findings come first; the Local AI offer and coverage notes follow them.
     this.panel.append(
       header,
       this.modes,
       this.status,
       this.announcer,
-      this.ai,
       this.rewrite.root,
-      this.notes,
       this.filters,
-      nav,
       this.list,
       this.batch,
+      this.ai,
+      this.notes,
       footer,
     );
 
@@ -719,6 +738,8 @@ export class ReviewUi {
           ? "review_scope_window"
           : "review_scope_field",
     );
+    // The whole field is the default: only a narrower scope earns a label.
+    this.scopeLabel.hidden = state.scopeKind !== "selection" && state.unread === 0;
     this.status.textContent = this.statusText(state);
     // Whether suggestions for unknown words may still join the results.
     this.panel.dataset.spelling = state.status === "ready" ? state.spelling : "idle";
@@ -739,11 +760,22 @@ export class ReviewUi {
     this.resetIgnores.hidden = state.ignoredCount + (state.ignoredAdviceCount ?? 0) === 0;
     this.resetIgnores.disabled = state.status !== "ready";
     const filtered = state.categories.size < REVIEW_CATEGORIES.length;
+    // Nothing left to act on with every category shown: the review is done.
+    this.panel.toggleAttribute(
+      "data-done",
+      !rewriting &&
+        state.status === "ready" &&
+        !state.noRules &&
+        !filtered &&
+        state.diagnostics.length === 0,
+    );
     const noteParts = [this.t(filtered ? "review_fix_all_filtered" : "review_fix_all_whole")];
     if (state.bulk.deferred > 0) {
       noteParts.push(this.t("review_fix_all_deferred", { count: state.bulk.deferred }));
     }
     this.fixNote.textContent = state.capabilities.bulk ? noteParts.join(" ") : "";
+    // The default (every category) stays the button's description, unseen.
+    this.fixNote.classList.toggle("sr-only", !filtered && state.bulk.deferred === 0);
     const aiFindings = state.diagnostics.filter(isLocalAi).length;
     this.aiBatchButton.hidden = !(
       state.capabilities.apply &&
@@ -1191,20 +1223,23 @@ export class ReviewUi {
           state.diagnostics.some((d) => d.category === "style"),
       ).map((category) => {
         const shown = state.categories.has(category);
+        const name = this.t(CATEGORY_KEY[category]);
+        const count = counts.get(category) ?? 0;
+        // Badge and count keep the filters on one line; the name is the chip's title and label.
         const button = element(this.doc, "button", {
           type: "button",
           class: "filter",
           "data-category": category,
           "aria-pressed": String(shown),
+          "aria-label": shown ? `${name} (${count})` : name,
+          title: name,
         });
         button.append(
           element(this.doc, "span", { class: "badge", "aria-hidden": "true" }, BADGES[category]),
-          this.doc.createTextNode(
-            shown
-              ? `${this.t(CATEGORY_KEY[category])} (${counts.get(category) ?? 0})`
-              : this.t(CATEGORY_KEY[category]),
-          ),
         );
+        // A hidden category's findings are not counted.
+        if (shown)
+          button.append(element(this.doc, "span", { "aria-hidden": "true" }, String(count)));
         button.addEventListener("click", () => this.callbacks.toggleCategory(category, !shown));
         return button;
       }),
@@ -1283,7 +1318,10 @@ export class ReviewUi {
 
   /** `alternative` restores a choice made in an earlier card for this finding. */
   openCard(diagnostic: ReviewDiagnostic, anchor: DOMRect | null, alternative?: number): void {
-    if (this.cardId !== diagnostic.id) this.cardAlternative = 0;
+    if (this.cardId !== diagnostic.id) {
+      this.cardAlternative = 0;
+      this.cardMoreOpen = false;
+    }
     if (alternative !== undefined) this.cardAlternative = alternative;
     this.cardId = diagnostic.id;
     this.cardAnchor = anchor;
@@ -1354,17 +1392,7 @@ export class ReviewUi {
     );
     if (ai) header.append(element(doc, "span", { class: "tag" }, this.t("review_ai_tag")));
     header.append(element(doc, "span", { class: "spacer" }));
-    const close = element(
-      doc,
-      "button",
-      {
-        type: "button",
-        class: "icon",
-        "aria-label": this.t("review_card_close"),
-        title: this.t("review_card_close"),
-      },
-      "\u00D7",
-    );
+    const close = iconButton(doc, "close", this.t("review_card_close"));
     close.addEventListener("click", () => {
       this.closeCard();
       this.callbacks.select(null, { openCard: false, focusList: true });
@@ -1394,10 +1422,10 @@ export class ReviewUi {
     const to = element(doc, "span", { class: "to", dir: "auto" });
     appendDiff(doc, from, diagnostic.original, alternative.preview, "from");
     appendDiff(doc, to, diagnostic.original, alternative.preview, "to");
+    // One line, as it reads: the text as written, struck through, then the fix.
     diff.append(
-      element(doc, "span", { class: "label" }, "\u2212"),
       from,
-      element(doc, "span", { class: "label" }, "+"),
+      element(doc, "span", { class: "arrow", "aria-hidden": "true" }, "\u2192"),
       to,
     );
 
@@ -1510,10 +1538,22 @@ export class ReviewUi {
     this.replaceKeepingFocus(this.card, parts);
   }
 
-  /** A card's buttons: `lead` (Apply), then Ignore and, for a single word, Add to dictionary. */
+  /**
+   * A card's buttons: `lead` (Apply) and Ignore, then the rarer, lasting ones
+   * (ignore matching, turn the check off, add to dictionary) under More.
+   */
   private cardActions(diagnostic: ReviewDiagnostic, ...lead: HTMLElement[]): HTMLElement {
     const doc = this.doc;
     const actions = element(doc, "div", { class: "actions" });
+    const more = element(doc, "details", { class: "more" });
+    const summary = element(doc, "summary", { "data-action": "more" }, this.t("review_card_more"));
+    more.append(summary);
+    // The card is rebuilt on every render: keep More open while it shows this finding.
+    more.open = this.cardMoreOpen;
+    more.addEventListener("toggle", () => {
+      this.cardMoreOpen = more.open;
+      if (!this.card.hidden) this.positionCard();
+    });
     const ignore = element(
       doc,
       "button",
@@ -1535,12 +1575,13 @@ export class ReviewUi {
       );
       matching.disabled = this.state?.status !== "ready";
       matching.addEventListener("click", () => this.callbacks.ignoreMatching(diagnostic.id));
-      actions.append(
+      more.append(
         matching,
+        // The fine print stays the button's description.
         element(
           doc,
           "p",
-          { class: "hint ignore-matching-hint", id: "ft-review-ignore-matching-hint" },
+          { class: "sr-only", id: "ft-review-ignore-matching-hint" },
           this.t("review_ignore_matching_hint"),
         ),
       );
@@ -1556,7 +1597,7 @@ export class ReviewUi {
       disable.addEventListener("click", (event) => {
         if (event.isTrusted) this.callbacks.disableRule?.(diagnostic.id);
       });
-      actions.append(disable);
+      more.append(disable);
     }
     if (diagnostic.dictionaryWord) {
       const add = element(
@@ -1570,9 +1611,12 @@ export class ReviewUi {
       add.addEventListener("click", (event) => {
         if (event.isTrusted) this.callbacks.addToDictionary(diagnostic.id);
       });
-      actions.append(add);
+      more.append(add);
     }
-    return actions;
+    if (more.childElementCount === 1) return actions;
+    const group = element(doc, "div", { class: "card-actions" });
+    group.append(actions, more);
+    return group;
   }
 
   /** Swaps a container's content (the card, the batch preview), keeping focus on the same control. */
