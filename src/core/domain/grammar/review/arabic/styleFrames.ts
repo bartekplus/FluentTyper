@@ -115,7 +115,7 @@ function lightVerbs(list: readonly StyleToken[], at: (start: number) => boolean)
     if (!stems) continue;
     const after = list[i + 2];
     const next = after && adjacent(after) ? after.word : "";
-    const fits = parts!.groups!.article
+    const fits = parts.groups!.article
       ? next === "" || PREPOSITIONS.has(next)
       : next.startsWith("ال");
     if (!fits) continue;
@@ -214,7 +214,7 @@ function elatives(list: readonly StyleToken[], at: (start: number) => boolean): 
       findings.push({
         messageKey: "review_msg_style_phrasing",
         range: { start: list[i].start, end: list[i].end },
-        alternatives: [m!.groups!.pre + elative],
+        alternatives: [m.groups!.pre + elative],
         context: { start: list[i].start, end: next.end },
       });
       continue;
@@ -222,7 +222,7 @@ function elatives(list: readonly StyleToken[], at: (start: number) => boolean): 
     // The feminine noun must not close an idafa ("مستوى الجودة الأعلى" is the level's).
     const feminine = FEMININE_ELATIVE.get(elative);
     const noun = /^(?:[وفبلك]{0,2})ال(?<stem>\p{L}{2,}ة)$/u.exec(previous)?.groups!.stem;
-    if (!feminine || m!.groups!.pre || !noun || NOT_FEMININE.has(noun)) continue;
+    if (!feminine || m.groups!.pre || !noun || NOT_FEMININE.has(noun)) continue;
     const before = i > 1 && adjacent(list[i - 1]) ? list[i - 2].word : "";
     if (before && !PREPOSITIONS.has(before) && !/^(?:[وفبلك]{0,2})ال/u.test(before)) continue;
     findings.push({
