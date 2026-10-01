@@ -165,6 +165,61 @@ function splitGlued(word: string): string | null {
   return null;
 }
 
+// Parts that also build words the dictionary lacks on purpose: suffixes ("countability",
+// "subjectless") and the computing compounds ("textarea", "codebase", "webhooks", "typecheck").
+const NOT_SPLIT = new Set(
+  (
+    "ability abilities less ness ship ships hood dom ism isms ist ists able ful like wise ward " +
+    "wards some web code text type tool tools name file files key keys data time user users work " +
+    "sub net host end front back side lock page pages line lines view views base check checks " +
+    "path paths stack space spaces area chain chains hook hooks tip tips process script scripts " +
+    "set sets box bar bars list lists map maps mark point points case cases load flow board " +
+    "frame frames down up out over cycle fore under mid self super inter multi counter micro " +
+    "mini macro nano auto mega meta after head man men way house room land yard wood ball " +
+    "light field smith"
+  ).split(" "),
+);
+/** A plain noun: not also an adjective, adverb or preposition the joined word could build on. */
+const plainNoun = (part: string) => {
+  const entry = info(part);
+  return (
+    !!entry?.noun &&
+    !entry.adjective &&
+    !entry.adverb &&
+    !NOT_SPLIT.has(part) &&
+    !NOT_SPLIT.has(part.replace(/s$/, ""))
+  );
+};
+
+/**
+ * "landingpad" -> "landing pad": two plain nouns the lexicon knows, joined into a lowercase
+ * word it does not. Only one split may fit; the singular head offered has four letters or more.
+ */
+function splitNouns(word: string): string | null {
+  const w = word;
+  if (w.length < 8 || !/^[a-z]+$/.test(w)) return null;
+  // An inflection of a word the lexicon knows ("compressions") is no compound.
+  const stem = w.replace(/(?:e?s|ed|ing)$/, "");
+  if ([stem, `${stem}e`, w.replace(/ies$/, "y")].some((form) => form !== w && known(form)))
+    return null;
+  let split: string | null = null;
+  for (let cut = 3; cut <= w.length - 3; cut++) {
+    const head = w.slice(0, cut);
+    const tail = w.slice(cut);
+    // A letter doubled at the seam is an inflection or a coinage: "fuelling", "ashheaps".
+    if (head.at(-1) === tail[0]) continue;
+    if (!plainNoun(head) || info(head)!.plural || !plainNoun(tail)) continue;
+    // A short joined word with a three-letter tail is more often a coinage or a name.
+    if (tail.length === 3 && head.length < 7) continue;
+    if (FUNCTION_WORDS.has(head) || FUNCTION_WORDS.has(tail)) continue;
+    if (split !== null) return null;
+    // A three-letter head counts against another split ("gas pumps" / "gasp umps") but is
+    // too short to offer alone ("deb ounce").
+    split = cut > 3 ? `${head} ${tail}` : "";
+  }
+  return split || null;
+}
+
 /**
  * Two neighbours, one of them no dictionary word: a space one letter off ("Th ecat",
  * "spac eis") or one too many ("her etofore").
@@ -236,7 +291,7 @@ function wordChecks(ctx: DetectContext): Finding[] {
       continue;
     }
     if (!spaces) continue;
-    const split = unknown && owned && splitGlued(word);
+    const split = unknown && owned && (splitGlued(word) ?? splitNouns(word));
     if (split) {
       findings.push({
         ruleId: "englishAlotCorrection",

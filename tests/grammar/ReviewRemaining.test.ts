@@ -147,7 +147,8 @@ const negatives: [CatalogRuleId, string][] = [
   ["englishPhraseCorrections", "They scrapped the data plan."],
   ["englishPhraseCorrections", "Do not dissemble about the delay."],
   ["stylePhrasing", "She imitates birds from the porch."],
-  ["stylePhrasing", "We must find out the truth."],
+  ["stylePhrasing", "We must find out what happened."],
+  ["stylePhrasing", "You will find out the hard way."],
 ];
 
 test.each(negatives)("%s leaves %s", (rule, text) => {

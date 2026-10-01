@@ -9,10 +9,11 @@ const PLEONASMS = [
   ...["BWT transform", "FFT transform", "DFT transform", "HIV virus", "RAM memory", "NIC card"],
   "UPC code",
 ]
-  // A shouted pair too: "VIN NUMBER".
+  // A shouted pair and plurals too: "VIN NUMBER", "ATM machines".
   .map((pair) => {
     const [acronym, noun] = pair.split(" ");
-    return `${acronym}[ \\t\\u00a0]{1,8}(?:${noun}|${noun.toUpperCase()})`;
+    const plural = /(?:s|x|ch|sh)$/.test(noun) ? "es" : "s";
+    return `${acronym}[ \\t\\u00a0]{1,8}(?:${noun}(?:${plural})?|${noun.toUpperCase()}(?:${plural.toUpperCase()})?)`;
   })
   .join("|");
 
@@ -80,7 +81,8 @@ export function redundantAcronyms(
       ruleId: "styleRedundancy",
       messageKey: "review_msg_style_redundancy",
       range: { start, end },
-      alternatives: [acronym],
+      // "ATM machines" -> "ATMs"; an amount in "USD dollars" stays "USD".
+      alternatives: [/s$/i.test(noun) && acronym !== "USD" ? `${acronym}s` : acronym],
       context: { start: 0, end: text.length },
     });
   }

@@ -76,8 +76,6 @@ test.each([
   "`PIN number`",
   "```\nATM machine",
   "src/PIN number",
-  "PIN numbers",
-  "ATM machines",
   "pin number",
   "Pin number",
   "PIN Number",

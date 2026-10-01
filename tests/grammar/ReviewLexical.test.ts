@@ -114,12 +114,11 @@ const negatives = [
   "It ran like an overwound clock.",
   "Our onboarding flow is long.",
   "Offences against the law.",
-  "The landingpad was busy.",
   // "You" before plurals and verbs.
   "You guys of all people.",
   "You fool of a man.",
   // Acronym plurals and title case stay as they are.
-  "Keep your PIN numbers safe.",
+  "Keep your PINs safe.",
   "Check the VIN Number.",
 ];
 

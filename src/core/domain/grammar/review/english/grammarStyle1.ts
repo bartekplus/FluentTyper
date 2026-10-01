@@ -939,11 +939,12 @@ const MISSING_SPACE = new RegExp(
   "gu",
 );
 /**
- * Dotted tokens that are prose, not names: "a.m.", a decimal range ("1.5-2.5") and two
- * sentences glued at a period ("table.The"). Review's technical-token guard lets them through.
+ * Dotted tokens that are prose, not names: "a.m.", a decimal range ("1.5-2.5"), two
+ * sentences glued at a period ("table.The") and the brand "WordPress.com" (remaining.ts
+ * fixes its casing). Review's technical-token guard lets them through.
  */
 export const PROSE_DOTTED_TOKEN = new RegExp(
-  `^(?:\\p{Nd}{1,9}(?:\\.\\p{Nd}{1,9})?[-–—]\\p{Nd}{1,9}(?:\\.\\p{Nd}{1,9})?|[ap]\\.m|[AP]\\.M|\\p{L}*\\p{Ll}{2}\\.(?:${STARTERS}))$`,
+  `^(?:\\p{Nd}{1,9}(?:\\.\\p{Nd}{1,9})?[-–—]\\p{Nd}{1,9}(?:\\.\\p{Nd}{1,9})?|[ap]\\.m|[AP]\\.M|\\p{L}*\\p{Ll}{2}\\.(?:${STARTERS})|[Ww]ord[Pp]ress\\.com)$`,
   "u",
 );
 

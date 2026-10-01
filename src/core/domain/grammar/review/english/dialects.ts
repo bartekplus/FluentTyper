@@ -193,6 +193,7 @@ const AMERICAN_ONLY: readonly Pair[] = [
   ...ends("yoghurt", "yogurt", ",s"),
   ...ends("yogourt", "yogurt", ",s"),
   ...ends("verandah", "veranda", ",s"),
+  ...ends("benefitt", "benefit", "ed,ing"),
   // American "pled" is the courtroom form; "she pleaded with him" stays.
   ...["guilty", "not guilty", "innocent", "no contest"].map((plea): Pair => [
     `pleaded ${plea}`,
@@ -245,6 +246,9 @@ const WORD_CHOICE: readonly PhraseRow[] = [
   ["ok", "okay"],
   ["config", "configuration"],
   ["configs", "configurations"],
+  ["deref", "dereference"],
+  ["derefs", "dereferences"],
+  ["dirs", "directories"],
   ["very good", "excellent"],
   ["a very good", "an excellent"],
 ];
@@ -272,7 +276,9 @@ export const OPTIONAL_TABLES: readonly {
  * Slashed tokens that are prose, not paths: "w/o", "prev/next" and a decade
  * before a slash ("1970's/early"). Review's technical-token guard lets them through.
  */
-export const PROSE_SLASH_TOKEN = /^(?:w\/o|prev\/next|\p{Nd}{3}0['’]s\/\p{L}+)$/iu;
+export const PROSE_SLASH_TOKEN =
+  // remaining.ts: slashed words it checks (SLASHED) and its slash-token rows.
+  /^(?:w\/o|prev\/next|\p{Nd}{3}0['’]s\/\p{L}+|(?:infront|derefs?|dirs|bias)\/\p{L}+|dissemble\/assemble|assemble\/dissemble|chicken\/egg)$/iu;
 
 /** Rows for englishPhraseCorrections, englishClosedCompounds and stylePhrasing. */
 export const PHRASES: readonly PhraseRow[] = [];
