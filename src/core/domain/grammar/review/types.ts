@@ -250,7 +250,7 @@ export type ReviewMessageKey =
   | "review_msg_pt_number_format"
   | "review_msg_pt_typography_style"
   | "review_msg_pt_proclisis"
-  | "review_msg_pt_ao90";
+  | "review_msg_pt_ao90"
   | "review_msg_weekday_mismatch"
   | "review_msg_impossible_date";
 
