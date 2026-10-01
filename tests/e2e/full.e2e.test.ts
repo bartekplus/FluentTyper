@@ -8353,7 +8353,12 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           timeoutMs: 5000,
         });
         await triggerReview(worker!);
-        panel = await waitForReview(page, "code mode", (p) => p.open && p.status !== "");
+        // The (empty) check is asked of the background: wait past "Checking…".
+        panel = await waitForReview(
+          page,
+          "code mode",
+          (p) => p.open && p.status !== "" && p.status !== "Checking…",
+        );
         expect(panel.status).toBe("No review checks run in code mode.");
         expect(panel.items).toEqual([]);
         expect(await textareaValue()).toBe("We saw teh cat.. Then left.");

@@ -1,6 +1,6 @@
 import type { RawFinding } from "./reviewDetectors";
 import type { ProtectedRange, ReviewSourceSnapshot } from "./types";
-import { MAX_REVIEW_CHARS } from "./reviewDiagnostics";
+import { MAX_REVIEW_CHARS } from "./types";
 
 // Acronyms whose last letter already names the noun after them.
 const PLEONASMS = [

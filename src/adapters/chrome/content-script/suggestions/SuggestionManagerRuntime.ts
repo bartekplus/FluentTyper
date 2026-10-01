@@ -2,10 +2,7 @@ import { acceptKeyLabels } from "@core/domain/suggestionPopup/keyHints";
 import { getDeepActiveElement, isInDocument } from "@core/application/dom-utils";
 import { createLogger } from "@core/application/logging/Logger";
 import { LANG_SEPARATOR_CHARS_REGEX } from "@core/domain/lang";
-import {
-  findLiveGrammarProposals,
-  type LiveGrammarProposal,
-} from "@core/domain/grammar/review/liveProposals";
+import type { LiveGrammarProposal } from "@core/domain/grammar/review/liveProposalSelection";
 import { reviewText } from "@core/domain/grammar/review/reviewMessages";
 import { InlineSuggestionPresenter } from "./InlineSuggestionPresenter";
 import { InlineSuggestionView } from "./InlineSuggestionView";
@@ -93,7 +90,7 @@ export class SuggestionManagerRuntime {
   private readonly acceptKeys: string[] | undefined;
   private readonly uiLanguage: string | undefined;
   private readonly nativeAutocompleteConflictDetector = new NativeAutocompleteConflictDetector();
-  private readonly findGrammarProposals?: (beforeCursor: string) => LiveGrammarProposal[];
+  private readonly findGrammarProposals?: (beforeCursor: string) => Promise<LiveGrammarProposal[]>;
 
   private lang: string;
 
@@ -181,11 +178,12 @@ export class SuggestionManagerRuntime {
       requestInlineSuggestion: (entry) => this.getSession(entry.id)?.requestInlineSuggestion(),
     });
     const proposalRules = options.grammarProposalRules ?? [];
+    const findLive = options.findLiveProposals;
     this.findGrammarProposals =
-      proposalRules.length === 0
+      proposalRules.length === 0 || !findLive
         ? undefined
         : (beforeCursor) =>
-            findLiveGrammarProposals(beforeCursor, {
+            findLive(beforeCursor, {
               lang: this.lang,
               enabledRules: proposalRules,
               liveRules: options.enabledGrammarRules,

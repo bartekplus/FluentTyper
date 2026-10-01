@@ -3,7 +3,10 @@ import type {
   PredictResponseContext,
   PredictionInputAction,
 } from "@core/domain/messageTypes";
-import type { LiveGrammarProposal } from "@core/domain/grammar/review/liveProposals";
+import type {
+  LiveGrammarProposal,
+  LiveProposalOptions,
+} from "@core/domain/grammar/review/liveProposalSelection";
 import type { ContentEditableAdapter } from "./ContentEditableAdapter";
 import type { SuggestionGrammarCoordinator } from "./SuggestionGrammarCoordinator";
 import type { SuggestionPredictionCoordinator } from "./SuggestionPredictionCoordinator";
@@ -64,6 +67,11 @@ export interface SuggestionManagerOptions {
   enabledGrammarRules: string[];
   /** Review checks offered as proposals while typing; none (or absent) turns proposals off. */
   grammarProposalRules?: string[];
+  /** Review detection for those proposals (the background's); absent turns proposals off. */
+  findLiveProposals?: (
+    beforeCursor: string,
+    options: LiveProposalOptions,
+  ) => Promise<LiveGrammarProposal[]>;
   userDictionaryList: string[];
   getPrediction: (context: PredictionRequest) => void;
   telemetry?: SuggestionTelemetry;
@@ -203,7 +211,7 @@ export interface SuggestionEntrySessionOptions {
   >;
   getPendingFallback?: () => PendingKeyFallback | undefined;
   /** Review findings to propose for the text before the caret; absent when proposals are off. */
-  findGrammarProposals?: (beforeCursor: string) => LiveGrammarProposal[];
+  findGrammarProposals?: (beforeCursor: string) => Promise<LiveGrammarProposal[]>;
   renderMenu: (context: {
     suggestions: string[];
     snippetShortcuts?: Array<string | null>;

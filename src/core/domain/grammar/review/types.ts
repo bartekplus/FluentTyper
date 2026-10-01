@@ -52,6 +52,13 @@ export const REVIEW_LOCAL_AI_CHECK = "reviewLocalAi" as const;
 export type ReviewCheckId =
   CatalogRuleId | typeof REVIEW_SPELLING_CHECK | typeof REVIEW_LOCAL_AI_CHECK;
 
+/** Stands for each protected (non-prose) character in the analysis text; same length. */
+export const MASK_CHAR = "\uFFFC";
+/** Largest scope reviewed at once (UTF-16 code units). Larger scopes are cut and reported. */
+export const MAX_REVIEW_CHARS = 50_000;
+/** Scan unit between yields; chunks end on line breaks so no token straddles two. */
+export const REVIEW_CHUNK_CHARS = 4_000;
+
 export interface TextRange {
   start: number;
   end: number;

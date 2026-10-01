@@ -23,6 +23,7 @@ import {
   CMD_CONTENT_SCRIPT_ADD_TO_DICTIONARY,
   CMD_CONTENT_SCRIPT_DISABLE_REVIEW_RULE,
   CMD_CONTENT_SCRIPT_REVIEW_SPELLING,
+  CMD_CONTENT_SCRIPT_REVIEW_ENGINE,
   DEFAULT_DEBUG_PRESAGE_PREDICTOR_ENABLED,
   KEY_LANGUAGE,
   KEY_SITE_PROFILES,
@@ -681,6 +682,56 @@ describe("background routing and lifecycle", () => {
     backgroundHarnessMocks.predictionLookupSpelling.mockImplementationOnce(async () => null);
     await send({ lang: "xx_XX", words: [{ word: "wa", before: "" }] });
     expect(sendResponse).toHaveBeenCalledWith({ ok: false });
+  });
+
+  test("onMessage review engine runs Review detection for the sender and refuses malformed requests", async () => {
+    const harness = await loadBackgroundHarness();
+    const sendResponse = jest.fn();
+    const send = async (context: unknown, sender = { tab: { id: 1 } }) => {
+      sendResponse.mockClear();
+      // Answered asynchronously: the channel stays open.
+      expect(
+        harness.onMessage(
+          { command: CMD_CONTENT_SCRIPT_REVIEW_ENGINE, context },
+          sender as chrome.runtime.MessageSender,
+          sendResponse,
+        ),
+      ).toBe(true);
+      await flushPromises();
+      await flushPromises();
+      return sendResponse.mock.calls[0]?.[0] as { ok: boolean; value?: unknown; error?: string };
+    };
+    const text = "teh cat";
+    const response = await send({
+      op: "scan",
+      session: "s1",
+      id: 1,
+      request: {
+        snapshot: { id: "g1", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
+        options: {
+          lang: "en_US",
+          enabledRules: ["englishTypoWhitelistCorrection"],
+          userDictionary: [],
+          insertSpaceAfterAutocomplete: true,
+        },
+        cache: false,
+        gaps: {},
+      },
+    });
+    expect(response.ok).toBe(true);
+    const { result } = response.value as { result: { diagnostics: Array<{ original: string }> } };
+    expect(result.diagnostics.map((d) => d.original)).toEqual(["teh"]);
+
+    expect(await send({ op: "scan", session: "s1", id: 2, request: { snapshot: null } })).toEqual({
+      ok: false,
+      error: "invalid",
+    });
+    expect(await send(null)).toEqual({ ok: false, error: "invalid" });
+    // Not from a tab: no session can be bound to it.
+    expect((await send({ op: "release", session: "s1" }, {} as never)).ok).not.toBe(true);
+    // Nothing is stored or predicted along the way.
+    expect(harness.settingsSet).not.toHaveBeenCalled();
+    expect(backgroundHarnessMocks.predictionRun).not.toHaveBeenCalled();
   });
 
   test("onCommand rotates active language for current site profile if it exists", async () => {

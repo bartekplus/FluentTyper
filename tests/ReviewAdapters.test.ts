@@ -11,6 +11,7 @@ import {
   resolveReviewTarget,
 } from "../src/adapters/chrome/content-script/review/ReviewTargets";
 import { ReviewController } from "../src/adapters/chrome/content-script/review/ReviewController";
+import { LocalReviewEngine } from "../src/core/application/review/LocalReviewEngine";
 import {
   ReviewLauncher,
   launcherFieldFor,
@@ -983,6 +984,7 @@ describe("review controller lifecycle", () => {
     const resume = jest.fn();
     const onActiveChange = jest.fn();
     const review = new ReviewController({
+      createEngine: () => new LocalReviewEngine(),
       getOptions: () => ({
         lang: "en_US",
         enabledRules: GRAMMAR_RULE_IDS,
@@ -1278,6 +1280,7 @@ describe("adversarial review regressions", () => {
     textarea("We saw teh cat.");
     const onActiveChange = jest.fn();
     const review = new ReviewController({
+      createEngine: () => new LocalReviewEngine(),
       getOptions: options,
       suspend: jest.fn(),
       resume: jest.fn(),
@@ -1314,6 +1317,7 @@ describe("adversarial review regressions", () => {
       onReviewSourceChange: jest.fn(() => () => {}),
     };
     const review = new ReviewController({
+      createEngine: () => new LocalReviewEngine(),
       getOptions: options,
       suspend: jest.fn(),
       resume: jest.fn(),
@@ -1365,6 +1369,7 @@ describe("adversarial review regressions", () => {
       },
     };
     const review = new ReviewController({
+      createEngine: () => new LocalReviewEngine(),
       getOptions: options,
       suspend: jest.fn(),
       resume: jest.fn(),
@@ -1444,6 +1449,7 @@ describe("adversarial review regressions", () => {
       },
     };
     const review = new ReviewController({
+      createEngine: () => new LocalReviewEngine(),
       getOptions: options,
       suspend: jest.fn(),
       resume: jest.fn(),
@@ -1556,6 +1562,7 @@ describe("adversarial review regressions", () => {
     field.setSelectionRange(0, 0);
     const lookups: string[] = [];
     const review = new ReviewController({
+      createEngine: () => new LocalReviewEngine(),
       getOptions: options,
       suspend: jest.fn(),
       resume: jest.fn(),
@@ -1619,6 +1626,7 @@ describe("adversarial review regressions", () => {
     textarea("Where wa it? We saw teh cat.");
     const addToDictionary = jest.fn(async () => true);
     const review = new ReviewController({
+      createEngine: () => new LocalReviewEngine(),
       getOptions: options,
       suspend: jest.fn(),
       resume: jest.fn(),
@@ -1653,6 +1661,7 @@ describe("adversarial review regressions", () => {
   test("an editor removed without any event is noticed", async () => {
     const field = textarea("We saw teh cat.");
     const review = new ReviewController({
+      createEngine: () => new LocalReviewEngine(),
       getOptions: options,
       suspend: jest.fn(),
       resume: jest.fn(),
@@ -1731,6 +1740,7 @@ describe("review controller with Local AI", () => {
   function controller(options: { aiEnabled?: () => boolean; answer?: boolean } = {}) {
     const providers: Array<ReturnType<typeof fakeProvider>> = [];
     const review = new ReviewController({
+      createEngine: () => new LocalReviewEngine(),
       getOptions: () => ({
         lang: "en_US",
         enabledRules: GRAMMAR_RULE_IDS,

@@ -9,6 +9,7 @@ import { SuggestionManagerRuntime } from "../../../../src/adapters/chrome/conten
 import { GoogleDocsAdapter } from "../../../../src/adapters/chrome/content-script/google-docs/GoogleDocsAdapter";
 import { ReviewController } from "../../../../src/adapters/chrome/content-script/review/ReviewController";
 import { DocsReviewSurfaceProxy } from "../../../../src/adapters/chrome/content-script/review/DocsReviewSurfaceProxy";
+import { LocalReviewEngine } from "../../../../src/core/application/review/LocalReviewEngine";
 import { GRAMMAR_RULE_IDS } from "../../../../src/core/domain/grammar/ruleCatalog";
 import type {
   SuggestionManagerOptions,
@@ -88,6 +89,8 @@ fixture.review = null;
 fixture.startReview = () => {
   fixture.review?.dispose();
   fixture.review = new ReviewController({
+    // This page has no extension background: detection runs in process.
+    createEngine: () => new LocalReviewEngine(),
     getOptions: () => ({
       lang: "en_US",
       enabledRules: GRAMMAR_RULE_IDS,

@@ -20,9 +20,8 @@ import { rangeInsideTarget, TextTargetAdapter } from "./TextTargetAdapter";
 import {
   nextLiveGrammarProposal,
   sameLiveProposal,
-  type LiveGrammarProposal,
   type SeenLiveProposals,
-} from "@core/domain/grammar/review/liveProposals";
+} from "@core/domain/grammar/review/liveProposalSelection";
 import { measurementEditingContext } from "./MeasurementEditingContext";
 import { buildCaretTrace, clipTraceText, collapseTraceWhitespace } from "./traceUtils";
 import type {
@@ -100,6 +99,12 @@ export class SuggestionEntrySession {
   private snippetShortcuts: Array<string | null> | undefined;
   // Grammar proposals already shown, dismissed or in the text before typing; never offered again.
   private seenGrammarProposals: SeenLiveProposals | null = null;
+  // Proposal reads answer in order, so the first one (what the field held) lands first.
+  private grammarProposalQueue: Promise<void> = Promise.resolve();
+  // Bumped by every edit: an answer for text that has changed since is not shown.
+  private grammarProposalToken = 0;
+  // The text before the caret the shown proposal was found in.
+  private grammarProposalText: string | null = null;
 
   constructor(options: SuggestionEntrySessionOptions) {
     this.entry = options.entry;
@@ -148,7 +153,7 @@ export class SuggestionEntrySession {
 
   public handleFocus(): void {
     // What is already written when the field is entered is not "just typed".
-    if (this.seenGrammarProposals === null) this.readGrammarProposals();
+    if (this.seenGrammarProposals === null) this.readGrammarProposals(false);
     if (!this.inlineSuggestionEnabled) {
       return;
     }
@@ -446,13 +451,12 @@ export class SuggestionEntrySession {
   }
 
   /**
-   * Review findings for the text before the caret, or null where no proposal may
-   * be made: proposals off, a sensitive, locked or code field, or no plain caret.
+   * The caret context where a proposal may be made, or null: proposals off, a
+   * sensitive, locked or code field, or no plain caret.
    */
-  private readGrammarProposals(): {
-    proposals: LiveGrammarProposal[];
-    context: ReturnType<SuggestionEntrySession["resolveEditableCursorContext"]>;
-  } | null {
+  private grammarProposalContext(): ReturnType<
+    SuggestionEntrySession["resolveEditableCursorContext"]
+  > | null {
     if (
       !this.findGrammarProposals ||
       this.resolveUnstableInputSkipReason(this.entry) !== null ||
@@ -464,39 +468,63 @@ export class SuggestionEntrySession {
       this.entry,
       TextTargetAdapter.snapshot(this.entry.elem),
     );
-    if (!context.safeForGrammar) {
-      return null;
+    return context.safeForGrammar ? context : null;
+  }
+
+  /**
+   * Asks for the Review findings in the text before the caret (detection runs in
+   * the background). The first answer only records what the field already
+   * contains; later ones, with `offer`, show the newest finding not seen before
+   * as the menu's last row, if the text is still the one asked about.
+   */
+  private readGrammarProposals(offer: boolean): void {
+    const context = this.grammarProposalContext();
+    if (!context) {
+      return;
     }
-    const proposals = this.findGrammarProposals(context.beforeCursor);
-    // The first read (on focus) only records what the field already contains.
-    if (this.seenGrammarProposals === null) {
-      this.seenGrammarProposals = { text: context.beforeCursor, spans: proposals };
-    }
-    return { proposals, context };
+    const { beforeCursor } = context;
+    const find = this.findGrammarProposals!;
+    const token = this.grammarProposalToken;
+    this.grammarProposalQueue = this.grammarProposalQueue
+      .then(() => find(beforeCursor))
+      .then((proposals) => {
+        if (this.seenGrammarProposals === null) {
+          this.seenGrammarProposals = { text: beforeCursor, spans: proposals };
+          return;
+        }
+        if (
+          !offer ||
+          token !== this.grammarProposalToken ||
+          !this.isFocused() ||
+          this.grammarProposalContext()?.beforeCursor !== beforeCursor
+        ) {
+          return;
+        }
+        const proposal = nextLiveGrammarProposal(
+          proposals,
+          beforeCursor,
+          this.seenGrammarProposals,
+        );
+        if (!proposal) {
+          return;
+        }
+        this.entry.grammarProposal = proposal;
+        this.entry.grammarProposalSelected = false;
+        this.grammarProposalText = beforeCursor;
+        this.renderMenuRows();
+      })
+      // No answer (the background is unavailable): no proposal, as if none was found.
+      .catch(() => undefined);
   }
 
   /** On a pause: offer the newest finding not seen before as the menu's last row. */
   private refreshGrammarProposal(): void {
-    const firstRead = this.seenGrammarProposals === null;
-    const read = this.readGrammarProposals();
-    if (!read || firstRead) {
-      return;
-    }
-    const proposal = nextLiveGrammarProposal(
-      read.proposals,
-      read.context.beforeCursor,
-      this.seenGrammarProposals!,
-    );
-    if (!proposal) {
-      return;
-    }
-    this.entry.grammarProposal = proposal;
-    this.entry.grammarProposalSelected = false;
-    this.renderMenuRows();
+    this.readGrammarProposals(true);
   }
 
   /** Typing on ignores the proposal; it is not offered again. */
   private dropGrammarProposal(): void {
+    this.grammarProposalToken += 1;
     if (!this.entry.grammarProposal) {
       return;
     }
@@ -507,27 +535,44 @@ export class SuggestionEntrySession {
 
   /**
    * Applies the shown proposal after finding it again, with the same fix, in the
-   * text as it is now; a changed or vanished span is never written.
+   * text as it is now; a changed or vanished span is never written. True when
+   * the text is still the one it was found in: re-detection then answers
+   * asynchronously, and the edit is made only if it finds the same fix and the
+   * text has still not changed.
    */
   public acceptGrammarProposal(): boolean {
     const proposal = this.entry.grammarProposal;
+    const foundIn = this.grammarProposalText;
     this.clearSuggestions();
-    const read = proposal ? this.readGrammarProposals() : null;
-    const current = read?.proposals.find((candidate) => sameLiveProposal(candidate, proposal!));
-    if (!read || !current) {
+    const context = proposal ? this.grammarProposalContext() : null;
+    if (!proposal || !context || context.beforeCursor !== foundIn) {
       return false;
     }
-    const { beforeCursor, snapshot, applyContext } = read.context;
-    return this.textEditService.applyGrammarEdit(
-      this.entry,
-      {
-        replacement: current.replacement + beforeCursor.slice(current.end),
-        deleteBackwards: beforeCursor.length - current.start,
-        deleteForwards: 0,
-        strict: true,
-      },
-      { snapshot, contentEditableContext: applyContext },
-    ).applied;
+    const token = this.grammarProposalToken;
+    void this.findGrammarProposals!(foundIn)
+      .then((proposals) => {
+        const current = proposals.find((candidate) => sameLiveProposal(candidate, proposal));
+        const now =
+          current && token === this.grammarProposalToken && this.isFocused()
+            ? this.grammarProposalContext()
+            : null;
+        if (!current || !now || now.beforeCursor !== foundIn) {
+          return;
+        }
+        const { beforeCursor, snapshot, applyContext } = now;
+        this.textEditService.applyGrammarEdit(
+          this.entry,
+          {
+            replacement: current.replacement + beforeCursor.slice(current.end),
+            deleteBackwards: beforeCursor.length - current.start,
+            deleteForwards: 0,
+            strict: true,
+          },
+          { snapshot, contentEditableContext: applyContext },
+        );
+      })
+      .catch(() => undefined);
+    return true;
   }
 
   public handleKeyFallbackReconcile(

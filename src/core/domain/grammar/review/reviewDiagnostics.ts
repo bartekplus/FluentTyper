@@ -1,32 +1,24 @@
 import { proseQuotations } from "./proseQuotations";
 import { redundantAcronyms } from "./styleAdvice";
-import { longSentenceRanges, isReadabilityLiteral } from "./readability";
+import { longSentenceRanges } from "./readability";
 import { matchTerminology } from "./terminologyMatcher";
 import type { NativeReviewCache } from "./nativeReviewCache";
 import { unclosedQuotations } from "./quotationWarnings";
 import { GRAMMAR_RULE_CATALOG, type CatalogRuleId } from "../ruleCatalog";
 import { findMarkdownCodeRanges } from "../implementations/helpers/ProtectedSpanShared";
 import { isTechnicalToken, normalizeWordSet } from "../implementations/helpers/GenericRuleShared";
-import { isReviewSupportedRule, reviewMetadataFor, runsInReviewLanguage } from "./reviewCatalog";
-import { MASK_CHAR, REVIEW_DETECTORS, minimalEdits, type RawFinding } from "./reviewDetectors";
+import { isReviewSupportedRule, runsInReviewLanguage } from "./reviewCatalog";
+import { REVIEW_DETECTORS, type RawFinding } from "./reviewDetectors";
+import { toDiagnostic } from "./reviewFindings";
 import { PROSE_DOTTED_TOKEN } from "./english/grammarStyle1";
 import { PROSE_SLASH_TOKEN } from "./english/dialects";
+import { applyEdits, positionMapper } from "./textRanges";
 import {
-  applyEdits,
-  editTouches,
-  isGraphemeBoundary,
-  positionMapper,
-  rangesOverlap,
-  overlapsSortedRanges,
-  withTextApostrophes,
-} from "./textRanges";
-import type { SpellingCandidate } from "./reviewSpelling";
-import {
-  REVIEW_SPELLING_CHECK,
-  type BulkDecision,
+  MASK_CHAR,
+  MAX_REVIEW_CHARS,
+  REVIEW_CHUNK_CHARS,
   type CoverageGap,
   type ProtectedRange,
-  type ReviewCheckId,
   type ReviewDiagnostic,
   type ReviewEdit,
   type ReviewOptions,
@@ -35,10 +27,8 @@ import {
   type TextRange,
 } from "./types";
 
-/** Largest scope reviewed at once (UTF-16 code units). Larger scopes are cut and reported. */
-export const MAX_REVIEW_CHARS = 50_000;
-/** Scan unit between yields; chunks end on line breaks so no token straddles two. */
-export const REVIEW_CHUNK_CHARS = 4_000;
+export { casingDiagnostic, spellingDiagnostic } from "./reviewFindings";
+export { MAX_REVIEW_CHARS, REVIEW_CHUNK_CHARS };
 // Above this many proofs in one chunk, scanning the chunk once is cheaper.
 const PROOF_WINDOWS_PER_CHUNK = 8;
 // How far past its chunk a detector's forward scan may need to read.
@@ -382,159 +372,6 @@ function protectedCharsInScope(prepared: PreparedReview): Partial<Record<Coverag
     covered = end;
   }
   return counts;
-}
-
-/** A finding from a detector, or from review's own dictionary check. */
-type Finding =
-  RawFinding | (Omit<RawFinding, "ruleId"> & { ruleId: ReviewCheckId; requiresChoice?: true });
-
-/**
- * An unknown word as a finding: its suggestions (best first) are the
- * alternatives, none preselected, and it can be added to the dictionary.
- */
-export function spellingDiagnostic(
-  prepared: PreparedReview,
-  candidate: SpellingCandidate,
-  suggestions: readonly string[],
-): ReviewDiagnostic | null {
-  if (suggestions.length === 0) return null;
-  return toDiagnostic(prepared, {
-    ruleId: REVIEW_SPELLING_CHECK,
-    messageKey: "review_msg_unknown_word",
-    range: candidate.range,
-    alternatives: [...suggestions],
-    dictionaryWord: candidate.word,
-    requiresChoice: true,
-  });
-}
-
-/** A known word typed with two initial capitals ("LEt's"): one fix, first capital only. */
-export function casingDiagnostic(
-  prepared: PreparedReview,
-  candidate: SpellingCandidate,
-): ReviewDiagnostic | null {
-  if (!candidate.casing) return null;
-  return toDiagnostic(prepared, {
-    ruleId: REVIEW_SPELLING_CHECK,
-    messageKey: "review_msg_two_initial_capitals",
-    range: candidate.range,
-    alternatives: [candidate.casing],
-    dictionaryWord: candidate.word,
-  });
-}
-
-function toDiagnostic(prepared: PreparedReview, finding: Finding): ReviewDiagnostic | null {
-  const { snapshot, options } = prepared;
-  const source = snapshot.text;
-  const { scope } = snapshot;
-  const range = finding.range;
-  if (
-    range.start < scope.start ||
-    range.end > scope.end ||
-    range.end <= range.start ||
-    !isGraphemeBoundary(source, range.start) ||
-    !isGraphemeBoundary(source, range.end)
-  ) {
-    return null;
-  }
-  if (
-    finding.ruleId !== "preferredTerminology" &&
-    !(finding.ruleId === "styleLongSentence" && finding.warningOnly) &&
-    overlapsSortedRanges(prepared.terminology.ranges, range)
-  )
-    return null;
-  if (overlapsSortedRanges(prepared.quotations.examples, range)) return null;
-  // The underline itself may not cross code or a structural boundary.
-  if (
-    prepared.protectedRanges.some(
-      (protectedRange) =>
-        !(
-          finding.ruleId === "styleLongSentence" &&
-          finding.warningOnly &&
-          protectedRange.reason === "technical" &&
-          isReadabilityLiteral(source.slice(protectedRange.start, protectedRange.end))
-        ) &&
-        (finding.warningOnly ||
-          finding.ruleId === "englishCanonicalCasing" ||
-          finding.ruleId === "preferredTerminology" ||
-          protectedRange.reason !== "technical") &&
-        rangesOverlap(range, protectedRange),
-    )
-  ) {
-    return null;
-  }
-
-  if (
-    finding.warningOnly &&
-    (finding.alternatives.length !== 0 || finding.requiresChoice || finding.dictionaryWord)
-  )
-    return null;
-  const alternatives = [];
-  for (const alternative of finding.alternatives) {
-    // A new apostrophe follows the text's own style: "It’s … don’t", not "don't".
-    const replacement = withTextApostrophes(source, range.start, alternative);
-    const edits = minimalEdits(source, range.start, range.end, replacement);
-    if (edits.length === 0) continue;
-    const valid = edits.every(
-      (edit) =>
-        edit.start >= scope.start &&
-        edit.end <= scope.end &&
-        edit.end > edit.start &&
-        source.slice(edit.start, edit.end) === edit.original &&
-        isGraphemeBoundary(source, edit.start) &&
-        isGraphemeBoundary(source, edit.end) &&
-        !prepared.protectedRanges.some((protectedRange) => editTouches(edit, protectedRange)),
-    );
-    if (!valid) return null;
-    alternatives.push({ edits, preview: replacement });
-  }
-  if (alternatives.length === 0 && !finding.warningOnly) return null;
-
-  const metadata = reviewMetadataFor(finding.ruleId);
-  if (metadata.review !== "supported") return null;
-  let bulk: BulkDecision;
-  if (finding.warningOnly) bulk = { eligible: false, reason: "warning-only" };
-  else if (metadata.bulk !== "eligible")
-    bulk = { eligible: false, reason: "rule-not-batch-approved" };
-  else if (alternatives.length !== 1) bulk = { eligible: false, reason: "ambiguous" };
-  else if (finding.bulkBlock) bulk = { eligible: false, reason: finding.bulkBlock };
-  else bulk = { eligible: true, alternative: 0 };
-
-  const context = finding.context ?? range;
-  const signature = finding.warningOnly
-    ? "warning-only"
-    : alternatives.map((alternative) => alternative.preview).join("\u0000");
-  return {
-    id: `${snapshot.id}/${finding.ruleId}${finding.terminology ? ":" + finding.terminology.id : ""}@${range.start}-${range.end}#${hash(signature)}`,
-    ...(finding.terminology ? { terminology: finding.terminology } : {}),
-    snapshotId: snapshot.id,
-    ruleId: finding.ruleId,
-    category: metadata.category,
-    messageKey: finding.messageKey,
-    lang: options.lang,
-    range: { start: range.start, end: range.end },
-    original: source.slice(range.start, range.end),
-    alternatives,
-    ...(finding.warningOnly ? { warningOnly: true as const } : {}),
-    bulk,
-    context: {
-      start: Math.max(0, Math.min(context.start, range.start)),
-      end: Math.min(source.length, Math.max(context.end, range.end)),
-    },
-    ...(finding.dictionaryWord && /^\p{L}+$/u.test(finding.dictionaryWord)
-      ? { dictionaryWord: finding.dictionaryWord }
-      : {}),
-    ...("requiresChoice" in finding && finding.requiresChoice ? { requiresChoice: true } : {}),
-  };
-}
-
-function hash(value: string): string {
-  let h = 0x811c9dc5;
-  for (let i = 0; i < value.length; i += 1) {
-    h ^= value.charCodeAt(i);
-    h = Math.imul(h, 0x01000193);
-  }
-  return (h >>> 0).toString(36);
 }
 
 /** Synchronous whole-scope review: prepare, scan every chunk, finalize. */

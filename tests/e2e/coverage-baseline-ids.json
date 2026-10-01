@@ -163,6 +163,7 @@
     "review_scope_and_protection",
     "review_bulk_planning",
     "review_session_lifecycle",
+    "review_detection_in_background",
     "review_textarea_fix_all_undo",
     "review_contenteditable_card_flow",
     "review_quill_model",

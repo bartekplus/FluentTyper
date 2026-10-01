@@ -14,6 +14,7 @@ import {
   type ReviewViewState,
 } from "../src/core/application/review/ReviewSession";
 import { GRAMMAR_RULE_IDS } from "../src/core/domain/grammar/ruleCatalog";
+import { LocalReviewEngine } from "../src/core/application/review/LocalReviewEngine";
 import { MAX_REVIEW_CHARS } from "../src/core/domain/grammar/review/reviewDiagnostics";
 import { parseSpellingRequest } from "../src/core/domain/grammar/review/reviewSpelling";
 import type {
@@ -84,8 +85,13 @@ function harness(
   const editor = new FakeEditor(text);
   const timers: Array<{ callback: () => void; delay: number }> = [];
   const states: ReviewViewState[] = [];
+  // In-process detection whose chunk yields are this harness's timers.
+  const engine = new LocalReviewEngine(
+    () => new Promise<void>((resolve) => timers.push({ callback: resolve, delay: 0 })),
+  );
   const session = new ReviewSession({
     target: editor,
+    engine,
     options: {
       lang: "en_US",
       enabledRules: rules,
@@ -124,7 +130,7 @@ function harness(
   };
   const last = () => states.at(-1)!;
   const originals = () => last().diagnostics.map((d) => d.original);
-  return { editor, session, settle, last, originals, states, timers };
+  return { editor, session, settle, last, originals, states, timers, engine };
 }
 
 describe("ReviewSession", () => {
@@ -1491,4 +1497,47 @@ test("readability advice does not hide spelling and cannot be applied", async ()
   expect(await h.session.apply(warning.id)).toBeNull();
   expect(h.editor.applyCalls).toEqual([]);
   h.session.close();
+});
+
+test("an engine that does not answer shows the error state; the next edit asks again", async () => {
+  const h = harness("teh cat");
+  // The background worker could not be reached (or failed): no answer.
+  const scan = spyOn(h.engine, "scan").mockImplementationOnce(() =>
+    Promise.reject(new Error("Review engine request failed: no answer")),
+  );
+  await Promise.all([h.session.start(), h.settle()]);
+  expect(h.last().status).toBe("error");
+  h.session.notifySourceChanged();
+  await h.settle();
+  expect(h.last().status).toBe("ready");
+  expect(h.originals()).toEqual(["teh"]);
+  expect(scan).toHaveBeenCalledTimes(2);
+  h.session.close();
+});
+
+test("an edit or close cancels the engine's scan in flight, and close releases the engine", async () => {
+  const h = harness("We discussed about the plan.\n\n".repeat(400), {
+    rules: ["englishFixedPrepositions"],
+  });
+  const signals: AbortSignal[] = [];
+  const scan = h.engine.scan.bind(h.engine);
+  spyOn(h.engine, "scan").mockImplementation((request, signal) => {
+    signals.push(signal!);
+    return scan(request, signal);
+  });
+  const release = spyOn(h.engine, "release");
+  const started = h.session.start();
+  for (let i = 0; i < 5; i++) await Promise.resolve();
+  expect(signals).toHaveLength(1);
+  h.session.notifySourceChanged();
+  expect(signals[0].aborted).toBe(true);
+  h.timers.find((timer) => timer.delay === 400)!.callback();
+  for (let i = 0; i < 5; i++) await Promise.resolve();
+  expect(signals).toHaveLength(2);
+  h.session.close();
+  expect(signals[1].aborted).toBe(true);
+  expect(release).toHaveBeenCalledTimes(1);
+  await h.settle();
+  await started;
+  expect(h.states.some((s) => s.status === "ready")).toBe(false);
 });

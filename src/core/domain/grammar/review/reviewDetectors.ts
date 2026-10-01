@@ -89,9 +89,12 @@ import {
 import { CURRENCY_MARKERS } from "../implementations/CurrencySpacingRule";
 import { isProsePrefix } from "../implementations/MeasurementUnitFormattingRule";
 import { isLowercaseLetter, isTechnicalToken } from "../implementations/helpers/GenericRuleShared";
-import { commonAffixes, isGraphemeBoundary, overlapsSortedRanges } from "./textRanges";
-import type { ReviewEdit, ReviewMessageKey, TextRange } from "./types";
+import { graphemeEnd, overlapsSortedRanges } from "./textRanges";
+import { MASK_CHAR, type ReviewMessageKey, type TextRange } from "./types";
 import { EXTENSION_DETECTORS } from "./english";
+
+export { MASK_CHAR };
+export { minimalEdits } from "./textRanges";
 
 /**
  * Review detectors read ONE immutable snapshot and never mutate it.
@@ -148,7 +151,6 @@ export interface RawFinding {
 type Detector = (ctx: DetectContext) => RawFinding[];
 export type ReviewDetectorEntry = { rules: CatalogRuleId[]; detect: Detector };
 
-export const MASK_CHAR = "\uFFFC";
 // Enough context for every phrase pattern; the patterns themselves are shorter.
 const PHRASE_WINDOW = 96;
 const WORD_CHAR = /[\p{L}\p{N}_'’]/u;
@@ -217,12 +219,6 @@ function* ownedMatches(ctx: DetectContext, regex: RegExp): Generator<RegExpExecA
 
 function owned(ctx: DetectContext, start: number): boolean {
   return start >= ctx.from && start < ctx.to;
-}
-
-function graphemeEnd(text: string, index: number): number {
-  let end = index + 1;
-  while (end < text.length && !isGraphemeBoundary(text, end)) end += 1;
-  return end;
 }
 
 // Words after which a lowercase "i" names something ("the variable i"): an identifier.
@@ -1515,91 +1511,3 @@ export const REVIEW_DETECTORS: ReadonlyArray<ReviewDetectorEntry> = [
   },
   ...EXTENSION_DETECTORS,
 ];
-
-/** Minimal edits turning source[start, start+original.length) into `replacement`. */
-export function minimalEdits(
-  source: string,
-  start: number,
-  end: number,
-  replacement: string,
-): ReviewEdit[] {
-  const original = source.slice(start, end);
-  if (original === replacement) return [];
-  // Case-only ASCII changes must not replace unchanged letters across formatting nodes.
-  if (
-    /^[A-Za-z]+$/.test(original + replacement) &&
-    original.toLowerCase() === replacement.toLowerCase()
-  ) {
-    return [...original].flatMap((letter, index) =>
-      letter === replacement[index]
-        ? []
-        : [
-            {
-              start: start + index,
-              end: start + index + 1,
-              original: letter,
-              replacement: replacement[index],
-            },
-          ],
-    );
-  }
-  const originalTokens = original.split(/(\s+)/);
-  const replacementTokens = replacement.split(/(\s+)/);
-  const aligned =
-    originalTokens.length === replacementTokens.length &&
-    originalTokens.every((token, index) => index % 2 === 0 || token === replacementTokens[index]);
-  if (aligned && originalTokens.length > 1) {
-    const edits: ReviewEdit[] = [];
-    let offset = start;
-    originalTokens.forEach((token, index) => {
-      if (index % 2 === 0)
-        edits.push(...trimmedEdit(source, offset, token, replacementTokens[index]));
-      offset += token.length;
-    });
-    return edits;
-  }
-  return trimmedEdit(source, start, original, replacement);
-}
-
-/** One edit with the common prefix/suffix trimmed back to grapheme boundaries. */
-function trimmedEdit(
-  source: string,
-  start: number,
-  original: string,
-  replacement: string,
-): ReviewEdit[] {
-  if (original === replacement) return [];
-  let { prefix, suffix } = commonAffixes(original, replacement);
-  while (prefix > 0 && !isGraphemeBoundary(source, start + prefix)) prefix -= 1;
-  while (suffix > 0 && !isGraphemeBoundary(source, start + original.length - suffix)) suffix -= 1;
-  let editStart = start + prefix;
-  let editEnd = start + original.length - suffix;
-  let insertion = replacement.slice(prefix, replacement.length - suffix);
-  // A pure insertion is anchored on the character before it (or after it at
-  // the start), so it maps to one text node and takes that node's formatting.
-  if (editStart === editEnd) {
-    if (prefix > 0) {
-      const anchorStart = previousBoundary(source, editStart);
-      insertion = source.slice(anchorStart, editStart) + insertion;
-      editStart = anchorStart;
-    } else {
-      const anchorEnd = graphemeEnd(source, editEnd);
-      insertion += source.slice(editEnd, anchorEnd);
-      editEnd = anchorEnd;
-    }
-  }
-  return [
-    {
-      start: editStart,
-      end: editEnd,
-      original: source.slice(editStart, editEnd),
-      replacement: insertion,
-    },
-  ];
-}
-
-function previousBoundary(text: string, index: number): number {
-  let start = index - 1;
-  while (start > 0 && !isGraphemeBoundary(text, start)) start -= 1;
-  return start;
-}

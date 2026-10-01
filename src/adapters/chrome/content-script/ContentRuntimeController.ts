@@ -23,6 +23,7 @@ import { ThemeApplicator } from "./ThemeApplicator";
 import { SuggestionManagerRuntime } from "./suggestions/SuggestionManagerRuntime";
 import { ReviewController } from "./review/ReviewController";
 import { LocalAiReviewProvider } from "./review/LocalAiReviewProvider";
+import { MessagingReviewEngine } from "./review/MessagingReviewEngine";
 import { ReviewLauncher } from "./review/ReviewLauncher";
 import { whenDocumentFocused } from "./review/whenDocumentFocused";
 import { reviewRuleIds } from "@core/domain/grammar/review/reviewCatalog";
@@ -101,6 +102,10 @@ export class ContentRuntimeController {
   private readonly themeApplicator = new ThemeApplicator();
   // Created on the first review request: no cost for pages that never review.
   private review: ReviewController | null = null;
+  // Typing-time proposals are detected in the background, like a review.
+  private readonly liveProposalEngine = new MessagingReviewEngine((message) =>
+    chrome.runtime.sendMessage(message),
+  );
   private reviewLauncher: ReviewLauncher | null = null;
   private reviewSuspended: HTMLElement | null = null;
   // A review asked for before the first config arrived; that config decides whether it runs.
@@ -241,6 +246,9 @@ export class ContentRuntimeController {
   private createReviewController(): ReviewController {
     return new ReviewController({
       uiLanguage: () => this.uiLanguage(),
+      // Detection runs in the background service worker; this page loads none of it.
+      createEngine: () =>
+        new MessagingReviewEngine((message) => chrome.runtime.sendMessage(message)),
       getOptions: () => ({
         spellingEnabled: !this.config.codeMode,
         lang: this.config.lang,
@@ -604,6 +612,7 @@ export class ContentRuntimeController {
         this.config.liveGrammarProposals === false || this.config.codeMode
           ? []
           : reviewRuleIds({ codeMode: false, overrides: this.config.reviewRuleOverrides }),
+      findLiveProposals: this.liveProposalEngine.liveProposals.bind(this.liveProposalEngine),
       userDictionaryList: this.config.userDictionaryList,
       getPrediction: (context: ContentScriptPredictRequestContext) =>
         this.onPredictionRequest?.({

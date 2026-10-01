@@ -2,8 +2,9 @@
 
 "Review text" proofreads text you have already written, in the editor you are
 using, with local grammar and spelling checks and optional style advice. It runs
-entirely in the page: no text leaves the browser, nothing is logged or stored,
-and it needs no extra permissions.
+entirely inside the browser: the checks run in FluentTyper's own background
+service worker, the page shows the results, no text leaves the browser, nothing
+is logged or stored, and it needs no extra permissions.
 
 ![Starting a review: categorized highlights and the panel; nothing in the text changed](images/review-mode/1-review-started.png)
 
@@ -158,7 +159,8 @@ type instead, and is never applied without you:
   "Fix all" could apply (the typing rules cover that), and never a check a
   typing rule already runs while that rule is on. They follow the Review
   switches and the language, as Review does. Sensitive, locked and code fields
-  and code mode get none, and nothing is sent anywhere.
+  and code mode get none. The text before the caret goes only to FluentTyper's
+  own background service worker, which runs the checks, and nowhere else.
 - Turn it off under **Settings → Grammar → Review text → Show grammar
   proposals while typing**. Google Docs has no proposals; use Review there.
 
@@ -758,17 +760,61 @@ Adapters     src/adapters/chrome/content-script/review/
              ReviewController.ts (listeners, painting, focus)
 UI           ReviewUi.ts, reviewStyles.ts (shadow DOM, top-layer popover)
 Background   CommandRouter (shortcut), MessageRouter (add to dictionary, dictionary
-             lookups through PresageEngine.lookupWords)
+             lookups through PresageEngine.lookupWords), ReviewEngineHost (detection)
 ```
 
-Nothing is created, observed or scanned until the first review. The review code
-does ship in the content script, which grows by about 124 KB minified (43 KB
-gzip) and is parsed in every frame; loading it as a separate chunk on first use
-would need a `web_accessible_resources` manifest entry, left for a maintainer to
-decide.
+**Where detection runs.** The detectors and their data (phrase tables, the
+generated English lexicon) run only in the background service worker, which
+loads them anyway. A page never parses them: `content_script.js` carries the
+panel, the session and the editor adapters, and asks for detection through the
+`ReviewEngine` port (`src/core/application/review/ReviewEngine.ts`):
+
+```
+content script                                    background service worker
+ReviewSession ── MessagingReviewEngine ──────────> MessageRouter
+SuggestionEntrySession (proposals)  CMD_CONTENT_SCRIPT_REVIEW_ENGINE
+                                    {op: scan | prove | live | cancel | release}
+                                                  ReviewEngineHost
+                                                  └ LocalReviewEngine per session
+                                                    (prepare, chunked scan,
+                                                     NativeReviewCache, proofs)
+```
+
+- One message per scan pass, per Fix-all proof round and per typing pause (the
+  last 501 characters before the caret), never one per detector. A scan carries
+  the snapshot (text, scope, protected ranges), the options and the coverage
+  gaps; it answers the diagnostics, coverage and the prepared review's plain data
+  (masked text, protection, quotations, terminology), from which the page side
+  runs the dictionary check and Local AI as before. Contract and validation:
+  `src/core/domain/contracts/reviewEngine.ts`.
+- Sessions are keyed by sender tab, frame and a random session id, so a tab can
+  never cancel or read another's work. Each keeps its own native-result cache
+  and last prepared snapshot; at most 8 are kept (least recently used released
+  first), and a review's close releases its own. A restarted worker starts them
+  again empty (proofs prepare their snapshot again).
+- The scan yields between chunks, so typing predictions for every tab never wait
+  behind a long one. A newer scan, an edit or close cancels the one in flight
+  (`cancel`), which stops at its next chunk.
+- The first message wakes a sleeping worker. No answer (worker unreachable,
+  failed or cancelled): Review shows its error state and the next edit asks
+  again; a typing pause proposes nothing.
+- The snapshot stays immutable on the page, and every write is validated there
+  as before (target, text, signature, scope, IME), by UTF-16 offsets.
+- Typing-time proposals: an answer is shown only if the text before the caret is
+  still the one asked about; accepting asks again for that same text and writes
+  only if the same fix comes back and the text has still not changed.
+- `bun run build` fails if a detector marker (lexicon data, an English or
+  German phrase-table row, detector code) appears in a content script, or is
+  missing from `background.js`.
+
+Nothing is created, observed or scanned until the first review. The review UI,
+session, Local AI checks and translations still ship in the content script;
+loading them as a separate chunk on first use would need a
+`web_accessible_resources` manifest entry, left for a maintainer to decide.
 
 Limits: 50,000 characters per review (a larger scope is cut, and the panel
-says so), scanned in chunks of about 4,000 characters that yield to the page.
+says so), scanned in the background in chunks of about 4,000 characters that
+yield between them.
 Rechecks after edits are debounced by 400 ms and cancel stale work.
 
 Whole-field drafts over 8,000 characters can reuse unchanged fixed-preposition
@@ -776,7 +822,8 @@ and usage-phrase results within the open session. Reuse compares the source and
 surrounding evidence, settings, dictionary and protection; structure changes
 clear it. Other detectors and safe-batch proof still rescan. Partial selections,
 unread/oversized sources and short drafts use the full scan. The cache retains
-at most 64 entries and 500,000 serialized UTF-16 units, and is cleared on close.
+at most 64 entries and 500,000 serialized UTF-16 units, lives with the session in
+the background service worker, and is cleared on close.
 
 ## Performance
 
@@ -805,6 +852,18 @@ Known costs:
 - Firefox's native contenteditable editing costs about 5 ms per edit at 50k,
   so a very large contenteditable batch takes seconds. It pauses every 50 ms,
   so the page stays responsive.
+
+Detection in the background (table above measured with detection still in the
+page; Apple M2 Max, headless Chrome via Puppeteer, production build, medians):
+
+- Page load: `content_script.js` went from 1,229 KB (434 KB gzip) to 703 KB
+  (209 KB gzip); compiling and running it in V8 (Node `vm.Script` in a jsdom
+  window) went from about 35 + 60 ms to 16 + 7 ms per frame. What Review still
+  adds there (panel, session, Local AI checks, translations) is about 11 ms.
+- A typing-pause proposal request: about 2 ms round trip with the worker awake
+  (1 ms of it detection). A scan of the 50k profile document (2,594 findings):
+  about 170 ms through messaging, the same as in the worker without messaging.
+- The first request to a sleeping worker wakes it: about 200 ms.
 
 ## Limitations
 

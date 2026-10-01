@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { LocalReviewEngine } from "../src/core/application/review/LocalReviewEngine";
 import {
   ReviewSession,
   type ReviewApplyResult,
@@ -174,6 +175,9 @@ function harness(
   const states: ReviewViewState[] = [];
   const session = new ReviewSession({
     target: editor,
+    engine: new LocalReviewEngine(
+      () => new Promise<void>((resolve) => timers.push({ callback: resolve, delay: 0 })),
+    ),
     options: {
       lang,
       enabledRules: rules,

@@ -1,5 +1,5 @@
 import { closesAbbreviation } from "../implementations/CapitalizeSentenceStartRule";
-import { MAX_REVIEW_CHARS } from "./reviewDiagnostics";
+import { MAX_REVIEW_CHARS } from "./types";
 import type { ProtectedRange, ReviewSourceSnapshot, TextRange } from "./types";
 
 import { DEFAULT_LONG_SENTENCE_WORDS, longSentenceThreshold } from "./reviewCatalog";

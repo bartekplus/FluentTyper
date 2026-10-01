@@ -99,7 +99,7 @@ FluentTyper is privacy-first:
 - No upload of your typed content
 - Works offline
 - Predictions are generated locally on your computer
-- Review text checks the field in the page itself; the reviewed text is never uploaded, logged or stored
+- Review text checks the field with FluentTyper's own background service worker, inside the browser; the reviewed text is never uploaded, logged or stored
 - Local AI in Review runs on your device. Setting it up downloads model files once from
   Hugging Face (which sees ordinary connection data such as your IP address and which files
   are requested, never your text); after that it works offline. Prompts, reviewed text and

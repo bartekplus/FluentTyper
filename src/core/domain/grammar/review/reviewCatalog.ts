@@ -8,7 +8,7 @@ import {
   type ReviewCheckId,
   type ReviewKind,
 } from "./types";
-import { LANGUAGE_PHRASE_TABLES, type LanguagePhraseTables } from "./languagePhraseTables";
+import type { LanguagePhraseTables } from "./languagePhraseTables";
 
 interface SupportedReviewMetadata {
   review: "supported";
@@ -51,11 +51,30 @@ const NAMED_LANGUAGES: readonly string[] = SUPPORTED_PREDICTION_LANGUAGE_KEYS.fi
   (lang) => lang !== TEXT_EXPANDER_LANG,
 );
 
+/**
+ * The kinds of phrase table authored for each language in languagePhraseTables.ts,
+ * restated so the catalog (loaded by every page) does not load the tables;
+ * ReviewLanguagePhraseTables.test.ts keeps the two in step.
+ */
+export const PHRASE_TABLE_KINDS: Readonly<
+  Record<string, ReadonlyArray<keyof LanguagePhraseTables>>
+> = {
+  de: ["words", "phrases", "compounds", "style"],
+  fr: ["words", "phrases", "compounds", "style"],
+  es: ["words", "phrases", "compounds", "style"],
+  pt: ["words", "phrases", "style"],
+  pl: ["words", "phrases", "compounds", "style"],
+  hr: ["words", "compounds"],
+  sv: ["words"],
+  el: ["words"],
+};
+
 /** English and every language with an authored phrase table of these kinds. */
 const withPhraseTables = (...kinds: Array<keyof LanguagePhraseTables>): readonly string[] =>
   NAMED_LANGUAGES.filter(
     (lang) =>
-      lang === "en_US" || kinds.some((kind) => LANGUAGE_PHRASE_TABLES[lang.slice(0, 2)]?.[kind]),
+      lang === "en_US" ||
+      kinds.some((kind) => PHRASE_TABLE_KINDS[lang.slice(0, 2)]?.includes(kind)),
   );
 
 export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {

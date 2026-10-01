@@ -231,6 +231,10 @@ export type Message =
       command: "CMD_CONTENT_SCRIPT_REVIEW_SPELLING";
       context: ReviewSpellingRequestContext;
     }
+  | {
+      command: "CMD_CONTENT_SCRIPT_REVIEW_ENGINE";
+      context: import("./contracts/reviewEngine").ReviewEngineRequest;
+    }
   | { command: "CMD_GET_HOSTNAME" }
   | {
       command: "CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG";
@@ -349,6 +353,10 @@ export type ContentScriptAddToDictionaryMessage = Extract<
 export type ContentScriptReviewSpellingMessage = Extract<
   Message,
   { command: "CMD_CONTENT_SCRIPT_REVIEW_SPELLING" }
+>;
+export type ContentScriptReviewEngineMessage = Extract<
+  Message,
+  { command: "CMD_CONTENT_SCRIPT_REVIEW_ENGINE" }
 >;
 /** Words to look up for review; `before` is up to two preceding words, for ranking. */
 export interface ReviewSpellingRequestContext {
