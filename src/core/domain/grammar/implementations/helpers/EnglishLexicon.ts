@@ -245,6 +245,19 @@ export function englishNounPair(word: string): { singular: string; plural: strin
   return null;
 }
 
+/**
+ * Nouns the dictionary derives from a lowercase base verb by its -ion and -ment flags
+ * ("translate" -> translation, "improve" -> improvement), dictionary-listed ones only.
+ */
+export function englishVerbNouns(lemma: string): string[] {
+  const flags = entry(lemma);
+  if (!flags?.includes("v")) return [];
+  return ["N", "L"].flatMap((flag) => {
+    const noun = flags.includes(flag) && suffix(lemma, flag);
+    return noun && noun !== lemma ? [noun] : [];
+  });
+}
+
 export const BLOOM_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 const BLOOM_HASHES = 7;
 
