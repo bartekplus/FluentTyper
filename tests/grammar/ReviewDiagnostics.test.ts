@@ -11,6 +11,7 @@ import {
   reviewCoverageMap,
   reviewRuleIds,
 } from "../../src/core/domain/grammar/review/reviewCatalog";
+import { EXTENSION_DETECTORS } from "../../src/core/domain/grammar/review/english";
 import { REVIEW_DETECTORS } from "../../src/core/domain/grammar/review/reviewDetectors";
 import {
   MAX_REVIEW_CHARS,
@@ -100,8 +101,12 @@ describe("review rule coverage map", () => {
   });
 
   test("every supported rule has exactly one detector, and excluded rules have none", () => {
-    const detected = REVIEW_DETECTORS.flatMap((detector) => detector.rules);
+    // English extension modules add context detectors to rules a core detector already serves.
+    const core = REVIEW_DETECTORS.filter((detector) => !EXTENSION_DETECTORS.includes(detector));
+    const detected = core.flatMap((detector) => detector.rules);
     expect(new Set(detected).size).toBe(detected.length);
+    for (const ruleId of EXTENSION_DETECTORS.flatMap((detector) => detector.rules))
+      expect(detected).toContain(ruleId);
     for (const ruleId of GRAMMAR_RULE_IDS) {
       expect(detected.includes(ruleId)).toBe(REVIEW_RULE_METADATA[ruleId].review === "supported");
     }
