@@ -35,6 +35,7 @@ const WEEKDAY = "(?:segunda|terça|quarta|quinta|sexta)(?:-feira)?|sábado|domin
 const MONTH =
   "janeiro|fevereiro|março|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro";
 const CLITIC = "(?:me|te|lhe|lhes)";
+const CLOCK_WORDS = `(?:duas|três|quatro|cinco|seis|sete|oito|nove|dez|onze|doze|treze|catorze|quatorze|quinze|dezesseis|dezessete|dezoito|dezenove|vinte(?:${S}e${S}(?:uma|duas|três))?)`;
 const SUBJECT =
   "(?:ele|ela|você|eles|elas|vocês|isso|isto|tudo|não|nunca|já|ainda|quem|onde|como|ninguém|alguém|também|sempre|assim)";
 // Plural subjects; after a preposition ("para eles tem sido") they are no subject.
@@ -164,6 +165,34 @@ const FRAMES: Frame[] = [
   {
     pattern: `(?<!(?:entre|e|de|desde|após|até|para|por|todas|sobre|com|que)${S})(?<target>as)${S}(?=\\d{1,2}(?:h\\d{0,2}|:\\d\\d)${W})`,
     alternatives: ["às"],
+    messageKey: "review_msg_pt_crase",
+  },
+  {
+    pattern: `(?<!(?:entre|e|de|desde|após|até|para|por|todas|sobre|com|que)${S})(?<target>as)${S}(?=${CLOCK_WORDS}${S}horas${W})`,
+    alternatives: ["às"],
+    messageKey: "review_msg_pt_crase",
+  },
+  // "às vezes" (sometimes); "as vezes" is the noun: "todas as vezes", "as vezes em que".
+  {
+    pattern: `(?<!(?:todas|algumas|muitas|poucas|várias|tantas|quantas|das|nas|pelas|com|por|de|em|contei|conto|contar|lembro|lembrar)${S})(?<target>as)${S}vezes${W}(?!${S}(?:em${S}que|que|de|do|da|dos|das|anteriores|seguintes|passadas|necessárias|certas)${W})`,
+    alternatives: ["às"],
+    messageKey: "review_msg_pt_crase",
+  },
+  // "ir às compras", "virar à direita".
+  {
+    pattern: `(?:vou|vai|vamos|vão|foi|fui|fomos|foram|ir|ia|iam|irei|iremos|irá)${S}(?<target>as)${S}compras${W}`,
+    alternatives: ["às"],
+    messageKey: "review_msg_pt_crase",
+  },
+  {
+    pattern: `(?:vire|virar|vira|virou|dobre|dobrar|dobra|dobrou|siga|seguir|segue|fica|ficam|ficava|ficavam|fique|está|estão|estava|sentou|sentado|sentada|sente)${S}(?<target>a)${S}(?:direita|esquerda)${W}`,
+    alternatives: ["à"],
+    messageKey: "review_msg_pt_crase",
+  },
+  // A bare plural takes no article, so no crase: "à conclusões" -> "a conclusões".
+  {
+    pattern: `(?<target>à)${S}(?!(?:mais|menos|demais|vezes|trois)${W})\\p{Ll}{2,}(?:as|os|es|ns|is|ões|ães)${W}`,
+    alternatives: ["a"],
     messageKey: "review_msg_pt_crase",
   },
   // "por quê" closes a question; before more words it is "por que" (or "porque").

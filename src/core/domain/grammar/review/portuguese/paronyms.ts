@@ -48,13 +48,22 @@ const PATTERN = `(?<lead>(?!nos${WORD_END})(?:${DETERMINERS})|${PREPOSITIONS})(?
 // The same leads, or an article, before one of those adjectives; "tão" before an adjective.
 // "por último" is an adverb ("por último publica os dados").
 const MODIFIED = `(?<lead>(?!por${SPACE}últim)(?:(?!nos${WORD_END})(?:${DETERMINERS})|${PREPOSITIONS}|[ao]s?)${SPACE}(?:${ADJECTIVES})|t[ãa]o)(?=${SPACE}(?<target>[a-zçãõáéíóúâêô]+)${WORD_END})`;
+// A transitive verb before its object: "tenho duvidas", "há duvida", "pediu credito". Two
+// finite verbs never stand side by side.
+const VERBS =
+  "tem|tenho|temos|têm|tinha|tinham|teve|tive|há|houve|havia|pede|pedi|pediu|pedem|fez|faz|fiz|fazem|deu|dá|dei|dão|tomou|toma|tomei|tomam|paga|pagou|paguei|vê|vi|viu|traga|traz|trouxe|recebeu|recebi|recebe|recebem|sinto|sente|sentiu|senti|exige|exigiu|merece|mereceu|ganhou|ganhei|perdeu|perdi|causa|causou|causam|gera|gerou|geram|mostra|mostrou|sofreu|sofre|dar|ter|fazer|pedir|receber|tomar|pagar|ver|sentir|causar|gerar|sofrer";
+const VERB_LED = `(?<lead>${VERBS})(?=${SPACE}(?<target>[a-zçãõáéíóúâêô]+)${WORD_END})`;
 // "Um critica, o outro elogia": indefinite "um/uma" as a pronoun with "outro" later on.
 const RECIPROCAL = /^[^.!?;\n]{0,80}(?<![\p{L}])outr[oa]s?(?![\p{L}])/iu;
 
 export function accentParonyms(ctx: DetectContext): RawFinding[] {
   if (ctx.lang.slice(0, 2) !== "pt") return [];
   const findings: RawFinding[] = [];
-  for (const m of [...frameMatches(ctx, PATTERN), ...frameMatches(ctx, MODIFIED)]) {
+  for (const m of [
+    ...frameMatches(ctx, PATTERN),
+    ...frameMatches(ctx, MODIFIED),
+    ...frameMatches(ctx, VERB_LED),
+  ]) {
     const target = m.groups!.target;
     const alternatives = accentedTwins(target);
     if (!alternatives || ctx.dictionary.has(target)) continue;
