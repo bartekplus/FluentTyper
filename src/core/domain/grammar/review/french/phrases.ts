@@ -209,6 +209,34 @@ export const PHRASES: readonly PhraseRow[] = [
   ...one(["il ~", "elle ~", "on ~"], "as", "a"),
   // "est" fixed in "qui plus est", "n'en est rien", "m'est égal".
   ...one(["qui plus ~", "m'~ égal", "t'~ égal"], "ait", "est"),
+  // "voilà": "voila" is the past of "voiler" ("elle se voila le visage"), so only frames.
+  ...one(
+    [
+      "et ~",
+      "que ~",
+      "me ~",
+      "te ~",
+      "nous ~",
+      "vous ~",
+      "le ~",
+      "les ~",
+      "en ~",
+      "~ pourquoi",
+      "~ tout",
+      "~ qui",
+      "~ ce que",
+      "~ ce qui",
+    ],
+    "voila",
+    "voilà",
+  ),
+  // "jusque" elides before "à" and its contractions.
+  ["jusque à", "jusqu'à"],
+  ["jusque au", "jusqu'au"],
+  ["jusque aux", "jusqu'aux"],
+  // Subject + elided "ne" or object glued to the auxiliary.
+  ...one(["il ~", "elle ~", "on ~", "qui ~"], "na", "n'a"),
+  ...one(["ils ~", "elles ~", "qui ~"], "mont", "m'ont"),
 ];
 
 // Compound numbers below a hundred take hyphens ("vingt-deux", "quatre-vingt-dix"); "et un"

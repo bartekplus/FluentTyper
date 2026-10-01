@@ -221,7 +221,8 @@ export type ReviewMessageKey =
   | "review_msg_fr_vous_verb"
   | "review_msg_fr_homophone"
   | "review_msg_fr_hyphen"
-  | "review_msg_fr_subject_verb";
+  | "review_msg_fr_subject_verb"
+  | "review_msg_fr_elision";
 
 export type BulkDecision =
   | { eligible: true; alternative: number }

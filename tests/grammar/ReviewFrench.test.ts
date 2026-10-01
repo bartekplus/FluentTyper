@@ -230,6 +230,39 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
       ],
     },
   ],
+  [
+    "frenchElision",
+    {
+      pos: [
+        ["Je aime le chocolat.", "J'aime le chocolat."],
+        ["Je pense que il va venir.", "Je pense qu'il va venir."],
+        ["Il est parti lorsque il a plu.", "Il est parti lorsqu'il a plu."],
+        ["Je viens de y aller.", "Je viens d'y aller."],
+        ["Je le aime bien.", "Je l'aime bien."],
+        ["C'est le ami de Paul.", "C'est l'ami de Paul."],
+        ["J ai froid.", "J'ai froid."],
+        ["Il n arrive jamais.", "Il n'arrive jamais."],
+        ["Ils ont beaucoup d’ enfants.", "Ils ont beaucoup d’enfants."],
+      ],
+      neg: [
+        "Le oui l'emporte.",
+        "La une du journal.",
+        "De un à dix.",
+        "Lorsque Anna arrive.",
+        "Les points a, b, c, d et e.",
+        "Il faut 2 l eau.",
+        "M. J Dupont est là.",
+        "Prends-le à gauche.",
+        "Fais-le entrer.",
+        "Le hasard fait bien les choses.",
+        "On omet souvent le ne explétif.",
+        "Et la il est parti.",
+        "Si c divise a, alors c est premier avec b.",
+        "Il n' pas hésité.",
+        "Le titre est Kiss Me Once.",
+      ],
+    },
+  ],
 ];
 
 describe.each(FIXTURES)("%s", (ruleId, { pos, neg }) => {

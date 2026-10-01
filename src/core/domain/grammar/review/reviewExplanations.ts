@@ -1496,6 +1496,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Czasownik przyjmuje formę zgodną z zaimkiem podmiotu (je peux, tu manges, ils mangent).",
     "O verbo assume a forma do seu pronome sujeito (je peux, tu manges, ils mangent).",
   ],
+  review_msg_fr_elision: [
+    "Before a vowel, French drops the final vowel of je, le, de, que… and writes an apostrophe with no space (j’aime, l’arbre, qu’il).",
+    "Devant une voyelle, je, le, de, que… s’élident avec une apostrophe, sans espace (j’aime, l’arbre, qu’il).",
+    "Ispred samoglasnika francuski izostavlja završni samoglasnik riječi je, le, de, que… i piše apostrof bez razmaka (j’aime, l’arbre, qu’il).",
+    "Ante vocal, el francés elide la vocal final de je, le, de, que… con apóstrofo y sin espacio (j’aime, l’arbre, qu’il).",
+    "Πριν από φωνήεν, τα γαλλικά κόβουν το τελικό φωνήεν των je, le, de, que… και γράφουν απόστροφο χωρίς κενό (j’aime, l’arbre, qu’il).",
+    "Före vokal stryker franskan slutvokalen i je, le, de, que… och skriver apostrof utan mellanslag (j’aime, l’arbre, qu’il).",
+    "Vor einem Vokal fällt im Französischen der Endvokal von je, le, de, que… weg, mit Apostroph und ohne Leerzeichen (j’aime, l’arbre, qu’il).",
+    "Przed samogłoską francuski opuszcza końcową samogłoskę je, le, de, que… i pisze apostrof bez spacji (j’aime, l’arbre, qu’il).",
+    "Antes de vogal, o francês elide a vogal final de je, le, de, que… com apóstrofo e sem espaço (j’aime, l’arbre, qu’il).",
+  ],
 };
 
 /**

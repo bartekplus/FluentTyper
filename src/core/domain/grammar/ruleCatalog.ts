@@ -568,6 +568,19 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     recommended: false,
     priority: 176,
   },
+  {
+    id: "frenchElision",
+    typing: false,
+    name: "French elision",
+    titleI18nKey: "review_msg_fr_elision",
+    descriptionI18nKey: "review_msg_fr_elision",
+    exampleI18nKey: "",
+    languageScope: "all",
+    safetyTier: "advanced",
+    defaultRollout: "off",
+    recommended: false,
+    priority: 177,
+  },
 
   {
     id: "englishPronounCase",
