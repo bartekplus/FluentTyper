@@ -783,6 +783,31 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     languages: ["pt_BR"],
     note: "Optional: texts in the pre-1990 European spelling hyphenate prefixes and capitalize months.",
   },
+  // Spanish Review checks (review/spanish/).
+  spanishAccents: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "spelling",
+    kind: "typo",
+    bulk: "individual",
+    languages: ["es_ES"],
+  },
+  spanishConfusions: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "grammar",
+    kind: "confusedWords",
+    bulk: "individual",
+    languages: ["es_ES"],
+  },
+  spanishTypography: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "typography",
+    kind: "numbers",
+    bulk: "individual",
+    languages: ["es_ES"],
+  },
 };
 
 /** Review's dictionary check: individual only, and the user always picks the word. */

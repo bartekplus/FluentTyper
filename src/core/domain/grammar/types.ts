@@ -137,7 +137,11 @@ export interface GrammarRuleCatalogEntry {
     | "portugueseNumberFormat"
     | "portugueseTypographyStyle"
     | "portugueseCliticPlacement"
-    | "portugueseAO90";
+    | "portugueseAO90"
+    // Spanish Review checks (review/spanish/).
+    | "spanishAccents"
+    | "spanishConfusions"
+    | "spanishTypography";
   /** Absent for existing typing rules; false for native Review-only checks. */
   typing?: false;
   name: string;

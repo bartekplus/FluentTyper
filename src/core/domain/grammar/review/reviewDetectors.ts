@@ -97,6 +97,7 @@ import { DETECTORS as SWEDISH_DETECTORS } from "./swedish/detectors";
 import { DETECTORS as ARABIC_DETECTORS } from "./arabic/detectors";
 import { PORTUGUESE_DETECTORS } from "./portuguese";
 import { POLISH_DETECTORS } from "./polish";
+import { SPANISH_DETECTORS } from "./spanish";
 
 export { MASK_CHAR };
 export { minimalEdits } from "./textRanges";
@@ -1434,6 +1435,7 @@ export const LANGUAGE_DETECTORS: readonly ReviewDetectorEntry[] = [
   ...ARABIC_DETECTORS,
   ...PORTUGUESE_DETECTORS,
   ...POLISH_DETECTORS,
+  ...SPANISH_DETECTORS,
 ];
 
 /** Review detectors by rule. Rules absent here are excluded from review (see reviewCatalog). */

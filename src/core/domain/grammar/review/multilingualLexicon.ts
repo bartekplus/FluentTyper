@@ -220,6 +220,12 @@ export function splitWords(ctx: DetectContext): RawFinding[] {
     const typed = m[0];
     const lower = typed.toLowerCase();
     if (ctx.dictionary.has(lower) || namedExampleBefore(ctx.text, m.index)) continue;
+    // "te aveces" is the verb "avezarse".
+    if (
+      lower === "aveces" &&
+      /(?:^|\s)(?:me|te|se|nos|os)\s+$/iu.test(ctx.text.slice(Math.max(0, m.index - 6), m.index))
+    )
+      continue;
     const replacement = table.map.get(lower)!;
     findings.push({
       ruleId: "englishAlotCorrection",
