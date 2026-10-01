@@ -223,7 +223,9 @@ export type ReviewMessageKey =
   | "review_msg_pt_homophone"
   | "review_msg_pt_contraction"
   | "review_msg_pt_number_format"
-  | "review_msg_pt_typography_style";
+  | "review_msg_pt_typography_style"
+  | "review_msg_pt_proclisis"
+  | "review_msg_pt_ao90";
 
 export type BulkDecision =
   | { eligible: true; alternative: number }

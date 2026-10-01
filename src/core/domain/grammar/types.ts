@@ -119,7 +119,9 @@ export interface GrammarRuleCatalogEntry {
     | "portugueseConfusions"
     | "portugueseContractions"
     | "portugueseNumberFormat"
-    | "portugueseTypographyStyle";
+    | "portugueseTypographyStyle"
+    | "portugueseCliticPlacement"
+    | "portugueseAO90";
   /** Absent for existing typing rules; false for native Review-only checks. */
   typing?: false;
   name: string;

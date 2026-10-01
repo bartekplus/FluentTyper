@@ -1518,6 +1518,28 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Opcjonalna typografia portugalska: znak × między liczbami i cyfry w indeksie dolnym we wzorach chemicznych (H₂O).",
     "Tipografia opcional: o sinal × entre números e algarismos subscritos em fórmulas químicas (H₂O).",
   ],
+  review_msg_pt_proclisis: [
+    "After não, que, quem, nunca and similar words, Portuguese puts the object pronoun before the verb (não me diga).",
+    "Après não, que, quem, nunca et mots semblables, le portugais place le pronom complément avant le verbe (não me diga).",
+    "Nakon não, que, quem, nunca i sličnih riječi portugalski stavlja zamjenicu objekta ispred glagola (não me diga).",
+    "Tras não, que, quem, nunca y palabras similares, el portugués coloca el pronombre átono antes del verbo (não me diga).",
+    "Μετά από não, que, quem, nunca και παρόμοιες λέξεις, τα πορτογαλικά βάζουν την αντωνυμία-αντικείμενο πριν από το ρήμα (não me diga).",
+    "Efter não, que, quem, nunca och liknande ord sätter portugisiskan objektspronomenet före verbet (não me diga).",
+    "Nach não, que, quem, nunca und ähnlichen Wörtern steht im Portugiesischen das Objektpronomen vor dem Verb (não me diga).",
+    "Po não, que, quem, nunca i podobnych słowach portugalski stawia zaimek dopełnienia przed czasownikiem (não me diga).",
+    "Depois de não, que, quem, nunca e palavras semelhantes, o pronome vem antes do verbo (não me diga).",
+  ],
+  review_msg_pt_ao90: [
+    "1990 Portuguese spelling: prefixes join their word unless it starts with h or the same vowel (autoestima, micro-ondas), and months and weekdays are lowercase.",
+    "Orthographe portugaise de 1990 : les préfixes se soudent au mot sauf devant h ou la même voyelle (autoestima, micro-ondas), et mois et jours s’écrivent en minuscules.",
+    "Portugalski pravopis iz 1990.: prefiksi se spajaju s riječju osim ispred h ili istog samoglasnika (autoestima, micro-ondas), a mjeseci i dani pišu se malim slovom.",
+    "Ortografía portuguesa de 1990: los prefijos se unen a la palabra salvo ante h o la misma vocal (autoestima, micro-ondas), y meses y días van en minúscula.",
+    "Πορτογαλική ορθογραφία του 1990: τα προθήματα ενώνονται με τη λέξη εκτός πριν από h ή το ίδιο φωνήεν (autoestima, micro-ondas), και μήνες και ημέρες γράφονται με πεζά.",
+    "Portugisisk stavning från 1990: prefix skrivs ihop med ordet utom före h eller samma vokal (autoestima, micro-ondas), och månader och veckodagar skrivs med liten bokstav.",
+    "Portugiesische Rechtschreibung von 1990: Präfixe werden mit dem Wort verbunden, außer vor h oder demselben Vokal (autoestima, micro-ondas); Monate und Wochentage werden kleingeschrieben.",
+    "Pisownia portugalska z 1990 r.: przedrostki łączy się z wyrazem, chyba że zaczyna się od h lub tej samej samogłoski (autoestima, micro-ondas), a miesiące i dni tygodnia pisze się małą literą.",
+    "Acordo Ortográfico de 1990: o prefixo se junta à palavra, salvo antes de h ou da mesma vogal (autoestima, micro-ondas), e meses e dias da semana se escrevem com minúscula.",
+  ],
 };
 
 /**

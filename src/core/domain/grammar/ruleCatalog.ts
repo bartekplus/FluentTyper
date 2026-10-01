@@ -1008,6 +1008,32 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     recommended: false,
     priority: 314,
   },
+  {
+    id: "portugueseCliticPlacement",
+    typing: false,
+    name: "Portuguese pronoun before the verb after não, que and similar words",
+    titleI18nKey: "review_msg_pt_proclisis",
+    descriptionI18nKey: "review_msg_pt_proclisis",
+    exampleI18nKey: "",
+    languageScope: "all",
+    safetyTier: "advanced",
+    defaultRollout: "off",
+    recommended: false,
+    priority: 315,
+  },
+  {
+    id: "portugueseAO90",
+    typing: false,
+    name: "Portuguese 1990 spelling agreement: prefixes, months and weekdays",
+    titleI18nKey: "review_msg_pt_ao90",
+    descriptionI18nKey: "review_msg_pt_ao90",
+    exampleI18nKey: "",
+    languageScope: "all",
+    safetyTier: "advanced",
+    defaultRollout: "off",
+    recommended: false,
+    priority: 316,
+  },
 ] as const;
 
 export type CatalogRuleId = (typeof GRAMMAR_RULE_CATALOG)[number]["id"];

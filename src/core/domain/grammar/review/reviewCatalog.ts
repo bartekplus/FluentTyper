@@ -642,6 +642,23 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     languages: ["pt_BR"],
     note: "Optional typography: a plain x and digits in formulas are common in Brazilian text.",
   },
+  portugueseCliticPlacement: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "grammar",
+    kind: "wordForm",
+    bulk: "individual",
+    languages: ["pt_BR"],
+  },
+  portugueseAO90: {
+    review: "supported",
+    defaultEnabled: false,
+    category: "spelling",
+    kind: "boundary",
+    bulk: "individual",
+    languages: ["pt_BR"],
+    note: "Optional: texts in the pre-1990 European spelling hyphenate prefixes and capitalize months.",
+  },
 };
 
 /** Review's dictionary check: individual only, and the user always picks the word. */

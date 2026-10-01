@@ -188,6 +188,50 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
       ],
     },
   ],
+  [
+    "portugueseCliticPlacement",
+    {
+      pos: [
+        ["Não diga-me isso agora.", "Não me diga isso agora."],
+        ["Nunca contou-lhe a verdade.", "Nunca lhe contou a verdade."],
+        ["Ninguém lembrou-se do prazo.", "Ninguém se lembrou do prazo."],
+        ["Todos admiram-se da coragem dela.", "Todos se admiram da coragem dela."],
+        ["Não encontramo-nos desde maio.", "Não nos encontramos desde maio."],
+        ["Quem enviou-te esta carta?", "Quem te enviou esta carta?"],
+      ],
+      neg: [
+        "Ele disse-me a verdade.",
+        "Para não dizer-lhe nada, saí.",
+        "Não querendo-se expor, calou.",
+        "Não me diga isso.",
+        "Diga-me, não esqueça.",
+        "Não, diga-me depois.",
+      ],
+    },
+  ],
+  [
+    "portugueseAO90",
+    {
+      pos: [
+        ["Minha auto-estima melhorou.", "Minha autoestima melhorou."],
+        ["Comprei um creme anti-rugas.", "Comprei um creme antirrugas."],
+        ["Vendi o carro semi-novo.", "Vendi o carro seminovo."],
+        ["O vice diretor chegou.", "O vice-diretor chegou."],
+        ["Tomei um anti inflamatório.", "Tomei um anti-inflamatório."],
+        ["O prazo vence em 28 de Janeiro.", "O prazo vence em 28 de janeiro."],
+        ["Até o próximo Domingo.", "Até o próximo domingo."],
+      ],
+      neg: [
+        "Esquente no micro-ondas.",
+        "O super-herói voou.",
+        "Moro na Rua Sete de Setembro.",
+        "Viajaram na Sexta-Feira Santa.",
+        "Ela faz a pós em Direito.",
+        "O caso está sub judice.",
+        "Somos anti Marco.",
+      ],
+    },
+  ],
 ];
 
 describe.each(RULES)("%s", (ruleId, { pos, neg }) => {
