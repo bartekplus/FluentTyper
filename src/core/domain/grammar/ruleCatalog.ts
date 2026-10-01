@@ -1060,6 +1060,19 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     recommended: false,
     priority: 115,
   },
+  {
+    id: "germanCompounds",
+    typing: false,
+    name: "German compounds and joined forms",
+    titleI18nKey: "review_msg_closed_compound",
+    descriptionI18nKey: "review_msg_closed_compound",
+    exampleI18nKey: "",
+    languageScope: "all",
+    safetyTier: "advanced",
+    defaultRollout: "off",
+    recommended: false,
+    priority: 125,
+  },
 ] as const;
 
 export type CatalogRuleId = (typeof GRAMMAR_RULE_CATALOG)[number]["id"];

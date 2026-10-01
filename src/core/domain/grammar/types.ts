@@ -123,7 +123,8 @@ export interface GrammarRuleCatalogEntry {
     | "germanAbbreviations"
     | "germanQuotes"
     | "germanAbbreviationSpacing"
-    | "germanDates";
+    | "germanDates"
+    | "germanCompounds";
   /** Absent for existing typing rules; false for native Review-only checks. */
   typing?: false;
   name: string;

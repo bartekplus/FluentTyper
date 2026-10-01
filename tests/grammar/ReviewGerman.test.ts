@@ -272,6 +272,34 @@ describe.each(RULES)("%s", (ruleId, { pos, neg }) => {
   });
 });
 
+describe("germanCompounds", () => {
+  test.each([
+    ["Es ist schwer, die Kosten ab zu schätzen.", "Es ist schwer, die Kosten abzuschätzen."],
+    ["Wir werden alles bereit stellen.", "Wir werden alles bereitstellen."],
+    ["Wir sehen uns am Freitag Abend.", "Wir sehen uns am Freitagabend."],
+    ["Das ist ein 12 seitiger Bericht.", "Das ist ein 12-seitiger Bericht."],
+    ["Die 4. Klässler spielen draußen.", "Die Viertklässler spielen draußen."],
+    ["Ich schreibe dir eine Email.", "Ich schreibe dir eine E-Mail."],
+    ["Das ist meine eMail-Adresse.", "Das ist meine E-Mail-Adresse."],
+    ["Er ist US Bürger.", "Er ist US-Bürger."],
+  ])("repairs %p", (input, output) => {
+    expect(findings("germanCompounds", input)).toHaveLength(1);
+    expect(fixed("germanCompounds", input)).toBe(output);
+  });
+  test.each([
+    "Er fing an zu lachen.",
+    "Sie hat nicht vor zu gehen.",
+    "Es macht mir nichts aus zu warten.",
+    "Er kam, um zu helfen.",
+    "Wir müssen den Weg zurück finden.",
+    "Die Vase ist aus Email.",
+    "Sie kommt Dienstag Abend vorbei.",
+    "Er ging der Reihe nach zu holen.",
+  ])("leaves %p alone", (input) => {
+    expect(findings("germanCompounds", input)).toEqual([]);
+  });
+});
+
 describe("germanDates", () => {
   test.each([
     ["Wir treffen uns Freitag den 3. Mai 2024.", "Wir treffen uns Freitag, den 3. Mai 2024."],

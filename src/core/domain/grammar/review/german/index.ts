@@ -9,7 +9,10 @@ import * as suspendedHyphen from "./suspendedHyphen";
 
 import * as dates from "./dates";
 
+import * as compounds from "./compounds";
+
 const MODULES = [
+  compounds,
   dates,
   nounCasing,
   prepositionCase,
