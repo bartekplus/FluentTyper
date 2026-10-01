@@ -80,6 +80,49 @@ export const COMPOUNDS: readonly PhraseRow[] = [
   ["twin engined", "twin-engined"],
   ["four engined", "four-engined"],
   ["Harley Davidson", "Harley-Davidson"],
+  ...["right", "left"].flatMap((side) =>
+    ["man", "side", "corner", "drive", "lane", "turn", "column", "margin"].map(
+      (noun): PhraseRow => [`${side} hand ${noun}`, `${side}-hand ${noun}`],
+    ),
+  ),
+  ...rows("off ramp, on ramp", "-", ["", "s"]),
+  ["passer by", "passer-by"],
+  ["passers by", "passers-by"],
+  ...rows("whole sale, market place, pay roll, steel worker, safe guard", "", ["", "s"]).filter(
+    ([typed]) => typed !== "safe guards" && typed !== "whole sales",
+  ),
+  ...rows("out run, back filled, under appreciate, under appreciated, under appreciates", ""),
+  ...rows("hitch hike, hitch hiked, hitch hiking, hitch hiker, hitch hikers", ""),
+  ["call to action button", "call-to-action button"],
+  ["call to action buttons", "call-to-action buttons"],
+  ...["girls", "boys"].flatMap((kind): PhraseRow[] => [
+    [`all ${kind} school`, `all-${kind} school`],
+    [`all ${kind} schools`, `all-${kind} schools`],
+  ]),
+  ["no go area", "no-go area"],
+  ["no go zone", "no-go zone"],
+  ["week-end", "weekend"],
+  ["week-ends", "weekends"],
+  ["common used", "commonly used"],
+  ...["sign", "log"].flatMap((verb): PhraseRow[] =>
+    ["s", "ing"].flatMap((end): PhraseRow[] =>
+      ["in", "out"].map((particle): PhraseRow => {
+        const form = verb === "log" && end === "ing" ? "logging" : `${verb}${end}`;
+        return [`${form}-${particle}`, `${form} ${particle}`];
+      }),
+    ),
+  ),
+  ...rows("re doing, re done", ""),
+  // Verb compounds whose past form is always the compound ("peer-reviewed evidence").
+  ...rows(
+    "peer reviewed, fact checked, guest edited, spot checked, cross checked, hand delivered, " +
+      "kick started, deep fried, stir fried, daisy chained, guilt tripped, " +
+      "green lighted, fine tuned",
+    "-",
+  ),
+  ["dead lifted", "deadlifted"],
+  ["force fed", "force-fed"],
+  ["spoon fed", "spoon-fed"],
   ["Miami Dade", "Miami-Dade"],
   ...rows("water resistant, heat resistant, fire resistant, stain resistant, shock resistant", "-"),
   ...rows("scratch resistant, wrinkle resistant, tamper resistant", "-"),
@@ -144,7 +187,7 @@ const alternation = (keys: readonly string[]) =>
     .map((key) => key.replaceAll(" ", S))
     .join("|");
 const nextWord = (ctx: DetectContext, end: number) =>
-  /^[ \t ]{1,8}([\p{L}\p{N}][\p{L}\p{N}'’-]*)/u.exec(ctx.text.slice(end, end + 48))?.[1] ?? "";
+  /^[ \t ]{1,8}(["“]?[\p{L}\p{N}][\p{L}\p{N}'’-]*)/u.exec(ctx.text.slice(end, end + 48))?.[1] ?? "";
 // A determiner, possessive or object pronoun after a particle makes it a preposition with its
 // own object: "the walk through the park", "a hand over his mouth".
 const OBJECT =
@@ -269,14 +312,16 @@ const PHRASAL_NOUNS: Record<string, readonly string[]> = {
   "opt in": ["opt-in"],
   "opt out": ["opt-out"],
   "catch all": ["catch-all"],
+  "toss up": ["toss-up"],
 };
 // First words that are also everyday nouns ("a sign in front", "the work out of the way",
 // "your back up straight"): these need a noun after the particle ("the sign up form").
 const NOUN_HEADS = new Set(
-  "back drive left hold count touch close set sign check work stand cut round lift push break chin".split(
-    " ",
-  ),
+  "drive left hold count touch close set sign check work stand cut round lift push".split(" "),
 );
+// "a chin up", "the back up": these also read as a body part with an adverb after a possessive
+// ("keep your chin up"), so only an article may come before them.
+const ARTICLE_HEADS = new Set(["back", "chin"]);
 const PHRASAL_KEYS = Object.keys(PHRASAL_NOUNS)
   .map((key) => key.replace(" ", S))
   .join("|");
@@ -308,8 +353,9 @@ function phrasalNouns(ctx: DetectContext): Finding[] {
     }
     const next = nextWord(ctx, m.index + m[0].length);
     if (OBJECT.test(next)) continue;
-    if (NOUN_HEADS.has(head) && !strictNoun(next)) continue;
-    if (head === "back" && !/^(?:a|the)$/i.test(det)) continue;
+    // "a break out of jail": "break out" takes its noun only as a modifier.
+    if ((NOUN_HEADS.has(head) || key === "break out") && !strictNoun(next)) continue;
+    if (ARTICLE_HEADS.has(head) && !/^(?:an?|the)$/i.test(det)) continue;
     const finding = found(ctx, m, fixes);
     if (finding) findings.push(finding);
   }
@@ -381,6 +427,8 @@ for (const [typed, joined] of COMPOUND_VERBS) {
   const [first, second] = typed.split(" ");
   const sep = joined.includes("-") ? "-" : "";
   VERB_FORMS.set(typed, [joined, "base"]);
+  // "green lighted" beside the irregular "green lit".
+  if (second === "light") VERB_FORMS.set(`${first} lighted`, [`${first}${sep}lighted`, "past"]);
   for (const form of ["third", "past", "ing"] as const) {
     const inflected = englishInflect(second, form);
     if (inflected) VERB_FORMS.set(`${first} ${inflected}`, [`${first}${sep}${inflected}`, form]);
@@ -424,7 +472,7 @@ function compoundVerbs(ctx: DetectContext): Finding[] {
               : false;
     if (!ok) continue;
     const next = nextWord(ctx, m.index + m[0].length);
-    if (/^to$/i.test(modal ?? "") && !TO_OBJECT.test(next)) continue;
+    if (/^to$/i.test(modal ?? "") && !TO_OBJECT.test(next) && !/^\p{N}/u.test(next)) continue;
     // "I peer review comments": a noun after the subject's compound is a noun phrase.
     if (subject && form !== "past" && next && !TO_OBJECT.test(next)) {
       const known = info(next);
@@ -474,6 +522,10 @@ const NOUN_MODIFIERS = [
   "high speed",
   "full time",
   "part time",
+  "two thirds",
+  "one third",
+  "three quarters",
+  "one quarter",
 ];
 const MODIFIER_KEYS = alternation(NOUN_MODIFIERS);
 // Modifiers after an article or possessive: "the end to end trip", "your go to person".
@@ -486,20 +538,34 @@ const ARTICLE_MODIFIERS: Record<string, string> = Object.fromEntries(
     "short lived|long lived|life changing|life saving|life threatening|time consuming|" +
     "mind blowing|eye catching|record breaking|award winning|best selling|fast growing|" +
     "never ending|so called|all knowing|all seeing|all powerful|all inclusive|" +
-    "all encompassing|all natural|all new|go to|go to market"
+    "all encompassing|all natural|all new|go to|go to market|easy to use|easy to understand|" +
+    "easy to read|easy to learn|easy to install|easy to follow|simple to use|hard to find|" +
+    "hard to use|difficult to use|ready to use|all time|million dollar|billion dollar|" +
+    "multi million dollar|second largest|third largest|fourth largest|fifth largest|" +
+    "second biggest|third biggest|second highest|second best|third best"
   )
     .split("|")
     .map((key) => [key, key.replaceAll(" ", "-")]),
 );
 ARTICLE_MODIFIERS["life long"] = "lifelong";
+ARTICLE_MODIFIERS["under cover"] = "undercover";
+ARTICLE_MODIFIERS["out going"] = "outgoing";
+ARTICLE_MODIFIERS["on board"] = "onboard";
 // Compound nouns that may also close the phrase: "a one off", "a know it all".
 const ARTICLE_NOUNS: Record<string, string> = Object.fromEntries(
-  "all in one|one off|catch all|know it all|do it yourself|drive through"
+  "all in one|one off|catch all|know it all|do it yourself|drive through|about face|post it|zero day|no go|hands on"
     .split("|")
     .map((key) => [key, key.replaceAll(" ", "-")]),
 );
+Object.assign(ARTICLE_NOUNS, {
+  "home work": "homework",
+  "drive way": "driveway",
+  "check box": "checkbox",
+  "over use": "overuse",
+});
 const MODIFIER = `(?<target>${MODIFIER_KEYS})${E}`;
-const DETERMINER = "a|an|the|my|your|his|her|our|their|its|this|these|those|very|more|most";
+const DETERMINER =
+  "a|an|the|my|your|his|her|our|their|its|this|these|those|very|more|most|best|(?!(?:let|it|that|there|what|he|she|who|here|where)['’]s)\\p{L}+['’]s";
 const ARTICLE_MODIFIER = `(?<det>${DETERMINER})${S}(?<target>${alternation([
   ...Object.keys(ARTICLE_MODIFIERS),
   ...Object.keys(ARTICLE_NOUNS),
@@ -515,10 +581,15 @@ function isNounNext(next: string): boolean {
   const entry = info(next);
   return !entry || entry.noun || entry.plural || entry.adjective;
 }
-/** A lowercase word the lexicon knows as a noun, not as an adverb: "the sign up form". */
+/**
+ * A lowercase noun, not an adverb or adjective ("the sign up form", "a stand up comedian"); a
+ * long word the lexicon leaves out counts as a noun.
+ */
 function strictNoun(next: string): boolean {
-  const entry = isNounNext(next) && /^\p{Ll}/u.test(next) ? info(next) : null;
-  return !!entry && (entry.noun || entry.plural) && !entry.adverb;
+  if (!isNounNext(next) || !/^\p{Ll}/u.test(next)) return false;
+  const entry = info(next);
+  if (!entry) return /^[a-z]{6,}$/.test(next);
+  return (entry.noun || entry.plural) && !entry.adverb && !(entry.adjective && !entry.plural);
 }
 /** "Prime Time Wrestling", "Part Time Lord": a capital after the first word is a title. */
 const titled = (typed: string) => /\s\p{Lu}/u.test(typed);
@@ -533,7 +604,8 @@ function modifiers(ctx: DetectContext): Finding[] {
   for (const m of frameMatches(ctx, MODIFIER)) {
     const next = nextWord(ctx, m.index + m[0].length);
     if (!isNounNext(next)) continue;
-    // "I read only the first page": a verb reading after "read only".
+    // "I read only the first page": a verb reading after "read only"; "raise your right hand
+    // high" keeps the hand.
     if (/^read/i.test(m.groups!.target) && info(next)?.verbs.length) continue;
     add(m, hyphenate(m.groups!.target));
   }
@@ -542,10 +614,16 @@ function modifiers(ctx: DetectContext): Finding[] {
     const next = nextWord(ctx, m.index + m[0].length);
     const noun = ARTICLE_NOUNS[key];
     // "so called because", "the state of the art.": a modifier needs its noun.
-    if (noun ? next && !isNounNext(next) : !isNounNext(next)) continue;
+    // "an easy to use, friendly tool": a comma between two modifiers.
+    const listed =
+      /^(?:easy|simple|hard|difficult)/i.test(key) && ctx.text[m.index + m[0].length] === ",";
+    if (noun ? OBJECT.test(next) : !isNounNext(next) && !listed) continue;
     // "the state of the art deals with": a verb may follow the noun phrase instead.
     if (!noun && info(next)?.verbs.some((v) => v.form === "third")) continue;
-    if (noun && /^(?:very|more|most)$/i.test(m.groups!.det)) continue;
+    // "very hands on" is the adjective; "very" before another compound noun is not.
+    if (noun && /^(?:very|more|most|best)$/i.test(m.groups!.det) && key !== "hands on") continue;
+    // "the all time" after "of" is "of all time"; "all the hands on deck" names hands.
+    if (key === "all time" && !isNounNext(next)) continue;
     add(m, noun ?? ARTICLE_MODIFIERS[key]);
   }
   return findings;
@@ -599,19 +677,7 @@ function prefixes(ctx: DetectContext): Finding[] {
 const NUMBER_WORDS =
   "one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|half|single|multi";
 const UNITS =
-  "day|week|month|year|hour|minute|second|mile|page|step|point|word|character|paragraph|digit|letter|bit|byte|room|bedroom|bath|bathroom|door|story|storey|floor|season|figure|cylinder|car|degree|piece|karat|carat|wheel|course|inch|foot|meter|metre|yard|seat|person|man|member|player|lane|line|part|stage|level|track|game|hole|star|speed|gallon|liter|litre|pound|ounce|ton|watt|volt|megapixel|headed|sided|legged|wheeled|engined";
-const OLD_UNITS = new Set([
-  "day",
-  "week",
-  "month",
-  "year",
-  "hour",
-  "minute",
-  "mile",
-  "page",
-  "step",
-  "point",
-]);
+  "day|week|month|year|hour|minute|second|mile|page|step|point|word|character|paragraph|digit|letter|bit|byte|room|bedroom|bath|bathroom|door|story|storey|floor|season|figure|cylinder|car|degree|piece|karat|carat|wheel|course|inch|foot|meter|metre|yard|seat|person|man|member|player|lane|line|part|stage|level|track|game|hole|star|speed|gallon|liter|litre|pound|ounce|ton|watt|volt|megapixel|headed|sided|legged|wheeled|engined|factor|family";
 const NUMBER = `(?<n>[0-9]{1,3}(?:,[0-9]{3})+|[0-9]+(?:\\.[0-9]+)?|${NUMBER_WORDS})`;
 const NUMBER_UNIT = `(?<![\\p{N}.,/])(?<target>${NUMBER}${S}(?<unit>${UNITS})(?:${S}(?<old>old)(?<olds>s)?|-(?<hold>old)(?<holds>s)?)?)(?=${S}(?<next>[\\p{L}\\p{N}]+)|[ \\t\\u00a0]*(?<end>[.,;:!?)]|$))`;
 const AGE_ONLY = `(?<![\\p{N}.,/])(?<target>(?<n>[0-9]+|${NUMBER_WORDS})-(?<unit>year|month|week|day)${S}(?<old>old)(?<olds>s)?)${E}`;
@@ -630,15 +696,17 @@ function numberUnits(ctx: DetectContext): Finding[] {
       // "a two year old car", "the two year olds"; "is two years old" has a plural unit.
       if (!plural && !isNounNext(next ?? "")) continue;
     } else {
-      // "a 3 day course": the older digit frame owns plain numbers with its units.
-      if (/^[0-9]+$/.test(n) && OLD_UNITS.has(lower(unit))) continue;
+      // "a 3 day course": the older digit frame shares plain numbers with its units; the
+      // same edit from both is shown once.
       // "one hour" is a duration far more often than a modifier.
       if (/^(?:1|one)$/i.test(n)) continue;
       if (!isNounNext(next ?? "") || NOT_A_HEAD.test(next ?? "")) continue;
       // "exceeded 100,000 page edits": a large count needs "a" or "the" to be a modifier.
       if (
         /^[0-9,]{4,}$/.test(n) &&
-        !/\b(?:a|an|the)[ \t ]+$/i.test(ctx.text.slice(Math.max(0, m.index - 8), m.index))
+        !/\b(?:a|an|the|over|under|nearly|almost|about)[ \t ]+$/i.test(
+          ctx.text.slice(Math.max(0, m.index - 8), m.index),
+        )
       )
         continue;
       if (/^\p{Lu}/u.test(next ?? "") && info(next) === null) continue;
@@ -692,8 +760,33 @@ const ON_GOING = `(?:(?<=\\b(?:an|the|their|our|his|her|its|my|your|this|that|an
 // "Does any one need help?": the pronoun before a verb, not "any one of them".
 const ANY_ONE = `(?<=(?:^|[.!?;\\n]|\\b(?:does|did|do|can|could|will|would|has|have|is|was|if|when|and|but)${S})[ \\t\\u00a0]*)(?<target>(?<q>any|some)${S}one)${S}(?<verb>[a-z]+)${E}`;
 
+// "sign into your account" is "sign in to"; "signed into law" is the verb with "into".
+const SIGN_INTO = `(?<target>(?<verb>sign|signs|signed|signing|log|logs|logged|logging)${S}into)(?=${S}(?:your|my|his|her|our|their|the|an?)${S}(?:[\\p{L}-]+${S})?(?:accounts?|profiles?|apps?|sites?|website|portal|system|computer|e-?mail|server|dashboard|meeting|session|network|device)${E})`;
+// "an American born scientist", "English speaking people".
+const ORIGIN = `(?<target>(?<place>\\p{Lu}\\p{Ll}{2,})${S}(?<kind>born|speaking|based))${E}`;
+// "I paid (may be) too much."
+const PAREN_MAY_BE = `(?<=\\()(?<target>may${S}be)(?=\\))`;
+
 function smallFrames(ctx: DetectContext): Finding[] {
   const findings: Finding[] = [];
+  const add = (m: RegExpExecArray, fix: string, ruleId?: RawFinding["ruleId"]) => {
+    const finding = ruleId
+      ? found(ctx, m, [fix], ruleId, "review_msg_closed_compound")
+      : found(ctx, m, [fix]);
+    if (finding) findings.push(finding);
+  };
+  for (const m of frameMatches(ctx, SIGN_INTO)) add(m, `${m.groups!.verb} in to`);
+  for (const m of frameMatches(ctx, ORIGIN)) {
+    // "oil based paint" needs a noun before "based"; born and speaking need a name.
+    const { place, kind } = m.groups!;
+    if (!/^\p{Lu}/u.test(place) && (lower(kind) !== "based" || !info(place)?.noun)) continue;
+    // "When Paris based its…": the place must lead a noun phrase, mid-sentence.
+    if (!strictNoun(nextWord(ctx, m.index + m[0].length))) continue;
+    const before = ctx.text.slice(Math.max(0, m.index - 3), m.index);
+    if (/^\s*$/.test(before) || /[.!?]\s*$/.test(before)) continue;
+    add(m, `${m.groups!.place}-${lower(m.groups!.kind)}`, "englishClosedCompounds");
+  }
+  for (const m of frameMatches(ctx, PAREN_MAY_BE)) add(m, "maybe");
   for (const m of frameMatches(ctx, ON_GOING)) {
     const next = nextWord(ctx, m.index + m[0].length);
     if (!isNounNext(next)) continue;
