@@ -69,6 +69,8 @@ export function findingAt(
     range: { start, end },
     alternatives: [...alternatives],
     ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+    // No single fix (an impossible date): the finding only warns.
+    ...(alternatives.length === 0 ? { warningOnly: true as const } : {}),
     context: {
       start: Math.max(0, start - 96),
       end: Math.min(ctx.text.length, end + 32),

@@ -3,6 +3,8 @@ import type { LanguagePhraseTables } from "../languagePhraseTables";
 import type { ReviewDetectorEntry } from "../reviewDetectors";
 import * as compounds from "./compounds";
 import * as confusions from "./confusions";
+import * as dates from "./dates";
+import * as numbers from "./numbers";
 
 export const POLISH_TABLES: Required<LanguagePhraseTables> = {
   words: confusions.WORDS,
@@ -14,4 +16,6 @@ export const POLISH_SPLIT_WORDS = compounds.SPLIT_WORDS;
 export const POLISH_DETECTORS: readonly ReviewDetectorEntry[] = [
   ...compounds.DETECTORS,
   ...confusions.DETECTORS,
+  ...numbers.DETECTORS,
+  ...dates.DETECTORS,
 ];

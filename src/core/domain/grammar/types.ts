@@ -112,6 +112,9 @@ export interface GrammarRuleCatalogEntry {
     | "englishWereWhere"
     | "englishIrregularForms"
     | "englishPossessiveNouns"
+    // Polish-only Review checks (review/polish/).
+    | "polishNumerals"
+    | "polishDates"
     | "quoteSpacing"
     | "primeSymbols";
   /** Absent for existing typing rules; false for native Review-only checks. */

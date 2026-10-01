@@ -171,7 +171,83 @@ export const POLISH_CASES: Array<[CatalogRuleId, string, Case]> = [
       ],
     },
   ],
+  [
+    "polishNumerals",
+    "digits with endings, digit compounds, numeral and noun forms",
+    {
+      pos: [
+        ["Wygrał już 3-ci raz.", "Wygrał już 3. raz."],
+        ["Przyjechał 12-go czerwca.", "Przyjechał 12 czerwca."],
+        ["Moda z lat 80-tych wraca.", "Moda z lat 80. wraca."],
+        ["Zaprosiłem 7-miu gości.", "Zaprosiłem siedmiu gości."],
+        ["Dostał 6-tkę z matematyki.", "Dostał szóstkę z matematyki."],
+        ["Pamiętam XX-go wieku modę.", "Pamiętam XX wieku modę."],
+        ["Mamy 8-mio osobowy stół.", "Mamy 8-osobowy stół."],
+        ["Była 10 minutowa przerwa.", "Była 10-minutowa przerwa."],
+        ["Został 4 krotnym mistrzem.", "Został 4-krotnym mistrzem."],
+        ["Ten 15 latek jest zdolny.", "Ten 15-latek jest zdolny."],
+        ["Mają trzy dzieci.", "Mają troje dzieci."],
+        ["Bilet kosztował 3 złotych.", "Bilet kosztował 3 złote."],
+        ["Reszta to 12 grosze.", "Reszta to 12 groszy."],
+        ["Dodaj 200 gram mąki.", "Dodaj 200 gramów mąki."],
+      ],
+      neg: [
+        "Wygrał już 3. raz.",
+        "Przyjechał 12 czerwca.",
+        "Ma 5kg nadwagi i 10km do domu.",
+        "Pokój 2-osobowy jest wolny.",
+        "Ten 15-latek jest zdolny.",
+        "Obchodzimy 10-lecie firmy.",
+        "Kupiłem 2 letnie sukienki.",
+        "Porozmawiajmy w cztery oczy.",
+        "Zdobył 2 złote medale.",
+        "Bilet kosztował 3 złote.",
+        "Gram w szachy od 5 lat, a 1 gram to mało.",
+        "Wysłał CV-ki do 3 firm.",
+        "Mam troje dzieci.",
+      ],
+    },
+  ],
+  [
+    "polishDates",
+    "impossible dates, weekdays and month forms",
+    {
+      pos: [
+        ["Wyjazd 5 marzec 2021.", "Wyjazd 5 marca 2021."],
+        ["Spotkanie 3. października.", "Spotkanie 3 października."],
+        ["Wpis z 14 Lis 2019.", "Wpis z 14 XI 2019."],
+        ["Pierwszy wrzesień był ciepły.", "Pierwszy września był ciepły."],
+        ["Od 7 lipiec trwa remont.", "Od 7 lipca trwa remont."],
+      ],
+      neg: [
+        "Urodził się 30 września 1990.",
+        "Było to 29 lutego 2024.",
+        "Dziś jest czwartek, 1 października 2026.",
+        "Panował w latach 1814–1781 p.n.e.",
+        "W roku 1962 – 272 000 osób.",
+        "Rozdział 31 IX opisuje bitwę.",
+        "Święto 1 Maj obchodzimy co roku.",
+        "Obowiązuje od 2012-05-01.",
+        "Zawody trwają od 1 do 10 lutego.",
+      ],
+    },
+  ],
 ];
+
+/** Warnings without a fix: the range is flagged and nothing is offered. */
+const POLISH_WARNINGS: Array<[CatalogRuleId, string, string]> = [
+  ["polishDates", "Urodził się 31 kwietnia.", "31 kwietnia"],
+  ["polishDates", "Termin to 30 II 2025.", "30 II 2025"],
+  ["polishDates", "Rok 2023 miał dzień 29 lutego 2023.", "29 lutego 2023"],
+  ["polishDates", "Było to w piątek, 1 października 2026.", "piątek, 1 października 2026"],
+  ["polishDates", "Obóz trwa 20–3 lipca.", "20–3 lipca"],
+  ["polishDates", "Wojna trwała w latach 1918–1914.", "1918–1914"],
+];
+
+test.each(POLISH_WARNINGS)("%s warns on %p", (ruleId, text, original) => {
+  const found = findings(ruleId, text);
+  expect(found.map((d) => [d.original, d.warningOnly])).toEqual([[original, true]]);
+});
 
 describe.each(POLISH_CASES)("%s: %s", (ruleId, _name, { pos, neg }) => {
   test.each(pos)("flags %p", (text, fixed) => {

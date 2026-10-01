@@ -214,7 +214,14 @@ export type ReviewMessageKey =
   | "review_msg_local_ai"
   | "review_msg_irregular_form"
   | "review_msg_noun_possessive"
-  | "review_msg_word_boundary";
+  | "review_msg_word_boundary"
+  // Polish-only checks (review/polish/).
+  | "review_msg_pl_numeral_suffix"
+  | "review_msg_pl_numeral_hyphen"
+  | "review_msg_pl_numeral_noun"
+  | "review_msg_pl_impossible_date"
+  | "review_msg_pl_weekday_date"
+  | "review_msg_pl_month_form";
 
 export type BulkDecision =
   | { eligible: true; alternative: number }

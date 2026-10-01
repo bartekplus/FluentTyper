@@ -515,6 +515,33 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     recommended: false,
     priority: 138,
   },
+  // Polish-only Review checks (review/polish/); languages are set in reviewCatalog.
+  {
+    id: "polishNumerals",
+    typing: false,
+    name: "Polish numbers: endings, hyphens and noun forms",
+    titleI18nKey: "review_msg_pl_numeral_suffix",
+    descriptionI18nKey: "review_msg_pl_numeral_suffix",
+    exampleI18nKey: "",
+    languageScope: "all",
+    safetyTier: "advanced",
+    defaultRollout: "off",
+    recommended: false,
+    priority: 173,
+  },
+  {
+    id: "polishDates",
+    typing: false,
+    name: "Polish dates",
+    titleI18nKey: "review_msg_pl_impossible_date",
+    descriptionI18nKey: "review_msg_pl_impossible_date",
+    exampleI18nKey: "",
+    languageScope: "all",
+    safetyTier: "advanced",
+    defaultRollout: "off",
+    recommended: false,
+    priority: 174,
+  },
 
   {
     id: "englishPronounCase",
