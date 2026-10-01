@@ -828,7 +828,8 @@ function numberUnits(ctx: DetectContext): Finding[] {
   const findings: Finding[] = [];
   for (const m of frameMatches(ctx, NUMBER_UNIT)) {
     const { n, unit, next } = m.groups!;
-    if (n === "1" || (next && NOT_A_HEAD.test(next))) continue;
+    // "the 2018 Year-End chart": a capitalized unit belongs to a name.
+    if (n === "1" || /^[A-Z]/.test(unit) || (next && NOT_A_HEAD.test(next))) continue;
     if (next && !englishWordInfo(next)?.noun && !englishWordInfo(next)?.adjective) continue;
     findings.push(
       found(ctx, m, "englishContextualCompounds", "review_msg_compounds", [`${n}-${unit}`]),

@@ -1403,6 +1403,11 @@ const repeatedWords: Detector = (ctx) => {
     // A named, quoted example is evidence, not prose to repair. Normal quotations still run.
     if (CUE_AND_QUOTE.test(before)) continue;
     if (word === "to" && !doubledTo(before, ctx.text.slice(end, end + 16))) continue;
+    // "the The Beatles album": a capitalized repeat after a lowercase word opens a name;
+    // "P A O L A A N": a spelled-out run of single letters.
+    const second = match[0].slice(-match[1].length);
+    if (/^\p{Ll}/u.test(match[1]) && /^\p{Lu}/u.test(second)) continue;
+    if (word.length === 1 && /(?:^|\s)\p{L}[ \t ]+$/u.test(before)) continue;
     findings.push({
       ruleId: "englishRepeatedWords",
       messageKey: "review_msg_repeated_words",

@@ -63,6 +63,11 @@ const QUIET: string[] = [
   "Two Boeing 737s landed.",
   // The okina.
   "We flew to Hawai‘i last spring.",
+  // A name opening with "The" after "the", and letters spelled out.
+  "It belongs in the The Beatles box set.",
+  "Spell it N A A N.",
+  // A capitalized unit is part of a title.
+  "It topped the 2019 Year-End list.",
   // Titled names written as two words.
   "We watched The Old Home Town again.",
 ];
