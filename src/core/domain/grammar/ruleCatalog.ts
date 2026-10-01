@@ -1047,6 +1047,19 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     recommended: false,
     priority: 105,
   },
+  {
+    id: "germanDates",
+    typing: false,
+    name: "German dates",
+    titleI18nKey: "review_msg_german_invalid_date",
+    descriptionI18nKey: "review_msg_german_invalid_date",
+    exampleI18nKey: "",
+    languageScope: "all",
+    safetyTier: "advanced",
+    defaultRollout: "off",
+    recommended: false,
+    priority: 115,
+  },
 ] as const;
 
 export type CatalogRuleId = (typeof GRAMMAR_RULE_CATALOG)[number]["id"];

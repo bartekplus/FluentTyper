@@ -7,7 +7,10 @@ import * as prepositionCase from "./prepositionCase";
 import * as quotes from "./quotes";
 import * as suspendedHyphen from "./suspendedHyphen";
 
+import * as dates from "./dates";
+
 const MODULES = [
+  dates,
   nounCasing,
   prepositionCase,
   confusions,

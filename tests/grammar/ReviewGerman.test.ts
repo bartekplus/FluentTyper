@@ -272,6 +272,35 @@ describe.each(RULES)("%s", (ruleId, { pos, neg }) => {
   });
 });
 
+describe("germanDates", () => {
+  test.each([
+    ["Wir treffen uns Freitag den 3. Mai 2024.", "Wir treffen uns Freitag, den 3. Mai 2024."],
+    ["Die Feier ist am Montag, 2.9.2024.", "Die Feier ist am Montag, 2.9.2024."],
+    ["Die Feier ist am Dienstag, 2.9.2024.", "Die Feier ist am Montag, 2.9.2024."],
+    ["Ich bin vom 3.6 bis zum 9.6. weg.", "Ich bin vom 3.6. bis zum 9.6. weg."],
+  ])("repairs %p", (input, output) => {
+    expect(fixed("germanDates", input)).toBe(output);
+  });
+  test.each(["Wir sehen uns am 31. April.", "Das war der 30.02.2023.", "Der 29.2.2023 fiel aus."])(
+    "warns about the impossible date in %p",
+    (input) => {
+      const [warning, ...rest] = findings("germanDates", input);
+      expect(rest).toEqual([]);
+      expect(warning.warningOnly).toBe(true);
+    },
+  );
+  test.each([
+    "Der 29.2.2024 war ein Donnerstag.",
+    "Siehe Abschnitt 7.1 und 7.3 im Vertrag.",
+    "Python 3.12.1 ist erschienen.",
+    "Pi ist ungefähr 3.14.",
+    "Sonntag, den 23. Oktober 4004 v. Chr.",
+    "Am Freitag, 3. Mai 2024 regnete es.",
+  ])("leaves %p alone", (input) => {
+    expect(findings("germanDates", input)).toEqual([]);
+  });
+});
+
 test("a word in the user's dictionary keeps its casing", () => {
   expect(
     findings("germanNounCasing", "Wir haben den vertrag.", "de_DE", ["vertrag"] as never),

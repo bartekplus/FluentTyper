@@ -169,6 +169,8 @@ const MAX_PROSE_TOKEN_CHARS = 100;
 
 /** A period-decimal quantity ("2.5", "2.5kg", "3.50€") is prose, not a dotted name. */
 const DECIMAL_QUANTITY = /^\p{Nd}{1,9}\.\p{Nd}{1,9}(?:\p{L}{1,4}|[€$£¥%])?$/u;
+/** A day.month(.year) date ("23.08.2014", "31.4.") is prose, not a dotted name. */
+const DOTTED_DATE = /^\d{1,3}\.\d{1,2}\.(?:\d{2}|\d{4})?$/;
 
 /** URLs, e-mail addresses, paths, mentions, dotted names and overlong tokens in [from, to). */
 function technicalRanges(source: string, from: number, to: number): ProtectedRange[] {
@@ -188,6 +190,7 @@ function technicalRanges(source: string, from: number, to: number): ProtectedRan
       bare &&
       isTechnicalToken(bare) &&
       !DECIMAL_QUANTITY.test(bare) &&
+      !DOTTED_DATE.test(bare) &&
       !PROSE_DOTTED_TOKEN.test(bare) &&
       !isGermanAbbreviationToken(bare) &&
       !PROSE_SLASH_TOKEN.test(bare) &&

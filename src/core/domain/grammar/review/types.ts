@@ -222,7 +222,10 @@ export type ReviewMessageKey =
   | "review_msg_german_suspended_hyphen"
   | "review_msg_german_abbreviation"
   | "review_msg_german_quotes"
-  | "review_msg_german_abbreviation_spacing";
+  | "review_msg_german_abbreviation_spacing"
+  | "review_msg_german_invalid_date"
+  | "review_msg_german_weekday_date"
+  | "review_msg_german_date_punctuation";
 
 export type BulkDecision =
   | { eligible: true; alternative: number }

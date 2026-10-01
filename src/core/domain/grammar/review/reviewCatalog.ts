@@ -665,6 +665,14 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     bulk: "individual",
     languages: ["de_DE"],
   },
+  germanDates: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "punctuation",
+    kind: "numbers",
+    bulk: "individual",
+    languages: ["de_DE"],
+  },
 };
 
 /** Review's dictionary check: individual only, and the user always picks the word. */
