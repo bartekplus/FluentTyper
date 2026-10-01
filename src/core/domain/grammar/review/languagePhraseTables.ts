@@ -1,4 +1,5 @@
 import type { PhraseRow } from "./englishPhraseTables";
+import { PORTUGUESE_PHRASES } from "./portuguese/phrases";
 
 /**
  * The English phrase checks for the other review languages, by language code.
@@ -234,6 +235,7 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
       ["houveram muitas", "houve muitas"],
       ["houveram vários", "houve vários"],
       ["houveram várias", "houve várias"],
+      ...PORTUGUESE_PHRASES,
     ],
     style: [
       ["subir para cima", "subir"],

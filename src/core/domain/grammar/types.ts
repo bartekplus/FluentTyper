@@ -115,7 +115,8 @@ export interface GrammarRuleCatalogEntry {
     | "quoteSpacing"
     | "primeSymbols"
     // Portuguese Review checks.
-    | "portugueseAccentParonyms";
+    | "portugueseAccentParonyms"
+    | "portugueseConfusions";
   /** Absent for existing typing rules; false for native Review-only checks. */
   typing?: false;
   name: string;

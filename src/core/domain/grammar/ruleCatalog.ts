@@ -956,6 +956,19 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     recommended: false,
     priority: 310,
   },
+  {
+    id: "portugueseConfusions",
+    typing: false,
+    name: "Portuguese crase, por que and lookalike words",
+    titleI18nKey: "review_msg_pt_confusions",
+    descriptionI18nKey: "review_msg_pt_confusions",
+    exampleI18nKey: "",
+    languageScope: "all",
+    safetyTier: "advanced",
+    defaultRollout: "off",
+    recommended: false,
+    priority: 311,
+  },
 ] as const;
 
 export type CatalogRuleId = (typeof GRAMMAR_RULE_CATALOG)[number]["id"];

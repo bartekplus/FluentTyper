@@ -216,7 +216,11 @@ export type ReviewMessageKey =
   | "review_msg_noun_possessive"
   | "review_msg_word_boundary"
   // Portuguese.
-  | "review_msg_pt_accent_paronym";
+  | "review_msg_pt_accent_paronym"
+  | "review_msg_pt_confusions"
+  | "review_msg_pt_crase"
+  | "review_msg_pt_por_que"
+  | "review_msg_pt_homophone";
 
 export type BulkDecision =
   | { eligible: true; alternative: number }
