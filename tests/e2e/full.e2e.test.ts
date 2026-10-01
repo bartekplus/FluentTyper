@@ -8421,11 +8421,17 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
 
       // Ignore the remaining "teh" (this occurrence, this session only).
       panel = await waitForReview(page, "after apply", (p) => p.status === "Fixed: 1. Issues: 6");
+      // The next finding's card opened in place of the applied one; close it to use the list.
+      await waitForReview(page, "next card after apply", (p) => p.card.open);
+      await page.keyboard.press("Escape");
+      await waitForReview(page, "next card closed", (p) => !p.card.open && p.open);
       await clickReviewControl(page, `.item[data-id="${panel.items[0].id}"]`);
       await waitForReview(page, "card for ignore", (p) => p.card.open);
       await clickReviewControl(page, ".card [data-action=ignore]");
-      panel = await waitForReview(page, "ignored", (p) => p.items.length === 5);
+      panel = await waitForReview(page, "ignored", (p) => p.items.length === 5 && p.card.open);
       expect(panel.notes).toContain("Ignored: 1");
+      await page.keyboard.press("Escape");
+      await waitForReview(page, "card after ignore closed", (p) => !p.card.open && p.open);
 
       // Add "recieve" to the user dictionary through the existing settings path.
       const recieve = panel.items.find((item) => item.text.startsWith("recieve"))!;
