@@ -8,7 +8,8 @@ const CANONICAL = new Map(
   ].map((term) => [term.toLowerCase(), term]),
 );
 // Acronyms written as a capitalized word ("Nasa", "Cpu"); lowercase "pdf" or "url" is often a
-// file extension or a field name and stays.
+// file extension or a field name and stays. English only: Portuguese and German write "a Nasa",
+// "die Nato", and "Hr." (Herr), "Cia." (Companhia) or the name "Ai" are words elsewhere.
 const ACRONYMS = new Set(
   "NASA IKEA LEGO NATO FBI CIA HIV DNA RNA CPU GPU HTML URL FAQ PDF CEO CFO HR AI UFO".split(" "),
 );
@@ -28,7 +29,7 @@ export function canonicalCasing(ctx: DetectContext): RawFinding[] {
     match = words.exec(ctx.scanText)
   ) {
     const typed = match[0];
-    const acronym = typed.length < 5 ? typed.toUpperCase() : "";
+    const acronym = typed.length < 5 && ctx.lang.startsWith("en") ? typed.toUpperCase() : "";
     const canonical =
       CANONICAL.get(typed.toLowerCase()) ??
       (ACRONYMS.has(acronym) &&
