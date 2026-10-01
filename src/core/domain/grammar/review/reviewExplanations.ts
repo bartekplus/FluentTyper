@@ -2092,6 +2092,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "„etc.” już zamyka wyliczenie: jedna kropka, bez wielokropka.",
     "“etc.” já fecha a enumeração: um só ponto, sem reticências.",
   ],
+  review_msg_spanish_agreement: [
+    "In Spanish, the determiner and its noun share gender and number.",
+    "En espagnol, le déterminant et son nom s’accordent en genre et en nombre.",
+    "U španjolskom se odrednica i njezina imenica slažu u rodu i broju.",
+    "El determinante y su sustantivo concuerdan en género y número.",
+    "Στα ισπανικά, ο προσδιοριστής και το ουσιαστικό του συμφωνούν σε γένος και αριθμό.",
+    "På spanska har bestämningsordet och dess substantiv samma genus och numerus.",
+    "Im Spanischen stimmen Begleiter und Nomen in Genus und Numerus überein.",
+    "W hiszpańskim określnik i jego rzeczownik zgadzają się w rodzaju i liczbie.",
+    "Em espanhol, o determinante e o seu substantivo concordam em género e número.",
+  ],
 };
 
 /**

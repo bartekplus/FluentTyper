@@ -808,6 +808,14 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     bulk: "individual",
     languages: ["es_ES"],
   },
+  spanishAgreement: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "grammar",
+    kind: "agreement",
+    bulk: "individual",
+    languages: ["es_ES"],
+  },
 };
 
 /** Review's dictionary check: individual only, and the user always picks the word. */

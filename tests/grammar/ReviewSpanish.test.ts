@@ -19,7 +19,12 @@ import {
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
 
-const SPANISH_RULES: CatalogRuleId[] = ["spanishAccents", "spanishConfusions", "spanishTypography"];
+const SPANISH_RULES: CatalogRuleId[] = [
+  "spanishAccents",
+  "spanishConfusions",
+  "spanishTypography",
+  "spanishAgreement",
+];
 const SPANISH_ON = REVIEW_SUPPORTED_RULE_IDS.filter(
   (id) =>
     runsInReviewLanguage(id, "es_ES") &&
@@ -296,6 +301,51 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
       ],
     },
   ],
+  [
+    "spanishAgreement",
+    "determiner and noun, uno de, primer, cardinals",
+    {
+      pos: [
+        ["Compré la camisas azules.", "Compré las camisas azules."],
+        ["Guardé las taza en el armario.", "Guardé la taza en el armario."],
+        ["Mis vecinos tienen un perros enormes.", "Mis vecinos tienen unos perros enormes."],
+        ["Me prestó el bicicleta de su hermano.", "Me prestó la bicicleta de su hermano."],
+        ["Pinté la techo de blanco.", "Pinté el techo de blanco."],
+        ["En este casa hace frío.", "En esta casa hace frío."],
+        ["Bajaron cajas del camiones.", "Bajaron cajas de los camiones."],
+        ["Tengo miedo del canción.", "Tengo miedo de la canción."],
+        ["Hablé con aquellos personas.", "Hablé con aquellas personas."],
+        ["Llenó un vaso de este agua.", "Llenó un vaso de esta agua."],
+        ["La problema es el precio.", "El problema es el precio."],
+        ["Uno de las niñas lloraba.", "Una de las niñas lloraba."],
+        ["Muchos de ellas no vinieron.", "Muchas de ellas no vinieron."],
+        ["Es la primer vez que nado.", "Es la primera vez que nado."],
+        ["Será el primero ministro en dimitir.", "Será el primer ministro en dimitir."],
+        ["Adoptamos tres gato.", "Adoptamos tres gatos."],
+      ],
+      neg: [
+        "El agua del pozo estaba helada.",
+        "Un hacha vieja colgaba de la pared.",
+        "Tú la cuentas mejor que yo.",
+        "Este cuenta con el apoyo de todos.",
+        "Estas son las fotos de la boda.",
+        "Juan las casa a todas.",
+        "La modelo y la testigo llegaron juntas.",
+        "Ella es una de nosotros.",
+        "Treinta y un años después, volvió.",
+        "Los lunes cierro la tienda.",
+        "El análisis de la crisis fue largo.",
+        "Los bien pagados no siempre son felices.",
+        "Unos frente a otros esperaban.",
+        "Es demasiado pequeña para su edad.",
+        "Lo hizo mano a mano con su socio.",
+        "La versión dos punto cero sale mañana.",
+        "El cura bendijo la cura.",
+        "Hizo un macro análisis del mercado.",
+        "Salimos de esta vivos de milagro.",
+      ],
+    },
+  ],
 ];
 
 describe.each(FIXTURES)("%s: %s", (ruleId, _family, fixture) => {
@@ -376,7 +426,8 @@ test("no Spanish chunk stalls on repeated trigger words", () => {
     return ms;
   };
   const triggers =
-    "¿Que esta este estas el tu mi si se de aun mas? ¡Que bonito! No se si esta bien. ";
+    "¿Que esta este estas el tu mi si se de aun mas? ¡Que bonito! No se si esta bien. " +
+    "La casas del uno de las la primer dos perro. ";
   slowest(triggers.repeat(50));
   for (const text of [
     triggers.repeat(60),

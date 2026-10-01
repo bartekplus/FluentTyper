@@ -1,6 +1,7 @@
 // Spanish Review checks, appended to REVIEW_DETECTORS after the English extensions.
 import type { ReviewDetectorEntry } from "../reviewDetectors";
 import * as accents from "./accents";
+import * as agreement from "./agreement";
 import * as confusions from "./confusions";
 import * as diacritics from "./diacritics";
 import * as prefixes from "./prefixes";
@@ -18,6 +19,7 @@ for (const entry of [
   ...verbForms.DETECTORS,
   ...prefixes.DETECTORS,
   ...typography.DETECTORS,
+  ...agreement.DETECTORS,
 ])
   byRule.set(entry.rules.join(), [...(byRule.get(entry.rules.join()) ?? []), entry]);
 

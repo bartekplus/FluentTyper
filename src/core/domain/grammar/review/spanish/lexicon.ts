@@ -168,3 +168,32 @@ export function secondPersonVerb(word: string): boolean {
   m = /^(\p{L}+?)es$/u.exec(word);
   return !!m && conjugates(m[1], ["er", "ir"]);
 }
+
+// Person endings over a regular stem, with the infinitives they may come from.
+const FINITE_ENDINGS: [RegExp, string[]][] = [
+  [/^(\p{L}+?)(?:o|as|a|an|es|e|en)$/u, ["ar", "er", "ir"]],
+  [/^(\p{L}+?)(?:amos|áis|é|aste|ó|asteis|aron|aba|abas|ábamos|abais|aban)$/u, ["ar"]],
+  [/^(\p{L}+?)(?:emos|éis|imos|ís|í|iste|ió|isteis|ieron|ía|ías|íamos|íais|ían)$/u, ["er", "ir"]],
+];
+const IRREGULAR_FINITE = new Set(
+  (
+    "es son era eran fue fueron está están estaba estaban hay ha han había habían tiene " +
+    "tienen tenía tenían va van iba iban hace hacen hizo dice dicen dijo puede pueden pudo " +
+    "quiere quieren sabe saben viene vienen pone ponen sale salen ve ven da dan soy eres " +
+    "somos estoy estás estamos tengo tienes voy vas vamos hago haces digo dices puedo puedes"
+  ).split(" "),
+);
+
+/** A finite verb form ("cuenta", "mejoran", "ordenamos", "cantará"), noun homographs included. */
+export function finiteVerb(word: string): boolean {
+  if (IRREGULAR_FINITE.has(word)) return true;
+  for (const [pattern, infinitives] of FINITE_ENDINGS) {
+    const m = pattern.exec(word);
+    if (m && conjugates(m[1], infinitives)) return true;
+  }
+  // Future and conditional, accented or not: "cantará", "comerían", "seras".
+  const m = /^(\p{L}+?[aei]r)(?:é|ás|á|emos|éis|án|ía|ías|íamos|íais|ían|as|an|ia|ias|ian)$/u.exec(
+    word,
+  );
+  return !!m && isVerb(m[1]);
+}

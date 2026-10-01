@@ -12,7 +12,14 @@ import {
   words,
   type Token,
 } from "./common";
-import { isGenderedEntry, isGerund, isNoun, secondPersonVerb, subjunctiveLike } from "./lexicon";
+import {
+  finiteVerb,
+  isGenderedEntry,
+  isGerund,
+  isNoun,
+  secondPersonVerb,
+  subjunctiveLike,
+} from "./lexicon";
 
 /** Any noun or adjective the lexicon knows: "mente", "retrato", "asistencia". */
 const known = (word: string) => isNoun(word) || !!attributeOf(word) || isGenderedEntry(word);
@@ -131,7 +138,8 @@ const ASKED_GERUNDS = words(
     "escondiendo pasando ocurriendo sucediendo aprendiendo celebrando proponiendo",
 );
 // Verbs of affection whose object is the clitic before them: "¿Que me adora?" (that she…?).
-const AFFECTION = /^(?:quier[eo]|quieres|quieren|ama|amas|aman|adora|adoras|adoran|odia|odias|odian)$/u;
+const AFFECTION =
+  /^(?:quier[eo]|quieres|quieren|ama|amas|aman|adora|adoras|adoran|odia|odias|odian)$/u;
 
 /**
  * "¿Que nos odian?", "¿Que estás temblando?": a clause that leaves nothing for "qué" to ask,
@@ -338,6 +346,8 @@ function monosyllable(at: Around): string | null {
       // "a tú pie", "aprobará mí envío": a possessive before a noun takes no accent.
       // After a verb it may be the subject: "eres tú", "pones tú".
       if (verbLike(prev) || FINITE.has(prev) || /^(?:como|que|entre)$/u.test(prev)) return null;
+      // "Tú cuentas las monedas": a second-person verb that is also a plural noun.
+      if (word === "tú" && next.endsWith("s") && finiteVerb(next)) return null;
       return solidNoun(next) && !/^(?:bemol|menor|mayor)$/u.test(next)
         ? word === "tú"
           ? "tu"

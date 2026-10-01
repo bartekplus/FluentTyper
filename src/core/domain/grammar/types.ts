@@ -141,7 +141,8 @@ export interface GrammarRuleCatalogEntry {
     // Spanish Review checks (review/spanish/).
     | "spanishAccents"
     | "spanishConfusions"
-    | "spanishTypography";
+    | "spanishTypography"
+    | "spanishAgreement";
   /** Absent for existing typing rules; false for native Review-only checks. */
   typing?: false;
   name: string;
