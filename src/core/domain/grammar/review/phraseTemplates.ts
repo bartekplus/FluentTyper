@@ -10,6 +10,9 @@ export const WORD_END = `(?!${EDGE})`;
 /** The frame closes its clause: only spaces before closing punctuation or the end. */
 export const COMPLETE = `${WORD_END}(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))`;
 
+/** A frame regex, compiled once: WORD_START and the `gidu` flags frameMatches gives strings. */
+export const frame = (pattern: string) => new RegExp(`${WORD_START}${pattern}`, "gidu");
+
 /** A `.name` or protected text (U+FFFC) right after a frame makes it part of a token. */
 export const gluedAfter = (text: string, end: number) =>
   /^\uFFFC|^\.[\p{L}\p{N}_]/u.test(text.slice(end, end + 2));
@@ -37,8 +40,7 @@ export function* frameMatches(
   pattern: string | RegExp,
   owner: string | ((match: RegExpExecArray) => number) | null = "target",
 ): Generator<RegExpExecArray> {
-  const regex =
-    typeof pattern === "string" ? new RegExp(`${WORD_START}${pattern}`, "gidu") : pattern;
+  const regex = typeof pattern === "string" ? frame(pattern) : pattern;
   regex.lastIndex = Math.max(0, ctx.from - 256);
   for (let m = regex.exec(ctx.scanText); m && m.index < ctx.to; m = regex.exec(ctx.scanText)) {
     const start =

@@ -123,6 +123,9 @@ const cued = (ctx: DetectContext, index: number) =>
   new RegExp(`\\b${CLAUSE_CUE}[ \\t\\u00a0]+$`, "i").test(
     ctx.text.slice(Math.max(0, index - 96), index),
   );
+/** Where "your"/"their" at `index` would open a clause, the you're/they're frames own it. */
+export const opensSubjectClause = (ctx: DetectContext, index: number) =>
+  opensMainClause(ctx, index) || cued(ctx, index);
 const PREPOSITION =
   "(?:of|for|about|with|from|into|onto|at|by|against|between|among|without|toward|towards|under|through|during|despite|to|on|in)";
 const LOCATIVE =

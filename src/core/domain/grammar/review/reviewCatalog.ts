@@ -264,6 +264,20 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     bulk: "individual",
   },
 
+  englishPronounCase: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "grammar",
+    kind: "wordForm",
+    bulk: "individual",
+  },
+  englishSentenceStructure: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "grammar",
+    kind: "usage",
+    bulk: "individual",
+  },
   englishAuxiliaryBaseVerb: {
     review: "supported",
     defaultEnabled: true,

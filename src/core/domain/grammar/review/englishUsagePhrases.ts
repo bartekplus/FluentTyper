@@ -8,6 +8,10 @@ import {
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 
 const SUBJECT = `(?:(?:this|that|the)${SPACE}(?:(?:new|old|latest)${SPACE})?(?:feature|idea|story|proposal|question|book|article|design|project|topic)|it)`;
+const KNEW_ADVERB =
+  "(?:always|never|often|already|just|really|still|also|sometimes|usually|probably|certainly|clearly|somehow|instantly|immediately|suddenly|finally|then)";
+// Words that open the known clause: "I new it was…".
+const KNEW_CLAUSE = "(?:it|that|this|there|what|who|how|why|when|where|I|you|he|she|we|they)";
 const templates: readonly PhraseTemplate[] = [
   {
     pattern: `(?:we|I|they)${SPACE}(?:finally${SPACE})?(?<target>finded)${SPACE}the${SPACE}(?:problem|bug|issue)${END}`,
@@ -15,6 +19,22 @@ const templates: readonly PhraseTemplate[] = [
     messageKey: "review_msg_contextual_grammar",
   },
 
+  // "I new it was true": a clause-initial pronoun + new before a clause opener means "knew".
+  // "we/you" also take an appositive noun ("We new hires…"), "it" a complement ("make it new").
+  {
+    pattern: `(?:I|you|he|she|it|we|they)${SPACE}(?:${KNEW_ADVERB}${SPACE})?(?<target>new)${SPACE}(?:that|it|what|how|where|who|why|when|the${SPACE}answer|about|him|her|them|this|everything|nothing|exactly|better|I|you|he|she|we|they)(?!${EDGE})`,
+    replacement: "knew",
+    messageKey: "review_msg_contextual_grammar",
+    clauseStart: true,
+  },
+  // Anywhere, "I/he/she/they" + new + a word is the verb ("She new danger lurked"): the
+  // adjective needs a copula, here inverted ("Is she new to…") or gapped ("…and she new").
+  // "they new hires are" is a slip for "the new hires", not for "knew".
+  {
+    pattern: `(?=(?:I|he|she|they)${SPACE})(?<!(?:am|is|are|was|were|isn['’]t|aren['’]t|wasn['’]t|weren['’]t|and|but|or|while|whereas|than|as)${SPACE})(?:I|he|she|they)${SPACE}(?:${KNEW_ADVERB}${SPACE})?(?<target>new)${SPACE}(?!(?:here|there|to|and|or|but)(?!${EDGE}))(?!(?!${KNEW_CLAUSE}(?!${EDGE}))[a-z]+${SPACE}(?:is|are|was|were|has|have|had|will|would|can|could|should|must|may|might)(?!${EDGE}))[a-z]+(?!${EDGE})`,
+    replacement: "knew",
+    messageKey: "review_msg_contextual_grammar",
+  },
   ...(
     [
       [
@@ -97,6 +117,8 @@ const templates: readonly PhraseTemplate[] = [
 export function usagePhrases(ctx: DetectContext): RawFinding[] {
   return detectPhraseTemplates(ctx, templates, "englishUsagePhrases").filter(
     (finding) =>
+      // A capitalized "New" after a pronoun starts a name ("they New Yorkers").
+      finding.alternatives[0] !== "Knew" &&
       !/\b(?:metaphor|poetic|creative|deliberate|deliberately|dialect|invented)\b/i.test(
         ctx.scanText.slice(finding.context!.start, finding.context!.end),
       ),

@@ -72,6 +72,8 @@ export interface GrammarRuleCatalogEntry {
     | GrammarRuleId
     | "englishRepeatedWords"
     | "englishAuxiliaryBaseVerb"
+    | "englishPronounCase"
+    | "englishSentenceStructure"
     | "styleRedundancy"
     | "stylePhrasing"
     | "englishPhraseCorrections"

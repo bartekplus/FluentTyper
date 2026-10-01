@@ -46,6 +46,29 @@ Every Harper `fix`/`lint` case (5,907) was run through Review with all native ru
 
 Most remaining misses need part-of-speech data (noun/verb confusions, possessive `'s`, "me and Alex"), dialect choices, or Harper's style opinions that FluentTyper leaves off by default.
 
+## Verb-form, pronoun-case and sentence-structure families
+
+A second pass covered 20 Harper rule families with no earlier counterpart: participles after have/be, verb forms after modals, do and infinitival `to`, `need to` + noun, `will` + non-base forms, complement frames (help, let, worth, allow, look forward to, went ahead and), double modals, determiner clashes, missing `be`/`of`, `not only` inversion, pronoun case and `whom`, and `new`/`knew`. Their unit-test sentences were run locally as a scorecard only. Every regression test uses our own sentences. Clean prose was the 31 clean Harper documents (including Alice, Gatsby and the Constitution) plus our clean corpus.
+
+| Case type                    |  Before | Now                      |
+| ---------------------------- | ------: | ------------------------ |
+| Must be repaired (`fix`)     |  76/210 | 209/210 found, 201 exact |
+| Must be flagged (`lint`)     |    3/11 | 11/11                    |
+| Must stay silent (`no_lint`) | 112/113 | 112/113                  |
+| Findings on clean prose      |       1 | 0                        |
+
+The differences are deliberate:
+
+- `all are broke` stays silent, because penniless `broke` fits a people subject.
+- `contributors who helped made this possible` is a grammatical sentence with `made` as its main verb.
+- Two sentences hold two errors that Harper repairs in one step. Both errors are found, as separate findings.
+- The four `will` cases have no expected text.
+- The one `no_lint` hit, `failed to clearly expressed`, is a real error.
+
+The new rules add checks Harper's tests lack: participles after `'d` (offered as `had`/`would` choices), inverted questions with noun subjects, gerund complements (suggest, avoid, enjoy, consider, finish, mind), partitive `of`, object-case pronouns after prepositions, and `not only` with do-support.
+
+They rely on proposal 11. A build-time lexicon is generated from the bundled Hunspell `en_US` dictionary (`bun run generate:english-lexicon`), with no hand-written word lists. It adds about 98 KB raw (63 KB gzip) to the content script and background bundles.
+
 ## Architecture comparison and proposals
 
 Harper lexes text once into tokens that carry dictionary metadata (part of speech, inflection, countability) and matches rules against that token stream; most of its recall comes from lexical data plus general rule shapes, not from its engine alone. FluentTyper's editor safety, snapshot validation and proven Fix all were already stricter than Harper's apply-one-at-a-time model, so the proposals borrow ideas and data _shapes_ (never Harper's code or data):
@@ -62,7 +85,7 @@ Harper lexes text once into tokens that carry dictionary metadata (part of speec
 | 8   | Overlap resolution (longest span wins)                                   | Measured and rejected: realistic prose has no colliding fixes, and the Fix all planner already defers collisions; a guard test keeps it that way |
 | 9   | Typo-shaped re-ranking of spelling candidates                            | Deferred: would undo Presage's recently tuned context order                                                                                      |
 | 10  | Per-unit result caching for every detector                               | Deferred: a full 50k-character scan already takes about 100–150 ms                                                                               |
-| 11  | Build-time English lexicon with part of speech                           | Open (maintainer decision): unlocks the remaining misses above, costs bundle size                                                                |
+| 11  | Build-time English lexicon with part of speech                           | Done: generated from the bundled Hunspell dictionary, about 98 KB raw                                                                            |
 | 12  | harper.js as an optional extra Review source                             | Open (maintainer decision): several MB of WASM, English-only                                                                                     |
 | –   | Persistent context-hash ignores                                          | Rejected: would persist hashes of typed text, which Review promises not to do                                                                    |
 

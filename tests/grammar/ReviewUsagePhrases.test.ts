@@ -276,3 +276,39 @@ test.each([
   "It doesn't matter.",
   "I have no idea.",
 ])("double negatives preserve %s", (text) => expect(scan(text)).toEqual([]));
+
+test.each([
+  ["I new it was true.", "I knew it was true."],
+  ["She new that already.", "She knew that already."],
+  ["Done. They new what to do.", "Done. They knew what to do."],
+  ["We new about the delay.", "We knew about the delay."],
+  ["He new better.", "He knew better."],
+  ["Then I new it.", "Then I knew it."],
+  ["I new you were right.", "I knew you were right."],
+  ["He always new the way.", "He always knew the way."],
+  ["Things I new were wrong.", "Things I knew were wrong."],
+  ["She new trouble followed us.", "She knew trouble followed us."],
+  ["It new nothing.", "It knew nothing."],
+])("a clause-initial pronoun + new + clause means knew: %s", (source, expected) => {
+  const [d] = scan(source);
+  expect(scan(source)).toHaveLength(1);
+  expect(d.bulk.eligible).toBe(false);
+  expect(applyEdits(source, d.alternatives[0].edits)).toBe(expected);
+  expect(scan(expected)).toEqual([]);
+});
+test.each([
+  "Am I new here?",
+  "I'm new.",
+  "I, new to this, asked.",
+  "We new hires start Monday.",
+  "Is she new to the team?",
+  "He was old and she new.",
+  "Was he new?",
+  "Make it new.",
+  "Aren't they new here?",
+  "We met them and they New Yorkers loved it.",
+  "Do you think they new hires are ready?",
+  "It is new to me.",
+  "They are new that way.",
+  "You new users can sign in.",
+])("new as an adjective preserves %s", (text) => expect(scan(text)).toEqual([]));

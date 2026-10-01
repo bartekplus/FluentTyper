@@ -24,6 +24,8 @@ import {
 } from "./englishAgreement";
 import { wordConfusions } from "./englishWordConfusions";
 import { auxiliaryForms } from "./englishAuxiliaryForms";
+import { pronounCase } from "./englishPronounCase";
+import { sentenceStructure } from "./englishSentenceStructure";
 import type { CatalogRuleId } from "../ruleCatalog";
 import { SPACE_CHARS } from "../../spacingRules";
 import {
@@ -1429,6 +1431,8 @@ export const REVIEW_DETECTORS: ReadonlyArray<{ rules: CatalogRuleId[]; detect: D
   { rules: ["englishContextualCompounds"], detect: contextualCompounds },
   { rules: ["englishRepeatedWords"], detect: repeatedWords },
   { rules: ["englishAuxiliaryBaseVerb"], detect: auxiliaryForms },
+  { rules: ["englishPronounCase"], detect: pronounCase },
+  { rules: ["englishSentenceStructure"], detect: sentenceStructure },
   {
     rules: [
       "englishThenThan",

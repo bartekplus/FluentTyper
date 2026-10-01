@@ -45,6 +45,8 @@ Load the unpacked extension from the `build/` directory:
 
 Measurement data is generated offline with `bun scripts/measurement-data.ts`. See the
 [implementation and safety assessment](docs/measurement-formatting.md) for sources, licenses, and verification.
+The English lexicon behind Review's grammar rules is generated from the shipped en_US Hunspell
+dictionary with `bun run generate:english-lexicon`.
 
 FluentTyper uses a strict layered clean architecture. Imports flow downward only:
 
