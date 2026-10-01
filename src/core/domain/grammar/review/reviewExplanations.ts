@@ -1529,6 +1529,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Po não, que, quem, nunca i podobnych słowach portugalski stawia zaimek dopełnienia przed czasownikiem (não me diga).",
     "Depois de não, que, quem, nunca e palavras semelhantes, o pronome vem antes do verbo (não me diga).",
   ],
+  review_msg_pt_mesoclisis: [
+    "Portuguese puts an object pronoun inside a future or conditional verb, not after it (poder-se-ia, dir-lhe-ei, trá-lo-ia).",
+    "Le portugais place le pronom complément à l'intérieur d'un verbe au futur ou au conditionnel, pas après (poder-se-ia, dir-lhe-ei, trá-lo-ia).",
+    "Portugalski stavlja zamjenicu objekta unutar glagola u futuru ili kondicionalu, a ne iza njega (poder-se-ia, dir-lhe-ei, trá-lo-ia).",
+    "El portugués coloca el pronombre átono dentro del verbo en futuro o condicional, no detrás (poder-se-ia, dir-lhe-ei, trá-lo-ia).",
+    "Τα πορτογαλικά βάζουν την αντωνυμία-αντικείμενο μέσα σε ρήμα μέλλοντα ή υποθετικής, όχι μετά από αυτό (poder-se-ia, dir-lhe-ei, trá-lo-ia).",
+    "Portugisiskan sätter objektspronomenet inuti ett verb i futurum eller konditionalis, inte efter det (poder-se-ia, dir-lhe-ei, trá-lo-ia).",
+    "Im Portugiesischen steht das Objektpronomen innerhalb eines Verbs im Futur oder Konditional, nicht dahinter (poder-se-ia, dir-lhe-ei, trá-lo-ia).",
+    "Portugalski umieszcza zaimek dopełnienia wewnątrz czasownika w czasie przyszłym lub trybie warunkowym, a nie po nim (poder-se-ia, dir-lhe-ei, trá-lo-ia).",
+    "No futuro e no condicional, o pronome vai no meio do verbo, não depois dele (poder-se-ia, dir-lhe-ei, trá-lo-ia).",
+  ],
   review_msg_pt_ao90: [
     "1990 Portuguese spelling: prefixes join their word unless it starts with h or the same vowel (autoestima, micro-ondas), and months and weekdays are lowercase.",
     "Orthographe portugaise de 1990 : les préfixes se soudent au mot sauf devant h ou la même voyelle (autoestima, micro-ondas), et mois et jours s’écrivent en minuscules.",
