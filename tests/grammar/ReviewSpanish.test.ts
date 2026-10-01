@@ -140,6 +140,9 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         ["Ella hablo con el director.", "Ella habló con el director."],
         ["Yo no sabia nada.", "Yo no sabía nada."],
         ["Se hacia tarde.", "Se hacía tarde."],
+        ["El problema no continua.", "El problema no continúa."],
+        ["Se amplia el plazo.", "Se amplía el plazo."],
+        ["Ya veras qué bien.", "Ya verás qué bien."],
       ],
       neg: [
         "Practico yoga todos los martes.",

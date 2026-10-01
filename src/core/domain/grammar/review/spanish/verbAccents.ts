@@ -92,6 +92,30 @@ function verbAccent(at: Around): string | null {
     if (!direction && m && (isVerb(`${m[1]}er`) || isVerb(`${m[1]}ir`) || isInfinitive(m[1])))
       return `${m[1]}ía${m[2] ?? ""}`;
   }
+  // "con él varias cosas": a pronoun after a preposition is no subject.
+  const governed = SUBJECTS.has(prev) && PREPOSITIONS.has(at.prev(2));
+  if (!governed && (BEFORE_VERB.has(prev) || /^(?:ya|tú|que|si|quién)$/u.test(prev))) {
+    // "se continua" -> "continúa", "lo amplias" -> "amplías": -uar/-iar verbs stress the vowel.
+    // Every -uar verb but -guar/-cuar ("averigua"); only the listed -iar verbs ("cambia" is not).
+    const stressed = /^(\p{L}+)([ui])(a|as|an|e|es|en)$/u.exec(word);
+    const iar =
+      stressed?.[2] === "i" &&
+      /^(?:ampl|env|conf|f|var|cr|gu|enfr|desv|vac|esp|desaf|exp|resfr|hast|roc)$/u.test(
+        stressed[1],
+      );
+    const uar = stressed?.[2] === "u" && !/[gc]$/u.test(stressed[1]);
+    if (stressed && (iar || uar) && isVerb(`${stressed[1]}${stressed[2]}ar`) && !isNoun(word))
+      return `${stressed[1]}${stressed[2] === "u" ? "ú" : "í"}${stressed[3]}`;
+    // "ya veras" -> "verás", "se ira" -> "irá": a future without its accent.
+    const future = /^(\p{L}*?[eií]r)(a|as|an|e)$/u.exec(word);
+    if (
+      future &&
+      isInfinitive(future[1]) &&
+      (!isNoun(word) || /^(?:ya|tú|se|me|te|le|lo|no)$/u.test(prev)) &&
+      word !== "para"
+    )
+      return `${future[1]}${{ a: "á", as: "ás", an: "án", e: "é" }[future[2]]}`;
+  }
   return null;
 }
 
