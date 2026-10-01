@@ -7,6 +7,7 @@ import {
   germanVerbLike,
   type GermanNounReading,
 } from "./germanLexicon";
+import { nominalized } from "./nominalized";
 import { BOUNDARY, isGerman, tokensAfter, tokensBefore, words, wordSet } from "./shared";
 
 // A lowercase noun after a determiner, a preposition or a number: "der zugriff", "mit
@@ -212,5 +213,5 @@ function nounCasing(ctx: DetectContext): RawFinding[] {
 }
 
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  { rules: ["germanNounCasing"], detect: nounCasing },
+  { rules: ["germanNounCasing"], detect: (ctx) => [...nounCasing(ctx), ...nominalized(ctx)] },
 ];
