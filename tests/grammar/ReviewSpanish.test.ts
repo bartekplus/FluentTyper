@@ -196,6 +196,29 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
   ],
   [
     "spanishConfusions",
+    "prefixes written apart",
+    {
+      pos: [
+        ["Es una medida anti crisis.", "Es una medida anticrisis."],
+        ["Habló el vice presidente.", "Habló el vicepresidente."],
+        ["Es un movimiento anti racista.", "Es un movimiento antirracista."],
+        ["Las ex-colonias británicas.", "Las excolonias británicas."],
+        ["Trabaja en ciber seguridad.", "Trabaja en ciberseguridad."],
+        ["Una reunión inter departamental.", "Una reunión interdepartamental."],
+      ],
+      neg: [
+        "Era el vice primer ministro del país.",
+        "El ex presidente dio una rueda de prensa.",
+        "Es una campaña anti-OTAN.",
+        "Toca en re menor la segunda pieza.",
+        "Quiero que me des algo de beber.",
+        "Publiqué un post nuevo en el blog.",
+        "La tele está encendida.",
+      ],
+    },
+  ],
+  [
+    "spanishConfusions",
     "verb forms after auxiliaries and de que",
     {
       pos: [
