@@ -1529,6 +1529,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Rzeczownik zgadza się w liczbie ze swoim określnikiem (les livres, la route).",
     "O substantivo concorda em número com o seu determinante (les livres, la route).",
   ],
+  review_msg_fr_participle_agreement: [
+    "After être, the past participle agrees with the subject (elle est arrivée, ils sont partis).",
+    "Après être, le participe passé s’accorde avec le sujet (elle est arrivée, ils sont partis).",
+    "Nakon être particip prošli slaže se sa subjektom (elle est arrivée, ils sont partis).",
+    "Tras être, el participio pasado concuerda con el sujeto (elle est arrivée, ils sont partis).",
+    "Μετά το être, η μετοχή συμφωνεί με το υποκείμενο (elle est arrivée, ils sont partis).",
+    "Efter être böjs perfekt particip efter subjektet (elle est arrivée, ils sont partis).",
+    "Nach être richtet sich das Partizip nach dem Subjekt (elle est arrivée, ils sont partis).",
+    "Po être imiesłów zgadza się z podmiotem (elle est arrivée, ils sont partis).",
+    "Depois de être, o particípio concorda com o sujeito (elle est arrivée, ils sont partis).",
+  ],
 };
 
 /**

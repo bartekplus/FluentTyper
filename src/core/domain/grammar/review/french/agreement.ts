@@ -125,11 +125,62 @@ function agreement(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
 const PRONOUN =
   /(?<![\p{L}\p{M}\p{N}_'’-])(?:(?:je|tu|il|elle|on|nous|vous|ils|elles)(?![\p{L}\p{M}\p{N}_-])|j['’](?=\p{L}))/giu;
 
+const ETRE_FORMS = new Set(
+  "est sont était étaient sera seront serait seraient fut furent soit soient".split(" "),
+);
+const PARTICIPLE_ENDING: Record<string, string> = { il: "é", elle: "ée", ils: "és", elles: "ées" };
+const ADVERBS = new Set(
+  "pas plus jamais bien très trop si déjà toujours encore vraiment souvent vite enfin aussi".split(
+    " ",
+  ),
+);
+
+/** "elle est arrivé" -> "arrivée", "ils sont parti" -> "partis": a first-group participle
+ * after être agrees with a third-person pronoun subject. */
+function participleAgreement(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const pronoun = m[0].toLowerCase();
+  const ending = PARTICIPLE_ENDING[pronoun];
+  if (!ending || ctx.text[m.index - 1] === "-") return null;
+  const previous = tokensBefore(ctx.text, m.index, 1)[0];
+  if ((pronoun === "elle" || pronoun === "elles") && previous && !OPENERS.has(previous.w))
+    return null;
+  if (previous && !isVerbHomograph(previous.w) && verbReadings(previous.w).some(finite))
+    return null;
+  const after = tokensAfter(ctx.text, m.index + m[0].length, 6);
+  let i = 0;
+  while (after[i] && NEGATION.has(after[i].w)) i++;
+  // A reflexive verb agrees with its object, not always its subject: left out.
+  if (!after[i] || !ETRE_FORMS.has(after[i].w) || after[i].hyphen) return null;
+  // "Pierre et elle étaient fiancés": a coordinated subject agrees as a plural.
+  const persons = verbReadings(after[i].w).reduce(
+    (mask, r) => mask | (finite(r) ? (r.slot as number) : 0),
+    0,
+  );
+  if (!(persons & PERSON[pronoun])) return null;
+  i++;
+  while (after[i] && ADVERBS.has(after[i].w)) i++;
+  const word = after[i];
+  if (!word || word.hyphen || ctx.dictionary.has(word.w)) return null;
+  const typed = ctx.text.slice(word.start, word.end);
+  if (typed !== word.w) return null;
+  const match = /^(.+)(é|ée|és|ées)$/.exec(word.w);
+  if (!match || match[2] === ending) return null;
+  const lemma = `${match[1]}er`;
+  if (!verbReadings(word.w).some((r) => r.slot === "Q" && r.lemma === lemma)) return null;
+  return {
+    ruleId: RULE,
+    messageKey: "review_msg_fr_participle_agreement",
+    range: { start: word.start, end: word.end },
+    alternatives: [match[1] + ending],
+    context: { start: m.index, end: word.end },
+  };
+}
+
 function subjectVerbAgreement(ctx: DetectContext): RawFinding[] {
   if (ctx.lang.slice(0, 2) !== "fr") return [];
   const findings: RawFinding[] = [];
   for (const m of ownedFrenchWords(ctx, PRONOUN)) {
-    const finding = agreement(ctx, m);
+    const finding = agreement(ctx, m) ?? participleAgreement(ctx, m);
     if (finding) findings.push(finding);
   }
   return findings;
