@@ -112,6 +112,21 @@ export interface GrammarRuleCatalogEntry {
     | "englishWereWhere"
     | "englishIrregularForms"
     | "englishPossessiveNouns"
+    | "englishDateConsistency"
+    // Polish-only Review checks (review/polish/).
+    | "polishNumerals"
+    | "polishDates"
+    | "polishMisplacedComma"
+    | "polishMissingComma"
+    | "polishPrepositionForms"
+    // French (review/french/)
+    | "frenchVerbForms"
+    | "frenchHomophones"
+    | "frenchHyphenation"
+    | "frenchSubjectVerbAgreement"
+    | "frenchElision"
+    | "frenchDates"
+    | "frenchNounNumber"
     | "quoteSpacing"
     | "primeSymbols"
     // German-only Review checks (review/german/).
@@ -124,7 +139,28 @@ export interface GrammarRuleCatalogEntry {
     | "germanQuotes"
     | "germanAbbreviationSpacing"
     | "germanDates"
-    | "germanCompounds";
+    | "germanCompounds"
+    | "greekFinalNu"
+    | "greekStrictFinalNu"
+    | "greekQuestionAccent"
+    | "greekPunctuation"
+    | "swedishTypography"
+    | "swedishAgreement"
+    | "arabicAgreement"
+    | "arabicCaseEndings"
+    | "arabicDates"
+    // Portuguese Review checks.
+    | "portugueseAccentParonyms"
+    | "portugueseConfusions"
+    | "portugueseContractions"
+    | "portugueseNumberFormat"
+    | "portugueseTypographyStyle"
+    | "portugueseCliticPlacement"
+    | "portugueseAO90"
+    // Spanish Review checks (review/spanish/).
+    | "spanishAccents"
+    | "spanishConfusions"
+    | "spanishTypography";
   /** Absent for existing typing rules; false for native Review-only checks. */
   typing?: false;
   name: string;

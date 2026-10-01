@@ -13,6 +13,7 @@ import { toDiagnostic } from "./reviewFindings";
 import { PROSE_DOTTED_TOKEN } from "./english/grammarStyle1";
 import { isGermanAbbreviationToken } from "./german/abbreviations";
 import { PROSE_SLASH_TOKEN } from "./english/dialects";
+import { NUMERIC_DATE_TOKEN } from "./english/dates";
 import { slashedProseWord } from "./english/remaining";
 import { applyEdits, positionMapper } from "./textRanges";
 import {
@@ -194,6 +195,7 @@ function technicalRanges(source: string, from: number, to: number): ProtectedRan
       !PROSE_DOTTED_TOKEN.test(bare) &&
       !isGermanAbbreviationToken(bare) &&
       !PROSE_SLASH_TOKEN.test(bare) &&
+      !NUMERIC_DATE_TOKEN.test(bare) &&
       !slashedProseWord(source, match.index + lead, bare)
     ) {
       const start = match.index + lead;
