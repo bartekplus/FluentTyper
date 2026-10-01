@@ -942,6 +942,33 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     priority: 135,
     codeSafe: true,
   },
+  // Spanish Review checks (review/spanish/).
+  {
+    id: "spanishAccents",
+    typing: false,
+    name: "Spanish written accents",
+    titleI18nKey: "review_msg_spanish_accent",
+    descriptionI18nKey: "review_msg_spanish_accent",
+    exampleI18nKey: "",
+    languageScope: "all",
+    safetyTier: "advanced",
+    defaultRollout: "off",
+    recommended: false,
+    priority: 166,
+  },
+  {
+    id: "spanishConfusions",
+    typing: false,
+    name: "Spanish confused words",
+    titleI18nKey: "review_msg_spanish_confusion",
+    descriptionI18nKey: "review_msg_spanish_confusion",
+    exampleI18nKey: "",
+    languageScope: "all",
+    safetyTier: "advanced",
+    defaultRollout: "off",
+    recommended: false,
+    priority: 167,
+  },
 ] as const;
 
 export type CatalogRuleId = (typeof GRAMMAR_RULE_CATALOG)[number]["id"];

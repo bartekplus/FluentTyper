@@ -1,0 +1,76 @@
+# Correct Spanish prose: Review's Spanish checks must stay silent on every line.
+# Demonstratives, determiners and pronouns next to their accented twins.
+Esta mañana compré pan en la panadería de la esquina.
+Me gusta esta camisa, pero prefiero aquella azul.
+De todas las propuestas, esta es la más sensata.
+Esta preciosa casa perteneció a mis abuelos.
+Quiero esta, no la otra.
+Combina esta falda con una blusa blanca.
+Esta llamada de teléfono duró casi una hora.
+Esta subida de precios nos afecta a todos.
+Por ser esta la primera vez, te lo perdono.
+Aunque esta en concreto no me convence, las demás sí.
+Esta, sin duda, es la mejor opción.
+Esta sin duda es la mejor opción.
+Estas cajas pesan demasiado para subirlas solas.
+Estas a su vez se dividen en dos grupos.
+¿Podrías guardar estas en el armario?
+Este libro me lo regaló mi hermana.
+Este año viajaremos al norte.
+Creo que este cambio llega tarde.
+El viento sopla del este durante el invierno.
+Espero que este verano haga menos calor.
+Lo que este informe refleja es preocupante.
+Una casa como esta no se encuentra fácilmente.
+Esta noche cenamos fuera.
+Esta semana no puedo quedar.
+Ella está cansada después del viaje.
+El niño está en el colegio.
+¿Dónde está la estación de tren?
+No sé cómo está tu madre.
+Cuando esté listo, avísame.
+Esta vez sí que lo conseguiremos.
+Mira esta foto de la boda.
+La moto esta no arranca nunca.
+Me quedo con esta mano de cartas.
+Está claro que nadie lo sabía.
+Esa decisión, esta y todas las demás, las tomó ella.
+En esta ciudad llueve mucho en otoño.
+Según esta teoría, el universo se expande.
+Hasta esta tarde no tendremos noticias.
+Esta solo es una prueba rutinaria.
+Esta mucho más moderna que la anterior.
+Hay que leer esta con atención.
+Esta empresa factura millones cada año.
+Esta, aquella y la de más allá son mías.
+# Homophones in their own frames.
+¿No la ves desde ahí?
+Te echo de menos cada día.
+Lo hecho, hecho está.
+Las hechas a mano duran más.
+Un hecho de menos importancia no cambia nada.
+El entorno de trabajo es agradable.
+Vivimos en un entorno rural y tranquilo.
+El pueblo se halla situado junto al río.
+No creo que se haya ido todavía.
+No hay pescado fresco en el mercado.
+Lo apunto en mi agenda.
+Vamos a ver qué pasa mañana.
+Fue a ver a su abuela al hospital.
+Su mérito fue haber llegado el primero.
+Espero que no se vuelva a ver afectado.
+Debe haber alguna solución.
+El haz de luz atravesaba la niebla.
+Haz los deberes antes de cenar.
+La valla del jardín está rota.
+Saltó la valla de un brinco.
+Una ola enorme volcó el barco.
+Cuidad de vuestros hermanos pequeños.
+El perro se lame la herida.
+Es más difícil aún que el anterior.
+¿Piensas aún que tengo razón?
+Hace dos años que no lo veo.
+Reveló que había mentido.
+Se rebeló contra sus padres.
+Si quieres, lo dejamos para otro día.
+Por si acaso, lleva paraguas.

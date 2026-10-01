@@ -113,7 +113,10 @@ export interface GrammarRuleCatalogEntry {
     | "englishIrregularForms"
     | "englishPossessiveNouns"
     | "quoteSpacing"
-    | "primeSymbols";
+    | "primeSymbols"
+    // Spanish Review checks (review/spanish/).
+    | "spanishAccents"
+    | "spanishConfusions";
   /** Absent for existing typing rules; false for native Review-only checks. */
   typing?: false;
   name: string;

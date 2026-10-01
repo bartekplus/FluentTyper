@@ -214,7 +214,13 @@ export type ReviewMessageKey =
   | "review_msg_local_ai"
   | "review_msg_irregular_form"
   | "review_msg_noun_possessive"
-  | "review_msg_word_boundary";
+  | "review_msg_word_boundary"
+  // Spanish Review checks (review/spanish/).
+  | "review_msg_spanish_accent"
+  | "review_msg_spanish_accent_extra"
+  | "review_msg_spanish_interrogative"
+  | "review_msg_spanish_confusion"
+  | "review_msg_spanish_verb_form";
 
 export type BulkDecision =
   | { eligible: true; alternative: number }
