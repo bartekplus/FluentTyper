@@ -235,6 +235,7 @@ export type ReviewMessageKey =
   | "review_msg_arabic_date_order"
   | "review_msg_arabic_demonstrative_gender"
   | "review_msg_arabic_dual_case"
+  | "review_msg_arabic_relative_gender"
   | "review_msg_arabic_number_case"
   | "review_msg_arabic_number_gender"
   | "review_msg_arabic_case_ending"

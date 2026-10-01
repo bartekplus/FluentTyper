@@ -428,6 +428,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Zaimek wskazujący zgadza się z rodzajem rzeczownika: هذه السلامة, هاتان البطاقتان.",
     "O demonstrativo concorda com o género do substantivo: هذه السلامة, هاتان البطاقتان.",
   ],
+  review_msg_arabic_relative_gender: [
+    "The relative pronoun agrees with the noun it refers to, as the pronoun in its clause shows: الرسالة التي كتبتها, الطعام الذي طبخناه.",
+    "Le pronom relatif s’accorde avec le nom qu’il reprend, comme le montre le pronom de sa proposition : الرسالة التي كتبتها, الطعام الذي طبخناه.",
+    "Odnosna zamjenica slaže se s imenicom na koju se odnosi, kao i zamjenica u njezinoj rečenici: الرسالة التي كتبتها, الطعام الذي طبخناه.",
+    "El pronombre relativo concuerda con el sustantivo al que se refiere, como muestra el pronombre de su oración: الرسالة التي كتبتها, الطعام الذي طبخناه.",
+    "Η αναφορική αντωνυμία συμφωνεί με το ουσιαστικό στο οποίο αναφέρεται, όπως δείχνει η αντωνυμία της πρότασής της: الرسالة التي كتبتها, الطعام الذي طبخناه.",
+    "Relativpronomenet följer det substantiv det syftar på, vilket pronomenet i bisatsen visar: الرسالة التي كتبتها, الطعام الذي طبخناه.",
+    "Das Relativpronomen richtet sich nach seinem Bezugswort, wie das Pronomen im Relativsatz zeigt: الرسالة التي كتبتها, الطعام الذي طبخناه.",
+    "Zaimek względny zgadza się z rzeczownikiem, do którego się odnosi, co pokazuje zaimek w zdaniu względnym: الرسالة التي كتبتها, الطعام الذي طبخناه.",
+    "O pronome relativo concorda com o substantivo a que se refere, como mostra o pronome da sua oração: الرسالة التي كتبتها, الطعام الذي طبخناه.",
+  ],
   review_msg_arabic_dual_case: [
     "A dual demonstrative and its noun share one case: هذان الكتابان, هذين الكتابين.",
     "Un démonstratif duel et son nom ont le même cas : هذان الكتابان, هذين الكتابين.",
