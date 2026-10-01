@@ -956,6 +956,19 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     recommended: false,
     priority: 37,
   },
+  {
+    id: "germanPrepositionCase",
+    typing: false,
+    name: "Case after German prepositions",
+    titleI18nKey: "review_msg_german_preposition_case",
+    descriptionI18nKey: "review_msg_german_preposition_case",
+    exampleI18nKey: "",
+    languageScope: "all",
+    safetyTier: "advanced",
+    defaultRollout: "off",
+    recommended: false,
+    priority: 160,
+  },
 ] as const;
 
 export type CatalogRuleId = (typeof GRAMMAR_RULE_CATALOG)[number]["id"];

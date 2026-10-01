@@ -1441,6 +1441,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "W języku niemieckim wszystkie rzeczowniki pisze się wielką literą.",
     "Em alemão, todos os substantivos começam com letra maiúscula.",
   ],
+  review_msg_german_preposition_case: [
+    "This German preposition takes another case: change the article (and its noun) to match.",
+    "Cette préposition allemande régit un autre cas : accordez l'article (et son nom).",
+    "Ovaj njemački prijedlog traži drugi padež: prilagodite član (i imenicu).",
+    "Esta preposición alemana rige otro caso: adapte el artículo (y su sustantivo).",
+    "Αυτή η γερμανική πρόθεση συντάσσεται με άλλη πτώση: προσαρμόστε το άρθρο (και το ουσιαστικό).",
+    "Den här tyska prepositionen styr ett annat kasus: anpassa artikeln (och substantivet).",
+    "Diese Präposition verlangt einen anderen Fall: Passen Sie den Artikel (und das Nomen) an.",
+    "Ten niemiecki przyimek wymaga innego przypadku: dopasuj rodzajnik (i rzeczownik).",
+    "Esta preposição alemã rege outro caso: ajuste o artigo (e o substantivo).",
+  ],
 };
 
 /**

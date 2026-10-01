@@ -216,7 +216,8 @@ export type ReviewMessageKey =
   | "review_msg_noun_possessive"
   | "review_msg_word_boundary"
   // German-only Review checks (review/german/).
-  | "review_msg_german_noun_case";
+  | "review_msg_german_noun_case"
+  | "review_msg_german_preposition_case";
 
 export type BulkDecision =
   | { eligible: true; alternative: number }

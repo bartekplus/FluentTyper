@@ -71,6 +71,36 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
       ],
     },
   ],
+  [
+    "germanPrepositionCase",
+    {
+      pos: [
+        ["Ich fahre mit eine Kollegin nach Hause.", "Ich fahre mit einer Kollegin nach Hause."],
+        ["Wir sprechen später mit diesen Mann.", "Wir sprechen später mit diesem Mann."],
+        ["Das Paket kam von das Amt.", "Das Paket kam von dem Amt."],
+        ["Wegen dem Regen bleiben wir drinnen.", "Wegen des Regens bleiben wir drinnen."],
+        ["Trotz einem Fehler hat er gewonnen.", "Trotz eines Fehlers hat er gewonnen."],
+        ["Der Brief ist für deiner Tante.", "Der Brief ist für deine Tante."],
+        ["Komm doch zu mich rüber.", "Komm doch zu mir rüber."],
+        ["Wir warten seit den letzten Monat.", "Wir warten seit dem letzten Monat."],
+        ["Er wohnt bei seine alte Oma.", "Er wohnt bei seiner alten Oma."],
+        ["Das gilt gemäß des Vertrages.", "Das gilt gemäß dem Vertrag."],
+      ],
+      neg: [
+        "Das ist mit die beste Idee.",
+        "Er ist der Sache wegen dem Bruder begegnet.",
+        "Er half, ohne dem Nachbarn etwas zu sagen.",
+        "Seit seine Mutter krank ist, kocht er.",
+        "Während die Kinder schlafen, lesen wir.",
+        "Was für einer Arbeit gehst du nach?",
+        "Sie sah ab und zu einen Hund.",
+        "Meiner Meinung nach keinen Grund zur Sorge.",
+        "Wir rechnen mit keinen Problemen.",
+        "Er spricht mit ihr Deutsch.",
+        "Das ist der Grund, wegen dem Anna geht.",
+      ],
+    },
+  ],
 ];
 
 describe.each(RULES)("%s", (ruleId, { pos, neg }) => {
