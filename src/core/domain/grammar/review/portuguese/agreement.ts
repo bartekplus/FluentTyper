@@ -113,6 +113,100 @@ const SUBJECT = `(?:eu|tu|ele|ela|você|nós|eles|elas|vocês|a${S}gente|(?:o|a|
 const INFINITIVE = `(?<target>(?<verb>${Object.keys(FUTURE_SUBJUNCTIVE).join("|")})(?<person>es|mos|em)?)`;
 const FUTURE = `${CONJUNCTION}${S}${SUBJECT}${S}(?:não${S})?${INFINITIVE}${W}`;
 
+// Frequent irregular verbs, one row per tense: first singular, third singular, first plural,
+// third plural ("tem/vem" after a plural pronoun are portugueseConfusions' têm/vêm).
+const PERSONS = ["eu", "ele", "nós", "eles"] as const;
+const CONJUGATIONS = [
+  "sou é somos são",
+  "fui foi fomos foram",
+  "era era éramos eram",
+  "serei será seremos serão",
+  "estou está estamos estão",
+  "estive esteve estivemos estiveram",
+  "estava estava estávamos estavam",
+  "vou vai vamos vão",
+  "ia ia íamos iam",
+  "tenho tem temos têm",
+  "tive teve tivemos tiveram",
+  "tinha tinha tínhamos tinham",
+  "faço faz fazemos fazem",
+  "fiz fez fizemos fizeram",
+  "fazia fazia fazíamos faziam",
+  "posso pode podemos podem",
+  "pude pôde pudemos puderam",
+  "podia podia podíamos podiam",
+  "quero quer queremos querem",
+  "quis quis quisemos quiseram",
+  "queria queria queríamos queriam",
+  "sei sabe sabemos sabem",
+  "soube soube soubemos souberam",
+  "sabia sabia sabíamos sabiam",
+  "dou dá damos dão",
+  "dei deu demos deram",
+  "dava dava dávamos davam",
+  "digo diz dizemos dizem",
+  "disse disse dissemos disseram",
+  "dizia dizia dizíamos diziam",
+].map((row) => row.split(" "));
+/** Each form -> the rows (tenses) it belongs to. */
+const FORM_ROWS = new Map<string, string[][]>();
+for (const row of CONJUGATIONS)
+  for (const form of new Set(row)) FORM_ROWS.set(form, [...(FORM_ROWS.get(form) ?? []), row]);
+const PRONOUN_PERSON: Record<string, (typeof PERSONS)[number]> = {
+  eu: "eu",
+  ele: "ele",
+  ela: "ele",
+  você: "ele",
+  "a gente": "ele",
+  nós: "nós",
+  eles: "eles",
+  elas: "eles",
+  vocês: "eles",
+};
+// A regular verb in the third person singular after a plural pronoun: "eles gosta" ->
+// "gostam", "nós gostava" -> "gostávamos". Words ending in -a or -e that are no verb after a
+// pronoun (pronouns, adverbs, prepositions, numbers, "pra") are listed out.
+const NOT_VERBS = new Set(
+  `se me te lhe de que bastante breve e a da na pela para pra sobre sempre hoje ainda agora nunca lá cá onde
+  quase toda cada nada contra entre desde enquanto essa esta aquela uma outra nenhuma alguma
+  este esse aquele tarde noite longe dentre ante diante adiante mesma mesme ora sete nove onze
+  doze treze quinze dezesseis dezessete dezoito dezenove vinte trinta quarenta cinquenta
+  sessenta setenta oitenta noventa duzentas trezentas tampouco cedo pouca muita tanta toda
+  sozinha juntas juntos fora embora talvez agorinha aqui ali logo ontem ou meu teu seu céu
+  réu véu chapéu troféu museu europeu`.split(/\s+/),
+);
+const REGULAR_PLURAL_SUBJECT = `(?<pronoun>nós|eles|elas|vocês)${S}(?:(?:não|já|também|sempre|só|ainda|nunca)${S}){0,2}(?<target>\\p{Ll}{3,}[ae]|\\p{Ll}{1,}(?:ou|eu|iu))${W}`;
+// The reverse: a regular verb in the third person plural after "eu", "ele", "ela" or "você"
+// ("ele não passeiam" -> "passeia", "eu gostaram" -> "gostei").
+const SINGULAR_SUBJECT = `(?<pronoun>eu|ele|ela|você)${S}(?:(?:não|já|também|sempre|só|ainda|nunca)${S}){0,2}(?<target>\\p{Ll}{2,}[ae]m)${W}`;
+const NOT_PLURAL_VERBS = new Set(
+  `também porém além aquém alguém ninguém quem nem sem bem cem ontem homem jovem nuvem ordem
+  item trem refém harém armazém vintém desdém virgem`.split(/\s+/),
+);
+/** The singular form for `pronoun` ("eu" or a third person), or undefined when irregular. */
+function singularOf(plural: string, firstPerson: boolean): string | undefined {
+  if (/(?:gem|eem|oem)$/.test(plural)) return undefined;
+  if (firstPerson) {
+    if (/avam$/.test(plural)) return plural.slice(0, -1);
+    if (/aram$/.test(plural)) return `${plural.slice(0, -4)}ei`;
+    if (/[^i]am$/.test(plural) && !/[eiá]ram$/.test(plural)) return `${plural.slice(0, -2)}o`;
+    return undefined;
+  }
+  if (/aram$/.test(plural)) return `${plural.slice(0, -4)}ou`;
+  if (/[eiá]ram$/.test(plural)) return undefined;
+  if (/zem$/.test(plural)) return plural.slice(0, -2);
+  if (/aem$/.test(plural)) return `${plural.slice(0, -3)}ai`;
+  if (/uem$/.test(plural)) return `${plural.slice(0, -3)}ui`;
+  return plural.slice(0, -1);
+}
+const PRONOUN_SUBJECT = `(?<pronoun>eu|ele|ela|você|a${S}gente|nós|eles|elas|vocês)${S}(?:(?:não|já|também|sempre|só|ainda|nunca)${S}){0,2}(?<target>${[...FORM_ROWS.keys()].join("|")})${W}`;
+const ELAPSED = new RegExp(`^${S}(?:\\p{L}+${S})?(?:${TIME}|tempo)${W}`, "iu");
+// A preposition makes the pronoun no subject ("para eles foi difícil", "a todos eles"); "e",
+// "ou" or a comma can join it to another subject ("eu e ela vamos"); after a copula it is the
+// predicate ("ser eu"); after an article it is a noun ("os nós", "o verdadeiro eu").
+const NOT_SUBJECT =
+  /(?<![\p{L}])(?:(?:para|com|de|dentre|sem|entre|a|por|contra|até|sobre|perante|desde|após)(?:[ \t ]+(?:todos|todas|ambos|ambas))?|e|ou|nem|como|quanto|ser|sou|é|era|foi|o|a|os|as|um|uma|uns|umas|dos|das|nos|nas|aos|pelos|pelas|meu|seu|teu|nosso|verdadeiro|próprio)[ \t ]+$|,[ \t ]*$/iu;
+
 function push(
   findings: RawFinding[],
   ctx: DetectContext,
@@ -151,6 +245,59 @@ export function agreement(ctx: DetectContext): RawFinding[] {
     const typed = m.groups!.target.toLowerCase();
     const wanted = typed.replace(/[oa]s?$/, PROPRIO_ENDING[pronoun]);
     if (wanted !== typed) push(findings, ctx, m, wanted);
+  }
+  for (const m of frameMatches(ctx, PRONOUN_SUBJECT)) {
+    const person = PRONOUN_PERSON[m.groups!.pronoun.toLowerCase().replace(/\s+/g, " ")];
+    const typed = m.groups!.target.toLowerCase();
+    const rows = FORM_ROWS.get(typed)!;
+    const index = PERSONS.indexOf(person);
+    if (rows.some((row) => row[index] === typed)) continue;
+    if (person === "eles" && (typed === "tem" || typed === "vem")) continue;
+    const before = ctx.text.slice(Math.max(0, m.index - 24), m.index);
+    if (NOT_SUBJECT.test(before)) continue;
+    // A capitalized "Eu" inside a sentence is a noun ("o verdadeiro Eu").
+    if (/^\p{Lu}/u.test(m.groups!.pronoun) && !/(?:^|[.!?:;"“«]\s*)$/u.test(before)) continue;
+    // "Nós é que sabemos": the cleft "é que" does not agree.
+    // "Vi eles faz um ano": elapsed-time "fazer" has no subject.
+    const after = ctx.text.slice(m.indices!.groups!.target[1], m.indices!.groups!.target[1] + 40);
+    if (/^[ \t ]+que(?![\p{L}])/u.test(after)) continue;
+    if (/^f[ia]z/.test(typed) && ELAPSED.test(after)) continue;
+    const wanted = new Set(rows.map((row) => row[index]));
+    if (wanted.size === 1) push(findings, ctx, m, [...wanted][0]);
+  }
+  for (const m of frameMatches(ctx, REGULAR_PLURAL_SUBJECT)) {
+    const typed = m.groups!.target;
+    const pronoun = m.groups!.pronoun.toLowerCase();
+    if (
+      typed !== typed.toLowerCase() ||
+      NOT_VERBS.has(typed) ||
+      FORM_ROWS.has(typed) ||
+      typed.endsWith("mente")
+    )
+      continue;
+    const before = ctx.text.slice(Math.max(0, m.index - 24), m.index);
+    if (NOT_SUBJECT.test(before)) continue;
+    let wanted: string | undefined;
+    // The preterite: "eles gostou" -> "gostaram", "nós comeu" -> "comemos".
+    const preterite = /([oei])u$/.exec(typed);
+    if (preterite) {
+      const vowel = { o: "a", e: "e", i: "i" }[preterite[1]]!;
+      wanted = `${typed.slice(0, -2)}${vowel}${pronoun === "nós" ? "mos" : "ram"}`;
+    } else if (pronoun !== "nós") wanted = `${typed}m`;
+    // "nós gostava" -> "gostávamos", "nós gosta" -> "gostamos". "-ia" is either an imperfect
+    // (comia) or a present (passeia, anuncia), so it stays.
+    else if (/ava$/.test(typed)) wanted = `${typed.slice(0, -3)}ávamos`;
+    else if (/[^i]a$/.test(typed)) wanted = `${typed}mos`;
+    if (wanted) push(findings, ctx, m, wanted);
+  }
+  for (const m of frameMatches(ctx, SINGULAR_SUBJECT)) {
+    const typed = m.groups!.target;
+    if (typed !== typed.toLowerCase() || NOT_PLURAL_VERBS.has(typed) || FORM_ROWS.has(typed))
+      continue;
+    const before = ctx.text.slice(Math.max(0, m.index - 24), m.index);
+    if (NOT_SUBJECT.test(before)) continue;
+    const wanted = singularOf(typed, m.groups!.pronoun.toLowerCase() === "eu");
+    if (wanted) push(findings, ctx, m, wanted);
   }
   for (const m of frameMatches(ctx, FUTURE)) {
     const { verb, person = "" } = m.groups!;
