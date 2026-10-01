@@ -4,6 +4,7 @@ import { TABLES as SWEDISH_TABLES } from "./swedish/tables";
 import { TABLES as ARABIC_TABLES } from "./arabic/tables";
 import { PORTUGUESE_PHRASES, PORTUGUESE_STYLE } from "./portuguese/phrases";
 import { POLISH_TABLES } from "./polish";
+import * as french from "./french/phrases";
 
 /**
  * The English phrase checks for the other review languages, by language code.
@@ -127,6 +128,7 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
       ["comme même", "quand même"],
       ["en faite", "en fait"],
       ["sa va", "ça va"],
+      ...french.PHRASES,
     ],
     compounds: [
       ["vis à vis", "vis-à-vis"],
@@ -143,6 +145,7 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
       ["celle là", "celle-là"],
       ["ceux là", "ceux-là"],
       ["celles là", "celles-là"],
+      ...french.COMPOUNDS,
     ],
     // "monter en haut de la tour" names a destination: left out.
     style: [

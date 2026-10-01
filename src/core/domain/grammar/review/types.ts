@@ -280,7 +280,18 @@ export type ReviewMessageKey =
   | "review_msg_spanish_lowercase_name"
   | "review_msg_spanish_acronym"
   | "review_msg_spanish_abbreviation"
-  | "review_msg_spanish_date";
+  | "review_msg_spanish_date"
+  // French (review/french/)
+  | "review_msg_fr_past_participle"
+  | "review_msg_fr_infinitive"
+  | "review_msg_fr_vous_verb"
+  | "review_msg_fr_homophone"
+  | "review_msg_fr_hyphen"
+  | "review_msg_fr_subject_verb"
+  | "review_msg_fr_elision"
+  | "review_msg_fr_date"
+  | "review_msg_fr_noun_number"
+  | "review_msg_fr_participle_agreement";
 
 export type BulkDecision =
   | { eligible: true; alternative: number }
