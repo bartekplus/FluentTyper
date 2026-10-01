@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { readFileSync, readdirSync, statSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 
 const LOADER_PATH = "src/third_party/libpresage/libpresage.js";
 const PACKAGE_DIR = "public/third_party/libpresage";
@@ -65,5 +65,21 @@ describe("libpresage data loaders", () => {
       const declared = new RegExp(`remote_package_size"?\\s*:\\s*${size}\\b`);
       expect(declared.test(LOADER)).toBe(true);
     }
+  });
+});
+
+describe("bundled Hunspell dictionaries", () => {
+  // Presage passes Hunspell UTF-8 words: a Latin-1 dictionary rejects every accented word
+  // and garbles its suggestions (pt_BR shipped as SET ISO8859-1 until it was converted).
+  const languages = readdirSync("resources_js").filter((lang) =>
+    existsSync(`resources_js/${lang}/hunspell/${lang}.aff`),
+  );
+
+  test.each(languages)("%s is UTF-8 throughout", (lang) => {
+    const decoder = new TextDecoder("utf-8", { fatal: true });
+    const aff = decoder.decode(readFileSync(`resources_js/${lang}/hunspell/${lang}.aff`));
+    expect(aff).toMatch(/^SET[ \t]+UTF-8\r?$/m);
+    const dic = readFileSync(`resources_js/${lang}/hunspell/${lang}.dic`);
+    expect(() => decoder.decode(dic)).not.toThrow();
   });
 });

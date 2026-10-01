@@ -71,11 +71,8 @@ test.each(QUIET)("default checks stay quiet: %p", (text) => {
   expect(review(text, DEFAULTS).filter((f) => !f.startsWith("englishPossibleErrors"))).toEqual([]);
 });
 
-test("glued nouns are split only by the optional check", () => {
-  expect(review("We drank applejuice.", DEFAULTS)).toEqual([]);
-  expect(review("We drank applejuice.", REVIEW_SUPPORTED_RULE_IDS)).toEqual([
-    "englishPossibleErrors: applejuice -> apple juice",
-  ]);
+test("glued unknown nouns stay with the dictionary check", () => {
+  expect(review("We drank applejuice.", REVIEW_SUPPORTED_RULE_IDS)).toEqual([]);
 });
 
 test("the guarded checks still fire on real errors", () => {
