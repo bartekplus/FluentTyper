@@ -1452,6 +1452,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Ten niemiecki przyimek wymaga innego przypadku: dopasuj rodzajnik (i rzeczownik).",
     "Esta preposição alemã rege outro caso: ajuste o artigo (e o substantivo).",
   ],
+  review_msg_german_adjective_ending: [
+    "This adjective needs the ending its article and noun call for.",
+    "Cet adjectif doit prendre la terminaison qu’exigent son article et son nom.",
+    "Ovaj pridjev treba nastavak koji traže član i imenica.",
+    "Este adjetivo necesita la terminación que piden su artículo y su sustantivo.",
+    "Αυτό το επίθετο χρειάζεται την κατάληξη που απαιτούν το άρθρο και το ουσιαστικό.",
+    "Adjektivet behöver den ändelse som artikeln och substantivet kräver.",
+    "Dieses Adjektiv braucht die Endung, die Artikel und Nomen verlangen.",
+    "Ten przymiotnik wymaga końcówki, której wymagają rodzajnik i rzeczownik.",
+    "Este adjetivo precisa da terminação que o artigo e o substantivo pedem.",
+  ],
 };
 
 /**

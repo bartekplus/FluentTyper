@@ -982,6 +982,19 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     recommended: false,
     priority: 150,
   },
+  {
+    id: "germanAdjectiveForms",
+    typing: false,
+    name: "German adjective endings",
+    titleI18nKey: "review_msg_german_adjective_ending",
+    descriptionI18nKey: "review_msg_german_adjective_ending",
+    exampleI18nKey: "",
+    languageScope: "all",
+    safetyTier: "advanced",
+    defaultRollout: "off",
+    recommended: false,
+    priority: 155,
+  },
 ] as const;
 
 export type CatalogRuleId = (typeof GRAMMAR_RULE_CATALOG)[number]["id"];

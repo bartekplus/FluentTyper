@@ -117,7 +117,8 @@ export interface GrammarRuleCatalogEntry {
     // German-only Review checks (review/german/).
     | "germanNounCasing"
     | "germanPrepositionCase"
-    | "germanConfusedWords";
+    | "germanConfusedWords"
+    | "germanAdjectiveForms";
   /** Absent for existing typing rules; false for native Review-only checks. */
   typing?: false;
   name: string;

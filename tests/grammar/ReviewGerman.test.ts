@@ -133,6 +133,31 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
       ],
     },
   ],
+  [
+    "germanAdjectiveForms",
+    {
+      pos: [
+        ["Das war eine lang Woche.", "Das war eine lange Woche."],
+        ["Wir suchen einen neu Mitarbeiter.", "Wir suchen einen neuen Mitarbeiter."],
+        ["Das klein Kind schläft.", "Das kleine Kind schläft."],
+        ["Er wohnt im alt Haus am Ende der Straße.", "Er wohnt im alten Haus am Ende der Straße."],
+        ["Wir kaufen nur bei dem lokalem Händler.", "Wir kaufen nur bei dem lokalen Händler."],
+        ["Die Daten kommen in echt Zeit.", "Die Daten kommen in Echtzeit."],
+        ["Sie trägt eine rund Brille.", "Sie trägt eine runde Brille."],
+      ],
+      neg: [
+        "Er ist ein völlig Fremder.",
+        "Sie haben direkt Hilfe bekommen.",
+        "Auf gut Deutsch gesagt.",
+        "Ich meine wirklich Radio.",
+        "Der Plan fand allgemein Anklang.",
+        "Das Schloss, in dem ständig Soldaten wohnten.",
+        "Die letzte Bahn fährt um zehn.",
+        "Mein kleines Haus ist alt.",
+        "Das hat sicher Potenzial.",
+      ],
+    },
+  ],
 ];
 
 describe.each(RULES)("%s", (ruleId, { pos, neg }) => {

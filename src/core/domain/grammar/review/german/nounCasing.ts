@@ -16,14 +16,14 @@ import { BOUNDARY, isGerman, tokensAfter, tokensBefore, words, wordSet } from ".
 
 // Never a pronoun: the genitive article, ein-words and possessives with a short ending, and
 // the preposition-article contractions.
-const ARTICLES = wordSet(
+export const ARTICLES = wordSet(
   "des ein eine einen einem kein keine keinen keinem mein meine meinen meinem dein deine " +
     "deinen deinem sein seine seinen seinem ihre ihren ihrem unser unsere unseren unserem " +
     "euer eure euren eurem am im zum zur beim vom ins ans aufs ums durchs fürs übers " +
     "unters vors hinterm überm unterm",
 );
 // Articles and demonstratives that also stand alone as pronouns ("die kosten viel").
-const DEMONSTRATIVES = wordSet(
+export const DEMONSTRATIVES = wordSet(
   "der die das den dem dies diese dieser diesen diesem dieses jene jener jenen jenem jenes " +
     "welche welcher welchen welchem welches solche solcher solchen solchem solches",
 );
@@ -34,7 +34,7 @@ const QUANTIFIERS = wordSet(
     "manches jede jeder jeden jedem jedes einer eines keiner keines meiner meines deiner " +
     "deines seiner seines ihrer ihres unserer unseres eurer eures ihr",
 );
-const PREPOSITIONS = wordSet(
+export const PREPOSITIONS = wordSet(
   "in an auf aus bei mit nach von vor zu für gegen ohne durch um über unter hinter neben " +
     "zwischen seit wegen trotz während statt anstatt per pro laut gemäß dank samt bis ab " +
     "außer innerhalb außerhalb oberhalb unterhalb mittels entlang",

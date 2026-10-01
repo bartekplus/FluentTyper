@@ -1,5 +1,6 @@
 import { BLOOM_ALPHABET, bloomBits } from "../../implementations/helpers/EnglishLexicon";
 import {
+  ADJECTIVE_BLOOM,
   FINITE_NOUNS,
   INFINITIVE_NOUNS,
   NOUN_BLOOM,
@@ -19,6 +20,7 @@ const EXTRA_NOUNS = "mühe träne weile eile zeit";
 
 let bloom: Uint8Array | undefined;
 let verbBloom: Uint8Array | undefined;
+let adjectiveBloom: Uint8Array | undefined;
 let exceptions: Set<string> | undefined;
 let finite: Set<string> | undefined;
 let infinitive: Set<string> | undefined;
@@ -71,4 +73,10 @@ export function germanNounReading(word: string): GermanNounReading | null {
   if (finite.has(w)) return "finite";
   if (infinitive.has(w)) return "infinitive";
   return extra.has(w) || inBloom(w) ? "noun" : null;
+}
+
+/** An adjective lemma that inflects ("klein", "original"); loose, about 0.3% false yeses. */
+export function germanAdjective(word: string): boolean {
+  adjectiveBloom ??= decode(ADJECTIVE_BLOOM);
+  return has(adjectiveBloom, word.normalize("NFC"));
 }
