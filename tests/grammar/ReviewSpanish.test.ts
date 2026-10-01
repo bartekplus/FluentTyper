@@ -346,6 +346,36 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
       ],
     },
   ],
+  [
+    "spanishConfusions",
+    "porque, porqué, por qué, por que",
+    {
+      pos: [
+        ["Nadie entiende el porque.", "Nadie entiende el porqué."],
+        ["Explícame el por qué de tu enfado.", "Explícame el porqué de tu enfado."],
+        ["Conoce los por qués de la crisis.", "Conoce los porqués de la crisis."],
+        ["¿Y porqué no llamaste?", "¿Y por qué no llamaste?"],
+        ["No entiendo porqué lo dijo.", "No entiendo por qué lo dijo."],
+        ["Dime porque te ríes.", "Dime por qué te ríes."],
+        ["No hay porque asustarse.", "No hay por qué asustarse."],
+        ["No tienes por que venir.", "No tienes por qué venir."],
+        ["Nadie sabe por que se fue.", "Nadie sabe por qué se fue."],
+        ["Ignoro por que razón lo hizo.", "Ignoro por qué razón lo hizo."],
+      ],
+      neg: [
+        "Lo haré porque me apetece.",
+        "¿Porque llegué tarde ya no me hablas?",
+        "Se entendería porque era evidente.",
+        "Votaron por que se repitiera la prueba.",
+        "No tienes nada por que disculparte.",
+        "Nadie conoce la razón del porqué no vino.",
+        "Quiero saber el porqué.",
+        "No tienes más razón porque grites.",
+        "La causa por que luchamos es justa.",
+        "Lo sé porque lo vi con mis ojos.",
+      ],
+    },
+  ],
 ];
 
 describe.each(FIXTURES)("%s: %s", (ruleId, _family, fixture) => {

@@ -180,7 +180,8 @@ const IRREGULAR_FINITE = new Set(
     "es son era eran fue fueron está están estaba estaban hay ha han había habían tiene " +
     "tienen tenía tenían va van iba iban hace hacen hizo dice dicen dijo puede pueden pudo " +
     "quiere quieren sabe saben viene vienen pone ponen sale salen ve ven da dan soy eres " +
-    "somos estoy estás estamos tengo tienes voy vas vamos hago haces digo dices puedo puedes"
+    "somos estoy estás estamos tengo tienes voy vas vamos hago haces digo dices puedo puedes " +
+    "fui fuiste fuimos estuve estuvo tuve tuvo hice dije vine quise pude supe"
   ).split(" "),
 );
 

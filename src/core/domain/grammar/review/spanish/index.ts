@@ -4,6 +4,7 @@ import * as accents from "./accents";
 import * as agreement from "./agreement";
 import * as confusions from "./confusions";
 import * as diacritics from "./diacritics";
+import * as porque from "./porque";
 import * as prefixes from "./prefixes";
 import * as typography from "./typography";
 import * as verbAccents from "./verbAccents";
@@ -18,6 +19,7 @@ for (const entry of [
   ...confusions.DETECTORS,
   ...verbForms.DETECTORS,
   ...prefixes.DETECTORS,
+  ...porque.DETECTORS,
   ...typography.DETECTORS,
   ...agreement.DETECTORS,
 ])
