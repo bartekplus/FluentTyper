@@ -112,6 +112,7 @@ export interface GrammarRuleCatalogEntry {
     | "englishWereWhere"
     | "englishIrregularForms"
     | "englishPossessiveNouns"
+    | "englishDateConsistency"
     | "quoteSpacing"
     | "primeSymbols";
   /** Absent for existing typing rules; false for native Review-only checks. */

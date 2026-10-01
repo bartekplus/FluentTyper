@@ -364,6 +364,14 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     bulk: "individual",
   },
 
+  englishDateConsistency: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "grammar",
+    kind: "numbers",
+    bulk: "individual",
+  },
+
   englishPronounCase: {
     review: "supported",
     defaultEnabled: true,

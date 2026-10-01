@@ -515,6 +515,19 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     recommended: false,
     priority: 138,
   },
+  {
+    id: "englishDateConsistency",
+    typing: false,
+    name: "Weekdays and impossible dates",
+    titleI18nKey: "review_msg_weekday_mismatch",
+    descriptionI18nKey: "review_msg_weekday_mismatch",
+    exampleI18nKey: "",
+    languageScope: "en_US",
+    safetyTier: "advanced",
+    defaultRollout: "off",
+    recommended: false,
+    priority: 139,
+  },
 
   {
     id: "englishPronounCase",
