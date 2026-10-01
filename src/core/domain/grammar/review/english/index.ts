@@ -3,6 +3,7 @@ import * as confusions1 from "./confusions1";
 import * as contractionSlots from "./contractionSlots";
 import * as degreeSlots from "./degreeSlots";
 import * as nounNumberSlots from "./nounNumberSlots";
+import * as verbGroupSlots from "./verbGroupSlots";
 import * as dialects from "./dialects";
 import * as lexical from "./lexical";
 import * as remaining from "./remaining";
@@ -33,6 +34,7 @@ const MODULES = [
   contractionSlots,
   degreeSlots,
   nounNumberSlots,
+  verbGroupSlots,
 ];
 export const EXTENSION_PHRASES = MODULES.flatMap((m) => m.PHRASES);
 export const EXTENSION_COMPOUNDS = MODULES.flatMap((m) => m.COMPOUNDS);
