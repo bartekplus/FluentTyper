@@ -969,6 +969,19 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     recommended: false,
     priority: 311,
   },
+  {
+    id: "portugueseContractions",
+    typing: false,
+    name: "Portuguese preposition and article contractions",
+    titleI18nKey: "review_msg_pt_contraction",
+    descriptionI18nKey: "review_msg_pt_contraction",
+    exampleI18nKey: "",
+    languageScope: "all",
+    safetyTier: "advanced",
+    defaultRollout: "off",
+    recommended: false,
+    priority: 312,
+  },
 ] as const;
 
 export type CatalogRuleId = (typeof GRAMMAR_RULE_CATALOG)[number]["id"];

@@ -113,6 +113,33 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
       ],
     },
   ],
+  [
+    "portugueseContractions",
+    {
+      pos: [
+        ["Deixei a chave em a gaveta.", "Deixei a chave na gaveta."],
+        ["O preço de este carro subiu.", "O preço deste carro subiu."],
+        ["Entreguei o livro a o professor.", "Entreguei o livro ao professor."],
+        ["Não volto mais a aquele lugar.", "Não volto mais àquele lugar."],
+        ["Passamos por a ponte velha.", "Passamos pela ponte velha."],
+        ["A casa de ele fica longe.", "A casa dele fica longe."],
+        ["Em a primeira vez, errei.", "Na primeira vez, errei."],
+        ["Não pense mais em isso agora.", "Não pense mais nisso agora."],
+      ],
+      neg: [
+        "Antes de o sol nascer, saímos.",
+        "Gosto de o ouvir cantar.",
+        "Apesar de a casa ser antiga, é confortável.",
+        "Seria o caso de o governo apresentá-las hoje.",
+        "Moro em um apartamento pequeno.",
+        "Ele precisa de um carro novo.",
+        "A palavra termina em o.",
+        "Li a notícia em O Globo.",
+        "Vale de A a Z.",
+        "Temos que por o lixo para fora.",
+      ],
+    },
+  ],
 ];
 
 describe.each(RULES)("%s", (ruleId, { pos, neg }) => {

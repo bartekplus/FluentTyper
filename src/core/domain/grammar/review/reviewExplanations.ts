@@ -1485,6 +1485,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "To portugalskie słowo brzmi jak to, o które tu chodzi, a które pisze się inaczej (często z akcentem).",
     "Esta palavra soa como a que cabe aqui, que se escreve de outro jeito (muitas vezes com acento).",
   ],
+  review_msg_pt_contraction: [
+    "In Portuguese this preposition fuses with the article or pronoun after it (em a → na, de este → deste), unless that word opens an infinitive clause.",
+    "En portugais, cette préposition se contracte avec l’article ou le pronom qui suit (em a → na, de este → deste), sauf s’il ouvre une proposition infinitive.",
+    "U portugalskom se ovaj prijedlog stapa s članom ili zamjenicom iza sebe (em a → na, de este → deste), osim ako ona otvara infinitivnu rečenicu.",
+    "En portugués esta preposición se contrae con el artículo o pronombre siguiente (em a → na, de este → deste), salvo si abre una oración de infinitivo.",
+    "Στα πορτογαλικά αυτή η πρόθεση συναιρείται με το άρθρο ή την αντωνυμία που ακολουθεί (em a → na, de este → deste), εκτός αν αυτή ξεκινά απαρεμφατική πρόταση.",
+    "På portugisiska smälter prepositionen ihop med artikeln eller pronomenet efter (em a → na, de este → deste), utom när det inleder en infinitivsats.",
+    "Im Portugiesischen verschmilzt diese Präposition mit dem folgenden Artikel oder Pronomen (em a → na, de este → deste), außer es leitet einen Infinitivsatz ein.",
+    "W portugalskim ten przyimek łączy się z następnym rodzajnikiem lub zaimkiem (em a → na, de este → deste), chyba że zaczyna on zdanie bezokolicznikowe.",
+    "A preposição se contrai com o artigo ou pronome seguinte (em a → na, de este → deste), a não ser que ele inicie uma oração com infinitivo.",
+  ],
 };
 
 /**
