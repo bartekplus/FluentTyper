@@ -118,6 +118,7 @@ export interface GrammarRuleCatalogEntry {
     | "frenchHyphenation"
     | "frenchSubjectVerbAgreement"
     | "frenchElision"
+    | "frenchDates"
     | "quoteSpacing"
     | "primeSymbols";
   /** Absent for existing typing rules; false for native Review-only checks. */

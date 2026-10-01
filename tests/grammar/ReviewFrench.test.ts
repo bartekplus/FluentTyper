@@ -263,6 +263,32 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
       ],
     },
   ],
+  [
+    "frenchDates",
+    {
+      pos: [
+        ["Rendez-vous le 31 septembre.", "Rendez-vous le 30 septembre."],
+        ["Elle est née le 31-04-1988.", "Elle est née le 30-04-1988."],
+        ["Le 29 février 2023 tombait un mercredi.", "Le 28 février 2023 tombait un mercredi."],
+        ["Mardi 3 mars 2025, la séance reprend.", "Lundi 3 mars 2025, la séance reprend."],
+        [
+          "La fête a eu lieu dimanche 14 juillet 2018.",
+          "La fête a eu lieu samedi 14 juillet 2018.",
+        ],
+        ["Mercredi 2024/01/02 au matin.", "Mardi 2024/01/02 au matin."],
+      ],
+      neg: [
+        "Rendez-vous le 30 septembre.",
+        "Le 29 février 2024 était un jeudi.",
+        "Né un 29 février, il fête rarement son anniversaire.",
+        "Le 1er mai est férié.",
+        "Lundi 3 mars 2025, la séance reprend.",
+        "La version 31/09 du logiciel.",
+        "Il a 31 ans et 12 mois de plus.",
+        "Le mot « 31 septembre » est faux.",
+      ],
+    },
+  ],
 ];
 
 describe.each(FIXTURES)("%s", (ruleId, { pos, neg }) => {

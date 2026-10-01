@@ -581,6 +581,19 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     recommended: false,
     priority: 177,
   },
+  {
+    id: "frenchDates",
+    typing: false,
+    name: "French impossible dates",
+    titleI18nKey: "review_msg_fr_date",
+    descriptionI18nKey: "review_msg_fr_date",
+    exampleI18nKey: "",
+    languageScope: "all",
+    safetyTier: "advanced",
+    defaultRollout: "off",
+    recommended: false,
+    priority: 178,
+  },
 
   {
     id: "englishPronounCase",

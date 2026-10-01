@@ -1507,6 +1507,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Przed samogłoską francuski opuszcza końcową samogłoskę je, le, de, que… i pisze apostrof bez spacji (j’aime, l’arbre, qu’il).",
     "Antes de vogal, o francês elide a vogal final de je, le, de, que… com apóstrofo e sem espaço (j’aime, l’arbre, qu’il).",
   ],
+  review_msg_fr_date: [
+    "This date does not exist, or its weekday does not match the calendar.",
+    "Cette date n’existe pas, ou son jour de la semaine ne correspond pas au calendrier.",
+    "Ovaj datum ne postoji ili mu dan u tjednu ne odgovara kalendaru.",
+    "Esta fecha no existe o su día de la semana no coincide con el calendario.",
+    "Αυτή η ημερομηνία δεν υπάρχει ή η ημέρα της εβδομάδας δεν ταιριάζει με το ημερολόγιο.",
+    "Det här datumet finns inte, eller så stämmer veckodagen inte med kalendern.",
+    "Dieses Datum gibt es nicht, oder der Wochentag passt nicht zum Kalender.",
+    "Ta data nie istnieje albo dzień tygodnia nie zgadza się z kalendarzem.",
+    "Esta data não existe, ou o dia da semana não corresponde ao calendário.",
+  ],
 };
 
 /**
