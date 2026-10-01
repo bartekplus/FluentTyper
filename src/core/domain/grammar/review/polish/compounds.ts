@@ -602,7 +602,11 @@ function nieJoined(ctx: DetectContext): RawFinding[] {
     const sentenceAfter = ctx.text.slice(end, end + 200).split(/[.!…\n]/u)[0] ?? "";
     // A question, or "to nie …" / "czy nie …": the negation is the sentence's, not the word's.
     if (sentenceAfter.includes("?")) continue;
-    if (/(?:^|[^\p{L}])(?:to|czy|czyż|że|żeby|gdyby|jakby|by)[ \t ]+$/iu.test(sentenceBefore))
+    if (
+      /(?:^|[^\p{L}])(?:to|czy|czyż|że|żeby|gdyby|jakby|by|a|ale|lecz|ani)[ \t ]+$/iu.test(
+        sentenceBefore,
+      )
+    )
       continue;
     // A comparison keeps the contrastive "nie": "nie lepszy od poprzednika".
     if (/^[ \t ]+(?:od|niż)(?!\p{L})/iu.test(sentenceAfter)) continue;

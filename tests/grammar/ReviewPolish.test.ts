@@ -105,6 +105,7 @@ export const POLISH_CASES: Array<[CatalogRuleId, string, Case]> = [
         "Nie zostanie tu długo.",
         "Nie zna nikogo.",
         "Nie inny jak on to zrobił.",
+        "To preferencja, a nie ocena jakości.",
       ],
     },
   ],
