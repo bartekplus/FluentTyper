@@ -123,6 +123,37 @@ export const PORTUGUESE_PHRASES: PhraseRow[] = [
     `${verb} a ver com`,
   ]),
   ["nada haver", "nada a ver"],
+  // Existential "haver" stays singular in every tense: "havia muitos", "haverá alguns".
+  ...[
+    ["haviam", "havia"],
+    ["haverão", "haverá"],
+    ["haveriam", "haveria"],
+    ["houvessem", "houvesse"],
+    ["houverem", "houver"],
+    ["hajam", "haja"],
+  ].flatMap(([plural, singular]) =>
+    [
+      "muitos",
+      "muitas",
+      "vários",
+      "várias",
+      "alguns",
+      "algumas",
+      "poucos",
+      "poucas",
+      "diversos",
+      "diversas",
+      "inúmeros",
+      "inúmeras",
+      "tantos",
+      "tantas",
+    ].map((word): PhraseRow => [`${plural} ${word}`, `${singular} ${word}`]),
+  ),
+  ["até por que", "até porque"],
+  ...["razão", "motivo"].flatMap((noun) =>
+    all([`${noun} porquê`, `${noun} por quê`], `${noun} por que`),
+  ),
+  ["sera que", "será que"],
   ["a traves", "através"],
   ["em case de", "em caso de"],
   // The participle of "chegar" is "chegado".

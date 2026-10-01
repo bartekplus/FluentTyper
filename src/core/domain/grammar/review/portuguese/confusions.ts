@@ -12,7 +12,8 @@ import type { ReviewMessageKey } from "../types";
 type Frame = {
   /** Compiled by frameMatches (WORD_START, `gidu`); `target` is replaced. */
   pattern: string;
-  alternatives: string[];
+  /** Replacements, or a function of the typed target. */
+  alternatives: string[] | ((typed: string) => string[]);
   messageKey: ReviewMessageKey;
   /** Starts a sentence (or follows a line break). */
   clauseStart?: true;
@@ -35,7 +36,30 @@ const MONTH =
   "janeiro|fevereiro|março|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro";
 const CLITIC = "(?:me|te|lhe|lhes)";
 const SUBJECT =
-  "(?:ele|ela|você|eles|elas|vocês|isso|isto|tudo|não|nunca|já|ainda|quem|onde|como|ninguém|alguém|também|sempre)";
+  "(?:ele|ela|você|eles|elas|vocês|isso|isto|tudo|não|nunca|já|ainda|quem|onde|como|ninguém|alguém|também|sempre|assim)";
+// Plural subjects; after a preposition ("para eles tem sido") they are no subject.
+const PLURAL_SUBJECT =
+  "(?<!(?:de|para|com|sem|entre|a|por|sobre|contra|até|em|perante)[ \\t\\u00a0]{1,8})(?:eles|elas|vocês|uns|ambos|ambas|todos|todas|muitos|muitas|alguns|algumas|poucos|poucas)";
+const SUBJECT_ADVERB = `(?:(?:não|já|também|ainda|nunca|sempre|só|apenas|realmente)${WORD_END}${SPACE}){0,2}`;
+// "tem/vem" and their compounds take a circumflex in the plural: têm, vêm, contêm, intervêm.
+const TER_VIR =
+  "(?:con|de|man|ob|re|abs|sus|en|entre)?t[eé]m|(?:con|pro|inter|ad|sobre|pro)?v[eé]m";
+const INFINITIVE_AHEAD = `\\p{Ll}+[aeiô]r(?:em|mos|es)?${WORD_END}`;
+const IMPERSONAL: Record<string, string> = {
+  fazem: "faz",
+  faziam: "fazia",
+  fizeram: "fez",
+  farão: "fará",
+  fariam: "faria",
+  vão: "vai",
+  iam: "ia",
+  irão: "irá",
+  podem: "pode",
+  deviam: "devia",
+  devem: "deve",
+  costumam: "costuma",
+};
+const SPAN_NOUN = `(?:anos|meses|semanas|dias|horas|minutos|séculos|décadas|tempo|bastante${SPACE}tempo|muito${SPACE}tempo)`;
 const MODAL =
   "(?:pode|posso|podemos|podem|podia|quero|queremos|quer|queria|deve|devemos|devem|deveria|preciso|precisamos|precisa|precisam|para|sem|(?:tenho|temos|tem|têm|tens|tinha|tinham)" +
   `${S}(?:que|de)|(?:há|hei)${S}de)`;
@@ -49,6 +73,76 @@ const STATE =
   "(?:bem|mal|certo|certa|errado|errada|pronto|pronta|ótimo|ótima|cheio|cheia|cansado|cansada|feliz|triste|doente|ocupado|ocupada|com|sem|em|no|na|nos|nas|muito|tão|sendo|quase|perto|longe|frio|quente|melhor|pior)";
 
 const FRAMES: Frame[] = [
+  // "eles tem" -> "eles têm", "elas contém" -> "elas contêm".
+  {
+    pattern: `${PLURAL_SUBJECT}${SPACE}${SUBJECT_ADVERB}(?<target>${TER_VIR})${W}`,
+    alternatives: (typed) => [typed.replace(/[eé]m$/i, "êm")],
+    messageKey: "review_msg_pt_homophone",
+  },
+  // "Faz dez anos que", "fazia meses que": "fazer" for elapsed time has no subject.
+  {
+    pattern: `(?<target>fazem|faziam|fizeram|farão|fariam)${S}${AMOUNT}?${SPAN_NOUN}${S}(?:que|desde)${W}`,
+    alternatives: (typed) => [IMPERSONAL[typed.toLowerCase()]],
+    messageKey: "review_msg_pt_homophone",
+  },
+  {
+    pattern: `(?<target>vão|iam|irão|podem|deviam|devem|costumam)${S}fazer${S}${AMOUNT}?${SPAN_NOUN}${S}(?:que|desde)${W}`,
+    alternatives: (typed) => [IMPERSONAL[typed.toLowerCase()]],
+    messageKey: "review_msg_pt_homophone",
+  },
+  // "está noite" -> "esta noite": the demonstrative before a part of the day.
+  {
+    pattern: `(?<!(?:já|ainda|lá|aqui|fora)${S})(?<target>está)${S}(?=(?:noite|semana|manhã|tarde|madrugada)${W})`,
+    alternatives: ["esta"],
+    messageKey: "review_msg_pt_homophone",
+  },
+  // "esta" before a masculine participle or adjective is the verb: "o chão esta coberto".
+  {
+    pattern: `(?<target>esta)${S}(?=(?:\\p{Ll}{2,}(?:ado|ido)|coberto|aberto|feito|morto|escrito|pronto|cheio|vazio|certo|bom|ótimo|lindo|frio|quente|limpo|sujo|seco|novo|velho)${W})`,
+    alternatives: ["está"],
+    messageKey: "review_msg_pt_homophone",
+  },
+  // "poço" (well) before an infinitive or an object pronoun is "posso" (I can).
+  {
+    pattern: `(?<!(?:o|um|do|no|ao|pelo|esse|este|aquele|seu|meu|nosso|teu|cada|algum|nenhum|qualquer|grande|pequeno|fundo|velho)${S})(?<target>poço)${S}(?=(?:me|te|lhe|lhes|nos|vos|se|\\p{Ll}+[aeiô]r)${W})`,
+    alternatives: ["posso"],
+    messageKey: "review_msg_pt_homophone",
+  },
+  // "várias" (several) before a plural noun; "varias" is "you vary".
+  {
+    pattern: `(?<!tu${S}(?:não${S})?)(?<target>varias)${S}(?=(?!(?:os|as|nos|vos|mais|menos|vezes${S}de)${W})\\p{Ll}{2,}s${W})`,
+    alternatives: ["várias"],
+    messageKey: "review_msg_pt_homophone",
+  },
+  // "até" (until, even) before an article, a place or a time word; "ate" is a form of "atar".
+  {
+    pattern: `(?<!(?:que|se|quando|embora|talvez|caso)${S}(?:\\p{Ll}+${S})?)(?<target>ate)${S}(?=(?:o|a|os|as|ao|aos|à|às|aqui|ali|lá|onde|quando|minha|meu|sua|seu|nossa|nosso|\\d)${W})`,
+    alternatives: ["até"],
+    messageKey: "review_msg_pt_homophone",
+  },
+  // A preposition takes "mim" and "ti" when no infinitive follows: "para mim", "entre mim e ti".
+  {
+    pattern: `(?:para|sem|contra|perante|a)${S}(?<target>eu|tu)(?=[ \\t\\u00a0]{0,2}[.,;:!?)]|$)`,
+    alternatives: (typed) => [typed.toLowerCase() === "eu" ? "mim" : "ti"],
+    messageKey: "review_msg_pt_pronoun_case",
+  },
+  {
+    pattern: `entre${S}(?<target>eu|tu)${S}(?=e${W})`,
+    alternatives: (typed) => [typed.toLowerCase() === "eu" ? "mim" : "ti"],
+    messageKey: "review_msg_pt_pronoun_case",
+  },
+  // "Esse livro é para mim ler": the subject of the infinitive is "eu". Opening a clause,
+  // "Para mim estudar é difícil" may also mean "for me, studying is hard".
+  {
+    pattern: `(?:é|era|foi|será|seria|são|eram)${S}para${S}(?<target>mim)${S}(?=${INFINITIVE_AHEAD})`,
+    alternatives: ["eu"],
+    messageKey: "review_msg_pt_pronoun_case",
+  },
+  {
+    pattern: `(?<=(?:^|[.!?;:][ \\t\\u00a0]{0,8}|\\n[ \\t\\u00a0]{0,8}))para${S}(?<target>mim)${S}(?=${INFINITIVE_AHEAD})`,
+    alternatives: ["eu", "mim,"],
+    messageKey: "review_msg_pt_pronoun_case",
+  },
   // Crase: "à" before a span of time is "há" (it existed), after "daqui" plain "a".
   {
     pattern: `(?<!daqui${S})(?<target>à)${S}${AMOUNT}?${SPAN}`,
@@ -225,7 +319,11 @@ export function confusions(ctx: DetectContext): RawFinding[] {
         continue;
       // Frames are matched ignoring case; a capitalized name inside one is not prose.
       if (/\s\p{Lu}/u.test(m[0])) continue;
-      push(m, frame.alternatives, frame.messageKey);
+      const alternatives =
+        typeof frame.alternatives === "function"
+          ? frame.alternatives(m.groups!.target)
+          : frame.alternatives;
+      push(m, alternatives, frame.messageKey);
     }
   }
   for (const m of frameMatches(ctx, INFINITIVE_CRASE)) {

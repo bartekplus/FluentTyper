@@ -1540,6 +1540,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Portugalski umieszcza zaimek dopełnienia wewnątrz czasownika w czasie przyszłym lub trybie warunkowym, a nie po nim (poder-se-ia, dir-lhe-ei, trá-lo-ia).",
     "No futuro e no condicional, o pronome vai no meio do verbo, não depois dele (poder-se-ia, dir-lhe-ei, trá-lo-ia).",
   ],
+  review_msg_pt_pronoun_case: [
+    "After a preposition Portuguese uses mim and ti (para mim, entre mim e ti); eu and tu stay only as the subject of a following infinitive (para eu fazer).",
+    "Après une préposition, le portugais emploie mim et ti (para mim, entre mim e ti) ; eu et tu ne restent que comme sujet d'un infinitif qui suit (para eu fazer).",
+    "Nakon prijedloga portugalski koristi mim i ti (para mim, entre mim e ti); eu i tu ostaju samo kao subjekt infinitiva koji slijedi (para eu fazer).",
+    "Tras una preposición, el portugués usa mim y ti (para mim, entre mim e ti); eu y tu quedan solo como sujeto de un infinitivo que sigue (para eu fazer).",
+    "Μετά από πρόθεση τα πορτογαλικά χρησιμοποιούν mim και ti (para mim, entre mim e ti)· τα eu και tu μένουν μόνο ως υποκείμενο απαρεμφάτου που ακολουθεί (para eu fazer).",
+    "Efter en preposition använder portugisiskan mim och ti (para mim, entre mim e ti); eu och tu står bara som subjekt till en följande infinitiv (para eu fazer).",
+    "Nach einer Präposition steht im Portugiesischen mim und ti (para mim, entre mim e ti); eu und tu bleiben nur als Subjekt eines folgenden Infinitivs (para eu fazer).",
+    "Po przyimku portugalski używa mim i ti (para mim, entre mim e ti); eu i tu zostają tylko jako podmiot następującego bezokolicznika (para eu fazer).",
+    "Depois de preposição usa-se mim e ti (para mim, entre mim e ti); eu e tu só ficam como sujeito de um infinitivo (para eu fazer).",
+  ],
   review_msg_pt_ao90: [
     "1990 Portuguese spelling: prefixes join their word unless it starts with h or the same vowel (autoestima, micro-ondas), and months and weekdays are lowercase.",
     "Orthographe portugaise de 1990 : les préfixes se soudent au mot sauf devant h ou la même voyelle (autoestima, micro-ondas), et mois et jours s’écrivent en minuscules.",
