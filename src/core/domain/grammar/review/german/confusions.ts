@@ -14,7 +14,62 @@ const re = (source: string) => new RegExp(`${WORD_START}(?:${source})`, "gdu");
 const ci = (word: string) => `[${word[0]}${word[0].toUpperCase()}]${word.slice(1)}`;
 const any = (words: string) => words.split(" ").map(ci).join("|");
 
-type Frame = { regex: RegExp; fix: string | ((m: RegExpExecArray) => string | null) };
+type Frame = {
+  regex: RegExp;
+  fix: string | ((m: RegExpExecArray) => string | string[] | null);
+};
+
+// Countries and regions named with their article: "die Türkei", "der Vatikan", "die USA".
+const COUNTRIES: Readonly<Record<string, "f" | "m" | "p" | "i">> = {
+  Türkei: "f",
+  Schweiz: "f",
+  Ukraine: "f",
+  Slowakei: "f",
+  Mongolei: "f",
+  Tschechei: "f",
+  Vatikan: "m",
+  Jemen: "m",
+  Libanon: "m",
+  Sudan: "m",
+  Tschad: "m",
+  Kongo: "m",
+  Niederlande: "p",
+  USA: "p",
+  VAE: "p",
+  Bahamas: "i",
+  Malediven: "i",
+  Seychellen: "i",
+  Philippinen: "i",
+};
+/** The preposition and article a country needs after "aus", "in", "nach" or "von". */
+function withArticle(prep: string, country: string): string[] | null {
+  const kind = COUNTRIES[country];
+  const p = prep.toLowerCase();
+  const into = { f: "in die", m: "in den", p: "in die", i: "auf die" }[kind];
+  const at = { f: "in der", m: "im", p: "in den", i: "auf den" }[kind];
+  const from = { f: "aus der", m: "aus dem", p: "aus den", i: "von den" }[kind];
+  const of = { f: "von der", m: "vom", p: "von den", i: "von den" }[kind];
+  const forms = p === "aus" ? [from] : p === "nach" ? [into] : p === "von" ? [of] : [at, into];
+  return forms.map((f) => `${f} ${country}`);
+}
+// Verbs whose perfect takes "sein": motion to a place, change of state, happening.
+const SEIN_PARTICIPLES =
+  "gegangen gekommen angekommen abgereist eingeschlafen gestorben verstorben verschwunden " +
+  "gescheitert aufgefallen eingefallen erschienen entstanden davongekommen geblieben passiert " +
+  "geschehen gewesen geworden aufgewacht aufgestanden gewachsen gestiegen gesunken gelungen " +
+  "misslungen ertrunken gereist gerannt zurückgekehrt umgekommen ausgewandert eingewandert " +
+  "eingetroffen hingefallen gestolpert explodiert";
+const SEIN_FOR: Readonly<Record<string, string>> = {
+  hat: "ist",
+  hast: "bist",
+  haben: "sind",
+  habt: "seid",
+  hatte: "war",
+  hatten: "waren",
+  hattest: "warst",
+  hätte: "wäre",
+  hätten: "wären",
+};
 
 // Words that say when: "seit gestern", "seit zwei Tagen", "seit dem letzten Mittwoch".
 const TIME_WORDS =
@@ -194,6 +249,42 @@ const FRAMES: readonly Frame[] = [
     ),
     fix: "wenn",
   },
+  // "aus Türkei", "in USA", "nach Niederlande" → with the article; "Made in USA" stays.
+  {
+    regex: re(
+      `(?<!Made${S})(?<target>(?<prep>${any("aus in nach von")})${S}(?<country>${Object.keys(COUNTRIES).join("|")}))${E}`,
+    ),
+    fix: (m) => withArticle(m.groups!.prep, m.groups!.country),
+  },
+  // "Sie hat gegangen", "Die Gäste haben heute angekommen" → ist / sind.
+  {
+    regex: re(
+      `(?<target>${any("hat hast haben habt hatte hatten hattest hätte hätten habe")})${E}(?=(?:${S}[^\\s,.;:!?]+){0,5}?${S}(?:${SEIN_PARTICIPLES.replace(/ /g, "|")})[ \\t]*(?:[.,;:!?]|$))`,
+    ),
+    fix: (m) => {
+      const typed = m.groups!.target.toLowerCase();
+      // Words in between that change the structure: an infinitive's "zu", another verb.
+      const rest = m.input
+        .slice(m.index + m[0].length, m.index + m[0].length + 80)
+        .split(/[.,;:!?]/)[0];
+      if (
+        /(?<!\p{L})(?:zu|lassen|sehen|hören|worden|wird|werden|und|oder|aber|sondern|bin|bist|ist|sind|seid|war|waren|wäre|sei)(?!\p{L})/u.test(
+          rest,
+        )
+      )
+        return null;
+      if (/(?<!\p{L})zu\s+$/u.test(m.input.slice(Math.max(0, m.index - 4), m.index))) return null;
+      // "nachdem ich angefangen habe in …": the end of the clause before (missing comma).
+      if (
+        /(?<!\p{L})\p{Ll}{4,}(?:en|t)\s+$/u.test(m.input.slice(Math.max(0, m.index - 20), m.index))
+      )
+        return null;
+      if (typed !== "habe") return SEIN_FOR[typed];
+      // "Ich habe … angekommen" → bin; reported speech "Er habe … " → sei.
+      const before = m.input.slice(Math.max(0, m.index - 6), m.index);
+      return /(?<!\p{L})ich\s*$/iu.test(before) || /^\s+ich(?!\p{L})/iu.test(rest) ? "bin" : "sei";
+    },
+  },
   // "Es gibt keine Features, sonder nur …" → sondern.
   { regex: re(`(?<=,${S})(?<target>sonder)(?=${S}${W})`), fix: "sondern" },
 ];
@@ -213,17 +304,19 @@ function confusions(ctx: DetectContext): RawFinding[] {
       const [start, end] = m.indices!.groups![name];
       const typed = m.groups![name];
       if (ctx.dictionary.has(typed.toLowerCase())) continue;
-      const replacement = typeof fix === "string" ? fix : fix(m);
-      if (!replacement || replacement === typed) continue;
+      const fixed = typeof fix === "string" ? fix : fix(m);
+      const replacements = fixed === null ? [] : [fixed].flat().filter((r) => r !== typed);
+      if (replacements.length === 0) continue;
       findings.push({
         ruleId: "germanConfusedWords",
         messageKey: "review_msg_contextual_grammar",
         range: { start, end },
-        alternatives: [
+        alternatives: replacements.map((replacement) =>
           /^\p{Lu}/u.test(typed)
             ? replacement[0].toUpperCase() + replacement.slice(1)
             : replacement,
-        ],
+        ),
+        ...(replacements.length > 1 ? { requiresChoice: true as const } : {}),
         context: { start: Math.max(0, start - 60), end: Math.min(ctx.text.length, end + 40) },
       });
     }
