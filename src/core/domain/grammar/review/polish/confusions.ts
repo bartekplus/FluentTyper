@@ -145,6 +145,8 @@ const BOUND: Record<string, string> = {
   dyrdy: "w",
   zanadrzu: "w",
   szczętu: "do",
+  imentu: "do",
+  zabój: "na",
   kretesem: "z",
   pantałyku: "z",
   manowce: "na",
