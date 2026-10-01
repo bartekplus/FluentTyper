@@ -127,6 +127,33 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
     },
   ],
   [
+    "spanishAccents",
+    "verb forms against their accented twins",
+    {
+      pos: [
+        ["Apunta el numero de teléfono.", "Apunta el número de teléfono."],
+        ["Lo leí en la pagina web.", "Lo leí en la página web."],
+        ["Por ultimo, gracias a todos.", "Por último, gracias a todos."],
+        ["Fue muy explicito con nosotros.", "Fue muy explícito con nosotros."],
+        ["Tengo dos practicas esta semana.", "Tengo dos prácticas esta semana."],
+        ["La empresa se creo en 1990.", "La empresa se creó en 1990."],
+        ["Ella hablo con el director.", "Ella habló con el director."],
+        ["Yo no sabia nada.", "Yo no sabía nada."],
+        ["Se hacia tarde.", "Se hacía tarde."],
+      ],
+      neg: [
+        "Practico yoga todos los martes.",
+        "Este opera desde el domingo.",
+        "La termino mañana sin falta.",
+        "Con ella hablo todos los días.",
+        "¿Tiene usted cambio?",
+        "Ella, creo, no lo sabe.",
+        "Miró hacia abajo con miedo.",
+        "Se lio con los papeles.",
+      ],
+    },
+  ],
+  [
     "spanishConfusions",
     "homophones in fixed frames",
     {
