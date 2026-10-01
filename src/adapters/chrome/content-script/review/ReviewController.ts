@@ -599,25 +599,38 @@ export class ReviewController {
   private async apply(id: string, alternative: number, viaKeyboard: boolean): Promise<void> {
     const active = this.active;
     if (!active) return;
+    const index = this.indexOf(active, id);
     active.ui.closeCard();
-    await active.session.apply(id, alternative);
-    if (this.active === active && viaKeyboard) this.focusAfterWrite(active);
+    const result = await active.session.apply(id, alternative);
+    if (this.active !== active) return;
+    // One fix leads to the next: its card opens where this one was.
+    if (result?.status === "applied" && this.openNext(active, index, viaKeyboard)) return;
+    if (viaKeyboard) this.focusAfterWrite(active);
   }
 
   private ignore(id: string, matching = false): void {
     const active = this.active;
     if (!active) return;
-    const index = active.state?.diagnostics.findIndex((d) => d.id === id) ?? -1;
+    const index = this.indexOf(active, id);
     active.ui.closeCard();
     if (matching) active.session.ignoreMatching(id);
     else active.session.ignore(id);
-    // Keep keyboard users in the list, on the issue that took this one's place.
-    const next =
-      active.state?.diagnostics[
-        Math.min(Math.max(index, 0), (active.state?.diagnostics.length ?? 1) - 1)
-      ];
-    if (next) active.ui.focusItem(next.id);
-    else active.ui.focusPanel();
+    // On to the issue that took this one's place; focus stays in the card.
+    if (!this.openNext(active, index, true)) active.ui.focusPanel();
+  }
+
+  private indexOf(active: ActiveReview, id: string): number {
+    return active.state?.diagnostics.findIndex((d) => d.id === id) ?? -1;
+  }
+
+  /** Opens the card of the finding now at `index` (or the last one); false when none is left. */
+  private openNext(active: ActiveReview, index: number, focus: boolean): boolean {
+    const diagnostics = active.state?.status === "ready" ? active.state.diagnostics : [];
+    const next = diagnostics[Math.min(Math.max(index, 0), diagnostics.length - 1)];
+    if (!next) return false;
+    this.select(next.id, { openCard: true, focusList: false });
+    if (focus) active.ui.focusCard();
+    return true;
   }
 
   private async fixAll(viaKeyboard: boolean): Promise<void> {
