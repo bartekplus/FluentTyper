@@ -195,6 +195,64 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
       ],
     },
   ],
+  [
+    "germanAbbreviations",
+    {
+      pos: [
+        ["Wir arbeiten idR bis vier.", "Wir arbeiten i. d. R. bis vier."],
+        ["Er kam u.a mit Anna.", "Er kam u. a. mit Anna."],
+        ["Sie ist Dipl-Ing. bei uns.", "Sie ist Dipl.-Ing. bei uns."],
+        ["Es kostet 2 mio Euro.", "Es kostet 2 Mio. Euro."],
+        ["Das gilt z B. für alle.", "Das gilt z.\u00a0B. für alle."],
+      ],
+      neg: [
+        "Das gilt z. B. für alle.",
+        "Er ging so. Dann kam er.",
+        "Sie ist Dipl.-Ing. bei uns.",
+        "Es kostet 2 Mio. Euro.",
+        "Die Datei heißt d.h.txt.",
+        "Wir sehen uns um 3 Uhr.",
+      ],
+    },
+  ],
+  [
+    "germanAbbreviationSpacing",
+    {
+      pos: [
+        ["Das gilt z.B. für alle.", "Das gilt z.\u00a0B. für alle."],
+        ["Ich bin Dr.med. Weber.", "Ich bin Dr.\u00a0med. Weber."],
+        ["Das heißt, d.h. wir warten.", "Das heißt, d.\u00a0h. wir warten."],
+        ["Er kommt i.d.R. pünktlich.", "Er kommt i.\u00a0d.\u00a0R. pünktlich."],
+        ["Die Zinsen sind 2 % p.a. hoch.", "Die Zinsen sind 2 % p.\u00a0a. hoch."],
+      ],
+      neg: [
+        "Das gilt z. B. für alle.",
+        "Die Seite web.de lädt.",
+        "Er ging so. Dann kam er.",
+        "Das ist u. a. wichtig.",
+        "Ich bin Dr. med. Weber.",
+      ],
+    },
+  ],
+  [
+    "germanQuotes",
+    {
+      pos: [
+        ["Er sagte: “Hallo“.", "Er sagte: „Hallo“."],
+        ["Sie las „Faust”.", "Sie las „Faust“."],
+        [",,Gut“, sagte er.", "„Gut“, sagte er."],
+        ['Er rief „Halt" und blieb stehen.', "Er rief „Halt“ und blieb stehen."],
+        ["Das Album ”Blau“ kam 2010.", "Das Album „Blau“ kam 2010."],
+      ],
+      neg: [
+        "„Hallo“, sagte er.",
+        'Ein 16"-Monitor reicht.',
+        'Er schrieb "Hallo".',
+        "Das ist ein „Gefällt mir“-Button.",
+        "Sie nennt es »Kunst«.",
+      ],
+    },
+  ],
 ];
 
 describe.each(RULES)("%s", (ruleId, { pos, neg }) => {

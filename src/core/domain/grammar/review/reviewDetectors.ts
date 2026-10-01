@@ -1032,6 +1032,9 @@ const duplicatePunctuation: Detector = (ctx) => {
   const periods = /(?<=(?![\p{Script=Arabic}])[\p{L}\p{N})\]"”’])\.\.(?=\s|$)/gu;
   for (const match of ownedMatches(ctx, periods)) {
     const start = match.index;
+    // German "am 30.11.." ends a sentence on a date: its own dot, then the period.
+    const before = ctx.text.slice(Math.max(0, start - 8), start);
+    if (ctx.lang.startsWith("de") && /(?:^|[^\d.])\d{1,2}\.\d{1,2}$/.test(before)) continue;
     findings.push({
       ruleId: "duplicatePunctuationCollapse",
       messageKey: "review_msg_duplicate_punctuation",

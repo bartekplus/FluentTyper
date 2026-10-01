@@ -136,6 +136,7 @@ describe("review rule coverage map", () => {
             "englishBritishSpelling",
             "styleWordChoice",
             "styleSpelledNumbers",
+            "germanAbbreviationSpacing",
           ].includes(id),
       ),
     );

@@ -641,6 +641,30 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     bulk: "individual",
     languages: ["de_DE"],
   },
+  germanAbbreviations: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "typography",
+    kind: "marks",
+    bulk: "individual",
+    languages: ["de_DE"],
+  },
+  germanQuotes: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "typography",
+    kind: "marks",
+    bulk: "individual",
+    languages: ["de_DE"],
+  },
+  germanAbbreviationSpacing: {
+    review: "supported",
+    defaultEnabled: false,
+    category: "typography",
+    kind: "spacing",
+    bulk: "individual",
+    languages: ["de_DE"],
+  },
 };
 
 /** Review's dictionary check: individual only, and the user always picks the word. */

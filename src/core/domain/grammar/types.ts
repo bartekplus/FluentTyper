@@ -119,7 +119,10 @@ export interface GrammarRuleCatalogEntry {
     | "germanPrepositionCase"
     | "germanConfusedWords"
     | "germanAdjectiveForms"
-    | "germanSuspendedHyphen";
+    | "germanSuspendedHyphen"
+    | "germanAbbreviations"
+    | "germanQuotes"
+    | "germanAbbreviationSpacing";
   /** Absent for existing typing rules; false for native Review-only checks. */
   typing?: false;
   name: string;

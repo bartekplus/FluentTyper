@@ -11,6 +11,7 @@ import { isReviewSupportedRule, runsInReviewLanguage } from "./reviewCatalog";
 import { REVIEW_DETECTORS, type RawFinding } from "./reviewDetectors";
 import { toDiagnostic } from "./reviewFindings";
 import { PROSE_DOTTED_TOKEN } from "./english/grammarStyle1";
+import { isGermanAbbreviationToken } from "./german/abbreviations";
 import { PROSE_SLASH_TOKEN } from "./english/dialects";
 import { slashedProseWord } from "./english/remaining";
 import { applyEdits, positionMapper } from "./textRanges";
@@ -188,6 +189,7 @@ function technicalRanges(source: string, from: number, to: number): ProtectedRan
       isTechnicalToken(bare) &&
       !DECIMAL_QUANTITY.test(bare) &&
       !PROSE_DOTTED_TOKEN.test(bare) &&
+      !isGermanAbbreviationToken(bare) &&
       !PROSE_SLASH_TOKEN.test(bare) &&
       !slashedProseWord(source, match.index + lead, bare)
     ) {

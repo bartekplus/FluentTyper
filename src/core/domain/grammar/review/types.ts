@@ -219,7 +219,10 @@ export type ReviewMessageKey =
   | "review_msg_german_noun_case"
   | "review_msg_german_preposition_case"
   | "review_msg_german_adjective_ending"
-  | "review_msg_german_suspended_hyphen";
+  | "review_msg_german_suspended_hyphen"
+  | "review_msg_german_abbreviation"
+  | "review_msg_german_quotes"
+  | "review_msg_german_abbreviation_spacing";
 
 export type BulkDecision =
   | { eligible: true; alternative: number }
