@@ -699,6 +699,15 @@ const pronounVerb: Detector = (ctx) => {
         bulkBlock = "context-dependent";
       }
     }
+    // "Sam and I is a band", "you as well as he are", "am I nuts": a coordinated or
+    // compared pronoun, or an inverted question, is not this verb's whole subject. "and you
+    // was right" still opens a clause.
+    const before = ctx.text.slice(Math.max(0, phraseRange.start - 12), phraseRange.start);
+    if (
+      /\b(?:as|than|am|is|are|was|were)[ \t\u00a0]+$/i.test(before) ||
+      (inputPronoun.toLowerCase() !== "you" && /(?:\b(?:and|or|nor)|&)[ \t\u00a0]+$/i.test(before))
+    )
+      continue;
     const gap = phrase.slice(inputPronoun.length, phrase.length - inputVerb.length);
     // The pronoun "i" is always capitalized; the case rule would flag it anyway.
     const fixedPronoun = pronoun === "i" ? "I" : pronoun;

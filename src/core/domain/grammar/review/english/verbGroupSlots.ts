@@ -296,6 +296,10 @@ function doSupport(ctx: DetectContext): RawFinding[] {
     if (!negated) {
       if (verb.endsWith("ing")) continue;
       if (!/^(?:i|you|we|they|he|she|it|this|that)$/i.test(subject)) continue;
+      // "The research I did showed…": an object-gap relative after a noun.
+      const head = wordBefore(ctx, m.index);
+      if (head && !FUNCTION_WORDS.has(head) && (nounOnly(head) || englishWordInfo(head)?.noun))
+        continue;
       const forms = englishVerbForms(verb);
       if (!verb.endsWith("s") && !(forms && forms.past === verb && forms.participle !== verb))
         continue;
