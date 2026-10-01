@@ -115,6 +115,7 @@ export interface GrammarRuleCatalogEntry {
     // French (review/french/)
     | "frenchVerbForms"
     | "frenchHomophones"
+    | "frenchHyphenation"
     | "quoteSpacing"
     | "primeSymbols";
   /** Absent for existing typing rules; false for native Review-only checks. */

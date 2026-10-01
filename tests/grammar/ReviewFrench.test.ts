@@ -166,6 +166,39 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
       ],
     },
   ],
+  [
+    "frenchHyphenation",
+    {
+      pos: [
+        ["Pouvez vous m'aider ?", "Pouvez-vous m'aider ?"],
+        ["As tu fini tes devoirs ?", "As-tu fini tes devoirs ?"],
+        ["Y a t il des risques ?", "Y a-t-il des risques ?"],
+        ["Où va t'on maintenant ?", "Où va-t-on maintenant ?"],
+        ["Que mange il ce soir ?", "Que mange-t-il ce soir ?"],
+        ["Que faut t-il faire ?", "Que faut-il faire ?"],
+        ["Est ce que tu viens ?", "Est-ce que tu viens ?"],
+        ["Comment est ce possible ?", "Comment est-ce possible ?"],
+        ["Il partira peut être demain.", "Il partira peut-être demain."],
+        ["Vous avez peut être raison.", "Vous avez peut-être raison."],
+        ["Peut être viendra-t-il.", "Peut-être viendra-t-il."],
+      ],
+      neg: [
+        "Quand tu viens tu manges ?",
+        "Le but est ce que tu dis.",
+        "C'est ce que je pense ?",
+        "Il nous parle ?",
+        "Il veut vous voir ?",
+        "Quel est ce bruit ?",
+        "Quel est ce son ?",
+        "Il peut être tard.",
+        "Cela peut être utile.",
+        "Tout ce que vous dites peut être utilisé.",
+        "Peut être résilié chaque mois.",
+        "L'Écosse peut être très chaude.",
+        "Pouvez-vous m'aider ?",
+      ],
+    },
+  ],
 ];
 
 describe.each(FIXTURES)("%s", (ruleId, { pos, neg }) => {

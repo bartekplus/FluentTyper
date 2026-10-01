@@ -210,3 +210,136 @@ export const PHRASES: readonly PhraseRow[] = [
   // "est" fixed in "qui plus est", "n'en est rien", "m'est égal".
   ...one(["qui plus ~", "m'~ égal", "t'~ égal"], "ait", "est"),
 ];
+
+// Compound numbers below a hundred take hyphens ("vingt-deux", "quatre-vingt-dix"); "et un"
+// and "et onze" keep their spaces.
+const UNITS = ["deux", "trois", "quatre", "cinq", "six", "sept", "huit", "neuf"];
+const NUMBERS: PhraseRow[] = [
+  ...["vingt", "trente", "quarante", "cinquante", "soixante"].flatMap((ten) =>
+    UNITS.map((unit): PhraseRow => [`${ten} ${unit}`, `${ten}-${unit}`]),
+  ),
+  ...["sept", "huit", "neuf"].map((unit): PhraseRow => [`dix ${unit}`, `dix-${unit}`]),
+  ["soixante dix", "soixante-dix"],
+  ...["douze", "treize", "quatorze", "quinze", "seize"].map((teen): PhraseRow => [
+    `soixante ${teen}`,
+    `soixante-${teen}`,
+  ]),
+  ["quatre vingt", "quatre-vingt"],
+  ["quatre vingts", "quatre-vingts"],
+  ...[...UNITS, "un", "dix", "onze", "douze", "treize", "quatorze", "quinze", "seize"].map(
+    (unit): PhraseRow => [`quatre vingt ${unit}`, `quatre-vingt-${unit}`],
+  ),
+  ...[...UNITS, "dix", "onze", "douze", "treize", "quatorze", "quinze", "seize"].map(
+    (unit): PhraseRow => [`quatre-vingt ${unit}`, `quatre-vingt-${unit}`],
+  ),
+];
+
+/** Rows for englishClosedCompounds: hyphens a compound needs, or must not have. */
+export const COMPOUNDS: readonly PhraseRow[] = [
+  ...NUMBERS,
+  // Imperative + pronoun.
+  ...[
+    "dis",
+    "dites",
+    "excuse",
+    "excusez",
+    "laisse",
+    "laissez",
+    "écoute",
+    "écoutez",
+    "regarde",
+    "regardez",
+    "attends",
+    "attendez",
+    "donne",
+    "donnez",
+    "montre",
+    "montrez",
+    "aide",
+    "aidez",
+    "crois",
+    "croyez",
+    "rappelle",
+    "rappelez",
+  ].map((verb): PhraseRow => [`${verb} moi`, `${verb}-moi`]),
+  ...["dépêche", "tais", "calme", "lève", "assieds", "sers"].map((verb): PhraseRow => [
+    `${verb} toi`,
+    `${verb}-toi`,
+  ]),
+  ...["vas", "allez", "allons"].map((verb): PhraseRow => [`${verb} y`, `${verb}-y`]),
+  // Emphatic pronouns.
+  ...["moi", "toi", "lui", "soi"].map((pronoun): PhraseRow => [
+    `${pronoun} même`,
+    `${pronoun}-même`,
+  ]),
+  ...["nous", "eux", "elles"].map((pronoun): PhraseRow => [`${pronoun} mêmes`, `${pronoun}-mêmes`]),
+  ["quelques uns", "quelques-uns"],
+  ["quelques unes", "quelques-unes"],
+  // Fixed compounds written apart.
+  ["grand mère", "grand-mère"],
+  ["grand père", "grand-père"],
+  ["grands parents", "grands-parents"],
+  ["arc en ciel", "arc-en-ciel"],
+  ["chef d'œuvre", "chef-d'œuvre"],
+  ["chef d'oeuvre", "chef-d'œuvre"],
+  ["après midi", "après-midi"],
+  ["week end", "week-end"],
+  ["week ends", "week-ends"],
+  ["là haut", "là-haut"],
+  ["là dessus", "là-dessus"],
+  ["là dessous", "là-dessous"],
+  ["là dedans", "là-dedans"],
+  ["ci dessus", "ci-dessus"],
+  ["ci dessous", "ci-dessous"],
+  ["ci joint", "ci-joint"],
+  ["ci jointe", "ci-jointe"],
+  ["ci après", "ci-après"],
+  ["la bas", "là-bas"],
+  ["la haut", "là-haut"],
+  ["porte monnaie", "porte-monnaie"],
+  ["porte clés", "porte-clés"],
+  ["tire bouchon", "tire-bouchon"],
+  ["sous sol", "sous-sol"],
+  ["sans abri", "sans-abri"],
+  ["demi heure", "demi-heure"],
+  ["demi journée", "demi-journée"],
+  ["demi douzaine", "demi-douzaine"],
+  ["à mi chemin", "à mi-chemin"],
+  ["pare brise", "pare-brise"],
+  ["pare chocs", "pare-chocs"],
+  ["qu'est ce que", "qu'est-ce que"],
+  ["qu'est ce qui", "qu'est-ce qui"],
+  ["peu être", "peut-être"],
+  ["peu-être", "peut-être"],
+  ...["un", "le", "mon", "ton", "son", "votre", "notre", "au", "du", "ce"].map((det): PhraseRow => [
+    `${det} rendez vous`,
+    `${det} rendez-vous`,
+  ]),
+  ...["le", "du", "son", "leur", "votre", "notre"].map((det): PhraseRow => [
+    `${det} savoir faire`,
+    `${det} savoir-faire`,
+  ]),
+  ...["le", "du", "son", "leur", "votre", "notre"].map((det): PhraseRow => [
+    `${det} bien être`,
+    `${det} bien-être`,
+  ]),
+  // Hyphens these never take.
+  ["compte-rendu", "compte rendu"],
+  ["compte-tenu", "compte tenu"],
+  ["pomme-de-terre", "pomme de terre"],
+  ["pommes-de-terre", "pommes de terre"],
+  ["bande-dessinée", "bande dessinée"],
+  ["bandes-dessinées", "bandes dessinées"],
+  ["petit-ami", "petit ami"],
+  ["petite-amie", "petite amie"],
+  ["lieu-commun", "lieu commun"],
+  ["état-civil", "état civil"],
+  ["en-dessous", "en dessous"],
+  ["en-dessus", "en dessus"],
+  ["tout-à-fait", "tout à fait"],
+  ["ici-même", "ici même"],
+  ["entre-eux", "entre eux"],
+  ["entre-elles", "entre elles"],
+  ["porte-feuille", "portefeuille"],
+  ["marche-pied", "marchepied"],
+];

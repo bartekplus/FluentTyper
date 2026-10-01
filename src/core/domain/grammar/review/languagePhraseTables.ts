@@ -140,6 +140,7 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
       ["celle là", "celle-là"],
       ["ceux là", "ceux-là"],
       ["celles là", "celles-là"],
+      ...french.COMPOUNDS,
     ],
     // "monter en haut de la tour" names a destination: left out.
     style: [

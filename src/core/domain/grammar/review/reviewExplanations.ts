@@ -1474,6 +1474,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Te francuskie słowa brzmią tak samo (a/à, ou/où, ce/se, ça/sa…); kontekst wymaga drugiej pisowni.",
     "Estas palavras francesas soam igual (a/à, ou/où, ce/se, ça/sa…); o contexto pede a outra grafia.",
   ],
+  review_msg_fr_hyphen: [
+    "French joins an inverted subject to its verb with a hyphen (“pouvez-vous”, “a-t-il”), and writes the adverb “peut-être” with one.",
+    "Le sujet inversé se lie au verbe par un trait d’union (« pouvez-vous », « a-t-il »), comme l’adverbe « peut-être ».",
+    "Francuski spaja obrnuti subjekt s glagolom spojnicom („pouvez-vous”, „a-t-il”), kao i prilog „peut-être”.",
+    "El francés une el sujeto invertido al verbo con guion («pouvez-vous», «a-t-il»), igual que el adverbio «peut-être».",
+    "Τα γαλλικά ενώνουν το αντεστραμμένο υποκείμενο με το ρήμα με ενωτικό («pouvez-vous», «a-t-il»), όπως και το επίρρημα «peut-être».",
+    "Franskan binder ett omvänt subjekt till verbet med bindestreck (”pouvez-vous”, ”a-t-il”), liksom adverbet ”peut-être”.",
+    "Im Französischen wird ein nachgestelltes Subjekt mit Bindestrich ans Verb gehängt („pouvez-vous“, „a-t-il“), ebenso das Adverb „peut-être“.",
+    "Francuski łączy przestawiony podmiot z czasownikiem łącznikiem („pouvez-vous”, „a-t-il”), podobnie jak przysłówek „peut-être”.",
+    "O francês une o sujeito invertido ao verbo com hífen («pouvez-vous», «a-t-il»), tal como o advérbio «peut-être».",
+  ],
 };
 
 /**

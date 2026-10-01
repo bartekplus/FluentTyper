@@ -542,6 +542,19 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     recommended: false,
     priority: 174,
   },
+  {
+    id: "frenchHyphenation",
+    typing: false,
+    name: "French inversion and peut-être hyphens",
+    titleI18nKey: "review_msg_fr_hyphen",
+    descriptionI18nKey: "review_msg_fr_hyphen",
+    exampleI18nKey: "",
+    languageScope: "all",
+    safetyTier: "advanced",
+    defaultRollout: "off",
+    recommended: false,
+    priority: 175,
+  },
 
   {
     id: "englishPronounCase",
