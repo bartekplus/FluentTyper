@@ -265,6 +265,30 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
     },
   ],
   [
+    "portugueseAgreement",
+    {
+      pos: [
+        ["No bairro existe vários mercados.", "No bairro existem vários mercados."],
+        ["Ontem aconteceu dois acidentes.", "Ontem aconteceram dois acidentes."],
+        ["Ainda restava algumas dúvidas.", "Ainda restavam algumas dúvidas."],
+        ["Amanhã deve ocorrer uns atrasos.", "Amanhã devem ocorrer uns atrasos."],
+        ["Ela próprio preparou o jantar.", "Ela própria preparou o jantar."],
+        ["Eles mesmos e elas próprios votaram.", "Eles mesmos e elas próprias votaram."],
+        ["Isso é muito estranha.", "Isso é muito estranho."],
+        ["Tudo aquilo foi tão divertida!", "Tudo aquilo foi tão divertido!"],
+      ],
+      neg: [
+        "Isso acontece muitas vezes.",
+        "A reunião ocorre dois dias depois.",
+        "Existem muitos problemas.",
+        "Ele resta sozinho em casa.",
+        "Isso é boa notícia.",
+        "Ela própria decidiu.",
+        "Deve haver muitas opções.",
+      ],
+    },
+  ],
+  [
     "portugueseAO90",
     {
       pos: [

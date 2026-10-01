@@ -1573,6 +1573,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Portugalski ujmuje wtrącenie takie jak no entanto czy por outro lado w dwa przecinki i stawia przecinek przed imieniem osoby, którą się pozdrawia (Bom dia, Ana).",
     "Expressões intercaladas como no entanto ou por outro lado ficam entre duas vírgulas, e o vocativo leva vírgula depois da saudação (Bom dia, Ana).",
   ],
+  review_msg_pt_agreement: [
+    "The word must agree: existir, acontecer or restar take the plural when their subject follows (existem muitos casos), próprio matches its pronoun (ela própria), and isso or tudo take a masculine adjective.",
+    "Le mot doit s'accorder : existir, acontecer ou restar prennent le pluriel quand leur sujet suit (existem muitos casos), próprio s'accorde avec son pronom (ela própria), et isso ou tudo prennent un adjectif masculin.",
+    "Riječ se mora slagati: existir, acontecer ili restar idu u množinu kad subjekt slijedi (existem muitos casos), próprio se slaže sa zamjenicom (ela própria), a isso ili tudo traže pridjev muškog roda.",
+    "La palabra debe concordar: existir, acontecer o restar van en plural cuando el sujeto va detrás (existem muitos casos), próprio concuerda con su pronombre (ela própria) e isso o tudo llevan adjetivo masculino.",
+    "Η λέξη πρέπει να συμφωνεί: τα existir, acontecer ή restar μπαίνουν στον πληθυντικό όταν το υποκείμενο ακολουθεί (existem muitos casos), το próprio συμφωνεί με την αντωνυμία του (ela própria) και τα isso ή tudo παίρνουν αρσενικό επίθετο.",
+    "Ordet måste kongruera: existir, acontecer eller restar står i plural när subjektet kommer efter (existem muitos casos), próprio böjs efter sitt pronomen (ela própria) och isso eller tudo tar ett maskulint adjektiv.",
+    "Das Wort muss übereinstimmen: existir, acontecer oder restar stehen im Plural, wenn das Subjekt folgt (existem muitos casos), próprio richtet sich nach seinem Pronomen (ela própria), und isso oder tudo verlangen ein maskulines Adjektiv.",
+    "Słowo musi się zgadzać: existir, acontecer czy restar przyjmują liczbę mnogą, gdy podmiot stoi po nich (existem muitos casos), próprio zgadza się z zaimkiem (ela própria), a isso lub tudo wymagają przymiotnika rodzaju męskiego.",
+    "Concordância: existir, acontecer e restar vão para o plural quando o sujeito vem depois (existem muitos casos), próprio concorda com o pronome (ela própria), e isso ou tudo pedem adjetivo masculino.",
+  ],
   review_msg_pt_ao90: [
     "1990 Portuguese spelling: prefixes join their word unless it starts with h or the same vowel (autoestima, micro-ondas), and months and weekdays are lowercase.",
     "Orthographe portugaise de 1990 : les préfixes se soudent au mot sauf devant h ou la même voyelle (autoestima, micro-ondas), et mois et jours s’écrivent en minuscules.",

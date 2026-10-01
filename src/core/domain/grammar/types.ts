@@ -123,7 +123,8 @@ export interface GrammarRuleCatalogEntry {
     | "portugueseCliticPlacement"
     | "portugueseAO90"
     | "portugueseDates"
-    | "portugueseCommas";
+    | "portugueseCommas"
+    | "portugueseAgreement";
   /** Absent for existing typing rules; false for native Review-only checks. */
   typing?: false;
   name: string;

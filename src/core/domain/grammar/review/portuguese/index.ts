@@ -8,6 +8,7 @@ import { ao90 } from "./ao90";
 import { cliticPlacement } from "./clitics";
 import { invalidDates } from "./dates";
 import { commas } from "./commas";
+import { agreement } from "./agreement";
 import { numberFormat, typographyStyle } from "./typography";
 
 export const PORTUGUESE_DETECTORS: ReviewDetectorEntry[] = [
@@ -20,4 +21,5 @@ export const PORTUGUESE_DETECTORS: ReviewDetectorEntry[] = [
   { rules: ["portugueseAO90"], detect: ao90 },
   { rules: ["portugueseDates"], detect: invalidDates },
   { rules: ["portugueseCommas"], detect: commas },
+  { rules: ["portugueseAgreement"], detect: agreement },
 ];

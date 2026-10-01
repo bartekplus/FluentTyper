@@ -1060,6 +1060,19 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     recommended: false,
     priority: 318,
   },
+  {
+    id: "portugueseAgreement",
+    typing: false,
+    name: "Portuguese agreement of verbs of existing, próprio and neuter pronouns",
+    titleI18nKey: "review_msg_pt_agreement",
+    descriptionI18nKey: "review_msg_pt_agreement",
+    exampleI18nKey: "",
+    languageScope: "all",
+    safetyTier: "advanced",
+    defaultRollout: "off",
+    recommended: false,
+    priority: 319,
+  },
 ] as const;
 
 export type CatalogRuleId = (typeof GRAMMAR_RULE_CATALOG)[number]["id"];
