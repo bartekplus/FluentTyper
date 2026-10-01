@@ -112,6 +112,7 @@ export interface GrammarRuleCatalogEntry {
     | "englishWereWhere"
     | "englishIrregularForms"
     | "englishPossessiveNouns"
+    | "englishDateConsistency"
     | "quoteSpacing"
     | "primeSymbols"
     | "greekFinalNu"

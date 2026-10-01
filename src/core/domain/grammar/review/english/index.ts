@@ -1,8 +1,11 @@
 // One module per extension area keeps parallel table work out of each other's files.
+import * as compoundForms from "./compoundForms";
 import * as confusions1 from "./confusions1";
+import * as dates from "./dates";
 import * as dialects from "./dialects";
 import * as lexical from "./lexical";
 import * as remaining from "./remaining";
+import * as usageTables from "./usageTables";
 import * as confusions2 from "./confusions2";
 import * as fixedPhrases from "./fixedPhrases";
 import * as grammarStyle1 from "./grammarStyle1";
@@ -27,6 +30,9 @@ const MODULES = [
   dialects,
   lexical,
   remaining,
+  compoundForms,
+  dates,
+  usageTables,
 ];
 export const EXTENSION_PHRASES = MODULES.flatMap((m) => m.PHRASES);
 export const EXTENSION_COMPOUNDS = MODULES.flatMap((m) => m.COMPOUNDS);

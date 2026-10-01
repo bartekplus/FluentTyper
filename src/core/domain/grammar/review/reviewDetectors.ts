@@ -403,7 +403,8 @@ function previousLineEndsParagraphOrSentence(
 
 const pronounI: Detector = (ctx) => {
   const findings: RawFinding[] = [];
-  const regex = /(?<![\p{L}\p{N}_'’])i(?![\p{L}\p{N}_])/gu;
+  // "Hawai‘i": a letter and a left quote mark before it make it part of a word (the okina).
+  const regex = /(?<![\p{L}\p{N}_'’]|\p{L}‘)i(?![\p{L}\p{N}_])/gu;
   for (const match of ownedMatches(ctx, regex)) {
     const start = match.index;
     const before = ctx.text[start - 1] ?? "";
@@ -1286,6 +1287,13 @@ function measurementLike(
     // Brazilian usage writes clock times and durations glued: "às 10h", "20min".
     if (ruleId === "measurementUnitFormatting" && ctx.lang === "pt_BR" && /^(?:h|min)$/.test(unit))
       continue;
+    // "100m users" counts millions; "Type 42s" and "the 1990s" are plurals, not seconds.
+    if (
+      ruleId === "measurementUnitFormatting" &&
+      ((unit === "m" && /^[ \t]+(?:[a-z]{2,}s|[A-Z]{2,}s)\b/.test(ctx.text.slice(tokenEnd))) ||
+        (unit === "s" && /\b\p{Lu}[\p{L}-]*[ \t]+$/u.test(prefix.slice(0, parsed.start))))
+    )
+      continue;
     let prosePrefix = prefix.slice(0, parsed.start);
     // A prose list retains the evidence before its first measurement. Every
     // preceding item must itself parse; identifiers and arithmetic still abstain.
@@ -1402,6 +1410,11 @@ const repeatedWords: Detector = (ctx) => {
     // A named, quoted example is evidence, not prose to repair. Normal quotations still run.
     if (CUE_AND_QUOTE.test(before)) continue;
     if (word === "to" && !doubledTo(before, ctx.text.slice(end, end + 16))) continue;
+    // "the The Beatles album": a capitalized repeat after a lowercase word opens a name;
+    // "P A O L A A N": a spelled-out run of single letters.
+    const second = match[0].slice(-match[1].length);
+    if (/^\p{Ll}/u.test(match[1]) && /^\p{Lu}/u.test(second)) continue;
+    if (word.length === 1 && /(?:^|\s)\p{L}[ \t ]+$/u.test(before)) continue;
     findings.push({
       ruleId: "englishRepeatedWords",
       messageKey: "review_msg_repeated_words",
