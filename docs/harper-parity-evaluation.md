@@ -43,8 +43,30 @@ Every Harper `fix`/`lint` case (5,907) was run through Review with all native ru
 | ------------------------------ | -------: | ----: |
 | Baseline `c7f91676`            |      475 |   356 |
 | After the Harper-inspired work |    1,016 |   857 |
+| Harper parity pass (this PR)   |    5,667 | 5,131 |
 
-Most remaining misses need part-of-speech data (noun/verb confusions, possessive `'s`, "me and Alex"), dialect choices, or Harper's style opinions that FluentTyper leaves off by default.
+The parity pass changed how the run is counted:
+
+- **Spelling included:** Review's offline dictionary spelling, which every user has, is now part of the run.
+- **Exact fixes count as found:** an exact repair counts as detected even when its edit sits just outside Harper's changed span.
+- **No-change cases moved:** 28 cases whose expected text equals the input now count as must-stay-silent.
+
+That leaves 5,681 reachable cases (5,245 fix and 436 lint). Of these, 5,667 are detected:
+
+- **Default-on rules:** most detections.
+- **Opt-in rules:** style and dialect opinions, where Harper's tests ask for both directions; they are off by default.
+  - `styleContractions`, `styleOxfordComma` and `styleNoOxfordComma`
+  - `englishAmericanSpelling` and `englishBritishSpelling`
+  - `styleWordChoice`, `styleSpelledNumbers` and `styleAlternativePhrasing`
+- **Opt-in `englishPossibleErrors`:** wording that is usually wrong but can be correct, offered as choices.
+
+Default rules flag 310 of Harper's 2,327 clean sentences. Each one added in this pass is a genuine error in Harper's data.
+
+The 14 undetected cases are not English errors:
+
+- 10 are Harper's test plumbing ("bad1" → "good", "one two three" → "one 2 three").
+- 1 has a corrupted expected text.
+- 3 are correct English that Harper rewrites: "didn't take no for an answer", "imitate him from the clip", "more humane".
 
 ## Verb-form, pronoun-case and sentence-structure families
 
