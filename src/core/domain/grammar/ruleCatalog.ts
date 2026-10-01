@@ -942,6 +942,20 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     priority: 135,
     codeSafe: true,
   },
+  // Portuguese Review checks (review/portuguese/).
+  {
+    id: "portugueseAccentParonyms",
+    typing: false,
+    name: "Portuguese accent after articles and prepositions",
+    titleI18nKey: "review_msg_pt_accent_paronym",
+    descriptionI18nKey: "review_msg_pt_accent_paronym",
+    exampleI18nKey: "",
+    languageScope: "all",
+    safetyTier: "advanced",
+    defaultRollout: "off",
+    recommended: false,
+    priority: 310,
+  },
 ] as const;
 
 export type CatalogRuleId = (typeof GRAMMAR_RULE_CATALOG)[number]["id"];

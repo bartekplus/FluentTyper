@@ -1429,6 +1429,18 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Opcjonalny styl liczb: małą liczbę w tekście zapisz słownie.",
     "Estilo numérico opcional: escreva por extenso um número pequeno no texto corrido.",
   ],
+  // Portuguese.
+  review_msg_pt_accent_paronym: [
+    "After an article or preposition this is the noun or adjective, which takes a written accent (fábrica, not the verb form fabrica).",
+    "Après un article ou une préposition, c'est le nom ou l'adjectif, qui prend un accent écrit (fábrica, et non la forme verbale fabrica).",
+    "Nakon člana ili prijedloga ovo je imenica ili pridjev, koji se piše s naglaskom (fábrica, a ne glagolski oblik fabrica).",
+    "Tras un artículo o una preposición es el sustantivo o el adjetivo, que lleva tilde (fábrica, no la forma verbal fabrica).",
+    "Μετά από άρθρο ή πρόθεση είναι το ουσιαστικό ή το επίθετο, που παίρνει τόνο (fábrica, όχι ο ρηματικός τύπος fabrica).",
+    "Efter en artikel eller preposition är det substantivet eller adjektivet, som skrivs med accent (fábrica, inte verbformen fabrica).",
+    "Nach Artikel oder Präposition steht hier das Substantiv oder Adjektiv mit Akzent (fábrica, nicht die Verbform fabrica).",
+    "Po rodzajniku lub przyimku to rzeczownik albo przymiotnik, który ma akcent graficzny (fábrica, a nie forma czasownika fabrica).",
+    "Depois de artigo ou preposição, a palavra é substantivo ou adjetivo e leva acento (fábrica, não a forma verbal fabrica).",
+  ],
 };
 
 /**

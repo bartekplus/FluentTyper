@@ -113,7 +113,9 @@ export interface GrammarRuleCatalogEntry {
     | "englishIrregularForms"
     | "englishPossessiveNouns"
     | "quoteSpacing"
-    | "primeSymbols";
+    | "primeSymbols"
+    // Portuguese Review checks.
+    | "portugueseAccentParonyms";
   /** Absent for existing typing rules; false for native Review-only checks. */
   typing?: false;
   name: string;

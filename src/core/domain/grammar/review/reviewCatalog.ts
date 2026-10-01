@@ -600,6 +600,15 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     category: "punctuation",
     reason: "Typing convenience: review never inserts closing brackets.",
   },
+  // Portuguese Review checks (review/portuguese/).
+  portugueseAccentParonyms: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "grammar",
+    kind: "confusedWords",
+    bulk: "individual",
+    languages: ["pt_BR"],
+  },
 };
 
 /** Review's dictionary check: individual only, and the user always picks the word. */
