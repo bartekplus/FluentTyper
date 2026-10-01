@@ -65,7 +65,7 @@ export const PHRASE_TABLE_KINDS: Readonly<
   pt: ["words", "phrases", "style"],
   pl: ["words", "phrases", "compounds", "style"],
   hr: ["words", "compounds"],
-  sv: ["words"],
+  sv: ["words", "phrases", "style"],
   el: ["words", "phrases", "style"],
 };
 
@@ -255,6 +255,22 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     bulk: "individual",
     languages: ["el_GR"],
     note: "Optional: commas after connectors and single marks follow formal style.",
+  },
+  swedishTypography: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "typography",
+    kind: "capitalization",
+    bulk: "individual",
+    languages: ["sv_SE"],
+  },
+  swedishAgreement: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "grammar",
+    kind: "agreement",
+    bulk: "individual",
+    languages: ["sv_SE"],
   },
   englishUsagePhrases: {
     review: "supported",

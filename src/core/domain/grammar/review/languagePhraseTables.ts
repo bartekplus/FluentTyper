@@ -1,5 +1,6 @@
 import type { PhraseRow } from "./englishPhraseTables";
 import { TABLES as GREEK_TABLES } from "./greek/tables";
+import { TABLES as SWEDISH_TABLES } from "./swedish/tables";
 
 /**
  * The English phrase checks for the other review languages, by language code.
@@ -319,22 +320,6 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
       ["sobzirom", "s obzirom"],
     ],
   },
-  sv: {
-    words: [
-      ["igentligen", "egentligen"],
-      ["antligen", "äntligen"],
-      ["alldrig", "aldrig"],
-      ["intresant", "intressant"],
-      ["komunikation", "kommunikation"],
-      ["sammarbete", "samarbete"],
-      ["tillsamans", "tillsammans"],
-      ["definitift", "definitivt"],
-      ["skilnad", "skillnad"],
-      ["sjävklart", "självklart"],
-      ["anorlunda", "annorlunda"],
-      ["rekomendera", "rekommendera"],
-      ["resturang", "restaurang"],
-    ],
-  },
+  sv: SWEDISH_TABLES,
   el: GREEK_TABLES,
 };

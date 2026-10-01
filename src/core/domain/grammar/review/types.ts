@@ -220,7 +220,13 @@ export type ReviewMessageKey =
   | "review_msg_greek_question_accent"
   | "review_msg_greek_intro_comma"
   | "review_msg_greek_repeated_marks"
-  | "review_msg_greek_perfect_form";
+  | "review_msg_greek_perfect_form"
+  | "review_msg_swedish_typography"
+  | "review_msg_swedish_ordinal_colon"
+  | "review_msg_swedish_acronym_genitive"
+  | "review_msg_swedish_lowercase_names"
+  | "review_msg_swedish_mellan_till"
+  | "review_msg_swedish_agreement";
 
 export type BulkDecision =
   | { eligible: true; alternative: number }
