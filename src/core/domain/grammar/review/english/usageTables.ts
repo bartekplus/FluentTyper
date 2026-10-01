@@ -49,6 +49,58 @@ export const PHRASES: readonly PhraseRow[] = [
   ["april fools day", "April Fools' Day"],
   [["st patricks day", "st. patricks day", "saint patricks day"], "St. Patrick's Day"],
   [["womens day", "womans day", "woman's day"], "Women's Day"],
+  // Words split or joined at the wrong letter.
+  ...["I a m", "we a re", "you a re", "they a re", "there a re"].map((typed): PhraseRow => [
+    typed,
+    typed.replace(" a ", " a"),
+  ]),
+  ["the re are", "there are"],
+  ["the re is", "there is"],
+  ["overt he", "over the"],
+  ["re cent", "recent"],
+  ["an then", "and then"],
+  // Real words that are slips in a fixed frame.
+  ["machine leaning", "machine learning"],
+  [["kid regards", "kin regards"], "kind regards"],
+  [["beat regards", "bets regards"], "best regards"],
+  ["died in the wool", "dyed in the wool"],
+  ["died-in-the-wool", "dyed-in-the-wool"],
+  [["well suiting", "well suitable"], "well suited"],
+  [["well-suiting", "well-suitable"], "well-suited"],
+  ["pee-configured", "pre-configured"],
+  ["pee-installed", "pre-installed"],
+  ["add-no", "add-on"],
+  ["add-nos", "add-ons"],
+  ["papa new guinea", "Papua New Guinea"],
+  ["papa new guinean", "Papua New Guinean"],
+  ["word war", "World War"],
+  ...["brother", "sister", "mother", "father", "son", "daughter"].flatMap((kin): PhraseRow[] => [
+    [[`${kin}-in-laws`, `${kin}s-in-laws`], `${kin}s-in-law`],
+  ]),
+  ["compered to", "compared to"],
+  ["compered with", "compared with"],
+  ...["my", "his", "your", "our", "their"].map((owner): PhraseRow => [
+    `${owner} should`,
+    `${owner} shoulder`,
+  ]),
+  ...["has", "have", "had", "hasn't", "haven't", "hadn't"].map((aux): PhraseRow => [
+    `${aux} bee`,
+    `${aux} been`,
+  ]),
+  ["been see", "been seen"],
+  ["to be see", "to be seen"],
+  ["feel myself good", "feel good"],
+  ["felt myself good", "felt good"],
+  ["the bad new is", "the bad news is"],
+  ["the good new is", "the good news is"],
+  ["a was to", "a way to"],
+  ["also know as", "also known as"],
+  ["best know for", "best known for"],
+  ["well know for", "well known for"],
+  ...["am", "are", "is", "was", "were", "I'm", "you're", "we're", "they're"].map(
+    (be): PhraseRow => [`${be} gong to`, `${be} going to`],
+  ),
+  ["Briney Spears", "Britney Spears"],
 ];
 
 export const COMPOUNDS: readonly PhraseRow[] = [];
@@ -148,7 +200,33 @@ function frames(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+// "We'Re", "don'T", "I'Ve": a capital after the apostrophe of a contraction. All capitals
+// ("DON'T", "I'M") are emphasis, and "O'Neil" is no contraction ending.
+const CONTRACTION_CASE =
+  /(?<![\p{L}\p{N}_'’])(?<head>\p{L}+)(?<mark>['’])(?<tail>s|t|re|ve|ll|d|m)(?![\p{L}\p{N}_])/giu;
+
+function contractionCase(ctx: DetectContext): RawFinding[] {
+  if (!ctx.lang.startsWith("en")) return [];
+  const findings: RawFinding[] = [];
+  for (const m of frameMatches(ctx, CONTRACTION_CASE, (match) => match.index)) {
+    const { head, mark, tail } = m.groups!;
+    const tailHasUpper = tail !== tail.toLowerCase();
+    if (!tailHasUpper || (head === head.toUpperCase() && tail === tail.toUpperCase())) continue;
+    if (ctx.dictionary.has(`${head}${mark}${tail}`.toLowerCase())) continue;
+    const start = m.index + head.length + mark.length;
+    findings.push({
+      ruleId: "englishContractionNormalization",
+      messageKey: "review_msg_contraction",
+      range: { start, end: start + tail.length },
+      alternatives: [tail.toLowerCase()],
+      context: { start: m.index, end: start + tail.length },
+    });
+  }
+  return findings;
+}
+
 /** Context detectors appended to REVIEW_DETECTORS. */
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
   { rules: ["stylePhrasing"], detect: frames },
+  { rules: ["englishContractionNormalization"], detect: contractionCase },
 ];

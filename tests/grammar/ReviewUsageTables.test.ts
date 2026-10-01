@@ -65,3 +65,22 @@ test.each(QUIET)("stays silent: %p", (text) => {
   expect(scan(text, "stylePhrasing")).toEqual([]);
   expect(scan(text, "englishPhraseCorrections")).toEqual([]);
 });
+
+test.each([
+  ["They'Re late.", "Re", "re"],
+  ["We can'T stay.", "T", "t"],
+  ["You'Ll see.", "Ll", "ll"],
+  ["The plan'S fine.", "S", "s"],
+] as const)("a capital after a contraction apostrophe %p", (text, original, fix) => {
+  const [finding, ...rest] = scan(text, "englishContractionNormalization");
+  expect(rest).toEqual([]);
+  expect(finding.original).toBe(original);
+  expect(previews(finding)).toEqual([fix]);
+});
+
+test.each(["DON'T STOP.", "I'M READY.", "Ask O'Neil.", "Meet D'Arcy today."])(
+  "contraction case stays: %p",
+  (text) => {
+    expect(scan(text, "englishContractionNormalization")).toEqual([]);
+  },
+);
