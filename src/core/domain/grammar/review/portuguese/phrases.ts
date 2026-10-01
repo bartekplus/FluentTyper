@@ -265,5 +265,11 @@ export const PORTUGUESE_STYLE: PhraseRow[] = [
   ["outra alternativa", "alternativa"],
   ["empréstimo temporário", "empréstimo"],
   ["ganhar grátis", "ganhar"],
+  // Spoken contractions in formal writing.
+  ["pra", ["para", "para a"]],
+  ["pras", "para as"],
+  ["pros", "para os"],
+  ["tô", "estou"],
+  ["né", "não é"],
   ["conviver junto", "conviver"],
 ];
