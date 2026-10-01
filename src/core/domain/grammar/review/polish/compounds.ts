@@ -272,6 +272,19 @@ const COMPOUND = {
 } as const;
 
 export const FRAMES: readonly Frame[] = [
+  // "niema" (mute, feminine) before a genitive object, or after one at the clause end, is "nie ma".
+  {
+    pattern: `(?<target>niema)(?=${S}(?:pojęcia|czasu|sensu|go|jej|ich|nic|nikogo|niczego|już|tu|tam|potrzeby|mowy|problemu|racji|prawa|wątpliwości|szans|znaczenia|co|kto|gdzie|jak|czego|kogo|nas|was|mnie|ciebie|tego|takiej|takiego|żadnego|żadnej|żadnych|sprawy|szansy|dokąd|kiedy)(?![\\p{L}]))`,
+    fix: "nie ma",
+    ruleId: "englishAlotCorrection",
+    messageKey: "review_msg_split_words",
+  },
+  {
+    pattern: `(?<=(?:^|[^\\p{L}])(?:ich|go|jej|nas|was|tu|tam|już|nic|nikogo|mnie|ciebie|kogo|czego|nigdzie|teraz)${S})(?<target>niema)(?=[ \\t\\u00a0]*[.!?,;…])`,
+    fix: "nie ma",
+    ruleId: "englishAlotCorrection",
+    messageKey: "review_msg_split_words",
+  },
   // "Czas na prawdę" (time for the truth) is a noun; a verb, an adverb or the end follows the adverb.
   {
     pattern: `(?<!(?:dowód|dowody|dowodu|dowodem|czas|miejsce|liczyć|liczy|liczę|czekać|czeka|czekam|zasługuje|zasługiwać|szansę|szansa|ochotę|wpływ|prawo|gotowość|otwarty|otwarta|otwarci)${S})(?<target>na${S}prawdę)(?!${S}(?:o|i|historyczną|naukową|absolutną|obiektywną|objawioną|ostateczną|jedyną|tego|jego|jej|ich|\\p{L}+ego|\\p{L}+ych)(?![\\p{L}]))(?![ \\t\\u00a0]*[.!?;:…)"”»])`,
@@ -544,13 +557,85 @@ function personEndings(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+/*
+ * "nie" is written together with adjectives, adjectival participles, comparatives,
+ * adjective-based adverbs and nouns in -ość/-anie (the 2026 rules: "niedobry",
+ * "niepalący", "nielepszy", "nietrudno", "niepalenie"). It stays apart in a
+ * contrast ("nie dobry, lecz zły"), in a question and after "to" ("To nie zły pomysł").
+ */
+/** Adjective endings except "-ą", which a third-person plural verb shares ("giną"). */
+const ADJ = "(?:y|a|e|ego|ej|emu|ym|ych|ymi)";
+const NIE_FORMS = [
+  // Active and passive participles.
+  `\\p{L}{2,}(?:ąc|on|an|ęt)${ADJ}`,
+  // Comparatives and superlatives (a closed list: "-szy" is also a verb ending, "cieszy").
+  `(?:naj)?(?:lepsz|gorsz|większ|wyższ|niższ|starsz|młodsz|dłuższ|krótsz|bliższ|dalsz|tańsz|droższ|szybsz|łatwiejsz|trudniejsz|ważniejsz|ciekawsz|lżejsz|cięższ|ładniejsz|prostsz|mądrzejsz|silniejsz|słabsz|bogatsz|nowsz|zdrowsz|piękniejsz|gorętsz|zimniejsz)${ADJ}`,
+  "(?:naj)?(?:lepiej|gorzej)",
+  // Adjectives in -owy, -ny, -ski and a few common bare ones.
+  `\\p{L}{2,}(?:ow|n|sk|ck)${ADJ}`,
+  `(?:dobr|zł|duż|wielk|mał|łatw|ciekaw|zdrow|chor|pewn|zdoln|grzeczn|uprzejm|wesoł|gotow|świadom|szczęśliw)(?:${ADJ.slice(3, -1)}|zy|i)`,
+  // Adverbs from adjectives, nouns in -ość and verbal nouns in -anie/-enie.
+  "(?:trudno|łatwo|dobrze|źle|daleko|wysoko|nisko|drogo|tanio|długo|dużo|mało|często|rzadko|chętnie|grzecznie|uprzejmie|ważne)",
+  "\\p{L}{2,}ość",
+  "\\p{L}{2,}(?:anie|enie|eniu|aniu)",
+].join("|");
+const NIE_WORD = new RegExp(
+  `(?<![\\p{L}\\p{N}_'’-])(?<nie>nie)(?<sp>[ \\t\\u00a0]+)(?<word>${NIE_FORMS})(?![\\p{L}\\p{N}_-])`,
+  "giu",
+);
+/** Forms that are verbs, pronouns, ordinals or nouns despite the ending. */
+const NIE_APART =
+  /(?:zna|^można|stanie|staniu|^inn\p{L}*|^jedyn\p{L}*|^setn\p{L}*|tysięczn\p{L}*|^sam\p{L}*|głow[aeyąę]|mow[aeyąę]|słow[aeoyąę]|budow[aeyąę]|połow[aeyąę]|krow[aeyąę]|^ścian\p{L}*|^zmian\p{L}*|^cen[aeyąę]|^win[aeyąę]|^stron\p{L}*|^scen\p{L}*|^więcej|^mniej|^bardziej)$/iu;
+
+function nieJoined(ctx: DetectContext): RawFinding[] {
+  if (!isPl(ctx) || (ctx.rules && !ctx.rules.has(COMPOUND.ruleId))) return [];
+  const findings: RawFinding[] = [];
+  for (const m of owned(ctx, NIE_WORD)) {
+    const { nie, word } = m.groups!;
+    if (NIE_APART.test(word) || /^\p{Lu}/u.test(word)) continue;
+    const end = m.index + m[0].length;
+    const sentenceBefore =
+      ctx.text
+        .slice(Math.max(0, m.index - 200), m.index)
+        .split(/[.!?…\n]/u)
+        .at(-1) ?? "";
+    const sentenceAfter = ctx.text.slice(end, end + 200).split(/[.!…\n]/u)[0] ?? "";
+    // A question, or "to nie …" / "czy nie …": the negation is the sentence's, not the word's.
+    if (sentenceAfter.includes("?")) continue;
+    if (/(?:^|[^\p{L}])(?:to|czy|czyż|że|żeby|gdyby|jakby|by)[ \t ]+$/iu.test(sentenceBefore))
+      continue;
+    // A comparison keeps the contrastive "nie": "nie lepszy od poprzednika".
+    if (/^[ \t ]+(?:od|niż)(?!\p{L})/iu.test(sentenceAfter)) continue;
+    // A contrast: "nie dobry, lecz zły", "nie tyle X, ile Y".
+    if (
+      /^[^;:]{0,60}?(?:,[ \t ]*(?:ale|lecz|tylko|a|jednak)|[ \t ]lecz)(?!\p{L})/iu.test(
+        sentenceAfter,
+      )
+    )
+      continue;
+    if (userOrNamed(ctx, m[0])) continue;
+    findings.push(
+      findingAt(
+        ctx,
+        m.index,
+        end,
+        [caseLike(nie, "nie") + word.toLowerCase()],
+        COMPOUND.ruleId,
+        COMPOUND.messageKey,
+      ),
+    );
+  }
+  return findings;
+}
+
 export const DETECTORS = [
   {
-    rules: ["englishClosedCompounds"] as RawFinding["ruleId"][],
+    rules: ["englishClosedCompounds", "englishAlotCorrection"] as RawFinding["ruleId"][],
     detect: (ctx: DetectContext) => [
       ...runFrames(ctx, FRAMES),
       ...conditionalBy(ctx),
       ...personEndings(ctx),
+      ...nieJoined(ctx),
     ],
   },
 ];
