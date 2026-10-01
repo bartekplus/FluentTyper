@@ -1,6 +1,86 @@
 import type { PhraseRow } from "../englishPhraseTables";
 import type { LanguagePhraseTables } from "../languagePhraseTables";
 
+// Verbal nouns of measures VII, VIII and X open with hamzat al-wasl: "استخدام",
+// never "إستخدام". (Measure IV, "إنتاج", "إرسال", keeps its hamza and is not listed.)
+const WASL_NOUNS = (
+  "استخدام استعمال استقبال استثمار استقلال استمرار استعداد استفادة استيراد استهلاك " +
+  "استطلاع استفسار استراحة استقرار استماع استخراج استغلال استعراض اجتماع انتخاب " +
+  "انتظار اختبار احتمال اقتصاد اتصال اتفاق احترام انتشار ارتفاع اعتماد اهتمام اختيار " +
+  "اكتشاف اطلاع انتقال انطلاق اقتراح اختلاف اعتبار انتهاء ابتداء انسحاب اشتراك امتحان " +
+  "انتباه ازدياد اجتهاد انخفاض انفجار انقطاع انتصار اختراع اعتراف اعتقاد احتفال"
+).split(" ");
+// Bare, with the article, and after بـ / لـ / كـ / بال / كال / لل.
+const WASL_PREFIXES: ReadonlyArray<readonly [string, string]> = [
+  ["", ""],
+  ["ال", "ال"],
+  ["ب", "ب"],
+  ["ل", "ل"],
+  ["ك", "ك"],
+  ["بال", "بال"],
+  ["كال", "كال"],
+  ["لل", "لل"],
+];
+const waslRows = (): PhraseRow[] =>
+  WASL_NOUNS.flatMap((noun) =>
+    WASL_PREFIXES.map(([typed, fixed]): PhraseRow => [
+      `${typed}إ${noun.slice(1)}`,
+      `${fixed}${noun}`,
+    ]),
+  );
+
+// Wrong letters in fixed expressions: a gaze is "شزرا", remains are "رفات".
+const LETTERS: readonly PhraseRow[] = [
+  ["شذرا", "شزرا"],
+  ["رفاة", "رفات"],
+  ["الرفاة", "الرفات"],
+  // The passive participle of غُشي عليه is مغشيّ.
+  ["مغشى عليه", "مغشي عليه"],
+  ["مغشى عليها", "مغشي عليها"],
+];
+
+/** "نفذ صبره": patience and stock run out (نفد); نفذ is to carry out or pierce. */
+function ranOut(): PhraseRow[] {
+  const verbs = [
+    ["نفذ", "نفد"],
+    ["نفذت", "نفدت"],
+    ["ينفذ", "ينفد"],
+    ["تنفذ", "تنفد"],
+  ];
+  const things = [
+    ...["", "ه", "ها", "هم", "ي", "ك", "نا", "كم"].map((ending) => `صبر${ending}`),
+    "الكمية",
+    "الكميات",
+    "المخزون",
+    "الوقود",
+    "البنزين",
+    "التذاكر",
+    "الطبعة",
+    "الرصيد",
+    "المال",
+    "الطعام",
+  ];
+  return verbs.flatMap(([typed, fixed]) =>
+    things.map((thing): PhraseRow => [`${typed} ${thing}`, `${fixed} ${thing}`]),
+  );
+}
+
+/**
+ * After a verb of knowing or thinking the particle is أنّ: "علم أنه", never
+ * "علم إنه" (إنّ follows قال and opens a sentence). Only with a pronoun: a bare
+ * "إن" may be the conditional.
+ */
+function knowThat(): PhraseRow[] {
+  const verbs = (
+    "علم علمت علموا يعلم تعلم نعلم أعلم عرف عرفت عرفوا يعرف تعرف نعرف أعرف " +
+    "أدرك أدركت يدرك تدرك ظن ظننت يظن تظن لاحظ لاحظت يلاحظ تبين اتضح ثبت يبدو بدا تأكد تأكدت أيقن"
+  ).split(" ");
+  const endings = ["ه", "ها", "هم", "ني", "نا", "ك", "كم"];
+  return verbs.flatMap((verb) =>
+    endings.map((ending): PhraseRow => [`${verb} إن${ending}`, `${verb} أن${ending}`]),
+  );
+}
+
 // Misspellings that are never words. A leading و or ف is matched too ("ولاكن").
 const WORDS: readonly PhraseRow[] = [
   ["لاكن", "لكن"],
@@ -10,12 +90,16 @@ const WORDS: readonly PhraseRow[] = [
   ["ذالك", "ذلك"],
   ["هاكذا", "هكذا"],
   [["إنشاء الله", "انشاء الله", "إنشالله", "انشالله", "إنشاالله"], "إن شاء الله"],
+  ...LETTERS,
+  ...waslRows(),
 ];
 
 // A doubled future particle and a misspelled idiom.
 const PHRASES: readonly PhraseRow[] = [
   ["سوف لن", "لن"],
   [["على حدى", "على حده"], "على حدة"],
+  ...ranOut(),
+  ...knowThat(),
 ];
 
 /** Speech and belief verbs take أنّ (قال: إنّ) directly, not بأنّ. */
@@ -89,7 +173,119 @@ const STYLE: readonly PhraseRow[] = [
   ["عدا عن", "عدا"],
   ["على أهبة الاستعداد", "على أهبة"],
   [["لابد وأن", "لا بد وأن"], "لا بد أن"],
-  ["كما وأن", "كما أن"],
+  ...["", "ه", "ها", "هم", "ني", "نا"].map((ending): PhraseRow => [
+    `كما وأن${ending}`,
+    `كما أن${ending}`,
+  ]),
+  // "بشكل" + adjective calques "in a ... way": an adverb or a plain phrase says it.
+  ...pairs(
+    [
+      "بشكل عام",
+      "بشكل خاص",
+      "بشكل كبير",
+      "بشكل جيد",
+      "بشكل قوي",
+      "بشكل سريع",
+      "بشكل دائم",
+      "بشكل مستمر",
+      "بشكل نهائي",
+      "بشكل مباشر",
+      "بشكل واضح",
+      "بشكل تدريجي",
+      "بشكل جزئي",
+      "بشكل كلي",
+      "بشكل فوري",
+      "بصورة عامة",
+      "بصورة خاصة",
+    ],
+    [
+      "عموما",
+      "خصوصا",
+      "كثيرا",
+      "جيدا",
+      "بقوة",
+      "بسرعة",
+      "دائما",
+      "باستمرار",
+      "نهائيا",
+      "مباشرة",
+      "بوضوح",
+      "تدريجيا",
+      "جزئيا",
+      "كليا",
+      "فورا",
+      "عموما",
+      "خصوصا",
+    ],
+  ),
+  ["لأول مرة", "أول مرة"],
+  ["لاسيما", "لا سيما"],
+  // "هكذا" + plural calques "such things".
+  ...["أشياء", "أمور", "قضايا", "مواقف", "حالات", "أفكار", "أعمال", "ظروف", "أخطاء", "مسائل"].map(
+    (noun): PhraseRow => [`هكذا ${noun}`, `مثل هذه ال${noun}`],
+  ),
+  ["ناهيك عن", "فضلا عن"],
+  ...pairs(
+    ["يتمحور حول", "تتمحور حول", "تمحور حول", "تمحورت حول"],
+    ["يدور حول", "تدور حول", "دار حول", "دارت حول"],
+  ),
+  // متعارف already means "agreed on by custom".
+  ...pairs(
+    ["متعارف عليه", "متعارف عليها", "المتعارف عليه", "المتعارف عليها"],
+    ["متعارف", "متعارفة", "المتعارف", "المتعارفة"],
+  ),
+  ["استفتاء على", "استفتاء في"],
+  ["الاستفتاء على", "الاستفتاء في"],
+  // A sentence is passed "on" someone (عليه), not "in his right".
+  ...["حكم", "الحكم", "حكما", "أحكام", "الأحكام"].flatMap((noun) =>
+    pairs(
+      ["بحقه", "بحقها", "بحقهم", "بحقي", "بحق"].map((target) => `${noun} ${target}`),
+      ["عليه", "عليها", "عليهم", "علي", "على"].map((target) => `${noun} ${target}`),
+    ),
+  ),
+  // One apologizes for not coming.
+  ...pairs(
+    ["اعتذر عن الحضور", "اعتذرت عن الحضور", "يعتذر عن الحضور", "اعتذروا عن الحضور"],
+    ["اعتذر عن عدم الحضور", "اعتذرت عن عدم الحضور", "يعتذر عن عدم الحضور", "اعتذروا عن عدم الحضور"],
+  ),
+  // ينبغي takes لـ: "ينبغي لك أن".
+  ...["ك", "ه", "ها", "هم", "نا", "كم", "ي"].map((ending): PhraseRow => [
+    `ينبغي علي${ending === "ي" ? "" : ending}`,
+    `ينبغي ل${ending === "ي" ? "ي" : ending}`,
+  ]),
+  // أعطى takes two objects: "أعطاه كتابا", not "أعطى له كتابا".
+  ...["ه", "ها", "هم", "ني", "نا", "ك"].flatMap((ending): PhraseRow[] => [
+    [`أعطى ل${ending === "ني" ? "ي" : ending}`, `أعطا${ending}`],
+    [`أعطت ل${ending === "ني" ? "ي" : ending}`, `أعطت${ending}`],
+    [`يعطي ل${ending === "ني" ? "ي" : ending}`, `يعطي${ending}`],
+  ]),
+  // طها يطهو: the imperfect has و.
+  ...pairs(["يطهي", "تطهي", "نطهي", "أطهي"], ["يطهو", "تطهو", "نطهو", "أطهو"]),
+  // Calques and colloquial verbs with a plain standard verb.
+  ...["النار", "الرصاص"].flatMap((what) =>
+    pairs(
+      ["فتح", "فتحت", "فتحوا", "يفتح", "تفتح", "يفتحون"].map((verb) => `${verb} ${what}`),
+      ["أطلق", "أطلقت", "أطلقوا", "يطلق", "تطلق", "يطلقون"].map((verb) => `${verb} ${what}`),
+    ),
+  ),
+  ...["الأنظار", "الانتباه", "النظر"].flatMap((what) =>
+    pairs(
+      ["استلفت", "يستلفت", "تستلفت"].map((verb) => `${verb} ${what}`),
+      ["لفت", "يلفت", "تلفت"].map((verb) => `${verb} ${what}`),
+    ),
+  ),
+  ...["السيارة", "الجهاز", "العطل", "الخطأ", "الأخطاء", "الحاسوب"].flatMap((what) =>
+    pairs(
+      ["صلح", "صلحت", "صلحوا", "صلحنا", "صلحتم"].map((verb) => `${verb} ${what}`),
+      ["أصلح", "أصلحت", "أصلحوا", "أصلحنا", "أصلحتم"].map((verb) => `${verb} ${what}`),
+    ),
+  ),
+  ...["النار", "السيجارة", "الشمعة", "الموقد"].flatMap((what) =>
+    pairs(
+      ["ولع", "ولعت", "ولعوا", "يولع", "تولع"].map((verb) => `${verb} ${what}`),
+      ["أشعل", "أشعلت", "أشعلوا", "يشعل", "تشعل"].map((verb) => `${verb} ${what}`),
+    ),
+  ),
   ["حتى أنه", "حتى إنه"],
   ["إلى عند", "إلى"],
   ["سوف لا", "لن"],

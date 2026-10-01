@@ -103,3 +103,32 @@ test.each(POSSIBLE)("a possible date stays: %p", (text) => {
 test("only English text is checked", () => {
   expect(scan("The offer ends on June 31.", "de_DE")).toEqual([]);
 });
+
+// Slashed and dotted dates are prose in every language, so date checks see them;
+// paths, URLs, versions and fractions stay protected.
+function arabicDates(text: string): string[] {
+  return detectReviewDiagnostics(
+    { id: "dates", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
+    {
+      lang: "ar_SA",
+      enabledRules: ["arabicDates"],
+      userDictionary: [],
+      insertSpaceAfterAutocomplete: true,
+    },
+  ).diagnostics.map((d) => text.slice(d.range.start, d.range.end));
+}
+test.each([
+  ["سافرت يوم الجمعة 27/03/2025 إلى عمان.", "الجمعة 27/03/2025"],
+  ["ولد في 31/9/87 في القاهرة.", "31/9/87"],
+  ["ولد في 31/سبتمبر/1987 في القاهرة.", "31/سبتمبر/1987"],
+  ["ولد في ٣١/٠٩/١٩٨٧ في القاهرة.", "٣١/٠٩/١٩٨٧"],
+])("a date with slashes is checked: %p", (text, original) => {
+  expect(arabicDates(text)).toEqual([original]);
+});
+test.each([
+  "سافرت يوم الخميس 27/03/2025 إلى عمان.",
+  "راجع الملف src/31/02/2023 قبل النشر.",
+  "حمّل الإصدار 1.13.40 من https://example.com/31/02/2023 الآن.",
+])("a valid date, path, URL or version is not flagged: %p", (text) => {
+  expect(arabicDates(text)).toEqual([]);
+});

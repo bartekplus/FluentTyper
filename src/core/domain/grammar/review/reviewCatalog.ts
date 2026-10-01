@@ -65,7 +65,7 @@ export const PHRASE_TABLE_KINDS: Readonly<
   pt: ["words", "phrases", "style"],
   pl: ["words", "phrases", "compounds", "style"],
   hr: ["words", "compounds"],
-  sv: ["words", "phrases", "style"],
+  sv: ["words", "phrases", "compounds", "style"],
   el: ["words", "phrases", "style"],
   ar: ["words", "phrases", "style"],
 };
