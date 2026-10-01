@@ -369,7 +369,13 @@ const MODALS = new Set("will would can could should must may might".split(" "));
 
 /** The singular a plural owner names, when the lexicon reads it as a plural noun. */
 function ownerSingular(owner: string): string | null {
-  if (ATTRIBUTIVE_PLURALS.has(owner) || /(?:ics|ings|ss|us|is)$/.test(owner)) return null;
+  // "-ics" words are mostly singular fields ("physics", "the graphics card"); "music" is
+  // uncountable, so "the musics performance" is its possessive.
+  if (
+    ATTRIBUTIVE_PLURALS.has(owner) ||
+    (/(?:ics|ings|ss|us|is)$/.test(owner) && owner !== "musics")
+  )
+    return null;
   const read = info(owner);
   if (!(read?.plural && read.noun) && englishListedNoun(owner) !== "plural") return null;
   const stems = [owner.slice(0, -1)];

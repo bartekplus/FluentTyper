@@ -120,6 +120,34 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     recommended: false,
     priority: 1,
   },
+  // Opt-in: the other accepted form of a phrase whose usual form stylePhrasing may suggest.
+  {
+    id: "styleAlternativePhrasing",
+    typing: false,
+    name: "Optional alternative form of a phrase",
+    titleI18nKey: "review_msg_alternative_phrasing",
+    descriptionI18nKey: "review_msg_alternative_phrasing",
+    exampleI18nKey: "",
+    languageScope: "en_US",
+    safetyTier: "advanced",
+    defaultRollout: "off",
+    recommended: false,
+    priority: 1,
+  },
+  // Opt-in: wording that is usually a mistake but can be correct, and quoted mentions.
+  {
+    id: "englishPossibleErrors",
+    typing: false,
+    name: "Optional check for possible mistakes",
+    titleI18nKey: "review_msg_possible_error",
+    descriptionI18nKey: "review_msg_possible_error",
+    exampleI18nKey: "",
+    languageScope: "en_US",
+    safetyTier: "advanced",
+    defaultRollout: "off",
+    recommended: false,
+    priority: 1,
+  },
   // Opt-in dialects: each converts the other's spellings, words and idioms.
   {
     id: "englishAmericanSpelling",

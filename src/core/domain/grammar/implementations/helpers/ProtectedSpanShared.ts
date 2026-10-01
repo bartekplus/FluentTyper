@@ -189,6 +189,11 @@ function findCodeSpans(
       continue;
     }
     const run = /^`+/.exec(text.slice(i, end))![0].length;
+    // A lone backtick inside a word ("won`t") is a mistyped apostrophe: it opens no span.
+    if (run === 1 && /\p{L}/u.test(text[i - 1] ?? "") && /\p{L}/u.test(text[i + 1] ?? "")) {
+      i += 1;
+      continue;
+    }
     // The first run of exactly as many backticks closes the span.
     const close = new RegExp(`(?<!\`)\`{${run}}(?!\`)`).exec(text.slice(i + run, end));
     if (!close) {

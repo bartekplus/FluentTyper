@@ -12,6 +12,7 @@ import { REVIEW_DETECTORS, type RawFinding } from "./reviewDetectors";
 import { toDiagnostic } from "./reviewFindings";
 import { PROSE_DOTTED_TOKEN } from "./english/grammarStyle1";
 import { PROSE_SLASH_TOKEN } from "./english/dialects";
+import { slashedProseWord } from "./english/remaining";
 import { applyEdits, positionMapper } from "./textRanges";
 import {
   MASK_CHAR,
@@ -187,7 +188,8 @@ function technicalRanges(source: string, from: number, to: number): ProtectedRan
       isTechnicalToken(bare) &&
       !DECIMAL_QUANTITY.test(bare) &&
       !PROSE_DOTTED_TOKEN.test(bare) &&
-      !PROSE_SLASH_TOKEN.test(bare)
+      !PROSE_SLASH_TOKEN.test(bare) &&
+      !slashedProseWord(source, match.index + lead, bare)
     ) {
       const start = match.index + lead;
       ranges.push({ start, end: start + bare.length, reason: "technical" });

@@ -1428,6 +1428,8 @@ export const REVIEW_DETECTORS: ReadonlyArray<ReviewDetectorEntry> = [
       "englishAmericanSpelling",
       "englishBritishSpelling",
       "styleWordChoice",
+      "styleAlternativePhrasing",
+      "englishPossibleErrors",
     ],
     detect: (ctx) => [...canonicalCasing(ctx), ...phraseCorrections(ctx)],
   },

@@ -83,7 +83,12 @@ export function toDiagnostic(prepared: PreparedReview, finding: Finding): Review
     overlapsSortedRanges(prepared.terminology.ranges, range)
   )
     return null;
-  if (overlapsSortedRanges(prepared.quotations.examples, range)) return null;
+  // The opt-in possible-mistakes check reads quoted examples on purpose.
+  if (
+    finding.ruleId !== "englishPossibleErrors" &&
+    overlapsSortedRanges(prepared.quotations.examples, range)
+  )
+    return null;
   // The underline itself may not cross code or a structural boundary.
   if (
     prepared.protectedRanges.some(

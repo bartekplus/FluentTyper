@@ -123,6 +123,22 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     kind: "marks",
     bulk: "individual",
   },
+  styleAlternativePhrasing: {
+    review: "supported",
+    defaultEnabled: false,
+    category: "style",
+    kind: "usage",
+    bulk: "individual",
+    note: "Optional style: both forms of these phrases are correct English.",
+  },
+  englishPossibleErrors: {
+    review: "supported",
+    defaultEnabled: false,
+    category: "grammar",
+    kind: "usage",
+    bulk: "individual",
+    note: "Optional: these forms are usually mistakes but can be correct, or are quoted on purpose.",
+  },
   englishAmericanSpelling: {
     review: "supported",
     defaultEnabled: false,

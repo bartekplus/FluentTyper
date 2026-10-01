@@ -253,6 +253,27 @@ const WORD_CHOICE: readonly PhraseRow[] = [
   ["a very good", "an excellent"],
 ];
 
+/**
+ * Both forms are correct English: the other form of a phrase that stylePhrasing may
+ * propose ("another thing coming" -> "think"), and a hyphenated predicative compound.
+ */
+const ALTERNATIVE_PHRASING: readonly PhraseRow[] = [
+  ["another think coming", "another thing coming"],
+  // "would never have" is the usual order; "never would have" stresses the "never".
+  ...["would", "could", "should"].map((modal): PhraseRow => [
+    `${modal} never have`,
+    `never ${modal} have`,
+  ]),
+  ...["is", "are", "was", "were", "be", "been", "being", "seems", "seemed", "looks", "looked"].map(
+    (verb): PhraseRow => [`${verb} out of date`, `${verb} out-of-date`],
+  ),
+];
+
+/** Usually mistakes, rarely meant: "chalk-full" (full of chalk), "choke-full" (a variant). */
+const POSSIBLE_ERRORS: readonly PhraseRow[] = [
+  [["chalk full", "chalk-full", "choke full", "choke-full"], "chock-full"],
+];
+
 /** Opt-in tables with their own rules, indexed with the phrase corrections. */
 export const OPTIONAL_TABLES: readonly {
   rows: readonly PhraseRow[];
@@ -270,6 +291,16 @@ export const OPTIONAL_TABLES: readonly {
     messageKey: "review_msg_british_spelling",
   },
   { rows: WORD_CHOICE, ruleId: "styleWordChoice", messageKey: "review_msg_word_choice" },
+  {
+    rows: POSSIBLE_ERRORS,
+    ruleId: "englishPossibleErrors",
+    messageKey: "review_msg_possible_error",
+  },
+  {
+    rows: ALTERNATIVE_PHRASING,
+    ruleId: "styleAlternativePhrasing",
+    messageKey: "review_msg_alternative_phrasing",
+  },
 ];
 
 /**

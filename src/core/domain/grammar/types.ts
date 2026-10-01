@@ -80,6 +80,8 @@ export interface GrammarRuleCatalogEntry {
     | "styleContractions"
     | "styleOxfordComma"
     | "styleNoOxfordComma"
+    | "styleAlternativePhrasing"
+    | "englishPossibleErrors"
     | "englishAmericanSpelling"
     | "englishBritishSpelling"
     | "styleWordChoice"

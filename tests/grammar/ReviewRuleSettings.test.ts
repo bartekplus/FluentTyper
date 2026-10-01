@@ -18,6 +18,8 @@ const OPTIONAL_REVIEW_IDS: readonly string[] = [
   "styleContractions",
   "styleOxfordComma",
   "styleNoOxfordComma",
+  "styleAlternativePhrasing",
+  "englishPossibleErrors",
   "englishAmericanSpelling",
   "englishBritishSpelling",
   "styleWordChoice",
