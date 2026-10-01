@@ -229,6 +229,35 @@ export function englishLexiconInflect(
   return (flags.includes("G") && suffix(lemma, "G")) || (doubled && `${doubled}ing`) || undefined;
 }
 
+/**
+ * The singular and regular -s plural of a lowercase dictionary noun, from either form
+ * ("issue" or "issues" -> issue/issues), or null. Irregular plurals and nouns the
+ * dictionary lists without a plural flag are not covered.
+ */
+export function englishNounPair(word: string): { singular: string; plural: string } | null {
+  if (!/^[a-z]+$/.test(word)) return null;
+  for (const { base, flags, via } of readings(word)) {
+    if (!flags.includes("n") || !flags.includes("S")) continue;
+    if (via === "S") return { singular: base, plural: word };
+    const plural = via === "" && suffix(base, "S");
+    if (plural) return { singular: base, plural };
+  }
+  return null;
+}
+
+/**
+ * Nouns the dictionary derives from a lowercase base verb by its -ion and -ment flags
+ * ("translate" -> translation, "improve" -> improvement), dictionary-listed ones only.
+ */
+export function englishVerbNouns(lemma: string): string[] {
+  const flags = entry(lemma);
+  if (!flags?.includes("v")) return [];
+  return ["N", "L"].flatMap((flag) => {
+    const noun = flags.includes(flag) && suffix(lemma, flag);
+    return noun && noun !== lemma ? [noun] : [];
+  });
+}
+
 export const BLOOM_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 const BLOOM_HASHES = 7;
 
