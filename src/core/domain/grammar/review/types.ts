@@ -227,6 +227,7 @@ export type ReviewMessageKey =
   | "review_msg_pt_proclisis"
   | "review_msg_pt_mesoclisis"
   | "review_msg_pt_pronoun_case"
+  | "review_msg_pt_invalid_date"
   | "review_msg_pt_ao90";
 
 export type BulkDecision =

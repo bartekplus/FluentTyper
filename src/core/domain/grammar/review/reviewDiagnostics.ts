@@ -170,6 +170,9 @@ const MAX_PROSE_TOKEN_CHARS = 100;
 /** A period-decimal quantity ("2.5", "2.5kg", "3.50€") is prose, not a dotted name. */
 const DECIMAL_QUANTITY = /^\p{Nd}{1,9}\.\p{Nd}{1,9}(?:\p{L}{1,4}|[€$£¥%])?$/u;
 
+/** A slashed date ("29/02/2024", "30/fev/2014") is prose, not a path. */
+const SLASHED_DATE = /^\p{Nd}{1,2}\/(?:\p{Nd}{1,2}|\p{L}{3,9})\/\p{Nd}{2,4}$/u;
+
 /** URLs, e-mail addresses, paths, mentions, dotted names and overlong tokens in [from, to). */
 function technicalRanges(source: string, from: number, to: number): ProtectedRange[] {
   const ranges: ProtectedRange[] = [];
@@ -191,6 +194,7 @@ function technicalRanges(source: string, from: number, to: number): ProtectedRan
       !PROSE_DOTTED_TOKEN.test(bare) &&
       !PROSE_SLASH_TOKEN.test(bare) &&
       !PLACE_STATE_TOKEN.test(bare) &&
+      !SLASHED_DATE.test(bare) &&
       !slashedProseWord(source, match.index + lead, bare)
     ) {
       const start = match.index + lead;

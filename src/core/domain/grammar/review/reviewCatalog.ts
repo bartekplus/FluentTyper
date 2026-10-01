@@ -659,6 +659,14 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     languages: ["pt_BR"],
     note: "Optional: texts in the pre-1990 European spelling hyphenate prefixes and capitalize months.",
   },
+  portugueseDates: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "grammar",
+    kind: "numbers",
+    bulk: "individual",
+    languages: ["pt_BR"],
+  },
 };
 
 /** Review's dictionary check: individual only, and the user always picks the word. */

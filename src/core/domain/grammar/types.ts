@@ -121,7 +121,8 @@ export interface GrammarRuleCatalogEntry {
     | "portugueseNumberFormat"
     | "portugueseTypographyStyle"
     | "portugueseCliticPlacement"
-    | "portugueseAO90";
+    | "portugueseAO90"
+    | "portugueseDates";
   /** Absent for existing typing rules; false for native Review-only checks. */
   typing?: false;
   name: string;

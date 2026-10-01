@@ -13,6 +13,42 @@ const swap = (from: string, to: string, words: string[]): PhraseRow[] =>
 const all = (typed: string[], replacement: string): PhraseRow[] =>
   typed.map((form) => [form, replacement]);
 
+/**
+ * Feminines built by rule on nouns whose feminine is another word, atora (atriz), genra
+ * (nora), príncipa (princesa), and their misspellings. The pt `words` table
+ * (englishPhraseCorrections).
+ */
+export const PORTUGUESE_WORDS: PhraseRow[] = [
+  ["atora", "atriz"],
+  ["atoras", "atrizes"],
+  ["genra", "nora"],
+  ["genras", "noras"],
+  ["heróia", "heroína"],
+  ["heróias", "heroínas"],
+  ["príncipa", "princesa"],
+  ["príncipas", "princesas"],
+  ["sacerdota", "sacerdotisa"],
+  ["sacerdotas", "sacerdotisas"],
+  ["czara", "czarina"],
+  ["réua", "ré"],
+  ["réuas", "rés"],
+  ["ateua", "ateia"],
+  ["ateuas", "ateias"],
+  ["europeua", "europeia"],
+  ["judeua", "judia"],
+  ["plebeua", "plebeia"],
+  ["hebreua", "hebreia"],
+  ["pigmeua", "pigmeia"],
+  ["leã", "leoa"],
+  ["leãs", "leoas"],
+  ["padrasta", "madrasta"],
+  ["padrastas", "madrastas"],
+  ["compadra", "comadre"],
+  ["compadras", "comadres"],
+  ["princeza", "princesa"],
+  ["duqueza", "duquesa"],
+];
+
 export const PORTUGUESE_PHRASES: PhraseRow[] = [
   // No crase before a masculine noun, a pronoun or a verb: "a pé", "a mim", "a esta", "a partir".
   ...swap("à", "a", [

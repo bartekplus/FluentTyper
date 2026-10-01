@@ -1,5 +1,5 @@
 import type { PhraseRow } from "./englishPhraseTables";
-import { PORTUGUESE_PHRASES, PORTUGUESE_STYLE } from "./portuguese/phrases";
+import { PORTUGUESE_PHRASES, PORTUGUESE_STYLE, PORTUGUESE_WORDS } from "./portuguese/phrases";
 
 /**
  * The English phrase checks for the other review languages, by language code.
@@ -228,6 +228,7 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
       ["ancioso", "ansioso"],
       ["iorgute", "iogurte"],
       ["apezar", "apesar"],
+      ...PORTUGUESE_WORDS,
     ],
     // Existential "haver" is singular.
     phrases: [

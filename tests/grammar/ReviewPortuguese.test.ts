@@ -311,6 +311,38 @@ describe.each(RULES)("%s", (ruleId, { pos, neg }) => {
   });
 });
 
+describe("portugueseDates", () => {
+  test("runs only for Portuguese", () => {
+    expect(runsInReviewLanguage("portugueseDates", LANG)).toBe(true);
+    for (const lang of ["en_US", "es_ES", "auto_detect"])
+      expect(runsInReviewLanguage("portugueseDates", lang)).toBe(false);
+  });
+  test.each([
+    ["A reunião ficou para 31 de abril.", "31 de abril"],
+    ["O boleto vence em 30/02/2024.", "30/02/2024"],
+    ["Ela nasceu em 29 de fevereiro de 2023.", "29 de fevereiro de 2023"],
+    ["Prazo final: 31-06-2025.", "31-06-2025"],
+    ["Chegamos no dia 31 set. de 2019.", "31 set. de 2019"],
+  ])("points at %p without a fix", (text, date) => {
+    const [finding, ...rest] = findings("portugueseDates", text);
+    expect(rest).toEqual([]);
+    expect(text.slice(finding.range.start, finding.range.end)).toBe(date);
+    expect(finding.warningOnly).toBe(true);
+    expect(finding.alternatives).toEqual([]);
+    expect(findings("portugueseDates", text, "es_ES")).toEqual([]);
+  });
+  test.each([
+    "Ela nasceu em 29 de fevereiro de 2024.",
+    "O Natal americano cai em 12/25/2024.",
+    "Preencha a data: 00/00/0000.",
+    "Atualize para a versão 10.13.2024.",
+    "Faltam 31 mais coisas.",
+    "Ela nasceu em 29/02/2000.",
+  ])("leaves %p alone", (text) => {
+    expect(findings("portugueseDates", text)).toEqual([]);
+  });
+});
+
 test("the committed paronym table matches pt_BR.dic/.aff (bun run generate:portuguese-lexicon)", async () => {
   const [dic, aff, committed] = await Promise.all([
     readFile(PORTUGUESE_LEXICON_SOURCES.dic),
@@ -328,7 +360,9 @@ const options = {
   insertSpaceAfterAutocomplete: true,
 };
 const TRIGGERS =
-  "na fabrica da duvida em pratica de musica para a policia um critica uma duvida em a de o ";
+  "na fabrica da duvida em pratica de musica para a policia um critica uma duvida em a de o " +
+  "um forte grande estimulo tão pratico não dir-lhe-ei poderia-se eles não tem fazem dez anos " +
+  "de Niterói/RJ 31 de abril de 2023 30/02/2024 para mim fazer esta coberto ";
 
 function slowestChunkMs(text: string): number {
   const prepared = prepareReview(
@@ -351,6 +385,9 @@ test("Portuguese frames stay fast on long runs of trigger words and spaces", () 
     `x${" ".repeat(3_800)}${TRIGGERS}`.repeat(3),
     "da ".repeat(3_000),
     "em a ".repeat(1_500),
+    "1/1/1 ".repeat(1_500),
+    "de Aa Bb Cc Dd Ee Ff Gg ".repeat(500),
+    "eles não já também tem ".repeat(600),
   ];
   for (const text of inputs) expect(slowestChunkMs(text)).toBeLessThan(100);
   const live = { ...options, liveRules: [] };

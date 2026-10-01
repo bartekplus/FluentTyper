@@ -1551,6 +1551,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Po przyimku portugalski używa mim i ti (para mim, entre mim e ti); eu i tu zostają tylko jako podmiot następującego bezokolicznika (para eu fazer).",
     "Depois de preposição usa-se mim e ti (para mim, entre mim e ti); eu e tu só ficam como sujeito de um infinitivo (para eu fazer).",
   ],
+  review_msg_pt_invalid_date: [
+    "This date does not exist: the month has fewer days, or February 29 falls in a year that is not a leap year.",
+    "Cette date n'existe pas : le mois compte moins de jours, ou le 29 février tombe une année non bissextile.",
+    "Ovaj datum ne postoji: mjesec ima manje dana ili 29. veljače pada u godini koja nije prijestupna.",
+    "Esta fecha no existe: el mes tiene menos días o el 29 de febrero cae en un año que no es bisiesto.",
+    "Αυτή η ημερομηνία δεν υπάρχει: ο μήνας έχει λιγότερες ημέρες ή η 29η Φεβρουαρίου πέφτει σε μη δίσεκτο έτος.",
+    "Datumet finns inte: månaden har färre dagar, eller så infaller 29 februari ett år som inte är skottår.",
+    "Dieses Datum gibt es nicht: Der Monat hat weniger Tage, oder der 29. Februar liegt in keinem Schaltjahr.",
+    "Taka data nie istnieje: miesiąc ma mniej dni albo 29 lutego wypada w roku, który nie jest przestępny.",
+    "Esta data não existe: o mês tem menos dias, ou 29 de fevereiro cai num ano que não é bissexto.",
+  ],
   review_msg_pt_ao90: [
     "1990 Portuguese spelling: prefixes join their word unless it starts with h or the same vowel (autoestima, micro-ondas), and months and weekdays are lowercase.",
     "Orthographe portugaise de 1990 : les préfixes se soudent au mot sauf devant h ou la même voyelle (autoestima, micro-ondas), et mois et jours s’écrivent en minuscules.",
