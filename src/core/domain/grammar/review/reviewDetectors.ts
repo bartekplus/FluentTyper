@@ -1026,8 +1026,9 @@ const duplicatePunctuation: Detector = (ctx) => {
       alternatives: [match[1]],
     });
   }
-  // "word.." (never "..." or "../"): one period too many at a sentence end.
-  const periods = /(?<=[\p{L}\p{N})\]"”’])\.\.(?=\s|$)/gu;
+  // "word.." (never "..." or "../"): one period too many at a sentence end. Arabic writes
+  // ".." as a short ellipsis ("وهذا ما دعاني إلى.."), so Arabic script keeps it.
+  const periods = /(?<=(?![\p{Script=Arabic}])[\p{L}\p{N})\]"”’])\.\.(?=\s|$)/gu;
   for (const match of ownedMatches(ctx, periods)) {
     const start = match.index;
     findings.push({
