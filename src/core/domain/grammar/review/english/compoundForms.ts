@@ -440,7 +440,7 @@ const VERB_KEYS = [...VERB_FORMS.keys()]
   .join("|");
 const ADVERB = `(?:(?:always|never|often|usually|just|also|really|sometimes|then|still|already|even|not|please|yet)${S})?`;
 const CLAUSE =
-  '(?<=(?:^|[.!?;:,(\\n]|\\b(?:and|but|or|so|that|if|when|because|then))[ \\t\\u00a0"“]*)';
+  '(?<=(?:^|[.!?;:,(\\n]|\\b(?:and|but|or|so|that|if|when|because|then))[ \\t\\u00a0"“]{0,8})';
 const SLOT =
   `(?:(?<modal>will|would|can|could|should|must|might|may|shall|cannot|can['’]t|won['’]t|wouldn['’]t|couldn['’]t|shouldn['’]t|don['’]t|didn['’]t|doesn['’]t|do${S}not|did${S}not|does${S}not|let['’]s|please|to)` +
   `|(?<asked>(?:can|could|would|will|should|shall|do|did|does)${S}(?:I|you|we|they|he|she))` +
@@ -734,7 +734,7 @@ function numberUnits(ctx: DetectContext): Finding[] {
 }
 
 // "May be I am wrong" opens with the adverb "maybe"; "it may be" is the verb.
-const MAY_BE = `(?:(?<=(?:^|[.!?(\\n])[ \\t\\u00a0"“]*)(?<target>may${S}be)(?=${S}(?:I|we|you|he|she|they|there|his|her|my|your|our|their|someone|somebody|something|this|that|it['’]s|not)${E})|(?<=\\b(?:is|are|was|were|it['’]s|this['’]s|that['’]s)${S})(?<target2>may${S}be)(?=${S}(?:the|a|an|some|just|because|not|it|this|that|too|very|so|more|less|still|also|only|even|better|worse)${E})|(?<target3>may${S}be)(?=${S}(?:could|can|should|would|will)${E}))`;
+const MAY_BE = `(?:(?<=(?:^|[.!?(\\n])[ \\t\\u00a0"“]{0,8})(?<target>may${S}be)(?=${S}(?:I|we|you|he|she|they|there|his|her|my|your|our|their|someone|somebody|something|this|that|it['’]s|not)${E})|(?<=\\b(?:is|are|was|were|it['’]s|this['’]s|that['’]s)${S})(?<target2>may${S}be)(?=${S}(?:the|a|an|some|just|because|not|it|this|that|too|very|so|more|less|still|also|only|even|better|worse)${E})|(?<target3>may${S}be)(?=${S}(?:could|can|should|would|will)${E}))`;
 
 function mayBe(ctx: DetectContext): Finding[] {
   const findings: Finding[] = [];
@@ -756,9 +756,9 @@ function mayBe(ctx: DetectContext): Finding[] {
 }
 
 // "an on going problem", "on going maintenance" at a sentence start; "keep on going" stays.
-const ON_GOING = `(?:(?<=\\b(?:an|the|their|our|his|her|its|my|your|this|that|any|usual|an${S})${S})|(?<=(?:^|[.!?\\n])[ \\t\\u00a0]*))(?<target>on${S}going)${E}`;
+const ON_GOING = `(?:(?<=\\b(?:an|the|their|our|his|her|its|my|your|this|that|any|usual|an${S})${S})|(?<=(?:^|[.!?\\n])[ \\t\\u00a0]{0,8}))(?<target>on${S}going)${E}`;
 // "Does any one need help?": the pronoun before a verb, not "any one of them".
-const ANY_ONE = `(?<=(?:^|[.!?;\\n]|\\b(?:does|did|do|can|could|will|would|has|have|is|was|if|when|and|but)${S})[ \\t\\u00a0]*)(?<target>(?<q>any|some)${S}one)${S}(?<verb>[a-z]+)${E}`;
+const ANY_ONE = `(?<=(?:^|[.!?;\\n]|\\b(?:does|did|do|can|could|will|would|has|have|is|was|if|when|and|but)${S})[ \\t\\u00a0]{0,8})(?<target>(?<q>any|some)${S}one)${S}(?<verb>[a-z]+)${E}`;
 
 // "sign into your account" is "sign in to"; "signed into law" is the verb with "into".
 const SIGN_INTO = `(?<target>(?<verb>sign|signs|signed|signing|log|logs|logged|logging)${S}into)(?=${S}(?:your|my|his|her|our|their|the|an?)${S}(?:[\\p{L}-]+${S})?(?:accounts?|profiles?|apps?|sites?|website|portal|system|computer|e-?mail|server|dashboard|meeting|session|network|device)${E})`;
