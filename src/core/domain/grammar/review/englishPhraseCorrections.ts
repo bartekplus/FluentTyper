@@ -95,6 +95,13 @@ function matchCase(
   abbreviation: boolean,
   sentenceStart: boolean,
 ): string {
+  // Only the joiner changes ("BLU ray" -> "BLU-ray"): every letter keeps its case.
+  const pieces = (text: string) => text.toLowerCase().split(/[\s-]+/);
+  if (pieces(typed).join(" ") === pieces(replacement).join(" ")) {
+    let at = 0;
+    const kept = typed.replace(/[\s-]+/g, "");
+    return replacement.replace(/[^\s-]/g, () => kept[at++]);
+  }
   const letters = typed.replace(/\P{L}/gu, "");
   // "ALL THE SUDDEN" shouts; "BTW" is just how the abbreviation is written.
   if (letters.length > 1 && letters === letters.toUpperCase()) {
