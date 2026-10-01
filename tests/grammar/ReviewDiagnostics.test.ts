@@ -100,15 +100,15 @@ describe("review rule coverage map", () => {
     expect([...categories]).toEqual(["typography"]);
   });
 
-  test("every supported rule has exactly one detector, and excluded rules have none", () => {
-    // English extension modules add context detectors to rules a core detector already serves.
+  test("every supported rule has a detector, and excluded rules have none", () => {
+    // Core detectors own a rule once; English extension modules may add context detectors
+    // to those rules or serve rules of their own.
     const core = REVIEW_DETECTORS.filter((detector) => !EXTENSION_DETECTORS.includes(detector));
-    const detected = core.flatMap((detector) => detector.rules);
-    expect(new Set(detected).size).toBe(detected.length);
-    for (const ruleId of EXTENSION_DETECTORS.flatMap((detector) => detector.rules))
-      expect(detected).toContain(ruleId);
+    const coreRules = core.flatMap((detector) => detector.rules);
+    expect(new Set(coreRules).size).toBe(coreRules.length);
+    const detected = new Set(REVIEW_DETECTORS.flatMap((detector) => detector.rules));
     for (const ruleId of GRAMMAR_RULE_IDS) {
-      expect(detected.includes(ruleId)).toBe(REVIEW_RULE_METADATA[ruleId].review === "supported");
+      expect(detected.has(ruleId)).toBe(REVIEW_RULE_METADATA[ruleId].review === "supported");
     }
   });
 

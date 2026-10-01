@@ -74,6 +74,7 @@ export interface GrammarRuleCatalogEntry {
     | "englishAuxiliaryBaseVerb"
     | "englishPronounCase"
     | "englishSentenceStructure"
+    | "englishConfusedWords"
     | "styleRedundancy"
     | "stylePhrasing"
     | "englishPhraseCorrections"

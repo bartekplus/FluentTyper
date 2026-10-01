@@ -831,6 +831,17 @@ const EXPLANATIONS: Record<ReviewMessageKey, Translations> = {
     "Sprawdź budowę tego zdania.",
     "Verifique a estrutura desta frase.",
   ],
+  review_msg_confused_word: [
+    "This word is easily confused with a similar one; the sentence needs the suggested word.",
+    "Ce mot se confond facilement avec un mot proche ; la phrase demande le mot proposé.",
+    "Ova se riječ lako zamijeni sa sličnom; rečenica traži predloženu riječ.",
+    "Esta palabra se confunde fácilmente con otra parecida; la oración necesita la palabra sugerida.",
+    "Αυτή η λέξη συγχέεται εύκολα με μια παρόμοια· η πρόταση χρειάζεται την προτεινόμενη λέξη.",
+    "Ordet förväxlas lätt med ett liknande ord; meningen behöver det föreslagna ordet.",
+    "Dieses Wort wird leicht mit einem ähnlichen verwechselt; der Satz braucht das vorgeschlagene Wort.",
+    "To słowo łatwo pomylić z podobnym; zdanie wymaga proponowanego słowa.",
+    "Esta palavra confunde-se facilmente com outra parecida; a frase pede a palavra sugerida.",
+  ],
   review_msg_double_subject: [
     "Two subject pronouns in a row; keep the one you mean.",
     "Deux pronoms sujets se suivent : gardez celui qui convient.",

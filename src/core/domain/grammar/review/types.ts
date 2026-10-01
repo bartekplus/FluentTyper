@@ -150,6 +150,7 @@ export type ReviewMessageKey =
   | "review_msg_pronoun_object_case"
   | "review_msg_who_subject"
   | "review_msg_sentence_structure"
+  | "review_msg_confused_word"
   | "review_msg_double_subject"
   | "review_msg_pronoun_sequence"
   | "review_msg_determiner_clash"
