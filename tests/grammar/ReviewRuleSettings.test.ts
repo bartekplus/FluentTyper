@@ -9,6 +9,7 @@ import {
 import { resolveGrammarRuleSelection } from "../../src/core/domain/grammar/GrammarRuleSettings";
 
 const OPTIONAL_REVIEW_IDS: readonly string[] = [
+  "germanAbbreviationSpacing",
   "styleRedundancy",
   "styleLongSentence",
   "ellipsisShortcut",
