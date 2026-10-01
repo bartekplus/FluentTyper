@@ -209,7 +209,11 @@ type Frame = {
 const notAfter = (words: string) => `(?<!(?<![\\p{L}'’])(?:${words})${S})`;
 /** Only spaces, then closing punctuation or the end of the text. */
 const CLOSES = `(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:)"”]|$))`;
-/** The start of a sentence or line, an opening quote allowed. */
+/**
+ * The start of a sentence or line, an opening quote allowed. Frames check their word first
+ * (`(?=word)`): tried at every position of a long run of spaces, this lookbehind rereads the
+ * run each time in JavaScriptCore.
+ */
 const SENTENCE = `(?<=(?:^|[.!?\\n]["”’)]*)[ \\t\\u00a0]*["“'‘(]?)`;
 const DETERMINER =
   "the|a|an|this|that|these|those|my|your|his|her|its|our|their|some|any|all|every|each";
@@ -273,7 +277,7 @@ const FRAMES: readonly Frame[] = [
     // "did the mistake" is "made"; "Did that mistake…" and "where did the mistake…" ask.
     // The core table owns "do/did/doing a mistake".
     rule: "englishPhraseCorrections",
-    pattern: `(?<!(?:^|[.!?\\n]["”’)]*)[ \\t\\u00a0]*["“'‘(]?)${notAfter("where|when|why|how|what|which|whose")}(?!(?:do|did|doing)${S}a${S}mistake${E})(?<target>do|does|did|doing|done)${S}(?:(?:${DETERMINER}|several|many|no|few|more|fewer|such|same|lots${S}of|so${S}many|too${S}many)${S})(?:\\p{L}+${S})?mistakes?${E}`,
+    pattern: `(?=do|did)(?<!(?:^|[.!?\\n]["”’)]*)[ \\t\\u00a0]*["“'‘(]?)${notAfter("where|when|why|how|what|which|whose")}(?!(?:do|did|doing)${S}a${S}mistake${E})(?<target>do|does|did|doing|done)${S}(?:(?:${DETERMINER}|several|many|no|few|more|fewer|such|same|lots${S}of|so${S}many|too${S}many)${S})(?:\\p{L}+${S})?mistakes?${E}`,
     fix: (m) => MAKE[m.groups!.target.toLowerCase()],
   },
   {
@@ -368,7 +372,7 @@ const FRAMES: readonly Frame[] = [
   },
   {
     rule: "englishPhraseCorrections",
-    pattern: `${SENTENCE}(?<target>halo)(?=[ \\t\\u00a0]*[,!?]|${S}(?:there|world|everyone|everybody|all|guys|folks|friends?|team)${E}|${S}(?<name>\\p{L}+)[ \\t\\u00a0]*[,!.?])`,
+    pattern: `(?=halo)${SENTENCE}(?<target>halo)(?=[ \\t\\u00a0]*[,!?]|${S}(?:there|world|everyone|everybody|all|guys|folks|friends?|team)${E}|${S}(?<name>\\p{L}+)[ \\t\\u00a0]*[,!.?])`,
     fix: (m) => (m.groups!.name && !capitalized(m.groups!.name) ? null : "hello"),
   },
   {
@@ -461,7 +465,7 @@ const FRAMES: readonly Frame[] = [
   },
   {
     rule: "englishSubjectVerbAgreement",
-    pattern: `${SENTENCE}(?<target>has)${S}(?:I|we|you|they)${E}(?![/.-])`,
+    pattern: `(?=has)${SENTENCE}(?<target>has)${S}(?:I|we|you|they)${E}(?![/.-])`,
     fix: "have",
   },
   {
@@ -506,7 +510,7 @@ const FRAMES: readonly Frame[] = [
   },
   {
     rule: "englishClosedCompounds",
-    pattern: `${SENTENCE}(?<target>hand${S}full)${S}of${E}`,
+    pattern: `(?=hand)${SENTENCE}(?<target>hand${S}full)${S}of${E}`,
     fix: "handful",
   },
   {

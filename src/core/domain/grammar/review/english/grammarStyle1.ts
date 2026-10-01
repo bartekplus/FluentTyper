@@ -908,7 +908,7 @@ function splitWords(ctx: DetectContext): Finding[] {
   return findings;
 }
 
-const DANGLING = `(?<target>the${SPACE}(?:and|or|but|because|nor))${WORD_END}|(?<=(?:^|[.!?][ \\t\\u00a0]+))(?<article>An?${SPACE}(?:because|although|unless))${WORD_END}`;
+const DANGLING = `(?<target>the${SPACE}(?:and|or|but|because|nor))${WORD_END}|(?=an?${SPACE})(?<=(?:^|[.!?][ \\t\\u00a0]+))(?<article>An?${SPACE}(?:because|although|unless))${WORD_END}`;
 
 /** "The and other options": a determiner with no noun after it. */
 function danglingDeterminers(ctx: DetectContext): Finding[] {

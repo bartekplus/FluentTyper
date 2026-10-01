@@ -278,8 +278,12 @@ const notAfter = (words: string) => `(?<!(?<![\\p{L}'’])(?:${words})${S})`;
 /** A frame that may also start right after a slash ("source/reason of saving"). */
 const SLASH_START = (pattern: string) =>
   new RegExp(`(?<![.])(?<![\\p{L}\\p{M}\\p{N}_'’@#\\\\-])${pattern}`, "gidu");
-/** A lookbehind: the text start, or a stop, comma, colon or bracket with optional quotes. */
-const AT_CLAUSE = `(?<=(?:^|[.!?,;:(\\n])[ \\t\\u00a0"“'‘]*)`;
+/**
+ * A lookbehind: the text start, or a stop, comma, colon or bracket with optional quotes,
+ * before `next`. Checking `next` first keeps it off long runs of spaces, which it would
+ * reread at every position in JavaScriptCore.
+ */
+const atClause = (next: string) => `(?=${next})(?<=(?:^|[.!?,;:(\\n])[ \\t\\u00a0"“'‘]*)`;
 const SUBJECT = "I|you|we|they|he|she|it";
 const BE_FORM =
   "am|is|are|was|were|be|been|being|(?:I|you|we|they|he|she|it|that|there|who|what|this)['’](?:m|re|s)";
@@ -473,7 +477,7 @@ const FRAMES: readonly Frame[] = [
     // "in the third floor of" is "on"; "in the third floor bathroom" names a room.
     rule: PREPOSITION,
     cue: ["floor"],
-    pattern: `(?:${AT_CLAUSE}|(?<![\\p{L}'’])(?:live|lives|lived|living|located|situated|stay|stays|stayed|staying|reside|resides|resided|residing|am|is|are|was|were|be|been|being|[a-z]+['’](?:m|re|s))${S})(?<target>in|at)${S}the${S}(?:${ORDINAL})${S}floor${E}`,
+    pattern: `(?:${atClause("in|at")}|(?<![\\p{L}'’])(?:live|lives|lived|living|located|situated|stay|stays|stayed|staying|reside|resides|resided|residing|am|is|are|was|were|be|been|being|[a-z]+['’](?:m|re|s))${S})(?<target>in|at)${S}the${S}(?:${ORDINAL})${S}floor${E}`,
     fix: (m, ctx) => (nounLike(nextWord(ctx, matchEnd(m))) ? null : "on"),
   },
   {
@@ -575,7 +579,7 @@ const FRAMES: readonly Frame[] = [
   {
     rule: PHRASE,
     cue: ["curse", "coarse", "course"],
-    pattern: `(?:${AT_CLAUSE}|(?<![\\p{L}'’])(?:yes|yeah|well|and|but|so|oh|ok|okay|sure),?${S})(?<target>of${S}(?:curse|coarse)|off${S}course)${E}`,
+    pattern: `(?:${atClause("of")}|(?<![\\p{L}'’])(?:yes|yeah|well|and|but|so|oh|ok|okay|sure),?${S})(?<target>of${S}(?:curse|coarse)|off${S}course)${E}`,
     fix: "of course",
   },
   {
@@ -601,14 +605,14 @@ const FRAMES: readonly Frame[] = [
     // "they are one in the same": after "be"; "another one in the same place" is literal.
     rule: PHRASE,
     cue: ["same"],
-    pattern: `(?:${AT_CLAUSE}|(?<![\\p{L}'’])(?:${BE_FORM})${S})one${S}(?<target>in)${S}the${S}same(?:${S}as${E}|(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:)…]|$)))`,
+    pattern: `(?:${atClause("one")}|(?<![\\p{L}'’])(?:${BE_FORM})${S})one${S}(?<target>in)${S}the${S}same(?:${S}as${E}|(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:)…]|$)))`,
     fix: "and",
   },
   {
     // "you out to be" is "ought"; "made it out to be" and "turned out to be" stay.
     rule: TYPO,
     cue: ["out"],
-    pattern: `(?<=(?:^|[.!?;:,(][ \\t\\u00a0]*|(?<![\\p{L}'’])(?:as|then|so|and|but|or|if|that|which|because|since|when|while|though|although|what|how)${S}))(?:${SUBJECT})${S}(?<target>out)${S}to${S}be${E}`,
+    pattern: `(?=${SUBJECT})(?<=(?:^|[.!?;:,(][ \\t\\u00a0]*|(?<![\\p{L}'’])(?:as|then|so|and|but|or|if|that|which|because|since|when|while|though|although|what|how)${S}))(?:${SUBJECT})${S}(?<target>out)${S}to${S}be${E}`,
     fix: "ought",
   },
   {
@@ -706,7 +710,7 @@ const FRAMES: readonly Frame[] = [
   {
     rule: COMPOUND,
     cue: PHRASAL_CUE,
-    pattern: `(?:${AT_CLAUSE}|(?<![\\p{L}'’])(?:and|but|or|so|then|if|when|that|because|where|once|before|after|until|unless|while|now|always|never|also|just|often|usually)${S})you${S}(?<target>${PHRASAL_OWN})${E}`,
+    pattern: `(?:${atClause("you")}|(?<![\\p{L}'’])(?:and|but|or|so|then|if|when|that|because|where|once|before|after|until|unless|while|now|always|never|also|just|often|usually)${S})you${S}(?<target>${PHRASAL_OWN})${E}`,
     fix: phrasal,
   },
   {
@@ -749,7 +753,7 @@ const FRAMES: readonly Frame[] = [
   {
     rule: COMPOUND,
     cue: ["soon"],
-    pattern: `(?:(?:the|a|an|my|your|his|her|its|our|their|this|that|these|those)${S}|${AT_CLAUSE})(?<target>soon${S}to${S}be)${S}(?=[\\p{L}\\p{N}])`,
+    pattern: `(?:(?:the|a|an|my|your|his|her|its|our|their|this|that|these|those)${S}|${atClause("soon")})(?<target>soon${S}to${S}be)${S}(?=[\\p{L}\\p{N}])`,
     fix: (m, ctx) => {
       const next = nextWord(ctx, group(m, "target")[1]);
       // At a clause start, only a noun makes it attributive: "Soon to be parents filled…".
@@ -807,7 +811,7 @@ const FRAMES: readonly Frame[] = [
   {
     rule: STYLE_ADVICE,
     cue: ["that"],
-    pattern: `${AT_CLAUSE}(?<target>that${S}that)${S}(?:is|was|are|were)${E}`,
+    pattern: `${atClause("that")}(?<target>that${S}that)${S}(?:is|was|are|were)${E}`,
     fix: "that which",
   },
   {

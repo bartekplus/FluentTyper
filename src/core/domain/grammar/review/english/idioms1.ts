@@ -171,6 +171,8 @@ const CONDITIONAL = new Set([
   "appropriate",
   "available",
 ]);
+// A lookbehind over a run of spaces comes after `(?=word)`: tried at every position of a
+// long run, it rereads the run each time in JavaScriptCore.
 const CLAUSE = `(?:^|[.!?,;:(\\n])[ \\t]*`;
 const POSSESSOR = "the|a|an|this|that|its|their|his|her|our|my|your|no";
 /** Not right after one of these words. */
@@ -208,7 +210,7 @@ const FRAMES: Record<Rule, readonly Frame[]> = {
       fix: "follows",
     },
     {
-      pattern: `(?<=${CLAUSE}|(?<![a-z])(?:and|but|or|so|yet|that)${S})(?<target>on)${S}face${S}value${E}`,
+      pattern: `(?=on)(?<=${CLAUSE}|(?<![a-z])(?:and|but|or|so|yet|that)${S})(?<target>on)${S}face${S}value${E}`,
       fix: "at",
     },
     {
@@ -262,7 +264,7 @@ const FRAMES: Record<Rule, readonly Frame[]> = {
       fix: "for",
     },
     {
-      pattern: `(?<=${CLAUSE}|(?:(?<![a-z'’])(?:is|are|am|was|were|be|been|being|already|still|now|currently|while)|[a-z]['’](?:s|re|m))${S})(?<target>in)${S}route${S}to${E}`,
+      pattern: `(?=in)(?<=${CLAUSE}|(?:(?<![a-z'’])(?:is|are|am|was|were|be|been|being|already|still|now|currently|while)|[a-z]['’](?:s|re|m))${S})(?<target>in)${S}route${S}to${E}`,
       fix: "en",
     },
     { pattern: `(?:I|we|you|they|he|she)${S}(?<target>fond)${S}on${E}`, fix: "found" },

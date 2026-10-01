@@ -31,6 +31,75 @@ const COMPILED = new Map<string, RegExp>();
 // A regex mid-scan in an unfinished generator; a nested scan of it gets its own copy.
 const SCANNING = new WeakSet<RegExp>();
 
+// An escape after its backslash: \p{L}, \u{…}, \k<name>, \u00a0, \x2d, \cJ or one character.
+const ESCAPE = /^(?:[pPu]\{[^}]*\}|k<[^>]*>|u[\dA-Fa-f]{4}|x[\dA-Fa-f]{2}|c[A-Za-z]|.)/su;
+/**
+ * The longest run of plain letters every match of `source` consumes: runs outside
+ * character classes and escapes, inside no lookaround, alternation or optional part.
+ * "" when there is none (a top-level alternation, say).
+ */
+export function requiredLiteral(source: string): string {
+  // Each open group collects its required runs; closing passes them to the parent.
+  const groups: { runs: string[]; alternation: boolean; lookaround: boolean }[] = [
+    { runs: [], alternation: false, lookaround: false },
+  ];
+  let run = "";
+  const endRun = () => {
+    if (run) groups.at(-1)!.runs.push(run);
+    run = "";
+  };
+  const optionalAt = (i: number) => /^(?:[?*]|\{0[,}])/.test(source.slice(i, i + 3));
+  for (let i = 0; i < source.length; i++) {
+    const char = source[i];
+    if (/[A-Za-z]/.test(char)) {
+      if (optionalAt(i + 1)) endRun();
+      else run += char;
+      continue;
+    }
+    endRun();
+    if (char === "\\") {
+      i += ESCAPE.exec(source.slice(i + 1))![0].length;
+    } else if (char === "[") {
+      for (i++; i < source.length && source[i] !== "]"; i++) if (source[i] === "\\") i++;
+    } else if (char === "(") {
+      const lookaround = /^\(\?<?[=!]/.test(source.slice(i, i + 4));
+      if (source.startsWith("(?", i))
+        i = lookaround || source[i + 2] === ":" ? i + 2 : source.indexOf(">", i);
+      groups.push({ runs: [], alternation: false, lookaround });
+    } else if (char === ")") {
+      const group = groups.pop()!;
+      if (!group.lookaround && !group.alternation && !optionalAt(i + 1))
+        groups.at(-1)!.runs.push(...group.runs);
+    } else if (char === "|") groups.at(-1)!.alternation = true;
+  }
+  endRun();
+  const [top] = groups;
+  return top.alternation ? "" : top.runs.reduce((a, b) => (b.length > a.length ? b : a), "");
+}
+const LITERALS = new Map<string, string>();
+// The lowercased text a frame scan can match in, or null when it holds a character whose
+// case-insensitive match is a different ASCII letter (U+017F long s ~ s, U+212A Kelvin sign ~ k).
+const SCANNED = new WeakMap<DetectContext, string | null>();
+
+/**
+ * False when a case-insensitive frame cannot match in this chunk's scan: the text from
+ * from-256 (where scans start) lacks a literal every match consumes. Such a frame is
+ * neither compiled nor run, which spares most idiom frames on most text.
+ */
+function mayMatch(ctx: DetectContext, source: string): boolean {
+  let literal = LITERALS.get(source);
+  if (literal === undefined)
+    LITERALS.set(source, (literal = requiredLiteral(source).toLowerCase()));
+  if (literal.length < 3) return true;
+  let scanned = SCANNED.get(ctx);
+  if (scanned === undefined) {
+    const text = ctx.scanText.slice(Math.max(0, ctx.from - 256));
+    scanned = /[\u017f\u212a]/.test(text) ? null : text.toLowerCase();
+    SCANNED.set(ctx, scanned);
+  }
+  return scanned === null || scanned.includes(literal);
+}
+
 /**
  * One English frame scan. A string pattern gets WORD_START and the `gidu` flags.
  * Scanning starts 256 characters before the chunk, so a frame that began in the
@@ -47,9 +116,11 @@ export function* frameMatches(
 ): Generator<RegExpExecArray> {
   let regex: RegExp;
   if (typeof pattern === "string") {
+    if (!mayMatch(ctx, pattern)) return;
     regex = COMPILED.get(pattern) ?? frame(pattern);
     COMPILED.set(pattern, regex);
-  } else regex = pattern;
+  } else if (pattern.flags.includes("i") && !mayMatch(ctx, pattern.source)) return;
+  else regex = pattern;
   if (SCANNING.has(regex)) regex = new RegExp(regex);
   SCANNING.add(regex);
   try {

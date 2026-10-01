@@ -135,7 +135,14 @@ type Frame = {
 
 /** Not right after one of these whole words. */
 const notAfter = (words: string) => `(?<!(?<![\\p{L}'’])(?:${words})${S})`;
+// A lookbehind over a run of spaces comes after `(?=word)`: tried at every position of a
+// long run, it rereads the run each time in JavaScriptCore.
 const CLAUSE = `(?:^|[.!?,;:(\\n])[ \\t]*`;
+/** CLAUSE ends at `index`: only spaces or tabs back to a clause mark or the text start. */
+function afterClause(text: string, index: number): boolean {
+  while (index > 0 && (text[index - 1] === " " || text[index - 1] === "\t")) index--;
+  return index === 0 || ".!?,;:(\n".includes(text[index - 1]);
+}
 const POSSESSIVE = "my|your|his|her|our|their|its|one['’]s";
 const DETERMINERS = `a|an|the|this|that|these|those|${POSSESSIVE}|each|every|whose|which|what`;
 // Closed-class words that cannot fill the adjective slot of "on a … basis".
@@ -190,8 +197,7 @@ const FRAMES: Record<Rule, readonly Frame[]> = {
       pattern: `${notAfter(DETERMINERS)}(?<verb>laugh|laughs|laughed|laughing)${S}(?<target>of)${S}(?<next>\\p{L}+)${E}`,
       fix: (m) => {
         const { verb, next } = m.groups!;
-        if (/s$/i.test(verb) && new RegExp(`${CLAUSE}$`).test(m.input.slice(0, m.index)))
-          return null;
+        if (/s$/i.test(verb) && afterClause(m.input, m.index)) return null;
         return OBJECT.test(next) || /^\p{Lu}\p{Ll}+$/u.test(next) ? "at" : null;
       },
     },
@@ -272,7 +278,7 @@ const FRAMES: Record<Rule, readonly Frame[]> = {
   stylePhrasing: [
     // "suffice it to say" is the set form; "a word will suffice to say it" stays.
     {
-      pattern: `(?<=${CLAUSE}|(?<![\\p{L}])(?:but|and|so|yet|well)${S})(?<target>suffice${S})to${S}say${E}`,
+      pattern: `(?=suffice)(?<=${CLAUSE}|(?<![\\p{L}])(?:but|and|so|yet|well)${S})(?<target>suffice${S})to${S}say${E}`,
       fix: "suffice it ",
     },
     { pattern: `(?<target>in)${S}some${S}degree${COMPLETE}`, fix: "to" },

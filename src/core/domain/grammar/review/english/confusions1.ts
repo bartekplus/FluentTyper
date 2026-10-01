@@ -136,14 +136,16 @@ const blockBreak = (text: string, nl: number) =>
 
 function before(ctx: DetectContext, start: number): Tok[] {
   let from = Math.max(0, start - 72);
-  // lastIndexOf clamps a negative position to 0, so the loop stops at the first character.
+  // Line breaks inside the window only, nearest first: a search of the whole text
+  // before every target would grow with its position.
+  const window = ctx.text.slice(from, start);
   for (
-    let nl = ctx.text.lastIndexOf("\n", start - 1);
-    nl >= from && nl < start;
-    nl = nl > 0 ? ctx.text.lastIndexOf("\n", nl - 1) : -1
+    let nl = window.lastIndexOf("\n");
+    nl >= 0;
+    nl = nl > 0 ? window.lastIndexOf("\n", nl - 1) : -1
   )
-    if (blockBreak(ctx.text, nl)) {
-      from = nl + 1;
+    if (blockBreak(ctx.text, from + nl)) {
+      from += nl + 1;
       break;
     }
   const list = tokens(ctx, from, start);
@@ -154,13 +156,10 @@ function before(ctx: DetectContext, start: number): Tok[] {
 }
 function after(ctx: DetectContext, end: number): Tok[] {
   let to = Math.min(ctx.text.length, end + 72);
-  for (
-    let nl = ctx.text.indexOf("\n", end);
-    nl >= 0 && nl < to;
-    nl = ctx.text.indexOf("\n", nl + 1)
-  )
-    if (blockBreak(ctx.text, nl)) {
-      to = nl;
+  const window = ctx.text.slice(end, to);
+  for (let nl = window.indexOf("\n"); nl >= 0; nl = window.indexOf("\n", nl + 1))
+    if (blockBreak(ctx.text, end + nl)) {
+      to = end + nl;
       break;
     }
   const list = tokens(ctx, end, to);
