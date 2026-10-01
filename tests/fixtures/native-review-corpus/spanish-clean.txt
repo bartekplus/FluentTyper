@@ -464,3 +464,19 @@ Estaban deseosos por que llegara el verano.
 Nadie sabe por qué se marchó.
 El porqué de su silencio sigue sin aclararse.
 Me fui porque estaba cansada.
+# Commas after connectors and before the person greeted.
+Sin embargo, nadie protestó.
+Además de caro, es lento.
+Por tanto esfuerzo merece un premio.
+O sea que no vienes.
+Al contrario de lo que dicen, funciona.
+Por otro lado del puente pasa el tren.
+¡Hola a todos!
+Buenos días tenga usted.
+Hola, Marta, ¿qué tal?
+Saludos cordiales.
+Un beso grande.
+En primer lugar, gracias a todos.
+De hecho y de derecho le pertenece.
+Felicidades por el premio.
+Hasta luego, cocodrilo.

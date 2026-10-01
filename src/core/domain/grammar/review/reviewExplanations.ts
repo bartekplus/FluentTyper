@@ -2103,6 +2103,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "W hiszpańskim określnik i jego rzeczownik zgadzają się w rodzaju i liczbie.",
     "Em espanhol, o determinante e o seu substantivo concordam em género e número.",
   ],
+  review_msg_spanish_comma: [
+    "In Spanish, a comma follows a connector that opens the clause and sets off the person addressed.",
+    "En espagnol, une virgule suit le connecteur qui ouvre la proposition et isole la personne interpellée.",
+    "U španjolskom zarez dolazi iza veznog izraza na početku rečenice i odvaja osobu kojoj se obraća.",
+    "Tras un conector al inicio de la oración y ante el vocativo se escribe coma.",
+    "Στα ισπανικά, κόμμα ακολουθεί τον συνδετικό όρο που ανοίγει την πρόταση και χωρίζει την προσφώνηση.",
+    "På spanska följs ett inledande sambandsord av kommatecken, och tilltal avskiljs med komma.",
+    "Im Spanischen folgt auf ein einleitendes Bindewort ein Komma, und die Anrede wird abgetrennt.",
+    "W hiszpańskim po wyrażeniu łączącym na początku zdania i przed wołaczem stawia się przecinek.",
+    "Em espanhol, a vírgula segue o conector que abre a oração e isola o vocativo.",
+  ],
 };
 
 /**

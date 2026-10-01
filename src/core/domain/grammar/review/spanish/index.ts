@@ -2,6 +2,7 @@
 import type { ReviewDetectorEntry } from "../reviewDetectors";
 import * as accents from "./accents";
 import * as agreement from "./agreement";
+import * as commas from "./commas";
 import * as confusions from "./confusions";
 import * as diacritics from "./diacritics";
 import * as porque from "./porque";
@@ -22,6 +23,7 @@ for (const entry of [
   ...porque.DETECTORS,
   ...typography.DETECTORS,
   ...agreement.DETECTORS,
+  ...commas.DETECTORS,
 ])
   byRule.set(entry.rules.join(), [...(byRule.get(entry.rules.join()) ?? []), entry]);
 

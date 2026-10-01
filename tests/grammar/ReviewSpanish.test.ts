@@ -376,6 +376,32 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
       ],
     },
   ],
+  [
+    "spanishTypography",
+    "comma after an opening connector and before the person greeted",
+    {
+      pos: [
+        ["Sin embargo nadie protestó.", "Sin embargo, nadie protestó."],
+        ["Además cobra menos que antes.", "Además, cobra menos que antes."],
+        ["Hace frío, por tanto me quedo.", "Hace frío, por tanto, me quedo."],
+        ["Por otra parte conviene esperar.", "Por otra parte, conviene esperar."],
+        ["Es decir nadie lo sabía.", "Es decir, nadie lo sabía."],
+        ["Hola Marta, ¿qué tal?", "Hola, Marta, ¿qué tal?"],
+        ["¡Buenas noches vecinos!", "¡Buenas noches, vecinos!"],
+      ],
+      neg: [
+        "Además de caro, es lento.",
+        "Por tanto esfuerzo merece un premio.",
+        "O sea que no vienes.",
+        "Al contrario de lo que dicen, funciona.",
+        "Por otro lado del puente pasa el tren.",
+        "¡Hola a todos!",
+        "Buenos días tenga usted.",
+        "Gracias por tanto.",
+        "Sin embargo, nadie protestó.",
+      ],
+    },
+  ],
 ];
 
 describe.each(FIXTURES)("%s: %s", (ruleId, _family, fixture) => {
