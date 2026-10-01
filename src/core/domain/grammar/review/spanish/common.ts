@@ -187,8 +187,11 @@ export const DETERMINERS = words(
 
 /** A present-tense look: "combina", "divide", "gustan" (stem + -ar/-er/-ir is a verb). */
 export const verbLike = (word: string) => {
-  const stem = /^(\p{L}+?)[aeo](?:n|s)?$/u.exec(word)?.[1];
-  return !!stem && [`${stem}ar`, `${stem}er`, `${stem}ir`].some(isVerb);
+  const m = /^(\p{L}+?)([aeo])(?:n|s)?$/u.exec(word);
+  if (!m) return false;
+  const [, stem, vowel] = m;
+  const endings = vowel === "a" ? ["ar"] : vowel === "e" ? ["er", "ir"] : ["ar", "er", "ir"];
+  return endings.some((ending) => isVerb(`${stem}${ending}`));
 };
 
 export const isInfinitive = (word: string) => {

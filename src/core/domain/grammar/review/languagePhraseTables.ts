@@ -248,6 +248,19 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
       ["eso si que", "eso sí que"],
       ["aún cuando", "aun cuando"],
       ["yo que sé", "yo qué sé"],
+      // The relative "cual" after its article never takes the accent.
+      ["el cuál", "el cual"],
+      ["la cuál", "la cual"],
+      ["lo cuál", "lo cual"],
+      ["del cuál", "del cual"],
+      ["al cuál", "al cual"],
+      ["los cuáles", "los cuales"],
+      ["las cuáles", "las cuales"],
+      ["sean cuáles sean", "sean cuales sean"],
+      ["tal o cuál", "tal o cual"],
+      // "el porque" may be "él porque"; these determiners only take the noun "porqué".
+      ["un porque", "un porqué"],
+      ["su porque", "su porqué"],
       [["qué se yo", "que se yo"], "qué sé yo"],
     ],
     compounds: [
