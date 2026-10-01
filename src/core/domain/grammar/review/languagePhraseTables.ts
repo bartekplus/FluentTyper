@@ -1,6 +1,7 @@
 import type { PhraseRow } from "./englishPhraseTables";
 import { TABLES as GREEK_TABLES } from "./greek/tables";
 import { TABLES as SWEDISH_TABLES } from "./swedish/tables";
+import { TABLES as ARABIC_TABLES } from "./arabic/tables";
 
 /**
  * The English phrase checks for the other review languages, by language code.
@@ -322,4 +323,5 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
   },
   sv: SWEDISH_TABLES,
   el: GREEK_TABLES,
+  ar: ARABIC_TABLES,
 };

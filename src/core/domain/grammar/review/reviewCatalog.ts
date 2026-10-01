@@ -67,6 +67,7 @@ export const PHRASE_TABLE_KINDS: Readonly<
   hr: ["words", "compounds"],
   sv: ["words", "phrases", "style"],
   el: ["words", "phrases", "style"],
+  ar: ["words", "phrases", "style"],
 };
 
 /** English and every language with an authored phrase table of these kinds. */
@@ -271,6 +272,30 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     kind: "agreement",
     bulk: "individual",
     languages: ["sv_SE"],
+  },
+  arabicAgreement: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "grammar",
+    kind: "agreement",
+    bulk: "individual",
+    languages: ["ar_SA"],
+  },
+  arabicCaseEndings: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "grammar",
+    kind: "wordForm",
+    bulk: "individual",
+    languages: ["ar_SA"],
+  },
+  arabicDates: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "grammar",
+    kind: "numbers",
+    bulk: "individual",
+    languages: ["ar_SA"],
   },
   englishUsagePhrases: {
     review: "supported",

@@ -20,7 +20,7 @@ function* owned(ctx: DetectContext, regex: RegExp): Generator<RegExpExecArray> {
 
 /** The word before `at` in lowercase, "" at a clause boundary. */
 function wordBefore(text: string, at: number): string {
-  return /(\p{L}+['’]?)[ \t ]+$/u.exec(text.slice(Math.max(0, at - 24), at))?.[1] ?? "";
+  return /(\p{L}+['’]?)[ \t\u00a0]+$/u.exec(text.slice(Math.max(0, at - 24), at))?.[1] ?? "";
 }
 
 /** A ν or Ν in the typed word's case. */
@@ -144,9 +144,9 @@ function strictFinalNu(ctx: DetectContext): Finding[] {
 }
 
 const QUESTION = /(?<![\p{L}\p{M}])(?<word>που|πως)(?![\p{L}\p{M}'’])/giu;
-const LEAD = /(?:(?:από|απ['’]|για|ως|μέχρι|και|κι)[ \t ]+)?$/iu;
-const SENTENCE_START = /[.!;;?…\n][ \t "«“‘'(]*$/u;
-const AT_START = /^[ \t "«“‘'(]*$/u;
+const LEAD = /(?:(?:από|απ['’]|για|ως|μέχρι|και|κι)[ \t\u00a0]+)?$/iu;
+const SENTENCE_START = /[.!;;?…\n][ \t\u00a0"«“‘'(]*$/u;
+const AT_START = /^[ \t\u00a0"«“‘'(]*$/u;
 
 /** "Που πας;", "Πως είσαι;": a question opened by where/how accents the word. */
 function questionAccent(ctx: DetectContext): Finding[] {

@@ -119,7 +119,10 @@ export interface GrammarRuleCatalogEntry {
     | "greekQuestionAccent"
     | "greekPunctuation"
     | "swedishTypography"
-    | "swedishAgreement";
+    | "swedishAgreement"
+    | "arabicAgreement"
+    | "arabicCaseEndings"
+    | "arabicDates";
   /** Absent for existing typing rules; false for native Review-only checks. */
   typing?: false;
   name: string;

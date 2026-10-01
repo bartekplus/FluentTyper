@@ -44,8 +44,10 @@ const WORD_STARTS = new Map(
   ]),
 );
 const WORD_ENDS = new RegExp(`(?!${EDGE}|\\.[\\p{L}\\p{N}])`, "iuy");
+// Arabic "و" (and) and "ف" (so) are written onto the next word: "وقال", "فإن".
+WORD_STARTS.set("ar", new RegExp(`(?<![.])(?:(?<=(?<![\\p{L}\\p{M}])[وف])|(?<!${EDGE}))`, "uy"));
 const startsWord = (text: string, at: number, lang: string) => {
-  const regex = WORD_STARTS.get(lang === "fr" ? "fr" : "en")!;
+  const regex = WORD_STARTS.get(lang === "fr" || lang === "ar" ? lang : "en")!;
   regex.lastIndex = at;
   return regex.test(text);
 };
@@ -162,7 +164,11 @@ export function phraseCorrections(ctx: DetectContext): RawFinding[] {
     word = words.exec(ctx.scanText)
   ) {
     // A French word may also start after its elided article: "l'" + "addresse".
-    const elided = ctx.lang.startsWith("fr") ? (FRENCH_ELIDED.exec(word[0])?.[0].length ?? 0) : 0;
+    const elided = ctx.lang.startsWith("fr")
+      ? (FRENCH_ELIDED.exec(word[0])?.[0].length ?? 0)
+      : ctx.lang.startsWith("ar") && /^[وف]\p{L}{2}/u.test(word[0])
+        ? 1
+        : 0;
     lookup: for (const at of elided ? [0, elided] : [0]) {
       const phrases = INDEX.get(wordKey(word[0].slice(at)));
       if (!phrases || !startsWord(ctx.scanText, word.index + at, ctx.lang.slice(0, 2))) continue;
@@ -218,6 +224,7 @@ function toFinding(
   if (
     abbreviation &&
     typed === typed.toUpperCase() &&
+    typed !== typed.toLowerCase() &&
     !UNAMBIGUOUS_CAPS_ABBREVIATIONS.has(typed.toLowerCase())
   )
     return null;

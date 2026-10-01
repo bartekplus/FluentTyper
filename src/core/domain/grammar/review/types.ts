@@ -226,7 +226,20 @@ export type ReviewMessageKey =
   | "review_msg_swedish_acronym_genitive"
   | "review_msg_swedish_lowercase_names"
   | "review_msg_swedish_mellan_till"
-  | "review_msg_swedish_agreement";
+  | "review_msg_swedish_agreement"
+  | "review_msg_arabic_agreement"
+  | "review_msg_arabic_case_endings"
+  | "review_msg_arabic_dates"
+  | "review_msg_arabic_impossible_date"
+  | "review_msg_arabic_weekday_mismatch"
+  | "review_msg_arabic_date_order"
+  | "review_msg_arabic_demonstrative_gender"
+  | "review_msg_arabic_dual_case"
+  | "review_msg_arabic_number_case"
+  | "review_msg_arabic_number_gender"
+  | "review_msg_arabic_case_ending"
+  | "review_msg_arabic_jussive"
+  | "review_msg_arabic_subjunctive";
 
 export type BulkDecision =
   | { eligible: true; alternative: number }

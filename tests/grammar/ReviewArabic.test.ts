@@ -1,0 +1,196 @@
+import { describe, expect, test } from "bun:test";
+import { REVIEW_SUPPORTED_RULE_IDS } from "../../src/core/domain/grammar/review/reviewCatalog";
+import {
+  detectReviewDiagnostics,
+  prepareReview,
+  reviewChunks,
+  scanReviewChunk,
+} from "../../src/core/domain/grammar/review/reviewDiagnostics";
+import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
+import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
+
+function findings(ruleId: CatalogRuleId, text: string, lang = "ar_SA") {
+  return detectReviewDiagnostics(
+    { id: "ar", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
+    { enabledRules: [ruleId], lang, userDictionary: [], insertSpaceAfterAutocomplete: true },
+  ).diagnostics.filter((d) => d.ruleId === ruleId);
+}
+
+// [input, output]; output null for a warning without a fix.
+type Fixture = { pos: Array<[string, string | null]>; neg: string[] };
+
+const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
+  [
+    "arabicAgreement",
+    {
+      pos: [
+        ["قرأت هذا الرسالة أمس.", "قرأت هذه الرسالة أمس."],
+        ["رأيت ذلك الحديقة.", "رأيت تلك الحديقة."],
+        ["رفع هذا اليد عاليا.", "رفع هذه اليد عاليا."],
+        ["اشتريت هذان السيارتان.", "اشتريت هاتان السيارتان."],
+        ["كتبت هذين الكتابان.", "كتبت هذان الكتابان."],
+        ["مررت بهذان الرجلين.", "مررت بهذين الرجلين."],
+        ["جاء ثلاث مهندسين إلى الموقع.", "جاء ثلاثة مهندسين إلى الموقع."],
+        ["حضر خمسة عشرة طالبة.", "حضر خمس عشرة طالبة."],
+        ["سافرت في ثلاثون يوما.", "سافرت في ثلاثين يوما."],
+        ["تبرع بمليونان للمدرسة.", "تبرع بمليونين للمدرسة."],
+        ["قابلت إحدى المسافرين.", "قابلت أحد المسافرين."],
+      ],
+      neg: [
+        "قرأت هذه الرسالة أمس.",
+        "هذا الكتاب مفيد.",
+        "وبعد ذلك الحكومة أعلنت القرار.",
+        "لذلك المدرسة مغلقة اليوم.",
+        "هذا الخليفة عادل.",
+        "هؤلاء الطلبة مجتهدون.",
+        "جاء ثلاثة مهندسين.",
+        "حضر خمس عشرة طالبة.",
+        "سافرت في ثلاثين يوما.",
+        "هاتان العينان جميلتان.",
+        "قرأت ثلاثة كتب.",
+      ],
+    },
+  ],
+  [
+    "arabicCaseEndings",
+    {
+      pos: [
+        ["سلمت على المسافرون.", "سلمت على المسافرين."],
+        ["إن المهندسون بارعون.", "إن المهندسين بارعون."],
+        ["كتبت في صفحتان كاملتين.", "كتبت في صفحتين كاملتين."],
+        ["لم يستطيعون الحضور.", "لم يستطيعوا الحضور."],
+        ["لن يذهبون معنا.", "لن يذهبوا معنا."],
+        ["لم يجري شيء.", "لم يجر شيء."],
+        ["لم ينسى وعده.", "لم ينس وعده."],
+      ],
+      neg: [
+        "سلمت على المسافرين.",
+        "المسافرون وصلوا.",
+        "نظرت في القانون الجديد.",
+        "جلست في المكان نفسه.",
+        "عملت في التلفزيون سنوات.",
+        "لم يكن يعرف.",
+        "لم يتكون الفريق بعد.",
+        "لم تكتبي الرسالة.",
+        "لم يجري هذا؟",
+        "لن يجري السباق غدا.",
+      ],
+    },
+  ],
+  [
+    "arabicDates",
+    {
+      pos: [
+        ["ولد في 31 أبريل 1990.", null],
+        ["الموعد يوم 30 شباط.", null],
+        ["سافرنا في 29 فبراير 2023.", null],
+        ["كان ذلك يوم الأحد 5 يناير 2026.", null],
+        ["وقعت الحادثة في عام 20251.", null],
+        ["بدأ المؤتمر في 2024 مايو 15.", "بدأ المؤتمر في 15 مايو 2024."],
+        ["الاجتماع في أكتوبر 3 2025.", "الاجتماع في 3 أكتوبر 2025."],
+      ],
+      neg: [
+        "ولد في 30 أبريل 1990.",
+        "سافرنا في 29 فبراير 2024.",
+        "كان ذلك يوم الأحد 4 يناير 2015.",
+        "وقعت الحادثة في عام 2025.",
+        "بدأ المؤتمر في 15 مايو 2024.",
+        "النتيجة كانت 31 مقابل 9.",
+        "اشتريت 31 كتابا في مارس.",
+      ],
+    },
+  ],
+  [
+    "englishPhraseCorrections",
+    {
+      pos: [
+        ["سوف لن أتأخر.", "لن أتأخر."],
+        ["وضعه على حدى.", "وضعه على حدة."],
+        ["سأزورك إنشاء الله.", "سأزورك إن شاء الله."],
+        ["ولاكن الأمر صعب.", "ولكن الأمر صعب."],
+        ["هاذا جميل.", "هذا جميل."],
+      ],
+      neg: ["لن أتأخر.", "وضعه على حدة.", "سأزورك إن شاء الله.", "ولكن الأمر صعب.", "هذا جميل."],
+    },
+  ],
+  [
+    "stylePhrasing",
+    {
+      pos: [
+        ["وقال بأنه مريض.", "وقال إنه مريض."],
+        ["ذكرت بأنها ستحضر.", "ذكرت أنها ستحضر."],
+        ["سافر لوحده.", "سافر وحده."],
+        ["لم ينجح إلا طالبان فقط في الامتحان.", "لم ينجح إلا طالبان في الامتحان."],
+        ["كلما قرأت، كلما تعلمت.", "كلما قرأت، تعلمت."],
+        ["جلس بين محمد وبين علي.", "جلس بين محمد وعلي."],
+        ["سألته عن ما حدث.", "سألته عما حدث."],
+      ],
+      neg: [
+        "وقال إنه مريض.",
+        "سافر وحده.",
+        "جلس بيني وبينه.",
+        "كلما قرأت تعلمت.",
+        "لم ينجح إلا طالبان.",
+        "وجدته فقط.",
+      ],
+    },
+  ],
+];
+
+describe.each(FIXTURES)("%s", (ruleId, { pos, neg }) => {
+  test.each(pos)("flags %p", (input, output) => {
+    const found = findings(ruleId, input);
+    expect(found.length).toBe(1);
+    if (output === null) {
+      expect(found[0].alternatives).toEqual([]);
+      return;
+    }
+    expect(applyEdits(input, found[0].alternatives[0].edits)).toBe(output);
+    expect(findings(ruleId, output)).toEqual([]);
+  });
+  test.each(neg)("leaves %p alone", (input) => {
+    expect(findings(ruleId, input).map((d) => d.original)).toEqual([]);
+  });
+  test("stays out of other languages", () => {
+    for (const [input] of pos)
+      for (const lang of ["en_US", "fr_FR", "el_GR", "auto_detect"])
+        expect(findings(ruleId, input, lang).map((d) => d.original)).toEqual([]);
+  });
+});
+
+test("a dual demonstrative and noun in different cases offer both repairs", () => {
+  const [d] = findings("arabicAgreement", "رأيت هذان الكتابين.");
+  expect(d.alternatives.map((a) => a.preview)).toEqual(["هذين الكتابين", "هذان الكتابان"]);
+  expect(d.requiresChoice).toBe(true);
+});
+
+test("an Arabic chunk with many candidates scans quickly", () => {
+  const options = {
+    lang: "ar_SA",
+    enabledRules: [...REVIEW_SUPPORTED_RULE_IDS],
+    userDictionary: [],
+    insertSpaceAfterAutocomplete: true,
+  };
+  const slowest = (text: string) => {
+    const prepared = prepareReview(
+      { id: "worst", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
+      options,
+    );
+    let ms = 0;
+    for (const chunk of reviewChunks(prepared)) {
+      const start = performance.now();
+      scanReviewChunk(prepared, chunk);
+      ms = Math.max(ms, performance.now() - start);
+    }
+    return ms;
+  };
+  const inputs = [
+    "هذا هذان في لم ".repeat(800),
+    "كلما كلما كلما ".repeat(600),
+    `إلا ${"كلمة ".repeat(900)}فقط`,
+    "31 مارس 2022 ".repeat(300),
+    "في ثلاثة وثلاثون ".repeat(400),
+  ];
+  slowest(inputs.join("\n"));
+  for (const text of inputs) expect(slowest(text)).toBeLessThan(100);
+});

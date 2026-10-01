@@ -17,7 +17,7 @@ function* owned(ctx: DetectContext, regex: RegExp): Generator<RegExpExecArray> {
 
 /** The word before `at`, "" after punctuation or at the start. */
 const wordBefore = (text: string, at: number) =>
-  /(\p{L}[\p{L}\p{N}:]*)[ \t ]+$/u.exec(text.slice(Math.max(0, at - 32), at))?.[1] ?? "";
+  /(\p{L}[\p{L}\p{N}:]*)[ \t\u00a0]+$/u.exec(text.slice(Math.max(0, at - 32), at))?.[1] ?? "";
 function atSentenceStart(text: string, at: number): boolean {
   const before = text.slice(Math.max(0, at - 8), at);
   return (
@@ -36,7 +36,7 @@ const ORDINAL_BEFORE = new Set(
   ),
 );
 const ORDINAL_NOUNS =
-  /^[ \t ]+(?:plats(?:en)?|gången|klass(?:en)?|våning(?:en)?|upplaga(?:n)?|århundradet|kvartalet|omgången|försöket|priset|raden|sidan|stycket|hand|januari|februari|mars|april|maj|juni|juli|augusti|september|oktober|november|december)(?![\p{L}])/u;
+  /^[ \t\u00a0]+(?:plats(?:en)?|gången|klass(?:en)?|våning(?:en)?|upplaga(?:n)?|århundradet|kvartalet|omgången|försöket|priset|raden|sidan|stycket|hand|januari|februari|mars|april|maj|juni|juli|augusti|september|oktober|november|december)(?![\p{L}])/u;
 
 /** "på 2a plats", "den 5e maj": an ordinal written in digits takes a colon (2:a, 5:e). */
 function ordinals(ctx: DetectContext): Finding[] {
@@ -84,10 +84,10 @@ function acronymGenitive(ctx: DetectContext): Finding[] {
   const findings: Finding[] = [];
   for (const m of owned(ctx, ACRONYM_S)) {
     const end = m.index + m[0].length;
-    const next = /^[ \t ]+(\p{Ll}+)/u.exec(ctx.text.slice(end, end + 32))?.[1];
+    const next = /^[ \t\u00a0]+(\p{Ll}+)/u.exec(ctx.text.slice(end, end + 32))?.[1];
     if (!next || NOT_NOUNS.has(next)) continue;
     const before = wordBefore(ctx.text, m.index).toLowerCase();
-    if (PLURAL_BEFORE.has(before) || /\d[ \t ]+$/u.test(ctx.text.slice(m.index - 4, m.index)))
+    if (PLURAL_BEFORE.has(before) || /\d[ \t\u00a0]+$/u.test(ctx.text.slice(m.index - 4, m.index)))
       continue;
     if (ctx.dictionary.has(m[0].toLowerCase())) continue;
     findings.push({
@@ -109,7 +109,7 @@ const NAMES = new RegExp(
 // "Mars" is also the planet and "Maj" a first name: only in a date.
 const DATE_ONLY = /^(?:Mars|Maj)$/;
 const DATE_BEFORE =
-  /(?:\d\.?|(?<!\p{L})(?:i|av|sedan|från|till|under|början|slutet|mitten))[ \t ]+$/u;
+  /(?:\d\.?|(?<!\p{L})(?:i|av|sedan|från|till|under|början|slutet|mitten))[ \t\u00a0]+$/u;
 
 /** "idag är det Måndag": Swedish weekdays and months are common nouns. */
 function lowercaseNames(ctx: DetectContext): Finding[] {
@@ -122,8 +122,8 @@ function lowercaseNames(ctx: DetectContext): Finding[] {
     // A title or a name around it ("Svarta Fredagen", "Maj Andersson").
     const end = m.index + word.length;
     if (
-      /\p{Lu}\p{Ll}*[ \t ]+$/u.test(before) ||
-      /^[ \t ]+\p{Lu}/u.test(ctx.text.slice(end, end + 3))
+      /\p{Lu}\p{Ll}*[ \t\u00a0]+$/u.test(before) ||
+      /^[ \t\u00a0]+\p{Lu}/u.test(ctx.text.slice(end, end + 3))
     )
       continue;
     if (ctx.dictionary.has(word.toLowerCase())) continue;
@@ -200,7 +200,7 @@ function agreement(ctx: DetectContext): Finding[] {
     if (!gender) continue;
     const end = m.index + m[0].length;
     // The noun is itself a modifier when a noun or adjective follows it.
-    const next = /^[ \t ]+(\p{Ll}+)/u.exec(ctx.text.slice(end, end + 40))?.[1];
+    const next = /^[ \t\u00a0]+(\p{Ll}+)/u.exec(ctx.text.slice(end, end + 40))?.[1];
     if (next && (adjectiveForm(next) || (next.length > 3 && nounGender(next)))) continue;
     if ([adjective, noun].some((word) => ctx.dictionary.has(word))) continue;
     if (namedExampleBefore(ctx.text, m.index)) continue;
