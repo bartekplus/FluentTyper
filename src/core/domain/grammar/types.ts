@@ -117,7 +117,9 @@ export interface GrammarRuleCatalogEntry {
     // Portuguese Review checks.
     | "portugueseAccentParonyms"
     | "portugueseConfusions"
-    | "portugueseContractions";
+    | "portugueseContractions"
+    | "portugueseNumberFormat"
+    | "portugueseTypographyStyle";
   /** Absent for existing typing rules; false for native Review-only checks. */
   typing?: false;
   name: string;

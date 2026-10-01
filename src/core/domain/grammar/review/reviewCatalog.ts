@@ -625,6 +625,23 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     bulk: "individual",
     languages: ["pt_BR"],
   },
+  portugueseNumberFormat: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "typography",
+    kind: "numbers",
+    bulk: "individual",
+    languages: ["pt_BR"],
+  },
+  portugueseTypographyStyle: {
+    review: "supported",
+    defaultEnabled: false,
+    category: "typography",
+    kind: "numbers",
+    bulk: "individual",
+    languages: ["pt_BR"],
+    note: "Optional typography: a plain x and digits in formulas are common in Brazilian text.",
+  },
 };
 
 /** Review's dictionary check: individual only, and the user always picks the word. */

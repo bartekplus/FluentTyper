@@ -1496,6 +1496,28 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "W portugalskim ten przyimek łączy się z następnym rodzajnikiem lub zaimkiem (em a → na, de este → deste), chyba że zaczyna on zdanie bezokolicznikowe.",
     "A preposição se contrai com o artigo ou pronome seguinte (em a → na, de este → deste), a não ser que ele inicie uma oração com infinitivo.",
   ],
+  review_msg_pt_number_format: [
+    "Portuguese number writing: the hour symbol is h (12h, 14:30), ordinals take º/ª, degrees take °, the kilo prefix is k and exponents are superscript.",
+    "Écriture des nombres en portugais : le symbole de l’heure est h (12h, 14:30), les ordinaux prennent º/ª, les degrés °, le préfixe kilo s’écrit k et les exposants en exposant.",
+    "Pisanje brojeva u portugalskom: simbol sata je h (12h, 14:30), redni brojevi imaju º/ª, stupnjevi °, prefiks kilo piše se k, a eksponenti kao superskript.",
+    "Escritura de números en portugués: el símbolo de hora es h (12h, 14:30), los ordinales llevan º/ª, los grados °, el prefijo kilo es k y los exponentes van volados.",
+    "Γραφή αριθμών στα πορτογαλικά: το σύμβολο της ώρας είναι h (12h, 14:30), τα τακτικά παίρνουν º/ª, οι βαθμοί °, το πρόθεμα κιλο- γράφεται k και οι εκθέτες ως εκθέτες.",
+    "Sifferskrivning på portugisiska: timsymbolen är h (12h, 14:30), ordningstal får º/ª, grader °, kiloprefixet skrivs k och exponenter upphöjda.",
+    "Zahlenschreibung im Portugiesischen: Das Stundensymbol ist h (12h, 14:30), Ordinalzahlen erhalten º/ª, Grad °, das Kilo-Präfix ist k und Exponenten stehen hochgestellt.",
+    "Zapis liczb po portugalsku: symbol godziny to h (12h, 14:30), liczebniki porządkowe mają º/ª, stopnie °, przedrostek kilo to k, a wykładniki są w indeksie górnym.",
+    "Escrita de números: o símbolo de hora é h (12h, 14:30), ordinais levam º/ª, graus levam °, o prefixo quilo é k e os expoentes ficam sobrescritos.",
+  ],
+  review_msg_pt_typography_style: [
+    "Optional Portuguese typography: the × sign between numbers and subscript digits in chemical formulas (H₂O).",
+    "Typographie portugaise facultative : le signe × entre nombres et les chiffres en indice dans les formules chimiques (H₂O).",
+    "Neobavezna portugalska tipografija: znak × između brojeva i indeksne znamenke u kemijskim formulama (H₂O).",
+    "Tipografía portuguesa opcional: el signo × entre números y los subíndices en las fórmulas químicas (H₂O).",
+    "Προαιρετική πορτογαλική τυπογραφία: το σύμβολο × μεταξύ αριθμών και οι δείκτες στους χημικούς τύπους (H₂O).",
+    "Valfri portugisisk typografi: tecknet × mellan tal och nedsänkta siffror i kemiska formler (H₂O).",
+    "Optionale portugiesische Typografie: das Zeichen × zwischen Zahlen und tiefgestellte Ziffern in chemischen Formeln (H₂O).",
+    "Opcjonalna typografia portugalska: znak × między liczbami i cyfry w indeksie dolnym we wzorach chemicznych (H₂O).",
+    "Tipografia opcional: o sinal × entre números e algarismos subscritos em fórmulas químicas (H₂O).",
+  ],
 };
 
 /**

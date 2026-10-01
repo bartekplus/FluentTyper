@@ -221,7 +221,9 @@ export type ReviewMessageKey =
   | "review_msg_pt_crase"
   | "review_msg_pt_por_que"
   | "review_msg_pt_homophone"
-  | "review_msg_pt_contraction";
+  | "review_msg_pt_contraction"
+  | "review_msg_pt_number_format"
+  | "review_msg_pt_typography_style";
 
 export type BulkDecision =
   | { eligible: true; alternative: number }

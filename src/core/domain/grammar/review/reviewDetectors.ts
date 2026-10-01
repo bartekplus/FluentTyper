@@ -1280,6 +1280,9 @@ function measurementLike(
     if (!parsed || parsed.unitStart !== parsed.numberEnd) continue;
     const unit = prefix.slice(parsed.unitStart);
     if (ruleId === "measurementUnitFormatting" && /^([A-Z]|[dg])$/.test(unit)) continue;
+    // Brazilian usage writes clock times and durations glued: "às 10h", "20min".
+    if (ruleId === "measurementUnitFormatting" && ctx.lang === "pt_BR" && /^(?:h|min)$/.test(unit))
+      continue;
     let prosePrefix = prefix.slice(0, parsed.start);
     // A prose list retains the evidence before its first measurement. Every
     // preceding item must itself parse; identifiers and arithmetic still abstain.

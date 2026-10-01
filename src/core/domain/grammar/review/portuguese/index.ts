@@ -4,9 +4,12 @@ import type { ReviewDetectorEntry } from "../reviewDetectors";
 import { confusions } from "./confusions";
 import { contractions } from "./contractions";
 import { accentParonyms } from "./paronyms";
+import { numberFormat, typographyStyle } from "./typography";
 
 export const PORTUGUESE_DETECTORS: ReviewDetectorEntry[] = [
   { rules: ["portugueseAccentParonyms"], detect: accentParonyms },
   { rules: ["portugueseConfusions"], detect: confusions },
   { rules: ["portugueseContractions"], detect: contractions },
+  { rules: ["portugueseNumberFormat"], detect: numberFormat },
+  { rules: ["portugueseTypographyStyle"], detect: typographyStyle },
 ];

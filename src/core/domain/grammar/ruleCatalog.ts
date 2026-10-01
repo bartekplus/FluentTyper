@@ -982,6 +982,32 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     recommended: false,
     priority: 312,
   },
+  {
+    id: "portugueseNumberFormat",
+    typing: false,
+    name: "Portuguese hours, ordinals, degrees and unit symbols",
+    titleI18nKey: "review_msg_pt_number_format",
+    descriptionI18nKey: "review_msg_pt_number_format",
+    exampleI18nKey: "",
+    languageScope: "all",
+    safetyTier: "advanced",
+    defaultRollout: "off",
+    recommended: false,
+    priority: 313,
+  },
+  {
+    id: "portugueseTypographyStyle",
+    typing: false,
+    name: "Portuguese multiplication sign and chemical formulas",
+    titleI18nKey: "review_msg_pt_typography_style",
+    descriptionI18nKey: "review_msg_pt_typography_style",
+    exampleI18nKey: "",
+    languageScope: "all",
+    safetyTier: "advanced",
+    defaultRollout: "off",
+    recommended: false,
+    priority: 314,
+  },
 ] as const;
 
 export type CatalogRuleId = (typeof GRAMMAR_RULE_CATALOG)[number]["id"];

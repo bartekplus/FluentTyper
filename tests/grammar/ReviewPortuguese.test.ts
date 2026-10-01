@@ -140,6 +140,54 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
       ],
     },
   ],
+  [
+    "portugueseNumberFormat",
+    {
+      pos: [
+        ["O ônibus sai às 18hrs.", "O ônibus sai às 18h."],
+        ["A loja abre às 9 hs em ponto.", "A loja abre às 9 h em ponto."],
+        ["A palestra começa às 14:30 hrs.", "A palestra começa às 14:30."],
+        ["O jantar é às 20H.", "O jantar é às 20h."],
+        ["Hoje fez 32ºC na praia.", "Hoje fez 32°C na praia."],
+        ["Ela terminou em 3o lugar.", "Ela terminou em 3o lugar."],
+        ["Ela ficou com o 3o lugar.", "Ela ficou com o 3º lugar."],
+        ["Moro no 8° andar.", "Moro no 8º andar."],
+        ["A cidade fica a 40 Km daqui.", "A cidade fica a 40 km daqui."],
+        ["O terreno tem 300 m2 de área.", "O terreno tem 300 m² de área."],
+      ].filter(([typed, fixed]) => typed !== fixed) as Array<[string, string]>,
+      neg: [
+        "O ônibus sai às 18h.",
+        "A reunião é às 14:30 h.",
+        "Chegamos às 7:00h.",
+        "Hoje fez 32 °C na praia.",
+        "Ela ficou com o 3º lugar.",
+        "A água ferve a 100° no nível do mar.",
+        "O modelo K2 foi lançado.",
+        "Comprei um HB20 usado.",
+        "A sala 2a fica no fim do corredor.",
+        "Use a chave Km3 no arquivo.",
+      ],
+    },
+  ],
+  [
+    "portugueseTypographyStyle",
+    {
+      pos: [
+        ["A sala mede 4 x 5 metros.", "A sala mede 4 × 5 metros."],
+        ["O resultado é 3*4.", "O resultado é 3×4."],
+        ["A água é H2O.", "A água é H₂O."],
+        ["O carro emite CO2 demais.", "O carro emite CO₂ demais."],
+        ["O etanol é C2H5OH.", "O etanol é C₂H₅OH."],
+      ],
+      neg: [
+        "O vírus H1N1 voltou.",
+        "Comprei um HB20 e um PS4.",
+        "A norma ISO9001 exige isso.",
+        "O endereço 0x1F é válido.",
+        "Ligue para o SNS24.",
+      ],
+    },
+  ],
 ];
 
 describe.each(RULES)("%s", (ruleId, { pos, neg }) => {
