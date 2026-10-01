@@ -235,6 +235,9 @@ export const POLISH_CASES: Array<[CatalogRuleId, string, Case]> = [
         ["Wpis z 14 Lis 2019.", "Wpis z 14 XI 2019."],
         ["Pierwszy wrzesień był ciepły.", "Pierwszy września był ciepły."],
         ["Od 7 lipiec trwa remont.", "Od 7 lipca trwa remont."],
+        ["Moda z lat 1980. wraca.", "Moda z lat 80. XX w. wraca."],
+        ["Kocham muzykę lat '70 i więcej.", "Kocham muzykę lat 70. i więcej."],
+        ["Bilety na mundial '2018 są drogie.", "Bilety na mundial 2018 są drogie."],
       ],
       neg: [
         "Urodził się 30 września 1990.",

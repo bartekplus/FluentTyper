@@ -1551,6 +1551,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Końcówkę dodajemy bez apostrofu do obcego imienia, którego ostatnią literę wymawiamy („Johnie”, „Bentleyu”), a do skrótowca po łączniku („SMS-ów”).",
     "Em polonês, a terminação de caso junta-se sem apóstrofo a um nome estrangeiro cuja última letra é pronunciada (“Johnie”, “Bentleyu”), e a uma sigla com hífen (“SMS-ów”).",
   ],
+  review_msg_pl_decade: [
+    "Write a Polish decade with the decade and the century (“lata 90. XX w.”), and a year without an apostrophe.",
+    "Écrivez une décennie polonaise avec la décennie et le siècle (« lata 90. XX w. »), et une année sans apostrophe.",
+    "Poljsko desetljeće pišite s desetljećem i stoljećem („lata 90. XX w.”), a godinu bez apostrofa.",
+    "Escriba una década polaca con la década y el siglo («lata 90. XX w.»), y un año sin apóstrofo.",
+    "Γράψτε μια πολωνική δεκαετία με τη δεκαετία και τον αιώνα («lata 90. XX w.») και ένα έτος χωρίς απόστροφο.",
+    "Skriv ett polskt årtionde med årtiondet och seklet (”lata 90. XX w.”), och ett år utan apostrof.",
+    "Schreiben Sie ein polnisches Jahrzehnt mit Jahrzehnt und Jahrhundert („lata 90. XX w.“) und eine Jahreszahl ohne Apostroph.",
+    "Dekadę zapisujemy liczebnikiem z kropką i wiekiem („lata 90. XX w.”), a rok bez apostrofu.",
+    "Escreva uma década polonesa com a década e o século (“lata 90. XX w.”), e um ano sem apóstrofo.",
+  ],
 };
 
 /**

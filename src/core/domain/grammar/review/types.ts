@@ -226,7 +226,8 @@ export type ReviewMessageKey =
   | "review_msg_pl_missing_comma"
   | "review_msg_pl_preposition_form"
   | "review_msg_pl_abbreviation_dot"
-  | "review_msg_pl_inflected_name";
+  | "review_msg_pl_inflected_name"
+  | "review_msg_pl_decade";
 
 export type BulkDecision =
   | { eligible: true; alternative: number }

@@ -241,6 +241,76 @@ function abbreviatedMonths(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+/*
+ * Decades are written with the decade and the century: "lata 90. XX w.", not
+ * "lata 1990." (an English calque), and a year takes no apostrophe ("lata '90").
+ */
+const DECADE_WORDS = "lata|lat|latach|latami|latom";
+const FULL_DECADE = new RegExp(
+  `(?<=(?:^|[^\\p{L}])(?:${DECADE_WORDS})[ \\t\\u00a0]+)(?<year>1\\d[1-9]0|20[1-9]0)\\.`,
+  "giu",
+);
+const ROMAN_CENTURY = [
+  "",
+  "I",
+  "II",
+  "III",
+  "IV",
+  "V",
+  "VI",
+  "VII",
+  "VIII",
+  "IX",
+  "X",
+  "XI",
+  "XII",
+  "XIII",
+  "XIV",
+  "XV",
+  "XVI",
+  "XVII",
+  "XVIII",
+  "XIX",
+  "XX",
+  "XXI",
+];
+const APOSTROPHE_YEAR = new RegExp(
+  `(?<![\\p{L}\\p{N}])(?<mark>['’])(?<year>\\d{4}|\\d{2})(?![\\p{L}\\p{N}'’])`,
+  "gu",
+);
+
+function decades(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of owned(ctx, FULL_DECADE)) {
+    const year = Number(m.groups!.year);
+    const century = ROMAN_CENTURY[Math.floor(year / 100) + 1];
+    findings.push(
+      findingAt(
+        ctx,
+        m.index,
+        m.index + m[0].length,
+        [`${String(year % 100).padStart(2, "0")}. ${century} w.`],
+        RULE,
+        "review_msg_pl_decade",
+      ),
+    );
+  }
+  for (const m of owned(ctx, APOSTROPHE_YEAR)) {
+    const { year } = m.groups!;
+    // "Euro '2012": a full year needs no apostrophe; "lata '90" is the decade "90.".
+    const before = ctx.text.slice(Math.max(0, m.index - 12), m.index);
+    let fixed: string | null = null;
+    if (year.length === 4) fixed = year;
+    else if (new RegExp(`(?:^|[^\\p{L}])(?:${DECADE_WORDS})[ \\t\\u00a0]+$`, "iu").test(before))
+      fixed = /^[ \t ]*[.]/u.test(ctx.text.slice(m.index + m[0].length)) ? year : `${year}.`;
+    if (!fixed) continue;
+    findings.push(
+      findingAt(ctx, m.index, m.index + m[0].length, [fixed], RULE, "review_msg_pl_decade"),
+    );
+  }
+  return findings;
+}
+
 export const DETECTORS = [
   {
     rules: [RULE] as RawFinding["ruleId"][],
@@ -251,6 +321,7 @@ export const DETECTORS = [
             ...backwardRanges(ctx),
             ...monthForms(ctx),
             ...abbreviatedMonths(ctx),
+            ...decades(ctx),
           ]
         : [],
   },
