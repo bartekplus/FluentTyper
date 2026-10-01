@@ -112,8 +112,36 @@ export interface GrammarRuleCatalogEntry {
     | "englishWereWhere"
     | "englishIrregularForms"
     | "englishPossessiveNouns"
+    | "englishDateConsistency"
+    // Polish-only Review checks (review/polish/).
+    | "polishNumerals"
+    | "polishDates"
+    | "polishMisplacedComma"
+    | "polishMissingComma"
+    | "polishPrepositionForms"
     | "quoteSpacing"
-    | "primeSymbols";
+    | "primeSymbols"
+    | "greekFinalNu"
+    | "greekStrictFinalNu"
+    | "greekQuestionAccent"
+    | "greekPunctuation"
+    | "swedishTypography"
+    | "swedishAgreement"
+    | "arabicAgreement"
+    | "arabicCaseEndings"
+    | "arabicDates"
+    // Portuguese Review checks.
+    | "portugueseAccentParonyms"
+    | "portugueseConfusions"
+    | "portugueseContractions"
+    | "portugueseNumberFormat"
+    | "portugueseTypographyStyle"
+    | "portugueseCliticPlacement"
+    | "portugueseAO90"
+    // Spanish Review checks (review/spanish/).
+    | "spanishAccents"
+    | "spanishConfusions"
+    | "spanishTypography";
   /** Absent for existing typing rules; false for native Review-only checks. */
   typing?: false;
   name: string;

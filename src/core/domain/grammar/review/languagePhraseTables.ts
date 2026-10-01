@@ -1,4 +1,9 @@
 import type { PhraseRow } from "./englishPhraseTables";
+import { TABLES as GREEK_TABLES } from "./greek/tables";
+import { TABLES as SWEDISH_TABLES } from "./swedish/tables";
+import { TABLES as ARABIC_TABLES } from "./arabic/tables";
+import { PORTUGUESE_PHRASES, PORTUGUESE_STYLE } from "./portuguese/phrases";
+import { POLISH_TABLES } from "./polish";
 
 /**
  * The English phrase checks for the other review languages, by language code.
@@ -193,11 +198,155 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
       ["habían muchas", "había muchas"],
       ["habían varios", "había varios"],
       ["habían varias", "había varias"],
+      // "ves" (you see) where the noun "vez" belongs; none of these frames takes the verb.
+      ...(
+        [
+          "tal ~",
+          "cada ~",
+          "otra ~",
+          "una ~",
+          "alguna ~",
+          "ninguna ~",
+          "rara ~",
+          "cierta ~",
+          "a la ~",
+          "a su ~",
+          "en ~ de",
+          "de ~ en cuando",
+          "primera ~",
+          "segunda ~",
+          "tercera ~",
+          "última ~",
+          "única ~",
+          "próxima ~",
+          "enésima ~",
+          "milésima ~",
+          "aquella ~",
+          "la ~ pasada",
+          "la ~ anterior",
+          "la ~ siguiente",
+        ] as const
+      ).map((form): PhraseRow => [form.replace("~", "ves"), form.replace("~", "vez")]),
+      ["ala vez", "a la vez"],
+      ["de echo", "de hecho"],
+      ["vamos haber", "vamos a ver"],
+      ["hay de mí", "ay de mí"],
+      ["halla lo que halla", "haya lo que haya"],
+      ["hola de calor", "ola de calor"],
+      ["hola de frío", "ola de frío"],
+      ["de arriba a bajo", "de arriba abajo"],
+      [["hacia a bajo", "hacia a abajo"], "hacia abajo"],
+      ["el en torno", "el entorno"],
+      ["su en torno", "su entorno"],
+      ...["industriales", "tóxicos", "orgánicos", "radiactivos", "sólidos", "plásticos"].map(
+        (kind): PhraseRow => [`deshechos ${kind}`, `desechos ${kind}`],
+      ),
+      // Fixed phrases with the stressed "sí" (itself) and "aun" (even).
+      ["de por si", "de por sí"],
+      ["fuera de si", "fuera de sí"],
+      ...["en", "por", "de", "para"].flatMap((prep) =>
+        ["mismo", "misma", "mismos", "mismas"].map((same): PhraseRow => [
+          `${prep} si ${same}`,
+          `${prep} sí ${same}`,
+        ]),
+      ),
+      ["eso si que", "eso sí que"],
+      ["aún cuando", "aun cuando"],
+      ["yo que sé", "yo qué sé"],
+      // Conjunctive phrases that need (or refuse) "de" before "que".
+      ["a pesar que", "a pesar de que"],
+      ["a sabiendas que", "a sabiendas de que"],
+      ["en caso que", "en caso de que"],
+      ["pese que", "pese a que"],
+      ["a no ser de que", "a no ser que"],
+      ["a medida de que", "a medida que"],
+      ["una vez de que", "una vez que"],
+      [
+        ["en la medida de que", "en medida de que", "en medida que", "en medida en que"],
+        "en la medida en que",
+      ],
+      // "existential haber" has no plural: "ha habido varios casos".
+      ["han habido", "ha habido"],
+      ["habían habido", "había habido"],
+      ["habrán habido", "habrá habido"],
+      ["habrían habido", "habría habido"],
+      ["hubieran habido", "hubiera habido"],
+      ["hubiesen habido", "hubiese habido"],
+      // "detrás mío": the adverb takes "de" and a pronoun.
+      ...[
+        "detrás",
+        "delante",
+        "encima",
+        "debajo",
+        "enfrente",
+        "cerca",
+        "atrás",
+        "adelante",
+      ].flatMap((adverb): PhraseRow[] => [
+        [[`${adverb} mío`, `${adverb} mía`], `${adverb} de mí`],
+        [[`${adverb} tuyo`, `${adverb} tuya`], `${adverb} de ti`],
+        [[`${adverb} nuestro`, `${adverb} nuestra`], `${adverb} de nosotros`],
+      ]),
+      // Fixed noun phrases whose inner noun keeps its number.
+      ...[
+        ["puntos de vistas", "puntos de vista"],
+        ["punto de vistas", "punto de vista"],
+        ["fines de semanas", "fines de semana"],
+        ["salas de esperas", "salas de espera"],
+        ["dolores de cabezas", "dolores de cabeza"],
+        ["cuartos de baños", "cuartos de baño"],
+        ["campos de batallas", "campos de batalla"],
+        ["estados de ánimos", "estados de ánimo"],
+        ["números de teléfonos", "números de teléfono"],
+        ["silla de rueda", "silla de ruedas"],
+        ["sillas de rueda", "sillas de ruedas"],
+        ["abrir y cerrar de ojo", "abrir y cerrar de ojos"],
+        ["encogió de hombro", "encogió de hombros"],
+        ["encogerse de hombro", "encogerse de hombros"],
+        ["miles de persona", "miles de personas"],
+        ["millones de persona", "millones de personas"],
+        ["cientos de persona", "cientos de personas"],
+        ["millones de euro", "millones de euros"],
+        ["miles de euro", "miles de euros"],
+      ].map(([typed, fixed]): PhraseRow => [typed, fixed]),
+      // The relative "cual" after its article never takes the accent.
+      ["el cuál", "el cual"],
+      ["la cuál", "la cual"],
+      ["lo cuál", "lo cual"],
+      ["del cuál", "del cual"],
+      ["al cuál", "al cual"],
+      ["los cuáles", "los cuales"],
+      ["las cuáles", "las cuales"],
+      ["sean cuáles sean", "sean cuales sean"],
+      ["tal o cuál", "tal o cual"],
+      // "el porque" may be "él porque"; these determiners only take the noun "porqué".
+      ["un porque", "un porqué"],
+      ["su porque", "su porqué"],
+      [["qué se yo", "que se yo"], "qué sé yo"],
     ],
     compounds: [
       ["tam bien", "también"],
       ["porsupuesto", "por supuesto"],
       ["asique", "así que"],
+      ["con tigo", "contigo"],
+      ["con migo", "conmigo"],
+      ["medio ambiental", "medioambiental"],
+      ["medio ambientales", "medioambientales"],
+      ["social demócrata", "socialdemócrata"],
+      ["social demócratas", "socialdemócratas"],
+      ["corona virus", "coronavirus"],
+      ["salva conducto", "salvoconducto"],
+      ["tele trabajo", "teletrabajo"],
+      ["video juego", "videojuego"],
+      ["video juegos", "videojuegos"],
+      ["video conferencia", "videoconferencia"],
+      ["video conferencias", "videoconferencias"],
+      ["foto periodismo", "fotoperiodismo"],
+      ["cara duras", "caraduras"],
+      ["ultra violeta", "ultravioleta"],
+      ["ultra violetas", "ultravioleta"],
+      ["estado unidenses", "estadounidenses"],
+      ["estado unidense", "estadounidense"],
     ],
     style: [
       ["subir arriba", "subir"],
@@ -234,6 +383,7 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
       ["houveram muitas", "houve muitas"],
       ["houveram vários", "houve vários"],
       ["houveram várias", "houve várias"],
+      ...PORTUGUESE_PHRASES,
     ],
     style: [
       ["subir para cima", "subir"],
@@ -243,6 +393,7 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
       ["elo de ligação", "elo"],
       ["encarar de frente", "encarar"],
       ["há anos atrás", ["há anos", "anos atrás"]],
+      ...PORTUGUESE_STYLE,
     ],
   },
   pl: {
@@ -267,6 +418,7 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
       ["nadzieji", "nadziei"],
       ["przyjacielami", "przyjaciółmi"],
       ["cudzysłowiu", "cudzysłowie"],
+      ...POLISH_TABLES.words,
     ],
     // "półtora" goes with masculine and neuter nouns, "półtorej" with feminine ones.
     phrases: [
@@ -276,6 +428,7 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
       ["półtora godziny", "półtorej godziny"],
       ["półtora minuty", "półtorej minuty"],
       ["w każdym bądź razie", "w każdym razie"],
+      ...POLISH_TABLES.phrases,
     ],
     compounds: [
       ["z pośród", "spośród"],
@@ -291,6 +444,7 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
       ["z kąd", "skąd"],
       ["z nikąd", "znikąd"],
       [["spowrotem", "zpowrotem"], "z powrotem"],
+      ...POLISH_TABLES.compounds,
     ],
     style: [
       ["w dniu dzisiejszym", ["dziś", "dzisiaj"]],
@@ -300,6 +454,7 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
       ["wracać z powrotem", "wracać"],
       ["wrócić z powrotem", "wrócić"],
       ["fakt autentyczny", "fakt"],
+      ...POLISH_TABLES.style,
     ],
   },
   hr: {
@@ -318,34 +473,7 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
       ["sobzirom", "s obzirom"],
     ],
   },
-  sv: {
-    words: [
-      ["igentligen", "egentligen"],
-      ["antligen", "äntligen"],
-      ["alldrig", "aldrig"],
-      ["intresant", "intressant"],
-      ["komunikation", "kommunikation"],
-      ["sammarbete", "samarbete"],
-      ["tillsamans", "tillsammans"],
-      ["definitift", "definitivt"],
-      ["skilnad", "skillnad"],
-      ["sjävklart", "självklart"],
-      ["anorlunda", "annorlunda"],
-      ["rekomendera", "rekommendera"],
-      ["resturang", "restaurang"],
-    ],
-  },
-  el: {
-    // Monosyllables take no accent; "μία" (the numeral) and "ευχάριστο" are words.
-    words: [
-      ["εντάξη", "εντάξει"],
-      ["ευχαριστό", "ευχαριστώ"],
-      ["παρακαλό", "παρακαλώ"],
-      ["καλήτερα", "καλύτερα"],
-      ["αφτό", "αυτό"],
-      ["πιό", "πιο"],
-      ["γιά", "για"],
-      ["μιά", "μια"],
-    ],
-  },
+  sv: SWEDISH_TABLES,
+  el: GREEK_TABLES,
+  ar: ARABIC_TABLES,
 };

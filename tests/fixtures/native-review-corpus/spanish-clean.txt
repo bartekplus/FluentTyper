@@ -1,0 +1,199 @@
+# Correct Spanish prose: Review's Spanish checks must stay silent on every line.
+# Demonstratives, determiners and pronouns next to their accented twins.
+Esta mañana compré pan en la panadería de la esquina.
+Me gusta esta camisa, pero prefiero aquella azul.
+De todas las propuestas, esta es la más sensata.
+Esta preciosa casa perteneció a mis abuelos.
+Quiero esta, no la otra.
+Combina esta falda con una blusa blanca.
+Esta llamada de teléfono duró casi una hora.
+Esta subida de precios nos afecta a todos.
+Por ser esta la primera vez, te lo perdono.
+Aunque esta en concreto no me convence, las demás sí.
+Esta, sin duda, es la mejor opción.
+Esta sin duda es la mejor opción.
+Estas cajas pesan demasiado para subirlas solas.
+Estas a su vez se dividen en dos grupos.
+¿Podrías guardar estas en el armario?
+Este libro me lo regaló mi hermana.
+Este año viajaremos al norte.
+Creo que este cambio llega tarde.
+El viento sopla del este durante el invierno.
+Espero que este verano haga menos calor.
+Lo que este informe refleja es preocupante.
+Una casa como esta no se encuentra fácilmente.
+Esta noche cenamos fuera.
+Esta semana no puedo quedar.
+Ella está cansada después del viaje.
+El niño está en el colegio.
+¿Dónde está la estación de tren?
+No sé cómo está tu madre.
+Cuando esté listo, avísame.
+Esta vez sí que lo conseguiremos.
+Mira esta foto de la boda.
+La moto esta no arranca nunca.
+Me quedo con esta mano de cartas.
+Está claro que nadie lo sabía.
+Esa decisión, esta y todas las demás, las tomó ella.
+En esta ciudad llueve mucho en otoño.
+Según esta teoría, el universo se expande.
+Hasta esta tarde no tendremos noticias.
+Esta solo es una prueba rutinaria.
+Esta mucho más moderna que la anterior.
+Hay que leer esta con atención.
+Esta empresa factura millones cada año.
+Esta, aquella y la de más allá son mías.
+# Homophones in their own frames.
+¿No la ves desde ahí?
+Te echo de menos cada día.
+Lo hecho, hecho está.
+Las hechas a mano duran más.
+Un hecho de menos importancia no cambia nada.
+El entorno de trabajo es agradable.
+Vivimos en un entorno rural y tranquilo.
+El pueblo se halla situado junto al río.
+No creo que se haya ido todavía.
+No hay pescado fresco en el mercado.
+Lo apunto en mi agenda.
+Vamos a ver qué pasa mañana.
+Fue a ver a su abuela al hospital.
+Su mérito fue haber llegado el primero.
+Espero que no se vuelva a ver afectado.
+Debe haber alguna solución.
+El haz de luz atravesaba la niebla.
+Haz los deberes antes de cenar.
+La valla del jardín está rota.
+Saltó la valla de un brinco.
+Una ola enorme volcó el barco.
+Cuidad de vuestros hermanos pequeños.
+El perro se lame la herida.
+Es más difícil aún que el anterior.
+¿Piensas aún que tengo razón?
+Hace dos años que no lo veo.
+Reveló que había mentido.
+Se rebeló contra sus padres.
+Si quieres, lo dejamos para otro día.
+Por si acaso, lleva paraguas.
+# Unstressed twins of the accented monosyllables and question words.
+¡Que te vaya bien!
+¡Que aproveche!
+¡Que sí, que ya voy!
+¿A que no sabes quién ha venido?
+Dice que vendrá mañana.
+Sé que tienes razón.
+No sabía que estabas aquí.
+Creo que sí.
+Si llueve, nos quedamos en casa.
+Si, por ejemplo, llueve, nos quedamos dentro.
+Pregúntale si quiere venir.
+Mi casa es tu casa.
+Tu hermano y mi prima se conocen.
+Para mi madre, la familia es lo primero.
+A mi hermano le encanta el fútbol.
+Este regalo es para ti y para mí.
+El coche de mi padre es rojo.
+Él dice que el tren llega tarde.
+El que llegue primero gana.
+Dame el de la izquierda.
+Se lo di ayer.
+No se lo digas a nadie.
+No se puede fumar aquí.
+Quiero que le des esto.
+Te quiero mucho.
+Más vale tarde que nunca.
+Quiero más café.
+Aun así, no me convence.
+Aún no ha llegado.
+Lo hizo como pudo.
+Cuando llegues, llámame.
+¿Cuándo llegas?
+¿Cómo estás?
+La casa donde nací ya no existe.
+Quien mucho abarca poco aprieta.
+El edificio en el cual trabajo es antiguo.
+Tomaré un té con limón.
+Mas no por ello se rindió.
+Eso sí que es importante.
+Tú y yo lo sabemos.
+Hazlo tú mismo.
+¿Qué tal estás?
+Sabes que te quiero.
+Sé que bajar música sin pagar está mal.
+Me pregunto si vendrá.
+No sé si vendrá.
+Lo dijo él.
+Se lo dije a él.
+Es para él.
+La casa es de él.
+Ellos se ríen de mí.
+¿Para qué sirve esto?
+¿Y tú qué opinas?
+Le dio el sí delante de todos.
+# Auxiliaries, participles and "de que".
+Había llamadas perdidas en el móvil.
+Espero que no haya malentendidos.
+Debe haber clasificados en la lista.
+Ha estado cerrado todo el verano.
+Se fue enfadado sin despedirse.
+Está permitido aparcar aquí.
+Huele a quemado en la cocina.
+Pasó de acusador a acusado.
+Me alegra que hayas venido.
+Me alegro de que hayas venido.
+Pienso que tienes razón.
+Estoy seguro de que lo conseguirás.
+Seguro que mañana hace sol.
+Se dio cuenta de que llovía.
+Acordaron que se verían el lunes.
+No me acuerdo de qué dijo.
+El caso que nos ocupa es complejo.
+A pesar de que llovía, salimos.
+Ha habido varios accidentes.
+Se puso a cubierto de la lluvia.
+Vive detrás de mí.
+Los fines de semana descansamos.
+Es una inversión de millones de euros.
+# Verb forms next to their accented noun twins.
+Practico yoga todos los martes.
+Este opera desde el domingo.
+Al menos legitima la decisión.
+La termino mañana sin falta.
+Con ella hablo todos los días.
+¿Tiene usted cambio?
+Ella, creo, no lo sabe.
+Miró hacia abajo con miedo.
+Se lio con los papeles.
+El número de teléfono está en la página web.
+Por último, quiero dar las gracias.
+No sabía qué hacer.
+Se creó una comisión especial.
+# Prefixes that stay apart.
+Era el vice primer ministro del país.
+El ex presidente dio una rueda de prensa.
+Es una campaña anti-OTAN.
+Toca en re menor la segunda pieza.
+Quiero que me des algo de beber.
+Publiqué un post nuevo en el blog.
+Iban en pos de la gloria.
+La tele está encendida.
+# Conjunctions, years, months and acronyms written the standard way.
+Padres e hijos llegaron juntos.
+Agua y hielo en el vaso.
+Siete u ocho personas esperaban.
+Hitler y Himmler firmaron la orden.
+Bailamos salsa y hip-hop.
+¿Y Isabel?
+La vocal u no suena aquí.
+Nació en 1989 y se mudó en 2010.
+Cuesta 2.000 euros al mes.
+Viajaremos en julio, el lunes 4.
+El Viernes de Dolores no abren.
+Las ONG trabajan sin descanso.
+Trajeron manzanas, peras, etc.
+Trajo con él varias cosas.
+¿A que odias las películas de miedo?
+Si cantaras bien, tendrías éxito.
+Ojalá se sentara a mi lado.
+La lluvia continua estropeó la cosecha.
+Tiene una sonrisa amplia.
+Su ira no tenía límites.

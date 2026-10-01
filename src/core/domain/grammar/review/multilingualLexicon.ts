@@ -1,4 +1,5 @@
 import { namedExampleBefore } from "./exampleCues";
+import { POLISH_SPLIT_WORDS } from "./polish";
 import { SPACE, WORD_START as EDGE_BEFORE } from "./phraseTemplates";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 
@@ -64,6 +65,8 @@ const DEGREE: Record<string, DegreeTable> = {
   },
   pl: {
     marker: "bardziej",
+    // "tym bardziej" is "all the more": "tym bardziej lepiej" doubles nothing.
+    blockedBefore: /(?<![\p{L}])tym[ \t\u00a0]+$/iu,
     words:
       "lepsz(?:y|a|e|ego|ej|ym|ych|ymi|ą)|lepsi|lepiej|gorsz(?:y|a|e|ego|ej|ym|ych|ymi|ą)|gorsi|gorzej",
   },
@@ -75,9 +78,12 @@ const DEGREE: Record<string, DegreeTable> = {
       /(?<![\p{L}])(?:ne|ni|nije|nisu|nisam|nisi|nismo|niste|nikad)(?![\p{L}])[^.!?;:\n]{0,40}$/iu,
   },
   sv: { marker: "mera?", words: "bättre|sämre" },
+  // Any synthetic comparative (-τερος, accent before the suffix: "ισχυρότερα",
+  // "ανώτερη"); ordinals and "neutral", "later" only look like one.
   el: {
     marker: "πιο",
-    words: "καλύτερ(?:ος|η|ο|οι|ες|α|ου|ης|ων|ους)|χειρότερ(?:ος|η|ο|οι|ες|α|ου|ης|ων|ους)",
+    words:
+      "(?!ουδέτερ|δεύτερ|ύστερ|πρότερ|έτερ|αμφότερ)\\p{L}*[άέήίόύώ]\\p{L}*τερ(?:ος|η|ο|οι|ες|α|ου|ης|ων|ους)",
   },
 };
 for (const table of Object.values(DEGREE)) {
@@ -173,6 +179,7 @@ const SPLIT_WORDS: Record<string, Record<string, string>> = {
     przedewszystkim: "przede wszystkim",
     odrazu: "od razu",
     niemożna: "nie można",
+    ...POLISH_SPLIT_WORDS,
   },
   sv: {
     iallafall: "i alla fall",
@@ -213,6 +220,12 @@ export function splitWords(ctx: DetectContext): RawFinding[] {
     const typed = m[0];
     const lower = typed.toLowerCase();
     if (ctx.dictionary.has(lower) || namedExampleBefore(ctx.text, m.index)) continue;
+    // "te aveces" is the verb "avezarse".
+    if (
+      lower === "aveces" &&
+      /(?:^|\s)(?:me|te|se|nos|os)\s+$/iu.test(ctx.text.slice(Math.max(0, m.index - 6), m.index))
+    )
+      continue;
     const replacement = table.map.get(lower)!;
     findings.push({
       ruleId: "englishAlotCorrection",

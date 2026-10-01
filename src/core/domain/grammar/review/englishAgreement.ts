@@ -166,7 +166,11 @@ function lexicalAgreement(
   // "He hand wrote it": a noun-verb before another verb modifies it.
   if (info.noun && nextInfo?.verbs.some((v) => v.form === "past" || v.form === "base"))
     return undefined;
-  return englishInflect(word, "third") ?? undefined;
+  // "It better be careful" drops "had"; no finite verb takes a bare "be" either.
+  if (next?.toLowerCase() === "be") return undefined;
+  const third = englishInflect(word, "third");
+  // Only a form the dictionary lists: "He not sure" never becomes "nots".
+  return third && englishWordInfo(third)?.verbs.some((v) => v.form === "third") ? third : undefined;
 }
 
 /** Simple counted noun phrases only: changing the verb must preserve the stated number. */
