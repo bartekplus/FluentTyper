@@ -223,7 +223,8 @@ export type ReviewMessageKey =
   | "review_msg_fr_hyphen"
   | "review_msg_fr_subject_verb"
   | "review_msg_fr_elision"
-  | "review_msg_fr_date";
+  | "review_msg_fr_date"
+  | "review_msg_fr_noun_number";
 
 export type BulkDecision =
   | { eligible: true; alternative: number }

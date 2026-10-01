@@ -1,11 +1,16 @@
 import { describe, expect, test } from "bun:test";
 import { readFile } from "node:fs/promises";
-import { buildFrenchLexicon, FRENCH_LEXICON_SOURCES } from "../../scripts/generate-french-lexicon";
+import {
+  buildFrenchLexicon,
+  buildFrenchNouns,
+  FRENCH_LEXICON_SOURCES,
+} from "../../scripts/generate-french-lexicon";
 import {
   conjugate,
   finitePersons,
   IL,
   ILS,
+  isInflectedNoun,
   isVerbHomograph,
   JE,
   NOUS,
@@ -289,6 +294,37 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
       ],
     },
   ],
+  [
+    "frenchNounNumber",
+    {
+      pos: [
+        ["Mes enfant sont partis.", "Mes enfants sont partis."],
+        ["Les voiture roulent vite.", "Les voitures roulent vite."],
+        ["La routes est longue.", "La route est longue."],
+        ["Un plans de la ville.", "Un plan de la ville."],
+        ["Les bateau coulent.", "Les bateaux coulent."],
+        ["Les cheval galopent.", "Les chevaux galopent."],
+        ["Des porte claquent.", "Des portes claquent."],
+      ],
+      neg: [
+        "Je les aime beaucoup.",
+        "Tu la portes bien.",
+        "Il les porte.",
+        "Ce sont mes amis.",
+        "Le fils de Paul.",
+        "Le temps passe.",
+        "Les quatre saisons.",
+        "Les tout premiers jours.",
+        "Les Dupont arrivent.",
+        "Vos nom et prénom, s'il vous plaît.",
+        "Les voyant si nerveux, il se tut.",
+        "Deux cent une personnes arrivent.",
+        "Il a soixante et un ans.",
+        "Les lundi et mardi sont fériés.",
+        "Je suis sûr de les avoir vus.",
+      ],
+    },
+  ],
 ];
 
 describe.each(FIXTURES)("%s", (ruleId, { pos, neg }) => {
@@ -349,6 +385,22 @@ describe("French lexicon", () => {
     expect(conjugate(peut, ILS)).toEqual(["peuvent"]);
     const [allaient] = verbReadings("allaient");
     expect(conjugate(allaient, NOUS)).toEqual(["allions"]);
+  });
+
+  test("the noun filter knows inflected nouns and invariable words in s", () => {
+    for (const word of ["maison", "cheval", "bateau", "fils", "temps"])
+      expect(isInflectedNoun(word)).toBe(true);
+    for (const word of ["maisons", "chevaux", "mangeons"])
+      expect(isInflectedNoun(word)).toBe(false);
+  });
+
+  test("the committed noun filter matches fr_FR.dic/.aff", async () => {
+    const [dic, aff, committed] = await Promise.all(
+      [FRENCH_LEXICON_SOURCES.dic, FRENCH_LEXICON_SOURCES.aff, FRENCH_LEXICON_SOURCES.nouns].map(
+        (path) => readFile(path, "utf8"),
+      ),
+    );
+    expect(buildFrenchNouns(dic, aff)).toBe(committed);
   });
 
   test("homographs are verb forms that another entry also spells", () => {

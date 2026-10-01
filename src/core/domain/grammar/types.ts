@@ -119,6 +119,7 @@ export interface GrammarRuleCatalogEntry {
     | "frenchSubjectVerbAgreement"
     | "frenchElision"
     | "frenchDates"
+    | "frenchNounNumber"
     | "quoteSpacing"
     | "primeSymbols";
   /** Absent for existing typing rules; false for native Review-only checks. */

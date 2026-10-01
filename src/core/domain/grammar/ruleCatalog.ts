@@ -594,6 +594,19 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     recommended: false,
     priority: 178,
   },
+  {
+    id: "frenchNounNumber",
+    typing: false,
+    name: "French determiner and noun number",
+    titleI18nKey: "review_msg_fr_noun_number",
+    descriptionI18nKey: "review_msg_fr_noun_number",
+    exampleI18nKey: "",
+    languageScope: "all",
+    safetyTier: "advanced",
+    defaultRollout: "off",
+    recommended: false,
+    priority: 179,
+  },
 
   {
     id: "englishPronounCase",

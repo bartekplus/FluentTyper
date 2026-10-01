@@ -1518,6 +1518,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Ta data nie istnieje albo dzień tygodnia nie zgadza się z kalendarzem.",
     "Esta data não existe, ou o dia da semana não corresponde ao calendário.",
   ],
+  review_msg_fr_noun_number: [
+    "The noun takes the number of its determiner (les livres, la route).",
+    "Le nom prend le nombre de son déterminant (les livres, la route).",
+    "Imenica se slaže u broju sa svojim determinatorom (les livres, la route).",
+    "El sustantivo concuerda en número con su determinante (les livres, la route).",
+    "Το ουσιαστικό συμφωνεί σε αριθμό με το προσδιοριστικό του (les livres, la route).",
+    "Substantivet ska ha samma numerus som sitt bestämningsord (les livres, la route).",
+    "Das Nomen richtet sich in der Zahl nach seinem Begleiter (les livres, la route).",
+    "Rzeczownik zgadza się w liczbie ze swoim określnikiem (les livres, la route).",
+    "O substantivo concorda em número com o seu determinante (les livres, la route).",
+  ],
 };
 
 /**

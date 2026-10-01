@@ -1,4 +1,6 @@
+import { BLOOM_ALPHABET, bloomBits } from "../../implementations/helpers/EnglishLexicon";
 import { VERB_HOMOGRAPHS, VERB_LEMMAS, VERB_RULES } from "./frenchLexicon.generated";
+import { NOUN_BLOOM } from "./frenchNouns.generated";
 
 /** Subject persons as bits: je, tu, il/elle/on, nous, vous, ils/elles. */
 export const JE = 1;
@@ -127,4 +129,20 @@ export function isVerbLemma(lemma: string): boolean {
 export function isVerbHomograph(word: string): boolean {
   load();
   return homographs!.has(word);
+}
+
+let nounBloom: Uint8Array | null = null;
+
+/** Whether the dictionary inflects this lowercase word as a noun or adjective (a Bloom filter:
+ * about 1% of other strings also pass). */
+export function isInflectedNoun(word: string): boolean {
+  if (!nounBloom) {
+    nounBloom = new Uint8Array(NOUN_BLOOM.length);
+    for (let i = 0; i < NOUN_BLOOM.length; i++)
+      nounBloom[i] = BLOOM_ALPHABET.indexOf(NOUN_BLOOM[i]);
+  }
+  const filter = nounBloom;
+  return bloomBits(word, filter.length * 6).every(
+    (bit) => (filter[(bit / 6) | 0] >> (bit % 6)) & 1,
+  );
 }
