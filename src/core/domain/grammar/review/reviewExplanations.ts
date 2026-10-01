@@ -1463,6 +1463,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Z podmiotem „vous” francuski czasownik odmienia się (-ez), a nie stoi w bezokoliczniku.",
     "Com «vous» como sujeito, o verbo francês é conjugado (-ez), não fica no infinitivo.",
   ],
+  review_msg_fr_homophone: [
+    "These French words sound alike (a/à, ou/où, ce/se, ça/sa…); the context calls for the other spelling.",
+    "Ces mots se prononcent de la même façon (a/à, ou/où, ce/se, ça/sa…) : le contexte demande l’autre graphie.",
+    "Ove se francuske riječi isto izgovaraju (a/à, ou/où, ce/se, ça/sa…); kontekst traži drugi oblik.",
+    "Estas palabras francesas suenan igual (a/à, ou/où, ce/se, ça/sa…); el contexto pide la otra grafía.",
+    "Αυτές οι γαλλικές λέξεις ακούγονται ίδιες (a/à, ou/où, ce/se, ça/sa…)· τα συμφραζόμενα θέλουν την άλλη γραφή.",
+    "Dessa franska ord låter likadant (a/à, ou/où, ce/se, ça/sa…); sammanhanget kräver den andra stavningen.",
+    "Diese französischen Wörter klingen gleich (a/à, ou/où, ce/se, ça/sa…); der Zusammenhang verlangt die andere Schreibung.",
+    "Te francuskie słowa brzmią tak samo (a/à, ou/où, ce/se, ça/sa…); kontekst wymaga drugiej pisowni.",
+    "Estas palavras francesas soam igual (a/à, ou/où, ce/se, ça/sa…); o contexto pede a outra grafia.",
+  ],
 };
 
 /**

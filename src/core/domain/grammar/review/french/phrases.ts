@@ -1,0 +1,212 @@
+import type { PhraseRow } from "../englishPhraseTables";
+
+// Sound-alike small words inside frames where only one spelling is French. Every row's typed
+// form is never correct as written; frames that need the context of a verb or a subject live in
+// homophones.ts.
+
+/** One row per frame: `~` stands for the typed word, replaced by the intended one. */
+const one = (frames: string[], typed: string, fixed: string): PhraseRow[] =>
+  frames.map((frame) => [frame.replace("~", typed), frame.replace("~", fixed)]);
+
+/** Rows for englishPhraseCorrections (contextual grammar). */
+export const PHRASES: readonly PhraseRow[] = [
+  // "à": prepositional locutions whose "a" can never be the verb.
+  ...one(
+    [
+      "tout ~ fait",
+      "tout ~ coup",
+      "tout ~ l'heure",
+      "grâce ~ toi",
+      "grâce ~ vous",
+      "grâce ~ lui",
+      "grâce ~ eux",
+      "face ~ face",
+      "quant ~",
+      "jusqu'~",
+      "suite ~ votre",
+      "suite ~ ton",
+      "suite ~ notre",
+      "par rapport ~",
+      "contrairement ~",
+      "pas ~ pas",
+      "peu ~ peu",
+      "petit ~ petit",
+      "côte ~ côte",
+      "nez ~ nez",
+      "goutte ~ goutte",
+      "mise ~ jour",
+      "au fur et ~ mesure",
+      "de temps ~ autre",
+      "~ cause de",
+      "~ cause du",
+      "~ cause des",
+      "~ partir de",
+      "~ partir du",
+      "~ travers",
+      "~ côté de",
+      "~ côté du",
+      "~ peu près",
+      "~ propos de",
+      "~ condition que",
+      "~ l'égard de",
+      "~ l'instar de",
+      "~ la hâte",
+      "~ l'aveuglette",
+      "~ la rescousse",
+      "~ l'improviste",
+      "~ contrecœur",
+      "~ vol d'oiseau",
+      "~ temps plein",
+      "~ temps partiel",
+      "~ plein temps",
+      "~ coup sûr",
+      "garde ~ vue",
+      "machine ~ laver",
+      "machines ~ laver",
+      "fer ~ repasser",
+      "salle ~ manger",
+      "bonjour ~ tous",
+      "merci ~ tous",
+      "rien ~ voir",
+    ],
+    "a",
+    "à",
+  ),
+  ["a tort et a travers", "à tort et à travers"],
+  // "où": "d'ou", "par ou", "jusqu'ou" and "n'importe ou" never mean "or".
+  ...one(
+    [
+      "d'~",
+      "jusqu'~",
+      "n'importe ~",
+      "au moment ~",
+      "à l'instant ~",
+      "dans la mesure ~",
+      "au cas ~",
+    ],
+    "ou",
+    "où",
+  ),
+  ["plus où moins", "plus ou moins"],
+  // "sûr": certain.
+  ...one(
+    [
+      "bien ~,",
+      "j'en suis ~",
+      "en suis-je ~",
+      "~ et certain",
+      "à coup ~",
+      "en lieu ~",
+      "est ~ de lui",
+      "est ~ d'elle",
+      "suis ~ de moi",
+      "es ~ de toi",
+      "suis ~ que",
+      "es ~ que",
+      "est ~ que",
+      "pas ~ que",
+      "~ de soi",
+    ],
+    "sur",
+    "sûr",
+  ),
+  ...one(["suis ~ que", "es ~ que", "est ~ que", "est ~ d'elle", "~ d'elle-même"], "sure", "sûre"),
+  ...one(["sont ~ que", "sommes ~ que", "êtes ~ que", "sont ~ d'eux"], "surs", "sûrs"),
+  ...one(["sont ~ que", "sommes ~ que", "êtes ~ que", "sources ~", "mains ~"], "sures", "sûres"),
+  // "sont", "ont", "on" after a subject pronoun.
+  ...one(["ils ~", "elles ~"], "son", "sont"),
+  ...one(["ils ~", "elles ~"], "on", "ont"),
+  ...one(["si ~ peut", "si ~ veut", "si ~ doit", "si ~ va"], "ont", "on"),
+  // "se" / "ce", "s'est" / "c'est".
+  ...one(
+    ["~ qui", "~ que", "~ qu'il", "~ qu'elle", "~ qu'on", "tout ~ qui", "tout ~ que"],
+    "se",
+    "ce",
+  ),
+  ...one(["~ matin", "~ soir", "~ week-end", "~ jour-là", "~ moment-là"], "se", "ce"),
+  // "Elle c'est ma sœur" dislocates without a comma: only "il" and "on" are never stressed.
+  ...one(["il ~", "on ~", "il ne ~", "elle ne ~", "on ne ~"], "c'est", "s'est"),
+  ...one(["il ~", "on ~"], "c'était", "s'était"),
+  // "ça" before a pronoun or a negation: a possessive never comes there.
+  ...one(
+    ["~ me", "~ m'", "~ te", "~ t'", "~ se", "~ s'", "~ ne", "~ n'", "~ y est", "~ fait mal"],
+    "sa",
+    "ça",
+  ),
+  // "dû": owed to, had to.
+  ...one(["est ~ à", "est ~ au", "était ~ à", "était ~ au", "sera ~ à"], "du", "dû"),
+  // "dès": from, as soon as.
+  ...one(
+    [
+      "~ que",
+      "~ qu'il",
+      "~ qu'elle",
+      "~ qu'on",
+      "~ lors",
+      "~ aujourd'hui",
+      "~ demain",
+      "~ maintenant",
+      "~ à présent",
+      "~ le début",
+      "~ la fin",
+      "~ l'aube",
+      "~ le départ",
+      "~ la naissance",
+    ],
+    "des",
+    "dès",
+  ),
+  ...one(["~ que", "~ qu'il", "~ à présent", "~ lors"], "dés", "dès"),
+  // "peu" / "peut" / "peux".
+  // "l'un peut", "quelqu'un peut": "un" there is a pronoun.
+  ...one(
+    [
+      "un ~ de",
+      "un ~ plus",
+      "un ~ moins",
+      "un ~ trop",
+      "très ~",
+      "à ~ près",
+      "il y a ~ de",
+      "~ à peu",
+    ],
+    "peut",
+    "peu",
+  ),
+  ...one(["il ~", "elle ~", "on ~", "il ne ~", "on ne ~"], "peu", "peut"),
+  ...one(["je ~", "tu ~", "je ne ~", "tu ne ~"], "peu", "peux"),
+  // "leur" before a verb is the pronoun: it never takes an s.
+  ...one(
+    ["je ~", "tu ~", "il ~", "elle ~", "on ~", "ils ~", "elles ~", "ne ~", "je ne ~"],
+    "leurs",
+    "leur",
+  ),
+  // "quant à" / "quand".
+  ...one(
+    ["~ à moi", "~ à toi", "~ à lui", "~ à elle", "~ à nous", "~ à vous", "~ à eux", "~ à elles"],
+    "quand",
+    "quant",
+  ),
+  ...one(
+    [
+      "~ il",
+      "~ elle",
+      "~ on",
+      "~ je",
+      "~ j'",
+      "~ tu",
+      "~ nous",
+      "~ ils",
+      "~ elles",
+      "~ même",
+      "~ bien même",
+    ],
+    "quant",
+    "quand",
+  ),
+  // "as" / "a" after the subject.
+  ...one(["tu ~"], "a", "as"),
+  ...one(["il ~", "elle ~", "on ~"], "as", "a"),
+  // "est" fixed in "qui plus est", "n'en est rien", "m'est égal".
+  ...one(["qui plus ~", "m'~ égal", "t'~ égal"], "ait", "est"),
+];

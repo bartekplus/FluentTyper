@@ -114,6 +114,7 @@ export interface GrammarRuleCatalogEntry {
     | "englishPossessiveNouns"
     // French (review/french/)
     | "frenchVerbForms"
+    | "frenchHomophones"
     | "quoteSpacing"
     | "primeSymbols";
   /** Absent for existing typing rules; false for native Review-only checks. */

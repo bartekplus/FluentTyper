@@ -218,7 +218,8 @@ export type ReviewMessageKey =
   // French (review/french/)
   | "review_msg_fr_past_participle"
   | "review_msg_fr_infinitive"
-  | "review_msg_fr_vous_verb";
+  | "review_msg_fr_vous_verb"
+  | "review_msg_fr_homophone";
 
 export type BulkDecision =
   | { eligible: true; alternative: number }

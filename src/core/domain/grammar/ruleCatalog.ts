@@ -529,6 +529,19 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     recommended: false,
     priority: 173,
   },
+  {
+    id: "frenchHomophones",
+    typing: false,
+    name: "French sound-alike small words",
+    titleI18nKey: "review_msg_fr_homophone",
+    descriptionI18nKey: "review_msg_fr_homophone",
+    exampleI18nKey: "",
+    languageScope: "all",
+    safetyTier: "advanced",
+    defaultRollout: "off",
+    recommended: false,
+    priority: 174,
+  },
 
   {
     id: "englishPronounCase",

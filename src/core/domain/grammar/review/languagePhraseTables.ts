@@ -1,4 +1,5 @@
 import type { PhraseRow } from "./englishPhraseTables";
+import * as french from "./french/phrases";
 
 /**
  * The English phrase checks for the other review languages, by language code.
@@ -122,6 +123,7 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
       ["comme même", "quand même"],
       ["en faite", "en fait"],
       ["sa va", "ça va"],
+      ...french.PHRASES,
     ],
     compounds: [
       ["vis à vis", "vis-à-vis"],
