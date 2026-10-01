@@ -66,7 +66,7 @@ export const PHRASE_TABLE_KINDS: Readonly<
   pl: ["words", "phrases", "compounds", "style"],
   hr: ["words", "compounds"],
   sv: ["words"],
-  el: ["words"],
+  el: ["words", "phrases", "style"],
 };
 
 /** English and every language with an authored phrase table of these kinds. */
@@ -221,6 +221,40 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     kind: "numbers",
     bulk: "individual",
     note: "Optional typography: typewriter quotes for feet and minutes are common.",
+  },
+  greekFinalNu: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "spelling",
+    kind: "wordForm",
+    bulk: "individual",
+    languages: ["el_GR"],
+  },
+  greekStrictFinalNu: {
+    review: "supported",
+    defaultEnabled: false,
+    category: "spelling",
+    kind: "wordForm",
+    bulk: "individual",
+    languages: ["el_GR"],
+    note: "Optional: everyday writing often drops the ν of τον and keeps the ν of την.",
+  },
+  greekQuestionAccent: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "spelling",
+    kind: "wordForm",
+    bulk: "individual",
+    languages: ["el_GR"],
+  },
+  greekPunctuation: {
+    review: "supported",
+    defaultEnabled: false,
+    category: "punctuation",
+    kind: "marks",
+    bulk: "individual",
+    languages: ["el_GR"],
+    note: "Optional: commas after connectors and single marks follow formal style.",
   },
   englishUsagePhrases: {
     review: "supported",

@@ -1,4 +1,5 @@
 import type { PhraseRow } from "./englishPhraseTables";
+import { TABLES as GREEK_TABLES } from "./greek/tables";
 
 /**
  * The English phrase checks for the other review languages, by language code.
@@ -335,17 +336,5 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
       ["resturang", "restaurang"],
     ],
   },
-  el: {
-    // Monosyllables take no accent; "μία" (the numeral) and "ευχάριστο" are words.
-    words: [
-      ["εντάξη", "εντάξει"],
-      ["ευχαριστό", "ευχαριστώ"],
-      ["παρακαλό", "παρακαλώ"],
-      ["καλήτερα", "καλύτερα"],
-      ["αφτό", "αυτό"],
-      ["πιό", "πιο"],
-      ["γιά", "για"],
-      ["μιά", "μια"],
-    ],
-  },
+  el: GREEK_TABLES,
 };

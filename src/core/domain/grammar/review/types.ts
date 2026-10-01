@@ -214,7 +214,13 @@ export type ReviewMessageKey =
   | "review_msg_local_ai"
   | "review_msg_irregular_form"
   | "review_msg_noun_possessive"
-  | "review_msg_word_boundary";
+  | "review_msg_word_boundary"
+  | "review_msg_greek_final_nu"
+  | "review_msg_greek_strict_final_nu"
+  | "review_msg_greek_question_accent"
+  | "review_msg_greek_intro_comma"
+  | "review_msg_greek_repeated_marks"
+  | "review_msg_greek_perfect_form";
 
 export type BulkDecision =
   | { eligible: true; alternative: number }

@@ -92,6 +92,7 @@ import { isLowercaseLetter, isTechnicalToken } from "../implementations/helpers/
 import { graphemeEnd, overlapsSortedRanges } from "./textRanges";
 import { MASK_CHAR, type ReviewMessageKey, type TextRange } from "./types";
 import { EXTENSION_DETECTORS } from "./english";
+import { DETECTORS as GREEK_DETECTORS } from "./greek/detectors";
 
 export { MASK_CHAR };
 export { minimalEdits } from "./textRanges";
@@ -1405,6 +1406,9 @@ const repeatedWords: Detector = (ctx) => {
   return findings;
 };
 
+/** Per-language modules: they may add context detectors to shared rules or serve their own. */
+export const LANGUAGE_DETECTORS: readonly ReviewDetectorEntry[] = [...GREEK_DETECTORS];
+
 /** Review detectors by rule. Rules absent here are excluded from review (see reviewCatalog). */
 export const REVIEW_DETECTORS: ReadonlyArray<ReviewDetectorEntry> = [
   {
@@ -1512,4 +1516,5 @@ export const REVIEW_DETECTORS: ReadonlyArray<ReviewDetectorEntry> = [
     detect: (ctx) => [...measurementLike(ctx, "currencySpacing"), ...currencyPlacement(ctx)],
   },
   ...EXTENSION_DETECTORS,
+  ...LANGUAGE_DETECTORS,
 ];

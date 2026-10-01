@@ -113,7 +113,11 @@ export interface GrammarRuleCatalogEntry {
     | "englishIrregularForms"
     | "englishPossessiveNouns"
     | "quoteSpacing"
-    | "primeSymbols";
+    | "primeSymbols"
+    | "greekFinalNu"
+    | "greekStrictFinalNu"
+    | "greekQuestionAccent"
+    | "greekPunctuation";
   /** Absent for existing typing rules; false for native Review-only checks. */
   typing?: false;
   name: string;

@@ -75,9 +75,12 @@ const DEGREE: Record<string, DegreeTable> = {
       /(?<![\p{L}])(?:ne|ni|nije|nisu|nisam|nisi|nismo|niste|nikad)(?![\p{L}])[^.!?;:\n]{0,40}$/iu,
   },
   sv: { marker: "mera?", words: "bättre|sämre" },
+  // Any synthetic comparative (-τερος, accent before the suffix: "ισχυρότερα",
+  // "ανώτερη"); ordinals and "neutral", "later" only look like one.
   el: {
     marker: "πιο",
-    words: "καλύτερ(?:ος|η|ο|οι|ες|α|ου|ης|ων|ους)|χειρότερ(?:ος|η|ο|οι|ες|α|ου|ης|ων|ους)",
+    words:
+      "(?!ουδέτερ|δεύτερ|ύστερ|πρότερ|έτερ|αμφότερ)\\p{L}*[άέήίόύώ]\\p{L}*τερ(?:ος|η|ο|οι|ες|α|ου|ης|ων|ους)",
   },
 };
 for (const table of Object.values(DEGREE)) {
