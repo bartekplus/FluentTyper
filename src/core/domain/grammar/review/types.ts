@@ -223,7 +223,8 @@ export type ReviewMessageKey =
   | "review_msg_pl_weekday_date"
   | "review_msg_pl_month_form"
   | "review_msg_pl_misplaced_comma"
-  | "review_msg_pl_missing_comma";
+  | "review_msg_pl_missing_comma"
+  | "review_msg_pl_preposition_form";
 
 export type BulkDecision =
   | { eligible: true; alternative: number }

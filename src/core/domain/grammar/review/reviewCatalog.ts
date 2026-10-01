@@ -396,6 +396,14 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     bulk: "individual",
     languages: ["pl_PL"],
   },
+  polishPrepositionForms: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "grammar",
+    kind: "wordForm",
+    bulk: "individual",
+    languages: ["pl_PL"],
+  },
 
   englishPronounCase: {
     review: "supported",

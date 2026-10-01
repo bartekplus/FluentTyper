@@ -189,7 +189,9 @@ function missingCommas(ctx: DetectContext): RawFinding[] {
       if (!/^[ \t ]+\p{L}/u.test(after)) continue;
     }
     if (userOrNamed(ctx, prev) || /^\p{Lu}+$/u.test(prev)) continue;
-    if (relative && !relativeClause(ctx, m.index, m.index + m[0].length)) continue;
+    // "złapać którego ptaka": after an infinitive "który" is the indefinite pronoun.
+    if (relative && (/ć$/u.test(prev) || !relativeClause(ctx, m.index, m.index + m[0].length)))
+      continue;
     // A comma is already there in some other form ("prev — że"), or the clause ends a quotation.
     const commaAt = m.index + prev.length;
     findings.push(

@@ -568,6 +568,19 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     recommended: false,
     priority: 176,
   },
+  {
+    id: "polishPrepositionForms",
+    typing: false,
+    name: "Polish preposition forms (w/we, z/ze, od/ode)",
+    titleI18nKey: "review_msg_pl_preposition_form",
+    descriptionI18nKey: "review_msg_pl_preposition_form",
+    exampleI18nKey: "",
+    languageScope: "all",
+    safetyTier: "advanced",
+    defaultRollout: "off",
+    recommended: false,
+    priority: 177,
+  },
 
   {
     id: "englishPronounCase",

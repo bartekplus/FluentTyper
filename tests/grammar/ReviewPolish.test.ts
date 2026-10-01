@@ -286,6 +286,36 @@ export const POLISH_CASES: Array<[CatalogRuleId, string, Case]> = [
       ],
     },
   ],
+  [
+    "polishPrepositionForms",
+    "w/we, z/ze, od/ode and the other vowel-extended prepositions",
+    {
+      pos: [
+        ["Spotkajmy się w wtorek.", "Spotkajmy się we wtorek."],
+        ["Byłem w Francji.", "Byłem we Francji."],
+        ["Mieszka we Łodzi.", "Mieszka w Łodzi."],
+        ["Wrócił z szkoły.", "Wrócił ze szkoły."],
+        ["Pogadaj z wszystkimi.", "Pogadaj ze wszystkimi."],
+        ["To prezent od mnie.", "To prezent ode mnie."],
+        ["Nie dam rady bez mnie.", "Nie dam rady beze mnie."],
+        ["Stał przed mną.", "Stał przede mną."],
+        ["Wyszedł przede nim.", "Wyszedł przed nim."],
+        ["Uciekł s domu.", "Uciekł z domu."],
+      ],
+      neg: [
+        "Spotkajmy się we wtorek w Warszawie.",
+        "Przede wszystkim spokój.",
+        "Zbaw nas ode złego.",
+        "Idziemy we dwoje.",
+        "Wrócił ze Lwowa z wodą.",
+        "Popatrzył spode łba.",
+        "Byłem w wodzie i we mgle.",
+        "Patrz na s. 12 w tekście.",
+        "Wrócił z ZSRR i grał ze Sionem.",
+        "Chodził w tę i we w tę.",
+      ],
+    },
+  ],
 ];
 
 /** Warnings without a fix: the range is flagged and nothing is offered. */

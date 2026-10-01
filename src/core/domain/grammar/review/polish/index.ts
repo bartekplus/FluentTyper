@@ -6,6 +6,7 @@ import * as compounds from "./compounds";
 import * as confusions from "./confusions";
 import * as dates from "./dates";
 import * as numbers from "./numbers";
+import * as prepositions from "./prepositions";
 
 export const POLISH_TABLES: Required<LanguagePhraseTables> = {
   words: confusions.WORDS,
@@ -20,4 +21,5 @@ export const POLISH_DETECTORS: readonly ReviewDetectorEntry[] = [
   ...numbers.DETECTORS,
   ...dates.DETECTORS,
   ...commas.DETECTORS,
+  ...prepositions.DETECTORS,
 ];

@@ -117,6 +117,7 @@ export interface GrammarRuleCatalogEntry {
     | "polishDates"
     | "polishMisplacedComma"
     | "polishMissingComma"
+    | "polishPrepositionForms"
     | "quoteSpacing"
     | "primeSymbols";
   /** Absent for existing typing rules; false for native Review-only checks. */

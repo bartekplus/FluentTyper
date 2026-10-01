@@ -1518,6 +1518,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Zdanie podrzędne oddzielamy przecinkiem przed spójnikiem lub zaimkiem względnym: „Wiem, że…”, „dom, w którym…”.",
     "O polonês separa a oração subordinada com vírgula antes da conjunção ou do pronome relativo: “Wiem, że…”, “dom, w którym…”.",
   ],
+  review_msg_pl_preposition_form: [
+    "Use the other form of this Polish preposition: “we”, “ze” before a hard consonant cluster (“we wtorek”, “ze szkoły”), “ode”, “beze”, “przeze” before “mnie”, and the short form elsewhere.",
+    "Utilisez l’autre forme de cette préposition polonaise : « we », « ze » devant un groupe de consonnes (« we wtorek », « ze szkoły »), « ode », « beze », « przeze » devant « mnie », et la forme courte ailleurs.",
+    "Upotrijebite drugi oblik ovog poljskog prijedloga: „we”, „ze” ispred skupa suglasnika („we wtorek”, „ze szkoły”), „ode”, „beze”, „przeze” ispred „mnie”, a kratki oblik drugdje.",
+    "Use la otra forma de esta preposición polaca: «we», «ze» ante un grupo de consonantes («we wtorek», «ze szkoły»), «ode», «beze», «przeze» ante «mnie», y la forma corta en los demás casos.",
+    "Χρησιμοποιήστε την άλλη μορφή αυτής της πολωνικής πρόθεσης: «we», «ze» πριν από σύμπλεγμα συμφώνων («we wtorek», «ze szkoły»), «ode», «beze», «przeze» πριν από το «mnie» και τη σύντομη μορφή αλλού.",
+    "Använd den andra formen av denna polska preposition: ”we”, ”ze” före en konsonantgrupp (”we wtorek”, ”ze szkoły”), ”ode”, ”beze”, ”przeze” före ”mnie”, och den korta formen annars.",
+    "Verwenden Sie die andere Form dieser polnischen Präposition: „we“, „ze“ vor einer Konsonantengruppe („we wtorek“, „ze szkoły“), „ode“, „beze“, „przeze“ vor „mnie“, sonst die kurze Form.",
+    "Użyj innej postaci przyimka: „we”, „ze” przed zbitką spółgłosek („we wtorek”, „ze szkoły”), „ode”, „beze”, „przeze” przed „mnie”, a w pozostałych miejscach formy krótkiej.",
+    "Use a outra forma desta preposição polonesa: “we”, “ze” antes de um grupo de consoantes (“we wtorek”, “ze szkoły”), “ode”, “beze”, “przeze” antes de “mnie”, e a forma curta nos demais casos.",
+  ],
 };
 
 /**
