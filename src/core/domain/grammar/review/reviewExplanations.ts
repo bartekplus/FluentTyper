@@ -879,6 +879,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Dwa czasowniki modalne z rzędu są regionalizmem; standardowy angielski używa jednego.",
     "Dois verbos modais seguidos são regionais; o inglês padrão usa apenas um.",
   ],
+  review_msg_subject_verb: [
+    "The verb must agree in number with its subject: singular with singular, plural with plural.",
+    "Le verbe doit s’accorder en nombre avec son sujet : singulier avec singulier, pluriel avec pluriel.",
+    "Glagol se mora slagati u broju sa subjektom: jednina s jedninom, množina s množinom.",
+    "El verbo debe concordar en número con su sujeto: singular con singular, plural con plural.",
+    "Το ρήμα πρέπει να συμφωνεί σε αριθμό με το υποκείμενο: ενικός με ενικό, πληθυντικός με πληθυντικό.",
+    "Verbet ska stämma med subjektet i numerus: singular med singular, plural med plural.",
+    "Das Verb muss in der Zahl mit seinem Subjekt übereinstimmen: Singular mit Singular, Plural mit Plural.",
+    "Czasownik musi zgadzać się z podmiotem co do liczby: pojedyncza z pojedynczą, mnoga z mnogą.",
+    "O verbo deve concordar em número com o sujeito: singular com singular, plural com plural.",
+  ],
   review_msg_clause_be: [
     "This clause has a subject but no verb: add a form of “be” after it.",
     "Cette proposition a un sujet mais pas de verbe : ajoutez une forme de « be » après lui.",

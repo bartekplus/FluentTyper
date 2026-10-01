@@ -164,6 +164,7 @@ export type ReviewMessageKey =
   | "review_msg_double_modal"
   | "review_msg_missing_be"
   | "review_msg_clause_be"
+  | "review_msg_subject_verb"
   | "review_msg_couple_of"
   | "review_msg_partitive_of"
   | "review_msg_not_only_inversion"

@@ -77,7 +77,7 @@ const COUNT_LABELS =
 type Number_ = { singular: string; plural: string; number: "singular" | "plural" };
 
 /** Singular/plural forms of a lowercase noun and which one it is, or null. */
-function nounNumber(word: string): Number_ | null {
+export function nounNumber(word: string): Number_ | null {
   if (
     INVARIANT.has(word) ||
     /(?:ics|wards|doors|stairs|works)$/.test(word) ||
