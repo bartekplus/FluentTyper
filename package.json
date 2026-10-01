@@ -13,6 +13,7 @@
     "probe:local-ai": "bun scripts/fetch-local-ai-assets.ts",
     "generate:english-lexicon": "bun scripts/generate-english-lexicon.ts",
     "generate:swedish-lexicon": "bun scripts/generate-swedish-lexicon.ts",
+    "generate:portuguese-lexicon": "bun scripts/generate-portuguese-lexicon.ts",
     "lint": "oxlint --type-aware --deny-warnings --report-unused-disable-directives .",
     "typecheck": "bun tsc --noEmit",
     "test": "bun scripts/run-unit-tests.ts",

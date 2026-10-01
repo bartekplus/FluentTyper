@@ -95,6 +95,7 @@ import { EXTENSION_DETECTORS } from "./english";
 import { DETECTORS as GREEK_DETECTORS } from "./greek/detectors";
 import { DETECTORS as SWEDISH_DETECTORS } from "./swedish/detectors";
 import { DETECTORS as ARABIC_DETECTORS } from "./arabic/detectors";
+import { PORTUGUESE_DETECTORS } from "./portuguese";
 
 export { MASK_CHAR };
 export { minimalEdits } from "./textRanges";
@@ -1282,6 +1283,9 @@ function measurementLike(
     if (!parsed || parsed.unitStart !== parsed.numberEnd) continue;
     const unit = prefix.slice(parsed.unitStart);
     if (ruleId === "measurementUnitFormatting" && /^([A-Z]|[dg])$/.test(unit)) continue;
+    // Brazilian usage writes clock times and durations glued: "às 10h", "20min".
+    if (ruleId === "measurementUnitFormatting" && ctx.lang === "pt_BR" && /^(?:h|min)$/.test(unit))
+      continue;
     let prosePrefix = prefix.slice(0, parsed.start);
     // A prose list retains the evidence before its first measurement. Every
     // preceding item must itself parse; identifiers and arithmetic still abstain.
@@ -1414,6 +1418,7 @@ export const LANGUAGE_DETECTORS: readonly ReviewDetectorEntry[] = [
   ...GREEK_DETECTORS,
   ...SWEDISH_DETECTORS,
   ...ARABIC_DETECTORS,
+  ...PORTUGUESE_DETECTORS,
 ];
 
 /** Review detectors by rule. Rules absent here are excluded from review (see reviewCatalog). */

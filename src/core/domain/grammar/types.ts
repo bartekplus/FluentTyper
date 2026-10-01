@@ -122,7 +122,15 @@ export interface GrammarRuleCatalogEntry {
     | "swedishAgreement"
     | "arabicAgreement"
     | "arabicCaseEndings"
-    | "arabicDates";
+    | "arabicDates"
+    // Portuguese Review checks.
+    | "portugueseAccentParonyms"
+    | "portugueseConfusions"
+    | "portugueseContractions"
+    | "portugueseNumberFormat"
+    | "portugueseTypographyStyle"
+    | "portugueseCliticPlacement"
+    | "portugueseAO90";
   /** Absent for existing typing rules; false for native Review-only checks. */
   typing?: false;
   name: string;

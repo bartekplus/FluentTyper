@@ -239,7 +239,18 @@ export type ReviewMessageKey =
   | "review_msg_arabic_number_gender"
   | "review_msg_arabic_case_ending"
   | "review_msg_arabic_jussive"
-  | "review_msg_arabic_subjunctive";
+  | "review_msg_arabic_subjunctive"
+  // Portuguese.
+  | "review_msg_pt_accent_paronym"
+  | "review_msg_pt_confusions"
+  | "review_msg_pt_crase"
+  | "review_msg_pt_por_que"
+  | "review_msg_pt_homophone"
+  | "review_msg_pt_contraction"
+  | "review_msg_pt_number_format"
+  | "review_msg_pt_typography_style"
+  | "review_msg_pt_proclisis"
+  | "review_msg_pt_ao90";
 
 export type BulkDecision =
   | { eligible: true; alternative: number }

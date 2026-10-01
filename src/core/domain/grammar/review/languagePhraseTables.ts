@@ -2,6 +2,7 @@ import type { PhraseRow } from "./englishPhraseTables";
 import { TABLES as GREEK_TABLES } from "./greek/tables";
 import { TABLES as SWEDISH_TABLES } from "./swedish/tables";
 import { TABLES as ARABIC_TABLES } from "./arabic/tables";
+import { PORTUGUESE_PHRASES, PORTUGUESE_STYLE } from "./portuguese/phrases";
 
 /**
  * The English phrase checks for the other review languages, by language code.
@@ -237,6 +238,7 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
       ["houveram muitas", "houve muitas"],
       ["houveram vários", "houve vários"],
       ["houveram várias", "houve várias"],
+      ...PORTUGUESE_PHRASES,
     ],
     style: [
       ["subir para cima", "subir"],
@@ -246,6 +248,7 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
       ["elo de ligação", "elo"],
       ["encarar de frente", "encarar"],
       ["há anos atrás", ["há anos", "anos atrás"]],
+      ...PORTUGUESE_STYLE,
     ],
   },
   pl: {
