@@ -600,6 +600,15 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     category: "punctuation",
     reason: "Typing convenience: review never inserts closing brackets.",
   },
+  // German-only Review checks (review/german/).
+  germanNounCasing: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "typography",
+    kind: "capitalization",
+    bulk: "individual",
+    languages: ["de_DE"],
+  },
 };
 
 /** Review's dictionary check: individual only, and the user always picks the word. */

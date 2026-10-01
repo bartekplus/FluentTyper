@@ -942,6 +942,20 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     priority: 135,
     codeSafe: true,
   },
+  // German-only Review checks (review/german/).
+  {
+    id: "germanNounCasing",
+    typing: false,
+    name: "German nouns are capitalized",
+    titleI18nKey: "review_msg_german_noun_case",
+    descriptionI18nKey: "review_msg_german_noun_case",
+    exampleI18nKey: "",
+    languageScope: "all",
+    safetyTier: "advanced",
+    defaultRollout: "off",
+    recommended: false,
+    priority: 37,
+  },
 ] as const;
 
 export type CatalogRuleId = (typeof GRAMMAR_RULE_CATALOG)[number]["id"];

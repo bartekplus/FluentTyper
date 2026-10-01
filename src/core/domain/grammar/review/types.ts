@@ -214,7 +214,9 @@ export type ReviewMessageKey =
   | "review_msg_local_ai"
   | "review_msg_irregular_form"
   | "review_msg_noun_possessive"
-  | "review_msg_word_boundary";
+  | "review_msg_word_boundary"
+  // German-only Review checks (review/german/).
+  | "review_msg_german_noun_case";
 
 export type BulkDecision =
   | { eligible: true; alternative: number }

@@ -1429,6 +1429,18 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Opcjonalny styl liczb: małą liczbę w tekście zapisz słownie.",
     "Estilo numérico opcional: escreva por extenso um número pequeno no texto corrido.",
   ],
+  // German-only Review checks (review/german/).
+  review_msg_german_noun_case: [
+    "In German, every noun starts with a capital letter.",
+    "En allemand, tous les noms prennent une majuscule.",
+    "U njemačkom se sve imenice pišu velikim početnim slovom.",
+    "En alemán, todos los sustantivos se escriben con mayúscula inicial.",
+    "Στα γερμανικά όλα τα ουσιαστικά γράφονται με κεφαλαίο αρχικό.",
+    "På tyska skrivs alla substantiv med stor bokstav.",
+    "Substantive werden großgeschrieben.",
+    "W języku niemieckim wszystkie rzeczowniki pisze się wielką literą.",
+    "Em alemão, todos os substantivos começam com letra maiúscula.",
+  ],
 };
 
 /**

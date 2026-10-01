@@ -13,6 +13,10 @@ const ACRONYMS = new Set(
   "NASA IKEA LEGO NATO FBI CIA HIV DNA RNA CPU GPU HTML URL FAQ PDF CEO CFO HR AI UFO".split(" "),
 );
 
+/** A word this check spells its own way ("javascript" → "JavaScript"). */
+export const hasCanonicalCasing = (word: string) =>
+  CANONICAL.has(word.toLowerCase()) || ACRONYMS.has(word.toUpperCase());
+
 /** Explicit names only; uppercase emphasis and identifier-like mixed casing stay untouched. */
 export function canonicalCasing(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
