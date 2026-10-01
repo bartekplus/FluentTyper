@@ -112,10 +112,40 @@ function echoQuestion(at: Around): boolean {
     if (j === at.i + 1 || (CLITICS.has(at.tokens[j - 1].lower) && !haber)) {
       if (subjunctiveLike(word)) return true;
     }
-    if (attributeOf(word) && !haber && !isGerund(word)) return true;
+    // "te pasa" is a verb after its clitic, not the adjective "pasa".
+    const afterClitic = CLITICS.has(at.tokens[j - 1].lower) && verbLike(word);
+    if (attributeOf(word) && !haber && !isGerund(word) && !afterClitic) return true;
     if (solidNoun(word) && !afterPreposition) return true;
     haber = /^(?:he|has|ha|hemos|habéis|han|había|habías|habían)$/u.test(word);
     afterPreposition = PREPOSITIONS.has(word);
+  }
+  return false;
+}
+
+// Gerunds whose missing object "qué" asks for: "¿Qué estás haciendo?". Any other progressive
+// right after "¿Que" reads as an echo: "¿Que estás temblando?" (you say you are…?).
+const ASKED_GERUNDS = words(
+  "haciendo diciendo pensando buscando mirando viendo leyendo comiendo bebiendo escribiendo " +
+    "esperando tramando planeando preparando cocinando escuchando insinuando sugiriendo " +
+    "intentando tomando estudiando contando pidiendo vendiendo comprando ocultando " +
+    "escondiendo pasando ocurriendo sucediendo aprendiendo celebrando proponiendo",
+);
+// Verbs of affection whose object is the clitic before them: "¿Que me adora?" (that she…?).
+const AFFECTION = /^(?:quier[eo]|quieres|quieren|ama|amas|aman|adora|adoras|adoran|odia|odias|odian)$/u;
+
+/**
+ * "¿Que nos odian?", "¿Que estás temblando?": a clause that leaves nothing for "qué" to ask,
+ * either a clitic object of a verb of affection or a progressive of a verb rarely asked about.
+ */
+function echoClause(at: Around): boolean {
+  let k = 1;
+  if (at.next(k) === "no") k++;
+  const first = at.next(k);
+  if (/^(?:me|te|lo|la|nos|os|los|las)$/u.test(first) && AFFECTION.test(at.next(k + 1)))
+    return at.endsAfter(k + 1);
+  if (/^(?:estás|está|están|estáis|estamos|estaba|estabas|estaban)$/u.test(first)) {
+    const gerund = at.next(k + 1);
+    return isGerund(gerund) && !ASKED_GERUNDS.has(gerund) && at.endsAfter(k + 1);
   }
   return false;
 }
@@ -167,7 +197,7 @@ function interrogative(at: Around): string | null {
     // "¿Con que esta era la felicidad?" (so this was…) introduces a clause.
     if (PREPOSITIONS.has(prev)) return purposeClause(at) || DETERMINERS.has(next) ? null : accented;
     if (next === "tal" || (solidNoun(next) && !DETERMINERS.has(next))) return accented;
-    return echoQuestion(at) ? null : accented;
+    return echoQuestion(at) || echoClause(at) ? null : accented;
   }
   if (mark === "!") {
     if (word !== "que" && word !== "como" && word !== "cuan") return null;
