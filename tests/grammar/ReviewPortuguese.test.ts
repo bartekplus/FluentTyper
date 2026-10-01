@@ -311,6 +311,37 @@ describe.each(RULES)("%s", (ruleId, { pos, neg }) => {
   });
 });
 
+describe("portugueseCommas", () => {
+  test.each([
+    ["A obra atrasou, no entanto ficou boa.", "A obra atrasou, no entanto, ficou boa."],
+    ["Ela é, na verdade muito tímida.", "Ela é, na verdade, muito tímida."],
+    ["Pense, por exemplo que tudo muda.", "Pense, por exemplo, que tudo muda."],
+    ["Ele aceitou portanto, a proposta.", "Ele aceitou, portanto, a proposta."],
+    ["O plano falhou por outro lado, aprendemos.", "O plano falhou, por outro lado, aprendemos."],
+    ["Boa noite Carla.", "Boa noite, Carla."],
+    ["Obrigada Pedro!", "Obrigada, Pedro!"],
+    ["Não não vou.", "Não, não vou."],
+  ])("fixes %p", (text, expected) => {
+    expect(repaired("portugueseCommas", text)).toBe(expected);
+    expect(findings("portugueseCommas", expected)).toEqual([]);
+    expect(findings("portugueseCommas", text, "es_ES")).toEqual([]);
+  });
+  test.each([
+    "Vários países, por exemplo o Brasil, aderiram.",
+    "A lei vale, com efeito retroativo a maio.",
+    "Ele estava portanto pronto.",
+    "Mas na verdade, ninguém sabe.",
+    "Frutas como por exemplo, maçãs.",
+    "Bom dia a todos.",
+    "Bom dia Brasil é um telejornal.",
+    "Disse que não, não quero.",
+    "Não via nada além disso, nem queria.",
+    "Aumenta muito, por exemplo se dobrar a carga.",
+  ])("leaves %p alone", (text) => {
+    expect(findings("portugueseCommas", text)).toEqual([]);
+  });
+});
+
 describe("portugueseDates", () => {
   test("runs only for Portuguese", () => {
     expect(runsInReviewLanguage("portugueseDates", LANG)).toBe(true);
@@ -388,6 +419,7 @@ test("Portuguese frames stay fast on long runs of trigger words and spaces", () 
     "1/1/1 ".repeat(1_500),
     "de Aa Bb Cc Dd Ee Ff Gg ".repeat(500),
     "eles não já também tem ".repeat(600),
+    "palavra , no entanto , no entanto portanto, ".repeat(400),
   ];
   for (const text of inputs) expect(slowestChunkMs(text)).toBeLessThan(100);
   const live = { ...options, liveRules: [] };

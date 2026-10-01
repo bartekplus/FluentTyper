@@ -1047,6 +1047,19 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     recommended: false,
     priority: 317,
   },
+  {
+    id: "portugueseCommas",
+    typing: false,
+    name: "Portuguese commas around asides and before a name",
+    titleI18nKey: "review_msg_pt_comma",
+    descriptionI18nKey: "review_msg_pt_comma",
+    exampleI18nKey: "",
+    languageScope: "all",
+    safetyTier: "advanced",
+    defaultRollout: "off",
+    recommended: false,
+    priority: 318,
+  },
 ] as const;
 
 export type CatalogRuleId = (typeof GRAMMAR_RULE_CATALOG)[number]["id"];

@@ -1562,6 +1562,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Taka data nie istnieje: miesiąc ma mniej dni albo 29 lutego wypada w roku, który nie jest przestępny.",
     "Esta data não existe: o mês tem menos dias, ou 29 de fevereiro cai num ano que não é bissexto.",
   ],
+  review_msg_pt_comma: [
+    "Portuguese sets an aside such as no entanto or por outro lado between two commas, and puts a comma before the name a greeting addresses (Bom dia, Ana).",
+    "Le portugais encadre une incise comme no entanto ou por outro lado par deux virgules et met une virgule avant le nom salué (Bom dia, Ana).",
+    "Portugalski umetak poput no entanto ili por outro lado stavlja između dva zareza, a zarez stoji i prije imena osobe koju se pozdravlja (Bom dia, Ana).",
+    "El portugués encierra un inciso como no entanto o por outro lado entre dos comas y pone coma antes del nombre al que se saluda (Bom dia, Ana).",
+    "Τα πορτογαλικά βάζουν μια παρενθετική φράση όπως no entanto ή por outro lado ανάμεσα σε δύο κόμματα και κόμμα πριν από το όνομα που χαιρετούν (Bom dia, Ana).",
+    "Portugisiskan sätter en inskjuten fras som no entanto eller por outro lado mellan två kommatecken och ett kommatecken före namnet i en hälsning (Bom dia, Ana).",
+    "Im Portugiesischen steht ein Einschub wie no entanto oder por outro lado zwischen zwei Kommas, und vor dem angesprochenen Namen eines Grußes steht ein Komma (Bom dia, Ana).",
+    "Portugalski ujmuje wtrącenie takie jak no entanto czy por outro lado w dwa przecinki i stawia przecinek przed imieniem osoby, którą się pozdrawia (Bom dia, Ana).",
+    "Expressões intercaladas como no entanto ou por outro lado ficam entre duas vírgulas, e o vocativo leva vírgula depois da saudação (Bom dia, Ana).",
+  ],
   review_msg_pt_ao90: [
     "1990 Portuguese spelling: prefixes join their word unless it starts with h or the same vowel (autoestima, micro-ondas), and months and weekdays are lowercase.",
     "Orthographe portugaise de 1990 : les préfixes se soudent au mot sauf devant h ou la même voyelle (autoestima, micro-ondas), et mois et jours s’écrivent en minuscules.",
