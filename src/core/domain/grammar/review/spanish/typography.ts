@@ -1,0 +1,164 @@
+import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import { Around, attributeOf, replaceToken, tokenize, words, type Token } from "./common";
+import { isGenderedEntry, isNoun } from "./lexicon";
+import { verbLike } from "./common";
+
+const known = (word: string) =>
+  isNoun(word) || !!attributeOf(word) || isGenderedEntry(word) || verbLike(word);
+
+// Spanish writing conventions: "y" -> "e" before an /i/ sound and "o" -> "u" before /o/,
+// years without a thousands point, lowercase months and weekdays, invariable acronyms.
+
+const RULE = "spanishTypography" as const;
+
+const MONTHS = words(
+  "enero febrero marzo abril mayo junio julio agosto septiembre setiembre octubre noviembre diciembre",
+);
+const WEEKDAYS = words("lunes martes miércoles jueves viernes sábado domingo");
+// Spanish acronyms that stay invariable in the plural ("las ONG", "los ERE").
+const ACRONYMS = words("ong tic ere ett dni");
+
+/** The word starts with the vowel sound /i/ (not the /j/ of "hielo", "iones"). */
+const iSound = (word: string) => /^h?[ií](?![aeoáéó])/iu.test(word);
+const oSound = (word: string) => /^h?[oó]/iu.test(word) || /^8/u.test(word);
+
+function conjunction(at: Around, token: Token): string | null {
+  const next = at.tokens[at.i + 1];
+  if (!next || next.broken || (!next.word && !/^\p{N}/u.test(next.text))) return null;
+  const after = next.text;
+  // "¿Y Inés?": a stressed "y" opening a question keeps its form.
+  if (at.tokens[at.i - 1]?.text === "¿") return null;
+  // English names keep the English sound: "Ryanair y easyJet".
+  if (/^\p{Ll}+\p{Lu}/u.test(after)) return null;
+  // An "h" in a foreign word is sounded: "y Hitler", "y hip-hop", "o hobbies".
+  const foreignH =
+    /^h/iu.test(after) &&
+    (/^\p{Lu}/u.test(after) && token.lower === "y"
+      ? true
+      : /^\p{Ll}/u.test(after) &&
+        (!known(after.toLowerCase()) || at.tokens[at.i + 2]?.text === "-"));
+  if (foreignH) return null;
+  if (token.lower === "y" && iSound(after)) return "e";
+  if (token.lower === "e" && !iSound(after) && /^h?[ií]/iu.test(after)) return "y";
+  if (
+    token.lower === "o" &&
+    oSound(after) &&
+    (!/^\p{N}/u.test(after) || /^\p{N}/u.test(at.tokens[at.i - 1]?.text ?? ""))
+  )
+    return "u";
+  // "hobbys u hobbies"; "la u" is the letter.
+  const prev = at.prev();
+  if (
+    token.text === "u" &&
+    next.word &&
+    prev &&
+    !/^(?:la|una|letra|vocal)$/u.test(prev) &&
+    known(after.toLowerCase()) &&
+    !oSound(after)
+  )
+    return "o";
+  return null;
+}
+
+/** "del año 1.989": a year is written without the thousands point. */
+function yearDot(at: Around, token: Token): string | null {
+  const m = /^([12])\.(\d{3})$/u.exec(token.text);
+  if (!m) return null;
+  const year = Number(m[1] + m[2]);
+  if (year < 1100 || year > 2099) return null;
+  const prev = at.tokens[at.i - 1]?.text.toLowerCase() ?? "";
+  if (/^(?:año|años|del)$/u.test(prev)) return m[1] + m[2];
+  if (!/^(?:de|en|para|desde|hasta|y|-)$/u.test(prev)) return null;
+  // "de 2.000 euros", "en 1.500 metros": an amount with its unit.
+  const next = at.next();
+  return !next || (!isNoun(next) && !attributeOf(next)) ? m[1] + m[2] : null;
+}
+
+/** "el 4 de Julio", "todos los Lunes": months and weekdays are common nouns. */
+function capitalName(at: Around, token: Token): string | null {
+  if (!/^\p{Lu}\p{Ll}+$/u.test(token.text) || at.starts) return null;
+  const word = token.lower;
+  const prev = at.prev();
+  const before = at.tokens[at.i - 2];
+  if (MONTHS.has(word)) {
+    // "4 de Julio de 2020", "en Agosto.", "de Julio del año pasado".
+    const dated = prev === "de" && !!before && /^\p{N}/u.test(before.text);
+    const yearAfter =
+      /^(?:de|del)$/u.test(at.next()) && /^\p{N}|^año$/u.test(at.tokens[at.i + 2]?.text ?? "");
+    const alone = /^(?:en|de|desde|hasta|y)$/u.test(prev) && at.endsAfter();
+    return dated || yearAfter || alone ? word : null;
+  }
+  // "Viernes de Dolores", "Domingo de Ramos": holidays keep their capital.
+  if (WEEKDAYS.has(word))
+    return /^(?:el|los|cada|este|próximo|pasado|del|al)$/u.test(prev) &&
+      !/^\p{Lu}/u.test(at.tokens[at.i + 1]?.text ?? "") &&
+      !(at.next() === "de" && /^\p{Lu}/u.test(at.tokens[at.i + 2]?.text ?? ""))
+      ? word
+      : null;
+  return null;
+}
+
+/** "las ONGs", "los ERE's": a Spanish acronym takes no plural ending. */
+function acronymPlural(token: Token): string | null {
+  const m = /^(\p{Lu}{2,})(?:['’]?s|S)$/u.exec(token.text);
+  return m && ACRONYMS.has(m[1].toLowerCase()) ? m[1] : null;
+}
+
+function typography(ctx: DetectContext): RawFinding[] {
+  if (ctx.lang.slice(0, 2) !== "es") return [];
+  const tokens = tokenize(ctx);
+  const findings: RawFinding[] = [];
+  for (let i = 0; i < tokens.length; i++) {
+    const token = tokens[i];
+    if (token.start < ctx.from || token.start >= ctx.to) continue;
+    const at = new Around(tokens, i);
+    let fix: string | null = null;
+    let key: RawFinding["messageKey"] = "review_msg_spanish_conjunction";
+    if (token.word && /^[yeou]$/iu.test(token.text)) fix = conjunction(at, token);
+    else if (/^\p{N}/u.test(token.text)) {
+      fix = yearDot(at, token);
+      key = "review_msg_spanish_year";
+    } else if (token.word) {
+      fix = capitalName(at, token);
+      key = "review_msg_spanish_lowercase_name";
+    }
+    if (!fix && /^\p{Lu}{2,}(?:s|S)?$/u.test(token.text)) {
+      // The tokenizer splits "ONG's" at the apostrophe: read the raw text after it.
+      const raw = /^\p{Lu}{2,}(?:['’]s|s|S)(?!\p{L})/u.exec(ctx.text.slice(token.start));
+      if (raw) {
+        const acronym = acronymPlural({ ...token, text: raw[0] });
+        if (acronym) {
+          const span = { ...token, end: token.start + raw[0].length, text: raw[0] };
+          const finding = replaceToken(
+            ctx,
+            span,
+            [acronym],
+            RULE,
+            "review_msg_spanish_acronym",
+            span,
+            true,
+          );
+          if (finding) findings.push(finding);
+        }
+      }
+      continue;
+    }
+    if (!fix) continue;
+    const exact = key === "review_msg_spanish_lowercase_name";
+    const finding = replaceToken(ctx, token, [fix], RULE, key, tokens[i + 1] ?? token, exact);
+    if (finding) findings.push(finding);
+  }
+  // "etc..." and "etc…": the abbreviation ends in one point.
+  const etc = /(?<!\p{L})etc(?:\.{2,}|…|\.…)/giu;
+  etc.lastIndex = ctx.from;
+  for (let m = etc.exec(ctx.scanText); m && m.index < ctx.to; m = etc.exec(ctx.scanText))
+    findings.push({
+      ruleId: RULE,
+      messageKey: "review_msg_spanish_abbreviation",
+      range: { start: m.index, end: m.index + m[0].length },
+      alternatives: [`${m[0].slice(0, 3)}.`],
+    });
+  return findings;
+}
+
+export const DETECTORS: readonly ReviewDetectorEntry[] = [{ rules: [RULE], detect: typography }];

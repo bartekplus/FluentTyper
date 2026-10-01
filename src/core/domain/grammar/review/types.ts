@@ -220,7 +220,12 @@ export type ReviewMessageKey =
   | "review_msg_spanish_accent_extra"
   | "review_msg_spanish_interrogative"
   | "review_msg_spanish_confusion"
-  | "review_msg_spanish_verb_form";
+  | "review_msg_spanish_verb_form"
+  | "review_msg_spanish_conjunction"
+  | "review_msg_spanish_year"
+  | "review_msg_spanish_lowercase_name"
+  | "review_msg_spanish_acronym"
+  | "review_msg_spanish_abbreviation";
 
 export type BulkDecision =
   | { eligible: true; alternative: number }

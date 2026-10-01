@@ -116,7 +116,8 @@ export interface GrammarRuleCatalogEntry {
     | "primeSymbols"
     // Spanish Review checks (review/spanish/).
     | "spanishAccents"
-    | "spanishConfusions";
+    | "spanishConfusions"
+    | "spanishTypography";
   /** Absent for existing typing rules; false for native Review-only checks. */
   typing?: false;
   name: string;

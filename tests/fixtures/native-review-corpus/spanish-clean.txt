@@ -176,3 +176,17 @@ Quiero que me des algo de beber.
 Publiqué un post nuevo en el blog.
 Iban en pos de la gloria.
 La tele está encendida.
+# Conjunctions, years, months and acronyms written the standard way.
+Padres e hijos llegaron juntos.
+Agua y hielo en el vaso.
+Siete u ocho personas esperaban.
+Hitler y Himmler firmaron la orden.
+Bailamos salsa y hip-hop.
+¿Y Isabel?
+La vocal u no suena aquí.
+Nació en 1989 y se mudó en 2010.
+Cuesta 2.000 euros al mes.
+Viajaremos en julio, el lunes 4.
+El Viernes de Dolores no abren.
+Las ONG trabajan sin descanso.
+Trajeron manzanas, peras, etc.

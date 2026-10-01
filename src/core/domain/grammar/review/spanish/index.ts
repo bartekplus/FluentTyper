@@ -4,6 +4,7 @@ import * as accents from "./accents";
 import * as confusions from "./confusions";
 import * as diacritics from "./diacritics";
 import * as prefixes from "./prefixes";
+import * as typography from "./typography";
 import * as verbAccents from "./verbAccents";
 import * as verbForms from "./verbForms";
 
@@ -16,6 +17,7 @@ for (const entry of [
   ...confusions.DETECTORS,
   ...verbForms.DETECTORS,
   ...prefixes.DETECTORS,
+  ...typography.DETECTORS,
 ])
   byRule.set(entry.rules.join(), [...(byRule.get(entry.rules.join()) ?? []), entry]);
 

@@ -969,6 +969,19 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     recommended: false,
     priority: 167,
   },
+  {
+    id: "spanishTypography",
+    typing: false,
+    name: "Spanish writing conventions",
+    titleI18nKey: "review_msg_spanish_conjunction",
+    descriptionI18nKey: "review_msg_spanish_conjunction",
+    exampleI18nKey: "",
+    languageScope: "all",
+    safetyTier: "advanced",
+    defaultRollout: "off",
+    recommended: false,
+    priority: 168,
+  },
 ] as const;
 
 export type CatalogRuleId = (typeof GRAMMAR_RULE_CATALOG)[number]["id"];

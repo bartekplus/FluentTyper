@@ -82,10 +82,13 @@ export function replaceToken(
   ruleId: RawFinding["ruleId"],
   messageKey: RawFinding["messageKey"],
   evidence: Token = token,
+  /** The replacement's own casing ("Julio" -> "julio", "ONGs" -> "ONG"). */
+  exact = false,
 ): RawFinding | null {
   if (token.start < ctx.from || token.start >= ctx.to) return null;
-  if (keepsTyped(ctx, token.text) || namedExampleBefore(ctx.text, token.start)) return null;
-  const alternatives = replacements.map((r) => carryCase(token.text, r));
+  if (exact ? ctx.dictionary.has(token.lower) : keepsTyped(ctx, token.text)) return null;
+  if (namedExampleBefore(ctx.text, token.start)) return null;
+  const alternatives = exact ? replacements : replacements.map((r) => carryCase(token.text, r));
   if (alternatives.includes(token.text)) return null;
   return {
     ruleId,

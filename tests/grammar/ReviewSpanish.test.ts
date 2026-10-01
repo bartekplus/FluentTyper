@@ -19,7 +19,7 @@ import {
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
 
-const SPANISH_RULES: CatalogRuleId[] = ["spanishAccents", "spanishConfusions"];
+const SPANISH_RULES: CatalogRuleId[] = ["spanishAccents", "spanishConfusions", "spanishTypography"];
 const SPANISH_ON = REVIEW_SUPPORTED_RULE_IDS.filter(
   (id) =>
     runsInReviewLanguage(id, "es_ES") &&
@@ -191,6 +191,32 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         "Vivimos en un entorno rural.",
         "Es más difícil aún que el anterior.",
         "Hace dos años que no lo veo.",
+      ],
+    },
+  ],
+  [
+    "spanishTypography",
+    "conjunctions, years, months, acronyms",
+    {
+      pos: [
+        ["Padres y hijos llegaron juntos.", "Padres e hijos llegaron juntos."],
+        ["Francia y Italia jugarán la final.", "Francia e Italia jugarán la final."],
+        ["Siete o ocho personas esperaban.", "Siete u ocho personas esperaban."],
+        ["Agua e hielo en el vaso.", "Agua y hielo en el vaso."],
+        ["Nació en el año 1.989.", "Nació en el año 1989."],
+        ["Volvimos el 4 de Julio de 2020.", "Volvimos el 4 de julio de 2020."],
+        ["Nos vemos el Lunes por la tarde.", "Nos vemos el lunes por la tarde."],
+        ["Las ONGs trabajan sin descanso.", "Las ONG trabajan sin descanso."],
+        ["Trajeron manzanas, peras, etc...", "Trajeron manzanas, peras, etc."],
+      ],
+      neg: [
+        "Hitler y Himmler firmaron la orden.",
+        "Bailamos salsa y hip-hop.",
+        "¿Y Isabel?",
+        "La vocal u no suena aquí.",
+        "Cuesta 2.000 euros al mes.",
+        "El Viernes de Dolores no abren.",
+        "Las ONG trabajan sin descanso.",
       ],
     },
   ],
