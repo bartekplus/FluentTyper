@@ -92,6 +92,7 @@ import { isLowercaseLetter, isTechnicalToken } from "../implementations/helpers/
 import { graphemeEnd, overlapsSortedRanges } from "./textRanges";
 import { MASK_CHAR, type ReviewMessageKey, type TextRange } from "./types";
 import { EXTENSION_DETECTORS } from "./english";
+import { FRENCH_DETECTORS } from "./french";
 
 export { MASK_CHAR };
 export { minimalEdits } from "./textRanges";
@@ -1512,4 +1513,5 @@ export const REVIEW_DETECTORS: ReadonlyArray<ReviewDetectorEntry> = [
     detect: (ctx) => [...measurementLike(ctx, "currencySpacing"), ...currencyPlacement(ctx)],
   },
   ...EXTENSION_DETECTORS,
+  ...FRENCH_DETECTORS,
 ];

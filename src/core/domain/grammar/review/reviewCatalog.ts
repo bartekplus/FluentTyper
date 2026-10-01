@@ -600,6 +600,15 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     category: "punctuation",
     reason: "Typing convenience: review never inserts closing brackets.",
   },
+  // French (review/french/)
+  frenchVerbForms: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "grammar",
+    kind: "wordForm",
+    bulk: "individual",
+    languages: ["fr_FR"],
+  },
 };
 
 /** Review's dictionary check: individual only, and the user always picks the word. */

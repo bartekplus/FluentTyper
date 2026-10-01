@@ -112,6 +112,8 @@ export interface GrammarRuleCatalogEntry {
     | "englishWereWhere"
     | "englishIrregularForms"
     | "englishPossessiveNouns"
+    // French (review/french/)
+    | "frenchVerbForms"
     | "quoteSpacing"
     | "primeSymbols";
   /** Absent for existing typing rules; false for native Review-only checks. */

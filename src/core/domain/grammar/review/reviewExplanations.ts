@@ -1429,6 +1429,40 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Opcjonalny styl liczb: małą liczbę w tekście zapisz słownie.",
     "Estilo numérico opcional: escreva por extenso um número pequeno no texto corrido.",
   ],
+  // French (review/french/)
+  review_msg_fr_past_participle: [
+    "After avoir or être, French uses the past participle (-é), not the infinitive (-er).",
+    "Après avoir ou être, on emploie le participe passé (-é), pas l’infinitif (-er).",
+    "Nakon avoir ili être francuski koristi particip prošli (-é), a ne infinitiv (-er).",
+    "Tras avoir o être, el francés usa el participio pasado (-é), no el infinitivo (-er).",
+    "Μετά το avoir ή το être, τα γαλλικά θέλουν μετοχή αορίστου (-é), όχι απαρέμφατο (-er).",
+    "Efter avoir eller être använder franskan perfekt particip (-é), inte infinitiv (-er).",
+    "Nach avoir oder être steht im Französischen das Partizip Perfekt (-é), nicht der Infinitiv (-er).",
+    "Po avoir lub être francuski wymaga imiesłowu (-é), a nie bezokolicznika (-er).",
+    "Depois de avoir ou être, o francês usa o particípio passado (-é), não o infinitivo (-er).",
+  ],
+  review_msg_fr_infinitive: [
+    "After a preposition or a verb such as vouloir or pouvoir, French uses the infinitive (-er).",
+    "Après une préposition ou un verbe comme vouloir ou pouvoir, on emploie l’infinitif (-er).",
+    "Nakon prijedloga ili glagola poput vouloir ili pouvoir francuski koristi infinitiv (-er).",
+    "Tras una preposición o un verbo como vouloir o pouvoir, el francés usa el infinitivo (-er).",
+    "Μετά από πρόθεση ή ρήμα όπως vouloir ή pouvoir, τα γαλλικά θέλουν απαρέμφατο (-er).",
+    "Efter en preposition eller ett verb som vouloir eller pouvoir använder franskan infinitiv (-er).",
+    "Nach einer Präposition oder einem Verb wie vouloir oder pouvoir steht im Französischen der Infinitiv (-er).",
+    "Po przyimku lub czasowniku takim jak vouloir czy pouvoir francuski wymaga bezokolicznika (-er).",
+    "Depois de uma preposição ou de um verbo como vouloir ou pouvoir, o francês usa o infinitivo (-er).",
+  ],
+  review_msg_fr_vous_verb: [
+    "With “vous” as the subject, the French verb takes its vous form (-ez), not the infinitive.",
+    "Avec « vous » pour sujet, le verbe se conjugue (-ez) : ce n’est pas un infinitif.",
+    "Uz „vous” kao subjekt francuski glagol ima oblik za vous (-ez), a ne infinitiv.",
+    "Con «vous» como sujeto, el verbo francés va conjugado (-ez), no en infinitivo.",
+    "Με υποκείμενο το «vous», το γαλλικό ρήμα κλίνεται (-ez), δεν μένει στο απαρέμφατο.",
+    "Med ”vous” som subjekt böjs det franska verbet (-ez); det står inte i infinitiv.",
+    "Mit „vous“ als Subjekt wird das französische Verb konjugiert (-ez), nicht im Infinitiv gelassen.",
+    "Z podmiotem „vous” francuski czasownik odmienia się (-ez), a nie stoi w bezokoliczniku.",
+    "Com «vous» como sujeito, o verbo francês é conjugado (-ez), não fica no infinitivo.",
+  ],
 };
 
 /**

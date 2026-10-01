@@ -214,7 +214,11 @@ export type ReviewMessageKey =
   | "review_msg_local_ai"
   | "review_msg_irregular_form"
   | "review_msg_noun_possessive"
-  | "review_msg_word_boundary";
+  | "review_msg_word_boundary"
+  // French (review/french/)
+  | "review_msg_fr_past_participle"
+  | "review_msg_fr_infinitive"
+  | "review_msg_fr_vous_verb";
 
 export type BulkDecision =
   | { eligible: true; alternative: number }

@@ -515,6 +515,20 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     recommended: false,
     priority: 138,
   },
+  // French (review/french/)
+  {
+    id: "frenchVerbForms",
+    typing: false,
+    name: "French -é / -er / -ez verb endings",
+    titleI18nKey: "review_msg_fr_infinitive",
+    descriptionI18nKey: "review_msg_fr_infinitive",
+    exampleI18nKey: "",
+    languageScope: "all",
+    safetyTier: "advanced",
+    defaultRollout: "off",
+    recommended: false,
+    priority: 173,
+  },
 
   {
     id: "englishPronounCase",
