@@ -402,6 +402,29 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
       ],
     },
   ],
+  [
+    "spanishAccents",
+    "preterite after a named or noun subject",
+    {
+      pos: [
+        ["Marta llamo a su madre.", "Marta llamó a su madre."],
+        ["El tren paro en la estación.", "El tren paró en la estación."],
+        ["Pedro nunca contesto el correo.", "Pedro nunca contestó el correo."],
+        ["Mi jefe pago la cena.", "Mi jefe pagó la cena."],
+        ["Ana Belén canto en el teatro.", "Ana Belén cantó en el teatro."],
+      ],
+      neg: [
+        "En Madrid trabajo mucho.",
+        "El pan compro yo.",
+        "Ahora limpio la cocina.",
+        "El niño modelo saluda al público.",
+        "Últimamente aprecio más el silencio.",
+        "Luis, trabajo mañana.",
+        "El precio medio de la vivienda subió.",
+        "Un árbol repleto de frutas.",
+      ],
+    },
+  ],
 ];
 
 describe.each(FIXTURES)("%s: %s", (ruleId, _family, fixture) => {
