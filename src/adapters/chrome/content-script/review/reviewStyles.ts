@@ -90,8 +90,6 @@ export const REVIEW_SHADOW_CSS = `
   /* When even a short list does not fit (zoom, small screens), the panel
      itself scrolls so every control stays reachable. */
   overflow-y: auto;
-  /* Controls scrolled into view clear the sticky footer. */
-  scroll-padding-bottom: 72px;
   display: flex;
   flex-direction: column;
   bottom: 12px;
@@ -101,7 +99,10 @@ export const REVIEW_SHADOW_CSS = `
   .panel { max-height: calc(100vh - 24px); }
 }
 .panel > * { flex-shrink: 0; }
-.panel > .list { flex-shrink: 1; }
+/* Only the middle scrolls; the panel itself scrolls only when even that is at its minimum (zoom). */
+.panel > .body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+/* While there are findings to work through, they keep room for a few rows. */
+.panel:not([data-done]) > .body:has(> .list:not([hidden])) { min-height: min(132px, 28vh); }
 .panel[data-corner="bottom-left"] { right: auto; left: 12px; }
 .panel[data-corner="top-right"] { bottom: auto; top: 12px; }
 .panel[data-corner="top-left"] { bottom: auto; top: 12px; right: auto; left: 12px; }
@@ -203,7 +204,7 @@ button.link:hover:not(:disabled) { background: transparent; text-decoration: und
   border: 1px solid color-mix(in srgb, var(--ft-cat) 55%, transparent);
   background: color-mix(in srgb, var(--ft-cat) 10%, transparent);
 }
-.list { list-style: none; margin: 0; padding: 2px 8px 6px; overflow: auto; flex: 1; min-height: min(132px, 28vh); }
+.list { list-style: none; margin: 0; padding: 2px 8px 6px; }
 .list li { margin: 1px 0; }
 .item {
   width: 100%;
@@ -219,11 +220,7 @@ button.link:hover:not(:disabled) { background: transparent; text-decoration: und
 .item .badge { align-self: start; margin-top: 1px; }
 .item .change { font-weight: 600; overflow-wrap: anywhere; }
 .item .why { grid-column: 2; font-size: 12px; font-weight: 400; color: var(--ft-muted); }
-/* Fix all stays in reach while the panel scrolls. */
 footer {
-  position: sticky;
-  bottom: 0;
-  margin-top: auto;
   border-top: 1px solid var(--ft-border);
   padding: 10px 16px 12px;
   display: grid;

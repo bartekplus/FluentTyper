@@ -292,6 +292,8 @@ export class ReviewUi {
   private readonly notes: HTMLElement;
   private readonly filters: HTMLElement;
   private readonly list: HTMLOListElement;
+  /** The panel's scrolling middle: findings, AI offer and notes. */
+  private readonly body: HTMLElement;
   private readonly prev: HTMLButtonElement;
   private readonly next: HTMLButtonElement;
   private readonly fixAll: HTMLButtonElement;
@@ -509,7 +511,11 @@ export class ReviewUi {
     );
     this.resetIgnores.addEventListener("click", () => this.callbacks.resetIgnores());
     footer.append(this.fixAll, this.fixNote, this.aiBatchButton, this.resetIgnores);
-    // The findings come first; the Local AI offer and coverage notes follow them.
+    // The findings come first; the Local AI offer and coverage notes follow
+    // them. They scroll together between the fixed top and the footer, so
+    // nothing scrolled into view can end up under Fix all.
+    this.body = element(doc, "div", { class: "body" });
+    this.body.append(this.list, this.batch, this.ai, this.notes);
     this.panel.append(
       header,
       this.modes,
@@ -517,10 +523,7 @@ export class ReviewUi {
       this.announcer,
       this.rewrite.root,
       this.filters,
-      this.list,
-      this.batch,
-      this.ai,
-      this.notes,
+      this.body,
       footer,
     );
 
@@ -761,14 +764,15 @@ export class ReviewUi {
     this.resetIgnores.disabled = state.status !== "ready";
     const filtered = state.categories.size < REVIEW_CATEGORIES.length;
     // Nothing left to act on with every category shown: the review is done.
-    this.panel.toggleAttribute(
-      "data-done",
+    const done =
       !rewriting &&
-        state.status === "ready" &&
-        !state.noRules &&
-        !filtered &&
-        state.diagnostics.length === 0,
-    );
+      state.status === "ready" &&
+      !state.noRules &&
+      !filtered &&
+      state.diagnostics.length === 0;
+    // Finishing starts the body at its top: the outcome and what follows it.
+    if (done && !this.panel.hasAttribute("data-done")) this.body.scrollTop = 0;
+    this.panel.toggleAttribute("data-done", done);
     const noteParts = [this.t(filtered ? "review_fix_all_filtered" : "review_fix_all_whole")];
     if (state.bulk.deferred > 0) {
       noteParts.push(this.t("review_fix_all_deferred", { count: state.bulk.deferred }));
@@ -1257,13 +1261,13 @@ export class ReviewUi {
         item.setAttribute("aria-current", String(id === state.selectedId));
       }
     }
-    // Keep the current finding visible in the list, scrolling only the list.
+    // Keep the current finding visible, scrolling only the panel's body.
     const current = state.selectedId ? this.itemFor(state.selectedId) : null;
     if (current) {
-      const box = this.list.getBoundingClientRect();
+      const box = this.body.getBoundingClientRect();
       const rect = current.getBoundingClientRect();
-      if (rect.top < box.top) this.list.scrollTop -= box.top - rect.top;
-      else if (rect.bottom > box.bottom) this.list.scrollTop += rect.bottom - box.bottom;
+      if (rect.top < box.top) this.body.scrollTop -= box.top - rect.top;
+      else if (rect.bottom > box.bottom) this.body.scrollTop += rect.bottom - box.bottom;
     }
   }
 
