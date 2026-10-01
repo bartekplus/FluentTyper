@@ -167,6 +167,38 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
       ],
     },
   ],
+  [
+    "spanishConfusions",
+    "verb forms after auxiliaries and de que",
+    {
+      pos: [
+        ["La noticia ha sorprendida a todos.", "La noticia ha sorprendido a todos."],
+        ["Todavía no se han realizando las obras.", "Todavía no se han realizado las obras."],
+        ["Se han encontraron restos antiguos.", "Se han encontrado restos antiguos."],
+        ["El precio ha ido aumentado cada año.", "El precio ha ido aumentando cada año."],
+        ["Mi hermana a terminado la carrera.", "Mi hermana ha terminado la carrera."],
+        ["Nunca e probado el sushi.", "Nunca he probado el sushi."],
+        ["Lo ha vuelto ha intentar.", "Lo ha vuelto a intentar."],
+        ["Se dio cuenta que era tarde.", "Se dio cuenta de que era tarde."],
+        ["Nos alegramos que estés bien.", "Nos alegramos de que estés bien."],
+        ["Estoy seguro que vendrá.", "Estoy seguro de que vendrá."],
+        ["Pienso de que tienes razón.", "Pienso que tienes razón."],
+        ["Es posible de que llueva.", "Es posible que llueva."],
+      ],
+      neg: [
+        "Había llamadas perdidas en el móvil.",
+        "Espero que no haya malentendidos.",
+        "Ha estado cerrado todo el verano.",
+        "Está permitido aparcar aquí.",
+        "Huele a quemado en la cocina.",
+        "Pasó de acusador a acusado.",
+        "Me alegra que hayas venido.",
+        "Me alegro de que hayas venido.",
+        "Seguro que mañana hace sol.",
+        "No me acuerdo de qué dijo.",
+      ],
+    },
+  ],
 ];
 
 describe.each(FIXTURES)("%s: %s", (ruleId, _family, fixture) => {

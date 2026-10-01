@@ -26,7 +26,7 @@ const NUMBER_WORDS = words(
 );
 const isNumber = (token: Token | undefined) =>
   !!token && (/^\p{N}/u.test(token.text) || NUMBER_WORDS.has(token.lower));
-const HABER = words(
+export const HABER = words(
   "he has ha hemos habéis han había habías habíamos habíais habían hube hubo habré habrás " +
     "habrá habremos habrán habría habrías habríamos habrían haya hayas hayamos hayan hubiera " +
     "hubieras hubiéramos hubieran hubiese haber habiendo",
@@ -36,7 +36,7 @@ const IR = words(
     "vayan ir yendo",
 );
 // "a ver" / "haber": what comes after a perfect "haber" is a participle.
-const isPerfectParticiple = (word: string) =>
+export const isPerfectParticiple = (word: string) =>
   /o$/u.test(word) && !!participle(word) && !participle(word)!.plural;
 
 /** "año" frames: a time word or a number makes "ano" the year. */
