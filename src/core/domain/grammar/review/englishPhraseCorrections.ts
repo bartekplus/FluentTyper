@@ -8,6 +8,7 @@ import {
   UNAMBIGUOUS_CAPS_ABBREVIATIONS,
   type PhraseRow,
 } from "./englishPhraseTables";
+import { EXTENSION_COMPOUNDS, EXTENSION_PHRASES, EXTENSION_STYLE } from "./english";
 import { LANGUAGE_PHRASE_TABLES } from "./languagePhraseTables";
 import { EDGE, SPACE } from "./phraseTemplates";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
@@ -61,9 +62,19 @@ function index(
     }
   }
 }
-index("en", PHRASE_CORRECTIONS, "englishPhraseCorrections", "review_msg_phrase_correction");
-index("en", CLOSED_COMPOUNDS, "englishClosedCompounds", "review_msg_closed_compound");
-index("en", STYLE_PHRASES, "stylePhrasing", "review_msg_style_phrasing");
+index(
+  "en",
+  [...PHRASE_CORRECTIONS, ...EXTENSION_PHRASES],
+  "englishPhraseCorrections",
+  "review_msg_phrase_correction",
+);
+index(
+  "en",
+  [...CLOSED_COMPOUNDS, ...EXTENSION_COMPOUNDS],
+  "englishClosedCompounds",
+  "review_msg_closed_compound",
+);
+index("en", [...STYLE_PHRASES, ...EXTENSION_STYLE], "stylePhrasing", "review_msg_style_phrasing");
 index(
   "en",
   NAME_CASING.map((name) => [name.toLowerCase(), name]),

@@ -91,6 +91,7 @@ import { isProsePrefix } from "../implementations/MeasurementUnitFormattingRule"
 import { isLowercaseLetter, isTechnicalToken } from "../implementations/helpers/GenericRuleShared";
 import { commonAffixes, isGraphemeBoundary, overlapsSortedRanges } from "./textRanges";
 import type { ReviewEdit, ReviewMessageKey, TextRange } from "./types";
+import { EXTENSION_DETECTORS } from "./english";
 
 /**
  * Review detectors read ONE immutable snapshot and never mutate it.
@@ -145,6 +146,7 @@ export interface RawFinding {
 }
 
 type Detector = (ctx: DetectContext) => RawFinding[];
+export type ReviewDetectorEntry = { rules: CatalogRuleId[]; detect: Detector };
 
 export const MASK_CHAR = "\uFFFC";
 // Enough context for every phrase pattern; the patterns themselves are shorter.
@@ -1384,7 +1386,7 @@ const repeatedWords: Detector = (ctx) => {
 };
 
 /** Review detectors by rule. Rules absent here are excluded from review (see reviewCatalog). */
-export const REVIEW_DETECTORS: ReadonlyArray<{ rules: CatalogRuleId[]; detect: Detector }> = [
+export const REVIEW_DETECTORS: ReadonlyArray<ReviewDetectorEntry> = [
   {
     rules: ["styleRedundancy", "styleLongSentence"],
     detect: (ctx) =>
@@ -1484,6 +1486,7 @@ export const REVIEW_DETECTORS: ReadonlyArray<{ rules: CatalogRuleId[]; detect: D
     rules: ["currencySpacing"],
     detect: (ctx) => [...measurementLike(ctx, "currencySpacing"), ...currencyPlacement(ctx)],
   },
+  ...EXTENSION_DETECTORS,
 ];
 
 /** Minimal edits turning source[start, start+original.length) into `replacement`. */
