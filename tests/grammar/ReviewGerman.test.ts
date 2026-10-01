@@ -101,6 +101,38 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
       ],
     },
   ],
+  [
+    "germanConfusedWords",
+    {
+      pos: [
+        ["Ich glaube, ihr seit müde.", "Ich glaube, ihr seid müde."],
+        ["Wir wohnen hier seid drei Jahren.", "Wir wohnen hier seit drei Jahren."],
+        ["Sie kommt mir einem Freund.", "Sie kommt mit einem Freund."],
+        ["Ich freue mir auf den Urlaub.", "Ich freue mich auf den Urlaub."],
+        ["Er sagt, das er später kommt.", "Er sagt, dass er später kommt."],
+        ["Wir gehen in denn Park.", "Wir gehen in den Park."],
+        ["Wo bleibt sie den eigentlich?", "Wo bleibt sie denn eigentlich?"],
+        ["Heute ist es kälter den je.", "Heute ist es kälter denn je."],
+        ["Das war ein schoner Abend.", "Das war ein schöner Abend."],
+        [
+          "Mach dir keine Gedanken, das tut mit leid.",
+          "Mach dir keine Gedanken, das tut mir leid.",
+        ],
+      ],
+      neg: [
+        "Ihr seid gestern gekommen.",
+        "Sie wohnt bei ihr seit 2015.",
+        "Lass mich sagen, was ich denke.",
+        "Er hat über mich gesagt, dass ich nett bin.",
+        "Das Buch, das er liest, ist alt.",
+        "Wo bekomme ich den?",
+        "Wir müssen die Umwelt schonen.",
+        "Nur ab und zu seien sie dort gewesen.",
+        "Seid heute bitte pünktlich!",
+        "Gott sei Dank ist mir dieser Fehler aufgefallen.",
+      ],
+    },
+  ],
 ];
 
 describe.each(RULES)("%s", (ruleId, { pos, neg }) => {
@@ -178,6 +210,7 @@ test("no German chunk stalls on repeated determiners and lowercase nouns", () =>
   const inputs = [
     "die kosten die kosten ".repeat(400),
     "mit den schönen hohen ".repeat(400),
+    "ihr seit mir dem seid den mich ".repeat(300),
     `der ${"\t ".repeat(3_000)}vertrag`,
   ];
   slowest(inputs.join("\n"));

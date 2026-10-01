@@ -116,7 +116,8 @@ export interface GrammarRuleCatalogEntry {
     | "primeSymbols"
     // German-only Review checks (review/german/).
     | "germanNounCasing"
-    | "germanPrepositionCase";
+    | "germanPrepositionCase"
+    | "germanConfusedWords";
   /** Absent for existing typing rules; false for native Review-only checks. */
   typing?: false;
   name: string;

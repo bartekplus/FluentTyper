@@ -969,6 +969,19 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     recommended: false,
     priority: 160,
   },
+  {
+    id: "germanConfusedWords",
+    typing: false,
+    name: "Confused German words",
+    titleI18nKey: "review_msg_contextual_grammar",
+    descriptionI18nKey: "review_msg_contextual_grammar",
+    exampleI18nKey: "",
+    languageScope: "all",
+    safetyTier: "advanced",
+    defaultRollout: "off",
+    recommended: false,
+    priority: 150,
+  },
 ] as const;
 
 export type CatalogRuleId = (typeof GRAMMAR_RULE_CATALOG)[number]["id"];
