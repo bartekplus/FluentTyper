@@ -1,5 +1,14 @@
+import { namedExampleBefore } from "../exampleCues";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
-import { Around, attributeOf, replaceToken, tokenize, words, type Token } from "./common";
+import {
+  Around,
+  attributeOf,
+  carryCase,
+  replaceToken,
+  tokenize,
+  words,
+  type Token,
+} from "./common";
 import { isGenderedEntry, isNoun } from "./lexicon";
 import { verbLike } from "./common";
 
@@ -104,6 +113,84 @@ function acronymPlural(token: Token): string | null {
   return m && ACRONYMS.has(m[1].toLowerCase()) ? m[1] : null;
 }
 
+const MONTH_LIST = [...MONTHS].filter((month) => month !== "setiembre");
+const monthNumber = (month: string) =>
+  month.toLowerCase() === "setiembre" ? 9 : MONTH_LIST.indexOf(month.toLowerCase()) + 1;
+const MONTH_NAMES = `${[...MONTHS].join("|")}`;
+const WEEKDAY_LIST = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
+/** Days in a month; February without a year allows 29. */
+const daysIn = (month: number, year?: number) =>
+  month === 2
+    ? year === undefined || (year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0))
+      ? 29
+      : 28
+    : [4, 6, 9, 11].includes(month)
+      ? 30
+      : 31;
+
+// "31 de abril de 2020", "29 de febrero 2023", "31/11/1988", "30-2-2001", and a weekday before
+// a full date ("lunes, 7 de octubre de 2014"). Numeric dates need a four-digit year:
+// "30/2" alone is a ratio.
+const NAMED_DATE = new RegExp(
+  `(?<![\\p{L}\\p{N}.,/-])(?:(${WEEKDAY_LIST.join("|")})(,?[ \\t]+))?(\\d{1,2})(?:[ \\t]+de)?[ \\t]+(${MONTH_NAMES})(?:[ \\t]+(?:de|del)?[ \\t]*(\\d{4}))?(?![\\p{L}\\p{N}])`,
+  "giu",
+);
+const NUMERIC_DATE = new RegExp(
+  `(?<![\\p{N}/.:-])(\\d{1,2})([/-])(\\d{1,2}|${MONTH_NAMES})\\2(\\d{4})(?![\\p{N}/:-])`,
+  "giu",
+);
+
+function impossibleDates(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  const dayFinding = (start: number, day: string, month: number, year?: number) => {
+    const max = daysIn(month, year);
+    if (Number(day) <= max || Number(day) > 31 || month < 1) return;
+    if (namedExampleBefore(ctx.text, start)) return;
+    const alternatives = month === 2 && year === undefined ? ["28", "29"] : [String(max)];
+    findings.push({
+      ruleId: RULE,
+      messageKey: "review_msg_spanish_date",
+      range: { start, end: start + day.length },
+      alternatives,
+      bulkBlock: "ambiguous",
+      ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+    });
+  };
+  const named = new RegExp(NAMED_DATE);
+  named.lastIndex = Math.max(0, ctx.from - 16);
+  for (let m = named.exec(ctx.scanText); m && m.index < ctx.to; m = named.exec(ctx.scanText)) {
+    const [whole, weekday, gap, day, month, year] = m;
+    const dayStart = m.index + (weekday ? weekday.length + gap.length : 0);
+    if (dayStart < ctx.from) continue;
+    const monthIndex = monthNumber(month);
+    const yearNumber = year ? Number(year) : undefined;
+    dayFinding(dayStart, day, monthIndex, yearNumber);
+    // The weekday of a full date is fixed: "lunes, 7 de octubre de 2014" was a Tuesday.
+    if (weekday && yearNumber && Number(day) <= daysIn(monthIndex, yearNumber)) {
+      const actual =
+        WEEKDAY_LIST[new Date(Date.UTC(yearNumber, monthIndex - 1, Number(day))).getUTCDay()];
+      if (actual !== weekday.toLowerCase() && !namedExampleBefore(ctx.text, m.index))
+        findings.push({
+          ruleId: RULE,
+          messageKey: "review_msg_spanish_date",
+          range: { start: m.index, end: m.index + weekday.length },
+          alternatives: [carryCase(weekday, actual)],
+          context: { start: m.index, end: m.index + whole.length },
+          bulkBlock: "ambiguous",
+        });
+    }
+  }
+  const numeric = new RegExp(NUMERIC_DATE);
+  numeric.lastIndex = Math.max(0, ctx.from - 16);
+  for (let m = numeric.exec(ctx.scanText); m && m.index < ctx.to; m = numeric.exec(ctx.scanText)) {
+    if (m.index < ctx.from) continue;
+    const month = /^\d/u.test(m[3]) ? Number(m[3]) : monthNumber(m[3]);
+    if (month < 1 || month > 12) continue;
+    dayFinding(m.index, m[1], month, Number(m[4]));
+  }
+  return findings;
+}
+
 function typography(ctx: DetectContext): RawFinding[] {
   if (ctx.lang.slice(0, 2) !== "es") return [];
   const tokens = tokenize(ctx);
@@ -148,6 +235,7 @@ function typography(ctx: DetectContext): RawFinding[] {
     const finding = replaceToken(ctx, token, [fix], RULE, key, tokens[i + 1] ?? token, exact);
     if (finding) findings.push(finding);
   }
+  findings.push(...impossibleDates(ctx));
   // "etc..." and "etc…": the abbreviation ends in one point.
   const etc = /(?<!\p{L})etc(?:\.{2,}|…|\.…)/giu;
   etc.lastIndex = ctx.from;

@@ -1529,6 +1529,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Hiszpańskie skrótowce nie mają końcówki liczby mnogiej: „las ONG”.",
     "As siglas espanholas não levam marca de plural: “las ONG”.",
   ],
+  review_msg_spanish_date: [
+    "This date does not exist: check the day or the weekday.",
+    "Cette date n’existe pas : vérifiez le jour ou le jour de la semaine.",
+    "Ovaj datum ne postoji: provjerite dan ili dan u tjednu.",
+    "Esta fecha no existe: revise el día o el día de la semana.",
+    "Αυτή η ημερομηνία δεν υπάρχει: ελέγξτε την ημέρα ή την ημέρα της εβδομάδας.",
+    "Det här datumet finns inte: kontrollera dagen eller veckodagen.",
+    "Dieses Datum gibt es nicht: Prüfen Sie den Tag oder den Wochentag.",
+    "Taka data nie istnieje: sprawdź dzień lub dzień tygodnia.",
+    "Esta data não existe: verifique o dia ou o dia da semana.",
+  ],
   review_msg_spanish_abbreviation: [
     "“etc.” already ends the list: one point, no ellipsis.",
     "« etc. » clôt déjà l’énumération : un seul point, sans points de suspension.",
