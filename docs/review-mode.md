@@ -204,6 +204,8 @@ Supported (**Typing** is the rule's default for typing; Review has separate swit
 | `englishTheirThereTheyAre`             | English        | unavailable | grammar     | confused words     | individual only                                                                                                                                |
 | `englishToToo`                         | English        | unavailable | grammar     | confused words     | individual only                                                                                                                                |
 | `englishWereWhere`                     | English        | unavailable | grammar     | confused words     | individual only                                                                                                                                |
+| `englishIrregularForms`                | English        | unavailable | grammar     | word form          | individual only                                                                                                                                |
+| `englishPossessiveNouns`               | English        | unavailable | grammar     | word form          | individual only                                                                                                                                |
 | `englishAuxiliaryBaseVerb`             | English        | unavailable | grammar     | word form          | individual only                                                                                                                                |
 | `englishPronounCase`                   | English        | unavailable | grammar     | word form          | individual only                                                                                                                                |
 | `englishSentenceStructure`             | English        | unavailable | grammar     | usage              | individual only                                                                                                                                |
@@ -368,6 +370,27 @@ They do not depend on dictionary misspellings. Existing "your welcome" and
 "their is" checks retain sole ownership. Named quoted examples, technical glue,
 protected islands and newline-spanning constructions are excluded. These finite
 lists provide bounded coverage, not a general homophone or English parser.
+
+Two Review-only checks read the dictionary-derived English lexicon, including its
+left-out long nouns (a Bloom filter, so they only ever tell words from typos):
+
+- `englishIrregularForms`: a word the dictionary does not know that spells a regular ending
+  on an irregular verb or noun from the authored tables ("eated", "runned", "childs",
+  "meatloafs") or misses a listed spelling rule ("heros", "kittys") offers the irregular form;
+  a past needs its subject or auxiliary right before it ("I eated", "had runned"), and a
+  plural also offers the singular possessive ("child's").
+- `englishPossessiveNouns`: a plural noun between a determiner and the noun it owns ("the cats
+  tail is long", "a teachers lounge") offers "cat's" or "cats'" when the frame allows no
+  other reading: the owned noun is followed by its verb, the phrase ends after a preposition
+  or a perception verb, or a singular determiner rules the plural out. Common attributive
+  plurals ("sales team", "settings page") and -ics/-ings words abstain.
+
+Moved and extra spaces belong to `englishAlotCorrection`: two neighbours that are no
+dictionary words become two that are ("spac eis" -> "space is"; "Thec at" -> "The cat"
+only when a function word results), a known word plus an unknown one that join into a
+known word merge ("her etofore"), and an unknown word that starts with a function word
+splits ("thisinstead"). Unknown content compounds ("landingpad") stay with dictionary
+spelling, which leaves likely deliberate compounds alone.
 
 Auxiliary verb forms are Review-only. An authored table covers about 140 common
 irregular verbs; regular -s/-ed/-ing forms go through the shared English inflection

@@ -201,7 +201,10 @@ export type ReviewMessageKey =
   | "review_msg_currency_placement"
   | "review_msg_unknown_word"
   | "review_msg_two_initial_capitals"
-  | "review_msg_local_ai";
+  | "review_msg_local_ai"
+  | "review_msg_irregular_form"
+  | "review_msg_noun_possessive"
+  | "review_msg_word_boundary";
 
 export type BulkDecision =
   | { eligible: true; alternative: number }

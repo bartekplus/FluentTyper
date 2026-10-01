@@ -314,6 +314,20 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     kind: "confusedWords",
     bulk: "individual",
   },
+  englishIrregularForms: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "grammar",
+    kind: "wordForm",
+    bulk: "individual",
+  },
+  englishPossessiveNouns: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "grammar",
+    kind: "wordForm",
+    bulk: "individual",
+  },
 
   englishPronounCase: {
     review: "supported",

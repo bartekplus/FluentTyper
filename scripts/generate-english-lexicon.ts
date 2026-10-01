@@ -4,6 +4,10 @@
 // Usage: bun run generate:english-lexicon
 import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import {
+  BLOOM_ALPHABET,
+  bloomBits,
+} from "../src/core/domain/grammar/implementations/helpers/EnglishLexicon";
 import { ENGLISH_VERB_FORMS } from "../src/core/domain/grammar/implementations/helpers/EnglishVerbForms";
 
 type Rule = { flag: string; strip: string; add: string; cond: RegExp; text: string };
@@ -24,6 +28,9 @@ const SUFFIX_FLAGS = "SDGRTYPZJNXVBLH";
 // a adjective, r adverb.
 const CLASS_FLAGS = "vqwnar";
 const PURE_NOUN_LETTERS = 5;
+// The nouns left out still answer "is this a word" through a Bloom filter: 10 bits per key
+// keeps false positives under 1% for ~38 KB.
+const BLOOM_BITS_PER_WORD = 10;
 
 function parseAff(aff: string): Affixes {
   const affixes: Affixes = { suffixes: [], prefixes: [] };
@@ -64,11 +71,20 @@ const fromLy = (word: string): string[] =>
 
 export function buildEnglishLexicon(dic: string, aff: string): string {
   const { suffixes, prefixes } = parseAff(aff);
-  return render(deriveEnglishLexicon(dic, aff), suffixes, prefixes);
+  const omitted: string[] = [];
+  const entries = deriveEnglishLexicon(dic, aff, omitted);
+  return render(entries, suffixes, prefixes, omitted);
 }
 
-/** Sorted [word, flags] records: kept .aff flags plus the pseudo-flags. */
-export function deriveEnglishLexicon(dic: string, aff: string): [string, string][] {
+/**
+ * Sorted [word, flags] records: kept .aff flags plus the pseudo-flags. Left-out nouns go to
+ * `omitted`, followed by "!noun" when the dictionary gives them no -s plural.
+ */
+export function deriveEnglishLexicon(
+  dic: string,
+  aff: string,
+  omitted: string[] = [],
+): [string, string][] {
   const { suffixes, prefixes } = parseAff(aff);
   const used = new Set([...suffixes, ...prefixes].map((r) => r.flag));
   if ([...CLASS_FLAGS].some((flag) => used.has(flag))) throw new Error("pseudo-flag clash");
@@ -212,7 +228,11 @@ export function deriveEnglishLexicon(dic: string, aff: string): [string, string]
     // (the frequent: day, way, child; each extra letter costs ~7 KB) and those spelled like an
     // -s, -ed or -ing form, which the spelling rules would misread (series, hotbed, ceiling).
     const pureNoun = /^S?n$/.test([...flags].sort().join(""));
-    if (pureNoun && word.length > PURE_NOUN_LETTERS && !/(?:[^s]s|ed|ing)$/.test(word)) continue;
+    if (pureNoun && word.length > PURE_NOUN_LETTERS && !/(?:[^s]s|ed|ing)$/.test(word)) {
+      // "!" marks a noun without a dictionary plural: "meatloaf" is listed, "meatloafs" is not.
+      omitted.push(word, ...(flags.has("S") ? [] : [`!${word}`]));
+      continue;
+    }
     entries.push([word, [...flags].sort().join("")]);
   }
   return entries.sort(([a], [b]) => (a < b ? -1 : 1));
@@ -251,7 +271,36 @@ function tokenize(rests: string[]): { rests: string[]; tokens: string[] } {
   return { rests, tokens };
 }
 
-function render(entries: [string, string][], suffixes: Rule[], prefixes: Rule[]): string {
+/**
+ * Six bits per character of BLOOM_ALPHABET, lowest bit first, and the listed nouns whose
+ * "!noun" (no plural) mark the filter claims falsely: dictionary nouns then read exactly.
+ */
+function bloom(words: string[]): { filter: string; pluralExceptions: string[] } {
+  const size = Math.ceil((words.length * BLOOM_BITS_PER_WORD) / 6) * 6;
+  const bits = new Uint8Array(size);
+  for (const word of words) for (const bit of bloomBits(word, size)) bits[bit] = 1;
+  let filter = "";
+  for (let i = 0; i < size; i += 6) {
+    let value = 0;
+    for (let b = 0; b < 6; b++) value |= bits[i + b] << b;
+    filter += BLOOM_ALPHABET[value];
+  }
+  const keys = new Set(words);
+  const pluralExceptions = words.filter(
+    (word) =>
+      !word.startsWith("!") &&
+      !keys.has(`!${word}`) &&
+      bloomBits(`!${word}`, size).every((bit) => bits[bit]),
+  );
+  return { filter, pluralExceptions };
+}
+
+function render(
+  entries: [string, string][],
+  suffixes: Rule[],
+  prefixes: Rule[],
+  omitted: string[],
+): string {
   const counts = new Map<string, number>();
   for (const [, flags] of entries) counts.set(flags, (counts.get(flags) ?? 0) + 1);
   const table = [...counts].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1)).map(([f]) => f);
@@ -273,6 +322,7 @@ function render(entries: [string, string][], suffixes: Rule[], prefixes: Rule[])
   const { rests, tokens } = tokenize(entries.map(([word], i) => word.slice(shared[i])));
   const words = rests.map((rest, i) => shared[i] + rest).join("");
   const flags = entries.map(([, wordFlags]) => index.get(wordFlags)).join("");
+  const nouns = bloom(omitted);
   const rules = (list: Rule[]) =>
     list
       .filter((r) => r.flag !== "M")
@@ -293,6 +343,8 @@ function render(entries: [string, string][], suffixes: Rule[], prefixes: Rule[])
     line("FLAG_SINGLE", single),
     line("WORDS", words),
     line("WORD_FLAGS", flags),
+    line("NOUN_BLOOM", nouns.filter),
+    line("NOUN_PLURAL_EXCEPTIONS", nouns.pluralExceptions.join(" ")),
     "",
   ].join("\n");
 }

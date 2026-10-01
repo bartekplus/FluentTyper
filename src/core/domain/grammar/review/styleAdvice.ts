@@ -9,7 +9,11 @@ const PLEONASMS = [
   ...["BWT transform", "FFT transform", "DFT transform", "HIV virus", "RAM memory", "NIC card"],
   "UPC code",
 ]
-  .map((pair) => pair.replace(" ", "[ \\t\\u00a0]{1,8}"))
+  // A shouted pair too: "VIN NUMBER".
+  .map((pair) => {
+    const [acronym, noun] = pair.split(" ");
+    return `${acronym}[ \\t\\u00a0]{1,8}(?:${noun}|${noun.toUpperCase()})`;
+  })
   .join("|");
 
 /** Explicit acronym pairs only; this does not rewrite voice, hedges or measurements. */
@@ -71,7 +75,7 @@ export function redundantAcronyms(
     )
       continue;
     const [acronym, noun] = match[0].split(/[ \t\u00a0]+/);
-    if (dictionary.has(acronym.toLowerCase()) || dictionary.has(noun)) continue;
+    if (dictionary.has(acronym.toLowerCase()) || dictionary.has(noun.toLowerCase())) continue;
     findings.push({
       ruleId: "styleRedundancy",
       messageKey: "review_msg_style_redundancy",

@@ -2,6 +2,8 @@ import {
   FLAG_CODES,
   FLAG_SINGLE,
   FLAG_TABLE,
+  NOUN_BLOOM,
+  NOUN_PLURAL_EXCEPTIONS,
   PREFIX_RULES,
   SUFFIX_RULES,
   TOKENS,
@@ -225,4 +227,63 @@ export function englishLexiconInflect(
     return (flags.includes("D") && suffix(lemma, "D")) || (doubled && `${doubled}ed`) || undefined;
   if (flags.includes("w")) return keepE(lemma);
   return (flags.includes("G") && suffix(lemma, "G")) || (doubled && `${doubled}ing`) || undefined;
+}
+
+export const BLOOM_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+const BLOOM_HASHES = 7;
+
+/** The bits a word sets in a Bloom filter of `size` bits (FNV-1a and djb2, double hashing). */
+export function bloomBits(word: string, size: number): number[] {
+  let a = 0x811c9dc5;
+  let b = 5381;
+  for (let i = 0; i < word.length; i++) {
+    const c = word.charCodeAt(i);
+    a = Math.imul(a ^ c, 0x01000193);
+    b = Math.imul(b, 33) ^ c;
+  }
+  const h1 = a >>> 0;
+  const h2 = (b | 1) >>> 0;
+  const bits: number[] = [];
+  for (let i = 0; i < BLOOM_HASHES; i++) bits.push((h1 + i * h2) % size);
+  return bits;
+}
+
+let bloom: Uint8Array | undefined;
+let pluralExceptions: Set<string> | undefined;
+function inBloom(word: string): boolean {
+  if (!bloom) {
+    bloom = new Uint8Array(NOUN_BLOOM.length);
+    for (let i = 0; i < NOUN_BLOOM.length; i++) bloom[i] = BLOOM_ALPHABET.indexOf(NOUN_BLOOM[i]);
+  }
+  const filter = bloom;
+  return bloomBits(word, filter.length * 6).every(
+    (bit) => (filter[(bit / 6) | 0] >> (bit % 6)) & 1,
+  );
+}
+
+/**
+ * The number of a lowercase word the lexicon leaves out because the dictionary lists it only
+ * as a long plain noun ("student", "students"), or null. A Bloom filter answers, so about 1%
+ * of other words read as such a noun too: use it to tell words from typos, never to correct.
+ */
+export function englishListedNoun(word: string): "singular" | "plural" | null {
+  const w = word.toLowerCase();
+  if (w.length < 6 || !/^[a-z]+$/.test(w)) return null;
+  if (inBloom(w)) return "singular";
+  const stems = [w.slice(0, -1)];
+  if (w.endsWith("es")) stems.push(w.slice(0, -2));
+  if (w.endsWith("ies")) stems.push(`${w.slice(0, -3)}y`);
+  return w.endsWith("s") && stems.some((stem) => stem.length > 5 && inBloom(stem))
+    ? "plural"
+    : null;
+}
+
+/**
+ * True when the dictionary lists `noun` (a left-out noun, see englishListedNoun) without an -s
+ * plural: "meatloaf" (meatloaves), "punctuation". Exact for listed nouns.
+ */
+export function englishListedWithoutPlural(noun: string): boolean {
+  const w = noun.toLowerCase();
+  pluralExceptions ??= new Set(NOUN_PLURAL_EXCEPTIONS.split(" "));
+  return englishListedNoun(w) === "singular" && inBloom(`!${w}`) && !pluralExceptions.has(w);
 }

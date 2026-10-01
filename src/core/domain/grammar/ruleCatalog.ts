@@ -460,6 +460,33 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     recommended: false,
     priority: 164,
   },
+  {
+    id: "englishIrregularForms",
+    typing: false,
+    name: "Irregular plurals and past forms",
+    titleI18nKey: "review_msg_irregular_form",
+    descriptionI18nKey: "review_msg_irregular_form",
+    exampleI18nKey: "",
+    languageScope: "en_US",
+    safetyTier: "advanced",
+    defaultRollout: "off",
+    recommended: false,
+    // Below englishUsagePhrases, whose framed "finded" fix explains the same edit better.
+    priority: 137,
+  },
+  {
+    id: "englishPossessiveNouns",
+    typing: false,
+    name: "Possessive apostrophes on nouns",
+    titleI18nKey: "review_msg_noun_possessive",
+    descriptionI18nKey: "review_msg_noun_possessive",
+    exampleI18nKey: "",
+    languageScope: "en_US",
+    safetyTier: "advanced",
+    defaultRollout: "off",
+    recommended: false,
+    priority: 138,
+  },
 
   {
     id: "englishPronounCase",

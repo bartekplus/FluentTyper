@@ -108,6 +108,8 @@ export interface GrammarRuleCatalogEntry {
     | "englishTheirThereTheyAre"
     | "englishToToo"
     | "englishWereWhere"
+    | "englishIrregularForms"
+    | "englishPossessiveNouns"
     | "quoteSpacing"
     | "primeSymbols";
   /** Absent for existing typing rules; false for native Review-only checks. */
