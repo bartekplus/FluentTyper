@@ -1,4 +1,5 @@
 import { namedExampleBefore } from "./exampleCues";
+import { POLISH_SPLIT_WORDS } from "./polish";
 import { SPACE, WORD_START as EDGE_BEFORE } from "./phraseTemplates";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 
@@ -64,6 +65,8 @@ const DEGREE: Record<string, DegreeTable> = {
   },
   pl: {
     marker: "bardziej",
+    // "tym bardziej" is "all the more": "tym bardziej lepiej" doubles nothing.
+    blockedBefore: /(?<![\p{L}])tym[ \t\u00a0]+$/iu,
     words:
       "lepsz(?:y|a|e|ego|ej|ym|ych|ymi|ą)|lepsi|lepiej|gorsz(?:y|a|e|ego|ej|ym|ych|ymi|ą)|gorsi|gorzej",
   },
@@ -173,6 +176,7 @@ const SPLIT_WORDS: Record<string, Record<string, string>> = {
     przedewszystkim: "przede wszystkim",
     odrazu: "od razu",
     niemożna: "nie można",
+    ...POLISH_SPLIT_WORDS,
   },
   sv: {
     iallafall: "i alla fall",
