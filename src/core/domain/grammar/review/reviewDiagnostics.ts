@@ -13,6 +13,7 @@ import { toDiagnostic } from "./reviewFindings";
 import { PROSE_DOTTED_TOKEN } from "./english/grammarStyle1";
 import { PROSE_SLASH_TOKEN } from "./english/dialects";
 import { slashedProseWord } from "./english/remaining";
+import { PLACE_STATE_TOKEN } from "./portuguese/typography";
 import { applyEdits, positionMapper } from "./textRanges";
 import {
   MASK_CHAR,
@@ -189,6 +190,7 @@ function technicalRanges(source: string, from: number, to: number): ProtectedRan
       !DECIMAL_QUANTITY.test(bare) &&
       !PROSE_DOTTED_TOKEN.test(bare) &&
       !PROSE_SLASH_TOKEN.test(bare) &&
+      !PLACE_STATE_TOKEN.test(bare) &&
       !slashedProseWord(source, match.index + lead, bare)
     ) {
       const start = match.index + lead;

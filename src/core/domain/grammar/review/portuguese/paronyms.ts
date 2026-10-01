@@ -34,19 +34,27 @@ function accentedTwins(word: string): string[] | undefined {
 
 // Contracted articles, indefinites, quantifiers and possessives: never before a finite verb.
 const DETERMINERS =
-  "d[ao]s?|n[ao]s?|num|numa|nuns|numas|dum|duma|duns|dumas|pel[ao]s?|algum|alguma|alguns|algumas|nenhum|nenhuma|qualquer|quaisquer|cada|muitas|poucas|várias|cuj[ao]s?|minhas?|meus?|tuas?|teus?|suas?|seus?|nossos?|nossas?|vossos?|vossas?|um|uma|uns|umas";
+  "d[ao]s?|n[ao]s?|num|numa|nuns|numas|dum|duma|duns|dumas|pel[ao]s?|algum|alguma|alguns|algumas|nenhum|nenhuma|qualquer|quaisquer|cada|muita|muitas|muitos|pouca|poucas|poucos|tanta|tantas|tantos|toda|certa|tal|várias|vários|diversas|diversos|inúmeras|inúmeros|outras|outros|cuj[ao]s?|minhas?|meus?|tuas?|teus?|suas?|seus?|nossos?|nossas?|vossos?|vossas?|um|uma|uns|umas";
+// Adjectives that come before a noun and seldom stand for a person on their own, so after an
+// article they still announce a noun: "um forte estimulo", "a principal evidencia", "da
+// terceira vitima". "novo", "velho", "pequeno" or "melhor" stay out: "o velho critica tudo".
+const ADJECTIVES =
+  "grandes?|fortes?|principa(?:l|is)|simples|excelentes?|vast[oa]s?|breves?|enormes?|long[oa]s?|eventua(?:l|is)|recentes?|supost[oa]s?|mer[oa]s?|notóri[oa]s?|devid[oa]s?|verdadeir[oa]s?|rápid[oa]s?|profund[oa]s?|graves?|séri[oa]s?|constantes?|intens[oa]s?|bel[oa]s?|ótim[oa]s?|péssim[oa]s?|terríve(?:l|is)|maldit[oa]s?|vil|imens[oa]s?|plen[oa]s?|tamanhas?|maior(?:es)?|menor(?:es)?|própri[oa]s?|únic[oa]s?|determinad[oa]s?|terceir[oa]s?|quart[oa]s?|quint[oa]s?|sext[oa]s?|sétim[oa]s?|oitav[oa]s?|non[oa]s?|décim[oa]s?|últim[oa]s?";
 // Prepositions, optionally with an article: "com a pratica", "para o publico".
 const PREPOSITIONS =
   "(?:com|sem|para|por|sobre|entre|contra|após|perante|desde)[ \\t\\u00a0]{1,8}(?:[ao]s?)(?![\\p{L}])|de|em|com|sem|para|por|sobre|entre|contra|após|perante|desde";
 // "nos" is also the pronoun "us" before a verb ("ele nos critica"); "no" only follows hyphenated.
 const PATTERN = `(?<lead>(?!nos${WORD_END})(?:${DETERMINERS})|${PREPOSITIONS})(?=${SPACE}(?<target>[a-zçãõáéíóúâêô]+)${WORD_END})`;
+// The same leads, or an article, before one of those adjectives; "tão" before an adjective.
+// "por último" is an adverb ("por último publica os dados").
+const MODIFIED = `(?<lead>(?!por${SPACE}últim)(?:(?!nos${WORD_END})(?:${DETERMINERS})|${PREPOSITIONS}|[ao]s?)${SPACE}(?:${ADJECTIVES})|t[ãa]o)(?=${SPACE}(?<target>[a-zçãõáéíóúâêô]+)${WORD_END})`;
 // "Um critica, o outro elogia": indefinite "um/uma" as a pronoun with "outro" later on.
 const RECIPROCAL = /^[^.!?;\n]{0,80}(?<![\p{L}])outr[oa]s?(?![\p{L}])/iu;
 
 export function accentParonyms(ctx: DetectContext): RawFinding[] {
   if (ctx.lang.slice(0, 2) !== "pt") return [];
   const findings: RawFinding[] = [];
-  for (const m of frameMatches(ctx, PATTERN)) {
+  for (const m of [...frameMatches(ctx, PATTERN), ...frameMatches(ctx, MODIFIED)]) {
     const target = m.groups!.target;
     const alternatives = accentedTwins(target);
     if (!alternatives || ctx.dictionary.has(target)) continue;
