@@ -301,7 +301,9 @@ describe("ReviewSession", () => {
 
   test("Fix all leaves ignored findings and hidden categories alone, and does not count them", async () => {
     // Moved from the planner: the session plans only what it shows.
-    const h = harness("teh a teh b , ok", { rules: GRAMMAR_RULE_IDS });
+    // Opt-in "ok" -> "okay" would be one more shown, individual-only finding.
+    const rules = GRAMMAR_RULE_IDS.filter((id) => id !== "styleWordChoice");
+    const h = harness("teh a teh b , ok", { rules });
     await Promise.all([h.session.start(), h.settle()]);
     const first = h.last().diagnostics.find((d) => d.original === "teh")!;
     h.session.ignore(first.id);

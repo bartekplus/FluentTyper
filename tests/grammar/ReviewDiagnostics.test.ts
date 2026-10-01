@@ -130,6 +130,10 @@ describe("review rule coverage map", () => {
             "styleContractions",
             "styleOxfordComma",
             "styleNoOxfordComma",
+            "englishAmericanSpelling",
+            "englishBritishSpelling",
+            "styleWordChoice",
+            "styleSpelledNumbers",
           ].includes(id),
       ),
     );

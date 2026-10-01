@@ -10,6 +10,7 @@ import { isTechnicalToken, normalizeWordSet } from "../implementations/helpers/G
 import { isReviewSupportedRule, reviewMetadataFor, runsInReviewLanguage } from "./reviewCatalog";
 import { MASK_CHAR, REVIEW_DETECTORS, minimalEdits, type RawFinding } from "./reviewDetectors";
 import { PROSE_DOTTED_TOKEN } from "./english/grammarStyle1";
+import { PROSE_SLASH_TOKEN } from "./english/dialects";
 import {
   applyEdits,
   editTouches,
@@ -195,7 +196,8 @@ function technicalRanges(source: string, from: number, to: number): ProtectedRan
       bare &&
       isTechnicalToken(bare) &&
       !DECIMAL_QUANTITY.test(bare) &&
-      !PROSE_DOTTED_TOKEN.test(bare)
+      !PROSE_DOTTED_TOKEN.test(bare) &&
+      !PROSE_SLASH_TOKEN.test(bare)
     ) {
       const start = match.index + lead;
       ranges.push({ start, end: start + bare.length, reason: "technical" });

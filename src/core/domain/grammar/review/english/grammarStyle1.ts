@@ -749,7 +749,7 @@ function oneOfPlural(ctx: DetectContext): Finding[] {
 const DECADE_WORDS =
   "style|styled|era|music|fashion|vibes?|aesthetic|rock|pop|kids|look|design|tech|technology|cartoons|movies|films|songs|hits|culture|nostalgia|retro|sound";
 const DECADE = new RegExp(
-  `(?<![\\p{L}\\p{N}_'’@/#.\\\\-])(?:(?<age>(?:my|his|her|their|our|your)${SPACE}(?:(?:early|mid|late)[ \\t\\u00a0-]{1,8})?)(?<two>[1-9]0)|(?<when>(?:early|mid|late)[ \\t\\u00a0-]{1,8})(?<span>1[0-9]{2}0|20[0-9]0|[1-9]0)|(?<decade>1[0-9]{2}0|20[0-9]0|[1-9]0)(?=['’]s(?:[ \\t\\u00a0]{1,8}|-)(?:${DECADE_WORDS})(?![\\p{L}])))(?<mark>['’])s(?![\\p{L}\\p{N}_'’@#\\\\])`,
+  `(?<![\\p{L}\\p{N}_'’@#.\\\\-])(?:(?<age>(?:my|his|her|their|our|your)${SPACE}(?:(?:early|mid|late)[ \\t\\u00a0-]{1,8})?)(?<two>[1-9]0)|(?<when>(?:early|mid|late)[ \\t\\u00a0-]{1,8})(?<span>1[0-9]{2}0|20[0-9]0|[1-9]0)|(?<decade>1[0-9]{2}0|20[0-9]0|[1-9]0)(?=['’]s(?:[ \\t\\u00a0]{1,8}|-)(?:${DECADE_WORDS})(?![\\p{L}])))(?<mark>['’])s(?![\\p{L}\\p{N}_'’@#\\\\])`,
   "gidu",
 );
 
