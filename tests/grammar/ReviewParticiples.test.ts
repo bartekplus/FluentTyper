@@ -306,7 +306,10 @@ test.each(progressive)("progressive after have offers be or have been: %s", (sou
   expect(scan(source)).toHaveLength(1);
   expect(d.requiresChoice).toBe(true);
   expect(d.bulk.eligible).toBe(false);
-  expect(d.alternatives.map((a) => applyEdits(source, a.edits))).toEqual([be, been]);
+  // A full "have" also offers the contracted be between the two ("We're fixing it now.").
+  const offered = d.alternatives.map((a) => applyEdits(source, a.edits));
+  expect([offered[0], offered.at(-1)]).toEqual([be, been]);
+  expect(offered.length).toBe(/['’]ve/.test(source) ? 2 : 3);
   expect(scan(be)).toEqual([]);
   expect(scan(been)).toEqual([]);
 });

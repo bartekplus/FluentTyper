@@ -1811,7 +1811,8 @@ describe("review controller with Local AI", () => {
   });
 
   test("Escape in the editor closes an open AI batch preview before the review", async () => {
-    const field = textarea("We saw teh cat. She walk home now. She walk there too.");
+    // Not at a clause start, so only the model (not native agreement) finds "She walk" twice.
+    const field = textarea("We saw teh cat. Then She walk home now. Then She walk there too.");
     const { review } = controller({ answer: true });
     review.invoke();
     const shadow = () => document.querySelector("[data-fluenttyper-review]")!.shadowRoot!;
@@ -1828,6 +1829,6 @@ describe("review controller with Local AI", () => {
     expect(preview().hidden).toBe(true);
     field.dispatchEvent(new KeyboardEventCtor("keydown", { key: "Escape", bubbles: true }));
     expect(review.isActive).toBe(false);
-    expect(field.value).toBe("We saw teh cat. She walk home now. She walk there too.");
+    expect(field.value).toBe("We saw teh cat. Then She walk home now. Then She walk there too.");
   });
 });

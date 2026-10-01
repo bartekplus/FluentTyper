@@ -295,11 +295,15 @@ function quantities(ctx: DetectContext): Finding[] {
     )
       continue;
     if (hasUserOrCasedWord(ctx, m[0])) continue;
-    const [start, end] = m.indices!.groups![m.groups!.head ? "head" : "head2"];
+    const [start, headEnd] = m.indices!.groups![m.groups!.head ? "head" : "head2"];
+    // The range runs to the noun, so the inserted "of" sits inside it.
+    const [, end] = m.indices!.groups!.noun;
     findings.push({
       messageKey: "review_msg_couple_of",
       range: { start, end },
-      alternatives: [`${head} ${head === head.toUpperCase() ? "OF" : "of"}`],
+      alternatives: [
+        `${head} ${head === head.toUpperCase() ? "OF" : "of"}${ctx.text.slice(headEnd, end)}`,
+      ],
       context: around(ctx, m),
     });
   }

@@ -83,6 +83,27 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     bulk: "individual",
     languages: withPhraseTables("style"),
   },
+  styleContractions: {
+    review: "supported",
+    defaultEnabled: false,
+    category: "style",
+    kind: "usage",
+    bulk: "individual",
+  },
+  styleOxfordComma: {
+    review: "supported",
+    defaultEnabled: false,
+    category: "style",
+    kind: "marks",
+    bulk: "individual",
+  },
+  styleNoOxfordComma: {
+    review: "supported",
+    defaultEnabled: false,
+    category: "style",
+    kind: "marks",
+    bulk: "individual",
+  },
   styleRedundancy: {
     review: "supported",
     defaultEnabled: false,

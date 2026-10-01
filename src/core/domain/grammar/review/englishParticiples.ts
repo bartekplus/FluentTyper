@@ -1,4 +1,5 @@
 import { englishInflect } from "../implementations/helpers/EnglishInflection";
+import { quotedMention } from "./english/grammarStyle1";
 import { englishWordInfo } from "../implementations/helpers/EnglishLexicon";
 import { englishVerbForms } from "../implementations/helpers/EnglishVerbForms";
 import { applyWordCase, detectWordCase } from "../implementations/helpers/GenericRuleShared";
@@ -273,18 +274,23 @@ export function perfectParticiples(ctx: DetectContext): RawFinding[] {
 export const NOUN_LIKE_ING =
   /^(?:reading|writing|testing|planning|building|training|meeting|painting|drawing|shopping|setting|spending|recording|funding|parking|housing|clothing|seating|heating|lighting|cooking|swimming|dancing|marketing|pricing|timing|booking|warning|opening|ending|beginning|feeling|morning|evening|ceiling|nothing|something|anything|everything|thing|king|ring|spring|string|wedding|pudding|sibling|during)$/;
 const OBJECT = "(?:it|them|him|her|us|me|this|that)";
-const PROGRESSIVE = `(?<subject>I|you|we|they|he|she|it)(?:${SPACE}(?<aux>have|has)|(?<contract>['’]ve))${SPACE}(?<verb>[A-Za-z]{2,}ing)${SPACE}(?<follow>${OBJECT}|(?:(?:on|into|about|at|for|with|to)${SPACE})?(?:${OBJECT}|the|a|an|my|your|our|his|her|their))(?!${EDGE})`;
+// "Ive" lost its apostrophe; a time adverb also closes the progressive ("I've working today").
+const PROGRESSIVE = `(?<subject>I|you|we|they|he|she|it)(?:${SPACE}(?<aux>have|has)|(?<contract>['’]ve)|(?<bare>ve))${SPACE}(?<verb>[A-Za-z]{2,}ing)${SPACE}(?<follow>${OBJECT}|(?:(?:on|into|about|at|for|with|to)${SPACE})?(?:${OBJECT}|the|a|an|my|your|our|his|her|their)|today|now|tonight|lately)(?!${EDGE})`;
 
-/** "I've looking into it": have in place of be before a progressive; both repairs are offered. */
+/**
+ * "I've looking into it": have in place of be before a progressive. A contracted have becomes
+ * the contracted be; a full one is offered both ways ("I am", "I'm"), and the perfect progressive.
+ */
 function progressiveAfterHave(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   const owner = (m: RegExpExecArray) =>
-    m.indices!.groups![m.groups!.contract ? "contract" : "aux"][0];
+    m.indices!.groups![m.groups!.contract ? "contract" : "subject"][0];
   for (const m of frameMatches(ctx, PROGRESSIVE, owner)) {
-    const { subject, aux, contract, verb, follow } = m.groups!;
-    const [start, end] = m.indices!.groups![contract ? "contract" : "aux"];
+    const { subject, aux, contract, bare, verb, follow } = m.groups!;
+    const [start] = m.indices!.groups![contract ? "contract" : "subject"];
+    const [, end] = m.indices!.groups![contract ? "contract" : aux ? "aux" : "bare"];
     const singular = /^(?:he|she|it)$/i.test(subject);
-    if (contract ? singular : (aux.toLowerCase() === "has") !== singular) continue;
+    if (contract || bare ? singular : (aux.toLowerCase() === "has") !== singular) continue;
     const ing = verb.toLowerCase();
     if (NOUN_LIKE_ING.test(ing) && !new RegExp(`^${OBJECT}$`, "i").test(follow)) continue;
     const before = ctx.scanText.slice(Math.max(0, m.index - 96), m.index);
@@ -297,25 +303,34 @@ function progressiveAfterHave(ctx: DetectContext): RawFinding[] {
       continue;
     const phraseEnd = m.index + m[0].length;
     if (hasUserOrCasedWord(ctx, m[0])) continue;
-    const typed = contract ?? aux;
+    const typed = contract ?? aux ?? bare;
     const first = /^i$/i.test(subject);
-    const be = contract
-      ? `${contract[0]}${first ? "m" : "re"}`
-      : first
-        ? "am"
-        : singular
-          ? "is"
-          : "are";
-    const been = `${contract ? `${contract[0]}ve` : aux.toLowerCase()} been`;
+    const mark = contract?.[0] ?? "'";
+    const short = `${mark}${first ? "m" : singular ? "s" : "re"}`;
     const kase = detectWordCase(typed);
-    findings.push({
+    const cased = (word: string) => applyWordCase(word, kase);
+    let alternatives: string[];
+    if (contract) alternatives = [cased(short), cased(`${mark}ve been`)];
+    else if (bare) alternatives = [subject + cased(short), subject + cased(`${mark}ve been`)];
+    else {
+      const gap = ctx.text.slice(m.indices!.groups!.subject[1], m.indices!.groups!.aux[0]);
+      const be = first ? "am" : singular ? "is" : "are";
+      alternatives = [
+        `${subject}${gap}${cased(be)}`,
+        `${subject}${cased(short)}`,
+        `${subject}${gap}${cased(`${aux.toLowerCase()} been`)}`,
+      ];
+    }
+    const finding: RawFinding = {
       ruleId: "englishPerfectParticiples",
       messageKey: "review_msg_progressive_be",
       range: { start, end },
-      alternatives: [applyWordCase(be, kase), applyWordCase(been, kase)],
+      alternatives,
       requiresChoice: true,
       context: { start: Math.max(0, m.index - 96), end: Math.min(ctx.text.length, phraseEnd + 9) },
-    });
+    };
+    // A quoted example under discussion ("She has cleaning the kitchen") is not prose.
+    if (!quotedMention(ctx, finding)) findings.push(finding);
   }
   return findings;
 }

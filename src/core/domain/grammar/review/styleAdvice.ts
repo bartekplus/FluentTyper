@@ -2,6 +2,16 @@ import type { RawFinding } from "./reviewDetectors";
 import type { ProtectedRange, ReviewSourceSnapshot } from "./types";
 import { MAX_REVIEW_CHARS } from "./reviewDiagnostics";
 
+// Acronyms whose last letter already names the noun after them.
+const PLEONASMS = [
+  ...["PIN number", "VIN number", "ISBN number", "ATM machine", "GUI interface", "TUI interface"],
+  ...["CLI interface", "LCD display", "LED diode", "LLM model", "USD dollar", "PCB board"],
+  ...["BWT transform", "FFT transform", "DFT transform", "HIV virus", "RAM memory", "NIC card"],
+  "UPC code",
+]
+  .map((pair) => pair.replace(" ", "[ \\t\\u00a0]{1,8}"))
+  .join("|");
+
 /** Explicit acronym pairs only; this does not rewrite voice, hedges or measurements. */
 export function redundantAcronyms(
   snapshot: ReviewSourceSnapshot,
@@ -47,8 +57,10 @@ export function redundantAcronyms(
     } else quoted[i] = stack.length > 0 ? 1 : 0;
   }
   const findings: RawFinding[] = [];
-  const pattern =
-    /(?<![\p{L}\p{M}\p{N}_'’@/#\\.-])(?:PIN[ \t\u00a0]{1,8}number|ATM[ \t\u00a0]{1,8}machine)(?![\p{L}\p{M}\p{N}_'’@/#\\-]|\.[\p{L}\p{N}])/gu;
+  const pattern = new RegExp(
+    `(?<![\\p{L}\\p{M}\\p{N}_'’@/#\\\\.-])(?:${PLEONASMS})(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]|\\.[\\p{L}\\p{N}])`,
+    "gu",
+  );
   for (const match of text.matchAll(pattern)) {
     const start = match.index,
       end = start + match[0].length;

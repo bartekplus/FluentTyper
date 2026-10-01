@@ -9,6 +9,7 @@ import { findMarkdownCodeRanges } from "../implementations/helpers/ProtectedSpan
 import { isTechnicalToken, normalizeWordSet } from "../implementations/helpers/GenericRuleShared";
 import { isReviewSupportedRule, reviewMetadataFor, runsInReviewLanguage } from "./reviewCatalog";
 import { MASK_CHAR, REVIEW_DETECTORS, minimalEdits, type RawFinding } from "./reviewDetectors";
+import { PROSE_DOTTED_TOKEN } from "./english/grammarStyle1";
 import {
   applyEdits,
   editTouches,
@@ -190,7 +191,12 @@ function technicalRanges(source: string, from: number, to: number): ProtectedRan
     }
     const lead = match[0].match(/^["'(“‘[<]*/)![0].length;
     const bare = match[0].slice(lead).replace(/[.,;:!?)\]"'”’>]+$/u, "");
-    if (bare && isTechnicalToken(bare) && !DECIMAL_QUANTITY.test(bare)) {
+    if (
+      bare &&
+      isTechnicalToken(bare) &&
+      !DECIMAL_QUANTITY.test(bare) &&
+      !PROSE_DOTTED_TOKEN.test(bare)
+    ) {
       const start = match.index + lead;
       ranges.push({ start, end: start + bare.length, reason: "technical" });
     }

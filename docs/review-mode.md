@@ -805,7 +805,7 @@ Known costs:
   unhighlighted, but never highlights other text. Text set in columns, and
   table cells drawn far apart, may be listed only. Highlights stay inside the
   editor and are not drawn over Docs' menus, dialogs and bubbles. A click on
-  a highlight opens its card; a drag, shift-click or double click selects
+  a highlight opens its card; a drag, shift-click or double-click selects
   text as usual, and Escape in the document closes the card. No Fix all (one
   verified replacement at a time).
 - Google Docs: a document of up to 50,000 characters is reviewed whole, even

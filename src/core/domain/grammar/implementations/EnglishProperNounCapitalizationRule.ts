@@ -77,7 +77,19 @@ const CONTEXT_MONTH_REGEX = new RegExp(
   `${NAME_START}(may|march|august)(?:[ \\t]+([\\p{L}\\p{N}]+))?$`,
   "giu",
 );
-const MARCH_DATE_WORDS = new Set(["on", "in", "since", "until", "till", "from", "by", "of"]);
+const MARCH_DATE_WORDS = new Set([
+  "on",
+  "in",
+  "since",
+  "until",
+  "till",
+  "from",
+  "by",
+  "of",
+  "between",
+  "after",
+  "before",
+]);
 const DAY_NUMBER = /^(?:[1-9]|[12]\d|3[01])(?:st|nd|rd|th)?$/i;
 const DAY_OR_YEAR = /^(?:(?:[1-9]|[12]\d|3[01])(?:st|nd|rd|th)?|(?:19|20)\d\d)$/i;
 const PREVIOUS_WORD_REGEX = /(?:^|\s)[(["“]?([\p{L}\p{N}'’]+)[ \t]+$/gu;
@@ -260,12 +272,19 @@ const LAST_TWO_WORDS = /(?:^|[^\p{L}\p{N}'’])([\p{L}\p{N}'’]+)[ \t]+([\p{L}\
 export function isMonthInContext(word: string, before: string, after: string): boolean {
   if (!/^(?:may|march|august)$/.test(word)) return false;
   if (RANGE_AFTER.test(after)) return true;
-  const ends = CLAUSE_END.test(after) || YEAR_AFTER.test(after);
-  if (!ends) return false;
-  if (RANGE_BEFORE.test(before)) return true;
   const words = LAST_TWO_WORDS.exec(before);
   const previous = (words?.[2] ?? execTail(PREVIOUS_WORD_REGEX, before)?.[1] ?? "").toLowerCase();
   const earlier = (words?.[1] ?? "").toLowerCase();
+  // "since last august we…": the verb "march" or adjective "august" never follows "last";
+  // "may" can ("what happens next may surprise you").
+  if (word !== "may" && MONTH_MODIFIERS.has(previous) && !NOUN_DETERMINERS.has(earlier))
+    return true;
+  // "the abbreviation of august for…": the adjective needs a noun after it.
+  if (word === "august" && previous === "of" && /^[ \t]+(?:for|in|to|and|or|is|was)\b/.test(after))
+    return true;
+  const ends = CLAUSE_END.test(after) || YEAR_AFTER.test(after);
+  if (!ends) return false;
+  if (RANGE_BEFORE.test(before)) return true;
   if (MONTH_PREPOSITIONS.has(previous)) return true;
   if (MONTH_MODIFIERS.has(previous)) return !NOUN_DETERMINERS.has(earlier);
   if (previous === "of") return OF_MONTH_HEADS.has(earlier) || DAY_NUMBER.test(earlier);

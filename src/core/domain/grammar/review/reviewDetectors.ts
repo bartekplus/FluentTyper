@@ -430,16 +430,25 @@ const pronounI: Detector = (ctx) => {
     } else {
       // Whitespace alone does not say pronoun or variable; the next word does.
       const next = rest.match(/^[ \t\u00A0]+(\S+)/);
-      if (!next) continue;
-      const following = next[1].replace(TRAILING_PUNCTUATION_REGEX, "");
-      // Unlike typing, the next word is complete here: "i don't" is the pronoun too.
-      if (
-        !/^\p{L}+(?:['’]\p{L}+)?$/u.test(following) ||
-        NON_PRONOUN_FOLLOWERS.has(following.toLowerCase())
-      ) {
-        continue;
+      if (!next) {
+        // "stronger than i" closing the text is the pronoun.
+        if (
+          !/^\s*$/.test(rest) ||
+          !/\b(?:than|and|as)[ \t\u00A0]+$/i.test(ctx.text.slice(Math.max(0, start - 12), start))
+        )
+          continue;
+        sentenceEnd = true;
+      } else {
+        const following = next[1].replace(TRAILING_PUNCTUATION_REGEX, "");
+        // Unlike typing, the next word is complete here: "i don't" is the pronoun too.
+        if (
+          !/^\p{L}+(?:['’]\p{L}+)?$/u.test(following) ||
+          NON_PRONOUN_FOLLOWERS.has(following.toLowerCase())
+        ) {
+          continue;
+        }
+        contextEnd += next[0].length;
       }
-      contextEnd += next[0].length;
     }
     findings.push({
       ruleId: "englishPronounICapitalization",
@@ -865,7 +874,7 @@ const STANDALONE_MARK_FOLLOWER = /^[ \t\u00A0]+["'“‘([¿¡]?\p{Ll}/u;
 // script ("red，green") is an input-method slip; CJK text keeps its own.
 const ALPHABETIC = "[\\p{Script=Latin}\\p{Script=Greek}\\p{Script=Cyrillic}\\p{N}]";
 const WIDE_COMMA = new RegExp(
-  `(?<=${ALPHABETIC})[ \\u00A0]*[，、][ \\u00A0]*(?=${ALPHABETIC}|\\s|$)`,
+  `(?<=^|${ALPHABETIC})[ \\u00A0]*[，、][ \\u00A0]*(?=${ALPHABETIC}|\\s|$)`,
   "gu",
 );
 
@@ -1032,6 +1041,16 @@ const duplicatePunctuation: Detector = (ctx) => {
       alternatives: ["."],
     });
   }
+  // A line of two dots alone is a short ellipsis or a stray period.
+  for (const match of ownedMatches(ctx, /(?<=^|\n)\.\.(?=[ \t]*(?:\r?\n|$))/gu)) {
+    findings.push({
+      ruleId: "duplicatePunctuationCollapse",
+      messageKey: "review_msg_ellipsis_length",
+      range: { start: match.index, end: match.index + 2 },
+      alternatives: ["...", "."],
+      requiresChoice: true,
+    });
+  }
   // An ellipsis has three dots: "So..... anyway". Digits
   // or a path around the run ("1....5", "..../") and dot leaders (10+) are not one.
   const ellipsis = /(?<![.\p{N}])\.{4,9}(?![.\p{N}/\\])/gu;
@@ -1192,19 +1211,20 @@ function currencyPlacement(ctx: DetectContext): RawFinding[] {
   if (ctx.lang !== "en_US") return [];
   const findings: RawFinding[] = [];
   const regex =
-    /(?<![\p{L}\p{N}$£¥¢.,_])(?:(\d[\d,]*(?:\.\d+)?)[  ]*([$£¥])|¢(\d+))(?![\p{L}\p{N}$£¥¢_])/gu;
+    /(?<![\p{L}\p{N}$£¥¢.,_])(?:(\d[\d,]*(?:\.\d+)?)(st|nd|rd|th)?[  ]*([$£¥])|¢(\d+))(?![\p{L}\p{N}$£¥¢_])/gu;
   for (const match of ownedMatches(ctx, regex)) {
     const start = match.index;
     const end = start + match[0].length;
     const lineStart = ctx.text.lastIndexOf("\n", start) + 1;
     let lineEnd = ctx.text.indexOf("\n", end);
     if (lineEnd < 0) lineEnd = ctx.text.length;
-    if (match[2] === "$" && /\$[\p{L}\\{(_]/u.test(ctx.text.slice(lineStart, lineEnd))) continue;
+    if (match[3] === "$" && /\$[\p{L}\\{(_]/u.test(ctx.text.slice(lineStart, lineEnd))) continue;
     findings.push({
       ruleId: "currencySpacing",
       messageKey: "review_msg_currency_placement",
       range: { start, end },
-      alternatives: [match[3] ? `${match[3]}¢` : `${match[2]}${match[1]}`],
+      // "my 20th$" is "my $20th".
+      alternatives: [match[4] ? `${match[4]}¢` : `${match[3]}${match[1]}${match[2] ?? ""}`],
       context: { start: lineStart, end: lineEnd },
       bulkBlock: "context-dependent",
     });
@@ -1304,7 +1324,7 @@ function measurementLike(
 // clitic), el "με με" (pronoun + preposition), "και και" (both … and) and
 // "είναι είναι", ar "من من".
 const REPEATABLE_WORDS: Record<string, string> = {
-  en: "the|an|a|is|are|was|were|in|on|at|for|with|from|of|to|and|or|but|nor|as|by|into|onto|about|than|this|these|those|its|your|our|their|would|should|could|has|been",
+  en: "the|an|a|is|are|was|were|be|am|in|on|at|for|with|from|of|to|and|or|but|nor|as|by|into|onto|about|than|this|these|those|its|your|our|their|would|should|could|has|been",
   de: "ein|eine|einen|einem|einer|eines|im|mit|von|für|auf|bei|aus|nach|zum|zur|dass|weil|ist|sind|hat|wird|über|unter|durch|ohne|gegen",
   fr: "le|les|un|une|des|du|au|aux|dans|pour|avec|sur|et|mais|est|sont|par|ce|cette|ces|sans",
   es: "el|los|las|un|una|en|con|del|al|y|pero|por|sin|sobre|entre|desde|hasta|este|esta|estos|estas",

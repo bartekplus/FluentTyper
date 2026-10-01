@@ -127,6 +127,9 @@ describe("review rule coverage map", () => {
             "emdashShortcut",
             "primeSymbols",
             "stylePhrasing",
+            "styleContractions",
+            "styleOxfordComma",
+            "styleNoOxfordComma",
           ].includes(id),
       ),
     );
