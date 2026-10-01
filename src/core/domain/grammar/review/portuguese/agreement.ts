@@ -9,6 +9,8 @@ import type { DetectContext, RawFinding } from "../reviewDetectors";
  * - "próprio" agrees with the pronoun it reinforces: "ela próprio" -> "ela própria".
  * - A neuter pronoun (isso, isto, aquilo, tudo) takes a masculine adjective: "Isso é muito
  *   engraçada" -> "engraçado".
+ * - After "quando", "se", "enquanto"... an irregular verb takes its future subjunctive, not
+ *   its infinitive: "Quando eu ver" -> "vir", "se nós fazermos" -> "fizermos".
  */
 
 const S = SPACE;
@@ -75,18 +77,56 @@ const FEMININE_ADJECTIVES =
   "boa|linda|bonita|engraçada|perfeita|errada|certa|chata|estranha|esquisita|complicada|ótima|péssima|maravilhosa|necessária|obrigatória|verdadeira|falsa|ridícula|absurda|perigosa|gostosa|divertida|cansativa|curiosa|justa|injusta|correta|incorreta|clara|óbvia|rara|barata|fantástica|horrorosa|nojenta";
 const NEUTER = `(?:isso|isto|aquilo|tudo)${S}(?:não${S})?(?:é|era|foi|seja|fosse|será|seria|parece|parecia|fica|ficou|está|estava|continua)${S}(?:(?:muito|tão|bem|super|bastante|meio|mais|menos|realmente|totalmente|completamente)${S})?(?<target>${FEMININE_ADJECTIVES})(?=[ \\t\\u00a0]{0,2}(?:[.,;:!?]|$)|${S}(?:demais|mesmo|também|para|de)${W})`;
 
+// Infinitive -> future subjunctive stem of the irregular verbs (the regular ones coincide).
+// "por" without its accent stays out: "quando ele por fim chegou".
+const FUTURE_SUBJUNCTIVE: Record<string, string> = {
+  dizer: "disse",
+  fazer: "fize",
+  refazer: "refize",
+  desfazer: "desfize",
+  ver: "vi",
+  rever: "revi",
+  prever: "previ",
+  ter: "tive",
+  manter: "mantive",
+  conter: "contive",
+  obter: "obtive",
+  deter: "detive",
+  reter: "retive",
+  pôr: "puse",
+  propor: "propuse",
+  compor: "compuse",
+  supor: "supuse",
+  ser: "fo",
+  ir: "fo",
+  dar: "de",
+  estar: "estive",
+  poder: "pude",
+  saber: "soube",
+  querer: "quise",
+  trazer: "trouxe",
+  caber: "coube",
+};
+const PERSON_ENDING: Record<string, string> = { "": "r", es: "res", mos: "rmos", em: "rem" };
+const CONJUNCTION = `(?:quando|se|enquanto|assim${S}que|logo${S}que|sempre${S}que|depois${S}que|caso|conforme)`;
+const SUBJECT = `(?:eu|tu|ele|ela|você|nós|eles|elas|vocês|a${S}gente|(?:o|a|os|as)${S}\\p{Ll}+)`;
+const INFINITIVE = `(?<target>(?<verb>${Object.keys(FUTURE_SUBJUNCTIVE).join("|")})(?<person>es|mos|em)?)`;
+const FUTURE = `${CONJUNCTION}${S}${SUBJECT}${S}(?:não${S})?${INFINITIVE}${W}`;
+
 function push(
   findings: RawFinding[],
   ctx: DetectContext,
   m: RegExpExecArray,
   replacement: string,
+  messageKey:
+    "review_msg_pt_agreement" | "review_msg_pt_future_subjunctive" = "review_msg_pt_agreement",
 ): void {
   const typed = m.groups!.target;
   if (ctx.dictionary.has(typed.toLowerCase())) return;
   const [start, end] = m.indices!.groups!.target;
   findings.push({
     ruleId: "portugueseAgreement",
-    messageKey: "review_msg_pt_agreement",
+    messageKey,
     range: { start, end },
     alternatives: [applyWordCase(replacement, detectWordCase(typed))],
     context: { start: m.index, end: Math.max(end, m.index + m[0].length) },
@@ -111,6 +151,16 @@ export function agreement(ctx: DetectContext): RawFinding[] {
     const typed = m.groups!.target.toLowerCase();
     const wanted = typed.replace(/[oa]s?$/, PROPRIO_ENDING[pronoun]);
     if (wanted !== typed) push(findings, ctx, m, wanted);
+  }
+  for (const m of frameMatches(ctx, FUTURE)) {
+    const { verb, person = "" } = m.groups!;
+    push(
+      findings,
+      ctx,
+      m,
+      FUTURE_SUBJUNCTIVE[verb.toLowerCase()] + PERSON_ENDING[person],
+      "review_msg_pt_future_subjunctive",
+    );
   }
   for (const m of frameMatches(ctx, NEUTER)) {
     const typed = m.groups!.target.toLowerCase();

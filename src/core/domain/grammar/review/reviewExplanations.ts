@@ -1584,6 +1584,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Słowo musi się zgadzać: existir, acontecer czy restar przyjmują liczbę mnogą, gdy podmiot stoi po nich (existem muitos casos), próprio zgadza się z zaimkiem (ela própria), a isso lub tudo wymagają przymiotnika rodzaju męskiego.",
     "Concordância: existir, acontecer e restar vão para o plural quando o sujeito vem depois (existem muitos casos), próprio concorda com o pronome (ela própria), e isso ou tudo pedem adjetivo masculino.",
   ],
+  review_msg_pt_future_subjunctive: [
+    "After quando, se or enquanto, Portuguese uses the future subjunctive, which differs from the infinitive in irregular verbs (quando eu vir, se nós fizermos).",
+    "Après quando, se ou enquanto, le portugais emploie le subjonctif futur, qui diffère de l'infinitif pour les verbes irréguliers (quando eu vir, se nós fizermos).",
+    "Nakon quando, se ili enquanto portugalski koristi budući konjunktiv, koji se kod nepravilnih glagola razlikuje od infinitiva (quando eu vir, se nós fizermos).",
+    "Tras quando, se o enquanto, el portugués usa el futuro de subjuntivo, distinto del infinitivo en los verbos irregulares (quando eu vir, se nós fizermos).",
+    "Μετά από quando, se ή enquanto τα πορτογαλικά χρησιμοποιούν τη μελλοντική υποτακτική, που στα ανώμαλα ρήματα διαφέρει από το απαρέμφατο (quando eu vir, se nós fizermos).",
+    "Efter quando, se eller enquanto använder portugisiskan futurum konjunktiv, som skiljer sig från infinitiven hos oregelbundna verb (quando eu vir, se nós fizermos).",
+    "Nach quando, se oder enquanto steht im Portugiesischen der Konjunktiv Futur, der bei unregelmäßigen Verben vom Infinitiv abweicht (quando eu vir, se nós fizermos).",
+    "Po quando, se lub enquanto portugalski używa trybu łączącego czasu przyszłego, który w czasownikach nieregularnych różni się od bezokolicznika (quando eu vir, se nós fizermos).",
+    "Depois de quando, se ou enquanto usa-se o futuro do subjuntivo, que nos verbos irregulares difere do infinitivo (quando eu vir, se nós fizermos).",
+  ],
   review_msg_pt_ao90: [
     "1990 Portuguese spelling: prefixes join their word unless it starts with h or the same vowel (autoestima, micro-ondas), and months and weekdays are lowercase.",
     "Orthographe portugaise de 1990 : les préfixes se soudent au mot sauf devant h ou la même voyelle (autoestima, micro-ondas), et mois et jours s’écrivent en minuscules.",
