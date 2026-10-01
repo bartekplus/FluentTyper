@@ -87,9 +87,6 @@ export const STYLE: readonly PhraseRow[] = [
     ["potencjalną możliwość", "możliwość"],
     ["potencjalne możliwości", "możliwości"],
     ["potencjalnych możliwości", "możliwości"],
-    ["geneza powstania", "geneza"],
-    ["genezę powstania", "genezę"],
-    ["genezy powstania", "genezy"],
     ["całkowite fiasko", "fiasko"],
     ["całkowitym fiaskiem", "fiaskiem"],
     ["całkowitego fiaska", "fiaska"],
@@ -147,6 +144,50 @@ export const STYLE: readonly PhraseRow[] = [
   ["wystąpi brak", "zabraknie"],
   ["w razie przypadku", ["w razie", "w przypadku"]],
   ["ja osobiście", ["ja", "osobiście"]],
+  // A price "costs" more or less, it is not "cheaper": "kosztował mniej".
+  ...words(
+    "kosztuje kosztują kosztował kosztowała kosztowało kosztowały kosztować kosztowałby płaci płacą płacił płacić",
+  ).flatMap((verb): PhraseRow[] =>
+    (
+      [
+        ["taniej", "mniej"],
+        ["drożej", "więcej"],
+        ["tanio", "mało"],
+        ["drogo", "dużo"],
+      ] as const
+    ).flatMap(([typed, plain]): PhraseRow[] => [
+      [`${verb} ${typed}`, `${verb} ${plain}`],
+      [`${typed} ${verb}`, `${plain} ${verb}`],
+    ]),
+  ),
+  // "pełnić" goes with a function; a role is played ("odgrywać rolę").
+  ...(
+    [
+      ["pełni", "odgrywa"],
+      ["pełnią", "odgrywają"],
+      ["pełnił", "odgrywał"],
+      ["pełniła", "odgrywała"],
+      ["pełniło", "odgrywało"],
+      ["pełnili", "odgrywali"],
+      ["pełniły", "odgrywały"],
+      ["pełnić", "odgrywać"],
+      ["pełniący", "odgrywający"],
+      ["pełniąca", "odgrywająca"],
+      ["pełniące", "odgrywające"],
+      ["spełnia", "odgrywa"],
+      ["spełniać", "odgrywać"],
+      ["spełniając", "odgrywając"],
+    ] as const
+  ).flatMap(([verb, plays]): PhraseRow[] => [
+    [`${verb} rolę`, [`${verb} funkcję`, `${plays} rolę`]],
+    [`${verb} ważną rolę`, [`${verb} ważną funkcję`, `${plays} ważną rolę`]],
+    [`${verb} istotną rolę`, [`${verb} istotną funkcję`, `${plays} istotną rolę`]],
+    [`${verb} swoją rolę`, [`${verb} swoją funkcję`, `${plays} swoją rolę`]],
+  ]),
+  // "dwie lub więcej godzin" mixes two governments: "co najmniej dwie".
+  ...words(
+    "dwa dwie dwóch dwom dwóm dwoma trzy trzech trzem trzema cztery czterech czterem czterema pięć pięciu",
+  ).map((numeral): PhraseRow => [`${numeral} lub więcej`, `co najmniej ${numeral}`]),
 ];
 
 /** Set phrases with a wrong word, preposition or form: never correct as typed. */
@@ -188,4 +229,15 @@ export const PHRASES: readonly PhraseRow[] = [
   ["konstrukcji cepu", "konstrukcji cepa"],
   ["serce wali jak młot", "serce wali jak młotem"],
   ["serce waliło jak młot", "serce waliło jak młotem"],
+  // "rozchodzić się" is to disperse; "it is about" is "chodzi o".
+  ...words("rozchodzi rozchodziło rozchodziłoby rozchodzić").flatMap((verb): PhraseRow[] => {
+    const plain = verb.slice(3);
+    return [
+      [`${verb} się o`, `${plain} o`],
+      ...words("mi ci mu jej nam wam im").map((pronoun): PhraseRow => [
+        `${verb} ${pronoun} się o`,
+        `${plain} ${pronoun} o`,
+      ]),
+    ];
+  }),
 ];

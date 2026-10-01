@@ -5,6 +5,7 @@ import * as commas from "./commas";
 import * as compounds from "./compounds";
 import * as confusions from "./confusions";
 import * as dates from "./dates";
+import * as forms from "./forms";
 import * as numbers from "./numbers";
 import * as prepositions from "./prepositions";
 import * as style from "./style";
@@ -23,4 +24,5 @@ export const POLISH_DETECTORS: readonly ReviewDetectorEntry[] = [
   ...dates.DETECTORS,
   ...commas.DETECTORS,
   ...prepositions.DETECTORS,
+  ...forms.DETECTORS,
 ];

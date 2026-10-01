@@ -316,6 +316,33 @@ export const POLISH_CASES: Array<[CatalogRuleId, string, Case]> = [
       ],
     },
   ],
+  [
+    "englishPhraseCorrections",
+    "conventional forms: abbreviations, inflected names, na + regions, predicative -e",
+    {
+      pos: [
+        ["Wyjechali do Węgier na urlop.", "Wyjechali na Węgry na urlop."],
+        ["Polecimy do Islandii w maju.", "Polecimy na Islandię w maju."],
+        ["Ważnym jest, aby odpocząć.", "Ważne jest, aby odpocząć."],
+        ["Oczywistym było, że wygra.", "Oczywiste było, że wygra."],
+        ["Ma 3 mln. długu.", "Ma 3 mln długu."],
+        ["Lubię owoce, np jabłka.", "Lubię owoce, np. jabłka."],
+        ["Zapłacił ok 50 zł.", "Zapłacił ok. 50 zł."],
+        ["Widziałem Mark'a wczoraj.", "Widziałem Marka wczoraj."],
+        ["Wysłał mi pięć SMSów.", "Wysłał mi pięć SMS-ów."],
+      ],
+      neg: [
+        "Ta ziemia należała do Węgier.",
+        "Z każdym jest tak, że się męczy.",
+        "Mieszka pod nr. 5.",
+        "Wymienił itd. i itp.",
+        "Zajmuję się Joyce'em.",
+        "To szansa dla Jacques'a.",
+        "Biografia Kennedy'ego.",
+        "Partia PiS wygrała.",
+      ],
+    },
+  ],
 ];
 
 /** Warnings without a fix: the range is flagged and nothing is offered. */

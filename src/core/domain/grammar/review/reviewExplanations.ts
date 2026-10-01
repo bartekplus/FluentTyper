@@ -1529,6 +1529,28 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Użyj innej postaci przyimka: „we”, „ze” przed zbitką spółgłosek („we wtorek”, „ze szkoły”), „ode”, „beze”, „przeze” przed „mnie”, a w pozostałych miejscach formy krótkiej.",
     "Use a outra forma desta preposição polonesa: “we”, “ze” antes de um grupo de consoantes (“we wtorek”, “ze szkoły”), “ode”, “beze”, “przeze” antes de “mnie”, e a forma curta nos demais casos.",
   ],
+  review_msg_pl_abbreviation_dot: [
+    "Polish abbreviations that keep the word’s last letter take no dot (“nr”, “mln”, “kg”); cut-off ones take one (“np.”, “tzw.”, “itd.”, “m.in.”).",
+    "Les abréviations polonaises qui gardent la dernière lettre du mot ne prennent pas de point (« nr », « mln », « kg ») ; les troncations en prennent un (« np. », « tzw. », « itd. », « m.in. »).",
+    "Poljske kratice koje zadržavaju zadnje slovo riječi nemaju točku („nr”, „mln”, „kg”); skraćenja je imaju („np.”, „tzw.”, „itd.”, „m.in.”).",
+    "Las abreviaturas polacas que conservan la última letra de la palabra no llevan punto («nr», «mln», «kg»); las truncadas sí («np.», «tzw.», «itd.», «m.in.»).",
+    "Οι πολωνικές συντομογραφίες που κρατούν το τελευταίο γράμμα της λέξης δεν παίρνουν τελεία («nr», «mln», «kg»)· οι περικομμένες παίρνουν («np.», «tzw.», «itd.», «m.in.»).",
+    "Polska förkortningar som behåller ordets sista bokstav får ingen punkt (”nr”, ”mln”, ”kg”); avkortade får en (”np.”, ”tzw.”, ”itd.”, ”m.in.”).",
+    "Polnische Abkürzungen, die den letzten Buchstaben des Wortes behalten, bekommen keinen Punkt („nr“, „mln“, „kg“); gekürzte bekommen einen („np.“, „tzw.“, „itd.“, „m.in.“).",
+    "Skrót zakończony ostatnią literą wyrazu piszemy bez kropki („nr”, „mln”, „kg”), a skrót urwany z kropką („np.”, „tzw.”, „itd.”, „m.in.”).",
+    "Abreviaturas polonesas que mantêm a última letra da palavra não levam ponto (“nr”, “mln”, “kg”); as truncadas levam (“np.”, “tzw.”, “itd.”, “m.in.”).",
+  ],
+  review_msg_pl_inflected_name: [
+    "In Polish, a case ending joins a foreign name whose last letter is pronounced without an apostrophe (“Johnie”, “Bentleyu”), and an acronym with a hyphen (“SMS-ów”).",
+    "En polonais, la terminaison casuelle s’attache sans apostrophe à un nom étranger dont la dernière lettre se prononce (« Johnie », « Bentleyu »), et à un sigle par un trait d’union (« SMS-ów »).",
+    "U poljskom se padežni nastavak dodaje stranom imenu čije se zadnje slovo izgovara bez apostrofa („Johnie”, „Bentleyu”), a kratici sa spojnicom („SMS-ów”).",
+    "En polaco, la terminación de caso se une sin apóstrofo a un nombre extranjero cuya última letra se pronuncia («Johnie», «Bentleyu»), y a una sigla con guion («SMS-ów»).",
+    "Στα πολωνικά η πτωτική κατάληξη ενώνεται χωρίς απόστροφο με ξένο όνομα που προφέρεται το τελευταίο του γράμμα («Johnie», «Bentleyu»), και με ακρωνύμιο με ενωτικό («SMS-ów»).",
+    "På polska fogas kasusändelsen utan apostrof till ett utländskt namn vars sista bokstav uttalas (”Johnie”, ”Bentleyu”), och till en akronym med bindestreck (”SMS-ów”).",
+    "Im Polnischen tritt die Kasusendung ohne Apostroph an einen fremden Namen, dessen letzter Buchstabe gesprochen wird („Johnie“, „Bentleyu“), und mit Bindestrich an ein Akronym („SMS-ów“).",
+    "Końcówkę dodajemy bez apostrofu do obcego imienia, którego ostatnią literę wymawiamy („Johnie”, „Bentleyu”), a do skrótowca po łączniku („SMS-ów”).",
+    "Em polonês, a terminação de caso junta-se sem apóstrofo a um nome estrangeiro cuja última letra é pronunciada (“Johnie”, “Bentleyu”), e a uma sigla com hífen (“SMS-ów”).",
+  ],
 };
 
 /**
