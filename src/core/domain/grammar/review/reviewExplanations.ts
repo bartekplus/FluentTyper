@@ -1485,6 +1485,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Francuski łączy przestawiony podmiot z czasownikiem łącznikiem („pouvez-vous”, „a-t-il”), podobnie jak przysłówek „peut-être”.",
     "O francês une o sujeito invertido ao verbo com hífen («pouvez-vous», «a-t-il»), tal como o advérbio «peut-être».",
   ],
+  review_msg_fr_subject_verb: [
+    "The verb takes the form of its subject pronoun (je peux, tu manges, ils mangent).",
+    "Le verbe prend la forme de son pronom sujet (je peux, tu manges, ils mangent).",
+    "Glagol ima oblik koji odgovara zamjenici u subjektu (je peux, tu manges, ils mangent).",
+    "El verbo toma la forma de su pronombre sujeto (je peux, tu manges, ils mangent).",
+    "Το ρήμα παίρνει τον τύπο της αντωνυμίας-υποκειμένου του (je peux, tu manges, ils mangent).",
+    "Verbet ska ha den form som subjektspronomenet kräver (je peux, tu manges, ils mangent).",
+    "Das Verb richtet sich nach seinem Subjektpronomen (je peux, tu manges, ils mangent).",
+    "Czasownik przyjmuje formę zgodną z zaimkiem podmiotu (je peux, tu manges, ils mangent).",
+    "O verbo assume a forma do seu pronome sujeito (je peux, tu manges, ils mangent).",
+  ],
 };
 
 /**

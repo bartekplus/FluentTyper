@@ -220,7 +220,8 @@ export type ReviewMessageKey =
   | "review_msg_fr_infinitive"
   | "review_msg_fr_vous_verb"
   | "review_msg_fr_homophone"
-  | "review_msg_fr_hyphen";
+  | "review_msg_fr_hyphen"
+  | "review_msg_fr_subject_verb";
 
 export type BulkDecision =
   | { eligible: true; alternative: number }

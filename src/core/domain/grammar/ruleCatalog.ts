@@ -555,6 +555,19 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     recommended: false,
     priority: 175,
   },
+  {
+    id: "frenchSubjectVerbAgreement",
+    typing: false,
+    name: "French pronoun and verb agreement",
+    titleI18nKey: "review_msg_fr_subject_verb",
+    descriptionI18nKey: "review_msg_fr_subject_verb",
+    exampleI18nKey: "",
+    languageScope: "all",
+    safetyTier: "advanced",
+    defaultRollout: "off",
+    recommended: false,
+    priority: 176,
+  },
 
   {
     id: "englishPronounCase",

@@ -199,6 +199,37 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
       ],
     },
   ],
+  [
+    "frenchSubjectVerbAgreement",
+    {
+      pos: [
+        ["Je peut venir demain.", "Je peux venir demain."],
+        ["Tu mange trop vite.", "Tu manges trop vite."],
+        ["Ils mange ensemble.", "Ils mangent ensemble."],
+        ["Nous avez raison.", "Nous avons raison."],
+        ["Il peux partir.", "Il peut partir."],
+        ["On allons voir.", "On va voir."],
+        ["Je ne comprend pas.", "Je ne comprends pas."],
+        ["Elle se sont donné la main.", "Elle s'est donné la main."],
+        ["J'est fini.", "Je suis fini."],
+        ["Je rêver souvent du chalet.", "Je rêve souvent du chalet."],
+      ],
+      neg: [
+        "Tu ne la vois pas.",
+        "Il nous parle souvent.",
+        "Nous vous remercions.",
+        "Vous nous avez aidés.",
+        "Il le livre demain.",
+        "Les avantages que vous offrent ces cours.",
+        "Pierre et elle étaient fiancés.",
+        "Nous sont parvenus des parchemins.",
+        "Je vous écrirai et vous téléphonerai demain.",
+        "Peux tu aller voir ?",
+        "D'où vous vient cette idée ?",
+        "Dit-il en riant.",
+      ],
+    },
+  ],
 ];
 
 describe.each(FIXTURES)("%s", (ruleId, { pos, neg }) => {

@@ -116,6 +116,7 @@ export interface GrammarRuleCatalogEntry {
     | "frenchVerbForms"
     | "frenchHomophones"
     | "frenchHyphenation"
+    | "frenchSubjectVerbAgreement"
     | "quoteSpacing"
     | "primeSymbols";
   /** Absent for existing typing rules; false for native Review-only checks. */
