@@ -71,7 +71,6 @@ export const PHRASES: readonly PhraseRow[] = [
   ],
   ["unless if", "unless"],
   ["like as if", "as if"],
-  [["rule of thumbs", "rule-of-thumbs", "rules of thumbs"], "rules of thumb"],
   ["in top of", "on top of"],
   ["on top off", "on top of"],
   ...LAST_DITCH.flatMap((noun) =>
@@ -283,7 +282,14 @@ const FRAMES: Record<Rule, readonly Frame[]> = {
       pattern: `${notAfter("is|are|am|was|were|be|been|being|get|gets|got|getting")}(?<target>(?<verb>send|sends|sent|sending)${S}an${S}e-?mail${S}to)${S}(?<next>\\p{L}+)${E}`,
       fix: (m) => {
         const next = m.groups!.next.toLowerCase();
-        if (!OBJECT.test(next) && englishWordInfo(next)?.verbs.some((v) => v.form === "base"))
+        const info = englishWordInfo(next);
+        // A noun closing the clause is the recipient: "send an email to support."
+        const recipient =
+          !!info?.noun &&
+          /^[ \t\u00a0]*(?:[.!?,;:]|$)/.test(
+            m.input.slice(m.index + m[0].length, m.index + m[0].length + 9),
+          );
+        if (!OBJECT.test(next) && !recipient && info?.verbs.some((v) => v.form === "base"))
           return null;
         return EMAIL[m.groups!.verb.toLowerCase()];
       },

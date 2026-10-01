@@ -241,12 +241,16 @@ function comparative(word: string): string[] {
  * The comparison ends where the clause shows it: a mark, "than" + a word, "to" + a verb, a
  * verb, or one singular noun. "more older workers" counts workers; unknown words abstain.
  */
-function finishedComparison(ctx: DetectContext, end: number): boolean {
+function finishedComparison(ctx: DetectContext, start: number, end: number): boolean {
   const tail = ctx.text.slice(end, end + 48);
-  if (/^[ \t\u00a0]*[.!?,;:]/.test(tail)) return true;
+  if (/^[ \t\u00a0]*(?:[.!?,;:]|$)/.test(tail) && tail.length < 48) return true;
+  // "a most best quality file": one thing, so "most" cannot count.
+  if (/\ban?[ \t\u00a0]+$/i.test(ctx.text.slice(Math.max(0, start - 8), start))) return true;
   const [, next, after] = /^[ \t\u00a0]+([A-Za-z]+)(?:[ \t\u00a0]+([A-Za-z]+))?/.exec(tail) ?? [];
   if (!next || next !== lower(next)) return false;
   if (next === "than") return !!after;
+  // "most better for me": a preposition closes the phrase too.
+  if (/^(?:for|with|in|on|at|by|from|about)$/.test(next)) return true;
   if (next === "to") return !!englishWordInfo(after ?? "")?.verbs.some((v) => v.form === "base");
   if (/^(?:is|are|was|were)$/.test(next)) return true;
   if (FUNCTION_WORDS.test(next)) return false;
@@ -272,8 +276,8 @@ function degree(ctx: DetectContext): Finding[] {
     if (typed !== adj || !markerCase || hasUserOrCasedWord(ctx, m[0])) continue;
     // "honest" is a base adjective ("honestly"), not hon + -est.
     if (!graded(adj) || englishWordInfo(`${adj}ly`)) continue;
-    const end = m.indices!.groups!.target[1];
-    if (!finishedComparison(ctx, end)) continue;
+    const [start, end] = m.indices!.groups!.target;
+    if (!finishedComparison(ctx, start, end)) continue;
     findings.push(
       found(ctx, m, "englishDoubledDegree", "review_msg_doubled_degree", [
         caseLike(m.groups!.marker, m.groups!.adj),
@@ -331,6 +335,12 @@ function doSupport(ctx: DetectContext): Finding[] {
       if (isDid && /^(?:supposed|used)$/.test(lower(verb))) continue;
       // Affirmative "did" is also the main verb ("They did needed repairs", "The new server
       // did logged it"): it needs a pronoun subject, or "Did" opening the clause, and an object.
+      const after = nextWord(ctx, m.index + m[0].length);
+      // "I did wanted catch it": a bare verb after the participle is no object either.
+      const verbNext =
+        !!after &&
+        !FUNCTION_WORDS.test(after) &&
+        !!englishWordInfo(after)?.verbs.some((v) => v.form === "base");
       if (isDid && !m.groups!.negated) {
         const subject = /([A-Za-z]+)[ \t\u00a0]+$/.exec(
           ctx.text.slice(Math.max(0, m.index - 24), m.index),
@@ -341,12 +351,13 @@ function doSupport(ctx: DetectContext): Finding[] {
           !opens &&
           !/^[ \t\u00a0]+(?:it|them|him|her|us|me|this|that|the|a|an|my|your|his|its|our|their|to)\b/i.test(
             ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 12),
-          )
+          ) &&
+          !verbNext
         )
           continue;
       }
-      const after = nextWord(ctx, m.index + m[0].length);
-      if (isDid && englishWordInfo(verb)?.adjective && englishWordInfo(after)?.noun) continue;
+      if (isDid && englishWordInfo(verb)?.adjective && englishWordInfo(after)?.noun && !verbNext)
+        continue;
       findings.push(
         found(ctx, m, "englishAuxiliaryBaseVerb", "review_msg_auxiliary_base", [lemma]),
       );
@@ -700,8 +711,12 @@ const NOT_A_HEAD_NOUN =
 
 /** Where "one of the …" ends: a clause end, a function word or a verb ("node loses"). */
 function closesNounPhrase(next: string | undefined, after: string): boolean {
-  // The end of the text may be unfinished ("One of the device|s").
-  if (!next) return /^[ \t\u00a0]*(?:[.!?,;:)]|[ \t\u00a0]+[A-Za-z]+)/.test(after);
+  // The end of the text closes it too; typing proposals never reach the word at the caret.
+  if (!next)
+    return (
+      /^[ \t\u00a0]*(?:[.!?,;:)]|[ \t\u00a0]+[A-Za-z]+)/.test(after) ||
+      (/^[ \t\u00a0]*$/.test(after) && after.length < 24)
+    );
   if (TAILS.test(next)) return true;
   // "one of the car parks": a plural after the word is the noun itself.
   const info = englishWordInfo(next);
@@ -724,11 +739,15 @@ function oneOfPlural(ctx: DetectContext): Finding[] {
     }
     if (head < 0) continue;
     const noun = words[head][0];
-    // Authored nouns ("person", "device") are the core noun-number rule's.
-    if (COLLECTIVE.test(noun) || !/^[a-z]+$/.test(noun) || englishNounForms(noun)) continue;
+    if (COLLECTIVE.test(noun) || !/^[a-z]+$/.test(noun)) continue;
+    // Authored nouns ("person", "device") take their authored plural; the core rule's
+    // identical finding for the same span merges with this one.
+    const authored = englishNounForms(noun);
     const info = englishWordInfo(noun);
-    if (!info?.noun || info.plural || info.adjective) continue;
+    if (authored ? noun !== authored.singular : !info?.noun || info.plural || info.adjective)
+      continue;
     const plural =
+      authored?.plural ??
       IRREGULAR_PLURALS[noun] ??
       [`${noun}s`, `${noun}es`, noun.replace(/([^aeiou])y$/, "$1ies")].find(
         (form) => form !== noun && englishWordInfo(form)?.plural,

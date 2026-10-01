@@ -841,7 +841,15 @@ const HANDLERS: Record<string, Handler> = {
       objectVerb(text, p0, p1, THERE_BLOCK) &&
       nounPhrase(hit.N, 0) >= 0 &&
       gerundHeadOk(hit, p0);
-    if (object || prepositionObject(hit) || (clauseStart(hit) && subjectPhrase(hit.N)))
+    // "people and there ancestral lands.": a coordinated noun phrase with no verb is owned.
+    const head = /^(?:and|or)$/.test(p0?.w ?? "") ? nounPhrase(hit.N, 0) : -1;
+    const coordinated = head >= 0 && closes(text, hit.N[head].end);
+    if (
+      object ||
+      coordinated ||
+      prepositionObject(hit) ||
+      (clauseStart(hit) && subjectPhrase(hit.N))
+    )
       return theirFamily(hit, "review_msg_their_possessive", "their", p0);
     return null;
   },

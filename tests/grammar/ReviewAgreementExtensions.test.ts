@@ -129,8 +129,6 @@ const pronounValid = [
   "They has_items ready.",
   "We waś ready.",
   "We Was Productions made it.",
-  "They has",
-  "She have",
   "They have and use it.",
 ];
 const existentialValid = [
@@ -338,7 +336,6 @@ test.each([
   "I didn't know.",
   "I had left.",
   "World War I was long.",
-  "They has",
   "He Go Fast is a film.",
   "Sam and I are here.",
   "😀 It feel odd.",

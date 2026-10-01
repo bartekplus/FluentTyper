@@ -1339,7 +1339,8 @@ const REPEATED_WORD_REGEX = new Map(
   Object.entries(REPEATABLE_WORDS).map(([lang, words]) => [
     lang,
     new RegExp(
-      `(?<![\\p{L}\\p{M}\\p{N}_'’–—-])(${words})[ \\t\\u00a0]{1,8}\\1(?![\\p{L}\\p{M}\\p{N}_'’–—-])`,
+      // A soft line wrap may sit between the pair ("is\nis"); a blank line ends the paragraph.
+      `(?<![\\p{L}\\p{M}\\p{N}_'’–—-])(${words})(?:[ \\t\\u00a0]{1,8}|[ \\t\\u00a0]{0,8}\\r?\\n[ \\t\\u00a0]{0,8})\\1(?![\\p{L}\\p{M}\\p{N}_'’–—-])`,
       "giu",
     ),
   ]),
@@ -1389,6 +1390,9 @@ const repeatedWords: Detector = (ctx) => {
     const before = ctx.text.slice(context.start, start);
     const word = match[1].toLowerCase();
     if (ctx.dictionary.has(word) || isGluedToTechnical(ctx.text, start, end)) continue;
+    // Across a line break only a wrapped prose line counts: a line holding just the word
+    // ("the\nthe report") may be a list item or a heading.
+    if (match[0].includes("\n") && !/\p{L}[^\n]*[ \t\u00a0]$/u.test(before)) continue;
     // A run gets one repair, including when a later pair belongs to another chunk.
     if (before.match(/(\p{L}+)[ \t\u00a0]{1,8}$/u)?.[1].toLowerCase() === word) continue;
     // A named, quoted example is evidence, not prose to repair. Normal quotations still run.

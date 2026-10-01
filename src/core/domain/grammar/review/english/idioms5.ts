@@ -336,18 +336,9 @@ function missingTo(m: RegExpExecArray, ctx: DetectContext): string | null {
     : null;
 }
 
-// ---- "since two weeks": durations the core since-duration frame leaves open. ----
-const CORE_QUANTITY =
-  /^(?:(?:over|more[ \t\u00a0]+than|almost|nearly|about)[ \t\u00a0]+)?(?:two|three|four|five|six|seven|eight|nine|ten|twelve|several|many|a[ \t\u00a0]+few|[0-9]{1,3})$/i;
-const CORE_FOLLOWER =
-  /^(?:[ \t\u00a0]{0,8}(?:[.!?,;:)]|$)|[ \t\u00a0]{1,8}(?:now|already|without|with|in|on|at|and|but|so|straight)(?![\p{L}\p{N}]))/iu;
+// ---- "since two weeks": a length of time takes "for", or "since … ago" for a start. ----
 function sinceDuration(m: RegExpExecArray, ctx: DetectContext): Fix | null {
-  const { quantity, unit, target } = m.groups!;
-  if (
-    CORE_QUANTITY.test(quantity) &&
-    CORE_FOLLOWER.test(ctx.text.slice(matchEnd(m), matchEnd(m) + 16))
-  )
-    return null;
+  const { unit, target } = m.groups!;
   // "Since two days were lost, …": the duration is a subject and "since" means "because".
   const next = nextWord(ctx, matchEnd(m));
   if (CLAUSE_VERB.test(next) || hasForm(next, "past") || hasForm(next, "third")) return null;

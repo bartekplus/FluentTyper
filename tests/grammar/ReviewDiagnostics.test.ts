@@ -407,7 +407,9 @@ describe("review detectors: grammar", () => {
     expect(finding.alternatives[0].edits).toEqual([
       { start: 9, end: 11, original: "of", replacement: "have" },
     ]);
-    expect(only("You must of course; could of", "englishModalOfCorrection")).toEqual([]);
+    expect(only("You must of course; could of", "englishModalOfCorrection")).toEqual([
+      ["englishModalOfCorrection", "could of", [20, 28], "could have"],
+    ]);
   });
 
   test("englishYourWelcomeCorrection only sentence-final, including the end of input", () => {

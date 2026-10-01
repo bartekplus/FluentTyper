@@ -275,7 +275,9 @@ export const NOUN_LIKE_ING =
   /^(?:reading|writing|testing|planning|building|training|meeting|painting|drawing|shopping|setting|spending|recording|funding|parking|housing|clothing|seating|heating|lighting|cooking|swimming|dancing|marketing|pricing|timing|booking|warning|opening|ending|beginning|feeling|morning|evening|ceiling|nothing|something|anything|everything|thing|king|ring|spring|string|wedding|pudding|sibling|during)$/;
 const OBJECT = "(?:it|them|him|her|us|me|this|that)";
 // "Ive" lost its apostrophe; a time adverb also closes the progressive ("I've working today").
-const PROGRESSIVE = `(?<subject>I|you|we|they|he|she|it)(?:${SPACE}(?<aux>have|has)|(?<contract>['’]ve)|(?<bare>ve))${SPACE}(?<verb>[A-Za-z]{2,}ing)${SPACE}(?<follow>${OBJECT}|(?:(?:on|into|about|at|for|with|to)${SPACE})?(?:${OBJECT}|the|a|an|my|your|our|his|her|their)|today|now|tonight|lately)(?!${EDGE})`;
+// A soft line wrap may split it ("I've\nlooking"); "doing" needs nothing after it.
+const WRAP = `(?:${SPACE}|[ \\t\\u00a0]{0,8}\\r?\\n[ \\t\\u00a0]{0,8})`;
+const PROGRESSIVE = `(?<subject>I|you|we|they|he|she|it)(?:${WRAP}(?<aux>have|has)|(?<contract>['’]ve)|(?<bare>ve))${WRAP}(?:(?<verb>[A-Za-z]{2,}ing)${SPACE}(?<follow>${OBJECT}|(?:(?:on|into|about|at|for|with|to)${SPACE})?(?:${OBJECT}|the|a|an|my|your|our|his|her|their)|today|now|tonight|lately)|(?<doing>doing)(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$)|${SPACE}(?:and|or|but|right|now|here|there)${WORD_END}))(?!${EDGE})`;
 
 /**
  * "I've looking into it": have in place of be before a progressive. A contracted have becomes
@@ -286,7 +288,9 @@ function progressiveAfterHave(ctx: DetectContext): RawFinding[] {
   const owner = (m: RegExpExecArray) =>
     m.indices!.groups![m.groups!.contract ? "contract" : "subject"][0];
   for (const m of frameMatches(ctx, PROGRESSIVE, owner)) {
-    const { subject, aux, contract, bare, verb, follow } = m.groups!;
+    const { subject, aux, contract, bare, doing } = m.groups!;
+    const verb = m.groups!.verb ?? doing;
+    const follow = m.groups!.follow ?? "";
     const [start] = m.indices!.groups![contract ? "contract" : "subject"];
     const [, end] = m.indices!.groups![contract ? "contract" : aux ? "aux" : "bare"];
     const singular = /^(?:he|she|it)$/i.test(subject);
@@ -294,11 +298,13 @@ function progressiveAfterHave(ctx: DetectContext): RawFinding[] {
     const ing = verb.toLowerCase();
     if (NOUN_LIKE_ING.test(ing) && !new RegExp(`^${OBJECT}$`, "i").test(follow)) continue;
     const before = ctx.scanText.slice(Math.max(0, m.index - 96), m.index);
-    // A modal or question word owns have ("Why have you…", "could have…").
+    // A modal or question word owns have ("Why have you…", "could have…", "what I have
+    // going"); nothing is ever had "doing" ("what they've doing").
     if (
       /\b(?:could|would|should|might|must|may|will|to|what|why|how|where|when|which)[ \t\u00a0]+$/i.test(
         before,
-      )
+      ) &&
+      !(doing && /\bwhat[ \t\u00a0]+$/i.test(before))
     )
       continue;
     const phraseEnd = m.index + m[0].length;

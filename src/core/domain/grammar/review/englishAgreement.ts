@@ -49,7 +49,7 @@ const SINGULAR_BE: Readonly<Record<string, string>> = { are: "is", am: "is", wer
 export function additionalPronounAgreement(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   // A clause end may follow ("It don't."); a lexical verb must come from the authored table.
-  const pattern = `(?<subject>I|we|they|you|he|she|it)(?<gap>${SPACE}(?:(?:really|still|also|always|never|usually|often|just)${SPACE})?)(?<verb>[A-Za-z]+(?:n['’]t)?)(?:${SPACE}(?:not${SPACE})?(?<next>[A-Za-z]+)${WORD_END}|(?=[ \t\u00a0]{0,8}[.!?,;:]))`;
+  const pattern = `(?<subject>I|we|they|you|he|she|it)(?<gap>${SPACE}(?:(?:really|still|also|always|never|usually|often|just)${SPACE})?)(?<verb>[A-Za-z]+(?:n['’]t)?)(?:${SPACE}(?:not${SPACE})?(?<next>[A-Za-z]+)${WORD_END}|(?=[ \t\u00a0]{0,8}(?:[.!?,;:]|$)))`;
   // "I" is only ever a subject, so it needs no clause start; a capitalized word before it (a title or
   // numeral: "Part I is", "World War I") or a coordination ("Sam and I are") abstains.
   // A lowercase "i" is a variable as often as the pronoun; "i are" can only be the pronoun.
@@ -186,6 +186,10 @@ export function existentialAgreement(ctx: DetectContext): RawFinding[] {
   return [...findings, ...bareExistentialAgreement(ctx)];
 }
 
+// A long noun the lexicon omits, by a suffix that only forms count nouns ("description").
+const derivedNounNumber = (noun: string) =>
+  !englishWordInfo(noun) && /^[a-z]{4,}(?:tion|sion|ment)$/.test(noun) ? "singular" : null;
+
 const BARE_EXISTENTIAL = new RegExp(
   `${WORD_START}(?:(?<there>there)(?:${SPACE}(?<verb>is|was|are|were)|(?<contracted>['’]s))|(?<qverb>is|was|are|were)${SPACE}there)${SPACE}(?<noun>[A-Za-z]+)${WORD_END}(?<tail>[ \\t\\u00a0]{0,8}(?:[.!?,;:)]|$)|${SPACE}(?:in|on|at|with|for|about|regarding|that|which|when|where|from|of|to|running|missing|left)${WORD_END})?`,
   "gidu",
@@ -197,7 +201,7 @@ function bareExistentialAgreement(ctx: DetectContext): RawFinding[] {
   // Ownership waits for the repair: the verb, or the whole phrase for a singular noun.
   for (const m of frameMatches(ctx, BARE_EXISTENTIAL, null)) {
     const { there, verb, contracted, qverb, noun, tail } = m.groups!;
-    const number = knownEnglishNounNumber(noun);
+    const number = knownEnglishNounNumber(noun) ?? derivedNounNumber(noun);
     if (!number || ctx.dictionary.has(noun.toLowerCase())) continue;
     if (noun !== noun.toLowerCase()) continue;
     const typed = verb ?? contracted ?? qverb;
@@ -234,7 +238,7 @@ function bareExistentialAgreement(ctx: DetectContext): RawFinding[] {
       const verbAt = qverb ? 0 : m.indices!.groups!.verb[0] - m.index;
       alternatives = [
         `${lead.slice(0, verbAt)}${swap}${lead.slice(verbAt + typed.length)}${article} ${noun}`,
-        `${lead}${applyWordCase(englishNounForms(noun)!.plural, detectWordCase(noun))}`,
+        `${lead}${applyWordCase(englishNounForms(noun)?.plural ?? `${noun}s`, detectWordCase(noun))}`,
       ];
     }
     if (start < ctx.from || start >= ctx.to) continue;

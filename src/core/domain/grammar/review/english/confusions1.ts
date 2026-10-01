@@ -817,11 +817,11 @@ function everyday(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   )
     return null;
   let ok = false;
-  // "Everyday is…" capitalized at a clause start may name a product.
+  // "Everyday is…" opens a sentence capitalized; a product name would be quoted or cased.
   if (
     isWord(n) &&
     /^(?:is|was|feels?|seems?|brings|starts|begins)$/.test(n.w) &&
-    ((opens(p) && t.text === "everyday") ||
+    ((opens(p) && /^[Ee]veryday$/.test(t.text)) ||
       (isWord(p) && /^(?:does|did|why|and|but|because|so)$/.test(p.w)))
   )
     ok = true;
@@ -880,14 +880,18 @@ function thatThan(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   return { ...hit(t, "than"), key: "review_msg_then_than" };
 }
 
-// "stupider then her", "better then no bread". "met her earlier then him" stays a sequence.
+// "stupider then her", "better then no bread". "met her earlier then him" stays a sequence;
+// right after an intransitive verb ("arrived earlier then him") it compares.
 function thenThan(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   const p = b[0];
   if (!isWord(p) || ctx.text.slice(p.end, t.start).includes(",")) return null;
   const n = a[0];
   if (!isWord(n)) return null;
+  const verb = isWord(b[1]) ? englishWordInfo(b[1].w) : null;
   const compared =
-    (comparative(p.w) && !/^(?:earlier|later)$/.test(p.w)) ||
+    (comparative(p.w) &&
+      (!/^(?:earlier|later)$/.test(p.w) ||
+        (!!verb?.verbs.some((v) => v.form === "past") && !verb.noun && !verb.adjective))) ||
     /^(?:better|worse|more|less)$/.test(p.w) ||
     (isWord(b[1]) && /^(?:more|less)$/.test(b[1].w));
   if (!compared) return null;

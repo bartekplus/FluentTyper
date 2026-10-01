@@ -295,11 +295,12 @@ and "I" with are/is/does (anywhere except after a capitalized word or and/or/nor
 "Part I is" or "Sam and I are"). A clause-opening pronoun before a verb from the authored
 irregular table also agrees: "He always forget" becomes "forgets", "They goes" becomes
 "go"; forms shared with the past or a noun ("He cut", "They bear") abstain. The phrase
-may end at punctuation ("It don't."). One listed adverb (really, still, also, always,
+may end at punctuation or at the end of the field ("It don't.", "She go"). One listed adverb (really, still, also, always,
 never, usually, often, just) may intervene. These new forms
 change only the finite verb, retain negation, and are individual-only. Object
 pronouns, coordinated subjects, subjunctives after a preceding clause, named quoted
-examples, technical/mixed-case identifiers and unfinished phrases abstain.
+examples and technical/mixed-case identifiers abstain; typing-time proposals never
+judge the word at the caret.
 
 The independent `englishExistentialAgreement` check recognizes clause-opening
 There is/are/was/were + optional not/still/also + an explicit quantity, many/several or a lot of + a known countable noun,

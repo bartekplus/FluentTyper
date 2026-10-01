@@ -1,10 +1,4 @@
-import {
-  COMPLETE,
-  detectPhraseTemplates,
-  EDGE,
-  SPACE,
-  type PhraseTemplate,
-} from "./phraseTemplates";
+import { COMPLETE, detectPhraseTemplates, SPACE, type PhraseTemplate } from "./phraseTemplates";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 
 const ADJUNCT = `(?:${SPACE}during${SPACE}(?:the|our|their)${SPACE}(?:meeting|test|review))?`;
@@ -15,10 +9,6 @@ const templates: readonly PhraseTemplate[] = [
     [
       [
         `${SUBJECT}${SPACE}(?:is|are|am|was|were)${SPACE}responsible${SPACE}(?<target>of)${SPACE}(?:testing|checking|building)${SPACE}the${SPACE}(?:(?:Windows|Linux)${SPACE})?(?:version|build|application)${COMPLETE}`,
-        "for",
-      ],
-      [
-        `${SUBJECT}${SPACE}(?:have|has)${SPACE}(?:been${SPACE}(?:working|living)|worked|lived)${SPACE}here${SPACE}(?<target>since)${SPACE}(?:two|three|four|five|[2-9])${SPACE}(?:years|months|weeks)${COMPLETE}`,
         "for",
       ],
       [
@@ -43,12 +33,6 @@ const templates: readonly PhraseTemplate[] = [
     replacement,
     messageKey: "review_msg_contextual_grammar" as const,
   })),
-  // A length of time after "since" ("since two weeks") is a duration: "for two weeks".
-  {
-    pattern: `(?<target>since)${SPACE}(?:(?:over|more${SPACE}than|almost|nearly|about)${SPACE})?(?:two|three|four|five|six|seven|eight|nine|ten|twelve|several|many|a${SPACE}few|[0-9]{1,3})${SPACE}(?:seconds|minutes|hours|days|weeks|months|years|decades)(?!${EDGE})(?=[ \t ]{0,8}(?:[.!?,;:)]|$)|${SPACE}(?:now|already|without|with|in|on|at|and|but|so|straight)(?!${EDGE}))`,
-    replacement: "for",
-    messageKey: "review_msg_since_duration",
-  },
   {
     pattern: `despite${SPACE}(?<target>of${SPACE})(?:the|this|that)${SPACE}(?:(?:long|heavy|loud|bad|high|unexpected)${SPACE})?(?:delay|rain|noise|weather|problem|warning|risk|cost|pressure|heat|cold|traffic)${COMPLETE}`,
     replacement: "",
