@@ -376,6 +376,8 @@ export class ReviewSession {
   private diagnostics: ReviewDiagnostic[] = [];
   // The rule findings alone: Fix all plans from these (spelling is never batched).
   private ruleDiagnostics: ReviewDiagnostic[] = [];
+  /** The text the shown findings were computed from; ignores are stored in its offsets. */
+  private diagnosticsText = "";
   // Their explanations as the engine sent them, all in one UI language.
   private explanations: ReviewExplanations = {};
   private explanationsLanguage = "";
@@ -576,7 +578,11 @@ export class ReviewSession {
 
   /** Suppress only currently equivalent occurrences; never learn a future text pattern. */
   ignoreMatching(id: string): void {
-    if (this.status !== "ready") return;
+    // While a recheck is pending the shown findings still match the last read text,
+    // so a click that raced the "updating" render is not lost.
+    const current =
+      this.status === "ready" || (this.status === "updating" && this.diagnosticsText === this.text);
+    if (!current) return;
     const diagnostic = this.visibleDiagnostics().find((d) => d.id === id);
     if (!diagnostic || diagnostic.ruleId === REVIEW_LOCAL_AI_CHECK) return;
     const identity = this.matchingIdentity(diagnostic);
@@ -604,7 +610,8 @@ export class ReviewSession {
   }
 
   resetIgnores(): void {
-    if (this.status !== "ready" || this.ignored.length === 0) return;
+    if ((this.status !== "ready" && this.status !== "updating") || this.ignored.length === 0)
+      return;
     this.ignored = [];
     this.selectedId = null;
     this.emit();
@@ -1257,6 +1264,7 @@ export class ReviewSession {
     this.prepared = prepared;
     this.ruleDiagnostics = result.diagnostics;
     this.diagnostics = result.diagnostics;
+    this.diagnosticsText = snapshot.text;
     this.keepExplanations(explanations, uiLanguage);
     this.aiFindings = [];
     // A rewrite not generated yet is for the text as it is now.

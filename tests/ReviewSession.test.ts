@@ -1151,6 +1151,33 @@ test("matching ignores use evidence and alternatives, reset restores current occ
   h.session.close();
 });
 
+test("a matching ignore that races a settings recheck still applies", async () => {
+  const h = await matchingHarness();
+  const id = h.last().diagnostics[0].id;
+  h.session.notifySourceChanged(); // a settings broadcast: same text, recheck pending
+  h.session.ignoreMatching(id);
+  expect(h.last().ignoredCount).toBe(2);
+  await h.settle();
+  expect(h.originals()).toEqual(["a a"]);
+  expect(h.last().ignoredCount).toBe(2);
+  h.session.resetIgnores();
+  expect(h.last().ignoredCount).toBe(0);
+  h.session.close();
+});
+
+test("a matching ignore is refused once the shown findings no longer match the text", async () => {
+  const h = await matchingHarness();
+  const id = h.last().diagnostics[0].id;
+  h.editor.text = "New introduction. " + h.editor.text;
+  h.session.notifySourceChanged();
+  await h.settle();
+  h.editor.text = "More. " + h.editor.text;
+  h.session.notifySourceChanged();
+  h.session.ignoreMatching(id); // stale id from an older text: nothing to ignore
+  expect(h.last().ignoredCount).toBe(0);
+  h.session.close();
+});
+
 test("matching ignores survive insertion before unchanged evidence", async () => {
   const h = await matchingHarness();
   h.session.ignoreMatching(h.last().diagnostics[0].id);
