@@ -172,6 +172,29 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
       ],
     },
   ],
+  [
+    "germanSuspendedHyphen",
+    {
+      pos: [
+        ["Wir prüfen die Vor und Nachteile genau.", "Wir prüfen die Vor- und Nachteile genau."],
+        ["Achte auf die Groß und Kleinschreibung.", "Achte auf die Groß- und Kleinschreibung."],
+        ["Das Autohaus hat Neu und Gebrauchtwagen.", "Das Autohaus hat Neu- und Gebrauchtwagen."],
+        [
+          "Ich habe versucht, mich an und abzumelden.",
+          "Ich habe versucht, mich an- und abzumelden.",
+        ],
+        ["Die Ein und Ausfahrt ist frei.", "Die Ein- und Ausfahrt ist frei."],
+      ],
+      neg: [
+        "Wir sind für Umwelt und Naturschutz.",
+        "Vor und nach dem Essen.",
+        "Er ging ein und aus.",
+        "Kunst und Kultur sind wichtig.",
+        "Er lief hin und her.",
+        "Die Vor- und Nachteile sind klar.",
+      ],
+    },
+  ],
 ];
 
 describe.each(RULES)("%s", (ruleId, { pos, neg }) => {

@@ -5,5 +5,7 @@ import * as prepositionCase from "./prepositionCase";
 
 import * as adjectiveForms from "./adjectiveForms";
 
-const MODULES = [adjectiveForms, nounCasing, prepositionCase, confusions];
+import * as suspendedHyphen from "./suspendedHyphen";
+
+const MODULES = [suspendedHyphen, adjectiveForms, nounCasing, prepositionCase, confusions];
 export const GERMAN_DETECTORS = MODULES.flatMap((m) => m.DETECTORS);

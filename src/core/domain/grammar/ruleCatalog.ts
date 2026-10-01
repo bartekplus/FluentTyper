@@ -995,6 +995,19 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     recommended: false,
     priority: 155,
   },
+  {
+    id: "germanSuspendedHyphen",
+    typing: false,
+    name: "Hyphen on a shortened compound part",
+    titleI18nKey: "review_msg_german_suspended_hyphen",
+    descriptionI18nKey: "review_msg_german_suspended_hyphen",
+    exampleI18nKey: "",
+    languageScope: "all",
+    safetyTier: "advanced",
+    defaultRollout: "off",
+    recommended: false,
+    priority: 120,
+  },
 ] as const;
 
 export type CatalogRuleId = (typeof GRAMMAR_RULE_CATALOG)[number]["id"];

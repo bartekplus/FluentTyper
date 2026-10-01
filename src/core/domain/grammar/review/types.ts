@@ -218,7 +218,8 @@ export type ReviewMessageKey =
   // German-only Review checks (review/german/).
   | "review_msg_german_noun_case"
   | "review_msg_german_preposition_case"
-  | "review_msg_german_adjective_ending";
+  | "review_msg_german_adjective_ending"
+  | "review_msg_german_suspended_hyphen";
 
 export type BulkDecision =
   | { eligible: true; alternative: number }

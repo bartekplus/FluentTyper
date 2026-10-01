@@ -118,7 +118,8 @@ export interface GrammarRuleCatalogEntry {
     | "germanNounCasing"
     | "germanPrepositionCase"
     | "germanConfusedWords"
-    | "germanAdjectiveForms";
+    | "germanAdjectiveForms"
+    | "germanSuspendedHyphen";
   /** Absent for existing typing rules; false for native Review-only checks. */
   typing?: false;
   name: string;

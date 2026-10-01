@@ -1463,6 +1463,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Ten przymiotnik wymaga końcówki, której wymagają rodzajnik i rzeczownik.",
     "Este adjetivo precisa da terminação que o artigo e o substantivo pedem.",
   ],
+  review_msg_german_suspended_hyphen: [
+    "A shortened compound part takes a hyphen: Vor- und Nachteile.",
+    "Un élément de composé abrégé prend un trait d’union : Vor- und Nachteile.",
+    "Skraćeni dio složenice dobiva spojnicu: Vor- und Nachteile.",
+    "La parte abreviada de un compuesto lleva guion: Vor- und Nachteile.",
+    "Το συντομευμένο μέρος σύνθετης λέξης παίρνει ενωτικό: Vor- und Nachteile.",
+    "En förkortad sammansättningsdel får bindestreck: Vor- und Nachteile.",
+    "Ein verkürzter Wortteil bekommt einen Ergänzungsstrich: Vor- und Nachteile.",
+    "Skrócona część złożenia dostaje łącznik: Vor- und Nachteile.",
+    "A parte abreviada de um composto leva hífen: Vor- und Nachteile.",
+  ],
 };
 
 /**
