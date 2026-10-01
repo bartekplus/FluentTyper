@@ -10,6 +10,7 @@ import { isTechnicalToken, normalizeWordSet } from "../implementations/helpers/G
 import { isReviewSupportedRule, runsInReviewLanguage } from "./reviewCatalog";
 import { REVIEW_DETECTORS, type RawFinding } from "./reviewDetectors";
 import { toDiagnostic } from "./reviewFindings";
+import { PartialDetection } from "./phraseTemplates";
 import { PROSE_DOTTED_TOKEN } from "./english/grammarStyle1";
 import { PROSE_SLASH_TOKEN } from "./english/dialects";
 import { NUMERIC_DATE_TOKEN } from "./english/dates";
@@ -268,7 +269,11 @@ export function scanReviewChunk(
         : detector.detect(context)) {
         if (prepared.rules.has(finding.ruleId)) findings.push(finding);
       }
-    } catch {
+    } catch (error) {
+      // A failed part of a composite detector keeps its siblings' findings.
+      if (error instanceof PartialDetection)
+        for (const finding of error.findings)
+          if (prepared.rules.has(finding.ruleId)) findings.push(finding);
       failedRules.push(...active);
     }
   }

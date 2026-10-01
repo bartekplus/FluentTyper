@@ -100,6 +100,8 @@ import { POLISH_DETECTORS } from "./polish";
 import { SPANISH_DETECTORS } from "./spanish";
 import { FRENCH_DETECTORS } from "./french";
 
+import { detectAll } from "./phraseTemplates";
+
 export { MASK_CHAR };
 export { minimalEdits } from "./textRanges";
 
@@ -1476,7 +1478,7 @@ export const REVIEW_DETECTORS: ReadonlyArray<ReviewDetectorEntry> = [
       "styleAlternativePhrasing",
       "englishPossibleErrors",
     ],
-    detect: (ctx) => [...canonicalCasing(ctx), ...phraseCorrections(ctx)],
+    detect: (ctx) => detectAll(ctx, [canonicalCasing, phraseCorrections]),
   },
   {
     rules: ["unclosedQuotation"],
@@ -1524,10 +1526,13 @@ export const REVIEW_DETECTORS: ReadonlyArray<ReviewDetectorEntry> = [
       "englishAlotCorrection",
     ],
     // English word lists; other languages have their own tables.
-    detect: (ctx) => [
-      ...(ctx.lang === "en_US" ? wordSpelling(ctx) : [...splitWords(ctx), ...frenchElisions(ctx)]),
-      ...markedApostrophes(ctx),
-    ],
+    detect: (ctx) =>
+      detectAll(
+        ctx,
+        ctx.lang === "en_US"
+          ? [wordSpelling, markedApostrophes]
+          : [splitWords, frenchElisions, markedApostrophes],
+      ),
   },
   { rules: ["englishModalOfCorrection"], detect: modalOf },
   { rules: ["englishYourWelcomeCorrection"], detect: yourWelcome },
@@ -1550,11 +1555,13 @@ export const REVIEW_DETECTORS: ReadonlyArray<ReviewDetectorEntry> = [
   { rules: ["emdashShortcut"], detect: typedDashes },
   {
     rules: ["measurementUnitFormatting"],
-    detect: (ctx) => [...measurementLike(ctx, "measurementUnitFormatting"), ...kelvinDegree(ctx)],
+    detect: (ctx) =>
+      detectAll(ctx, [(c) => measurementLike(c, "measurementUnitFormatting"), kelvinDegree]),
   },
   {
     rules: ["currencySpacing"],
-    detect: (ctx) => [...measurementLike(ctx, "currencySpacing"), ...currencyPlacement(ctx)],
+    detect: (ctx) =>
+      detectAll(ctx, [(c) => measurementLike(c, "currencySpacing"), currencyPlacement]),
   },
   ...EXTENSION_DETECTORS,
   ...LANGUAGE_DETECTORS,

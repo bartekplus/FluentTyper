@@ -28,7 +28,11 @@ export const STYLE: readonly PhraseRow[] = [];
 /** A word the lexicon reads only as a base verb, with no noun, adjective or other form. */
 function verbOnly(word: string): boolean {
   // "in the know"; "the except of" belongs to a phrase row.
-  if (FUNCTION_WORDS.has(word) || /^(?:know|be|do|have|go|get|say|let|except)$/.test(word))
+  // "a little further": a comparative adverb the dictionary lists only as a verb.
+  if (
+    FUNCTION_WORDS.has(word) ||
+    /^(?:know|be|do|have|go|get|say|let|except|further|farther)$/.test(word)
+  )
     return false;
   const forms = englishVerbForms(word);
   if (forms && forms.lemma !== word) return false;
