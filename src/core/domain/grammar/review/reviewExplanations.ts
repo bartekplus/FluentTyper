@@ -879,6 +879,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Dwa czasowniki modalne z rzędu są regionalizmem; standardowy angielski używa jednego.",
     "Dois verbos modais seguidos são regionais; o inglês padrão usa apenas um.",
   ],
+  review_msg_clause_be: [
+    "This clause has a subject but no verb: add a form of “be” after it.",
+    "Cette proposition a un sujet mais pas de verbe : ajoutez une forme de « be » après lui.",
+    "Ova surečenica ima subjekt, ali nema glagola: dodajte oblik glagola „be” iza njega.",
+    "Esta cláusula tiene sujeto pero no verbo: añada una forma de «be» detrás.",
+    "Αυτή η πρόταση έχει υποκείμενο αλλά όχι ρήμα: προσθέστε έναν τύπο του «be» μετά από αυτό.",
+    "Satsen har ett subjekt men inget verb: lägg till en form av ”be” efter det.",
+    "Dieser Satzteil hat ein Subjekt, aber kein Verb: Ergänzen Sie danach eine Form von „be“.",
+    "To zdanie ma podmiot, ale nie ma czasownika: dodaj po nim formę „be”.",
+    "Esta oração tem sujeito, mas não tem verbo: acrescente uma forma de “be” depois dele.",
+  ],
   review_msg_missing_be: [
     "A modal verb needs “be” before an adjective.",
     "Un verbe modal demande « be » devant un adjectif.",
