@@ -26,6 +26,11 @@ export function hasUserOrCasedWord(ctx: DetectContext, text: string): boolean {
   );
 }
 
+// String patterns come from static rule tables, so the cache stays bounded.
+const COMPILED = new Map<string, RegExp>();
+// A regex mid-scan in an unfinished generator; a nested scan of it gets its own copy.
+const SCANNING = new WeakSet<RegExp>();
+
 /**
  * One English frame scan. A string pattern gets WORD_START and the `gidu` flags.
  * Scanning starts 256 characters before the chunk, so a frame that began in the
@@ -40,19 +45,29 @@ export function* frameMatches(
   pattern: string | RegExp,
   owner: string | ((match: RegExpExecArray) => number) | null = "target",
 ): Generator<RegExpExecArray> {
-  const regex = typeof pattern === "string" ? frame(pattern) : pattern;
-  regex.lastIndex = Math.max(0, ctx.from - 256);
-  for (let m = regex.exec(ctx.scanText); m && m.index < ctx.to; m = regex.exec(ctx.scanText)) {
-    const start =
-      owner === null
-        ? ctx.from
-        : typeof owner === "string"
-          ? m.indices!.groups![owner][0]
-          : owner(m);
-    if (start < ctx.from || start >= ctx.to) continue;
-    if (gluedAfter(ctx.text, m.index + m[0].length) || namedExampleBefore(ctx.text, m.index))
-      continue;
-    yield m;
+  let regex: RegExp;
+  if (typeof pattern === "string") {
+    regex = COMPILED.get(pattern) ?? frame(pattern);
+    COMPILED.set(pattern, regex);
+  } else regex = pattern;
+  if (SCANNING.has(regex)) regex = new RegExp(regex);
+  SCANNING.add(regex);
+  try {
+    regex.lastIndex = Math.max(0, ctx.from - 256);
+    for (let m = regex.exec(ctx.scanText); m && m.index < ctx.to; m = regex.exec(ctx.scanText)) {
+      const start =
+        owner === null
+          ? ctx.from
+          : typeof owner === "string"
+            ? m.indices!.groups![owner][0]
+            : owner(m);
+      if (start < ctx.from || start >= ctx.to) continue;
+      if (gluedAfter(ctx.text, m.index + m[0].length) || namedExampleBefore(ctx.text, m.index))
+        continue;
+      yield m;
+    }
+  } finally {
+    SCANNING.delete(regex);
   }
 }
 export type PhraseTemplate = {
