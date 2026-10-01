@@ -3,6 +3,7 @@ import { TABLES as GREEK_TABLES } from "./greek/tables";
 import { TABLES as SWEDISH_TABLES } from "./swedish/tables";
 import { TABLES as ARABIC_TABLES } from "./arabic/tables";
 import { PORTUGUESE_PHRASES, PORTUGUESE_STYLE } from "./portuguese/phrases";
+import { POLISH_TABLES } from "./polish";
 
 /**
  * The English phrase checks for the other review languages, by language code.
@@ -273,6 +274,7 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
       ["nadzieji", "nadziei"],
       ["przyjacielami", "przyjaciółmi"],
       ["cudzysłowiu", "cudzysłowie"],
+      ...POLISH_TABLES.words,
     ],
     // "półtora" goes with masculine and neuter nouns, "półtorej" with feminine ones.
     phrases: [
@@ -282,6 +284,7 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
       ["półtora godziny", "półtorej godziny"],
       ["półtora minuty", "półtorej minuty"],
       ["w każdym bądź razie", "w każdym razie"],
+      ...POLISH_TABLES.phrases,
     ],
     compounds: [
       ["z pośród", "spośród"],
@@ -297,6 +300,7 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
       ["z kąd", "skąd"],
       ["z nikąd", "znikąd"],
       [["spowrotem", "zpowrotem"], "z powrotem"],
+      ...POLISH_TABLES.compounds,
     ],
     style: [
       ["w dniu dzisiejszym", ["dziś", "dzisiaj"]],
@@ -306,6 +310,7 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
       ["wracać z powrotem", "wracać"],
       ["wrócić z powrotem", "wrócić"],
       ["fakt autentyczny", "fakt"],
+      ...POLISH_TABLES.style,
     ],
   },
   hr: {

@@ -209,10 +209,11 @@ function toFinding(
   )
     return null;
   if (namedExampleBefore(ctx.text, start)) return null;
-  // "The Old Home Town", "Two Fold Clothing": capitalized words joined into one are a name;
+  // English "The Old Home Town", "Two Fold Clothing": capitalized words joined into one are a name;
   // a hyphen keeps a title's words ("An Eagle Eyed Reviewer" -> "Eagle-Eyed").
   if (
     phrase.ruleId === "englishClosedCompounds" &&
+    ctx.lang.startsWith("en") &&
     /^\p{Lu}\p{Ll}*(?:\s+\p{Lu}\p{Ll}*)+$/u.test(typed) &&
     phrase.replacements.every((r) => !/[\s-]/.test(r))
   )

@@ -252,7 +252,20 @@ export type ReviewMessageKey =
   | "review_msg_pt_proclisis"
   | "review_msg_pt_ao90"
   | "review_msg_weekday_mismatch"
-  | "review_msg_impossible_date";
+  | "review_msg_impossible_date"
+  // Polish-only checks (review/polish/).
+  | "review_msg_pl_numeral_suffix"
+  | "review_msg_pl_numeral_hyphen"
+  | "review_msg_pl_numeral_noun"
+  | "review_msg_pl_impossible_date"
+  | "review_msg_pl_weekday_date"
+  | "review_msg_pl_month_form"
+  | "review_msg_pl_misplaced_comma"
+  | "review_msg_pl_missing_comma"
+  | "review_msg_pl_preposition_form"
+  | "review_msg_pl_abbreviation_dot"
+  | "review_msg_pl_inflected_name"
+  | "review_msg_pl_decade";
 
 export type BulkDecision =
   | { eligible: true; alternative: number }

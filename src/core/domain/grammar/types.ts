@@ -113,6 +113,12 @@ export interface GrammarRuleCatalogEntry {
     | "englishIrregularForms"
     | "englishPossessiveNouns"
     | "englishDateConsistency"
+    // Polish-only Review checks (review/polish/).
+    | "polishNumerals"
+    | "polishDates"
+    | "polishMisplacedComma"
+    | "polishMissingComma"
+    | "polishPrepositionForms"
     | "quoteSpacing"
     | "primeSymbols"
     | "greekFinalNu"
