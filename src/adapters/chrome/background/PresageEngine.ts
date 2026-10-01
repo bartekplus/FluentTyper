@@ -5,8 +5,12 @@ export interface PresageEngineConfig {
   prefixOnlyMode: boolean;
 }
 
-// Enough candidates that a known rare word still comes back as itself.
+// Suggestions a lookup returns for an unknown word.
 const SPELLING_CANDIDATES = 20;
+// Candidates searched for the word itself as typed: every predictor's whole partial
+// list (MAX_PARTIAL_PREDICTION_SIZE each), so a short known word ("ad", "app") still
+// counts as known when many more frequent words start with it.
+const SPELLING_POOL = 1000;
 
 /**
  * Time a review lookup from a page may take before it stops starting words.
@@ -91,20 +95,21 @@ export class PresageEngine {
     words: ReadonlyArray<{ word: string; before: string }>,
     { budgetMs = Infinity, now = () => performance.now() }: SpellingLookupOptions = {},
   ): Array<string[] | null> {
-    this.libPresage.config("Presage.Selector.SUGGESTIONS", String(SPELLING_CANDIDATES));
+    this.libPresage.config("Presage.Selector.SUGGESTIONS", String(SPELLING_POOL));
     this.libPresage.config("Presage.ContextTracker.PREFIX_ONLY_MODE", "no");
     try {
       const started = now();
       const results: Array<string[] | null> = [];
       for (const { word, before } of words) {
         if (results.length > 0 && now() - started >= budgetMs) break;
-        const candidates = this.predict(`${before}${word}`);
+        const pool = this.predict(`${before}${word}`).map((candidate) => candidate.trim());
+        const candidates = pool.slice(0, SPELLING_CANDIDATES);
         const key = word.toLowerCase();
-        results.push(
-          candidates.some((candidate) => candidate.trim().toLowerCase() === key)
-            ? null
-            : candidates,
-        );
+        // Hunspell offers a word it knows as typed, however rare; any casing counts only
+        // among the top candidates, so a speller's "WA" does not vouch for "wa".
+        const known =
+          pool.includes(word) || candidates.some((candidate) => candidate.toLowerCase() === key);
+        results.push(known ? null : candidates);
       }
       return results;
     } finally {
@@ -118,7 +123,12 @@ export class PresageEngine {
     return new this.module.Presage(this.callbackImpl, `resources_js/${this.lang}/presage.xml`);
   }
 
+  /**
+   * A text expansion arrives JSON-quoted (setTextExpansions); anything else is a word,
+   * so "true", "null" or "42" stay words instead of parsing to non-strings.
+   */
   private parsePrediction(rawPrediction: string): string | null {
+    if (!rawPrediction.startsWith('"')) return rawPrediction;
     try {
       const parsedPrediction: unknown = JSON.parse(rawPrediction);
       return typeof parsedPrediction === "string" ? parsedPrediction : null;
