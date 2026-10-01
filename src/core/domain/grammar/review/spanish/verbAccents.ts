@@ -21,6 +21,12 @@ const SUBJECTS = words("él ella usted");
 // Before these, an imperfect or conditional verb: "no sabía", "se hacía", "yo tenía".
 const BEFORE_VERB = words("me te se le les nos os no yo él ella usted lo");
 
+// "-o" words that are conjunctions, adverbs or quantifiers before a verb ("no sé cómo").
+const FUNCTION_WORDS = words(
+  "como cuando donde pero todo mucho poco solo tanto otro mismo uno ninguno alguno cuanto " +
+    "luego tampoco sino demasiado medio",
+);
+
 /** "termino" -> "término" where a noun or adjective goes, not a verb. */
 function nominal(at: Around): string | null {
   const word = at.tokens[at.i].lower;
@@ -28,6 +34,12 @@ function nominal(at: Around): string | null {
   if (!accented) return null;
   const prev = at.prev();
   const next = at.next();
+  // "una tremolo": a feminine determiner cannot take the masculine noun either.
+  if (
+    /^(?:una|unas|mis|tus|sus|toda|otra|otras|muchas|pocas|varias|nuestra|nuestras)$/u.test(prev) &&
+    /os?$/u.test(accented)
+  )
+    return null;
   if (DETERMINERS.has(prev) || DEGREE.has(prev) || SER.has(prev)) return accented;
   if (DEMONSTRATIVES.has(prev) && PREPOSITIONS.has(at.prev(2))) return accented;
   // "en la página", "parar la máquina", "la máquina del tiempo": "la" is no clitic there.
@@ -61,7 +73,9 @@ function verbAccent(at: Around): string | null {
     const m = /^(\p{L}{2,})o$/u.exec(word);
     // "lio" and "guion" take no accent; nouns and adjectives after "él" are not verbs.
     // "Ella, creo, no lo sabe": a parenthetical first person.
-    const aside = subject && /^(?:creo|pienso|supongo|digo|imagino|opino)$/u.test(word);
+    const aside =
+      FUNCTION_WORDS.has(word) ||
+      (subject && /^(?:creo|pienso|supongo|digo|imagino|opino)$/u.test(word));
     if (m && word.length > 3 && !aside && !(subject && (isNoun(word) || attribute(word)))) {
       if (isVerb(`${m[1]}ar`)) return `${m[1]}ó`;
       if ((isVerb(`${m[1]}er`) || isVerb(`${m[1]}ir`)) && !isNoun(word)) return `${m[1]}ió`;
