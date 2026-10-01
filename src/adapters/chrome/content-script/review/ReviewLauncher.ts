@@ -272,13 +272,14 @@ button {
   color: #4338ca;
   box-shadow: 0 2px 8px -2px rgba(15, 23, 42, 0.35);
   cursor: pointer;
-  transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease;
+  transition: box-shadow 150ms ease-out, border-color 150ms ease-out, background-color 150ms ease-out;
 }
 button[hidden] { display: none; }
-button:hover { transform: scale(1.08); border-color: #4f46e5; box-shadow: 0 4px 12px -4px rgba(79, 70, 229, 0.6); }
+button:hover { border-color: #4f46e5; background: #eef2ff; box-shadow: 0 4px 12px -4px rgba(15, 23, 42, 0.35); }
 svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
 @media (prefers-color-scheme: dark) {
-  button { background: #1e293b; color: #c7d2fe; border-color: rgba(165, 180, 252, 0.5); }
+  button { background: #1e293b; color: #38bdf8; border-color: rgba(56, 189, 248, 0.45); }
+  button:hover { background: #243247; border-color: #38bdf8; }
 }
 @media (forced-colors: active) {
   button { border-color: ButtonText; background: ButtonFace; color: ButtonText; forced-color-adjust: none; }

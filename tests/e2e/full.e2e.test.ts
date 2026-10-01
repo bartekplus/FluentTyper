@@ -7830,6 +7830,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       );
       await clickReviewControl(page, `.item[data-id="${initial.items[0].id}"]`);
       await waitForReview(page, "matching-ignore card", (p) => p.card.open);
+      await clickReviewControl(page, ".card [data-action=more]");
       await clickReviewControl(page, "[data-action=ignore-matching]");
       const ignored = await waitForReview(
         page,
@@ -7858,6 +7859,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       );
       await clickReviewControl(page, `.item[data-id="${restored.items[0].id}"]`);
       await waitForReview(page, "ignore again", (p) => p.card.open);
+      await clickReviewControl(page, ".card [data-action=more]");
       await clickReviewControl(page, "[data-action=ignore-matching]");
       await waitForReview(page, "ignored again", (p) => p.items.length === 1);
       await clickReviewControl(page, "[data-action=close]");
@@ -7913,6 +7915,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         await waitForReview(frame, "iframe findings", (p) => p.items.length === 2);
         await click(".item");
         await waitForReview(frame, "iframe card", (p) => p.card.open);
+        await click("[data-action=more]");
         await frame.waitForFunction(() => {
           const button = document
             .querySelector("[data-fluenttyper-review]")
@@ -7984,6 +7987,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         await waitForReview(page, "two native findings", (p) => p.items.length === 2);
         await clickReviewControl(page, ".item");
         await waitForReview(page, "rule card", (p) => p.card.open);
+        await clickReviewControl(page, ".card [data-action=more]");
         await clickReviewControl(page, "[data-action=disable-rule]");
         await waitForReview(
           page,
@@ -8417,16 +8421,23 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
 
       // Ignore the remaining "teh" (this occurrence, this session only).
       panel = await waitForReview(page, "after apply", (p) => p.status === "Fixed: 1. Issues: 6");
+      // The next finding's card opened in place of the applied one; close it to use the list.
+      await waitForReview(page, "next card after apply", (p) => p.card.open);
+      await page.keyboard.press("Escape");
+      await waitForReview(page, "next card closed", (p) => !p.card.open && p.open);
       await clickReviewControl(page, `.item[data-id="${panel.items[0].id}"]`);
       await waitForReview(page, "card for ignore", (p) => p.card.open);
       await clickReviewControl(page, ".card [data-action=ignore]");
-      panel = await waitForReview(page, "ignored", (p) => p.items.length === 5);
+      panel = await waitForReview(page, "ignored", (p) => p.items.length === 5 && p.card.open);
       expect(panel.notes).toContain("Ignored: 1");
+      await page.keyboard.press("Escape");
+      await waitForReview(page, "card after ignore closed", (p) => !p.card.open && p.open);
 
       // Add "recieve" to the user dictionary through the existing settings path.
       const recieve = panel.items.find((item) => item.text.startsWith("recieve"))!;
       await clickReviewControl(page, `.item[data-id="${recieve.id}"]`);
       await waitForReview(page, "card for dictionary", (p) => p.card.open);
+      await clickReviewControl(page, ".card [data-action=more]");
       await clickReviewControl(page, ".card [data-action=dictionary]");
       await waitForReview(page, "dictionary word gone", (p) =>
         p.items.every((item) => !item.text.startsWith("recieve")),
@@ -8611,10 +8622,13 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         async () => (await textareaValue()) === "We saw the cat and teh dog.",
         { timeoutMs: 5000 },
       );
-      await waitForReview(page, "focus back in list", (p) => p.focus === "button.item");
+      // The next finding's card opens with its Apply focused.
+      await waitForReview(
+        page,
+        "next card after apply",
+        (p) => p.card.open && p.focus === "button[apply]",
+      );
       // Escape closes the card first, then the review.
-      await page.keyboard.press("Enter");
-      await waitForReview(page, "card again", (p) => p.card.open);
       await page.keyboard.press("Escape");
       panel = await waitForReview(page, "card closed", (p) => !p.card.open);
       expect(panel.open).toBe(true);

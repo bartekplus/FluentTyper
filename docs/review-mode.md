@@ -40,7 +40,7 @@ so the page's layout and the field's padding are untouched:
 What gets reviewed:
 
 - A selection wholly inside one editor: **that selection** ("Selection" in the panel).
-- Otherwise: **the whole focused editor** ("Whole field"). Review never scans the page.
+- Otherwise: **the whole focused editor** (the default, so the panel shows no scope label). Review never scans the page.
 - A selection that crosses editors, a password, payment, security-code or
   one-time-code field (by type, `autocomplete` token, name or masking), and
   hidden, unrendered, read-only or disabled fields are refused with an
@@ -78,21 +78,30 @@ spacing, numbers and units, punctuation marks, redundancy, readability and
 terminology. Dictionary spelling and Local AI cards show only the category.
 
 Click a highlight, or choose a finding in the list, to open its card:
-category, explanation, the change (original and replacement), any
-alternatives, and **Apply**, **Ignore once** and, for single-word spelling findings,
-**Add "word" to dictionary** (the existing FluentTyper dictionary).
+category, explanation, the change on one line (the original struck through,
+then the replacement), any alternatives, and **Apply** and **Ignore once**. The
+rarer, lasting actions sit under **More**: **Ignore matching occurrences in this
+review**, **Disable this check in Review** and, for single-word spelling
+findings, **Add "word" to dictionary** (the existing FluentTyper dictionary).
+After Apply or Ignore, the card of the next finding opens in its place, so a
+review can be worked through without returning to the list.
 
-Native and dictionary cards also offer **Ignore matching occurrences in this review**. It suppresses current findings with the same rule, language, normalized evidence and suggested edits, including the protected context. It is deliberately more specific than ignoring every use of a word. The visible hint explains that new occurrences are not automatically ignored. AI findings retain Ignore once only.
+Native and dictionary cards also offer **Ignore matching occurrences in this review**. It suppresses current findings with the same rule, language, normalized evidence and suggested edits, including the protected context. It is deliberately more specific than ignoring every use of a word. The button's description (read by screen readers) explains that new occurrences are not automatically ignored. AI findings retain Ignore once only.
 
 **Restore ignored findings** in the footer resets both kinds of session ignores. Counts, filters, navigation and Fix all planning use the remaining findings. Matching ignores track their occurrence and evidence with the existing position remapper: edits before unchanged evidence can move them, while evidence edits, protection changes, deletion/reinsertion or ambiguous placement release suppression. Close and reopen Review to clear every ignore. Another editor has its own session. No dictionary learning, setting changes, sentence hashes or reviewed prose are saved by either ignore action. **Disable this check in Review** remains a separate persistent preference.
 
 ![The correction card](images/review-mode/2-correction-card.png)
 
-The panel shows the scope, the count, per-category filters, previous and next,
-close, and **Fix all safe (N)**. Fix all applies only the findings that are
+The panel shows previous, next and close beside its title, the count,
+per-category filters (each a badge and its count, named in its tooltip), the
+findings, and **Fix all safe (N)**, which stays pinned at the bottom. The scope
+is labelled only when it is narrower than the whole field. The Local AI offer
+and coverage notes (skipped code, undo behavior) follow the findings. Fix all applies only the findings that are
 visible under the current filters, whose rule is batch-approved, and whose fix
 is proven not to conflict with another fix. Everything else stays for review
-one by one. The line under the button says what Fix all covers.
+one by one. While filters are on, or fixes are left for individual review, the
+line under the button says what Fix all covers. When nothing is left, the panel
+shows only the outcome (with a check mark) and what can follow it.
 
 | Ignore one finding                               | Fix all safe                                 | Native undo                            |
 | ------------------------------------------------ | -------------------------------------------- | -------------------------------------- |

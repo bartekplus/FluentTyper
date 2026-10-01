@@ -143,10 +143,13 @@ try {
 
   // 5. Native undo: contenteditable undoes one fix per step.
   await page.evaluate(() => document.querySelector<HTMLElement>("#doc")!.focus());
+  // macOS undoes with Cmd+Z, which synthetic keys only perform when the command is named.
+  const isMac = process.platform === "darwin";
+  const modifier = isMac ? "Meta" : "Control";
   for (let step = 0; step < 6 && (await html()) !== original; step += 1) {
-    await page.keyboard.down("Control");
-    await page.keyboard.press("z");
-    await page.keyboard.up("Control");
+    await page.keyboard.down(modifier);
+    await page.keyboard.press("z", isMac ? { commands: ["Undo"] } : undefined);
+    await page.keyboard.up(modifier);
     await sleep(80);
   }
   await sleep(900);
