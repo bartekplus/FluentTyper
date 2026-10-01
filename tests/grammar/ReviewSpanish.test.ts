@@ -212,7 +212,7 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         ["Las ONGs trabajan sin descanso.", "Las ONG trabajan sin descanso."],
         ["Trajeron manzanas, peras, etc...", "Trajeron manzanas, peras, etc."],
         ["Nació el 31 de abril de 1990.", "Nació el 30 de abril de 1990."],
-        ["La factura es del 31/11/2019.", "La factura es del 30/11/2019."],
+        ["La factura es del 31-11-2019.", "La factura es del 30-11-2019."],
         ["Fue el 29 de febrero de 2023.", "Fue el 28 de febrero de 2023."],
         ["Llegó el lunes, 7 de octubre de 2014.", "Llegó el martes, 7 de octubre de 2014."],
       ],
