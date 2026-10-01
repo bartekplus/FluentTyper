@@ -139,10 +139,17 @@ export const evidence = (ctx: DetectContext, start: number, end: number) => ({
   end: Math.min(ctx.text.length, end + 40),
 });
 
-/** English only; findings inside a quoted or parenthesized example are dropped. */
+/**
+ * English only; findings inside a quoted or parenthesized example are dropped, and only
+ * findings that start in the chunk are kept.
+ */
 export const english =
   (...detectors: ((ctx: DetectContext) => RawFinding[])[]) =>
   (ctx: DetectContext): RawFinding[] =>
     ctx.lang !== "en_US"
       ? []
-      : detectors.flatMap((detect) => detect(ctx)).filter((f) => !quotedMention(ctx, f));
+      : detectors
+          .flatMap((detect) => detect(ctx))
+          .filter(
+            (f) => f.range.start >= ctx.from && f.range.start < ctx.to && !quotedMention(ctx, f),
+          );
