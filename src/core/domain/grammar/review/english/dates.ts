@@ -55,8 +55,18 @@ const WEEKDAY_DATE = new RegExp(
 // Days a month cannot have: "June 31", "the 31st of June", "Feb 30th, 2023".
 const MONTH_DAY = `(?<target>(?<month1>${MONTH})${S}${DAY("day1")}|(?<![\\p{N}:.,/])${DAY("day2")}(?:${S}of)?${S}(?<month2>${MONTH}))(?:,?${S}(?<year>${YEAR}))?(?![\\p{L}\\p{N}]|[.,:][0-9])`;
 const NUMERIC = `(?<![\\p{N}.,/-])(?<a>[0-9]{1,2})(?<sep>[/.])(?<b>[0-9]{1,2})\\k<sep>(?<year>${YEAR})(?![\\p{N}]|[.,][0-9])`;
-/** "2/30/2025", "31.11.2025": a numeric date is prose, not a path or a dotted name. */
-export const NUMERIC_DATE_TOKEN = /^[0-9]{1,2}([/.])[0-9]{1,2}\1[0-9]{4}$/;
+/**
+ * A date is prose, not a path or a dotted name, in any language: "2/30/2025",
+ * "31.11.2025", "31/9/69", "31/سبتمبر/1969", Arabic-Indic digits.
+ * Dotted forms need a four-digit year so versions ("1.12.31") stay technical.
+ */
+export const NUMERIC_DATE_TOKEN = new RegExp(
+  "^(?:D{1,2}/(?:D{1,2}|\\p{L}{3,12})/(?:D{2}|D{4})|D{1,2}\\.D{1,2}\\.D{4})$".replace(
+    /D/g,
+    "[0-9\u0660-\u0669\u06f0-\u06f9]",
+  ),
+  "u",
+);
 
 const monthIndex = (name: string) =>
   MONTHS.findIndex((month) => month.startsWith(name.replace(".", "").toLowerCase().slice(0, 3)));
