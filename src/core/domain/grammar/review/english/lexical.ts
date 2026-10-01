@@ -105,6 +105,8 @@ function irregularFor(word: string, before: string): string[] | null {
     return [participle ? verb.participle : verb.past];
   }
   if (!w.endsWith("s") || w.length < 4 || info(w)) return null;
+  // Paintings are "still lifes", not "still lives".
+  if (w === "lifes" && /\bstill[ \t ]+$/i.test(before)) return null;
   // The dictionary's own -s plural ("shamans") is no error; "meatloafs" is, as "meatloaf"
   // is listed without one.
   const listed = (singular: string) =>
@@ -157,7 +159,9 @@ const GLUED = new Set(
 function splitGlued(word: string): string | null {
   const w = lower(word);
   if (w.length < 6) return null;
-  for (let cut = 2; cut <= 6 && cut <= w.length - 3; cut++) {
+  // A capitalized unknown word is usually a name ("Haslam"): only a longer rest splits it.
+  const shortest = /^[A-Z]/.test(word) ? 4 : 3;
+  for (let cut = 2; cut <= 6 && cut <= w.length - shortest; cut++) {
     const head = w.slice(0, cut);
     const rest = w.slice(cut);
     if (GLUED.has(head) && info(rest)) return `${word.slice(0, cut)} ${rest}`;
@@ -258,6 +262,7 @@ const ruleOn = (ctx: DetectContext, rule: string) => !ctx.rules || ctx.rules.has
 function wordChecks(ctx: DetectContext): Finding[] {
   const irregular = ruleOn(ctx, "englishIrregularForms");
   const spaces = ruleOn(ctx, "englishAlotCorrection");
+  const possible = ruleOn(ctx, "englishPossibleErrors");
   const findings: Finding[] = [];
   const words = new RegExp(WORD);
   words.lastIndex = Math.max(0, ctx.from - 40);
@@ -290,19 +295,22 @@ function wordChecks(ctx: DetectContext): Finding[] {
       });
       continue;
     }
-    if (!spaces) continue;
-    const split = unknown && owned && (splitGlued(word) ?? splitNouns(word));
-    if (split) {
+    // Two nouns the dictionary lacks joined ("applejuice") are as often a real closed word it
+    // lacks ("rainforest", "zebrafish"): that split is only offered as an optional check.
+    const split = unknown && owned && spaces ? splitGlued(word) : null;
+    const nouns = !split && unknown && owned && possible ? splitNouns(word) : null;
+    if (split || nouns) {
       findings.push({
-        ruleId: "englishAlotCorrection",
+        ruleId: split ? "englishAlotCorrection" : "englishPossibleErrors",
         messageKey: "review_msg_split_words",
         range: { start: index, end },
-        alternatives: [split],
+        alternatives: [(split ?? nouns)!],
         bulkBlock: "context-dependent",
         context: context(ctx, index, end),
       });
       continue;
     }
+    if (!spaces) continue;
     // A single space between two words of two letters or more, one of them unknown.
     if (!prev || prev.index < ctx.from || prev.index + prev.word.length !== index - 1) continue;
     if (ctx.text[index - 1] !== " " || prev.word.length < 2 || word.length < 2) continue;
@@ -334,7 +342,8 @@ const ATTRIBUTIVE_PLURALS = new Set(
     "materials weapons drugs awards games records accounts payments skills drinks numbers " +
     "contents crafts letters ways sciences studies affairs relations resources utilities " +
     "securities futures options assets results comments users tools files tests items orders " +
-    "notes tickets members images docs logs tasks"
+    "notes tickets members images docs logs tasks fireworks antiques antiquities communications " +
+    "munitions insights stats standards arrivals departures earnings valuables humanities"
   ).split(" "),
 );
 const IRREGULAR_OWNERS = new Set(["children", "women", "men"]);
@@ -360,7 +369,9 @@ const NOT_HEADS = new Set(
     "has had do does did will would can could shall should may might must not no " +
     // Adverbs the dictionary lists as nouns: "I talked to the students yesterday".
     "yesterday today tonight tomorrow overnight first once home outside inside upstairs " +
-    "downstairs aside back forward last next daily weekly monthly yearly nightly online offline"
+    "downstairs aside back forward last next daily weekly monthly yearly nightly online offline " +
+    // Adjectives that follow their noun: "the commissioners present signed".
+    "present involved concerned available responsible mentioned listed affected attending"
   ).split(" "),
 );
 const SINGULAR_FINITE = new Set("is was has does".split(" "));
@@ -478,7 +489,10 @@ const english =
 
 /** Context detectors appended to REVIEW_DETECTORS. */
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  { rules: ["englishIrregularForms", "englishAlotCorrection"], detect: english(wordChecks) },
+  {
+    rules: ["englishIrregularForms", "englishAlotCorrection", "englishPossibleErrors"],
+    detect: english(wordChecks),
+  },
   { rules: ["englishPossessiveNouns"], detect: english(possessiveNouns) },
   { rules: ["englishYourYouAre"], detect: english(youNounOf) },
 ];

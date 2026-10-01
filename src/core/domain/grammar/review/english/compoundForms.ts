@@ -273,7 +273,7 @@ const PHRASAL_NOUNS: Record<string, readonly string[]> = {
 // First words that are also everyday nouns ("a sign in front", "the work out of the way",
 // "your back up straight"): these need a noun after the particle ("the sign up form").
 const NOUN_HEADS = new Set(
-  "back drive left hold count touch close set sign check work stand cut round lift push break".split(
+  "back drive left hold count touch close set sign check work stand cut round lift push break chin".split(
     " ",
   ),
 );

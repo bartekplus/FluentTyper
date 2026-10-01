@@ -203,6 +203,14 @@ function toFinding(
   )
     return null;
   if (namedExampleBefore(ctx.text, start)) return null;
+  // "The Old Home Town", "Two Fold Clothing": capitalized words joined into one are a name;
+  // a hyphen keeps a title's words ("An Eagle Eyed Reviewer" -> "Eagle-Eyed").
+  if (
+    phrase.ruleId === "englishClosedCompounds" &&
+    /^\p{Lu}\p{Ll}*(?:\s+\p{Lu}\p{Ll}*)+$/u.test(typed) &&
+    phrase.replacements.every((r) => !/[\s-]/.test(r))
+  )
+    return null;
   const casing = phrase.ruleId === "englishCanonicalCasing";
   // Capitals kept for emphasis are the writer's choice.
   if (casing && typed === typed.toUpperCase()) return null;

@@ -26,6 +26,10 @@ const ABBREVIATIONS_BY_LANGUAGE: Record<string, readonly string[]> = {
     ...["approx", "fig", "resp", "est", "min", "max", "mr", "mrs", "ms", "jr", "sr", "prof"],
     ...["inc", "ltd", "co", "corp", "dept", "univ", "ave", "blvd", "st", "mt", "ft", "sgt"],
     ...["capt", "lt", "col", "rev", "esp", "ref", "vol", "ch", "pp", "eq", "rd"],
+    // Months, editors and translators, "circa", "Bros.", degrees.
+    ...["jan", "feb", "aug", "sept", "oct", "nov", "dec", "ed", "eds", "tr", "trans", "ca"],
+    ...["bros", "phd", "nos", "mm", "cm", "km", "kg", "lb", "lbs", "oz", "sec", "msec", "hr"],
+    ...["hrs", "mins", "yr", "yrs", "wk", "wks"],
   ],
   de: [
     ...["usw", "bzw", "evtl", "ggf", "vgl", "inkl", "ca", "bspw", "nr", "hr", "fr", "sog"],

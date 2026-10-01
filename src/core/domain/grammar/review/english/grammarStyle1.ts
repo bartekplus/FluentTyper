@@ -276,6 +276,8 @@ function degree(ctx: DetectContext): Finding[] {
     if (typed !== adj || !markerCase || hasUserOrCasedWord(ctx, m[0])) continue;
     // "honest" is a base adjective ("honestly"), not hon + -est.
     if (!graded(adj) || englishWordInfo(`${adj}ly`)) continue;
+    // "I'll write more later": time adverbs, not a comparative "more" could double.
+    if (/^(?:later|earlier|sooner)$/.test(adj)) continue;
     const [start, end] = m.indices!.groups!.target;
     if (!finishedComparison(ctx, start, end)) continue;
     findings.push(
