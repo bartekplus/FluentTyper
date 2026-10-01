@@ -264,6 +264,15 @@ test("no French chunk stalls on adversarial input", () => {
     "de de de mangé ".repeat(400),
     `x${" ".repeat(3_800)}${triggers}`,
     "mangé ".repeat(800),
+    "il à a ou où sa se ce la ma sont du ont ".repeat(150),
   ])
     expect(slowest(text)).toBeLessThan(100);
+});
+
+test("French time zones and pronoun + article pairs stay clean", () => {
+  for (const text of ["La réunion commence à 15:00 CEST.", "Rendez-vous à 20h30, cest."])
+    expect(findings("englishContractionNormalization", text)).toEqual([]);
+  expect(findings("englishContractionNormalization", "Je pense que cest vrai.")).toHaveLength(1);
+  expect(findings("englishRepeatedWords", "Je m'en achèterai un un jour.")).toEqual([]);
+  expect(findings("englishRepeatedWords", "Il a pris les les clés.")).toHaveLength(1);
 });
