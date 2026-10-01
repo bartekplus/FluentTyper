@@ -935,7 +935,7 @@ for (const [alias, target] of [
 const TRIGGER = new RegExp(
   `${WORD_START}(?:${Object.keys(HANDLERS)
     .sort((a, b) => b.length - a.length)
-    .map((word) => word.replace("'", "['’]"))
+    .map((word) => word.replaceAll("'", "['’]"))
     .join("|")})${WORD_END}`,
   "giu",
 );

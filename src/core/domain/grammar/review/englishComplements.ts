@@ -175,7 +175,7 @@ function wordsBefore(text: string, at: number): string[] | null {
   const words = parts
     .at(-1)!
     .match(/[a-z]+|['’][a-z]+|\d[\d,.]*/giu)
-    ?.map((w) => w.toLowerCase().replace("’", "'"));
+    ?.map((w) => w.toLowerCase().replaceAll("’", "'"));
   return [...(words ?? []).reverse(), ""];
 }
 

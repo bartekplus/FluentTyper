@@ -20,7 +20,7 @@ import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDe
 
 /** One row per word form: `*` stands for each ending in both columns. */
 const forms = (typed: string, replacement: string, endings: readonly string[]): PhraseRow[] =>
-  endings.map((ending) => [typed.replace("*", ending), replacement.replace("*", ending)]);
+  endings.map((ending) => [typed.replaceAll("*", ending), replacement.replaceAll("*", ending)]);
 const CLICK_ENDINGS = ["", "s", "ed", "ing"];
 
 /** Rows for englishPhraseCorrections, englishClosedCompounds and stylePhrasing. */

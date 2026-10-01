@@ -1117,7 +1117,7 @@ const HANDLERS: Record<string, Handler> = {
 };
 const TARGET = new RegExp(
   `(?<![\\p{L}\\p{N}_'’@/#\\\\.-])(?:${Object.keys(HANDLERS)
-    .map((w) => w.replace("'", "['’]"))
+    .map((w) => w.replaceAll("'", "['’]"))
     .sort((x, y) => y.length - x.length)
     .join("|")}|dissembl[a-z]*)(?![\\p{L}\\p{N}_'’@#\\\\])`,
   "giu",
