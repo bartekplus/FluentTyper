@@ -879,6 +879,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Dwa czasowniki modalne z rzędu są regionalizmem; standardowy angielski używa jednego.",
     "Dois verbos modais seguidos são regionais; o inglês padrão usa apenas um.",
   ],
+  review_msg_adverb_form: [
+    "A verb or an adjective is modified by an adverb: use the -ly form.",
+    "Un verbe ou un adjectif se modifie par un adverbe : utilisez la forme en -ly.",
+    "Glagol ili pridjev modificira se prilogom: upotrijebite oblik na -ly.",
+    "Un verbo o un adjetivo se modifica con un adverbio: use la forma en -ly.",
+    "Ένα ρήμα ή ένα επίθετο προσδιορίζεται από επίρρημα: χρησιμοποιήστε τον τύπο σε -ly.",
+    "Ett verb eller adjektiv bestäms av ett adverb: använd formen på -ly.",
+    "Ein Verb oder Adjektiv wird durch ein Adverb bestimmt: Verwenden Sie die Form auf -ly.",
+    "Czasownik lub przymiotnik określa przysłówek: użyj formy na -ly.",
+    "Um verbo ou adjetivo é modificado por um advérbio: use a forma em -ly.",
+  ],
   review_msg_subject_verb: [
     "The verb must agree in number with its subject: singular with singular, plural with plural.",
     "Le verbe doit s’accorder en nombre avec son sujet : singulier avec singulier, pluriel avec pluriel.",
