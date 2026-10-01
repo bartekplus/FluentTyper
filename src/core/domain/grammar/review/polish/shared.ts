@@ -45,6 +45,14 @@ export interface Frame {
   messageKey: RawFinding["messageKey"];
   /** Keep the typed casing off: the fix decides it (names, abbreviations). */
   verbatim?: true;
+  /** A capital inside a sentence makes it a name ("w Głownie", "Maja"): abstain. */
+  lowercase?: true;
+}
+
+/** The text before `start` ends a sentence (or nothing comes before it). */
+export function sentenceStartAt(text: string, start: number): boolean {
+  const before = text.slice(Math.max(0, start - 8), start);
+  return /(?:[.!?…]["”’»)]*\s+|\n\s*)$/u.test(before) || /^\s*$/u.test(text.slice(0, start));
 }
 
 export function findingAt(
@@ -72,12 +80,13 @@ export function findingAt(
 export function runFrames(ctx: DetectContext, frames: readonly Frame[]): RawFinding[] {
   if (!isPl(ctx)) return [];
   const findings: RawFinding[] = [];
-  for (const { pattern, fix, ruleId, messageKey, verbatim } of frames) {
+  for (const { pattern, fix, ruleId, messageKey, verbatim, lowercase } of frames) {
     if (ctx.rules && !ctx.rules.has(ruleId)) continue;
     for (const m of frameMatches(ctx, pattern)) {
       const [start, end] = m.indices!.groups!.target;
       const typed = ctx.source.slice(start, end);
       if (userOrNamed(ctx, typed)) continue;
+      if (lowercase && /^\p{Lu}/u.test(typed) && !sentenceStartAt(ctx.text, start)) continue;
       const fixed = typeof fix === "function" ? fix(m) : fix;
       if (fixed === null) continue;
       const alternatives = [fixed]
