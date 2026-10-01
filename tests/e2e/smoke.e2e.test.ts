@@ -16,6 +16,7 @@ import {
   launchBrowser,
   openExtensionPage,
   openPopupPage,
+  findLayoutOverflow,
   waitUntil,
   suiteTimeout,
   clickReviewControl,
@@ -36,7 +37,10 @@ import {
   KEY_SITE_PROFILES,
   KEY_TEXT_EXPANSIONS,
 } from "../../src/core/domain/constants";
-import { RECOMMENDED_CURRENT_GRAMMAR_RULES } from "../../src/core/domain/grammar/ruleCatalog";
+import {
+  DEFAULT_CURRENT_GRAMMAR_RULES,
+  RECOMMENDED_CURRENT_GRAMMAR_RULES,
+} from "../../src/core/domain/grammar/ruleCatalog";
 import { DEFAULT_SUGGESTION_THEME_SETTINGS } from "../../src/core/domain/themeDefaults";
 
 const RUN_E2E = process.env.RUN_E2E === "1" || process.env.RUN_E2E === "true";
@@ -1079,6 +1083,8 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
         await popupPage.waitForSelector("body", {
           timeout: suiteTimeout(3000, 7000),
         });
+        // Chrome caps popups at 600px tall: nothing may scroll or spill out of its card.
+        expect(await findLayoutOverflow(popupPage, 600)).toEqual([]);
       } finally {
         if (!popupPage.isClosed()) {
           await popupPage.close();
@@ -1157,7 +1163,7 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
             document.querySelector(".content-tab.is-active")?.getAttribute("data-tab-id") ?? "",
         }));
 
-        expect(snapshot.workspaceTitle).toBe("Espace des paramètres");
+        expect(snapshot.workspaceTitle).toBe("Paramètres");
         expect(snapshot.searchPlaceholder).toBe("Rechercher dans les paramètres");
         expect(snapshot.activeTabId).toBe("advanced_tab");
       } finally {
@@ -1194,6 +1200,14 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
         }));
 
         expect(state.activeTabId).toBe("site_mgmt_tab");
+        for (const tab of ["core_settings", "grammar_tab", "advanced_tab"]) {
+          await optionsPage.evaluate((hash) => (window.location.hash = hash), tab);
+          await optionsPage.waitForSelector(`#${tab}:not(.is-hidden)`);
+          expect({ tab, overflow: await findLayoutOverflow(optionsPage) }).toEqual({
+            tab,
+            overflow: [],
+          });
+        }
       } finally {
         if (!optionsPage.isClosed()) {
           await optionsPage.close();
@@ -1257,7 +1271,7 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
   );
 
   test(
-    "grammar tab supports grouped rules, search/filter, and setting persistence",
+    "grammar rule matrix groups rules, searches them, and restores defaults",
     async () => {
       await setSettingAndWait(
         worker,
@@ -1267,163 +1281,91 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
       await sendConfigChange(browser, worker);
 
       const optionsPage = await openOptionsPage(browser, worker);
-      let selectedRuleId = "";
       try {
+        await optionsPage.evaluate(() => (location.hash = "grammar_tab"));
+        await optionsPage.waitForSelector("#grammar_tab:not(.is-hidden) .rule-matrix", {
+          timeout: suiteTimeout(3000, 7000),
+        });
         const probe = await optionsPage.evaluate(() => {
-          const tabAnchors = Array.from(document.querySelectorAll("#tab-container li a"));
-          let grammarRoot: Element | null = null;
-
-          for (const tabAnchor of tabAnchors) {
-            if (!(tabAnchor instanceof HTMLElement)) {
-              continue;
-            }
-            tabAnchor.click();
-            const visibleTab = Array.from(document.querySelectorAll(".content-tab")).find(
-              (tab) => !tab.classList.contains("is-hidden"),
+          const matrix = document.querySelector(".rule-matrix")!;
+          const search = matrix.querySelector<HTMLInputElement>('input[type="search"]')!;
+          const visibleRows = () =>
+            Array.from(matrix.querySelectorAll<HTMLElement>(".rule-matrix-row[data-rule]")).filter(
+              (row) => !row.classList.contains("is-hidden"),
             );
-            const candidate = visibleTab?.querySelector(
-              '[data-setting="enabledGrammarRules"] .grammar-rule-selector',
-            );
-            if (candidate) {
-              grammarRoot = candidate;
-              break;
-            }
-          }
+          const typingChecked = () =>
+            Array.from(
+              matrix.querySelectorAll<HTMLInputElement>(
+                'input[data-setting="enabledGrammarRules"]',
+              ),
+            ).filter((input) => input.checked).length;
 
-          if (!grammarRoot) {
-            return { ok: false, error: "Grammar tab was not found" };
-          }
+          const sections = matrix.querySelectorAll(".rule-matrix-section").length;
+          const closedByDefault = Array.from(
+            matrix.querySelectorAll<HTMLDetailsElement>(".rule-matrix-section"),
+          ).every((section) => !section.open);
+          const allRows = visibleRows().length;
+          const typingOnBefore = typingChecked();
 
-          const countVisibleCards = () =>
-            Array.from(grammarRoot.querySelectorAll(".grammar-rule-card")).filter(
-              (card) => !card.classList.contains("is-hidden"),
-            ).length;
+          search.value = "ellipsis";
+          search.dispatchEvent(new Event("input", { bubbles: true }));
+          const searchRows = visibleRows();
+          const matchOpened = searchRows.every(
+            (row) => row.closest<HTMLDetailsElement>("details")?.open,
+          );
+          search.value = "definitely-no-such-rule";
+          search.dispatchEvent(new Event("input", { bubbles: true }));
+          const noMatchRows = visibleRows().length;
+          const noResultsVisible = Array.from(matrix.querySelectorAll("p")).some(
+            (p) => !p.classList.contains("is-hidden") && p.textContent?.includes("No grammar"),
+          );
+          search.value = "";
+          search.dispatchEvent(new Event("input", { bubbles: true }));
 
-          const sectionTitles = grammarRoot.querySelectorAll(".grammar-rule-section-title").length;
-          const searchInput = grammarRoot.querySelector(
-            ".grammar-rule-search-input",
-          ) as HTMLInputElement | null;
-          const filterSafeButton = grammarRoot.querySelector(
-            '.grammar-rule-filter-button[data-filter="safe"]',
-          ) as HTMLButtonElement | null;
-          const filterRecommendedButton = grammarRoot.querySelector(
-            '.grammar-rule-filter-button[data-filter="recommended"]',
-          ) as HTMLButtonElement | null;
-          const recommendedActionButton = grammarRoot.querySelector(
-            '.grammar-rule-selector-actions .button[data-action="recommended"]',
-          ) as HTMLButtonElement | null;
-
-          if (!searchInput) {
-            return { ok: false, error: "Search input is missing" };
-          }
-          if (!filterSafeButton) {
-            return { ok: false, error: "Safe filter button is missing" };
-          }
-          if (filterRecommendedButton) {
-            return { ok: false, error: "Recommended filter button should not be present" };
-          }
-          if (!recommendedActionButton) {
-            return { ok: false, error: "Recommended action button is missing" };
-          }
-
-          const initialVisibleCount = countVisibleCards();
-          recommendedActionButton.click();
-          const recommendedSelection = Array.from(
-            grammarRoot.querySelectorAll(".grammar-rule-card-toggle"),
-          )
-            .filter((toggle): toggle is HTMLInputElement => toggle instanceof HTMLInputElement)
-            .filter((toggle) => toggle.checked)
-            .map((toggle) => toggle.value);
-          if (recommendedSelection.length === 0) {
-            return { ok: false, error: "Recommended action did not enable any rules" };
-          }
-          const selectedId = recommendedSelection[0];
-
-          searchInput.value = "ellipsis";
-          searchInput.dispatchEvent(new Event("input", { bubbles: true }));
-          const searchVisibleCards = Array.from(grammarRoot.querySelectorAll(".grammar-rule-card"))
-            .filter((card) => !card.classList.contains("is-hidden"))
-            .map(
-              (card) => card.querySelector(".grammar-rule-card-toggle") as HTMLInputElement | null,
-            )
-            .filter((toggle): toggle is HTMLInputElement => Boolean(toggle));
-
-          if (searchVisibleCards.length === 0) {
-            return { ok: false, error: "Search did not return any rule cards" };
-          }
-
-          searchInput.value = "";
-          searchInput.dispatchEvent(new Event("input", { bubbles: true }));
-          filterSafeButton.click();
-          const safeVisibleCount = countVisibleCards();
-          searchInput.value = "definitely-no-such-rule";
-          searchInput.dispatchEvent(new Event("input", { bubbles: true }));
-          const noMatchVisibleCount = countVisibleCards();
-          const noResultsVisible = !grammarRoot
-            .querySelector(".grammar-rule-selector-no-results")
-            ?.classList.contains("is-hidden");
-          searchInput.value = "";
-          searchInput.dispatchEvent(new Event("input", { bubbles: true }));
-
+          matrix.querySelector<HTMLButtonElement>('[data-action="restore-defaults"]')!.click();
           return {
-            ok: true,
-            sectionTitles,
-            initialVisibleCount,
-            searchVisibleCount: searchVisibleCards.length,
-            safeVisibleCount,
-            recommendedSelectionCount: recommendedSelection.length,
-            noMatchVisibleCount,
+            sections,
+            closedByDefault,
+            allRows,
+            typingOnBefore,
+            searchRows: searchRows.length,
+            matchOpened,
+            noMatchRows,
             noResultsVisible,
-            selectedId,
+            typingOnAfter: typingChecked(),
           };
         });
 
-        expect(probe.ok).toBe(true);
-        if (!probe.ok) {
-          throw new Error(probe.error);
-        }
-        expect(probe.sectionTitles).toBeGreaterThanOrEqual(2);
-        expect(probe.initialVisibleCount).toBeGreaterThan(0);
-        expect(probe.searchVisibleCount).toBeGreaterThan(0);
-        expect(probe.searchVisibleCount).toBeLessThan(probe.initialVisibleCount);
-        expect(probe.safeVisibleCount).toBeGreaterThan(0);
-        expect(probe.safeVisibleCount).toBeLessThan(probe.initialVisibleCount);
-        expect(probe.recommendedSelectionCount).toBeGreaterThan(0);
-        expect(probe.noMatchVisibleCount).toBe(0);
+        expect(probe.sections).toBeGreaterThanOrEqual(2);
+        expect(probe.closedByDefault).toBe(true);
+        expect(probe.typingOnBefore).toBe(0);
+        expect(probe.searchRows).toBeGreaterThan(0);
+        expect(probe.searchRows).toBeLessThan(probe.allRows);
+        expect(probe.matchOpened).toBe(true);
+        expect(probe.noMatchRows).toBe(0);
         expect(probe.noResultsVisible).toBe(true);
-        expect(probe.selectedId.length).toBeGreaterThan(0);
+        expect(probe.typingOnAfter).toBe(DEFAULT_CURRENT_GRAMMAR_RULES.length);
         settingsDirty = true;
-        selectedRuleId = probe.selectedId;
       } finally {
         if (!optionsPage.isClosed()) {
           await optionsPage.close();
         }
       }
 
-      const storedRules = await waitUntil<string[]>(
-        "grammar tab recommended action persistence",
+      const stored = await waitUntil(
+        "grammar matrix restore persistence",
         async () => {
-          const stored = await getSetting<Record<string, boolean>>(
+          const value = await getSetting<Record<string, boolean>>(
             worker,
             KEY_ENABLED_GRAMMAR_RULES,
           );
-          if (!stored || Array.isArray(stored)) return false;
-          const current = resolveGrammarRuleSelection(stored);
-          const expectedRules = [...RECOMMENDED_CURRENT_GRAMMAR_RULES].sort();
-          if (
-            Array.isArray(current) &&
-            current.includes(selectedRuleId) &&
-            [...current].sort().join(",") === expectedRules.join(",")
-          ) {
-            return current;
-          }
-          return false;
+          return value && !Array.isArray(value) && Object.keys(value).length === 0 ? value : false;
         },
         { timeoutMs: suiteTimeout(5000, 10000), intervalMs: 50 },
       );
-
-      expect(storedRules).toContain(selectedRuleId);
-      expect([...storedRules].sort()).toEqual([...RECOMMENDED_CURRENT_GRAMMAR_RULES].sort());
+      expect(resolveGrammarRuleSelection(stored).sort()).toEqual(
+        [...DEFAULT_CURRENT_GRAMMAR_RULES].sort(),
+      );
     },
     suiteTimeout(10000, 15000),
   );

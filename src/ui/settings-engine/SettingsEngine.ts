@@ -9,7 +9,6 @@ import { SelectControl } from "./controls/SelectControl.js";
 import { ButtonControl } from "./controls/ButtonControl.js";
 import { DescriptionControl } from "./controls/DescriptionControl.js";
 import { ValueOnlyControl } from "./controls/ValueOnlyControl.js";
-import { RuleToggleCardsControl } from "./controls/RuleToggleCardsControl.js";
 import { CustomPanelControl } from "./controls/CustomPanelControl.js";
 
 export type SettingsRegistry = Record<string, FieldControl>;
@@ -84,6 +83,10 @@ export class SettingsEngine {
     for (const tab of manifest.tabs) {
       this.tabMetaMap[tab.id] = tab;
     }
+    // Navigation follows the manifest's tab order, not the order settings first mention a tab.
+    for (const tab of manifest.tabs) {
+      this.getOrCreateTab(tab.id);
+    }
     this.populateMobileTabs(manifest.tabs);
 
     for (const params of manifest.settings) {
@@ -137,11 +140,6 @@ export class SettingsEngine {
 
       const header = document.createElement("header");
       header.className = "settings-section-header";
-
-      const eyebrow = document.createElement("p");
-      eyebrow.className = "settings-section-eyebrow";
-      eyebrow.textContent = meta.label;
-      header.appendChild(eyebrow);
 
       const title = document.createElement("h2");
       title.className = "settings-section-title";
@@ -228,8 +226,6 @@ export class SettingsEngine {
         return new CustomPanelControl(params, this.store);
       case "valueOnly":
         return new ValueOnlyControl(params, this.store);
-      case "ruleToggleCards":
-        return new RuleToggleCardsControl(params, this.store);
       default: {
         const _exhaustive: never = params;
         throw new Error(`Unknown field type: ${JSON.stringify(_exhaustive)}`);
@@ -333,6 +329,15 @@ export class SettingsEngine {
       (!activeTabId || this.tabs[activeTabId].content.classList.contains("is-search-filtered-out"))
     ) {
       this.activateTabById(firstVisibleTabId);
+    }
+
+    // Reveal matches tucked inside collapsed sections such as "Advanced".
+    if (query) {
+      Object.values(this.tabs).forEach((tab) => {
+        tab.content.querySelectorAll("details").forEach((details) => {
+          if ((details.textContent || "").toLowerCase().includes(query)) details.open = true;
+        });
+      });
     }
 
     const matchTarget = firstMatchTarget as HTMLElement | null;

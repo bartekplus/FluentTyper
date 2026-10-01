@@ -227,6 +227,13 @@ function wireImportExportHandlers(registry: SettingsRegistry): void {
   const importInputElem = registry.importSettingButton.element as HTMLInputElement;
   importInputElem.type = "file";
   importInputElem.accept = ".json";
+  // A native file input can't look like the other buttons; a wrapping label can.
+  const importLabel = document.createElement("label");
+  importLabel.className = "button";
+  importLabel.textContent = i18n.get("import_settings_btn");
+  importInputElem.className = "is-sr-only";
+  importInputElem.replaceWith(importLabel);
+  importLabel.appendChild(importInputElem);
   importInputElem.addEventListener("input", importSettingButtonFileSelected.bind(null, registry));
 }
 
@@ -660,19 +667,11 @@ function renderProductivityInsights(root: HTMLElement, stats: ProductivityStats)
 
   const header = document.createElement("div");
   header.className = "productivity-insights-header";
-  const headingBlock = document.createElement("div");
-  const heading = document.createElement("h3");
-  heading.textContent = t("productivity_insights_heading");
-  const subtitle = document.createElement("p");
-  subtitle.textContent = t("productivity_insights_subtitle");
-  headingBlock.appendChild(heading);
-  headingBlock.appendChild(subtitle);
   const refreshBtn = document.createElement("button");
   refreshBtn.className = "button is-small is-light";
   refreshBtn.type = "button";
   refreshBtn.textContent = t("productivity_refresh_btn");
   refreshBtn.setAttribute("data-action", "refresh-productivity-stats");
-  header.appendChild(headingBlock);
   header.appendChild(refreshBtn);
   shell.appendChild(header);
 

@@ -18,7 +18,7 @@ export class ButtonControl extends BaseControl<string> {
     const control = createControlContainer();
     appendLabel(control, params.label);
 
-    const btn = createInputElement("button", "button is-primary");
+    const btn = createInputElement("button", params.danger ? "button is-danger" : "button");
     if (params.text) {
       btn.value = params.text;
     }

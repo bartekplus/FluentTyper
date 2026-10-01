@@ -257,4 +257,40 @@ describe("SettingsEngine navigation", () => {
     expect(elements.content.querySelector(".settings-custom-panel-description")).toBeNull();
     expect(elements.content.querySelector("#languagePreferencesPanelPanelRoot")).not.toBeNull();
   });
+
+  test("lists tabs in manifest order even when settings mention a later tab first", () => {
+    const elements = createEngineElements();
+    const engine = new SettingsEngine({ container: elements });
+    const manifest = createManifest();
+    manifest.settings.reverse();
+
+    engine.buildFromManifest(manifest);
+
+    expect(
+      Array.from(elements.tabs.querySelectorAll("a")).map((link) => link.getAttribute("href")),
+    ).toEqual(["#core_settings", "#advanced_tab", "#about_support_tab"]);
+    expect(Array.from(elements.content.children).map((tab) => tab.id)).toEqual([
+      "core_settings",
+      "advanced_tab",
+      "about_support_tab",
+    ]);
+  });
+
+  test("search opens a collapsed section that holds the match", () => {
+    const elements = createEngineElements();
+    const engine = new SettingsEngine({ container: elements });
+    engine.buildFromManifest(createManifest());
+    const tab = elements.content.querySelector<HTMLElement>("#core_settings")!;
+    const matching = document.createElement("details");
+    matching.textContent = "Prefix-only mode";
+    const other = document.createElement("details");
+    other.textContent = "Code mode";
+    tab.append(matching, other);
+
+    elements.searchInput.value = "prefix";
+    elements.searchInput.dispatchEvent(new Event("input"));
+
+    expect(matching.open).toBe(true);
+    expect(other.open).toBe(false);
+  });
 });

@@ -39,7 +39,7 @@ function freshModulePath(path: string): string {
   return `${path}?bun_test_nonce_popup_retry=${importNonce}`;
 }
 
-function popupMarkup(initialAccepted = "0"): string {
+function popupMarkup(initialSummary = "0"): string {
   return `<!doctype html>
 <html>
   <body>
@@ -80,20 +80,11 @@ function popupMarkup(initialAccepted = "0"): string {
 
     <section id="productivityDashboard"></section>
     <button id="openStatsOptionsBtn" type="button"></button>
-    <span id="metricAccepted">${initialAccepted}</span>
-    <span id="metricCharsSaved">init-chars</span>
-    <span id="metricMinutesSaved">init-minutes</span>
-    <div id="dashboardProgressFill" style="width: 10%"></div>
-    <span id="dashboardProgressLabel">init-progress</span>
-    <p id="dashboardPeriodSummary">init-period</p>
-    <p id="dashboardLanguageSummary">init-language</p>
+    <p id="dashboardPeriodSummary">${initialSummary}</p>
 
     <div id="weeklyRecapCard" class="is-hidden"></div>
     <p id="weeklyRecapTitle"></p>
     <p id="weeklyRecapSummary"></p>
-    <p id="weeklyRecapMilestone"></p>
-    <p id="weeklyRecapEquivalent"></p>
-    <p id="weeklyRecapSnippet"></p>
     <button id="weeklyRecapDismissBtn" type="button"></button>
     <button id="weeklyRecapViewBtn" type="button"></button>
     <button id="weeklyRecapShareBtn" type="button"></button>
@@ -152,8 +143,8 @@ function popupMarkup(initialAccepted = "0"): string {
 </html>`;
 }
 
-function installPopupDom(initialAccepted = "0", prefersDark = false): JSDOM {
-  const dom = new JSDOM(popupMarkup(initialAccepted), {
+function installPopupDom(initialSummary = "0", prefersDark = false): JSDOM {
+  const dom = new JSDOM(popupMarkup(initialSummary), {
     pretendToBeVisual: true,
     url: "https://example.test/popup/popup.html",
   });
@@ -462,7 +453,7 @@ async function applyTranslationOverrides(overrides?: Record<string, string>): Pr
 
 async function loadPopupWithOutcomes(
   outcomes: RuntimeOutcome[],
-  initialAccepted = "0",
+  initialSummary = "0",
   permissionApi?: {
     contains?: (options: chrome.permissions.Permissions) => Promise<boolean> | boolean;
     request?: (options: chrome.permissions.Permissions) => Promise<boolean> | boolean;
@@ -477,7 +468,7 @@ async function loadPopupWithOutcomes(
     activeDom.window.close();
     activeDom = null;
   }
-  activeDom = installPopupDom(initialAccepted, prefersDark);
+  activeDom = installPopupDom(initialSummary, prefersDark);
   mock.restore();
   const chromeMock = createChromeMock(
     outcomes,
@@ -550,7 +541,8 @@ describe.serial("popup productivity dashboard retry/failure paths", () => {
     const chromeMock = await loadPopupWithOutcomes([{ type: "stats", value: stats }]);
 
     expect(dashboardStatsCallCount(chromeMock)).toBe(1);
-    expect(textContent("metricAccepted")).toBe("60");
+    expect(textContent("dashboardPeriodSummary")).toContain("6\u00a0accepted");
+    expect(textContent("dashboardPeriodSummary")).toContain("42\u00a0chars");
     expect(textContent("dashboardPeriodSummary")).not.toContain("unavailable");
     expect(document.getElementById("productivityDashboard")?.tagName).toBe("SECTION");
     expect(document.querySelector("summary")).toBeNull();
@@ -574,15 +566,7 @@ describe.serial("popup productivity dashboard retry/failure paths", () => {
     }
 
     expect(dashboardStatsCallCount(chromeMock)).toBe(6);
-    expect(textContent("metricAccepted")).toBe("--");
-    expect(textContent("metricCharsSaved")).toBe("--");
-    expect(textContent("metricMinutesSaved")).toBe("--");
-    expect(textContent("dashboardProgressLabel")).toBe("--");
-    expect((document.getElementById("dashboardProgressFill") as HTMLElement).style.width).toBe(
-      "0%",
-    );
     expect(textContent("dashboardPeriodSummary").toLowerCase()).toContain("unavailable");
-    expect(textContent("dashboardLanguageSummary").toLowerCase()).toContain("unavailable");
     expect(document.getElementById("weeklyRecapCard")?.classList.contains("is-hidden")).toBe(true);
     expect(document.getElementById("dashboardMilestoneHint")?.classList.contains("is-hidden")).toBe(
       true,
@@ -609,7 +593,7 @@ describe.serial("popup productivity dashboard retry/failure paths", () => {
 
     await advanceAndFlush(1);
     expect(dashboardStatsCallCount(chromeMock)).toBe(3);
-    expect(textContent("metricAccepted")).toBe("40");
+    expect(textContent("dashboardPeriodSummary")).toContain("4\u00a0accepted");
 
     await advanceAndFlush(10000);
     expect(dashboardStatsCallCount(chromeMock)).toBe(3);
@@ -621,7 +605,7 @@ describe.serial("popup productivity dashboard retry/failure paths", () => {
         { type: "response", value: { ok: false } },
         { type: "stats", value: createPopupStats(5) },
       ],
-      "init-accepted",
+      "init-summary",
     );
 
     expect(dashboardStatsCallCount(chromeMock)).toBe(1);
@@ -630,8 +614,7 @@ describe.serial("popup productivity dashboard retry/failure paths", () => {
 
     await advanceAndFlush(5000);
     expect(dashboardStatsCallCount(chromeMock)).toBe(1);
-    expect(textContent("metricAccepted")).toBe("init-accepted");
-    expect(textContent("dashboardPeriodSummary")).toBe("init-period");
+    expect(textContent("dashboardPeriodSummary")).toBe("init-summary");
   });
 
   test("uses shared missing and granted permission states in the popup", async () => {
@@ -667,11 +650,11 @@ describe.serial("popup productivity dashboard retry/failure paths", () => {
     expect((document.getElementById("checkboxSiteProfileInput") as HTMLInputElement).disabled).toBe(
       true,
     );
-    expect(textContent("permissionTitle")).toBe("Allow page access");
+    expect(textContent("permissionTitle")).toBe("Allow FluentTyper on websites");
     expect(textContent("permissionBody")).toBe(
-      "FluentTyper needs website access to show suggestions in text fields, and everything stays local in your browser.",
+      "Everything runs on your device; nothing you type leaves your browser. FluentTyper needs access to all websites to help in their text fields.",
     );
-    expect(button.textContent).toBe("Allow page access");
+    expect(button.textContent).toBe("Allow on all websites");
     expect(textContent("permissionTitle")).not.toContain("permission_status_");
     expect(textContent("permissionBody")).not.toContain("permission_status_");
 

@@ -12,7 +12,7 @@ describe("AboutWorkspacePanel", () => {
     document.body.replaceChildren();
   });
 
-  test("renders safe html links in the product copy and icon-led support actions", () => {
+  test("renders safe html links in the product copy and plain support links", () => {
     const root = document.createElement("div");
     document.body.appendChild(root);
 
@@ -27,6 +27,6 @@ describe("AboutWorkspacePanel", () => {
     const supportActions = root.querySelectorAll(".support-action-link");
     expect(supportActions).toHaveLength(4);
     expect(root.textContent).toContain(i18n.get("popup_report_issue"));
-    expect(root.querySelector(".support-action-icon")?.textContent).toBe("!");
+    expect(root.querySelector(".support-action-icon")).toBeNull();
   });
 });
