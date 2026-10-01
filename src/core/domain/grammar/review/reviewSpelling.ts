@@ -1,9 +1,8 @@
 import { startsSentence } from "../implementations/CapitalizeSentenceStartRule";
 import { englishNounForms } from "../implementations/helpers/EnglishNounNumber";
 import { englishVerbForms } from "../implementations/helpers/EnglishVerbForms";
-import { MASK_CHAR } from "./reviewDetectors";
 import type { PreparedReview } from "./reviewDiagnostics";
-import type { TextRange } from "./types";
+import { MASK_CHAR, type TextRange } from "./types";
 
 /**
  * Review spelling: words the language's dictionary does not know, offered with

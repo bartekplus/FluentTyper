@@ -15,6 +15,15 @@ const OPTIONAL_REVIEW_IDS: readonly string[] = [
   "emdashShortcut",
   "primeSymbols",
   "stylePhrasing",
+  "styleContractions",
+  "styleOxfordComma",
+  "styleNoOxfordComma",
+  "styleAlternativePhrasing",
+  "englishPossibleErrors",
+  "englishAmericanSpelling",
+  "englishBritishSpelling",
+  "styleWordChoice",
+  "styleSpelledNumbers",
 ];
 const DEFAULT_REVIEW_IDS = REVIEW_SUPPORTED_RULE_IDS.filter(
   (id) => !OPTIONAL_REVIEW_IDS.includes(id),

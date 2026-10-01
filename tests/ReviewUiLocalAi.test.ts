@@ -11,6 +11,11 @@ import type {
 } from "../src/core/application/review/reviewAi";
 import type { LocalAiStatus } from "../src/core/domain/contracts/localAi";
 import {
+  reviewExplanation,
+  reviewExplanations,
+} from "../src/core/domain/grammar/review/reviewExplanations";
+import { reviewText } from "../src/core/domain/grammar/review/reviewMessages";
+import {
   REVIEW_CATEGORIES,
   REVIEW_LOCAL_AI_CHECK,
   type ReviewDiagnostic,
@@ -129,6 +134,11 @@ function state(overrides: Partial<ReviewViewState> = {}): ReviewViewState {
     scopeKind: "field",
     capabilities: { inline: true, apply: true, bulk: true, undo: "single-step" },
     diagnostics: [],
+    // What the engine sends with the findings.
+    explanations: reviewExplanations(
+      (overrides.diagnostics ?? []).map((d) => d.messageKey),
+      "en",
+    ),
     ignoredCount: 0,
     resolvedCount: 0,
     categories: new Set(REVIEW_CATEGORIES),
@@ -254,6 +264,26 @@ describe("ReviewUi: Local AI", () => {
     expect($(".card").textContent).toContain("user-authored advice");
     expect($(".card").querySelector("img")).toBeNull();
     expect($(".card").getAttribute("aria-label")).toContain("user-authored advice");
+  });
+
+  test("rule findings show the explanation sent with them; the page explains its own", () => {
+    const rule = finding("rule", {
+      ruleId: "englishRepeatedWords",
+      messageKey: "review_msg_repeated_words",
+    });
+    ui.render(state({ diagnostics: [rule], explanations: { review_msg_repeated_words: "Sent." } }));
+    ui.openCard(rule, null);
+    expect($(".card p").textContent).toBe("Sent.");
+    // The page has no table to fall back on.
+    ui.render(state({ diagnostics: [rule], explanations: {} }));
+    ui.openCard(rule, null);
+    expect($(".card").textContent).not.toContain(
+      reviewExplanation("review_msg_repeated_words", "en"),
+    );
+    const ai = finding("ai");
+    ui.render(state({ diagnostics: [ai], explanations: {} }));
+    ui.openCard(ai, null);
+    expect($(".card").textContent).toContain(reviewText("review_msg_local_ai", "en"));
   });
 
   test("optional style advice has a separate count/filter and no default filter", () => {

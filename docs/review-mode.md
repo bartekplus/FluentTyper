@@ -2,8 +2,9 @@
 
 "Review text" proofreads text you have already written, in the editor you are
 using, with local grammar and spelling checks and optional style advice. It runs
-entirely in the page: no text leaves the browser, nothing is logged or stored,
-and it needs no extra permissions.
+entirely inside the browser: the checks run in FluentTyper's own background
+service worker, the page shows the results, no text leaves the browser, nothing
+is logged or stored, and it needs no extra permissions.
 
 ![Starting a review: categorized highlights and the panel; nothing in the text changed](images/review-mode/1-review-started.png)
 
@@ -167,7 +168,8 @@ type instead, and is never applied without you:
   "Fix all" could apply (the typing rules cover that), and never a check a
   typing rule already runs while that rule is on. They follow the Review
   switches and the language, as Review does. Sensitive, locked and code fields
-  and code mode get none, and nothing is sent anywhere.
+  and code mode get none. The text before the caret goes only to FluentTyper's
+  own background service worker, which runs the checks, and nowhere else.
 - Turn it off under **Settings → Grammar → Review text → Show grammar
   proposals while typing**. Google Docs has no proposals; use Review there.
 
@@ -213,7 +215,12 @@ Supported (**Typing** is the rule's default for typing; Review has separate swit
 | `englishTheirThereTheyAre`             | English        | unavailable | grammar     | confused words     | individual only                                                                                                                                |
 | `englishToToo`                         | English        | unavailable | grammar     | confused words     | individual only                                                                                                                                |
 | `englishWereWhere`                     | English        | unavailable | grammar     | confused words     | individual only                                                                                                                                |
+| `englishIrregularForms`                | English        | unavailable | grammar     | word form          | individual only                                                                                                                                |
+| `englishPossessiveNouns`               | English        | unavailable | grammar     | word form          | individual only                                                                                                                                |
 | `englishAuxiliaryBaseVerb`             | English        | unavailable | grammar     | word form          | individual only                                                                                                                                |
+| `englishPronounCase`                   | English        | unavailable | grammar     | word form          | individual only                                                                                                                                |
+| `englishSentenceStructure`             | English        | unavailable | grammar     | usage              | individual only                                                                                                                                |
+| `englishConfusedWords`                 | English        | unavailable | grammar     | confused words     | individual only                                                                                                                                |
 | `englishRepeatedWords`                 | all            | unavailable | grammar     | repetition         | individual only                                                                                                                                |
 | `englishPhraseCorrections`             | 9 langs        | unavailable | grammar     | usage              | individual only                                                                                                                                |
 | `englishClosedCompounds`               | 6 langs        | unavailable | spelling    | split/joined words | individual only                                                                                                                                |
@@ -263,15 +270,25 @@ Specialist legal, banking, commercial, regional and archaic evidence in the boun
 
 For these/those, a following are/were establishes plural and is/was establishes singular. Past predicates such as failed/arrived/returned do not establish number: the existing choice-card UI offers either pluralizing the noun or changing the demonstrative to this/that, with nothing preselected. All findings remain individual-only. Complete bounded predicates/locations prevent noun-modifier edits such as `those file names`. Unknown/invariant nouns, data/news/series, units, ordinal tokens, grouped/decimal/fractional numbers, technical model labels and hyphenated measurements abstain. Quantity repair can make a separate existential-agreement finding available on the next scan; it never changes the number to fit the verb.
 
-`englishPerfectParticiples` is a separate Review-only check for pronoun + have/has/had (optionally after a modal: "could have went") followed by a known simple-past form where the shared verb table specifies a different participle. A past-only form ("went", "wrote", "forgot") is enough evidence; a past form that is also a noun or another verb ("saw", "fell", "rose") needs a listed argument ("saw the results", "fell asleep"). It changes only that verb. Up to two listed adverbs (including not), negative auxiliaries and unambiguous `'ve`/`’ve` contractions are supported. Wrong have/has agreement is left to the existing agreement check, with the participle reconsidered on the next scan. The same check flags have/has/`'ve` right before an -ing verb with an object or determiner ("I've looking into it", "She has cleaning the kitchen") and offers a choice between be ("I'm looking") and have been ("I've been looking"). -ing words that are also everyday nouns (training, reading, meeting…) need an object pronoun, and modals or question words before have abstain.
+`englishPerfectParticiples` is a separate Review-only check for have/has/had/having (after any subject, a modal or `to`, in questions such as "Have you ate?", and in `'ve`, `'s` and dropped-apostrophe forms such as `youve`, `hasnt`) followed by a known simple-past form whose participle differs ("has went" → gone, "Having went", "would have took"); prefixed pasts the dictionary lists as plain words borrow their stem's row ("outgrew" → outgrown). It changes only that verb. `'d` is had or would, so it offers the participle and the base verb as a choice ("I'd took" → "I'd taken" / "I'd take") unless they coincide. Up to two adverbs (a closed list or a lexicon-only -ly adverb) may come between. A past that is also a noun or adjective ("saw", "rose", "fell", "broke") is a verb only when no noun can follow it ("have saw that", not "have saw blades"). An auxiliary that closes a clause modifying a head before it ("Everything we had went into it", "the cat I had ran off") is a main verb and abstains, and so does a pronoun whose have/has disagrees, left to the agreement check with the participle reconsidered on the next scan. The same check flags have/has/`'ve` right before an -ing verb with an object or determiner ("I've looking into it", "She has cleaning the kitchen") and offers a choice between be ("I'm looking") and have been ("I've been looking"). -ing words that are also everyday nouns (training, reading, meeting…) need an object pronoun, and modals or question words before have abstain. It also covers be: any subject, then be/being/been/am/is/are/was/were (with n't, a modal or `to`, inverted in questions, or a pronoun's 'm/'re/'s) before a simple-past-only form gets the participle ("The car was stole" → stolen, "can be saw" → seen, "He's went" → gone, since has and is both take it). Adjective readings abstain ("I am broke", "The movie is woke") unless a particle follows ("was broke into", "was woke up") or a thing is broke ("it's broke", "Now its broke and…"); ambiguous forms other than stole/saw, verbs without a passive (came, went, became…) unless the be is a has-'s, "did" ("The question is did he go"), noun-clause subjects ("What it was took courage"), the noun being ("a human being stole it") and a clock "am" abstain. A clause-initial I/you/we/they/he/she + am/is/are (or 'm/'re/'s, optionally not/also/just/still/really) before a bare verb offers a choice between the progressive and the simple present ("I am go" → "I am going" / "I go", with do-support after not). The word must be provably a verb: an irregular base whose past and participle both differ from it, followed by a word that is not a compound (-ed/-ing/-s), or a regular base by spelling that is followed by me/him/us/them or the/a/an/possessive + a non-time word. A closed set of prepositions, adverbs and complement-taking adjectives (sure, glad, afraid, free, mean…) and adjective-shaped endings abstain; findings are choice-only and never batched.
 
-Possessive and causative have, noun uses such as `have saw blades` and `have rose bushes`, shared lemma/past or past/participle forms (beat, read/cut/set), names ("have Drew"), unlisted morphology and ambiguous `'s`/`'d` contractions abstain. Regional learned/learnt, burned/burnt, got/gotten and other unlisted forms remain untouched. Existing auxiliary, spelling and typing behavior is unchanged; findings stay individual-only.
+Possessive and causative have, noun uses such as `have saw blades` and `have rose bushes`, shared lemma/past or past/participle forms (beat, read/cut/set), names ("have Drew"), unlisted morphology, possessive `'s` on nouns and `its` before a modifier abstain. Regional learned/learnt, burned/burnt, got/gotten and other unlisted forms remain untouched. Existing auxiliary, spelling and typing behavior is unchanged; findings stay individual-only.
 
-`englishVerbComplements` is a separate Review-only check for complete pronoun-led complement frames. It inserts `to` after audited need/want/plan forms before a known base verb with a listed argument; after `look forward to` (including inflected and progressive forms), it replaces that verb with an explicitly stored gerund. Fourteen lexical argument frames cover fix a specified bug, deploy today/tomorrow, meet a person, make the change, take a break, write the report, run the tests, come/go home, see the results, learn a listed language, visit the office, read the file and send the message. Optional do-not/don't negation is preserved, as is not before progressive looking. Contractions accept straight or curly apostrophes.
+`englishVerbComplements` is a separate Review-only check for complete pronoun-led complement frames. It inserts `to` after audited need/want/plan forms before a known base verb with a listed argument. Fourteen lexical argument frames cover fix a specified bug, deploy today/tomorrow, meet a person, make the change, take a break, write the report, run the tests, come/go home, see the results, learn a listed language, visit the office, read the file and send the message. Optional do-not/don't negation is preserved. Contractions accept straight or curly apostrophes.
 
-Additional bounded frames cover enjoy/avoid, decide, suggest, make/let and help. Gerund content clauses after decide and restrictive participles after allows remain protected.
+Inflection frames take their verb forms from the shared helpers (`englishLemma`/`englishInflect`) and the part-of-speech lexicon (`englishWordInfo`), and abstain whenever they cannot decide. A word counts as a base verb only when the lexicon lists a base reading and no other verb's form (`found`, `saw` abstain); a verb that is also a noun or adjective (`work`, `try`) needs more evidence than a verb-only word (`hear`, `investigate`).
 
-These checks abstain on subjectless fragments/headings, incomplete or unknown arguments, noun readings such as `need work` and `need input data`, existing infinitives/gerunds, `need not`, and optional/forbidden-to frames such as `help fix`, `let me know` and `make it work`. They do not infer gerunds by adding a suffix. Missing `to` uses the existing one-grapheme insertion anchor, retaining the following verb's formatting; no adapter bypass is used. Malformed auxiliary forms remain owned by the auxiliary checker. Every finding is individual-only; typing behavior is unchanged.
+- `look forward to` + base verb → -ing (`I'm looking forward to meet you`, `We look forward to hear from you`), after a subject pronoun or pronoun + be with inflected, progressive, perfect, stressed (`really`), negated or contracted forms, and in a subjectless `Looking forward to` sign-off when a person pronoun or `from` follows the verb. A noun-verb needs an object pronoun or determiner after it, `from` + object after an irregular verb, or one of the fourteen listed arguments (`to dinner.`, `to spring`, `summer a lot`, `work the next day` abstain); a bare `Look forward to see the road` and `The camera looks forward to detect` look ahead and abstain.
+- `worth to` + base verb → `worth` + -ing (`It's not worth to fix it`, `Is it worth to add`, `ideas worth to explore`), and be + `worth of` + -ing drops `of`. `worth` after a determiner, possessive or adjective is a noun (`its worth to society`, `true worth to the team`, `net worth of`) and abstains. A noun-verb needs a dummy `it`/`this`/`that` subject (also `doesn't seem worth`, `Is it worth`), an object, a preposition or the clause end; recipients (`worth to people who`, `worth to investors`) abstain.
+- let/make + object + `to` + base verb drops `to` (`Let me to do it`, `let anyone to help`, `lets users to edit`, `let's you to rename`), past a focus or -ly adverb (`let it to only load`). Indefinite pronouns (`anybody`, `every one`) count for both; a determiner phrase or bare plural only for let, since `made a trip to see her` is a purpose. `Made it to` (reached) abstains; after `it`/`them` or a noun phrase, renting (`let it to students`, `let the flat to students`) needs a verb-only word, an irregular verb or an object after it.
+- `allow(s|ed) to` / `enable(s|d) to` + base verb with no object offers a choice of -ing or `you to` + verb (`them` when the subject is `you`). `Allowed`/`enabled` must follow a subject pronoun, so passives and questions (`are allowed to`, `Are you allowed to`, `Users allowed to edit`) abstain. Bare `Allow to`/`Allowing to` need a noun phrase after the verb (`Allow to change the password`), so recipe imperatives (`allow to cool`, `allow to rest 10 minutes`) and adverbs (`allows to further reduce`) abstain; a bare `Enable to` is a UI label and abstains.
+- `went ahead and` + base verb → past, `gone ahead and` → participle, `goes ahead and` → -s form, and `go ahead and` + past → base. Verbs whose past equals the base (`put`, `set`) and other verbs' forms (`found`, `saw`) abstain; a noun-verb followed by a verb starts a new clause (`went ahead and rain fell`) and abstains.
+- help + past/-s form → base, with or without an object (`I helped built it`, `She helped me fixed it`, `This helps reduces`), and help + (object +) `to` + past or -ing form → base (`helps us to understood`, `helps to fixed`). The words before help must show it heads its clause: a relative or reduced relative clause that could be a subject (`Everyone who helped got`, `The people we helped moved`, `I heard the families we helped moved`) abstains unless its noun phrase follows a preposition, `have` or `is a(n)` (`a startup that I helped built`); passives (`can't be helped given`), noun `help`/`helping` and words that are also base verbs (`helped them found a company`) abstain. Without an object, a past form that is also a participle needs a verb's continuation (an object, determiner, quantifier, number, preposition, `and` + verb or the end), so adjectives (`helped injured people`) abstain; served food (`helped them to drinks`, `to baked potatoes`) abstains.
+- suggest/recommend/avoid/enjoy/consider/finish/mind + `to` + base verb → -ing (`I suggest to use`, `Avoid to use`, `Would you mind to close`, `I'm considering to buy`). Passives (`it's strongly recommended to`, `is considered to be`) abstain; -ed forms, consider, finish and mind need a subject pronoun (mind also a negation or question), so `the dosage recommended to treat`, `keep in mind to` and `a mind to quit` abstain; suggest/recommend take recipients (`suggested to the team`), so a noun-verb needs an object after it.
+
+A closed function-word list keeps determiners, pronouns, prepositions and degree adverbs from being read as verbs. An additional bounded frame covers decide. Gerund content clauses after decide and restrictive participles after allows (`allows users editing their text to continue`) remain protected: the allow frame never rewrites an object + participle.
+
+Outside the subjectless forms named above, these checks abstain on subjectless fragments/headings, incomplete or unknown arguments, noun readings such as `need work` and `need input data`, existing infinitives/gerunds, `need not`, and optional/forbidden-to frames such as `help fix`, `let me know` and `make it work`. They do not infer gerunds by adding a suffix. Missing `to` uses the existing one-grapheme insertion anchor, retaining the following verb's formatting; no adapter bypass is used. Malformed auxiliary forms remain owned by the auxiliary checker. Every finding is individual-only; typing behavior is unchanged.
 
 `englishFixedPrepositions` checks established constructions in bounded contexts. It removes `of` plus its following horizontal separator after `despite` before a complete listed noun phrase; removes `about` plus its separator after pronoun-led `discuss/discussed/discusses` or be + `discussing`, or `please discuss`, before a complete listed topic; and changes `on` to `in` in pronoun + be + `interested on` before a listed activity/topic. Additional frames cover responsible for, duration for/since, arrive at, wait for and investigate, with known predicates and objects. Complete phrase evidence and punctuation/end boundaries are required. Known adjectives are bounded; multiline and protected evidence abstain.
 
@@ -291,11 +308,12 @@ and "I" with are/is/does (anywhere except after a capitalized word or and/or/nor
 "Part I is" or "Sam and I are"). A clause-opening pronoun before a verb from the authored
 irregular table also agrees: "He always forget" becomes "forgets", "They goes" becomes
 "go"; forms shared with the past or a noun ("He cut", "They bear") abstain. The phrase
-may end at punctuation ("It don't."). One listed adverb (really, still, also, always,
+may end at punctuation or at the end of the field ("It don't.", "She go"). One listed adverb (really, still, also, always,
 never, usually, often, just) may intervene. These new forms
 change only the finite verb, retain negation, and are individual-only. Object
 pronouns, coordinated subjects, subjunctives after a preceding clause, named quoted
-examples, technical/mixed-case identifiers and unfinished phrases abstain.
+examples and technical/mixed-case identifiers abstain; typing-time proposals never
+judge the word at the caret.
 
 The independent `englishExistentialAgreement` check recognizes clause-opening
 There is/are/was/were + optional not/still/also + an explicit quantity, many/several or a lot of + a known countable noun,
@@ -364,15 +382,107 @@ They do not depend on dictionary misspellings. Existing "your welcome" and
 protected islands and newline-spanning constructions are excluded. These finite
 lists provide bounded coverage, not a general homophone or English parser.
 
+Two Review-only checks read the dictionary-derived English lexicon, including its
+left-out long nouns (a Bloom filter, so they only ever tell words from typos):
+
+- `englishIrregularForms`: a word the dictionary does not know that spells a regular ending
+  on an irregular verb or noun from the authored tables ("eated", "runned", "childs",
+  "meatloafs") or misses a listed spelling rule ("heros", "kittys") offers the irregular form;
+  a past needs its subject or auxiliary right before it ("I eated", "had runned"), and a
+  plural also offers the singular possessive ("child's").
+- `englishPossessiveNouns`: a plural noun between a determiner and the noun it owns ("the cats
+  tail is long", "a teachers lounge") offers "cat's" or "cats'" when the frame allows no
+  other reading: the owned noun is followed by its verb, the phrase ends after a preposition
+  or a perception verb, or a singular determiner rules the plural out. Common attributive
+  plurals ("sales team", "settings page") and -ics/-ings words abstain.
+
+Moved and extra spaces belong to `englishAlotCorrection`: two neighbours that are no
+dictionary words become two that are ("spac eis" -> "space is"; "Thec at" -> "The cat"
+only when a function word results), a known word plus an unknown one that join into a
+known word merge ("her etofore"), and an unknown word that starts with a function word
+splits ("thisinstead"). Unknown content compounds ("landingpad") stay with dictionary
+spelling, which leaves likely deliberate compounds alone.
+
 Auxiliary verb forms are Review-only. An authored table covers about 140 common
-(mostly irregular) verbs, with no suffix guessing. Pronoun-led clauses and inverted pronoun questions
-support do/does/did, modals, straight/curly negative contractions, and up to two
-listed intervening adverbs. The auxiliary, subject and negation are preserved.
-Independent base, noun and adjective homographs (`read`, `cut`, `saw`, `found`, `fell`,
-`left`, `bit`; "lay" is both lay and lie), noun readings such as "do works"/"did builds", unknown forms, mixed-case identifiers, protected text,
-and directly named quoted examples are left alone. Clause-internal subordinate
-syntax ("What I did works"), noun subjects and newline-spanning phrases are outside
-this initial scope. Existing modal-of and agreement checks retain their ownership.
+irregular verbs; regular -s/-ed/-ing forms go through the shared English inflection
+helper and the dictionary lexicon, and words the lexicon does not know abstain ("containg").
+Pronoun-led clauses, inverted questions (pronoun, this/that, or a determiner + up to three
+nouns/adjectives, optionally after what/when/where/why/how/who: `Can the server handles it?`)
+and a clause-initial determiner + one lowercase noun (`The server did logged it`) support
+do/does/did, modals, straight/curly negative contractions, and up to two listed intervening
+adverbs. Mid-sentence, any subject word before a modal or a negative do contraction counts
+(`duplicate keys will throws`, `users can't logged in`), and pronoun + 'll/'d anywhere ('d
+offers would or had: `they'd went` → `go` / `gone`). The auxiliary, subject and negation are
+preserved. A bare will/can/may/must/might after a determiner, possessive, preposition,
+ordinal, adjective, -ing/-ed word or inversion trigger (nor, only, when…) is read as a noun or
+an inverted clause ("his will needs", "free will", "military might", "nor will users"); bare
+"can" also needs a plural or pronoun subject ("the trash can smells"). A plural-noun -s form
+before a bare verb ("they must needs come", "should costs rise") and a participle before a
+noun after "should" ("should affected users call") abstain. Affirmative do can be the main
+verb, so a regular form after it needs an object pronoun (or, for -ed, a determiner) as verb
+evidence: "did tests on it", "did advanced training" and "do reviews" stay silent. A modal +
+-ing (`I will walking`) and a modal + -ed without that evidence (`We should updated.`) offer a
+choice between the base form and adding "be"; -ing words that are everyday nouns abstain.
+Table homographs (`saw`, `found`, `left`, `bit`) after do become a choice, never after a modal
+("can saw wood"); "lay" is both lay and lie and stays silent. "didn't supposed to" and modal +
+"used to" abstain. Noun readings such as "do works"/"did builds", mixed-case identifiers,
+protected text, and directly named quoted examples are left alone.
+The same rule repairs a verb form after "to" (optionally split by an -ly adverb): `want to
+went` → `want to go`. A closed set of infinitive heads (want/need/have/try/decide + to,
+able/supposed/ought/planned to, would like to, be + going to) licenses any form; a plural-noun
+-s form there still needs an object pronoun, a determiner (not after "going") or a clause end
+("need to funds released" abstains). A verb-only -s form or a past-only irregular form also
+follows be + a participle or adjective (`is expected to exists`). Any head works when a
+determiner or object pronoun follows the form (`To explained the rules`). Regular -ed and
+participles after other heads are states ("set to disabled", "from draft to published",
+"going to advanced classes"), stranded prepositions ("the page it links to exists") abstain,
+and -ing after "to" always abstains.
+need/want + to + a noun the lexicon gives no verb, adjective or adverb reading (`I need to
+information`) offers a choice between "the" + noun and the bare noun. Words with a verb reading
+or a listed -ing/-ed form ("need to permit", "need to override"), unknown words without a
+-tion/-ness/-ity… ending ("need to backup"), nouns followed by a noun, determiner, object
+pronoun or bare verb ("want to proxy websockets", "need to unit test"), and "the need to" abstain.
+Clause-internal subordinate do ("What I did works") and newline-spanning phrases are outside
+this scope. Existing modal-of and agreement checks retain their ownership.
+
+`englishPronounCase` is Review-only. A clause-initial coordination with an object
+pronoun (me/him/her/them) directly before a finite verb (an auxiliary, a listed
+irregular past or an -ed form) takes the subject form, with "I" last and a singular
+be/have/do made plural ("Me and him was there" → "He and I were there"). Only a sentence
+start or a short opener ("Yesterday", "Last Monday", "Then,") counts; objects
+("between you and me", "He told Sam and me") and "Her and my parents" abstain. "whom"
+directly before its own verb ("Whom is coming?", "Whom can of course help?") becomes
+"who"; before do-support or another subject ("Whom will you invite?") it is left alone.
+After a preposition it changes only in an active perfect or modal ("to whom has
+replied") or after "the + noun of" ("the question of whom is allowed"); partitives
+("most of whom were", "the eldest of whom was") abstain. "whomever/whomsoever" take
+their case from their own clause, so a finite verb after them makes them
+"whoever/whosoever" even after a preposition ("to whomever wrote it"). A subject
+pronoun after a non-clausal preposition takes the object form ("to he and his team",
+"to we developers", "with Sam and I." → "Sam and me"; "for", "like", "than" and
+inverted "In they went" abstain), and a clause-initial "Us developers are" becomes "We".
+
+`englishSentenceStructure` is Review-only. It offers a choice for two clause-initial
+subject pronouns ("I he went"), a preposition with two object pronouns ("to you them"),
+an article before a possessive ("the my car", also bare "the my"; "a/an her", "the my
+keyword" and labels such as "the My Account page" abstain), a possessive or "a" before
+"the" ("my the car", "a the bus"; "your/their the" also offers you're/they're, and its
+clause-opening form belongs to those rules) and stacked possessives ("my your idea"). A
+possessive before a subject pronoun ("about my I want") is a warning without a repair.
+Any two different modals after a subject pronoun, "ought to" included, are a double
+modal ("I might could go", "You should ought to call"; a base verb must follow, so
+canning stays). It inserts "be" between a modal and a word the lexicon knows only as an
+adjective before a clause end or a listed follower ("It would nice if…"; "kind of" and
+listed adverbs abstain), "of" after "a couple/a lot/a bunch/a handful/plenty" before a
+plural (an -s word that is also a verb needs "ago" or a preposition before it, and "a
+lot" needs its noun to close the phrase), offers "many people"/"many of the people" for
+"many of people", and inverts a fronted "not only" ("Not only it is", "because not only
+we're", "Not only it works" → "does it work"), abstaining when the next clause names a
+different subject ("Not only you know it, everyone does"). `englishUsagePhrases` also
+reads a clause-initial pronoun + "new" before that/it/what/a pronoun… as "knew", and
+"I/he/she/they (+ adverb) new + word" anywhere unless a copula comes first ("Is she new
+to…"), the clause is gapped ("…and she new") or a verb follows the noun ("they new hires
+are").
 
 Repeated words are Review-only: a bounded per-language allowlist of closed-class
 words (English articles, prepositions, `and`, `or`, `but`, `nor`, `as`, `than`,
@@ -651,7 +761,9 @@ Domain       src/core/domain/grammar/review/
              reviewSpelling.ts   unknown words: what to look up, which suggestions to offer
              bulkPlanner.ts      Fix-all planning: conflicts deferred, proofs in rounds
              textRanges.ts       edits, diffs, remapping, grapheme boundaries
-             reviewMessages.ts   explanations and UI strings (9 languages)
+             reviewMessages.ts   UI strings, page-built findings' explanations (9 languages)
+             reviewExplanations.ts every other finding's explanation (background only)
+             reviewLocale.ts     UI language resolution shared by both tables
 Application  src/core/application/review/ReviewSession.ts
              lifecycle, debounced rechecks, ignores, apply / Fix all through a port
 Adapters     src/adapters/chrome/content-script/review/
@@ -659,17 +771,70 @@ Adapters     src/adapters/chrome/content-script/review/
              ReviewController.ts (listeners, painting, focus)
 UI           ReviewUi.ts, reviewStyles.ts (shadow DOM, top-layer popover)
 Background   CommandRouter (shortcut), MessageRouter (add to dictionary, dictionary
-             lookups through PresageEngine.lookupWords)
+             lookups through PresageEngine.lookupWords), ReviewEngineHost (detection)
 ```
 
-Nothing is created, observed or scanned until the first review. The review code
-does ship in the content script, which grows by about 124 KB minified (43 KB
-gzip) and is parsed in every frame; loading it as a separate chunk on first use
-would need a `web_accessible_resources` manifest entry, left for a maintainer to
-decide.
+**Where detection runs.** The detectors and their data (phrase tables, the
+generated English lexicon) run only in the background service worker, which
+loads them anyway. A page never parses them: `content_script.js` carries the
+panel, the session and the editor adapters, and asks for detection through the
+`ReviewEngine` port (`src/core/application/review/ReviewEngine.ts`):
+
+```
+content script                                    background service worker
+ReviewSession ── MessagingReviewEngine ──────────> MessageRouter
+SuggestionEntrySession (proposals)  CMD_CONTENT_SCRIPT_REVIEW_ENGINE
+                                    {op: scan | prove | live | explain |
+                                         cancel | release}
+                                                  ReviewEngineHost
+                                                  └ LocalReviewEngine per session
+                                                    (prepare, chunked scan,
+                                                     NativeReviewCache, proofs)
+```
+
+- One message per scan pass, per Fix-all proof round and per typing pause (the
+  last 501 characters before the caret), never one per detector. A scan carries
+  the snapshot (text, scope, protected ranges), the options and the coverage
+  gaps; it answers the diagnostics, coverage and the prepared review's plain data
+  (masked text, protection, quotations, terminology), from which the page side
+  runs the dictionary check and Local AI as before. Contract and validation:
+  `src/core/domain/contracts/reviewEngine.ts`.
+- What each finding means (`reviewExplanations.ts`, about 98 KB in nine UI
+  languages) stays in the background: a scan answers the returned findings'
+  explanations in the page's UI language, once per message key, and a typing
+  pause's proposal carries its own. When the UI language changes during a
+  review, the page asks for the shown keys again (`explain`) and rebuilds the
+  panel once they arrive (if that fails, the previous ones stay). Only the
+  explanations of findings the page builds itself (dictionary, Local AI) ship
+  with the content script, in `reviewMessages.ts`.
+- Sessions are keyed by sender tab, frame and a random session id, so a tab can
+  never cancel or read another's work. Each keeps its own native-result cache
+  and last prepared snapshot; at most 8 are kept (least recently used released
+  first), and a review's close releases its own. A restarted worker starts them
+  again empty (proofs prepare their snapshot again).
+- The scan yields between chunks, so typing predictions for every tab never wait
+  behind a long one. A newer scan, an edit or close cancels the one in flight
+  (`cancel`), which stops at its next chunk.
+- The first message wakes a sleeping worker. No answer (worker unreachable,
+  failed or cancelled): Review shows its error state and the next edit asks
+  again; a typing pause proposes nothing.
+- The snapshot stays immutable on the page, and every write is validated there
+  as before (target, text, signature, scope, IME), by UTF-16 offsets.
+- Typing-time proposals: an answer is shown only if the text before the caret is
+  still the one asked about; accepting asks again for that same text and writes
+  only if the same fix comes back and the text has still not changed.
+- `bun run build` fails if a detector marker (lexicon data, an English or
+  German phrase-table row, detector code, a finding explanation) appears in a
+  content script, or is missing from `background.js`.
+
+Nothing is created, observed or scanned until the first review. The review UI,
+session, Local AI checks and UI translations still ship in the content script;
+loading them as a separate chunk on first use would need a
+`web_accessible_resources` manifest entry, left for a maintainer to decide.
 
 Limits: 50,000 characters per review (a larger scope is cut, and the panel
-says so), scanned in chunks of about 4,000 characters that yield to the page.
+says so), scanned in the background in chunks of about 4,000 characters that
+yield between them.
 Rechecks after edits are debounced by 400 ms and cancel stale work.
 
 Whole-field drafts over 8,000 characters can reuse unchanged fixed-preposition
@@ -677,7 +842,8 @@ and usage-phrase results within the open session. Reuse compares the source and
 surrounding evidence, settings, dictionary and protection; structure changes
 clear it. Other detectors and safe-batch proof still rescan. Partial selections,
 unread/oversized sources and short drafts use the full scan. The cache retains
-at most 64 entries and 500,000 serialized UTF-16 units, and is cleared on close.
+at most 64 entries and 500,000 serialized UTF-16 units, lives with the session in
+the background service worker, and is cleared on close.
 
 ## Performance
 
@@ -707,6 +873,24 @@ Known costs:
   so a very large contenteditable batch takes seconds. It pauses every 50 ms,
   so the page stays responsive.
 
+Detection in the background (table above measured with detection still in the
+page; Apple M2 Max, headless Chrome via Puppeteer, production build, medians):
+
+- Page load: `content_script.js` went from 1,229 KB (434 KB gzip) to 703 KB
+  (209 KB gzip); compiling and running it in V8 (Node `vm.Script` in a jsdom
+  window) went from about 35 + 60 ms to 16 + 7 ms per frame. What Review still
+  adds there (panel, session, Local AI checks, translations) is about 11 ms.
+- Finding explanations moved to the background (same method, medians of 21
+  fresh processes, three interleaved rounds): `content_script.js` went from
+  709 KB (210 KB gzip -9) to 620 KB (181 KB gzip -9); compile + run went from
+  about 15.2 + 7.1 ms to 14.8 + 6.9 ms, so the table cost under 0.5 ms of the
+  11 ms (V8 only scans string literals and builds one object). The gain is mostly
+  bytes each frame loads and keeps. `background.js` grew by the same table.
+- A typing-pause proposal request: about 2 ms round trip with the worker awake
+  (1 ms of it detection). A scan of the 50k profile document (2,594 findings):
+  about 170 ms through messaging, the same as in the worker without messaging.
+- The first request to a sleeping worker wakes it: about 200 ms.
+
 ## Limitations
 
 - Findings are limited to the catalog rules above and the dictionary check for
@@ -730,7 +914,7 @@ Known costs:
   unhighlighted, but never highlights other text. Text set in columns, and
   table cells drawn far apart, may be listed only. Highlights stay inside the
   editor and are not drawn over Docs' menus, dialogs and bubbles. A click on
-  a highlight opens its card; a drag, shift-click or double click selects
+  a highlight opens its card; a drag, shift-click or double-click selects
   text as usual, and Escape in the document closes the card. No Fix all (one
   verified replacement at a time).
 - Google Docs: a document of up to 50,000 characters is reviewed whole, even

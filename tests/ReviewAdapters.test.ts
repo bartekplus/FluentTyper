@@ -11,6 +11,8 @@ import {
   resolveReviewTarget,
 } from "../src/adapters/chrome/content-script/review/ReviewTargets";
 import { ReviewController } from "../src/adapters/chrome/content-script/review/ReviewController";
+import { LocalReviewEngine } from "../src/core/application/review/LocalReviewEngine";
+import { reviewExplanation } from "../src/core/domain/grammar/review/reviewExplanations";
 import {
   ReviewLauncher,
   launcherFieldFor,
@@ -983,6 +985,7 @@ describe("review controller lifecycle", () => {
     const resume = jest.fn();
     const onActiveChange = jest.fn();
     const review = new ReviewController({
+      createEngine: () => new LocalReviewEngine(),
       getOptions: () => ({
         lang: "en_US",
         enabledRules: GRAMMAR_RULE_IDS,
@@ -1031,14 +1034,20 @@ describe("review controller lifecycle", () => {
     // A finding's card is open when the language changes.
     root()!.querySelector<HTMLElement>(".item")!.click();
     expect(root()!.querySelector<HTMLElement>(".card")!.hidden).toBe(false);
+    const explanation = () => root()!.querySelector(".card p")?.textContent;
+    const key = "review_msg_typo" as const;
+    expect(explanation()).toBe(reviewExplanation(key, "en"));
 
     language = "de_DE";
     review.handleOptionsChanged();
 
-    expect(root()!.querySelector("h2")?.textContent).toBe("Prüfung");
+    // The explanations come from the engine first; then the panel is rebuilt at once.
+    await until(() => root()!.querySelector("h2")?.textContent === "Prüfung");
     expect(root()!.querySelector(".item .change")?.textContent).toBe("teh \u2192 the");
-    // The card is still open, now in German.
+    // The card is still open, now in German, explanation included.
     expect(root()!.querySelector<HTMLElement>(".card")!.hidden).toBe(false);
+    expect(explanation()).toBe(reviewExplanation(key, "de"));
+    expect(explanation()).not.toBe(reviewExplanation(key, "en"));
     expect(document.querySelectorAll("[data-fluenttyper-review]")).toHaveLength(1);
     review.close();
     expect(field.value).toBe("We saw teh cat.");
@@ -1278,6 +1287,7 @@ describe("adversarial review regressions", () => {
     textarea("We saw teh cat.");
     const onActiveChange = jest.fn();
     const review = new ReviewController({
+      createEngine: () => new LocalReviewEngine(),
       getOptions: options,
       suspend: jest.fn(),
       resume: jest.fn(),
@@ -1314,6 +1324,7 @@ describe("adversarial review regressions", () => {
       onReviewSourceChange: jest.fn(() => () => {}),
     };
     const review = new ReviewController({
+      createEngine: () => new LocalReviewEngine(),
       getOptions: options,
       suspend: jest.fn(),
       resume: jest.fn(),
@@ -1365,6 +1376,7 @@ describe("adversarial review regressions", () => {
       },
     };
     const review = new ReviewController({
+      createEngine: () => new LocalReviewEngine(),
       getOptions: options,
       suspend: jest.fn(),
       resume: jest.fn(),
@@ -1444,6 +1456,7 @@ describe("adversarial review regressions", () => {
       },
     };
     const review = new ReviewController({
+      createEngine: () => new LocalReviewEngine(),
       getOptions: options,
       suspend: jest.fn(),
       resume: jest.fn(),
@@ -1556,6 +1569,7 @@ describe("adversarial review regressions", () => {
     field.setSelectionRange(0, 0);
     const lookups: string[] = [];
     const review = new ReviewController({
+      createEngine: () => new LocalReviewEngine(),
       getOptions: options,
       suspend: jest.fn(),
       resume: jest.fn(),
@@ -1619,6 +1633,7 @@ describe("adversarial review regressions", () => {
     textarea("Where wa it? We saw teh cat.");
     const addToDictionary = jest.fn(async () => true);
     const review = new ReviewController({
+      createEngine: () => new LocalReviewEngine(),
       getOptions: options,
       suspend: jest.fn(),
       resume: jest.fn(),
@@ -1653,6 +1668,7 @@ describe("adversarial review regressions", () => {
   test("an editor removed without any event is noticed", async () => {
     const field = textarea("We saw teh cat.");
     const review = new ReviewController({
+      createEngine: () => new LocalReviewEngine(),
       getOptions: options,
       suspend: jest.fn(),
       resume: jest.fn(),
@@ -1731,6 +1747,7 @@ describe("review controller with Local AI", () => {
   function controller(options: { aiEnabled?: () => boolean; answer?: boolean } = {}) {
     const providers: Array<ReturnType<typeof fakeProvider>> = [];
     const review = new ReviewController({
+      createEngine: () => new LocalReviewEngine(),
       getOptions: () => ({
         lang: "en_US",
         enabledRules: GRAMMAR_RULE_IDS,
@@ -1811,7 +1828,8 @@ describe("review controller with Local AI", () => {
   });
 
   test("Escape in the editor closes an open AI batch preview before the review", async () => {
-    const field = textarea("We saw teh cat. She walk home now. She walk there too.");
+    // Not at a clause start, so only the model (not native agreement) finds "She walk" twice.
+    const field = textarea("We saw teh cat. Then She walk home now. Then She walk there too.");
     const { review } = controller({ answer: true });
     review.invoke();
     const shadow = () => document.querySelector("[data-fluenttyper-review]")!.shadowRoot!;
@@ -1828,6 +1846,6 @@ describe("review controller with Local AI", () => {
     expect(preview().hidden).toBe(true);
     field.dispatchEvent(new KeyboardEventCtor("keydown", { key: "Escape", bubbles: true }));
     expect(review.isActive).toBe(false);
-    expect(field.value).toBe("We saw teh cat. She walk home now. She walk there too.");
+    expect(field.value).toBe("We saw teh cat. Then She walk home now. Then She walk there too.");
   });
 });

@@ -45,6 +45,8 @@ Load the unpacked extension from the `build/` directory:
 
 Measurement data is generated offline with `bun scripts/measurement-data.ts`. See the
 [implementation and safety assessment](docs/measurement-formatting.md) for sources, licenses, and verification.
+The English lexicon behind Review's grammar rules is generated from the shipped en_US Hunspell
+dictionary with `bun run generate:english-lexicon`.
 
 FluentTyper uses a strict layered clean architecture. Imports flow downward only:
 
@@ -210,6 +212,7 @@ When changing message shapes, update all of:
 Review mode ([docs/review-mode.md](docs/review-mode.md)) reuses the typing rules for finished text.
 
 - Adding a grammar rule: classify it in `src/core/domain/grammar/review/reviewCatalog.ts` (the build fails until you do). A supported rule needs a detector in `reviewDetectors.ts` built on the rule's exported helpers, not a second copy of its logic.
+- Detection runs in the background service worker (`ReviewEngineHost`); the content script asks through the `ReviewEngine` port and must not import the detectors (`reviewDiagnostics`, `reviewDetectors`, `liveProposals`, their tables or the lexicon). `bun run build` fails if they reach a content script.
 - Diagnostics are UTF-16, end-exclusive offsets into one immutable snapshot. Writes go through the target port, are re-validated before and verified after, and never locate text by searching.
 - Never mutate the host editor's DOM for highlights, never clear the whole `CSS.highlights` registry, and never log or store reviewed text.
 

@@ -7,6 +7,7 @@ import {
   type ReviewViewState,
 } from "@core/application/review/ReviewSession";
 import type { ReviewAiProvider } from "@core/application/review/reviewAi";
+import type { ReviewEngine } from "@core/application/review/ReviewEngine";
 import { reviewText, type ReviewTextKey } from "@core/domain/grammar/review/reviewMessages";
 import type {
   ReviewCategory,
@@ -28,6 +29,8 @@ const logger = createLogger("ReviewController");
 export interface ReviewControllerDependencies {
   /** Current review settings: the rules to run (reviewRuleIds), language, dictionary. */
   getOptions(): ReviewOptions;
+  /** Detection for one review (the background's); released when it closes. */
+  createEngine(): ReviewEngine;
   /** Pauses live grammar/suggestions for this editor while review writes to it; resume restores them. */
   suspend(element: HTMLElement): void;
   resume(element: HTMLElement): void;
@@ -231,7 +234,9 @@ export class ReviewController {
     const ai = this.deps.createAiProvider?.() ?? undefined;
     const session = new ReviewSession({
       target,
+      engine: this.deps.createEngine(),
       options: this.deps.getOptions(),
+      uiLanguage: () => this.lang,
       initialScope: scope,
       onChange: (state) => this.onState(state),
       addToDictionary: (word) => this.deps.addToDictionary(word),
@@ -416,7 +421,15 @@ export class ReviewController {
     if (!active) return;
     active.session.updateOptions(this.deps.getOptions());
     if (this.deps.aiEnabled) active.session.setAiEnabled(this.deps.aiEnabled());
-    if (active.uiLanguage !== this.lang) this.rebuildUi(active);
+    if (active.uiLanguage !== this.lang) {
+      // The findings' explanations come from the background: rebuild once they are in.
+      const lang = this.lang;
+      void active.session.refreshExplanations().then(() => {
+        if (this.active === active && active.uiLanguage !== lang && this.lang === lang) {
+          this.rebuildUi(active);
+        }
+      });
+    }
   }
 
   /**

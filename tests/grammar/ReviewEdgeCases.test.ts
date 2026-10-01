@@ -11,9 +11,20 @@ import type { ReviewDiagnostic } from "../../src/core/domain/grammar/review/type
 
 // Generic conditions (casing, apostrophes, offsets, boundaries, punctuation,
 // markup, quotes, overlaps, line breaks) around existing native Review rules.
+// Opt-in register, serial-comma and dialect styles rewrite other rules' output (and the two
+// comma styles and the two dialects oppose each other), so "everything on" leaves them out.
+const OPPOSED = [
+  "styleContractions",
+  "styleOxfordComma",
+  "styleNoOxfordComma",
+  "englishAmericanSpelling",
+  "englishBritishSpelling",
+];
 const enabledRules = reviewRuleIds({
   codeMode: false,
-  overrides: reviewRuleSelectionToOverrides(REVIEW_SUPPORTED_RULE_IDS),
+  overrides: reviewRuleSelectionToOverrides(
+    REVIEW_SUPPORTED_RULE_IDS.filter((id) => !OPPOSED.includes(id)),
+  ),
 });
 
 function review(text: string): ReviewDiagnostic[] {

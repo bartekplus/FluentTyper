@@ -2,9 +2,15 @@ import { namedExampleBefore, OPENING_QUOTES } from "./exampleCues";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 
 const CANONICAL = new Map(
-  ["GitHub", "JavaScript", "TypeScript", "WebRTC", "FluentTyper", "iPhone", "macOS", "eBay"].map(
-    (term) => [term.toLowerCase(), term],
-  ),
+  [
+    ...["GitHub", "JavaScript", "TypeScript", "WebRTC", "FluentTyper", "iPhone", "macOS", "eBay"],
+    ...["LinkedIn", "WordPress", "iPad", "iPod", "iMac", "iTunes"],
+  ].map((term) => [term.toLowerCase(), term]),
+);
+// Acronyms written as a capitalized word ("Nasa", "Cpu"); lowercase "pdf" or "url" is often a
+// file extension or a field name and stays.
+const ACRONYMS = new Set(
+  "NASA IKEA LEGO NATO FBI CIA HIV DNA RNA CPU GPU HTML URL FAQ PDF CEO CFO HR AI UFO".split(" "),
 );
 
 /** Explicit names only; uppercase emphasis and identifier-like mixed casing stay untouched. */
@@ -18,7 +24,15 @@ export function canonicalCasing(ctx: DetectContext): RawFinding[] {
     match = words.exec(ctx.scanText)
   ) {
     const typed = match[0];
-    const canonical = CANONICAL.get(typed.toLowerCase());
+    const acronym = typed.length < 5 ? typed.toUpperCase() : "";
+    const canonical =
+      CANONICAL.get(typed.toLowerCase()) ??
+      (ACRONYMS.has(acronym) &&
+      /^[A-Z][a-z]+$/.test(typed) &&
+      // "Ai Weiwei" is a name.
+      !/^[ \t\u00a0]+[A-Z]/.test(ctx.text.slice(match.index + typed.length))
+        ? acronym
+        : undefined);
     if (!canonical || canonical === typed || ctx.dictionary.has(typed.toLowerCase())) continue;
     if (!/^[A-Z]?[a-z]+$/.test(typed)) continue;
     const start = match.index;

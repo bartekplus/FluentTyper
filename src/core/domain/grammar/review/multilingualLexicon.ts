@@ -308,12 +308,19 @@ export function markedApostrophes(ctx: DetectContext): RawFinding[] {
     if (mark === ";" && !SEMICOLON_BASES[m.groups!.end.toLowerCase()].test(m.groups!.base)) {
       continue;
     }
-    // "`code`s": a backtick pair on the line is Markdown code, not an apostrophe.
+    // "`code`s": a backtick pair on the line is Markdown code, not an apostrophe. Backticks
+    // inside words only ("Won`t … You`re") open no code span.
     if (mark === "`") {
-      const lineStart = ctx.text.lastIndexOf("\n", start) + 1;
-      const lineEnd = ctx.text.indexOf("\n", start);
-      if (ctx.text.slice(lineStart, lineEnd < 0 ? undefined : lineEnd).split("`").length > 2)
-        continue;
+      // Read the line within a window, so a long line of marks stays linear.
+      const from = Math.max(0, start - 256);
+      const around = ctx.text.slice(from, start + 256);
+      const at = start - from;
+      const lineEnd = around.indexOf("\n", at);
+      const line = around.slice(
+        around.lastIndexOf("\n", at) + 1,
+        lineEnd < 0 ? undefined : lineEnd,
+      );
+      if (line.split("`").length > 2 && /(?<!\p{L})`|`(?!\p{L})/u.test(line)) continue;
     }
     findings.push({
       ruleId: "englishContractionNormalization",

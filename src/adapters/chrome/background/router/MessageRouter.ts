@@ -3,6 +3,7 @@ import {
   CMD_CONTENT_SCRIPT_ADD_TO_DICTIONARY,
   CMD_CONTENT_SCRIPT_DISABLE_REVIEW_RULE,
   CMD_CONTENT_SCRIPT_REVIEW_SPELLING,
+  CMD_CONTENT_SCRIPT_REVIEW_ENGINE,
   CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG,
   CMD_CONTENT_SCRIPT_GET_CONFIG,
   CMD_CONTENT_SCRIPT_PREDICT_REQ,
@@ -55,6 +56,7 @@ import { DomainSettingsCache } from "../config/DomainSettingsCache";
 import type { BackgroundServiceWorker } from "../BackgroundServiceWorker";
 import type { PredictionConfigOverride } from "../PredictionTypes";
 import { REVIEW_SPELLING_BUDGET_MS } from "../PresageEngine";
+import { ReviewEngineHost } from "../ReviewEngineHost";
 import { HandlerRegistry } from "./HandlerRegistry";
 import { mapRuntimeError } from "./RuntimeErrorMapper";
 
@@ -75,6 +77,7 @@ const ROUTED_MESSAGE_COMMANDS = [
   CMD_CONTENT_SCRIPT_ADD_TO_DICTIONARY,
   CMD_CONTENT_SCRIPT_DISABLE_REVIEW_RULE,
   CMD_CONTENT_SCRIPT_REVIEW_SPELLING,
+  CMD_CONTENT_SCRIPT_REVIEW_ENGINE,
   CMD_OPTIONS_PAGE_CONFIG_CHANGE,
   CMD_CONTENT_SCRIPT_GET_CONFIG,
   CMD_CONTENT_SCRIPT_USAGE_EVENT,
@@ -161,6 +164,8 @@ export class MessageRouter {
     },
   );
   private readonly domainSettingsCache = new DomainSettingsCache();
+  // Review detection answers without waiting for the prediction engine to start.
+  private readonly reviewEngines = new ReviewEngineHost();
 
   constructor(getWorker: () => BackgroundServiceWorker) {
     this.getWorker = getWorker;
@@ -182,6 +187,7 @@ export class MessageRouter {
     );
     register(CMD_CONTENT_SCRIPT_DISABLE_REVIEW_RULE, this.handleDisableReviewRule.bind(this));
     register(CMD_CONTENT_SCRIPT_REVIEW_SPELLING, this.handleContentScriptReviewSpelling.bind(this));
+    register(CMD_CONTENT_SCRIPT_REVIEW_ENGINE, this.handleContentScriptReviewEngine.bind(this));
     register(CMD_CONTENT_SCRIPT_GET_CONFIG, this.handleContentScriptGetConfig.bind(this));
     register(CMD_CONTENT_SCRIPT_USAGE_EVENT, this.handleContentScriptUsageEvent.bind(this));
     register(
@@ -435,6 +441,16 @@ export class MessageRouter {
    * request is time-bounded, so typing predictions never wait long behind it:
    * the answer may cover only the first words, and the page asks again.
    */
+  /** Review detection (scan, proof, typing-time proposals) for this sender's review sessions. */
+  private async handleContentScriptReviewEngine({
+    request,
+    sender,
+    sendResponse,
+  }: CommandPayload<typeof CMD_CONTENT_SCRIPT_REVIEW_ENGINE>): Promise<void> {
+    const routing = requireSenderRoutingContext(sender, "review engine request");
+    sendResponse(await this.reviewEngines.handle(request.context, routing));
+  }
+
   private async handleContentScriptReviewSpelling(
     payload: CommandPayload<typeof CMD_CONTENT_SCRIPT_REVIEW_SPELLING>,
   ): Promise<void> {

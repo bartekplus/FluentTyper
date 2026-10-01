@@ -308,7 +308,6 @@ const ALLOWED = [
   "A statue of Liberty replica stands outside.",
   "The United States Postal Service delivered it.",
   "We moved to New York in May.",
-  "NEW YORK IS LOUD.",
   "The team used a non-code base layer.",
   "Set config.code base to true.",
   "Open https://example.com/code base notes.",
@@ -343,9 +342,10 @@ test("casing follows the typed phrase", () => {
   expect(first("An Eagle Eyed Reviewer.")).toEqual(["Eagle-Eyed"]);
   expect(first("Code base notes.")).toEqual(["Codebase"]);
   expect(first("ATLEAST two.")).toEqual(["AT LEAST"]);
-  // Names keep their canonical form; shouted names stay as typed.
+  // Names keep their canonical form; shouted names are only optional style advice.
   expect(first("We met in New york.")).toEqual(["New York"]);
-  expect(scan("WE MET IN NEW YORK.")).toEqual([]);
+  const shouted = scan("WE MET IN NEW YORK.");
+  expect(shouted.map((d) => [d.ruleId, previews(d)])).toEqual([["stylePhrasing", ["New York"]]]);
 });
 
 test("apostrophes follow the typed text", () => {

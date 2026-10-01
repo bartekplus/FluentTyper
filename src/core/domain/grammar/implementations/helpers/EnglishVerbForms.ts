@@ -171,24 +171,3 @@ for (const entry of ENGLISH_VERB_FORMS) {
 export function englishVerbForms(word: string): EnglishVerbForms | null {
   return BY_FORM.get(word.toLowerCase()) ?? null;
 }
-
-// Only the gerunds used by the native complement frames; never infer by suffix.
-const GERUNDS: Readonly<Record<string, string>> = {
-  fix: "fixing",
-  deploy: "deploying",
-  meet: "meeting",
-  make: "making",
-  take: "taking",
-  write: "writing",
-  run: "running",
-  come: "coming",
-  see: "seeing",
-  learn: "learning",
-  visit: "visiting",
-  read: "reading",
-  send: "sending",
-  go: "going",
-};
-export function englishVerbGerund(lemma: string): string | null {
-  return Object.hasOwn(GERUNDS, lemma.toLowerCase()) ? GERUNDS[lemma.toLowerCase()] : null;
-}

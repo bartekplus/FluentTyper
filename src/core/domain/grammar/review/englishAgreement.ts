@@ -8,6 +8,8 @@ import {
 } from "./phraseTemplates";
 import { AGREEMENT_CORRECTIONS } from "../implementations/EnglishPronounVerbWhitelistAgreementRule";
 import { englishVerbForms } from "../implementations/helpers/EnglishVerbForms";
+import { englishInflect, englishLemma } from "../implementations/helpers/EnglishInflection";
+import { englishWordInfo } from "../implementations/helpers/EnglishLexicon";
 import {
   englishNounForms,
   knownEnglishNounNumber,
@@ -47,17 +49,19 @@ const SINGULAR_BE: Readonly<Record<string, string>> = { are: "is", am: "is", wer
 export function additionalPronounAgreement(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   // A clause end may follow ("It don't."); a lexical verb must come from the authored table.
-  const pattern = `(?<subject>I|we|they|you|he|she|it)(?<gap>${SPACE}(?:(?:really|still|also|always|never|usually|often|just)${SPACE})?)(?<verb>[A-Za-z]+(?:n['’]t)?)(?:${SPACE}(?:not${SPACE})?[A-Za-z]+${WORD_END}|(?=[ \t\u00a0]{0,8}[.!?,;:]))`;
+  const pattern = `(?<subject>I|we|they|you|he|she|it)(?<gap>${SPACE}(?:(?:really|still|also|always|never|usually|often|just)${SPACE})?)(?<verb>[A-Za-z]+(?:n['’]t)?)(?:${SPACE}(?:not${SPACE})?(?<next>[A-Za-z]+)${WORD_END}|(?=[ \t\u00a0]{0,8}(?:[.!?,;:]|$)))`;
   // "I" is only ever a subject, so it needs no clause start; a capitalized word before it (a title or
   // numeral: "Part I is", "World War I") or a coordination ("Sam and I are") abstains.
+  // A lowercase "i" is a variable as often as the pronoun; "i are" can only be the pronoun.
   const subjectI = (match: RegExpExecArray, before: string) =>
-    match.groups!.subject === "I" &&
-    !/\p{Lu}[\p{L}.]*[ \t\u00a0]+$/u.test(before) &&
+    (match.groups!.subject === "i"
+      ? /^are$/i.test(match.groups!.verb)
+      : match.groups!.subject === "I" && !/\p{Lu}[\p{L}.]*[ \t\u00a0]+$/u.test(before)) &&
     !/\b(?:and|or|nor)[ \t\u00a0]+$/i.test(before);
   for (const match of clauseMatches(ctx, pattern, subjectI)) {
-    const { subject, verb, gap } = match.groups!;
+    const { subject, verb, gap, next } = match.groups!;
     const pronoun = subject.toLowerCase();
-    if (applyWordCase(subject, detectWordCase(subject)) !== subject) continue;
+    if (applyWordCase(subject, detectWordCase(subject)) !== subject && subject !== "i") continue;
     if (ctx.dictionary.has(pronoun)) continue;
     // Let the old detector retain its precise guards and bulk behavior for its six pairs.
     if (/^[ \t\u00a0]+$/.test(gap) && AGREEMENT_CORRECTIONS.has(`${pronoun} ${verb.toLowerCase()}`))
@@ -69,8 +73,14 @@ export function additionalPronounAgreement(ctx: DetectContext): RawFinding[] {
     let corrected: string | undefined;
     if (/^(?:is|are|am|was|were)$/.test(word) && !negative)
       corrected =
-        pronoun === "i" ? { are: "am", is: "am" }[word] : (plural ? PLURAL_BE : SINGULAR_BE)[word];
-    else if (/^(?:has|have|does|do)$/.test(word))
+        pronoun === "i"
+          ? { are: "am", is: "am", were: subjunctive(ctx, match.index) ? undefined : "was" }[word]
+          : (plural ? PLURAL_BE : SINGULAR_BE)[word];
+    // "He aren't", "They isn't".
+    else if (/^(?:is|are|was|were)$/.test(word) && pronoun !== "i") {
+      const be = (plural ? PLURAL_BE : SINGULAR_BE)[word];
+      corrected = be && be + negative.toLowerCase();
+    } else if (/^(?:has|have|does|do)$/.test(word))
       corrected = (plural ? forms!.lemma : forms!.third) + negative;
     // Lexical verbs: past-shared or noun-shared forms ("He cut", "They bear") abstain.
     else if (forms && !negative && !forms.ambiguous.includes(word))
@@ -81,6 +91,19 @@ export function additionalPronounAgreement(ctx: DetectContext): RawFinding[] {
         : word === forms.lemma && word !== forms.past && word !== forms.participle
           ? forms.third
           : undefined;
+    // Regular verbs come from the dictionary: "She study", "They repairs".
+    // A soft line wrap is not a clause start for these: "curving\nit down".
+    // Only a plural subject's "-s" word or a singular subject's bare word can disagree.
+    else if (
+      !forms &&
+      !negative &&
+      (plural ? word.endsWith("s") : !/(?:s|ed|ing|ly)$/.test(word)) &&
+      !/[^\n\s.!?:;"“][ \t\u00a0]*\n[ \t\u00a0]*$/.test(
+        ctx.text.slice(Math.max(0, match.index - 8), match.index),
+      ) &&
+      !/^of$/i.test(next ?? "")
+    )
+      corrected = lexicalAgreement(word, plural, pronoun, next);
     if (!corrected || corrected === verb.toLowerCase()) continue;
     const [start, end] = match.indices!.groups!.verb;
     findings.push({
@@ -96,6 +119,38 @@ export function additionalPronounAgreement(ctx: DetectContext): RawFinding[] {
     });
   }
   return findings;
+}
+
+// "If I were", "I wish I were", "as though I were": the subjunctive keeps "were".
+const SUBJUNCTIVE =
+  /\b(?:if|wish|wished|wishes|though|suppose|supposing|imagine|rather|unless|only)\b[^.!?;:\n]*$/i;
+const subjunctive = (ctx: DetectContext, index: number) =>
+  SUBJUNCTIVE.test(ctx.text.slice(Math.max(0, index - 64), index));
+// Words after "You fools" or "You kids" that make the -s word a noun the pronoun names.
+const VERB_AFTER =
+  /^(?:are|were|is|was|have|had|can|could|will|would|should|must|may|might|do|did|don|get|go|come|need|want|know|think|see|look|make|take|stop|leave|listen|shut|keep|play|eat|run|stay|sit|stand)$/i;
+
+const MODAL = /^(?:will|would|can|could|shall|should|may|might|must|ought|need|dare|used)$/;
+
+/** The agreeing form of a regular verb, or undefined when the word may be a noun or a past. */
+function lexicalAgreement(
+  word: string,
+  plural: boolean,
+  pronoun: string,
+  next: string | undefined,
+): string | undefined {
+  const info = englishWordInfo(word);
+  if (!info || MODAL.test(word)) return undefined;
+  const has = (form: string) => info.verbs.some((v) => v.form === form);
+  if (plural) {
+    if (!has("third") || has("base") || has("past")) return undefined;
+    // "You kids get…", "You fools!": a plural noun after the pronoun.
+    if (info.plural && (next ? VERB_AFTER.test(next) : pronoun === "you")) return undefined;
+    return englishLemma(word, "third") ?? undefined;
+  }
+  if (!has("base") || has("past") || has("participle") || has("third") || info.adjective)
+    return undefined;
+  return englishInflect(word, "third") ?? undefined;
 }
 
 /** Simple counted noun phrases only: changing the verb must preserve the stated number. */
@@ -131,6 +186,10 @@ export function existentialAgreement(ctx: DetectContext): RawFinding[] {
   return [...findings, ...bareExistentialAgreement(ctx)];
 }
 
+// A long noun the lexicon omits, by a suffix that only forms count nouns ("description").
+const derivedNounNumber = (noun: string) =>
+  !englishWordInfo(noun) && /^[a-z]{4,}(?:tion|sion|ment)$/.test(noun) ? "singular" : null;
+
 const BARE_EXISTENTIAL = new RegExp(
   `${WORD_START}(?:(?<there>there)(?:${SPACE}(?<verb>is|was|are|were)|(?<contracted>['’]s))|(?<qverb>is|was|are|were)${SPACE}there)${SPACE}(?<noun>[A-Za-z]+)${WORD_END}(?<tail>[ \\t\\u00a0]{0,8}(?:[.!?,;:)]|$)|${SPACE}(?:in|on|at|with|for|about|regarding|that|which|when|where|from|of|to|running|missing|left)${WORD_END})?`,
   "gidu",
@@ -142,7 +201,7 @@ function bareExistentialAgreement(ctx: DetectContext): RawFinding[] {
   // Ownership waits for the repair: the verb, or the whole phrase for a singular noun.
   for (const m of frameMatches(ctx, BARE_EXISTENTIAL, null)) {
     const { there, verb, contracted, qverb, noun, tail } = m.groups!;
-    const number = knownEnglishNounNumber(noun);
+    const number = knownEnglishNounNumber(noun) ?? derivedNounNumber(noun);
     if (!number || ctx.dictionary.has(noun.toLowerCase())) continue;
     if (noun !== noun.toLowerCase()) continue;
     const typed = verb ?? contracted ?? qverb;
@@ -179,7 +238,7 @@ function bareExistentialAgreement(ctx: DetectContext): RawFinding[] {
       const verbAt = qverb ? 0 : m.indices!.groups!.verb[0] - m.index;
       alternatives = [
         `${lead.slice(0, verbAt)}${swap}${lead.slice(verbAt + typed.length)}${article} ${noun}`,
-        `${lead}${applyWordCase(englishNounForms(noun)!.plural, detectWordCase(noun))}`,
+        `${lead}${applyWordCase(englishNounForms(noun)?.plural ?? `${noun}s`, detectWordCase(noun))}`,
       ];
     }
     if (start < ctx.from || start >= ctx.to) continue;

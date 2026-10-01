@@ -24,6 +24,8 @@ import {
 } from "./englishAgreement";
 import { wordConfusions } from "./englishWordConfusions";
 import { auxiliaryForms } from "./englishAuxiliaryForms";
+import { pronounCase } from "./englishPronounCase";
+import { sentenceStructure } from "./englishSentenceStructure";
 import type { CatalogRuleId } from "../ruleCatalog";
 import { SPACE_CHARS } from "../../spacingRules";
 import {
@@ -87,8 +89,12 @@ import {
 import { CURRENCY_MARKERS } from "../implementations/CurrencySpacingRule";
 import { isProsePrefix } from "../implementations/MeasurementUnitFormattingRule";
 import { isLowercaseLetter, isTechnicalToken } from "../implementations/helpers/GenericRuleShared";
-import { commonAffixes, isGraphemeBoundary, overlapsSortedRanges } from "./textRanges";
-import type { ReviewEdit, ReviewMessageKey, TextRange } from "./types";
+import { graphemeEnd, overlapsSortedRanges } from "./textRanges";
+import { MASK_CHAR, type ReviewMessageKey, type TextRange } from "./types";
+import { EXTENSION_DETECTORS } from "./english";
+
+export { MASK_CHAR };
+export { minimalEdits } from "./textRanges";
 
 /**
  * Review detectors read ONE immutable snapshot and never mutate it.
@@ -143,8 +149,8 @@ export interface RawFinding {
 }
 
 type Detector = (ctx: DetectContext) => RawFinding[];
+export type ReviewDetectorEntry = { rules: CatalogRuleId[]; detect: Detector };
 
-export const MASK_CHAR = "\uFFFC";
 // Enough context for every phrase pattern; the patterns themselves are shorter.
 const PHRASE_WINDOW = 96;
 const WORD_CHAR = /[\p{L}\p{N}_'’]/u;
@@ -213,12 +219,6 @@ function* ownedMatches(ctx: DetectContext, regex: RegExp): Generator<RegExpExecA
 
 function owned(ctx: DetectContext, start: number): boolean {
   return start >= ctx.from && start < ctx.to;
-}
-
-function graphemeEnd(text: string, index: number): number {
-  let end = index + 1;
-  while (end < text.length && !isGraphemeBoundary(text, end)) end += 1;
-  return end;
 }
 
 // Words after which a lowercase "i" names something ("the variable i"): an identifier.
@@ -426,16 +426,25 @@ const pronounI: Detector = (ctx) => {
     } else {
       // Whitespace alone does not say pronoun or variable; the next word does.
       const next = rest.match(/^[ \t\u00A0]+(\S+)/);
-      if (!next) continue;
-      const following = next[1].replace(TRAILING_PUNCTUATION_REGEX, "");
-      // Unlike typing, the next word is complete here: "i don't" is the pronoun too.
-      if (
-        !/^\p{L}+(?:['’]\p{L}+)?$/u.test(following) ||
-        NON_PRONOUN_FOLLOWERS.has(following.toLowerCase())
-      ) {
-        continue;
+      if (!next) {
+        // "stronger than i" closing the text is the pronoun.
+        if (
+          !/^\s*$/.test(rest) ||
+          !/\b(?:than|and|as)[ \t\u00A0]+$/i.test(ctx.text.slice(Math.max(0, start - 12), start))
+        )
+          continue;
+        sentenceEnd = true;
+      } else {
+        const following = next[1].replace(TRAILING_PUNCTUATION_REGEX, "");
+        // Unlike typing, the next word is complete here: "i don't" is the pronoun too.
+        if (
+          !/^\p{L}+(?:['’]\p{L}+)?$/u.test(following) ||
+          NON_PRONOUN_FOLLOWERS.has(following.toLowerCase())
+        ) {
+          continue;
+        }
+        contextEnd += next[0].length;
       }
-      contextEnd += next[0].length;
     }
     findings.push({
       ruleId: "englishPronounICapitalization",
@@ -861,7 +870,7 @@ const STANDALONE_MARK_FOLLOWER = /^[ \t\u00A0]+["'“‘([¿¡]?\p{Ll}/u;
 // script ("red，green") is an input-method slip; CJK text keeps its own.
 const ALPHABETIC = "[\\p{Script=Latin}\\p{Script=Greek}\\p{Script=Cyrillic}\\p{N}]";
 const WIDE_COMMA = new RegExp(
-  `(?<=${ALPHABETIC})[ \\u00A0]*[，、][ \\u00A0]*(?=${ALPHABETIC}|\\s|$)`,
+  `(?<=^|${ALPHABETIC})[ \\u00A0]*[，、][ \\u00A0]*(?=${ALPHABETIC}|\\s|$)`,
   "gu",
 );
 
@@ -1028,6 +1037,16 @@ const duplicatePunctuation: Detector = (ctx) => {
       alternatives: ["."],
     });
   }
+  // A line of two dots alone is a short ellipsis or a stray period.
+  for (const match of ownedMatches(ctx, /(?<=^|\n)\.\.(?=[ \t]*(?:\r?\n|$))/gu)) {
+    findings.push({
+      ruleId: "duplicatePunctuationCollapse",
+      messageKey: "review_msg_ellipsis_length",
+      range: { start: match.index, end: match.index + 2 },
+      alternatives: ["...", "."],
+      requiresChoice: true,
+    });
+  }
   // An ellipsis has three dots: "So..... anyway". Digits
   // or a path around the run ("1....5", "..../") and dot leaders (10+) are not one.
   const ellipsis = /(?<![.\p{N}])\.{4,9}(?![.\p{N}/\\])/gu;
@@ -1188,19 +1207,20 @@ function currencyPlacement(ctx: DetectContext): RawFinding[] {
   if (ctx.lang !== "en_US") return [];
   const findings: RawFinding[] = [];
   const regex =
-    /(?<![\p{L}\p{N}$£¥¢.,_])(?:(\d[\d,]*(?:\.\d+)?)[  ]*([$£¥])|¢(\d+))(?![\p{L}\p{N}$£¥¢_])/gu;
+    /(?<![\p{L}\p{N}$£¥¢.,_])(?:(\d[\d,]*(?:\.\d+)?)(st|nd|rd|th)?[  ]*([$£¥])|¢(\d+))(?![\p{L}\p{N}$£¥¢_])/gu;
   for (const match of ownedMatches(ctx, regex)) {
     const start = match.index;
     const end = start + match[0].length;
     const lineStart = ctx.text.lastIndexOf("\n", start) + 1;
     let lineEnd = ctx.text.indexOf("\n", end);
     if (lineEnd < 0) lineEnd = ctx.text.length;
-    if (match[2] === "$" && /\$[\p{L}\\{(_]/u.test(ctx.text.slice(lineStart, lineEnd))) continue;
+    if (match[3] === "$" && /\$[\p{L}\\{(_]/u.test(ctx.text.slice(lineStart, lineEnd))) continue;
     findings.push({
       ruleId: "currencySpacing",
       messageKey: "review_msg_currency_placement",
       range: { start, end },
-      alternatives: [match[3] ? `${match[3]}¢` : `${match[2]}${match[1]}`],
+      // "my 20th$" is "my $20th".
+      alternatives: [match[4] ? `${match[4]}¢` : `${match[3]}${match[1]}${match[2] ?? ""}`],
       context: { start: lineStart, end: lineEnd },
       bulkBlock: "context-dependent",
     });
@@ -1300,7 +1320,7 @@ function measurementLike(
 // clitic), el "με με" (pronoun + preposition), "και και" (both … and) and
 // "είναι είναι", ar "من من".
 const REPEATABLE_WORDS: Record<string, string> = {
-  en: "the|an|a|is|are|was|were|in|on|at|for|with|from|of|to|and|or|but|nor|as|by|into|onto|about|than|this|these|those|its|your|our|their|would|should|could|has|been",
+  en: "the|an|a|is|are|was|were|be|am|in|on|at|for|with|from|of|to|and|or|but|nor|as|by|into|onto|about|than|this|these|those|its|your|our|their|would|should|could|has|been",
   de: "ein|eine|einen|einem|einer|eines|im|mit|von|für|auf|bei|aus|nach|zum|zur|dass|weil|ist|sind|hat|wird|über|unter|durch|ohne|gegen",
   fr: "le|les|un|une|des|du|au|aux|dans|pour|avec|sur|et|mais|est|sont|par|ce|cette|ces|sans",
   es: "el|los|las|un|una|en|con|del|al|y|pero|por|sin|sobre|entre|desde|hasta|este|esta|estos|estas",
@@ -1315,7 +1335,8 @@ const REPEATED_WORD_REGEX = new Map(
   Object.entries(REPEATABLE_WORDS).map(([lang, words]) => [
     lang,
     new RegExp(
-      `(?<![\\p{L}\\p{M}\\p{N}_'’–—-])(${words})[ \\t\\u00a0]{1,8}\\1(?![\\p{L}\\p{M}\\p{N}_'’–—-])`,
+      // A soft line wrap may sit between the pair ("is\nis"); a blank line ends the paragraph.
+      `(?<![\\p{L}\\p{M}\\p{N}_'’–—-])(${words})(?:[ \\t\\u00a0]{1,8}|[ \\t\\u00a0]{0,8}\\r?\\n[ \\t\\u00a0]{0,8})\\1(?![\\p{L}\\p{M}\\p{N}_'’–—-])`,
       "giu",
     ),
   ]),
@@ -1365,6 +1386,9 @@ const repeatedWords: Detector = (ctx) => {
     const before = ctx.text.slice(context.start, start);
     const word = match[1].toLowerCase();
     if (ctx.dictionary.has(word) || isGluedToTechnical(ctx.text, start, end)) continue;
+    // Across a line break only a wrapped prose line counts: a line holding just the word
+    // ("the\nthe report") may be a list item or a heading.
+    if (match[0].includes("\n") && !/\p{L}[^\n]*[ \t\u00a0]$/u.test(before)) continue;
     // A run gets one repair, including when a later pair belongs to another chunk.
     if (before.match(/(\p{L}+)[ \t\u00a0]{1,8}$/u)?.[1].toLowerCase() === word) continue;
     // A named, quoted example is evidence, not prose to repair. Normal quotations still run.
@@ -1382,7 +1406,7 @@ const repeatedWords: Detector = (ctx) => {
 };
 
 /** Review detectors by rule. Rules absent here are excluded from review (see reviewCatalog). */
-export const REVIEW_DETECTORS: ReadonlyArray<{ rules: CatalogRuleId[]; detect: Detector }> = [
+export const REVIEW_DETECTORS: ReadonlyArray<ReviewDetectorEntry> = [
   {
     rules: ["styleRedundancy", "styleLongSentence"],
     detect: (ctx) =>
@@ -1401,6 +1425,11 @@ export const REVIEW_DETECTORS: ReadonlyArray<{ rules: CatalogRuleId[]; detect: D
       "englishPhraseCorrections",
       "englishClosedCompounds",
       "stylePhrasing",
+      "englishAmericanSpelling",
+      "englishBritishSpelling",
+      "styleWordChoice",
+      "styleAlternativePhrasing",
+      "englishPossibleErrors",
     ],
     detect: (ctx) => [...canonicalCasing(ctx), ...phraseCorrections(ctx)],
   },
@@ -1429,6 +1458,8 @@ export const REVIEW_DETECTORS: ReadonlyArray<{ rules: CatalogRuleId[]; detect: D
   { rules: ["englishContextualCompounds"], detect: contextualCompounds },
   { rules: ["englishRepeatedWords"], detect: repeatedWords },
   { rules: ["englishAuxiliaryBaseVerb"], detect: auxiliaryForms },
+  { rules: ["englishPronounCase"], detect: pronounCase },
+  { rules: ["englishSentenceStructure"], detect: sentenceStructure },
   {
     rules: [
       "englishThenThan",
@@ -1480,92 +1511,5 @@ export const REVIEW_DETECTORS: ReadonlyArray<{ rules: CatalogRuleId[]; detect: D
     rules: ["currencySpacing"],
     detect: (ctx) => [...measurementLike(ctx, "currencySpacing"), ...currencyPlacement(ctx)],
   },
+  ...EXTENSION_DETECTORS,
 ];
-
-/** Minimal edits turning source[start, start+original.length) into `replacement`. */
-export function minimalEdits(
-  source: string,
-  start: number,
-  end: number,
-  replacement: string,
-): ReviewEdit[] {
-  const original = source.slice(start, end);
-  if (original === replacement) return [];
-  // Case-only ASCII changes must not replace unchanged letters across formatting nodes.
-  if (
-    /^[A-Za-z]+$/.test(original + replacement) &&
-    original.toLowerCase() === replacement.toLowerCase()
-  ) {
-    return [...original].flatMap((letter, index) =>
-      letter === replacement[index]
-        ? []
-        : [
-            {
-              start: start + index,
-              end: start + index + 1,
-              original: letter,
-              replacement: replacement[index],
-            },
-          ],
-    );
-  }
-  const originalTokens = original.split(/(\s+)/);
-  const replacementTokens = replacement.split(/(\s+)/);
-  const aligned =
-    originalTokens.length === replacementTokens.length &&
-    originalTokens.every((token, index) => index % 2 === 0 || token === replacementTokens[index]);
-  if (aligned && originalTokens.length > 1) {
-    const edits: ReviewEdit[] = [];
-    let offset = start;
-    originalTokens.forEach((token, index) => {
-      if (index % 2 === 0)
-        edits.push(...trimmedEdit(source, offset, token, replacementTokens[index]));
-      offset += token.length;
-    });
-    return edits;
-  }
-  return trimmedEdit(source, start, original, replacement);
-}
-
-/** One edit with the common prefix/suffix trimmed back to grapheme boundaries. */
-function trimmedEdit(
-  source: string,
-  start: number,
-  original: string,
-  replacement: string,
-): ReviewEdit[] {
-  if (original === replacement) return [];
-  let { prefix, suffix } = commonAffixes(original, replacement);
-  while (prefix > 0 && !isGraphemeBoundary(source, start + prefix)) prefix -= 1;
-  while (suffix > 0 && !isGraphemeBoundary(source, start + original.length - suffix)) suffix -= 1;
-  let editStart = start + prefix;
-  let editEnd = start + original.length - suffix;
-  let insertion = replacement.slice(prefix, replacement.length - suffix);
-  // A pure insertion is anchored on the character before it (or after it at
-  // the start), so it maps to one text node and takes that node's formatting.
-  if (editStart === editEnd) {
-    if (prefix > 0) {
-      const anchorStart = previousBoundary(source, editStart);
-      insertion = source.slice(anchorStart, editStart) + insertion;
-      editStart = anchorStart;
-    } else {
-      const anchorEnd = graphemeEnd(source, editEnd);
-      insertion += source.slice(editEnd, anchorEnd);
-      editEnd = anchorEnd;
-    }
-  }
-  return [
-    {
-      start: editStart,
-      end: editEnd,
-      original: source.slice(editStart, editEnd),
-      replacement: insertion,
-    },
-  ];
-}
-
-function previousBoundary(text: string, index: number): number {
-  let start = index - 1;
-  while (start > 0 && !isGraphemeBoundary(text, start)) start -= 1;
-  return start;
-}

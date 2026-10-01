@@ -52,6 +52,13 @@ export const REVIEW_LOCAL_AI_CHECK = "reviewLocalAi" as const;
 export type ReviewCheckId =
   CatalogRuleId | typeof REVIEW_SPELLING_CHECK | typeof REVIEW_LOCAL_AI_CHECK;
 
+/** Stands for each protected (non-prose) character in the analysis text; same length. */
+export const MASK_CHAR = "\uFFFC";
+/** Largest scope reviewed at once (UTF-16 code units). Larger scopes are cut and reported. */
+export const MAX_REVIEW_CHARS = 50_000;
+/** Scan unit between yields; chunks end on line breaks so no token straddles two. */
+export const REVIEW_CHUNK_CHARS = 4_000;
+
 export interface TextRange {
   start: number;
   end: number;
@@ -112,9 +119,17 @@ export type ReviewMessageKey =
   | "review_msg_decade_plural"
   | "review_msg_perfect_participle"
   | "review_msg_progressive_be"
+  | "review_msg_be_participle"
+  | "review_msg_had_or_would"
+  | "review_msg_be_base"
   | "review_msg_verb_complements"
   | "review_msg_missing_to"
   | "review_msg_forward_gerund"
+  | "review_msg_worth_gerund"
+  | "review_msg_causative_base"
+  | "review_msg_allow_object"
+  | "review_msg_ahead_and_tense"
+  | "review_msg_gerund_complement"
   | "review_msg_fixed_prepositions"
   | "review_msg_despite_of"
   | "review_msg_discuss_about"
@@ -135,6 +150,22 @@ export type ReviewMessageKey =
   | "review_msg_ever_every"
   | "review_msg_were_where"
   | "review_msg_auxiliary_base"
+  | "review_msg_modal_be"
+  | "review_msg_to_base"
+  | "review_msg_to_noun"
+  | "review_msg_pronoun_subject_case"
+  | "review_msg_pronoun_object_case"
+  | "review_msg_who_subject"
+  | "review_msg_sentence_structure"
+  | "review_msg_confused_word"
+  | "review_msg_double_subject"
+  | "review_msg_pronoun_sequence"
+  | "review_msg_determiner_clash"
+  | "review_msg_double_modal"
+  | "review_msg_missing_be"
+  | "review_msg_couple_of"
+  | "review_msg_partitive_of"
+  | "review_msg_not_only_inversion"
   | "review_msg_repeated_words"
   | "review_msg_sentence_start"
   | "review_msg_line_start"
@@ -153,6 +184,17 @@ export type ReviewMessageKey =
   | "review_msg_proper_noun"
   | "review_msg_space_before_comma"
   | "review_msg_space_after_comma"
+  | "review_msg_space_after_mark"
+  | "review_msg_avoid_contractions"
+  | "review_msg_oxford_comma"
+  | "review_msg_no_oxford_comma"
+  | "review_msg_alternative_phrasing"
+  | "review_msg_possible_error"
+  | "review_msg_quoted_mention"
+  | "review_msg_american_spelling"
+  | "review_msg_british_spelling"
+  | "review_msg_word_choice"
+  | "review_msg_spelled_numbers"
   | "review_msg_wide_comma"
   | "review_msg_space_before_mark"
   | "review_msg_space_after_opening_mark"
@@ -169,7 +211,10 @@ export type ReviewMessageKey =
   | "review_msg_currency_placement"
   | "review_msg_unknown_word"
   | "review_msg_two_initial_capitals"
-  | "review_msg_local_ai";
+  | "review_msg_local_ai"
+  | "review_msg_irregular_form"
+  | "review_msg_noun_possessive"
+  | "review_msg_word_boundary";
 
 export type BulkDecision =
   | { eligible: true; alternative: number }

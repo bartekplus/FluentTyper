@@ -175,7 +175,6 @@ const valid = [
   "We received 1 document.",
   "Those files failed.",
   "That file failed.",
-  "One of the device",
   "Those file",
   "We found two",
   "Those file have unknownword.",
@@ -273,7 +272,6 @@ test.each([
   "One of the file formats is old.",
   "One of the test cases failed.",
   "One of the team is here.",
-  "One of the device",
   "One of the best is here.",
   "This is one of the ways.",
 ])("one of + noun preserves %s", (text) => expect(scan(text)).toEqual([]));

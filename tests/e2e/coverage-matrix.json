@@ -2819,6 +2819,47 @@
       ]
     },
     {
+      "id": "review_detection_in_background",
+      "description": "Review detection (scans, Fix-all proofs, typing-time proposals) runs in the background service worker: the content script sends one message per scan pass, proof round or pause, per sender tab and session; cancelled and superseded work stops; no answer shows Review's error state and no proposal; content_script.js carries no detector code or data (build guard).",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/ReviewEngine.test.ts",
+          "test": "a scan through the background finds what in-process detection finds"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewEngine.test.ts",
+          "test": "an abort cancels the request in the background and rejects at once"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewEngine.test.ts",
+          "test": "sessions are per tab: another tab can neither cancel nor release them"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/background.routing.test.ts",
+          "test": "onMessage review engine runs Review detection for the sender and refuses malformed requests"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSession.test.ts",
+          "test": "an engine that does not answer shows the error state; the next edit asks again"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/LiveGrammarProposals.runtime.test.ts",
+          "test": "an answer for text that has changed since is not shown"
+        },
+        {
+          "layer": "e2e-smoke",
+          "file": "tests/e2e/smoke.e2e.test.ts",
+          "test": "review mode fixes a textarea from one snapshot without changing it on start"
+        }
+      ]
+    },
+    {
       "id": "review_textarea_fix_all_undo",
       "description": "Textarea review paints categorized overlay marks, applies Fix all as one verified native edit, and one undo restores the text; no network requests.",
       "coverage": [

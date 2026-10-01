@@ -48,6 +48,16 @@ Chrome and Edge builds package the Local AI Review runtime, because Chrome MV3 f
 - Prefer `bun run bump` for version bumps. It runs `bun pm version`, which triggers the Bun `version` lifecycle and syncs the browser manifests through `scripts/update-manifest-version.cjs`.
 - Do not hand-edit manifest versions in `platform/*/manifest.json`.
 
+## English Lexicon (Review grammar)
+
+Review's English rules read part-of-speech and inflection data from `src/core/domain/grammar/implementations/helpers/englishLexicon.generated.ts`, derived from `resources_js/en_US/hunspell/en_US.dic`/`.aff` and the irregular verb table in `EnglishVerbForms.ts`. After changing any of them, regenerate and commit the result:
+
+```
+bun run generate:english-lexicon
+```
+
+`tests/grammar/EnglishLexicon.test.ts` fails when the committed file drifts from its sources.
+
 ## Rebuilding Language Assets (presage data)
 
 The Presage prediction engine reads its configuration from `resources_js/<lang>/presage.xml` and loads language data from packed binary `.data` files in `public/third_party/libpresage/`. The `src/third_party/libpresage/libpresage.js` file embeds metadata (file offsets/sizes) that maps the virtual filesystem to those `.data` files.

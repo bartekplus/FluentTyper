@@ -220,6 +220,43 @@ async function assertEngineIsolation(outfiles: string[], engineOutfile: string |
   }
 }
 
+/**
+ * Strings only Review's detectors and their data contain (generated lexicon,
+ * English and other-language phrase tables, detector code), and the findings'
+ * explanations (reviewExplanations.ts), which the background sends resolved.
+ * Review detection runs in background.js; content scripts, loaded by every
+ * frame, must not carry it.
+ */
+const REVIEW_DETECTION_MARKERS = [
+  "V e ive e;V  ive [^e]",
+  "without further adieu",
+  "Vorraussetzung",
+  "each|every|the|a|index|variable|counter|iterator|loop",
+  "Use the conventional form of this fixed English phrase.",
+];
+
+/**
+ * Fails the build if Review detection lands in a content script, or if a marker
+ * is missing from background.js (it would no longer prove anything).
+ */
+async function assertReviewDetectionIsolation(
+  contentOutfiles: string[],
+  backgroundOutfile: string,
+) {
+  const background = await readFile(backgroundOutfile, "utf8");
+  const missing = REVIEW_DETECTION_MARKERS.find((marker) => !background.includes(marker));
+  if (missing) {
+    throw new Error(`${backgroundOutfile} lacks the Review detection marker "${missing}"`);
+  }
+  for (const outfile of contentOutfiles) {
+    const content = await readFile(outfile, "utf8");
+    const marker = REVIEW_DETECTION_MARKERS.find((candidate) => content.includes(candidate));
+    if (marker) {
+      throw new Error(`${outfile} contains Review detection ("${marker}"); only background.js may`);
+    }
+  }
+}
+
 interface BundleEntry {
   entrypoint: string;
   outfile: string;
@@ -317,6 +354,12 @@ async function bundleExtension(context: BuildContext): Promise<void> {
   await assertEngineIsolation(
     entrypoints.map((item) => item.outfile),
     context.includeLocalAiRuntime ? backgroundOutfile : null,
+  );
+  await assertReviewDetectionIsolation(
+    entrypoints
+      .filter((item) => item.label.startsWith("content_script"))
+      .map((item) => item.outfile),
+    backgroundOutfile,
   );
 
   await copyStaticAssets(context);

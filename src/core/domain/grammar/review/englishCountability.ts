@@ -30,7 +30,7 @@ const MASS = [
   },
 ] as const;
 const NUMBER = `(?<count>${ENGLISH_COUNT_WORDS.slice(1).join("|")}|[1-9])${SPACE}(?:(?:important|essential|useful|unusual|observable|natural)${SPACE})?(?<noun>criterion|criteria|phenomenon|phenomena)${END}`;
-const SPECIALIST =
+export const SPECIALIST =
   /\b(?:legal|law|court|criminal|judicial|indictment|prosecution|affidavit|writ|bank|banking|remittance|shipping|commercial|trade|patent|archaic|dialect|regional|terminology)\b/i;
 
 /** Ordinary-prose frames only. Quantified mass nouns abstain; no invented amount or unit. */

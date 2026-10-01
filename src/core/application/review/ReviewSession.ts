@@ -1,5 +1,4 @@
 import { overlapsSortedRanges } from "@core/domain/grammar/review/textRanges";
-import { NativeReviewCache } from "@core/domain/grammar/review/nativeReviewCache";
 import { isReviewSupportedRule } from "@core/domain/grammar/review/reviewCatalog";
 import type { CatalogRuleId } from "@core/domain/grammar/ruleCatalog";
 import {
@@ -7,20 +6,11 @@ import {
   type BulkPlan,
   type ProofRequest,
 } from "@core/domain/grammar/review/bulkPlanner";
-import {
-  MAX_REVIEW_CHARS,
-  REVIEW_CHUNK_CHARS,
-  finalizeReview,
-  prepareReview,
-  reviewChunks,
-  scanReviewChunk,
-  casingDiagnostic,
-  spellingDiagnostic,
-  stillDetectedAfter,
-  stillDetectedAfterAsync,
-  type ChunkScan,
-  type PreparedReview,
-} from "@core/domain/grammar/review/reviewDiagnostics";
+import type { PreparedReview } from "@core/domain/grammar/review/reviewDiagnostics";
+import { casingDiagnostic, spellingDiagnostic } from "@core/domain/grammar/review/reviewFindings";
+import { isPageMessageKey } from "@core/domain/grammar/review/reviewMessages";
+import type { ReviewExplanations } from "@core/domain/contracts/reviewEngine";
+import { hydratePrepared, type ReviewEngine } from "./ReviewEngine";
 import {
   applyEdits,
   diffTexts,
@@ -40,7 +30,9 @@ import type {
   TextRange,
 } from "@core/domain/grammar/review/types";
 import {
+  MAX_REVIEW_CHARS,
   REVIEW_CATEGORIES,
+  REVIEW_CHUNK_CHARS,
   REVIEW_LOCAL_AI_CHECK,
   REVIEW_SPELLING_CHECK,
 } from "@core/domain/grammar/review/types";
@@ -164,6 +156,11 @@ export interface ReviewViewState {
   capabilities: ReviewCapabilities;
   /** Current, not ignored. */
   diagnostics: ReviewDiagnostic[];
+  /**
+   * The rule findings' explanations, by message key, from the engine (the page
+   * explains its own dictionary and Local AI findings).
+   */
+  explanations: ReviewExplanations;
   ignoredCount: number;
   ignoredAdviceCount?: number;
   resolvedCount: number;
@@ -222,7 +219,11 @@ function individualOnly(diagnostic: ReviewDiagnostic): boolean {
 
 export interface ReviewSessionDependencies {
   target: ReviewTargetPort;
+  /** Detection for this session (the background's, from a page); released on close. */
+  engine: ReviewEngine;
   options: ReviewOptions;
+  /** The UI language findings are explained in, read per request (default English). */
+  uiLanguage?: () => string;
   /** Selection captured before any UI opened, in the target's text offsets; null = whole field. */
   initialScope: TextRange | null;
   onChange: (state: ReviewViewState) => void;
@@ -309,6 +310,7 @@ function sameOptions(a: ReviewOptions, b: ReviewOptions): boolean {
 interface PendingPlan {
   key: readonly unknown[];
   promise: Promise<BulkPlan | null>;
+  abort: AbortController;
 }
 
 class PlanSuperseded extends Error {}
@@ -318,9 +320,6 @@ const NO_DIAGNOSTICS: ReviewDiagnostic[] = [];
 function occurrenceKey(entry: IgnoredOccurrence): string {
   return `${entry.ruleId}|${entry.range.start}|${entry.range.end}|${entry.original}`;
 }
-
-/** Proof checks a plan may run at once before it continues asynchronously. */
-const SYNC_PROOF_CHECKS = 64;
 
 function sameKey(a: readonly unknown[], b: readonly unknown[]): boolean {
   return a.length === b.length && a.every((value, index) => value === b[index]);
@@ -355,8 +354,10 @@ function mergeInTextOrder(
  * Starting a review reads only: no text, formatting, setting or learning changes.
  */
 export class ReviewSession {
-  private readonly nativeCache = new NativeReviewCache();
   private generation = 0;
+  // The engine's kept native results no longer describe the next scan's input.
+  private engineCacheStale = false;
+  private scanAbort: AbortController | null = null;
   private status: ReviewStatus = "loading";
   private unavailable: ReviewUnavailable | undefined;
   private text = "";
@@ -375,6 +376,11 @@ export class ReviewSession {
   private diagnostics: ReviewDiagnostic[] = [];
   // The rule findings alone: Fix all plans from these (spelling is never batched).
   private ruleDiagnostics: ReviewDiagnostic[] = [];
+  /** The text the shown findings were computed from; ignores are stored in its offsets. */
+  private diagnosticsText = "";
+  // Their explanations as the engine sent them, all in one UI language.
+  private explanations: ReviewExplanations = {};
+  private explanationsLanguage = "";
   private spelling: ReviewViewState["spelling"] = "off";
   // Lookups already answered, per language and lowercased word: known words, and candidates.
   private spellingCache = {
@@ -393,7 +399,7 @@ export class ReviewSession {
     entries: Map<string, IgnoredOccurrence>;
   } | null = null;
   private planCache: { key: readonly unknown[]; plan: BulkPlan } | null = null;
-  private planPending: { key: readonly unknown[]; promise: Promise<BulkPlan | null> } | null = null;
+  private planPending: PendingPlan | null = null;
   private resolvedCount = 0;
   private categories = new Set<ReviewCategory>(REVIEW_CATEGORIES);
   private selectedId: string | null = null;
@@ -484,7 +490,9 @@ export class ReviewSession {
 
   close(): void {
     this.generation += 1;
-    this.nativeCache.clear();
+    this.abortScan();
+    this.planPending?.abort.abort();
+    this.deps.engine.release();
     this.cancelRecheck();
     this.cancelAi();
     this.cancelRewriteRun();
@@ -510,6 +518,7 @@ export class ReviewSession {
   notifySourceChanged(): void {
     if (this.status === "closed" || this.status === "applying" || this.scopeLost) return;
     this.generation += 1;
+    this.abortScan();
     this.textChanging();
     // "Fixed: 3" describes our last write; after the user's own edit (say, an
     // undo) it no longer describes the text.
@@ -531,7 +540,7 @@ export class ReviewSession {
   /** Settings broadcasts repeat unchanged values; only a real change rechecks. */
   updateOptions(options: ReviewOptions): void {
     if (this.status === "closed" || sameOptions(this.options, options)) return;
-    this.nativeCache.clear();
+    this.engineCacheStale = true;
     this.options = options;
     this.notifySourceChanged();
   }
@@ -569,7 +578,11 @@ export class ReviewSession {
 
   /** Suppress only currently equivalent occurrences; never learn a future text pattern. */
   ignoreMatching(id: string): void {
-    if (this.status !== "ready") return;
+    // While a recheck is pending the shown findings still match the last read text,
+    // so a click that raced the "updating" render is not lost.
+    const current =
+      this.status === "ready" || (this.status === "updating" && this.diagnosticsText === this.text);
+    if (!current) return;
     const diagnostic = this.visibleDiagnostics().find((d) => d.id === id);
     if (!diagnostic || diagnostic.ruleId === REVIEW_LOCAL_AI_CHECK) return;
     const identity = this.matchingIdentity(diagnostic);
@@ -597,7 +610,8 @@ export class ReviewSession {
   }
 
   resetIgnores(): void {
-    if (this.status !== "ready" || this.ignored.length === 0) return;
+    if ((this.status !== "ready" && this.status !== "updating") || this.ignored.length === 0)
+      return;
     this.ignored = [];
     this.selectedId = null;
     this.emit();
@@ -704,6 +718,7 @@ export class ReviewSession {
       scopeKind: this.scopeKind,
       capabilities: this.capabilities,
       diagnostics: this.status === "ready" ? this.visibleDiagnostics() : NO_DIAGNOSTICS,
+      explanations: this.explanations,
       ignoredCount: this.ignoredDiagnostics().filter((d) => d.category !== "style").length,
       ignoredAdviceCount: this.ignoredDiagnostics().filter((d) => d.category === "style").length,
       resolvedCount: this.resolvedCount,
@@ -935,9 +950,9 @@ export class ReviewSession {
 
   /**
    * The Fix-all plan for the current results, or null while it is still being
-   * proven. Most plans need no proof, and small proofs run at once; larger ones
-   * (dense errors in long text) continue asynchronously, pausing between scans,
-   * and are dropped when newer results replace them.
+   * proven. Most plans need no proof and are ready at once; proofs re-run
+   * detection, so they go to the engine, a round at a time, and are dropped
+   * when newer results replace them.
    */
   private planBulk(): BulkPlan | null {
     const key = this.planKey();
@@ -948,23 +963,23 @@ export class ReviewSession {
     // What is shown: ignored findings and hidden categories are neither fixed nor counted.
     const ruleFindings = this.visibleDiagnostics().filter((d) => !individualOnly(d));
     const steps = planBulkFixSteps(this.text, ruleFindings, { prove: true });
-    let budget = SYNC_PROOF_CHECKS;
-    let step = steps.next();
-    while (!step.done && step.value.checks.length <= budget) {
-      budget -= step.value.checks.length;
-      step = steps.next(stillDetectedAfter(prepared, step.value.checks, step.value.otherEdits));
-    }
+    const step = steps.next();
     if (step.done) {
       this.planCache = { key, plan: step.value };
       return step.value;
     }
-    const pending: PendingPlan = { key, promise: Promise.resolve(null) };
+    this.planPending?.abort.abort();
+    const pending: PendingPlan = {
+      key,
+      promise: Promise.resolve(null),
+      abort: new AbortController(),
+    };
     this.planPending = pending;
     pending.promise = this.provePlan(pending, steps, step.value, prepared);
     return null;
   }
 
-  /** Answers the remaining proof rounds, pausing between scans; dropped if superseded. */
+  /** Answers the proof rounds through the engine; dropped if superseded. */
   private async provePlan(
     pending: PendingPlan,
     steps: Generator<ProofRequest, BulkPlan, boolean[]>,
@@ -972,7 +987,7 @@ export class ReviewSession {
     prepared: PreparedReview,
   ): Promise<BulkPlan | null> {
     let request: IteratorResult<ProofRequest, BulkPlan> = { done: false, value: first };
-    // Newer results replace this plan: stop at the next pause, not after the round.
+    // Newer results replace this plan: stop before the next round, and cancel the current one.
     const pause = async () => {
       await this.pause();
       if (this.planPending !== pending) throw new PlanSuperseded();
@@ -980,12 +995,17 @@ export class ReviewSession {
     let plan: BulkPlan;
     try {
       while (!request.done) {
-        const answer = await stillDetectedAfterAsync(
-          prepared,
-          request.value.checks,
-          request.value.otherEdits,
-          pause,
+        await pause();
+        const answer = await this.deps.engine.prove(
+          {
+            snapshot: prepared.snapshot,
+            options: prepared.options,
+            checks: request.value.checks,
+            otherEdits: request.value.otherEdits,
+          },
+          pending.abort.signal,
         );
+        if (this.planPending !== pending) throw new PlanSuperseded();
         request = steps.next(answer);
       }
       plan = request.value;
@@ -1122,7 +1142,7 @@ export class ReviewSession {
     }
     if (generation !== this.generation || this.isClosed) return;
     if (!read.ok) {
-      this.nativeCache.clear();
+      this.engineCacheStale = true;
       this.cancelAi();
       this.status = "unavailable";
       this.unavailable = read.reason;
@@ -1160,7 +1180,7 @@ export class ReviewSession {
     }
     // Formatting-only change: same text, different protection. Old ignores
     // still refer to the same characters; findings are recomputed below.
-    if (this.signature !== read.signature) this.nativeCache.clear();
+    if (this.signature !== read.signature) this.engineCacheStale = true;
     this.text = read.text;
     this.signature = read.signature;
     this.protectedRanges = read.protectedRanges;
@@ -1191,42 +1211,61 @@ export class ReviewSession {
       if (generation !== this.generation || this.isClosed) return;
       this.reviewLang = lang;
     }
-    const prepared = prepareReview(
-      {
-        id: `g${generation}`,
-        text: this.text,
-        scope: { start: fullScope.start, end: cutEnd },
-        protectedRanges: this.protectedRanges,
-        incomplete: this.unread > 0 ? true : undefined,
-        selection: this.scopeKind === "selection" ? true : undefined,
-      },
+    const snapshot = {
+      id: `g${generation}`,
+      text: this.text,
+      scope: { start: fullScope.start, end: cutEnd },
+      protectedRanges: this.protectedRanges,
+      ...(this.unread > 0 && { incomplete: true as const }),
+      ...(this.scopeKind === "selection" && { selection: true as const }),
+    };
+    const options =
       this.options.lang === AUTO_DETECT && this.reviewLang
         ? { ...this.options, lang: this.reviewLang }
-        : this.options,
+        : this.options;
+    // The engine scans in chunks off the page; a newer scan or close cancels this one.
+    this.abortScan();
+    const abort = new AbortController();
+    this.scanAbort = abort;
+    const resetCache = this.engineCacheStale;
+    this.engineCacheStale = false;
+    const uiLanguage = this.uiLanguage();
+    const scanned = this.deps.engine.scan(
+      {
+        snapshot,
+        options,
+        // Short drafts showed no benefit. Partial/oversized sources keep the full scan.
+        cache:
+          this.scopeKind === "field" &&
+          !this.unread &&
+          this.text.length > REVIEW_CHUNK_CHARS * 2 &&
+          this.text.length <= MAX_REVIEW_CHARS,
+        resetCache,
+        gaps: {
+          ...(this.truncated > 0 && { "size-limit": this.truncated }),
+          ...(this.unread > 0 && { "outside-window": this.unread }),
+        },
+        uiLanguage,
+      },
+      abort.signal,
     );
-    const scans: ChunkScan[] = [];
-    // Short drafts showed no benefit. Partial/oversized sources keep the full scan.
-    const cache =
-      this.scopeKind === "field" &&
-      !this.unread &&
-      this.text.length > REVIEW_CHUNK_CHARS * 2 &&
-      this.text.length <= MAX_REVIEW_CHARS
-        ? this.nativeCache
-        : undefined;
-    if (!cache) this.nativeCache.clear();
-    for (const chunk of reviewChunks(prepared)) {
-      scans.push(scanReviewChunk(prepared, chunk, cache));
-      // Yield between chunks so typing is never blocked by a long scan.
-      await this.pause();
-      if (generation !== this.generation || this.isClosed) return;
-    }
-    const result = finalizeReview(prepared, scans, {
-      ...(this.truncated > 0 && { "size-limit": this.truncated }),
-      ...(this.unread > 0 && { "outside-window": this.unread }),
+    // A scan that never ran may not have reset the engine's results: the next one does.
+    const {
+      result,
+      prepared: data,
+      explanations,
+    } = await scanned.catch((error: unknown) => {
+      this.engineCacheStale ||= resetCache;
+      throw error;
     });
+    if (this.scanAbort === abort) this.scanAbort = null;
+    if (generation !== this.generation || this.isClosed) return;
+    const prepared = hydratePrepared(data, snapshot, options);
     this.prepared = prepared;
     this.ruleDiagnostics = result.diagnostics;
     this.diagnostics = result.diagnostics;
+    this.diagnosticsText = snapshot.text;
+    this.keepExplanations(explanations, uiLanguage);
     this.aiFindings = [];
     // A rewrite not generated yet is for the text as it is now.
     if (this.rewrite?.status === "idle" || this.rewrite?.status === "too-long") {
@@ -1242,6 +1281,8 @@ export class ReviewSession {
     if (spelling) this.spellingCache = this.cacheFor(prepared.options.lang);
     this.spelling = !spelling ? "off" : this.spellingCache.unavailable ? "unavailable" : "checking";
     this.emit();
+    // The UI language changed while this scan ran.
+    if (uiLanguage !== this.uiLanguage()) void this.refreshExplanations();
     // Local AI starts only now, after the checks' results are on screen.
     this.startAi();
     if (this.spelling !== "checking") return;
@@ -2021,6 +2062,12 @@ export class ReviewSession {
     }
   }
 
+  /** Cancels the scan in flight, if any: its results would be dropped anyway. */
+  private abortScan(): void {
+    this.scanAbort?.abort();
+    this.scanAbort = null;
+  }
+
   /** Lets the host run (typing, painting) between chunks of work. */
   private pause(): Promise<void> {
     return new Promise<void>((resolve) => this.setTimer(resolve, 0));
@@ -2028,5 +2075,38 @@ export class ReviewSession {
 
   private emit(): void {
     this.deps.onChange(this.getState());
+  }
+
+  private uiLanguage(): string {
+    return this.deps.uiLanguage?.() ?? "en";
+  }
+
+  /** Adds explanations in `lang`; ones in another language are dropped. */
+  private keepExplanations(texts: ReviewExplanations, lang: string): void {
+    const kept = lang === this.explanationsLanguage ? this.explanations : {};
+    this.explanations = { ...kept, ...texts };
+    this.explanationsLanguage = lang;
+  }
+
+  /**
+   * The findings' explanations in the current UI language, after it changed:
+   * the engine keeps them, so they are asked for again (only the keys shown).
+   * Resolves once they are in the state; on failure the previous ones stay.
+   */
+  async refreshExplanations(): Promise<void> {
+    const lang = this.uiLanguage();
+    if (lang === this.explanationsLanguage) return;
+    const keys = new Set<string>();
+    for (const d of this.diagnostics) {
+      if (!isPageMessageKey(d.messageKey)) keys.add(d.messageKey);
+    }
+    if (keys.size === 0) {
+      this.keepExplanations({}, lang);
+      return;
+    }
+    const texts = await this.deps.engine.explanations([...keys], lang).catch(() => null);
+    if (!texts || this.isClosed || lang !== this.uiLanguage()) return;
+    this.keepExplanations(texts, lang);
+    this.emit();
   }
 }

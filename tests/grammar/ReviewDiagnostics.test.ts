@@ -11,6 +11,7 @@ import {
   reviewCoverageMap,
   reviewRuleIds,
 } from "../../src/core/domain/grammar/review/reviewCatalog";
+import { EXTENSION_DETECTORS } from "../../src/core/domain/grammar/review/english";
 import { REVIEW_DETECTORS } from "../../src/core/domain/grammar/review/reviewDetectors";
 import {
   MAX_REVIEW_CHARS,
@@ -99,11 +100,15 @@ describe("review rule coverage map", () => {
     expect([...categories]).toEqual(["typography"]);
   });
 
-  test("every supported rule has exactly one detector, and excluded rules have none", () => {
-    const detected = REVIEW_DETECTORS.flatMap((detector) => detector.rules);
-    expect(new Set(detected).size).toBe(detected.length);
+  test("every supported rule has a detector, and excluded rules have none", () => {
+    // Core detectors own a rule once; English extension modules may add context detectors
+    // to those rules or serve rules of their own.
+    const core = REVIEW_DETECTORS.filter((detector) => !EXTENSION_DETECTORS.includes(detector));
+    const coreRules = core.flatMap((detector) => detector.rules);
+    expect(new Set(coreRules).size).toBe(coreRules.length);
+    const detected = new Set(REVIEW_DETECTORS.flatMap((detector) => detector.rules));
     for (const ruleId of GRAMMAR_RULE_IDS) {
-      expect(detected.includes(ruleId)).toBe(REVIEW_RULE_METADATA[ruleId].review === "supported");
+      expect(detected.has(ruleId)).toBe(REVIEW_RULE_METADATA[ruleId].review === "supported");
     }
   });
 
@@ -122,6 +127,15 @@ describe("review rule coverage map", () => {
             "emdashShortcut",
             "primeSymbols",
             "stylePhrasing",
+            "styleContractions",
+            "styleOxfordComma",
+            "styleNoOxfordComma",
+            "styleAlternativePhrasing",
+            "englishPossibleErrors",
+            "englishAmericanSpelling",
+            "englishBritishSpelling",
+            "styleWordChoice",
+            "styleSpelledNumbers",
           ].includes(id),
       ),
     );
@@ -395,7 +409,9 @@ describe("review detectors: grammar", () => {
     expect(finding.alternatives[0].edits).toEqual([
       { start: 9, end: 11, original: "of", replacement: "have" },
     ]);
-    expect(only("You must of course; could of", "englishModalOfCorrection")).toEqual([]);
+    expect(only("You must of course; could of", "englishModalOfCorrection")).toEqual([
+      ["englishModalOfCorrection", "could of", [20, 28], "could have"],
+    ]);
   });
 
   test("englishYourWelcomeCorrection only sentence-final, including the end of input", () => {

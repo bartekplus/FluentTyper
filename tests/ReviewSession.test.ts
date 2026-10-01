@@ -14,6 +14,8 @@ import {
   type ReviewViewState,
 } from "../src/core/application/review/ReviewSession";
 import { GRAMMAR_RULE_IDS } from "../src/core/domain/grammar/ruleCatalog";
+import { LocalReviewEngine } from "../src/core/application/review/LocalReviewEngine";
+import { reviewExplanation } from "../src/core/domain/grammar/review/reviewExplanations";
 import { MAX_REVIEW_CHARS } from "../src/core/domain/grammar/review/reviewDiagnostics";
 import { parseSpellingRequest } from "../src/core/domain/grammar/review/reviewSpelling";
 import type {
@@ -72,7 +74,9 @@ function harness(
     spellingEnabled,
     rules = ["englishTypoWhitelistCorrection"],
     lookupSpelling,
+    uiLanguage,
   }: {
+    uiLanguage?: () => string;
     scope?: TextRange | null;
     dictionary?: (word: string) => Promise<boolean>;
     disableReviewRule?: (ruleId: string) => Promise<boolean>;
@@ -84,8 +88,13 @@ function harness(
   const editor = new FakeEditor(text);
   const timers: Array<{ callback: () => void; delay: number }> = [];
   const states: ReviewViewState[] = [];
+  // In-process detection whose chunk yields are this harness's timers.
+  const engine = new LocalReviewEngine(
+    () => new Promise<void>((resolve) => timers.push({ callback: resolve, delay: 0 })),
+  );
   const session = new ReviewSession({
     target: editor,
+    engine,
     options: {
       lang: "en_US",
       enabledRules: rules,
@@ -94,6 +103,7 @@ function harness(
       insertSpaceAfterAutocomplete: true,
     },
     initialScope: scope,
+    uiLanguage,
     onChange: (state) => states.push(state),
     addToDictionary: dictionary,
     disableReviewRule,
@@ -124,10 +134,51 @@ function harness(
   };
   const last = () => states.at(-1)!;
   const originals = () => last().diagnostics.map((d) => d.original);
-  return { editor, session, settle, last, originals, states, timers };
+  return { editor, session, settle, last, originals, states, timers, engine };
 }
 
 describe("ReviewSession", () => {
+  test("explanations come with the scan, and again (once per key) after a language change", async () => {
+    let language = "en";
+    const h = harness("teh cat saw teh dog", { uiLanguage: () => language });
+    const explain = spyOn(h.engine, "explanations");
+    await Promise.all([h.session.start(), h.settle()]);
+    expect(h.originals()).toEqual(["teh", "teh"]);
+    const typo = (lang: string) => ({
+      review_msg_typo: reviewExplanation("review_msg_typo", lang),
+    });
+    expect(h.last().explanations).toEqual(typo("en"));
+    await h.session.refreshExplanations();
+    expect(explain).not.toHaveBeenCalled();
+
+    language = "pl";
+    await h.session.refreshExplanations();
+    expect(explain).toHaveBeenCalledWith(["review_msg_typo"], "pl");
+    expect(h.last().explanations).toEqual(typo("pl"));
+    // No answer: the shown ones stay.
+    language = "de";
+    explain.mockImplementationOnce(() => Promise.reject(new Error("worker gone")));
+    await h.session.refreshExplanations();
+    expect(h.last().explanations).toEqual(typo("pl"));
+  });
+
+  test("a language change while a scan runs asks again for its explanations", async () => {
+    let language = "en";
+    const h = harness("teh cat", { uiLanguage: () => language });
+    const scan = h.engine.scan.bind(h.engine);
+    const asked: string[] = [];
+    h.engine.scan = (request, signal) => {
+      asked.push(request.uiLanguage);
+      language = "fr";
+      return scan(request, signal);
+    };
+    await Promise.all([h.session.start(), h.settle()]);
+    expect(asked).toEqual(["en"]);
+    expect(h.last().explanations).toEqual({
+      review_msg_typo: reviewExplanation("review_msg_typo", "fr"),
+    });
+  });
+
   test("starting a review reads only and shows loading before results", async () => {
     const h = harness("teh cat saw teh dog");
     const started = h.session.start();
@@ -301,7 +352,9 @@ describe("ReviewSession", () => {
 
   test("Fix all leaves ignored findings and hidden categories alone, and does not count them", async () => {
     // Moved from the planner: the session plans only what it shows.
-    const h = harness("teh a teh b , ok", { rules: GRAMMAR_RULE_IDS });
+    // Opt-in "ok" -> "okay" would be one more shown, individual-only finding.
+    const rules = GRAMMAR_RULE_IDS.filter((id) => id !== "styleWordChoice");
+    const h = harness("teh a teh b , ok", { rules });
     await Promise.all([h.session.start(), h.settle()]);
     const first = h.last().diagnostics.find((d) => d.original === "teh")!;
     h.session.ignore(first.id);
@@ -1098,6 +1151,33 @@ test("matching ignores use evidence and alternatives, reset restores current occ
   h.session.close();
 });
 
+test("a matching ignore that races a settings recheck still applies", async () => {
+  const h = await matchingHarness();
+  const id = h.last().diagnostics[0].id;
+  h.session.notifySourceChanged(); // a settings broadcast: same text, recheck pending
+  h.session.ignoreMatching(id);
+  expect(h.last().ignoredCount).toBe(2);
+  await h.settle();
+  expect(h.originals()).toEqual(["a a"]);
+  expect(h.last().ignoredCount).toBe(2);
+  h.session.resetIgnores();
+  expect(h.last().ignoredCount).toBe(0);
+  h.session.close();
+});
+
+test("a matching ignore is refused once the shown findings no longer match the text", async () => {
+  const h = await matchingHarness();
+  const id = h.last().diagnostics[0].id;
+  h.editor.text = "New introduction. " + h.editor.text;
+  h.session.notifySourceChanged();
+  await h.settle();
+  h.editor.text = "More. " + h.editor.text;
+  h.session.notifySourceChanged();
+  h.session.ignoreMatching(id); // stale id from an older text: nothing to ignore
+  expect(h.last().ignoredCount).toBe(0);
+  h.session.close();
+});
+
 test("matching ignores survive insertion before unchanged evidence", async () => {
   const h = await matchingHarness();
   h.session.ignoreMatching(h.last().diagnostics[0].id);
@@ -1489,4 +1569,47 @@ test("readability advice does not hide spelling and cannot be applied", async ()
   expect(await h.session.apply(warning.id)).toBeNull();
   expect(h.editor.applyCalls).toEqual([]);
   h.session.close();
+});
+
+test("an engine that does not answer shows the error state; the next edit asks again", async () => {
+  const h = harness("teh cat");
+  // The background worker could not be reached (or failed): no answer.
+  const scan = spyOn(h.engine, "scan").mockImplementationOnce(() =>
+    Promise.reject(new Error("Review engine request failed: no answer")),
+  );
+  await Promise.all([h.session.start(), h.settle()]);
+  expect(h.last().status).toBe("error");
+  h.session.notifySourceChanged();
+  await h.settle();
+  expect(h.last().status).toBe("ready");
+  expect(h.originals()).toEqual(["teh"]);
+  expect(scan).toHaveBeenCalledTimes(2);
+  h.session.close();
+});
+
+test("an edit or close cancels the engine's scan in flight, and close releases the engine", async () => {
+  const h = harness("We discussed about the plan.\n\n".repeat(400), {
+    rules: ["englishFixedPrepositions"],
+  });
+  const signals: AbortSignal[] = [];
+  const scan = h.engine.scan.bind(h.engine);
+  spyOn(h.engine, "scan").mockImplementation((request, signal) => {
+    signals.push(signal!);
+    return scan(request, signal);
+  });
+  const release = spyOn(h.engine, "release");
+  const started = h.session.start();
+  for (let i = 0; i < 5; i++) await Promise.resolve();
+  expect(signals).toHaveLength(1);
+  h.session.notifySourceChanged();
+  expect(signals[0].aborted).toBe(true);
+  h.timers.find((timer) => timer.delay === 400)!.callback();
+  for (let i = 0; i < 5; i++) await Promise.resolve();
+  expect(signals).toHaveLength(2);
+  h.session.close();
+  expect(signals[1].aborted).toBe(true);
+  expect(release).toHaveBeenCalledTimes(1);
+  await h.settle();
+  await started;
+  expect(h.states.some((s) => s.status === "ready")).toBe(false);
 });

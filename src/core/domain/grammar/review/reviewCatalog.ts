@@ -8,7 +8,7 @@ import {
   type ReviewCheckId,
   type ReviewKind,
 } from "./types";
-import { LANGUAGE_PHRASE_TABLES, type LanguagePhraseTables } from "./languagePhraseTables";
+import type { LanguagePhraseTables } from "./languagePhraseTables";
 
 interface SupportedReviewMetadata {
   review: "supported";
@@ -51,11 +51,30 @@ const NAMED_LANGUAGES: readonly string[] = SUPPORTED_PREDICTION_LANGUAGE_KEYS.fi
   (lang) => lang !== TEXT_EXPANDER_LANG,
 );
 
+/**
+ * The kinds of phrase table authored for each language in languagePhraseTables.ts,
+ * restated so the catalog (loaded by every page) does not load the tables;
+ * ReviewLanguagePhraseTables.test.ts keeps the two in step.
+ */
+export const PHRASE_TABLE_KINDS: Readonly<
+  Record<string, ReadonlyArray<keyof LanguagePhraseTables>>
+> = {
+  de: ["words", "phrases", "compounds", "style"],
+  fr: ["words", "phrases", "compounds", "style"],
+  es: ["words", "phrases", "compounds", "style"],
+  pt: ["words", "phrases", "style"],
+  pl: ["words", "phrases", "compounds", "style"],
+  hr: ["words", "compounds"],
+  sv: ["words"],
+  el: ["words"],
+};
+
 /** English and every language with an authored phrase table of these kinds. */
 const withPhraseTables = (...kinds: Array<keyof LanguagePhraseTables>): readonly string[] =>
   NAMED_LANGUAGES.filter(
     (lang) =>
-      lang === "en_US" || kinds.some((kind) => LANGUAGE_PHRASE_TABLES[lang.slice(0, 2)]?.[kind]),
+      lang === "en_US" ||
+      kinds.some((kind) => PHRASE_TABLE_KINDS[lang.slice(0, 2)]?.includes(kind)),
   );
 
 export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
@@ -82,6 +101,73 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     kind: "redundancy",
     bulk: "individual",
     languages: withPhraseTables("style"),
+  },
+  styleContractions: {
+    review: "supported",
+    defaultEnabled: false,
+    category: "style",
+    kind: "usage",
+    bulk: "individual",
+  },
+  styleOxfordComma: {
+    review: "supported",
+    defaultEnabled: false,
+    category: "style",
+    kind: "marks",
+    bulk: "individual",
+  },
+  styleNoOxfordComma: {
+    review: "supported",
+    defaultEnabled: false,
+    category: "style",
+    kind: "marks",
+    bulk: "individual",
+  },
+  styleAlternativePhrasing: {
+    review: "supported",
+    defaultEnabled: false,
+    category: "style",
+    kind: "usage",
+    bulk: "individual",
+    note: "Optional style: both forms of these phrases are correct English.",
+  },
+  englishPossibleErrors: {
+    review: "supported",
+    defaultEnabled: false,
+    category: "grammar",
+    kind: "usage",
+    bulk: "individual",
+    note: "Optional: these forms are usually mistakes but can be correct, or are quoted on purpose.",
+  },
+  englishAmericanSpelling: {
+    review: "supported",
+    defaultEnabled: false,
+    category: "spelling",
+    kind: "usage",
+    bulk: "individual",
+    note: "Optional dialect: British forms are correct English too.",
+  },
+  englishBritishSpelling: {
+    review: "supported",
+    defaultEnabled: false,
+    category: "spelling",
+    kind: "usage",
+    bulk: "individual",
+    note: "Optional dialect: American forms are correct English too.",
+  },
+  styleWordChoice: {
+    review: "supported",
+    defaultEnabled: false,
+    category: "style",
+    kind: "usage",
+    bulk: "individual",
+  },
+  styleSpelledNumbers: {
+    review: "supported",
+    defaultEnabled: false,
+    category: "style",
+    kind: "numbers",
+    bulk: "individual",
   },
   styleRedundancy: {
     review: "supported",
@@ -263,7 +349,42 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     kind: "confusedWords",
     bulk: "individual",
   },
+  englishIrregularForms: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "grammar",
+    kind: "wordForm",
+    bulk: "individual",
+  },
+  englishPossessiveNouns: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "grammar",
+    kind: "wordForm",
+    bulk: "individual",
+  },
 
+  englishPronounCase: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "grammar",
+    kind: "wordForm",
+    bulk: "individual",
+  },
+  englishSentenceStructure: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "grammar",
+    kind: "usage",
+    bulk: "individual",
+  },
+  englishConfusedWords: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "grammar",
+    kind: "confusedWords",
+    bulk: "individual",
+  },
   englishAuxiliaryBaseVerb: {
     review: "supported",
     defaultEnabled: true,

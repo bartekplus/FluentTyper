@@ -8,8 +8,9 @@ import {
   reviewLanguageScope,
   reviewRuleIds,
 } from "@core/domain/grammar/review/reviewCatalog";
-import { reviewText, type ReviewTextKey } from "@core/domain/grammar/review/reviewMessages";
-import { REVIEW_CATEGORIES } from "@core/domain/grammar/review/types";
+import { reviewExplanation } from "@core/domain/grammar/review/reviewExplanations";
+import { reviewText } from "@core/domain/grammar/review/reviewMessages";
+import { REVIEW_CATEGORIES, type ReviewMessageKey } from "@core/domain/grammar/review/types";
 import {
   grammarRuleSelectionToOverrides,
   isGrammarRuleOverrides,
@@ -60,7 +61,7 @@ const RULES = GRAMMAR_RULE_CATALOG.filter((rule) =>
     id: rule.id,
     title: typing
       ? i18n.get(rule.titleI18nKey)
-      : reviewText(rule.titleI18nKey as ReviewTextKey, i18n.lang),
+      : reviewExplanation(rule.titleI18nKey as ReviewMessageKey, i18n.lang),
     description: typing ? i18n.get(rule.descriptionI18nKey) : "",
     example: typing && rule.exampleI18nKey ? i18n.get(rule.exampleI18nKey) : "",
     section: REVIEW_RULE_METADATA[rule.id].category,

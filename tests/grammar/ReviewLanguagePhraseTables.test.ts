@@ -11,7 +11,10 @@ import {
   LANGUAGE_PHRASE_TABLES,
   type LanguagePhraseTables,
 } from "../../src/core/domain/grammar/review/languagePhraseTables";
-import { runsInReviewLanguage } from "../../src/core/domain/grammar/review/reviewCatalog";
+import {
+  PHRASE_TABLE_KINDS,
+  runsInReviewLanguage,
+} from "../../src/core/domain/grammar/review/reviewCatalog";
 import type { ReviewDiagnostic } from "../../src/core/domain/grammar/review/types";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
 
@@ -82,6 +85,16 @@ const typedIn = new Map<string, Set<string>>([
       ] as const,
   ),
 ]);
+
+test("the catalog's restated table kinds match the authored tables", () => {
+  const authored = Object.fromEntries(
+    Object.entries(LANGUAGE_PHRASE_TABLES).map(([code, tables]) => [
+      code,
+      KINDS.map(([kind]) => kind).filter((kind) => (tables[kind]?.length ?? 0) > 0),
+    ]),
+  );
+  expect(PHRASE_TABLE_KINDS).toEqual(authored);
+});
 
 test("every table language is a review language, and each rule runs where it has rows", () => {
   for (const [code, tables] of Object.entries(LANGUAGE_PHRASE_TABLES)) {
