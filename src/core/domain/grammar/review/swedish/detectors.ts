@@ -235,6 +235,132 @@ function agreement(ctx: DetectContext): Finding[] {
   return findings;
 }
 
+// ------------------------------------------------------------ de / dem
+
+const CLAUSE_OPENERS = new Set(
+  "att och men när om eftersom då så medan innan tills fast fastän ifall därför hur varför var vad sedan".split(
+    " ",
+  ),
+);
+const FINITE =
+  "är|var|har|hade|blir|blev|kan|kunde|ska|skall|skulle|vill|ville|måste|får|fick|kommer|kom|gör|gjorde|går|gick|säger|sa|sade|tycker|tyckte|vet|visste|brukar|bor|bodde|verkar|borde";
+const DEM_SUBJECT = new RegExp(
+  `(?<!${EDGE})(?<word>[Dd]em|DEM)${GAP}(?:${FINITE})(?!${EDGE})`,
+  "gu",
+);
+const DE_OBJECT = new RegExp(
+  `(?<!${EDGE})(?:med|till|för|av|hos|åt|om|från|på|mot|utan|efter|bredvid|framför|bakom|över|genom|mellan|kring)${GAP}(?<word>de|DE)(?=[ \t\u00a0]*(?:[.,!?;:)]|$))`,
+  "giu",
+);
+
+/**
+ * "dem är här" -> "de är här": the subject form is "de"; "med de." -> "med
+ * dem.": after a preposition the object form is "dem". Only where the role is
+ * plain: "dem" opening a clause before its verb, "de" ending a clause after a
+ * preposition ("med de andra" is the article).
+ */
+function deDem(ctx: DetectContext): Finding[] {
+  const findings: Finding[] = [];
+  for (const m of owned(ctx, DEM_SUBJECT)) {
+    const word = m.groups!.word;
+    const before = ctx.text.slice(Math.max(0, m.index - 3), m.index);
+    const opener = wordBefore(ctx.text, m.index).toLowerCase();
+    if (!atSentenceStart(ctx.text, m.index) && !/,[ \t\u00a0]*$/u.test(before))
+      if (!CLAUSE_OPENERS.has(opener)) continue;
+    if (ctx.dictionary.has(word.toLowerCase())) continue;
+    findings.push({
+      messageKey: "review_msg_swedish_de_dem",
+      range: { start: m.index, end: m.index + word.length },
+      alternatives: [word === "DEM" ? "DE" : word[0] + "e"],
+      context: { start: m.index, end: m.index + m[0].length },
+    });
+  }
+  for (const m of owned(ctx, DE_OBJECT)) {
+    const word = m.groups!.word;
+    const start = m.index + m[0].length - word.length;
+    findings.push({
+      messageKey: "review_msg_swedish_de_dem",
+      range: { start, end: start + word.length },
+      alternatives: [word === "DE" ? "DEM" : "dem"],
+      context: { start: m.index, end: start + word.length },
+    });
+  }
+  return findings;
+}
+
+// -------------------------------------------------- "en till" + noun
+
+const EN_TILL = new RegExp(
+  `(?<!${EDGE})(?<article>[Ee]n|[Ee]tt)(?<gap1>${GAP})(?<till>till)(?<gap2>${GAP})(?<noun>\\p{Ll}{3,})(?=[ \t\u00a0]*(?:[.,!?;:]|$))`,
+  "gu",
+);
+// "gav en till mamma": till is the preposition before a person.
+// "gav en till mamma", "en till varje": till is the preposition before a person,
+// a pronoun or a quantifier.
+const PERSONS = new Set(
+  (
+    "mamma pappa mormor morfar farmor farfar bror syster kompis vän chef granne kollega lärare barn " +
+    "honom henne dem dom oss er mig dig sig varje alla var varandra"
+  ).split(" "),
+);
+
+/** "en till klubba" -> "en klubba till": "another" puts till after the noun. */
+function enTill(ctx: DetectContext): Finding[] {
+  const findings: Finding[] = [];
+  for (const m of owned(ctx, EN_TILL)) {
+    const { article, gap1, noun } = m.groups!;
+    if (PERSONS.has(noun) || adjectiveForm(noun)) continue;
+    // A noun of the other gender cannot be "another"; one the dictionary lacks may be.
+    const gender = nounGender(noun);
+    if (gender ? gender !== article.toLowerCase() : !/a$/u.test(noun) || article !== "en") continue;
+    if (ctx.dictionary.has(noun)) continue;
+    findings.push({
+      messageKey: "review_msg_style_phrasing",
+      range: { start: m.index, end: m.index + m[0].length },
+      alternatives: [`${article}${gap1}${noun} till`],
+      context: { start: m.index, end: m.index + m[0].length },
+    });
+  }
+  return findings;
+}
+
+// ------------------------------------------ comma before a speech verb
+
+const SPEECH = new RegExp(
+  `(?<=\\p{L})(?<gap>${GAP})(?<verb>sa|sade|svarade|frågade|ropade|skrek|viskade|utbrast|förklarade|menade|tänkte)${GAP}(?:han|hon|hen|jag|vi|de|du|ni|\\p{Lu}\\p{Ll}+)(?=[.!?])`,
+  "gu",
+);
+const HAS_FINITE = new RegExp(`(?<!${EDGE})(?:${FINITE}|finns|fanns)(?!${EDGE})`, "iu");
+
+/**
+ * "Det var finfint sade Johan." -> "finfint, sade Johan": quoted speech is
+ * set off from the speech verb that follows it. Only when the words before
+ * already hold a finite verb, so they cannot be a fronted object ("Det sa Johan").
+ */
+function speechComma(ctx: DetectContext): Finding[] {
+  const findings: Finding[] = [];
+  for (const m of owned(ctx, SPEECH)) {
+    const sentence = ctx.text.slice(Math.max(0, m.index - 200), m.index);
+    const clause = sentence.slice(sentence.search(/[^.!?:\n]*$/u));
+    if (clause.trim().split(/\s+/u).length < 3 || !HAS_FINITE.test(clause)) continue;
+    if (/(?<!\p{L})(?:som|vad|vilket|vilken|vilka)(?!\p{L})/iu.test(clause)) continue;
+    // A fronted subordinate clause ("När han kom hem frågade hon") is followed by V2.
+    if (
+      /^[\s"”»'(–-]*(?:när|om|eftersom|innan|medan|sedan|då|fast|fastän|ifall|tills|därför|för att)(?!\p{L})/iu.test(
+        clause,
+      )
+    )
+      continue;
+    findings.push({
+      messageKey: "review_msg_swedish_speech_comma",
+      range: { start: m.index, end: m.index + m.groups!.gap.length },
+      alternatives: [", "],
+      context: { start: m.index - Math.min(clause.length, 24), end: m.index + m[0].length },
+    });
+  }
+  return findings;
+}
+
 const as =
   (ruleId: RawFinding["ruleId"], ...detectors: Array<(ctx: DetectContext) => Finding[]>) =>
   (ctx: DetectContext): RawFinding[] =>
@@ -249,5 +375,9 @@ export const DETECTORS: readonly ReviewDetectorEntry[] = [
     detect: as("swedishTypography", ordinals, acronymGenitive, lowercaseNames),
   },
   { rules: ["swedishAgreement"], detect: as("swedishAgreement", agreement) },
-  { rules: ["englishPhraseCorrections"], detect: as("englishPhraseCorrections", mellanTill) },
+  {
+    rules: ["englishPhraseCorrections"],
+    detect: as("englishPhraseCorrections", mellanTill, deDem),
+  },
+  { rules: ["stylePhrasing"], detect: as("stylePhrasing", enTill, speechComma) },
 ];

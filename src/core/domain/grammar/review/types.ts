@@ -236,6 +236,8 @@ export type ReviewMessageKey =
   | "review_msg_arabic_demonstrative_gender"
   | "review_msg_arabic_dual_case"
   | "review_msg_arabic_relative_gender"
+  | "review_msg_swedish_de_dem"
+  | "review_msg_swedish_speech_comma"
   | "review_msg_arabic_number_case"
   | "review_msg_arabic_number_gender"
   | "review_msg_arabic_case_ending"
