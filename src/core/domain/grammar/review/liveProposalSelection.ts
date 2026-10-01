@@ -15,6 +15,8 @@ export interface LiveGrammarProposal {
   end: number;
   original: string;
   replacement: string;
+  /** What `messageKey` means, in the UI language it was asked for. */
+  explanation: string;
 }
 
 export interface LiveProposalOptions extends Omit<ReviewOptions, "spellingEnabled"> {

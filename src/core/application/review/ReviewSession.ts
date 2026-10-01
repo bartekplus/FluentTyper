@@ -8,6 +8,8 @@ import {
 } from "@core/domain/grammar/review/bulkPlanner";
 import type { PreparedReview } from "@core/domain/grammar/review/reviewDiagnostics";
 import { casingDiagnostic, spellingDiagnostic } from "@core/domain/grammar/review/reviewFindings";
+import { isPageMessageKey } from "@core/domain/grammar/review/reviewMessages";
+import type { ReviewExplanations } from "@core/domain/contracts/reviewEngine";
 import { hydratePrepared, type ReviewEngine } from "./ReviewEngine";
 import {
   applyEdits,
@@ -154,6 +156,11 @@ export interface ReviewViewState {
   capabilities: ReviewCapabilities;
   /** Current, not ignored. */
   diagnostics: ReviewDiagnostic[];
+  /**
+   * The rule findings' explanations, by message key, from the engine (the page
+   * explains its own dictionary and Local AI findings).
+   */
+  explanations: ReviewExplanations;
   ignoredCount: number;
   ignoredAdviceCount?: number;
   resolvedCount: number;
@@ -215,6 +222,8 @@ export interface ReviewSessionDependencies {
   /** Detection for this session (the background's, from a page); released on close. */
   engine: ReviewEngine;
   options: ReviewOptions;
+  /** The UI language findings are explained in, read per request (default English). */
+  uiLanguage?: () => string;
   /** Selection captured before any UI opened, in the target's text offsets; null = whole field. */
   initialScope: TextRange | null;
   onChange: (state: ReviewViewState) => void;
@@ -367,6 +376,9 @@ export class ReviewSession {
   private diagnostics: ReviewDiagnostic[] = [];
   // The rule findings alone: Fix all plans from these (spelling is never batched).
   private ruleDiagnostics: ReviewDiagnostic[] = [];
+  // Their explanations as the engine sent them, all in one UI language.
+  private explanations: ReviewExplanations = {};
+  private explanationsLanguage = "";
   private spelling: ReviewViewState["spelling"] = "off";
   // Lookups already answered, per language and lowercased word: known words, and candidates.
   private spellingCache = {
@@ -699,6 +711,7 @@ export class ReviewSession {
       scopeKind: this.scopeKind,
       capabilities: this.capabilities,
       diagnostics: this.status === "ready" ? this.visibleDiagnostics() : NO_DIAGNOSTICS,
+      explanations: this.explanations,
       ignoredCount: this.ignoredDiagnostics().filter((d) => d.category !== "style").length,
       ignoredAdviceCount: this.ignoredDiagnostics().filter((d) => d.category === "style").length,
       resolvedCount: this.resolvedCount,
@@ -1209,6 +1222,7 @@ export class ReviewSession {
     this.scanAbort = abort;
     const resetCache = this.engineCacheStale;
     this.engineCacheStale = false;
+    const uiLanguage = this.uiLanguage();
     const scanned = this.deps.engine.scan(
       {
         snapshot,
@@ -1224,11 +1238,16 @@ export class ReviewSession {
           ...(this.truncated > 0 && { "size-limit": this.truncated }),
           ...(this.unread > 0 && { "outside-window": this.unread }),
         },
+        uiLanguage,
       },
       abort.signal,
     );
     // A scan that never ran may not have reset the engine's results: the next one does.
-    const { result, prepared: data } = await scanned.catch((error: unknown) => {
+    const {
+      result,
+      prepared: data,
+      explanations,
+    } = await scanned.catch((error: unknown) => {
       this.engineCacheStale ||= resetCache;
       throw error;
     });
@@ -1238,6 +1257,7 @@ export class ReviewSession {
     this.prepared = prepared;
     this.ruleDiagnostics = result.diagnostics;
     this.diagnostics = result.diagnostics;
+    this.keepExplanations(explanations, uiLanguage);
     this.aiFindings = [];
     // A rewrite not generated yet is for the text as it is now.
     if (this.rewrite?.status === "idle" || this.rewrite?.status === "too-long") {
@@ -1253,6 +1273,8 @@ export class ReviewSession {
     if (spelling) this.spellingCache = this.cacheFor(prepared.options.lang);
     this.spelling = !spelling ? "off" : this.spellingCache.unavailable ? "unavailable" : "checking";
     this.emit();
+    // The UI language changed while this scan ran.
+    if (uiLanguage !== this.uiLanguage()) void this.refreshExplanations();
     // Local AI starts only now, after the checks' results are on screen.
     this.startAi();
     if (this.spelling !== "checking") return;
@@ -2045,5 +2067,38 @@ export class ReviewSession {
 
   private emit(): void {
     this.deps.onChange(this.getState());
+  }
+
+  private uiLanguage(): string {
+    return this.deps.uiLanguage?.() ?? "en";
+  }
+
+  /** Adds explanations in `lang`; ones in another language are dropped. */
+  private keepExplanations(texts: ReviewExplanations, lang: string): void {
+    const kept = lang === this.explanationsLanguage ? this.explanations : {};
+    this.explanations = { ...kept, ...texts };
+    this.explanationsLanguage = lang;
+  }
+
+  /**
+   * The findings' explanations in the current UI language, after it changed:
+   * the engine keeps them, so they are asked for again (only the keys shown).
+   * Resolves once they are in the state; on failure the previous ones stay.
+   */
+  async refreshExplanations(): Promise<void> {
+    const lang = this.uiLanguage();
+    if (lang === this.explanationsLanguage) return;
+    const keys = new Set<string>();
+    for (const d of this.diagnostics) {
+      if (!isPageMessageKey(d.messageKey)) keys.add(d.messageKey);
+    }
+    if (keys.size === 0) {
+      this.keepExplanations({}, lang);
+      return;
+    }
+    const texts = await this.deps.engine.explanations([...keys], lang).catch(() => null);
+    if (!texts || this.isClosed || lang !== this.uiLanguage()) return;
+    this.keepExplanations(texts, lang);
+    this.emit();
   }
 }

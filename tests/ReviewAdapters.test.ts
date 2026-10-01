@@ -12,6 +12,7 @@ import {
 } from "../src/adapters/chrome/content-script/review/ReviewTargets";
 import { ReviewController } from "../src/adapters/chrome/content-script/review/ReviewController";
 import { LocalReviewEngine } from "../src/core/application/review/LocalReviewEngine";
+import { reviewExplanation } from "../src/core/domain/grammar/review/reviewExplanations";
 import {
   ReviewLauncher,
   launcherFieldFor,
@@ -1033,14 +1034,20 @@ describe("review controller lifecycle", () => {
     // A finding's card is open when the language changes.
     root()!.querySelector<HTMLElement>(".item")!.click();
     expect(root()!.querySelector<HTMLElement>(".card")!.hidden).toBe(false);
+    const explanation = () => root()!.querySelector(".card p")?.textContent;
+    const key = "review_msg_typo" as const;
+    expect(explanation()).toBe(reviewExplanation(key, "en"));
 
     language = "de_DE";
     review.handleOptionsChanged();
 
-    expect(root()!.querySelector("h2")?.textContent).toBe("Prüfung");
+    // The explanations come from the engine first; then the panel is rebuilt at once.
+    await until(() => root()!.querySelector("h2")?.textContent === "Prüfung");
     expect(root()!.querySelector(".item .change")?.textContent).toBe("teh \u2192 the");
-    // The card is still open, now in German.
+    // The card is still open, now in German, explanation included.
     expect(root()!.querySelector<HTMLElement>(".card")!.hidden).toBe(false);
+    expect(explanation()).toBe(reviewExplanation(key, "de"));
+    expect(explanation()).not.toBe(reviewExplanation(key, "en"));
     expect(document.querySelectorAll("[data-fluenttyper-review]")).toHaveLength(1);
     review.close();
     expect(field.value).toBe("We saw teh cat.");

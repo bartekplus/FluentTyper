@@ -15,6 +15,7 @@ import {
 } from "../src/core/application/review/ReviewSession";
 import { GRAMMAR_RULE_IDS } from "../src/core/domain/grammar/ruleCatalog";
 import { LocalReviewEngine } from "../src/core/application/review/LocalReviewEngine";
+import { reviewExplanation } from "../src/core/domain/grammar/review/reviewExplanations";
 import { MAX_REVIEW_CHARS } from "../src/core/domain/grammar/review/reviewDiagnostics";
 import { parseSpellingRequest } from "../src/core/domain/grammar/review/reviewSpelling";
 import type {
@@ -73,7 +74,9 @@ function harness(
     spellingEnabled,
     rules = ["englishTypoWhitelistCorrection"],
     lookupSpelling,
+    uiLanguage,
   }: {
+    uiLanguage?: () => string;
     scope?: TextRange | null;
     dictionary?: (word: string) => Promise<boolean>;
     disableReviewRule?: (ruleId: string) => Promise<boolean>;
@@ -100,6 +103,7 @@ function harness(
       insertSpaceAfterAutocomplete: true,
     },
     initialScope: scope,
+    uiLanguage,
     onChange: (state) => states.push(state),
     addToDictionary: dictionary,
     disableReviewRule,
@@ -134,6 +138,47 @@ function harness(
 }
 
 describe("ReviewSession", () => {
+  test("explanations come with the scan, and again (once per key) after a language change", async () => {
+    let language = "en";
+    const h = harness("teh cat saw teh dog", { uiLanguage: () => language });
+    const explain = spyOn(h.engine, "explanations");
+    await Promise.all([h.session.start(), h.settle()]);
+    expect(h.originals()).toEqual(["teh", "teh"]);
+    const typo = (lang: string) => ({
+      review_msg_typo: reviewExplanation("review_msg_typo", lang),
+    });
+    expect(h.last().explanations).toEqual(typo("en"));
+    await h.session.refreshExplanations();
+    expect(explain).not.toHaveBeenCalled();
+
+    language = "pl";
+    await h.session.refreshExplanations();
+    expect(explain).toHaveBeenCalledWith(["review_msg_typo"], "pl");
+    expect(h.last().explanations).toEqual(typo("pl"));
+    // No answer: the shown ones stay.
+    language = "de";
+    explain.mockImplementationOnce(() => Promise.reject(new Error("worker gone")));
+    await h.session.refreshExplanations();
+    expect(h.last().explanations).toEqual(typo("pl"));
+  });
+
+  test("a language change while a scan runs asks again for its explanations", async () => {
+    let language = "en";
+    const h = harness("teh cat", { uiLanguage: () => language });
+    const scan = h.engine.scan.bind(h.engine);
+    const asked: string[] = [];
+    h.engine.scan = (request, signal) => {
+      asked.push(request.uiLanguage);
+      language = "fr";
+      return scan(request, signal);
+    };
+    await Promise.all([h.session.start(), h.settle()]);
+    expect(asked).toEqual(["en"]);
+    expect(h.last().explanations).toEqual({
+      review_msg_typo: reviewExplanation("review_msg_typo", "fr"),
+    });
+  });
+
   test("starting a review reads only and shows loading before results", async () => {
     const h = harness("teh cat saw teh dog");
     const started = h.session.start();

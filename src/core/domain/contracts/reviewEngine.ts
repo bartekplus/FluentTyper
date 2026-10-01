@@ -8,6 +8,7 @@ import type {
   CoverageGap,
   ReviewDiagnostic,
   ReviewEdit,
+  ReviewMessageKey,
   ReviewOptions,
   ReviewScanResult,
   ReviewSourceSnapshot,
@@ -19,9 +20,12 @@ import type { CatalogRuleId } from "../grammar/ruleCatalog";
  *
  * Review's detectors and their data run in the background service worker only:
  *   content script ──runtime message CMD_CONTENT_SCRIPT_REVIEW_ENGINE──> background
- * One request per scan pass, proof round or typing pause. A review session's
- * state (its native-result cache, its last prepared snapshot) is bound to the
- * sender tab and frame plus the session id, bounded, and dropped on "release".
+ * One request per scan pass, proof round or typing pause. Answers carry the
+ * findings' explanations resolved in the page's UI language (the table stays
+ * in the background); a language change asks for them again ("explain"). A
+ * review session's state (its native-result cache, its last prepared snapshot)
+ * is bound to the sender tab and frame plus the session id, bounded, and
+ * dropped on "release".
  * Text is never logged or stored; the content side validates every write itself.
  */
 
@@ -34,6 +38,8 @@ export interface ReviewScanRequest {
   resetCache?: boolean;
   /** Coverage gaps the page side knows of (size limit, unread text). */
   gaps: Partial<Record<CoverageGap, number>>;
+  /** The page's UI language: explanations come back in it. */
+  uiLanguage: string;
 }
 
 /** The prepared review, less what the page sent (snapshot, options) and in plain data. */
@@ -47,9 +53,14 @@ export type PreparedReviewData = Omit<
   text?: string;
 };
 
+/** Explanations by message key, in one UI language. */
+export type ReviewExplanations = Partial<Record<ReviewMessageKey, string>>;
+
 export interface ReviewScanResponse {
   result: ReviewScanResult;
   prepared: PreparedReviewData;
+  /** The returned findings' explanations, once per message key (see reviewExplanations). */
+  explanations: ReviewExplanations;
 }
 
 /** One bulk-plan proof round: are `checks` still found after `otherEdits`? */
@@ -63,7 +74,8 @@ export interface ReviewProofRequest {
 export type ReviewEngineRequest =
   | { op: "scan"; session: string; id: number; request: ReviewScanRequest }
   | { op: "prove"; session: string; id: number; request: ReviewProofRequest }
-  | { op: "live"; beforeCursor: string; options: LiveProposalOptions }
+  | { op: "live"; beforeCursor: string; options: LiveProposalOptions; uiLanguage: string }
+  | { op: "explain"; keys: string[]; uiLanguage: string }
   | { op: "cancel"; session: string; id: number }
   | { op: "release"; session: string };
 
@@ -72,16 +84,22 @@ export type ReviewEngineFailure = "invalid" | "aborted" | "failed";
 export type ReviewEngineResponse<T = unknown> =
   { ok: true; value: T } | { ok: false; error: ReviewEngineFailure };
 
-export type ReviewEngineValue = ReviewScanResponse | boolean[] | LiveGrammarProposal[] | null;
+export type ReviewEngineValue =
+  ReviewScanResponse | boolean[] | LiveGrammarProposal[] | ReviewExplanations | null;
 
 /** Whole editor text a scan may carry; far above any real field. */
 export const MAX_REVIEW_ENGINE_TEXT = 5_000_000;
 /** Text before the caret a typing-time request carries (it reads the last 500). */
 export const MAX_LIVE_PROPOSAL_TEXT = 4_096;
+/** Message keys one "explain" request may name; far above the catalog's. */
+export const MAX_EXPLAIN_KEYS = 512;
 
 const isInt = (value: unknown): value is number => Number.isSafeInteger(value);
 const isStringArray = (value: unknown): value is string[] =>
   Array.isArray(value) && value.every((item) => typeof item === "string");
+// A locale tag ("en", "pt-BR"); unknown ones resolve to English.
+const isUiLanguage = (value: unknown): value is string =>
+  typeof value === "string" && value.length <= 35;
 const isOptionalTrue = (value: unknown) => value === undefined || value === true;
 const isRange = (value: unknown, length: number): boolean =>
   isObjectRecord(value) &&
@@ -152,8 +170,18 @@ export function parseReviewEngineRequest(value: unknown): ReviewEngineRequest | 
     return typeof beforeCursor === "string" &&
       beforeCursor.length <= MAX_LIVE_PROPOSAL_TEXT &&
       isOptions(options) &&
-      isStringArray((options as { liveRules?: unknown }).liveRules)
+      isStringArray((options as { liveRules?: unknown }).liveRules) &&
+      isUiLanguage(value.uiLanguage)
       ? (value as ReviewEngineRequest)
+      : null;
+  }
+  if (op === "explain") {
+    const { keys, uiLanguage } = value;
+    return isStringArray(keys) &&
+      keys.length <= MAX_EXPLAIN_KEYS &&
+      keys.every((key) => key.length <= 64) &&
+      isUiLanguage(uiLanguage)
+      ? { op, keys, uiLanguage }
       : null;
   }
   if (typeof session !== "string" || session.length === 0 || session.length > 64) return null;
@@ -165,6 +193,7 @@ export function parseReviewEngineRequest(value: unknown): ReviewEngineRequest | 
   }
   if (op === "scan") {
     return typeof request.cache === "boolean" &&
+      isUiLanguage(request.uiLanguage) &&
       (request.resetCache === undefined || typeof request.resetCache === "boolean") &&
       isObjectRecord(request.gaps) &&
       Object.values(request.gaps).every((count) => typeof count === "number")

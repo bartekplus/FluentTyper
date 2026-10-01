@@ -1,7 +1,11 @@
 import { isReviewSupportedRule, reviewKind } from "@core/domain/grammar/review/reviewCatalog";
 import { getDeepActiveElement } from "@core/application/dom-utils";
 import type { ReviewViewState } from "@core/application/review/ReviewSession";
-import { reviewText, type ReviewTextKey } from "@core/domain/grammar/review/reviewMessages";
+import {
+  isPageMessageKey,
+  reviewText,
+  type ReviewTextKey,
+} from "@core/domain/grammar/review/reviewMessages";
 import { commonAffixes } from "@core/domain/grammar/review/textRanges";
 import {
   REVIEW_CATEGORIES,
@@ -1347,8 +1351,10 @@ export class ReviewUi {
     this.card.replaceChildren();
   }
 
+  /** The page explains its own findings (dictionary, Local AI); the rest came with the scan. */
   private explanation(diagnostic: ReviewDiagnostic): string {
-    const label = this.t(diagnostic.messageKey);
+    const key = diagnostic.messageKey;
+    const label = isPageMessageKey(key) ? this.t(key) : (this.state?.explanations[key] ?? "");
     return diagnostic.terminology ? `${label} ${diagnostic.terminology.explanation}` : label;
   }
 

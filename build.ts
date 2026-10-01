@@ -222,14 +222,17 @@ async function assertEngineIsolation(outfiles: string[], engineOutfile: string |
 
 /**
  * Strings only Review's detectors and their data contain (generated lexicon,
- * English and other-language phrase tables, detector code). Review detection
- * runs in background.js; content scripts, loaded by every frame, must not carry it.
+ * English and other-language phrase tables, detector code), and the findings'
+ * explanations (reviewExplanations.ts), which the background sends resolved.
+ * Review detection runs in background.js; content scripts, loaded by every
+ * frame, must not carry it.
  */
 const REVIEW_DETECTION_MARKERS = [
   "V e ive e;V  ive [^e]",
   "without further adieu",
   "Vorraussetzung",
   "each|every|the|a|index|variable|counter|iterator|loop",
+  "Use the conventional form of this fixed English phrase.",
 ];
 
 /**

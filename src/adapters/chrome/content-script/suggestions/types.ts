@@ -71,6 +71,7 @@ export interface SuggestionManagerOptions {
   findLiveProposals?: (
     beforeCursor: string,
     options: LiveProposalOptions,
+    uiLanguage: string,
   ) => Promise<LiveGrammarProposal[]>;
   userDictionaryList: string[];
   getPrediction: (context: PredictionRequest) => void;

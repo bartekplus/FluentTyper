@@ -1,5 +1,6 @@
 import type {
   PreparedReviewData,
+  ReviewExplanations,
   ReviewProofRequest,
   ReviewScanRequest,
   ReviewScanResponse,
@@ -15,8 +16,9 @@ import type { ReviewOptions, ReviewSourceSnapshot } from "@core/domain/grammar/r
  * Review detection, wherever it runs: in the background service worker for a
  * page (MessagingReviewEngine, answered by ReviewEngineHost), or in process
  * (LocalReviewEngine: the host itself, tests). One instance per review session;
- * `liveProposals` is stateless. Every call may reject (the worker is gone, the
- * request was cancelled through `signal`); callers decide what that means.
+ * `liveProposals` and `explanations` are stateless. Every call may reject (the
+ * worker is gone, the request was cancelled through `signal`); callers decide
+ * what that means.
  */
 export interface ReviewEngine {
   /** One whole scan pass over a snapshot. */
@@ -24,7 +26,13 @@ export interface ReviewEngine {
   /** One bulk-plan proof round (see stillDetectedAfter). */
   prove(request: ReviewProofRequest, signal?: AbortSignal): Promise<boolean[]>;
   /** Typing-time proposals for the text before the caret (see findLiveGrammarProposals). */
-  liveProposals(beforeCursor: string, options: LiveProposalOptions): Promise<LiveGrammarProposal[]>;
+  liveProposals(
+    beforeCursor: string,
+    options: LiveProposalOptions,
+    uiLanguage: string,
+  ): Promise<LiveGrammarProposal[]>;
+  /** Findings' explanations again, in another UI language (see reviewExplanations). */
+  explanations(keys: readonly string[], uiLanguage: string): Promise<ReviewExplanations>;
   /** The session is over: drop what it keeps. */
   release(): void;
 }

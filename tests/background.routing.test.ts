@@ -716,11 +716,17 @@ describe("background routing and lifecycle", () => {
         },
         cache: false,
         gaps: {},
+        uiLanguage: "en",
       },
     });
     expect(response.ok).toBe(true);
-    const { result } = response.value as { result: { diagnostics: Array<{ original: string }> } };
+    const { result, explanations } = response.value as {
+      result: { diagnostics: Array<{ original: string; messageKey: string }> };
+      explanations: Record<string, string>;
+    };
     expect(result.diagnostics.map((d) => d.original)).toEqual(["teh"]);
+    // The finding's explanation travels with it.
+    expect(Object.keys(explanations)).toEqual([result.diagnostics[0].messageKey]);
 
     expect(await send({ op: "scan", session: "s1", id: 2, request: { snapshot: null } })).toEqual({
       ok: false,

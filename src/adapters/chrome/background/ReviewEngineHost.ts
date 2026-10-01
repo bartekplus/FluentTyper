@@ -30,7 +30,12 @@ export class ReviewEngineHost {
     const request = parseReviewEngineRequest(message);
     if (!request) return { ok: false, error: "invalid" };
     if (request.op === "live") {
-      return this.answer(() => this.live.liveProposals(request.beforeCursor, request.options));
+      return this.answer(() =>
+        this.live.liveProposals(request.beforeCursor, request.options, request.uiLanguage),
+      );
+    }
+    if (request.op === "explain") {
+      return this.answer(() => this.live.explanations(request.keys, request.uiLanguage));
     }
     const key = `${sender.tabId}:${sender.frameId}:${request.session}`;
     if (request.op === "release") {

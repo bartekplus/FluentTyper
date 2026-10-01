@@ -10,6 +10,10 @@ import type {
 } from "../src/core/domain/contracts/reviewEngine";
 import { findLiveGrammarProposals } from "../src/core/domain/grammar/review/liveProposals";
 import {
+  reviewExplanation,
+  reviewExplanations,
+} from "../src/core/domain/grammar/review/reviewExplanations";
+import {
   detectReviewDiagnostics,
   prepareReview,
   stillDetectedAfter,
@@ -34,6 +38,7 @@ function scanRequest(text: string, id = "g1"): ReviewScanRequest {
     options: OPTIONS,
     cache: false,
     gaps: { "size-limit": 3 },
+    uiLanguage: "fr-CA",
   };
 }
 
@@ -65,6 +70,11 @@ describe("review engine over messaging", () => {
       prepareReview(request.snapshot, request.options),
     );
     expect(sent).toEqual([{ op: "scan", session: expect.any(String), id: 1, request }]);
+    // Each finding's explanation comes along once per key, in the UI language.
+    const keys = new Set(direct.diagnostics.map((d) => d.messageKey));
+    expect(Object.keys(response.explanations).sort()).toEqual([...keys].sort());
+    expect(response.explanations).toEqual(reviewExplanations(keys, "fr"));
+    expect(response.explanations.review_msg_unknown_word).toBeUndefined();
   });
 
   test("a proof round answers like stillDetectedAfter", async () => {
@@ -106,11 +116,31 @@ describe("review engine over messaging", () => {
       enabledRules: ["englishPronounVerbWhitelistAgreement"],
       liveRules: [],
     };
-    const proposals = await engine.liveProposals(beforeCursor, options);
-    expect(proposals).toEqual(findLiveGrammarProposals(beforeCursor, options));
+    const proposals = await engine.liveProposals(beforeCursor, options, "de");
+    expect(proposals).toEqual(findLiveGrammarProposals(beforeCursor, options, "de"));
     expect(proposals.length).toBeGreaterThan(0);
+    // The explanation comes resolved, in the UI language asked for.
+    for (const p of proposals) expect(p.explanation).toBe(reviewExplanation(p.messageKey, "de"));
+    expect(proposals[0].explanation).not.toBe(reviewExplanation(proposals[0].messageKey, "en"));
     const [live] = sent as Array<Extract<ReviewEngineRequest, { op: "live" }>>;
     expect(live.beforeCursor.length).toBe(501);
+    expect(live.uiLanguage).toBe("de");
+  });
+
+  test("explanations in another UI language: known background keys only, once each", async () => {
+    const { engine, sent } = wiredEngine();
+    const keys = [
+      "review_msg_pronoun_verb",
+      "review_msg_pronoun_verb",
+      "review_msg_unknown_word",
+      "__proto__",
+      "toString",
+      "nope",
+    ];
+    expect(await engine.explanations(keys, "pl")).toEqual({
+      review_msg_pronoun_verb: reviewExplanation("review_msg_pronoun_verb", "pl"),
+    });
+    expect(sent).toEqual([{ op: "explain", keys, uiLanguage: "pl" }]);
   });
 
   test("an abort cancels the request in the background and rejects at once", async () => {
@@ -143,7 +173,7 @@ describe("review engine over messaging", () => {
     expect(() => unreachable.release()).not.toThrow();
     const silent = new MessagingReviewEngine(async () => undefined);
     await expect(
-      silent.liveProposals("We is ready. ", { ...OPTIONS, liveRules: [] }),
+      silent.liveProposals("We is ready. ", { ...OPTIONS, liveRules: [] }, "en"),
     ).rejects.toThrow("no answer");
     const failing = new MessagingReviewEngine(async () => ({ ok: false, error: "failed" }));
     await expect(failing.prove(scanRequest("teh") as never)).rejects.toThrow("failed");
@@ -178,7 +208,19 @@ describe("ReviewEngineHost", () => {
         id: 1,
         request: { ...scanRequest("a"), checks: [{}], otherEdits: [] },
       },
-      { op: "live", beforeCursor: "x".repeat(5000), options: { ...OPTIONS, liveRules: [] } },
+      {
+        op: "live",
+        beforeCursor: "x".repeat(5000),
+        options: { ...OPTIONS, liveRules: [] },
+        uiLanguage: "en",
+      },
+      { op: "live", beforeCursor: "x", options: { ...OPTIONS, liveRules: [] } },
+      { op: "scan", session: "s", id: 1, request: { ...scanRequest("a"), uiLanguage: 5 } },
+      { op: "explain", keys: "review_msg_pronoun_verb", uiLanguage: "en" },
+      { op: "explain", keys: [1], uiLanguage: "en" },
+      { op: "explain", keys: ["x".repeat(65)], uiLanguage: "en" },
+      { op: "explain", keys: Array(513).fill("x"), uiLanguage: "en" },
+      { op: "explain", keys: [], uiLanguage: "x".repeat(36) },
       { op: "unknown", session: "s" },
     ]) {
       expect(await host.handle(bad, sender)).toEqual({ ok: false, error: "invalid" });

@@ -3,7 +3,6 @@ import { getDeepActiveElement, isInDocument } from "@core/application/dom-utils"
 import { createLogger } from "@core/application/logging/Logger";
 import { LANG_SEPARATOR_CHARS_REGEX } from "@core/domain/lang";
 import type { LiveGrammarProposal } from "@core/domain/grammar/review/liveProposalSelection";
-import { reviewText } from "@core/domain/grammar/review/reviewMessages";
 import { InlineSuggestionPresenter } from "./InlineSuggestionPresenter";
 import { InlineSuggestionView } from "./InlineSuggestionView";
 import {
@@ -183,13 +182,18 @@ export class SuggestionManagerRuntime {
       proposalRules.length === 0 || !findLive
         ? undefined
         : (beforeCursor) =>
-            findLive(beforeCursor, {
-              lang: this.lang,
-              enabledRules: proposalRules,
-              liveRules: options.enabledGrammarRules,
-              userDictionary: options.userDictionaryList ?? [],
-              insertSpaceAfterAutocomplete: options.insertSpaceAfterAutocomplete,
-            });
+            findLive(
+              beforeCursor,
+              {
+                lang: this.lang,
+                enabledRules: proposalRules,
+                liveRules: options.enabledGrammarRules,
+                userDictionary: options.userDictionaryList ?? [],
+                insertSpaceAfterAutocomplete: options.insertSpaceAfterAutocomplete,
+              },
+              // The explanation comes back in the popup's language.
+              this.uiLanguage || navigator.language,
+            );
   }
 
   /** Rows the menu shows: its suggestions (none when they show inline) and a proposal. */
@@ -741,10 +745,7 @@ export class SuggestionManagerRuntime {
             ? {
                 original: entry.grammarProposal.original,
                 replacement: entry.grammarProposal.replacement,
-                explanation: reviewText(
-                  entry.grammarProposal.messageKey,
-                  this.uiLanguage || navigator.language,
-                ),
+                explanation: entry.grammarProposal.explanation,
               }
             : null,
           showShortcutDigits: this.selectByDigit,

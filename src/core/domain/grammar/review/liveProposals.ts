@@ -1,4 +1,5 @@
 import { detectReviewDiagnostics } from "./reviewDiagnostics";
+import { reviewExplanation } from "./reviewExplanations";
 import type { LiveGrammarProposal, LiveProposalOptions } from "./liveProposalSelection";
 import type { ReviewDiagnostic } from "./types";
 
@@ -37,11 +38,13 @@ function isProposable(diagnostic: ReviewDiagnostic, liveRules: ReadonlySet<strin
 /**
  * Native Review checks over the text before the caret (at most the last
  * LIVE_PROPOSAL_WINDOW_CHARS), keeping findings that end before the word at the
- * caret. Ordered by position; the last one is nearest the caret.
+ * caret. Ordered by position; the last one is nearest the caret. Explanations
+ * are in the UI language `uiLanguage`.
  */
 export function findLiveGrammarProposals(
   beforeCursor: string,
   options: LiveProposalOptions,
+  uiLanguage = "en",
 ): LiveGrammarProposal[] {
   if (options.enabledRules.length === 0 || beforeCursor.trim().length === 0) return [];
   const offset = Math.max(0, beforeCursor.length - LIVE_PROPOSAL_WINDOW_CHARS);
@@ -76,6 +79,7 @@ export function findLiveGrammarProposals(
         end,
         original: diagnostic.original,
         replacement,
+        explanation: reviewExplanation(diagnostic.messageKey, uiLanguage),
       },
     ];
   });

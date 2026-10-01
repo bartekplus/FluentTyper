@@ -1,4 +1,5 @@
 import type {
+  ReviewExplanations,
   ReviewProofRequest,
   ReviewScanRequest,
   ReviewScanResponse,
@@ -9,6 +10,7 @@ import type {
   LiveProposalOptions,
 } from "@core/domain/grammar/review/liveProposalSelection";
 import { NativeReviewCache } from "@core/domain/grammar/review/nativeReviewCache";
+import { reviewExplanations } from "@core/domain/grammar/review/reviewExplanations";
 import {
   finalizeReview,
   prepareReview,
@@ -57,6 +59,10 @@ export class LocalReviewEngine implements ReviewEngine {
         dictionary: [...dictionary],
         ...(text !== snapshot.text && { text }),
       },
+      explanations: reviewExplanations(
+        result.diagnostics.map((d) => d.messageKey),
+        request.uiLanguage,
+      ),
     };
   }
 
@@ -80,8 +86,15 @@ export class LocalReviewEngine implements ReviewEngine {
   liveProposals(
     beforeCursor: string,
     options: LiveProposalOptions,
+    uiLanguage: string,
   ): Promise<LiveGrammarProposal[]> {
-    return Promise.resolve().then(() => findLiveGrammarProposals(beforeCursor, options));
+    return Promise.resolve().then(() =>
+      findLiveGrammarProposals(beforeCursor, options, uiLanguage),
+    );
+  }
+
+  explanations(keys: readonly string[], uiLanguage: string): Promise<ReviewExplanations> {
+    return Promise.resolve(reviewExplanations(keys, uiLanguage));
   }
 
   release(): void {

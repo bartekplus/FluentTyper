@@ -761,7 +761,9 @@ Domain       src/core/domain/grammar/review/
              reviewSpelling.ts   unknown words: what to look up, which suggestions to offer
              bulkPlanner.ts      Fix-all planning: conflicts deferred, proofs in rounds
              textRanges.ts       edits, diffs, remapping, grapheme boundaries
-             reviewMessages.ts   explanations and UI strings (9 languages)
+             reviewMessages.ts   UI strings, page-built findings' explanations (9 languages)
+             reviewExplanations.ts every other finding's explanation (background only)
+             reviewLocale.ts     UI language resolution shared by both tables
 Application  src/core/application/review/ReviewSession.ts
              lifecycle, debounced rechecks, ignores, apply / Fix all through a port
 Adapters     src/adapters/chrome/content-script/review/
@@ -782,7 +784,8 @@ panel, the session and the editor adapters, and asks for detection through the
 content script                                    background service worker
 ReviewSession ── MessagingReviewEngine ──────────> MessageRouter
 SuggestionEntrySession (proposals)  CMD_CONTENT_SCRIPT_REVIEW_ENGINE
-                                    {op: scan | prove | live | cancel | release}
+                                    {op: scan | prove | live | explain |
+                                         cancel | release}
                                                   ReviewEngineHost
                                                   └ LocalReviewEngine per session
                                                     (prepare, chunked scan,
@@ -796,6 +799,14 @@ SuggestionEntrySession (proposals)  CMD_CONTENT_SCRIPT_REVIEW_ENGINE
   (masked text, protection, quotations, terminology), from which the page side
   runs the dictionary check and Local AI as before. Contract and validation:
   `src/core/domain/contracts/reviewEngine.ts`.
+- What each finding means (`reviewExplanations.ts`, about 98 KB in nine UI
+  languages) stays in the background: a scan answers the returned findings'
+  explanations in the page's UI language, once per message key, and a typing
+  pause's proposal carries its own. When the UI language changes during a
+  review, the page asks for the shown keys again (`explain`) and rebuilds the
+  panel once they arrive (if that fails, the previous ones stay). Only the
+  explanations of findings the page builds itself (dictionary, Local AI) ship
+  with the content script, in `reviewMessages.ts`.
 - Sessions are keyed by sender tab, frame and a random session id, so a tab can
   never cancel or read another's work. Each keeps its own native-result cache
   and last prepared snapshot; at most 8 are kept (least recently used released
@@ -813,11 +824,11 @@ SuggestionEntrySession (proposals)  CMD_CONTENT_SCRIPT_REVIEW_ENGINE
   still the one asked about; accepting asks again for that same text and writes
   only if the same fix comes back and the text has still not changed.
 - `bun run build` fails if a detector marker (lexicon data, an English or
-  German phrase-table row, detector code) appears in a content script, or is
-  missing from `background.js`.
+  German phrase-table row, detector code, a finding explanation) appears in a
+  content script, or is missing from `background.js`.
 
 Nothing is created, observed or scanned until the first review. The review UI,
-session, Local AI checks and translations still ship in the content script;
+session, Local AI checks and UI translations still ship in the content script;
 loading them as a separate chunk on first use would need a
 `web_accessible_resources` manifest entry, left for a maintainer to decide.
 
@@ -869,6 +880,12 @@ page; Apple M2 Max, headless Chrome via Puppeteer, production build, medians):
   (209 KB gzip); compiling and running it in V8 (Node `vm.Script` in a jsdom
   window) went from about 35 + 60 ms to 16 + 7 ms per frame. What Review still
   adds there (panel, session, Local AI checks, translations) is about 11 ms.
+- Finding explanations moved to the background (same method, medians of 21
+  fresh processes, three interleaved rounds): `content_script.js` went from
+  709 KB (210 KB gzip -9) to 620 KB (181 KB gzip -9); compile + run went from
+  about 15.2 + 7.1 ms to 14.8 + 6.9 ms, so the table cost under 0.5 ms of the
+  11 ms (V8 only scans string literals and builds one object). The gain is mostly
+  bytes each frame loads and keeps. `background.js` grew by the same table.
 - A typing-pause proposal request: about 2 ms round trip with the worker awake
   (1 ms of it detection). A scan of the 50k profile document (2,594 findings):
   about 170 ms through messaging, the same as in the worker without messaging.

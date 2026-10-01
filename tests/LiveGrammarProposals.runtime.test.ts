@@ -3,6 +3,7 @@ import { SuggestionManagerRuntime } from "../src/adapters/chrome/content-script/
 import type { SuggestionEntry } from "../src/adapters/chrome/content-script/suggestions/types";
 import { reviewRuleIds } from "../src/core/domain/grammar/review/reviewCatalog";
 import { LocalReviewEngine } from "../src/core/application/review/LocalReviewEngine";
+import { reviewExplanation } from "../src/core/domain/grammar/review/reviewExplanations";
 import { acquireDomGlobalLock } from "./support/domGlobalLock";
 
 type SessionInternals = {
@@ -16,6 +17,7 @@ const answers = () => new Promise((resolve) => setTimeout(resolve, 0));
 function makeRuntime(
   grammarProposalRules: string[] = reviewRuleIds({ codeMode: false }),
   engine = new LocalReviewEngine(),
+  uiLanguage?: string,
 ) {
   return new SuggestionManagerRuntime({
     selectors: "textarea, input",
@@ -32,7 +34,9 @@ function makeRuntime(
     preferNativeAutocomplete: false,
     enabledGrammarRules: [],
     grammarProposalRules,
-    findLiveProposals: (beforeCursor, options) => engine.liveProposals(beforeCursor, options),
+    uiLanguage,
+    findLiveProposals: (beforeCursor, options, language) =>
+      engine.liveProposals(beforeCursor, options, language),
     userDictionaryList: [],
     getPrediction: jest.fn(),
   });
@@ -103,6 +107,8 @@ describe("grammar proposals while typing", () => {
     expect(entry.grammarProposal?.original).toBe("is");
     expect(proposalRow(entry)?.textContent).toContain("is → are");
     expect(proposalRow(entry)?.getAttribute("aria-selected")).toBe("false");
+    // Explained in the browser's language when no UI language is set.
+    expect(proposalRow(entry)?.title).toBe(reviewExplanation("review_msg_pronoun_verb", "en"));
 
     // Not selected: Tab and Enter stay the page's, and nothing is written.
     expect(key(field, "Tab").defaultPrevented).toBe(false);
@@ -116,6 +122,30 @@ describe("grammar proposals while typing", () => {
     await answers();
     expect(field.value).toBe("We are ready. ");
     expect(entry.grammarProposal ?? null).toBeNull();
+    runtime.detachAllHelpers();
+  });
+
+  test("the row's explanation comes from the background in the popup's UI language", async () => {
+    const engine = new LocalReviewEngine();
+    const asked: string[] = [];
+    const live = engine.liveProposals.bind(engine);
+    engine.liveProposals = (beforeCursor, options, uiLanguage) => {
+      asked.push(uiLanguage);
+      return live(beforeCursor, options, uiLanguage);
+    };
+    const runtime = makeRuntime(undefined, engine, "pl");
+    const field = document.createElement("textarea");
+    const { entry, session } = await attach(runtime, field);
+
+    await typeAndPause(field, session, "We is ready. ");
+    expect(new Set(asked)).toEqual(new Set(["pl"]));
+    expect(entry.grammarProposal?.explanation).toBe(
+      reviewExplanation("review_msg_pronoun_verb", "pl"),
+    );
+    expect(proposalRow(entry)?.title).toBe(reviewExplanation("review_msg_pronoun_verb", "pl"));
+    expect(proposalRow(entry)?.textContent).toContain(
+      reviewExplanation("review_msg_pronoun_verb", "pl"),
+    );
     runtime.detachAllHelpers();
   });
 

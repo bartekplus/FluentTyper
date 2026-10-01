@@ -3,6 +3,7 @@ import { CMD_CONTENT_SCRIPT_REVIEW_ENGINE } from "@core/domain/constants";
 import type {
   ReviewEngineRequest,
   ReviewEngineResponse,
+  ReviewExplanations,
   ReviewProofRequest,
   ReviewScanRequest,
   ReviewScanResponse,
@@ -42,6 +43,7 @@ export class MessagingReviewEngine implements ReviewEngine {
   async liveProposals(
     beforeCursor: string,
     options: LiveProposalOptions,
+    uiLanguage: string,
   ): Promise<LiveGrammarProposal[]> {
     // Only the window the check reads travels; offsets are shifted back.
     const shift = Math.max(0, beforeCursor.length - LIVE_TAIL_CHARS);
@@ -49,8 +51,13 @@ export class MessagingReviewEngine implements ReviewEngine {
       op: "live",
       beforeCursor: beforeCursor.slice(shift),
       options,
+      uiLanguage,
     }));
     return proposals.map((p) => ({ ...p, start: p.start + shift, end: p.end + shift }));
+  }
+
+  explanations(keys: readonly string[], uiLanguage: string): Promise<ReviewExplanations> {
+    return this.call(() => ({ op: "explain", keys: [...keys], uiLanguage }));
   }
 
   release(): void {
