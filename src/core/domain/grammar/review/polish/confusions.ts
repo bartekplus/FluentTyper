@@ -574,9 +574,10 @@ export const FRAMES: readonly Frame[] = [
       `ka${{ ze: "że", zesz: "żesz", zę: "żę", zemy: "żemy", zecie: "żecie", żą: "żą" }[m.groups!.end.toLowerCase()]}`,
     ...CONFUSION,
   },
-  // "pokarz" (punish) before a person to show something to is "pokaż".
+  // "pokarz" (punish) before a person to show something to (a dative: "pokarzę ci") or a
+  // clause ("pokarzę, że") is "pokaż"; "pokarzę cię" (I will punish you) takes an accusative.
   {
-    pattern: `(?<target>pokarz(?<end>|ę|e|cie|my))(?=${S}(?:${PRONOUN_OBJECT}|że|jak|co|gdzie|swój|swoją|swoje)${NOT_LETTER})`,
+    pattern: `(?<target>pokarz(?<end>|ę|e|esz|cie|my))(?=${S}(?:mi|ci|mu|nam|wam|im|tobie|jemu|sobie)${NOT_LETTER}|[ \\t\\u00a0]*,?${S}(?:że|jak|gdzie|co)${NOT_LETTER})`,
     fix: (m) => `pokaż${m.groups!.end.toLowerCase()}`,
     ...CONFUSION,
   },
@@ -809,6 +810,17 @@ export const FRAMES: readonly Frame[] = [
     fix: "tys.",
     ...CONFUSION,
     verbatim: true,
+  },
+  // Abbreviations written with a slash: "d/s" (do spraw) -> "ds.", "w/w" (wyżej wymieniony)
+  // -> "ww.", "w/g" (według) -> "wg".
+  {
+    pattern: `(?<![\\p{L}\\p{N}/.])(?<target>(?<word>d/s|w/w|w/g)\\.?)(?![\\p{L}\\p{N}/])`,
+    fix: (m) => {
+      const word = m.groups!.word.toLowerCase();
+      // "wg" takes no dot of its own; a dot after it ends the sentence.
+      return word === "w/g" ? `wg${m.groups!.target.slice(3)}` : word === "d/s" ? "ds." : "ww.";
+    },
+    ...CONFUSION,
   },
   // "Ile warzy ten monitor?", "warzy 2 kilo" -> "waży" ("warzyć" is to brew).
   {

@@ -9,6 +9,7 @@ import {
 import {
   adjectiveOf,
   cases,
+  finiteVerb,
   nounTags,
   onlyNoun,
 } from "../../src/core/domain/grammar/review/polish/lexicon";
@@ -285,6 +286,17 @@ test("the lexicon reads cases, genders and other parts of speech", () => {
   expect(nounTags("kości") & cases("Np Gp")).toBe(cases("Np Gp"));
   expect(nounTags("pliki") & cases("Gs")).toBe(0);
   expect(nounTags("miesięcy") & cases("Np")).toBe(0);
+  // Case forms the dictionary lists without flags beside their noun ("dom/NsT" and "domu").
+  expect(nounTags("domu") & cases("Gs Ls")).toBe(cases("Gs Ls"));
+  expect(nounTags("domem") & cases("Is")).toBe(cases("Is"));
+  expect(nounTags("hrabiego") & cases("Gs As")).toBe(cases("Gs As"));
+  expect(onlyNoun(nounTags("czasem"))).toBe(false);
+  expect(onlyNoun(nounTags("potem"))).toBe(false);
+  // Finite forms listed without flags: irregular pasts, "-nąć" verbs, flag duplicates.
+  for (const verb of ["rzekł", "rzekła", "zabraknie", "zabrakło", "czekał", "mogli"])
+    expect(finiteVerb(verb)).toBe(true);
+  for (const word of ["mało", "śmiało", "nikło", "musli", "jeśli", "powoli"])
+    expect(finiteVerb(word)).toBe(false);
   expect(adjectiveOf("polskiego")).toEqual({ lemma: "polski", ending: "ego" });
   expect(adjectiveOf("ostatnią")).toEqual({ lemma: "ostatni", ending: "ą" });
   expect(adjectiveOf("sklepie")).toBeNull();
