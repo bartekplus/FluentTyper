@@ -784,6 +784,26 @@ function whileJoined(
   return findings;
 }
 
+const LIES = /^[وف]?(?:يقع|تقع|وقع|وقعت|يمتد|تمتد|امتد|امتدت|يبعد|تبعد|يقيم|تقيم|أقام|أقامت)$/u;
+const COMPASS = /^(?:شمالي|جنوبي|شرقي|غربي)$/u;
+
+/**
+ * "تقع دمشق جنوبي حلب" -> "جنوب حلب": the place word is the adverb; the -ي adjective
+ * names a part ("في جنوبي لبنان" is left alone).
+ */
+function compassAdverb(list: readonly StyleToken[], at: (start: number) => boolean): Finding[] {
+  const findings: Finding[] = [];
+  for (let i = 1; i + 1 < list.length; i++) {
+    const place = list[i + 1];
+    if (!COMPASS.test(list[i].word) || !adjacent(list[i]) || !adjacent(place)) continue;
+    if (place.word.startsWith("ال") || !at(list[i].start)) continue;
+    const verb = LIES.test(list[i - 1].word) || (i > 1 && LIES.test(list[i - 2].word));
+    if (verb && !PREPOSITIONS.has(list[i - 1].word))
+      findings.push(style(list[i].start, list[i].end, list[i].word.slice(0, -1)));
+  }
+  return findings;
+}
+
 /** Optional Arabic style frames over the chunk's words. */
 export function styleFrames(
   text: string,
@@ -810,5 +830,6 @@ export function styleFrames(
     ...exceptAnd(text, list, at),
     ...weAs(list, at),
     ...whileJoined(text, list, at),
+    ...compassAdverb(list, at),
   ];
 }
