@@ -378,6 +378,53 @@ function countWithSingular(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+/**
+ * "resolve these issue", "extend those rule", "for these information": an object after these/
+ * those whose noun is singular. Count nouns get both repairs; mass nouns take this/that.
+ */
+function demonstrativeSingular(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of frameMatches(ctx, `(?<dem>these|those)${SPACE}(?=[a-z])`, "dem")) {
+    const dem = m.groups!.dem;
+    const previous = wordBefore(ctx, m.index);
+    const read = previous ? info(previous) : null;
+    const object =
+      PREPOSITIONS.has(previous) || (!!read?.verbs.length && !FUNCTION_WORDS.has(previous));
+    if (!object) continue;
+    const tokens = tokensAfter(ctx, m.index + m[0].length, 6);
+    const k = nounAfterModifiers(ctx, tokens, false);
+    if (k < 0) continue;
+    const noun = tokens[k];
+    if (!phraseEnds(ctx, tokens, k, true) || tokens[k + 1]?.lower === "of") continue;
+    // "one of these elephant" belongs to the one-of check; a quote after makes a compound.
+    if (previous === "of" || /^[ \t\u00a0]*["“'‘]/.test(ctx.text.slice(noun.end, noun.end + 3)))
+      continue;
+    if (NOT_COUNTED.has(noun.lower)) continue;
+    const single = caseLike(dem, dem.toLowerCase() === "these" ? "this" : "that");
+    const [start] = m.indices!.groups!.dem;
+    const middle = ctx.source.slice(start + dem.length, noun.start);
+    let alternatives: string[];
+    if (MASS.has(noun.lower)) alternatives = [`${single}${middle}${noun.text}`];
+    else {
+      const forms = nounNumber(noun.lower);
+      if (forms?.number !== "singular" || forms.singular === forms.plural) continue;
+      // "I hope these help", "make those change": a verb reading keeps "these" a pronoun.
+      const nounRead = englishWordInfo(noun.lower);
+      if (nounRead?.adjective || nounRead?.verbs.length) continue;
+      alternatives = [`${dem}${middle}${forms.plural}`, `${single}${middle}${noun.text}`];
+    }
+    findings.push({
+      ruleId: "englishNounNumber",
+      messageKey: "review_msg_demonstrative_number",
+      range: { start, end: noun.end },
+      alternatives,
+      ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+      context: evidence(ctx, m.index, noun.end),
+    });
+  }
+  return findings;
+}
+
 const PRONOUN_POSSESSIVES = new Set("yours hers ours theirs its mine whose".split(" "));
 
 /** "this errors are", "Can it find this errors?": this before a plural noun. */
@@ -670,6 +717,7 @@ export const DETECTORS: readonly ReviewDetectorEntry[] = [
       articleWithPlural,
       countWithSingular,
       thisWithPlural,
+      demonstrativeSingular,
       eachWithPlural,
       articleBeforeCount,
       muchWithPlural,

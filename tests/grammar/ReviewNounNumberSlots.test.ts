@@ -40,6 +40,9 @@ test("noun number follows its determiner or count", () => {
     ["Only a weeks later, it snowed.", "Only a week later, it snowed."],
     // Existential there/here with a count.
     ["There are several reason for it.", "There are several reasons for it."],
+    // these/those before a singular object noun.
+    ["Thanks for these advice.", "Thanks for this advice."],
+    ["She painted those cottage.", "She painted those cottages."],
     ["There were a few chair in the hall.", "There were a few chairs in the hall."],
   ]) {
     const found = scan(input);
@@ -53,6 +56,9 @@ test("compounds, pronoun counts and invariant nouns keep their number", () => {
   for (const text of [
     "A dog walks into a bar.",
     "There is no doubt about it.",
+    "I hope these help.",
+    "We will make those change soon.",
+    'We studied these electron "orbits" closely.',
     "There are few better in town.",
     "Out there is a few hikers and one ranger.",
     "There is five times as much rain.",
