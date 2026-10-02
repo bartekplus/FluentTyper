@@ -28,6 +28,28 @@ test("a noun-phrase subject agrees with its verb", () => {
     ["Where is your keys?", "Where are your keys?"],
     ["Does you like it?", "Do you like it?"],
     ["Does anyone knows the answer?", "Does anyone know the answer?"],
+    ["The geese honks every morning.", "The geese honk every morning."],
+    ["The pale lamps burns all night.", "The pale lamps burn all night."],
+    ["The rules of chess seems simple.", "The rules of chess seem simple."],
+    ["Most hikers in Norway carries a map.", "Most hikers in Norway carry a map."],
+    ["The kettles whistles loudly.", "The kettles whistle loudly."],
+    // After a relative clause.
+    [
+      "The tourists who arrive late usually misses the bus.",
+      "The tourists who arrive late usually miss the bus.",
+    ],
+    [
+      "The cooks that she hired yesterday prepares lunch.",
+      "The cooks that she hired yesterday prepare lunch.",
+    ],
+    [
+      "The clerk who answers calls rarely forget a name.",
+      "The clerk who answers calls rarely forgets a name.",
+    ],
+    ["Anyone who tries hard succeed in the end.", "Anyone who tries hard succeeds in the end."],
+    // A singular head and a verb-only bare form.
+    ["My uncle arrive.", "My uncle arrives."],
+    ["The outcome depend on the weather.", "The outcome depends on the weather."],
   ]) {
     const found = scan(input);
     expect({ input, count: found.length }).toEqual({ input, count: 1 });
@@ -39,6 +61,18 @@ test("a noun-phrase subject agrees with its verb", () => {
 test("collectives, objects, subjunctives and compound nouns stay silent", () => {
   for (const text of [
     "The dog barks at night.",
+    "The man who saw the dogs run away left.",
+    "Your ticket please.",
+    "We ask that the user restart the app.",
+    "The bus stop at the corner.",
+    "The man let us in.",
+    "The nurse who helped clean the ward left.",
+    "The girls who play sports.",
+    "A clerk that can not find it.",
+    "A new WHO report found gaps.",
+    "The config files still listed the old host.",
+    "The public demands answers.",
+    "The pale lamps burn all night.",
     "The team are winning.",
     "The news is good.",
     "The users settings page loads.",
@@ -56,4 +90,38 @@ test("collectives, objects, subjunctives and compound nouns stay silent", () => 
     "Those flips you did were great.",
   ])
     expect({ text, found: scan(text).map((d) => d.original) }).toEqual({ text, found: [] });
+});
+
+test("he/she/it before a bare verb takes the -s form where the pronoun opens its clause", () => {
+  const pronounVerb = (text: string) =>
+    detectReviewDiagnostics(
+      { id: "he", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
+      {
+        lang: "en_US",
+        enabledRules: ["englishPronounVerbWhitelistAgreement"],
+        userDictionary: [],
+        insertSpaceAfterAutocomplete: true,
+      },
+    ).diagnostics;
+  for (const [input, expected] of [
+    ["I hope she arrive soon.", "I hope she arrives soon."],
+    [
+      "It only cost us a dollar and it work every time.",
+      "It only cost us a dollar and it works every time.",
+    ],
+    ["The door opened and it squeak loudly.", "The door opened and it squeaks loudly."],
+  ]) {
+    const found = pronounVerb(input);
+    expect({ input, count: found.length }).toEqual({ input, count: 1 });
+    expect(applyEdits(input, found[0].alternatives[0].edits)).toBe(expected);
+  }
+  for (const text of [
+    "Let it go.",
+    "We saw it happen.",
+    "It need not matter.",
+    "She hand stitched it.",
+    "After Sam and he meet, we start.",
+    "It time to go.",
+  ])
+    expect({ text, found: pronounVerb(text).length }).toEqual({ text, found: 0 });
 });

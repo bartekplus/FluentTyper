@@ -37,6 +37,17 @@ const PHRASE = new RegExp(
   "gdu",
 );
 // Pronouns, "keinen der …", "das, was …" and "ohne allem".
+const DATIVE_ONLY = "(?<prep>[Mm]it|[Vv]on|[Bb]ei|[Zz]u|[Aa]us|[Nn]ach|[Ss]eit|[Aa]ußer)";
+// A number or plural quantity, an adjective, and a plural noun in -e, -er or -el.
+const COUNTED_PLURAL = new RegExp(
+  `${WORD_START}${DATIVE_ONLY}${SPACE}(?:zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf|[2-9]|[1-9]\\d{1,2}|vielen|mehreren|beiden|zahlreichen|wenigen|einigen)(?:${SPACE}\\p{Ll}+en)?${SPACE}(?<target>\\p{Lu}\\p{Ll}+(?:e|er|el))${WORD_END}`,
+  "gdu",
+);
+// An adjective in -e before a noun whose ending only a plural has ("Ausstellungen").
+const BARE_PLURAL = new RegExp(
+  `${WORD_START}${DATIVE_ONLY}${SPACE}(?<target>\\p{Ll}{3,}e)${SPACE}\\p{Lu}\\p{Ll}+(?:ungen|heiten|keiten|schaften|ionen|täten|innen)${WORD_END}`,
+  "gdu",
+);
 const PRONOUN = new RegExp(
   `${WORD_START}${PREPOSITION}${SPACE}(?<target>mich|dich|ihn|mir|dir|ihm|niemanden|jemanden|` +
     `(?:k?einen)(?=${SPACE}de[rs]${WORD_END})|das(?=,${SPACE}(?:was|wo)${WORD_END})|allem(?=[ \\t]*[.!?,]))` +
@@ -236,7 +247,8 @@ function guarded(ctx: DetectContext, m: RegExpExecArray, kind: Case): boolean {
   if ((kind === "genitive" || POSTPOSITIONS.has(low)) && (nounBefore || genitivePronoun)) {
     return false;
   }
-  // "ab und zu", "nach und nach": adverbs.
+  // "ab und zu", "nach und nach": adverbs; "hier zu" is "hierzu" written apart.
+  if (low === "zu" && /^(?:hier|da|wo)$/i.test(prior)) return false;
   if (prior === "und" && (low === "zu" || low === "nach")) return false;
   // "was für einer", "sowas von die Nase voll", ", wegen dem": idioms and relative pronouns.
   if (/^(?:was|sowas)$/i.test(prior) && (low === "für" || low === "von")) return false;
@@ -297,6 +309,20 @@ function prepositionCase(ctx: DetectContext): RawFinding[] {
       fix.replacements = fix.replacements.map((r) => r.replace(/ (\S+)$/, ` ${ordinal} $1`));
     if (ctx.dictionary.has(word.toLowerCase())) continue;
     push(m, fix);
+  }
+  // "mit zwei Kinder" → Kindern: a counted plural takes the dative -n.
+  for (const m of frameMatches(ctx, COUNTED_PLURAL)) {
+    const noun = m.groups!.target;
+    if (!guarded(ctx, m, "dative") || ctx.dictionary.has(noun.toLowerCase())) continue;
+    // "bis zu drei Bücher ausleihen": "bis zu" is "up to", the verb sets the case.
+    if (/bis[ \t]+$/i.test(ctx.text.slice(Math.max(0, m.index - 8), m.index))) continue;
+    if (germanNounReading(`${noun}n`.toLowerCase()) === null) continue;
+    push(m, { replacements: [`${noun}n`] });
+  }
+  // "mit spannende Ausstellungen" → spannenden: a plural without an article.
+  for (const m of frameMatches(ctx, BARE_PLURAL)) {
+    if (!guarded(ctx, m, "dative")) continue;
+    push(m, { replacements: [`${m.groups!.target}n`] });
   }
   for (const m of frameMatches(ctx, PRONOUN)) {
     const kind = CASES.get(m.groups!.prep.toLowerCase())!;

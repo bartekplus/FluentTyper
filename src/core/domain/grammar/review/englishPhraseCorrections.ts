@@ -10,6 +10,9 @@ import {
 } from "./englishPhraseTables";
 import { EXTENSION_COMPOUNDS, EXTENSION_PHRASES, EXTENSION_STYLE } from "./english";
 import { OPTIONAL_TABLES } from "./english/dialects";
+import { NAMES } from "./english/properNames";
+import { OPTIONAL as PLAIN_OPTIONAL } from "./english/plainStyle";
+import { rowGuarded } from "./english/fixedFrames";
 import { capitalizedName } from "./french/frenchTokens";
 import { LANGUAGE_PHRASE_TABLES } from "./languagePhraseTables";
 import { EDGE, SPACE } from "./phraseTemplates";
@@ -112,11 +115,12 @@ function buildIndexes() {
     "review_msg_closed_compound",
   );
   // Before style: a dialect row outranks a style row on the same word when both are on.
-  for (const { rows, ruleId, messageKey } of OPTIONAL_TABLES) index("en", rows, ruleId, messageKey);
+  for (const { rows, ruleId, messageKey } of [...OPTIONAL_TABLES, ...PLAIN_OPTIONAL])
+    index("en", rows, ruleId, messageKey);
   index("en", [...STYLE_PHRASES, ...EXTENSION_STYLE], "stylePhrasing", "review_msg_style_phrasing");
   index(
     "en",
-    NAME_CASING.map((name) => [name.toLowerCase(), name]),
+    [...NAME_CASING.map((name): PhraseRow => [name.toLowerCase(), name]), ...NAMES],
     "englishCanonicalCasing",
     "review_msg_name_casing",
   );
@@ -228,6 +232,7 @@ function toFinding(
     phrase.replacements.every((r) => !/[\s-]/.test(r))
   )
     return null;
+  if (ctx.lang.startsWith("en") && rowGuarded(ctx.text, typed, start, end)) return null;
   const casing = phrase.ruleId === "englishCanonicalCasing";
   // Capitals kept for emphasis are the writer's choice.
   if (casing && typed === typed.toUpperCase()) return null;
@@ -238,6 +243,16 @@ function toFinding(
   const curly =
     typed.includes("’") ||
     (!typed.includes("'") && ctx.text.slice(Math.max(0, start - 200), end + 200).includes("’"));
+  // A Polish style row on a capital inside the sentence meets a name ("w Wysokiej Cenie").
+  if (
+    phrase.ruleId === "stylePhrasing" &&
+    ctx.lang.startsWith("pl") &&
+    typed !== typed.toUpperCase() &&
+    (typed.match(/\p{L}+/gu) ?? []).some(
+      (word, i) => /^\p{Lu}/u.test(word) && (i > 0 || !sentenceStart),
+    )
+  )
+    return null;
   const abbreviation =
     (phrase.ruleId === "stylePhrasing" || phrase.ruleId === "styleWordChoice") && !/\s/.test(typed);
   if (

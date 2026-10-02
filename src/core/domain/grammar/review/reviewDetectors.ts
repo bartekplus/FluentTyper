@@ -101,6 +101,8 @@ import { POLISH_DETECTORS } from "./polish";
 import { SPANISH_DETECTORS } from "./spanish";
 import { FRENCH_DETECTORS } from "./french";
 
+import { detectAll } from "./phraseTemplates";
+
 export { MASK_CHAR };
 export { minimalEdits } from "./textRanges";
 
@@ -502,7 +504,13 @@ const wordSpelling: Detector = (ctx) => {
       : normalizeContractionToken(word, before);
     // "the im tag", "an ive file": after a determiner it is a word, not "I'm".
     const pronounForm = /^i(?:m|ve)$/i.test(word);
-    if (contraction && !(pronounForm && DETERMINER_BEFORE.test(before))) {
+    // "by Ive Mažuran": mid-sentence, a capitalized "Ive"/"Im" before a capitalized word is a name.
+    const name =
+      pronounForm &&
+      /^I[a-z]/.test(word) &&
+      !/(?:^|[.!?:;"“\n])[ \t]*$/.test(before) &&
+      /^[ \t]+\p{Lu}\p{Ll}/u.test(ctx.text.slice(end, end + 4));
+    if (contraction && !name && !(pronounForm && DETERMINER_BEFORE.test(before))) {
       findings.push({
         ruleId: "englishContractionNormalization",
         messageKey: "review_msg_contraction",
@@ -1037,26 +1045,44 @@ const duplicatePunctuation: Detector = (ctx) => {
     const start = match.index;
     const end = start + match[0].length;
     if (isGluedToTechnical(ctx.text, start, start)) continue;
+    // Polish typists write ",," for the opening „ when a word and a closing quote follow.
+    const polishQuote =
+      ctx.lang.startsWith("pl") &&
+      match[0] === ",," &&
+      /^$|\s$/u.test(ctx.text.slice(Math.max(0, start - 1), start)) &&
+      /^[\p{L}\p{N}][^\n„]{0,200}?[\p{L}\p{N}.!?…](?:”|"|'')/u.test(ctx.text.slice(end, end + 210));
     findings.push({
       ruleId: "duplicatePunctuationCollapse",
       messageKey: "review_msg_duplicate_punctuation",
       range: { start, end },
-      alternatives: [match[1]],
+      alternatives: [polishQuote ? "„" : match[1]],
     });
   }
-  // "word.." (never "..." or "../"): one period too many at a sentence end. Arabic writes
-  // ".." as a short ellipsis ("وهذا ما دعاني إلى.."), so Arabic script keeps it.
+  // "word.." (never "..." or "../"): a doubled period or a short ellipsis that trails off.
+  // Before a lowercase word the sentence goes on, so only the ellipsis fits; elsewhere
+  // the writer chooses. Arabic writes ".." as a short ellipsis ("وهذا ما دعاني إلى..").
   const periods = /(?<=(?![\p{Script=Arabic}])[\p{L}\p{N})\]"”’])\.\.(?=\s|$)/gu;
   for (const match of ownedMatches(ctx, periods)) {
     const start = match.index;
     // German "am 30.11.." ends a sentence on a date: its own dot, then the period.
     const before = ctx.text.slice(Math.max(0, start - 8), start);
     if (ctx.lang.startsWith("de") && /(?:^|[^\d.])\d{1,2}\.\d{1,2}$/.test(before)) continue;
+    const range = { start, end: start + 2 };
+    if (/^\s+\p{Ll}/u.test(ctx.text.slice(start + 2, start + 12))) {
+      findings.push({
+        ruleId: "duplicatePunctuationCollapse",
+        messageKey: "review_msg_ellipsis_length",
+        range,
+        alternatives: ["..."],
+      });
+      continue;
+    }
     findings.push({
       ruleId: "duplicatePunctuationCollapse",
       messageKey: "review_msg_duplicate_punctuation",
-      range: { start, end: start + 2 },
-      alternatives: ["."],
+      range,
+      alternatives: [".", "..."],
+      requiresChoice: true,
     });
   }
   // A line of two dots alone is a short ellipsis or a stray period.
@@ -1485,7 +1511,7 @@ export const REVIEW_DETECTORS: ReadonlyArray<ReviewDetectorEntry> = [
       "styleAlternativePhrasing",
       "englishPossibleErrors",
     ],
-    detect: (ctx) => [...canonicalCasing(ctx), ...phraseCorrections(ctx)],
+    detect: (ctx) => detectAll(ctx, [canonicalCasing, phraseCorrections]),
   },
   {
     rules: ["unclosedQuotation"],
@@ -1533,10 +1559,13 @@ export const REVIEW_DETECTORS: ReadonlyArray<ReviewDetectorEntry> = [
       "englishAlotCorrection",
     ],
     // English word lists; other languages have their own tables.
-    detect: (ctx) => [
-      ...(ctx.lang === "en_US" ? wordSpelling(ctx) : [...splitWords(ctx), ...frenchElisions(ctx)]),
-      ...markedApostrophes(ctx),
-    ],
+    detect: (ctx) =>
+      detectAll(
+        ctx,
+        ctx.lang === "en_US"
+          ? [wordSpelling, markedApostrophes]
+          : [splitWords, frenchElisions, markedApostrophes],
+      ),
   },
   { rules: ["englishModalOfCorrection"], detect: modalOf },
   { rules: ["englishYourWelcomeCorrection"], detect: yourWelcome },
@@ -1559,11 +1588,13 @@ export const REVIEW_DETECTORS: ReadonlyArray<ReviewDetectorEntry> = [
   { rules: ["emdashShortcut"], detect: typedDashes },
   {
     rules: ["measurementUnitFormatting"],
-    detect: (ctx) => [...measurementLike(ctx, "measurementUnitFormatting"), ...kelvinDegree(ctx)],
+    detect: (ctx) =>
+      detectAll(ctx, [(c) => measurementLike(c, "measurementUnitFormatting"), kelvinDegree]),
   },
   {
     rules: ["currencySpacing"],
-    detect: (ctx) => [...measurementLike(ctx, "currencySpacing"), ...currencyPlacement(ctx)],
+    detect: (ctx) =>
+      detectAll(ctx, [(c) => measurementLike(c, "currencySpacing"), currencyPlacement]),
   },
   ...EXTENSION_DETECTORS,
   ...GERMAN_DETECTORS,

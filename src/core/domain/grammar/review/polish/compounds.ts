@@ -272,6 +272,12 @@ const COMPOUND = {
 } as const;
 
 export const FRAMES: readonly Frame[] = [
+  // "naj" is no word of its own: "naj lepszy", "naj częściej" -> the superlative.
+  {
+    pattern: `(?<target>naj${S}(?<word>\\p{Ll}{2,}(?:sz[aeyąi]\\p{L}{0,3}|ej)))(?![\\p{L}])`,
+    fix: (m) => `naj${m.groups!.word}`,
+    ...COMPOUND,
+  },
   // "niema" (mute, feminine) before a genitive object, or after one at the clause end, is "nie ma".
   {
     pattern: `(?<target>niema)(?=${S}(?:pojęcia|czasu|sensu|go|jej|ich|nic|nikogo|niczego|już|tu|tam|potrzeby|mowy|problemu|racji|prawa|wątpliwości|szans|znaczenia|co|kto|gdzie|jak|czego|kogo|nas|was|mnie|ciebie|tego|takiej|takiego|żadnego|żadnej|żadnych|sprawy|szansy|dokąd|kiedy)(?![\\p{L}]))`,

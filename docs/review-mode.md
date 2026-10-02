@@ -218,6 +218,12 @@ Supported (**Typing** is the rule's default for typing; Review has separate swit
 | `englishIrregularForms`                | English        | unavailable | grammar     | word form          | individual only                                                                                                                                |
 | `englishPossessiveNouns`               | English        | unavailable | grammar     | word form          | individual only                                                                                                                                |
 | `englishDateConsistency`               | English        | unavailable | grammar     | numbers            | individual only                                                                                                                                |
+| `englishApostrophes`                   | English        | unavailable | punctuation | marks              | individual only                                                                                                                                |
+| `englishNotation`                      | English        | unavailable | typography  | numbers            | individual only                                                                                                                                |
+| `englishTypography`                    | English        | unavailable | typography  | marks              | individual only; off by default in Review (optional typesetting)                                                                               |
+| `stylePassiveVoice`                    | English        | unavailable | style       | readability        | individual only; off by default in Review (optional style note)                                                                                |
+| `englishPunctuation`                   | English        | unavailable | punctuation | marks              | individual only                                                                                                                                |
+| `styleIntroductoryComma`               | English        | unavailable | punctuation | marks              | individual only; off by default in Review (optional comma style)                                                                               |
 | `englishAuxiliaryBaseVerb`             | English        | unavailable | grammar     | word form          | individual only                                                                                                                                |
 | `englishPronounCase`                   | English        | unavailable | grammar     | word form          | individual only                                                                                                                                |
 | `englishSentenceStructure`             | English        | unavailable | grammar     | usage              | individual only                                                                                                                                |
@@ -394,6 +400,30 @@ left-out long nouns (a Bloom filter, so they only ever tell words from typos):
 - `englishDateConsistency`: a weekday beside a full date (with its year) that falls on another
   weekday ("Monday, 7 October 2014") offers the right weekday or the nearest date on the typed
   one; a day the month does not have ("June 31", "2/30/2024") is marked without a fix.
+- `englishApostrophes`: a plural written with 's after a plural quantifier ("two CD's",
+  "several guest's") or before a verb ("most driver's would"), a verb with 's after its subject
+  ("he see's", "it work's"), a doubled or spaced apostrophe ("we''ll", "I' m"), "other's" with
+  no determiner, a time noun owning the next noun ("last weeks game") and "who's" before an
+  owned noun ("a man who's car was stolen"). Before another noun a plural may be a possessive,
+  so "weeks'" and "weeks" are both offered.
+- `englishNotation`: English numbers with a decimal comma before a unit or after a currency sign
+  ("7,5%", "$9,99"), dots between thousands ("1.250.000", "14.000,75", "45.000 guests"), a split
+  ordinal ("3 rd"), full-width marks, an initialism missing its last period ("U.S.A", "e.g") and
+  academic degrees ("PHD", "Ph. D.", "B. Sc.").
+- `englishTypography`: optional typesetting: × between numbers ("4 x 5", "1280x720"), arrows for
+  "->", ©, ®, ™ for "(c)", "(R)", "(TM)", ± for "+-", H₀ in hypotheses, curly double quotes for
+  German ones, an en dash in number, weekday and month ranges ("1914-1918", "9am - 6pm")
+  and an em dash for a spaced hyphen between words.
+- `stylePassiveVoice`: optional note without a fix on a form of "be" with a past participle ("was
+  broken by", "is said to", "have been finalized"); participles that usually describe a state ("is
+  closed", "was tired") count only with a "by" agent.
+- `englishPunctuation`: a comma right before a sentence mark (",." ",!"), a comma inside a closing
+  parenthesis (",)"), a comma splitting "neither … nor" with two items, or an indirect question or
+  polite "if" from the verb that governs it ("Do you know, if", "It would be great, if you").
+- `styleIntroductoryComma`: optional comma after an opening linking word or phrase ("Nevertheless",
+  "In addition"; "However" only before a subject), between a phrase ending in an object pronoun and
+  a new clause ("With it I can"), after a short condition ("If I can I will") and before a name
+  addressed ("Thanks Maria").
 - `englishPossessiveNouns`: a plural noun between a determiner and the noun it owns ("the cats
   tail is long", "a teachers lounge") offers "cat's" or "cats'" when the frame allows no
   other reading: the owned noun is followed by its verb, the phrase ends after a preposition
