@@ -158,6 +158,78 @@ function relativeAgreement(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+/** A capitalized word the lexicon does not know: a given name ("Xavier", "Tim"). */
+const isName = (word: string) => /^[A-Z][a-z]+$/.test(word) && !englishWordInfo(word);
+
+/**
+ * Two names joined by "and" are plural ("Xavier and Aidan is friends" -> are); one name with a
+ * base verb and his/her after it is singular ("Tim make his life worse" -> makes). Brand pairs
+ * ("Johnson and Johnson") and titles ("Tom and Jerry is a cartoon") stay silent.
+ */
+function nameSubjects(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  const push = (start: number, end: number, typed: string, fix: string | null, from: number) => {
+    if (fix && fix !== typed)
+      findings.push({
+        ruleId: "englishSubjectVerbAgreement",
+        messageKey: "review_msg_subject_verb",
+        range: { start, end },
+        alternatives: [fix],
+        context: evidence(ctx, from, end),
+      });
+  };
+  for (const m of frameMatches(
+    ctx,
+    `(?<first>[A-Z][a-z]+)${SPACE}and${SPACE}(?<second>[A-Z][a-z]+)${SPACE}(?<verb>[a-z]+)${WORD_END}`,
+    "verb",
+  )) {
+    const { first, second, verb } = m.groups!;
+    if (first === second || !isName(first) || !isName(second) || ctx.dictionary.has(verb)) continue;
+    // The pair opens its clause: not "from California and Africa is", "between Cardiff and
+    // Bristol was".
+    const lead = /([A-Za-z]+)[ \t ]{1,8}$/.exec(
+      ctx.text.slice(Math.max(0, m.index - 24), m.index),
+    )?.[1];
+    if (
+      lead &&
+      !afterBreak(ctx, m.index) &&
+      !/^(?:that|if|when|because|since|while|although|though|unless|think|hope|know|guess|believe|say|said)$/i.test(
+        lead,
+      )
+    )
+      continue;
+    const next = tokensAfter(ctx, m.index + m[0].length, 1)[0];
+    if (next?.kind === "word" && /^(?:a|an)$/.test(next.lower)) continue;
+    const read = englishWordInfo(verb);
+    const fix =
+      TO_PLURAL[verb] ??
+      (read?.verbs.some((v) => v.form === "third") && !read.noun && !read.plural
+        ? englishLemma(verb, "third")
+        : null);
+    const [start, end] = m.indices!.groups!.verb;
+    push(start, end, verb, fix, m.index);
+  }
+  for (const m of frameMatches(
+    ctx,
+    `(?<name>[A-Z][a-z]+)${SPACE}(?<verb>[a-z]+)${SPACE}(?:his|her)${WORD_END}`,
+    "verb",
+  )) {
+    const { name, verb } = m.groups!;
+    if (!isName(name) || ctx.dictionary.has(verb) || FUNCTION_WORDS.has(verb)) continue;
+    // "Tell Tim give his…" is rare; a name after a verb or "and" may be its object.
+    const before = /([A-Za-z]+)[ \t\u00a0]{1,8}$/.exec(
+      ctx.text.slice(Math.max(0, m.index - 24), m.index),
+    )?.[1];
+    if (before && !afterBreak(ctx, m.index)) continue;
+    const read = englishWordInfo(verb);
+    if (!read?.verbs.some((v) => v.form === "base" && v.lemma === verb)) continue;
+    if (read.verbs.some((v) => v.form !== "base") || MODALS.test(verb)) continue;
+    const [start, end] = m.indices!.groups!.verb;
+    push(start, end, verb, englishInflect(verb, "third"), m.index);
+  }
+  return findings;
+}
+
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  { rules: ["englishSubjectVerbAgreement"], detect: english(relativeAgreement) },
+  { rules: ["englishSubjectVerbAgreement"], detect: english(relativeAgreement, nameSubjects) },
 ];

@@ -24,6 +24,9 @@ test.each([
   ["The pumps which is broken stay off.", "The pumps which are broken stay off."],
   ["Those who knows the trail lead the way.", "Those who know the trail lead the way."],
   ["She hired a tutor who explain things slowly.", "She hired a tutor who explains things slowly."],
+  ["Ingrid and Rafael is cousins.", "Ingrid and Rafael are cousins."],
+  ["I hope Ingrid and Rafael attends.", "I hope Ingrid and Rafael attend."],
+  ["Rafael keep his bike inside.", "Rafael keeps his bike inside."],
 ])("relative verb agrees: %s", (input, expected) => {
   const found = scan(input);
   expect(found).toHaveLength(1);
@@ -47,4 +50,9 @@ test.each([
   "In that case each team plays twice.",
   "Martin Enterprises which holds the rights agreed.",
   "The lights in the hall that flicker need repair.",
+  "Trade between Lisbon and Porto was slow.",
+  "Simon and Simon is a show.",
+  "Ingrid and Rafael is a duo name I like.",
+  "Ask Rafael give his notes back.",
+  "Rafael, keep your bike inside.",
 ])("relative agreement stays silent: %s", (text) => expect(scan(text)).toEqual([]));
