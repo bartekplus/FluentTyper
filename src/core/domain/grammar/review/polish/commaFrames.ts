@@ -1,5 +1,5 @@
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import { nounTags, onlyNoun } from "./lexicon";
+import { cases, FEMININE, finiteVerb, MASCULINE, NEUTER, nounTags, onlyNoun } from "./lexicon";
 import { findingAt, isPl, owned, PREPOSITIONS, userOrNamed } from "./shared";
 
 /*
@@ -137,6 +137,33 @@ export const FRAMES: readonly CommaFrame[] = [
       "gud",
     ),
     fix: () => "",
+  },
+  // "Gazeta, jest źródłem", "Każdy uczeń, wie": no comma between a subject and its verb. Only
+  // a noun that cannot be a vocative ("Mamo, jest obiad"), or one after "każdy", is the subject.
+  {
+    ruleId: EXTRA,
+    messageKey: "review_msg_pl_extra_comma",
+    regex: new RegExp(
+      `${CLAUSE_START}(?:(?<det>każdy|każda|każde|Każdy|Każda|Każde|ten|ta|Ten|Ta)${SP})?(?<noun>\\p{L}\\p{Ll}+)(?<target>,)${SP}(?<verb>\\p{Ll}+)${END}(?<aside>,)?`,
+      "gud",
+    ),
+    fix: (m) => {
+      const tags = nounTags(m.groups!.noun.toLowerCase());
+      if (!onlyNoun(tags) || !(tags & cases("Ns"))) return null;
+      if (!m.groups!.det && tags & cases("Vs")) return null;
+      // A form of two nouns may be a name too ("Marek, przyszedł list").
+      if ([MASCULINE, FEMININE, NEUTER].filter((gender) => tags & gender).length !== 1) return null;
+      const verb = m.groups!.verb;
+      // "Uchwała, powiedział, ustala…": a reporting verb set off inside the sentence.
+      if (
+        m.groups!.aside &&
+        /^(?:powiedzia|mówi|twierdz|doda|zauważy|podkreśli|stwierdzi|zaznaczy|napisa|wyjaśni|przyzna|uważa|sądz|odpowiedzia|zapewni)/u.test(
+          verb,
+        )
+      )
+        return null;
+      return verb === "to" || finiteVerb(verb) ? "" : null;
+    },
   },
   // "gruszek, ani jabłek", "gruszek, lub jabłek": no comma before a single joining conjunction.
   {

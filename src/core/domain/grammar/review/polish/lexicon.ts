@@ -139,7 +139,7 @@ function loadVerbs(): Verbs {
 
 /** "być", "mieć", "iść" and their compounds, which the dictionary lists without flags. */
 const IRREGULAR =
-  /^(?:jest|są|jestem|jesteś|jesteśmy|jesteście|będ(?:ę|ziesz|zie|ziemy|ziecie|ą)|ma|masz|macie|mają|id(?:ę|ziesz|zie|ziemy|ziecie|ą)|(?:po|przy|wy|w|we|od|ode|do|z|ze|nad|pod|prze|ob|roz|za)?sz(?:edł|ła|ło|li|ły)(?:em|am|eś|aś|śmy|ście)?|powin(?:ien(?:em|eś)?|n(?:a|am|aś|o|i|iśmy|iście|y|yśmy|yście)))$/u;
+  /^(?:jest|są|jestem|jesteś|jesteśmy|jesteście|wie|wiesz|wiemy|wiecie|wiedzą|będ(?:ę|ziesz|zie|ziemy|ziecie|ą)|ma|masz|macie|mają|id(?:ę|ziesz|zie|ziemy|ziecie|ą)|(?:po|przy|wy|w|we|od|ode|do|z|ze|nad|pod|prze|ob|roz|za)?sz(?:edł|ła|ło|li|ły)(?:em|am|eś|aś|śmy|ście)?|powin(?:ien(?:em|eś)?|n(?:a|am|aś|o|i|iśmy|iście|y|yśmy|yście)))$/u;
 
 /** A lowercase word that is only ever a finite verb form ("kupiłem", "przegrywały", "jest"). */
 export function finiteVerb(word: string): boolean {
