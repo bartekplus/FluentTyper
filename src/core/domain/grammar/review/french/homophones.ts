@@ -1,3 +1,4 @@
+import { namedExampleBefore } from "../exampleCues";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import {
   adjectiveReadings,
@@ -15,6 +16,7 @@ import {
   SUBJECT_PRONOUNS,
   tokensAfter,
   tokensBefore,
+  withCase,
   wordFinding,
   type Token,
 } from "./frenchTokens";
@@ -530,13 +532,67 @@ function laToLa(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   const next = tokensAfter(ctx.text, m.index + m[0].length, 1)[0];
   if (cEst && (next?.w === "que" || next?.w === "qu'"))
     return wordFinding(ctx, m.index, m[0], ["là"], RULE, MESSAGE);
+  // "la-bas", "la où": the adverb; the article never comes before "où".
+  if (/^-(?:bas|haut|dessus|dessous|dedans)(?![\p{L}\p{M}])/u.test(rest.slice(0, 10)))
+    return wordFinding(ctx, m.index, m[0], ["là"], RULE, MESSAGE);
+  if (next?.w === "où" && next.start === m.index + m[0].length + 1 && before[0])
+    return wordFinding(ctx, m.index, m[0], ["là"], RULE, MESSAGE);
   // A clause ending on "la" after être or "tous": the article and the pronoun never end one.
-  const final = /^[\s\u00a0]*(?:[.!?…]|$)/u.test(rest);
-  if (!final || !before[0]) return null;
-  const etre = readingsOf(before[0].w).some((r) => isFinite(r) && r.lemma === "être");
-  if (!etre && !["tous", "toutes", "deux", "trois"].includes(before[0].w)) return null;
-  return wordFinding(ctx, m.index, m[0], ["là"], RULE, MESSAGE);
+  const final = /^\s{0,8}(?:[.!?…:)]|$)/u.test(rest.slice(0, 10));
+  if (!final) return null;
+  const words = tokensBefore(ctx.text, m.index, 8);
+  let i = 0;
+  // "est déjà la", "est tout le temps la".
+  for (;;) {
+    if (words[i] && ADVERBS.has(words[i].w)) i++;
+    else if (words[i]?.w === "temps" && words[i + 1]?.w === "le" && words[i + 2]?.w === "tout")
+      i += 3;
+    else break;
+  }
+  const verb = words[i];
+  if (!verb) return null;
+  const etre = readingsOf(verb.w).some((r) => isFinite(r) && r.lemma === "être");
+  if (etre || (i === 0 && ["tous", "toutes", "deux", "trois"].includes(verb.w)))
+    return wordFinding(ctx, m.index, m[0], ["là"], RULE, MESSAGE);
+  // "tu fous la ?", "que buvez-vous la ?": after a verb with its subject pronoun.
+  const subject = words[i + 1];
+  const inverted = INVERTED.has(verb.w) && Boolean(subject?.hyphen);
+  const subjected =
+    subject !== undefined && SUBJECT_PRONOUNS.has(subject.w) && readingsOf(verb.w).some(isFinite);
+  if (i === 0 && (inverted || subjected))
+    return wordFinding(ctx, m.index, m[0], ["là"], RULE, MESSAGE);
+  return null;
 }
+
+const INVERTED = new Set(["tu", "vous", "il", "elle", "on", "ils", "elles", "nous"]);
+
+/** "ce truc-la", "celui la.": the adverb after a demonstrative. */
+function hyphenLa(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const start = m.index + m[0].length - 2;
+  const words = tokensBefore(ctx.text, m.index, 4);
+  const head = words[0];
+  if (!head || head.end !== m.index) return null;
+  const demonstrative = ["celui", "celle", "ceux", "celles"].includes(head.w);
+  if (m[0][0] !== "-") {
+    // "celle la plus belle": a superlative; only a clause end makes it "celle-là".
+    if (!demonstrative || !/^\s{0,8}(?:[.!?…,;:)]|$)/u.test(ctx.text.slice(start + 2, start + 12)))
+      return null;
+  } else if (
+    !demonstrative &&
+    !words.slice(1).some((t) => ["ce", "cet", "cette", "ces"].includes(t.w))
+  )
+    return null;
+  if (namedExampleBefore(ctx.text, m.index)) return null;
+  const typed = ctx.text.slice(m.index, start + 2);
+  return {
+    ruleId: RULE,
+    messageKey: MESSAGE,
+    range: { start: m.index, end: start + 2 },
+    alternatives: [`-${withCase(typed.slice(-2), "là")}`],
+    context: { start: head.start, end: start + 2 },
+  };
+}
+const HYPHEN_LA = /(?<=\p{L})(?:-|[ \t])la(?![\p{L}\p{M}\p{N}_'’-])/gu;
 
 /** "avec sont frère": the possessive "son". */
 function sontToSon(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
@@ -651,6 +707,10 @@ function homophones(ctx: DetectContext): RawFinding[] {
   }
   for (const m of ownedFrenchWords(ctx, COMME_MEME)) {
     const finding = commeMeme(ctx, m);
+    if (finding) findings.push(finding);
+  }
+  for (const m of ownedFrenchWords(ctx, HYPHEN_LA)) {
+    const finding = hyphenLa(ctx, m);
     if (finding) findings.push(finding);
   }
   return findings;

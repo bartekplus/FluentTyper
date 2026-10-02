@@ -147,3 +147,14 @@ Mes parents ont vendu leur maison et ont acheté un appartement.
 Je les ai entendus chanter, puis je les ai vu partir.
 Nous sommes fin prêts, et les fenêtres sont grand ouvertes.
 Ils avaient été pendant des années les meilleurs amis du monde.
+# Determiners and the nouns after them.
+Leur jardin est plus fleuri que le leur, mais le nôtre est plus grand.
+C'est un des plus beaux marchés de la région, et le curé y fait ses courses.
+Le la du diapason sert de référence aux musiciens de l'orchestre.
+Elle le coupe en deux, puis elle le partage avec son frère.
+Ce sont des souvenirs d'enfance que l'on garde longtemps.
+Il a appuyé sur le un, puis sur le deux.
+Ce mot a un double sens, et son indigne frère le sait bien.
+Dès sa sortie de l'hôpital, il a repris le travail.
+Ce jour-là, celui-là même qui riait est resté là-bas.
+Il est là, tout le temps là, et je ne sais pas ce qu'il fait là.

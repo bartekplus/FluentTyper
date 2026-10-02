@@ -366,7 +366,9 @@ export type ReviewMessageKey =
   | "review_msg_fr_tout"
   | "review_msg_fr_subjunctive"
   | "review_msg_fr_conditional"
-  | "review_msg_fr_missing_ne";
+  | "review_msg_fr_missing_ne"
+  | "review_msg_fr_double_determiner"
+  | "review_msg_fr_determiner_noun";
 
 export type BulkDecision =
   | { eligible: true; alternative: number }

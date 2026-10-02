@@ -1,5 +1,6 @@
 import { namedExampleBefore } from "../exampleCues";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import { accentedNoun } from "./determiners";
 import { type Gender, nounGender, verbReadings } from "./frenchLexicon";
 import { ownedFrenchWords, tokensAfter, tokensBefore, withCase } from "./frenchTokens";
 
@@ -60,6 +61,8 @@ function gender(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   if (/^[-'’·.*(]\p{L}/u.test(after)) return null;
   const vowel = VOWEL.test(word) || word.startsWith("h");
   const fixed = SWAP[det][vowel ? 1 : 0];
+  // "le cure": determiners.ts offers "le curé" and "la cure" together.
+  if (!FEMININE.has(det) && verbReadings(word).length && accentedNoun(word)) return null;
   if (!fixed) return null;
   // "mon amie": a feminine noun keeps "mon" before a vowel.
   if (["mon", "ton", "son"].includes(det) && vowel) return null;

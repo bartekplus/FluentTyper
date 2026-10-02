@@ -2875,6 +2875,28 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Pisany francuski zachowuje ne w przeczeniu (je ne sais pas, il n'y a rien).",
     "O francês escrito mantém o ne da negação (je ne sais pas, il n'y a rien).",
   ],
+  review_msg_fr_double_determiner: [
+    "Two determiners in a row: keep one (nos amis, cette langue), or the first was another word (dès sa naissance).",
+    "Deux déterminants se suivent : gardez-en un (nos amis, cette langue), ou le premier est un autre mot (dès sa naissance).",
+    "Dva determinatora zaredom: zadržite jedan (nos amis, cette langue) ili je prvi zapravo druga riječ (dès sa naissance).",
+    "Dos determinantes seguidos: conserve uno (nos amis, cette langue) o el primero es otra palabra (dès sa naissance).",
+    "Δύο προσδιοριστικά στη σειρά: κρατήστε ένα (nos amis, cette langue) ή το πρώτο είναι άλλη λέξη (dès sa naissance).",
+    "Två bestämningsord i rad: behåll ett (nos amis, cette langue), eller så är det första ett annat ord (dès sa naissance).",
+    "Zwei Begleiter hintereinander: Behalten Sie einen (nos amis, cette langue), oder der erste ist ein anderes Wort (dès sa naissance).",
+    "Dwa określniki z rzędu: zostaw jeden (nos amis, cette langue) albo pierwszy to inne słowo (dès sa naissance).",
+    "Dois determinantes seguidos: mantenha um (nos amis, cette langue), ou o primeiro é outra palavra (dès sa naissance).",
+  ],
+  review_msg_fr_determiner_noun: [
+    "A determiner is followed by a noun, not a verb form: the noun is spelled differently (le carré, sa sortie, un développement).",
+    "Un déterminant est suivi d’un nom, pas d’une forme verbale : le nom s’écrit autrement (le carré, sa sortie, un développement).",
+    "Determinator prati imenica, a ne glagolski oblik: imenica se piše drukčije (le carré, sa sortie, un développement).",
+    "A un determinante le sigue un sustantivo, no una forma verbal: el sustantivo se escribe de otra manera (le carré, sa sortie, un développement).",
+    "Μετά από προσδιοριστικό ακολουθεί ουσιαστικό, όχι ρηματικός τύπος: το ουσιαστικό γράφεται αλλιώς (le carré, sa sortie, un développement).",
+    "Efter ett bestämningsord kommer ett substantiv, inte en verbform: substantivet stavas annorlunda (le carré, sa sortie, un développement).",
+    "Auf einen Begleiter folgt ein Nomen, keine Verbform: Das Nomen wird anders geschrieben (le carré, sa sortie, un développement).",
+    "Po określniku następuje rzeczownik, a nie forma czasownika: rzeczownik pisze się inaczej (le carré, sa sortie, un développement).",
+    "Um determinante é seguido de um substantivo, não de uma forma verbal: o substantivo escreve-se de outra forma (le carré, sa sortie, un développement).",
+  ],
   // German-only Review checks (review/german/).
   review_msg_german_noun_case: [
     "In German, every noun starts with a capital letter.",
