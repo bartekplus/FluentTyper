@@ -27,6 +27,7 @@ test.each([
   ["Ingrid and Rafael is cousins.", "Ingrid and Rafael are cousins."],
   ["I hope Ingrid and Rafael attends.", "I hope Ingrid and Rafael attend."],
   ["Rafael keep his bike inside.", "Rafael keeps his bike inside."],
+  ["Gardening are good for you.", "Gardening is good for you."],
 ])("relative verb agrees: %s", (input, expected) => {
   const found = scan(input);
   expect(found).toHaveLength(1);
@@ -101,6 +102,10 @@ test.each([
   "Martin Enterprises which holds the rights agreed.",
   "The lights in the hall that flicker need repair.",
   "Trade between Lisbon and Porto was slow.",
+  "Following are the minutes.",
+  "Remaining were two seats.",
+  "Living with him isn't easy.",
+  "Helping out is fun.",
   "Simon and Simon is a show.",
   "Ingrid and Rafael is a duo name I like.",
   "Ask Rafael give his notes back.",

@@ -326,7 +326,57 @@ function pronounForms(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+/**
+ * "Marketing are bad for you", "Swimming were fun": a gerund subject opening the
+ * sentence is singular. "Following are the results" (inverted, a determiner after) stays.
+ */
+function gerundSubject(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of frameMatches(
+    ctx,
+    `(?<=(?<![\\p{L}'’-])(?<subject>[A-Za-z]{1,30}ing)${SPACE})(?<verb>are|were)${WORD_END}`,
+    "verb",
+  )) {
+    const { subject, verb } = m.groups!;
+    const at = m.indices!.groups!.subject[0];
+    if (!afterBreak(ctx, at) || !/^[A-Z]/.test(subject)) continue;
+    const read = englishWordInfo(subject.toLowerCase());
+    if (!read?.verbs.some((v) => v.form === "ing") || read.plural || read.adjective) continue;
+    if (
+      /^(?:following|remaining|including|missing|attaching|enclosing|according|nothing|something|anything|everything)$/i.test(
+        subject,
+      )
+    )
+      continue;
+    const next = tokensAfter(ctx, m.index + m[0].length, 1)[0];
+    // "Following are the results", "Remaining were two seats": an inverted list.
+    if (
+      next?.kind === "word" &&
+      (DETERMINERS.has(next.lower) ||
+        /^(?:one|two|three|four|five|six|seven|eight|nine|ten|several|many|few|both|all|most)$/.test(
+          next.lower,
+        ))
+    )
+      continue;
+    if (next?.kind === "number") continue;
+    const fix = TO_SINGULAR[verb];
+    if (!fix || fix === verb) continue;
+    const [start, end] = m.indices!.groups!.verb;
+    findings.push({
+      ruleId: "englishSubjectVerbAgreement",
+      messageKey: "review_msg_subject_verb",
+      range: { start, end },
+      alternatives: [fix],
+      context: evidence(ctx, m.index, end),
+    });
+  }
+  return findings;
+}
+
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  { rules: ["englishSubjectVerbAgreement"], detect: english(relativeAgreement, nameSubjects) },
+  {
+    rules: ["englishSubjectVerbAgreement"],
+    detect: english(relativeAgreement, nameSubjects, gerundSubject),
+  },
   { rules: ["englishPronounVerbWhitelistAgreement"], detect: english(pronounForms) },
 ];
