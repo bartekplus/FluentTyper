@@ -655,6 +655,17 @@ describe("French lexicon", () => {
     expect(finitePersons(word as string)).toBe(persons as number);
   });
 
+  test("the present subjunctive conjugates for every person", () => {
+    const subjunctive = (word: string, lemma: string) =>
+      verbReadings(word).find((r) => r.lemma === lemma && r.tense > 2)!;
+    const prenne = subjunctive("prenne", "prendre");
+    expect(conjugate(prenne, ILS)).toEqual(["prennent"]);
+    expect(conjugate(prenne, NOUS)).toEqual(["prenions"]);
+    expect(conjugate(prenne, VOUS)).toEqual(["preniez"]);
+    expect(conjugate(subjunctive("aille", "aller"), IL)).toEqual(["aille"]);
+    expect(conjugate(subjunctive("vienne", "venir"), ILS)).toEqual(["viennent"]);
+  });
+
   test("readings name the lemma, the participles and the infinitives", () => {
     expect(verbReadings("mangé").map((r) => [r.lemma, r.slot])).toEqual([["manger", "Q"]]);
     expect(verbReadings("dû").map((r) => [r.lemma, r.slot])).toEqual([["devoir", "Q"]]);

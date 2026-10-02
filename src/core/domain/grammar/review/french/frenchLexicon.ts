@@ -133,7 +133,25 @@ export function conjugate(reading: VerbReading, person: number): string[] {
     if (!rule.cond.test(reading.lemma) || !reading.lemma.endsWith(rule.strip)) continue;
     forms.add(reading.lemma.slice(0, reading.lemma.length - rule.strip.length) + rule.add);
   }
+  if (!forms.size && reading.tense > 2) return subjunctivePlural(reading, person);
   return [...forms];
+}
+
+/**
+ * The dictionary spells the present subjunctive's plural only where it differs from the
+ * indicative, so that tense ends at "il": "ils prennent" is the present's, "nous prenions" and
+ * "vous preniez" the imperfect's, for a tense whose singular is in -e ("prenne").
+ */
+function subjunctivePlural(reading: VerbReading, person: number): string[] {
+  if (person !== IL && person !== NOUS && person !== VOUS && person !== ILS) return [];
+  const singular = conjugate(reading, JE).find((form) => form.endsWith("e"));
+  if (!singular) return [];
+  // "qu'il aille": a "je" form in -e that the dictionary does not repeat for "il".
+  if (person === IL) return [singular];
+  const stem = singular.slice(0, -1);
+  if (person === ILS)
+    return conjugate({ ...reading, tense: 1 }, ILS).filter((form) => form === `${stem}ent`);
+  return conjugate({ ...reading, tense: 2 }, person);
 }
 
 /** A verb's masculine singular past participle ("compris", "reçu"), the shortest Q form. */
