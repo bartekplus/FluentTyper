@@ -16,6 +16,10 @@ const PLEONASMS = [
     return `${acronym}[ \\t\\u00a0]{1,8}(?:${noun}(?:${plural})?|${noun.toUpperCase()}(?:${plural.toUpperCase()})?)`;
   })
   .join("|");
+const PLEONASM = new RegExp(
+  `(?<![\\p{L}\\p{M}\\p{N}_'’@/#\\\\.-])(?:${PLEONASMS})(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]|\\.[\\p{L}\\p{N}])`,
+  "gu",
+);
 
 /** Explicit acronym pairs only; this does not rewrite voice, hedges or measurements. */
 export function redundantAcronyms(
@@ -25,6 +29,9 @@ export function redundantAcronyms(
 ): RawFinding[] {
   const text = snapshot.text;
   if (text.length > MAX_REVIEW_CHARS || snapshot.incomplete) return [];
+  // Most texts name no pair: skip the quote scan.
+  const matches = [...text.matchAll(PLEONASM)];
+  if (!matches.length) return [];
   // Quote state spans sentences/paragraphs. Apostrophes inside words are not quotes.
   const quoted = new Uint8Array(text.length);
   for (const range of protectedRanges)
@@ -62,11 +69,7 @@ export function redundantAcronyms(
     } else quoted[i] = stack.length > 0 ? 1 : 0;
   }
   const findings: RawFinding[] = [];
-  const pattern = new RegExp(
-    `(?<![\\p{L}\\p{M}\\p{N}_'’@/#\\\\.-])(?:${PLEONASMS})(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]|\\.[\\p{L}\\p{N}])`,
-    "gu",
-  );
-  for (const match of text.matchAll(pattern)) {
+  for (const match of matches) {
     const start = match.index,
       end = start + match[0].length;
     if (

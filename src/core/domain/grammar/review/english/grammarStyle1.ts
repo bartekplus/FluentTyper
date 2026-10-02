@@ -6,6 +6,7 @@ import { SPECIALIST } from "../englishCountability";
 import { doubledDegree } from "../englishDegree";
 import type { PhraseRow } from "../englishPhraseTables";
 import {
+  detectAll,
   EDGE,
   frame,
   frameMatches,
@@ -276,6 +277,8 @@ function degree(ctx: DetectContext): Finding[] {
     if (typed !== adj || !markerCase || hasUserOrCasedWord(ctx, m[0])) continue;
     // "honest" is a base adjective ("honestly"), not hon + -est.
     if (!graded(adj) || englishWordInfo(`${adj}ly`)) continue;
+    // "I'll write more later": time adverbs, not a comparative "more" could double.
+    if (/^(?:later|earlier|sooner)$/.test(adj)) continue;
     const [start, end] = m.indices!.groups!.target;
     if (!finishedComparison(ctx, start, end)) continue;
     findings.push(
@@ -430,9 +433,13 @@ function doubleBe(ctx: DetectContext): Finding[] {
     if (/^(?:I|you|we|they|he|she|it|there)$/i.test(nextWord(ctx, m.index + m[0].length))) continue;
     // "Let's be", and "Mateo's are": after a name, "'s" is a possessive standing for its noun.
     if (/^['’]/.test(first) && lower(second) === "be") continue;
+    // So is a noun after a determiner ("these one's are", "my aunt's are"): never "is".
     if (
       /^['’]s$/.test(first) &&
-      /\p{Lu}\p{L}*$/u.test(ctx.text.slice(Math.max(0, m.index - 24), m.index))
+      (/\p{Lu}\p{L}*$/u.test(ctx.text.slice(Math.max(0, m.index - 24), m.index)) ||
+        /(?:^|[^\p{L}'’])(?:the|a|an|these|those|this|that|my|your|his|her|our|their|its|some|all|both|many|several|few|other)(?:[ \t\u00a0]+\p{L}+){1,2}$/iu.test(
+          ctx.text.slice(Math.max(0, m.index - 40), m.index),
+        ))
     )
       continue;
     findings.push(found(ctx, m, "englishSentenceStructure", "review_msg_sentence_structure", [""]));
@@ -826,7 +833,8 @@ function numberUnits(ctx: DetectContext): Finding[] {
   const findings: Finding[] = [];
   for (const m of frameMatches(ctx, NUMBER_UNIT)) {
     const { n, unit, next } = m.groups!;
-    if (n === "1" || (next && NOT_A_HEAD.test(next))) continue;
+    // "the 2018 Year-End chart": a capitalized unit belongs to a name.
+    if (n === "1" || /^[A-Z]/.test(unit) || (next && NOT_A_HEAD.test(next))) continue;
     if (next && !englishWordInfo(next)?.noun && !englishWordInfo(next)?.adjective) continue;
     findings.push(
       found(ctx, m, "englishContextualCompounds", "review_msg_compounds", [`${n}-${unit}`]),
@@ -908,7 +916,7 @@ function splitWords(ctx: DetectContext): Finding[] {
   return findings;
 }
 
-const DANGLING = `(?<target>the${SPACE}(?:and|or|but|because|nor))${WORD_END}|(?=an?${SPACE})(?<=(?:^|[.!?][ \\t\\u00a0]+))(?<article>An?${SPACE}(?:because|although|unless))${WORD_END}`;
+const DANGLING = `(?<target>the${SPACE}(?:and|or|but|because|nor))${WORD_END}|(?=an?${SPACE})(?<=(?:^|[.!?][ \\t\\u00a0]{1,8}))(?<article>An?${SPACE}(?:because|although|unless))${WORD_END}`;
 
 /** "The and other options": a determiner with no noun after it. */
 function danglingDeterminers(ctx: DetectContext): Finding[] {
@@ -1286,9 +1294,7 @@ export function quotedMention(ctx: DetectContext, finding: Finding): boolean {
 const english =
   (...detectors: ((ctx: DetectContext) => Finding[])[]) =>
   (ctx: DetectContext): Finding[] =>
-    ctx.lang !== "en_US"
-      ? []
-      : detectors.flatMap((detect) => detect(ctx)).filter((f) => !quotedMention(ctx, f));
+    ctx.lang !== "en_US" ? [] : detectAll(ctx, detectors).filter((f) => !quotedMention(ctx, f));
 
 /** Context detectors appended to REVIEW_DETECTORS. */
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
