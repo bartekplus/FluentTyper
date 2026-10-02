@@ -229,11 +229,40 @@ export function englishLexiconInflect(
   return (flags.includes("G") && suffix(lemma, "G")) || (doubled && `${doubled}ing`) || undefined;
 }
 
+/**
+ * The singular and regular -s plural of a lowercase dictionary noun, from either form
+ * ("issue" or "issues" -> issue/issues), or null. Irregular plurals and nouns the
+ * dictionary lists without a plural flag are not covered.
+ */
+export function englishNounPair(word: string): { singular: string; plural: string } | null {
+  if (!/^[a-z]+$/.test(word)) return null;
+  for (const { base, flags, via } of readings(word)) {
+    if (!flags.includes("n") || !flags.includes("S")) continue;
+    if (via === "S") return { singular: base, plural: word };
+    const plural = via === "" && suffix(base, "S");
+    if (plural) return { singular: base, plural };
+  }
+  return null;
+}
+
+/**
+ * Nouns the dictionary derives from a lowercase base verb by its -ion and -ment flags
+ * ("translate" -> translation, "improve" -> improvement), dictionary-listed ones only.
+ */
+export function englishVerbNouns(lemma: string): string[] {
+  const flags = entry(lemma);
+  if (!flags?.includes("v")) return [];
+  return ["N", "L"].flatMap((flag) => {
+    const noun = flags.includes(flag) && suffix(lemma, flag);
+    return noun && noun !== lemma ? [noun] : [];
+  });
+}
+
 export const BLOOM_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 const BLOOM_HASHES = 7;
 
 /** The bits a word sets in a Bloom filter of `size` bits (FNV-1a and djb2, double hashing). */
-export function bloomBits(word: string, size: number): number[] {
+export function bloomBits(word: string, size: number, hashes = BLOOM_HASHES): number[] {
   let a = 0x811c9dc5;
   let b = 5381;
   for (let i = 0; i < word.length; i++) {
@@ -244,7 +273,7 @@ export function bloomBits(word: string, size: number): number[] {
   const h1 = a >>> 0;
   const h2 = (b | 1) >>> 0;
   const bits: number[] = [];
-  for (let i = 0; i < BLOOM_HASHES; i++) bits.push((h1 + i * h2) % size);
+  for (let i = 0; i < hashes; i++) bits.push((h1 + i * h2) % size);
   return bits;
 }
 

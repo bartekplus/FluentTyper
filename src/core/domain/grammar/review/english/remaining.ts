@@ -10,7 +10,14 @@ import { phraseCorrections } from "../englishPhraseCorrections";
 import type { PhraseRow } from "../englishPhraseTables";
 import { NOUN_LIKE_ING } from "../englishParticiples";
 import { namedExampleBefore } from "../exampleCues";
-import { COMPLETE, frameMatches, hasUserOrCasedWord, SPACE, WORD_END } from "../phraseTemplates";
+import {
+  COMPLETE,
+  detectAll,
+  frameMatches,
+  hasUserOrCasedWord,
+  SPACE,
+  WORD_END,
+} from "../phraseTemplates";
 import type { CatalogRuleId } from "../../ruleCatalog";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { quotedMention } from "./grammarStyle1";
@@ -88,7 +95,7 @@ const gated =
 const english =
   (...detectors: ((ctx: DetectContext) => RawFinding[])[]) =>
   (ctx: DetectContext): RawFinding[] =>
-    ctx.lang !== "en_US" ? [] : detectors.flatMap((detect) => detect(ctx));
+    ctx.lang !== "en_US" ? [] : detectAll(ctx, detectors);
 /** English text naming the detector's literal; quotations are left to the detector. */
 const when =
   (gate: RegExp, detect: (ctx: DetectContext) => RawFinding[]) =>

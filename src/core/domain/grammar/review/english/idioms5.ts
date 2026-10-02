@@ -778,10 +778,11 @@ const FRAMES: readonly Frame[] = [
     fix: "could",
   },
   {
-    // "to never to do": one "to" too many.
+    // "to never to do": one "to" too many. "You shouldn't have to just to get by" elides
+    // the first verb, and "set it to always to be safe" names a value.
     rule: CONTEXT,
     cue: ["to"],
-    pattern: `(?<target>(?<first>to)${S}(?<adverb>[a-z]+)${S}to)${S}(?<verb>[a-z]+)${E}`,
+    pattern: `${notAfter("have|has|had|having|ought|got|need|needs|want|wants|going|condition|option|setting|mode")}(?<target>(?<first>to)${S}(?<adverb>[a-z]+)${S}to)${S}(?<verb>[a-z]+)${E}`,
     fix: (m) => {
       const { first, adverb, verb } = m.groups!;
       if (!ADVERB_SLOT.test(adverb) && !(info(adverb)?.adverb && /ly$/i.test(adverb))) return null;

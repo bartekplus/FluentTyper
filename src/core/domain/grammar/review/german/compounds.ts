@@ -1,0 +1,257 @@
+import { frameMatches, SPACE, WORD_END, WORD_START } from "../phraseTemplates";
+import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import { germanInfinitive, germanNounReading, germanVerbLike } from "./germanLexicon";
+import { isGerman, tokensBefore, wordSet } from "./shared";
+import { germanInfinitiveOf, isAuxiliary } from "./verbAgreement";
+
+// German compounds written apart or with the wrong joints: separable verbs ("auf zu bauen" →
+// "aufzubauen"), times of day ("Dienstag Abend" → "Dienstagabend"), numbers with suffixes
+// ("8 seitig" → "8-seitig", "3. Klässler" → "Drittklässler"), abbreviations before nouns
+// ("US Bürger" → "US-Bürger") and fixed spellings ("Email" → "E-Mail", "DinA4" → "DIN A4").
+
+const NBSP = " ";
+const re = (source: string) => new RegExp(`${WORD_START}(?:${source})${WORD_END}`, "gdu");
+
+// Particles of separable verbs; "um" and "mit" are left out ("um zu gehen" is "in order
+// to go"), and "zu" ("zu zu muten") needs the joined verb to be known like the others.
+const PARTICLES =
+  "ab an auf aus bei ein fest fort her herab heran herauf heraus herbei herein herüber " +
+  "herum herunter hervor hin hinab hinauf hinaus hinein hinüber hinunter hinweg los " +
+  "nach nieder vor voran voraus vorbei vorüber weg weiter wieder zurück zusammen zu " +
+  "bereit statt teil kennen fertig frei zufrieden wohl hoch dar empor entgegen";
+const PARTICLE_SET = wordSet(PARTICLES);
+const ZU_INFINITIVE = re(
+  `(?<prev>\\p{L}+)${SPACE}(?<target>(?<particle>\\p{Ll}+)${SPACE}zu${SPACE}(?<verb>\\p{Ll}+))`,
+);
+// Adverbs ending in -t, unlike the finite verbs whose particle comes next ("fängt an zu").
+const NOT_FINITE = wordSet(
+  "nicht jetzt erst oft fast meist zuletzt sonst selbst gut recht weit halt",
+);
+// "sich um zu drehen", "damit um zu gehen": "um" as a particle.
+const UM_ZU = re(
+  `(?<=(?:sich|damit|dich|mich|uns|euch)${SPACE})(?<target>um${SPACE}zu${SPACE}(?<verb>\\p{Ll}+))`,
+);
+// "bereit stellen", "kennen lernen", "fertig stellen": a particle before an infinitive.
+const SPLIT_INFINITIVE = re(
+  `(?<target>(?<particle>bereit|kennen|fertig|zufrieden|statt|teil|nieder|weg|los|vorbei|hinzu)${SPACE}(?<verb>\\p{Ll}+(?:en|ern|eln)))`,
+);
+// "Falls du ab sagst,", "hat den Brief ab geschickt.", "als sie los gingen": a particle
+// written apart from its verb at the end of a clause, where a main clause would not split it.
+// "wieder", "weiter", "zusammen" and the like are left out: both spellings exist.
+const SPLIT_AT_END = re(
+  `(?<target>(?<particle>ab|an|auf|aus|bei|ein|los|nach|vor|weg|zu|dar|her|hin|fort|heraus|herein|hinaus|hinein|herum|statt|teil)${SPACE}(?<verb>\\p{Ll}{3,}))(?=(?:${SPACE}(?<aux>\\p{Ll}+))?[ \\t]*(?:[,.!?;:)]|$))`,
+);
+/** Whether the particle and the verb form after it make one verb: "ab sagst" (absagen). */
+function joinsVerb(particle: string, verb: string): boolean {
+  if (isAuxiliary(verb)) return false;
+  const joins = (infinitive: string) =>
+    germanInfinitive(infinitive) && germanInfinitive(particle + infinitive);
+  // "ab geschickt": a participle; "zu gelassen" may be "too calm".
+  const participle = /^ge(\p{Ll}{2,}?)(?:en|t)$/u.exec(verb);
+  if (participle) return particle !== "zu" && joins(`${participle[1]}en`);
+  // "zu gehen" is a zu-infinitive; other particles join an infinitive too ("los gehen").
+  if (/(?:en|ern|eln)$/.test(verb) && germanInfinitive(verb)) {
+    return particle !== "zu" && joins(verb);
+  }
+  // "gibt", "lässt": a listed irregular form; "sagst", "sagte": a regular one.
+  const listed = germanInfinitiveOf(verb);
+  if (listed) return joins(listed);
+  // "zu lange", "zu enge": "too", before an adjective in -e.
+  const stem = /^(.+?)(?:e|st|t|est|et|te|test|ten|tet)$/u.exec(verb)?.[1];
+  if (!stem || (particle === "zu" && verb.endsWith("e"))) return false;
+  return joins(`${stem}en`) || joins(`${stem}n`);
+}
+// Words that make the particle part of another phrase: "den weg", "gerade aus", "da nach",
+// "immer hin", "außen vor", "all zu".
+const NOT_PARTICLE_AFTER = wordSet(
+  "der die das den dem des ein eine einen einem einer eines kein keine keinen keinem " +
+    "mein meinen meinem dein deinen deinem sein seinen seinem ihren ihrem unseren unserem " +
+    "gerade da hier wo dort all immer außen bergauf bergab",
+);
+const TIMES =
+  "Morgen|Vormittag|Mittag|Nachmittag|Abend|Nacht|morgen|vormittag|mittag|nachmittag|abend|nacht";
+const WEEKDAY_TIME = re(
+  `(?<=(?:am|jeden|diesen|nächsten|letzten|kommenden|vergangenen|bis|ab|seit|vom|zum|Am|Jeden)${SPACE})(?<target>(?<day>Montag|Dienstag|Mittwoch|Donnerstag|Freitag|Samstag|Sonnabend|Sonntag)${SPACE}(?<time>${TIMES}))`,
+);
+const SUFFIXES =
+  "seitig|stellig|prozentig|teilig|jährig|tägig|stündig|minütig|wöchig|monatig|sprachig|" +
+  "farbig|geschossig|zimmerig|türig|spurig|köpfig|sitzig|bändig|zeilig|wertig";
+const NUMBER_SUFFIX = new RegExp(
+  `(?<![\\p{L}\\p{N}.,-])(?<target>(?<n>\\p{N}+)(?:[ \\t]?)(?<suffix>(?:${SUFFIXES.replace(/\|/g, "|")}|${SUFFIXES.split(
+    "|",
+  )
+    .map((s) => s[0].toUpperCase() + s.slice(1))
+    .join("|")})(?:e|en|er|es|em)?))${WORD_END}`,
+  "gdu",
+);
+const ORDINALS = [
+  "Erst",
+  "Zweit",
+  "Dritt",
+  "Viert",
+  "Fünft",
+  "Sechst",
+  "Siebt",
+  "Acht",
+  "Neunt",
+  "Zehnt",
+  "Elft",
+  "Zwölft",
+  "Dreizehnt",
+];
+const KLASSLER = new RegExp(
+  `(?<![\\p{L}\\p{N}.])(?<target>(?<n>1[0-3]|[1-9])\\.[ \\t]?[Kk]lässler(?<end>in|innen|n)?)${WORD_END}`,
+  "gdu",
+);
+const ACRONYM_NOUN = re(
+  `(?<target>(?<acronym>US|EU|UN|UNO|IT|PC|PR|EDV|Kfz|KFZ|Pkw|PKW|Lkw|LKW|USB|PDF|HTML|CD|DVD|TV|SMS|GPS|WLAN|SPD|CDU|FDP|DFB|NATO|WHO)${SPACE}(?<noun>\\p{Lu}\\p{Ll}{2,}))`,
+);
+// "eMail", "e-mail", "E-mail", "EMail" are never right; "Email" (enamel) only after a
+// determiner that cannot go with "das Email".
+const EMAIL_ANY = re(
+  `(?<target>(?:eMail|e-mail|E-mail|EMail|e-Mail)(?<rest>s|-\\p{L}[\\p{L}-]*)?)`,
+);
+const EMAIL_AFTER = re(
+  `(?<=(?:eine|einer|meine|deine|seine|ihre|Ihre|unsere|eure|keine|jede|diese|per|neue|letzte|kurze)${SPACE})(?<target>Email(?<rest>-\\p{L}[\\p{L}-]*)?)`,
+);
+const EMAILS = re(`(?<target>Emails|E-Mailadresse|E-Mailadressen)`);
+const DIN = re(
+  `(?<target>(?:DIN|Din|din)(?:-|${SPACE})?[Aa](?<size>[0-8])(?<rest>(?:-|${SPACE})?Blatt|-\\p{L}+)?)`,
+);
+const ADD_ON = re(`(?<target>(?:AddOn|Addon|addon|AddOns|Addons|addons)(?<rest>-\\p{L}+)?)`);
+
+type Fix = (m: RegExpExecArray, ctx: DetectContext) => string | null;
+
+/**
+ * Whether the words before `index` open an infinitive clause of their own (after a comma,
+ * or "um", "ohne", "statt") with no finite verb whose particle the word could be: "Er
+ * versprach, mich dort hin zu bringen" but not "Fang nicht an zu heulen", "Ich hoffe, es
+ * macht dir nichts aus zu laufen".
+ */
+function infinitiveClause(ctx: DetectContext, index: number): boolean {
+  const before = ctx.text.slice(Math.max(0, index - 120), index);
+  const clause = /(?:^|[.!?;:\n,])([^.!?;:\n,]*)$/.exec(before)?.[1] ?? "";
+  const tokens = clause.match(/\p{L}+/gu) ?? [];
+  const opened =
+    /,[^,]*$/.test(before) || tokens.some((t) => /^(?:um|ohne|statt|anstatt)$/i.test(t));
+  if (!opened) return false;
+  return !tokens.some(
+    (t) =>
+      /^\p{Ll}/u.test(t) &&
+      ((/t$/.test(t) && !NOT_FINITE.has(t)) ||
+        germanVerbLike(t) ||
+        /^(?:fing|gab|bot|nahm|sah|schlug|hielt|ließ|kam|ging|fingen|gaben|hörten)$/.test(t)),
+  );
+}
+const FRAMES: Array<[RegExp, Fix]> = [
+  [
+    ZU_INFINITIVE,
+    (m, ctx) => {
+      const { prev, particle, verb } = m.groups!;
+      if (!PARTICLE_SET.has(particle) || !germanInfinitive(verb)) return null;
+      // "der Reihe nach zu holen", "von Grund auf zu bauen", "auf und ab zu gehen".
+      if (/^(?:Reihe|Grund|und|oder)$/.test(prev)) return null;
+      if (!infinitiveClause(ctx, m.indices!.groups!.target[0])) return null;
+      return germanInfinitive(particle + verb) ? `${particle}zu${verb}` : null;
+    },
+  ],
+  [
+    SPLIT_AT_END,
+    (m, ctx) => {
+      const { particle, verb, aux } = m.groups!;
+      if (aux && !isAuxiliary(aux)) return null;
+      // "von Anfang an gesagt", "von klein auf gelernt": the particle closes "von …".
+      const before = tokensBefore(ctx.text, m.index, 3);
+      if (NOT_PARTICLE_AFTER.has(before.at(-1)?.toLowerCase() ?? "")) return null;
+      if (before.some((t) => /^[Vv]on$/.test(t)) || before.at(-1) === "Berg") return null;
+      return joinsVerb(particle, verb) ? particle + verb : null;
+    },
+  ],
+  [UM_ZU, (m) => (germanInfinitive(`um${m.groups!.verb}`) ? `umzu${m.groups!.verb}` : null)],
+  [
+    SPLIT_INFINITIVE,
+    (m) => {
+      const { particle, verb } = m.groups!;
+      const joined = particle + verb;
+      return germanInfinitive(verb) && (germanInfinitive(joined) || germanVerbLike(joined))
+        ? joined
+        : null;
+    },
+  ],
+  [
+    WEEKDAY_TIME,
+    (m) => {
+      const { day, time } = m.groups!;
+      return `${day}${time.toLowerCase()}`;
+    },
+  ],
+  [NUMBER_SUFFIX, (m) => `${m.groups!.n}-${m.groups!.suffix.toLowerCase()}`],
+  [KLASSLER, (m) => `${ORDINALS[Number(m.groups!.n) - 1]}klässler${m.groups!.end ?? ""}`],
+  [
+    ACRONYM_NOUN,
+    (m) =>
+      germanNounReading(m.groups!.noun.toLowerCase()) !== null
+        ? `${m.groups!.acronym}-${m.groups!.noun}`
+        : null,
+  ],
+  [EMAIL_ANY, (m) => `E-Mail${emailRest(m.groups!.rest)}`],
+  [EMAIL_AFTER, (m) => `E-Mail${emailRest(m.groups!.rest)}`],
+  [
+    EMAILS,
+    (m) =>
+      ({ Emails: "E-Mails", "E-Mailadresse": "E-Mail-Adresse" })[m.groups!.target] ??
+      "E-Mail-Adressen",
+  ],
+  [
+    DIN,
+    (m) => {
+      const { size, rest } = m.groups!;
+      if (!rest) return `DIN${NBSP}A${size}`;
+      const tail = rest.replace(/^[-\s]+/, "");
+      return `DIN-A${size}-${tail[0].toUpperCase()}${tail.slice(1)}`;
+    },
+  ],
+  [
+    ADD_ON,
+    (m) => {
+      const plural = /s$/.test(m.groups!.target.replace(/-.*$/, ""));
+      return `Add-on${plural ? "s" : ""}${m.groups!.rest ?? ""}`;
+    },
+  ],
+];
+
+/** "-adresse" → "-Adresse", "s" stays. */
+function emailRest(rest = ""): string {
+  if (!rest.startsWith("-")) return rest;
+  return `-${rest[1].toUpperCase()}${rest.slice(2)}`;
+}
+
+function compounds(ctx: DetectContext): RawFinding[] {
+  if (!isGerman(ctx)) return [];
+  const findings: RawFinding[] = [];
+  for (const [regex, fix] of FRAMES) {
+    for (const m of frameMatches(ctx, regex)) {
+      const typed = m.groups!.target;
+      const replacement = fix(m, ctx);
+      if (!replacement || replacement === typed || ctx.dictionary.has(typed.toLowerCase()))
+        continue;
+      const [start, end] = m.indices!.groups!.target;
+      findings.push({
+        ruleId: "germanCompounds",
+        messageKey: "review_msg_closed_compound",
+        range: { start, end },
+        alternatives: [
+          /^\p{Lu}/u.test(typed)
+            ? replacement[0].toUpperCase() + replacement.slice(1)
+            : replacement,
+        ],
+        context: { start: Math.max(0, start - 40), end: end + 20 },
+      });
+    }
+  }
+  return findings;
+}
+
+export const DETECTORS: readonly ReviewDetectorEntry[] = [
+  { rules: ["germanCompounds"], detect: compounds },
+];
