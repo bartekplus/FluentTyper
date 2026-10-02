@@ -19,6 +19,7 @@ import {
   attribute,
   finiteVerb,
   genderedForm,
+  isGerund,
   isNoun,
   isVerb,
   participle,
@@ -115,6 +116,8 @@ function agreesWithNext(at: Around, accented: string): boolean {
   if (finiteVerb(at.next()) || noun.plural !== own.plural) return false;
   return (noun.gender === "f") === own.feminine;
 }
+
+const isPerfectParticipleLike = (word: string) => /(?:ado|ido)$/u.test(word) && !!participle(word);
 
 /** No finite verb after the word before the sentence ends: "Critica de cine.". */
 function verbless(at: Around): boolean {
@@ -367,7 +370,7 @@ function verbAccent(at: Around): string | null {
     const future = /^(\p{L}*?[eií]r)(a|as|an|e)$/u.exec(word);
     if (
       future &&
-      isInfinitive(future[1]) &&
+      (isInfinitive(future[1]) || future[1] === "ir") &&
       (!isNoun(word) || /^(?:ya|tú|se|me|te|le|lo|no)$/u.test(prev)) &&
       word !== "para"
     )
@@ -391,6 +394,18 @@ function verbAccent(at: Around): string | null {
     )
       return `${word.slice(0, -1)}é`;
   }
+  // "e ira creciendo", "cómo ira armado": "ira" (anger) takes no gerund or participle after
+  // it unless a determiner makes it the noun ("la ira creciendo en su pecho").
+  const ira = /^ir(a|as|an)$/u.exec(word);
+  if (
+    ira &&
+    !COMMON_DETERMINERS.has(prev) &&
+    !PREPOSITIONS.has(prev) &&
+    !/^(?:mi|tu|su|sus|nuestra|vuestra)$/u.test(prev) &&
+    // "rechazo e ira dirigido a ellos": two nouns and their participle.
+    (isGerund(at.next()) || (isPerfectParticipleLike(at.next()) && !CONJUNCTIONS.has(prev)))
+  )
+    return `ir${{ a: "á", as: "ás", an: "án" }[ira[1]]}`;
   // "Cantara mañana" -> "cantará", "¿Cuándo llegaras?" -> "llegarás": an -ar future without
   // its accent reads as a past subjunctive, which needs a trigger ("si", "que") before it.
   const arFuture = /^(\p{L}+ar)(a|as|an)$/u.exec(word);
@@ -419,9 +434,21 @@ const OBJECT_CLITICS = words("lo la los las le les me te se nos os");
 
 /** "Hacia dos años que…", "lo que hacia", "la hacia otra empresa": the imperfect "hacía". */
 function hacia(at: Around): string | null {
-  if (at.tokens[at.i].lower !== "hacia") return null;
   const prev = at.prev();
   const next = at.next();
+  // "Se fue hacía el sur", "Miró hacía las estrellas": after a verb of its own, the
+  // preposition towards a place.
+  if (at.tokens[at.i].lower === "hacía")
+    return (DIRECTIONS.has(next) || COMMON_DETERMINERS.has(next)) &&
+      finiteVerb(prev) &&
+      !isNoun(prev) &&
+      !attribute(prev) &&
+      !CLITICS.has(prev)
+      ? "hacia"
+      : null;
+  if (at.tokens[at.i].lower !== "hacia") return null;
+  // "Entonces hacia las veces de gerente": "hacer las veces".
+  if (next === "las" && at.next(2) === "veces") return "hacía";
   const nextToken = at.tokens[at.i + 1];
   const numeral = /^\p{N}/u.test(nextToken?.text ?? "");
   if (DIRECTIONS.has(next) || numeral) return null;

@@ -213,6 +213,8 @@ function goVerb(at: Around, fix: string): string[] | null {
 function subjunctiveHaber(at: Around, fix: string): string[] | null {
   // "que halla", "que te halla", "que no halla", "que no te halla".
   const words = [1, 2, 3].map((k) => at.prev(k));
+  // "para que halla climatización", "ojalá halla suerte": these only take a subjunctive.
+  if ((words[0] === "que" && words[1] === "para") || words[0] === "ojalá") return [fix];
   if (words[0] !== "que" && words[0] !== "no" && (!CLITICS.has(words[0]) || words[0] === "se"))
     return null;
   const trigger = words

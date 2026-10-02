@@ -426,6 +426,38 @@ function endsPlainly(at: Around, k: number): boolean {
   return false;
 }
 
+const PRETERITE = /^\p{L}{2,}(?:é|ó|aste|iste|ió|aron|ieron)$/u;
+const IRREGULAR_PAST = words(
+  "hice hizo fui fue fuimos fueron tuve tuvo dije dijo puse puso vine vino estuve estuvo pude " +
+    "pudo quise quiso supe supo",
+);
+/** A preterite or perfect right after "si", past its clitics: "si hice", "si me ha importado". */
+function pastFact(at: Around, firstPerson: boolean): boolean {
+  let k = 1;
+  while (k < 3 && CLITICS.has(at.next(k))) k++;
+  const verb = at.next(k);
+  if (firstPerson) {
+    if (verb === "he") return !!participle(at.next(k + 1));
+    return (
+      /^(?:hice|fui|tuve|dije|puse|vine|estuve|pude|quise|supe)$/u.test(verb) ||
+      (/^\p{L}{2,}é$/u.test(verb) && finiteVerb(verb) && !isNoun(verb))
+    );
+  }
+  if (IRREGULAR_PAST.has(verb) || (PRETERITE.test(verb) && finiteVerb(verb) && !isNoun(verb)))
+    return true;
+  return /^(?:he|has|ha|hemos|han)$/u.test(verb) && !!participle(at.next(k + 1));
+}
+/** The sentence runs to a plain full stop with no comma, colon or second clause. */
+function plainSentence(at: Around): boolean {
+  for (let j = at.i + 1; j < at.tokens.length && j < at.i + 16; j++) {
+    const token = at.tokens[j];
+    if (token.broken) return false;
+    if (token.text === ".") return at.tokens[j + 1]?.text !== ".";
+    if (!token.word || /^(?:si|que|pero|porque|cuando|aunque)$/u.test(token.lower)) return false;
+  }
+  return false;
+}
+
 /** A finite verb before the clause ends: "pero si hay casos" is a condition. */
 function verbAhead(at: Around): boolean {
   for (let k = 1; k <= 8; k++) {
@@ -678,6 +710,14 @@ function monosyllable(at: Around): string | null {
         at.tokens[at.i + 2]?.text === ","
       )
         return "sí";
+      // "Si hice el trabajo.", "Esta vez si me ha importado.": a past fact opening a sentence
+      // that ends without the main clause a condition needs; at the very start only the
+      // speaker's own ("Si tuvo todas las oportunidades." may be a fragment).
+      {
+        const lead =
+          /^(?:pues|ahora|entonces)$/u.test(prev) || (prev === "vez" && at.prev(2) === "esta");
+        if ((lead || at.starts) && pastFact(at, !lead) && plainSentence(at)) return "sí";
+      }
       return ends ? "sí" : null;
     }
     case "aun":

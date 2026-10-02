@@ -1335,6 +1335,8 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         ["E terminado el informe.", "He terminado el informe."],
         ["No entiendo el motivo porque se marchó.", "No entiendo el motivo por que se marchó."],
         ["Esa es la razón porque vine.", "Esa es la razón por que vine."],
+        ["Abrió la ventana para que halla luz.", "Abrió la ventana para que haya luz."],
+        ["Ojalá halla sitio para todos.", "Ojalá haya sitio para todos."],
       ],
       neg: [
         "Se puso a cubierto de la lluvia.",
@@ -1382,6 +1384,28 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         "Critica a sus amigos.",
         "Practica la natación los lunes.",
         "Critica de todo lo que ve.",
+      ],
+    },
+  ],
+  [
+    "spanishAccents",
+    "hacia after a verb, hacía las veces, an emphatic sí and irá before a gerund",
+    {
+      pos: [
+        ["Corrió hacía la salida.", "Corrió hacia la salida."],
+        ["Mi tío hacia las veces de padre.", "Mi tío hacía las veces de padre."],
+        ["Si terminé los deberes.", "Sí terminé los deberes."],
+        ["Pues si llamé a tu madre.", "Pues sí llamé a tu madre."],
+        ["Mañana ira mejorando poco a poco.", "Mañana irá mejorando poco a poco."],
+        ["Se ira de vacaciones en julio.", "Se irá de vacaciones en julio."],
+      ],
+      neg: [
+        "Creía que hacía la cena.",
+        "Si quieres.",
+        "Si llegó tarde, no lo sé.",
+        "Si tuvo suerte antes de emigrar.",
+        "Sentía la ira creciendo en su pecho.",
+        "Mostró miedo e ira contenida.",
       ],
     },
   ],

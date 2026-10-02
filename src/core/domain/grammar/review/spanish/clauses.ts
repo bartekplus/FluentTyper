@@ -42,7 +42,12 @@ function paraQue(ctx: DetectContext, tokens: Token[], i: number): RawFinding | n
   if (!verb || /^\p{Lu}/u.test(tokens[i + k].text) || PAST_SUBJUNCTIVE.test(verb)) return null;
   if (!PRESENT_INDICATIVE.test(verb) || subjunctiveLike(verb) || !finiteVerb(verb)) return null;
   // "para que nadie", "para que todo", "para que como usuario puedas": the verb is further on.
-  if (isNoun(verb) || participle(verb) || /^(?:como|cuando|donde|mientras)$/u.test(verb))
+  // "para que halla": "haya" misspelled, not a question.
+  if (
+    isNoun(verb) ||
+    participle(verb) ||
+    /^(?:como|cuando|donde|mientras|halla|hallas|hallan)$/u.test(verb)
+  )
     return null;
   // "para que podamos": an -er/-ir subjunctive in -a looks like an -ar indicative.
   const a = /^(\p{L}+?)(?:a|as|an|amos|áis)$/u.exec(verb);
