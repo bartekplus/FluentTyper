@@ -51,6 +51,11 @@ for (const paradigm of PARADIGMS) {
     }),
   );
 }
+// The forms of sein, haben, werden, the modals and wissen (the first ten paradigms).
+const AUXILIARIES = new Set(PARADIGMS.slice(0, 10).flatMap((p) => p.split(/[| ]/)));
+export const isAuxiliary = (word: string) => AUXILIARIES.has(word);
+/** The infinitive of a listed verb form: "gibt" → "geben". */
+export const germanInfinitiveOf = (word: string) => FORMS.get(word)?.[0].line[0][3] ?? null;
 // "er habe", "sie wisse": the present subjunctive of the third person is the "ich" form.
 const SUBJUNCTIVE: Readonly<Record<string, string>> = { bin: "sei" };
 // Imperatives that a "du" may follow: "Sei du still", "Lies du vor".
