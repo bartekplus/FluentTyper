@@ -12,7 +12,12 @@ import {
   reviewRuleIds,
 } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { EXTENSION_DETECTORS } from "../../src/core/domain/grammar/review/english";
-import { REVIEW_DETECTORS } from "../../src/core/domain/grammar/review/reviewDetectors";
+import {
+  LANGUAGE_DETECTORS,
+  REVIEW_DETECTORS,
+  type ReviewDetectorEntry,
+} from "../../src/core/domain/grammar/review/reviewDetectors";
+import { detectAll } from "../../src/core/domain/grammar/review/phraseTemplates";
 import {
   MAX_REVIEW_CHARS,
   REVIEW_CHUNK_CHARS,
@@ -103,7 +108,10 @@ describe("review rule coverage map", () => {
   test("every supported rule has a detector, and excluded rules have none", () => {
     // Core detectors own a rule once; English extension modules may add context detectors
     // to those rules or serve rules of their own.
-    const core = REVIEW_DETECTORS.filter((detector) => !EXTENSION_DETECTORS.includes(detector));
+    const core = REVIEW_DETECTORS.filter(
+      (detector) =>
+        !EXTENSION_DETECTORS.includes(detector) && !LANGUAGE_DETECTORS.includes(detector),
+    );
     const coreRules = core.flatMap((detector) => detector.rules);
     expect(new Set(coreRules).size).toBe(coreRules.length);
     const detected = new Set(REVIEW_DETECTORS.flatMap((detector) => detector.rules));
@@ -125,6 +133,9 @@ describe("review rule coverage map", () => {
             "styleLongSentence",
             "ellipsisShortcut",
             "emdashShortcut",
+            "englishTypography",
+            "stylePassiveVoice",
+            "styleIntroductoryComma",
             "primeSymbols",
             "stylePhrasing",
             "styleContractions",
@@ -136,6 +147,15 @@ describe("review rule coverage map", () => {
             "englishBritishSpelling",
             "styleWordChoice",
             "styleSpelledNumbers",
+            "germanAbbreviationSpacing",
+            "germanQuestionMarks",
+            "germanStraightQuotes",
+            "polishQuotes",
+            "greekStrictFinalNu",
+            "greekPunctuation",
+            "portugueseTypographyStyle",
+            "portugueseAO90",
+            "frenchMissingNe",
           ].includes(id),
       ),
     );
@@ -231,7 +251,13 @@ describe("review detectors: capitalization and typography", () => {
       [33, 34],
       [43, 44],
     ]);
-    for (const text of ["i.e. this", "i. First item", "  i. Second item", "See Part i. Next"]) {
+    for (const text of [
+      "i.e. this",
+      "Bring fruit, i. e. apples.",
+      "i. First item",
+      "  i. Second item",
+      "See Part i. Next",
+    ]) {
       expect(only(text, rule)).toEqual([]);
     }
     // A loop variable can end a sentence too: one at a time.
@@ -821,9 +847,15 @@ describe("review detectors: punctuation and spacing", () => {
       ["duplicatePunctuationCollapse", ",,", [3, 5], ","],
       ["duplicatePunctuationCollapse", ";;", [8, 10], ";"],
       ["duplicatePunctuationCollapse", ", ,", [13, 16], ","],
-      ["duplicatePunctuationCollapse", "..", [21, 23], "."],
+      ["duplicatePunctuationCollapse", "..", [21, 23], "..."],
     ]);
     expect(only("see ../dir", "duplicatePunctuationCollapse")).toEqual([]);
+    // ".." trailing off mid-sentence keeps its meaning; at a sentence end the writer chooses.
+    const [ended] = review("It ended there.. Then", {
+      enabledRules: ["duplicatePunctuationCollapse"],
+    });
+    expect(ended.alternatives.map((a) => a.preview)).toEqual([".", "..."]);
+    expect(ended.requiresChoice).toBe(true);
   });
 
   test("measurementUnitFormatting and currencySpacing follow the locale policy", () => {
@@ -1163,5 +1195,51 @@ describe("review scope and protection", () => {
     ]);
     expect(result.coverage.failedRules).toEqual(["englishTypoWhitelistCorrection"]);
     expect(result.coverage.skipped["rule-error"]).toBe(1);
+  });
+
+  test("a failing part of a composite detector keeps its siblings' and other detectors' findings", () => {
+    const text = "We could of left. Irregardless, it rained.";
+    const fail = () => {
+      throw new Error("broken part");
+    };
+    const list = REVIEW_DETECTORS as ReviewDetectorEntry[];
+    const injected: ReviewDetectorEntry[] = [
+      {
+        rules: ["englishPhraseCorrections"],
+        detect: (ctx) =>
+          detectAll(ctx, [
+            fail,
+            () => [
+              {
+                ruleId: "englishPhraseCorrections",
+                messageKey: "review_msg_typo",
+                range: { start: text.indexOf("rained"), end: text.length - 1 },
+                alternatives: ["poured"],
+              },
+            ],
+          ]),
+      },
+      { rules: ["englishModalOfCorrection"], detect: fail },
+    ];
+    list.unshift(...injected);
+    try {
+      const result = detectReviewDiagnostics(
+        { id: "s", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
+        options(),
+      );
+      const found = result.diagnostics.map(
+        (d) => `${d.ruleId}:${text.slice(d.range.start, d.range.end)}`,
+      );
+      // The sibling part and the rule's regular detectors still report.
+      expect(found).toContain("englishPhraseCorrections:rained");
+      expect(found).toContain("englishPhraseCorrections:Irregardless");
+      expect(found).toContain("englishModalOfCorrection:could of");
+      expect(result.coverage.failedRules.sort()).toEqual([
+        "englishModalOfCorrection",
+        "englishPhraseCorrections",
+      ]);
+    } finally {
+      list.splice(0, injected.length);
+    }
   });
 });
