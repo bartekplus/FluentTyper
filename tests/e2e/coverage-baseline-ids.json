@@ -9,6 +9,7 @@
     "review_word_confusions",
     "review_auxiliary_forms",
     "install_page_reachable",
+    "onboarding_localization",
     "popup_page_loads",
     "prod_runtime_hook_hidden",
     "prod_predictor_debug_hidden",

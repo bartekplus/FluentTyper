@@ -190,8 +190,8 @@ function devRuntimeEach<T>(cases: readonly T[]) {
 async function captureOnboardingViewportSnapshot(page: Page): Promise<OnboardingViewportSnapshot> {
   return await page.evaluate(() => {
     const permissionButton = document.getElementById("grant-permissions-btn");
-    const rationale = document.querySelector(".hero-lead");
-    const nextAction = document.querySelector("[aria-label='Next action']");
+    const rationale = document.getElementById("permissions-copy");
+    const nextAction = document.getElementById("practice-help");
 
     const isMeaningfullyVisibleInViewport = (element: Element | null) => {
       if (!(element instanceof HTMLElement)) {
@@ -2027,7 +2027,21 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         // ---- Permission flow test ----
         // Wait for the button to be ready and visible
         await newInstallationPage.waitForSelector("#grant-permissions-btn", { visible: true });
-        await newInstallationPage.waitForSelector("[aria-label='Next action']", { visible: true });
+        // The welcome offers a direct setup action and three explorable examples.
+        for (const feature of ["popup", "inline", "review"]) {
+          await newInstallationPage.click(`label:has(input[value="${feature}"])`);
+          expect(
+            await newInstallationPage.$$eval(".feature-panel", (panels) =>
+              panels
+                .filter((panel) => getComputedStyle(panel).display !== "none")
+                .map((panel) => panel.getAttribute("aria-labelledby")),
+            ),
+          ).toEqual([`${feature}-title`]);
+        }
+        await newInstallationPage.click('a.button[href="#setup"]');
+        await newInstallationPage.waitForFunction(
+          () => (document.getElementById("setup")?.getBoundingClientRect().top ?? Infinity) < 100,
+        );
 
         const viewportSnapshot = await captureOnboardingViewportSnapshot(newInstallationPage);
         expect(viewportSnapshot).toMatchObject({
@@ -2121,10 +2135,12 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
               ? (document.getElementById("grant-permissions-btn") as HTMLButtonElement).hidden
               : null,
           containsRequest: testWindow.__lastPermissionContainsRequest,
+          scrollY: window.scrollY,
         };
       });
 
       expect(onboardingState).toEqual({
+        scrollY: 0,
         activeElementId: "try-me-textarea",
         permissionState: "granted",
         permissionButtonHidden: true,

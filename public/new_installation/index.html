@@ -4,769 +4,378 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="referrer" content="no-referrer" />
-    <title>Welcome to FluentTyper</title>
-    <link rel="stylesheet" type="text/css" href="/third_party/bulma/bulma.min.css" />
-    <link rel="stylesheet" type="text/css" href="/suggestions/suggestions.css" />
-    <link rel="stylesheet" type="text/css" href="/css/fluenttyper-theme.css" />
-
+    <title data-i18n="onboarding_title">Welcome to FluentTyper</title>
+    <link rel="stylesheet" href="/suggestions/suggestions.css" />
+    <link rel="stylesheet" href="/new_installation/onboarding.css" />
     <script src="/content_script.js"></script>
     <script src="/new_installation/onboarding.js"></script>
-    <style>
-      :root {
-        --onboarding-ink: #0f172a;
-        --onboarding-muted: #475569;
-        --onboarding-line: rgba(148, 163, 184, 0.28);
-        --onboarding-sky: rgba(14, 165, 233, 0.14);
-        --onboarding-mint: rgba(16, 185, 129, 0.14);
-        --onboarding-warm: rgba(249, 115, 22, 0.14);
-        --onboarding-surface: rgba(255, 255, 255, 0.9);
-        --onboarding-shadow: 0 30px 70px -36px rgba(15, 23, 42, 0.45);
-        --onboarding-radius: 1.5rem;
-      }
-
-      body {
-        font-family: "Segoe UI Variable", "Aptos", "Helvetica Neue", sans-serif;
-        background:
-          radial-gradient(circle at top left, var(--onboarding-sky), transparent 32%),
-          radial-gradient(circle at top right, var(--onboarding-mint), transparent 28%),
-          linear-gradient(180deg, rgba(248, 250, 252, 0.98), rgba(255, 255, 255, 1));
-        color: var(--onboarding-ink);
-        -webkit-font-smoothing: antialiased;
-      }
-
-      .section {
-        padding: 3rem 1.5rem;
-      }
-
-      .container {
-        max-width: 1100px !important;
-      }
-
-      .eyebrow {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        padding: 0.45rem 0.8rem;
-        border-radius: 999px;
-        background: rgba(255, 255, 255, 0.78);
-        border: 1px solid rgba(148, 163, 184, 0.22);
-        color: #0f766e;
-        font-size: 0.88rem;
-        font-weight: 700;
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
-      }
-
-      .hero-card,
-      .content-card,
-      .support-card {
-        background: var(--onboarding-surface);
-        border: 1px solid var(--onboarding-line);
-        border-radius: var(--onboarding-radius);
-        box-shadow: var(--onboarding-shadow);
-        backdrop-filter: blur(14px);
-      }
-
-      .hero-card {
-        padding: 1.75rem;
-      }
-
-      .hero-grid {
-        display: grid;
-        grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
-        gap: 1.5rem;
-        align-items: stretch;
-      }
-
-      .hero-copy {
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-      }
-
-      .hero-title {
-        font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", serif;
-        font-size: clamp(2.75rem, 5vw, 4.8rem);
-        line-height: 0.96;
-        letter-spacing: -0.04em;
-        margin: 0;
-      }
-
-      .hero-title strong {
-        color: #0369a1;
-        font-weight: 800;
-      }
-
-      .hero-lead {
-        font-size: 1.1rem;
-        line-height: 1.7;
-        color: var(--onboarding-muted);
-        max-width: 42rem;
-        margin: 0;
-      }
-
-      .hero-pills,
-      .shortcut-list {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.75rem;
-      }
-
-      .hero-pill,
-      .shortcut-chip {
-        padding: 0.65rem 0.95rem;
-        border-radius: 999px;
-        border: 1px solid rgba(148, 163, 184, 0.22);
-        background: rgba(255, 255, 255, 0.8);
-        font-size: 0.95rem;
-        font-weight: 600;
-        color: #0f172a;
-      }
-
-      .permission-panel {
-        display: grid;
-        gap: 1rem;
-        padding: 1.3rem;
-        border-radius: 1.2rem;
-        border: 1px solid #fdba74;
-        background:
-          linear-gradient(135deg, rgba(255, 247, 237, 0.98), rgba(255, 237, 213, 0.92)), white;
-      }
-
-      .permission-panel.is-success {
-        border-color: #6ee7b7;
-        background:
-          linear-gradient(135deg, rgba(236, 253, 245, 0.98), rgba(209, 250, 229, 0.92)), white;
-      }
-
-      .permission-panel.is-unavailable {
-        border-color: rgba(148, 163, 184, 0.48);
-        background:
-          linear-gradient(135deg, rgba(248, 250, 252, 0.98), rgba(226, 232, 240, 0.94)), white;
-      }
-
-      .step-label {
-        font-size: 0.82rem;
-        font-weight: 800;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        color: #9a3412;
-      }
-
-      .permission-panel.is-success .step-label {
-        color: #047857;
-      }
-
-      .permission-panel.is-unavailable .step-label {
-        color: #475569;
-      }
-
-      .panel-title,
-      .practice-title,
-      .section-title,
-      .card-title {
-        color: var(--onboarding-ink);
-        margin: 0;
-      }
-
-      .panel-title {
-        font-size: 1.35rem;
-        font-weight: 800;
-      }
-
-      .panel-copy,
-      .card-copy,
-      .section-copy,
-      .practice-copy {
-        color: var(--onboarding-muted);
-        line-height: 1.65;
-        margin: 0;
-      }
-
-      .activation-next {
-        display: grid;
-        gap: 0.65rem;
-        padding: 1rem 1.1rem;
-        border-radius: 1rem;
-        border: 1px solid rgba(14, 165, 233, 0.24);
-        background: linear-gradient(135deg, rgba(240, 249, 255, 0.98), rgba(224, 242, 254, 0.92));
-      }
-
-      .activation-next strong {
-        color: #075985;
-      }
-
-      .activation-hint {
-        color: var(--onboarding-muted);
-        font-size: 0.95rem;
-        margin: 0;
-      }
-
-      .practice-panel {
-        display: grid;
-        gap: 1rem;
-        padding: 1.45rem;
-        border-radius: 1.35rem;
-        background:
-          linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(248, 250, 252, 0.98)), white;
-        border: 1px solid rgba(148, 163, 184, 0.22);
-      }
-
-      .practice-header {
-        display: flex;
-        flex-direction: column;
-        gap: 0.6rem;
-      }
-
-      .practice-title {
-        font-size: 1.5rem;
-        font-weight: 800;
-      }
-
-      .practice-steps {
-        display: grid;
-        gap: 0.75rem;
-      }
-
-      .playground-grid {
-        display: grid;
-        gap: 1rem;
-      }
-
-      .playground-field {
-        display: grid;
-        gap: 0.55rem;
-      }
-
-      .playground-label {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 0.75rem;
-        font-size: 0.95rem;
-        font-weight: 700;
-        color: var(--onboarding-ink);
-      }
-
-      .playground-badge {
-        display: inline-flex;
-        align-items: center;
-        border-radius: 999px;
-        padding: 0.22rem 0.55rem;
-        font-size: 0.78rem;
-        font-weight: 800;
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
-      }
-
-      .playground-badge.is-active {
-        color: #0369a1;
-        background: rgba(14, 165, 233, 0.12);
-      }
-
-      .playground-badge.is-native {
-        color: #9a3412;
-        background: rgba(249, 115, 22, 0.12);
-      }
-
-      .playground-task {
-        padding: 0.9rem 1rem;
-        border-radius: 1rem;
-        border: 1px solid rgba(14, 165, 233, 0.18);
-        background: linear-gradient(135deg, rgba(240, 249, 255, 0.96), rgba(248, 250, 252, 0.98));
-      }
-
-      .playground-task strong {
-        color: #075985;
-      }
-
-      .practice-step {
-        display: grid;
-        grid-template-columns: auto 1fr;
-        gap: 0.75rem;
-        align-items: start;
-        padding: 0.85rem 0.9rem;
-        border-radius: 1rem;
-        background: rgba(248, 250, 252, 0.92);
-        border: 1px solid rgba(148, 163, 184, 0.18);
-      }
-
-      .practice-step-number {
-        width: 2rem;
-        height: 2rem;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 999px;
-        background: linear-gradient(135deg, #0ea5e9, #0284c7);
-        color: white;
-        font-weight: 800;
-      }
-
-      .practice-step p {
-        margin: 0;
-        color: var(--onboarding-muted);
-        line-height: 1.55;
-      }
-
-      .practice-step strong {
-        color: var(--onboarding-ink);
-      }
-
-      .textarea {
-        min-height: 12rem;
-        resize: vertical;
-        background: white;
-        border-color: rgba(148, 163, 184, 0.28);
-        color: var(--onboarding-ink);
-        border-radius: 1.1rem;
-        box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.04);
-      }
-
-      .textarea:focus {
-        border-color: #0ea5e9;
-        box-shadow: 0 0 0 4px rgba(14, 165, 233, 0.12);
-      }
-
-      .textarea::placeholder {
-        color: #94a3b8;
-      }
-
-      kbd {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-width: 2rem;
-        padding: 0.16rem 0.45rem;
-        border-radius: 0.5rem;
-        background: #e2e8f0;
-        border: 1px solid #cbd5e1;
-        color: #0f172a;
-        font-size: 0.9rem;
-        font-weight: 700;
-      }
-
-      code {
-        padding: 0.1rem 0.35rem;
-        border-radius: 0.4rem;
-        background: rgba(14, 165, 233, 0.1);
-        color: #0c4a6e;
-        font-weight: 700;
-      }
-
-      .button.is-activation {
-        width: fit-content;
-        min-height: 3.2rem;
-        padding: 0.95rem 1.25rem;
-        border: none;
-        border-radius: 999px;
-        background: linear-gradient(135deg, #f97316, #ea580c);
-        color: white;
-        font-size: 1rem;
-        font-weight: 800;
-        box-shadow: 0 18px 30px -18px rgba(234, 88, 12, 0.9);
-        transition:
-          transform 0.18s ease,
-          box-shadow 0.18s ease,
-          filter 0.18s ease;
-      }
-
-      .button.is-activation:hover,
-      .button.is-activation:focus-visible {
-        transform: translateY(-1px);
-        box-shadow: 0 22px 34px -18px rgba(234, 88, 12, 0.95);
-        filter: saturate(1.05);
-      }
-
-      .content-section {
-        display: grid;
-        gap: 1.4rem;
-      }
-
-      .section-heading {
-        display: grid;
-        gap: 0.55rem;
-        text-align: center;
-        max-width: 42rem;
-        margin: 0 auto;
-      }
-
-      .section-title {
-        font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", serif;
-        font-size: clamp(2rem, 3vw, 2.8rem);
-        font-weight: 800;
-        letter-spacing: -0.03em;
-      }
-
-      .section-copy {
-        font-size: 1.02rem;
-      }
-
-      .detail-grid,
-      .feature-grid {
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 1rem;
-      }
-
-      .feature-grid {
-        margin-top: 0.4rem;
-      }
-
-      .content-card {
-        padding: 1.35rem;
-      }
-
-      .support-card {
-        padding: 2rem;
-        text-align: center;
-        background:
-          linear-gradient(135deg, rgba(2, 132, 199, 0.94), rgba(3, 105, 161, 0.98)), white;
-        border-color: rgba(14, 165, 233, 0.26);
-        color: white;
-      }
-
-      .support-card .section-title,
-      .support-card .section-copy,
-      .support-card .card-copy,
-      .support-card a {
-        color: white;
-      }
-
-      .video-panel {
-        text-align: center;
-      }
-
-      .video-link {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0.75rem;
-        margin-top: 0.5rem;
-      }
-
-      .footer {
-        background: none;
-        padding: 2rem 0 0;
-      }
-
-      .footer a {
-        color: #0f4c5c;
-        font-weight: 700;
-      }
-
-      .footer p {
-        color: var(--onboarding-muted);
-      }
-
-      [hidden] {
-        display: none !important;
-      }
-
-      @media (max-width: 1023px) {
-        .hero-grid,
-        .detail-grid,
-        .feature-grid {
-          grid-template-columns: 1fr;
-        }
-      }
-
-      @media (max-width: 768px) {
-        .section {
-          padding: 2rem 1rem;
-        }
-
-        .hero-card,
-        .content-card,
-        .support-card {
-          border-radius: 1.25rem;
-        }
-
-        .hero-card,
-        .content-card,
-        .support-card,
-        .practice-panel {
-          padding: 1.15rem;
-        }
-
-        .hero-pills,
-        .shortcut-list {
-          gap: 0.55rem;
-        }
-      }
-    </style>
   </head>
-
   <body>
-    <section class="section">
-      <div class="container">
-        <main class="content-section">
-          <section class="hero-card" aria-labelledby="onboarding-title">
-            <div class="hero-grid">
-              <div class="hero-copy">
-                <span class="eyebrow">Private autocomplete setup</span>
-                <h1 id="onboarding-title" class="hero-title">
-                  Grant access, then <strong>get your first suggestion</strong> on this page.
-                </h1>
-                <p class="hero-lead">
-                  FluentTyper needs website access to appear inside the text fields where you type,
-                  and all suggestions stay local in your browser.
-                </p>
-                <div class="hero-pills" aria-label="Privacy highlights">
-                  <span class="hero-pill">Runs locally</span>
-                  <span class="hero-pill">Works offline</span>
-                  <span class="hero-pill">No account or uploads</span>
-                </div>
+    <a class="skip-link" href="#setup" data-i18n="onboarding_skip">Skip to setup</a>
+    <header class="site-header wrap">
+      <a
+        class="brand"
+        href="#welcome"
+        aria-label="FluentTyper welcome"
+        data-i18n-aria-label="onboarding_brandLabel"
+      >
+        <img src="/icon/icon48.png" width="28" height="28" alt="" />
+        FluentTyper
+      </a>
+      <a href="/options/options.html" data-i18n-html="onboarding_settings"
+        >Open settings <span aria-hidden="true">↗</span></a
+      >
+    </header>
 
-                <div
-                  id="permissions-container"
-                  class="permission-panel"
-                  data-permission-state="missing"
-                  aria-live="polite"
+    <main id="welcome">
+      <section class="hero wrap" aria-labelledby="welcome-title">
+        <h1 id="welcome-title" data-i18n-html="onboarding_heroTitle">
+          Writing just<br /><span>got easier.</span>
+        </h1>
+        <p class="hero-copy" data-i18n-html="onboarding_heroCopy">
+          FluentTyper suggests words as you type<br class="desktop-break" />
+          and checks your spelling and grammar when you’re done.
+        </p>
+        <a class="button" href="#setup" data-i18n-html="onboarding_start"
+          >Get started <span aria-hidden="true">↓</span></a
+        >
+        <p class="privacy-note" data-i18n="onboarding_privacy">
+          Works offline. No account needed. Your text stays on your device.
+        </p>
+      </section>
+
+      <section
+        class="feature-tour wrap"
+        aria-label="Explore FluentTyper"
+        data-i18n-aria-label="onboarding_explore"
+      >
+        <fieldset class="feature-picker">
+          <legend class="sr-only" data-i18n="onboarding_legend">Explore a feature example</legend>
+          <label
+            ><input type="radio" name="feature" value="popup" checked="" /><span
+              data-i18n="onboarding_popupLabel"
+              >Popup suggestions</span
+            ></label
+          >
+          <label
+            ><input type="radio" name="feature" value="inline" /><span
+              data-i18n="onboarding_inlineLabel"
+              >Inline suggestions</span
+            ></label
+          >
+          <label
+            ><input type="radio" name="feature" value="review" /><span data-i18n="popup_review_text"
+              >Review text</span
+            ></label
+          >
+        </fieldset>
+
+        <article class="feature-panel popup-panel" aria-labelledby="popup-title">
+          <div class="feature-copy">
+            <h2 id="popup-title" data-i18n-html="onboarding_popupTitle">
+              Find your<br />next word.
+            </h2>
+            <p data-i18n-html="onboarding_popupCopy">
+              Word suggestions appear below your text as you type. Click one to use it, or choose
+              with the arrow keys and press <kbd>Tab</kbd>.
+            </p>
+            <p data-i18n-html="onboarding_liveCopy">
+              <strong>Catch grammar mistakes as you go.</strong> When you pause, a suggested
+              correction may appear at the bottom of the popup. It’s only applied if you choose it.
+            </p>
+          </div>
+          <figure class="example popup-example">
+            <div class="editor-sample">
+              <div class="editor-heading">
+                <span data-i18n="grammar_matrix_typing">While typing</span
+                ><span data-i18n="onboarding_example">Example</span>
+              </div>
+              <p class="sample-text" data-i18n-html="onboarding_popupSample">
+                I'll see you
+                <span class="typed-word">tom<span class="caret" aria-hidden="true"></span></span>
+              </p>
+              <div
+                class="sample-popup"
+                aria-label="Example suggestions"
+                data-i18n-aria-label="onboarding_suggestionsLabel"
+              >
+                <div class="sample-selected">
+                  <strong data-i18n="onboarding_popupWord1">tomorrow</strong><kbd>Tab</kbd>
+                </div>
+                <div data-i18n="onboarding_popupWord2">tomorrow's</div>
+              </div>
+            </div>
+            <figcaption data-i18n="onboarding_popupCaption">
+              Choose a word from the popup while you type.
+            </figcaption>
+          </figure>
+        </article>
+
+        <article class="feature-panel inline-panel" aria-labelledby="inline-title">
+          <div class="feature-copy">
+            <h2 id="inline-title" data-i18n-html="onboarding_inlineTitle">
+              Finish a word<br />with Tab.
+            </h2>
+            <p data-i18n="onboarding_inlineCopy">
+              See the rest of the word in lighter text, right after your cursor. Press Tab to use
+              it, or keep typing to write something else.
+            </p>
+            <p data-i18n-html="onboarding_inlineAction">
+              To try it, turn on <strong>Enable inline suggestion</strong> in Settings → Essentials.
+            </p>
+            <a href="/options/options.html" data-i18n-html="onboarding_customize"
+              >Open settings <span aria-hidden="true">↗</span></a
+            >
+          </div>
+          <figure class="example inline-example">
+            <div class="editor-sample">
+              <div class="editor-heading">
+                <span data-i18n="grammar_matrix_typing">While typing</span
+                ><span data-i18n="onboarding_example">Example</span>
+              </div>
+              <p class="sample-text" data-i18n-html="onboarding_inlineSample">
+                Thanks for the<br /><span class="inline-word"
+                  >upd<span class="caret" aria-hidden="true"></span
+                  ><span class="ghost-text">ate</span></span
                 >
-                  <span id="permissions-badge" class="step-label">Website access required</span>
-                  <h2 id="permissions-title" class="panel-title">Allow FluentTyper on websites</h2>
-                  <p id="permissions-copy" class="panel-copy">
-                    FluentTyper needs website access to show suggestions in text fields, and
-                    everything stays local in your browser.
-                  </p>
-                  <button id="grant-permissions-btn" class="button is-activation" type="button">
-                    Allow on all websites
-                  </button>
-                </div>
+              </p>
+              <p class="inline-hint" data-i18n-html="onboarding_inlineHint">
+                <kbd>Tab</kbd> to finish the word
+              </p>
+            </div>
+            <figcaption data-i18n="onboarding_inlineCaption">
+              Press Tab to add the letters shown in grey.
+            </figcaption>
+          </figure>
+        </article>
 
-                <div class="activation-next" aria-label="Next action">
-                  <strong>Next action:</strong>
-                  <p class="panel-copy">
-                    Type <code>Helo </code> or <code>I can't wiat </code> in the standard field, or
-                    click the faded corner icon in the native-autocomplete field to enable
-                    FluentTyper there too.
-                  </p>
-                </div>
+        <article class="feature-panel review-panel" aria-labelledby="review-title">
+          <div class="feature-copy">
+            <h2 id="review-title" data-i18n-html="onboarding_reviewTitle">
+              Check it before<br />you send it.
+            </h2>
+            <p data-i18n="onboarding_reviewCopy">
+              Review checks the spelling and grammar in text you’ve already written. Read through
+              the suggestions and choose which to apply. Nothing changes until you accept a
+              correction.
+            </p>
+            <p data-i18n-html="onboarding_reviewAction">
+              Click in your text, then choose <strong>Review</strong> in the corner of the field or
+              <strong>Review text</strong> in the extension popup. To check just a passage, select
+              it first.
+            </p>
+            <p class="shortcut-note" data-i18n-html="onboarding_shortcut">
+              Suggested shortcut: <kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>R</kbd>
+            </p>
+          </div>
+          <figure class="example review-example">
+            <div class="editor-sample">
+              <div class="editor-heading">
+                <span data-i18n="onboarding_afterWriting">After writing</span
+                ><span data-i18n="onboarding_example">Example</span>
+              </div>
+              <p class="sample-text" data-i18n-html="onboarding_reviewSample">
+                We <span class="review-mark">could of</span> sent it<br />yesterday.
+              </p>
+              <div class="sample-finding">
+                <span class="finding-label" data-i18n="grammar_tab">Grammar</span
+                ><strong data-i18n-html="onboarding_reviewChange"
+                  >could of <span aria-hidden="true">→</span> could have</strong
+                >
+                <p data-i18n="onboarding_reviewExplanation">Use “could have” before “sent”.</p>
+              </div>
+            </div>
+            <figcaption data-i18n="onboarding_reviewCaption">
+              Review a correction before you apply it.
+            </figcaption>
+          </figure>
+        </article>
+        <p class="example-note" data-i18n="onboarding_exampleNote">
+          These are previews. You can try FluentTyper below.
+        </p>
+      </section>
 
-                <p class="activation-hint">
-                  Already had tabs open? Reload them once after setup so FluentTyper can activate
-                  there too.
+      <section id="setup" class="setup-section" aria-labelledby="setup-title">
+        <div class="wrap">
+          <div class="section-heading">
+            <h2 id="setup-title" data-i18n="onboarding_setupTitle">Try it here.</h2>
+            <p data-i18n="onboarding_setupCopy">
+              Allow website access, then write a few words below.
+            </p>
+          </div>
+          <div class="setup-grid">
+            <div class="setup-copy">
+              <div
+                id="permissions-container"
+                class="permission-panel"
+                data-permission-state="missing"
+                aria-live="polite"
+              >
+                <h3 id="permissions-title" data-i18n="permission_status_missing_title">
+                  Allow FluentTyper on websites
+                </h3>
+                <p id="permissions-copy" data-i18n="permission_status_missing_body">
+                  FluentTyper needs access to website text fields to help where you write.
+                  Everything runs on your device; nothing you type leaves your browser.
+                </p>
+                <button
+                  id="grant-permissions-btn"
+                  class="button is-activation"
+                  type="button"
+                  data-i18n="permission_status_action"
+                >
+                  Allow on all websites
+                </button>
+                <p
+                  id="permissions-badge"
+                  class="permission-status"
+                  data-i18n="permission_status_missing_badge"
+                >
+                  Website access required
                 </p>
               </div>
-
-              <section class="practice-panel" aria-labelledby="practice-title">
-                <div class="practice-header">
-                  <span class="eyebrow">Use it now</span>
-                  <h2 id="practice-title" class="practice-title">
-                    Practice the attach flow without leaving this page
-                  </h2>
-                  <p class="practice-copy">
-                    FluentTyper stays out of your way when websites have their own autocomplete.
-                    Need our predictions anyway? Just click the corner icon.
-                  </p>
-                </div>
-
-                <div class="practice-steps" aria-label="Guided first success">
-                  <div class="practice-step">
-                    <span class="practice-step-number">1</span>
-                    <p><strong>Grant access</strong> with the button on the left.</p>
-                  </div>
-                  <div class="practice-step">
-                    <span class="practice-step-number">2</span>
-                    <p>
-                      <strong>Type</strong> <code>Helo </code> or <code>I can't wiat </code> in the
-                      standard field below.
-                    </p>
-                  </div>
-                  <div class="practice-step">
-                    <span class="practice-step-number">3</span>
-                    <p>
-                      <strong>Try enabling FluentTyper</strong> on the browser-managed autocomplete
-                      field by clicking the faded icon in its corner.
-                    </p>
-                  </div>
-                </div>
-
-                <div class="playground-task">
-                  <p class="practice-copy">
-                    <strong>Playground task:</strong> Use the first field normally, then click the
-                    corner icon in the second field and start typing right away.
-                  </p>
-                </div>
-
-                <div class="playground-grid" aria-label="Manual attach playground">
-                  <div class="playground-field">
-                    <div class="playground-label">
-                      <label for="try-me-textarea">Standard input</label>
-                      <span class="playground-badge is-active">FluentTyper active</span>
-                    </div>
-                    <textarea
-                      id="try-me-textarea"
-                      rows="5"
-                      class="textarea is-medium"
-                      placeholder="Try: Helo or I can't wiat"
-                    ></textarea>
-                  </div>
-
-                  <div class="playground-field">
-                    <div class="playground-label">
-                      <label for="try-native-list-input">Native autocomplete field</label>
-                      <span class="playground-badge is-native">Backs off by default</span>
-                    </div>
-                    <input
-                      id="try-native-list-input"
-                      class="input is-medium"
-                      type="text"
-                      list="try-native-options"
-                      placeholder="Click the icon, then type your city"
-                    />
-                    <datalist id="try-native-options">
-                      <option value="Warsaw"></option>
-                      <option value="Berlin"></option>
-                      <option value="Barcelona"></option>
-                    </datalist>
-                  </div>
-                </div>
-
-                <div class="shortcut-list" aria-label="Editing tips">
-                  <span class="shortcut-chip"
-                    >Undo the last change with <kbd>Ctrl+Z</kbd> or <kbd>Cmd+Z</kbd></span
-                  >
-                  <span class="shortcut-chip">Existing tabs may need one reload</span>
-                </div>
-              </section>
-            </div>
-          </section>
-
-          <section class="content-section" aria-labelledby="activation-details-title">
-            <div class="section-heading">
-              <h2 id="activation-details-title" class="section-title">What happens after access</h2>
-              <p class="section-copy">
-                The goal is first success, not a tour. These are the only setup details most people
-                need before FluentTyper becomes useful.
+              <p class="setup-tip" data-i18n="onboarding_reload">
+                After setup, reload any tabs you already have open.
               </p>
             </div>
-            <div class="detail-grid">
-              <article class="content-card">
-                <h3 class="card-title title is-5">Why this permission exists</h3>
-                <p class="card-copy">
-                  FluentTyper needs website access so the content script can watch text fields and
-                  render suggestions where you type.
-                </p>
-              </article>
-              <article class="content-card">
-                <h3 class="card-title title is-5">What stays private</h3>
-                <p class="card-copy">
-                  Suggestions are generated on-device. Your typed content is not uploaded, tracked,
-                  or sent to a remote service.
-                </p>
-              </article>
-              <article class="content-card">
-                <h3 class="card-title title is-5">If you do not see suggestions</h3>
-                <p class="card-copy">
-                  Reload an already open tab, click into a regular text field, and type a short
-                  phrase with a trailing space so the predictor has context.
-                </p>
-              </article>
-            </div>
-          </section>
-
-          <section id="intro" class="content-section" aria-labelledby="features-title">
-            <div class="section-heading">
-              <h2 id="features-title" class="section-title">What FluentTyper adds after setup</h2>
-              <p class="section-copy">
-                Once the first suggestion works, these are the capabilities you can explore next.
-              </p>
-            </div>
-            <div class="feature-grid">
-              <article class="content-card">
-                <h3 class="card-title title is-5">Autocomplete</h3>
-                <p class="card-copy">
-                  Predicts the next word or phrase while you type, directly inside supported text
-                  inputs.
-                </p>
-              </article>
-              <article class="content-card">
-                <h3 class="card-title title is-5">Text expansions</h3>
-                <p class="card-copy">
-                  Expands shortcuts into longer phrases, templates, and repeated snippets.
-                </p>
-              </article>
-              <article class="content-card">
-                <h3 class="card-title title is-5">Offline-first behavior</h3>
-                <p class="card-copy">
-                  Core prediction stays available even without a network connection, so the
-                  extension is useful anywhere.
-                </p>
-              </article>
-            </div>
-          </section>
-
-          <section id="demo" class="content-section" aria-labelledby="demo-title">
-            <div class="section-heading">
-              <h2 id="demo-title" class="section-title">Watch a short demo later</h2>
-              <p class="section-copy">
-                The core setup is already complete above. If you want a walkthrough afterward, there
-                is a short video.
-              </p>
-            </div>
-            <div class="content-card video-panel">
-              <p class="card-copy">
-                See FluentTyper working across live websites, shortcuts, and correction flows in a
-                quick YouTube demo.
-              </p>
-              <a
-                href="https://www.youtube.com/watch?v=96B54kSd0mU"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="button is-link is-large is-rounded video-link"
+            <div class="practice-panel">
+              <label for="try-me-textarea" data-i18n="onboarding_practiceLabel"
+                >Write something</label
               >
-                <span>Watch demo on YouTube</span>
-              </a>
+              <p id="practice-help" data-i18n="onboarding_practiceHelp">
+                Start typing to see suggestions. Use the writing language you’ve chosen in settings.
+              </p>
+              <textarea
+                id="try-me-textarea"
+                rows="5"
+                placeholder="I look forward to…"
+                aria-describedby="practice-help practice-review"
+                data-i18n-placeholder="onboarding_practicePlaceholder"
+              ></textarea>
+              <p id="practice-review" class="field-hint" data-i18n-html="onboarding_practiceReview">
+                <strong>Try checking a sentence.</strong> Write one, then click Review in the corner
+                of this field. You can undo a correction with <kbd>Ctrl+Z</kbd> or <kbd>Cmd+Z</kbd>.
+              </p>
+              <div class="native-practice">
+                <label for="try-native-list-input" data-i18n="onboarding_nativeLabel"
+                  >A field with its own suggestions</label
+                >
+                <p id="native-help" data-i18n="onboarding_nativeHelp">
+                  Some websites have their own suggestions, like the city names below. Click the
+                  faded icon in the corner to use FluentTyper in this field.
+                </p>
+                <input
+                  id="try-native-list-input"
+                  type="text"
+                  list="try-native-options"
+                  placeholder="Try a city name"
+                  aria-describedby="native-help"
+                  data-i18n-placeholder="onboarding_nativePlaceholder"
+                />
+                <datalist id="try-native-options">
+                  <option value="Warsaw" data-i18n-value="onboarding_city"></option>
+                  <option value="Berlin" data-i18n-value="onboarding_cityBerlin"></option>
+                  <option value="Barcelona" data-i18n-value="onboarding_cityBarcelona"></option>
+                </datalist>
+              </div>
             </div>
-          </section>
-
-          <section id="support" class="support-card" aria-labelledby="support-title">
-            <h2 id="support-title" class="section-title">Support the project</h2>
-            <p class="section-copy">
-              FluentTyper is maintained by one person, stays free, and avoids ads or telemetry. If
-              it saves you time, support helps keep the project updated.
-            </p>
-            <p class="card-copy">
-              By this point you should already have a working suggestion from the setup flow above.
-            </p>
-            <a
-              href="https://www.buymeacoffee.com/FluentTyper"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="button is-warning is-large is-rounded mt-4"
-            >
-              Buy me a coffee
-            </a>
-          </section>
-        </main>
-
-        <footer class="footer">
-          <div class="content has-text-centered">
-            <div
-              class="is-flex is-justify-content-center is-align-items-center is-flex-wrap-wrap"
-              style="gap: 2rem"
-            >
-              <a
-                href="https://github.com/bartekplus/FluentTyper"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                GitHub repository
-              </a>
-              <a
-                href="https://github.com/bartekplus/FluentTyper/issues"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Report an issue
-              </a>
-            </div>
-            <p class="mt-4 is-size-7">Built for better typing, with privacy first.</p>
           </div>
-        </footer>
+        </div>
+      </section>
+
+      <section class="more-section wrap" aria-labelledby="more-title">
+        <div class="more-intro">
+          <h2 id="more-title" data-i18n-html="onboarding_moreTitle">Set it up<br />your way.</h2>
+          <p data-i18n="onboarding_moreCopy">
+            Choose how suggestions work and save shortcuts for things you often write.
+          </p>
+          <a href="/options/options.html" data-i18n-html="onboarding_exploreSettings"
+            >Open settings <span aria-hidden="true">↗</span></a
+          >
+        </div>
+        <div class="details-list">
+          <details>
+            <summary data-i18n="onboarding_shortcutsTitle">
+              Shortcuts for things you often write
+            </summary>
+            <p data-i18n="onboarding_shortcutsBody">
+              Create a shortcut for a phrase, an email reply, or your signature. FluentTyper expands
+              it as you type. Add your shortcuts in Settings → Snippets &amp; Dictionary.
+            </p>
+          </details>
+          <details>
+            <summary data-i18n="onboarding_languageTitle">Language and suggestions</summary>
+            <p data-i18n="onboarding_languageBody">
+              Choose your writing language and whether suggestions appear in a popup or in your
+              text. In Settings → Grammar, choose which corrections run while you type and which
+              checks run in Review. You can also turn on advice about style and readability.
+            </p>
+          </details>
+          <details>
+            <summary data-i18n="onboarding_aiTitle">More suggestions with local AI</summary>
+            <p data-i18n="onboarding_aiBody">
+              If your device supports it, you can add AI suggestions to Review in Chrome and Edge.
+              Turn on Local AI Review in Settings → Grammar. With your permission, the browser
+              downloads a model; this needs an internet connection. After that, it checks text on
+              your device. Autocomplete and standard Review work without it. Local AI Review isn’t
+              available in Firefox.
+            </p>
+          </details>
+          <details>
+            <summary data-i18n="onboarding_privacyTitle">Your text stays in your browser</summary>
+            <p data-i18n="onboarding_privacyBody">
+              Word suggestions and standard Review work offline. There’s no account to create, and
+              FluentTyper doesn’t collect usage data. Website access lets it work in supported text
+              fields. Password fields and other sensitive fields are excluded.
+            </p>
+          </details>
+          <details>
+            <summary data-i18n="onboarding_helpTitle">Not seeing suggestions?</summary>
+            <p data-i18n="onboarding_helpBody">
+              Check website access above and reload the tab if it was already open. Try a regular
+              text field. If the site has its own suggestions, click the icon in the corner of the
+              field. You can also open the extension popup to check whether FluentTyper is paused
+              for that site.
+            </p>
+          </details>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer wrap">
+      <div>
+        <strong data-i18n="onboarding_footerTitle">Like FluentTyper?</strong>
+        <p data-i18n="onboarding_footerCopy">It’s free to use. Your support helps keep it going.</p>
       </div>
-    </section>
+      <nav aria-label="Help and project links" data-i18n-aria-label="onboarding_footerNav">
+        <a
+          href="https://www.youtube.com/watch?v=96B54kSd0mU"
+          target="_blank"
+          rel="noopener noreferrer"
+          data-i18n="onboarding_video"
+          >Watch the demo</a
+        >
+        <a
+          href="https://github.com/bartekplus/FluentTyper/issues"
+          target="_blank"
+          rel="noopener noreferrer"
+          data-i18n="onboarding_help"
+          >Get help</a
+        >
+        <a
+          href="https://github.com/bartekplus/FluentTyper"
+          target="_blank"
+          rel="noopener noreferrer"
+          >GitHub</a
+        >
+        <a
+          href="https://www.buymeacoffee.com/FluentTyper"
+          target="_blank"
+          rel="noopener noreferrer"
+          data-i18n="onboarding_support"
+          >Support FluentTyper</a
+        >
+      </nav>
+    </footer>
   </body>
 </html>

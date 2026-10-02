@@ -160,12 +160,33 @@
     },
     {
       "id": "install_page_reachable",
-      "description": "Extension installation page is reachable after startup.",
+      "description": "Extension installation page is reachable after startup, presents popup/inline/Review examples, and leads directly to website access and practice.",
       "coverage": [
         {
           "layer": "e2e-smoke",
           "file": "tests/e2e/smoke.e2e.test.ts",
           "test": "extension installation page is reachable"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Extension installs and new installation page is reachable"
+        }
+      ]
+    },
+    {
+      "id": "onboarding_localization",
+      "description": "All onboarding copy, examples, accessible names and placeholders follow the shared UI locale; supported locales are complete and unsupported locales use English.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/onboarding.permission.test.ts",
+          "test": "localizes the whole welcome page and permissions together in Polish"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/onboarding.permission.test.ts",
+          "test": "translates all onboarding content and attributes with a consistent locale fallback"
         }
       ]
     },
