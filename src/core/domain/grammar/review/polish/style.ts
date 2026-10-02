@@ -583,12 +583,37 @@ const HAS: Record<string, string> = {
   posiadać: "mieć",
   posiadając: "mając",
 };
+/** "ubrać" dresses someone; a garment one puts on ("włożyć płaszcz"). */
+const PUTS_ON: Record<string, string> = {
+  ubrać: "włożyć",
+  ubrał: "włożył",
+  ubrała: "włożyła",
+  ubrali: "włożyli",
+  ubrały: "włożyły",
+  ubrałem: "włożyłem",
+  ubrałam: "włożyłam",
+  ubiorę: "włożę",
+  ubierze: "włoży",
+  ubierz: "włóż",
+  ubieram: "wkładam",
+  ubiera: "wkłada",
+  ubierają: "wkładają",
+  ubierał: "wkładał",
+  ubierała: "wkładała",
+  ubierać: "wkładać",
+};
+const GARMENTS =
+  "płaszcz|kurtkę|sweter|golf|koszulę|bluzkę|sukienkę|spodnie|dżinsy|buty|kozaki|czapkę|kapelusz|rękawiczki|szalik|garnitur|marynarkę|spódnicę|skarpetki|piżamę|kamizelkę|koszulkę|płaszczyk|kurtkę|kalosze";
 const FEATURES =
   "brodę|wąsy|oczy|włosy|nos|uszy|zęby|wymiary|wzrost|talent|zdolności|poczucie|cierpliwość|odwagę|charakter|temperament|rodzinę|dzieci|rodzeństwo|siostrę|brata|braci|siostry|córkę|syna|przyjaciół|czas|ochotę|pomysł|pomysły|nadzieję|wątpliwości|problem|problemy|wadę|wady|zalety|kota|psa";
 /** Words that may stand between the verb and its noun: a pronoun, an adverb, adjectives. */
 const FILLER = `(?:${S}(?:on|ona|ono|oni|one|nadal|wciąż|też|także|również|zawsze|często|naprawdę|bardzo|niezwykle|wyjątkowo|szczególnie|dość|coraz|swoją|swój|swoje|jakąś|żadnej|(?:w|we|na|dla|przy|wśród|u)${S}\\p{Ll}+|\\p{Ll}+(?:ną|ową|ską|cką|ką|ą|ej|e|y|ie))){0,3}`;
 const ROLE = new RegExp(
   `(?<![\\p{L}\\p{N}_'’-])(?:(?<verb>${Object.keys(PLAYS).join("|")})(?<mid>${FILLER})${S}(?<noun>rolę|roli)|(?<before>rolę|roli)${S}(?<after>${Object.keys(PLAYS).join("|")}))(?![\\p{L}\\p{N}_'’-])`,
+  "giu",
+);
+const PUT_ON = new RegExp(
+  `(?<![\\p{L}\\p{N}_'’-])(?<verb>${Object.keys(PUTS_ON).join("|")})(?<mid>${FILLER})${S}(?<noun>${GARMENTS})(?![\\p{L}\\p{N}_'’-])`,
   "giu",
 );
 const POSSESS = new RegExp(
@@ -624,6 +649,10 @@ function verbChoices(ctx: DetectContext): RawFinding[] {
       const fn = before.toLowerCase() === "rolę" ? "funkcję" : "funkcji";
       push(m.index, end, [`${fn} ${after}`, `${before} ${PLAYS[after.toLowerCase()]}`]);
     }
+  }
+  for (const m of owned(ctx, PUT_ON)) {
+    const { verb, mid, noun } = m.groups!;
+    push(m.index, m.index + m[0].length, [`${PUTS_ON[verb.toLowerCase()]}${mid} ${noun}`]);
   }
   for (const m of owned(ctx, POSSESS)) {
     const { verb, mid, noun } = m.groups!;

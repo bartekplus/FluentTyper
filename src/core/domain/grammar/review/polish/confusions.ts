@@ -614,6 +614,23 @@ export const FRAMES: readonly Frame[] = [
     fix: "w zależności",
     ...CONFUSION,
   },
+  // "Zarówno X, jak Y" -> "jak i Y": the pair is "zarówno …, jak i …" (not an aside "jak wiadomo").
+  {
+    pattern: `(?<=(?<![\\p{L}])zarówno${S}[^,.;:!?\\n]{1,80},${S})(?<target>jak)(?=${S}(?!(?:i|też|również|także|wiadomo|widać|sądzę|myślę|się|już|mówiono|wspomniano|wiesz|wiecie)${NOT_LETTER})\\p{L})`,
+    fix: "jak i",
+    ...CONFUSION,
+  },
+  // "opatrzył w podpis" -> "zaopatrzył w" (supply with); "opatrzyć" takes the instrumental
+  // ("opatrzył podpisem"). Not "opatrzono w szpitalu", a place.
+  {
+    pattern: `(?<target>opatrz(?:yć|ył\\p{L}{0,4}|yli|yły|ę|y|ymy|ycie|ą|ony|ona|one|eni|ono|ywać|ywał\\p{L}{0,4}|uje|ują))(?=${S}w${S}(?:\\p{Ll}+${S})?(?<noun>\\p{Ll}{3,})${NOT_LETTER})`,
+    fix: (m) => {
+      const tags = nounTags(m.groups!.noun);
+      if (!onlyNoun(tags) || !(tags & cases("As Ap")) || tags & cases("Ls Lp")) return null;
+      return `za${m.groups!.target.toLowerCase()}`;
+    },
+    ...CONFUSION,
+  },
   // "anie" (no word) for "a nie".
   { pattern: `(?<target>anie)(?=${S}\\p{L})`, fix: "a nie", ...CONFUSION, lowercase: true },
 ];

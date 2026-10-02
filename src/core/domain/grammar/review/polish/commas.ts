@@ -359,6 +359,49 @@ function adverbBeforeClause(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+/**
+ * Conjunctions that are also other words ("póki czas", "choć raz", "o ile więcej"): they open a
+ * clause, and want the comma before them, only before a verb, "nie" or a pronoun subject.
+ */
+const CLAUSE_OPENER = new RegExp(
+  `(?<![\\p{L}\\p{N}_'’-])(?<prev>\\p{L}+(?:-\\p{L}+)?)(?<gap>[ \\t\\u00a0]+)(?<sub>póki|chociaż|choć|dopóty|o[ \\t\\u00a0]+ile)[ \\t\\u00a0]+(?<next>\\p{L}+)`,
+  "gu",
+);
+const SUBJECT_OR_OBJECT =
+  /^(?:nie|ja|ty|on|ona|ono|my|wy|oni|one|go|ją|je|mu|mi|ci|się|to|mnie|cię|nas|was|ich|jej|im|nam|wam)$/u;
+
+function clauseOpeners(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of owned(ctx, CLAUSE_OPENER)) {
+    const { prev, gap, sub, next } = m.groups!;
+    const lower = prev.toLowerCase();
+    if (OPENS_COMPOUND.has(lower) || PREPOSITION_SET.has(lower) || userOrNamed(ctx, prev)) continue;
+    if (prev !== lower && !sentenceStartAt(ctx.text, m.index)) continue;
+    const nextLower = next.toLowerCase();
+    if (sub === "dopóty") {
+      // "Dopóki …, dopóty …": the correlative of a clause that opened the sentence.
+      const sentence = ctx.text
+        .slice(Math.max(0, m.index - 200), m.index)
+        .split(/[.!?\n]/u)
+        .at(-1)!;
+      if (!/^[\s„"(]*dopóki(?![\p{L}])/iu.test(sentence)) continue;
+    } else if (!SUBJECT_OR_OBJECT.test(nextLower) && !finiteVerb(nextLower)) continue;
+    // A question keeps "o ile" whole: "O ile wzrosła cena?".
+    if (/^[^.!\n]*\?/u.test(ctx.text.slice(m.index, m.index + 200))) continue;
+    findings.push(
+      findingAt(
+        ctx,
+        m.index,
+        m.index + prev.length + gap.length,
+        [`${prev},${gap}`],
+        MISSING,
+        "review_msg_pl_missing_comma",
+      ),
+    );
+  }
+  return findings;
+}
+
 /** A compound conjunction takes the comma before it as a whole: "zdradził, mimo że". */
 const COMPOUND_TAILS: Record<string, RegExp> = {
   mimo: /^(?:że|iż)$/u,
@@ -429,7 +472,12 @@ export const DETECTORS = [
     rules: [MISSING] as RawFinding["ruleId"][],
     detect: (ctx: DetectContext) =>
       isPl(ctx)
-        ? [...missingCommas(ctx), ...missingCompoundCommas(ctx), ...adverbBeforeClause(ctx)]
+        ? [
+            ...missingCommas(ctx),
+            ...missingCompoundCommas(ctx),
+            ...adverbBeforeClause(ctx),
+            ...clauseOpeners(ctx),
+          ]
         : [],
   },
 ];
