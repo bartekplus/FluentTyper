@@ -51,6 +51,7 @@ test("no chunk stalls on runs of slot-opening words or spaces between them", () 
     "there is many a few there are no ".repeat(700),
     "didn't see not never no nothing nobody ".repeat(700),
     "a very good nice fine advice less much people ".repeat(600),
+    "the tools that runs which is who make ".repeat(700),
   ];
   for (const text of inputs) expect(slowestChunkMs(text)).toBeLessThan(100);
 });

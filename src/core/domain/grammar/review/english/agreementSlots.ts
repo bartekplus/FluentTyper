@@ -41,7 +41,7 @@ const TO_SINGULAR: Record<string, string> = {
   "weren't": "wasn't",
 };
 // Nouns that take a plural verb in British use or name a group: "The team are…".
-const COLLECTIVE = new Set(
+export const COLLECTIVE = new Set(
   "team staff family police government committee crew band audience public class group majority rest number couple pair lot jury army navy board council club company firm management media data total variety range series species means news remainder masters woods belt".split(
     " ",
   ),
