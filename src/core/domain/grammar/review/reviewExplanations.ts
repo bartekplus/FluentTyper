@@ -2057,6 +2057,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Przed -lo lub -la portugalski bezokolicznik traci r, a ostatnia samogłoska dostaje akcent: fazê-lo, puxá-la, pô-lo, distraí-los.",
     "Antes de -lo ou -la, o infinitivo perde o r e a vogal final leva acento: fazê-lo, puxá-la, pô-lo, distraí-los.",
   ],
+  review_msg_pt_object_form: [
+    "After a Portuguese verb ending in r, s or z, the pronoun o/a becomes lo/la and the consonant falls (comê-lo, fê-lo, fizemo-lo); after a nasal it becomes no/na (tinham-no, põe-nas).",
+    "Après un verbe portugais terminé par r, s ou z, le pronom o/a devient lo/la et la consonne tombe (comê-lo, fê-lo, fizemo-lo) ; après une nasale il devient no/na (tinham-no, põe-nas).",
+    "Iza portugalskog glagola na r, s ili z zamjenica o/a postaje lo/la, a suglasnik otpada (comê-lo, fê-lo, fizemo-lo); iza nazala postaje no/na (tinham-no, põe-nas).",
+    "Tras un verbo portugués terminado en r, s o z, el pronombre o/a pasa a lo/la y la consonante cae (comê-lo, fê-lo, fizemo-lo); tras una nasal pasa a no/na (tinham-no, põe-nas).",
+    "Μετά από πορτογαλικό ρήμα σε r, s ή z, η αντωνυμία o/a γίνεται lo/la και το σύμφωνο πέφτει (comê-lo, fê-lo, fizemo-lo)· μετά από έρρινο γίνεται no/na (tinham-no, põe-nas).",
+    "Efter ett portugisiskt verb på r, s eller z blir pronomenet o/a lo/la och konsonanten faller bort (comê-lo, fê-lo, fizemo-lo); efter en nasal blir det no/na (tinham-no, põe-nas).",
+    "Nach einem portugiesischen Verb auf r, s oder z wird das Pronomen o/a zu lo/la und der Konsonant fällt weg (comê-lo, fê-lo, fizemo-lo); nach einem Nasal wird es zu no/na (tinham-no, põe-nas).",
+    "Po portugalskim czasowniku zakończonym na r, s lub z zaimek o/a zmienia się w lo/la, a spółgłoska odpada (comê-lo, fê-lo, fizemo-lo); po nosówce zmienia się w no/na (tinham-no, põe-nas).",
+    "Depois de verbo terminado em r, s ou z, o pronome o/a vira lo/la e a consoante cai (comê-lo, fê-lo, fizemo-lo); depois de som nasal vira no/na (tinham-no, põe-nas).",
+  ],
   review_msg_pt_ao90: [
     "1990 Portuguese spelling: prefixes join their word unless it starts with h or the same vowel (autoestima, micro-ondas), and months and weekdays are lowercase.",
     "Orthographe portugaise de 1990 : les préfixes se soudent au mot sauf devant h ou la même voyelle (autoestima, micro-ondas), et mois et jours s’écrivent en minuscules.",
