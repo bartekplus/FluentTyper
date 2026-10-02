@@ -900,6 +900,120 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
       ],
     },
   ],
+  [
+    "spanishConfusions",
+    "an infinitive after a modal, tener que and haber de",
+    {
+      pos: [
+        ["A mi hermano le gusta dibuja paisajes.", "A mi hermano le gusta dibujar paisajes."],
+        ["Esto debería arregla el problema.", "Esto debería arreglar el problema."],
+        ["Tenemos que termina antes del lunes.", "Tenemos que terminar antes del lunes."],
+        ["Suelen madruga los domingos.", "Suelen madrugar los domingos."],
+        ["Hay que vuelve a empezar.", "Hay que volver a empezar."],
+        ["Los socios han de aprueban las cuentas.", "Los socios han de aprobar las cuentas."],
+      ],
+      neg: [
+        "No me gusta nada.",
+        "Me gusta este libro.",
+        "Cuando puede, intenta ayudar.",
+        "Llegó al poder hace años.",
+        "Aún pueden verse las ruinas.",
+        "Si te gusta comparte el enlace.",
+        "Debe de haber un error.",
+        "Puede que venga mañana.",
+      ],
+    },
+  ],
+  [
+    "spanishConfusions",
+    "a pronoun written apart from its gerund or infinitive",
+    {
+      pos: [
+        ["Estaba leyendo lo en el tren.", "Estaba leyéndolo en el tren."],
+        ["Siguió repitiendo la hasta el final.", "Siguió repitiéndola hasta el final."],
+        ["Vengo a ver te.", "Vengo a verte."],
+        ["Voy a llevar las a casa.", "Voy a llevarlas a casa."],
+        ["Está explicándose lo a sus alumnos.", "Está explicándoselo a sus alumnos."],
+      ],
+      neg: [
+        "Voy a hacer lo que quieras.",
+        "Prefiero comer la de chocolate.",
+        "Estaba cantando la canción.",
+        "Al llegar se fue a dormir.",
+        "Quiero ver lo bien que lo haces.",
+        "Al terminar, se fue a casa.",
+      ],
+    },
+  ],
+  [
+    "spanishAccents",
+    "para qué before an indicative",
+    {
+      pos: [
+        ["No sé para que sirve este botón.", "No sé para qué sirve este botón."],
+        ["Pregúntale para que quiere el dinero.", "Pregúntale para qué quiere el dinero."],
+        ["No entiendo para que estudia tanto.", "No entiendo para qué estudia tanto."],
+        ["Explica para que lo usas.", "Explica para qué lo usas."],
+        ["¿Para que llamas tan tarde?", "¿Para qué llamas tan tarde?"],
+      ],
+      neg: [
+        "Lo hago para que sepas la verdad.",
+        "Vino para que habláramos.",
+        "Para que podamos ganar más.",
+        "Te lo digo para que lo pienses.",
+        "Ahorra para que sus hijos estudien.",
+      ],
+    },
+  ],
+  [
+    "spanishAgreement",
+    "a plural verb before the impersonal haber",
+    {
+      pos: [
+        ["Pueden haber varios problemas.", "Puede haber varios problemas."],
+        ["Tienen que haber más opciones.", "Tiene que haber más opciones."],
+        ["Deben de haber muchos errores.", "Debe de haber muchos errores."],
+        ["Van a haber dos turnos.", "Va a haber dos turnos."],
+        ["Podrían haber 30 personas.", "Podría haber 30 personas."],
+      ],
+      neg: [
+        "Pueden haber cambiado de opinión.",
+        "Deben haber salido ya.",
+        "Puede haber varios problemas.",
+        "Tienen que haberlo visto.",
+        "Van a haber terminado para entonces.",
+      ],
+    },
+  ],
+  [
+    "spanishTypography",
+    "commas around sino que, pero no, a subject and the person addressed",
+    {
+      pos: [
+        ["No lo pagó ella sino que lo pagué yo.", "No lo pagó ella, sino que lo pagué yo."],
+        ["Lo intentamos pero no salió bien.", "Lo intentamos, pero no salió bien."],
+        ["El problema, es que no hay tiempo.", "El problema es que no hay tiempo."],
+        ["Los vecinos nuevos, son muy ruidosos.", "Los vecinos nuevos son muy ruidosos."],
+        ["Muchas gracias señora.", "Muchas gracias, señora."],
+        ["¡Un abrazo Lucía!", "¡Un abrazo, Lucía!"],
+        ["Os deseo buenas noches amigos.", "Os deseo buenas noches, amigos."],
+        ["¿Cómo estás Marta?", "¿Cómo estás, Marta?"],
+        ["Afortunadamente nadie se hizo daño.", "Afortunadamente, nadie se hizo daño."],
+      ],
+      neg: [
+        "No te pido sino que te escuches.",
+        "No es azul sino verde.",
+        "Estaba cansado pero feliz.",
+        "Mi amor, está lista la cena.",
+        "El lunes, llegaron todos.",
+        "El problema, dice Juan, es grave.",
+        "¿Este método, es seguro?",
+        "¿Cómo está Marta?",
+        "Gracias por todo.",
+        "Francamente bueno.",
+      ],
+    },
+  ],
 ];
 
 describe.each(FIXTURES)("%s: %s", (ruleId, _family, fixture) => {
@@ -1056,7 +1170,10 @@ test("no Spanish chunk stalls on repeated trigger words", () => {
     "La casas del uno de las la primer dos perro. Los amigos tiene me gusta las son cansado. " +
     "Una frase.Y así?Siempre…nada le dado te ayudar les medidas un saca leches sobre salían " +
     "micro biología uno de sus casas aun recuerdo se tocar Si, pero eso si es ¿Porque no? " +
-    "El domingo pasada la serie más seguido. Juan tienen esta la casa que de cuenta. ";
+    "El domingo pasada la serie más seguido. Juan tienen esta la casa que de cuenta. " +
+    "Son casas rojos. La más rojo dan por hecho la Somos consciente debería funciona tiene que " +
+    "considera para que sirve cantando lo en pueden haber dos. No lo hice yo sino que pero no " +
+    "fue. El problema, es Hola amigo cómo estás Ella es hermoso ha sido traducido. ";
   slowest(triggers.repeat(50));
   for (const text of [
     triggers.repeat(60),

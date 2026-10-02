@@ -141,6 +141,22 @@ const conjugates = (stem: string, ending: string, infinitives: string[]) =>
     stems(stem, ending, infinitive).some((base) => isVerb(`${base}${infinitive}`)),
   );
 
+/**
+ * The infinitive of a present form when only one verb fits: "intenta" -> "intentar", "vuelve"
+ * -> "volver", "continúa" -> "continuar", "hable" -> "hablar", "coman" -> "comer".
+ */
+export function presentInfinitive(word: string): string | null {
+  const m = /^(\p{L}{2,}?)(a|an|e|en)$/u.exec(word);
+  if (!m) return null;
+  const [, typed, ending] = m;
+  const found = new Set<string>();
+  for (const stem of new Set([typed, plain(typed)]))
+    for (const infinitive of ["ar", "er", "ir"])
+      for (const base of stems(stem, ending, infinitive))
+        if (isVerb(`${base}${infinitive}`)) found.add(`${base}${infinitive}`);
+  return found.size === 1 ? [...found][0] : null;
+}
+
 const IRREGULAR_SUBJUNCTIVE = new Set(
   (
     "sea seas sean seamos haya hayas hayan hayamos vaya vayas vayan vayamos esté estés estén " +

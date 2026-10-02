@@ -2422,6 +2422,28 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "W hiszpańskim dialog i wtrącenia narratora zaczynają się od długiej pauzy (—).",
     "Em espanhol, o diálogo e os comentários do narrador abrem com travessão (—).",
   ],
+  review_msg_spanish_enclitic: [
+    "In Spanish, a pronoun after an infinitive or a gerund is written joined to it: decirlo, cantándolo.",
+    "En espagnol, le pronom placé après un infinitif ou un gérondif s’écrit soudé au verbe : decirlo, cantándolo.",
+    "U španjolskom se zamjenica iza infinitiva ili gerunda piše spojeno s glagolom: decirlo, cantándolo.",
+    "El pronombre que sigue a un infinitivo o a un gerundio se escribe unido al verbo: decirlo, cantándolo.",
+    "Στα ισπανικά η αντωνυμία μετά από απαρέμφατο ή γερούνδιο γράφεται ενωμένη με το ρήμα: decirlo, cantándolo.",
+    "På spanska skrivs ett pronomen efter en infinitiv eller ett gerundium ihop med verbet: decirlo, cantándolo.",
+    "Im Spanischen wird ein Pronomen nach Infinitiv oder Gerundium an das Verb angehängt: decirlo, cantándolo.",
+    "W hiszpańskim zaimek po bezokoliczniku lub gerundium pisze się łącznie z czasownikiem: decirlo, cantándolo.",
+    "Em espanhol, o pronome depois de um infinitivo ou gerúndio escreve-se junto ao verbo: decirlo, cantándolo.",
+  ],
+  review_msg_spanish_impersonal_haber: [
+    "Spanish “haber” meaning “there is/are” stays singular, and so does the verb before it: puede haber dos.",
+    "En espagnol, « haber » au sens de « il y a » reste au singulier, tout comme le verbe qui le précède : puede haber dos.",
+    "Španjolski „haber” u značenju „ima” ostaje u jednini, kao i glagol ispred njega: puede haber dos.",
+    "El verbo «haber» impersonal no tiene plural, ni tampoco el verbo que lo acompaña: puede haber dos.",
+    "Στα ισπανικά το απρόσωπο «haber» (υπάρχει/υπάρχουν) μένει στον ενικό, όπως και το ρήμα πριν από αυτό: puede haber dos.",
+    "Spanskans opersonliga ”haber” (det finns) står i singular, och det gör även verbet före: puede haber dos.",
+    "Das unpersönliche spanische „haber“ (es gibt) bleibt im Singular, ebenso das Verb davor: puede haber dos.",
+    "Bezosobowe hiszpańskie „haber” (jest/są) pozostaje w liczbie pojedynczej, podobnie jak czasownik przed nim: puede haber dos.",
+    "Em espanhol, o “haber” impessoal (há) fica no singular, assim como o verbo antes dele: puede haber dos.",
+  ],
   // French (review/french/)
   review_msg_fr_past_participle: [
     "After avoir or être, French uses the past participle (-é), not the infinitive (-er).",
