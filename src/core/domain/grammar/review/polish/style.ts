@@ -358,6 +358,27 @@ export const STYLE: readonly PhraseRow[] = [
       `${form(fixed, a)} ${noun}${n}`,
     ]);
   }),
+  // "ubrać" dresses a person; clothes are put on: "włożyć buty".
+  ...(
+    [
+      ["ubrać", "włożyć"],
+      ["ubrał", "włożył"],
+      ["ubrała", "włożyła"],
+      ["ubrali", "włożyli"],
+      ["ubrały", "włożyły"],
+      ["ubiorę", "włożę"],
+      ["ubierze", "włoży"],
+      ["ubieram", "wkładam"],
+      ["ubiera", "wkłada"],
+      ["ubierać", "wkładać"],
+      ["ubrałem", "włożyłem"],
+      ["ubrałam", "włożyłam"],
+    ] as const
+  ).flatMap(([verb, fixed]): PhraseRow[] =>
+    words("buty płaszcz kurtkę czapkę sweter spodnie sukienkę koszulę rękawiczki golf szalik").map(
+      (garment): PhraseRow => [`${verb} ${garment}`, `${fixed} ${garment}`],
+    ),
+  ),
 ];
 
 /** Set phrases with a wrong word, preposition or form: never correct as typed. */
@@ -381,6 +402,38 @@ export const PHRASES: readonly PhraseRow[] = [
   ...words("połknąć połknąłem połknęłam połknął połknęła połknęli połknąłeś").map(
     (verb): PhraseRow => [`${verb} bakcyl`, `${verb} bakcyla`],
   ),
+  // A role is played, a meaning is had: "odgrywa znaczenie" blends the two.
+  ...words(
+    "odgrywać odgrywa odgrywają odgrywał odgrywała odgrywało odgrywały odgrywali odegrać odegra odegrają odegrał odegrała odegrało odegrały odegrali",
+  ).flatMap((verb): PhraseRow[] => [
+    [`${verb} znaczenie`, `${verb} rolę`],
+    ...(
+      [
+        ["duże", "dużą"],
+        ["ważne", "ważną"],
+        ["istotne", "istotną"],
+        ["kluczowe", "kluczową"],
+        ["ogromne", "ogromną"],
+        ["wielkie", "wielką"],
+        ["znaczące", "znaczącą"],
+        ["decydujące", "decydującą"],
+        ["szczególne", "szczególną"],
+      ] as const
+    ).map(([adj, fem]): PhraseRow => [`${verb} ${adj} znaczenie`, `${verb} ${fem} rolę`]),
+  ]),
+  // Latin and French loans in their own spelling.
+  ["sensu stricte", "sensu stricto"],
+  ["at hoc", "ad hoc"],
+  ["ad hock", "ad hoc"],
+  ["ex equo", "ex aequo"],
+  ["de fakto", "de facto"],
+  ["wice wersa", "vice versa"],
+  ["a propos", "à propos"],
+  ["á propos", "à propos"],
+  ["a la carte", "à la carte"],
+  // "wiórki" (shavings) is plural: "wiórków kokosowych", not the singular "wiórka".
+  ["wiórka kokosowe", "wiórki kokosowe"],
+  ["wiórek kokosowych", "wiórków kokosowych"],
   ["języczek uwagi", "języczek u wagi"],
   ["języczkiem uwagi", "języczkiem u wagi"],
   ["języczka uwagi", "języczka u wagi"],

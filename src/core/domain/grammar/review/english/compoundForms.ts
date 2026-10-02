@@ -542,7 +542,12 @@ const ARTICLE_MODIFIERS: Record<string, string> = Object.fromEntries(
     "easy to read|easy to learn|easy to install|easy to follow|simple to use|hard to find|" +
     "hard to use|difficult to use|ready to use|all time|million dollar|billion dollar|" +
     "multi million dollar|second largest|third largest|fourth largest|fifth largest|" +
-    "second biggest|third biggest|second highest|second best|third best"
+    "second biggest|third biggest|second highest|second best|third best|" +
+    "out of the way|out of the box|out of place|off the shelf|one of a kind|last minute|" +
+    "long term|short term|well known|high quality|low cost|real time|open source|first class|" +
+    "second hand|full scale|large scale|small scale|world class|top notch|high level|" +
+    "low level|high end|low end|old fashioned|user friendly|above mentioned|" +
+    "tailor made|even handed|read only|ill advised|well meaning|well established"
   )
     .split("|")
     .map((key) => [key, key.replaceAll(" ", "-")]),

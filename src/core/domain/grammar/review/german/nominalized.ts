@@ -1,8 +1,8 @@
 import { namedExampleBefore } from "../exampleCues";
 import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import { germanAdjective, germanVerbLike } from "./germanLexicon";
-import { isGerman, tokensAfter, wordSet } from "./shared";
+import { germanAdjective, germanNounReading, germanVerbLike } from "./germanLexicon";
+import { governedBefore, isGerman, PRONOUNS, tokensAfter, tokensBefore, wordSet } from "./shared";
 
 // Adjectives used as nouns are capitalized: "im Freien", "zum Guten", "aufs Neue", "das
 // Beste daraus machen", "etwas Neues", "alles Gute", "auf Deutsch". Only where no noun
@@ -72,6 +72,17 @@ export function nominalized(ctx: DetectContext): RawFinding[] {
       if (
         /^\p{Ll}+(?:e|en|er|es|em)$/u.test(next) &&
         germanAdjective(ENDING.exec(next)?.[1] ?? "")
+      ) {
+        continue;
+      }
+      // "fürs hartnäckige nachfragen": the adjective of a noun typed lowercase.
+      // Not where it is the verb: "im allgemeinen stimme ich", "wird sich zum guten wenden".
+      const nextNoun = next.length > 2 ? germanNounReading(next) : null;
+      const before = tokensBefore(ctx.text, m.index, 12);
+      if (
+        nextNoun === "noun" ||
+        (nextNoun === "finite" && !PRONOUNS.has(second.toLowerCase())) ||
+        (nextNoun === "infinitive" && name === "target" && !governedBefore(before, before.length))
       ) {
         continue;
       }

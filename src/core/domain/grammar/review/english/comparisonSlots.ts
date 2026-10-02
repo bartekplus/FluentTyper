@@ -35,62 +35,44 @@ const superlative = (word: string) =>
 const SET_PHRASES =
   /^(?:friends?|man|men|practices?|case|value|priority|quality|effort|seller|sellers|interests?|regards|wishes)$/;
 
-/** "Kyoto is an oldest city", "Sue is best choice": a superlative before its noun takes "the". */
+/**
+ * "Kyoto is an oldest city": a/an before a superlative and its noun is "the". A bare one after
+ * be ("is hottest city") is articles.ts's superlativeThe.
+ */
 function superlativeArticle(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   for (const m of frameMatches(
     ctx,
-    `(?:(?<article>an?)|(?<be>is|are|was|were|['’]s|['’]re))${SPACE}(?<adjective>best|worst|[a-z]+est)${SPACE}(?<noun>[a-z]+)${WORD_END}`,
-    "adjective",
+    `(?<article>an?)${SPACE}(?<adjective>best|worst|[a-z]+est)${SPACE}(?<noun>[a-z]+)${WORD_END}`,
+    "article",
   )) {
     const { article, adjective, noun } = m.groups!;
     if (!superlative(adjective) || SET_PHRASES.test(noun) || ctx.dictionary.has(noun)) continue;
-    if (hasUserOrCasedWord(ctx, `${adjective} ${noun}`)) continue;
-    // The noun closes the phrase: "is best known", "is best left" keep best as an adverb.
+    if (FUNCTION_WORDS.has(noun) || hasUserOrCasedWord(ctx, m[0])) continue;
     const read = englishWordInfo(noun);
-    // "best choice": a noun that is also an adjective must close the phrase.
-    const closes = /^[ \t\u00a0]*(?:[.!?,;:]|$)/.test(
-      ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 4),
-    );
+    // "a best choice": a noun that is also an adjective must close the phrase.
+    const end = m.index + m[0].length;
+    const closes = /^[ \t\u00a0]{0,8}(?:[.!?,;:]|$)/.test(ctx.text.slice(end, end + 10));
     const isNoun = read
       ? read.noun && !read.adverb && (!read.adjective || closes)
       : !!nounOnly(noun);
     if (!isNoun || read?.verbs.some((v) => v.form === "participle" || v.form === "past")) continue;
-    // "a best in class service", "are nearest neighbor methods": a classifier compound.
-    const next = tokensAfter(ctx, m.index + m[0].length, 1)[0];
-    if (FUNCTION_WORDS.has(noun)) continue;
+    // "a best in class service", "a latest cell phone": a classifier compound.
+    const next = tokensAfter(ctx, end, 1)[0];
     if (next?.kind === "word" && !FUNCTION_WORDS.has(next.lower)) {
       const after = englishWordInfo(next.lower);
       if (!after || after.noun || after.plural || nounOnly(next.lower)) continue;
     }
-    if (article) {
-      const [start, end] = m.indices!.groups!.article;
-      findings.push(found(ctx, start, end, caseLike(article, "the"), m.index));
-    } else {
-      const [start] = m.indices!.groups!.adjective;
-      findings.push(found(ctx, start, start, "the ", m.index, adjective));
-    }
+    const [start, articleEnd] = m.indices!.groups!.article;
+    findings.push({
+      ruleId: "englishPhraseCorrections",
+      messageKey: "review_msg_superlative_the",
+      range: { start, end: articleEnd },
+      alternatives: [caseLike(article, "the")],
+      context: evidence(ctx, m.index, end),
+    });
   }
   return findings;
-}
-
-function found(
-  ctx: DetectContext,
-  start: number,
-  end: number,
-  replacement: string,
-  from: number,
-  before = "",
-): RawFinding {
-  // An insertion is shown on the word it precedes: "best" -> "the best".
-  const range = before ? { start, end: start + before.length } : { start, end };
-  return {
-    ruleId: "englishSentenceStructure",
-    messageKey: "review_msg_superlative_article",
-    range,
-    alternatives: [before ? `${replacement}${before}` : replacement],
-    context: evidence(ctx, from, range.end),
-  };
 }
 
 /** "This is less harder", "the least hardest task": less/least take the plain adjective. */
@@ -138,7 +120,7 @@ function comparisonThen(ctx: DetectContext): RawFinding[] {
 }
 
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  { rules: ["englishSentenceStructure"], detect: english(superlativeArticle) },
+  { rules: ["englishPhraseCorrections"], detect: english(superlativeArticle) },
   { rules: ["englishDoubledDegree"], detect: english(lessComparative) },
   { rules: ["englishThenThan"], detect: english(comparisonThen) },
 ];

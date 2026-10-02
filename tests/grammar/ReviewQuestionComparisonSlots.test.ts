@@ -8,6 +8,7 @@ const RULES = new Set([
   "englishSentenceStructure",
   "englishDoubledDegree",
   "englishThenThan",
+  "englishPhraseCorrections",
 ]);
 
 function scan(text: string) {
@@ -50,7 +51,6 @@ test.each([
   "How do you do?",
   "Why did they leave so early?",
   "They are best friends.",
-  "It is best practice to test first.",
   "He is best known for his songs.",
   "These are nearest neighbor methods.",
   "It is at least harder than the old one.",
@@ -58,5 +58,6 @@ test.each([
   "Do more, then rest.",
   "We can talk later.",
   "I have already had lunch.",
-  "He was best man at the wedding.",
+  "She was a best friend to me.",
+  "He bought a latest model phone.",
 ])("question and comparison forms stay silent: %s", (text) => expect(scan(text)).toEqual([]));

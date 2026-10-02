@@ -53,6 +53,12 @@ const MODIFIED = `(?<lead>(?!por${SPACE}últim)(?:(?!nos${WORD_END})(?:${DETERMI
 const VERBS =
   "tem|tenho|temos|têm|tinha|tinham|teve|tive|há|houve|havia|pede|pedi|pediu|pedem|fez|faz|fiz|fazem|deu|dá|dei|dão|tomou|toma|tomei|tomam|paga|pagou|paguei|vê|vi|viu|traga|traz|trouxe|recebeu|recebi|recebe|recebem|sinto|sente|sentiu|senti|exige|exigiu|merece|mereceu|ganhou|ganhei|perdeu|perdi|causa|causou|causam|gera|gerou|geram|mostra|mostrou|sofreu|sofre|dar|ter|fazer|pedir|receber|tomar|pagar|ver|sentir|causar|gerar|sofrer";
 const VERB_LED = `(?<lead>${VERBS})(?=${SPACE}(?<target>[a-zçãõáéíóúâêô]+)${WORD_END})`;
+// After "ser" or "tornar" comes a noun or adjective: "foi publica" -> "pública", "tornou
+// especifica" -> "específica", "ser interprete" -> "intérprete".
+const COPULA_LED = `(?<lead>é|era|eram|foi|foram|fui|ser|será|seria|sou|torna|tornou|tornam|tornaram|tornar|dava|davam)(?=${SPACE}(?<target>[a-zçãõáéíóúâêô]+)${WORD_END})`;
+// One of those adjectives opening a sentence: "Grande distancia" -> "distância".
+const OPENING = `(?<lead>${ADJECTIVES})(?=${SPACE}(?<target>[a-zçãõáéíóúâêô]+)${WORD_END})`;
+const SENTENCE_START = /(?:^|[.!?;:\n]["'”’»)]*)[ \t\u00a0]*["'“‘«(]?[ \t\u00a0]*$/u;
 // "Um critica, o outro elogia": indefinite "um/uma" as a pronoun with "outro" later on.
 const RECIPROCAL = /^[^.!?;\n]{0,80}(?<![\p{L}])outr[oa]s?(?![\p{L}])/iu;
 
@@ -63,12 +69,17 @@ export function accentParonyms(ctx: DetectContext): RawFinding[] {
     ...frameMatches(ctx, PATTERN),
     ...frameMatches(ctx, MODIFIED),
     ...frameMatches(ctx, VERB_LED),
+    ...frameMatches(ctx, COPULA_LED),
+    ...[...frameMatches(ctx, OPENING)].filter((m) =>
+      SENTENCE_START.test(ctx.text.slice(Math.max(0, m.index - 8), m.index)),
+    ),
   ]) {
     const target = m.groups!.target;
     const alternatives = accentedTwins(target);
     if (!alternatives || ctx.dictionary.has(target)) continue;
     const [start, end] = m.indices!.groups!.target;
-    if (gluedAfter(ctx.text, end)) continue;
+    if (gluedAfter(ctx.text, end) || findings.some((found) => found.range.start === start))
+      continue;
     if (/^um/i.test(m.groups!.lead) && RECIPROCAL.test(ctx.text.slice(end, end + 96))) continue;
     findings.push({
       ruleId: "portugueseAccentParonyms",
