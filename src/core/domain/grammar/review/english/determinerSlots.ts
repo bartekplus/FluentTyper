@@ -1,8 +1,4 @@
-import {
-  englishListedNoun,
-  englishVerbNouns,
-  englishWordInfo,
-} from "../../implementations/helpers/EnglishLexicon";
+import { englishVerbNouns, englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import { englishVerbForms } from "../../implementations/helpers/EnglishVerbForms";
 import type { PhraseRow } from "../englishPhraseTables";
 import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
@@ -44,8 +40,8 @@ function verbOnly(word: string): boolean {
     !read.noun &&
     !read.adjective &&
     !read.adverb &&
-    !read.plural &&
-    !englishListedNoun(word)
+    // The Bloom filter holds only nouns the lexicon left out; a lexicon word is never one.
+    !read.plural
   );
 }
 
@@ -68,6 +64,13 @@ function derivedNouns(verb: string): string[] {
     `${stem}al`,
     `${verb}al`,
     `${stem}ance`,
+    // explode -> explosion, depart -> departure, injure -> injury, analyze -> analysis,
+    // diagnose -> diagnosis.
+    `${verb.replace(/de$/, "")}sion`,
+    `${verb}ure`,
+    `${stem}y`,
+    verb.replace(/y[sz]e$/, "ysis"),
+    verb.replace(/ose$/, "osis"),
   ];
   const found = [...new Set(candidates)].filter((c) => c !== verb && isNoun(c));
   return found.slice(0, 2);
