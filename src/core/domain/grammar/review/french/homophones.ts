@@ -129,6 +129,61 @@ function startsNounPhrase(text: string, token: Token): boolean {
 }
 const QUANTIFIERS = new Set(["rien", "beaucoup", "peu", "trop", "tant", "assez", "chose"]);
 
+// Words after which "a" starts a locution of the preposition: "a côté", "a travers", "a
+// l'exception de". Avoir has no reading with them.
+const AFTER_PREPOSITION = new Set(
+  "côté coté travers droite gauche cheval vélo présent propos condition".split(" "),
+);
+const ELIDED_AFTER = new Set(["exception", "accoutumée", "instar", "abri", "égard", "envers"]);
+// Days and times that close "a bientôt", "a demain", "a samedi" at the end of a clause.
+const FAREWELLS = new Set(
+  "bientôt demain lundi mardi mercredi jeudi vendredi samedi dimanche tantôt".split(" "),
+);
+// Words before "a" that only the preposition follows: "grâce a", "jusqu'a", "quant a".
+const BEFORE_PREPOSITION = new Set(
+  "jusqu' quant comparé comparativement contrairement conformément relativement proportionnellement".split(
+    " ",
+  ),
+);
+
+/** "a côté", "a moins que", "a peu près", "a l'exception de", "a bientôt.", "grâce a",
+ * "par rapport a", "d'ici a": locutions where only the preposition fits. */
+function prepositionLocution(ctx: DetectContext, before: Token[], after: Token[], end: number) {
+  const [next, second] = after;
+  if (AFTER_PREPOSITION.has(next.w)) return true;
+  if (next.w === "l'" && second && ELIDED_AFTER.has(second.w)) return true;
+  if (next.w === "moins" && (second?.w === "que" || second?.w === "qu'")) return true;
+  if (next.w === "cause" && (second?.w === "de" || second?.w === "d'" || second?.w === "du"))
+    return true;
+  if (next.w === "peu" && second?.w === "près") return true;
+  if (
+    FAREWELLS.has(next.w) &&
+    /^\s{0,8}(?:[.!?…,;]|$)/u.test(ctx.text.slice(next.end, next.end + 10))
+  )
+    return /^\p{Ll}/u.test(ctx.text.slice(next.start, next.end)) && end <= next.start;
+  const [b0, b1] = before;
+  // "Mary Quant a lancé": a name.
+  if (!b0) return false;
+  if (/^\p{Lu}/u.test(ctx.text.slice(b0.start, b0.end)) && !sentenceStart(ctx.text, b0.start))
+    return false;
+  if (BEFORE_PREPOSITION.has(b0.w)) return true;
+  if ((b0.w === "grâce" || b0.w === "grace") && (!b1 || !(b1.w in DETERMINER_GENDER))) return true;
+  if (b0.w === "rapport" && b1?.w === "par") return true;
+  if (b0.w === "ici" && b1?.w === "d'") return true;
+  return false;
+}
+const DETERMINER_GENDER: Record<string, true> = {
+  la: true,
+  sa: true,
+  ma: true,
+  ta: true,
+  une: true,
+  cette: true,
+  leur: true,
+  votre: true,
+  notre: true,
+};
+
 /** "je pense a toi", "j'ai répondu a ta lettre", "A la fin": the preposition missing its accent. */
 function aToGrave(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   if (ctx.text[m.index + 1] === "-" || ctx.text[m.index - 1] === "-") return null;
@@ -147,6 +202,20 @@ function aToGrave(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   // "elle a l'air ravie": avoir l'air.
   if (next.w === "l'" && after[1]?.w === "air") return null;
   const previous = before[0];
+  // "une machine a laver", "rien a faire": avoir never takes a bare infinitive.
+  // After a subject, "a" + an infinitive in -er is as often a participle misspelt ("Sami a
+  // télécharger"): there only an infinitive that sounds unlike its participle tells.
+  if (isInfinitive(next.w) && next.w.length > 3) {
+    const governed =
+      previous &&
+      (QUANTIFIERS.has(previous.w) ||
+        readingsOf(previous.w).some(
+          (r) =>
+            r.slot === "I" || (isFinite(r) && r.lemma !== "avoir" && !isVerbHomograph(previous.w)),
+        ));
+    if (governed || !next.w.endsWith("er")) return fix(previous);
+  }
+  if (prepositionLocution(ctx, before, after, m.index + m[0].length)) return fix(previous);
   if (!previous) return null;
   // "de 6 a 10": between numbers.
   if (
