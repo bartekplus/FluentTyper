@@ -54,6 +54,14 @@ function colloquial(ctx: DetectContext): RawFinding[] {
       // lists a few colloquial raus- verbs ("rauslassen"), which stay checked.
       const known = germanVerbLike(low) || germanInfinitive(low) || germanNounReading(low) !== null;
       if (known && key === "ran") continue;
+      // Capitalized inside a sentence: a noun ("die Rangliste"), unless a verb made one ("zum
+      // Rumprobieren").
+      if (
+        capital &&
+        !/(?:en|ern|eln)$/.test(rest) &&
+        !/(?:^|[.!?:\n„“"»«])[ \t]*$/.test(ctx.text.slice(Math.max(0, m.index - 4), m.index))
+      )
+        continue;
       if (!verbAfter(rest)) continue;
     } else {
       // "Rum" is the drink; a capital at a sentence start may be either.

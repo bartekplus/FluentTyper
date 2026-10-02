@@ -165,6 +165,8 @@ function bareNoun(typed: string, before: string[], after: string[]): boolean {
   );
 }
 
+// Object pronouns before a demonstrative that is the article of an object ("mir die treue").
+const OBJECT_PRONOUNS = wordSet("mir dir ihm ihr uns euch ihnen sich sie es er wir ich du man");
 // Lowercase words the dictionary lists only as nouns that are also adverbs ("wir sind zuhause").
 const BARE_EXCEPTIONS = wordSet("zuhause topp");
 const VERB_PARTICLES = wordSet("los ab an auf aus ein mit vor weg zu zurück hin her fest");
@@ -342,15 +344,30 @@ function adjectiveNounHolds(kind: Trigger, before: string[], at: number, after: 
   const next = lower(after[0]);
   const prior = before[at - 1];
   const sentenceStart = prior === undefined || /^(?:[.!?\n„“"»«])$/.test(prior);
+  // A participle or infinitive that ends the clause: "in die enge getrieben."
+  const clauseVerb =
+    /^(?:\p{Ll}*ge\p{Ll}+(?:t|en)|\p{Ll}+iert|\p{Ll}+en)$/u.test(next) &&
+    (BOUNDARY.test(after[1] ?? "") || AUXILIARIES.has(lower(after[1])));
   if (kind === "demonstrative") {
     const verbFollows = finiteVerb(next) || GENITIVES.has(next) || genitiveThenVerb(after);
-    if (!sentenceStart || !verbFollows) return false;
+    // "Er hat die ehe gebrochen", "machte die runde.", "erreichten sie die spitze der Liga": an
+    // object after a verb or a pronoun, closed by the clause's end, its verb or a genitive.
+    const object =
+      prior !== undefined &&
+      (VERB_GOVERNORS.has(lower(prior)) ||
+        OBJECT_PRONOUNS.has(lower(prior)) ||
+        finiteVerb(lower(prior))) &&
+      // "das" is often the pronoun itself ("Ich kann das null", "kann das weg?").
+      ((lower(before[at]) !== "das" && (BOUNDARY.test(next) || clauseVerb)) ||
+        (/^de[rs]$/.test(next) && /^\p{Lu}/u.test(after[1] ?? "")));
+    if (!object && (!sentenceStart || !verbFollows)) return false;
   } else if (kind !== "article") return false;
   // "über alles liebe": a pronoun, not an article.
   const det = lower(before[at]);
   if (!ARTICLES.has(det) && !DEMONSTRATIVES.has(det)) return false;
   if (BOUNDARY.test(next) || COORDINATORS.has(next) || VERB_GOVERNORS.has(next)) return true;
   if (ARTICLES.has(next) || DEMONSTRATIVES.has(next) || PREPOSITIONS.has(next)) return true;
+  if (clauseVerb) return true;
   return (
     /^\p{Ll}/u.test(next) &&
     !germanAdjective(next) &&

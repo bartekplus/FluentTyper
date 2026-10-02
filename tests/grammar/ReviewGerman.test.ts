@@ -142,6 +142,13 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Sie vergoss keine tränen darüber.", "Sie vergoss keine Tränen darüber."],
         ["Gib dir bitte etwas mühe.", "Gib dir bitte etwas Mühe."],
         ["Die Milch steht im kühlschrank.", "Die Milch steht im Kühlschrank."],
+        // An object after its verb, closed by the clause's end or a genitive.
+        ["Der Vorschlag machte schnell die runde.", "Der Vorschlag machte schnell die Runde."],
+        ["Sie hat ihm die treue gehalten.", "Sie hat ihm die Treue gehalten."],
+        [
+          "Die Gegner haben uns in die enge getrieben.",
+          "Die Gegner haben uns in die Enge getrieben.",
+        ],
         ["Für die Prüfung brauchst du viel geduld.", "Für die Prüfung brauchst du viel Geduld."],
         // Adjectives used as nouns with no noun after them.
         ["Was habt ihr heute schönes erlebt?", "Was habt ihr heute Schönes erlebt?"],
@@ -179,6 +186,9 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         "Sie trinkt gern kaltes Wasser.",
         "Das ist ein Berliner Bär.",
         "Grüner Tee ist gesund.",
+        "Was ist das wohl?",
+        "Ich kann das null nachvollziehen.",
+        "Ich habe die alte gekauft.",
         "Liebe Grüße aus Bonn.",
         "Frohes neues Jahr!",
         "Er hat einen englischen Garten angelegt.",
@@ -578,6 +588,7 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Das ist nur zum Rumprobieren gedacht.", "Das ist nur zum Herumprobieren gedacht."],
       ],
       neg: [
+        "Sie stand an der Spitze der Rangliste.",
         "Der Zug muss noch rangieren.",
         "Wir reinigen das Bad.",
         "Das war rein zufällig.",
