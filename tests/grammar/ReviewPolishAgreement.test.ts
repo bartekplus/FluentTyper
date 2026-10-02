@@ -39,6 +39,10 @@ const POSITIVES: Array<[string, string, string | null]> = [
   ["Wszystko to przez pogodą.", "pogodą", "Wszystko to przez pogodę."],
   ["Byliśmy przy grobem dziadka.", "grobem", "Byliśmy przy grobie dziadka."],
   ["Poszedł tam wraz z kolegi.", "kolegi", "Poszedł tam wraz z kolegą."],
+  // The person ending on the verb instead of "żeby"/"gdyby".
+  ["Prosiła, żeby szybko wróciłem.", "żeby szybko wróciłem", "Prosiła, żebym szybko wrócił."],
+  ["Chcą, aby to zrobiliście.", "aby to zrobiliście", "Chcą, abyście to zrobili."],
+  ["Gdybyś wiedziałaś, nie pytałabyś.", "Gdybyś wiedziałaś", "Gdybyś wiedziała, nie pytałabyś."],
   // A verb that takes the genitive with an accusative object.
   ["Na budowie używamy młotek.", "młotek", null],
   ["Kierowcy muszą przestrzegać przepisy.", "przepisy", "Kierowcy muszą przestrzegać przepisów."],
@@ -100,6 +104,9 @@ const NEGATIVES = [
   "Tej wysokiej nikt nie przegapi.",
   "Ta kobieta jest piękna urodą i silna wolą.",
   "Na budowie używamy młotka.",
+  "Prosiła, żebym szybko wrócił.",
+  "Poszedł tam, żeby przed stołem stanąć.",
+  "Mówił, że wróciłem za późno.",
   "Szukam pracy od miesiąca.",
   "Potrzebuje opieki dziecko sąsiadów.",
 ];

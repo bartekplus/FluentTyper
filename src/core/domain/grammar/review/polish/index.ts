@@ -6,6 +6,7 @@ import * as casing from "./casing";
 import * as commaFrames from "./commaFrames";
 import * as commas from "./commas";
 import * as compounds from "./compounds";
+import * as conjunctions from "./conjunctions";
 import * as confusions from "./confusions";
 import * as dates from "./dates";
 import * as degree from "./degree";
@@ -35,4 +36,5 @@ export const POLISH_DETECTORS: readonly ReviewDetectorEntry[] = [
   ...degree.DETECTORS,
   ...commaFrames.DETECTORS,
   ...casing.DETECTORS,
+  ...conjunctions.DETECTORS,
 ];

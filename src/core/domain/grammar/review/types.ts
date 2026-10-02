@@ -290,6 +290,7 @@ export type ReviewMessageKey =
   | "review_msg_pl_extra_comma"
   | "review_msg_pl_comma_aside"
   | "review_msg_pl_capitals"
+  | "review_msg_pl_conjunction_ending"
   // Spanish Review checks (review/spanish/).
   | "review_msg_spanish_accent"
   | "review_msg_spanish_accent_extra"

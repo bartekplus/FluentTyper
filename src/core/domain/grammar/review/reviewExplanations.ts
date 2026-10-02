@@ -2102,6 +2102,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Dni tygodnia, miesiące oraz przymiotniki od nazw języków i regionów piszemy małą literą („w piątek”, „po angielsku”, „województwo mazowieckie”), a nazwy świąt i mórz – każdy wyraz wielką („Wielki Piątek”, „Morze Bałtyckie”).",
     "O polonês escreve dias da semana, meses e adjetivos de língua ou região com minúscula (“w piątek”, “po angielsku”, “województwo mazowieckie”) e cada palavra de um feriado ou mar com maiúscula (“Wielki Piątek”, “Morze Bałtyckie”).",
   ],
+  review_msg_pl_conjunction_ending: [
+    "After “żeby”, “aby” or “gdyby” the person ending joins the conjunction and the verb stays in the bare past form: “żebym zrobił”, “gdybyś przyszła”.",
+    "Après « żeby », « aby » ou « gdyby », la désinence de personne se colle à la conjonction et le verbe reste au passé simple : « żebym zrobił », « gdybyś przyszła ».",
+    "Iza „żeby”, „aby” ili „gdyby” lični nastavak ide na veznik, a glagol ostaje u golom obliku prošlog vremena: „żebym zrobił”, „gdybyś przyszła”.",
+    "Tras «żeby», «aby» o «gdyby» la terminación de persona va en la conjunción y el verbo queda en la forma simple de pasado: «żebym zrobił», «gdybyś przyszła».",
+    "Μετά το «żeby», «aby» ή «gdyby» η προσωπική κατάληξη πηγαίνει στον σύνδεσμο και το ρήμα μένει σε γυμνό τύπο αορίστου: «żebym zrobił», «gdybyś przyszła».",
+    "Efter ”żeby”, ”aby” eller ”gdyby” sätts personändelsen på konjunktionen och verbet står i bar preteritumform: ”żebym zrobił”, ”gdybyś przyszła”.",
+    "Nach „żeby“, „aby“ oder „gdyby“ hängt die Personalendung an der Konjunktion, das Verb bleibt in der bloßen Vergangenheitsform: „żebym zrobił“, „gdybyś przyszła“.",
+    "Po „żeby”, „aby” i „gdyby” końcówkę osobową dołączamy do spójnika, a czasownik zostaje w formie bez niej: „żebym zrobił”, „gdybyś przyszła”.",
+    "Depois de “żeby”, “aby” ou “gdyby”, a desinência de pessoa vai na conjunção e o verbo fica na forma simples do passado: “żebym zrobił”, “gdybyś przyszła”.",
+  ],
   review_msg_pl_agreement: [
     "In Polish, a demonstrative, adjective or numeral agrees with its noun in case, number and gender: “tę książkę”, “to dziecko”, “pięć plików”.",
     "En polonais, le démonstratif, l’adjectif ou le numéral s’accorde avec son nom en cas, nombre et genre : « tę książkę », « to dziecko », « pięć plików ».",
