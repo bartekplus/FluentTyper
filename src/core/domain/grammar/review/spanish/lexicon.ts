@@ -1,0 +1,200 @@
+import { BLOOM_ALPHABET, bloomBits } from "../../implementations/helpers/EnglishLexicon";
+import { SPANISH_ACCENTED_NOMINALS, SPANISH_BLOOM } from "./spanishLexicon.generated";
+
+// Word classes read from es_ES.dic/.aff (scripts/generate-spanish-lexicon.ts). A Bloom filter
+// answers, so about 0.3% of other words read as members too: every check that uses it also
+// needs a closed-class frame around the word, never the lexicon alone.
+
+let filter: Uint8Array | undefined;
+function has(key: string): boolean {
+  if (!filter) {
+    filter = new Uint8Array(SPANISH_BLOOM.length);
+    for (let i = 0; i < SPANISH_BLOOM.length; i++)
+      filter[i] = BLOOM_ALPHABET.indexOf(SPANISH_BLOOM[i]);
+  }
+  const bits = filter;
+  return bloomBits(key, bits.length * 6).every((bit) => (bits[(bit / 6) | 0] >> (bit % 6)) & 1);
+}
+
+// Verbs the dictionary lists without conjugation flags (their forms are separate entries).
+const UNFLAGGED_VERBS = new Set(["ser", "estar", "haber", "ir", "poder", "dar"]);
+/** A conjugated verb's infinitive ("cantar", "tener", "poder"). */
+export const isVerb = (infinitive: string) =>
+  UNFLAGGED_VERBS.has(infinitive) || has(`v${infinitive}`);
+/** A plural-taking entry without -o/-a gender forms: a noun ("casa", "mano", "feliz"). */
+export const isNounEntry = (word: string) => has(`n${word}`);
+/** A masculine entry with -o/-a gender forms: an adjective or a gendered noun ("lleno"). */
+export const isGenderedEntry = (masculine: string) => has(`a${masculine}`);
+
+export type Agreement = { feminine: boolean; plural: boolean };
+
+const IRREGULAR_PARTICIPLES = new Set(
+  "abierto absuelto cubierto descubierto dicho escrito frito hecho impreso muerto puesto " +
+    "compuesto dispuesto expuesto propuesto supuesto resuelto roto satisfecho visto vuelto " +
+    "devuelto envuelto previsto deshecho",
+);
+
+/** The gender and number of a past participle ("cansadas"), or null. */
+export function participle(word: string): Agreement | null {
+  const m = /^(\p{L}+)([oa])(s?)$/u.exec(word);
+  if (!m) return null;
+  const [, base, vowel, plural] = m;
+  const agreement = { feminine: vowel === "a", plural: plural === "s" };
+  if (IRREGULAR_PARTICIPLES.has(`${base}o`)) return agreement;
+  const regular = /^(\p{L}+)(ad|id|íd)$/u.exec(base);
+  if (!regular) return null;
+  const [, stem, suffix] = regular;
+  const infinitives =
+    suffix === "ad" ? [`${stem}ar`] : [`${stem}er`, suffix === "id" ? `${stem}ir` : `${stem}ír`];
+  return infinitives.some(isVerb) ? agreement : null;
+}
+
+/** The gender and number of an adjective form with -o/-a forms ("llena", "españoles"), or null. */
+export function genderedForm(word: string): Agreement | null {
+  const m = /^(\p{L}+?)(o|a|os|as|es)?$/u.exec(word);
+  if (!m) return null;
+  const [, stem, ending = ""] = m;
+  const candidates: [string, Agreement][] = [];
+  const f = ending.startsWith("a");
+  const plural = ending.endsWith("s");
+  if (ending === "o" || ending === "os") candidates.push([`${stem}o`, { feminine: false, plural }]);
+  if (f)
+    candidates.push([`${stem}o`, { feminine: true, plural }], [stem, { feminine: true, plural }]);
+  if (ending === "" && /[^aeiouáéíóús]$/u.test(stem))
+    candidates.push([stem, { feminine: false, plural: false }]);
+  if (ending === "es") candidates.push([stem, { feminine: false, plural: true }]);
+  const hit = candidates.find(([masculine]) => isGenderedEntry(masculine));
+  return hit ? hit[1] : null;
+}
+
+/** A participle or a gendered adjective/noun form: what may follow "está" as its attribute. */
+export const attribute = (word: string): Agreement | null => participle(word) ?? genderedForm(word);
+
+/** A noun the dictionary lists (or its regular plural): "vez", "casas", "mano". */
+export function isNoun(word: string): boolean {
+  if (isNounEntry(word)) return true;
+  if (word.endsWith("es") && isNounEntry(word.slice(0, -2))) return true;
+  if (word.endsWith("ces") && isNounEntry(`${word.slice(0, -3)}z`)) return true;
+  return word.endsWith("s") && isNounEntry(word.slice(0, -1));
+}
+
+/** A gerund, with or without enclitics: "cantando", "haciéndolo", "yendo". */
+export const isGerund = (word: string) =>
+  word.length >= 5 &&
+  /^\p{L}+(?:ando|iendo|yendo|ándo|iéndo|yéndo)(?:me|te|se|nos|os|le|les|lo|los|la|las){0,2}$/u.test(
+    word,
+  ) &&
+  !/^(?:cuando|cuándo|comando|mando|bando|contrabando|blando|nefando|fernando|orlando|armando|rolando|rolando)$/u.test(
+    word,
+  );
+
+const PLAIN: Record<string, string> = { á: "a", é: "e", í: "i", ó: "o", ú: "u" };
+export const plain = (word: string) => word.replace(/[áéíóú]/g, (c) => PLAIN[c]);
+
+/**
+ * Nouns and adjectives whose spelling without the written accent is only a verb form:
+ * "termino" -> "término", "practica" -> "práctica", "ultimo" -> "último".
+ */
+export const ACCENTED_NOMINAL = new Map(
+  SPANISH_ACCENTED_NOMINALS.split(" ").map((word) => [plain(word), word]),
+);
+
+/** Stems a regular ending may sit on: "busqu" -> "busc", "empiec" -> "empez", "piens" -> "pens". */
+function stems(stem: string): string[] {
+  const out = [stem];
+  if (stem.endsWith("qu")) out.push(`${stem.slice(0, -2)}c`);
+  if (stem.endsWith("gu")) out.push(`${stem.slice(0, -2)}g`);
+  if (stem.endsWith("c")) out.push(`${stem.slice(0, -1)}z`);
+  if (stem.endsWith("j")) out.push(`${stem.slice(0, -1)}g`);
+  for (const base of [...out]) {
+    const ie = base.lastIndexOf("ie");
+    if (ie > 0) out.push(`${base.slice(0, ie)}e${base.slice(ie + 2)}`);
+    const ue = base.lastIndexOf("ue");
+    if (ue > 0) out.push(`${base.slice(0, ue)}o${base.slice(ue + 2)}`);
+    const i = base.lastIndexOf("i");
+    if (i > 0) out.push(`${base.slice(0, i)}e${base.slice(i + 1)}`);
+  }
+  return out;
+}
+const conjugates = (stem: string, endings: string[]) =>
+  stems(stem).some((base) => endings.some((ending) => isVerb(`${base}${ending}`)));
+
+const IRREGULAR_SUBJUNCTIVE = new Set(
+  (
+    "sea seas sean seamos haya hayas hayan hayamos vaya vayas vayan vayamos esté estés estén " +
+    "dé des den tenga tengas tengan venga vengas vengan haga hagas hagan diga digas digan " +
+    "pueda puedas puedan quiera quieras quieran sepa sepas sepan salga salgas salgan ponga " +
+    "pongas pongan traiga traigan caiga caigan oiga oigan valga vea veas vean quepa conozca " +
+    "conozcas conozcan pida pidas pidan siga sigas sigan sienta sientas duerma muera"
+  ).split(" "),
+);
+
+/** A present subjunctive look: "importe", "aproveche", "vengas", "llueva". */
+export function subjunctiveLike(word: string): boolean {
+  if (IRREGULAR_SUBJUNCTIVE.has(word)) return true;
+  if (INDICATIVE.has(word)) return false;
+  // "podemos" is "poder" before it is "podar": a form both ways reads as indicative.
+  const ar = /^(\p{L}+?)(e|es|en|emos)$/u.exec(word);
+  if (ar && conjugates(ar[1], ["ar"]) && !conjugates(ar[1], ["er", "ir"])) return true;
+  const erIr = /^(\p{L}+?)(a|as|an|amos)$/u.exec(word);
+  return !!erIr && !conjugates(erIr[1], ["ar"]) && conjugates(erIr[1], ["er", "ir"]);
+}
+
+const INDICATIVE = new Set("va vas van vamos da das dan ha has han he es está estás".split(" "));
+
+const IRREGULAR_SECOND_PERSON = new Set(
+  (
+    "eres tienes vienes puedes quieres sabes haces dices vas estás has ves das oyes sales " +
+    "pones traes sueles sientes piensas juegas prefieres duermes vuelves entiendes fuiste " +
+    "estuviste tuviste hiciste dijiste pudiste quisiste viniste supiste eras ibas estabas " +
+    "tenías serás estarás tendrás irás harás dirás podrás querrás sabrás vendrás pondrás " +
+    "saldrás habrás habías"
+  ).split(" "),
+);
+
+/** A second person singular verb form ("cantas", "fuiste", "serás"), never a plural noun. */
+export function secondPersonVerb(word: string): boolean {
+  if (IRREGULAR_SECOND_PERSON.has(word)) return true;
+  if (isNoun(word)) return false;
+  // Future and conditional, accented or not: "serás", "seras", "comprarías".
+  let m = /^(\p{L}+?[aeií]r)(ás|ías|as|ias)$/u.exec(word);
+  if (m && isVerb(m[1].replace("í", "i"))) return true;
+  m = /^(\p{L}+?)(aste|abas)$/u.exec(word);
+  if (m) return conjugates(m[1], ["ar"]);
+  m = /^(\p{L}+?)(iste|ías)$/u.exec(word);
+  if (m) return conjugates(m[1], ["er", "ir"]);
+  m = /^(\p{L}+?)as$/u.exec(word);
+  if (m) return conjugates(m[1], ["ar"]);
+  m = /^(\p{L}+?)es$/u.exec(word);
+  return !!m && conjugates(m[1], ["er", "ir"]);
+}
+
+// Person endings over a regular stem, with the infinitives they may come from.
+const FINITE_ENDINGS: [RegExp, string[]][] = [
+  [/^(\p{L}+?)(?:o|as|a|an|es|e|en)$/u, ["ar", "er", "ir"]],
+  [/^(\p{L}+?)(?:amos|áis|é|aste|ó|asteis|aron|aba|abas|ábamos|abais|aban)$/u, ["ar"]],
+  [/^(\p{L}+?)(?:emos|éis|imos|ís|í|iste|ió|isteis|ieron|ía|ías|íamos|íais|ían)$/u, ["er", "ir"]],
+];
+const IRREGULAR_FINITE = new Set(
+  (
+    "es son era eran fue fueron está están estaba estaban hay ha han había habían tiene " +
+    "tienen tenía tenían va van iba iban hace hacen hizo dice dicen dijo puede pueden pudo " +
+    "quiere quieren sabe saben viene vienen pone ponen sale salen ve ven da dan soy eres " +
+    "somos estoy estás estamos tengo tienes voy vas vamos hago haces digo dices puedo puedes " +
+    "fui fuiste fuimos estuve estuvo tuve tuvo hice dije vine quise pude supe"
+  ).split(" "),
+);
+
+/** A finite verb form ("cuenta", "mejoran", "ordenamos", "cantará"), noun homographs included. */
+export function finiteVerb(word: string): boolean {
+  if (IRREGULAR_FINITE.has(word)) return true;
+  for (const [pattern, infinitives] of FINITE_ENDINGS) {
+    const m = pattern.exec(word);
+    if (m && conjugates(m[1], infinitives)) return true;
+  }
+  // Future and conditional, accented or not: "cantará", "comerían", "seras".
+  const m = /^(\p{L}+?[aei]r)(?:é|ás|á|emos|éis|án|ía|ías|íamos|íais|ían|as|an|ia|ias|ian)$/u.exec(
+    word,
+  );
+  return !!m && isVerb(m[1]);
+}

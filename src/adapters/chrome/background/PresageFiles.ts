@@ -21,8 +21,11 @@ export function setTextExpansions(
   engines: PresageEngines,
   textExpansions: Array<[string, object]> | null | undefined,
 ): void {
-  const lines = (Array.isArray(textExpansions) ? textExpansions : []).map(
-    ([shortcut, value]) => `${shortcut.toLowerCase()}\t${JSON.stringify(value)}`,
+  // Only string expansions are written, JSON-quoted so a value keeps its line breaks and
+  // PresageEngine.parsePrediction tells it apart from a dictionary word.
+  const lines = (Array.isArray(textExpansions) ? textExpansions : []).flatMap(
+    ([shortcut, value]) =>
+      typeof value === "string" ? [`${shortcut.toLowerCase()}\t${JSON.stringify(value)}`] : [],
   );
   writePresageFile(
     module,
