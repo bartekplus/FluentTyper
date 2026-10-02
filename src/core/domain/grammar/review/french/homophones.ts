@@ -845,6 +845,39 @@ function ontToOn(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
 
 const AFTER_EVEN = new Set([...DETERMINERS, ...STRESSED, ...SUBJECT_PRONOUNS, ...PREPOSITIONS]);
 
+/** "Tache de partir tôt", "il tache que tout aille bien": tâcher (to try), not tacher (to stain). */
+function tacherToTacher(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const word = m[0].toLowerCase();
+  if (!readingsOf(word).some((r) => isFinite(r) && r.lemma === "tacher")) return null;
+  const previous = tokensBefore(ctx.text, m.index, 1)[0];
+  if (previous && DETERMINERS.has(previous.w)) return null;
+  const after = tokensAfter(ctx.text, m.index + m[0].length, 7);
+  let k = 0;
+  // "Tâchons quand même de", "il tâche de ne pas le lui dire".
+  if (after[0]?.w === "quand" && after[1]?.w === "même") k = 2;
+  while (after[k] && ADVERBS.has(after[k].w)) k++;
+  const next = after[k];
+  if (!next) return null;
+  let j = k + 1;
+  while (
+    after[j] &&
+    (["ne", "n'", "pas", "rien", "jamais", "plus", "point"].includes(after[j].w) ||
+      INFINITIVE_CLITICS.has(after[j].w))
+  )
+    j++;
+  const infinitive =
+    after[j] && readingsOf(after[j].w).some((r) => r.slot === "I" && r.lemma === after[j].w);
+  const fits =
+    next.w === "que" || next.w === "qu'" || ((next.w === "de" || next.w === "d'") && infinitive);
+  if (!fits) return null;
+  return wordFinding(ctx, m.index, m[0], [`${m[0][0]}â${m[0].slice(2)}`], RULE, MESSAGE, {
+    start: m.index,
+    end: next.end,
+  });
+}
+const TACHER =
+  /(?<![\p{L}\p{M}\p{N}_'’-])[tT]ach(?:e|es|ez|ons|ent|ais|ait|aient|iez|ions|era|erai|eras|erons|erez|eront)(?![\p{L}\p{M}\p{N}_'’-])/gu;
+
 /** "il est venu comme même": "quand même"; "comme même ses amis" (like even) stays. */
 function commeMeme(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   const next = tokensAfter(ctx.text, m.index + m[0].length, 1)[0];
@@ -893,6 +926,10 @@ function homophones(ctx: DetectContext): RawFinding[] {
     else if (lower === "prés") finding = presToPres(ctx, m);
     else if (lower === "guerre" || lower === "guerres") finding = guerreToGuere(ctx, m);
     else if (lower === "ont") finding = ontToOn(ctx, m) ?? ontPeut(ctx, m);
+    if (finding) findings.push(finding);
+  }
+  for (const m of ownedFrenchWords(ctx, TACHER)) {
+    const finding = tacherToTacher(ctx, m);
     if (finding) findings.push(finding);
   }
   for (const m of ownedFrenchWords(ctx, COMME_MEME)) {

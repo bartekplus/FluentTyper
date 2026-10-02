@@ -148,6 +148,8 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Vous n'auriez jamais du !", "Vous n'auriez jamais dû !"],
         ["La ferme se trouve prés du lac.", "La ferme se trouve près du lac."],
         ["Je ne la connais guerre.", "Je ne la connais guère."],
+        ["Tachez de finir avant midi.", "Tâchez de finir avant midi."],
+        ["Elle tache toujours de ne rien oublier.", "Elle tâche toujours de ne rien oublier."],
         ["Porte ces cartons a la cave.", "Porte ces cartons à la cave."],
         ["Tu ressembles beaucoup a ta mère.", "Tu ressembles beaucoup à ta mère."],
         ["On à déjà fini le travail.", "On a déjà fini le travail."],
@@ -175,6 +177,8 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Ont dit que c'est facile.", "On dit que c'est facile."],
       ],
       neg: [
+        "Cette encre tache de bleu les doigts.",
+        "Une tache de graisse est restée.",
         "Il a du pouvoir et du savoir.",
         "Les vaches paissent dans les prés du village.",
         "Elle a fait une demande de prêt.",
