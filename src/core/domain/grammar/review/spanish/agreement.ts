@@ -763,6 +763,74 @@ function darPorParticiple(ctx: DetectContext, tokens: Token[], i: number): RawFi
   return replaceToken(ctx, participleToken, [fix], RULE, MESSAGE, tokens[i + 4]);
 }
 
+// "esto"/"eso"/"aquello" stand alone; before a noun the determiner is este/ese/aquel.
+const NEUTER: Record<string, string[]> = {
+  esto: ["este", "esta", "estos", "estas"],
+  eso: ["ese", "esa", "esos", "esas"],
+  aquello: ["aquel", "aquella", "aquellos", "aquellas"],
+};
+// Nouns that also work as adverbs of time: "Haz eso mañana", "Termina esto hoy".
+const TIME_ADVERBS = words("mañana tarde noche hoy ayer anoche siempre ahora");
+
+/** "en esto momento" -> "este momento", "por eso motivo" -> "ese motivo". */
+function neuterDemonstrative(ctx: DetectContext, tokens: Token[], i: number): RawFinding | null {
+  const forms = NEUTER[tokens[i].lower];
+  const nounToken = tokens[i + 1];
+  if (!forms || !nounToken?.word || nounToken.broken || !/^\p{Ll}/u.test(nounToken.text))
+    return null;
+  const word = nounToken.lower;
+  if (ctx.dictionary.has(word) || TIME_ADVERBS.has(word)) return null;
+  const noun = readNoun(word);
+  // "Por eso médicos y enfermeras protestan": a bare plural may be the next clause's subject.
+  if (!noun || noun.paired || !noun.gender || noun.plural) return null;
+  // "Esto cuenta mucho", "Por eso trabajo", "Por eso vino Jesús": a verb after the pronoun.
+  if (finiteVerb(word) || /^(?:vino|fue|dio|hizo|puso|tuvo|cuanto|cuanta)$/u.test(word))
+    return null;
+  // "¿Es eso intrusismo?": the pronoun is the subject of "ser" and the noun its attribute.
+  if (SER.has(new Around(tokens, i).prev())) return null;
+  const fix = forms[(noun.gender === "f" ? 1 : 0) + (noun.plural ? 2 : 0)];
+  return replaceToken(ctx, tokens[i], [fix], RULE, MESSAGE, nounToken);
+}
+
+// Adjectives with one form for both genders that often stand before the noun.
+const GENDERLESS_BEFORE = words(
+  "gran grandes principal principales mejor mejores peor peores mayor mayores menor menores " +
+    "suave suaves fuerte fuertes breve breves enorme enormes simple simples importante " +
+    "importantes excelente excelentes interesante interesantes increíble increíbles posible " +
+    "posibles útil útiles difícil difíciles fácil fáciles feliz felices triste tristes",
+);
+
+/**
+ * "el suave corriente" -> "la suave corriente", "los principales impresiones" -> "las": an
+ * adjective of either gender between the determiner and the noun leaves the noun's gender to
+ * the determiner.
+ */
+function determinerAdjectiveNoun(
+  ctx: DetectContext,
+  tokens: Token[],
+  i: number,
+): RawFinding | null {
+  const det = DETERMINER.get(tokens[i].lower);
+  const adjective = tokens[i + 1];
+  const nounToken = tokens[i + 2];
+  if (!det || genderless(det) || !adjective || !GENDERLESS_BEFORE.has(adjective.lower)) return null;
+  if (!nounToken?.word || nounToken.broken || adjective.broken || det.forms[0].includes(" "))
+    return null;
+  if (ctx.dictionary.has(nounToken.lower) || /^\p{Lu}/u.test(nounToken.text)) return null;
+  const noun = readNoun(nounToken.lower);
+  if (!noun || noun.paired || !noun.gender || EITHER.has(noun.singular)) return null;
+  const plural = det.slot >= 2;
+  const adjectivePlural = /s$/u.test(adjective.lower);
+  if (noun.plural !== plural || adjectivePlural !== plural) return null;
+  const detGender: Gender = det.slot % 2 ? "f" : "m";
+  if (detGender === noun.gender) return null;
+  // "el gran hacha", "un gran águila": a stressed a- noun takes the masculine article.
+  if (BEFORE_STRESSED_A.has(tokens[i].lower) && /^h?[aá]/u.test(nounToken.lower)) return null;
+  // "la mejor parte", but "lo mejor": only nouns the gender lexicon reads surely.
+  const fix = det.forms[(noun.gender === "f" ? 1 : 0) + (plural ? 2 : 0)];
+  return replaceToken(ctx, tokens[i], [fix], RULE, MESSAGE, nounToken);
+}
+
 function agreement(ctx: DetectContext): RawFinding[] {
   if (ctx.lang.slice(0, 2) !== "es") return [];
   const tokens = tokenize(ctx);
@@ -774,9 +842,11 @@ function agreement(ctx: DetectContext): RawFinding[] {
       timeAdjective(ctx, tokens, i) ??
       superlativeAdjective(ctx, tokens, i) ??
       determinerNoun(ctx, tokens, i) ??
+      determinerAdjectiveNoun(ctx, tokens, i) ??
       postponedAdjective(ctx, tokens, i) ??
       articleSuperlative(ctx, tokens, i) ??
       darPorParticiple(ctx, tokens, i) ??
+      neuterDemonstrative(ctx, tokens, i) ??
       pickerGroup(ctx, tokens, i) ??
       ordinal(ctx, tokens, i) ??
       cardinalNoun(ctx, tokens, i);

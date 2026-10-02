@@ -1104,6 +1104,32 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
       ],
     },
   ],
+  [
+    "spanishAgreement",
+    "este/ese for esto/eso before a noun, determiners across an adjective, doubled pronouns",
+    {
+      pos: [
+        ["En esto momento no puedo atenderte.", "En este momento no puedo atenderte."],
+        ["Todo eso dinero es tuyo.", "Todo ese dinero es tuyo."],
+        ["Con esto calor no se puede dormir.", "Con este calor no se puede dormir."],
+        ["De aquel gran ilusión no quedó nada.", "De aquella gran ilusión no quedó nada."],
+        ["Los principales razones son dos.", "Las principales razones son dos."],
+        ["A mí no te gusta el café.", "A mí no me gusta el café."],
+        ["A ellos le encanta bailar.", "A ellos les encanta bailar."],
+      ],
+      neg: [
+        "Esto cuenta mucho.",
+        "Haz eso mañana.",
+        "Eso significa mucho.",
+        "Por eso mismo lo hice.",
+        "El gran hacha cayó.",
+        "La mejor parte llega ahora.",
+        "A él me lo presentaron ayer.",
+        "A ella la vi ayer.",
+        "A ti te encanta.",
+      ],
+    },
+  ],
 ];
 
 describe.each(FIXTURES)("%s: %s", (ruleId, _family, fixture) => {

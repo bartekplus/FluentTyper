@@ -2444,6 +2444,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Hiszpańska typografia cytuje najpierw cudzysłowem kątowym («así»), a wewnątrz niego pojedynczym drukarskim (‘así’).",
     "A tipografia espanhola cita primeiro com aspas angulares («así») e, dentro delas, com aspas simples curvas (‘así’).",
   ],
+  review_msg_spanish_doubled_pronoun: [
+    "In Spanish, the pronoun before the verb repeats the person named with “a”: a mí me gusta, a ellas les gusta.",
+    "En espagnol, le pronom devant le verbe reprend la personne introduite par « a » : a mí me gusta, a ellas les gusta.",
+    "U španjolskom zamjenica ispred glagola ponavlja osobu uvedenu s „a”: a mí me gusta, a ellas les gusta.",
+    "El pronombre átono repite a la persona que nombra «a» + pronombre: a mí me gusta, a ellas les gusta.",
+    "Στα ισπανικά η αντωνυμία πριν από το ρήμα επαναλαμβάνει το πρόσωπο που δηλώνεται με «a»: a mí me gusta, a ellas les gusta.",
+    "På spanska upprepar pronomenet före verbet personen som nämns med ”a”: a mí me gusta, a ellas les gusta.",
+    "Im Spanischen wiederholt das Pronomen vor dem Verb die mit „a“ genannte Person: a mí me gusta, a ellas les gusta.",
+    "W hiszpańskim zaimek przed czasownikiem powtarza osobę wprowadzoną przez „a”: a mí me gusta, a ellas les gusta.",
+    "Em espanhol, o pronome antes do verbo repete a pessoa introduzida por “a”: a mí me gusta, a ellas les gusta.",
+  ],
   review_msg_spanish_impersonal_haber: [
     "Spanish “haber” meaning “there is/are” stays singular, and so does the verb before it: puede haber dos.",
     "En espagnol, « haber » au sens de « il y a » reste au singulier, tout comme le verbe qui le précède : puede haber dos.",

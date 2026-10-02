@@ -193,6 +193,48 @@ function aPunto(ctx: DetectContext, tokens: Token[], i: number): RawFinding | nu
   );
 }
 
+// ------------------------------------------------------------------ doubled pronouns
+
+// The dative clitic each "a" + pronoun doubles: "a mí me gusta", "a ellas les gusta".
+const DOUBLED: Record<string, string> = {
+  mí: "me",
+  ti: "te",
+  él: "le",
+  ella: "le",
+  usted: "le",
+  nosotros: "nos",
+  nosotras: "nos",
+  vosotros: "os",
+  vosotras: "os",
+  ellos: "les",
+  ellas: "les",
+  ustedes: "les",
+};
+const DATIVE = words("me te le les nos os");
+
+/** "A mí no te gusta" -> "me": the clitic repeats the person "a" + pronoun names. */
+function doubledPronoun(ctx: DetectContext, tokens: Token[], i: number): RawFinding | null {
+  const at = new Around(tokens, i);
+  if (tokens[i].lower !== "a" || !at.starts) return null;
+  const want = DOUBLED[at.next()];
+  if (!want) return null;
+  let k = 2;
+  while (k < 4 && /^(?:no|ya|también|tampoco|nunca|siempre|sí)$/u.test(at.next(k))) k++;
+  const clitic = at.next(k);
+  // "A él me lo presentaron": two clitics, and the doubled one may be "lo".
+  if (!DATIVE.has(clitic) || CLITICS.has(at.next(k + 1)) || !finiteVerb(at.next(k + 1)))
+    return null;
+  if (clitic === want) return null;
+  return replaceToken(
+    ctx,
+    tokens[i + k],
+    [want],
+    "spanishAgreement",
+    "review_msg_spanish_doubled_pronoun",
+    tokens[i + 1],
+  );
+}
+
 type Frame = (ctx: DetectContext, tokens: Token[], i: number) => RawFinding | null;
 
 function scan(...frames: Frame[]) {
@@ -215,5 +257,5 @@ export const DETECTORS: readonly ReviewDetectorEntry[] = [
   { rules: ["spanishAccents"], detect: scan(paraQue) },
   { rules: ["spanishConfusions"], detect: scan(separatedEnclitic, aPunto) },
   { rules: ["stylePhrasing"], detect: scan(agoBack) },
-  { rules: ["spanishAgreement"], detect: scan(impersonalHaber) },
+  { rules: ["spanishAgreement"], detect: scan(impersonalHaber, doubledPronoun) },
 ];
