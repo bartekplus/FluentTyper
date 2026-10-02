@@ -498,6 +498,83 @@ function cardinalNoun(ctx: DetectContext, tokens: Token[], i: number): RawFindin
   return plural ? replaceToken(ctx, nounToken, [plural], RULE, MESSAGE, tokens[i]) : null;
 }
 
+// ------------------------------------------------------------------ adjectives after the noun
+
+// Time nouns and their gender: "el domingo pasado", "la semana próxima".
+const TIME_GENDER: Record<string, Gender> = {};
+for (const word of (
+  "lunes martes miércoles jueves viernes sábado domingo día mes año siglo verano invierno " +
+  "otoño trimestre semestre curso periodo período fin lustro milenio"
+).split(" "))
+  TIME_GENDER[word] = "m";
+for (const word of "semana primavera noche tarde mañana década temporada vez jornada".split(" "))
+  TIME_GENDER[word] = "f";
+const TIME_ADJECTIVE = /^(pasad|próxim|venider)(o|a|os|as)$/u;
+
+/** "el domingo pasada" -> "pasado", "los tres trimestres próximo" -> "próximos". */
+function timeAdjective(ctx: DetectContext, tokens: Token[], i: number): RawFinding | null {
+  const at = new Around(tokens, i);
+  const noun = tokens[i].lower;
+  const singular = noun.endsWith("es") && TIME_GENDER[noun.slice(0, -2)] ? noun.slice(0, -2) : noun;
+  const base = TIME_GENDER[singular] ? singular : noun.endsWith("s") ? noun.slice(0, -1) : noun;
+  const gender = TIME_GENDER[base];
+  const m = TIME_ADJECTIVE.exec(at.next());
+  if (!gender || !m || tokens[i + 1].broken) return null;
+  // "una vez pasados los nervios": an absolute participle agreeing with the noun after it.
+  if (DETERMINER.has(at.next(2))) return null;
+  // "lunes" and "martes" are both numbers: the determiner tells.
+  const det = DETERMINER.get(at.prev()) ?? DETERMINER.get(at.prev(2));
+  const plural = /^(?:lunes|martes|miércoles|jueves|viernes)$/u.test(noun)
+    ? det
+      ? det.slot >= 2
+      : null
+    : base !== noun;
+  if (plural === null) return null;
+  const [, stem, ending] = m;
+  const want = `${gender === "f" ? "a" : "o"}${plural ? "s" : ""}`;
+  if (ending === want) return null;
+  return replaceToken(ctx, tokens[i + 1], [`${stem}${want}`], RULE, MESSAGE, tokens[i]);
+}
+
+// Adjectives that also work as adverbs: "tomó la curva más rápido", "lo dijo más claro".
+const ADVERBIAL = words(
+  "rápido lento claro alto bajo fuerte duro directo fijo seguro barato caro recto derecho " +
+    "limpio justo hondo ligero despacio temprano tarde pronto mismo",
+);
+
+/**
+ * "la serie más seguido" -> "seguida": a determiner, its noun, "más"/"menos" and an adjective
+ * that must agree with both. Only where the noun phrase is no preposition's object, since
+ * "volvió de las vacaciones más relajado" describes the subject.
+ */
+function superlativeAdjective(ctx: DetectContext, tokens: Token[], i: number): RawFinding | null {
+  const det = DETERMINER.get(tokens[i].lower);
+  if (!det || genderless(det) || /^(?:del|al)$/u.test(tokens[i].lower)) return null;
+  const at = new Around(tokens, i);
+  const prev = at.prev();
+  const subject = at.starts || prev === "que";
+  if (PREPOSITIONS.has(prev) || (CONJUNCTIONS.has(prev) && !subject) || SER.has(prev)) return null;
+  // After a verb, "terminó la carrera más cansado" may describe the subject; only a passive
+  // agent ("la serie más seguido por el público") ties the adjective to the noun there.
+  if (!subject && at.next(4) !== "por") return null;
+  const nounWord = at.next();
+  const degree = at.next(2);
+  const adjective = at.next(3);
+  if (!/^(?:más|menos)$/u.test(degree) || !adjective || tokens[i + 3].broken) return null;
+  const noun = readNoun(nounWord);
+  const form = participle(adjective) ?? genderedForm(adjective);
+  if (!noun || !form || ADVERBIAL.has(adjective)) return null;
+  const plural = det.slot >= 2;
+  const feminine = det.slot % 2 === 1;
+  if (noun.plural !== plural || (noun.gender && (noun.gender === "f") !== feminine)) return null;
+  if (EITHER.has(noun.singular)) return null;
+  if (form.plural === plural && form.feminine === feminine) return null;
+  const masculine = adjective.replace(/(?:o|a|os|as)$/u, "o");
+  if (!isGenderedEntry(masculine) && !participle(masculine)) return null;
+  const fix = `${masculine.slice(0, -1)}${feminine ? "a" : "o"}${plural ? "s" : ""}`;
+  return replaceToken(ctx, tokens[i + 3], [fix], RULE, MESSAGE, tokens[i + 1]);
+}
+
 function agreement(ctx: DetectContext): RawFinding[] {
   if (ctx.lang.slice(0, 2) !== "es") return [];
   const tokens = tokenize(ctx);
@@ -506,6 +583,8 @@ function agreement(ctx: DetectContext): RawFinding[] {
     const token = tokens[i];
     if (!token.word || token.start < ctx.from || token.start >= ctx.to) continue;
     const finding =
+      timeAdjective(ctx, tokens, i) ??
+      superlativeAdjective(ctx, tokens, i) ??
       determinerNoun(ctx, tokens, i) ??
       pickerGroup(ctx, tokens, i) ??
       ordinal(ctx, tokens, i) ??

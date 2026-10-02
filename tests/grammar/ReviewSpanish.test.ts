@@ -562,6 +562,33 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
     },
   ],
   [
+    "spanishAgreement",
+    "an adjective after a time noun or in a superlative",
+    {
+      pos: [
+        ["El martes pasada no hubo clase.", "El martes pasado no hubo clase."],
+        ["Nos vemos la semana próximo.", "Nos vemos la semana próxima."],
+        ["En los meses pasado subió el pan.", "En los meses pasados subió el pan."],
+        ["La canción más escuchado del verano.", "La canción más escuchada del verano."],
+        ["Los platos más pedido son caros.", "Los platos más pedidos son caros."],
+        [
+          "Eligieron la obra más votado por los lectores.",
+          "Eligieron la obra más votada por los lectores.",
+        ],
+      ],
+      neg: [
+        "Una vez pasados los exámenes, descansamos.",
+        "La vez pasada fue mejor.",
+        "Terminó la carrera más cansado que nunca.",
+        "Volvió de las vacaciones más relajado.",
+        "Tomó la curva más rápido de lo normal.",
+        "Es la casa más bonita del barrio.",
+        "La explicación es mucho más complicada.",
+        "El domingo pasado llovió.",
+      ],
+    },
+  ],
+  [
     "spanishConfusions",
     "a clitic before an infinitive, a bare participle or a noun",
     {
