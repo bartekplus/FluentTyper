@@ -321,6 +321,7 @@ export type ReviewMessageKey =
   | "review_msg_spanish_dialogue_dash"
   | "review_msg_spanish_enclitic"
   | "review_msg_spanish_impersonal_haber"
+  | "review_msg_spanish_quotes"
   // French (review/french/)
   | "review_msg_fr_past_participle"
   | "review_msg_fr_infinitive"

@@ -1014,6 +1014,46 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
       ],
     },
   ],
+  [
+    "stylePhrasing",
+    "hace and atrás together",
+    {
+      pos: [
+        ["Lo compré hace dos años atrás.", "Lo compré hace dos años."],
+        ["Hace unos meses atrás vivía aquí.", "Hace unos meses vivía aquí."],
+        ["Se fue hace un rato atrás.", "Se fue hace un rato."],
+        ["Pasó hace casi una década atrás.", "Pasó hace casi una década."],
+        ["Llegó hace una semana y media atrás.", "Llegó hace una semana y media."],
+      ],
+      neg: [
+        "Lo compré hace dos años.",
+        "Lo compré dos años atrás.",
+        "Hace frío y nos vamos atrás.",
+        "Mira hacia atrás.",
+        "Hace tiempo que no miro atrás.",
+      ],
+    },
+  ],
+  [
+    "spanishConfusions",
+    "a punto de",
+    {
+      pos: [
+        ["Estaba apunto de salir.", "Estaba a punto de salir."],
+        ["Está apunto de llover.", "Está a punto de llover."],
+        ["Estuve apunto de llamarte.", "Estuve a punto de llamarte."],
+        ["Apunto de cerrar, llegó un cliente.", "A punto de cerrar, llegó un cliente."],
+        ["Estamos apunto de terminar.", "Estamos a punto de terminar."],
+      ],
+      neg: [
+        "Lo apunto de memoria.",
+        "Siempre apunto de nuevo la dirección.",
+        "Estaba a punto de salir.",
+        "Apunto la hora en la agenda.",
+        "Te apunto el número.",
+      ],
+    },
+  ],
 ];
 
 describe.each(FIXTURES)("%s: %s", (ruleId, _family, fixture) => {
@@ -1134,6 +1174,27 @@ test("Spanish stem alternations apply only to the paradigms that have them", () 
     expect(finiteVerb(verb)).toBe(true);
   expect(subjunctiveLike("pague")).toBe(true);
   expect(subjunctiveLike("pie")).toBe(false);
+});
+
+test("Spanish typewriter quote pairs get angle and curly single quotes, opt-in", () => {
+  expect(reviewRuleIds({ codeMode: false })).not.toContain("spanishQuotes");
+  const fix = (text: string) => {
+    let out = text;
+    for (const d of findings("spanishQuotes", text).reverse())
+      out = applyEdits(out, d.alternatives[0].edits) ?? out;
+    return out;
+  };
+  expect(fix('Lo llaman "el jefe" en la oficina.')).toBe("Lo llaman «el jefe» en la oficina.");
+  expect(fix('("Hasta luego"), dijo.')).toBe("(«Hasta luego»), dijo.");
+  expect(fix("Es un asunto 'urgente' de verdad.")).toBe("Es un asunto ‘urgente’ de verdad.");
+  for (const text of [
+    "Sotheby's subasta cuadros.",
+    "Mide 5' 10\" de alto.",
+    "Lo llaman «el jefe».",
+    'Un "\n" salto',
+    "D'Artagnan y O'Connor llegaron.",
+  ])
+    expect(findings("spanishQuotes", text)).toEqual([]);
 });
 
 test("the committed Spanish lexicon matches es_ES.dic/.aff (bun run generate:spanish-lexicon)", async () => {

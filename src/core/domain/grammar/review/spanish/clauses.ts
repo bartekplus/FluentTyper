@@ -144,17 +144,68 @@ function impersonalHaber(ctx: DetectContext, tokens: Token[], i: number): RawFin
   );
 }
 
+// ------------------------------------------------------------------ set phrases
+
+const TIME_UNITS =
+  /^(?:segundo|minuto|hora|día|semana|mes|año|siglo|década|lustro|rato|tiempo)(?:s|es)?$/u;
+
+/**
+ * "hace dos años atrás" -> "hace dos años" or "dos años atrás": "hace" and "atrás" both say
+ * "ago". Up to five words of amount may stand between: "hace exactamente un mes y medio atrás".
+ */
+function agoBack(ctx: DetectContext, tokens: Token[], i: number): RawFinding | null {
+  if (tokens[i].lower !== "hace") return null;
+  const at = new Around(tokens, i);
+  let unit = 0;
+  for (let k = 1; k <= 5 && at.next(k); k++)
+    if (TIME_UNITS.test(at.next(k))) {
+      unit = k;
+      break;
+    }
+  if (!unit) return null;
+  let end = unit + 1;
+  if (at.next(end) === "y" && /^medi[oa]$/u.test(at.next(end + 1))) end += 2;
+  if (at.next(end) !== "atrás") return null;
+  const last = tokens[i + end];
+  const text = ctx.text.slice(tokens[i].start, last.end);
+  const span = { ...tokens[i], end: last.end, text };
+  const amount = ctx.text.slice(tokens[i + 1].start, tokens[i + end - 1].end);
+  return replaceToken(
+    ctx,
+    span,
+    [`hace ${amount}`, `${amount} atrás`],
+    "stylePhrasing",
+    "review_msg_style_phrasing",
+  );
+}
+
+/** "Está apunto de llover" -> "a punto de": "apuntar" takes no "de" before an infinitive. */
+function aPunto(ctx: DetectContext, tokens: Token[], i: number): RawFinding | null {
+  const at = new Around(tokens, i);
+  if (tokens[i].lower !== "apunto" || at.next() !== "de" || !isInfinitive(at.next(2))) return null;
+  return replaceToken(
+    ctx,
+    tokens[i],
+    ["a punto"],
+    "spanishConfusions",
+    "review_msg_spanish_confusion",
+    tokens[i + 2],
+  );
+}
+
 type Frame = (ctx: DetectContext, tokens: Token[], i: number) => RawFinding | null;
 
-function scan(frame: Frame) {
+function scan(...frames: Frame[]) {
   return (ctx: DetectContext): RawFinding[] => {
     if (ctx.lang.slice(0, 2) !== "es") return [];
     const tokens = tokenize(ctx);
     const findings: RawFinding[] = [];
     for (let i = 0; i < tokens.length; i++) {
       if (!tokens[i].word || tokens[i].start < ctx.from || tokens[i].start >= ctx.to) continue;
-      const finding = frame(ctx, tokens, i);
-      if (finding) findings.push(finding);
+      for (const frame of frames) {
+        const finding = frame(ctx, tokens, i);
+        if (finding) findings.push(finding);
+      }
     }
     return findings;
   };
@@ -162,6 +213,7 @@ function scan(frame: Frame) {
 
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
   { rules: ["spanishAccents"], detect: scan(paraQue) },
-  { rules: ["spanishConfusions"], detect: scan(separatedEnclitic) },
+  { rules: ["spanishConfusions"], detect: scan(separatedEnclitic, aPunto) },
+  { rules: ["stylePhrasing"], detect: scan(agoBack) },
   { rules: ["spanishAgreement"], detect: scan(impersonalHaber) },
 ];

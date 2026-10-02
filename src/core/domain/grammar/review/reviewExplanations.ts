@@ -2433,6 +2433,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "W hiszpańskim zaimek po bezokoliczniku lub gerundium pisze się łącznie z czasownikiem: decirlo, cantándolo.",
     "Em espanhol, o pronome depois de um infinitivo ou gerúndio escreve-se junto ao verbo: decirlo, cantándolo.",
   ],
+  review_msg_spanish_quotes: [
+    "Spanish typography quotes with angle marks first («así») and curly single marks inside them (‘así’).",
+    "La typographie espagnole cite d’abord avec les guillemets («así»), puis avec les apostrophes courbes (‘así’).",
+    "Španjolska tipografija navodi najprije kutnim navodnicima («así»), a unutar njih oblim jednostrukima (‘así’).",
+    "En textos cuidados se usan primero las comillas angulares («así») y, dentro de ellas, las simples (‘así’).",
+    "Η ισπανική τυπογραφία χρησιμοποιεί πρώτα γωνιώδη εισαγωγικά («así») και μέσα σε αυτά καμπύλα μονά (‘así’).",
+    "Spansk typografi citerar först med vinkelcitattecken («así») och inuti dem med böjda enkla (‘así’).",
+    "Die spanische Typografie zitiert zuerst mit Winkelanführungszeichen («así») und darin mit einfachen typografischen (‘así’).",
+    "Hiszpańska typografia cytuje najpierw cudzysłowem kątowym («así»), a wewnątrz niego pojedynczym drukarskim (‘así’).",
+    "A tipografia espanhola cita primeiro com aspas angulares («así») e, dentro delas, com aspas simples curvas (‘así’).",
+  ],
   review_msg_spanish_impersonal_haber: [
     "Spanish “haber” meaning “there is/are” stays singular, and so does the verb before it: puede haber dos.",
     "En espagnol, « haber » au sens de « il y a » reste au singulier, tout comme le verbe qui le précède : puede haber dos.",

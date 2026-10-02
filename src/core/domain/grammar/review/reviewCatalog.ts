@@ -872,6 +872,14 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     bulk: "individual",
     languages: ["es_ES"],
   },
+  spanishQuotes: {
+    review: "supported",
+    defaultEnabled: false,
+    category: "typography",
+    kind: "marks",
+    bulk: "individual",
+    languages: ["es_ES"],
+  },
   // French (review/french/)
   frenchVerbForms: {
     review: "supported",
