@@ -842,6 +842,64 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
       ],
     },
   ],
+  [
+    "spanishAgreement",
+    "adjectives after a subject's or an attribute's noun, and after an article and más",
+    {
+      pos: [
+        ["Los coches rojas están aparcados fuera.", "Los coches rojos están aparcados fuera."],
+        ["Es una película muy aburrido.", "Es una película muy aburrida."],
+        ["Eran ventanas pequeños.", "Eran ventanas pequeñas."],
+        ["El agua helado me despertó.", "El agua helada me despertó."],
+        ["Son soluciones posible.", "Son soluciones posibles."],
+        ["Mi abuela es la más simpático de todas.", "Mi abuela es la más simpática de todas."],
+        ["Elige los menos maduro.", "Elige los menos maduros."],
+        [
+          "Todos dan por hecho la victoria del equipo.",
+          "Todos dan por hecha la victoria del equipo.",
+        ],
+        ["Damos por supuesto las disculpas.", "Damos por supuestas las disculpas."],
+      ],
+      neg: [
+        "Juan dejó la oficina cansado.",
+        "Llegó a la fiesta contento.",
+        "La gente mayor vive en el centro.",
+        "El pez espada nada rápido.",
+        "La mujer piloto aterrizó sin problemas.",
+        "Es una camiseta blanco y negro.",
+        "Las chicas solo quieren bailar.",
+        "La casa junto al río está vacía.",
+        "Aparecieron diez perros, la mayoría cachorros.",
+        "El jefe valida la propuesta.",
+        "Lo da por hecho el ministro.",
+        "Es el más allá de la vida.",
+      ],
+    },
+  ],
+  [
+    "spanishAgreement",
+    "plural subjects before a singular attribute",
+    {
+      pos: [
+        ["Somos consciente del riesgo.", "Somos conscientes del riesgo."],
+        ["Estamos muy contento con el resultado.", "Estamos muy contentos con el resultado."],
+        ["Debemos estar atento a las señales.", "Debemos estar atentos a las señales."],
+        ["Tenemos que ser capaz de resolverlo.", "Tenemos que ser capaces de resolverlo."],
+        ["Ellas son guapo.", "Ellas son guapas."],
+        ["Ella es muy simpático.", "Ella es muy simpática."],
+        ["Mi novela ha sido publicado en Chile.", "Mi novela ha sido publicada en Chile."],
+      ],
+      neg: [
+        "Somos buena gente.",
+        "Estamos mejor así.",
+        "Somos solo cuatro.",
+        "Queremos ser médico de familia.",
+        "Ella es médico.",
+        "Ella es ingeniero de caminos.",
+        "Su obra ha sido traducida al francés.",
+      ],
+    },
+  ],
 ];
 
 describe.each(FIXTURES)("%s: %s", (ruleId, _family, fixture) => {
