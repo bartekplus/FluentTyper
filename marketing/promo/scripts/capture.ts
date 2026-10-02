@@ -1,4 +1,5 @@
 import { createServer } from "node:http";
+import packageMetadata from "../../../package.json";
 import type { AddressInfo } from "node:net";
 import { execFileSync } from "node:child_process";
 import { mkdir, writeFile } from "node:fs/promises";
@@ -33,7 +34,7 @@ const evidence = {
   highlightClick: { x: 0, y: 0 },
   apply: null as { x: number; y: number } | null,
   fixAll: null as { x: number; y: number } | null,
-  captureVersion: "2026.27.0",
+  captureVersion: packageMetadata.version,
   synthetic: true,
   viewport: { width: 1000, height: 480, deviceScaleFactor: 2 },
   states: [] as Record<string, unknown>[],
