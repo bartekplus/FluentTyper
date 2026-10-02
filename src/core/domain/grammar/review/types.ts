@@ -275,6 +275,7 @@ export type ReviewMessageKey =
   | "review_msg_verb_apostrophe"
   | "review_msg_apostrophe_space"
   | "review_msg_whose"
+  | "review_msg_nationality_capital"
   // Polish-only checks (review/polish/).
   | "review_msg_pl_numeral_suffix"
   | "review_msg_pl_numeral_hyphen"

@@ -1705,6 +1705,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "„Whose” wskazuje właściciela następnego rzeczownika; „who’s” to „who is” lub „who has”.",
     "“Whose” possui o substantivo seguinte; “who’s” significa “who is” ou “who has”.",
   ],
+  review_msg_nationality_capital: [
+    "Nationalities, languages and religions are capitalized in English.",
+    "En anglais, les nationalités, les langues et les religions prennent une majuscule.",
+    "U engleskom se nacionalnosti, jezici i religije pišu velikim slovom.",
+    "En inglés, las nacionalidades, los idiomas y las religiones van con mayúscula.",
+    "Στα αγγλικά οι εθνικότητες, οι γλώσσες και οι θρησκείες γράφονται με κεφαλαίο.",
+    "På engelska skrivs nationaliteter, språk och religioner med versal.",
+    "Im Englischen werden Nationalitäten, Sprachen und Religionen großgeschrieben.",
+    "W angielskim narodowości, języki i religie pisze się wielką literą.",
+    "Em inglês, nacionalidades, línguas e religiões escrevem-se com maiúscula.",
+  ],
   review_msg_word_boundary: [
     "The space in these words looks misplaced or extra.",
     "L’espace dans ces mots semble mal placée ou en trop.",

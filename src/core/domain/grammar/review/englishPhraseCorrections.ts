@@ -10,6 +10,7 @@ import {
 } from "./englishPhraseTables";
 import { EXTENSION_COMPOUNDS, EXTENSION_PHRASES, EXTENSION_STYLE } from "./english";
 import { OPTIONAL_TABLES } from "./english/dialects";
+import { NAMES } from "./english/properNames";
 import { LANGUAGE_PHRASE_TABLES } from "./languagePhraseTables";
 import { EDGE, SPACE } from "./phraseTemplates";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
@@ -115,7 +116,7 @@ function buildIndexes() {
   index("en", [...STYLE_PHRASES, ...EXTENSION_STYLE], "stylePhrasing", "review_msg_style_phrasing");
   index(
     "en",
-    NAME_CASING.map((name) => [name.toLowerCase(), name]),
+    [...NAME_CASING.map((name): PhraseRow => [name.toLowerCase(), name]), ...NAMES],
     "englishCanonicalCasing",
     "review_msg_name_casing",
   );

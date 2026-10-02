@@ -5,6 +5,11 @@ const CANONICAL = new Map(
   [
     ...["GitHub", "JavaScript", "TypeScript", "WebRTC", "FluentTyper", "iPhone", "macOS", "eBay"],
     ...["LinkedIn", "WordPress", "iPad", "iPod", "iMac", "iTunes"],
+    // Brands that are no ordinary word in any language.
+    ...["YouTube", "YouTuber", "PayPal", "WeChat", "WhatsApp", "TikTok", "FaceTime", "Skype"],
+    ...["FedEx", "PowerPoint", "ChatGPT", "Netflix", "Spotify", "Wikipedia", "Reddit", "Linux"],
+    ...["Ubuntu", "Instagram", "Facebook", "Snapchat", "Airbnb", "Chromebook"],
+    ...["SharePoint", "OneDrive", "PowerShell", "PlayStation", "Xbox", "Walmart", "Starbucks"],
   ].map((term) => [term.toLowerCase(), term]),
 );
 // Acronyms written as a capitalized word ("Nasa", "Cpu"); lowercase "pdf" or "url" is often a
