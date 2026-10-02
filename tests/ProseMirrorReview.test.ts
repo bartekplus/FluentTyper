@@ -169,13 +169,27 @@ describe("real ProseMirror corrections", () => {
     expect(view!.state.doc.eq(original)).toBe(true);
   });
 
-  test("zero-width insertions preserve host marks at start, end and a mark boundary", async () => {
+  test("zero-width insertions preserve inclusive and non-inclusive marks at start, end and a mark boundary", async () => {
     const target = editor([
       {
         type: "paragraph",
         content: [
-          { type: "text", text: "cat", marks: [{ type: "strong" }] },
-          { type: "text", text: "dog", marks: [{ type: "em" }] },
+          {
+            type: "text",
+            text: "cat",
+            marks: [
+              { type: "strong" },
+              { type: "link", attrs: { href: "https://example.com/cat", title: "cat" } },
+            ],
+          },
+          {
+            type: "text",
+            text: "dog",
+            marks: [
+              { type: "em" },
+              { type: "link", attrs: { href: "https://example.com/dog", title: "dog" } },
+            ],
+          },
         ],
       },
     ]);

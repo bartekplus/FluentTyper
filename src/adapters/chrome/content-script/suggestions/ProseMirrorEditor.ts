@@ -146,7 +146,12 @@ export function applyProseMirror(
       state.doc.textBetween(from, to, "\n", "\uFFFC") !== edit.original
     )
       return { status: "rejected", reason: "host-refused" };
-    let marks = $from.marks();
+    // The collapsed DOM range identifies the planned text segment. Its marks
+    // include non-inclusive links that marks() omits at their boundaries.
+    let marks =
+      from === to
+        ? ((range.startOffset > 0 ? $from.nodeBefore : $from.nodeAfter)?.marks ?? $from.marks())
+        : $from.marks();
     let markKey: string | null = null;
     let valid = true;
     state.doc.nodesBetween(from, to, (node) => {

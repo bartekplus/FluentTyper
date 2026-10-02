@@ -4465,7 +4465,7 @@
         {
           "layer": "unit",
           "file": "tests/ProseMirrorReview.test.ts",
-          "test": "zero-width insertions preserve host marks at start, end and a mark boundary"
+          "test": "zero-width insertions preserve inclusive and non-inclusive marks at start, end and a mark boundary"
         }
       ]
     },
