@@ -113,6 +113,8 @@ export interface GrammarRuleCatalogEntry {
     | "englishIrregularForms"
     | "englishPossessiveNouns"
     | "englishDateConsistency"
+    // English tables and typography (review/english/, en-tables2).
+    | "englishApostrophes"
     // Polish-only Review checks (review/polish/).
     | "polishNumerals"
     | "polishDates"

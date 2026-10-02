@@ -270,6 +270,11 @@ export type ReviewMessageKey =
   | "review_msg_pt_ao90"
   | "review_msg_weekday_mismatch"
   | "review_msg_impossible_date"
+  // English apostrophes and typography (review/english/).
+  | "review_msg_plural_apostrophe"
+  | "review_msg_verb_apostrophe"
+  | "review_msg_apostrophe_space"
+  | "review_msg_whose"
   // Polish-only checks (review/polish/).
   | "review_msg_pl_numeral_suffix"
   | "review_msg_pl_numeral_hyphen"

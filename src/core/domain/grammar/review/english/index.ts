@@ -1,4 +1,5 @@
 // One module per extension area keeps parallel table work out of each other's files.
+import * as apostrophes from "./apostrophes";
 import * as compoundForms from "./compoundForms";
 import * as confusions1 from "./confusions1";
 import * as dates from "./dates";
@@ -51,6 +52,7 @@ const MODULES = [
   determinerSlots,
   agreementSlots,
   adverbSlots,
+  apostrophes,
 ];
 export const EXTENSION_PHRASES = MODULES.flatMap((m) => m.PHRASES);
 export const EXTENSION_COMPOUNDS = MODULES.flatMap((m) => m.COMPOUNDS);

@@ -487,6 +487,14 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     kind: "numbers",
     bulk: "individual",
   },
+  // English tables and typography (review/english/, en-tables2).
+  englishApostrophes: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "punctuation",
+    kind: "marks",
+    bulk: "individual",
+  },
 
   englishPronounCase: {
     review: "supported",

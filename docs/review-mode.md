@@ -218,6 +218,7 @@ Supported (**Typing** is the rule's default for typing; Review has separate swit
 | `englishIrregularForms`                | English        | unavailable | grammar     | word form          | individual only                                                                                                                                |
 | `englishPossessiveNouns`               | English        | unavailable | grammar     | word form          | individual only                                                                                                                                |
 | `englishDateConsistency`               | English        | unavailable | grammar     | numbers            | individual only                                                                                                                                |
+| `englishApostrophes`                   | English        | unavailable | punctuation | marks              | individual only                                                                                                                                |
 | `englishAuxiliaryBaseVerb`             | English        | unavailable | grammar     | word form          | individual only                                                                                                                                |
 | `englishPronounCase`                   | English        | unavailable | grammar     | word form          | individual only                                                                                                                                |
 | `englishSentenceStructure`             | English        | unavailable | grammar     | usage              | individual only                                                                                                                                |
@@ -394,6 +395,12 @@ left-out long nouns (a Bloom filter, so they only ever tell words from typos):
 - `englishDateConsistency`: a weekday beside a full date (with its year) that falls on another
   weekday ("Monday, 7 October 2014") offers the right weekday or the nearest date on the typed
   one; a day the month does not have ("June 31", "2/30/2024") is marked without a fix.
+- `englishApostrophes`: a plural written with 's after a plural quantifier ("two CD's",
+  "several guest's") or before a verb ("most driver's would"), a verb with 's after its subject
+  ("he see's", "it work's"), a doubled or spaced apostrophe ("we''ll", "I' m"), "other's" with
+  no determiner, a time noun owning the next noun ("last weeks game") and "who's" before an
+  owned noun ("a man who's car was stolen"). Before another noun a plural may be a possessive,
+  so "weeks'" and "weeks" are both offered.
 - `englishPossessiveNouns`: a plural noun between a determiner and the noun it owns ("the cats
   tail is long", "a teachers lounge") offers "cat's" or "cats'" when the frame allows no
   other reading: the owned noun is followed by its verb, the phrase ends after a preposition

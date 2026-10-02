@@ -645,6 +645,20 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     recommended: false,
     priority: 139,
   },
+  // English tables and typography (review/english/, en-tables2).
+  {
+    id: "englishApostrophes",
+    typing: false,
+    name: "Apostrophes in plurals, verbs and possessives",
+    titleI18nKey: "review_msg_plural_apostrophe",
+    descriptionI18nKey: "review_msg_plural_apostrophe",
+    exampleI18nKey: "",
+    languageScope: "en_US",
+    safetyTier: "advanced",
+    defaultRollout: "off",
+    recommended: false,
+    priority: 140,
+  },
   // Polish-only Review checks (review/polish/); languages are set in reviewCatalog.
   {
     id: "polishNumerals",

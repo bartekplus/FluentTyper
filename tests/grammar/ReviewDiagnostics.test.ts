@@ -836,7 +836,9 @@ describe("review detectors: punctuation and spacing", () => {
     ]);
     expect(only("see ../dir", "duplicatePunctuationCollapse")).toEqual([]);
     // ".." trailing off mid-sentence keeps its meaning; at a sentence end the writer chooses.
-    const [ended] = review("It ended there.. Then", { enabledRules: ["duplicatePunctuationCollapse"] });
+    const [ended] = review("It ended there.. Then", {
+      enabledRules: ["duplicatePunctuationCollapse"],
+    });
     expect(ended.alternatives.map((a) => a.preview)).toEqual([".", "..."]);
     expect(ended.requiresChoice).toBe(true);
   });
