@@ -110,6 +110,27 @@ const NUMBER_FORMAT: Frame[] = [
     ruleId: "portugueseNumberFormat",
     messageKey: "review_msg_pt_number_format",
   },
+  // "38,8º", "3,5o": an ordinal is a whole number, so a decimal takes the degree sign.
+  {
+    pattern: `[−-]?\\d{1,3},\\d{1,3}(?<target>[ºo])(?![\\p{L}\\p{N}])`,
+    replace: "°",
+    ruleId: "portugueseNumberFormat",
+    messageKey: "review_msg_pt_number_format",
+  },
+  // "18º norte", "55o N", "39º de calor": a bearing, a latitude or a temperature.
+  {
+    pattern: `\\d{1,3}(?<target>[ºo])(?=${GAP}(?:N|S|E|W|L|NE|NO|NW|SE|SO|SW)(?![\\p{L}\\p{N}-])|${S}(?:(?:ao|a)${S})?(?:norte|sul|leste|oeste|nordeste|noroeste|sudeste|sudoeste|de${S}(?:latitude|longitude|calor|frio))(?![\\p{L}\\p{N}-]))`,
+    replace: "°",
+    ruleId: "portugueseNumberFormat",
+    messageKey: "review_msg_pt_number_format",
+  },
+  // "um ângulo de 137º.", "ontem fez 25º.": an angle or the weather closes the phrase.
+  {
+    pattern: `(?:ângulos?|temperaturas?|fez|faz|fazia|fará|marcou|marca|atingiu|atinge|chegou${S}a|chegam${S}a|chegar${S}a)${S}(?:de${S})?[−-]?\\d{1,3}(?:,\\d{1,3})?(?<target>[ºo])(?=[ \\t\\u00a0]{0,2}(?:[.,;:!?)]|$))`,
+    replace: "°",
+    ruleId: "portugueseNumberFormat",
+    messageKey: "review_msg_pt_number_format",
+  },
   // "o 12o lugar", "a 1a vez": ordinals take º and ª.
   {
     pattern: `${ARTICLE}${S}\\d{1,4}\\.?(?<target>os|as|o|a)(?=${W}(?:${S}\\p{Ll}|[ \\t\\u00a0]{0,2}[.,;:!?]))`,
