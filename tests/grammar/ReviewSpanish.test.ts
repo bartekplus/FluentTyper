@@ -664,6 +664,48 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
     },
   ],
   [
+    "spanishTypography",
+    "ordinal abbreviations and unit symbols",
+    {
+      pos: [
+        ["Vivo en el 3ro izquierda.", "Vivo en el 3.º izquierda."],
+        ["Quedó en 2da posición.", "Quedó en 2.ª posición."],
+        ["Es su 1er libro.", "Es su 1.er libro."],
+        ["En el 4to. piso hay goteras.", "En el 4.º piso hay goteras."],
+        ["Abre a las 9 hrs. de la mañana.", "Abre a las 9 h de la mañana."],
+        ["Añade 200grs de harina.", "Añade 200 g de harina."],
+      ],
+      neg: [
+        "Vivo en el 3.º izquierda.",
+        "Llegó el 2 de mayo.",
+        "Vivían 500 h. de distintas nacionalidades.",
+        "Añade 200 g de harina.",
+        "El modelo B2do no existe.",
+        "A las 15 h.",
+      ],
+    },
+  ],
+  [
+    "emdashShortcut",
+    "the Spanish dialogue dash",
+    {
+      pos: [
+        ["Ya voy -contestó desde la cocina.", "Ya voy —contestó desde la cocina."],
+        ["-¿Quién es?", "—¿Quién es?"],
+        ["-Buenos días, señora.", "—Buenos días, señora."],
+        ["Pasa -dijo-, que hace frío.", "Pasa —dijo-, que hace frío."],
+        ["No lo sé –respondió.", "No lo sé —respondió."],
+      ],
+      neg: [
+        "- Primer punto del orden del día.",
+        "Es un ex-ministro del ramo.",
+        "Llámame -si puedes- mañana.",
+        "El tramo Madrid-Toledo.",
+        "—¿Quién es?",
+      ],
+    },
+  ],
+  [
     "spanishConfusions",
     "a clitic before an infinitive, a bare participle or a noun",
     {

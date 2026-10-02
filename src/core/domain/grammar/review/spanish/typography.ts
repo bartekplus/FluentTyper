@@ -307,6 +307,86 @@ function typography(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+// "2do", "5ta.", "1er": ordinal abbreviations take a period and a raised letter: "2.º", "1.er".
+const ORDINAL =
+  /(?<![\p{L}\p{N}.,])(\d{1,3})(do|da|ro|ra|to|ta|vo|va|no|na|mo|ma|ero|era|er|r)(\.(?=[ \t]+\p{Ll}))?(?![\p{L}\p{N}])/gu;
+// "5 hrs", "48hrs", "15 h. será", "5grs": unit symbols take no plural and no period.
+const UNIT =
+  /(?<![\p{L}\p{N}.,])(\d+(?:[.,:]\d+)?)([ \t]?)(hrs|hr|hs|HRS|HS|grs|gr|GRS|h)(\.(?=[ \t]+\p{Ll}))?(?![\p{L}\p{N}])/gu;
+// Verbs of saying after a dialogue line: "Ven -dijo." uses the long dash.
+const SAYING =
+  "dijo|dije|dice|digo|respondió|contestó|preguntó|añadió|exclamó|gritó|susurró|murmuró|explicó|comentó|replicó|insistió|pensó|repuso|admitió|aclaró";
+const DIALOGUE = new RegExp(
+  `(?<=[\\p{L}.,!?…][ \\t]?)[-–‒](?=(?:${SAYING})(?![\\p{L}]))|(?<=^|\\n)[-–‒](?=[¿¡]|\\p{Lu}\\p{Ll})|(?<=[ \\t]|^)--(?=[ \\t]|$)`,
+  "gu",
+);
+
+/** Ordinal and unit abbreviations and the dialogue dash, written the Spanish way. */
+function marks(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  const scan = (
+    regex: RegExp,
+    fix: (m: RegExpExecArray) => string | null,
+    key: RawFinding["messageKey"],
+  ) => {
+    regex.lastIndex = Math.max(0, ctx.from - 8);
+    for (let m = regex.exec(ctx.scanText); m && m.index < ctx.to; m = regex.exec(ctx.scanText)) {
+      if (m.index < ctx.from || namedExampleBefore(ctx.text, m.index)) continue;
+      const replacement = fix(m);
+      if (!replacement || replacement === m[0]) continue;
+      findings.push({
+        ruleId: RULE,
+        messageKey: key,
+        range: { start: m.index, end: m.index + m[0].length },
+        alternatives: [replacement],
+      });
+    }
+  };
+  scan(
+    new RegExp(ORDINAL),
+    ([, n, suffix]) =>
+      /^e?r$/u.test(suffix) ? `${n}.er` : `${n}.${suffix.endsWith("a") ? "ª" : "º"}`,
+    "review_msg_spanish_ordinal",
+  );
+  scan(
+    new RegExp(UNIT),
+    (m) => {
+      const [, n, gap, unit, dot] = m;
+      if (/^g/iu.test(unit)) return `${n} g`;
+      // Hours only where a time goes ("a las 15 h. será", "a las 5 hrs."): "500 h." may be
+      // inhabitants, and a glued "5hrs" is left to the spacing check.
+      if (
+        !gap ||
+        !/(?:^|\s)(?:las|la|sobre|hacia|desde|hasta|durante|en)\s+$/iu.test(
+          ctx.text.slice(Math.max(0, m.index - 12), m.index),
+        )
+      )
+        return null;
+      return unit === "h" && !dot ? null : `${n} h`;
+    },
+    "review_msg_spanish_unit",
+  );
+  return findings;
+}
+
+/** "Ven -dijo.", "-¿Perdón?": the dialogue dash, an optional typography check like the dash. */
+function dialogueDash(ctx: DetectContext): RawFinding[] {
+  if (ctx.lang.slice(0, 2) !== "es") return [];
+  const findings: RawFinding[] = [];
+  const regex = new RegExp(DIALOGUE);
+  regex.lastIndex = Math.max(0, ctx.from - 8);
+  for (let m = regex.exec(ctx.scanText); m && m.index < ctx.to; m = regex.exec(ctx.scanText)) {
+    if (m.index < ctx.from || namedExampleBefore(ctx.text, m.index)) continue;
+    findings.push({
+      ruleId: "emdashShortcut",
+      messageKey: "review_msg_spanish_dialogue_dash",
+      range: { start: m.index, end: m.index + m[0].length },
+      alternatives: ["—"],
+    });
+  }
+  return findings;
+}
+
 // Words that open a Spanish sentence and never a dotted name's next part ("frase.Y otra").
 const STARTERS =
   "El|La|Los|Las|Lo|Un|Una|Unos|Unas|Y|Pero|Es|Son|Era|Fue|Está|Hay|No|Sí|Yo|Tú|Él|Ella|Ellos|" +
@@ -346,6 +426,10 @@ function missingSpace(ctx: DetectContext): RawFinding[] {
 }
 
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  { rules: [RULE], detect: typography },
+  {
+    rules: [RULE],
+    detect: (ctx) => (ctx.lang.slice(0, 2) === "es" ? [...typography(ctx), ...marks(ctx)] : []),
+  },
   { rules: ["commaPeriodSpacing"], detect: missingSpace },
+  { rules: ["emdashShortcut"], detect: dialogueDash },
 ];
