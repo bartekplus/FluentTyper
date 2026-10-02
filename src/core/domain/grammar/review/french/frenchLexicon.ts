@@ -3,7 +3,7 @@ import { VERB_HOMOGRAPHS, VERB_LEMMAS, VERB_RULES } from "./frenchLexicon.genera
 import { ADJECTIVE_LEMMAS, ADJECTIVE_RULES } from "./frenchAdjectives.generated";
 import { FEMININE, MASCULINE } from "./frenchGender.generated";
 import { NOUN_BLOOM } from "./frenchNouns.generated";
-import { COMPOUNDS } from "./frenchCompounds.generated";
+import { COMPOUNDS, LONG_COMPOUNDS } from "./frenchCompounds.generated";
 
 /** Subject persons as bits: je, tu, il/elle/on, nous, vous, ils/elles. */
 export const JE = 1;
@@ -186,6 +186,23 @@ let compounds: Set<string> | null = null;
 export function isDictionaryCompound(word: string): boolean {
   compounds ??= new Set(decodeFrontCoded(COMPOUNDS));
   return compounds.has(word);
+}
+
+let longCompounds: Map<string, string[]> | null = null;
+
+/** The dictionary's hyphenated names and three-part compounds whose first part is `first`
+ * (case as typed): "Aix" -> ["Aix-en-Provence", "Aix-la-Chapelle", ...]. */
+export function compoundsStartingWith(first: string): readonly string[] {
+  if (!longCompounds) {
+    longCompounds = new Map();
+    for (const word of decodeFrontCoded(LONG_COMPOUNDS)) {
+      const key = word.slice(0, word.indexOf("-"));
+      const list = longCompounds.get(key) ?? [];
+      list.push(word);
+      longCompounds.set(key, list);
+    }
+  }
+  return longCompounds.get(first) ?? [];
 }
 
 let nounBloom: Uint8Array | null = null;

@@ -206,8 +206,15 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Il partira peut être demain.", "Il partira peut-être demain."],
         ["Vous avez peut être raison.", "Vous avez peut-être raison."],
         ["Peut être viendra-t-il.", "Peut-être viendra-t-il."],
+        // Hyphenated names and compounds of three parts.
+        ["Elle a grandi à Aix en Provence.", "Elle a grandi à Aix-en-Provence."],
+        ["Le colis est pour Anne Sophie.", "Le colis est pour Anne-Sophie."],
+        ["Le bureau est au rez de chaussée.", "Le bureau est au rez-de-chaussée."],
       ],
       neg: [
+        "Tout Paris est à la fête.",
+        "Ils luttent corps à corps.",
+        "Il est parti sur le champ de bataille.",
         "Quand tu viens tu manges ?",
         "Le but est ce que tu dis.",
         "C'est ce que je pense ?",
