@@ -17,8 +17,20 @@ export const PHRASES: readonly PhraseRow[] = [
   ["societe generale", "Société Générale"],
   [["sao paulo", "sao paolo", "são paolo"], "São Paulo"],
   ["dunkin donuts", "Dunkin' Donuts"],
+  [["societe general", "societé general", "société general"], "Société Générale"],
+  ...["joke", "jokes", "prank", "pranks"].map((thing): PhraseRow => [
+    `april fools ${thing}`,
+    `April Fools' ${thing}`,
+  ]),
+  [
+    ["traveler check", "traveller check"],
+    ["traveler's check", "traveller's check"],
+  ],
 ];
 export const COMPOUNDS: readonly PhraseRow[] = [
+  ["pre covid", "pre-COVID"],
+  [["pre covid19", "pre covid-19", "pre covid 19"], "pre-COVID-19"],
+  ["pre corona", "pre-corona"],
   ["lithium ion", "lithium-ion"],
   ["lithiumion", "lithium-ion"],
 ];
@@ -29,7 +41,8 @@ export const STYLE: readonly PhraseRow[] = [];
  * case) become the name exactly. Only forms that are never ordinary English words.
  */
 export const NAMES: readonly PhraseRow[] = [
-  // Brands and products written as one word, or with a hyphen.
+  // Brands and products written as one word, or with a hyphen. Not "call of duty" (the idiom)
+  // or "Barca" (a surname and a place).
   ...(
     [
       ["you tube", "YouTube"],
@@ -78,6 +91,35 @@ export const NAMES: readonly PhraseRow[] = [
       ["wi fi", "Wi-Fi"],
       ["7 eleven", "7-Eleven"],
       [["node js", "nodejs"], "Node.js"],
+      ["space x", "SpaceX"],
+      ["g mail", "Gmail"],
+      ["bit coin", "Bitcoin"],
+      ["cold play", "Coldplay"],
+      ["libre office", "LibreOffice"],
+      ["mac os x", "Mac OS X"],
+      ["mac os", "macOS"],
+      [["black lifes matter", "black lifes matters", "black lives matters"], "Black Lives Matter"],
+      [["karma sutra", "karmasutra"], "Kama Sutra"],
+      ["mercedes amg", "Mercedes-AMG"],
+      [["saint tropez", "st tropez", "st. tropez"], "Saint-Tropez"],
+      ["delta airlines", "Delta Air Lines"],
+      [["jack daniels", "jack daniel"], "Jack Daniel's"],
+      ["kings college", "King's College"],
+      ["wendys", "Wendy's"],
+      ["earl gray tea", "Earl Grey tea"],
+      [["fed xed", "fed-exed", "fedexed"], "FedExed"],
+      ["cap coral", "Cape Coral"],
+      ["los angels", "Los Angeles"],
+      [["jong un", "jongun"], "Jong-un"],
+      [
+        ["red nose reindeer", "red nose raindeer", "red nosed raindeer", "red nosed reindeer"],
+        "Red-Nosed Reindeer",
+      ],
+      ["jesus chris", "Jesus Christ"],
+      [["long island ice tea", "long island iced tea"], "Long Island iced tea"],
+      ["queens gambit", "Queen's Gambit"],
+      ["donald trump", "Donald Trump"],
+      ["donald trumps", "Donald Trump's"],
       ["astra zeneca", "AstraZeneca"],
       [["ipad os", "ipados"], "iPadOS"],
       [["watch os", "watchos"], "watchOS"],
