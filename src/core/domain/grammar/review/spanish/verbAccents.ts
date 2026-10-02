@@ -11,6 +11,7 @@ import {
   tokenize,
   words,
 } from "./common";
+import { readNoun } from "./agreement";
 import {
   ACCENTED_NOMINAL,
   attribute,
@@ -46,6 +47,42 @@ const FUNCTION_WORDS = words(
     "luego tampoco sino demasiado medio esto eso aquello",
 );
 
+/**
+ * After a noun it agrees with, where that noun cannot be the verb's subject: a preposition, an
+ * indefinite article or a verb before it ("en una zona crítica", "hace tareas específicas"),
+ * and the phrase closing after the adjective ("crítica.", "válida y", "íntegro de").
+ */
+function postponedAdjective(at: Around, accented: string): boolean {
+  const ending = /(o|a)(s?)$/u.exec(accented);
+  const noun = ending && readNoun(at.prev());
+  if (!ending || !noun?.gender || at.tokens[at.i - 1].broken) return false;
+  if ((noun.gender === "f") !== (ending[1] === "a") || noun.plural !== (ending[2] === "s"))
+    return false;
+  const before = at.prev(2);
+  const article = /^(?:un|una|unos|unas)$/u.test(before);
+  // Where the governing preposition stands: "en zona", "en esta zona".
+  const preposition = PREPOSITIONS.has(before)
+    ? 2
+    : COMMON_DETERMINERS.has(before) && PREPOSITIONS.has(at.prev(3))
+      ? 3
+      : 0;
+  const governed =
+    article ||
+    preposition > 0 ||
+    (!!before && finiteVerb(before) && !isNoun(before) && !readNoun(before));
+  if (!governed) return false;
+  const after = at.next();
+  // "Por este motivo solicito desde…": after a fronted phrase the word may be the main verb.
+  if (!article && preposition && new Around(at.tokens, at.i - preposition).starts)
+    return at.endsAfter();
+  return (
+    at.endsAfter() ||
+    ((after === "y" || after === "e") && !COMMON_DETERMINERS.has(at.next(2))) ||
+    (PREPOSITIONS.has(after) && after !== "a") ||
+    /^\p{L}{4,}mente$/u.test(after)
+  );
+}
+
 /** "termino" -> "término" where a noun or adjective goes, not a verb. */
 function nominal(at: Around): string | null {
   const word = at.tokens[at.i].lower;
@@ -63,14 +100,29 @@ function nominal(at: Around): string | null {
   if (DEMONSTRATIVES.has(prev) && PREPOSITIONS.has(at.prev(2))) return accented;
   // "en la página", "parar la máquina", "la máquina del tiempo": "la" is no clitic there.
   if (/^(?:la|las|los)$/u.test(prev)) {
+    // "la termino": a feminine article cannot take the masculine noun.
+    if (prev !== "los" && /os?$/u.test(accented)) return null;
     const before = at.prev(2);
     return PREPOSITIONS.has(before) ||
       isInfinitive(before) ||
       /(?:ado|ido)$/u.test(before) ||
-      (!!before && (next === "de" || next === "del"))
+      (!!before && (next === "de" || next === "del")) ||
+      // "Memorizarás las fórmulas": a clitic goes before its verb, not after another one.
+      (!!before && finiteVerb(before) && !isNoun(before) && !CLITICS.has(at.prev(3))) ||
+      // "La fábrica produjo…": two finite verbs never stand side by side.
+      (!!next &&
+        finiteVerb(next) &&
+        !isNoun(next) &&
+        !attribute(next) &&
+        !CLITICS.has(next) &&
+        !PREPOSITIONS.has(next) &&
+        !CONJUNCTIONS.has(next) &&
+        !COMMON_DETERMINERS.has(next))
       ? accented
       : null;
   }
+  // "una situación crítica.", "hace tareas específicas": an adjective after its noun.
+  if (postponedAdjective(at, accented)) return accented;
   // A preposition never governs a finite verb: "de termino", "en linea", "por ultimo".
   return PREPOSITIONS.has(prev) && prev !== "a" ? accented : null;
 }

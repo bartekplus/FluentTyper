@@ -185,6 +185,20 @@ function shortClause(at: Around, k: number): boolean {
   return false;
 }
 
+/** A finite verb form: "pasa", "piensas", "ha", "hay", "quiere". */
+const FINITE_NOT_NOUN = (word: string) =>
+  FINITE.has(word) || /^(?:hay|he|has|ha|hemos|han|había|habían)$/u.test(word) || finiteVerb(word);
+
+/** Inside a question opened by "¿": "¿Crees que no sé que me mientes?" states a fact. */
+function inQuestion(at: Around): boolean {
+  for (let j = at.i - 1; j >= Math.max(0, at.i - 16); j--) {
+    const text = at.tokens[j].text;
+    if (text === "¿") return true;
+    if (/^[.!?;]$/u.test(text) || at.tokens[j + 1].broken) return false;
+  }
+  return false;
+}
+
 function interrogative(at: Around): string | null {
   const word = at.tokens[at.i].lower;
   const accented = INTERROGATIVE[word];
@@ -241,6 +255,22 @@ function interrogative(at: Around): string | null {
     (!next || !wishAfter(at))
   )
     return accented;
+  // "a cambio de qué.", "Para hacer qué.", "no recordaba qué.": a "que" closing the sentence
+  // after a preposition, an infinitive or a verb of knowing asks.
+  if (
+    word === "que" &&
+    /^[.!?]$/u.test(nextToken?.text ?? "") &&
+    !nextToken.broken &&
+    at.tokens[at.i + 2]?.text !== "." &&
+    (PREPOSITIONS.has(prev) || KNOWING.test(prev) || isInfinitive(prev))
+  )
+    return accented;
+  // "No sé qué pasa", "no sé qué le pasa": present "no sé" cannot state what it denies knowing,
+  // so an indicative after it is asked about ("No sé que sea así" keeps the conjunction).
+  if (word === "que" && prev === "sé" && /^(?:no|ni)$/u.test(at.prev(2)) && !inQuestion(at)) {
+    const verb = CLITICS.has(next) ? at.next(2) : next;
+    if (verb && FINITE_NOT_NOUN(verb) && !subjunctiveLike(verb)) return accented;
+  }
   // "no sé qué hacer", "sabes qué libro", "pregunta dónde vive".
   if (KNOWING.test(prev) || (prev === "se" && /^(?:no|yo|lo|ya)$/u.test(at.prev(2)))) {
     if (!next) return null;
@@ -292,6 +322,26 @@ const COMMON_VERBS = words(
 const PRONOUNS = words("yo tú ella usted nosotros nosotras vosotros ellos ellas ti mí él");
 const PLAIN_SI_PREV = words("que pues eso claro ahora creo");
 const TEA = words("verde negro rojo blanco chino japonés inglés frío caliente helado con y de del");
+
+// Bare objects "dar" takes in set phrases: "dé cuenta", "dé voz", "dé las gracias".
+const GIVEN = words("cuenta voz gracias permiso asentimiento golpecitos crédito importancia");
+const giveObject = (at: Around) =>
+  (GIVEN.has(at.next()) &&
+    (at.endsAfter(1) || /^(?:de|del|a|al|por|para|y)$/u.test(at.next(2)))) ||
+  (at.next() === "a" && at.next(2) === "luz");
+// Subjects that may stand between the subjunctive trigger and "dé".
+const SUBJECT_FILLERS = words("él ella usted alguien nadie dios uno cada mismo ahora no nunca ya");
+
+/** "que (alguien) de": a subjunctive trigger, with at most two subject words between. */
+function subjunctiveSlot(at: Around): boolean {
+  let k = 1;
+  while (k <= 3 && SUBJECT_FILLERS.has(at.prev(k))) k++;
+  // "más que de cuenta": a comparison.
+  return (
+    /^(?:que|ojalá|quien|aunque|cuando)$/u.test(at.prev(k)) &&
+    !/^(?:más|menos|antes|mejor|peor|tal|así|ya)$/u.test(at.prev(k + 1))
+  );
+}
 
 /** The words of a monosyllable check: [typed, replacement] or null. */
 function monosyllable(at: Around): string | null {
@@ -400,6 +450,8 @@ function monosyllable(at: Around): string | null {
     case "de":
       // "cuando le dé esto", "que te dé tiempo": a clitic only goes before a verb.
       if (ends && prev) return "dé";
+      // "que alguien dé cuenta", "espero que dé a luz": "dar" and its bare object.
+      if (giveObject(at) && subjunctiveSlot(at)) return "dé";
       // "cuando te las dé": a clitic pair before it.
       if (/^(?:lo|la|los|las)$/u.test(prev) && /^(?:me|te|se|le|les|nos|os)$/u.test(at.prev(2)))
         return "dé";
