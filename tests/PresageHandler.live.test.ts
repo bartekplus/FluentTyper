@@ -236,6 +236,36 @@ describe("PresageHandler live review spelling", () => {
     expect(handler.lookupSpelling("xx_XX", [{ word: "wa", before: "" }])).toBeNull();
   });
 
+  test("short words with many longer completions and JSON-like words are known", async () => {
+    const handler = await createLiveHandler();
+    handler.setConfig(createLiveConfig([]));
+    const words = ["app", "ad", "id", "true", "false", "null"];
+    const results = handler.lookupSpelling(
+      "en_US",
+      words.map((word) => ({ word, before: "We said it was " })),
+    )!;
+    expect(results).toEqual(words.map(() => null));
+    const typo = handler.lookupSpelling("en_US", [{ word: "becuase", before: "" }])!;
+    // An unknown word still gets a bounded candidate list.
+    expect(typo[0]).toContain("because");
+    expect(typo[0]!.length).toBeLessThanOrEqual(20);
+  });
+
+  test("pt_BR accepts accented words and suggests clean UTF-8 candidates", async () => {
+    // Regression: the VERO dictionary was Latin-1 (SET ISO8859-1) while Presage speaks
+    // UTF-8, so every accented word was unknown and suggestions came back garbled.
+    const handler = await createLiveHandler();
+    handler.setConfig(createLiveConfig([]));
+    const known = ["coração", "enviarão", "falávamos", "também", "pré"];
+    const results = handler.lookupSpelling(
+      "pt_BR",
+      [...known, "enviarao"].map((word) => ({ word, before: "" })),
+    )!;
+    expect(results.slice(0, known.length)).toEqual(known.map(() => null));
+    expect(results[known.length]).toContain("enviarão");
+    expect(results[known.length]!.join(" ")).not.toMatch(/[　-鿿�]/);
+  });
+
   test("a time-bounded lookup answers the first words exactly as an unbounded one", async () => {
     const handler = await createLiveHandler();
     handler.setConfig({ ...createLiveConfig([]), prefixOnlyMode: true });
