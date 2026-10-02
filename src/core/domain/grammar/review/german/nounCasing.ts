@@ -30,7 +30,7 @@ import {
 // Never a pronoun: the genitive article, ein-words and possessives with a short ending, and
 // the preposition-article contractions.
 export const ARTICLES = wordSet(
-  "des ein eine einen einem kein keine keinen keinem mein meine meinen meinem dein deine " +
+  "des ein eine einen einem kein keine keinen keinem keinerlei mein meine meinen meinem dein deine " +
     "deinen deinem sein seine seinen seinem ihre ihren ihrem unser unsere unseren unserem " +
     "euer eure euren eurem am im zum zur beim vom ins ans aufs ums durchs fürs übers " +
     "unters vors hinterm überm unterm",
@@ -72,6 +72,13 @@ const AUXILIARIES = wordSet(
 );
 const NOMINALIZING = /(?<![\p{L}\p{N}])(?:beim|zum|vom|ins)[ \t]+$/iu;
 const COORDINATORS = wordSet("und oder sowie bzw");
+// Genitive determiners after a noun ("der angriff des Gegners"); "der", "meiner" are also
+// datives ("Diese stellen meiner Frau Wein").
+const GENITIVES = wordSet("des eines meines deines seines unseres eures dieses jenes");
+// ", mit dem", ", die", ", wegen der": a relative clause after the noun.
+const RELATIVE =
+  /^(?:(?:\p{Ll}+ )?(?:der|die|das|dem|den|denen|dessen|deren|welche|welcher|welches|welchem|welchen))(?: |$)/u;
+const DEGREE_WORDS = wordSet("wirklich sehr ganz ziemlich besonders äußerst echt total so recht");
 const CLAUSE_LINKS = wordSet(
   "und oder aber denn doch sondern dass weil ob wenn als obwohl damit bevor nachdem " +
     "während bis falls sobald solange da wie wo was wer sodass",
@@ -117,6 +124,8 @@ function trigger(before: string[]): { kind: Trigger; at: number } | null {
       // "nach wie vor erscheinen"
       return low === "vor" && prior === "wie" ? null : { kind: "preposition", at: i };
     }
+    // "ein wirklich merkwürdiges verhalten": a degree word before the adjective.
+    if (adjectives && DEGREE_WORDS.has(token)) continue;
     if (token !== low || !isAdjective(low)) return null;
     adjectives = true;
   }
@@ -139,6 +148,26 @@ function nounReadingHolds(
   if (kind === "demonstrative" && prior !== undefined && /^[,;:(–—-]$/.test(prior)) return false;
   const clauseStart =
     prior === undefined || BOUNDARY.test(prior) || CLAUSE_LINKS.has(prior.toLowerCase());
+  const determiner = kind === "article" || kind === "demonstrative";
+  // "Die grenzen meiner Sprache", "Das gerät, mit dem …": a genitive or a relative clause.
+  const relative = next === "," && RELATIVE.test(after.slice(1, 3).join(" "));
+  if (determiner && (GENITIVES.has(next) || relative)) return true;
+  // "Ihre aussagen sind falsch", "Diese blasen platzen": the noun phrase opens the
+  // sentence and its verb follows; not "Die würden glauben", "Diese stellen einen Teil",
+  // "Ihr fahrt schwimmen?".
+  const sentenceStart = prior === undefined || /^(?:[.!?\n„“"»«])$/.test(prior);
+  const pronounLike = (w: string) =>
+    ARTICLES.has(w) || DEMONSTRATIVES.has(w) || QUANTIFIERS.has(w) || PRONOUNS.has(w);
+  if (
+    determiner &&
+    sentenceStart &&
+    lower(before[at]) !== "ihr" &&
+    !VERB_GOVERNORS.has(typed) &&
+    !pronounLike(next) &&
+    (AUXILIARIES.has(next) || (next !== typed && germanVerbLike(next)))
+  ) {
+    return true;
+  }
   if (kind === "quantifier" || (kind === "demonstrative" && clauseStart)) {
     // "Die kosten sind hoch", "Das ende des Films".
     return AUXILIARIES.has(next) || next === "des";
