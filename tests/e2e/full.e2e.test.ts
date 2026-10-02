@@ -1340,6 +1340,44 @@ async function waitForVisibleSuggestionTexts(
   );
 }
 
+async function highlightSuggestion(
+  page: Page,
+  text: string,
+  context: Page | Frame = page,
+): Promise<void> {
+  await waitUntil(
+    `highlighted suggestion ${text}`,
+    async () => {
+      const next = await context.evaluate((expected) => {
+        let active = document.activeElement;
+        while (active?.shadowRoot?.activeElement) active = active.shadowRoot.activeElement;
+        const stateHost = active === document.body ? document.documentElement : active;
+        const entryId = stateHost?.getAttribute("data-ft-suggestion-id");
+        const menu = document.getElementById(`ft-menu-${entryId}`);
+        if (!menu || getComputedStyle(menu).display === "none") return false;
+        const rows = Array.from((menu.shadowRoot ?? menu).querySelectorAll("li[data-index]"));
+        const target = rows.find(
+          (row) =>
+            ((row.querySelector(".ft-suggestion-label") ?? row).textContent ?? "")
+              .replace(/\xA0/g, " ")
+              .trim()
+              .toLowerCase() === expected,
+        );
+        if (!target) return false;
+        if (target.getAttribute("aria-selected") === "true") return true;
+        return menu.getAttribute("data-ft-placement") === "above" &&
+          menu.getAttribute("data-ft-layout") !== "horizontal"
+          ? "ArrowUp"
+          : "ArrowDown";
+      }, normalizeSuggestionText(text));
+      if (next === true) return true;
+      if (next) await page.keyboard.press(next);
+      return false;
+    },
+    { timeoutMs: SUGGESTION_TIMEOUT_MS },
+  );
+}
+
 async function hasVisibleSuggestions(page: Page): Promise<boolean> {
   return page.evaluate(() => {
     const getMenuRoot = (container: Element): ParentNode =>
@@ -2394,12 +2432,23 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
         await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
         await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
-        await setSettingAndWait(worker!, KEY_TEXT_EXPANSIONS, [["ftsig", "Best regards"]]);
+        await setSettingAndWait(worker!, KEY_TEXT_EXPANSIONS, [
+          ["ftsig", "Other signature"],
+          ["ftsignature", "Best regards"],
+        ]);
         await setGrammarRulesAndWait(worker!, []);
         await applyConfigChange(browser, worker!);
         await gotoTestPage(page, { enableProseMirror: true });
         await page.bringToFront();
         await waitForInputReady(page, PROSEMIRROR_SELECTOR);
+        // Keep the caret near the viewport edge: an above-caret menu reverses arrow navigation.
+        await page.$eval(PROSEMIRROR_SELECTOR, (editor) => {
+          Object.assign((editor as HTMLElement).style, {
+            position: "fixed",
+            bottom: "20px",
+            width: "600px",
+          });
+        });
         await page.evaluate(() => window.__testProseMirror!.focus());
         const original = await readModel();
 
@@ -2444,19 +2493,21 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           async () => (await readModel()).blocks.length === 3,
         );
         await page.keyboard.type("ftsig");
-        const expansionIndex = await waitUntil(
-          "ProseMirror expansion suggestion",
-          async () => {
-            const index = (await getVisibleSuggestionTexts(page)).findIndex(
-              (text) => normalizeSuggestionText(text) === "best regards",
-            );
-            return index >= 0 ? index : false;
-          },
-          { timeoutMs: SUGGESTION_TIMEOUT_MS },
-        );
-        for (let index = 0; index < expansionIndex; index++) {
-          await page.keyboard.press("ArrowDown");
-        }
+        await highlightSuggestion(page, "Best regards");
+        expect(
+          (await getVisibleSuggestionTexts(page))
+            .map(normalizeSuggestionText)
+            .indexOf("best regards"),
+        ).toBeGreaterThan(0);
+        expect(
+          await page.evaluate(() =>
+            document
+              .getElementById(
+                `ft-menu-${document.activeElement?.getAttribute("data-ft-suggestion-id")}`,
+              )
+              ?.getAttribute("data-ft-placement"),
+          ),
+        ).toBe("above");
         await page.evaluate(() => window.__testProseMirrorCloseHistory!());
         await page.keyboard.press("Tab");
         await waitUntil(
@@ -2578,19 +2629,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           async () => (await readContent()).blocks.length === 3,
         );
         await page.keyboard.type("ftsig");
-        const expansionIndex = await waitUntil(
-          "TinyMCE expansion suggestion",
-          async () => {
-            const index = (await getVisibleSuggestionTexts(editorPage)).findIndex(
-              (text) => normalizeSuggestionText(text) === "best regards",
-            );
-            return index >= 0 ? index : false;
-          },
-          { timeoutMs: SUGGESTION_TIMEOUT_MS },
-        );
-        for (let index = 0; index < expansionIndex; index++) {
-          await page.keyboard.press("ArrowDown");
-        }
+        await highlightSuggestion(page, "Best regards", editorPage);
         await page.evaluate(() => window.__testTinyMCE!.undoManager.add());
         await page.keyboard.press("Tab");
         await waitUntil(
@@ -2651,18 +2690,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         const throughIndex = suggestions.map(normalizeSuggestionText).indexOf("through");
         expect(throughIndex).toBeGreaterThanOrEqual(0);
 
-        // Arrows follow the screen: a menu opened above the caret lists bottom-up.
-        const reversed = await page.evaluate(() =>
-          Array.from(document.querySelectorAll<HTMLElement>('[id^="ft-menu-"]')).some(
-            (menu) =>
-              getComputedStyle(menu).display !== "none" &&
-              menu.getAttribute("data-ft-placement") === "above" &&
-              menu.getAttribute("data-ft-layout") !== "horizontal",
-          ),
-        );
-        for (let index = 0; index < throughIndex; index += 1) {
-          await page.keyboard.press(reversed ? "ArrowUp" : "ArrowDown");
-        }
+        await highlightSuggestion(page, "through");
         await page.keyboard.press("Tab");
         await waitUntil(
           "menu acceptance to insert through",
@@ -3147,7 +3175,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
             });
           }
           await page.keyboard.type("wa");
-          const index = await waitUntil(
+          await waitUntil(
             `Quill offers ${expected} with context-correct casing`,
             async () => {
               const suggestions = await getVisibleSuggestionTexts(page);
@@ -3156,7 +3184,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
             },
             { timeoutMs: browserTimeout(5000, 10000), intervalMs: 50 },
           );
-          for (let i = 0; i < index.value; i += 1) await page.keyboard.press("ArrowDown");
+          await highlightSuggestion(page, expected);
           await page.keyboard.press("Tab");
           await waitUntil(
             `Quill inserts ${expected} without changing code casing`,
