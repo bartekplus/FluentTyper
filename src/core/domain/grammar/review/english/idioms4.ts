@@ -431,9 +431,10 @@ const FRAMES: readonly Frame[] = [
     raw: true,
   },
   {
-    // "if I would've known": the past conditional takes "had".
+    // "if I would've known": the past conditional takes "had". After "know" or "wonder",
+    // "if" means "whether": "I don't know if he would have done it".
     rule: "englishPhraseCorrections",
-    pattern: `if${S}(?:I|you|we|they|he|she|it|(?:the|that|this|my|your|his|her|our|their)${S}\\p{L}+)${S}(?<target>would['’]ve|would${S}have|would${S}of|had['’]ve|hadve|had${S}of|had${S}have)${S}(?<done>\\p{L}+)${E}`,
+    pattern: `(?<!(?:know|knows|knew|wonder|wondered|wondering|ask|asked|asking|sure|doubt|see|check|tell|decide)${S})if${S}(?:I|you|we|they|he|she|it|(?:the|that|this|my|your|his|her|our|their)${S}\\p{L}+)${S}(?<target>would['’]ve|would${S}have|would${S}of|had['’]ve|hadve|had${S}of|had${S}have)${S}(?<done>\\p{L}+)${E}`,
     fix: (m) => {
       const done = m.groups!.done.toLowerCase();
       return done === "been" || info(done)?.verbs.some((v) => v.form === "participle")

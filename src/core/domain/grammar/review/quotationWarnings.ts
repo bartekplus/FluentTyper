@@ -40,7 +40,8 @@ export function unclosedQuotations(text: string, lang = "en_US"): RawFinding[] {
     const before = text[index - 1] ?? "";
     const after = text[index + 1] ?? "";
     if (before === "\\") return [];
-    if (mark === "’" && LETTER.test(before) && LETTER.test(after)) continue;
+    // "it’s", and the ʻokina written as a left quote mark: "Hawai‘i".
+    if ((mark === "’" || mark === "‘") && LETTER.test(before) && LETTER.test(after)) continue;
     if (mark === "‘" && ELIDED_QUOTE_START.test(text.slice(index + 1, index + 12))) return [];
     if (MARK_CUE.test(text.slice(Math.max(0, index - 48), index))) return [];
     const top = stack.at(-1);
