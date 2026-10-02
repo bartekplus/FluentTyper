@@ -530,6 +530,9 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Elle s'est endormi dans le salon.", "Elle s'est endormie dans le salon."],
         ["Les invités se sont installé au salon.", "Les invités se sont installés au salon."],
         ["Certaines étaient arrivé en avance.", "Certaines étaient arrivées en avance."],
+        // Avoir l'air: the subject's inflection or the masculine singular of "air".
+        ["Ses voisines ont l'air ravie.", "Ses voisines ont l'air ravies."],
+        ["Il a l'air inquiète ce matin.", "Il a l'air inquiet ce matin."],
         // A modal before être or "avoir été".
         ["Cette erreur peut être corrigé.", "Cette erreur peut être corrigée."],
         ["Les murs semblent avoir été repeint.", "Les murs semblent avoir été repeints."],
@@ -550,6 +553,8 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
       ],
       neg: [
         "Elles se sont lavé les mains.",
+        "Elle a l'air content de son sort.",
+        "Elles avaient l'air sérieux.",
         "Ils se sont parlé hier soir.",
         "Elles se sont vu refuser l'entrée.",
         "Elles se sont rendu compte du problème.",

@@ -345,6 +345,8 @@ function linkingEnd(tokens: Token[], i: number, person: number): number {
   if (readings.some((r) => LINKING_LEMMAS.has(r.lemma))) return i + 1;
   if (!readings.some((r) => r.lemma === "avoir")) return -1;
   const k = skipAdverbs(tokens, i + 1);
+  // "elle a l'air contente": avoir l'air takes an attribute too.
+  if (tokens[k]?.w === "l'" && tokens[k + 1]?.w === "air") return k + 2;
   return tokens[k]?.w === "été" && !tokens[k].hyphen ? k + 1 : -1;
 }
 
@@ -367,6 +369,10 @@ function predicateFinding(
   )
     return null;
   if (after && PREPOSITION_LIKE.has(word.w) && after.w in DETERMINERS) return null;
+  // "elle a l'air content": the attribute may agree with "air" instead.
+  const prior = tokensBefore(ctx.text, word.start, 6);
+  const air = prior.findIndex((t) => !ADVERBS.has(t.w));
+  if (prior[air]?.w === "air" && prior[air + 1]?.w === "l'") allowed = [...allowed, "ms"];
   const slots = slotsOf(word.w, true);
   if (!slots.length) {
     // "tu étais jeunes": an adjective of either gender keeps its singular in -e; "quelques
@@ -536,11 +542,15 @@ function afterPronoun(ctx: DetectContext, m: RegExpExecArray, pronoun: string): 
     // "Est-elle arrivé ?", "Sont-ils venu ?": an inverted subject after être.
     if (DEMONSTRATIVE.test(pronoun) || ctx.text[start] === "-") return null;
     const [verb, clitic] = tokensBefore(ctx.text, m.index, 2);
-    if (!verb?.hyphen || linkingEnd([{ ...verb, hyphen: false }], 0, person) !== 1) return null;
+    if (!verb?.hyphen) return null;
+    const tokens = tokensAfter(ctx.text, start, 6);
+    // "Avait-elle l'air fatigué ?": the attribute comes after "l'air".
+    const air = tokens[0]?.w === "l'" && tokens[1]?.w === "air";
+    const inverted = [{ ...verb, hyphen: false }, ...(air ? tokens.slice(0, 2) : [])];
+    if (linkingEnd(inverted, 0, person) !== inverted.length) return null;
     // "Se sont-elles parlé ?": a reflexive verb agrees with its object.
     if (clitic && CLITIC_PRONOUNS.has(clitic.w)) return null;
-    const tokens = tokensAfter(ctx.text, start, 4);
-    const word = tokens[skipAdverbs(tokens, 0)];
+    const word = tokens[skipAdverbs(tokens, air ? 2 : 0)];
     return word ? predicateFinding(ctx, word, allowed, verb.start) : null;
   }
   const before = tokensBefore(ctx.text, m.index, 1)[0];
