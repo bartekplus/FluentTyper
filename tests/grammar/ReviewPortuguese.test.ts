@@ -82,6 +82,12 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
     "portugueseConfusions",
     {
       pos: [
+        ["Ainda à pouco que fazer aqui.", "Ainda há pouco que fazer aqui."],
+        ["Não nos falamos a muito tempo.", "Não nos falamos há muito tempo."],
+        ["Moro aqui dês que nasci.", "Moro aqui desde que nasci."],
+        ["Chove dês da manhã.", "Chove desde a manhã."],
+        ["Decidiram por termo ao contrato.", "Decidiram pôr termo ao contrato."],
+        ["Queremos por em prática a ideia.", "Queremos pôr em prática a ideia."],
         ["Moro aqui à vinte anos.", "Moro aqui há vinte anos."],
         ["Não nos vemos à muito tempo.", "Não nos vemos há muito tempo."],
         ["Começamos à trabalhar cedo.", "Começamos a trabalhar cedo."],
@@ -126,6 +132,10 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Prefiro praia do que montanha.", "Prefiro praia a montanha."],
       ],
       neg: [
+        "Daqui a muito tempo ninguém lembra.",
+        "Quero que me dês do teu chá.",
+        "Ele saiu por fim de manhã.",
+        "Por termos tempo, ficamos.",
         "Para eles tem sido um ano duro.",
         "Todas as vezes que saio, chove.",
         "Lembro as vezes em que fomos.",
