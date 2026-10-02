@@ -569,10 +569,139 @@ function bareParticiple(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+// A sentence start before the subject, maybe with an opening "And"/"But" (no closing quote).
+const OPENS_SENTENCE = /[.!?\n][ \t "“]*(?:(?:and|but|so|now|yes|well)[ \t ,]+)?$/i;
+const OPENS_TEXT = /(?:^|[.!?\n])[ \t "“]*(?:(?:and|but|so|now|yes|well)[ \t ,]+)?$/i;
+
+/** "I have was there", "Where have you were?": a past of be after have is "been". */
+function perfectWithPastBe(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of frameMatches(
+    ctx,
+    `(?:(?<subject>i|you|we|they|he|she|it)(?:${SPACE}(?:have|has|had)|['’]ve)|(?:have|has|had)${SPACE}(?:i|you|we|they|he|she|it|there))${ADVERB_RUN}${SPACE}(?<verb>was|were|are)${WORD_END}`,
+    "verb",
+  )) {
+    // "All we have are memories", "What I had was luck": the subject closes an object gap.
+    const before = ctx.text.slice(Math.max(0, m.index - 96), m.index);
+    // "The job I had was in Germany": a subject after a noun closes a relative clause. Only a
+    // subject that opens its sentence (or follows an opening "And"/"But") counts.
+    if (m.groups!.subject && !(m.index <= 96 ? OPENS_TEXT : OPENS_SENTENCE).test(before)) continue;
+    if (
+      !m.groups!.subject &&
+      !afterBreak(ctx, m.index) &&
+      !/\b(?:where|why|how|when|what)[ \t\u00a0]+$/i.test(before)
+    )
+      continue;
+    if (!plainWord(ctx, m.groups!.verb)) continue;
+    const [start, end] = m.indices!.groups!.verb;
+    push(
+      ctx,
+      findings,
+      "englishPerfectParticiples",
+      "review_msg_perfect_participle",
+      start,
+      end,
+      ["been"],
+      m.index,
+    );
+  }
+  return findings;
+}
+
+/** "He has uses the laptop": an -s verb with its object after have. */
+function perfectWithThird(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of frameMatches(
+    ctx,
+    `(?:i|you|we|they|he|she|it)(?:${SPACE}(?:have|has|had)|['’]ve)${ADVERB_RUN}${SPACE}(?<verb>[a-z]+s)${WORD_END}`,
+    "verb",
+  )) {
+    const verb = m.groups!.verb;
+    if (!plainWord(ctx, verb)) continue;
+    const read = englishWordInfo(verb);
+    const third = read?.verbs.find((v) => v.form === "third");
+    if (!third) continue;
+    // An object must follow. A plural noun ("has needs that matter", "has kids my age") takes
+    // only "a"/"an" or an object pronoun as proof it is the verb.
+    const next = nextToken(ctx, m.index + m[0].length);
+    if (/^(?:has|is|was|does)$/.test(verb)) continue;
+    const proof = read!.plural
+      ? /^(?:it|them|him|us|me)$/
+      : /^(?:the|a|an|my|your|his|her|our|their|its|this|these|those|it|them|him|us|me)$/;
+    if (next?.kind !== "word" || !proof.test(next.lower)) continue;
+    const participle = participleOf(third.lemma);
+    if (!participle) continue;
+    const [start, end] = m.indices!.groups!.verb;
+    push(
+      ctx,
+      findings,
+      "englishPerfectParticiples",
+      "review_msg_perfect_participle",
+      start,
+      end,
+      [participle],
+      m.index,
+    );
+  }
+  return findings;
+}
+
+/** "When was it send?", "Were they build last year?": an inverted passive with a bare verb. */
+function invertedPassiveBase(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of frameMatches(
+    ctx,
+    `(?<be>was|were|is|are|wasn['’]t|weren['’]t|isn['’]t|aren['’]t)${SPACE}(?<subject>it|they|these|those|this|that)${SPACE}(?<verb>[a-z]+)${WORD_END}`,
+    "verb",
+  )) {
+    const verb = m.groups!.verb;
+    if (!plainWord(ctx, verb)) continue;
+    const before = ctx.text.slice(Math.max(0, m.index - 24), m.index);
+    if (
+      !afterBreak(ctx, m.index) &&
+      !/\b(?:where|why|how|when|what|who|whom|exactly|and|but)[ \t\u00a0]+$/i.test(before)
+    )
+      continue;
+    const base = bareBase(verb);
+    if (!base || englishWordInfo(verb)?.adjective) continue;
+    const next = nextToken(ctx, m.index + m[0].length);
+    // "Is it work?" asks about a noun: a noun-or-verb needs a time or agent word after it.
+    const tail = /^(?:by|via|last|yesterday|already|yet)$/.test(next?.lower ?? "");
+    if (!(
+      tail ||
+      (base.verbOnly &&
+        (next?.kind === "end" || /^(?:to|on|in|at|with|from)$/.test(next?.lower ?? "")))
+    ))
+      continue;
+    const participle = participleOf(base.lemma);
+    if (!participle) continue;
+    // "Why is this happen?": the progressive fits as well as the passive.
+    const ing = /^(?:is|are|was|were)$/i.test(m.groups!.be)
+      ? englishInflect(base.lemma, "ing")
+      : null;
+    const [start, end] = m.indices!.groups!.verb;
+    push(
+      ctx,
+      findings,
+      "englishPerfectParticiples",
+      "review_msg_be_participle",
+      start,
+      end,
+      ing ? [participle, ing] : [participle],
+      m.index,
+      !!ing,
+    );
+  }
+  return findings;
+}
+
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
   {
     rules: ["englishPerfectParticiples", "englishAuxiliaryBaseVerb", "englishSentenceStructure"],
     detect: english(
+      perfectWithPastBe,
+      perfectWithThird,
+      invertedPassiveBase,
       perfectWithBase,
       passiveWithBase,
       getWithBase,

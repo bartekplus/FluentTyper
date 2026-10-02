@@ -40,6 +40,12 @@ const TO_SINGULAR: Record<string, string> = {
   "aren't": "isn't",
   "weren't": "wasn't",
 };
+const SINGULAR_DO_HAVE: Record<string, string> = {
+  have: "has",
+  do: "does",
+  "haven't": "hasn't",
+  "don't": "doesn't",
+};
 // Nouns that take a plural verb in British use or name a group: "The team are…".
 export const COLLECTIVE = new Set(
   "team staff family police government committee crew band audience public class group majority rest number couple pair lot jury army navy board council club company firm management media data total variety range series species means news remainder masters woods belt".split(
@@ -150,7 +156,13 @@ function nounSubject(ctx: DetectContext): RawFinding[] {
     let abort = false;
     while (i < 4 && tokens[i]?.kind === "word" && tokens[i].text === tokens[i].lower) {
       const word = tokens[i].lower;
-      if (FUNCTION_WORDS.has(word) || TO_PLURAL[normal(word)] || TO_SINGULAR[normal(word)]) break;
+      if (
+        FUNCTION_WORDS.has(word) ||
+        TO_PLURAL[normal(word)] ||
+        TO_SINGULAR[normal(word)] ||
+        SINGULAR_DO_HAVE[normal(word)]
+      )
+        break;
       if (NUMBERS.test(word)) {
         abort = true;
         break;
@@ -228,6 +240,15 @@ function nounSubject(ctx: DetectContext): RawFinding[] {
       if (fix) push(ctx, findings, verb, fix, m.index);
     } else if (!/^(?:these|those|many|several|both|some|most)$/.test(det)) {
       let fix = TO_SINGULAR[normal(verb.lower)];
+      // "This girl have blue eyes", "The dog don't bark": have/do right after the head.
+      // "This week do you want…": a time phrase before a question.
+      if (
+        !fix &&
+        verbAt === i &&
+        !/^(?:that|lest)$/.test(wordBefore(ctx, m.index)) &&
+        !/^(?:i|you|we|they|he|she|it)$/.test(tokens[verbAt + 1]?.lower ?? "")
+      )
+        fix = SINGULAR_DO_HAVE[normal(verb.lower)] ?? "";
       // "We ask that the user restart": a mandative subjunctive keeps the bare verb.
       if (
         !fix &&

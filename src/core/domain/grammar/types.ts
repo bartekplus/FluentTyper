@@ -113,6 +113,7 @@ export interface GrammarRuleCatalogEntry {
     | "englishIrregularForms"
     | "englishPossessiveNouns"
     | "englishDateConsistency"
+    | "englishTenseConsistency"
     // English tables and typography (review/english/, en-tables2).
     | "englishApostrophes"
     | "englishNotation"

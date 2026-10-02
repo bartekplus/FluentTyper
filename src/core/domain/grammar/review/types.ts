@@ -132,6 +132,8 @@ export type ReviewMessageKey =
   | "review_msg_causative_base"
   | "review_msg_allow_object"
   | "review_msg_ahead_and_tense"
+  | "review_msg_tense_time_word"
+  | "review_msg_future_date_past"
   | "review_msg_gerund_complement"
   | "review_msg_fixed_prepositions"
   | "review_msg_despite_of"
