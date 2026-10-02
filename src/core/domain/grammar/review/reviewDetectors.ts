@@ -1045,26 +1045,44 @@ const duplicatePunctuation: Detector = (ctx) => {
     const start = match.index;
     const end = start + match[0].length;
     if (isGluedToTechnical(ctx.text, start, start)) continue;
+    // Polish typists write ",," for the opening „ when a word and a closing quote follow.
+    const polishQuote =
+      ctx.lang.startsWith("pl") &&
+      match[0] === ",," &&
+      /^$|\s$/u.test(ctx.text.slice(Math.max(0, start - 1), start)) &&
+      /^[\p{L}\p{N}][^\n„]{0,200}?[\p{L}\p{N}.!?…](?:”|"|'')/u.test(ctx.text.slice(end, end + 210));
     findings.push({
       ruleId: "duplicatePunctuationCollapse",
       messageKey: "review_msg_duplicate_punctuation",
       range: { start, end },
-      alternatives: [match[1]],
+      alternatives: [polishQuote ? "„" : match[1]],
     });
   }
-  // "word.." (never "..." or "../"): one period too many at a sentence end. Arabic writes
-  // ".." as a short ellipsis ("وهذا ما دعاني إلى.."), so Arabic script keeps it.
+  // "word.." (never "..." or "../"): a doubled period or a short ellipsis that trails off.
+  // Before a lowercase word the sentence goes on, so only the ellipsis fits; elsewhere
+  // the writer chooses. Arabic writes ".." as a short ellipsis ("وهذا ما دعاني إلى..").
   const periods = /(?<=(?![\p{Script=Arabic}])[\p{L}\p{N})\]"”’])\.\.(?=\s|$)/gu;
   for (const match of ownedMatches(ctx, periods)) {
     const start = match.index;
     // German "am 30.11.." ends a sentence on a date: its own dot, then the period.
     const before = ctx.text.slice(Math.max(0, start - 8), start);
     if (ctx.lang.startsWith("de") && /(?:^|[^\d.])\d{1,2}\.\d{1,2}$/.test(before)) continue;
+    const range = { start, end: start + 2 };
+    if (/^\s+\p{Ll}/u.test(ctx.text.slice(start + 2, start + 12))) {
+      findings.push({
+        ruleId: "duplicatePunctuationCollapse",
+        messageKey: "review_msg_ellipsis_length",
+        range,
+        alternatives: ["..."],
+      });
+      continue;
+    }
     findings.push({
       ruleId: "duplicatePunctuationCollapse",
       messageKey: "review_msg_duplicate_punctuation",
-      range: { start, end: start + 2 },
-      alternatives: ["."],
+      range,
+      alternatives: [".", "..."],
+      requiresChoice: true,
     });
   }
   // A line of two dots alone is a short ellipsis or a stray period.

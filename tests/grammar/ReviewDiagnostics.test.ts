@@ -133,6 +133,9 @@ describe("review rule coverage map", () => {
             "styleLongSentence",
             "ellipsisShortcut",
             "emdashShortcut",
+            "englishTypography",
+            "stylePassiveVoice",
+            "styleIntroductoryComma",
             "primeSymbols",
             "stylePhrasing",
             "styleContractions",
@@ -145,6 +148,8 @@ describe("review rule coverage map", () => {
             "styleWordChoice",
             "styleSpelledNumbers",
             "germanAbbreviationSpacing",
+            "germanQuestionMarks",
+            "germanStraightQuotes",
             "polishQuotes",
             "greekStrictFinalNu",
             "greekPunctuation",
@@ -835,9 +840,15 @@ describe("review detectors: punctuation and spacing", () => {
       ["duplicatePunctuationCollapse", ",,", [3, 5], ","],
       ["duplicatePunctuationCollapse", ";;", [8, 10], ";"],
       ["duplicatePunctuationCollapse", ", ,", [13, 16], ","],
-      ["duplicatePunctuationCollapse", "..", [21, 23], "."],
+      ["duplicatePunctuationCollapse", "..", [21, 23], "..."],
     ]);
     expect(only("see ../dir", "duplicatePunctuationCollapse")).toEqual([]);
+    // ".." trailing off mid-sentence keeps its meaning; at a sentence end the writer chooses.
+    const [ended] = review("It ended there.. Then", {
+      enabledRules: ["duplicatePunctuationCollapse"],
+    });
+    expect(ended.alternatives.map((a) => a.preview)).toEqual([".", "..."]);
+    expect(ended.requiresChoice).toBe(true);
   });
 
   test("measurementUnitFormatting and currencySpacing follow the locale policy", () => {

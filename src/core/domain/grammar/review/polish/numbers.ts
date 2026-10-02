@@ -153,19 +153,38 @@ function numeralSuffixes(ctx: DetectContext): RawFinding[] {
  * on its own ("2 roczne raporty" are two annual reports).
  */
 const COMPOUND_PART =
-  "krotn\\p{L}*|krotnie|latek|latka|latki|latków|latkiem|latkowi|latku|lecie|lecia|leciu|leciem|(?:minutow|sekundow|godzinn|dniow|tygodniow|miesięczn|osobow|pokojow|piętrow|procentow|kilometrow|metrow|centymetrow|litrow|bitow|stopniow|tonow|kilogramow|gramow|punktow|pasmow|drzwiow|biegow|cylindrow|calow|częściow|elementow|tysięczn|milionow|letni|roczn|dzienn)(?:y|a|ego|ej|emu|ą|i)";
+  "krotn\\p{L}*|krotnie|letni|latek|latka|latki|latków|latkiem|latkowi|latku|lecie|lecia|leciu|leciem|(?:minutow|sekundow|godzinn|dniow|tygodniow|miesięczn|osobow|pokojow|piętrow|procentow|kilometrow|metrow|centymetrow|litrow|bitow|stopniow|tonow|kilogramow|gramow|punktow|pasmow|drzwiow|biegow|cylindrow|calow|częściow|elementow|tysięczn|milionow|letni|roczn|dzienn)(?:y|a|ego|ej|emu|ą|i)";
 const DIGIT_COMPOUND = new RegExp(
-  `(?<![\\p{L}\\p{N}_.,/-])(?<num>\\d{1,4})(?<gap>[ \\t\\u00a0]*['’][ \\t\\u00a0]*|[ \\t\\u00a0]+[-–—][ \\t\\u00a0]+|[ \\t\\u00a0]+[-–—]|[-–—][ \\t\\u00a0]+|[ \\t\\u00a0]{1,3})(?<part>${COMPOUND_PART})(?![\\p{L}\\p{N}_-])`,
+  `(?<![\\p{L}\\p{N}_.,/-])(?<num>\\d{1,4})(?<gap>[ \\t\\u00a0]*['’][ \\t\\u00a0]*|[ \\t\\u00a0]+[-–—][ \\t\\u00a0]+|[ \\t\\u00a0]+[-–—]|[-–—][ \\t\\u00a0]+|[–—]|\\.[ \\t\\u00a0]{1,3}(?=krotn)|[ \\t\\u00a0]{1,3})(?<part>${COMPOUND_PART})(?![\\p{L}\\p{N}_-])`,
   "giu",
 );
 
+/** "dwu krotnie", "ilu krotny": a numeral stem typed apart from "-krotny". */
+const WORD_KROTNY =
+  /(?<![\p{L}\p{N}_-])(?<num>dwu|trzy|cztero|pięcio|sześcio|siedmio|ośmio|dziewięcio|dziesięcio|kilku|kilkunasto|kilkudziesięcio|wielo|ilu|paru|stu)[ \t\u00a0]{1,3}(?<part>krotn\p{L}*)(?![\p{L}\p{N}_-])/giu;
+
 function digitCompounds(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
+  for (const m of owned(ctx, WORD_KROTNY)) {
+    if (userOrNamed(ctx, m[0])) continue;
+    const { num, part } = m.groups!;
+    findings.push(
+      findingAt(
+        ctx,
+        m.index,
+        m.index + m[0].length,
+        [num + part.toLowerCase()],
+        RULE,
+        "review_msg_pl_numeral_hyphen",
+      ),
+    );
+  }
   for (const m of owned(ctx, DIGIT_COMPOUND)) {
     const { num, part } = m.groups!;
     // "letni"/"roczny" with 1 is fine both ways; "letni" alone is "summer": only after 2+.
     if (/^(?:letni|roczn|dzienn)/iu.test(part) && Number(num) < 2) continue;
-    if (/^(?:letni)$/iu.test(part)) continue;
+    // "25 letni" may be a summer day; with a dash ("25 - letni") it is the compound.
+    if (/^(?:letni)$/iu.test(part) && !/[-–—]/u.test(m.groups!.gap)) continue;
     if (userOrNamed(ctx, part)) continue;
     findings.push(
       findingAt(

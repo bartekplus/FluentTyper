@@ -6,6 +6,7 @@ import {
   reviewChunks,
   scanReviewChunk,
 } from "../../src/core/domain/grammar/review/reviewDiagnostics";
+import { CLAUSE_START } from "../../src/core/domain/grammar/review/polish/shared";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
 
@@ -47,6 +48,8 @@ export const POLISH_CASES: Array<[CatalogRuleId, string, Case]> = [
         ["Tym nie mniej warto spróbować.", "Tym niemniej warto spróbować."],
         ["By najmniej nie żałuję.", "Bynajmniej nie żałuję."],
         ["Za zwyczaj wstaję wcześnie.", "Zazwyczaj wstaję wcześnie."],
+        ["To była naj lepsza zabawa roku.", "To była najlepsza zabawa roku."],
+        ["Odwiedza nas naj częściej w maju.", "Odwiedza nas najczęściej w maju."],
         ["Gazeta wychodzi co tygodniowo.", "Gazeta wychodzi cotygodniowo."],
         ["Skończę wciągu tygodnia.", "Skończę w ciągu tygodnia."],
         ["To jest kompletnie bezsensu.", "To jest kompletnie bez sensu."],
@@ -229,6 +232,10 @@ export const POLISH_CASES: Array<[CatalogRuleId, string, Case]> = [
     {
       pos: [
         ["Wygrał już 3-ci raz.", "Wygrał już 3. raz."],
+        ["Cena wzrosła trzy krotnie.", "Cena wzrosła trzykrotnie."],
+        ["Zysk był 4. krotnie wyższy.", "Zysk był 4-krotnie wyższy."],
+        ["Zatrudnili 30 - letniego kierowcę.", "Zatrudnili 30-letniego kierowcę."],
+        ["Plan 3—letni przyjęto.", "Plan 3-letni przyjęto."],
         ["Przyjechał 12-go czerwca.", "Przyjechał 12 czerwca."],
         ["Moda z lat 80-tych wraca.", "Moda z lat 80. wraca."],
         ["Zaprosiłem 7-miu gości.", "Zaprosiłem siedmiu gości."],
@@ -323,6 +330,18 @@ export const POLISH_CASES: Array<[CatalogRuleId, string, Case]> = [
         ["Znam człowieka który to zrobił.", "Znam człowieka, który to zrobił."],
         ["Jest mały ale wygodny.", "Jest mały, ale wygodny."],
         ["Zadzwoń jeśli możesz.", "Zadzwoń, jeśli możesz."],
+        ["Poszła na spacer mimo że lało.", "Poszła na spacer, mimo że lało."],
+        ["Pomogę ci pod warunkiem że wrócisz.", "Pomogę ci, pod warunkiem że wrócisz."],
+        ["Przyjdę nawet gdybyś nie chciał.", "Przyjdę, nawet gdybyś nie chciał."],
+        ["Zasnął dopiero gdy zgasło światło.", "Zasnął, dopiero gdy zgasło światło."],
+        ["Ja czytam podczas gdy ty śpisz.", "Ja czytam, podczas gdy ty śpisz."],
+        ["Nie dość że padało, to jeszcze wiało.", "Nie dość, że padało, to jeszcze wiało."],
+        ["Zadzwoń do mnie kiedy wrócisz.", "Zadzwoń do mnie, kiedy wrócisz."],
+        ["Uśmiechnął się gdy weszła.", "Uśmiechnął się, gdy weszła."],
+        ["Nie wiem gdzie zostawiłem klucze.", "Nie wiem, gdzie zostawiłem klucze."],
+        ["Zapytaj szefa dlaczego zwlekał.", "Zapytaj szefa, dlaczego zwlekał."],
+        ["Leżał na kanapie zamiast sprzątać.", "Leżał na kanapie, zamiast sprzątać."],
+        ["Martwi mnie to że milczy.", "Martwi mnie to, że milczy."],
       ],
       neg: [
         "Myślę, że masz rację.",
@@ -338,6 +357,18 @@ export const POLISH_CASES: Array<[CatalogRuleId, string, Case]> = [
         "Nie ma żadnych ale.",
         "Właśnie że nie pójdę.",
         "Był w pokoju, w którym i w którego oknach paliło się światło.",
+        "Wyszedł wcześnie, mimo że nikt go nie gonił.",
+        "Przyjdę kiedy indziej.",
+        "Szukaj gdzie indziej.",
+        "Póki co nic nie wiemy, a my póki co czekamy.",
+        "A ty gdzie się wybierasz?",
+        "Pracowała dużo, dzięki czemu awansowała.",
+        "Jaki ojciec, taki syn.",
+        "Był jaki taki, ale nasz.",
+        "Kupił chleb zamiast bułek.",
+        "Ja czytałem, podczas gdy on spał.",
+        "Zjadł wszystko, mimo że nie był głodny.",
+        "Chodzi o to, że nie mamy czasu.",
       ],
     },
   ],
@@ -381,6 +412,8 @@ export const POLISH_CASES: Array<[CatalogRuleId, string, Case]> = [
         ["Ważnym jest, aby odpocząć.", "Ważne jest, aby odpocząć."],
         ["Oczywistym było, że wygra.", "Oczywiste było, że wygra."],
         ["Ma 3 mln. długu.", "Ma 3 mln długu."],
+        ["Podziękuj dr Nowakowi za pomoc.", "Podziękuj dr. Nowakowi za pomoc."],
+        ["To zasługa mgr Jana Wiśniewskiego.", "To zasługa mgr. Jana Wiśniewskiego."],
         ["Lubię owoce, np jabłka.", "Lubię owoce, np. jabłka."],
         ["Zapłacił ok 50 zł.", "Zapłacił ok. 50 zł."],
         ["Widziałem Mark'a wczoraj.", "Widziałem Marka wczoraj."],
@@ -390,6 +423,9 @@ export const POLISH_CASES: Array<[CatalogRuleId, string, Case]> = [
         "Ta ziemia należała do Węgier.",
         "Z każdym jest tak, że się męczy.",
         "Mieszka pod nr. 5.",
+        "Rozmawiałem z dr Kowalską.",
+        "Przyjmuje dziś dr Jan Kowalski.",
+        "Dzięki dr. Kowalskiemu zdążyliśmy.",
         "Wymienił itd. i itp.",
         "Zajmuję się Joyce'em.",
         "To szansa dla Jacques'a.",
@@ -476,6 +512,32 @@ test("no Polish chunk stalls on long runs or repeated trigger words", () => {
     POLISH_TRIGGERS.repeat(60),
     "ała ".repeat(3_000),
     "słowo ".repeat(700),
+    // Clause starts after a line break look back over a bounded run of spaces only.
+    `\n${" \t".repeat(1_950)}Mi się boje chodź to`.repeat(2),
   ];
   for (const text of inputs) expect(slowestChunkMs(text)).toBeLessThan(100);
+});
+
+test("the clause-start lookbehind is bounded (V8 rereads an unbounded one at every position)", () => {
+  expect(CLAUSE_START).not.toMatch(/[*+]/);
+});
+
+test('",," before a quoted word is the Polish opening quote', () => {
+  const fix = (text: string) =>
+    findings("duplicatePunctuationCollapse", text).map((d) =>
+      applyEdits(text, d.alternatives[0].edits),
+    );
+  expect(fix('Nazwał to ,,lekką porażką" i wyszedł.')).toEqual([
+    'Nazwał to „lekką porażką" i wyszedł.',
+  ]);
+  expect(fix("Film ,,Rejs” znam na pamięć.")).toEqual(["Film „Rejs” znam na pamięć."]);
+  expect(fix("Kupiłem chleb,, mleko i masło.")).toEqual(["Kupiłem chleb, mleko i masło."]);
+  expect(fix("Pisał ,,coś bez końca i tyle.")).toEqual(["Pisał ,coś bez końca i tyle."]);
+});
+
+test("a Polish style row skips a capitalized name inside the sentence", () => {
+  expect(findings("stylePhrasing", "Mieszkamy przy Wysokiej Frekwencji od lat.")).toEqual([]);
+  expect(findings("stylePhrasing", "Wczoraj była Wysoka frekwencja w klubie.")).toEqual([]);
+  expect(findings("stylePhrasing", "Wysoka frekwencja cieszy organizatorów.")).toHaveLength(1);
+  expect(findings("stylePhrasing", "Cieszy nas wysoka frekwencja.")).toHaveLength(1);
 });

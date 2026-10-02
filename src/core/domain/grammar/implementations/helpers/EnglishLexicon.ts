@@ -262,7 +262,7 @@ export const BLOOM_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvw
 const BLOOM_HASHES = 7;
 
 /** The bits a word sets in a Bloom filter of `size` bits (FNV-1a and djb2, double hashing). */
-export function bloomBits(word: string, size: number): number[] {
+export function bloomBits(word: string, size: number, hashes = BLOOM_HASHES): number[] {
   let a = 0x811c9dc5;
   let b = 5381;
   for (let i = 0; i < word.length; i++) {
@@ -273,7 +273,7 @@ export function bloomBits(word: string, size: number): number[] {
   const h1 = a >>> 0;
   const h2 = (b | 1) >>> 0;
   const bits: number[] = [];
-  for (let i = 0; i < BLOOM_HASHES; i++) bits.push((h1 + i * h2) % size);
+  for (let i = 0; i < hashes; i++) bits.push((h1 + i * h2) % size);
   return bits;
 }
 

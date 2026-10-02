@@ -132,6 +132,18 @@ const NUMBER_FORMAT: Frame[] = [
 ];
 
 const STYLE: Frame[] = [
+  // "às 10.00", "às 6,05 h", "das 9.30 às 11.00": Brazilian usage writes a clock time
+  // with a colon (European texts also write 17.40 h, so this stays opt-in).
+  {
+    pattern: `(?:[àÀ]s|[dD]as?|até${S}[àa]s)${S}(?<target>(?:[01]?\\d|2[0-3])[.,][0-5]\\d(?:[.,][0-5]\\d(?:,\\d+)?)?)(?!\\d)(?=${GAP}h${W}|${S}d[ae]${S}(?:manhã|tarde|noite|madrugada)${W}|${S}(?:às|e|até)${W}|[ \\t\\u00a0]{0,2}(?:[;!?]|\\.(?!\\d)|$))`,
+    replace: (m) =>
+      m.groups!.target.replace(
+        /^(\d+)[.,](\d\d)(?:[.,](\d\d))?/,
+        (_, h, min, sec) => `${h}:${min}${sec ? `:${sec}` : ""}`,
+      ),
+    ruleId: "portugueseTypographyStyle",
+    messageKey: "review_msg_pt_number_format",
+  },
   // "6,626 x 10", "5 * 2", "10,5x17,2km": multiplication between numbers (not hex "0x1F").
   {
     pattern: `(?!0[xX])${NUM}(?<target>${GAP}[xX*]${GAP})(?=\\d)`,
