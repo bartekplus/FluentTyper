@@ -11,6 +11,7 @@ import { resolveGrammarRuleSelection } from "../../src/core/domain/grammar/Gramm
 const OPTIONAL_REVIEW_IDS: readonly string[] = [
   "germanAbbreviationSpacing",
   "germanQuestionMarks",
+  "germanStraightQuotes",
   "styleRedundancy",
   "styleLongSentence",
   "ellipsisShortcut",

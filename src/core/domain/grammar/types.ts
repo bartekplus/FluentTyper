@@ -144,6 +144,7 @@ export interface GrammarRuleCatalogEntry {
     | "germanVerbAgreement"
     | "germanQuestionMarks"
     | "germanNumbers"
+    | "germanStraightQuotes"
     | "greekFinalNu"
     | "greekStrictFinalNu"
     | "greekQuestionAccent"

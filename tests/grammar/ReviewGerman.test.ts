@@ -464,6 +464,33 @@ describe("germanCompounds", () => {
   });
 });
 
+describe("German quotation marks inside quotations and straight quotes", () => {
+  test.each([
+    ["„Er rief „Stopp“ und blieb stehen.“", "„Er rief ‚Stopp‘ und blieb stehen.“"],
+    ["»Sie las »Faust« im Zug.«", "»Sie las ›Faust‹ im Zug.«"],
+  ])("nests %p", (input, output) => {
+    expect(fixed("germanQuotes", input)).toBe(output);
+  });
+  test.each(["„Er rief „Stopp und ging.", "„Er rief ‚Stopp‘.“", "«Er rief «Stopp» laut»"])(
+    "leaves %p alone",
+    (input) => {
+      expect(findings("germanQuotes", input)).toEqual([]);
+    },
+  );
+  test.each([
+    ['Er nannte es "Kunst" und lachte.', "Er nannte es „Kunst“ und lachte."],
+    ['"Gut", sagte sie.', "„Gut“, sagte sie."],
+  ])("makes straight quotes German in %p", (input, output) => {
+    expect(fixed("germanStraightQuotes", input)).toBe(output);
+  });
+  test.each(['Ein 27"-Bildschirm.', 'Er sagte "Gut und ging.', 'Sie sang "Let it be" leise.'])(
+    "leaves straight %p alone",
+    (input) => {
+      expect(findings("germanStraightQuotes", input)).toEqual([]);
+    },
+  );
+});
+
 describe("germanDates", () => {
   test.each([
     ["Wir treffen uns Freitag den 3. Mai 2024.", "Wir treffen uns Freitag, den 3. Mai 2024."],

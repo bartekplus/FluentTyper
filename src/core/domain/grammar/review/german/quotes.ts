@@ -95,9 +95,81 @@ function quotes(ctx: DetectContext): RawFinding[] {
       open--;
     }
   }
+  return [...findings, ...nested(ctx)];
+}
+
+/** The lines (paragraphs) that overlap the chunk, as [start, end) offsets. */
+function* lines(ctx: DetectContext): Generator<[number, number]> {
+  let start = ctx.text.lastIndexOf("\n", ctx.from - 1) + 1;
+  while (start < ctx.to) {
+    const newline = ctx.text.indexOf("\n", start);
+    const end = newline < 0 ? ctx.text.length : newline;
+    yield [start, end];
+    start = end + 1;
+  }
+}
+
+// A quotation inside a quotation takes the single marks: „Er sagte ‚Hallo‘.“, »… ›…‹ …«.
+const NESTING = [
+  ["„", "“", "‚", "‘"],
+  ["»", "«", "›", "‹"],
+] as const;
+
+function nested(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const [start, end] of lines(ctx)) {
+    for (const [open, close, innerOpen, innerClose] of NESTING) {
+      const stack: number[] = [];
+      let inner: Array<[number, number]> = [];
+      for (let i = start; i < end; i++) {
+        const c = ctx.text[i];
+        if (c === open) stack.push(i);
+        else if (c === close && stack.length > 0) {
+          const from = stack.pop()!;
+          if (stack.length > 0) inner.push([from, i]);
+          else {
+            // Only once the outer quotation closes too: an unclosed one may be the slip.
+            for (const [a, b] of inner) {
+              if (a >= ctx.from && a < ctx.to) findings.push(finding(a, a + 1, innerOpen));
+              if (b >= ctx.from && b < ctx.to) findings.push(finding(b, b + 1, innerClose));
+            }
+            inner = [];
+          }
+        }
+      }
+    }
+  }
+  return findings;
+}
+
+/** Straight quotes in pairs on one line: "so" → „so“ (opt-in). */
+function straight(ctx: DetectContext): RawFinding[] {
+  if (!isGerman(ctx)) return [];
+  const findings: RawFinding[] = [];
+  for (const [start, end] of lines(ctx)) {
+    const marks: number[] = [];
+    for (let i = start; i < end; i++) {
+      // "ein 16"-Monitor": inches.
+      if (ctx.text[i] === '"' && !/\p{N}/u.test(ctx.text[i - 1] ?? "")) marks.push(i);
+    }
+    if (marks.length % 2 === 1) continue;
+    for (let k = 0; k < marks.length; k += 2) {
+      const [a, b] = [marks[k], marks[k + 1]];
+      if (!OPENING_AT(ctx.text, a, 1) || /\s/.test(ctx.text[b - 1])) continue;
+      if (englishWords(ctx.text.slice(a + 1, b))) continue;
+      for (const [at, mark] of [
+        [a, OPEN],
+        [b, CLOSE],
+      ] as const) {
+        if (at >= ctx.from && at < ctx.to)
+          findings.push({ ...finding(at, at + 1, mark), ruleId: "germanStraightQuotes" });
+      }
+    }
+  }
   return findings;
 }
 
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
   { rules: ["germanQuotes"], detect: quotes },
+  { rules: ["germanStraightQuotes"], detect: straight },
 ];
