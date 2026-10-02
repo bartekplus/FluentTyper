@@ -6,6 +6,9 @@ const ADJECTIVE = `(?:(?:new|old|cold|warm|red|blue|main|original|updated|privat
 const NOUN =
   "(?:policy|connection|surface|folder|file|password|screen|keyboard|owner|name|settings|color|cover|door|engine|battery|address)";
 
+// The patterns are fixed: each is compiled once.
+const COMPILED = new Map<string, RegExp>();
+
 /** Full bounded phrases, never a guess about arbitrary names or singular/plural ownership. */
 export function contextualPossessives(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
@@ -100,7 +103,9 @@ export function contextualPossessives(ctx: DetectContext): RawFinding[] {
     },
   ];
   for (const { ruleId, messageKey, pattern, replacement, clause, cue, name } of constructions) {
-    const regex = new RegExp(`(?<!${EDGE})${pattern}${WORD_END}`, "gidu");
+    let regex = COMPILED.get(pattern);
+    if (!regex)
+      COMPILED.set(pattern, (regex = new RegExp(`(?<!${EDGE})${pattern}${WORD_END}`, "gidu")));
     for (const m of frameMatches(ctx, regex)) {
       const [start, end] = m.indices!.groups!.target;
       // A name after an opinion verb: "I hope its Katie." ("its accuracy" is possessive.)

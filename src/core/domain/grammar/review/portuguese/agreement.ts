@@ -56,7 +56,7 @@ const INFINITIVES = "existir|acontecer|ocorrer|surgir|restar|bastar|sobrar";
 const PLURAL_DETERMINER =
   "muitos|muitas|vários|várias|alguns|algumas|poucos|poucas|diversos|diversas|inúmeros|inúmeras|tantos|tantas|uns|umas|os|as|dois|duas|três|quatro|cinco|seis|sete|oito|nove|dez|vinte|cem|[2-9]|\\d{2,}";
 // "Acontece muitas vezes", "ocorre dois dias depois": a span of time is no subject.
-const TIME = "vezes|anos|meses|semanas|dias|horas|minutos|segundos|tempos|décadas|séculos";
+export const TIME = "vezes|anos|meses|semanas|dias|horas|minutos|segundos|tempos|décadas|séculos";
 const ADVERB = `(?:(?:ainda|também|já|só|apenas|hoje|aqui|ali|lá|agora|sempre|realmente|então)${W}${S})?`;
 const SUBJECT_AFTER = `${ADVERB}(?:${PLURAL_DETERMINER})${W}${S}(?!(?:${TIME}|mais|menos|de|do|da)${W})\\p{Ll}{3,}s${W}`;
 const POSTPOSED = `(?<target>${Object.keys(PLURAL).join("|")})${S}(?=${SUBJECT_AFTER})`;
@@ -115,7 +115,7 @@ const FUTURE = `${CONJUNCTION}${S}${SUBJECT}${S}(?:não${S})?${INFINITIVE}${W}`;
 
 // Frequent irregular verbs, one row per tense: first singular, third singular, first plural,
 // third plural ("tem/vem" after a plural pronoun are portugueseConfusions' têm/vêm).
-const PERSONS = ["eu", "ele", "nós", "eles"] as const;
+export const PERSONS = ["eu", "ele", "nós", "eles"] as const;
 const CONJUGATIONS = [
   "sou é somos são",
   "fui foi fomos foram",
@@ -149,7 +149,7 @@ const CONJUGATIONS = [
   "dizia dizia dizíamos diziam",
 ].map((row) => row.split(" "));
 /** Each form -> the rows (tenses) it belongs to. */
-const FORM_ROWS = new Map<string, string[][]>();
+export const FORM_ROWS = new Map<string, string[][]>();
 for (const row of CONJUGATIONS)
   for (const form of new Set(row)) FORM_ROWS.set(form, [...(FORM_ROWS.get(form) ?? []), row]);
 const PRONOUN_PERSON: Record<string, (typeof PERSONS)[number]> = {
@@ -166,7 +166,7 @@ const PRONOUN_PERSON: Record<string, (typeof PERSONS)[number]> = {
 // A regular verb in the third person singular after a plural pronoun: "eles gosta" ->
 // "gostam", "nós gostava" -> "gostávamos". Words ending in -a or -e that are no verb after a
 // pronoun (pronouns, adverbs, prepositions, numbers, "pra") are listed out.
-const NOT_VERBS = new Set(
+export const NOT_VERBS = new Set(
   `se me te lhe de que bastante breve e a da na pela para pra sobre sempre hoje ainda agora nunca lá cá onde
   quase toda cada nada contra entre desde enquanto essa esta aquela uma outra nenhuma alguma
   este esse aquele tarde noite longe dentre ante diante adiante mesma mesme ora sete nove onze
@@ -179,12 +179,12 @@ const REGULAR_PLURAL_SUBJECT = `(?<pronoun>nós|eles|elas|vocês)${S}(?:(?:não|
 // The reverse: a regular verb in the third person plural after "eu", "ele", "ela" or "você"
 // ("ele não passeiam" -> "passeia", "eu gostaram" -> "gostei").
 const SINGULAR_SUBJECT = `(?<pronoun>eu|ele|ela|você)${S}(?:(?:não|já|também|sempre|só|ainda|nunca)${S}){0,2}(?<target>\\p{Ll}{2,}[ae]m)${W}`;
-const NOT_PLURAL_VERBS = new Set(
+export const NOT_PLURAL_VERBS = new Set(
   `também porém além aquém alguém ninguém quem nem sem bem cem ontem homem jovem nuvem ordem
   item trem refém harém armazém vintém desdém virgem`.split(/\s+/),
 );
 /** The singular form for `pronoun` ("eu" or a third person), or undefined when irregular. */
-function singularOf(plural: string, firstPerson: boolean): string | undefined {
+export function singularOf(plural: string, firstPerson: boolean): string | undefined {
   if (/(?:gem|eem|oem)$/.test(plural)) return undefined;
   if (firstPerson) {
     if (/avam$/.test(plural)) return plural.slice(0, -1);
@@ -196,6 +196,8 @@ function singularOf(plural: string, firstPerson: boolean): string | undefined {
   if (/[eiá]ram$/.test(plural)) return undefined;
   if (/zem$/.test(plural)) return plural.slice(0, -2);
   if (/aem$/.test(plural)) return `${plural.slice(0, -3)}ai`;
+  // "seguem" -> "segue", but "possuem" -> "possui".
+  if (/[gq]uem$/.test(plural)) return plural.slice(0, -1);
   if (/uem$/.test(plural)) return `${plural.slice(0, -3)}ui`;
   return plural.slice(0, -1);
 }

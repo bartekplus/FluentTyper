@@ -133,6 +133,9 @@ describe("review rule coverage map", () => {
             "styleLongSentence",
             "ellipsisShortcut",
             "emdashShortcut",
+            "englishTypography",
+            "stylePassiveVoice",
+            "styleIntroductoryComma",
             "primeSymbols",
             "stylePhrasing",
             "styleContractions",
@@ -145,11 +148,14 @@ describe("review rule coverage map", () => {
             "styleWordChoice",
             "styleSpelledNumbers",
             "germanAbbreviationSpacing",
+            "germanQuestionMarks",
+            "germanStraightQuotes",
             "polishQuotes",
             "greekStrictFinalNu",
             "greekPunctuation",
             "portugueseTypographyStyle",
             "portugueseAO90",
+            "frenchMissingNe",
           ].includes(id),
       ),
     );
@@ -245,7 +251,13 @@ describe("review detectors: capitalization and typography", () => {
       [33, 34],
       [43, 44],
     ]);
-    for (const text of ["i.e. this", "i. First item", "  i. Second item", "See Part i. Next"]) {
+    for (const text of [
+      "i.e. this",
+      "Bring fruit, i. e. apples.",
+      "i. First item",
+      "  i. Second item",
+      "See Part i. Next",
+    ]) {
       expect(only(text, rule)).toEqual([]);
     }
     // A loop variable can end a sentence too: one at a time.
@@ -835,9 +847,15 @@ describe("review detectors: punctuation and spacing", () => {
       ["duplicatePunctuationCollapse", ",,", [3, 5], ","],
       ["duplicatePunctuationCollapse", ";;", [8, 10], ";"],
       ["duplicatePunctuationCollapse", ", ,", [13, 16], ","],
-      ["duplicatePunctuationCollapse", "..", [21, 23], "."],
+      ["duplicatePunctuationCollapse", "..", [21, 23], "..."],
     ]);
     expect(only("see ../dir", "duplicatePunctuationCollapse")).toEqual([]);
+    // ".." trailing off mid-sentence keeps its meaning; at a sentence end the writer chooses.
+    const [ended] = review("It ended there.. Then", {
+      enabledRules: ["duplicatePunctuationCollapse"],
+    });
+    expect(ended.alternatives.map((a) => a.preview)).toEqual([".", "..."]);
+    expect(ended.requiresChoice).toBe(true);
   });
 
   test("measurementUnitFormatting and currencySpacing follow the locale policy", () => {

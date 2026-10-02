@@ -1,7 +1,8 @@
 import { frameMatches, SPACE, WORD_END, WORD_START } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { germanInfinitive, germanNounReading, germanVerbLike } from "./germanLexicon";
-import { isGerman, wordSet } from "./shared";
+import { isGerman, tokensBefore, wordSet } from "./shared";
+import { germanInfinitiveOf, isAuxiliary } from "./verbAgreement";
 
 // German compounds written apart or with the wrong joints: separable verbs ("auf zu bauen" →
 // "aufzubauen"), times of day ("Dienstag Abend" → "Dienstagabend"), numbers with suffixes
@@ -33,6 +34,39 @@ const UM_ZU = re(
 // "bereit stellen", "kennen lernen", "fertig stellen": a particle before an infinitive.
 const SPLIT_INFINITIVE = re(
   `(?<target>(?<particle>bereit|kennen|fertig|zufrieden|statt|teil|nieder|weg|los|vorbei|hinzu)${SPACE}(?<verb>\\p{Ll}+(?:en|ern|eln)))`,
+);
+// "Falls du ab sagst,", "hat den Brief ab geschickt.", "als sie los gingen": a particle
+// written apart from its verb at the end of a clause, where a main clause would not split it.
+// "wieder", "weiter", "zusammen" and the like are left out: both spellings exist.
+const SPLIT_AT_END = re(
+  `(?<target>(?<particle>ab|an|auf|aus|bei|ein|los|nach|vor|weg|zu|dar|her|hin|fort|heraus|herein|hinaus|hinein|herum|statt|teil)${SPACE}(?<verb>\\p{Ll}{3,}))(?=(?:${SPACE}(?<aux>\\p{Ll}+))?[ \\t]*(?:[,.!?;:)]|$))`,
+);
+/** Whether the particle and the verb form after it make one verb: "ab sagst" (absagen). */
+function joinsVerb(particle: string, verb: string): boolean {
+  if (isAuxiliary(verb)) return false;
+  const joins = (infinitive: string) =>
+    germanInfinitive(infinitive) && germanInfinitive(particle + infinitive);
+  // "ab geschickt": a participle; "zu gelassen" may be "too calm".
+  const participle = /^ge(\p{Ll}{2,}?)(?:en|t)$/u.exec(verb);
+  if (participle) return particle !== "zu" && joins(`${participle[1]}en`);
+  // "zu gehen" is a zu-infinitive; other particles join an infinitive too ("los gehen").
+  if (/(?:en|ern|eln)$/.test(verb) && germanInfinitive(verb)) {
+    return particle !== "zu" && joins(verb);
+  }
+  // "gibt", "lässt": a listed irregular form; "sagst", "sagte": a regular one.
+  const listed = germanInfinitiveOf(verb);
+  if (listed) return joins(listed);
+  // "zu lange", "zu enge": "too", before an adjective in -e.
+  const stem = /^(.+?)(?:e|st|t|est|et|te|test|ten|tet)$/u.exec(verb)?.[1];
+  if (!stem || (particle === "zu" && verb.endsWith("e"))) return false;
+  return joins(`${stem}en`) || joins(`${stem}n`);
+}
+// Words that make the particle part of another phrase: "den weg", "gerade aus", "da nach",
+// "immer hin", "außen vor", "all zu".
+const NOT_PARTICLE_AFTER = wordSet(
+  "der die das den dem des ein eine einen einem einer eines kein keine keinen keinem " +
+    "mein meinen meinem dein deinen deinem sein seinen seinem ihren ihrem unseren unserem " +
+    "gerade da hier wo dort all immer außen bergauf bergab",
 );
 const TIMES =
   "Morgen|Vormittag|Mittag|Nachmittag|Abend|Nacht|morgen|vormittag|mittag|nachmittag|abend|nacht";
@@ -119,6 +153,18 @@ const FRAMES: Array<[RegExp, Fix]> = [
       if (/^(?:Reihe|Grund|und|oder)$/.test(prev)) return null;
       if (!infinitiveClause(ctx, m.indices!.groups!.target[0])) return null;
       return germanInfinitive(particle + verb) ? `${particle}zu${verb}` : null;
+    },
+  ],
+  [
+    SPLIT_AT_END,
+    (m, ctx) => {
+      const { particle, verb, aux } = m.groups!;
+      if (aux && !isAuxiliary(aux)) return null;
+      // "von Anfang an gesagt", "von klein auf gelernt": the particle closes "von …".
+      const before = tokensBefore(ctx.text, m.index, 3);
+      if (NOT_PARTICLE_AFTER.has(before.at(-1)?.toLowerCase() ?? "")) return null;
+      if (before.some((t) => /^[Vv]on$/.test(t)) || before.at(-1) === "Berg") return null;
+      return joinsVerb(particle, verb) ? particle + verb : null;
     },
   ],
   [UM_ZU, (m) => (germanInfinitive(`um${m.groups!.verb}`) ? `umzu${m.groups!.verb}` : null)],

@@ -7,8 +7,20 @@ import {
   germanVerbLike,
   type GermanNounReading,
 } from "./germanLexicon";
+import { idioms } from "./idioms";
 import { nominalized } from "./nominalized";
-import { BOUNDARY, isGerman, tokensAfter, tokensBefore, words, wordSet } from "./shared";
+import {
+  BOUNDARY,
+  englishLine,
+  governedBefore,
+  isGerman,
+  PRONOUNS,
+  tokensAfter,
+  tokensBefore,
+  VERB_GOVERNORS,
+  words,
+  wordSet,
+} from "./shared";
 
 // A lowercase noun after a determiner, a preposition or a number: "der zugriff", "mit
 // schnellen schritten", "2 tage". German capitalizes every noun. A word that is also a verb
@@ -18,7 +30,7 @@ import { BOUNDARY, isGerman, tokensAfter, tokensBefore, words, wordSet } from ".
 // Never a pronoun: the genitive article, ein-words and possessives with a short ending, and
 // the preposition-article contractions.
 export const ARTICLES = wordSet(
-  "des ein eine einen einem kein keine keinen keinem mein meine meinen meinem dein deine " +
+  "des ein eine einen einem kein keine keinen keinem keinerlei mein meine meinen meinem dein deine " +
     "deinen deinem sein seine seinen seinem ihre ihren ihrem unser unsere unseren unserem " +
     "euer eure euren eurem am im zum zur beim vom ins ans aufs ums durchs fürs übers " +
     "unters vors hinterm überm unterm",
@@ -58,20 +70,15 @@ const AUXILIARIES = wordSet(
     "wollten darf dürfen durfte durften mag möchte möchten würde würden wäre wären sei " +
     "seien hätte hätten bleibt blieb gibt gab",
 );
-// Verbs that close a clause with a bare infinitive or a participle ("kannst du das ändern",
-// "diese habe ergeben").
-const VERB_GOVERNORS = wordSet(
-  "kann kannst können könnt konnte konnten könnte könnten muss musst müssen müsst musste " +
-    "mussten müsste müssten soll sollst sollen sollt sollte sollten will willst wollen " +
-    "wollt wollte wollten darf darfst dürfen dürft durfte durften dürfte dürften mag " +
-    "möchte möchtest möchten werde wirst wird werden werdet würde würdest würden wurde " +
-    "wurden worden lass lasse lässt lassen ließ tu tue tut tun brauchst braucht brauchen " +
-    "habe hast hat haben habt hatte hatten hätte hätten bin bist ist sind seid war waren " +
-    "wäre wären sei",
-);
 const NOMINALIZING = /(?<![\p{L}\p{N}])(?:beim|zum|vom|ins)[ \t]+$/iu;
 const COORDINATORS = wordSet("und oder sowie bzw");
-const PRONOUNS = wordSet("ich du er sie es wir ihr man sich mich dich uns euch mir dir");
+// Genitive determiners after a noun ("der angriff des Gegners"); "der", "meiner" are also
+// datives ("Diese stellen meiner Frau Wein").
+const GENITIVES = wordSet("des eines meines deines seines unseres eures dieses jenes");
+// ", mit dem", ", die", ", wegen der": a relative clause after the noun.
+const RELATIVE =
+  /^(?:(?:\p{Ll}+ )?(?:der|die|das|dem|den|denen|dessen|deren|welche|welcher|welches|welchem|welchen))(?: |$)/u;
+const DEGREE_WORDS = wordSet("wirklich sehr ganz ziemlich besonders äußerst echt total so recht");
 const CLAUSE_LINKS = wordSet(
   "und oder aber denn doch sondern dass weil ob wenn als obwohl damit bevor nachdem " +
     "während bis falls sobald solange da wie wo was wer sodass",
@@ -117,18 +124,12 @@ function trigger(before: string[]): { kind: Trigger; at: number } | null {
       // "nach wie vor erscheinen"
       return low === "vor" && prior === "wie" ? null : { kind: "preposition", at: i };
     }
+    // "ein wirklich merkwürdiges verhalten": a degree word before the adjective.
+    if (adjectives && DEGREE_WORDS.has(token)) continue;
     if (token !== low || !isAdjective(low)) return null;
     adjectives = true;
   }
   return null;
-}
-
-/** Whether the clause has a verb that the word at its end can complete. */
-function governedBefore(before: string[], at: number): boolean {
-  for (let i = at - 1; i >= 0 && !BOUNDARY.test(before[i]); i--) {
-    if (VERB_GOVERNORS.has(before[i].toLowerCase())) return true;
-  }
-  return false;
 }
 
 /** Whether a word that is also a verb form reads as the noun here. */
@@ -147,6 +148,26 @@ function nounReadingHolds(
   if (kind === "demonstrative" && prior !== undefined && /^[,;:(–—-]$/.test(prior)) return false;
   const clauseStart =
     prior === undefined || BOUNDARY.test(prior) || CLAUSE_LINKS.has(prior.toLowerCase());
+  const determiner = kind === "article" || kind === "demonstrative";
+  // "Die grenzen meiner Sprache", "Das gerät, mit dem …": a genitive or a relative clause.
+  const relative = next === "," && RELATIVE.test(after.slice(1, 3).join(" "));
+  if (determiner && (GENITIVES.has(next) || relative)) return true;
+  // "Ihre aussagen sind falsch", "Diese blasen platzen": the noun phrase opens the
+  // sentence and its verb follows; not "Die würden glauben", "Diese stellen einen Teil",
+  // "Ihr fahrt schwimmen?".
+  const sentenceStart = prior === undefined || /^(?:[.!?\n„“"»«])$/.test(prior);
+  const pronounLike = (w: string) =>
+    ARTICLES.has(w) || DEMONSTRATIVES.has(w) || QUANTIFIERS.has(w) || PRONOUNS.has(w);
+  if (
+    determiner &&
+    sentenceStart &&
+    lower(before[at]) !== "ihr" &&
+    !VERB_GOVERNORS.has(typed) &&
+    !pronounLike(next) &&
+    (AUXILIARIES.has(next) || (next !== typed && germanVerbLike(next)))
+  ) {
+    return true;
+  }
   if (kind === "quantifier" || (kind === "demonstrative" && clauseStart)) {
     // "Die kosten sind hoch", "Das ende des Films".
     return AUXILIARIES.has(next) || next === "des";
@@ -200,7 +221,7 @@ function nounCasing(ctx: DetectContext): RawFinding[] {
     ) {
       continue;
     }
-    if (namedExampleBefore(ctx.text, m.index)) continue;
+    if (namedExampleBefore(ctx.text, m.index) || englishLine(ctx.text, m.index)) continue;
     findings.push({
       ruleId: "germanNounCasing",
       messageKey: "review_msg_german_noun_case",
@@ -213,5 +234,8 @@ function nounCasing(ctx: DetectContext): RawFinding[] {
 }
 
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  { rules: ["germanNounCasing"], detect: (ctx) => [...nounCasing(ctx), ...nominalized(ctx)] },
+  {
+    rules: ["germanNounCasing"],
+    detect: (ctx) => [...nounCasing(ctx), ...nominalized(ctx), ...idioms(ctx)],
+  },
 ];

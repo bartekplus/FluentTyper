@@ -1,5 +1,17 @@
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
-import { IL, ILS, isVerbHomograph, JE, NOUS, TU, verbReadings, VOUS } from "./frenchLexicon";
+import {
+  IL,
+  ILS,
+  adjectiveReadings,
+  isFrenchWord,
+  isInflectedNoun,
+  isVerbHomograph,
+  JE,
+  NOUS,
+  TU,
+  verbReadings,
+  VOUS,
+} from "./frenchLexicon";
 import {
   CLITICS,
   ownedFrenchWords,
@@ -151,7 +163,23 @@ function maybe(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   const peu =
     /^peu[ \t]/i.test(m[0]) &&
     !(previous && (PEU_BEFORE.has(previous.w) || SUBJECT_PRONOUNS.has(previous.w)));
-  if (!sentenceStart && !afterVerb && !peu) return null;
+  // "il n'est peut être pas", "il aura peut être": être and avoir also spell nouns ("est",
+  // "aura") but are verbs after a subject.
+  const afterAuxiliary =
+    previous &&
+    !clauseSubject &&
+    verbReadings(previous.w).some(
+      (r) => typeof r.slot === "number" && (r.lemma === "être" || r.lemma === "avoir"),
+    ) &&
+    !!before[1] &&
+    (SUBJECT_PRONOUNS.has(before[1].w) || ["c'", "n'", "ne"].includes(before[1].w));
+  // "peut être que", "bientôt peut être ?", "et peut être même plus": no verb phrase follows.
+  const rest = ctx.text.slice(start + m[0].length);
+  const adverbial =
+    (next && ["que", "qu'", "même", "parce"].includes(next.w)) ||
+    /^[\s  ]*[?!,.…]/u.test(rest) ||
+    (previous && ["avec", "ainsi", "bientôt", "voire", "ou"].includes(previous.w));
+  if (!sentenceStart && !afterVerb && !peu && !afterAuxiliary && !adverbial) return null;
   return {
     ruleId: RULE,
     messageKey: MESSAGE,
@@ -159,6 +187,160 @@ function maybe(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     alternatives: [withCase(m[0], "peut-être")],
   };
 }
+
+/** "il peut-être têtu" -> "peut être": pouvoir + être after a subject pronoun. */
+function verbalMaybe(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const before = tokensBefore(ctx.text, m.index, 2);
+  let i = 0;
+  if (before[0] && (before[0].w === "ne" || before[0].w === "n'")) i = 1;
+  if (!before[i] || !["il", "elle", "on", "ce", "cela", "ça"].includes(before[i].w)) return null;
+  // "peut*on peut-être": the pronoun of another verb.
+  if (/[^\s  ]$/u.test(ctx.text.slice(0, before[i].start))) return null;
+  // "il est peut-être", "il a peut-être": an auxiliary before it makes the adverb.
+  const next = tokensAfter(ctx.text, m.index + m[0].length, 1)[0];
+  if (!next || verbReadings(next.w).some((r) => typeof r.slot === "number")) return null;
+  if (namedExampleBefore(ctx.text, m.index)) return null;
+  return {
+    ruleId: RULE,
+    messageKey: MESSAGE,
+    range: { start: m.index, end: m.index + m[0].length },
+    alternatives: [withCase(m[0], "peut être")],
+    context: { start: before[i].start, end: next.end },
+  };
+}
+
+// Prefixes that never stand alone: "anti inflation" -> "anti-inflation", "néo-rural" ->
+// "néorural"; the dictionary says which spelling exists.
+const PREFIXES =
+  "anti auto néo géo méga mini ultra hyper multi psycho franco afro vice vidéo micro macro post";
+const CLOSING_PREFIXES = new Set(["néo", "géo", "méga", "psycho", "post", "micro", "macro"]);
+// "sur", "sous" and "contre" are prepositions too: only before a participle or an infinitive.
+const PREPOSITION_PREFIXES = new Set(["sur", "sous", "contre"]);
+
+function prefixCompound(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const typed = m[0];
+  const prefix = m.groups!.prefix;
+  const word = m.groups!.word;
+  const lowerPrefix = prefix.toLowerCase();
+  const lowerWord = word.toLowerCase();
+  if (
+    /^\p{Lu}/u.test(word) ||
+    ctx.dictionary.has(lowerWord) ||
+    namedExampleBefore(ctx.text, m.index)
+  )
+    return null;
+  const hyphen = typed.includes("-");
+  if (PREPOSITION_PREFIXES.has(lowerPrefix)) {
+    if (hyphen) return null;
+    const readings = verbReadings(lowerWord);
+    if (isInflectedNoun(lowerWord) || !readings.some((r) => r.slot === "Q" || r.slot === "I"))
+      return null;
+  }
+  const joined = `${lowerPrefix}${lowerWord}`;
+  const hyphenated = `${lowerPrefix}-${lowerWord}`;
+  let fixed: string | null = null;
+  if (hyphen) {
+    // "anti-reflets", "auto-bronzant": many hyphenated forms are accepted spellings; only
+    // learned prefixes that always close up lose the hyphen.
+    if (!CLOSING_PREFIXES.has(lowerPrefix)) return null;
+    if (!isFrenchWord(hyphenated) && isFrenchWord(joined) && isFrenchWord(lowerWord))
+      fixed = joined;
+  } else if (lowerPrefix === "sous" || lowerPrefix === "contre" || lowerPrefix === "vice") {
+    if (isFrenchWord(hyphenated)) fixed = hyphenated;
+  } else if (isFrenchWord(joined)) fixed = joined;
+  else if (isFrenchWord(hyphenated)) fixed = hyphenated;
+  if (!fixed) return null;
+  return {
+    ruleId: RULE,
+    messageKey: "review_msg_closed_compound",
+    range: { start: m.index, end: m.index + typed.length },
+    alternatives: [withCase(typed, fixed)],
+  };
+}
+const PREFIX_COMPOUND = new RegExp(
+  `(?<![\\p{L}\\p{M}\\p{N}_'’-])(?<prefix>${PREFIXES.split(" ").join("|")}|sur|sous|contre)(?:[ \\t]+|-)(?<word>\\p{L}{3,})(?![\\p{L}\\p{M}\\p{N}_'’-])`,
+  "giu",
+);
+const VERBAL_MAYBE = /(?<![\p{L}\p{M}\p{N}_'’-])peut-être(?![\p{L}\p{M}\p{N}_'’-])/giu;
+
+// The pronoun after an imperative joins it: "dis-lui", "regarde-la", "prends-en".
+// Verbs whose object pronoun stays with them before an infinitive ("laisse-moi faire",
+// "faites-les entrer"); with others it belongs to the infinitive ("viens le voir").
+const CAUSATIVE = new Set("laisser faire regarder écouter voir sentir entendre".split(" "));
+// What may follow an object pronoun (never a noun, which would make "la" an article).
+const AFTER_PRONOUN = new Set(
+  (
+    "à au aux dans sur sous avec pour en par chez vers de d' du des un une ici là bien vite " +
+    "maintenant encore demain donc alors moi toi lui nous leur y"
+  ).split(" "),
+);
+// "prends-en un", "parlez-en à ta sœur": what follows a pronoun "en" or "y".
+const EN_FOLLOWERS = new Set(
+  "un une des deux trois à au aux plus moins encore autant beaucoup assez davantage".split(" "),
+);
+const CLAUSE_OPENERS = new Set(["et", "puis", "alors", "mais", "sinon", "donc", "ou"]);
+
+/** "Dis lui bonjour" -> "Dis-lui", "Regarde la." -> "Regarde-la". */
+function imperative(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const verbTyped = m.groups!.verb;
+  const verb = verbTyped.toLowerCase();
+  const pronoun = m.groups!.pronoun.toLowerCase().replace("’", "'");
+  const start = m.index;
+  const end = start + m[0].length;
+  if (namedExampleBefore(ctx.text, start) || ctx.dictionary.has(verb)) return null;
+  if (/\p{Lu}/u.test(verbTyped.slice(1))) return null;
+  const before = tokensBefore(ctx.text, start, 1);
+  if (
+    before[0]
+      ? !CLAUSE_OPENERS.has(before[0].w)
+      : /[\p{L}\p{N}][\s  ]*$/u.test(ctx.text.slice(Math.max(0, start - 3), start))
+  )
+    return null;
+  const readings = verbReadings(verb);
+  // "Puis vous", "et complètes vous concernant": a conjunction or an adjective.
+  if (verb === "puis" || adjectiveReadings(verb).length) return null;
+  const imperativeForm = readings.some(
+    (r) =>
+      typeof r.slot === "number" &&
+      r.tense === 1 &&
+      (r.slot & (TU | NOUS | VOUS) || (r.slot & JE && verb.endsWith("e"))),
+  );
+  if (!imperativeForm) return null;
+  // A capital or a question mark ahead: an inverted question, handled with the subject.
+  if (
+    /^[^.!\n]*\?/u.test(ctx.text.slice(end, end + 80)) &&
+    (pronoun === "nous" || pronoun === "vous")
+  )
+    return null;
+  const rest = ctx.text.slice(end);
+  const next = tokensAfter(ctx.text, end, 1)[0];
+  const closes = /^[\s  ]*(?:$|[.!,;:)…])/u.test(rest);
+  if (!closes) {
+    if (!next) return null;
+    // "toi et moi", "vous aussi", "en quelques secondes", "en or": not an object pronoun.
+    if (["et", "ou", "aussi", "même", "mêmes", "tous", "deux"].includes(next.w)) return null;
+    if (verbReadings(next.w).some((r) => r.slot === "G")) return null;
+    if ((pronoun === "en" || pronoun === "y") && !EN_FOLLOWERS.has(next.w)) return null;
+    const infinitive = verbReadings(next.w).some((r) => r.slot === "I");
+    if (infinitive) {
+      if (!readings.some((r) => CAUSATIVE.has(r.lemma))) return null;
+    } else if (!AFTER_PRONOUN.has(next.w)) {
+      // "lui", "leur", "moi" are pronouns before anything but a verb; "la", "les", "le" are
+      // articles before a noun.
+      if (["le", "la", "les", "leur"].includes(pronoun)) return null;
+      if (verbReadings(next.w).some((r) => typeof r.slot === "number")) return null;
+    }
+  }
+  const typedPronoun = m.groups!.pronoun;
+  return {
+    ruleId: RULE,
+    messageKey: "review_msg_closed_compound",
+    range: { start, end },
+    alternatives: [`${verbTyped}-${typedPronoun}`],
+  };
+}
+const IMPERATIVE =
+  /(?<![\p{L}\p{M}\p{N}_'’-])(?<verb>\p{L}+)[ \t]+(?<pronoun>moi|toi|lui|nous|vous|leur|le|la|les|en|y|m['’]en|t['’]en)(?![\p{L}\p{M}\p{N}_'’-])/giu;
 
 const INVERSION =
   /(?<![\p{L}\p{M}\p{N}_-])(?<verb>\p{L}+)(?:[ \t]*-[ \t]+|[ \t]+-[ \t]*|[ \t]+(?<t>t['’]|t[ \t]+|-t-|t-)[ \t]*|[ \t]+)(?<pronoun>je|tu|il|elle|on|nous|vous|ils|elles|ce)(?![\p{L}\p{M}\p{N}_'’-])/giu;
@@ -176,6 +358,18 @@ function hyphenation(ctx: DetectContext): RawFinding[] {
   }
   for (const m of ownedFrenchWords(ctx, MAYBE)) {
     const finding = maybe(ctx, m);
+    if (finding) findings.push(finding);
+  }
+  for (const m of ownedFrenchWords(ctx, IMPERATIVE)) {
+    const finding = imperative(ctx, m);
+    if (finding) findings.push(finding);
+  }
+  for (const m of ownedFrenchWords(ctx, VERBAL_MAYBE)) {
+    const finding = verbalMaybe(ctx, m);
+    if (finding) findings.push(finding);
+  }
+  for (const m of ownedFrenchWords(ctx, PREFIX_COMPOUND)) {
+    const finding = prefixCompound(ctx, m);
     if (finding) findings.push(finding);
   }
   return findings;
