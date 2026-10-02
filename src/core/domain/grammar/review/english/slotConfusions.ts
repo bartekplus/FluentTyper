@@ -89,6 +89,43 @@ export const PHRASES: readonly PhraseRow[] = [
   ["for quite sometime", "for quite some time"],
   ["in quite sometime", "in quite some time"],
   ["the vary end", "the very end"],
+  ["listen to movies", "watch movies"],
+  ["listen to films", "watch films"],
+  [["listen to a movie", "listen to movie"], "watch a movie"],
+  ...[
+    ["look", "watch"],
+    ["looks", "watches"],
+    ["looked", "watched"],
+    ["looking", "watching"],
+  ].map(([look, watch]): PhraseRow => [`${look} TV`, `${watch} TV`]),
+  ...[
+    "recording",
+    "recordings",
+    "shot",
+    "shots",
+    "capture",
+    "share",
+    "sharing",
+    "size",
+    "reader",
+  ].map((thing): PhraseRow => [`scree ${thing}`, `screen ${thing}`]),
+  ...[
+    "phone",
+    "smartphone",
+    "laptop",
+    "computer",
+    "TV",
+    "touch",
+    "home",
+    "lock",
+    "login",
+    "loading",
+    "splash",
+  ].map((thing): PhraseRow => [`${thing} scree`, `${thing} screen`]),
+  ["ensue that", "ensure that"],
+  ["ensues that", "ensures that"],
+  ["ensued that", "ensured that"],
+  ["ensuing that", "ensuring that"],
 ];
 export const COMPOUNDS: readonly PhraseRow[] = [];
 export const STYLE: readonly PhraseRow[] = [];
@@ -191,7 +228,146 @@ const THIRD_FOR: Record<string, string> = {
 const VERB_OBJECT =
   "it|them|him|her|me|us|you|this|that|these|those|the|a|an|my|your|his|our|their|people|students|everyone|something|anything|whether|if|how|what";
 
+const LOCK: Record<string, string> = {
+  look: "lock",
+  looks: "locks",
+  looked: "locked",
+  looking: "locking",
+};
+const NUMBER_WORD =
+  "one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty|thirty|forty|fifty|hundred|thousand|million";
+
 const FRAMES: readonly Frame[] = [
+  // "Thanks you for coming": the verb's own "thank you".
+  {
+    rule: PHRASE,
+    cue: ["thanks"],
+    pattern: `(?<=(?:^|[.!?,;]["”’)]?[ \\t]{0,8}|\\n))(?<target>thanks)(?=${S}you(?:${S}(?:for|so|very|again|all)${E}|[ \\t]*[.!,]|[ \\t]*$))`,
+    fix: "thank",
+  },
+  // "I cold see it", "Cold you hear him?": the modal.
+  {
+    rule: TYPO,
+    cue: ["cold"],
+    pattern: `(?:(?:I|you|we|they|he|she|who|parents|father|mother)${S}(?<target>cold)${S}(?:not|n['’]t|never|do|be|have|see|hear|help|go|get|make|say|tell|find|imagine|feel|ask|try|use)${E}|(?<=(?:^|[.!?]["”’)]?[ \\t]{1,8}))(?<target2>Cold)${S}(?:you|we|they|he|she|I|it|someone|anyone)${S}(?:please${S})?(?:help|tell|see|hear|send|check|give|explain|do|be|have|make)${E})`,
+    fix: (m) => ({
+      alternatives: ["could"],
+      range: m.indices!.groups!.target ?? m.indices!.groups!.target2,
+    }),
+  },
+  // "The smell began to envelope me": the verb "envelop".
+  {
+    rule: TYPO,
+    cue: ["envelope", "envelopes", "enveloped", "enveloping"],
+    pattern: `(?:to|will|would|can|could|may|might|it|he|she|they|fog|smoke|darkness|silence)${S}(?<target>envelope|envelopes)${S}(?:me|you|him|her|us|them|it|the|everything|everyone)${E}`,
+    fix: (m) => (m.groups!.target.toLowerCase() === "envelopes" ? "envelops" : "envelop"),
+  },
+  // "from 30 too 37", "expanding too ten locations": "to" before a number.
+  {
+    rule: TYPO,
+    cue: ["too"],
+    pattern: `(?:from${S}[0-9A-Za-z.,%]+${S}|expand(?:s|ed|ing)?${S}|increase[sd]?${S}|grew${S}|grow(?:s|ing)?${S}|up${S}|rise[sn]?${S}|rose${S}|fell${S}|dropped${S})(?<target>too)${S}(?:[0-9]+|${NUMBER_WORD})${E}`,
+    fix: "to",
+  },
+  // "let em know", "tell em what": the object pronoun.
+  {
+    rule: TYPO,
+    cue: ["em"],
+    pattern: `(?:let|tell|told|send|give|gave|show|ask|asked|help|thank|call|email|to)${S}(?<target>em)${S}(?:know|what|that|the|a|an|it|about|how|why|when|where|if|more)${E}`,
+    fix: ["me", "them"],
+  },
+  // "I would git a new one": the verb "get".
+  {
+    rule: TYPO,
+    cue: ["git"],
+    pattern: `(?:${MODAL}|to|${NEGATION}|you|I|we|they|do|did|does)${S}(?<target>git)${S}(?:a|an|the|more|some|it|them|me|you|my|your|this|that|better|ready|started|back|out|home|rid|lost|used|over)${E}`,
+    fix: "get",
+  },
+  // "I cab confirm": the modal "can".
+  {
+    rule: TYPO,
+    cue: ["cab", "cam"],
+    pattern: `(?:I|we|you|they)${S}(?<target>cab|cam)${S}(?:confirm|help|see|do|advise|try|check|be|not|say|tell|get|make|go|come|send|assure|guarantee)${E}`,
+    fix: "can",
+  },
+  // "Whet is wrong?": the question word.
+  {
+    rule: TYPO,
+    cue: ["whet"],
+    pattern: `(?<=(?:^|[.!?]["”’)]?[ \\t]{1,8}|\\n))(?<target>whet)(?=${S}(?:is|are|was|were|do|does|did|happened|happens|about|if|else|time)${E}|['’]s|[ \\t]*\\?)`,
+    fix: "what",
+  },
+  // "Good lick with it": luck.
+  {
+    rule: TYPO,
+    cue: ["lick", "lock"],
+    pattern: `(?:(?<!(?<![\\p{L}'’])(?:a|the)${S})good${S}(?<target>lick)|wish(?:ing)?${S}(?:you|him|her|them|us|everyone)${S}good${S}(?<target2>lock))(?=${S}(?:with|on|to|in|for|today|tomorrow|everyone|everybody|next)${E}|[ \\t]*[.,!]|[ \\t]*$)`,
+    fix: (m) => ({
+      alternatives: ["luck"],
+      range: m.indices!.groups!.target ?? m.indices!.groups!.target2,
+    }),
+  },
+  // "I have note seen it", "I'm note running": the negation.
+  {
+    rule: TYPO,
+    cue: ["note"],
+    pattern: `(?:(?:have|has|had)${S}(?<target>note)${S}(?<part>[a-z]+)|(?:I['’]m|am|is|are|was|were)${S}(?<target2>note)${S}(?<ing>[a-z]+ing))${E}`,
+    fix: (m) => {
+      const part = m.groups!.part;
+      if (part && !(isVerb(part, "participle") && !isVerb(part, "base") && !info(part)?.noun))
+        return null;
+      if (m.groups!.ing && !isVerb(m.groups!.ing, "ing")) return null;
+      return {
+        alternatives: ["not"],
+        range: m.indices!.groups!.target ?? m.indices!.groups!.target2,
+      };
+    },
+  },
+  // "That sounds goo!", "not goo enough": good.
+  {
+    rule: TYPO,
+    cue: ["goo"],
+    pattern: `(?:sounds|looks|seems|feels|as|so|too|very|really)${S}(?<target>goo)(?=${S}(?:enough|as|to|for|at|idea|job|news)${E}|[ \\t]*[.,!?])`,
+    fix: "good",
+  },
+  // "He is very said", "She sad that": sad and said swapped.
+  {
+    rule: TYPO,
+    cue: ["said"],
+    pattern: `(?:very|too|really|feel|feels|felt|seemed|looked|I['’]m|am)${S}(?<target>said)(?=[ \\t]*[.,!?]|${S}(?:and|but|about|when|because|today)${E})`,
+    fix: "sad",
+  },
+  {
+    rule: TYPO,
+    cue: ["sad"],
+    pattern: `(?:(?:I|he|she|they|we|you|who)${S}(?<target>sad)${S}(?:that|it|so|this|something|nothing|yes|no|hello|goodbye)${E}|(?:have|has|had)${S}(?<target2>sad)(?=[ \\t]*[.,!?]|${S}(?:that|it|so|yesterday|before|earlier)${E}))`,
+    fix: (m) => ({
+      alternatives: ["said"],
+      range: m.indices!.groups!.target ?? m.indices!.groups!.target2,
+    }),
+  },
+  // "He never looks the front door": lock.
+  {
+    rule: TYPO,
+    cue: ["look", "looks", "looked", "looking"],
+    pattern: `(?<=\\p{L}[ \\t]{1,8})(?<target>look|looks|looked|looking)${S}(?:the|your|my|his|her|our|their|this|that)${S}(?:(?:front|back|main|car|garage|bedroom|office)${S})?(?:door|doors|gate|gates)${E}`,
+    fix: (m) => LOCK[m.groups!.target.toLowerCase()],
+  },
+  // "non alcoholic", "non standard": the prefix takes a hyphen.
+  {
+    rule: COMPOUND,
+    cue: ["non"],
+    pattern: `(?<target>non${S}(?<word>[A-Za-z]+))${E}`,
+    fix: (m) => {
+      const word = m.groups!.word;
+      if (/^(?:sequitur|grata|compos|est|plus|ultra|stop|nobis)$/i.test(word)) return null;
+      const read = info(word);
+      // "Non Khun" is a name; "non new relic" names a product.
+      if (m.groups!.target.startsWith("N") || word.length < 5) return null;
+      if (!/^[A-Z][a-z]+$/.test(word) && !read?.adjective) return null;
+      return `non-${word}`;
+    },
+  },
   {
     rule: TYPO,
     cue: Object.keys(VERB_FOR),

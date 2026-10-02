@@ -922,7 +922,11 @@ function detectFrames(ctx: DetectContext, frames: readonly Frame[] = FRAMES): Ra
   for (const { rule, cue, pattern, fix } of frames) {
     if (ctx.rules && !ctx.rules.has(rule.ruleId)) continue;
     if (cue && !cue.some((word) => words.has(word))) continue;
-    for (const m of frameMatches(ctx, pattern)) {
+    // A frame with two alternatives names its second owner "target2".
+    const owner = /\(\?<target2>/.test(typeof pattern === "string" ? pattern : pattern.source)
+      ? (m: RegExpExecArray) => (m.indices!.groups!.target ?? m.indices!.groups!.target2)[0]
+      : "target";
+    for (const m of frameMatches(ctx, pattern, owner)) {
       if (hasUserOrCasedWord(ctx, m[0])) continue;
       // A quoted example ("need to backup") is mentioned, not used.
       if (
