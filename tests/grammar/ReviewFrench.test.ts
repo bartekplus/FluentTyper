@@ -604,6 +604,17 @@ test.each([
   ["frenchHyphenation", "Ce texte devra peu à peu être corrigé."],
   ["englishPhraseCorrections", "La créatrice Mary Quant, Quant on la cite, fait sourire."],
   ["duplicatePunctuationCollapse", "Jean Dupont (1960-....) est peintre."],
+  ["frenchVerbForms", "Il a peur des orages depuis l'enfance."],
+  ["frenchVerbForms", "Il y a trait à la santé publique."],
+  ["frenchVerbForms", "Elle a envie de partir loin."],
+  ["frenchAdjectiveAgreement", "Je les ai vus hier soir."],
+  ["frenchAdjectiveAgreement", "Quelles pommes vous avez mangées ?"],
+  ["frenchAdjectiveAgreement", "Les musiciennes que j'ai entendu chanter étaient douées."],
+  ["frenchAdjectiveAgreement", "La maison que j'ai eu la chance de visiter est vendue."],
+  ["frenchAdjectiveAgreement", "Une humiliation qu'elle a réussi à cacher."],
+  ["frenchAdjectiveAgreement", "La lettre que j'ai voulu t'envoyer est perdue."],
+  ["frenchAdjectiveAgreement", "Un camion qui passait nous a éclaboussés."],
+  ["frenchAdjectiveAgreement", "Elles ont été invitées au mariage."],
 ] as Array<[CatalogRuleId, string]>)("%s stays silent on %p", (ruleId, text) => {
   expect(findings(ruleId, text).map((d) => d.original)).toEqual([]);
 });
@@ -614,6 +625,38 @@ test.each([
   ["frenchHyphenation", "Il viendra peu être demain.", "Il viendra peut-être demain."],
   ["frenchHyphenation", "C'est peu être la bonne réponse.", "C'est peut-être la bonne réponse."],
   ["frenchElision", "Il parle de un ami.", "Il parle d'un ami."],
+  [
+    "frenchVerbForms",
+    "Hier, j'ai enfin comprit le problème.",
+    "Hier, j'ai enfin compris le problème.",
+  ],
+  ["frenchVerbForms", "Elle a reçut un colis ce matin.", "Elle a reçu un colis ce matin."],
+  ["frenchVerbForms", "Nous avons prit le dernier train.", "Nous avons pris le dernier train."],
+  [
+    "frenchVerbForms",
+    "Ils ont beaucoup rit pendant le film.",
+    "Ils ont beaucoup ri pendant le film.",
+  ],
+  [
+    "frenchAdjectiveAgreement",
+    "Nous avons visités le château hier.",
+    "Nous avons visité le château hier.",
+  ],
+  [
+    "frenchAdjectiveAgreement",
+    "Elle n'a rien répondue à ma lettre.",
+    "Elle n'a rien répondu à ma lettre.",
+  ],
+  [
+    "frenchAdjectiveAgreement",
+    "Les fleurs que j'ai cueilli sont fanées.",
+    "Les fleurs que j'ai cueillies sont fanées.",
+  ],
+  [
+    "frenchAdjectiveAgreement",
+    "Le roman qu'elle a lue était passionnant.",
+    "Le roman qu'elle a lu était passionnant.",
+  ],
 ] as Array<[CatalogRuleId, string, string]>)("%s fixes %p", (ruleId, text, fixed) => {
   const [finding, ...rest] = findings(ruleId, text);
   expect(rest).toEqual([]);

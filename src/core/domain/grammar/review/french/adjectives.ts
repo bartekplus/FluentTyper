@@ -60,7 +60,7 @@ const LINKING = new Set(
 );
 const ADVERBS = new Set(
   (
-    "très si trop assez plus moins bien fort peu vraiment toujours encore déjà souvent " +
+    "très si trop assez plus moins bien fort peu vraiment toujours encore déjà souvent rien " +
     "pas jamais donc pourtant aussi parfois enfin alors certes presque absolument " +
     "particulièrement extrêmement totalement complètement entièrement désormais"
   ).split(" "),
@@ -300,6 +300,61 @@ function afterPronoun(ctx: DetectContext, m: RegExpExecArray, pronoun: string): 
   return finding(ctx, word, PRONOUNS[pronoun], m.index);
 }
 
+const AVOIR =
+  /(?<![\p{L}\p{M}\p{N}_-])(?:ai|as|a|avons|avez|ont|avais|avait|avions|aviez|avaient|aurai|auras|aura|aurons|aurez|auront|aurais|aurait|aurions|auriez|auraient)(?![\p{L}\p{M}\p{N}_'’-])/giu;
+const CLITIC_PRONOUNS = new Set(
+  "me m' te t' se s' le la les l' lui leur nous vous y en".split(" "),
+);
+const OBJECT_CLITICS = new Set("le la les l' me m' te t' se s' nous vous en".split(" "));
+// Words that put a direct object before the verb: "quelles pommes vous avez mangées".
+const FRONTED = new Set(
+  "que qu' quel quelle quels quelles combien lequel laquelle lesquels lesquelles".split(" "),
+);
+
+/** The participle after avoir: invariable with no object before it ("nous avons mangé"), agreeing
+ * with a noun that "que" brings before it ("les hommes que j'ai aidés"). */
+function afterAvoir(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  if (ctx.text[m.index + m[0].length] === "-") return null;
+  const before = tokensBefore(ctx.text, m.index, 8);
+  const i = before[0]?.w === "ne" || before[0]?.w === "n'" ? 1 : 0;
+  const subject = before[i];
+  if (!subject || !(subject.w in SUBJECT_INFLECTIONS) || ctx.text[subject.start - 1] === "-")
+    return null;
+  const after = tokensAfter(ctx.text, m.index + m[0].length, 6);
+  const word = after[skipAdverbs(after, 0)];
+  if (!word || word.hyphen || adjectiveReadings(word.w).length) return null;
+  const base = participleBase(word.w);
+  if (!base || verbReadings(word.w).some((r) => r.slot !== "Q")) return null;
+  // "une voiture qui passait nous a éclaboussés": "nous" and "vous" may be objects.
+  const opener = before[i + 1];
+  if (
+    (subject.w === "nous" || subject.w === "vous") &&
+    opener &&
+    !OPENERS.has(opener.w) &&
+    opener.w !== "et"
+  )
+    return null;
+  if (opener && (opener.w === "que" || opener.w === "qu'")) {
+    const noun = before[i + 2];
+    const det = before[i + 3];
+    if (!noun || !det || !(det.w in DETERMINERS)) return null;
+    // "les filles que j'ai vues partir", "la maison que j'ai eu la chance de voir": an infinitive
+    // or an object after it makes "que" no object of the participle.
+    const next = tokensAfter(ctx.text, word.end, 1)[0];
+    if (next && (verbReadings(next.w).some((r) => r.slot === "I") || next.w in DETERMINERS))
+      return null;
+    // "qu'elle a réussi à cacher", "que j'ai voulu t'envoyer": an infinitive follows.
+    if (next && (["à", "de", "d'"].includes(next.w) || CLITIC_PRONOUNS.has(next.w))) return null;
+    // "mes expériences et la formation que": coordinated antecedents.
+    if (["et", "ou"].includes(before[i + 4]?.w ?? "")) return null;
+    const target = phraseInflection(det.w, noun.w);
+    return target ? finding(ctx, word, target, det.start) : null;
+  }
+  if (before.slice(i + 1).some((t) => FRONTED.has(t.w) || OBJECT_CLITICS.has(t.w))) return null;
+  if (slotsOf(word.w).includes("ms")) return null;
+  return finding(ctx, word, "ms", subject.start);
+}
+
 const CANDIDATE = new RegExp(
   `(?<![\\p{L}\\p{M}\\p{N}_'’-])(?:l['’](?=\\p{L})|(?:${[
     ...Object.keys(DETERMINERS).filter((w) => w !== "l'"),
@@ -315,6 +370,10 @@ function adjectives(ctx: DetectContext): RawFinding[] {
     if (namedExampleBefore(ctx.text, m.index)) continue;
     const word = m[0].toLowerCase().replace("’", "'");
     const f = word in PRONOUNS ? afterPronoun(ctx, m, word) : afterNoun(ctx, m, word);
+    if (f) findings.push(f);
+  }
+  for (const m of ownedFrenchWords(ctx, AVOIR)) {
+    const f = afterAvoir(ctx, m);
     if (f) findings.push(f);
   }
   return findings;

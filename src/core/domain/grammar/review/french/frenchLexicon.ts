@@ -135,6 +135,20 @@ export function conjugate(reading: VerbReading, person: number): string[] {
   return [...forms];
 }
 
+/** A verb's masculine singular past participle ("compris", "reçu"), the shortest Q form. */
+export function pastParticiple(lemma: string): string | null {
+  load();
+  let best: string | null = null;
+  for (const flag of lemmaFlags!.get(lemma) ?? []) {
+    for (const rule of rulesByFlag!.get(flag) ?? []) {
+      if (rule.slot !== "Q" || !rule.cond.test(lemma) || !lemma.endsWith(rule.strip)) continue;
+      const form = lemma.slice(0, lemma.length - rule.strip.length) + rule.add;
+      if (!best || form.length < best.length) best = form;
+    }
+  }
+  return best;
+}
+
 /** Whether the lemma is a dictionary verb. */
 export function isVerbLemma(lemma: string): boolean {
   load();
