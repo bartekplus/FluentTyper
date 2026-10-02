@@ -227,7 +227,7 @@ describe("content_script behavior", () => {
   test("consumes early Tab bridge requests when suggestion acceptance succeeds", async () => {
     const { fluentTyper, suggestionInstances } = await loadContentScript();
 
-    fluentTyper.enable();
+    fluentTyper.enabled = true;
     const suggestionManager = suggestionInstances[0];
     suggestionManager.handleEarlyTabAcceptRequest.mockReturnValue(true);
 
@@ -247,7 +247,7 @@ describe("content_script behavior", () => {
   test("consumes early Tab bridge requests even when message source is not the page window", async () => {
     const { fluentTyper, suggestionInstances } = await loadContentScript();
 
-    fluentTyper.enable();
+    fluentTyper.enabled = true;
     const suggestionManager = suggestionInstances[0];
     suggestionManager.handleEarlyTabAcceptRequest.mockReturnValue(true);
 

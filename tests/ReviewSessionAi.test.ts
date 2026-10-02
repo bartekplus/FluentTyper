@@ -1165,3 +1165,151 @@ describe("Local AI review helpers", () => {
     expect(included.map((d) => d.id)).toEqual(["c"]);
   });
 });
+
+describe("FT-INV-4 accepted Review correction stability", () => {
+  test("AI cannot reverse an accepted correction until the user changes its context", async () => {
+    const h = harness("She go home now.");
+    h.ai.fix = (text) =>
+      text.includes("goes") ? text.replace("goes", "go") : text.replace("go", "goes");
+    await h.start();
+    expect(h.aiFindings()).toHaveLength(1);
+    const applying = h.session.apply(h.aiFindings()[0].id);
+    await h.settle();
+    expect((await applying)?.status).toBe("applied");
+    expect(h.editor.text).toBe("She goes home now.");
+    expect(h.aiFindings()).toHaveLength(0);
+    h.editor.text = "She goes to school now.";
+    h.session.notifySourceChanged();
+    await h.settle();
+    expect(h.aiFindings()).toHaveLength(1);
+    h.session.close();
+  });
+
+  test("a three-form spelling cycle stops before returning to an accepted form", async () => {
+    const h = harness("Please recieve the package.", { rules: [] });
+    h.ai.fix = (text) =>
+      text.replace(/recieve|receive|receeve/, (word) =>
+        word === "recieve" ? "receive" : word === "receive" ? "receeve" : "receive",
+      );
+    await h.start();
+    for (const expected of ["Please receive the package.", "Please receeve the package."]) {
+      expect(h.aiFindings()).toHaveLength(1);
+      const applying = h.session.apply(h.aiFindings()[0].id);
+      await h.settle();
+      expect((await applying)?.status).toBe("applied");
+      expect(h.editor.text).toBe(expected);
+    }
+    expect(h.aiFindings()).toHaveLength(0);
+    h.session.close();
+  });
+});
+
+test("FT-INV-4 an accepted insertion cannot immediately be deleted again", async () => {
+  const h = harness("We need fix this bug.", { rules: [] });
+  h.ai.fix = (text) =>
+    text.includes("need to") ? text.replace("need to", "need") : text.replace("need", "need to");
+  await h.start();
+  expect(h.aiFindings()).toHaveLength(1);
+  const applying = h.session.apply(h.aiFindings()[0].id);
+  await h.settle();
+  expect((await applying)?.status).toBe("applied");
+  expect(h.editor.text).toBe("We need to fix this bug.");
+  expect(h.aiFindings()).toHaveLength(0);
+  h.session.close();
+});
+
+test("FT-INV-4 a broader rewrite cannot erase an accepted grammar correction", async () => {
+  const h = harness("She go home now.", { rules: [] });
+  h.ai.fix = (text) => (text.includes("goes") ? "Today she go home." : text.replace("go", "goes"));
+  await h.start();
+  const applying = h.session.apply(h.aiFindings()[0].id);
+  await h.settle();
+  expect((await applying)?.status).toBe("applied");
+  expect(h.editor.text).toBe("She goes home now.");
+  expect(h.aiFindings()).toHaveLength(0);
+  h.session.close();
+});
+
+test("FT-INV-4 consecutive boundary insertions cannot cycle by deleting the latest punctuation", async () => {
+  const h = harness("Hi", { rules: [] });
+  await h.start();
+  // Exercise the shared write boundary directly: AI intentionally rejects some
+  // punctuation-only proposals before this point; native/rewrite callers share it.
+  const write = (
+    h.session as unknown as {
+      write(edits: ReviewEdit[], count: number, deferred: number): Promise<ReviewApplyResult>;
+    }
+  ).write.bind(h.session);
+  for (const [offset, replacement, expected] of [
+    [2, ".", "Hi."],
+    [3, ",", "Hi.,"],
+  ] as const) {
+    const applying = write([{ start: offset, end: offset, original: "", replacement }], 1, 0);
+    await h.settle();
+    expect((await applying).status).toBe("applied");
+    expect(h.editor.text).toBe(expected);
+  }
+  expect((await write([{ start: 3, end: 4, original: ",", replacement: "" }], 1, 0)).status).toBe(
+    "rejected",
+  );
+  expect(h.editor.text).toBe("Hi.,");
+  h.session.close();
+});
+
+test("FT-INV-4 eight remembered forms stop further churn without evicting history", async () => {
+  const forms = [
+    "recieve",
+    "receive",
+    "receeve",
+    "receave",
+    "receuve",
+    "receove",
+    "receyve",
+    "receivve",
+    "receivee",
+  ];
+  const h = harness("Please recieve the package.", { rules: [] });
+  h.ai.fix = (text) => {
+    const word = text.split(" ")[1];
+    return text.replace(word, forms[(forms.indexOf(word) + 1) % forms.length]);
+  };
+  await h.start();
+  for (const word of forms.slice(1, 8)) {
+    expect(h.aiFindings()).toHaveLength(1);
+    const applying = h.session.apply(h.aiFindings()[0].id);
+    await h.settle();
+    expect((await applying)?.status).toBe("applied");
+    expect(h.editor.text).toBe(`Please ${word} the package.`);
+  }
+  expect(h.aiFindings()).toHaveLength(0);
+  h.session.close();
+});
+
+test.each(["inside", "adjacent"] as const)(
+  "FT-INV-4 verified browser %s edge-space normalization retains accepted choice history",
+  async (edge) => {
+    const h = harness("We need fix this bug.", { rules: [] });
+    const apply = h.editor.apply.bind(h.editor);
+    h.editor.apply = async (request) => {
+      const result = await apply(request);
+      if (result.status !== "applied") return result;
+      h.editor.text =
+        edge === "inside"
+          ? h.editor.text.replace("to fix", "to\u00a0fix")
+          : h.editor.text.replace("need to", "need\u00a0to");
+      return { status: "applied" as const, text: h.editor.text };
+    };
+    h.ai.fix = (text) =>
+      /to\s+fix/.test(text) ? text.replace(/to\s+/, "") : text.replace("need", "need to");
+    await h.start();
+    expect(h.aiFindings()).toHaveLength(1);
+    const applying = h.session.apply(h.aiFindings()[0].id);
+    await h.settle();
+    expect((await applying)?.status).toBe("applied");
+    expect(h.editor.text).toBe(
+      edge === "inside" ? "We need to\u00a0fix this bug." : "We need\u00a0to fix this bug.",
+    );
+    expect(h.aiFindings()).toHaveLength(0);
+    h.session.close();
+  },
+);

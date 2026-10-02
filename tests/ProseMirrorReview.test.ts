@@ -1,3 +1,7 @@
+import {
+  HOST_EDITOR_ENABLED_ATTR,
+  HOST_EDITOR_ENABLED_EVENT,
+} from "../src/adapters/chrome/content-script/suggestions/HostEditorBridgeProtocol";
 import { afterEach, describe, expect, test } from "bun:test";
 import { Schema } from "prosemirror-model";
 import { schema as basic } from "prosemirror-schema-basic";
@@ -318,10 +322,7 @@ describe("real ProseMirror corrections", () => {
       expect(
         view!.state.doc.rangeHasMark(1, view!.state.doc.content.size - 1, schema.marks.color),
       ).toBe(true);
-      if (mode !== "spacing") {
-        expect(entry.pendingExtensionEdit).not.toBeNull();
-        expect(entry.pendingExtensionEdit?.postEditFingerprint.fullText).toBe("the!");
-      }
+      expect(entry.pendingExtensionEdit).toBeNull();
       const normalized = view!.state.doc;
       view!.dispatch(view!.state.tr.insertText("y", view!.state.doc.content.size - 1));
       expect(undo(view!.state, view!.dispatch)).toBe(true);
@@ -397,4 +398,28 @@ describe("real ProseMirror corrections", () => {
     expect(undo(view!.state, view!.dispatch)).toBe(true);
     expect(view!.state.doc.eq(original)).toBe(true);
   });
+});
+
+beforeEach(() => {
+  document.documentElement.setAttribute(HOST_EDITOR_ENABLED_ATTR, "true");
+  document.dispatchEvent(new Event(HOST_EDITOR_ENABLED_EVENT));
+  document.documentElement.removeAttribute(HOST_EDITOR_ENABLED_ATTR);
+});
+
+test("FT-INV-3 disable restores ProseMirror descriptor hooks and refuses MAIN-world writes", () => {
+  const target = editor([paragraph("teh cat")]);
+  const root = target.element as HTMLElement & {
+    pmViewDesc: { setSelection: unknown; updateChildren: unknown };
+  };
+  const wrapped = root.pmViewDesc.setSelection;
+  document.documentElement.setAttribute(HOST_EDITOR_ENABLED_ATTR, "false");
+  document.dispatchEvent(new Event(HOST_EDITOR_ENABLED_EVENT));
+  document.documentElement.removeAttribute(HOST_EDITOR_ENABLED_ATTR);
+  expect(root.pmViewDesc.setSelection).not.toBe(wrapped);
+  const session = new HostEditorAdapterResolver().resolve(root);
+  expect(session).toBeNull();
+  expect(view!.state.doc.textContent).toBe("teh cat");
+  document.documentElement.setAttribute(HOST_EDITOR_ENABLED_ATTR, "true");
+  document.dispatchEvent(new Event(HOST_EDITOR_ENABLED_EVENT));
+  document.documentElement.removeAttribute(HOST_EDITOR_ENABLED_ATTR);
 });

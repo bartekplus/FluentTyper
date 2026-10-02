@@ -16,18 +16,22 @@ const HOST_CHANGE_WATCHDOG_DEBOUNCE_MS = 250;
 export class HostChangeWatcher {
   private watchDogTimeoutId: number | null = null;
   private rootNodeObserver: MutationObserver | null = null;
+  private started = false;
   private hostName = window.location.hostname;
   private readonly scheduleWatchDogCheckBound = this.scheduleWatchDogCheck.bind(this);
 
   constructor(private readonly dependencies: HostChangeWatcherDependencies) {}
 
   start(): void {
+    if (this.started) return;
+    this.started = true;
     this.attachRootNodeObserver();
     this.attachWatchDogEventListeners();
     this.scheduleWatchDogCheck();
   }
 
   stop(): void {
+    this.started = false;
     if (this.watchDogTimeoutId !== null) {
       window.clearTimeout(this.watchDogTimeoutId);
       this.watchDogTimeoutId = null;

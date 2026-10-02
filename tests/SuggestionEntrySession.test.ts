@@ -1,3 +1,4 @@
+import { TextTargetAdapter } from "../src/adapters/chrome/content-script/suggestions/TextTargetAdapter";
 import { afterEach, expect, jest, test } from "bun:test";
 import { ContentEditableAdapter } from "../src/adapters/chrome/content-script/suggestions/ContentEditableAdapter";
 import { InlineSuggestionPresenter } from "../src/adapters/chrome/content-script/suggestions/InlineSuggestionPresenter";
@@ -1893,4 +1894,49 @@ test("session fallback reconcile dispatches adjusted prediction after grammar ap
 
   expect(handled).toBe(true);
   expect(predictionCoordinator.reconcile).toHaveBeenCalledTimes(1);
+});
+
+test("FT-INV-2 1000 contenteditable keydowns keep fallback snapshots inside the active block", () => {
+  const root = document.createElement("div");
+  root.setAttribute("contenteditable", "true");
+  Object.defineProperty(root, "isContentEditable", { value: true });
+  root.innerHTML = `<p>${"A correct sentence. ".repeat(2500)}</p><p>Typing</p>`;
+  document.body.append(root);
+  const block = root.lastElementChild as HTMLElement;
+  const range = document.createRange();
+  range.selectNodeContents(block);
+  range.collapse(false);
+  window.getSelection()!.removeAllRanges();
+  window.getSelection()!.addRange(range);
+  const session = makeSession({ entry: createSuggestionEntry({ elem: root }) });
+  const snapshot = jest.spyOn(TextTargetAdapter, "snapshot");
+  let pending: PendingKeyFallback | undefined;
+  const clear = () => {
+    if (pending) {
+      clearTimeout(pending.timer);
+      pending.observer?.disconnect();
+      pending = undefined;
+    }
+  };
+  try {
+    for (let i = 0; i < 1000; i++) {
+      session.handleKeyDown(new window.KeyboardEvent("keydown", { key: "a" }), {
+        dispatchKeyboard: () => undefined,
+        dismissEntry: () => undefined,
+        clearPendingFallback: clear,
+        storePendingFallback: (value) => {
+          pending = value;
+        },
+        runReconcile: () => undefined,
+      });
+      expect(pending?.scopeElement).toBe(block);
+      expect(pending?.expectedFullText).toBe("Typing");
+    }
+    expect(snapshot).toHaveBeenCalledTimes(0);
+    expect(root.textContent).toBe("A correct sentence. ".repeat(2500) + "Typing");
+  } finally {
+    clear();
+    snapshot.mockRestore();
+    session.dispose();
+  }
 });

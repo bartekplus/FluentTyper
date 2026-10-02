@@ -366,3 +366,27 @@ describe("HostEditorAdapterResolver", () => {
     backing.remove();
   });
 });
+
+test("FT-INV-1 a captured line session refuses text changed by an intervening host transaction", () => {
+  const harness = createLineEditorHarness({ text: "teh cat", cursor: 3 });
+  const old = harness.session!;
+  expect(
+    old.applyBlockReplacement({
+      replaceStart: 0,
+      replaceEnd: 3,
+      replacementText: "the",
+      cursorAfter: 3,
+    }),
+  ).toMatchObject({ applied: true });
+  expect(
+    old.applyBlockReplacement({
+      replaceStart: 0,
+      replaceEnd: 3,
+      replacementText: "XXX",
+      cursorAfter: 3,
+    }),
+  ).toMatchObject({ applied: false });
+  expect(harness.editable.textContent).toBe("the cat");
+  expect(harness.replaceRangeCalls).toBe(1);
+  harness.editable.remove();
+});

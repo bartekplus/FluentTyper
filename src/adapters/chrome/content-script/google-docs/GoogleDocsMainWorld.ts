@@ -25,11 +25,10 @@ type DocsWindow = Window & {
 };
 const COMPOSING_ATTR = "data-ft-docs-composing";
 
-/** Page-visible messages are not an authentication boundary and grant no extension APIs. */
-export function installGoogleDocsMainWorld(win: Window = window): () => void {
-  if (win.top !== win) return installFrameKeys(win);
-  // Each request re-checks the edit URL; "create" installs the bridge before that swap.
-  if (!isGoogleDocsPage(win) && !isGoogleDocsCreateURL(win.location.href)) return () => {};
+/** Docs requires this capability hint before initializing its canvas editor. */
+export function prepareGoogleDocsAnnotation(win: Window = window): void {
+  if (win.top !== win || (!isGoogleDocsPage(win) && !isGoogleDocsCreateURL(win.location.href)))
+    return;
   const docs = win as DocsWindow;
   try {
     // Use FluentTyper's own ID, never impersonate another extension.
@@ -41,6 +40,15 @@ export function installGoogleDocsMainWorld(win: Window = window): () => void {
   } catch {
     /* Missing capability is reported on read. */
   }
+}
+
+/** Page-visible messages are not an authentication boundary and grant no extension APIs. */
+export function installGoogleDocsMainWorld(win: Window = window): () => void {
+  if (win.top !== win) return installFrameKeys(win);
+  // Each request re-checks the edit URL; "create" installs the bridge before that swap.
+  if (!isGoogleDocsPage(win) && !isGoogleDocsCreateURL(win.location.href)) return () => {};
+  prepareGoogleDocsAnnotation(win);
+  const docs = win as DocsWindow;
   let stopped = false;
   let interaction = 0;
   let inner: Document | null = null;

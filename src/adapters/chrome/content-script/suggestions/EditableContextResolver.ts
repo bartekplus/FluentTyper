@@ -21,13 +21,17 @@ export class EditableContextResolver {
       return null;
     }
 
-    const snapshot = TextTargetAdapter.snapshot(elem);
+    let snapshot: ReturnType<typeof TextTargetAdapter.snapshot> | undefined;
+    const readSnapshot = () => (snapshot ??= TextTargetAdapter.snapshot(elem));
     const blockContext = this.contentEditableAdapter.getBlockContext(elem);
 
     return {
       kind: "contenteditable",
-      beforeCursor: blockContext?.beforeCursor ?? snapshot.beforeCursor,
-      fullText: `${snapshot.beforeCursor}${snapshot.afterCursor}`,
+      beforeCursor: blockContext?.beforeCursor ?? readSnapshot().beforeCursor,
+      get fullText() {
+        const current = readSnapshot();
+        return `${current.beforeCursor}${current.afterCursor}`;
+      },
       selectionStable: !this.contentEditableAdapter.hasUnstableSelection(elem),
     };
   }

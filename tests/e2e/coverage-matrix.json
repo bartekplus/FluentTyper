@@ -4499,6 +4499,138 @@
           "test": "protected spans and split graphemes are refused before native writes"
         }
       ]
+    },
+    {
+      "id": "review_react_controlled_native_history",
+      "description": "Real React controlled inputs and textareas retain host state, native undo/redo, input events and submitted values.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "FT-INV-1/5 Review keeps real React controlled inputs synchronized with native undo and submission"
+        }
+      ]
+    },
+    {
+      "id": "review_concurrent_large_document",
+      "description": "A large Unicode draft survives host rerender, random occurrence fixes, undo, more typing and a convergent second Review with submitted host state intact.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "FT-INV-1/4/5 concurrent large contenteditable Review preserves host text and converges"
+        }
+      ]
+    },
+    {
+      "id": "ft_inv_1_verified_targets",
+      "description": "FT-INV-1 rejects stale source offsets, reused nodes and overlapping edits before mutation.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/ContentEditableAdapter.test.ts",
+          "test": "FT-INV-1 beforeinput rerender cannot move a live range to another occurrence"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "a host input callback changing a sibling block stops a batch before its next edit"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSession.test.ts",
+          "test": "many identical occurrences remain correct in seeded arbitrary apply order"
+        }
+      ]
+    },
+    {
+      "id": "ft_inv_2_bounded_typing",
+      "description": "FT-INV-2 typing uses active-block snapshots, ignores text-only discovery mutations and coalesces Review.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionEntrySession.test.ts",
+          "test": "FT-INV-2 1000 contenteditable keydowns keep fallback snapshots inside the active block"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/MutationPipeline.test.ts",
+          "test": "FT-INV-2 typing 100 or 1000 characters never triggers editor discovery"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSession.test.ts",
+          "test": "1000 source notifications coalesce into one scan on a 50k draft"
+        }
+      ]
+    },
+    {
+      "id": "ft_inv_3_disabled_lifecycle",
+      "description": "FT-INV-3 disable cancels watchdogs, shadow callbacks and host hooks.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/ShadowRootInterceptor.test.ts",
+          "test": "FT-INV-3 disabling restores the MAIN-world shadow hook and cancels queued mutations"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ProseMirrorReview.test.ts",
+          "test": "FT-INV-3 disable restores ProseMirror descriptor hooks and refuses MAIN-world writes"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/content_script.watchdog.test.ts",
+          "test": "FT-INV-3 disabled runtime schedules no watchdog work"
+        }
+      ]
+    },
+    {
+      "id": "ft_inv_4_accepted_choice_history",
+      "description": "FT-INV-4 accepted choices do not reverse, forget earlier forms or lose history through browser normalization.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSessionAi.test.ts",
+          "test": "AI cannot reverse an accepted correction until the user changes its context"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSessionAi.test.ts",
+          "test": "FT-INV-4 consecutive boundary insertions cannot cycle by deleting the latest punctuation"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSessionAi.test.ts",
+          "test": "FT-INV-4 eight remembered forms stop further churn without evicting history"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "FT-INV-4 contenteditable reports verified native edge-space normalization"
+        }
+      ]
+    },
+    {
+      "id": "ft_inv_5_host_owned_transactions",
+      "description": "FT-INV-5 host refusal/mismatch never authorizes a repair; deferred commits keep host undo.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionTextEditService.test.ts",
+          "test": "FT-INV-5 reports a host mismatch without a second repair write"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionTextEditService.test.ts",
+          "test": "FT-INV-5 deferred beforeinput commits use host undo without a synthetic inverse"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "Apply All handles growth, deletion, punctuation and Unicode, with autosave and submission parity"
+        }
+      ]
     }
   ]
 }

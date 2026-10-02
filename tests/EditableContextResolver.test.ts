@@ -1,3 +1,4 @@
+import { TextTargetAdapter } from "../src/adapters/chrome/content-script/suggestions/TextTargetAdapter";
 import { beforeEach, expect, test } from "bun:test";
 import { ContentEditableAdapter } from "../src/adapters/chrome/content-script/suggestions/ContentEditableAdapter";
 import { EditableContextResolver } from "../src/adapters/chrome/content-script/suggestions/EditableContextResolver";
@@ -197,5 +198,35 @@ test("uses contenteditable adapter block context and selection-safety results di
   } finally {
     ContentEditableAdapter.prototype.getBlockContext = originalGetBlockContext;
     ContentEditableAdapter.prototype.hasUnstableSelection = originalHasUnstableSelection;
+  }
+});
+
+test("FT-INV-2 block context does not extract a 50k editor until full text is requested", () => {
+  const editable = document.createElement("div");
+  editable.setAttribute("contenteditable", "true");
+  Object.defineProperty(editable, "isContentEditable", { value: true });
+  editable.innerHTML = `<p>Hello</p><p>${"x".repeat(50000)}</p>`;
+  document.body.append(editable);
+  const range = document.createRange();
+  range.setStart(editable.firstChild!.firstChild!, 5);
+  range.collapse(true);
+  window.getSelection()!.removeAllRanges();
+  window.getSelection()!.addRange(range);
+  const original = TextTargetAdapter.snapshot;
+  let extracts = 0;
+  TextTargetAdapter.snapshot = (...args) => {
+    extracts++;
+    return original(...args);
+  };
+  try {
+    const context = new EditableContextResolver().resolve(editable)!;
+    expect(context.beforeCursor).toBe("Hello");
+    expect(context.selectionStable).toBe(true);
+    expect(extracts).toBe(0);
+    expect(context.fullText.length).toBe(50005);
+    expect(context.fullText.length).toBe(50005);
+    expect(extracts).toBe(1);
+  } finally {
+    TextTargetAdapter.snapshot = original;
   }
 });

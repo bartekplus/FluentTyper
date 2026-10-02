@@ -65,6 +65,8 @@ export function applyEdits(text: string, edits: readonly ReviewEdit[]): string |
   let previous: ReviewEdit | null = null;
   for (const edit of sorted) {
     if (
+      !Number.isSafeInteger(edit.start) ||
+      !Number.isSafeInteger(edit.end) ||
       edit.start < cursor ||
       edit.end < edit.start ||
       edit.end > text.length ||
