@@ -34,3 +34,38 @@ export function tokensBefore(text: string, index: number, n: number): string[] {
 export function tokensAfter(text: string, index: number, n: number): string[] {
   return (text.slice(index, index + 16 * n).match(TOKEN) ?? []).slice(0, n);
 }
+
+export const PRONOUNS = wordSet("ich du er sie es wir ihr man sich mich dich uns euch mir dir");
+// Verbs that close a clause with a bare infinitive or a participle ("kannst du das ändern",
+// "diese habe ergeben").
+export const VERB_GOVERNORS = wordSet(
+  "kann kannst können könnt konnte konnten könnte könnten muss musst müssen müsst musste " +
+    "mussten müsste müssten soll sollst sollen sollt sollte sollten will willst wollen " +
+    "wollt wollte wollten darf darfst dürfen dürft durfte durften dürfte dürften mag " +
+    "möchte möchtest möchten werde wirst wird werden werdet würde würdest würden wurde " +
+    "wurden worden lass lasse lässt lassen ließ tu tue tut tun brauchst braucht brauchen " +
+    "habe hast hat haben habt hatte hatten hätte hätten bin bist ist sind seid war waren " +
+    "wäre wären sei",
+);
+
+/** Whether the clause has a verb that the word at its end can complete. */
+export function governedBefore(before: string[], at: number): boolean {
+  for (let i = at - 1; i >= 0 && !BOUNDARY.test(before[i]); i--) {
+    if (VERB_GOVERNORS.has(before[i].toLowerCase())) return true;
+  }
+  return false;
+}
+
+// English function words that are no German words in lowercase.
+const ENGLISH =
+  /(?<![\p{L}'’])(?:the|and|of|with|you|your|is|are|this|that|it|to|for|be|have|has|from|but|not|they|we|my|I|people|our)(?![\p{L}'’])/gu;
+
+/** How many English function words a span holds: quoted or embedded English material. */
+export const englishWords = (span: string) => span.match(ENGLISH)?.length ?? 0;
+
+/** Whether the line around `index` reads as English ("With 15 million people …"). */
+export function englishLine(text: string, index: number): boolean {
+  const start = Math.max(text.lastIndexOf("\n", index - 1) + 1, index - 120);
+  const end = text.indexOf("\n", index);
+  return englishWords(text.slice(start, Math.min(end < 0 ? text.length : end, index + 120))) >= 2;
+}

@@ -287,6 +287,13 @@ function afterSubjectWord(ctx: DetectContext): RawFinding[] {
     const word = token.toLowerCase();
     const next = nextWord(ctx, end);
     if (/^should$/i.test(aux) && modifiesNext(word, next)) continue;
+    // Inverted conditional "should troops pass": a plural subject before its base verb.
+    if (
+      /^should$/i.test(aux) &&
+      englishWordInfo(word)?.plural &&
+      englishWordInfo(next)?.verbs.some((v) => v.form === "base")
+    )
+      continue;
     // "What will hiring managers be like?", "How dangerous would doing that be?": a gerund
     // subject in a question.
     if (

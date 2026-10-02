@@ -125,6 +125,7 @@ const NEGATIVES = [
   "The report has 300 pages.",
   "She ran 5 miles yesterday.",
   "We exceeded 20,000 page views.",
+  "The ferries carried about 40,000 day visitors last summer.",
   "They visited the Seven Mile Beach.",
   "We will go to Paris next week.",
   "My head aches and my hair cut was bad.",

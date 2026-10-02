@@ -397,6 +397,108 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
       ],
     },
   ],
+  [
+    "frenchTout",
+    {
+      pos: [
+        ["Il pleut tout les jours en novembre.", "Il pleut tous les jours en novembre."],
+        ["Toute le village est venu.", "Tout le village est venu."],
+        ["Toutes les soirs, il lit un roman.", "Tous les soirs, il lit un roman."],
+        ["Merci à tout ceux qui ont aidé.", "Merci à tous ceux qui ont aidé."],
+        ["Tous ça ne sert à rien.", "Tout ça ne sert à rien."],
+        ["Elle a travaillé tout la nuit.", "Elle a travaillé toute la nuit."],
+        ["Elle a lu toute mon courrier.", "Elle a lu tout mon courrier."],
+        [
+          "J'ai répondu à tout personne qui écrivait.",
+          "J'ai répondu à toute personne qui écrivait.",
+        ],
+        ["Tous le monde est content.", "Tout le monde est content."],
+        ["Elles sont toute deux parties.", "Elles sont toutes deux parties."],
+      ],
+      neg: [
+        "Toutes ces idées sont bonnes.",
+        "Ils ont tous le même âge.",
+        "Elles ont toutes la grippe.",
+        "Tous le savent depuis longtemps.",
+        "Il faut tout leur dire.",
+        "Elle est tout sourire.",
+        "Il est tout ouïe.",
+        "Toute mon enfance s'est passée ici.",
+        "Les invités, tous la mine réjouie, arrivèrent.",
+        "Nous avons tous nos secrets.",
+        "Ils faisaient tous les deux partie du club.",
+        "Je remercie avant tout ceux qui sont venus.",
+        "Il a dit à tous la vérité.",
+        "Tout ou partie du texte sera repris.",
+      ],
+    },
+  ],
+  [
+    "frenchMood",
+    {
+      pos: [
+        ["Il faut que tu viens ce soir.", "Il faut que tu viennes ce soir."],
+        ["Je veux que vous êtes à l'heure.", "Je veux que vous soyez à l'heure."],
+        ["Bien qu'il pleut, nous sortons.", "Bien qu'il pleuve, nous sortons."],
+        [
+          "Pour que tout le monde comprend, parle lentement.",
+          "Pour que tout le monde comprenne, parle lentement.",
+        ],
+        [
+          "Il est important que nous prenons une décision.",
+          "Il est important que nous prenions une décision.",
+        ],
+        ["Il vaut mieux que tu pars tôt.", "Il vaut mieux que tu partes tôt."],
+        ["Je souhaite qu'il réussit son examen.", "Je souhaite qu'il réussisse son examen."],
+        ["Si j'aurais su, je serais venu.", "Si j'avais su, je serais venu."],
+        ["S'ils viendront demain, préviens-moi.", "S'ils viennent demain, préviens-moi."],
+        ["J'aurai aimé connaître la fin.", "J'aurais aimé connaître la fin."],
+        ["J'aimerai bien partir en vacances.", "J'aimerais bien partir en vacances."],
+        ["Je viendrais demain matin.", "Je viendrai demain matin."],
+        ["Je mangerai du chocolat si j'aimais ça.", "Je mangerais du chocolat si j'aimais ça."],
+      ],
+      neg: [
+        "Je sais bien que tu reviendras.",
+        "Il est probable qu'il viendra.",
+        "Je pense que tu as raison.",
+        "Il était si content qu'il a pleuré.",
+        "Il se doute que son voisin ment.",
+        "Je me demande si tu viendrais.",
+        "Je pourrais venir demain.",
+        "Si tu veux, je viendrais demain.",
+        "Quand je serai grand, je voudrai être pilote.",
+        "C'est toi que j'aimerai toujours.",
+        "J'aurai fini avant midi.",
+        "Il faut que les enfants mangent.",
+        "Il est possible que la situation va changer.",
+      ],
+    },
+  ],
+  [
+    "frenchMissingNe",
+    {
+      pos: [
+        ["J'ai pas compris ta question.", "Je n'ai pas compris ta question."],
+        ["T'as pas vu mes clés ?", "Tu n'as pas vu mes clés ?"],
+        ["On sait jamais avec lui.", "On ne sait jamais avec lui."],
+        ["Il y a rien à manger.", "Il n'y a rien à manger."],
+        ["C'est pas grave.", "Ce n'est pas grave."],
+        ["Je m'attendais pas à ça.", "Je ne m'attendais pas à ça."],
+        ["Mon frère veut pas venir.", "Mon frère ne veut pas venir."],
+        ["Nous habitons pas ici.", "Nous n'habitons pas ici."],
+      ],
+      neg: [
+        "C'est le meilleur film que j'ai jamais vu.",
+        "Il y a pas mal de monde.",
+        "Je ne sais pas.",
+        "J'en veux plus.",
+        "Une personne est venue.",
+        "Il avance pas à pas.",
+        "Il te suit rien que pour t'embêter.",
+        "S'il revient, rien ne l'empêche de rester.",
+      ],
+    },
+  ],
 ];
 
 describe.each(FIXTURES)("%s", (ruleId, { pos, neg }) => {
@@ -559,8 +661,25 @@ test("no French chunk stalls on adversarial input", () => {
     "les rues était calmes et les dossiers triées que j'ai aidée nous avons mangés ".repeat(120),
     "c'est moi qui ceux qui le la les un une ".repeat(250),
     "ont peut quant la son on peux là ".repeat(250),
+    "tout toute tous toutes les le la ceux ça ".repeat(250),
+    "il faut que bien qu' si s'ils j'aurai aimé je viendrais demain ".repeat(150),
+    "j'ai pas on sait jamais il y a rien c'est pas ".repeat(200),
+    "il ni si sans mes dans leurs mêmes d'avantage quel que soit anti sur sous néo-x ".repeat(150),
   ])
     expect(slowest(text)).toBeLessThan(100);
+});
+
+test("French impossible days and months are flagged without a fix", () => {
+  for (const text of ["Elle est née le 32 janvier.", "Il est né le 11/50/2014."]) {
+    const [finding, ...rest] = findings("frenchDates", text);
+    expect(rest).toEqual([]);
+    expect(finding.alternatives).toEqual([]);
+  }
+});
+
+test("French keeps glued hours but spaces other units and currencies", () => {
+  expect(findings("measurementUnitFormatting", "Il a couru 10km hier.")).toHaveLength(1);
+  expect(findings("currencySpacing", "Le livre coûte 5€.")).toHaveLength(1);
 });
 
 test("French time zones and pronoun + article pairs stay clean", () => {
@@ -595,6 +714,35 @@ test("the clean French corpus has no findings", () => {
 });
 
 test.each([
+  ["measurementUnitFormatting", "Rendez-vous à 14h devant la gare, ou à 9h demain."],
+  ["frenchHomophones", "Le 3 mai il pleuvait."],
+  ["frenchHomophones", "Ce sont les mêmes si je me souviens bien."],
+  ["frenchHomophones", "Il a tiré avantage de la situation."],
+  ["frenchHomophones", "Il n'y a pas d'avantage à attendre."],
+  ["frenchHomophones", "Ils ont fini leurs devoirs."],
+  ["frenchHomophones", "Quels que soient le lieu de livraison et le mode de paiement."],
+  ["frenchHomophones", "J'ai trois années d'expérience."],
+  ["frenchHomophones", "Nous avons passé deux années difficiles."],
+  ["frenchHomophones", "Le pain et le beurre sont sur la table."],
+  ["frenchHomophones", "Elle et moi sommes partis."],
+  ["frenchHomophones", "Le rouge et noir lui va bien."],
+  ["frenchHomophones", "Ce qui est fait est fait."],
+  ["frenchHyphenation", "Viens le voir demain."],
+  ["frenchHyphenation", "Porte la valise jusqu'au train."],
+  ["frenchHyphenation", "Mets en marche le moteur."],
+  ["frenchHyphenation", "Garde la tête haute."],
+  ["frenchDates", "La version 31.4 est sortie."],
+  ["frenchDates", "Il revient le 12.5 au matin."],
+  ["frenchDates", "Les 300 janvier de la série."],
+  ["frenchDates", "Il est né le 29/02/2024."],
+  ["frenchHomophones", "Deux cents millions d'habitants."],
+  ["frenchHomophones", "Trois cent mille euros et quatre-vingt-dix centimes."],
+  ["frenchHomophones", "Le taux atteint trois pour cent."],
+  ["frenchHyphenation", "Il compte sur tout le monde."],
+  ["frenchHyphenation", "Elle est sous pression."],
+  ["frenchHyphenation", "Un verre anti-reflets et un écran auto-bronzant."],
+  ["frenchHyphenation", "Ce texte peut être utile."],
+  ["frenchHyphenation", "Il est peut-être là."],
   ["frenchElision", "Le sigle vient de also known as, en anglais."],
   ["frenchElision", "Il épelle son nom : d o r a."],
   ["frenchSubjectVerbAgreement", "« Je est un autre » reste une formule célèbre."],
@@ -637,6 +785,52 @@ test.each([
 });
 
 test.each([
+  ["frenchHomophones", "Il ni comprend rien.", "Il n'y comprend rien."],
+  ["frenchHomophones", "Elle si prend bien.", "Elle s'y prend bien."],
+  ["frenchHomophones", "Il sans va demain.", "Il s'en va demain."],
+  ["frenchHomophones", "Il est fatigué, mes je continue.", "Il est fatigué, mais je continue."],
+  ["frenchHomophones", "Je viens dans prendre.", "Je viens d'en prendre."],
+  ["frenchHomophones", "Cela leurs permet de partir.", "Cela leur permet de partir."],
+  ["frenchHomophones", "Il viendra mêmes si tu refuses.", "Il viendra même si tu refuses."],
+  ["frenchHomophones", "Je pense d'avantage à toi.", "Je pense davantage à toi."],
+  ["frenchHomophones", "Quel que soit sa raison, il part.", "Quelle que soit sa raison, il part."],
+  [
+    "frenchHomophones",
+    "Quelles que soit ses idées, on écoute.",
+    "Quelles que soient ses idées, on écoute.",
+  ],
+  ["frenchHomophones", "Ma fille a maintenant six années.", "Ma fille a maintenant six ans."],
+  ["frenchHomophones", "Il est âgé de quarante années.", "Il est âgé de quarante ans."],
+  ["frenchHomophones", "Le facteur et arrivé en retard.", "Le facteur est arrivé en retard."],
+  ["frenchHomophones", "Ceci et une erreur.", "Ceci est une erreur."],
+  ["frenchHomophones", "C'est celle qui et devant.", "C'est celle qui est devant."],
+  ["frenchHomophones", "Ils arrivent est repartent vite.", "Ils arrivent et repartent vite."],
+  ["frenchHomophones", "Il partit tôt est ne revint pas.", "Il partit tôt et ne revint pas."],
+  ["frenchHyphenation", "Dis lui bonjour de ma part.", "Dis-lui bonjour de ma part."],
+  ["frenchHyphenation", "Regarde la.", "Regarde-la."],
+  ["frenchHyphenation", "Prends en un peu.", "Prends-en un peu."],
+  ["frenchHyphenation", "Faites les entrer.", "Faites-les entrer."],
+  ["frenchDates", "Il est né le 31.11.1989.", "Il est né le 30.11.1989."],
+  ["frenchDates", "Elle arrive le 31-9-24.", "Elle arrive le 30-9-24."],
+  ["frenchDates", "Elle est née le 31.04.", "Elle est née le 30.04."],
+  ["frenchHomophones", "J'ai acheté trois cent timbres.", "J'ai acheté trois cents timbres."],
+  [
+    "frenchHomophones",
+    "Il a payé deux cents cinquante euros.",
+    "Il a payé deux cent cinquante euros.",
+  ],
+  ["frenchHomophones", "Mon grand-père a quatre-vingt ans.", "Mon grand-père a quatre-vingts ans."],
+  ["frenchHyphenation", "Un rapport néo-rural.", "Un rapport néorural."],
+  ["frenchHyphenation", "Ils sont sur exploités.", "Ils sont surexploités."],
+  ["frenchHyphenation", "Les pays sous développés.", "Les pays sous-développés."],
+  ["frenchHyphenation", "Il veut contre attaquer.", "Il veut contre-attaquer."],
+  ["frenchHyphenation", "Il n'est peut être pas venu.", "Il n'est peut-être pas venu."],
+  [
+    "frenchHyphenation",
+    "Ainsi, peut être que tout ira bien.",
+    "Ainsi, peut-être que tout ira bien.",
+  ],
+  ["frenchHyphenation", "Il peut-être têtu.", "Il peut être têtu."],
   ["frenchHomophones", "Il est venu comme même.", "Il est venu quand même."],
   ["frenchHomophones", "C'est comme même bizarre.", "C'est quand même bizarre."],
   ["frenchHyphenation", "Il viendra peu être demain.", "Il viendra peut-être demain."],

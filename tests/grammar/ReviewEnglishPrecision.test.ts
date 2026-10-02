@@ -70,6 +70,15 @@ const QUIET: string[] = [
   "It topped the 2019 Year-End list.",
   // Titled names written as two words.
   "We watched The Old Home Town again.",
+  // A year or a label before a noun.
+  "He restored a 1990 car and a pre-1990 truck.",
+  // An inverted conditional: "should" before a plural subject.
+  "The guards would retreat should raiders cross the river.",
+  // A name after a lowercase word; the noun "march".
+  "We read stories by Ive Marten tonight.",
+  "Every march ends at the square.",
+  // An adverb after a plural noun is not a possessed noun.
+  "The checks the auditors usually do took a week.",
 ];
 
 test.each(QUIET)("default checks stay quiet: %p", (text) => {
@@ -85,6 +94,10 @@ test("the guarded checks still fire on real errors", () => {
   expect(review("Ive been there.", DEFAULTS)).toContain(
     "englishContractionNormalization: Ive -> I've",
   );
+  expect(review("We hike there every march.", DEFAULTS)).toContain(
+    "englishProperNounCapitalization: march -> March",
+  );
+  expect(review("We sold 120 car.", DEFAULTS)).toContain("englishNounNumber: car -> cars");
   expect(review("The dogs collar was too tight.", DEFAULTS).join()).toContain(
     "englishPossessiveNouns",
   );

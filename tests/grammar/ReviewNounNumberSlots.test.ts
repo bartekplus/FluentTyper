@@ -34,6 +34,16 @@ test("noun number follows its determiner or count", () => {
     ["Other might disagree.", "Others might disagree."],
     ["I wonder what other think.", "I wonder what others think."],
     ["Three of my neighbor have dogs.", "Three of my neighbors have dogs."],
+    ["That is hardly a new ideas.", "That is hardly a new idea."],
+    ["She had a questions about the fee.", "She had a question about the fee."],
+    ["It was a good suggestions.", "It was a good suggestion."],
+    ["Only a weeks later, it snowed.", "Only a week later, it snowed."],
+    // Existential there/here with a count.
+    ["There are several reason for it.", "There are several reasons for it."],
+    // these/those before a singular object noun.
+    ["Thanks for these advice.", "Thanks for this advice."],
+    ["She painted those cottage.", "She painted those cottages."],
+    ["There were a few chair in the hall.", "There were a few chairs in the hall."],
   ]) {
     const found = scan(input);
     expect({ input, count: found.length }).toEqual({ input, count: 1 });
@@ -45,6 +55,17 @@ test("noun number follows its determiner or count", () => {
 test("compounds, pronoun counts and invariant nouns keep their number", () => {
   for (const text of [
     "A dog walks into a bar.",
+    "There is no doubt about it.",
+    "I hope these help.",
+    "We will make those change soon.",
+    'We studied these electron "orbits" closely.',
+    "There are few better in town.",
+    "Out there is a few hikers and one ranger.",
+    "There is five times as much rain.",
+    "There are a few tariff and non-tariff rules.",
+    "We heard how a dog barks.",
+    "A round costs ten dollars.",
+    "Watch how a young bird flies.",
     "The program has a sales team.",
     "It is a means to an end.",
     "She gave a big thanks to everyone.",
@@ -53,6 +74,7 @@ test("compounds, pronoun counts and invariant nouns keep their number", () => {
     "These help a lot.",
     "Every few days the price changes.",
     "They each took a slice.",
+    "After the hike every leg muscle aches.",
     "On the other hand, it works.",
     "This means trouble.",
     "We have a five star hotel.",
@@ -73,4 +95,24 @@ test("compounds, pronoun counts and invariant nouns keep their number", () => {
     "We spent a few days there.",
   ])
     expect({ text, found: scan(text).map((d) => d.original) }).toEqual({ text, found: [] });
+});
+
+test("an existential verb agrees with the counted plural after it", () => {
+  for (const [input, expected] of [
+    ["There was some loose cables here.", "There were some loose cables here."],
+    ["Here is many good examples of it.", "Here are many good examples of it."],
+    ["There's no trains after midnight.", "There are no trains after midnight."],
+  ]) {
+    const found = detectReviewDiagnostics(
+      { id: "there", text: input, scope: { start: 0, end: input.length }, protectedRanges: [] },
+      {
+        lang: "en_US",
+        enabledRules: ["englishExistentialAgreement"],
+        userDictionary: [],
+        insertSpaceAfterAutocomplete: true,
+      },
+    ).diagnostics;
+    expect({ input, count: found.length }).toEqual({ input, count: 1 });
+    expect(applyEdits(input, found[0].alternatives[0].edits)).toBe(expected);
+  }
 });

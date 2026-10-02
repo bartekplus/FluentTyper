@@ -1,11 +1,19 @@
 import { describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
-import { buildGermanLexicon, GERMAN_LEXICON_SOURCES } from "../../scripts/generate-german-lexicon";
+import {
+  buildGermanLexicon,
+  deriveGermanLexicon,
+  GERMAN_LEXICON_SOURCES,
+} from "../../scripts/generate-german-lexicon";
 import {
   germanNounReading,
   germanVerbLike,
 } from "../../src/core/domain/grammar/review/german/germanLexicon";
-import { REVIEW_SUPPORTED_RULE_IDS } from "../../src/core/domain/grammar/review/reviewCatalog";
+import {
+  REVIEW_SUPPORTED_RULE_IDS,
+  reviewRuleIds,
+} from "../../src/core/domain/grammar/review/reviewCatalog";
 import {
   detectReviewDiagnostics,
   prepareReview,
@@ -60,8 +68,39 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
           "Wir sollten uns auf das Schlimmste einstellen.",
         ],
         ["Kannst du das auf deutsch sagen?", "Kannst du das auf Deutsch sagen?"],
+        ["Das war ganz allein meine schuld.", "Das war ganz allein meine Schuld."],
+        ["Er ist Schuld daran, dass wir warten.", "Er ist schuld daran, dass wir warten."],
+        ["Meinst du das im ernst?", "Meinst du das im Ernst?"],
+        ["Du solltest das Ernst nehmen.", "Du solltest das ernst nehmen."],
+        ["Am Ende hielt sie ihn im arm.", "Am Ende hielt sie ihn im Arm."],
+        ["Zum dank gab es Kuchen.", "Zum Dank gab es Kuchen."],
+        ["An der Ampel nach Links abbiegen.", "An der Ampel nach links abbiegen."],
+        ["Das ist uns durchaus Recht.", "Das ist uns durchaus recht."],
+        ["Uns wurde Angst und Bange.", "Uns wurde angst und bange."],
+        ["Er warnte zurecht vor dem Sturm.", "Er warnte zu Recht vor dem Sturm."],
+        ["Wir kommen gut zu recht.", "Wir kommen gut zurecht."],
+        ["Seine aussagen waren widersprüchlich.", "Seine Aussagen waren widersprüchlich."],
+        ["Die kosten steigen jedes Jahr.", "Die Kosten steigen jedes Jahr."],
+        ["Das gerät, mit dem wir messen, ist neu.", "Das Gerät, mit dem wir messen, ist neu."],
+        ["Es gab ein ziemlich seltsames verhalten.", "Es gab ein ziemlich seltsames Verhalten."],
       ],
       neg: [
+        "Die Schuld liegt bei mir.",
+        "Er nimmt das Leben ernst.",
+        "Ernst zu nehmende Einwände gab es keine.",
+        "Ich halte das für Ernst.",
+        "Dank deiner Hilfe hat es geklappt.",
+        "Die Seite mit Links zum Thema fehlt.",
+        "Ich gebe dir Recht.",
+        "Sie hat Recht.",
+        "Wir haben Angst vor Gewittern.",
+        "Er schnitt den Kuchen zu recht kleinen Stücken.",
+        "Wir kommen zurecht.",
+        "Die Riesen kamen aus dem Wald.",
+        "Die würden das nie glauben.",
+        "Diese stellen meiner Schwester ein Zimmer zur Verfügung.",
+        "Ihr fahrt morgen los?",
+        "Wir hoffen, in einer Stadt zu leben, in der man atmen kann.",
         "Die kosten viel zu viel.",
         "Das stelle ich mir anders vor.",
         "Kannst du das ändern?",
@@ -99,6 +138,8 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Wir warten seit den letzten Monat.", "Wir warten seit dem letzten Monat."],
         ["Er wohnt bei seine alte Oma.", "Er wohnt bei seiner alten Oma."],
         ["Das gilt gemäß des Vertrages.", "Das gilt gemäß dem Vertrag."],
+        ["Sie kam mit drei Koffer an.", "Sie kam mit drei Koffern an."],
+        ["Mit neue Lösungen geht es.", "Mit neuen Lösungen geht es."],
       ],
       neg: [
         "Das ist mit die beste Idee.",
@@ -112,6 +153,9 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         "Wir rechnen mit keinen Problemen.",
         "Er spricht mit ihr Deutsch.",
         "Das ist der Grund, wegen dem Anna geht.",
+        "Man darf bis zu drei Bücher ausleihen.",
+        "Seit 2010 Lehrer, jetzt Rektor.",
+        "Sie kam mit großer Freude.",
       ],
     },
   ],
@@ -135,8 +179,20 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
           "Mach dir keine Gedanken, das tut mit leid.",
           "Mach dir keine Gedanken, das tut mir leid.",
         ],
+        ["Wir wussten das sie recht hatte.", "Wir wussten, dass sie recht hatte."],
+        ["Ich hoffe kaum, das der Bus noch fährt.", "Ich hoffe kaum, dass der Bus noch fährt."],
+        ["Das ein Fehler passiert ist, ärgert mich.", "Dass ein Fehler passiert ist, ärgert mich."],
+        ["Schön das ihr gekommen seid.", "Schön, dass ihr gekommen seid."],
+        ["Bis morgen, wir sehen uns wider.", "Bis morgen, wir sehen uns wieder."],
+        ["Sie kam immer wider zu spät.", "Sie kam immer wieder zu spät."],
       ],
       neg: [
+        "Er handelte wider besseres Wissen.",
+        "Wir wogen das Für und Wider ab.",
+        "Das alles war schön, ist aber vorbei.",
+        "Gut, das reicht.",
+        "Schön das Wetter heute.",
+        "Und wieder erwarten wir Regen.",
         "Ihr seid gestern gekommen.",
         "Sie wohnt bei ihr seit 2015.",
         "Lass mich sagen, was ich denke.",
@@ -260,6 +316,123 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
       ],
     },
   ],
+  [
+    "germanCommas",
+    {
+      pos: [
+        ["Wir blieben drinnen weil es stürmte.", "Wir blieben drinnen, weil es stürmte."],
+        ["Sie weiß nicht ob der Laden offen hat.", "Sie weiß nicht, ob der Laden offen hat."],
+        [
+          "Er sparte jeden Cent um ein Rad zu kaufen.",
+          "Er sparte jeden Cent, um ein Rad zu kaufen.",
+        ],
+        ["Um pünktlich zu sein nahm sie das Taxi.", "Um pünktlich zu sein, nahm sie das Taxi."],
+        ["Ich glaube der Zug ist schon weg.", "Ich glaube, der Zug ist schon weg."],
+        ["Meinst du das reicht für heute?", "Meinst du, das reicht für heute?"],
+        ["Er fragte wie spät es sei.", "Er fragte, wie spät es sei."],
+        ["Das war kein Zufall sondern Absicht.", "Das war kein Zufall, sondern Absicht."],
+        ["Gut dass du angerufen hast.", "Gut, dass du angerufen hast."],
+        ["Er fährt los auch wenn es schneit.", "Er fährt los, auch wenn es schneit."],
+        [
+          "Nachdem sie gegessen hatte ist sie gegangen.",
+          "Nachdem sie gegessen hatte, ist sie gegangen.",
+        ],
+        ["Sag mal kannst du kochen?", "Sag mal, kannst du kochen?"],
+        ["Anna behauptet der Film sei langweilig.", "Anna behauptet, der Film sei langweilig."],
+      ],
+      neg: [
+        "Er tat so, als ob er schliefe.",
+        "Sie lachte, sodass alle mitlachten, und auch wenn es spät war, blieben wir.",
+        "Ich komme, wenn möglich früher, und je nachdem ob es regnet.",
+        "Zwei Tage nachdem sie abgereist war, kam der Brief.",
+        "Es geht um das Recht zu schweigen.",
+        "Er kümmert sich um den Garten, ohne Handschuhe zu tragen.",
+        "Ich fange um acht Uhr zu arbeiten an.",
+        "Ich glaube an dich und denke oft an dich.",
+        "Ich finde den Vorschlag gut.",
+        "Ich bin erstaunt ob deiner Geduld.",
+        "Die Drüsen sondern ein Sekret ab.",
+        "Weißt du was? Wir gehen.",
+        "Er weiß so viel wie ich.",
+        "Das Fenster muss geöffnet werden können.",
+        "Er tat so als ob er schliefe.",
+        "Für meinen Bruder habe ich ein Geschenk.",
+        "Wenn behauptet wird, es sei so, glaube ich es.",
+        "Findet ihr das nicht übertrieben?",
+        "Alle meine Freunde sind da.",
+      ],
+    },
+  ],
+  [
+    "germanNumbers",
+    {
+      pos: [
+        ["Das kostet vier und dreißig Euro.", "Das kostet vierunddreißig Euro."],
+        ["Es kamen fünf hundert Gäste.", "Es kamen fünfhundert Gäste."],
+        ["Ich habe zehn mal angerufen.", "Ich habe zehnmal angerufen."],
+        ["Wir warteten zwei an halb Stunden.", "Wir warteten zweieinhalb Stunden."],
+        ["Sie zählte bis Zwanzig.", "Sie zählte bis zwanzig."],
+        ["Wir haben drei Lösung gefunden.", "Wir haben drei Lösungen gefunden."],
+        ["Das Projekt kostet 4 Milliarde Euro.", "Das Projekt kostet 4 Milliarden Euro."],
+      ],
+      neg: [
+        "Es dauerte zwei, drei Tage.",
+        "Zwischen vier und dreißig Grad ist es angenehm.",
+        "Das ist ein hundert Jahre alter Baum.",
+        "Vier mal fünf ist zwanzig.",
+        "Noch einmal zwei Tage sind zu viel.",
+        "Sie bekam eine Drei.",
+        "Er hat einige Erfahrung damit.",
+        "Wir lasen Tausend und eine Nacht.",
+      ],
+    },
+  ],
+  [
+    "germanQuestionMarks",
+    {
+      pos: [
+        ["Wohin fährst du morgen.", "Wohin fährst du morgen?"],
+        ["Kannst du mir kurz helfen.", "Kannst du mir kurz helfen?"],
+        ["Wieso denn nicht.", "Wieso denn nicht?"],
+        ["Das passt so, oder.", "Das passt so, oder?"],
+        ["Mit wem gehst du hin.", "Mit wem gehst du hin?"],
+      ],
+      neg: [
+        "Wie besprochen. Bis morgen.",
+        "Was mich stört ist der Lärm.",
+        "Wer zuerst kommt, mahlt zuerst.",
+        "Wie wunderbar.",
+        "Habt Geduld.",
+        "Hätte ich das gewusst wäre ich gekommen.",
+        "Er fragte: Wann kommst du.",
+      ],
+    },
+  ],
+  [
+    "germanVerbAgreement",
+    {
+      pos: [
+        ["Wir muss morgen früh los.", "Wir müssen morgen früh los."],
+        ["Du kann gern mitkommen.", "Du kannst gern mitkommen."],
+        ["Ich hat keine Ahnung.", "Ich habe keine Ahnung."],
+        ["Morgen werde wir es sehen.", "Morgen werden wir es sehen."],
+        ["Ihr wartest schon lange.", "Ihr wartet schon lange."],
+        ["Er fährst morgen.", "Er fährt morgen."],
+      ],
+      neg: [
+        "Er habe keine Zeit, sagte sie.",
+        "Sie hast du gestern getroffen?",
+        "Ihr habe ich das Buch geliehen.",
+        "Es sind schon alle da.",
+        "Du und ich sind ein gutes Team.",
+        "Sei du doch still!",
+        "Ich weiß du kannst das.",
+        "Ich wollt' dir nur danken.",
+        "Wir selbst haben es gebaut.",
+        "Ich glaube, dass ich haben will, was du hast.",
+      ],
+    },
+  ],
 ];
 
 describe.each(RULES)("%s", (ruleId, { pos, neg }) => {
@@ -289,6 +462,10 @@ describe("germanCompounds", () => {
     ["Ich schreibe dir eine Email.", "Ich schreibe dir eine E-Mail."],
     ["Das ist meine eMail-Adresse.", "Das ist meine E-Mail-Adresse."],
     ["Er ist US Bürger.", "Er ist US-Bürger."],
+    ["Ruf an, wenn du ab fährst.", "Ruf an, wenn du abfährst."],
+    ["Sie hat das Paket ab geschickt.", "Sie hat das Paket abgeschickt."],
+    ["Ob er es zu gibt, weiß niemand.", "Ob er es zugibt, weiß niemand."],
+    ["Du musst gut auf passen.", "Du musst gut aufpassen."],
   ])("repairs %p", (input, output) => {
     expect(findings("germanCompounds", input)).toHaveLength(1);
     expect(fixed("germanCompounds", input)).toBe(output);
@@ -302,9 +479,42 @@ describe("germanCompounds", () => {
     "Die Vase ist aus Email.",
     "Sie kommt Dienstag Abend vorbei.",
     "Er ging der Reihe nach zu holen.",
+    "Das wusste ich von Anfang an.",
+    "Sie war viel zu gelassen.",
+    "Das dauert zu lange.",
+    "Wir wollten immer hin.",
+    "Er ist mir über den weg gelaufen.",
+    "Ich weiß, wo ich hin muss.",
   ])("leaves %p alone", (input) => {
     expect(findings("germanCompounds", input)).toEqual([]);
   });
+});
+
+describe("German quotation marks inside quotations and straight quotes", () => {
+  test.each([
+    ["„Er rief „Stopp“ und blieb stehen.“", "„Er rief ‚Stopp‘ und blieb stehen.“"],
+    ["»Sie las »Faust« im Zug.«", "»Sie las ›Faust‹ im Zug.«"],
+  ])("nests %p", (input, output) => {
+    expect(fixed("germanQuotes", input)).toBe(output);
+  });
+  test.each(["„Er rief „Stopp und ging.", "„Er rief ‚Stopp‘.“", "«Er rief «Stopp» laut»"])(
+    "leaves %p alone",
+    (input) => {
+      expect(findings("germanQuotes", input)).toEqual([]);
+    },
+  );
+  test.each([
+    ['Er nannte es "Kunst" und lachte.', "Er nannte es „Kunst“ und lachte."],
+    ['"Gut", sagte sie.', "„Gut“, sagte sie."],
+  ])("makes straight quotes German in %p", (input, output) => {
+    expect(fixed("germanStraightQuotes", input)).toBe(output);
+  });
+  test.each(['Ein 27"-Bildschirm.', 'Er sagte "Gut und ging.', 'Sie sang "Let it be" leise.'])(
+    "leaves straight %p alone",
+    (input) => {
+      expect(findings("germanStraightQuotes", input)).toEqual([]);
+    },
+  );
 });
 
 describe("germanDates", () => {
@@ -349,6 +559,22 @@ test("the committed lexicon matches de_DE.dic/.aff (bun run generate:german-lexi
     ),
   );
   expect(buildGermanLexicon(dic, aff)).toBe(committed);
+  // The cascades read every lowercase dictionary word exactly.
+  const { nounOnly, finite, infinitive, lowercaseWords } = deriveGermanLexicon(dic, aff);
+  const wrong: string[] = [];
+  const check = (words: string[], reading: string | null) => {
+    for (const w of words) if (germanNounReading(w) !== reading) wrong.push(w);
+  };
+  const nouns = new Set([...nounOnly, ...finite, ...infinitive]);
+  check(
+    lowercaseWords.filter((w) => !nouns.has(w)),
+    null,
+  );
+  check(nounOnly, "noun");
+  check(finite, "finite");
+  check(infinitive, "infinitive");
+  // Only the authored extra nouns read otherwise.
+  expect(wrong.sort()).toEqual(["eile", "mühe", "träne", "weile", "zeit"]);
 });
 
 test.each([
@@ -396,7 +622,38 @@ test("no German chunk stalls on repeated determiners and lowercase nouns", () =>
     "mit den schönen hohen ".repeat(400),
     "ihr seit mir dem seid den mich ".repeat(300),
     `der ${"\t ".repeat(3_000)}vertrag`,
+    "ich glaube weil um zu wissen was ob sondern ".repeat(300),
+    "Wir habe. Sollte wir du kann ich hast ".repeat(300),
+    "mir ist zu recht Ernst nach Links riesen Dank im arm die schuld ".repeat(250),
+    "zwei und zwanzig hundert tausend mal drei an halb viele Lösung ".repeat(250),
+    `Wann ${"kommst du ".repeat(2_000)}. Wie viel kostet das. Hast du Zeit, oder.`,
   ];
   slowest(inputs.join("\n"));
   for (const text of inputs) expect(slowest(text)).toBeLessThan(100);
+});
+
+test("the clean German corpus has no findings from the default rules", () => {
+  const text = readFileSync("tests/fixtures/native-review-corpus/german-clean.txt", "utf8")
+    .split("\n")
+    .filter((line) => !line.startsWith("#"))
+    .join("\n");
+  const found = detectReviewDiagnostics(
+    { id: "clean", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
+    {
+      enabledRules: reviewRuleIds({ codeMode: false }),
+      lang: "de_DE",
+      userDictionary: [],
+      insertSpaceAfterAutocomplete: true,
+    },
+  ).diagnostics;
+  expect(found.map((d) => `${d.ruleId}: ${d.original} @ ${d.range.start}`)).toEqual([]);
+});
+
+test.each([
+  ["germanQuotes", "Auf dem Plakat stand “I love my city” in großen Buchstaben."],
+  ["germanNounCasing", "With 15 million people on the list, this is huge."],
+  ["germanNounCasing", "Danke fürs schnelle Nachsehen."],
+  ["germanPrepositionCase", "Sie brauchen hier zu unsere Kundennummer."],
+] as Array<[CatalogRuleId, string]>)("%s leaves %p alone", (ruleId, input) => {
+  expect(findings(ruleId, input)).toEqual([]);
 });

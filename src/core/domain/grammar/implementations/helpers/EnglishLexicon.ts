@@ -134,6 +134,18 @@ function readings(word: string): Reading[] {
  */
 export function englishWordInfo(word: string): EnglishWordInfo | null {
   const w = word.toLowerCase();
+  let info = INFO.get(w);
+  if (info === undefined) {
+    // Review asks about the same words from many frames: one reading per word.
+    if (INFO.size >= 50_000) INFO.clear();
+    info = readWordInfo(w);
+    INFO.set(w, info);
+  }
+  return info;
+}
+const INFO = new Map<string, EnglishWordInfo | null>();
+
+function readWordInfo(w: string): EnglishWordInfo | null {
   if (!/^[a-z]+$/.test(w)) return null;
   const list = readings(w);
   const irregular = load().irregular.get(w) ?? [];
@@ -196,7 +208,7 @@ export function englishWordInfo(word: string): EnglishWordInfo | null {
     }
   }
   for (const reading of irregular) verb(reading.lemma, reading.form);
-  return { verbs: [...verbs.values()], ...info };
+  return Object.freeze({ verbs: Object.freeze([...verbs.values()]), ...info });
 }
 
 function suffix(lemma: string, flag: string): string | false {
@@ -262,7 +274,7 @@ export const BLOOM_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvw
 const BLOOM_HASHES = 7;
 
 /** The bits a word sets in a Bloom filter of `size` bits (FNV-1a and djb2, double hashing). */
-export function bloomBits(word: string, size: number): number[] {
+export function bloomBits(word: string, size: number, hashes = BLOOM_HASHES): number[] {
   let a = 0x811c9dc5;
   let b = 5381;
   for (let i = 0; i < word.length; i++) {
@@ -273,7 +285,7 @@ export function bloomBits(word: string, size: number): number[] {
   const h1 = a >>> 0;
   const h2 = (b | 1) >>> 0;
   const bits: number[] = [];
-  for (let i = 0; i < BLOOM_HASHES; i++) bits.push((h1 + i * h2) % size);
+  for (let i = 0; i < hashes; i++) bits.push((h1 + i * h2) % size);
   return bits;
 }
 

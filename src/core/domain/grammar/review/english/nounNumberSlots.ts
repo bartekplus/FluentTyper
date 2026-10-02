@@ -15,6 +15,7 @@ import {
   evidence,
   FUNCTION_WORDS,
   info,
+  PREPOSITIONS,
   type Token,
   tokensAfter,
   wordBefore,
@@ -106,6 +107,13 @@ export function nounNumber(word: string): Number_ | null {
       (s) => s !== word && englishListedNoun(s) === "singular" && regularPlural(s) === word,
     );
     if (stem) return { singular: stem, plural: word, number: "plural" };
+  }
+  // Derived nouns ("hikers" from hike + -er + -s) read as plain plurals only.
+  const read = englishWordInfo(word);
+  if (read?.plural && !read.verbs.length && !read.adjective && /ers$/.test(word)) {
+    const stem = englishWordInfo(word.slice(0, -1));
+    if (stem?.noun && !stem.plural && !stem.verbs.length)
+      return { singular: word.slice(0, -1), plural: word, number: "plural" };
   }
   return null;
 }
@@ -244,7 +252,10 @@ function articleWithPlural(ctx: DetectContext): RawFinding[] {
     const noun = tokens[k];
     const forms = nounNumber(noun.lower);
     if (forms?.number !== "plural" || /(?:wards|doors|stairs)$/.test(noun.lower)) continue;
-    if (!phraseEnds(ctx, tokens, k, false)) continue;
+    // "just a days later": a time plural before later/earlier.
+    const later =
+      TIME_PLURALS.test(noun.lower) && /^(?:later|earlier)$/.test(tokens[k + 1]?.lower ?? "");
+    if (!later && !phraseEnds(ctx, tokens, k, false)) continue;
     const modifiers = tokens.slice(0, k);
     // A noun modifier ("a problem humans have", "a stroke days after") may close its phrase
     // before a relative clause or a time phrase: only a following preposition is evidence.
@@ -260,16 +271,23 @@ function articleWithPlural(ctx: DetectContext): RawFinding[] {
     // "a requires b", "lowercase a denotes": the letter a before a verb.
     // "a fish lives", "a pretty blonde looks": a noun subject before an -s verb.
     const read = englishWordInfo(noun.lower);
+    // "a questions of time", "not a new issues.": before "of" or the sentence end, an -s word
+    // after "a" and adjective-like modifiers is the noun ("a dog barks." keeps its verb).
+    const after = tokens[k + 1];
+    const closes = !after || after.kind === "end" || /^(?:of|about)$/.test(after.lower);
+    const adjectiveLike = modifiers.every((t) => {
+      const m = info(t.lower);
+      return !!m && (m.adjective || m.verbs.some((v) => v.form === "participle"));
+    });
     if (
       read?.verbs.some((v) => v.form === "third") &&
+      !(read.noun && closes && adjectiveLike) &&
       (k === 0 || modifiers.some((t) => info(t.lower)?.noun || !info(t.lower)))
     )
       continue;
     if (
       modifiers.some((t) =>
-        /^(?:few|many|lot|several|great|good|little|zillion|most|greatest|best)$|est$/.test(
-          t.lower,
-        ),
+        /^(?:few|many|lot|several|little|zillion|most|greatest|best)$|est$/.test(t.lower),
       )
     )
       continue;
@@ -360,6 +378,53 @@ function countWithSingular(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+/**
+ * "resolve these issue", "extend those rule", "for these information": an object after these/
+ * those whose noun is singular. Count nouns get both repairs; mass nouns take this/that.
+ */
+function demonstrativeSingular(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of frameMatches(ctx, `(?<dem>these|those)${SPACE}(?=[a-z])`, "dem")) {
+    const dem = m.groups!.dem;
+    const previous = wordBefore(ctx, m.index);
+    const read = previous ? info(previous) : null;
+    const object =
+      PREPOSITIONS.has(previous) || (!!read?.verbs.length && !FUNCTION_WORDS.has(previous));
+    if (!object) continue;
+    const tokens = tokensAfter(ctx, m.index + m[0].length, 6);
+    const k = nounAfterModifiers(ctx, tokens, false);
+    if (k < 0) continue;
+    const noun = tokens[k];
+    if (!phraseEnds(ctx, tokens, k, true) || tokens[k + 1]?.lower === "of") continue;
+    // "one of these elephant" belongs to the one-of check; a quote after makes a compound.
+    if (previous === "of" || /^[ \t\u00a0]*["“'‘]/.test(ctx.text.slice(noun.end, noun.end + 3)))
+      continue;
+    if (NOT_COUNTED.has(noun.lower)) continue;
+    const single = caseLike(dem, dem.toLowerCase() === "these" ? "this" : "that");
+    const [start] = m.indices!.groups!.dem;
+    const middle = ctx.source.slice(start + dem.length, noun.start);
+    let alternatives: string[];
+    if (MASS.has(noun.lower)) alternatives = [`${single}${middle}${noun.text}`];
+    else {
+      const forms = nounNumber(noun.lower);
+      if (forms?.number !== "singular" || forms.singular === forms.plural) continue;
+      // "I hope these help", "make those change": a verb reading keeps "these" a pronoun.
+      const nounRead = englishWordInfo(noun.lower);
+      if (nounRead?.adjective || nounRead?.verbs.length) continue;
+      alternatives = [`${dem}${middle}${forms.plural}`, `${single}${middle}${noun.text}`];
+    }
+    findings.push({
+      ruleId: "englishNounNumber",
+      messageKey: "review_msg_demonstrative_number",
+      range: { start, end: noun.end },
+      alternatives,
+      ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+      context: evidence(ctx, m.index, noun.end),
+    });
+  }
+  return findings;
+}
+
 const PRONOUN_POSSESSIVES = new Set("yours hers ours theirs its mine whose".split(" "));
 
 /** "this errors are", "Can it find this errors?": this before a plural noun. */
@@ -406,7 +471,17 @@ function eachWithPlural(ctx: DetectContext): RawFinding[] {
     const forms = nounNumber(noun.lower);
     if (forms?.number !== "plural" || /(?:wards|doors|stairs)$/.test(noun.lower)) continue;
     // "They each take…": a pronoun "each" before a verb.
-    if (k === 0 && englishWordInfo(noun.lower)?.verbs.some((v) => v.form === "third")) continue;
+    const third = englishWordInfo(noun.lower)?.verbs.some((v) => v.form === "third");
+    if (k === 0 && third) continue;
+    // "Every body part hurts": a noun head, then its -s verb, unless a plural verb follows.
+    if (
+      third &&
+      info(tokens[k - 1].lower)?.noun &&
+      !/^(?:are|were|have|do|aren['’]t|weren['’]t|haven['’]t|don['’]t)$/.test(
+        tokens[k + 1]?.lower ?? "",
+      )
+    )
+      continue;
     if (!phraseEnds(ctx, tokens, k, true)) continue;
     findings.push(
       finding(ctx, "review_msg_noun_count", noun.start, noun.end, [forms.singular], m.index),
@@ -540,13 +615,119 @@ function otherAsPronoun(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+const EXISTENTIAL_COUNT =
+  "(?:many|several|few|some|no|any(?:[ \\t\\u00a0]+other)?|a[ \\t\\u00a0]+few|a[ \\t\\u00a0]+couple[ \\t\\u00a0]+of|two|three|four|five|six|seven|eight|nine|ten|[2-9]|[1-9][0-9]+)";
+// "Over there is…", "out there are…": a place adverb, not existential there.
+const PLACE_BEFORE = /\b(?:over|out|in|up|down|from|back|under|right|around)[ \t\u00a0]+$/i;
+
+/**
+ * "There is many problems", "Here is some great alternatives": a plural count after a singular
+ * existential verb; "There are many problem", "There are no book here": a singular noun after
+ * a plural one.
+ */
+function existentialCount(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of frames(
+    ctx,
+    `(?<there>there|here)(?:${SPACE}(?<verb>is|was|are|were)|(?<contracted>['’]s))${SPACE}(?:(?:only|still|also|just|really)${SPACE})?(?<count>${EXISTENTIAL_COUNT})${SPACE}(?=[a-z])`,
+  )) {
+    const before = ctx.text.slice(Math.max(0, m.index - 24), m.index);
+    if (PLACE_BEFORE.test(before)) continue;
+    const { there, verb, contracted, count } = m.groups!;
+    const typed = verb ?? contracted;
+    const singularVerb = /^(?:is|was|['’]s)$/i.test(typed);
+    const tokens = tokensAfter(ctx, m.index + m[0].length, 6);
+    const k = nounAfterModifiers(ctx, tokens, true);
+    if (k < 0) continue;
+    const noun = tokens[k];
+    const forms = nounNumber(noun.lower);
+    if (!forms || forms.singular === forms.plural || MASS.has(forms.singular)) continue;
+    // "five times as much", "some times ago": a multiplier or a time adverb.
+    if (
+      NUMERAL_NOUNS.has(noun.lower) ||
+      NOT_COUNTED.has(noun.lower) ||
+      noun.lower === "times" ||
+      /^(?:better|worse|more|less|other)$/.test(noun.lower)
+    )
+      continue;
+    // The noun closes its phrase: punctuation, a preposition, a conjunction or a place word.
+    const after = tokens[k + 1];
+    const ends =
+      !after ||
+      after.kind === "end" ||
+      after.kind === "comma" ||
+      (after.kind === "word" &&
+        (ENDERS.has(after.lower) ||
+          PREPOSITIONS.has(after.lower) ||
+          /^(?:to|and|or|but|after|before|here|there|today|now|yet|anymore|left|sitting|standing|waiting)$/.test(
+            after.lower,
+          )));
+    if (!ends) continue;
+    const c = count.toLowerCase().replace(/[ \t\u00a0]+/g, " ");
+    // "two errors and one warning", "tariff and non-tariff barriers": a list or shared modifier.
+    if (
+      after?.kind === "comma" ||
+      /^(?:and|or|to)$/.test(after?.kind === "word" ? after.lower : "")
+    )
+      continue;
+    // "two errors in the report and one in the file", a line break after the noun: a list.
+    const rest = /^[^.!?;:\n]*/.exec(ctx.text.slice(noun.end, noun.end + 120))![0];
+    if (
+      /\b(?:and|or)[ \t\u00a0]+(?:a|an|one)\b/i.test(rest) ||
+      /^[ \t\u00a0]*\r?\n/.test(ctx.text.slice(noun.end))
+    )
+      continue;
+    if ([typed, noun.lower].some((w) => ctx.dictionary.has(w.toLowerCase()))) continue;
+    // Counts the clause-final existential check already reads: "There is two errors."
+    const covered =
+      /^(?:many|several|two|three|four|five|six|seven|eight|nine|ten|[0-9]+)$/.test(c) &&
+      (!after ||
+        after.kind === "end" ||
+        /^(?:that|which|with)$/.test(after.lower) ||
+        /^[ \t\u00a0]+(?:in|on|under|near|inside|outside)[ \t\u00a0]+(?:the|this|that|my|your|our|their)[ \t\u00a0]+(?:[a-z]+[ \t\u00a0]+)?(?:report|folder|file|document|room|box|table|account|list|screen|desk)\b/i.test(
+          ctx.text.slice(noun.end, noun.end + 64),
+        ));
+    if (singularVerb && forms.number === "plural" && !covered) {
+      // "There is no doubt", "there is some…": only the plural noun decides.
+      const start = verb ? m.indices!.groups!.verb[0] : m.indices!.groups!.contracted[0];
+      const end = verb ? m.indices!.groups!.verb[1] : m.indices!.groups!.contracted[1];
+      const past = /^was$/i.test(typed);
+      const fix = contracted ? `${caseLike(there, there)} are` : past ? "were" : "are";
+      findings.push({
+        ruleId: "englishExistentialAgreement",
+        messageKey: "review_msg_existential_agreement",
+        range: contracted ? { start: m.indices!.groups!.there[0], end } : { start, end },
+        alternatives: [caseLike(contracted ? there : typed, fix)],
+        context: evidence(ctx, m.index, noun.end),
+      });
+    } else if (
+      !singularVerb &&
+      forms.number === "singular" &&
+      !/^(?:some|any|any other)$/.test(c) &&
+      // "There are no doubt many ways": the adverb "no doubt".
+      !(c === "no" && noun.lower === "doubt") &&
+      !englishWordInfo(noun.lower)?.adjective &&
+      tokens.slice(0, k).every((t) => t.lower !== "of")
+    )
+      findings.push(
+        finding(ctx, "review_msg_noun_count", noun.start, noun.end, [forms.plural], m.index),
+      );
+  }
+  return findings;
+}
+
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
+  {
+    rules: ["englishExistentialAgreement", "englishNounNumber"],
+    detect: english(existentialCount),
+  },
   {
     rules: ["englishNounNumber"],
     detect: english(
       articleWithPlural,
       countWithSingular,
       thisWithPlural,
+      demonstrativeSingular,
       eachWithPlural,
       articleBeforeCount,
       muchWithPlural,

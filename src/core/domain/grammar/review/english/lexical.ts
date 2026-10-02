@@ -317,6 +317,7 @@ const NOT_HEADS = new Set(
     // Adverbs the dictionary lists as nouns: "I talked to the students yesterday".
     "yesterday today tonight tomorrow overnight first once home outside inside upstairs " +
     "downstairs aside back forward last next daily weekly monthly yearly nightly online offline " +
+    "sometimes always often never usually also still already just even only ever seldom rarely " +
     // Adjectives that follow their noun: "the commissioners present signed".
     "present involved concerned available responsible mentioned listed affected attending"
   ).split(" "),
