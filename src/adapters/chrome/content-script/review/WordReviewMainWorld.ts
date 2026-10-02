@@ -35,7 +35,7 @@ interface WordParagraph {
   inlinePictures: Collection;
   footnotes: Collection;
   endnotes: Collection;
-  parentContentControlOrNullObject: unknown;
+  parentContentControlOrNullObject: { isNullObject?: boolean } | null | undefined;
   getNext(): WordParagraph;
   getRange(location: number): WordRange;
   getSubrange(offset: number, length: number): WordRange;
@@ -85,6 +85,8 @@ function readModel(model: WordDocument): ModelSnapshot {
   let paragraph = body.paragraphs.getFirst();
   const text = raw.replace(/\r/g, "\n");
   let cursor = 0;
+  let anchor = body.getRange(1);
+  let anchorOffset = 0;
   for (let i = 0; i < count; i++) {
     if (
       typeof paragraph.text !== "string" ||
@@ -94,19 +96,23 @@ function readModel(model: WordDocument): ModelSnapshot {
     )
       throw new Error("unsupported");
     seen.add(paragraph.uniqueLocalId);
-    const prefix = body.getRange(1).expandTo(paragraph.getRange(1)).text;
-    const start = prefix.length;
+    // Consecutive start-to-start ranges cover each character once, rather than
+    // rematerializing the whole body prefix for every paragraph on each poll.
+    const paragraphStart = paragraph.getRange(1);
+    const preceding = anchor.expandTo(paragraphStart).text;
+    const start = anchorOffset + preceding.length;
     const end = start + paragraph.text.length;
     if (
       start < cursor ||
       end > raw.length ||
-      prefix !== raw.slice(0, start) ||
+      preceding !== raw.slice(anchorOffset, start) ||
       paragraph.text !== raw.slice(start, end)
     )
       throw new Error("unsupported");
     if (start > cursor) protectedRanges.push({ start: cursor, end: start, reason: "structure" });
+    const parent = paragraph.parentContentControlOrNullObject;
     const protectedContent =
-      !!paragraph.parentContentControlOrNullObject ||
+      (!!parent && parent.isNullObject !== true) ||
       [
         paragraph.fields,
         paragraph.contentControls,
@@ -132,6 +138,8 @@ function readModel(model: WordDocument): ModelSnapshot {
     paragraphs.push({ model: paragraph, start, text: paragraph.text });
     ids.push([paragraph.uniqueLocalId, protectedContent]);
     cursor = end;
+    anchor = paragraphStart;
+    anchorOffset = start;
     if (i + 1 < count) paragraph = paragraph.getNext();
   }
   if (cursor < raw.length)

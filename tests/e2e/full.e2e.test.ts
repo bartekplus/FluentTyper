@@ -7528,7 +7528,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         inlinePictures: empty,
         footnotes: empty,
         endnotes: empty,
-        parentContentControlOrNullObject: null,
+        parentContentControlOrNullObject: { isNullObject: true },
         getRange() {
           return range;
         },

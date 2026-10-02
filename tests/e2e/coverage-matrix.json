@@ -4726,6 +4726,16 @@
           "layer": "unit",
           "file": "tests/WordReview.test.ts",
           "test": "Word Review restores the originating footnote proxy on close and after switching stories"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/WordReview.test.ts",
+          "test": "Word Review distinguishes null-object parents from protected content controls"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/WordReview.test.ts",
+          "test": "Word paragraph offsets read linear native ranges and retain gap and ordering checks"
         }
       ]
     }

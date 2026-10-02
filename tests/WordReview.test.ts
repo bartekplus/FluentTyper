@@ -26,10 +26,11 @@ afterEach(() => {
   delete (window as Window & { WordEditor?: unknown }).WordEditor;
 });
 
-function fixture(texts = ["We saw teh cat.", "We saw teh cat."]) {
+function fixture(texts = ["We saw teh cat.", "We saw teh cat."], separator = "\r") {
   document.body.innerHTML = `<input aria-label="Document title" value="Do not review me"><div id="EditorContainer"><div id="WACViewPanel">${texts.map(() => `<p class="Paragraph"><b></b></p>`).join("")}<div id="WACViewPanel_EditingElement" contenteditable="true" tabindex="0"></div></div></div>`;
   const empty = { length: () => 0 };
   let writes = 0;
+  let rangeReadCharacters = 0;
   let selection: [number, number] = [0, 0];
   let wrongWrite = false;
   let throwingSelection = false;
@@ -44,12 +45,14 @@ function fixture(texts = ["We saw teh cat.", "We saw teh cat."]) {
     inlinePictures: empty,
     footnotes: empty,
     endnotes: empty,
-    parentContentControlOrNullObject: null as unknown,
+    parentContentControlOrNullObject: null as { isNullObject?: boolean } | null,
     getNext() {
       return paragraphs[index + 1];
     },
     getRange(location: number) {
-      const start = paragraphs.slice(0, index).reduce((length, p) => length + p.text.length + 1, 0);
+      const start = paragraphs
+        .slice(0, index)
+        .reduce((length, p) => length + p.text.length + separator.length, 0);
       return range(
         location === 1 ? start : start + this.text.length,
         location === 1 ? start : start + this.text.length,
@@ -83,12 +86,14 @@ function fixture(texts = ["We saw teh cat.", "We saw teh cat."]) {
       };
     },
   }));
-  const raw = () => paragraphs.map((p) => p.text).join("\r");
+  const raw = () => paragraphs.map((p) => p.text).join(separator);
   const range = (start: number, end: number) => ({
     start,
     end,
     get text() {
-      return raw().slice(start, end);
+      const text = raw().slice(start, end);
+      rangeReadCharacters += text.length;
+      return text;
     },
     isEmpty: start === end,
     getRange(location: number) {
@@ -147,6 +152,9 @@ function fixture(texts = ["We saw teh cat.", "We saw teh cat."]) {
     model,
     paragraphs,
     target,
+    get rangeReadCharacters() {
+      return rangeReadCharacters;
+    },
     get writes() {
       return writes;
     },
@@ -196,6 +204,53 @@ test("Word Review reads the model, applies the exact duplicate occurrence and pr
   expect(h.writes).toBe(1);
   expect(h.commits).toBe(1);
   expect(h.target.element.hasAttribute(WORD_REVIEW_RESPONSE)).toBe(false);
+});
+
+test("Word Review distinguishes null-object parents from protected content controls", async () => {
+  const h = fixture(["teh"]);
+  h.paragraphs[0].parentContentControlOrNullObject = { isNullObject: true };
+  const before = h.target.read();
+  if (!before.ok) throw new Error("read failed");
+  expect(before.protectedRanges).toEqual([]);
+  expect(
+    await h.target.apply({
+      before: before.text,
+      after: "the",
+      signature: before.signature,
+      edits: [{ start: 0, end: 3, original: "teh", replacement: "the" }],
+    }),
+  ).toEqual({ status: "applied" });
+  for (const parent of [{ isNullObject: false }, {}]) {
+    h.paragraphs[0].parentContentControlOrNullObject = parent;
+    const protectedRead = h.target.read();
+    if (!protectedRead.ok) throw new Error("read failed");
+    expect(protectedRead.protectedRanges).toContainEqual({ start: 0, end: 3, reason: "structure" });
+    expect(
+      await h.target.apply({
+        before: protectedRead.text,
+        after: "teh",
+        signature: protectedRead.signature,
+        edits: [{ start: 0, end: 3, original: "the", replacement: "teh" }],
+      }),
+    ).toEqual({ status: "rejected", reason: "unsupported" });
+  }
+  expect(h.writes).toBe(1);
+});
+
+test("Word paragraph offsets read linear native ranges and retain gap and ordering checks", () => {
+  const h = fixture(
+    Array.from({ length: 500 }, (_, i) => (i % 3 ? "😀 teh duplicate" : "")),
+    "\r\u0007",
+  );
+  const before = h.target.read();
+  if (!before.ok) throw new Error("read failed");
+  expect(before.text).toBe(h.model.body.text.replace(/\r/g, "\n"));
+  expect(h.rangeReadCharacters).toBeLessThanOrEqual(h.model.body.text.length);
+  expect(before.protectedRanges).toContainEqual({ start: 0, end: 2, reason: "structure" });
+  expect(before.protectedRanges).toContainEqual({ start: 18, end: 20, reason: "structure" });
+  h.paragraphs[499].getRange = () => h.paragraphs[498].getRange(1);
+  expect(h.target.read()).toEqual({ ok: false, reason: "unsupported" });
+  expect(h.writes).toBe(0);
 });
 
 test("Word Review commits deletion-only fixes through the native transaction", async () => {
