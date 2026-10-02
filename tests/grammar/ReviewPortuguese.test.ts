@@ -265,6 +265,11 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
     {
       pos: [
         ["Deixei a chave em a gaveta.", "Deixei a chave na gaveta."],
+        ["Moro em China há dois anos.", "Moro na China há dois anos."],
+        ["Ele voltou de Estados Unidos ontem.", "Ele voltou dos Estados Unidos ontem."],
+        ["Vamos a Peru nas férias.", "Vamos ao Peru nas férias."],
+        ["Viajou para Costa Rica sozinha.", "Viajou para a Costa Rica sozinha."],
+        ["Passamos por Brasil e Chile.", "Passamos pelo Brasil e Chile."],
         ["O preço de este carro subiu.", "O preço deste carro subiu."],
         ["Entreguei o livro a o professor.", "Entreguei o livro ao professor."],
         ["Não volto mais a aquele lugar.", "Não volto mais àquele lugar."],
@@ -274,6 +279,11 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Não pense mais em isso agora.", "Não pense mais nisso agora."],
       ],
       neg: [
+        "Visitei a Argentina no verão.",
+        "Vou para Portugal amanhã.",
+        "Moramos em França há anos.",
+        "O Banco de Brasil Seguros ligou.",
+        "Ela é a China que todos conhecem.",
         "Antes de o sol nascer, saímos.",
         "Gosto de o ouvir cantar.",
         "Apesar de a casa ser antiga, é confortável.",

@@ -2190,6 +2190,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Ta data wypadała w inny dzień tygodnia: błędny jest dzień tygodnia albo numer dnia.",
     "Essa data caiu noutro dia da semana: está errado o dia da semana ou o número do dia.",
   ],
+  review_msg_pt_country_article: [
+    "This country's name always takes the article in Portuguese, so the preposition fuses with it (em China → na China, de Brasil → do Brasil).",
+    "En portugais, le nom de ce pays prend toujours l’article, qui se contracte avec la préposition (em China → na China, de Brasil → do Brasil).",
+    "U portugalskom ime ove zemlje uvijek dobiva član, koji se stapa s prijedlogom (em China → na China, de Brasil → do Brasil).",
+    "En portugués el nombre de este país siempre lleva artículo, que se contrae con la preposición (em China → na China, de Brasil → do Brasil).",
+    "Στα πορτογαλικά το όνομα αυτής της χώρας παίρνει πάντα άρθρο, που συγχωνεύεται με την πρόθεση (em China → na China, de Brasil → do Brasil).",
+    "På portugisiska tar det här landets namn alltid artikel, som smälter samman med prepositionen (em China → na China, de Brasil → do Brasil).",
+    "Im Portugiesischen steht dieser Ländername immer mit Artikel, der mit der Präposition verschmilzt (em China → na China, de Brasil → do Brasil).",
+    "W portugalskim nazwa tego kraju zawsze ma rodzajnik, który łączy się z przyimkiem (em China → na China, de Brasil → do Brasil).",
+    "O nome deste país leva sempre artigo, que se contrai com a preposição (em China → na China, de Brasil → do Brasil).",
+  ],
   review_msg_pt_comma: [
     "Portuguese sets an aside such as no entanto or por outro lado between two commas, and puts a comma before the name a greeting addresses (Bom dia, Ana).",
     "Le portugais encadre une incise comme no entanto ou por outro lado par deux virgules et met une virgule avant le nom salué (Bom dia, Ana).",
