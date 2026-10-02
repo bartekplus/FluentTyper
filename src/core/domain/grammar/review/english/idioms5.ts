@@ -892,13 +892,21 @@ const FRAMES: readonly Frame[] = [
 ];
 
 /** The lowercase words from 256 characters before the chunk to 256 after it. */
-const wordsNear = (ctx: DetectContext) =>
-  new Set(
-    ctx.scanText
-      .slice(Math.max(0, ctx.from - 256), ctx.to + 256)
-      .toLowerCase()
-      .match(/\p{L}+/gu),
-  );
+// Read once per chunk: every frame detector built on this engine shares it.
+const WORDS_NEAR = new WeakMap<DetectContext, Set<string>>();
+function wordsNear(ctx: DetectContext): Set<string> {
+  let words = WORDS_NEAR.get(ctx);
+  if (!words) {
+    words = new Set(
+      ctx.scanText
+        .slice(Math.max(0, ctx.from - 256), ctx.to + 256)
+        .toLowerCase()
+        .match(/\p{L}+/gu),
+    );
+    WORDS_NEAR.set(ctx, words);
+  }
+  return words;
+}
 
 /** Runs every frame whose rule is enabled; the `target` group (or a fix's range) is replaced. */
 export const frameDetector =

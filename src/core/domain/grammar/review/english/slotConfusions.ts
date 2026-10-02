@@ -2,13 +2,25 @@ import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import type { PhraseRow } from "../englishPhraseTables";
 import { SPACE, WORD_END } from "../phraseTemplates";
 import type { DetectContext, ReviewDetectorEntry } from "../reviewDetectors";
-import { COMPOUND, frameDetector, PHRASE, TYPO, type Frame } from "./idioms5";
+import {
+  COMPOUND,
+  frameDetector,
+  PHRASE,
+  TYPO,
+  type Frame,
+  type FixResult,
+  type Rule,
+} from "./idioms5";
 
 // Real words typed for a near neighbour in a slot only the neighbour fits: "a few moths ago",
 // "I barley moved", "we can discus it", "the former and the later", "has setup the tent".
 // Each frame names the slot (the words around it), so the word keeps its own meaning elsewhere.
 
 const S = SPACE;
+const TAG_QUESTION: Rule = {
+  ruleId: "englishSentenceStructure",
+  messageKey: "review_msg_tag_question",
+};
 const E = WORD_END;
 
 /** Fixed phrases with a wrong word in them; matched as whole words by the phrase table. */
@@ -90,6 +102,40 @@ const BASE: Record<string, string> = {
 };
 const COMPOUND_VERBS = Object.keys(BASE).join("|");
 
+// "You don't know, are you?": a question tag repeats the clause's own auxiliary family, do
+// after a negated lexical verb, be after a negated be. The tag's pronoun must be the
+// clause's subject: "I don't know, is it?" asks a second question.
+const BE_NEGATION = `['’]m${S}not|${S}(?:am|is|are|was|were)${S}not|${S}(?:isn['’]t|aren['’]t|wasn['’]t|weren['’]t)|['’](?:s|re)${S}not`;
+const DO_NEGATION = `${S}(?:don['’]t|doesn['’]t|didn['’]t|do${S}not|does${S}not|did${S}not)`;
+const TAG = `(?<subject>I|you|we|they|he|she|it)(?<neg>${BE_NEGATION}|${DO_NEGATION})${S}[^.!?,;:\n]{1,60},${S}(?<target>(?<aux>am|is|are|was|were|do|does|did)${S}(?<pron>I|you|we|they|he|she|it))${E}(?=[ \t]*\\?)`;
+const BE_WORDS = /^(?:am|is|are|was|were)$/i;
+
+function tagFix(m: RegExpExecArray): FixResult {
+  const { subject, neg, aux, pron } = m.groups!;
+  if (subject.toLowerCase() !== pron.toLowerCase()) return null;
+  const clauseBe = !/do|did/i.test(neg);
+  if (clauseBe === BE_WORDS.test(aux)) return null;
+  const past = /was|were|did/i.test(neg);
+  const p = pron.toLowerCase();
+  const single = /^(?:he|she|it)$/.test(p);
+  const verb = clauseBe
+    ? past
+      ? p === "i" || single
+        ? "was"
+        : "were"
+      : p === "i"
+        ? "am"
+        : single
+          ? "is"
+          : "are"
+    : past
+      ? "did"
+      : single
+        ? "does"
+        : "do";
+  return `${verb} ${pron}`;
+}
+
 const LATTER_VERB =
   /^(?:is|was|are|were|has|have|had|can|could|will|would|should|may|might|must|does|did|seems|seemed|causes|caused|tends|remains|becomes|offers|requires|means|makes|gives)$/;
 // Words before "all ready" that make it the adverb's slot ("I have all ready bought it").
@@ -97,6 +143,7 @@ const READY_LEAD =
   /^(?:i|you|we|they|he|she|it|can|could|will|would|should|may|might|must|have|has|had|am|is|are|was|were|i['’](?:ve|m|d)|(?:you|we|they)['’](?:ve|re|d)|(?:he|she|it)['’]s)$/i;
 
 const FRAMES: readonly Frame[] = [
+  { rule: TAG_QUESTION, cue: ["not", "t"], pattern: TAG, fix: (m) => tagFix(m) },
   // "a few moths ago", "in two moths": a count of moths is a time span here.
   {
     rule: TYPO,
@@ -397,7 +444,7 @@ const FRAMES: readonly Frame[] = [
 /** Context detectors appended to REVIEW_DETECTORS. */
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
   {
-    rules: ["englishPhraseCorrections", "englishContextualCompounds"],
+    rules: ["englishPhraseCorrections", "englishContextualCompounds", "englishSentenceStructure"],
     detect: frameDetector(FRAMES),
   },
 ];

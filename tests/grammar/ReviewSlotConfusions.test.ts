@@ -3,7 +3,11 @@ import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/re
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
 
-const RULES: CatalogRuleId[] = ["englishPhraseCorrections", "englishContextualCompounds"];
+const RULES: CatalogRuleId[] = [
+  "englishPhraseCorrections",
+  "englishContextualCompounds",
+  "englishSentenceStructure",
+];
 function review(text: string, lang = "en_US") {
   return detectReviewDiagnostics(
     { id: "slots", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
@@ -48,6 +52,10 @@ test.each([
   ["He named three basic principals.", "He named three basic principles."],
   ["She met the school principle.", "She met the school principal."],
   ["Kids dislike a tattle-tail.", "Kids dislike a tattle-tale."],
+  ["You don't eat meat, are you?", "You don't eat meat, do you?"],
+  ["He didn't phone back, was he?", "He didn't phone back, did he?"],
+  ["They aren't ready yet, do they?", "They aren't ready yet, are they?"],
+  ["I'm not wrong about this, do I?", "I'm not wrong about this, am I?"],
 ])("repairs %s", (text, fixed) => {
   expect(repaired(text)).toEqual([[fixed]]);
 });
@@ -86,6 +94,11 @@ test.each([
   "First off, thank you.",
   "Fill in any form you like.",
   "The principle of fairness applies.",
+  "You don't like it, do you?",
+  "I don't know, is it true?",
+  "I don't know, is it?",
+  "She isn't here, is she?",
+  "You don't eat meat, are you sure.",
 ])("leaves %s", (text) => {
   expect(review(text)).toEqual([]);
 });
