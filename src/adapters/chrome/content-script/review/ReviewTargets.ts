@@ -138,9 +138,13 @@ export function resolveReviewTarget(
   if (word && isWordInputProxy(active)) {
     // Reopening the same review must not replace its single-use model token
     // or create another mutation observer.
-    if (current instanceof WordReviewTarget && current.element === word)
+    if (
+      current instanceof WordReviewTarget &&
+      current.element === word &&
+      current.inputProxy === active
+    )
       return { ok: true, target: current, scope: current.scope };
-    const target = new WordReviewTarget(word);
+    const target = new WordReviewTarget(word, active);
     target.read(true);
     return { ok: true, target, scope: target.scope };
   }

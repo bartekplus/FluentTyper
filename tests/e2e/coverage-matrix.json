@@ -4721,6 +4721,11 @@
           "layer": "unit",
           "file": "tests/WordReview.test.ts",
           "test": "Word caret layout mutations do not read the document model"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/WordReview.test.ts",
+          "test": "Word Review restores the originating footnote proxy on close and after switching stories"
         }
       ]
     }

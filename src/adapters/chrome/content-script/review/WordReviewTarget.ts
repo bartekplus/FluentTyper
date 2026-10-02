@@ -3,7 +3,6 @@ import { editTouches } from "@core/domain/grammar/review/textRanges";
 import type { TextRange } from "@core/domain/grammar/review/types";
 import type { ReviewTargetHandle } from "./ReviewTargets";
 import {
-  WORD_INPUT_ID,
   WORD_REVIEW_EVENT,
   WORD_REVIEW_RESPONSE,
   type WordReviewRequest,
@@ -23,7 +22,10 @@ export class WordReviewTarget implements ReviewTargetHandle {
   private initialFailure: ReviewTargetRead | null = null;
   private segments: RenderedSegment[] | null | undefined;
   private readonly observer: MutationObserver;
-  constructor(readonly element: HTMLElement) {
+  constructor(
+    readonly element: HTMLElement,
+    readonly inputProxy: HTMLElement,
+  ) {
     this.observer = new MutationObserver(() => {
       this.segments = undefined;
     });
@@ -231,7 +233,8 @@ export class WordReviewTarget implements ReviewTargetHandle {
   }
   setMeasurementRoot(_root: ShadowRoot): void {}
   focusEditor(): void {
-    this.element.ownerDocument.getElementById(WORD_INPUT_ID)?.focus({ preventScroll: true });
+    if (this.inputProxy.isConnected && this.element.contains(this.inputProxy))
+      this.inputProxy.focus({ preventScroll: true });
   }
   dispose(): void {
     this.request({ action: "close" });

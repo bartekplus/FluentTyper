@@ -139,7 +139,10 @@ function fixture(texts = ["We saw teh cat.", "We saw teh cat."]) {
   });
   document.getElementById("WACViewPanel_EditingElement")!.focus();
   cleanup = installWordReviewMainWorld();
-  const target = new WordReviewTarget(document.getElementById("WACViewPanel")!);
+  const target = new WordReviewTarget(
+    document.getElementById("WACViewPanel")!,
+    document.getElementById("WACViewPanel_EditingElement")!,
+  );
   return {
     model,
     paragraphs,
@@ -283,7 +286,7 @@ test("Word Review maps model selection offsets and never widens an unsupported s
   h.target.read(true);
   expect(h.target.scope).toEqual({ start: 22, end: 25 });
   h.otherStory();
-  const other = new WordReviewTarget(h.target.element);
+  const other = new WordReviewTarget(h.target.element, h.target.inputProxy);
   expect(other.read(true)).toEqual({ ok: false, reason: "unsupported" });
   expect(other.read()).toEqual({ ok: false, reason: "unsupported" });
   expect(h.writes).toBe(0);
@@ -472,6 +475,44 @@ test("Word caret layout mutations do not read the document model", async () => {
   } finally {
     review.close();
     read.mockRestore();
+  }
+});
+
+test("Word Review restores the originating footnote proxy on close and after switching stories", () => {
+  const h = fixture(["teh"]);
+  h.target.dispose();
+  const footnote = document.createElement("textarea");
+  footnote.id = "WACViewPanel_FootnoteEndnoteEditControl_EditingElement";
+  h.target.element.append(footnote);
+  const review = new ReviewController({
+    createEngine: () => new LocalReviewEngine(),
+    getOptions: () => ({ lang: "en_US", enabledRules: GRAMMAR_RULE_IDS, userDictionary: [] }),
+    suspend: () => {},
+    resume: () => {},
+    addToDictionary: async () => true,
+    getDocsSurface: () => null,
+    uiLanguage: "en",
+  });
+  try {
+    footnote.focus();
+    review.invoke();
+    expect(document.activeElement).not.toBe(footnote);
+    review.close();
+    expect(document.activeElement).toBe(footnote);
+    const main = document.getElementById("WACViewPanel_EditingElement")!;
+    main.focus();
+    review.invoke();
+    footnote.focus();
+    review.invoke();
+    review.close();
+    expect(document.activeElement).toBe(footnote);
+    footnote.focus();
+    review.invoke();
+    footnote.remove();
+    review.close();
+    expect(document.activeElement).not.toBe(main);
+  } finally {
+    review.close();
   }
 });
 

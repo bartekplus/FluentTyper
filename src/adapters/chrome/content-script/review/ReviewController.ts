@@ -17,6 +17,7 @@ import type {
 import { REVIEW_CATEGORIES } from "@core/domain/grammar/review/types";
 import { GoogleDocsReviewTarget, type GoogleDocsReviewSurface } from "./GoogleDocsReviewTarget";
 import { WordReviewTarget } from "./WordReviewTarget";
+import { isWordInputProxy } from "../suggestions/CodeContextResolver";
 import {
   ContentEditableReviewTarget,
   resolveReviewTarget,
@@ -163,6 +164,15 @@ export class ReviewController {
     if (docs && this.docsStarting) return;
     // A review whose selection could not follow an edit asked for a new one.
     if (this.active?.state?.status === "stale-scope") this.close();
+    // Switching Word stories closes the old bridge before reading a new token.
+    const focused = getDeepActiveElement(document);
+    if (
+      this.active?.target instanceof WordReviewTarget &&
+      focused instanceof HTMLElement &&
+      isWordInputProxy(focused) &&
+      focused !== this.active.target.inputProxy
+    )
+      this.close();
     const resolution = docs ? null : resolveReviewTarget(document, this.active?.target);
     if (this.active) {
       const same = resolution?.ok && resolution.target.element === this.active.target.element;
