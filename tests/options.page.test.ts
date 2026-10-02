@@ -72,37 +72,29 @@ describe("options page scripts", () => {
     const permissionButton = document.getElementById("grant-permissions-btn");
     const practiceTextarea = document.getElementById("try-me-textarea");
     const nativeAttachInput = document.getElementById("try-native-list-input");
-    const demoSection = document.getElementById("demo");
-    const supportSection = document.getElementById("support");
+    const demoLink = document.querySelector('a[href*="youtube.com"]');
+    const supportLink = document.querySelector('a[href*="buymeacoffee.com"]');
+    const setupSection = document.getElementById("setup");
 
-    expect(firstMainSection?.textContent).toContain("Next action:");
-    expect(firstMainSection?.innerHTML).toContain("grant-permissions-btn");
-    expect(firstMainSection?.innerHTML).toContain("try-me-textarea");
-    expect(firstMainSection?.textContent).toContain(
-      "FluentTyper needs website access to appear inside the text fields where you type",
+    expect(firstMainSection?.querySelector('a[href="#setup"]')?.textContent).toContain(
+      "Get started",
     );
-
-    expect(permissionButton).not.toBeNull();
-    expect(practiceTextarea).not.toBeNull();
-    expect(nativeAttachInput).not.toBeNull();
-    expect(demoSection).not.toBeNull();
-    expect(supportSection).not.toBeNull();
-
-    expect(firstMainSection?.textContent).toContain(
-      "Need our predictions anyway? Just click the corner icon.",
+    expect(setupSection?.contains(permissionButton)).toBe(true);
+    expect(setupSection?.contains(practiceTextarea)).toBe(true);
+    expect(setupSection?.contains(nativeAttachInput)).toBe(true);
+    expect(document.getElementById("permissions-copy")?.textContent).toContain(
+      "nothing you type leaves your browser",
     );
-    expect(firstMainSection?.textContent?.replace(/\s+/g, " ")).toContain(
-      "Try enabling FluentTyper on the browser-managed autocomplete field",
-    );
-
-    expect(permissionButton!.compareDocumentPosition(demoSection!)).toBe(
+    expect(document.getElementById("native-help")?.textContent).toContain("faded icon");
+    expect(demoLink).not.toBeNull();
+    expect(supportLink).not.toBeNull();
+    expect(permissionButton!.compareDocumentPosition(demoLink!)).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING,
     );
-    expect(practiceTextarea!.compareDocumentPosition(demoSection!)).toBe(
+    expect(practiceTextarea!.compareDocumentPosition(demoLink!)).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING,
     );
-    expect(demoSection!.compareDocumentPosition(supportSection!)).toBe(
-      Node.DOCUMENT_POSITION_FOLLOWING,
-    );
+    expect(demoLink!.compareDocumentPosition(supportLink!)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    dom.window.close();
   });
 });

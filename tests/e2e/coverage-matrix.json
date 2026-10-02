@@ -160,12 +160,48 @@
     },
     {
       "id": "install_page_reachable",
-      "description": "Extension installation page is reachable after startup.",
+      "description": "Extension installation page is reachable after startup, presents popup/inline/Review examples, leads directly to website access and practice, and preserves keyboard focus when access is already granted.",
       "coverage": [
         {
           "layer": "e2e-smoke",
           "file": "tests/e2e/smoke.e2e.test.ts",
           "test": "extension installation page is reachable"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Extension installs and new installation page is reachable"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "New installation page shows activation-ready state when permissions are already granted"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/onboarding.permission.test.ts",
+          "test": "keeps granted state on initial render when permission is checkable but not requestable"
+        }
+      ]
+    },
+    {
+      "id": "onboarding_localization",
+      "description": "All onboarding copy, examples, accessible names and placeholders follow the shared UI locale; supported locales are complete, unsupported locales use English, and unknown rich translation keys are never parsed as HTML.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/onboarding.permission.test.ts",
+          "test": "localizes the whole welcome page and permissions together in Polish"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/onboarding.permission.test.ts",
+          "test": "translates all onboarding content and attributes with a consistent locale fallback"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/onboarding.permission.test.ts",
+          "test": "does not interpret unknown rich translation keys as HTML"
         }
       ]
     },

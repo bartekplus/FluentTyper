@@ -107,8 +107,6 @@ export class WebsiteAccessPermissionService {
 }
 
 export class WebsiteAccessPermissionController {
-  private currentState: WebsiteAccessPermissionState | null = null;
-
   private readonly copy = getWebsiteAccessPermissionCopy();
   private readonly visibleStates: ReadonlySet<WebsiteAccessPermissionState>;
 
@@ -127,6 +125,9 @@ export class WebsiteAccessPermissionController {
   private async handleRequest(): Promise<void> {
     const state = await this.options.service.requestAccess();
     await this.render(state);
+    if (state === "granted") {
+      this.options.onGranted?.();
+    }
   }
 
   private async render(state: WebsiteAccessPermissionState): Promise<void> {
@@ -147,11 +148,6 @@ export class WebsiteAccessPermissionController {
       action.textContent = viewModel.actionLabel;
     }
 
-    if (state === "granted" && this.currentState !== "granted") {
-      this.options.onGranted?.();
-    }
-
     await this.options.onStateChange?.(state);
-    this.currentState = state;
   }
 }
