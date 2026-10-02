@@ -28,6 +28,7 @@ type Lexicon = {
   words: Map<string, string>;
   suffixes: Rule[];
   prefixes: Rule[];
+  prefixFlags: string[];
   irregular: Map<string, { lemma: string; form: EnglishVerbForm }[]>;
 };
 
@@ -71,10 +72,12 @@ function load(): Lexicon {
       [participle, "participle"],
     ] as const)
       (irregular.get(form) ?? irregular.set(form, []).get(form)!).push({ lemma, form: kind });
+  const prefixes = parse(PREFIX_RULES, false);
   return (lexicon = {
     words,
     suffixes: parse(SUFFIX_RULES, true),
-    prefixes: parse(PREFIX_RULES, false),
+    prefixes,
+    prefixFlags: [...new Set(prefixes.map((rule) => rule.flag))],
     irregular,
   });
 }
@@ -84,13 +87,19 @@ function load(): Lexicon {
  * is listed (configure/B) and also con+figure, whose flags make it a verb.
  */
 function entry(word: string): string | undefined {
-  const { words, prefixes } = load();
+  const { words, prefixes, prefixFlags } = load();
   let flags = words.get(word);
   for (const rule of prefixes) {
     if (!word.startsWith(rule.add)) continue;
     const base = rule.strip + word.slice(rule.add.length);
     const prefixed = rule.cond.test(base) ? words.get(base) : undefined;
-    if (prefixed?.includes(rule.flag)) flags = (flags ?? "") + prefixed;
+    if (!prefixed?.includes(rule.flag)) continue;
+    // A verb's adjective reading does not cross a prefix (fine -> refine, long -> prolong), nor
+    // a noun's past one its possessive does not take (pose -> propose; see the generator).
+    const drop = `${prefixed.includes("v") ? "a" : ""}${
+      prefixed.includes(String(prefixFlags.indexOf(rule.flag))) ? "n" : ""
+    }`;
+    flags = (flags ?? "") + (drop ? prefixed.replace(new RegExp(`[${drop}]`, "g"), "") : prefixed);
   }
   return flags;
 }
@@ -183,9 +192,10 @@ function readWordInfo(w: string): EnglishWordInfo | null {
         info.adverb = true;
         info.adjective ||= !adjective;
         break;
-      case "R": // nicer; walker
+      case "R": // nicer; walker; "later" is late's, not lat's
         if (adjective) info.adjective = true;
-        else info.noun = true;
+        else if (isVerb || !list.some((r) => r.via === "R" && r.flags.includes("a")))
+          info.noun = true;
         break;
       case "T":
       case "V":

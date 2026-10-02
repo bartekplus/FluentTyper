@@ -109,6 +109,9 @@ export type ReviewMessageKey =
   | "review_msg_everyday_adjective"
   | "review_msg_a_few"
   | "review_msg_double_negative"
+  | "review_msg_negated_hardly"
+  | "review_msg_question_auxiliary"
+  | "review_msg_repeated_auxiliary"
   | "review_msg_since_duration"
   | "review_msg_log_in"
   | "review_msg_set_up"
@@ -283,6 +286,9 @@ export type ReviewMessageKey =
   | "review_msg_pt_mesoclisis"
   | "review_msg_pt_pronoun_case"
   | "review_msg_pt_invalid_date"
+  | "review_msg_pt_weekday_date"
+  | "review_msg_pt_country_article"
+  | "review_msg_pt_auxiliary_infinitive"
   | "review_msg_pt_comma"
   | "review_msg_pt_agreement"
   | "review_msg_pt_noun_agreement"
@@ -319,6 +325,7 @@ export type ReviewMessageKey =
   | "review_msg_passive_voice"
   | "review_msg_stray_comma"
   | "review_msg_introductory_comma"
+  | "review_msg_tag_question"
   // Polish-only checks (review/polish/).
   | "review_msg_pl_numeral_suffix"
   | "review_msg_pl_numeral_hyphen"
@@ -383,7 +390,10 @@ export type ReviewMessageKey =
   | "review_msg_fr_tout"
   | "review_msg_fr_subjunctive"
   | "review_msg_fr_conditional"
-  | "review_msg_fr_missing_ne";
+  | "review_msg_fr_missing_ne"
+  | "review_msg_fr_double_determiner"
+  | "review_msg_fr_determiner_noun"
+  | "review_msg_fr_ordinal";
 
 export type BulkDecision =
   | { eligible: true; alternative: number }

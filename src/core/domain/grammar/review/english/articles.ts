@@ -103,11 +103,21 @@ const isPlainNoun = (word: string) => {
   return !!read?.noun && !read.verbs.length && !NOT_NOUNS.has(word);
 };
 
+// Set phrases that take no article: "It is best practice to…", "He was best man", "worst
+// case", "the path of least resistance".
+const ARTICLELESS = new Set(
+  (
+    "best practice|best practices|best man|best friends|best effort|best case|best seller|" +
+    "best sellers|worst case|least resistance|best value|best interest|best interests"
+  ).split("|"),
+);
+
 function superlativeThe(ctx: DetectContext): Finding[] {
   const findings: Finding[] = [];
   for (const m of frameMatches(ctx, SUPERLATIVE, "adj")) {
     const { adj, noun } = m.groups!;
     if (NOT_NOUNS.has(noun) || EST_WORDS.has(adj)) continue;
+    if (ARTICLELESS.has(`${adj.toLowerCase()} ${noun.toLowerCase()}`)) continue;
     const adjRead = englishWordInfo(adj);
     if (!NOT_SUPERLATIVES.has(adj) && !adjRead?.adjective && !/(?:est)$/.test(adj)) continue;
     // "-est" words that are no superlative: "interest", "honest", "forest", "modest".
