@@ -323,6 +323,38 @@ export const PORTUGUESE_PHRASES: PhraseRow[] = [
   ["mal olhado", "mau-olhado"],
   ["de mal grado", "de mau grado"],
   ["mal tratos", "maus-tratos"],
+  // "dar à luz" (to give birth) takes the crase.
+  ...["deu", "dar", "deram", "dá", "dará", "dando", "dei", "dera", "desse"].flatMap(
+    (verb): PhraseRow[] =>
+      ["a", "ao", "um", "uma", "gêmeos", "trigêmeos"].map((next): PhraseRow => [
+        `${verb} a luz ${next}`,
+        `${verb} à luz ${next}`,
+      ]),
+  ),
+  // "desde" split in two.
+  ...["o", "a", "os", "as", "aquela", "aquele", "essa", "esse", "esta", "este", "então"].map(
+    (next): PhraseRow => [`des d${next === "então" ? "e então" : next}`, `desde ${next}`],
+  ),
+  ...["saiu", "saíram", "sair", "saem", "sai", "saía", "saíam", "saímos", "foram", "vão"].map(
+    (verb): PhraseRow => [`${verb} as ruas`, `${verb} às ruas`],
+  ),
+  ["meio-dia e meio", "meio-dia e meia"],
+  ["meia-noite e meio", "meia-noite e meia"],
+  ["quaisquer que seja", "qualquer que seja"],
+  ["qualquer que sejam", ["quaisquer que sejam", "qualquer que seja"]],
+  // "cujo" takes no article and agrees with what follows it.
+  ["cujo o", "cujo"],
+  ["cuja a", "cuja"],
+  ["cujos os", "cujos"],
+  ["cujas as", "cujas"],
+  ["cujo a", "cuja"],
+  ["cujo os", "cujos"],
+  ["cujo as", "cujas"],
+  ["cuja o", "cujo"],
+  // "em anexo" does not vary.
+  ["em anexos", "em anexo"],
+  ["em anexa", "em anexo"],
+  ["em anexas", "em anexo"],
   // "senso" is judgement, "censo" a count of the population.
   ["bom censo", "bom senso"],
   ["censo comum", "senso comum"],

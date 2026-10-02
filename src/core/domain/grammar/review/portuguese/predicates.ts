@@ -1,7 +1,9 @@
 import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
 import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
+import { TIME } from "./agreement";
 import { analyze } from "./nounAgreement";
+import { verbStems } from "./subjunctive";
 
 /**
  * An adjective after "ser", "estar", "ficar" or "parecer" agrees with the subject opening the
@@ -88,6 +90,69 @@ export function subjectPredicates(ctx: DetectContext): RawFinding[] {
       range: { start, end },
       alternatives: [applyWordCase(wanted, detectWordCase(target))],
       context: { start: m.index, end },
+    });
+  }
+  return findings;
+}
+
+// "a razão pelo qual" -> "pela qual": "o/a qual" agrees with the noun right before it.
+const RELATIVE = `(?<noun>\\p{Ll}{3,})${S}(?<target>(?<prep>pel|n|d|a|à)(?<article>o|a|os|as)?)${S}(?<qual>qual|quais)${W}`;
+const PREPOSITION_FORMS: Record<string, string[]> = {
+  pel: ["pelo", "pela", "pelos", "pelas"],
+  n: ["no", "na", "nos", "nas"],
+  d: ["do", "da", "dos", "das"],
+  a: ["ao", "à", "aos", "às"],
+};
+
+const PASSIVE_SE = `(?<verb>\\p{Ll}{3,}[ae])-se${S}(?:(?<det>os|as|muitos|muitas|vários|várias|alguns|algumas|novos|novas|diversos|diversas|\\d+)${S})?(?<noun>\\p{Ll}{3,}s)${W}`;
+
+export function relativeAgreement(ctx: DetectContext): RawFinding[] {
+  if (ctx.lang.slice(0, 2) !== "pt") return [];
+  const findings: RawFinding[] = [];
+  for (const m of frameMatches(ctx, RELATIVE)) {
+    const { noun, target, qual } = m.groups!;
+    if (noun !== noun.toLowerCase() || target !== target.toLowerCase()) continue;
+    const row = Object.values(PREPOSITION_FORMS).find((forms) => forms.includes(target));
+    if (!row) continue;
+    const info = analyze(noun);
+    if (!info || info.feminine === null) continue;
+    // "o estudo ou a metodologia pelo qual": a coordinated noun may be the antecedent.
+    const before = ctx.text.slice(Math.max(0, m.index - 30), m.index);
+    if (/(?:^|[^\p{L}])(?:ou|e)[ \t\u00a0]+(?:\p{L}+[ \t\u00a0]+)?$/u.test(before)) continue;
+    // "quais" is plural and "qual" singular: they must match the article already.
+    if ((qual === "quais") !== info.plural) continue;
+    const wanted = row[(info.plural ? 2 : 0) + (info.feminine ? 1 : 0)];
+    if (wanted === target) continue;
+    const [start, end] = m.indices!.groups!.target;
+    findings.push({
+      ruleId: "portugueseAgreement",
+      messageKey: "review_msg_pt_noun_agreement",
+      range: { start, end },
+      alternatives: [wanted],
+      context: { start: m.index, end: m.index + m[0].length },
+    });
+  }
+  // "Vende-se casas" -> "Vendem-se casas": with "se" the plural noun after the verb is its
+  // subject. "Precisa-se de", "Trata-se de" have none.
+  for (const m of frameMatches(ctx, PASSIVE_SE, "verb")) {
+    const { verb, noun, det } = m.groups!;
+    if (verb.slice(1) !== verb.slice(1).toLowerCase() || noun !== noun.toLowerCase()) continue;
+    const info = analyze(noun);
+    if (!info?.plural || info.feminine === null) continue;
+    if (!det && !info.certain && !/[ao]s$/.test(noun)) continue;
+    if (new RegExp(`^(?:${TIME})$`).test(noun)) continue;
+    // A present tense of an everyday verb: not "houve-se", nor "leia-se" (read as).
+    const lower = verb.toLowerCase();
+    const { ar, er, ir } = verbStems();
+    const stem = lower.slice(0, -1);
+    if (!(lower.endsWith("a") ? ar.has(stem) : er.has(stem) || ir.has(stem))) continue;
+    const [start, end] = m.indices!.groups!.verb;
+    findings.push({
+      ruleId: "portugueseAgreement",
+      messageKey: "review_msg_pt_agreement",
+      range: { start, end },
+      alternatives: [`${verb}m`].map((wanted) => applyWordCase(wanted, detectWordCase(verb))),
+      context: { start: m.index, end: m.index + m[0].length },
     });
   }
   return findings;

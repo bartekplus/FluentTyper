@@ -125,6 +125,31 @@ const OBEDECER =
 const PREFERIR =
   "prefiro|prefere|preferes|preferimos|preferem|preferia|preferiam|preferiria|preferiríamos|preferi|preferiu|preferiram|preferir|preferível";
 
+// Places one goes to: "vou a escola" -> "à escola". "foi" and "fui" also mean "was".
+const GOES = "vou|vais|vai|vamos|vão|ia|iam|irei|irás|irá|iremos|irão|iria|iríamos|iriam|ir|indo";
+const DESTINATIONS =
+  "escola|praia|festa|igreja|missa|feira|academia|farmácia|padaria|faculdade|universidade|reunião|aula|piscina|fazenda|praça|loja|biblioteca|delegacia|prefeitura|cidade|capital|cozinha|sala|janela|rodoviária|lavanderia|oficina|creche|cerimônia|consulta|sessão|exposição";
+// "Como está indo na escola?" asks how it is going there.
+const GOES_NOT_INDO = GOES.replace("|indo", "");
+const MALE_DESTINATIONS =
+  "cinema|teatro|shopping|mercado|supermercado|médico|dentista|banco|hospital|parque|clube|estádio|restaurante|escritório|museu|zoológico|show|jogo|aeroporto|centro|correio|cartório";
+const MODAL_SINGULAR: Record<string, string> = {
+  devem: "deve",
+  deviam: "devia",
+  deveriam: "deveria",
+  deverão: "deverá",
+  podem: "pode",
+  podiam: "podia",
+  poderiam: "poderia",
+  poderão: "poderá",
+  vão: "vai",
+  iam: "ia",
+  irão: "irá",
+  costumam: "costuma",
+  começam: "começa",
+  continuam: "continua",
+};
+
 const FRAMES: Frame[] = [
   // "assistir ao filme" (to watch); "assistir o paciente" (to help) keeps its object.
   {
@@ -529,6 +554,35 @@ const FRAMES: Frame[] = [
     alternatives: ["está"],
     messageKey: "review_msg_pt_homophone",
   },
+  // "ir à praia", "ir ao cinema": going somewhere takes "a", not "em".
+  {
+    pattern: `(?:${GOES_NOT_INDO})${S}(?<target>na|nas)${S}(?=(?:${DESTINATIONS})s?${W})`,
+    alternatives: (typed) => [typed.toLowerCase() === "nas" ? "às" : "à"],
+    messageKey: "review_msg_pt_regency",
+  },
+  {
+    pattern: `(?:${GOES_NOT_INDO})${S}(?<target>no|nos)${S}(?=(?:${MALE_DESTINATIONS})${W})`,
+    alternatives: (typed) => [typed.toLowerCase() === "nos" ? "aos" : "ao"],
+    messageKey: "review_msg_pt_regency",
+  },
+  // Existential "haver" after a modal keeps the modal singular: "Devem haver baratas".
+  {
+    pattern: `(?<target>${Object.keys(MODAL_SINGULAR).join("|")})${S}haver${S}(?!\\p{Ll}+[ai]d[oa]${W})(?=\\p{Ll})`,
+    alternatives: (typed) => [MODAL_SINGULAR[typed.toLowerCase()]],
+    messageKey: "review_msg_pt_homophone",
+  },
+  // "evitar comer", not "evitar de comer".
+  {
+    pattern: `(?:evito|evita|evitam|evitamos|evitar|evitou|evitei|evitava|evitem|evite)${S}(?<target>de${S})(?=${INFINITIVE_AHEAD})`,
+    alternatives: [""],
+    messageKey: "review_msg_pt_regency",
+  },
+  // "Penso de que": a verb of thinking or saying takes "que" directly.
+  {
+    pattern: `(?:penso|pensei|pensamos|acho|achei|achamos|creio|acredito|acreditamos|afirmo|afirmou|afirmaram|garanto|garantiu|espero|esperamos|sei|sabemos|parece|parecia|disse|disseram|imagino|suponho)${S}(?<target>de${S})(?=que${W})`,
+    alternatives: [""],
+    messageKey: "review_msg_pt_regency",
+  },
   // "pôr" (to put) after a modal: "por" + article would contract to "pelo".
   {
     pattern: `${MODAL}${S}(?<target>por)${S}(?:o|a|os|as|em|termo|ordem)${W}`,
@@ -554,10 +608,6 @@ const GOVERNS_A = [
   `se${S}(?:referir|refere|referem|referiu|dirigir|dirige|dirigiu|dirigiram|candidatar|candidata|candidatou|candidataram)`,
 ].join("|");
 const GOVERNED_ARTICLE = `(?<lead>${GOVERNS_A}|quanto)${S}(?<target>as?)${S}(?<noun>\\p{Ll}{3,})${W}(?!-)`;
-// Places one goes to: "vou a escola" -> "à escola". "foi" and "fui" also mean "was".
-const GOES = "vou|vais|vai|vamos|vão|ia|iam|irei|irás|irá|iremos|irão|iria|iríamos|iriam|ir|indo";
-const DESTINATIONS =
-  "escola|praia|festa|igreja|missa|feira|academia|farmácia|padaria|faculdade|universidade|reunião|aula|piscina|fazenda|praça|loja|biblioteca|delegacia|prefeitura|cidade|capital|cozinha|sala|janela|rodoviária|lavanderia|oficina|creche|cerimônia|consulta|sessão|exposição";
 const GOES_TO = `(?:${GOES})${S}(?<target>as?)${S}(?=(?:${DESTINATIONS})s?${W})`;
 // "à Sua Excelência": forms of address take no article.
 const ADDRESS = `(?<target>às?)${S}(?=(?:sua|vossa|suas|vossas)${S}(?:excelência|majestade|santidade|senhoria|alteza|eminência|magnificência|reverendíssima|excelências|majestades|santidades|senhorias|altezas|eminências|beatitudes?)${W})`;

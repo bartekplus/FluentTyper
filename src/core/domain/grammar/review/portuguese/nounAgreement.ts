@@ -142,7 +142,7 @@ const BOTH = new Set(
 const CERTAIN_GENDER = new Map<string, boolean>([
   ...`dor cor flor mão lei fé mulher noite morte arte fonte febre árvore chave fase crise tese
   hipótese síntese rede paz voz raiz nuvem ordem fome frase classe ponte gente carne parede
-  questão gestão sugestão digestão opinião região religião união reunião legião ocasião`
+  questão gestão sugestão digestão opinião região religião união reunião legião ocasião razão`
     .split(/\s+/)
     .map((word) => [word, true] as const),
   ...`coração tição cação tesão talismã ímã afã divã clã sutiã islã ecrã imã satã rabecã xadrez leite
