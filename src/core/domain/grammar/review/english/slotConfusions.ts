@@ -263,7 +263,25 @@ const LOCK: Record<string, string> = {
 const NUMBER_WORD =
   "one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty|thirty|forty|fifty|hundred|thousand|million";
 
+const ID_VERB =
+  "rather|probably|like|love|hate|be|have|never|just|prefer|preferred|better|already|definitely|also|really|say|been|gladly|appreciate|want|go|need|imagine|recommend|suggest|bet|do|get|try|still|always|only|certainly|happily|guess";
+const CASING: Rule = { ruleId: "englishCanonicalCasing", messageKey: "review_msg_name_casing" };
+
 const FRAMES: readonly Frame[] = [
+  // "I think id rather wait", "Id like that": "I'd" with its apostrophe dropped.
+  {
+    rule: TYPO,
+    cue: ["id"],
+    pattern: `(?:(?<=(?:^|[.!?]["”’)]?[ \\t]{1,8}|\\n|,[ \\t]{1,8}))|(?:think|thought|guess|hope|wish|know|said|says|so|but|and|because|if|then|maybe|honestly|yes|well)${S})(?<target>id)${S}(?:${ID_VERB})${E}`,
+    fix: (m) => (/^[Ii]d$/.test(m.groups!.target) ? { alternatives: ["I'd"], raw: true } : null),
+  },
+  // "my id expired": the identity document is an abbreviation.
+  {
+    rule: CASING,
+    cue: ["id"],
+    pattern: `(?:my|your|his|her|their|our|photo|student|valid|government|employee|staff)${S}(?<target>id)(?=${S}(?:card|cards|number|badge|proves|shows|expired|is|was|to|at|for|and|or|with)${E}|[ \\t]*[.!?,;:])`,
+    fix: (m) => (m.groups!.target === "id" ? { alternatives: ["ID"], raw: true } : null),
+  },
   // "Thanks you for coming": the verb's own "thank you".
   {
     rule: PHRASE,
@@ -779,7 +797,12 @@ const FRAMES: readonly Frame[] = [
 /** Context detectors appended to REVIEW_DETECTORS. */
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
   {
-    rules: ["englishPhraseCorrections", "englishContextualCompounds", "englishSentenceStructure"],
+    rules: [
+      "englishPhraseCorrections",
+      "englishContextualCompounds",
+      "englishSentenceStructure",
+      "englishCanonicalCasing",
+    ],
     detect: frameDetector(FRAMES),
   },
 ];
