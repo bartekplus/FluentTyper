@@ -81,6 +81,42 @@ const STYLE: readonly PhraseRow[] = [
   ["m m", "m.m."],
 ];
 
+// Compounds written apart (särskrivning): the first part never stands alone before
+// the second, so the split form is never correct. [first, second, second definite].
+const SPLIT: ReadonlyArray<readonly [string, string, string]> = [
+  ["dator", "skärm", "skärmen"],
+  ["kyl", "skåp", "skåpet"],
+  ["tand", "borste", "borsten"],
+  ["tand", "läkare", "läkaren"],
+  ["sov", "rum", "rummet"],
+  ["vardags", "rum", "rummet"],
+  ["bok", "hylla", "hyllan"],
+  ["lunch", "rast", "rasten"],
+  ["kaffe", "kopp", "koppen"],
+  ["mjölk", "paket", "paketet"],
+  ["post", "kontor", "kontoret"],
+  ["sjuk", "hus", "huset"],
+  ["flyg", "plats", "platsen"],
+  ["järn", "väg", "vägen"],
+  ["tåg", "station", "stationen"],
+  ["buss", "hållplats", "hållplatsen"],
+  ["arbets", "plats", "platsen"],
+  ["barn", "vagn", "vagnen"],
+  ["regn", "jacka", "jackan"],
+  ["skol", "gård", "gården"],
+  ["fot", "boll", "bollen"],
+  ["hand", "boll", "bollen"],
+  ["köks", "bord", "bordet"],
+  ["student", "lägenhet", "lägenheten"],
+  ["kund", "tjänst", "tjänsten"],
+  ["lösen", "ord", "ordet"],
+  ["glass", "bil", "bilen"],
+];
+const COMPOUNDS: readonly PhraseRow[] = SPLIT.flatMap(([first, second, definite]) => [
+  [`${first} ${second}`, first + second] as PhraseRow,
+  [`${first} ${definite}`, first + definite] as PhraseRow,
+]);
+
 export const TABLES: LanguagePhraseTables = {
   words: [
     ["igentligen", "egentligen"],
@@ -99,5 +135,6 @@ export const TABLES: LanguagePhraseTables = {
     ["tex", "t.ex."],
   ],
   phrases: PHRASES,
+  compounds: COMPOUNDS,
   style: STYLE,
 };

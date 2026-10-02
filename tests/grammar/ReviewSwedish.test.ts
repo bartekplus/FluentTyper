@@ -89,6 +89,11 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Han brukade att cykla till jobbet.", "Han brukade cykla till jobbet."],
         ["Vi ångrar på att vi sålde huset.", "Vi ångrar att vi sålde huset."],
         ["Kunderna är i stor grad nöjda.", "Kunderna är i hög grad nöjda."],
+        ["Dem är redan på plats.", "De är redan på plats."],
+        ["Jag tror att dem kommer i morgon.", "Jag tror att de kommer i morgon."],
+        ["Vi åt middag, dem var trötta.", "Vi åt middag, de var trötta."],
+        ["Jag pratade länge med de.", "Jag pratade länge med dem."],
+        ["Paketet är till de, inte till oss.", "Paketet är till dem, inte till oss."],
       ],
       neg: [
         "Mötet varar mellan klockan tio och tolv.",
@@ -96,6 +101,50 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         "Från Malmö till Lund tar det en kvart.",
         "Han brukade cykla till jobbet.",
         "Kunderna är i hög grad nöjda.",
+        "Det som hände dem var hemskt.",
+        "Jag pratade med de andra.",
+        "Ge dem boken.",
+        "De är redan på plats.",
+        "Hon frågade dem var de bodde.",
+      ],
+    },
+  ],
+  [
+    "englishClosedCompounds",
+    {
+      pos: [
+        ["Vi köpte en ny dator skärm.", "Vi köpte en ny datorskärm."],
+        ["Han jobbar på sjuk huset.", "Han jobbar på sjukhuset."],
+        ["Tåget stannar vid tåg stationen.", "Tåget stannar vid tågstationen."],
+        ["Glöm inte din tand borste.", "Glöm inte din tandborste."],
+        ["Vi spelar fot boll på lördag.", "Vi spelar fotboll på lördag."],
+      ],
+      neg: [
+        "Vi köpte en ny datorskärm.",
+        "Han är sjuk och stannar hemma.",
+        "Hon har en fot i gips.",
+        "Datorn och skärmen är nya.",
+        "Vi bor på landet.",
+      ],
+    },
+  ],
+  [
+    "stylePhrasing",
+    {
+      pos: [
+        ["Kan jag få en till kaka?", "Kan jag få en kaka till?"],
+        ["Vi beställer ett till glas.", "Vi beställer ett glas till."],
+        ["Det var en fin dag sa Johan.", "Det var en fin dag, sa Johan."],
+        ["Jag har inte tid svarade hon.", "Jag har inte tid, svarade hon."],
+        ["Han tog en till bulle.", "Han tog en bulle till."],
+      ],
+      neg: [
+        "Hon gav en till mamma.",
+        "Vi räknade från en till tio.",
+        "Det sa Johan.",
+        "Efter en stund svarade Johan.",
+        "Det var bra, sa hon.",
+        "När han kom hem frågade hon.",
       ],
     },
   ],
@@ -177,6 +226,8 @@ test("a Swedish chunk with many candidates scans quickly", () => {
     "ett mörk kväll ".repeat(300),
     "mellan två ".repeat(800) + "till fyra",
     "2a 3e APIs Måndag ".repeat(250),
+    "dem är med de. en till kaka ".repeat(250),
+    `Det var bra ${"och ".repeat(900)}sa Johan.`,
   ];
   slowest(inputs.join("\n"));
   for (const text of inputs) expect(slowest(text)).toBeLessThan(100);

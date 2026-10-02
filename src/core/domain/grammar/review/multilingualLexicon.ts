@@ -266,6 +266,8 @@ function apostropheAt(ctx: DetectContext, index: number): string {
   return nearby.includes("’") && !nearby.includes("'") ? "’" : "'";
 }
 
+const TIME_BEFORE = /\d{1,2}[:h]\d{2}[\s,(]*$/;
+
 /** "cest", "jai", "aujourdhui": a French elision missing its apostrophe. */
 export function frenchElisions(ctx: DetectContext): RawFinding[] {
   if (ctx.lang.slice(0, 2) !== "fr") return [];
@@ -274,6 +276,12 @@ export function frenchElisions(ctx: DetectContext): RawFinding[] {
     const typed = m[0];
     const lower = typed.toLowerCase();
     if (ctx.dictionary.has(lower) || namedExampleBefore(ctx.text, m.index)) continue;
+    // "15:00 CEST", "à 20:40, cest": the time zone.
+    if (
+      lower === "cest" &&
+      (typed === "CEST" || TIME_BEFORE.test(ctx.text.slice(Math.max(0, m.index - 12), m.index)))
+    )
+      continue;
     const replacement = FRENCH_ELISIONS.map.get(lower)!.replaceAll("'", apostropheAt(ctx, m.index));
     findings.push({
       ruleId: "englishContractionNormalization",

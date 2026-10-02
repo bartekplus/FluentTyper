@@ -1,6 +1,8 @@
 import { namedExampleBefore } from "../exampleCues";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { arabicDates } from "./dates";
+import { FEMININE_PLURAL_STEMS } from "./lexicon.generated";
+import { styleFrames } from "./styleFrames";
 
 type Finding = Omit<RawFinding, "ruleId">;
 type Token = { word: string; start: number; end: number; gap: string };
@@ -54,6 +56,30 @@ function definiteFeminine(word: string): boolean {
 }
 // Words in -تان that are not duals of a feminine noun.
 const NOT_FEMININE_DUAL = /(?:ستان|ستين|^بستان|^فستان|^كتان|^بهتان|^شتان)$/u;
+// Masculine nouns whose own last letter is ت: their duals are not feminine.
+const MASCULINE_IN_T = new Set(
+  "بيت وقت صوت موت زيت سبت نبت تخت صمت سكوت ثبات نبات تابوت حانوت عفريت كبريت ياقوت".split(" "),
+);
+// Feminine nouns without ة that are never also a verb or "self" when a pronoun is added
+// ("يده", "كتفها"; not ساقه "drove him", عينه "itself", أذنه "allowed him").
+const FEMININE_POSSESSED = new Set("كتف يد كف أرض شمس نار حرب بئر كأس فأس ريح".split(" "));
+const PRONOUN = "(?:ه|ها|هم|هما|هن|ك|كم|كن|ي|نا)";
+const POSSESSED = new RegExp(`^(?<stem>\\p{L}{2,}?)${PRONOUN}$`, "u");
+/** "كتفه", "يدها": a feminine noun with a possessive pronoun. */
+const possessedFeminine = (word: string) => {
+  const stem = POSSESSED.exec(word)?.groups!.stem;
+  return stem !== undefined && FEMININE_POSSESSED.has(stem);
+};
+const DUAL_CONSTRUCT = new RegExp(`^(?<stem>\\p{L}{2,})[اي]${PRONOUN}$`, "u");
+/** "بطاقتاه", "كتفيها": a feminine dual with a pronoun. */
+function feminineDualConstruct(word: string): boolean {
+  const stem = DUAL_CONSTRUCT.exec(word)?.groups!.stem;
+  if (!stem) return false;
+  return (
+    (stem.endsWith("ت") && stem.length > 2 && !MASCULINE_IN_T.has(stem)) ||
+    FEMININE_POSSESSED.has(stem)
+  );
+}
 
 type Dual = { gender: "m" | "f"; oblique: boolean; stem: string };
 /** A dual noun ("البطاقتان", "كتفين"), its gender and case, or undefined. */
@@ -63,7 +89,12 @@ function dual(word: string): Dual | undefined {
   const { stem, ending } = m.groups!;
   const oblique = ending === "ين";
   const noun = bare(stem);
-  if (stem.endsWith("ت") && noun.length > 2 && !NOT_FEMININE_DUAL.test(word))
+  if (
+    stem.endsWith("ت") &&
+    noun.length > 2 &&
+    !NOT_FEMININE_DUAL.test(word) &&
+    !MASCULINE_IN_T.has(noun)
+  )
     return { gender: "f", oblique, stem };
   if (FEMININE.has(noun)) return { gender: "f", oblique, stem };
   if (noun.length < 3) return;
@@ -111,7 +142,7 @@ function demonstratives(ctx: DetectContext, list: Token[]): Finding[] {
     const at = list[i].start + pre.length;
     const context = { start: list[i].start, end: noun.end };
     if (dem === "هذا" || dem === "ذلك") {
-      if (!definiteFeminine(noun.word)) continue;
+      if (!definiteFeminine(noun.word) && !possessedFeminine(noun.word)) continue;
       findings.push({
         messageKey: "review_msg_arabic_demonstrative_gender",
         range: { start: at, end: list[i].end },
@@ -122,7 +153,18 @@ function demonstratives(ctx: DetectContext, list: Token[]): Finding[] {
     }
     if (dem === "هذه" || dem === "تلك") continue;
     const d = dual(noun.word);
-    if (!d) continue;
+    if (!d) {
+      // "هذان بطاقتاه": only the gender is read off a dual with a pronoun.
+      if (dem === "هذان" || dem === "هذين")
+        if (feminineDualConstruct(noun.word))
+          findings.push({
+            messageKey: "review_msg_arabic_demonstrative_gender",
+            range: { start: at, end: list[i].end },
+            alternatives: [dem === "هذان" ? "هاتان" : "هاتين"],
+            context,
+          });
+      continue;
+    }
     const prepositional = pre.length > 0 && /[بلك]$/u.test(pre);
     const afterPreposition = prepositional || PREPOSITIONS.has(before);
     const demOblique = dem === "هذين" || dem === "هاتين";
@@ -157,6 +199,63 @@ function demonstratives(ctx: DetectContext, list: Token[]): Finding[] {
       ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
       context,
     });
+  }
+  return findings;
+}
+
+// ---------------------------------------------------- relative pronouns
+
+// A verb whose subject is "I/you/we" and whose object pronoun refers back to the
+// antecedent: "سمعتها", "جلبناه", "قرأتموها".
+const RESUMED = /^\p{L}{2,}?(?<subject>ت|نا|تم|تما|تن)(?<object>ه|ها)$/u;
+// Verbs taking two objects: "الكتب التي أعطيناه" (that we gave him) is fine.
+const TWO_OBJECTS =
+  /^(?:[وف]?)(?:أعطي|منح|أهدي|سلم|أرسل|بع|وعد|علم|أخبر|سأل|أعر|ناول|أطعم|ألبس|كسو|أري|قدم|حمل|أعد|أهد)/u;
+// "التي بعته لها": the antecedent comes back in a later preposition instead.
+const LATER_PRONOUN = /^(?:ل|إلي|من|علي|في|ب|عن|مع|عند|لدي)(?:ه|ها|هم)$/u;
+
+/**
+ * "الوشاية الذي سمعتها", "الطعام التي جلبناه": a relative pronoun agrees with
+ * its antecedent, and the pronoun that takes it up in the clause shows its gender.
+ */
+function relatives(ctx: DetectContext, list: Token[]): Finding[] {
+  const findings: Finding[] = [];
+  for (let i = 1; i + 1 < list.length; i++) {
+    const relative = list[i].word;
+    if (relative !== "الذي" && relative !== "التي") continue;
+    const antecedent = list[i - 1].word.replace(/^[وف]?(?:[بلك](?=ال))?/u, "");
+    const verb = list[i + 1];
+    const after = list[i + 2];
+    if (!adjacent(list[i]) || !adjacent(verb) || !owns(ctx, list[i].start)) continue;
+    if (!antecedent.startsWith("ال") && !antecedent.startsWith("لل")) continue;
+    const resumed = RESUMED.exec(verb.word)?.groups;
+    if (!resumed || TWO_OBJECTS.test(verb.word)) continue;
+    if (after && adjacent(after) && LATER_PRONOUN.test(after.word)) continue;
+    const noun = antecedent.startsWith("لل") ? "ال" + antecedent.slice(2) : antecedent;
+    const context = { start: list[i - 1].start, end: verb.end };
+    if (relative === "الذي" && resumed.object === "ها" && definiteFeminine(noun)) {
+      findings.push({
+        messageKey: "review_msg_arabic_relative_gender",
+        range: { start: list[i].start, end: list[i].end },
+        alternatives: ["التي"],
+        context,
+      });
+    } else if (
+      relative === "التي" &&
+      resumed.object === "ه" &&
+      resumed.subject !== "ت" &&
+      !definiteFeminine(noun) &&
+      !noun.endsWith("ات")
+    ) {
+      // A broken plural ("الكتب") takes التي: then the slip is in the pronoun.
+      findings.push({
+        messageKey: "review_msg_arabic_relative_gender",
+        range: { start: list[i].start, end: verb.end },
+        alternatives: [`الذي${verb.gap}${verb.word}`, `التي${verb.gap}${verb.word}ا`],
+        requiresChoice: true,
+        context,
+      });
+    }
   }
   return findings;
 }
@@ -208,6 +307,11 @@ function countedGender(token: Token | undefined, text: string): "m" | "f" | unde
   if (/^\p{L}{2,}ا$/u.test(word) && !/(?:اء|ىا)$/u.test(word)) return "m";
   if (text[token.end] === "\u064B" && !word.endsWith("ة")) return "m";
 }
+
+const FEMININE_PLURALS = new Set(FEMININE_PLURAL_STEMS.split(" "));
+/** "ساعات", "الشركات": the -ات plural of a noun in ة (from ar_SA.dic). */
+const feminineSoundPlural = (word: string) =>
+  word.endsWith("ات") && FEMININE_PLURALS.has(bare(word).slice(0, -2));
 
 /** 11-19 and 21-99 agree with the counted noun; after a preposition they are oblique. */
 function numbers(ctx: DetectContext, list: Token[]): Finding[] {
@@ -309,6 +413,28 @@ function numbers(ctx: DetectContext, list: Token[]): Finding[] {
       if (forms && n !== forms[0])
         push(list[i].start, list[i].end, pre + forms[0], "review_msg_arabic_number_gender");
     }
+    // 3-10 before a feminine -ات plural: the count drops its ة ("ثلاث ساعات").
+    if (next && adjacent(next) && feminineSoundPlural(next.word) && !next.word.startsWith("ال")) {
+      const m = /^(?<pre>[وبلك]{0,2})(?<n>\p{L}+)$/u.exec(word)!;
+      const { pre, n } = m.groups!;
+      const forms = n === "عشرة" ? (["عشرة", "عشر"] as const) : UNIT_FORMS.get(n);
+      if (forms && n !== forms[1])
+        push(list[i].start, list[i].end, pre + forms[1], "review_msg_arabic_number_gender");
+    }
+    // "أحد" before a definite feminine plural is "إحدى" ("إحدى الشركات").
+    if (
+      /^[وبلك]{0,2}أحد$/u.test(word) &&
+      next &&
+      adjacent(next) &&
+      next.word.startsWith("ال") &&
+      feminineSoundPlural(next.word)
+    )
+      push(
+        list[i].start,
+        list[i].end,
+        word.replace("أحد", "إحدى"),
+        "review_msg_arabic_number_gender",
+      );
     // "إحدى" before a masculine plural is "أحد".
     if (/^[وبلك]{0,2}إحدى$/u.test(word) && next && adjacent(next) && soundPlural(next.word))
       push(
@@ -367,28 +493,43 @@ function caseEndings(ctx: DetectContext, list: Token[]): Finding[] {
     // "لِمَ" (why) also opens a question with an indicative verb.
     const sentenceEnd = /[.!؟?\n]/u.exec(ctx.text.slice(next.end, next.end + 200));
     if (sentenceEnd && /[؟?]/u.test(sentenceEnd[0])) continue;
-    const five = /^(?<stem>[يت]\p{L}{2,})ون$/u.exec(word);
-    if (five) {
-      const stem = five.groups!.stem;
-      // Singular verbs whose root ends in -ون ("يتكون", "يتعاون") are not plurals.
-      if (stem.endsWith("ا") || (stem.length === 3 && stem[1] === "ت")) continue;
+    const fixed = moodFix(word, jussive);
+    if (fixed)
       findings.push({
         messageKey: jussive ? "review_msg_arabic_jussive" : "review_msg_arabic_subjunctive",
         range: { start: next.start, end: next.end },
-        alternatives: [stem + "وا"],
-        context: { start: list[i].start, end: next.end },
-      });
-      continue;
-    }
-    if (jussive && /^[يأن]\p{L}+[يوى]$/u.test(word) && word.length >= 3)
-      findings.push({
-        messageKey: "review_msg_arabic_jussive",
-        range: { start: next.start, end: next.end },
-        alternatives: [word.slice(0, -1)],
+        alternatives: [fixed],
         context: { start: list[i].start, end: next.end },
       });
   }
+  // "لمّا يأتون" (not yet): لمّا takes the jussive too. Only with its shadda written:
+  // bare لما is also "for what" before an indicative verb.
+  for (const token of list) {
+    const lamma = LAMMA.exec(ctx.text.slice(Math.max(0, token.start - 12), token.start));
+    const fixed = lamma && owns(ctx, token.start) ? moodFix(token.word, true) : undefined;
+    if (fixed)
+      findings.push({
+        messageKey: "review_msg_arabic_jussive",
+        range: { start: token.start, end: token.end },
+        alternatives: [fixed],
+        context: { start: token.start - lamma![0].length, end: token.end },
+      });
+  }
   return findings;
+}
+
+const LAMMA = /(?<![\p{L}\p{M}])[وف]?ل\u064E?م(?:\u0651\u064E?|\u064E\u0651)ا[ \t\u00a0]+$/u;
+
+/** The five verbs drop their ن ("يذهبوا"); after لم a final long vowel shortens ("يجر"). */
+function moodFix(word: string, jussive: boolean): string | undefined {
+  const five = /^(?<stem>[يت]\p{L}{2,})ون$/u.exec(word);
+  if (five) {
+    const stem = five.groups!.stem;
+    // Singular verbs whose root ends in -ون ("يتكون", "يتعاون") are not plurals.
+    if (stem.endsWith("ا") || (stem.length === 3 && stem[1] === "ت")) return;
+    return stem + "وا";
+  }
+  if (jussive && /^[يأن]\p{L}+[يوى]$/u.test(word) && word.length >= 3) return word.slice(0, -1);
 }
 
 // ------------------------------------------------------- optional style
@@ -451,10 +592,17 @@ export const DETECTORS: readonly ReviewDetectorEntry[] = [
     rules: ["arabicAgreement"],
     detect: as("arabicAgreement", (ctx, list) => [
       ...demonstratives(ctx, list),
+      ...relatives(ctx, list),
       ...numbers(ctx, list),
     ]),
   },
   { rules: ["arabicCaseEndings"], detect: as("arabicCaseEndings", caseEndings) },
   { rules: ["arabicDates"], detect: as("arabicDates", (ctx) => arabicDates(ctx)) },
-  { rules: ["stylePhrasing"], detect: as("stylePhrasing", (ctx) => arabicStyle(ctx)) },
+  {
+    rules: ["stylePhrasing"],
+    detect: as("stylePhrasing", (ctx, list) => [
+      ...arabicStyle(ctx),
+      ...styleFrames(ctx.text, list, (start) => owns(ctx, start)),
+    ]),
+  },
 ];

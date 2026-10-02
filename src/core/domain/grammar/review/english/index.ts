@@ -2,6 +2,15 @@
 import * as compoundForms from "./compoundForms";
 import * as confusions1 from "./confusions1";
 import * as dates from "./dates";
+import * as contractionSlots from "./contractionSlots";
+import * as degreeSlots from "./degreeSlots";
+import * as nounNumberSlots from "./nounNumberSlots";
+import * as verbGroupSlots from "./verbGroupSlots";
+import * as complementSlots from "./complementSlots";
+import * as missingVerbSlots from "./missingVerbSlots";
+import * as determinerSlots from "./determinerSlots";
+import * as agreementSlots from "./agreementSlots";
+import * as adverbSlots from "./adverbSlots";
 import * as dialects from "./dialects";
 import * as lexical from "./lexical";
 import * as remaining from "./remaining";
@@ -33,6 +42,15 @@ const MODULES = [
   compoundForms,
   dates,
   usageTables,
+  contractionSlots,
+  degreeSlots,
+  nounNumberSlots,
+  verbGroupSlots,
+  complementSlots,
+  missingVerbSlots,
+  determinerSlots,
+  agreementSlots,
+  adverbSlots,
 ];
 export const EXTENSION_PHRASES = MODULES.flatMap((m) => m.PHRASES);
 export const EXTENSION_COMPOUNDS = MODULES.flatMap((m) => m.COMPOUNDS);
