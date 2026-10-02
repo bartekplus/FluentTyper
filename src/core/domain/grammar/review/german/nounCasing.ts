@@ -187,6 +187,46 @@ function hadObject(typed: string, before: string[], after: string[]): boolean {
     (PREPOSITIONS.has(next) && !VERB_GOVERNORS.has(lower(after[1])))
   );
 }
+/**
+ * A noun form that is also a finite verb form, where the clause already has its finite verb, so
+ * it cannot be one: "Ich drehe filme.", "Da rollen köpfe.", "Ich werde heute fische fangen". The
+ * clause has no subordinator or coordinator that could open another verb's clause.
+ */
+function secondFinite(typed: string, before: string[], after: string[]): boolean {
+  const next = lower(after[0]);
+  const ends = BOUNDARY.test(next) || (germanInfinitive(next) && BOUNDARY.test(after[1] ?? ""));
+  if (typed.length < 4 || !ends || !/^\p{Ll}+$/u.test(before.at(-1) ?? "")) return false;
+  // "würden" (also "die Würden"), "halt" (also "der Halt"): a verb or particle of their own.
+  if (AUXILIARIES.has(typed) || VERB_GOVERNORS.has(typed) || SECOND_EXCEPTIONS.has(typed)) {
+    return false;
+  }
+  let verb = false;
+  for (let i = before.length - 1; i >= 0 && !BOUNDARY.test(before[i]); i--) {
+    const low = before[i].toLowerCase();
+    if (CLAUSE_LINKS.has(low) || SUBORDINATORS.has(low) || COORDINATORS.has(low)) return false;
+    // ", die ich mir stelle", "Die Frage die ich mir stelle": a relative clause.
+    const relative = /^(?:der|die|das|den|dem|denen|welche[mnrs]?)$/.test(low);
+    if (relative && (before[i - 1] === "," || /^\p{Lu}/u.test(before[i - 1] ?? ""))) return false;
+    // An infinitive right before it may close a subordinate clause ("… wegfallen würden").
+    if (i === before.length - 1 && /en$/.test(low)) continue;
+    const finite = AUXILIARIES.has(low) || VERB_GOVERNORS.has(low) || finiteVerb(low);
+    if (i > 0 && before[i] === low && finite) verb = true;
+  }
+  return verb;
+}
+const SECOND_EXCEPTIONS = wordSet("halt stand statt teil preis acht");
+/** "Zuckerbrot und peitsche.": a noun joined to a noun, ending the pair. */
+function pairedNoun(before: string[], after: string[]): boolean {
+  const next = after[0] ?? "";
+  const noun = before.at(-2) ?? "";
+  return (
+    COORDINATORS.has(lower(before.at(-1))) &&
+    /^\p{Lu}\p{Ll}+$/u.test(noun) &&
+    !BOUNDARY.test(before.at(-3) ?? ".") &&
+    germanNounReading(noun.toLowerCase()) !== null &&
+    (BOUNDARY.test(next) || COORDINATORS.has(next))
+  );
+}
 // Lowercase words the dictionary lists only as nouns that are also adverbs ("wir sind zuhause").
 const BARE_EXCEPTIONS = wordSet("zuhause topp");
 const VERB_PARTICLES = wordSet("los ab an auf aus ein mit vor weg zu zurück hin her fest");
@@ -478,7 +518,9 @@ function nounCasing(ctx: DetectContext): RawFinding[] {
     const found =
       trigger(before) ??
       ((reading === "noun" && bareNoun(typed, before, after)) ||
-      ((reading === "finite" || reading === "infinitive") && hadObject(typed, before, after))
+      ((reading === "finite" || reading === "infinitive") && hadObject(typed, before, after)) ||
+      (reading === "finite" && secondFinite(typed, before, after)) ||
+      (reading !== "infinitive" && pairedNoun(before, after))
         ? { kind: "bare" as const, at: before.length - 1 }
         : null);
     if (!found) continue;

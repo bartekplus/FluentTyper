@@ -147,6 +147,9 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         // The polite imperative.
         ["Nehmen sie bitte Platz!", "Nehmen Sie bitte Platz!"],
         ["Bitte warten sie hier!", "Bitte warten Sie hier!"],
+        // A finite-verb-like noun after the clause's own finite verb, or ending a pair of nouns.
+        ["Am Wochenende drehen wir filme.", "Am Wochenende drehen wir Filme."],
+        ["Er kämpfte für Freiheit und ehre.", "Er kämpfte für Freiheit und Ehre."],
         // The object of "haben" that ends its clause.
         ["Wir hatten schulden bei der Bank.", "Wir hatten Schulden bei der Bank."],
         ["Ich habe fragen zum Vertrag.", "Ich habe Fragen zum Vertrag."],
@@ -203,6 +206,11 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         "Wir wollen frische kaufen.",
         "Ich habe vergessen.",
         "Neue kommen.",
+        "So ist es halt.",
+        "Ich weiß, dass er filme.",
+        "Die Frage die ich mir da stelle, ist gut.",
+        "Die Kosten, die bei 0,5% wegfallen würden, sind gering.",
+        "Sie öffnet die Tür und tritt ein.",
         "Kommen sie heute?",
         "Die Kinder spielen, wenn sie wollen!",
         "Wir fragen sie morgen!",
