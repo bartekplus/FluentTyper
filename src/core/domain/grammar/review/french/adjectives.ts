@@ -778,6 +778,68 @@ const CANDIDATE = new RegExp(
   "giu",
 );
 
+// A color qualified by a shade or a thing ("bleu clair", "vert d'eau" aside) is invariable:
+// "des yeux verts clairs" -> "vert clair". Each base and the inflected forms it may be typed in.
+const COLOR_FORMS: Record<string, string> = {};
+for (const [base, ...forms] of [
+  ["bleu", "bleue", "bleus", "bleues"],
+  ["vert", "verte", "verts", "vertes"],
+  ["rouge", "rouges"],
+  ["jaune", "jaunes"],
+  ["gris", "grise", "grises"],
+  ["noir", "noire", "noirs", "noires"],
+  ["blanc", "blanche", "blancs", "blanches"],
+  ["rose", "roses"],
+  ["violet", "violette", "violets", "violettes"],
+  ["brun", "brune", "bruns", "brunes"],
+  ["beige", "beiges"],
+  ["mauve", "mauves"],
+])
+  for (const form of [base, ...forms]) COLOR_FORMS[form] = base;
+const SHADE_FORMS: Record<string, string> = {};
+for (const [base, ...forms] of [
+  ["clair", "claire", "clairs", "claires"],
+  ["foncé", "foncée", "foncés", "foncées"],
+  ["pâle", "pâles"],
+  ["vif", "vive", "vifs", "vives"],
+  ["sombre", "sombres"],
+  ["canard", "canards"],
+  ["océan", "océans"],
+  ["améthyste", "améthystes"],
+  ["émeraude", "émeraudes"],
+  ["turquoise", "turquoises"],
+  ["électrique", "électriques"],
+  ["fluo", "fluos"],
+  ["marine"],
+  ["nuit"],
+  ["ciel"],
+  ["pétrole"],
+])
+  for (const form of [base, ...forms]) SHADE_FORMS[form] = base;
+const COLOR_SHADE = new RegExp(
+  `(?<![\\p{L}\\p{M}\\p{N}_'’-])(?:${Object.keys(COLOR_FORMS).join("|")})[ \\t]{1,8}(?:${Object.keys(SHADE_FORMS).join("|")})(?![\\p{L}\\p{M}\\p{N}_'’-])`,
+  "gu",
+);
+
+/** "des yeux verts clairs", "une jupe bleue foncée": a compound color after its noun. */
+function colorShade(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const [color, shade] = m[0].split(/[ \t]+/);
+  const fixed = `${COLOR_FORMS[color]} ${SHADE_FORMS[shade]}`;
+  if (fixed === `${color} ${shade}`) return null;
+  // After a noun only: "les verts clairs" may name the colors themselves.
+  const before = tokensBefore(ctx.text, m.index, 1)[0];
+  const singular = before?.w.replace(/[sx]$/, "") ?? "";
+  const noun = (w: string) => Boolean(nounGender(w) || isInflectedNoun(w));
+  if (!before || before.w in DETERMINERS || !(noun(singular) || noun(before.w))) return null;
+  if (namedExampleBefore(ctx.text, m.index)) return null;
+  return {
+    ruleId: RULE,
+    messageKey: MESSAGE,
+    range: { start: m.index, end: m.index + m[0].length },
+    alternatives: [fixed],
+  };
+}
+
 const PAIR_STOPS = new Set(
   "quelques plusieurs certains certaines divers diverses différents différentes".split(" "),
 );
@@ -869,6 +931,10 @@ function agreeOr(word: string, target: Inflection): string {
 function adjectives(ctx: DetectContext): RawFinding[] {
   if (ctx.lang.slice(0, 2) !== "fr") return [];
   const findings: RawFinding[] = [];
+  for (const m of ownedFrenchWords(ctx, COLOR_SHADE)) {
+    const f = colorShade(ctx, m);
+    if (f) findings.push(f);
+  }
   for (const m of ownedFrenchWords(ctx, PAIR)) {
     const f = adjectivePair(ctx, m);
     if (f) findings.push(f);

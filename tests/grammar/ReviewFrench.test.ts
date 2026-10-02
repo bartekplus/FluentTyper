@@ -543,6 +543,8 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         // Two adjectives joined by "et" or "ou" share their noun's gender and number.
         ["Un hiver long et rigoureuse.", "Un hiver long et rigoureux."],
         ["Une offre claire et avantageuses.", "Une offre claire et avantageuse."],
+        // A color with a shade is invariable.
+        ["Elle porte des gants verts foncés.", "Elle porte des gants vert foncé."],
         // A modal before être or "avoir été".
         ["Cette erreur peut être corrigé.", "Cette erreur peut être corrigée."],
         ["Les murs semblent avoir été repeint.", "Les murs semblent avoir été repeints."],
@@ -565,6 +567,8 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         "Elles se sont lavé les mains.",
         "Elle a l'air content de son sort.",
         "Les politiques économique et sociale du pays.",
+        "Les verts clairs dominent la toile.",
+        "Un ciel bleu clair.",
         "Face à une situation incongrue et pris de panique, il fuit.",
         "L'hiver est neigeux et dure longtemps.",
         "Elles avaient l'air sérieux.",
