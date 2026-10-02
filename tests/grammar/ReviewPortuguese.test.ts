@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 import {
   buildPortugueseLexicon,
   buildPortugueseVerbLexicon,
+  buildPortugueseVerbStems,
   PORTUGUESE_LEXICON_SOURCES,
 } from "../../scripts/generate-portuguese-lexicon";
 import { findLiveGrammarProposals } from "../../src/core/domain/grammar/review/liveProposals";
@@ -369,6 +370,16 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Espero que vocês estão bem.", "Espero que vocês estejam bem."],
         ["Peço que ele chega mais cedo.", "Peço que ele chegue mais cedo."],
         ["Embora tem dinheiro, não viaja.", "Embora tenha dinheiro, não viaja."],
+        ["Desejo que a reunião termina cedo.", "Desejo que a reunião termine cedo."],
+        ["Queria que ele vem amanhã.", "Queria que ele viesse amanhã."],
+        ["Gostaria que vocês ficam para o jantar.", "Gostaria que vocês ficassem para o jantar."],
+        ["Duvido que a Maria Clara sabe a resposta.", "Duvido que a Maria Clara saiba a resposta."],
+        ["Caso você precisa de ajuda, ligue.", "Caso você precise de ajuda, ligue."],
+        ["Talvez ele conhece o caminho.", "Talvez ele conheça o caminho."],
+        ["Esperava que os alunos estudavam mais.", "Esperava que os alunos estudassem mais."],
+        ["Sugiro que vocês passeiam na praia.", "Sugiro que vocês passeiem na praia."],
+        ["Exijo que a empresa devolve o dinheiro.", "Exijo que a empresa devolva o dinheiro."],
+        ["Não acho que ele mente.", "Não acho que ele minta."],
         ["É necessário uma revisão completa.", "É necessária uma revisão completa."],
         ["Será proibido as visitas no domingo.", "Serão proibidas as visitas no domingo."],
         ["Foi necessária um novo teste.", "Foi necessário um novo teste."],
@@ -434,6 +445,16 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         "O casarão ontem pegou fogo.",
         "Acho que você está certo.",
         "Espero que você esteja bem.",
+        "O desejo que tenho é viajar.",
+        "Espera que eu já volto.",
+        "Disse o mesmo que ele disse.",
+        "Quero que ele venda o carro.",
+        "Espero que ele cobre o valor justo.",
+        "Espero que a sala limpa esteja pronta.",
+        "Espero que o que ele disse seja verdade.",
+        "Desde que cheguei, chove.",
+        "Ainda acho que ele mente.",
+        "Contei antes que ela chegou.",
         "Os meninos é que sabem.",
         "É proibido o uso de celulares.",
         "É necessário os alunos estudarem mais.",
@@ -575,14 +596,18 @@ test("the clean Portuguese corpus has no default-on findings", () => {
 });
 
 test("the committed paronym and verb tables match pt_BR.dic/.aff (bun run generate:portuguese-lexicon)", async () => {
-  const [dic, aff, paronyms, verbs] = await Promise.all([
+  const [dic, aff, paronyms, verbs, stems, trie, counts] = await Promise.all([
     readFile(PORTUGUESE_LEXICON_SOURCES.dic),
     readFile(PORTUGUESE_LEXICON_SOURCES.aff),
     readFile(PORTUGUESE_LEXICON_SOURCES.out, "utf8"),
     readFile(PORTUGUESE_LEXICON_SOURCES.verbsOut, "utf8"),
+    readFile(PORTUGUESE_LEXICON_SOURCES.stemsOut, "utf8"),
+    Bun.file(PORTUGUESE_LEXICON_SOURCES.trie).arrayBuffer(),
+    Bun.file(PORTUGUESE_LEXICON_SOURCES.counts).arrayBuffer(),
   ]);
   expect(buildPortugueseLexicon(dic, aff)).toBe(paronyms);
   expect(buildPortugueseVerbLexicon(dic, aff)).toBe(verbs);
+  expect(buildPortugueseVerbStems(dic, aff, trie, counts)).toBe(stems);
 });
 
 // Adversarial input in the worst-case style of ReviewWorstCase.test.ts, for pt_BR.
@@ -598,7 +623,8 @@ const TRIGGERS =
   "de Niterói/RJ 31 de abril de 2023 30/02/2024 para mim fazer esta coberto " +
   "Uma problema dos cidade os situações o nossa mesma todo os erros não querem-na " +
   "Os meninos dança. Já deu dez horas foi eu Enviarão ontem espero que você está " +
-  "É necessário uma festa às 10.00 h a política econômico Grande distancia ";
+  "É necessário uma festa às 10.00 h a política econômico Grande distancia " +
+  "Queria que a Maria Clara de Souza estudava Caso talvez ele conhece ";
 
 function slowestChunkMs(text: string): number {
   const prepared = prepareReview(
@@ -627,6 +653,7 @@ test("Portuguese frames stay fast on long runs of trigger words and spaces", () 
     "palavra , no entanto , no entanto portanto, ".repeat(400),
     "os o as a uma um da do nos ".repeat(400),
     "o nossa os mesma uns outro ".repeat(500),
+    "espero que quero que embora caso talvez que a ".repeat(300),
   ];
   for (const text of inputs) expect(slowestChunkMs(text)).toBeLessThan(100);
   const live = { ...options, liveRules: [] };
