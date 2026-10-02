@@ -7,6 +7,7 @@ const RULES: CatalogRuleId[] = [
   "englishPhraseCorrections",
   "englishContextualCompounds",
   "englishSentenceStructure",
+  "englishYourYouAre",
 ];
 function review(text: string, lang = "en_US") {
   return detectReviewDiagnostics(
@@ -52,6 +53,9 @@ test.each([
   ["I guess id rather walk.", "I guess I'd rather walk."],
   ["That is were we met.", "That is where we met."],
   ["Lets just walk home.", "Let's just walk home."],
+  ["You laptop is on the desk.", "Your laptop is on the desk."],
+  ["Could you manager call me?", "Could your manager call me?"],
+  ["Thanks for you patience.", "Thanks for your patience."],
   ["We are so curios about it.", "We are so curious about it."],
   ["She has red the report.", "She has read the report."],
   ["You can past it into the box.", "You can paste it into the box."],
@@ -216,6 +220,12 @@ test.each([
   "The bikes were the cheapest.",
   "Where did you get this from?",
   "Her red scarf is new.",
+  "I told you dad is home.",
+  "What you need is rest.",
+  "He cares for you most.",
+  "Which if you recall was the best?",
+  "You guys rock.",
+  "Each of you something small.",
   "We walked past it into town.",
   "The event starts at noon.",
   "What did you do to the lamp?",

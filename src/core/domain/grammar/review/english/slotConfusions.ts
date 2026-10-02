@@ -299,6 +299,44 @@ const NUMBER_WORD =
 const ID_VERB =
   "rather|probably|like|love|hate|be|have|never|just|prefer|preferred|better|already|definitely|also|really|say|been|gladly|appreciate|want|go|need|imagine|recommend|suggest|bet|do|get|try|still|always|only|certainly|happily|guess";
 const CASING: Rule = { ruleId: "englishCanonicalCasing", messageKey: "review_msg_name_casing" };
+const YOUR: Rule = { ruleId: "englishYourYouAre", messageKey: "review_msg_your_possessive" };
+
+// "you" before a singular noun that its verb follows: "you car was stolen" -> "your car".
+// Not after verbs that take "you" and a clause ("I told you dad is home"), not "what you
+// need is", and never a person addressed ("you guys", "you idiot").
+const YOU_CLAUSE_VERBS =
+  /^(?:tell|tells|told|telling|show|shows|showed|remind|reminds|reminded|assure|assured|promise|promised|warn|warned|inform|informed|bet|guarantee|guaranteed|ask|asked|teach|taught|convince|convinced|notify|notified|let|lets|thank|thanks|give|gave|given|send|sent|bring|brought|owe|owed|offer|offered|wish|wished|call|called|make|made|get|got|buy|bought|pay|paid|cost|save|saved|charge|charged|see|saw|seen|hear|heard|mean|meant|know|knew|think|thought|believe|suppose)$/;
+const ADDRESSED =
+  /^(?:guy|guys|idiot|fool|dummy|moron|genius|darling|honey|baby|sir|madam|man|dude|bro|mate|sis|buddy|pal|lot|kid|boy|girl|people|folks|all|both|two|three|alone|yourself|there|here|too|also|something|anything|nothing|everything|everyone|anyone|someone|one|ones|each|most|now|then|again|later|soon|today|tonight|first|last|instead|anyway|maybe|perhaps|men|women|children|ladies|gentlemen)$/;
+const YOU_FINITE =
+  /^(?:will|would|can|could|may|might|must|should|shall|is|was|has|does|did|isn['’]t|wasn['’]t|hasn['’]t|doesn['’]t|didn['’]t|won['’]t|can['’]t|got|seems|looks|needs|works|stopped|broke|died)$/;
+function yourNoun(
+  ctx: DetectContext,
+  at: number,
+  adj: string | undefined,
+  noun: string,
+  strict: boolean,
+): boolean {
+  if (noun !== noun.toLowerCase() || ADDRESSED.test(noun) || ctx.dictionary.has(noun)) return false;
+  if (adj) {
+    const a = info(adj);
+    if (!a?.adjective || a.verbs.length || /^(?:own|only|alone)$/i.test(adj)) return false;
+  }
+  const read = info(noun);
+  // A plain noun only: "you recall", "you still", "you new" read otherwise.
+  if (!read?.noun || read.plural || read.adjective || read.adverb) return false;
+  if (strict && read.verbs.some((v) => v.form === "base")) return false;
+  const before = /([A-Za-z]+)[ \t ]+$/.exec(ctx.text.slice(Math.max(0, at - 24), at))?.[1];
+  return !before || !YOU_CLAUSE_VERBS.test(before.toLowerCase());
+}
+/** The noun after "you" (with an optional adjective) and the word after it, both readings. */
+function youReadings(m: RegExpExecArray): [string | undefined, string, string | undefined][] {
+  const { w1, w2, w3 } = m.groups!;
+  return [
+    [undefined, w1, w2],
+    [w1, w2, w3],
+  ];
+}
 
 const FRAMES: readonly Frame[] = [
   // "I found anther problem": "another" after a verb or preposition (the flower's anther
@@ -687,6 +725,59 @@ const FRAMES: readonly Frame[] = [
     cue: ["of"],
     pattern: `(?:pulled|pull|pulls|pulling)${S}(?<target>of)${S}(?:an?|the)${S}(?:upset|win|victory|trick|stunt|heist|miracle|comeback)${E}`,
     fix: "off",
+  },
+  // "If you car was stolen", "You new coat is dirty": "your" before the subject's noun.
+  {
+    rule: YOUR,
+    cue: ["you"],
+    pattern: `(?<lead>(?<=(?:^|[.!?,;:]["”’)]?[ \\t]{1,8}|\\n))|(?:if|when|because|and|but|then|now|otherwise|so|until|unless|since|whether|while|that)${S})(?<target>you)${S}(?<w1>[a-z]+)${S}(?<w2>[a-z]+(?:['’]t)?)(?:${S}(?<w3>[a-z]+(?:['’]t)?))?${E}`,
+    fix: (m, ctx) => {
+      // "if you recall was", "that you need is": inside a sentence only a noun that is no verb.
+      const strict = !!m.groups!.lead;
+      const at = m.indices!.groups!.target[0];
+      return youReadings(m).some(
+        ([adj, noun, verb]) =>
+          !!verb && YOU_FINITE.test(verb.toLowerCase()) && yourNoun(ctx, at, adj, noun, strict),
+      )
+        ? "your"
+        : null;
+    },
+  },
+  // "Did you team check it?", "Will you driver pick us up?": an inverted question.
+  {
+    rule: YOUR,
+    cue: ["you"],
+    pattern: `(?:did|does|do|didn['’]t|doesn['’]t|don['’]t|will|would|could|can|should|has|have)${S}(?<target>you)${S}(?<w1>[a-z]+)${S}(?<w2>[a-z]+)(?:${S}(?<w3>[a-z]+))?${E}`,
+    fix: (m, ctx) => {
+      const at = m.indices!.groups!.target[0];
+      const base = (word: string | undefined) =>
+        !!word && !!info(word)?.verbs.some((v) => v.form === "base") && !info(word)!.plural;
+      return youReadings(m).some(
+        ([adj, noun, verb]) => base(verb) && yourNoun(ctx, at, adj, noun, true),
+      )
+        ? "your"
+        : null;
+    },
+  },
+  // "Thank you for you time.", "Have you done you homework yet?": an owned noun ends the phrase.
+  {
+    rule: YOUR,
+    cue: ["you"],
+    pattern: `(?:for|at|about|on|with|from|not|done|did|finished|lost|found|forgot|hug|hugged|wash|washed|clean|cleaned|update|updated|(?:you|I|we|they)${S}have)${S}(?<target>you)${S}(?<w1>[a-z]+)(?:${S}(?!(?:yet|with|already|today|now|first|and|or|of)${E})(?<w2>[a-z]+))?(?<end>[ \\t\\u00a0]*[.!?,;:]|${S}(?:yet|with|already|today|now|first|and|or|of)${E})`,
+    fix: (m, ctx) => {
+      const at = m.indices!.groups!.target[0];
+      const { w1, w2, end } = m.groups!;
+      // "This is for you mom!": a person addressed at the end.
+      if (
+        /[.!?,;:]/.test(end) &&
+        /^(?:mom|mum|dad|mommy|mummy|daddy|mother|father|sister|brother|son|daughter|grandma|grandpa|granny|love|dear|sweetie|friend|friends|boss|team|coach|doc)$/.test(
+          w2 ?? w1,
+        )
+      )
+        return null;
+      const owned = w2 ? yourNoun(ctx, at, w1, w2, true) : yourNoun(ctx, at, undefined, w1, true);
+      return owned ? "your" : null;
+    },
   },
   // "I think id rather wait", "Id like that": "I'd" with its apostrophe dropped.
   {
@@ -1448,6 +1539,7 @@ export const DETECTORS: readonly ReviewDetectorEntry[] = [
       "englishContextualCompounds",
       "englishSentenceStructure",
       "englishCanonicalCasing",
+      "englishYourYouAre",
     ],
     detect: frameDetector(FRAMES),
   },
