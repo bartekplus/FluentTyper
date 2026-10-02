@@ -131,6 +131,9 @@ const VERB_AFTER =
   /^(?:are|were|is|was|have|had|can|could|will|would|should|must|may|might|do|did|don|get|go|come|need|want|know|think|see|look|make|take|stop|leave|listen|shut|keep|play|eat|run|stay|sit|stand)$/i;
 
 const MODAL = /^(?:will|would|can|could|shall|should|may|might|must|ought|need|dare|used)$/;
+// Words the lexicon lists as verbs that follow a pronoun as something else: "It better be",
+// "He not only…", "It up front…", "It time to…".
+const NOT_A_VERB_HERE = /^(?:not|up|down|out|off|better|best|time|only|also|so|too)$/;
 
 /** The agreeing form of a regular verb, or undefined when the word may be a noun or a past. */
 function lexicalAgreement(
@@ -140,17 +143,34 @@ function lexicalAgreement(
   next: string | undefined,
 ): string | undefined {
   const info = englishWordInfo(word);
-  if (!info || MODAL.test(word)) return undefined;
+  if (!info || MODAL.test(word) || NOT_A_VERB_HERE.test(word)) return undefined;
+  const nextInfo = next ? englishWordInfo(next) : null;
   const has = (form: string) => info.verbs.some((v) => v.form === form);
   if (plural) {
     if (!has("third") || has("base") || has("past")) return undefined;
     // "You kids get…", "You fools!": a plural noun after the pronoun.
-    if (info.plural && (next ? VERB_AFTER.test(next) : pronoun === "you")) return undefined;
+    if (
+      info.plural &&
+      (next
+        ? VERB_AFTER.test(next) ||
+          MODAL.test(next) ||
+          !!nextInfo?.verbs.some((v) => v.form === "base") ||
+          !!nextInfo?.adverb
+        : pronoun === "you")
+    )
+      return undefined;
     return englishLemma(word, "third") ?? undefined;
   }
   if (!has("base") || has("past") || has("participle") || has("third") || info.adjective)
     return undefined;
-  return englishInflect(word, "third") ?? undefined;
+  // "He hand wrote it": a noun-verb before another verb modifies it.
+  if (info.noun && nextInfo?.verbs.some((v) => v.form === "past" || v.form === "base"))
+    return undefined;
+  // "It better be careful" drops "had"; no finite verb takes a bare "be" either.
+  if (next?.toLowerCase() === "be") return undefined;
+  const third = englishInflect(word, "third");
+  // Only a form the dictionary lists: "He not sure" never becomes "nots".
+  return third && englishWordInfo(third)?.verbs.some((v) => v.form === "third") ? third : undefined;
 }
 
 /** Simple counted noun phrases only: changing the verb must preserve the stated number. */

@@ -51,23 +51,35 @@ export const CUE_AND_QUOTE = new RegExp(
 );
 // Ends inside a named example, up to 80 characters past its opening quote. "replace" only
 // cites here: `replace "their going"` names the text to change.
-const INSIDE_NAMED_EXAMPLE = new RegExp(
-  `${cue(`${CUE_WORDS}|${SPEECH_WORDS}|replace`)}[${OPENING_QUOTES}][^\\r\\n\\uFFFC]{0,80}$`,
-  "iu",
-);
-const QUOTE_OPEN = new RegExp(`[${OPENING_QUOTES}][^\\r\\n\\uFFFC]{0,80}$`, "u");
+const CUE_BEFORE_EXAMPLE = new RegExp(`${cue(`${CUE_WORDS}|${SPEECH_WORDS}|replace`)}$`, "iu");
+const QUOTES = new Set(OPENING_QUOTES);
+const QUOTE_OPEN = new RegExp(`[${OPENING_QUOTES}][^\\r\\n\\uFFFC]*$`);
+const LETTER_BEFORE = /[\p{L}\p{M}][ :\t]*$/u;
 
 /**
  * The one quoted-example guard for Review frames: `index` sits inside a named
  * example (`write "he go"`, `the word is “teh”`) opened in the 128 characters
- * before it. It is the union of the detectors' former variants (every cue
- * word, speech verb and quote style, is/was links, closed quotes included), so
- * it only ever suppresses more than any one of them did.
+ * before it, at most 80 characters back on the same line. It is the union of the
+ * detectors' former variants (every cue word, speech verb and quote style, is/was
+ * links, closed quotes included), so it only ever suppresses more than any one of
+ * them did.
  */
 export function namedExampleBefore(text: string, index: number): boolean {
-  const before = text.slice(Math.max(0, index - 128), index);
-  // Most prose has no quotation open nearby: skip the long cue alternation.
-  return QUOTE_OPEN.test(before) && INSIDE_NAMED_EXAMPLE.test(before);
+  const floor = Math.max(0, index - 128);
+  // Most prose has no quotation open nearby.
+  if (!QUOTE_OPEN.test(text.slice(Math.max(floor, index - 81), index))) return false;
+  // Each opening quote on the line within reach; the cue right before it is read from a
+  // short window that starts on a word boundary, not the whole 128 characters.
+  for (let q = index - 1; q >= floor && q >= index - 81; q--) {
+    const char = text[q];
+    if (char === "\n" || char === "\r" || char === "\uFFFC") return false;
+    if (!QUOTES.has(char)) continue;
+    let start = Math.max(floor, q - 48);
+    while (start > floor && /[\p{L}\p{M}]/u.test(text[start - 1])) start++;
+    const cue = text.slice(start, q);
+    if (LETTER_BEFORE.test(cue) && CUE_BEFORE_EXAMPLE.test(cue)) return true;
+  }
+  return false;
 }
 
 /** Words naming a quotation mark itself: `the character "`, `das Zeichen „`. */
