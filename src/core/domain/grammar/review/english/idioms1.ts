@@ -201,7 +201,7 @@ const FRAMES: Record<Rule, readonly Frame[]> = {
     },
     {
       // "an in with the boss", "an in group" (in-group): the noun "in".
-      pattern: `(?<target>an)${S}in${S}(?!(?:with|at|to|for|on|into|among|groups?|crowd|joke|jokes)${E})[a-z]`,
+      pattern: `(?<target>an)${S}in${S}(?!(?:with|at|to|for|on|into|among|groups?|crowd|joke|jokes|house|depth|person|store|game|app)${E})[a-z]`,
       fix: "and",
     },
     { pattern: `${notAfter("one")}another${S}(?<target>an${S})(?=[a-z])`, fix: "" },
