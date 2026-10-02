@@ -2141,11 +2141,16 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
 
       expect(onboardingState).toEqual({
         scrollY: 0,
-        activeElementId: "try-me-textarea",
+        activeElementId: "",
         permissionState: "granted",
         permissionButtonHidden: true,
         containsRequest: { origins: ["<all_urls>"] },
       });
+
+      await onboardingPage.keyboard.press("Tab");
+      expect(
+        await onboardingPage.evaluate(() => document.activeElement?.matches(".skip-link")),
+      ).toBe(true);
 
       await onboardingPage.close();
     },

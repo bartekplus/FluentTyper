@@ -11,7 +11,7 @@ export function translateOnboarding(): void {
   // The shared catalog uses "pr" for Portuguese; HTML language tags use "pt".
   if (i18n.lang === "pt") i18n.lang = "pr";
   const language = Object.hasOwn(onboardingTranslations.onboarding_title, i18n.lang)
-    ? i18n.lang
+    ? (i18n.lang as keyof typeof onboardingTranslations.onboarding_title)
     : "en";
   document.documentElement.lang = language === "pr" ? "pt" : language;
 
@@ -19,8 +19,12 @@ export function translateOnboarding(): void {
     element.textContent = i18n.get(element.getAttribute("data-i18n")!);
   });
   document.querySelectorAll("[data-i18n-html]").forEach((element) => {
-    // Rich copy is authored in the bundled catalog, never supplied by a website or user.
-    element.innerHTML = i18n.get(element.getAttribute("data-i18n-html")!);
+    const key = element.getAttribute("data-i18n-html")!;
+    // I18n.get returns unknown keys verbatim; only bundled copy may be parsed as HTML.
+    if (Object.hasOwn(onboardingTranslations, key)) {
+      element.innerHTML =
+        onboardingTranslations[key as keyof typeof onboardingTranslations][language];
+    }
   });
   for (const attribute of ["aria-label", "placeholder", "value"]) {
     document.querySelectorAll(`[data-i18n-${attribute}]`).forEach((element) => {
@@ -72,7 +76,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }),
       onGranted: () => {
         if (practiceTextarea instanceof HTMLTextAreaElement) {
-          practiceTextarea.focus({ preventScroll: true });
+          practiceTextarea.focus();
         }
       },
     });
