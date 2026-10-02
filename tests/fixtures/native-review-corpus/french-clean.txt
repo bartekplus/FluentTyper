@@ -174,6 +174,11 @@ La moitié des invités sont partis, mais le reste des élèves est resté.
 Le prix de ces maisons est élevé, et les feuilles de l'arbre sont tombées.
 Le groupe de filles est arrivé ; le livre et la revue sont posés sur la table.
 La porte du garage est fermée, et la mère et la fille sont contentes.
+# Adjectives joined by et or ou.
+Une maison grande et lumineuse aux murs épais et solides, dans des rues étroites et sombres.
+Le temps est froid et humide ; la salle était pleine et bruyante.
+Les politiques économique et sociale du pays visent des élèves français et étrangers.
+Il porte un manteau long et noir, et les résultats sont bons ou mauvais selon les années.
 # Compounds and the free phrases next to them.
 Range l'argent dans le coffre-fort, puis éteins le lave-vaisselle.
 Ma grand-mère se lève tôt et lit le compte rendu de la réunion.

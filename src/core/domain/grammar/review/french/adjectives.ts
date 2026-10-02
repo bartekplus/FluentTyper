@@ -778,9 +778,101 @@ const CANDIDATE = new RegExp(
   "giu",
 );
 
+const PAIR_STOPS = new Set(
+  "quelques plusieurs certains certaines divers diverses différents différentes".split(" "),
+);
+const PAIR = /(?<![\p{L}\p{M}\p{N}_'’-])\p{Ll}+(?=[ \t]{1,8}(?:et|ou)[ \t]{1,8}\p{Ll})/gu;
+
+/** "un effet direct et indirects", "une entrée indépendante et séparé": two adjectives joined by
+ * "et" or "ou" after their noun (or after être) share its gender and number. */
+function adjectivePair(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const [first, conjunction, second, after] = tokensAfter(ctx.text, m.index, 4);
+  if (!first || !second || first.w !== m[0] || first.hyphen || second.hyphen) return null;
+  if (ctx.text.slice(second.start, second.end) !== second.w) return null;
+  const skip = (w: string) => NOT_ADJECTIVES.has(w) || COMPOUND_SECOND.has(w) || w.length < 3;
+  if (skip(first.w) || skip(second.w)) return null;
+  const slots1 = pairSlots(first.w);
+  const slots2 = pairSlots(second.w);
+  if (!slots1.length || !slots2.length || slots1.some((s) => slots2.includes(s))) return null;
+  // "et organisé un feu": a participle with its object; "de bonne et belle facture": before
+  // its noun; "très beau et très confortables": the second may take its own adverb.
+  if (after && (after.w in DETERMINERS || CLITIC_PRONOUNS.has(after.w) || nounGender(after.w)))
+    return null;
+  // "colorants non toxiques": a noun with its own adjective. "et dure jusqu'en mars": a verb.
+  // "et pris de panique", "et adaptés aux projets": a participle with its complement may
+  // describe another noun.
+  const readings2 = verbReadings(second.w);
+  if (readings2.some((r) => typeof r.slot === "number") || PAIR_STOPS.has(second.w)) return null;
+  if (after && (after.w === "non" || pairSlots(after.w).length)) return null;
+  // "l'effervescence romaine et ruiné, il retourne": a participle after a plain adjective may
+  // describe the clause's subject.
+  const participle = (w: string) => verbReadings(w).some((r) => r.slot === "Q");
+  if (participle(second.w) && (after || !participle(first.w))) return null;
+  // What the pair describes: a determined noun ("l'effet"), a noun opening the clause
+  // ("Appartement grand et pratiques") or the subject of être ("était très beau et").
+  const before = tokensBefore(ctx.text, m.index, 4);
+  let k = 0;
+  while (before[k] && ADVERBS.has(before[k].w)) k++;
+  const head = before[k];
+  let target: Inflection | null = null;
+  if (head && LINKING.has(head.w)) target = null;
+  else if (k === 0 && head && nounGender(head.w.replace(/[sx]$/, ""))) {
+    const det = before[1];
+    if (det && det.w in DETERMINERS) target = phraseInflection(det.w, head.w);
+    else if (det) return null;
+  } else return null;
+  const forms = target
+    ? [[agreeOr(first.w, target), agreeOr(second.w, target)]]
+    : [
+        [first.w, agreeOr(second.w, slots1[0])],
+        [agreeOr(first.w, slots2[0]), second.w],
+      ];
+  const typed = ctx.text.slice(first.start, second.end);
+  const join = ctx.text.slice(first.end, second.start);
+  const alternatives = [
+    ...new Set(forms.filter(([a, b]) => a && b).map(([a, b]) => `${a}${join}${b}`)),
+  ].filter((alt) => alt !== typed);
+  if (!alternatives.length || ctx.dictionary.has(first.w) || ctx.dictionary.has(second.w))
+    return null;
+  if (!["et", "ou"].includes(conjunction.w)) return null;
+  return {
+    ruleId: RULE,
+    messageKey: MESSAGE,
+    range: { start: first.start, end: second.end },
+    alternatives,
+    ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+  };
+}
+
+/** The inflections of an adjective, an epicene one in -e telling its number only ("simple",
+ * "pratiques"). */
+function pairSlots(word: string): Inflection[] {
+  const slots = slotsOf(word);
+  if (
+    slots.length ||
+    verbReadings(word).some((r) => typeof r.slot === "number" && !/e$/.test(word))
+  )
+    return slots;
+  if (/[^e]e$/.test(word) && isInflectedNoun(word)) return ["ms", "fs"];
+  if (/[^e]es$/.test(word) && isInflectedNoun(word.slice(0, -1))) return ["mp", "fp"];
+  return [];
+}
+
+/** A word's form for an inflection, or the word when it has it already; "" when it has none. */
+function agreeOr(word: string, target: Inflection): string {
+  const slots = pairSlots(word);
+  if (slots.includes(target)) return word;
+  if (!slotsOf(word).length) return target.endsWith("p") ? `${word}s` : word.replace(/s$/, "");
+  return agreeing(word, target) ?? "";
+}
+
 function adjectives(ctx: DetectContext): RawFinding[] {
   if (ctx.lang.slice(0, 2) !== "fr") return [];
   const findings: RawFinding[] = [];
+  for (const m of ownedFrenchWords(ctx, PAIR)) {
+    const f = adjectivePair(ctx, m);
+    if (f) findings.push(f);
+  }
   for (const m of ownedFrenchWords(ctx, CANDIDATE)) {
     if (namedExampleBefore(ctx.text, m.index)) continue;
     const word = m[0].toLowerCase().replace("’", "'");

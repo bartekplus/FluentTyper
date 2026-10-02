@@ -540,6 +540,9 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         // Avoir l'air: the subject's inflection or the masculine singular of "air".
         ["Ses voisines ont l'air ravie.", "Ses voisines ont l'air ravies."],
         ["Il a l'air inquiète ce matin.", "Il a l'air inquiet ce matin."],
+        // Two adjectives joined by "et" or "ou" share their noun's gender and number.
+        ["Un hiver long et rigoureuse.", "Un hiver long et rigoureux."],
+        ["Une offre claire et avantageuses.", "Une offre claire et avantageuse."],
         // A modal before être or "avoir été".
         ["Cette erreur peut être corrigé.", "Cette erreur peut être corrigée."],
         ["Les murs semblent avoir été repeint.", "Les murs semblent avoir été repeints."],
@@ -561,6 +564,9 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
       neg: [
         "Elles se sont lavé les mains.",
         "Elle a l'air content de son sort.",
+        "Les politiques économique et sociale du pays.",
+        "Face à une situation incongrue et pris de panique, il fuit.",
+        "L'hiver est neigeux et dure longtemps.",
         "Elles avaient l'air sérieux.",
         "Ils se sont parlé hier soir.",
         "Elles se sont vu refuser l'entrée.",
