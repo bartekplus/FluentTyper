@@ -3,6 +3,7 @@ import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDe
 import {
   adjectiveReadings,
   IL,
+  isInflectedNoun,
   isVerbHomograph,
   JE,
   nounGender,
@@ -759,25 +760,77 @@ const NOUN_INFINITIVES = new Set([
   "souper",
   "rire",
   "sourire",
-  "être",
-  "avoir",
   "plaisir",
 ]);
+// Pronouns between devoir and its infinitive: "j'ai dû la lâcher".
+const INFINITIVE_CLITICS = new Set(
+  "le la les l' lui leur y en me m' te t' se s' nous vous".split(" "),
+);
+const isAdverb = (word: string) => ADVERBS.has(word) || /..ment$/.test(word);
 
-/** "il a du partir": the participle of devoir. */
+/** "il a du partir", "j'ai finalement du la lâcher", "tu n'aurais pas du !": the participle of
+ * devoir. */
 function duToDu(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
-  const before = tokensBefore(ctx.text, m.index, 3);
-  const next = tokensAfter(ctx.text, m.index + m[0].length, 1)[0];
+  const before = tokensBefore(ctx.text, m.index, 4);
+  const after = tokensAfter(ctx.text, m.index + m[0].length, 4);
   let i = 0;
-  while (before[i] && ADVERBS.has(before[i].w)) i++;
-  if (!before[i] || !readingsOf(before[i].w).some((r) => isFinite(r) && r.lemma === "avoir"))
-    return null;
-  if (!next || NOUN_INFINITIVES.has(next.w)) return null;
+  for (;;) {
+    if (before[i] && isAdverb(before[i].w)) i++;
+    else if (before[i]?.w === "doute" && before[i + 1]?.w === "sans") i += 2;
+    else break;
+  }
+  // "aurais-je du": an inverted subject after avoir.
+  if (before[i] && SUBJECT_PRONOUNS.has(before[i].w) && before[i + 1]?.hyphen) i++;
+  const avoir = before[i];
+  if (!avoir || !readingsOf(avoir.w).some((r) => isFinite(r) && r.lemma === "avoir")) return null;
+  const fix = (end: number) =>
+    wordFinding(ctx, m.index, m[0], ["dû"], RULE, MESSAGE, { start: avoir.start, end });
+  // "tu n'aurais pas du !": a negated devoir closing its clause.
+  if (!after.length) {
+    const negated = before.slice(0, i).some((t) => ["pas", "jamais", "plus"].includes(t.w));
+    const closes = /^[\s\u00a0]*[.!?…]/u.test(ctx.text.slice(m.index + m[0].length));
+    return negated && closes ? fix(m.index + m[0].length) : null;
+  }
+  let k = 0;
+  while (after[k] && (isAdverb(after[k].w) || INFINITIVE_CLITICS.has(after[k].w))) k++;
+  const next = after[k];
+  if (!next || (k === 0 && NOUN_INFINITIVES.has(next.w))) return null;
+  // "du être", "du avoir": a partitive would elide ("de l'être").
   if (!readingsOf(next.w).some((r) => r.slot === "I" && r.lemma === next.w)) return null;
-  return wordFinding(ctx, m.index, m[0], ["dû"], RULE, MESSAGE, {
-    start: before[i].start,
-    end: next.end,
-  });
+  return fix(next.end);
+}
+
+// Words after which "prés" is the noun (meadows): "les prés", "deux prés", "de verts prés".
+const PRES_BEFORE = new Set([
+  ...DETERMINERS,
+  ..."deux trois quatre plusieurs quelques nombreux grands petits beaux verts".split(" "),
+]);
+
+/** "prés de Paris", "de prés", "le plus prés": the adverb près. */
+function presToPres(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const [previous, second] = tokensBefore(ctx.text, m.index, 2);
+  // "voir de prés", not "une demande de prés" (prêt): only after a verb.
+  if (previous?.w === "de" && !(second && plainVerb(second.w, () => true))) return null;
+  if (previous && (PRES_BEFORE.has(previous.w) || previous.w === "et" || previous.w === "ou"))
+    return null;
+  // "de vastes prés", "les maisons prés de la gare": after a plural word it may be the noun.
+  if (previous && /[sx]$/.test(previous.w)) {
+    const singular = previous.w.replace(/[sx]$/, "");
+    if (adjectiveReadings(previous.w).length || isInflectedNoun(singular)) return null;
+  }
+  return wordFinding(ctx, m.index, m[0], ["près"], RULE, MESSAGE);
+}
+
+/** "je ne l'aime guerre": the adverb guère in a negated clause. */
+function guerreToGuere(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const before = tokensBefore(ctx.text, m.index, 6);
+  const previous = before[0];
+  if (!previous || DETERMINERS.has(previous.w) || PREPOSITIONS.has(previous.w)) return null;
+  if (["en", "après", "avant", "contre", "de", "d'"].includes(previous.w)) return null;
+  const verb = previous.w === "plus" ? before[1] : previous;
+  if (!verb || !readingsOf(verb.w).some(isFinite)) return null;
+  if (!before.some((t) => t.w === "ne" || t.w === "n'")) return null;
+  return wordFinding(ctx, m.index, m[0], ["guère"], RULE, MESSAGE);
 }
 
 /** "Ont dit que…": the pronoun "on" opening a sentence. */
@@ -808,7 +861,7 @@ function commeMeme(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
 const COMME_MEME = /(?<![\p{L}\p{M}\p{N}_'’-])comme[ \t]+même(?![\p{L}\p{M}\p{N}_'’-])/giu;
 
 const CANDIDATE =
-  /(?<![\p{L}\p{M}\p{N}_'’-])(?:à|a|A|ou|Ou|où|sûre?s?|sure?s?|[cC]e|[sS]e|[sS]['’](?:est|était)|[sS]a|ma|ta|la|sont|son|on|[pP]eut|[pP]eux|[qQ]uant|[qQ]uand|du|[oO]nt)(?![\p{L}\p{M}\p{N}_'’])/gu;
+  /(?<![\p{L}\p{M}\p{N}_'’-])(?:à|a|A|ou|Ou|où|sûre?s?|sure?s?|[cC]e|[sS]e|[sS]['’](?:est|était)|[sS]a|ma|ta|la|sont|son|on|[pP]eut|[pP]eux|[qQ]uant|[qQ]uand|du|[oO]nt|[pP]rés|guerres?)(?![\p{L}\p{M}\p{N}_'’])/gu;
 
 function homophones(ctx: DetectContext): RawFinding[] {
   if (ctx.lang.slice(0, 2) !== "fr") return [];
@@ -837,6 +890,8 @@ function homophones(ctx: DetectContext): RawFinding[] {
     else if (lower === "quant") finding = quantToQuand(ctx, m);
     else if (lower === "quand") finding = quandToQuant(ctx, m);
     else if (lower === "du") finding = duToDu(ctx, m);
+    else if (lower === "prés") finding = presToPres(ctx, m);
+    else if (lower === "guerre" || lower === "guerres") finding = guerreToGuere(ctx, m);
     else if (lower === "ont") finding = ontToOn(ctx, m) ?? ontPeut(ctx, m);
     if (finding) findings.push(finding);
   }
