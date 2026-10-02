@@ -59,6 +59,10 @@ test.each([
   ["They traveled with a train.", "They traveled by train."],
   ["Please take into account of the delay.", "Please take into account the delay."],
   ["Bread in exchange of eggs.", "Bread in exchange for eggs."],
+  ["The card came in my birthday.", "The card came on my birthday."],
+  ["The chart is in page 12.", "The chart is on page 12."],
+  ["The menu sits in the right side of the page.", "The menu sits on the right side of the page."],
+  ["The clerk was accused for theft.", "The clerk was accused of theft."],
 ])("preposition repaired: %s", (input, expected) => {
   const found = scan(input);
   expect(found).toHaveLength(1);
@@ -105,6 +109,8 @@ test.each([
   "We traveled with a bus full of fans.",
   "It runs from the chin in front to the neck behind.",
   "He moved in front to see better.",
+  "We met at my birthday party in June.",
+  "She was accused for the third time.",
   'The phrase "afraid from" is a common slip.',
 ])("correct text stays silent: %s", (text) => {
   expect(scan(text)).toEqual([]);

@@ -105,7 +105,7 @@ const IDIOM: Record<string, RegExp> = {
   // "discussed about five issues": "about" as "roughly".
   about:
     /^(?:time|it|half|[0-9][0-9.,]*|one|two|three|four|five|six|seven|eight|nine|ten|twenty|thirty|forty|fifty|a (?:dozen|hundred|thousand|million|few|couple|third|quarter|week|month|year)|an hour)$/,
-  for: /^(?:now|sure|example|instance|good|once|ages|years|hours|days|weeks|months|a (?:while|moment|minute|second|bit|time|long)|the (?:first|moment|most|time))$/,
+  for: /^(?:now|sure|example|instance|good|once|ages|years|hours|days|weeks|months|a (?:while|moment|minute|second|bit|time|long)|the (?:first|second|third|last|next|moment|most|time))$/,
 };
 const idiom = (prep: Token, after: readonly Token[]) => {
   const pattern = IDIOM[prep.lower];
@@ -215,6 +215,8 @@ const ROWS: readonly (readonly [string, string, string | string[], Guard?])[] = 
   ["participation", "to", "in", object],
   ["interest", "about", "in", object],
   ["acquainted", "to", "with", object],
+  ["accused", "for", "of", afterBe],
+  ["absorbed", "at", "in", object],
 ];
 
 /** A verb head's base, -s, past, participle and -ing forms, as the lexicon spells them. */
@@ -433,6 +435,19 @@ const FRAMES: readonly Frame[] = [
     // "from the sternum in front to the spine behind": a span, not "in front of".
     fix: (m, ctx) =>
       /\bfrom\b[^.!?;]*$/i.test(ctx.text.slice(Math.max(0, m.index - 60), m.index)) ? null : "of",
+  },
+  // "in my birthday" → "on"; "in page 21" → "on"; "in the left hand side" → "on".
+  {
+    pattern: `(?<target>in)${SPACE}(?:my|your|his|her|our|their|the)${SPACE}birthday${WORD_END}`,
+    fix: (m, ctx) => (phraseEnd(ctx, m.index + m[0].length) ? "on" : null),
+  },
+  {
+    pattern: `(?<target>in)${SPACE}page${SPACE}[0-9]+${WORD_END}`,
+    fix: () => "on",
+  },
+  {
+    pattern: `(?<target>in)${SPACE}the${SPACE}(?:left|right)(?:(?:${SPACE}|-)hand)?${SPACE}side${WORD_END}`,
+    fix: () => "on",
   },
   { pattern: `in${SPACE}exchange${SPACE}(?<target>of)${WORD_END}`, fix: () => "for" },
 ];
