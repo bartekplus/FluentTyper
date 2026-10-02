@@ -349,8 +349,11 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["J ai froid.", "J'ai froid."],
         ["Il n arrive jamais.", "Il n'arrive jamais."],
         ["Ils ont beaucoup d’ enfants.", "Ils ont beaucoup d’enfants."],
+        ["Passe-moi le sel sil te plaît.", "Passe-moi le sel s'il te plaît."],
+        ["On sortira sil fait beau.", "On sortira s'il fait beau."],
       ],
       neg: [
+        "Le sil est une argile ocre.",
         "Le oui l'emporte.",
         "La une du journal.",
         "De un à dix.",
