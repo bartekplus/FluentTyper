@@ -141,7 +141,7 @@ const shortMonth = (month: string) =>
   ({ sept: 9, set: 9 })[month.toLowerCase()] ??
   MONTH_SHORT.split("|").indexOf(month.toLowerCase()) + 1;
 // Where a date goes: "Cédula: 6-51-2032" and "N° 99/73/2022" are numbers.
-const DATED = /(?:^|\s)(?:el|del|al|día|fecha|desde|hasta)\s+$/iu;
+const DATED = /(?:^|\s)(?:el|del|al|día|fecha|desde|hasta)\s{1,8}$/iu;
 // A two-digit year ("31.11.89") or none ("el 31.04.") only where a date goes.
 const NUMERIC_DATE = new RegExp(
   `(?<![\\p{N}/.:-])(\\d{1,3})([/.-])(\\d{1,2}|${MONTH_NAMES}|${MONTH_SHORT})(?:\\2(\\d{4}|\\d{2}(?![\\p{N}])))?(?![\\p{N}/:-]|\\.\\p{N}|,\\p{N})`,
@@ -149,7 +149,7 @@ const NUMERIC_DATE = new RegExp(
 );
 // "el 32 de enero": a day no month has, after the article a date takes.
 const NO_SUCH_DAY = new RegExp(
-  `(?<=(?:^|[\\s(])(?:el|del|al|El|Del|Al)[ \\t]+)(3[2-9]|[4-9]\\d|\\d{3})(?:[ \\t]+de)?[ \\t]+(?:${MONTH_NAMES})(?![\\p{L}\\p{N}])`,
+  `(?<=(?:^|[\\s(])(?:el|del|al|El|Del|Al)[ \\t]{1,8})(3[2-9]|[4-9]\\d|\\d{3})(?:[ \\t]{1,8}de)?[ \\t]{1,8}(?:${MONTH_NAMES})(?![\\p{L}\\p{N}])`,
   "gu",
 );
 
@@ -221,7 +221,7 @@ function impossibleDates(ctx: DetectContext): RawFinding[] {
       // "el 31.04.", "el 30/2": a day and month only where a date goes and the clause ends;
       // "el 30.2 por ciento" and the score "el 3-2" are numbers.
       const after = ctx.text.slice(m.index + whole.length);
-      if (!dated || (!yearText && (separator === "-" || !/^(?:[.;:!?)]|\s*$)/u.test(after))))
+      if (!dated || (!yearText && (separator === "-" || !/^(?:[.;:!?)]|\s{0,8}$)/u.test(after))))
         continue;
     }
     // "01/32/2014", "31.13.2014": no day-month or month-day reading.
@@ -309,10 +309,10 @@ function typography(ctx: DetectContext): RawFinding[] {
 
 // "2do", "5ta.", "1er": ordinal abbreviations take a period and a raised letter: "2.º", "1.er".
 const ORDINAL =
-  /(?<![\p{L}\p{N}.,])(\d{1,3})(do|da|ro|ra|to|ta|vo|va|no|na|mo|ma|ero|era|er|r)(\.(?=[ \t]+\p{Ll}))?(?![\p{L}\p{N}])/gu;
+  /(?<![\p{L}\p{N}.,])(\d{1,3})(do|da|ro|ra|to|ta|vo|va|no|na|mo|ma|ero|era|er|r)(\.(?=[ \t]{1,8}\p{Ll}))?(?![\p{L}\p{N}])/gu;
 // "5 hrs", "48hrs", "15 h. será", "5grs": unit symbols take no plural and no period.
 const UNIT =
-  /(?<![\p{L}\p{N}.,])(\d+(?:[.,:]\d+)?)([ \t]?)(hrs|hr|hs|HRS|HS|grs|gr|GRS|h)(\.(?=[ \t]+\p{Ll}))?(?![\p{L}\p{N}])/gu;
+  /(?<![\p{L}\p{N}.,])(\d+(?:[.,:]\d+)?)([ \t]?)(hrs|hr|hs|HRS|HS|grs|gr|GRS|h)(\.(?=[ \t]{1,8}\p{Ll}))?(?![\p{L}\p{N}])/gu;
 // Verbs of saying after a dialogue line: "Ven -dijo." uses the long dash.
 const SAYING =
   "dijo|dije|dice|digo|respondió|contestó|preguntó|añadió|exclamó|gritó|susurró|murmuró|explicó|comentó|replicó|insistió|pensó|repuso|admitió|aclaró";
@@ -357,7 +357,7 @@ function marks(ctx: DetectContext): RawFinding[] {
       // inhabitants, and a glued "5hrs" is left to the spacing check.
       if (
         !gap ||
-        !/(?:^|\s)(?:las|la|sobre|hacia|desde|hasta|durante|en)\s+$/iu.test(
+        !/(?:^|\s)(?:las|la|sobre|hacia|desde|hasta|durante|en)\s{1,8}$/iu.test(
           ctx.text.slice(Math.max(0, m.index - 12), m.index),
         )
       )

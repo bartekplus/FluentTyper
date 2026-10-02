@@ -1610,6 +1610,19 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     recommended: false,
     priority: 169,
   },
+  {
+    id: "spanishQuotes",
+    typing: false,
+    name: "Spanish quotation marks",
+    titleI18nKey: "review_msg_spanish_quotes",
+    descriptionI18nKey: "review_msg_spanish_quotes",
+    exampleI18nKey: "",
+    languageScope: "all",
+    safetyTier: "advanced",
+    defaultRollout: "off",
+    recommended: false,
+    priority: 170,
+  },
   // German-only Review checks (review/german/).
   {
     id: "germanNounCasing",
