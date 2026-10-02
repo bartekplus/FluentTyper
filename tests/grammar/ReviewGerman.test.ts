@@ -1,11 +1,15 @@
 import { describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { buildGermanLexicon, GERMAN_LEXICON_SOURCES } from "../../scripts/generate-german-lexicon";
 import {
   germanNounReading,
   germanVerbLike,
 } from "../../src/core/domain/grammar/review/german/germanLexicon";
-import { REVIEW_SUPPORTED_RULE_IDS } from "../../src/core/domain/grammar/review/reviewCatalog";
+import {
+  REVIEW_SUPPORTED_RULE_IDS,
+  reviewRuleIds,
+} from "../../src/core/domain/grammar/review/reviewCatalog";
 import {
   detectReviewDiagnostics,
   prepareReview,
@@ -399,4 +403,30 @@ test("no German chunk stalls on repeated determiners and lowercase nouns", () =>
   ];
   slowest(inputs.join("\n"));
   for (const text of inputs) expect(slowest(text)).toBeLessThan(100);
+});
+
+test("the clean German corpus has no findings from the default rules", () => {
+  const text = readFileSync("tests/fixtures/native-review-corpus/german-clean.txt", "utf8")
+    .split("\n")
+    .filter((line) => !line.startsWith("#"))
+    .join("\n");
+  const found = detectReviewDiagnostics(
+    { id: "clean", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
+    {
+      enabledRules: reviewRuleIds({ codeMode: false }),
+      lang: "de_DE",
+      userDictionary: [],
+      insertSpaceAfterAutocomplete: true,
+    },
+  ).diagnostics;
+  expect(found.map((d) => `${d.ruleId}: ${d.original} @ ${d.range.start}`)).toEqual([]);
+});
+
+test.each([
+  ["germanQuotes", "Auf dem Plakat stand “I love my city” in großen Buchstaben."],
+  ["germanNounCasing", "With 15 million people on the list, this is huge."],
+  ["germanNounCasing", "Danke fürs schnelle Nachsehen."],
+  ["germanPrepositionCase", "Sie brauchen hier zu unsere Kundennummer."],
+] as Array<[CatalogRuleId, string]>)("%s leaves %p alone", (ruleId, input) => {
+  expect(findings(ruleId, input)).toEqual([]);
 });

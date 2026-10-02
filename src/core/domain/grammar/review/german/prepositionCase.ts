@@ -236,7 +236,8 @@ function guarded(ctx: DetectContext, m: RegExpExecArray, kind: Case): boolean {
   if ((kind === "genitive" || POSTPOSITIONS.has(low)) && (nounBefore || genitivePronoun)) {
     return false;
   }
-  // "ab und zu", "nach und nach": adverbs.
+  // "ab und zu", "nach und nach": adverbs; "hier zu" is "hierzu" written apart.
+  if (low === "zu" && /^(?:hier|da|wo)$/i.test(prior)) return false;
   if (prior === "und" && (low === "zu" || low === "nach")) return false;
   // "was für einer", "sowas von die Nase voll", ", wegen dem": idioms and relative pronouns.
   if (/^(?:was|sowas)$/i.test(prior) && (low === "für" || low === "von")) return false;

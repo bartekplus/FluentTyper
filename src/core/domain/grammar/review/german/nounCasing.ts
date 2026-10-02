@@ -8,7 +8,18 @@ import {
   type GermanNounReading,
 } from "./germanLexicon";
 import { nominalized } from "./nominalized";
-import { BOUNDARY, isGerman, tokensAfter, tokensBefore, words, wordSet } from "./shared";
+import {
+  BOUNDARY,
+  englishLine,
+  governedBefore,
+  isGerman,
+  PRONOUNS,
+  tokensAfter,
+  tokensBefore,
+  VERB_GOVERNORS,
+  words,
+  wordSet,
+} from "./shared";
 
 // A lowercase noun after a determiner, a preposition or a number: "der zugriff", "mit
 // schnellen schritten", "2 tage". German capitalizes every noun. A word that is also a verb
@@ -58,20 +69,8 @@ const AUXILIARIES = wordSet(
     "wollten darf dürfen durfte durften mag möchte möchten würde würden wäre wären sei " +
     "seien hätte hätten bleibt blieb gibt gab",
 );
-// Verbs that close a clause with a bare infinitive or a participle ("kannst du das ändern",
-// "diese habe ergeben").
-const VERB_GOVERNORS = wordSet(
-  "kann kannst können könnt konnte konnten könnte könnten muss musst müssen müsst musste " +
-    "mussten müsste müssten soll sollst sollen sollt sollte sollten will willst wollen " +
-    "wollt wollte wollten darf darfst dürfen dürft durfte durften dürfte dürften mag " +
-    "möchte möchtest möchten werde wirst wird werden werdet würde würdest würden wurde " +
-    "wurden worden lass lasse lässt lassen ließ tu tue tut tun brauchst braucht brauchen " +
-    "habe hast hat haben habt hatte hatten hätte hätten bin bist ist sind seid war waren " +
-    "wäre wären sei",
-);
 const NOMINALIZING = /(?<![\p{L}\p{N}])(?:beim|zum|vom|ins)[ \t]+$/iu;
 const COORDINATORS = wordSet("und oder sowie bzw");
-const PRONOUNS = wordSet("ich du er sie es wir ihr man sich mich dich uns euch mir dir");
 const CLAUSE_LINKS = wordSet(
   "und oder aber denn doch sondern dass weil ob wenn als obwohl damit bevor nachdem " +
     "während bis falls sobald solange da wie wo was wer sodass",
@@ -121,14 +120,6 @@ function trigger(before: string[]): { kind: Trigger; at: number } | null {
     adjectives = true;
   }
   return null;
-}
-
-/** Whether the clause has a verb that the word at its end can complete. */
-function governedBefore(before: string[], at: number): boolean {
-  for (let i = at - 1; i >= 0 && !BOUNDARY.test(before[i]); i--) {
-    if (VERB_GOVERNORS.has(before[i].toLowerCase())) return true;
-  }
-  return false;
 }
 
 /** Whether a word that is also a verb form reads as the noun here. */
@@ -200,7 +191,7 @@ function nounCasing(ctx: DetectContext): RawFinding[] {
     ) {
       continue;
     }
-    if (namedExampleBefore(ctx.text, m.index)) continue;
+    if (namedExampleBefore(ctx.text, m.index) || englishLine(ctx.text, m.index)) continue;
     findings.push({
       ruleId: "germanNounCasing",
       messageKey: "review_msg_german_noun_case",

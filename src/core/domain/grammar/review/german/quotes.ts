@@ -1,5 +1,5 @@
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
-import { isGerman } from "./shared";
+import { englishWords, isGerman } from "./shared";
 
 // German quotes open low and close high: „so“. English marks typed in German text get the
 // German ones: “so” → „so“, ”so” → „so“, ,,so“ → „so“, ''so'' → „so“; a straight or English
@@ -46,6 +46,19 @@ function quotes(ctx: DetectContext): RawFinding[] {
     const [mark] = m;
     const at = m.index;
     const opening = OPENING_AT(ctx.text, at, mark.length);
+    // A quoted English phrase may keep its English marks: “I love you”.
+    if (opening && open === 0 && mark !== '"') {
+      const close = /[“”"]|''|\n/.exec(ctx.text.slice(scanned, scanned + 200));
+      if (
+        close &&
+        close[0] !== "\n" &&
+        englishWords(ctx.text.slice(scanned, scanned + close.index))
+      ) {
+        scanned += close.index + close[0].length;
+        marks.lastIndex = scanned;
+        continue;
+      }
+    }
     if (mark === '"') {
       // A straight mark only closes a German opening one: „so" → „so“.
       if (open > 0 && !opening) {
