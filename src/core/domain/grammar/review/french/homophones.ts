@@ -232,6 +232,20 @@ function aToGrave(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   // preposition ("a et b", "a donc refusé" are the letter and the verb).
   if (/^\p{Lu}/u.test(ctx.text.slice(previous.start, previous.end))) return null;
   if (!startsNounPhrase(ctx.text, next)) return null;
+  // "je laisse cela a votre jugement", "porte les sacs a l'étage", "je suis a Montréal": the
+  // clause already has its verb, so "a" is no second one.
+  const clause = tokensBefore(ctx.text, m.index, 12);
+  const joined = clause.findIndex((t) => CONJUNCTIONS.has(t.w));
+  const own = joined < 0 ? clause : clause.slice(0, joined);
+  const verb = own.find(
+    (t, i) =>
+      i > 0 &&
+      plainVerb(t.w, (r) => isFinite(r) && r.lemma !== "avoir") &&
+      !/^\p{Lu}/u.test(ctx.text.slice(t.start, t.end)),
+  );
+  // "quel âge a Tom": an inverted subject after "quel".
+  const asked = own.some((t) => /^quel(?:le)?s?$/.test(t.w));
+  if (verb && !asked && !own.some((t) => t.w === "y")) return fix(verb);
   // A finite verb with its subject: "il pense a sa mère".
   if (
     plainVerb(previous.w, (r) => isFinite(r) && r.lemma !== "avoir" && r.lemma !== "être") &&
@@ -296,7 +310,19 @@ function ouToOu(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   if (PLACE_TIME_NOUNS.has(previous.w) && startsClause(next)) {
     // "le jour ou la nuit" is "or"; a determiner before the noun keeps it a noun.
     // "un mois ou je m'abonne": only a definite noun is a time or place being named.
-    if (before[1] && DEFINITE.has(before[1].w)) return fix();
+    // "la seule fois ou il", "des temps ou il": past an adjective, or the plural "des".
+    let d = 1;
+    if (before[d] && adjectiveReadings(before[d].w).length) d++;
+    if (before[d] && (DEFINITE.has(before[d].w) || before[d].w === "des")) return fix();
+  }
+  // "va ou tu veux", "restez ou vous êtes.": "where" before a clause that ends on vouloir or
+  // être.
+  if (next && SUBJECT_PRONOUNS.has(next.w) && after[1] && !after[1].hyphen) {
+    const lemmas = readingsOf(after[1].w)
+      .filter(isFinite)
+      .map((r) => r.lemma);
+    const closes = /^\s{0,8}(?:[.!?…;,]|$)/u.test(ctx.text.slice(after[1].end, after[1].end + 10));
+    if (closes && (lemmas.includes("vouloir") || lemmas.includes("être"))) return fix();
   }
   let k = 0;
   while (before[k] && ["pas", "jamais", "ne", "n'"].includes(before[k].w)) k++;
@@ -314,6 +340,14 @@ function ouToOu(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
       readingsOf(next.w).some((r) => r.slot === "I") ||
       next.w === "se" ||
       next.w === "s'")
+  )
+    return fix();
+  // "je ne vois pas ou aller": "voir" before an infinitive.
+  if (
+    asking &&
+    readingsOf(asking.w).some((r) => r.lemma === "voir") &&
+    next &&
+    readingsOf(next.w).some((r) => r.slot === "I" && r.lemma === next.w)
   )
     return fix();
   // "Tu vas ou ?", "Ils partent ou demain ?".
