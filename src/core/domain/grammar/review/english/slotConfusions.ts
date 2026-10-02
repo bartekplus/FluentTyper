@@ -705,16 +705,19 @@ const FRAMES: readonly Frame[] = [
     pattern: `(?<target>(?<the>the)${S}later)(?=${S}(?<next>[a-z]+)${E}|[ \\t]*[.,;])`,
     fix: (m, ctx) => {
       const next = m.groups!.next ?? "";
-      const former = /\bformer\b/i.test(ctx.text.slice(Math.max(0, m.index - 300), m.index));
+      // "the former" may come before or right after ("subordinated the later to the former").
+      const former = /\bformer\b/i.test(ctx.text.slice(Math.max(0, m.index - 300), end(m) + 120));
       const verb = LATTER_VERB.test(next);
-      const adverb = /^(?:very|actually|also|often|always|never|usually|only|still|clearly)$/.test(
-        next,
-      );
-      const after = adverb ? nextWord(ctx, end(m) + 1 + next.length) : "";
+      const ADVERB = /^(?:very|actually|also|often|always|never|usually|only|still|clearly)$/;
+      const adverb = ADVERB.test(next);
+      let after = adverb ? nextWord(ctx, end(m) + 1 + next.length) : "";
+      // "the later very often causes": a second adverb before the verb.
+      if (ADVERB.test(after)) after = nextWord(ctx, ctx.text.indexOf(after, end(m)) + after.length);
       const ok =
         verb ||
         (adverb && (LATTER_VERB.test(after) || isVerb(after, "third", "ing"))) ||
-        (former && (next === "" || /^(?:in|on|for|as|because|since)$/.test(next)));
+        /^(?:because|based)$/.test(next) ||
+        (former && (next === "" || /^(?:in|on|for|as|because|since|to|and)$/.test(next)));
       return ok
         ? { alternatives: [`${m.groups!.the} latter`], range: m.indices!.groups!.target }
         : null;
@@ -759,8 +762,231 @@ const FRAMES: readonly Frame[] = [
   {
     rule: TYPO,
     cue: ["tat"],
-    pattern: `(?:think|thought|know|knew|say|said|believe|hope|guess|because|is|was)${S}(?<target>tat)${S}(?:is|was|it|the|a|I|you|we|they|he|she|this|there|one)${E}`,
+    pattern: `(?:think|thinks|thought|know|knows|knew|say|says|said|believe|believes|hope|guess|because|is|was|that|told${S}(?:me|him|her|us|them|you)|teach${S}us|teaches${S}us)${S}(?<target>tat)${S}(?:is|was|must|can|will|would|should|could|it|the|a|I|you|we|they|he|she|this|there|one|[a-z]+s${S}are)${E}`,
     fix: "that",
+  },
+  {
+    rule: TYPO,
+    cue: ["tat"],
+    pattern: `(?<=(?:^|[.!?]["”’)]?[ \\t]{1,8}|\\n))(?<target>Tat)${S}(?:is|was|must|can|will|would|should|could|seems|sounds|looks)${E}`,
+    fix: "That",
+  },
+  // "This is were I live", "the place were the police look", "not sure were to go": "where".
+  {
+    rule: TYPO,
+    cue: ["were"],
+    pattern: `(?:(?:this|that|here|it)${S}is|(?:sure|know|knew|wonder|wondering|asked|ask|idea|tell|told|show|remember|forgot|guess)|(?:the|a|one${S}of${S}the)${S}(?:place|places|page|pages|point|area|areas|city|town|room|house|country|site|website|spot|age|land|office|section|folder|location|stage|part|world|street|village|region|one))${S}(?<target>were)${S}(?:I|we|you|they|he|she|to|the${S}[a-z]+${S}(?:is|are|was|were|can|will|has|have|had|look|looks|live|lives|work|works)|my|our|your|their|his|her)${E}`,
+    fix: (m) => (/^were$/i.test(m.groups!.target) ? "where" : null),
+  },
+  {
+    rule: TYPO,
+    cue: ["were"],
+    pattern: `(?<=(?:^|[.!?]["”’)]?[ \\t]{1,8}|\\n))(?<target>Were)${S}(?:did|does|do|else|is|are|can|could|should|would|will|have|has)${E}`,
+    fix: "Where",
+  },
+  // "Which browser where you using?", "The runners where running": the past of "be".
+  {
+    rule: TYPO,
+    cue: ["where"],
+    pattern: `(?:(?:which|what)${S}[a-z]+|they|we|you|people|users|[a-z]+s)${S}(?<target>where)${S}(?:(?:you|they|we)${S})?(?<ing>[a-z]{2,}ing)${E}(?!${S}(?:is|was|are|were|has|can|will|should|would)${E})`,
+    fix: (m) => (isVerb(m.groups!.ing, "ing") ? "were" : null),
+  },
+  // "there's and example", "here is and update": the article "an" before a vowel.
+  {
+    rule: TYPO,
+    cue: ["and"],
+    pattern: `(?:there['’]s|there${S}(?:is|was)|here['’]s|here${S}is|is${S}there|was${S}there|such|quite|what)${S}(?<target>and)${S}(?<noun>[aeiou][a-z]+)(?=[ \\t]*[.!?,:;]|${S}(?:of|for|that|to|on|in|with|from|about|here|there|we|you|I)${E})`,
+    fix: (m) => {
+      const read = info(m.groups!.noun);
+      return read?.noun && !read.plural ? "an" : null;
+    },
+  },
+  // "They decline an eventually go", "once an for all", "two an a half": "and".
+  {
+    rule: TYPO,
+    cue: ["an"],
+    pattern: `(?<target>an)${S}(?:(?:also|already|eventually)${S}(?:go|be|do|have|get|make|take|went|did|got|made|took)|thus|therefore|still|finally|later|regarding|the|my|your|his|her|our|their|these|those|for${S}all|a${S}half)${E}`,
+    fix: (m) => (m.groups!.target === "an" || m.groups!.target === "An" ? "and" : null),
+  },
+  // "Let me now your thoughts", "I don't now": the verb "know".
+  {
+    rule: TYPO,
+    cue: ["now"],
+    pattern: `(?:(?:don['’]t|doesn['’]t|didn['’]t|let${S}(?:me|us|him|her|them))${S}(?<target>now)${S}(?:if|whether|what|how|why|when|where|who|your|the|about|anything|it|him|her|them)|let${S}(?:me|us)${S}(?<target2>now)(?=[ \\t]*[.!?]))${E}`,
+    fix: (m) => {
+      const g = m.indices!.groups!;
+      return { alternatives: ["know"], range: g.target ?? g.target2 };
+    },
+  },
+  // "right know", "from know on", "every know and then": the adverb "now".
+  {
+    rule: TYPO,
+    cue: ["know"],
+    pattern: `(?:right|until)${S}(?<target>know)(?=[ \\t]*[.!?,]|${S}(?:and|or|but|because|I|we|you|he|she|they|it|is|are)${E})`,
+    fix: "now",
+  },
+  {
+    rule: TYPO,
+    cue: ["know"],
+    pattern: `(?:from${S}(?<target>know)${S}on|every${S}(?<target2>know)${S}and${S}then)${E}`,
+    fix: (m) => {
+      const g = m.indices!.groups!;
+      return { alternatives: ["now"], range: g.target ?? g.target2 };
+    },
+  },
+  {
+    rule: TYPO,
+    cue: ["know"],
+    pattern: `there${S}(?:is|was|['’]s)${S}(?<target>know)${S}(?:place|way|one|time|need|point|reason|doubt|chance|problem|longer|more)${E}`,
+    fix: "no",
+  },
+  // "more that $10", "more libertarian that others", "a better app that Outlook.": "than".
+  {
+    rule: TYPO,
+    cue: ["that"],
+    pattern: `(?<!the${S})(?:more|less|fewer)${S}(?<target>that)${S}(?:\\$?[0-9]|a${S}few|a${S}couple|two|three|four|five|ten|twenty|hundred|half|twice)`,
+    fix: "than",
+  },
+  {
+    rule: TYPO,
+    cue: ["that"],
+    // Not "more important that others help": a that-clause after such an adjective.
+    pattern: `(?:more|less)${S}(?<adj>[a-z]+)${S}(?<target>that)${S}(?:others|anyone|anything|everyone|everything|ever|usual|expected|necessary|needed|planned|before)${E}(?=[ \\t]*(?:[.!?,;:)]|$)|${S}(?:do|did|does|in|on|at|for|of)${E})`,
+    fix: (m) =>
+      /^(?:important|likely|clear|obvious|necessary|possible|probable|true|surprising|essential|crucial|vital|urgent|interesting|apparent|evident|certain|plausible|unlikely|concerning|worrying)$/.test(
+        m.groups!.adj,
+      )
+        ? null
+        : "than",
+  },
+  {
+    rule: TYPO,
+    cue: ["that"],
+    pattern: `(?:better|worse|bigger|smaller|faster|slower|cheaper|stronger|weaker|safer|easier|harder|(?:more|less)${S}[a-z]+)${S}(?:[a-z]+${S})?(?<target>that)${S}\\p{Lu}[\\p{L}]*(?=[ \\t]*(?:[.!?,;:]|$| -))`,
+    fix: (m, ctx) => {
+      const end = m.indices!.groups!.target[1];
+      return m.groups!.target === "that" && /^[ \t ]+\p{Lu}/u.test(ctx.text.slice(end, end + 9))
+        ? "than"
+        : null;
+    },
+  },
+  // "once of the reasons", "once more time", "One upon a time", "every one in a while".
+  {
+    rule: TYPO,
+    cue: ["once"],
+    pattern: `(?:(?:is|was|are|were|be|been|being|as|became|become|remains)${S}(?<target>once)${S}of${S}(?:the|my|your|our|his|her|their|these|those|them|us)|(?<target2>once)${S}(?:more${S}time(?=[ \\t]*[.!?,]|${S}(?:to|and|please|before)${E})))${E}`,
+    fix: (m) => {
+      const g = m.indices!.groups!;
+      return { alternatives: ["one"], range: g.target ?? g.target2 };
+    },
+  },
+  {
+    rule: TYPO,
+    cue: ["one"],
+    pattern: `(?:(?<!(?<![\\p{L}'’])(?:the|this|that|a|any|each|every|which|no)${S})(?<target>one)${S}(?:upon${S}a${S}time|and${S}for${S}all)|every${S}(?<target2>one)${S}in${S}a${S}while)${E}`,
+    fix: (m) => {
+      const g = m.indices!.groups!;
+      return { alternatives: ["once"], range: g.target ?? g.target2 };
+    },
+  },
+  // "I wonder it there is", "Catch me it you can": the conjunction "if".
+  {
+    rule: TYPO,
+    cue: ["it"],
+    pattern: `(?:(?:sure|wonder|wondering|see|check|checking|(?:ask|asked|asking)(?:${S}(?:me|him|her|them|us))?)${S}(?<target>it)${S}(?:there${S}(?:is|are|was|were)|anyone|anybody|someone|somebody)|me${S}(?<target2>it)${S}you${S}can(?=[ \\t]*[.!?]))${E}`,
+    fix: (m) => {
+      const g = m.indices!.groups!;
+      return { alternatives: ["if"], range: g.target ?? g.target2 };
+    },
+  },
+  {
+    rule: TYPO,
+    cue: ["if"],
+    pattern: `(?:(?:make|makes|made|making)${S}(?<target>if)${S}(?:clear|possible|easier|easy|harder|hard|difficult|sure|known|work)|for${S}(?<target2>if)(?=[ \\t]*[!.]))${E}`,
+    fix: (m) => {
+      const g = m.indices!.groups!;
+      return { alternatives: ["it"], range: g.target ?? g.target2 };
+    },
+  },
+  // "I can all ready do it", "I all so think": "already", "also".
+  {
+    rule: TYPO,
+    cue: ["ready"],
+    pattern: `(?<target>all${S}ready)${S}(?<next>[a-z]+)${E}`,
+    // A verb follows ("all ready be", "all ready doing"), not a noun ("all ready meals").
+    fix: (m) => {
+      const read = info(m.groups!.next);
+      const verb =
+        /^(?:be|are|is|was|were|has|had|have|did|done|seen|see|get|go|do|start|leave|use|make|take|know|say|find|tell|feel|hear|buy|pay|send|book)$/.test(
+          m.groups!.next,
+        );
+      return verb || (read && !read.noun && !read.adjective && read.verbs.length)
+        ? "already"
+        : null;
+    },
+  },
+  {
+    rule: TYPO,
+    cue: ["all"],
+    pattern: `(?:I|we|they|you)${S}(?<target>all${S}so)${S}(?:think|thought|want|need|have|like|love|know|agree|believe)${E}`,
+    fix: "also",
+  },
+  // "A user recently complaint that", "A user complaints about": the verb.
+  {
+    rule: TYPO,
+    cue: ["complaint", "complaints"],
+    pattern: `(?:(?:recently|also|just|always|often|then)${S}(?<target>complaint)|(?:a|one|another|every|each)${S}[a-z]+${S}(?<target2>complaints))${S}(?:that|about)${E}`,
+    fix: (m) => {
+      const g = m.indices!.groups!;
+      return g.target
+        ? { alternatives: ["complained"], range: g.target }
+        : { alternatives: ["complains"], range: g.target2 };
+    },
+  },
+  // "per moth", "the end of the moth", "for moths,": "month".
+  {
+    rule: TYPO,
+    cue: ["moth", "moths"],
+    pattern: `(?:(?:per|next|last|calendar|(?:beginning|end|middle|start)${S}of${S}the)${S}(?<target>moth)(?=[ \\t]*[.!?,;:]|${S}(?:ago|later|before|after|and|or)${E})|(?:for|some|few|several|many|two|three|four|five|six|seven|eight|nine|ten|twelve|[0-9]+)${S}(?<target2>moths)(?=[ \\t]*[.!?,;:]|${S}(?:ago|now|later|before|after)${E}))`,
+    fix: (m) => {
+      const g = m.indices!.groups!;
+      return g.target
+        ? { alternatives: ["month"], range: g.target }
+        : { alternatives: ["months"], range: g.target2 };
+    },
+  },
+  // "He's jut unhappy", "Let's jut do it": the adverb "just" (not "jut out").
+  {
+    rule: TYPO,
+    cue: ["jut"],
+    pattern: `(?:(?:I|you|we|they|he|she|it|has|have|had|does|do|did|can|could|would|should|will|let['’]s|couldn['’]t|can['’]t|don['’]t|is|was|are|were)|\\p{L}+['’](?:s|re|m|ve|ll|d))${S}(?<target>jut)${S}(?!(?:out|outs|into|over|from|above|beyond|forth|up|across)${E})[a-z]`,
+    fix: "just",
+  },
+  // "It doe not matter", "What doe he think": "does".
+  {
+    rule: TYPO,
+    cue: ["doe"],
+    pattern: `(?:(?:it|he|she|this|that|which|who)${S}(?<target>doe)${S}not|(?:what|how|why|where|when)${S}(?<target2>doe)${S}(?:he|she|it))${E}`,
+    fix: (m) => {
+      const g = m.indices!.groups!;
+      return { alternatives: ["does"], range: g.target ?? g.target2 };
+    },
+  },
+  // "It bares little resemblance", "can't bare the thought": the verb "bear".
+  {
+    rule: TYPO,
+    cue: ["bare", "bares", "bared", "baring"],
+    pattern: `(?:(?<target>bares|bared|baring)${S}(?:(?:a|an|little|no|some|striking|uncanny|close|almost|an${S}almost)${S})*(?:resemblance|witness|the${S}brunt|repeating|mentioning)|(?:can['’]t|cannot|couldn['’]t|could${S}not)${S}(?<target2>bare)${S}(?:the${S}[a-z]+|it|to|this|that|him|her|them|seeing|being|watching|hearing))${E}`,
+    fix: (m, ctx) => {
+      const g = m.indices!.groups!;
+      if (g.target2) return { alternatives: ["bear"], range: g.target2 };
+      const typed = m.groups!.target.toLowerCase();
+      const perfect = /\b(?:has|have|had)[ \t]+$/i.test(
+        ctx.text.slice(Math.max(0, g.target[0] - 8), g.target[0]),
+      );
+      const fix = { bares: "bears", baring: "bearing", bared: perfect ? "borne" : "bore" }[typed]!;
+      return { alternatives: [fix], range: g.target };
+    },
   },
   // Compound nouns as verbs: "she has setup the tent", "I just setup a meeting", "who login".
   {

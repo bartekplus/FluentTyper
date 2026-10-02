@@ -304,7 +304,7 @@ const GUARDS: Record<
   // "member and ETC director": a name goes on; the list ending stands last.
   "and etc": {
     after:
-      /^[ \t\u00a0]+(?!(?:is|are|was|were|will|would|can|could|should|has|have|had|that|which)\b)\p{L}/iu,
+      /^[ \t\u00a0]+(?!(?:is|are|was|were|will|would|can|could|should|has|have|had|that|which|there|here|now|too)\b)\p{L}/iu,
   },
   // "While the boat was towed the line broke": the passive, then a new clause.
   "towed the line": { before: /\b(?:was|were|is|are|be|been|being|get|gets|got)[ \t\u00a0]+$/i },

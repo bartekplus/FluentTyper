@@ -57,6 +57,7 @@ test("no chunk stalls on runs of frame-opening words", () => {
     "and ".repeat(3_000),
     "born in china from turkey the black sea over thanksgiving id like my id is ".repeat(300),
     "we need to login please setup who logins to backup ".repeat(300),
+    "this is were the more that an then right know once of all ready jut doe bares ".repeat(250),
   ];
   // Warm-up: the first scan compiles every frame and decodes the lexicon.
   for (const text of inputs) slowestChunkMs(text);
