@@ -1,6 +1,11 @@
 import { frameMatches, SPACE, WORD_END, WORD_START } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
-import { germanGender, type GermanGenderReading, germanNounReading } from "./germanLexicon";
+import {
+  germanAdjective,
+  germanGender,
+  type GermanGenderReading,
+  germanNounReading,
+} from "./germanLexicon";
 import { BOUNDARY, isGerman, tokensAfter, tokensBefore, wordSet } from "./shared";
 
 // The case a preposition governs, read from the article after it: "mit eine Freundin" (dative:
@@ -38,6 +43,37 @@ const PHRASE = new RegExp(
 );
 // Pronouns, "keinen der …", "das, was …" and "ohne allem".
 const DATIVE_ONLY = "(?<prep>[Mm]it|[Vv]on|[Bb]ei|[Zz]u|[Aa]us|[Nn]ach|[Ss]eit|[Aa]ußer)";
+// A plural noun with no article: "zu Götter", "nach Erkenntnisse", "bei Bilder".
+const PLAIN_PLURAL = new RegExp(
+  `${WORD_START}${DATIVE_ONLY}${SPACE}(?<target>\\p{Lu}\\p{Ll}+(?:e|er))${WORD_END}`,
+  "gdu",
+);
+const deumlaut = (w: string) =>
+  w.replace(/äu/g, "au").replace(/ä/g, "a").replace(/ö/g, "o").replace(/ü/g, "u");
+/**
+ * Whether the word is the plural of a known noun by its form: an umlaut and -e or -er
+ * ("Götter", "Düfte"), -er after a neuter ("Bilder"), or -nisse. A plain -e is left out, as
+ * old datives keep it ("zu Hause", "nach Hause").
+ */
+function pluralForm(word: string): boolean {
+  const low = word.toLowerCase();
+  if (germanGender(word)?.plural === false) return false;
+  if (/nisse$/.test(low)) return germanNounReading(low.slice(0, -2)) !== null;
+  const stem = low.replace(/e?r?$/, "");
+  const singular = deumlaut(stem);
+  if (singular.length < 3) return false;
+  // "Müller" is "Müll" + -er, not a plural of "Mull".
+  if (singular !== stem) return germanNounReading(singular) !== null && !germanNounReading(stem);
+  const neuter = germanGender(singular)?.gender;
+  return /er$/.test(low) && (neuter === "n" || neuter === "x") && germanNounReading(low) !== null;
+}
+// An adjective in -en before a singular noun with no article: "mit ernsten Blick" (ernstem),
+// "mit vollen Absicht" (voller). With no article the adjective shows the dative itself.
+const STRONG_SINGULAR = new RegExp(
+  `${WORD_START}(?<prep>[Mm]it|[Vv]on|[Bb]ei|[Aa]us|[Nn]ach|[Ss]eit|[Aa]ußer|[Ss]amt)${SPACE}(?<target>(?<adj>\\p{Ll}{3,}?)en)${SPACE}(?<noun>\\p{Lu}\\p{Ll}+)${WORD_END}`,
+  "gdu",
+);
+const QUANTIFIER_STEMS = wordSet("all and viel wenig einig beid mehrer sämtlich ganz jed");
 // A number or plural quantity, an adjective, and a plural noun in -e, -er or -el.
 const COUNTED_PLURAL = new RegExp(
   `${WORD_START}${DATIVE_ONLY}${SPACE}(?:zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf|[2-9]|[1-9]\\d{1,2}|vielen|mehreren|beiden|zahlreichen|wenigen|einigen|\\p{Ll}{3,}en)(?:${SPACE}\\p{Ll}+en)?${SPACE}(?<target>\\p{Lu}\\p{Ll}+(?:e|er|el))${WORD_END}`,
@@ -347,6 +383,31 @@ function prepositionCase(ctx: DetectContext): RawFinding[] {
     const quantity = /(?:vielen|mehreren|beiden|zahlreichen|wenigen|einigen)(?!\p{L})/u.test(m[0]);
     if (!counted && !quantity && m.groups!.prep.toLowerCase() === "zu") continue;
     push(m, { replacements: [`${noun}n`] });
+  }
+  for (const m of frameMatches(ctx, PLAIN_PLURAL)) {
+    const noun = m.groups!.target;
+    const next = tokensAfter(ctx.text, m.indices!.groups!.target[1], 1)[0] ?? "";
+    // "Ärzte ohne Grenzen": a name.
+    if (
+      /^(?:\p{Lu}|ohne$)/u.test(next) ||
+      !pluralForm(noun) ||
+      ctx.dictionary.has(noun.toLowerCase())
+    ) {
+      continue;
+    }
+    if (!guarded(ctx, m, "dative")) continue;
+    push(m, { replacements: [`${noun}n`] });
+  }
+  for (const m of frameMatches(ctx, STRONG_SINGULAR)) {
+    const { adj, noun } = m.groups!;
+    if (QUANTIFIER_STEMS.has(adj) || !(germanAdjective(adj) || germanAdjective(`${adj}e`)))
+      continue;
+    const reading = germanGender(noun);
+    if (!reading || reading.plural) continue;
+    const next = tokensAfter(ctx.text, m.indices!.groups!.noun[1], 1)[0] ?? "";
+    if (/^\p{Lu}/u.test(next) || ctx.dictionary.has(`${adj}en`)) continue;
+    if (!guarded(ctx, m, "dative")) continue;
+    push(m, { replacements: [`${adj}${reading.gender === "f" ? "er" : "em"}`] });
   }
   // "mit spannende Ausstellungen" → spannenden: a plural without an article.
   for (const m of frameMatches(ctx, BARE_PLURAL)) {
