@@ -87,8 +87,19 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
           "Quand vous arrivez à la gare, appelez-moi.",
         ],
         ["Vous aimer marcher le long du canal.", "Vous aimez marcher le long du canal."],
+        // An infinitive right after a noun for its participle.
+        [
+          "Elle portait une robe froisser par le voyage.",
+          "Elle portait une robe froissée par le voyage.",
+        ],
+        ["Il a les mains geler.", "Il a les mains gelées."],
       ],
       neg: [
+        "Elle a senti son cœur cogner.",
+        "Dans cette pièce fumer est interdit.",
+        "Il peut de cette manière trier les fiches.",
+        "Elle laisse les enfants jouer dehors.",
+        "Ma mère aimer le chocolat.",
         "Il a une machine a laver toute neuve.",
         "Il y a dîner chez Paul ce soir.",
         "Il est boucher depuis vingt ans.",

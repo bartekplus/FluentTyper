@@ -1,10 +1,13 @@
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import {
+  adjectiveReadings,
   conjugate,
   IL,
   ILS,
+  isInflectedNoun,
   isVerbHomograph,
   JE,
+  nounGender,
   NOUS,
   pastParticiple,
   TU,
@@ -434,6 +437,145 @@ function finiteAfterAvoir(ctx: DetectContext, m: RegExpExecArray): RawFinding | 
   );
 }
 
+/** Determiners with the gender ("" either) and number they show. */
+const NOUN_DETERMINERS: Record<string, [string, "s" | "p"]> = {
+  le: ["m", "s"],
+  la: ["f", "s"],
+  "l'": ["", "s"],
+  un: ["m", "s"],
+  une: ["f", "s"],
+  du: ["m", "s"],
+  au: ["m", "s"],
+  ce: ["m", "s"],
+  cet: ["m", "s"],
+  cette: ["f", "s"],
+  mon: ["", "s"],
+  ton: ["", "s"],
+  son: ["", "s"],
+  ma: ["f", "s"],
+  ta: ["f", "s"],
+  sa: ["f", "s"],
+  notre: ["", "s"],
+  votre: ["", "s"],
+  leur: ["", "s"],
+  les: ["", "p"],
+  des: ["", "p"],
+  aux: ["", "p"],
+  ces: ["", "p"],
+  mes: ["", "p"],
+  tes: ["", "p"],
+  ses: ["", "p"],
+  nos: ["", "p"],
+  vos: ["", "p"],
+  leurs: ["", "p"],
+};
+// Verbs that take an object and then its infinitive: "je vois les enfants jouer", "il emmène
+// le chien promener".
+const OBJECT_INFINITIVE = new Set([
+  ...GOVERNING_WITH_ATTRIBUTE,
+  "emmener",
+  "envoyer",
+  "mener",
+  "amener",
+  "apercevoir",
+  "observer",
+  "contempler",
+  "écouter",
+]);
+
+// Verbs that take an infinitive, even across an adverbial phrase ("peut de cette manière trier",
+// "j'ai senti mon téléphone vibrer").
+const INFINITIVE_GOVERNORS = new Set([
+  ...GOVERNING,
+  ...OBJECT_INFINITIVE,
+  ..."vouloir venir partir sortir courir monter descendre rentrer retourner sembler paraître croire penser falloir".split(
+    " ",
+  ),
+]);
+// Nouns that take an infinitive complement, its "de" sometimes dropped: "une envie rentrer".
+const INFINITIVE_NOUNS = new Set(
+  (
+    "envie besoin temps moyen occasion opportunité droit peur intention façon manière raison " +
+    "chance possibilité capacité plaisir honte mal hâte idée habitude permission obligation"
+  ).split(" "),
+);
+const OBJECT_PRONOUNS = new Set("le la les l' lui leur me m' te t' se s' nous vous".split(" "));
+// Adjectives that come before their noun: "un nouveau ficher" misspells the noun.
+const PRENOMINAL = new Set(
+  (
+    "nouveau nouvel nouvelle nouveaux nouvelles beau bel belle beaux belles vieux vieil vieille " +
+    "petit petite petits petites grand grande grands grandes bon bonne bons bonnes gros grosse " +
+    "jeune jeunes autre autres même mêmes premier première dernier dernière prochain prochaine " +
+    "seul seule mauvais mauvaise joli jolie"
+  ).split(" "),
+);
+const PREPOSITIONS_BEFORE = new Set(
+  "dans en sur sous avant après pendant depuis avec sans pour par chez vers entre".split(" "),
+);
+
+/** "une écharpe nouer dans le dos", "la voix étouffer de sanglots": an infinitive right after a
+ * noun is its participle, unless a verb before governs an infinitive ("j'entends la pluie
+ * tomber", "il peut de cette manière trier") or the infinitive takes an object of its own. */
+function participleAfterNoun(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const word = m[0].toLowerCase();
+  if (m[0] !== word || isVerbHomograph(word) || firstGroupLemma(word, "I") !== word) return null;
+  if (verbReadings(word).some((r) => r.slot !== "I")) return null;
+  const before = tokensBefore(ctx.text, m.index, 14);
+  const [noun, det] = before;
+  if (!noun || !det || noun.hyphen || !(det.w in NOUN_DETERMINERS)) return null;
+  if (ctx.text.slice(noun.start, noun.end) !== noun.w || noun.w.length < 3) return null;
+  // "la fait passer": an object pronoun and a verb.
+  if (
+    verbReadings(noun.w).some((r) => r.slot !== "Q") &&
+    (OBJECTS.has(det.w) || !isVerbHomograph(noun.w))
+  )
+    return null;
+  if (INFINITIVE_NOUNS.has(noun.w)) return null;
+  const singular = noun.w.replace(/aux$/, "al").replace(/[sx]$/, "");
+  const gender = nounGender(noun.w) ?? nounGender(singular);
+  if (!gender && !isInflectedNoun(noun.w) && !isInflectedNoun(singular)) return null;
+  // "un nouveau ficher": an adjective before its noun.
+  if ((!gender && adjectiveReadings(noun.w).length) || PRENOMINAL.has(noun.w)) return null;
+  // "voit Jack, l'ami de son père entrer": the governing verb may sit before an apposition.
+  const first = before.at(-1)!;
+  const comma = /,[\s ]*$/u.test(ctx.text.slice(Math.max(0, first.start - 4), first.start));
+  const governed = (t: Token) => verbReadings(t.w).some((r) => INFINITIVE_GOVERNORS.has(r.lemma));
+  if (before.slice(2).some(governed)) return null;
+  if (comma && tokensBefore(ctx.text, ctx.text.lastIndexOf(",", first.start), 8).some(governed))
+    return null;
+  // A pronoun subject right before the determiner makes it an object pronoun.
+  if (before[2] && (SUBJECT_PRONOUNS.has(before[2].w) || NEGATION.has(before[2].w))) return null;
+  const after = tokensAfter(ctx.text, m.index + m[0].length, 6);
+  // "concevoir des projets organiser les activités": an infinitive with its own object.
+  if (after[0] && (after[0].w in NOUN_DETERMINERS || OBJECT_PRONOUNS.has(after[0].w))) return null;
+  const clause = before.slice(2);
+  const verbBefore = clause.some((t) => verbReadings(t.w).some((r) => r.slot !== "I"));
+  // "Dans cette pièce fumer est interdit", "Avant l'exposition appliquer": an infinitive after
+  // an opening phrase is a subject or an instruction.
+  if (!verbBefore && clause.some((t) => PREPOSITIONS_BEFORE.has(t.w))) return null;
+  // "Ma mère aimer le chocolat": a noun phrase opening its clause is the subject of an
+  // infinitive written for its verb, unless the clause's own verb comes later ("la voix
+  // étouffer de sanglots coupa l'air").
+  if (!before[2] || CLAUSE_OPENERS.has(before[2].w)) {
+    if (!after.some((t) => !isVerbHomograph(t.w) && verbReadings(t.w).some(isFinite))) return null;
+  }
+  const [detGender, number] = NOUN_DETERMINERS[det.w];
+  const genders = detGender || gender ? [detGender || gender!] : ["m", "f"];
+  const stem = word.slice(0, -2);
+  const alternatives = genders.map(
+    (g) => `${stem}é${g === "f" ? "e" : ""}${number === "p" ? "s" : ""}`,
+  );
+  const finding = wordFinding(
+    ctx,
+    m.index,
+    m[0],
+    alternatives,
+    RULE,
+    "review_msg_fr_noun_participle",
+  );
+  return finding ? { ...finding, context: { start: det.start, end: m.index + m[0].length } } : null;
+}
+
 const CANDIDATE = /(?<![\p{L}\p{M}\p{N}_-])\p{L}+(?:er|é|ez|re|ir|oir)(?![\p{L}\p{M}\p{N}_-])/giu;
 
 function verbForms(ctx: DetectContext): RawFinding[] {
@@ -447,7 +589,9 @@ function verbForms(ctx: DetectContext): RawFinding[] {
       : lower.endsWith("ez")
         ? (participleAfterAuxiliary(ctx, m) ?? infinitiveAfterObjectVous(ctx, m))
         : lower.endsWith("er")
-          ? (participleAfterAuxiliary(ctx, m) ?? finiteAfterSubjectVous(ctx, m))
+          ? (participleAfterAuxiliary(ctx, m) ??
+            finiteAfterSubjectVous(ctx, m) ??
+            participleAfterNoun(ctx, m))
           : finiteAfterSubjectVous(ctx, m);
     if (finding) findings.push(finding);
   }
