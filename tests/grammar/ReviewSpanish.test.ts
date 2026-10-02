@@ -707,6 +707,28 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
   ],
   [
     "spanishConfusions",
+    "sino and si no",
+    {
+      pos: [
+        ["No lo pintó ella si no su hermano.", "No lo pintó ella sino su hermano."],
+        ["No es para hoy si no para el lunes.", "No es para hoy sino para el lunes."],
+        ["No pido que vuelva, si no que me escriba.", "No pido que vuelva, sino que me escriba."],
+        ["Sino vienes, me enfado.", "Si no vienes, me enfado."],
+        ["No lo dijo él si no ella.", "No lo dijo él sino ella."],
+      ],
+      neg: [
+        "No iré si no para de llover.",
+        "No lo compro si no está barato.",
+        "No lo hago si no me pagas.",
+        "No fue hace un siglo, sino hace dos meses.",
+        "Su sino es fracasar.",
+        "No quiero agua sino vino.",
+        "Hazlo hoy; si no, mañana.",
+      ],
+    },
+  ],
+  [
+    "spanishConfusions",
     "a clitic before an infinitive, a bare participle or a noun",
     {
       pos: [
@@ -783,6 +805,30 @@ describe.each(FIXTURES)("%s: %s", (ruleId, _family, fixture) => {
   test.each(fixture.neg)("keeps %p", (input) => {
     expect(findings(ruleId, input).map((d) => d.original)).toEqual([]);
   });
+});
+
+test("a Spanish subject pronoun with a verb of another person is flagged without a fix", () => {
+  for (const text of [
+    "Yo tienes razón.",
+    "Tú quiero ir.",
+    "Vosotros vamos al cine.",
+    "Nosotros sabéis poco.",
+  ]) {
+    const found = findings("spanishAgreement", text);
+    expect(found).toHaveLength(1);
+    expect(found[0].warningOnly).toBe(true);
+  }
+  for (const text of [
+    "Yo tenía frío.",
+    "Tú solo puedes hacerlo.",
+    "Yo mismo lo hice.",
+    "Nosotros hace años que no nos vemos.",
+    "Donde nosotros nieva en enero.",
+    "Nadie más que nosotros sabe lo que pasa.",
+    "Yo apenas dormí.",
+    "Tú calla.",
+  ])
+    expect(findings("spanishAgreement", text)).toEqual([]);
 });
 
 test("Spanish checks run only on Spanish text and are on by default", () => {

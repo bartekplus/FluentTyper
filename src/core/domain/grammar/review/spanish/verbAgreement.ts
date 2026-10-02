@@ -130,6 +130,57 @@ const CLOSED_WORDS = words(
     "cuándo cuál todo todos todas nada nadie algo alguien eso esto aquello ambos varios",
 );
 
+type Person = "1s" | "2s" | "1p" | "2p" | "3p" | "vowel";
+const FIRST_SINGULAR = words("soy estoy voy doy he sé");
+
+/** The person a verb form's ending shows, or null; "vowel" is a 1st or 3rd singular. */
+function personOf(word: string): Person | null {
+  if (FIRST_SINGULAR.has(word)) return "1s";
+  if (/mos$/u.test(word)) return "1p";
+  if (/(?:áis|éis|ís)$/u.test(word)) return "2p";
+  if (/n$/u.test(word)) return "3p";
+  if (/(?:as|es|ás|és|ste)$/u.test(word)) return "2s";
+  if (/[^aeiouáéíóú]o$/u.test(word)) return "1s";
+  return /[aeéí]$/u.test(word) ? "vowel" : null;
+}
+// What each subject pronoun's verb may show: "yo tenía" shares the 3rd person's form.
+const PERSONS: Record<string, Person[]> = {
+  yo: ["1s", "vowel"],
+  tú: ["2s"],
+  nosotros: ["1p"],
+  nosotras: ["1p"],
+  vosotros: ["2p"],
+  vosotras: ["2p"],
+};
+const NOT_VERBS = words(
+  "solo sola mismo misma mismos mismas también tampoco todo todos todas ahora siempre nunca " +
+    "antes después aquí allí bien mal más menos tanto apenas casi",
+);
+
+/** "Yo vienes", "Tú vengo", "Vosotros venimos": a subject pronoun and a verb of another person. */
+function pronounPerson(ctx: DetectContext, tokens: Token[], i: number): RawFinding | null {
+  const allowed = PERSONS[tokens[i].lower];
+  if (!allowed || !clauseStart(tokens, i)) return null;
+  // "donde nosotros nieva" (where we live), "nadie más que nosotros sabe": no subject.
+  const at = new Around(tokens, i);
+  if (at.prev() === "donde" || /^(?:más|menos|tanto|igual|mejor|peor)$/u.test(at.prev(2)))
+    return null;
+  const v = verbAfter(tokens, i);
+  if (v < 0 || /^\p{Lu}/u.test(tokens[v].text)) return null;
+  const verb = tokens[v].lower;
+  if (NOT_VERBS.has(verb) || CONJUNCTIONS.has(verb) || PREPOSITIONS.has(verb)) return null;
+  // "Nosotros hace dos años…", "nieva": impersonal verbs take no subject.
+  if (IMPERSONAL.test(verb) || /^(?:llueve|nieva|graniza|truena|amanece|anochece)$/u.test(verb))
+    return null;
+  if (!finiteVerb(verb) || isNoun(verb) || genderedForm(verb) || participle(verb)) return null;
+  const person = personOf(verb);
+  if (!person || allowed.includes(person)) return null;
+  // "tú" before a vowel-final form may be an imperative's subject: "Tú calla".
+  if (tokens[i].lower === "tú" && person === "vowel") return null;
+  const finding = replaceToken(ctx, tokens[v], [], RULE, MESSAGE, tokens[i]);
+  return finding && { ...finding, warningOnly: true };
+}
+
 /** Subject (pronoun, or determiner + noun) at clause start and the verb after it. */
 function subjectVerb(ctx: DetectContext, tokens: Token[], i: number): RawFinding | null {
   const token = tokens[i];
@@ -335,7 +386,10 @@ function verbAgreement(ctx: DetectContext): RawFinding[] {
   for (let i = 0; i < tokens.length; i++) {
     if (!tokens[i].word || tokens[i].start < ctx.from - 64 || tokens[i].start >= ctx.to) continue;
     const finding =
-      subjectVerb(ctx, tokens, i) ?? liking(ctx, tokens, i) ?? copulaParticiple(ctx, tokens, i);
+      subjectVerb(ctx, tokens, i) ??
+      pronounPerson(ctx, tokens, i) ??
+      liking(ctx, tokens, i) ??
+      copulaParticiple(ctx, tokens, i);
     if (finding) findings.push(finding);
     const adjective = attribute(ctx, tokens, i);
     if (adjective) attributes.push(adjective);

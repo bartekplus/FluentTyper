@@ -1,6 +1,15 @@
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
-import { Around, isInfinitive, replaceToken, tokenize, words, type Token } from "./common";
-import { readNoun } from "./agreement";
+import {
+  Around,
+  CLITICS,
+  isInfinitive,
+  PREPOSITIONS,
+  replaceToken,
+  tokenize,
+  words,
+  type Token,
+} from "./common";
+import { DETERMINER, readNoun } from "./agreement";
 import { finiteVerb, subjunctiveLike } from "./lexicon";
 
 // porque / porqué / por qué / por que: the conjunction (because), the noun (the reason), the
@@ -112,12 +121,81 @@ function fixFor(tokens: Token[], i: number, spelling: Spelling): string[] | null
   return NEED.has(prev) && negated && isInfinitive(next) ? ["por qué"] : null;
 }
 
+/** A finite verb, past function words a loose reading would count. */
+const verbAt = (token: Token | undefined) =>
+  !!token?.word && !CLOSED.has(token.lower) && finiteVerb(token.lower) && !readNoun(token.lower);
+
+/**
+ * sino (but rather) against si no (if not): "no lo hizo él si no su primo" contrasts a phrase
+ * with no verb of its own after a negation; "sino vienes" and "¿qué hacer sino quería…?" put a
+ * finite verb right after, which "sino" never takes without "que".
+ */
+function sino(tokens: Token[], i: number): { end: number; fix: string[] } | null {
+  const at = new Around(tokens, i);
+  const word = tokens[i].lower;
+  if (word === "sino") {
+    const next = tokens[i + 1];
+    if (!next?.word || next.broken || next.lower === "que") return null;
+    // "su sino" (fate); "sino hace dos meses" (but rather two months ago).
+    if (DETERMINER.has(at.prev()) || /^(?:hace|hacía|hay)$/u.test(next.lower)) return null;
+    // "no canta sino baila": "sino que" or "si no" before a finite verb.
+    if (PREPOSITIONS.has(next.lower)) return null;
+    const verb = CLITICS.has(next.lower) ? tokens[i + 2] : next;
+    if (!verbAt(verb) || subjunctiveLike(verb!.lower)) return null;
+    return {
+      end: i,
+      fix: at.starts || !negatedBefore(tokens, i) ? ["si no"] : ["si no", "sino que"],
+    };
+  }
+  if (word !== "si" || at.next() !== "no" || tokens[i + 1].broken) return null;
+  const after = tokens[i + 2];
+  const before = tokens[i - 1];
+  // "Si no, mañana": otherwise; "Si no puedes…" opens a condition.
+  if (!after?.word || after.broken || !before || /^[.;:!?¿¡]$/u.test(before.text)) return null;
+  if (tokens[i].broken || !negatedBefore(tokens, i)) return null;
+  if (after.lower === "que") return { end: i + 1, fix: ["sino"] };
+  for (let j = i + 2; j < tokens.length && j < i + 10; j++) {
+    const token = tokens[j];
+    if (token.broken || /^[.;:!?]$/u.test(token.text)) return { end: i + 1, fix: ["sino"] };
+    const lower = token.lower;
+    if (token.text === "," || CLITICS.has(lower)) return null;
+    // "si no para de llover": "para" before "de" is the verb "parar".
+    if (lower === "para" && at.tokens[j + 1]?.lower === "de") return null;
+    if (!token.word || PREPOSITIONS.has(lower) || CLOSED.has(lower)) continue;
+    // "si no vendrá", "si no me pagas": a verb makes it a condition.
+    if (FINITE_LOOK.test(lower) || (finiteVerb(lower) && !readNoun(lower))) return null;
+  }
+  return null;
+}
+
+// Futures and conditionals the loose verb reading misses: "vendrá", "sabría".
+const FINITE_LOOK = /\p{L}{2,}(?:rá|rán|ré|rás|ría|rían|ríamos|remos)$/u;
+
+/** A "no" earlier in the clause: "No lo hizo él si no…", "para hoy no si no…". */
+function negatedBefore(tokens: Token[], i: number): boolean {
+  for (let j = i - 1; j >= 0 && j > i - 12; j--) {
+    const token = tokens[j];
+    if (/^[.;:!?¿¡]$/u.test(token.text) || tokens[j + 1].broken) return false;
+    if (token.lower === "no" || token.lower === "nunca" || token.lower === "tampoco") return true;
+  }
+  return false;
+}
+
 function porque(ctx: DetectContext): RawFinding[] {
   if (ctx.lang.slice(0, 2) !== "es") return [];
   const tokens = tokenize(ctx);
   const findings: RawFinding[] = [];
   for (let i = 0; i < tokens.length; i++) {
     if (!tokens[i].word || tokens[i].start < ctx.from || tokens[i].start >= ctx.to) continue;
+    const contrast = sino(tokens, i);
+    if (contrast) {
+      const last = tokens[contrast.end];
+      const span = { ...tokens[i], end: last.end, text: ctx.text.slice(tokens[i].start, last.end) };
+      const finding = replaceToken(ctx, span, contrast.fix, RULE, "review_msg_spanish_confusion");
+      if (finding) findings.push(finding);
+      i = contrast.end;
+      continue;
+    }
     const spelling = spellingAt(tokens, i);
     if (!spelling || tokens[spelling.end].broken) continue;
     const fixes = fixFor(tokens, i, spelling);
