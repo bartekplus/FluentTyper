@@ -1,5 +1,6 @@
 import { BLOOM_ALPHABET, bloomBits } from "../../implementations/helpers/EnglishLexicon";
 import { VERB_HOMOGRAPHS, VERB_LEMMAS, VERB_RULES } from "./frenchLexicon.generated";
+import { FEMININE, MASCULINE } from "./frenchGender.generated";
 import { NOUN_BLOOM } from "./frenchNouns.generated";
 
 /** Subject persons as bits: je, tu, il/elle/on, nous, vous, ils/elles. */
@@ -180,4 +181,99 @@ export function isFrenchWord(word: string): boolean {
   if (verbReadings(word).length || isInflectedNoun(word)) return true;
   const singular = word.replace(/aux$/, "al").replace(/[sx]$/, "");
   return singular !== word && isInflectedNoun(singular);
+}
+
+export type Gender = "m" | "f";
+
+// Endings that give a noun its gender; their exceptions are in the generated lists (from the
+// n-gram counts), in SUFFIX_EXCEPTIONS or in EITHER_GENDER. Longest ending first.
+const SUFFIX_GENDER: ReadonlyArray<[string, Gender]> = [
+  ["graphie", "f"],
+  ["logie", "f"],
+  ["aison", "f"],
+  ["ssure", "f"],
+  ["trice", "f"],
+  ["eille", "f"],
+  ["illon", "m"],
+  ["tion", "f"],
+  ["sion", "f"],
+  ["xion", "f"],
+  ["ture", "f"],
+  ["ance", "f"],
+  ["ence", "f"],
+  ["esse", "f"],
+  ["ette", "f"],
+  ["erie", "f"],
+  ["euse", "f"],
+  ["isme", "m"],
+  ["ment", "m"],
+  ["ité", "f"],
+  ["age", "m"],
+  ["eau", "m"],
+  ["ail", "m"],
+  ["eil", "m"],
+  ["oir", "m"],
+  ["ier", "m"],
+  ["ing", "m"],
+  ["et", "m"],
+  ["at", "m"],
+];
+/** Exceptions to the endings that the n-gram counts may not show (null: either gender). */
+const SUFFIX_EXCEPTIONS = new Map<string, Gender | null>([
+  ["silence", "m"],
+  ["bastion", "m"],
+  ["jument", "f"],
+  ["image", "f"],
+  ["plage", "f"],
+  ["cage", "f"],
+  ["nage", "f"],
+  ["rage", "f"],
+  ["sage", null],
+  ["eau", "f"],
+  ["peau", "f"],
+  ["comité", "m"],
+  ["squelette", "m"],
+]);
+
+// Nouns of either gender: people named by one form ("un/une élève") and words whose gender
+// changes their meaning ("le/la tour"). Endings of people's names are covered as a whole.
+const EITHER_GENDER = new Set(
+  (
+    "enfant élève ministre secrétaire collègue camarade adulte malade partenaire bénévole " +
+    "responsable membre juge guide garde interprète philosophe stagiaire cadre aide concierge " +
+    "complice architecte astronaute pilote poète médecin professeur auteur docteur ingénieur chef " +
+    "écrivain peintre maire témoin mannequin successeur prédécesseur défenseur entrepreneur " +
+    "amateur sénateur gouverneur procureur notaire libraire vétérinaire militaire fonctionnaire " +
+    "tour livre poste mode manche voile page moule somme vase critique mémoire physique pendule " +
+    "crêpe greffe merci pupille radio solde office espace œuvre orge hymne foudre enseigne faune " +
+    "finale geste mousse ombre parallèle platine pourpre relâche vague gens amour délice orgue " +
+    "pâque couple interview chose personne propre"
+  ).split(" "),
+);
+const EITHER_ENDINGS = /(?:iste|logue|graphe|naute|aire|crate|phile|phobe|cide)$/;
+
+/** Whether a noun has one gender this module may tell. */
+export function genderable(word: string): boolean {
+  return !EITHER_GENDER.has(word) && !EITHER_ENDINGS.test(word);
+}
+
+/** The gender a noun's ending gives it, if any. */
+export function suffixGender(word: string): Gender | null {
+  if (SUFFIX_EXCEPTIONS.has(word)) return SUFFIX_EXCEPTIONS.get(word)!;
+  for (const [ending, gender] of SUFFIX_GENDER)
+    if (word.endsWith(ending) && word.length > ending.length + 1) return gender;
+  return null;
+}
+
+let genders: Map<string, Gender> | null = null;
+
+/** A singular noun's gender from the generated lists or its ending; null when either or unknown. */
+export function nounGender(word: string): Gender | null {
+  if (!genderable(word)) return null;
+  if (!genders) {
+    genders = new Map();
+    for (const w of decodeFrontCoded(MASCULINE)) genders.set(w, "m");
+    for (const w of decodeFrontCoded(FEMININE)) genders.set(w, "f");
+  }
+  return genders.get(word) ?? (isInflectedNoun(word) ? suffixGender(word) : null);
 }

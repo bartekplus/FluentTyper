@@ -2,9 +2,11 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import {
+  buildFrenchGender,
   buildFrenchLexicon,
   buildFrenchNouns,
   FRENCH_LEXICON_SOURCES,
+  readDeterminerBigrams,
 } from "../../scripts/generate-french-lexicon";
 import {
   conjugate,
@@ -14,6 +16,7 @@ import {
   isInflectedNoun,
   isVerbHomograph,
   JE,
+  nounGender,
   NOUS,
   TU,
   verbReadings,
@@ -332,6 +335,35 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
       ],
     },
   ],
+  [
+    "frenchNounGender",
+    {
+      pos: [
+        ["Nous avons visité un maison ancienne.", "Nous avons visité une maison ancienne."],
+        ["Elle a résolu cette problème hier.", "Elle a résolu ce problème hier."],
+        ["Il conduit un voiture neuve.", "Il conduit une voiture neuve."],
+        ["Le réunion commence à neuf heures.", "La réunion commence à neuf heures."],
+        ["Je pense à cet idée depuis lundi.", "Je pense à cette idée depuis lundi."],
+        ["Il parle du situation actuelle.", "Il parle de la situation actuelle."],
+        ["Ma vélo est garé devant la porte.", "Mon vélo est garé devant la porte."],
+        ["On a parlé de la gouvernement.", "On a parlé du gouvernement."],
+        ["Elle pense à la projet.", "Elle pense au projet."],
+      ],
+      neg: [
+        "Elle est une élève brillante et un enfant curieux l'admire.",
+        "Je la porte tous les jours.",
+        "Ce base sur quoi, ton avis ?",
+        "Mon amie arrive demain.",
+        "Le Monde a publié un article.",
+        "Un unique sommet domine la vallée.",
+        "C'est une tout autre histoire.",
+        "Il a lu le tour de France et visité la tour Eiffel.",
+        "Le sixième jour, elle est partie.",
+        "Dans un après-midi pluvieux, rien ne bouge.",
+        "La une du journal était consacrée au sport.",
+      ],
+    },
+  ],
 ];
 
 describe.each(FIXTURES)("%s", (ruleId, { pos, neg }) => {
@@ -410,6 +442,29 @@ describe("French lexicon", () => {
     expect(buildFrenchNouns(dic, aff)).toBe(committed);
   });
 
+  // Needs python3 with marisa-trie and numpy (scripts/requirements.txt) to read the n-gram trie.
+  const bigrams = readDeterminerBigrams();
+  test.skipIf(bigrams === null)(
+    "the committed gender lists match fr_FR.dic/.aff and the n-gram counts",
+    async () => {
+      const [dic, aff, committed] = await Promise.all(
+        [FRENCH_LEXICON_SOURCES.dic, FRENCH_LEXICON_SOURCES.aff, FRENCH_LEXICON_SOURCES.gender].map(
+          (path) => readFile(path, "utf8"),
+        ),
+      );
+      expect(buildFrenchGender(dic, aff, bigrams!)).toBe(committed);
+    },
+  );
+
+  test("nouns get their gender from the lists or their ending, never for either-gender words", () => {
+    for (const word of ["maison", "voiture", "réunion", "liberté", "soif"])
+      expect(nounGender(word)).toBe("f");
+    for (const word of ["arbre", "problème", "gouvernement", "camion", "silence"])
+      expect(nounGender(word)).toBe("m");
+    for (const word of ["élève", "tour", "journaliste", "xyzzy"])
+      expect(nounGender(word)).toBe(null);
+  });
+
   test("homographs are verb forms that another entry also spells", () => {
     expect(isVerbHomograph("passé")).toBe(true);
     expect(isVerbHomograph("dîner")).toBe(true);
@@ -447,6 +502,7 @@ test("no French chunk stalls on adversarial input", () => {
     `x${" ".repeat(3_800)}${triggers}`,
     "mangé ".repeat(800),
     "il à a ou où sa se ce la ma sont du ont ".repeat(150),
+    "un maison la problème cette arbre du réunion ma vélo comme même que also ".repeat(150),
   ])
     expect(slowest(text)).toBeLessThan(100);
 });

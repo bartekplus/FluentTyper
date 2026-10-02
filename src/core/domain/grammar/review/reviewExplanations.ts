@@ -2258,6 +2258,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Rzeczownik zgadza się w liczbie ze swoim określnikiem (les livres, la route).",
     "O substantivo concorda em número com o seu determinante (les livres, la route).",
   ],
+  review_msg_fr_noun_gender: [
+    "The determiner takes the gender of its noun (une maison, un arbre).",
+    "Le déterminant prend le genre de son nom (une maison, un arbre).",
+    "Determinator se slaže u rodu sa svojom imenicom (une maison, un arbre).",
+    "El determinante concuerda en género con su sustantivo (une maison, un arbre).",
+    "Το προσδιοριστικό συμφωνεί σε γένος με το ουσιαστικό του (une maison, un arbre).",
+    "Bestämningsordet ska ha samma genus som sitt substantiv (une maison, un arbre).",
+    "Der Begleiter richtet sich im Geschlecht nach seinem Nomen (une maison, un arbre).",
+    "Określnik zgadza się w rodzaju ze swoim rzeczownikiem (une maison, un arbre).",
+    "O determinante concorda em gênero com o seu substantivo (une maison, un arbre).",
+  ],
   review_msg_fr_participle_agreement: [
     "After être, the past participle agrees with the subject (elle est arrivée, ils sont partis).",
     "Après être, le participe passé s’accorde avec le sujet (elle est arrivée, ils sont partis).",

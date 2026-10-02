@@ -127,6 +127,7 @@ export interface GrammarRuleCatalogEntry {
     | "frenchElision"
     | "frenchDates"
     | "frenchNounNumber"
+    | "frenchNounGender"
     | "quoteSpacing"
     | "primeSymbols"
     // German-only Review checks (review/german/).
