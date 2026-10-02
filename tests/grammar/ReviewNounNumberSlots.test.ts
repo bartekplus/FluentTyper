@@ -44,6 +44,8 @@ test("noun number follows its determiner or count", () => {
     ["Thanks for these advice.", "Thanks for this advice."],
     ["She painted those cottage.", "She painted those cottages."],
     ["There were a few chair in the hall.", "There were a few chairs in the hall."],
+    ["That was a smart ideas though.", "That was a smart idea though."],
+    ["We may need a clean towels later.", "We may need a clean towel later."],
   ]) {
     const found = scan(input);
     expect({ input, count: found.length }).toEqual({ input, count: 1 });

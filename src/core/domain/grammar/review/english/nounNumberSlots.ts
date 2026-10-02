@@ -174,7 +174,7 @@ function nounAfterModifiers(
 const COUNTERS = new Set("many several various numerous multiple few these those".split(" "));
 // Closed words that end a noun phrase before them.
 const ENDERS = new Set(
-  "of in on at for with from about by into than that which who whom where when because if as ago".split(
+  "of in on at for with from about by into than that which who whom where when because if as ago though too later now today yesterday tomorrow tonight again here there anyway instead yet but so".split(
     " ",
   ),
 );
