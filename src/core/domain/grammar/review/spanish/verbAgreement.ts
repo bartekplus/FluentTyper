@@ -1,5 +1,5 @@
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
-import { DETERMINER, readNoun } from "./agreement";
+import { DETERMINER, pluralOf, readNoun } from "./agreement";
 import {
   Around,
   CONJUNCTIONS,
@@ -9,7 +9,7 @@ import {
   words,
   type Token,
 } from "./common";
-import { finiteVerb, isNoun, isVerb, participle } from "./lexicon";
+import { finiteVerb, genderedForm, isGenderedEntry, isNoun, isVerb, participle } from "./lexicon";
 
 // Number agreement around the verb: a subject opening its clause and the verb right after
 // it ("Los amigos tiene sed", "Ellos viene"), "gustar" and its kin with the noun phrase
@@ -211,17 +211,105 @@ function copulaParticiple(ctx: DetectContext, tokens: Token[], i: number): RawFi
   return replaceToken(ctx, token, [`${next}s`], RULE, MESSAGE, tokens[i]);
 }
 
+// "La casa es bonito", "Ellos son bella", "Su madre estaba casado": an adjective after a
+// copula agrees with the subject opening the clause.
+const COPULA = words(
+  "es era fue será sería sea está estaba estuvo estará estaría esté parece parecía resulta " +
+    "resultó queda quedó son eran fueron serán serían sean están estaban estuvieron estarán " +
+    "estarían estén parecen parecían resultan resultaron quedan quedaron",
+);
+const ESTAR = /^(?:est\p{L}+|qued\p{L}+)$/u;
+const DEGREE = words("muy tan bastante demasiado más menos siempre ya bien mal casi");
+// Adjectives that lead a noun phrase of their own: "La vida es puro teatro", "es otro mundo".
+const LEADING = words(
+  "otro otra otros otras mismo misma mismos mismas primero primera último última mucho " +
+    "mucha muchos muchas poco poca pocos pocas todo toda todos todas tanto tanta cierto " +
+    "cierta alguno alguna ninguno ninguna uno una solo sola medio media puro pura justo",
+);
+
+const PROFESSIONS = words(
+  "médico abogado ingeniero arquitecto maestro técnico ministro secretario cocinero camarero " +
+    "enfermero psicólogo biólogo químico físico político diputado juez notario veterinario " +
+    "farmacéutico informático fontanero carpintero mecánico funcionario empleado ayudante " +
+    "músico bombero policía soldado piloto",
+);
+
+/** The form of a paired adjective for a gender and number: "bonito" -> "bonitas". */
+function adjectiveFor(word: string, feminine: boolean, plural: boolean): string | null {
+  const m = /^(\p{L}+?)(?:o|a|os|as)$/u.exec(word);
+  if (m && isGenderedEntry(`${m[1]}o`)) return `${m[1]}${feminine ? "a" : "o"}${plural ? "s" : ""}`;
+  const base = /^(\p{L}+?)(?:a|as|es)?$/u.exec(word)?.[1];
+  if (!base || !isGenderedEntry(base) || /[aeiouáéíóú]$/u.test(base)) return null;
+  if (feminine) return `${base}a${plural ? "s" : ""}`;
+  return plural ? pluralOf(base) : base;
+}
+
+function attribute(ctx: DetectContext, tokens: Token[], i: number): RawFinding | null {
+  if (!clauseStart(tokens, i)) return null;
+  const token = tokens[i];
+  let feminine: boolean | null;
+  let plural: boolean;
+  let pronoun = false;
+  let k = i + 1;
+  if (/^(?:él|ella|ellos|ellas)$/u.test(token.lower)) {
+    feminine = /^ella/u.test(token.lower);
+    plural = token.lower.endsWith("s");
+    pronoun = true;
+  } else {
+    const det = DETERMINER.get(token.lower);
+    const nounToken = tokens[i + 1];
+    if (!det || det.forms[0].includes(" ") || !nounToken?.word || nounToken.broken) return null;
+    if (NOT_SUBJECTS.has(nounToken.lower)) return null;
+    const noun = readNoun(nounToken.lower);
+    if (!noun || noun.plural !== det.slot >= 2) return null;
+    feminine = noun.gender ? noun.gender === "f" : null;
+    plural = noun.plural;
+    k = i + 2;
+  }
+  if (tokens[k]?.lower === "no") k++;
+  const copula = tokens[k]?.lower ?? "";
+  if (!COPULA.has(copula) || tokens[k].broken) return null;
+  const copulaPlural = /n$/u.test(copula);
+  if (copulaPlural !== plural) return null;
+  k++;
+  while (DEGREE.has(tokens[k]?.lower ?? "") || /mente$/u.test(tokens[k]?.lower ?? "")) k++;
+  const adjToken = tokens[k];
+  if (!adjToken?.word || adjToken.broken || !/^\p{Ll}/u.test(adjToken.text)) return null;
+  const word = adjToken.lower;
+  if (LEADING.has(word) || ctx.dictionary.has(word)) return null;
+  const form = genderedForm(word);
+  if (!form) return null;
+  // "La vida es puro teatro": the adjective leads a noun after it.
+  const after = new Around(tokens, k).next();
+  if (after && (DETERMINER.has(after) || (readNoun(after) && !readNoun(after)?.paired)))
+    return null;
+  const numberClash = form.plural !== plural;
+  // "Ella es médico", "Su profesión es abogado": with "ser", a masculine form after a
+  // feminine subject may name a profession.
+  const profession = feminine && !ESTAR.test(copula) && (pronoun || PROFESSIONS.has(word));
+  const genderClash = feminine !== null && form.feminine !== feminine && !profession;
+  if (!numberClash && !genderClash) return null;
+  const fix = adjectiveFor(word, genderClash ? !form.feminine : form.feminine, plural);
+  if (!fix || fix === word) return null;
+  return replaceToken(ctx, adjToken, [fix], RULE, MESSAGE, tokens[i]);
+}
+
 function verbAgreement(ctx: DetectContext): RawFinding[] {
   if (ctx.lang.slice(0, 2) !== "es") return [];
   const tokens = tokenize(ctx);
   const findings: RawFinding[] = [];
+  const attributes: RawFinding[] = [];
   for (let i = 0; i < tokens.length; i++) {
     if (!tokens[i].word || tokens[i].start < ctx.from - 64 || tokens[i].start >= ctx.to) continue;
     const finding =
       subjectVerb(ctx, tokens, i) ?? liking(ctx, tokens, i) ?? copulaParticiple(ctx, tokens, i);
     if (finding) findings.push(finding);
+    const adjective = attribute(ctx, tokens, i);
+    if (adjective) attributes.push(adjective);
   }
-  return findings;
+  // The subject's gender beats the copula's number alone: "Ellas están cansado" -> cansadas.
+  const taken = new Set(attributes.map((f) => f.range.start));
+  return [...findings.filter((f) => !taken.has(f.range.start)), ...attributes];
 }
 
 export const DETECTORS: readonly ReviewDetectorEntry[] = [{ rules: [RULE], detect: verbAgreement }];

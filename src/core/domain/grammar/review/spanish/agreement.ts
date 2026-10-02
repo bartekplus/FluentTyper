@@ -130,8 +130,20 @@ const EITHER = words(
 const EITHER_ENDING = /(?:ista|asta|crata|iatra|auta|cida|arca|ita|ota)$/u;
 
 /** The gender a singular noun without -o/-a forms takes, or null where its ending can't tell. */
+// Nouns in -e (or another ending that decides nothing) with a fixed gender.
+const FEMININE_OTHER = words(
+  "madre mujer gente calle noche tarde leche muerte suerte fuente mente llave nave " +
+    "clase nieve sangre torre carne",
+);
+const MASCULINE_OTHER = words(
+  "padre hombre coche nombre puente diente aceite bosque cine valle pie baile golpe parque " +
+    "postre billete",
+);
+
 function nounGender(word: string): Gender | null {
   if (EITHER.has(word)) return null;
+  if (FEMININE_OTHER.has(word)) return "f";
+  if (MASCULINE_OTHER.has(word)) return "m";
   if (FEMININE_ENDING.test(word)) return "f";
   if (MASCULINE_A.has(word) || /grama$/u.test(word)) return "m";
   if (FEMININE_MA.has(word) || FEMININE_O.has(word) || FEMININE_OR.has(word)) return "f";

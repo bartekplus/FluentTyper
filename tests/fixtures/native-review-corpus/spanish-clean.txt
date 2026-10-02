@@ -511,3 +511,14 @@ Me encantan las fresas con nata.
 Estamos cansados de esperar.
 Los españoles somos así.
 Esta noche salen todos juntos.
+# Adjectives and participles after a copula.
+Ella es médico en un hospital.
+Su profesión es abogado.
+La vida es puro teatro.
+La casa está justo enfrente.
+La sala estaba mal iluminada.
+La reunión fue cancelada por la lluvia.
+Mi padre es alto y mi madre es baja.
+Las calles están vacías.
+El coche está roto.
+La sopa es otro mundo.
