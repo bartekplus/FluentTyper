@@ -111,7 +111,12 @@ function bareAdjectives(ctx: DetectContext): RawFinding[] {
         !/[.!?:\n„"]\s*$/.test(ctx.text.slice(Math.max(0, m.index - 4), m.index))
       );
     const isPreposition = PREPOSITIONS.has(low) && det === low;
-    if (!(isDeterminer || isPreposition) || !germanAdjective(adj) || NOT_ADJECTIVES.has(adj))
+    if (
+      !(isDeterminer || isPreposition) ||
+      !germanAdjective(adj) ||
+      NOT_ADJECTIVES.has(adj) ||
+      ARTICLES.has(adj)
+    )
       continue;
     // "letzte", "erster": already inflected.
     const inflected = /^(.+?)(?:e|en|er|es|em)$/.exec(adj);
@@ -124,7 +129,8 @@ function bareAdjectives(ctx: DetectContext): RawFinding[] {
     }
     if (ctx.dictionary.has(adj) || ctx.dictionary.has(noun.toLowerCase())) continue;
     const compound = adj + noun.toLowerCase();
-    if (germanNounReading(compound) !== null && !noun.includes("-")) {
+    // "Echtzeit": a bare adjective glued to the noun ("die letzte Bahn" stays).
+    if (!adj.endsWith("e") && germanNounReading(compound) !== null && !noun.includes("-")) {
       findings.push({
         ruleId: "germanAdjectiveForms",
         messageKey: "review_msg_closed_compound",
