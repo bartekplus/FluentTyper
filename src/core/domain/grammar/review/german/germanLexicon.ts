@@ -7,6 +7,7 @@ import {
   VERB_BLOOM,
 } from "./germanLexicon.generated";
 import * as GENDER_DATA from "./germanGender.generated";
+import { ACCUSATIVE_VERBS, DATIVE_VERBS, NOUNS_OVER_ADJECTIVES } from "./germanUsage.generated";
 
 /**
  * What a lowercase German word is when it is also a noun form: only a noun ("zugriff" is not
@@ -130,6 +131,28 @@ export function germanNounReading(word: string): GermanNounReading | null {
   return inCascade(infinitiveCascade, w) ? "infinitive" : "noun";
 }
 
+let nounsOverAdjectives: Set<string> | undefined;
+let dativeVerbs: Set<string> | undefined;
+let accusativeVerbs: Set<string> | undefined;
+
+/**
+ * A lowercase noun form that is also an adjective form but, after a determiner, reads as the
+ * noun far more often ("das alter", "auf die spitze"; not "die alte", "eine kleine").
+ */
+export function germanNounOverAdjective(word: string): boolean {
+  nounsOverAdjectives ??= frontDecoded(NOUNS_OVER_ADJECTIVES);
+  return nounsOverAdjectives.has(word.normalize("NFC"));
+}
+
+/** The case of the one object a finite verb form takes ("hilft": dative, "fragt": accusative). */
+export function germanVerbObjectCase(word: string): "dative" | "accusative" | null {
+  const w = word.normalize("NFC");
+  dativeVerbs ??= frontDecoded(DATIVE_VERBS);
+  accusativeVerbs ??= frontDecoded(ACCUSATIVE_VERBS);
+  if (dativeVerbs.has(w)) return "dative";
+  return accusativeVerbs.has(w) ? "accusative" : null;
+}
+
 /** An adjective lemma that inflects ("klein", "original"); loose, about 0.3% false yeses. */
 export function germanAdjective(word: string): boolean {
   adjectiveBloom ??= decode(ADJECTIVE_BLOOM);
@@ -185,6 +208,19 @@ function genderTable(): Map<string, GermanGenderReading> {
   return genders;
 }
 
+// "Lehrer", "Fahrer", "Käufer": a person or tool named after its verb is masculine and its own
+// plural; these are not (authored).
+const NOT_AGENTS = new Set("messer wetter lager gewitter trauer leber".split(" "));
+const AGENT = { gender: "m", plural: true } as const;
+const agentNoun = (w: string) => {
+  const stem = /^(\p{Ll}{3,})er$/u.exec(w)?.[1];
+  if (!stem || NOT_AGENTS.has(w)) return false;
+  // "Vorsitzender", "Angestellter", "Bekannter": an adjective or participle used as a noun.
+  if (/end$|^\p{Ll}*ge\p{Ll}+t$|^(?:ver|be|er|ent|zer)\p{Ll}+t$/u.test(stem)) return false;
+  if (germanAdjective(stem)) return false;
+  return [stem, deumlaut(stem)].some((s) => germanInfinitive(`${s}en`));
+};
+
 /**
  * Whether a word can open a compound: a noun (with its linking -s, -es, -n or -en), an
  * adjective or a verb stem ("Haus|tür", "Verkehrs|schild", "Groß|stadt", "Schreib|tisch").
@@ -213,12 +249,14 @@ export function germanGender(word: string): GermanGenderReading | null {
   for (let i = 3; i <= w.length - 3; i++) {
     const head = w.slice(i);
     const mixed = TWO_GENDERS.has(head) || MIXED_HEADS.has(head);
-    if (!mixed && !table.has(head)) continue;
+    const agent = !mixed && !table.has(head) && head.length >= 5 && agentNoun(head);
+    if (!mixed && !agent && !table.has(head)) continue;
     // A long head after a long first part needs no check of the first part
     // ("Kostenvoran|schlag").
     if ((head.length < 5 || i < 4) && !compoundStart(w.slice(0, i))) continue;
-    return mixed ? null : table.get(head)!;
+    return mixed ? null : agent ? AGENT : table.get(head)!;
   }
+  if (agentNoun(w)) return AGENT;
   // "Lehrerin", "Polizistin": the feminine of a person noun.
   if (/(?:er|ist|ent|ant|eur|or|at|oge)in$/.test(w) && isNoun(w.slice(0, -2))) return FEMININE;
   // "Häuschen", "Brötchen", "Fräulein": a diminutive ("Kuchen", "Kirchen" are not).

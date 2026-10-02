@@ -163,6 +163,7 @@ export interface GrammarRuleCatalogEntry {
     | "germanQuestionMarks"
     | "germanNumbers"
     | "germanStraightQuotes"
+    | "germanColloquial"
     | "greekFinalNu"
     | "greekStrictFinalNu"
     | "greekQuestionAccent"
