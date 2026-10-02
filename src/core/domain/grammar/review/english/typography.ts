@@ -29,8 +29,18 @@ export const notationToken = (source: string, start: number, bare: string) =>
 type Rule = "englishNotation" | "englishTypography";
 type MessageKey = RawFinding["messageKey"];
 
-/** Matches of a global regex starting in [from, to), scanned from shortly before `from`. */
-function* owned(ctx: DetectContext, regex: RegExp, lookback = 64): Generator<RegExpExecArray> {
+/**
+ * Matches of a global regex starting in [from, to), scanned from shortly before `from`. A
+ * `gate` every match contains skips the scan when the text lacks it: most prose has no
+ * notation, and these regexes open with lookbehinds the engine tries at every position.
+ */
+function* owned(
+  ctx: DetectContext,
+  regex: RegExp,
+  gate?: RegExp,
+  lookback = 64,
+): Generator<RegExpExecArray> {
+  if (gate && !gate.test(ctx.scanText.slice(Math.max(0, ctx.from - lookback)))) return;
   regex.lastIndex = Math.max(0, ctx.from - lookback);
   for (let m = regex.exec(ctx.scanText); m && m.index < ctx.to; m = regex.exec(ctx.scanText)) {
     if (m[0] === "") regex.lastIndex += 1;
@@ -91,12 +101,12 @@ function notation(ctx: DetectContext): Finding[] {
   const out: Finding[] = [];
   const add = (key: MessageKey, start: number, end: number, alternatives: string[]) =>
     out.push(finding("englishNotation", key, start, end, alternatives));
-  for (const m of owned(ctx, DECIMAL_COMMA)) {
+  for (const m of owned(ctx, DECIMAL_COMMA, /\d,\d/)) {
     const g = m.groups!;
     const fixed = g.sign ? `${g.sign}${g.a}.${g.b}` : `${g.c}.${g.d}`;
     add("review_msg_english_decimal", m.index, m.index + m[0].length, [fixed]);
   }
-  for (const m of owned(ctx, DOT_GROUPS)) {
+  for (const m of owned(ctx, DOT_GROUPS, /\d\.\d/)) {
     const groups = m[0].split(/[.,]/);
     // "192.168.100.200" is an address.
     if (!m[0].includes(",") && groups.length === 4 && groups.every((x) => Number(x) <= 255))
@@ -104,28 +114,28 @@ function notation(ctx: DetectContext): Finding[] {
     const fixed = m[0].replace(/,/, "#").replace(/\./g, ",").replace("#", ".");
     add("review_msg_english_digit_groups", m.index, m.index + m[0].length, [fixed]);
   }
-  for (const m of owned(ctx, DOT_DECIMAL)) {
+  for (const m of owned(ctx, DOT_DECIMAL, /\d\.\d/)) {
     const fixed = m[0].replace(".", ",").replace(/,(\d{1,2})$/, ".$1");
     add("review_msg_english_digit_groups", m.index, m.index + m[0].length, [fixed]);
   }
-  for (const m of owned(ctx, DOT_THOUSAND)) {
+  for (const m of owned(ctx, DOT_THOUSAND, /\d\.000/)) {
     const noun = m[2];
     if (MEASURES.has(noun) || !englishWordInfo(noun)?.plural) continue;
     add("review_msg_english_digit_groups", m.index, m.index + m[0].length, [`${m[1]},000`]);
   }
-  for (const m of owned(ctx, ORDINAL_SPLIT)) {
+  for (const m of owned(ctx, ORDINAL_SPLIT, /\d[ \u00a0](?:st|nd|rd|th)/)) {
     if (ordinalSuffix(Number(m[1])) !== m[2]) continue;
     add("review_msg_ordinal", m.index, m.index + m[0].length, [`${m[1]}${m[2]}`]);
   }
-  for (const m of owned(ctx, FULL_WIDTH)) {
+  for (const m of owned(ctx, FULL_WIDTH, /[？！]/)) {
     add("review_msg_full_width_mark", m.index, m.index + 1, [FULL_WIDTH_ASCII[m[0]]]);
   }
-  for (const m of owned(ctx, INITIALISM)) {
+  for (const m of owned(ctx, INITIALISM, /[A-Za-z]\.[A-Za-z]/)) {
     const end = m.index + m[0].length;
     const alternatives = /[A-Z]/.test(m[0]) ? [`${m[0]}.`, m[0].replace(/\./g, "")] : [`${m[0]}.`];
     add("review_msg_initialism_period", m.index, end, alternatives);
   }
-  for (const m of owned(ctx, PHD)) {
+  for (const m of owned(ctx, PHD, /P[Hh]/)) {
     const { core } = m.groups!;
     // "PhD." ends its sentence; "Ph. D", "PH.D" are the dotted form.
     const dotted = /[. ]/.test(core);
@@ -133,7 +143,7 @@ function notation(ctx: DetectContext): Finding[] {
     const end = m.index + (dotted ? m[0].length : core.length);
     add("review_msg_degree_abbreviation", m.index, end, [dotted ? "Ph.D." : "PhD"]);
   }
-  for (const m of owned(ctx, DEGREE)) {
+  for (const m of owned(ctx, DEGREE, /[BM]\./)) {
     const fixed = `${m.groups!.l}.${m.groups!.d}.`;
     if (m[0] === fixed) continue;
     // "B.Sc" at a sentence end keeps the sentence's period.
@@ -141,19 +151,19 @@ function notation(ctx: DetectContext): Finding[] {
     if (!m[0].endsWith(".") && !m[0].includes(" ") && ctx.text[end] === ".") continue;
     add("review_msg_degree_abbreviation", m.index, end, [fixed]);
   }
-  for (const m of owned(ctx, DOTTED_DEGREE)) {
+  for (const m of owned(ctx, DOTTED_DEGREE, /(?:Sc|Eng|Phil|MBA)\./)) {
     const d = m.groups!.d;
     const dotted = d.replace(/^([A-Z])([A-Z]?[a-z]*)([A-Z])?$/, (_, a, b, c) =>
       c ? `${a}.${b}.${c}.` : `${a}.${b}.`,
     );
     add("review_msg_degree_abbreviation", m.index, m.index + m[0].length, [d, dotted]);
   }
-  for (const m of owned(ctx, SPACED_ABBREVIATION)) {
+  for (const m of owned(ctx, SPACED_ABBREVIATION, /(?:e\.|i\.|o['’])[ \u00a0]/)) {
     add("review_msg_initialism_period", m.index, m.index + m[0].length, [
       m[0].replace(/[  ]/g, ""),
     ]);
   }
-  for (const m of owned(ctx, DATE_COMMAS)) {
+  for (const m of owned(ctx, DATE_COMMAS, /\d/)) {
     const at = (name: string) => m.indices!.groups![name]?.[0];
     const glued = at("glued");
     const monthComma = at("monthComma");
@@ -163,7 +173,7 @@ function notation(ctx: DetectContext): Finding[] {
       add("review_msg_date_comma", monthComma, monthComma + 1, [""]);
     else if (gap !== undefined) add("review_msg_date_comma", gap, gap + 1, [", "]);
   }
-  for (const m of owned(ctx, CLOCK_OCLOCK)) {
+  for (const m of owned(ctx, CLOCK_OCLOCK, /clock/)) {
     const { h, mm } = m.groups!;
     add(
       "review_msg_oclock",
@@ -228,7 +238,7 @@ function typography(ctx: DetectContext): Finding[] {
   const out: Finding[] = [];
   const add = (key: MessageKey, start: number, end: number, alternatives: string[]) =>
     out.push(finding("englishTypography", key, start, end, alternatives));
-  for (const m of owned(ctx, TIMES)) {
+  for (const m of owned(ctx, TIMES, /\d[ \u00a0]?[x*]/)) {
     const { a, op } = m.groups!;
     // "0x1F" is hexadecimal.
     if (a === "0" && op === "x") continue;
@@ -237,10 +247,10 @@ function typography(ctx: DetectContext): Finding[] {
       op.replace(/[x*]/, "×").includes(" ") ? " × " : "×",
     ]);
   }
-  for (const m of owned(ctx, ARROW)) {
+  for (const m of owned(ctx, ARROW, /[<>]/)) {
     add("review_msg_typographic_symbol", m.index, m.index + m[0].length, [ARROWS[m[0]]]);
   }
-  for (const m of owned(ctx, SIGNS)) {
+  for (const m of owned(ctx, SIGNS, /\([cCRTt]/)) {
     const { pre, s } = m.groups!;
     const start = m.index + (pre?.length ?? 0);
     const before = ctx.text[start - 1] ?? "";
@@ -259,10 +269,10 @@ function typography(ctx: DetectContext): Finding[] {
     const sign = upper === "(C)" ? "©" : upper === "(R)" ? "®" : "™";
     add("review_msg_typographic_symbol", start, start + s.length, [sign]);
   }
-  for (const m of owned(ctx, PLUS_MINUS)) {
+  for (const m of owned(ctx, PLUS_MINUS, /\+/)) {
     add("review_msg_typographic_symbol", m.index, m.index + m[0].length, ["±"]);
   }
-  for (const m of owned(ctx, HYPOTHESIS)) {
+  for (const m of owned(ctx, HYPOTHESIS, /H\d:/)) {
     add("review_msg_typographic_symbol", m.index, m.index + 2, [
       `H${SUBSCRIPTS[Number(m.groups!.n)]}`,
     ]);
@@ -278,17 +288,17 @@ function typography(ctx: DetectContext): Finding[] {
     )
       add("review_msg_english_quotes", m.index, m.index + 1, ["”"]);
   }
-  for (const m of owned(ctx, NUMBER_RANGE)) {
+  for (const m of owned(ctx, NUMBER_RANGE, /-/)) {
     const { spaced, joined, y1, y2 } = m.groups!;
     if (joined && Number(y2) <= Number(y1)) continue;
     const dash = spaced ?? joined;
     const start = m.index + m[0].indexOf(dash);
     add("review_msg_range_dash", start, start + dash.length, ["–"]);
   }
-  for (const m of owned(ctx, NAME_RANGE)) {
+  for (const m of owned(ctx, NAME_RANGE, /-/)) {
     add("review_msg_range_dash", m.index, m.index + m[0].length, ["–"]);
   }
-  for (const m of owned(ctx, SPACED_HYPHEN)) {
+  for (const m of owned(ctx, SPACED_HYPHEN, / - /)) {
     add("review_msg_typed_dash", m.index, m.index + 3, ["—", " — "]);
   }
   return out;
