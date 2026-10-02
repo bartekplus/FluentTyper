@@ -112,12 +112,12 @@ export const FRAMES: readonly CommaFrame[] = [
     ),
     fix: (m) => `${m.groups!.target},`,
   },
-  // "Im większa tym lepiej" -> "Im większa, tym lepiej".
+  // "Im większa tym lepiej" -> "Im większa, tym lepiej" (not "o tym" inside the first clause).
   {
     ruleId: MISSING,
     messageKey: "review_msg_pl_missing_comma",
     regex: new RegExp(
-      `${CLAUSE_START}Im${SP}(?:[^,.!?;\\n ]+${SP}){0,4}?[^,.!?;\\n ]+(?<target>${SP}tym)${END}`,
+      `${CLAUSE_START}Im${SP}(?:[^,.!?;\\n ]+${SP}){0,4}?(?!(?:o|w|we|po|przy|na|nad|pod|przed|za|z|ze)${SP}tym)[^,.!?;\\n ]+(?<target>${SP}tym)${END}`,
       "gud",
     ),
     fix: (m) => `, ${m.groups!.target.trim()}`,
