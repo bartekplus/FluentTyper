@@ -31,6 +31,16 @@ function findings(text: string, lang = "pl_PL", rules: string[] = [RULE]) {
 
 /** [text, the flagged words, one of the fixes applied (null: a warning without a fix)]. */
 const POSITIVES: Array<[string, string, string | null]> = [
+  // Nouns of a fixed gender.
+  ["Kupiłam sobie nowy perfum.", "nowy perfum", "Kupiłam sobie nowe perfumy."],
+  [
+    "Taki słodki pomarańcz kosztuje złotówkę.",
+    "Taki słodki pomarańcz",
+    "Taka słodka pomarańcza kosztuje złotówkę.",
+  ],
+  ["Ten menu jest za długie.", "Ten menu", "To menu jest za długie."],
+  ["Dałem mu jeden euro.", "jeden euro", "Dałem mu jedno euro."],
+  ["Mój ulubiony kakao stygnie.", "Mój ulubiony kakao", "Moje ulubione kakao stygnie."],
   // A negated verb takes the genitive.
   ["Dziś nie mam czas na kino.", "czas", "Dziś nie mam czasu na kino."],
   ["Nie widzę różnicę między nimi.", "różnicę", "Nie widzę różnicy między nimi."],
@@ -86,6 +96,11 @@ const POSITIVES: Array<[string, string, string | null]> = [
 ];
 
 const NEGATIVES = [
+  "Nie używam perfum.",
+  "Kilo pomarańcz kosztuje dziś mniej.",
+  "Moje hobby to sushi.",
+  "Zapłacił w euro.",
+  "Tego menu nie znam.",
   "Nie mam czasu na kino.",
   "Nie widział go cały dzień.",
   "Nie widzi pies kota.",

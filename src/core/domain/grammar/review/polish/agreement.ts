@@ -466,6 +466,75 @@ function negatedObjects(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+/* ------------------------------------------------------------ fixed genders */
+
+/** Masculine singular determiners and what they become in the neuter, the plural and the feminine. */
+const MASCULINE_DETERMINERS: Record<string, [neuter: string, plural: string, feminine: string]> = {
+  ten: ["to", "te", "ta"],
+  tamten: ["tamto", "tamte", "tamta"],
+  taki: ["takie", "takie", "taka"],
+  jeden: ["jedno", "jedne", "jedna"],
+  mój: ["moje", "moje", "moja"],
+  twój: ["twoje", "twoje", "twoja"],
+  swój: ["swoje", "swoje", "swoja"],
+  nasz: ["nasze", "nasze", "nasza"],
+  wasz: ["wasze", "wasze", "wasza"],
+  każdy: ["każde", "każde", "każda"],
+  jakiś: ["jakieś", "jakieś", "jakaś"],
+  żaden: ["żadne", "żadne", "żadna"],
+};
+/**
+ * Nouns typed with a masculine modifier though they are neuter (indeclinable loans: "to menu"),
+ * plural only ("te perfumy"; "perfum" is their genitive) or feminine ("ta pomarańcza").
+ */
+const GENDERED: Record<string, [index: 0 | 1 | 2, noun: string]> = {
+  ...Object.fromEntries(
+    "menu tiramisu sushi salami kakao musli euro hobby zoo graffiti alibi kimono risotto espresso bistro"
+      .split(" ")
+      .map((noun): [string, [0, string]] => [noun, [0, noun]]),
+  ),
+  perfum: [1, "perfumy"],
+  pomarańcz: [2, "pomarańcza"],
+};
+const GENDER_FRAME = new RegExp(
+  `(?<![\\p{L}\\p{N}_'’.@/-])(?:(?<first>\\p{Ll}{2,})[ \\t\\u00a0]{1,8})?(?<mod>\\p{Ll}{2,})[ \\t\\u00a0]{1,8}(?<noun>${Object.keys(GENDERED).join("|")})${WORD}`,
+  "giud",
+);
+const ADJECTIVE_ENDINGS = ["e", "e", "a"] as const;
+
+/** A masculine determiner or adjective (nominative singular) as `index` wants it, or null. */
+function regendered(word: string, index: 0 | 1 | 2): string | null {
+  const lower = word.toLowerCase();
+  const det = MASCULINE_DETERMINERS[lower]?.[index];
+  if (det) return caseLike(word, det);
+  const adj = adjectiveOf(lower);
+  if (!adj || adj.ending !== "y" || ambiguousAdjective(lower) || nounTags(lower) & ALL_CASES)
+    return null;
+  return caseLike(word, adjectiveForm(adj.lemma, ADJECTIVE_ENDINGS[index]));
+}
+
+/** "ten menu" -> "to menu", "nowy perfum" -> "nowe perfumy", "smaczny pomarańcz" -> "smaczna pomarańcza". */
+function fixedGenders(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of owned(ctx, GENDER_FRAME)) {
+    const { first, mod, noun } = m.groups!;
+    const [index, fixedNoun] = GENDERED[noun.toLowerCase()];
+    const fixedMod = regendered(mod, index);
+    if (!fixedMod || userOrNamed(ctx, `${mod} ${noun}`)) continue;
+    const fixedFirst = first ? regendered(first, index) : null;
+    const groups = m.indices!.groups!;
+    const start = fixedFirst ? groups.first[0] : groups.mod[0];
+    const end = groups.noun[1];
+    const typed = ctx.source.slice(start, end);
+    const fixed =
+      (fixedFirst ? `${fixedFirst}${ctx.source.slice(groups.first[1], groups.mod[0])}` : "") +
+      `${fixedMod}${ctx.source.slice(groups.mod[1], groups.noun[0])}${caseLike(noun, fixedNoun)}`;
+    if (fixed === typed) continue;
+    findings.push(findingAt(ctx, start, end, [fixed], RULE, "review_msg_pl_agreement"));
+  }
+  return findings;
+}
+
 /* --------------------------------------------------------------- adjectives */
 
 /** Cases an adjective can govern ("pełna wody", "zajęta pracą"): such a noun may not be its own. */
@@ -583,6 +652,8 @@ function adjectives(ctx: DetectContext): RawFinding[] {
     PAIR.lastIndex = m.index + first.length;
     const end = m.index + m[0].length;
     if (userOrNamed(ctx, first) || userOrNamed(ctx, second)) continue;
+    // Nouns of a fixed gender are checked with their modifiers above.
+    if (GENDERED[second.toLowerCase()]) continue;
     // A capital inside a sentence names something ("w Wysokiej", "łaski Bożej").
     const lower = /^\p{Ll}+$/u.test(first);
     if (!lower && !(/^\p{Lu}\p{Ll}+$/u.test(first) && sentenceStartAt(ctx.text, m.index))) continue;
@@ -622,6 +693,7 @@ export const DETECTORS = [
             ...numerals(ctx),
             ...genitiveObjects(ctx),
             ...negatedObjects(ctx),
+            ...fixedGenders(ctx),
             ...adjectives(ctx),
           ]
         : [],

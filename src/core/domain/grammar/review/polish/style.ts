@@ -381,6 +381,9 @@ export const PHRASES: readonly PhraseRow[] = [
   ...words("połknąć połknąłem połknęłam połknął połknęła połknęli połknąłeś").map(
     (verb): PhraseRow => [`${verb} bakcyl`, `${verb} bakcyla`],
   ),
+  // "wiórki" (shavings) is plural: "wiórków kokosowych", not the singular "wiórka".
+  ["wiórka kokosowe", "wiórki kokosowe"],
+  ["wiórek kokosowych", "wiórków kokosowych"],
   ["języczek uwagi", "języczek u wagi"],
   ["języczkiem uwagi", "języczkiem u wagi"],
   ["języczka uwagi", "języczka u wagi"],
