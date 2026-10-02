@@ -17,6 +17,7 @@ import {
   BOUNDARY,
   englishLine,
   governedBefore,
+  PRONOMINAL_ADVERB,
   isGerman,
   PRONOUNS,
   tokensAfter,
@@ -91,9 +92,6 @@ const CLAUSE_LINKS = wordSet(
 const IDIOMS =
   /^(?:kreuz und quer|sage und schreibe|gang und gäbe|zeit (?:seines|ihres|meines|deines))\b/iu;
 
-// "darüber", "hierunter", "worüber": a preposition joined to da-, hier- or wo-.
-const PRONOMINAL_ADVERB =
-  /^(?:da|dar|hier|wo|wor)(?:an|auf|aus|bei|durch|für|gegen|hinter|in|mit|nach|neben|über|um|unter|von|vor|zu|zwischen)$/u;
 const lower = (token: string | undefined) => token?.toLowerCase() ?? "";
 const isAdjective = (token: string) =>
   /^\p{Ll}{2,}(?:e|en|er|es|em)$/u.test(token) &&

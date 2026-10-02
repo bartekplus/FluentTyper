@@ -2,7 +2,17 @@ import { namedExampleBefore } from "../exampleCues";
 import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { germanAdjective, germanNounReading, germanVerbLike } from "./germanLexicon";
-import { governedBefore, isGerman, PRONOUNS, tokensAfter, tokensBefore, wordSet } from "./shared";
+import {
+  englishLine,
+  governedBefore,
+  isGerman,
+  PRONOMINAL_ADVERB,
+  PRONOUNS,
+  tokensAfter,
+  tokensBefore,
+  words,
+  wordSet,
+} from "./shared";
 
 // Adjectives used as nouns are capitalized: "im Freien", "zum Guten", "aufs Neue", "das
 // Beste daraus machen", "etwas Neues", "alles Gute", "auf Deutsch". Only where no noun
@@ -19,26 +29,109 @@ const FRAMES = [
   // "etwas neues", "nichts gutes", "viel schönes", "etwas ganz besonderes", "nichts allzu
   // gutes"; "alles gute", "manches schöne".
   `(?:etwas|nichts|viel|wenig|allerlei|genug)(?:${SPACE}(?:sehr|ganz|wirklich|total|allzu|besonders|ziemlich|richtig|echt|ganz${SPACE}schön)){0,2}${SPACE}(?<es>\\p{L}+es)|(?:alles|manches)${SPACE}(?<e>\\p{L}+e)`,
+  // "sein bestes geben", "ihr möglichstes tun", "mein erspartes".
+  `(?:mein|dein|sein|ihr|unser|euer)${SPACE}(?<poss>bestes|möglichstes|übriges|erspartes|liebstes)`,
+  // "das schöne daran", "das wichtige an der Sache", "das gute am Plan".
+  `[Dd]as${SPACE}(?<abs>\\p{Ll}+e)(?=${SPACE}(?:daran|dabei|darin|daraus|darauf|am|an${SPACE}(?:der|dem|den|diesem|dieser|ihm|ihr)))`,
   // A language as a noun: "auf deutsch", "in englisch", "kein französisch".
   `(?:auf|in|kein)${SPACE}(?<lang>deutsch|englisch|französisch|spanisch|italienisch|polnisch|russisch|türkisch|griechisch|schwedisch|portugiesisch|kroatisch|arabisch|chinesisch|japanisch|latein)`,
 ].map((f) => `(?:${f})${WORD_END}`);
 // Lowercase is standard or allowed: "am besten", "die meisten", "alles andere", "etwas
 // mehr", "ohne weiteres", "bei weitem".
 const LOWERCASE_OK = wordSet(
-  "anderen andere anderes einen einzigen meisten wenigsten mindesten ganzen beiden " +
+  "anderen andere anderes einen einzige einzigen meisten wenigsten mindesten ganzen beiden " +
     "weiteres mehr weniger viele vieles einiges solches folgendes mögliche dasselbe " +
     "denselben demselben letzten nächsten ersten",
 );
 const ENDING = /^(.+?)(?:sten|ste|sten|e|en|em|er|es)$/;
+// Stems of irregular comparatives and superlatives: "beste", "besseres", "höchste", "nächste".
+const IRREGULAR: Readonly<Record<string, string>> = {
+  be: "gut",
+  besser: "gut",
+  höch: "hoch",
+  näch: "nah",
+};
+const deumlaut = (w: string) => w.replace(/ä/g, "a").replace(/ö/g, "o").replace(/ü/g, "u");
+/**
+ * Whether the word is an inflected adjective or superlative ("gröbste"); with `comparative`,
+ * also a comparative or an irregular form ("schlimmeres", "besseres", "bestes").
+ */
+function adjectiveForm(typed: string, comparative = false): boolean {
+  const stem = ENDING.exec(typed)?.[1];
+  if (!stem) return false;
+  if (comparative && IRREGULAR[stem]) return true;
+  const stems = comparative ? [stem, stem.replace(/(?<=\p{L}{3})er$/u, "")] : [stem];
+  return stems.some((s) => [s, `${s}e`, deumlaut(s)].some((form) => germanAdjective(form)));
+}
+
+// Words in -es that are determiners or pronouns, not adjectives.
+const NOT_NEUTER_ADJECTIVES = wordSet(
+  "alles etwas nichts dieses jenes welches manches solches folgendes vieles weniges anderes " +
+    "einiges beides jedes keines meines deines seines ihres unseres eures eines dasselbe",
+);
+// Determiners that leave an adjective after them inflected for an elided noun ("ein neues").
+const DETERMINER =
+  /^(?:k?ein|[dms]ein|ihr|unser|euer|das|dies|jen|jed|welch|manch|solch|all|viel|wenig|etwas|nichts)(?:e|en|er|es|em)?$/;
+const DEGREE = wordSet(
+  "sehr ganz wirklich total allzu besonders ziemlich richtig echt so recht selbst",
+);
+
+/**
+ * A strong neuter adjective with no determiner and no noun after it is a noun: "Was gibt es
+ * neues?", "Wir wagen neues.", "um schlimmeres zu verhindern" ("Neues", "Schlimmeres"). Not
+ * "ein neues" (an elided noun) or "neues Wissen".
+ */
+function bareNeuter(ctx: DetectContext, findings: RawFinding[]): void {
+  for (const m of words(ctx)) {
+    const typed = m[0];
+    if (!/^\p{Ll}{2,}es$/u.test(typed) || NOT_NEUTER_ADJECTIVES.has(typed)) continue;
+    if (LOWERCASE_OK.has(typed) || ctx.dictionary.has(typed) || germanNounReading(typed)) continue;
+    if (!adjectiveForm(typed, true)) continue;
+    const before = tokensBefore(ctx.text, m.index, 6);
+    // Past degree words and other adjectives ("ein wirklich schönes neues").
+    let at = before.length - 1;
+    while (at > 0 && (DEGREE.has(before[at]) || before[at] === "," || adjectiveForm(before[at])))
+      at--;
+    const prior = before[at] ?? "";
+    // A lowercase word that is no determiner; "als erstes" and colloquial "was neues" are
+    // left to the frames and to the writer.
+    if (
+      !/^\p{Ll}+$/u.test(prior) ||
+      DETERMINER.test(prior) ||
+      /^(?:und|oder|sowie|als|was)$/.test(prior)
+    )
+      continue;
+    const end = m.index + typed.length;
+    const [next = "", second = ""] = tokensAfter(ctx.text, end, 2);
+    // A noun after it, or a list that may end in one ("weltliches, sondern geistliches Amt").
+    if (/^\p{Lu}/u.test(next) || /^(?:[-'’/,…]|und|oder|sowie|bzw|sondern|als)$/.test(next))
+      continue;
+    if (next === "." && second === ".") continue;
+    const adjective = (w: string) => /^\p{Ll}+(?:e|en|er|es|em)$/u.test(w) && adjectiveForm(w);
+    if (adjective(next) || (/^(?:,|und|oder)$/.test(next) && adjective(second))) continue;
+    if (germanNounReading(next) === "noun") continue;
+    if (namedExampleBefore(ctx.text, m.index) || englishLine(ctx.text, m.index)) continue;
+    findings.push({
+      ruleId: "germanNounCasing",
+      messageKey: "review_msg_german_noun_case",
+      range: { start: m.index, end: m.index + 1 },
+      alternatives: [typed[0].toUpperCase()],
+      context: { start: Math.max(0, m.index - 40), end },
+    });
+  }
+}
 
 /** Run by germanNounCasing's detector (nounCasing.ts). */
 export function nominalized(ctx: DetectContext): RawFinding[] {
   if (!isGerman(ctx)) return [];
   const findings: RawFinding[] = [];
+  bareNeuter(ctx, findings);
   for (const frame of FRAMES) {
     for (const m of frameMatches(ctx, frame, null)) {
       const groups = m.indices!.groups ?? {};
-      const name = ["target", "sup", "es", "e", "lang", "ganzen"].find((k) => groups[k]);
+      const name = ["target", "sup", "es", "e", "lang", "ganzen", "poss", "abs"].find(
+        (k) => groups[k],
+      );
       // The fixed phrases: capitalize the last word.
       const [start, end] = name
         ? groups[name]
@@ -47,14 +140,7 @@ export function nominalized(ctx: DetectContext): RawFinding[] {
       const typed = ctx.text.slice(start, end);
       if (!/^\p{Ll}/u.test(typed) || LOWERCASE_OK.has(typed) || ctx.dictionary.has(typed)) continue;
       // The word must be an adjective form (the languages are listed as such).
-      const stem = ENDING.exec(typed)?.[1];
-      if (
-        name !== "lang" &&
-        name &&
-        (!stem || !(germanAdjective(stem) || germanAdjective(`${stem}e`)))
-      ) {
-        continue;
-      }
+      if (name !== "lang" && name !== "poss" && name && !adjectiveForm(typed)) continue;
       // A noun or another adjective after it: "im freien Feld", "etwas neues Wissen".
       const [next = "", second = ""] = tokensAfter(ctx.text, end, 2);
       // Coordinated or parenthesized adjectives: "im privaten und beruflichen Bereich",
@@ -62,7 +148,11 @@ export function nominalized(ctx: DetectContext): RawFinding[] {
       // sondern im komplizierten Stil".
       if (/^(?:und|oder|bzw|sowie|\()$/.test(next) && name !== "ganzen") continue;
       if (next === "," && /^(?:sondern|\p{Ll}+(?:e|en|er|es|em))$/u.test(second)) continue;
-      const adjectiveNext = /^\p{Ll}+(?:e|en|er|es|em)$/u.test(next) && !germanVerbLike(next);
+      const adjectiveNext =
+        /^\p{Ll}+(?:e|en|er|es|em)$/u.test(next) &&
+        !germanVerbLike(next) &&
+        !PRONOMINAL_ADVERB.test(next) &&
+        !/^(?:hinter|unter|über|wider|aber|oder|sondern|weder|immer|wieder|gegen|ohne)$/.test(next);
       if (adjectiveNext && name !== "es" && name !== "e") continue;
       // "als erstes und einziges", "als letztes der Gase", "mehr als letztes?".
       if (!name && /^als/.test(m[0]) && !/^\p{Ll}+$/u.test(next)) continue;

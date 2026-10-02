@@ -125,6 +125,16 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Sie vergoss keine tränen darüber.", "Sie vergoss keine Tränen darüber."],
         ["Gib dir bitte etwas mühe.", "Gib dir bitte etwas Mühe."],
         ["Für die Prüfung brauchst du viel geduld.", "Für die Prüfung brauchst du viel Geduld."],
+        // Adjectives used as nouns with no noun after them.
+        ["Was habt ihr heute schönes erlebt?", "Was habt ihr heute Schönes erlebt?"],
+        ["Wir müssen schlimmeres verhindern.", "Wir müssen Schlimmeres verhindern."],
+        ["Sie hat beim Turnier ihr bestes gegeben.", "Sie hat beim Turnier ihr Bestes gegeben."],
+        ["Das gute daran ist der Preis.", "Das Gute daran ist der Preis."],
+        [
+          "Nach dem Sturm haben wir das gröbste geschafft.",
+          "Nach dem Sturm haben wir das Gröbste geschafft.",
+        ],
+        ["Ich bin mir nicht im klaren darüber.", "Ich bin mir nicht im Klaren darüber."],
       ],
       neg: [
         "Das ende ich jetzt sofort.",
@@ -143,6 +153,12 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         "Das ist bei uns gang und gäbe.",
         "Ich düse gleich los.",
         "Auf dem Schild stand opus magnum geschrieben.",
+        "Ich kaufe dir ein schönes neues.",
+        "Das Verhältnis war nicht das beste.",
+        "Sie ist nicht nur weltliches, sondern auch geistliches Oberhaupt.",
+        "Er springt von einem Boot ins nächste.",
+        "Das Produkt ist das einzige am Markt.",
+        "Sie trinkt gern kaltes Wasser.",
         "Mit dem leben wir schon lange.",
         "Das sage ich dir morgen.",
         "Das ist mir recht.",
@@ -295,6 +311,8 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Wir suchen einen neu Mitarbeiter.", "Wir suchen einen neuen Mitarbeiter."],
         ["Am Abend trinken sie gern rot Wein.", "Am Abend trinken sie gern Rotwein."],
         ["Im Herbst essen wir oft grün Kohl.", "Im Herbst essen wir oft Grünkohl."],
+        ["Wir liefern die Daten in digital Form.", "Wir liefern die Daten in Digitalform."],
+        ["Der Unfall geschah ohne fremd Verschulden.", "Der Unfall geschah ohne Fremdverschulden."],
         ["Die Mannschaft ist in best Form.", "Die Mannschaft ist in Bestform."],
         ["Er fordert einen höheren mindest Lohn.", "Er fordert einen höheren Mindestlohn."],
         [
@@ -360,8 +378,14 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
           "Wir prüfen die Gewinn- und Verlustrechnung.",
         ],
         ["Er ist gelernter Groß und Einzelhändler.", "Er ist gelernter Groß- und Einzelhändler."],
+        [
+          "Die Landes und Kommunalpolitiker trafen sich.",
+          "Die Landes- und Kommunalpolitiker trafen sich.",
+        ],
       ],
       neg: [
+        "Im Spanischen steht das Pronomen nach Infinitiv oder Gerundium.",
+        "Wir feiern Peters und Marias Hochzeitstag.",
         "Sie rotteten das Unkraut mit Stumpf und Stiel aus.",
         "Ein Fest für Jung und Alt.",
         "Die Firma und Kunden sind zufrieden.",
@@ -690,6 +714,11 @@ describe("germanCompounds", () => {
     ["Zum Brot backen braucht man Geduld.", "Zum Brotbacken braucht man Geduld."],
     ["Vielen Dank für das Fenster putzen!", "Vielen Dank für das Fensterputzen!"],
     ["Er freute sich, das zulesen.", "Er freute sich, das zu lesen."],
+    ["Ist es klug unter zu tauchen?", "Ist es klug unterzutauchen?"],
+    [
+      "Nachdem sie das vor geschlagen hatte, war es still.",
+      "Nachdem sie das vorgeschlagen hatte, war es still.",
+    ],
     [
       "Es wundert mich zusehen, wie schnell das geht.",
       "Es wundert mich zu sehen, wie schnell das geht.",
@@ -721,6 +750,8 @@ describe("germanCompounds", () => {
     "Wir sollten, statt zu reden, zuhören.",
     "Er bat mich, zuzuhören.",
     "Bitte, zuhören!",
+    "Die Sonne ging unter zu dieser Zeit.",
+    "Er war zu gelassen, um sich zu ärgern.",
   ])("leaves %p alone", (input) => {
     expect(findings("germanCompounds", input)).toEqual([]);
   });

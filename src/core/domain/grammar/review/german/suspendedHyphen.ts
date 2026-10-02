@@ -38,7 +38,13 @@ function joins(first: string, second: string, noun: boolean): boolean {
       if (knownNoun(first.toLowerCase() + tail)) return true;
       // "Vor und Nachteile", "Neu und Gebrauchtwagen": two modifiers on one noun, as the
       // dictionary lists few compounds whole.
-      if (modifier(first.toLowerCase()) && modifier(low.slice(0, i))) return true;
+      // A short adjective-like piece ("ger|undium") is no modifier.
+      const piece = low.slice(0, i);
+      if (
+        modifier(first.toLowerCase()) &&
+        (PARTICLES.has(piece) || (piece.length >= 4 && modifier(piece)))
+      )
+        return true;
       continue;
     }
     // "auszuloggen" → "loggen": a zu-infinitive's tail.
@@ -89,6 +95,16 @@ function suspendedHyphen(ctx: DetectContext): RawFinding[] {
       // "Staats und Regierungschefs": a linking -s marks a compound part. "Umwelt und
       // Naturschutz": the first part is a noun of its own, so both readings work.
       const linking = /s$/.test(low) && knownNoun(low.slice(0, -1));
+      // "die Staats und Regierungschefs", "beim Anwalts und Notarverein": a linking -s before a
+      // compound, not a genitive after its own article ("des Staats").
+      sure ||=
+        /s$/.test(low) &&
+        nounTail(low.slice(0, -1)) &&
+        !/^(?:des|eines|keines|meines|deines|seines|ihres|unseres|eures|dieses|jenes|jedes)$/i.test(
+          prior,
+        ) &&
+        !knownNoun(second.toLowerCase()) &&
+        nounTail(second.toLowerCase());
       if (!sure && !linking && germanNounReading(low) === "noun") continue;
     }
     if (!sure && !joins(first, second, capital)) continue;

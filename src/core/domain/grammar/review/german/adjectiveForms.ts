@@ -49,7 +49,8 @@ const COMPOUND_FIRST = wordSet(
 );
 const COMPOUND_ALONE = wordSet(
   "rot blau grün gelb schwarz grau braun bunt süß sauer bitter mager trocken weich " +
-    "brachial universal schwarzweiß best mindest höchst kleinst größt",
+    "brachial universal schwarzweiß best mindest höchst kleinst größt digital fremd gesamt " +
+    "flüssig passiv initiativ spezial",
 );
 // Determiners and pronouns the adjective filter accepts ("bei ihr Rat", "für ihr Werk").
 const PRONOUN_LIKE = /^(?:k?ein|[dms]ein|ihr|unser|euer|dies|jen|jed|welch|manch|solch|all|viel)$/;
@@ -270,7 +271,8 @@ function bareAdjectives(ctx: DetectContext): RawFinding[] {
     if (
       /^d(?:er|ie|as|en|em)$/.test(low) &&
       !sentenceStart &&
-      !PREPOSITIONS.has(prior.toLowerCase())
+      !PREPOSITIONS.has(prior.toLowerCase()) &&
+      !COMPOUND_ALONE.has(adj)
     ) {
       continue;
     }
