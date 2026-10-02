@@ -935,6 +935,57 @@ function consideredAs(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+/* ------------------------------------------------- "Bruno Schulza" -> "Brunona" */
+
+/** Foreign first names in -o and their genitive, dative and instrumental stems. */
+const O_NAMES: Record<string, [genitive: string, dative: string, instrumental: string]> = {
+  Bruno: ["Brunona", "Brunonowi", "Brunonem"],
+  Hugo: ["Hugona", "Hugonowi", "Hugonem"],
+  Otto: ["Ottona", "Ottonowi", "Ottonem"],
+  Pablo: ["Pabla", "Pablowi", "Pablem"],
+  Mario: ["Maria", "Mariowi", "Mariem"],
+  Paulo: ["Paula", "Paulowi", "Paulem"],
+  Leonardo: ["Leonarda", "Leonardowi", "Leonardem"],
+  Ricardo: ["Ricarda", "Ricardowi", "Ricardem"],
+  Fernando: ["Fernanda", "Fernandowi", "Fernandem"],
+  Antonio: ["Antonia", "Antoniowi", "Antoniem"],
+  Alfonso: ["Alfonsa", "Alfonsowi", "Alfonsem"],
+  Romano: ["Romana", "Romanowi", "Romanem"],
+  Guido: ["Guida", "Guidowi", "Guidem"],
+  Sergio: ["Sergia", "Sergiowi", "Sergiem"],
+  Claudio: ["Claudia", "Claudiowi", "Claudiem"],
+};
+const O_NAME = new RegExp(
+  `(?<![\\p{L}\\p{N}_'’-])(?<name>${Object.keys(O_NAMES).join("|")})[ \\t\\u00a0]{1,8}(?<surname>\\p{Lu}\\p{Ll}{2,}?(?<ending>owi|em|a|y|i))(?![\\p{L}\\p{N}_'’-])`,
+  "gdu",
+);
+
+/**
+ * "prozę Bruno Schulza", "pomnik Hugo Kołłątajowi": a Polish surname in an oblique case takes
+ * the first name along. "-owi" and "-em" say the case; "-a", "-y" and "-i" (also nominative
+ * endings: "Pablo Neruda") only after a noun or a genitive preposition.
+ */
+function uninflectedNames(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of owned(ctx, O_NAME)) {
+    const { name, ending } = m.groups!;
+    const forms = O_NAMES[name];
+    let form: string;
+    if (ending === "owi") form = forms[1];
+    else if (ending === "em") form = forms[2];
+    else {
+      const before = wordBefore(ctx.text, m.index);
+      if (!before || !(onlyNoun(nounTags(before)) || GOVERNED[before] === cases("Gs Gp"))) continue;
+      form = forms[0];
+    }
+    findings.push({
+      ...findingAt(ctx, m.index, m.index + name.length, [form], RULE, "review_msg_pl_agreement"),
+      context: { start: m.index, end: m.index + m[0].length },
+    });
+  }
+  return findings;
+}
+
 /* ------------------------------------------------------------ "który" agreement */
 
 type Reading = [genders: number, plural: boolean];
@@ -1077,6 +1128,7 @@ export const DETECTORS = [
             ...adjectives(ctx),
             ...consideredAs(ctx),
             ...relatives(ctx),
+            ...uninflectedNames(ctx),
           ]
         : [],
   },

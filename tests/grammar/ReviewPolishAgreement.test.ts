@@ -119,6 +119,9 @@ const POSITIVES: Array<[string, string, string | null]> = [
   // A count after a genitive-taking word stands in the genitive.
   ["Na koncert przyszło około trzysta osób.", "trzysta", "Na koncert przyszło około trzystu osób."],
   ["Czekaliśmy do cztery godzin.", "cztery", "Czekaliśmy do czterech godzin."],
+  // A first name in -o follows its surname's case.
+  ["Lubię opowiadania Bruno Schulza.", "Bruno", "Lubię opowiadania Brunona Schulza."],
+  ["Wręczono nagrodę Hugo Nowakowi.", "Hugo", "Wręczono nagrodę Hugonowi Nowakowi."],
   // "który" in another gender or number than its noun.
   [
     "Trzymam w ogrodzie kota, która nie lubi wody.",
@@ -204,6 +207,8 @@ const NEGATIVES = [
   "Dodaj do tego dwa jajka.",
   "Spóźniła się o około trzy minuty.",
   "Wrócę za około dwa dni.",
+  "Pablo Neruda pisał wiersze.",
+  "Bruno Schulz mieszkał w Drohobyczu.",
   "Poznałem córkę sąsiada, która gra na skrzypcach.",
   "Kupiłem książkę z obrazkami, która mi się podoba.",
   "To jedna z osób, która mi pomogła.",

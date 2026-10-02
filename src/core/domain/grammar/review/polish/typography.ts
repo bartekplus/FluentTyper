@@ -129,6 +129,20 @@ const SWAPS: Swap[] = [
   { regex: /(?<=\p{L}[.!?])„(?=\p{L})/gu, fix: () => " „" },
   // "problem…." -> one ellipsis.
   { regex: /…\.(?!\.)/gu, fix: () => "…" },
+  // "30g cukru", "w 2000r." -> a space between a number and "g" or the year's "r.".
+  { regex: /(?<![\p{L}\p{N}.,])(\p{N}{1,4})g(?=[ \u00a0]+\p{Ll}{3,})/gu, fix: (m) => `${m[1]} g` },
+  { regex: /(?<![\p{L}\p{N}.,])(\p{N}{3,4})r\.(?![\p{L}])/gu, fix: (m) => `${m[1]} r.` },
+  // "o 1, 9 proc." -> "1,9": no space after a decimal comma before a percentage.
+  {
+    regex:
+      /(?<![\p{N}][ \u00a0]?,[ \u00a0]?|[\p{N}.,])(\p{N}{1,3}), (\p{N}{1,2})(?=[ \u00a0]?(?:%|proc\.|procent))/gu,
+    fix: (m) => `${m[1]},${m[2]}`,
+  },
+  // "pierwszo–, drugo- i trzeciorzędowy": a hanging prefix in a list takes a hyphen, not a dash.
+  {
+    regex: /(?<=(?<![\p{L}])\p{Ll}{2,}[ouy])[–—](?=,)/gu,
+    fix: () => "-",
+  },
   // "przykład.," -> "przykład,": a full word takes no dot before a comma.
   { regex: /(?<=(?<![\p{L}.])\p{Ll}{5,})\.(?=,)/gu, fix: () => "" },
 ];

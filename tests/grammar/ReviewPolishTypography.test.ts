@@ -41,6 +41,13 @@ const CASES: Record<string, { pos: Array<[string, string]>; neg: string[] }> = {
       ["Wrócił do domu ; nikt nie czekał.", "Wrócił do domu; nikt nie czekał."],
       ["Nie wiem, co dalej….", "Nie wiem, co dalej…"],
       ["Podał przykład., który znaliśmy.", "Podał przykład, który znaliśmy."],
+      ["Dodaj 250g mąki.", "Dodaj 250 g mąki."],
+      ["Szkołę zbudowano w 1965r.", "Szkołę zbudowano w 1965 r."],
+      ["Bezrobocie spadło o 2, 4 proc.", "Bezrobocie spadło o 2,4 proc."],
+      [
+        "Mamy związki dwu–, trzy- i czterowartościowe.",
+        "Mamy związki dwu-, trzy- i czterowartościowe.",
+      ],
     ],
     neg: [
       "Wiem — dodała cicho — że się spóźnię.",
@@ -57,6 +64,8 @@ const CASES: Record<string, { pos: Array<[string, string]>; neg: string[] }> = {
       "Funkcja f(x)=y jest rosnąca.",
       "Pokój podpisano 12 X 1945 r.",
       "Senator Kay Hagan (R) zabrała głos.",
+      "Nowy telefon obsługuje 5G bez problemu.",
+      "Ćwiczenia 1, 2, 3 proc. ocen dają ekstra punkty.",
     ],
   },
   polishQuotes: {
@@ -171,6 +180,9 @@ describe("polishCapitalization", () => {
     ["Studiowała w toruniu i w gdańsku.", "Studiowała w Toruniu i w Gdańsku."],
     ["Wakacje spędzimy na mazurach.", "Wakacje spędzimy na Mazurach."],
     ["Paczka przyszła z niemiec.", "Paczka przyszła z Niemiec."],
+    ["Sklep jest przy al. Racławickie 12.", "Sklep jest przy Al. Racławickie 12."],
+    ["Szliśmy alejami Ujazdowskimi.", "Szliśmy Alejami Ujazdowskimi."],
+    ["Mieszka przy Ulicy Lipowej.", "Mieszka przy ulicy Lipowej."],
   ])("fixes %p", (text, fixed) => {
     expect(fixAll("polishCapitalization", text)).toBe(fixed);
   });
@@ -190,6 +202,8 @@ describe("polishCapitalization", () => {
     "Łowili ryby w łodzi przy brzegu.",
     "Pracuje nad poznaniem świata i w poznaniu widzi sens.",
     "Do dania dodaj szczyptę soli.",
+    "Mieszkam przy al. Mickiewicza.",
+    "Ulica Lipowa jest wąska.",
   ])("leaves %p", (text) => {
     expect(findings("polishCapitalization", text)).toEqual([]);
   });
