@@ -1245,6 +1245,65 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
       ],
     },
   ],
+  [
+    "spanishAccents",
+    "qué after a preposition, a verb of knowing or wondering, and aun before a negated gerund",
+    {
+      pos: [
+        [
+          "Nadie entiende hasta que punto le importa.",
+          "Nadie entiende hasta qué punto le importa.",
+        ],
+        ["Dime de que color lo quieres.", "Dime de qué color lo quieres."],
+        ["No sabíamos a que hora salía el tren.", "No sabíamos a qué hora salía el tren."],
+        ["Ignoro de que se queja.", "Ignoro de qué se queja."],
+        ["Me pregunto que pensaba mi abuelo.", "Me pregunto qué pensaba mi abuelo."],
+        [
+          "Les preguntamos que libros leer este verano.",
+          "Les preguntamos qué libros leer este verano.",
+        ],
+        [
+          "No sabía que comprarle a mi hermana por su cumpleaños.",
+          "No sabía qué comprarle a mi hermana por su cumpleaños.",
+        ],
+        ["Aún no teniendo dinero, nos invitó.", "Aun no teniendo dinero, nos invitó."],
+        ["Para mi es un honor.", "Para mí es un honor."],
+      ],
+      neg: [
+        "Esperó hasta que llegó su madre.",
+        "Lo conoce desde que era niño.",
+        "Se dio cuenta de que llovía.",
+        "Le pregunté que si venía a cenar.",
+        "Lo hizo de modo que nadie lo viera.",
+        "Se alegra de que gente como tú venga.",
+        "Sé que bajar música sin pagar está mal.",
+        "Aún no ha llegado el cartero.",
+        "En mi era no había teléfonos móviles.",
+      ],
+    },
+  ],
+  [
+    "spanishAgreement",
+    "a determiner against the agreeing word and the noun after it",
+    {
+      pos: [
+        ["Trajo muchos otras cosas.", "Trajo muchas otras cosas."],
+        ["Volvió una pocas semanas después.", "Volvió unas pocas semanas después."],
+        ["¿Tienes alguna otro remedio para la tos?", "¿Tienes algún otro remedio para la tos?"],
+        ["Leí la tres novelas del verano.", "Leí las tres novelas del verano."],
+        ["Vivió en los tres casas del barrio.", "Vivió en las tres casas del barrio."],
+        ["Estos dos casas son nuevas.", "Estas dos casas son nuevas."],
+      ],
+      neg: [
+        "Había demasiado pocas sillas para todos.",
+        "Uno tardó dos días y otro tres días.",
+        "Es la tres veces campeona de Europa.",
+        "Comí con el dos veces ganador del torneo.",
+        "Las otras tres hermanas llegaron tarde.",
+        "Unos pocos días bastaron.",
+      ],
+    },
+  ],
 ];
 
 describe.each(FIXTURES)("%s: %s", (ruleId, _family, fixture) => {

@@ -841,6 +841,51 @@ function determinerAdjectiveNoun(
   return replaceToken(ctx, tokens[i], [fix], RULE, MESSAGE, nounToken);
 }
 
+const DEGREE_WORDS = words("mucho poco demasiado tanto cuanto cuánto");
+// Determiners that never stand alone before a number: "las tres reglas", "estos dos libros".
+const NUMBERED = words("el este ese aquel nuestro vuestro del al");
+// Prenominal words that agree with the noun after them: "otras cosas", "pocas semanas".
+const AGREEING_BEFORE =
+  /^(?:otr|poc|much|mism|nuev|viej|únic|últim|propi|verdader|antigu|pequeñ)(?:o|a|os|as)$/u;
+
+/**
+ * "muchos otras cosas" -> "muchas", "una pocas semanas" -> "unas", "la tres reglas" -> "las":
+ * the word between agrees with the noun, so the determiner is the odd one out.
+ */
+function determinerAcross(ctx: DetectContext, tokens: Token[], i: number): RawFinding | null {
+  const det = DETERMINER.get(tokens[i].lower);
+  const middle = tokens[i + 1];
+  const nounToken = tokens[i + 2];
+  if (!det || genderless(det) || !middle?.word || middle.broken) return null;
+  if (!nounToken?.word || nounToken.broken || /^\p{Lu}/u.test(nounToken.text)) return null;
+  if (ctx.dictionary.has(nounToken.lower) || ctx.dictionary.has(middle.lower)) return null;
+  const noun = readNoun(nounToken.lower);
+  if (!noun?.gender || noun.invariant || EITHER.has(noun.singular)) return null;
+  let gender: Gender = noun.gender;
+  // "demasiado pocas respuestas", "mucho mejores notas": the adverb, not the determiner.
+  if (det.slot === 0 && DEGREE_WORDS.has(tokens[i].lower)) return null;
+  if (CARDINALS.has(middle.lower)) {
+    // "la tres veces campeona": a count of times, not of the noun. "una tres meses y otra
+    // cuatro" are pronouns, and "con el cuatro películas" may be "él".
+    if (!noun.plural || nounToken.lower === "veces" || !NUMBERED.has(det.forms[0])) return null;
+    if (tokens[i].lower === "el") return null;
+    // "la tres reglas": the noun's gender is surer only when the determiner's is wrong too.
+    if (det.slot >= 2) {
+      if ((det.slot % 2 ? "f" : "m") === gender || noun.paired) return null;
+    }
+  } else {
+    const adjective = AGREEING_BEFORE.test(middle.lower) ? genderedForm(middle.lower) : null;
+    if (!adjective || adjective.plural !== noun.plural) return null;
+    if ((adjective.feminine ? "f" : "m") !== gender) return null;
+    gender = adjective.feminine ? "f" : "m";
+  }
+  const fix = det.forms[(gender === "f" ? 1 : 0) + (noun.plural ? 2 : 0)];
+  if (fix === tokens[i].lower) return null;
+  // "el agua", "un hacha": a stressed a- noun right after the article.
+  if (BEFORE_STRESSED_A.has(tokens[i].lower) && /^h?[aá]/u.test(middle.lower)) return null;
+  return replaceToken(ctx, tokens[i], [fix], RULE, MESSAGE, nounToken);
+}
+
 function agreement(ctx: DetectContext): RawFinding[] {
   if (ctx.lang.slice(0, 2) !== "es") return [];
   const tokens = tokenize(ctx);
@@ -853,6 +898,7 @@ function agreement(ctx: DetectContext): RawFinding[] {
       superlativeAdjective(ctx, tokens, i) ??
       determinerNoun(ctx, tokens, i) ??
       determinerAdjectiveNoun(ctx, tokens, i) ??
+      determinerAcross(ctx, tokens, i) ??
       postponedAdjective(ctx, tokens, i) ??
       articleSuperlative(ctx, tokens, i) ??
       darPorParticiple(ctx, tokens, i) ??

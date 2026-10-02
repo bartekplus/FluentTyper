@@ -56,7 +56,13 @@ const LEAD = words("y e o u pero pues entonces bueno ah oye");
 const ADVERBIALS = words("bien mal tarde pronto aquí allí ahí siempre nunca");
 // Verbs whose object can be an indirect question: "no sé qué hacer", "pregunta dónde vive".
 const KNOWING =
-  /^(?:sé|sabe|sabes|sabemos|saben|sabéis|sabía|sabías|sabían|sabíamos|saber|sabiendo|supe|supo|supieron|supiera|supiéramos|pregunt\p{L}*|decidir|decide|decidió|decidieron|elegir|explica|explícame|explíqueme|explicar|imagin\p{L}*|recuerdo|recuerda|recordaba|averiguar|entender|entiendo|ignoro|dime|dinos)$/u;
+  /^(?:sé|sabe|sabes|sabemos|saben|sabéis|sabía|sabías|sabían|sabíamos|saber|sabiendo|sabido|sabrá|sabré|sabría|supe|supo|supieron|supiera|supiéramos|pregunt\p{L}*|decidir|decide|decidió|decidieron|elegir|explica|explícame|explíqueme|explicar|imagin\p{L}*|recuerdo|recuerda|recordaba|averiguar|entender|entiendo|ignoro|dime|dinos)$/u;
+
+// Nouns a question asks about after a preposition: "hasta qué punto", "de qué manera".
+const QUESTION_NOUNS = words(
+  "punto forma manera modo hora color momento medida tipo clase edad precio tamaño frecuencia " +
+    "razón motivo lado parte",
+);
 
 // The verbs whose "que" + noun can only be "qué": "¿sabes qué libro…?", "pregunta qué hora es".
 const ASKING =
@@ -182,10 +188,12 @@ function wishAfter(at: Around, k = 1): boolean {
 
 /** At most three words, none a finite verb, close the clause after tokens[i + k]. */
 function shortClause(at: Around, k: number): boolean {
-  for (let n = 1; n <= 4; n++) {
+  for (let n = 1; n <= 8; n++) {
     if (at.endsAfter(k + n - 1)) return true;
     const word = at.next(k + n);
     if (!word || FINITE.has(word) || word === "está" || word === "que") return false;
+    // Past four words, only a clause with no other verb: "qué regalarle a los niños por Navidad".
+    if (n > 4 && finiteVerb(word) && !isNoun(word) && !attributeOf(word)) return false;
   }
   return false;
 }
@@ -276,17 +284,51 @@ function interrogative(at: Around): string | null {
     const verb = CLITICS.has(next) ? at.next(2) : next;
     if (verb && FINITE_NOT_NOUN(verb) && !subjunctiveLike(verb)) return accented;
   }
+  // "me pregunto qué quería": wondering asks; "le pregunto que si viene" reports.
+  if (
+    word === "que" &&
+    /^pregunt\p{L}*$/u.test(prev) &&
+    /^(?:me|te|se|nos|os)$/u.test(at.prev(2)) &&
+    !!next &&
+    FINITE_NOT_NOUN(next) &&
+    !isNoun(next) &&
+    !subjunctiveLike(next)
+  )
+    return accented;
   // "no sé qué hacer", "sabes qué libro", "pregunta dónde vive".
   if (KNOWING.test(prev) || (prev === "se" && /^(?:no|yo|lo|ya)$/u.test(at.prev(2)))) {
     if (!next) return null;
     // "no sé qué hacer ahora"; "sé que bajar música sin pagar está mal" is a statement.
     if (isInfinitive(next)) return shortClause(at, 1) ? accented : null;
+    // "me preguntaba qué medidas tomar": a noun and the infinitive it is the object of.
+    if (word === "que" && (isNoun(next) || !!attributeOf(next)) && isInfinitive(at.next(2)))
+      return shortClause(at, 2) ? accented : null;
     if (word === "que") return ASKING.test(prev) && solidNoun(next) ? accented : null;
     if (word === "donde" || word === "adonde" || word === "quien" || word === "quienes")
       return CLITICS.has(next) || !!nextToken?.word ? accented : null;
     if (word === "cual" || word === "cuales")
       return /^(?:es|son|era|eran|fue|será|sería|de)$/u.test(next) ? accented : null;
   }
+  // "no sé a qué se refiere", "me pregunto con qué ideas vendrá": a verb of knowing, a
+  // preposition and "que"; "saber de que" is no conjunction ("darse cuenta de que" is).
+  if (
+    word === "que" &&
+    /^(?:a|de|con|en|sobre)$/u.test(prev) &&
+    KNOWING.test(at.prev(2)) &&
+    !inQuestion(at) &&
+    next &&
+    !DETERMINERS.has(next)
+  )
+    return accented;
+  // "hasta qué punto", "de qué forma", "a qué hora": a preposition, then "que" and a bare
+  // noun that a question asks about; the conjunction would need a clause with its subject.
+  if (
+    word === "que" &&
+    /^(?:a|de|en|hasta|por|con|desde)$/u.test(prev) &&
+    QUESTION_NOUNS.has(next) &&
+    !/^(?:de|que)$/u.test(at.next(2))
+  )
+    return accented;
   // "Que divertido.", "Que mujer tan lista.": an exclamation without its opening mark.
   const before = at.tokens[at.i - 1];
   const sentenceStart = !before || at.tokens[at.i].broken || /^[.!?…]$/u.test(before.text);
@@ -307,10 +349,17 @@ const BEFORE_NOUN = words(
     "querido querida pobre viejo vieja nuevo nueva otro otra",
 );
 const NUMBERS = words("dos tres cuatro cinco seis siete ocho nueve diez cien mil");
+// Verb forms no possessive goes before, though the dictionary lists "es" (the letter) and
+// "fue" as nouns; "mi era", "mi vino" and "mi son" are nouns too.
+const ONLY_VERBS = words(
+  "es fue fui dijo hizo puso tuvo estuvo quiso supo pudo trajo eres soy somos estás va van ha " +
+    "han hay parece parecen resulta resultan",
+);
 /** After "para mi": a word that starts no noun phrase ("para mí es", "aparta de mí este"). */
 const notNounPhrase = (word: string) =>
   !BEFORE_NOUN.has(word) &&
-  (DETERMINERS.has(word) ||
+  (ONLY_VERBS.has(word) ||
+    DETERMINERS.has(word) ||
     PREPOSITIONS.has(word) ||
     NUMBERS.has(word) ||
     /^(?:algo|nada|esto|eso|también|tampoco)$/u.test(word) ||
@@ -437,7 +486,8 @@ function monosyllable(at: Around): string | null {
       // "a mí me gusta", "para mí, …", "confía en mí", "aparta de mí este cáliz".
       if (!PREPOSITIONS.has(prev)) return null;
       if (ends || /^(?:mismo|misma|me|que|no|el|la|los|las|lo)$/u.test(next)) return "mí";
-      // "en mi contra" is the possessive idiom.
+      // "en mi contra" is the possessive idiom; "en mi era" the noun.
+      if (next === "era" && (prev === "en" || prev === "de")) return null;
       if (
         next &&
         next !== "contra" &&
@@ -661,6 +711,8 @@ function monosyllable(at: Around): string | null {
       // "estaban aún durmiendo" keeps "still" between "estar" and its gerund.
       if (next === "si" || next === "cuando" || (isGerund(next) && !/^est[aá]/u.test(prev)))
         return "aun";
+      // "Aun no siendo cierto": even, before a negated gerund.
+      if (next === "no" && isGerund(at.next(2))) return "aun";
       // "Aún sin saberlo, se fue", "Aún cansado, lo intentó": a concessive phrase opening the
       // sentence and closed by a comma before its verb.
       if (at.starts && (PREPOSITIONS.has(next) || participleOf(next)) && concessive(at))
