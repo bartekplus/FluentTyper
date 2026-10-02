@@ -206,7 +206,8 @@ type Frame = {
 };
 
 /** Not right after one of these whole words. */
-const notAfter = (words: string) => `(?<!(?<![\\p{L}'’])(?:${words})${S})`;
+// A letter first: off words (on long runs of spaces) the lookbehind is never tried.
+const notAfter = (words: string) => `(?=\\p{L})(?<!(?<![\\p{L}'’])(?:${words})${S})`;
 /** Only spaces, then closing punctuation or the end of the text. */
 const CLOSES = `(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:)"”]|$))`;
 /**
@@ -304,7 +305,7 @@ const FRAMES: readonly Frame[] = [
   {
     // "The trial is fee for members": a predicate "free"; "there is a fee" stays.
     rule: "englishPhraseCorrections",
-    pattern: `(?<=(?:(?<!there${S})(?<![\\p{L}'’])(?:is|was|are|were|be|been)|(?<!there)['’]s)${S}(?:(?:totally|completely|entirely|absolutely|really|always|now|still|also|actually|just|basically|usually|currently)${S})?)(?<target>fee)${E}(?:${CLOSES}|(?=${S}(?:for|to|and|or|but|forever|now|again|today)${E}))`,
+    pattern: `(?=fee)(?<=(?:(?<!there${S})(?<![\\p{L}'’])(?:is|was|are|were|be|been)|(?<!there)['’]s)${S}(?:(?:totally|completely|entirely|absolutely|really|always|now|still|also|actually|just|basically|usually|currently)${S})?)(?<target>fee)${E}(?:${CLOSES}|(?=${S}(?:for|to|and|or|but|forever|now|again|today)${E}))`,
     fix: "free",
   },
   {
@@ -383,7 +384,7 @@ const FRAMES: readonly Frame[] = [
   },
   {
     rule: "englishPhraseCorrections",
-    pattern: `(?<=(?<![\\p{L}'’])(?:am|is|are|was|were|be|been|being|back|have|has|had|having|keep|keeps|kept|it|them|inventory|not|still|currently|already)${S})(?<target>on)${S}stock${E}(?:${CLOSES}|(?=${S}(?:at|but|or|for|and|in|again|now|yet|anymore|soon|today|until|right|though)${E}))`,
+    pattern: `(?=on${S}stock)(?<=(?<![\\p{L}'’])(?:am|is|are|was|were|be|been|being|back|have|has|had|having|keep|keeps|kept|it|them|inventory|not|still|currently|already)${S})(?<target>on)${S}stock${E}(?:${CLOSES}|(?=${S}(?:at|but|or|for|and|in|again|now|yet|anymore|soon|today|until|right|though)${E}))`,
     fix: "in",
   },
   {
@@ -434,7 +435,7 @@ const FRAMES: readonly Frame[] = [
     // "if I would've known": the past conditional takes "had". After "know" or "wonder",
     // "if" means "whether": "I don't know if he would have done it".
     rule: "englishPhraseCorrections",
-    pattern: `(?<!(?:know|knows|knew|wonder|wondered|wondering|ask|asked|asking|sure|doubt|see|check|tell|decide)${S})if${S}(?:I|you|we|they|he|she|it|(?:the|that|this|my|your|his|her|our|their)${S}\\p{L}+)${S}(?<target>(?<not>would${S}not${S}have|wouldn['’]t${S}have)|would['’]ve|would${S}have|would${S}of|had['’]ve|hadve|had${S}of|had${S}have)${S}(?<done>\\p{L}+)${E}`,
+    pattern: `(?=if${S})(?<!(?:know|knows|knew|wonder|wondered|wondering|ask|asked|asking|sure|doubt|see|check|tell|decide)${S})if${S}(?:I|you|we|they|he|she|it|(?:the|that|this|my|your|his|her|our|their)${S}\\p{L}+)${S}(?<target>(?<not>would${S}not${S}have|wouldn['’]t${S}have)|would['’]ve|would${S}have|would${S}of|had['’]ve|hadve|had${S}of|had${S}have)${S}(?<done>\\p{L}+)${E}`,
     fix: (m) => {
       const done = m.groups!.done.toLowerCase();
       const not = m.groups!.not;
@@ -504,7 +505,7 @@ const FRAMES: readonly Frame[] = [
   {
     // "Need help, its critical": "it's" before a lone predicate adjective.
     rule: "englishItsContext",
-    pattern: `(?<=,${S}|(?<![\\p{L}'’])(?:because|since|so|but|and|if|when|think|hope|guess|know|sure)${S})(?<target>its)${S}(?<adjective>\\p{L}+)(?:(?=${S}(?:for|to|that|because|and|but|if|when|now|again|too|enough|here|there|anyway|though|since|as)${E})|${CLOSES})`,
+    pattern: `(?=its${S})(?<=,${S}|(?<![\\p{L}'’])(?:because|since|so|but|and|if|when|think|hope|guess|know|sure)${S})(?<target>its)${S}(?<adjective>\\p{L}+)(?:(?=${S}(?:for|to|that|because|and|but|if|when|now|again|too|enough|here|there|anyway|though|since|as)${E})|${CLOSES})`,
     fix: (m) => {
       const word = info(m.groups!.adjective);
       return word?.adjective && !word.noun && !word.verbs.length ? "it's" : null;

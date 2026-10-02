@@ -1,6 +1,6 @@
 import { namedExampleBefore } from "../exampleCues";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
-import { germanInfinitive, germanNounReading, germanVerbLike } from "./germanLexicon";
+import { germanGender, germanInfinitive, germanNounReading, germanVerbLike } from "./germanLexicon";
 import { englishLine, isGerman, tokensAfter, tokensBefore, words, wordSet } from "./shared";
 
 // A pronoun subject and a finite verb that does not fit it: "wir habe" (haben), "du kann"
@@ -212,6 +212,45 @@ function verbAgreement(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+// A plural noun subject opening the sentence and a singular verb right after it: "Die Schüler
+// soll" (sollen), "Die Frauen wurde" (wurden). The noun is plural when "die" stands before a
+// masculine or neuter noun, or before a feminine noun's -en/-n form.
+const PLURAL_SUBJECT =
+  /(?<=(?:^|[.!?:\n„"][ \t]{0,4}))(?:Die|Diese|Alle|Meine|Deine|Seine|Ihre|Unsere|Eure|Viele|Manche|Einige|Beide)(?:[ \t]+\p{Ll}+(?:e|en))?[ \t]+(?<noun>\p{Lu}\p{Ll}{2,})[ \t]+(?<verb>\p{Ll}+)(?![\p{L}\p{M}])/gu;
+
+function pluralNoun(noun: string): boolean {
+  const reading = germanGender(noun);
+  if (reading) return reading.gender !== "f" ? reading.plural : false;
+  // "Lehrerinnen", "Frauen", "Regeln": a feminine noun's plural.
+  if (/innen$/.test(noun)) return germanGender(noun.slice(0, -3))?.gender === "f";
+  const singular = /^(.+?)e?n$/.exec(noun)?.[1];
+  if (singular && singular.length >= 3 && germanGender(singular)?.gender === "f") return true;
+  // "Gäste", "Bäume": an umlauted plural of a masculine noun.
+  const umlaut = /^(.*)([äöü])([^aeiouäöü]*)e$/.exec(noun);
+  if (!umlaut) return false;
+  const base = umlaut[1] + { ä: "a", ö: "o", ü: "u" }[umlaut[2]]! + umlaut[3];
+  return germanGender(base)?.gender === "m";
+}
+
+function pluralSubject(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  PLURAL_SUBJECT.lastIndex = ctx.from;
+  for (
+    let m = PLURAL_SUBJECT.exec(ctx.scanText);
+    m && m.index < ctx.to;
+    m = PLURAL_SUBJECT.exec(ctx.scanText)
+  ) {
+    const { noun, verb } = m.groups!;
+    if (!FORMS.get(verb)?.some((f) => f.slot === 2) || !pluralNoun(noun)) continue;
+    if (ctx.dictionary.has(noun.toLowerCase()) || englishLine(ctx.text, m.index)) continue;
+    const fits = fitting(verb, [5]);
+    if (!fits) continue;
+    const start = m.index + m[0].length - verb.length;
+    findings.push(finding(start, verb, fits, [m.index, start + verb.length]));
+  }
+  return findings;
+}
+
 // The finite verb written twice in one clause: "Max wird Wirt wird." (the second goes), "dass
 // er hat Hunger hat" (the first goes, a subordinate clause ends in its verb).
 const CLAUSE_END_WORD = /(?<![\p{L}\p{M}\p{N}_'’-])(\p{Ll}{3,})(?=[ \t]*[.!?,;:])/gu;
@@ -274,6 +313,7 @@ function doubledVerb(ctx: DetectContext): RawFinding[] {
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
   {
     rules: ["germanVerbAgreement"],
-    detect: (ctx) => (isGerman(ctx) ? [...verbAgreement(ctx), ...doubledVerb(ctx)] : []),
+    detect: (ctx) =>
+      isGerman(ctx) ? [...verbAgreement(ctx), ...doubledVerb(ctx), ...pluralSubject(ctx)] : [],
   },
 ];

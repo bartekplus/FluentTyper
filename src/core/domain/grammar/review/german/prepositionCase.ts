@@ -40,7 +40,7 @@ const PHRASE = new RegExp(
 const DATIVE_ONLY = "(?<prep>[Mm]it|[Vv]on|[Bb]ei|[Zz]u|[Aa]us|[Nn]ach|[Ss]eit|[Aa]ußer)";
 // A number or plural quantity, an adjective, and a plural noun in -e, -er or -el.
 const COUNTED_PLURAL = new RegExp(
-  `${WORD_START}${DATIVE_ONLY}${SPACE}(?:zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf|[2-9]|[1-9]\\d{1,2}|vielen|mehreren|beiden|zahlreichen|wenigen|einigen)(?:${SPACE}\\p{Ll}+en)?${SPACE}(?<target>\\p{Lu}\\p{Ll}+(?:e|er|el))${WORD_END}`,
+  `${WORD_START}${DATIVE_ONLY}${SPACE}(?:zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf|[2-9]|[1-9]\\d{1,2}|vielen|mehreren|beiden|zahlreichen|wenigen|einigen|\\p{Ll}{3,}en)(?:${SPACE}\\p{Ll}+en)?${SPACE}(?<target>\\p{Lu}\\p{Ll}+(?:e|er|el))${WORD_END}`,
   "gdu",
 );
 // An adjective in -e before a noun whose ending only a plural has ("Ausstellungen").
@@ -330,7 +330,22 @@ function prepositionCase(ctx: DetectContext): RawFinding[] {
     if (!guarded(ctx, m, "dative") || ctx.dictionary.has(noun.toLowerCase())) continue;
     // "bis zu drei Bücher ausleihen": "bis zu" is "up to", the verb sets the case.
     if (/bis[ \t]+$/i.test(ctx.text.slice(Math.max(0, m.index - 8), m.index))) continue;
-    if (germanNounReading(`${noun}n`.toLowerCase()) === null) continue;
+    // "Tierärzten": a compound whose head the dictionary knows in the dative plural.
+    const dative = `${noun}n`.toLowerCase();
+    const known = [...dative].some(
+      (_, i) =>
+        (i === 0 || (i >= 3 && dative.length - i >= 4)) &&
+        germanNounReading(dative.slice(i)) !== null,
+    );
+    if (!known) continue;
+    // "zu ihren Mutter": a feminine singular after an -en word wants "ihrer", not "Muttern".
+    const counted = /(?:zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf|\d)/.test(m[0]);
+    const reading = germanGender(noun);
+    if (!counted && reading?.gender === "f" && !reading.plural) continue;
+    // "die zu fällenden Bäume", "viel zu knappen Gelder": "zu" before an adjective is no
+    // preposition.
+    const quantity = /(?:vielen|mehreren|beiden|zahlreichen|wenigen|einigen)(?!\p{L})/u.test(m[0]);
+    if (!counted && !quantity && m.groups!.prep.toLowerCase() === "zu") continue;
     push(m, { replacements: [`${noun}n`] });
   }
   // "mit spannende Ausstellungen" → spannenden: a plural without an article.

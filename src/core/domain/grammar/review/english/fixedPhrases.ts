@@ -389,7 +389,8 @@ const nounLike = (word: string, unknownLong = true) => {
   return info ? info.noun || info.plural : word.length > 6 && (unknownLong || /s$/i.test(word));
 };
 /** A lookbehind: none of the whole `words` (an alternation) right before the frame. */
-const notAfter = (words: string) => `(?<!(?<![\\p{L}'’])(?:${words})${SPACE})`;
+// A letter first: off words (on long runs of spaces) the lookbehind is never tried.
+const notAfter = (words: string) => `(?=\\p{L})(?<!(?<![\\p{L}'’])(?:${words})${SPACE})`;
 const kept = (findings: (RawFinding | null)[]) => findings.filter((f): f is RawFinding => !!f);
 
 // "dose" for "does": after a subject pronoun, in a clause-opening wh-question, or opening a

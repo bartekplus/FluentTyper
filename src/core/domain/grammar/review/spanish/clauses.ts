@@ -41,8 +41,14 @@ function paraQue(ctx: DetectContext, tokens: Token[], i: number): RawFinding | n
   const verb = at.next(k);
   if (!verb || /^\p{Lu}/u.test(tokens[i + k].text) || PAST_SUBJUNCTIVE.test(verb)) return null;
   if (!PRESENT_INDICATIVE.test(verb) || subjunctiveLike(verb) || !finiteVerb(verb)) return null;
-  // "para que nadie", "para que todo": the verb is further on.
-  if (isNoun(verb) || participle(verb)) return null;
+  // "para que nadie", "para que todo", "para que como usuario puedas": the verb is further on.
+  // "para que halla": "haya" misspelled, not a question.
+  if (
+    isNoun(verb) ||
+    participle(verb) ||
+    /^(?:como|cuando|donde|mientras|halla|hallas|hallan)$/u.test(verb)
+  )
+    return null;
   // "para que podamos": an -er/-ir subjunctive in -a looks like an -ar indicative.
   const a = /^(\p{L}+?)(?:a|as|an|amos|áis)$/u.exec(verb);
   if (a && (isVerb(`${a[1]}er`) || isVerb(`${a[1]}ir`))) return null;
@@ -82,7 +88,11 @@ function separatedEnclitic(ctx: DetectContext, tokens: Token[], i: number): RawF
   if (!ENCLITIC.has(pronoun) || tokens[i + 1].broken) return null;
   if (!isGerund(verb) && !isInfinitive(verb)) return null;
   const after = at.next(2);
-  const ends = isBoundary(tokens[i + 2]) && tokens[i + 2]?.text !== ",";
+  // "ver los «caminos naturales»": an opening quote starts the article's noun.
+  const ends =
+    isBoundary(tokens[i + 2]) &&
+    tokens[i + 2]?.text !== "," &&
+    !/^["“«'‘]$/u.test(tokens[i + 2]?.text ?? "");
   if (!ends && (!PREPOSITIONS.has(after) || /^(?:de|del|que)$/u.test(after))) return null;
   // "hasta ver lo." is odd but "a la vez" is no pronoun: "lo"/"la" before "a" may be an article
   // of a noun cut off by a line break.
@@ -402,18 +412,21 @@ function repeatedAdverb(ctx: DetectContext, tokens: Token[], i: number): RawFind
 
 // ------------------------------------------------------------------ preposition + finite verb
 
-// The contractions before a masculine noun, where a feminine-looking present form cannot be
-// one ("al informa"); after "de" or "en" the lexicon misses too many nouns ("de descarga").
-const GOVERNING = words("del al");
+// Prepositions, which take a noun or an infinitive and never a present form ("al informa",
+// "con informa"). Only -a forms are read: the lexicon knows the nouns spelled like one ("de
+// descarga", "con ayuda") better than those spelled like an -e form ("de aguante"). "hasta"
+// may mean "even" and "según" a clause ("y hasta escanea", "según informa la radio").
+const GOVERNING = words("del al de en con por sin desde sobre entre hacia contra tras");
 // Adverbs and nouns that look like verb forms after a preposition: "de cerca", "desde hace".
 const NOT_FINITE_HERE = words(
-  "hace cerca fuera dentro arriba abajo delante detrás antes encima debajo afuera adentro este " +
+  "hace cerca acerca fuera dentro arriba abajo delante detrás antes encima debajo afuera adentro este " +
     "atrás adelante nada toda cada media mitad sobre bajo entre tarde pronto mientras",
 );
 
 /**
- * "al informa." -> "al informar": "al" and "del" take a masculine noun or an infinitive, never
- * a present form, when nothing but a preposition or the clause end follows it.
+ * "al informa." -> "al informar", "con informa." -> "con informar": a preposition takes a noun
+ * or an infinitive, never a present form, when nothing but a preposition or the clause end
+ * follows it.
  */
 function prepositionFinite(ctx: DetectContext, tokens: Token[], i: number): RawFinding | null {
   const at = new Around(tokens, i);
@@ -421,7 +434,6 @@ function prepositionFinite(ctx: DetectContext, tokens: Token[], i: number): RawF
   if (!GOVERNING.has(at.prev()) || NOT_FINITE_HERE.has(word) || tokens[i].broken) return null;
   if (!/^\p{Ll}/u.test(tokens[i].text) || word.length < 4) return null;
   if (isNoun(word) || readNoun(word) || participle(word) || isInfinitive(word)) return null;
-  // An -e form may be a noun the lexicon misses ("del deporte"); an -a one after "al" cannot.
   if (!finiteVerb(word) || !/a$/u.test(word)) return null;
   if (!at.endsAfter() && !PREPOSITIONS.has(at.next())) return null;
   const infinitive = presentInfinitive(word);

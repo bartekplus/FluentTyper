@@ -13,9 +13,11 @@ import {
   type Token,
 } from "./common";
 import {
+  attribute,
   finiteVerb,
   genderedForm,
   isGerund,
+  isNoun,
   participle,
   isGenderedEntry,
   isNounEntry,
@@ -362,6 +364,8 @@ function determinerNoun(ctx: DetectContext, tokens: Token[], i: number): RawFind
     if ([2, 3, 4].some((k) => new Around(tokens, i).next(k) === "como")) return null;
     if (prev === "en" || prev === "por") return null;
   }
+  // "un tanto apretados", "un poco cansadas": the adverb "somewhat".
+  if (prev === "un" && /^(?:tanto|poco)$/u.test(detToken.lower)) return null;
   // "treinta y un años", "ciento un días": the numeral "un" counts.
   if (detToken.lower === "un" && (prev === "y" || NUMBER_WORDS.has(prev))) return null;
   // "la ex-ministra", "los e-mails": a compound.
@@ -372,7 +376,9 @@ function determinerNoun(ctx: DetectContext, tokens: Token[], i: number): RawFind
   if (!noun || (verbReading(detToken.lower, word) && !nounFrame(tokens, i))) return null;
   // An adjective after a word that also stands alone: "salir de esta vivos" (pronoun),
   // "otras nostálgica" (otras veces), "demasiado pequeña" (adverb), "las hechas" (clitic).
-  if (noun.paired && ADJECTIVE_BLOCKERS.has(detToken.lower)) {
+  // "vivos" is a noun too, but its gender forms make it an adjective here.
+  const adjective = noun.paired || isGenderedEntry(noun.singular);
+  if (adjective && ADJECTIVE_BLOCKERS.has(detToken.lower)) {
     // "aquellos médicas", "esos enfermeras": these stand alone only before a word that agrees
     // with them ("aquellos interesados"); "esta"/"estas" may still be "está"/"estás".
     const detPlural = DETERMINER.get(detToken.lower)!.slot >= 2;
@@ -667,7 +673,7 @@ function adjectiveForms(word: string): AdjectiveForms | null {
 // Nouns a bare noun or an adverbial may follow: "la mayoría niños", "una vez dormida".
 const NOT_HEADS = words(
   "vez rato momento mayoría minoría mitad resto parte grupo montón multitud cantidad número " +
-    "serie conjunto totalidad",
+    "serie conjunto totalidad tanto poco",
 );
 
 /**
@@ -714,6 +720,11 @@ function postponedAdjective(ctx: DetectContext, tokens: Token[], i: number): Raw
   const close = new Around(tokens, k);
   const after = close.next();
   if (!close.endsAfter() && /^(?:y|e|o|u|ni)$/u.test(after)) return null;
+  // "económico-sociales": the first part of a compound stays masculine singular.
+  if (tokens[k + 1]?.text === "-") return null;
+  // "física, emocional y cognitivamente": adverbs sharing one "-mente".
+  if (tokens[k + 1]?.text === "," && [2, 3, 4].some((m) => /\p{L}{3,}mente$/u.test(close.next(m))))
+    return null;
   if (after && readNoun(after) && !finiteVerb(after) && !PREPOSITIONS.has(after)) return null;
   const genderClash = !!gender && forms.feminine !== null && forms.feminine !== (gender === "f");
   const numberClash = forms.plural !== plural;
@@ -839,6 +850,114 @@ function determinerAdjectiveNoun(
   return replaceToken(ctx, tokens[i], [fix], RULE, MESSAGE, nounToken);
 }
 
+const DEGREE_WORDS = words("mucho poco demasiado tanto cuanto cuánto");
+// Determiners that never stand alone before a number: "las tres reglas", "estos dos libros".
+const NUMBERED = words("el este ese aquel nuestro vuestro del al");
+// Prenominal words that agree with the noun after them: "otras cosas", "pocas semanas".
+const AGREEING_BEFORE =
+  /^(?:otr|poc|much|mism|nuev|viej|únic|últim|propi|verdader|antigu|pequeñ)(?:o|a|os|as)$/u;
+
+/**
+ * "muchos otras cosas" -> "muchas", "una pocas semanas" -> "unas", "la tres reglas" -> "las":
+ * the word between agrees with the noun, so the determiner is the odd one out.
+ */
+function determinerAcross(ctx: DetectContext, tokens: Token[], i: number): RawFinding | null {
+  const det = DETERMINER.get(tokens[i].lower);
+  const middle = tokens[i + 1];
+  const nounToken = tokens[i + 2];
+  if (!det || genderless(det) || !middle?.word || middle.broken) return null;
+  if (!nounToken?.word || nounToken.broken || /^\p{Lu}/u.test(nounToken.text)) return null;
+  if (ctx.dictionary.has(nounToken.lower) || ctx.dictionary.has(middle.lower)) return null;
+  const noun = readNoun(nounToken.lower);
+  if (!noun?.gender || noun.invariant || EITHER.has(noun.singular)) return null;
+  let gender: Gender = noun.gender;
+  // "demasiado pocas respuestas", "mucho mejores notas": the adverb, not the determiner.
+  if (det.slot === 0 && DEGREE_WORDS.has(tokens[i].lower)) return null;
+  if (CARDINALS.has(middle.lower)) {
+    // "la tres veces campeona": a count of times, not of the noun. "una tres meses y otra
+    // cuatro" are pronouns, and "con el cuatro películas" may be "él".
+    if (!noun.plural || nounToken.lower === "veces" || !NUMBERED.has(det.forms[0])) return null;
+    if (tokens[i].lower === "el") return null;
+    // "la tres reglas": the noun's gender is surer only when the determiner's is wrong too.
+    if (det.slot >= 2) {
+      if ((det.slot % 2 ? "f" : "m") === gender || noun.paired) return null;
+    }
+  } else {
+    const adjective = AGREEING_BEFORE.test(middle.lower) ? genderedForm(middle.lower) : null;
+    if (!adjective || adjective.plural !== noun.plural) return null;
+    if ((adjective.feminine ? "f" : "m") !== gender) return null;
+    gender = adjective.feminine ? "f" : "m";
+  }
+  const fix = det.forms[(gender === "f" ? 1 : 0) + (noun.plural ? 2 : 0)];
+  if (fix === tokens[i].lower) return null;
+  // "el agua", "un hacha": a stressed a- noun right after the article.
+  if (BEFORE_STRESSED_A.has(tokens[i].lower) && /^h?[aá]/u.test(middle.lower)) return null;
+  return replaceToken(ctx, tokens[i], [fix], RULE, MESSAGE, nounToken);
+}
+
+/**
+ * "a favor de lo acreedores", "Lo pequeños roedores" -> "los": the neuter "lo" takes a
+ * singular adjective and the clitic a verb; a plural in -os after it wants the article.
+ */
+function neuterBeforePlural(ctx: DetectContext, tokens: Token[], i: number): RawFinding | null {
+  if (tokens[i].lower !== "lo") return null;
+  const next = tokens[i + 1];
+  if (!next?.word || next.broken || !/^\p{Ll}/u.test(next.text) || ctx.dictionary.has(next.lower))
+    return null;
+  const word = next.lower;
+  // "lo hacemos", "lo vimos", "lo comes": verbs end in -os and -es too.
+  if (!/[oe]s$/u.test(word) || /mos$/u.test(word) || finiteVerb(word)) return null;
+  if (secondPersonVerb(word)) return null;
+  const read = readNoun(word);
+  if (!(read?.plural || attribute(word)?.plural) || NUMBER_WORDS.has(word)) return null;
+  // "Lo pequeños que son": how small they are.
+  if (new Around(tokens, i + 1).next() === "que") return null;
+  return replaceToken(ctx, tokens[i], ["los"], RULE, MESSAGE, next);
+}
+
+// Words before a noun that are determiners or adverbs rather than adjectives: "solo hombres",
+// "todo hombre", "medio día".
+const NOT_PRENOMINAL =
+  /^(?:tod|much|poc|otr|mism|tant|cuant|vari|cierto|ciert|demasiad|medi|sol|ambos|ambas|cual|dich|propi|semejant)/u;
+const APOCOPE: Record<string, string> = {
+  buen: "bueno",
+  mal: "malo",
+  primer: "primero",
+  tercer: "tercero",
+};
+
+/**
+ * "Con magníficos cucharas", "Buen amigos." -> "magníficas", "Buenos": an adjective opening a
+ * noun phrase with no determiner, after a preposition or at the sentence start, agrees with
+ * the noun right after it.
+ */
+function bareAdjectiveNoun(ctx: DetectContext, tokens: Token[], i: number): RawFinding | null {
+  const at = new Around(tokens, i);
+  if (!at.starts && !PREPOSITIONS.has(at.prev())) return null;
+  const adjToken = tokens[i];
+  const nounToken = tokens[i + 1];
+  if (!nounToken?.word || nounToken.broken || /^\p{Lu}/u.test(nounToken.text)) return null;
+  if (ctx.dictionary.has(adjToken.lower) || ctx.dictionary.has(nounToken.lower)) return null;
+  const typed = adjToken.lower;
+  if (NOT_PRENOMINAL.test(typed) || DETERMINER.has(typed)) return null;
+  const base = APOCOPE[typed];
+  const forms = adjectiveForms(base ?? typed);
+  if (!forms || forms.feminine === null || isNoun(typed) || verbLike(typed)) return null;
+  if (finiteVerb(typed) || SER.has(typed)) return null;
+  const noun = readNoun(nounToken.lower);
+  if (!noun?.gender || noun.invariant || EITHER.has(noun.singular)) return null;
+  if (verbLike(nounToken.lower) || participle(nounToken.lower)) return null;
+  // The phrase closes after the noun or goes on with a preposition or a verb.
+  const after = new Around(tokens, i + 1);
+  if (!after.endsAfter() && !PREPOSITIONS.has(after.next()) && !CONJUNCTIONS.has(after.next()))
+    return null;
+  const feminine = noun.gender === "f";
+  const plural = base ? false : forms.plural;
+  if (feminine === forms.feminine && plural === noun.plural) return null;
+  const fix = forms.form(feminine, noun.plural);
+  return replaceToken(ctx, adjToken, [fix], RULE, MESSAGE, nounToken);
+}
+
 function agreement(ctx: DetectContext): RawFinding[] {
   if (ctx.lang.slice(0, 2) !== "es") return [];
   const tokens = tokenize(ctx);
@@ -851,6 +970,9 @@ function agreement(ctx: DetectContext): RawFinding[] {
       superlativeAdjective(ctx, tokens, i) ??
       determinerNoun(ctx, tokens, i) ??
       determinerAdjectiveNoun(ctx, tokens, i) ??
+      determinerAcross(ctx, tokens, i) ??
+      neuterBeforePlural(ctx, tokens, i) ??
+      bareAdjectiveNoun(ctx, tokens, i) ??
       postponedAdjective(ctx, tokens, i) ??
       articleSuperlative(ctx, tokens, i) ??
       darPorParticiple(ctx, tokens, i) ??

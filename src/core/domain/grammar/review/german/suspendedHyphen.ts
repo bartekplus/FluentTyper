@@ -68,7 +68,8 @@ function suspendedHyphen(ctx: DetectContext): RawFinding[] {
       while (
         at > 0 &&
         /^\p{Ll}+(?:e|en|er|es|em)$/u.test(before[at]) &&
-        germanAdjective(before[at].replace(/(?:e|en|er|es|em)$/, ""))
+        germanAdjective(before[at].replace(/(?:e|en|er|es|em)$/, "")) &&
+        !/^(?:k?ein|[dms]ein|ihr|unser|eur|dies|jed|jen|welch)(?:e|en|er|es|em)$/.test(before[at])
       )
         at--;
       const article = before[at] ?? "";

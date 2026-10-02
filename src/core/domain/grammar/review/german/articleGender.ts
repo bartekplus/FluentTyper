@@ -5,6 +5,7 @@ import {
   germanGender,
   germanNounReading,
   germanInfinitive,
+  germanVerbObjectCase,
   type GermanGenderReading,
 } from "./germanLexicon";
 import { PREPOSITIONS } from "./nounCasing";
@@ -273,6 +274,106 @@ function objectCase(
   return [article, ...inflected].join(" ");
 }
 
+// The object of a verb that takes only a dative or only an accusative (germanVerbObjectCase):
+// "Ich helfe den Mann" (dem), "Er fragt dem Lehrer" (den). Only a singular masculine or
+// neuter noun whose article shows the other case; the verb right before it with its subject
+// earlier in the clause or a subject pronoun between, or the verb right after it at the end
+// of a clause that opens with a subordinator or holds a modal. A second object, a
+// postposition ("dem Namen nach") or an infinitive the noun may belong to ("ich helfe den
+// Tisch decken", "ich sehe den Mann helfen") keeps the article.
+const SUBJECT_PRONOUNS = wordSet("ich du er sie es wir ihr man");
+const SUBORDINATORS = wordSet("dass weil wenn ob als obwohl damit nachdem bevor falls da sobald");
+const MODALS = wordSet(
+  "kann kannst können könnt will willst wollen wollt muss musst müssen müsst soll sollst " +
+    "sollen sollt möchte möchtest möchten darf darfst dürfen werde wirst wird werden würde würden",
+);
+const PERCEPTION = /^(?:seh|sieh|sah|hör|lass|läss|ließ|fühl|spür|heiß|hieß)/;
+const POSTPOSITIONS = wordSet(
+  "nach zufolge gegenüber entgegen zuliebe entsprechend gemäß nahe halber wegen",
+);
+const CLAUSE_END = /[.!?;:,\n–—()"„“»«]/;
+
+function verbObjectCase(
+  ctx: DetectContext,
+  index: number,
+  nounEnd: number,
+  det: Determiner,
+  typed: string,
+  head: string,
+  reading: GermanGenderReading,
+  adjectives: string[],
+): { fixes: string[] } | null {
+  if (det.prep || reading.gender === "f") return null;
+  const before = tokensBefore(ctx.text, index, 12);
+  let from = before.length;
+  while (from > 0 && !BOUNDARY.test(before[from - 1])) from--;
+  const clause = before.slice(from);
+  const restText = ctx.text.slice(nounEnd, nounEnd + 120).split(CLAUSE_END)[0];
+  const rest = restText.match(/[\p{L}\p{M}]+/gu) ?? [];
+  const verbCase = (word: string | undefined, first: boolean) =>
+    word === undefined
+      ? null
+      : germanVerbObjectCase(first && /^\p{Lu}\p{Ll}+$/u.test(word) ? word.toLowerCase() : word);
+  let governed: "dative" | "accusative" | null = null;
+  let i = clause.length - 1;
+  const pronounAfter = i > 0 && SUBJECT_PRONOUNS.has(clause[i].toLowerCase());
+  if (pronounAfter) i--;
+  const verbBefore = i >= 0 ? verbCase(clause[i], i === 0) : null;
+  if (verbBefore && (pronounAfter || clause.slice(0, i).some((t) => /^\p{L}/u.test(t)))) {
+    governed = verbBefore;
+  } else if (rest.length && rest.length <= 2) {
+    // "weil ich den Mann helfe", "ich will den Mann helfen", "…, dass er dem Lehrer fragt".
+    const verbAfter = verbCase(rest[0], false);
+    const opener = (clause[0] ?? "").toLowerCase();
+    const closes = rest.length === 1 || MODALS.has(rest[1].toLowerCase());
+    const lowered = clause.map((t) => t.toLowerCase());
+    if (verbAfter && closes && (SUBORDINATORS.has(opener) || lowered.some((t) => MODALS.has(t)))) {
+      if (lowered.some((t) => SUBJECT_PRONOUNS.has(t)) || /^\p{Lu}/u.test(clause[1] ?? "")) {
+        governed = verbAfter;
+      }
+    }
+    if (governed) rest.length = 0;
+  }
+  if (!governed) return null;
+  if (clause.some((t) => PERCEPTION.test(t.toLowerCase()))) return null;
+  // A second object, a postposition, a zu-infinitive or a bare infinitive after the noun.
+  const lowerRest = rest.map((w) => w.toLowerCase());
+  if (POSTPOSITIONS.has(lowerRest[0] ?? "")) return null;
+  const second = rest.some(
+    (w, k) =>
+      DETERMINER_WORDS.test(w) &&
+      !Object.hasOwn(CONTRACTIONS, w.toLowerCase()) &&
+      !PREPOSITIONS.has(lowerRest[k - 1] ?? ""),
+  );
+  if (second || lowerRest.includes("zu")) return null;
+  if (
+    lowerRest.some((w, k) => k === rest.length - 1 && /^\p{Ll}/u.test(w) && germanInfinitive(w))
+  ) {
+    return null;
+  }
+  // The typed article's readings that fit the noun ("den Lehrer": accusative singular only;
+  // "den Lehrern": also the dative plural).
+  const own = readings(det).filter(([g, c]) => fits(head, reading, g, c));
+  const target: Case = governed === "dative" ? "dat" : "acc";
+  const genders: Gender[] = reading.gender === "x" ? ["m", "n"] : [reading.gender];
+  // Already the verb's case; or not only the other object case ("der Mann" may be the subject).
+  if (own.some(([, c]) => c === target)) return null;
+  const other: Case = governed === "dative" ? "acc" : "dat";
+  if (!own.length || own.some(([g, c]) => c !== other || g === "pl")) return null;
+  const kind = det.kind === "ein" ? "mixed" : "weak";
+  const fixes = new Set<string>();
+  for (const g of genders) {
+    const article = spell(det, g, target, typed);
+    if (!article) continue;
+    const ending = ADJECTIVE_ENDINGS[kind][g][CASE_ORDER.indexOf(target)];
+    const inflected = adjectives.map((a) =>
+      DEGREE_WORD.test(a) ? a : a.replace(/(?:e|en|er|es|em)$/, ending),
+    );
+    fixes.add([article, ...inflected].join(" "));
+  }
+  return fixes.size ? { fixes: [...fixes] } : null;
+}
+
 // A compound written apart, told by its article: "die Haus Tür" (die fits Tür, not Haus),
 // "der Auto Schlüssel", "das Verkehrs Schild" (a linking -s after a nominative article).
 // "der Mutter Blumen" (two objects) keeps its space: the article fits the first noun.
@@ -435,6 +536,18 @@ function articleGender(ctx: DetectContext): RawFinding[] {
     const end = adjectives.length ? m.indices!.groups!.mods[1] : m.indices!.groups!.det[1];
     const typedReadings = readings(det);
     if (typedReadings.some(([g, c]) => fits(head, reading, g, c))) {
+      const verb = verbObjectCase(ctx, m.index, nounEnd, det, typed, head, reading, adjectives);
+      if (verb) {
+        findings.push({
+          ruleId: "germanArticleGender",
+          messageKey: "review_msg_german_verb_case",
+          range: { start: detStart, end },
+          alternatives: verb.fixes,
+          context: { start: m.index, end: nounEnd },
+          ...(verb.fixes.length > 1 ? { requiresChoice: true as const } : {}),
+        });
+        continue;
+      }
       const object = objectCase(ctx, m.index, nounEnd, det, typed, reading, adjectives);
       if (object) {
         findings.push({

@@ -288,7 +288,7 @@ const COMPOUND_TEMPLATES: readonly KeyedTemplate[] = [
   // ", where as cats…" contrasts two clauses; "where, as a child, …" is a place.
   {
     key: /where\s+as\b/,
-    pattern: `(?<=,${SPACE})(?<target>where${SPACE}as)${SPACE}(?!(?:a|an|the|soon|long|well|much|many|far|if|though|usual|always|before|such|of|to)${WORD_END})`,
+    pattern: `(?=where${SPACE}as)(?<=,${SPACE})(?<target>where${SPACE}as)${SPACE}(?!(?:a|an|the|soon|long|well|much|many|far|if|though|usual|always|before|such|of|to)${WORD_END})`,
     replacement: "whereas",
     messageKey: "review_msg_closed_compound",
   },
@@ -692,7 +692,7 @@ function existentialPlural(ctx: DetectContext): RawFinding[] {
  * "Please provide reproducible example": a request verb, a modifier and a
  * countable issue-report noun with no article.
  */
-const ARTICLE_PATTERN = `(?<=(?<![\\p{L}'’])(?:please|you|we|i|they|to|should|can|could|will|would|must)${SPACE})(?:provide|send|share|attach|submit|create|file|give|add|include|post|write|get|need|want|reproduce)${SPACE}(?<target>(?:more${SPACE})?(?<adj>\\p{L}+)${SPACE}(?:example|reproduction|repro|test${SPACE}case|bug${SPACE}report|report|summary|ticket|scenario|explanation|fix|update|screenshot|log|note|comment|feature|solution|answer|response|change|patch|description))(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$)|${SPACE}(?:of|for|about|in|on)${WORD_END})`;
+const ARTICLE_PATTERN = `(?=(?:provide|send|share|attach|submit|create|file|give|add|include|post|write|get|need|want|reproduce)${SPACE})(?<=(?<![\\p{L}'’])(?:please|you|we|i|they|to|should|can|could|will|would|must)${SPACE})(?:provide|send|share|attach|submit|create|file|give|add|include|post|write|get|need|want|reproduce)${SPACE}(?<target>(?:more${SPACE})?(?<adj>\\p{L}+)${SPACE}(?:example|reproduction|repro|test${SPACE}case|bug${SPACE}report|report|summary|ticket|scenario|explanation|fix|update|screenshot|log|note|comment|feature|solution|answer|response|change|patch|description))(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$)|${SPACE}(?:of|for|about|in|on)${WORD_END})`;
 const ARTICLE_KEY =
   /(?:provide|send|share|attach|submit|create|file|give|add|include|post|write|get|need|want|reproduce)\s/;
 const NOT_MODIFIER = words("more most less least much many few enough further other same own");

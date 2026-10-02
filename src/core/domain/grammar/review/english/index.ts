@@ -7,6 +7,8 @@ import * as passiveVoice from "./passiveVoice";
 import * as fixedFrames from "./fixedFrames";
 import * as punctuation from "./punctuation";
 import * as articles from "./articles";
+import * as slotConfusions from "./slotConfusions";
+import * as britishUsage from "./britishUsage";
 import * as typography from "./typography";
 import * as confusions1 from "./confusions1";
 import * as dates from "./dates";
@@ -79,6 +81,8 @@ const MODULES = [
   fixedFrames,
   punctuation,
   articles,
+  slotConfusions,
+  britishUsage,
 ];
 export const EXTENSION_PHRASES = MODULES.flatMap((m) => m.PHRASES);
 export const EXTENSION_COMPOUNDS = MODULES.flatMap((m) => m.COMPOUNDS);
