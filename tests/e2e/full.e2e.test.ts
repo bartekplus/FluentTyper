@@ -1884,6 +1884,24 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await waitForNoVisibleSuggestions(page);
       await page.type("#test-input", "e");
       expect(await waitForVisibleSuggestions(page)).toBeGreaterThan(0);
+      // These widgets keep options and layout rectangles after visually collapsing.
+      for (const style of [
+        "position:fixed;left:-10000px;top:10px",
+        "clip-path:inset(50%)",
+        "height:0;overflow:hidden",
+      ]) {
+        await page.evaluate((css) => {
+          const wrapper = document.createElement("div");
+          wrapper.id = "collapsed-widget";
+          wrapper.style.cssText = css;
+          wrapper.innerHTML =
+            '<div id="writing-choices" role="listbox"><div role="option">Website choice</div></div>';
+          document.querySelector("#test-input")!.parentElement!.append(wrapper);
+        }, style);
+        await typeInInput(page, "#test-input", "th");
+        expect(await waitForVisibleSuggestions(page)).toBeGreaterThan(0);
+        await page.evaluate(() => document.querySelector("#collapsed-widget")!.remove());
+      }
     },
     browserTimeout(12000, 20000),
   );

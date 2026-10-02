@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, test } from "bun:test";
+import { isSensitiveField } from "../src/adapters/chrome/content-script/suggestions/FieldEligibility";
 import {
   hasActiveAutocompletePopup,
   reservesAutocompleteArrow,
@@ -11,7 +12,10 @@ function field(html: string): HTMLElement {
   return document.body.firstElementChild as HTMLElement;
 }
 function visible(element: Element): void {
-  element.getClientRects = () => [{ width: 100, height: 20 }] as unknown as DOMRectList;
+  element.getClientRects = () =>
+    [
+      { left: 10, top: 10, right: 110, bottom: 30, width: 100, height: 20 },
+    ] as unknown as DOMRectList;
 }
 function popup(): HTMLElement {
   const node = document.createElement("div");
@@ -33,6 +37,8 @@ describe("native field eligibility and interaction evidence", () => {
     '<input list="empty"><datalist id="empty"></datalist>',
     '<input aria-autocomplete="list">',
     '<input id="project_name">',
+    '<input id="compassion">',
+    '<input name="passage">',
     '<textarea role="combobox"></textarea>',
     '<input type="search" role="combobox">',
   ])("automatically enables writing fields: %s", (html) => {
@@ -96,6 +102,9 @@ describe("native field eligibility and interaction evidence", () => {
   });
   test.each([
     '<input type="password">',
+    '<input name="pass">',
+    '<input name="login_pass">',
+    '<input id="passInput">',
     '<input autocomplete="one-time-code">',
     '<input autocomplete="cc-number">',
     '<input id="verification-code">',
@@ -121,6 +130,9 @@ describe("native field eligibility and interaction evidence", () => {
       kind: "manual",
       reason: "selector",
     });
+  });
+  test("Review and formatting retain their existing pass exclusions", () => {
+    expect(isSensitiveField(field('<input id="passage">'))).toBe(true);
   });
   test("linked actionable visibility outranks stale ARIA; unrelated and empty UI is ignored", () => {
     const input = field('<input type="search" aria-controls="choices" aria-expanded="false">');
@@ -154,6 +166,13 @@ describe("native field eligibility and interaction evidence", () => {
     shadow.append(input, list);
     expect(hasActiveAutocompletePopup(input)).toBe(true);
     host.style.display = "none";
+    expect(hasActiveAutocompletePopup(input)).toBe(false);
+  });
+  test("off-screen rectangles do not create an active conflict", () => {
+    const input = field('<input aria-controls="choices">');
+    const list = popup();
+    list.getClientRects = () =>
+      [{ left: -10000, right: -9900, top: 10, bottom: 30 }] as unknown as DOMRectList;
     expect(hasActiveAutocompletePopup(input)).toBe(false);
   });
 });

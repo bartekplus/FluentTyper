@@ -53,7 +53,10 @@ describe("EarlyTabAcceptMainWorldBridge", () => {
     popup.setAttribute("role", "listbox");
     popup.innerHTML = '<div role="option">Site choice</div>';
     for (const node of [popup, popup.firstElementChild!])
-      node.getClientRects = () => [{ width: 10, height: 10 }] as unknown as DOMRectList;
+      node.getClientRects = () =>
+        [
+          { left: 10, top: 10, right: 20, bottom: 20, width: 10, height: 10 },
+        ] as unknown as DOMRectList;
     document.body.append(input, createMenu("race"), popup);
     const post = jest.spyOn(window, "postMessage");
     const event = new window.KeyboardEvent("keydown", {

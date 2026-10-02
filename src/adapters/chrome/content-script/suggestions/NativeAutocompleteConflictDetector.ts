@@ -32,7 +32,7 @@ function parentElement(element: Element): Element | null {
 }
 
 function isVisible(element: Element): boolean {
-  if (!element.isConnected || element.getClientRects().length === 0) return false;
+  if (!element.isConnected) return false;
   for (let current: Element | null = element; current; current = parentElement(current)) {
     if (
       current.hasAttribute("hidden") ||
@@ -50,7 +50,30 @@ function isVisible(element: Element): boolean {
     )
       return false;
   }
-  return true;
+  const view = element.ownerDocument.defaultView;
+  if (!view) return false;
+  const root = element.getRootNode() as Document | ShadowRoot;
+  return Array.from(element.getClientRects()).some((rect) => {
+    const left = Math.max(0, rect.left);
+    const top = Math.max(0, rect.top);
+    const right = Math.min(view.innerWidth, rect.right);
+    const bottom = Math.min(view.innerHeight, rect.bottom);
+    if (right <= left || bottom <= top) return false;
+    if (!root.elementsFromPoint) return true;
+    // ponytail: five hit-test samples handle collapsed/clipped widgets; a native
+    // synchronous painted-visibility API would remove the narrow-sliver ceiling.
+    return [
+      [0.5, 0.5],
+      [0.1, 0.1],
+      [0.9, 0.1],
+      [0.1, 0.9],
+      [0.9, 0.9],
+    ].some(([x, y]) =>
+      root
+        .elementsFromPoint(left + (right - left) * x, top + (bottom - top) * y)
+        .some((hit) => element === hit || element.contains(hit)),
+    );
+  });
 }
 
 function isActionable(element: Element): boolean {

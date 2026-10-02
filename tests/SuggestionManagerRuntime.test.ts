@@ -1124,7 +1124,10 @@ describe("SuggestionManagerRuntime", () => {
     const input = document.querySelector("input")!;
     const popup = document.querySelector<HTMLElement>("#choices")!;
     for (const node of [popup, popup.firstElementChild!])
-      node.getClientRects = () => [{ width: 100, height: 20 }] as unknown as DOMRectList;
+      node.getClientRects = () =>
+        [
+          { left: 10, top: 10, right: 110, bottom: 30, width: 100, height: 20 },
+        ] as unknown as DOMRectList;
     runtime.queryAndAttachHelper();
     input.focus();
     input.value = "hel";

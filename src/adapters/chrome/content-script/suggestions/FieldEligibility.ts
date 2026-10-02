@@ -1,7 +1,7 @@
 const SECRET_AUTOCOMPLETE =
   /(?:^|\s)(?:current-password|new-password|one-time-code|cc-[a-z-]+)(?:\s|$)/;
 const SECRET_NAME =
-  /pass(?:word|wd)?|pwd|otp|one.?time|cvc|cvv|csc|card.?num|cc.?num|security.?code|\bpin\b|(?<![a-z0-9])(?:ssn|[2m]fa)(?![a-z0-9])|social.?security|totp|verif(?:y|ication).?code|auth.?code/i;
+  /pass(?:word|wd)|(?<![a-z0-9])pass(?![a-z0-9])|pwd|otp|one.?time|cvc|cvv|csc|card.?num|cc.?num|security.?code|\bpin\b|(?<![a-z0-9])(?:ssn|[2m]fa)(?![a-z0-9])|social.?security|totp|verif(?:y|ication).?code|auth.?code/i;
 
 /**
  * Fields whose content is a secret or not prose: passwords, one-time codes,
@@ -13,7 +13,8 @@ export function isCredentialField(element: HTMLElement): boolean {
     return true;
   if (element.tagName === "INPUT") {
     const input = element as HTMLInputElement;
-    if (input.type === "password" || SECRET_NAME.test(`${input.name} ${input.id}`)) return true;
+    const identifiers = `${input.name} ${input.id}`.replace(/([a-z0-9])([A-Z])/g, "$1 $2");
+    if (input.type === "password" || SECRET_NAME.test(identifiers)) return true;
   }
   const masking = element.ownerDocument.defaultView
     ?.getComputedStyle(element)
@@ -23,6 +24,11 @@ export function isCredentialField(element: HTMLElement): boolean {
 
 export function isSensitiveField(element: HTMLElement): boolean {
   if (isCredentialField(element)) return true;
+  // Preserve Review/formatting's existing conservative exclusion independently of activation.
+  if (element.tagName === "INPUT") {
+    const input = element as HTMLInputElement;
+    if (/pass/i.test(`${input.name} ${input.id}`)) return true;
+  }
   const inputMode = element.getAttribute("inputmode")?.toLowerCase();
   if (inputMode && !["text", "search"].includes(inputMode)) return true;
   return (

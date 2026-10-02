@@ -4,7 +4,7 @@
   "behaviors": [
     {
       "id": "smart_field_activation",
-      "description": "Writing field eligibility is separate from active website conflicts; sessions yield without key stealing, resume on typing, and restore explicit origin-scoped saved field choices.",
+      "description": "Writing field eligibility is separate from active website conflicts; off-screen and clipped widgets do not pause sessions, visible suggestions retain keyboard control, and explicit origin-scoped saved field choices restore safely.",
       "coverage": [
         {
           "layer": "unit",
