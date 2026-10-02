@@ -569,6 +569,29 @@ describe("contenteditable writes", () => {
     expect(root.innerHTML).toBe("<p>We saw <b>the</b> cat, ok</p>");
   });
 
+  test.each([
+    ["<p>cat</p>", 3, "<p>cat.</p>"],
+    ["<p><b>cat</b></p>", 3, "<p><b>cat.</b></p>"],
+    ["<p><i>cat</i></p>", 0, "<p><i>.cat</i></p>"],
+    ["<p><b>cat</b>dog</p>", 3, "<p><b>cat.</b>dog</p>"],
+    ["<p>cat<i>dog</i></p>", 3, "<p>cat.<i>dog</i></p>"],
+  ])("zero-width insertions use the caret-side formatting: %s", async (html, offset, expected) => {
+    setExecCommand(contentEditableInsert);
+    const root = createEditor(html);
+    const target = new ContentEditableReviewTarget(root);
+    const read = target.read();
+    if (!read.ok) throw new Error("unreadable");
+    expect(
+      await target.apply({
+        edits: [edit(offset, offset, "", ".")],
+        before: read.text,
+        after: read.text.slice(0, offset) + "." + read.text.slice(offset),
+        signature: read.signature,
+      }),
+    ).toEqual({ status: "applied" });
+    expect(root.innerHTML).toBe(expected);
+  });
+
   test("a long batch yields to the page and continues only while nothing changed", async () => {
     setExecCommand(contentEditableInsert);
     // Every clock read is 100 ms later: the batch yields before each edit.

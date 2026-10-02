@@ -329,6 +329,11 @@ export function segmentContaining(map: ContentEditableTextMap, index: number): T
   return null;
 }
 
+/** The same text segment a collapsed insertion range attaches to. */
+export function segmentAtCaret(map: ContentEditableTextMap, offset: number): TextSegment | null {
+  return (offset > 0 ? segmentContaining(map, offset - 1) : null) ?? segmentContaining(map, offset);
+}
+
 /**
  * The DOM Range for a non-empty snapshot range. Each end is resolved inside the
  * text node that holds the character next to it, so a range never spills into
@@ -355,8 +360,7 @@ export function caretRange(
   offset: number,
   doc: Document,
 ): Range | null {
-  const before = offset > 0 ? segmentContaining(map, offset - 1) : null;
-  const segment = before ?? segmentContaining(map, offset);
+  const segment = segmentAtCaret(map, offset);
   if (!segment) return null;
   const domRange = doc.createRange();
   domRange.setStart(segment.node, segment.nodeStart + (offset - segment.start));

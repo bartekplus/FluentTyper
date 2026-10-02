@@ -169,6 +169,28 @@ describe("real ProseMirror corrections", () => {
     expect(view!.state.doc.eq(original)).toBe(true);
   });
 
+  test("zero-width insertions preserve host marks at start, end and a mark boundary", async () => {
+    const target = editor([
+      {
+        type: "paragraph",
+        content: [
+          { type: "text", text: "cat", marks: [{ type: "strong" }] },
+          { type: "text", text: "dog", marks: [{ type: "em" }] },
+        ],
+      },
+    ]);
+    const original = view!.state.doc;
+    for (const offset of [0, 3, 6]) {
+      expect(await apply(target, [edit(offset, "", ".")])).toEqual({ status: "applied" });
+      const expected = original.toJSON();
+      expected.content[0].content[offset === 6 ? 1 : 0].text =
+        offset === 0 ? ".cat" : offset === 3 ? "cat." : "dog.";
+      expect(view!.state.doc.toJSON()).toEqual(expected);
+      expect(undo(view!.state, view!.dispatch)).toBe(true);
+      expect(view!.state.doc.eq(original)).toBe(true);
+    }
+  });
+
   test("same-text mark changes invalidate pending fixes", async () => {
     const target = editor([paragraph("teh")]);
     const before = target.read();

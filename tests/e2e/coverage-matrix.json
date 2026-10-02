@@ -4446,6 +4446,11 @@
           "layer": "unit",
           "file": "tests/ProseMirrorReview.test.ts",
           "test": "UTF-16 offsets preserve emoji and refuse edits inside a grapheme"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ProseMirrorReview.test.ts",
+          "test": "zero-width insertions preserve host marks at start, end and a mark boundary"
         }
       ]
     },
@@ -4453,6 +4458,11 @@
       "id": "review_rich_text_formatting_integrity",
       "description": "Rich-text snapshots include semantic wrappers and attributes; aligned split-format replacements preserve each grapheme's formatting, ambiguous batches are refused before writes, and post-write verification checks link targets and style attributes.",
       "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "zero-width insertions use the caret-side formatting: %s"
+        },
         {
           "layer": "unit",
           "file": "tests/ReviewAdapters.test.ts",

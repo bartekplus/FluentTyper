@@ -4,11 +4,21 @@ import {
   isGraphemeBoundary,
   editTouches,
 } from "@core/domain/grammar/review/textRanges";
-import { segmentContaining, type ContentEditableTextMap } from "./ContentEditableTextMap";
+import {
+  segmentContaining,
+  segmentAtCaret,
+  type ContentEditableTextMap,
+} from "./ContentEditableTextMap";
 
 export function formattingAt(map: ContentEditableTextMap, offset: number): string | null {
   const segment = segmentContaining(map, offset);
   return segment?.formatting ?? null;
+}
+
+function editFormatting(map: ContentEditableTextMap, edit: ReviewEdit): string | null {
+  return edit.start === edit.end
+    ? (segmentAtCaret(map, edit.start)?.formatting ?? null)
+    : formattingAt(map, edit.start);
 }
 
 /** Keep each grapheme's formatting when replacement lengths align. Otherwise the
@@ -30,7 +40,9 @@ export function formattingPreservingEdits(
   const result: ReviewEdit[] = [];
   const segmenter = new Intl.Segmenter(undefined, { granularity: "grapheme" });
   for (const edit of edits.flatMap((edit) =>
-    minimalEdits(map.text, edit.start, edit.end, edit.replacement),
+    edit.start === edit.end
+      ? [edit]
+      : minimalEdits(map.text, edit.start, edit.end, edit.replacement),
   )) {
     const original = [...segmenter.segment(edit.original)];
     const replacement = [...segmenter.segment(edit.replacement)];
@@ -50,18 +62,14 @@ export function formattingPreservingEdits(
           )
         : [edit];
     for (const part of parts) {
-      const style = formattingAt(map, part.start);
+      const style = editFormatting(map, part);
       for (let at = part.start; part.replacement && at < part.end;) {
         const segment = segmentContaining(map, at);
         if (!segment || segment.formatting !== style) return null;
         at = segment.end;
       }
       const last = result.at(-1);
-      if (
-        last &&
-        last.end === part.start &&
-        formattingAt(map, last.start) === formattingAt(map, part.start)
-      ) {
+      if (last && last.end === part.start && editFormatting(map, last) === style) {
         last.end = part.end;
         last.original += part.original;
         last.replacement += part.replacement;
@@ -97,7 +105,7 @@ export function expectedFormatting(
   let start = 0;
   for (const edit of [...edits].sort((a, b) => a.start - b.start)) {
     unchanged(start, edit.start);
-    if (edit.replacement) append(formattingAt(map, edit.start) ?? "", edit.replacement.length);
+    if (edit.replacement) append(editFormatting(map, edit) ?? "", edit.replacement.length);
     start = edit.end;
   }
   unchanged(start, map.text.length);
