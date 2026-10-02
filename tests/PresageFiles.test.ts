@@ -22,14 +22,16 @@ describe("PresageFiles", () => {
         fr_FR: { libPresage: { config: configFr } },
       } as never,
       [
-        ["BRB", { phrase: "be right back" }],
-        ["IDK", { phrase: "I don't know" }],
+        ["BRB", "be right back" as never],
+        ["IDK", "I don't know\nreally" as never],
+        // Not a string: never written (PresageHandler drops it too).
+        ["OBJ", { phrase: "dropped" }],
       ],
     );
 
     expect(writeFile).toHaveBeenCalledWith(
       "/textExpansions.txt",
-      'brb\t{"phrase":"be right back"}\n' + 'idk\t{"phrase":"I don\'t know"}\n',
+      'brb\t"be right back"\n' + 'idk\t"I don\'t know\\nreally"\n',
     );
     expect(configEn).toHaveBeenCalledWith(
       "Presage.Predictors.DefaultAbbreviationExpansionPredictor.ABBREVIATIONS",

@@ -92,6 +92,14 @@ import { isLowercaseLetter, isTechnicalToken } from "../implementations/helpers/
 import { graphemeEnd, overlapsSortedRanges } from "./textRanges";
 import { MASK_CHAR, type ReviewMessageKey, type TextRange } from "./types";
 import { EXTENSION_DETECTORS } from "./english";
+import { GERMAN_DETECTORS } from "./german";
+import { DETECTORS as GREEK_DETECTORS } from "./greek/detectors";
+import { DETECTORS as SWEDISH_DETECTORS } from "./swedish/detectors";
+import { DETECTORS as ARABIC_DETECTORS } from "./arabic/detectors";
+import { PORTUGUESE_DETECTORS } from "./portuguese";
+import { POLISH_DETECTORS } from "./polish";
+import { SPANISH_DETECTORS } from "./spanish";
+import { FRENCH_DETECTORS } from "./french";
 
 export { MASK_CHAR };
 export { minimalEdits } from "./textRanges";
@@ -399,7 +407,8 @@ function previousLineEndsParagraphOrSentence(
 
 const pronounI: Detector = (ctx) => {
   const findings: RawFinding[] = [];
-  const regex = /(?<![\p{L}\p{N}_'’])i(?![\p{L}\p{N}_])/gu;
+  // "Hawai‘i": a letter and a left quote mark before it make it part of a word (the okina).
+  const regex = /(?<![\p{L}\p{N}_'’]|\p{L}‘)i(?![\p{L}\p{N}_])/gu;
   for (const match of ownedMatches(ctx, regex)) {
     const start = match.index;
     const before = ctx.text[start - 1] ?? "";
@@ -699,6 +708,15 @@ const pronounVerb: Detector = (ctx) => {
         bulkBlock = "context-dependent";
       }
     }
+    // "Sam and I is a band", "you as well as he are", "am I nuts": a coordinated or
+    // compared pronoun, or an inverted question, is not this verb's whole subject. "and you
+    // was right" still opens a clause.
+    const before = ctx.text.slice(Math.max(0, phraseRange.start - 12), phraseRange.start);
+    if (
+      /\b(?:as|than|am|is|are|was|were)[ \t\u00a0]+$/i.test(before) ||
+      (inputPronoun.toLowerCase() !== "you" && /(?:\b(?:and|or|nor)|&)[ \t\u00a0]+$/i.test(before))
+    )
+      continue;
     const gap = phrase.slice(inputPronoun.length, phrase.length - inputVerb.length);
     // The pronoun "i" is always capitalized; the case rule would flag it anyway.
     const fixedPronoun = pronoun === "i" ? "I" : pronoun;
@@ -1026,10 +1044,14 @@ const duplicatePunctuation: Detector = (ctx) => {
       alternatives: [match[1]],
     });
   }
-  // "word.." (never "..." or "../"): one period too many at a sentence end.
-  const periods = /(?<=[\p{L}\p{N})\]"”’])\.\.(?=\s|$)/gu;
+  // "word.." (never "..." or "../"): one period too many at a sentence end. Arabic writes
+  // ".." as a short ellipsis ("وهذا ما دعاني إلى.."), so Arabic script keeps it.
+  const periods = /(?<=(?![\p{Script=Arabic}])[\p{L}\p{N})\]"”’])\.\.(?=\s|$)/gu;
   for (const match of ownedMatches(ctx, periods)) {
     const start = match.index;
+    // German "am 30.11.." ends a sentence on a date: its own dot, then the period.
+    const before = ctx.text.slice(Math.max(0, start - 8), start);
+    if (ctx.lang.startsWith("de") && /(?:^|[^\d.])\d{1,2}\.\d{1,2}$/.test(before)) continue;
     findings.push({
       ruleId: "duplicatePunctuationCollapse",
       messageKey: "review_msg_duplicate_punctuation",
@@ -1048,8 +1070,9 @@ const duplicatePunctuation: Detector = (ctx) => {
     });
   }
   // An ellipsis has three dots: "So..... anyway". Digits
-  // or a path around the run ("1....5", "..../") and dot leaders (10+) are not one.
-  const ellipsis = /(?<![.\p{N}])\.{4,9}(?![.\p{N}/\\])/gu;
+  // or a path around the run ("1....5", "..../"), dot leaders (10+) and a year still unknown
+  // ("(1957-....)") are not one.
+  const ellipsis = /(?<![.\p{N}-])\.{4,9}(?![.\p{N}/\\])/gu;
   for (const match of ownedMatches(ctx, ellipsis)) {
     const start = match.index;
     findings.push({
@@ -1278,6 +1301,16 @@ function measurementLike(
     if (!parsed || parsed.unitStart !== parsed.numberEnd) continue;
     const unit = prefix.slice(parsed.unitStart);
     if (ruleId === "measurementUnitFormatting" && /^([A-Z]|[dg])$/.test(unit)) continue;
+    // Brazilian usage writes clock times and durations glued: "às 10h", "20min".
+    if (ruleId === "measurementUnitFormatting" && ctx.lang === "pt_BR" && /^(?:h|min)$/.test(unit))
+      continue;
+    // "100m users" counts millions; "Type 42s" and "the 1990s" are plurals, not seconds.
+    if (
+      ruleId === "measurementUnitFormatting" &&
+      ((unit === "m" && /^[ \t]+(?:[a-z]{2,}s|[A-Z]{2,}s)\b/.test(ctx.text.slice(tokenEnd))) ||
+        (unit === "s" && /\b\p{Lu}[\p{L}-]*[ \t]+$/u.test(prefix.slice(0, parsed.start))))
+    )
+      continue;
     let prosePrefix = prefix.slice(0, parsed.start);
     // A prose list retains the evidence before its first measurement. Every
     // preceding item must itself parse; identifiers and arithmetic still abstain.
@@ -1322,7 +1355,8 @@ function measurementLike(
 const REPEATABLE_WORDS: Record<string, string> = {
   en: "the|an|a|is|are|was|were|be|am|in|on|at|for|with|from|of|to|and|or|but|nor|as|by|into|onto|about|than|this|these|those|its|your|our|their|would|should|could|has|been",
   de: "ein|eine|einen|einem|einer|eines|im|mit|von|für|auf|bei|aus|nach|zum|zur|dass|weil|ist|sind|hat|wird|über|unter|durch|ohne|gegen",
-  fr: "le|les|un|une|des|du|au|aux|dans|pour|avec|sur|et|mais|est|sont|par|ce|cette|ces|sans",
+  // "un un": "en acheter un un jour" is a pronoun and an article.
+  fr: "le|les|une|des|du|au|aux|dans|pour|avec|sur|et|mais|est|sont|par|ce|cette|ces|sans",
   es: "el|los|las|un|una|en|con|del|al|y|pero|por|sin|sobre|entre|desde|hasta|este|esta|estos|estas",
   pt: "os|um|uma|em|com|do|da|dos|das|no|na|e|mas|por|pelo|pela|sem|sobre|entre|este|esta|isto|isso",
   pl: "się|na|do|od|dla|przez|że|i|oraz|ale|lub|w|z|o|po|jest|są",
@@ -1394,6 +1428,11 @@ const repeatedWords: Detector = (ctx) => {
     // A named, quoted example is evidence, not prose to repair. Normal quotations still run.
     if (CUE_AND_QUOTE.test(before)) continue;
     if (word === "to" && !doubledTo(before, ctx.text.slice(end, end + 16))) continue;
+    // "the The Beatles album": a capitalized repeat after a lowercase word opens a name;
+    // "P A O L A A N": a spelled-out run of single letters.
+    const second = match[0].slice(-match[1].length);
+    if (/^\p{Ll}/u.test(match[1]) && /^\p{Lu}/u.test(second)) continue;
+    if (word.length === 1 && /(?:^|\s)\p{L}[ \t ]+$/u.test(before)) continue;
     findings.push({
       ruleId: "englishRepeatedWords",
       messageKey: "review_msg_repeated_words",
@@ -1404,6 +1443,17 @@ const repeatedWords: Detector = (ctx) => {
   }
   return findings;
 };
+
+/** Per-language modules: they may add context detectors to shared rules or serve their own. */
+export const LANGUAGE_DETECTORS: readonly ReviewDetectorEntry[] = [
+  ...GREEK_DETECTORS,
+  ...SWEDISH_DETECTORS,
+  ...ARABIC_DETECTORS,
+  ...PORTUGUESE_DETECTORS,
+  ...POLISH_DETECTORS,
+  ...SPANISH_DETECTORS,
+  ...FRENCH_DETECTORS,
+];
 
 /** Review detectors by rule. Rules absent here are excluded from review (see reviewCatalog). */
 export const REVIEW_DETECTORS: ReadonlyArray<ReviewDetectorEntry> = [
@@ -1512,4 +1562,6 @@ export const REVIEW_DETECTORS: ReadonlyArray<ReviewDetectorEntry> = [
     detect: (ctx) => [...measurementLike(ctx, "currencySpacing"), ...currencyPlacement(ctx)],
   },
   ...EXTENSION_DETECTORS,
+  ...GERMAN_DETECTORS,
+  ...LANGUAGE_DETECTORS,
 ];
