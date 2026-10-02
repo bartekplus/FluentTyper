@@ -137,10 +137,18 @@ function extraCommas(ctx: DetectContext): RawFinding[] {
 /* ------------------------------------------------------ missing comma before */
 
 const RELATIVE = "który|która|które|którego|której|któremu|którą|którym|których|którymi|którzy";
-const SUBORDINATORS = `że|iż|żeby|ażeby|aby|ponieważ|gdyż|jeśli|jeżeli|gdyby|zanim|dopóki|ale|lecz|${RELATIVE}`;
+/** Question words that open an indirect question or a clause of place: "nie wiem, gdzie". */
+const QUESTION_WORDS = "dlaczego|gdzie|kiedy";
+const SUBORDINATORS = `że|iż|żeby|ażeby|aby|ponieważ|gdyż|jeśli|jeżeli|gdyby|zanim|dopóki|gdy|zamiast|ale|lecz|${QUESTION_WORDS}|${RELATIVE}`;
+/** What makes the word after a subordinator part of a set phrase: "kiedy indziej", "póki co". */
+const SET_AFTER: Record<string, RegExp> = {
+  kiedy: /^(?:indziej|niekiedy|bądź)$/iu,
+  gdzie: /^(?:indziej|niegdzie|bądź)$/iu,
+  dlaczego: /^(?:innego|innym)$/iu,
+};
 /** Words after which the conjunction belongs to what comes before (compounds, coordination). */
 const OPENS_COMPOUND = new Set([
-  ..."i a oraz lub albo bądź ani czy bo ale lecz niż jak jakby aż tylko właśnie nawet zwłaszcza szczególnie zaś dlatego mimo pomimo chyba tyle tak również także jednak jednakże przecież no pewnie jasne choć chociaż nie to wtedy wówczas raz co byle lada wiadomo potem zaraz dopiero jeszcze przy może omal nieomal prawie niemal więc zatem przeto przynajmniej dość jako tym bardziej daj mało rzadko warunkiem razie miarę chwili momencie czasie zamiast".split(
+  ..."i a oraz lub albo bądź ani czy bo ale lecz niż jak jakby aż tylko właśnie nawet zwłaszcza szczególnie zaś dlatego mimo pomimo chyba tyle tak również także jednak jednakże przecież no pewnie jasne choć chociaż nie to wtedy wówczas raz co byle lada wiadomo potem zaraz dopiero jeszcze przy może omal nieomal prawie niemal więc zatem przeto przynajmniej dość jako tym bardziej daj mało rzadko warunkiem razie miarę chwili momencie czasie zamiast podczas dzięki wobec wie diabli licho oto".split(
     " ",
   ),
   ...SUBORDINATORS.split("|"),
@@ -180,6 +188,29 @@ function missingCommas(ctx: DetectContext): RawFinding[] {
     // The word must start where the match starts (no letters glued before it).
     if (/[\p{L}\p{N}_'’-]/u.test(ctx.text[m.index - 1] ?? "")) continue;
     const relative = new RegExp(`^(?:${RELATIVE})$`).test(sub);
+    // "to że" -> "to, że" ("Chodzi o to, że…"), but not the particle in "no to że".
+    if (lowerPrev === "to" && /^(?:że|iż)$/.test(sub)) {
+      const before = /(\p{L}+)[ \t\u00a0]+$/u.exec(
+        ctx.text.slice(Math.max(0, m.index - 24), m.index),
+      )?.[1];
+      if (
+        before &&
+        !/^(?:no|i|a|ale|bo|lecz|tylko|właśnie|nawet|tak|jak|mimo|pomimo)$/iu.test(before) &&
+        !userOrNamed(ctx, before)
+      ) {
+        findings.push(
+          findingAt(
+            ctx,
+            m.index,
+            m.index + prev.length + gap.length,
+            [`${prev},${gap}`],
+            MISSING,
+            "review_msg_pl_missing_comma",
+          ),
+        );
+      }
+      continue;
+    }
     // A preposition only goes with the relative pronoun: "dom w którym".
     if (prep && !relative) continue;
     if (OPENS_COMPOUND.has(lowerPrev) || PREPOSITION_SET.has(lowerPrev)) continue;
@@ -189,6 +220,19 @@ function missingCommas(ctx: DetectContext): RawFinding[] {
       if (!/^[ \t ]+\p{L}/u.test(after)) continue;
     }
     if (userOrNamed(ctx, prev) || /^\p{Lu}+$/u.test(prev)) continue;
+    const end = m.index + m[0].length;
+    const next = /^[ \t\u00a0]+(\p{L}+)/u.exec(ctx.text.slice(end, end + 40))?.[1] ?? "";
+    if (SET_AFTER[sub]?.test(next)) continue;
+    // A bare question word ends the sentence without a comma: "Nie powie dlaczego."
+    if (!next && new RegExp(`^(?:${QUESTION_WORDS})$`).test(sub)) continue;
+    // "zamiast" opens a clause only before an infinitive ("zamiast pracować"), not a noun.
+    if (sub === "zamiast" && !/(?:ć|c)$/u.test(next)) continue;
+    // A direct question keeps its question word: "A ty gdzie idziesz?".
+    if (
+      new RegExp(`^(?:${QUESTION_WORDS}|${RELATIVE})$`).test(sub) &&
+      /^[^.!\n]*\?/u.test(ctx.text.slice(end, end + 200))
+    )
+      continue;
     // "złapać którego ptaka": after an infinitive "który" is the indefinite pronoun.
     if (relative && (/ć$/u.test(prev) || !relativeClause(ctx, m.index, m.index + m[0].length)))
       continue;
@@ -208,6 +252,58 @@ function missingCommas(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+/** A compound conjunction takes the comma before it as a whole: "zdradził, mimo że". */
+const COMPOUND_TAILS: Record<string, RegExp> = {
+  mimo: /^(?:że|iż)$/u,
+  pomimo: /^(?:że|iż)$/u,
+  nawet: /^(?:jeśli|jeżeli|gdy|kiedy|gdyby\p{L}{0,5})$/u,
+  dopiero: /^(?:gdy|kiedy|jak)$/u,
+  zwłaszcza: /^(?:że|gdy|kiedy|jeśli|jeżeli)$/u,
+  szczególnie: /^(?:że|gdy|kiedy|jeśli|jeżeli)$/u,
+  "tym bardziej": /^(?:że|iż)$/u,
+  "pod warunkiem": /^(?:że|iż)$/u,
+  podczas: /^gdy$/u,
+};
+const COMPOUND_BEFORE = new RegExp(
+  `(?<![\\p{L}\\p{N}_'’-])(?<prev>\\p{L}+)(?<gap>[ \\t\\u00a0]+)(?<head>mimo|pomimo|nawet|dopiero|zwłaszcza|szczególnie|tym[ \\t\\u00a0]+bardziej|pod[ \\t\\u00a0]+warunkiem|podczas)[ \\t\\u00a0]+(?<tail>\\p{Ll}+)(?![\\p{L}\\p{N}_'’-])`,
+  "gu",
+);
+/** "nie dość że" -> "nie dość, że". */
+const NOT_ENOUGH = /(?<![\p{L}])[Nn]ie[ \t\u00a0]+dość(?=[ \t\u00a0]+że(?![\p{L}]))/gu;
+
+function missingCompoundCommas(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of owned(ctx, COMPOUND_BEFORE)) {
+    const { prev, gap, head, tail } = m.groups!;
+    if (!COMPOUND_TAILS[head.replace(/\s+/gu, " ")]?.test(tail)) continue;
+    const lowerPrev = prev.toLowerCase();
+    if (OPENS_COMPOUND.has(lowerPrev) || PREPOSITION_SET.has(lowerPrev)) continue;
+    if (userOrNamed(ctx, prev) || /^\p{Lu}+$/u.test(prev)) continue;
+    findings.push(
+      findingAt(
+        ctx,
+        m.index,
+        m.index + prev.length + gap.length,
+        [`${prev},${gap}`],
+        MISSING,
+        "review_msg_pl_missing_comma",
+      ),
+    );
+  }
+  for (const m of owned(ctx, NOT_ENOUGH))
+    findings.push(
+      findingAt(
+        ctx,
+        m.index,
+        m.index + m[0].length,
+        [`${m[0]},`],
+        MISSING,
+        "review_msg_pl_missing_comma",
+      ),
+    );
+  return findings;
+}
+
 export const DETECTORS = [
   {
     rules: [MISPLACED] as RawFinding["ruleId"][],
@@ -216,6 +312,7 @@ export const DETECTORS = [
   },
   {
     rules: [MISSING] as RawFinding["ruleId"][],
-    detect: (ctx: DetectContext) => (isPl(ctx) ? missingCommas(ctx) : []),
+    detect: (ctx: DetectContext) =>
+      isPl(ctx) ? [...missingCommas(ctx), ...missingCompoundCommas(ctx)] : [],
   },
 ];

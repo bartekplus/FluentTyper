@@ -75,7 +75,16 @@ export const FRAMES: readonly Frame[] = [
     messageKey: "review_msg_pl_abbreviation_dot",
     verbatim: true,
   },
-  // Truncations take one: "np.", "tzw.", "itd.", "m.in.", "p.n.e.", "proc.", "ok." before a number.
+  // "dr", "mgr" keep the last letter of "doktor" only: a man's name in an oblique case takes
+  // "dr." ("dzięki dr. Kowalskiemu"); a woman's title does not inflect ("z dr Kowalską").
+  {
+    pattern: `(?<target>dr|mgr|dyr)(?=${S}(?:\\p{Lu}\\p{Ll}+${S})?\\p{Lu}\\p{Ll}*(?:skiego|ckiego|dzkiego|skiemu|ckiemu|dzkiemu|skim|ckim|dzkim|owi)${NOT_LETTER})`,
+    fix: (m) => `${m.groups!.target}.`,
+    ruleId: RULE,
+    messageKey: "review_msg_pl_abbreviation_dot",
+    verbatim: true,
+  },
+  // Truncations take one:"np.", "tzw.", "itd.", "m.in.", "p.n.e.", "proc.", "ok." before a number.
   {
     pattern: `(?<target>np|tzw|itd|itp|m\\.in|p\\.n\\.e|n\\.e|proc|godz)(?![\\p{L}\\p{N}.])(?=[ \\t\\u00a0,;:)?!]|$)`,
     fix: (m) => `${m.groups!.target}.`,
