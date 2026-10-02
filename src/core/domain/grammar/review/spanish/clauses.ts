@@ -402,18 +402,21 @@ function repeatedAdverb(ctx: DetectContext, tokens: Token[], i: number): RawFind
 
 // ------------------------------------------------------------------ preposition + finite verb
 
-// The contractions before a masculine noun, where a feminine-looking present form cannot be
-// one ("al informa"); after "de" or "en" the lexicon misses too many nouns ("de descarga").
-const GOVERNING = words("del al");
+// Prepositions, which take a noun or an infinitive and never a present form ("al informa",
+// "con informa"). Only -a forms are read: the lexicon knows the nouns spelled like one ("de
+// descarga", "con ayuda") better than those spelled like an -e form ("de aguante"). "hasta"
+// may mean "even" and "según" a clause ("y hasta escanea", "según informa la radio").
+const GOVERNING = words("del al de en con por sin desde sobre entre hacia contra tras");
 // Adverbs and nouns that look like verb forms after a preposition: "de cerca", "desde hace".
 const NOT_FINITE_HERE = words(
-  "hace cerca fuera dentro arriba abajo delante detrás antes encima debajo afuera adentro este " +
+  "hace cerca acerca fuera dentro arriba abajo delante detrás antes encima debajo afuera adentro este " +
     "atrás adelante nada toda cada media mitad sobre bajo entre tarde pronto mientras",
 );
 
 /**
- * "al informa." -> "al informar": "al" and "del" take a masculine noun or an infinitive, never
- * a present form, when nothing but a preposition or the clause end follows it.
+ * "al informa." -> "al informar", "con informa." -> "con informar": a preposition takes a noun
+ * or an infinitive, never a present form, when nothing but a preposition or the clause end
+ * follows it.
  */
 function prepositionFinite(ctx: DetectContext, tokens: Token[], i: number): RawFinding | null {
   const at = new Around(tokens, i);
@@ -421,7 +424,6 @@ function prepositionFinite(ctx: DetectContext, tokens: Token[], i: number): RawF
   if (!GOVERNING.has(at.prev()) || NOT_FINITE_HERE.has(word) || tokens[i].broken) return null;
   if (!/^\p{Ll}/u.test(tokens[i].text) || word.length < 4) return null;
   if (isNoun(word) || readNoun(word) || participle(word) || isInfinitive(word)) return null;
-  // An -e form may be a noun the lexicon misses ("del deporte"); an -a one after "al" cannot.
   if (!finiteVerb(word) || !/a$/u.test(word)) return null;
   if (!at.endsAfter() && !PREPOSITIONS.has(at.next())) return null;
   const infinitive = presentInfinitive(word);

@@ -1205,9 +1205,18 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         ["Lo supimos al informa.", "Lo supimos al informar."],
         ["Se rio del multiplica.", "Se rio del multiplicar."],
         ["Lo dijo al termina.", "Lo dijo al terminar."],
+        ["Nadie ganó nada con insulta.", "Nadie ganó nada con insultar."],
+        ["Se cansó de camina por el monte.", "Se cansó de caminar por el monte."],
+        ["Pasó la tarde sin estudia.", "Pasó la tarde sin estudiar."],
       ],
       neg: [
         "El plan permite que los vecinos opinen.",
+        "Lo compré con ayuda de mi hermano.",
+        "Se presentó sin cita y en contra de todos.",
+        "Según informa la radio, llueve.",
+        "Imprime, copia y hasta escanea.",
+        "Se puso en marcha tras consulta con los vecinos.",
+        "Hablamos sobre reforma y sobre deporte.",
         "Desde hace años vive aquí.",
         "Lo vi de cerca.",
         "Hablamos de política.",
@@ -1379,13 +1388,16 @@ test("Spanish typewriter quote pairs get angle and curly single quotes, opt-in",
     expect(findings("spanishQuotes", text)).toEqual([]);
 });
 
-test("the committed Spanish lexicon matches es_ES.dic/.aff (bun run generate:spanish-lexicon)", async () => {
+test("the committed Spanish lexicon matches es_ES.dic/.aff and the n-gram counts (bun run generate:spanish-lexicon)", async () => {
+  const S = SPANISH_LEXICON_SOURCES;
   const [dic, aff, committed] = await Promise.all(
-    [SPANISH_LEXICON_SOURCES.dic, SPANISH_LEXICON_SOURCES.aff, SPANISH_LEXICON_SOURCES.out].map(
-      (path) => readFile(path, "utf8"),
-    ),
+    [S.dic, S.aff, S.out].map((path) => readFile(path, "utf8")),
   );
-  expect(buildSpanishLexicon(dic, aff)).toBe(committed);
+  const [trie, counts] = await Promise.all([
+    Bun.file(S.trie).arrayBuffer(),
+    Bun.file(S.counts).arrayBuffer(),
+  ]);
+  expect(buildSpanishLexicon(dic, aff, trie, counts)).toBe(committed);
 });
 
 // JavaScriptCore may run a regex in its interpreter (late in the full suite it did): a frame

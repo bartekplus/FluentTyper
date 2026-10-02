@@ -12,6 +12,7 @@ import {
 import { DETERMINER, readNoun } from "./agreement";
 import { HABER, IR, isPerfectParticiple } from "./confusions";
 import {
+  attribute,
   finiteVerb,
   genderedForm,
   isGerund,
@@ -94,10 +95,12 @@ function check(at: Around): string[] | null {
     }
   }
   // "el atleta a corrido": the preposition before a participle is "ha".
-  // "de acusador a acusado", "Serie A", "a templado-frescos" are not.
+  // "de acusador a acusado", "Serie A", "a templado-frescos" are not, nor "sujetos a borrado",
+  // where a plural adjective before governs the preposition (and "ha" would not agree).
   const nextToken = at.tokens[at.i + 1];
   if (
     word === "a" &&
+    !attribute(prev)?.plural &&
     (at.tokens[at.i].text === "a" || at.starts) &&
     isPerfectParticiple(next) &&
     !isNoun(next) &&

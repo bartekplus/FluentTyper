@@ -372,7 +372,9 @@ function determinerNoun(ctx: DetectContext, tokens: Token[], i: number): RawFind
   if (!noun || (verbReading(detToken.lower, word) && !nounFrame(tokens, i))) return null;
   // An adjective after a word that also stands alone: "salir de esta vivos" (pronoun),
   // "otras nostálgica" (otras veces), "demasiado pequeña" (adverb), "las hechas" (clitic).
-  if (noun.paired && ADJECTIVE_BLOCKERS.has(detToken.lower)) {
+  // "vivos" is a noun too, but its gender forms make it an adjective here.
+  const adjective = noun.paired || isGenderedEntry(noun.singular);
+  if (adjective && ADJECTIVE_BLOCKERS.has(detToken.lower)) {
     // "aquellos médicas", "esos enfermeras": these stand alone only before a word that agrees
     // with them ("aquellos interesados"); "esta"/"estas" may still be "está"/"estás".
     const detPlural = DETERMINER.get(detToken.lower)!.slot >= 2;

@@ -1,9 +1,15 @@
 import { BLOOM_ALPHABET, bloomBits } from "../../implementations/helpers/EnglishLexicon";
-import { SPANISH_ACCENTED_NOMINALS, SPANISH_BLOOM } from "./spanishLexicon.generated";
+import { decodeWords } from "../swedish/lexicon";
+import {
+  SPANISH_ACCENTED_NOMINALS,
+  SPANISH_BLOOM,
+  SPANISH_VERBS,
+} from "./spanishLexicon.generated";
 
-// Word classes read from es_ES.dic/.aff (scripts/generate-spanish-lexicon.ts). A Bloom filter
-// answers, so about 0.3% of other words read as members too: every check that uses it also
-// needs a closed-class frame around the word, never the lexicon alone.
+// Word classes read from es_ES.dic/.aff and the n-gram counts (scripts/generate-spanish-lexicon.ts).
+// Verbs are listed in full; for nouns and adjectives a Bloom filter answers, so about 0.1% of
+// other words read as members too: every check that uses them also needs a closed-class frame
+// around the word, never the lexicon alone.
 
 let filter: Uint8Array | undefined;
 function has(key: string): boolean {
@@ -17,10 +23,16 @@ function has(key: string): boolean {
 }
 
 // Verbs the dictionary lists without conjugation flags (their forms are separate entries).
-const UNFLAGGED_VERBS = new Set(["ser", "estar", "haber", "ir", "poder", "dar"]);
-/** A conjugated verb's infinitive ("cantar", "tener", "poder"). */
+const UNFLAGGED_VERBS = ["ser", "estar", "haber", "ir", "poder", "dar"];
+let verbs: Set<string> | undefined;
+/** A conjugated verb's infinitive ("cantar", "tener", "poder"), never a typo ("trabajer"). */
 export const isVerb = (infinitive: string) =>
-  UNFLAGGED_VERBS.has(infinitive) || has(`v${infinitive}`);
+  (verbs ??= new Set([
+    ...UNFLAGGED_VERBS,
+    ...Object.entries(SPANISH_VERBS).flatMap(([ending, stems]) =>
+      decodeWords(stems).map((stem) => `${stem}${ending}`),
+    ),
+  ])).has(infinitive);
 /** A plural-taking entry without -o/-a gender forms: a noun ("casa", "mano", "feliz"). */
 export const isNounEntry = (word: string) => has(`n${word}`);
 /** A masculine entry with -o/-a gender forms: an adjective or a gendered noun ("lleno"). */
