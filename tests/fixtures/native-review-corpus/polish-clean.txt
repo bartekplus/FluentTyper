@@ -156,3 +156,32 @@ Powinnam była zadzwonić wcześniej.
 Powiedział: „Nie ma mowy”, i wyszedł.
 „Dokąd idziesz?” – zapytała mama.
 W „Panu Tadeuszu” jest wiele opisów przyrody.
+# Commas before conjunctions, set phrases that keep none, and negated objects.
+Pojechaliśmy nad morze, mimo że prognoza zapowiadała deszcz.
+Zostanę dłużej, pod warunkiem że ktoś mnie odwiezie.
+Zadzwoń, kiedy dojedziesz na miejsce.
+Nie mam pojęcia, gdzie położyłam okulary.
+Wrócimy do tego kiedy indziej, a teraz szukajmy gdzie indziej.
+Póki co nikt się nie skarżył.
+Kupił bułki zamiast chleba, bo piekarnia była już pusta.
+Ona czytała, podczas gdy on gotował obiad.
+Nie dość, że się spóźnił, to jeszcze zapomniał kluczy.
+Chodzi o to, że nie zdążymy przed zmrokiem.
+Nie mam dziś czasu na długie rozmowy.
+Nie widziałem tego filmu, ale słyszałem o nim dużo dobrego.
+Nie lubię jej wczesnych płyt.
+Jego gniew nie zna granic, a jej cierpliwość nie zna końca.
+Wieczorem nie kupiłam już gazety.
+Nie powie dlaczego.
+# Fixed genders, abbreviations and numerals.
+To menu jest za długie, a moje ulubione kakao już wystygło.
+Nie używam perfum, za to kupiłam sobie nowe perfumy dla mamy.
+Kilo pomarańcz kosztuje dziś mniej niż tydzień temu.
+Zapłaciłem jedno euro za kawę.
+Rozmawiałam wczoraj z dr Nowak i z dr. Kowalskim.
+Zysk okazał się trzykrotnie wyższy, a koszty 2-krotnie niższe.
+Zatrudnili 30-letniego kierowcę na pięcioletni kontrakt.
+Ten samochód jest najlepszy w swojej klasie.
+Spędziliśmy w górach letni dzień, jeden z najpiękniejszych.
+Jego postawa odgrywa ważną rolę w zespole.
+Ten temat wraca co jakiś czas.
