@@ -141,7 +141,7 @@ function sino(tokens: Token[], i: number): { end: number; fix: string[] } | null
     // "no canta sino baila": "sino que" or "si no" before a finite verb.
     if (PREPOSITIONS.has(next.lower)) return null;
     const verb = CLITICS.has(next.lower) ? tokens[i + 2] : next;
-    if (!verbAt(verb) || subjunctiveLike(verb!.lower)) return null;
+    if (!verb || !verbAt(verb) || subjunctiveLike(verb.lower)) return null;
     return {
       end: i,
       fix: at.starts || !negatedBefore(tokens, i) ? ["si no"] : ["si no", "sino que"],
