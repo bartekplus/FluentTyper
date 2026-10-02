@@ -31,7 +31,7 @@ const FEMININE_R = new Set(
   ),
 );
 const SPAN = words("anos|meses|semanas|dias|séculos|décadas|minutos|segundos");
-const AMOUNT = `(?:(?:quase|uns|umas|alguns|algumas|muitos|muitas|poucos|poucas|vários|várias|cerca${S}de|mais${S}de|menos${S}de|\\d+|dois|duas|três|quatro|cinco|seis|sete|oito|nove|dez|vinte|trinta|cem)${W}${S})`;
+const AMOUNT = `(?:(?:quase|aproximadamente|uns|umas|alguns|algumas|muitos|muitas|poucos|poucas|vários|várias|cerca${S}de|mais${S}de|menos${S}de|\\d+|dois|duas|três|quatro|cinco|seis|sete|oito|nove|dez|vinte|trinta|cem)${W}${S})`;
 const WEEKDAY = "(?:segunda|terça|quarta|quinta|sexta)(?:-feira)?|sábado|domingo";
 const MONTH =
   "janeiro|fevereiro|março|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro";
@@ -219,7 +219,7 @@ const FRAMES: Frame[] = [
   },
   // Crase: "à" before a span of time is "há" (it existed), after "daqui" plain "a".
   {
-    pattern: `(?<!daqui${S})(?<target>à)${S}${AMOUNT}?${SPAN}`,
+    pattern: `(?<!daqui${S})(?<target>à)${S}${AMOUNT}{0,2}${SPAN}`,
     alternatives: ["há"],
     messageKey: "review_msg_pt_crase",
   },
@@ -504,6 +504,30 @@ const FRAMES: Frame[] = [
     pattern: `(?:é|são|foi|foram|era|eram|será|serão|seria|seriam|seja|sejam|fosse|fossem|sido|ser|está|estão|estava|estavam|estar|esteja|estejam|ficou|ficaram|fica|ficam)${S}(?:(?:já|não|todo|toda|todos|todas|bem)${S})?(?<target>(?:${Object.keys(SHORT_PARTICIPLE).join("|")})[ai]d[oa]s?)${W}`,
     alternatives: (typed) => [shortParticiple(typed.toLowerCase())],
     messageKey: "review_msg_pt_participle",
+  },
+  // "às" before a clock time; "ás" is the card.
+  {
+    pattern: `(?<target>ás)${S}(?=(?:\\d{1,2}(?:h|:\\d\\d|${S}horas)|${CLOCK_WORDS}${S}horas|meia-noite|uma${S}hora)${W})`,
+    alternatives: ["às"],
+    messageKey: "review_msg_pt_crase",
+  },
+  // "Dê uma olhada", "Não dê ouvidos": the imperative of "dar".
+  {
+    pattern: `(?<target>de)${S}(?=(?:uma${S}(?:olhada|chance|mão|força|ajuda|passada|lida|conferida|espiada)|atenção|importância|ouvidos|licença|um${S}jeito|um${S}tempo|notícias)${W})`,
+    alternatives: ["dê"],
+    messageKey: "review_msg_pt_homophone",
+    clauseStart: true,
+  },
+  {
+    pattern: `não${S}(?<target>de)${S}(?=(?:confiança|atenção|importância|ouvidos|bola|trela|moleza|bobeira|chance|mole)${W})`,
+    alternatives: ["dê"],
+    messageKey: "review_msg_pt_homophone",
+  },
+  // "está de saída", "está de acordo": "esta" is the demonstrative.
+  {
+    pattern: `(?<target>esta)${S}(?=de${S}(?:saída|folga|férias|plantão|parabéns|luto|acordo|volta|passagem|brincadeira|castigo|dieta|cama|pé|olho|prontidão|mudança|licença|serviço|bem|mal)${W})`,
+    alternatives: ["está"],
+    messageKey: "review_msg_pt_homophone",
   },
   // "pôr" (to put) after a modal: "por" + article would contract to "pelo".
   {

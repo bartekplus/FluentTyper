@@ -323,6 +323,64 @@ export const PORTUGUESE_PHRASES: PhraseRow[] = [
   ["mal olhado", "mau-olhado"],
   ["de mal grado", "de mau grado"],
   ["mal tratos", "maus-tratos"],
+  // "senso" is judgement, "censo" a count of the population.
+  ["bom censo", "bom senso"],
+  ["censo comum", "senso comum"],
+  ["censo crítico", "senso crítico"],
+  ["censo de humor", "senso de humor"],
+  ["censo de justiça", "senso de justiça"],
+  ["censo de responsabilidade", "senso de responsabilidade"],
+  ["censo de direção", "senso de direção"],
+  ["senso demográfico", "censo demográfico"],
+  ["sensos demográficos", "censos demográficos"],
+  ["senso populacional", "censo populacional"],
+  ["senso escolar", "censo escolar"],
+  ["senso do IBGE", "censo do IBGE"],
+  // "mandado" is a court order, "mandato" a term of office.
+  ...["captura", "prisão", "busca", "segurança", "injunção", "despejo", "penhora"].flatMap(
+    (what): PhraseRow[] => [
+      [`mandato de ${what}`, `mandado de ${what}`],
+      [`mandatos de ${what}`, `mandados de ${what}`],
+    ],
+  ),
+  ["mandato judicial", "mandado judicial"],
+  ["mandatos judiciais", "mandados judiciais"],
+  ...["parlamentar", "presidencial", "eletivo", "legislativo"].flatMap((kind): PhraseRow[] => [
+    [`mandado ${kind}`, `mandato ${kind}`],
+  ]),
+  ["mandados parlamentares", "mandatos parlamentares"],
+  // "ás" is the card or the champion; "às" fuses "a" with "as".
+  ["um às", "um ás"],
+  ["às na manga", "ás na manga"],
+  ["ás vezes", "às vezes"],
+  // Shoes are "calçados", clothes "vestidos".
+  ...[
+    ["vestir", "calçar"],
+    ["veste", "calça"],
+    ["vestiu", "calçou"],
+    ["vesti", "calcei"],
+    ["vestia", "calçava"],
+    ["vista", "calce"],
+  ].flatMap(([dress, shoe]): PhraseRow[] =>
+    [
+      "os sapatos",
+      "o sapato",
+      "as meias",
+      "os tênis",
+      "as botas",
+      "as sandálias",
+      "os chinelos",
+    ].map((item): PhraseRow => [`${dress} ${item}`, `${shoe} ${item}`]),
+  ),
+  ...[
+    ["calçar", "vestir"],
+    ["calçou", "vestiu"],
+    ["calcei", "vesti"],
+  ].flatMap(([shoe, dress]): PhraseRow[] =>
+    ["a camisa", "o casaco", "o blusão", "a blusa", "o vestido", "a jaqueta", "o paletó"].map(
+      (item): PhraseRow => [`${shoe} ${item}`, `${dress} ${item}`],
+    ),
+  ),
   // "mais" (more) where "mas" (but) was written, and back.
   ["mas ou menos", "mais ou menos"],
   ["cada vez mas", "cada vez mais"],
