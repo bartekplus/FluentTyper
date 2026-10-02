@@ -322,6 +322,7 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
     "germanConfusedWords",
     {
       pos: [
+        ["Das ist meine eigne Meinung.", "Das ist meine eigene Meinung."],
         ["Ich glaube, ihr seit müde.", "Ich glaube, ihr seid müde."],
         ["Wir wohnen hier seid drei Jahren.", "Wir wohnen hier seit drei Jahren."],
         ["Seid er umgezogen ist, schreibt er öfter.", "Seit er umgezogen ist, schreibt er öfter."],
@@ -349,6 +350,8 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Sie kam immer wider zu spät.", "Sie kam immer wieder zu spät."],
       ],
       neg: [
+        "Die eignen sich gut.",
+        "Der Kamm liegt im Bad.",
         "Er handelte wider besseres Wissen.",
         "Wir wogen das Für und Wider ab.",
         "Das alles war schön, ist aber vorbei.",
@@ -381,6 +384,9 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Am Abend trinken sie gern rot Wein.", "Am Abend trinken sie gern Rotwein."],
         ["Im Herbst essen wir oft grün Kohl.", "Im Herbst essen wir oft Grünkohl."],
         ["Wir liefern die Daten in digital Form.", "Wir liefern die Daten in Digitalform."],
+        ["Das Auto war schnelle.", "Das Auto war schnell."],
+        ["Das Zimmer ist dunkle.", "Das Zimmer ist dunkel."],
+        ["Er läuft schnelle als ich.", "Er läuft schneller als ich."],
         ["Der Unfall geschah ohne fremd Verschulden.", "Der Unfall geschah ohne Fremdverschulden."],
         ["Die Mannschaft ist in best Form.", "Die Mannschaft ist in Bestform."],
         ["Er fordert einen höheren mindest Lohn.", "Er fordert einen höheren Mindestlohn."],
@@ -407,6 +413,10 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Wir flogen in ein parallel Universum.", "Wir flogen in ein paralleles Universum."],
       ],
       neg: [
+        "Er ist müde.",
+        "Das Essen war spitze.",
+        "Wir sind viele.",
+        "Wir nehmen die rote als Ersatz.",
         "Lieber Frau Becker als Herrn Schulz.",
         "Wir grüßen die liebe Frau Schulz.",
         "Das macht einem richtig Spaß.",

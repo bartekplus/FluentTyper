@@ -244,6 +244,7 @@ export type ReviewMessageKey =
   | "review_msg_german_adjective_lowercase"
   | "review_msg_german_modal_infinitive"
   | "review_msg_german_polite_sie"
+  | "review_msg_german_predicative"
   | "review_msg_german_colloquial"
   | "review_msg_german_numbers"
   | "review_msg_greek_final_nu"

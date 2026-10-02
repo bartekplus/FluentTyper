@@ -343,6 +343,21 @@ const FRAMES: readonly Frame[] = [
       return /(?<!\p{L})ich\s*$/iu.test(before) || /^\s+ich(?!\p{L})/iu.test(rest) ? "bin" : "sei";
     },
   },
+  // "seine eigne Meinung" → eigene: "eignen" (to suit) takes no article before a noun.
+  {
+    regex: re(
+      `(?:${any("der die das den dem des ein eine einen einem einer eines kein keine keinen keinem keiner mein meine meinen meinem meiner sein seine seinen seinem seiner ihre ihren ihrem ihrer unser unsere unseren unserem dein deine deinen deinem eure euren zwei drei vier")}|\\p{N}+)${S}(?<target>eign(?:e|en|er|es|em))(?=${S}\\p{Lu})`,
+    ),
+    fix: (m) => m.groups!.target.replace(/^eign/, "eigen"),
+  },
+  // "Ich kamm dir helfen" → kann or kam: "Kamm" (comb) is a noun, so lowercase it is the verb.
+  {
+    regex: re(`(?<noun>\\p{L}+)${S}(?<target>kamm)(?=${S}\\p{Ll})`),
+    fix: (m) =>
+      /^(?:der|den|dem|des|einen|einem|eines|ein|kein|mein|dein|sein)$/i.test(m.groups!.noun)
+        ? null
+        : ["kann", "kam"],
+  },
   // "Es gibt keine Features, sonder nur …" → sondern.
   { regex: re(`(?<=,${S})(?<target>sonder)(?=${S}${W})`), fix: "sondern" },
 ];

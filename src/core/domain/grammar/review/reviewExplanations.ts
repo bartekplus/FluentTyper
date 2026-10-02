@@ -3349,6 +3349,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Grzecznościowe Sie piszemy wielką literą: Kommen Sie bitte herein!",
     "O tratamento de cortesia Sie leva maiúscula: Kommen Sie bitte herein!",
   ],
+  review_msg_german_predicative: [
+    "An adjective after sein or werden takes no ending, and before als it takes the comparative: Er war schnell, schneller als ich.",
+    "Après sein ou werden, l’adjectif ne prend pas de terminaison, et devant als il se met au comparatif : Er war schnell, schneller als ich.",
+    "Pridjev iza sein ili werden nema nastavka, a ispred als stoji u komparativu: Er war schnell, schneller als ich.",
+    "Tras sein o werden el adjetivo no lleva terminación, y ante als va en comparativo: Er war schnell, schneller als ich.",
+    "Μετά το sein ή το werden το επίθετο δεν παίρνει κατάληξη, και πριν από το als μπαίνει σε συγκριτικό: Er war schnell, schneller als ich.",
+    "Efter sein eller werden får adjektivet ingen ändelse, och före als står det i komparativ: Er war schnell, schneller als ich.",
+    "Nach sein oder werden steht das Adjektiv ohne Endung, vor als im Komparativ: Er war schnell, schneller als ich.",
+    "Po sein lub werden przymiotnik nie ma końcówki, a przed als stoi w stopniu wyższym: Er war schnell, schneller als ich.",
+    "Depois de sein ou werden o adjetivo não leva terminação, e antes de als vai no comparativo: Er war schnell, schneller als ich.",
+  ],
   review_msg_german_colloquial: [
     "This short form is spoken German; in writing use the full particle: hineingehen, herausbekommen, herum.",
     "Cette forme courte relève de l’oral ; à l’écrit, employez la particule complète : hineingehen, herausbekommen, herum.",
