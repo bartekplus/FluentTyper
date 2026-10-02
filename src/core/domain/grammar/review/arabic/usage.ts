@@ -724,6 +724,44 @@ const WORDS: Pair[] = [
   ...["لصالحك", "لصالحه", "لصالحها", "لصالحهم", "لصالحنا", "لصالحي", "لصالحكم"].map(
     (form): Pair => [form, form.replace("لصالح", "لمصلحت")],
   ),
+  // The calque "in every sense of the word".
+  ...[
+    "بكل معنى الكلمة",
+    "بكل ما تحمله الكلمة من معنى",
+    "بكل ما للكلمة من معنى",
+    "بكل ما في الكلمة من معنى",
+  ].map((typed): Pair => [typed, "حقا"]),
+  // Being moved is التأثر; التأثير is the effect one has.
+  ["من شدة التأثير", "من شدة التأثر"],
+  // Limited to is مقصور على; قاصر is "falling short" or "a minor".
+  ...[
+    ["قاصر على", "مقصور على"],
+    ["قاصرة على", "مقصورة على"],
+    ["قاصرا على", "مقصورا على"],
+    ["قاصرون على", "مقصورون على"],
+    ["قاصرين على", "مقصورين على"],
+  ].map(([typed, fix]): Pair => [typed, fix]),
+  // Participles of باع and of a low place: مبيع, منخفض.
+  ...nominal("مباع", "مبيع"),
+  ...nominal("مباعة", "مبيعة"),
+  ...nominal("واطئ", "منخفض"),
+  ...nominal("واطئة", "منخفضة"),
+  // برهة is a long while; a moment is هنيهة.
+  ...nominal("برهة", "هنيهة", false),
+  // سوية is "evenness": a high standard is a مرتبة or درجة.
+  ...["عالية", "رفيعة", "متدنية", "متقدمة"].flatMap((level) =>
+    nominal(`سوية ${level}`, [`مرتبة ${level}`, `درجة ${level}`]),
+  ),
+  // A dream seen in sleep is a حلم or رؤيا; منام is the sleep.
+  ...["رأى", "رأت", "رأيت", "رأوا", "رأينا", "يرى", "ترى", "أرى", "نرى", "يرون"].map(
+    (form): Pair => [`${form} مناما`, `${form} حلما`],
+  ),
+  // قارب takes its object directly: "يقارب ألفا".
+  ...[
+    ["يقارب من", "يقارب"],
+    ["يقارب عددهم من", "يقارب عددهم"],
+    ["يقارب عددها من", "يقارب عددها"],
+  ].map(([typed, fix]): Pair => [typed, fix]),
 ];
 
 /** The rows: every typed form once. */

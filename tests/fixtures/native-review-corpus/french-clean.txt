@@ -121,3 +121,67 @@ Si nous avions su, nous serions venus plus tôt ; je viendrai demain sans faute.
 Ils ont tous le même âge et elles ont toutes la même passion pour le théâtre.
 Je n'ai jamais vu un spectacle aussi beau, c'est le meilleur que j'aie jamais vu.
 J'aurais aimé savoir la vérité, mais personne ne me l'a dite.
+# Noun subjects past numbers, complements and lists.
+Les trois sœurs de mon père habitent à Nantes depuis vingt ans.
+Le directeur des ventes et la comptable de l'agence sont partis en congé.
+Chaque été des milliers de touristes visitent la vieille ville.
+Vingt minutes de marche suffisent pour rejoindre la plage.
+Un essaim d'abeilles s'est installé dans la cheminée.
+La moitié des invités sont restés jusqu'à minuit.
+Le prix des légumes et des fruits a beaucoup augmenté cet hiver.
+Ce genre d'histoires arrive plus souvent qu'on ne le croit.
+Une table, deux chaises et une lampe meublent la chambre.
+Après son départ, Marie a vendu la maison familiale.
+Elle partie, le silence retomba sur la maison.
+Nous deux, nous resterons ici jusqu'à demain.
+Il s'est tu pendant tout le repas, puis il est sorti.
+# Être, été and the participle after avoir.
+Les ponts de la ville ont été construits au siècle dernier.
+Tu étais malade hier, mais nous sommes ravis de te revoir en forme.
+Celle-ci est trop petite ; ceux-là sont parfaits pour la saison.
+Est-elle arrivée à l'heure ? Sont-ils déjà repartis ?
+Le banc est peut-être mouillé, et la table est sans doute sale.
+Ta lettre, je l'ai lue hier soir, et tes photos, je les ai regardées.
+Elle lui a offert un livre que nous lui avions conseillé.
+Mes parents ont vendu leur maison et ont acheté un appartement.
+Je les ai entendus chanter, puis je les ai vu partir.
+Nous sommes fin prêts, et les fenêtres sont grand ouvertes.
+Ils avaient été pendant des années les meilleurs amis du monde.
+# Determiners and the nouns after them.
+Leur jardin est plus fleuri que le leur, mais le nôtre est plus grand.
+C'est un des plus beaux marchés de la région, et le curé y fait ses courses.
+Le la du diapason sert de référence aux musiciens de l'orchestre.
+Elle le coupe en deux, puis elle le partage avec son frère.
+Ce sont des souvenirs d'enfance que l'on garde longtemps.
+Il a appuyé sur le un, puis sur le deux.
+Ce mot a un double sens, et son indigne frère le sait bien.
+Dès sa sortie de l'hôpital, il a repris le travail.
+Ce jour-là, celui-là même qui riait est resté là-bas.
+Il est là, tout le temps là, et je ne sais pas ce qu'il fait là.
+# Names, relative clauses and long noun phrases before their verb.
+Les enfants que je garde le mercredi arrivent à midi, et le dossier que vous m'avez envoyé est complet.
+Les livres dont tu m'as parlé sont épuisés depuis que Marie et Paul les ont achetés.
+Hier, Sophie a réparé le vélo de son frère ; Lucie part demain et Marc reste ici.
+Il travaille beaucoup et les résultats suivent, c'est pourquoi les élèves révisent chaque soir.
+Les données collectées chaque jour servent à améliorer le service.
+Les rapports annuels publiés en mars présentent les comptes de l'année.
+Les invités dont nous attendions la venue sont enfin arrivés.
+Le directeur que les employés apprécient beaucoup part à la retraite.
+Le professeur dont les élèves parlent tant arrive demain, et Thomas et moi irons le saluer.
+Les enfants qui jouent dans la cour crient fort ; la fille qui chante s'appelle Léa.
+Je crois que Nicolas sait nager, et il pense que Julie et Marc viendront.
+La moitié des invités sont partis, mais le reste des élèves est resté.
+Le prix de ces maisons est élevé, et les feuilles de l'arbre sont tombées.
+Le groupe de filles est arrivé ; le livre et la revue sont posés sur la table.
+La porte du garage est fermée, et la mère et la fille sont contentes.
+# Adjectives joined by et or ou.
+Une maison grande et lumineuse aux murs épais et solides, dans des rues étroites et sombres.
+Le temps est froid et humide ; la salle était pleine et bruyante.
+Les politiques économique et sociale du pays visent des élèves français et étrangers.
+Il porte un manteau long et noir, et les résultats sont bons ou mauvais selon les années.
+# Compounds and the free phrases next to them.
+Range l'argent dans le coffre-fort, puis éteins le lave-vaisselle.
+Ma grand-mère se lève tôt et lit le compte rendu de la réunion.
+Une petite fille joue dans le parc pendant que le nord est balayé par le vent.
+Les équations non linéaires sont étudiées l'après-midi.
+Visez-le sans faute, et revenez chez vous à cent pour cent.

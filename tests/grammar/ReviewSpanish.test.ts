@@ -1205,9 +1205,18 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         ["Lo supimos al informa.", "Lo supimos al informar."],
         ["Se rio del multiplica.", "Se rio del multiplicar."],
         ["Lo dijo al termina.", "Lo dijo al terminar."],
+        ["Nadie ganó nada con insulta.", "Nadie ganó nada con insultar."],
+        ["Se cansó de camina por el monte.", "Se cansó de caminar por el monte."],
+        ["Pasó la tarde sin estudia.", "Pasó la tarde sin estudiar."],
       ],
       neg: [
         "El plan permite que los vecinos opinen.",
+        "Lo compré con ayuda de mi hermano.",
+        "Se presentó sin cita y en contra de todos.",
+        "Según informa la radio, llueve.",
+        "Imprime, copia y hasta escanea.",
+        "Se puso en marcha tras consulta con los vecinos.",
+        "Hablamos sobre reforma y sobre deporte.",
         "Desde hace años vive aquí.",
         "Lo vi de cerca.",
         "Hablamos de política.",
@@ -1233,6 +1242,317 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         "Ya lo sé. Ya voy.",
         "Siempre lo dice y lo hace bien siempre.",
         "Nunca jamás lo haré.",
+      ],
+    },
+  ],
+  [
+    "spanishAccents",
+    "qué after a preposition, a verb of knowing or wondering, and aun before a negated gerund",
+    {
+      pos: [
+        [
+          "Nadie entiende hasta que punto le importa.",
+          "Nadie entiende hasta qué punto le importa.",
+        ],
+        ["Dime de que color lo quieres.", "Dime de qué color lo quieres."],
+        ["No sabíamos a que hora salía el tren.", "No sabíamos a qué hora salía el tren."],
+        ["Ignoro de que se queja.", "Ignoro de qué se queja."],
+        ["Me pregunto que pensaba mi abuelo.", "Me pregunto qué pensaba mi abuelo."],
+        [
+          "Les preguntamos que libros leer este verano.",
+          "Les preguntamos qué libros leer este verano.",
+        ],
+        [
+          "No sabía que comprarle a mi hermana por su cumpleaños.",
+          "No sabía qué comprarle a mi hermana por su cumpleaños.",
+        ],
+        ["Aún no teniendo dinero, nos invitó.", "Aun no teniendo dinero, nos invitó."],
+        ["Para mi es un honor.", "Para mí es un honor."],
+      ],
+      neg: [
+        "Esperó hasta que llegó su madre.",
+        "Lo conoce desde que era niño.",
+        "Se dio cuenta de que llovía.",
+        "Le pregunté que si venía a cenar.",
+        "Lo hizo de modo que nadie lo viera.",
+        "Se alegra de que gente como tú venga.",
+        "Sé que bajar música sin pagar está mal.",
+        "Aún no ha llegado el cartero.",
+        "En mi era no había teléfonos móviles.",
+      ],
+    },
+  ],
+  [
+    "spanishAgreement",
+    "a determiner against the agreeing word and the noun after it",
+    {
+      pos: [
+        ["Trajo muchos otras cosas.", "Trajo muchas otras cosas."],
+        ["Volvió una pocas semanas después.", "Volvió unas pocas semanas después."],
+        ["¿Tienes alguna otro remedio para la tos?", "¿Tienes algún otro remedio para la tos?"],
+        ["Leí la tres novelas del verano.", "Leí las tres novelas del verano."],
+        ["Vivió en los tres casas del barrio.", "Vivió en las tres casas del barrio."],
+        ["Estos dos casas son nuevas.", "Estas dos casas son nuevas."],
+      ],
+      neg: [
+        "Había demasiado pocas sillas para todos.",
+        "Uno tardó dos días y otro tres días.",
+        "Es la tres veces campeona de Europa.",
+        "Comí con el dos veces ganador del torneo.",
+        "Las otras tres hermanas llegaron tarde.",
+        "Unos pocos días bastaron.",
+      ],
+    },
+  ],
+  [
+    "spanishAccents",
+    "a first person preterite after a sentence-opening yo, me or ayer",
+    {
+      pos: [
+        ["Yo lo arregle con cinta.", "Yo lo arreglé con cinta."],
+        ["Ayer compre pan y leche.", "Ayer compré pan y leche."],
+        ["Anoche cene con mis padres.", "Anoche cené con mis padres."],
+        ["Me canse de esperar.", "Me cansé de esperar."],
+        ["Me equivoque.", "Me equivoqué."],
+      ],
+      neg: [
+        "Quiero que yo cante primero.",
+        "Me envíe la factura, por favor.",
+        "Cuando yo llegue, cenamos.",
+        "Ayer el viento levante sopló fuerte.",
+        "Me gusta que me escuches.",
+      ],
+    },
+  ],
+  [
+    "spanishConfusions",
+    "the auxiliary ha/he after a clitic, a subject or a verb's adverb, and por que after a reason",
+    {
+      pos: [
+        ["Él a dicho la verdad.", "Él ha dicho la verdad."],
+        ["Nunca a estado en Roma.", "Nunca ha estado en Roma."],
+        ["Te e traído un regalo.", "Te he traído un regalo."],
+        ["E terminado el informe.", "He terminado el informe."],
+        ["No entiendo el motivo porque se marchó.", "No entiendo el motivo por que se marchó."],
+        ["Esa es la razón porque vine.", "Esa es la razón por que vine."],
+        ["Abrió la ventana para que halla luz.", "Abrió la ventana para que haya luz."],
+        ["Ojalá halla sitio para todos.", "Ojalá haya sitio para todos."],
+      ],
+      neg: [
+        "Se puso a cubierto de la lluvia.",
+        "Tiene la razón porque lo vio con sus ojos.",
+        "Perdió la causa porque su abogado faltó.",
+        "Con razón porque nadie lo avisó.",
+        "Vino a casa y él e Isabel cenaron.",
+      ],
+    },
+  ],
+  [
+    "spanishConfusions",
+    "grading prefixes before an adjective and doubled words",
+    {
+      pos: [
+        ["Es un grupo pro europeo.", "Es un grupo proeuropeo."],
+        ["Lleva una vida cuasi perfecta.", "Lleva una vida cuasiperfecta."],
+        ["Tiene ideas ultra modernas.", "Tiene ideas ultramodernas."],
+        ["Los niños jugaban al pilla-pilla.", "Los niños jugaban al pillapilla."],
+        ["No me vengas con el bla-bla de siempre.", "No me vengas con el blabla de siempre."],
+      ],
+      neg: [
+        "Compramos en un súper cercano.",
+        "Hablamos de los pros y los contras.",
+        "Se oía el tic-tac del reloj.",
+        "Es un súper de barrio.",
+        "Votó en pro de la reforma.",
+      ],
+    },
+  ],
+  [
+    "spanishAccents",
+    "nouns opening a heading or before a number",
+    {
+      pos: [
+        ["Capitulo 7.", "Capítulo 7."],
+        ["Lee la pagina 12 del libro.", "Lee la página 12 del libro."],
+        ["Critica de teatro.", "Crítica de teatro."],
+        ["Las ultimas.", "Las últimas."],
+        ["Lideres del grupo.", "Líderes del grupo."],
+      ],
+      neg: [
+        "Termino de cenar.",
+        "Practica de noche.",
+        "Critica a sus amigos.",
+        "Practica la natación los lunes.",
+        "Critica de todo lo que ve.",
+      ],
+    },
+  ],
+  [
+    "spanishAccents",
+    "hacia after a verb, hacía las veces, an emphatic sí and irá before a gerund",
+    {
+      pos: [
+        ["Corrió hacía la salida.", "Corrió hacia la salida."],
+        ["Mi tío hacia las veces de padre.", "Mi tío hacía las veces de padre."],
+        ["Si terminé los deberes.", "Sí terminé los deberes."],
+        ["Pues si llamé a tu madre.", "Pues sí llamé a tu madre."],
+        ["Mañana ira mejorando poco a poco.", "Mañana irá mejorando poco a poco."],
+        ["Se ira de vacaciones en julio.", "Se irá de vacaciones en julio."],
+      ],
+      neg: [
+        "Creía que hacía la cena.",
+        "Si quieres.",
+        "Si llegó tarde, no lo sé.",
+        "Si tuvo suerte antes de emigrar.",
+        "Sentía la ira creciendo en su pecho.",
+        "Mostró miedo e ira contenida.",
+      ],
+    },
+  ],
+  [
+    "spanishConfusions",
+    "a finite form after the perfect auxiliary",
+    {
+      pos: [
+        ["Ya he termina la tarea.", "Ya he terminado la tarea."],
+        ["Nunca ha viaja solo.", "Nunca ha viajado solo."],
+        ["Hoy he llamé a mi abuela.", "Hoy he llamado a mi abuela."],
+        ["Los niños han come pronto.", "Los niños han comido pronto."],
+        ["¿Has decido algo?", "¿Has decidido algo?"],
+      ],
+      neg: [
+        "He de irme pronto.",
+        "Volver ha casa es un deseo.",
+        "Puede haber cambios mañana.",
+        "Lo ha dicho su madre.",
+        "Ha bendecido la mesa.",
+      ],
+    },
+  ],
+  [
+    "spanishAccents",
+    "a question word made a noun by el",
+    {
+      pos: [
+        ["Importa el qué y el como.", "Importa el qué y el cómo."],
+        ["No sabemos el donde ni el cuándo.", "No sabemos el dónde ni el cuándo."],
+        ["Discutieron el cuanto, no el qué.", "Discutieron el cuánto, no el qué."],
+        ["No importa el quien sino el qué.", "No importa el quién sino el qué."],
+        ["No importa el que sino el cómo.", "No importa el qué sino el cómo."],
+      ],
+      neg: [
+        "Fue el que vino primero.",
+        "Es el que.",
+        "Ese es el que más sabe.",
+        "Ese es el como lo hace.",
+        "Era el cual buscábamos.",
+      ],
+    },
+  ],
+  [
+    "spanishTypography",
+    "a comma between an opening subject and any verb that agrees with it",
+    {
+      pos: [
+        ["El gobierno, anunció nuevas medidas.", "El gobierno anunció nuevas medidas."],
+        ["Los vecinos, no llegaron a tiempo.", "Los vecinos no llegaron a tiempo."],
+        ["La empresa, fabrica coches eléctricos.", "La empresa fabrica coches eléctricos."],
+        ["Nuestros abuelos, vivieron en el campo.", "Nuestros abuelos vivieron en el campo."],
+        ["Esta ley, protege a los menores.", "Esta ley protege a los menores."],
+      ],
+      neg: [
+        "El libro, lo leí ayer.",
+        "Mi amor, va a llover.",
+        "El problema, dice Juan, es grave.",
+        "Esta temporada, jugamos mejor.",
+        "El coche, compramos uno nuevo.",
+      ],
+    },
+  ],
+  [
+    "spanishAgreement",
+    "lo before a plural, and an adjective opening a noun phrase without determiner",
+    {
+      pos: [
+        ["Votaron a favor de lo trabajadores.", "Votaron a favor de los trabajadores."],
+        ["Lo viejos tiempos no vuelven.", "Los viejos tiempos no vuelven."],
+        ["Lo cocinó con frescos verduras.", "Lo cocinó con frescas verduras."],
+        ["Viajó en contadas ocasión.", "Viajó en contada ocasión."],
+        ["Hermosas paisajes.", "Hermosos paisajes."],
+      ],
+      neg: [
+        "Lo pequeños que son.",
+        "Lo hacemos mañana.",
+        "Lo comes todos los días.",
+        "Con buenas intenciones no basta.",
+        "Somos rubias.",
+        "Solo hombres en la sala.",
+      ],
+    },
+  ],
+  [
+    "spanishAccents",
+    "está closing a clause after a participle or como, and after que before a participle",
+    {
+      pos: [
+        ["Dicho esta.", "Dicho está."],
+        ["Déjalo como esta.", "Déjalo como está."],
+        ["Es la pieza que esta pegada por dentro.", "Es la pieza que está pegada por dentro."],
+        [
+          "Una casa que esta basada en planos antiguos.",
+          "Una casa que está basada en planos antiguos.",
+        ],
+        [
+          "La caja de la cual esta sellada con cinta.",
+          "La caja de la cual está sellada con cinta.",
+        ],
+      ],
+      neg: [
+        "Después de toda esta recogida de datos.",
+        "Me gusta como esta.",
+        "Dijo que esta salida es mejor.",
+        "Finalizada esta en 1445, se mudó.",
+        "La casa es mejor que esta.",
+      ],
+    },
+  ],
+  [
+    "spanishAccents",
+    "a preterite after a subject pronoun, past a noun or adjective twin",
+    {
+      pos: [
+        ["Él trabajo dos turnos seguidos.", "Él trabajó dos turnos seguidos."],
+        ["Ella limpio la cocina.", "Ella limpió la cocina."],
+        ["Él no le hablo en todo el día.", "Él no le habló en todo el día."],
+        ["Ella dibujo un mapa del barrio.", "Ella dibujó un mapa del barrio."],
+        ["Él no me contesto.", "Él no me contestó."],
+      ],
+      neg: [
+        "Él tranquilo, ella nerviosa.",
+        "Él solo lo sabe.",
+        "Él mismo lo dijo.",
+        "Ella, creo, no lo sabe.",
+        "Para él trabajo es todo.",
+      ],
+    },
+  ],
+  [
+    "spanishConfusions",
+    "se before a possessive or a participle",
+    {
+      pos: [
+        ["Es la foto se mi abuela.", "Es la foto de mi abuela."],
+        ["Pueden se reparados mañana.", "Pueden ser reparados mañana."],
+        ["Deben se revisadas cada año.", "Deben ser revisadas cada año."],
+        ["Ya se terminado la función.", "Ya se ha terminado la función."],
+        ["La tienda se cerrado por obras.", "La tienda se ha cerrado por obras."],
+      ],
+      neg: [
+        "Se ha cerrado la tienda.",
+        "No lo sé, dado que llueve.",
+        "Se lo dio a su madre.",
+        "Se cansa de esperar.",
+        "Pueden ser reparados.",
       ],
     },
   ],
@@ -1379,13 +1699,16 @@ test("Spanish typewriter quote pairs get angle and curly single quotes, opt-in",
     expect(findings("spanishQuotes", text)).toEqual([]);
 });
 
-test("the committed Spanish lexicon matches es_ES.dic/.aff (bun run generate:spanish-lexicon)", async () => {
+test("the committed Spanish lexicon matches es_ES.dic/.aff and the n-gram counts (bun run generate:spanish-lexicon)", async () => {
+  const S = SPANISH_LEXICON_SOURCES;
   const [dic, aff, committed] = await Promise.all(
-    [SPANISH_LEXICON_SOURCES.dic, SPANISH_LEXICON_SOURCES.aff, SPANISH_LEXICON_SOURCES.out].map(
-      (path) => readFile(path, "utf8"),
-    ),
+    [S.dic, S.aff, S.out].map((path) => readFile(path, "utf8")),
   );
-  expect(buildSpanishLexicon(dic, aff)).toBe(committed);
+  const [trie, counts] = await Promise.all([
+    Bun.file(S.trie).arrayBuffer(),
+    Bun.file(S.counts).arrayBuffer(),
+  ]);
+  expect(buildSpanishLexicon(dic, aff, trie, counts)).toBe(committed);
 });
 
 // JavaScriptCore may run a regex in its interpreter (late in the full suite it did): a frame

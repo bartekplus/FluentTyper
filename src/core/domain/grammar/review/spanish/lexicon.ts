@@ -1,10 +1,17 @@
 import { BLOOM_ALPHABET, bloomBits } from "../../implementations/helpers/EnglishLexicon";
-import { SPANISH_ACCENTED_NOMINALS, SPANISH_BLOOM } from "./spanishLexicon.generated";
+import { decodeWords } from "../swedish/lexicon";
+import {
+  SPANISH_ACCENTED_NOMINALS,
+  SPANISH_BLOOM,
+  SPANISH_VERBS,
+} from "./spanishLexicon.generated";
 
-// Word classes read from es_ES.dic/.aff (scripts/generate-spanish-lexicon.ts). A Bloom filter
-// answers, so about 0.3% of other words read as members too: every check that uses it also
-// needs a closed-class frame around the word, never the lexicon alone.
+// Word classes read from es_ES.dic/.aff and the n-gram counts (scripts/generate-spanish-lexicon.ts).
+// Verbs are listed in full; for nouns and adjectives a Bloom filter answers, so about 0.05% of
+// other words read as members too: every check that uses them also needs a closed-class frame
+// around the word, never the lexicon alone.
 
+export const SPANISH_BLOOM_HASHES = 11;
 let filter: Uint8Array | undefined;
 function has(key: string): boolean {
   if (!filter) {
@@ -13,16 +20,28 @@ function has(key: string): boolean {
       filter[i] = BLOOM_ALPHABET.indexOf(SPANISH_BLOOM[i]);
   }
   const bits = filter;
-  return bloomBits(key, bits.length * 6).every((bit) => (bits[(bit / 6) | 0] >> (bit % 6)) & 1);
+  return bloomBits(key, bits.length * 6, SPANISH_BLOOM_HASHES).every(
+    (bit) => (bits[(bit / 6) | 0] >> (bit % 6)) & 1,
+  );
 }
 
 // Verbs the dictionary lists without conjugation flags (their forms are separate entries).
-const UNFLAGGED_VERBS = new Set(["ser", "estar", "haber", "ir", "poder", "dar"]);
-/** A conjugated verb's infinitive ("cantar", "tener", "poder"). */
+const UNFLAGGED_VERBS = ["ser", "estar", "haber", "ir", "poder", "dar"];
+let verbs: Set<string> | undefined;
+/** A conjugated verb's infinitive ("cantar", "tener", "poder"), never a typo ("trabajer"). */
 export const isVerb = (infinitive: string) =>
-  UNFLAGGED_VERBS.has(infinitive) || has(`v${infinitive}`);
+  (verbs ??= new Set([
+    ...UNFLAGGED_VERBS,
+    ...Object.entries(SPANISH_VERBS).flatMap(([ending, stems]) =>
+      decodeWords(stems).map((stem) => `${stem}${ending}`),
+    ),
+  ])).has(infinitive);
+/** Endings only nouns have: "acción", "ciudad", "virtud", "pensamiento"… ("mismo" aside). */
+export const NOUN_ENDING =
+  /^(?:\p{L}{2,}(?:ción|sión|xión|dad|tad|tud)|\p{L}{3,}(?:miento|ismo))$/u;
 /** A plural-taking entry without -o/-a gender forms: a noun ("casa", "mano", "feliz"). */
-export const isNounEntry = (word: string) => has(`n${word}`);
+export const isNounEntry = (word: string) =>
+  (NOUN_ENDING.test(word) && word !== "mismo") || has(`n${word}`);
 /** A masculine entry with -o/-a gender forms: an adjective or a gendered noun ("lleno"). */
 export const isGenderedEntry = (masculine: string) => has(`a${masculine}`);
 
@@ -36,6 +55,10 @@ const IRREGULAR_PARTICIPLES = new Set(
   ).split(" "),
 );
 
+// Verbs whose only participle is irregular: "dicho", "hecho", "puesto", "escrito", "vuelto".
+const OWN_PARTICIPLE =
+  /^(?:(?!bendecir|maldecir)\p{L}*decir|\p{L}*hacer|\p{L}*poner|\p{L}*scribir|\p{L}*volver|\p{L}*solver|\p{L}*cubrir|abrir|entreabrir|\p{L}*romper|morir)$/u;
+
 /** The gender and number of a past participle ("cansadas"), or null. */
 export function participle(word: string): Agreement | null {
   const m = /^(\p{L}+)([oa])(s?)$/u.exec(word);
@@ -48,11 +71,14 @@ export function participle(word: string): Agreement | null {
   const [, stem, suffix] = regular;
   const infinitives =
     suffix === "ad" ? [`${stem}ar`] : [`${stem}er`, suffix === "id" ? `${stem}ir` : `${stem}ír`];
-  return infinitives.some(isVerb) ? agreement : null;
+  // "decido" is no participle: "decir" makes "dicho" (but "bendecido").
+  return infinitives.some((v) => isVerb(v) && !OWN_PARTICIPLE.test(v)) ? agreement : null;
 }
 
 /** The gender and number of an adjective form with -o/-a forms ("llena", "españoles"), or null. */
 export function genderedForm(word: string): Agreement | null {
+  // "mejor", "mayores", "superior": comparatives have one form for both genders.
+  if (/^(?:mejor|peor|mayor|menor|\p{L}+ior)(?:es)?$/u.test(word)) return null;
   const m = /^(\p{L}+?)(o|a|os|as|es)?$/u.exec(word);
   if (!m) return null;
   const [, stem, ending = ""] = m;
@@ -73,9 +99,13 @@ export function genderedForm(word: string): Agreement | null {
 export const attribute = (word: string): Agreement | null => participle(word) ?? genderedForm(word);
 
 /** A noun the dictionary lists (or its regular plural): "vez", "casas", "mano". */
+const ACUTE: Record<string, string> = { a: "á", e: "é", i: "í", o: "ó", u: "ú" };
 export function isNoun(word: string): boolean {
   if (isNounEntry(word)) return true;
   if (word.endsWith("es") && isNounEntry(word.slice(0, -2))) return true;
+  // "acciones", "razones", "intereses": the singular's last syllable takes the accent.
+  const stressed = /^(\p{L}+)([aeiou])([ns])es$/u.exec(word);
+  if (stressed && isNounEntry(`${stressed[1]}${ACUTE[stressed[2]]}${stressed[3]}`)) return true;
   if (word.endsWith("ces") && isNounEntry(`${word.slice(0, -3)}z`)) return true;
   return word.endsWith("s") && isNounEntry(word.slice(0, -1));
 }

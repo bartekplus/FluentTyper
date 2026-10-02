@@ -1,5 +1,11 @@
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
-import { adjectiveReadings, isInflectedNoun, nounGender, verbReadings } from "./frenchLexicon";
+import {
+  adjectiveReadings,
+  isInflectedNoun,
+  isVerbHomograph,
+  nounGender,
+  verbReadings,
+} from "./frenchLexicon";
 import {
   ownedFrenchWords,
   tokensAfter,
@@ -143,6 +149,15 @@ function etToEst(
   return null;
 }
 
+const SUBJECT_PRONOUN_WORDS = new Set("je j' tu il elle on nous vous ils elles".split(" "));
+// Words that open a clause of their own: "ce qu'il veut est simple", "celui qui part est
+// triste", "si tu viens, ..." keep the main verb "est".
+const SUBORDINATING = new Set(
+  "que qu' qui dont où ce si quand lorsque lorsqu' comme puisque puisqu' quoi lequel laquelle".split(
+    " ",
+  ),
+);
+
 /** "il est marié est a trois enfants", "il partit est ne revint pas" -> "et". */
 function estToEt(
   ctx: DetectContext,
@@ -159,6 +174,33 @@ function estToEt(
     return null;
   // "L'aile est n'est que", "la partie est fut": the noun "est" (east).
   if (before[1] && DETERMINERS.has(before[1].w)) return null;
+  // "il est agile est grand", "elle a un manteau est des gants": the clause already has its
+  // verb, and no relative or subordinate clause gives "est" a subject of its own.
+  const clause = tokensBefore(ctx.text, m.index, 12);
+  // A coordination or a capital (a sentence run on without its space) also starts afresh.
+  const opener = clause.findIndex(
+    (t, i) =>
+      SUBORDINATING.has(t.w) ||
+      ["et", "ou", "mais"].includes(t.w) ||
+      (i > 0 && /^\p{Lu}/u.test(ctx.text.slice(t.start, t.end)) && i < clause.length - 1),
+  );
+  const own = opener < 0 ? clause : clause.slice(0, opener);
+  if (
+    opener < 0 &&
+    // The earlier verb right after its subject pronoun: "il est agile est grand".
+    own.some(
+      (t, i) =>
+        i > 0 &&
+        SUBJECT_PRONOUN_WORDS.has(own[i + 1]?.w ?? "") &&
+        (t.w === "est" || t.w === "a" || !isVerbHomograph(t.w)) &&
+        verbReadings(t.w).some((r) => typeof r.slot === "number"),
+    ) &&
+    !/^\p{Lu}/u.test(ctx.text.slice(next.start, next.end))
+  )
+    return wordFinding(ctx, m.index, m[0], ["et"], RULE, MESSAGE, {
+      start: before[0].start,
+      end: next.end,
+    });
   const clitic = ["ne", "n'", "se", "s'"].includes(next.w);
   const verb = clitic ? after[1] : next;
   if (!verb || verb.hyphen || /^\p{Lu}/u.test(ctx.text.slice(verb.start, verb.end))) return null;

@@ -47,6 +47,9 @@ test.each([
   "It is best known for tea.",
   "It might be easiest if we wait.",
   "These are nearest neighbor methods.",
+  "It is best practice to log errors.",
+  "He was best man at the wedding.",
+  "That is worst case for us.",
 ])("keeps %p", (text) => {
   expect(scan(text)).toEqual([]);
 });

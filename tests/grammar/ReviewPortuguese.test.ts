@@ -62,9 +62,21 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["A musica tocou a noite toda.", "A música tocou a noite toda."],
         ["Choveu. O transito parou na ponte.", "Choveu. O trânsito parou na ponte."],
         ["As duvidas ficaram para amanhã.", "As dúvidas ficaram para amanhã."],
+        ["Ele sempre cópia as respostas do colega.", "Ele sempre copia as respostas do colega."],
+        ["Eu cálculo que faltam dez minutos.", "Eu calculo que faltam dez minutos."],
+        ["Ela não influência ninguém na equipe.", "Ela não influencia ninguém na equipe."],
+        ["Tu últimas o relatório hoje?", "Tu ultimas o relatório hoje?"],
+        ["Prática-se muito esporte aqui.", "Pratica-se muito esporte aqui."],
+        ["A empresa diz que providência-se tudo.", "A empresa diz que providencia-se tudo."],
       ],
       neg: [
         "Por último publica os dados.",
+        "Ele médico, ela enfermeira.",
+        "Entreguei a ela prática suficiente para a prova.",
+        "Nós médicos sabemos disso.",
+        "Eu cópia de mim mesmo? Nunca.",
+        "Ela secretária, ele diretor.",
+        "Ele a cópia fiel do pai.",
         "O velho critica tudo.",
         "Ela própria critica o texto.",
         "Ela pratica natação toda semana.",
@@ -724,6 +736,12 @@ describe("portugueseCommas", () => {
     ["Obrigada Pedro!", "Obrigada, Pedro!"],
     ["Não não vou.", "Não, não vou."],
     ["Por exemplo hoje choveu muito.", "Por exemplo, hoje choveu muito."],
+    ["Podemos sim vencer o jogo.", "Podemos, sim, vencer o jogo."],
+    ["Eles vão, sim cumprir o prazo.", "Eles vão, sim, cumprir o prazo."],
+    ["Você deve sim, pedir desculpas.", "Você deve, sim, pedir desculpas."],
+    ["Muito bem, sim senhor!", "Muito bem, sim, senhor!"],
+    ["Não senhora, não foi isso.", "Não, senhora, não foi isso."],
+    ["Planejamos tudo mas, no fim, choveu.", "Planejamos tudo, mas, no fim, choveu."],
     ["Atenciosamente\nMarta", "Atenciosamente,\nMarta"],
     ["Com os melhores cumprimentos.", "Com os melhores cumprimentos,"],
     ["Prezado Senhor Silva\nEscrevo para", "Prezado Senhor Silva,\nEscrevo para"],
@@ -732,7 +750,7 @@ describe("portugueseCommas", () => {
     ["Como é que vocês chegaram tão cedo.", "Como é que vocês chegaram tão cedo?"],
     ["Chegou cedo e além disso, trouxe o bolo.", "Chegou cedo e, além disso, trouxe o bolo."],
     ["Ficou caro, e, no fundo ninguém ligou.", "Ficou caro, e, no fundo, ninguém ligou."],
-    ["Correu muito mas ao mesmo tempo, sorriu.", "Correu muito mas, ao mesmo tempo, sorriu."],
+    ["Correu muito, mas ao mesmo tempo, sorriu.", "Correu muito, mas, ao mesmo tempo, sorriu."],
     ["Ela estuda e, em geral trabalha à noite.", "Ela estuda e, em geral, trabalha à noite."],
     ["Feliz natal Rui!", "Feliz natal, Rui!"],
     ["Bem-vinda Joana.", "Bem-vinda, Joana."],
@@ -748,6 +766,10 @@ describe("portugueseCommas", () => {
     "Mas na verdade, ninguém sabe.",
     "Frutas como por exemplo, maçãs.",
     "Bom dia a todos.",
+    "Ele disse sim ao pedido de casamento.",
+    "Podemos, sim, vencer o jogo.",
+    "O sim senhor dele soou falso demais.",
+    "Não só ele, mas, sobretudo, ela.",
     "Bom dia Brasil é um telejornal.",
     "Disse que não, não quero.",
     "Não via nada além disso, nem queria.",
@@ -844,6 +866,93 @@ describe("portugueseDates", () => {
     expect(finding.original).toBe(typed);
     expect(finding.alternatives.map((alternative) => alternative.preview)).toEqual(alternatives);
     expect(finding.requiresChoice).toBe(true);
+  });
+});
+
+describe("cujo, esta a + infinitive and bem-/mal- compounds", () => {
+  test.each([
+    [
+      "portugueseAgreement",
+      "Conheci a autora cuja livro ganhou o prêmio.",
+      "Conheci a autora cujo livro ganhou o prêmio.",
+    ],
+    [
+      "portugueseAgreement",
+      "Visitei o bairro cujo praça foi reformada.",
+      "Visitei o bairro cuja praça foi reformada.",
+    ],
+    [
+      "portugueseConfusions",
+      "A equipa esta a preparar o relatório.",
+      "A equipa está a preparar o relatório.",
+    ],
+    [
+      "portugueseConfusions",
+      "O motor esta a aquecer-se demais.",
+      "O motor está a aquecer-se demais.",
+    ],
+    [
+      "englishPhraseCorrections",
+      "Era o aluno melhor educado da turma.",
+      "Era o aluno mais bem-educado da turma.",
+    ],
+    [
+      "englishPhraseCorrections",
+      "Hoje acordou pior humorada que ontem.",
+      "Hoje acordou mais mal-humorada que ontem.",
+    ],
+  ] as Array<[CatalogRuleId, string, string]>)("%s: %p", (ruleId, text, fixed) => {
+    expect(repaired(ruleId, text)).toBe(fixed);
+  });
+  test.each([
+    ["portugueseAgreement", "A cidade cuja população cresce pede mais escolas."],
+    ["portugueseAgreement", "Uma empresa cujo principal objetivo é o lucro."],
+    ["portugueseConfusions", "Esta é a casa; esta a que me referi ontem."],
+    ["portugueseConfusions", "Prefiro esta à outra."],
+    ["englishPhraseCorrections", "Ele é o mais bem-educado da turma."],
+  ] as Array<[CatalogRuleId, string]>)("%s leaves %p alone", (ruleId, text) => {
+    expect(findings(ruleId, text)).toEqual([]);
+  });
+});
+
+describe("a contracted article before a demonstrative", () => {
+  test.each([
+    ["Foi o que senti na aquela hora.", "Foi o que senti naquela hora."],
+    ["Moro do este lado do rio.", "Moro deste lado do rio."],
+    ["Ninguém falou no isso depois.", "Ninguém falou nisso depois."],
+    ["Pedi ajuda ao aquele vizinho.", "Pedi ajuda àquele vizinho."],
+  ])("%p -> %p", (text, fixed) => {
+    expect(repaired("englishPhraseCorrections", text)).toBe(fixed);
+  });
+  test("da before a demonstrative may be the verb dá", () => {
+    const [finding] = findings("englishPhraseCorrections", "Ele da aquela risada alta.");
+    expect(finding.alternatives.map((a) => a.preview)).toEqual(["daquela", "dá aquela"]);
+    expect(finding.requiresChoice).toBe(true);
+  });
+});
+
+describe("Portuguese wording advice (stylePhrasing)", () => {
+  // Idioms and hidden verbs are listed by infinitive; the plain wording follows the tense.
+  test.each([
+    ["No fim, eles pagaram o pato pelo erro.", "No fim, eles levaram a culpa pelo erro."],
+    ["Ela pôs lenha na fogueira ontem.", "Ela agravou a situação ontem."],
+    ["Os técnicos chegaram a uma conclusão.", "Os técnicos concluíram."],
+    ["O time trabalhou de forma rápida.", "O time trabalhou rapidamente."],
+    ["Ele sempre puxa o saco do chefe.", "Ele sempre bajula o chefe."],
+    ["Eles deram início à reunião.", "Eles iniciaram a reunião."],
+    ["Ele perdeu as estribeiras na reunião.", "Ele descontrolou-se na reunião."],
+    ["Quero dar uma olhada no relatório.", "Quero olhar o relatório."],
+  ])("%p -> %p", (text, fixed) => {
+    expect(repaired("stylePhrasing", text)).toBe(fixed);
+  });
+  test.each([
+    "A temperatura pode descer abaixo de zero.",
+    "A galera atracou no porto antes do amanhecer.",
+    "É mais fácil acreditar numa boa mentira.",
+    "Eles abriram os olhos de manhã.",
+    "O pintor deu uma mão de tinta na parede.",
+  ])("%p stays clean", (text) => {
+    expect(findings("stylePhrasing", text)).toEqual([]);
   });
 });
 

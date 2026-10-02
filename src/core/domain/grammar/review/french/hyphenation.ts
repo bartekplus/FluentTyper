@@ -3,6 +3,8 @@ import {
   IL,
   ILS,
   adjectiveReadings,
+  compoundsStartingWith,
+  isDictionaryCompound,
   isFrenchWord,
   isInflectedNoun,
   isVerbHomograph,
@@ -372,7 +374,118 @@ function hyphenation(ctx: DetectContext): RawFinding[] {
     const finding = prefixCompound(ctx, m);
     if (finding) findings.push(finding);
   }
+  for (const m of ownedFrenchWords(ctx, WORD_PAIR)) {
+    const finding = spacedCompound(ctx, m);
+    if (finding) findings.push(finding);
+  }
+  for (const m of ownedFrenchWords(ctx, LONG_FIRST)) {
+    const finding = longCompound(ctx, m);
+    if (finding) findings.push(finding);
+  }
   return findings;
 }
+
+const LONG_FIRST = /(?<![\p{L}\p{M}\p{N}_'’-])\p{L}+(?:['’]\p{L}+)?(?=[ \t]{1,8}\p{L}|-\p{L})/gu;
+const compoundPatterns = new Map<string, RegExp>();
+// Compounds that are no noun, so no determiner comes before them.
+const BARE_COMPOUNDS = new Set(["c'est-à-dire"]);
+
+/** "Aix en Provence", "Jean Marc", "le rez de chaussée": a name the dictionary hyphenates (its
+ * case as listed) or a compound noun of three parts or more after a determiner. */
+function longCompound(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  // "Tout Paris est à la fête": a capitalized common word opening a sentence.
+  const lower = m[0].toLowerCase();
+  const opening = !/[\p{L},;(]\s{0,8}$/u.test(ctx.text.slice(Math.max(0, m.index - 9), m.index));
+  if (lower !== m[0] && opening && isFrenchWord(lower)) return null;
+  for (const compound of compoundsStartingWith(m[0].replace("’", "'"))) {
+    let pattern = compoundPatterns.get(compound);
+    if (!pattern) {
+      const parts = compound.split("-").map((p) => p.replace("'", "['’]"));
+      pattern = new RegExp(`${parts.join("(?:[ \\t]{1,8}|-)")}(?![\\p{L}\\p{M}\\p{N}_'’-])`, "uy");
+      compoundPatterns.set(compound, pattern);
+    }
+    pattern.lastIndex = m.index;
+    const hit = pattern.exec(ctx.text);
+    if (!hit || !/[ \t]/.test(hit[0])) continue;
+    if (/^\p{Ll}/u.test(compound) && !BARE_COMPOUNDS.has(compound)) {
+      const previous = tokensBefore(ctx.text, m.index, 1)[0];
+      if (!previous || !NOUN_PHRASE_OPENERS.has(previous.w)) return null;
+    }
+    if (namedExampleBefore(ctx.text, m.index) || ctx.dictionary.has(compound.toLowerCase()))
+      return null;
+    const apostrophe = /’/.test(hit[0]) ? "’" : "'";
+    return {
+      ruleId: RULE,
+      messageKey: MESSAGE,
+      range: { start: m.index, end: m.index + hit[0].length },
+      alternatives: [compound.replace("'", apostrophe)],
+    };
+  }
+  return null;
+}
+
+// Words before a noun phrase: a compound after them is a noun ("un coffre fort", "en arrière
+// plan"), not a verb and its complement ("il se lève tôt").
+const NOUN_PHRASE_OPENERS = new Set(
+  (
+    "le la les l' un une des du au aux ce cet cette ces mon ma mes ton ta tes son sa ses notre " +
+    "nos votre vos leur leurs"
+  ).split(" "),
+);
+// "le", "la", "les", "l'" are also object pronouns before a verb ("l'avons", "le sans faute").
+const PRONOUN_ARTICLES = new Set(["le", "la", "les", "l'"]);
+// Second words that make a clause of the pair ("le nord est froid", "peut être", "chez vous").
+const VERB_SECONDS = new Set(
+  "est a sont ont fait font être avoir vous nous moi toi lui eux là ci cent".split(" "),
+);
+
+/** "un coffre fort", "les non voyants", "l'agro industrie": a compound the dictionary hyphenates,
+ * written as two words after a determiner, or with a combining form in -o ("agro", "anglo")
+ * that is no word of its own. */
+function spacedCompound(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const { first, second } = m.groups!;
+  const joined = `${first}-${second}`;
+  // "non voyants": the dictionary lists the singular.
+  const singular = (w: string) => w.replace(/(?<=..)[sx]$/, "");
+  if (!isDictionaryCompound(joined) && !isDictionaryCompound(`${first}-${singular(second)}`)) {
+    if (!isDictionaryCompound(`${singular(first)}-${singular(second)}`)) return null;
+  }
+  if (PREFIX_WORDS.has(first) || VERB_SECONDS.has(second)) return null;
+  if (verbReadings(second).some((r) => typeof r.slot === "number") && !isVerbHomograph(second))
+    return null;
+  const previous = tokensBefore(ctx.text, m.index, 1)[0];
+  const bound = /..o$/.test(first) && !isFrenchWord(first);
+  if (!bound) {
+    if (!previous || !NOUN_PHRASE_OPENERS.has(previous.w)) return null;
+    const finite = verbReadings(first).some((r) => typeof r.slot === "number");
+    // "le", "la", "les", "l'" are articles after a preposition or at a clause start; after a
+    // verb ("Visez le sans faute") or a subject ("nous l'avons") they are pronouns.
+    if (PRONOUN_ARTICLES.has(previous.w)) {
+      const before = tokensBefore(ctx.text, previous.start, 1)[0];
+      const article = !before || ARTICLE_CONTEXT.has(before.w);
+      if (!article && (finite || verbReadings(before.w).length)) return null;
+    }
+  }
+  if (namedExampleBefore(ctx.text, m.index) || ctx.dictionary.has(first)) return null;
+  const gapStart = m.index + first.length;
+  const secondStart = ctx.text.indexOf(second, gapStart);
+  const end = secondStart + second.length;
+  return {
+    ruleId: RULE,
+    messageKey: MESSAGE,
+    range: { start: gapStart, end: secondStart },
+    alternatives: ["-"],
+    context: { start: m.index, end },
+  };
+}
+const PREFIX_WORDS = new Set(PREFIXES.split(" "));
+const ARTICLE_CONTEXT = new Set(
+  (
+    "de d' à dans sur sous pour par avec sans chez vers entre après avant contre pendant depuis " +
+    "et ou mais que qu' car"
+  ).split(" "),
+);
+const WORD_PAIR =
+  /(?<![\p{L}\p{M}\p{N}_-])(?<first>\p{Ll}+)(?=[ \t]{1,3}(?<second>\p{Ll}+)(?![\p{L}\p{M}\p{N}_'’-]))/gu;
 
 export const DETECTORS: readonly ReviewDetectorEntry[] = [{ rules: [RULE], detect: hyphenation }];

@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import {
   buildFrenchAdjectives,
+  buildFrenchCompounds,
   buildFrenchGender,
   buildFrenchLexicon,
   buildFrenchNouns,
@@ -16,6 +17,7 @@ import {
   IL,
   ILS,
   inflect,
+  isDictionaryCompound,
   isInflectedNoun,
   isVerbHomograph,
   JE,
@@ -85,8 +87,26 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
           "Quand vous arrivez à la gare, appelez-moi.",
         ],
         ["Vous aimer marcher le long du canal.", "Vous aimez marcher le long du canal."],
+        // "c'est" + an infinitive with a degree adverb, a time word or a question.
+        ["Ce n'est pas très compliquer.", "Ce n'est pas très compliqué."],
+        ["Comment c'est arriver ?", "Comment c'est arrivé ?"],
+        // An infinitive right after a noun for its participle.
+        [
+          "Elle portait une robe froisser par le voyage.",
+          "Elle portait une robe froissée par le voyage.",
+        ],
+        ["Il a les mains geler.", "Il a les mains gelées."],
       ],
       neg: [
+        "C'est rêver.",
+        "Partir, c'est mourir un peu.",
+        "Ce qui compte, c'est gagner.",
+        "C'est manger des pommes qui compte.",
+        "Elle a senti son cœur cogner.",
+        "Dans cette pièce fumer est interdit.",
+        "Il peut de cette manière trier les fiches.",
+        "Elle laisse les enfants jouer dehors.",
+        "Ma mère aimer le chocolat.",
         "Il a une machine a laver toute neuve.",
         "Il y a dîner chez Paul ce soir.",
         "Il est boucher depuis vingt ans.",
@@ -193,8 +213,15 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Il partira peut être demain.", "Il partira peut-être demain."],
         ["Vous avez peut être raison.", "Vous avez peut-être raison."],
         ["Peut être viendra-t-il.", "Peut-être viendra-t-il."],
+        // Hyphenated names and compounds of three parts.
+        ["Elle a grandi à Aix en Provence.", "Elle a grandi à Aix-en-Provence."],
+        ["Le colis est pour Anne Sophie.", "Le colis est pour Anne-Sophie."],
+        ["Le bureau est au rez de chaussée.", "Le bureau est au rez-de-chaussée."],
       ],
       neg: [
+        "Tout Paris est à la fête.",
+        "Ils luttent corps à corps.",
+        "Il est parti sur le champ de bataille.",
         "Quand tu viens tu manges ?",
         "Le but est ce que tu dis.",
         "C'est ce que je pense ?",
@@ -228,8 +255,94 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Elle est arrivé hier.", "Elle est arrivée hier."],
         ["Ils sont passé ici.", "Ils sont passés ici."],
         ["Elles étaient fatigué.", "Elles étaient fatiguées."],
+        // A noun subject, its number from a numeral, past a complement, or two coordinated.
+        ["Les chaises est cassées.", "Les chaises sont cassées."],
+        ["Les 12 candidats attend les résultats.", "Les 12 candidats attendent les résultats."],
+        ["Trois voisins vient ce soir.", "Trois voisins viennent ce soir."],
+        ["30 salariés perd leur emploi.", "30 salariés perdent leur emploi."],
+        ["Le goût des fraises plaisent à tous.", "Le goût des fraises plaît à tous."],
+        ["Les élèves de Marie travaille bien.", "Les élèves de Marie travaillent bien."],
+        ["Le chien et la chèvre dort dehors.", "Le chien et la chèvre dorment dehors."],
+        [
+          "Hier soir, la porte des voisins claquaient.",
+          "Hier soir, la porte des voisins claquait.",
+        ],
+        // A noun or a bare participle where the verb goes.
+        ["Tu sorts", "Tu sors"],
+        ["Ce soir, je sorts avec Paul.", "Ce soir, je sors avec Paul."],
+        // Demonstratives, "personne ne" and a sentence-initial "nous"/"vous".
+        ["Ça marchent très bien.", "Ça marche très bien."],
+        ["Personne ne veux partir.", "Personne ne veut partir."],
+        ["Celles-ci coûte trop cher.", "Celles-ci coûtent trop cher."],
+        ["Nous ne comprends pas.", "Nous ne comprenons pas."],
+        // A second verb joined by "et" shares the subject.
+        ["Ils chantaient et dansait.", "Ils chantaient et dansaient."],
+        ["Il ouvrit la porte et senti le froid.", "Il ouvrit la porte et sentit le froid."],
+        ["Il voit loin et il oubli tout.", "Il voit loin et il oublie tout."],
+        ["Ce matin, il terminé son rapport.", "Ce matin, il a terminé son rapport."],
+        ["Hier, j'aperçu un renard.", "Hier, j'ai aperçu un renard."],
+        ["Elle s'en souvenu.", "Elle s'en est souvenu."],
+        // Names, longer noun phrases, relative clauses and "et" between two clauses.
+        ["Hier soir, Nathalie viens de rentrer.", "Hier soir, Nathalie vient de rentrer."],
+        // A participle after a demonstrative with an object; an -ir/-re infinitive.
+        ["Cela coûté une fortune.", "Cela a coûté une fortune."],
+        ["Tu lui écrire demain.", "Tu lui écris demain."],
+        [
+          "Je crois que Lucas et Inès arrive demain.",
+          "Je crois que Lucas et Inès arrivent demain.",
+        ],
+        [
+          "Les colis que tu as commandés hier arrive ce soir.",
+          "Les colis que tu as commandés hier arrivent ce soir.",
+        ],
+        [
+          "Le jardin dont je m'occupe chaque été fleurissent en mai.",
+          "Le jardin dont je m'occupe chaque été fleurit en mai.",
+        ],
+        [
+          "Les voisins qui habitent au fond de la rue me salue souvent.",
+          "Les voisins qui habitent au fond de la rue me saluent souvent.",
+        ],
+        [
+          "Les tarifs postaux actuels augmente encore.",
+          "Les tarifs postaux actuels augmentent encore.",
+        ],
+        [
+          "Il pleuvait fort et les rivières déborde.",
+          "Il pleuvait fort et les rivières débordent.",
+        ],
       ],
       neg: [
+        "Paul viens ici !",
+        "Le pain et le vin sont bons.",
+        "Les deux tiers des habitants votent.",
+        "Les peintres tels que Picasso sont rares.",
+        "Agathe, Léo ainsi que Rudy vont l'aider.",
+        "Elle et Mrs. Smith sont là.",
+        "Les hommes avec lesquels tu parles sont partis.",
+        "Il connaît Berlin, Londres et Rome qui ont changé.",
+        "Le prix du pain et du lait augmente.",
+        "La plupart des invités sont partis.",
+        "Un groupe de touristes attendent devant le musée.",
+        "Chaque matin des oiseaux chantent.",
+        "Dix minutes suffit amplement.",
+        "Le nom des joueurs qui ont gagné est affiché.",
+        "Une pomme, une poire et une banane suffisent.",
+        "Nous deux partirons demain.",
+        "Ça, vous devez le demander au guichet.",
+        "Des outils comme celui-ci servent souvent.",
+        "La force qui, semblable au vent, nous pousse.",
+        "Personne n'est venu ce matin.",
+        "Il fut arrêté et condamné.",
+        "Je mange du pain et Paul boit du lait.",
+        "Il mange une pomme et sa sœur une poire.",
+        "Je fais ça tous les jours.",
+        "Il s'est tu pendant des heures.",
+        "Elle partie, la maison sembla vide.",
+        "Je soussigné certifie l'exactitude de ces informations.",
+        "Que s'est-il passé hier ?",
+        "Il ou elle viendra demain.",
+        "Ils et elles travaillent ensemble.",
         "Tu ne la vois pas.",
         "Il nous parle souvent.",
         "Nous vous remercions.",
@@ -261,8 +374,11 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["J ai froid.", "J'ai froid."],
         ["Il n arrive jamais.", "Il n'arrive jamais."],
         ["Ils ont beaucoup d’ enfants.", "Ils ont beaucoup d’enfants."],
+        ["Passe-moi le sel sil te plaît.", "Passe-moi le sel s'il te plaît."],
+        ["On sortira sil fait beau.", "On sortira s'il fait beau."],
       ],
       neg: [
+        "Le sil est une argile ocre.",
         "Le oui l'emporte.",
         "La une du journal.",
         "De un à dix.",
@@ -312,6 +428,7 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
     {
       pos: [
         ["Mes enfant sont partis.", "Mes enfants sont partis."],
+        ["Elle a trois enfant.", "Elle a trois enfants."],
         ["Les voiture roulent vite.", "Les voitures roulent vite."],
         ["La routes est longue.", "La route est longue."],
         ["Un plans de la ville.", "Un plan de la ville."],
@@ -321,6 +438,9 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
       ],
       neg: [
         "Je les aime beaucoup.",
+        "Le numéro deux allemand a gagné.",
+        "Il a raison à cent pour cent.",
+        "Un appartement neuf idéal pour une famille.",
         "Tu la portes bien.",
         "Il les porte.",
         "Ce sont mes amis.",
@@ -343,6 +463,20 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
     {
       pos: [
         ["Nous avons visité un maison ancienne.", "Nous avons visité une maison ancienne."],
+        ["Aucun voiture ne passe.", "Aucune voiture ne passe."],
+        // Two determiners in a row, and a verb form or participle where the noun goes.
+        ["Elle pense à vos ces projets.", "Elle pense à vos projets."],
+        ["Il travaille des sa jeunesse.", "Il travaille dès sa jeunesse."],
+        ["Je lis du votre journal.", "Je lis de votre journal."],
+        ["J'ai acheté des légumes au marche.", "J'ai acheté des légumes au marché."],
+        ["Le prêtre parle avec le cure.", "Le prêtre parle avec le curé."],
+        ["Le projet connaît un développent rapide.", "Le projet connaît un développement rapide."],
+        ["Elle attend sa sorti de prison.", "Elle attend sa sortie de prison."],
+        ["Mon dîné était délicieux.", "Mon dîner était délicieux."],
+        ["Nous attendons l'arrivé du train.", "Nous attendons l'arrivée du train."],
+        ["Il lit dans mes pensés.", "Il lit dans mes pensées."],
+        ["Nous visitons un musé.", "Nous visitons un musée."],
+        ["Il ne voit pas la nécessite de partir.", "Il ne voit pas la nécessité de partir."],
         ["Elle a résolu cette problème hier.", "Elle a résolu ce problème hier."],
         ["Il conduit un voiture neuve.", "Il conduit une voiture neuve."],
         ["Le réunion commence à neuf heures.", "La réunion commence à neuf heures."],
@@ -364,6 +498,20 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         "Le sixième jour, elle est partie.",
         "Dans un après-midi pluvieux, rien ne bouge.",
         "La une du journal était consacrée au sport.",
+        "Leur maison est plus grande que la leur.",
+        "C'est un des meilleurs films de l'année.",
+        "Le la du diapason sert de référence.",
+        "Il le coupe en deux.",
+        "Ce sont des histoires anciennes.",
+        "Appuyez sur le un pour continuer.",
+        "Il a un double sens.",
+        "Ton chien est plus calme que le votre.",
+        "Les Le Pen et les La Fontaine.",
+        "Son indigne frère est parti.",
+        "Il la facilite beaucoup.",
+        "Elle est à la retraite depuis un an.",
+        "Les invités arrivent et l'élu parle.",
+        "Leur vécu compte autant que son passé.",
       ],
     },
   ],
@@ -379,8 +527,65 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Ils sont françaises depuis toujours.", "Ils sont français depuis toujours."],
         ["Elle est vraiment heureux de venir.", "Elle est vraiment heureuse de venir."],
         ["Les routes sont dangereux ce matin.", "Les routes sont dangereuses ce matin."],
+        // Past "de" complements, two subjects joined by "et", a participle that is also a noun.
+        ["La couleur des volets du salon est passé.", "La couleur des volets du salon est passée."],
+        ["Le niveau de la rivière était inquiétante.", "Le niveau de la rivière était inquiétant."],
+        ["La lampe et la table sont cassés.", "La lampe et la table sont cassées."],
+        ["Le vase et la tasse sont cassées.", "Le vase et la tasse sont cassés."],
+        ["Est-il entrée sans frapper ?", "Est-il entré sans frapper ?"],
+        // Reflexive verbs agree with their subject; quantifiers as subjects.
+        ["Elle s'est endormi dans le salon.", "Elle s'est endormie dans le salon."],
+        ["Les invités se sont installé au salon.", "Les invités se sont installés au salon."],
+        ["Certaines étaient arrivé en avance.", "Certaines étaient arrivées en avance."],
+        // Avoir l'air: the subject's inflection or the masculine singular of "air".
+        ["Ses voisines ont l'air ravie.", "Ses voisines ont l'air ravies."],
+        ["Il a l'air inquiète ce matin.", "Il a l'air inquiet ce matin."],
+        // Two adjectives joined by "et" or "ou" share their noun's gender and number.
+        ["Un hiver long et rigoureuse.", "Un hiver long et rigoureux."],
+        ["Une offre claire et avantageuses.", "Une offre claire et avantageuse."],
+        // A color with a shade is invariable.
+        ["Elle porte des gants verts foncés.", "Elle porte des gants vert foncé."],
+        // A modal before être or "avoir été".
+        ["Cette erreur peut être corrigé.", "Cette erreur peut être corrigée."],
+        ["Les murs semblent avoir été repeint.", "Les murs semblent avoir été repeints."],
+        ["Elle doit être arrivés tôt.", "Elle doit être arrivée tôt."],
+        // After "été", after je/tu/nous, a demonstrative or an inversion.
+        ["Les ponts ont été construites en 1900.", "Les ponts ont été construits en 1900."],
+        ["Ce matin, la séance a été reporté.", "Ce matin, la séance a été reportée."],
+        ["Tu étais malades hier soir.", "Tu étais malade hier soir."],
+        ["Nous sommes vraiment ravi de venir.", "Nous sommes vraiment ravis de venir."],
+        ["Celle-ci est trop petit.", "Celle-ci est trop petite."],
+        ["Sont-elles arrivé tôt ?", "Sont-elles arrivées tôt ?"],
+        ["Le banc est peut-être mouillée.", "Le banc est peut-être mouillé."],
+        // After avoir: an object pronoun before it, or an object after the participle.
+        ["Ton vélo ? Je l'ai vendus hier.", "Ton vélo ? Je l'ai vendu hier."],
+        ["Ces photos, nous les avons regardé.", "Ces photos, nous les avons regardés."],
+        ["Elle lui a offerte un livre.", "Elle lui a offert un livre."],
+        ["Mes parents ont vendus leur maison.", "Mes parents ont vendu leur maison."],
       ],
       neg: [
+        "Elles se sont lavé les mains.",
+        "Elle a l'air content de son sort.",
+        "Les politiques économique et sociale du pays.",
+        "Les verts clairs dominent la toile.",
+        "Un ciel bleu clair.",
+        "Face à une situation incongrue et pris de panique, il fuit.",
+        "L'hiver est neigeux et dure longtemps.",
+        "Elles avaient l'air sérieux.",
+        "Ils se sont parlé hier soir.",
+        "Elles se sont vu refuser l'entrée.",
+        "Elles se sont rendu compte du problème.",
+        "La moitié des invités sont partis.",
+        "Nous sommes fin prêts pour le départ.",
+        "Ils avaient été pendant des années voisins.",
+        "Se sont-elles écrit depuis ?",
+        "J'étais quelques fois absent.",
+        "Je suis fils unique.",
+        "Je les ai entendus chanter.",
+        "Il nous a vus partir.",
+        "Elle m'a appelée hier.",
+        "Les enfants ont mangé des pommes.",
+        "La lettre que je lui ai envoyée est arrivée.",
         "Elle a l'air fatiguée ce soir.",
         "Ils sont bien sûr partis à l'heure.",
         "Il porte une chemise bleu clair et un pull rouge.",
@@ -475,6 +680,26 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
     },
   ],
   [
+    "frenchOrdinals",
+    {
+      pos: [
+        ["Il habite au 3ème étage.", "Il habite au 3e étage."],
+        ["C'est sa 1ère victoire.", "C'est sa 1re victoire."],
+        ["Les 2emes places sont prises.", "Les 2es places sont prises."],
+        ["Le 1ier janvier est férié.", "Le 1er janvier est férié."],
+        ["Il est arrivé 2nd au sprint.", "Il est arrivé 2d au sprint."],
+        ["Elle fête son 20ième anniversaire.", "Elle fête son 20e anniversaire."],
+      ],
+      neg: [
+        "Il habite au 3e étage.",
+        "C'est sa 1re victoire et son 1er titre.",
+        "Le fichier v2ème.txt est là.",
+        "Il a gagné 1ème place.",
+        "La version 2.3ème est sortie.",
+      ],
+    },
+  ],
+  [
     "frenchMissingNe",
     {
       pos: [
@@ -550,6 +775,17 @@ describe("French lexicon", () => {
     expect(finitePersons(word as string)).toBe(persons as number);
   });
 
+  test("the present subjunctive conjugates for every person", () => {
+    const subjunctive = (word: string, lemma: string) =>
+      verbReadings(word).find((r) => r.lemma === lemma && r.tense > 2)!;
+    const prenne = subjunctive("prenne", "prendre");
+    expect(conjugate(prenne, ILS)).toEqual(["prennent"]);
+    expect(conjugate(prenne, NOUS)).toEqual(["prenions"]);
+    expect(conjugate(prenne, VOUS)).toEqual(["preniez"]);
+    expect(conjugate(subjunctive("aille", "aller"), IL)).toEqual(["aille"]);
+    expect(conjugate(subjunctive("vienne", "venir"), ILS)).toEqual(["viennent"]);
+  });
+
   test("readings name the lemma, the participles and the infinitives", () => {
     expect(verbReadings("mangé").map((r) => [r.lemma, r.slot])).toEqual([["manger", "Q"]]);
     expect(verbReadings("dû").map((r) => [r.lemma, r.slot])).toEqual([["devoir", "Q"]]);
@@ -609,6 +845,18 @@ describe("French lexicon", () => {
       ].map((path) => readFile(path, "utf8")),
     );
     expect(buildFrenchAdjectives(dic, aff)).toBe(committed);
+  });
+
+  test("the committed compounds match fr_FR.dic and leave free phrases out", async () => {
+    const [dic, committed] = await Promise.all(
+      [FRENCH_LEXICON_SOURCES.dic, FRENCH_LEXICON_SOURCES.compounds].map((path) =>
+        readFile(path, "utf8"),
+      ),
+    );
+    expect(buildFrenchCompounds(dic)).toBe(committed);
+    expect(isDictionaryCompound("coffre-fort")).toBe(true);
+    expect(isDictionaryCompound("petite-fille")).toBe(false);
+    expect(isDictionaryCompound("compte-rendu")).toBe(false);
   });
 
   test("adjective readings give gender and number, and the other forms", () => {
@@ -743,6 +991,27 @@ test.each([
   ["frenchHyphenation", "Un verre anti-reflets et un écran auto-bronzant."],
   ["frenchHyphenation", "Ce texte peut être utile."],
   ["frenchHyphenation", "Il est peut-être là."],
+  ["frenchHyphenation", "Il se lève tôt le matin."],
+  ["frenchElision", "Ma sœur et quelle chance !"],
+  ["frenchHomophones", "Tu viens ou tu restes ?"],
+  ["frenchHomophones", "Ce qu'il veut est simple."],
+  ["frenchHomophones", "Il compte bien sur nous et sur elle."],
+  ["frenchHomophones", "Celui qui part est triste."],
+  ["frenchHomophones", "Il a des pièces vissées ou est fixé avec des clous."],
+  ["frenchHomophones", "On voit ou on ne voit pas."],
+  ["frenchHomophones", "Je ne sais pas quel âge a ton frère."],
+  ["frenchHomophones", "Mon frère mange et sa femme a la grippe."],
+  ["frenchElision", "Il travaille davantage le soir."],
+  ["frenchElision", "Deux ans après nait sa fille."],
+  ["frenchElision", "The den is dark and the sun is out."],
+  ["frenchElision", "Il porte un jean et une veste."],
+  ["frenchHyphenation", "Le nord est froid en hiver."],
+  ["frenchHyphenation", "Une petite fille joue dans le parc."],
+  ["frenchHyphenation", "Il a rédigé un compte rendu."],
+  ["frenchHyphenation", "Les équations non linéaires sont difficiles."],
+  ["frenchHyphenation", "Je l'ai vu chez vous."],
+  ["frenchHyphenation", "Visez le sans faute !"],
+  ["frenchHyphenation", "Il est arrivé à cent pour cent."],
   ["frenchElision", "Le sigle vient de also known as, en anglais."],
   ["frenchElision", "Il épelle son nom : d o r a."],
   ["frenchSubjectVerbAgreement", "« Je est un autre » reste une formule célèbre."],
@@ -772,6 +1041,14 @@ test.each([
   ["frenchHomophones", "Quant à moi, je reste ici."],
   ["frenchHomophones", "Je la vois tous les jours."],
   ["frenchHomophones", "Do ré mi fa sol la."],
+  ["frenchHomophones", "Donne-la à ta sœur."],
+  ["frenchHomophones", "C'est celle la plus chère."],
+  ["frenchHomophones", "Il a bientôt fini son travail."],
+  ["frenchHomophones", "Il a moins de chance que toi."],
+  ["frenchHomophones", "Sa grâce a séduit le public."],
+  ["frenchHomophones", "Le rapport a été publié hier."],
+  ["frenchHomophones", "Soit a tel que a soit positif."],
+  ["frenchHomophones", "Sami a télécharger l'application."],
   ["frenchHomophones", "Les enfants de son frère jouent dehors."],
   ["frenchSubjectVerbAgreement", "Le policier le plus proche intervient."],
   ["frenchSubjectVerbAgreement", "Ce matin nous avons froid."],
@@ -824,6 +1101,19 @@ test.each([
   ["frenchHyphenation", "Ils sont sur exploités.", "Ils sont surexploités."],
   ["frenchHyphenation", "Les pays sous développés.", "Les pays sous-développés."],
   ["frenchHyphenation", "Il veut contre attaquer.", "Il veut contre-attaquer."],
+  [
+    "frenchHyphenation",
+    "Range l'argent dans le coffre fort.",
+    "Range l'argent dans le coffre-fort.",
+  ],
+  ["frenchHyphenation", "Il a acheté un porte monnaie.", "Il a acheté un porte-monnaie."],
+  ["frenchHyphenation", "Les sous titres sont lisibles.", "Les sous-titres sont lisibles."],
+  [
+    "frenchHyphenation",
+    "Le secteur agro alimentaire recrute.",
+    "Le secteur agro-alimentaire recrute.",
+  ],
+  ["frenchHyphenation", "Ma grand mère tricote.", "Ma grand-mère tricote."],
   ["frenchHyphenation", "Il n'est peut être pas venu.", "Il n'est peut-être pas venu."],
   [
     "frenchHyphenation",
@@ -881,6 +1171,31 @@ test.each([
   ["frenchHomophones", "Tu reviendras quant ?", "Tu reviendras quand ?"],
   ["frenchHomophones", "C'est la que tout a commencé.", "C'est là que tout a commencé."],
   ["frenchHomophones", "Ton frère est la ?", "Ton frère est là ?"],
+  ["frenchHomophones", "Il habite la-bas depuis un an.", "Il habite là-bas depuis un an."],
+  ["frenchDates", "Rendez-vous le 31/04 à midi.", "Rendez-vous le 30/04 à midi."],
+  ["frenchElision", "Attends, jarrive tout de suite.", "Attends, j'arrive tout de suite."],
+  ["frenchHomophones", "C'est la seule fois ou il a ri.", "C'est la seule fois où il a ri."],
+  ["frenchHomophones", "Elle est drôle est gentille.", "Elle est drôle et gentille."],
+  ["frenchHomophones", "Nous en sommes surs.", "Nous en sommes sûrs."],
+  ["frenchHomophones", "Il viendra bien sur très vite.", "Il viendra bien sûr très vite."],
+  ["frenchHomophones", "Assieds-toi ou tu veux.", "Assieds-toi où tu veux."],
+  ["frenchHomophones", "Je ne vois pas ou aller.", "Je ne vois pas où aller."],
+  ["frenchHomophones", "Elle envoie un colis a sa mère.", "Elle envoie un colis à sa mère."],
+  ["frenchElision", "Il nen veut plus.", "Il n'en veut plus."],
+  ["frenchElision", "C'est le livre dun ami.", "C'est le livre d'un ami."],
+  ["frenchElision", "Je laurais acheté.", "Je l'aurais acheté."],
+  ["frenchElision", "Il s en souvient.", "Il s'en souvient."],
+  ["frenchHomophones", "Pose-le la où tu l'as pris.", "Pose-le là où tu l'as pris."],
+  ["frenchHomophones", "Elle est toujours la.", "Elle est toujours là."],
+  ["frenchHomophones", "Que faites-vous la ?", "Que faites-vous là ?"],
+  ["frenchHomophones", "Ce soir-la, il neigeait.", "Ce soir-là, il neigeait."],
+  ["frenchHomophones", "Je préfère celle la.", "Je préfère celle-là."],
+  ["frenchHomophones", "Il reste beaucoup a faire.", "Il reste beaucoup à faire."],
+  ["frenchHomophones", "Il me reste un exercice a finir.", "Il me reste un exercice à finir."],
+  ["frenchHomophones", "La poste est a côté.", "La poste est à côté."],
+  ["frenchHomophones", "Je viendrai, a moins qu'il pleuve.", "Je viendrai, à moins qu'il pleuve."],
+  ["frenchHomophones", "Salut, a demain !", "Salut, à demain !"],
+  ["frenchHomophones", "Il a réussi grâce a toi.", "Il a réussi grâce à toi."],
   ["englishPhraseCorrections", "Elles ne son pas prêtes.", "Elles ne sont pas prêtes."],
   [
     "frenchSubjectVerbAgreement",

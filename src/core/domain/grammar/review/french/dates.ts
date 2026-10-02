@@ -43,11 +43,11 @@ const daysIn = (month: number, year?: number) =>
 
 const B = "(?<![\\p{L}\\p{N}_])";
 const E = "(?![\\p{L}\\p{N}_])";
-const WEEKDAY = `(?:(?<weekday>${WEEKDAY_NAMES})[ \\t]*,?[ \\t]+)?`;
+const WEEKDAY = `(?:(?<weekday>${WEEKDAY_NAMES})[ \\t]{0,8},?[ \\t]{1,8})?`;
 const DATES = [
   // "vendredi 28 août 2014", "le 31 septembre", "1er mars", "le 32 janvier"
   new RegExp(
-    `${B}${WEEKDAY}(?<day>\\d{1,4})(?:er)?[ \\t]*[ \\t/-][ \\t]*(?<month>${MONTH_NAMES})(?:[ \\t/-]+(?<year>\\d{4}))?${E}`,
+    `${B}${WEEKDAY}(?<day>\\d{1,4})(?:er)?[ \\t]{0,8}[ \\t/-][ \\t]{0,8}(?<month>${MONTH_NAMES})(?:[ \\t/-]{1,8}(?<year>\\d{4}))?${E}`,
     "giud",
   ),
   // "28/08/2014", "31-09-1969", "31.11.89", "28/août/2014"
@@ -57,7 +57,7 @@ const DATES = [
   ),
   // "le 31/04", "née le 30.02": a day and a month after "le" or "du".
   new RegExp(
-    `(?<=${B}(?:le|du|au)[ \\t]+)(?<day>\\d{1,4})(?<sep>[/.])(?<month>\\d{1,2})(?![\\p{L}\\p{N}_/]|[.,/]\\d)`,
+    `(?<=${B}(?:le|du|au)[ \\t]{1,8})(?<day>\\d{1,4})(?<sep>[/.])(?<month>\\d{1,2})(?![\\p{L}\\p{N}_/]|[.,/]\\d)`,
     "giud",
   ),
   // "vendredi 2014/08/28"

@@ -19,9 +19,11 @@ import {
   attribute,
   finiteVerb,
   genderedForm,
+  isGerund,
   isNoun,
   isVerb,
   participle,
+  subjunctiveLike,
 } from "./lexicon";
 
 // Accents that tell a verb form from its twin: "el termino" (término, the noun), "se creo"
@@ -115,6 +117,26 @@ function agreesWithNext(at: Around, accented: string): boolean {
   return (noun.gender === "f") === own.feminine;
 }
 
+const isPerfectParticipleLike = (word: string) => /(?:ado|ido)$/u.test(word) && !!participle(word);
+
+/** No finite verb after the word before the sentence ends: "Critica de cine.". */
+function verbless(at: Around): boolean {
+  for (let k = 1; k <= 8; k++) {
+    if (at.endsAfter(k - 1)) return true;
+    const word = at.next(k);
+    if (!word) return true;
+    if (
+      /^(?:es|son|era|fue|está|están|hay|ha|han|ve|va|da|dio|vio|hace|tiene|puede|dice)$/u.test(
+        word,
+      )
+    )
+      return false;
+    if (PREPOSITIONS.has(word) || COMMON_DETERMINERS.has(word) || CONJUNCTIONS.has(word)) continue;
+    if (finiteVerb(word) && !isNoun(word) && !attribute(word) && !genderedForm(word)) return false;
+  }
+  return false;
+}
+
 /** "termino" -> "término" where a noun or adjective goes, not a verb. */
 function nominal(at: Around): string | null {
   const word = at.tokens[at.i].lower;
@@ -129,6 +151,30 @@ function nominal(at: Around): string | null {
   )
     return null;
   if (DETERMINERS.has(prev) || DEGREE.has(prev) || SER.has(prev)) return accented;
+  // "Capitulo 3", "las paginas 3 y 4": a number after it counts or labels a noun.
+  const numbered = /^\p{N}/u.test(at.tokens[at.i + 1]?.text ?? "") && !at.tokens[at.i + 1].broken;
+  if (numbered && (at.starts || /^(?:la|las|los)$/u.test(prev))) return accented;
+  // "Critica de cine.", "Optimas prestaciones.", "La ultima.": a heading or a fragment with no
+  // verb of its own opens with the noun or adjective, not with a verb.
+  const opener =
+    at.starts ||
+    (/^(?:la|las|los)$/u.test(prev) &&
+      at.tokens[at.i - 1] &&
+      new Around(at.tokens, at.i - 1).starts);
+  if (opener && verbless(at)) {
+    if (/^(?:la|las|los)$/u.test(prev) && at.endsAfter() && agreesWithArticle(prev, accented))
+      return accented;
+    // "Termino de trabajar", "Practica de lunes a viernes": a verb before "de" and an
+    // infinitive or a time; a short heading ("Lineas de actuación") has neither.
+    const after = at.next(2);
+    const heading =
+      (next === "de" || next === "del") &&
+      at.endsAfter(2) &&
+      !!after &&
+      !isInfinitive(after) &&
+      !TIME.has(after);
+    if (at.starts && (heading || agreesWithNext(at, accented))) return accented;
+  }
   if (DEMONSTRATIVES.has(prev) && PREPOSITIONS.has(at.prev(2))) return accented;
   // "No había termino medio": the impersonal "haber" takes a noun.
   if (/^(?:hay|había|habrá|hubo|haya|habría)$/u.test(prev)) return accented;
@@ -270,7 +316,12 @@ function verbAccent(at: Around): string | null {
   };
   const pronounSubject =
     (SUBJECTS.has(prev) && opens(1)) ||
-    (SUBJECTS.has(at.prev(2)) && /^(?:no|le|les|lo|la|me|te|nos)$/u.test(prev) && opens(2));
+    (SUBJECTS.has(at.prev(2)) && /^(?:no|le|les|lo|la|me|te|nos)$/u.test(prev) && opens(2)) ||
+    // "Él no le hablo": "no" and a clitic between.
+    (SUBJECTS.has(at.prev(3)) &&
+      at.prev(2) === "no" &&
+      /^(?:le|les|lo|la|me|te|nos|se)$/u.test(prev) &&
+      opens(3));
   // After a named subject, a noun twin ("Mi madre trabajo en…") is the verb when what follows
   // goes with a verb; "el niño modelo saluda" keeps its noun.
   const named =
@@ -289,7 +340,13 @@ function verbAccent(at: Around): string | null {
     const aside =
       FUNCTION_WORDS.has(word) ||
       (subject && /^(?:creo|pienso|supongo|digo|imagino|opino)$/u.test(word));
-    const nominal = pronounSubject && (isNoun(word) || attribute(word));
+    // "Él tranquilo, ella nerviosa" leaves the copula out; "él trabajo varias horas" and "él
+    // limpio la herida" go on as a verb does.
+    const nominal =
+      pronounSubject &&
+      (isNoun(word) || attribute(word)) &&
+      !AFTER_VERB.has(at.next()) &&
+      !/^(?:varias|varios|muchas|muchos|dos|tres|cuatro|cinco|algunas|algunos)$/u.test(at.next());
     if (m && word.length > 3 && !aside && !nominal) {
       if (isVerb(`${m[1]}ar`)) return `${m[1]}ó`;
       if ((isVerb(`${m[1]}er`) || isVerb(`${m[1]}ir`)) && !isNoun(word)) return `${m[1]}ió`;
@@ -324,12 +381,42 @@ function verbAccent(at: Around): string | null {
     const future = /^(\p{L}*?[eií]r)(a|as|an|e)$/u.exec(word);
     if (
       future &&
-      isInfinitive(future[1]) &&
+      (isInfinitive(future[1]) || future[1] === "ir") &&
       (!isNoun(word) || /^(?:ya|tú|se|me|te|le|lo|no)$/u.test(prev)) &&
       word !== "para"
     )
       return `${future[1]}${{ a: "á", as: "ás", an: "án", e: "é" }[future[2]]}`;
   }
+  // "Yo lo analice ayer", "Me enfade.", "Ayer tome el día libre" -> "analicé", "enfadé",
+  // "tomé": an -ar subjunctive needs a trigger before it ("que yo cante"), so at a sentence
+  // start after "yo", "me" or "ayer" it is the first person preterite without its accent.
+  if (/^\p{L}{3,}e$/u.test(word) && subjunctiveLike(word) && !isNoun(word) && !attribute(word)) {
+    let k = 1;
+    while (k < 3 && /^(?:me|te|lo|la|los|las|le|les|nos|os)$/u.test(at.prev(k))) k++;
+    const lead = at.prev(k);
+    const leadStarts = new Around(at.tokens, at.i - k).starts;
+    const clitics = k > 1 && new Around(at.tokens, at.i - k + 1).starts;
+    if (
+      (leadStarts && /^(?:yo|ayer|anoche|anteayer)$/u.test(lead)) ||
+      // "Me envíe la factura" may be a request: only before the clause end or a preposition.
+      (clitics &&
+        at.prev(k - 1) === "me" &&
+        (at.endsAfter() || /^(?:a|en|de|con|sin|por)$/u.test(at.next())))
+    )
+      return `${word.slice(0, -1)}é`;
+  }
+  // "e ira creciendo", "cómo ira armado": "ira" (anger) takes no gerund or participle after
+  // it unless a determiner makes it the noun ("la ira creciendo en su pecho").
+  const ira = /^ir(a|as|an)$/u.exec(word);
+  if (
+    ira &&
+    !COMMON_DETERMINERS.has(prev) &&
+    !PREPOSITIONS.has(prev) &&
+    !/^(?:mi|tu|su|sus|nuestra|vuestra)$/u.test(prev) &&
+    // "rechazo e ira dirigido a ellos": two nouns and their participle.
+    (isGerund(at.next()) || (isPerfectParticipleLike(at.next()) && !CONJUNCTIONS.has(prev)))
+  )
+    return `ir${{ a: "á", as: "ás", an: "án" }[ira[1]]}`;
   // "Cantara mañana" -> "cantará", "¿Cuándo llegaras?" -> "llegarás": an -ar future without
   // its accent reads as a past subjunctive, which needs a trigger ("si", "que") before it.
   const arFuture = /^(\p{L}+ar)(a|as|an)$/u.exec(word);
@@ -358,9 +445,21 @@ const OBJECT_CLITICS = words("lo la los las le les me te se nos os");
 
 /** "Hacia dos años que…", "lo que hacia", "la hacia otra empresa": the imperfect "hacía". */
 function hacia(at: Around): string | null {
-  if (at.tokens[at.i].lower !== "hacia") return null;
   const prev = at.prev();
   const next = at.next();
+  // "Se fue hacía el sur", "Miró hacía las estrellas": after a verb of its own, the
+  // preposition towards a place.
+  if (at.tokens[at.i].lower === "hacía")
+    return (DIRECTIONS.has(next) || COMMON_DETERMINERS.has(next)) &&
+      finiteVerb(prev) &&
+      !isNoun(prev) &&
+      !attribute(prev) &&
+      !CLITICS.has(prev)
+      ? "hacia"
+      : null;
+  if (at.tokens[at.i].lower !== "hacia") return null;
+  // "Entonces hacia las veces de gerente": "hacer las veces".
+  if (next === "las" && at.next(2) === "veces") return "hacía";
   const nextToken = at.tokens[at.i + 1];
   const numeral = /^\p{N}/u.test(nextToken?.text ?? "");
   if (DIRECTIONS.has(next) || numeral) return null;

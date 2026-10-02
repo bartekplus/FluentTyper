@@ -1,7 +1,7 @@
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { readNoun } from "./agreement";
 import { Around, attributeOf, CLITICS, replaceToken, tokenize, words, type Token } from "./common";
-import { finiteVerb, genderedForm, isNoun, participle } from "./lexicon";
+import { finiteVerb, genderedForm, isNoun, participle, subjunctiveLike } from "./lexicon";
 
 // The comma after a sentence connector that opens its clause ("Sin embargo, no ganó") and
 // between a greeting and the person greeted ("Hola, Marta").
@@ -196,10 +196,18 @@ function subjectComma(tokens: Token[], i: number): number {
   const adjective = tokens[comma];
   if (adjective?.word && !adjective.broken && !finiteVerb(adjective.lower)) comma++;
   if (tokens[comma]?.text !== "," || tokens[comma].broken) return -1;
-  const verb = tokens[comma + 1];
-  if (!verb?.word || verb.broken || /^\p{Lu}/u.test(verb.text)) return -1;
-  const plural = PLURAL_COPULA.has(verb.lower);
-  if (!plural && !SINGULAR_COPULA.has(verb.lower)) return -1;
+  // "El gobierno, no anunció nada", "La empresa, se fundó en 1990": "no" or "se" first.
+  const lead = /^(?:no|se)$/u.test(tokens[comma + 1]?.lower ?? "") ? 1 : 0;
+  const verb = tokens[comma + 1 + lead];
+  if (!verb?.word || verb.broken || /^\p{Lu}/u.test(tokens[comma + 1].text)) return -1;
+  const word = verb.lower;
+  let plural = PLURAL_COPULA.has(word);
+  if (!plural && !SINGULAR_COPULA.has(word)) {
+    // Any other verb whose third person ending agrees: "trabaja", "anunció", "llegaron".
+    if (!/(?:n|[aeó])$/u.test(word) || !finiteVerb(word) || isNoun(word)) return -1;
+    if (attributeOf(word) || subjunctiveLike(word) || CLITICS.has(word)) return -1;
+    plural = word.endsWith("n");
+  }
   if (plural !== noun.plural) return -1;
   for (let k = comma + 2; k < comma + 7 && tokens[k] && !tokens[k].broken; k++)
     if (/^[,;:—–()]$/u.test(tokens[k].text)) return -1;

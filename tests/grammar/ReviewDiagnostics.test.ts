@@ -150,6 +150,7 @@ describe("review rule coverage map", () => {
             "germanAbbreviationSpacing",
             "germanQuestionMarks",
             "germanStraightQuotes",
+            "germanColloquial",
             "polishQuotes",
             "spanishQuotes",
             "greekStrictFinalNu",
@@ -157,6 +158,7 @@ describe("review rule coverage map", () => {
             "portugueseTypographyStyle",
             "portugueseAO90",
             "frenchMissingNe",
+            "frenchOrdinals",
           ].includes(id),
       ),
     );

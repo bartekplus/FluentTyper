@@ -238,9 +238,12 @@ export type ReviewMessageKey =
   | "review_msg_german_verb_agreement"
   | "review_msg_german_article_gender"
   | "review_msg_german_object_case"
+  | "review_msg_german_verb_case"
   | "review_msg_german_double_verb"
   | "review_msg_german_question_mark"
   | "review_msg_german_idiom_case"
+  | "review_msg_german_name_case"
+  | "review_msg_german_colloquial"
   | "review_msg_german_numbers"
   | "review_msg_greek_final_nu"
   | "review_msg_greek_strict_final_nu"
@@ -274,6 +277,7 @@ export type ReviewMessageKey =
   | "review_msg_arabic_counted_singular"
   // Portuguese.
   | "review_msg_pt_accent_paronym"
+  | "review_msg_pt_accent_verb"
   | "review_msg_pt_confusions"
   | "review_msg_pt_crase"
   | "review_msg_pt_por_que"
@@ -324,6 +328,7 @@ export type ReviewMessageKey =
   | "review_msg_passive_voice"
   | "review_msg_stray_comma"
   | "review_msg_introductory_comma"
+  | "review_msg_tag_question"
   // Polish-only checks (review/polish/).
   | "review_msg_pl_numeral_suffix"
   | "review_msg_pl_numeral_hyphen"
@@ -374,6 +379,7 @@ export type ReviewMessageKey =
   | "review_msg_spanish_alta"
   // French (review/french/)
   | "review_msg_fr_past_participle"
+  | "review_msg_fr_noun_participle"
   | "review_msg_fr_infinitive"
   | "review_msg_fr_vous_verb"
   | "review_msg_fr_homophone"
@@ -388,7 +394,10 @@ export type ReviewMessageKey =
   | "review_msg_fr_tout"
   | "review_msg_fr_subjunctive"
   | "review_msg_fr_conditional"
-  | "review_msg_fr_missing_ne";
+  | "review_msg_fr_missing_ne"
+  | "review_msg_fr_double_determiner"
+  | "review_msg_fr_determiner_noun"
+  | "review_msg_fr_ordinal";
 
 export type BulkDecision =
   | { eligible: true; alternative: number }
