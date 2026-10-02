@@ -519,6 +519,52 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     kind: "numbers",
     bulk: "individual",
   },
+  // English tables and typography (review/english/, en-tables2).
+  englishApostrophes: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "punctuation",
+    kind: "marks",
+    bulk: "individual",
+  },
+  englishNotation: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "typography",
+    kind: "numbers",
+    bulk: "individual",
+  },
+  englishTypography: {
+    review: "supported",
+    defaultEnabled: false,
+    category: "typography",
+    kind: "marks",
+    bulk: "individual",
+    note: "Optional typography: x, ->, (c) and straight quotes are correct too.",
+  },
+  stylePassiveVoice: {
+    review: "supported",
+    defaultEnabled: false,
+    category: "style",
+    kind: "readability",
+    bulk: "individual",
+    note: "Optional style note without a fix: the passive is often the right choice.",
+  },
+  englishPunctuation: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "punctuation",
+    kind: "marks",
+    bulk: "individual",
+  },
+  styleIntroductoryComma: {
+    review: "supported",
+    defaultEnabled: false,
+    category: "punctuation",
+    kind: "marks",
+    bulk: "individual",
+    note: "Optional: many writers leave out the comma after a short opening phrase.",
+  },
 
   englishPronounCase: {
     review: "supported",
