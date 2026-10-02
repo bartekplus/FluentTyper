@@ -168,6 +168,17 @@ const BASE: Record<string, string> = {
   rollout: "roll out",
 };
 const COMPOUND_VERBS = Object.keys(BASE).join("|");
+// The same nouns in a plain verb slot ("Please login", "to backup your files"), and their -s
+// forms after he/she/it ("He logins daily" → "logs in").
+const SLOT_BASE: Record<string, string> = { ...BASE, login: "log in", logout: "log out" };
+const SLOT_THIRD: Record<string, string> = Object.fromEntries(
+  Object.entries(SLOT_BASE).map(([noun, verb]) => [`${noun}s`, verb.replace(" ", "s ")]),
+);
+const SLOT_VERBS = Object.keys(SLOT_BASE).join("|");
+const INFINITIVE_LEAD =
+  "need|needs|needed|want|wants|wanted|try|tries|tried|trying|able|unable|how|going|forgot|forget|remember|allowed|asked|ask|tell|told";
+// What follows a verb use: an object, a particle-like word or the clause end.
+const VERB_FOLLOW = `(?=${S}(?:${OBJECT_START}|again|with|to|before|after|using|here|there|now|first|via|through|every|daily|into|from|by|on|at|in|without|automatically|successfully|early|late|today|tomorrow|once|twice|files?|data)${E}|[ \\t]*(?:[.!?,;:]|$))`;
 
 // "You don't know, are you?": a question tag repeats the clause's own auxiliary family, do
 // after a negated lexical verb, be after a negated be. The tag's pronoun must be the
@@ -729,6 +740,18 @@ const FRAMES: readonly Frame[] = [
     cue: Object.keys(BASE),
     pattern: `(?:I|we|they|you)${S}(?:just|already|never|also|then|finally|first|quickly|always|usually)${S}(?<target>${COMPOUND_VERBS})${S}(?:${OBJECT_START}|again|with|for|to|before|after|using|here|now)${E}`,
     fix: (m) => BASE[m.groups!.target.toLowerCase()],
+  },
+  {
+    rule: COMPOUND,
+    cue: Object.keys(SLOT_BASE),
+    pattern: `(?:${MODAL}|please|${NEGATION}|who|let${S}(?:me|us|them|him|her)|(?:I|we|they|you)|(?:can|could|will|would|should|do|does|did|can['’]t|won['’]t|don['’]t|doesn['’]t|didn['’]t|wouldn['’]t|couldn['’]t)${S}(?:I|you|we|they|he|she|it)|(?:${INFINITIVE_LEAD})${S}to|(?:${INFINITIVE_LEAD})${S}(?:[\\p{L}'’]+${S}){1,2}to)${S}(?<target>${SLOT_VERBS})${VERB_FOLLOW}`,
+    fix: (m) => SLOT_BASE[m.groups!.target.toLowerCase()],
+  },
+  {
+    rule: COMPOUND,
+    cue: Object.keys(SLOT_THIRD),
+    pattern: `(?:he|she|it|who)${S}(?:(?:also|just|always|usually|never|often|rarely)${S})?(?<target>${Object.keys(SLOT_THIRD).join("|")})${VERB_FOLLOW}`,
+    fix: (m) => SLOT_THIRD[m.groups!.target.toLowerCase()],
   },
 ];
 
