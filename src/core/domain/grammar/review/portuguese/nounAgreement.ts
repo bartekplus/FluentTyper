@@ -207,7 +207,7 @@ const SINGULAR_IN_S = new Set(
 type Noun = { feminine: boolean | null; plural: boolean; certain: boolean };
 
 /** What the spelling of a noun tells about it, or null when it may be no noun. */
-function analyze(word: string): Noun | null {
+export function analyze(word: string): Noun | null {
   if (NOT_NOUNS.has(word) || SINGULAR_IN_S.has(word) || word.length < 3) return null;
   const one = /s$/.test(word) ? singular(word) : word;
   const isPlural = one !== word;

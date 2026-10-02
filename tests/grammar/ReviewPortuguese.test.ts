@@ -84,6 +84,16 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
     {
       pos: [
         ["Ainda à pouco que fazer aqui.", "Ainda há pouco que fazer aqui."],
+        ["Em relação a proposta, nada mudou.", "Em relação à proposta, nada mudou."],
+        ["Graças a ajuda dos vizinhos, saímos.", "Graças à ajuda dos vizinhos, saímos."],
+        ["Ela tem acesso as informações.", "Ela tem acesso às informações."],
+        ["O valor é superior a média.", "O valor é superior à média."],
+        ["Amanhã vamos a praia.", "Amanhã vamos à praia."],
+        ["Quanto a viagem, decidimos depois.", "Quanto à viagem, decidimos depois."],
+        ["Ela se candidatou a vaga.", "Ela se candidatou à vaga."],
+        ["Fui à uma festa ontem.", "Fui a uma festa ontem."],
+        ["Pergunte à Sua Excelência.", "Pergunte a Sua Excelência."],
+        ["O ingresso equivale à R$ 50.", "O ingresso equivale a R$ 50."],
         ["Não nos falamos a muito tempo.", "Não nos falamos há muito tempo."],
         ["Moro aqui dês que nasci.", "Moro aqui desde que nasci."],
         ["Chove dês da manhã.", "Chove desde a manhã."],
@@ -133,6 +143,16 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Prefiro praia do que montanha.", "Prefiro praia a montanha."],
       ],
       neg: [
+        "Ela trabalha tanto quanto a irmã.",
+        "O atraso foi devido a problemas técnicos.",
+        "Em relação a isso, nada mudou.",
+        "Saímos à uma hora da manhã.",
+        "Devido a muita chuva, ficamos em casa.",
+        "Em relação a minha proposta, nada mudou.",
+        "Isso equivale a dizer que não.",
+        "Devido a Maria, chegamos tarde.",
+        "Lá vai a bola.",
+        "Refere-se a um caso antigo.",
         "Daqui a muito tempo ninguém lembra.",
         "Quero que me dês do teu chá.",
         "Ele saiu por fim de manhã.",
@@ -654,6 +674,7 @@ test("Portuguese frames stay fast on long runs of trigger words and spaces", () 
     "os o as a uma um da do nos ".repeat(400),
     "o nossa os mesma uns outro ".repeat(500),
     "espero que quero que embora caso talvez que a ".repeat(300),
+    "devido a quanto a vou a à uma acesso as se refere a ".repeat(300),
   ];
   for (const text of inputs) expect(slowestChunkMs(text)).toBeLessThan(100);
   const live = { ...options, liveRules: [] };

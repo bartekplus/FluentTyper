@@ -2,6 +2,7 @@ import { applyWordCase, detectWordCase } from "../../implementations/helpers/Gen
 import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import type { ReviewMessageKey } from "../types";
+import { analyze } from "./nounAgreement";
 
 /**
  * Portuguese words that sound alike or differ by one accent, told apart by the
@@ -394,6 +395,33 @@ const FRAMES: Frame[] = [
 ];
 
 const INFINITIVE_CRASE = `(?<target>à)${S}(?<verb>\\p{Ll}+(?:ar|er|ir))${W}`;
+
+// Words that govern "a": locutions, nouns, adjectives and verbs. Before a feminine noun the
+// article fuses with it: "devido a falta" -> "à falta", "acesso as armas" -> "às armas". "quanto
+// a" only opening a clause ("tanto quanto a irmã" compares).
+const GOVERNS_A = [
+  `devido|graças|junto|rumo|frente|face|em${S}relação|com${S}relação|em${S}direção|em${S}frente`,
+  "referentes?|relativ[oa]s?|equivalentes?|superior(?:es)?|inferior(?:es)?|semelhantes?",
+  "anterior(?:es)?|posterior(?:es)?|favorá(?:vel|veis)|propens[oa]s?|acesso|referência|alusão",
+  "obediência|resistência|aversão|adesão|homenagem|apoio|aderir|adere|aderem|aderiu|aderiram",
+  "pertencer|pertence|pertencem|pertencia|pertenciam|pertenceu|recorrer|recorre|recorrem",
+  "recorreu|recorreram|equivaler|equivale|equivalem|equivalia|corresponder|corresponde",
+  "correspondem|correspondia",
+  "(?:referir|refere|referem|referiu|dirigir|dirige|dirigiu|dirigiram|candidatar|candidata|candidatou|candidataram)-se",
+  `se${S}(?:referir|refere|referem|referiu|dirigir|dirige|dirigiu|dirigiram|candidatar|candidata|candidatou|candidataram)`,
+].join("|");
+const GOVERNED_ARTICLE = `(?<lead>${GOVERNS_A}|quanto)${S}(?<target>as?)${S}(?<noun>\\p{Ll}{3,})${W}(?!-)`;
+// Places one goes to: "vou a escola" -> "à escola". "foi" and "fui" also mean "was".
+const GOES = "vou|vais|vai|vamos|vão|ia|iam|irei|irás|irá|iremos|irão|iria|iríamos|iriam|ir|indo";
+const DESTINATIONS =
+  "escola|praia|festa|igreja|missa|feira|academia|farmácia|padaria|faculdade|universidade|reunião|aula|piscina|fazenda|praça|loja|biblioteca|delegacia|prefeitura|cidade|capital|cozinha|sala|janela|rodoviária|lavanderia|oficina|creche|cerimônia|consulta|sessão|exposição";
+const GOES_TO = `(?:${GOES})${S}(?<target>as?)${S}(?=(?:${DESTINATIONS})s?${W})`;
+// "à Sua Excelência": forms of address take no article.
+const ADDRESS = `(?<target>às?)${S}(?=(?:sua|vossa|suas|vossas)${S}(?:excelência|majestade|santidade|senhoria|alteza|eminência|magnificência|reverendíssima|excelências|majestades|santidades|senhorias|altezas|eminências|beatitudes?)${W})`;
+// "à uma corrida", but "à uma hora", "à uma e meia".
+const A_UMA = `(?<target>à)${S}(?=uma${W}(?!${S}(?:hora|e|da|em${S}ponto)${W}|[ \\t\\u00a0]*h))`;
+// A sum of money has no article: "equivale à R$ 35".
+const MONEY = `(?<target>à)${S}(?=(?:R\\$|US\\$|€|\\$))`;
 const CLAUSE_BEFORE = /(?:^|[.!?:;][ \t\r\n "”»)]{0,8}|\n[ \t ]{0,8})$/;
 
 export function confusions(ctx: DetectContext): RawFinding[] {
@@ -428,6 +456,22 @@ export function confusions(ctx: DetectContext): RawFinding[] {
       push(m, alternatives, frame.messageKey);
     }
   }
+  for (const m of frameMatches(ctx, GOVERNED_ARTICLE)) {
+    const { lead, target, noun } = m.groups!;
+    if (
+      /^quanto$/i.test(lead) &&
+      !CLAUSE_BEFORE.test(ctx.text.slice(Math.max(0, m.index - 12), m.index))
+    )
+      continue;
+    if (noun !== noun.toLowerCase()) continue;
+    const analysis = analyze(noun);
+    if (!analysis?.feminine || analysis.plural !== (target.length === 2)) continue;
+    push(m, [target.length === 2 ? "às" : "à"], "review_msg_pt_crase");
+  }
+  for (const m of frameMatches(ctx, GOES_TO))
+    push(m, [m.groups!.target.toLowerCase() === "as" ? "às" : "à"], "review_msg_pt_crase");
+  for (const pattern of [ADDRESS, A_UMA, MONEY])
+    for (const m of frameMatches(ctx, pattern)) push(m, ["a"], "review_msg_pt_crase");
   for (const m of frameMatches(ctx, INFINITIVE_CRASE)) {
     if (FEMININE_R.has(m.groups!.verb) || ctx.dictionary.has(m.groups!.verb)) continue;
     push(m, ["a"], "review_msg_pt_crase");
