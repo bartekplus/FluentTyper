@@ -157,6 +157,9 @@ export interface GrammarRuleCatalogEntry {
     | "portugueseTypographyStyle"
     | "portugueseCliticPlacement"
     | "portugueseAO90"
+    | "portugueseDates"
+    | "portugueseCommas"
+    | "portugueseAgreement"
     // Spanish Review checks (review/spanish/).
     | "spanishAccents"
     | "spanishConfusions"
