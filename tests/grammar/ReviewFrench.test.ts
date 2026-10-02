@@ -800,8 +800,10 @@ describe("French lexicon", () => {
   test("the noun filter knows inflected nouns and invariable words in s", () => {
     for (const word of ["maison", "cheval", "bateau", "fils", "temps"])
       expect(isInflectedNoun(word)).toBe(true);
-    for (const word of ["maisons", "chevaux", "mangeons"])
+    for (const word of ["maisons", "chevaux", "mangeons", "peintures", "grandes", "dîné"])
       expect(isInflectedNoun(word)).toBe(false);
+    for (const word of ["grand", "fils", "cours", "frais"])
+      expect(isInflectedNoun(word)).toBe(true);
   });
 
   test("the committed noun filter matches fr_FR.dic/.aff", async () => {
