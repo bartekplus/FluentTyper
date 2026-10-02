@@ -844,7 +844,10 @@ test("no Spanish chunk stalls on repeated trigger words", () => {
   };
   const triggers =
     "¿Que esta este estas el tu mi si se de aun mas? ¡Que bonito! No se si esta bien. " +
-    "La casas del uno de las la primer dos perro. Los amigos tiene me gusta las son cansado. ";
+    "La casas del uno de las la primer dos perro. Los amigos tiene me gusta las son cansado. " +
+    "Una frase.Y así?Siempre…nada le dado te ayudar les medidas un saca leches sobre salían " +
+    "micro biología uno de sus casas aun recuerdo se tocar Si, pero eso si es ¿Porque no? " +
+    "El domingo pasada la serie más seguido. Juan tienen esta la casa que de cuenta. ";
   slowest(triggers.repeat(50));
   for (const text of [
     triggers.repeat(60),
