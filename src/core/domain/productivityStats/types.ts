@@ -28,5 +28,6 @@ export interface ProductivityStatsState extends DailyProductivityState {
   firstValuePromptAcknowledged: boolean;
   lastWeeklyRecapWeek: string | null;
   lastDonationPromptAt: string | null;
+  donationPromptsDisabled: boolean;
   donationSnoozedUntil: string | null;
 }

@@ -1573,7 +1573,7 @@ describe("background routing and lifecycle", () => {
         command: CMD_POPUP_ACK_DONATION_MILESTONE,
         context: {
           promptId: "milestone_1",
-          action: "supported",
+          action: "support_clicked",
           milestoneHours: 1,
         },
       },
@@ -1581,7 +1581,7 @@ describe("background routing and lifecycle", () => {
       ackMilestoneResponse,
     );
     await flushPromises();
-    expect(ackMilestoneSpy).toHaveBeenCalledWith("milestone_1", "supported", 1);
+    expect(ackMilestoneSpy).toHaveBeenCalledWith("milestone_1", "support_clicked", 1);
     expect(ackMilestoneResponse).toHaveBeenCalledWith({ ok: true });
 
     const resetResponse = jest.fn();

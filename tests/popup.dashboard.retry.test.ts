@@ -94,6 +94,7 @@ function popupMarkup(initialSummary = "0"): string {
     <span id="dashboardMilestoneText"></span>
     <a id="dashboardMilestoneLink"></a>
     <button id="dashboardMilestoneLaterBtn" type="button"></button>
+    <button id="dashboardMilestoneDismissBtn" type="button"></button>
 
     <footer class="toolbar">
       <div class="toolbar-actions toolbar-actions--quiet">
@@ -135,7 +136,7 @@ function popupMarkup(initialSummary = "0"): string {
           data-i18n-title="popup_support_development"
           title="Support Development"
         >
-          <span class="sr-only" data-i18n="popup_support_development">Support Development</span>
+          <span data-i18n="support_cta">Support FluentTyper</span>
         </a>
       </div>
     </footer>
@@ -962,6 +963,7 @@ describe.serial("popup productivity dashboard retry/failure paths", () => {
       popup_report_issue: "Probleme melden sofort",
       popup_github_source: "Code source GitHub officiel",
       popup_support_development: "Wesprzyj dalszy rozwoj projektu",
+      support_cta: "Wesprzyj FluentTyper",
     };
     await loadPopupWithOutcomes(
       [{ type: "stats", value: createPopupStats(1) }],
@@ -978,8 +980,11 @@ describe.serial("popup productivity dashboard retry/failure paths", () => {
       { id: "runOptions", srText: translations.popup_advanced_options },
       { id: "reportIssueLink", srText: translations.popup_report_issue },
       { id: "githubSourceLink", srText: translations.popup_github_source },
-      { id: "supportDevelopmentLink", srText: translations.popup_support_development },
     ];
+
+    const support = document.querySelector("#supportDevelopmentLink [data-i18n='support_cta']");
+    expect(support?.textContent).toBe(translations.support_cta);
+    expect(support?.classList.contains("sr-only")).toBe(false);
 
     for (const footerCase of footerCases) {
       const link = document.getElementById(footerCase.id) as HTMLAnchorElement;
@@ -989,6 +994,35 @@ describe.serial("popup productivity dashboard retry/failure paths", () => {
       expect(srOnly?.textContent).toBe(footerCase.srText);
     }
   });
+
+  test.each(["snooze", "dismiss", "support_clicked"] as const)(
+    "support prompt sends %s without claiming a payment",
+    async (action) => {
+      const stats = createPopupStats(1);
+      stats.donationPrompt = { promptId: "first_value", kind: "first_value", milestoneHours: null };
+      const chromeMock = await loadPopupWithOutcomes([{ type: "stats", value: stats }]);
+      const id =
+        action === "snooze"
+          ? "dashboardMilestoneLaterBtn"
+          : action === "dismiss"
+            ? "dashboardMilestoneDismissBtn"
+            : "dashboardMilestoneLink";
+      (document.getElementById(id) as HTMLElement).click();
+      expect(chromeMock.runtime.sendMessage).toHaveBeenCalledWith(
+        {
+          command: "CMD_POPUP_ACK_DONATION_MILESTONE",
+          context: { promptId: "first_value", action, milestoneHours: null },
+        },
+        expect.any(Function),
+      );
+      if (action !== "support_clicked") {
+        expect(
+          document.getElementById("dashboardMilestoneHint")?.classList.contains("is-hidden"),
+        ).toBe(true);
+      }
+      expect(document.getElementById("supportDevelopmentLink")).not.toBeNull();
+    },
+  );
 
   test("advanced stats button opens the options page anchor", async () => {
     const chromeMock = await loadPopupWithOutcomes([{ type: "stats", value: createPopupStats(2) }]);

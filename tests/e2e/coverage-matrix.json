@@ -3562,7 +3562,7 @@
     },
     {
       "id": "local_ai_setup_offer",
-      "description": "The Review panel shows a one-time Local AI setup offer with the download size; \"Not now\" dismisses it for good; \"Set up local AI\u2026\" opens the options Local AI section focused, whose page only asks for status and installs only after an inline confirm.",
+      "description": "The Review panel shows a one-time Local AI setup offer with the download size; \"Not now\" dismisses it for good; \"Set up local AI…\" opens the options Local AI section focused, whose page only asks for status and installs only after an inline confirm.",
       "coverage": [
         {
           "layer": "e2e-full",
@@ -3577,7 +3577,7 @@
         {
           "layer": "e2e-full",
           "file": "tests/e2e/local-ai.e2e.test.ts",
-          "test": "\"Set up local AI\u2026\" opens the Local AI settings; installing needs the inline confirm"
+          "test": "\"Set up local AI…\" opens the Local AI settings; installing needs the inline confirm"
         },
         {
           "layer": "unit",
@@ -4328,6 +4328,32 @@
           "layer": "e2e-full",
           "file": "tests/e2e/full.e2e.test.ts",
           "test": "TinyMCE %s predictions and expansions preserve formatting and undo"
+        }
+      ]
+    },
+    {
+      "id": "support_prompt_dismissal",
+      "description": "Support remains discoverable; optional prompts can be snoozed or permanently dismissed locally, including across restarts and statistics resets. Link clicks do not assert payment.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/ProductivityStatsManager.test.ts",
+          "test": "dismissed support prompts stay disabled after restart and stats reset"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/popup.dashboard.retry.test.ts",
+          "test": "support prompt sends %s without claiming a payment"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/AboutWorkspacePanel.test.ts",
+          "test": "renders a dedicated support card with a clearly labeled external link"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Support prompts can be dismissed permanently while support stays visible"
         }
       ]
     }
