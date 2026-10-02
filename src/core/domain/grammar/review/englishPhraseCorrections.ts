@@ -10,6 +10,7 @@ import {
 } from "./englishPhraseTables";
 import { EXTENSION_COMPOUNDS, EXTENSION_PHRASES, EXTENSION_STYLE } from "./english";
 import { OPTIONAL_TABLES } from "./english/dialects";
+import { capitalizedName } from "./french/frenchTokens";
 import { LANGUAGE_PHRASE_TABLES } from "./languagePhraseTables";
 import { EDGE, SPACE } from "./phraseTemplates";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
@@ -216,6 +217,8 @@ function toFinding(
   )
     return null;
   if (namedExampleBefore(ctx.text, start)) return null;
+  // French "Mary Quant, Quant on": a capitalized word inside a sentence is a name.
+  if (ctx.lang.startsWith("fr") && capitalizedName(ctx.text, start, typed)) return null;
   // English "The Old Home Town", "Two Fold Clothing": capitalized words joined into one are a name;
   // a hyphen keeps a title's words ("An Eagle Eyed Reviewer" -> "Eagle-Eyed").
   if (
