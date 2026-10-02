@@ -27,15 +27,17 @@ export class SuggestionElementDiscovery {
     if (root instanceof Element && root.matches(this.selectors)) {
       elements = [root, ...this.deepQuerySelectorAll(root)];
     } else {
-      const queryRoot: Element | ShadowRoot | Document =
-        root instanceof Element && root.shadowRoot ? root.shadowRoot : (root ?? document);
-      elements = this.deepQuerySelectorAll(queryRoot);
+      elements = this.deepQuerySelectorAll(root ?? document);
     }
     return elements.filter((elem): elem is SuggestionElement => this.isEligibleElement(elem));
   }
 
   private deepQuerySelectorAll(root: Element | ShadowRoot | Document): Element[] {
     const results: Element[] = Array.from(root.querySelectorAll(this.selectors));
+    if (root instanceof Element && root.shadowRoot) {
+      this.onShadowRootDiscovered?.(root.shadowRoot);
+      results.push(...this.deepQuerySelectorAll(root.shadowRoot));
+    }
     for (const el of Array.from(root.querySelectorAll("*"))) {
       if (el.shadowRoot) {
         this.onShadowRootDiscovered?.(el.shadowRoot);

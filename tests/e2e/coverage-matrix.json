@@ -1544,6 +1544,11 @@
       "description": "Extension discovers and attaches to inputs inside open shadow roots, shows suggestions on typing.",
       "coverage": [
         {
+          "layer": "unit",
+          "file": "tests/SuggestionElementDiscovery.test.ts",
+          "test": "queryCandidates(%s host) reports and scans its shadow root"
+        },
+        {
           "layer": "e2e-smoke",
           "file": "tests/e2e/smoke.e2e.test.ts",
           "test": "attaches to input inside open shadow root and shows suggestions on typing"
