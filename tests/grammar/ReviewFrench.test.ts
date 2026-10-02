@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import {
   buildFrenchLexicon,
@@ -456,4 +457,56 @@ test("French time zones and pronoun + article pairs stay clean", () => {
   expect(findings("englishContractionNormalization", "Je pense que cest vrai.")).toHaveLength(1);
   expect(findings("englishRepeatedWords", "Je m'en achèterai un un jour.")).toEqual([]);
   expect(findings("englishRepeatedWords", "Il a pris les les clés.")).toHaveLength(1);
+});
+
+const FRENCH_ON = REVIEW_SUPPORTED_RULE_IDS.filter(
+  (id) =>
+    runsInReviewLanguage(id, "fr_FR") &&
+    !["capitalizeSentenceStart", "capitalizeAfterLineBreak", "styleLongSentence"].includes(id),
+);
+
+test("the clean French corpus has no findings", () => {
+  const text = readFileSync("tests/fixtures/native-review-corpus/french-clean.txt", "utf8")
+    .split("\n")
+    .filter((line) => !line.startsWith("#"))
+    .join("\n");
+  const found = detectReviewDiagnostics(
+    { id: "clean", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
+    {
+      enabledRules: FRENCH_ON,
+      lang: "fr_FR",
+      userDictionary: [],
+      insertSpaceAfterAutocomplete: true,
+    },
+  ).diagnostics;
+  expect(found.map((d) => `${d.ruleId}: ${d.original} @ ${d.range.start}`)).toEqual([]);
+});
+
+test.each([
+  ["frenchElision", "Le sigle vient de also known as, en anglais."],
+  ["frenchElision", "Il épelle son nom : d o r a."],
+  ["frenchSubjectVerbAgreement", "« Je est un autre » reste une formule célèbre."],
+  ["frenchSubjectVerbAgreement", "Le pronom personnel tu n'est pas toujours exprimé."],
+  ["frenchHomophones", "Il a l'air ravi de sa journée."],
+  ["frenchHomophones", "S'est dit d'un outil qu'on emporte partout."],
+  ["frenchHomophones", "Comme même les plus prudents se trompent, restons humbles."],
+  ["frenchVerbForms", "Ces travaux ont bien entendu gêné les riverains."],
+  ["frenchNounNumber", "Un tiens vaut mieux que deux tu l'auras."],
+  ["frenchHyphenation", "Ce texte devra peu à peu être corrigé."],
+  ["englishPhraseCorrections", "La créatrice Mary Quant, Quant on la cite, fait sourire."],
+  ["duplicatePunctuationCollapse", "Jean Dupont (1960-....) est peintre."],
+] as Array<[CatalogRuleId, string]>)("%s stays silent on %p", (ruleId, text) => {
+  expect(findings(ruleId, text).map((d) => d.original)).toEqual([]);
+});
+
+test.each([
+  ["frenchHomophones", "Il est venu comme même.", "Il est venu quand même."],
+  ["frenchHomophones", "C'est comme même bizarre.", "C'est quand même bizarre."],
+  ["frenchHyphenation", "Il viendra peu être demain.", "Il viendra peut-être demain."],
+  ["frenchHyphenation", "C'est peu être la bonne réponse.", "C'est peut-être la bonne réponse."],
+  ["frenchElision", "Il parle de un ami.", "Il parle d'un ami."],
+] as Array<[CatalogRuleId, string, string]>)("%s fixes %p", (ruleId, text, fixed) => {
+  const [finding, ...rest] = findings(ruleId, text);
+  expect(rest).toEqual([]);
+  expect(applyEdits(text, finding.alternatives[0].edits)).toBe(fixed);
 });

@@ -263,6 +263,8 @@ function verbGoverns(tokens: Token[], i: number): boolean {
   const adverb =
     previous === "en" || ((previous === "à" || previous === "a") && tokens[i + 2]?.w === "tout");
   if (governor.w === "fait" && adverb) return false;
+  // "ils ont bien entendu gêné": "bien entendu" (of course) is an adverb.
+  if (governor.w === "entendu" && previous === "bien") return false;
   const readings = verbReadings(governor.w);
   const lemmas = new Set(readings.map((r) => r.lemma));
   const plain = [...lemmas].some((l) => GOVERNING.has(l));

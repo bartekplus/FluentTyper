@@ -486,7 +486,6 @@ export const COMPOUNDS: readonly PhraseRow[] = [
   ["pare chocs", "pare-chocs"],
   ["qu'est ce que", "qu'est-ce que"],
   ["qu'est ce qui", "qu'est-ce qui"],
-  ["peu être", "peut-être"],
   ["peu-être", "peut-être"],
   ...["un", "le", "mon", "ton", "son", "votre", "notre", "au", "du", "ce"].map((det): PhraseRow => [
     `${det} rendez vous`,

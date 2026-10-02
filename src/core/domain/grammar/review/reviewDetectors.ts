@@ -1066,8 +1066,9 @@ const duplicatePunctuation: Detector = (ctx) => {
     });
   }
   // An ellipsis has three dots: "So..... anyway". Digits
-  // or a path around the run ("1....5", "..../") and dot leaders (10+) are not one.
-  const ellipsis = /(?<![.\p{N}])\.{4,9}(?![.\p{N}/\\])/gu;
+  // or a path around the run ("1....5", "..../"), dot leaders (10+) and a year still unknown
+  // ("(1957-....)") are not one.
+  const ellipsis = /(?<![.\p{N}-])\.{4,9}(?![.\p{N}/\\])/gu;
   for (const match of ownedMatches(ctx, ellipsis)) {
     const start = match.index;
     findings.push({

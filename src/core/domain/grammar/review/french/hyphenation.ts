@@ -123,7 +123,7 @@ function inversion(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   };
 }
 
-/** "il partira peut être demain": the adverb "peut-être". */
+/** "il partira peut être demain", "peu être": the adverb "peut-être". */
 function maybe(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   const start = m.index;
   if (namedExampleBefore(ctx.text, start)) return null;
@@ -146,7 +146,12 @@ function maybe(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     /^\p{Ll}/u.test(ctx.text.slice(previous.start, previous.end)) &&
     !isVerbHomograph(previous.w) &&
     verbReadings(previous.w).some((r) => typeof r.slot === "number" && r.lemma !== "pouvoir");
-  if (!sentenceStart && !afterVerb) return null;
+  // "peu être" is a slip wherever "peu" modifies nothing ("un peu être seul", "il peu" for
+  // "il peut" are left alone).
+  const peu =
+    /^peu[ \t]/i.test(m[0]) &&
+    !(previous && (PEU_BEFORE.has(previous.w) || SUBJECT_PRONOUNS.has(previous.w)));
+  if (!sentenceStart && !afterVerb && !peu) return null;
   return {
     ruleId: RULE,
     messageKey: MESSAGE,
@@ -157,7 +162,10 @@ function maybe(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
 
 const INVERSION =
   /(?<![\p{L}\p{M}\p{N}_-])(?<verb>\p{L}+)(?:[ \t]*-[ \t]+|[ \t]+-[ \t]*|[ \t]+(?<t>t['’]|t[ \t]+|-t-|t-)[ \t]*|[ \t]+)(?<pronoun>je|tu|il|elle|on|nous|vous|ils|elles|ce)(?![\p{L}\p{M}\p{N}_'’-])/giu;
-const MAYBE = /(?<![\p{L}\p{M}\p{N}_'’-])peut[ \t]+être(?![\p{L}\p{M}\p{N}_'’-])/giu;
+const PEU_BEFORE = new Set(
+  "à un très trop si assez bien pour de le ce tout aussi ne n' qui ça cela".split(" "),
+);
+const MAYBE = /(?<![\p{L}\p{M}\p{N}_'’-])peut?[ \t]+être(?![\p{L}\p{M}\p{N}_'’-])/giu;
 
 function hyphenation(ctx: DetectContext): RawFinding[] {
   if (ctx.lang.slice(0, 2) !== "fr") return [];

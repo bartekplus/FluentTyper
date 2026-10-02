@@ -125,7 +125,6 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
         ["quelque soient", "quelques soient"],
         ["quels que soient", "quelles que soient"],
       ],
-      ["comme même", "quand même"],
       ["en faite", "en fait"],
       ["sa va", "ça va"],
       ...french.PHRASES,

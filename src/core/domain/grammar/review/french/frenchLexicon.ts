@@ -73,7 +73,9 @@ function load() {
     const rule = { strip, add, cond: new RegExp(`${cond}$`), slot, tense };
     rulesByFlag.get(flag)!.push(rule);
     const key = add.slice(-1);
-    rulesByEnding.set(key, [...(rulesByEnding.get(key) ?? []), { ...rule, flag }]);
+    const list = rulesByEnding.get(key) ?? [];
+    list.push({ ...rule, flag });
+    rulesByEnding.set(key, list);
   }
   lemmaFlags = new Map();
   for (const line of VERB_LEMMAS.split("\n")) {
@@ -84,8 +86,20 @@ function load() {
   homographs = new Set(decodeFrontCoded(VERB_HOMOGRAPHS));
 }
 
+// Detectors ask about the same words many times per chunk; cleared when full.
+const readingsCache = new Map<string, VerbReading[]>();
+
 /** Every verb reading of a lowercase word form, from the bundled dictionary's conjugations. */
 export function verbReadings(word: string): VerbReading[] {
+  const cached = readingsCache.get(word);
+  if (cached) return cached;
+  if (readingsCache.size > 5_000) readingsCache.clear();
+  const out = readingsOf(word);
+  readingsCache.set(word, out);
+  return out;
+}
+
+function readingsOf(word: string): VerbReading[] {
   load();
   const out: VerbReading[] = [];
   for (const key of [word.slice(-1), ""]) {
@@ -145,4 +159,25 @@ export function isInflectedNoun(word: string): boolean {
   return bloomBits(word, filter.length * 6).every(
     (bit) => (filter[(bit / 6) | 0] >> (bit % 6)) & 1,
   );
+}
+
+// Invariable words the verb and noun lists leave out, vowel- or y-initial ones: what an elision
+// runs into.
+const FUNCTION_WORDS = new Set(
+  (
+    "il ils elle elles on en y un une à au aux avec après avant aussi alors ainsi assez autant " +
+    "autour autre autres aucun aucune auprès aujourd'hui ailleurs afin encore ensuite ensemble " +
+    "entre envers environ et est ici ou où oui eux enfin hier aussitôt autrefois auparavant " +
+    "emblée exprès ô"
+  ).split(" "),
+);
+
+/** Whether a lowercase word is French as far as the bundled lists know: a verb form, a noun or
+ * adjective (singular or plural), an -ment adverb or a function word. Foreign words ("also",
+ * "up", "off") are not. */
+export function isFrenchWord(word: string): boolean {
+  if (FUNCTION_WORDS.has(word) || word.endsWith("ment")) return true;
+  if (verbReadings(word).length || isInflectedNoun(word)) return true;
+  const singular = word.replace(/aux$/, "al").replace(/[sx]$/, "");
+  return singular !== word && isInflectedNoun(singular);
 }

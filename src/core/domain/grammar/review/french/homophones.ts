@@ -133,6 +133,8 @@ function aToGrave(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   // A capital "A" without its accent is tolerated typography: left alone.
   if (m[0] === "A" || LATIN.has(next.w) || next.w === "t" || next.w === "t'") return null;
   if (RELATIVES.has(next.w)) return fix(undefined);
+  // "elle a l'air ravie": avoir l'air.
+  if (next.w === "l'" && after[1]?.w === "air") return null;
   const previous = before[0];
   if (!previous) return null;
   // "de 6 a 10": between numbers.
@@ -345,6 +347,9 @@ function sEstToCEst(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   // "ce que s'est dit Leo" inverts the subject: only a sentence start has none.
   if (before.length || !sentenceStart(ctx.text, m.index)) return null;
   if (/^[-–]/.test(ctx.text.slice(m.index + m[0].length))) return null;
+  // "S'est dit aussi de…": a reflexive verb whose subject the fragment leaves out.
+  const next = tokensAfter(ctx.text, m.index + m[0].length, 1)[0];
+  if (next && readingsOf(next.w).some((r) => r.slot === "Q")) return null;
   const elided = m[0].slice(0, 2);
   return wordFinding(ctx, m.index, elided, [`c${elided[1]}`], RULE, MESSAGE, {
     start: m.index,
@@ -367,6 +372,8 @@ function saToCa(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   if (!final && !(next && !next.hyphen && NOT_AFTER_POSSESSIVE.has(next.w))) return null;
   const before = tokensBefore(ctx.text, m.index, 1)[0];
   if (!before && !final) return null;
+  // "sa : 8h-12h": an abbreviated Saturday in opening hours.
+  if (!before && /^[\s ]*:/u.test(rest)) return null;
   return wordFinding(ctx, m.index, m[0], ["ça"], RULE, MESSAGE);
 }
 
@@ -465,6 +472,23 @@ function ontToOn(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   return wordFinding(ctx, m.index, m[0], ["on"], RULE, MESSAGE);
 }
 
+const AFTER_EVEN = new Set([...DETERMINERS, ...STRESSED, ...SUBJECT_PRONOUNS, ...PREPOSITIONS]);
+
+/** "il est venu comme même": "quand même"; "comme même ses amis" (like even) stays. */
+function commeMeme(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const next = tokensAfter(ctx.text, m.index + m[0].length, 1)[0];
+  const rest = ctx.text.slice(m.index + m[0].length);
+  if (next && /^[\s ]*\p{L}/u.test(rest)) {
+    const typed = ctx.text.slice(next.start, next.end);
+    if (AFTER_EVEN.has(next.w) || /^\p{Lu}/u.test(typed) || next.w === "si") return null;
+  } else if (/^[\s ]*\d/u.test(rest)) return null;
+  return wordFinding(ctx, m.index, m[0].slice(0, 5), ["quand"], RULE, MESSAGE, {
+    start: m.index,
+    end: m.index + m[0].length,
+  });
+}
+const COMME_MEME = /(?<![\p{L}\p{M}\p{N}_'’-])comme[ \t]+même(?![\p{L}\p{M}\p{N}_'’-])/giu;
+
 const CANDIDATE =
   /(?<![\p{L}\p{M}\p{N}_'’-])(?:à|a|A|ou|Ou|où|sûre?s?|sure?s?|[cC]e|[sS]e|[sS]['’](?:est|était)|[sS]a|ma|ta|la|sont|du|[oO]nt)(?![\p{L}\p{M}\p{N}_'’])/gu;
 
@@ -490,6 +514,10 @@ function homophones(ctx: DetectContext): RawFinding[] {
     else if (lower === "sont") finding = sontToSon(ctx, m);
     else if (lower === "du") finding = duToDu(ctx, m);
     else if (lower === "ont") finding = ontToOn(ctx, m);
+    if (finding) findings.push(finding);
+  }
+  for (const m of ownedFrenchWords(ctx, COMME_MEME)) {
+    const finding = commeMeme(ctx, m);
     if (finding) findings.push(finding);
   }
   return findings;

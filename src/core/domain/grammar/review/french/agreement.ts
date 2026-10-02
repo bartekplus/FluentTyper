@@ -40,6 +40,8 @@ const OPENERS = new Set(
   ),
 );
 const NEGATION = new Set(["ne", "n'"]);
+/** Words that name the pronoun after them rather than let it be a subject. */
+const NAMING = new Set(["pronom", "personnel", "mot", "terme", "le", "un", "du", "au"]);
 const COORDINATING_OR_RELATIVE = new Set(["et", "ou", "que", "qu'", "où"]);
 
 const finite = (r: VerbReading) => typeof r.slot === "number";
@@ -50,6 +52,8 @@ function agreement(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   const person = PERSON[pronoun];
   if (ctx.text[m.index - 1] === "-" || namedExampleBefore(ctx.text, m.index)) return null;
   const previous = tokensBefore(ctx.text, m.index, 1)[0];
+  // "le pronom tu n'est pas omis", "le je": the pronoun named, not a subject.
+  if (previous && NAMING.has(previous.w)) return null;
   // "elle", "nous", "vous" open a clause only at its start or after a conjunction; "que vous
   // offrent ces cours", "Pierre et elle étaient" make them objects or a coordinated subject.
   const stressed = !ALWAYS_SUBJECT.has(pronoun);
@@ -67,6 +71,8 @@ function agreement(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   while (after[i] && (NEGATION.has(after[i].w) || CLITICS.has(after[i].w))) i++;
   const verb = after[i];
   if (!verb || verb.hyphen || ctx.dictionary.has(verb.w)) return null;
+  // "Je est un autre": "je" as a noun, a third person; an elided "j'est" is a slip.
+  if (pronoun === "je" && i === 0 && verb.w === "est") return null;
   const typed = ctx.text.slice(verb.start, verb.end);
   // A name or an acronym is no verb form.
   if (/\p{Lu}/u.test(typed)) return null;
