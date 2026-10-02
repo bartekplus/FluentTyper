@@ -3162,6 +3162,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Męskie dopełnienie bliższe wymaga rodzajnika w bierniku: ich habe einen Termin, sie sieht den Mann.",
     "Um objeto direto masculino leva o artigo no acusativo: ich habe einen Termin, sie sieht den Mann.",
   ],
+  review_msg_german_verb_case: [
+    "This verb takes a dative or an accusative object, and the article shows the other case: ich helfe dem Mann, ich frage den Lehrer.",
+    "Ce verbe régit un complément au datif ou à l’accusatif, et l’article montre l’autre cas : ich helfe dem Mann, ich frage den Lehrer.",
+    "Ovaj glagol traži objekt u dativu ili akuzativu, a član pokazuje drugi padež: ich helfe dem Mann, ich frage den Lehrer.",
+    "Este verbo rige un complemento en dativo o en acusativo, y el artículo muestra el otro caso: ich helfe dem Mann, ich frage den Lehrer.",
+    "Αυτό το ρήμα συντάσσεται με αντικείμενο σε δοτική ή αιτιατική, και το άρθρο δείχνει την άλλη πτώση: ich helfe dem Mann, ich frage den Lehrer.",
+    "Det här verbet tar ett objekt i dativ eller ackusativ, och artikeln visar det andra kasuset: ich helfe dem Mann, ich frage den Lehrer.",
+    "Dieses Verb verlangt ein Dativ- oder ein Akkusativobjekt, der Artikel zeigt aber den anderen Fall: ich helfe dem Mann, ich frage den Lehrer.",
+    "Ten czasownik wymaga dopełnienia w celowniku albo w bierniku, a rodzajnik pokazuje inny przypadek: ich helfe dem Mann, ich frage den Lehrer.",
+    "Este verbo pede um objeto no dativo ou no acusativo, e o artigo mostra o outro caso: ich helfe dem Mann, ich frage den Lehrer.",
+  ],
   review_msg_german_question_mark: [
     "This sentence reads as a question: end it with a question mark.",
     "Cette phrase se lit comme une question : terminez-la par un point d’interrogation.",

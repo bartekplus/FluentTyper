@@ -233,6 +233,7 @@ export type ReviewMessageKey =
   | "review_msg_german_verb_agreement"
   | "review_msg_german_article_gender"
   | "review_msg_german_object_case"
+  | "review_msg_german_verb_case"
   | "review_msg_german_double_verb"
   | "review_msg_german_question_mark"
   | "review_msg_german_idiom_case"

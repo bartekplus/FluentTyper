@@ -19,6 +19,7 @@ export const GERMAN_WORST_CASES = [
   "mir ist zu recht Ernst nach Links riesen Dank im arm die schuld ".repeat(250),
   "zwei und zwanzig hundert tausend mal drei an halb viele Lösung ".repeat(250),
   "Der Auto mit dem Frau eine sehr schönes Haus ich habe ein Tisch ".repeat(250),
+  "ich helfe den Mann er fragt dem Lehrer das alter die grenzen meiner Stadt sind ".repeat(250),
   `Ich ${"habe ein schöne neue ".repeat(400)}Haustürschlüsselbundanhänger.`,
   `Wann ${"kommst du ".repeat(2_000)}. Wie viel kostet das. Hast du Zeit, oder.`,
   `Seit${" ".repeat(4_000)}ihr. Das${" ".repeat(4_000)}ich am${" ".repeat(4_000)}12.3. mir`,

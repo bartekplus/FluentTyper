@@ -4,14 +4,18 @@ import { readFile } from "node:fs/promises";
 import {
   buildGermanGender,
   buildGermanLexicon,
+  buildGermanUsage,
   deriveGermanLexicon,
   GERMAN_LEXICON_SOURCES,
   readGermanDeterminerBigrams,
+  readGermanNgrams,
 } from "../../scripts/generate-german-lexicon";
 import {
   germanGender,
+  germanNounOverAdjective,
   germanNounReading,
   germanVerbLike,
+  germanVerbObjectCase,
 } from "../../src/core/domain/grammar/review/german/germanLexicon";
 import { tokensAfter } from "../../src/core/domain/grammar/review/german/shared";
 import { GERMAN_WORST_CASES, slowestGermanChunkMs } from "./germanWorstCase.fixture";
@@ -84,9 +88,38 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Wir sind schon auf dem weg.", "Wir sind schon auf dem Weg."],
         ["Der Schuss ging ins aus.", "Der Schuss ging ins Aus."],
         ["Die beiden sind ein ungleiches paar.", "Die beiden sind ein ungleiches Paar."],
+        // Nouns that are also adjective forms (germanNounOverAdjective).
+        ["Im alter wird man gelassener.", "Im Alter wird man gelassener."],
+        ["Sein hohes alter sieht man ihm nicht an.", "Sein hohes Alter sieht man ihm nicht an."],
+        ["Er stand ganz oben auf der spitze.", "Er stand ganz oben auf der Spitze."],
+        ["Darauf legt sie keinen großen wert.", "Darauf legt sie keinen großen Wert."],
+        ["Gibt es dazu eine alternative?", "Gibt es dazu eine Alternative?"],
+        ["Die wüste ist nachts kalt.", "Die Wüste ist nachts kalt."],
+        // Noun or verb forms in noun frames.
+        [
+          "Die grenzen unseres Gartens sind markiert.",
+          "Die Grenzen unseres Gartens sind markiert.",
+        ],
+        ["Die klingen dieser Messer waren stumpf.", "Die Klingen dieser Messer waren stumpf."],
+        ["Dieser anstieg kam für alle überraschend.", "Dieser Anstieg kam für alle überraschend."],
+        ["Der angriff der Gegner scheiterte.", "Der Angriff der Gegner scheiterte."],
+        ["Nach mehreren versuche gab er auf.", "Nach mehreren Versuche gab er auf."],
+        ["In den räumen war es stickig.", "In den Räumen war es stickig."],
+        ["Er hat keinen großen unterschied bemerkt.", "Er hat keinen großen Unterschied bemerkt."],
+        ["Die rolle, für die sie probt, ist klein.", "Die Rolle, für die sie probt, ist klein."],
       ],
       neg: [
         "Das ende ich jetzt sofort.",
+        "Die alte wohnt nebenan, die junge zieht bald weg.",
+        "Er hat das recht schnell erledigt.",
+        "Ich habe das wohl falsch verstanden.",
+        "Sie liebt ihn über alles.",
+        "Das Zimmer, in dem leben drei Katzen, ist warm.",
+        "Als die Truppe angriff, flohen alle.",
+        "Diese stellen meiner Schwester ein Zimmer bereit.",
+        "Mit dem leben wir schon lange.",
+        "Das sage ich dir morgen.",
+        "Das ist mir recht.",
         "Er wohnt im aus Holz gebauten Haus.",
         "Wir bleiben ein paar Tage.",
         "Ich räume den Müll weg.",
@@ -479,8 +512,23 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Die Haus Tür klemmt.", "Die Haustür klemmt."],
         ["Wo liegt der Auto Schlüssel?", "Wo liegt der Autoschlüssel?"],
         ["Der Vorsitzender eröffnete die Sitzung.", "Der Vorsitzende eröffnete die Sitzung."],
+        // The one object of a dative or an accusative verb.
+        ["Kannst du bitte den Nachbarssohn helfen?", "Kannst du bitte dem Nachbarssohn helfen?"],
+        ["Sie vertraut ihren alten Lehrer.", "Sie vertraut ihrem alten Lehrer."],
+        ["Der Hund gehorcht seinen Besitzer.", "Der Hund gehorcht seinem Besitzer."],
+        ["Weil wir den Trainer danken.", "Weil wir dem Trainer danken."],
+        ["Morgen besuchen wir dem Großvater.", "Morgen besuchen wir den Großvater."],
+        ["Kennst du diesem Fahrer?", "Kennst du diesen Fahrer?"],
       ],
       neg: [
+        "Ich helfe den Kindern beim Lesen.",
+        "Wir danken den Gästen für ihr Kommen.",
+        "Er hilft den Schrank tragen.",
+        "Ich sehe den Mann winken.",
+        "Ich kenne ihn nur dem Namen nach.",
+        "Sie beantwortet dem Kunden seine Frage.",
+        "Der Film gefällt dem Publikum.",
+        "Wir folgen dem Fluss bis zur Brücke.",
         "Der Mann, der Auto fährt, wohnt hier.",
         "Ich gebe der Lehrerin das Heft.",
         "Die Lehrer haben heute frei.",
@@ -675,7 +723,39 @@ test.skipIf(bigrams === null)(
   },
 );
 
+// Needs python3 with marisa-trie and numpy, as above.
+const ngrams = readGermanNgrams();
+test.skipIf(ngrams === null)(
+  "the committed noun and verb usage tables match de_DE.dic/.aff and the n-gram counts",
+  async () => {
+    const [dic, aff, committed] = await Promise.all(
+      [GERMAN_LEXICON_SOURCES.dic, GERMAN_LEXICON_SOURCES.aff, GERMAN_LEXICON_SOURCES.usage].map(
+        (path) => readFile(path, "utf8"),
+      ),
+    );
+    expect(buildGermanUsage(dic, aff, ngrams!)).toBe(committed);
+  },
+);
+
+test("German usage tables read nouns over adjectives and verb object cases", () => {
+  for (const word of ["alter", "spitze", "wert", "wüste"]) {
+    expect(germanNounOverAdjective(word)).toBe(true);
+  }
+  for (const word of ["alte", "kleine", "gut", "schnell"]) {
+    expect(germanNounOverAdjective(word)).toBe(false);
+  }
+  expect(["hilft", "half", "dankte", "gehört"].map(germanVerbObjectCase)).toEqual(
+    Array(4).fill("dative"),
+  );
+  expect(["fragt", "besuchte", "kennst", "trifft"].map(germanVerbObjectCase)).toEqual(
+    Array(4).fill("accusative"),
+  );
+  expect(["gibt", "zeigt", "kauft"].map(germanVerbObjectCase)).toEqual([null, null, null]);
+});
+
 test.each([
+  ["Lehrer", "m", true],
+  ["Grundschullehrer", "m", true],
   ["Auto", "n", false],
   ["Frau", "f", false],
   ["Tisch", "m", false],

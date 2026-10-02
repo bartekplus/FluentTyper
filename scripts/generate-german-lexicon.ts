@@ -19,6 +19,7 @@ export const GERMAN_LEXICON_SOURCES = {
   aff: resolve(root, "resources_js/de_DE/hunspell/de_DE.aff"),
   out: resolve(root, "src/core/domain/grammar/review/german/germanLexicon.generated.ts"),
   gender: resolve(root, "src/core/domain/grammar/review/german/germanGender.generated.ts"),
+  usage: resolve(root, "src/core/domain/grammar/review/german/germanUsage.generated.ts"),
   trie: resolve(root, "resources_js/de_DE/ngrams_db/ngrams.trie"),
   counts: resolve(root, "resources_js/de_DE/ngrams_db/ngrams.counts"),
 };
@@ -66,6 +67,8 @@ export function deriveGermanLexicon(dic: string, aff: string) {
   const nouns = new Set<string>();
   const lower = new Map<string, Set<Reading>>();
   const adjectives = new Set<string>();
+  // Forms read as some other word by an entry that is no adjective ("zeit", "paar", "mit").
+  const plainOther = new Set<string>();
   const read = (form: string, reading: Reading) => {
     let readings = lower.get(form);
     if (!readings) lower.set(form, (readings = new Set()));
@@ -97,6 +100,7 @@ export function deriveGermanLexicon(dic: string, aff: string) {
         continue;
       }
       read(form, reading);
+      if (reading === "other" && !flags.includes("A")) plainOther.add(form);
       for (const rule of wordPrefixes)
         if (flags.includes(rule.flag)) read(rule.add + form, reading);
     }
@@ -104,10 +108,11 @@ export function deriveGermanLexicon(dic: string, aff: string) {
   const nounOnly: string[] = [];
   const finite: string[] = [];
   const infinitive: string[] = [];
+  const ambiguous: string[] = [];
   for (const noun of [...nouns].sort()) {
     const readings = lower.get(noun);
     if (!readings) nounOnly.push(noun);
-    else if (readings.has("other")) continue;
+    else if (readings.has("other")) ambiguous.push(noun);
     else if (readings.has("infinitive")) infinitive.push(noun);
     else finite.push(noun);
   }
@@ -116,6 +121,9 @@ export function deriveGermanLexicon(dic: string, aff: string) {
     nounOnly,
     finite,
     infinitive,
+    ambiguous,
+    // Noun forms whose other readings are adjective or verb forms ("alter", "spitze").
+    adjectiveNouns: ambiguous.filter((w) => !plainOther.has(w)),
     verbs: verbs.sort(),
     adjectives: [...adjectives].sort(),
     lowercaseWords: [...lower.keys()].sort(),
@@ -367,6 +375,258 @@ export function buildGermanGender(dic: string, aff: string, bigrams: string): st
   ].join("\n");
 }
 
+/**
+ * Every bigram and trigram of the n-gram database as "w1 w2 [w3] count" lines (lowercased),
+ * read as readGermanDeterminerBigrams does. Null when Python or the package is missing.
+ */
+export function readGermanNgrams(): string | null {
+  const program = [
+    "import sys, marisa_trie, numpy",
+    "t = marisa_trie.Trie(); t.load(sys.argv[1])",
+    "c = numpy.fromfile(sys.argv[2], dtype=numpy.int32)",
+    "rows = sorted(f'{k[2:]} {c[i + 1]}' for p in ('2 ', '3 ') for k, i in t.items(p))",
+    "print('\\n'.join(rows))",
+  ].join("\n");
+  try {
+    const run = Bun.spawnSync(
+      ["python3", "-c", program, GERMAN_LEXICON_SOURCES.trie, GERMAN_LEXICON_SOURCES.counts],
+      { stdout: "pipe" },
+    );
+    return run.exitCode === 0 ? run.stdout.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
+// Determiners that never stand alone as a pronoun, so the word after them heads or opens a noun
+// phrase; "der", "die", "das", "dem", "den" and dies-words also are pronouns ("die gut passen").
+const EIN_STEMS = ["ein", "kein", "mein", "dein", "sein", "ihr", "unser", "eur"];
+const NOUN_DETERMINERS = [
+  "des",
+  "im",
+  "am",
+  "zum",
+  "zur",
+  "vom",
+  "beim",
+  "ins",
+  ...EIN_STEMS.flatMap((stem) => ["e", "en", "em", "er", "es"].map((end) => stem + end)),
+  "ein",
+  "kein",
+  "mein",
+  "dein",
+  "unser",
+  "euer",
+];
+const DETERMINER_STEMS =
+  /^(?:ein|kein|mein|dein|sein|ihr|unser|eu|dies|jen|jed|welch|manch|solch|all|d)$/;
+const PRONOUN_DETERMINERS = ["der", "die", "das", "den", "dem", "diese", "dieser", "dieses"];
+/** Whether an adjective with this ending may follow the determiner (weak or mixed ending). */
+function endingFits(det: string, ending: string): boolean {
+  const bare = /^(?:ein|kein|mein|dein|sein|ihr|unser|euer)$/.test(det);
+  if (ending === "er" || ending === "es") return bare;
+  if (ending === "en") return det !== "ins" && det !== "das" && !bare;
+  if (ending === "e") return /^(?:d(?:er|ie|as)|dies(?:e|er|es)|\p{Ll}+e)$/u.test(det) && !bare;
+  return false;
+}
+// Words after a noun that no attributive adjective is followed by: a genitive or a new phrase,
+// a preposition, a conjunction, a finite verb.
+const AFTER_NOUN = new Set(
+  (
+    "der des die das dem den ein eine einer eines von vom auf für mit im in an am bei zu zur " +
+    "zum über unter vor nach aus gegen und oder ist sind war waren wird werden hat haben hatte " +
+    "kann können muss soll gilt geht steht liegt bleibt"
+  ).split(" "),
+);
+// "die gut passen", "die hinter der Tür": after a pronoun the word may be an adverb or a
+// preposition, so only a genitive after it counts.
+const AFTER_PRONOUN = new Set("des eines meines seines ihres unseres dieses".split(" "));
+// Noun-phrase evidence must outweigh the adjective or adverb uses threefold, over at least
+// this many counted n-grams (the database drops n-grams seen fewer than about 60 times).
+const NOUN_MAJORITY = 3;
+const MIN_EVIDENCE = 60;
+// A form in -e seen only after feminine or plural determiners, this often, is a feminine or
+// plural noun ("die Spitze", "der Wüste"): an adjective in -e also follows "das".
+const FEMININE_EVIDENCE = 150;
+
+/**
+ * Lowercase noun forms whose only other reading is an adjective form ("alter", "spitze", "wert")
+ * and that the n-gram counts show as nouns after a determiner far more often than as adjectives
+ * or adverbs: a determiner whose adjective ending the form cannot have ("im alter", "ein wertes"),
+ * an article or preposition after "determiner + form" ("den wert des"), only feminine or plural
+ * determiners before a form in -e. Adjective evidence: an adjective after the form ("gut
+ * gemachte", an adverb) or a noun after "determiner + form" ("eine kleine stadt").
+ */
+export function deriveNounsOverAdjectives(dic: string, aff: string, ngrams: string) {
+  const { adjectiveNouns, nounOnly, finite, adjectives } = deriveGermanLexicon(dic, aff);
+  const candidates = new Set(adjectiveNouns);
+  const nouns = new Set([...nounOnly, ...finite]);
+  const lemmas = new Set(adjectives);
+  // Determiners inflect like adjectives ("dieser", "ihres") and are listed as such.
+  const adjectiveForm = (w: string) => {
+    const m = /^(\p{Ll}+?)(?:e|en|er|es|em)$/u.exec(w);
+    if (!m || DETERMINER_STEMS.test(m[1])) return false;
+    return lemmas.has(m[1]) || lemmas.has(`${m[1]}e`) || /^ge\p{Ll}+t$/u.test(m[1]);
+  };
+  const nounDets = new Set(NOUN_DETERMINERS);
+  const pronounDets = new Set(PRONOUN_DETERMINERS);
+  const noun = new Map<string, number>();
+  const adjective = new Map<string, number>();
+  const det = new Map<string, Map<string, number>>();
+  const add = (map: Map<string, number>, word: string, count: number) =>
+    map.set(word, (map.get(word) ?? 0) + count);
+  for (const line of ngrams.split("\n")) {
+    const parts = line.split(" ");
+    const count = Number(parts.pop());
+    if (parts.length === 2) {
+      const [a, b] = parts;
+      if (candidates.has(a) && adjectiveForm(b)) add(adjective, a, count);
+      if (candidates.has(b) && (nounDets.has(a) || pronounDets.has(a))) {
+        let row = det.get(b);
+        if (!row) det.set(b, (row = new Map()));
+        row.set(a, count);
+      }
+    } else if (parts.length === 3) {
+      const [a, b, c] = parts;
+      if (!candidates.has(b) || !(nounDets.has(a) || pronounDets.has(a))) continue;
+      if (nouns.has(c) || adjectiveForm(c)) add(adjective, b, count);
+      else if ((nounDets.has(a) ? AFTER_NOUN : AFTER_PRONOUN).has(c)) add(noun, b, count);
+    }
+  }
+  for (const [word, row] of det) {
+    const ending = /(?:en|em|er|es|e)$/.exec(word)?.[0] ?? "";
+    // An uninflected form after any determiner may be an adverb ("ein gut gemachter").
+    if (!ending) continue;
+    for (const [d, count] of row)
+      if (nounDets.has(d) && !endingFits(d, ending)) add(noun, word, count);
+    if (ending !== "e") continue;
+    const neuter = ["das", "dieses", "ein", "kein"].some((d) => row.has(d));
+    const feminine = neuter ? 0 : [...row.values()].reduce((sum, count) => sum + count, 0);
+    if (feminine >= FEMININE_EVIDENCE) add(noun, word, feminine);
+  }
+  return [...candidates]
+    .filter((w) => {
+      const n = noun.get(w) ?? 0;
+      return n >= MIN_EVIDENCE && n >= NOUN_MAJORITY * (adjective.get(w) ?? 0);
+    })
+    .sort();
+}
+
+// Verbs whose one object is a dative ("helfen", "danken") or an accusative ("fragen",
+// "besuchen"), with no second object that would let the other case in ("ich gebe dem Mann den
+// Ball"); verbs that also take a free dative ("ich kaufe dem Kind ein Eis") are left out.
+// Each line: the infinitive, then any strong forms; the weak endings are spelled from the
+// stem, and only forms the dictionary knows are kept (authored).
+const DATIVE_VERBS = [
+  "helfen hilf hilfst hilft half halfst halfen halft",
+  "gefallen gefällst gefällt gefiel gefielst gefielen gefielt",
+  "widersprechen widersprich widersprichst widerspricht widersprach widersprachen",
+  "danken",
+  "antworten",
+  "gehorchen",
+  "vertrauen",
+  "misstrauen",
+  "gratulieren",
+  "begegnen",
+  "schaden",
+  "nützen",
+  "ähneln",
+  "drohen",
+  "folgen",
+  "applaudieren",
+  "schmeicheln",
+  "kondolieren",
+  "gehören",
+];
+const ACCUSATIVE_VERBS = [
+  "kennen kannte kanntest kannten kanntet",
+  "treffen triff triffst trifft traf trafst trafen",
+  "fragen",
+  "besuchen",
+  "lieben",
+  "hassen",
+  "verwünschen",
+  "beantworten",
+  "vermissen",
+  "begleiten",
+  "beobachten",
+  "unterstützen",
+  "kritisieren",
+  "loben",
+  "beleidigen",
+  "verletzen",
+  "heiraten",
+  "küssen",
+  "umarmen",
+  "bewundern",
+  "respektieren",
+  "enttäuschen",
+  "ignorieren",
+  "verteidigen",
+  "betreuen",
+  "informieren",
+  "verklagen",
+  "anlügen",
+];
+const DATIVE_OBJECTS = ["ihm", "mir", "dir", "einem", "dem"];
+const ACCUSATIVE_OBJECTS = ["ihn", "mich", "dich", "einen"];
+
+/** The finite forms of a verb line that the dictionary spells. */
+function verbForms(line: string, words: Set<string>): string[] {
+  const [infinitive, ...strong] = line.split(" ");
+  const stem = /[lr]n$/.test(infinitive) ? infinitive.slice(0, -1) : infinitive.slice(0, -2);
+  const short = stem.replace(/e([lr])$/, "$1");
+  const endings = ["e", "st", "est", "t", "et", "te", "test", "ten", "tet", "ete", "eten"];
+  const forms = [infinitive, ...strong, `${short}e`, ...endings.map((end) => stem + end)];
+  return [...new Set(forms)].filter((form) => words.has(form));
+}
+
+/**
+ * The verb forms of each case table, each verb kept only when the bigram counts do not show it
+ * more often before the other case's pronouns ("hilft dir", not "hilft dich").
+ */
+export function deriveGovernedVerbs(dic: string, aff: string, ngrams: string) {
+  const words = new Set(deriveGermanLexicon(dic, aff).lowercaseWords);
+  const counts = new Map<string, number>();
+  for (const line of ngrams.split("\n")) {
+    const parts = line.split(" ");
+    if (parts.length === 3) counts.set(`${parts[0]} ${parts[1]}`, Number(parts[2]));
+  }
+  const evidence = (forms: string[], objects: string[]) =>
+    forms.reduce(
+      (sum, form) => sum + objects.reduce((s, o) => s + (counts.get(`${form} ${o}`) ?? 0), 0),
+      0,
+    );
+  const table = (lines: string[], own: string[], other: string[]) =>
+    lines
+      .map((line) => verbForms(line, words))
+      .filter((forms) => evidence(forms, other) <= evidence(forms, own))
+      .flat()
+      .sort();
+  return {
+    dative: table(DATIVE_VERBS, DATIVE_OBJECTS, ACCUSATIVE_OBJECTS),
+    accusative: table(ACCUSATIVE_VERBS, ACCUSATIVE_OBJECTS, DATIVE_OBJECTS),
+  };
+}
+
+export function buildGermanUsage(dic: string, aff: string, ngrams: string): string {
+  const { dative, accusative } = deriveGovernedVerbs(dic, aff, ngrams);
+  const line = (name: string, value: string) => {
+    const one = `export const ${name} = ${JSON.stringify(value)};`;
+    return one.length <= 100 ? one : `export const ${name} =\n  ${JSON.stringify(value)};`;
+  };
+  return [
+    "// Generated by bun scripts/generate-german-lexicon.ts from de_DE.dic/.aff and the de_DE",
+    "// n-gram database. Do not edit.",
+    "// Front-coded: noun forms that are also adjective forms but read as nouns after a",
+    "// determiner; finite forms of verbs whose object is a dative, then an accusative.",
+    line("NOUNS_OVER_ADJECTIVES", frontCode(deriveNounsOverAdjectives(dic, aff, ngrams))),
+    line("DATIVE_VERBS", frontCode(dative)),
+    line("ACCUSATIVE_VERBS", frontCode(accusative)),
+    "",
+  ].join("\n");
+}
+
 if (import.meta.main) {
   const [dic, aff] = await Promise.all([
     readFile(GERMAN_LEXICON_SOURCES.dic, "utf8"),
@@ -380,4 +640,9 @@ if (import.meta.main) {
   const gender = buildGermanGender(dic, aff, bigrams);
   await writeFile(GERMAN_LEXICON_SOURCES.gender, gender);
   console.log(`wrote ${GERMAN_LEXICON_SOURCES.gender} (${gender.length} bytes)`);
+  const ngrams = readGermanNgrams();
+  if (ngrams === null) throw new Error("python3 with marisa-trie and numpy is required");
+  const usage = buildGermanUsage(dic, aff, ngrams);
+  await writeFile(GERMAN_LEXICON_SOURCES.usage, usage);
+  console.log(`wrote ${GERMAN_LEXICON_SOURCES.usage} (${usage.length} bytes)`);
 }
