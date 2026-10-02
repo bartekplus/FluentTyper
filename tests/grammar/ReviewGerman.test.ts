@@ -143,7 +143,7 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Gib dir bitte etwas mühe.", "Gib dir bitte etwas Mühe."],
         ["Die Milch steht im kühlschrank.", "Die Milch steht im Kühlschrank."],
         // An object after its verb, closed by the clause's end or a genitive.
-        ["Der Vorschlag machte schnell die runde.", "Der Vorschlag machte schnell die Runde."],
+        ["Die Neuigkeit machte die runde.", "Die Neuigkeit machte die Runde."],
         ["Sie hat ihm die treue gehalten.", "Sie hat ihm die Treue gehalten."],
         [
           "Die Gegner haben uns in die enge getrieben.",
