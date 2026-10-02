@@ -116,8 +116,15 @@ const POSITIVES: Array<[string, string, string | null]> = [
   ],
   ["Powołano komisje specjalną.", "komisje specjalną", "Powołano komisję specjalną."],
   ["Zamówiliśmy pizze dużą.", "pizze dużą", "Zamówiliśmy pizzę dużą."],
+  // A count after a genitive-taking word stands in the genitive.
+  ["Na koncert przyszło około trzysta osób.", "trzysta", "Na koncert przyszło około trzystu osób."],
+  ["Czekaliśmy do cztery godzin.", "cztery", "Czekaliśmy do czterech godzin."],
   // "który" in another gender or number than its noun.
-  ["Trzymam w ogrodzie kota, która nie lubi wody.", "która", "Trzymam w ogrodzie kota, który nie lubi wody."],
+  [
+    "Trzymam w ogrodzie kota, która nie lubi wody.",
+    "która",
+    "Trzymam w ogrodzie kota, który nie lubi wody.",
+  ],
   [
     "Sprzedał rower, którymi jeździł do pracy.",
     "którymi",
@@ -192,6 +199,11 @@ const NEGATIVES = [
   "Mówił, że wróciłem za późno.",
   "Szukam pracy od miesiąca.",
   "Potrzebuje opieki dziecko sąsiadów.",
+  "Mam ponad dwieście książek.",
+  "Wrócił do domu dwa dni później.",
+  "Dodaj do tego dwa jajka.",
+  "Spóźniła się o około trzy minuty.",
+  "Wrócę za około dwa dni.",
   "Poznałem córkę sąsiada, która gra na skrzypcach.",
   "Kupiłem książkę z obrazkami, która mi się podoba.",
   "To jedna z osób, która mi pomogła.",

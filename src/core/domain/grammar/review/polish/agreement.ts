@@ -18,7 +18,15 @@ import {
   PLURAL,
   SINGULAR,
 } from "./lexicon";
-import { caseLike, findingAt, isPl, owned, sentenceStartAt, userOrNamed } from "./shared";
+import {
+  caseLike,
+  findingAt,
+  isPl,
+  owned,
+  PREPOSITIONS,
+  sentenceStartAt,
+  userOrNamed,
+} from "./shared";
 
 /*
  * Case and agreement read from the noun lexicon: a preposition governs the case of the noun
@@ -232,15 +240,6 @@ function demonstratives(ctx: DetectContext): RawFinding[] {
       nounTags(adj) & ALL_CASES;
     const noun = adj && skip ? adj : m.groups!.noun;
     if (!/^\p{Ll}+$/u.test(noun) || userOrNamed(ctx, noun)) continue;
-    // "w ust. 2", "na str. 5": a short word with a period is an abbreviation unless it ends the
-    // sentence ("wraz z psa.").
-    const after = ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 3);
-    if (
-      noun.length <= 3 &&
-      after.startsWith(".") &&
-      (SHORT_ABBREVIATIONS.has(noun.toLowerCase()) || !/^\.(?:$|\s*\n|\s+\p{Lu})/u.test(after))
-    )
-      continue;
     const fixes = demonstrativeFix(det.toLowerCase(), nounTags(noun));
     if (fixes.length === 0) continue;
     findings.push({
@@ -334,6 +333,76 @@ function freeCount(text: string, at: number): boolean {
   return !(nounTags(prev) & ALL_CASES);
 }
 
+/** A cardinal's genitive ("dwieście" -> "dwustu", also "dwuset"). */
+const GENITIVE_NUMERALS: Record<string, string[]> = {
+  dwa: ["dwóch"],
+  dwie: ["dwóch"],
+  trzy: ["trzech"],
+  cztery: ["czterech"],
+  pięć: ["pięciu"],
+  sześć: ["sześciu"],
+  siedem: ["siedmiu"],
+  osiem: ["ośmiu"],
+  dziewięć: ["dziewięciu"],
+  dziesięć: ["dziesięciu"],
+  jedenaście: ["jedenastu"],
+  dwanaście: ["dwunastu"],
+  piętnaście: ["piętnastu"],
+  dwadzieścia: ["dwudziestu"],
+  trzydzieści: ["trzydziestu"],
+  czterdzieści: ["czterdziestu"],
+  pięćdziesiąt: ["pięćdziesięciu"],
+  sto: ["stu"],
+  dwieście: ["dwustu", "dwuset"],
+  trzysta: ["trzystu"],
+  czterysta: ["czterystu"],
+  pięćset: ["pięciuset"],
+  kilka: ["kilku"],
+  kilkanaście: ["kilkunastu"],
+  kilkadziesiąt: ["kilkudziesięciu"],
+  kilkaset: ["kilkuset"],
+};
+/** Words after which a count stands in the genitive: "około pięciu", "do trzech", "bez dwóch". */
+const GENITIVE_BEFORE =
+  /(?:^|[^\p{L}])(?:około|ok\.|blisko|niespełna|do|od|bez|dla|spośród|wśród|wobec)[ \t\u00a0]{1,8}$/iu;
+const GENITIVE_NUMERAL = new RegExp(
+  `(?<![\\p{L}\\p{N}_'’-])(?<num>${Object.keys(GENITIVE_NUMERALS).join("|")})(?=[ \\t\\u00a0]{1,8}\\p{Ll})`,
+  "giu",
+);
+
+/** "około dwieście psów" -> "około dwustu psów": a count after a genitive-taking word. */
+function genitiveNumerals(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of owned(ctx, GENITIVE_NUMERAL)) {
+    const before = ctx.text.slice(Math.max(0, m.index - 12), m.index);
+    if (!GENITIVE_BEFORE.test(before)) continue;
+    // "o około dwie godziny", "na około pięć milionów": the preposition before "około" governs.
+    if (
+      new RegExp(
+        `(?:^|[^\\p{L}])(?:${PREPOSITIONS})[ \\t\\u00a0]{1,8}(?:około|ok\\.|blisko|niespełna)[ \\t\\u00a0]{1,8}$`,
+        "iu",
+      ).test(ctx.text.slice(Math.max(0, m.index - 24), m.index))
+    )
+      continue;
+    // "od dwa do trzech", "do pięć razy więcej" are left to the writer; so is "z dziesięć".
+    const after = ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 30);
+    if (/^[ \t\u00a0]+(?:do|razy|na|i|lub|albo)(?![\p{L}])/iu.test(after)) continue;
+    const num = m.groups!.num;
+    findings.push({
+      ...findingAt(
+        ctx,
+        m.index,
+        m.index + num.length,
+        GENITIVE_NUMERALS[num.toLowerCase()].map((form) => caseLike(num, form)),
+        RULE,
+        "review_msg_pl_preposition_case",
+      ),
+      context: { start: Math.max(0, m.index - 12), end: m.index + num.length },
+    });
+  }
+  return findings;
+}
+
 /** "5 złoty", "2 mln złoty": after a count from five up, or a large unit, it is "złotych". */
 const ZLOTY = new RegExp(
   `(?<![\\p{L}\\p{N}_'’.,@/–—-])(?<num>${FIVE_UP.join("|")}|\\d+)(?:[ \\t\\u00a0]+(?<unit>tys\\.|mln|mld|tysięcy|milionów|miliardów))?[ \\t\\u00a0]+(?<noun>złoty)${WORD}`,
@@ -345,20 +414,17 @@ function numerals(ctx: DetectContext): RawFinding[] {
   for (const m of owned(ctx, NUMERAL)) {
     const { num, noun } = m.groups!;
     if (!/^\p{Ll}+$/u.test(noun) || userOrNamed(ctx, noun)) continue;
-    // "w ust. 2", "na str. 5": a short word with a period is an abbreviation unless it ends the
-    // sentence ("wraz z psa.").
-    const after = ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 3);
-    if (
-      noun.length <= 3 &&
-      after.startsWith(".") &&
-      (SHORT_ABBREVIATIONS.has(noun.toLowerCase()) || !/^\.(?:$|\s*\n|\s+\p{Lu})/u.test(after))
-    )
-      continue;
     // A decimal, a number in a code or a list ("1,5", "art. 5", "5.") is not a count.
     const before = ctx.text.slice(Math.max(0, m.index - 6), m.index);
     if (/^\d/.test(num) && /(?:[\d,.:/§–—-]|\p{L}\.|nr|pkt|art|poz)[ \t\u00a0]*$/u.test(before))
       continue;
     const lower = num.toLowerCase();
+    // "około pięć osób": the numeral itself takes the genitive (checked below), not the noun.
+    if (
+      GENITIVE_NUMERALS[lower] &&
+      GENITIVE_BEFORE.test(ctx.text.slice(Math.max(0, m.index - 12), m.index))
+    )
+      continue;
     const tags = nounTags(noun);
     if (!numeralClash(lower, tags)) continue;
     const needs = numeralNeeds(lower)!;
@@ -1004,6 +1070,7 @@ export const DETECTORS = [
             ...prepositionCase(ctx),
             ...demonstratives(ctx),
             ...numerals(ctx),
+            ...genitiveNumerals(ctx),
             ...genitiveObjects(ctx),
             ...negatedObjects(ctx),
             ...fixedGenders(ctx),
