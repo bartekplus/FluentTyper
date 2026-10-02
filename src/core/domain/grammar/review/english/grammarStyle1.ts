@@ -6,6 +6,7 @@ import { SPECIALIST } from "../englishCountability";
 import { doubledDegree } from "../englishDegree";
 import type { PhraseRow } from "../englishPhraseTables";
 import {
+  detectAll,
   EDGE,
   frame,
   frameMatches,
@@ -276,6 +277,8 @@ function degree(ctx: DetectContext): Finding[] {
     if (typed !== adj || !markerCase || hasUserOrCasedWord(ctx, m[0])) continue;
     // "honest" is a base adjective ("honestly"), not hon + -est.
     if (!graded(adj) || englishWordInfo(`${adj}ly`)) continue;
+    // "I'll write more later": time adverbs, not a comparative "more" could double.
+    if (/^(?:later|earlier|sooner)$/.test(adj)) continue;
     const [start, end] = m.indices!.groups!.target;
     if (!finishedComparison(ctx, start, end)) continue;
     findings.push(
@@ -826,7 +829,8 @@ function numberUnits(ctx: DetectContext): Finding[] {
   const findings: Finding[] = [];
   for (const m of frameMatches(ctx, NUMBER_UNIT)) {
     const { n, unit, next } = m.groups!;
-    if (n === "1" || (next && NOT_A_HEAD.test(next))) continue;
+    // "the 2018 Year-End chart": a capitalized unit belongs to a name.
+    if (n === "1" || /^[A-Z]/.test(unit) || (next && NOT_A_HEAD.test(next))) continue;
     if (next && !englishWordInfo(next)?.noun && !englishWordInfo(next)?.adjective) continue;
     findings.push(
       found(ctx, m, "englishContextualCompounds", "review_msg_compounds", [`${n}-${unit}`]),
@@ -1286,9 +1290,7 @@ export function quotedMention(ctx: DetectContext, finding: Finding): boolean {
 const english =
   (...detectors: ((ctx: DetectContext) => Finding[])[]) =>
   (ctx: DetectContext): Finding[] =>
-    ctx.lang !== "en_US"
-      ? []
-      : detectors.flatMap((detect) => detect(ctx)).filter((f) => !quotedMention(ctx, f));
+    ctx.lang !== "en_US" ? [] : detectAll(ctx, detectors).filter((f) => !quotedMention(ctx, f));
 
 /** Context detectors appended to REVIEW_DETECTORS. */
 export const DETECTORS: readonly ReviewDetectorEntry[] = [

@@ -1,0 +1,117 @@
+# Correct French prose: Review's French checks must stay silent on every line.
+# Elision, and the words that refuse it.
+L'arbre du jardin a perdu ses feuilles avant l'hiver.
+Je l'ai rencontrée hier, et elle m'a dit qu'elle reviendrait jeudi.
+Le onze de France a gagné, et le oui l'a emporté au référendum.
+Il lisait la une du journal pendant que le héros de la série dormait.
+Lorsqu'il pleut, nous restons chez nous ; puisque tu insistes, j'y vais.
+Le mot anglais « also » se traduit par « aussi », et « up » par « en haut ».
+Dans cette formule, que a et b soient positifs ne change rien au résultat.
+Elle a épelé son prénom lentement : l a u r e.
+La lettre l est muette dans certains mots empruntés.
+# Pronoun subjects and their verbs.
+Je peux venir demain si tu veux, mais il faut prévenir ta sœur.
+Nous mangeons tôt le dimanche, et vous dînez toujours après vingt heures.
+Ils ont fini leurs devoirs avant de sortir jouer dehors.
+Je est un autre, écrivait le poète dans une lettre célèbre.
+Le pronom tu est souvent omis à l'oral dans les questions familières.
+Pierre et elle étaient fiancés depuis deux ans.
+Elle est arrivée en retard, mais ils sont partis à l'heure.
+Les livres que vous m'avez prêtés sont sur l'étagère.
+# Sound-alike small words used correctly.
+Il a mangé à la cantine, puis il est allé à la piscine.
+Elle a l'air fatiguée ce matin, et lui a l'air content.
+Où es-tu allé ? Tu préfères le thé ou le café ?
+Je ne sais pas où il habite ni s'il viendra.
+Ce matin, il se lève tôt ; ce sont ses habitudes depuis l'enfance.
+Ça m'étonne qu'il ait oublié sa clé et son téléphone.
+Ils sont venus avec leur fils et leurs deux filles.
+Il a dû partir avant la fin, il avait du travail.
+On a beaucoup ri, et ils ont promis de revenir.
+Elle m'a prêté sa voiture pour le week-end.
+Je suis sûr qu'il viendra, la clé est sur la table.
+S'est dit aussi d'une coiffure à la mode au siècle dernier.
+Comme même ses meilleurs amis n'étaient pas venus, il était triste.
+Il est venu quand même, malgré la pluie.
+Horaires d'ouverture du magasin, sa : 9h-12h.
+# Verb forms: participles and infinitives.
+Nous avons mangé chez mes parents, puis nous sommes allés marcher.
+Il faut laver la vaisselle avant de partir.
+Je voudrais acheter une voiture, mais je n'ai pas encore trouvé.
+Ces fêtes ont bien entendu gêné les voisins.
+Vous aimez marcher le long du canal le dimanche.
+Elle s'est fait couper les cheveux la semaine dernière.
+Ils se sont laissé convaincre par le vendeur.
+# Determiners and number.
+Les enfants jouent dans la cour avec leurs ballons.
+Mes amis viendront avec leurs chevaux et leurs bateaux.
+Un tiens vaut mieux que deux tu l'auras.
+Ces don Juan de comédie finissent toujours seuls.
+Les lundi et mardi, la bibliothèque ferme plus tôt.
+Le temps passe vite quand on lit un bon roman.
+Le fils du voisin a repeint ses volets en bleu.
+Veuillez indiquer vos nom et prénom sur le formulaire.
+# Hyphens.
+Pouvez-vous m'aider ? Peut-être demain, a-t-il répondu.
+Il peut être tard quand le train arrive.
+Tout ce dossier devra peu à peu être revu.
+Dis-moi ce que tu en penses, et donne-moi ton avis.
+Il est venu lui-même chercher le colis.
+# Names, titles and quotations.
+Mary Quant a lancé la minijupe dans les années soixante.
+Le roman Autant en emporte le vent a été adapté au cinéma.
+Le journal Il Secolo a publié l'article lorsqu'il est paru.
+# Dates, numbers and units.
+La réunion aura lieu le mardi 3 mars 2026 à 14 heures.
+Le 29 février 2024 était un jeudi.
+Le colis pèse 2,5 kg et mesure 40 cm de long.
+Elle a vécu de 1923 à 2011 et a écrit douze romans.
+Pascal Martin (1957-....) a reçu le prix l'an dernier.
+# Ordinary prose.
+Après le dîner, nous avons regardé un film et nous sommes allés nous coucher.
+Il faisait si froid que la rivière avait gelé pendant la nuit.
+Les élèves qui désirent s'inscrire doivent remplir ce formulaire avant vendredi.
+Malgré tout, elle garde confiance en elle et en ses projets.
+Quant à moi, je préfère rester à la maison ce soir.
+Quand on veut, on peut, dit le proverbe.
+Je me demande s'il viendra à la fête samedi prochain.
+Si tu avais su, tu serais venu plus tôt.
+Elles se sont promenées le long de la plage au coucher du soleil.
+Le médecin lui a conseillé de se reposer quelques jours.
+Tout le monde était d'accord, sauf mon frère.
+Tous les jours, elle prend le bus de huit heures.
+Toutes ces questions méritent une réponse claire.
+Il n'y a plus de pain, peux-tu en acheter en rentrant ?
+C'est à cause de la neige que le vol a été annulé.
+Grâce à vous, le projet a pu voir le jour.
+Davantage de bénévoles seraient les bienvenus cet été.
+Quelle que soit ta décision, je la respecterai.
+Quel que soit le temps, nous partirons demain.
+On s'est retrouvés devant la gare à midi.
+# Gender, adjectives and participles.
+Une forêt tropicale couvre le nord du pays, et le climat y est chaud.
+Les dossiers triés par date sont rangés dans l'armoire du bureau.
+La réunion est annulée, mais les invités sont déjà arrivés.
+Les fleurs que j'ai cueillies ce matin sont dans le vase.
+Nous avons visité le château, puis nous avons mangé au village.
+Thomas passe ses journées enfermé dans son atelier.
+Elle a l'air contente de son nouveau travail.
+Les drapeaux français et italien flottent devant la mairie.
+Il porte une chemise bleu clair et des chaussures marron.
+Un élève et une élève ont présenté leur exposé ensemble.
+Elle a rendu visite à une amie malade la semaine dernière.
+# Subjects and their verbs.
+Les rues étaient calmes et la ville dormait encore.
+Mon frère ne peut pas venir, mais ses enfants viendront.
+C'est moi qui ai fini le gâteau, et c'est toi qui as fait la vaisselle.
+Ceux qui connaissent la région savent où se trouve la source.
+La plupart des gens pensent que la réforme est utile.
+Ce soir nous allons au théâtre avec nos voisins.
+Le temps aussi bien que l'argent manquent pour ce projet.
+Les enfants en mangent tous les jours au goûter.
+Notre Père qui êtes aux cieux, que ton nom soit sanctifié.
+# Small words.
+Mes cousins sont très gentils avec leur grand-mère.
+Il mange peu le soir, mais il peut manger beaucoup à midi.
+Quand viendras-tu nous voir ? Quant à moi, je reste ici.
+C'est là que tout a commencé, il y a peu.
