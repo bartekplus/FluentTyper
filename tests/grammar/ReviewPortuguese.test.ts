@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import {
   buildPortugueseLexicon,
@@ -7,6 +8,7 @@ import {
 } from "../../scripts/generate-portuguese-lexicon";
 import { findLiveGrammarProposals } from "../../src/core/domain/grammar/review/liveProposals";
 import {
+  REVIEW_RULE_METADATA,
   REVIEW_SUPPORTED_RULE_IDS,
   runsInReviewLanguage,
 } from "../../src/core/domain/grammar/review/reviewCatalog";
@@ -318,6 +320,26 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Se a gente fazer tudo hoje, descansa.", "Se a gente fizer tudo hoje, descansa."],
         ["Assim que vocês terem tempo, venham.", "Assim que vocês tiverem tempo, venham."],
         ["Se nós não podermos ir, avisamos.", "Se nós não pudermos ir, avisamos."],
+        ["Recebi uma problema sério no trabalho.", "Recebi um problema sério no trabalho."],
+        ["Ele chegou do cidade vizinha.", "Ele chegou da cidade vizinha."],
+        ["Os situações mudaram rápido.", "As situações mudaram rápido."],
+        ["Ela fez uma grande esforço.", "Ela fez um grande esforço."],
+        ["Fiquei preso num garagem escura.", "Fiquei preso numa garagem escura."],
+        ["Gostei muito dos fotos da viagem.", "Gostei muito das fotos da viagem."],
+        ["A vizinha trouxe uns frutas maduras.", "A vizinha trouxe umas frutas maduras."],
+        ["Falei disso nos reuniões de março.", "Falei disso nas reuniões de março."],
+        ["Os menina chegou cedo.", "A menina chegou cedo."],
+        ["Conversei com os professor ontem.", "Conversei com o professor ontem."],
+        ["Pelo janela entrava o vento.", "Pela janela entrava o vento."],
+        ["O nossa casa fica longe.", "A nossa casa fica longe."],
+        ["Passei o mesma semana em casa.", "Passei a mesma semana em casa."],
+        ["Os outro meninos saíram.", "Os outros meninos saíram."],
+        ["Toda as cidades votaram.", "Todas as cidades votaram."],
+        ["Alguns pessoas não vieram.", "Algumas pessoas não vieram."],
+        ["A reforma tributário saiu do papel.", "A reforma tributária saiu do papel."],
+        ["Falamos da cultura japonês na aula.", "Falamos da cultura japonesa na aula."],
+        ["Os produtos brasileiras são bons.", "Os produtos brasileiros são bons."],
+        ["Mudou a situação econômico do bairro.", "Mudou a situação econômica do bairro."],
       ],
       neg: [
         "Isso acontece muitas vezes.",
@@ -340,6 +362,30 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         "Eles realmente precisam de ajuda.",
         "Ele também viajou.",
         "Eu sempre passeio na praia.",
+        "Ele o ajuda com a lição.",
+        "Nós as alimentamos bem.",
+        "Cada um ajuda como pode.",
+        "Isso me da trabalho.",
+        "Estes são os meus livros.",
+        "O filme foi chamado por muitos de obra-prima.",
+        "Sou todo ouvidos.",
+        "O camisa 9 perdeu o pênalti.",
+        "Guardei os óculos no porta luvas.",
+        "Ao termos as respostas, seguimos.",
+        "Pelo menos ela tentou.",
+        "O seu pelo brilha ao sol.",
+        "A meu ver, ninguém errou.",
+        "Mil e uma noites de chuva.",
+        "O dia do jornalista é amanhã.",
+        "Ela é uma atleta e ele é um modelo.",
+        "Vi as fotos do sistema novo.",
+        "Nos vemos depois da aula.",
+        "Ela está nos ajudando muito.",
+        "O mundo todo a respeita.",
+        "Ele voltou da viagem cansado.",
+        "Na escola brasileiro aprende cedo a ler.",
+        "A palavra inglês tem acento.",
+        "A empresa cheira a tinta fresca.",
       ],
     },
   ],
@@ -453,6 +499,28 @@ describe("portugueseDates", () => {
   });
 });
 
+test("the clean Portuguese corpus has no default-on findings", () => {
+  const text = readFileSync("tests/fixtures/native-review-corpus/portuguese-clean.txt", "utf8")
+    .split("\n")
+    .filter((line) => !line.startsWith("#"))
+    .join("\n");
+  const enabledRules = REVIEW_SUPPORTED_RULE_IDS.filter(
+    (id) =>
+      runsInReviewLanguage(id, LANG) &&
+      REVIEW_RULE_METADATA[id].defaultEnabled &&
+      !["capitalizeSentenceStart", "capitalizeAfterLineBreak"].includes(id),
+  );
+  const found = detectReviewDiagnostics(
+    { id: "clean", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
+    { enabledRules, lang: LANG, userDictionary: [], insertSpaceAfterAutocomplete: true },
+  ).diagnostics;
+  expect(
+    found.map(
+      (d) => `${d.ruleId}: ${d.original} @ ${text.slice(d.range.start - 20, d.range.end + 10)}`,
+    ),
+  ).toEqual([]);
+});
+
 test("the committed paronym and verb tables match pt_BR.dic/.aff (bun run generate:portuguese-lexicon)", async () => {
   const [dic, aff, paronyms, verbs] = await Promise.all([
     readFile(PORTUGUESE_LEXICON_SOURCES.dic),
@@ -474,7 +542,8 @@ const options = {
 const TRIGGERS =
   "na fabrica da duvida em pratica de musica para a policia um critica uma duvida em a de o " +
   "um forte grande estimulo tão pratico não dir-lhe-ei poderia-se eles não tem fazem dez anos " +
-  "de Niterói/RJ 31 de abril de 2023 30/02/2024 para mim fazer esta coberto ";
+  "de Niterói/RJ 31 de abril de 2023 30/02/2024 para mim fazer esta coberto " +
+  "Uma problema dos cidade os situações o nossa mesma todo os erros não querem-na ";
 
 function slowestChunkMs(text: string): number {
   const prepared = prepareReview(
@@ -501,6 +570,8 @@ test("Portuguese frames stay fast on long runs of trigger words and spaces", () 
     "de Aa Bb Cc Dd Ee Ff Gg ".repeat(500),
     "eles não já também tem ".repeat(600),
     "palavra , no entanto , no entanto portanto, ".repeat(400),
+    "os o as a uma um da do nos ".repeat(400),
+    "o nossa os mesma uns outro ".repeat(500),
   ];
   for (const text of inputs) expect(slowestChunkMs(text)).toBeLessThan(100);
   const live = { ...options, liveRules: [] };

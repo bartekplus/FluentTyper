@@ -9,6 +9,7 @@ import { cliticPlacement } from "./clitics";
 import { invalidDates } from "./dates";
 import { commas } from "./commas";
 import { agreement } from "./agreement";
+import { nounAgreement } from "./nounAgreement";
 import { numberFormat, typographyStyle } from "./typography";
 
 export const PORTUGUESE_DETECTORS: ReviewDetectorEntry[] = [
@@ -22,4 +23,5 @@ export const PORTUGUESE_DETECTORS: ReviewDetectorEntry[] = [
   { rules: ["portugueseDates"], detect: invalidDates },
   { rules: ["portugueseCommas"], detect: commas },
   { rules: ["portugueseAgreement"], detect: agreement },
+  { rules: ["portugueseAgreement"], detect: nounAgreement },
 ];

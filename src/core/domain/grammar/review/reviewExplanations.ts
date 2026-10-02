@@ -1947,6 +1947,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Słowo musi się zgadzać: existir, acontecer czy restar przyjmują liczbę mnogą, gdy podmiot stoi po nich (existem muitos casos), próprio zgadza się z zaimkiem (ela própria), a isso lub tudo wymagają przymiotnika rodzaju męskiego.",
     "Concordância: existir, acontecer e restar vão para o plural quando o sujeito vem depois (existem muitos casos), próprio concorda com o pronome (ela própria), e isso ou tudo pedem adjetivo masculino.",
   ],
+  review_msg_pt_noun_agreement: [
+    "A determiner and its noun take the same gender and number in Portuguese (a casa, os problemas, a nossa equipe), and so does an adjective of kind after them (a política econômica).",
+    "En portugais, le déterminant et son nom prennent le même genre et le même nombre (a casa, os problemas, a nossa equipe), tout comme l'adjectif de catégorie qui les suit (a política econômica).",
+    "U portugalskom odrednica i njezina imenica imaju isti rod i broj (a casa, os problemas, a nossa equipe), kao i odnosni pridjev iza njih (a política econômica).",
+    "En portugués, el determinante y su sustantivo llevan el mismo género y número (a casa, os problemas, a nossa equipe), igual que el adjetivo de clase que los sigue (a política econômica).",
+    "Στα πορτογαλικά ο προσδιοριστής και το ουσιαστικό του έχουν το ίδιο γένος και αριθμό (a casa, os problemas, a nossa equipe), όπως και το επίθετο κατηγορίας που τα ακολουθεί (a política econômica).",
+    "På portugisiska har bestämningsordet och dess substantiv samma genus och numerus (a casa, os problemas, a nossa equipe), liksom ett klassificerande adjektiv efter dem (a política econômica).",
+    "Im Portugiesischen haben Begleiter und Nomen dasselbe Genus und denselben Numerus (a casa, os problemas, a nossa equipe), ebenso ein einordnendes Adjektiv danach (a política econômica).",
+    "W portugalskim określnik i jego rzeczownik mają ten sam rodzaj i liczbę (a casa, os problemas, a nossa equipe), podobnie przymiotnik relacyjny po nich (a política econômica).",
+    "O determinante e o substantivo concordam em gênero e número (a casa, os problemas, a nossa equipe), assim como o adjetivo de classificação que vem depois (a política econômica).",
+  ],
   review_msg_pt_future_subjunctive: [
     "After quando, se or enquanto, Portuguese uses the future subjunctive, which differs from the infinitive in irregular verbs (quando eu vir, se nós fizermos).",
     "Après quando, se ou enquanto, le portugais emploie le subjonctif futur, qui diffère de l'infinitif pour les verbes irréguliers (quando eu vir, se nós fizermos).",
