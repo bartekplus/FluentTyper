@@ -489,6 +489,31 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
       ],
     },
   ],
+  [
+    "commaPeriodSpacing",
+    "a sentence mark glued to the next sentence",
+    {
+      pos: [
+        ["Llegamos tarde.La cena ya estaba fría.", "Llegamos tarde. La cena ya estaba fría."],
+        ["No vino nadie.Pero da igual.", "No vino nadie. Pero da igual."],
+        ["Pasa.¿Quieres café?", "Pasa. ¿Quieres café?"],
+        ["¿Te gustó?Mucho.", "¿Te gustó? Mucho."],
+        ["¡Qué frío!Cierra la ventana.", "¡Qué frío! Cierra la ventana."],
+        ["Y entonces…nada.", "Y entonces… nada."],
+        ["Lo pensé mucho .Al final dije que no.", "Lo pensé mucho. Al final dije que no."],
+      ],
+      neg: [
+        "Visita la web ejemplo.es para más datos.",
+        "Abre el archivo datos.Final antes de salir.",
+        "Lo firmó J.R.Tolkien en persona.",
+        "Viajó a EE.UU.Hoy vuelve.",
+        "El valor es 3.5 metros.",
+        "Guarda el fichero como .txt y ciérralo.",
+        "Añade buscar?tema=uno al final del enlace.",
+        "Llegamos tarde. La cena ya estaba fría.",
+      ],
+    },
+  ],
 ];
 
 describe.each(FIXTURES)("%s: %s", (ruleId, _family, fixture) => {
@@ -522,6 +547,7 @@ test("an impossible Spanish date is flagged without a guessed fix", () => {
     "Llegó el 34 de marzo.",
     "La cita es el 14/45/2025.",
     "Firmado el 33.12.2020.",
+    "Se casaron el 250 de mayo.",
   ]) {
     const found = findings("spanishTypography", text);
     expect(found).toHaveLength(1);
@@ -532,8 +558,21 @@ test("an impossible Spanish date is flagged without a guessed fix", () => {
     "Cédula: 6-51-2032",
     "Pedido N° 99/73/2022",
     "Pagó el 12/31/2025.",
+    "La tasa subió el 30.2 por ciento.",
+    "Ganaron el 3-2 en la final.",
+    "Tengo 31.4 euros.",
+    "Nació el 29.02.88.",
   ])
     expect(findings("spanishTypography", text)).toEqual([]);
+  // A two-digit year, no year where the clause ends, a short month name.
+  for (const [text, fixed] of [
+    ["Se fue el 31.06.97.", "Se fue el 30.06.97."],
+    ["Volvió el 31.09.", "Volvió el 30.09."],
+    ["Firmó el 30-feb-2021.", "Firmó el 28-feb-2021."],
+  ])
+    expect(applyEdits(text, findings("spanishTypography", text)[0].alternatives[0].edits)).toBe(
+      fixed,
+    );
   expect(
     applyEdits(
       "Nació el 31.11.1989.",

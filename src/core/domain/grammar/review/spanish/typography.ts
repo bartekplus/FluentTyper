@@ -135,13 +135,21 @@ const NAMED_DATE = new RegExp(
   `(?<![\\p{L}\\p{N}.,/-])(?:(${WEEKDAY_LIST.join("|")})(,?[ \\t]+))?(\\d{1,2})(?:[ \\t]+de)?[ \\t]+(${MONTH_NAMES})(?:[ \\t]+(?:de|del)?[ \\t]*(\\d{4}))?(?![\\p{L}\\p{N}])`,
   "giu",
 );
+// Short month names in numeric dates: "29-feb-2005".
+const MONTH_SHORT = "ene|feb|mar|abr|may|jun|jul|ago|sep|sept|set|oct|nov|dic";
+const shortMonth = (month: string) =>
+  ({ sept: 9, set: 9 })[month.toLowerCase()] ??
+  MONTH_SHORT.split("|").indexOf(month.toLowerCase()) + 1;
+// Where a date goes: "Cédula: 6-51-2032" and "N° 99/73/2022" are numbers.
+const DATED = /(?:^|\s)(?:el|del|al|día|fecha|desde|hasta)\s+$/iu;
+// A two-digit year ("31.11.89") or none ("el 31.04.") only where a date goes.
 const NUMERIC_DATE = new RegExp(
-  `(?<![\\p{N}/.:-])(\\d{1,2})([/.-])(\\d{1,2}|${MONTH_NAMES})\\2(\\d{4})(?![\\p{N}/:-]|\\.\\p{N})`,
+  `(?<![\\p{N}/.:-])(\\d{1,3})([/.-])(\\d{1,2}|${MONTH_NAMES}|${MONTH_SHORT})(?:\\2(\\d{4}|\\d{2}(?![\\p{N}])))?(?![\\p{N}/:-]|\\.\\p{N}|,\\p{N})`,
   "giu",
 );
 // "el 32 de enero": a day no month has, after the article a date takes.
 const NO_SUCH_DAY = new RegExp(
-  `(?<=(?:^|[\\s(])(?:el|del|al|El|Del|Al)[ \\t]+)(3[2-9]|[4-9]\\d)(?:[ \\t]+de)?[ \\t]+(?:${MONTH_NAMES})(?![\\p{L}\\p{N}])`,
+  `(?<=(?:^|[\\s(])(?:el|del|al|El|Del|Al)[ \\t]+)(3[2-9]|[4-9]\\d|\\d{3})(?:[ \\t]+de)?[ \\t]+(?:${MONTH_NAMES})(?![\\p{L}\\p{N}])`,
   "gu",
 );
 
@@ -201,13 +209,22 @@ function impossibleDates(ctx: DetectContext): RawFinding[] {
   numeric.lastIndex = Math.max(0, ctx.from - 16);
   for (let m = numeric.exec(ctx.scanText); m && m.index < ctx.to; m = numeric.exec(ctx.scanText)) {
     if (m.index < ctx.from) continue;
-    const month = /^\d/u.test(m[3]) ? Number(m[3]) : monthNumber(m[3]);
+    const [whole, , separator, monthText, yearText = ""] = m;
+    const month = /^\d/u.test(monthText)
+      ? Number(monthText)
+      : MONTHS.has(monthText.toLowerCase())
+        ? monthNumber(monthText)
+        : shortMonth(monthText);
     const day = Number(m[1]);
+    const dated = DATED.test(ctx.text.slice(Math.max(0, m.index - 12), m.index));
+    if (yearText.length !== 4) {
+      // "el 31.04.", "el 30/2": a day and month only where a date goes and the clause ends;
+      // "el 30.2 por ciento" and the score "el 3-2" are numbers.
+      const after = ctx.text.slice(m.index + whole.length);
+      if (!dated || (!yearText && (separator === "-" || !/^(?:[.;:!?)]|\s*$)/u.test(after))))
+        continue;
+    }
     // "01/32/2014", "31.13.2014": no day-month or month-day reading.
-    // Only where a date goes: "Cédula: 6-51-2032" and "N° 99/73/2022" are numbers.
-    const dated = /(?:^|\s)(?:el|del|al|día|fecha|desde|hasta)\s+$/iu.test(
-      ctx.text.slice(Math.max(0, m.index - 12), m.index),
-    );
     if ((month > 12 || day > 31) && (day > 12 || month > 31)) {
       if (!dated || namedExampleBefore(ctx.text, m.index)) continue;
       findings.push({
@@ -220,7 +237,14 @@ function impossibleDates(ctx: DetectContext): RawFinding[] {
       continue;
     }
     if (month < 1 || month > 12) continue;
-    dayFinding(m.index, m[1], month, Number(m[4]));
+    // "29.02.89": a two-digit year keeps its leap years ("00" may be 1900 or 2000).
+    const year =
+      yearText.length === 4
+        ? Number(yearText)
+        : yearText && yearText !== "00"
+          ? 2000 + Number(yearText)
+          : undefined;
+    dayFinding(m.index, m[1], month, year);
   }
   return findings;
 }
@@ -283,4 +307,45 @@ function typography(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [{ rules: [RULE], detect: typography }];
+// Words that open a Spanish sentence and never a dotted name's next part ("frase.Y otra").
+const STARTERS =
+  "El|La|Los|Las|Lo|Un|Una|Unos|Unas|Y|Pero|Es|Son|Era|Fue|Está|Hay|No|Sí|Yo|Tú|Él|Ella|Ellos|" +
+  "Ellas|Nosotros|Usted|Este|Esta|Estos|Estas|Eso|Esto|Ese|Esa|Se|Me|Te|Le|Les|Nos|Mi|Su|Sus|" +
+  "Tu|En|Del|Al|Con|Por|Para|Sin|Como|Cuando|Si|Que|Qué|Cómo|Dónde|Cuándo|Pues|Así|Luego|" +
+  "Después|Entonces|Ahora|Hoy|Ayer|También|Además|Ya|Todo|Siempre|Nunca|Aquí|Allí|Hola|" +
+  "Gracias|Bueno|Claro|Aunque|Porque|Mientras|Desde|Hasta|Según";
+/** "frase.Y", "Ven.Como": two sentences glued at a period, prose rather than a dotted name. */
+export const SPANISH_PROSE_DOTTED_TOKEN = new RegExp(`^\\p{L}*\\p{Ll}{2}\\.(?:${STARTERS})$`, "u");
+// "frase.Y otra", "así?Siempre", "Ven.¿Como…?", "así…siempre", and "así .Siempre" with the
+// space on the wrong side. Lowercase only after "…": "archivo .txt" and "web?id" are not prose.
+const MISSING_SPACE = new RegExp(
+  `(?<=\\p{L}\\p{Ll})(?:\\.(?=(?:${STARTERS})(?![\\p{L}\\p{N}])|[¿¡])|[?!](?=[¿¡]|\\p{Lu}\\p{Ll})|…(?=[¿¡]|\\p{L}))|(?<=\\p{L})[ \\t]+(?:[.?!]|…)(?=[¿¡]|\\p{Lu}\\p{Ll})`,
+  "gu",
+);
+
+/** A sentence mark glued to the next sentence: "frase.Y otra" -> "frase. Y otra". */
+function missingSpace(ctx: DetectContext): RawFinding[] {
+  if (ctx.lang.slice(0, 2) !== "es") return [];
+  const findings: RawFinding[] = [];
+  const regex = new RegExp(MISSING_SPACE);
+  regex.lastIndex = ctx.from;
+  for (let m = regex.exec(ctx.scanText); m && m.index < ctx.to; m = regex.exec(ctx.scanText)) {
+    // "P.A.Čerenkov", "EE.UU.Hoy": initials and abbreviations stay glued.
+    if (/\.\p{L}{1,3}$/u.test(ctx.text.slice(Math.max(0, m.index - 4), m.index))) continue;
+    if (namedExampleBefore(ctx.text, m.index)) continue;
+    findings.push({
+      ruleId: "commaPeriodSpacing",
+      messageKey: "review_msg_space_after_mark",
+      range: { start: m.index, end: m.index + m[0].length },
+      alternatives: [`${m[0].trim()} `],
+      context: { start: Math.max(0, m.index - 16), end: Math.min(ctx.text.length, m.index + 16) },
+      bulkBlock: "context-dependent",
+    });
+  }
+  return findings;
+}
+
+export const DETECTORS: readonly ReviewDetectorEntry[] = [
+  { rules: [RULE], detect: typography },
+  { rules: ["commaPeriodSpacing"], detect: missingSpace },
+];
