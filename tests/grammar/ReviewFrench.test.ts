@@ -142,6 +142,9 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
     {
       pos: [
         ["Il à mangé toute la tarte.", "Il a mangé toute la tarte."],
+        ["Je confie cette mission a ton frère.", "Je confie cette mission à ton frère."],
+        ["Porte ces cartons a la cave.", "Porte ces cartons à la cave."],
+        ["Tu ressembles beaucoup a ta mère.", "Tu ressembles beaucoup à ta mère."],
         ["On à déjà fini le travail.", "On a déjà fini le travail."],
         ["Ça à l'air facile.", "Ça a l'air facile."],
         ["Hier, Marie à trouvé la solution.", "Hier, Marie a trouvé la solution."],
@@ -167,6 +170,10 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Ont dit que c'est facile.", "On dit que c'est facile."],
       ],
       neg: [
+        "La porte a une serrure neuve.",
+        "Chambre à coucher de la maison a deux fenêtres.",
+        "Ce que tu portes a une grande valeur.",
+        "Le livre que je lis a une belle couverture.",
         "Il pense à sa mère.",
         "Va-t-il à Paris ?",
         "C'est à elle à décider.",

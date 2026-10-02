@@ -427,7 +427,9 @@ function finiteAfterSubjectVous(ctx: DetectContext, m: RegExpExecArray): RawFind
 }
 
 const AVOIR =
-  /(?<![\p{L}\p{M}\p{N}_-])(?:ai|as|a|avons|avez|ont|avais|avait|avions|aviez|avaient|aurai|auras|aura|aurons|aurez|auront|aurais|aurait|aurions|auriez|auraient)(?![\p{L}\p{M}\p{N}_'’])/giu;
+  /(?<![\p{L}\p{M}\p{N}_-])(?:avoir|ai|as|a|avons|avez|ont|avais|avait|avions|aviez|avaient|aurai|auras|aura|aurons|aurez|auront|aurais|aurait|aurions|auriez|auraient)(?![\p{L}\p{M}\p{N}_'’])/giu;
+// Words before the infinitive "avoir" that make it an auxiliary: "après avoir", "pour avoir".
+const AVOIR_INFINITIVE_GOVERNORS = new Set(["après", "pour", "sans", "de", "d'"]);
 
 /** "j'ai comprit", "il a reçut", "on a mange": a finite form after avoir for its participle. */
 function finiteAfterAvoir(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
@@ -436,7 +438,19 @@ function finiteAfterAvoir(ctx: DetectContext, m: RegExpExecArray): RawFinding | 
   const subject = subjectAt(before, 0);
   // "a" and "as" are also a preposition and a noun: only after their subject or inverted.
   const subjects = ["je", "j'", "tu", "il", "elle", "on", "nous", "vous", "ils", "elles", "qui"];
-  if (!inverted && !(subject && [...subjects, "ça", "cela"].includes(subject.w))) return null;
+  if (m[0].toLowerCase() === "avoir") {
+    // "après avoir était publié", "il pense avoir comprit": an infinitive auxiliary.
+    // "ce qu'il pensait avoir était perdu": after a relative, the verb after "avoir" is the main one.
+    const g = skip(before, 0, [NEGATION, CLITICS]);
+    const governor = before[g];
+    const relative = before.slice(g, g + 4).some((t) => ["que", "qu'", "dont"].includes(t.w));
+    const governs =
+      governor &&
+      (AVOIR_INFINITIVE_GOVERNORS.has(governor.w) ||
+        (!relative && !isVerbHomograph(governor.w) && verbReadings(governor.w).some(isFinite)));
+    if (!governs) return null;
+  } else if (!inverted && !(subject && [...subjects, "ça", "cela"].includes(subject.w)))
+    return null;
   // "il y a", "il n'y en a": "y" makes "a" introduce a noun.
   if (before.slice(0, 3).some((t) => t.w === "y")) return null;
   const after = tokensAfter(ctx.text, m.index + m[0].length, 6).filter(

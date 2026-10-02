@@ -230,19 +230,38 @@ function aToGrave(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   if (SUBJECT_PRONOUNS.has(previous.w) || CLITICS.has(previous.w)) return null;
   // A name before it is the subject ("Maria a"), and only a noun phrase may follow the
   // preposition ("a et b", "a donc refusé" are the letter and the verb).
-  if (/^\p{Lu}/u.test(ctx.text.slice(previous.start, previous.end))) return null;
+  // "Pensez a lui": a verb opening the sentence is no name.
+  const opening = (t: Token) => sentenceStart(ctx.text, t.start) && readingsOf(t.w).length > 0;
+  if (/^\p{Lu}/u.test(ctx.text.slice(previous.start, previous.end)) && !opening(previous))
+    return null;
   if (!startsNounPhrase(ctx.text, next)) return null;
   // "je laisse cela a votre jugement", "porte les sacs a l'étage", "je suis a Montréal": the
   // clause already has its verb, so "a" is no second one.
   const clause = tokensBefore(ctx.text, m.index, 12);
   const joined = clause.findIndex((t) => CONJUNCTIONS.has(t.w));
   const own = joined < 0 ? clause : clause.slice(0, joined);
-  const verb = own.find(
-    (t, i) =>
-      i > 0 &&
-      plainVerb(t.w, (r) => isFinite(r) && r.lemma !== "avoir") &&
-      !/^\p{Lu}/u.test(ctx.text.slice(t.start, t.end)),
-  );
+  // A form also spelled by a noun is the verb right after a subject pronoun ("je laisse") or
+  // opening the sentence as an imperative ("Porte les sacs", "Attache la corde").
+  const finiteVerb = (t: Token) =>
+    readingsOf(t.w).some((r) => isFinite(r) && r.lemma !== "avoir" && r.lemma !== "être");
+  const verb = own.find((t, i) => {
+    if (i === 0) return false;
+    const capital = /^\p{Lu}/u.test(ctx.text.slice(t.start, t.end));
+    if (capital && !opening(t)) return false;
+    if (plainVerb(t.w, (r) => isFinite(r) && r.lemma !== "avoir")) return true;
+    if (!finiteVerb(t)) return false;
+    const subject = own[i + 1];
+    if (subject && SUBJECT_PRONOUNS.has(subject.w) && subject.w !== "nous" && subject.w !== "vous")
+      return true;
+    // An imperative takes its object right after it: "Porte les sacs", not "Chambre à coucher".
+    const object = own[i - 1];
+    return (
+      i === own.length - 1 &&
+      capital &&
+      sentenceStart(ctx.text, t.start) &&
+      (DETERMINERS.has(object.w) || ["ceci", "cela", "ça", "moi", "lui"].includes(object.w))
+    );
+  });
   // "quel âge a Tom": an inverted subject after "quel".
   const asked = own.some((t) => /^quel(?:le)?s?$/.test(t.w));
   if (verb && !asked && !own.some((t) => t.w === "y")) return fix(verb);
