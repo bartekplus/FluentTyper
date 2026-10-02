@@ -65,6 +65,8 @@ const POSITIVES: Array<[string, string, string | null]> = [
   ["Prosiła, żeby szybko wróciłem.", "żeby szybko wróciłem", "Prosiła, żebym szybko wrócił."],
   ["Chcą, aby to zrobiliście.", "aby to zrobiliście", "Chcą, abyście to zrobili."],
   ["Gdybyś wiedziałaś, nie pytałabyś.", "Gdybyś wiedziałaś", "Gdybyś wiedziała, nie pytałabyś."],
+  ["Mama prosi, żebyś posprząta pokój.", "posprząta", null],
+  ["Zrobię wszystko, aby będzie dobrze.", "będzie", null],
   // A verb that takes the genitive with an accusative object.
   ["Na budowie używamy młotek.", "młotek", null],
   ["Kierowcy muszą przestrzegać przepisy.", "przepisy", "Kierowcy muszą przestrzegać przepisów."],
@@ -150,6 +152,8 @@ const NEGATIVES = [
   "Bez urazy, ale w zamian chcę spokoju.",
   "Bilet kosztował 1 złoty, a karnet 2 złote.",
   "Był uznanym aktorem i reżyserem.",
+  "Chcę, żeby się udało i żeby nie padało.",
+  "Trzeba by mieć więcej czasu, aby zdążyć.",
   "Została uznana za najlepszą zawodniczkę.",
   "Uznany przez krytyków film trafił do kin.",
   "W 2010 papież odwiedził nasze miasto.",
