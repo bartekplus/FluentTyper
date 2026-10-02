@@ -70,7 +70,9 @@ const ADVERBS = new Set(
   ).split(" "),
 );
 const PREPOSITIONS = new Set(
-  "pour sur dans avec sans sous chez vers entre selon malgré pendant depuis contre".split(" "),
+  "pour sur dans avec sans sous chez vers entre selon malgré pendant depuis contre devant derrière".split(
+    " ",
+  ),
 );
 /** Words after which a noun phrase or a pronoun opens a clause. */
 const OPENERS = new Set(
@@ -348,7 +350,12 @@ function predicateFinding(
   // "fin prêts", "grand ouverts": an adjective used as an adverb before another one.
   // "été pendant des années": a preposition.
   const after = tokensAfter(ctx.text, word.end, 1)[0];
-  if (after && (adjectiveReadings(after.w).length || participleBase(after.w))) return null;
+  if (
+    after &&
+    !PREPOSITIONS.has(after.w) &&
+    (adjectiveReadings(after.w).length || participleBase(after.w))
+  )
+    return null;
   if (after && PREPOSITION_LIKE.has(word.w) && after.w in DETERMINERS) return null;
   const slots = slotsOf(word.w, true);
   if (!slots.length) {
@@ -464,19 +471,26 @@ function longSubject(ctx: DetectContext, m: RegExpExecArray, det: string): RawFi
     person = ILS;
     i = skipPostnominal(tokens, i + 3);
   } else {
-    if (!target) return null;
     const start = i;
     for (let n = 0; n < 2; n++) {
       const next = skipDeComplement(ctx, tokens, i);
       if (next === i) break;
       i = next;
     }
-    if (i === start) return null;
+    // A plain subject before être is afterNoun's; before a reflexive verb, this one's.
+    if (i === start && !REFLEXIVE.has(tokens[i]?.w ?? "")) return null;
   }
+  // "mes professeurs": a noun of either gender still tells the number.
+  const plural = DETERMINERS[det][1] === "p";
+  if (!target && plural !== /[sx]$/.test(noun.w)) return null;
+  const allowed: Inflection[] = target ? [target] : plural ? ["mp", "fp"] : ["ms", "fs"];
   const linkAt = linkingEnd(tokens, i, person);
-  if (linkAt < 0) return null;
+  if (linkAt < 0) {
+    if (!["se", "s'"].includes(tokens[i]?.w ?? "")) return null;
+    return reflexiveFinding(ctx, tokens, i, person, allowed, m.index);
+  }
   const word = tokens[skipAdverbs(tokens, linkAt)];
-  return word ? predicateFinding(ctx, word, [target], m.index) : null;
+  return word ? predicateFinding(ctx, word, allowed, m.index) : null;
 }
 
 /** Subjects of être that show their gender or number: "elle est grand", "tu étais jeunes",
@@ -494,7 +508,14 @@ const SUBJECTS: Record<string, [Inflection[], number]> = {
   celle: [["fs"], IL],
   ceux: [["mp"], ILS],
   celles: [["fp"], ILS],
+  // Quantifiers standing for a noun: "certains étaient venus", "beaucoup sont partis".
+  certains: [["mp"], ILS],
+  certaines: [["fp"], ILS],
+  beaucoup: [["mp", "fp"], ILS],
+  plusieurs: [["mp", "fp"], ILS],
 };
+
+const DEMONSTRATIVE = /^ce(?:lui|lle|ux|lles)$/;
 
 /** "ils sont françaises", "elle est grand", "nous avons été dénoncé": a pronoun subject, être
  * and an adjective or participle. */
@@ -503,7 +524,7 @@ function afterPronoun(ctx: DetectContext, m: RegExpExecArray, pronoun: string): 
   let start = m.index + m[0].length;
   if (ctx.text[m.index - 1] === "-") {
     // "Est-elle arrivé ?", "Sont-ils venu ?": an inverted subject after être.
-    if (pronoun.startsWith("ce") || ctx.text[start] === "-") return null;
+    if (DEMONSTRATIVE.test(pronoun) || ctx.text[start] === "-") return null;
     const [verb, clitic] = tokensBefore(ctx.text, m.index, 2);
     if (!verb?.hyphen || linkingEnd([{ ...verb, hyphen: false }], 0, person) !== 1) return null;
     // "Se sont-elles parlé ?": a reflexive verb agrees with its object.
@@ -515,7 +536,7 @@ function afterPronoun(ctx: DetectContext, m: RegExpExecArray, pronoun: string): 
   const before = tokensBefore(ctx.text, m.index, 1)[0];
   if (before && !OPENERS.has(before.w)) return null;
   // "celle-ci", "ceux-là".
-  if (pronoun.startsWith("ce")) {
+  if (DEMONSTRATIVE.test(pronoun)) {
     const near = /^-(?:ci|là)(?![\p{L}\p{M}])/u.exec(ctx.text.slice(start));
     if (!near) return null;
     start += near[0].length;
@@ -524,9 +545,47 @@ function afterPronoun(ctx: DetectContext, m: RegExpExecArray, pronoun: string): 
   const j = tokens[0]?.w === "ne" || tokens[0]?.w === "n'" ? 1 : 0;
   // "Elle sont": a subject and verb that disagree tell nothing.
   const end = linkingEnd(tokens, j, person);
-  if (end < 0) return null;
+  if (end < 0) return reflexiveFinding(ctx, tokens, j, person, allowed, m.index);
   const word = tokens[skipAdverbs(tokens, end)];
   return word ? predicateFinding(ctx, word, allowed, m.index) : null;
+}
+
+const REFLEXIVE = new Set(["se", "s'", "me", "m'", "te", "t'", "nous", "vous"]);
+// Verbs whose reflexive pronoun is an indirect object, so their participle stays invariable:
+// "ils se sont parlé", "elles se sont plu".
+const INDIRECT_REFLEXIVES = new Set(
+  (
+    "parler téléphoner succéder plaire complaire déplaire sourire rire nuire mentir ressembler " +
+    "suffire convenir survivre écrire dire demander promettre permettre donner envoyer offrir " +
+    "acheter arroger imaginer figurer jurer répondre adresser rendre"
+  ).split(" "),
+);
+
+/** "elle s'est trompé", "les débats se sont déroulé": a reflexive verb in a compound tense
+ * agrees with its subject, unless the pronoun is an indirect object or an object follows. */
+function reflexiveFinding(
+  ctx: DetectContext,
+  tokens: Token[],
+  i: number,
+  person: number,
+  allowed: Inflection[],
+  from: number,
+): RawFinding | null {
+  if (!REFLEXIVE.has(tokens[i]?.w ?? "")) return null;
+  let k = i + 1;
+  if (tokens[k]?.w === "en" || tokens[k]?.w === "y") k++;
+  const verb = tokens[k];
+  if (!verb || verb.hyphen || !verbReadings(verb.w).some((r) => r.lemma === "être")) return null;
+  if (!(linkingEnd(tokens, k, person) > 0)) return null;
+  const word = tokens[skipAdverbs(tokens, k + 1)];
+  if (!word) return null;
+  const lemmas = verbReadings(word.w).flatMap((r) => (r.slot === "Q" ? [r.lemma] : []));
+  if (!lemmas.length || lemmas.some((lemma) => INDIRECT_REFLEXIVES.has(lemma))) return null;
+  // "elles se sont lavé les mains", "ils se sont vu partir": an object or an infinitive follows.
+  const next = tokensAfter(ctx.text, word.end, 1)[0];
+  if (next && (next.w in DETERMINERS || verbReadings(next.w).some((r) => r.slot === "I")))
+    return null;
+  return predicateFinding(ctx, word, allowed, from);
 }
 
 const AVOIR =

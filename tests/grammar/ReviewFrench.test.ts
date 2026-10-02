@@ -259,6 +259,9 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Elle s'en souvenu.", "Elle s'en est souvenu."],
         // Names, longer noun phrases, relative clauses and "et" between two clauses.
         ["Hier soir, Nathalie viens de rentrer.", "Hier soir, Nathalie vient de rentrer."],
+        // A participle after a demonstrative with an object; an -ir/-re infinitive.
+        ["Cela coûté une fortune.", "Cela a coûté une fortune."],
+        ["Tu lui écrire demain.", "Tu lui écris demain."],
         [
           "Je crois que Lucas et Inès arrive demain.",
           "Je crois que Lucas et Inès arrivent demain.",
@@ -502,6 +505,10 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["La lampe et la table sont cassés.", "La lampe et la table sont cassées."],
         ["Le vase et la tasse sont cassées.", "Le vase et la tasse sont cassés."],
         ["Est-il entrée sans frapper ?", "Est-il entré sans frapper ?"],
+        // Reflexive verbs agree with their subject; quantifiers as subjects.
+        ["Elle s'est endormi dans le salon.", "Elle s'est endormie dans le salon."],
+        ["Les invités se sont installé au salon.", "Les invités se sont installés au salon."],
+        ["Certaines étaient arrivé en avance.", "Certaines étaient arrivées en avance."],
         // After "été", after je/tu/nous, a demonstrative or an inversion.
         ["Les ponts ont été construites en 1900.", "Les ponts ont été construits en 1900."],
         ["Ce matin, la séance a été reporté.", "Ce matin, la séance a été reportée."],
@@ -517,6 +524,11 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Mes parents ont vendus leur maison.", "Mes parents ont vendu leur maison."],
       ],
       neg: [
+        "Elles se sont lavé les mains.",
+        "Ils se sont parlé hier soir.",
+        "Elles se sont vu refuser l'entrée.",
+        "Elles se sont rendu compte du problème.",
+        "La moitié des invités sont partis.",
         "Nous sommes fin prêts pour le départ.",
         "Ils avaient été pendant des années voisins.",
         "Se sont-elles écrit depuis ?",

@@ -317,7 +317,12 @@ export function nounGender(word: string): Gender | null {
     for (const w of decodeFrontCoded(MASCULINE)) genders.set(w, "m");
     for (const w of decodeFrontCoded(FEMININE)) genders.set(w, "f");
   }
-  return genders.get(word) ?? (isInflectedNoun(word) ? suffixGender(word) : null);
+  const listed = genders.get(word);
+  if (listed || !isInflectedNoun(word)) return listed ?? null;
+  // "invité": an ending a gendered adjective or noun form contradicts tells nothing.
+  const suffix = suffixGender(word);
+  if (suffix && adjectiveReadings(word).some((r) => r.slot[0] !== suffix)) return null;
+  return suffix;
 }
 
 /** Masculine/feminine and singular/plural. */

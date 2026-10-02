@@ -136,11 +136,14 @@ function agreement(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     if (previous && !OPENERS.has(previous.w)) return null;
     if (/[-–‑]\s*$/u.test(ctx.text.slice(Math.max(0, m.index - 3), m.index))) return null;
     const reflexive = after.slice(0, i).some((t) => t.w === "se" || t.w === "s'");
+    // "Cela dit, ...", "Ceci posé,": a demonstrative and a participle that end their phrase open
+    // an absolute clause; "ça créé une brasserie" goes on with its object.
+    const absolute = !demonstrative || !after[i + 1] || readings.length === 0;
     const found = nonVerbAlternatives(
       verb.w,
       person,
       readings.length > 0,
-      stressed && i === 0,
+      stressed && i === 0 && absolute,
       reflexive,
     );
     if (!found) return null;
@@ -165,10 +168,11 @@ function agreement(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     alternatives = [...new Set(readings.flatMap((r) => conjugate(r, person).slice(0, 1)))];
   } else if (
     readings.every((r) => r.slot === "I") &&
-    verb.w.endsWith("er") &&
+    (verb.w.endsWith("er") || (ALWAYS_SUBJECT.has(pronoun) && /(?:ir|re)$/.test(verb.w))) &&
+    !invertedAfar(ctx.text, m.index) &&
     ((person !== NOUS && person !== VOUS) || negated)
   ) {
-    // "je rêver souvent": a first-group infinitive after its subject is the present.
+    // "je rêver souvent", "tu me le dire": an infinitive after its subject is the present.
     alternatives = [
       ...new Set(readings.flatMap((r) => conjugate({ ...r, tense: 1 }, person).slice(0, 1))),
     ];
@@ -201,6 +205,15 @@ function agreement(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     ...(fixed.length > 1 ? { requiresChoice: true as const } : {}),
     ...(warningOnly ? { warningOnly: true as const } : {}),
   };
+}
+
+/** "Que vas donc tu faire ?": a verb a word or two before the pronoun, in the same clause. */
+function invertedAfar(text: string, index: number): boolean {
+  for (const t of tokensBefore(text, index, 3)) {
+    if (OPENERS.has(t.w) && t.w !== "donc" && t.w !== "alors") return false;
+    if (!isVerbHomograph(t.w) && verbReadings(t.w).some(finite)) return true;
+  }
+  return false;
 }
 
 /**
