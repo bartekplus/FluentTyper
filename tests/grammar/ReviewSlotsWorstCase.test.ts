@@ -52,6 +52,7 @@ test("no chunk stalls on runs of slot-opening words or spaces between them", () 
     "didn't see not never no nothing nobody ".repeat(700),
     "a very good nice fine advice less much people ".repeat(600),
     "the tools that runs which is who make ".repeat(700),
+    "The kids in my class, for example, who that the one that he uses run ".repeat(500),
     "how did he does it is an oldest less then more ".repeat(600),
     "I have plan the we have see all the ".repeat(700),
     "tomorrow we visited the the yesterday we will call him on 27/10/2090 we visited ".repeat(500),
@@ -75,7 +76,8 @@ test("slot frames stay linear on long space runs without the regex JIT", () => {
     const words = " didn't see nothing. a very good advice. less people. tools that runs. " +
       "how did he went. is best choice. I have plan the trip. If I would not have known. Do it. " +
       "afraid from the dark. see you in Monday. a lot people. went to home. stopped him of going. " +
-      "Tomorrow we visited them. We will call him yesterday. We visited the client on 27/10/2090. ";
+      "Tomorrow we visited them. We will call him yesterday. We visited the client on 27/10/2090. " +
+      "The lamp that he repairs flicker. My sister, for example, live there. ";
     const rules = [
       "englishCountability", "englishUsagePhrases", "englishSubjectVerbAgreement",
       "englishAuxiliaryBaseVerb", "englishSentenceStructure", "englishDoubledDegree",
