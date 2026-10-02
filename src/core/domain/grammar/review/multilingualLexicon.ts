@@ -207,6 +207,16 @@ const SPLIT_WORDS: Record<string, Record<string, string>> = {
     nebiste: "ne biste",
   },
 };
+// Joined forms that are also a transitive verb when an object follows: "o rebocador atoa o barco"
+// (atoar, to tow). After "ficar", "andar", "estar" or "viver" it is still the adverb "à toa"
+// ("ficou atoa o dia todo").
+const SPLIT_VERB_OBJECT: Record<string, { object: RegExp; adverbAfter: RegExp }> = {
+  atoa: {
+    object:
+      /^[ \t\u00a0]+(?:[oa]s?|uns?|umas?|seus?|suas?|ess[ea]s?|est[ea]s?|aquel[ea]s?|nossos?|nossas?)(?![\p{L}])/iu,
+    adverbAfter: /(?<![\p{L}])(?:fic|and|est|viv)\p{L}*[ \t\u00a0]+$/iu,
+  },
+};
 const SPLIT_TABLES = new Map(
   Object.entries(SPLIT_WORDS).map(([lang, entries]) => [lang, wordTable(entries)]),
 );
@@ -220,6 +230,13 @@ export function splitWords(ctx: DetectContext): RawFinding[] {
     const typed = m[0];
     const lower = typed.toLowerCase();
     if (ctx.dictionary.has(lower) || namedExampleBefore(ctx.text, m.index)) continue;
+    const end = m.index + typed.length;
+    const verb = SPLIT_VERB_OBJECT[lower];
+    if (
+      verb?.object.test(ctx.text.slice(end, end + 16)) &&
+      !verb.adverbAfter.test(ctx.text.slice(Math.max(0, m.index - 24), m.index))
+    )
+      continue;
     // "te aveces" is the verb "avezarse".
     if (
       lower === "aveces" &&

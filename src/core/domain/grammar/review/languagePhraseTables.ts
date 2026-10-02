@@ -2,7 +2,7 @@ import type { PhraseRow } from "./englishPhraseTables";
 import { TABLES as GREEK_TABLES } from "./greek/tables";
 import { TABLES as SWEDISH_TABLES } from "./swedish/tables";
 import { TABLES as ARABIC_TABLES } from "./arabic/tables";
-import { PORTUGUESE_PHRASES, PORTUGUESE_STYLE } from "./portuguese/phrases";
+import { PORTUGUESE_PHRASES, PORTUGUESE_STYLE, PORTUGUESE_WORDS } from "./portuguese/phrases";
 import { POLISH_TABLES } from "./polish";
 import * as french from "./french/phrases";
 
@@ -462,6 +462,7 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
       ["ancioso", "ansioso"],
       ["iorgute", "iogurte"],
       ["apezar", "apesar"],
+      ...PORTUGUESE_WORDS,
     ],
     // Existential "haver" is singular.
     phrases: [
