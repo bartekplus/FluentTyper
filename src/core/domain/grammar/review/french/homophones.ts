@@ -406,7 +406,20 @@ function surToSur(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   const rest = ctx.text.slice(m.index + m[0].length);
   const fix = () => wordFinding(ctx, m.index, m[0], [m[0].replace("u", "û")], RULE, MESSAGE);
   // "Bien sur." / "bien sur !": nothing for the preposition to govern.
-  if (before[0]?.w === "bien" && /^[\s  ]*(?:[.!?…]|$)/u.test(rest)) return fix();
+  if (before[0]?.w === "bien" && /^\s{0,8}(?:[.!?…]|$)/u.test(rest.slice(0, 10))) return fix();
+  // "il est bien sur très grand": "bien sûr" before an adverb, a pronoun or "que", where the
+  // preposition would need a noun phrase.
+  const next = after[0];
+  if (before[0]?.w === "bien" && m[0].length === 3) {
+    if (next && ["très", "pas", "que", "qu'", "il", "je", "on", "ils"].includes(next.w))
+      return fix();
+  }
+  // "nous sommes surs", "en êtes-vous surs ?": the preposition has no plural; after être the
+  // plural is "sûrs".
+  if (/^(?:surs|sures)$/i.test(m[0])) {
+    const verb = tokensBefore(ctx.text, m.index, 4).find((t) => !ADVERBS.has(t.w));
+    if (verb && readingsOf(verb.w).some((r) => r.lemma === "être")) return fix();
+  }
   // "il est sur d'arriver": être + sur + de + infinitive.
   if (
     before[0] &&
