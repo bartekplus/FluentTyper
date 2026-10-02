@@ -12,6 +12,7 @@ import { EXTENSION_COMPOUNDS, EXTENSION_PHRASES, EXTENSION_STYLE } from "./engli
 import { OPTIONAL_TABLES } from "./english/dialects";
 import { NAMES } from "./english/properNames";
 import { OPTIONAL as PLAIN_OPTIONAL } from "./english/plainStyle";
+import { rowGuarded } from "./english/fixedFrames";
 import { LANGUAGE_PHRASE_TABLES } from "./languagePhraseTables";
 import { EDGE, SPACE } from "./phraseTemplates";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
@@ -228,6 +229,7 @@ function toFinding(
     phrase.replacements.every((r) => !/[\s-]/.test(r))
   )
     return null;
+  if (ctx.lang.startsWith("en") && rowGuarded(ctx.text, typed, start, end)) return null;
   const casing = phrase.ruleId === "englishCanonicalCasing";
   // Capitals kept for emphasis are the writer's choice.
   if (casing && typed === typed.toUpperCase()) return null;

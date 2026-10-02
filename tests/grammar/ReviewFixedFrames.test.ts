@@ -81,3 +81,26 @@ test.each([
 ])("keeps %p", (text) => {
   expect(scan(text)).toEqual([]);
 });
+
+test.each([
+  "Best of all though, it works.",
+  "He was beaten up coming home.",
+  "Find some how to guide first.",
+  "A wide spread of prices.",
+  "It is none the less true.",
+  "But I went in anyway.",
+  "Why won't my dog eat dog food?",
+  "I want to detect a double click here.",
+  "There were double clicks on it.",
+])("a compound row keeps the ordinary reading in %p", (text) => {
+  const ds = detectReviewDiagnostics(
+    { id: "frames", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
+    {
+      lang: "en_US",
+      enabledRules: [...REVIEW_SUPPORTED_RULE_IDS],
+      userDictionary: [],
+      insertSpaceAfterAutocomplete: true,
+    },
+  ).diagnostics.filter((d) => d.ruleId === "englishClosedCompounds");
+  expect(ds).toEqual([]);
+});

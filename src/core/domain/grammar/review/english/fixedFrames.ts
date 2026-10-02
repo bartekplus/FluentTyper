@@ -1,3 +1,4 @@
+import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import type { PhraseRow } from "../englishPhraseTables";
 import type { ReviewDetectorEntry } from "../reviewDetectors";
 
@@ -288,3 +289,52 @@ export const COMPOUNDS: readonly PhraseRow[] = [
 ];
 export const STYLE: readonly PhraseRow[] = [];
 export const DETECTORS: readonly ReviewDetectorEntry[] = [];
+
+// Rows whose words also have an ordinary reading in a frame the row cannot see: the text before
+// or after the match decides. Keyed by the typed words, lowercased.
+const DETERMINER_BEFORE =
+  /\b(?:a|an|the|two|many|several|no|any|some|these|those|of|handle|detect|were|are|was|is)[ \t\u00a0]+$/i;
+const GUARDS: Record<
+  string,
+  { before?: RegExp; after?: RegExp; next?: (word: string) => boolean }
+> = {
+  // "Best of all though, …"
+  "all though": { before: /\bof[ \t\u00a0]+$/i },
+  // "beaten up coming home"
+  "up coming": {
+    after: /^[ \t\u00a0]+(?:home|back|out|in|up|down|through|over|along|to|from|with)\b/i,
+  },
+  // "some how-to", "find some how to that"
+  "some how": { after: /^(?:-|[ \t\u00a0]+to\b)/i },
+  // "a wide spread of versions", "an artificially wide spread."
+  "wide spread": { after: /^(?:[ \t\u00a0]+of\b|[ \t\u00a0]*(?:[.!?,;:]|$))/ },
+  // "none the less true": "less" compares the next word.
+  "none the less": { next: (word) => !!englishWordInfo(word)?.adjective },
+  // "But I went in anyway."
+  "in anyway": {
+    before:
+      /\b(?:went|go|goes|going|gone|came|come|comes|walked|ran|run|stepped|jumped|got|get|moved|rushed|barged|let|broke)[ \t\u00a0]+$/i,
+  },
+  // "Why won't my dog eat dog food?"
+  "dog eat dog": {
+    before:
+      /\b(?:my|your|his|her|our|their|won't|will|can|did|does|do|let|make|watch|see)[ \t\u00a0]+$/i,
+  },
+  // A click as a noun: "a double click", "too many double clicks".
+  ...Object.fromEntries(
+    ["right", "left", "middle", "double"].flatMap((side) =>
+      ["click", "clicks"].map((click) => [`${side} ${click}`, { before: DETERMINER_BEFORE }]),
+    ),
+  ),
+};
+
+/** True when a phrase row's text sits in a frame that gives its words their ordinary reading. */
+export function rowGuarded(text: string, typed: string, start: number, end: number): boolean {
+  const guard = GUARDS[typed.toLowerCase().replace(/[ \t\u00a0]+/g, " ")];
+  if (!guard) return false;
+  return (
+    (!!guard.before && guard.before.test(text.slice(Math.max(0, start - 24), start))) ||
+    (!!guard.after && guard.after.test(text.slice(end, end + 24))) ||
+    (!!guard.next && guard.next(/^[ \t\u00a0]+([a-z]+)/.exec(text.slice(end, end + 24))?.[1] ?? ""))
+  );
+}
