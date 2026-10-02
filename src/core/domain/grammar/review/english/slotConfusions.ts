@@ -59,6 +59,36 @@ export const PHRASES: readonly PhraseRow[] = [
     [`${kind} principle`, `${kind} principal`],
     [`${kind} principles`, `${kind} principals`],
   ]),
+  ...[
+    ["take", "take"],
+    ["takes", "takes"],
+    ["took", "took"],
+    ["taking", "taking"],
+  ].map(([take]): PhraseRow => [`${take} car of`, `${take} care of`]),
+  ["couldn't car less", "couldn't care less"],
+  ["could car less", "could care less"],
+  ...["cupboard", "supplies", "shop", "store", "items", "order", "drawer", "cabinet"].map(
+    (thing): PhraseRow => [`stationary ${thing}`, `stationery ${thing}`],
+  ),
+  ["office stationary", "office stationery"],
+  ["school stationary", "school stationery"],
+  ["friends and colleges", "friends and colleagues"],
+  ["colleges and friends", "colleagues and friends"],
+  ["family and colleges", "family and colleagues"],
+  ["friend and college", "friend and colleague"],
+  ["free trail", "free trial"],
+  ["free trails", "free trials"],
+  ...["version", "period", "license", "licence", "account", "subscription", "user", "key"].map(
+    (thing): PhraseRow => [`trail ${thing}`, `trial ${thing}`],
+  ),
+  ["error massage", "error message"],
+  ["text massage", "text message"],
+  ["error massages", "error messages"],
+  ["text massages", "text messages"],
+  ["for sometime now", "for some time now"],
+  ["for quite sometime", "for quite some time"],
+  ["in quite sometime", "in quite some time"],
+  ["the vary end", "the very end"],
 ];
 export const COMPOUNDS: readonly PhraseRow[] = [];
 export const STYLE: readonly PhraseRow[] = [];
@@ -142,7 +172,92 @@ const LATTER_VERB =
 const READY_LEAD =
   /^(?:i|you|we|they|he|she|it|can|could|will|would|should|may|might|must|have|has|had|am|is|are|was|were|i['’](?:ve|m|d)|(?:you|we|they)['’](?:ve|re|d)|(?:he|she|it)['’]s)$/i;
 
+// Short words typed for a verb, in a verb's slot: after a subject, a modal or "to", before
+// its object ("I can tech them", "I would choice this", "I ware my coat").
+const VERB_FOR: Record<string, string> = {
+  tel: "tell",
+  tech: "teach",
+  choice: "choose",
+  ware: "wear",
+  multiple: "multiply",
+};
+const THIRD_FOR: Record<string, string> = {
+  tels: "tells",
+  teches: "teaches",
+  choices: "chooses",
+  wares: "wears",
+  multiples: "multiplies",
+};
+const VERB_OBJECT =
+  "it|them|him|her|me|us|you|this|that|these|those|the|a|an|my|your|his|our|their|people|students|everyone|something|anything|whether|if|how|what";
+
 const FRAMES: readonly Frame[] = [
+  {
+    rule: TYPO,
+    cue: Object.keys(VERB_FOR),
+    pattern: `(?:${MODAL}|to|${NEGATION}|I|we|you|they|let['’]s|please)${S}(?:(?:just|also|always|never|really|often|still)${S})?(?<target>${Object.keys(VERB_FOR).join("|")})${S}(?:${VERB_OBJECT})${E}`,
+    fix: (m) => VERB_FOR[m.groups!.target.toLowerCase()],
+  },
+  {
+    rule: TYPO,
+    cue: Object.keys(THIRD_FOR),
+    pattern: `(?:he|she|it|who|which|that)${S}(?:(?:just|also|always|never|really|often|still)${S})?(?<target>${Object.keys(THIRD_FOR).join("|")})${S}(?:${VERB_OBJECT})${E}`,
+    fix: (m) => THIRD_FOR[m.groups!.target.toLowerCase()],
+  },
+  // "This issue mus exist", "you mus see it": the modal "must" before a bare verb.
+  {
+    rule: TYPO,
+    cue: ["mus"],
+    pattern: `(?<target>mus)${S}(?<verb>[a-z]+)${E}`,
+    fix: (m) =>
+      /^(?:be|have|not|already|also|still|always|never)$/.test(m.groups!.verb) ||
+      (isVerb(m.groups!.verb, "base") && !info(m.groups!.verb)?.noun)
+        ? "must"
+        : null,
+  },
+  // "I sill check it", "you would sill lock it": the adverb "still" before a verb.
+  {
+    rule: TYPO,
+    cue: ["sill"],
+    pattern: `(?:I|you|we|they|he|she|it|would|could|will|should|can|must|might|may|and|but|are|is|was|were|am)${S}(?<target>sill)${S}(?<verb>[a-z]+)${E}`,
+    fix: (m) =>
+      /^(?:always|never|not|here|there|working|waiting|going|alive|open|valid|the|a|an|in|on|at|my|your)$/.test(
+        m.groups!.verb,
+      ) || isVerb(m.groups!.verb, "base", "past", "third", "ing")
+        ? "still"
+        : null,
+  },
+  // "Pleas have a look", "could you pleas check": the request word.
+  {
+    rule: TYPO,
+    cue: ["pleas"],
+    pattern: `(?:(?<=(?:^|[.!?\\n]["”’)]?[ \\t]{0,8}))|(?:you|kindly|and)${S})(?<target>pleas)(?=${S}(?:have|check|let|send|help|see|do|be|note|find|look|tell|try|share|add|call|reply|confirm|review|fix|wait|contact|give|make|keep|consider)${E}|[ \\t]*,)`,
+    fix: "please",
+  },
+  // "I'm nut sure", "it is nut ready": the negation.
+  {
+    rule: TYPO,
+    cue: ["nut"],
+    pattern: `(?:I['’]m|am|is|are|was|were|be|do|does|did|could|would|will|should|can)${S}(?<target>nut)${S}(?:sure|going|ready|able|allowed|happy|true|a|an|the|that|so|too|very|really|yet|working|done|here|there|know)${E}`,
+    fix: "not",
+  },
+  // "He walked trough the door": the preposition.
+  {
+    rule: TYPO,
+    cue: ["trough"],
+    pattern: `(?:go|goes|went|gone|going|walk|walks|walked|walking|run|runs|ran|running|pass|passed|passes|passing|come|comes|came|coming|get|gets|got|getting|look|looks|looked|looking|read|went|drive|drove|driving|it|way|all|halfway|straight|right)${S}(?<target>trough)${S}(?:the|a|an|this|that|it|them|my|your|his|her|our|their|without|with)${E}`,
+    fix: "through",
+  },
+  // "They were vary happy": the degree word before an adjective.
+  {
+    rule: TYPO,
+    cue: ["vary"],
+    pattern: `(?:am|is|are|was|were|be|been|(?:I|you|we|they|he|she|it|that)['’](?:m|re|s)|feel|feels|felt|look|looks|looked|seem|seems|seemed)${S}(?<target>vary)${S}(?<adj>[a-z]+)${E}`,
+    fix: (m) => {
+      const read = info(m.groups!.adj);
+      return read?.adjective || read?.adverb ? "very" : null;
+    },
+  },
   { rule: TAG_QUESTION, cue: ["not", "t"], pattern: TAG, fix: (m) => tagFix(m) },
   // "a few moths ago", "in two moths": a count of moths is a time span here.
   {
