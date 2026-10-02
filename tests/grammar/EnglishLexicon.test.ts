@@ -41,6 +41,22 @@ test.each([
   ["configured", "configure:past configure:participle", ""],
   ["revisited", "revisit:past revisit:participle", ""],
   ["inaccessible", "", "adjective"],
+  // A noun reading crosses a prefix only where the dictionary spells its possessive (file's/K:
+  // profile, crease/CM: decrease), an adjective only from a base that is not a verb.
+  ["propose", "propose:base", ""],
+  ["proposes", "propose:third", ""],
+  ["remember", "remember:base", ""],
+  ["profile", "profile:base", "noun"],
+  ["decrease", "decrease:base", "noun"],
+  ["prolong", "prolong:base", ""],
+  ["refine", "refine:base", ""],
+  ["unkind", "", "adjective"],
+  // -ly and -est munching: truly is true's, earnest and honest are words of their own.
+  ["try", "try:base", "noun"],
+  ["truly", "", "adverb"],
+  ["earn", "earn:base", ""],
+  ["we", "", ""],
+  ["later", "", "adjective"],
   // The irregular table.
   ["began", "begin:past", ""],
   ["begun", "begin:participle", ""],

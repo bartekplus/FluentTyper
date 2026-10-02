@@ -10,9 +10,15 @@ import { isTechnicalToken, normalizeWordSet } from "../implementations/helpers/G
 import { isReviewSupportedRule, runsInReviewLanguage } from "./reviewCatalog";
 import { REVIEW_DETECTORS, type RawFinding } from "./reviewDetectors";
 import { toDiagnostic } from "./reviewFindings";
+import { PartialDetection } from "./phraseTemplates";
 import { PROSE_DOTTED_TOKEN } from "./english/grammarStyle1";
+import { isGermanAbbreviationToken } from "./german/abbreviations";
+import { SPANISH_PROSE_DOTTED_TOKEN } from "./spanish/typography";
 import { PROSE_SLASH_TOKEN } from "./english/dialects";
+import { NUMERIC_DATE_TOKEN } from "./english/dates";
+import { notationToken } from "./english/typography";
 import { slashedProseWord } from "./english/remaining";
+import { PLACE_STATE_TOKEN } from "./portuguese/typography";
 import { applyEdits, positionMapper } from "./textRanges";
 import {
   MASK_CHAR,
@@ -81,7 +87,7 @@ export function prepareReview(
       end,
       reason: "code" as const,
     })),
-    ...technicalRanges(source, readStart, readEnd),
+    ...technicalRanges(source, readStart, readEnd, options.lang),
   ].sort((a, b) => a.start - b.start);
 
   let text = source;
@@ -166,11 +172,18 @@ export function prepareReview(
  */
 const MAX_PROSE_TOKEN_CHARS = 100;
 
-/** A period-decimal quantity ("2.5", "2.5kg", "3.50€") is prose, not a dotted name. */
-const DECIMAL_QUANTITY = /^\p{Nd}{1,9}\.\p{Nd}{1,9}(?:\p{L}{1,4}|[€$£¥%])?$/u;
+/**
+ * A period-decimal quantity ("2.5", "2.5kg", "3.50€", "21,349.56") is prose, not a dotted
+ * name: language rules check its separators. Versions and IPs ("1.2.3") stay technical.
+ */
+const DECIMAL_QUANTITY =
+  /^(?:\p{Nd}{1,9}|\p{Nd}{1,3}(?:,\p{Nd}{3}){1,6})\.\p{Nd}{1,9}(?:\p{L}{1,4}|[€$£¥%])?$/u;
+/** A day.month(.year) date ("23.08.2014", "31.4.", Polish "11.XI.1918") is prose, not a dotted name. */
+const DOTTED_DATE = /^\d{1,3}\.(?:\d{1,2}|[IVX]{1,4})\.(?:\d{2}|\d{4})?$/;
 
 /** URLs, e-mail addresses, paths, mentions, dotted names and overlong tokens in [from, to). */
-function technicalRanges(source: string, from: number, to: number): ProtectedRange[] {
+function technicalRanges(source: string, from: number, to: number, lang: string): ProtectedRange[] {
+  const spanish = lang.startsWith("es");
   const ranges: ProtectedRange[] = [];
   const token = /\S+/g;
   token.lastIndex = from;
@@ -187,8 +200,14 @@ function technicalRanges(source: string, from: number, to: number): ProtectedRan
       bare &&
       isTechnicalToken(bare) &&
       !DECIMAL_QUANTITY.test(bare) &&
+      !DOTTED_DATE.test(bare) &&
       !PROSE_DOTTED_TOKEN.test(bare) &&
+      !(spanish && SPANISH_PROSE_DOTTED_TOKEN.test(bare)) &&
+      !isGermanAbbreviationToken(bare) &&
       !PROSE_SLASH_TOKEN.test(bare) &&
+      !PLACE_STATE_TOKEN.test(bare) &&
+      !NUMERIC_DATE_TOKEN.test(bare) &&
+      !notationToken(source, match.index + lead, bare) &&
       !slashedProseWord(source, match.index + lead, bare)
     ) {
       const start = match.index + lead;
@@ -266,7 +285,11 @@ export function scanReviewChunk(
         : detector.detect(context)) {
         if (prepared.rules.has(finding.ruleId)) findings.push(finding);
       }
-    } catch {
+    } catch (error) {
+      // A failed part of a composite detector keeps its siblings' findings.
+      if (error instanceof PartialDetection)
+        for (const finding of error.findings)
+          if (prepared.rules.has(finding.ruleId)) findings.push(finding);
       failedRules.push(...active);
     }
   }
