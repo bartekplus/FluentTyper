@@ -101,7 +101,9 @@ const DASS_VERBS =
   "geschrieben hoffe hoffen hofft glaube glauben glaubt denke denkt dachte gedacht finde " +
   "findet meine meint heißt bedeutet klar sicher sehe sieht merke merkt zeigt zeigte " +
   "erwarte fürchte behauptet behauptete gewährleistet versprochen vergessen gehört bemerkt " +
-  "erfahren verstanden möglich wichtig schade interessant";
+  "erfahren verstanden möglich wichtig schade interessant überzeugt beklagt höre hören hört " +
+  "bedeutet folgt fest beschwert erstaunt bewusst froh stolz besorgt gemerkt erkannt " +
+  "festgestellt bewiesen Folge dessen";
 
 /** A clause with its finite verb last and none before: "dem Mann ein Zahn fehlt". */
 function subjectClause(clause: string): boolean {
@@ -190,9 +192,16 @@ const FRAMES: readonly Frame[] = [
   {
     regex: re(
       `(?<=(?:(?:${DASS_VERBS.replace(/ /g, "|")})(?:${S}(?:nicht|kaum|auch|schon|nur|sehr|genau|wohl))?|Nicht),${S})(?<target>das)(?=${S}(?:ich|du|er|sie|es|wir|man|alle|das|der|die|den|dem)${E})|` +
-        `(?<=(?:${DASS_VERBS.replace(/ /g, "|")})${S})(?<t2>das)(?=${S}(?:ich|du|er|sie|es|wir|man)${S}\\p{Ll})`,
+        // Without the comma: "überzeugt das er", "sicher das der Zug" → "überzeugt, dass".
+        `(?<t2>(?<verb>${DASS_VERBS.replace(/ /g, "|")})${S}das)(?=${S}(?:(?:ich|du|er|sie|es|wir|man)${S}\\p{Ll}|(?:der|die|den|dem|ein|eine|einen|mein\\p{Ll}*|dein\\p{Ll}*|sein\\p{Ll}*|unser\\p{Ll}*)${S}\\p{Lu}))`,
     ),
-    fix: "dass",
+    fix: (m) => {
+      if (!m.groups!.t2) return "dass";
+      // "sagt das die Startseite zur Zeit": no verb at the end, so "das" is the object.
+      const rest = m.input.slice(m.index + m[0].length, m.index + m[0].length + 160);
+      const clause = rest.split(/[.,;:!?()\n]/)[0].trim();
+      return /(?:^|\s)\p{Ll}\p{L}*$/u.test(clause) ? `${m.groups!.verb}, dass` : null;
+    },
   },
   {
     regex: re(
