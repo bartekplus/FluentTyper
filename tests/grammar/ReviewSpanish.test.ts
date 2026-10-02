@@ -1155,6 +1155,26 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
       ],
     },
   ],
+  [
+    "spanishAgreement",
+    "aquel and esos before a paired noun of another gender or number",
+    {
+      pos: [
+        ["Aquellos abogadas ganaron el juicio.", "Aquellas abogadas ganaron el juicio."],
+        ["Esos niñas juegan en el parque.", "Esas niñas juegan en el parque."],
+        ["Aquella vecinos se mudaron.", "Aquellos vecinos se mudaron."],
+        ["Aquel abuela era muy alegre.", "Aquella abuela era muy alegre."],
+        ["Esas alumnos aprobaron.", "Esos alumnos aprobaron."],
+      ],
+      neg: [
+        "Aquellos interesados pueden venir.",
+        "Se escribe con ese mayúscula.",
+        "Esas cansadas de esperar se fueron.",
+        "La médico llegó tarde.",
+        "Aquellas enfermeras trabajaban de noche.",
+      ],
+    },
+  ],
 ];
 
 describe.each(FIXTURES)("%s: %s", (ruleId, _family, fixture) => {

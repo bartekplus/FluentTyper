@@ -410,6 +410,12 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
         ["millones de euro", "millones de euros"],
         ["miles de euro", "miles de euros"],
       ].map(([typed, fixed]): PhraseRow => [typed, fixed]),
+      // "miles", "cientos", "millares" are masculine nouns: "los miles de personas".
+      ...["miles", "cientos", "millares", "centenares"].flatMap((amount): PhraseRow[] => [
+        [`las ${amount}`, `los ${amount}`],
+        [`unas ${amount}`, `unos ${amount}`],
+      ]),
+      ["estado unidos", "estados unidos"],
       // Set phrases with a word swapped for a sound-alike or a wrong link word.
       ["loor de multitudes", "olor de multitudes"],
       ["obediencia de vida", "obediencia debida"],

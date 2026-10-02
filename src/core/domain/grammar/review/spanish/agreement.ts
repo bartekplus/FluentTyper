@@ -372,7 +372,14 @@ function determinerNoun(ctx: DetectContext, tokens: Token[], i: number): RawFind
   if (!noun || (verbReading(detToken.lower, word) && !nounFrame(tokens, i))) return null;
   // An adjective after a word that also stands alone: "salir de esta vivos" (pronoun),
   // "otras nostálgica" (otras veces), "demasiado pequeña" (adverb), "las hechas" (clitic).
-  if (noun.paired && ADJECTIVE_BLOCKERS.has(detToken.lower)) return null;
+  if (noun.paired && ADJECTIVE_BLOCKERS.has(detToken.lower)) {
+    // "aquellos médicas", "esos enfermeras": these stand alone only before a word that agrees
+    // with them ("aquellos interesados"); "esta"/"estas" may still be "está"/"estás".
+    const detPlural = DETERMINER.get(detToken.lower)!.slot >= 2;
+    const detFeminine = DETERMINER.get(detToken.lower)!.slot % 2 === 1;
+    const clash = detPlural !== noun.plural || detFeminine !== (noun.gender === "f");
+    if (!clash || !/^(?:aquel|aquell|esos|esas)/u.test(detToken.lower)) return null;
+  }
   if (noun.paired && CLITIC.has(detToken.lower) && participle(word)) return null;
   // "Esta situado": "está" before a participle.
   if (/^(?:esta|estas|este)$/u.test(detToken.lower) && participle(word)) return null;
@@ -399,8 +406,9 @@ function determinerNoun(ctx: DetectContext, tokens: Token[], i: number): RawFind
   const numberClash = !noun.invariant && detPlural !== noun.plural;
   let genderClash = !!detGender && !!noun.gender && detGender !== noun.gender;
   if (genderClash) {
-    // "la médico", "la modelo": a feminine determiner before a masculine form names a woman.
-    if (noun.paired && detGender === "f") genderClash = false;
+    // "la médico", "la modelo": a feminine determiner before a masculine form names a woman;
+    // in the plural the feminine form is used ("las españoles" is "las españolas").
+    if (noun.paired && detGender === "f" && !noun.plural) genderClash = false;
     // "el agua", "un hacha": a feminine noun starting with a stressed a- takes "el"/"un".
     if (BEFORE_STRESSED_A.has(detToken.lower) && /^h?[aá]/u.test(word)) genderClash = false;
     if (ELLIPTIC.has(detToken.lower)) genderClash = false;
