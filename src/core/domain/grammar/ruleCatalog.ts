@@ -1845,6 +1845,19 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     recommended: false,
     priority: 95,
   },
+  {
+    id: "germanColloquial",
+    typing: false,
+    name: "Colloquial German short forms",
+    titleI18nKey: "review_msg_german_colloquial",
+    descriptionI18nKey: "review_msg_german_colloquial",
+    exampleI18nKey: "",
+    languageScope: "all",
+    safetyTier: "advanced",
+    defaultRollout: "off",
+    recommended: false,
+    priority: 60,
+  },
 ] as const;
 
 export type CatalogRuleId = (typeof GRAMMAR_RULE_CATALOG)[number]["id"];

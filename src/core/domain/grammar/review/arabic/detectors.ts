@@ -71,6 +71,13 @@ const possessedFeminine = (word: string) => {
   const stem = POSSESSED.exec(word)?.groups!.stem;
   return stem !== undefined && FEMININE_POSSESSED.has(stem);
 };
+// Masculine nouns, mostly people, that never take هذه/تلك as their article
+// ("هذه البطل"); a broken plural of things would ("هذه الكتب"), so none is listed.
+const MASCULINE = new Set(
+  "رجل ولد أب أخ عم خال ابن ملك أمير بطل شاب صبي فتى شيخ جد زوج وزير رئيس طالب معلم مدير طبيب كاتب لاعب ذقن سلام".split(
+    " ",
+  ),
+);
 const DUAL_CONSTRUCT = new RegExp(`^(?<stem>\\p{L}{2,})[اي]${PRONOUN}$`, "u");
 /** "بطاقتاه", "كتفيها": a feminine dual with a pronoun. */
 function feminineDualConstruct(word: string): boolean {
@@ -152,7 +159,16 @@ function demonstratives(ctx: DetectContext, list: Token[]): Finding[] {
       });
       continue;
     }
-    if (dem === "هذه" || dem === "تلك") continue;
+    if (dem === "هذه" || dem === "تلك") {
+      if (noun.word.startsWith("ال") && MASCULINE.has(bare(noun.word)))
+        findings.push({
+          messageKey: "review_msg_arabic_demonstrative_gender",
+          range: { start: at, end: list[i].end },
+          alternatives: [dem === "هذه" ? "هذا" : "ذلك"],
+          context,
+        });
+      continue;
+    }
     const d = dual(noun.word);
     if (!d) {
       // "هذان بطاقتاه": only the gender is read off a dual with a pronoun.
@@ -199,6 +215,24 @@ function demonstratives(ctx: DetectContext, list: Token[]): Finding[] {
       ),
       ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
       context,
+    });
+  }
+  return findings;
+}
+
+/** Optional: "المرأتان ذاتا مكانة" -> "ذواتا", the classical feminine dual of ذو. */
+function dualPossessor(ctx: DetectContext, list: Token[]): Finding[] {
+  const findings: Finding[] = [];
+  for (let i = 1; i + 1 < list.length; i++) {
+    if (list[i].word !== "ذاتا" || !adjacent(list[i]) || !adjacent(list[i + 1])) continue;
+    const before = list[i - 1].word;
+    const feminine = before === "هاتان" || before === "اثنتان" || dual(before)?.gender === "f";
+    if (!feminine || !before.endsWith("ان") || !owns(ctx, list[i].start)) continue;
+    findings.push({
+      messageKey: "review_msg_style_phrasing",
+      range: { start: list[i].start, end: list[i].end },
+      alternatives: ["ذواتا"],
+      context: { start: list[i - 1].start, end: list[i + 1].end },
     });
   }
   return findings;
@@ -661,6 +695,7 @@ export const DETECTORS: readonly ReviewDetectorEntry[] = [
     rules: ["stylePhrasing"],
     detect: as("stylePhrasing", (ctx, list) => [
       ...arabicStyle(ctx),
+      ...dualPossessor(ctx, list),
       ...styleFrames(ctx.text, list, (start) => owns(ctx, start)),
       ...gappedUsage(list, (start) => owns(ctx, start)),
     ]),

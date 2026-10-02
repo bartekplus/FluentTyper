@@ -2,12 +2,16 @@ import { hasCanonicalCasing } from "../canonicalCasing";
 import { namedExampleBefore } from "../exampleCues";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import {
+  germanAdjective,
   germanInfinitive,
+  germanNounOverAdjective,
   germanNounReading,
   germanVerbLike,
   type GermanNounReading,
 } from "./germanLexicon";
 import { idioms } from "./idioms";
+import { names } from "./names";
+import { salutationCase } from "./salutations";
 import { nominalized } from "./nominalized";
 import {
   BOUNDARY,
@@ -95,6 +99,41 @@ const isAdjective = (token: string) =>
   !QUANTIFIERS.has(token) &&
   germanNounReading(token) === null &&
   !germanVerbLike(token);
+/** An adjective after the word, so the word is no noun head ("das alte Haus"). */
+const attributive = (word: string) => {
+  if (!isAdjective(word) || PREPOSITIONS.has(word)) return false;
+  const stem = word.replace(/(?:e|en|er|es|em)$/, "");
+  if (germanAdjective(stem) || germanAdjective(`${stem}e`)) return true;
+  // Unknown: a participle or other verb form is no attributive adjective ("gelaufen").
+  return !/^(?:ge|er|ver|be|ent|zer)\p{Ll}+en$/u.test(word);
+};
+// A finite verb after a word: an auxiliary or a present or past form of a known verb
+// ("lebt", "ändert", "machte").
+const finiteVerb = (word: string) =>
+  AUXILIARIES.has(word) ||
+  VERB_GOVERNORS.has(word) ||
+  (!PREPOSITIONS.has(word) &&
+    !ARTICLES.has(word) &&
+    !DEMONSTRATIVES.has(word) &&
+    germanNounReading(word) !== "noun" &&
+    (germanVerbLike(word) ||
+      (/^\p{Ll}{2,}e?t$/u.test(word) &&
+        [`${word.replace(/e?t$/, "")}en`, `${word.replace(/t$/, "")}n`].some(germanInfinitive))));
+// Genitive or dative determiners after a noun ("die Grenzen meiner Sprache").
+const GENITIVE_LIKE = wordSet(
+  "von vom der des dieser dieses jener jenes meiner meines deiner deines seiner seines ihrer ihres " +
+    "unserer unseres eurer eures einer eines",
+);
+/** "der Waffe waren", "meiner Sprache sind": a genitive phrase, then the clause's verb. */
+function genitiveThenVerb(after: string[]): boolean {
+  if (!GENITIVE_LIKE.has(lower(after[0]))) return false;
+  let i = 1;
+  while (i < after.length - 1 && isAdjective(lower(after[i]))) i++;
+  return /^\p{Lu}\p{Ll}/u.test(after[i] ?? "") && finiteVerb(lower(after[i + 1]));
+}
+// Particles that open a separable verb: its finite form only ends a clause ("als er angriff").
+const PARTICLE =
+  /^(?:an|auf|aus|ab|ein|mit|nach|vor|zu|zurück|weg|bei|los|fest|hin|her)(?=\p{Ll}{3})/u;
 
 type Trigger = "article" | "demonstrative" | "quantifier" | "preposition" | "number";
 
@@ -126,7 +165,11 @@ function trigger(before: string[]): { kind: Trigger; at: number } | null {
     }
     // "ein wirklich merkwürdiges verhalten": a degree word before the adjective.
     if (adjectives && DEGREE_WORDS.has(token)) continue;
-    if (token !== low || !isAdjective(low)) return null;
+    // "Der schnelle anstieg": an adjective that is also a verb form, right after an article.
+    const lemma =
+      ARTICLES.has(prior) || DEMONSTRATIVES.has(prior) ? low.replace(/(?:e|en|er|es|em)$/, "") : "";
+    if (token !== low || !(isAdjective(low) || (lemma !== low && germanAdjective(lemma))))
+      return null;
     adjectives = true;
   }
   return null;
@@ -152,6 +195,46 @@ function nounReadingHolds(
   // "Die grenzen meiner Sprache", "Das gerät, mit dem …": a genitive or a relative clause.
   const relative = next === "," && RELATIVE.test(after.slice(1, 3).join(" "));
   if (determiner && (GENITIVES.has(next) || relative)) return true;
+  const det = lower(before[at]);
+  // ", in dem leben viele": a relative pronoun after its preposition, then the verb.
+  if (
+    before[at - 2] === "," &&
+    PREPOSITIONS.has(lower(before[at - 1])) &&
+    /^(?:der|die|das|dem|den|denen|welche[mnrs]?)$/.test(det)
+  ) {
+    return false;
+  }
+  // "Die klingen der Waffe waren", "Die grenzen meiner Sprache sind": a genitive, then the verb.
+  if (determiner && clauseStart && genitiveThenVerb(after)) return true;
+  // "Dieser angriff kommt", "der anstieg der Zahl": a separable verb's finite form only ends a
+  // clause.
+  const separable = PARTICLE.exec(typed);
+  if (
+    determiner &&
+    reading === "finite" &&
+    separable &&
+    !(BOUNDARY.test(next) || COORDINATORS.has(next))
+  ) {
+    return true;
+  }
+  // "die rolle", "mehrere versuche": a first-person form cannot follow a third-person or plural
+  // pronoun ("das sage ich" has its subject after it).
+  if (
+    reading === "finite" &&
+    /[^t]e$/.test(typed) &&
+    /^(?:die|der|diese|dieser|mehrere|viele|einige|alle|beide|wenige|manche)$/.test(det)
+  ) {
+    return true;
+  }
+  // "In den räumen wurde": a preposition and its article open the sentence, so no relative
+  // clause ("…, in dem leben viele") follows.
+  if (
+    kind === "article" &&
+    PREPOSITIONS.has(lower(before[at - 1])) &&
+    (at < 2 || /^(?:[.!?\n„“"»«])$/.test(before[at - 2]))
+  ) {
+    return true;
+  }
   // "Ihre aussagen sind falsch", "Diese blasen platzen": the noun phrase opens the
   // sentence and its verb follows; not "Die würden glauben", "Diese stellen einen Teil",
   // "Ihr fahrt schwimmen?".
@@ -164,7 +247,8 @@ function nounReadingHolds(
     lower(before[at]) !== "ihr" &&
     !VERB_GOVERNORS.has(typed) &&
     !pronounLike(next) &&
-    (AUXILIARIES.has(next) || (next !== typed && germanVerbLike(next)))
+    next !== typed &&
+    finiteVerb(next)
   ) {
     return true;
   }
@@ -178,6 +262,32 @@ function nounReadingHolds(
   // "wenn man eine stellen darf", "ich möchte das öffnen können": a verb chain.
   if (VERB_GOVERNORS.has(next)) return false;
   return !(BOUNDARY.test(next) || COORDINATORS.has(next)) || !governedBefore(before, at);
+}
+
+/**
+ * Whether a noun that is also an adjective form ("alter", "spitze") reads as the noun: after an
+ * article that is no pronoun ("das hohe alter", "auf die spitze"), or a sentence-opening one
+ * before its verb or a genitive, with no noun or adjective after it ("das alte Haus").
+ */
+function adjectiveNounHolds(kind: Trigger, before: string[], at: number, after: string[]) {
+  const next = lower(after[0]);
+  const prior = before[at - 1];
+  const sentenceStart = prior === undefined || /^(?:[.!?\n„“"»«])$/.test(prior);
+  if (kind === "demonstrative") {
+    const verbFollows = finiteVerb(next) || GENITIVES.has(next) || genitiveThenVerb(after);
+    if (!sentenceStart || !verbFollows) return false;
+  } else if (kind !== "article") return false;
+  // "über alles liebe": a pronoun, not an article.
+  const det = lower(before[at]);
+  if (!ARTICLES.has(det) && !DEMONSTRATIVES.has(det)) return false;
+  if (BOUNDARY.test(next) || COORDINATORS.has(next) || VERB_GOVERNORS.has(next)) return true;
+  if (ARTICLES.has(next) || DEMONSTRATIVES.has(next) || PREPOSITIONS.has(next)) return true;
+  return (
+    /^\p{Ll}/u.test(next) &&
+    !germanAdjective(next) &&
+    !attributive(next) &&
+    germanNounReading(next) !== "noun"
+  );
 }
 
 function nounCasing(ctx: DetectContext): RawFinding[] {
@@ -194,7 +304,9 @@ function nounCasing(ctx: DetectContext): RawFinding[] {
       !ARTICLES.has(typed) &&
       !QUANTIFIERS.has(typed)
         ? "noun"
-        : null);
+        : germanNounOverAdjective(typed)
+          ? "adjective"
+          : null);
     if (!reading || ctx.dictionary.has(typed) || hasCanonicalCasing(typed)) continue;
     const end = m.index + typed.length;
     // Glued to a hyphen, apostrophe or slash; an abbreviation ("den sog. Strudel").
@@ -204,10 +316,10 @@ function nounCasing(ctx: DetectContext): RawFinding[] {
     const before = tokensBefore(ctx.text, m.index, 12);
     const found = trigger(before);
     if (!found) continue;
-    const after = tokensAfter(ctx.text, end, 3);
+    const after = tokensAfter(ctx.text, end, 6);
     const next = after[0] ?? "";
     // "für strafentlassene, obdachlose oder …": one of several adjectives.
-    if ((next === "," || COORDINATORS.has(next)) && isAdjective(lower(after[1]))) continue;
+    if ((next === "," || COORDINATORS.has(next)) && attributive(lower(after[1]))) continue;
     // "von der leben sie", "mit der bürste ich": a verb; "in der marine Lebensformen",
     // "von 2008 grad 100": an attribute.
     if (PRONOUNS.has(next.toLowerCase()) || /^\p{N}/u.test(next)) continue;
@@ -218,9 +330,11 @@ function nounCasing(ctx: DetectContext): RawFinding[] {
     const nextFirst = next.split("-")[0];
     if (/^\p{Lu}/u.test(next) && nextFirst !== nextFirst.toUpperCase()) continue;
     if (IDIOMS.test(ctx.text.slice(m.index, m.index + 24))) continue;
-    if (
+    if (reading === "adjective") {
+      if (!adjectiveNounHolds(found.kind, before, found.at, after)) continue;
+    } else if (
       reading !== "noun" &&
-      (isAdjective(next) || !nounReadingHolds(reading, typed, found.kind, before, found.at, after))
+      (attributive(next) || !nounReadingHolds(reading, typed, found.kind, before, found.at, after))
     ) {
       continue;
     }
@@ -239,6 +353,12 @@ function nounCasing(ctx: DetectContext): RawFinding[] {
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
   {
     rules: ["germanNounCasing"],
-    detect: (ctx) => [...nounCasing(ctx), ...nominalized(ctx), ...idioms(ctx)],
+    detect: (ctx) => [
+      ...nounCasing(ctx),
+      ...nominalized(ctx),
+      ...idioms(ctx),
+      ...names(ctx),
+      ...salutationCase(ctx),
+    ],
   },
 ];

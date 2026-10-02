@@ -150,6 +150,7 @@ describe("review rule coverage map", () => {
             "germanAbbreviationSpacing",
             "germanQuestionMarks",
             "germanStraightQuotes",
+            "germanColloquial",
             "polishQuotes",
             "spanishQuotes",
             "greekStrictFinalNu",

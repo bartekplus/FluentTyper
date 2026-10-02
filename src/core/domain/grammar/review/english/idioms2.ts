@@ -134,7 +134,8 @@ type Frame = {
 };
 
 /** Not right after one of these whole words. */
-const notAfter = (words: string) => `(?<!(?<![\\p{L}'’])(?:${words})${S})`;
+// A letter first: off words (on long runs of spaces) the lookbehind is never tried.
+const notAfter = (words: string) => `(?=\\p{L})(?<!(?<![\\p{L}'’])(?:${words})${S})`;
 // A lookbehind over a run of spaces comes after `(?=word)`: tried at every position of a
 // long run, it rereads the run each time in JavaScriptCore.
 const CLAUSE = `(?:^|[.!?,;:(\\n])[ \\t]*`;
@@ -251,7 +252,7 @@ const FRAMES: Record<Rule, readonly Frame[]> = {
     },
     { pattern: `(?<target>to${S}worried)${S}about${E}`, fix: ["to worry", "too worried"] },
     {
-      pattern: `(?<=(?:(?<![\\p{L}'’])(?:is|are|am|was|were|be|been|isn['’]t|aren['’]t|wasn['’]t|weren['’]t)|(?<!let)['’](?:s|re|m))${S})(?<target>suppose)${S}to${E}`,
+      pattern: `(?=suppose${S})(?<=(?:(?<![\\p{L}'’])(?:is|are|am|was|were|be|been|isn['’]t|aren['’]t|wasn['’]t|weren['’]t)|(?<!let)['’](?:s|re|m))${S})(?<target>suppose)${S}to${E}`,
       fix: "supposed",
     },
     { pattern: `(?<target>suppose)${S}to${COMPLETE}`, fix: "supposed" },

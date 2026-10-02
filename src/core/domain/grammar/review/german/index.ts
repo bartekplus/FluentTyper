@@ -10,6 +10,7 @@ import * as suspendedHyphen from "./suspendedHyphen";
 
 import * as dates from "./dates";
 
+import * as colloquial from "./colloquial";
 import * as commas from "./commas";
 import * as compounds from "./compounds";
 import * as numbers from "./numbers";
@@ -31,5 +32,6 @@ const MODULES = [
   verbAgreement,
   questions,
   numbers,
+  colloquial,
 ];
 export const GERMAN_DETECTORS = MODULES.flatMap((m) => m.DETECTORS);

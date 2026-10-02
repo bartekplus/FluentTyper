@@ -4,14 +4,18 @@ import { readFile } from "node:fs/promises";
 import {
   buildGermanGender,
   buildGermanLexicon,
+  buildGermanUsage,
   deriveGermanLexicon,
   GERMAN_LEXICON_SOURCES,
   readGermanDeterminerBigrams,
+  readGermanNgrams,
 } from "../../scripts/generate-german-lexicon";
 import {
   germanGender,
+  germanNounOverAdjective,
   germanNounReading,
   germanVerbLike,
+  germanVerbObjectCase,
 } from "../../src/core/domain/grammar/review/german/germanLexicon";
 import { tokensAfter } from "../../src/core/domain/grammar/review/german/shared";
 import { GERMAN_WORST_CASES, slowestGermanChunkMs } from "./germanWorstCase.fixture";
@@ -84,9 +88,54 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Wir sind schon auf dem weg.", "Wir sind schon auf dem Weg."],
         ["Der Schuss ging ins aus.", "Der Schuss ging ins Aus."],
         ["Die beiden sind ein ungleiches paar.", "Die beiden sind ein ungleiches Paar."],
+        // Nouns that are also adjective forms (germanNounOverAdjective).
+        ["Im alter wird man gelassener.", "Im Alter wird man gelassener."],
+        ["Sein hohes alter sieht man ihm nicht an.", "Sein hohes Alter sieht man ihm nicht an."],
+        ["Er stand ganz oben auf der spitze.", "Er stand ganz oben auf der Spitze."],
+        ["Darauf legt sie keinen großen wert.", "Darauf legt sie keinen großen Wert."],
+        ["Gibt es dazu eine alternative?", "Gibt es dazu eine Alternative?"],
+        ["Die wüste ist nachts kalt.", "Die Wüste ist nachts kalt."],
+        // Noun or verb forms in noun frames.
+        [
+          "Die grenzen unseres Gartens sind markiert.",
+          "Die Grenzen unseres Gartens sind markiert.",
+        ],
+        ["Die klingen dieser Messer waren stumpf.", "Die Klingen dieser Messer waren stumpf."],
+        ["Dieser anstieg kam für alle überraschend.", "Dieser Anstieg kam für alle überraschend."],
+        ["Der angriff der Gegner scheiterte.", "Der Angriff der Gegner scheiterte."],
+        ["Nach mehreren versuche gab er auf.", "Nach mehreren Versuche gab er auf."],
+        ["In den räumen war es stickig.", "In den Räumen war es stickig."],
+        ["Er hat keinen großen unterschied bemerkt.", "Er hat keinen großen Unterschied bemerkt."],
+        ["Die rolle, für die sie probt, ist klein.", "Die Rolle, für die sie probt, ist klein."],
+        // Names of several words (names.ts).
+        ["Mein Opa erzählte vom zweiten Weltkrieg.", "Mein Opa erzählte vom Zweiten Weltkrieg."],
+        ["Sie spendet jedes Jahr dem roten Kreuz.", "Sie spendet jedes Jahr dem Roten Kreuz."],
+        [
+          "Wir wandern gern in der sächsischen Schweiz.",
+          "Wir wandern gern in der Sächsischen Schweiz.",
+        ],
+        ["Die Lage im nahen Osten bleibt ernst.", "Die Lage im Nahen Osten bleibt ernst."],
+        ["Das Konzert war etwas ganz besonderes.", "Das Konzert war etwas ganz Besonderes."],
+        ["Im Angebot war nichts wirklich passendes.", "Im Angebot war nichts wirklich Passendes."],
+        ["Hallo Liebe Sabine, schön dich zu sehen.", "Hallo liebe Sabine, schön dich zu sehen."],
       ],
       neg: [
         "Das ende ich jetzt sofort.",
+        "Die alte wohnt nebenan, die junge zieht bald weg.",
+        "Er hat das recht schnell erledigt.",
+        "Ich habe das wohl falsch verstanden.",
+        "Sie liebt ihn über alles.",
+        "Das Zimmer, in dem leben drei Katzen, ist warm.",
+        "Als die Truppe angriff, flohen alle.",
+        "Diese stellen meiner Schwester ein Zimmer bereit.",
+        "Mit dem leben wir schon lange.",
+        "Das sage ich dir morgen.",
+        "Das ist mir recht.",
+        "Ein rotes Kreuz markiert den Treffpunkt.",
+        "Er hat ein neues Testament aufgesetzt.",
+        "Wir fahren an die nahe Ostsee.",
+        "Das ist etwas ganz anderes.",
+        "Hallo Liebe, wie geht es dir?",
         "Er wohnt im aus Holz gebauten Haus.",
         "Wir bleiben ein paar Tage.",
         "Ich räume den Müll weg.",
@@ -134,6 +183,8 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
     {
       pos: [
         ["Ich fahre mit eine Kollegin nach Hause.", "Ich fahre mit einer Kollegin nach Hause."],
+        ["Wir spielen mit anderen Kinder.", "Wir spielen mit anderen Kindern."],
+        ["Ich war schon bei drei Zahnärzte.", "Ich war schon bei drei Zahnärzten."],
         ["Wir sprechen später mit diesen Mann.", "Wir sprechen später mit diesem Mann."],
         ["Das Paket kam von das Amt.", "Das Paket kam von dem Amt."],
         ["Wegen dem Regen bleiben wir drinnen.", "Wegen des Regens bleiben wir drinnen."],
@@ -147,6 +198,9 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Mit neue Lösungen geht es.", "Mit neuen Lösungen geht es."],
       ],
       neg: [
+        "Die zu fällenden Bäume sind markiert.",
+        "Das sind viel zu knappe Mittel.",
+        "Sie geht mit ihren Freundinnen aus.",
         "Das ist mit die beste Idee.",
         "Er ist der Sache wegen dem Bruder begegnet.",
         "Er half, ohne dem Nachbarn etwas zu sagen.",
@@ -224,7 +278,25 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
       pos: [
         ["Das war eine lang Woche.", "Das war eine lange Woche."],
         ["Wir suchen einen neu Mitarbeiter.", "Wir suchen einen neuen Mitarbeiter."],
+        ["Am Abend trinken sie gern rot Wein.", "Am Abend trinken sie gern Rotwein."],
+        ["Im Herbst essen wir oft grün Kohl.", "Im Herbst essen wir oft Grünkohl."],
+        ["Die Mannschaft ist in best Form.", "Die Mannschaft ist in Bestform."],
+        ["Er fordert einen höheren mindest Lohn.", "Er fordert einen höheren Mindestlohn."],
+        [
+          "Sie spielt seit Jahren im national Kader.",
+          "Sie spielt seit Jahren im nationalen Kader.",
+        ],
+        ["Wir sprachen mit freundlich Nachbarn.", "Wir sprachen mit freundlichen Nachbarn."],
+        ["Er schneidet mit scharf Messern.", "Er schneidet mit scharfen Messern."],
+        ["Sie hat eine sehr klar Meinung.", "Sie hat eine sehr klare Meinung."],
+        ["Das ist keine gut Lösung.", "Das ist keine gute Lösung."],
+        [
+          "Wir kamen mit einer riesig Verspätung an.",
+          "Wir kamen mit einer riesigen Verspätung an.",
+        ],
         ["Das klein Kind schläft.", "Das kleine Kind schläft."],
+        ["Liebe Herr Becker, vielen Dank.", "Lieber Herr Becker, vielen Dank."],
+        ["Sehr geehrter Frau Schulz,", "Sehr geehrte Frau Schulz,"],
         ["Er wohnt im alt Haus am Ende der Straße.", "Er wohnt im alten Haus am Ende der Straße."],
         ["Wir kaufen nur bei dem lokalem Händler.", "Wir kaufen nur bei dem lokalen Händler."],
         ["Die Daten kommen in echt Zeit.", "Die Daten kommen in Echtzeit."],
@@ -233,6 +305,17 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Wir flogen in ein parallel Universum.", "Wir flogen in ein paralleles Universum."],
       ],
       neg: [
+        "Lieber Frau Becker als Herrn Schulz.",
+        "Wir grüßen die liebe Frau Schulz.",
+        "Das macht einem richtig Spaß.",
+        "Wir halten es für wichtig Sport zu treiben.",
+        "Er holt sich bei ihr Rat.",
+        "Mit maximal Tempo fuhr er los.",
+        "Sie kommt an genügend Geld.",
+        "Der weiß Bescheid.",
+        "Das weiß Gott allein.",
+        "Halb Europa schaut zu.",
+        "Er hat schnell Hilfe geholt.",
         "Er ist ein völlig Fremder.",
         "Sie haben direkt Hilfe bekommen.",
         "Auf gut Deutsch gesagt.",
@@ -411,6 +494,29 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
     },
   ],
   [
+    "germanColloquial",
+    {
+      pos: [
+        ["Nach dem Regen gehen wir wieder raus.", "Nach dem Regen gehen wir wieder heraus."],
+        ["Die Kinder sitzen den ganzen Tag rum.", "Die Kinder sitzen den ganzen Tag herum."],
+        ["Kannst du die Datei runterladen?", "Kannst du die Datei herunterladen?"],
+        ["Wir sind auf den Trick reingefallen.", "Wir sind auf den Trick hereingefallen."],
+        ["Sie hat sich langsam rangetastet.", "Sie hat sich langsam herangetastet."],
+        ["Das ist nur zum Rumprobieren gedacht.", "Das ist nur zum Herumprobieren gedacht."],
+      ],
+      neg: [
+        "Der Zug muss noch rangieren.",
+        "Wir reinigen das Bad.",
+        "Das war rein zufällig.",
+        "Im Glas ist Rum.",
+        "Der Bach rauscht leise.",
+        "Er wollte ans Telefon rangehen.",
+        "Sie hat sich an ihn rangemacht.",
+        "Man kann bequem rein- und rausschlüpfen.",
+      ],
+    },
+  ],
+  [
     "germanQuestionMarks",
     {
       pos: [
@@ -419,6 +525,13 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Wieso denn nicht.", "Wieso denn nicht?"],
         ["Das passt so, oder.", "Das passt so, oder?"],
         ["Mit wem gehst du hin.", "Mit wem gehst du hin?"],
+        ["Mit wessen Rad fuhr er.", "Mit wessen Rad fuhr er?"],
+        ["Ist Anna schon da.", "Ist Anna schon da?"],
+        [
+          "Kann mir jemand sagen, wo der Bahnhof ist.",
+          "Kann mir jemand sagen, wo der Bahnhof ist?",
+        ],
+        ["Wie lange dauert das noch.", "Wie lange dauert das noch?"],
       ],
       neg: [
         "Wie besprochen. Bis morgen.",
@@ -428,6 +541,9 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         "Habt Geduld.",
         "Hätte ich das gewusst wäre ich gekommen.",
         "Er fragte: Wann kommst du.",
+        "Kann Spuren von Sesam enthalten.",
+        "Werde Ihre Mail morgen lesen.",
+        "Wie schön das ist!",
       ],
     },
   ],
@@ -436,6 +552,8 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
     {
       pos: [
         ["Wir muss morgen früh los.", "Wir müssen morgen früh los."],
+        ["Die Gäste war sehr zufrieden.", "Die Gäste waren sehr zufrieden."],
+        ["Die Lehrerinnen hat geholfen.", "Die Lehrerinnen haben geholfen."],
         ["Du kann gern mitkommen.", "Du kannst gern mitkommen."],
         ["Ich hat keine Ahnung.", "Ich habe keine Ahnung."],
         ["Morgen werde wir es sehen.", "Morgen werden wir es sehen."],
@@ -445,6 +563,8 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Ich glaube, dass sie hat keine Zeit hat.", "Ich glaube, dass sie keine Zeit hat."],
       ],
       neg: [
+        "Die Nachbarin hat geholfen.",
+        "Die Polizei war schnell da.",
         "Sie werden bald Eltern werden.",
         "Wir kaufen, was es zu kaufen gibt.",
         "Es ist, wie es ist.",
@@ -479,8 +599,23 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Die Haus Tür klemmt.", "Die Haustür klemmt."],
         ["Wo liegt der Auto Schlüssel?", "Wo liegt der Autoschlüssel?"],
         ["Der Vorsitzender eröffnete die Sitzung.", "Der Vorsitzende eröffnete die Sitzung."],
+        // The one object of a dative or an accusative verb.
+        ["Kannst du bitte den Nachbarssohn helfen?", "Kannst du bitte dem Nachbarssohn helfen?"],
+        ["Sie vertraut ihren alten Lehrer.", "Sie vertraut ihrem alten Lehrer."],
+        ["Der Hund gehorcht seinen Besitzer.", "Der Hund gehorcht seinem Besitzer."],
+        ["Weil wir den Trainer danken.", "Weil wir dem Trainer danken."],
+        ["Morgen besuchen wir dem Großvater.", "Morgen besuchen wir den Großvater."],
+        ["Kennst du diesem Fahrer?", "Kennst du diesen Fahrer?"],
       ],
       neg: [
+        "Ich helfe den Kindern beim Lesen.",
+        "Wir danken den Gästen für ihr Kommen.",
+        "Er hilft den Schrank tragen.",
+        "Ich sehe den Mann winken.",
+        "Ich kenne ihn nur dem Namen nach.",
+        "Sie beantwortet dem Kunden seine Frage.",
+        "Der Film gefällt dem Publikum.",
+        "Wir folgen dem Fluss bis zur Brücke.",
         "Der Mann, der Auto fährt, wohnt hier.",
         "Ich gebe der Lehrerin das Heft.",
         "Die Lehrer haben heute frei.",
@@ -536,6 +671,14 @@ describe("germanCompounds", () => {
     ["Ob er es zu gibt, weiß niemand.", "Ob er es zugibt, weiß niemand."],
     ["Du musst gut auf passen.", "Du musst gut aufpassen."],
     ["Die Sitzung hat zulange gedauert.", "Die Sitzung hat zu lange gedauert."],
+    ["Beim Rasen mähen trage ich Ohrenschützer.", "Beim Rasenmähen trage ich Ohrenschützer."],
+    ["Zum Brot backen braucht man Geduld.", "Zum Brotbacken braucht man Geduld."],
+    ["Vielen Dank für das Fenster putzen!", "Vielen Dank für das Fensterputzen!"],
+    ["Er freute sich, das zulesen.", "Er freute sich, das zu lesen."],
+    [
+      "Es wundert mich zusehen, wie schnell das geht.",
+      "Es wundert mich zu sehen, wie schnell das geht.",
+    ],
   ])("repairs %p", (input, output) => {
     expect(findings("germanCompounds", input)).toHaveLength(1);
     expect(fixed("germanCompounds", input)).toBe(output);
@@ -556,6 +699,13 @@ describe("germanCompounds", () => {
     "Er ist mir über den weg gelaufen.",
     "Ich weiß, wo ich hin muss.",
     "Beim Buffet greife ich gern zu, wenn ich zulange, wird es teuer.",
+    "Beim Bäcker kaufen wir Brötchen.",
+    "Sie war beim Training laufen.",
+    "Wir gehen zum Essen holen.",
+    "Du kannst mit dem Lehrer sprechen, wenn du willst.",
+    "Wir sollten, statt zu reden, zuhören.",
+    "Er bat mich, zuzuhören.",
+    "Bitte, zuhören!",
   ])("leaves %p alone", (input) => {
     expect(findings("germanCompounds", input)).toEqual([]);
   });
@@ -675,7 +825,39 @@ test.skipIf(bigrams === null)(
   },
 );
 
+// Needs python3 with marisa-trie and numpy, as above.
+const ngrams = readGermanNgrams();
+test.skipIf(ngrams === null)(
+  "the committed noun and verb usage tables match de_DE.dic/.aff and the n-gram counts",
+  async () => {
+    const [dic, aff, committed] = await Promise.all(
+      [GERMAN_LEXICON_SOURCES.dic, GERMAN_LEXICON_SOURCES.aff, GERMAN_LEXICON_SOURCES.usage].map(
+        (path) => readFile(path, "utf8"),
+      ),
+    );
+    expect(buildGermanUsage(dic, aff, ngrams!)).toBe(committed);
+  },
+);
+
+test("German usage tables read nouns over adjectives and verb object cases", () => {
+  for (const word of ["alter", "spitze", "wert", "wüste"]) {
+    expect(germanNounOverAdjective(word)).toBe(true);
+  }
+  for (const word of ["alte", "kleine", "gut", "schnell"]) {
+    expect(germanNounOverAdjective(word)).toBe(false);
+  }
+  expect(["hilft", "half", "dankte", "gehört"].map(germanVerbObjectCase)).toEqual(
+    Array(4).fill("dative"),
+  );
+  expect(["fragt", "besuchte", "kennst", "trifft"].map(germanVerbObjectCase)).toEqual(
+    Array(4).fill("accusative"),
+  );
+  expect(["gibt", "zeigt", "kauft"].map(germanVerbObjectCase)).toEqual([null, null, null]);
+});
+
 test.each([
+  ["Lehrer", "m", true],
+  ["Grundschullehrer", "m", true],
   ["Auto", "n", false],
   ["Frau", "f", false],
   ["Tisch", "m", false],

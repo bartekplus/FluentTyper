@@ -111,6 +111,17 @@ function fixFor(tokens: Token[], i: number, spelling: Spelling): string[] | null
       ? ["porque", "por qué"]
       : null;
   }
+  // "la razón porque lo pienso" -> "por que": the relative after a reason noun with its
+  // determiner ("tiene la razón porque…", "le dio la razón porque…" and "perdió la causa
+  // porque…" give a cause).
+  if (
+    spelling.kind === "porque" &&
+    /^(?:razón|razones|motivo|motivos)$/u.test(prev) &&
+    DETERMINER.has(at.prev(2)) &&
+    next &&
+    ![3, 4].some((k) => /^(?:(?:ten|tien|tuv|tend|d[aiáé])\p{L}*|con|sin)$/u.test(at.prev(k)))
+  )
+    return ["por que"];
   // "porque": "dime porque", "no tienes porque preocuparte", "¿Porque no viniste?",
   // "no sé porque se fue".
   // "¿Porque no lo hice vas a odiarme?": a cause before the question's own verb.

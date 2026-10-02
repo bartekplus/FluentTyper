@@ -71,6 +71,11 @@ function yearReading(at: Around): boolean {
 
 type Check = (at: Around) => string[] | null;
 
+const MODALS = words(
+  "puede pueden podía podían podrá podrán podría podrían debe deben debía debían debería " +
+    "deberían suele suelen solía solían",
+);
+
 /** Checks by the typed (lowercase) word. Each returns the replacement(s) or null. */
 const CHECKS: Record<string, Check> = {
   ano: (at) => (yearReading(at) ? ["año"] : null),
@@ -98,6 +103,18 @@ const CHECKS: Record<string, Check> = {
     const next = at.next();
     if (isPerfectParticiple(next) && !isNoun(next)) return ["has"];
     return next === "de" && isInfinitive(at.next(2)) ? ["has"] : null;
+  },
+  // "el día se mi cumpleaños" -> "de": no clitic goes before a possessive. "Pueden se
+  // compensados" -> "ser", "lo que se dado en llamar" -> "se ha": nor before a participle.
+  se: (at) => {
+    const next = at.next();
+    if (!next || at.tokens[at.i + 1].broken) return null;
+    if (/^(?:mi|mis|tu|tus|su|sus|nuestro|nuestra|nuestros|nuestras)$/u.test(next)) return ["de"];
+    const form = participle(next);
+    if (!form || !/[ai]d[oa]s?$/u.test(next)) return null;
+    if (MODALS.has(at.prev())) return isNoun(next) ? null : ["ser"];
+    // Even participles that are nouns or adjectives too ("dado", "acabado").
+    return !form.feminine && !form.plural ? ["se ha"] : null;
   },
   valla: (at) => goVerb(at, "vaya"),
   vallas: (at) => goVerb(at, "vayas"),
@@ -213,6 +230,8 @@ function goVerb(at: Around, fix: string): string[] | null {
 function subjunctiveHaber(at: Around, fix: string): string[] | null {
   // "que halla", "que te halla", "que no halla", "que no te halla".
   const words = [1, 2, 3].map((k) => at.prev(k));
+  // "para que halla climatización", "ojalá halla suerte": these only take a subjunctive.
+  if ((words[0] === "que" && words[1] === "para") || words[0] === "ojalá") return [fix];
   if (words[0] !== "que" && words[0] !== "no" && (!CLITICS.has(words[0]) || words[0] === "se"))
     return null;
   const trigger = words

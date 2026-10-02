@@ -44,3 +44,26 @@ test("trailing context after the owner can open the next frame", () => {
   );
   expect(owners).toEqual(["We", "saw", "it", "They", "saw", "it", "You", "saw"]);
 });
+
+test("the literal prefilter keeps every match of case-sensitive and accented frames", () => {
+  const at = (source: string) => {
+    const ctxOf = (value: string) => ({
+      ...ctx,
+      source: value,
+      text: value,
+      scanText: value,
+      to: value.length,
+    });
+    return (pattern: RegExp) =>
+      [...frameMatches(ctxOf(source) as DetectContext, pattern, null)].map((m) => m[0]);
+  };
+  // Case-sensitive: "Straße" is a literal run; the scan finds it, and only with its case.
+  expect(at("Die Straße ist lang.")(/Straße/gu)).toEqual(["Straße"]);
+  expect(at("die CAFÉ-Bar")(/Café/gu)).toEqual([]);
+  expect(at("Das Café ist offen.")(/(?<target>Café)/dgu)).toEqual(["Café"]);
+  // Ignoring case, an accented literal still matches its other case.
+  expect(at("DAS CAFÉ IST OFFEN.")(/(?<target>café)/dgiu)).toEqual(["CAFÉ"]);
+  // Letters that fold to others keep the scan running: a long s still matches "s".
+  expect(at("Klaſse")(/(?<target>klasse)/dgiu)).toEqual(["Klaſse"]);
+  expect(at("GROẞE")(/(?<target>große)/dgiu)).toEqual(["GROẞE"]);
+});
