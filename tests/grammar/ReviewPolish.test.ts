@@ -115,6 +115,30 @@ export const POLISH_CASES: Array<[CatalogRuleId, string, Case]> = [
     {
       pos: [
         ["Mówiła, ze nic nie wie.", "Mówiła, że nic nie wie."],
+        ["Odpisał, ze chce przyjść.", "Odpisał, że chce przyjść."],
+        ["Uznano, ze grupa jest za mała.", "Uznano, że grupa jest za mała."],
+        ["Ja się tego wcale nie boje.", "Ja się tego wcale nie boję."],
+        ["Mamy tak naprawę mało czasu.", "Mamy tak naprawdę mało czasu."],
+        ["Był to, rzec jasna, żart.", "Był to, rzecz jasna, żart."],
+        ["Zbierali pieniądze na rzec schroniska.", "Zbierali pieniądze na rzecz schroniska."],
+        ["Padało, stad też te kałuże.", "Padało, stąd też te kałuże."],
+        ["Pies nie dal za wygraną.", "Pies nie dał za wygraną."],
+        ["Przedstawiam moją zonę.", "Przedstawiam moją żonę."],
+        ["Nie wierze w ani jedno słowo.", "Nie wierzę w ani jedno słowo."],
+        ["Mi się to nie podoba.", "Mnie się to nie podoba."],
+        ["Ci się tylko tak wydaje.", "Tobie się tylko tak wydaje."],
+        ["Przepraszam, ale nic mogę zrobić.", "Przepraszam, ale nic nie mogę zrobić."],
+        [
+          "Chodzi do Szkoły imieniem Marii Konopnickiej.",
+          "Chodzi do Szkoły imienia Marii Konopnickiej.",
+        ],
+        [
+          "Nie zaglądam na fora, bo nie lubię anonimowych for.",
+          "Nie zaglądam na fora, bo nie lubię anonimowych forów.",
+        ],
+        ["Jego nazwisko nie schodzi z łam prasy.", "Jego nazwisko nie schodzi z łamów prasy."],
+        ["Powinnam byłam zadzwonić wcześniej.", "Powinnam była zadzwonić wcześniej."],
+        ["Ja nie rozumie tego zadania.", "Ja nie rozumiem tego zadania."],
         ["Myślę ze to dobry pomysł.", "Myślę że to dobry pomysł."],
         ["Kupiłem to bezcen.", "Kupiłem to za bezcen."],
         ["Mówi niemiecku bardzo dobrze.", "Mówi po niemiecku bardzo dobrze."],
@@ -152,6 +176,16 @@ export const POLISH_CASES: Array<[CatalogRuleId, string, Case]> = [
         ["Jako widać, działa.", "Jak widać, działa."],
       ],
       neg: [
+        "Ci ludzie mieszkają obok.",
+        "Za nic mam twoje rady.",
+        "Nie łam zasad, proszę.",
+        "Mnie się to podoba.",
+        "Wyszedł ze szkoły po lekcjach.",
+        "Zrobił to ze chciwości.",
+        "Na jeziorze kołysały się boje.",
+        "Patrzyła w dal przez okno.",
+        "Rozmawiali o wierze i nadziei.",
+        "Stado owiec szło drogą, a za nim inne stada.",
         "Wyszedł ze szkoły wcześnie.",
         "Rozmawiał ze mną długo.",
         "Wrócę ze dwa razy.",
@@ -374,7 +408,20 @@ const POLISH_WARNINGS: Array<[CatalogRuleId, string, string]> = [
   ["polishDates", "Było to w piątek, 1 października 2026.", "piątek, 1 października 2026"],
   ["polishDates", "Obóz trwa 20–3 lipca.", "20–3 lipca"],
   ["polishDates", "Wojna trwała w latach 1918–1914.", "1918–1914"],
+  ["polishDates", "Faktura z dnia 31.06.2024 jest błędna.", "31.06.2024"],
+  ["polishDates", "Zebranie zwołano na 12.15.2025.", "12.15.2025"],
+  ["polishDates", "Było to w sobotę, 3.05.2023.", "sobotę, 3.05.2023"],
 ];
+
+test("dotted dates that exist, and dotted numbers that are not dates, stay clean", () => {
+  for (const text of [
+    "Spotkanie jest w środę, 3.05.2023.",
+    "Urodził się 29.02.2024 w Krakowie.",
+    "Serwer ma adres 10.12.2023.4 w sieci.",
+    "Wydano wersję 2.10.2024.",
+  ])
+    expect(findings("polishDates", text)).toEqual([]);
+});
 
 test.each(POLISH_WARNINGS)("%s warns on %p", (ruleId, text, original) => {
   const found = findings(ruleId, text);
