@@ -6,6 +6,7 @@ import {
   reviewChunks,
   scanReviewChunk,
 } from "../../src/core/domain/grammar/review/reviewDiagnostics";
+import { CLAUSE_START } from "../../src/core/domain/grammar/review/polish/shared";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
 
@@ -476,6 +477,32 @@ test("no Polish chunk stalls on long runs or repeated trigger words", () => {
     POLISH_TRIGGERS.repeat(60),
     "ała ".repeat(3_000),
     "słowo ".repeat(700),
+    // Clause starts after a line break look back over a bounded run of spaces only.
+    `\n${" \t".repeat(1_950)}Mi się boje chodź to`.repeat(2),
   ];
   for (const text of inputs) expect(slowestChunkMs(text)).toBeLessThan(100);
+});
+
+test("the clause-start lookbehind is bounded (V8 rereads an unbounded one at every position)", () => {
+  expect(CLAUSE_START).not.toMatch(/[*+]/);
+});
+
+test('",," before a quoted word is the Polish opening quote', () => {
+  const fix = (text: string) =>
+    findings("duplicatePunctuationCollapse", text).map((d) =>
+      applyEdits(text, d.alternatives[0].edits),
+    );
+  expect(fix('Nazwał to ,,lekką porażką" i wyszedł.')).toEqual([
+    'Nazwał to „lekką porażką" i wyszedł.',
+  ]);
+  expect(fix("Film ,,Rejs” znam na pamięć.")).toEqual(["Film „Rejs” znam na pamięć."]);
+  expect(fix("Kupiłem chleb,, mleko i masło.")).toEqual(["Kupiłem chleb, mleko i masło."]);
+  expect(fix("Pisał ,,coś bez końca i tyle.")).toEqual(["Pisał ,coś bez końca i tyle."]);
+});
+
+test("a Polish style row skips a capitalized name inside the sentence", () => {
+  expect(findings("stylePhrasing", "Mieszkamy przy Wysokiej Frekwencji od lat.")).toEqual([]);
+  expect(findings("stylePhrasing", "Wczoraj była Wysoka frekwencja w klubie.")).toEqual([]);
+  expect(findings("stylePhrasing", "Wysoka frekwencja cieszy organizatorów.")).toHaveLength(1);
+  expect(findings("stylePhrasing", "Cieszy nas wysoka frekwencja.")).toHaveLength(1);
 });
