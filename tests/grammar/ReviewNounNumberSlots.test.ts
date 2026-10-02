@@ -38,6 +38,9 @@ test("noun number follows its determiner or count", () => {
     ["She had a questions about the fee.", "She had a question about the fee."],
     ["It was a good suggestions.", "It was a good suggestion."],
     ["Only a weeks later, it snowed.", "Only a week later, it snowed."],
+    // Existential there/here with a count.
+    ["There are several reason for it.", "There are several reasons for it."],
+    ["There were a few chair in the hall.", "There were a few chairs in the hall."],
   ]) {
     const found = scan(input);
     expect({ input, count: found.length }).toEqual({ input, count: 1 });
@@ -49,6 +52,11 @@ test("noun number follows its determiner or count", () => {
 test("compounds, pronoun counts and invariant nouns keep their number", () => {
   for (const text of [
     "A dog walks into a bar.",
+    "There is no doubt about it.",
+    "There are few better in town.",
+    "Out there is a few hikers and one ranger.",
+    "There is five times as much rain.",
+    "There are a few tariff and non-tariff rules.",
     "We heard how a dog barks.",
     "A round costs ten dollars.",
     "Watch how a young bird flies.",
@@ -80,4 +88,24 @@ test("compounds, pronoun counts and invariant nouns keep their number", () => {
     "We spent a few days there.",
   ])
     expect({ text, found: scan(text).map((d) => d.original) }).toEqual({ text, found: [] });
+});
+
+test("an existential verb agrees with the counted plural after it", () => {
+  for (const [input, expected] of [
+    ["There was some loose cables here.", "There were some loose cables here."],
+    ["Here is many good examples of it.", "Here are many good examples of it."],
+    ["There's no trains after midnight.", "There are no trains after midnight."],
+  ]) {
+    const found = detectReviewDiagnostics(
+      { id: "there", text: input, scope: { start: 0, end: input.length }, protectedRanges: [] },
+      {
+        lang: "en_US",
+        enabledRules: ["englishExistentialAgreement"],
+        userDictionary: [],
+        insertSpaceAfterAutocomplete: true,
+      },
+    ).diagnostics;
+    expect({ input, count: found.length }).toEqual({ input, count: 1 });
+    expect(applyEdits(input, found[0].alternatives[0].edits)).toBe(expected);
+  }
 });
