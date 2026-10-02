@@ -214,7 +214,7 @@ export const POLISH_CASES: Array<[CatalogRuleId, string, Case]> = [
         ["Zarobił więcej jak w zeszłym roku.", "Zarobił więcej niż w zeszłym roku."],
         ["Czym dłużej czekasz, tym trudniej.", "Im dłużej czekasz, tym trudniej."],
         ["Im później, o tyle gorzej.", "Im później, tym gorzej."],
-        ["Kupił zarówno chleb i masło.", "Kupił zarówno chleb jak i masło."],
+        ["Kupił zarówno chleb i masło.", "Kupił zarówno chleb, jak i masło."],
         ["Mam prezent dla cię.", "Mam prezent dla ciebie."],
         ["Nie mówiłem nic przeciw mu.", "Nie mówiłem nic przeciw niemu."],
         ["Dzieci śmiały się rozpuku.", "Dzieci śmiały się do rozpuku."],
@@ -469,6 +469,7 @@ export const POLISH_CASES: Array<[CatalogRuleId, string, Case]> = [
       pos: [
         ["Myślę że masz rację.", "Myślę, że masz rację."],
         ["Im dłużej o tym myślę tym mniej wiem.", "Im dłużej o tym myślę, tym mniej wiem."],
+        ["Znam zarówno Annę jak i jej brata.", "Znam zarówno Annę, jak i jej brata."],
         ["Przyszedł żeby pomóc.", "Przyszedł, żeby pomóc."],
         ["Został w domu ponieważ padało.", "Został w domu, ponieważ padało."],
         ["To jest dom w którym mieszkam.", "To jest dom, w którym mieszkam."],

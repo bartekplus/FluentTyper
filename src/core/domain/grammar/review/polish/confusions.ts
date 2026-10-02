@@ -805,10 +805,11 @@ export const FRAMES: readonly Frame[] = [
     fix: (m) => ({ mi: "mnie", ci: "tobie", mu: "niemu" })[m.groups!.target.toLowerCase()]!,
     ...CONFUSION,
   },
-  // "zarówno zyski i straty" -> "jak i" when no "jak" follows in the sentence.
+  // "zarówno zyski i straty" -> ", jak i" when no "jak" follows in the sentence.
   {
-    pattern: `(?<=(?<![\\p{L}])zarówno(?:${S}\\p{L}+){1,3}${S})(?<!(?<![\\p{L}])jak${S})(?<target>i)(?=${S}\\p{L})(?![^.!?;\\n]*(?<![\\p{L}])jak(?![\\p{L}]))`,
-    fix: "jak i",
+    pattern: `(?<=(?<![\\p{L}])zarówno(?:${S}\\p{L}+){0,2}${S})(?!jak${S})(?<target>(?<word>\\p{L}+)${S}i)(?=${S}\\p{L})(?![^.!?;\\n]*(?<![\\p{L}])jak(?![\\p{L}]))`,
+    fix: (m) => `${m.groups!.word}, jak i`,
+    verbatim: true,
     ...CONFUSION,
   },
   // "Czym więcej, tym lepiej" -> "Im"; "im dłużej…, o tyle" -> "tym": the correlative pair is

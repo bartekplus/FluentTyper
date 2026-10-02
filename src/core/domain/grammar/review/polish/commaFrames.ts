@@ -102,6 +102,16 @@ export const FRAMES: readonly CommaFrame[] = [
     ),
     fix: (m) => `${m.groups!.target},`,
   },
+  // "zarówno Lecha jak i Jarosława" -> "Lecha, jak i": the pair's second half is set off.
+  {
+    ruleId: MISSING,
+    messageKey: "review_msg_pl_missing_comma",
+    regex: new RegExp(
+      `(?<=(?<![\\p{L}])zarówno(?:${SP}[^,.!?;:\\s]+){1,4})(?<target>${SP}jak)(?=${SP}(?:i|też|również|także)${END})`,
+      "giud",
+    ),
+    fix: (m) => `, ${m.groups!.target.trim()}`,
+  },
   // "Tam gdzie nie ma dróg" -> "Tam, gdzie".
   {
     ruleId: MISSING,

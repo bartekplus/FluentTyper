@@ -799,8 +799,11 @@ export function adjectiveClash(
     if (adjectiveAgrees(adj.ending, tags)) return null;
     if (!(tags & governed)) return null;
     tags = (tags & ~ALL_CASES) | (tags & governed);
-  } else if (PREDICATIVE.has(adj.ending)) return null;
-  else if (after ? !AFTER_ENDINGS.has(adj.ending) : tags & OBLIQUE) return null;
+  } else if (PREDICATIVE.has(adj.ending)) {
+    // A plural instrumental before a noun that has no plural reading ("prawdziwymi lekarzem")
+    // predicates nothing.
+    if (adj.ending !== "ymi" || !(tags & cases("Is")) || tags & PLURAL) return null;
+  } else if (after ? !AFTER_ENDINGS.has(adj.ending) : tags & OBLIQUE) return null;
   if (adjectiveAgrees(adj.ending, tags)) return null;
   const pair = (a: string, n: string) => (after ? `${n} ${a}` : `${a} ${n}`);
   const fixes = new Set<string>();
