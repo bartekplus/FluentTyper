@@ -198,3 +198,28 @@ Grupa 3 osób czekała przy wejściu przez dwie godziny.
 Mamy dwa koty, trzy psy i cztery chomiki.
 Wróciła po 2 latach i 5 miesiącach spędzonych za granicą.
 Firma zatrudnia 22 inżynierów oraz 43 księgowe.
+# Clause boundaries: run-on checks and participle phrases must stay silent here.
+Kupiłem chleb, ale zapomniałem o mleku, więc wróciłem do sklepu.
+Dom, który kupili w zeszłym roku, stoi tuż nad rzeką.
+Zrobiwszy zakupy, wróciła do domu i zaczęła gotować obiad.
+Szedł powoli, rozglądając się na boki, jakby czegoś szukał.
+Jadł stojąc, bo bardzo się spieszył.
+Będzie długo pracował nad tym projektem, zanim go skończy.
+Powinien był to zrobić wcześniej, ale nie miał czasu.
+Marek czytał książkę, a Jurek pisał list do babci.
+Jechaliśmy pociągiem między Krakowem a Warszawą przez trzy godziny.
+Trzeba będzie to zrobić jeszcze dziś.
+Można było przyjść wcześniej i pomóc przy stole.
+Począwszy od jutra, sklep będzie otwarty dłużej.
+Chcąc nie chcąc, musiał iść do dentysty.
+Krótko mówiąc, projekt się nie udał.
+Wiem, kiedy przyjdzie, i wiem, co przyniesie.
+Ludzie, którzy mieszkają na wsi, często wstają wcześnie.
+To znaczy, że wszystko poszło zgodnie z planem.
+Wyjechał z kraju, to znaczy zerwał kontakt z rodziną.
+Szukali prezentu na chybił trafił.
+Nie mogąc zasnąć, czytała do rana.
+Wróciwszy z pracy, zjadł kolację i położył się spać.
+Robiła to, co musiała, i nie narzekała.
+Był to nowszy model, ciekawszy od poprzedniego.
+Pierwszy przyszedł Marek, a po nim reszta grupy.

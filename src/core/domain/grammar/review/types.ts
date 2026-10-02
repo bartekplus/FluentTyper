@@ -288,6 +288,8 @@ export type ReviewMessageKey =
   | "review_msg_pl_month_form"
   | "review_msg_pl_misplaced_comma"
   | "review_msg_pl_missing_comma"
+  | "review_msg_pl_participle_comma"
+  | "review_msg_pl_run_on"
   | "review_msg_pl_preposition_form"
   | "review_msg_pl_abbreviation_dot"
   | "review_msg_pl_inflected_name"
