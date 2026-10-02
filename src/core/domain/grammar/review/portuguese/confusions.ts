@@ -191,6 +191,43 @@ const FRAMES: Frame[] = [
     alternatives: ["há"],
     messageKey: "review_msg_pt_crase",
   },
+  // "Ainda à muito para fazer": "há" (there is) before an amount.
+  {
+    pattern: `(?<target>à)${S}(?:muito|pouco|bastante)(?=${S}(?:para|que|a${S}fazer)${W}|[ \\t\\u00a0]{0,2}[.,;!?])`,
+    alternatives: ["há"],
+    messageKey: "review_msg_pt_crase",
+  },
+  // "Não o vejo a muito tempo": time elapsed is "há"; "daqui a pouco tempo" is ahead.
+  {
+    pattern: `(?<!(?:daqui|dali|daí|até|de|em)${S})(?<target>a)${S}(?:muito|bastante)${S}tempo${W}`,
+    alternatives: ["há"],
+    messageKey: "review_msg_pt_crase",
+  },
+  // "dês que", "dês do mês passado": "desde". "que tu dês do teu" is "dar".
+  {
+    pattern: `(?<!(?:me|te|lhe|nos|lhes|tu|que|não)${S})(?<target>dês)${S}(?=que${W})`,
+    alternatives: ["desde"],
+    messageKey: "review_msg_pt_homophone",
+  },
+  {
+    pattern: `(?<!(?:me|te|lhe|nos|lhes|tu|que|não)${S})(?<target>dês${S}d(?<article>[oa]s?|e))${W}`,
+    alternatives: (typed) => {
+      const article = /d([oa]s?|e)$/.exec(typed.toLowerCase())![1];
+      return [article === "e" ? "desde" : `desde ${article}`];
+    },
+    messageKey: "review_msg_pt_homophone",
+  },
+  // "pôr termo a", "vou pôr em prática": the verb "pôr" keeps its accent.
+  {
+    pattern: `(?<target>por)${S}(?=termo${S}(?:a|ao|à|aos|às)${W})`,
+    alternatives: ["pôr"],
+    messageKey: "review_msg_pt_homophone",
+  },
+  {
+    pattern: `${MODAL}${S}(?<target>por)${S}(?=em${S}(?:prática|dúvida|risco|ordem|causa|cena|votação|funcionamento)${W})`,
+    alternatives: ["pôr"],
+    messageKey: "review_msg_pt_homophone",
+  },
   // A range "de X a Y" has no article, so no crase.
   {
     pattern: `de${S}(?:${WEEKDAY}|${MONTH}|\\d+)${W}${S}(?<target>à)${S}(?=${WEEKDAY}|${MONTH}|\\d)`,
