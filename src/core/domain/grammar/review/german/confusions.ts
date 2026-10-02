@@ -81,7 +81,8 @@ const TIME_WORDS =
   "Bestehen Gründung zwei drei vier fünf sechs sieben acht neun zehn elf zwölf zwanzig hundert";
 const TIME_NOUN =
   "Montag|Dienstag|Mittwoch|Donnerstag|Freitag|Samstag|Sonntag|Jahr|Monat|Tag|Morgen|" +
-  "Abend|Beginn|Anfang|Ende|Sommer|Winter|Frühling|Herbst|Krieg|Unfall|Umzug|Start";
+  "Abend|Beginn|Anfang|Ende|Sommer|Winter|Frühling|Herbst|Krieg|Unfall|Umzug|Start|Woche|" +
+  "Zeit|Nacht|Stunde|Saison|Kindheit|Jugend|Geburt|Schule|Studium";
 const DATIVE_DETS =
   "dem einem einer meinem meiner deinem deiner seinem seiner ihrem ihrer unserem unserer " +
   "eurem eurer diesem dieser jedem jeder keinem keiner";
@@ -128,16 +129,24 @@ const FRAMES: readonly Frame[] = [
   // "Seit ihr schon fertig?", "Seit bitte leise!"
   {
     regex: re(
-      `(?<=(?:^|[.!?:]\\s+|\\n)[„"]?)(?<target>Seit)(?=${S}(?:ihr${S}[^,.!?\\n]*\\?|(?:bitte|mir|uns|ruhig|leise|vorsichtig|wachsam|still|willkommen|nett|brav|froh|dankbar|gespannt|bereit|gegrüßt)${E}[^,\\n]*[!.]))`,
+      `(?<=(?:^|[.!?:]\\s+|\\n)[„"]?)(?<target>Seit)(?=${S}(?:ihr${S}[^,.!?\\n]*\\?|(?:bitte|mir|uns|ruhig|leise|vorsichtig|wachsam|still|willkommen|nett|brav|froh|dankbar|gespannt|bereit|gegrüßt|nicht|doch|bloß|mal)${E}[^,\\n]*[!.]))`,
     ),
     fix: "Seid",
   },
   // "seid gestern", "seid zwei Tagen", "Seid dem letzten Mittwoch" → seit (no "ihr" around).
   {
     regex: re(
-      `(?<!(?<![\\p{L}])[iI]hr${S}(?:\\p{L}+${S}){0,2})(?<target>${ci("seid")})${E}(?!${S}ihr${E})(?=${S}(?:(?:${TIME_WORDS.replace(/ /g, "|")}|ein${S}paar|mehr${S}als|\\p{N})${E}|(?:dem|einem|diesem|letztem)${S}(?:\\p{Ll}+${S})?(?:${TIME_NOUN})))`,
+      `(?<!(?<![\\p{L}])[iI]hr${S}(?:\\p{L}+${S}){0,2})(?<target>${ci("seid")})${E}(?!${S}ihr${E})(?=${S}(?:(?:${TIME_WORDS.replace(/ /g, "|")}|ein${S}paar|mehr${S}als|\\p{N}+)${E}|(?:dem|einem|diesem|dieser|der|einer|letztem|letzter|letzten|vergangenem|vergangenen|vorigem|vorigen)${S}(?:\\p{Ll}+${S})?(?:${TIME_NOUN})${E}))`,
     ),
     fix: "seit",
+  },
+  // "Seid du weg bist" → Seit: "seid" takes no subject but "ihr" ("Seid du und Maria …" is
+  // one).
+  {
+    regex: re(
+      `(?<target>${ci("seid")})(?=${S}(?:ich|du|er|es|wir|man)${E}(?![ \\t]*(?:,|und${E}|oder${E})))`,
+    ),
+    fix: (m) => (m.groups!.target[0] === "S" ? "Seit" : "seit"),
   },
   // "mir dem Bus", "mir einer gewissen Routine" → mit; "Mir wem redest du?"
   {

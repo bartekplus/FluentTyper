@@ -169,6 +169,9 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
       pos: [
         ["Ich glaube, ihr seit müde.", "Ich glaube, ihr seid müde."],
         ["Wir wohnen hier seid drei Jahren.", "Wir wohnen hier seit drei Jahren."],
+        ["Seid er umgezogen ist, schreibt er öfter.", "Seit er umgezogen ist, schreibt er öfter."],
+        ["Das Café hat seid letzten Montag zu.", "Das Café hat seit letzten Montag zu."],
+        ["Er wartet seid 45 Minuten.", "Er wartet seit 45 Minuten."],
         ["Sie kommt mir einem Freund.", "Sie kommt mit einem Freund."],
         ["Ich freue mir auf den Urlaub.", "Ich freue mich auf den Urlaub."],
         ["Er sagt, das er später kommt.", "Er sagt, dass er später kommt."],
