@@ -76,9 +76,7 @@ const STYLE_ROWS: PhraseRow[] = [
     ...["combine", "join", "merge", "blend", "mix", "collaborate", "cooperate", "unite"],
     ...["associate", "connect", "link", "fuse", "weld", "assemble", "gather", "huddle"],
   ].flatMap((verb) => verbWith(verb, "together")),
-  ...["return", "revert", "reply", "refer", "retreat", "recede"].flatMap((verb) =>
-    verbWith(verb, "back"),
-  ),
+  ...["revert", "reply", "refer", "retreat", "recede"].flatMap((verb) => verbWith(verb, "back")),
   ...["repeat", "reiterate", "restate", "resume", "reread", "redo", "retry"].flatMap((verb) =>
     verbWith(verb, "again"),
   ),
@@ -263,14 +261,12 @@ const STYLE_ROWS: PhraseRow[] = [
   ["woulda", "would have"],
   ["musta", "must have"],
   ["innit", "isn't it"],
-  [["cuz", "coz"], "because"],
+  ["coz", "because"],
   ["luv", "love"],
   ["luvs", "loves"],
   [["pls", "plz"], "please"],
   [["thx", "thnx"], "thanks"],
   ["ppl", "people"],
-  ["tho", "though"],
-  ["thru", "through"],
   ["tonite", "tonight"],
   ["anyways", "anyway"],
   ...["I", "I'm", "he's", "she's", "it's", "we're", "they're", "you're"].map((p): PhraseRow => [

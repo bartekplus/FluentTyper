@@ -21,13 +21,10 @@ const A = "['’]";
 /** Rows for englishPhraseCorrections, englishClosedCompounds and stylePhrasing. */
 export const PHRASES: readonly PhraseRow[] = [
   // Indefinite pronouns own with 's; they have no plural.
-  ...["someone", "anyone", "everyone", "somebody", "anybody", "everybody", "nobody"].flatMap(
-    (who): PhraseRow[] => [
-      [`${who}s`, `${who}'s`],
-      [`${who} elses`, `${who} else's`],
-    ],
+  // ("someone elses" is englishElsePossessive's.)
+  ...["someone", "anyone", "everyone", "somebody", "anybody", "everybody", "nobody"].map(
+    (who): PhraseRow => [`${who}s`, `${who}'s`],
   ),
-  ["no one elses", "no one else's"],
   ["everybodies", "everybody's"],
   ...["fault", "business", "problem", "concern", "responsibility", "idea"].map(
     (noun): PhraseRow => [`no ones ${noun}`, `no one's ${noun}`],
