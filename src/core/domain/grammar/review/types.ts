@@ -292,6 +292,14 @@ export type ReviewMessageKey =
   | "review_msg_pl_abbreviation_dot"
   | "review_msg_pl_inflected_name"
   | "review_msg_pl_decade"
+  | "review_msg_pl_preposition_case"
+  | "review_msg_pl_agreement"
+  | "review_msg_pl_typography"
+  | "review_msg_pl_quotes"
+  | "review_msg_pl_extra_comma"
+  | "review_msg_pl_comma_aside"
+  | "review_msg_pl_capitals"
+  | "review_msg_pl_conjunction_ending"
   // Spanish Review checks (review/spanish/).
   | "review_msg_spanish_accent"
   | "review_msg_spanish_accent_extra"
@@ -321,6 +329,8 @@ export type ReviewMessageKey =
   | "review_msg_fr_elision"
   | "review_msg_fr_date"
   | "review_msg_fr_noun_number"
+  | "review_msg_fr_noun_gender"
+  | "review_msg_fr_adjective_agreement"
   | "review_msg_fr_participle_agreement";
 
 export type BulkDecision =

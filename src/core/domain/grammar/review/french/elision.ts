@@ -1,5 +1,6 @@
 import { namedExampleBefore } from "../exampleCues";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import { isFrenchWord } from "./frenchLexicon";
 import { ownedFrenchWords, tokensBefore, withCase } from "./frenchTokens";
 
 // Elision: "le", "de", "que", "je", "ne", "me", "te", "se", "la" drop their vowel before a word
@@ -67,6 +68,8 @@ function missingElision(ctx: DetectContext, m: RegExpExecArray): RawFinding | nu
   // so does a capitalized "Me"/"Se" inside a sentence ("Kiss Me Once", "Macintosh SE").
   if ((next.length < 2 && nextLower !== "y" && nextLower !== "à") || /\p{Lu}/u.test(next))
     return null;
+  // "de also known as", "que ab est": a foreign word or a variable keeps the full form.
+  if (!isFrenchWord(nextLower)) return null;
   if (
     /^\p{Lu}/u.test(typed) &&
     !SENTENCE_START.test(ctx.text.slice(Math.max(0, m.index - 4), m.index))
@@ -109,6 +112,10 @@ function spacedElision(ctx: DetectContext, m: RegExpExecArray): RawFinding | nul
   if (/[\d,]\s*$/.test(before) || /^\p{Lu}/u.test(next)) return null;
   if (!mark) {
     if (/^\p{Lu}/u.test(letter) && !/(?:^|[.!?]\s*)$/.test(before)) return null;
+    // "l a u r e": a word spelled out; "la lettre l est": the letter named.
+    if (/^\p{L}[ \t]+\p{L}(?![\p{L}'’])/u.test(ctx.text.slice(m.index + m[0].length - next.length)))
+      return null;
+    if (/\blettres?[ \t]+$/iu.test(ctx.text.slice(Math.max(0, m.index - 10), m.index))) return null;
     // "s" only elides "si" before "il(s)".
     if (letter.toLowerCase() === "s" && !/^ils?$/.test(next)) return null;
     if (!VOWEL.test(next) && !/^h/.test(next)) return null;
