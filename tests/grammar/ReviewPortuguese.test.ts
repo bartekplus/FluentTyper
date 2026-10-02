@@ -89,6 +89,11 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
     {
       pos: [
         ["Ainda à pouco que fazer aqui.", "Ainda há pouco que fazer aqui."],
+        ["Fizemos uma viajem ao Peru.", "Fizemos uma viagem ao Peru."],
+        ["A viajem atrasou duas horas.", "A viagem atrasou duas horas."],
+        ["Espero que vocês viagem tranquilos.", "Espero que vocês viajem tranquilos."],
+        ["Comprei um sinto de couro.", "Comprei um cinto de couro."],
+        ["A grade de asso enferrujou.", "A grade de aço enferrujou."],
         ["Em relação a proposta, nada mudou.", "Em relação à proposta, nada mudou."],
         ["Graças a ajuda dos vizinhos, saímos.", "Graças à ajuda dos vizinhos, saímos."],
         ["Ela tem acesso as informações.", "Ela tem acesso às informações."],
@@ -175,6 +180,11 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Prefiro praia do que montanha.", "Prefiro praia a montanha."],
       ],
       neg: [
+        "Eu sinto muito pelo atraso.",
+        "Gosto de quando sinto o vento.",
+        "Que viagem incrível foi aquela!",
+        "Talvez viagem seja a palavra certa.",
+        "Não sei se ela sinta frio.",
         "Ela trabalha tanto quanto a irmã.",
         "O atraso foi devido a problemas técnicos.",
         "Em relação a isso, nada mudou.",
