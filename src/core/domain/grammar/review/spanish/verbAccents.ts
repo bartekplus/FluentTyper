@@ -22,6 +22,7 @@ import {
   isNoun,
   isVerb,
   participle,
+  subjunctiveLike,
 } from "./lexicon";
 
 // Accents that tell a verb form from its twin: "el termino" (término, the noun), "se creo"
@@ -329,6 +330,24 @@ function verbAccent(at: Around): string | null {
       word !== "para"
     )
       return `${future[1]}${{ a: "á", as: "ás", an: "án", e: "é" }[future[2]]}`;
+  }
+  // "Yo lo analice ayer", "Me enfade.", "Ayer tome el día libre" -> "analicé", "enfadé",
+  // "tomé": an -ar subjunctive needs a trigger before it ("que yo cante"), so at a sentence
+  // start after "yo", "me" or "ayer" it is the first person preterite without its accent.
+  if (/^\p{L}{3,}e$/u.test(word) && subjunctiveLike(word) && !isNoun(word) && !attribute(word)) {
+    let k = 1;
+    while (k < 3 && /^(?:me|te|lo|la|los|las|le|les|nos|os)$/u.test(at.prev(k))) k++;
+    const lead = at.prev(k);
+    const leadStarts = new Around(at.tokens, at.i - k).starts;
+    const clitics = k > 1 && new Around(at.tokens, at.i - k + 1).starts;
+    if (
+      (leadStarts && /^(?:yo|ayer|anoche|anteayer)$/u.test(lead)) ||
+      // "Me envíe la factura" may be a request: only before the clause end or a preposition.
+      (clitics &&
+        at.prev(k - 1) === "me" &&
+        (at.endsAfter() || /^(?:a|en|de|con|sin|por)$/u.test(at.next())))
+    )
+      return `${word.slice(0, -1)}é`;
   }
   // "Cantara mañana" -> "cantará", "¿Cuándo llegaras?" -> "llegarás": an -ar future without
   // its accent reads as a past subjunctive, which needs a trigger ("si", "que") before it.

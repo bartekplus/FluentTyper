@@ -41,8 +41,9 @@ function paraQue(ctx: DetectContext, tokens: Token[], i: number): RawFinding | n
   const verb = at.next(k);
   if (!verb || /^\p{Lu}/u.test(tokens[i + k].text) || PAST_SUBJUNCTIVE.test(verb)) return null;
   if (!PRESENT_INDICATIVE.test(verb) || subjunctiveLike(verb) || !finiteVerb(verb)) return null;
-  // "para que nadie", "para que todo": the verb is further on.
-  if (isNoun(verb) || participle(verb)) return null;
+  // "para que nadie", "para que todo", "para que como usuario puedas": the verb is further on.
+  if (isNoun(verb) || participle(verb) || /^(?:como|cuando|donde|mientras)$/u.test(verb))
+    return null;
   // "para que podamos": an -er/-ir subjunctive in -a looks like an -ar indicative.
   const a = /^(\p{L}+?)(?:a|as|an|amos|áis)$/u.exec(verb);
   if (a && (isVerb(`${a[1]}er`) || isVerb(`${a[1]}ir`))) return null;
@@ -82,7 +83,11 @@ function separatedEnclitic(ctx: DetectContext, tokens: Token[], i: number): RawF
   if (!ENCLITIC.has(pronoun) || tokens[i + 1].broken) return null;
   if (!isGerund(verb) && !isInfinitive(verb)) return null;
   const after = at.next(2);
-  const ends = isBoundary(tokens[i + 2]) && tokens[i + 2]?.text !== ",";
+  // "ver los «caminos naturales»": an opening quote starts the article's noun.
+  const ends =
+    isBoundary(tokens[i + 2]) &&
+    tokens[i + 2]?.text !== "," &&
+    !/^["“«'‘]$/u.test(tokens[i + 2]?.text ?? "");
   if (!ends && (!PREPOSITIONS.has(after) || /^(?:de|del|que)$/u.test(after))) return null;
   // "hasta ver lo." is odd but "a la vez" is no pronoun: "lo"/"la" before "a" may be an article
   // of a noun cut off by a line break.

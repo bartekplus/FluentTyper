@@ -1304,6 +1304,47 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
       ],
     },
   ],
+  [
+    "spanishAccents",
+    "a first person preterite after a sentence-opening yo, me or ayer",
+    {
+      pos: [
+        ["Yo lo arregle con cinta.", "Yo lo arreglé con cinta."],
+        ["Ayer compre pan y leche.", "Ayer compré pan y leche."],
+        ["Anoche cene con mis padres.", "Anoche cené con mis padres."],
+        ["Me canse de esperar.", "Me cansé de esperar."],
+        ["Me equivoque.", "Me equivoqué."],
+      ],
+      neg: [
+        "Quiero que yo cante primero.",
+        "Me envíe la factura, por favor.",
+        "Cuando yo llegue, cenamos.",
+        "Ayer el viento levante sopló fuerte.",
+        "Me gusta que me escuches.",
+      ],
+    },
+  ],
+  [
+    "spanishConfusions",
+    "the auxiliary ha/he after a clitic, a subject or a verb's adverb, and por que after a reason",
+    {
+      pos: [
+        ["Él a dicho la verdad.", "Él ha dicho la verdad."],
+        ["Nunca a estado en Roma.", "Nunca ha estado en Roma."],
+        ["Te e traído un regalo.", "Te he traído un regalo."],
+        ["E terminado el informe.", "He terminado el informe."],
+        ["No entiendo el motivo porque se marchó.", "No entiendo el motivo por que se marchó."],
+        ["Esa es la razón porque vine.", "Esa es la razón por que vine."],
+      ],
+      neg: [
+        "Se puso a cubierto de la lluvia.",
+        "Tiene la razón porque lo vio con sus ojos.",
+        "Perdió la causa porque su abogado faltó.",
+        "Con razón porque nadie lo avisó.",
+        "Vino a casa y él e Isabel cenaron.",
+      ],
+    },
+  ],
 ];
 
 describe.each(FIXTURES)("%s: %s", (ruleId, _family, fixture) => {

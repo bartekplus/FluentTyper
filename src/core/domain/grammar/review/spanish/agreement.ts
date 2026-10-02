@@ -362,6 +362,8 @@ function determinerNoun(ctx: DetectContext, tokens: Token[], i: number): RawFind
     if ([2, 3, 4].some((k) => new Around(tokens, i).next(k) === "como")) return null;
     if (prev === "en" || prev === "por") return null;
   }
+  // "un tanto apretados", "un poco cansadas": the adverb "somewhat".
+  if (prev === "un" && /^(?:tanto|poco)$/u.test(detToken.lower)) return null;
   // "treinta y un años", "ciento un días": the numeral "un" counts.
   if (detToken.lower === "un" && (prev === "y" || NUMBER_WORDS.has(prev))) return null;
   // "la ex-ministra", "los e-mails": a compound.
@@ -669,7 +671,7 @@ function adjectiveForms(word: string): AdjectiveForms | null {
 // Nouns a bare noun or an adverbial may follow: "la mayoría niños", "una vez dormida".
 const NOT_HEADS = words(
   "vez rato momento mayoría minoría mitad resto parte grupo montón multitud cantidad número " +
-    "serie conjunto totalidad",
+    "serie conjunto totalidad tanto poco",
 );
 
 /**
@@ -716,6 +718,11 @@ function postponedAdjective(ctx: DetectContext, tokens: Token[], i: number): Raw
   const close = new Around(tokens, k);
   const after = close.next();
   if (!close.endsAfter() && /^(?:y|e|o|u|ni)$/u.test(after)) return null;
+  // "económico-sociales": the first part of a compound stays masculine singular.
+  if (tokens[k + 1]?.text === "-") return null;
+  // "física, emocional y cognitivamente": adverbs sharing one "-mente".
+  if (tokens[k + 1]?.text === "," && [2, 3, 4].some((m) => /\p{L}{3,}mente$/u.test(close.next(m))))
+    return null;
   if (after && readNoun(after) && !finiteVerb(after) && !PREPOSITIONS.has(after)) return null;
   const genderClash = !!gender && forms.feminine !== null && forms.feminine !== (gender === "f");
   const numberClash = forms.plural !== plural;

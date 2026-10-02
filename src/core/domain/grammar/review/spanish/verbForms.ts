@@ -60,6 +60,9 @@ function perfectOf(word: string, nominal: boolean): string | null {
   return m && (isVerb(`${m[1]}er`) || isVerb(`${m[1]}ir`)) ? `${m[1]}ido` : null;
 }
 
+const BEFORE_AUXILIARY = words(
+  "él ella usted ello me te se nos os le les lo la no ya siempre nunca también todavía",
+);
 // "huele a quemado", "sabe a podrido": a smell or taste, not the auxiliary.
 const SENSES = /^(?:huel\p{L}*|ol\p{L}*|sab\p{L}*|sup\p{L}*)$/u;
 
@@ -112,6 +115,21 @@ function check(at: Around): string[] | null {
     ![1, 2, 3, 4].some((k) => at.prev(k) === "de")
   )
     return ["ha"];
+  // "se a ido", "ella a vuelto", "nos e incluido", "siempre e ido": after a clitic, a subject
+  // pronoun or a verb's adverb only the auxiliary fits, even before a participle that is a noun
+  // too ("dicho", "estado"); "a cubierto" is the idiom.
+  if (
+    (word === "a" || word === "e") &&
+    at.tokens[at.i].text === word &&
+    isPerfectParticiple(next) &&
+    next !== "cubierto" &&
+    (BEFORE_AUXILIARY.has(prev) || (word === "e" && prev === "yo")) &&
+    !(word === "a" && prev === "yo")
+  )
+    return [word === "a" ? "ha" : "he"];
+  // "E invitado a un amigo": a sentence opens with the auxiliary, not with "and".
+  if (word === "e" && at.starts && at.tokens[at.i].text === "E" && isPerfectParticiple(next))
+    return ["he"];
   // "siempre e comido": "e" (and) only goes before an i- sound.
   if (word === "e" && isPerfectParticiple(next) && !/^h?i/u.test(next)) return ["he"];
   // "lo ha vuelto ha hacer", "ha estos": the preposition "a".
