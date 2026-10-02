@@ -173,6 +173,16 @@ const CHECKS: Record<string, Check> = {
   },
 };
 
+const PLURAL_HABER: Record<string, string> = {
+  han: "ha",
+  habían: "había",
+  habrán: "habrá",
+  habrían: "habría",
+  hayan: "haya",
+  hubieran: "hubiera",
+  hubiesen: "hubiese",
+};
+
 /** "más efímera aún que": a comparative a few words back. */
 const comparative = (at: Around) =>
   [1, 2, 3].some((k) => /^(?:más|menos|mayor|menor|mejor|peor|tanto)$/u.test(at.prev(k)));
@@ -275,6 +285,25 @@ function confusions(ctx: DetectContext): RawFinding[] {
         text: ctx.text.slice(token.start, tokens[i + 1].end),
       };
       const finding = replaceToken(ctx, span, ["aunque"], RULE, "review_msg_spanish_confusion");
+      if (finding) findings.push(finding);
+      continue;
+    }
+    // Existential "haber" has no plural: "han habido quejas" is "ha habido"; "han habido de
+    // irse" (haber de + infinitive, had to) agrees with its subject.
+    const singular = PLURAL_HABER[token.lower];
+    if (singular && at.next() === "habido" && at.next(2) !== "de") {
+      const span = {
+        ...token,
+        end: tokens[i + 1].end,
+        text: ctx.text.slice(token.start, tokens[i + 1].end),
+      };
+      const finding = replaceToken(
+        ctx,
+        span,
+        [`${singular} habido`],
+        RULE,
+        "review_msg_spanish_confusion",
+      );
       if (finding) findings.push(finding);
       continue;
     }

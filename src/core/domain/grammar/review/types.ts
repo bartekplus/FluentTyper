@@ -257,6 +257,8 @@ export type ReviewMessageKey =
   | "review_msg_arabic_case_ending"
   | "review_msg_arabic_jussive"
   | "review_msg_arabic_subjunctive"
+  | "review_msg_arabic_indicative"
+  | "review_msg_arabic_counted_singular"
   // Portuguese.
   | "review_msg_pt_accent_paronym"
   | "review_msg_pt_confusions"
@@ -267,6 +269,13 @@ export type ReviewMessageKey =
   | "review_msg_pt_number_format"
   | "review_msg_pt_typography_style"
   | "review_msg_pt_proclisis"
+  | "review_msg_pt_mesoclisis"
+  | "review_msg_pt_pronoun_case"
+  | "review_msg_pt_invalid_date"
+  | "review_msg_pt_comma"
+  | "review_msg_pt_agreement"
+  | "review_msg_pt_future_subjunctive"
+  | "review_msg_pt_regency"
   | "review_msg_pt_ao90"
   | "review_msg_weekday_mismatch"
   | "review_msg_impossible_date"
@@ -283,6 +292,14 @@ export type ReviewMessageKey =
   | "review_msg_pl_abbreviation_dot"
   | "review_msg_pl_inflected_name"
   | "review_msg_pl_decade"
+  | "review_msg_pl_preposition_case"
+  | "review_msg_pl_agreement"
+  | "review_msg_pl_typography"
+  | "review_msg_pl_quotes"
+  | "review_msg_pl_extra_comma"
+  | "review_msg_pl_comma_aside"
+  | "review_msg_pl_capitals"
+  | "review_msg_pl_conjunction_ending"
   // Spanish Review checks (review/spanish/).
   | "review_msg_spanish_accent"
   | "review_msg_spanish_accent_extra"
@@ -295,6 +312,9 @@ export type ReviewMessageKey =
   | "review_msg_spanish_acronym"
   | "review_msg_spanish_abbreviation"
   | "review_msg_spanish_date"
+  | "review_msg_spanish_agreement"
+  | "review_msg_spanish_comma"
+  | "review_msg_spanish_verb_agreement"
   // French (review/french/)
   | "review_msg_fr_past_participle"
   | "review_msg_fr_infinitive"
@@ -305,6 +325,8 @@ export type ReviewMessageKey =
   | "review_msg_fr_elision"
   | "review_msg_fr_date"
   | "review_msg_fr_noun_number"
+  | "review_msg_fr_noun_gender"
+  | "review_msg_fr_adjective_agreement"
   | "review_msg_fr_participle_agreement";
 
 export type BulkDecision =

@@ -12,7 +12,8 @@ import type { ReviewMessageKey } from "../types";
 type Frame = {
   /** Compiled by frameMatches (WORD_START, `gidu`); `target` is replaced. */
   pattern: string;
-  alternatives: string[];
+  /** Replacements, or a function of the typed target. */
+  alternatives: string[] | ((typed: string) => string[]);
   messageKey: ReviewMessageKey;
   /** Starts a sentence (or follows a line break). */
   clauseStart?: true;
@@ -34,8 +35,32 @@ const WEEKDAY = "(?:segunda|terça|quarta|quinta|sexta)(?:-feira)?|sábado|domin
 const MONTH =
   "janeiro|fevereiro|março|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro";
 const CLITIC = "(?:me|te|lhe|lhes)";
+const CLOCK_WORDS = `(?:duas|três|quatro|cinco|seis|sete|oito|nove|dez|onze|doze|treze|catorze|quatorze|quinze|dezesseis|dezessete|dezoito|dezenove|vinte(?:${S}e${S}(?:uma|duas|três))?)`;
 const SUBJECT =
-  "(?:ele|ela|você|eles|elas|vocês|isso|isto|tudo|não|nunca|já|ainda|quem|onde|como|ninguém|alguém|também|sempre)";
+  "(?:ele|ela|você|eles|elas|vocês|isso|isto|tudo|não|nunca|já|ainda|quem|onde|como|ninguém|alguém|também|sempre|assim)";
+// Plural subjects; after a preposition ("para eles tem sido") they are no subject.
+const PLURAL_SUBJECT =
+  "(?<!(?:de|para|com|sem|entre|a|por|sobre|contra|até|em|perante)[ \\t\\u00a0]{1,8})(?:eles|elas|vocês|uns|ambos|ambas|todos|todas|muitos|muitas|alguns|algumas|poucos|poucas)";
+const SUBJECT_ADVERB = `(?:(?:não|já|também|ainda|nunca|sempre|só|apenas|realmente)${WORD_END}${SPACE}){0,2}`;
+// "tem/vem" and their compounds take a circumflex in the plural: têm, vêm, contêm, intervêm.
+const TER_VIR =
+  "(?:con|de|man|ob|re|abs|sus|en|entre)?t[eé]m|(?:con|pro|inter|ad|sobre|pro)?v[eé]m";
+const INFINITIVE_AHEAD = `\\p{Ll}+[aeiô]r(?:em|mos|es)?${WORD_END}`;
+const IMPERSONAL: Record<string, string> = {
+  fazem: "faz",
+  faziam: "fazia",
+  fizeram: "fez",
+  farão: "fará",
+  fariam: "faria",
+  vão: "vai",
+  iam: "ia",
+  irão: "irá",
+  podem: "pode",
+  deviam: "devia",
+  devem: "deve",
+  costumam: "costuma",
+};
+const SPAN_NOUN = `(?:anos|meses|semanas|dias|horas|minutos|séculos|décadas|tempo|bastante${SPACE}tempo|muito${SPACE}tempo)`;
 const MODAL =
   "(?:pode|posso|podemos|podem|podia|quero|queremos|quer|queria|deve|devemos|devem|deveria|preciso|precisamos|precisa|precisam|para|sem|(?:tenho|temos|tem|têm|tens|tinha|tinham)" +
   `${S}(?:que|de)|(?:há|hei)${S}de)`;
@@ -48,7 +73,113 @@ const IS_ADJECTIVE =
 const STATE =
   "(?:bem|mal|certo|certa|errado|errada|pronto|pronta|ótimo|ótima|cheio|cheia|cansado|cansada|feliz|triste|doente|ocupado|ocupada|com|sem|em|no|na|nos|nas|muito|tão|sendo|quase|perto|longe|frio|quente|melhor|pior)";
 
+// "a" fused with the article that follows it.
+const WITH_A: Record<string, string> = { o: "ao", a: "à", os: "aos", as: "às" };
+const SHOWS =
+  "filmes?|jogos?|programas?|shows?|espetáculos?|aulas?|novelas?|séries?|vídeos?|partidas?|apresentaç(?:ão|ões)|peças?|concertos?|palestras?|missas?|desfiles?|televisão|tv|telejornal|final|finais|corrida|luta|treino|ensaio";
+// After these "a" is the bare preposition ("assistir a uma aula", "obedecer a
+// leis"), or the crase is optional ("obedecer a sua mãe"); "o" and "os" are always the article.
+const NOT_ARTICLE_NEXT =
+  "(?!\\p{Ll}+s(?![\\p{L}]))(?!(?:um|uma|uns|umas|est[ea]s?|ess[ea]s?|aquel[ea]s?|tod[oa]s?|cada|qualquer|nenhum|nenhuma|cert[oa]s?|vári[oa]s|muit[oa]s?|pouc[oa]s?|dois|duas|três|seus?|suas?|meus?|minhas?|teus?|tuas?|nossos?|nossas?)(?![\\p{L}]))";
+const ASSISTIR =
+  "assist(?:o|e|es|imos|em|i|iu|iram|ia|iam|ir|indo|irei|irá|iremos|irão|iria|iriam|a|am)";
+const OBEDECER =
+  "(?:des)?obedec(?:e|em|emos|i|eu|eram|ia|iam|er|endo|erei|erá|eremos|erão|eria|eriam)|(?:des)?obedeço|(?:des)?obedeça|(?:des)?obedeçam";
+const PREFERIR =
+  "prefiro|prefere|preferes|preferimos|preferem|preferia|preferiam|preferiria|preferiríamos|preferi|preferiu|preferiram|preferir|preferível";
+
 const FRAMES: Frame[] = [
+  // "assistir ao filme" (to watch); "assistir o paciente" (to help) keeps its object.
+  {
+    pattern: `${ASSISTIR}${S}(?<target>os?|as?(?=${S}${NOT_ARTICLE_NEXT}))${S}(?=(?:\\p{Ll}+${S})?(?:${SHOWS})${W})`,
+    alternatives: (typed) => [WITH_A[typed.toLowerCase()]],
+    messageKey: "review_msg_pt_regency",
+  },
+  // "obedecer aos pais", "desobedecer à lei".
+  {
+    pattern: `(?:${OBEDECER})${S}(?<target>os?|as?(?=${S}${NOT_ARTICLE_NEXT}))${S}(?=\\p{Ll}{2,})`,
+    alternatives: (typed) => [WITH_A[typed.toLowerCase()]],
+    messageKey: "review_msg_pt_regency",
+  },
+  // "prefiro chá a café", not "do que café".
+  {
+    pattern: `(?:${PREFERIR})${S}(?:[^\\s.,;:!?]+${S}){1,5}(?<!(?:mais|menos|melhor|pior|maior|menor|antes|tanto)${S})(?<target>do${S}que(?:${S}(?:o|a|os|as)(?=${S}))?)${W}`,
+    alternatives: (typed) => {
+      const article = /\s(o|a|os|as)$/i.exec(typed)?.[1].toLowerCase();
+      return [article ? WITH_A[article] : "a"];
+    },
+    messageKey: "review_msg_pt_regency",
+  },
+  // "eles tem" -> "eles têm", "elas contém" -> "elas contêm".
+  {
+    pattern: `${PLURAL_SUBJECT}${SPACE}${SUBJECT_ADVERB}(?<target>${TER_VIR})${W}`,
+    alternatives: (typed) => [typed.replace(/[eé]m$/i, "êm")],
+    messageKey: "review_msg_pt_homophone",
+  },
+  // "Faz dez anos que", "fazia meses que": "fazer" for elapsed time has no subject.
+  {
+    pattern: `(?<target>fazem|faziam|fizeram|farão|fariam)${S}${AMOUNT}?${SPAN_NOUN}${S}(?:que|desde)${W}`,
+    alternatives: (typed) => [IMPERSONAL[typed.toLowerCase()]],
+    messageKey: "review_msg_pt_homophone",
+  },
+  {
+    pattern: `(?<target>vão|iam|irão|podem|deviam|devem|costumam)${S}fazer${S}${AMOUNT}?${SPAN_NOUN}${S}(?:que|desde)${W}`,
+    alternatives: (typed) => [IMPERSONAL[typed.toLowerCase()]],
+    messageKey: "review_msg_pt_homophone",
+  },
+  // "está noite" -> "esta noite": the demonstrative before a part of the day.
+  {
+    pattern: `(?<!(?:já|ainda|lá|aqui|fora)${S})(?<target>está)${S}(?=(?:noite|semana|manhã|tarde|madrugada)${W})`,
+    alternatives: ["esta"],
+    messageKey: "review_msg_pt_homophone",
+  },
+  // "esta" before a masculine participle or adjective is the verb: "o chão esta coberto".
+  {
+    pattern: `(?<target>esta)${S}(?=(?:\\p{Ll}{2,}(?:ado|ido)|coberto|aberto|feito|morto|escrito|pronto|cheio|vazio|certo|bom|ótimo|lindo|frio|quente|limpo|sujo|seco|novo|velho)${W})`,
+    alternatives: ["está"],
+    messageKey: "review_msg_pt_homophone",
+  },
+  // "poço" (well) before an infinitive or an object pronoun is "posso" (I can).
+  {
+    pattern: `(?<!(?:o|um|do|no|ao|pelo|esse|este|aquele|seu|meu|nosso|teu|cada|algum|nenhum|qualquer|grande|pequeno|fundo|velho)${S})(?<target>poço)${S}(?=(?:me|te|lhe|lhes|nos|vos|se|\\p{Ll}+[aeiô]r)${W})`,
+    alternatives: ["posso"],
+    messageKey: "review_msg_pt_homophone",
+  },
+  // "várias" (several) before a plural noun; "varias" is "you vary".
+  {
+    pattern: `(?<!tu${S}(?:não${S})?)(?<target>varias)${S}(?=(?!(?:os|as|nos|vos|mais|menos|vezes${S}de)${W})\\p{Ll}{2,}s${W})`,
+    alternatives: ["várias"],
+    messageKey: "review_msg_pt_homophone",
+  },
+  // "até" (until, even) before an article, a place or a time word; "ate" is a form of "atar".
+  {
+    pattern: `(?<!(?:que|se|quando|embora|talvez|caso)${S}(?:\\p{Ll}+${S})?)(?<target>ate)${S}(?=(?:o|a|os|as|ao|aos|à|às|aqui|ali|lá|onde|quando|minha|meu|sua|seu|nossa|nosso|\\d)${W})`,
+    alternatives: ["até"],
+    messageKey: "review_msg_pt_homophone",
+  },
+  // A preposition takes "mim" and "ti" when no infinitive follows: "para mim", "entre mim e ti".
+  {
+    pattern: `(?:para|sem|contra|perante|a)${S}(?<target>eu|tu)(?=[ \\t\\u00a0]{0,2}[.,;:!?)]|$)`,
+    alternatives: (typed) => [typed.toLowerCase() === "eu" ? "mim" : "ti"],
+    messageKey: "review_msg_pt_pronoun_case",
+  },
+  {
+    pattern: `entre${S}(?<target>eu|tu)${S}(?=e${W})`,
+    alternatives: (typed) => [typed.toLowerCase() === "eu" ? "mim" : "ti"],
+    messageKey: "review_msg_pt_pronoun_case",
+  },
+  // "Esse livro é para mim ler": the subject of the infinitive is "eu". Opening a clause,
+  // "Para mim estudar é difícil" may also mean "for me, studying is hard".
+  {
+    pattern: `(?:é|era|foi|será|seria|são|eram)${S}para${S}(?<target>mim)${S}(?=${INFINITIVE_AHEAD})`,
+    alternatives: ["eu"],
+    messageKey: "review_msg_pt_pronoun_case",
+  },
+  {
+    pattern: `(?<=(?:^|[.!?;:][ \\t\\u00a0]{0,8}|\\n[ \\t\\u00a0]{0,8}))para${S}(?<target>mim)${S}(?=${INFINITIVE_AHEAD})`,
+    alternatives: ["eu", "mim,"],
+    messageKey: "review_msg_pt_pronoun_case",
+  },
   // Crase: "à" before a span of time is "há" (it existed), after "daqui" plain "a".
   {
     pattern: `(?<!daqui${S})(?<target>à)${S}${AMOUNT}?${SPAN}`,
@@ -70,6 +201,34 @@ const FRAMES: Frame[] = [
   {
     pattern: `(?<!(?:entre|e|de|desde|após|até|para|por|todas|sobre|com|que)${S})(?<target>as)${S}(?=\\d{1,2}(?:h\\d{0,2}|:\\d\\d)${W})`,
     alternatives: ["às"],
+    messageKey: "review_msg_pt_crase",
+  },
+  {
+    pattern: `(?<!(?:entre|e|de|desde|após|até|para|por|todas|sobre|com|que)${S})(?<target>as)${S}(?=${CLOCK_WORDS}${S}horas${W})`,
+    alternatives: ["às"],
+    messageKey: "review_msg_pt_crase",
+  },
+  // "às vezes" (sometimes); "as vezes" is the noun: "todas as vezes", "as vezes em que".
+  {
+    pattern: `(?<!(?:todas|algumas|muitas|poucas|várias|tantas|quantas|das|nas|pelas|com|por|de|em|contei|conto|contar|lembro|lembrar)${S})(?<target>as)${S}vezes${W}(?!${S}(?:em${S}que|que|de|do|da|dos|das|anteriores|seguintes|passadas|necessárias|certas)${W})`,
+    alternatives: ["às"],
+    messageKey: "review_msg_pt_crase",
+  },
+  // "ir às compras", "virar à direita".
+  {
+    pattern: `(?:vou|vai|vamos|vão|foi|fui|fomos|foram|ir|ia|iam|irei|iremos|irá)${S}(?<target>as)${S}compras${W}`,
+    alternatives: ["às"],
+    messageKey: "review_msg_pt_crase",
+  },
+  {
+    pattern: `(?:vire|virar|vira|virou|dobre|dobrar|dobra|dobrou|siga|seguir|segue|fica|ficam|ficava|ficavam|fique|está|estão|estava|sentou|sentado|sentada|sente)${S}(?<target>a)${S}(?:direita|esquerda)${W}`,
+    alternatives: ["à"],
+    messageKey: "review_msg_pt_crase",
+  },
+  // A bare plural takes no article, so no crase: "à conclusões" -> "a conclusões".
+  {
+    pattern: `(?<target>à)${S}(?!(?:mais|menos|demais|vezes|trois)${W})\\p{Ll}{2,}(?:as|os|es|ns|is|ões|ães)${W}`,
+    alternatives: ["a"],
     messageKey: "review_msg_pt_crase",
   },
   // "por quê" closes a question; before more words it is "por que" (or "porque").
@@ -225,7 +384,11 @@ export function confusions(ctx: DetectContext): RawFinding[] {
         continue;
       // Frames are matched ignoring case; a capitalized name inside one is not prose.
       if (/\s\p{Lu}/u.test(m[0])) continue;
-      push(m, frame.alternatives, frame.messageKey);
+      const alternatives =
+        typeof frame.alternatives === "function"
+          ? frame.alternatives(m.groups!.target)
+          : frame.alternatives;
+      push(m, alternatives, frame.messageKey);
     }
   }
   for (const m of frameMatches(ctx, INFINITIVE_CRASE)) {
