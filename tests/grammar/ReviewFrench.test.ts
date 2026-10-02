@@ -530,6 +530,10 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Elle s'est endormi dans le salon.", "Elle s'est endormie dans le salon."],
         ["Les invités se sont installé au salon.", "Les invités se sont installés au salon."],
         ["Certaines étaient arrivé en avance.", "Certaines étaient arrivées en avance."],
+        // A modal before être or "avoir été".
+        ["Cette erreur peut être corrigé.", "Cette erreur peut être corrigée."],
+        ["Les murs semblent avoir été repeint.", "Les murs semblent avoir été repeints."],
+        ["Elle doit être arrivés tôt.", "Elle doit être arrivée tôt."],
         // After "été", after je/tu/nous, a demonstrative or an inversion.
         ["Les ponts ont été construites en 1900.", "Les ponts ont été construits en 1900."],
         ["Ce matin, la séance a été reporté.", "Ce matin, la séance a été reportée."],

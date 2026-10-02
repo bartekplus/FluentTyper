@@ -323,6 +323,8 @@ const PREPOSITION_LIKE = new Set(
 );
 const LINKING_LEMMAS = new Set(["être", "sembler", "paraître", "devenir", "rester", "demeurer"]);
 
+const MODALS = new Set(["pouvoir", "devoir", "sembler", "paraître", "aller", "vouloir"]);
+
 /** The index just past a linking verb at `i` that agrees with `person` ("est", "semblaient") or
  * past avoir + "été" ("ont été", "avait déjà été"); -1 when there is none. */
 function linkingEnd(tokens: Token[], i: number, person: number): number {
@@ -332,6 +334,14 @@ function linkingEnd(tokens: Token[], i: number, person: number): number {
   const readings = verbReadings(verb.w).filter(
     (r) => typeof r.slot === "number" && r.slot & person,
   );
+  // "peut être observée", "semble avoir été annoncé", "doit être arrivés": a modal and the
+  // infinitive être or "avoir été".
+  if (readings.some((r) => MODALS.has(r.lemma))) {
+    const k = skipAdverbs(tokens, i + 1);
+    const next = tokens[k];
+    if (next?.w === "être" && !next.hyphen) return k + 1;
+    if (next?.w === "avoir" && tokens[k + 1]?.w === "été" && !tokens[k + 1].hyphen) return k + 2;
+  }
   if (readings.some((r) => LINKING_LEMMAS.has(r.lemma))) return i + 1;
   if (!readings.some((r) => r.lemma === "avoir")) return -1;
   const k = skipAdverbs(tokens, i + 1);
