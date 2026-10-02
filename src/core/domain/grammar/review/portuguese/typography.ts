@@ -48,6 +48,20 @@ const NUMBER_FORMAT: Frame[] = [
     ruleId: "portugueseNumberFormat",
     messageKey: "review_msg_pt_number_format",
   },
+  // "21,349.56", "4,500.00": English separators; Portuguese swaps them.
+  {
+    pattern: `(?<![\\d.,])(?<target>\\d{1,3}(?:,\\d{3}){1,6}\\.\\d{1,6})(?![\\d.,]{0,12}\\d)`,
+    replace: (m) => m.groups!.target.replace(/[.,]/g, (c) => (c === "," ? "." : ",")),
+    ruleId: "portugueseNumberFormat",
+    messageKey: "review_msg_pt_number_format",
+  },
+  // "896.96 km²", "2.5 kg": a decimal point before a unit (a thousands group has 3 digits).
+  {
+    pattern: `(?<![\\d.,])\\d{1,3}(?<target>\\.)\\d{1,2}(?=${GAP}(?:km²?|m[²³]?|cm|mm|kg|g|mg|ml|l|L|t|ha|GB|MB|TB|kW|W|V|°C|%)(?![\\p{L}\\p{N}]))`,
+    replace: ",",
+    ruleId: "portugueseNumberFormat",
+    messageKey: "review_msg_pt_number_format",
+  },
   // "12hrs", "15 hs", "01 hr": the hour symbol is "h".
   {
     pattern: `(?<!:)\\d{1,2}${GAP}(?<target>${HOUR_TYPOS})${W}`,

@@ -286,6 +286,10 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Moro no 8° andar.", "Moro no 8º andar."],
         ["A cidade fica a 40 Km daqui.", "A cidade fica a 40 km daqui."],
         ["O terreno tem 300 m2 de área.", "O terreno tem 300 m² de área."],
+        ["A fatura soma 12,480.75 reais.", "A fatura soma 12.480,75 reais."],
+        ["Foram 3,215,900.5 votos válidos.", "Foram 3.215.900,5 votos válidos."],
+        ["A mochila pesa 4.5 kg vazia.", "A mochila pesa 4,5 kg vazia."],
+        ["O lago cobre 12.75 km² do parque.", "O lago cobre 12,75 km² do parque."],
       ].filter(([typed, fixed]) => typed !== fixed) as Array<[string, string]>,
       neg: [
         "O ônibus sai às 18h.",
@@ -298,6 +302,12 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         "Comprei um HB20 usado.",
         "A sala 2a fica no fim do corredor.",
         "Use a chave Km3 no arquivo.",
+        "Instale a versão 4.12.3 do pacote.",
+        "O roteador responde em 192.168.10.254 sempre.",
+        "Custou 12.480,75 reais.",
+        "A tabela 4.5 mostra os dados.",
+        "Saímos às 17.40 h em ponto.",
+        "Atualize para 1,234.5.6 hoje.",
       ],
     },
   ],
@@ -835,4 +845,20 @@ test("Portuguese frames stay fast on long runs of trigger words and spaces", () 
   const start = performance.now();
   findLiveGrammarProposals(TRIGGERS.repeat(5), live);
   expect(performance.now() - start).toBeLessThan(50);
+});
+
+test("grouped decimals are prose; versions and addresses stay technical", () => {
+  const technical = (text: string) =>
+    prepareReview(
+      { id: "pt", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
+      { enabledRules: [], lang: LANG, userDictionary: [], insertSpaceAfterAutocomplete: true },
+    )
+      .protectedRanges.filter((range) => range.reason === "technical")
+      .map((range) => text.slice(range.start, range.end));
+  expect(technical("Pagou 12,480.75 e 3,215,900.5 no total.")).toEqual([]);
+  expect(technical("Use 4.12.3 em 192.168.10.254 ou 1,234.5.6.")).toEqual([
+    "4.12.3",
+    "192.168.10.254",
+    "1,234.5.6",
+  ]);
 });
