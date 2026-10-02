@@ -29,6 +29,6 @@ export type WordReviewReply =
 export function wordEditor(doc: Document): HTMLElement | null {
   const root = doc.getElementById("WACViewPanel");
   return root?.contains(doc.getElementById(WORD_INPUT_ID)) && root.closest("#EditorContainer")
-    ? root
+    ? root.closest<HTMLElement>("#EditorContainer")
     : null;
 }

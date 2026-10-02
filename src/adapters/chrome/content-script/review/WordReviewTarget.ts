@@ -154,21 +154,23 @@ export class WordReviewTarget implements ReviewTargetHandle {
     if (this.segments !== undefined) return this.segments;
     const segments: RenderedSegment[] = [];
     let text = "";
-    // Word keeps inactive header/footer previews in the same page tree.
-    // The main story excludes them; another story maps only its active rendered box.
-    const paragraphs = [...this.element.querySelectorAll(".Paragraph")].filter((paragraph) =>
-      this.snapshot!.bodyType === 0
-        ? !paragraph.closest(".Header, .Footer")
-        : this.snapshot!.bodyType === null ||
-          !!paragraph.closest(
-            ".Header:not(.InactiveBoxRendering), .Footer:not(.InactiveBoxRendering)",
-          ),
+    // Footnotes/endnotes render in a sibling interactive view. The originating
+    // proxy selects that view; inactive boxes are previews of other stories.
+    const view = this.inputProxy.closest(".WACInteractiveView") ?? this.element;
+    const paragraphs = [...view.querySelectorAll(".Paragraph")].filter(
+      (paragraph) =>
+        !paragraph.closest(".InactiveBoxRendering") &&
+        (this.snapshot!.bodyType !== 0 || !paragraph.closest(".Header, .Footer")),
     );
     for (const [index, paragraph] of paragraphs.entries()) {
       if (index) text += "\n";
       const visit = (node: Node): void => {
         if (node.nodeType === 3) {
-          const value = node.textContent ?? "";
+          // Word renders ordinary leading spaces as NBSP; only normalize where
+          // the model has a same-width ordinary space at this exact offset.
+          const value = (node.textContent ?? "").replace(/\u00a0/g, (space, offset: number) =>
+            this.snapshot!.text[text.length + offset] === " " ? " " : space,
+          );
           if (value)
             segments.push({
               node: node as Text,
@@ -180,7 +182,7 @@ export class WordReviewTarget implements ReviewTargetHandle {
         }
         if (node.nodeType !== 1) return;
         const element = node as Element;
-        if (element.matches(".EOP, .ListMarker, [aria-hidden='true']")) return;
+        if (element.matches(".EOP, .ListMarker, .BlobObject, [aria-hidden='true']")) return;
         if (element.matches(".TabRun")) {
           segments.push({ node: element, start: text.length, end: text.length + 1 });
           text += "\t";

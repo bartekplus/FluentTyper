@@ -145,7 +145,7 @@ function fixture(texts = ["We saw teh cat.", "We saw teh cat."], separator = "\r
   document.getElementById("WACViewPanel_EditingElement")!.focus();
   cleanup = installWordReviewMainWorld();
   const target = new WordReviewTarget(
-    document.getElementById("WACViewPanel")!,
+    document.getElementById("EditorContainer")!,
     document.getElementById("WACViewPanel_EditingElement")!,
   );
   return {
@@ -174,7 +174,7 @@ function fixture(texts = ["We saw teh cat.", "We saw teh cat."], separator = "\r
 }
 
 function bridge(request: WordReviewRequest): WordReviewReply {
-  const root = document.getElementById("WACViewPanel")!;
+  const root = document.getElementById("EditorContainer")!;
   root.dispatchEvent(
     new CustomEvent(WORD_REVIEW_EVENT, { bubbles: true, detail: JSON.stringify(request) }),
   );
@@ -423,7 +423,7 @@ test("Word Review resolves the document instead of its empty input proxy", () =>
   document.getElementById("WACViewPanel_EditingElement")!.focus();
   const result = resolveReviewTarget(document);
   expect(result.ok && result.target.kind).toBe("model-editor");
-  expect(result.ok && result.target.element.id).toBe("WACViewPanel");
+  expect(result.ok && result.target.element.id).toBe("EditorContainer");
   if (result.ok) result.target.dispose();
 });
 
@@ -486,7 +486,7 @@ test("Word Review only resolves recognized editor proxies", () => {
     ]) {
       const proxy = document.createElement("textarea");
       proxy.id = id;
-      h.target.element.append(proxy);
+      document.getElementById("WACViewPanel")!.append(proxy);
       proxy.focus();
       const result = resolveReviewTarget(document);
       expect(result.ok && result.target.kind).toBe("model-editor");
@@ -538,7 +538,7 @@ test("Word Review restores the originating footnote proxy on close and after swi
   h.target.dispose();
   const footnote = document.createElement("textarea");
   footnote.id = "WACViewPanel_FootnoteEndnoteEditControl_EditingElement";
-  h.target.element.append(footnote);
+  document.getElementById("WACViewPanel")!.append(footnote);
   const review = new ReviewController({
     createEngine: () => new LocalReviewEngine(),
     getOptions: () => ({ lang: "en_US", enabledRules: GRAMMAR_RULE_IDS, userDictionary: [] }),
@@ -654,6 +654,57 @@ test("Word highlights exclude inactive header and footer previews, even with ide
     document.querySelectorAll("p")[2],
   );
   expect(h.writes).toBe(0);
+});
+
+test("Word highlights map sibling footnote views and active non-header stories", () => {
+  const h = fixture([" teh", " teh"]);
+  h.model.body.type = 7; // Observed native footnote body type.
+  const main = document.getElementById("WACViewPanel")!;
+  main.className = "WACInteractiveView";
+  const note = document.createElement("div");
+  note.id = "WACViewPanel_FootnoteEndnoteEditControl";
+  note.className = "WACInteractiveView FootnoteEndnoteViewElement";
+  const paragraphs = [...main.querySelectorAll(".Paragraph")];
+  for (const paragraph of paragraphs) {
+    paragraph.innerHTML =
+      '<span class="TextRun BlobObject"><span class="Superscript">1</span></span><b>&nbsp;teh</b><span class="EOP">&nbsp;</span>';
+    note.append(paragraph);
+  }
+  main.insertAdjacentHTML(
+    "afterbegin",
+    '<p class="Paragraph"> teh</p><p class="Paragraph"> teh</p>',
+  );
+  const proxy = document.createElement("div");
+  proxy.id = "WACViewPanel_FootnoteEndnoteEditControl_EditingElement";
+  proxy.tabIndex = 0;
+  note.append(proxy);
+  main.after(note);
+  proxy.focus();
+  const resolved = resolveReviewTarget();
+  if (!resolved.ok) throw new Error("footnote did not resolve");
+  expect(resolved.target.element.contains(proxy)).toBe(true);
+  expect(new NativeAutocompleteConflictDetector().classify(proxy)).toEqual({ kind: "blocked" });
+  proxy.dispatchEvent(new Event("compositionstart", { bubbles: true }));
+  expect(resolved.target.read()).toEqual({ ok: false, reason: "composing" });
+  proxy.dispatchEvent(new Event("compositionend", { bubbles: true }));
+  expect(resolved.target.read().ok).toBe(true);
+  expect(
+    resolved.target.domRange({ start: 6, end: 9 })?.startContainer.parentElement?.closest("p"),
+  ).toBe(paragraphs[1]);
+  note.append(paragraphs[1].cloneNode(true));
+  expect(resolved.target.domRange({ start: 6, end: 9 })).toBeNull(); // Incomplete or duplicated story must never be guessed.
+  resolved.target.dispose();
+  h.target.dispose();
+
+  const other = fixture(["teh", "teh"]);
+  other.model.body.type = 6;
+  other.target.element.insertAdjacentHTML(
+    "afterbegin",
+    '<div class="InactiveBoxRendering"><p class="Paragraph">teh</p></div>',
+  );
+  other.target.read();
+  expect(other.target.domRange({ start: 4, end: 7 })?.toString()).toBe("teh");
+  expect(other.writes).toBe(0);
 });
 
 test("Word applies accepted Local AI rewrite hunks in one native transaction", async () => {

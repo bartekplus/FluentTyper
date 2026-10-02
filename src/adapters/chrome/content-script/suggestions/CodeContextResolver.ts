@@ -30,7 +30,7 @@ export function isWordInputProxy(element: HTMLElement): boolean {
   return (
     /^WACViewPanel_(?:FootnoteEndnoteEditControl_)?(?:EditingElement|ClipboardElement)$/.test(
       element.id,
-    ) && !!element.closest("#WACViewPanel")
+    ) && !!element.closest("#WACViewPanel, #WACViewPanel_FootnoteEndnoteEditControl")
   );
 }
 

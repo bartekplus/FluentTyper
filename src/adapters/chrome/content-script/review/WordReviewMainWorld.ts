@@ -5,7 +5,7 @@ import {
   isGraphemeBoundary,
 } from "@core/domain/grammar/review/textRanges";
 import { isCredentialField } from "../suggestions/FieldEligibility";
-import { isNonWritingControl } from "../suggestions/CodeContextResolver";
+import { isNonWritingControl, isWordInputProxy } from "../suggestions/CodeContextResolver";
 import {
   wordEditor,
   WORD_INPUT_ID,
@@ -174,7 +174,7 @@ export function installWordReviewMainWorld(doc: Document = document): () => void
     null;
   let composing = false;
   const composition = (event: Event) => {
-    if ((event.target as Element | null)?.id !== WORD_INPUT_ID) return;
+    if (!(event.target instanceof HTMLElement) || !isWordInputProxy(event.target)) return;
     composing = event.type === "compositionstart";
     pending = null;
   };

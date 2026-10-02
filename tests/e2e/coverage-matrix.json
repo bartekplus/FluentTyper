@@ -4736,6 +4736,11 @@
           "layer": "unit",
           "file": "tests/WordReview.test.ts",
           "test": "Word paragraph offsets read linear native ranges and retain gap and ordering checks"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/WordReview.test.ts",
+          "test": "Word highlights map sibling footnote views and active non-header stories"
         }
       ]
     }
