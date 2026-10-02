@@ -47,7 +47,8 @@ const SET_OFF =
 const LINKING =
   "(?:Jednak|Jednakże|Poza tym|Ponadto|Natomiast|Dlatego|Dlatego też|Zatem|Toteż|Wobec tego)";
 const RELATIVE = "który|która|które|którego|której|któremu|którą|którym|których|którymi|którzy";
-const PRONOUN_HEAD = "ktoś|coś|ten|ta|ci|tego|tym|temu|wszystko|wszystkiego|każdy|nic|niczego";
+const PRONOUN_HEAD =
+  "ktoś|coś|ten|ta|ci|tego|tym|temu|wszystko|wszystkiego|wszystkim|wszystkiemu|każdy|nic|niczego";
 const PRONOUN_RELATIVE = "kto|kogo|komu|kim|czego|czym|czemu|co|czyj\\p{L}*";
 
 export const FRAMES: readonly CommaFrame[] = [
@@ -188,28 +189,48 @@ export const FRAMES: readonly CommaFrame[] = [
       return verb === "to" || finiteVerb(verb) ? "" : null;
     },
   },
-  // "gruszek, ani jabłek", "gruszek, lub jabłek": no comma before a single joining conjunction.
+  // "gruszek, ani jabłek", "gruszek, i jabłek": no comma before a single joining conjunction
+  // between two nouns, nor between two verbs of one sentence ("Kupiłem chleb, oraz zjadłem").
   {
     ruleId: EXTRA,
     messageKey: "review_msg_pl_extra_comma",
     regex: new RegExp(
-      `(?<![\\p{L}])(?<left>\\p{Ll}{3,})(?<target>,)${SP}(?<conj>ani|ni|lub|albo|bądź|oraz)${SP}(?<right>\\p{Ll}{3,})${END}`,
+      `(?<![\\p{L}])(?<left>\\p{Ll}{3,})(?<target>,)${SP}(?<conj>ani|ni|lub|albo|bądź|oraz|i)${SP}(?<right>\\p{Ll}{3,})${END}`,
       "gud",
     ),
     fix: (m, ctx) => {
       const { left, conj, right } = m.groups!;
-      const a = nounTags(left);
-      const b = nounTags(right);
-      // The same case, in either number ("czasu, ani pieniędzy").
-      const fold = (tags: number) => (tags | (tags >> 7)) & 0x7f;
-      if (!onlyNoun(a) || !onlyNoun(b) || !(fold(a) & fold(b))) return null;
-      // A repeated conjunction ("ani X, ani Y") keeps its comma.
       const sentence = ctx.text
         .slice(Math.max(0, m.index - 120), m.index)
         .split(/[.!?;:\n]/u)
         .at(-1)!;
-      return new RegExp(`(?<![\\p{L}])${conj}(?![\\p{L}])`, "iu").test(sentence) ? null : "";
+      // A repeated conjunction ("ani X, ani Y") keeps its comma.
+      if (new RegExp(`(?<![\\p{L}])${conj}(?![\\p{L}])`, "iu").test(sentence)) return null;
+      const a = nounTags(left);
+      const b = nounTags(right);
+      // The same case, in either number ("czasu, ani pieniędzy").
+      const fold = (tags: number) => (tags | (tags >> 7)) & 0x7f;
+      if (onlyNoun(a) && onlyNoun(b) && fold(a) & fold(b)) return "";
+      // Two verbs: the comma may close an inserted clause, so only with no other comma before
+      // and a verb in the first part ("Wstał, który…, i wyszedł" keeps it). "ani" stays out:
+      // "Nie oddał, ani nie przeprosił" may stress the second denial.
+      if (conj === "ani" || conj === "ni" || !finiteVerb(right) || sentence.includes(","))
+        return null;
+      return (sentence.match(/\p{L}+/gu) ?? []).some((word) => finiteVerb(word.toLowerCase()))
+        ? ""
+        : null;
     },
+  },
+  // "Oto do czego to prowadzi" -> "Oto, do czego": an indirect question after "oto" ("Oto jak…"
+  // reads as one phrase).
+  {
+    ruleId: MISSING,
+    messageKey: "review_msg_pl_missing_comma",
+    regex: new RegExp(
+      `${CLAUSE_START}(?<target>Oto)(?=${SP}(?:(?:${PREPOSITIONS})${SP})?(?:co|czego|czemu|czym|kto|kogo|komu|kim|gdzie|dlaczego|dokąd|skąd)${SP}\\p{L})`,
+      "gud",
+    ),
+    fix: (m) => `${m.groups!.target},`,
   },
 ];
 
