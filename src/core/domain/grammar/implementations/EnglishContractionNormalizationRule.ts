@@ -83,7 +83,8 @@ export function normalizeContractionToken(token: string, beforeToken: string): s
     // Only a capitalized word on the same line suggests a name; one that
     // merely ends the previous line says nothing about this token.
     const before = beforeToken.slice(lineStart).trimEnd();
-    if (/[A-Z][a-z]*$/.test(before)) {
+    // An initial counts too: "Andrew D. Ive".
+    if (/(?:[A-Z][a-z]*|\b[A-Z]\.)$/.test(before)) {
       return null;
     }
   }

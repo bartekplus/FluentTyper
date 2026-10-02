@@ -26,6 +26,35 @@ export function hasUserOrCasedWord(ctx: DetectContext, text: string): boolean {
   );
 }
 
+/** Thrown by detectAll when a part failed: the scan keeps the other parts' findings. */
+export class PartialDetection extends Error {
+  constructor(
+    readonly findings: RawFinding[],
+    cause: unknown,
+  ) {
+    super("A detector part failed", { cause });
+  }
+}
+
+/** Runs every part; one part throwing loses only its own findings, and the entry still fails. */
+export function detectAll<F extends RawFinding>(
+  ctx: DetectContext,
+  parts: readonly ((ctx: DetectContext) => F[])[],
+): F[] {
+  const findings: F[] = [];
+  let failed: { cause: unknown } | undefined;
+  for (const detect of parts) {
+    try {
+      findings.push(...detect(ctx));
+    } catch (cause) {
+      if (cause instanceof PartialDetection) findings.push(...(cause.findings as F[]));
+      failed ??= { cause };
+    }
+  }
+  if (failed) throw new PartialDetection(findings, failed.cause);
+  return findings;
+}
+
 // String patterns come from static rule tables, so the cache stays bounded.
 const COMPILED = new Map<string, RegExp>();
 // A regex mid-scan in an unfinished generator; a nested scan of it gets its own copy.
@@ -126,12 +155,15 @@ export function* frameMatches(
   try {
     regex.lastIndex = Math.max(0, ctx.from - 256);
     for (let m = regex.exec(ctx.scanText); m && m.index < ctx.to; m = regex.exec(ctx.scanText)) {
-      const start =
-        owner === null
-          ? ctx.from
-          : typeof owner === "string"
-            ? m.indices!.groups![owner][0]
-            : owner(m);
+      let start: number;
+      if (owner === null) start = ctx.from;
+      else if (typeof owner === "string") {
+        const [ownerStart, ownerEnd] = m.indices!.groups![owner];
+        // Trailing context after the owner may open the next frame ("a cats is"):
+        // resume right after the owner rather than after the whole match.
+        if (ownerEnd < m.index + m[0].length) regex.lastIndex = Math.max(m.index + 1, ownerEnd);
+        start = ownerStart;
+      } else start = owner(m);
       if (start < ctx.from || start >= ctx.to) continue;
       if (gluedAfter(ctx.text, m.index + m[0].length) || namedExampleBefore(ctx.text, m.index))
         continue;

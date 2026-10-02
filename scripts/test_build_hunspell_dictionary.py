@@ -20,7 +20,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from build_hunspell_dictionary import _clean_ayaspell_dictionary  # noqa: E402
+from build_hunspell_dictionary import _clean_ayaspell_dictionary, convert_dictionary_to_utf8  # noqa: E402
 
 # A reduced slice of the real AyaSpell build dict: roll-up header, section
 # separators, a section-name line, standalone comment lines, and entries that
@@ -95,6 +95,50 @@ class DictionaryCleanerTest(unittest.TestCase):
     def test_header_count_is_rewritten(self) -> None:
         lines = self.cleaned_lines()
         self.assertEqual(self.dic.read_text(encoding="utf-8").splitlines()[0], str(len(lines)))
+
+
+class Utf8ConversionTest(unittest.TestCase):
+    """VERO pt_BR ships Latin-1 with Latin-1 affix flags; Presage speaks UTF-8."""
+
+    AFF = "SET ISO8859-1\r\nTRY ãé\r\nSFX à Y 1\r\nSFX à 0 ção .\r\n"
+    DIC = "1\r\ncora/à\r\n"
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory(prefix="hsp_utf8_test_")
+        self.tmp = Path(self._tmp.name)
+        self.aff = self.tmp / "pt_BR.aff"
+        self.dic = self.tmp / "pt_BR.dic"
+        self.aff.write_bytes(self.AFF.encode("iso-8859-1"))
+        self.dic.write_bytes(self.DIC.encode("iso-8859-1"))
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+
+    def test_converts_to_utf8_with_utf8_flags(self) -> None:
+        convert_dictionary_to_utf8(self.aff, self.dic)
+        aff = self.aff.read_bytes().decode("utf-8")
+        self.assertTrue(aff.startswith("SET UTF-8\r\nFLAG UTF-8\r\nTRY ãé\r\n"))
+        self.assertIn("SFX à 0 ção .", aff)
+        self.assertEqual(self.dic.read_bytes().decode("utf-8"), self.DIC)
+
+    def test_is_idempotent(self) -> None:
+        convert_dictionary_to_utf8(self.aff, self.dic)
+        before = (self.aff.read_bytes(), self.dic.read_bytes())
+        convert_dictionary_to_utf8(self.aff, self.dic)
+        self.assertEqual((self.aff.read_bytes(), self.dic.read_bytes()), before)
+
+    def test_accented_forms_spell_through_hunspell(self) -> None:
+        hunspell = shutil.which("hunspell")
+        if not hunspell:
+            self.skipTest("hunspell binary not available")
+        convert_dictionary_to_utf8(self.aff, self.dic)
+        proc = subprocess.run(
+            [hunspell, "-d", str(self.tmp / "pt_BR"), "-l", "-i", "utf-8"],
+            input="coração\ncora\ncoracao\n",
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(set(proc.stdout.split()), {"coracao"})
 
 
 class HunspellRoundTripTest(unittest.TestCase):

@@ -36,3 +36,11 @@ test("an abandoned scan leaves the pattern usable", () => {
   open.next();
   expect(starts()).toEqual([3, 16, 28]);
 });
+
+test("trailing context after the owner can open the next frame", () => {
+  // Each frame owns a word and reads the next one: "saw it", then "it. They".
+  const owners = [...frameMatches(ctx, "(?<target>\\p{L}+)[ .]+(?<next>\\p{L}+)")].map(
+    (m) => m.groups!.target,
+  );
+  expect(owners).toEqual(["We", "saw", "it", "They", "saw", "it", "You", "saw"]);
+});

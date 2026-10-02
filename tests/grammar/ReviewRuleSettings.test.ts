@@ -9,6 +9,11 @@ import {
 import { resolveGrammarRuleSelection } from "../../src/core/domain/grammar/GrammarRuleSettings";
 
 const OPTIONAL_REVIEW_IDS: readonly string[] = [
+  "germanAbbreviationSpacing",
+  "germanQuestionMarks",
+  "germanStraightQuotes",
+  "polishQuotes",
+  "spanishQuotes",
   "styleRedundancy",
   "styleLongSentence",
   "ellipsisShortcut",
@@ -20,10 +25,19 @@ const OPTIONAL_REVIEW_IDS: readonly string[] = [
   "styleNoOxfordComma",
   "styleAlternativePhrasing",
   "englishPossibleErrors",
+  "englishTypography",
+  "stylePassiveVoice",
+  "styleIntroductoryComma",
   "englishAmericanSpelling",
   "englishBritishSpelling",
   "styleWordChoice",
   "styleSpelledNumbers",
+  "greekStrictFinalNu",
+  "greekPunctuation",
+  "portugueseTypographyStyle",
+  "portugueseAO90",
+  "frenchMissingNe",
+  "frenchOrdinals",
 ];
 const DEFAULT_REVIEW_IDS = REVIEW_SUPPORTED_RULE_IDS.filter(
   (id) => !OPTIONAL_REVIEW_IDS.includes(id),

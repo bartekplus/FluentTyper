@@ -283,7 +283,7 @@ const SLASH_START = (pattern: string) =>
  * before `next`. Checking `next` first keeps it off long runs of spaces, which it would
  * reread at every position in JavaScriptCore.
  */
-const atClause = (next: string) => `(?=${next})(?<=(?:^|[.!?,;:(\\n])[ \\t\\u00a0"“'‘]*)`;
+const atClause = (next: string) => `(?=${next})(?<=(?:^|[.!?,;:(\\n])[ \\t\\u00a0"“'‘]{0,8})`;
 const SUBJECT = "I|you|we|they|he|she|it";
 const BE_FORM =
   "am|is|are|was|were|be|been|being|(?:I|you|we|they|he|she|it|that|there|who|what|this)['’](?:m|re|s)";
@@ -612,7 +612,7 @@ const FRAMES: readonly Frame[] = [
     // "you out to be" is "ought"; "made it out to be" and "turned out to be" stay.
     rule: TYPO,
     cue: ["out"],
-    pattern: `(?=${SUBJECT})(?<=(?:^|[.!?;:,(][ \\t\\u00a0]*|(?<![\\p{L}'’])(?:as|then|so|and|but|or|if|that|which|because|since|when|while|though|although|what|how)${S}))(?:${SUBJECT})${S}(?<target>out)${S}to${S}be${E}`,
+    pattern: `(?=${SUBJECT})(?<=(?:^|[.!?;:,(][ \\t\\u00a0]{0,8}|(?<![\\p{L}'’])(?:as|then|so|and|but|or|if|that|which|because|since|when|while|though|although|what|how)${S}))(?:${SUBJECT})${S}(?<target>out)${S}to${S}be${E}`,
     fix: "ought",
   },
   {
@@ -778,10 +778,11 @@ const FRAMES: readonly Frame[] = [
     fix: "could",
   },
   {
-    // "to never to do": one "to" too many.
+    // "to never to do": one "to" too many. "You shouldn't have to just to get by" elides
+    // the first verb, and "set it to always to be safe" names a value.
     rule: CONTEXT,
     cue: ["to"],
-    pattern: `(?<target>(?<first>to)${S}(?<adverb>[a-z]+)${S}to)${S}(?<verb>[a-z]+)${E}`,
+    pattern: `${notAfter("have|has|had|having|ought|got|need|needs|want|wants|going|condition|option|setting|mode")}(?<target>(?<first>to)${S}(?<adverb>[a-z]+)${S}to)${S}(?<verb>[a-z]+)${E}`,
     fix: (m) => {
       const { first, adverb, verb } = m.groups!;
       if (!ADVERB_SLOT.test(adverb) && !(info(adverb)?.adverb && /ly$/i.test(adverb))) return null;
