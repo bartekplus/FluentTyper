@@ -3,6 +3,7 @@ import type { AddressInfo } from "node:net";
 import { execFileSync } from "node:child_process";
 import { mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import { isReviewWriteComplete } from "./review-write-state.mjs";
 import {
   launchBrowser,
   getBackgroundContext,
@@ -188,12 +189,40 @@ try {
     }, selector);
   evidence.apply = await controlPoint(".card [data-action=apply]");
   await clickReviewControl(page, ".card [data-action=apply]");
-  await sleep(700);
-  await shot("08-review-one-fixed", { panel: await readReviewPanel(page) });
+  const oneFixed = await waitUntil(
+    "written Apply result and refreshed diagnostics",
+    async () => {
+      const panel = await readReviewPanel(page);
+      return isReviewWriteComplete(
+        await text(),
+        panel,
+        "i received the report.We should of reviewed it on monday.",
+        4,
+      )
+        ? panel
+        : false;
+    },
+    { timeoutMs: 10000 },
+  );
+  await shot("08-review-one-fixed", { panel: oneFixed });
   evidence.fixAll = await controlPoint("[data-action=fix-all]");
   await clickReviewControl(page, "[data-action=fix-all]");
-  await sleep(1000);
-  await shot("09-review-safe-fixed", { panel: await readReviewPanel(page) });
+  const allFixed = await waitUntil(
+    "written batch result and resolved diagnostics",
+    async () => {
+      const panel = await readReviewPanel(page);
+      return isReviewWriteComplete(
+        await text(),
+        panel,
+        "I received the report. We should have reviewed it on Monday.",
+        0,
+      )
+        ? panel
+        : false;
+    },
+    { timeoutMs: 10000 },
+  );
+  await shot("09-review-safe-fixed", { panel: allFixed });
   const remaining = await readReviewPanel(page);
   if (remaining.items.length)
     throw new Error("Unexpected remaining findings: " + JSON.stringify(remaining.items));

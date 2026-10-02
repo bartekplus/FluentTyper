@@ -4,7 +4,7 @@ Built with HyperFrames 0.8.106, GSAP 3.14.2, Bun 1.4.2. Product capture source: 
 
 ## Product interactions
 
-`bun run capture` is a runnable assertion-based verification using existing repository E2E helpers. Verified actual prediction list, Tab acceptance, configured snippet expansion, Review opened through its native in-field launcher, categorized findings, selected “teh → the” Apply, remaining Fix all safe and exact final text. Opening Review did not modify the draft. Final draft: **I received the report. We should have reviewed it on Monday.** All captures and timings are local and frozen before rendering; no model or remote operation is a render dependency. `evidence/interactions.json` stores exact states, suggestions, panel text, category marks and button coordinates.
+`bun run capture` is a runnable assertion-based verification using existing repository E2E helpers. Verified actual prediction list, Tab acceptance, configured snippet expansion, Review opened through its native in-field launcher, categorized findings, selected “teh → the” Apply, remaining Fix all safe and exact final text. Opening Review did not modify the draft. After Apply and Fix all safe, capture waits for both the exact written draft and refreshed native diagnostics; fixed-delay expiry cannot certify a stale plate. Regression coverage rejects old draft text, old findings, pending spelling and busy controls. Final draft: **I received the report. We should have reviewed it on Monday.** All captures and timings are local and frozen before rendering; no model or remote operation is a render dependency. `evidence/interactions.json` stores exact states, suggestions, panel text, category marks and button coordinates.
 
 ## HyperFrames checks
 
