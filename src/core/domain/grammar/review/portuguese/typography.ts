@@ -7,7 +7,8 @@ import type { ReviewMessageKey } from "../types";
  * (12hrs -> 12h, 14:30 hrs -> 14:30), the ordinal indicator used as a degree
  * sign (25ºC) and the reverse (o 8° colocado), ordinals typed with a letter
  * (o 12o -> 12º), a capital K in units (30 Km) and plain exponents (2 m3 -> m³).
- * portugueseTypographyStyle (opt-in): the × sign and chemical subscripts (H2O -> H₂O).
+ * portugueseTypographyStyle (opt-in): the × sign, chemical subscripts (H2O -> H₂O) and the
+ * en dash between a Brazilian city and its state code (Niterói/RJ -> Niterói–RJ).
  */
 
 type Frame = {
@@ -29,6 +30,11 @@ const ORDINAL: Record<string, string> = { o: "º", a: "ª", os: "ºs", as: "ªs"
 const ARTICLE =
   "(?:[oaOA]s?|d[oa]s?|n[oa]s?|ao|aos|à|às|pel[oa]s?|seus?|suas?|meu|minha|nosso|nossa|est[ea]|ess[ea])";
 const MASCULINE = "(?:[oO]s?|dos?|nos?|aos?|pelos?|seus?|meu|nosso|este|esse|aquele)";
+// The 27 Brazilian federative units.
+const UF = "(?:AC|AL|AP|AM|BA|CE|DF|ES|GO|MA|MT|MS|MG|PA|PB|PR|PE|PI|RJ|RN|RS|RO|RR|SC|SP|SE|TO)";
+/** "Niterói/RJ": a place and its state code, prose rather than a path. */
+export const PLACE_STATE_TOKEN = new RegExp(`^\\p{Lu}[\\p{Ll}\\p{M}]+/${UF}$`, "u");
+const CITY = `(?:em|de|para|até)${SPACE}\\p{Lu}[\\p{Ll}\\p{M}]+(?:[ \\t\\u00a0-](?:d[aoe]s?|\\p{Lu}[\\p{Ll}\\p{M}]+)){0,6}`;
 const HOUR_TYPOS = "hrs?|hs|Hrs?|Hs|HRS?|HS";
 // Element symbols; formulas() adds the guards that keep names and models out.
 const ELEMENT =
@@ -130,6 +136,21 @@ const STYLE: Frame[] = [
   {
     pattern: `(?!0[xX])${NUM}(?<target>${GAP}[xX*]${GAP})(?=\\d)`,
     replace: (m) => m.groups!.target.replace(/[xX*]/, "×"),
+    ruleId: "portugueseTypographyStyle",
+    messageKey: "review_msg_pt_typography_style",
+  },
+  // "em Niterói/RJ", "de Niterói - RJ", "para Niterói (RJ)": a city and its state take an
+  // en dash. Only after a place preposition: "Gabeira (RJ)" names a politician's state. A
+  // bare hyphen stays: "Águia de Marabá-PA" names a club.
+  {
+    pattern: `${CITY}(?<target>/|[ \\t\\u00a0][-–—][ \\t\\u00a0])(?=${UF}(?![\\p{L}\\p{N}/-]))`,
+    replace: "–",
+    ruleId: "portugueseTypographyStyle",
+    messageKey: "review_msg_pt_typography_style",
+  },
+  {
+    pattern: `${CITY}(?<target>[ \\t\\u00a0]?\\(${UF}\\))`,
+    replace: (m) => `–${m.groups!.target.trim().slice(1, 3)}`,
     ruleId: "portugueseTypographyStyle",
     messageKey: "review_msg_pt_typography_style",
   },
