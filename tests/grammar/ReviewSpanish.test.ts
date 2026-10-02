@@ -517,6 +517,31 @@ test("Spanish checks run only on Spanish text and are on by default", () => {
   }
 });
 
+test("an impossible Spanish date is flagged without a guessed fix", () => {
+  for (const text of [
+    "Llegó el 34 de marzo.",
+    "La cita es el 14/45/2025.",
+    "Firmado el 33.12.2020.",
+  ]) {
+    const found = findings("spanishTypography", text);
+    expect(found).toHaveLength(1);
+    expect(found[0].warningOnly).toBe(true);
+  }
+  for (const text of [
+    "Vendimos 45 de marzo y 30 de abril.",
+    "Cédula: 6-51-2032",
+    "Pedido N° 99/73/2022",
+    "Pagó el 12/31/2025.",
+  ])
+    expect(findings("spanishTypography", text)).toEqual([]);
+  expect(
+    applyEdits(
+      "Nació el 31.11.1989.",
+      findings("spanishTypography", "Nació el 31.11.1989.")[0].alternatives[0].edits,
+    ),
+  ).toBe("Nació el 30.11.1989.");
+});
+
 test("a user-dictionary word and a cited example stay as typed", () => {
   expect(findings("spanishAccents", "Mi hermano esta en casa.", ["esta"])).toEqual([]);
   expect(findings("spanishAccents", "Escribe la palabra «esta en» con cuidado.")).toEqual([]);
