@@ -3,7 +3,9 @@ import {
   Around,
   attributeOf,
   CLITICS,
+  CONJUNCTIONS,
   DETERMINERS,
+  INVARIANT,
   isInfinitive,
   PREPOSITIONS,
   replaceToken,
@@ -14,9 +16,11 @@ import {
 } from "./common";
 import {
   finiteVerb,
+  genderedForm,
   isGenderedEntry,
   isGerund,
   isNoun,
+  participle,
   secondPersonVerb,
   subjunctiveLike,
 } from "./lexicon";
@@ -342,6 +346,48 @@ function subjunctiveSlot(at: Around): boolean {
   );
 }
 
+// What follows an answer's "Sí,": "Sí, me gusta", "Sí, pero…", "Sí, claro".
+const ANSWER_AFTER = words(
+  "pero claro gracias señor señora vale bueno ya también me te nos lo la le es son está hay " +
+    "tengo quiero puedo creo exacto correcto perfecto efectivamente desde seguro",
+);
+const FINITE_FORM = (word: string) => !!word && (FINITE.has(word) || finiteVerb(word));
+const participleOf = (word: string) => !!word && !!participle(word);
+const isPlainInfinitive = (word: string) => /^\p{L}+[aeií]r$/u.test(word) && isInfinitive(word);
+
+/** A comma closes the phrase after tokens[i] before any finite verb: "Aún sin saberlo, se fue". */
+function concessive(at: Around): boolean {
+  for (let k = 1; k <= 6; k++) {
+    const token = at.tokens[at.i + k];
+    if (!token || token.broken || /^[.;:!?]$/u.test(token.text)) return false;
+    if (token.text === ",") return k > 1;
+    if (k > 1 && token.word && FINITE.has(token.lower)) return false;
+  }
+  return false;
+}
+
+/** The sentence ends after tokens[i + k] within a few words, with no comma or finite verb. */
+function endsPlainly(at: Around, k: number): boolean {
+  for (let n = k; n <= k + 5; n++) {
+    const token = at.tokens[at.i + n];
+    if (!token || token.broken || /^[.!?]$/u.test(token.text)) return true;
+    if (!token.word || FINITE.has(token.lower) || finiteVerb(token.lower)) return false;
+  }
+  return false;
+}
+
+/** A finite verb before the clause ends: "pero si hay casos" is a condition. */
+function verbAhead(at: Around): boolean {
+  for (let k = 1; k <= 8; k++) {
+    const token = at.tokens[at.i + k];
+    if (!token || token.broken || /^[.;:!?,]$/u.test(token.text)) return false;
+    const word = token.lower;
+    if (DETERMINERS.has(word) || PREPOSITIONS.has(word) || CLITICS.has(word)) continue;
+    if (token.word && (FINITE.has(word) || (finiteVerb(word) && !isNoun(word)))) return true;
+  }
+  return false;
+}
+
 /** The words of a monosyllable check: [typed, replacement] or null. */
 function monosyllable(at: Around): string | null {
   const word = at.tokens[at.i].lower;
@@ -436,6 +482,22 @@ function monosyllable(at: Around): string | null {
       if (/[áéíóú]/u.test(next) && Object.values(INTERROGATIVE).includes(next)) return "sé";
       if (prev === "lo" || prev === "me")
         return /^(?:te|le|les|lo|la|los|las)$/u.test(next) ? null : "sé";
+      // "Sé de qué hablo": "de" and a question word.
+      if (next === "de" && /^(?:qué|quién|quiénes|dónde|cuál|cuáles)$/u.test(at.next(2)))
+        return "sé";
+      // "yo también sé nadar": a bare infinitive takes no clitic before it.
+      if (isPlainInfinitive(next) && !PREPOSITIONS.has(prev) && prev !== "para") return "sé";
+      // "Sé amable": the imperative of "ser" before an adjective closing the sentence.
+      if (
+        at.starts &&
+        /^\p{Lu}/u.test(at.tokens[at.i].text) &&
+        (INVARIANT.has(next) ||
+          /(?:ble|nte|z)$/u.test(next) ||
+          (!!genderedForm(next) && !participleOf(next))) &&
+        !finiteVerb(next) &&
+        (at.endsAfter(1) || PREPOSITIONS.has(at.next(2)))
+      )
+        return "sé";
       if (!/^(?:no|yo|ya|tampoco|bien)$/u.test(prev)) return null;
       if (ends) return "sé";
       // "no sé la lección", "no sé lo que dices": "se lo/la" with a noun or "que" after.
@@ -476,7 +538,27 @@ function monosyllable(at: Around): string | null {
       // "sí que me gusta", "en sí de alegría".
       if (next === "que" && !at.endsAfter(1) && prev !== "como") return "sí";
       if (prev === "en" && (next === "de" || ends)) return "sí";
+      // "Sí, me gusta.", "Sí, pero…": an answer; "Si, como dices, llueve" opens a condition.
+      if (nextToken?.text === "," && at.starts && ANSWER_AFTER.has(at.next(2))) return "sí";
       if (nextToken?.text === ",") return PLAIN_SI_PREV.has(prev) ? "sí" : null;
+      // "Aquello sí era felicidad": an emphatic yes after a demonstrative subject.
+      if (
+        /^(?:esto|eso|aquello)$/u.test(prev) &&
+        new Around(at.tokens, at.i - 1).starts &&
+        /^(?:es|era|fue|será|sería|está|estaba)$/u.test(next) &&
+        endsPlainly(at, 2)
+      )
+        return "sí";
+      // "No tengo coche, pero sí moto": "pero sí" and a phrase with no verb of its own.
+      if (prev === "pero" && /^(?:a|al|un|una|unos|unas)$/u.test(next) && !verbAhead(at))
+        return "sí";
+      // "«Sí», le dijimos.": closed by its quote.
+      if (
+        /^[»”"]$/u.test(nextToken?.text ?? "") &&
+        /^[«“"]$/u.test(at.tokens[at.i - 1]?.text ?? "") &&
+        at.tokens[at.i + 2]?.text === ","
+      )
+        return "sí";
       return ends ? "sí" : null;
     }
     case "aun":
@@ -486,13 +568,34 @@ function monosyllable(at: Around): string | null {
       if (/^(?:más|menos)$/u.test(prev)) return "aún";
       // "Aún recuerdo", "aún se desconoce": still, before the verb or its clitic.
       if (CLITICS.has(next) && next !== "la" && next !== "las" && next !== "los") return "aún";
+      // "Estaban aún durmiendo": between "estar" and its gerund.
+      if (isGerund(next) && /^est[aá]/u.test(prev)) return "aún";
+      // "aun así", "aun cuando", "aun si" and "aun siendo" (even) take no verb.
+      if (/^(?:así|cuando|si|con|sin|a|al|en)$/u.test(next) || CONJUNCTIONS.has(next)) return null;
+      // "Aún recuerdo aquel día", "que aún lucha": still, before a finite verb, even one that is
+      // also a noun when no comma closes it ("aun niños, trabajaban").
+      if (
+        FINITE_FORM(next) &&
+        !participle(next) &&
+        (!attributeOf(next) || isNoun(next)) &&
+        (!isNoun(next) || (/[oae]$/u.test(next) && at.tokens[at.i + 2]?.text !== ","))
+      )
+        return "aún";
+      // "con los ojos aún abiertos": still, before a participle inside the clause.
+      if (!at.starts && participleOf(next) && at.tokens[at.i + 2]?.text !== ",") return "aún";
       return ends && !at.starts ? "aún" : null;
     case "aún":
       if (prev === "ni") return "aun";
       // "aun así,", "aun si", "aun siendo": even.
       // "más aún si" (even more) keeps the accent.
       if (/^(?:más|menos|mejor|peor|mayor|menor)$/u.test(prev) || /mente$/u.test(prev)) return null;
-      if (next === "si" || next === "cuando" || isGerund(next)) return "aun";
+      // "estaban aún durmiendo" keeps "still" between "estar" and its gerund.
+      if (next === "si" || next === "cuando" || (isGerund(next) && !/^est[aá]/u.test(prev)))
+        return "aun";
+      // "Aún sin saberlo, se fue", "Aún cansado, lo intentó": a concessive phrase opening the
+      // sentence and closed by a comma before its verb.
+      if (at.starts && (PREPOSITIONS.has(next) || participleOf(next)) && concessive(at))
+        return "aun";
       return next === "así" && at.tokens[at.i + 2]?.text === "," ? "aun" : null;
     case "mas":
       // "lo más", "no hay más que", "más tarde": "mas" (but) only starts a clause.

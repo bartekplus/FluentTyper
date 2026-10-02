@@ -422,18 +422,38 @@ for (const word of "los estos esos aquellos ellos nosotros vosotros nuestros vue
 for (const word of "las estas esas aquellas ellas nosotras vosotras nuestras vuestras".split(" "))
   GROUP_GENDER[word] = "f";
 
+const DEFINITE_GROUP = words(
+  "los las estos estas esos esas aquellos aquellas sus mis tus nuestros nuestras vuestros vuestras",
+);
+
 function pickerGroup(ctx: DetectContext, tokens: Token[], i: number): RawFinding | null {
   const picker = PICKER.get(tokens[i].lower);
   if (!picker) return null;
   const at = new Around(tokens, i);
   if (at.next() !== "de") return null;
-  const group = GROUP_GENDER[at.next(2)];
   // "la una de la tarde", "los unos de los otros": not a pick from a group.
   // "número uno de las listas": a numeral.
   const prev = at.prev();
-  if (!group || /^(?:la|las|los|el|lo)$/u.test(prev) || (prev && readNoun(prev))) return null;
-  if (picker.slot % 2 || group === "m") return null;
-  const fix = picker.forms[1 + (picker.slot >= 2 ? 2 : 0)];
+  if (/^(?:la|las|los|el|lo)$/u.test(prev) || (prev && readNoun(prev))) return null;
+  const word = at.next(2);
+  const det = DETERMINER.get(word);
+  // The group's noun, past one adjective: "de sus casas", "de sus mayores riquezas".
+  const nounAt = readNoun(at.next(3)) ? 3 : readNoun(at.next(4)) ? 4 : 0;
+  const noun = nounAt ? readNoun(at.next(nounAt)) : null;
+  let group: Gender | null = GROUP_GENDER[word] ?? null;
+  // A partitive group is definite: "uno de sus casas", but "un año de muchas novedades".
+  if (det && DEFINITE_GROUP.has(word) && noun?.plural) {
+    if (EITHER.has(noun.singular)) return null;
+    const detGender = genderless(det) ? null : det.slot % 2 ? "f" : "m";
+    if (detGender && noun.gender && detGender !== noun.gender) return null;
+    group = detGender ?? noun.gender;
+  } else if (!GROUP_GENDER[word] || (noun && !noun.plural)) return null;
+  if (!group) return null;
+  const feminine = picker.slot % 2 === 1;
+  if (feminine === (group === "f")) return null;
+  // "una de nosotros", "una de mis hermanos": a woman picked from a mixed group of people.
+  if (feminine && (!noun || noun.paired || noun.gender !== "m")) return null;
+  const fix = picker.forms[(feminine ? 0 : 1) + (picker.slot >= 2 ? 2 : 0)];
   return replaceToken(ctx, tokens[i], [fix], RULE, MESSAGE, tokens[i + 2]);
 }
 

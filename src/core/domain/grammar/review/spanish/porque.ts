@@ -1,6 +1,7 @@
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { Around, isInfinitive, replaceToken, tokenize, words, type Token } from "./common";
-import { finiteVerb } from "./lexicon";
+import { readNoun } from "./agreement";
+import { finiteVerb, subjunctiveLike } from "./lexicon";
 
 // porque / porqué / por qué / por que: the conjunction (because), the noun (the reason), the
 // question word (why) and preposition + relative. The frame around each picks the spelling:
@@ -14,7 +15,7 @@ const SINGULAR_DETERMINERS = words(
 const PLURAL_DETERMINERS = words("los unos sus estos esos aquellos mis tus nuestros vuestros");
 // Verbs whose object can be a "why" question: "no entiendo por qué", "dime por qué".
 const KNOWING =
-  /^(?:sé|sabe|sabes|sabemos|saben|sabía|sabías|sabían|saber|supe|supo|pregunto|pregunta|preguntas|preguntan|preguntó|preguntaba|preguntarse|preguntarle|entiendo|entiendes|entiende|entender|comprendo|comprende|comprender|explica|explicar|explícame|explicarme|ignoro|averiguar|imagino|imagina|recuerdo|recuerda|dime|dinos|decirme|decirnos|aquí)$/u;
+  /^(?:sé|sabe|sabes|sabemos|saben|sabía|sabías|sabían|saber|supe|supo|sepa|sepas|sepan|entienda|entiendas|comprenda|pregunto|pregunta|preguntas|preguntan|preguntó|preguntaba|preguntarse|preguntarle|entiendo|entiendes|entiende|entender|comprendo|comprende|comprender|explica|explicar|explícame|explicarme|ignoro|averiguar|imagino|imagina|recuerdo|recuerda|dime|dinos|decirme|decirnos|aquí)$/u;
 // "Dime porque lo has hecho": a command to tell why.
 const TELL = words("dime dinos decirme decirnos explícame explícanos explicarme explicarnos");
 const NEED = words(
@@ -40,9 +41,33 @@ function spellingAt(tokens: Token[], i: number): Spelling | null {
   return null;
 }
 
+// Function words a loose verb reading would count: "no", "me", "una".
+const CLOSED = words("no me te se le les lo la los las nos os un una el ya muy más");
+// Nouns that ask why: "la pregunta es por qué", "no tengo idea de por qué".
+const ASKING_NOUNS = words("pregunta cuestión duda idea misterio incógnita");
+
+/** Two finite verbs before the question closes: a "porque" clause and the main one. */
+function secondVerb(tokens: Token[], from: number): boolean {
+  let verbs = 0;
+  for (let j = from + 1; j < tokens.length && j < from + 16; j++) {
+    const token = tokens[j];
+    if (token.broken || /^[?.!]$/u.test(token.text)) break;
+    if (token.word && finiteVerb(token.lower) && !CLOSED.has(token.lower)) verbs++;
+  }
+  return verbs > 1;
+}
+
 function fixFor(tokens: Token[], i: number, spelling: Spelling): string[] | null {
   const at = new Around(tokens, i);
-  const prev = at.prev();
+  // "entiendo perfectamente por qué": an adverb in -mente between the verb and the question.
+  const skip = /^\p{L}{3,}mente$/u.test(at.prev()) ? 1 : 0;
+  const prev = at.prev(1 + skip);
+  // "¿Porque no viniste?", "¿Y porque no?": a question opening with the word asks why.
+  const opens = tokens[i - 1]?.text === "¿" || (tokens[i - 2]?.text === "¿" && at.prev() === "y");
+  // "la pregunta es por qué", "idea de por qué".
+  const asked =
+    ((prev === "es" || prev === "era") && ASKING_NOUNS.has(at.prev(2 + skip))) ||
+    (prev === "de" && ASKING_NOUNS.has(at.prev(2 + skip)));
   const after = new Around(tokens, spelling.end);
   const next = after.next();
   const closes = after.endsAfter() || next === "de" || next === "del";
@@ -53,19 +78,36 @@ function fixFor(tokens: Token[], i: number, spelling: Spelling): string[] | null
     return spelling.kind !== "porqué" && closes ? ["porqué"] : null;
   if (PLURAL_DETERMINERS.has(prev)) return closes ? ["porqués"] : null;
   if (spelling.kind === "por qué") return null;
+  if (asked) return ["por qué"];
   if (spelling.kind === "porqué") {
     // "¿Y porqué no viniste?", "no entiendo porqué lo hizo": the question word.
-    const question = tokens[i - 1]?.text === "¿" || (tokens[i - 2]?.text === "¿" && prev === "y");
-    if (question || KNOWING.test(prev)) return ["por qué"];
+    if (opens || KNOWING.test(prev)) return ["por qué"];
     // "No vino porqué no pudo": because, or why.
     return finiteVerb(prev) && next && !closes ? ["porque", "por qué"] : null;
   }
   const negated = at.prev(2) === "no" || at.prev(3) === "no";
   if (spelling.kind === "por que") {
-    if (KNOWING.test(prev) || REASON.has(next)) return ["por qué"];
-    return NEED.has(prev) && negated && isInfinitive(next) ? ["por qué"] : null;
+    if (opens || KNOWING.test(prev) || REASON.has(next)) return ["por qué"];
+    if (NEED.has(prev) && negated && isInfinitive(next)) return ["por qué"];
+    // "no le gustan por que sabe…": after a verb, a finite clause is a cause or a question;
+    // a subjunctive after "por que" is a purpose ("lucha por que haya paz").
+    const verb = /^(?:él|ella|ellos|ellas|usted|yo|tú|se|me|te|le|les|lo|la|nos)$/u.test(next)
+      ? after.next(2)
+      : next;
+    return (finiteVerb(prev) || isInfinitive(prev)) &&
+      !readNoun(prev) &&
+      !!verb &&
+      finiteVerb(verb) &&
+      !subjunctiveLike(verb)
+      ? ["porque", "por qué"]
+      : null;
   }
-  // "porque": "dime porque", "no tienes porque preocuparte".
+  // "porque": "dime porque", "no tienes porque preocuparte", "¿Porque no viniste?",
+  // "no sé porque se fue".
+  // "¿Porque no lo hice vas a odiarme?": a cause before the question's own verb.
+  if (opens && next && !secondVerb(tokens, spelling.end)) return ["por qué"];
+  const subject = at.prev(2 + skip) === "se" ? 3 + skip : 2 + skip;
+  if (KNOWING.test(prev) && at.prev(subject) === "no" && next) return ["por qué"];
   if (TELL.has(prev) && next) return ["por qué"];
   return NEED.has(prev) && negated && isInfinitive(next) ? ["por qué"] : null;
 }
