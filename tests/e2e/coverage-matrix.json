@@ -3,6 +3,37 @@
   "capturedAt": "2026-09-15",
   "behaviors": [
     {
+      "id": "smart_field_activation",
+      "description": "Writing field eligibility is separate from active website conflicts; sessions yield without key stealing, resume on typing, and restore explicit origin-scoped saved field choices.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionManagerRuntime.test.ts",
+          "test": "pauses an attached writing field for a late popup, rejects stale answers and resumes on typing"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/FieldPreferences.test.ts",
+          "test": "trusted origin scope, serialization, no raw URLs and settings-only management"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Writing fields automatically yield to site suggestions and resume after closure"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Remembered writing fields survive reload and can be forgotten in settings"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Native datalists only hold writing fields while usable options exist"
+        }
+      ]
+    },
+    {
       "id": "live_grammar_proposals",
       "description": "While typing, a one-at-a-time Review fix ending before the caret word appears after a pause as the popup's last row; it is never preselected (Tab/Enter stay with suggestions or the page), applies only when picked after re-detection, is dismissed for good by typing on or Esc, and is off in sensitive fields, code mode and when the setting is off.",
       "coverage": [
@@ -1499,7 +1530,7 @@
     },
     {
       "id": "input_type_eligibility",
-      "description": "Extension attaches to email and url inputs; does not attach to tel, disabled, or readonly inputs.",
+      "description": "Structured email, URL and telephone fields stay manual; disabled and readonly inputs remain inactive.",
       "coverage": [
         {
           "layer": "unit",
@@ -1514,7 +1545,7 @@
         {
           "layer": "e2e-smoke",
           "file": "tests/e2e/smoke.e2e.test.ts",
-          "test": "attaches to email and url inputs"
+          "test": "keeps email and url inputs manual by default"
         },
         {
           "layer": "e2e-smoke",
@@ -3531,7 +3562,7 @@
     },
     {
       "id": "local_ai_setup_offer",
-      "description": "The Review panel shows a one-time Local AI setup offer with the download size; \"Not now\" dismisses it for good; \"Set up local AI…\" opens the options Local AI section focused, whose page only asks for status and installs only after an inline confirm.",
+      "description": "The Review panel shows a one-time Local AI setup offer with the download size; \"Not now\" dismisses it for good; \"Set up local AI\u2026\" opens the options Local AI section focused, whose page only asks for status and installs only after an inline confirm.",
       "coverage": [
         {
           "layer": "e2e-full",
@@ -3546,7 +3577,7 @@
         {
           "layer": "e2e-full",
           "file": "tests/e2e/local-ai.e2e.test.ts",
-          "test": "\"Set up local AI…\" opens the Local AI settings; installing needs the inline confirm"
+          "test": "\"Set up local AI\u2026\" opens the Local AI settings; installing needs the inline confirm"
         },
         {
           "layer": "unit",

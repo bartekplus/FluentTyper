@@ -1,3 +1,4 @@
+import { fieldSignatureSource, hashFieldSignature } from "./FieldSignature";
 import { acceptKeyLabels } from "@core/domain/suggestionPopup/keyHints";
 import { getDeepActiveElement, isInDocument } from "@core/application/dom-utils";
 import { createLogger } from "@core/application/logging/Logger";
@@ -10,7 +11,12 @@ import {
   type ManualAttachTarget,
   resolveManualAttachIconUrl,
 } from "./ManualAttachUiManager";
-import { NativeAutocompleteConflictDetector } from "./NativeAutocompleteConflictDetector";
+import {
+  hasActiveAutocompletePopup,
+  isSearchField,
+  reservesAutocompleteArrow,
+  NativeAutocompleteConflictDetector,
+} from "./NativeAutocompleteConflictDetector";
 import { isVisiblyInteractive, SuggestionElementDiscovery } from "./SuggestionElementDiscovery";
 import { SuggestionEntrySession } from "./SuggestionEntrySession";
 import { SuggestionEntryRegistry } from "./SuggestionEntryRegistry";
@@ -93,11 +99,17 @@ export class SuggestionManagerRuntime {
 
   private lang: string;
 
+  private fieldPreferenceEpoch = 0;
+  private savedSignatures = new Set<string>();
+  private readonly savedElements = new WeakMap<HTMLElement, string>();
+  private readonly pendingSignatures = new WeakMap<HTMLElement, string>();
+  private readonly rememberField: SuggestionManagerOptions["rememberField"];
   private activeEntryId: number | null = null;
   /** Editors under review: no live grammar, predictions or suggestion UI until resumed. */
   private readonly reviewSuspended = new WeakSet<HTMLElement>();
 
   constructor(options: SuggestionManagerOptions) {
+    this.rememberField = options.rememberField;
     this.discovery = new SuggestionElementDiscovery({
       selectors: options.selectors,
       isCandidateElement: this.isStructurallyEligibleElement.bind(this),
@@ -124,6 +136,18 @@ export class SuggestionManagerRuntime {
       onActivate: this.handleManualAttachActivate.bind(this),
     });
 
+    if (options.loadFieldPreferences) {
+      const epoch = this.fieldPreferenceEpoch;
+      void options
+        .loadFieldPreferences()
+        .then((signatures) => {
+          if (epoch !== this.fieldPreferenceEpoch) return;
+          this.savedSignatures = new Set(signatures);
+          this.queryAndAttachHelper();
+        })
+        .catch(() => undefined);
+    }
+
     this.lang = options.lang;
     this.grammarCoordinator = new SuggestionGrammarCoordinator({
       enabledGrammarRules: options.enabledGrammarRules,
@@ -134,6 +158,7 @@ export class SuggestionManagerRuntime {
     this.predictionCoordinator = new SuggestionPredictionCoordinator({
       debounceByAction: SUGGESTION_DEBOUNCE_BY_ACTION,
       getPrediction: options.getPrediction,
+      canPredict: (entry) => this.getSession(entry.id)?.refreshInteraction() ?? false,
       lang: this.lang,
       minWordLengthToPredict: options.minWordLengthToPredict,
       separatorRegex: LANG_SEPARATOR_CHARS_REGEX[this.lang] || /\s+/,
@@ -146,6 +171,14 @@ export class SuggestionManagerRuntime {
       ),
       isSeparator: this.predictionCoordinator.isSeparator.bind(this.predictionCoordinator),
       contentEditableAdapter: this.contentEditableAdapter,
+      canEdit: (entry, automatic, edit) => {
+        const session = this.getSession(entry.id);
+        return (
+          !!session?.refreshInteraction() &&
+          (!automatic ||
+            (!isSearchField(entry.elem) && (!edit || session.allowsAutomaticEdit(edit))))
+        );
+      },
     });
     this.keyboardHandler = new SuggestionKeyboardHandler({
       autocompleteOnSpace: options.autocomplete,
@@ -217,6 +250,7 @@ export class SuggestionManagerRuntime {
   }
 
   public detachAllHelpers(): void {
+    this.fieldPreferenceEpoch += 1;
     for (const id of [...this.entryRegistry.ids()]) {
       this.detachHelper(id);
     }
@@ -240,6 +274,12 @@ export class SuggestionManagerRuntime {
         this.syncManualAttachUi(entry.elem);
       }
     }
+    const active = this.getActiveEntry();
+    if (active) this.getSession(active.id)?.refreshInteraction();
+    this.manualAttachUiManager.pruneNotices();
+    for (const element of [...this.manualAttachUiManager.targets()]) {
+      if (!this.hasNativeAutocompleteConflict(element)) this.attachSession(element);
+    }
     this.pruneManualAttachUi();
   }
 
@@ -247,6 +287,7 @@ export class SuggestionManagerRuntime {
     let attachedAny = false;
 
     for (const candidate of this.discovery.queryCandidates(root)) {
+      this.restoreFieldPreference(candidate);
       attachedAny = this.attachSession(candidate) || attachedAny;
     }
 
@@ -265,7 +306,7 @@ export class SuggestionManagerRuntime {
   public handleEarlyTabAcceptRequest(entryId: string): boolean {
     const entry = this.resolveEntryForBridgeEntryId(entryId);
     const session = entry ? this.getSession(entry.id) : undefined;
-    if (!entry || !session) {
+    if (!entry || !session || !session.refreshInteraction()) {
       return false;
     }
 
@@ -343,37 +384,85 @@ export class SuggestionManagerRuntime {
   }
 
   private isStructurallyEligibleElement(elem: HTMLElement): elem is SuggestionElement {
-    if (TextTargetAdapter.isTextArea(elem)) {
-      return !elem.disabled && !elem.readOnly;
-    }
-
-    if (TextTargetAdapter.isInput(elem)) {
-      if (elem.disabled || elem.readOnly) {
-        return false;
-      }
-      const inputType = (elem.type || "text").toLowerCase();
-      if (!["text", "search", "", "email", "url"].includes(inputType)) {
-        return false;
-      }
-      const blocked = `${elem.name} ${elem.id}`.toLowerCase();
-      return !blocked.includes("password") && !blocked.includes("username");
-    }
-
-    return elem.isContentEditable;
+    return this.nativeAutocompleteConflictDetector.classify(elem).kind !== "blocked";
   }
 
   private isManualAttachSupportedElement(elem: SuggestionElement): elem is ManualAttachTarget {
     return TextTargetAdapter.isTextValue(elem) || elem.isContentEditable;
   }
 
+  private hasFieldActivation(element: SuggestionElement): boolean {
+    return (
+      this.forcedNativeConflictElements.has(element) ||
+      (this.savedElements.has(element) &&
+        this.savedElements.get(element) === fieldSignatureSource(element))
+    );
+  }
+
+  private restoreFieldPreference(element: SuggestionElement): void {
+    if (!this.savedSignatures.size || this.hasFieldActivation(element)) return;
+    const source = fieldSignatureSource(element);
+    if (!source || this.pendingSignatures.get(element) === source) return;
+    this.pendingSignatures.set(element, source);
+    const epoch = this.fieldPreferenceEpoch;
+    void hashFieldSignature(source)
+      .then((signature) => {
+        if (
+          epoch !== this.fieldPreferenceEpoch ||
+          source !== fieldSignatureSource(element) ||
+          !this.savedSignatures.has(signature)
+        )
+          return;
+        this.savedElements.set(element, source);
+        this.attachSession(element);
+      })
+      .catch(() => undefined);
+  }
+
+  private showActivationChoice(element: ManualAttachTarget): void {
+    if (!this.rememberField) return;
+    const source = fieldSignatureSource(element);
+    this.manualAttachUiManager.showNotice(
+      element,
+      source
+        ? "Writing assistance enabled for this visit."
+        : "Enabled for this visit. This field has no unique stable identifier to remember.",
+      source
+        ? async () => {
+            if (
+              !this.isStructurallyEligibleElement(element) ||
+              source !== fieldSignatureSource(element)
+            )
+              throw new Error("This field changed. Enable it again before remembering it.");
+            const signature = await hashFieldSignature(source);
+            if (
+              source !== fieldSignatureSource(element) ||
+              !this.isStructurallyEligibleElement(element)
+            )
+              throw new Error("This field changed.");
+            const eligibility = this.nativeAutocompleteConflictDetector.classify(element);
+            const label =
+              eligibility.kind === "manual"
+                ? {
+                    structured: "Structured field",
+                    selector: "Selection field",
+                    browser: "Browser suggestions field",
+                  }[eligibility.reason]
+                : "Writing field";
+            await this.rememberField!(signature, label);
+          }
+        : undefined,
+    );
+  }
+
   private hasNativeAutocompleteConflict(elem: SuggestionElement): boolean {
-    return this.nativeAutocompleteConflictDetector.isNativeAutocompletePreferred(elem);
+    return this.nativeAutocompleteConflictDetector.classify(elem).kind === "manual";
   }
 
   private shouldDemoteAttachedElement(elem: SuggestionElement): boolean {
     return (
       this.preferNativeAutocomplete &&
-      !this.forcedNativeConflictElements.has(elem) &&
+      !this.hasFieldActivation(elem) &&
       this.hasNativeAutocompleteConflict(elem)
     );
   }
@@ -382,7 +471,7 @@ export class SuggestionManagerRuntime {
     return (
       this.preferNativeAutocomplete &&
       !this.entryRegistry.isAttached(elem) &&
-      !this.forcedNativeConflictElements.has(elem) &&
+      !this.hasFieldActivation(elem) &&
       this.isManualAttachSupportedElement(elem) &&
       this.hasNativeAutocompleteConflict(elem)
     );
@@ -425,7 +514,10 @@ export class SuggestionManagerRuntime {
       return;
     }
     if (this.shouldShowManualAttachUi(elem)) {
-      this.manualAttachUiManager.ensureForElement(elem);
+      this.manualAttachUiManager.ensureForElement(
+        elem,
+        this.nativeAutocompleteConflictDetector.classify(elem),
+      );
       return;
     }
     this.removeManualAttachUi(elem);
@@ -437,6 +529,7 @@ export class SuggestionManagerRuntime {
       return;
     }
     this.attachSession(elem, { forceNativeConflict: true });
+    this.showActivationChoice(elem);
     try {
       elem.focus({ preventScroll: true });
     } catch {
@@ -477,9 +570,12 @@ export class SuggestionManagerRuntime {
     if (options.forceNativeConflict) {
       this.forcedNativeConflictElements.add(elem);
     } else if (this.shouldShowManualAttachUi(elem)) {
-      this.manualAttachUiManager.ensureForElement(elem);
+      this.manualAttachUiManager.ensureForElement(
+        elem,
+        this.nativeAutocompleteConflictDetector.classify(elem),
+      );
       return false;
-    } else if (this.preferNativeAutocomplete && this.hasNativeAutocompleteConflict(elem)) {
+    } else if (this.shouldDemoteAttachedElement(elem)) {
       return false;
     }
 
@@ -554,6 +650,7 @@ export class SuggestionManagerRuntime {
       String(!TextTargetAdapter.isTextValue(elem)),
     );
     stateHost.setAttribute(EARLY_TAB_ACCEPT_VISIBLE_ATTR, "false");
+    stateHost.setAttribute("data-ft-avoid-conflicts", String(this.preferNativeAutocomplete));
     menu.id = SuggestionMenuView.resolveHostId(id);
     elem.suggestionMenu = menu;
 
@@ -590,6 +687,7 @@ export class SuggestionManagerRuntime {
     stateHost.removeAttribute(EARLY_TAB_ACCEPT_ENABLED_ATTR);
     stateHost.removeAttribute(EARLY_TAB_ACCEPT_BRIDGE_TARGET_ATTR);
     stateHost.removeAttribute(EARLY_TAB_ACCEPT_VISIBLE_ATTR);
+    stateHost.removeAttribute("data-ft-avoid-conflicts");
 
     this.entryRegistry.unregister(id);
     this.sessionRegistry.delete(id);
@@ -598,6 +696,7 @@ export class SuggestionManagerRuntime {
       this.activeEntryId = null;
     }
 
+    this.manualAttachUiManager.removeNotice(entry.elem);
     this.inlinePresenter.clearForEntry(id);
   }
 
@@ -670,6 +769,7 @@ export class SuggestionManagerRuntime {
     if (!entry) {
       return;
     }
+    this.manualAttachUiManager.removeNotice(entry.elem, true);
     this.getSession(id)?.handleBlur({
       dismissEntry: () => this.dismissEntry(entry),
     });
@@ -686,6 +786,7 @@ export class SuggestionManagerRuntime {
     if (!entry) {
       return;
     }
+    if (!this.getSession(id)?.refreshInteraction()) return;
     const inputEvent = event as InputEvent;
     const handled = this.textEditService.tryUndoLastExtensionEditOnBeforeInput(entry, inputEvent, {
       consumeInputEvent: this.consumeCancelableEvent.bind(this),
@@ -719,6 +820,26 @@ export class SuggestionManagerRuntime {
   private buildEntrySession(entry: SuggestionEntry): SuggestionEntrySession {
     return new SuggestionEntrySession({
       entry,
+      onPauseChange: (paused) => {
+        if (
+          paused &&
+          this.isEntryFocused(entry) &&
+          this.isStructurallyEligibleElement(entry.elem) &&
+          hasActiveAutocompletePopup(entry.elem)
+        )
+          this.manualAttachUiManager.showNotice(
+            entry.elem,
+            "Paused while website suggestions are active. Resumes automatically when you continue typing.",
+            undefined,
+            true,
+          );
+        else this.manualAttachUiManager.removeNotice(entry.elem, true);
+      },
+      canInteract: () =>
+        isInDocument(entry.elem) &&
+        this.isStructurallyEligibleElement(entry.elem) &&
+        !this.shouldDemoteAttachedElement(entry.elem) &&
+        !(this.preferNativeAutocomplete && hasActiveAutocompletePopup(entry.elem)),
       editableContextResolver: this.editableContextResolver,
       clearPendingFallback: () => this.clearPendingKeyFallback(entry.id),
       hideMenu: () => this.menuPresenter.hide(entry.menu, entry.list, entry.elem),
@@ -727,7 +848,13 @@ export class SuggestionManagerRuntime {
       showSuggestionFooter: this.showSuggestionFooter,
       inlineSuggestionEnabled: this.inlineSuggestionEnabled,
       predictionCoordinator: this.predictionCoordinator,
-      grammarCoordinator: this.grammarCoordinator,
+      grammarCoordinator: {
+        hasEnabledRules: () =>
+          !isSearchField(entry.elem) && this.grammarCoordinator.hasEnabledRules(),
+        run: (args) => (isSearchField(entry.elem) ? null : this.grammarCoordinator.run(args)),
+        runVirtualWordBoundary: (args) =>
+          isSearchField(entry.elem) ? null : this.grammarCoordinator.runVirtualWordBoundary(args),
+      },
       textEditService: this.textEditService,
       contentEditableAdapter: this.contentEditableAdapter,
       getPendingFallback: () => this.pendingKeyFallbacks.get(entry.id),
@@ -845,6 +972,11 @@ export class SuggestionManagerRuntime {
     this.activeEntryId = id;
     const entry = this.entryRegistry.getById(id);
     if (!entry) {
+      return;
+    }
+    if (!this.getSession(id)?.refreshInteraction()) return;
+    if (this.preferNativeAutocomplete && reservesAutocompleteArrow(entry.elem, keyboardEvent)) {
+      this.dismissEntry(entry, true);
       return;
     }
     this.getSession(id)?.handleKeyDown(keyboardEvent, {

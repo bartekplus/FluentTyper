@@ -1,3 +1,4 @@
+import type { FieldPreferenceResponse } from "@core/domain/fieldPreferences";
 import { resolveAutoLanguage, resolveUiLanguage } from "@core/domain/lang";
 import { createLogger, setGlobalObservabilityRuntime } from "@core/application/logging/Logger";
 import { getDeepActiveElement, isInDocument } from "@core/application/dom-utils";
@@ -588,6 +589,20 @@ export class ContentRuntimeController {
       generation,
     });
     const managerOptions = {
+      loadFieldPreferences: async () => {
+        const response: FieldPreferenceResponse = await chrome.runtime.sendMessage({
+          command: "CMD_FIELD_PREFERENCES",
+          context: { action: "list" },
+        });
+        return response?.ok ? response.records.map((record) => record.signature) : [];
+      },
+      rememberField: async (signature: string, label: string) => {
+        const response: FieldPreferenceResponse = await chrome.runtime.sendMessage({
+          command: "CMD_FIELD_PREFERENCES",
+          context: { action: "enable", signature, label },
+        });
+        if (!response?.ok) throw new Error(response?.error ?? "Could not remember this field.");
+      },
       // Only Docs' hidden input iframe is excluded; titles/comments keep the normal helper.
       selectors: isGoogleDocsInputFrame() ? ":not(*)" : ContentRuntimeController.SELECTORS,
       minWordLengthToPredict: this.config.minWordLengthToPredict,

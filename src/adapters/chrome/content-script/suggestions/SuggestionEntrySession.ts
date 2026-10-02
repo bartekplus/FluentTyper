@@ -1,6 +1,8 @@
+import { isCredentialField } from "./FieldEligibility";
+import { isSearchField } from "./NativeAutocompleteConflictDetector";
 import { suggestionLanguageLabel } from "@core/domain/suggestionPopup/markup";
 import { createLogger } from "@core/application/logging/Logger";
-import type { GrammarEventType } from "@core/domain/grammar/types";
+import type { GrammarEdit, GrammarEventType } from "@core/domain/grammar/types";
 import { SUPPORTED_LANGUAGES } from "@core/domain/lang";
 import type { PredictionInputAction } from "@core/domain/messageTypes";
 import { SPACE_CHARS } from "@core/domain/spacingRules";
@@ -65,6 +67,11 @@ function shouldRunEnterWordBoundaryGrammar(event: KeyboardEvent, entryComposing:
 
 export class SuggestionEntrySession {
   private readonly entry: SuggestionEntry;
+  private readonly canInteract: () => boolean;
+  private paused = false;
+  private interactionGeneration = 0;
+  private protectedBeforeCursor: string | null = null;
+  private readonly onPauseChange: (paused: boolean) => void;
   private readonly editableContextResolver: SuggestionEntrySessionOptions["editableContextResolver"];
   private readonly clearPendingFallback: NonNullable<
     SuggestionEntrySessionOptions["clearPendingFallback"]
@@ -108,6 +115,8 @@ export class SuggestionEntrySession {
 
   constructor(options: SuggestionEntrySessionOptions) {
     this.entry = options.entry;
+    this.canInteract = options.canInteract ?? (() => true);
+    this.onPauseChange = options.onPauseChange ?? (() => undefined);
     this.editableContextResolver = options.editableContextResolver;
     this.clearPendingFallback = options.clearPendingFallback ?? (() => undefined);
     this.hideMenu = options.hideMenu;
@@ -132,7 +141,57 @@ export class SuggestionEntrySession {
     this.logNoVisibleSuggestions = options.logNoVisibleSuggestions;
   }
 
+  /** A temporary website interaction never tears down the typing session. */
+  public refreshInteraction(): boolean {
+    const paused = !this.canInteract();
+    if (paused !== this.paused) {
+      this.interactionGeneration += 1;
+      this.protectedBeforeCursor =
+        !this.entry.elem.isConnected || isCredentialField(this.entry.elem)
+          ? null
+          : TextTargetAdapter.snapshot(this.entry.elem).beforeCursor;
+      this.paused = paused;
+      this.onPauseChange(paused);
+      this.entry.requestId += 1;
+      this.grammarProposalToken += 1;
+      this.predictionCoordinator.cancelPending(this.entry);
+      this.clearPendingIdleTimer();
+      this.clearPendingFallback();
+      this.clearSuggestions();
+      this.clearAcceptedSuggestionTransientState();
+      this.entry.suppressNextSuggestionInputPrediction = false;
+      this.entry.pendingGrammarPaste = false;
+      this.seenGrammarProposals = null;
+    }
+    if (paused) {
+      // Track a baseline only; input received while yielding must never be replayed.
+      this.entry.lastBeforeCursorText =
+        !this.entry.elem.isConnected || isCredentialField(this.entry.elem)
+          ? null
+          : TextTargetAdapter.snapshot(this.entry.elem).beforeCursor;
+      this.entry.lastKeydownKey = null;
+    }
+    return !paused && !this.entry.isComposing;
+  }
+
+  public allowsAutomaticEdit(edit: GrammarEdit): boolean {
+    if (!this.refreshInteraction()) return false;
+    if (this.protectedBeforeCursor === null) return true;
+    const beforeCursor = TextTargetAdapter.snapshot(this.entry.elem).beforeCursor;
+    if (!beforeCursor.startsWith(this.protectedBeforeCursor)) {
+      // A caret move/replacement starts a new baseline; never replay the site's text.
+      this.protectedBeforeCursor = beforeCursor;
+      return false;
+    }
+    // ponytail: after yielding, forward deletes stay off; track edited ranges if this proves restrictive.
+    return (
+      edit.deleteBackwards <= beforeCursor.length - this.protectedBeforeCursor.length &&
+      !(edit.deleteForwards ?? 0)
+    );
+  }
+
   public requestPrediction(): void {
+    if (!this.refreshInteraction()) return;
     const snapshot = TextTargetAdapter.snapshot(this.entry.elem);
     const context = this.resolveEditableCursorContext(this.entry, snapshot);
     this.predictionCoordinator.schedule(this.entry, {
@@ -152,6 +211,7 @@ export class SuggestionEntrySession {
   }
 
   public handleFocus(): void {
+    if (!this.refreshInteraction()) return;
     // What is already written when the field is entered is not "just typed".
     if (this.seenGrammarProposals === null) this.readGrammarProposals(false);
     if (!this.inlineSuggestionEnabled) {
@@ -164,6 +224,7 @@ export class SuggestionEntrySession {
   }
 
   public handlePaste(): void {
+    if (!this.refreshInteraction()) return;
     this.pushInteractionTrace("paste");
     this.entry.pendingGrammarPaste = true;
   }
@@ -250,6 +311,10 @@ export class SuggestionEntrySession {
   }
 
   public handleInput(event: Event): void {
+    if (!this.refreshInteraction()) {
+      if (this.entry.isComposing) this.handleSuppressedInput();
+      return;
+    }
     this.pushInteractionTrace(this.describeInputInteraction(event));
     this.dropGrammarProposal();
     const context = this.editableContextResolver.resolve(this.entry.elem);
@@ -318,6 +383,7 @@ export class SuggestionEntrySession {
       this.entry.suppressNextSuggestionInputPrediction = false;
     }
 
+    if (this.seenGrammarProposals === null) this.readGrammarProposals(false);
     this.processEntryAfterEdit({
       event,
       inputActionOverride: null,
@@ -329,6 +395,8 @@ export class SuggestionEntrySession {
 
   public handleCompositionStart(): void {
     this.entry.isComposing = true;
+    this.entry.requestId += 1;
+    this.grammarProposalToken += 1;
     this.clearPendingIdleTimer();
     this.predictionCoordinator.cancelPending(this.entry);
     this.clearSuggestions();
@@ -371,6 +439,7 @@ export class SuggestionEntrySession {
   }
 
   public handlePredictionResponse(context: PredictionResponse): void {
+    if (!this.refreshInteraction()) return;
     if (
       !this.predictionCoordinator.shouldProcessResponse(this.entry, context, {
         isEntryFocused: this.isFocused(),
@@ -437,6 +506,7 @@ export class SuggestionEntrySession {
 
   /** The menu's rows: the suggestions (unless they show inline) and any grammar proposal. */
   private renderMenuRows(): void {
+    if (!this.refreshInteraction()) return;
     if (this.inlineSuggestionEnabled && !this.entry.grammarProposal) {
       this.hideMenu();
       return;
@@ -458,6 +528,8 @@ export class SuggestionEntrySession {
     SuggestionEntrySession["resolveEditableCursorContext"]
   > | null {
     if (
+      !this.refreshInteraction() ||
+      isSearchField(this.entry.elem) ||
       !this.findGrammarProposals ||
       this.resolveUnstableInputSkipReason(this.entry) !== null ||
       measurementEditingContext(this.entry.elem) !== "prose"
@@ -485,9 +557,15 @@ export class SuggestionEntrySession {
     const { beforeCursor } = context;
     const find = this.findGrammarProposals!;
     const token = this.grammarProposalToken;
+    const generation = this.interactionGeneration;
     this.grammarProposalQueue = this.grammarProposalQueue
-      .then(() => find(beforeCursor))
+      .then(() =>
+        this.refreshInteraction() && generation === this.interactionGeneration
+          ? find(beforeCursor)
+          : [],
+      )
       .then((proposals) => {
+        if (!this.refreshInteraction() || generation !== this.interactionGeneration) return;
         if (this.seenGrammarProposals === null) {
           this.seenGrammarProposals = { text: beforeCursor, spans: proposals };
           return;
@@ -1370,6 +1448,7 @@ export class SuggestionEntrySession {
   }
 
   public acceptSuggestion(suggestion: string): boolean {
+    if (!this.refreshInteraction()) return false;
     if (
       this.lastAcceptedSuggestion === suggestion &&
       this.entry.suppressNextSuggestionInputPrediction &&
@@ -1672,6 +1751,7 @@ export class SuggestionEntrySession {
   }
 
   private scheduleIdleGrammar(): void {
+    if (!this.refreshInteraction()) return;
     if (!this.grammarCoordinator.hasEnabledRules() && !this.findGrammarProposals) {
       return;
     }
@@ -1689,6 +1769,7 @@ export class SuggestionEntrySession {
    * or newline still happens exactly as before.
    */
   private runEnterWordBoundaryGrammar(): void {
+    if (!this.refreshInteraction()) return;
     if (
       !this.grammarCoordinator.hasEnabledRules() ||
       this.resolveUnstableInputSkipReason(this.entry) !== null
@@ -1718,6 +1799,7 @@ export class SuggestionEntrySession {
   }
 
   private runIdleGrammar(): void {
+    if (!this.refreshInteraction()) return;
     if (!this.isFocused() || this.resolveUnstableInputSkipReason(this.entry) !== null) {
       return;
     }
