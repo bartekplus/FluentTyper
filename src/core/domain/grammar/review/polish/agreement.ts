@@ -5,6 +5,7 @@ import {
   adjectiveOf,
   agreeingEndings,
   ambiguousAdjective,
+  finiteVerb,
   readingCases,
   ALL_CASES,
   cases,
@@ -112,8 +113,14 @@ const NOMINATIVE = cases("Ns Np");
 /** The word ends here and is not a short abbreviation ("por.", "ul.", "lit."). */
 const WORD = "(?![\\p{L}\\p{N}_'’@/-])(?<![ \\t\\u00a0]\\p{L}{1,3}(?=\\.))";
 const PREPOSITION = new RegExp(
-  `(?<![\\p{L}\\p{N}_'’.@/-])(?<prep>${Object.keys(GOVERNS).join("|")})[ \\t\\u00a0]+(?<noun>\\p{L}+)${WORD}`,
+  `(?<![\\p{L}\\p{N}_'’.@/-])(?<prep>${Object.keys(GOVERNS).join("|")})[ \\t\\u00a0]+(?<noun>\\p{L}+)(?![\\p{L}\\p{N}_'’@/-])`,
   "giu",
+);
+/** Short abbreviations a preposition takes ("w ust. 2", "przy ul. Długiej"). */
+const SHORT_ABBREVIATIONS = new Set(
+  "ust lit ok ul al pl os ds cz ww ub dz br wł zw ob dn im jw św ks gen por kpr hm pkt art rys tab poz str".split(
+    " ",
+  ),
 );
 
 function prepositionCase(ctx: DetectContext): RawFinding[] {
@@ -121,6 +128,15 @@ function prepositionCase(ctx: DetectContext): RawFinding[] {
   for (const m of owned(ctx, PREPOSITION)) {
     const { prep, noun } = m.groups!;
     if (!/^\p{Ll}+$/u.test(noun) || userOrNamed(ctx, noun)) continue;
+    // "w ust. 2", "na str. 5": a short word with a period is an abbreviation unless it ends the
+    // sentence ("wraz z psa.").
+    const after = ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 3);
+    if (
+      noun.length <= 3 &&
+      after.startsWith(".") &&
+      (SHORT_ABBREVIATIONS.has(noun.toLowerCase()) || !/^\.(?:$|\s*\n|\s+\p{Lu})/u.test(after))
+    )
+      continue;
     // A title abbreviation ("dzięki dr Kowalskiemu", "u mgr Nowak") is no noun to inflect.
     if (!/[aeiouyąęó]/u.test(noun)) continue;
     const before = ctx.text.slice(Math.max(0, m.index - 12), m.index);
@@ -216,6 +232,15 @@ function demonstratives(ctx: DetectContext): RawFinding[] {
       nounTags(adj) & ALL_CASES;
     const noun = adj && skip ? adj : m.groups!.noun;
     if (!/^\p{Ll}+$/u.test(noun) || userOrNamed(ctx, noun)) continue;
+    // "w ust. 2", "na str. 5": a short word with a period is an abbreviation unless it ends the
+    // sentence ("wraz z psa.").
+    const after = ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 3);
+    if (
+      noun.length <= 3 &&
+      after.startsWith(".") &&
+      (SHORT_ABBREVIATIONS.has(noun.toLowerCase()) || !/^\.(?:$|\s*\n|\s+\p{Lu})/u.test(after))
+    )
+      continue;
     const fixes = demonstrativeFix(det.toLowerCase(), nounTags(noun));
     if (fixes.length === 0) continue;
     findings.push({
@@ -320,6 +345,15 @@ function numerals(ctx: DetectContext): RawFinding[] {
   for (const m of owned(ctx, NUMERAL)) {
     const { num, noun } = m.groups!;
     if (!/^\p{Ll}+$/u.test(noun) || userOrNamed(ctx, noun)) continue;
+    // "w ust. 2", "na str. 5": a short word with a period is an abbreviation unless it ends the
+    // sentence ("wraz z psa.").
+    const after = ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 3);
+    if (
+      noun.length <= 3 &&
+      after.startsWith(".") &&
+      (SHORT_ABBREVIATIONS.has(noun.toLowerCase()) || !/^\.(?:$|\s*\n|\s+\p{Lu})/u.test(after))
+    )
+      continue;
     // A decimal, a number in a code or a list ("1,5", "art. 5", "5.") is not a count.
     const before = ctx.text.slice(Math.max(0, m.index - 6), m.index);
     if (/^\d/.test(num) && /(?:[\d,.:/§–—-]|\p{L}\.|nr|pkt|art|poz)[ \t\u00a0]*$/u.test(before))
@@ -378,7 +412,7 @@ const GENITIVE_VERBS = new RegExp(
   ].join(
     "|",
   )})[ \\t\\u00a0]{1,8}(?:(?<adj>\\p{Ll}{3,})[ \\t\\u00a0]{1,8})?(?<noun>\\p{Ll}{3,})${WORD}`,
-  "giu",
+  "giud",
 );
 const GENITIVE_CASES = cases("Gs Gp");
 const TIME_SPAN =
@@ -398,12 +432,19 @@ function genitiveObjects(ctx: DetectContext): RawFinding[] {
     if (!onlyNoun(tags) || tags & GENITIVE_CASES || !(tags & ACCUSATIVE)) continue;
     // An adjective between must belong to the noun ("stare żelazko").
     if (adj && (!adjectiveOf(adj) || !adjectiveAgrees(adjectiveOf(adj)!.ending, tags))) continue;
-    const start = m.index + m[0].length - noun.length;
-    const forms = adj ? [] : recased(noun, GENITIVE_CASES);
-    const fixes = forms.length === 1 ? forms : [];
+    const end = m.index + m[0].length;
+    const start = adj ? m.indices!.groups!.adj[0] : end - noun.length;
+    const forms = recased(noun, GENITIVE_CASES);
+    let fixes = forms.length === 1 ? forms : [];
+    if (adj && fixes.length) {
+      // "stare żelazko" -> "starego żelazka": the adjective follows the noun into the genitive.
+      const ending = tags & SINGULAR ? (tags & FEMININE ? "ej" : "ego") : "ych";
+      const typed = ctx.source.slice(start, end);
+      fixes = [caseLike(typed, `${adjectiveForm(adjectiveOf(adj)!.lemma, ending)} ${fixes[0]}`)];
+    }
     findings.push({
-      ...findingAt(ctx, start, start + noun.length, fixes, RULE, "review_msg_pl_preposition_case"),
-      context: { start: m.index, end: start + noun.length },
+      ...findingAt(ctx, start, end, fixes, RULE, "review_msg_pl_preposition_case"),
+      context: { start: m.index, end },
     });
   }
   return findings;
@@ -828,6 +869,132 @@ function consideredAs(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+/* ------------------------------------------------------------ "który" agreement */
+
+type Reading = [genders: number, plural: boolean];
+const GENDERS = MASCULINE | FEMININE | NEUTER;
+/** What each form of "który" can refer to: its gender (any for the plural) and number. */
+const RELATIVE_READINGS: Record<string, Reading[]> = {
+  który: [[MASCULINE, false]],
+  która: [[FEMININE, false]],
+  które: [
+    [NEUTER, false],
+    [GENDERS, true],
+  ],
+  którego: [[MASCULINE | NEUTER, false]],
+  której: [[FEMININE, false]],
+  któremu: [[MASCULINE | NEUTER, false]],
+  którą: [[FEMININE, false]],
+  którym: [
+    [MASCULINE | NEUTER, false],
+    [GENDERS, true],
+  ],
+  których: [[GENDERS, true]],
+  którymi: [[GENDERS, true]],
+  // Men or mixed groups only: "kobiety, którzy" is "które".
+  którzy: [[MASCULINE, true]],
+};
+/** The form of "który" in the same case for a masculine, feminine or neuter singular noun, or a plural. */
+const RELATIVE_FORMS: Record<string, Partial<Record<"m" | "f" | "n" | "p", string>>> = {
+  który: { f: "która", n: "które", p: "które" },
+  która: { m: "który", n: "które", p: "które" },
+  której: { m: "którego", n: "którego", p: "których" },
+  któremu: { f: "której", p: "którym" },
+  którymi: { m: "którym", f: "którą", n: "którym" },
+  którzy: { f: "które", n: "które" },
+};
+/** Words that may stand in the antecedent's clause without being another antecedent. */
+const NEUTRAL = new Set(
+  `${Object.keys(GOVERNS).join(" ")} jego jej ich mój moja moje mojego mojej twój twoja twoje swój swoja swoje swojego swojej nasz nasza nasze wasz wasza wasze bardzo już jeszcze też także tylko nawet wczoraj dziś dzisiaj jutro tam tu tutaj się nie`.split(
+    " ",
+  ),
+);
+const RELATIVE_AFTER = new RegExp(
+  `(?<![\\p{L}\\p{N}_'’-])(?<noun>\\p{Ll}{3,}),[ \\t\\u00a0]{1,8}(?:(?:${Object.keys(GOVERNS).join("|")})[ \\t\\u00a0]{1,8})?(?<rel>${Object.keys(RELATIVE_READINGS).join("|")})(?![\\p{L}\\p{N}_'’-])`,
+  "gdu",
+);
+
+const agrees = (tags: number, [genders, plural]: Reading) =>
+  (tags & (plural ? PLURAL : SINGULAR)) !== 0 && (!(tags & GENDERS) || (tags & genders) !== 0);
+
+/**
+ * "człowiek, która dba", "samochód, którymi przyjechał": "który" agrees in gender and number with
+ * its noun. Any noun back to the clause start may be the antecedent ("córka sąsiada, która",
+ * "książkę z obrazkami, która"), so all must clash; a word the lexicon does not know keeps the
+ * check quiet ("jedna z osób, która").
+ */
+function relatives(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of owned(ctx, RELATIVE_AFTER)) {
+    const { noun, rel } = m.groups!;
+    const readings = RELATIVE_READINGS[rel];
+    const end = m.index + m[0].length;
+    // "którzy z nas", "której z nich": a choice among, not a relative clause.
+    if (/^[ \t\u00a0]+ze?[ \t\u00a0]/u.test(ctx.text.slice(end, end + 5))) continue;
+    const last = nounTags(noun);
+    if (!onlyNoun(last) || noun === "państwo" || userOrNamed(ctx, noun)) continue;
+    const clause = ctx.text
+      .slice(Math.max(0, m.index - 120), m.index + noun.length)
+      .split(/[,.;:!?()\n„”"—–]/u)
+      .at(-1)!;
+    const words = clause.match(/\p{L}+/gu) ?? [];
+    // Back from the noun to the clause's verb or start: a noun before the verb is its subject.
+    let quiet = true;
+    for (let i = words.length - 1; i >= Math.max(0, words.length - 8); i--) {
+      const lower = words[i].toLowerCase();
+      if (finiteVerb(lower)) {
+        quiet = false;
+        break;
+      }
+      if (i === 0) quiet = false;
+      if (NEUTRAL.has(lower)) continue;
+      const adjective = adjectiveOf(lower);
+      // A pronoun may head the phrase itself ("Ta z dziewczyn, która").
+      if (adjective && PRONOUNS.has(adjective.lemma)) {
+        quiet = true;
+        break;
+      }
+      if (adjective) continue;
+      const tags = nounTags(lower);
+      // An unknown word, a name, a pronoun ("Ten z nich, który") or "X i Y, którzy" may be the
+      // antecedent; so may any noun that agrees.
+      if (
+        !tags ||
+        (i > 0 && /^\p{Lu}/u.test(words[i])) ||
+        readings.some((reading) => agrees(tags, reading))
+      ) {
+        quiet = true;
+        break;
+      }
+    }
+    if (quiet) continue;
+    const genders = [MASCULINE, FEMININE, NEUTER].filter((gender) => last & gender);
+    const key = !(last & SINGULAR)
+      ? "p"
+      : genders.length !== 1
+        ? undefined
+        : genders[0] === MASCULINE
+          ? "m"
+          : genders[0] === FEMININE
+            ? "f"
+            : "n";
+    const fix = key ? RELATIVE_FORMS[rel]?.[key] : undefined;
+    const start = m.indices!.groups!.rel[0];
+    findings.push({
+      ...findingAt(
+        ctx,
+        start,
+        start + rel.length,
+        fix ? [caseLike(rel, fix)] : [],
+        RULE,
+        "review_msg_pl_agreement",
+      ),
+      context: { start: m.index, end: start + rel.length },
+    });
+  }
+  return findings;
+}
+
 export const DETECTORS = [
   {
     rules: [RULE] as RawFinding["ruleId"][],
@@ -842,6 +1009,7 @@ export const DETECTORS = [
             ...fixedGenders(ctx),
             ...adjectives(ctx),
             ...consideredAs(ctx),
+            ...relatives(ctx),
           ]
         : [],
   },

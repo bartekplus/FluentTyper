@@ -70,7 +70,8 @@ const POSITIVES: Array<[string, string, string | null]> = [
   // A verb that takes the genitive with an accusative object.
   ["Na budowie używamy młotek.", "młotek", null],
   ["Kierowcy muszą przestrzegać przepisy.", "przepisy", "Kierowcy muszą przestrzegać przepisów."],
-  ["Potrzebuję szybką pomoc.", "pomoc", null],
+  ["Potrzebuję szybką pomoc.", "szybką pomoc", "Potrzebuję szybkiej pomocy."],
+  ["Wyszła na spacer wraz z psa.", "psa", "Wyszła na spacer wraz z psem."],
   // A demonstrative that does not agree with its noun.
   ["Kupiłem tą książkę wczoraj.", "tą", "Kupiłem tę książkę wczoraj."],
   ["Przeczytaj tą krótką notatkę.", "tą", "Przeczytaj tę krótką notatkę."],
@@ -115,10 +116,23 @@ const POSITIVES: Array<[string, string, string | null]> = [
   ],
   ["Powołano komisje specjalną.", "komisje specjalną", "Powołano komisję specjalną."],
   ["Zamówiliśmy pizze dużą.", "pizze dużą", "Zamówiliśmy pizzę dużą."],
+  // "który" in another gender or number than its noun.
+  ["Trzymam w ogrodzie kota, która nie lubi wody.", "która", "Trzymam w ogrodzie kota, który nie lubi wody."],
+  [
+    "Sprzedał rower, którymi jeździł do pracy.",
+    "którymi",
+    "Sprzedał rower, którym jeździł do pracy.",
+  ],
+  [
+    "Wczoraj przyjechały siostry, którzy mieszkają w Gdańsku.",
+    "którzy",
+    "Wczoraj przyjechały siostry, które mieszkają w Gdańsku.",
+  ],
 ];
 
 const NEGATIVES = [
   "Nie używam perfum.",
+  "Zobacz w ust. 2, gdzie pisze o por. Nowaku.",
   "Kilo pomarańcz kosztuje dziś mniej.",
   "Moje hobby to sushi.",
   "Zapłacił w euro.",
@@ -178,6 +192,13 @@ const NEGATIVES = [
   "Mówił, że wróciłem za późno.",
   "Szukam pracy od miesiąca.",
   "Potrzebuje opieki dziecko sąsiadów.",
+  "Poznałem córkę sąsiada, która gra na skrzypcach.",
+  "Kupiłem książkę z obrazkami, która mi się podoba.",
+  "To jedna z osób, która mi pomogła.",
+  "Brat i jego żona, którzy mieszkają obok, wyjechali.",
+  "Ta z dziewczyn, która wygra, dostanie nagrodę.",
+  "Zapytaj kolegę, który z nich to zrobił.",
+  "Rodzice Ani, którzy przyjechali, przywieźli ciasto.",
 ];
 
 describe("polishCaseAgreement", () => {
