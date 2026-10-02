@@ -146,7 +146,8 @@ function agreement(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     warningOnly = !found.length;
   } else if (readings.every(finite)) {
     const persons = readings.reduce((mask, r) => mask | (r.slot as number), 0);
-    if (persons & person) return null;
+    if (persons & person)
+      return isVerbHomograph(verb.w) ? null : coordinatedVerb(ctx, verb, person, readings);
     // "Ça, vous devez le demander": a pronoun after the demonstrative is the subject.
     if (demonstrative && after.slice(0, i).some((t) => PERSON[t.w] && persons & PERSON[t.w]))
       return null;
@@ -197,6 +198,72 @@ function agreement(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     context: { start: m.index, end: verb.end },
     ...(fixed.length > 1 ? { requiresChoice: true as const } : {}),
     ...(warningOnly ? { warningOnly: true as const } : {}),
+  };
+}
+
+/**
+ * "ils hélaient et bousculait", "il rentra et senti": a second verb joined by "et" shares the
+ * subject; it takes its person, and the first verb's tense when it was written as a
+ * participle.
+ */
+function coordinatedVerb(
+  ctx: DetectContext,
+  first: Token,
+  person: number,
+  firstReadings: VerbReading[],
+): RawFinding | null {
+  const all = tokensAfter(ctx.text, first.end, 10);
+  // "il rentra dans la chambre et senti": its complement may come before "et", as long as no
+  // other verb, pronoun or relative does.
+  const k = all.findIndex((t) => t.w === "et");
+  if (k < 0 || k > 6) return null;
+  const between = all.slice(0, k);
+  const blocked = between.some(
+    (t) =>
+      SUBJECT_PRONOUNS_ALL.has(t.w) ||
+      ["que", "qu'", "qui", "dont", "où", "ou"].includes(t.w) ||
+      (!isVerbHomograph(t.w) && verbReadings(t.w).some(finite)),
+  );
+  if (blocked) return null;
+  // "il fut condamné et assassiné": participles joined after an auxiliary.
+  if (firstReadings.some((r) => r.lemma === "être" || r.lemma === "avoir")) return null;
+  const rest = all.slice(k);
+  let i = 1;
+  while (rest[i] && (NEGATION.has(rest[i].w) || CLITICS.has(rest[i].w))) i++;
+  const verb = rest[i];
+  if (!verb || verb.hyphen || ctx.dictionary.has(verb.w) || isVerbHomograph(verb.w)) return null;
+  const typed = ctx.text.slice(verb.start, verb.end);
+  if (typed !== verb.w || SUBJECT_PRONOUNS_ALL.has(verb.w)) return null;
+  const readings = verbReadings(verb.w);
+  if (!readings.length || adjectiveReadings(verb.w).length) return null;
+  let forms: string[];
+  if (readings.every(finite)) {
+    const persons = readings.reduce((mask, r) => mask | (r.slot as number), 0);
+    if (persons & person) return null;
+    // The tense the first verb is in, else the second's own.
+    const tenses = new Set(firstReadings.map((r) => r.tense));
+    const same = readings.filter((r) => tenses.has(r.tense));
+    forms = (same.length ? same : readings).flatMap((r) => conjugate(r, person).slice(0, 1));
+  } else if (readings.every((r) => r.slot === "Q")) {
+    // "il rentra et senti": the participle for the first verb's tense.
+    const tense = firstReadings.find((r) => r.tense > 2)?.tense;
+    if (tense === undefined) return null;
+    // The participle's own flag spells no tense: the infinitive's carries the conjugation.
+    forms = readings.flatMap((r) =>
+      verbReadings(r.lemma)
+        .filter((i) => i.slot === "I" && i.lemma === r.lemma)
+        .flatMap((i) => conjugate({ ...i, tense }, person).slice(0, 1)),
+    );
+  } else return null;
+  const alternatives = [...new Set(forms)].filter((f) => f && f !== verb.w);
+  if (!alternatives.length || alternatives.length > 2) return null;
+  return {
+    ruleId: RULE,
+    messageKey: MESSAGE,
+    range: { start: verb.start, end: verb.end },
+    alternatives: alternatives.map((alt) => withCase(typed, alt)),
+    context: { start: first.start, end: verb.end },
+    ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
   };
 }
 
