@@ -52,6 +52,7 @@ const ASKING = [
   "zobacz|zobaczmy|zobaczyć|zobaczę|zobaczymy",
   `zastanawiam${SP}się|zastanawia${SP}się|zastanawiał\\p{L}*${SP}się|wahał\\p{L}*${SP}się|waham${SP}się`,
   `ustalić|zdecydować|pamiętam|pamiętasz|rozumiem|wyobraź${SP}sobie|powiedz|pokaż`,
+  `wyobrazić${SP}sobie|wyobrażam${SP}sobie|wyobraża${SP}sobie|stwierdzić|ocenić|przewidzieć|określić|zrozumieć|wyjaśnić|wytłumaczyć|opisać|powiedzieć|pokazać`,
 ].join("|");
 const QUESTION_WORD = "czy|co|jak|gdzie|kiedy|dlaczego|skąd|dokąd|ile|kto|którędy|czemu";
 /**

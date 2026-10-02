@@ -430,6 +430,8 @@ export const POLISH_CASES: Array<[CatalogRuleId, string, Case]> = [
         ["Była to tak czy inaczej porażka.", "Była to, tak czy inaczej, porażka."],
         ["Ten rower nie jest twój tylko brata.", "Ten rower nie jest twój, tylko brata."],
         ["Chcę kawę a nie herbatę.", "Chcę kawę, a nie herbatę."],
+        ["Trudno stwierdzić co z tego wyniknie.", "Trudno stwierdzić, co z tego wyniknie."],
+        ["Spróbuj opisać jak to wyglądało.", "Spróbuj opisać, jak to wyglądało."],
       ],
       neg: [
         "Myślę, że masz rację.",
@@ -482,6 +484,8 @@ export const POLISH_CASES: Array<[CatalogRuleId, string, Case]> = [
         "Decyzja była taka a nie inna.",
         "Jechał między Krakowem a nie Warszawą.",
         "Czy tak czy owak, idziemy.",
+        "Chcę ci powiedzieć co nieco.",
+        "Musisz pokazać jak najwięcej.",
       ],
     },
   ],

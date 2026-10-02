@@ -11,6 +11,7 @@ import {
   NEUTER,
   nounTags,
   onlyNoun,
+  pastByShape,
 } from "./lexicon";
 import { findingAt, isPl, userOrNamed } from "./shared";
 
@@ -196,9 +197,11 @@ function participles(ctx: DetectContext, list: Word[], segment: [number, number]
     }
     // One participle word alone ("jadł stojąc") is left alone.
     if (!next) continue;
+    // A past form the lexicon does not list counts here ("ubawił hrabiego, opowiadając").
+    const clauseVerb = (w: Word) => w.verb || pastByShape(w.lower);
     let verbBefore = i - 1;
-    while (verbBefore >= 0 && !list[verbBefore].verb) verbBefore--;
-    const verbAfter = list.findIndex((w, j) => j > i + 1 && w.verb);
+    while (verbBefore >= 0 && !clauseVerb(list[verbBefore])) verbBefore--;
+    const verbAfter = list.findIndex((w, j) => j > i + 1 && clauseVerb(w));
     const opened = prev && joins(prev.lower);
     if (
       verbAfter > 0 &&

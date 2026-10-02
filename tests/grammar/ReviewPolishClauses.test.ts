@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { finiteVerb, impersonalVerb } from "../../src/core/domain/grammar/review/polish/lexicon";
+import {
+  finiteVerb,
+  impersonalVerb,
+  pastByShape,
+} from "../../src/core/domain/grammar/review/polish/lexicon";
 import {
   detectReviewDiagnostics,
   prepareReview,
@@ -28,6 +32,8 @@ describe("Polish clause boundaries", () => {
     // An adverbial participle phrase after its clause.
     ["Szedł powoli rozglądając się na boki.", "Szedł powoli, rozglądając się na boki."],
     ["Wyszła z pokoju nie zamykając drzwi.", "Wyszła z pokoju, nie zamykając drzwi."],
+    // A past form the lexicon does not list still closes the clause before the participle.
+    ["Rozbawił gości zabawiając ich anegdotami.", "Rozbawił gości, zabawiając ich anegdotami."],
     ["Pracował całą noc pijąc mocną kawę.", "Pracował całą noc, pijąc mocną kawę."],
     // A parenthetical "krótko mówiąc" inside the sentence.
     ["Wynik był krótko mówiąc fatalny.", "Wynik był, krótko mówiąc, fatalny."],
@@ -110,6 +116,10 @@ describe("Polish clause boundaries", () => {
     expect(finiteVerb("szkoła")).toBe(false);
     expect(finiteVerb("mały")).toBe(false);
     expect(finiteVerb("stanie")).toBe(false); // also "w stanie"
+    expect(pastByShape("rozbawił")).toBe(true);
+    expect(pastByShape("rzekł")).toBe(true);
+    expect(pastByShape("mili")).toBe(false);
+    expect(pastByShape("kanał")).toBe(false);
     expect(impersonalVerb("szorowano")).toBe(true);
     expect(impersonalVerb("zrobiono")).toBe(true);
     expect(impersonalVerb("zaczęto")).toBe(true);
