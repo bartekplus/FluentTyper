@@ -106,6 +106,14 @@ const SWAPS: Swap[] = [
     // Only an adjective in the noun's case ("nad morzem bałtyckie rybitwy" is two phrases).
     fix: (m) => (agrees(m.groups!.noun, m.groups!.adj) ? capital(m[0]) : null),
   },
+  // "Europa zachodnia" -> "Europa Zachodnia": the region's name capitalizes both words.
+  {
+    regex: new RegExp(
+      `(?<=(?<![\\p{L}])Europ(?:a|y|ie|ę|ą)${SP})(?:zachodni|wschodni|środkow|północn|południow)(?:a|ej|ą)${END}`,
+      "gu",
+    ),
+    fix: (m) => capital(m[0]),
+  },
   // "po Angielsku" -> "po angielsku".
   {
     regex: new RegExp(`(?<=(?<![\\p{L}])po${SP})\\p{Lu}\\p{Ll}+sku${END}`, "gu"),

@@ -1,6 +1,6 @@
 import type { PhraseRow } from "../englishPhraseTables";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import { cases, inflect, nounTags, onlyNoun } from "./lexicon";
+import { cases, finiteVerb, inflect, nounTags, onlyNoun } from "./lexicon";
 import {
   caseLike,
   CLAUSE_START,
@@ -51,9 +51,74 @@ export const WORDS: readonly PhraseRow[] = [
   // The locative of "światło" alternates its vowel; "kulisy" has the genitive "kulis".
   ["światle", "świetle"],
   ["kulisów", "kulis"],
+  // Misspellings that are no Polish words.
+  ...([
+    ["Austryjak", "Austriak"],
+    ["Austryjaka", "Austriaka"],
+    ["Austryjacy", "Austriacy"],
+    ["Austryjaków", "Austriaków"],
+    ["Austryjaczka", "Austriaczka"],
+    ["kórz", "kurz"],
+    ["kórzu", "kurzu"],
+    ["rąby", "romby"],
+    ["rąbów", "rombów"],
+    ["duł", "dół"],
+    ["puki", "póki"],
+    ["siedzią", "siedzibą"],
+  ] as PhraseRow[]),
 ];
 
 export const PHRASES: readonly PhraseRow[] = [
+  // Garbled set phrases.
+  ["raz zarazem", "raz za razem"],
+  ["a pro po", "à propos"],
+  ["a propo", "à propos"],
+  ["apropo", "à propos"],
+  ["co róż", "co rusz"],
+  ["co i róż", "co rusz"],
+  ["bul głowy", "ból głowy"],
+  ["bul zęba", "ból zęba"],
+  ["bul brzucha", "ból brzucha"],
+  ["z na przeciwka", "z naprzeciwka"],
+  ["zna przeciwka", "z naprzeciwka"],
+  ["wkoło Macieju", "w koło Macieju"],
+  ["osobą trzecim", "osobom trzecim"],
+  ["pot wpływem", "pod wpływem"],
+  ["w monotonnie", "w monotonię"],
+  ["czół się", "czuł się"],
+  ["nie czół", "nie czuł"],
+  ["niemniej niż", "nie mniej niż"],
+  ["a'la", "à la"],
+  ["w te i na zad", "w tę i nazad"],
+  ["w tę i na zad", "w tę i nazad"],
+  ["z oo", "z o.o."],
+  ["skłam życzenia", "składam życzenia"],
+  ["skłamy życzenia", "składamy życzenia"],
+  // A Morse code is named for Samuel Morse: "Morse'a".
+  ...["kod", "kodu", "kodem", "kodzie", "alfabet", "alfabetu", "alfabetem", "alfabecie"].map(
+    (noun): PhraseRow => [`${noun} Morsa`, `${noun} Morse'a`],
+  ),
+  // A camping stove is a "kuchenka".
+  ...["turystyczna", "gazowa", "elektryczna", "indukcyjna", "mikrofalowa"].flatMap(
+    (kind): PhraseRow[] => [
+      [`kochanka ${kind}`, `kuchenka ${kind}`],
+      [`kochankę ${kind.slice(0, -1)}ą`, `kuchenkę ${kind.slice(0, -1)}ą`],
+      [`kochanki ${kind.slice(0, -1)}ej`, `kuchenki ${kind.slice(0, -1)}ej`],
+    ],
+  ),
+  // "w porównaniu mną" drops the "z" the comparison takes.
+  ...(
+    [
+      ["mną", "ze mną"],
+      ["tobą", "z tobą"],
+      ["nią", "z nią"],
+    ] as const
+  ).map(([typed, fixed]): PhraseRow => [`w porównaniu ${typed}`, `w porównaniu ${fixed}`]),
+  // "Wieżę w cuda" is "wierzę w cuda" (a tower is "wieża").
+  ...["cuda", "ciebie", "siebie", "Boga", "ludzi", "miłość"].map((object): PhraseRow => [
+    `wieżę w ${object}`,
+    `wierzę w ${object}`,
+  ]),
   // A plural-only name after "do", "od raza" for "od razu", "po pół" with the genitive.
   ["do Niemczech", "do Niemiec"],
   ["z Niemczech", "z Niemiec"],
@@ -716,6 +781,74 @@ export const FRAMES: readonly Frame[] = [
   {
     pattern: `(?<=(?<![\\p{L}])(?:dwa|trzy|cztery|pięć|sześć|siedem|osiem|dziewięć|dziesięć|\\p{Ll}+naście|\\p{Ll}+dzieścia?|\\p{Ll}+dziesiąt|sto|kilka|kilkanaście|kilkadziesiąt|pół)${S})(?<target>%)`,
     fix: "procent",
+    ...CONFUSION,
+  },
+  // "hyperłącze" -> "hiperłącze": Polish spells the Greek prefix with "i".
+  {
+    pattern: `(?<![\\p{L}])(?<target>hyper(?<rest>\\p{Ll}{4,}))${NOT_LETTER}`,
+    fix: (m) => (/^\p{Ll}/u.test(m.groups!.target) ? `hiper${m.groups!.rest}` : null),
+    ...CONFUSION,
+  },
+  // "100 tyś. żołnierzy" -> "tys.": the abbreviation of "tysięcy" has no "ś".
+  {
+    pattern: `(?<=\\p{N}${S})(?<target>tyś\\.?)${NOT_LETTER}`,
+    fix: "tys.",
+    ...CONFUSION,
+    verbatim: true,
+  },
+  // "Ile warzy ten monitor?", "warzy 2 kilo" -> "waży" ("warzyć" is to brew).
+  {
+    pattern: `(?<=(?<![\\p{L}])ile(?:${S}\\p{L}+){0,2}${S})(?<target>warzy|warzą)${NOT_LETTER}`,
+    fix: (m) => m.groups!.target.replace("rz", "ż"),
+    ...CONFUSION,
+  },
+  {
+    pattern: `(?<target>warzy|warzą)(?=${S}(?:\\d|około|ok\\.|ponad|prawie|niecałe|niemal|tylko|zaledwie|aż)${NOT_LETTER})`,
+    fix: (m) => m.groups!.target.replace("rz", "ż"),
+    ...CONFUSION,
+  },
+  // "odbywają się zagranicą" -> "za granicą" after a verb; "z zagranicą", "bliską zagranicą"
+  // are the noun.
+  {
+    pattern: `(?<=(?<![\\p{L}])(?<verb>\\p{Ll}+)${S})(?<target>zagranicą)${NOT_LETTER}`,
+    fix: (m) => {
+      const verb = m.groups!.verb.toLowerCase();
+      return verb === "się" || finiteVerb(verb) ? "za granicą" : null;
+    },
+    ...CONFUSION,
+  },
+  // "Zmianie podleją" -> "podlegają" ("podleją" is "they will water").
+  {
+    pattern: `(?<=(?<![\\p{L}])(?:zmianie|zmianom|ochronie|karze|opodatkowaniu|kontroli|regulacji|przepisom|ustawie)${S})(?<target>podleją)${NOT_LETTER}`,
+    fix: "podlegają",
+    ...CONFUSION,
+  },
+  {
+    pattern: `(?<target>podleją)(?=${S}(?:zmianie|zmianom|ochronie|karze|opodatkowaniu|kontroli|regulacji|przepisom|ustawie)${NOT_LETTER})`,
+    fix: "podlegają",
+    ...CONFUSION,
+  },
+  // "Gliwice leża w województwie" -> "leżą" ("leża" is a lair's genitive).
+  {
+    pattern: `(?<target>leża)(?=${S}(?:w|we|na|nad|pod|przy|obok|blisko|niedaleko)${NOT_LETTER})`,
+    fix: "leżą",
+    ...CONFUSION,
+  },
+  // "Zrobiłem to od tak." -> "ot tak" ("od tak dawna" is the preposition).
+  {
+    pattern: `(?<target>od${S}tak)(?=[ \\t\\u00a0]*(?:[.,!?…;]|$))`,
+    fix: "ot tak",
+    ...CONFUSION,
+  },
+  // "naważyli sobie piwa" -> "nawarzyli": one brews ("warzy") the beer of the idiom.
+  {
+    pattern: `(?<target>naważ\\p{Ll}*)(?=(?:${S}\\p{Ll}+){0,2}${S}piw\\p{Ll}*${NOT_LETTER})`,
+    fix: (m) => m.groups!.target.replace("naważ", "nawarz"),
+    ...CONFUSION,
+  },
+  {
+    pattern: `(?<=piw\\p{Ll}*(?:,?${S}\\p{Ll}+){0,3}${S})(?<target>naważ\\p{Ll}*)`,
+    fix: (m) => m.groups!.target.replace("naważ", "nawarz"),
     ...CONFUSION,
   },
   // "anie" (no word) for "a nie".

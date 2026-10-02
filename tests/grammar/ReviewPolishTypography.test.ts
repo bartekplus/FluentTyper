@@ -183,6 +183,7 @@ describe("polishCapitalization", () => {
     ["Sklep jest przy al. Racławickie 12.", "Sklep jest przy Al. Racławickie 12."],
     ["Szliśmy alejami Ujazdowskimi.", "Szliśmy Alejami Ujazdowskimi."],
     ["Mieszka przy Ulicy Lipowej.", "Mieszka przy ulicy Lipowej."],
+    ["Wyjechał do Europy zachodniej.", "Wyjechał do Europy Zachodniej."],
   ])("fixes %p", (text, fixed) => {
     expect(fixAll("polishCapitalization", text)).toBe(fixed);
   });

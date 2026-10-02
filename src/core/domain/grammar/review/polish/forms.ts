@@ -101,6 +101,14 @@ export const FRAMES: readonly Frame[] = [
     messageKey: "review_msg_pl_abbreviation_dot",
     verbatim: true,
   },
+  // "ok dwustu psów", "ok 5 km" -> "ok.": "około" shortened takes its dot before a count.
+  {
+    pattern: `(?<![\\p{L}])(?<target>ok)(?=${S}(?:\\d|dw|trz|czter|pięć|pięci|sześ|siedem|siedmi|osiem|ośmi|dziewię|dziesię|kilk|pół|stu|sto|tysi))`,
+    fix: "ok.",
+    ruleId: RULE,
+    messageKey: "review_msg_pl_abbreviation_dot",
+    verbatim: true,
+  },
   // Truncations take one:"np.", "tzw.", "itd.", "m.in.", "p.n.e.", "proc.", "ok." before a number.
   {
     pattern: `(?<target>np|tzw|itd|itp|m\\.in|p\\.n\\.e|n\\.e|proc|godz)(?![\\p{L}\\p{N}.])(?=[ \\t\\u00a0,;:)?!]|$)`,
