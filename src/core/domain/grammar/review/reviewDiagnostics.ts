@@ -16,6 +16,7 @@ import { PROSE_SLASH_TOKEN } from "./english/dialects";
 import { NUMERIC_DATE_TOKEN } from "./english/dates";
 import { notationToken } from "./english/typography";
 import { slashedProseWord } from "./english/remaining";
+import { PLACE_STATE_TOKEN } from "./portuguese/typography";
 import { applyEdits, positionMapper } from "./textRanges";
 import {
   MASK_CHAR,
@@ -196,6 +197,7 @@ function technicalRanges(source: string, from: number, to: number): ProtectedRan
       !PROSE_DOTTED_TOKEN.test(bare) &&
       !isGermanAbbreviationToken(bare) &&
       !PROSE_SLASH_TOKEN.test(bare) &&
+      !PLACE_STATE_TOKEN.test(bare) &&
       !NUMERIC_DATE_TOKEN.test(bare) &&
       !notationToken(source, match.index + lead, bare) &&
       !slashedProseWord(source, match.index + lead, bare)

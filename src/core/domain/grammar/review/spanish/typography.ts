@@ -136,8 +136,13 @@ const NAMED_DATE = new RegExp(
   "giu",
 );
 const NUMERIC_DATE = new RegExp(
-  `(?<![\\p{N}/.:-])(\\d{1,2})([/-])(\\d{1,2}|${MONTH_NAMES})\\2(\\d{4})(?![\\p{N}/:-])`,
+  `(?<![\\p{N}/.:-])(\\d{1,2})([/.-])(\\d{1,2}|${MONTH_NAMES})\\2(\\d{4})(?![\\p{N}/:-]|\\.\\p{N})`,
   "giu",
+);
+// "el 32 de enero": a day no month has, after the article a date takes.
+const NO_SUCH_DAY = new RegExp(
+  `(?<=(?:^|[\\s(])(?:el|del|al|El|Del|Al)[ \\t]+)(3[2-9]|[4-9]\\d)(?:[ \\t]+de)?[ \\t]+(?:${MONTH_NAMES})(?![\\p{L}\\p{N}])`,
+  "gu",
 );
 
 function impossibleDates(ctx: DetectContext): RawFinding[] {
@@ -180,11 +185,40 @@ function impossibleDates(ctx: DetectContext): RawFinding[] {
         });
     }
   }
+  const noDay = new RegExp(NO_SUCH_DAY);
+  noDay.lastIndex = Math.max(0, ctx.from - 16);
+  for (let m = noDay.exec(ctx.scanText); m && m.index < ctx.to; m = noDay.exec(ctx.scanText)) {
+    if (m.index < ctx.from || namedExampleBefore(ctx.text, m.index)) continue;
+    findings.push({
+      ruleId: RULE,
+      messageKey: "review_msg_spanish_date",
+      range: { start: m.index, end: m.index + m[0].length },
+      alternatives: [],
+      warningOnly: true,
+    });
+  }
   const numeric = new RegExp(NUMERIC_DATE);
   numeric.lastIndex = Math.max(0, ctx.from - 16);
   for (let m = numeric.exec(ctx.scanText); m && m.index < ctx.to; m = numeric.exec(ctx.scanText)) {
     if (m.index < ctx.from) continue;
     const month = /^\d/u.test(m[3]) ? Number(m[3]) : monthNumber(m[3]);
+    const day = Number(m[1]);
+    // "01/32/2014", "31.13.2014": no day-month or month-day reading.
+    // Only where a date goes: "Cédula: 6-51-2032" and "N° 99/73/2022" are numbers.
+    const dated = /(?:^|\s)(?:el|del|al|día|fecha|desde|hasta)\s+$/iu.test(
+      ctx.text.slice(Math.max(0, m.index - 12), m.index),
+    );
+    if ((month > 12 || day > 31) && (day > 12 || month > 31)) {
+      if (!dated || namedExampleBefore(ctx.text, m.index)) continue;
+      findings.push({
+        ruleId: RULE,
+        messageKey: "review_msg_spanish_date",
+        range: { start: m.index, end: m.index + m[0].length },
+        alternatives: [],
+        warningOnly: true,
+      });
+      continue;
+    }
     if (month < 1 || month > 12) continue;
     dayFinding(m.index, m[1], month, Number(m[4]));
   }
