@@ -354,7 +354,8 @@ export function buildGermanGender(dic: string, aff: string, bigrams: string): st
     const genitive = word.endsWith("s");
     const feminine = sum(FEMININE_DETERMINERS);
     const masculine =
-      sum(genitive ? ["einen"] : MASCULINE_DETERMINERS) + (/[ns]$/.test(word) ? 0 : sum(["den"]));
+      sum(genitive ? ["einen"] : MASCULINE_DETERMINERS) +
+      (/(?:en|rn|ln|s)$/.test(word) ? 0 : sum(["den"]));
     // "das macht", "das würde": the pronoun before a verb form spelled like a noun.
     const verbForm = verbForms.has(word);
     const neuter =
