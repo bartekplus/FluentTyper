@@ -341,7 +341,11 @@ const POLISH_VERBS = words(
   "speak speaks speaking spoke learn learns learning learned learnt study studies studying " +
     "translate translated into from am is are was were",
 );
-const PEOPLE = `(?<w>[a-z]+)${E}`;
+// One case-sensitive alternation of the lowercase forms, not a scan of every word.
+const PEOPLE = new RegExp(
+  `(?<![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?<w>${[...PEOPLES].join("|")})(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])`,
+  "gdu",
+);
 
 function nationalities(ctx: DetectContext): Finding[] {
   const findings: Finding[] = [];
