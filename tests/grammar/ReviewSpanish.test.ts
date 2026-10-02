@@ -1077,6 +1077,33 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
       ],
     },
   ],
+  [
+    "spanishAccents",
+    "mí before an adjective closing the phrase, está after a longer subject",
+    {
+      pos: [
+        ["Es un tema para mi imposible.", "Es un tema para mí imposible."],
+        ["Fue para mi más difícil de lo esperado.", "Fue para mí más difícil de lo esperado."],
+        ["Se acercó a mi asustado por el ruido.", "Se acercó a mí asustado por el ruido."],
+        ["Esto es para mi preferible.", "Esto es para mí preferible."],
+        [
+          "Su última película esta basada en un libro.",
+          "Su última película está basada en un libro.",
+        ],
+        ["La vieja casa esta cerrada.", "La vieja casa está cerrada."],
+        ["La tienda esta al final de la calle.", "La tienda está al final de la calle."],
+      ],
+      neg: [
+        "Te doy mi más sincero pésame.",
+        "Vino con mi querido amigo.",
+        "Hola de parte de mi hermano.",
+        "Es para mi nuevo proyecto.",
+        "Lo guardo en mi mueble.",
+        "Me gusta la casa esta a la que vamos.",
+        "Esta preciosa casa es de mi tía.",
+      ],
+    },
+  ],
 ];
 
 describe.each(FIXTURES)("%s: %s", (ruleId, _family, fixture) => {

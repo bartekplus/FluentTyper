@@ -7,6 +7,7 @@ import {
   GIVEN_NAMES,
   isInfinitive,
   PREPOSITIONS,
+  PRENOMINAL,
   SER,
   replaceToken,
   tokenize,
@@ -84,12 +85,6 @@ function postponedAdjective(at: Around, accented: string): boolean {
   );
 }
 
-// Adjectives that go before their noun: "un solo término", "la extraña máquina".
-const PRENOMINAL = words(
-  "nuevo nueva viejo vieja solo sola único única último última extraño extraña simple mero " +
-    "mera pequeño pequeña buen buena mal mala feliz lamentable verdadero verdadera falso falsa " +
-    "propio propia mismo misma antiguo antigua breve enorme largo larga corto corta",
-);
 // Words after which "la"/"las" is a clitic: "Ella la practica de vez en cuando".
 const NOT_BEFORE_ARTICLE = words(
   "yo tú él ella usted nosotros nosotras vosotros vosotras ellos ellas ustedes no ya también " +
