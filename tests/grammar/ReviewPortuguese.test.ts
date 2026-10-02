@@ -59,6 +59,9 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Foi um trabalho tão pratico.", "Foi um trabalho tão prático."],
         ["Toda critica ajuda.", "Toda crítica ajuda."],
         ["Tenho duvidas sobre o plano.", "Tenho dúvidas sobre o plano."],
+        ["A musica tocou a noite toda.", "A música tocou a noite toda."],
+        ["Choveu. O transito parou na ponte.", "Choveu. O trânsito parou na ponte."],
+        ["As duvidas ficaram para amanhã.", "As dúvidas ficaram para amanhã."],
       ],
       neg: [
         "Por último publica os dados.",
@@ -70,6 +73,8 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         "Um critica, o outro elogia.",
         "A secretaria da escola fecha cedo.",
         "Ele a fabrica em casa.",
+        "Ela, como sempre, o critica em público.",
+        "Quem a pratica sabe disso.",
         "Fiquei na dúvida até o fim.",
         "Isso seria uma boa ideia.",
         "A palavra “duvida” é um verbo.",
