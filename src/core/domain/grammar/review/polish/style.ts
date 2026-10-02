@@ -220,6 +220,14 @@ export const STYLE: readonly PhraseRow[] = [
   ...words("ktokolwiek cokolwiek jakkolwiek gdziekolwiek kiedykolwiek którykolwiek").map(
     (pronoun): PhraseRow => [`${pronoun} bądź`, pronoun],
   ),
+  // "co by się nie stało" negates nothing: "cokolwiek by się stało".
+  ["co by się nie stało", "cokolwiek by się stało"],
+  ["co by się nie działo", "cokolwiek by się działo"],
+  ["kto by nie był", "ktokolwiek by był"],
+  ["kto by nie przyszedł", "ktokolwiek by przyszedł"],
+  ["gdzie by nie był", "gdziekolwiek by był"],
+  ["jak by nie było", ["jakkolwiek by było", "bądź co bądź"]],
+  ["co by nie mówić", ["cokolwiek by mówić", "bądź co bądź"]],
   // "każdy jeden" is a calque: "każdy" says it.
   ...([
     ["każdy jeden", "każdy"],

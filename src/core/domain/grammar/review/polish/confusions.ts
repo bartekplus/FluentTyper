@@ -39,6 +39,30 @@ export const WORDS: readonly PhraseRow[] = [
 ];
 
 export const PHRASES: readonly PhraseRow[] = [
+  // "powinnam byłam": the past auxiliary takes no second person ending.
+  ["powinnam byłam", "powinnam była"],
+  ["powinienem byłem", "powinienem był"],
+  ["powinnaś byłaś", "powinnaś była"],
+  ["powinieneś byłeś", "powinieneś był"],
+  ["powinniśmy byliśmy", "powinniśmy byli"],
+  ["powinnyśmy byłyśmy", "powinnyśmy były"],
+  ["powinniście byliście", "powinniście byli"],
+  ["powinnyście byłyście", "powinnyście były"],
+  // "ja" with a third-person verb.
+  ...(
+    [
+      ["umie", "umiem"],
+      ["rozumie", "rozumiem"],
+      ["wie", "wiem"],
+      ["jest", "jestem"],
+      ["chce", "chcę"],
+      ["może", "mogę"],
+      ["lubi", "lubię"],
+    ] as const
+  ).flatMap(([third, first]): PhraseRow[] => [
+    [`ja ${third}`, `ja ${first}`],
+    [`ja nie ${third}`, `ja nie ${first}`],
+  ]),
   ...DAC_RADE.map((verb): PhraseRow => [`${verb} rade`, `${verb} radę`]),
   ["chcę mi się", "chce mi się"],
   ["nie chcę mi się", "nie chce mi się"],
@@ -180,6 +204,43 @@ const POSSESSIVE =
   "moja|moją|mojej|twoja|twoją|twojej|jego|jej|ich|nasza|naszą|naszej|wasza|waszą|swoja|swoją|swojej|była|byłą|byłej|przyszła|przyszłą|przyszłej";
 
 export const FRAMES: readonly Frame[] = [
+  // A clitic pronoun cannot open a sentence: "Mi się wydaje" -> "Mnie", "Go kocham" -> "Jego".
+  {
+    pattern: `${CLAUSE_START}(?<target>Mi|Mu|Go|Cię)(?=${S}\\p{Ll})`,
+    fix: (m) => ({ Mi: "Mnie", Mu: "Jemu", Go: "Jego", Cię: "Ciebie" })[m.groups!.target]!,
+    ...CONFUSION,
+    verbatim: true,
+  },
+  {
+    pattern: `${CLAUSE_START}(?<target>Ci)(?=${S}się${NOT_LETTER})`,
+    fix: "Tobie",
+    ...CONFUSION,
+    verbatim: true,
+  },
+  // "nic mogę" drops the "nie" every verb after "nic" needs: "nic nie mogę".
+  {
+    pattern: `(?<=(?<!(?:^|[^\\p{L}])(?:za|na|o|po|w|z|przez)${S})(?<![\\p{L}])nic${S})(?<target>mogę|może|możesz|mogą|możemy|umiem|umie|wiem|wie|chcę|chce|chcą|mam|ma|mają|znalazł|znalazła|zgodzą|zgodzi|zrobię|zrobi|widzę|widzi|rozumiem|rozumie)${NOT_LETTER}`,
+    fix: (m) => `nie ${m.groups!.target}`,
+    ...CONFUSION,
+  },
+  // "Szkoła imieniem Marii Konopnickiej" -> "imienia".
+  {
+    pattern: `(?<=(?:^|[^\\p{L}])(?:[Ss]zkoł\\p{L}*|[Ll]iceum|[Gg]imnazjum|[Tt]echnikum|[Zz]espół|[Uu]niwersytet|[Aa]kademi\\p{L}*|[Ii]nstytut|[Ss]zpital|[Pp]rzedszkol\\p{L}*)(?:${S}\\p{L}+){0,2}${S})(?<target>imieniem)(?=${S}\\p{Lu})`,
+    fix: "imienia",
+    ...CONFUSION,
+  },
+  // "for internetowych", "głupich for": the plural genitive of "forum" is "forów".
+  {
+    pattern: `(?<=(?:^|[^\\p{L}])\\p{Ll}+(?:ych|ich)${S})(?<target>for)${NOT_LETTER}|(?<target>for)(?=${S}(?:internetowych|dyskusyjnych)${NOT_LETTER})`,
+    fix: "forów",
+    ...CONFUSION,
+  },
+  // "z łam gazety", "łam czasopism": the columns are "łamy", genitive "łamów".
+  {
+    pattern: `(?<=(?:^|[^\\p{L}])(?:z|ze|na|do)${S})(?<target>łam)(?=${S}|[ \\t\\u00a0]*[„"])|(?<target>łam)(?=${S}(?:gazet|gazety|czasopism|czasopisma|prasy|tygodnika|dziennika)${NOT_LETTER})`,
+    fix: "łamów",
+    ...CONFUSION,
+  },
   // "Ja się tego właśnie boje", "się, proszę pana, nie boje" -> "boję", "boją".
   {
     pattern: `(?<=(?:^|[^\\p{L}])się${CLITIC_RUN}${S})(?<target>boje|boja)(?=[ \\t\\u00a0]*[.!?…])`,
