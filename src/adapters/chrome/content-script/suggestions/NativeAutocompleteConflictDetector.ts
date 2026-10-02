@@ -1,3 +1,4 @@
+import { isNonWritingControl, isWordInputProxy } from "./CodeContextResolver";
 import { isCredentialField, isLockedField } from "./FieldEligibility";
 
 export type ManualActivationReason = "structured" | "selector" | "browser";
@@ -137,7 +138,13 @@ export function reservesAutocompleteArrow(element: HTMLElement, event: KeyboardE
 
 export class NativeAutocompleteConflictDetector {
   public classify(element: HTMLElement): FieldEligibility {
-    if (isCredentialField(element) || isLockedField(element)) return { kind: "blocked" };
+    if (
+      isCredentialField(element) ||
+      isLockedField(element) ||
+      isNonWritingControl(element) ||
+      isWordInputProxy(element)
+    )
+      return { kind: "blocked" };
     if (
       element.tagName === "INPUT" &&
       !["text", "search", "email", "url", "tel"].includes((element as HTMLInputElement).type)

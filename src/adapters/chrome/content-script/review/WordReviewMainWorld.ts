@@ -1,0 +1,319 @@
+import type { ProtectedRange } from "@core/domain/grammar/review/types";
+import {
+  applyEdits,
+  editTouches,
+  isGraphemeBoundary,
+} from "@core/domain/grammar/review/textRanges";
+import { isCredentialField } from "../suggestions/FieldEligibility";
+import { isNonWritingControl } from "../suggestions/CodeContextResolver";
+import {
+  wordEditor,
+  WORD_INPUT_ID,
+  WORD_REVIEW_EVENT,
+  WORD_REVIEW_RESPONSE,
+  type WordReviewRequest,
+  type WordReviewReply,
+  type WordReviewSnapshot,
+} from "./WordReviewProtocol";
+
+interface Collection {
+  length(): number;
+}
+interface WordRange {
+  text: string;
+  parentBody?: WordBody;
+  isEmpty: boolean;
+  getRange(location: number): WordRange;
+  expandTo(range: WordRange): WordRange;
+  insertText(text: string, location: number): WordRange;
+}
+interface WordParagraph {
+  text: string;
+  uniqueLocalId: string;
+  fields: Collection;
+  contentControls: Collection;
+  inlinePictures: Collection;
+  footnotes: Collection;
+  endnotes: Collection;
+  parentContentControlOrNullObject: unknown;
+  getNext(): WordParagraph;
+  getRange(location: number): WordRange;
+  getSubrange(offset: number, length: number): WordRange;
+}
+interface WordBody {
+  type?: number;
+  text: string;
+  paragraphs: Collection & { getFirst(): WordParagraph };
+  getRange(location: number): WordRange;
+}
+export interface WordDocument {
+  changeTrackingMode: number;
+  body: WordBody;
+  getSelection(): WordRange;
+}
+type WordWindow = Window & {
+  WordEditor?: {
+    Extension?: {
+      AutomationUtility?: { getDocument(): WordDocument };
+      AutomationTransaction?: {
+        new (): { dispose(): void };
+        prototype: { dispose(): void };
+      };
+    };
+  };
+};
+interface ModelSnapshot {
+  body: WordBody;
+  text: string;
+  signature: string;
+  protectedRanges: ProtectedRange[];
+  paragraphs: { model: WordParagraph; start: number; text: string }[];
+}
+
+/** Named Word automation methods only; no minified properties or rendered-DOM writes. */
+function readModel(model: WordDocument): ModelSnapshot {
+  const body = model.getSelection().parentBody ?? model.body;
+  const raw = body.text;
+  // ponytail: bound model enumeration; a windowed reader is needed above the existing DOM-map ceiling.
+  if (typeof raw !== "string" || raw.length > 200_000) throw new Error("unsupported");
+  const count = body.paragraphs.length();
+  if (!Number.isInteger(count) || count < 1 || count > 10_000) throw new Error("unsupported");
+  const paragraphs: ModelSnapshot["paragraphs"] = [];
+  const protectedRanges: ProtectedRange[] = [];
+  const ids: unknown[] = [];
+  const seen = new Set<string>();
+  let paragraph = body.paragraphs.getFirst();
+  const text = raw.replace(/\r/g, "\n");
+  let cursor = 0;
+  for (let i = 0; i < count; i++) {
+    if (
+      typeof paragraph.text !== "string" ||
+      typeof paragraph.uniqueLocalId !== "string" ||
+      !paragraph.uniqueLocalId ||
+      seen.has(paragraph.uniqueLocalId)
+    )
+      throw new Error("unsupported");
+    seen.add(paragraph.uniqueLocalId);
+    const prefix = body.getRange(1).expandTo(paragraph.getRange(1)).text;
+    const start = prefix.length;
+    const end = start + paragraph.text.length;
+    if (
+      start < cursor ||
+      end > raw.length ||
+      prefix !== raw.slice(0, start) ||
+      paragraph.text !== raw.slice(start, end)
+    )
+      throw new Error("unsupported");
+    if (start > cursor) protectedRanges.push({ start: cursor, end: start, reason: "structure" });
+    const protectedContent =
+      !!paragraph.parentContentControlOrNullObject ||
+      [
+        paragraph.fields,
+        paragraph.contentControls,
+        paragraph.inlinePictures,
+        paragraph.footnotes,
+        paragraph.endnotes,
+      ]
+        .map((collection) => collection.length())
+        .some((length) => {
+          if (!Number.isInteger(length) || length < 0) throw new Error("unsupported");
+          return length > 0;
+        });
+    if (protectedContent && end > start) protectedRanges.push({ start, end, reason: "structure" });
+    else
+      for (let offset = 0; offset < paragraph.text.length; offset++) {
+        if (/[\r\n\v\f\uFFFC]/.test(paragraph.text[offset]))
+          protectedRanges.push({
+            start: start + offset,
+            end: start + offset + 1,
+            reason: "structure",
+          });
+      }
+    paragraphs.push({ model: paragraph, start, text: paragraph.text });
+    ids.push([paragraph.uniqueLocalId, protectedContent]);
+    cursor = end;
+    if (i + 1 < count) paragraph = paragraph.getNext();
+  }
+  if (cursor < raw.length)
+    protectedRanges.push({ start: cursor, end: raw.length, reason: "structure" });
+  return {
+    body,
+    text,
+    paragraphs,
+    protectedRanges,
+    signature: JSON.stringify([model.changeTrackingMode, body.type ?? null, ids]),
+  };
+}
+
+function selectionScope(model: WordDocument, snapshot: ModelSnapshot) {
+  const selected = model.getSelection();
+  const prefix = snapshot.body.getRange(1).expandTo(selected.getRange(1)).text;
+  const start = prefix.length;
+  const end = start + selected.text.length;
+  const raw = snapshot.body.text;
+  if (
+    prefix !== raw.slice(0, start) ||
+    selected.text !== raw.slice(start, end) ||
+    end > snapshot.text.length
+  )
+    throw new Error("unsupported");
+  return selected.isEmpty ? null : { start, end };
+}
+
+/** Page messages grant no extension APIs. Text exists only for the explicitly opened review. */
+export function installWordReviewMainWorld(doc: Document = document): () => void {
+  let pending: { token: string; snapshot: ModelSnapshot; root: HTMLElement; url: string } | null =
+    null;
+  let composing = false;
+  const composition = (event: Event) => {
+    if ((event.target as Element | null)?.id !== WORD_INPUT_ID) return;
+    composing = event.type === "compositionstart";
+    pending = null;
+  };
+  const listener = (event: Event) => {
+    const root = wordEditor(doc);
+    if (!root || event.target !== root) return;
+    let writing = false;
+    let reply: WordReviewReply = { ok: false, reason: "unsupported" };
+    try {
+      const detail: unknown = (event as CustomEvent<unknown>).detail;
+      if (typeof detail !== "string" || detail.length > 1_000_000) return;
+      const request = JSON.parse(detail) as WordReviewRequest;
+      if (request.action === "close") {
+        pending = null;
+        return;
+      }
+      const input = doc.getElementById(WORD_INPUT_ID)!;
+      if (composing) {
+        reply = { ok: false, reason: "composing" };
+        pending = null;
+      } else if (
+        isCredentialField(input) ||
+        isNonWritingControl(input) ||
+        input.closest('[aria-readonly="true"]') ||
+        root.closest('[hidden], [inert], [aria-hidden="true"]') ||
+        (typeof root.checkVisibility === "function" &&
+          !root.checkVisibility({ visibilityProperty: true }))
+      ) {
+        reply = { ok: false, reason: "ineligible" };
+        pending = null;
+      } else {
+        const extension = (doc.defaultView as WordWindow | null)?.WordEditor?.Extension;
+        const model = extension?.AutomationUtility?.getDocument();
+        if (!model) throw new Error("unsupported");
+        const current = readModel(model);
+        if (request.action === "read") {
+          const token = crypto.randomUUID();
+          const selection = request.selection ? selectionScope(model, current) : null;
+          pending = { token, snapshot: current, root, url: doc.URL };
+          const snapshot: WordReviewSnapshot = {
+            ok: true,
+            text: current.text,
+            protectedRanges: current.protectedRanges,
+            signature: current.signature,
+            token,
+            selection,
+            bodyType: Number.isInteger(current.body.type) ? current.body.type! : null,
+          };
+          reply = snapshot;
+        } else if (request.action === "apply") {
+          const previous = pending;
+          pending = null; // Every token is consumed, including rejected writes.
+          reply = { status: "stale" };
+          if (
+            previous &&
+            previous.token === request.token &&
+            previous.root === root &&
+            previous.url === doc.URL &&
+            current.text === request.before &&
+            current.text === previous.snapshot.text &&
+            current.signature === request.signature &&
+            current.signature === previous.snapshot.signature
+          ) {
+            reply = { status: "rejected", reason: "unsupported" };
+            const edits = request.edits;
+            if (
+              Array.isArray(edits) &&
+              edits.length > 0 &&
+              edits.length <= 1000 &&
+              typeof request.after === "string" &&
+              request.after.length <= 200_000 &&
+              edits.every(
+                (edit) =>
+                  edit &&
+                  Number.isInteger(edit.start) &&
+                  Number.isInteger(edit.end) &&
+                  edit.start >= 0 &&
+                  edit.end >= edit.start &&
+                  edit.end <= current.text.length &&
+                  typeof edit.original === "string" &&
+                  typeof edit.replacement === "string" &&
+                  !/[\r\n\v\f\uFFFC]/.test(edit.replacement) &&
+                  isGraphemeBoundary(current.text, edit.start) &&
+                  isGraphemeBoundary(current.text, edit.end) &&
+                  !current.protectedRanges.some((range) => editTouches(edit, range)),
+              ) &&
+              applyEdits(current.text, edits) === request.after &&
+              model.changeTrackingMode === 0
+            ) {
+              const Transaction = extension?.AutomationTransaction;
+              if (
+                typeof Transaction !== "function" ||
+                typeof Transaction.prototype.dispose !== "function"
+              )
+                throw new Error("unsupported");
+              const transaction = new Transaction();
+              try {
+                const fresh = readModel(extension!.AutomationUtility!.getDocument());
+                if (fresh.text !== current.text || fresh.signature !== current.signature)
+                  throw new Error("stale");
+                // Validate every native range before the first write. Descending offsets
+                // keep earlier ranges stable, including multiple edits in one paragraph.
+                const ranges = [...edits]
+                  .sort((a, b) => b.start - a.start)
+                  .map((edit) => {
+                    const paragraph = fresh.paragraphs.find(
+                      (p) => edit.start >= p.start && edit.end <= p.start + p.text.length,
+                    );
+                    if (!paragraph) throw new Error("unsupported");
+                    const range = paragraph.model.getSubrange(
+                      edit.start - paragraph.start,
+                      edit.end - edit.start,
+                    );
+                    if (range.text !== edit.original) throw new Error("stale");
+                    return { range, edit };
+                  });
+                for (const { range, edit } of ranges) {
+                  writing = true;
+                  range.insertText(edit.replacement, 4); // Native Replace preserves formatting.
+                }
+              } finally {
+                transaction.dispose(); // One native Undo step for the complete batch.
+              }
+              if (writing) {
+                const after = readModel(extension!.AutomationUtility!.getDocument());
+                reply =
+                  after.text === request.after && after.signature === current.signature
+                    ? { status: "applied" }
+                    : { status: "unverified" };
+              }
+            }
+          }
+        }
+      }
+    } catch {
+      pending = null;
+      reply = writing ? { status: "unverified" } : { ok: false, reason: "unsupported" };
+    }
+    root.setAttribute(WORD_REVIEW_RESPONSE, JSON.stringify(reply));
+  };
+  doc.addEventListener(WORD_REVIEW_EVENT, listener);
+  doc.addEventListener("compositionstart", composition, true);
+  doc.addEventListener("compositionend", composition, true);
+  return () => {
+    pending = null;
+    doc.removeEventListener(WORD_REVIEW_EVENT, listener);
+    doc.removeEventListener("compositionstart", composition, true);
+    doc.removeEventListener("compositionend", composition, true);
+  };
+}

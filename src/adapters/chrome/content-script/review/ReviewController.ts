@@ -16,6 +16,7 @@ import type {
 } from "@core/domain/grammar/review/types";
 import { REVIEW_CATEGORIES } from "@core/domain/grammar/review/types";
 import { GoogleDocsReviewTarget, type GoogleDocsReviewSurface } from "./GoogleDocsReviewTarget";
+import { WordReviewTarget } from "./WordReviewTarget";
 import {
   ContentEditableReviewTarget,
   resolveReviewTarget,
@@ -310,8 +311,14 @@ export class ReviewController {
       // On the window, ahead of the suggestion popup's own Escape on the editor.
       on<KeyboardEvent>(view, "keydown", (event) => this.onEditorKeyDown(event), true);
       // Programmatic edits and formatting-only changes (text turned into code).
-      if (element.isContentEditable) {
-        const observer = new MutationObserver(() => session.notifySourceChanged());
+      if (element.isContentEditable || target instanceof WordReviewTarget) {
+        const observer = new MutationObserver(() => {
+          // Word also mutates its caret, selections and page layout. Those move
+          // highlights without changing the model or restarting proofreading.
+          if (target instanceof WordReviewTarget && !target.sourceChanged(session.sourceText))
+            this.scheduleLayout();
+          else session.notifySourceChanged();
+        });
         observer.observe(element, {
           subtree: true,
           childList: true,
@@ -338,6 +345,7 @@ export class ReviewController {
         const current = active.target.element;
         const changed =
           !current.isConnected ||
+          (target instanceof WordReviewTarget && target.sourceChanged(session.sourceText)) ||
           ((current.tagName === "TEXTAREA" || current.tagName === "INPUT") &&
             (current as HTMLTextAreaElement).value !== session.sourceText);
         if (changed) session.notifySourceChanged();

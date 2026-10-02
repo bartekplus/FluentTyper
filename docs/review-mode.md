@@ -19,7 +19,18 @@ Put the cursor in a text field, then either:
 
 With several text boxes on a page, each of these reviews only the one you are
 in (the one with the cursor); the others are never read or changed.
-In Google Docs, use the shortcut or the popup; there is no Review button there.
+In Google Docs and Word for the web, use the shortcut or the popup; there is no
+Review button in their input proxies.
+
+Word reviews the active body (including a header, note or text box when Word exposes
+that body) or a selection inside it. Findings appear in the panel and have inline
+underlines when the rendered text can be verified against the model. Clicking a
+finding scrolls it into view without changing the selection. Individual fixes,
+Fix all safe and accepted Local AI edits use native Word transactions, preserving
+formatting and one Undo step per transaction. Fields, content controls, notes,
+inline pictures and structural separators are protected. Writes with Track Changes
+enabled are refused. Missing model methods or unverifiable offsets fail closed;
+bodies over 200,000 characters or 10,000 paragraphs are unsupported.
 
 ![The Review button in the corner of the text box being written in](images/review-mode/8-review-button.png)
 

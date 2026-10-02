@@ -160,6 +160,30 @@ describe("native field eligibility and interaction evidence", () => {
   ])("structured account and input-mode hints stay manual: %s", (html) => {
     expect(detector.classify(field(html))).toEqual({ kind: "manual", reason: "structured" });
   });
+  test.each(["toolbar", "menubar", "menu", "spinbutton"])(
+    "blocks non-writing controls through ancestors and shadow roots: %s",
+    (role) => {
+      const wrapper = field(`<div role="${role}"><input role="combobox"></div>`);
+      const input = wrapper.firstElementChild as HTMLInputElement;
+      expect(detector.classify(input)).toEqual({ kind: "blocked" });
+      expect(isSensitiveField(input)).toBe(true);
+      const host = document.createElement("div");
+      wrapper.append(host);
+      host.attachShadow({ mode: "open" }).append(input);
+      expect(detector.classify(input)).toEqual({ kind: "blocked" });
+      wrapper.removeAttribute("role");
+      input.setAttribute("role", role);
+      expect(detector.classify(input)).toEqual({ kind: "blocked" });
+    },
+  );
+  test("blocks Word floating formatting controls without toolbar roles", () => {
+    const group = field(
+      '<div id="FontFormattingGroup"><input role="combobox" aria-label="Font Size"></div>',
+    );
+    const input = group.firstElementChild as HTMLInputElement;
+    expect(detector.classify(input)).toEqual({ kind: "blocked" });
+    expect(isSensitiveField(input)).toBe(true);
+  });
   test("ambiguous selectors are manual", () => {
     expect(detector.classify(field('<input role="combobox">'))).toEqual({
       kind: "manual",

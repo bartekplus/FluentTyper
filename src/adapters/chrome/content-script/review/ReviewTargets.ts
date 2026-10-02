@@ -23,6 +23,8 @@ import { getDeepActiveElement, isInDocument } from "@core/application/dom-utils"
 import { ancestorContext } from "../suggestions/CodeContextResolver";
 import { isLockedField, isSensitiveField } from "../suggestions/FieldEligibility";
 import { rangeInsideTarget } from "../suggestions/TextTargetAdapter";
+import { wordEditor, WORD_INPUT_ID } from "./WordReviewProtocol";
+import { WordReviewTarget } from "./WordReviewTarget";
 import {
   buildContentEditableTextMap,
   caretRange,
@@ -128,6 +130,16 @@ export function isReviewEligible(element: HTMLElement): boolean {
 export function resolveReviewTarget(doc: Document = document): Resolution {
   const active = getDeepActiveElement(doc);
   if (!(active instanceof HTMLElement)) return { ok: false, reason: "no-editor" };
+
+  const word = wordEditor(doc);
+  if (
+    word &&
+    (active.id === WORD_INPUT_ID || doc.getElementById("EditorContainer")?.contains(active))
+  ) {
+    const target = new WordReviewTarget(word);
+    target.read(true);
+    return { ok: true, target, scope: target.scope };
+  }
 
   if (isTextControl(active)) {
     // Non-text input types are refused as sensitive by the eligibility check.

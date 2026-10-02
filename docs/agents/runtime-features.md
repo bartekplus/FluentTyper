@@ -62,6 +62,13 @@ Review mode proofreads an existing field on demand (command `CMD_REVIEW_FT_ACTIV
 - Typing-time proposals (`liveGrammarProposals`, default on) reuse Review detection through `review/liveProposals.ts`, run in the background (`live`); selection (`liveProposalSelection.ts`) stays pure and on the page: the suggestion session offers one unseen finding per pause as the popup's last row, never preselected, only if the text before the caret is unchanged when the answer lands, and applies it only after re-detecting the same key in that unchanged text, as a `strict` grammar edit. Never auto-apply a proposal or let it take the default Tab/Enter accept.
 - Reviewed text is ephemeral: never log, persist or send it anywhere but the extension's own background (detection, dictionary lookups, Local AI), which keeps it only for the open session. "Add to dictionary" goes through the existing settings path (`CMD_CONTENT_SCRIPT_ADD_TO_DICTIONARY`).
 
+## Word for the web
+
+- `WordReviewMainWorld.ts` uses the live editor's named `WordEditor.Extension.AutomationUtility.getDocument()` API in the existing MAIN-world script; `WordReviewTarget.ts` connects it to Review. This is an internal Word API, so missing methods or unexpected story separators fail closed. Do not replace it with rendered-page DOM writes.
+- The selected range's `parentBody` binds the active story, up to 200,000 characters / 10,000 paragraphs. Paragraph `uniqueLocalId`, protection and tracking mode form the snapshot signature. Paragraph and selection offsets come from body-start-to-range-start ranges, never text search; gaps between paragraphs are protected. Single-use tokens and exact before/after reads guard all paragraph `getSubrange(offset, length).insertText(text, 4)` replacements. Every range is validated before any write, descending offsets preserve earlier ranges, and one `AutomationTransaction.dispose()` commits the batch before a fresh model verifies it. The host owns formatting and single-step Undo. Track Changes writes remain refused.
+- Inline marks and finding navigation reuse Review's overlay through verified DOM ranges. Word's synthetic tab runs count as one character and paragraph marks are ignored. Only a complete ordered model/DOM text match establishes offsets; missing or ambiguous rendering returns no geometry, never a guessed text occurrence. DOM mutations invalidate the map; the adapter never writes to rendered pages.
+- Toolbar controls and Word input/clipboard proxies are excluded from generic typing assistance. Explicit Review resolves the document model from the focused editor proxy. Page events expose no extension APIs and do not add permissions or external requests.
+
 ## Logging
 
 - Production logging should stay minimal, typically warn and error only.

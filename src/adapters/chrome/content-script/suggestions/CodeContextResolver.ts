@@ -2,7 +2,10 @@
 const CODE_CONTEXT =
   "code, pre, kbd, samp, .ql-code-block, .ql-code-block-container, " +
   ".monaco-editor, .CodeMirror, .cm-editor, .ace_editor";
-const NON_PROSE_CONTEXT = '[contenteditable="false"], [aria-readonly="true"], [role="spinbutton"]';
+// Word's floating formatting group has no toolbar role.
+const NON_WRITING_CONTROL =
+  '[role="toolbar"], [role="menubar"], [role="menu"], [role="spinbutton"], #FontFormattingGroup';
+const NON_PROSE_CONTEXT = `[contenteditable="false"], [aria-readonly="true"], ${NON_WRITING_CONTROL}`;
 
 export type CodeContext = "prose" | "code" | "protected" | "unknown";
 
@@ -12,6 +15,23 @@ type ScopedSelectionRoot = ShadowRoot & { getSelection?: () => Selection | null 
 function parentAcrossShadowRoot(node: Node): Node | null {
   if (node.parentNode) return node.parentNode;
   return node.nodeType === 11 && "host" in node ? (node as ShadowRoot).host : null;
+}
+
+/** Formatting controls are never writing fields, including inside shadow roots. */
+export function isNonWritingControl(element: HTMLElement): boolean {
+  for (let node: Node | null = element; node; node = parentAcrossShadowRoot(node)) {
+    if (node.nodeType === 1 && (node as Element).matches(NON_WRITING_CONTROL)) return true;
+  }
+  return false;
+}
+
+/** Word's event/clipboard proxies do not contain its document text. */
+export function isWordInputProxy(element: HTMLElement): boolean {
+  return (
+    /^WACViewPanel_(?:FootnoteEndnoteEditControl_)?(?:EditingElement|ClipboardElement)$/.test(
+      element.id,
+    ) && !!element.closest("#WACViewPanel")
+  );
 }
 
 /**
