@@ -546,6 +546,8 @@ export const POLISH_CASES: Array<[CatalogRuleId, string, Case]> = [
         ["Oczywistym było, że wygra.", "Oczywiste było, że wygra."],
         ["Ma 3 mln. długu.", "Ma 3 mln długu."],
         ["Podziękuj dr Nowakowi za pomoc.", "Podziękuj dr. Nowakowi za pomoc."],
+        ["Wykład poprowadzi mgr. Anna Wiśniewska.", "Wykład poprowadzi mgr Anna Wiśniewska."],
+        ["Kup 2 m. sznurka.", "Kup 2 m sznurka."],
         ["To zasługa mgr Jana Wiśniewskiego.", "To zasługa mgr. Jana Wiśniewskiego."],
         ["Lubię owoce, np jabłka.", "Lubię owoce, np. jabłka."],
         ["Zapłacił ok 50 zł.", "Zapłacił ok. 50 zł."],

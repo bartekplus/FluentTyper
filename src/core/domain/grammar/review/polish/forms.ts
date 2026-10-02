@@ -75,6 +75,23 @@ export const FRAMES: readonly Frame[] = [
     messageKey: "review_msg_pl_abbreviation_dot",
     verbatim: true,
   },
+  // "3 m. tkaniny", "200 g. mąki": a unit after a number takes no dot inside the sentence.
+  {
+    pattern: `(?<=\\p{N}${S})(?<target>(?<abbr>m|g|mg|ml|dag)\\.)(?=[ \\t\\u00a0]+\\p{Ll})`,
+    fix: (m) => m.groups!.abbr,
+    ruleId: RULE,
+    messageKey: "review_msg_pl_abbreviation_dot",
+    verbatim: true,
+  },
+  // "Dr. Kowalski", "mgr. Anna Nowak", "Dr. hab. Nowak" -> no dot before a name in the
+  // nominative (the dot marks "doktora", "magistra").
+  {
+    pattern: `(?<target>(?<abbr>dr|mgr|dyr)\\.)(?=${S}(?:hab\\.${S})?(?:\\p{Lu}\\p{Ll}+${S})?\\p{Lu}\\p{Ll}*(?:ski|cki|dzki|ska|cka|dzka)${NOT_LETTER})`,
+    fix: (m) => m.groups!.abbr,
+    ruleId: RULE,
+    messageKey: "review_msg_pl_abbreviation_dot",
+    verbatim: true,
+  },
   // "dr", "mgr" keep the last letter of "doktor" only: a man's name in an oblique case takes
   // "dr." ("dzięki dr. Kowalskiemu"); a woman's title does not inflect ("z dr Kowalską").
   {
