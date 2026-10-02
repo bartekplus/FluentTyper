@@ -125,6 +125,16 @@ export const INVARIANT = words(
     "presente pendiente consciente capaz dispuesto dispuesta",
 );
 
+// Given names that are also common words ("Rosa", "Luz", "Pilar", "Marcos"): capitalized, they
+// name a person even at the start of a sentence, where every word is capitalized.
+export const GIVEN_NAMES = words(
+  "juan pedro maría marta luis rosa pilar rocío mercedes dolores consuelo amparo soledad luz " +
+    "paz rosario victoria esperanza gloria blanca clara alba aurora celeste cruz concepción " +
+    "asunción remedios socorro ángeles nieves estrella paloma azucena margarita violeta " +
+    "jacinto serena inmaculada salvador clemente justo benito modesto martín simón marcos " +
+    "moisés santiago",
+);
+
 export const BOUNDARY = /^[.,;:!?…)»”"]$/u;
 export const OPENING = /^[¿¡(«“"—–-]$/u;
 

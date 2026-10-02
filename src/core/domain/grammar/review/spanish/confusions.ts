@@ -31,7 +31,7 @@ export const HABER = words(
     "habrá habremos habrán habría habrías habríamos habrían haya hayas hayamos hayan hubiera " +
     "hubieras hubiéramos hubieran hubiese haber habiendo",
 );
-const IR = words(
+export const IR = words(
   "voy vas va vamos vais van iba ibas íbamos iban fui fuiste fuimos fueron vaya vayas vayamos " +
     "vayan ir yendo",
 );
