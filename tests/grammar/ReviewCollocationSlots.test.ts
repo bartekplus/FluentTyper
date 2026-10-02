@@ -36,6 +36,7 @@ test.each([
   ["She recovered of her cold quickly.", "She recovered from her cold quickly."],
   ["The firm specializes on maritime law.", "The firm specializes in maritime law."],
   ["The baby resembles to her mother.", "The baby resembles her mother."],
+  ["They lack of patience.", "They lack patience."],
   ["We discussed about the new menu.", "We discussed the new menu."],
   ["The old man was suffering of a fever.", "The old man was suffering from a fever."],
   ["The coach yelled on them.", "The coach yelled at them."],

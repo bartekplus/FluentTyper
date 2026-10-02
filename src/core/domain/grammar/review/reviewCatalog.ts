@@ -519,6 +519,13 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     kind: "numbers",
     bulk: "individual",
   },
+  englishTenseConsistency: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "grammar",
+    kind: "wordForm",
+    bulk: "individual",
+  },
   // English tables and typography (review/english/, en-tables2).
   englishApostrophes: {
     review: "supported",

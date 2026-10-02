@@ -1,5 +1,6 @@
 import {
   englishLexiconInflect,
+  englishListedNoun,
   englishWordInfo,
 } from "../../implementations/helpers/EnglishLexicon";
 import { ENGLISH_VERB_FORMS } from "../../implementations/helpers/EnglishVerbForms";
@@ -36,13 +37,21 @@ type Guard = (ctx: DetectContext, head: Token, after: readonly Token[]) => boole
 const BE = new Set([...BE_FINITE, "be", "been", "being", "feel", "felt", "feels", "seem", "seems"]);
 const POSSESSIVES = new Set("my your his her its our their".split(" "));
 
+/** A plain word the lexicon knows: not a name, a typo or a token glued to code. */
+const known = (token: Token | undefined) =>
+  token?.kind === "word" &&
+  (FUNCTION_WORDS.has(token.lower) ||
+    !!englishWordInfo(token.lower) ||
+    !!englishListedNoun(token.lower));
 /** The word after the preposition opens a noun phrase: no verb, adverb or clause word. */
-const object: Guard = (_ctx, _head, [, next]) => {
+const object: Guard = (_ctx, _head, [, next, after]) => {
   if (!next) return false;
   if (next.kind === "number") return true;
   if (next.kind !== "word") return false;
-  if (DETERMINERS.has(next.lower) || OBJECT_PRONOUNS.has(next.lower)) return true;
-  if (FUNCTION_WORDS.has(next.lower)) return false;
+  if (OBJECT_PRONOUNS.has(next.lower)) return true;
+  // "afraid of the dark", but not a determiner left hanging ("discussed about the").
+  if (DETERMINERS.has(next.lower) || POSSESSIVES.has(next.lower)) return known(after);
+  if (FUNCTION_WORDS.has(next.lower) || !known(next)) return false;
   const read = englishWordInfo(next.lower);
   // "believe to be": a base verb makes it an infinitive.
   return !read?.verbs.some((v) => v.form === "base" && v.lemma === next.lower) || !!read?.noun;
@@ -93,7 +102,9 @@ const IDIOM: Record<string, RegExp> = {
   from: /^(?:the (?:start|beginning|outset|get|first)|time|then|now|scratch|birth|childhood|day)$/,
   with: /^(?:no|respect|regard|time|age)$/,
   to: /^(?:date|this (?:day|point))$/,
-  about: /^(?:time|it)$/,
+  // "discussed about five issues": "about" as "roughly".
+  about:
+    /^(?:time|it|half|[0-9][0-9.,]*|one|two|three|four|five|six|seven|eight|nine|ten|twenty|thirty|forty|fifty|a (?:dozen|hundred|thousand|million|few|couple|third|quarter|week|month|year)|an hour)$/,
   for: /^(?:now|sure|example|instance|good|once|ages|years|hours|days|weeks|months|a (?:while|moment|minute|second|bit|time|long)|the (?:first|moment|most|time))$/,
 };
 const idiom = (prep: Token, after: readonly Token[]) => {
@@ -177,10 +188,19 @@ const ROWS: readonly (readonly [string, string, string | string[], Guard?])[] = 
   ["invest+", "on", "in", both(object, notNext(/^behalf$/))],
   ["specialize+ specialise+", "on", "in", object],
   ["resemble+", "to with", "", object],
-  ["discuss+", "about", "", object],
   ["suffer suffers suffered", "of", "from", object],
   ["suffering", "of", "from", both(object, (ctx, head) => BE.has(wordBefore(ctx, head.start)))],
   ["lack lacks lacked", "of", "", both(object, verbSlot)],
+  // A line break before the verb may end a heading or list item: "We\ndiscussed about".
+  [
+    "discuss+",
+    "about",
+    "",
+    both(
+      object,
+      (ctx, head) => !/\n[ \t]*$/.test(ctx.text.slice(Math.max(0, head.start - 8), head.start)),
+    ),
+  ],
   ["mentioned", "about", "", object],
   ["mention", "about", "", both(object, verbSlot)],
   ["yell+ shout+ scream+", "on", "at", person],

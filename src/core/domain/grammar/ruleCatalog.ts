@@ -762,6 +762,19 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     recommended: false,
     priority: 139,
   },
+  {
+    id: "englishTenseConsistency",
+    typing: false,
+    name: "Tense against time words and dates",
+    titleI18nKey: "review_msg_tense_time_word",
+    descriptionI18nKey: "review_msg_tense_time_word",
+    exampleI18nKey: "",
+    languageScope: "en_US",
+    safetyTier: "advanced",
+    defaultRollout: "off",
+    recommended: false,
+    priority: 139,
+  },
   // English tables and typography (review/english/, en-tables2).
   {
     id: "englishApostrophes",
