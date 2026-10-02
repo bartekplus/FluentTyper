@@ -90,6 +90,13 @@ const positives = [
   ["This matters to we developers.", "This matters to us developers."],
   ["Us developers are tired.", "We developers are tired."],
   ["Us students were late.", "We students were late."],
+  // Present base verbs after "me", openers before the pair, "myself" for "I" or "me".
+  ["Nadia and me cook on Sundays.", "Nadia and I cook on Sundays."],
+  ["Still, Omar and me disagree.", "Still, Omar and I disagree."],
+  ["She knows that me and Omar left.", "She knows that Omar and I left."],
+  ["Omar and myself were late.", "Omar and I were late."],
+  ["The coach thanked Omar and myself.", "The coach thanked Omar and me."],
+  ["It stays between you and myself, okay?", "It stays between you and me, okay?"],
 ] as const;
 test.each(positives)("repairs %s", (source, expected) => {
   const findings = review(source);
@@ -127,6 +134,11 @@ const negatives = [
   "He and I were late.",
   "I and Sam went home.",
   "Me and I went home.",
+  // Possessive "her", object lists and reflexives after "I".
+  "Nadia and her father sing.",
+  "We met Ana, Omar and me waved.",
+  "I asked that Omar and myself sit together.",
+  "I paid for Omar and myself.",
   "Us and them fought.",
   // Possessive "her" sharing a noun.
   "Her and my parents met in Lisbon.",

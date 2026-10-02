@@ -251,7 +251,10 @@ function articleWithPlural(ctx: DetectContext): RawFinding[] {
     const noun = tokens[k];
     const forms = nounNumber(noun.lower);
     if (forms?.number !== "plural" || /(?:wards|doors|stairs)$/.test(noun.lower)) continue;
-    if (!phraseEnds(ctx, tokens, k, false)) continue;
+    // "just a days later": a time plural before later/earlier.
+    const later =
+      TIME_PLURALS.test(noun.lower) && /^(?:later|earlier)$/.test(tokens[k + 1]?.lower ?? "");
+    if (!later && !phraseEnds(ctx, tokens, k, false)) continue;
     const modifiers = tokens.slice(0, k);
     // A noun modifier ("a problem humans have", "a stroke days after") may close its phrase
     // before a relative clause or a time phrase: only a following preposition is evidence.
@@ -267,16 +270,23 @@ function articleWithPlural(ctx: DetectContext): RawFinding[] {
     // "a requires b", "lowercase a denotes": the letter a before a verb.
     // "a fish lives", "a pretty blonde looks": a noun subject before an -s verb.
     const read = englishWordInfo(noun.lower);
+    // "a questions of time", "not a new issues.": before "of" or the sentence end, an -s word
+    // after "a" and adjective-like modifiers is the noun ("a dog barks." keeps its verb).
+    const after = tokens[k + 1];
+    const closes = !after || after.kind === "end" || /^(?:of|about)$/.test(after.lower);
+    const adjectiveLike = modifiers.every((t) => {
+      const m = info(t.lower);
+      return !!m && (m.adjective || m.verbs.some((v) => v.form === "participle"));
+    });
     if (
       read?.verbs.some((v) => v.form === "third") &&
+      !(read.noun && closes && adjectiveLike) &&
       (k === 0 || modifiers.some((t) => info(t.lower)?.noun || !info(t.lower)))
     )
       continue;
     if (
       modifiers.some((t) =>
-        /^(?:few|many|lot|several|great|good|little|zillion|most|greatest|best)$|est$/.test(
-          t.lower,
-        ),
+        /^(?:few|many|lot|several|little|zillion|most|greatest|best)$|est$/.test(t.lower),
       )
     )
       continue;

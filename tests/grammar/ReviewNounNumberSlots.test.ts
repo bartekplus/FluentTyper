@@ -34,6 +34,10 @@ test("noun number follows its determiner or count", () => {
     ["Other might disagree.", "Others might disagree."],
     ["I wonder what other think.", "I wonder what others think."],
     ["Three of my neighbor have dogs.", "Three of my neighbors have dogs."],
+    ["That is hardly a new ideas.", "That is hardly a new idea."],
+    ["She had a questions about the fee.", "She had a question about the fee."],
+    ["It was a good suggestions.", "It was a good suggestion."],
+    ["Only a weeks later, it snowed.", "Only a week later, it snowed."],
   ]) {
     const found = scan(input);
     expect({ input, count: found.length }).toEqual({ input, count: 1 });
@@ -45,6 +49,9 @@ test("noun number follows its determiner or count", () => {
 test("compounds, pronoun counts and invariant nouns keep their number", () => {
   for (const text of [
     "A dog walks into a bar.",
+    "We heard how a dog barks.",
+    "A round costs ten dollars.",
+    "Watch how a young bird flies.",
     "The program has a sales team.",
     "It is a means to an end.",
     "She gave a big thanks to everyone.",

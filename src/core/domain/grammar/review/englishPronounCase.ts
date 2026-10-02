@@ -24,9 +24,17 @@ const PRONOUN = "(?:me|him|her|them|I|you|he|she|they|we)";
 // A pronoun, a determiner phrase of one or two words, or one content word (a name).
 const CONJUNCT = `(?:${PRONOUN}|(?:my|your|his|her|our|their|the)${SPACE}(?:${WORD}${SPACE})?${WORD}|${WORD})`;
 const ADVERB = "(?:both|all|also|always|never|just|still|often|already|then|actually|finally)";
+// Also after an opening comma or a subordinator: "However, Tim and me work", "that me and Sam are".
+const COORDINATION_START = `(?:${CLAUSE_START}|(?<=(?:,|\\b(?:that|when|because|if|since|while|whenever|until))${SPACE}))`;
 const COORDINATION = frame(
-  `${CLAUSE_START}(?<a>${CONJUNCT})${SPACE}and${SPACE}(?<b>${CONJUNCT})(?:${SPACE}${ADVERB})?${SPACE}(?<verb>${FINITE})${WORD_END}`,
+  `${COORDINATION_START}(?<a>${CONJUNCT}|myself)${SPACE}and${SPACE}(?<b>${CONJUNCT}|myself)(?:${SPACE}${ADVERB})?${SPACE}(?<verb>${FINITE})${WORD_END}`,
 );
+// A present base verb after a pair of single words: "Tim and me work", "Me and Sam live".
+const ONE_WORD = `(?:${PRONOUN}|myself|(?:my|your|his|her|our|their|the)${SPACE}${WORD}|${WORD})`;
+const COORDINATION_BASE = frame(
+  `${COORDINATION_START}(?<a>${ONE_WORD})${SPACE}and${SPACE}(?<b>${ONE_WORD})(?:${SPACE}${ADVERB})?${SPACE}(?<verb>[a-z]+)${WORD_END}`,
+);
+const FINITE_VERB = new RegExp(`^${FINITE}$`, "i");
 
 const SUBJECT_FORM: Readonly<Record<string, string>> = {
   me: "I",
@@ -34,6 +42,7 @@ const SUBJECT_FORM: Readonly<Record<string, string>> = {
   him: "he",
   her: "she",
   them: "they",
+  myself: "I",
 };
 // A coordinated subject is plural.
 const PLURAL_VERB: Readonly<Record<string, string>> = {
@@ -45,14 +54,53 @@ const PLURAL_VERB: Readonly<Record<string, string>> = {
 };
 
 const subjectForm = (word: string) => SUBJECT_FORM[word.toLowerCase()] ?? word;
-const isFirstPerson = (word: string) => /^(?:me|i)$/i.test(word);
+const isFirstPerson = (word: string) => /^(?:me|i|myself)$/i.test(word);
 
 /** "Me and Sam went", "My wife and me are": object pronouns in a clause-initial coordinated subject. */
 function coordinatedSubjects(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
-  for (const m of frameMatches(ctx, COORDINATION, (match) => match.index)) {
+  const matches = [
+    ...frameMatches(ctx, COORDINATION, (match) => match.index),
+    ...frameMatches(ctx, COORDINATION_BASE, (match) => match.index),
+  ];
+  for (const m of matches) {
     const { a, b, verb } = m.groups!;
-    if (![a, b].some((word) => /^(?:me|him|her|them)$/i.test(word))) continue;
+    if (![a, b].some((word) => /^(?:me|him|her|them|myself)$/i.test(word))) continue;
+    if (findings.some((f) => f.range.start === m.indices!.groups!.a[0])) continue;
+    // "I suggested that the engineer and myself take…": a reflexive after "I" stays.
+    if (
+      [a, b].some((word) => /^myself$/i.test(word)) &&
+      /\bI\b[^.!?;:\n]*$/.test(ctx.text.slice(Math.max(0, m.index - 160), m.index))
+    )
+      continue;
+    // A present base verb only after "me"/"myself" ("Tim and me work"); "her" may own a noun.
+    if (
+      !FINITE_VERB.test(verb) &&
+      !(
+        [a, b].some((word) => /^(?:me|myself)$/i.test(word)) &&
+        verb === verb.toLowerCase() &&
+        englishWordInfo(verb)?.verbs.some((v) => v.form === "base" && v.lemma === verb)
+      )
+    )
+      continue;
+    // After a comma, only a short opener ("However,", "On the other hand,") may stand before
+    // the pair; "We saw Ana, Tim and me…" continues a list of objects.
+    const lead = /(?:^|[.!?;:\n"“(])([^.!?;:\n"“(]*),[ \t\u00a0]*$/.exec(
+      ctx.text.slice(Math.max(0, m.index - 64), m.index),
+    );
+    if (
+      lead &&
+      (lead[1].trim().split(/\s+/).length > 4 ||
+        lead[1]
+          .toLowerCase()
+          .match(/[a-z]+/g)
+          ?.some(
+            (w) =>
+              FINITE_VERB.test(w) ||
+              englishWordInfo(w)?.verbs.some((v) => v.form === "past" || v.form === "third"),
+          ))
+    )
+      continue;
     if (isFirstPerson(a) && isFirstPerson(b)) continue;
     // "Her and my parents met" shares one noun between two possessives.
     if (/^her$/i.test(a) && /^(?:my|your|his|her|our|their|the)[ \t\u00a0]/i.test(b)) continue;
@@ -256,7 +304,45 @@ function pronounObjects(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+const MYSELF_OBJECT = frame(`(?<a>${CONJUNCT})${SPACE}and${SPACE}(?<target>myself)${WORD_END}`);
+
+/** "The coach asked Ana and myself": an object pair takes "me" when no "I" governs it. */
+function myselfObjects(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of frameMatches(ctx, MYSELF_OBJECT)) {
+    const sentence = /[^.!?;:\n]*$/.exec(ctx.text.slice(Math.max(0, m.index - 160), m.index))![0];
+    // "I asked Ana and myself" is reflexive; a subject pair belongs to coordinatedSubjects.
+    if (/\b(?:I|me|my|mine)\b/i.test(sentence)) continue;
+    const head = /([A-Za-z]+)[ \t\u00a0]+$/.exec(sentence)?.[1] ?? "";
+    const read = englishWordInfo(head);
+    const governs =
+      head === head.toLowerCase() &&
+      (new RegExp(`^(?:${OBJECT_PREPOSITION}|for|between)$`).test(head) ||
+        !!read?.verbs.some((v) => v.form === "past" || v.form === "third"));
+    if (!governs || hasUserOrCasedWord(ctx, m.groups!.target)) continue;
+    const end = m.index + m[0].length;
+    const next = /^[ \t\u00a0]+([a-z]+)/.exec(ctx.text.slice(end, end + 24))?.[1] ?? "";
+    // "…and myself went": a verb after the pair makes it a subject.
+    if (FINITE_VERB.test(next) || englishWordInfo(next)?.verbs.some((v) => v.form === "base"))
+      continue;
+    const [start, targetEnd] = m.indices!.groups!.target;
+    findings.push({
+      ruleId: "englishPronounCase",
+      messageKey: "review_msg_pronoun_object_case",
+      range: { start, end: targetEnd },
+      alternatives: [applyWordCase("me", detectWordCase(m.groups!.target))],
+      context: { start: Math.max(0, m.index - 48), end: Math.min(ctx.text.length, end + 16) },
+    });
+  }
+  return findings;
+}
+
 /** Pronoun case for subjects and prepositional objects; closed lists plus lexicon evidence. */
 export function pronounCase(ctx: DetectContext): RawFinding[] {
-  return [...coordinatedSubjects(ctx), ...whomSubjects(ctx), ...pronounObjects(ctx)];
+  return [
+    ...coordinatedSubjects(ctx),
+    ...whomSubjects(ctx),
+    ...pronounObjects(ctx),
+    ...myselfObjects(ctx),
+  ];
 }
