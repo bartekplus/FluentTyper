@@ -1970,6 +1970,28 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Dekadę zapisujemy liczebnikiem z kropką i wiekiem („lata 90. XX w.”), a rok bez apostrofu.",
     "Escreva uma década polonesa com a década e o século (“lata 90. XX w.”), e um ano sem apóstrofo.",
   ],
+  review_msg_pl_preposition_case: [
+    "This Polish preposition takes another case: “przed sklepem” (instrumental), “do sklepu” (genitive), “w sklepie” (locative).",
+    "Cette préposition polonaise régit un autre cas : « przed sklepem » (instrumental), « do sklepu » (génitif), « w sklepie » (locatif).",
+    "Ovaj poljski prijedlog traži drugi padež: „przed sklepem” (instrumental), „do sklepu” (genitiv), „w sklepie” (lokativ).",
+    "Esta preposición polaca rige otro caso: «przed sklepem» (instrumental), «do sklepu» (genitivo), «w sklepie» (locativo).",
+    "Αυτή η πολωνική πρόθεση συντάσσεται με άλλη πτώση: «przed sklepem» (οργανική), «do sklepu» (γενική), «w sklepie» (τοπική).",
+    "Den här polska prepositionen styr ett annat kasus: ”przed sklepem” (instrumentalis), ”do sklepu” (genitiv), ”w sklepie” (lokativ).",
+    "Diese polnische Präposition verlangt einen anderen Fall: „przed sklepem“ (Instrumental), „do sklepu“ (Genitiv), „w sklepie“ (Lokativ).",
+    "Ten przyimek łączy się z innym przypadkiem: „przed sklepem” (narzędnik), „do sklepu” (dopełniacz), „w sklepie” (miejscownik).",
+    "Esta preposição polonesa pede outro caso: “przed sklepem” (instrumental), “do sklepu” (genitivo), “w sklepie” (locativo).",
+  ],
+  review_msg_pl_agreement: [
+    "In Polish, a demonstrative, adjective or numeral agrees with its noun in case, number and gender: “tę książkę”, “to dziecko”, “pięć plików”.",
+    "En polonais, le démonstratif, l’adjectif ou le numéral s’accorde avec son nom en cas, nombre et genre : « tę książkę », « to dziecko », « pięć plików ».",
+    "U poljskom se pokazna zamjenica, pridjev ili broj slaže s imenicom u padežu, broju i rodu: „tę książkę”, „to dziecko”, „pięć plików”.",
+    "En polaco, el demostrativo, el adjetivo o el numeral concuerda con su sustantivo en caso, número y género: «tę książkę», «to dziecko», «pięć plików».",
+    "Στα πολωνικά η δεικτική αντωνυμία, το επίθετο ή το αριθμητικό συμφωνεί με το ουσιαστικό σε πτώση, αριθμό και γένος: «tę książkę», «to dziecko», «pięć plików».",
+    "På polska böjs pronomen, adjektiv och räkneord efter substantivet i kasus, numerus och genus: ”tę książkę”, ”to dziecko”, ”pięć plików”.",
+    "Im Polnischen richten sich Demonstrativ, Adjektiv und Zahlwort in Fall, Zahl und Geschlecht nach dem Nomen: „tę książkę“, „to dziecko“, „pięć plików“.",
+    "Zaimek, przymiotnik i liczebnik uzgadniamy z rzeczownikiem w przypadku, liczbie i rodzaju: „tę książkę”, „to dziecko”, „pięć plików”.",
+    "Em polonês, o demonstrativo, o adjetivo ou o numeral concorda com o substantivo em caso, número e gênero: “tę książkę”, “to dziecko”, “pięć plików”.",
+  ],
   // Spanish Review checks (review/spanish/).
   review_msg_spanish_accent: [
     "In Spanish this word needs its written accent here: without it, it is a different word.",

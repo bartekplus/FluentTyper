@@ -479,6 +479,14 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     bulk: "individual",
     languages: ["pl_PL"],
   },
+  polishCaseAgreement: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "grammar",
+    kind: "agreement",
+    bulk: "individual",
+    languages: ["pl_PL"],
+  },
 
   englishDateConsistency: {
     review: "supported",

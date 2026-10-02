@@ -140,7 +140,7 @@ const RELATIVE = "który|która|które|którego|której|któremu|którą|którym
 const SUBORDINATORS = `że|iż|żeby|ażeby|aby|ponieważ|gdyż|jeśli|jeżeli|gdyby|zanim|dopóki|ale|lecz|${RELATIVE}`;
 /** Words after which the conjunction belongs to what comes before (compounds, coordination). */
 const OPENS_COMPOUND = new Set([
-  ..."i a oraz lub albo bądź ani czy bo ale lecz niż jak jakby aż tylko właśnie nawet zwłaszcza szczególnie zaś dlatego mimo pomimo chyba tyle tak również także jednak jednakże przecież no pewnie jasne choć chociaż nie to wtedy wówczas raz co byle lada wiadomo potem zaraz dopiero jeszcze przy może omal nieomal prawie niemal więc zatem przeto przynajmniej dość jako tym bardziej daj mało rzadko".split(
+  ..."i a oraz lub albo bądź ani czy bo ale lecz niż jak jakby aż tylko właśnie nawet zwłaszcza szczególnie zaś dlatego mimo pomimo chyba tyle tak również także jednak jednakże przecież no pewnie jasne choć chociaż nie to wtedy wówczas raz co byle lada wiadomo potem zaraz dopiero jeszcze przy może omal nieomal prawie niemal więc zatem przeto przynajmniej dość jako tym bardziej daj mało rzadko warunkiem razie miarę chwili momencie czasie zamiast".split(
     " ",
   ),
   ...SUBORDINATORS.split("|"),

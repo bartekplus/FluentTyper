@@ -119,6 +119,7 @@ export interface GrammarRuleCatalogEntry {
     | "polishMisplacedComma"
     | "polishMissingComma"
     | "polishPrepositionForms"
+    | "polishCaseAgreement"
     | "quoteSpacing"
     | "primeSymbols"
     | "greekFinalNu"

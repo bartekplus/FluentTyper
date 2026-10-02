@@ -266,6 +266,8 @@ export type ReviewMessageKey =
   | "review_msg_pl_abbreviation_dot"
   | "review_msg_pl_inflected_name"
   | "review_msg_pl_decade"
+  | "review_msg_pl_preposition_case"
+  | "review_msg_pl_agreement"
   // Spanish Review checks (review/spanish/).
   | "review_msg_spanish_accent"
   | "review_msg_spanish_accent_extra"
