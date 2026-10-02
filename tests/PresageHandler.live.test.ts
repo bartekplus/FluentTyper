@@ -1,6 +1,7 @@
 import libPresageMod from "../src/third_party/libpresage/libpresage.js";
 import { PresageHandler } from "../src/adapters/chrome/background/PresageHandler";
 import { REVIEW_SPELLING_BUDGET_MS } from "../src/adapters/chrome/background/PresageEngine";
+import { rankSpellingSuggestions } from "../src/core/domain/grammar/review/reviewSpelling";
 
 function createLiveConfig(textExpansions: Array<[string, string]>) {
   return {
@@ -288,4 +289,90 @@ describe("PresageHandler live review spelling", () => {
       expect(word.startsWith("recie")).toBe(true);
     }
   });
+
+  test("common typos keep their first suggestion with the faster Hunspell settings", async () => {
+    // The affix tuning (PresageFiles.tunedAffix) drops Hunspell's n-gram pass for the
+    // large dictionaries and the empty compound passes; near-miss typos still rank
+    // the intended word first.
+    const handler = await createLiveHandler();
+    handler.setConfig(createLiveConfig([]));
+    const typos: Record<string, Array<[string, string]>> = {
+      fr_FR: [
+        ["maisson", "maison"],
+        ["beaucop", "beaucoup"],
+        ["travailons", "travaillons"],
+        ["nesessaire", "nécessaire"],
+        ["gouvernment", "gouvernement"],
+        ["dificile", "difficile"],
+      ],
+      pt_BR: [
+        ["rapidamete", "rapidamente"],
+        ["trabalhamso", "trabalhamos"],
+        ["previlégio", "privilégio"],
+        ["infromação", "informação"],
+        ["estrutra", "estrutura"],
+        ["govreno", "governo"],
+      ],
+      pl_PL: [
+        ["pracujmey", "pracujemy"],
+        ["rzeczywiscie", "rzeczywiście"],
+        ["dlatgo", "dlatego"],
+        ["napisłem", "napisałem"],
+        ["jesteśmi", "jesteśmy"],
+        ["spotkaine", "spotkanie"],
+      ],
+      es_ES: [
+        ["trabajamso", "trabajamos"],
+        ["nesesario", "necesario"],
+        ["exelente", "excelente"],
+      ],
+      de_DE: [
+        ["wirklih", "wirklich"],
+        ["vieleicht", "vielleicht"],
+        ["Maschiene", "Maschine"],
+      ],
+      en_US: [
+        ["becuase", "because"],
+        ["definately", "definitely"],
+        ["tommorow", "tomorrow"],
+        ["publically", "publicly"],
+      ],
+    };
+    for (const [lang, pairs] of Object.entries(typos)) {
+      const results = handler.lookupSpelling(
+        lang,
+        pairs.map(([word]) => ({ word, before: "" })),
+      )!;
+      const first = pairs.map(
+        ([word], i) => rankSpellingSuggestions(word, results[i] ?? [], lang)[0],
+      );
+      expect(first).toEqual(pairs.map(([, want]) => want));
+    }
+    // Known short words stay known under a pool full of longer completions.
+    expect(handler.lookupSpelling("fr_FR", [{ word: "Re", before: "" }])).toEqual([null]);
+    expect(handler.lookupSpelling("pl_PL", [{ word: "na", before: "" }])).toEqual([null]);
+  }, 30_000);
+
+  test("foreign words and stray letters are quick to look up in the large dictionaries", async () => {
+    // Before the affix tuning and the single-round pool these took 300-700 ms each
+    // (about 3 s in all), now mostly well under 100 ms. The bound is generous.
+    const handler = await createLiveHandler();
+    handler.setConfig(createLiveConfig([]));
+    const words: Record<string, string[]> = {
+      pt_BR: ["understanding", "maintenant", "essentiellement", "dd"],
+      pl_PL: ["naj", "understanding", "dd", "ll"],
+      el_GR: ["understanding", "maintenant"],
+      fr_FR: ["understanding", "dd"],
+    };
+    let elapsed = 0;
+    for (const [lang, list] of Object.entries(words)) {
+      for (const word of list) {
+        const started = performance.now();
+        const [result] = handler.lookupSpelling(lang, [{ word, before: "" }])!;
+        elapsed += performance.now() - started;
+        expect(result).not.toBeNull();
+      }
+    }
+    expect(elapsed).toBeLessThan(1500);
+  }, 30_000);
 });
