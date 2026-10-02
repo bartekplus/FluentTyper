@@ -140,7 +140,8 @@ function genitiveThenVerb(after: string[]): boolean {
 const PARTICLE =
   /^(?:an|auf|aus|ab|ein|mit|nach|vor|zu|zurück|weg|bei|los|fest|hin|her)(?=\p{Ll}{3})/u;
 
-type Trigger = "article" | "demonstrative" | "quantifier" | "preposition" | "number" | "bare";
+type Trigger =
+  "article" | "demonstrative" | "quantifier" | "preposition" | "number" | "bare" | "adjective";
 
 // Nouns that end a clause as the particle of a separable verb: "er steht kopf", "sie gibt
 // nichts preis", "das findet statt", "er hält stand" (authored).
@@ -195,6 +196,10 @@ const germanWord = (w: string) =>
 /** The determiner, preposition or number before the word, across up to two adjectives. */
 function trigger(before: string[]): { kind: Trigger; at: number } | null {
   let adjectives = false;
+  // The first of the adjectives before the word, when one is a known inflected adjective:
+  // "Heute ist schönes wetter", "mit erbitterten widerstand" has its preposition.
+  let attribute = -1;
+  const bare = () => (attribute >= 0 ? { kind: "adjective" as const, at: attribute } : null);
   for (let i = before.length - 1; i >= Math.max(0, before.length - 3); i--) {
     const token = before[i];
     const low = token.toLowerCase();
@@ -223,11 +228,24 @@ function trigger(before: string[]): { kind: Trigger; at: number } | null {
     // "Der schnelle anstieg": an adjective that is also a verb form, right after an article.
     const lemma =
       ARTICLES.has(prior) || DEMONSTRATIVES.has(prior) ? low.replace(/(?:e|en|er|es|em)$/, "") : "";
-    if (token !== low || !(isAdjective(low) || (lemma !== low && germanAdjective(lemma))))
-      return null;
+    // An inflected adjective or participle ("faule", "erbitterten"), even when also a verb form.
+    const stem = low.replace(/(?:e|en|er|es|em)$/, "");
+    const inflected =
+      stem !== low &&
+      !NOT_ADJECTIVES.has(low) &&
+      !/^(?:k?ein|[dms]ein|ihr|unser|eu|dies|jen|jed|welch|manch|solch|all|d)$/.test(stem) &&
+      (germanAdjective(stem) ||
+        germanAdjective(`${stem}e`) ||
+        /^(?:ge|er|ver|be|ent|zer)\p{Ll}{3,}t$/u.test(stem));
+    if (
+      token !== low ||
+      !(isAdjective(low) || inflected || (lemma !== low && germanAdjective(lemma)))
+    )
+      return low !== "als" && low !== "wie" ? bare() : null;
     adjectives = true;
+    if (inflected) attribute = i;
   }
-  return null;
+  return bare();
 }
 
 /** Whether a word that is also a verb form reads as the noun here. */
@@ -242,6 +260,15 @@ function nounReadingHolds(
   const next = lower(after[0]);
   const prior = before[at - 1];
   if (typed === "bitte" && kind !== "article") return false;
+  if (kind === "adjective") {
+    // "Wir wollen frische kaufen", "dass neue kommen": the verb after an elided noun.
+    const ends = BOUNDARY.test(next) || COORDINATORS.has(next);
+    if (VERB_GOVERNORS.has(next) || PRONOUNS.has(next)) return false;
+    if (reading === "infinitive" && ends) {
+      return !subordinate(before, at) && !modalBefore(before, at);
+    }
+    return reading === "finite" || !ends;
+  }
   // "auf 0 setzen": no plural noun follows 0 or 1, so this is the verb.
   if (reading === "infinitive" && /^[01]$/.test(before[at])) return false;
   // "die beide passen", ", die kosten": a pronoun, or a relative pronoun.
@@ -324,15 +351,26 @@ function nounReadingHolds(
   return !governedBefore(before, at);
 }
 
+// Verbs that take a bare infinitive: modals, "werden", "lassen".
+const MODALS =
+  /^(?:k[aöo]nn|m[üu]ss|soll|will|woll|d[aüu]rf|mag|m[öo]cht|werd|wirst|wird|würd|wurd|lass|läss|ließ)/;
+function modalBefore(before: string[], at: number): boolean {
+  for (let i = at - 1; i >= 0 && !BOUNDARY.test(before[i]); i--) {
+    if (MODALS.test(before[i].toLowerCase())) return true;
+  }
+  return false;
+}
 const SUBORDINATORS = wordSet(
   "dass weil wenn ob obwohl damit nachdem bevor falls sobald solange sodass",
 );
 /** Whether the clause opens with a subordinator, so its verb comes last. */
 function subordinate(before: string[], at: number): boolean {
-  for (let i = at - 1; i >= 0 && !BOUNDARY.test(before[i]); i--) {
+  let i = at - 1;
+  for (; i >= 0 && !BOUNDARY.test(before[i]); i--) {
     if (SUBORDINATORS.has(before[i].toLowerCase())) return true;
   }
-  return false;
+  // ", die sich teilweise überlappen": a relative clause, its verb last.
+  return before[i] === "," && RELATIVE.test(before.slice(i + 1, i + 3).join(" "));
 }
 
 /**
@@ -361,10 +399,20 @@ function adjectiveNounHolds(kind: Trigger, before: string[], at: number, after: 
       ((lower(before[at]) !== "das" && (BOUNDARY.test(next) || clauseVerb)) ||
         (/^de[rs]$/.test(next) && /^\p{Lu}/u.test(after[1] ?? "")));
     if (!object && (!sentenceStart || !verbFollows)) return false;
-  } else if (kind !== "article") return false;
+  } else if (kind !== "article" && kind !== "adjective") return false;
   // "über alles liebe": a pronoun, not an article.
   const det = lower(before[at]);
-  if (!ARTICLES.has(det) && !DEMONSTRATIVES.has(det)) return false;
+  if (kind !== "adjective" && !ARTICLES.has(det) && !DEMONSTRATIVES.has(det)) return false;
+  // After a bare adjective only where no verb or other word could follow: "hohe werte, die".
+  if (kind === "adjective") {
+    return (
+      BOUNDARY.test(next) ||
+      COORDINATORS.has(next) ||
+      ARTICLES.has(next) ||
+      DEMONSTRATIVES.has(next) ||
+      PREPOSITIONS.has(next)
+    );
+  }
   if (BOUNDARY.test(next) || COORDINATORS.has(next) || VERB_GOVERNORS.has(next)) return true;
   if (ARTICLES.has(next) || DEMONSTRATIVES.has(next) || PREPOSITIONS.has(next)) return true;
   if (clauseVerb) return true;

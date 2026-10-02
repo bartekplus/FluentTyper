@@ -144,6 +144,12 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Die Milch steht im kühlschrank.", "Die Milch steht im Kühlschrank."],
         // An object after its verb, closed by the clause's end or a genitive.
         ["Die Neuigkeit machte die runde.", "Die Neuigkeit machte die Runde."],
+        // After an inflected adjective with no determiner.
+        ["Morgen soll es schönes wetter geben.", "Morgen soll es schönes Wetter geben."],
+        [
+          "Die Mannschaft leistete erbitterten widerstand.",
+          "Die Mannschaft leistete erbitterten Widerstand.",
+        ],
         ["Sie hat ihm die treue gehalten.", "Sie hat ihm die Treue gehalten."],
         [
           "Die Gegner haben uns in die enge getrieben.",
@@ -187,6 +193,10 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         "Das ist ein Berliner Bär.",
         "Grüner Tee ist gesund.",
         "Was ist das wohl?",
+        "Wir wollen frische kaufen.",
+        "Ich weiß, dass neue kommen.",
+        "Das Argument kann ich nicht gelten lassen.",
+        "Dinge, die sich teilweise überlappen, zählen doppelt.",
         "Ich kann das null nachvollziehen.",
         "Ich habe die alte gekauft.",
         "Liebe Grüße aus Bonn.",

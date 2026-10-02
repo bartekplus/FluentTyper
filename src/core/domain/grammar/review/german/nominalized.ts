@@ -109,7 +109,9 @@ function bareNeuter(ctx: DetectContext, findings: RawFinding[]): void {
     if (next === "." && second === ".") continue;
     const adjective = (w: string) => /^\p{Ll}+(?:e|en|er|es|em)$/u.test(w) && adjectiveForm(w);
     if (adjective(next) || (/^(?:,|und|oder)$/.test(next) && adjective(second))) continue;
-    if (germanNounReading(next) === "noun") continue;
+    // "schönes wetter" (a noun typed lowercase), not "schlimmeres verhindern".
+    const nextReading = germanNounReading(next);
+    if (nextReading === "noun" || nextReading === "finite") continue;
     if (namedExampleBefore(ctx.text, m.index) || englishLine(ctx.text, m.index)) continue;
     findings.push({
       ruleId: "germanNounCasing",

@@ -120,7 +120,9 @@ export function germanVerbLike(word: string): boolean {
   return (
     infinitive(`${w}n`) ||
     infinitive(`${w.slice(0, -1)}en`) ||
-    (w.endsWith("te") && infinitive(`${w.slice(0, -2)}en`))
+    (w.endsWith("te") && infinitive(`${w.slice(0, -2)}en`)) ||
+    // "leistete", "wartete": a stem in -t or -d.
+    (w.endsWith("ete") && infinitive(`${w.slice(0, -3)}en`))
   );
 }
 
