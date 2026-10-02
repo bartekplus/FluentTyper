@@ -3,6 +3,7 @@ import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDe
 import {
   adjectiveReadings,
   conjugate,
+  finitePersons,
   isInflectedNoun,
   nounGender,
   IL,
@@ -41,7 +42,25 @@ const PERSON: Record<string, number> = {
   vous: VOUS,
   ils: ILS,
   elles: ILS,
+  // Demonstratives and "personne ne", subjects at a clause start: "ça fonctionne", "ceux-ci
+  // partent", "personne ne peut".
+  ça: IL,
+  cela: IL,
+  ceci: IL,
+  personne: IL,
+  "celui-ci": IL,
+  "celui-là": IL,
+  "celle-ci": IL,
+  "celle-là": IL,
+  "ceux-ci": ILS,
+  "ceux-là": ILS,
+  "celles-ci": ILS,
+  "celles-là": ILS,
 };
+/** The personal pronouns, as against the demonstratives and "personne". */
+const PARTICIPLE_PERSONS: Record<string, true> = Object.fromEntries(
+  "je j' tu il elle on nous vous ils elles".split(" ").map((w) => [w, true]),
+);
 /** Pronouns that are always subjects; the others may be objects or stressed ("pour elle"). */
 const ALWAYS_SUBJECT = new Set(["je", "j'", "tu", "il", "on", "ils"]);
 const OPENERS = new Set(
@@ -52,7 +71,19 @@ const OPENERS = new Set(
 const NEGATION = new Set(["ne", "n'"]);
 const SUBJECT_PRONOUNS_ALL = new Set("je j' tu il elle on nous vous ils elles".split(" "));
 /** Words that name the pronoun after them rather than let it be a subject. */
-const NAMING = new Set(["pronom", "personnel", "mot", "terme", "le", "un", "du", "au"]);
+const NAMING = new Set([
+  "pronom",
+  "personnel",
+  "mot",
+  "terme",
+  "le",
+  "un",
+  "du",
+  "au",
+  "aux",
+  "les",
+  "des",
+]);
 const COORDINATING_OR_RELATIVE = new Set(["et", "ou", "que", "qu'", "où"]);
 
 const finite = (r: VerbReading) => typeof r.slot === "number";
@@ -74,6 +105,9 @@ function agreement(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     (!OPENERS.has(previous.w) || COORDINATING_OR_RELATIVE.has(previous.w))
   )
     return null;
+  // "comme celui-ci", "comme cela": a comparison, not a subject.
+  const demonstrative = !(pronoun in PARTICIPLE_PERSONS);
+  if (demonstrative && previous?.w === "comme") return null;
   // "Peux tu aller", "que veut tu": an unhyphenated inversion.
   if (previous && !isVerbHomograph(previous.w) && verbReadings(previous.w).some(finite))
     return null;
@@ -90,27 +124,54 @@ function agreement(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   // A form that is also a noun ("est", "porte") is the verb only after an always-subject pronoun.
   if (isVerbHomograph(verb.w) && (stressed || pronoun === "on")) return null;
   const readings = verbReadings(verb.w);
-  if (!readings.length) return null;
+  const negated = after.slice(0, i).some((t) => NEGATION.has(t.w));
   let alternatives: string[];
-  if (readings.every(finite)) {
+  let warningOnly = false;
+  if (!readings.length || readings.every((r) => r.slot === "Q")) {
+    // "je sorts", "il dix", "on désir", "il abandonné": a noun or a bare participle where the
+    // verb goes.
+    // "ces travaux on porté", "que s'est-il passé", "a-t-il": "ont", an inversion.
+    if (previous && !OPENERS.has(previous.w)) return null;
+    if (/[-–‑]\s*$/u.test(ctx.text.slice(Math.max(0, m.index - 3), m.index))) return null;
+    const reflexive = after.slice(0, i).some((t) => t.w === "se" || t.w === "s'");
+    const found = nonVerbAlternatives(
+      verb.w,
+      person,
+      readings.length > 0,
+      stressed && i === 0,
+      reflexive,
+    );
+    if (!found) return null;
+    alternatives = found;
+    warningOnly = !found.length;
+  } else if (readings.every(finite)) {
     const persons = readings.reduce((mask, r) => mask | (r.slot as number), 0);
-    if (persons & person) return null;
+    if (persons & person)
+      return isVerbHomograph(verb.w) ? null : coordinatedVerb(ctx, verb, person, readings);
+    // "Ça, vous devez le demander": a pronoun after the demonstrative is the subject.
+    if (demonstrative && after.slice(0, i).some((t) => PERSON[t.w] && persons & PERSON[t.w]))
+      return null;
     // "Nous sont parvenus des parchemins", "(je) vous raconterai": with a third person or a
     // "je" verb, "nous"/"vous" is an object.
-    if ((person === NOUS || person === VOUS) && persons & (JE | IL | ILS)) return null;
+    // At the very start of a clause no other subject can come before: only "Nous sont
+    // parvenus", an inverted subject, keeps "nous" an object there.
+    const opens =
+      !previous &&
+      /(?:^|[.!?…\n])\s{0,8}$/u.test(ctx.text.slice(Math.max(0, m.index - 9), m.index));
+    if ((person === NOUS || person === VOUS) && persons & (opens ? ILS : JE | IL | ILS))
+      return null;
     alternatives = [...new Set(readings.flatMap((r) => conjugate(r, person).slice(0, 1)))];
   } else if (
     readings.every((r) => r.slot === "I") &&
     verb.w.endsWith("er") &&
-    person !== NOUS &&
-    person !== VOUS
+    ((person !== NOUS && person !== VOUS) || negated)
   ) {
     // "je rêver souvent": a first-group infinitive after its subject is the present.
     alternatives = [
       ...new Set(readings.flatMap((r) => conjugate({ ...r, tense: 1 }, person).slice(0, 1))),
     ];
   } else return null;
-  if (!alternatives.length || alternatives.length > 2) return null;
+  if ((!alternatives.length && !warningOnly) || alternatives.length > 3) return null;
   // "j'" elides only before a vowel: "j'est" becomes "je suis".
   // An elided word before the verb follows the new form: "j'est" -> "je suis", "se sont" ->
   // "s'est" ("je", "ne", "me", "te", "se", "le", "la" elide before a vowel).
@@ -136,11 +197,156 @@ function agreement(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     alternatives: fixed,
     context: { start: m.index, end: verb.end },
     ...(fixed.length > 1 ? { requiresChoice: true as const } : {}),
+    ...(warningOnly ? { warningOnly: true as const } : {}),
   };
 }
 
+/**
+ * "ils hélaient et bousculait", "il rentra et senti": a second verb joined by "et" shares the
+ * subject; it takes its person, and the first verb's tense when it was written as a
+ * participle.
+ */
+function coordinatedVerb(
+  ctx: DetectContext,
+  first: Token,
+  person: number,
+  firstReadings: VerbReading[],
+): RawFinding | null {
+  const all = tokensAfter(ctx.text, first.end, 10);
+  // "il rentra dans la chambre et senti": its complement may come before "et", as long as no
+  // other verb, pronoun or relative does.
+  const k = all.findIndex((t) => t.w === "et");
+  if (k < 0 || k > 6) return null;
+  const between = all.slice(0, k);
+  const blocked = between.some(
+    (t) =>
+      SUBJECT_PRONOUNS_ALL.has(t.w) ||
+      ["que", "qu'", "qui", "dont", "où", "ou"].includes(t.w) ||
+      (!isVerbHomograph(t.w) && verbReadings(t.w).some(finite)),
+  );
+  if (blocked) return null;
+  // "il fut condamné et assassiné": participles joined after an auxiliary.
+  if (firstReadings.some((r) => r.lemma === "être" || r.lemma === "avoir")) return null;
+  const rest = all.slice(k);
+  let i = 1;
+  while (rest[i] && (NEGATION.has(rest[i].w) || CLITICS.has(rest[i].w))) i++;
+  const verb = rest[i];
+  if (!verb || verb.hyphen || ctx.dictionary.has(verb.w) || isVerbHomograph(verb.w)) return null;
+  const typed = ctx.text.slice(verb.start, verb.end);
+  if (typed !== verb.w || SUBJECT_PRONOUNS_ALL.has(verb.w)) return null;
+  const readings = verbReadings(verb.w);
+  if (!readings.length || adjectiveReadings(verb.w).length) return null;
+  let forms: string[];
+  if (readings.every(finite)) {
+    const persons = readings.reduce((mask, r) => mask | (r.slot as number), 0);
+    if (persons & person) return null;
+    // The tense the first verb is in, else the second's own.
+    const tenses = new Set(firstReadings.map((r) => r.tense));
+    const same = readings.filter((r) => tenses.has(r.tense));
+    forms = (same.length ? same : readings).flatMap((r) => conjugate(r, person).slice(0, 1));
+  } else if (readings.every((r) => r.slot === "Q")) {
+    // "il rentra et senti": the participle for the first verb's tense.
+    const tense = firstReadings.find((r) => r.tense > 2)?.tense;
+    if (tense === undefined) return null;
+    // The participle's own flag spells no tense: the infinitive's carries the conjugation.
+    forms = readings.flatMap((r) =>
+      verbReadings(r.lemma)
+        .filter((i) => i.slot === "I" && i.lemma === r.lemma)
+        .flatMap((i) => conjugate({ ...i, tense }, person).slice(0, 1)),
+    );
+  } else return null;
+  const alternatives = [...new Set(forms)].filter((f) => f && f !== verb.w);
+  if (!alternatives.length || alternatives.length > 2) return null;
+  return {
+    ruleId: RULE,
+    messageKey: MESSAGE,
+    range: { start: verb.start, end: verb.end },
+    alternatives: alternatives.map((alt) => withCase(typed, alt)),
+    context: { start: first.start, end: verb.end },
+    ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+  };
+}
+
+// Endings a verb may take for each person, the silent letters a misspelling may carry.
+const PERSON_ENDINGS: Record<number, string[]> = {
+  [JE]: ["e", "s", "x", "is"],
+  [TU]: ["es", "s", "x", "is"],
+  [IL]: ["e", "t", "d", "it"],
+  [NOUS]: ["ons"],
+  [VOUS]: ["ez"],
+  [ILS]: ["ent"],
+};
+const AVOIR_PRESENT: Record<number, string> = {
+  [JE]: "ai",
+  [TU]: "as",
+  [IL]: "a",
+  [NOUS]: "avons",
+  [VOUS]: "avez",
+  [ILS]: "ont",
+};
+// A reflexive verb ("elle s'y plu") takes être.
+const ETRE_PRESENT: Record<number, string> = {
+  [JE]: "suis",
+  [TU]: "es",
+  [IL]: "est",
+  [NOUS]: "sommes",
+  [VOUS]: "êtes",
+  [ILS]: "sont",
+};
+// "nous deux", "vous autres", "elle seule", "je soussigné": words a pronoun may take.
+const AFTER_PRONOUN = new Set(
+  (
+    "soussigné soussignée soussignés soussignées autres tous toutes tout même mêmes seul seule " +
+    "seuls seules aussi non pendant point pas plus rien personne"
+  ).split(" "),
+);
+// Function words the noun filter also lets through ("des" as "dés", "on", "leurs").
+const NOT_NOUNS = new Set(
+  (
+    "et ou où on en y des les leurs ses ces mes tes nos vos le la un une du au aux de que qui " +
+    "si car mais donc or ni"
+  ).split(" "),
+);
+const NUMBER_WORDS = new Set("deux trois quatre cinq six sept huit neuf dix cent mille".split(" "));
+
+/**
+ * The verb forms that sound like a noun or a participle written after a subject pronoun ("je
+ * sorts" -> "sors", "il dix" -> "dit", "il abandonné" -> "a abandonné"); [] when the word is no
+ * verb and nothing sounds like it, null when the word may stand there.
+ */
+function nonVerbAlternatives(
+  word: string,
+  person: number,
+  participle: boolean,
+  cautious: boolean,
+  reflexive: boolean,
+): string[] | null {
+  if (AFTER_PRONOUN.has(word) || word.length < 2) return null;
+  if (NUMBER_WORDS.has(word) && person & (NOUS | VOUS | ILS)) return null;
+  // Only a word the lists know as French: a foreign word ("on line") or a gap in the lists is
+  // left alone; an adjective may be an apposition ("elles, heureuses").
+  const singular = word.replace(/[sx]$/, "");
+  const noun = isInflectedNoun(word) || isInflectedNoun(singular);
+  if (!participle && (!noun || NOT_NOUNS.has(word) || adjectiveReadings(word).length)) return null;
+  // "Elle partie, la maison se tut": a stressed pronoun with a participle or a noun after it
+  // may open an absolute clause.
+  if (cautious) return null;
+  const forms = new Set<string>();
+  if (participle) forms.add(`${(reflexive ? ETRE_PRESENT : AVOIR_PRESENT)[person]} ${word}`);
+  const stem = word.replace(/(?:ées|és|ée|é|ts|ds|es|e|s|t|x|d)$/, "");
+  const doubled = /[nlt]$/.test(stem) ? stem + stem.slice(-1) : null;
+  for (const base of [stem, doubled]) {
+    if (!base || base.length < 2) continue;
+    for (const ending of PERSON_ENDINGS[person]) {
+      const form = base + ending;
+      if (form !== word && finitePersons(form) & person) forms.add(form);
+    }
+  }
+  return [...forms].slice(0, 3);
+}
+
 const PRONOUN =
-  /(?<![\p{L}\p{M}\p{N}_'’-])(?:(?:je|tu|il|elle|on|nous|vous|ils|elles)(?![\p{L}\p{M}\p{N}_-])|j['’](?=\p{L}))/giu;
+  /(?<![\p{L}\p{M}\p{N}_'’-])(?:(?:je|tu|il|elle|on|nous|vous|ils|elles|ça|cela|ceci)(?![\p{L}\p{M}\p{N}_-])|personne(?=[ \t]{1,8}n(?:e\b|['’]))|ce(?:lui|lle|ux|lles)-(?:ci|là)(?![\p{L}\p{M}\p{N}_-])|j['’](?=\p{L}))/giu;
 
 const ETRE_FORMS = new Set(
   "est sont était étaient sera seront serait seraient fut furent soit soient".split(" "),
@@ -202,7 +408,17 @@ const COLLECTIVES = new Set(
   (
     "plupart peu nombre majorité minorité reste foule totalité ensemble moitié tiers quart " +
     "dizaine douzaine vingtaine trentaine centaine millier million milliard partie infinité " +
-    "quantité multitude série masse tas"
+    "quantité multitude série masse tas genre sorte espèce type essaim groupe bande troupe " +
+    "troupeau nuée poignée flopée kyrielle horde meute myriade ribambelle foule tonne"
+  ).split(" "),
+);
+// "Chaque jour des fonctions sont ajoutées", "neuf heures lui conviendrait": a time or a measure,
+// not the subject the verb agrees with.
+const TIME_OR_MEASURE = new Set(
+  (
+    "jour matin soir nuit semaine mois an année siècle heure minute seconde instant moment fois " +
+    "hiver été automne printemps lendemain veille midi lundi mardi mercredi jeudi vendredi samedi " +
+    "dimanche euro dollar franc centime kilo gramme kilogramme mètre kilomètre litre degré pour"
   ).split(" "),
 );
 /** Stressed pronouns before "qui", with the person they give its verb. */
@@ -225,7 +441,57 @@ const CLAUSE_OPENERS = new Set(
 const COMPARING = new Set(
   "plus moins aussi autant si tant bien mieux pire même autre autres ainsi ne n' rien".split(" "),
 );
-const NOT_HEADS = new Set("plus moins mieux tant trop peu que qu' dont qui quoi ne n'".split(" "));
+const NOT_HEADS = new Set(
+  "plus moins mieux tant trop peu que qu' dont qui quoi ne n' des du de d' un une".split(" "),
+);
+const AUXILIARY_HOMOGRAPHS = new Set(["est", "a"]);
+/** Number words that stand for a plural determiner or follow one: "les dix maisons". */
+const NUMBERS = new Set(
+  (
+    "deux trois quatre cinq six sept huit neuf dix onze douze treize quatorze quinze seize vingt " +
+    "trente quarante cinquante soixante cent mille plusieurs quelques"
+  ).split(" "),
+);
+// "Le prix des maisons", "les enfants dans le jardin": a complement between the head and its verb.
+const COMPLEMENT_PREPOSITIONS = new Set("de d' du des dans sur sous entre avec chez".split(" "));
+// Words before a noun phrase that make it a complement, not the start of a list.
+const PREPOSITIONS = new Set(
+  (
+    "de d' du des à au aux en dans sur sous pour par avec sans chez après avant depuis pendant " +
+    "entre vers selon malgré contre durant dès"
+  ).split(" "),
+);
+const ALL_DETERMINERS = new Set([...SINGULAR_DETERMINERS, ...PLURAL_DETERMINERS]);
+
+/** A noun as far as the lists know: an entry, its plural, or a capitalized name or acronym. */
+function nounLike(text: string, token: Token): boolean {
+  const typed = text.slice(token.start, token.end);
+  if (typed !== token.w) return /^(?:\p{Lu}\p{Ll}+|\p{Lu}{2,6})$/u.test(typed);
+  if (verbReadings(token.w).length && !isVerbHomograph(token.w)) return false;
+  const singular = token.w.replace(/aux$/, "al").replace(/[sx]$/, "");
+  return Boolean(
+    nounGender(token.w) ||
+    nounGender(singular) ||
+    isInflectedNoun(token.w) ||
+    isInflectedNoun(singular),
+  );
+}
+
+/** Index past an adjective after a noun: "les flux financiers". */
+function skipAdjective(tokens: Token[], i: number): number {
+  const t = tokens[i];
+  return t && adjectiveReadings(t.w).length && !verbReadings(t.w).length ? i + 1 : i;
+}
+
+/** Index past one complement of the head noun: "des maisons", "dans le jardin", "de Nora". */
+function skipComplement(text: string, tokens: Token[], i: number): number {
+  if (!tokens[i] || !COMPLEMENT_PREPOSITIONS.has(tokens[i].w)) return i;
+  let k = i + 1;
+  if (tokens[k] && ALL_DETERMINERS.has(tokens[k].w)) k++;
+  const noun = tokens[k];
+  if (!noun || noun.hyphen || !nounLike(text, noun)) return i;
+  return skipAdjective(tokens, k + 1);
+}
 
 /** The verb at `i` (past ne and object pronouns) with another person than `person`. */
 function verbFinding(
@@ -234,6 +500,7 @@ function verbFinding(
   i: number,
   person: number,
   from: number,
+  coordinated = false,
 ): RawFinding | null {
   let j = i;
   let marked = tokens[i - 1]?.w === "qui";
@@ -249,7 +516,8 @@ function verbFinding(
   const typed = ctx.text.slice(verb.start, verb.end);
   if (typed !== verb.w) return null;
   // "les enfants joue" may be a noun phrase ("la joue"): only a pronoun or ne marks the verb.
-  if (isVerbHomograph(verb.w) && !marked) return null;
+  // "est" and "a" after a subject are the verbs ("les côtes est" is too rare to weigh).
+  if (isVerbHomograph(verb.w) && !marked && !AUXILIARY_HOMOGRAPHS.has(verb.w)) return null;
   const readings = verbReadings(verb.w);
   if (!readings.length || !readings.every(finite)) return null;
   const persons = readings.reduce((mask, r) => mask | (r.slot as number), 0);
@@ -260,8 +528,8 @@ function verbFinding(
   const after = tokens[j + 1];
   if (after && !isVerbHomograph(after.w) && verbReadings(after.w).some(finite)) return null;
   // "un exemple pertinent sont les projets": an inverted attribute.
-  if (["est", "sont"].includes(verb.w) && after && ["les", "des", "ces"].includes(after.w))
-    return null;
+  const attribute = after && ["les", "des", "ces"].includes(after.w);
+  if (!coordinated && ["est", "sont"].includes(verb.w) && attribute) return null;
   const alternatives = [...new Set(readings.flatMap((r) => conjugate(r, person).slice(0, 1)))];
   if (!alternatives.length || alternatives.length > 2) return null;
   const fixed = alternatives.map((alt) => withCase(typed, alt));
@@ -275,12 +543,26 @@ function verbFinding(
   };
 }
 
+/** The words from a subject's first word on; a number in digits reads as "deux". */
+function numberedTokens(text: string, m: RegExpExecArray): Token[] {
+  const word = m[0].toLowerCase().replace("’", "'");
+  const end = m.index + m[0].length;
+  const digits = /^\d/.test(word);
+  const number = digits
+    ? null
+    : /^[ \t\u00a0]{1,8}\d{1,9}(?=[ \t\u00a0]{1,8}\p{L})/u.exec(text.slice(end, end + 30));
+  if (!digits && !number) return tokensAfter(text, m.index, 12);
+  const lead: Token[] = [{ w: word, start: m.index, end, hyphen: false }];
+  if (number) lead.push({ w: "deux", start: end, end: end + number[0].length, hyphen: false });
+  return [...lead, ...tokensAfter(text, lead.at(-1)!.end, 12 - lead.length)];
+}
+
 /** "les rues était calmes", "mon enfant qui ne peux pas": a noun subject opening its clause, or
  * "moi qui", "ceux qui", and its verb. */
 function nounSubject(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   const word = m[0].toLowerCase().replace("’", "'");
   if (namedExampleBefore(ctx.text, m.index)) return null;
-  const tokens = tokensAfter(ctx.text, m.index, 8);
+  const tokens = numberedTokens(ctx.text, m);
   if (tokens[0]?.w !== word) return null;
   if (word in STRESSED) {
     if (tokens[1]?.w !== "qui" || ctx.text[m.index - 1] === "-") return null;
@@ -304,34 +586,70 @@ function nounSubject(ctx: DetectContext, m: RegExpExecArray): RawFinding | null 
   if (before && (before.w === "que" || before.w === "qu'")) {
     if (previous.slice(1, 4).some((t) => COMPARING.has(t.w))) return null;
   }
-  // A clause start: the text's start, a sentence end or a line, not a quote or a comma.
+  // A clause start: the text's start, a sentence end, a line or a comma, not a quote.
   if (
     !before &&
-    !/(?:^|[.!?…:\n])[\s\u00a0]*$/u.test(ctx.text.slice(Math.max(0, m.index - 4), m.index))
+    !/(?:^|[.!?…:,\n])[\s\u00a0]*$/u.test(ctx.text.slice(Math.max(0, m.index - 4), m.index))
   )
     return null;
-  const noun = tokens[1];
+  const digits = /^\d/.test(m[0]);
+  if (digits && Number(m[0]) < 2) return null;
+  let n = 1;
+  // "les dix maisons", "les 10 maisons": a number after the determiner.
+  if (!digits && tokens[n] && NUMBERS.has(tokens[n].w) && !NUMBERS.has(word)) n++;
+  const noun = tokens[n];
   if (!noun || noun.hyphen || COLLECTIVES.has(noun.w) || NOT_HEADS.has(noun.w)) return null;
-  const plural = PLURAL_DETERMINERS.has(word);
+  const plural = digits || n === 2 || NUMBERS.has(word) || PLURAL_DETERMINERS.has(word);
   const nounTyped = ctx.text.slice(noun.start, noun.end);
-  // "Les Misérables est un roman": a title.
-  if (nounTyped !== noun.w && (plural || !/^\p{Lu}\p{Ll}+$/u.test(nounTyped))) return null;
-  // "Le faire est simple": an infinitive or a verb, not a noun.
-  if (verbReadings(noun.w).length && !isVerbHomograph(noun.w)) return null;
+  // "Les Misérables est un roman": a title; "le PBA": an acronym.
+  if (
+    nounTyped !== noun.w &&
+    (plural ||
+      !SINGULAR_DETERMINERS.has(word) ||
+      !/^(?:\p{Lu}\p{Ll}+|\p{Lu}{2,6})$/u.test(nounTyped))
+  )
+    return null;
   if (plural && !/[sx]$/.test(noun.w)) return null;
-  const singular = noun.w.replace(/aux$/, "al").replace(/[sx]$/, "");
-  const nounLike =
-    nounGender(noun.w) ||
-    nounGender(singular) ||
-    isInflectedNoun(noun.w) ||
-    isInflectedNoun(singular) ||
-    nounTyped !== noun.w;
-  if (!nounLike) return null;
-  let i = 2;
-  // One adjective may follow the noun: "les flux financiers crée".
-  if (tokens[i] && adjectiveReadings(tokens[i].w).length && !verbReadings(tokens[i].w).length) i++;
-  if (tokens[i]?.w === "qui") i++;
-  return verbFinding(ctx, tokens, i, plural ? ILS : IL, m.index);
+  // "Le faire est simple": an infinitive or a verb, not a noun.
+  if (!nounLike(ctx.text, noun)) return null;
+  const singular = noun.w.replace(/[sx]$/, "");
+  if (TIME_OR_MEASURE.has(noun.w) || TIME_OR_MEASURE.has(singular)) return null;
+  // ", des bois et des pâtures": after a comma, a noun phrase may continue a list.
+  if (!before && /,[\s\u00a0]{0,8}$/u.test(ctx.text.slice(Math.max(0, m.index - 9), m.index))) {
+    if (word === "des" || word === "du" || listBefore(ctx.text, m.index)) return null;
+  }
+  // One adjective and one complement may follow the noun: "les flux financiers crée", "le prix
+  // des maisons baissent".
+  const head = skipAdjective(tokens, n + 1);
+  let i = skipComplement(ctx.text, tokens, head);
+  let person = plural ? ILS : IL;
+  // "Le vélo et la voiture est": two noun phrases joined by "et" take a plural verb.
+  const coordinated =
+    i === head &&
+    tokens[i]?.w === "et" &&
+    Boolean(tokens[i + 1] && ALL_DETERMINERS.has(tokens[i + 1].w));
+  if (coordinated) {
+    const second = tokens[i + 2];
+    if (!second || second.hyphen || !nounLike(ctx.text, second)) return null;
+    i = skipAdjective(tokens, i + 3);
+    person = ILS;
+  }
+  // "le nom des étudiants qui avaient": after a complement, "qui" goes with its noun.
+  if (tokens[i]?.w === "qui") {
+    if (i !== head) return null;
+    i++;
+  }
+  return verbFinding(ctx, tokens, i, person, m.index, coordinated);
+}
+
+/** Whether a noun phrase that no preposition governs ends right before the comma before `index`:
+ * "une activité, un écrit" lists subjects, "après son régime, Marie" does not. */
+function listBefore(text: string, index: number): boolean {
+  const comma = text.lastIndexOf(",", index);
+  const words = tokensBefore(text, comma, 4);
+  const k = words.findIndex((t) => ALL_DETERMINERS.has(t.w) || t.w === "des" || t.w === "du");
+  if (k < 0 || k > 2) return false;
+  return !words[k + 1] || !PREPOSITIONS.has(words[k + 1].w);
 }
 
 const NOUN_SUBJECT = new RegExp(
@@ -339,9 +657,10 @@ const NOUN_SUBJECT = new RegExp(
     ...SINGULAR_DETERMINERS,
     ...PLURAL_DETERMINERS,
     ...Object.keys(STRESSED),
+    ...NUMBERS,
   ]
     .filter((w) => w !== "l'")
-    .join("|")})(?![\\p{L}\\p{M}\\p{N}_'’-]))`,
+    .join("|")})(?![\\p{L}\\p{M}\\p{N}_'’-])|(?<![\\p{N},.][ \\u00a0]?)\\d+(?=[ \\u00a0]+\\p{L}))`,
   "giu",
 );
 
