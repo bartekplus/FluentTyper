@@ -1111,6 +1111,8 @@ function quotedMentions(ctx: DetectContext): RawFinding[] {
     if (start < ctx.from) continue;
     if (start >= ctx.to) break;
     const innerEnd = QUOTE_MARKS.test(ctx.text[end - 1]) ? end - 1 : end;
+    // A letter or two ("a", "x") holds no phrase; skipping it spares a full frame pass.
+    if ((ctx.text.slice(start + 1, innerEnd).match(/\p{L}/gu)?.length ?? 0) < 3) continue;
     // The window inView reads: 256 characters around the quotation's inside.
     const left = Math.max(0, start + 1 - 256);
     const right = Math.min(ctx.text.length, innerEnd + 256);

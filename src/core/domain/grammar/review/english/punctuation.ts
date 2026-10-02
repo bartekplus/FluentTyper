@@ -321,14 +321,33 @@ function subjectAndVerb(ws: string[], lower: string[], conj: string): boolean {
   return false;
 }
 
+const NEXT = /[ \t ]+([\p{L}'’]+)/uy;
+/** Cheap gate before any clause reading: the word after the coordinator can open a clause. */
+function opensClause(text: string, at: number): boolean {
+  NEXT.lastIndex = at;
+  const word = NEXT.exec(text)?.[1];
+  if (!word) return false;
+  const lower = word.toLowerCase().replace(/’/g, "'");
+  return (
+    /^\p{Lu}|'/u.test(word) ||
+    SUBJECTS.has(lower) ||
+    DETERMINERS.has(lower) ||
+    LEAD_ADVERBS.has(lower) ||
+    WH.has(lower) ||
+    AUX.has(lower) ||
+    /^(?:there|please|thanks|sorry|apologies)$/.test(lower)
+  );
+}
+
 function clauseCommas(ctx: DetectContext): Finding[] {
   const out: Finding[] = [];
   for (const m of owned(ctx, JOINERS)) {
     const { gap, conj } = m.groups!;
+    const after = m.index + gap.length + conj.length;
+    if (!opensClause(ctx.text, after)) continue;
     const before = ctx.text.slice(Math.max(0, m.index - 256), m.index);
     let cut = 0;
     for (const b of before.matchAll(CLAUSE_BREAK)) cut = b.index + b[0].length;
-    const after = m.index + gap.length + conj.length;
     if (conj === "so" && /^[ \t\u00a0]+that\b/i.test(ctx.text.slice(after, after + 8))) continue;
     const tail = ctx.text.slice(after, after + 240);
     const end = tail.search(/[.!?;:,\n\uFFFC]/);
