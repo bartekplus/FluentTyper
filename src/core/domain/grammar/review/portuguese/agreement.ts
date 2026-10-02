@@ -1,6 +1,7 @@
 import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
 import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
+import { analyze } from "./nounAgreement";
 
 /**
  * Agreement Portuguese marks on words a closed list can name.
@@ -28,6 +29,8 @@ for (const [stem, forms] of [
   ["rest", "a:am ava:avam ou:aram ará:arão aria:ariam"],
   ["bast", "a:am ava:avam ou:aram ará:arão aria:ariam"],
   ["sobr", "a:am ava:avam ou:aram ará:arão aria:ariam"],
+  ["falt", "a:am ava:avam ou:aram ará:arão aria:ariam"],
+  ["cheg", "a:am ava:avam ou:aram ará:arão aria:ariam"],
 ] as const) {
   for (const pair of forms.split(" ")) {
     const [singular, plural] = pair.split(":");
@@ -52,18 +55,47 @@ const AUXILIARY: Record<string, string> = {
   continua: "continuam",
   começa: "começam",
 };
-const INFINITIVES = "existir|acontecer|ocorrer|surgir|restar|bastar|sobrar";
+const INFINITIVES = "existir|acontecer|ocorrer|surgir|restar|bastar|sobrar|faltar|chegar";
+// "Tem existido muitos", "Está chegando os dias": a perfect or progressive of the same verbs.
+const PERFECT: Record<string, string> = {
+  tem: "têm",
+  tinha: "tinham",
+  tenha: "tenham",
+  teria: "teriam",
+  terá: "terão",
+  tivesse: "tivessem",
+  está: "estão",
+  estava: "estavam",
+  esteve: "estiveram",
+  esteja: "estejam",
+};
+const PARTICIPLES =
+  "existido|acontecido|ocorrido|surgido|restado|bastado|sobrado|faltado|chegado|existindo|acontecendo|ocorrendo|surgindo|restando|sobrando|faltando|chegando";
+const BETWEEN = `(?:(?:ainda|já|também|sempre|nunca${S}mais|nunca|talvez)${S})?`;
 const PLURAL_DETERMINER =
   "muitos|muitas|vários|várias|alguns|algumas|poucos|poucas|diversos|diversas|inúmeros|inúmeras|tantos|tantas|uns|umas|os|as|dois|duas|três|quatro|cinco|seis|sete|oito|nove|dez|vinte|cem|[2-9]|\\d{2,}";
 // "Acontece muitas vezes", "ocorre dois dias depois": a span of time is no subject.
-export const TIME = "vezes|anos|meses|semanas|dias|horas|minutos|segundos|tempos|décadas|séculos";
+export const TIME =
+  "vezes|anos|meses|semanas|dias|horas|minutos|segundos|tempos|décadas|séculos|instantes|momentos";
 const ADVERB = `(?:(?:ainda|também|já|só|apenas|hoje|aqui|ali|lá|agora|sempre|realmente|então)${W}${S})?`;
 const SUBJECT_AFTER = `${ADVERB}(?:${PLURAL_DETERMINER})${W}${S}(?!(?:${TIME}|mais|menos|de|do|da)${W})\\p{Ll}{3,}s${W}`;
 const POSTPOSED = `(?<target>${Object.keys(PLURAL).join("|")})${S}(?=${SUBJECT_AFTER})`;
-const PERIPHRASIS = `(?<target>${Object.keys(AUXILIARY).join("|")})${S}(?=(?:${INFINITIVES})${W}${S}${SUBJECT_AFTER})`;
+const PERIPHRASIS = `(?<target>${Object.keys(AUXILIARY).join("|")})${S}(?=${BETWEEN}(?:${INFINITIVES})${W}${S}${SUBJECT_AFTER})`;
+const PERFECT_FRAME = `(?<target>${Object.keys(PERFECT).join("|")})${S}(?=${BETWEEN}(?:${PARTICIPLES})${W}${S}${SUBJECT_AFTER})`;
+// A bare plural after the verb: "Já aconteceu erros" -> "aconteceram". Checked in code.
+const BARE = `(?<target>${Object.keys(PLURAL).join("|")})${S}${ADVERB}(?<noun>\\p{Ll}{3,}s)${W}`;
 // A subject before the verb ("Ele resta...", "quem existe") makes it agree with that one.
 const SUBJECT_BEFORE =
   /(?<![\p{L}])(?:eu|tu|ele|ela|você|nós|eles|elas|vocês|que|quem|o|a|isso|isto|tudo|nada|algo|ninguém)[ \t ]+$/iu;
+
+// "chegar" and "faltar" mostly follow their subject ("A polícia chegou alguns instantes
+// depois"): they only agree with one after them when nothing but an adverb comes before.
+const SUBJECTLESS =
+  /(?:^|[.!?;:,\n]["'”’»)]*[ \t\u00a0]*|(?:^|[^\p{L}])(?:já|ontem|hoje|então|ainda|agora|aí|enfim|finalmente|não)[ \t\u00a0]+)$/iu;
+function subjectless(ctx: DetectContext, m: RegExpExecArray): boolean {
+  if (!/^(?:cheg|falt)/i.test(m.groups!.target)) return true;
+  return SUBJECTLESS.test(ctx.text.slice(Math.max(0, m.index - 16), m.index));
+}
 
 const PROPRIO = `(?<pronoun>n?ele|n?ela|n?eles|n?elas|dele|dela|deles|delas)${S}(?<target>própri[oa]s?)${W}`;
 const PROPRIO_ENDING: Record<string, string> = {
@@ -235,12 +267,25 @@ export function agreement(ctx: DetectContext): RawFinding[] {
   for (const [pattern, table] of [
     [POSTPOSED, PLURAL],
     [PERIPHRASIS, AUXILIARY],
+    [PERFECT_FRAME, PERFECT],
   ] as const) {
     for (const m of frameMatches(ctx, pattern)) {
       const before = ctx.text.slice(Math.max(0, m.index - 16), m.index);
       if (SUBJECT_BEFORE.test(before)) continue;
+      if (!subjectless(ctx, m)) continue;
       push(findings, ctx, m, table[m.groups!.target.toLowerCase()]);
     }
+  }
+  for (const m of frameMatches(ctx, BARE)) {
+    const noun = m.groups!.noun;
+    if (noun !== noun.toLowerCase() || /mos$/.test(noun) || new RegExp(`^(?:${TIME})$`).test(noun))
+      continue;
+    if (new RegExp(`^(?:${PLURAL_DETERMINER})$`).test(noun)) continue;
+    const info = analyze(noun);
+    if (!info?.plural || info.feminine === null) continue;
+    if (SUBJECT_BEFORE.test(ctx.text.slice(Math.max(0, m.index - 16), m.index))) continue;
+    if (!subjectless(ctx, m)) continue;
+    push(findings, ctx, m, PLURAL[m.groups!.target.toLowerCase()]);
   }
   for (const m of frameMatches(ctx, PROPRIO)) {
     const pronoun = m.groups!.pronoun.toLowerCase().replace(/^[nd]/, "");
