@@ -46,6 +46,8 @@ test("no chunk stalls on runs of slot-opening words or spaces between them", () 
     "people thinks ".repeat(2_000),
     ". The tall guys who met him yesterday really ".repeat(500),
     "Tim and me and Sam and me went ".repeat(600),
+    "better a b c d e then ".repeat(800),
+    "an ever by then were where ".repeat(700),
   ];
   for (const text of inputs) expect(slowestChunkMs(text)).toBeLessThan(100);
 });
