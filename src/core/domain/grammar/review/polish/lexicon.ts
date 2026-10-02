@@ -156,6 +156,12 @@ export function adjectiveOf(word: string): { lemma: string; ending: string } | n
   return null;
 }
 
+/** The lexicon lists `lemma` (a masculine form) as an adjective. */
+export function hasAdjective(lemma: string): boolean {
+  adjectives ??= new Set(decodeWords(ADJECTIVES));
+  return adjectives.has(lemma);
+}
+
 /** The form of adjective `lemma` with hard ending `ending`. */
 export function adjectiveForm(lemma: string, ending: string): string {
   return adjectiveForms(lemma)[HARD.indexOf(ending)];

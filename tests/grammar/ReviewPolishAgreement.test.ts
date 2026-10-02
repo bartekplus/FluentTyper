@@ -211,3 +211,41 @@ test("no chunk stalls on long runs of adjectives, nouns and prepositions", () =>
   ];
   for (const text of inputs) expect(slowestChunkMs(text)).toBeLessThan(100);
 });
+
+describe("Polish degrees of comparison", () => {
+  const degree = (text: string) =>
+    findings(text, "pl_PL", ["englishDoubledDegree", "stylePhrasing"]).map((d) => [
+      d.ruleId,
+      applyEdits(text, d.alternatives[0].edits),
+    ]);
+  test.each([
+    ["Ta książka jest bardziej ciekawsza.", "englishDoubledDegree", "Ta książka jest ciekawsza."],
+    ["To był najbardziej najlepszy dzień.", "englishDoubledDegree", "To był najlepszy dzień."],
+    ["Stań bardziej bliżej okna.", "englishDoubledDegree", "Stań bliżej okna."],
+    [
+      "Wybrano najbardziej optymalny wariant.",
+      "englishDoubledDegree",
+      "Wybrano optymalny wariant.",
+    ],
+    [
+      "Rower jest coraz najbardziej modny.",
+      "englishDoubledDegree",
+      "Rower jest coraz bardziej modny.",
+    ],
+    ["To jest bardziej ważna sprawa.", "stylePhrasing", "To jest ważniejsza sprawa."],
+    ["Wybierz najbardziej tani bilet.", "stylePhrasing", "Wybierz najtańszy bilet."],
+    ["Pisz bardziej dokładnie.", "stylePhrasing", "Pisz dokładniej."],
+    ["Dziś czuję się bardziej dobrze.", "stylePhrasing", "Dziś czuję się lepiej."],
+  ])("%p", (text, ruleId, fixed) => {
+    expect(degree(text)).toEqual([[ruleId, fixed]]);
+  });
+  test.each([
+    "Tym bardziej lepiej, że przyszedłeś.",
+    "Im bardziej się starał, tym gorzej mu szło.",
+    "To jest bardziej znany pisarz.",
+    "Jest bardziej zmęczony niż wczoraj.",
+    "Najbardziej lubię wiosnę.",
+  ])("leaves %p", (text) => {
+    expect(degree(text)).toEqual([]);
+  });
+});
