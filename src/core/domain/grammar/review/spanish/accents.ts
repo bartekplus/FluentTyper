@@ -5,7 +5,9 @@ import {
   CLITICS,
   CONJUNCTIONS,
   DETERMINERS,
+  GIVEN_NAMES,
   INVARIANT,
+  isBoundary,
   isInfinitive,
   PREPOSITIONS,
   replaceToken,
@@ -14,7 +16,7 @@ import {
   verbLike,
   words,
 } from "./common";
-import { attribute, genderedForm, isGerund, isNoun, participle } from "./lexicon";
+import { attribute, finiteVerb, genderedForm, isGerund, isNoun, participle } from "./lexicon";
 
 // Written accents that tell two real words apart: "esta" (this) / "está" (is). Each check
 // reads the closed-class words around the target; the lexicon only says whether a neighbour
@@ -51,6 +53,13 @@ const BEFORE_VERB = words(
     "usted uno",
 );
 const TIME = words("siempre todavía ya aún ahora también hoy nunca");
+// "esta los domingos abre": a time phrase after the pronoun.
+const TIME_NOUNS = words(
+  "domingos lunes martes miércoles jueves viernes sábados semana semanas mañanas tardes " +
+    "noches días veces vez año años mes meses",
+);
+// After these a participle closing its clause is the attribute of "está".
+const RELATIVES = words("y e pero cual cuales quien quienes donde cuando");
 const INTERROGATIVES = words("dónde adónde cómo quién quiénes cuándo");
 const SUBJECTS_3 = words("él ella usted");
 const SUBJECTS_2 = words("tú vos");
@@ -60,6 +69,7 @@ function nameLike(at: Around): boolean {
   const before = at.tokens[at.i - 1];
   if (!before?.word || at.tokens[at.i].broken || !/^\p{Lu}\p{Ll}/u.test(before.text)) return false;
   const word = before.lower;
+  if (GIVEN_NAMES.has(word)) return true;
   return (
     word.length > 2 &&
     !isNoun(word) &&
@@ -93,10 +103,17 @@ function asks(at: Around): boolean {
 function closes(at: Around, k: number): boolean {
   if (at.endsAfter(k)) return true;
   const after = at.next(k + 1);
+  const coordinated = at.next(k + 2);
   return (
     PREPOSITIONS.has(after) ||
     // "casada y tiene", but "repentina y loable disposición".
-    ((after === "y" || after === "e") && !isNoun(at.next(k + 2)) && !attributeOf(at.next(k + 2))) ||
+    ((after === "y" || after === "e") && !isNoun(coordinated) && !attributeOf(coordinated)) ||
+    // "licenciada y examinada por": two participles.
+    ((after === "y" || after === "e") &&
+      !!participle(at.next(k)) &&
+      !!participle(coordinated) &&
+      !isNoun(coordinated) &&
+      closes(at, k + 2)) ||
     PLACE_MANNER.has(after) ||
     /^\p{L}{4,}mente$/u.test(after)
   );
@@ -128,6 +145,10 @@ function estarReading(at: Around, plural: boolean): boolean {
       (subjects.has(prev) && !PREPOSITIONS.has(prev2)) ||
       // "¡Ahí estás!", "Claro está.", "Escrito está.": no noun for a determiner to agree with.
       PLACE_MANNER.has(prev) ||
+      // "¡Qué cerca esta!", "¡Qué buena esta!": an exclamation about how something is.
+      ((prev2 === "qué" || prev2 === "que") &&
+        at.tokens[at.i + 1]?.text === "!" &&
+        (!!attributeOf(prev) || prev === "cerca" || prev === "lejos" || PLACE_MANNER.has(prev))) ||
       (!plural && attribute(prev)?.feminine === false && !attribute(prev)?.plural)
     );
   }
@@ -158,7 +179,35 @@ function estarReading(at: Around, plural: boolean): boolean {
     subjects.has(prev) ||
     INTERROGATIVES.has(prev) ||
     ((isNoun(prev) || attribute(prev) !== null) && !verbLike(prev));
+  // "y esta embarazada.", "la cual esta basada en": a true participle closing the clause after
+  // a conjunction or a relative is the verb's attribute.
+  if (
+    !slot &&
+    RELATIVES.has(prev) &&
+    reading &&
+    !reading.plural &&
+    !!participle(next) &&
+    !isNoun(next) &&
+    !PARTICIPLE_NOUNS.has(next) &&
+    !verbLike(next) &&
+    closes(at, 1)
+  )
+    return true;
   if (!slot) return false;
+  // "En el cerro esta la catedral": a determiner cannot follow the demonstrative, so "está"
+  // introduces the subject; "esta la tiene" is a pronoun and its clitic.
+  if (
+    /^(?:el|la|los|las|un|una|mi|su|tu)$/u.test(next) &&
+    !isBoundary(at.tokens[at.i + 2]) &&
+    isNoun(at.next(2)) &&
+    !verbLike(at.next(2)) &&
+    !finiteVerb(at.next(2)) &&
+    !TIME_NOUNS.has(at.next(2))
+  )
+    return !at.starts;
+  // "esta más allá de", "esta más cerca": a degree of place.
+  if (next === "más" && /^(?:allá|cerca|lejos|adelante|atrás|arriba|abajo)$/u.test(at.next(2)))
+    return true;
   // "Tom está todavía despierto", "Está siempre corriendo": a time adverb, then the attribute.
   if (TIME.has(next)) {
     const after = at.next(2);
@@ -195,7 +244,7 @@ function estarReading(at: Around, plural: boolean): boolean {
   if (prev === "no") return !isNoun(next) && !CLITICS.has(next);
   // "¿Dónde esta tu padre?", "Tom está feliz": a question word or subject right before it.
   if (INTERROGATIVES.has(prev) || subjects.has(prev) || (prev === "tal" && prev2 === "qué"))
-    return !isNoun(next) && !CLITICS.has(next);
+    return (!isNoun(next) || DETERMINERS.has(next)) && !CLITICS.has(next);
   return false;
 }
 

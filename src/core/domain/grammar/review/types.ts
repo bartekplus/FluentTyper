@@ -315,6 +315,10 @@ export type ReviewMessageKey =
   | "review_msg_spanish_agreement"
   | "review_msg_spanish_comma"
   | "review_msg_spanish_verb_agreement"
+  | "review_msg_spanish_pronoun_article"
+  | "review_msg_spanish_ordinal"
+  | "review_msg_spanish_unit"
+  | "review_msg_spanish_dialogue_dash"
   // French (review/french/)
   | "review_msg_fr_past_participle"
   | "review_msg_fr_infinitive"

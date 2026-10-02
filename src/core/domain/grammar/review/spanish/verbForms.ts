@@ -1,7 +1,25 @@
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
-import { Around, CLITICS, isInfinitive, replaceToken, tokenize, words, type Token } from "./common";
-import { HABER, isPerfectParticiple } from "./confusions";
-import { genderedForm, isGerund, isNoun, isVerb, participle } from "./lexicon";
+import {
+  Around,
+  CLITICS,
+  DETERMINERS,
+  isInfinitive,
+  replaceToken,
+  tokenize,
+  words,
+  type Token,
+} from "./common";
+import { readNoun } from "./agreement";
+import { HABER, IR, isPerfectParticiple } from "./confusions";
+import {
+  finiteVerb,
+  genderedForm,
+  isGerund,
+  isNoun,
+  isVerb,
+  participle,
+  subjunctiveLike,
+} from "./lexicon";
 
 // Verb forms after an auxiliary ("han realizando" -> realizado, "ha ido aumentado" ->
 // aumentando), the auxiliary "ha"/"he" written as the preposition "a" or the conjunction "e",
@@ -160,6 +178,137 @@ function deQue(tokens: Token[], i: number): { span: [number, number]; fix: strin
   return null;
 }
 
+// ------------------------------------------------- clitics before a non-finite form
+
+// Futures that do not keep the infinitive whole ("mantener" -> "mantendrá").
+const IRREGULAR_FUTURE: [string, string][] = [
+  ["tener", "tendrá"],
+  ["poner", "pondrá"],
+  ["salir", "saldrá"],
+  ["venir", "vendrá"],
+  ["valer", "valdrá"],
+  ["poder", "podrá"],
+  ["querer", "querrá"],
+  ["saber", "sabrá"],
+  ["caber", "cabrá"],
+  ["haber", "habrá"],
+  ["hacer", "hará"],
+  ["decir", "dirá"],
+];
+
+/** "ayudar" -> ["ayuda", "ayudará"]: the third person the clitic most often goes with. */
+function thirdPerson(infinitive: string): string[] {
+  const irregular = IRREGULAR_FUTURE.find(([ending]) => infinitive.endsWith(ending));
+  const future = irregular
+    ? `${infinitive.slice(0, -irregular[0].length)}${irregular[1]}`
+    : `${infinitive}á`;
+  const stem = infinitive.slice(0, -2);
+  // Stems that may change ("encuentra", "pide", "envía") get no guessed present.
+  const lastVowel = /[aeiouáéíóú](?=[^aeiouáéíóú]*$)/u.exec(stem)?.[0];
+  if (irregular || !lastVowel || /[eo]/u.test(lastVowel) || /[iu]$/u.test(stem)) return [future];
+  return [`${stem}${infinitive.endsWith("ar") ? "a" : "e"}`, future];
+}
+
+/** "nos acomodarnos" -> "nos acomodamos": the clitic written twice around an infinitive. */
+const FIRST_PLURAL: Record<string, string> = { ar: "amos", er: "emos", ir: "imos" };
+
+// "le ha dado", "te he encontrado": the "haber" a clitic before a participle needs.
+const PERFECT_FOR: Record<string, string[]> = {
+  me: ["he", "ha"],
+  te: ["ha", "he"],
+  se: ["ha", "han"],
+  le: ["ha", "he"],
+  les: ["ha", "he"],
+  nos: ["ha", "hemos"],
+  os: ["ha", "habéis"],
+};
+
+// Irregular verb forms that are also nouns: "le vino", "le traje", "les dije".
+const VERB_NOUNS = words("vino traje dije puse tuve hice vine fui cupo");
+const ARTICLE: Record<string, [string, string]> = { m: ["el", "los"], f: ["la", "las"] };
+
+type Fix = { span: [number, number]; fixes: string[]; key: RawFinding["messageKey"] };
+
+/**
+ * A clitic where Spanish allows none: before an infinitive ("te ayudar"), before a participle
+ * without "haber" ("le dado"), or before a noun where the article goes ("les medidas").
+ */
+function cliticSlot(tokens: Token[], i: number): Fix | null {
+  const at = new Around(tokens, i);
+  const clitic = tokens[i].lower;
+  const next = at.next();
+  const nextToken = tokens[i + 1];
+  if (!PERFECT_FOR[clitic] || !next || !/^\p{Ll}/u.test(nextToken.text)) return null;
+  // "un te helado": the tea; "No se nadar" is "sé" (accents.ts).
+  if (clitic === "se" || /^(?:un|el|del|al|mi|tu|su)$/u.test(at.prev())) return null;
+  const inf = /^(\p{L}+?)([aei])r(nos)?$/u.exec(next);
+  if (inf && isVerb(`${inf[1]}${inf[2]}r`)) {
+    const infinitive = `${inf[1]}${inf[2]}r`;
+    if (inf[3])
+      return clitic === "nos"
+        ? { span: [i + 1, i + 1], fixes: [`${inf[1]}${FIRST_PLURAL[`${inf[2]}r`]}`], key: VERB }
+        : null;
+    return { span: [i + 1, i + 1], fixes: thirdPerson(infinitive), key: VERB };
+  }
+  // "le valido", "le olvido": a first person present that looks like a participle.
+  if (
+    isPerfectParticiple(next) &&
+    !isVerb(`${next.slice(0, -1)}ar`) &&
+    // "le hecho sal": the verb "echar" (confusions.ts).
+    next !== "hecho" &&
+    at.next(2) !== "de" &&
+    !/^(?:nos|os)$/u.test(clitic)
+  )
+    return {
+      span: [i, i + 1],
+      fixes: PERFECT_FOR[clitic].map((aux) => `${clitic} ${aux} ${next}`),
+      key: VERB,
+    };
+  const noun = readNoun(next);
+  if (
+    !noun?.gender ||
+    !/^(?:le|les|nos|os)$/u.test(clitic) ||
+    participle(next) ||
+    noun.plural !== (clitic !== "le") ||
+    // "les tenias", "le sabia": an imperfect missing its accent.
+    (/ia[sn]?$/u.test(next) && ["er", "ir"].some((e) => isVerb(next.replace(/ia[sn]?$/u, e)))) ||
+    finiteVerb(next) ||
+    subjunctiveLike(next) ||
+    isGerund(next) ||
+    VERB_NOUNS.has(next) ||
+    DETERMINERS.has(next)
+  )
+    return null;
+  return {
+    span: [i, i],
+    fixes: [ARTICLE[noun.gender][noun.plural ? 1 : 0]],
+    key: "review_msg_spanish_pronoun_article",
+  };
+}
+
+// "empezó a involucrase", "al encontrase": a preposition takes the infinitive ("-arse"), never
+// the imperfect subjunctive; "se va a celebra": "ir a" takes the infinitive.
+function prepositionVerb(at: Around): string | null {
+  const word = at.tokens[at.i].lower;
+  const prev = at.prev();
+  if (!/^(?:a|al|de|del|para|sin|por|tras|hasta)$/u.test(prev) || isNoun(word)) return null;
+  let m = /^(\p{L}{3,}?)ase$/u.exec(word);
+  if (m && isVerb(`${m[1]}ar`)) return `${m[1]}arse`;
+  m = /^(\p{L}{2,}?)iese$/u.exec(word);
+  if (m) {
+    const infinitive = [`${m[1]}er`, `${m[1]}ir`].find(isVerb);
+    if (infinitive) return `${infinitive}se`;
+  }
+  m = /^(\p{L}{3,}?)([ae])$/u.exec(word);
+  if (prev === "a" && m && IR.has(at.prev(2)) && !genderedForm(word)) {
+    const infinitive = (m[2] === "a" ? [`${m[1]}ar`] : [`${m[1]}er`, `${m[1]}ir`]).find(isVerb);
+    if (infinitive) return infinitive;
+  }
+  return null;
+}
+
+const VERB = "review_msg_spanish_verb_form" as const;
+
 function verbForms(ctx: DetectContext): RawFinding[] {
   if (ctx.lang.slice(0, 2) !== "es") return [];
   const tokens = tokenize(ctx);
@@ -167,6 +316,24 @@ function verbForms(ctx: DetectContext): RawFinding[] {
   for (let i = 0; i < tokens.length; i++) {
     const token = tokens[i];
     if (!token.word || token.start < ctx.from || token.start >= ctx.to) continue;
+    const slot = cliticSlot(tokens, i);
+    if (slot) {
+      const [from, to] = slot.span;
+      const span = {
+        ...tokens[from],
+        end: tokens[to].end,
+        text: ctx.text.slice(tokens[from].start, tokens[to].end),
+      };
+      const finding = replaceToken(ctx, span, slot.fixes, RULE, slot.key, tokens[i]);
+      if (finding) findings.push(finding);
+      continue;
+    }
+    const infinitive = prepositionVerb(new Around(tokens, i));
+    if (infinitive) {
+      const finding = replaceToken(ctx, token, [infinitive], RULE, VERB, tokens[i - 1]);
+      if (finding) findings.push(finding);
+      continue;
+    }
     const fixes = check(new Around(tokens, i));
     if (fixes) {
       const finding = replaceToken(
