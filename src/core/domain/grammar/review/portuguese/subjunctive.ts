@@ -65,7 +65,7 @@ for (const row of [
 }
 
 let stems: { ar: Set<string>; er: Set<string>; ir: Set<string> } | undefined;
-const verbStems = () =>
+export const verbStems = () =>
   (stems ??= {
     ar: new Set(PORTUGUESE_AR_STEMS.split(" ")),
     er: new Set(PORTUGUESE_ER_STEMS.split(" ")),
@@ -74,7 +74,7 @@ const verbStems = () =>
 
 // -er/-ir stems with an irregular subjunctive (fazer, ter, ver, vir, pôr and their compounds),
 // handled by IRREGULAR or left alone.
-const IRREGULAR_STEM =
+export const IRREGULAR_STEM =
   /(?:faz|diz|traz|sab|cab|pod|quer|perd|val|hav|jaz|praz|ped|med|ouv)$|^(?:man|con|ob|de|re|entre|a|abs|sus)?t$|^(?:pre|re|inter|con|pro|ad|sobre)?v$|^(?:re)?l$|^cr$|^s$/;
 
 type Person = "1s" | "2s" | "3s" | "1p" | "3p";
@@ -148,11 +148,21 @@ function presentOf(stem: string, conjugation: "ar" | "er" | "ir", person: Person
     const stress = /e$/.test(stem) && person !== "1p" ? "i" : "";
     return `${written}${stress}${SUBJUNCTIVE_ENDINGS.ar[person]}`;
   }
+  return `${firstPersonStem(stem, conjugation)}${SUBJUNCTIVE_ENDINGS.er[person]}`;
+}
+
+/** The stem of the first person present of an -er/-ir verb: "conhec" -> "conheç", "sent" -> "sint". */
+export function firstPersonStem(stem: string, conjugation: "er" | "ir"): string {
   let first = stem;
-  // -ir verbs raise a last stem "e" to "i": sentir -> sinta, seguir -> siga, preferir -> prefira.
-  if (conjugation === "ir") first = first.replace(/e([^aeiou]+u?)$/, "i$1");
-  first = first.replace(/gu$/, "g").replace(/qu$/, "c").replace(/c$/, "ç").replace(/g$/, "j");
-  return `${first}${SUBJUNCTIVE_ENDINGS.er[person]}`;
+  if (conjugation === "ir") {
+    // -ir verbs raise a last stem "e" to "i": sentir -> sinto, seguir -> sigo, preferir -> prefiro;
+    // and an "o" to "u" in a few: dormir -> durmo, cobrir -> cubro.
+    first = first.replace(/e([^aeiou]+u?)$/, "i$1");
+    if (/(?:dorm|cobr|toss|engol)$/.test(first)) first = first.replace(/o([^aeiou]+)$/, "u$1");
+  }
+  if (/gu$/.test(first)) return first.slice(0, -1);
+  if (/qu$/.test(first)) return `${first.slice(0, -2)}c`;
+  return first.replace(/c$/, "ç").replace(/g$/, "j");
 }
 
 function reading(word: string): Reading | null {

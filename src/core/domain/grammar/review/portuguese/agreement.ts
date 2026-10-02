@@ -206,7 +206,7 @@ const ELAPSED = new RegExp(`^${S}(?:\\p{L}+${S})?(?:${TIME}|tempo)${W}`, "iu");
 // A preposition makes the pronoun no subject ("para eles foi difícil", "a todos eles"); "e",
 // "ou" or a comma can join it to another subject ("eu e ela vamos"); after a copula it is the
 // predicate ("ser eu"); after an article it is a noun ("os nós", "o verdadeiro eu").
-const NOT_SUBJECT =
+export const NOT_SUBJECT =
   /(?<![\p{L}])(?:(?:para|com|de|dentre|sem|entre|a|por|contra|até|sobre|perante|desde|após)(?:[ \t ]+(?:todos|todas|ambos|ambas))?|e|ou|nem|como|quanto|ser|sou|é|era|foi|o|a|os|as|um|uma|uns|umas|dos|das|nos|nas|aos|pelos|pelas|meu|seu|teu|nosso|verdadeiro|próprio)[ \t ]+$|,[ \t ]*$/iu;
 
 function push(
