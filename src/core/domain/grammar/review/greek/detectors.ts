@@ -40,7 +40,10 @@ const finding = (m: RegExpExecArray, alternative: string, extra: Partial<Finding
 const ARTICLES = new Set("ο η οι το τα τον την τη του της των τους τις".split(" "));
 
 const MISSING_NU = new RegExp(`${BEFORE}(?<word>τη|στη|δε|μη)${NEXT}`, "giu");
-const NEUTER_TO = new RegExp(`${BEFORE}(?<word>το|στο)${NEXT}`, "giu");
+const NEUTER_TO = new RegExp(
+  `${BEFORE}(?<word>το|στο|ένα|κάποιο|κανένα|ποιο|τέτοιο|ολόκληρο)${NEXT}`,
+  "giu",
+);
 const KI = new RegExp(`${BEFORE}(?<word>κι)${NEXT}`, "giu");
 const CONSONANT = /^[βγδζθκλμνξπρστφχψ]/;
 // Negating "δε" cannot stand right before a conjunction: there it is cited or adversative.
@@ -99,7 +102,7 @@ function finalNu(ctx: DetectContext): Finding[] {
   return findings;
 }
 
-const EXTRA_NU = new RegExp(`${BEFORE}(?<word>την|στην|αυτήν)${NEXT}`, "giu");
+const EXTRA_NU = new RegExp(`${BEFORE}(?<word>την|στην|αυτήν|δεν|μην)${NEXT}`, "giu");
 const AYTH = new RegExp(`${BEFORE}(?<word>αυτή)${NEXT}`, "giu");
 const PREPOSITION =
   /(?<!\p{L})(?:(?:γι|σ|μ|απ|κατ|μετ|παρ)['’][ \t\u00a0]*|(?:για|σε|με|από|προς|χωρίς|κατά|μετά|παρά|ως|μέχρι|έως)[ \t\u00a0]+)$/iu;
@@ -109,19 +112,25 @@ const PREPOSITION =
  * ανταγωνισμό" -> "τον", common in speech-like writing), the feminine article
  * drops it before the continuants ("την λειτουργία" -> "τη"), and "αυτή" after
  * a preposition follows the article ("γι' αυτήν ξενιτεύτηκα"). "δεν" and "μην"
- * keep their ν everywhere in current usage, so they are left alone.
+ * follow the same school rule ("δε θέλει", "να μη φύγεις"), though current usage
+ * often keeps their ν everywhere: this rule is opt-in for that reason. Other
+ * masculine determiners keep their ν too: "έναν λόγο", "για ποιον λόγο".
  */
 function strictFinalNu(ctx: DetectContext): Finding[] {
   const findings: Finding[] = [];
   for (const m of owned(ctx, EXTRA_NU)) {
     const { word, next } = m.groups!;
     if (keepsFinalNu(next) !== false) continue;
+    // "Το δεν γράφεται…": a word cited after an article is not negating anything.
+    if (/^(?:δεν|μην)$/iu.test(word) && ARTICLES.has(bareGreek(wordBefore(ctx.text, m.index))))
+      continue;
     findings.push(finding(m, word.slice(0, -1)));
   }
   for (const m of owned(ctx, NEUTER_TO)) {
     const { word, next } = m.groups!;
     const noun = bareGreek(next);
     if (!isGreek(next) || !(MASCULINE.has(noun) || MASCULINE_SUFFIX.test(noun))) continue;
+    // "ένα" before a masculine noun is the article "έναν", never the neuter numeral.
     // "αυτό το λόγο" -> "αυτόν τον λόγο": the demonstrative agrees too.
     const lead = /(?<!\p{L})(αυτό|εκείνο)([ \t\u00a0]+)$/iu.exec(
       ctx.text.slice(Math.max(0, m.index - 12), m.index),
@@ -256,6 +265,25 @@ function perfectForm(ctx: DetectContext): Finding[] {
   return findings;
 }
 
+const KI_VOWEL = new RegExp(`${BEFORE}(?<word>κι)${NEXT}`, "giu");
+
+/** "κι ενός" -> "και ενός": formal writing spells "και" out before a vowel too. */
+function formalKai(ctx: DetectContext): Finding[] {
+  const findings: Finding[] = [];
+  for (const m of owned(ctx, KI_VOWEL)) {
+    const { word, next } = m.groups!;
+    // "Κι όμως", "κι αν", "από πού κι ως πού" are fixed in this form.
+    if (
+      !isGreek(next) ||
+      CONSONANT.test(bareGreek(next)) ||
+      /^(?:ομως|ως|αν)$/u.test(bareGreek(next))
+    )
+      continue;
+    findings.push(finding(m, word === word.toUpperCase() ? "ΚΑΙ" : word[0] + "αι"));
+  }
+  return findings;
+}
+
 const as =
   (
     ruleId: RawFinding["ruleId"],
@@ -282,6 +310,7 @@ export const DETECTORS: readonly ReviewDetectorEntry[] = [
     rules: ["greekQuestionAccent"],
     detect: as("greekQuestionAccent", "review_msg_greek_question_accent", questionAccent),
   },
+  { rules: ["stylePhrasing"], detect: as("stylePhrasing", "review_msg_style_phrasing", formalKai) },
   {
     rules: ["greekPunctuation"],
     detect: (ctx) => [
