@@ -1,4 +1,5 @@
-import { afterEach, expect, test } from "bun:test";
+import { afterEach, expect, jest, test } from "bun:test";
+import { ReviewController } from "../src/adapters/chrome/content-script/review/ReviewController";
 import { resolveReviewTarget } from "../src/adapters/chrome/content-script/review/ReviewTargets";
 import {
   installWordReviewMainWorld,
@@ -16,6 +17,7 @@ import { ReviewSession } from "../src/core/application/review/ReviewSession";
 import { LocalReviewEngine } from "../src/core/application/review/LocalReviewEngine";
 import type { ReviewAiProvider } from "../src/core/application/review/reviewAi";
 import { AI_PROMPT_VERSION } from "../src/core/domain/grammar/review/ai/prompts";
+import { GRAMMAR_RULE_IDS } from "../src/core/domain/grammar/ruleCatalog";
 
 let cleanup = () => {};
 afterEach(() => {
@@ -364,6 +366,56 @@ test("Word Review resolves the document instead of its empty input proxy", () =>
   const result = resolveReviewTarget(document);
   expect(result.ok && result.target.kind).toBe("model-editor");
   expect(result.ok && result.target.element.id).toBe("WACViewPanel");
+  if (result.ok) result.target.dispose();
+});
+
+test("Word repeated resolution preserves the active target and its single-use correction token", async () => {
+  const h = fixture(["teh"]);
+  const before = h.target.read();
+  if (!before.ok) throw new Error("read failed");
+  const again = resolveReviewTarget(document, h.target);
+  try {
+    expect(again.ok && again.target).toBe(h.target);
+    expect(
+      await h.target.apply({
+        before: before.text,
+        after: "the",
+        signature: before.signature,
+        edits: [{ start: 0, end: 3, original: "teh", replacement: "the" }],
+      }),
+    ).toEqual({ status: "applied" });
+  } finally {
+    if (again.ok && again.target !== h.target) again.target.dispose();
+    h.target.dispose();
+  }
+});
+
+test("Word repeated controller invocation reuses the active target without another model read", () => {
+  const h = fixture(["teh"]);
+  h.target.dispose();
+  const read = jest.spyOn(WordReviewTarget.prototype, "read");
+  const review = new ReviewController({
+    createEngine: () => new LocalReviewEngine(),
+    getOptions: () => ({ lang: "en_US", enabledRules: GRAMMAR_RULE_IDS, userDictionary: [] }),
+    suspend: () => {},
+    resume: () => {},
+    addToDictionary: async () => true,
+    getDocsSurface: () => null,
+    uiLanguage: "en",
+  });
+  try {
+    review.invoke();
+    const reads = read.mock.calls.length;
+    expect(reads).toBeGreaterThan(0);
+    document.getElementById("WACViewPanel_EditingElement")!.focus();
+    review.invoke();
+    expect(read.mock.calls.length).toBe(reads);
+    expect(review.reviewedElement).toBe(h.target.element);
+    expect(document.querySelectorAll("[data-fluenttyper-review]")).toHaveLength(1);
+  } finally {
+    review.close();
+    read.mockRestore();
+  }
 });
 
 test("Word Fix all commits multiple offsets and paragraphs in one native transaction", async () => {

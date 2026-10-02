@@ -161,9 +161,9 @@ export class ReviewController {
     }
     // A Docs review is already starting (its first read is asynchronous).
     if (docs && this.docsStarting) return;
-    const resolution = docs ? null : resolveReviewTarget(document);
     // A review whose selection could not follow an edit asked for a new one.
     if (this.active?.state?.status === "stale-scope") this.close();
+    const resolution = docs ? null : resolveReviewTarget(document, this.active?.target);
     if (this.active) {
       const same = resolution?.ok && resolution.target.element === this.active.target.element;
       if (same || (docs && this.active.target instanceof GoogleDocsReviewTarget)) {

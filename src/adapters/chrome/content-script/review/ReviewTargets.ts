@@ -127,7 +127,10 @@ export function isReviewEligible(element: HTMLElement): boolean {
  * focus. A selection must lie wholly inside one editor; otherwise the whole
  * editor is the scope, never the page.
  */
-export function resolveReviewTarget(doc: Document = document): Resolution {
+export function resolveReviewTarget(
+  doc: Document = document,
+  current?: ReviewTargetHandle,
+): Resolution {
   const active = getDeepActiveElement(doc);
   if (!(active instanceof HTMLElement)) return { ok: false, reason: "no-editor" };
 
@@ -136,6 +139,10 @@ export function resolveReviewTarget(doc: Document = document): Resolution {
     word &&
     (active.id === WORD_INPUT_ID || doc.getElementById("EditorContainer")?.contains(active))
   ) {
+    // Reopening the same review must not replace its single-use model token
+    // or create another mutation observer.
+    if (current instanceof WordReviewTarget && current.element === word)
+      return { ok: true, target: current, scope: current.scope };
     const target = new WordReviewTarget(word);
     target.read(true);
     return { ok: true, target, scope: target.scope };

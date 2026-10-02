@@ -4670,6 +4670,16 @@
         {
           "layer": "unit",
           "file": "tests/WordReview.test.ts",
+          "test": "Word repeated resolution preserves the active target and its single-use correction token"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/WordReview.test.ts",
+          "test": "Word repeated controller invocation reuses the active target without another model read"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/WordReview.test.ts",
           "test": "Word Review maps model selection offsets and never widens an unsupported selection"
         },
         {
