@@ -1075,7 +1075,9 @@ const duplicatePunctuation: Detector = (ctx) => {
       ctx.lang.startsWith("pl") &&
       match[0] === ",," &&
       /^$|\s$/u.test(ctx.text.slice(Math.max(0, start - 1), start)) &&
-      /^[\p{L}\p{N}][^\n„]{0,200}?[\p{L}\p{N}.!?…](?:”|"|'')/u.test(ctx.text.slice(end, end + 210));
+      /^[\p{L}\p{N}][^\n„]{0,200}?[\p{L}\p{N}.!?…](?:”|"|''|’’)/u.test(
+        ctx.text.slice(end, end + 210),
+      );
     findings.push({
       ruleId: "duplicatePunctuationCollapse",
       messageKey: "review_msg_duplicate_punctuation",

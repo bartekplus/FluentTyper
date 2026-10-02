@@ -5,6 +5,7 @@ import {
   adjectiveOf,
   agreeingEndings,
   ambiguousAdjective,
+  finiteVerb,
   readingCases,
   ALL_CASES,
   cases,
@@ -17,7 +18,15 @@ import {
   PLURAL,
   SINGULAR,
 } from "./lexicon";
-import { caseLike, findingAt, isPl, owned, sentenceStartAt, userOrNamed } from "./shared";
+import {
+  caseLike,
+  findingAt,
+  isPl,
+  owned,
+  PREPOSITIONS,
+  sentenceStartAt,
+  userOrNamed,
+} from "./shared";
 
 /*
  * Case and agreement read from the noun lexicon: a preposition governs the case of the noun
@@ -112,8 +121,14 @@ const NOMINATIVE = cases("Ns Np");
 /** The word ends here and is not a short abbreviation ("por.", "ul.", "lit."). */
 const WORD = "(?![\\p{L}\\p{N}_'’@/-])(?<![ \\t\\u00a0]\\p{L}{1,3}(?=\\.))";
 const PREPOSITION = new RegExp(
-  `(?<![\\p{L}\\p{N}_'’.@/-])(?<prep>${Object.keys(GOVERNS).join("|")})[ \\t\\u00a0]+(?<noun>\\p{L}+)${WORD}`,
+  `(?<![\\p{L}\\p{N}_'’.@/-])(?<prep>${Object.keys(GOVERNS).join("|")})[ \\t\\u00a0]+(?<noun>\\p{L}+)(?![\\p{L}\\p{N}_'’@/-])`,
   "giu",
+);
+/** Short abbreviations a preposition takes ("w ust. 2", "przy ul. Długiej"). */
+const SHORT_ABBREVIATIONS = new Set(
+  "ust lit ok ul al pl os ds cz ww ub dz br wł zw ob dn im jw św ks gen por kpr hm pkt art rys tab poz str".split(
+    " ",
+  ),
 );
 
 function prepositionCase(ctx: DetectContext): RawFinding[] {
@@ -121,6 +136,15 @@ function prepositionCase(ctx: DetectContext): RawFinding[] {
   for (const m of owned(ctx, PREPOSITION)) {
     const { prep, noun } = m.groups!;
     if (!/^\p{Ll}+$/u.test(noun) || userOrNamed(ctx, noun)) continue;
+    // "w ust. 2", "na str. 5": a short word with a period is an abbreviation unless it ends the
+    // sentence ("wraz z psa.").
+    const after = ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 3);
+    if (
+      noun.length <= 3 &&
+      after.startsWith(".") &&
+      (SHORT_ABBREVIATIONS.has(noun.toLowerCase()) || !/^\.(?:$|\s*\n|\s+\p{Lu})/u.test(after))
+    )
+      continue;
     // A title abbreviation ("dzięki dr Kowalskiemu", "u mgr Nowak") is no noun to inflect.
     if (!/[aeiouyąęó]/u.test(noun)) continue;
     const before = ctx.text.slice(Math.max(0, m.index - 12), m.index);
@@ -309,6 +333,76 @@ function freeCount(text: string, at: number): boolean {
   return !(nounTags(prev) & ALL_CASES);
 }
 
+/** A cardinal's genitive ("dwieście" -> "dwustu", also "dwuset"). */
+const GENITIVE_NUMERALS: Record<string, string[]> = {
+  dwa: ["dwóch"],
+  dwie: ["dwóch"],
+  trzy: ["trzech"],
+  cztery: ["czterech"],
+  pięć: ["pięciu"],
+  sześć: ["sześciu"],
+  siedem: ["siedmiu"],
+  osiem: ["ośmiu"],
+  dziewięć: ["dziewięciu"],
+  dziesięć: ["dziesięciu"],
+  jedenaście: ["jedenastu"],
+  dwanaście: ["dwunastu"],
+  piętnaście: ["piętnastu"],
+  dwadzieścia: ["dwudziestu"],
+  trzydzieści: ["trzydziestu"],
+  czterdzieści: ["czterdziestu"],
+  pięćdziesiąt: ["pięćdziesięciu"],
+  sto: ["stu"],
+  dwieście: ["dwustu", "dwuset"],
+  trzysta: ["trzystu"],
+  czterysta: ["czterystu"],
+  pięćset: ["pięciuset"],
+  kilka: ["kilku"],
+  kilkanaście: ["kilkunastu"],
+  kilkadziesiąt: ["kilkudziesięciu"],
+  kilkaset: ["kilkuset"],
+};
+/** Words after which a count stands in the genitive: "około pięciu", "do trzech", "bez dwóch". */
+const GENITIVE_BEFORE =
+  /(?:^|[^\p{L}])(?:około|ok\.|blisko|niespełna|do|od|bez|dla|spośród|wśród|wobec)[ \t\u00a0]{1,8}$/iu;
+const GENITIVE_NUMERAL = new RegExp(
+  `(?<![\\p{L}\\p{N}_'’-])(?<num>${Object.keys(GENITIVE_NUMERALS).join("|")})(?=[ \\t\\u00a0]{1,8}\\p{Ll})`,
+  "giu",
+);
+
+/** "około dwieście psów" -> "około dwustu psów": a count after a genitive-taking word. */
+function genitiveNumerals(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of owned(ctx, GENITIVE_NUMERAL)) {
+    const before = ctx.text.slice(Math.max(0, m.index - 12), m.index);
+    if (!GENITIVE_BEFORE.test(before)) continue;
+    // "o około dwie godziny", "na około pięć milionów": the preposition before "około" governs.
+    if (
+      new RegExp(
+        `(?:^|[^\\p{L}])(?:${PREPOSITIONS})[ \\t\\u00a0]{1,8}(?:około|ok\\.|blisko|niespełna)[ \\t\\u00a0]{1,8}$`,
+        "iu",
+      ).test(ctx.text.slice(Math.max(0, m.index - 24), m.index))
+    )
+      continue;
+    // "od dwa do trzech", "do pięć razy więcej" are left to the writer; so is "z dziesięć".
+    const after = ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 30);
+    if (/^[ \t\u00a0]+(?:do|razy|na|i|lub|albo)(?![\p{L}])/iu.test(after)) continue;
+    const num = m.groups!.num;
+    findings.push({
+      ...findingAt(
+        ctx,
+        m.index,
+        m.index + num.length,
+        GENITIVE_NUMERALS[num.toLowerCase()].map((form) => caseLike(num, form)),
+        RULE,
+        "review_msg_pl_preposition_case",
+      ),
+      context: { start: Math.max(0, m.index - 12), end: m.index + num.length },
+    });
+  }
+  return findings;
+}
+
 /** "5 złoty", "2 mln złoty": after a count from five up, or a large unit, it is "złotych". */
 const ZLOTY = new RegExp(
   `(?<![\\p{L}\\p{N}_'’.,@/–—-])(?<num>${FIVE_UP.join("|")}|\\d+)(?:[ \\t\\u00a0]+(?<unit>tys\\.|mln|mld|tysięcy|milionów|miliardów))?[ \\t\\u00a0]+(?<noun>złoty)${WORD}`,
@@ -325,6 +419,12 @@ function numerals(ctx: DetectContext): RawFinding[] {
     if (/^\d/.test(num) && /(?:[\d,.:/§–—-]|\p{L}\.|nr|pkt|art|poz)[ \t\u00a0]*$/u.test(before))
       continue;
     const lower = num.toLowerCase();
+    // "około pięć osób": the numeral itself takes the genitive (checked below), not the noun.
+    if (
+      GENITIVE_NUMERALS[lower] &&
+      GENITIVE_BEFORE.test(ctx.text.slice(Math.max(0, m.index - 12), m.index))
+    )
+      continue;
     const tags = nounTags(noun);
     if (!numeralClash(lower, tags)) continue;
     const needs = numeralNeeds(lower)!;
@@ -378,6 +478,11 @@ const GENITIVE_VERBS = new RegExp(
   ].join(
     "|",
   )})[ \\t\\u00a0]{1,8}(?:(?<adj>\\p{Ll}{3,})[ \\t\\u00a0]{1,8})?(?<noun>\\p{Ll}{3,})${WORD}`,
+  "giud",
+);
+/** "Używają je", "szukam ją": the object pronoun of a genitive-taking verb. */
+const GENITIVE_VERB_PRONOUN = new RegExp(
+  `${GENITIVE_VERBS.source.slice(0, GENITIVE_VERBS.source.indexOf(")[ \\t\\u00a0]{1,8}") + 1)}[ \\t\\u00a0]{1,8}(?<pronoun>je|ją)(?![\\p{L}])`,
   "giu",
 );
 const GENITIVE_CASES = cases("Gs Gp");
@@ -389,6 +494,22 @@ const ACCUSATIVE = cases("As Ap");
 /** "Używam młotek", "przestrzega przepisy": an accusative object where the verb wants the genitive. */
 function genitiveObjects(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
+  for (const m of owned(ctx, GENITIVE_VERB_PRONOUN)) {
+    const pronoun = m.groups!.pronoun;
+    const start = m.index + m[0].length - pronoun.length;
+    const fixes = pronoun.toLowerCase() === "ją" ? ["jej"] : ["ich", "go"];
+    findings.push({
+      ...findingAt(
+        ctx,
+        start,
+        start + pronoun.length,
+        fixes.map((fix) => caseLike(pronoun, fix)),
+        RULE,
+        "review_msg_pl_preposition_case",
+      ),
+      context: { start: m.index, end: start + pronoun.length },
+    });
+  }
   for (const m of owned(ctx, GENITIVE_VERBS)) {
     const { adj, noun } = m.groups!;
     if (userOrNamed(ctx, noun)) continue;
@@ -398,12 +519,19 @@ function genitiveObjects(ctx: DetectContext): RawFinding[] {
     if (!onlyNoun(tags) || tags & GENITIVE_CASES || !(tags & ACCUSATIVE)) continue;
     // An adjective between must belong to the noun ("stare żelazko").
     if (adj && (!adjectiveOf(adj) || !adjectiveAgrees(adjectiveOf(adj)!.ending, tags))) continue;
-    const start = m.index + m[0].length - noun.length;
-    const forms = adj ? [] : recased(noun, GENITIVE_CASES);
-    const fixes = forms.length === 1 ? forms : [];
+    const end = m.index + m[0].length;
+    const start = adj ? m.indices!.groups!.adj[0] : end - noun.length;
+    const forms = recased(noun, GENITIVE_CASES);
+    let fixes = forms.length === 1 ? forms : [];
+    if (adj && fixes.length) {
+      // "stare żelazko" -> "starego żelazka": the adjective follows the noun into the genitive.
+      const ending = tags & SINGULAR ? (tags & FEMININE ? "ej" : "ego") : "ych";
+      const typed = ctx.source.slice(start, end);
+      fixes = [caseLike(typed, `${adjectiveForm(adjectiveOf(adj)!.lemma, ending)} ${fixes[0]}`)];
+    }
     findings.push({
-      ...findingAt(ctx, start, start + noun.length, fixes, RULE, "review_msg_pl_preposition_case"),
-      context: { start: m.index, end: start + noun.length },
+      ...findingAt(ctx, start, end, fixes, RULE, "review_msg_pl_preposition_case"),
+      context: { start: m.index, end },
     });
   }
   return findings;
@@ -828,6 +956,246 @@ function consideredAs(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+/* ------------------------------------------------------- fixed small frames */
+
+/** Prepositions that take only the genitive, so "niemu", "nim", "nią", "nimi" cannot follow. */
+const GENITIVE_ONLY =
+  "dla|do|od|bez|u|według|wg|oprócz|prócz|zamiast|obok|koło|wokół|wśród|spośród|spod|znad|zza|sprzed";
+const PRONOUN_GENITIVE: Record<string, string> = {
+  niemu: "niego",
+  nim: "niego",
+  nią: "niej",
+  nimi: "nich",
+};
+const SMALL_FRAMES: Array<[RegExp, (m: RegExpExecArray) => string | null]> = [
+  // "wg niemu", "dla nią" -> "wg niego", "dla niej".
+  [
+    new RegExp(
+      `(?<=(?<![\\p{L}])(?:${GENITIVE_ONLY})[ \\t\\u00a0]{1,8})(?:niemu|nim|nią|nimi)(?![\\p{L}])`,
+      "giu",
+    ),
+    (m) => PRONOUN_GENITIVE[m[0].toLowerCase()],
+  ],
+  // "w twoi mózgu" -> "w twoim mózgu": the dropped "m" (or "-ej" before a feminine noun).
+  [
+    /(?<=(?<![\p{L}])(?:w|we|po|o|na|przy)[ \t\u00a0]{1,8})(?:moi|twoi|swoi)(?=[ \t\u00a0]{1,8}(\p{Ll}+))/giu,
+    (m) => {
+      const tags = nounTags(m[1]);
+      if (!onlyNoun(tags) || !(tags & cases("Ls Lp"))) return null;
+      if (tags & cases("Lp")) return `${m[0]}ch`;
+      return tags & FEMININE ? `${m[0].slice(0, -1)}jej` : `${m[0]}m`;
+    },
+  ],
+  // "po litewskiemu" -> "po litewsku" (not "po swojemu", "po staremu").
+  [
+    /(?<=(?<![\p{L}])po[ \t\u00a0]{1,8})\p{Ll}+(?:sk|ck|dzk)iemu(?![\p{L}])/giu,
+    (m) => `${m[0].slice(0, -4)}u`,
+  ],
+  // "godzina temu" -> "godzinę temu": "temu" counts back from an accusative.
+  [
+    // Not "temu" the dative of "ten" before its noun ("ta chwila temu panu umknęła").
+    /(?<![\p{L}])(?:godzina|minuta|sekunda|chwila|doba)(?=[ \t\u00a0]{1,8}temu(?![\p{L}])(?![ \t\u00a0]+\p{Ll}+(?:owi|u|emu)(?![\p{L}])))/giu,
+    (m) => `${m[0].slice(0, -1)}ę`,
+  ],
+];
+
+function smallFrames(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const [regex, fix] of SMALL_FRAMES)
+    for (const m of owned(ctx, regex)) {
+      const fixed = fix(m);
+      if (!fixed || userOrNamed(ctx, m[0])) continue;
+      findings.push(
+        findingAt(
+          ctx,
+          m.index,
+          m.index + m[0].length,
+          [caseLike(m[0], fixed)],
+          RULE,
+          "review_msg_pl_preposition_case",
+        ),
+      );
+    }
+  return findings;
+}
+
+/* ------------------------------------------------- "Bruno Schulza" -> "Brunona" */
+
+/** Foreign first names in -o and their genitive, dative and instrumental stems. */
+const O_NAMES: Record<string, [genitive: string, dative: string, instrumental: string]> = {
+  Bruno: ["Brunona", "Brunonowi", "Brunonem"],
+  Hugo: ["Hugona", "Hugonowi", "Hugonem"],
+  Otto: ["Ottona", "Ottonowi", "Ottonem"],
+  Pablo: ["Pabla", "Pablowi", "Pablem"],
+  Mario: ["Maria", "Mariowi", "Mariem"],
+  Paulo: ["Paula", "Paulowi", "Paulem"],
+  Leonardo: ["Leonarda", "Leonardowi", "Leonardem"],
+  Ricardo: ["Ricarda", "Ricardowi", "Ricardem"],
+  Fernando: ["Fernanda", "Fernandowi", "Fernandem"],
+  Antonio: ["Antonia", "Antoniowi", "Antoniem"],
+  Alfonso: ["Alfonsa", "Alfonsowi", "Alfonsem"],
+  Romano: ["Romana", "Romanowi", "Romanem"],
+  Guido: ["Guida", "Guidowi", "Guidem"],
+  Sergio: ["Sergia", "Sergiowi", "Sergiem"],
+  Claudio: ["Claudia", "Claudiowi", "Claudiem"],
+};
+const O_NAME = new RegExp(
+  `(?<![\\p{L}\\p{N}_'’-])(?<name>${Object.keys(O_NAMES).join("|")})[ \\t\\u00a0]{1,8}(?<surname>\\p{Lu}\\p{Ll}{2,}?(?<ending>owi|em|a|y|i))(?![\\p{L}\\p{N}_'’-])`,
+  "gdu",
+);
+
+/**
+ * "prozę Bruno Schulza", "pomnik Hugo Kołłątajowi": a Polish surname in an oblique case takes
+ * the first name along. "-owi" and "-em" say the case; "-a", "-y" and "-i" (also nominative
+ * endings: "Pablo Neruda") only after a noun or a genitive preposition.
+ */
+function uninflectedNames(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of owned(ctx, O_NAME)) {
+    const { name, ending } = m.groups!;
+    const forms = O_NAMES[name];
+    let form: string;
+    if (ending === "owi") form = forms[1];
+    else if (ending === "em") form = forms[2];
+    else {
+      const before = wordBefore(ctx.text, m.index);
+      if (!before || !(onlyNoun(nounTags(before)) || GOVERNED[before] === cases("Gs Gp"))) continue;
+      form = forms[0];
+    }
+    findings.push({
+      ...findingAt(ctx, m.index, m.index + name.length, [form], RULE, "review_msg_pl_agreement"),
+      context: { start: m.index, end: m.index + m[0].length },
+    });
+  }
+  return findings;
+}
+
+/* ------------------------------------------------------------ "który" agreement */
+
+type Reading = [genders: number, plural: boolean];
+const GENDERS = MASCULINE | FEMININE | NEUTER;
+/** What each form of "który" can refer to: its gender (any for the plural) and number. */
+const RELATIVE_READINGS: Record<string, Reading[]> = {
+  który: [[MASCULINE, false]],
+  która: [[FEMININE, false]],
+  które: [
+    [NEUTER, false],
+    [GENDERS, true],
+  ],
+  którego: [[MASCULINE | NEUTER, false]],
+  której: [[FEMININE, false]],
+  któremu: [[MASCULINE | NEUTER, false]],
+  którą: [[FEMININE, false]],
+  którym: [
+    [MASCULINE | NEUTER, false],
+    [GENDERS, true],
+  ],
+  których: [[GENDERS, true]],
+  którymi: [[GENDERS, true]],
+  // Men or mixed groups only: "kobiety, którzy" is "które".
+  którzy: [[MASCULINE, true]],
+};
+/** The form of "który" in the same case for a masculine, feminine or neuter singular noun, or a plural. */
+const RELATIVE_FORMS: Record<string, Partial<Record<"m" | "f" | "n" | "p", string>>> = {
+  który: { f: "która", n: "które", p: "które" },
+  która: { m: "który", n: "które", p: "które" },
+  której: { m: "którego", n: "którego", p: "których" },
+  któremu: { f: "której", p: "którym" },
+  którymi: { m: "którym", f: "którą", n: "którym" },
+  którzy: { f: "które", n: "które" },
+};
+/** Words that may stand in the antecedent's clause without being another antecedent. */
+const NEUTRAL = new Set(
+  `${Object.keys(GOVERNS).join(" ")} jego jej ich mój moja moje mojego mojej twój twoja twoje swój swoja swoje swojego swojej nasz nasza nasze wasz wasza wasze bardzo już jeszcze też także tylko nawet wczoraj dziś dzisiaj jutro tam tu tutaj się nie`.split(
+    " ",
+  ),
+);
+const RELATIVE_AFTER = new RegExp(
+  `(?<![\\p{L}\\p{N}_'’-])(?<noun>\\p{Ll}{3,}),[ \\t\\u00a0]{1,8}(?:(?:${Object.keys(GOVERNS).join("|")})[ \\t\\u00a0]{1,8})?(?<rel>${Object.keys(RELATIVE_READINGS).join("|")})(?![\\p{L}\\p{N}_'’-])`,
+  "gdu",
+);
+
+const agrees = (tags: number, [genders, plural]: Reading) =>
+  (tags & (plural ? PLURAL : SINGULAR)) !== 0 && (!(tags & GENDERS) || (tags & genders) !== 0);
+
+/**
+ * "człowiek, która dba", "samochód, którymi przyjechał": "który" agrees in gender and number with
+ * its noun. Any noun back to the clause start may be the antecedent ("córka sąsiada, która",
+ * "książkę z obrazkami, która"), so all must clash; a word the lexicon does not know keeps the
+ * check quiet ("jedna z osób, która").
+ */
+function relatives(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of owned(ctx, RELATIVE_AFTER)) {
+    const { noun, rel } = m.groups!;
+    const readings = RELATIVE_READINGS[rel];
+    const end = m.index + m[0].length;
+    // "którzy z nas", "której z nich": a choice among, not a relative clause.
+    if (/^[ \t\u00a0]+ze?[ \t\u00a0]/u.test(ctx.text.slice(end, end + 5))) continue;
+    const last = nounTags(noun);
+    if (!onlyNoun(last) || noun === "państwo" || userOrNamed(ctx, noun)) continue;
+    const clause = ctx.text
+      .slice(Math.max(0, m.index - 120), m.index + noun.length)
+      .split(/[,.;:!?()\n„”"—–]/u)
+      .at(-1)!;
+    const words = clause.match(/\p{L}+/gu) ?? [];
+    // Back from the noun to the clause's verb or start: a noun before the verb is its subject.
+    let quiet = true;
+    for (let i = words.length - 1; i >= Math.max(0, words.length - 8); i--) {
+      const lower = words[i].toLowerCase();
+      if (finiteVerb(lower)) {
+        quiet = false;
+        break;
+      }
+      if (i === 0) quiet = false;
+      if (NEUTRAL.has(lower)) continue;
+      const adjective = adjectiveOf(lower);
+      // A pronoun may head the phrase itself ("Ta z dziewczyn, która").
+      if (adjective && PRONOUNS.has(adjective.lemma)) {
+        quiet = true;
+        break;
+      }
+      if (adjective) continue;
+      const tags = nounTags(lower);
+      // An unknown word, a name, a pronoun ("Ten z nich, który") or "X i Y, którzy" may be the
+      // antecedent; so may any noun that agrees.
+      if (
+        !tags ||
+        (i > 0 && /^\p{Lu}/u.test(words[i])) ||
+        readings.some((reading) => agrees(tags, reading))
+      ) {
+        quiet = true;
+        break;
+      }
+    }
+    if (quiet) continue;
+    const genders = [MASCULINE, FEMININE, NEUTER].filter((gender) => last & gender);
+    const key = !(last & SINGULAR)
+      ? "p"
+      : genders.length !== 1
+        ? undefined
+        : genders[0] === MASCULINE
+          ? "m"
+          : genders[0] === FEMININE
+            ? "f"
+            : "n";
+    const fix = key ? RELATIVE_FORMS[rel]?.[key] : undefined;
+    const start = m.indices!.groups!.rel[0];
+    findings.push({
+      ...findingAt(
+        ctx,
+        start,
+        start + rel.length,
+        fix ? [caseLike(rel, fix)] : [],
+        RULE,
+        "review_msg_pl_agreement",
+      ),
+      context: { start: m.index, end: start + rel.length },
+    });
+  }
+  return findings;
+}
+
 export const DETECTORS = [
   {
     rules: [RULE] as RawFinding["ruleId"][],
@@ -837,11 +1205,15 @@ export const DETECTORS = [
             ...prepositionCase(ctx),
             ...demonstratives(ctx),
             ...numerals(ctx),
+            ...genitiveNumerals(ctx),
             ...genitiveObjects(ctx),
             ...negatedObjects(ctx),
             ...fixedGenders(ctx),
             ...adjectives(ctx),
             ...consideredAs(ctx),
+            ...relatives(ctx),
+            ...uninflectedNames(ctx),
+            ...smallFrames(ctx),
           ]
         : [],
   },

@@ -70,7 +70,8 @@ const POSITIVES: Array<[string, string, string | null]> = [
   // A verb that takes the genitive with an accusative object.
   ["Na budowie używamy młotek.", "młotek", null],
   ["Kierowcy muszą przestrzegać przepisy.", "przepisy", "Kierowcy muszą przestrzegać przepisów."],
-  ["Potrzebuję szybką pomoc.", "pomoc", null],
+  ["Potrzebuję szybką pomoc.", "szybką pomoc", "Potrzebuję szybkiej pomocy."],
+  ["Wyszła na spacer wraz z psa.", "psa", "Wyszła na spacer wraz z psem."],
   // A demonstrative that does not agree with its noun.
   ["Kupiłem tą książkę wczoraj.", "tą", "Kupiłem tę książkę wczoraj."],
   ["Przeczytaj tą krótką notatkę.", "tą", "Przeczytaj tę krótką notatkę."],
@@ -115,10 +116,40 @@ const POSITIVES: Array<[string, string, string | null]> = [
   ],
   ["Powołano komisje specjalną.", "komisje specjalną", "Powołano komisję specjalną."],
   ["Zamówiliśmy pizze dużą.", "pizze dużą", "Zamówiliśmy pizzę dużą."],
+  // A count after a genitive-taking word stands in the genitive.
+  ["Na koncert przyszło około trzysta osób.", "trzysta", "Na koncert przyszło około trzystu osób."],
+  ["Czekaliśmy do cztery godzin.", "cztery", "Czekaliśmy do czterech godzin."],
+  // Small fixed frames: a pronoun after a genitive preposition, "twoi" for "twoim", "po
+  // -sku", "godzinę temu", a genitive verb's pronoun.
+  ["Według niemu nic się nie stało.", "niemu", "Według niego nic się nie stało."],
+  ["Myślę o twoi siostrze.", "twoi", "Myślę o twojej siostrze."],
+  ["Rozmawiali po francuskiemu.", "francuskiemu", "Rozmawiali po francusku."],
+  ["Minuta temu dzwonił.", "Minuta", "Minutę temu dzwonił."],
+  ["Szukamy ją od rana.", "ją", "Szukamy jej od rana."],
+  // A first name in -o follows its surname's case.
+  ["Lubię opowiadania Bruno Schulza.", "Bruno", "Lubię opowiadania Brunona Schulza."],
+  ["Wręczono nagrodę Hugo Nowakowi.", "Hugo", "Wręczono nagrodę Hugonowi Nowakowi."],
+  // "który" in another gender or number than its noun.
+  [
+    "Trzymam w ogrodzie kota, która nie lubi wody.",
+    "która",
+    "Trzymam w ogrodzie kota, który nie lubi wody.",
+  ],
+  [
+    "Sprzedał rower, którymi jeździł do pracy.",
+    "którymi",
+    "Sprzedał rower, którym jeździł do pracy.",
+  ],
+  [
+    "Wczoraj przyjechały siostry, którzy mieszkają w Gdańsku.",
+    "którzy",
+    "Wczoraj przyjechały siostry, które mieszkają w Gdańsku.",
+  ],
 ];
 
 const NEGATIVES = [
   "Nie używam perfum.",
+  "Zobacz w ust. 2, gdzie pisze o por. Nowaku.",
   "Kilo pomarańcz kosztuje dziś mniej.",
   "Moje hobby to sushi.",
   "Zapłacił w euro.",
@@ -178,6 +209,23 @@ const NEGATIVES = [
   "Mówił, że wróciłem za późno.",
   "Szukam pracy od miesiąca.",
   "Potrzebuje opieki dziecko sąsiadów.",
+  "Mam ponad dwieście książek.",
+  "Wrócił do domu dwa dni później.",
+  "Dodaj do tego dwa jajka.",
+  "Spóźniła się o około trzy minuty.",
+  "Wrócę za około dwa dni.",
+  "Z nim nie rozmawiam.",
+  "Zrób to po swojemu.",
+  "Ta chwila temu chłopcu umknęła.",
+  "Pablo Neruda pisał wiersze.",
+  "Bruno Schulz mieszkał w Drohobyczu.",
+  "Poznałem córkę sąsiada, która gra na skrzypcach.",
+  "Kupiłem książkę z obrazkami, która mi się podoba.",
+  "To jedna z osób, która mi pomogła.",
+  "Brat i jego żona, którzy mieszkają obok, wyjechali.",
+  "Ta z dziewczyn, która wygra, dostanie nagrodę.",
+  "Zapytaj kolegę, który z nich to zrobił.",
+  "Rodzice Ani, którzy przyjechali, przywieźli ciasto.",
 ];
 
 describe("polishCaseAgreement", () => {

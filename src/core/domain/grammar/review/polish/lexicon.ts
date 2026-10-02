@@ -153,6 +153,41 @@ export function finiteVerb(word: string): boolean {
   return false;
 }
 
+/** A finite verb form that is also another word ("miał" coal dust, "należy"); context decides. */
+export function ambiguousVerb(word: string): boolean {
+  verbs ??= loadVerbs();
+  return verbs.ambiguous.has(word) || (nounTags(word) & VERB) !== 0;
+}
+
+/**
+ * The impersonal past in -no/-to ("szorowano", "zrobiono", "wypito", "zaczęto"): its past
+ * form ("szorował", "zrobił") is a verb and the word itself is no noun ("siano", "wino").
+ */
+export function impersonalVerb(word: string): boolean {
+  if (word.length < 5 || nounTags(word) || adjectiveOf(word)) return false;
+  const base = word.slice(0, -3);
+  const pasts = /ano$|[iyu]to$/u.test(word)
+    ? [`${word.slice(0, -2)}ł`]
+    : word.endsWith("ono")
+      ? [`${base}ył`, `${base}ił`, `${base}ł`]
+      : word.endsWith("ęto")
+        ? [`${base}ął`]
+        : [];
+  return pasts.some((past) => past.length > 3 && finiteVerb(past));
+}
+
+/**
+ * A past form by its shape when the lexicon does not list the verb ("ubawił", "rzekł",
+ * "zaczęła"): endings no common noun or adjective has. "-ał" stays out ("kanał", "upał").
+ */
+export function pastByShape(word: string): boolean {
+  if (word.length < 5 || nounTags(word) || adjectiveOf(word)) return false;
+  if (!/(?:[iy]ł|ął|ęł|[kg]ł)(?:a|o|em|eś|am|aś)?$|(?:[iy]l|ęl)i$|(?:[iy]ł|ęł)y$/u.test(word))
+    return false;
+  // "mili", "zgnili": a virile adjective ("miły").
+  return !(word.endsWith("li") && hasAdjective(`${word.slice(0, -2)}ły`));
+}
+
 let places: Set<string> | undefined;
 
 /** A lowercased case form of a common place name that is no other word ("gdańsku"). */
