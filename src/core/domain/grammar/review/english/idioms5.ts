@@ -219,16 +219,16 @@ export const STYLE: readonly PhraseRow[] = [
 
 // ---- Context detectors: forms that are also ordinary English elsewhere. ----
 
-type Rule = Pick<RawFinding, "ruleId" | "messageKey">;
-const PHRASE: Rule = {
+export type Rule = Pick<RawFinding, "ruleId" | "messageKey">;
+export const PHRASE: Rule = {
   ruleId: "englishPhraseCorrections",
   messageKey: "review_msg_phrase_correction",
 };
-const CONTEXT: Rule = {
+export const CONTEXT: Rule = {
   ruleId: "englishPhraseCorrections",
   messageKey: "review_msg_contextual_grammar",
 };
-const TYPO: Rule = { ruleId: "englishPhraseCorrections", messageKey: "review_msg_typo" };
+export const TYPO: Rule = { ruleId: "englishPhraseCorrections", messageKey: "review_msg_typo" };
 const PREPOSITION: Rule = {
   ruleId: "englishFixedPrepositions",
   messageKey: "review_msg_fixed_prepositions",
@@ -239,13 +239,16 @@ const STRUCTURE: Rule = {
   ruleId: "englishSentenceStructure",
   messageKey: "review_msg_sentence_structure",
 };
-const COMPOUND: Rule = { ruleId: "englishContextualCompounds", messageKey: "review_msg_compounds" };
+export const COMPOUND: Rule = {
+  ruleId: "englishContextualCompounds",
+  messageKey: "review_msg_compounds",
+};
 const STYLE_ADVICE: Rule = { ruleId: "stylePhrasing", messageKey: "review_msg_style_phrasing" };
 
 /** Replacements for the `target` group (or `range`); `raw` keeps their casing as given. */
 type Fix = { alternatives: readonly string[]; range?: readonly [number, number]; raw?: true };
-type FixResult = string | readonly string[] | Fix | null;
-type Frame = {
+export type FixResult = string | readonly string[] | Fix | null;
+export type Frame = {
   rule: Rule;
   /** The frame runs only when one of these words occurs near the chunk. */
   cue?: readonly string[];
@@ -898,11 +901,16 @@ const wordsNear = (ctx: DetectContext) =>
   );
 
 /** Runs every frame whose rule is enabled; the `target` group (or a fix's range) is replaced. */
-function detectFrames(ctx: DetectContext): RawFinding[] {
+export const frameDetector =
+  (frames: readonly Frame[]) =>
+  (ctx: DetectContext): RawFinding[] =>
+    detectFrames(ctx, frames);
+
+function detectFrames(ctx: DetectContext, frames: readonly Frame[] = FRAMES): RawFinding[] {
   if (!ctx.lang.startsWith("en")) return [];
   const findings: RawFinding[] = [];
   const words = wordsNear(ctx);
-  for (const { rule, cue, pattern, fix } of FRAMES) {
+  for (const { rule, cue, pattern, fix } of frames) {
     if (ctx.rules && !ctx.rules.has(rule.ruleId)) continue;
     if (cue && !cue.some((word) => words.has(word))) continue;
     for (const m of frameMatches(ctx, pattern)) {
@@ -954,6 +962,6 @@ export const DETECTORS: readonly ReviewDetectorEntry[] = [
       "englishContextualCompounds",
       "stylePhrasing",
     ],
-    detect: detectFrames,
+    detect: (ctx) => detectFrames(ctx),
   },
 ];
