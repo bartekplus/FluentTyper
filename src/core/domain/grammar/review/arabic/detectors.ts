@@ -3,6 +3,7 @@ import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDe
 import { arabicDates } from "./dates";
 import { FEMININE_PLURAL_STEMS } from "./lexicon.generated";
 import { styleFrames } from "./styleFrames";
+import { gappedUsage } from "./usage";
 
 type Finding = Omit<RawFinding, "ruleId">;
 type Token = { word: string; start: number; end: number; gap: string };
@@ -351,6 +352,29 @@ function numbers(ctx: DetectContext, list: Token[]): Finding[] {
       }
     }
 
+    // "خمس وعشرون طالبات": after 11-99 the counted noun is singular.
+    const teen =
+      /^(?:عشر|عشرة)$/u.test(word) &&
+      i > 0 &&
+      adjacent(list[i]) &&
+      /^[وبلك]{0,2}(?:أحد|إحدى|اثنا|اثنتا|اثني|اثنتي|ثلاث|ثلاثة|أربع|أربعة|خمس|خمسة|ست|ستة|سبع|سبعة|ثمان|ثماني|ثمانية|تسع|تسعة)$/u.test(
+        list[i - 1].word,
+      );
+    if (
+      (teen || TENS.test(word)) &&
+      next &&
+      adjacent(next) &&
+      feminineSoundPlural(next.word) &&
+      !next.word.startsWith("ال") &&
+      !next.word.endsWith("يات")
+    )
+      push(
+        next.start,
+        next.end,
+        next.word.slice(0, -2) + "ة",
+        "review_msg_arabic_counted_singular",
+      );
+
     // 11 and 12: the parts agree with each other and with the noun.
     if (next && adjacent(next) && /^(?:عشر|عشرة)$/u.test(next.word)) {
       const gender = countedGender(afterNext, ctx.text);
@@ -417,7 +441,7 @@ function numbers(ctx: DetectContext, list: Token[]): Finding[] {
     if (next && adjacent(next) && feminineSoundPlural(next.word) && !next.word.startsWith("ال")) {
       const m = /^(?<pre>[وبلك]{0,2})(?<n>\p{L}+)$/u.exec(word)!;
       const { pre, n } = m.groups!;
-      const forms = n === "عشرة" ? (["عشرة", "عشر"] as const) : UNIT_FORMS.get(n);
+      const forms = n === "عشرة" && !teen ? (["عشرة", "عشر"] as const) : UNIT_FORMS.get(n);
       if (forms && n !== forms[1])
         push(list[i].start, list[i].end, pre + forms[1], "review_msg_arabic_number_gender");
     }
@@ -476,12 +500,24 @@ function caseEndings(ctx: DetectContext, list: Token[]): Finding[] {
           ? plural.stem + "ين"
           : d &&
               !d.oblique &&
-              (d.gender === "f" || /^(?:ال)?(?:م\p{L}{3,}|\p{L}ا\p{L}{2})$/u.test(d.stem))
+              (d.gender === "f" ||
+                /^(?:ال)?(?:م\p{L}{3,}|\p{L}ا\p{L}{2}|\p{L}{2}[اوي]\p{L})$/u.test(d.stem))
             ? d.stem + "ين"
             : undefined;
       if (fixed && !/^(?:ال)?مهرج$/u.test(fixed.slice(0, -2)))
         findings.push({
           messageKey: "review_msg_arabic_case_ending",
+          range: { start: next.start, end: next.end },
+          alternatives: [fixed],
+          context: { start: list[i].start, end: next.end },
+        });
+      continue;
+    }
+    if (NEGATING_LA.test(head)) {
+      const fixed = indicative(list, i);
+      if (fixed)
+        findings.push({
+          messageKey: "review_msg_arabic_indicative",
           range: { start: next.start, end: next.end },
           alternatives: [fixed],
           context: { start: list[i].start, end: next.end },
@@ -516,6 +552,29 @@ function caseEndings(ctx: DetectContext, list: Token[]): Finding[] {
       });
   }
   return findings;
+}
+
+const NEGATING_LA = /^[وف]?لا$/u;
+// Particles that put the verb after لا in the subjunctive or jussive: "أن لا يذهبوا".
+const GOVERNS_LA = /^[وفب]?(?:أن|كي|لكي|حتى)$/u;
+const GOVERNS_LATER = /^[وف]?(?:لم|لن|أن|كي|لكي|حتى|لئلا|ألا)$/u;
+
+/**
+ * "لا يخافوا" -> "لا يخافون": a third-person verb after negating لا keeps its ن
+ * (prohibitive لا with the third person is rare; with the second it is the
+ * normal command, "لا تخافوا", and is left alone). Not after أن/كي/حتى, nor in a
+ * "ولا" that continues a لم or أن clause ("لم يأكلوا ولا يشربوا").
+ */
+function indicative(list: readonly Token[], i: number): string | undefined {
+  const m = /^ي(?<stem>\p{L}{3,})وا$/u.exec(list[i + 1].word);
+  if (!m) return;
+  if (i > 0 && adjacent(list[i]) && GOVERNS_LA.test(list[i - 1].word)) return;
+  if (list[i].word !== "لا")
+    for (let k = i - 1; k >= 0 && k >= i - 8; k--) {
+      if (/[.!؟?\n]/u.test(list[k + 1].gap)) break;
+      if (GOVERNS_LATER.test(list[k].word)) return;
+    }
+  return `ي${m.groups!.stem}ون`;
 }
 
 const LAMMA = /(?<![\p{L}\p{M}])[وف]?ل\u064E?م(?:\u0651\u064E?|\u064E\u0651)ا[ \t\u00a0]+$/u;
@@ -603,6 +662,7 @@ export const DETECTORS: readonly ReviewDetectorEntry[] = [
     detect: as("stylePhrasing", (ctx, list) => [
       ...arabicStyle(ctx),
       ...styleFrames(ctx.text, list, (start) => owns(ctx, start)),
+      ...gappedUsage(list, (start) => owns(ctx, start)),
     ]),
   },
 ];

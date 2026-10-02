@@ -188,6 +188,176 @@ export const STYLE: readonly PhraseRow[] = [
   ...words(
     "dwa dwie dwóch dwom dwóm dwoma trzy trzech trzem trzema cztery czterech czterem czterema pięć pięciu",
   ).map((numeral): PhraseRow => [`${numeral} lub więcej`, `co najmniej ${numeral}`]),
+  // Moving back "w tył" or "wstecz" is already "cofać się".
+  ...words(
+    "cofam cofa cofają cofał cofała cofali cofaj cofnij cofnijcie cofnął cofnęła cofnęli cofnie cofną",
+  ).flatMap((verb): PhraseRow[] => [
+    [`${verb} się w tył`, `${verb} się`],
+    [`${verb} się wstecz`, `${verb} się`],
+  ]),
+  ...words("cofanie cofaniu cofania cofaniem").flatMap((noun): PhraseRow[] => [
+    [`${noun} do tyłu`, noun],
+    [`${noun} w tył`, noun],
+    [`${noun} wstecz`, noun],
+  ]),
+  // "dalej kontynuował", "czynnie uprawia sport": the verb says it already.
+  ...words(
+    "kontynuuję kontynuuje kontynuujemy kontynuują kontynuował kontynuowała kontynuowali kontynuować",
+  ).map((verb): PhraseRow => [`dalej ${verb}`, verb]),
+  ...words(
+    "uprawiam uprawia uprawiają uprawiał uprawiała uprawiali uprawiać uprawianie uprawiania",
+  ).map((verb): PhraseRow => [`czynnie ${verb}`, verb]),
+  // "miesiąc czasu": a span of time is already time.
+  ...words("chwilę godzinę dzień tydzień miesiąc rok kwadrans moment").map((span): PhraseRow => [
+    `${span} czasu`,
+    span,
+  ]),
+  // "dlatego ponieważ", "gdyż bowiem": two conjunctions for one reason.
+  ["dlatego ponieważ", ["dlatego że", "ponieważ"]],
+  ["gdyż bowiem", "gdyż"],
+  ["ponieważ bowiem", "ponieważ"],
+  ["albowiem bowiem", "albowiem"],
+  ...words("ktokolwiek cokolwiek jakkolwiek gdziekolwiek kiedykolwiek którykolwiek").map(
+    (pronoun): PhraseRow => [`${pronoun} bądź`, pronoun],
+  ),
+  // "co by się nie stało" negates nothing: "cokolwiek by się stało".
+  ["co by się nie stało", "cokolwiek by się stało"],
+  ["co by się nie działo", "cokolwiek by się działo"],
+  ["kto by nie był", "ktokolwiek by był"],
+  ["kto by nie przyszedł", "ktokolwiek by przyszedł"],
+  ["gdzie by nie był", "gdziekolwiek by był"],
+  ["jak by nie było", ["jakkolwiek by było", "bądź co bądź"]],
+  ["co by nie mówić", ["cokolwiek by mówić", "bądź co bądź"]],
+  // "każdy jeden" is a calque: "każdy" says it.
+  ...([
+    ["każdy jeden", "każdy"],
+    ["każda jedna", "każda"],
+    ["każde jedno", "każde"],
+    ["każdego jednego", "każdego"],
+    ["każdej jednej", "każdej"],
+    ["każdemu jednemu", "każdemu"],
+    ["każdą jedną", "każdą"],
+    ["każdym jednym", "każdym"],
+  ] as PhraseRow[]),
+  // "w przeciągu" is a draught; within a time span is "w ciągu".
+  ...words(
+    "dnia doby tygodnia miesiąca roku godziny minuty kwartału lat dni tygodni miesięcy godzin minut kilku kilkunastu dwóch trzech czterech pięciu ostatnich najbliższych ostatniego najbliższego całego pół",
+  ).map((span): PhraseRow => [`w przeciągu ${span}`, `w ciągu ${span}`]),
+  // "w temacie" is a calque: "na temat".
+  ["w tym temacie", ["na ten temat", "w tej sprawie"]],
+  ["w temacie", ["na temat", "w sprawie"]],
+  ["kult dla", "kult"],
+  ["kultu dla", "kultu"],
+  ["lekceważenie dla", "lekceważenie"],
+  ["lekceważenia dla", "lekceważenia"],
+  // "kliknij podwójnie" is "kliknij dwukrotnie".
+  ...words("kliknij kliknąć kliknięcie klikamy klika kliknął kliknęła").flatMap(
+    (verb): PhraseRow[] => [
+      [`${verb} podwójnie`, `${verb} dwukrotnie`],
+      [`podwójnie ${verb}`, `${verb} dwukrotnie`],
+    ],
+  ),
+  // "być w posiadaniu" is officialese for "mieć".
+  ...([
+    ["jestem w posiadaniu", "mam"],
+    ["jesteś w posiadaniu", "masz"],
+    ["jest w posiadaniu", "ma"],
+    ["jesteśmy w posiadaniu", "mamy"],
+    ["są w posiadaniu", "mają"],
+    ["byłem w posiadaniu", "miałem"],
+    ["byłam w posiadaniu", "miałam"],
+    ["był w posiadaniu", "miał"],
+    ["była w posiadaniu", "miała"],
+    ["byli w posiadaniu", "mieli"],
+    ["być w posiadaniu", "mieć"],
+  ] as PhraseRow[]),
+  // "uczynić możliwym" is "umożliwić"; "uczynić niemożliwym" is "uniemożliwić".
+  ...(
+    [
+      ["uczynić", "umożliwić", "uniemożliwić"],
+      ["uczyni", "umożliwi", "uniemożliwi"],
+      ["uczynił", "umożliwił", "uniemożliwił"],
+      ["uczyniła", "umożliwiła", "uniemożliwiła"],
+      ["uczyniło", "umożliwiło", "uniemożliwiło"],
+      ["uczynili", "umożliwili", "uniemożliwili"],
+      ["uczyniły", "umożliwiły", "uniemożliwiły"],
+      ["czyni", "umożliwia", "uniemożliwia"],
+    ] as const
+  ).flatMap(([verb, enable, prevent]): PhraseRow[] => [
+    [`${verb} możliwym`, enable],
+    [`${verb} niemożliwym`, prevent],
+  ]),
+  // "poddać w wątpliwość" blends "podać w wątpliwość" and "poddać w wątpliwość" is the error.
+  ...(
+    [
+      ["poddać", "podać"],
+      ["poddawać", "podawać"],
+      ["poddał", "podał"],
+      ["poddała", "podała"],
+      ["poddali", "podali"],
+      ["poddawał", "podawał"],
+      ["poddawała", "podawała"],
+      ["poddawali", "podawali"],
+      ["poddaje", "podaje"],
+      ["poddają", "podają"],
+      ["poddam", "podam"],
+      ["podda", "poda"],
+    ] as const
+  ).flatMap(([verb, fixed]): PhraseRow[] => [
+    [`${verb} w wątpliwość`, `${fixed} w wątpliwość`],
+    ...words("to tego go ją je wyrok decyzję tezę").map((object): PhraseRow => [
+      `${verb} ${object} w wątpliwość`,
+      `${fixed} ${object} w wątpliwość`,
+    ]),
+  ]),
+  // Prices are low or high, not cheap or dear; turnout is large or small, not high or low.
+  ...(
+    [
+      ["tani", "niski", "cen"],
+      ["tańszy", "niższy", "cen"],
+      ["najtańszy", "najniższy", "cen"],
+      ["drogi", "wysoki", "cen"],
+      ["droższy", "wyższy", "cen"],
+      ["najdroższy", "najwyższy", "cen"],
+      ["wysoki", "duży", "frekwencj"],
+      ["niski", "mały", "frekwencj"],
+    ] as const
+  ).flatMap(([adjective, fixed, noun]): PhraseRow[] => {
+    // [adjective ending, noun ending] pairs that agree (feminine singular and plural).
+    const pairs =
+      noun === "cen"
+        ? [
+            ["a", "a"],
+            ["ej", "y"],
+            ["ą", "ę"],
+            ["ą", "ą"],
+            ["e", "y"],
+            ["ych", ""],
+            ["ych", "ach"],
+            ["ymi", "ami"],
+          ]
+        : [
+            ["a", "a"],
+            ["ej", "i"],
+            ["ą", "ę"],
+            ["ą", "ą"],
+          ];
+    const form = (lemma: string, ending: string) =>
+      /[kg]i$/.test(lemma)
+        ? lemma.slice(0, -1) +
+          (ending.startsWith("y")
+            ? `i${ending.slice(1)}`
+            : ending.startsWith("e")
+              ? `i${ending}`
+              : ending)
+        : lemma.endsWith("i")
+          ? lemma + (ending.startsWith("y") ? ending.slice(1) : ending)
+          : lemma.slice(0, -1) + ending;
+    return pairs.map(([a, n]): PhraseRow => [
+      `${form(adjective, a)} ${noun}${n}`,
+      `${form(fixed, a)} ${noun}${n}`,
+    ]);
+  }),
 ];
 
 /** Set phrases with a wrong word, preposition or form: never correct as typed. */

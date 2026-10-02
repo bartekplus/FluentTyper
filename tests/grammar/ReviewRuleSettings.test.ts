@@ -12,6 +12,7 @@ const OPTIONAL_REVIEW_IDS: readonly string[] = [
   "germanAbbreviationSpacing",
   "germanQuestionMarks",
   "germanStraightQuotes",
+  "polishQuotes",
   "styleRedundancy",
   "styleLongSentence",
   "ellipsisShortcut",
