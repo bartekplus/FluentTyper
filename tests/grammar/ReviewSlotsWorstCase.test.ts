@@ -56,6 +56,7 @@ test("no chunk stalls on runs of slot-opening words or spaces between them", () 
     "Who send it and it it it will user would can could Phones such as these ".repeat(500),
     "When go you I no like we work here since 2010 most of it efforts, the the ".repeat(500),
     "there are a there exist it not possible this not the script it not nothing it ".repeat(500),
+    "Because when if so that I look forward your looking forward in ".repeat(600),
     "how did he does it is an oldest less then more ".repeat(600),
     "I have plan the we have see all the ".repeat(700),
     "tomorrow we visited the the yesterday we will call him on 27/10/2090 we visited ".repeat(500),

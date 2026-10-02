@@ -301,3 +301,56 @@ test.each([
 ])("lexical do with a plural noun stays silent: %s", (text) => {
   expect(scan(text, "englishAuxiliaryBaseVerb")).toEqual([]);
 });
+
+const fragments = (text: string) =>
+  detectReviewDiagnostics(
+    { id: "fragment", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
+    {
+      lang: "en_US",
+      enabledRules: ["englishSentenceFragment"],
+      userDictionary: [],
+      insertSpaceAfterAutocomplete: true,
+    },
+  ).diagnostics;
+
+test.each([
+  "Because he was a great singer.",
+  "When the river floods in the spring.",
+  "Although the shop closed early.",
+  "So that everyone can see it.",
+  "I look forward.",
+  "I'm looking forward!",
+])("opt-in: a sentence that is only a subordinate clause is marked: %s", (text) => {
+  const found = fragments(text);
+  expect(found).toHaveLength(1);
+  expect(found[0].alternatives).toEqual([]);
+});
+
+test.each([
+  "Because the rain came she closed the window.",
+  "When the river floods in the spring the road closes.",
+  "If you pump air into a tire it expands.",
+  "After a long absence he came back.",
+  "Since that time we have not seen him.",
+  "If only he knew.",
+  "As soon as I get paid...",
+  "Because of the rain they stayed in.",
+  "I look forward to it.",
+  "Look forward, please.",
+])("opt-in: full sentences stay silent: %s", (text) => {
+  expect(fragments(text)).toEqual([]);
+});
+
+test.each([
+  ["We look forward your reply.", "We look forward to your reply."],
+  ["I am looking forward in hearing from you.", "I am looking forward to hearing from you."],
+])("look forward takes to: %s", (input, expected) => {
+  const found = scan(input, "englishFixedPrepositions");
+  expect(found).toHaveLength(1);
+  expect(applyEdits(input, found[0].alternatives[0].edits)).toBe(expected);
+});
+
+test.each(["Look forward into the engine bay.", "If you look forward five years, you see it."])(
+  "look forward as a direction stays silent: %s",
+  (text) => expect(scan(text, "englishFixedPrepositions")).toEqual([]),
+);

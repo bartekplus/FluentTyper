@@ -474,7 +474,155 @@ function stackedArticles(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+// Subordinators that leave a sentence unfinished without a main clause.
+const SUBORDINATOR =
+  /^(?:because|although|though|when|whenever|after|before|since|unless|while|whereas|until|if|(?:so|even)[ \t ,]+(?:if|though)|so[ \t ,]+even[ \t ]+if|so[ \t ]+that|in[ \t ]+order[ \t ]+that|provided[ \t ]+that|even[ \t ]+if|even[ \t ]+though)$/i;
+const FINITE_AUX =
+  /^(?:is|are|was|were|am|has|have|had|do|does|did|will|would|can|could|shall|should|may|might|must|isn't|aren't|wasn't|weren't|hasn't|haven't|hadn't|don't|doesn't|didn't|won't|can't|couldn't|wouldn't|shouldn't|cannot)$/;
+
+/** Finite verbs in a clause's tokens: auxiliaries, -s and past forms, a base after I/you/we/they. */
+function finiteCount(tokens: Token[]): number {
+  let count = 0;
+  for (let i = 0; i < tokens.length; i++) {
+    const t = tokens[i];
+    if (t.kind !== "word") continue;
+    const w = t.lower.replace("’", "'");
+    if (FINITE_AUX.test(w)) {
+      count++;
+      continue;
+    }
+    if (FUNCTION_WORDS.has(w)) continue;
+    const prev = tokens[i - 1]?.lower ?? "";
+    // After a determiner or "to" a word is a noun or an infinitive.
+    if (
+      /^(?:the|a|an|my|your|his|her|our|their|its|this|that|these|those|to|some|any|no)$/.test(prev)
+    )
+      continue;
+    const read = englishWordInfo(w);
+    if (!read) continue;
+    if (read.verbs.some((v) => v.form === "third" || v.form === "past")) count++;
+    else if (/^(?:i|you|we|they)$/.test(prev) && read.verbs.some((v) => v.form === "base")) count++;
+  }
+  return count;
+}
+
+/**
+ * "Because he was a great musician.", "When the wind howls in the trees.": a sentence that is
+ * only a subordinate clause. Opt-in: answers and asides use such fragments on purpose.
+ */
+function subordinateFragment(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of frameMatches(
+    ctx,
+    `(?<target>because|although|though|when|whenever|after|before|since|unless|while|whereas|until|if|(?:so|even)(?:[ \\t\\u00a0]*,)?${SPACE}(?:if|though)|so(?:[ \\t\\u00a0]*,)?${SPACE}even${SPACE}if|so${SPACE}that|in${SPACE}order${SPACE}that|provided${SPACE}that)${SPACE}(?=[A-Za-z])`,
+  )) {
+    const target = m.groups!.target;
+    if (!/^[A-Z]/.test(target) || !afterBreak(ctx, m.index) || !SUBORDINATOR.test(target)) continue;
+    const tokens = tokensAfter(ctx, m.index + m[0].length, 30);
+    const end = tokens.findIndex((t) => t.kind !== "word" && t.kind !== "number");
+    // The sentence ends with a plain period: no comma, no list, no question or ellipsis.
+    const stop = tokens[end];
+    if (end < 2 || stop?.kind !== "end" || stop.text !== ".") continue;
+    if (/^\.\./.test(ctx.text.slice(stop.start, stop.start + 2))) continue;
+    // The clause opens with its subject: a pronoun, a determiner phrase or a name, so a
+    // preposition reading ("After a long absence he came back") never applies.
+    const clause = tokens.slice(0, end);
+    const first = clause[0].lower;
+    const subjectStart =
+      /^(?:i|you|he|she|it|we|they|there|someone|everyone|nobody|nothing|everything|something)$/.test(
+        first,
+      ) ||
+      (/^(?:the|my|your|his|her|our|their|this|these|those|a|an|every|each|some)$/.test(first) &&
+        clause.length > 2) ||
+      (clause[0].text !== first && !englishWordInfo(first));
+    // "If only he knew", "As if…": exclamations and comparisons.
+    if (!subjectStart || first === "only") continue;
+    // A determiner phrase followed by a pronoun was a prepositional opener: "After a long
+    // absence he came back".
+    if (
+      !/^(?:i|you|he|she|it|we|they)$/.test(first) &&
+      clause.slice(1).some((t) => /^(?:i|you|he|she|we|they)$/.test(t.lower))
+    )
+      continue;
+    if (finiteCount(clause) !== 1) continue;
+    const [start, e] = m.indices!.groups!.target;
+    findings.push({
+      ruleId: "englishSentenceFragment",
+      messageKey: "review_msg_sentence_fragment",
+      range: { start, end: e },
+      alternatives: [],
+      warningOnly: true,
+      context: evidence(ctx, m.index, stop.end),
+    });
+  }
+  return findings;
+}
+
+/** "I look forward.", "I'm looking forward!": the phrase needs "to" and what is awaited. */
+function forwardWithoutObject(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of frameMatches(
+    ctx,
+    `(?:(?:I|we)${SPACE}(?<target>look)|(?:am|are|[a-z]+['’](?:m|re)|be)${SPACE}(?:(?:really|so|all|most|very|truly)${SPACE})?(?<target2>looking))${SPACE}forward(?=[ \\t\\u00a0]*[.!])`,
+    (match) => (match.indices!.groups!.target ?? match.indices!.groups!.target2)[0],
+  )) {
+    const range = m.indices!.groups!.target ?? m.indices!.groups!.target2;
+    findings.push({
+      ruleId: "englishSentenceFragment",
+      messageKey: "review_msg_sentence_fragment",
+      range: { start: range[0], end: m.index + m[0].length },
+      alternatives: [],
+      warningOnly: true,
+      context: evidence(ctx, m.index, m.index + m[0].length),
+    });
+  }
+  return findings;
+}
+
+/** "look forward your reply", "looking forward in hearing from you": the phrase takes "to". */
+function forwardPreposition(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of frameMatches(
+    ctx,
+    `(?:look|looks|looked|looking)${SPACE}(?<target>forward(?:${SPACE}(?<wrong>in|of|at|for))?)${SPACE}(?<next>[a-z]+)${WORD_END}`,
+  )) {
+    const { wrong, next } = m.groups!;
+    const owned =
+      /^(?:your|our|their|his|her|my|the|seeing|hearing|meeting|working|receiving|reading|talking|speaking|getting|having)$/.test(
+        next,
+      );
+    // "look forward into the fender area", "look forward five years": a direction.
+    if (!owned || (wrong && !/ing$/.test(next) && wrong !== "of")) continue;
+    if (!wrong && !/^(?:your|our|their|his|her|my|the)$/.test(next) && !/ing$/.test(next)) continue;
+    // A determiner after a bare "forward" needs an awaited thing: "look forward your reply".
+    if (!wrong && /^(?:the|his|her|my)$/.test(next)) {
+      const after = tokensAfter(ctx, m.index + m[0].length, 1)[0];
+      if (
+        after?.kind !== "word" ||
+        !/^(?:reply|response|answer|meeting|visit|call|news|results|weekend|holidays?|trip|event|release|launch|concert|party|game)$/.test(
+          after.lower,
+        )
+      )
+        continue;
+    }
+    const [start, end] = m.indices!.groups!.target;
+    findings.push({
+      ruleId: "englishFixedPrepositions",
+      messageKey: "review_msg_fixed_prepositions",
+      range: { start, end },
+      alternatives: ["forward to"],
+      context: evidence(ctx, m.index, m.index + m[0].length),
+    });
+  }
+  return findings;
+}
+
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
+  {
+    rules: ["englishSentenceFragment"],
+    detect: english(subordinateFragment, forwardWithoutObject),
+  },
+  { rules: ["englishFixedPrepositions"], detect: english(forwardPreposition) },
   { rules: ["englishSentenceStructure"], detect: english(bareBit, stackedArticles) },
   { rules: ["englishConfusedWords"], detect: english(itForIs) },
   { rules: ["englishExistentialAgreement"], detect: english(existentialSingular) },

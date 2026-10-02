@@ -1176,6 +1176,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Pytanie z czasownikiem głównym wymaga do, does lub did przed podmiotem: „Where do you go?”",
     "Uma pergunta com verbo principal pede do, does ou did antes do sujeito: “Where do you go?”",
   ],
+  review_msg_sentence_fragment: [
+    "This sentence is only a subordinate clause or an unfinished phrase; join it to a main clause or complete it.",
+    "Cette phrase n’est qu’une subordonnée ou une tournure inachevée ; rattachez-la à une principale ou complétez-la.",
+    "Ova je rečenica samo zavisna surečenica ili nedovršen izraz; spojite je s glavnom rečenicom ili je dovršite.",
+    "Esta oración es solo una subordinada o una expresión incompleta; únala a una principal o complétela.",
+    "Αυτή η πρόταση είναι μόνο δευτερεύουσα ή ημιτελής φράση· ενώστε τη με κύρια πρόταση ή συμπληρώστε τη.",
+    "Meningen är bara en bisats eller en ofullständig fras; foga ihop den med en huvudsats eller gör den fullständig.",
+    "Dieser Satz ist nur ein Nebensatz oder eine unvollständige Wendung; verbinden Sie ihn mit einem Hauptsatz oder vervollständigen Sie ihn.",
+    "To zdanie jest tylko zdaniem podrzędnym lub niedokończonym zwrotem; połącz je ze zdaniem głównym albo je dokończ.",
+    "Esta frase é só uma oração subordinada ou uma expressão incompleta; junte-a a uma oração principal ou complete-a.",
+  ],
   review_msg_since_perfect: [
     "With “since” and a starting point, use the present perfect: “I have worked here since 2002.”",
     "Avec « since » et un point de départ, utilisez le present perfect : « I have worked here since 2002. »",
