@@ -4,7 +4,6 @@ import {
   englishWordInfo,
   type EnglishWordInfo,
 } from "../../implementations/helpers/EnglishLexicon";
-import { hasCountPrefix } from "../../implementations/helpers/EnglishNounNumber";
 import type { PhraseRow } from "../englishPhraseTables";
 import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
@@ -132,7 +131,7 @@ const PHRASE_ENDS = words(
     "may might must do did don't didn't aren't weren't haven't won't can't couldn't wouldn't to in " +
     "on at for with from of by into onto about over under ago later before after so as than i you " +
     "we they he she it me him them us there here then now too also all both each still just already " +
-    "is was isn't wasn't need needed seem seemed look looked go went come came get got",
+    "is was isn't wasn't need needed seem seemed look looked go went come came get got out",
 );
 // Plurals that are not a singular + s, and nouns whose 's is a common possessive or contraction.
 const NOT_PLURALS = words(
@@ -142,7 +141,13 @@ const NOT_PLURALS = words(
 const QUANTIFIERS =
   "two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty|thirty|forty|" +
   "fifty|hundred|dozens|hundreds|thousands|millions|many|several|few|numerous|various|" +
-  "multiple|these|those|both|[2-9]|[1-9][0-9]+";
+  "multiple|these|those|both|all|some|" +
+  `(?:lots?|couple|number|plenty|dozens|all|most|some|many|several|both)${S}of|[2-9]|[1-9][0-9]+`;
+const COUNT_WORDS = words("two three four five six seven eight nine ten twelve twenty hundred");
+// Capitalized words before a count that are no label: "The 3 SMEs", "All 5 CEOs".
+const LABEL_FREE = words(
+  "the a an all these those some over about only nearly almost around with for in at by of and or",
+);
 const PLURAL_QUANTIFIED = `(?<q>${QUANTIFIERS})(?:${S}(?<mod>[a-z]+))?${S}(?<w>[A-Za-z][A-Za-z&]*)${A}s${E}`;
 
 /** The plural of a noun typed with 's ("CD's" -> "CDs", "reply's" -> "replies"), or null. */
@@ -159,7 +164,10 @@ function pluralOf(word: string): string | null {
     : /[^aeiou]y$/.test(word)
       ? `${word.slice(0, -1)}ies`
       : `${word}s`;
-  return info(plural)?.plural ? plural : null;
+  if (info(plural)?.plural) return plural;
+  // "tech" -> "techs" (a hard "ch"); a plain -s plural the lexicon leaves out still counts.
+  if (info(`${word}s`)) return `${word}s`;
+  return plural === `${word}s` ? plural : null;
 }
 
 /**
@@ -172,17 +180,33 @@ function quantifiedPlurals(ctx: DetectContext): Finding[] {
   for (const m of frameMatches(ctx, PLURAL_QUANTIFIED, "w")) {
     const { q, mod, w } = m.groups!;
     const ql = q.toLowerCase();
+    // "The 2015 movie's": a year, not a count.
+    if (/^(?:1[89]|20)\d\d$/.test(q)) continue;
     if (/[0-9]/.test(q)) {
       // A numbered label ("Chapter 2 owner's guide", "Windows 10 user's"), not a count.
       const before = ctx.text.slice(Math.max(0, m.index - 24), m.index);
-      if (hasCountPrefix(before) || /[A-Z][\p{L}]*[ \t ]+$/u.test(before)) continue;
+      const label = /(\p{Lu}[\p{L}]*)[ \t\u00a0]+$/u.exec(before)?.[1];
+      if (label && !LABEL_FREE.has(label.toLowerCase())) continue;
+      if (
+        /\b(?:no|number|model|version|chapter|section|page|step|level|row|column)\.?[ \t\u00a0]+$/i.test(
+          before,
+        )
+      )
+        continue;
     }
     if (mod) {
       const read = info(mod);
-      if (!/^[a-z]+$/.test(mod) || !(read?.adjective || mod === "other")) continue;
+      // "all three manufacturer's", "many of those API's": a count or determiner in between.
+      const between = COUNT_WORDS.has(mod) || (/of$/i.test(q) && /^(?:these|those)$/.test(mod));
+      if (!/^[a-z]+$/.test(mod) || !(read?.adjective || mod === "other" || between)) continue;
     }
     const plural = pluralOf(w);
     if (!plural || ctx.dictionary.has(w.toLowerCase())) continue;
+    // "some user's settings" is one user; "all" and "some" count only acronyms or a closed phrase.
+    if ((ql === "some" || ql === "all") && !/^[A-Z][A-Z&]*[A-Z]$/.test(w)) {
+      const after = nextWord(ctx, m.index + m[0].length);
+      if (ql === "some" || after === null || !(after === "" || PHRASE_ENDS.has(after))) continue;
+    }
     if (ql === "these" || ql === "those" || ql === "both") {
       // "these one's" yes; "both John's" is two owners.
       if (!/^(?:[a-z]+|[A-Z][A-Z&]*[A-Z])$/.test(w)) continue;
