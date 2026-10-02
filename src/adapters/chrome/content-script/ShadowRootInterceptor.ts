@@ -18,6 +18,7 @@
  * Closed shadow roots are intentionally left unhandled.
  */
 
+const DETACH_EVENT = "ft-shadow-detach";
 const INTERCEPT_EVENT = "ft-shadow-attached";
 export const SHADOW_ATTACH_MARKER_ATTR = "data-ft-shadow-attached";
 
@@ -26,14 +27,17 @@ export const SHADOW_ATTACH_MARKER_ATTR = "data-ft-shadow-attached";
 const INTERCEPT_FLAG = "__ftShadowIntercepted";
 
 const INTERCEPT_SNIPPET = `(function(){
-  if(window[${JSON.stringify(INTERCEPT_FLAG)}]) return;
-  window[${JSON.stringify(INTERCEPT_FLAG)}] = true;
+  var existing = window[${JSON.stringify(INTERCEPT_FLAG)}];
+  if(existing) { existing.active = true; return; }
+  var state = { active: true };
+  window[${JSON.stringify(INTERCEPT_FLAG)}] = state;
   var orig = Element.prototype.attachShadow;
-  Element.prototype.attachShadow = function(init) {
+  var wrapper = function(init) {
     var root = orig.call(this, init);
-    if (init && init.mode === 'open') {
+    if (state.active && init && init.mode === 'open') {
       var host = this;
       setTimeout(function() {
+        if (!state.active) return;
         try {
           host.setAttribute(${JSON.stringify(SHADOW_ATTACH_MARKER_ATTR)}, 'true');
           host.dispatchEvent(new CustomEvent(${JSON.stringify(INTERCEPT_EVENT)}, {bubbles:true,composed:true}));
@@ -42,12 +46,23 @@ const INTERCEPT_SNIPPET = `(function(){
     }
     return root;
   };
+  state.original = orig;
+  state.wrapper = wrapper;
+  Element.prototype.attachShadow = wrapper;
+  var detach = function() {
+    state.active = false;
+    if (Element.prototype.attachShadow === wrapper) {
+      Element.prototype.attachShadow = orig;
+      delete window[${JSON.stringify(INTERCEPT_FLAG)}];
+      document.removeEventListener(${JSON.stringify(DETACH_EVENT)}, detach);
+    }
+  };
+  document.addEventListener(${JSON.stringify(DETACH_EVENT)}, detach);
 })();`;
 
 export class ShadowRootInterceptor {
   private readonly handler: EventListener = this.onEvent.bind(this);
   private attached = false;
-  private injected = false;
 
   constructor(private readonly onShadowAttached: (root: ShadowRoot) => void) {}
 
@@ -55,10 +70,7 @@ export class ShadowRootInterceptor {
     if (this.attached) {
       return;
     }
-    if (!this.injected) {
-      this.inject();
-      this.injected = true;
-    }
+    this.inject(INTERCEPT_SNIPPET);
     document.addEventListener(INTERCEPT_EVENT, this.handler, true);
     this.attached = true;
   }
@@ -69,14 +81,20 @@ export class ShadowRootInterceptor {
     }
     document.removeEventListener(INTERCEPT_EVENT, this.handler, true);
     this.attached = false;
+    // Cleanup uses the listener installed with the successful patch. A page
+    // can tighten CSP afterwards; disabling must not require a new script.
+    document.dispatchEvent(new Event(DETACH_EVENT));
+    document
+      .querySelectorAll(`[${SHADOW_ATTACH_MARKER_ATTR}]`)
+      .forEach((node) => node.removeAttribute(SHADOW_ATTACH_MARKER_ATTR));
   }
 
-  private inject(): void {
+  private inject(source: string): void {
     // The script runs in the page's context (MAIN world), bypassing the
     // extension's isolated-world boundary. It degrades silently on pages with
     // a strict CSP that blocks inline scripts.
     const script = document.createElement("script");
-    script.textContent = INTERCEPT_SNIPPET;
+    script.textContent = source;
     (document.head ?? document.documentElement).appendChild(script);
     script.remove();
   }

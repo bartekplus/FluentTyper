@@ -69,8 +69,6 @@ class FluentTyper {
     this.hostChangeWatcher = new HostChangeWatcher(this.createHostChangeWatcherDependencies());
 
     chrome.runtime.onMessage.addListener(this.boundMessageHandler);
-    window.addEventListener("message", this.boundEarlyTabAcceptHandler);
-    this.hostChangeWatcher.start();
     this.getConfig();
   }
 
@@ -92,6 +90,7 @@ class FluentTyper {
 
   set enabled(newValue: boolean) {
     this.runtimeController.enabled = newValue;
+    this.syncPageListeners();
   }
 
   get enabled(): boolean {
@@ -116,6 +115,17 @@ class FluentTyper {
 
   setConfig(config: SetConfigContext): void {
     this.runtimeController.setConfig(config);
+    this.syncPageListeners();
+  }
+
+  private syncPageListeners(): void {
+    if (this.enabled) {
+      this.hostChangeWatcher.start();
+      window.addEventListener("message", this.boundEarlyTabAcceptHandler);
+    } else {
+      this.hostChangeWatcher.stop();
+      window.removeEventListener("message", this.boundEarlyTabAcceptHandler);
+    }
   }
 
   enable(): void {

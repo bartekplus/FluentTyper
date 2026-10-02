@@ -91,6 +91,7 @@ describe("content_script watchdog scheduling", () => {
     const instance = (window as Window & { FluentTyper?: { watchDog: () => void } }).FluentTyper;
     expect(instance).toBeDefined();
 
+    (instance as unknown as { enabled: boolean }).enabled = true;
     const watchDogSpy = jest.spyOn(instance!, "watchDog");
     const clearTimeoutSpy = jest.spyOn(global, "clearTimeout");
 
@@ -115,6 +116,7 @@ describe("content_script watchdog scheduling", () => {
     const instance = (window as Window & { FluentTyper?: { watchDog: () => void } }).FluentTyper;
     expect(instance).toBeDefined();
 
+    (instance as unknown as { enabled: boolean }).enabled = true;
     const watchDogSpy = jest.spyOn(instance!, "watchDog");
 
     // Consume initial startup scheduling.
@@ -125,5 +127,21 @@ describe("content_script watchdog scheduling", () => {
     jest.advanceTimersByTime(250);
 
     expect(watchDogSpy).toHaveBeenCalledTimes(1);
+  });
+  test("FT-INV-3 disabled runtime schedules no watchdog work", async () => {
+    await loadContentScriptModule();
+    const instance = window.FluentTyper!;
+    const watchDog = jest.spyOn(instance, "watchDog");
+    for (const type of ["focus", "pageshow", "popstate"]) window.dispatchEvent(new Event(type));
+    jest.advanceTimersByTime(1000);
+    expect(watchDog).not.toHaveBeenCalled();
+    instance.enabled = true;
+    jest.advanceTimersByTime(250);
+    watchDog.mockClear();
+    instance.enabled = false;
+    window.dispatchEvent(new Event("focus"));
+    document.dispatchEvent(new Event("visibilitychange"));
+    jest.advanceTimersByTime(1000);
+    expect(watchDog).not.toHaveBeenCalled();
   });
 });

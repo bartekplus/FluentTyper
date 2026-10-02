@@ -234,6 +234,7 @@ export class ReviewController {
     const ai = this.deps.createAiProvider?.() ?? undefined;
     const session = new ReviewSession({
       target,
+      isActive: () => target.element.ownerDocument.visibilityState !== "hidden",
       engine: this.deps.createEngine(),
       options: this.deps.getOptions(),
       uiLanguage: () => this.lang,
@@ -294,6 +295,7 @@ export class ReviewController {
       active.cleanup.push(() => node.removeEventListener(type, handler as EventListener, options));
     };
 
+    on(doc, "visibilitychange", () => session.notifySourceChanged());
     if (!(target instanceof GoogleDocsReviewTarget)) {
       on(element, "input", () => session.notifySourceChanged());
       on(element, "compositionstart", () => {
@@ -327,7 +329,12 @@ export class ReviewController {
       on(element, "scroll", () => this.scheduleLayout(), { passive: true });
       // Removal from the page and scripted value changes fire no event here.
       const poll = view.setInterval(() => {
-        if (this.active !== active || active.state?.status !== "ready") return;
+        if (
+          doc.visibilityState === "hidden" ||
+          this.active !== active ||
+          active.state?.status !== "ready"
+        )
+          return;
         const current = active.target.element;
         const changed =
           !current.isConnected ||

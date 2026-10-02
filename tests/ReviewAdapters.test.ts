@@ -101,7 +101,7 @@ afterEach(() => {
   document.getSelection()?.removeAllRanges();
   document.body.replaceChildren();
   document.querySelectorAll("[data-fluenttyper-review]").forEach((node) => node.remove());
-  setExecCommand(null);
+  delete (document as unknown as { execCommand?: ExecCommand }).execCommand;
 });
 
 describe("contenteditable text map", () => {
@@ -1218,6 +1218,7 @@ describe("review controller lifecycle", () => {
   });
 
   test("suggestions pause only while a fix is written", async () => {
+    setExecCommand(textControlInsert);
     const field = textarea("We saw teh cat.");
     const { review, suspend, resume } = controller();
     review.invoke();
@@ -1970,4 +1971,124 @@ describe("review controller with Local AI", () => {
     expect(review.isActive).toBe(false);
     expect(field.value).toBe("We saw teh cat. Then She walk home now. Then She walk there too.");
   });
+});
+
+describe("FT-INV-1 and FT-INV-5 verified Review transactions", () => {
+  test("identical words, sentences and paragraphs keep their occurrence after a DOM rerender", async () => {
+    setExecCommand(contentEditableInsert);
+    const root = createEditor("<p>He go home. She waits. He go home.</p><p>He go home.</p>");
+    root.tabIndex = 0;
+    const target = new ContentEditableReviewTarget(root);
+    const before = target.read();
+    if (!before.ok) throw new Error("no snapshot");
+    // Same text with different nodes: the port rebuilds its map before writing.
+    root
+      .querySelector("p")!
+      .replaceChildren(document.createTextNode("He go home. She waits. He go home."));
+    const start = before.text.lastIndexOf("go");
+    const result = await target.apply({
+      before: before.text,
+      signature: before.signature,
+      edits: [edit(start, start + 2, "go", "goes")],
+      after: before.text.slice(0, start) + "goes" + before.text.slice(start + 2),
+    });
+    expect(result.status).toBe("applied");
+    expect(root.textContent).toBe("He go home. She waits. He go home.He goes home.");
+  });
+
+  test("a host input callback changing a sibling block stops a batch before its next edit", async () => {
+    const root = createEditor("<p>teh first.</p><p>teh last.</p>");
+    root.tabIndex = 0;
+    const target = new ContentEditableReviewTarget(root);
+    const read = target.read();
+    if (!read.ok) throw new Error("no snapshot");
+    let writes = 0;
+    setExecCommand((...args) => {
+      writes += 1;
+      const result = contentEditableInsert(...args);
+      root.dispatchEvent(new Event("input", { bubbles: true }));
+      return result;
+    });
+    root.addEventListener("input", () => {
+      root.querySelector("p")!.textContent = "host newer draft";
+    });
+    const start = read.text.lastIndexOf("teh");
+    const result = await target.apply({
+      before: read.text,
+      signature: read.signature,
+      edits: [edit(start, start + 3, "teh", "the"), edit(0, 3, "teh", "the")],
+      after: "the first.\nthe last.",
+    });
+    expect(result.status).toBe("unverified");
+    expect(writes).toBe(1);
+    expect(root.textContent).toBe("host newer draftthe last.");
+  });
+
+  test("invalid ranges and split graphemes are refused by the text-control port", async () => {
+    setExecCommand(textControlInsert);
+    for (const value of ["🙂 teh", "e\u0301 teh", "👨‍👩‍👧 teh"]) {
+      const field = textarea(value);
+      const target = new TextControlReviewTarget(field);
+      for (const [start, end] of [
+        [0, 1],
+        [0.5, 1],
+        [NaN, 1],
+        [-1, 1],
+        [0, Infinity],
+      ]) {
+        const result = await target.apply({
+          before: value,
+          after: "corrupt",
+          edits: [edit(start, end, value.slice(start, end), "X")],
+        });
+        expect(result.status).toBe("rejected");
+        expect(field.value).toBe(value);
+      }
+    }
+  });
+
+  test("Apply All handles growth, deletion, punctuation and Unicode, with autosave and submission parity", async () => {
+    setExecCommand(textControlInsert);
+    const field = textarea("🙂 teh  café go.");
+    field.name = "draft";
+    const form = document.createElement("form");
+    document.body.append(form);
+    form.append(field);
+    let saved = field.value;
+    field.addEventListener("input", () => {
+      saved = field.value;
+    });
+    const result = await new TextControlReviewTarget(field).apply({
+      before: field.value,
+      after: "🙂 the café goes!",
+      edits: [
+        edit(13, 15, "go", "goes"),
+        edit(15, 16, ".", "!"),
+        edit(3, 6, "teh", "the"),
+        edit(7, 8, " ", ""),
+      ],
+    });
+    expect(result.status).toBe("applied");
+    expect(field.value).toBe("🙂 the café goes!");
+    expect(saved).toBe(field.value);
+    expect(new field.ownerDocument.defaultView!.FormData(form).get("draft")).toBe(saved);
+  });
+});
+
+test("FT-INV-4 contenteditable reports verified native edge-space normalization", async () => {
+  const root = createEditor("<p>We need fix this bug.</p>");
+  setExecCommand((command, showUi, value) =>
+    contentEditableInsert(command, showUi, value?.replace(/ /g, "\u00a0")),
+  );
+  const target = new ContentEditableReviewTarget(root);
+  const before = target.read();
+  if (!before.ok) throw new Error("No snapshot");
+  const result = await target.apply({
+    before: before.text,
+    signature: before.signature,
+    edits: [edit(8, 8, "", "to ")],
+    after: "We need to fix this bug.",
+  });
+  expect(root.textContent).toBe("We need to\u00a0fix this bug.");
+  expect(result).toEqual({ status: "applied", text: "We need to\u00a0fix this bug." });
 });

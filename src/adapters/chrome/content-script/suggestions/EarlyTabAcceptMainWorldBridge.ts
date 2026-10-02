@@ -118,7 +118,7 @@ export function installEarlyTabAcceptMainWorldBridge(doc: Document = document): 
   win.addEventListener("keydown", handler, true);
 }
 
-export function resetEarlyTabAcceptMainWorldBridgeForTests(doc: Document = document): void {
+export function uninstallEarlyTabAcceptMainWorldBridge(doc: Document = document): void {
   const win = doc.defaultView as FluentTyperBridgeWindow | null;
   if (!win) {
     return;
@@ -141,3 +141,5 @@ export {
   EARLY_TAB_ACCEPT_REQUEST_EVENT,
   EARLY_TAB_ACCEPT_VISIBLE_ATTR,
 };
+
+export const resetEarlyTabAcceptMainWorldBridgeForTests = uninstallEarlyTabAcceptMainWorldBridge;

@@ -351,6 +351,7 @@ describe("SuggestionTextEditService", () => {
     });
 
     const input = document.createElement("input");
+    document.body.append(input);
     input.value = "fun";
     input.selectionStart = 3;
     input.selectionEnd = 3;
@@ -406,6 +407,7 @@ describe("SuggestionTextEditService", () => {
     });
 
     const input = document.createElement("input");
+    document.body.append(input);
     input.value = "teh ";
     input.selectionStart = input.value.length;
     input.selectionEnd = input.value.length;
@@ -434,6 +436,7 @@ describe("SuggestionTextEditService", () => {
     });
 
     const input = document.createElement("input");
+    document.body.append(input);
     input.value = "teh ";
     input.selectionStart = input.value.length;
     input.selectionEnd = input.value.length;
@@ -462,6 +465,7 @@ describe("SuggestionTextEditService", () => {
     });
 
     const input = document.createElement("input");
+    document.body.append(input);
     input.value = "asap";
     input.selectionStart = 0;
     input.selectionEnd = 0;
@@ -487,6 +491,7 @@ describe("SuggestionTextEditService", () => {
     });
 
     const input = document.createElement("input");
+    document.body.append(input);
     input.value = "the ";
     input.selectionStart = input.value.length;
     input.selectionEnd = input.value.length;
@@ -517,6 +522,7 @@ describe("SuggestionTextEditService", () => {
     });
 
     const input = document.createElement("input");
+    document.body.append(input);
     input.value = "Hello .";
     input.selectionStart = input.value.length;
     input.selectionEnd = input.value.length;
@@ -540,6 +546,7 @@ describe("SuggestionTextEditService", () => {
     });
 
     const input = document.createElement("input");
+    document.body.append(input);
     input.value = "Hello,, ";
     input.selectionStart = input.value.length;
     input.selectionEnd = input.value.length;
@@ -700,7 +707,7 @@ describe("SuggestionTextEditService", () => {
     expect((paragraphs[1]?.textContent ?? "").replace(/\u00a0/g, " ")).toBe("fixed. ");
   });
 
-  test("learns DOM grammar fallback after host replacement mismatch without editor-specific checks", () => {
+  test("FT-INV-5 reports a host mismatch without a second repair write", () => {
     const adapter = new LearningMismatchContentEditableAdapter();
     const service = new SuggestionTextEditService({
       findMentionToken,
@@ -736,36 +743,10 @@ describe("SuggestionTextEditService", () => {
       },
     );
 
-    expect(firstResult).toEqual({ applied: true, didDispatchInput: true });
-    expect(editable.textContent).toBe("fixed. ");
-    expect(adapter.preferDomMutationCalls).toEqual([false, true]);
-
-    editable.textContent = "Hello .";
-    const secondResult = service.applyGrammarEdit(
-      entry,
-      {
-        replacement: ". ",
-        deleteBackwards: 2,
-        deleteForwards: 0,
-        sourceRuleId: "commaPeriodSpacing",
-      },
-      {
-        snapshot: {
-          beforeCursor: "Hello .",
-          afterCursor: "",
-          cursorOffset: "Hello .".length,
-        },
-        contentEditableContext: {
-          beforeCursor: "Hello .",
-          afterCursor: "",
-          useFullTextOffsets: false,
-        },
-      },
-    );
-
-    expect(secondResult).toEqual({ applied: true, didDispatchInput: true });
-    expect(editable.textContent).toBe("Hello. ");
-    expect(adapter.preferDomMutationCalls).toEqual([false, true, true]);
+    expect(firstResult).toEqual({ applied: false, didDispatchInput: false, unverified: true });
+    expect(editable.textContent).toBe("fixed . .");
+    expect(adapter.preferDomMutationCalls).toEqual([false]);
+    expect(entry.pendingExtensionEdit).toBeNull();
   });
 
   test("normalizes duplicate punctuation before NBSP in contenteditable", () => {
@@ -800,6 +781,7 @@ describe("SuggestionTextEditService", () => {
     });
 
     const input = document.createElement("input");
+    document.body.append(input);
     input.value = "fun next";
     input.selectionStart = 3;
     input.selectionEnd = 3;
@@ -1134,7 +1116,7 @@ describe("SuggestionTextEditService", () => {
     expect(entry.pendingExtensionEdit?.postEditBlockText).toBe("What is the toxicologists thing");
   });
 
-  test("falls back to generic DOM contenteditable acceptance when host block parity does not match", () => {
+  test("FT-INV-5 refuses acceptance when host block parity does not match", () => {
     const service = new SuggestionTextEditService({
       findMentionToken,
       isSeparator: (value) => /\s/.test(value),
@@ -1151,17 +1133,13 @@ describe("SuggestionTextEditService", () => {
 
     const accepted = service.acceptSuggestion(entry, "best ");
 
-    expect(accepted).toEqual({
-      triggerText: "bes",
-      insertedText: "best\u00A0",
-      cursorAfter: 17,
-      cursorAfterIsBlockLocal: true,
-    });
+    expect(accepted).toBeNull();
+    expect(entry.pendingExtensionEdit).toBeNull();
     expect(hostModel.getReplaceRangeCalls()).toBe(0);
-    expect(hostModel.editable.textContent).toBe("What is the best\u00A0");
+    expect(hostModel.editable.textContent).toBe("What is the bes");
   });
 
-  test("falls back to generic DOM contenteditable acceptance when host cursor context drifts on identical line text", () => {
+  test("FT-INV-1 refuses acceptance when host cursor context drifts on identical line text", () => {
     const editable = document.createElement("div");
     editable.setAttribute("contenteditable", "true");
     Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
@@ -1197,14 +1175,10 @@ describe("SuggestionTextEditService", () => {
 
     const accepted = service.acceptSuggestion(entry, "line ");
 
-    expect(accepted).toEqual({
-      triggerText: "lin",
-      insertedText: "line\u00A0",
-      cursorAfter: 12,
-      cursorAfterIsBlockLocal: true,
-    });
+    expect(accepted).toBeNull();
+    expect(entry.pendingExtensionEdit).toBeNull();
     expect(applyCalls).toBe(0);
-    expect(editable.textContent).toBe("repeat line\u00A0");
+    expect(editable.textContent).toBe("repeat line");
   });
 
   test("arms pending contenteditable suggestion edit before synthetic input dispatch", () => {
@@ -1284,6 +1258,7 @@ describe("SuggestionTextEditService", () => {
       insertedText: "What\u00A0",
       cursorAfter: 5,
       cursorAfterIsBlockLocal: true,
+      unverified: true,
     });
     expect(entry.pendingExtensionEdit?.blockScoped).toBe(true);
     expect(entry.pendingExtensionEdit?.replacementText).toBe("What\u00A0");
@@ -1324,6 +1299,7 @@ describe("SuggestionTextEditService", () => {
       insertedText: "What\u00A0",
       cursorAfter: 5,
       cursorAfterIsBlockLocal: true,
+      unverified: true,
     });
     expect(editable.textContent).toBe("Wh");
     expect(entry.pendingExtensionEdit?.awaitingHostInputEcho).toBe(true);
@@ -1336,6 +1312,7 @@ describe("SuggestionTextEditService", () => {
     });
 
     const input = document.createElement("input");
+    document.body.append(input);
     input.type = "text";
     input.value = "Crab";
     input.selectionStart = input.value.length;
@@ -1371,6 +1348,7 @@ describe("SuggestionTextEditService", () => {
     });
 
     const input = document.createElement("input");
+    document.body.append(input);
     input.type = "text";
     input.value = "Crab";
     input.selectionStart = input.value.length;
@@ -1425,6 +1403,7 @@ describe("SuggestionTextEditService", () => {
     });
 
     const input = document.createElement("input");
+    document.body.append(input);
     input.type = "text";
     input.value = "Was";
     input.selectionStart = input.value.length;
@@ -1746,6 +1725,7 @@ describe("SuggestionTextEditService", () => {
     });
 
     const input = document.createElement("input");
+    document.body.append(input);
     input.value = "h";
     input.selectionStart = input.value.length;
     input.selectionEnd = input.value.length;
@@ -1799,6 +1779,7 @@ describe("SuggestionTextEditService", () => {
     });
 
     const input = document.createElement("input");
+    document.body.append(input);
     input.value = "teh ";
     input.selectionStart = input.value.length;
     input.selectionEnd = input.value.length;
@@ -1843,6 +1824,7 @@ describe("SuggestionTextEditService", () => {
     });
 
     const input = document.createElement("input");
+    document.body.append(input);
     input.value = "alot";
     input.selectionStart = input.value.length;
     input.selectionEnd = input.value.length;
@@ -1893,6 +1875,7 @@ describe("SuggestionTextEditService", () => {
     });
 
     const input = document.createElement("input");
+    document.body.append(input);
     input.value = "alot";
     input.selectionStart = input.value.length;
     input.selectionEnd = input.value.length;
@@ -1944,6 +1927,7 @@ describe("SuggestionTextEditService", () => {
     });
 
     const input = document.createElement("input");
+    document.body.append(input);
     input.value = "teh ";
     input.selectionStart = input.value.length;
     input.selectionEnd = input.value.length;
@@ -2001,6 +1985,7 @@ describe("SuggestionTextEditService", () => {
     });
 
     const input = document.createElement("input");
+    document.body.append(input);
     input.value = "abc teh ";
     input.selectionStart = input.value.length;
     input.selectionEnd = input.value.length;
@@ -2042,6 +2027,7 @@ describe("SuggestionTextEditService", () => {
     });
 
     const input = document.createElement("input");
+    document.body.append(input);
     input.value = "teh ";
     input.selectionStart = input.value.length;
     input.selectionEnd = input.value.length;
@@ -2082,6 +2068,7 @@ describe("SuggestionTextEditService", () => {
     });
 
     const input = document.createElement("input");
+    document.body.append(input);
     input.value = "teh ";
     input.selectionStart = input.value.length;
     input.selectionEnd = input.value.length;
@@ -2299,15 +2286,7 @@ describe("SuggestionTextEditService", () => {
     expect(editable.textContent).toBe("DThe");
   });
 
-  test("routes grammar edit through host bridge with caller's block text when host model is stale", () => {
-    // Firefox CKEditor-5 can expose a newly typed character in the DOM
-    // before its model observes it.  Historic fallbacks tried to patch the
-    // host through beforeinput or a targeted model insertion and then
-    // "repair" the aftermath, which raced with the host's pending sync and
-    // duplicated the typed character.  We now forward the caller's view
-    // ("dThe") as expectedBlockText and let the bridge decide how to apply
-    // – for CKEditor-5 a stale model triggers a full block rewrite through
-    // the editor's own model API, which reconciles in one step.
+  test("FT-INV-5 refuses grammar edits while host model and DOM disagree", () => {
     const editable = document.createElement("div");
     editable.setAttribute("contenteditable", "true");
     Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
@@ -2377,19 +2356,10 @@ describe("SuggestionTextEditService", () => {
       },
     );
 
-    expect(result.applied).toBe(true);
-    // Exactly one host call, with the caller's view of the block text
-    // attached so the bridge can rewrite through CKEditor's own model
-    // API rather than racing the pending DOM sync.
-    expect(applyCalls).toHaveLength(1);
-    expect(applyCalls[0]).toEqual({
-      replaceStart: 0,
-      replaceEnd: 1,
-      replacementText: "D",
-      cursorAfter: 1,
-      expectedBlockText: "dThe",
-    });
-    expect(editable.textContent).toBe("DThe");
+    expect(result.applied).toBe(false);
+    expect(applyCalls).toHaveLength(0);
+    expect(editable.textContent).toBe("dThe");
+    expect(blockText).toBe("The");
   });
 
   test("falls back to replaceTextByOffsets for grammar edit when host session is not available", () => {
@@ -2594,4 +2564,96 @@ describe("SuggestionTextEditService", () => {
     expect(lastApplyArgs?.replaceStart).toBe(11);
     expect((editable.textContent ?? "").replace(/\u00a0/g, " ")).toBe("First line.test ");
   });
+});
+
+describe("FT-INV-1 typing transaction anchors", () => {
+  test("refuses a stale grammar snapshot even when the original substring repeats", () => {
+    const field = document.createElement("textarea");
+    document.body.append(field);
+    field.value = "Yesterday, teh cat and teh cat.";
+    field.setSelectionRange(14, 14);
+    const service = new SuggestionTextEditService({
+      findMentionToken,
+      isSeparator: (s) => /\s/.test(s),
+    });
+    const result = service.applyGrammarEdit(
+      createSuggestionEntry({ elem: field }),
+      { replacement: "the", deleteBackwards: 3, deleteForwards: 0 },
+      { snapshot: { beforeCursor: "teh", afterCursor: " cat and teh cat.", cursorOffset: 3 } },
+    );
+    expect(result.applied).toBe(false);
+    expect(field.value).toBe("Yesterday, teh cat and teh cat.");
+    field.remove();
+  });
+
+  test("refuses a focus-time host rewrite and preserves every host character", () => {
+    const field = document.createElement("input");
+    document.body.append(field);
+    field.value = "teh";
+    field.setSelectionRange(3, 3);
+    field.addEventListener("focus", () => {
+      field.value = "host saved a newer draft";
+    });
+    const service = new SuggestionTextEditService({
+      findMentionToken,
+      isSeparator: (s) => /\s/.test(s),
+    });
+    expect(service.acceptSuggestion(createSuggestionEntry({ elem: field }), "the")).toBeNull();
+    expect(field.value).toBe("host saved a newer draft");
+    field.remove();
+  });
+});
+
+test("FT-INV-5 deferred beforeinput commits use host undo without a synthetic inverse", async () => {
+  const root = document.createElement("div");
+  root.setAttribute("contenteditable", "true");
+  root.setAttribute("data-lexical-editor", "true");
+  Object.defineProperty(root, "isContentEditable", { value: true });
+  root.innerHTML = "<p>Wh</p>";
+  document.body.append(root);
+  const paragraph = root.firstElementChild as HTMLElement;
+  setContentEditableCursor(root, 2);
+  let hostState = "Wh";
+  root.addEventListener(
+    "beforeinput",
+    (event) => {
+      event.preventDefault();
+      const replacement = (event as InputEvent).data!;
+      queueMicrotask(() => {
+        hostState = replacement;
+        paragraph.textContent = hostState;
+        setContentEditableCursor(root, hostState.length);
+        root.dispatchEvent(new window.InputEvent("input", { bubbles: true }));
+      });
+    },
+    { once: true },
+  );
+  const entry = createSuggestionEntry({
+    elem: root,
+    latestMentionText: "Wh",
+    latestMentionStart: -1,
+  });
+  const service = new SuggestionTextEditService({
+    findMentionToken,
+    isSeparator: (value) => /\s/.test(value),
+  });
+  service.acceptSuggestion(entry, "What ");
+  expect(root.textContent).toBe("Wh");
+  expect(entry.pendingExtensionEdit?.nativeUndo).toBe(true);
+  await Promise.resolve();
+  expect(root.textContent).toBe("What\u00a0");
+  expect(hostState).toBe(root.textContent!);
+  const event = new window.KeyboardEvent("keydown", { key: "z", ctrlKey: true, cancelable: true });
+  const consumed = service.tryUndoLastExtensionEdit(entry, event, {
+    consumeKeyboardEvent: (value) => value.preventDefault(),
+    clearSuggestions: () => undefined,
+  });
+  expect(consumed).toBe(false);
+  expect(event.defaultPrevented).toBe(false);
+  expect(root.textContent).toBe(hostState);
+  // The host history handles the unconsumed chord and remains the source of truth.
+  hostState = "Wh";
+  paragraph.textContent = hostState;
+  root.dispatchEvent(new window.InputEvent("input", { bubbles: true, inputType: "historyUndo" }));
+  expect(root.textContent).toBe(hostState);
 });

@@ -24,13 +24,7 @@ export interface HostEditorSession {
     replaceEnd: number;
     replacementText: string;
     cursorAfter: number;
-    /**
-     * The caller's view of the block text (pre-edit).  When omitted,
-     * the session uses the block text captured at resolve time.  Pass
-     * this explicitly when the extension's DOM view may diverge from
-     * the host model (e.g. Firefox CKEditor-5 lag) so the bridge can
-     * decide whether to apply an incremental edit or rewrite the block.
-     */
+    /** Expected pre-edit host text; mismatches are refused, never reconstructed. */
     expectedBlockText?: string;
   }): HostEditorApplyResult;
   createPostEditFingerprint(): PostEditFingerprint;
@@ -108,7 +102,15 @@ class LineEditorHostSession implements HostEditorSession {
     private readonly elem: HTMLElement,
     private readonly controller: LineEditorController,
     private readonly backingTarget: HTMLInputElement | HTMLTextAreaElement | null,
-  ) {}
+  ) {
+    this.expectedCursor = readLineEditorCursor(controller);
+    this.expectedBlockText = this.expectedCursor
+      ? controller.getLine(this.expectedCursor.line)
+      : null;
+  }
+
+  private readonly expectedCursor: ReturnType<typeof readLineEditorCursor>;
+  private readonly expectedBlockText: string | null;
 
   public getBlockContextAtSelection(): LineEditorBlockContext | null {
     return readLineEditorBlockContext(this.controller);
@@ -119,16 +121,17 @@ class LineEditorHostSession implements HostEditorSession {
     replaceEnd,
     replacementText,
     cursorAfter,
+    expectedBlockText,
   }: BlockReplacementArgs): HostEditorApplyResult {
-    // LineEditor host (CodeMirror) owns both its DOM and its model, so
-    // there is no staleness window and we ignore the caller's
-    // expectedBlockText hint.
+    // FT-INV-1: a synchronous host callback can still change line or text.
     const cursor = readLineEditorCursor(this.controller);
     if (!cursor) {
       return { applied: false, didDispatchInput: false };
     }
     const blockText = this.controller.getLine(cursor.line);
     if (
+      cursor.line !== this.expectedCursor?.line ||
+      blockText !== (expectedBlockText ?? this.expectedBlockText) ||
       typeof blockText !== "string" ||
       replaceStart < 0 ||
       replaceEnd < replaceStart ||

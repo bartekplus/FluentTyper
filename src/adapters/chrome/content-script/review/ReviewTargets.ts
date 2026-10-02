@@ -391,6 +391,16 @@ export class TextControlReviewTarget implements ReviewTargetHandle {
     after: string;
   }): ReviewApplyResult {
     const field = this.element;
+    if (
+      request.edits.length === 0 ||
+      applyEdits(request.before, request.edits) !== request.after ||
+      request.edits.some(
+        (edit) =>
+          !isGraphemeBoundary(request.before, edit.start) ||
+          !isGraphemeBoundary(request.before, edit.end),
+      )
+    )
+      return { status: "rejected", reason: "host-refused" };
     const check = (): ReviewApplyResult | null => {
       if (!isReviewEligible(field)) return { status: "rejected", reason: "ineligible" };
       if (this.composing) return { status: "rejected", reason: "composing" };
@@ -574,96 +584,124 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
     let written: BlockText | null = null;
     const edits = [...planned].sort((a, b) => b.start - a.start);
     let sliceStart = win.performance.now();
-    for (let index = 0; index < edits.length; index += 1) {
-      // Stopping before the first edit changed nothing; later, say how far it got.
-      const failAt = (first: ReviewApplyResult): ReviewApplyResult =>
-        index === 0 ? first : { status: "partial", applied: index };
-      if (index > 0 && this.composing) return failAt({ status: "stale" });
-      // A long batch yields so the page stays responsive; each native edit is its
-      // own undo step here anyway. Afterwards it continues only if nothing moved.
-      if (win.performance.now() - sliceStart > WRITE_SLICE_MS) {
-        await new Promise((resolve) => win.setTimeout(resolve, 0));
-        map = buildContentEditableTextMap(root);
-        written = null;
-        if (map.text !== current || this.composing || !root.isConnected || !focusInside()) {
-          return failAt({ status: "stale" });
+    // Host input handlers can synchronously edit another block. In that case
+    // the local read-back shortcut is invalid; re-read before any sibling edit.
+    const mutations = new win.MutationObserver(() => {});
+    mutations.observe(root, {
+      subtree: true,
+      childList: true,
+      characterData: true,
+      attributes: true,
+    });
+    try {
+      for (let index = 0; index < edits.length; index += 1) {
+        // Stopping before the first edit changed nothing; later, say how far it got.
+        const failAt = (first: ReviewApplyResult): ReviewApplyResult =>
+          index === 0 ? first : { status: "partial", applied: index };
+        if (index > 0 && this.composing) return failAt({ status: "stale" });
+        // A long batch yields so the page stays responsive; each native edit is its
+        // own undo step here anyway. Afterwards it continues only if nothing moved.
+        if (win.performance.now() - sliceStart > WRITE_SLICE_MS) {
+          await new Promise((resolve) => win.setTimeout(resolve, 0));
+          map = buildContentEditableTextMap(root);
+          written = null;
+          if (map.text !== current || this.composing || !root.isConnected || !focusInside()) {
+            return failAt({ status: "stale" });
+          }
+          // The edits still to come lie before the ones written: that part of the
+          // text must still have exactly the protection it had, and none may touch it.
+          const limit = index === 0 ? Number.POSITIVE_INFINITY : edits[index - 1].start;
+          if (
+            !isReviewEligible(root) ||
+            formattingBefore(map, limit) !== formattingBefore(startingMap, limit) ||
+            protectionKey(map.protectedRanges, limit) !== protectionKey(protectedAtStart, limit) ||
+            edits
+              .slice(index)
+              .some((pending) => map.protectedRanges.some((range) => editTouches(pending, range)))
+          ) {
+            return failAt({ status: "stale" });
+          }
+          sliceStart = win.performance.now();
         }
-        // The edits still to come lie before the ones written: that part of the
-        // text must still have exactly the protection it had, and none may touch it.
-        const limit = index === 0 ? Number.POSITIVE_INFINITY : edits[index - 1].start;
-        if (
-          !isReviewEligible(root) ||
-          formattingBefore(map, limit) !== formattingBefore(startingMap, limit) ||
-          protectionKey(map.protectedRanges, limit) !== protectionKey(protectedAtStart, limit) ||
-          edits
-            .slice(index)
-            .some((pending) => map.protectedRanges.some((range) => editTouches(pending, range)))
-        ) {
-          return failAt({ status: "stale" });
+        const edit = edits[index];
+        // Descending order: earlier blocks are untouched, so the first map still
+        // locates them; the block just written has new nodes, so use its re-read.
+        const previous = blockHolding(written, edit);
+        const range: Range | null = previous
+          ? offsetRangeToDomRange(
+              previous.map,
+              { start: edit.start - previous.offset, end: edit.end - previous.offset },
+              doc,
+            )
+          : offsetRangeToDomRange(map, edit, doc);
+        if (!range || !selection || range.toString() !== edit.original) {
+          return failAt({ status: "rejected", reason: "host-refused" });
         }
-        sliceStart = win.performance.now();
-      }
-      const edit = edits[index];
-      // Descending order: earlier blocks are untouched, so the first map still
-      // locates them; the block just written has new nodes, so use its re-read.
-      const previous = blockHolding(written, edit);
-      const range: Range | null = previous
-        ? offsetRangeToDomRange(
-            previous.map,
-            { start: edit.start - previous.offset, end: edit.end - previous.offset },
-            doc,
-          )
-        : offsetRangeToDomRange(map, edit, doc);
-      if (!range || !selection || range.toString() !== edit.original) {
-        return failAt({ status: "rejected", reason: "host-refused" });
-      }
-      const block: BlockText | null = previous ?? readBlockAt(root, map, range, current);
-      const scopeElement = block?.element ?? root;
-      // The formatting (link, bold…) around the text being changed, when it is one node.
-      const formatting =
-        range.startContainer.nodeType === 3 && range.endContainer === range.startContainer
-          ? inlineTags(range.startContainer, scopeElement)
-          : null;
-      if (!writeNative(doc, selection, range, edit, current)) {
-        return failAt({ status: "rejected", reason: "host-refused" });
-      }
-      const expected = current.slice(0, edit.start) + edit.replacement + current.slice(edit.end);
-      // The DOM is read back; a successful dispatch proves nothing.
-      let observed: string;
-      let placedIn: { map: ContentEditableTextMap; offset: number };
-      if (block && block.element.isConnected) {
-        const after = buildContentEditableTextMap(block.element);
-        observed =
-          current.slice(0, block.offset) +
-          after.text +
-          current.slice(block.offset + block.map.text.length);
-        written = { element: block.element, offset: block.offset, map: after };
-        placedIn = { map: after, offset: block.offset };
-      } else {
-        map = buildContentEditableTextMap(root);
-        observed = map.text;
-        written = null;
-        placedIn = { map, offset: 0 };
-      }
-      const editEnd = edit.start + edit.replacement.length;
-      if (!sameExceptEdgeSpaces(observed, expected, edit.start, editEnd)) {
-        if (observed === current) return failAt({ status: "rejected", reason: "host-refused" });
-        return { status: "unverified" };
-      }
-      // The right text in the wrong place: a browser can move text typed at a
-      // link's edge out of the link. Reported, never passed off as applied.
-      if (formatting && formatting.length > 0 && edit.replacement.length > 0) {
-        const placed = offsetRangeToDomRange(
-          placedIn.map,
-          { start: edit.start - placedIn.offset, end: editEnd - placedIn.offset },
-          doc,
+        const block: BlockText | null = previous ?? readBlockAt(root, map, range, current);
+        const scopeElement = block?.element ?? root;
+        // The formatting (link, bold…) around the text being changed, when it is one node.
+        const formatting =
+          range.startContainer.nodeType === 3 && range.endContainer === range.startContainer
+            ? inlineTags(range.startContainer, scopeElement)
+            : null;
+        if (!writeNative(doc, selection, range, edit, current)) {
+          return failAt({ status: "rejected", reason: "host-refused" });
+        }
+        const expected = current.slice(0, edit.start) + edit.replacement + current.slice(edit.end);
+        // The DOM is read back; a successful dispatch proves nothing.
+        let observed: string;
+        let placedIn: { map: ContentEditableTextMap; offset: number };
+        const records = mutations.takeRecords();
+        const outsideBlock = records.some(
+          (record) => record.type === "attributes" || !block?.element.contains(record.target),
         );
-        const kept = (node: Node) => includesAll(inlineTags(node, scopeElement), formatting);
-        if (!placed || !kept(placed.startContainer) || !kept(placed.endContainer)) {
+        if (block && block.element.isConnected && !outsideBlock) {
+          const after = buildContentEditableTextMap(block.element);
+          observed =
+            current.slice(0, block.offset) +
+            after.text +
+            current.slice(block.offset + block.map.text.length);
+          written = { element: block.element, offset: block.offset, map: after };
+          placedIn = { map: after, offset: block.offset };
+        } else {
+          map = buildContentEditableTextMap(root);
+          observed = map.text;
+          written = null;
+          placedIn = { map, offset: 0 };
+        }
+        const editEnd = edit.start + edit.replacement.length;
+        if (!sameExceptEdgeSpaces(observed, expected, edit.start, editEnd)) {
+          if (observed === current) return failAt({ status: "rejected", reason: "host-refused" });
           return { status: "unverified" };
         }
+        // The right text in the wrong place: a browser can move text typed at a
+        // link's edge out of the link. Reported, never passed off as applied.
+        if (formatting && formatting.length > 0 && edit.replacement.length > 0) {
+          const placed = offsetRangeToDomRange(
+            placedIn.map,
+            { start: edit.start - placedIn.offset, end: editEnd - placedIn.offset },
+            doc,
+          );
+          const kept = (node: Node) => includesAll(inlineTags(node, scopeElement), formatting);
+          if (!placed || !kept(placed.startContainer) || !kept(placed.endContainer)) {
+            return { status: "unverified" };
+          }
+        }
+        current = observed;
+        if (outsideBlock && index + 1 < edits.length) {
+          const limit = edit.start;
+          if (
+            !isReviewEligible(root) ||
+            !focusInside() ||
+            this.composing ||
+            formattingBefore(map, limit) !== formattingBefore(startingMap, limit) ||
+            protectionKey(map.protectedRanges, limit) !== protectionKey(protectedAtStart, limit)
+          )
+            return { status: "partial", applied: index + 1 };
+        }
       }
-      current = observed;
+    } finally {
+      mutations.disconnect();
     }
 
     // Let a model-backed host (Quill) reconcile, then confirm it kept the text.
@@ -673,7 +711,7 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
       return { status: "unverified" };
     this.map = final;
     this.restoreSelection(final, saved, request.edits);
-    return { status: "applied" };
+    return { status: "applied", ...(current !== request.after ? { text: current } : {}) };
   }
 
   private captureSelection(

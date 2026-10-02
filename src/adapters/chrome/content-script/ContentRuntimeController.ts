@@ -1,3 +1,7 @@
+import {
+  HOST_EDITOR_ENABLED_ATTR,
+  HOST_EDITOR_ENABLED_EVENT,
+} from "./suggestions/HostEditorBridgeProtocol";
 import type { FieldPreferenceResponse } from "@core/domain/fieldPreferences";
 import { resolveAutoLanguage, resolveUiLanguage } from "@core/domain/lang";
 import { createLogger, setGlobalObservabilityRuntime } from "@core/application/logging/Logger";
@@ -19,7 +23,7 @@ import type {
 import { DomObserver } from "./DomObserver";
 import { MutationPipeline } from "./MutationPipeline";
 import { MutationScheduler } from "./MutationScheduler";
-import { ShadowRootInterceptor } from "./ShadowRootInterceptor";
+import { SHADOW_ATTACH_MARKER_ATTR, ShadowRootInterceptor } from "./ShadowRootInterceptor";
 import { ThemeApplicator } from "./ThemeApplicator";
 import { SuggestionManagerRuntime } from "./suggestions/SuggestionManagerRuntime";
 import { ReviewController } from "./review/ReviewController";
@@ -88,6 +92,7 @@ export class ContentRuntimeController {
     this.onDocumentPotentialLateTarget.bind(this);
 
   private _enabled = false;
+  private hostBridgeEnabled = false;
   private onPredictionRequest: ((context: ContentScriptPredictRequestContext) => void) | null =
     null;
   private onRuntimeActivity: ((runtimeGeneration: number) => void) | null = null;
@@ -181,7 +186,7 @@ export class ContentRuntimeController {
     this.config = config;
     this.reviewLauncher?.refresh();
 
-    if (config.themeConfig) {
+    if (config.enabled && config.themeConfig) {
       this.themeApplicator.apply(config.themeConfig);
     }
 
@@ -386,6 +391,7 @@ export class ContentRuntimeController {
   }
 
   enable(): void {
+    this.setHostBridgeEnabled(true);
     logger.info("Enabling content runtime");
     if (!this.suggestionManager || (isGoogleDocsPage() && !this.googleDocs)) {
       this.suggestionManager?.detachAllHelpers();
@@ -424,10 +430,20 @@ export class ContentRuntimeController {
     });
   }
 
+  private setHostBridgeEnabled(enabled: boolean): void {
+    if (this.hostBridgeEnabled === enabled) return;
+    this.hostBridgeEnabled = enabled;
+    const root = document.documentElement;
+    root.setAttribute(HOST_EDITOR_ENABLED_ATTR, String(enabled));
+    document.dispatchEvent(new Event(HOST_EDITOR_ENABLED_EVENT));
+    root.removeAttribute(HOST_EDITOR_ENABLED_ATTR);
+  }
+
   disable({ keepReview = false }: { keepReview?: boolean } = {}): void {
     // A restart for a settings change keeps an open review; turning off ends it,
     // along with any notice explaining why a review could not start.
     if (!keepReview) {
+      this.setHostBridgeEnabled(false);
       this.review?.dispose();
       this.reviewLauncher?.dispose();
       this.reviewLauncher = null;
@@ -443,6 +459,14 @@ export class ContentRuntimeController {
     }
     this.domObserver.disconnect();
     this.disconnectShadowObservers();
+    for (const root of this.shadowObservers.keys()) {
+      root.host.removeAttribute(SHADOW_ATTACH_MARKER_ATTR);
+      root
+        .querySelectorAll(`[${SHADOW_ATTACH_MARKER_ATTR}]`)
+        .forEach((node) => node.removeAttribute(SHADOW_ATTACH_MARKER_ATTR));
+    }
+    this.shadowObservers.clear();
+    if (!keepReview) document.getElementById("fluent-typer-theme-overrides")?.remove();
     this.mutationScheduler.clear();
     this.suggestionManager?.detachAllHelpers();
     this.shadowRootInterceptor?.detach();

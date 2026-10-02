@@ -75,8 +75,10 @@ function harness(
     rules = ["englishTypoWhitelistCorrection"],
     lookupSpelling,
     uiLanguage,
+    isActive,
   }: {
     uiLanguage?: () => string;
+    isActive?: () => boolean;
     scope?: TextRange | null;
     dictionary?: (word: string) => Promise<boolean>;
     disableReviewRule?: (ruleId: string) => Promise<boolean>;
@@ -103,6 +105,7 @@ function harness(
       insertSpaceAfterAutocomplete: true,
     },
     initialScope: scope,
+    isActive,
     uiLanguage,
     onChange: (state) => states.push(state),
     addToDictionary: dictionary,
@@ -1612,4 +1615,116 @@ test("an edit or close cancels the engine's scan in flight, and close releases t
   await h.settle();
   await started;
   expect(h.states.some((s) => s.status === "ready")).toBe(false);
+});
+
+describe("FT-INV-1 and FT-INV-4 ordering, fuzz and convergence", () => {
+  test("many identical occurrences remain correct in seeded arbitrary apply order", async () => {
+    const h = harness(Array.from({ length: 140 }, (_, i) => `${i}: teh café 🙂.`).join("\n"));
+    const started = h.session.start();
+    await h.settle();
+    await started;
+    let seed = 79;
+    while (h.last().diagnostics.length > 0) {
+      seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+      const list = h.last().diagnostics;
+      const d = list[seed % list.length];
+      const oldIds = list.map((item) => item.id);
+      const before = h.editor.text;
+      const expected = before.slice(0, d.range.start) + "the" + before.slice(d.range.end);
+      const applying = h.session.apply(d.id);
+      await h.settle();
+      expect((await applying)?.status).toBe("applied");
+      expect(h.editor.text).toBe(expected);
+      for (const id of oldIds) expect(await h.session.apply(id)).toBeNull();
+    }
+    expect(h.editor.text).toBe(
+      Array.from({ length: 140 }, (_, i) => `${i}: the café 🙂.`).join("\n"),
+    );
+    h.session.notifySourceChanged();
+    await h.settle();
+    expect(h.last().diagnostics).toHaveLength(0);
+    h.session.close();
+  });
+
+  test("1000 source notifications coalesce into one scan on a 50k draft", async () => {
+    const h = harness("This is correct. ".repeat(3000));
+    const scan = spyOn(h.engine, "scan");
+    await Promise.all([h.session.start(), h.settle()]);
+    scan.mockClear();
+    for (let i = 0; i < 1000; i += 1) h.session.notifySourceChanged();
+    expect(scan).toHaveBeenCalledTimes(0);
+    expect(h.timers).toHaveLength(1);
+    await h.settle();
+    expect(scan).toHaveBeenCalledTimes(1);
+    h.session.close();
+    scan.mockRestore();
+  });
+
+  test("seeded insert/delete/replace/ignore/apply/review operations preserve a reference text", async () => {
+    const h = harness("teh 🙂 café.\nHe go home. He go home.\nteh e\u0301 ‘quote’.");
+    await Promise.all([h.session.start(), h.settle()]);
+    let reference = h.editor.text;
+    let seed = 1729;
+    const random = (n: number) => {
+      seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+      return seed % n;
+    };
+    for (let step = 0; step < 100; step += 1) {
+      const list = h.last().diagnostics;
+      const operation = random(5);
+      if (operation === 0 && list.length) {
+        const d = list[random(list.length)];
+        const e = d.alternatives[0].edits[0];
+        reference = reference.slice(0, e.start) + e.replacement + reference.slice(e.end);
+        const applying = h.session.apply(d.id);
+        await h.settle();
+        expect((await applying)?.status).toBe("applied");
+      } else if (operation === 1 && list.length) {
+        h.session.ignore(list[random(list.length)].id);
+      } else {
+        const chars = Array.from(reference);
+        const at = random(chars.length + 1);
+        chars.splice(
+          at,
+          operation === 2 ? 1 : 0,
+          operation === 4 ? "" : ["🙂", "teh", "\n", "’", "界"][random(5)],
+        );
+        reference = chars.join("");
+        h.editor.text = reference;
+        h.session.notifySourceChanged();
+        // Every old finding is unusable while its source is updating.
+        for (const d of list) expect(await h.session.apply(d.id)).toBeNull();
+        await h.settle();
+      }
+      expect(h.editor.text).toBe(reference);
+    }
+    h.session.resetIgnores();
+    const fixing = h.session.fixAll();
+    await h.settle();
+    await fixing;
+    expect(h.last().diagnostics).toHaveLength(0);
+    h.session.close();
+  });
+});
+
+test("FT-INV-2 hidden Review invalidates without reading until visibility resumes", async () => {
+  let active = true;
+  const h = harness("teh cat.", { isActive: () => active });
+  await Promise.all([h.session.start(), h.settle()]);
+  const read = spyOn(h.editor, "read");
+  const scan = spyOn(h.engine, "scan");
+  active = false;
+  h.editor.text = "Yesterday, teh cat.";
+  for (let i = 0; i < 1000; i++) h.session.notifySourceChanged();
+  await h.settle();
+  expect(h.last().status).toBe("updating");
+  expect(read).toHaveBeenCalledTimes(0);
+  expect(scan).toHaveBeenCalledTimes(0);
+  active = true;
+  h.session.notifySourceChanged();
+  await h.settle();
+  expect(read).toHaveBeenCalledTimes(1);
+  expect(scan).toHaveBeenCalledTimes(1);
+  expect(h.last().diagnostics[0].range.start).toBe(11);
+  h.session.close();
 });

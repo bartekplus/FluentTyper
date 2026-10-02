@@ -101,6 +101,7 @@ export class SuggestionEntrySession {
   private readonly logNoVisibleSuggestions: (context: PredictionResponse) => void;
   private readonly findGrammarProposals: SuggestionEntrySessionOptions["findGrammarProposals"];
   private lastAcceptedSuggestion: string | null = null;
+  private deferredInput: Event | null = null;
   // Snippet expansions among the current suggestions: never learned as words.
   private snippetSuggestions = new Set<string>();
   private snippetShortcuts: Array<string | null> | undefined;
@@ -310,7 +311,20 @@ export class SuggestionEntrySession {
     }
   }
 
-  public handleInput(event: Event): void {
+  public handleInput(event: Event, deferHostInput = true): void {
+    // Quill reconciles native DOM input in a MutationObserver microtask. A
+    // nested native edit during its input event can duplicate the typed key.
+    if (deferHostInput && this.entry.elem.matches(".ql-editor")) {
+      if (!this.deferredInput)
+        queueMicrotask(() => {
+          const pending = this.deferredInput;
+          this.deferredInput = null;
+          if (pending && this.entry.elem.isConnected && this.isFocused())
+            this.handleInput(pending, false);
+        });
+      this.deferredInput = event;
+      return;
+    }
     if (!this.refreshInteraction()) {
       if (this.entry.isComposing) this.handleSuppressedInput();
       return;
@@ -714,6 +728,7 @@ export class SuggestionEntrySession {
   }
 
   public dispose(): void {
+    this.deferredInput = null;
     this.predictionCoordinator.cancelPending(this.entry);
     this.clearPendingRequestTimer();
     this.clearPendingIdleTimer();
@@ -840,7 +855,8 @@ export class SuggestionEntrySession {
       return true;
     };
     const snapshot = TextTargetAdapter.snapshot(this.entry.elem);
-    const currentFullText = `${snapshot.beforeCursor}${snapshot.afterCursor}`;
+    const currentFullText =
+      pending.scopeElement?.textContent ?? `${snapshot.beforeCursor}${snapshot.afterCursor}`;
     const textChanged =
       pending.expectedFullText !== null && currentFullText !== pending.expectedFullText;
     const shouldReconcileEnterAtEmptyBoundary =
@@ -912,11 +928,17 @@ export class SuggestionEntrySession {
   ): void {
     controls.clearPendingFallback();
     const shouldWaitForTextChange = inputAction === "insert" && observeMutations;
-    const currentSnapshot = TextTargetAdapter.snapshot(this.entry.elem);
+    const scopeElement = TextTargetAdapter.isTextValue(this.entry.elem)
+      ? null
+      : this.contentEditableAdapter.getActiveBlockElement(this.entry.elem);
+    const currentSnapshot = scopeElement
+      ? this.resolveEditableCursorContext(this.entry, null).snapshot
+      : TextTargetAdapter.snapshot(this.entry.elem);
     const currentBeforeCursor = this.resolveBeforeCursorForPrediction(this.entry, {
       snapshot: currentSnapshot,
     });
     const fallback: PendingKeyFallback = {
+      scopeElement,
       timer: setTimeout(() => {
         controls.runReconcile();
       }, timeoutMs),
@@ -925,7 +947,8 @@ export class SuggestionEntrySession {
       inputAction,
       expectedBeforeCursor: shouldWaitForTextChange ? currentBeforeCursor : null,
       expectedFullText: shouldWaitForTextChange
-        ? `${currentSnapshot.beforeCursor}${currentSnapshot.afterCursor}`
+        ? (scopeElement?.textContent ??
+          `${currentSnapshot.beforeCursor}${currentSnapshot.afterCursor}`)
         : null,
       typedKey,
       waitForTextChangeUntilMs: shouldWaitForTextChange
@@ -1203,7 +1226,6 @@ export class SuggestionEntrySession {
     let snapshot: SuggestionSnapshot | null =
       snapshotOverride ??
       (isTextValueTarget ||
-      this.grammarCoordinator.hasEnabledRules() ||
       this.entry.manualAutoFixSuppression !== null ||
       this.entry.pendingExtensionEdit !== null
         ? (() => {
@@ -1256,9 +1278,22 @@ export class SuggestionEntrySession {
       const grammarDeleteBackwards = Number.isFinite(grammarEdit.deleteBackwards)
         ? Math.max(0, grammarEdit.deleteBackwards)
         : 0;
+      // FT-INV-2: normal typing reads the active block; a whole-field anchor is
+      // needed only when a rule actually proposes a write or undo is pending.
+      const writeContext = snapshot
+        ? cursorContext
+        : this.resolveEditableCursorContext(
+            this.entry,
+            TextTargetAdapter.snapshot(this.entry.elem),
+            {
+              hasMultipleBlockDescendants: resolvedHasMultipleBlockDescendants,
+              inputAction,
+              typedKey,
+            },
+          );
       const applyResult = this.textEditService.applyGrammarEdit(this.entry, grammarEdit, {
-        snapshot: cursorContext.snapshot,
-        contentEditableContext: cursorContext.applyContext,
+        snapshot: writeContext.snapshot,
+        contentEditableContext: writeContext.applyContext,
       });
       if (applyResult.unverified) {
         this.handleSuppressedInput();
@@ -1735,7 +1770,12 @@ export class SuggestionEntrySession {
     ) {
       return false;
     }
-    if (context.fullText === pending.expectedFullText) {
+    if (
+      pending.scopeElement &&
+      (!pending.scopeElement.isConnected || !this.entry.elem.contains(pending.scopeElement))
+    )
+      return false;
+    if ((pending.scopeElement?.textContent ?? context.fullText) === pending.expectedFullText) {
       return pending.waitForTextChangeUntilMs !== null;
     }
     const currentBeforeCursor = this.resolveBeforeCursorForPrediction(this.entry);

@@ -22,11 +22,46 @@ type HostView = EditorView & { docView: Descriptor; domObserver: { flush(): void
 interface Descriptor {
   dom: HTMLElement;
   node: ModelNode;
-  setSelection(anchor: number, head: number, view: HostView, force?: boolean): void;
-  updateChildren(view: HostView, position: number): void;
+  setSelection: (
+    this: Descriptor,
+    anchor: number,
+    head: number,
+    view: HostView,
+    force?: boolean,
+  ) => void;
+  updateChildren: (this: Descriptor, view: HostView, position: number) => void;
 }
 const views = new WeakMap<HTMLElement, HostView>();
-const armed = new WeakSet<Descriptor>();
+let observationEnabled = false;
+const hooks = new WeakMap<
+  Descriptor,
+  {
+    active: boolean;
+    root: WeakRef<HTMLElement>;
+    select: Descriptor["setSelection"];
+    update: Descriptor["updateChildren"];
+    wrappedSelect: Descriptor["setSelection"];
+    wrappedUpdate: Descriptor["updateChildren"];
+  }
+>();
+const descriptors = new Set<WeakRef<Descriptor>>();
+
+export function setProseMirrorObservationEnabled(enabled: boolean): void {
+  observationEnabled = enabled;
+  if (enabled) return;
+  for (const reference of descriptors) {
+    const desc = reference.deref();
+    const hook = desc && hooks.get(desc);
+    if (!desc || !hook) continue;
+    hook.active = false;
+    if (desc.setSelection === hook.wrappedSelect) desc.setSelection = hook.select;
+    if (desc.updateChildren === hook.wrappedUpdate) desc.updateChildren = hook.update;
+    const root = hook.root.deref();
+    if (root) views.delete(root);
+    hooks.delete(desc);
+  }
+  descriptors.clear();
+}
 
 function descriptor(root: HTMLElement): Descriptor | null {
   const value = (root as HTMLElement & { pmViewDesc?: Descriptor }).pmViewDesc;
@@ -45,21 +80,35 @@ function descriptor(root: HTMLElement): Descriptor | null {
  */
 export function observeProseMirror(root: HTMLElement): void {
   const desc = descriptor(root);
-  if (!desc || armed.has(desc)) return;
-  armed.add(desc);
-  const remember = (view: HostView) => {
-    if (view.dom === root && !view.isDestroyed && view.docView === desc) views.set(root, view);
+  if (!observationEnabled || !desc || hooks.has(desc)) return;
+  const hook = {
+    active: true,
+    root: new WeakRef(root),
+    select: desc.setSelection,
+    update: desc.updateChildren,
+    wrappedSelect: desc.setSelection,
+    wrappedUpdate: desc.updateChildren,
   };
-  const select = desc.setSelection.bind(desc);
+  const remember = (view: HostView) => {
+    if (hook.active && view.dom === root && !view.isDestroyed && view.docView === desc)
+      views.set(root, view);
+  };
+  const select = desc.setSelection;
   desc.setSelection = function (anchor, head, view, force) {
     remember(view);
     return select.call(this, anchor, head, view, force);
   };
-  const update = desc.updateChildren.bind(desc);
+  const update = desc.updateChildren;
   desc.updateChildren = function (view, position) {
     remember(view);
     return update.call(this, view, position);
   };
+  hook.wrappedSelect = desc.setSelection;
+  hook.wrappedUpdate = desc.updateChildren;
+  hooks.set(desc, hook);
+  // Weak references let removed editors be collected between enable cycles.
+  for (const reference of descriptors) if (!reference.deref()) descriptors.delete(reference);
+  descriptors.add(new WeakRef(desc));
 }
 
 function owningView(root: HTMLElement): HostView | null {

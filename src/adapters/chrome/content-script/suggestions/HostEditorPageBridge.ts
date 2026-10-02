@@ -21,7 +21,15 @@ export interface HostEditorPageBridge {
   applyBlockReplacement(elem: HTMLElement, args: HostEditorBridgeApplyArgs): HostEditorApplyResult;
 }
 
+export interface TinyMCEReplacement {
+  before: string;
+  prefix: string;
+  selected: string;
+  replacement: string;
+}
+
 type BridgeRequest =
+  | ({ action: "applyTinyMCE" } & TinyMCEReplacement)
   | { action: "readProseMirror" }
   | {
       action: "applyProseMirror";
@@ -54,6 +62,13 @@ type BridgeResponse =
 
 export class InjectedHostEditorPageBridge implements HostEditorPageBridge {
   constructor(private readonly doc: Document = document) {}
+
+  public applyTinyMCE(elem: HTMLElement, request: TinyMCEReplacement): HostEditorApplyResult {
+    const response = this.dispatchRequest(elem, { action: "applyTinyMCE", ...request });
+    return response?.ok && "result" in response
+      ? response.result
+      : { applied: false, didDispatchInput: false };
+  }
 
   public readProseMirror(elem: HTMLElement): ReviewTargetText | null {
     const response = this.dispatchRequest(elem, { action: "readProseMirror" });

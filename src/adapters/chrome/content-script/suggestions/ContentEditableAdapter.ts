@@ -1,3 +1,6 @@
+import { InjectedHostEditorPageBridge } from "./HostEditorPageBridge";
+import { isGraphemeBoundary } from "@core/domain/grammar/review/textRanges";
+import { getDeepActiveElement } from "@core/application/dom-utils";
 import { createLogger } from "@core/application/logging/Logger";
 
 export const BLOCK_TAGS = new Set([
@@ -41,6 +44,8 @@ interface BoundaryCandidate {
 }
 
 export interface ContentEditableEditResult {
+  nativeUndo?: boolean;
+  unverified?: boolean;
   appliedBy: "host-beforeinput" | "fallback-dom" | "refused";
   didMutateDom: boolean;
   didDispatchInput: boolean;
@@ -64,12 +69,34 @@ export class ContentEditableAdapter {
       return { appliedBy: "refused", didMutateDom: false, didDispatchInput: false };
     }
     const editScope = scopeRoot ?? elem;
+    const beforeScopeText = editScope.textContent ?? "";
+    const beforeEditorText = elem.textContent ?? "";
+    const refused: ContentEditableEditResult = {
+      appliedBy: "refused",
+      didMutateDom: false,
+      didDispatchInput: false,
+    };
+    if (
+      !editScope.isConnected ||
+      (editScope !== elem && !elem.contains(editScope)) ||
+      !Number.isSafeInteger(replaceStart) ||
+      !Number.isSafeInteger(replaceEnd) ||
+      replaceStart < 0 ||
+      replaceEnd < replaceStart ||
+      replaceEnd > beforeScopeText.length
+    )
+      return refused;
+    const expectedScopeText =
+      beforeScopeText.slice(0, replaceStart) + replacementText + beforeScopeText.slice(replaceEnd);
+    const verified = () =>
+      (editScope.textContent ?? "").replace(/\u00a0/g, " ") ===
+      expectedScopeText.replace(/\u00a0/g, " ");
     const selectionAnchors = this.captureSelectionOffsetAnchors(editScope);
     const startPosition = this.resolveContentEditablePosition(
       editScope,
       replaceStart,
       selectionAnchors,
-      "start",
+      replaceStart === replaceEnd ? "end" : "start",
     );
     const endPosition = this.resolveContentEditablePosition(
       editScope,
@@ -78,7 +105,47 @@ export class ContentEditableAdapter {
       "end",
     );
 
-    elem.focus();
+    if (
+      [startPosition, endPosition].some(
+        (point) =>
+          point.container.nodeType === 3 &&
+          !isGraphemeBoundary(point.container.textContent ?? "", point.offset),
+      )
+    )
+      return refused;
+
+    // Node identity and full text can survive redistribution between text nodes.
+    // FT-INV-1: validate each immutable endpoint's absolute prefix after page code.
+    const endpointsMatch = () => {
+      try {
+        return [
+          [startPosition, replaceStart],
+          [endPosition, replaceEnd],
+        ].every(([point, offset]) => {
+          const endpoint = point as ContentEditableDomPosition;
+          if (!editScope.contains(endpoint.container)) return false;
+          const prefix = elem.ownerDocument.createRange();
+          prefix.selectNodeContents(editScope);
+          prefix.setEnd(endpoint.container, endpoint.offset);
+          return prefix.toString() === beforeScopeText.slice(0, offset as number);
+        });
+      } catch {
+        return false;
+      }
+    };
+
+    elem.focus({ preventScroll: true });
+    // Focus runs arbitrary page code. Never use nodes/offsets captured before it.
+    if (
+      getDeepActiveElement(elem.ownerDocument) !== elem ||
+      !editScope.isConnected ||
+      !editScope.contains(startPosition.container) ||
+      !editScope.contains(endPosition.container) ||
+      editScope.textContent !== beforeScopeText ||
+      elem.textContent !== beforeEditorText ||
+      !endpointsMatch()
+    )
+      return refused;
 
     const range = document.createRange();
     range.setStart(startPosition.container, startPosition.offset);
@@ -90,10 +157,39 @@ export class ContentEditableAdapter {
       selection.addRange(range);
     }
 
-    // execCommand("insertText") operates at the editor/root selection level.
-    // For scoped block edits we skip it on purpose, because a root-wide native
-    // replacement can leak outside the intended block and corrupt caret context.
-    const shouldTryNativeReplacement = !preferDomMutation && editScope === elem;
+    const restoreSelection = () => {
+      const selected = selection?.rangeCount ? selection.getRangeAt(0) : null;
+      if (
+        !selection ||
+        !selectionAnchors ||
+        !selected ||
+        elem.textContent !== beforeEditorText ||
+        selected.startContainer !== startPosition.container ||
+        selected.startOffset !== startPosition.offset ||
+        selected.endContainer !== endPosition.container ||
+        selected.endOffset !== endPosition.offset
+      )
+        return;
+      try {
+        const restored = document.createRange();
+        restored.setStart(
+          selectionAnchors.startPosition.container,
+          selectionAnchors.startPosition.offset,
+        );
+        restored.setEnd(
+          selectionAnchors.endPosition.container,
+          selectionAnchors.endPosition.offset,
+        );
+        selection.removeAllRanges();
+        selection.addRange(restored);
+      } catch {
+        /* A host rerender owns the new selection. */
+      }
+    };
+
+    // The live selection is validated inside this scope; native editing keeps
+    // the host/browser history even for a single paragraph in a large editor.
+    const shouldTryNativeReplacement = !preferDomMutation;
 
     if (!preferDomMutation) {
       const beforeText = elem.textContent ?? "";
@@ -120,33 +216,64 @@ export class ContentEditableAdapter {
           didMutateDom: textAfterBeforeInput !== beforeText,
           textLengthDelta: textAfterBeforeInput.length - beforeText.length,
         });
-        if (textAfterBeforeInput === beforeText && selectionAnchors && selection) {
-          // Host prevented the edit without changing text.  Restore the
-          // original selection so the expanded replacement range does not
-          // corrupt subsequent cursor‑context resolution.
-          try {
-            const restoreRange = document.createRange();
-            restoreRange.setStart(
-              selectionAnchors.startPosition.container,
-              selectionAnchors.startPosition.offset,
-            );
-            restoreRange.setEnd(
-              selectionAnchors.endPosition.container,
-              selectionAnchors.endPosition.offset,
-            );
-            selection.removeAllRanges();
-            selection.addRange(restoreRange);
-          } catch {
-            // Best-effort: if the anchors are stale, leave the selection as-is.
-          }
-        }
+        if (textAfterBeforeInput === beforeText) restoreSelection();
         return {
           appliedBy: "host-beforeinput",
           didMutateDom: textAfterBeforeInput !== beforeText,
           didDispatchInput: false,
+          nativeUndo: true,
+          ...(textAfterBeforeInput !== beforeText
+            ? { nativeUndo: true, ...(verified() ? {} : { unverified: true }) }
+            : {}),
         };
       }
 
+      const selected = selection?.rangeCount ? selection.getRangeAt(0) : null;
+      if (
+        getDeepActiveElement(elem.ownerDocument) !== elem ||
+        !selected ||
+        !editScope.contains(startPosition.container) ||
+        !editScope.contains(endPosition.container) ||
+        editScope.textContent !== beforeScopeText ||
+        !endpointsMatch() ||
+        selected.startContainer !== startPosition.container ||
+        selected.startOffset !== startPosition.offset ||
+        selected.endContainer !== endPosition.container ||
+        selected.endOffset !== endPosition.offset
+      )
+        return refused;
+      // Unknown model-backed editors may handle beforeinput; never fall through
+      // to a foreign DOM edit when they decline it (FT-INV-5).
+      if (
+        elem.closest(
+          "[data-lexical-editor], [data-slate-editor], .DraftEditor-root, [data-contents], .ck-editor__editable, .ProseMirror, trix-editor, .cke_editable, .fr-element, .note-editable",
+        )
+      ) {
+        restoreSelection();
+        return refused;
+      }
+      if (elem.matches(".mce-content-body")) {
+        const prefix = range.cloneRange();
+        prefix.selectNodeContents(elem);
+        prefix.setEnd(startPosition.container, startPosition.offset);
+        const result = new InjectedHostEditorPageBridge(elem.ownerDocument).applyTinyMCE(elem, {
+          before: beforeEditorText,
+          prefix: prefix.toString(),
+          selected: range.toString(),
+          replacement: replacementText,
+        });
+        if (!result.applied) {
+          restoreSelection();
+          return refused;
+        }
+        return {
+          appliedBy: "host-beforeinput",
+          didMutateDom: true,
+          didDispatchInput: result.didDispatchInput,
+          nativeUndo: true,
+          ...(result.unverified || !verified() ? { unverified: true } : {}),
+        };
+      }
       if (shouldTryNativeReplacement) {
         if (this.tryNativeReplacement(elem, replacementText)) {
           // execCommand leaves the caret at the end of the inserted text. Plain
@@ -154,14 +281,31 @@ export class ContentEditableAdapter {
           // place the caret at the final offset synchronously. This prevents a
           // race where a fast follow-up keystroke (e.g. auto-close "()" then an
           // immediate "x") lands before a deferred caret correction runs.
-          this.setCaret(editScope, cursorAfter);
+          if (verified()) this.setCaret(editScope, cursorAfter);
           logger.debug("Contenteditable replacement handled by execCommand fallback", {
             didDispatchInput: false,
             editorTextLength: (elem.textContent ?? "").length,
           });
-          return { appliedBy: "fallback-dom", didMutateDom: true, didDispatchInput: false };
+          return {
+            appliedBy: "fallback-dom",
+            didMutateDom: true,
+            didDispatchInput: false,
+            nativeUndo: true,
+            ...(verified() ? {} : { unverified: true }),
+          };
         }
       }
+    }
+
+    // FT-INV-5: a native refusal is final; a foreign DOM fallback loses history.
+    if (
+      typeof elem.ownerDocument.execCommand === "function" ||
+      elem.closest(
+        "[data-lexical-editor], [data-slate-editor], .DraftEditor-root, [data-contents], .ck-editor__editable, .ProseMirror, trix-editor, .mce-content-body, .cke_editable, .fr-element, .note-editable",
+      )
+    ) {
+      restoreSelection();
+      return refused;
     }
 
     const hadSelectedContent = !range.collapsed;
@@ -191,6 +335,7 @@ export class ContentEditableAdapter {
       appliedBy: "fallback-dom",
       didMutateDom: hadSelectedContent || insertedReplacement,
       didDispatchInput: true,
+      ...(verified() ? {} : { unverified: true }),
     };
   }
 

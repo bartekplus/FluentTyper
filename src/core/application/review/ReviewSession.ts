@@ -15,6 +15,7 @@ import {
   applyEdits,
   diffTexts,
   rangesOverlap,
+  editTouches,
   positionMapper,
   remapRange,
   remapRangeThroughEdits,
@@ -101,7 +102,7 @@ export type ReviewTargetRead =
   ({ ok: true } & ReviewTargetText) | { ok: false; reason: ReviewUnavailable };
 
 export type ReviewApplyResult =
-  | { status: "applied" }
+  | { status: "applied"; text?: string }
   | { status: "stale" }
   | { status: "rejected"; reason: ReviewUnavailable | "host-refused" }
   | { status: "partial"; applied: number }
@@ -234,6 +235,8 @@ export interface ReviewSessionDependencies {
   setTimer?: (callback: () => void, delayMs: number) => unknown;
   clearTimer?: (handle: unknown) => void;
   recheckDelayMs?: number;
+  /** Page visibility gate; an explicit foreground review still works when its editor is blurred. */
+  isActive?: () => boolean;
   /** Optional on-device model; without it Review works exactly as without Local AI. */
   ai?: ReviewAiProvider;
   /** Pause after a text change before new text goes to the model (slower than rule rechecks). */
@@ -305,6 +308,12 @@ function sameOptions(a: ReviewOptions, b: ReviewOptions): boolean {
     sameKey(a.userDictionary, b.userDictionary) &&
     JSON.stringify(a.preferredTerminology) === JSON.stringify(b.preferredTerminology)
   );
+}
+
+interface AcceptedSpan {
+  range: TextRange;
+  context: TextRange;
+  forms: string[];
 }
 
 interface PendingPlan {
@@ -400,6 +409,10 @@ export class ReviewSession {
   } | null = null;
   private planCache: { key: readonly unknown[]; plan: BulkPlan } | null = null;
   private planPending: PendingPlan | null = null;
+  // FT-INV-4: occurrence-local history, ephemeral and bounded. User edits to
+  // its surrounding context drop it; no global spelling/style blacklist.
+  private accepted: AcceptedSpan[] = [];
+  private acceptedWriteText: string | null = null;
   private resolvedCount = 0;
   private categories = new Set<ReviewCategory>(REVIEW_CATEGORIES);
   private selectedId: string | null = null;
@@ -506,6 +519,7 @@ export class ReviewSession {
     this.aiBatch = null;
     this.status = "closed";
     this.ignored = [];
+    this.accepted = [];
     this.ignoredKeys = null;
     this.listCache = null;
     this.diagnostics = [];
@@ -531,6 +545,7 @@ export class ReviewSession {
       this.emit();
     }
     this.cancelRecheck();
+    if (this.deps.isActive?.() === false) return;
     this.recheckTimer = this.setTimer(() => {
       this.recheckTimer = null;
       void this.refresh();
@@ -541,6 +556,7 @@ export class ReviewSession {
   updateOptions(options: ReviewOptions): void {
     if (this.status === "closed" || sameOptions(this.options, options)) return;
     this.engineCacheStale = true;
+    this.accepted = [];
     this.options = options;
     this.notifySourceChanged();
   }
@@ -685,7 +701,7 @@ export class ReviewSession {
 
   /** Applies one alternative of one current finding. */
   async apply(id: string, alternativeIndex = 0): Promise<ReviewApplyResult | null> {
-    const diagnostic = this.diagnostics.find((d) => d.id === id);
+    const diagnostic = this.visibleDiagnostics().find((d) => d.id === id);
     const alternative = diagnostic?.alternatives[alternativeIndex];
     if (!diagnostic || diagnostic.warningOnly || !alternative || !this.canWrite()) return null;
     return this.write(alternative.edits, 1, 0, diagnostic.category === "style");
@@ -909,11 +925,18 @@ export class ReviewSession {
 
   /** The same array while results, ignores and filters stay the same: the UI keys on it. */
   private visibleDiagnostics(): ReviewDiagnostic[] {
-    const key = [this.diagnostics, this.ignored, this.categories];
+    const key = [this.diagnostics, this.ignored, this.categories, this.accepted];
     if (!this.listCache || !sameKey(this.listCache.key, key)) {
-      const visible = this.diagnostics.filter(
-        (d) => !this.isIgnored(d) && this.categories.has(d.category),
-      );
+      const visible = this.diagnostics.flatMap((d) => {
+        if (this.isIgnored(d) || !this.categories.has(d.category)) return [];
+        if (d.warningOnly || this.accepted.length === 0) return [d];
+        const alternatives = d.alternatives.filter((a) => !this.reversesAccepted(a.edits));
+        return alternatives.length === 0
+          ? []
+          : alternatives.length === d.alternatives.length
+            ? [d]
+            : [{ ...d, alternatives }];
+      });
       this.listCache = { key, visible };
     }
     return this.listCache.visible;
@@ -940,7 +963,14 @@ export class ReviewSession {
   private planKey(): readonly unknown[] | null {
     if (!this.prepared) return null;
     // Rule findings only: spelling results arriving later never re-plan Fix all.
-    return [this.prepared, this.text, this.ruleDiagnostics, this.ignored, this.categories];
+    return [
+      this.prepared,
+      this.text,
+      this.ruleDiagnostics,
+      this.ignored,
+      this.categories,
+      this.accepted,
+    ];
   }
 
   /** Findings Fix all leaves for the user: the plan's, plus every shown spelling and AI finding. */
@@ -1050,8 +1080,11 @@ export class ReviewSession {
     deferred: number,
     advice = false,
   ): Promise<ReviewApplyResult> {
-    const after = applyEdits(this.text, edits);
+    if (this.reversesAccepted(edits)) return { status: "rejected", reason: "host-refused" };
+    let after = applyEdits(this.text, edits);
     if (after === null) return { status: "stale" };
+    const accepted = this.acceptedAfter(edits, this.text, after);
+    if (!accepted) return { status: "rejected", reason: "host-refused" };
     this.generation += 1;
     this.cancelRecheck();
     this.textChanging();
@@ -1072,6 +1105,13 @@ export class ReviewSession {
       result = { status: "unverified" };
     }
     if (this.isClosed) return result;
+    if (result.status === "applied" && result.text !== undefined && result.text !== after) {
+      // Native edge-space normalization keeps UTF-16 positions. History uses
+      // equivalent spaces; the next snapshot must use the verified actual text.
+      if (result.text.replace(/\u00a0/g, " ") !== after.replace(/\u00a0/g, " "))
+        result = { status: "unverified" };
+      else after = result.text;
+    }
 
     if (result.status === "applied") {
       // A verified extension write is complete; only user typing needs the AI pause.
@@ -1083,6 +1123,8 @@ export class ReviewSession {
       if (this.scope) this.scope = { start: this.scope.start, end: this.scope.end + delta };
       const map = positionMapper(edits);
       this.remapIgnored((range) => remapRangeThroughEdits(range, edits, map));
+      this.accepted = accepted;
+      this.acceptedWriteText = after;
       this.text = after;
     } else if (result.status === "stale") {
       this.notice = { kind: "stale" };
@@ -1098,6 +1140,90 @@ export class ReviewSession {
     this.emit();
     await this.refresh();
     return result;
+  }
+
+  /** Does this edit restore an earlier form at the same, unchanged occurrence? */
+  private reversesAccepted(edits: readonly ReviewEdit[]): boolean {
+    return this.accepted.some((entry) => {
+      const touching = edits.filter((edit) => editTouches(edit, entry.range));
+      if (touching.length === 0) return false;
+      // A larger overlapping rewrite can discard a verified grammar choice.
+      // Refuse it until the user edits this context rather than guessing intent.
+      if (touching.some((edit) => edit.start < entry.range.start || edit.end > entry.range.end))
+        return true;
+      const current = this.text.slice(entry.range.start, entry.range.end);
+      const next = applyEdits(
+        current,
+        touching.map((edit) => ({
+          ...edit,
+          start: edit.start - entry.range.start,
+          end: edit.end - entry.range.start,
+        })),
+      );
+      return (
+        next !== current &&
+        next !== null &&
+        (entry.forms.includes(next.replace(/\u00a0/g, " ")) || entry.forms.length >= 8)
+      );
+    });
+  }
+
+  private acceptedAfter(
+    edits: readonly ReviewEdit[],
+    before: string,
+    after: string,
+  ): AcceptedSpan[] | null {
+    const covered = new Set<ReviewEdit>();
+    const position = positionMapper(edits);
+    const insertions = new Map<number, number>();
+    for (const edit of edits) {
+      if (edit.start === edit.end)
+        insertions.set(edit.start, (insertions.get(edit.start) ?? 0) + edit.replacement.length);
+    }
+    const map = (range: TextRange): TextRange => ({
+      start: position(range.start),
+      end: position(range.end) + (insertions.get(range.end) ?? 0),
+    });
+    const next = this.accepted.flatMap((entry) => {
+      const touching = edits.filter((edit) => editTouches(edit, entry.range));
+      if (touching.some((edit) => edit.start < entry.range.start || edit.end > entry.range.end))
+        return [];
+      touching.forEach((edit) => covered.add(edit));
+      const range = map(entry.range);
+      const form = after.slice(range.start, range.end).replace(/\u00a0/g, " ");
+      return [
+        {
+          ...entry,
+          range,
+          context: map(entry.context),
+          forms: entry.forms.includes(form) ? entry.forms : [...entry.forms, form],
+        },
+      ];
+    });
+    for (const edit of edits) {
+      if (covered.has(edit)) continue;
+      const start = position(edit.start);
+      const range = { start, end: start + edit.replacement.length };
+      next.push({
+        range,
+        context: map({
+          start: Math.max(0, edit.start - 64),
+          end: Math.min(before.length, edit.end + 64),
+        }),
+        forms: [edit.original.replace(/\u00a0/g, " "), edit.replacement.replace(/\u00a0/g, " ")],
+      });
+    }
+    // FT-INV-4: never evict a remembered choice to make a new write possible.
+    // ponytail: at most one span per supported UTF-16 position and 1M retained
+    // code units. Refuse before writing at the ceiling; user context edits free it.
+    if (
+      next.length > MAX_REVIEW_CHARS + 1 ||
+      next.some((entry) => entry.forms.length > 8) ||
+      next.reduce((sum, entry) => sum + entry.forms.reduce((n, form) => n + form.length, 0), 0) >
+        1_000_000
+    )
+      return null;
+    return next;
   }
 
   /** Native remapping drops an occurrence if its text or matched evidence was touched. */
@@ -1119,6 +1245,7 @@ export class ReviewSession {
 
   /** Re-reads and rescans; a failure anywhere is shown as an error, never as "Checking…" forever. */
   private async refresh(): Promise<void> {
+    if (this.deps.isActive?.() === false) return;
     const generation = ++this.generation;
     try {
       await this.readAndScan(generation);
@@ -1176,11 +1303,20 @@ export class ReviewSession {
           this.scope = next;
         }
         this.remapIgnored((range) => remapRange(range, diff));
+        this.accepted = this.accepted.flatMap((entry) => {
+          const range = remapRange(entry.range, diff);
+          const context = remapRange(entry.context, diff);
+          return range && context ? [{ ...entry, range, context }] : [];
+        });
       }
     }
     // Formatting-only change: same text, different protection. Old ignores
     // still refer to the same characters; findings are recomputed below.
-    if (this.signature !== read.signature) this.engineCacheStale = true;
+    if (this.signature !== read.signature) {
+      this.engineCacheStale = true;
+      if (read.text !== this.acceptedWriteText) this.accepted = [];
+    }
+    this.acceptedWriteText = null;
     this.text = read.text;
     this.signature = read.signature;
     this.protectedRanges = read.protectedRanges;

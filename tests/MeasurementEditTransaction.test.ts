@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { SuggestionTextEditService } from "../src/adapters/chrome/content-script/suggestions/SuggestionTextEditService";
 import { TextTargetAdapter } from "../src/adapters/chrome/content-script/suggestions/TextTargetAdapter";
 import { createSuggestionEntry } from "./suggestionTestUtils";
@@ -20,9 +20,19 @@ function setCursor(node: Text, offset: number): void {
 }
 
 describe("measurement edit transaction", () => {
+  let native: typeof document.execCommand;
+  beforeEach(() => {
+    native = document.execCommand;
+    // jsdom has no editing/history implementation; keep this DOM transaction
+    // fixture isolated from another suite's native command stub.
+    delete (document as unknown as { execCommand?: unknown }).execCommand;
+  });
+  afterEach(() => {
+    document.execCommand = native;
+  });
   test("inserts only the separator and retains adjacent rich-text nodes", () => {
     const editable = document.createElement("div");
-    editable.contentEditable = "true";
+    editable.setAttribute("contenteditable", "true");
     Object.defineProperty(editable, "isContentEditable", { value: true });
     editable.innerHTML = "<p><b>Mass: 10</b><i>kg </i></p>";
     document.body.appendChild(editable);
@@ -51,6 +61,7 @@ describe("measurement edit transaction", () => {
 
   test("rejects a stale supplied snapshot without writing or scheduling a retry", () => {
     const input = document.createElement("input");
+    document.body.append(input);
     input.value = "Mass: 10kg ";
     input.selectionStart = input.selectionEnd = input.value.length;
     const snapshot = TextTargetAdapter.snapshot(input);
@@ -80,6 +91,7 @@ describe("measurement edit transaction", () => {
 
   test("supports immediate revert of the verified separator insertion", () => {
     const input = document.createElement("input");
+    document.body.append(input);
     input.value = "Mass: 10kg ";
     input.selectionStart = input.selectionEnd = input.value.length;
     const entry = createSuggestionEntry({ elem: input });

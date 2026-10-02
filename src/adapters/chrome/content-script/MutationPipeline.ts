@@ -1,5 +1,7 @@
 import { isInDocument } from "@core/application/dom-utils";
 
+const OWN_UI = "[data-ft-suggestion-owned], [data-fluenttyper-review]";
+
 type MutationPlan =
   | {
       type: "noop";
@@ -23,6 +25,16 @@ export class MutationPipeline {
       return { type: "noop" };
     }
 
+    // FT-INV-2: typing-only records cannot discover a new editable element.
+    mutationsList = mutationsList.filter(
+      (mutation) =>
+        !(mutation.target instanceof Element && mutation.target.closest(OWN_UI)) &&
+        (mutation.type === "attributes" ||
+          (mutation.type === "childList" &&
+            [...mutation.addedNodes].some(
+              (node) => node instanceof Element && !node.closest(OWN_UI),
+            ))),
+    );
     if (mutationsList.length >= this.maxMutationBatchSize) {
       return { type: "full-scan" };
     }
@@ -45,7 +57,7 @@ export class MutationPipeline {
   private collectMutationRoots(mutationsList: MutationRecord[]): Element[] {
     const candidates: Element[] = [];
     const addCandidate = (node: Node | null | undefined): void => {
-      if (node instanceof Element && isInDocument(node)) {
+      if (node instanceof Element && isInDocument(node) && !node.closest(OWN_UI)) {
         candidates.push(node);
       }
     };
