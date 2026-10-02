@@ -3,6 +3,7 @@ import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDe
 import {
   germanAdjective,
   germanGender,
+  germanNounReading,
   germanInfinitive,
   type GermanGenderReading,
 } from "./germanLexicon";
@@ -272,6 +273,59 @@ function objectCase(
   return [article, ...inflected].join(" ");
 }
 
+// A compound written apart, told by its article: "die Haus Tür" (die fits Tür, not Haus),
+// "der Auto Schlüssel", "das Verkehrs Schild" (a linking -s after a nominative article).
+// "der Mutter Blumen" (two objects) keeps its space: the article fits the first noun.
+function splitCompound(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  typed: string,
+  first: string,
+): RawFinding | null {
+  // "einer Berliner Schule", "die Hamburger Straße": a place adjective in -er.
+  if (/-|er$/.test(first) || ctx.dictionary.has(first.toLowerCase())) return null;
+  const nounEnd = m.indices!.groups!.noun[1];
+  const gap = /^[ \t]{1,3}(\p{Lu}\p{Ll}{2,})(?![\p{L}\p{M}\p{N}_-])/u.exec(ctx.text.slice(nounEnd));
+  if (!gap) return null;
+  const second = gap[1];
+  const after = tokensAfter(ctx.text, nounEnd + gap[0].length, 1)[0] ?? "";
+  // "die Bank Austria": a name goes on capitalized.
+  if (/^\p{Lu}/u.test(after) || ctx.dictionary.has(second.toLowerCase())) return null;
+  if (germanNounReading(second.toLowerCase()) === null) return null;
+  const low = first.toLowerCase();
+  // "Verkehrs", "Küchen" (after "ein-", which has no plural): a linking -s or -n.
+  const linked =
+    (/(?:s|es)$/.test(low) && germanNounReading(low.replace(/e?s$/, "")) !== null) ||
+    (/^ein(?:e[mnrs]?)?$/i.test(typed) &&
+      /n$/.test(low) &&
+      [low.slice(0, -1), low.slice(0, -2)].some((stem) => germanNounReading(stem) !== null));
+  if (!linked && germanNounReading(low) === null) return null;
+  if (determinerFits(typed, second) !== true) return null;
+  // A linking -s after an article that is no genitive ("das Verkehrs Schild"); otherwise the
+  // article must not fit the first noun.
+  const genitive = /^(?:des|eines|keines|meines|deines|seines|ihres|unseres|eures|dieses|jedes)$/i;
+  if (linked ? genitive.test(typed) : determinerFits(typed, first) !== false) return null;
+  const mods = m.groups!.mods ?? "";
+  if (
+    mods.trim() &&
+    !mods
+      .trim()
+      .split(/[ \t ]+/)
+      .every((a) => DEGREE_WORD.test(a) || isAdjective(a))
+  ) {
+    return null;
+  }
+  const [start] = m.indices!.groups!.noun;
+  const end = nounEnd + gap[0].length;
+  return {
+    ruleId: "germanArticleGender",
+    messageKey: "review_msg_closed_compound",
+    range: { start, end },
+    alternatives: [first + second.toLowerCase()],
+    context: { start: m.index, end },
+  };
+}
+
 function articleGender(ctx: DetectContext): RawFinding[] {
   if (!isGerman(ctx)) return [];
   const findings: RawFinding[] = [];
@@ -283,6 +337,11 @@ function articleGender(ctx: DetectContext): RawFinding[] {
     const head = parts.at(-1)!;
     if (head.length < 3 || !/^\p{Lu}/u.test(head)) continue;
     if (ctx.dictionary.has(noun.toLowerCase()) || ctx.dictionary.has(head.toLowerCase())) continue;
+    const compound = splitCompound(ctx, m, typed, noun);
+    if (compound) {
+      findings.push(compound);
+      continue;
+    }
     const reading = germanGender(head);
     // "Die Bild": the newspaper.
     if (!reading || /^die bild$/i.test(`${typed} ${noun}`)) continue;
