@@ -309,6 +309,8 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["A cidade fica a 23º sul do equador.", "A cidade fica a 23° sul do equador."],
         ["O navio seguiu a 40o N por dias.", "O navio seguiu a 40° N por dias."],
         ["Desenhe um ângulo de 45º.", "Desenhe um ângulo de 45°."],
+        ["O farol fica a 23º 32' 51\" S.", "O farol fica a 23°\u202f32′\u202f51″ S."],
+        ["A ilha fica a 8º15’ de latitude.", "A ilha fica a 8°\u202f15′ de latitude."],
         ["Ontem fez 31º, que calor.", "Ontem fez 31°, que calor."],
       ].filter(([typed, fixed]) => typed !== fixed) as Array<[string, string]>,
       neg: [

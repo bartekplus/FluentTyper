@@ -103,10 +103,14 @@ const NUMBER_FORMAT: Frame[] = [
     ruleId: "portugueseNumberFormat",
     messageKey: "review_msg_pt_number_format",
   },
-  // "25º 29' 49\"": degrees before minutes.
+  // "25º 29' 49\"" -> "25° 29′ 49″": degrees before minutes, and the primes that mark them.
   {
-    pattern: `\\d{1,3}${GAP}(?<target>º)${GAP}(?=\\d{1,2}(?:,\\d+)?${GAP}['’′])`,
-    replace: "°",
+    pattern: `(?<target>\\d{1,3}${GAP}º${GAP}\\d{1,2}(?:,\\d+)?${GAP}['’′](?:${GAP}\\d{1,2}(?:,\\d+)?${GAP}(?:["”″]|['’′]{1,2}))?)`,
+    replace: (m) => {
+      const [deg, min, sec] = m.groups!.target.match(/\d+(?:,\d+)?/g)!;
+      // Narrow no-break spaces keep the coordinate on one line.
+      return `${deg}° ${min}′${sec ? ` ${sec}″` : ""}`;
+    },
     ruleId: "portugueseNumberFormat",
     messageKey: "review_msg_pt_number_format",
   },
