@@ -1,6 +1,8 @@
 import { frameMatches, SPACE, WORD_END, WORD_START } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import { germanInfinitive } from "./germanLexicon";
 import { isGerman } from "./shared";
+import { isAuxiliary } from "./verbAgreement";
 
 // Real words in a frame where only their look-alike fits: "ihr seit" (seid), "seid gestern"
 // (seit), "ich freue mir" (mich), "mir dem Bus" (mit), ", das er kommt" (dass), "in denn
@@ -94,11 +96,22 @@ const ACCUSATIVE_REFLEXIVE_FORMS =
   "verliebt verabschiedet";
 // The clause verbs a "dass" clause follows ("Ich weiß, das er kommt").
 const DASS_VERBS =
-  "weiß wusste wüsste weißt wissen sagt sagte sagten gesagt sage sagen schreibt schrieb " +
+  "weiß wusste wussten wüsste weißt wissen sagt sagte sagten gesagt sage sagen schreibt schrieb " +
+  "hofften glaubten dachten merkten " +
   "geschrieben hoffe hoffen hofft glaube glauben glaubt denke denkt dachte gedacht finde " +
   "findet meine meint heißt bedeutet klar sicher sehe sieht merke merkt zeigt zeigte " +
   "erwarte fürchte behauptet behauptete gewährleistet versprochen vergessen gehört bemerkt " +
   "erfahren verstanden möglich wichtig schade interessant";
+
+/** A clause with its finite verb last and none before: "dem Mann ein Zahn fehlt". */
+function subjectClause(clause: string): boolean {
+  const tokens = clause.trim().split(/\s+/);
+  const last = tokens.at(-1) ?? "";
+  if (tokens.slice(0, -1).some((t) => isAuxiliary(t))) return false;
+  if (isAuxiliary(last)) return true;
+  const stem = /^(\p{Ll}+?)(?:e|t|et|en|te|ten)$/u.exec(last)?.[1];
+  return !!stem && germanInfinitive(`${stem}en`);
+}
 
 const FRAMES: readonly Frame[] = [
   // "ihr seit zufrieden" → seid; a time word after it is the preposition ("bei ihr seit 2010").
@@ -173,9 +186,11 @@ const FRAMES: readonly Frame[] = [
     fix: "mich",
   },
   // "Ich weiß, das er kommt" → dass; "Das er kommt, weiß ich." → Dass.
+  // "Ich glaube kaum, das das reicht", "Nicht, das ich wüsste", "Sie wusste das er kommt".
   {
     regex: re(
-      `(?<=(?:${DASS_VERBS.replace(/ /g, "|")}),${S})(?<target>das)(?=${S}(?:ich|du|er|sie|es|wir|man|alle)${E})`,
+      `(?<=(?:(?:${DASS_VERBS.replace(/ /g, "|")})(?:${S}(?:nicht|kaum|auch|schon|nur|sehr|genau|wohl))?|Nicht),${S})(?<target>das)(?=${S}(?:ich|du|er|sie|es|wir|man|alle|das|der|die|den|dem)${E})|` +
+        `(?<=(?:${DASS_VERBS.replace(/ /g, "|")})${S})(?<t2>das)(?=${S}(?:ich|du|er|sie|es|wir|man)${S}\\p{Ll})`,
     ),
     fix: "dass",
   },
@@ -185,6 +200,29 @@ const FRAMES: readonly Frame[] = [
     ),
     fix: "Dass",
   },
+  // "Das dem Mann ein Zahn fehlt, ist bedauerlich": a subject clause, its verb last.
+  {
+    regex: re(
+      `(?<=(?:^|[.!?]\\s+|\\n))(?<target>Das)(?=${S}(?:dem|der|den|die|ein\\p{Ll}*|mein\\p{Ll}*|dein\\p{Ll}*|sein\\p{Ll}*|ihr\\p{Ll}*|unser\\p{Ll}*|alle|alles|jemand|niemand|hier|so)${S}(?<clause>[^.!?\\n,]*\\p{Ll}),${S}(?:ist|war|wäre|freut|ärgert|stört|wundert|zeigt|bedeutet|macht|liegt|hat|gefällt|beweist|spricht|überrascht)${E})`,
+    ),
+    fix: (m) => (subjectClause(m.groups!.clause) ? "Dass" : null),
+  },
+  // "Gut das du da bist" → "Gut, dass": an adjective that opens a sentence before a clause.
+  {
+    regex: re(
+      `(?<=(?:^|[.!?]\\s+|\\n))(?<target>(?<adj>(?:(?:${any("sehr wirklich echt ganz")})${S})?(?:${any("gut schön super toll schade klasse prima wichtig komisch seltsam klar logisch merkwürdig erstaunlich interessant")}))${S}das)(?=${S}(?!(?:ist|war|wäre|wird|kann|muss|soll|hat|hatte|sei|bleibt)${E})(?:nicht|jetzt|erst|selbst|fast|endlich|\\p{Ll}+(?<!t))${E}[^.!?\\n,]*\\p{Ll}[ \\t]*[.!?…])`,
+    ),
+    fix: (m) => `${m.groups!.adj}, dass`,
+  },
+  // "immer wider", "ist wider da" → wieder; "wider Willen", "wider die Natur" stay.
+  {
+    regex: re(
+      `(?<!${ci("für")}${S}und${S})(?<target>wider)(?=${S}(?!(?:den|die|das|dem|des|ein|eine|einen|einem|eines|einer|jede|jeden|jedes|jeder|alle|allen|alles|aller|besseres|besseren|bessere|kein\\p{Ll}*|mein\\p{Ll}*|dein\\p{Ll}*|sein\\p{Ll}*|ihr\\p{Ll}*|unser\\p{Ll}*|eur\\p{Ll}*|diese\\p{Ll}*|jegliche\\p{Ll}*|solche\\p{Ll}*)${E})\\p{Ll}+${E}(?!${S}\\p{Lu})|[ \\t]*(?:[.!?,;]|$))`,
+    ),
+    fix: "wieder",
+  },
+  // "wieder Erwarten" → wider; "wieder erwarten wir" is the verb.
+  { regex: re(`(?<target>${ci("wieder")})(?=${S}Erwarten${E})`), fix: "wider" },
   // "in denn Garten" → den; "Was ist den los?", "mehr den je", "es sei den" → denn.
   {
     regex: re(
