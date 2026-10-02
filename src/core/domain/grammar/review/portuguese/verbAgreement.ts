@@ -18,7 +18,7 @@ import { PORTUGUESE_R_STEMS } from "./verbs.generated";
 
 const S = SPACE;
 const W = WORD_END;
-const SENTENCE_START = /(?:^|[.!?;:\n]["'”’»)]*)[ \t ]*["'“‘«(]?[ \t ]*$/u;
+const SENTENCE_START = /(?:^|[.!?;:\n]["'”’»)]*)[ \t\u00a0]*["'“‘«(]?[ \t\u00a0]*$/u;
 const ADVERBS = `(?:(?:não|já|ainda|também|sempre|nunca|só|quase)${S}){0,2}`;
 const CLITIC = `(?:(?:se|me|te|lhe|lhes|nos)${S})?`;
 
@@ -83,10 +83,10 @@ function pluralOf(verb: string): string | undefined {
 
 // "Os ficheiros cache são", "As palavras passe são": a word before a verb modifies the noun.
 const VERB_AFTER =
-  /^[ \t ]+(?:é|são|foi|foram|era|eram|está|estão|estava|estavam|tem|têm|vai|vão|fica|ficam|será|serão|parece|parecem)(?![\p{L}])/u;
+  /^[ \t\u00a0]+(?:é|são|foi|foram|era|eram|está|estão|estava|estavam|tem|têm|vai|vão|fica|ficam|será|serão|parece|parecem)(?![\p{L}])/u;
 // "Algumas coisas é melhor que não sejam ditas": an impersonal "é melhor que".
 const IMPERSONAL_AFTER =
-  /^[ \t ]+(?:melhor|pior|bom|importante|necessário|preciso|possível|difícil|fácil)[ \t ]+que(?![\p{L}])/u;
+  /^[ \t\u00a0]+(?:melhor|pior|bom|importante|necessário|preciso|possível|difícil|fácil)[ \t\u00a0]+que(?![\p{L}])/u;
 
 /** Whether the frame's noun and verb read as subject and verb. */
 function subjectAndVerb(ctx: DetectContext, m: RegExpExecArray): boolean {
@@ -97,7 +97,7 @@ function subjectAndVerb(ctx: DetectContext, m: RegExpExecArray): boolean {
   if (NOT_SUBJECT_NOUNS.has(noun) || NOT_FINITE.has(target) || /mente$/.test(target)) return false;
   const after = ctx.text.slice(m.indices!.groups!.target[1], m.indices!.groups!.target[1] + 40);
   // "Os meninos é que sabem": the cleft "é que" does not agree.
-  if (/^[ \t ]+que(?![\p{L}])/u.test(after)) return false;
+  if (/^[ \t\u00a0]+que(?![\p{L}])/u.test(after)) return false;
   return !VERB_AFTER.test(after) && !IMPERSONAL_AFTER.test(after);
 }
 
@@ -156,7 +156,7 @@ const HOUR_PERIPHRASIS = `(?<target>${Object.keys(HOUR_AUXILIARIES).join("|")})(
 // Nothing but a sentence start or a conjunction before: "O sino bateu dez horas" has its
 // subject.
 const CLAUSE_OPENING =
-  /(?:(?:^|[.!?;:\n]["'”’»)]*)[ \t ]*|(?:^|[^\p{L}])(?:quando|que|até|mal|se|enquanto)[ \t ]+)(?:(?:já|não|ainda|nem|quase)[ \t ]+)*$/iu;
+  /(?:(?:^|[.!?;:\n]["'”’»)]*)[ \t\u00a0]*|(?:^|[^\p{L}])(?:quando|que|até|mal|se|enquanto)[ \t\u00a0]+)(?:(?:já|não|ainda|nem|quase)[ \t\u00a0]+)*$/iu;
 
 function hours(ctx: DetectContext, findings: RawFinding[]): void {
   for (const [pattern, table] of [
@@ -192,7 +192,7 @@ const present = (verb: string) =>
 const FUTURE = "\\p{Ll}{2,}(?:ar|er|ir)(?:ão|á|ei)";
 const PAST = "\\p{Ll}{2,}(?:aram|eram|iram|ara|era|ira)";
 const DETERMINER_BEFORE =
-  /(?:^|[^\p{L}])(?:o|a|os|as|um|uma|do|da|no|na|pelo|pela|este|esse|aquele|meu|seu|nosso)[ \t ]+$/iu;
+  /(?:^|[^\p{L}])(?:o|a|os|as|um|uma|do|da|no|na|pelo|pela|este|esse|aquele|meu|seu|nosso)[ \t\u00a0]+$/iu;
 const TENSE_FRAMES = [
   `(?<target>${FUTURE})${S}(?:ontem|anteontem)${W}`,
   `(?:ontem|anteontem),?${S}(?<target>${FUTURE})${W}`,

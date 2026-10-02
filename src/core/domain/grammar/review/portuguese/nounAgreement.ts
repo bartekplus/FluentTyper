@@ -250,7 +250,9 @@ function plainDeterminer(ctx: DetectContext, det: string, start: number, typed: 
   const before = ctx.text.slice(Math.max(0, start - 40), start);
   // "Nos vemos amanhã": a sentence may open with the pronoun "nos".
   if (det === "nos") return false;
-  if (PRONOUN_LIKE.has(det)) return SENTENCE_START.test(before) || PREPOSITION_BEFORE.test(before);
+  // After "é necessário" or "é proibido" the article opens the subject.
+  if (PRONOUN_LIKE.has(det))
+    return SENTENCE_START.test(before) || PREPOSITION_BEFORE.test(before) || PREDICATE.test(before);
   // "Um ajuda, o outro atrapalha": "um" as a pronoun, with "outro" later on.
   if (det === "um" || det === "uma")
     return !PRONOUN_UM.test(before) && !RECIPROCAL.test(ctx.text.slice(start, start + 80));
@@ -391,6 +393,66 @@ function adjectiveAgreement(
   return finding(start, end, adjective, [wanted], { start: nounEnd - noun.length, end });
 }
 
+// "É necessário uma festa" -> "necessária", "É proibido as cartas" -> "São proibidas": with a
+// determiner, the subject after "ser" + adjective makes both agree.
+const PREDICATE =
+  /(?:^|[^\p{L}])(?<verb>é|são|foi|foram|era|eram|será|serão|seria|seriam|fosse|fossem)(?<gap>[ \t\u00a0]+(?:(?:realmente|muito|bem|bastante|absolutamente|totalmente|extremamente)[ \t\u00a0]+)?)(?<adjective>(?<stem>necessári|proibid|permitid|obrigatóri|bonit)[oa]s?|louváve(?:l|is))[ \t\u00a0]+$/diu;
+const VERB_NUMBER: Record<string, string> = {
+  é: "são",
+  foi: "foram",
+  era: "eram",
+  será: "serão",
+  seria: "seriam",
+  fosse: "fossem",
+};
+const VERB_SINGULAR = Object.fromEntries(Object.entries(VERB_NUMBER).map(([a, b]) => [b, a]));
+
+function predicateAgreement(
+  ctx: DetectContext,
+  detStart: number,
+  nounEnd: number,
+  feminine: boolean,
+  plural: boolean,
+): RawFinding | null {
+  const offset = Math.max(0, detStart - 60);
+  const m = PREDICATE.exec(ctx.text.slice(offset, detStart));
+  if (!m) return null;
+  // "É necessário os alunos estudarem": the noun opens an infinitive clause.
+  if (
+    /^[ \t\u00a0]+\p{Ll}+(?:r|rem|res|rmos)(?![\p{L}])/u.test(ctx.text.slice(nounEnd, nounEnd + 30))
+  )
+    return null;
+  const { verb, gap, adjective, stem } = m.groups!;
+  const wantedAdjective = stem
+    ? `${stem}${feminine ? "a" : "o"}${plural ? "s" : ""}`
+    : plural
+      ? "louváveis"
+      : "louvável";
+  const lowerVerb = verb.toLowerCase();
+  const verbPlural = lowerVerb in VERB_SINGULAR;
+  const wantedVerb =
+    verbPlural === plural
+      ? verb
+      : applyWordCase(
+          plural ? VERB_NUMBER[lowerVerb] : VERB_SINGULAR[lowerVerb],
+          detectWordCase(verb),
+        );
+  if (wantedVerb === verb && wantedAdjective === adjective.toLowerCase()) return null;
+  const adjectiveStart = offset + m.indices!.groups!.adjective[0];
+  const start = wantedVerb === verb ? adjectiveStart : offset + m.indices!.groups!.verb[0];
+  const end = adjectiveStart + adjective.length;
+  const typed = ctx.text.slice(start, end);
+  return {
+    ruleId: "portugueseAgreement",
+    messageKey: "review_msg_pt_noun_agreement",
+    range: { start, end },
+    alternatives: [
+      wantedVerb === verb ? wantedAdjective : `${wantedVerb}${gap}${wantedAdjective}`,
+    ].map((alternative) => applyWordCase(alternative, caseOf(typed.split(/\s/)[0]))),
+    context: { start, end: nounEnd },
+  };
+}
+
 export function nounAgreement(ctx: DetectContext): RawFinding[] {
   if (ctx.lang.slice(0, 2) !== "pt") return [];
   const findings: RawFinding[] = [];
@@ -456,6 +518,8 @@ export function nounAgreement(ctx: DetectContext): RawFinding[] {
         const subject = /^(?:[oa]s?|um|uma|uns|umas)$/.test(det) && SENTENCE_START.test(before);
         const found = adjectiveAgreement(ctx, nounEnd, info.feminine, info.plural, noun, subject);
         if (found) findings.push(found);
+        const predicate = predicateAgreement(ctx, start, nounEnd, info.feminine, info.plural);
+        if (predicate) findings.push(predicate);
       }
       continue;
     }

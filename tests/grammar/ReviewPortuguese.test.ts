@@ -225,6 +225,9 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
     "portugueseTypographyStyle",
     {
       pos: [
+        ["A aula começa às 8.30 da manhã.", "A aula começa às 8:30 da manhã."],
+        ["O voo sai às 22.15 h.", "O voo sai às 22:15 h."],
+        ["Atendemos das 9.00 às 17.00.", "Atendemos das 9:00 às 17:00."],
         ["A sala mede 4 x 5 metros.", "A sala mede 4 × 5 metros."],
         ["O resultado é 3*4.", "O resultado é 3×4."],
         ["A água é H2O.", "A água é H₂O."],
@@ -235,6 +238,8 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Ele mora em Salvador - BA.", "Ele mora em Salvador–BA."],
       ],
       neg: [
+        "O ingresso custa das 2,50 libras.",
+        "Chegou às 10.000 assinaturas.",
         "Ele mora em Salvador–BA.",
         "Abra a pasta Docs/RJ/fotos.",
         "O vírus H1N1 voltou.",
@@ -354,6 +359,9 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Espero que vocês estão bem.", "Espero que vocês estejam bem."],
         ["Peço que ele chega mais cedo.", "Peço que ele chegue mais cedo."],
         ["Embora tem dinheiro, não viaja.", "Embora tenha dinheiro, não viaja."],
+        ["É necessário uma revisão completa.", "É necessária uma revisão completa."],
+        ["Será proibido as visitas no domingo.", "Serão proibidas as visitas no domingo."],
+        ["Foi necessária um novo teste.", "Foi necessário um novo teste."],
       ],
       neg: [
         "Isso acontece muitas vezes.",
@@ -417,6 +425,10 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         "Acho que você está certo.",
         "Espero que você esteja bem.",
         "Os meninos é que sabem.",
+        "É proibido o uso de celulares.",
+        "É necessário os alunos estudarem mais.",
+        "É necessário a todos manter a calma.",
+        "É proibida a entrada de animais.",
       ],
     },
   ],
@@ -574,7 +586,9 @@ const TRIGGERS =
   "na fabrica da duvida em pratica de musica para a policia um critica uma duvida em a de o " +
   "um forte grande estimulo tão pratico não dir-lhe-ei poderia-se eles não tem fazem dez anos " +
   "de Niterói/RJ 31 de abril de 2023 30/02/2024 para mim fazer esta coberto " +
-  "Uma problema dos cidade os situações o nossa mesma todo os erros não querem-na ";
+  "Uma problema dos cidade os situações o nossa mesma todo os erros não querem-na " +
+  "Os meninos dança. Já deu dez horas foi eu Enviarão ontem espero que você está " +
+  "É necessário uma festa às 10.00 h a política econômico Grande distancia ";
 
 function slowestChunkMs(text: string): number {
   const prepared = prepareReview(
