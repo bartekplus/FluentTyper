@@ -158,7 +158,7 @@ function articleBeforeMass(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   for (const m of frameMatches(
     ctx,
-    `(?<article>an?)(?<adjectives>(?:${SPACE}[a-z]+){0,3}?)${SPACE}(?<noun>${MASS_WORDS})${WORD_END}`,
+    `(?<=(?<![\\p{L}'’-])(?<article>an?)(?<adjectives>(?:${SPACE}[a-z]{1,30}){0,3}?)${SPACE})(?<noun>${MASS_WORDS})${WORD_END}`,
     "article",
   )) {
     const { article, adjectives, noun } = m.groups!;
@@ -182,10 +182,10 @@ function articleBeforeMass(ctx: DetectContext): RawFinding[] {
     // "a good knowledge of French" is standard; "a research project" is a compound.
     const next = tokensAfter(ctx, end, 1)[0];
     if ((noun === "knowledge" && next?.lower === "of") || compound(ctx, end)) continue;
-    if (hasUserOrCasedWord(ctx, m[0])) continue;
+    if (hasUserOrCasedWord(ctx, ctx.text.slice(m.indices!.groups!.article[0], end))) continue;
     const rest = ctx.text.slice(m.indices!.groups!.article[1], end).replace(/^[ \t\u00a0]+/, "");
     const [start] = m.indices!.groups!.article;
-    push(ctx, findings, start, end, [caseLike(article, rest)], m.index);
+    push(ctx, findings, start, end, [caseLike(article, rest)], start);
   }
   return findings;
 }

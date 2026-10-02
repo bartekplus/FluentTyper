@@ -94,20 +94,22 @@ function relativeAgreement(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   for (const m of frameMatches(
     ctx,
-    `(?<noun>[a-z]+)${SPACE}(?<pronoun>that|who|which)(?:${SPACE}${ADVERB})?${SPACE}(?<verb>[a-z]+)${WORD_END}`,
+    `(?<=(?<![\\p{L}'’-])(?<noun>[a-z]{1,30})${SPACE})(?<pronoun>that|who|which)(?:${SPACE}${ADVERB})?${SPACE}(?<verb>[a-z]+)${WORD_END}`,
     "verb",
   )) {
     const { noun, verb } = m.groups!;
     const pronoun = m.groups!.pronoun.toLowerCase();
+    // The frame starts at the pronoun (cheap to find); the noun is in its lookbehind.
+    const at = m.indices!.groups!.noun[0];
+    const end = m.index + m[0].length;
     // A capital names something, except at a sentence start ("Users who uses…").
-    if (verb !== verb.toLowerCase() || (noun !== noun.toLowerCase() && !afterBreak(ctx, m.index)))
+    if (verb !== verb.toLowerCase() || (noun !== noun.toLowerCase() && !afterBreak(ctx, at)))
       continue;
-    if (hasUserOrCasedWord(ctx, m[0])) continue;
+    if (hasUserOrCasedWord(ctx, ctx.text.slice(at, end))) continue;
     const finite = verb in TO_PLURAL || verb in TO_SINGULAR;
     if (!finite && (FUNCTION_WORDS.has(verb) || MODALS.test(verb))) continue;
-    const number = antecedent(ctx, noun.toLowerCase(), m.index, pronoun);
+    const number = antecedent(ctx, noun.toLowerCase(), at, pronoun);
     if (!number) continue;
-    const end = m.index + m[0].length;
     const next = tokensAfter(ctx, end, 1)[0];
     const read = englishWordInfo(verb);
     // "tells the collector which host the data…": after which, a noun-or-verb is a noun.
@@ -127,7 +129,7 @@ function relativeAgreement(ctx: DetectContext): RawFinding[] {
     } else {
       // "the issues and the uncertainty that still exist": a list before owns it.
       const listed = /\b(?:and|or)\b(?:[ \t\u00a0]+[A-Za-z]+){0,3}[ \t\u00a0]*$/i.test(
-        ctx.text.slice(Math.max(0, m.index - 40), m.index),
+        ctx.text.slice(Math.max(0, at - 40), at),
       );
       // "useless junk that fail": a mass noun can stand for a group.
       if (listed || MASS.has(noun)) continue;
@@ -152,7 +154,7 @@ function relativeAgreement(ctx: DetectContext): RawFinding[] {
       messageKey: "review_msg_subject_verb",
       range: { start, end: verbEnd },
       alternatives: [caseLike(verb, replacement)],
-      context: evidence(ctx, m.index, verbEnd),
+      context: evidence(ctx, at, verbEnd),
     });
   }
   return findings;
@@ -180,19 +182,18 @@ function nameSubjects(ctx: DetectContext): RawFinding[] {
   };
   for (const m of frameMatches(
     ctx,
-    `(?<first>[A-Z][a-z]+)${SPACE}and${SPACE}(?<second>[A-Z][a-z]+)${SPACE}(?<verb>[a-z]+)${WORD_END}`,
+    `(?<=(?<![\\p{L}'’-])(?<first>[A-Za-z]{2,30})${SPACE})and${SPACE}(?<second>[A-Za-z]{2,30})${SPACE}(?<verb>[a-z]+)${WORD_END}`,
     "verb",
   )) {
     const { first, second, verb } = m.groups!;
+    const at = m.indices!.groups!.first[0];
     if (first === second || !isName(first) || !isName(second) || ctx.dictionary.has(verb)) continue;
     // The pair opens its clause: not "from California and Africa is", "between Cardiff and
     // Bristol was".
-    const lead = /([A-Za-z]+)[ \t ]{1,8}$/.exec(
-      ctx.text.slice(Math.max(0, m.index - 24), m.index),
-    )?.[1];
+    const lead = /([A-Za-z]+)[ \t\u00a0]{1,8}$/.exec(ctx.text.slice(Math.max(0, at - 24), at))?.[1];
     if (
       lead &&
-      !afterBreak(ctx, m.index) &&
+      !afterBreak(ctx, at) &&
       !/^(?:that|if|when|because|since|while|although|though|unless|think|hope|know|guess|believe|say|said)$/i.test(
         lead,
       )
@@ -207,25 +208,26 @@ function nameSubjects(ctx: DetectContext): RawFinding[] {
         ? englishLemma(verb, "third")
         : null);
     const [start, end] = m.indices!.groups!.verb;
-    push(start, end, verb, fix, m.index);
+    push(start, end, verb, fix, at);
   }
   for (const m of frameMatches(
     ctx,
-    `(?<name>[A-Z][a-z]+)${SPACE}(?<verb>[a-z]+)${SPACE}(?:his|her)${WORD_END}`,
+    `(?<=(?<![\\p{L}'’-])(?<name>[A-Za-z]{2,30})${SPACE}(?<verb>[a-z]{2,30})${SPACE})(?:his|her)${WORD_END}`,
     "verb",
   )) {
     const { name, verb } = m.groups!;
+    const at = m.indices!.groups!.name[0];
     if (!isName(name) || ctx.dictionary.has(verb) || FUNCTION_WORDS.has(verb)) continue;
     // "Tell Tim give his…" is rare; a name after a verb or "and" may be its object.
     const before = /([A-Za-z]+)[ \t\u00a0]{1,8}$/.exec(
-      ctx.text.slice(Math.max(0, m.index - 24), m.index),
+      ctx.text.slice(Math.max(0, at - 24), at),
     )?.[1];
-    if (before && !afterBreak(ctx, m.index)) continue;
+    if (before && !afterBreak(ctx, at)) continue;
     const read = englishWordInfo(verb);
     if (!read?.verbs.some((v) => v.form === "base" && v.lemma === verb)) continue;
     if (read.verbs.some((v) => v.form !== "base") || MODALS.test(verb)) continue;
     const [start, end] = m.indices!.groups!.verb;
-    push(start, end, verb, englishInflect(verb, "third"), m.index);
+    push(start, end, verb, englishInflect(verb, "third"), at);
   }
   return findings;
 }

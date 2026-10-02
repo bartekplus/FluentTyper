@@ -35,6 +35,23 @@ test.each([
 });
 
 test.each([
+  ["I guess it get cold at night.", "I guess it gets cold at night."],
+  ["The fog lifted and it turn bright.", "The fog lifted and it turns bright."],
+])("he/she/it + linking verb agrees: %s", (input, expected) => {
+  const found = detectReviewDiagnostics(
+    { id: "linking", text: input, scope: { start: 0, end: input.length }, protectedRanges: [] },
+    {
+      lang: "en_US",
+      enabledRules: reviewRuleIds({ codeMode: false }),
+      userDictionary: [],
+      insertSpaceAfterAutocomplete: true,
+    },
+  ).diagnostics.filter((d) => d.ruleId === "englishPronounVerbWhitelistAgreement");
+  expect(found).toHaveLength(1);
+  expect(applyEdits(input, found[0].alternatives[0].edits)).toBe(expected);
+});
+
+test.each([
   "The list of files that need review is long.",
   "It's the small details that make it work.",
   "He told the users that changes were coming.",
