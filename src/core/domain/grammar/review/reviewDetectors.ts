@@ -1043,16 +1043,28 @@ const duplicatePunctuation: Detector = (ctx) => {
       alternatives: [match[1]],
     });
   }
-  // "word.." (never "..." or "../"): one period too many at a sentence end. Arabic writes
-  // ".." as a short ellipsis ("وهذا ما دعاني إلى.."), so Arabic script keeps it.
+  // "word.." (never "..." or "../"): a doubled period or a short ellipsis that trails off.
+  // Before a lowercase word the sentence goes on, so only the ellipsis fits; elsewhere
+  // the writer chooses. Arabic writes ".." as a short ellipsis ("وهذا ما دعاني إلى..").
   const periods = /(?<=(?![\p{Script=Arabic}])[\p{L}\p{N})\]"”’])\.\.(?=\s|$)/gu;
   for (const match of ownedMatches(ctx, periods)) {
     const start = match.index;
+    const range = { start, end: start + 2 };
+    if (/^\s+\p{Ll}/u.test(ctx.text.slice(start + 2, start + 12))) {
+      findings.push({
+        ruleId: "duplicatePunctuationCollapse",
+        messageKey: "review_msg_ellipsis_length",
+        range,
+        alternatives: ["..."],
+      });
+      continue;
+    }
     findings.push({
       ruleId: "duplicatePunctuationCollapse",
       messageKey: "review_msg_duplicate_punctuation",
-      range: { start, end: start + 2 },
-      alternatives: ["."],
+      range,
+      alternatives: [".", "..."],
+      requiresChoice: true,
     });
   }
   // A line of two dots alone is a short ellipsis or a stray period.
