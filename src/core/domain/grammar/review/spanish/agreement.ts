@@ -555,7 +555,10 @@ function cardinalNoun(ctx: DetectContext, tokens: Token[], i: number): RawFindin
   const word = nounToken.lower;
   if (ctx.dictionary.has(word)) return null;
   const noun = readNoun(word);
-  if (!noun || noun.plural || verbLike(word) || subjunctiveLike(word)) return null;
+  // "a las tres llamo": a time before a verb; "compré tres libro" counts the verb's object.
+  const counted =
+    !!prev && finiteVerb(prev) && !SER.has(prev) && !readNoun(prev) && isNoun(word) && k === 1;
+  if (!noun || noun.plural || ((verbLike(word) || subjunctiveLike(word)) && !counted)) return null;
   // "siete debido a su limitada": a participle starting a phrase of its own.
   if (participle(word) && PREPOSITIONS.has(at.next(2))) return null;
   const plural = pluralOf(word);
@@ -736,6 +739,41 @@ function postponedAdjective(ctx: DetectContext, tokens: Token[], i: number): Raw
   if (!genderClash && !numberClash) return null;
   const fix = forms.form(gender ? gender === "f" : !!forms.feminine, plural);
   return replaceToken(ctx, adjToken, [fix], RULE, MESSAGE, nounToken);
+}
+
+/**
+ * "La casa del pueblo blancas" -> "blanca"/"blanco": a plural adjective closing a phrase of two
+ * singular nouns joined by "de" agrees with neither.
+ */
+function adjectiveAfterOf(ctx: DetectContext, tokens: Token[], i: number): RawFinding | null {
+  const at = new Around(tokens, i);
+  if (!at.starts && !SER.has(at.prev())) return null;
+  const det = DETERMINER.get(tokens[i].lower);
+  if (!det || det.slot >= 2) return null;
+  let k = i + 1;
+  const first = readNoun(tokens[k]?.lower ?? "");
+  if (!first || first.plural || first.invariant || !tokens[k].word) return null;
+  k++;
+  if (!/^(?:de|del)$/u.test(tokens[k]?.lower ?? "")) return null;
+  k++;
+  const inner = DETERMINER.get(tokens[k]?.lower ?? "");
+  if (inner) {
+    if (inner.slot >= 2) return null;
+    k++;
+  }
+  const second = readNoun(tokens[k]?.lower ?? "");
+  if (!second || second.plural || second.invariant || !tokens[k].word) return null;
+  const adjToken = tokens[k + 1];
+  if (!adjToken?.word || adjToken.broken || !/^\p{Ll}+$/u.test(adjToken.text)) return null;
+  if (tokens.slice(i, k + 2).some((t) => t.broken) || ctx.dictionary.has(adjToken.lower))
+    return null;
+  const forms = adjectiveForms(adjToken.lower);
+  if (!forms?.plural || finiteVerb(adjToken.lower)) return null;
+  // The adjective closes the phrase: "La casa del pueblo blancas." or before its verb.
+  if (!new Around(tokens, k + 1).endsAfter()) return null;
+  const firstFeminine = (first.gender ?? (det.slot === 1 ? "f" : "m")) === "f";
+  const fixes = [...new Set([forms.form(firstFeminine, false), forms.form(!firstFeminine, false)])];
+  return replaceToken(ctx, adjToken, fixes, RULE, MESSAGE, tokens[i]);
 }
 
 /** "la más rojo" -> "roja": an article, "más" or "menos" and the adjective standing for its noun. */
@@ -979,6 +1017,7 @@ function agreement(ctx: DetectContext): RawFinding[] {
       neuterBeforePlural(ctx, tokens, i) ??
       bareAdjectiveNoun(ctx, tokens, i) ??
       postponedAdjective(ctx, tokens, i) ??
+      adjectiveAfterOf(ctx, tokens, i) ??
       articleSuperlative(ctx, tokens, i) ??
       darPorParticiple(ctx, tokens, i) ??
       neuterDemonstrative(ctx, tokens, i) ??

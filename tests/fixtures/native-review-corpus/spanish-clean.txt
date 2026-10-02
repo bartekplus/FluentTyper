@@ -741,3 +741,10 @@ Somos conscientes del problema y soy todo oídos.
 Habló con el Dr. Pérez sobre la pág. 12 del informe n.º 7.
 El portal mide 5 m y pagamos 300 euros.
 Es la casa de al lado y dijo que de su casa salió.
+# Counts, notes, neuter lo and idioms that are already right.
+A las tres llamo a mi madre y somos tres, trabajo mucho.
+La casa del pueblo blanca y el jefe de ventas nuevo.
+Lo hizo por mí y tocó una sonata en mi menor.
+Hay helado de fresa y hay heridos graves.
+Tú dale que te dale, y la dama le dio la mano.
+Nunca dejaré esta casa, aun tenga que ir a juicio.

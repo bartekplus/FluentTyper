@@ -1737,7 +1737,87 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
       ],
     },
   ],
+  [
+    "spanishAgreement",
+    "a count after a verb, a plural adjective after two singular nouns joined by de",
+    {
+      pos: [
+        ["Compré tres libro usados.", "Compré tres libros usados."],
+        ["Vendieron cincuenta casa en un año.", "Vendieron cincuenta casas en un año."],
+        ["Pesa dos kilo exactos.", "Pesa dos kilos exactos."],
+        ["La mesa de madera blancas.", "La mesa de madera blanca."],
+        ["El coche de mi padre rojos.", "El coche de mi padre rojo."],
+      ],
+      neg: [
+        "A las tres llamo a mi madre.",
+        "Son las dos y trabajo.",
+        "Somos tres, trabajo mucho.",
+        "La casa del pueblo blanca.",
+        "El jefe de ventas nuevos.",
+      ],
+    },
+  ],
+  [
+    "spanishAccents",
+    "lo + adjective + que, mi before a note, aún before a subjunctive",
+    {
+      pos: [
+        ["Lo ultimo que pido es calma.", "Lo último que pido es calma."],
+        ["No sabes lo incomodo que fue.", "No sabes lo incómodo que fue."],
+        ["Tocó un concierto en mí bemol.", "Tocó un concierto en mi bemol."],
+        ["Es una sonata en mí menor.", "Es una sonata en mi menor."],
+        ["Me duele que aun tenga dudas.", "Me duele que aún tenga dudas."],
+      ],
+      neg: [
+        "Lo hizo por mí.",
+        "Pensó en mí mayor parte del día.",
+        "Ni aun tenga razón.",
+        "Lo practico cada día.",
+        "Lo termino mañana.",
+      ],
+    },
+  ],
+  [
+    "spanishConfusions",
+    "ha opening a perfect, an article before a number",
+    {
+      pos: [
+        ["Hay venido muy tarde.", "Ha venido muy tarde."],
+        ["Hay dicho que no.", "Ha dicho que no."],
+        ["Les 20 primeros ganan.", "Los 20 primeros ganan."],
+        ["Hay debido perderse.", "Ha debido perderse."],
+        ["Les 3 mejores pasan.", "Los 3 mejores pasan."],
+      ],
+      neg: [
+        "Hay helado de fresa.",
+        "Hay helado.",
+        "Les di 20 euros.",
+        "Les 1 de mayo.",
+        "Hay heridos graves.",
+      ],
+    },
+  ],
 ];
+
+test("a Spanish pronoun before an imperative that carries one is flagged without a fix", () => {
+  for (const text of [
+    "Lo dame ahora.",
+    "Le dale el libro.",
+    "Te dímelo luego.",
+    "Lo hazlo bien.",
+  ]) {
+    const found = findings("spanishConfusions", text);
+    expect(found).toHaveLength(1);
+    expect(found[0].alternatives).toEqual([]);
+  }
+  for (const text of [
+    "Tú dale que te dale.",
+    "Se vende piso.",
+    "La dama llegó.",
+    "Le dio la mano.",
+  ])
+    expect(findings("spanishConfusions", text)).toEqual([]);
+});
 
 test("a Spanish preposition before a conjugated verb is flagged without a fix", () => {
   for (const text of [

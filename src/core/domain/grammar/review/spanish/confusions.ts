@@ -94,7 +94,18 @@ const CHECKS: Record<string, Check> = {
     const next = at.next();
     if (at.tokens[at.i - 1]?.text === "¡" && next === "de") return ["ay"];
     if (!isPerfectParticiple(next) || isNoun(next)) return null;
-    return CLITICS.has(at.prev()) || at.prev() === "no" || !attribute(next) ? ["ha"] : null;
+    // "Hay venido tarde", "Hay dicho que no": opening the sentence, before what a verb takes
+    // ("Hay helado de fresa" names a thing).
+    const verbal =
+      at.starts &&
+      (isInfinitive(at.next(2)) ||
+        DETERMINERS.has(at.next(2)) ||
+        /^(?:que|muy|tarde|pronto|temprano|ya|bien|mal|mucho|hoy|ayer|aquí|allí)$/u.test(
+          at.next(2),
+        ));
+    return CLITICS.has(at.prev()) || at.prev() === "no" || verbal || !attribute(next)
+      ? ["ha"]
+      : null;
   },
   // "haz hecho": "haz" (do!) takes no participle; "haz de venir" is "has de".
   haz: (at) => {

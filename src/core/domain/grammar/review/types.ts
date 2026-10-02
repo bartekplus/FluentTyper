@@ -379,6 +379,7 @@ export type ReviewMessageKey =
   | "review_msg_spanish_abbreviation_period"
   | "review_msg_spanish_number_space"
   | "review_msg_spanish_capital_article"
+  | "review_msg_spanish_clitic_twice"
   // French (review/french/)
   | "review_msg_fr_past_participle"
   | "review_msg_fr_infinitive"

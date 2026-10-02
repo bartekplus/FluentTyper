@@ -2951,6 +2951,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Tylko pierwsza litera tego słowa rozpoczynającego zdanie jest wielka.",
     "Só a primeira letra desta palavra que abre a frase é maiúscula.",
   ],
+  review_msg_spanish_clitic_twice: [
+    "This Spanish imperative already carries its pronoun at the end, so no pronoun goes before it: dámelo, not lo dame.",
+    "Cet impératif espagnol porte déjà son pronom à la fin ; aucun pronom ne le précède : dámelo, et non lo dame.",
+    "Ovaj španjolski imperativ već nosi zamjenicu na kraju, pa ispred njega ne ide zamjenica: dámelo, a ne lo dame.",
+    "Este imperativo ya lleva el pronombre al final, así que no va otro delante: dámelo, no lo dame.",
+    "Αυτή η ισπανική προστακτική έχει ήδη την αντωνυμία στο τέλος, οπότε δεν μπαίνει άλλη μπροστά: dámelo, όχι lo dame.",
+    "Den spanska imperativen har redan sitt pronomen i slutet, så inget pronomen står före: dámelo, inte lo dame.",
+    "Dieser spanische Imperativ trägt sein Pronomen schon am Ende, davor steht keines: dámelo, nicht lo dame.",
+    "Ten hiszpański tryb rozkazujący ma już zaimek na końcu, więc przed nim nie stawia się zaimka: dámelo, nie lo dame.",
+    "Este imperativo espanhol já leva o pronome no fim, por isso nenhum vem antes: dámelo, não lo dame.",
+  ],
   // French (review/french/)
   review_msg_fr_past_participle: [
     "After avoir or être, French uses the past participle (-é), not the infinitive (-er).",

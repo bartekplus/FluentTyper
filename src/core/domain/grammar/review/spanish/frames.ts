@@ -3,14 +3,16 @@ import { pluralOf, readNoun } from "./agreement";
 import {
   Around,
   attributeOf,
+  CLITICS,
   INVARIANT,
+  isInfinitive,
   isBoundary,
   replaceToken,
   tokenize,
   words,
   type Token,
 } from "./common";
-import { finiteVerb, isNoun } from "./lexicon";
+import { finiteVerb, isNoun, plain } from "./lexicon";
 
 // Short closed-class frames: "de el" -> "del", "ala casa" -> "a la casa", "miles de persona"
 // -> "personas", "soy conscientes" -> "consciente", "q" -> "que".
@@ -163,6 +165,50 @@ function shorthandQue(ctx: DetectContext, at: Around): RawFinding | null {
   return replaceToken(ctx, token, ["que"], "spanishConfusions", "review_msg_typo");
 }
 
+// Short imperatives that take their pronouns at the end: "dame", "hazlo", "ponte".
+const SHORT_IMPERATIVES = words("da di haz pon sal ten ven ve sé");
+
+/** "Lo dame", "Le dale": a pronoun before an imperative that already carries one. */
+function cliticTwice(ctx: DetectContext, at: Around): RawFinding | null {
+  const clitic = at.tokens[at.i];
+  const verb = at.tokens[at.i + 1];
+  if (!CLITICS.has(clitic.lower) || !verb?.word || verb.broken) return null;
+  if (!/^\p{Ll}+$/u.test(verb.text) || isNoun(verb.lower)) return null;
+  // "dale que te dale": the repeated imperative of the idiom.
+  if (at.prev() === "que" && at.prev(2) === verb.lower) return null;
+  const m = /^(\p{L}+?)((?:me|te|le|les|lo|la|los|las|nos|os|se){1,2})$/u.exec(verb.lower);
+  if (!m) return null;
+  const stem = plain(m[1]);
+  const imperative =
+    SHORT_IMPERATIVES.has(stem) ||
+    (/[áéí]/u.test(m[1]) && /[ae]$/u.test(stem) && finiteVerb(stem) && !isInfinitive(verb.lower));
+  if (!imperative) return null;
+  const finding = replaceToken(
+    ctx,
+    span(ctx, clitic, verb),
+    [],
+    "spanishConfusions",
+    "review_msg_spanish_clitic_twice",
+  );
+  return finding && { ...finding, warningOnly: true };
+}
+
+/** "Les 20 primeros": a pronoun before a number stands where the article goes. */
+function lesNumber(ctx: DetectContext, at: Around): RawFinding | null {
+  const token = at.tokens[at.i];
+  const count = at.tokens[at.i + 1];
+  if (token.lower !== "les" || !count || count.broken || !/^\p{N}+$/u.test(count.text)) return null;
+  if (count.text === "1") return null;
+  return replaceToken(
+    ctx,
+    token,
+    ["los", "las"],
+    "spanishConfusions",
+    "review_msg_spanish_pronoun_article",
+    count,
+  );
+}
+
 type Check = (ctx: DetectContext, at: Around) => RawFinding | null;
 
 function frames(ctx: DetectContext, checks: Check[]): RawFinding[] {
@@ -184,7 +230,14 @@ function frames(ctx: DetectContext, checks: Check[]): RawFinding[] {
   return findings;
 }
 
-const CONFUSIONS: Check[] = [contraction, alaPreposition, deMas, shorthandQue];
+const CONFUSIONS: Check[] = [
+  contraction,
+  alaPreposition,
+  deMas,
+  shorthandQue,
+  cliticTwice,
+  lesNumber,
+];
 const AGREEMENT: Check[] = [amountOf, singularAttribute];
 
 export const DETECTORS: readonly ReviewDetectorEntry[] = [

@@ -178,6 +178,8 @@ function nominal(at: Around): string | null {
   )
     return null;
   if (DETERMINERS.has(prev) || DEGREE.has(prev) || SER.has(prev)) return accented;
+  // "lo ultimo que quiero", "lo incomodo que es": the neuter "lo" and a relative.
+  if (prev === "lo" && next === "que" && /o$/u.test(accented)) return accented;
   // "tu numero": "tú" takes no first or third person verb, so "tu" is the possessive.
   if (prev === "tu" && !word.endsWith("s")) return accented;
   // "Tengo 2 practicas": a count before a plural.

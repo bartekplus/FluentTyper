@@ -645,6 +645,8 @@ function monosyllable(at: Around): string | null {
     case "mi":
       // "a mí me gusta", "para mí, …", "confía en mí", "aparta de mí este cáliz".
       if (!PREPOSITIONS.has(prev)) return null;
+      // "en mi menor", "en mi bemol": the note.
+      if (/^(?:bemol|sostenido|mayor|menor)$/u.test(next)) return null;
       if (ends || /^(?:mismo|misma|me|que|no|el|la|los|las|lo)$/u.test(next)) return "mí";
       // "en mi contra" is the possessive idiom; "en mi era" the noun.
       if (next === "era" && (prev === "en" || prev === "de")) return null;
@@ -698,6 +700,13 @@ function monosyllable(at: Around): string | null {
       return secondPersonVerb(next) ? "tú" : null;
     case "tú":
     case "mí":
+      // "en mí bemol", "sonata en mí menor": the note.
+      if (
+        word === "mí" &&
+        (/^(?:bemol|sostenido)$/u.test(next) ||
+          (/^(?:mayor|menor)$/u.test(next) && /^(?:en|de)$/u.test(prev) && at.endsAfter(1)))
+      )
+        return "mi";
       // "a tú pie", "aprobará mí envío": a possessive before a noun takes no accent.
       // After a verb it may be the subject: "eres tú", "pones tú".
       if (verbLike(prev) || FINITE.has(prev) || /^(?:como|que|entre)$/u.test(prev)) return null;
@@ -894,6 +903,15 @@ function monosyllable(at: Around): string | null {
         !participle(next) &&
         (!attributeOf(next) || isNoun(next)) &&
         (!isNoun(next) || (/[oae]$/u.test(next) && at.tokens[at.i + 2]?.text !== ","))
+      )
+        return "aún";
+      // "que el gobierno aún tenga": still, inside a "que" clause before a subjunctive that is
+      // no other word; "aun tenga que ir" opening a clause is concessive (even if).
+      if (
+        subjunctiveLike(next) &&
+        !isNoun(next) &&
+        !attributeOf(next) &&
+        [1, 2, 3].some((k) => at.prev(k) === "que")
       )
         return "aún";
       // "con los ojos aún abiertos": still, before a participle inside the clause.
