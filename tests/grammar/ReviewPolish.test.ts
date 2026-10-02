@@ -352,6 +352,8 @@ export const POLISH_CASES: Array<[CatalogRuleId, string, Case]> = [
         ["Nie wiadomo kiedy wróci z delegacji.", "Nie wiadomo, kiedy wróci z delegacji."],
         ["Wyszedł wcześniej by zdążyć na pociąg.", "Wyszedł wcześniej, by zdążyć na pociąg."],
         ["Usiadła przy oknie by się ogrzać.", "Usiadła przy oknie, by się ogrzać."],
+        ["Opowiedz o planach jakie masz na lato.", "Opowiedz o planach, jakie masz na lato."],
+        ["Trudno sobie wyobrazić jaka to była ulga.", "Trudno sobie wyobrazić, jaka to była ulga."],
       ],
       neg: [
         "Myślę, że masz rację.",
@@ -384,6 +386,9 @@ export const POLISH_CASES: Array<[CatalogRuleId, string, Case]> = [
         "Można by to zrobić szybciej.",
         "Należało by o tym pomyśleć wcześniej.",
         "Dobrze by było wyjechać.",
+        "Jaki piękny dzień dziś mamy!",
+        "Taki sam jaki był wczoraj.",
+        "Czekaliśmy jakie pół godziny.",
       ],
     },
   ],

@@ -1,5 +1,5 @@
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import { nounTags } from "./lexicon";
+import { nounTags, onlyNoun } from "./lexicon";
 import { findingAt, isPl, owned, PREPOSITIONS, sentenceStartAt, userOrNamed } from "./shared";
 
 /*
@@ -140,7 +140,8 @@ function extraCommas(ctx: DetectContext): RawFinding[] {
 const RELATIVE = "który|która|które|którego|której|któremu|którą|którym|których|którymi|którzy";
 /** Question words that open an indirect question or a clause of place: "nie wiem, gdzie". */
 const QUESTION_WORDS = "dlaczego|gdzie|kiedy";
-const SUBORDINATORS = `że|iż|żeby|ażeby|aby|by|ponieważ|gdyż|jeśli|jeżeli|gdyby|zanim|dopóki|gdy|zamiast|ale|lecz|${QUESTION_WORDS}|${RELATIVE}`;
+const JAKI = "jaki|jaka|jakie|jakiego|jakiej|jakiemu|jaką|jakim|jakich|jakimi";
+const SUBORDINATORS = `że|iż|żeby|ażeby|aby|by|ponieważ|gdyż|jeśli|jeżeli|gdyby|zanim|dopóki|gdy|zamiast|ale|lecz|${QUESTION_WORDS}|${RELATIVE}|${JAKI}`;
 /** What makes the word after a subordinator part of a set phrase: "kiedy indziej", "póki co". */
 const SET_AFTER: Record<string, RegExp> = {
   kiedy: /^(?:indziej|niekiedy|bądź)$/iu,
@@ -245,6 +246,19 @@ function missingCommas(ctx: DetectContext): RawFinding[] {
       )
         continue;
     }
+    // "jaki" opens a clause after a noun or an infinitive ("założeń, jakie mamy", "wyobrazić,
+    // jakie to było"), not as a question or an exclamation ("Jaki piękny dzień!").
+    if (
+      new RegExp(`^(?:${JAKI})$`).test(sub) &&
+      (!(/ć$/u.test(prev) || onlyNoun(nounTags(prev.toLowerCase()))) ||
+        !next ||
+        // "jakich trzydziestu tysięcy", "jakiej pół godziny": "some", before a number.
+        /^(?:\d|pół|półtor|jed|dw|trz|czter|pięć|pięci|sześ|siedem|siedmi|osiem|ośmi|dziewię|dziesię|kilk|par|set|stu|sto|tysi)/iu.test(
+          next,
+        ) ||
+        /^[^.!\n]*[?!]/u.test(ctx.text.slice(end, end + 200)))
+    )
+      continue;
     // "zamiast" opens a clause only before an infinitive ("zamiast pracować"), not a noun.
     if (sub === "zamiast" && !/(?:ć|c)$/u.test(next)) continue;
     // A direct question keeps its question word: "A ty gdzie idziesz?".
