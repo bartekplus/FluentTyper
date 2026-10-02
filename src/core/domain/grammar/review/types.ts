@@ -368,7 +368,8 @@ export type ReviewMessageKey =
   | "review_msg_fr_conditional"
   | "review_msg_fr_missing_ne"
   | "review_msg_fr_double_determiner"
-  | "review_msg_fr_determiner_noun";
+  | "review_msg_fr_determiner_noun"
+  | "review_msg_fr_ordinal";
 
 export type BulkDecision =
   | { eligible: true; alternative: number }

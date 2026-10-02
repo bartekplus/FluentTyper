@@ -177,6 +177,14 @@ const DECIMAL_QUANTITY = /^\p{Nd}{1,9}\.\p{Nd}{1,9}(?:\p{L}{1,4}|[€$£¥%])?$/
 /** A day.month(.year) date ("23.08.2014", "31.4.", Polish "11.XI.1918") is prose, not a dotted name. */
 const DOTTED_DATE = /^\d{1,3}\.(?:\d{1,2}|[IVX]{1,4})\.(?:\d{2}|\d{4})?$/;
 
+/** French "le 31/04", "du 2/11": a day and a month after an article are a date, not a path. */
+function frenchDayMonth(source: string, start: number, bare: string, lang: string): boolean {
+  if (!lang.startsWith("fr") || !/^\d{1,2}\/\d{1,2}$/.test(bare)) return false;
+  return /(?:^|[^\p{L}])(?:le|du|au)[ \t]{1,8}$/iu.test(
+    source.slice(Math.max(0, start - 12), start),
+  );
+}
+
 /** URLs, e-mail addresses, paths, mentions, dotted names and overlong tokens in [from, to). */
 function technicalRanges(source: string, from: number, to: number, lang: string): ProtectedRange[] {
   const spanish = lang.startsWith("es");
@@ -203,6 +211,7 @@ function technicalRanges(source: string, from: number, to: number, lang: string)
       !PROSE_SLASH_TOKEN.test(bare) &&
       !PLACE_STATE_TOKEN.test(bare) &&
       !NUMERIC_DATE_TOKEN.test(bare) &&
+      !frenchDayMonth(source, match.index + lead, bare, lang) &&
       !notationToken(source, match.index + lead, bare) &&
       !slashedProseWord(source, match.index + lead, bare)
     ) {

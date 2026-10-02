@@ -550,6 +550,26 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
     },
   ],
   [
+    "frenchOrdinals",
+    {
+      pos: [
+        ["Il habite au 3ème étage.", "Il habite au 3e étage."],
+        ["C'est sa 1ère victoire.", "C'est sa 1re victoire."],
+        ["Les 2emes places sont prises.", "Les 2es places sont prises."],
+        ["Le 1ier janvier est férié.", "Le 1er janvier est férié."],
+        ["Il est arrivé 2nd au sprint.", "Il est arrivé 2d au sprint."],
+        ["Elle fête son 20ième anniversaire.", "Elle fête son 20e anniversaire."],
+      ],
+      neg: [
+        "Il habite au 3e étage.",
+        "C'est sa 1re victoire et son 1er titre.",
+        "Le fichier v2ème.txt est là.",
+        "Il a gagné 1ème place.",
+        "La version 2.3ème est sortie.",
+      ],
+    },
+  ],
+  [
     "frenchMissingNe",
     {
       pos: [
@@ -965,6 +985,7 @@ test.each([
   ["frenchHomophones", "C'est la que tout a commencé.", "C'est là que tout a commencé."],
   ["frenchHomophones", "Ton frère est la ?", "Ton frère est là ?"],
   ["frenchHomophones", "Il habite la-bas depuis un an.", "Il habite là-bas depuis un an."],
+  ["frenchDates", "Rendez-vous le 31/04 à midi.", "Rendez-vous le 30/04 à midi."],
   ["frenchHomophones", "Pose-le la où tu l'as pris.", "Pose-le là où tu l'as pris."],
   ["frenchHomophones", "Elle est toujours la.", "Elle est toujours là."],
   ["frenchHomophones", "Que faites-vous la ?", "Que faites-vous là ?"],

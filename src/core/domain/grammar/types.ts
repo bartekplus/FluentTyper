@@ -143,6 +143,7 @@ export interface GrammarRuleCatalogEntry {
     | "frenchTout"
     | "frenchMood"
     | "frenchMissingNe"
+    | "frenchOrdinals"
     | "quoteSpacing"
     | "primeSymbols"
     // German-only Review checks (review/german/).

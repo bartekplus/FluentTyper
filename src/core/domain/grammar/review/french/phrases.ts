@@ -688,6 +688,11 @@ export const STYLE: readonly PhraseRow[] = [
   ...forms(["s'entraident", "nous entraidons", "vous entraidez"], "mutuellement"),
   ...forms(["prévoit", "prévoient", "prévu"], "à l'avance"),
   ["retour en arrière", "retour"],
+  // Spoken contractions written out.
+  ["t'as", "tu as"],
+  ["t'es", "tu es"],
+  ["t'étais", "tu étais"],
+  ["t'avais", "tu avais"],
   ["tous unanimes", "unanimes"],
   ["toutes unanimes", "unanimes"],
   ["divers et variés", ["divers", "variés"]],

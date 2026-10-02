@@ -156,6 +156,7 @@ describe("review rule coverage map", () => {
             "portugueseTypographyStyle",
             "portugueseAO90",
             "frenchMissingNe",
+            "frenchOrdinals",
           ].includes(id),
       ),
     );

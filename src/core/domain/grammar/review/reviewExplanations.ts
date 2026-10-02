@@ -2886,6 +2886,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Dwa określniki z rzędu: zostaw jeden (nos amis, cette langue) albo pierwszy to inne słowo (dès sa naissance).",
     "Dois determinantes seguidos: mantenha um (nos amis, cette langue), ou o primeiro é outra palavra (dès sa naissance).",
   ],
+  review_msg_fr_ordinal: [
+    "French abbreviates ordinals with e, re and er: 2e, 1re, 1er (not 2ème or 1ère).",
+    "Les ordinaux s’abrègent avec e, re et er : 2e, 1re, 1er (et non 2ème ou 1ère).",
+    "Francuski skraćuje redne brojeve s e, re i er: 2e, 1re, 1er (ne 2ème ili 1ère).",
+    "El francés abrevia los ordinales con e, re y er: 2e, 1re, 1er (no 2ème ni 1ère).",
+    "Τα γαλλικά συντομεύουν τα τακτικά αριθμητικά με e, re και er: 2e, 1re, 1er (όχι 2ème ή 1ère).",
+    "Franskan förkortar ordningstal med e, re och er: 2e, 1re, 1er (inte 2ème eller 1ère).",
+    "Französisch kürzt Ordnungszahlen mit e, re und er ab: 2e, 1re, 1er (nicht 2ème oder 1ère).",
+    "Francuski skraca liczebniki porządkowe za pomocą e, re i er: 2e, 1re, 1er (nie 2ème ani 1ère).",
+    "O francês abrevia os ordinais com e, re e er: 2e, 1re, 1er (e não 2ème ou 1ère).",
+  ],
   review_msg_fr_determiner_noun: [
     "A determiner is followed by a noun, not a verb form: the noun is spelled differently (le carré, sa sortie, un développement).",
     "Un déterminant est suivi d’un nom, pas d’une forme verbale : le nom s’écrit autrement (le carré, sa sortie, un développement).",
