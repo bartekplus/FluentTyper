@@ -307,6 +307,7 @@ export type ReviewMessageKey =
   | "review_msg_spanish_agreement"
   | "review_msg_spanish_comma"
   | "review_msg_spanish_verb_agreement"
+  | "review_msg_spanish_pronoun_article"
   // French (review/french/)
   | "review_msg_fr_past_participle"
   | "review_msg_fr_infinitive"

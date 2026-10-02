@@ -2290,6 +2290,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "W hiszpańskim czasownik zgadza się z podmiotem, podobnie jak opisujący go przymiotnik lub imiesłów.",
     "Em espanhol, o verbo concorda com o sujeito, tal como o adjetivo ou particípio que o descreve.",
   ],
+  review_msg_spanish_pronoun_article: [
+    "In Spanish a noun takes an article here, not the pronoun le, les or os: el tiempo, las medidas.",
+    "En espagnol, ce nom prend un article, pas le pronom le, les ou os : el tiempo, las medidas.",
+    "U španjolskom ova imenica traži član, a ne zamjenicu le, les ili os: el tiempo, las medidas.",
+    "Delante de un sustantivo va el artículo, no el pronombre le, les u os: el tiempo, las medidas.",
+    "Στα ισπανικά το ουσιαστικό παίρνει άρθρο, όχι την αντωνυμία le, les ή os: el tiempo, las medidas.",
+    "På spanska tar substantivet en artikel här, inte pronomenet le, les eller os: el tiempo, las medidas.",
+    "Im Spanischen steht vor diesem Nomen ein Artikel, nicht das Pronomen le, les oder os: el tiempo, las medidas.",
+    "W hiszpańskim ten rzeczownik wymaga rodzajnika, a nie zaimka le, les czy os: el tiempo, las medidas.",
+    "Em espanhol, este substantivo leva artigo, não o pronome le, les ou os: el tiempo, las medidas.",
+  ],
   // French (review/french/)
   review_msg_fr_past_participle: [
     "After avoir or être, French uses the past participle (-é), not the infinitive (-er).",
