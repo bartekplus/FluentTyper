@@ -11,6 +11,7 @@ import * as missingVerbSlots from "./missingVerbSlots";
 import * as determinerSlots from "./determinerSlots";
 import * as agreementSlots from "./agreementSlots";
 import * as adverbSlots from "./adverbSlots";
+import * as confusionSlots from "./confusionSlots";
 import * as dialects from "./dialects";
 import * as lexical from "./lexical";
 import * as remaining from "./remaining";
@@ -51,6 +52,7 @@ const MODULES = [
   determinerSlots,
   agreementSlots,
   adverbSlots,
+  confusionSlots,
 ];
 export const EXTENSION_PHRASES = MODULES.flatMap((m) => m.PHRASES);
 export const EXTENSION_COMPOUNDS = MODULES.flatMap((m) => m.COMPOUNDS);
