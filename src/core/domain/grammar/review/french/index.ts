@@ -8,6 +8,10 @@ import * as homophones from "./homophones";
 import * as hyphenation from "./hyphenation";
 import * as nounNumber from "./nounNumber";
 import * as verbForms from "./verbForms";
+import * as tout from "./tout";
+import * as mood from "./mood";
+import * as negation from "./negation";
+import * as smallWords from "./smallWords";
 
 const MODULES = [
   verbForms,
@@ -19,5 +23,9 @@ const MODULES = [
   nounNumber,
   gender,
   adjectives,
+  tout,
+  mood,
+  negation,
+  smallWords,
 ];
 export const FRENCH_DETECTORS = MODULES.flatMap((m) => m.DETECTORS);

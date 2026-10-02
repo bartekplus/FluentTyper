@@ -45,31 +45,60 @@ const B = "(?<![\\p{L}\\p{N}_])";
 const E = "(?![\\p{L}\\p{N}_])";
 const WEEKDAY = `(?:(?<weekday>${WEEKDAY_NAMES})[ \\t]*,?[ \\t]+)?`;
 const DATES = [
-  // "vendredi 28 août 2014", "le 31 septembre", "1er mars"
+  // "vendredi 28 août 2014", "le 31 septembre", "1er mars", "le 32 janvier"
   new RegExp(
-    `${B}${WEEKDAY}(?<day>\\d{1,2})(?:er)?[ \\t]+(?<month>${MONTH_NAMES})(?:[ \\t]+(?<year>\\d{4}))?${E}`,
+    `${B}${WEEKDAY}(?<day>\\d{1,4})(?:er)?[ \\t]*[ \\t/-][ \\t]*(?<month>${MONTH_NAMES})(?:[ \\t/-]+(?<year>\\d{4}))?${E}`,
     "giud",
   ),
-  // "28/08/2014", "31-09-1969", "28/août/2014"
+  // "28/08/2014", "31-09-1969", "31.11.89", "28/août/2014"
   new RegExp(
-    `${B}${WEEKDAY}(?<day>\\d{1,2})(?<sep>[/-])(?<month>\\d{1,2}|${MONTH_NAMES})\\k<sep>(?<year>\\d{4})${E}`,
+    `${B}${WEEKDAY}(?<day>\\d{1,4})(?<sep>[/.-])(?<month>\\d{1,2}|${MONTH_NAMES})\\k<sep>(?<year>\\d{4}|\\d{2})${E}`,
+    "giud",
+  ),
+  // "le 31/04", "née le 30.02": a day and a month after "le" or "du".
+  new RegExp(
+    `(?<=${B}(?:le|du|au)[ \\t]+)(?<day>\\d{1,4})(?<sep>[/.])(?<month>\\d{1,2})(?![\\p{L}\\p{N}_/]|[.,/]\\d)`,
     "giud",
   ),
   // "vendredi 2014/08/28"
   new RegExp(`${B}${WEEKDAY}(?<year>\\d{4})/(?<month>\\d{1,2})/(?<day>\\d{1,2})${E}`, "giud"),
 ];
 
+/** A day or month no calendar has ("32 janvier", "11/50/2014"): flagged, nothing to offer. */
+function impossible(m: RegExpExecArray): RawFinding {
+  const [start] = m.indices!.groups!.day;
+  const end = m.index + m[0].length;
+  return {
+    ruleId: RULE,
+    messageKey: MESSAGE,
+    range: { start: Math.min(start, m.index + (m.groups!.weekday?.length ?? 0)), end },
+    alternatives: [],
+    warningOnly: true,
+  };
+}
+
 function checkDate(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   const { weekday, day, month, year } = m.groups!;
+  if (namedExampleBefore(ctx.text, m.index)) return null;
   const monthNumber = monthIndex(month);
-  if (monthNumber < 0 || monthNumber > 11) return null;
   const dayNumber = Number(day);
-  const yearNumber = year ? Number(year) : undefined;
-  if (!dayNumber || namedExampleBefore(ctx.text, m.index)) return null;
+  // "le 300 janvier" is a slip for a day; "les 300 janvier" or "1500 mai" are other numbers.
+  const dated = /(?:^|[^\p{L}])(?:le|du|au|né|née)[ \t]+$/iu.test(
+    ctx.text.slice(Math.max(0, m.index - 8), m.index),
+  );
+  const numeric = /^\d+$/.test(month);
+  if (day.length > 2 && (!dated || numeric)) return null;
+  if (monthNumber < 0 || monthNumber > 11 || dayNumber > 31) {
+    // "01/31/2014" reads as a month-first date: only a pair impossible both ways is flagged.
+    const swapped = numeric && Number(month) <= 31 && dayNumber >= 1 && dayNumber <= 12;
+    return dated && !swapped ? impossible(m) : null;
+  }
+  // A two-digit year leaves leap years open.
+  const yearNumber = year && year.length === 4 ? Number(year) : undefined;
+  if (!dayNumber) return null;
   const [dayStart] = m.indices!.groups!.day;
   const last = daysIn(monthNumber, yearNumber);
   if (dayNumber > last) {
-    if (dayNumber > 31) return null;
     const choices = monthNumber === 1 && yearNumber === undefined ? ["28", "29"] : [String(last)];
     return {
       ruleId: RULE,

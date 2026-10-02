@@ -113,6 +113,13 @@ export interface GrammarRuleCatalogEntry {
     | "englishIrregularForms"
     | "englishPossessiveNouns"
     | "englishDateConsistency"
+    // English tables and typography (review/english/, en-tables2).
+    | "englishApostrophes"
+    | "englishNotation"
+    | "englishTypography"
+    | "stylePassiveVoice"
+    | "englishPunctuation"
+    | "styleIntroductoryComma"
     // Polish-only Review checks (review/polish/).
     | "polishNumerals"
     | "polishDates"
@@ -133,6 +140,9 @@ export interface GrammarRuleCatalogEntry {
     | "frenchNounNumber"
     | "frenchNounGender"
     | "frenchAdjectiveAgreement"
+    | "frenchTout"
+    | "frenchMood"
+    | "frenchMissingNe"
     | "quoteSpacing"
     | "primeSymbols"
     // German-only Review checks (review/german/).
