@@ -116,6 +116,24 @@ function agreesWithNext(at: Around, accented: string): boolean {
   return (noun.gender === "f") === own.feminine;
 }
 
+/** No finite verb after the word before the sentence ends: "Critica de cine.". */
+function verbless(at: Around): boolean {
+  for (let k = 1; k <= 8; k++) {
+    if (at.endsAfter(k - 1)) return true;
+    const word = at.next(k);
+    if (!word) return true;
+    if (
+      /^(?:es|son|era|fue|está|están|hay|ha|han|ve|va|da|dio|vio|hace|tiene|puede|dice)$/u.test(
+        word,
+      )
+    )
+      return false;
+    if (PREPOSITIONS.has(word) || COMMON_DETERMINERS.has(word) || CONJUNCTIONS.has(word)) continue;
+    if (finiteVerb(word) && !isNoun(word) && !attribute(word) && !genderedForm(word)) return false;
+  }
+  return false;
+}
+
 /** "termino" -> "término" where a noun or adjective goes, not a verb. */
 function nominal(at: Around): string | null {
   const word = at.tokens[at.i].lower;
@@ -130,6 +148,30 @@ function nominal(at: Around): string | null {
   )
     return null;
   if (DETERMINERS.has(prev) || DEGREE.has(prev) || SER.has(prev)) return accented;
+  // "Capitulo 3", "las paginas 3 y 4": a number after it counts or labels a noun.
+  const numbered = /^\p{N}/u.test(at.tokens[at.i + 1]?.text ?? "") && !at.tokens[at.i + 1].broken;
+  if (numbered && (at.starts || /^(?:la|las|los)$/u.test(prev))) return accented;
+  // "Critica de cine.", "Optimas prestaciones.", "La ultima.": a heading or a fragment with no
+  // verb of its own opens with the noun or adjective, not with a verb.
+  const opener =
+    at.starts ||
+    (/^(?:la|las|los)$/u.test(prev) &&
+      at.tokens[at.i - 1] &&
+      new Around(at.tokens, at.i - 1).starts);
+  if (opener && verbless(at)) {
+    if (/^(?:la|las|los)$/u.test(prev) && at.endsAfter() && agreesWithArticle(prev, accented))
+      return accented;
+    // "Termino de trabajar", "Practica de lunes a viernes": a verb before "de" and an
+    // infinitive or a time; a short heading ("Lineas de actuación") has neither.
+    const after = at.next(2);
+    const heading =
+      (next === "de" || next === "del") &&
+      at.endsAfter(2) &&
+      !!after &&
+      !isInfinitive(after) &&
+      !TIME.has(after);
+    if (at.starts && (heading || agreesWithNext(at, accented))) return accented;
+  }
   if (DEMONSTRATIVES.has(prev) && PREPOSITIONS.has(at.prev(2))) return accented;
   // "No había termino medio": the impersonal "haber" takes a noun.
   if (/^(?:hay|había|habrá|hubo|haya|habría)$/u.test(prev)) return accented;

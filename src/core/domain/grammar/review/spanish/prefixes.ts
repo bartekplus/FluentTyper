@@ -1,6 +1,6 @@
 import { namedExampleBefore } from "../exampleCues";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
-import { readNoun } from "./agreement";
+import { DETERMINER, readNoun } from "./agreement";
 import { Around, carryCase, CLITICS, keepsTyped, tokenize, words } from "./common";
 import { attribute, finiteVerb, genderedForm, isGenderedEntry, isNoun, plain } from "./lexicon";
 
@@ -15,7 +15,10 @@ const BOUND =
 // Prefixes that are also words ("ex", "pro", "tele", "foto", "euro"): joined when hyphenated,
 // or apart when the joined form is a word the dictionary knows ("micro biología").
 const FREE =
-  "ex|pro|des|post|poli|tele|video|foto|euro|afro|micro|macro|mini|ultra|super|súper|auto|radio|bio|eco|socio|mega|giga|kilo|zoo|extra|astro|hispano|anglo|franco|luso|físico|químico";
+  "ex|pro|des|post|poli|tele|video|foto|euro|afro|micro|macro|mini|ultra|super|súper|auto|radio|bio|eco|socio|mega|giga|kilo|zoo|extra|astro|hispano|anglo|franco|luso|físico|químico|cuasi";
+// Free prefixes that join any adjective they grade: "pro democrático", "ultra conservador",
+// "cuasi perfecto"; the words themselves stand before nouns ("los pro y los contra").
+const GRADING = new Set(["pro", "ultra", "cuasi", "super", "súper"]);
 const PATTERN = new RegExp(
   `(?<![\\p{L}\\p{N}\\-'’@/#.])(${BOUND}|${FREE})(?:(-)|[ \\t]+)(\\p{Ll}[\\p{Ll}\\p{M}]{2,})(?![\\p{L}\\p{N}\\-'’@/])`,
   "giu",
@@ -42,9 +45,18 @@ function prefixes(ctx: DetectContext): RawFinding[] {
   for (let m = regex.exec(ctx.scanText); m && m.index < ctx.to; m = regex.exec(ctx.scanText)) {
     if (m.index < ctx.from) continue;
     const [typed, prefix, hyphen, word] = m;
+    const lower = word.toLowerCase();
+    // "un súper cercano": after a determiner the word is the noun (the supermarket).
+    const before = /(\p{L}+)[ \t]+$/u.exec(ctx.text.slice(Math.max(0, m.index - 24), m.index));
+    const graded =
+      GRADING.has(prefix.toLowerCase()) &&
+      !!genderedForm(lower) &&
+      !isNoun(lower) &&
+      !DETERMINER.has(before?.[1].toLowerCase() ?? "");
     if (
       !hyphen &&
       FREE_SET.has(prefix.toLowerCase()) &&
+      !graded &&
       !knownWord(join(prefix.toLowerCase(), word))
     )
       continue;
@@ -139,10 +151,33 @@ function splitCompounds(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+// "pilla-pilla", "taca-taca": a doubled word is one compound.
+const DOUBLED = /(?<![\p{L}\p{N}\-'’@/#.])([a-zñ]{2,5})-([a-zñ]{2,5})(?![\p{L}\p{N}\-'’@/])/gu;
+
+function doubled(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  const regex = new RegExp(DOUBLED);
+  regex.lastIndex = Math.max(0, ctx.from - 16);
+  for (let m = regex.exec(ctx.scanText); m && m.index < ctx.to; m = regex.exec(ctx.scanText)) {
+    if (m.index < ctx.from || m[1] !== m[2] || ctx.dictionary.has(m[0].toLowerCase())) continue;
+    if (namedExampleBefore(ctx.text, m.index)) continue;
+    findings.push({
+      ruleId: RULE,
+      messageKey: "review_msg_closed_compound",
+      range: { start: m.index, end: m.index + m[0].length },
+      alternatives: [`${m[1]}${m[2]}`],
+      bulkBlock: "context-dependent",
+    });
+  }
+  return findings;
+}
+
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
   {
     rules: [RULE],
     detect: (ctx) =>
-      ctx.lang.slice(0, 2) === "es" ? [...prefixes(ctx), ...splitCompounds(ctx)] : [],
+      ctx.lang.slice(0, 2) === "es"
+        ? [...prefixes(ctx), ...splitCompounds(ctx), ...doubled(ctx)]
+        : [],
   },
 ];

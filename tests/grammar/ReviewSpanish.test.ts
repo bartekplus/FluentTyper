@@ -1345,6 +1345,46 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
       ],
     },
   ],
+  [
+    "spanishConfusions",
+    "grading prefixes before an adjective and doubled words",
+    {
+      pos: [
+        ["Es un grupo pro europeo.", "Es un grupo proeuropeo."],
+        ["Lleva una vida cuasi perfecta.", "Lleva una vida cuasiperfecta."],
+        ["Tiene ideas ultra modernas.", "Tiene ideas ultramodernas."],
+        ["Los niños jugaban al pilla-pilla.", "Los niños jugaban al pillapilla."],
+        ["No me vengas con el bla-bla de siempre.", "No me vengas con el blabla de siempre."],
+      ],
+      neg: [
+        "Compramos en un súper cercano.",
+        "Hablamos de los pros y los contras.",
+        "Se oía el tic-tac del reloj.",
+        "Es un súper héroe de cómic.",
+        "Votó en pro de la reforma.",
+      ],
+    },
+  ],
+  [
+    "spanishAccents",
+    "nouns opening a heading or before a number",
+    {
+      pos: [
+        ["Capitulo 7.", "Capítulo 7."],
+        ["Lee la pagina 12 del libro.", "Lee la página 12 del libro."],
+        ["Critica de teatro.", "Crítica de teatro."],
+        ["Las ultimas.", "Las últimas."],
+        ["Lideres del grupo.", "Líderes del grupo."],
+      ],
+      neg: [
+        "Termino de cenar.",
+        "Practica de noche.",
+        "Critica a sus amigos.",
+        "Practica la natación los lunes.",
+        "Critica de todo lo que ve.",
+      ],
+    },
+  ],
 ];
 
 describe.each(FIXTURES)("%s: %s", (ruleId, _family, fixture) => {
