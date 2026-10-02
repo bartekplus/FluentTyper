@@ -1519,6 +1519,19 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     recommended: false,
     priority: 120,
   },
+  {
+    id: "germanQuestionMarks",
+    typing: false,
+    name: "German questions ending in a full stop",
+    titleI18nKey: "review_msg_german_question_mark",
+    descriptionI18nKey: "review_msg_german_question_mark",
+    exampleI18nKey: "",
+    languageScope: "all",
+    safetyTier: "advanced",
+    defaultRollout: "off",
+    recommended: false,
+    priority: 100,
+  },
 ] as const;
 
 export type CatalogRuleId = (typeof GRAMMAR_RULE_CATALOG)[number]["id"];

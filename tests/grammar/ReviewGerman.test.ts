@@ -315,6 +315,27 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
     },
   ],
   [
+    "germanQuestionMarks",
+    {
+      pos: [
+        ["Wohin fährst du morgen.", "Wohin fährst du morgen?"],
+        ["Kannst du mir kurz helfen.", "Kannst du mir kurz helfen?"],
+        ["Wieso denn nicht.", "Wieso denn nicht?"],
+        ["Das passt so, oder.", "Das passt so, oder?"],
+        ["Mit wem gehst du hin.", "Mit wem gehst du hin?"],
+      ],
+      neg: [
+        "Wie besprochen. Bis morgen.",
+        "Was mich stört ist der Lärm.",
+        "Wer zuerst kommt, mahlt zuerst.",
+        "Wie wunderbar.",
+        "Habt Geduld.",
+        "Hätte ich das gewusst wäre ich gekommen.",
+        "Er fragte: Wann kommst du.",
+      ],
+    },
+  ],
+  [
     "germanVerbAgreement",
     {
       pos: [
@@ -503,6 +524,7 @@ test("no German chunk stalls on repeated determiners and lowercase nouns", () =>
     `der ${"\t ".repeat(3_000)}vertrag`,
     "ich glaube weil um zu wissen was ob sondern ".repeat(300),
     "Wir habe. Sollte wir du kann ich hast ".repeat(300),
+    `Wann ${"kommst du ".repeat(2_000)}. Wie viel kostet das. Hast du Zeit, oder.`,
   ];
   slowest(inputs.join("\n"));
   for (const text of inputs) expect(slowest(text)).toBeLessThan(100);

@@ -142,6 +142,7 @@ export interface GrammarRuleCatalogEntry {
     | "germanCompounds"
     | "germanCommas"
     | "germanVerbAgreement"
+    | "germanQuestionMarks"
     | "greekFinalNu"
     | "greekStrictFinalNu"
     | "greekQuestionAccent"

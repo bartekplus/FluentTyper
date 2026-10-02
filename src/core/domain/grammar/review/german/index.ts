@@ -11,6 +11,7 @@ import * as dates from "./dates";
 
 import * as commas from "./commas";
 import * as compounds from "./compounds";
+import * as questions from "./questions";
 import * as verbAgreement from "./verbAgreement";
 
 const MODULES = [
@@ -25,5 +26,6 @@ const MODULES = [
   quotes,
   commas,
   verbAgreement,
+  questions,
 ];
 export const GERMAN_DETECTORS = MODULES.flatMap((m) => m.DETECTORS);

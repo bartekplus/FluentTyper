@@ -2402,6 +2402,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Czasownik nie zgadza się z podmiotem: wir haben, du kannst, ich habe.",
     "O verbo não concorda com o sujeito: wir haben, du kannst, ich habe.",
   ],
+  review_msg_german_question_mark: [
+    "This sentence reads as a question: end it with a question mark.",
+    "Cette phrase se lit comme une question : terminez-la par un point d’interrogation.",
+    "Ova rečenica glasi kao pitanje: završite je upitnikom.",
+    "Esta oración se lee como una pregunta: termínela con signo de interrogación.",
+    "Η πρόταση διαβάζεται ως ερώτηση: τελειώστε τη με ερωτηματικό.",
+    "Meningen läses som en fråga: avsluta den med frågetecken.",
+    "Der Satz ist eine Frage: Er endet mit einem Fragezeichen.",
+    "To zdanie brzmi jak pytanie: zakończ je znakiem zapytania.",
+    "Esta frase é uma pergunta: termine-a com ponto de interrogação.",
+  ],
 };
 
 /**
