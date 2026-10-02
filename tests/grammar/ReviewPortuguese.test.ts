@@ -311,6 +311,8 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
     {
       pos: [
         ["Não diga-me isso agora.", "Não me diga isso agora."],
+        ["Já eu conhecia-te naquela época.", "Já eu te conhecia naquela época."],
+        ["Todos eles deram-lhe razão.", "Todos eles lhe deram razão."],
         ["Nunca contou-lhe a verdade.", "Nunca lhe contou a verdade."],
         ["Ninguém lembrou-se do prazo.", "Ninguém se lembrou do prazo."],
         ["Todos admiram-se da coragem dela.", "Todos se admiram da coragem dela."],

@@ -21,7 +21,7 @@ const ATTRACTORS =
 const SIMPLE = "me|te|se|lhe|lhes|nos|vos";
 // "bebemo-lo", "dão-no", "conhecia-a": the forms "o/a" take after -r/-s/-z, a nasal or a vowel.
 const OBJECT = "l[oa]s?|n[oa]s?|[oa]s?";
-const PROCLISIS = `(?<attractor>${ATTRACTORS})${SPACE}(?<target>(?<verb>\\p{Ll}+)-(?<pronoun>${SIMPLE}|${OBJECT}))${WORD_END}`;
+const PROCLISIS = `(?<attractor>${ATTRACTORS})${SPACE}(?:(?:eu|tu|ele|ela|eles|elas|nós|vós|você|vocês)${SPACE})?(?<target>(?<verb>\\p{Ll}+)-(?<pronoun>${SIMPLE}|${OBJECT}))${WORD_END}`;
 // "dir-lhe-ei", "amá-la-ei", "far-nos-iam".
 const FUTURE_ENDINGS = "ei|ás|á|emos|eis|ão|ia|ias|íamos|íeis|iam";
 const MESOCLITIC = `(?:${ATTRACTORS})${SPACE}(?<target>(?<stem>\\p{Ll}+)-(?<pronoun>${SIMPLE}|l[oa]s?)-(?<ending>${FUTURE_ENDINGS}))${WORD_END}`;
