@@ -32,6 +32,14 @@ test("a determiner before a bare verb or a verb phrase is repaired", () => {
     ["The will bring snacks.", "They will bring snacks."],
     ["If the hired a guide, they would know.", "If they hired a guide, they would know."],
     ["The also sell bread.", "They also sell bread."],
+    ["We waited a week for their respond.", "We waited a week for their response."],
+    ["His withdraw surprised the team.", "His withdrawal surprised the team."],
+    [
+      "She twisted her ankle and the injure healed slowly.",
+      "She twisted her ankle and the injury healed slowly.",
+    ],
+    ["Check the expire date first.", "Check the expiry date first."],
+    ["Our arrive was late because of fog.", "Our arrival was late because of fog."],
   ]) {
     const found = scan(input);
     expect({ input, count: found.length }).toEqual({ input, count: 1 });
@@ -51,6 +59,9 @@ test("nouns, compounds and participle adjectives stay silent", () => {
     "The install script failed.",
     "Let her decide.",
     "The allowed amount is small.",
+    "The suspect is on the lose again.",
+    "Fuel with an oxygenate added burns cleaner.",
+    "Help her respond to the letter.",
   ])
     expect({ text, found: scan(text).map((d) => d.original) }).toEqual({ text, found: [] });
 });

@@ -27,6 +27,9 @@ import * as negationSlots from "./negationSlots";
 import * as relativeSlots from "./relativeSlots";
 import * as questionSlots from "./questionSlots";
 import * as comparisonSlots from "./comparisonSlots";
+import * as collocationSlots from "./collocationSlots";
+import * as tenseSlots from "./tenseSlots";
+import * as noNotSlots from "./noNotSlots";
 import * as dialects from "./dialects";
 import * as lexical from "./lexical";
 import * as remaining from "./remaining";
@@ -73,6 +76,9 @@ const MODULES = [
   relativeSlots,
   questionSlots,
   comparisonSlots,
+  collocationSlots,
+  tenseSlots,
+  noNotSlots,
   apostrophes,
   properNames,
   typography,

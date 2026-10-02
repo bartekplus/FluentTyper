@@ -3,7 +3,7 @@ import { VERB_HOMOGRAPHS, VERB_LEMMAS, VERB_RULES } from "./frenchLexicon.genera
 import { ADJECTIVE_LEMMAS, ADJECTIVE_RULES } from "./frenchAdjectives.generated";
 import { FEMININE, MASCULINE } from "./frenchGender.generated";
 import { NOUN_BLOOM } from "./frenchNouns.generated";
-import { COMPOUNDS } from "./frenchCompounds.generated";
+import { COMPOUNDS, LONG_COMPOUNDS } from "./frenchCompounds.generated";
 
 /** Subject persons as bits: je, tu, il/elle/on, nous, vous, ils/elles. */
 export const JE = 1;
@@ -188,6 +188,23 @@ export function isDictionaryCompound(word: string): boolean {
   return compounds.has(word);
 }
 
+let longCompounds: Map<string, string[]> | null = null;
+
+/** The dictionary's hyphenated names and three-part compounds whose first part is `first`
+ * (case as typed): "Aix" -> ["Aix-en-Provence", "Aix-la-Chapelle", ...]. */
+export function compoundsStartingWith(first: string): readonly string[] {
+  if (!longCompounds) {
+    longCompounds = new Map();
+    for (const word of decodeFrontCoded(LONG_COMPOUNDS)) {
+      const key = word.slice(0, word.indexOf("-"));
+      const list = longCompounds.get(key) ?? [];
+      list.push(word);
+      longCompounds.set(key, list);
+    }
+  }
+  return longCompounds.get(first) ?? [];
+}
+
 let nounBloom: Uint8Array | null = null;
 
 /** Whether the dictionary inflects this lowercase word as a noun or adjective (a Bloom filter:
@@ -317,7 +334,12 @@ export function nounGender(word: string): Gender | null {
     for (const w of decodeFrontCoded(MASCULINE)) genders.set(w, "m");
     for (const w of decodeFrontCoded(FEMININE)) genders.set(w, "f");
   }
-  return genders.get(word) ?? (isInflectedNoun(word) ? suffixGender(word) : null);
+  const listed = genders.get(word);
+  if (listed || !isInflectedNoun(word)) return listed ?? null;
+  // "invité": an ending a gendered adjective or noun form contradicts tells nothing.
+  const suffix = suffixGender(word);
+  if (suffix && adjectiveReadings(word).some((r) => r.slot[0] !== suffix)) return null;
+  return suffix;
 }
 
 /** Masculine/feminine and singular/plural. */
