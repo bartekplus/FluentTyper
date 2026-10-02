@@ -69,6 +69,20 @@ export const WORDS: readonly PhraseRow[] = [
 ];
 
 export const PHRASES: readonly PhraseRow[] = [
+  // "ogół" (the whole) against "ogól" (shave!).
+  ["na ogól", "na ogół"],
+  ["w ogól", "w ogóle"],
+  ["ogól społeczeństwa", "ogół społeczeństwa"],
+  // "łaska" is grace, "laska" a cane.
+  ["boża laska", "boża łaska"],
+  ["bożej laski", "bożej łaski"],
+  ["bożą laskę", "bożą łaskę"],
+  ...["dostąpić", "dostąpił", "dostąpiła", "dostąpili", "dostąpiły", "dostąpi"].map(
+    (verb): PhraseRow => [`${verb} laski`, `${verb} łaski`],
+  ),
+  // "cześć" is a greeting or honour, "część" a part.
+  ["oddać część", "oddać cześć"],
+  ["oddali część", "oddali cześć"],
   // Garbled set phrases.
   ["raz zarazem", "raz za razem"],
   ["a pro po", "à propos"],
@@ -444,7 +458,7 @@ export const FRAMES: readonly Frame[] = [
   },
   // "część" (part) and "cześć" (honour, hello).
   {
-    pattern: `(?<=(?:^|[^\\p{L}])(?:pierwsz|drug|trzeci|czwart|piąt|ostatni|kolejn|następn|dalsz|większ|mniejsz|spor|duż|znaczn|niewielk|integraln|główn|zasadnicz|dolni|górn|przedni|tyln|środkow|północn|południow|wschodni|zachodni|każd|tę|ta)(?:a|ą)?${S})(?<target>cześć)${NOT_LETTER}`,
+    pattern: `(?<=(?:^|[^\\p{L}])(?:pierwsz|drug|trzeci|czwart|piąt|kolejn|następn|dalsz|większ|mniejsz|spor|duż|znaczn|niewielk|integraln|główn|zasadnicz|dolni|górn|przedni|tyln|środkow|północn|południow|wschodni|zachodni|każd|tę|ta)(?:a|ą)?${S})(?<target>cześć)${NOT_LETTER}`,
     fix: "część",
     ...CONFUSION,
   },
@@ -849,6 +863,19 @@ export const FRAMES: readonly Frame[] = [
   {
     pattern: `(?<=piw\\p{Ll}*(?:,?${S}\\p{Ll}+){0,3}${S})(?<target>naważ\\p{Ll}*)`,
     fix: (m) => m.groups!.target.replace("naważ", "nawarz"),
+    ...CONFUSION,
+  },
+  // "cześć druga", "Cześć IV" -> "część": an ordinal after the noun counts parts too.
+  {
+    pattern: `(?<target>cześć)(?=${S}(?:pierwsz|drug|trzeci|czwart|piąt|szóst|końcow)\\p{Ll}{0,3}${NOT_LETTER}|${S}(?<numeral>[IVX]{1,4})${NOT_LETTER})`,
+    // Frames ignore case: a Roman numeral must be capitals ("cześć i chwała" stays).
+    fix: (m) => (!m.groups!.numeral || /^[IVX]+$/u.test(m.groups!.numeral) ? "część" : null),
+    ...CONFUSION,
+  },
+  // "na jednaj z ławek" -> "jednej" ("jednaj" is "win over!").
+  {
+    pattern: `(?<target>jednaj)(?=${S}(?:z|ze|\\p{Ll}+(?:i|y|ej))${NOT_LETTER})`,
+    fix: "jednej",
     ...CONFUSION,
   },
   // "anie" (no word) for "a nie".
