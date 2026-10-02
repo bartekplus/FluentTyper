@@ -428,6 +428,7 @@ export const PHRASES: readonly PhraseRow[] = [
   ["si dessous", "ci-dessous"],
   ["comme-ci comme-ça", "comme ci comme ça"],
   ["plus mieux", "mieux"],
+  ["mille merci", "mille mercis"],
   ["de d'autres", "d'autres"],
   // "an" counts whole years; a year lived or described is "année".
   ["chaque an", "chaque année"],

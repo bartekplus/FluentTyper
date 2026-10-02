@@ -261,6 +261,40 @@ function ageInYears(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   );
 }
 
+const NUMBER_WORDS = new Set(
+  (
+    "un une deux trois quatre cinq six sept huit neuf dix onze douze treize quatorze quinze seize " +
+    "vingt trente quarante cinquante soixante cent mille et"
+  ).split(" "),
+);
+const MULTIPLIERS = new Set("deux trois quatre cinq six sept huit neuf".split(" "));
+
+/** "trois cent timbres" -> "cents", "deux cents trois" -> "cent", "quatre-vingt ans" -> "vingts":
+ * a multiplied cent or vingt takes an s only when it ends the number. */
+function hundreds(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const typed = m.groups!.unit;
+  const start = m.index + m[0].length - typed.length;
+  const before = m.groups!.times.toLowerCase();
+  if (!MULTIPLIERS.has(before) && before !== "quatre") return null;
+  const lower = typed.toLowerCase();
+  if ((lower === "vingt" || lower === "vingts") && before !== "quatre") return null;
+  const rest = ctx.text.slice(start + typed.length);
+  const next = tokensAfter(ctx.text, start + typed.length, 1)[0];
+  // A hyphenated number goes on ("quatre-vingt-dix"), a digit or a word continues it.
+  if (/^-\p{L}/u.test(rest)) return null;
+  const ends = !next || !/^[\s  ]+\p{L}/u.test(rest) || !NUMBER_WORDS.has(next.w);
+  const plural = lower.endsWith("s");
+  // "deux cents millions": millions and milliards are nouns.
+  if (ends === plural) return null;
+  if (!ends && plural && next && /^(?:millions?|milliards?)$/.test(next.w)) return null;
+  if (!next || !/^[\s  ]+\p{L}/u.test(rest)) return null;
+  const fixed = plural ? lower.slice(0, -1) : `${lower}s`;
+  return wordFinding(ctx, start, typed, [fixed], RULE, MESSAGE, {
+    start: m.index,
+    end: next.end,
+  });
+}
+
 const SMALL =
   /(?<![\p{L}\p{M}\p{N}_'’-])(?:ni|si|ci|sans|mes|mai|mas|dans|dan|leurs|mêmes|et|est)(?![\p{L}\p{M}\p{N}_'’-])/giu;
 const DAVANTAGE = /(?<![\p{L}\p{M}\p{N}_-])d['’]avantage(?![\p{L}\p{M}\p{N}_'’-])/giu;
@@ -270,6 +304,9 @@ const QUEL_QUE_SOIT =
 const AGE =
   /(?<![\p{L}\p{M}\p{N}_'’-])(?:\d+|deux|trois|quatre|cinq|six|sept|huit|neuf|dix|onze|douze|vingt|trente|quarante|cinquante|soixante|cent)[ \t]+(?<years>années)(?![\p{L}\p{M}\p{N}_'’-])/giu;
 
+const HUNDREDS =
+  /(?<![\p{L}\p{M}\p{N}_'’-])(?<times>\p{L}+)[ \t-]+(?<unit>cents?|vingts?)(?![\p{L}\p{M}\p{N}_'’])/giu;
+
 function smallWords(ctx: DetectContext): RawFinding[] {
   if (ctx.lang.slice(0, 2) !== "fr") return [];
   const findings: RawFinding[] = [];
@@ -278,6 +315,7 @@ function smallWords(ctx: DetectContext): RawFinding[] {
     [DAVANTAGE, davantage],
     [QUEL_QUE_SOIT, quelQueSoit],
     [AGE, ageInYears],
+    [HUNDREDS, hundreds],
   ] as const) {
     for (const m of ownedFrenchWords(ctx, pattern)) {
       const finding = check(ctx, m);

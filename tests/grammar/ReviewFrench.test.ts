@@ -669,6 +669,14 @@ test("no French chunk stalls on adversarial input", () => {
     expect(slowest(text)).toBeLessThan(100);
 });
 
+test("French impossible days and months are flagged without a fix", () => {
+  for (const text of ["Elle est née le 32 janvier.", "Il est né le 11/50/2014."]) {
+    const [finding, ...rest] = findings("frenchDates", text);
+    expect(rest).toEqual([]);
+    expect(finding.alternatives).toEqual([]);
+  }
+});
+
 test("French keeps glued hours but spaces other units and currencies", () => {
   expect(findings("measurementUnitFormatting", "Il a couru 10km hier.")).toHaveLength(1);
   expect(findings("currencySpacing", "Le livre coûte 5€.")).toHaveLength(1);
@@ -723,6 +731,13 @@ test.each([
   ["frenchHyphenation", "Porte la valise jusqu'au train."],
   ["frenchHyphenation", "Mets en marche le moteur."],
   ["frenchHyphenation", "Garde la tête haute."],
+  ["frenchDates", "La version 31.4 est sortie."],
+  ["frenchDates", "Il revient le 12.5 au matin."],
+  ["frenchDates", "Les 300 janvier de la série."],
+  ["frenchDates", "Il est né le 29/02/2024."],
+  ["frenchHomophones", "Deux cents millions d'habitants."],
+  ["frenchHomophones", "Trois cent mille euros et quatre-vingt-dix centimes."],
+  ["frenchHomophones", "Le taux atteint trois pour cent."],
   ["frenchHyphenation", "Il compte sur tout le monde."],
   ["frenchHyphenation", "Elle est sous pression."],
   ["frenchHyphenation", "Un verre anti-reflets et un écran auto-bronzant."],
@@ -795,6 +810,16 @@ test.each([
   ["frenchHyphenation", "Regarde la.", "Regarde-la."],
   ["frenchHyphenation", "Prends en un peu.", "Prends-en un peu."],
   ["frenchHyphenation", "Faites les entrer.", "Faites-les entrer."],
+  ["frenchDates", "Il est né le 31.11.1989.", "Il est né le 30.11.1989."],
+  ["frenchDates", "Elle arrive le 31-9-24.", "Elle arrive le 30-9-24."],
+  ["frenchDates", "Elle est née le 31.04.", "Elle est née le 30.04."],
+  ["frenchHomophones", "J'ai acheté trois cent timbres.", "J'ai acheté trois cents timbres."],
+  [
+    "frenchHomophones",
+    "Il a payé deux cents cinquante euros.",
+    "Il a payé deux cent cinquante euros.",
+  ],
+  ["frenchHomophones", "Mon grand-père a quatre-vingt ans.", "Mon grand-père a quatre-vingts ans."],
   ["frenchHyphenation", "Un rapport néo-rural.", "Un rapport néorural."],
   ["frenchHyphenation", "Ils sont sur exploités.", "Ils sont surexploités."],
   ["frenchHyphenation", "Les pays sous développés.", "Les pays sous-développés."],
