@@ -1,5 +1,6 @@
 import type { PhraseRow } from "../englishPhraseTables";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
+import { cases, nounTags, onlyNoun } from "./lexicon";
 import {
   caseLike,
   CLAUSE_START,
@@ -173,7 +174,57 @@ const BOUND: Record<string, string> = {
 };
 const BOUND_WORDS = Object.keys(BOUND).join("|");
 
+/** Words that may stand between "się" and its verb ("się tego właśnie boję"). */
+const CLITIC_RUN = `(?:${S}(?:tego|tej|ich|go|jej|was|nas|ciebie|ich|właśnie|nie|bardzo|trochę|już|wcale|naprawdę|zawsze|też|proszę|pana|pani|państwa)|,)+`;
+const POSSESSIVE =
+  "moja|moją|mojej|twoja|twoją|twojej|jego|jej|ich|nasza|naszą|naszej|wasza|waszą|swoja|swoją|swojej|była|byłą|byłej|przyszła|przyszłą|przyszłej";
+
 export const FRAMES: readonly Frame[] = [
+  // "Ja się tego właśnie boje", "się, proszę pana, nie boje" -> "boję", "boją".
+  {
+    pattern: `(?<=(?:^|[^\\p{L}])się${CLITIC_RUN}${S})(?<target>boje|boja)(?=[ \\t\\u00a0]*[.!?…])`,
+    fix: (m) => (m.groups!.target.toLowerCase() === "boje" ? "boję" : "boją"),
+    ...CONFUSION,
+  },
+  // "tak naprawę" (a repair) -> "tak naprawdę".
+  {
+    pattern: `(?<=(?:^|[^\\p{L}])tak${S})(?<target>naprawę)${NOT_LETTER}`,
+    fix: "naprawdę",
+    ...CONFUSION,
+  },
+  // "rzec jasna", "na rzec fundacji" -> "rzecz".
+  {
+    pattern: `(?<target>rzec)(?=${S}jasna${NOT_LETTER})|(?<=(?:^|[^\\p{L}])na${S})(?<target>rzec)(?=${S}\\p{L})`,
+    fix: "rzecz",
+    ...CONFUSION,
+  },
+  // "stad też", "ni stad, ni zowąd" -> "stąd" (herds are "stada").
+  {
+    pattern: `(?<target>stad)(?=${S}(?:też|więc|wniosek|wynika)${NOT_LETTER})|(?<=(?:^|[^\\p{L}])ni${S})(?<target>stad)${NOT_LETTER}`,
+    fix: "stąd",
+    ...CONFUSION,
+  },
+  // "ni stąd, nie zowąd" -> "ni zowąd".
+  { pattern: `(?<=stąd,?${S})(?<target>nie|n)(?=${S}zowąd${NOT_LETTER})`, fix: "ni", ...CONFUSION },
+  // "nie dal", "dal się", "dal mi" -> "dał" (not "w dal", "z dala").
+  {
+    pattern: `(?<!(?:^|[^\\p{L}])(?:w|we|z|ze|na|tę|ta|tej)${S})(?<target>dal)(?=${S}(?:się|mi|mu|jej|nam|wam|im|ci|go|ją|je|jednak|za${S}wygraną)${NOT_LETTER})|(?<=(?:^|[^\\p{L}])(?:nie|on|który|kto|ten|ojciec|brat)${S})(?<target>dal)${NOT_LETTER}`,
+    fix: "dał",
+    ...CONFUSION,
+    lowercase: true,
+  },
+  // "moja zona" (a zone) -> "moja żona".
+  {
+    pattern: `(?<=(?:^|[^\\p{L}])(?:${POSSESSIVE})${S})(?<target>zon(?:a|y|ie|ę|ą|o))${NOT_LETTER}`,
+    fix: (m) => `ż${m.groups!.target.slice(1)}`,
+    ...CONFUSION,
+  },
+  // "wierze w cuda", "nie wierze" -> "wierzę" (not "w wierze", "o wierze").
+  {
+    pattern: `(?<!(?:^|[^\\p{L}])(?:w|we|o|po|przy|tej|swojej|mojej|naszej|twojej|jego|jej|ich)${S})(?<target>wierze)(?=${S}(?:w|we|że|ci|mu|jej|wam|panu|pani|tobie)${NOT_LETTER}|[ \\t\\u00a0]*[.!?])|(?<=(?:^|[^\\p{L}])(?:nie|ja|już|nadal|wciąż)${S})(?<target>wierze)${NOT_LETTER}`,
+    fix: "wierzę",
+    ...CONFUSION,
+  },
   // Bound words: the preposition is missing; "i angielsku" coordinates with an earlier "po".
   {
     pattern: `(?<!(?:^|[^\\p{L}])(?:${PREPOSITIONS}|i|oraz|lub|albo|czy|a|ani|bądź|ze|od|aż)${S})(?<!,${S}|,)(?<target>(?:${BOUND_WORDS}))${NOT_LETTER}`,
@@ -521,7 +572,7 @@ const ZE_NOT_CONJUNCTION = new Set(
 );
 
 const NEVER_AFTER_PREPOSITION =
-  /^(?:z|ze|w|we|na|do|od|nie|się|to|tak|już|jest|są|był|była|było|byli|będzie|źle|dobrze|zawsze|wtedy|teraz|tu|tam|ktoś|coś|ja|ty|on|ona|ono|oni|one|my|wy|mu|mi|go|jej|ich|nic|nikt|wszyscy|wszystko|jeśli|gdy|kiedy|chociaż|jednak)$/iu;
+  /^(?:z|ze|w|we|na|do|od|za|po|pod|nad|przed|przez|przy|dla|bez|nie|się|to|trzeba|chc(?:ę|e|esz|emy|ecie|ą|iał\p{L}*|ieli\p{L}*|ieć)|tak|już|jest|są|był|była|było|byli|będzie|źle|dobrze|zawsze|wtedy|teraz|tu|tam|ktoś|coś|ja|ty|on|ona|ono|oni|one|my|wy|mu|mi|go|jej|ich|nic|nikt|wszyscy|wszystko|jeśli|gdy|kiedy|chociaż|jednak)$/iu;
 
 function zeForZe(ctx: DetectContext): RawFinding[] {
   if (!isPl(ctx) || (ctx.rules && !ctx.rules.has(CONFUSION.ruleId))) return [];
@@ -530,8 +581,11 @@ function zeForZe(ctx: DetectContext): RawFinding[] {
     const next = m.groups!.next;
     // Names and acronyms ("ze Lwowa", "ze ZUS-u") take the preposition loosely.
     if (/^\p{Lu}/u.test(next) || ZE_NOT_CONJUNCTION.has(next.toLowerCase())) continue;
-    // No preposition takes these: "ze z tą", "ze źle", "ze to".
-    if (!NEVER_AFTER_PREPOSITION.test(next)) {
+    // No preposition takes these: "ze z tą", "ze źle", "ze to", nor a noun in a case "ze"
+    // does not govern ("ze grupa").
+    const tags = nounTags(next.toLowerCase());
+    const clash = onlyNoun(tags) && !(tags & cases("Gs Is As Gp Ip Ap"));
+    if (!NEVER_AFTER_PREPOSITION.test(next) && !clash) {
       // Sibilant onsets take a nonstandard "ze" preposition more often than a typo.
       if (/^(?:[sśzźż]|rz)/iu.test(next)) continue;
       const rest = next.replace(DIGRAPH, "c");

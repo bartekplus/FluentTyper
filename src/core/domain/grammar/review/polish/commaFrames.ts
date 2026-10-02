@@ -1,6 +1,6 @@
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { nounTags, onlyNoun } from "./lexicon";
-import { CLAUSE_START, findingAt, isPl, owned, PREPOSITIONS, userOrNamed } from "./shared";
+import { findingAt, isPl, owned, PREPOSITIONS, userOrNamed } from "./shared";
 
 /*
  * Commas set by fixed words rather than by a clause parse: an indirect question after
@@ -14,6 +14,8 @@ const MISSING = "polishMissingComma" as const;
 const EXTRA = "polishMisplacedComma" as const;
 const SP = "[ \\t\\u00a0]+";
 const END = "(?![\\p{L}\\p{N}])";
+/** A clause starts here; the look-back is bounded so whitespace runs stay linear. */
+const CLAUSE_START = '(?<=(?:^|[.!?…:;]["”’»)]{0,3}[ \\t\\u00a0]{1,8}|\\n[ \\t\\u00a0]{0,8}))';
 
 interface CommaFrame {
   ruleId: typeof MISSING | typeof EXTRA;
