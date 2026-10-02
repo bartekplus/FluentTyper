@@ -92,12 +92,14 @@ import { isLowercaseLetter, isTechnicalToken } from "../implementations/helpers/
 import { graphemeEnd, overlapsSortedRanges } from "./textRanges";
 import { MASK_CHAR, type ReviewMessageKey, type TextRange } from "./types";
 import { EXTENSION_DETECTORS } from "./english";
+import { GERMAN_DETECTORS } from "./german";
 import { DETECTORS as GREEK_DETECTORS } from "./greek/detectors";
 import { DETECTORS as SWEDISH_DETECTORS } from "./swedish/detectors";
 import { DETECTORS as ARABIC_DETECTORS } from "./arabic/detectors";
 import { PORTUGUESE_DETECTORS } from "./portuguese";
 import { POLISH_DETECTORS } from "./polish";
 import { SPANISH_DETECTORS } from "./spanish";
+import { FRENCH_DETECTORS } from "./french";
 
 export { MASK_CHAR };
 export { minimalEdits } from "./textRanges";
@@ -706,6 +708,15 @@ const pronounVerb: Detector = (ctx) => {
         bulkBlock = "context-dependent";
       }
     }
+    // "Sam and I is a band", "you as well as he are", "am I nuts": a coordinated or
+    // compared pronoun, or an inverted question, is not this verb's whole subject. "and you
+    // was right" still opens a clause.
+    const before = ctx.text.slice(Math.max(0, phraseRange.start - 12), phraseRange.start);
+    if (
+      /\b(?:as|than|am|is|are|was|were)[ \t\u00a0]+$/i.test(before) ||
+      (inputPronoun.toLowerCase() !== "you" && /(?:\b(?:and|or|nor)|&)[ \t\u00a0]+$/i.test(before))
+    )
+      continue;
     const gap = phrase.slice(inputPronoun.length, phrase.length - inputVerb.length);
     // The pronoun "i" is always capitalized; the case rule would flag it anyway.
     const fixedPronoun = pronoun === "i" ? "I" : pronoun;
@@ -1038,6 +1049,9 @@ const duplicatePunctuation: Detector = (ctx) => {
   const periods = /(?<=(?![\p{Script=Arabic}])[\p{L}\p{N})\]"”’])\.\.(?=\s|$)/gu;
   for (const match of ownedMatches(ctx, periods)) {
     const start = match.index;
+    // German "am 30.11.." ends a sentence on a date: its own dot, then the period.
+    const before = ctx.text.slice(Math.max(0, start - 8), start);
+    if (ctx.lang.startsWith("de") && /(?:^|[^\d.])\d{1,2}\.\d{1,2}$/.test(before)) continue;
     findings.push({
       ruleId: "duplicatePunctuationCollapse",
       messageKey: "review_msg_duplicate_punctuation",
@@ -1340,7 +1354,8 @@ function measurementLike(
 const REPEATABLE_WORDS: Record<string, string> = {
   en: "the|an|a|is|are|was|were|be|am|in|on|at|for|with|from|of|to|and|or|but|nor|as|by|into|onto|about|than|this|these|those|its|your|our|their|would|should|could|has|been",
   de: "ein|eine|einen|einem|einer|eines|im|mit|von|für|auf|bei|aus|nach|zum|zur|dass|weil|ist|sind|hat|wird|über|unter|durch|ohne|gegen",
-  fr: "le|les|un|une|des|du|au|aux|dans|pour|avec|sur|et|mais|est|sont|par|ce|cette|ces|sans",
+  // "un un": "en acheter un un jour" is a pronoun and an article.
+  fr: "le|les|une|des|du|au|aux|dans|pour|avec|sur|et|mais|est|sont|par|ce|cette|ces|sans",
   es: "el|los|las|un|una|en|con|del|al|y|pero|por|sin|sobre|entre|desde|hasta|este|esta|estos|estas",
   pt: "os|um|uma|em|com|do|da|dos|das|no|na|e|mas|por|pelo|pela|sem|sobre|entre|este|esta|isto|isso",
   pl: "się|na|do|od|dla|przez|że|i|oraz|ale|lub|w|z|o|po|jest|są",
@@ -1436,6 +1451,7 @@ export const LANGUAGE_DETECTORS: readonly ReviewDetectorEntry[] = [
   ...PORTUGUESE_DETECTORS,
   ...POLISH_DETECTORS,
   ...SPANISH_DETECTORS,
+  ...FRENCH_DETECTORS,
 ];
 
 /** Review detectors by rule. Rules absent here are excluded from review (see reviewCatalog). */
@@ -1545,5 +1561,6 @@ export const REVIEW_DETECTORS: ReadonlyArray<ReviewDetectorEntry> = [
     detect: (ctx) => [...measurementLike(ctx, "currencySpacing"), ...currencyPlacement(ctx)],
   },
   ...EXTENSION_DETECTORS,
+  ...GERMAN_DETECTORS,
   ...LANGUAGE_DETECTORS,
 ];

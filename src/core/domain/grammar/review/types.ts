@@ -163,6 +163,9 @@ export type ReviewMessageKey =
   | "review_msg_determiner_clash"
   | "review_msg_double_modal"
   | "review_msg_missing_be"
+  | "review_msg_clause_be"
+  | "review_msg_subject_verb"
+  | "review_msg_adverb_form"
   | "review_msg_couple_of"
   | "review_msg_partitive_of"
   | "review_msg_not_only_inversion"
@@ -215,6 +218,17 @@ export type ReviewMessageKey =
   | "review_msg_irregular_form"
   | "review_msg_noun_possessive"
   | "review_msg_word_boundary"
+  // German-only Review checks (review/german/).
+  | "review_msg_german_noun_case"
+  | "review_msg_german_preposition_case"
+  | "review_msg_german_adjective_ending"
+  | "review_msg_german_suspended_hyphen"
+  | "review_msg_german_abbreviation"
+  | "review_msg_german_quotes"
+  | "review_msg_german_abbreviation_spacing"
+  | "review_msg_german_invalid_date"
+  | "review_msg_german_weekday_date"
+  | "review_msg_german_date_punctuation"
   | "review_msg_greek_final_nu"
   | "review_msg_greek_strict_final_nu"
   | "review_msg_greek_question_accent"
@@ -282,7 +296,18 @@ export type ReviewMessageKey =
   | "review_msg_spanish_lowercase_name"
   | "review_msg_spanish_acronym"
   | "review_msg_spanish_abbreviation"
-  | "review_msg_spanish_date";
+  | "review_msg_spanish_date"
+  // French (review/french/)
+  | "review_msg_fr_past_participle"
+  | "review_msg_fr_infinitive"
+  | "review_msg_fr_vous_verb"
+  | "review_msg_fr_homophone"
+  | "review_msg_fr_hyphen"
+  | "review_msg_fr_subject_verb"
+  | "review_msg_fr_elision"
+  | "review_msg_fr_date"
+  | "review_msg_fr_noun_number"
+  | "review_msg_fr_participle_agreement";
 
 export type BulkDecision =
   | { eligible: true; alternative: number }
