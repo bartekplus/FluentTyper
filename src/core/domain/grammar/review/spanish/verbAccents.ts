@@ -11,7 +11,15 @@ import {
   tokenize,
   words,
 } from "./common";
-import { ACCENTED_NOMINAL, attribute, finiteVerb, isNoun, isVerb, participle } from "./lexicon";
+import {
+  ACCENTED_NOMINAL,
+  attribute,
+  finiteVerb,
+  genderedForm,
+  isNoun,
+  isVerb,
+  participle,
+} from "./lexicon";
 
 // Accents that tell a verb form from its twin: "el termino" (término, the noun), "se creo"
 // (creó, the preterite), "no sabia" (sabía, the imperfect).
@@ -209,6 +217,62 @@ function verbAccent(at: Around): string | null {
   return null;
 }
 
+const DIRECTIONS = words(
+  "abajo arriba adelante atrás afuera adentro allá acá aquí allí delante donde dónde",
+);
+const WEATHER = words("calor frío sol viento fresco bueno malo buen mal");
+const AMOUNTS = words("mucho muchos tanto tantos poco pocos demasiado casi unos unas");
+const TIME_NOUNS = words("tiempo años días meses semanas horas minutos rato siglos");
+const OBJECT_CLITICS = words("lo la los las le les me te se nos os");
+
+/** "Hacia dos años que…", "lo que hacia", "la hacia otra empresa": the imperfect "hacía". */
+function hacia(at: Around): string | null {
+  if (at.tokens[at.i].lower !== "hacia") return null;
+  const prev = at.prev();
+  const next = at.next();
+  const nextToken = at.tokens[at.i + 1];
+  const numeral = /^\p{N}/u.test(nextToken?.text ?? "");
+  if (DIRECTIONS.has(next) || numeral) return null;
+  if (OBJECT_CLITICS.has(prev)) return "hacía";
+  if (COMMON_DETERMINERS.has(next)) return null;
+  // "¿Qué hacia en la calle?", "lo que hacia no importaba".
+  if ((prev === "qué" || (prev === "que" && at.prev(2) === "lo")) && !/^(?:más|ya)$/u.test(next))
+    return "hacía";
+  if (WEATHER.has(next) || (next === "las" && at.next(2) === "veces")) return "hacía";
+  // An amount of time: "hacia mucho tiempo", "hacia dos años que no se veían".
+  if (AMOUNTS.has(next) || NUMBERS.has(next)) {
+    for (let k = 1; k <= 5; k++) {
+      const word = at.next(k);
+      if (TIME_NOUNS.has(word) || word === "que") return "hacía";
+      if (!word) break;
+    }
+  }
+  return null;
+}
+
+const DEGREE_BEFORE = words("muy tan poco más menos bastante demasiado ya");
+const LINKS = words("es era fue está estaba estuvo parece parecía puso quedó quedaba sea");
+
+/** "Esta observación seria correcta": the conditional "sería" before its attribute. */
+function seria(at: Around): string | null {
+  if (at.tokens[at.i].lower !== "seria") return null;
+  const prev = at.prev();
+  if (DEGREE_BEFORE.has(prev) || LINKS.has(prev) || COMMON_DETERMINERS.has(prev)) return null;
+  let k = 1;
+  if (/^(?:más|menos|muy|tan|mucho|bastante)$/u.test(at.next(k))) k++;
+  const next = at.next(k);
+  if (next === "yo" || next === "mejor" || next === "peor") return "sería";
+  if (!next || LEADING.has(next)) return null;
+  const form = genderedForm(next) ?? participle(next);
+  if (form) return form.plural ? null : "sería";
+  // "todo seria más difícil": any adjective after a degree word.
+  return k === 2 && isNoun(next) ? "sería" : null;
+}
+const LEADING = words("otra otro otras otros misma mismo tercera segunda primera cierta");
+const NUMBERS = words(
+  "dos tres cuatro cinco seis siete ocho nueve diez once doce quince veinte treinta cien mil",
+);
+
 function verbAccents(ctx: DetectContext): RawFinding[] {
   if (ctx.lang.slice(0, 2) !== "es") return [];
   const tokens = tokenize(ctx);
@@ -217,7 +281,7 @@ function verbAccents(ctx: DetectContext): RawFinding[] {
     const token = tokens[i];
     if (!token.word || token.start < ctx.from || token.start >= ctx.to) continue;
     const at = new Around(tokens, i);
-    const fix = nominal(at) ?? verbAccent(at);
+    const fix = nominal(at) ?? verbAccent(at) ?? hacia(at) ?? seria(at);
     if (!fix) continue;
     const finding = replaceToken(
       ctx,

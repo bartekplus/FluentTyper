@@ -464,6 +464,31 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
       ],
     },
   ],
+  [
+    "spanishAccents",
+    "hacia/hacía and seria/sería",
+    {
+      pos: [
+        ["Hacia tres meses que no llovía.", "Hacía tres meses que no llovía."],
+        ["Aquel invierno hacia frío.", "Aquel invierno hacía frío."],
+        ["El pan lo hacia mi abuelo.", "El pan lo hacía mi abuelo."],
+        ["Nadie sabía lo que hacia en casa.", "Nadie sabía lo que hacía en casa."],
+        ["Este plan seria perfecto.", "Este plan sería perfecto."],
+        ["Sin ti todo seria más triste.", "Sin ti todo sería más triste."],
+        ["La propuesta seria aprobada mañana.", "La propuesta sería aprobada mañana."],
+      ],
+      neg: [
+        "Caminamos hacia el río.",
+        "Miró hacia atrás.",
+        "Se construyó hacia 1900.",
+        "Avanzan hacia más derechos.",
+        "Una mujer seria.",
+        "Es una persona seria la que necesitamos.",
+        "Se puso seria de repente.",
+        "Supone una seria amenaza.",
+      ],
+    },
+  ],
 ];
 
 describe.each(FIXTURES)("%s: %s", (ruleId, _family, fixture) => {

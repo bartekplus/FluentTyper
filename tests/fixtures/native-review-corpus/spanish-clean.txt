@@ -522,3 +522,14 @@ Mi padre es alto y mi madre es baja.
 Las calles están vacías.
 El coche está roto.
 La sopa es otro mundo.
+# hacia and seria.
+Caminamos hacia el río.
+Miró hacia atrás.
+Se construyó hacia 1900.
+Avanzan hacia más derechos.
+Una mujer seria.
+Es una persona seria la que necesitamos.
+Se puso seria de repente.
+Supone una seria amenaza.
+Lo empujó hacia la puerta.
+Hacía mucho que no nos veíamos.
