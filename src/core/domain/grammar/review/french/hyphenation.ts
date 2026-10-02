@@ -3,6 +3,7 @@ import {
   IL,
   ILS,
   adjectiveReadings,
+  isDictionaryCompound,
   isFrenchWord,
   isInflectedNoun,
   isVerbHomograph,
@@ -372,7 +373,75 @@ function hyphenation(ctx: DetectContext): RawFinding[] {
     const finding = prefixCompound(ctx, m);
     if (finding) findings.push(finding);
   }
+  for (const m of ownedFrenchWords(ctx, WORD_PAIR)) {
+    const finding = spacedCompound(ctx, m);
+    if (finding) findings.push(finding);
+  }
   return findings;
 }
+
+// Words before a noun phrase: a compound after them is a noun ("un coffre fort", "en arrière
+// plan"), not a verb and its complement ("il se lève tôt").
+const NOUN_PHRASE_OPENERS = new Set(
+  (
+    "le la les l' un une des du au aux ce cet cette ces mon ma mes ton ta tes son sa ses notre " +
+    "nos votre vos leur leurs"
+  ).split(" "),
+);
+// "le", "la", "les", "l'" are also object pronouns before a verb ("l'avons", "le sans faute").
+const PRONOUN_ARTICLES = new Set(["le", "la", "les", "l'"]);
+// Second words that make a clause of the pair ("le nord est froid", "peut être", "chez vous").
+const VERB_SECONDS = new Set(
+  "est a sont ont fait font être avoir vous nous moi toi lui eux là ci cent".split(" "),
+);
+
+/** "un coffre fort", "les non voyants", "l'agro industrie": a compound the dictionary hyphenates,
+ * written as two words after a determiner, or with a combining form in -o ("agro", "anglo")
+ * that is no word of its own. */
+function spacedCompound(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const { first, second } = m.groups!;
+  const joined = `${first}-${second}`;
+  // "non voyants": the dictionary lists the singular.
+  const singular = (w: string) => w.replace(/(?<=..)[sx]$/, "");
+  if (!isDictionaryCompound(joined) && !isDictionaryCompound(`${first}-${singular(second)}`)) {
+    if (!isDictionaryCompound(`${singular(first)}-${singular(second)}`)) return null;
+  }
+  if (PREFIX_WORDS.has(first) || VERB_SECONDS.has(second)) return null;
+  if (verbReadings(second).some((r) => typeof r.slot === "number") && !isVerbHomograph(second))
+    return null;
+  const previous = tokensBefore(ctx.text, m.index, 1)[0];
+  const bound = /..o$/.test(first) && !isFrenchWord(first);
+  if (!bound) {
+    if (!previous || !NOUN_PHRASE_OPENERS.has(previous.w)) return null;
+    const finite = verbReadings(first).some((r) => typeof r.slot === "number");
+    // "le", "la", "les", "l'" are articles after a preposition or at a clause start; after a
+    // verb ("Visez le sans faute") or a subject ("nous l'avons") they are pronouns.
+    if (PRONOUN_ARTICLES.has(previous.w)) {
+      const before = tokensBefore(ctx.text, previous.start, 1)[0];
+      const article = !before || ARTICLE_CONTEXT.has(before.w);
+      if (!article && (finite || verbReadings(before.w).length)) return null;
+    }
+  }
+  if (namedExampleBefore(ctx.text, m.index) || ctx.dictionary.has(first)) return null;
+  const gapStart = m.index + first.length;
+  const secondStart = ctx.text.indexOf(second, gapStart);
+  const end = secondStart + second.length;
+  return {
+    ruleId: RULE,
+    messageKey: MESSAGE,
+    range: { start: gapStart, end: secondStart },
+    alternatives: ["-"],
+    context: { start: m.index, end },
+  };
+}
+const PREFIX_WORDS = new Set(PREFIXES.split(" "));
+const ARTICLE_CONTEXT = new Set(
+  (
+    "de d' à dans sur sous pour par avec sans chez vers entre après avant contre pendant depuis " +
+    "et ou mais que qu' car"
+  ).split(" "),
+);
+const WORD_PAIR =
+  /(?<![\p{L}\p{M}\p{N}_-])(?<first>\p{Ll}+)(?=[ \t]{1,3}(?<second>\p{Ll}+)(?![\p{L}\p{M}\p{N}_'’-]))/gu;
 
 export const DETECTORS: readonly ReviewDetectorEntry[] = [{ rules: [RULE], detect: hyphenation }];

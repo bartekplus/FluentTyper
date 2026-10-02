@@ -1,7 +1,14 @@
 import { namedExampleBefore } from "../exampleCues";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
-import { isFrenchWord } from "./frenchLexicon";
-import { ownedFrenchWords, tokensBefore, withCase } from "./frenchTokens";
+import {
+  adjectiveReadings,
+  finitePersons,
+  isFrenchWord,
+  isInflectedNoun,
+  JE,
+  verbReadings,
+} from "./frenchLexicon";
+import { ownedFrenchWords, tokensAfter, tokensBefore, withCase } from "./frenchTokens";
 
 // Elision: "le", "de", "que", "je", "ne", "me", "te", "se", "la" drop their vowel before a word
 // that starts with a vowel ("l'arbre", "qu'il"), written with an apostrophe and no space.
@@ -85,7 +92,7 @@ function missingElision(ctx: DetectContext, m: RegExpExecArray): RawFinding | nu
   // "de un à dix": a number in a range.
   if (
     (nextLower === "un" || nextLower === "une") &&
-    /^\s+(?:à|a)(?=\s|$)|^\s*\d/u.test(ctx.text.slice(end))
+    /^[ \t\u00a0]{1,8}(?:à|a)(?=\s|$)|^[ \t\u00a0]{0,8}\d/u.test(ctx.text.slice(end, end + 12))
   )
     return null;
   // "la une", "le un": the noun "une" or the numeral after an article.
@@ -117,7 +124,7 @@ function spacedElision(ctx: DetectContext, m: RegExpExecArray): RawFinding | nul
       return null;
     if (/\blettres?[ \t]+$/iu.test(ctx.text.slice(Math.max(0, m.index - 10), m.index))) return null;
     // "s" only elides "si" before "il(s)".
-    if (letter.toLowerCase() === "s" && !/^ils?$/.test(next)) return null;
+    if (letter.toLowerCase() === "s" && !/^(?:ils?|en|y)$/.test(next)) return null;
     if (!VOWEL.test(next) && !/^h/.test(next)) return null;
     // A single letter before a word may be a variable or a list item ("l ensemble L").
     if (/^\s*[,;:]/.test(ctx.text.slice(m.index + m[0].length))) return null;
@@ -154,9 +161,81 @@ const FULL =
 const SPACED =
   /(?<![\p{L}\p{M}\p{N}_'’.-])(?<letter>[cdjlmnst]|qu)(?:(?<mark>[ \t]*['’][ \t]+|[ \t]+['’][ \t]*)|[ \t]+)(?<next>\p{L}[\p{L}\p{M}]*)(?![\p{L}\p{M}\p{N}_'’-])/giu;
 
+// What may follow each elided word: s' only "il(s)", "en", "y", "est"; n', m', t', j' a verb
+// form or "en"/"y"; l', d' and qu' a noun, a verb or a pronoun.
+const PRONOUN_AFTER = new Set(["en", "y"]);
+// Function words the verb and noun lists leave out that begin like an elision: "ma" is no
+// "m'a", "quelle" no "qu'elle", "davantage" no "d'avantage".
+const GLUED_LOOKALIKES = new Set(
+  (
+    "ma ta sa mon ton son mes tes ses les des dès lui leur leurs là quel quelle quels quelles " +
+    "quoi qui quand quant quelque quelques quiconque davantage dont dans donc devant depuis " +
+    "derrière déjà demain dedans dehors jamais jusque jusqu lorsque loin longtemps maintenant " +
+    "moins même mêmes malgré mais ni non nous toujours tout toute tous toutes trop très tard " +
+    "tôt tant selon sans sous sur si soit sauf seulement souvent lequel laquelle lesquels " +
+    "lesquelles duquel desquels auquel le la de du ne me te se ce je tu il elle on ils elles " +
+    "notre votre nos vos mien tien sien tandis tantôt dorénavant désormais jadis lors"
+  ).split(" "),
+);
+const S_AFTER = new Set(["il", "ils", "en", "y", "est", "était"]);
+const D_AFTER = new Set(["un", "une", "en", "où", "autres", "abord", "accord", "ailleurs"]);
+const QU_AFTER = new Set(["il", "ils", "elle", "elles", "on", "un", "une", "en"]);
+
+/** "jarrive", "sil", "nen", "dun": an elided word glued to the next without its apostrophe. */
+function gluedElision(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const typed = m[0];
+  const word = typed.toLowerCase();
+  if (GLUED_LOOKALIKES.has(word) || ctx.dictionary.has(word) || isFrenchWord(word)) return null;
+  // "nait", "connait": the 1990 spelling of a word with a circumflex.
+  if (isFrenchWord(word.replace(/i(?=t$)/, "î").replace(/u(?=t$)/, "û"))) return null;
+  if (adjectiveReadings(word).length || namedExampleBefore(ctx.text, m.index)) return null;
+  // "Sil vient": a capital only at a sentence start; other capitals are names.
+  if (
+    /^\p{Lu}/u.test(typed) &&
+    !SENTENCE_START.test(ctx.text.slice(Math.max(0, m.index - 4), m.index))
+  )
+    return null;
+  if (/\p{Lu}/u.test(typed.slice(1))) return null;
+  const letter = word.startsWith("qu") ? "qu" : word[0];
+  const rest = word.slice(letter.length);
+  if (rest.length < 1 || (!VOWEL.test(rest) && !rest.startsWith("h"))) return null;
+  const verb = verbReadings(rest).some((r) => typeof r.slot === "number");
+  let fits: boolean;
+  if (letter === "s") fits = S_AFTER.has(rest);
+  else if (letter === "j") fits = PRONOUN_AFTER.has(rest) || (finitePersons(rest) & JE) > 0;
+  else if (letter === "n" || letter === "m" || letter === "t")
+    fits = PRONOUN_AFTER.has(rest) || verb;
+  else if (letter === "d") fits = D_AFTER.has(rest) || isInflectedNoun(rest);
+  else if (letter === "qu") fits = QU_AFTER.has(rest);
+  else if (letter === "l")
+    fits = rest.length > 2 && (isInflectedNoun(rest) || (verb && rest.length > 3));
+  else fits = false;
+  if (!fits) return null;
+  // "nen fait", "den parler": "en" and "y" glued to an elided word come before a verb ("the den
+  // is dark" is English).
+  if (PRONOUN_AFTER.has(rest)) {
+    const next = tokensAfter(ctx.text, m.index + typed.length, 1)[0];
+    if (!next || !verbReadings(next.w).length) return null;
+  }
+  return {
+    ruleId: RULE,
+    messageKey: MESSAGE,
+    range: { start: m.index, end: m.index + typed.length },
+    alternatives: [
+      typed.slice(0, letter.length) + apostropheNear(ctx, m.index) + typed.slice(letter.length),
+    ],
+  };
+}
+const GLUED =
+  /(?<![\p{L}\p{M}\p{N}_'’-])(?:[jJsSnNmMtTdDlL]|[qQ]u)\p{Ll}+(?![\p{L}\p{M}\p{N}_'’-])/gu;
+
 function elision(ctx: DetectContext): RawFinding[] {
   if (ctx.lang.slice(0, 2) !== "fr") return [];
   const findings: RawFinding[] = [];
+  for (const m of ownedFrenchWords(ctx, GLUED)) {
+    const finding = gluedElision(ctx, m);
+    if (finding) findings.push(finding);
+  }
   for (const m of ownedFrenchWords(ctx, FULL)) {
     const finding = missingElision(ctx, m);
     if (finding) findings.push(finding);

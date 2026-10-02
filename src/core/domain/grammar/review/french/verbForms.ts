@@ -43,7 +43,16 @@ const REFLEXIVES = new Set(["me", "m'", "te", "t'", "se", "s'", "nous", "vous", 
 const OBJECTS = new Set(["le", "la", "les", "l'"]);
 
 /** Verbs governing a bare infinitive. */
-const GOVERNING = new Set(["pouvoir", "devoir", "aller", "falloir", "oser", "daigner"]);
+const GOVERNING = new Set([
+  "pouvoir",
+  "devoir",
+  "aller",
+  "falloir",
+  "oser",
+  "daigner",
+  "compter",
+  "valoir",
+]);
 /** Governing verbs that also take an attribute participle after an object pronoun ("je le veux
  * terminé", "je l'ai laissé fermé", "il se sait traqué"): there they abstain. */
 const GOVERNING_WITH_ATTRIBUTE = new Set([
@@ -59,6 +68,10 @@ const GOVERNING_WITH_ATTRIBUTE = new Set([
   "faire",
   "laisser",
   "entendre",
+  "sentir",
+  "voir",
+  "regarder",
+  "écouter",
 ]);
 /** "se faire aider", "se laisser tenter": a reflexive pronoun still governs an infinitive. */
 const REFLEXIVE_GOVERNORS = new Set(["faire", "laisser"]);
