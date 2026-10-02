@@ -2035,6 +2035,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Ten portugalski czasownik ma z ser i estar krótki imiesłów, a niektóre czasowniki tylko ten: foi gasto, está limpo, tinha feito, tinha trazido.",
     "Particípio: com ser e estar usa-se a forma curta, e alguns verbos só têm essa — foi gasto, está limpo, tinha feito, tinha trazido.",
   ],
+  review_msg_pt_question_mark: [
+    "A Portuguese question opened by a question word and “é que” ends with a question mark: O que é que houve?",
+    "Une question portugaise ouverte par un mot interrogatif et « é que » se termine par un point d’interrogation : O que é que houve?",
+    "Portugalsko pitanje koje počinje upitnom riječju i „é que” završava upitnikom: O que é que houve?",
+    "Una pregunta portuguesa que empieza con un interrogativo y «é que» termina con signo de interrogación: O que é que houve?",
+    "Μια πορτογαλική ερώτηση που ξεκινά με ερωτηματική λέξη και «é que» τελειώνει με ερωτηματικό: O que é que houve?",
+    "En portugisisk fråga som börjar med ett frågeord och ”é que” slutar med frågetecken: O que é que houve?",
+    "Eine portugiesische Frage mit Fragewort und „é que“ endet mit einem Fragezeichen: O que é que houve?",
+    "Portugalskie pytanie zaczynające się od słowa pytającego i „é que” kończy się znakiem zapytania: O que é que houve?",
+    "Uma pergunta aberta por palavra interrogativa e “é que” termina com ponto de interrogação: O que é que houve?",
+  ],
   review_msg_pt_ao90: [
     "1990 Portuguese spelling: prefixes join their word unless it starts with h or the same vowel (autoestima, micro-ondas), and months and weekdays are lowercase.",
     "Orthographe portugaise de 1990 : les préfixes se soudent au mot sauf devant h ou la même voyelle (autoestima, micro-ondas), et mois et jours s’écrivent en minuscules.",

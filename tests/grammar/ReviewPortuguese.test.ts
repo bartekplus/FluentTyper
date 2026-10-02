@@ -565,6 +565,13 @@ describe("portugueseCommas", () => {
     ["Boa noite Carla.", "Boa noite, Carla."],
     ["Obrigada Pedro!", "Obrigada, Pedro!"],
     ["Não não vou.", "Não, não vou."],
+    ["Por exemplo hoje choveu muito.", "Por exemplo, hoje choveu muito."],
+    ["Atenciosamente\nMarta", "Atenciosamente,\nMarta"],
+    ["Com os melhores cumprimentos.", "Com os melhores cumprimentos,"],
+    ["Prezado Senhor Silva\nEscrevo para", "Prezado Senhor Silva,\nEscrevo para"],
+    ["Caro Doutor Santos!", "Caro Doutor Santos,"],
+    ["O que é que aconteceu aqui.", "O que é que aconteceu aqui?"],
+    ["Como é que vocês chegaram tão cedo.", "Como é que vocês chegaram tão cedo?"],
   ])("fixes %p", (text, expected) => {
     expect(repaired("portugueseCommas", text)).toBe(expected);
     expect(findings("portugueseCommas", expected)).toEqual([]);
@@ -581,6 +588,14 @@ describe("portugueseCommas", () => {
     "Disse que não, não quero.",
     "Não via nada além disso, nem queria.",
     "Aumenta muito, por exemplo se dobrar a carga.",
+    "Por favor de quem?",
+    "Atenciosamente, João.",
+    "Caro amigo, tudo bem?",
+    "Prezado Senhor,",
+    "Não sei o que é que aconteceu.",
+    "A carta terminava com atenciosamente e a assinatura.",
+    "Como é que ele descobriu ainda é um mistério.",
+    "O que é que ele quer eu não sei.",
   ])("leaves %p alone", (text) => {
     expect(findings("portugueseCommas", text)).toEqual([]);
   });
