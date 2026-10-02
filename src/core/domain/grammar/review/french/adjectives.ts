@@ -95,6 +95,8 @@ const NOT_ADJECTIVES = new Set(
     "haut bas fort cher juste net clair faux droit"
   ).split(" "),
 );
+// Of those, the ones that are plain adjectives after être: "les actions sont fortes".
+const PREDICATE_ADJECTIVES = new Set("haut bas fort cher juste net clair faux droit".split(" "));
 // Nouns that open adverbial or quantity phrases ("un peu", "la plupart", "l'air").
 const NOT_NOUNS = new Set(
   "peu plupart air autre tout rien reste moins plus point fait cas soit".split(" "),
@@ -123,8 +125,9 @@ function agreeing(word: string, target: Inflection, predicate = false): string |
   const readings = adjectiveReadings(word);
   if (readings.length) {
     if (readings.some((r) => r.slot === target || !genderable(r.lemma))) return null;
-    if (readings.some((r) => NOT_ADJECTIVES.has(r.lemma) || /(?:eur|rice|euse)$/.test(r.lemma)))
-      return null;
+    const adverbial = (lemma: string) =>
+      NOT_ADJECTIVES.has(lemma) && !(predicate && PREDICATE_ADJECTIVES.has(lemma));
+    if (readings.some((r) => adverbial(r.lemma) || /(?:eur|rice|euse)$/.test(r.lemma))) return null;
     // "avares", "torse": an epicene adjective or a noun spelled like a gendered form.
     const singular = word.replace(/s$/, "");
     if (readings.every((r) => r.lemma !== singular) && isInflectedNoun(singular)) return null;
@@ -247,10 +250,10 @@ const ADVERB_PAIRS = new Set([
 function skipAdverbs(tokens: Token[], i: number): number {
   for (;;) {
     const w = tokens[i]?.w;
-    if (w && (ADVERBS.has(w) || (/..ment$/.test(w) && !isInflectedNoun(w)))) i++;
     // "peut-être", "par conséquent", "bien entendu", "pour autant".
+    if (w && ADVERB_PAIRS.has(`${w} ${tokens[i + 1]?.w}`)) i += 2;
+    else if (w && (ADVERBS.has(w) || (/..ment$/.test(w) && !isInflectedNoun(w)))) i++;
     else if (w === "peut" && tokens[i].hyphen && tokens[i + 1]?.w === "être") i += 2;
-    else if (w && ADVERB_PAIRS.has(`${w} ${tokens[i + 1]?.w}`)) i += 2;
     else if (tokens[i]?.w === "un" && tokens[i + 1]?.w === "peu") i += 2;
     else if (tokens[i]?.w === "un" && tokens[i + 1]?.w === "petit" && tokens[i + 2]?.w === "peu")
       i += 3;
