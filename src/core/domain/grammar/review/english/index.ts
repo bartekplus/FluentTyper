@@ -2,6 +2,7 @@
 import * as apostrophes from "./apostrophes";
 import * as compoundForms from "./compoundForms";
 import * as properNames from "./properNames";
+import * as typography from "./typography";
 import * as confusions1 from "./confusions1";
 import * as dates from "./dates";
 import * as contractionSlots from "./contractionSlots";
@@ -55,6 +56,7 @@ const MODULES = [
   adverbSlots,
   apostrophes,
   properNames,
+  typography,
 ];
 export const EXTENSION_PHRASES = MODULES.flatMap((m) => m.PHRASES);
 export const EXTENSION_COMPOUNDS = MODULES.flatMap((m) => m.COMPOUNDS);

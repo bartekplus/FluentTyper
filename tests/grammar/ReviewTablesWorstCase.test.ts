@@ -42,6 +42,10 @@ test("no chunk stalls on runs of frame-opening words", () => {
     "french polish ".repeat(1_500),
     "the excel file ".repeat(1_200),
     "you tube google ".repeat(1_200),
+    "1.250.000,5 7,5% ".repeat(1_000),
+    "U.S.A e.g PH.D ".repeat(1_000),
+    '4 x 5 -> "a" (c) 1914-1918 '.repeat(600),
+    "cold - very ".repeat(1_500),
   ];
   // Warm-up: the first scan compiles every frame and decodes the lexicon.
   for (const text of inputs) slowestChunkMs(text);

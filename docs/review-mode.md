@@ -219,6 +219,8 @@ Supported (**Typing** is the rule's default for typing; Review has separate swit
 | `englishPossessiveNouns`               | English        | unavailable | grammar     | word form          | individual only                                                                                                                                |
 | `englishDateConsistency`               | English        | unavailable | grammar     | numbers            | individual only                                                                                                                                |
 | `englishApostrophes`                   | English        | unavailable | punctuation | marks              | individual only                                                                                                                                |
+| `englishNotation`                      | English        | unavailable | typography  | numbers            | individual only                                                                                                                                |
+| `englishTypography`                    | English        | unavailable | typography  | marks              | individual only; off by default in Review (optional typesetting)                                                                               |
 | `englishAuxiliaryBaseVerb`             | English        | unavailable | grammar     | word form          | individual only                                                                                                                                |
 | `englishPronounCase`                   | English        | unavailable | grammar     | word form          | individual only                                                                                                                                |
 | `englishSentenceStructure`             | English        | unavailable | grammar     | usage              | individual only                                                                                                                                |
@@ -401,6 +403,14 @@ left-out long nouns (a Bloom filter, so they only ever tell words from typos):
   no determiner, a time noun owning the next noun ("last weeks game") and "who's" before an
   owned noun ("a man who's car was stolen"). Before another noun a plural may be a possessive,
   so "weeks'" and "weeks" are both offered.
+- `englishNotation`: English numbers with a decimal comma before a unit or after a currency sign
+  ("7,5%", "$9,99"), dots between thousands ("1.250.000", "14.000,75", "45.000 guests"), a split
+  ordinal ("3 rd"), full-width marks, an initialism missing its last period ("U.S.A", "e.g") and
+  academic degrees ("PHD", "Ph. D.", "B. Sc.").
+- `englishTypography`: optional typesetting: × between numbers ("4 x 5", "1280x720"), arrows for
+  "->", ©, ®, ™ for "(c)", "(R)", "(TM)", ± for "+-", H₀ in hypotheses, curly double quotes for
+  German ones, an en dash in number, weekday and month ranges ("1914-1918", "9am - 6pm")
+  and an em dash for a spaced hyphen between words.
 - `englishPossessiveNouns`: a plural noun between a determiner and the noun it owns ("the cats
   tail is long", "a teachers lounge") offers "cat's" or "cats'" when the frame allows no
   other reading: the owned noun is followed by its verb, the phrase ends after a preposition

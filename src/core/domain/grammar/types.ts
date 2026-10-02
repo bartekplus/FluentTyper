@@ -115,6 +115,8 @@ export interface GrammarRuleCatalogEntry {
     | "englishDateConsistency"
     // English tables and typography (review/english/, en-tables2).
     | "englishApostrophes"
+    | "englishNotation"
+    | "englishTypography"
     // Polish-only Review checks (review/polish/).
     | "polishNumerals"
     | "polishDates"

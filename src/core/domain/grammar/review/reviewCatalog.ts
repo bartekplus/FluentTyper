@@ -495,6 +495,21 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     kind: "marks",
     bulk: "individual",
   },
+  englishNotation: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "typography",
+    kind: "numbers",
+    bulk: "individual",
+  },
+  englishTypography: {
+    review: "supported",
+    defaultEnabled: false,
+    category: "typography",
+    kind: "marks",
+    bulk: "individual",
+    note: "Optional typography: x, ->, (c) and straight quotes are correct too.",
+  },
 
   englishPronounCase: {
     review: "supported",
