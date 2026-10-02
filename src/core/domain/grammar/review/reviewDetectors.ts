@@ -92,6 +92,16 @@ import { isLowercaseLetter, isTechnicalToken } from "../implementations/helpers/
 import { graphemeEnd, overlapsSortedRanges } from "./textRanges";
 import { MASK_CHAR, type ReviewMessageKey, type TextRange } from "./types";
 import { EXTENSION_DETECTORS } from "./english";
+import { GERMAN_DETECTORS } from "./german";
+import { DETECTORS as GREEK_DETECTORS } from "./greek/detectors";
+import { DETECTORS as SWEDISH_DETECTORS } from "./swedish/detectors";
+import { DETECTORS as ARABIC_DETECTORS } from "./arabic/detectors";
+import { PORTUGUESE_DETECTORS } from "./portuguese";
+import { POLISH_DETECTORS } from "./polish";
+import { SPANISH_DETECTORS } from "./spanish";
+import { FRENCH_DETECTORS } from "./french";
+
+import { detectAll } from "./phraseTemplates";
 
 export { MASK_CHAR };
 export { minimalEdits } from "./textRanges";
@@ -344,8 +354,19 @@ const MARK_NAMING_WORDS = new Set([
   ...["hits", "tap", "taps", "enter", "enters", "use", "uses", "key", "keys", "add", "adds"],
   ...["insert", "inserts", "put", "puts", "remove", "removes", "delete", "deletes", "the"],
   ...["a", "an", "character", "char", "symbol", "sign", "dot", "mark", "punctuation"],
+  // The same keys and symbols named in the other Review languages: "pulsa ? para ver la ayuda".
+  ...["pulsa", "pulse", "presiona", "presione", "escribe", "escriba", "teclea", "teclee", "usa"],
+  ...["tecla", "signo", "símbolo", "carácter", "inserta", "inserte", "añade", "añada"],
+  ...["appuyez", "appuie", "tapez", "tape", "saisissez", "saisis", "utilisez", "touche"],
+  ...["caractère", "symbole", "signe", "insérez", "ajoutez", "drücke", "drücken", "drück"],
+  ...["tippe", "tippen", "gib", "verwende", "verwenden", "taste", "zeichen", "füge"],
+  ...["pressione", "aperte", "digite", "tecle", "caractere", "sinal", "insira", "adicione"],
+  ...["naciśnij", "wciśnij", "wpisz", "użyj", "klawisz", "znak", "wstaw", "dodaj", "tryck"],
+  ...["skriv", "använd", "tangenten", "tecknet", "tecken", "symbolen", "pritisni", "pritisnite"],
+  ...["upiši", "upišite", "koristi", "koristite", "tipku", "simbol", "πατήστε", "πάτα"],
+  ...["πληκτρολογήστε", "γράψτε", "πλήκτρο", "σύμβολο", "χαρακτήρα", "اضغط", "اكتب", "رمز"],
 ]);
-const MARK_QUOTES = /^["'“”‘’`]$/u;
+const MARK_QUOTES = /^["'“”‘’`«»„‚‹›]$/u;
 const LINE_SPACE = /^[ \t ]$/u;
 
 /**
@@ -362,7 +383,7 @@ function namesMark(text: string, index: number): boolean {
   // "It was late . we left" is a stray space: only a naming word makes it a symbol.
   if (before === index - 1) return false;
   let wordStart = before + 1;
-  while (wordStart > 0 && /[A-Za-z]/.test(text[wordStart - 1])) wordStart -= 1;
+  while (wordStart > 0 && /\p{L}/u.test(text[wordStart - 1])) wordStart -= 1;
   if (WORD_CHAR.test(text[wordStart - 1] ?? "")) return false;
   return MARK_NAMING_WORDS.has(text.slice(wordStart, before + 1).toLowerCase());
 }
@@ -399,7 +420,8 @@ function previousLineEndsParagraphOrSentence(
 
 const pronounI: Detector = (ctx) => {
   const findings: RawFinding[] = [];
-  const regex = /(?<![\p{L}\p{N}_'’])i(?![\p{L}\p{N}_])/gu;
+  // "Hawai‘i": a letter and a left quote mark before it make it part of a word (the okina).
+  const regex = /(?<![\p{L}\p{N}_'’]|\p{L}‘)i(?![\p{L}\p{N}_])/gu;
   for (const match of ownedMatches(ctx, regex)) {
     const start = match.index;
     const before = ctx.text[start - 1] ?? "";
@@ -417,7 +439,9 @@ const pronounI: Detector = (ctx) => {
       contextEnd += 1;
     } else if (/^\.(?:\s|$)/u.test(rest)) {
       // Unlike typing, what follows the period is here: not "i.e.", so "than i." ends
-      // a sentence. A roman numeral opening a list line or naming a part is not.
+      // a sentence. A roman numeral opening a list line or naming a part is not, nor is
+      // a spaced-out "i. e.".
+      if (/^\.\s+e\./i.test(rest)) continue;
       const lineStart = ctx.text.lastIndexOf("\n", start - 1) + 1;
       if (ctx.text.slice(lineStart, start).trim() === "") continue;
       if (NUMERAL_BEFORE.test(ctx.text.slice(Math.max(0, start - 24), start))) continue;
@@ -493,7 +517,13 @@ const wordSpelling: Detector = (ctx) => {
       : normalizeContractionToken(word, before);
     // "the im tag", "an ive file": after a determiner it is a word, not "I'm".
     const pronounForm = /^i(?:m|ve)$/i.test(word);
-    if (contraction && !(pronounForm && DETERMINER_BEFORE.test(before))) {
+    // "by Ive Mažuran": mid-sentence, a capitalized "Ive"/"Im" before a capitalized word is a name.
+    const name =
+      pronounForm &&
+      /^I[a-z]/.test(word) &&
+      !/(?:^|[.!?:;"“\n])[ \t]*$/.test(before) &&
+      /^[ \t]+\p{Lu}\p{Ll}/u.test(ctx.text.slice(end, end + 4));
+    if (contraction && !name && !(pronounForm && DETERMINER_BEFORE.test(before))) {
       findings.push({
         ruleId: "englishContractionNormalization",
         messageKey: "review_msg_contraction",
@@ -545,9 +575,14 @@ interface PhraseMatch {
   end: number;
 }
 
+// JavaScript's \s by code unit: phrase windows test it once per character they widen over.
 function isWhitespaceAt(text: string, index: number): boolean {
-  return /\s/.test(text[index] ?? "");
+  const code = text.charCodeAt(index);
+  return code === 32 || (code >= 9 && code <= 13) || (code > 127 && /\s/.test(text[index]));
 }
+
+// Stateless (no g or y flag) copies of the typing rules' patterns, compiled once each.
+const PHRASE_REGEX = new WeakMap<RegExp, RegExp>();
 
 /**
  * Runs a typing rule's end-anchored pattern at every word end of the chunk.
@@ -560,7 +595,12 @@ function* phraseMatches(
   pattern: RegExp,
   tokens: number,
 ): Generator<PhraseMatch> {
-  const regex = new RegExp(pattern.source, `${pattern.flags.replace(/[gy]/g, "")}d`);
+  let regex = PHRASE_REGEX.get(pattern);
+  if (!regex)
+    PHRASE_REGEX.set(
+      pattern,
+      (regex = new RegExp(pattern.source, `${pattern.flags.replace(/[gy]/g, "")}d`)),
+    );
   for (const word of asciiWords(ctx, PHRASE_WINDOW)) {
     const limit = Math.max(0, word.end - PHRASE_WINDOW);
     let windowStart = word.start;
@@ -699,6 +739,15 @@ const pronounVerb: Detector = (ctx) => {
         bulkBlock = "context-dependent";
       }
     }
+    // "Sam and I is a band", "you as well as he are", "am I nuts": a coordinated or
+    // compared pronoun, or an inverted question, is not this verb's whole subject. "and you
+    // was right" still opens a clause.
+    const before = ctx.text.slice(Math.max(0, phraseRange.start - 12), phraseRange.start);
+    if (
+      /\b(?:as|than|am|is|are|was|were)[ \t\u00a0]+$/i.test(before) ||
+      (inputPronoun.toLowerCase() !== "you" && /(?:\b(?:and|or|nor)|&)[ \t\u00a0]+$/i.test(before))
+    )
+      continue;
     const gap = phrase.slice(inputPronoun.length, phrase.length - inputVerb.length);
     // The pronoun "i" is always capitalized; the case rule would flag it anyway.
     const fixedPronoun = pronoun === "i" ? "I" : pronoun;
@@ -864,7 +913,8 @@ const properNoun: Detector = (ctx) => {
 // ------------------------------------------------------ punctuation and spacing
 
 // Spaces and a lowercase word (after an optional opening mark) on the same line.
-const STANDALONE_MARK_FOLLOWER = /^[ \t\u00A0]+["'“‘([¿¡]?\p{Ll}/u;
+// Scripts without case (Arabic) have no capital to start a sentence with: any letter counts.
+const STANDALONE_MARK_FOLLOWER = /^[ \t\u00A0]+["'“‘«„([¿¡]?[\p{Ll}\p{Lo}]/u;
 
 // A fullwidth "，" or ideographic "、" comma between words of an alphabetic
 // script ("red，green") is an input-method slip; CJK text keeps its own.
@@ -1019,22 +1069,44 @@ const duplicatePunctuation: Detector = (ctx) => {
     const start = match.index;
     const end = start + match[0].length;
     if (isGluedToTechnical(ctx.text, start, start)) continue;
+    // Polish typists write ",," for the opening „ when a word and a closing quote follow.
+    const polishQuote =
+      ctx.lang.startsWith("pl") &&
+      match[0] === ",," &&
+      /^$|\s$/u.test(ctx.text.slice(Math.max(0, start - 1), start)) &&
+      /^[\p{L}\p{N}][^\n„]{0,200}?[\p{L}\p{N}.!?…](?:”|"|'')/u.test(ctx.text.slice(end, end + 210));
     findings.push({
       ruleId: "duplicatePunctuationCollapse",
       messageKey: "review_msg_duplicate_punctuation",
       range: { start, end },
-      alternatives: [match[1]],
+      alternatives: [polishQuote ? "„" : match[1]],
     });
   }
-  // "word.." (never "..." or "../"): one period too many at a sentence end.
-  const periods = /(?<=[\p{L}\p{N})\]"”’])\.\.(?=\s|$)/gu;
+  // "word.." (never "..." or "../"): a doubled period or a short ellipsis that trails off.
+  // Before a lowercase word the sentence goes on, so only the ellipsis fits; elsewhere
+  // the writer chooses. Arabic writes ".." as a short ellipsis ("وهذا ما دعاني إلى..").
+  const periods = /(?<=(?![\p{Script=Arabic}])[\p{L}\p{N})\]"”’])\.\.(?=\s|$)/gu;
   for (const match of ownedMatches(ctx, periods)) {
     const start = match.index;
+    // German "am 30.11.." ends a sentence on a date: its own dot, then the period.
+    const before = ctx.text.slice(Math.max(0, start - 8), start);
+    if (ctx.lang.startsWith("de") && /(?:^|[^\d.])\d{1,2}\.\d{1,2}$/.test(before)) continue;
+    const range = { start, end: start + 2 };
+    if (/^\s+\p{Ll}/u.test(ctx.text.slice(start + 2, start + 12))) {
+      findings.push({
+        ruleId: "duplicatePunctuationCollapse",
+        messageKey: "review_msg_ellipsis_length",
+        range,
+        alternatives: ["..."],
+      });
+      continue;
+    }
     findings.push({
       ruleId: "duplicatePunctuationCollapse",
       messageKey: "review_msg_duplicate_punctuation",
-      range: { start, end: start + 2 },
-      alternatives: ["."],
+      range,
+      alternatives: [".", "..."],
+      requiresChoice: true,
     });
   }
   // A line of two dots alone is a short ellipsis or a stray period.
@@ -1048,8 +1120,9 @@ const duplicatePunctuation: Detector = (ctx) => {
     });
   }
   // An ellipsis has three dots: "So..... anyway". Digits
-  // or a path around the run ("1....5", "..../") and dot leaders (10+) are not one.
-  const ellipsis = /(?<![.\p{N}])\.{4,9}(?![.\p{N}/\\])/gu;
+  // or a path around the run ("1....5", "..../"), dot leaders (10+) and a year still unknown
+  // ("(1957-....)") are not one.
+  const ellipsis = /(?<![.\p{N}-])\.{4,9}(?![.\p{N}/\\])/gu;
   for (const match of ownedMatches(ctx, ellipsis)) {
     const start = match.index;
     findings.push({
@@ -1278,6 +1351,20 @@ function measurementLike(
     if (!parsed || parsed.unitStart !== parsed.numberEnd) continue;
     const unit = prefix.slice(parsed.unitStart);
     if (ruleId === "measurementUnitFormatting" && /^([A-Z]|[dg])$/.test(unit)) continue;
+    // Brazilian usage writes clock times and durations glued: "às 10h", "20min"; French
+    // writes "14h" and "14h30" as often as "14 h", so hours stay as typed there.
+    if (
+      ruleId === "measurementUnitFormatting" &&
+      ((ctx.lang === "pt_BR" && /^(?:h|min)$/.test(unit)) || (ctx.lang === "fr_FR" && unit === "h"))
+    )
+      continue;
+    // "100m users" counts millions; "Type 42s" and "the 1990s" are plurals, not seconds.
+    if (
+      ruleId === "measurementUnitFormatting" &&
+      ((unit === "m" && /^[ \t]+(?:[a-z]{2,}s|[A-Z]{2,}s)\b/.test(ctx.text.slice(tokenEnd))) ||
+        (unit === "s" && /\b\p{Lu}[\p{L}-]*[ \t]+$/u.test(prefix.slice(0, parsed.start))))
+    )
+      continue;
     let prosePrefix = prefix.slice(0, parsed.start);
     // A prose list retains the evidence before its first measurement. Every
     // preceding item must itself parse; identifiers and arithmetic still abstain.
@@ -1322,7 +1409,8 @@ function measurementLike(
 const REPEATABLE_WORDS: Record<string, string> = {
   en: "the|an|a|is|are|was|were|be|am|in|on|at|for|with|from|of|to|and|or|but|nor|as|by|into|onto|about|than|this|these|those|its|your|our|their|would|should|could|has|been",
   de: "ein|eine|einen|einem|einer|eines|im|mit|von|für|auf|bei|aus|nach|zum|zur|dass|weil|ist|sind|hat|wird|über|unter|durch|ohne|gegen",
-  fr: "le|les|un|une|des|du|au|aux|dans|pour|avec|sur|et|mais|est|sont|par|ce|cette|ces|sans",
+  // "un un": "en acheter un un jour" is a pronoun and an article.
+  fr: "le|les|une|des|du|au|aux|dans|pour|avec|sur|et|mais|est|sont|par|ce|cette|ces|sans",
   es: "el|los|las|un|una|en|con|del|al|y|pero|por|sin|sobre|entre|desde|hasta|este|esta|estos|estas",
   pt: "os|um|uma|em|com|do|da|dos|das|no|na|e|mas|por|pelo|pela|sem|sobre|entre|este|esta|isto|isso",
   pl: "się|na|do|od|dla|przez|że|i|oraz|ale|lub|w|z|o|po|jest|są",
@@ -1394,6 +1482,11 @@ const repeatedWords: Detector = (ctx) => {
     // A named, quoted example is evidence, not prose to repair. Normal quotations still run.
     if (CUE_AND_QUOTE.test(before)) continue;
     if (word === "to" && !doubledTo(before, ctx.text.slice(end, end + 16))) continue;
+    // "the The Beatles album": a capitalized repeat after a lowercase word opens a name;
+    // "P A O L A A N": a spelled-out run of single letters.
+    const second = match[0].slice(-match[1].length);
+    if (/^\p{Ll}/u.test(match[1]) && /^\p{Lu}/u.test(second)) continue;
+    if (word.length === 1 && /(?:^|\s)\p{L}[ \t ]+$/u.test(before)) continue;
     findings.push({
       ruleId: "englishRepeatedWords",
       messageKey: "review_msg_repeated_words",
@@ -1404,6 +1497,17 @@ const repeatedWords: Detector = (ctx) => {
   }
   return findings;
 };
+
+/** Per-language modules: they may add context detectors to shared rules or serve their own. */
+export const LANGUAGE_DETECTORS: readonly ReviewDetectorEntry[] = [
+  ...GREEK_DETECTORS,
+  ...SWEDISH_DETECTORS,
+  ...ARABIC_DETECTORS,
+  ...PORTUGUESE_DETECTORS,
+  ...POLISH_DETECTORS,
+  ...SPANISH_DETECTORS,
+  ...FRENCH_DETECTORS,
+];
 
 /** Review detectors by rule. Rules absent here are excluded from review (see reviewCatalog). */
 export const REVIEW_DETECTORS: ReadonlyArray<ReviewDetectorEntry> = [
@@ -1431,7 +1535,7 @@ export const REVIEW_DETECTORS: ReadonlyArray<ReviewDetectorEntry> = [
       "styleAlternativePhrasing",
       "englishPossibleErrors",
     ],
-    detect: (ctx) => [...canonicalCasing(ctx), ...phraseCorrections(ctx)],
+    detect: (ctx) => detectAll(ctx, [canonicalCasing, phraseCorrections]),
   },
   {
     rules: ["unclosedQuotation"],
@@ -1479,10 +1583,13 @@ export const REVIEW_DETECTORS: ReadonlyArray<ReviewDetectorEntry> = [
       "englishAlotCorrection",
     ],
     // English word lists; other languages have their own tables.
-    detect: (ctx) => [
-      ...(ctx.lang === "en_US" ? wordSpelling(ctx) : [...splitWords(ctx), ...frenchElisions(ctx)]),
-      ...markedApostrophes(ctx),
-    ],
+    detect: (ctx) =>
+      detectAll(
+        ctx,
+        ctx.lang === "en_US"
+          ? [wordSpelling, markedApostrophes]
+          : [splitWords, frenchElisions, markedApostrophes],
+      ),
   },
   { rules: ["englishModalOfCorrection"], detect: modalOf },
   { rules: ["englishYourWelcomeCorrection"], detect: yourWelcome },
@@ -1505,11 +1612,15 @@ export const REVIEW_DETECTORS: ReadonlyArray<ReviewDetectorEntry> = [
   { rules: ["emdashShortcut"], detect: typedDashes },
   {
     rules: ["measurementUnitFormatting"],
-    detect: (ctx) => [...measurementLike(ctx, "measurementUnitFormatting"), ...kelvinDegree(ctx)],
+    detect: (ctx) =>
+      detectAll(ctx, [(c) => measurementLike(c, "measurementUnitFormatting"), kelvinDegree]),
   },
   {
     rules: ["currencySpacing"],
-    detect: (ctx) => [...measurementLike(ctx, "currencySpacing"), ...currencyPlacement(ctx)],
+    detect: (ctx) =>
+      detectAll(ctx, [(c) => measurementLike(c, "currencySpacing"), currencyPlacement]),
   },
   ...EXTENSION_DETECTORS,
+  ...GERMAN_DETECTORS,
+  ...LANGUAGE_DETECTORS,
 ];
