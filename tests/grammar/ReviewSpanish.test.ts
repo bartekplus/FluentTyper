@@ -2055,6 +2055,8 @@ test("a Spanish preposition before a conjugated verb is flagged without a fix", 
     "De debería probar otra vez.",
     "Lo hizo en cantaba.",
     "Es de llegaron tarde.",
+    "De lo debemos todo.",
+    "Viven en los estamos juntos.",
   ]) {
     const found = findings("spanishConfusions", text);
     expect(found).toHaveLength(1);
@@ -2066,6 +2068,9 @@ test("a Spanish preposition before a conjugated verb is flagged without a fix", 
     "Vamos de compras.",
     "Vuelve de arriba abajo.",
     "Viene de la oficina.",
+    "Es de lo mejor.",
+    "Habló de lo que sabía.",
+    "Pensó en los demás.",
   ])
     expect(findings("spanishConfusions", text)).toEqual([]);
 });

@@ -433,9 +433,21 @@ const PAST_OR_CONDITIONAL =
  */
 function strayFinite(at: Around): boolean {
   const word = at.tokens[at.i].lower;
-  const prev = at.prev();
+  // "de lo debemos", "en los estamos": a pronoun between changes nothing; it needs a verb.
+  const k = CLITICS.has(at.prev()) && at.prev() !== "se" ? 2 : 1;
+  const prev = at.prev(k);
   if (!/^(?:de|del|en|con|desde|sin)$/u.test(prev) || !/^\p{Ll}+$/u.test(at.tokens[at.i].text))
     return false;
+  if (k === 2) {
+    if (prev === "del" || prev === "desde") return false;
+    return (
+      (PAST_OR_CONDITIONAL.test(word) || /^\p{L}{2,}(?:amos|emos|imos)$/u.test(word)) &&
+      finiteVerb(word) &&
+      !isNoun(word) &&
+      !attribute(word) &&
+      !isInfinitive(word)
+    );
+  }
   if (at.tokens[at.i - 2]?.text === "-" || AFTER_PREPOSITION.has(word)) return false;
   // "la de es la cuarta letra": the letter's name.
   if (/^(?:la|una|letra)$/u.test(at.prev(2))) return false;
@@ -485,7 +497,8 @@ function verbForms(ctx: DetectContext): RawFinding[] {
       continue;
     }
     if (strayFinite(new Around(tokens, i))) {
-      const prep = tokens[i - 1];
+      const prep =
+        CLITICS.has(tokens[i - 1].lower) && tokens[i - 2]?.word ? tokens[i - 2] : tokens[i - 1];
       const span = { ...prep, end: token.end, text: ctx.text.slice(prep.start, token.end) };
       const desde = prep.lower === "desde";
       const finding = replaceToken(
