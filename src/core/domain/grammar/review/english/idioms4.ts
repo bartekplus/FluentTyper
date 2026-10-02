@@ -214,7 +214,7 @@ const CLOSES = `(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:)"”]|$))`;
  * (`(?=word)`): tried at every position of a long run of spaces, this lookbehind rereads the
  * run each time in JavaScriptCore.
  */
-const SENTENCE = `(?<=(?:^|[.!?\\n]["”’)]*)[ \\t\\u00a0]*["“'‘(]?)`;
+const SENTENCE = `(?<=(?:^|[.!?\\n]["”’)]{0,3})[ \\t\\u00a0]{0,8}["“'‘(]?)`;
 const DETERMINER =
   "the|a|an|this|that|these|those|my|your|his|her|its|our|their|some|any|all|every|each";
 const OBJECT = new Set(
@@ -277,7 +277,7 @@ const FRAMES: readonly Frame[] = [
     // "did the mistake" is "made"; "Did that mistake…" and "where did the mistake…" ask.
     // The core table owns "do/did/doing a mistake".
     rule: "englishPhraseCorrections",
-    pattern: `(?=do|did)(?<!(?:^|[.!?\\n]["”’)]*)[ \\t\\u00a0]*["“'‘(]?)${notAfter("where|when|why|how|what|which|whose")}(?!(?:do|did|doing)${S}a${S}mistake${E})(?<target>do|does|did|doing|done)${S}(?:(?:${DETERMINER}|several|many|no|few|more|fewer|such|same|lots${S}of|so${S}many|too${S}many)${S})(?:\\p{L}+${S})?mistakes?${E}`,
+    pattern: `(?=do|did)(?<!(?:^|[.!?\\n]["”’)]{0,3})[ \\t\\u00a0]{0,8}["“'‘(]?)${notAfter("where|when|why|how|what|which|whose")}(?!(?:do|did|doing)${S}a${S}mistake${E})(?<target>do|does|did|doing|done)${S}(?:(?:${DETERMINER}|several|many|no|few|more|fewer|such|same|lots${S}of|so${S}many|too${S}many)${S})(?:\\p{L}+${S})?mistakes?${E}`,
     fix: (m) => MAKE[m.groups!.target.toLowerCase()],
   },
   {
@@ -434,12 +434,13 @@ const FRAMES: readonly Frame[] = [
     // "if I would've known": the past conditional takes "had". After "know" or "wonder",
     // "if" means "whether": "I don't know if he would have done it".
     rule: "englishPhraseCorrections",
-    pattern: `(?<!(?:know|knows|knew|wonder|wondered|wondering|ask|asked|asking|sure|doubt|see|check|tell|decide)${S})if${S}(?:I|you|we|they|he|she|it|(?:the|that|this|my|your|his|her|our|their)${S}\\p{L}+)${S}(?<target>would['’]ve|would${S}have|would${S}of|had['’]ve|hadve|had${S}of|had${S}have)${S}(?<done>\\p{L}+)${E}`,
+    pattern: `(?<!(?:know|knows|knew|wonder|wondered|wondering|ask|asked|asking|sure|doubt|see|check|tell|decide)${S})if${S}(?:I|you|we|they|he|she|it|(?:the|that|this|my|your|his|her|our|their)${S}\\p{L}+)${S}(?<target>(?<not>would${S}not${S}have|wouldn['’]t${S}have)|would['’]ve|would${S}have|would${S}of|had['’]ve|hadve|had${S}of|had${S}have)${S}(?<done>\\p{L}+)${E}`,
     fix: (m) => {
       const done = m.groups!.done.toLowerCase();
-      return done === "been" || info(done)?.verbs.some((v) => v.form === "participle")
-        ? "had"
-        : null;
+      const not = m.groups!.not;
+      if (done !== "been" && !info(done)?.verbs.some((v) => v.form === "participle")) return null;
+      // "would not have known" -> "had not known"; "wouldn't have" -> "hadn't".
+      return not ? (/n['’]t/i.test(not) ? `hadn${not.match(/['’]/)![0]}t` : "had not") : "had";
     },
   },
   {

@@ -251,6 +251,22 @@ function everEvery(ctx: DetectContext): RawFinding[] {
     const [start, end] = m.indices!.groups!.target;
     push(ctx, findings, "englishConfusedWords", start, end, m.groups!.target, ["ever"], m.index);
   }
+  // "Did you every try it?", "Why would I every do that": every between auxiliary + subject
+  // and a verb, unless a time phrase follows ("Did you every day go…").
+  for (const m of frameMatches(
+    ctx,
+    `(?:can|could|would|will|should|shall|might|may|did|do|does|have|has|had|don['’]?t|doesn['’]?t|didn['’]?t|won['’]t|wouldn['’]t|can['’]t|couldn['’]t)${SPACE}(?:I|you|we|they|he|she|it)${SPACE}(?<target>every)${SPACE}(?!(?:day|days|time|times|morning|night|week|weekend|month|year|hour|minute|second|one|single|other|so|now|last|bit|once|few|two|three)${WORD_END})[a-z]+${WORD_END}`,
+  )) {
+    const [start, end] = m.indices!.groups!.target;
+    if (findings.some((f) => f.range.start === start)) continue;
+    findings.push({
+      ruleId: "englishConfusedWords",
+      messageKey: "review_msg_ever_every",
+      range: { start, end },
+      alternatives: [caseLike(m.groups!.target, "ever")],
+      context: evidence(ctx, m.index, m.index + m[0].length),
+    });
+  }
   return findings;
 }
 
