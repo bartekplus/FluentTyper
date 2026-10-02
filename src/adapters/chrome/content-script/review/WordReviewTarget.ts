@@ -22,6 +22,7 @@ export class WordReviewTarget implements ReviewTargetHandle {
   private disposed = false;
   private initialFailure: ReviewTargetRead | null = null;
   private segments: RenderedSegment[] | null | undefined;
+  private renderedRoot: Element | undefined;
   private readonly observer: MutationObserver;
   constructor(
     readonly element: HTMLElement,
@@ -111,6 +112,7 @@ export class WordReviewTarget implements ReviewTargetHandle {
       )
         this.segments = undefined;
       this.snapshot = result.ok ? result : null;
+      if (result.ok) this.captureRenderedRoot();
       if (selection && !result.ok) this.initialFailure = result;
       return result;
     }
@@ -153,22 +155,42 @@ export class WordReviewTarget implements ReviewTargetHandle {
     );
   }
 
+  private captureRenderedRoot(): void {
+    if (this.renderedRoot || !this.snapshot) return;
+    const view = this.inputProxy.closest(".WACInteractiveView") ?? this.element;
+    if (this.snapshot.bodyType !== 0) {
+      // Bind only while the native selection still belongs to this Review. A
+      // later caret move must not choose an identical header from another story.
+      if (!this.matchesSelection()) return;
+      const boxes = [...view.querySelectorAll(".Header, .Footer")].filter(
+        (box) => !box.closest(".InactiveBoxRendering"),
+      );
+      if (boxes.length === 1) this.renderedRoot = boxes[0];
+      // Non-main stories sharing the main proxy need an active story box.
+      // Notes use their own sibling interactive view.
+      else if (boxes.length === 0 && !view.matches("#WACViewPanel.WACInteractiveView"))
+        this.renderedRoot = view;
+      return;
+    }
+    this.renderedRoot = view;
+  }
+
   /** Word renders tabs as spans and paragraph marks as synthetic text. Only an
    * exact, complete ordered model/DOM match establishes offsets; never search
    * for a finding's text (identical paragraphs must remain distinct). */
   private renderedSegments(): RenderedSegment[] | null {
     if (!this.snapshot || !this.element.isConnected) return null;
     if (this.observer.takeRecords().length) this.segments = undefined;
+    this.captureRenderedRoot();
+    const view = this.renderedRoot;
+    if (!view?.isConnected || view.closest(".InactiveBoxRendering")) return null;
     if (this.segments !== undefined) return this.segments;
     const segments: RenderedSegment[] = [];
     let text = "";
-    // Footnotes/endnotes render in a sibling interactive view. The originating
-    // proxy selects that view; inactive boxes are previews of other stories.
-    const view = this.inputProxy.closest(".WACInteractiveView") ?? this.element;
     const paragraphs = [...view.querySelectorAll(".Paragraph")].filter(
       (paragraph) =>
         !paragraph.closest(".InactiveBoxRendering") &&
-        (this.snapshot!.bodyType !== 0 || !paragraph.closest(".Header, .Footer")),
+        (view.matches(".Header, .Footer") || !paragraph.closest(".Header, .Footer")),
     );
     for (const [index, paragraph] of paragraphs.entries()) {
       if (index) text += "\n";

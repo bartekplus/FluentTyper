@@ -854,6 +854,58 @@ test("Word highlights exclude inactive header and footer previews, even with ide
   expect(h.writes).toBe(0);
 });
 
+test("Word highlights pin the active header or footer without mapping identical main text", () => {
+  for (const storyClass of ["Header", "Footer"]) {
+    const h = fixture(["teh", "teh"]);
+    h.model.body.type = 1; // Opaque non-main story; no native header enum is assumed.
+    const view = document.getElementById("WACViewPanel")!;
+    view.className = "WACInteractiveView";
+    view.insertAdjacentHTML(
+      "afterbegin",
+      `<div class="${storyClass}"><p class="Paragraph">teh</p><p class="Paragraph">teh</p></div>`,
+    );
+    const story = view.querySelector(`.${storyClass}`)!;
+    h.target.read();
+    const finding = { start: 4, end: 7 };
+    expect(h.target.domRange(finding)?.startContainer.parentElement?.closest("p")).toBe(
+      story.querySelectorAll("p")[1],
+    );
+    // A caret move must not redirect an open Review to an identical body.
+    const selection = h.model.getSelection.bind(h.model);
+    h.model.getSelection = () => ({ ...selection(), parentBody: { ...h.model.body, type: 0 } });
+    story.classList.add("InactiveBoxRendering");
+    expect(h.target.domRange(finding)).toBeNull();
+    h.target.read();
+    expect(h.target.domRange(finding)).toBeNull();
+    expect(h.writes).toBe(0);
+    h.target.dispose();
+  }
+});
+
+test("Word header geometry waits for an unambiguous active box in the selected story", () => {
+  const h = fixture(["teh"]);
+  h.model.body.type = 1;
+  const view = document.getElementById("WACViewPanel")!;
+  view.className = "WACInteractiveView";
+  h.target.read();
+  const finding = { start: 0, end: 3 };
+  expect(h.target.domRange(finding)).toBeNull(); // Identical main text is not proof of a header.
+  view.insertAdjacentHTML(
+    "afterbegin",
+    '<div class="Header"><p class="Paragraph">teh</p></div><div class="Footer"><p class="Paragraph">teh</p></div>',
+  );
+  expect(h.target.domRange(finding)).toBeNull();
+  view.querySelector(".Footer")!.classList.add("InactiveBoxRendering");
+  const selection = h.model.getSelection.bind(h.model);
+  h.model.getSelection = () => ({ ...selection(), parentBody: { ...h.model.body, type: 0 } });
+  expect(h.target.domRange(finding)).toBeNull(); // Late rendering after moving to another story.
+  h.model.getSelection = selection;
+  expect(h.target.domRange(finding)?.startContainer.parentElement?.closest(".Header")).toBe(
+    view.querySelector(".Header"),
+  );
+  h.target.dispose();
+});
+
 test("Word highlights map sibling footnote views and active non-header stories", () => {
   const h = fixture([" teh", " teh"]);
   h.model.body.type = 7; // Observed native footnote body type.

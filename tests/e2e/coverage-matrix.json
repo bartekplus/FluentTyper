@@ -4720,6 +4720,16 @@
         {
           "layer": "unit",
           "file": "tests/WordReview.test.ts",
+          "test": "Word highlights pin the active header or footer without mapping identical main text"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/WordReview.test.ts",
+          "test": "Word header geometry waits for an unambiguous active box in the selected story"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/WordReview.test.ts",
           "test": "Word applies accepted Local AI rewrite hunks in one native transaction"
         },
         {
