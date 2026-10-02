@@ -197,9 +197,11 @@ const EXTENSIONS: Array<[CatalogRuleId, Record<string, Fixture>]> = [
           ["Apartir de hoje.", "A partir de hoje."],
           ["Porisso fui.", "Por isso fui."],
           ["Faz denovo.", "Faz de novo."],
+          ["Ele ficou atoa o dia inteiro.", "Ele ficou à toa o dia inteiro."],
         ],
         neg: [
           "De repente choveu.",
+          "O rebocador atoa o barco até o cais.",
           "O agente chegou.",
           "Embaixo da mesa.",
           "A palavra “derrepente” não existe.",
@@ -359,7 +361,7 @@ const EXTENSIONS: Array<[CatalogRuleId, Record<string, Fixture>]> = [
           ["Il reste parmis nous.", "Il reste parmi nous."],
           ["Je vais l'apeller ce soir.", "Je vais l'appeler ce soir."],
           ["Quelque soit le prix, on achète.", "Quel que soit le prix, on achète."],
-          ["C'est comme même bizarre.", "C'est quand même bizarre."],
+          ["Il a payé en faite trop cher.", "Il a payé en fait trop cher."],
           ["La connection est lente.", "La connexion est lente."],
         ],
         neg: [
