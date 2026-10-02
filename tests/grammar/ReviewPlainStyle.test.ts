@@ -58,6 +58,14 @@ describe("optional plain style", () => {
     ["We always will remember it.", "We will always remember it."],
     ["Trains often are late here.", "Trains are often late here."],
     ["They walk often to school.", "They often walk to school."],
+    ["The crate was huge in size.", "The crate was huge."],
+    ["Our options are few in number.", "Our options are few."],
+    ["The tickets cost $40 dollars.", "The tickets cost $40."],
+    ["We served more than 500+ meals.", "We served more than 500 meals."],
+    ["Insert the DVD disc first.", "Insert the DVD first."],
+    ["I will return the drill back to Sam.", "I will return the drill to Sam."],
+    ["Critics over-exaggerated the risk.", "Critics exaggerated the risk."],
+    ["We agree with the fact that it helps.", "We agree that it helps."],
   ])("fixes %p", (text, expected) => {
     expect(fixAll(text, scan(text, "stylePhrasing"))).toBe(expected);
   });
@@ -70,6 +78,10 @@ describe("optional plain style", () => {
     "That is not it.",
     "We will always remember it.",
     "They walk to school often.",
+    "The rooms differ in size.",
+    "It is long in the tooth.",
+    "The pin number on the chip is 4.",
+    "Return trips back to town are slow.",
   ])("keeps %p", (text) => {
     expect(scan(text, "stylePhrasing")).toEqual([]);
   });

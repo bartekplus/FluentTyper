@@ -55,6 +55,7 @@ test("no chunk stalls on runs of frame-opening words", () => {
     "I all ready the later we can here he barley yet alone ".repeat(400),
     "I was here and we left but they stay so I can or the van is ".repeat(400),
     "and ".repeat(3_000),
+    "big in size $5 dollars more than 9+ return it back to ".repeat(300),
     "born in china from turkey the black sea over thanksgiving id like my id is ".repeat(300),
     "we need to login please setup who logins to backup ".repeat(300),
     "this is were the more that an then right know once of all ready jut doe bares ".repeat(250),
