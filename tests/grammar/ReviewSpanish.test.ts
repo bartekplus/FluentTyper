@@ -1054,6 +1054,29 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
       ],
     },
   ],
+  [
+    "spanishAccents",
+    "nouns and adjectives that look like verbs, before a noun, after an adjective or haber",
+    {
+      pos: [
+        ["La ultima vez nos reímos mucho.", "La última vez nos reímos mucho."],
+        ["Esa magnifica actuación ganó el premio.", "Esa magnífica actuación ganó el premio."],
+        ["Fue un solo termino el que falló.", "Fue un solo término el que falló."],
+        ["Inventaron una nueva formula de pago.", "Inventaron una nueva fórmula de pago."],
+        ["No había numero de teléfono.", "No había número de teléfono."],
+        ["Hay que poner limite a los gastos.", "Hay que poner límite a los gastos."],
+        ["La maquina de café no funciona.", "La máquina de café no funciona."],
+      ],
+      neg: [
+        "Ella la practica de vez en cuando.",
+        "Juan la practica de vez en cuando.",
+        "La autora critica de arriba abajo a los jóvenes.",
+        "La termino mañana.",
+        "Antes de salir practico yoga.",
+        "La practica a diario.",
+      ],
+    },
+  ],
 ];
 
 describe.each(FIXTURES)("%s: %s", (ruleId, _family, fixture) => {

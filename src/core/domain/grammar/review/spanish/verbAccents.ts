@@ -84,6 +84,42 @@ function postponedAdjective(at: Around, accented: string): boolean {
   );
 }
 
+// Adjectives that go before their noun: "un solo término", "la extraña máquina".
+const PRENOMINAL = words(
+  "nuevo nueva viejo vieja solo sola único única último última extraño extraña simple mero " +
+    "mera pequeño pequeña buen buena mal mala feliz lamentable verdadero verdadera falso falsa " +
+    "propio propia mismo misma antiguo antigua breve enorme largo larga corto corta",
+);
+// Words after which "la"/"las" is a clitic: "Ella la practica de vez en cuando".
+const NOT_BEFORE_ARTICLE = words(
+  "yo tú él ella usted nosotros nosotras vosotros vosotras ellos ellas ustedes no ya también " +
+    "tampoco nunca siempre que quien se me te nos os",
+);
+
+const formOf = (word: string) => {
+  const m = /(o|a)(s?)$/u.exec(word);
+  return m ? { feminine: m[1] === "a", plural: m[2] === "s" } : null;
+};
+/** An -o/-a word of the gender and number given. */
+function agrees(form: { feminine: boolean | null; plural: boolean }, accented: string): boolean {
+  const own = formOf(accented);
+  return (
+    !!own &&
+    own.plural === form.plural &&
+    (form.feminine === null || own.feminine === form.feminine)
+  );
+}
+const agreesWithArticle = (article: string, accented: string) =>
+  agrees({ feminine: !article.startsWith("lo"), plural: article.endsWith("s") }, accented);
+/** The next word is a noun of the gender and number of the -o/-a word before it. */
+function agreesWithNext(at: Around, accented: string): boolean {
+  const own = formOf(accented);
+  const noun = readNoun(at.next());
+  if (!own || !noun || noun.paired || !noun.gender || at.tokens[at.i + 1].broken) return false;
+  if (finiteVerb(at.next()) || noun.plural !== own.plural) return false;
+  return (noun.gender === "f") === own.feminine;
+}
+
 /** "termino" -> "término" where a noun or adjective goes, not a verb. */
 function nominal(at: Around): string | null {
   const word = at.tokens[at.i].lower;
@@ -99,6 +135,28 @@ function nominal(at: Around): string | null {
     return null;
   if (DETERMINERS.has(prev) || DEGREE.has(prev) || SER.has(prev)) return accented;
   if (DEMONSTRATIVES.has(prev) && PREPOSITIONS.has(at.prev(2))) return accented;
+  // "No había termino medio": the impersonal "haber" takes a noun.
+  if (/^(?:hay|había|habrá|hubo|haya|habría)$/u.test(prev)) return accented;
+  // "La ultima consideración", "aquella magnifica intervención": a noun that agrees with it
+  // follows, so the word is an adjective before it.
+  if (
+    /^(?:la|las|tu|tus|esta|estas|esa|esas|aquella|aquellas)$/u.test(prev) &&
+    agreesWithNext(at, accented)
+  )
+    return accented;
+  // "Un solo termino", "la extraña maquina": an adjective between a determiner and the word.
+  const between = PRENOMINAL.has(prev.replace(/s$/u, ""))
+    ? (formOf(prev) ?? { feminine: null, plural: prev.endsWith("s") })
+    : null;
+  if (
+    between &&
+    (DETERMINERS.has(at.prev(2)) || /^(?:la|las|los|el)$/u.test(at.prev(2))) &&
+    agrees(between, accented)
+  )
+    return accented;
+  // "Hubo que poner termino a aquello": an infinitive's object, the infinitive no preposition's.
+  if (isInfinitive(prev) && at.prev(2) && !PREPOSITIONS.has(at.prev(2)) && PREPOSITIONS.has(next))
+    return accented;
   // "en la página", "parar la máquina", "la máquina del tiempo": "la" is no clitic there.
   if (/^(?:la|las|los)$/u.test(prev)) {
     // "la termino": a feminine article cannot take the masculine noun.
@@ -106,8 +164,17 @@ function nominal(at: Around): string | null {
     const before = at.prev(2);
     return PREPOSITIONS.has(before) ||
       isInfinitive(before) ||
+      // "La maquina del tiempo.", "Las nauseas no se pasan": a clitic never opens a clause
+      // before "de" or "no".
+      (at.tokens[at.i - 1] &&
+        new Around(at.tokens, at.i - 1).starts &&
+        /^(?:de|del|no)$/u.test(next) &&
+        agreesWithArticle(prev, accented)) ||
       /(?:ado|ido)$/u.test(before) ||
-      (!!before && (next === "de" || next === "del")) ||
+      (!!before &&
+        (next === "de" || next === "del") &&
+        !NOT_BEFORE_ARTICLE.has(before) &&
+        !/^\p{Lu}/u.test(at.tokens[at.i - 2].text)) ||
       // "Memorizarás las fórmulas": a clitic goes before its verb, not after another one.
       (!!before && finiteVerb(before) && !isNoun(before) && !CLITICS.has(at.prev(3))) ||
       // "La fábrica produjo…": two finite verbs never stand side by side.
