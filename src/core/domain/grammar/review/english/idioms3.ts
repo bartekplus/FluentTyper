@@ -272,7 +272,7 @@ const FRAMES: readonly Frame[] = [
   },
   {
     rule: PREPOSITION,
-    pattern: `(?<!(?<![\\p{L}'’])(?:was|were|is|are|be|been|being|get|got|gets|getting)${S})(?:asked|told)(?<target>${S}to)${S}(?:me|you|him|her|us|them|it|one)${E}(?!${S}(?:of|side|another)${E})(?=${S}[\\p{L}"“'‘~])`,
+    pattern: `(?=asked|told)(?<!(?<![\\p{L}'’])(?:was|were|is|are|be|been|being|get|got|gets|getting)${S}(?:\\p{L}+ly${S}|often${S}|always${S}|never${S}|not${S}|also${S}|already${S})?)(?:asked|told)(?<target>${S}to)${S}(?:me|you|him|her|us|them|it|one)${E}(?!${S}(?:of|side|another)${E})(?=${S}[\\p{L}"“'‘~])`,
     fix: "",
   },
   {
@@ -311,7 +311,8 @@ const FRAMES: readonly Frame[] = [
   },
   {
     rule: PHRASE,
-    pattern: `(?:a|the|my|your|his|her|our|their|any|another|each|every)${S}(?<target>complain)${E}`,
+    // "make her complain" keeps the verb: "her" is also an object.
+    pattern: `(?:a|the|my|your|his|our|their|any|another|each|every)${S}(?<target>complain)${E}`,
     fix: (m, ctx) => (nounLike(wordAfter(ctx, targetEnd(m))) ? null : "complaint"),
   },
   {

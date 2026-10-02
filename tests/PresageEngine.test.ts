@@ -34,11 +34,14 @@ describe("PresageEngine", () => {
     expect(config).toHaveBeenCalledWith("Presage.Selector.SUGGESTIONS", "7");
   });
 
-  test("predict parses JSON predictions and keeps plain string predictions", () => {
+  test("predict unquotes JSON-quoted expansions and keeps every other prediction a word", () => {
     const nativePredictions = [
       { prediction: '"hello"' },
       { prediction: "world" },
+      { prediction: "true" },
       { prediction: "null" },
+      { prediction: "42" },
+      { prediction: '"line\\nbreak"' },
     ];
     const implement = jest.fn((callbackImpl) => callbackImpl);
 
@@ -64,7 +67,8 @@ describe("PresageEngine", () => {
 
     const callbackArg = implement.mock.calls[0]?.[0] as { pastStream: string };
     expect(callbackArg.pastStream).toBe("input text");
-    expect(predictions).toEqual(["hello", "world"]);
+    // "true", "null" and "42" are dictionary words, not JSON values.
+    expect(predictions).toEqual(["hello", "world", "true", "null", "42", "line\nbreak"]);
   });
 
   test("setConfig calls PREFIX_ONLY_MODE on native presage", () => {

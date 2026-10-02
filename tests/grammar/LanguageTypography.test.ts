@@ -487,6 +487,19 @@ describe("sentence starts after language abbreviations", () => {
     ["de_DE", "Das sog. Problem."],
     ["es_ES", "Vive en la Avda. del Mar."],
     ["fr_FR", "Voir chap. deux."],
+    ["de_DE", "Die Praxis von Dr. med. Weber öffnet am 4. Feb. wieder."],
+    ["de_DE", "Kaiser Karl IV. ließ die Brücke bauen."],
+    ["de_DE", "Gemüse, Obst und Co. stehen im Regal."],
+    ["de_DE", "Es gilt lt. Vertrag nur bis Okt. dieses Jahres."],
+    ["pl_PL", "W lipcu br. ruszy budowa."],
+    ["pl_PL", "Zysk wzrósł o 12 proc. w skali roku."],
+    ["pl_PL", "Wspomniany ww. dokument leży na biurku."],
+    ["en_US", "The museum opens on Jan. twelfth, ca. noon."],
+    ["es_ES", "El plazo vence el 3 de dic. por la tarde."],
+    ["es_ES", "Llegó en 2a. posición."],
+    ["pt_BR", "A reunião ficou para 5 de out. de manhã."],
+    ["pt_BR", "Ficou em 3o. lugar."],
+    ["fr_FR", "La réunion du 5 janv. aura lieu ici."],
   ])("%s: %s", (lang, text) => {
     const found = detectReviewDiagnostics(
       { id: "abbr", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
@@ -512,6 +525,57 @@ describe("sentence starts after language abbreviations", () => {
       },
     ).diagnostics;
     expect(found.map((d) => d.original)).toEqual(["p"]);
+  });
+
+  test.each([
+    // Words, not abbreviations, in their own language: "dez" (ten), "mar" (sea).
+    ["pt_BR", "Contei até dez. depois parei."],
+    ["es_ES", "Fuimos al mar. luego comimos."],
+    // A Roman numeral is an ordinal only where "1." is.
+    ["en_US", "He owns a CV. then he left."],
+  ])("%s still flags the next sentence: %s", (lang, text) => {
+    const found = detectReviewDiagnostics(
+      { id: "abbr", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
+      {
+        enabledRules: ["capitalizeSentenceStart"],
+        lang,
+        userDictionary: [],
+        insertSpaceAfterAutocomplete: true,
+      },
+    ).diagnostics;
+    expect(found).toHaveLength(1);
+  });
+});
+
+describe("acronym casing", () => {
+  const casing = (text: string, lang: string) =>
+    detectReviewDiagnostics(
+      { id: "acr", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
+      {
+        enabledRules: ["englishCanonicalCasing"],
+        lang,
+        userDictionary: [],
+        insertSpaceAfterAutocomplete: true,
+      },
+    ).diagnostics.map((d) => [d.original, d.alternatives[0].preview]);
+
+  test("English writes acronyms in capitals", () => {
+    expect(casing("The Nasa probe and the Cpu.", "en_US")).toEqual([
+      ["Nasa", "NASA"],
+      ["Cpu", "CPU"],
+    ]);
+  });
+
+  test.each([
+    ["de_DE", "Sehr geehrter Hr. Braun, die Nato tagt."],
+    ["pt_BR", "A Nasa e a Lego assinaram com Souza & Cia. hoje."],
+    ["fr_FR", "Le peintre Ai expose à Paris."],
+  ])("%s keeps its own spelling: %s", (lang, text) => {
+    expect(casing(text, lang)).toEqual([]);
+  });
+
+  test("brand names keep their casing in every language", () => {
+    expect(casing("Ich nutze github.", "de_DE")).toEqual([["github", "GitHub"]]);
   });
 });
 
