@@ -269,10 +269,16 @@ function afterNoun(ctx: DetectContext, m: RegExpExecArray, det: string): RawFind
   const [detGender, detNumber] = DETERMINERS[det];
   // "un grand chien", "la porte": the noun slot holds an adjective or a verb. Before être it is
   // the noun ("le plan est"), with the determiner's gender.
-  const adjectival = adjectiveReadings(noun.w).length > 0;
+  const forms = new Set(adjectiveReadings(noun.w).map((r) => r.slot));
+  const adjectival = forms.size > 0;
   const linkAt = linkingEnd(tokens, 2, detNumber === "p" ? ILS : IL);
-  if (adjectival && (linkAt < 0 || !detGender || detNumber === "p")) return null;
-  const target = adjectival ? (`${detGender}s` as Inflection) : phraseInflection(det, noun.w);
+  // "ses voisines": a plural gendered noun has the one inflection its form shows.
+  const shown = detNumber === "p" && forms.size === 1 ? [...forms][0] : null;
+  if (shown && !shown.endsWith("p")) return null;
+  if (adjectival && (linkAt < 0 || ((!detGender || detNumber === "p") && !shown))) return null;
+  const target = adjectival
+    ? (shown ?? (`${detGender}s` as Inflection))
+    : phraseInflection(det, noun.w);
   if (!target) return null;
   // "toute la matinée": the word before the predeterminer.
   const previous = tokensBefore(ctx.text, m.index, 2);
