@@ -9,6 +9,7 @@ import {
 import { resolveGrammarRuleSelection } from "../../src/core/domain/grammar/GrammarRuleSettings";
 
 const OPTIONAL_REVIEW_IDS: readonly string[] = [
+  "germanAbbreviationSpacing",
   "styleRedundancy",
   "styleLongSentence",
   "ellipsisShortcut",
@@ -24,6 +25,8 @@ const OPTIONAL_REVIEW_IDS: readonly string[] = [
   "englishBritishSpelling",
   "styleWordChoice",
   "styleSpelledNumbers",
+  "greekStrictFinalNu",
+  "greekPunctuation",
   "portugueseTypographyStyle",
   "portugueseAO90",
 ];
