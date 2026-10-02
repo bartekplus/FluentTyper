@@ -279,7 +279,8 @@ export type ReviewMessageKey =
   | "review_msg_spanish_abbreviation"
   | "review_msg_spanish_date"
   | "review_msg_spanish_agreement"
-  | "review_msg_spanish_comma";
+  | "review_msg_spanish_comma"
+  | "review_msg_spanish_verb_agreement";
 
 export type BulkDecision =
   | { eligible: true; alternative: number }

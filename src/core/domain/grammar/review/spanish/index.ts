@@ -9,6 +9,7 @@ import * as porque from "./porque";
 import * as prefixes from "./prefixes";
 import * as typography from "./typography";
 import * as verbAccents from "./verbAccents";
+import * as verbAgreement from "./verbAgreement";
 import * as verbForms from "./verbForms";
 
 // One registry entry per rule: modules serving the same rule run as one detector.
@@ -24,6 +25,7 @@ for (const entry of [
   ...typography.DETECTORS,
   ...agreement.DETECTORS,
   ...commas.DETECTORS,
+  ...verbAgreement.DETECTORS,
 ])
   byRule.set(entry.rules.join(), [...(byRule.get(entry.rules.join()) ?? []), entry]);
 

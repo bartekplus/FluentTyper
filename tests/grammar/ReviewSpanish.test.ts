@@ -425,6 +425,36 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
       ],
     },
   ],
+  [
+    "spanishAgreement",
+    "subject and verb, gustar, plural copula and participle",
+    {
+      pos: [
+        ["Los vecinos tiene un perro.", "Los vecinos tienen un perro."],
+        ["Ellas llega mañana.", "Ellas llegan mañana."],
+        ["Mi hermano no se levantan temprano.", "Mi hermano no se levanta temprano."],
+        ["Este pastel están riquísimo.", "Este pastel está riquísimo."],
+        ["Las tiendas ha cerrado ya.", "Las tiendas han cerrado ya."],
+        ["Nos encanta las películas de miedo.", "Nos encantan las películas de miedo."],
+        ["Les preocupa los exámenes.", "Les preocupan los exámenes."],
+        ["Estamos agotado después del viaje.", "Estamos agotados después del viaje."],
+      ],
+      neg: [
+        "El problema son los precios.",
+        "Su pasión han sido los viajes.",
+        "Las manzanas las compra mi padre.",
+        "Los domingos abre a las diez.",
+        "La mayoría votaron en contra.",
+        "Me gustan el cine y la música.",
+        "No me gustan esa clase de bromas.",
+        "Ellos hace años que no se ven.",
+        "Las cosas parece que mejoran.",
+        "Son resultado de mucho trabajo.",
+        "No eran pecado.",
+        "Mi amigo Eren es de Turquía.",
+      ],
+    },
+  ],
 ];
 
 describe.each(FIXTURES)("%s: %s", (ruleId, _family, fixture) => {
@@ -506,7 +536,7 @@ test("no Spanish chunk stalls on repeated trigger words", () => {
   };
   const triggers =
     "¿Que esta este estas el tu mi si se de aun mas? ¡Que bonito! No se si esta bien. " +
-    "La casas del uno de las la primer dos perro. ";
+    "La casas del uno de las la primer dos perro. Los amigos tiene me gusta las son cansado. ";
   slowest(triggers.repeat(50));
   for (const text of [
     triggers.repeat(60),

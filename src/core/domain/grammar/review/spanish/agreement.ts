@@ -57,7 +57,7 @@ const PARADIGMS = [
 ].map((line) => line.split(" ").map((form) => form.replace("_", " ")));
 
 type Determiner = { forms: string[]; slot: number };
-const DETERMINER = new Map<string, Determiner>();
+export const DETERMINER = new Map<string, Determiner>();
 for (const forms of PARADIGMS)
   forms.forEach((form, slot) => {
     if (!form.includes(" ") && !DETERMINER.has(form)) DETERMINER.set(form, { forms, slot });
@@ -186,7 +186,7 @@ export function pluralOf(word: string): string | null {
   return /[dljnry]$/u.test(word) ? `${word}es` : `${word}s`;
 }
 
-type Noun = {
+export type Noun = {
   plural: boolean;
   gender: Gender | null;
   /** -o/-a pairs ("niño", "española"): the form shows the gender. */
@@ -222,7 +222,7 @@ const NOT_NOUNS = words(
 );
 
 /** A noun's number and gender, read from the dictionary, or null for anything else. */
-function readNoun(word: string): Noun | null {
+export function readNoun(word: string): Noun | null {
   if (!/^\p{Ll}+$/u.test(word) || word.length < 3) return null;
   if (NUMBER_WORDS.has(word) || NOT_NOUNS.has(word) || isInfinitive(word)) return null;
   const noun = readForm(word);

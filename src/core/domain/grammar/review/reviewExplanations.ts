@@ -2114,6 +2114,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "W hiszpańskim po wyrażeniu łączącym na początku zdania i przed wołaczem stawia się przecinek.",
     "Em espanhol, a vírgula segue o conector que abre a oração e isola o vocativo.",
   ],
+  review_msg_spanish_verb_agreement: [
+    "In Spanish, the verb and its participle agree in number with the subject.",
+    "En espagnol, le verbe et son participe s’accordent en nombre avec le sujet.",
+    "U španjolskom se glagol i njegov particip slažu u broju sa subjektom.",
+    "El verbo y su participio concuerdan en número con el sujeto.",
+    "Στα ισπανικά, το ρήμα και η μετοχή του συμφωνούν στον αριθμό με το υποκείμενο.",
+    "På spanska stämmer verbet och dess particip överens i numerus med subjektet.",
+    "Im Spanischen stimmen Verb und Partizip im Numerus mit dem Subjekt überein.",
+    "W hiszpańskim czasownik i jego imiesłów zgadzają się w liczbie z podmiotem.",
+    "Em espanhol, o verbo e o seu particípio concordam em número com o sujeito.",
+  ],
 };
 
 /**
