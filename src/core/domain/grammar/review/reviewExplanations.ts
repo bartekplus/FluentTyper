@@ -2699,6 +2699,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Rodzajnik nie pasuje do rodzaju rzeczownika: das Auto, die Frau, ein schönes Haus.",
     "O artigo não concorda com o género do substantivo: das Auto, die Frau, ein schönes Haus.",
   ],
+  review_msg_german_double_verb: [
+    "The verb appears twice in this clause: keep one.",
+    "Le verbe apparaît deux fois dans cette proposition : n’en gardez qu’un.",
+    "Glagol se pojavljuje dvaput u ovoj rečenici: zadržite jedan.",
+    "El verbo aparece dos veces en esta oración: deje uno.",
+    "Το ρήμα εμφανίζεται δύο φορές σε αυτή την πρόταση: κρατήστε το ένα.",
+    "Verbet står två gånger i satsen: behåll ett.",
+    "Das Verb steht in diesem Satz zweimal: eines davon streichen.",
+    "Czasownik występuje w tym zdaniu dwa razy: zostaw jeden.",
+    "O verbo aparece duas vezes nesta oração: mantenha um.",
+  ],
   review_msg_german_object_case: [
     "A masculine direct object takes the accusative article: ich habe einen Termin, sie sieht den Mann.",
     "Un complément d’objet direct masculin prend l’article à l’accusatif : ich habe einen Termin, sie sieht den Mann.",
