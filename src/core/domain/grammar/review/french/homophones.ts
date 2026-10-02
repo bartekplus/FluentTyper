@@ -296,10 +296,16 @@ const PLACE_TIME_NOUNS = new Set(
     "jour jours fois moment moments instant endroit endroits lieu lieux pays ville villes époque " +
     "année années mois semaine soir matin période cas heure maison région monde situation " +
     "hypothèse point état temps nuit soirée journée an siècle âge quartier village pièce chambre " +
-    "site page"
+    "site page ferme"
   ).split(" "),
 );
 const ASKING_VERBS = new Set(["savoir", "demander", "indiquer", "montrer", "ignorer", "expliquer"]);
+// Places a relative "où" names, with or without a determiner.
+const PLACES = new Set(
+  "endroit lieu pays ville villes maison région quartier village ferme pièce chambre".split(" "),
+);
+// Verbs a "where?" follows at the end of a question: "tu vas où ?", "il est où ?".
+const WHERE_VERBS = new Set(["être", "aller", "habiter"]);
 const DEFINITE = new Set("le la l' les ce cet cette ces".split(" "));
 const NUMBERS =
   /^(?:\d+|un|une|deux|trois|quatre|cinq|six|sept|huit|neuf|dix|onze|douze|quinze|vingt|trente|cent|mille)$/;
@@ -317,23 +323,61 @@ function ouToOu(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   const next = after[0];
   const startsClause = (t: Token | undefined) =>
     !!t && (SUBJECT_PRONOUNS.has(t.w) || t.w === "c'" || (t.w === "l'" && after[1]?.w === "on"));
-  if (m[0] === "Ou") {
+  // "Et ou est le métro ?", "Alors, ou se trouve le chalet ?": a question's first word past "et",
+  // "mais" or "alors".
+  const opener = before.every((t) => ["et", "mais", "alors"].includes(t.w));
+  const afterComma = /(?:^|[.!?…]\s{0,8})(?:Et|Mais|Alors)\s{0,8},\s{0,8}$/u.test(
+    ctx.text.slice(Math.max(0, m.index - 16), m.index),
+  );
+  const startOfQuestion =
+    m[0] === "Ou" ? sentenceStart(ctx.text, m.index) : (before.length > 0 && opener) || afterComma;
+  if (m[0] === "Ou" || startOfQuestion) {
     // "Ou sont mes clés ?": a question opened by "Ou" and a verb.
     const sentence = rest.split(/[.!…\n]/)[0];
-    // "Ou serait-ce l'inverse ?": an inversion right after it is "or".
-    if (!sentenceStart(ctx.text, m.index) || !sentence.includes("?") || !next || next.hyphen)
-      return null;
+    if (!startOfQuestion || !sentence.includes("?") || !next) return null;
+    // "Ou serait-ce l'inverse ?": an inversion right after it is "or", unless an infinitive
+    // follows ("Ou pourrons-nous aller ?").
+    const infinitive = after[2] && readingsOf(after[2].w).some((r) => r.slot === "I");
+    if (next.hyphen) return infinitive ? fix() : null;
+    if (next.w === "se" || next.w === "s'") return fix();
     return plainVerb(next.w, isFinite) || next.w === "est" ? fix() : null;
   }
   const previous = before[0];
   if (!previous) return null;
-  if (PLACE_TIME_NOUNS.has(previous.w) && startsClause(next)) {
+  // "Tu vas ou demain ?", "Il est ou Marc ?", "par ou ?": where, in a question after être, aller
+  // or a preposition.
+  const question = /^[^.!?…\n]{0,30}\?/u.test(rest);
+  const where =
+    readingsOf(previous.w).some((r) => isFinite(r) && WHERE_VERBS.has(r.lemma)) ||
+    previous.w === "par";
+  // "Tu viens ou pas ?", "tu es là ou tu pars ?": "or".
+  const or =
+    next &&
+    (["pas", "non", "bien", "alors", "quoi", "plutôt", "si"].includes(next.w) ||
+      startsClause(next) ||
+      readingsOf(next.w).some(isFinite));
+  if (question && where && !or) return fix();
+  // "la maison ou Marie est née", "pays ou le temps est doux": a name or a noun phrase and its
+  // verb open the clause too.
+  const opensClause =
+    startsClause(next) ||
+    (!!next &&
+      ((/^\p{Lu}\p{Ll}/u.test(ctx.text.slice(next.start, next.end)) &&
+        !!after[1] &&
+        readingsOf(after[1].w).some(isFinite)) ||
+        (DEFINITE.has(next.w) && !!after[2] && readingsOf(after[2].w).some(isFinite))));
+  if (PLACE_TIME_NOUNS.has(previous.w) && opensClause) {
     // "le jour ou la nuit" is "or"; a determiner before the noun keeps it a noun.
     // "un mois ou je m'abonne": only a definite noun is a time or place being named.
     // "la seule fois ou il", "des temps ou il": past an adjective, or the plural "des".
     let d = 1;
-    if (before[d] && adjectiveReadings(before[d].w).length) d++;
+    const article = (t?: Token) => !!t && (DETERMINERS.has(t.w) || t.w === "un" || t.w === "une");
+    if (before[d] && !article(before[d]) && adjectiveReadings(before[d].w).length) d++;
     if (before[d] && (DEFINITE.has(before[d].w) || before[d].w === "des")) return fix();
+    // "une ville ou il fait bon vivre", "Pays ou il fait beau": a place, named or not.
+    // "une maison ou tu préfères un appartement ?" offers a choice: not in a question.
+    const place = PLACES.has(previous.w) && !/^[^.!…\n]*\?/u.test(rest);
+    if (place && (!before[d] || ["un", "une"].includes(before[d].w))) return fix();
   }
   // "va ou tu veux", "restez ou vous êtes.": "where" before a clause that ends on vouloir or
   // être.
