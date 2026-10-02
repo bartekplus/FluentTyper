@@ -38,9 +38,9 @@ const REPEATED = `(?<=^|[.!?;:\\n][ \\t\\u00a0]{0,8})(?<first>não|sim)(?<target
 const OPENER = `(?<=^|[.!?;:\\n][ \\t\\u00a0]{0,8})por${S}exemplo(?<target>${S})(?=\\p{Ll}{2,}${W})(?!(?:de|do|da|que)${W})`;
 // A whole line that greets or signs off a letter.
 const CLOSINGS = `atenciosamente|cordialmente|respeitosamente|cumprimentos|melhores${S}cumprimentos|com${S}os${S}melhores${S}cumprimentos|saudações|abraços|um${S}abraço|um${S}grande${S}abraço|beijos|grato${S}pela${S}atenção|grata${S}pela${S}atenção|obrigad[oa]${S}pela${S}atenção`;
-const LINE_END = `(?=[ \\t\\u00a0]*(?:\\n|$))`;
-const CLOSING = `(?<=^|\\n)[ \\t\\u00a0]*(?=(?:${CLOSINGS})[.;]?${LINE_END})(?:\\p{L}+${S})*(?<target>\\p{L}+[.;]?)${LINE_END}`;
-const GREETING_LINE = `(?<=^|\\n)[ \\t\\u00a0]*(?:prezad[oa]s?|car[oa]s?|estimad[oa]s?|querid[oa]s?)(?:${S}(?:senhor(?:a|es|as)?|sr\\.?|sra\\.?|dr\\.?|dra\\.?|doutor(?:a)?|professor(?:a)?|\\p{Lu}[\\p{L}.]*|e|senhores|senhoras|colegas|amigos|amigas|clientes)){0,4}${S}(?<target>[\\p{L}.]+!?)${LINE_END}`;
+const LINE_END = `(?=[ \\t\\u00a0]{0,8}(?:\\n|$))`;
+const CLOSING = `(?<=^|\\n)[ \\t\\u00a0]{0,8}(?=(?:${CLOSINGS})[.;]?${LINE_END})(?:\\p{L}{1,30}${S}){0,6}(?<target>\\p{L}{1,30}[.;]?)${LINE_END}`;
+const GREETING_LINE = `(?<=^|\\n)[ \\t\\u00a0]{0,8}(?:prezad[oa]s?|car[oa]s?|estimad[oa]s?|querid[oa]s?)(?:${S}(?:senhor(?:a|es|as)?|sr\\.?|sra\\.?|dr\\.?|dra\\.?|doutor(?:a)?|professor(?:a)?|\\p{Lu}[\\p{L}.]*|e|senhores|senhoras|colegas|amigos|amigas|clientes)){0,4}${S}(?<target>[\\p{L}.]{1,30}!?)${LINE_END}`;
 const ASKS = `(?<=^|[.!?;\\n][ \\t\\u00a0]{0,8})(?:quem|o${S}que|que|como|onde|de${S}onde|aonde|quando|por${S}que|qual|quanto|quantos|quantas)${S}(?:foi|é|era)${S}que${W}[^.!?\\n]{1,160}?(?<target>\\.)(?=[ \\t\\u00a0]*(?:\\n|$|\\p{Lu}))`;
 
 const SUBJECTS = new Set("eu tu ele ela você nós eles elas vocês".split(" "));

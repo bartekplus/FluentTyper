@@ -215,7 +215,7 @@ const FRAMES: Frame[] = [
   },
   // "até" (until, even) before an article, a place or a time word; "ate" is a form of "atar".
   {
-    pattern: `(?<!(?:que|se|quando|embora|talvez|caso)${S}(?:\\p{Ll}+${S})?)(?<target>ate)${S}(?=(?:o|a|os|as|ao|aos|à|às|aqui|ali|lá|onde|quando|minha|meu|sua|seu|nossa|nosso|\\d)${W})`,
+    pattern: `(?<!(?:que|se|quando|embora|talvez|caso)${S}(?:\\p{Ll}{1,24}${S})?)(?<target>ate)${S}(?=(?:o|a|os|as|ao|aos|à|às|aqui|ali|lá|onde|quando|minha|meu|sua|seu|nossa|nosso|\\d)${W})`,
     alternatives: ["até"],
     messageKey: "review_msg_pt_homophone",
   },

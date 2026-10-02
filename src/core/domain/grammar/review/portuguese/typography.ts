@@ -43,7 +43,7 @@ const ELEMENT =
 const NUMBER_FORMAT: Frame[] = [
   // "1 999 349.56": an English decimal point after a spaced thousands group.
   {
-    pattern: `(?<![\\d.,])\\d{1,3}(?:[ \\u00a0]\\d{3})+(?<target>\\.)\\d+(?![\\d.,]*\\d)`,
+    pattern: `(?<![\\d.,])\\d{1,3}(?:[ \\u00a0]\\d{3}){1,6}(?<target>\\.)\\d{1,6}(?![\\d.,]{0,12}\\d)`,
     replace: ",",
     ruleId: "portugueseNumberFormat",
     messageKey: "review_msg_pt_number_format",
