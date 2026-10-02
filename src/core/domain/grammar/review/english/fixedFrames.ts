@@ -298,6 +298,9 @@ const GUARDS: Record<
   string,
   { before?: RegExp; after?: RegExp; next?: (word: string) => boolean }
 > = {
+  // "It was very responsible of you to call": considerate of the person, not "for".
+  "responsible of": { after: /^[ \t\u00a0]+(?:you|him|her|them|us|me)\b/i },
+  "responsable of": { after: /^[ \t\u00a0]+(?:you|him|her|them|us|me)\b/i },
   // "Best of all though, …"
   "all though": { before: /\bof[ \t\u00a0]+$/i },
   // "beaten up coming home"
