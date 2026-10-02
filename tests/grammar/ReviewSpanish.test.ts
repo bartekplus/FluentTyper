@@ -1130,6 +1130,31 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
       ],
     },
   ],
+  [
+    "spanishAccents",
+    "inglés, París, sería and -ar futures read from their frame",
+    {
+      pos: [
+        ["Mi ingles mejora cada día.", "Mi inglés mejora cada día."],
+        ["Tengo clase de ingles los lunes.", "Tengo clase de inglés los lunes."],
+        ["Este verano viajamos a Paris.", "Este verano viajamos a París."],
+        ["No sé quién seria capaz de hacerlo.", "No sé quién sería capaz de hacerlo."],
+        ["Esperar seria lo mejor.", "Esperar sería lo mejor."],
+        ["Llegara mañana a las diez.", "Llegará mañana a las diez."],
+        ["¿Cuándo terminaras el informe?", "¿Cuándo terminarás el informe?"],
+      ],
+      neg: [
+        "Le dolían las ingles.",
+        "Depilación de ingles.",
+        "Vino con Paris Hilton.",
+        "El juicio de Paris.",
+        "Es una mujer seria y formal.",
+        "Es una persona seria lo que buscamos.",
+        "Si me llamara mañana, iría.",
+        "Quería que cantara mañana.",
+      ],
+    },
+  ],
 ];
 
 describe.each(FIXTURES)("%s: %s", (ruleId, _family, fixture) => {

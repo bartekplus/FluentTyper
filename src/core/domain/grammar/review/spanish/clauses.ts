@@ -235,6 +235,53 @@ function doubledPronoun(ctx: DetectContext, tokens: Token[], i: number): RawFind
   );
 }
 
+// ------------------------------------------------------------------ accents read from a frame
+
+// "el ingles", "curso de ingles": the language; "las ingles" (the groin) is plural.
+const BEFORE_LANGUAGE = words("el del al mi tu su un en y o buen mal nuestro vuestro");
+const LANGUAGE_NOUNS = words(
+  "curso cursos clase clases profesor profesora profesores examen nivel libro libros alumnos " +
+    "alumnas academia traducción diccionario",
+);
+// What a conditional "sería" goes on with and the adjective "seria" does not.
+const AFTER_SERIA = words(
+  "lo un una mejor peor posible imposible necesario necesaria conveniente preferible suficiente",
+);
+
+/** "el ingles" -> "inglés", "en Paris" -> "París", "cuál seria" -> "sería". */
+function framedAccent(ctx: DetectContext, tokens: Token[], i: number): RawFinding | null {
+  const at = new Around(tokens, i);
+  const word = tokens[i].lower;
+  const prev = at.prev();
+  let fix: string | null = null;
+  // "curso de ingles", but "depilación de ingles" is the groin.
+  const languageDe = prev === "de" && LANGUAGE_NOUNS.has(at.prev(2));
+  if (word === "ingles" && (BEFORE_LANGUAGE.has(prev) || languageDe)) fix = "inglés";
+  else if (
+    tokens[i].text === "Paris" &&
+    // "el juicio de Paris" names the Trojan prince: only prepositions of place.
+    /^(?:a|en|hacia|desde|hasta|para|por)$/u.test(prev) &&
+    !/^\p{Lu}/u.test(tokens[i + 1]?.text ?? "")
+  )
+    fix = "París";
+  else if (
+    word === "seria" &&
+    (/^(?:cuál|qué|quién|cómo|dónde)$/u.test(prev) ||
+      // "una persona seria lo que buscamos": "lo que" is a relative.
+      (AFTER_SERIA.has(at.next()) && at.next(2) !== "que"))
+  )
+    fix = "sería";
+  if (!fix) return null;
+  return replaceToken(
+    ctx,
+    tokens[i],
+    [fix],
+    "spanishAccents",
+    "review_msg_spanish_accent",
+    tokens[i - 1],
+  );
+}
+
 type Frame = (ctx: DetectContext, tokens: Token[], i: number) => RawFinding | null;
 
 function scan(...frames: Frame[]) {
@@ -254,7 +301,7 @@ function scan(...frames: Frame[]) {
 }
 
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  { rules: ["spanishAccents"], detect: scan(paraQue) },
+  { rules: ["spanishAccents"], detect: scan(paraQue, framedAccent) },
   { rules: ["spanishConfusions"], detect: scan(separatedEnclitic, aPunto) },
   { rules: ["stylePhrasing"], detect: scan(agoBack) },
   { rules: ["spanishAgreement"], detect: scan(impersonalHaber, doubledPronoun) },

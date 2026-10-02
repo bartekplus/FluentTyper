@@ -330,8 +330,21 @@ function verbAccent(at: Around): string | null {
     )
       return `${future[1]}${{ a: "á", as: "ás", an: "án", e: "é" }[future[2]]}`;
   }
+  // "Cantara mañana" -> "cantará", "¿Cuándo llegaras?" -> "llegarás": an -ar future without
+  // its accent reads as a past subjunctive, which needs a trigger ("si", "que") before it.
+  const arFuture = /^(\p{L}+ar)(a|as|an)$/u.exec(word);
+  if (arFuture && isVerb(arFuture[1]) && !isNoun(word)) {
+    const triggered = [1, 2, 3].some((k) => FUTURE_BLOCKERS.has(at.prev(k)));
+    const asked =
+      /^(?:cuándo|cuánto|cuánta|cuántos|cuántas|dónde|adónde)$/u.test(prev) &&
+      at.tokens[at.i - 2]?.text === "¿";
+    if (!triggered && (asked || at.next() === "mañana"))
+      return `${arFuture[1]}${{ a: "á", as: "ás", an: "án" }[arFuture[2]]}`;
+  }
   return null;
 }
+// Words that call for the past subjunctive: "si cantara mañana", "como si lo supiera".
+const FUTURE_BLOCKERS = words("si que ojalá aunque como cuando quizá quizás tal");
 
 const DIRECTIONS = words(
   "abajo arriba adelante atrás afuera adentro allá acá aquí allí delante donde dónde",
