@@ -6,6 +6,7 @@ import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { nounNumber } from "./nounNumberSlots";
 import {
+  ADVERBS,
   afterBreak,
   caseLike,
   english,
@@ -46,10 +47,14 @@ const COLLECTIVE = new Set(
   ),
 );
 
+// Adjectives that name a group as a noun: "the public", "the rich", "the elderly".
+const GROUP_ADJECTIVES =
+  /^(?:public|rich|poor|elderly|young|old|wealthy|unemployed|homeless|sick|dead|living|blind|deaf|faithful|wise|british|french|english|irish|dutch|welsh|chinese|japanese|swiss)$/;
+
 const normal = (word: string) => word.toLowerCase().replace("’", "'");
 
 /** The plural form of a singular verb token, or null. */
-function pluralOf(token: Token, nextToken: Token | undefined): string | null {
+function pluralOf(token: Token, nextToken?: Token, afterNext?: Token): string | null {
   const word = normal(token.lower);
   if (TO_PLURAL[word]) return TO_PLURAL[word];
   if (!/s$/.test(word) || FUNCTION_WORDS.has(word)) return null;
@@ -58,14 +63,28 @@ function pluralOf(token: Token, nextToken: Token | undefined): string | null {
   // "barks" is also a plural noun: only a verb when an adverb, object or end follows.
   if (read.noun || read.plural) {
     const next = nextToken?.kind === "word" ? englishWordInfo(nextToken.lower) : null;
+    // "The properties files still contained…": an adverb before a verb leaves "files" a noun.
+    const verbAfter =
+      afterNext?.kind === "word" &&
+      !!englishWordInfo(afterNext.lower)?.verbs.some(
+        (v) => v.form === "past" || v.form === "third",
+      );
+    const adverbNext =
+      nextToken?.kind === "word" &&
+      !verbAfter &&
+      (ADVERBS.has(nextToken.lower) ||
+        /^(?:late|early|fast|hard|well|today|tonight|loudly|everywhere|together)$/.test(
+          nextToken.lower,
+        ) ||
+        (!!next?.adverb && !next.noun));
     const closed =
       !nextToken ||
       nextToken.kind === "end" ||
+      adverbNext ||
       (nextToken.kind === "word" &&
-        (/^(?:the|a|an|my|your|his|her|our|their|it|them|me|us|him|you|that|to|in|on|at|with|for)$/.test(
+        /^(?:the|a|an|my|your|his|her|our|their|it|them|me|us|him|you|that|to|in|on|at|with|for|every|each)$/.test(
           nextToken.lower,
-        ) ||
-          (!!next?.adverb && !next.noun)));
+        ));
     if (!closed) return null;
   }
   return englishLemma(word, "third");
@@ -139,7 +158,14 @@ function nounSubject(ctx: DetectContext): RawFinding[] {
       const number = nounNumber(word);
       const read = englishWordInfo(word);
       // After the head, an -s word that is also a verb is the verb: "The cats sleeps".
-      if (head && /s$/.test(word) && read?.verbs.some((v) => v.form === "third")) break;
+      // An adjective read as the head gives way to a plural noun after it: "The black cats sleeps".
+      if (
+        head &&
+        /s$/.test(word) &&
+        read?.verbs.some((v) => v.form === "third") &&
+        !(read.plural && englishWordInfo(head)?.adjective && /s$/.test(tokens[i + 1]?.lower ?? ""))
+      )
+        break;
       // A postmodifier after the head ("the solvents present in…") or an adjective used as a
       // noun ("the rich"): not this frame.
       if (head && (!number || read?.adjective)) {
@@ -156,11 +182,19 @@ function nounSubject(ctx: DetectContext): RawFinding[] {
       // "The dogs of war is", "The chemicals in Botox is": skip a short phrase.
       let j = i + 1;
       if (/^(?:the|a|an|my|your|his|her|our|their)$/.test(tokens[j]?.lower ?? "")) j++;
+      const object = j;
       while (
         j < i + 4 &&
         tokens[j]?.kind === "word" &&
         !TO_PLURAL[normal(tokens[j].lower)] &&
-        !TO_SINGULAR[normal(tokens[j].lower)]
+        !TO_SINGULAR[normal(tokens[j].lower)] &&
+        // "The users in Asia wants": an -s verb after the phrase's noun.
+        !(
+          j > object &&
+          tokens[j].text === tokens[j].lower &&
+          /s$/.test(tokens[j].lower) &&
+          englishWordInfo(tokens[j].lower)?.verbs.some((v) => v.form === "third")
+        )
       )
         j++;
       verbAt = j;
@@ -176,8 +210,10 @@ function nounSubject(ctx: DetectContext): RawFinding[] {
       !TO_PLURAL[normal(verb.lower)] &&
       !TO_SINGULAR[normal(verb.lower)] &&
       (auxiliaryLater(tokens, verbAt + 1) ||
-        // "The public demands answers": the head may itself be the verb.
-        !!englishWordInfo(head)?.verbs.some((v) => v.form === "third"))
+        // "The public demands answers": after an adjective used as a noun, the head may itself
+        // be the verb.
+        (tokens.slice(0, i).some((t) => GROUP_ADJECTIVES.test(t.lower)) &&
+          !!englishWordInfo(head)?.verbs.some((v) => v.form === "third")))
     )
       continue;
     const number = nounNumber(head)!;
@@ -185,7 +221,7 @@ function nounSubject(ctx: DetectContext): RawFinding[] {
     // "this/that" before a noun is singular; plural determiners must have a plural head.
     if (number.number === "plural") {
       if (/^(?:this|that)$/.test(det) && verbAt === i) continue;
-      const fix = pluralOf(verb, tokens[verbAt + 1]);
+      const fix = pluralOf(verb, tokens[verbAt + 1], tokens[verbAt + 2]);
       if (fix) push(ctx, findings, verb, fix, m.index);
     } else if (!/^(?:these|those|many|several|both|some|most)$/.test(det)) {
       const fix = TO_SINGULAR[normal(verb.lower)];
@@ -204,10 +240,10 @@ function irregularPlurals(ctx: DetectContext): RawFinding[] {
   )) {
     // Only a clause-opening subject: "Meeting new people is hard" has people as an object.
     if (!afterBreak(ctx, m.index) && !CLAUSE_CUE.test(wordBefore(ctx, m.index))) continue;
-    const tokens = tokensAfter(ctx, m.index + m[0].length, 2);
+    const tokens = tokensAfter(ctx, m.index + m[0].length, 3);
     const verb = tokens[0];
     if (verb?.kind !== "word" || verb.text !== verb.lower || !verbOnlyThird(verb)) continue;
-    const fix = pluralOf(verb, tokens[1]);
+    const fix = pluralOf(verb, tokens[1], tokens[2]);
     if (fix) push(ctx, findings, verb, fix, m.index);
   }
   return findings;
@@ -221,12 +257,12 @@ function demonstratives(ctx: DetectContext): RawFinding[] {
     `(?<target>these|those)(?:${SPACE}(?:two|three|four|five|both|all))?${SPACE}(?=[a-z])`,
   )) {
     if (!afterBreak(ctx, m.index) && !CLAUSE_CUE.test(wordBefore(ctx, m.index))) continue;
-    const tokens = tokensAfter(ctx, m.index + m[0].length, 2);
+    const tokens = tokensAfter(ctx, m.index + m[0].length, 3);
     const verb = tokens[0];
     if (verb?.kind !== "word" || verb.text !== verb.lower || !verbOnlyThird(verb)) continue;
     if (!TO_PLURAL[normal(verb.lower)] && auxiliaryLater(tokensAfter(ctx, verb.end, 6), 0))
       continue;
-    const fix = pluralOf(verb, tokens[1]);
+    const fix = pluralOf(verb, tokens[1], tokens[2]);
     if (fix) push(ctx, findings, verb, fix, m.index);
   }
   for (const m of frameMatches(ctx, `(?<target>this|that)${SPACE}(?<verb>are|were)${WORD_END}`)) {

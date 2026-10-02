@@ -28,6 +28,11 @@ test("a noun-phrase subject agrees with its verb", () => {
     ["Where is your keys?", "Where are your keys?"],
     ["Does you like it?", "Do you like it?"],
     ["Does anyone knows the answer?", "Does anyone know the answer?"],
+    ["The geese honks every morning.", "The geese honk every morning."],
+    ["The pale lamps burns all night.", "The pale lamps burn all night."],
+    ["The rules of chess seems simple.", "The rules of chess seem simple."],
+    ["Most hikers in Norway carries a map.", "Most hikers in Norway carry a map."],
+    ["The kettles whistles loudly.", "The kettles whistle loudly."],
   ]) {
     const found = scan(input);
     expect({ input, count: found.length }).toEqual({ input, count: 1 });
@@ -39,6 +44,9 @@ test("a noun-phrase subject agrees with its verb", () => {
 test("collectives, objects, subjunctives and compound nouns stay silent", () => {
   for (const text of [
     "The dog barks at night.",
+    "The config files still listed the old host.",
+    "The public demands answers.",
+    "The pale lamps burn all night.",
     "The team are winning.",
     "The news is good.",
     "The users settings page loads.",

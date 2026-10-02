@@ -107,6 +107,13 @@ export function nounNumber(word: string): Number_ | null {
     );
     if (stem) return { singular: stem, plural: word, number: "plural" };
   }
+  // Derived nouns ("hikers" from hike + -er + -s) read as plain plurals only.
+  const read = englishWordInfo(word);
+  if (read?.plural && !read.verbs.length && !read.adjective && /ers$/.test(word)) {
+    const stem = englishWordInfo(word.slice(0, -1));
+    if (stem?.noun && !stem.plural && !stem.verbs.length)
+      return { singular: word.slice(0, -1), plural: word, number: "plural" };
+  }
   return null;
 }
 
