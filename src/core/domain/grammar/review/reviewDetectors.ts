@@ -428,7 +428,9 @@ const pronounI: Detector = (ctx) => {
       contextEnd += 1;
     } else if (/^\.(?:\s|$)/u.test(rest)) {
       // Unlike typing, what follows the period is here: not "i.e.", so "than i." ends
-      // a sentence. A roman numeral opening a list line or naming a part is not.
+      // a sentence. A roman numeral opening a list line or naming a part is not, nor is
+      // a spaced-out "i. e.".
+      if (/^\.\s+e\./i.test(rest)) continue;
       const lineStart = ctx.text.lastIndexOf("\n", start - 1) + 1;
       if (ctx.text.slice(lineStart, start).trim() === "") continue;
       if (NUMERAL_BEFORE.test(ctx.text.slice(Math.max(0, start - 24), start))) continue;
@@ -562,9 +564,14 @@ interface PhraseMatch {
   end: number;
 }
 
+// JavaScript's \s by code unit: phrase windows test it once per character they widen over.
 function isWhitespaceAt(text: string, index: number): boolean {
-  return /\s/.test(text[index] ?? "");
+  const code = text.charCodeAt(index);
+  return code === 32 || (code >= 9 && code <= 13) || (code > 127 && /\s/.test(text[index]));
 }
+
+// Stateless (no g or y flag) copies of the typing rules' patterns, compiled once each.
+const PHRASE_REGEX = new WeakMap<RegExp, RegExp>();
 
 /**
  * Runs a typing rule's end-anchored pattern at every word end of the chunk.
@@ -577,7 +584,12 @@ function* phraseMatches(
   pattern: RegExp,
   tokens: number,
 ): Generator<PhraseMatch> {
-  const regex = new RegExp(pattern.source, `${pattern.flags.replace(/[gy]/g, "")}d`);
+  let regex = PHRASE_REGEX.get(pattern);
+  if (!regex)
+    PHRASE_REGEX.set(
+      pattern,
+      (regex = new RegExp(pattern.source, `${pattern.flags.replace(/[gy]/g, "")}d`)),
+    );
   for (const word of asciiWords(ctx, PHRASE_WINDOW)) {
     const limit = Math.max(0, word.end - PHRASE_WINDOW);
     let windowStart = word.start;

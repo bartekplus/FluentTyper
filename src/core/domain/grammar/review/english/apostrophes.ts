@@ -244,8 +244,13 @@ const BARE_SUBJECT_BEFORE = words(
 function pluralSubjects(ctx: DetectContext): Finding[] {
   const findings: Finding[] = [];
   for (const m of frameMatches(ctx, PLURAL_SUBJECT, "w")) {
-    const { w } = m.groups!;
-    if (!BARE_SUBJECT_BEFORE.has(previousWord(ctx, m.index)) || ctx.dictionary.has(w)) continue;
+    const { w, verb } = m.groups!;
+    const before = previousWord(ctx, m.index);
+    // "The car's are cheap", "those file's were": a plural verb right after the article.
+    const article =
+      /^(?:these|those)$/.test(before) ||
+      (before === "the" && /^(?:are|were|aren't|weren't)$/.test(verb.replace("’", "'")));
+    if ((!article && !BARE_SUBJECT_BEFORE.has(before)) || ctx.dictionary.has(w)) continue;
     const plural = pluralOf(w);
     if (!plural) continue;
     const [start] = m.indices!.groups!.w;
@@ -306,8 +311,13 @@ function verbApostrophes(ctx: DetectContext): Finding[] {
 
 // "We''ll", "Tom''s": one apostrophe.
 const DOUBLED = `(?<w>[A-Za-z]+)(?<marks>${A}${A})(?:s|t|ll|re|ve|d|m)(?![\\p{L}\\p{N}'’])`;
+/** The text frames scan for this chunk holds `gate`; without it a frame cannot match. */
+const holds = (ctx: DetectContext, gate: RegExp) =>
+  gate.test(ctx.scanText.slice(Math.max(0, ctx.from - 256)));
+
 function doubledApostrophes(ctx: DetectContext): Finding[] {
   const findings: Finding[] = [];
+  if (!holds(ctx, /['’]['’]/)) return findings;
   for (const m of frameMatches(ctx, DOUBLED, "marks")) {
     const [start, end] = m.indices!.groups!.marks;
     findings.push({
@@ -333,6 +343,7 @@ const ENDINGS: Record<string, string> = {
 };
 function spacedApostrophes(ctx: DetectContext): Finding[] {
   const findings: Finding[] = [];
+  if (!holds(ctx, /['’][ \t\u00a0]|[ \t\u00a0]['’]/)) return findings;
   for (const m of frameMatches(ctx, SPACED, "gap")) {
     const { w, gap, s } = m.groups!;
     const allowed = ENDINGS[w.toLowerCase()];

@@ -74,6 +74,7 @@ test("compounds, pronoun counts and invariant nouns keep their number", () => {
     "These help a lot.",
     "Every few days the price changes.",
     "They each took a slice.",
+    "After the hike every leg muscle aches.",
     "On the other hand, it works.",
     "This means trouble.",
     "We have a five star hotel.",

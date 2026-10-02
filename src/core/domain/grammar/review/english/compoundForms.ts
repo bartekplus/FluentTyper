@@ -706,11 +706,12 @@ function numberUnits(ctx: DetectContext): Finding[] {
       // "one hour" is a duration far more often than a modifier.
       if (/^(?:1|one)$/i.test(n)) continue;
       if (!isNounNext(next ?? "") || NOT_A_HEAD.test(next ?? "")) continue;
-      // "exceeded 100,000 page edits": a large count needs "a" or "the" to be a modifier.
+      // "exceeded 100,000 page edits", "over 100,000 day trip passengers": a large count
+      // needs "a" or "the" to be a modifier ("an over 5,000 year history").
       if (
         /^[0-9,]{4,}$/.test(n) &&
-        !/\b(?:a|an|the|over|under|nearly|almost|about)[ \t ]+$/i.test(
-          ctx.text.slice(Math.max(0, m.index - 8), m.index),
+        !/\b(?:a|an|the)[ \t\u00a0]+(?:(?:over|under|nearly|almost|about)[ \t\u00a0]+)?$/i.test(
+          ctx.text.slice(Math.max(0, m.index - 16), m.index),
         )
       )
         continue;
@@ -739,7 +740,7 @@ function numberUnits(ctx: DetectContext): Finding[] {
 }
 
 // "May be I am wrong" opens with the adverb "maybe"; "it may be" is the verb.
-const MAY_BE = `(?:(?<=(?:^|[.!?(\\n])[ \\t\\u00a0"“]{0,8})(?<target>may${S}be)(?=${S}(?:I|we|you|he|she|they|there|his|her|my|your|our|their|someone|somebody|something|this|that|it['’]s|not)${E})|(?<=\\b(?:is|are|was|were|it['’]s|this['’]s|that['’]s)${S})(?<target2>may${S}be)(?=${S}(?:the|a|an|some|just|because|not|it|this|that|too|very|so|more|less|still|also|only|even|better|worse)${E})|(?<target3>may${S}be)(?=${S}(?:could|can|should|would|will)${E}))`;
+const MAY_BE = `(?=may${S}be)(?:(?<=(?:^|[.!?(\\n])[ \\t\\u00a0"“]{0,8})(?<target>may${S}be)(?=${S}(?:I|we|you|he|she|they|there|his|her|my|your|our|their|someone|somebody|something|this|that|it['’]s|not)${E})|(?<=\\b(?:is|are|was|were|it['’]s|this['’]s|that['’]s)${S})(?<target2>may${S}be)(?=${S}(?:the|a|an|some|just|because|not|it|this|that|too|very|so|more|less|still|also|only|even|better|worse)${E})|(?<target3>may${S}be)(?=${S}(?:could|can|should|would|will)${E}))`;
 
 function mayBe(ctx: DetectContext): Finding[] {
   const findings: Finding[] = [];
@@ -760,10 +761,13 @@ function mayBe(ctx: DetectContext): Finding[] {
   return findings;
 }
 
+// The frames below open with a lookahead on their words: the clause lookbehinds after it then
+// run only where the words are, not at every position (JavaScriptCore's regex interpreter
+// would try them all).
 // "an on going problem", "on going maintenance" at a sentence start; "keep on going" stays.
-const ON_GOING = `(?:(?<=\\b(?:an|the|their|our|his|her|its|my|your|this|that|any|usual|an${S})${S})|(?<=(?:^|[.!?\\n])[ \\t\\u00a0]{0,8}))(?<target>on${S}going)${E}`;
+const ON_GOING = `(?=on${S}going)(?:(?<=\\b(?:an|the|their|our|his|her|its|my|your|this|that|any|usual|an${S})${S})|(?<=(?:^|[.!?\\n])[ \\t\\u00a0]{0,8}))(?<target>on${S}going)${E}`;
 // "Does any one need help?": the pronoun before a verb, not "any one of them".
-const ANY_ONE = `(?<=(?:^|[.!?;\\n]|\\b(?:does|did|do|can|could|will|would|has|have|is|was|if|when|and|but)${S})[ \\t\\u00a0]{0,8})(?<target>(?<q>any|some)${S}one)${S}(?<verb>[a-z]+)${E}`;
+const ANY_ONE = `(?=(?:any|some)${S}one)(?<=(?:^|[.!?;\\n]|\\b(?:does|did|do|can|could|will|would|has|have|is|was|if|when|and|but)${S})[ \\t\\u00a0]{0,8})(?<target>(?<q>any|some)${S}one)${S}(?<verb>[a-z]+)${E}`;
 
 // "sign into your account" is "sign in to"; "signed into law" is the verb with "into".
 const SIGN_INTO = `(?<target>(?<verb>sign|signs|signed|signing|log|logs|logged|logging)${S}into)(?=${S}(?:your|my|his|her|our|their|the|an?)${S}(?:[\\p{L}-]+${S})?(?:accounts?|profiles?|apps?|sites?|website|portal|system|computer|e-?mail|server|dashboard|meeting|session|network|device)${E})`;
