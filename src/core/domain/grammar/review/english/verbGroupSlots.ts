@@ -494,11 +494,13 @@ function bareParticiple(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   for (const m of frameMatches(
     ctx,
-    `(?<subject>I|he|she|we|they)(?<adverbs>(?:${SPACE}(?:never|already|just|not|also))?)${SPACE}(?<verb>[a-z]+)${WORD_END}`,
+    `(?<subject>I|he|she|it|we|they)(?<adverbs>(?:${SPACE}(?:never|already|just|not|also))?)${SPACE}(?<verb>[a-z]+)${WORD_END}`,
     "verb",
   )) {
     const { subject, verb } = m.groups!;
-    if (!PARTICIPLE_ONLY.has(verb) || !plainWord(ctx, verb) || verb === "been") continue;
+    if (!plainWord(ctx, verb) || (!PARTICIPLE_ONLY.has(verb) && verb !== "been")) continue;
+    // "It's" spelled "it" is rare; "it" takes only a participle that never is a past.
+    if (/^it$/i.test(subject) && (verb === "done" || verb === "been")) continue;
     const before = wordBefore(ctx, m.index);
     // "Have Tom and I done enough?": an inverted perfect.
     if (
@@ -513,11 +515,46 @@ function bareParticiple(ctx: DetectContext): RawFinding[] {
       continue;
     if (
       !afterBreak(ctx, m.index) &&
-      !/^(?:and|but|so|when|if|that|because|think|then|well)$/.test(before)
+      !/^(?:and|but|so|when|if|that|because|think|then|well)$/.test(before) &&
+      !/,[ \t\u00a0]*$/.test(ctx.text.slice(Math.max(0, m.index - 4), m.index))
     )
       continue;
-    // "Okay, I done." may be "I'm done": a predicate end abstains.
+    const have = /^(?:he|she|it)$/i.test(subject) ? "has" : "have";
     const next = nextToken(ctx, m.index + m[0].length);
+    // "He been there", "I been to Rome": a perfect without have.
+    if (verb === "been") {
+      if (next?.kind !== "word" || /^(?:and|or|but)$/.test(next.lower)) continue;
+      const [start, end] = m.indices!.groups!.verb;
+      const adverbs = m.groups!.adverbs;
+      push(
+        ctx,
+        findings,
+        "englishPerfectParticiples",
+        "review_msg_perfect_participle",
+        adverbs ? m.indices!.groups!.adverbs[0] : start,
+        end,
+        [adverbs ? ` ${have}${adverbs} been` : `${have} been`],
+        m.index,
+      );
+      continue;
+    }
+    // "Okay, I done.": finished ("I'm done") or a perfect ("I have done").
+    if ((!next || next.kind !== "word") && verb === "done" && !m.groups!.adverbs) {
+      const be = /^i$/i.test(subject) ? "am" : /^(?:he|she)$/i.test(subject) ? "is" : "are";
+      const [start, end] = m.indices!.groups!.verb;
+      push(
+        ctx,
+        findings,
+        "englishPerfectParticiples",
+        "review_msg_perfect_participle",
+        start,
+        end,
+        [`${be} done`, `${have} done`],
+        m.index,
+        true,
+      );
+      continue;
+    }
     if (!next || next.kind !== "word") continue;
     const forms = englishVerbForms(
       verb === "done" ? "do" : verb === "gone" ? "go" : verb === "seen" ? "see" : verb,
@@ -525,7 +562,6 @@ function bareParticiple(ctx: DetectContext): RawFinding[] {
     const lemma = forms?.participle === verb ? forms.lemma : englishLemma(verb, "past");
     const past = lemma && englishVerbForms(lemma)?.past;
     if (!past) continue;
-    const have = /^(?:he|she)$/i.test(subject) ? "has" : "have";
     const adverbs = m.groups!.adverbs;
     const [verbStart, end] = m.indices!.groups!.verb;
     const start = adverbs ? m.indices!.groups!.adverbs[0] : verbStart;

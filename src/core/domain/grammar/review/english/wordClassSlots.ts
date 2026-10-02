@@ -393,7 +393,89 @@ function itForIs(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+/** "I was bit confused", "I'm bit tired": "a bit" before an adjective lost its article. */
+function bareBit(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of frameMatches(
+    ctx,
+    `(?:am|is|are|was|were|[a-z]+['’](?:m|re|s)|feel|feels|felt|seem|seems|seemed|look|looks|looked|get|got|getting)${SPACE}(?<target>bit)${SPACE}(?<next>[a-z]+)${WORD_END}`,
+  )) {
+    const next = m.groups!.next;
+    // "I was bit by a dog", "got bit hard": the past of bite.
+    if (/^(?:by|hard|badly|again|twice|once|while|when)$/.test(next)) continue;
+    const read = englishWordInfo(next);
+    const degree = /^(?:too|more|less|late|early|much|of)$/.test(next);
+    // An adjective or a participle adjective ("confused", "tired"), never a bare verb.
+    const adjective =
+      !!read &&
+      (read.adjective || read.verbs.some((v) => v.form === "participle")) &&
+      !read.noun &&
+      !read.verbs.some((v) => v.form === "base" || v.form === "third") &&
+      !/ly$/.test(next);
+    if (!degree && !adjective) continue;
+    const [start, end] = m.indices!.groups!.target;
+    findings.push({
+      ruleId: "englishSentenceStructure",
+      messageKey: "review_msg_sentence_structure",
+      range: { start, end },
+      alternatives: ["a bit"],
+      context: evidence(ctx, m.index, m.index + m[0].length),
+    });
+  }
+  return findings;
+}
+
+/** "an a flower", "the this idea", "a this dog": two determiners where one belongs. */
+function stackedArticles(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of frameMatches(
+    ctx,
+    `(?<first>the|an|a)${SPACE}(?<second>a|an|this|these|those)${SPACE}(?<noun>[a-z]+)${WORD_END}`,
+    "first",
+  )) {
+    const { first, second, noun } = m.groups!;
+    // Letters and Latin: "the a key", "an a priori case", "the A team".
+    if (
+      second !== second.toLowerCase() ||
+      /^(?:priori|posteriori|fortiori|la|capella|cappella)$/.test(noun)
+    )
+      continue;
+    if (
+      /^an?$/.test(second) &&
+      /^(?:key|button|letter|variable|vowel|grade|side|string|column|field|sound|note|chord|word|team|list|level|version|type|class|series|plus|minus|major|minor|flat|sharp|grader|student|rating|score)$/.test(
+        noun,
+      )
+    )
+      continue;
+    if (first !== first.toLowerCase() && !afterBreak(ctx, m.index)) continue;
+    const read = englishWordInfo(noun);
+    if (!read || !(read.noun || read.adjective) || FUNCTION_WORDS.has(noun)) continue;
+    const [start] = m.indices!.groups!.first;
+    const [, end] = m.indices!.groups!.second;
+    // Either determiner alone; a/an follows the noun's first sound.
+    const article = englishInitialSound(noun) === "vowel" ? "an" : "a";
+    const alternatives = [
+      ...new Set(
+        [first, second].map((d) => {
+          const word = /^an?$/i.test(d) ? article : d.toLowerCase();
+          return /^[A-Z]/.test(first) ? word[0].toUpperCase() + word.slice(1) : word;
+        }),
+      ),
+    ];
+    findings.push({
+      ruleId: "englishSentenceStructure",
+      messageKey: "review_msg_determiner_clash",
+      range: { start, end },
+      alternatives,
+      ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+      context: evidence(ctx, m.index, m.index + m[0].length),
+    });
+  }
+  return findings;
+}
+
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
+  { rules: ["englishSentenceStructure"], detect: english(bareBit, stackedArticles) },
   { rules: ["englishConfusedWords"], detect: english(itForIs) },
   { rules: ["englishExistentialAgreement"], detect: english(existentialSingular) },
   { rules: ["englishAuxiliaryBaseVerb"], detect: english(modalNoun, questionWithoutDo) },

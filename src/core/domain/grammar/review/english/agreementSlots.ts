@@ -271,7 +271,10 @@ function nounSubject(ctx: DetectContext): RawFinding[] {
       if (/^(?:this|that)$/.test(det) && verbAt === i) continue;
       // "Ten dollars is a lot", "the assets is a single system": a singular predicate treats
       // the plural as one thing.
-      if (/^(?:is|was)$/.test(verb.lower) && /^(?:a|an|one)$/.test(tokens[verbAt + 1]?.lower ?? ""))
+      const predicate = ADVERBS.has(tokens[verbAt + 1]?.lower ?? "")
+        ? tokens[verbAt + 2]
+        : tokens[verbAt + 1];
+      if (/^(?:is|was)$/.test(verb.lower) && /^(?:a|an|one)$/.test(predicate?.lower ?? ""))
         continue;
       const fix = pluralOf(verb, tokens[verbAt + 1], tokens[verbAt + 2]);
       if (fix) push(ctx, findings, verb, fix, m.index);
@@ -313,6 +316,9 @@ function irregularPlurals(ctx: DetectContext): RawFinding[] {
     const tokens = tokensAfter(ctx, m.index + m[0].length, 3);
     const verb = tokens[0];
     if (verb?.kind !== "word" || verb.text !== verb.lower || !verbOnlyThird(verb)) continue;
+    // "Most people is probably a bad way to start": the phrase named as one thing.
+    const predicate = ADVERBS.has(tokens[1]?.lower ?? "") ? tokens[2] : tokens[1];
+    if (/^(?:is|was)$/.test(verb.lower) && /^(?:a|an|one)$/.test(predicate?.lower ?? "")) continue;
     const fix = pluralOf(verb, tokens[1], tokens[2]);
     if (fix) push(ctx, findings, verb, fix, m.index);
   }

@@ -207,3 +207,76 @@ test.each([
 ])("it frames before a relative clause stay silent: %s", (text) => {
   expect(scan(text, "englishConfusedWords")).toEqual([]);
 });
+
+test.each([
+  ["He been there twice.", "He has been there twice."],
+  ["Okay, I done.", "Okay, I am done."],
+  ["And then it begun to snow.", "And then it has begun to snow."],
+])("a participle without have: %s", (input, expected) => {
+  const found = scan(input, "englishPerfectParticiples");
+  expect(found).toHaveLength(1);
+  expect(applyEdits(input, found[0].alternatives[0].edits)).toBe(expected);
+});
+
+test.each([
+  ["Have she paid the bill?", "Has she paid the bill?"],
+  ["When have he arrived?", "When has he arrived?"],
+  ["Do he know the way?", "Does he know the way?"],
+])("an inverted auxiliary before he/she: %s", (input, expected) => {
+  const found = scan(input, "englishSubjectVerbAgreement");
+  expect(found).toHaveLength(1);
+  expect(applyEdits(input, found[0].alternatives[0].edits)).toBe(expected);
+});
+
+test.each([
+  "Have you seen her?",
+  "Do you know Tom?",
+  "Do Hindus eat beef?",
+  "Were he to come, we would leave.",
+  "Do it now.",
+  "Most people is probably a bad way to start the list.",
+])("inversions with an agreeing subject stay silent: %s", (text) => {
+  expect(scan(text, "englishSubjectVerbAgreement")).toEqual([]);
+});
+
+test.each([
+  ["There are a two options I like.", "There are two options I like."],
+  ["It depends on how much computers you test.", "It depends on how many computers you test."],
+  ["There aren't even much videos of it.", "There aren't even many videos of it."],
+  ["I have many wine.", "I have much wine."],
+])("count words and nouns agree: %s", (input, expected) => {
+  const found = scan(input, "englishNounNumber");
+  expect(found).toHaveLength(1);
+  expect(applyEdits(input, found[0].alternatives[0].edits)).toBe(expected);
+});
+
+test.each([
+  "Not much changes around here.",
+  "Not much surprises me anymore.",
+  "See how much muffins usually cost.",
+  "How much firms actually know is unclear.",
+  "Much thanks for the help.",
+  "They offer a seven nights or more package.",
+])("count frames stay silent: %s", (text) => {
+  expect(scan(text, "englishNounNumber")).toEqual([]);
+});
+
+test.each([
+  ["I was bit confused.", "I was a bit confused."],
+  ["I'm bit tired today.", "I'm a bit tired today."],
+  ["This is an a flower.", "This is a flower."],
+])("a lost or doubled article: %s", (input, expected) => {
+  const found = scan(input, "englishSentenceStructure");
+  expect(found).toHaveLength(1);
+  expect(applyEdits(input, found[0].alternatives[0].edits)).toBe(expected);
+});
+
+test.each([
+  "I was bit by a dog.",
+  "He got bit hard by a snake.",
+  "Press the a key twice.",
+  "It is an a priori argument.",
+  "In cat the a sound comes first.",
+])("article frames stay silent: %s", (text) => {
+  expect(scan(text, "englishSentenceStructure")).toEqual([]);
+});

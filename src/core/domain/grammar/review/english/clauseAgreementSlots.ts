@@ -535,9 +535,69 @@ function likeThisSubject(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+const THIRD_AUX: Record<string, string> = {
+  have: "has",
+  do: "does",
+  are: "is",
+  "haven't": "hasn't",
+  "don't": "doesn't",
+  "aren't": "isn't",
+};
+
+/**
+ * "Have she bought a ticket?", "When have he arrived?", "Do he know?": an inverted auxiliary
+ * before he/she takes the third-person form.
+ */
+function invertedThirdPerson(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of frameMatches(
+    ctx,
+    `(?<aux>have|do|are|haven['’]t|don['’]t|aren['’]t)${SPACE}(?<subject>he|she)${SPACE}(?<next>[a-z]+)`,
+    "aux",
+  )) {
+    const before = wordBefore(ctx, m.index);
+    if (!afterBreak(ctx, m.index) && !/^(?:when|where|why|how|what|who|which)$/.test(before))
+      continue;
+    const { aux, subject, next } = m.groups!;
+    const fix = THIRD_AUX[normal(aux)];
+    if (!fix) continue;
+    // The frame is case-blind: only he/she, as typed.
+    if (!/^(?:he|she)$/.test(subject)) continue;
+    // A question: the sentence ends in "?".
+    if (!/^[^.!\n]*\?/.test(ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 160)))
+      continue;
+    // The verb after the subject fits the auxiliary.
+    const read = englishWordInfo(next);
+    const a = normal(aux).replace("n't", "");
+    const fits =
+      a === "have"
+        ? next === "been" || !!read?.verbs.some((v) => v.form === "participle")
+        : a === "do"
+          ? !!read?.verbs.some((v) => v.form === "base" && v.lemma === next)
+          : !!read?.adjective ||
+            !!read?.verbs.some((v) => v.form === "ing" || v.form === "participle");
+    if (!fits) continue;
+    const [start, end] = m.indices!.groups!.aux;
+    findings.push({
+      ruleId: "englishSubjectVerbAgreement",
+      messageKey: "review_msg_subject_verb",
+      range: { start, end },
+      alternatives: [caseLike(aux, fix.replace("'", aux.includes("’") ? "’" : "'"))],
+      context: evidence(ctx, m.index, m.index + m[0].length),
+    });
+  }
+  return findings;
+}
+
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
   {
     rules: ["englishSubjectVerbAgreement"],
-    detect: english(relativeClauseVerb, asideSubject, whSubject, likeThisSubject),
+    detect: english(
+      relativeClauseVerb,
+      asideSubject,
+      whSubject,
+      likeThisSubject,
+      invertedThirdPerson,
+    ),
   },
 ];
