@@ -272,12 +272,6 @@ function comparisonAndDegree(ctx: DetectContext, findings: RawFinding[]): RawFin
     if (match.groups!.pred === "right" && match.groups!.follow === "to") continue;
     push(match, "englishYourYouAre", "review_msg_your_you_are", "you're");
   }
-  // ever: "every" between an auxiliary + subject and a verb ("Did you every try…").
-  for (const match of frameMatches(
-    ctx,
-    `(?:can|could|would|will|should|shall|might|may|did|do|does|have|has|had|don['’]?t|doesn['’]?t|didn['’]?t|won['’]t|wouldn['’]t|can['’]t|couldn['’]t)${SPACE}(?:I|you|we|they|he|she|it)${SPACE}(?<target>every)${SPACE}(?!(?:day|days|time|times|morning|night|week|weekend|month|year|hour|minute|second|one|single|other|so|now|last|bit|once|single|few|two|three)${END_WORD})[a-z]+${END_WORD}`,
-  ))
-    push(match, "englishToToo", "review_msg_ever_every", "ever");
   // Degree "too": a linking verb + to + adjective, then an infinitive, for-phrase or clause end.
   // A clitic keeps its owner ("It’s to hard"); a soft line break may split the frame.
   for (const match of frameMatches(

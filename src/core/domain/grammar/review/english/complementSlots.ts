@@ -236,7 +236,8 @@ function usedToGerund(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   for (const m of frameMatches(
     ctx,
-    `(?:I|you|we|they|he|she)(?:${SPACE}(?:am|are|is|was|were|get|got|became)|['’](?:m|re|s))(?:${SPACE}(?:so|very|really|quite|not|already|well))?${SPACE}(?:used|accustomed)${SPACE}to${SPACE}(?<verb>[a-z]+)${WORD_END}`,
+    // Not "they": "they are used to define the genre" is a passive of things.
+    `(?:I|you|we|he|she)(?:${SPACE}(?:am|are|is|was|were|get|got|became)|['’](?:m|re|s))(?:${SPACE}(?:so|very|really|quite|not|already|well))?${SPACE}(?:used|accustomed)${SPACE}to${SPACE}(?<verb>[a-z]+)${WORD_END}`,
     "verb",
   )) {
     const verb = m.groups!.verb;

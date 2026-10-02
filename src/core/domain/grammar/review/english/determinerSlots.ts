@@ -32,6 +32,9 @@ function verbOnly(word: string): boolean {
     return false;
   const forms = englishVerbForms(word);
   if (forms && forms.lemma !== word) return false;
+  // "the restore", "a rewrite", "the reload": re- on a noun makes jargon nouns the dictionary
+  // does not list.
+  if (/^re[a-z]{3}/.test(word) && englishWordInfo(word.slice(2))?.noun) return false;
   const read = englishWordInfo(word);
   return (
     !!read &&
@@ -72,7 +75,10 @@ function derivedNouns(verb: string): string[] {
     verb.replace(/y[sz]e$/, "ysis"),
     verb.replace(/ose$/, "osis"),
   ];
-  const found = [...new Set(candidates)].filter((c) => c !== verb && isNoun(c));
+  // "degradation" over a Bloom filter's false "degradion".
+  const found = [...new Set(candidates)].filter(
+    (c) => c !== verb && isNoun(c) && !(c === `${stem}ion` && isNoun(`${stem}ation`)),
+  );
   return found.slice(0, 2);
 }
 
