@@ -87,8 +87,16 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Die kosten steigen jedes Jahr.", "Die Kosten steigen jedes Jahr."],
         ["Das gerät, mit dem wir messen, ist neu.", "Das Gerät, mit dem wir messen, ist neu."],
         ["Es gab ein ziemlich seltsames verhalten.", "Es gab ein ziemlich seltsames Verhalten."],
+        ["Bis ende Mai ist die Halle geschlossen.", "Bis Ende Mai ist die Halle geschlossen."],
+        ["Wir sind schon auf dem weg.", "Wir sind schon auf dem Weg."],
+        ["Der Schuss ging ins aus.", "Der Schuss ging ins Aus."],
+        ["Die beiden sind ein ungleiches paar.", "Die beiden sind ein ungleiches Paar."],
       ],
       neg: [
+        "Das ende ich jetzt sofort.",
+        "Er wohnt im aus Holz gebauten Haus.",
+        "Wir bleiben ein paar Tage.",
+        "Ich räume den Müll weg.",
         "Die Schuld liegt bei mir.",
         "Er nimmt das Leben ernst.",
         "Ernst zu nehmende Einwände gab es keine.",
@@ -391,8 +399,13 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Sie zählte bis Zwanzig.", "Sie zählte bis zwanzig."],
         ["Wir haben drei Lösung gefunden.", "Wir haben drei Lösungen gefunden."],
         ["Das Projekt kostet 4 Milliarde Euro.", "Das Projekt kostet 4 Milliarden Euro."],
+        [
+          "Die Renovierung kostet eine halbe Millionen.",
+          "Die Renovierung kostet eine halbe Million.",
+        ],
       ],
       neg: [
+        "Zwei halbe Millionen ergeben eine ganze.",
         "Es dauerte zwei, drei Tage.",
         "Zwischen vier und dreißig Grad ist es angenehm.",
         "Das ist ein hundert Jahre alter Baum.",
@@ -526,6 +539,7 @@ describe("germanCompounds", () => {
     ["Sie hat das Paket ab geschickt.", "Sie hat das Paket abgeschickt."],
     ["Ob er es zu gibt, weiß niemand.", "Ob er es zugibt, weiß niemand."],
     ["Du musst gut auf passen.", "Du musst gut aufpassen."],
+    ["Die Sitzung hat zulange gedauert.", "Die Sitzung hat zu lange gedauert."],
   ])("repairs %p", (input, output) => {
     expect(findings("germanCompounds", input)).toHaveLength(1);
     expect(fixed("germanCompounds", input)).toBe(output);
@@ -545,6 +559,7 @@ describe("germanCompounds", () => {
     "Wir wollten immer hin.",
     "Er ist mir über den weg gelaufen.",
     "Ich weiß, wo ich hin muss.",
+    "Beim Buffet greife ich gern zu, wenn ich zulange, wird es teuer.",
   ])("leaves %p alone", (input) => {
     expect(findings("germanCompounds", input)).toEqual([]);
   });

@@ -15,6 +15,7 @@ const re = (source: string) => new RegExp(`${WORD_START}(?:${source})${E}`, "gdu
 const DATIVES = "[Mm]ir|[Dd]ir|[Ii]hm|ihr|[Uu]ns|[Ee]uch|ihnen|Ihnen";
 const POSSESSIVES = "mein|dein|sein|ihr|unser|euer|Ihr";
 const SEIN = "ist|war|wäre|wird|wurde|sei|sein|bin|bist|sind|seid|waren|wären";
+const MONTHS = "Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember";
 // Verbs "zurecht" belongs to: zurechtkommen, -legen, -finden, -machen, -rücken, -weisen.
 const ZURECHT_VERBS =
   /(?<!\p{L})(?:ge)?(?:komm|kam|käm|leg|find|fand|fänd|mach|rück|weis|wies|stell|schneid|schnitt|bieg|bog|setz|zupf|richt)\p{Ll}*/u;
@@ -160,6 +161,33 @@ const FRAMES: Frame[] = [
       if (m.groups!.target === "zurecht") return verb ? null : "zu Recht";
       return verb ? "zurecht" : "zu Recht";
     },
+  ],
+  // "bis ende Januar", "ende des Jahres", "kein ende", "zu ende", "ende gut": the noun; "das
+  // ende ich jetzt" is the verb.
+  [
+    re(
+      `(?<!(?:ich|[Ii]ch)${S})(?<target>ende)(?=${S}(?:${MONTHS}|des|der|dieser|diesen|nächster|nächsten|letzter|letzten|kommender|vergangener|\\d+|[Zz]wanzig|[Dd]reißig|[Vv]ierzig|[Ff]ünfzig|[Ss]echzig|gut)${E})|` +
+        `(?<=(?:[Dd]as|kein|ein|am|zum|vom|zu|bis)${S})(?<t2>ende)(?!${S}(?:ich|du|wir|ihr)${E})`,
+    ),
+    () => "Ende",
+  ],
+  // "auf dem weg", "aus dem weg", "über den weg", "den weg zeigen": the noun.
+  [
+    re(
+      `(?<=(?:auf|aus|über|[Aa]uf|[Aa]us|[Üü]ber)${S}(?:dem|den|halbem|halben)${S})(?<target>weg)|` +
+        `(?<=den${S})(?<t2>weg)(?=${S}(?:gezeigt|zeigen|zeigt|zeigte|finden|findet|fand|gefunden|weisen|gewiesen|kennen|kennt|bahnen|ebnen|geebnet)${E})`,
+    ),
+    () => "Weg",
+  ],
+  // "ein schönes paar", "ein zusätzliches paar Augen": "Paar" after an inflected adjective.
+  [re(`(?<=(?:[Ee]in|[Dd]as|[Dd]ieses|[Jj]edes)${S}\\p{Ll}+es${S})(?<target>paar)`), () => "Paar"],
+  // "im aus", "ins aus gerollt", "das aus für": the noun.
+  [
+    re(
+      `(?<=(?:im|ins)${S})(?<target>aus)(?=[ \\t]*[.!?,;]|${S}(?:\\p{Ll}*ge\\p{Ll}+t|landete|landet|rollte|rollt|ging|geht|gehen|gerät|geriet)${E})|` +
+        `(?<=[Dd]as${S})(?<t2>aus)(?=${S}für${E})`,
+    ),
+    () => "Aus",
   ],
 ];
 

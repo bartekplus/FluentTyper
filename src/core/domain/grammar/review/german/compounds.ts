@@ -144,6 +144,17 @@ function infinitiveClause(ctx: DetectContext, index: number): boolean {
   );
 }
 const FRAMES: Array<[RegExp, Fix]> = [
+  // "zulange gewartet" → "zu lange"; "wenn ich da zulange" is "zulangen" (help oneself).
+  [
+    re(`(?<target>[Zz]ulange)`),
+    (m, ctx) => {
+      const clause = ctx.text
+        .slice(Math.max(0, m.index - 80), m.index)
+        .split(/[.!?;,:\n]/)
+        .at(-1)!;
+      return /(?<!\p{L})ich(?!\p{L})/iu.test(clause) ? null : "zu lange";
+    },
+  ],
   [
     ZU_INFINITIVE,
     (m, ctx) => {
