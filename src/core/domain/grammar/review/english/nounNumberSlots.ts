@@ -65,7 +65,7 @@ const NUMBER_WORDS = new Set(
   ),
 );
 // Nouns used uncountably that a/an and many never take: "an advice", "many money".
-const MASS = new Set(
+export const MASS = new Set(
   (
     "information advice equipment furniture luggage baggage feedback homework housework " +
     "software hardware progress traffic music money wisdom garbage rubbish clothing jewelry " +

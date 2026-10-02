@@ -109,6 +109,7 @@ export type ReviewMessageKey =
   | "review_msg_everyday_adjective"
   | "review_msg_a_few"
   | "review_msg_double_negative"
+  | "review_msg_negated_hardly"
   | "review_msg_since_duration"
   | "review_msg_log_in"
   | "review_msg_set_up"

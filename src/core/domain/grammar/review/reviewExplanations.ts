@@ -604,6 +604,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Czasownik jest już przeczący; standardowy angielski używa tu „any”.",
     "O verbo já é negativo; o inglês padrão usa “any” aqui.",
   ],
+  review_msg_negated_hardly: [
+    "“Hardly”, “barely” and “scarcely” are already negative; drop the “not”.",
+    "« Hardly », « barely » et « scarcely » sont déjà négatifs ; supprimez le « not ».",
+    "„Hardly”, „barely” i „scarcely” već su niječni; izostavite „not”.",
+    "«Hardly», «barely» y «scarcely» ya son negativos; quite el «not».",
+    "Τα «hardly», «barely» και «scarcely» είναι ήδη αρνητικά· αφαιρέστε το «not».",
+    "”Hardly”, ”barely” och ”scarcely” är redan negerande; stryk ”not”.",
+    "„Hardly“, „barely“ und „scarcely“ sind schon verneinend; lassen Sie das „not“ weg.",
+    "„Hardly”, „barely” i „scarcely” są już przeczące; usuń „not”.",
+    "“Hardly”, “barely” e “scarcely” já são negativos; retire o “not”.",
+  ],
   review_msg_a_few: [
     "“A few … ago” means some time ago; without “a”, “few” means hardly any.",
     "« A few … ago » signifie il y a quelque temps ; sans « a », « few » signifie presque aucun.",
