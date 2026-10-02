@@ -86,8 +86,39 @@ const COMPARED_COMPOUNDS: PhraseRow[] = (
   ),
 );
 
+/**
+ * "na aquela hora" -> "naquela", "do este lado" -> "deste": a contracted article never stands
+ * before a demonstrative, which takes the preposition itself. "da" may also be the verb "dá".
+ */
+const DOUBLED_DETERMINERS: PhraseRow[] = [
+  ..."aquele aquela aqueles aquelas aquilo este esta estes estas isto esse essa esses essas isso".split(
+    " ",
+  ),
+].flatMap((demonstrative): PhraseRow[] => [
+  ...["no", "na", "nos", "nas"].map((article): PhraseRow => [
+    `${article} ${demonstrative}`,
+    `n${demonstrative}`,
+  ]),
+  ...["do", "dos", "das"].map((article): PhraseRow => [
+    `${article} ${demonstrative}`,
+    `d${demonstrative}`,
+  ]),
+  [`da ${demonstrative}`, [`d${demonstrative}`, `dá ${demonstrative}`]],
+  ...["pelo", "pela", "pelos", "pelas"].map((article): PhraseRow => [
+    `${article} ${demonstrative}`,
+    `por ${demonstrative}`,
+  ]),
+  ...(demonstrative.startsWith("aque")
+    ? ["ao", "à", "aos", "às"].map((article): PhraseRow => [
+        `${article} ${demonstrative}`,
+        `à${demonstrative.slice(1)}`,
+      ])
+    : []),
+]);
+
 export const PORTUGUESE_PHRASES: PhraseRow[] = [
   ...COMPARED_COMPOUNDS,
+  ...DOUBLED_DETERMINERS,
   // No crase before a masculine noun, a pronoun or a verb: "a pé", "a mim", "a esta", "a partir".
   ...swap("à", "a", [
     "pé",

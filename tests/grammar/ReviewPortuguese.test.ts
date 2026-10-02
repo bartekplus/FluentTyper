@@ -915,6 +915,22 @@ describe("cujo, esta a + infinitive and bem-/mal- compounds", () => {
   });
 });
 
+describe("a contracted article before a demonstrative", () => {
+  test.each([
+    ["Foi o que senti na aquela hora.", "Foi o que senti naquela hora."],
+    ["Moro do este lado do rio.", "Moro deste lado do rio."],
+    ["Ninguém falou no isso depois.", "Ninguém falou nisso depois."],
+    ["Pedi ajuda ao aquele vizinho.", "Pedi ajuda àquele vizinho."],
+  ])("%p -> %p", (text, fixed) => {
+    expect(repaired("englishPhraseCorrections", text)).toBe(fixed);
+  });
+  test("da before a demonstrative may be the verb dá", () => {
+    const [finding] = findings("englishPhraseCorrections", "Ele da aquela risada alta.");
+    expect(finding.alternatives.map((a) => a.preview)).toEqual(["daquela", "dá aquela"]);
+    expect(finding.requiresChoice).toBe(true);
+  });
+});
+
 describe("Portuguese wording advice (stylePhrasing)", () => {
   // Idioms and hidden verbs are listed by infinitive; the plain wording follows the tense.
   test.each([

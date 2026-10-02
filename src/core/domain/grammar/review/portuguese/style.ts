@@ -711,6 +711,9 @@ const STOCK = fixed([
   ["como mencionado anteriormente", "como já dito"],
   ["fico no aguardo", "aguardo"],
   // Degree words on what admits no degree, and titles that say it twice.
+  // "mais grande que largo" compares two qualities, so this is advice, not a correction.
+  ["mais grande", "maior"],
+  ["mais grandes", "maiores"],
   ["mais superior", "superior"],
   ["mais inferior", "inferior"],
   ["muito ótimo", "ótimo"],
