@@ -168,6 +168,25 @@ function bareNoun(typed: string, before: string[], after: string[]): boolean {
 
 // Object pronouns before a demonstrative that is the article of an object ("mir die treue").
 const OBJECT_PRONOUNS = wordSet("mir dir ihm ihr uns euch ihnen sich sie es er wir ich du man");
+const HABEN = wordSet("habe hast hat haben habt hatte hattest hatten hattet hätte hätten");
+/**
+ * A noun form that is also a verb form, as the object of "haben" that ends its clause: "Ich habe
+ * hunger.", "Wir haben bedenken, ob …", "Ich habe fragen dazu". Not "Ich habe ihn fragen
+ * wollen", where a modal follows.
+ */
+function hadObject(typed: string, before: string[], after: string[]): boolean {
+  const next = lower(after[0]);
+  if (typed.length < 4 || !HABEN.has(lower(before.at(-1)))) return false;
+  // "Ich habe vergessen", "Diese habe ergeben": a participle spelled like its infinitive.
+  if (/^(?:be|er|ver|ge|ent|zer|emp|miss|über|unter|hinter|wider)\p{Ll}{3,}en$/u.test(typed))
+    return false;
+  return (
+    BOUNDARY.test(next) ||
+    PRONOMINAL_ADVERB.test(next) ||
+    /^(?:am|im|zum|zur|vom|beim|ins|ans|aufs|fürs)$/.test(next) ||
+    (PREPOSITIONS.has(next) && !VERB_GOVERNORS.has(lower(after[1])))
+  );
+}
 // Lowercase words the dictionary lists only as nouns that are also adverbs ("wir sind zuhause").
 const BARE_EXCEPTIONS = wordSet("zuhause topp");
 const VERB_PARTICLES = wordSet("los ab an auf aus ein mit vor weg zu zurück hin her fest");
@@ -260,6 +279,7 @@ function nounReadingHolds(
   const next = lower(after[0]);
   const prior = before[at - 1];
   if (typed === "bitte" && kind !== "article") return false;
+  if (kind === "bare") return true;
   if (kind === "adjective") {
     // "Wir wollen frische kaufen", "dass neue kommen": the verb after an elided noun.
     const ends = BOUNDARY.test(next) || COORDINATORS.has(next);
@@ -452,7 +472,8 @@ function nounCasing(ctx: DetectContext): RawFinding[] {
     const next = after[0] ?? "";
     const found =
       trigger(before) ??
-      (reading === "noun" && bareNoun(typed, before, after)
+      ((reading === "noun" && bareNoun(typed, before, after)) ||
+      ((reading === "finite" || reading === "infinitive") && hadObject(typed, before, after))
         ? { kind: "bare" as const, at: before.length - 1 }
         : null);
     if (!found) continue;

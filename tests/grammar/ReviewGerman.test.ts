@@ -144,6 +144,9 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Die Milch steht im kühlschrank.", "Die Milch steht im Kühlschrank."],
         // An object after its verb, closed by the clause's end or a genitive.
         ["Die Neuigkeit machte die runde.", "Die Neuigkeit machte die Runde."],
+        // The object of "haben" that ends its clause.
+        ["Wir hatten schulden bei der Bank.", "Wir hatten Schulden bei der Bank."],
+        ["Ich habe fragen zum Vertrag.", "Ich habe Fragen zum Vertrag."],
         // After an inflected adjective with no determiner.
         ["Morgen soll es schönes wetter geben.", "Morgen soll es schönes Wetter geben."],
         [
@@ -194,6 +197,8 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         "Grüner Tee ist gesund.",
         "Was ist das wohl?",
         "Wir wollen frische kaufen.",
+        "Ich habe vergessen.",
+        "Ich habe ihn fragen wollen.",
         "Ich weiß, dass neue kommen.",
         "Das Argument kann ich nicht gelten lassen.",
         "Dinge, die sich teilweise überlappen, zählen doppelt.",
