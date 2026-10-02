@@ -319,7 +319,11 @@ export type ReviewMessageKey =
   | "review_msg_fr_noun_number"
   | "review_msg_fr_noun_gender"
   | "review_msg_fr_adjective_agreement"
-  | "review_msg_fr_participle_agreement";
+  | "review_msg_fr_participle_agreement"
+  | "review_msg_fr_tout"
+  | "review_msg_fr_subjunctive"
+  | "review_msg_fr_conditional"
+  | "review_msg_fr_missing_ne";
 
 export type BulkDecision =
   | { eligible: true; alternative: number }

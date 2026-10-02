@@ -913,6 +913,31 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     bulk: "individual",
     languages: ["fr_FR"],
   },
+  frenchTout: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "grammar",
+    kind: "agreement",
+    bulk: "individual",
+    languages: ["fr_FR"],
+  },
+  frenchMood: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "grammar",
+    kind: "wordForm",
+    bulk: "individual",
+    languages: ["fr_FR"],
+  },
+  frenchMissingNe: {
+    review: "supported",
+    defaultEnabled: false,
+    category: "style",
+    kind: "wordForm",
+    bulk: "individual",
+    languages: ["fr_FR"],
+    note: "Optional: spoken French drops the ne of a negation.",
+  },
   // German-only Review checks (review/german/).
   germanNounCasing: {
     review: "supported",

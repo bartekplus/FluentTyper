@@ -397,6 +397,108 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
       ],
     },
   ],
+  [
+    "frenchTout",
+    {
+      pos: [
+        ["Il pleut tout les jours en novembre.", "Il pleut tous les jours en novembre."],
+        ["Toute le village est venu.", "Tout le village est venu."],
+        ["Toutes les soirs, il lit un roman.", "Tous les soirs, il lit un roman."],
+        ["Merci à tout ceux qui ont aidé.", "Merci à tous ceux qui ont aidé."],
+        ["Tous ça ne sert à rien.", "Tout ça ne sert à rien."],
+        ["Elle a travaillé tout la nuit.", "Elle a travaillé toute la nuit."],
+        ["Elle a lu toute mon courrier.", "Elle a lu tout mon courrier."],
+        [
+          "J'ai répondu à tout personne qui écrivait.",
+          "J'ai répondu à toute personne qui écrivait.",
+        ],
+        ["Tous le monde est content.", "Tout le monde est content."],
+        ["Elles sont toute deux parties.", "Elles sont toutes deux parties."],
+      ],
+      neg: [
+        "Toutes ces idées sont bonnes.",
+        "Ils ont tous le même âge.",
+        "Elles ont toutes la grippe.",
+        "Tous le savent depuis longtemps.",
+        "Il faut tout leur dire.",
+        "Elle est tout sourire.",
+        "Il est tout ouïe.",
+        "Toute mon enfance s'est passée ici.",
+        "Les invités, tous la mine réjouie, arrivèrent.",
+        "Nous avons tous nos secrets.",
+        "Ils faisaient tous les deux partie du club.",
+        "Je remercie avant tout ceux qui sont venus.",
+        "Il a dit à tous la vérité.",
+        "Tout ou partie du texte sera repris.",
+      ],
+    },
+  ],
+  [
+    "frenchMood",
+    {
+      pos: [
+        ["Il faut que tu viens ce soir.", "Il faut que tu viennes ce soir."],
+        ["Je veux que vous êtes à l'heure.", "Je veux que vous soyez à l'heure."],
+        ["Bien qu'il pleut, nous sortons.", "Bien qu'il pleuve, nous sortons."],
+        [
+          "Pour que tout le monde comprend, parle lentement.",
+          "Pour que tout le monde comprenne, parle lentement.",
+        ],
+        [
+          "Il est important que nous prenons une décision.",
+          "Il est important que nous prenions une décision.",
+        ],
+        ["Il vaut mieux que tu pars tôt.", "Il vaut mieux que tu partes tôt."],
+        ["Je souhaite qu'il réussit son examen.", "Je souhaite qu'il réussisse son examen."],
+        ["Si j'aurais su, je serais venu.", "Si j'avais su, je serais venu."],
+        ["S'ils viendront demain, préviens-moi.", "S'ils viennent demain, préviens-moi."],
+        ["J'aurai aimé connaître la fin.", "J'aurais aimé connaître la fin."],
+        ["J'aimerai bien partir en vacances.", "J'aimerais bien partir en vacances."],
+        ["Je viendrais demain matin.", "Je viendrai demain matin."],
+        ["Je mangerai du chocolat si j'aimais ça.", "Je mangerais du chocolat si j'aimais ça."],
+      ],
+      neg: [
+        "Je sais bien que tu reviendras.",
+        "Il est probable qu'il viendra.",
+        "Je pense que tu as raison.",
+        "Il était si content qu'il a pleuré.",
+        "Il se doute que son voisin ment.",
+        "Je me demande si tu viendrais.",
+        "Je pourrais venir demain.",
+        "Si tu veux, je viendrais demain.",
+        "Quand je serai grand, je voudrai être pilote.",
+        "C'est toi que j'aimerai toujours.",
+        "J'aurai fini avant midi.",
+        "Il faut que les enfants mangent.",
+        "Il est possible que la situation va changer.",
+      ],
+    },
+  ],
+  [
+    "frenchMissingNe",
+    {
+      pos: [
+        ["J'ai pas compris ta question.", "Je n'ai pas compris ta question."],
+        ["T'as pas vu mes clés ?", "Tu n'as pas vu mes clés ?"],
+        ["On sait jamais avec lui.", "On ne sait jamais avec lui."],
+        ["Il y a rien à manger.", "Il n'y a rien à manger."],
+        ["C'est pas grave.", "Ce n'est pas grave."],
+        ["Je m'attendais pas à ça.", "Je ne m'attendais pas à ça."],
+        ["Mon frère veut pas venir.", "Mon frère ne veut pas venir."],
+        ["Nous habitons pas ici.", "Nous n'habitons pas ici."],
+      ],
+      neg: [
+        "C'est le meilleur film que j'ai jamais vu.",
+        "Il y a pas mal de monde.",
+        "Je ne sais pas.",
+        "J'en veux plus.",
+        "Une personne est venue.",
+        "Il avance pas à pas.",
+        "Il te suit rien que pour t'embêter.",
+        "S'il revient, rien ne l'empêche de rester.",
+      ],
+    },
+  ],
 ];
 
 describe.each(FIXTURES)("%s", (ruleId, { pos, neg }) => {
@@ -559,6 +661,9 @@ test("no French chunk stalls on adversarial input", () => {
     "les rues était calmes et les dossiers triées que j'ai aidée nous avons mangés ".repeat(120),
     "c'est moi qui ceux qui le la les un une ".repeat(250),
     "ont peut quant la son on peux là ".repeat(250),
+    "tout toute tous toutes les le la ceux ça ".repeat(250),
+    "il faut que bien qu' si s'ils j'aurai aimé je viendrais demain ".repeat(150),
+    "j'ai pas on sait jamais il y a rien c'est pas ".repeat(200),
   ])
     expect(slowest(text)).toBeLessThan(100);
 });

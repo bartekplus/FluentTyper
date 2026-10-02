@@ -129,6 +129,9 @@ export interface GrammarRuleCatalogEntry {
     | "frenchNounNumber"
     | "frenchNounGender"
     | "frenchAdjectiveAgreement"
+    | "frenchTout"
+    | "frenchMood"
+    | "frenchMissingNe"
     | "quoteSpacing"
     | "primeSymbols"
     // German-only Review checks (review/german/).
