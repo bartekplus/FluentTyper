@@ -219,6 +219,14 @@ function interrogative(at: Around): string | null {
   const next = at.next();
   const nextToken = at.tokens[at.i + 1];
   const prev = at.prev();
+  // "No importa el qué sino el cómo": a question word made a noun by "el", standing alone.
+  if (
+    prev === "el" &&
+    !/^cua(?:n|l|les)$/u.test(word) &&
+    ((at.endsAfter() && word !== "que") || /^(?:sino|ni|y|e|o|u)$/u.test(next)) &&
+    !nextToken?.broken
+  )
+    return accented;
   const mark = opensQuestion(at);
   if (mark === "?") {
     // "¿Como cuánto?", "¿como para pagar?": approximation and purpose, not "how".
@@ -584,6 +592,9 @@ function monosyllable(at: Around): string | null {
       // "para el." / "entre el y yo" / "el se fue" / "el fue": the pronoun "él".
       if (/^[.,;:!?()]$/u.test(nextToken?.text ?? "") || (!nextToken && !at.starts)) return "él";
       // "el pero", "el un día", "cuando el llegó", "el mismo sabe": no noun can follow.
+      // "sino el cuando." names the question word ("el cuándo").
+      if (next === "cuando" && (at.endsAfter(1) || /^(?:sino|ni|y|o)$/u.test(at.next(2))))
+        return null;
       if (/^(?:pero|aunque|cuando|mientras|un|una|unos|unas)$/u.test(next)) return "él";
       if (/ó$/u.test(next) && !isNoun(next)) return "él";
       if (/^(?:mismo)$/u.test(next) && (COMMON_VERBS.has(at.next(2)) || CLITICS.has(at.next(2))))

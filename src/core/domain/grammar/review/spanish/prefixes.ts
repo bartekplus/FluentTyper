@@ -2,7 +2,15 @@ import { namedExampleBefore } from "../exampleCues";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { DETERMINER, readNoun } from "./agreement";
 import { Around, carryCase, CLITICS, keepsTyped, tokenize, words } from "./common";
-import { attribute, finiteVerb, genderedForm, isGenderedEntry, isNoun, plain } from "./lexicon";
+import {
+  attribute,
+  finiteVerb,
+  genderedForm,
+  isGenderedEntry,
+  isNoun,
+  NOUN_ENDING,
+  plain,
+} from "./lexicon";
 
 // Spanish prefixes join the word they modify: "anti ruso" -> "antirruso", "ex-colonias" ->
 // "excolonias". Apart or hyphenated only before a capital, a number or a phrase.
@@ -25,8 +33,13 @@ const PATTERN = new RegExp(
 );
 const FREE_SET = new Set(FREE.split("|"));
 
-/** A noun or adjective the dictionary lists: "microbiología", "hispanohablantes". */
-const knownWord = (word: string) => isNoun(word) || isGenderedEntry(word) || !!genderedForm(word);
+/**
+ * A noun or adjective the dictionary lists: "microbiología", "hispanohablantes". A noun ending
+ * alone ("-sión") says nothing after "des", which is also a misspelled "de" ("des discusión").
+ */
+const knownWord = (word: string) =>
+  !(word.startsWith("des") && NOUN_ENDING.test(word)) &&
+  (isNoun(word) || isGenderedEntry(word) || !!genderedForm(word));
 
 /** "pre" + "rebajas" -> "prerrebajas": a word-initial r doubles after a vowel. */
 function join(prefix: string, word: string): string {
@@ -53,6 +66,8 @@ function prefixes(ctx: DetectContext): RawFinding[] {
       !!genderedForm(lower) &&
       !isNoun(lower) &&
       !DETERMINER.has(before?.[1].toLowerCase() ?? "");
+    // "ex presidente" was the rule until 2010 and is still everywhere: only "ex-" is joined.
+    if (!hyphen && prefix.toLowerCase() === "ex") continue;
     if (
       !hyphen &&
       FREE_SET.has(prefix.toLowerCase()) &&

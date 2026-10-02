@@ -9,6 +9,10 @@ import {
   BLOOM_ALPHABET,
   bloomBits,
 } from "../src/core/domain/grammar/implementations/helpers/EnglishLexicon";
+import {
+  NOUN_ENDING,
+  SPANISH_BLOOM_HASHES,
+} from "../src/core/domain/grammar/review/spanish/lexicon";
 import { encodeWords } from "../src/core/domain/grammar/review/swedish/lexicon";
 import { readMarisa } from "./generate-polish-lexicon";
 
@@ -24,21 +28,25 @@ export const SPANISH_LEXICON_SOURCES = {
 // The .aff's conjugation flags (R/E -ar and regular, I/X irregular groups), the gender flag G
 // (an adjective or a noun with -o/-a forms) and the plural flag S.
 const VERB_FLAGS = /[REIX]/;
-// 15 bits per key keeps the filter's false positives near 0.1%.
-const BLOOM_BITS_PER_KEY = 15;
+// Prefix flags whose words are often another kind than their base (a-, micro-).
+const UNSAFE_PREFIXES = new Set(["a", "m"]);
+// 16 bits per key and 11 hashes keep the filter's false positives near 0.05%.
+const BLOOM_BITS_PER_KEY = 16;
 
 type Rule = { flag: string; strip: string; add: string; cond: RegExp };
 
-function parseSuffixes(aff: string): Rule[] {
+/** The .aff's suffix (SFX) or prefix (PFX) rules. */
+function parseAffixes(aff: string, kind: "SFX" | "PFX"): Rule[] {
   const rules: Rule[] = [];
   for (const line of aff.split("\n")) {
-    const [kind, flag, strip, add, cond] = line.trim().split(/\s+/);
-    if (kind !== "SFX" || cond === undefined) continue;
+    const [type, flag, strip, add, cond] = line.trim().split(/\s+/);
+    if (type !== kind || cond === undefined) continue;
+    const pattern = cond === "." ? "" : cond;
     rules.push({
       flag,
       strip: strip === "0" ? "" : strip,
       add: (add === "0" ? "" : add).split("/")[0],
-      cond: new RegExp(`${cond === "." ? "" : cond}$`),
+      cond: new RegExp(kind === "SFX" ? `${pattern}$` : `^${pattern}`),
     });
   }
   return rules;
@@ -136,7 +144,8 @@ function foldedNouns(
  * some verb ("término" / "termino"), listed in full.
  */
 export function deriveSpanishLexicon(dic: string, aff: string, counts: Counts) {
-  const rules = parseSuffixes(aff);
+  const rules = parseAffixes(aff, "SFX");
+  const prefixes = parseAffixes(aff, "PFX");
   const entries = dic
     .split("\n")
     .slice(1)
@@ -164,7 +173,17 @@ export function deriveSpanishLexicon(dic: string, aff: string, counts: Counts) {
         out.push(word.slice(0, word.length - r.strip.length) + r.add);
     return out;
   };
-  for (const [word, flags] of entries) {
+  // "presa" with the prefix flag "i" spells "empresa": the prefixed words are entries too,
+  // except "a-" ("caso" -> "acaso") and "micro-" ("onda" -> "microonda"), which spell other
+  // words than the base's kind.
+  const prefixed = (word: string, flags: string) =>
+    prefixes
+      .filter((r) => !UNSAFE_PREFIXES.has(r.flag))
+      .filter((r) => flags.includes(r.flag) && word.startsWith(r.strip) && r.cond.test(word))
+      .map((r) => r.add + word.slice(r.strip.length));
+  for (const [word, flags] of entries.flatMap(([word, flags]) =>
+    [word, ...prefixed(word, flags)].map((base) => [base, flags] as const),
+  )) {
     if (VERB_FLAGS.test(flags)) {
       verbs.push(word);
       const forms = expand(word, flags, VERB_FLAGS);
@@ -177,7 +196,8 @@ export function deriveSpanishLexicon(dic: string, aff: string, counts: Counts) {
       }
     }
     if (flags.includes("G")) keys.add(`a${word}`);
-    else if (flags.includes("S")) keys.add(`n${word}`);
+    // Nouns their ending already tells ("acción", "ciudad") need no key.
+    else if (flags.includes("S") && !NOUN_ENDING.test(word)) keys.add(`n${word}`);
     if (/[GS]/.test(flags))
       for (const form of [word, ...expand(word, flags, /[GS]/)]) nominal.add(form);
   }
@@ -196,7 +216,8 @@ export function deriveSpanishLexicon(dic: string, aff: string, counts: Counts) {
 function bloom(keys: string[]): string {
   const size = Math.ceil((keys.length * BLOOM_BITS_PER_KEY) / 6) * 6;
   const bits = new Uint8Array(size);
-  for (const key of keys) for (const bit of bloomBits(key, size)) bits[bit] = 1;
+  for (const key of keys)
+    for (const bit of bloomBits(key, size, SPANISH_BLOOM_HASHES)) bits[bit] = 1;
   let filter = "";
   for (let i = 0; i < size; i += 6) {
     let value = 0;
