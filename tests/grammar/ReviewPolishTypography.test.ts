@@ -152,3 +152,37 @@ describe("Polish commas set by fixed words", () => {
     expect(fixed(text)).toBe(text);
   });
 });
+
+describe("polishCapitalization", () => {
+  test.each([
+    ["Basen jest czynny w każdą Sobotę.", "Basen jest czynny w każdą sobotę."],
+    ["Wyjeżdżamy 3 Sierpnia.", "Wyjeżdżamy 3 sierpnia."],
+    ["Post obowiązuje w wielki piątek.", "Post obowiązuje w Wielki Piątek."],
+    ["Popiół sypie się w środę popielcową.", "Popiół sypie się w Środę Popielcową."],
+    ["Pływaliśmy w morzu Śródziemnym.", "Pływaliśmy w Morzu Śródziemnym."],
+    ["Przepłynął ocean spokojny.", "Przepłynął Ocean Spokojny."],
+    ["Ona świetnie mówi po Hiszpańsku.", "Ona świetnie mówi po hiszpańsku."],
+    ["Uczę się języka Francuskiego.", "Uczę się języka francuskiego."],
+    ["Mieszkam w województwie Pomorskim.", "Mieszkam w województwie pomorskim."],
+    ["Głośnik ma moc 50 Wattów.", "Głośnik ma moc 50 watów."],
+    ["Od razu przeszli na Ty.", "Od razu przeszli na ty."],
+    ["Mieszka w Krakowie, Ul. Floriańska 3.", "Mieszka w Krakowie, ul. Floriańska 3."],
+  ])("fixes %p", (text, fixed) => {
+    expect(fixAll("polishCapitalization", text)).toBe(fixed);
+  });
+  test.each([
+    "Sobota była deszczowa.",
+    "W Wielki Piątek pościmy.",
+    "Tłusty Czwartek to dzień pączków.",
+    "W Niedzielę Palmową idziemy do kościoła.",
+    "Rozmawiałem z panem Środą o pracy.",
+    "Spotkałem Lipca na rynku.",
+    "Piątek: wolne od pracy.",
+    "Nad Morzem Bałtyckim jest zimno.",
+    "Mówi po polsku i po angielsku.",
+    "Kocham Cię, Twoja Ania.",
+    "Jestem z Kazimierza nad Wisłą.",
+  ])("leaves %p", (text) => {
+    expect(findings("polishCapitalization", text)).toEqual([]);
+  });
+});

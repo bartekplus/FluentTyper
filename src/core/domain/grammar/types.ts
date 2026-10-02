@@ -122,6 +122,7 @@ export interface GrammarRuleCatalogEntry {
     | "polishCaseAgreement"
     | "polishTypography"
     | "polishQuotes"
+    | "polishCapitalization"
     // French (review/french/)
     | "frenchVerbForms"
     | "frenchHomophones"

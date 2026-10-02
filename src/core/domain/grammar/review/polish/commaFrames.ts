@@ -12,7 +12,8 @@ import { findingAt, isPl, owned, PREPOSITIONS, userOrNamed } from "./shared";
 
 const MISSING = "polishMissingComma" as const;
 const EXTRA = "polishMisplacedComma" as const;
-const SP = "[ \\t\\u00a0]+";
+/** Spaces between words, bounded so look-behinds stay linear on whitespace runs. */
+const SP = "[ \\t\\u00a0]{1,8}";
 const END = "(?![\\p{L}\\p{N}])";
 /** A clause starts here; the look-back is bounded so whitespace runs stay linear. */
 const CLAUSE_START = '(?<=(?:^|[.!?…:;]["”’»)]{0,3}[ \\t\\u00a0]{1,8}|\\n[ \\t\\u00a0]{0,8}))';

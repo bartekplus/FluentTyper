@@ -2091,6 +2091,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Wtrącenie oddzielamy przecinkiem („Co więcej, …”, „Krótko mówiąc, …”), a przecinek stawiamy też przed powtórzonym spójnikiem („ani prośby, ani groźby”).",
     "O polonês separa um aparte com vírgula (“Co więcej, …”, “Krótko mówiąc, …”) e põe uma antes de uma conjunção repetida (“ani prośby, ani groźby”).",
   ],
+  review_msg_pl_capitals: [
+    "Polish writes weekdays, months and language or regional adjectives with a small letter (“w piątek”, “po angielsku”, “województwo mazowieckie”), and capitalizes every word of a holiday or a sea (“Wielki Piątek”, “Morze Bałtyckie”).",
+    "Le polonais écrit les jours, les mois et les adjectifs de langue ou de région en minuscules (« w piątek », « po angielsku », « województwo mazowieckie ») et met une majuscule à chaque mot d’une fête ou d’une mer (« Wielki Piątek », « Morze Bałtyckie »).",
+    "Poljski piše dane, mjesece i pridjeve jezika ili regije malim slovom („w piątek”, „po angielsku”, „województwo mazowieckie”), a svaku riječ blagdana ili mora velikim („Wielki Piątek”, „Morze Bałtyckie”).",
+    "El polaco escribe los días, los meses y los adjetivos de lengua o región en minúscula («w piątek», «po angielsku», «województwo mazowieckie») y pone mayúscula a cada palabra de una festividad o un mar («Wielki Piątek», «Morze Bałtyckie»).",
+    "Τα πολωνικά γράφουν τις ημέρες, τους μήνες και τα επίθετα γλώσσας ή περιοχής με μικρό («w piątek», «po angielsku», «województwo mazowieckie») και κάθε λέξη γιορτής ή θάλασσας με κεφαλαίο («Wielki Piątek», «Morze Bałtyckie»).",
+    "Polskan skriver veckodagar, månader och språk- eller regionadjektiv med liten bokstav (”w piątek”, ”po angielsku”, ”województwo mazowieckie”) och varje ord i en högtid eller ett hav med stor (”Wielki Piątek”, ”Morze Bałtyckie”).",
+    "Im Polnischen werden Wochentage, Monate und Sprach- oder Regionsadjektive kleingeschrieben („w piątek“, „po angielsku“, „województwo mazowieckie“), Feiertage und Meere in jedem Wort groß („Wielki Piątek“, „Morze Bałtyckie“).",
+    "Dni tygodnia, miesiące oraz przymiotniki od nazw języków i regionów piszemy małą literą („w piątek”, „po angielsku”, „województwo mazowieckie”), a nazwy świąt i mórz – każdy wyraz wielką („Wielki Piątek”, „Morze Bałtyckie”).",
+    "O polonês escreve dias da semana, meses e adjetivos de língua ou região com minúscula (“w piątek”, “po angielsku”, “województwo mazowieckie”) e cada palavra de um feriado ou mar com maiúscula (“Wielki Piątek”, “Morze Bałtyckie”).",
+  ],
   review_msg_pl_agreement: [
     "In Polish, a demonstrative, adjective or numeral agrees with its noun in case, number and gender: “tę książkę”, “to dziecko”, “pięć plików”.",
     "En polonais, le démonstratif, l’adjectif ou le numéral s’accorde avec son nom en cas, nombre et genre : « tę książkę », « to dziecko », « pięć plików ».",

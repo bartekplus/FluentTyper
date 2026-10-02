@@ -503,6 +503,14 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     bulk: "individual",
     languages: ["pl_PL"],
   },
+  polishCapitalization: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "typography",
+    kind: "capitalization",
+    bulk: "individual",
+    languages: ["pl_PL"],
+  },
 
   englishDateConsistency: {
     review: "supported",
