@@ -24,6 +24,7 @@ export type WordReviewSnapshot = Extract<ReviewTargetRead, { ok: true }> & {
   token: string;
   selection: TextRange | null;
   bodyType: number | null;
+  headerFooter: "Header" | "Footer" | null;
 };
 export type WordReviewReply =
   | WordReviewSnapshot

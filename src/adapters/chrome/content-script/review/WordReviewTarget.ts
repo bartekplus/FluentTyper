@@ -6,6 +6,7 @@ import {
   WORD_REVIEW_EVENT,
   WORD_REVIEW_RESPONSE,
   WORD_REVIEW_MAX_MESSAGE,
+  WORD_INPUT_ID,
   type WordReviewRequest,
   type WordReviewReply,
   type WordReviewSnapshot,
@@ -70,6 +71,7 @@ export class WordReviewTarget implements ReviewTargetHandle {
           typeof reply.signature !== "string" ||
           typeof reply.token !== "string" ||
           (reply.bodyType !== null && !Number.isInteger(reply.bodyType)) ||
+          ![null, "Header", "Footer"].includes(reply.headerFooter) ||
           !Array.isArray(reply.protectedRanges) ||
           !reply.protectedRanges.every(
             (range) => validRange(range) && range.reason === "structure",
@@ -156,20 +158,26 @@ export class WordReviewTarget implements ReviewTargetHandle {
   }
 
   private captureRenderedRoot(): void {
+    if (
+      this.renderedRoot &&
+      (!this.renderedRoot.isConnected || this.renderedRoot.closest(".InactiveBoxRendering"))
+    )
+      this.renderedRoot = undefined;
     if (this.renderedRoot || !this.snapshot) return;
     const view = this.inputProxy.closest(".WACInteractiveView") ?? this.element;
     if (this.snapshot.bodyType !== 0) {
       // Bind only while the native selection still belongs to this Review. A
       // later caret move must not choose an identical header from another story.
       if (!this.matchesSelection()) return;
-      const boxes = [...view.querySelectorAll(".Header, .Footer")].filter(
-        (box) => !box.closest(".InactiveBoxRendering"),
-      );
+      const boxes = this.snapshot.headerFooter
+        ? [...view.querySelectorAll(`.${this.snapshot.headerFooter}`)].filter(
+            (box) => !box.closest(".InactiveBoxRendering"),
+          )
+        : [];
       if (boxes.length === 1) this.renderedRoot = boxes[0];
       // Non-main stories sharing the main proxy need an active story box.
       // Notes use their own sibling interactive view.
-      else if (boxes.length === 0 && !view.matches("#WACViewPanel.WACInteractiveView"))
-        this.renderedRoot = view;
+      else if (boxes.length === 0 && this.inputProxy.id !== WORD_INPUT_ID) this.renderedRoot = view;
       return;
     }
     this.renderedRoot = view;

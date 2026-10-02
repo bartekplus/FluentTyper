@@ -121,11 +121,13 @@ function fixture(texts = ["We saw teh cat.", "We saw teh cat."], separator = "\r
     },
     getSelection: () => {
       if (throwingSelection) throw new Error("other story");
-      return range(...selection);
+      return { ...range(...selection), parentBody: model.body };
     },
   };
   (window as Window & { WordEditor?: unknown }).WordEditor = {
     Extension: {
+      // Fixture values are opaque; geometry must use the host's named enum.
+      BodyType: { 101: "Header", 102: "Footer", 103: "Shape" },
       AutomationUtility: { getDocument: () => model },
       AutomationTransaction: class {
         constructor() {
@@ -393,6 +395,16 @@ test("Word Review refuses protected, cross-paragraph, malformed and split-graphe
     }),
   ).toEqual({ status: "rejected", reason: "unsupported" });
   expect(h.writes).toBe(0);
+});
+
+test("Word Review never substitutes the main body when selection story identity is missing", () => {
+  const h = fixture(["teh"]);
+  const selection = h.model.getSelection.bind(h.model);
+  h.model.getSelection = () => ({ ...selection(), parentBody: undefined });
+  expect(h.target.read(true)).toEqual({ ok: false, reason: "unsupported" });
+  expect(h.target.read()).toEqual({ ok: false, reason: "unsupported" });
+  expect(h.writes).toBe(0);
+  h.target.dispose();
 });
 
 test("Word Review maps model selection offsets and never widens an unsupported selection", () => {
@@ -857,7 +869,7 @@ test("Word highlights exclude inactive header and footer previews, even with ide
 test("Word highlights pin the active header or footer without mapping identical main text", () => {
   for (const storyClass of ["Header", "Footer"]) {
     const h = fixture(["teh", "teh"]);
-    h.model.body.type = 1; // Opaque non-main story; no native header enum is assumed.
+    h.model.body.type = storyClass === "Header" ? 101 : 102;
     const view = document.getElementById("WACViewPanel")!;
     view.className = "WACInteractiveView";
     view.insertAdjacentHTML(
@@ -884,7 +896,7 @@ test("Word highlights pin the active header or footer without mapping identical 
 
 test("Word header geometry waits for an unambiguous active box in the selected story", () => {
   const h = fixture(["teh"]);
-  h.model.body.type = 1;
+  h.model.body.type = 101;
   const view = document.getElementById("WACViewPanel")!;
   view.className = "WACInteractiveView";
   h.target.read();
@@ -892,10 +904,10 @@ test("Word header geometry waits for an unambiguous active box in the selected s
   expect(h.target.domRange(finding)).toBeNull(); // Identical main text is not proof of a header.
   view.insertAdjacentHTML(
     "afterbegin",
-    '<div class="Header"><p class="Paragraph">teh</p></div><div class="Footer"><p class="Paragraph">teh</p></div>',
+    '<div class="Header"><p class="Paragraph">teh</p></div><div class="Header duplicate"><p class="Paragraph">teh</p></div><div class="Footer"><p class="Paragraph">teh</p></div>',
   );
   expect(h.target.domRange(finding)).toBeNull();
-  view.querySelector(".Footer")!.classList.add("InactiveBoxRendering");
+  view.querySelector(".duplicate")!.classList.add("InactiveBoxRendering");
   const selection = h.model.getSelection.bind(h.model);
   h.model.getSelection = () => ({ ...selection(), parentBody: { ...h.model.body, type: 0 } });
   expect(h.target.domRange(finding)).toBeNull(); // Late rendering after moving to another story.
@@ -906,7 +918,79 @@ test("Word header geometry waits for an unambiguous active box in the selected s
   h.target.dispose();
 });
 
-test("Word highlights map sibling footnote views and active non-header stories", () => {
+test("Word header geometry recovers a replaced box only in its retained native story", () => {
+  const h = fixture(["teh"]);
+  h.model.body.type = 101;
+  const view = document.getElementById("WACViewPanel")!;
+  view.className = "WACInteractiveView";
+  view.insertAdjacentHTML("afterbegin", '<div class="Header"><p class="Paragraph">teh</p></div>');
+  h.target.read();
+  const finding = { start: 0, end: 3 };
+  const original = view.querySelector(".Header")!;
+  expect(h.target.domRange(finding)?.startContainer.parentElement?.closest(".Header")).toBe(
+    original,
+  );
+  const replacement = original.cloneNode(true) as Element;
+  original.replaceWith(replacement);
+  expect(h.target.domRange(finding)?.startContainer.parentElement?.closest(".Header")).toBe(
+    replacement,
+  );
+  replacement.classList.add("InactiveBoxRendering");
+  const active = replacement.cloneNode(true) as Element;
+  active.classList.remove("InactiveBoxRendering");
+  view.append(active);
+  expect(h.target.domRange(finding)?.startContainer.parentElement?.closest(".Header")).toBe(active);
+  const selection = h.model.getSelection.bind(h.model);
+  h.model.getSelection = () => ({ ...selection(), parentBody: { ...h.model.body, type: 102 } });
+  active.replaceWith(active.cloneNode(true));
+  expect(h.target.domRange(finding)).toBeNull();
+  h.target.dispose();
+});
+
+test("Word non-header and unknown stories cannot borrow identical header geometry", () => {
+  for (const type of [103, 104]) {
+    const h = fixture(["teh"]);
+    h.model.body.type = type;
+    const view = document.getElementById("WACViewPanel")!;
+    view.className = "WACInteractiveView";
+    view.insertAdjacentHTML("afterbegin", '<div class="Header"><p class="Paragraph">teh</p></div>');
+    h.target.read();
+    expect(h.target.domRange({ start: 0, end: 3 })).toBeNull();
+    h.target.dispose();
+  }
+});
+
+test("Word note eligibility follows the initiating proxy on reads and before writes", async () => {
+  const h = fixture(["teh"]);
+  const note = document.createElement("textarea");
+  note.id = "WACViewPanel_FootnoteEndnoteEditControl_EditingElement";
+  document.getElementById("WACViewPanel")!.append(note);
+  const target = new WordReviewTarget(h.target.element, note);
+  note.focus();
+  note.setAttribute("aria-readonly", "true");
+  expect(target.read(true)).toEqual({ ok: false, reason: "ineligible" });
+  target.dispose();
+  note.removeAttribute("aria-readonly");
+  const editable = new WordReviewTarget(h.target.element, note);
+  const before = editable.read(true);
+  if (!before.ok) throw new Error("read failed");
+  // Review-panel or main-proxy focus does not replace the originating proxy.
+  h.target.inputProxy.focus();
+  note.readOnly = true;
+  expect(
+    await editable.apply({
+      before: before.text,
+      after: "the",
+      signature: before.signature,
+      edits: [{ start: 0, end: 3, original: "teh", replacement: "the" }],
+    }),
+  ).toEqual({ status: "rejected", reason: "host-refused" });
+  expect(editable.read()).toEqual({ ok: false, reason: "ineligible" });
+  expect(h.writes).toBe(0);
+  editable.dispose();
+});
+
+test("Word highlights map sibling footnote views and refuse unknown main-proxy stories", () => {
   const h = fixture([" teh", " teh"]);
   h.model.body.type = 7; // Observed native footnote body type.
   const main = document.getElementById("WACViewPanel")!;
@@ -953,7 +1037,7 @@ test("Word highlights map sibling footnote views and active non-header stories",
     '<div class="InactiveBoxRendering"><p class="Paragraph">teh</p></div>',
   );
   other.target.read();
-  expect(other.target.domRange({ start: 4, end: 7 })?.toString()).toBe("teh");
+  expect(other.target.domRange({ start: 4, end: 7 })).toBeNull();
   expect(other.writes).toBe(0);
 });
 

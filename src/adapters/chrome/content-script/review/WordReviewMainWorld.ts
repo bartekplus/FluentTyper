@@ -8,7 +8,6 @@ import { isCredentialField } from "../suggestions/FieldEligibility";
 import { isNonWritingControl, isWordInputProxy } from "../suggestions/CodeContextResolver";
 import {
   wordEditor,
-  WORD_INPUT_ID,
   WORD_REVIEW_EVENT,
   WORD_REVIEW_RESPONSE,
   WORD_REVIEW_MAX_MESSAGE,
@@ -55,6 +54,7 @@ export interface WordDocument {
 type WordWindow = Window & {
   WordEditor?: {
     Extension?: {
+      BodyType?: Record<number, unknown>;
       AutomationUtility?: { getDocument(): WordDocument };
       AutomationTransaction?: {
         new (): { dispose(): void };
@@ -72,10 +72,8 @@ interface ModelSnapshot {
 }
 
 /** Named Word automation methods only; no minified properties or rendered-DOM writes. */
-function readModel(
-  model: WordDocument,
-  body = model.getSelection().parentBody ?? model.body,
-): ModelSnapshot {
+function readModel(model: WordDocument, body = model.getSelection().parentBody): ModelSnapshot {
+  if (!body) throw new Error("unsupported");
   const raw = body.text;
   // ponytail: bound model enumeration; a windowed reader is needed above the existing DOM-map ceiling.
   if (typeof raw !== "string" || raw.length > 200_000) throw new Error("unsupported");
@@ -174,7 +172,7 @@ function selectionScope(model: WordDocument, snapshot: ModelSnapshot) {
 
 /** Page messages grant no extension APIs. Text exists only for the explicitly opened review. */
 export function installWordReviewMainWorld(doc: Document = document): () => void {
-  let story: { body: WordBody; root: HTMLElement; url: string } | null = null;
+  let story: { body: WordBody; root: HTMLElement; input: HTMLElement; url: string } | null = null;
   let pending: { token: string; snapshot: ModelSnapshot; root: HTMLElement; url: string } | null =
     null;
   let composing: HTMLElement | null = null;
@@ -200,14 +198,30 @@ export function installWordReviewMainWorld(doc: Document = document): () => void
         story = null;
         return;
       }
-      const input = doc.getElementById(WORD_INPUT_ID)!;
+      if (story && (story.root !== root || story.url !== doc.URL)) {
+        pending = null;
+        const active = doc.activeElement;
+        if (
+          request.action !== "read" ||
+          request.selection !== true ||
+          !(active instanceof HTMLElement) ||
+          !root.contains(active) ||
+          !isWordInputProxy(active)
+        )
+          throw new Error("unsupported");
+        story = null; // Only a focused initial Review read can bind a replacement editor.
+      }
+      const input = story?.input ?? doc.activeElement;
+      if (!(input instanceof HTMLElement) || !root.contains(input) || !isWordInputProxy(input))
+        throw new Error("unsupported");
       if (composing?.isConnected && root.contains(composing)) {
         reply = { ok: false, reason: "composing" };
         pending = null;
       } else if (
         isCredentialField(input) ||
         isNonWritingControl(input) ||
-        input.closest('[aria-readonly="true"]') ||
+        input.matches("[readonly], [disabled]") ||
+        input.closest('[aria-readonly="true"], [hidden], [inert], [aria-hidden="true"]') ||
         root.closest('[hidden], [inert], [aria-hidden="true"]') ||
         (typeof root.checkVisibility === "function" &&
           !root.checkVisibility({ visibilityProperty: true }))
@@ -218,21 +232,9 @@ export function installWordReviewMainWorld(doc: Document = document): () => void
         const extension = (doc.defaultView as WordWindow | null)?.WordEditor?.Extension;
         const model = extension?.AutomationUtility?.getDocument();
         if (!model) throw new Error("unsupported");
-        if (story && (story.root !== root || story.url !== doc.URL)) {
-          pending = null;
-          const active = doc.activeElement;
-          if (
-            request.action !== "read" ||
-            request.selection !== true ||
-            !(active instanceof HTMLElement) ||
-            !root.contains(active) ||
-            !isWordInputProxy(active)
-          )
-            throw new Error("unsupported");
-          story = null; // Only a focused initial Review read can bind a replacement editor.
-        }
         if (request.action === "matches-selection") {
-          const selected = model.getSelection().parentBody ?? model.body;
+          const selected = model.getSelection().parentBody;
+          if (!selected) throw new Error("unsupported");
           const id = selected.paragraphs.getFirst().uniqueLocalId;
           root.setAttribute(
             WORD_REVIEW_RESPONSE,
@@ -253,7 +255,12 @@ export function installWordReviewMainWorld(doc: Document = document): () => void
         if (request.action === "read") {
           const token = crypto.randomUUID();
           const selection = request.selection ? selectionScope(model, current) : null;
-          story ??= { body: current.body, root, url: doc.URL };
+          story ??= { body: current.body, root, input, url: doc.URL };
+          // Header/footer geometry requires a named host enum, never a guess
+          // from an opaque nonzero body type or matching rendered text.
+          const kind = Number.isInteger(current.body.type)
+            ? extension?.BodyType?.[current.body.type!]
+            : null;
           pending = { token, snapshot: current, root, url: doc.URL };
           const snapshot: WordReviewSnapshot = {
             ok: true,
@@ -263,6 +270,7 @@ export function installWordReviewMainWorld(doc: Document = document): () => void
             token,
             selection,
             bodyType: Number.isInteger(current.body.type) ? current.body.type! : null,
+            headerFooter: kind === "Header" || kind === "Footer" ? kind : null,
           };
           reply = snapshot;
         } else if (request.action === "apply") {

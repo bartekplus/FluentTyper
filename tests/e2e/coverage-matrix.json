@@ -4730,6 +4730,26 @@
         {
           "layer": "unit",
           "file": "tests/WordReview.test.ts",
+          "test": "Word header geometry recovers a replaced box only in its retained native story"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/WordReview.test.ts",
+          "test": "Word non-header and unknown stories cannot borrow identical header geometry"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/WordReview.test.ts",
+          "test": "Word note eligibility follows the initiating proxy on reads and before writes"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/WordReview.test.ts",
+          "test": "Word Review never substitutes the main body when selection story identity is missing"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/WordReview.test.ts",
           "test": "Word applies accepted Local AI rewrite hunks in one native transaction"
         },
         {
@@ -4780,7 +4800,7 @@
         {
           "layer": "unit",
           "file": "tests/WordReview.test.ts",
-          "test": "Word highlights map sibling footnote views and active non-header stories"
+          "test": "Word highlights map sibling footnote views and refuse unknown main-proxy stories"
         }
       ]
     }

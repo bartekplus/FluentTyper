@@ -7558,6 +7558,14 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           return this;
         },
       };
+      const body = {
+        type: 0,
+        get text() {
+          return paragraph.text;
+        },
+        paragraphs: { length: () => 1, getFirst: () => paragraph },
+        getRange: () => range,
+      };
       (window as Window & { WordEditor?: unknown }).WordEditor = {
         Extension: {
           AutomationTransaction: class {
@@ -7574,15 +7582,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           AutomationUtility: {
             getDocument: () => ({
               changeTrackingMode: 0,
-              body: {
-                type: 0,
-                get text() {
-                  return paragraph.text;
-                },
-                paragraphs: { length: () => 1, getFirst: () => paragraph },
-                getRange: () => range,
-              },
-              getSelection: () => range,
+              body,
+              getSelection: () => ({ ...range, parentBody: body }),
             }),
           },
         },
