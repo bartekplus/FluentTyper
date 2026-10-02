@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import {
+  buildFrenchAdjectives,
   buildFrenchGender,
   buildFrenchLexicon,
   buildFrenchNouns,
@@ -9,10 +10,12 @@ import {
   readDeterminerBigrams,
 } from "../../scripts/generate-french-lexicon";
 import {
+  adjectiveReadings,
   conjugate,
   finitePersons,
   IL,
   ILS,
+  inflect,
   isInflectedNoun,
   isVerbHomograph,
   JE,
@@ -364,6 +367,36 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
       ],
     },
   ],
+  [
+    "frenchAdjectiveAgreement",
+    {
+      pos: [
+        ["Nous traversons une forêt tropical.", "Nous traversons une forêt tropicale."],
+        ["Nous avons un climat chaude.", "Nous avons un climat chaud."],
+        ["Range les dossiers triées dans l'armoire.", "Range les dossiers triés dans l'armoire."],
+        ["Cette réunion est annulé.", "Cette réunion est annulée."],
+        ["La maison semble très grand.", "La maison semble très grande."],
+        ["Ils sont françaises depuis toujours.", "Ils sont français depuis toujours."],
+        ["Elle est vraiment heureux de venir.", "Elle est vraiment heureuse de venir."],
+        ["Les routes sont dangereux ce matin.", "Les routes sont dangereuses ce matin."],
+      ],
+      neg: [
+        "Elle a l'air fatiguée ce soir.",
+        "Ils sont bien sûr partis à l'heure.",
+        "Il porte une chemise bleu clair et un pull rouge.",
+        "Thomas passe ses journées enfermé dans sa chambre.",
+        "La loi contraint chacun à payer.",
+        "Une main tenant un flambeau orne la façade.",
+        "Elle porte des chaussures marron.",
+        "Les drapeaux français et italien flottent au vent.",
+        "Pierre et elle étaient fiancés depuis un an.",
+        "Je suis un peu perdue ce matin.",
+        "Les voitures dernier cri coûtent cher.",
+        "Ils sont très avares de compliments.",
+        "Avec une jupe et un pull noirs, elle était élégante.",
+      ],
+    },
+  ],
 ];
 
 describe.each(FIXTURES)("%s", (ruleId, { pos, neg }) => {
@@ -463,6 +496,26 @@ describe("French lexicon", () => {
       expect(nounGender(word)).toBe("m");
     for (const word of ["élève", "tour", "journaliste", "xyzzy"])
       expect(nounGender(word)).toBe(null);
+  });
+
+  test("the committed adjective forms match fr_FR.dic/.aff", async () => {
+    const [dic, aff, committed] = await Promise.all(
+      [
+        FRENCH_LEXICON_SOURCES.dic,
+        FRENCH_LEXICON_SOURCES.aff,
+        FRENCH_LEXICON_SOURCES.adjectives,
+      ].map((path) => readFile(path, "utf8")),
+    );
+    expect(buildFrenchAdjectives(dic, aff)).toBe(committed);
+  });
+
+  test("adjective readings give gender and number, and the other forms", () => {
+    const [tropicale] = adjectiveReadings("tropicale");
+    expect([tropicale.lemma, tropicale.slot]).toEqual(["tropical", "fs"]);
+    expect(inflect(tropicale, "mp")).toEqual(["tropicaux"]);
+    expect(adjectiveReadings("vieux").map((r) => r.slot)).toEqual(["ms", "mp"]);
+    expect(inflect(adjectiveReadings("blanc")[0], "fs")).toEqual(["blanche"]);
+    expect(adjectiveReadings("maison")).toEqual([]);
   });
 
   test("homographs are verb forms that another entry also spells", () => {

@@ -873,6 +873,14 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     bulk: "individual",
     languages: ["fr_FR"],
   },
+  frenchAdjectiveAgreement: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "grammar",
+    kind: "agreement",
+    bulk: "individual",
+    languages: ["fr_FR"],
+  },
   // German-only Review checks (review/german/).
   germanNounCasing: {
     review: "supported",

@@ -3,10 +3,21 @@ import * as agreement from "./agreement";
 import * as dates from "./dates";
 import * as elision from "./elision";
 import * as gender from "./gender";
+import * as adjectives from "./adjectives";
 import * as homophones from "./homophones";
 import * as hyphenation from "./hyphenation";
 import * as nounNumber from "./nounNumber";
 import * as verbForms from "./verbForms";
 
-const MODULES = [verbForms, homophones, hyphenation, agreement, elision, dates, nounNumber, gender];
+const MODULES = [
+  verbForms,
+  homophones,
+  hyphenation,
+  agreement,
+  elision,
+  dates,
+  nounNumber,
+  gender,
+  adjectives,
+];
 export const FRENCH_DETECTORS = MODULES.flatMap((m) => m.DETECTORS);

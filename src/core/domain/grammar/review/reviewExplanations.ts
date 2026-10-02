@@ -2258,6 +2258,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Rzeczownik zgadza się w liczbie ze swoim określnikiem (les livres, la route).",
     "O substantivo concorda em número com o seu determinante (les livres, la route).",
   ],
+  review_msg_fr_adjective_agreement: [
+    "The adjective or participle takes the gender and number of its noun (une forêt tropicale, des dossiers triés).",
+    "L’adjectif ou le participe prend le genre et le nombre de son nom (une forêt tropicale, des dossiers triés).",
+    "Pridjev ili particip slaže se u rodu i broju sa svojom imenicom (une forêt tropicale, des dossiers triés).",
+    "El adjetivo o el participio concuerda en género y número con su sustantivo (une forêt tropicale, des dossiers triés).",
+    "Το επίθετο ή η μετοχή συμφωνεί σε γένος και αριθμό με το ουσιαστικό του (une forêt tropicale, des dossiers triés).",
+    "Adjektivet eller participet ska ha samma genus och numerus som sitt substantiv (une forêt tropicale, des dossiers triés).",
+    "Adjektiv oder Partizip richten sich in Geschlecht und Zahl nach ihrem Nomen (une forêt tropicale, des dossiers triés).",
+    "Przymiotnik lub imiesłów zgadza się w rodzaju i liczbie ze swoim rzeczownikiem (une forêt tropicale, des dossiers triés).",
+    "O adjetivo ou o particípio concorda em gênero e número com o seu substantivo (une forêt tropicale, des dossiers triés).",
+  ],
   review_msg_fr_noun_gender: [
     "The determiner takes the gender of its noun (une maison, un arbre).",
     "Le déterminant prend le genre de son nom (une maison, un arbre).",

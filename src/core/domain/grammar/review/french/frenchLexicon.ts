@@ -1,5 +1,6 @@
 import { BLOOM_ALPHABET, bloomBits } from "../../implementations/helpers/EnglishLexicon";
 import { VERB_HOMOGRAPHS, VERB_LEMMAS, VERB_RULES } from "./frenchLexicon.generated";
+import { ADJECTIVE_LEMMAS, ADJECTIVE_RULES } from "./frenchAdjectives.generated";
 import { FEMININE, MASCULINE } from "./frenchGender.generated";
 import { NOUN_BLOOM } from "./frenchNouns.generated";
 
@@ -276,4 +277,69 @@ export function nounGender(word: string): Gender | null {
     for (const w of decodeFrontCoded(FEMININE)) genders.set(w, "f");
   }
   return genders.get(word) ?? (isInflectedNoun(word) ? suffixGender(word) : null);
+}
+
+/** Masculine/feminine and singular/plural. */
+export type Inflection = "ms" | "mp" | "fs" | "fp";
+
+export interface AdjectiveReading {
+  /** The masculine singular entry. */
+  lemma: string;
+  flag: string;
+  slot: Inflection;
+}
+
+type AdjectiveRule = { add: string; slot: Inflection; strip: string; cond: RegExp };
+let adjectiveRules: Map<string, AdjectiveRule[]> | null = null;
+let adjectiveLemmas: Map<string, readonly string[]> | null = null;
+
+function loadAdjectives() {
+  if (adjectiveRules) return;
+  adjectiveRules = new Map();
+  let list: AdjectiveRule[] = [];
+  for (const line of ADJECTIVE_RULES.split("\n")) {
+    if (line.startsWith("@")) {
+      list = [];
+      adjectiveRules.set(line.slice(1), list);
+      continue;
+    }
+    const [add, slot, strip, cond] = line.split(" ").map((part) => (part === "0" ? "" : part));
+    list.push({ add, slot: slot as Inflection, strip, cond: new RegExp(`${cond}$`) });
+  }
+  adjectiveLemmas = new Map();
+  for (const line of ADJECTIVE_LEMMAS.split("\n")) {
+    const [flags, ending, ...rest] = line.split(" ");
+    const list = flags.match(/../g) ?? [];
+    for (const stem of decodeFrontCoded(rest.join(" "))) adjectiveLemmas.set(stem + ending, list);
+  }
+}
+
+/** The gender and number readings of a lowercase adjective (or gendered noun) form. */
+export function adjectiveReadings(word: string): AdjectiveReading[] {
+  loadAdjectives();
+  const out: AdjectiveReading[] = [];
+  for (const [flag, rules] of adjectiveRules!) {
+    for (const rule of rules) {
+      if (!word.endsWith(rule.add)) continue;
+      const lemma = word.slice(0, word.length - rule.add.length) + rule.strip;
+      if (!rule.cond.test(lemma) || !adjectiveLemmas!.get(lemma)?.includes(flag)) continue;
+      out.push({ lemma, flag, slot: rule.slot });
+      // "frais", "gris": a masculine in s, x or z is its own plural.
+      if (rule.slot === "ms" && /[sxz]$/.test(lemma)) out.push({ lemma, flag, slot: "mp" });
+    }
+  }
+  return out;
+}
+
+/** A reading's forms for another gender and number. */
+export function inflect(reading: AdjectiveReading, slot: Inflection): string[] {
+  loadAdjectives();
+  const forms = new Set<string>();
+  for (const rule of adjectiveRules!.get(reading.flag) ?? []) {
+    const ms = rule.slot === "ms" && slot === "mp" && /[sxz]$/.test(reading.lemma);
+    if ((rule.slot !== slot && !ms) || !rule.cond.test(reading.lemma)) continue;
+    if (!reading.lemma.endsWith(rule.strip)) continue;
+    forms.add(reading.lemma.slice(0, reading.lemma.length - rule.strip.length) + rule.add);
+  }
+  return [...forms];
 }

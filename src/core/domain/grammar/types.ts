@@ -128,6 +128,7 @@ export interface GrammarRuleCatalogEntry {
     | "frenchDates"
     | "frenchNounNumber"
     | "frenchNounGender"
+    | "frenchAdjectiveAgreement"
     | "quoteSpacing"
     | "primeSymbols"
     // German-only Review checks (review/german/).
