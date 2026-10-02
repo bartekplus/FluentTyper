@@ -718,6 +718,8 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
       pos: [
         ["Wir muss morgen früh los.", "Wir müssen morgen früh los."],
         ["Morgen will ich ein Fahrrad kaufe.", "Morgen will ich ein Fahrrad kaufen."],
+        ["Ich musst gestern lange warten.", "Ich musste gestern lange warten."],
+        ["Ich möchten Sie um Geduld bitten.", "Ich möchte Sie um Geduld bitten."],
         ["Er möchte später Arzt werde.", "Er möchte später Arzt werden."],
         ["Die Gäste war sehr zufrieden.", "Die Gäste waren sehr zufrieden."],
         ["Die Lehrerinnen hat geholfen.", "Die Lehrerinnen haben geholfen."],

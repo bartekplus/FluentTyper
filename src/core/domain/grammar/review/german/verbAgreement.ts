@@ -110,11 +110,13 @@ function fitting(typed: string, slots: readonly Slot[]): string[] | null {
       if (!SUBJUNCTIVE[low]) return null;
     }
     if (low === "sei" && (slots.includes(0) || slots.includes(2))) return null;
-    // "ich könnt", "ich wollt": "könnte", "wollte" with the last letter dropped.
-    if (FORMS.get(`${low}e`)?.some((f) => slots.includes(f.slot))) return null;
+    // "ich musst": "musste" with the last letter dropped, or the present. "ich könnt", "ich
+    // wollt" may be that or "ihr könnt" mistyped, so they are left alone.
+    const clipped = FORMS.get(`${low}e`)?.some((f) => slots.includes(f.slot)) ? `${low}e` : null;
+    if (clipped && !low.endsWith("st")) return null;
     // "er weißt auf … hin": "weist" (weisen) as much as "weiß".
     if (low === "weißt" && slots.includes(2)) return ["weiß", "weist"];
-    const out = new Set<string>();
+    const out = new Set<string>(clipped ? [clipped] : []);
     for (const f of forms)
       for (const s of slots) {
         const fit = f.line[f.tense]?.[s];
@@ -191,7 +193,7 @@ function verbAgreement(ctx: DetectContext): RawFinding[] {
       (sentenceStart || afterOpinion) &&
       verb &&
       /^\p{Ll}/u.test(verb) &&
-      !SUBJECTS.has(after[1] ?? "") &&
+      !(OBJECT_TOO.has(low) && SUBJECTS.has(after[1] ?? "")) &&
       !/^['’]$/.test(after[1] ?? "")
     ) {
       // "es läuft": the plural fits "es" only before a plural subject ("es kamen viele").
