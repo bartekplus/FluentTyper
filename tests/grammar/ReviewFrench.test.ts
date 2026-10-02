@@ -363,6 +363,7 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
     {
       pos: [
         ["Mes enfant sont partis.", "Mes enfants sont partis."],
+        ["Elle a trois enfant.", "Elle a trois enfants."],
         ["Les voiture roulent vite.", "Les voitures roulent vite."],
         ["La routes est longue.", "La route est longue."],
         ["Un plans de la ville.", "Un plan de la ville."],
@@ -372,6 +373,9 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
       ],
       neg: [
         "Je les aime beaucoup.",
+        "Le numéro deux allemand a gagné.",
+        "Il a raison à cent pour cent.",
+        "Un appartement neuf idéal pour une famille.",
         "Tu la portes bien.",
         "Il les porte.",
         "Ce sont mes amis.",
@@ -394,6 +398,7 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
     {
       pos: [
         ["Nous avons visité un maison ancienne.", "Nous avons visité une maison ancienne."],
+        ["Aucun voiture ne passe.", "Aucune voiture ne passe."],
         // Two determiners in a row, and a verb form or participle where the noun goes.
         ["Elle pense à vos ces projets.", "Elle pense à vos projets."],
         ["Il travaille des sa jeunesse.", "Il travaille dès sa jeunesse."],

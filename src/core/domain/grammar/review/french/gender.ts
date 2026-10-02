@@ -29,6 +29,8 @@ const SWAP: Record<string, [string | null, string | null]> = {
   ma: ["mon", "mon"],
   ta: ["ton", "ton"],
   sa: ["son", "son"],
+  aucun: ["aucune", "aucune"],
+  aucune: ["aucun", "aucun"],
 };
 // Adverbs and prefixes written apart that sit between a determiner and its noun ("une tout
 // autre", "la post saison").
@@ -37,7 +39,7 @@ const NOT_HEADS = new Set(
     " ",
   ),
 );
-const FEMININE = new Set(["une", "la", "cette", "ma", "ta", "sa"]);
+const FEMININE = new Set(["une", "la", "cette", "ma", "ta", "sa", "aucune"]);
 const PREPOSITIONS = new Set(
   "de d' à dans sur sous pour par avec sans chez vers entre après avant contre pendant depuis selon".split(
     " ",
