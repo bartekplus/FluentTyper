@@ -237,6 +237,7 @@ export type ReviewMessageKey =
   | "review_msg_german_double_verb"
   | "review_msg_german_question_mark"
   | "review_msg_german_idiom_case"
+  | "review_msg_german_name_case"
   | "review_msg_german_numbers"
   | "review_msg_greek_final_nu"
   | "review_msg_greek_strict_final_nu"

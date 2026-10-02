@@ -107,6 +107,14 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["In den räumen war es stickig.", "In den Räumen war es stickig."],
         ["Er hat keinen großen unterschied bemerkt.", "Er hat keinen großen Unterschied bemerkt."],
         ["Die rolle, für die sie probt, ist klein.", "Die Rolle, für die sie probt, ist klein."],
+        // Names of several words (names.ts).
+        ["Mein Opa erzählte vom zweiten Weltkrieg.", "Mein Opa erzählte vom Zweiten Weltkrieg."],
+        ["Sie spendet jedes Jahr dem roten Kreuz.", "Sie spendet jedes Jahr dem Roten Kreuz."],
+        [
+          "Wir wandern gern in der sächsischen Schweiz.",
+          "Wir wandern gern in der Sächsischen Schweiz.",
+        ],
+        ["Die Lage im nahen Osten bleibt ernst.", "Die Lage im Nahen Osten bleibt ernst."],
       ],
       neg: [
         "Das ende ich jetzt sofort.",
@@ -120,6 +128,9 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         "Mit dem leben wir schon lange.",
         "Das sage ich dir morgen.",
         "Das ist mir recht.",
+        "Ein rotes Kreuz markiert den Treffpunkt.",
+        "Er hat ein neues Testament aufgesetzt.",
+        "Wir fahren an die nahe Ostsee.",
         "Er wohnt im aus Holz gebauten Haus.",
         "Wir bleiben ein paar Tage.",
         "Ich räume den Müll weg.",
@@ -257,6 +268,10 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
       pos: [
         ["Das war eine lang Woche.", "Das war eine lange Woche."],
         ["Wir suchen einen neu Mitarbeiter.", "Wir suchen einen neuen Mitarbeiter."],
+        ["Am Abend trinken sie gern rot Wein.", "Am Abend trinken sie gern Rotwein."],
+        ["Im Herbst essen wir oft grün Kohl.", "Im Herbst essen wir oft Grünkohl."],
+        ["Die Mannschaft ist in best Form.", "Die Mannschaft ist in Bestform."],
+        ["Er fordert einen höheren mindest Lohn.", "Er fordert einen höheren Mindestlohn."],
         ["Das klein Kind schläft.", "Das kleine Kind schläft."],
         ["Er wohnt im alt Haus am Ende der Straße.", "Er wohnt im alten Haus am Ende der Straße."],
         ["Wir kaufen nur bei dem lokalem Händler.", "Wir kaufen nur bei dem lokalen Händler."],
@@ -266,6 +281,10 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Wir flogen in ein parallel Universum.", "Wir flogen in ein paralleles Universum."],
       ],
       neg: [
+        "Der weiß Bescheid.",
+        "Das weiß Gott allein.",
+        "Halb Europa schaut zu.",
+        "Er hat schnell Hilfe geholt.",
         "Er ist ein völlig Fremder.",
         "Sie haben direkt Hilfe bekommen.",
         "Auf gut Deutsch gesagt.",

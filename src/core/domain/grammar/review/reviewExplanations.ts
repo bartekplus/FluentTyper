@@ -3184,6 +3184,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "To zdanie brzmi jak pytanie: zakończ je znakiem zapytania.",
     "Esta frase é uma pergunta: termine-a com ponto de interrogação.",
   ],
+  review_msg_german_name_case: [
+    "In a name of several words the adjective is capitalized too: der Erste Weltkrieg, die Französische Revolution.",
+    "Dans un nom propre de plusieurs mots, l’adjectif prend aussi la majuscule : der Erste Weltkrieg, die Französische Revolution.",
+    "U imenu od više riječi i pridjev se piše velikim slovom: der Erste Weltkrieg, die Französische Revolution.",
+    "En un nombre propio de varias palabras, el adjetivo también va con mayúscula: der Erste Weltkrieg, die Französische Revolution.",
+    "Σε όνομα πολλών λέξεων και το επίθετο γράφεται με κεφαλαίο: der Erste Weltkrieg, die Französische Revolution.",
+    "I ett namn med flera ord skrivs även adjektivet med stor bokstav: der Erste Weltkrieg, die Französische Revolution.",
+    "In mehrteiligen Namen wird auch das Adjektiv großgeschrieben: der Erste Weltkrieg, die Französische Revolution.",
+    "W nazwie wielowyrazowej przymiotnik też piszemy wielką literą: der Erste Weltkrieg, die Französische Revolution.",
+    "Num nome de várias palavras, o adjetivo também leva maiúscula: der Erste Weltkrieg, die Französische Revolution.",
+  ],
   review_msg_german_idiom_case: [
     "In this fixed phrase the word is a noun, or no noun, and changes its capital: im Ernst, mir ist es recht.",
     "Dans cette locution, le mot est un nom ou n’en est pas un, et sa majuscule change : im Ernst, mir ist es recht.",

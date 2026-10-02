@@ -30,9 +30,22 @@ const ADVERBIAL = wordSet(
   "erst ganz gleich sehr recht fast viel wenig mehr weniger genug eben allein halb besonders " +
     "ziemlich völlig gut ausgerechnet lila rosa prima super klasse sexy beige orange extra",
 );
+// Adjectives that often open a compound noun ("Rotwein", "Süßwasser", "Neuwagen"), and
+// superlative stems that only stand in one ("Mindestlohn", "Höchstform"): written apart before
+// a noun, the compound is offered too. The colour, taste and texture ones and the stems are
+// no adverbs either, so they are checked with no article before them ("trinkt rot Wein").
+const COMPOUND_FIRST = wordSet(
+  "rot blau grün gelb schwarz grau braun bunt süß sauer bitter mager trocken weich hart " +
+    "frisch alt neu falsch klein groß hoch tief kurz voll leer fein echt mehrfach doppelt " +
+    "universal exklusiv alternativ brachial schwarzweiß best mindest höchst kleinst größt",
+);
+const COMPOUND_ALONE = wordSet(
+  "rot blau grün gelb schwarz grau braun bunt süß sauer bitter mager trocken weich " +
+    "brachial universal schwarzweiß best mindest höchst kleinst größt",
+);
 // Words the adjective filter accepts that are articles, prepositions or fixed in idioms.
 const NOT_ADJECTIVES = wordSet(
-  "ein eine einer unter ober laut eigen inner äußer hinter vorder mittler",
+  "ein eine einer unter ober laut eigen inner äußer hinter vorder mittler weiß weiss",
 );
 // Determiner → the ending its adjective takes when the noun is singular.
 const ENDINGS: Readonly<Record<string, string>> = {
@@ -112,9 +125,31 @@ function bareAdjectives(ctx: DetectContext): RawFinding[] {
         !/[.!?:\n„"]\s*$/.test(ctx.text.slice(Math.max(0, m.index - 4), m.index))
       );
     const isPreposition = PREPOSITIONS.has(low) && det === low;
+    const [start, end] = m.indices!.groups!.target;
+    const glued = adj[0].toUpperCase() + adj.slice(1) + noun.toLowerCase();
+    // "Sie trinken lieber rot Wein": no article, a word that is no adverb.
+    if (!(isDeterminer || isPreposition)) {
+      if (
+        COMPOUND_ALONE.has(adj) &&
+        // "schwarz sehen", "rot sehen": a colour after the verb.
+        !/^(?:seh|sieh|sah)/.test(low) &&
+        !noun.includes("-") &&
+        /^\p{Ll}/u.test(det) &&
+        !ctx.dictionary.has(adj) &&
+        !ctx.dictionary.has(noun.toLowerCase())
+      ) {
+        findings.push({
+          ruleId: "germanAdjectiveForms",
+          messageKey: "review_msg_closed_compound",
+          range: { start, end },
+          alternatives: [glued],
+          context: { start: m.index, end },
+        });
+      }
+      continue;
+    }
     if (
-      !(isDeterminer || isPreposition) ||
-      !germanAdjective(adj) ||
+      !(germanAdjective(adj) || COMPOUND_FIRST.has(adj)) ||
       NOT_ADJECTIVES.has(adj) ||
       ARTICLES.has(adj)
     )
@@ -122,7 +157,6 @@ function bareAdjectives(ctx: DetectContext): RawFinding[] {
     // "letzte", "erster": already inflected.
     const inflected = /^(.+?)(?:e|en|er|es|em)$/.exec(adj);
     if (inflected && germanAdjective(inflected[1])) continue;
-    const [start, end] = m.indices!.groups!.target;
     const after = tokensAfter(ctx.text, m.indices!.groups!.noun[1], 1)[0] ?? "";
     // "im scherzhaft Gedankenstrich-Krieg genannten Diskurs": an extended attribute.
     if (/^\p{Ll}+(?:te|ten|ter|tes|tem|nde|nden|nder|ndes|ndem|ene|enen|ener|enes)$/u.test(after)) {
@@ -131,7 +165,16 @@ function bareAdjectives(ctx: DetectContext): RawFinding[] {
     if (ctx.dictionary.has(adj) || ctx.dictionary.has(noun.toLowerCase())) continue;
     const compound = adj + noun.toLowerCase();
     // "Echtzeit": a bare adjective glued to the noun ("die letzte Bahn" stays).
-    if (!adj.endsWith("e") && germanNounReading(compound) !== null && !noun.includes("-")) {
+    // "in best Form", "aus rot Gold": a superlative stem, or a word that is no adverb after a
+    // preposition.
+    const stemOnly =
+      /^(?:best|mindest|höchst|kleinst|größt)$/.test(adj) ||
+      (isPreposition && COMPOUND_ALONE.has(adj));
+    if (
+      !adj.endsWith("e") &&
+      (germanNounReading(compound) !== null || stemOnly) &&
+      !noun.includes("-")
+    ) {
       findings.push({
         ruleId: "germanAdjectiveForms",
         messageKey: "review_msg_closed_compound",
@@ -167,13 +210,16 @@ function bareAdjectives(ctx: DetectContext): RawFinding[] {
     if (endings.length > 1 && (gender === "m" || gender === "n")) {
       endings = [gender === "m" ? "er" : "es"];
     }
+    // "ein neu Wagen": "neuer Wagen" or "Neuwagen".
+    const fixes = endings.map((e) => `${inflect(adj, e)} ${noun}`);
+    if (COMPOUND_FIRST.has(adj) && !noun.includes("-")) fixes.push(glued);
     findings.push({
       ruleId: "germanAdjectiveForms",
       messageKey: "review_msg_german_adjective_ending",
-      range: { start, end: start + adj.length },
-      alternatives: endings.map((e) => inflect(adj, e)),
+      range: { start, end },
+      alternatives: fixes,
       context: { start: m.index, end },
-      ...(endings.length > 1 ? { requiresChoice: true as const } : {}),
+      ...(fixes.length > 1 ? { requiresChoice: true as const } : {}),
     });
   }
   return findings;
