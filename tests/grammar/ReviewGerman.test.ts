@@ -148,6 +148,7 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Wir hatten schulden bei der Bank.", "Wir hatten Schulden bei der Bank."],
         ["Ich habe fragen zum Vertrag.", "Ich habe Fragen zum Vertrag."],
         // After an inflected adjective with no determiner.
+        ["Frische brötchen gibt es hier.", "Frische Brötchen gibt es hier."],
         ["Morgen soll es schönes wetter geben.", "Morgen soll es schönes Wetter geben."],
         [
           "Die Mannschaft leistete erbitterten widerstand.",
@@ -198,6 +199,7 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         "Was ist das wohl?",
         "Wir wollen frische kaufen.",
         "Ich habe vergessen.",
+        "Neue kommen.",
         "Ich habe ihn fragen wollen.",
         "Ich weiß, dass neue kommen.",
         "Das Argument kann ich nicht gelten lassen.",

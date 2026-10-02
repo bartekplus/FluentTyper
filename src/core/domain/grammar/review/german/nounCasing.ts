@@ -256,9 +256,10 @@ function trigger(before: string[]): { kind: Trigger; at: number } | null {
       (germanAdjective(stem) ||
         germanAdjective(`${stem}e`) ||
         /^(?:ge|er|ver|be|ent|zer)\p{Ll}{3,}t$/u.test(stem));
+    // A capital here opens the sentence ("Effizientes arbeiten ist wichtig").
     if (
-      token !== low ||
-      !(isAdjective(low) || inflected || (lemma !== low && germanAdjective(lemma)))
+      !(isAdjective(low) || inflected || (lemma !== low && germanAdjective(lemma))) ||
+      (token !== low && !inflected)
     )
       return low !== "als" && low !== "wie" ? bare() : null;
     adjectives = true;
@@ -283,9 +284,13 @@ function nounReadingHolds(
   if (kind === "adjective") {
     // "Wir wollen frische kaufen", "dass neue kommen": the verb after an elided noun.
     const ends = BOUNDARY.test(next) || COORDINATORS.has(next);
+    const opens = at === 0 || BOUNDARY.test(before[at - 1]);
+    // "Effizientes arbeiten ist wichtig": the subject, then its verb.
+    if (opens && AUXILIARIES.has(next)) return true;
     if (VERB_GOVERNORS.has(next) || PRONOUNS.has(next)) return false;
     if (reading === "infinitive" && ends) {
-      return !subordinate(before, at) && !modalBefore(before, at);
+      // "Neue kommen.": the adjectives open the sentence, so the word is its verb.
+      return !opens && !subordinate(before, at) && !modalBefore(before, at);
     }
     return reading === "finite" || !ends;
   }
