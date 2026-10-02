@@ -503,7 +503,13 @@ const wordSpelling: Detector = (ctx) => {
       : normalizeContractionToken(word, before);
     // "the im tag", "an ive file": after a determiner it is a word, not "I'm".
     const pronounForm = /^i(?:m|ve)$/i.test(word);
-    if (contraction && !(pronounForm && DETERMINER_BEFORE.test(before))) {
+    // "by Ive Mažuran": mid-sentence, a capitalized "Ive"/"Im" before a capitalized word is a name.
+    const name =
+      pronounForm &&
+      /^I[a-z]/.test(word) &&
+      !/(?:^|[.!?:;"“\n])[ \t]*$/.test(before) &&
+      /^[ \t]+\p{Lu}\p{Ll}/u.test(ctx.text.slice(end, end + 4));
+    if (contraction && !name && !(pronounForm && DETERMINER_BEFORE.test(before))) {
       findings.push({
         ruleId: "englishContractionNormalization",
         messageKey: "review_msg_contraction",
