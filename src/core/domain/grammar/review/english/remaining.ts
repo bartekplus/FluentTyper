@@ -586,7 +586,8 @@ function slashedWords(ctx: DetectContext): RawFinding[] {
 // ---------------------------------------------------------------- their / there
 
 // "Is that there dog?": the dialect demonstrative or a slip for the possessive.
-const THAT_THERE = `(?<=(?:^|[.!?]["”’)]*[ \\t\\u00a0]+|\\n[ \\t]*))(?:is|was)${SPACE}that${SPACE}(?<target>there)${SPACE}(?<noun>\\p{Ll}+)(?=[ \\t\\u00a0]*\\?)`;
+// The lookahead first: the clause lookbehind runs only where "is/was that" stands.
+const THAT_THERE = `(?=(?:is|was)${SPACE}that${SPACE})(?<=(?:^|[.!?]["”’)]*[ \\t\\u00a0]+|\\n[ \\t]*))(?:is|was)${SPACE}that${SPACE}(?<target>there)${SPACE}(?<noun>\\p{Ll}+)(?=[ \\t\\u00a0]*\\?)`;
 
 function thatThere(ctx: DetectContext): RawFinding[] {
   return [...frameMatches(ctx, THAT_THERE)]

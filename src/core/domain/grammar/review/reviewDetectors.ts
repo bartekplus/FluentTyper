@@ -428,7 +428,9 @@ const pronounI: Detector = (ctx) => {
       contextEnd += 1;
     } else if (/^\.(?:\s|$)/u.test(rest)) {
       // Unlike typing, what follows the period is here: not "i.e.", so "than i." ends
-      // a sentence. A roman numeral opening a list line or naming a part is not.
+      // a sentence. A roman numeral opening a list line or naming a part is not, nor is
+      // a spaced-out "i. e.".
+      if (/^\.\s+e\./i.test(rest)) continue;
       const lineStart = ctx.text.lastIndexOf("\n", start - 1) + 1;
       if (ctx.text.slice(lineStart, start).trim() === "") continue;
       if (NUMERAL_BEFORE.test(ctx.text.slice(Math.max(0, start - 24), start))) continue;
@@ -562,9 +564,14 @@ interface PhraseMatch {
   end: number;
 }
 
+// JavaScript's \s by code unit: phrase windows test it once per character they widen over.
 function isWhitespaceAt(text: string, index: number): boolean {
-  return /\s/.test(text[index] ?? "");
+  const code = text.charCodeAt(index);
+  return code === 32 || (code >= 9 && code <= 13) || (code > 127 && /\s/.test(text[index]));
 }
+
+// Stateless (no g or y flag) copies of the typing rules' patterns, compiled once each.
+const PHRASE_REGEX = new WeakMap<RegExp, RegExp>();
 
 /**
  * Runs a typing rule's end-anchored pattern at every word end of the chunk.
@@ -577,7 +584,12 @@ function* phraseMatches(
   pattern: RegExp,
   tokens: number,
 ): Generator<PhraseMatch> {
-  const regex = new RegExp(pattern.source, `${pattern.flags.replace(/[gy]/g, "")}d`);
+  let regex = PHRASE_REGEX.get(pattern);
+  if (!regex)
+    PHRASE_REGEX.set(
+      pattern,
+      (regex = new RegExp(pattern.source, `${pattern.flags.replace(/[gy]/g, "")}d`)),
+    );
   for (const word of asciiWords(ctx, PHRASE_WINDOW)) {
     const limit = Math.max(0, word.end - PHRASE_WINDOW);
     let windowStart = word.start;
@@ -1045,26 +1057,44 @@ const duplicatePunctuation: Detector = (ctx) => {
     const start = match.index;
     const end = start + match[0].length;
     if (isGluedToTechnical(ctx.text, start, start)) continue;
+    // Polish typists write ",," for the opening „ when a word and a closing quote follow.
+    const polishQuote =
+      ctx.lang.startsWith("pl") &&
+      match[0] === ",," &&
+      /^$|\s$/u.test(ctx.text.slice(Math.max(0, start - 1), start)) &&
+      /^[\p{L}\p{N}][^\n„]{0,200}?[\p{L}\p{N}.!?…](?:”|"|'')/u.test(ctx.text.slice(end, end + 210));
     findings.push({
       ruleId: "duplicatePunctuationCollapse",
       messageKey: "review_msg_duplicate_punctuation",
       range: { start, end },
-      alternatives: [match[1]],
+      alternatives: [polishQuote ? "„" : match[1]],
     });
   }
-  // "word.." (never "..." or "../"): one period too many at a sentence end. Arabic writes
-  // ".." as a short ellipsis ("وهذا ما دعاني إلى.."), so Arabic script keeps it.
+  // "word.." (never "..." or "../"): a doubled period or a short ellipsis that trails off.
+  // Before a lowercase word the sentence goes on, so only the ellipsis fits; elsewhere
+  // the writer chooses. Arabic writes ".." as a short ellipsis ("وهذا ما دعاني إلى..").
   const periods = /(?<=(?![\p{Script=Arabic}])[\p{L}\p{N})\]"”’])\.\.(?=\s|$)/gu;
   for (const match of ownedMatches(ctx, periods)) {
     const start = match.index;
     // German "am 30.11.." ends a sentence on a date: its own dot, then the period.
     const before = ctx.text.slice(Math.max(0, start - 8), start);
     if (ctx.lang.startsWith("de") && /(?:^|[^\d.])\d{1,2}\.\d{1,2}$/.test(before)) continue;
+    const range = { start, end: start + 2 };
+    if (/^\s+\p{Ll}/u.test(ctx.text.slice(start + 2, start + 12))) {
+      findings.push({
+        ruleId: "duplicatePunctuationCollapse",
+        messageKey: "review_msg_ellipsis_length",
+        range,
+        alternatives: ["..."],
+      });
+      continue;
+    }
     findings.push({
       ruleId: "duplicatePunctuationCollapse",
       messageKey: "review_msg_duplicate_punctuation",
-      range: { start, end: start + 2 },
-      alternatives: ["."],
+      range,
+      alternatives: [".", "..."],
+      requiresChoice: true,
     });
   }
   // A line of two dots alone is a short ellipsis or a stray period.
@@ -1309,8 +1339,12 @@ function measurementLike(
     if (!parsed || parsed.unitStart !== parsed.numberEnd) continue;
     const unit = prefix.slice(parsed.unitStart);
     if (ruleId === "measurementUnitFormatting" && /^([A-Z]|[dg])$/.test(unit)) continue;
-    // Brazilian usage writes clock times and durations glued: "às 10h", "20min".
-    if (ruleId === "measurementUnitFormatting" && ctx.lang === "pt_BR" && /^(?:h|min)$/.test(unit))
+    // Brazilian usage writes clock times and durations glued: "às 10h", "20min"; French
+    // writes "14h" and "14h30" as often as "14 h", so hours stay as typed there.
+    if (
+      ruleId === "measurementUnitFormatting" &&
+      ((ctx.lang === "pt_BR" && /^(?:h|min)$/.test(unit)) || (ctx.lang === "fr_FR" && unit === "h"))
+    )
       continue;
     // "100m users" counts millions; "Type 42s" and "the 1990s" are plurals, not seconds.
     if (

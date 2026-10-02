@@ -229,6 +229,11 @@ export type ReviewMessageKey =
   | "review_msg_german_invalid_date"
   | "review_msg_german_weekday_date"
   | "review_msg_german_date_punctuation"
+  | "review_msg_german_comma"
+  | "review_msg_german_verb_agreement"
+  | "review_msg_german_question_mark"
+  | "review_msg_german_idiom_case"
+  | "review_msg_german_numbers"
   | "review_msg_greek_final_nu"
   | "review_msg_greek_strict_final_nu"
   | "review_msg_greek_question_accent"
@@ -286,6 +291,28 @@ export type ReviewMessageKey =
   | "review_msg_pt_ao90"
   | "review_msg_weekday_mismatch"
   | "review_msg_impossible_date"
+  // English apostrophes and typography (review/english/).
+  | "review_msg_plural_apostrophe"
+  | "review_msg_verb_apostrophe"
+  | "review_msg_apostrophe_space"
+  | "review_msg_whose"
+  | "review_msg_nationality_capital"
+  | "review_msg_english_decimal"
+  | "review_msg_english_digit_groups"
+  | "review_msg_full_width_mark"
+  | "review_msg_initialism_period"
+  | "review_msg_degree_abbreviation"
+  | "review_msg_typographic_symbol"
+  | "review_msg_english_quotes"
+  | "review_msg_range_dash"
+  | "review_msg_date_comma"
+  | "review_msg_oclock"
+  | "review_msg_geographic_the"
+  | "review_msg_superlative_the"
+  | "review_msg_adverb_position"
+  | "review_msg_passive_voice"
+  | "review_msg_stray_comma"
+  | "review_msg_introductory_comma"
   // Polish-only checks (review/polish/).
   | "review_msg_pl_numeral_suffix"
   | "review_msg_pl_numeral_hyphen"
@@ -307,6 +334,7 @@ export type ReviewMessageKey =
   | "review_msg_pl_comma_aside"
   | "review_msg_pl_capitals"
   | "review_msg_pl_conjunction_ending"
+  | "review_msg_pl_negated_genitive"
   // Spanish Review checks (review/spanish/).
   | "review_msg_spanish_accent"
   | "review_msg_spanish_accent_extra"
@@ -338,7 +366,11 @@ export type ReviewMessageKey =
   | "review_msg_fr_noun_number"
   | "review_msg_fr_noun_gender"
   | "review_msg_fr_adjective_agreement"
-  | "review_msg_fr_participle_agreement";
+  | "review_msg_fr_participle_agreement"
+  | "review_msg_fr_tout"
+  | "review_msg_fr_subjunctive"
+  | "review_msg_fr_conditional"
+  | "review_msg_fr_missing_ne";
 
 export type BulkDecision =
   | { eligible: true; alternative: number }
