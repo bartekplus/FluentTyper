@@ -218,6 +218,7 @@ Supported (**Typing** is the rule's default for typing; Review has separate swit
 | `englishIrregularForms`                | English        | unavailable | grammar     | word form          | individual only                                                                                                                                |
 | `englishPossessiveNouns`               | English        | unavailable | grammar     | word form          | individual only                                                                                                                                |
 | `englishDateConsistency`               | English        | unavailable | grammar     | numbers            | individual only                                                                                                                                |
+| `englishTenseConsistency`              | English        | unavailable | grammar     | word form          | individual only                                                                                                                                |
 | `englishApostrophes`                   | English        | unavailable | punctuation | marks              | individual only                                                                                                                                |
 | `englishNotation`                      | English        | unavailable | typography  | numbers            | individual only                                                                                                                                |
 | `englishTypography`                    | English        | unavailable | typography  | marks              | individual only; off by default in Review (optional typesetting)                                                                               |
@@ -400,6 +401,11 @@ left-out long nouns (a Bloom filter, so they only ever tell words from typos):
 - `englishDateConsistency`: a weekday beside a full date (with its year) that falls on another
   weekday ("Monday, 7 October 2014") offers the right weekday or the nearest date on the typed
   one; a day the month does not have ("June 31", "2/30/2024") is marked without a fix.
+- `englishTenseConsistency`: a past verb with "tomorrow" or "next week" at the clause's start
+  or end ("Tomorrow we cleaned", offers "will clean"), "will" + verb with "yesterday", "last
+  week" or "two days ago" (offers the past), both with no choice preselected; a past verb on a
+  full date that has not come yet ("We visited the client on 27/10/2090") is marked without a
+  fix. Reporting, planning and conditional sentences stay silent.
 - `englishApostrophes`: a plural written with 's after a plural quantifier ("two CD's",
   "several guest's") or before a verb ("most driver's would"), a verb with 's after its subject
   ("he see's", "it work's"), a doubled or spaced apostrophe ("we''ll", "I' m"), "other's" with

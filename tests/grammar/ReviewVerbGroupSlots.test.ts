@@ -32,6 +32,12 @@ test("a verb group's second verb takes the form its auxiliary needs", () => {
     ["She is always goes there.", "She always goes there."],
     ["I seen him yesterday.", "I have seen him yesterday."],
     ["You could been hurt.", "You could have been hurt."],
+    ["We have was here before.", "We have been here before."],
+    ["Where have they were all day?", "Where have they been all day?"],
+    ["She has writes the letter.", "She has written the letter."],
+    ["When was it deliver?", "When was it delivered?"],
+    ["Our choir has often sang carols.", "Our choir has often sung carols."],
+    ["The tide has rose already.", "The tide has risen already."],
   ]) {
     const found = scan(input);
     expect({ input, count: found.length }).toEqual({ input, count: 1 });
@@ -58,6 +64,14 @@ test("possession, clefts, lexical do and predicates stay silent", () => {
     "Have Tom and I done enough?",
     "Have them call me.",
     "I have to polish my essay.",
+    "The room we had was tiny.",
+    "All they have are photos.",
+    'The "extras" we have are free.',
+    "She has needs that matter.",
+    "He has kids my age.",
+    "The heater I have has a timer.",
+    "Is it time to go?",
+    "Is it work or play?",
     "We weren't awake.",
     "The results you get depend on the input.",
     "The cans I have do not fit.",
