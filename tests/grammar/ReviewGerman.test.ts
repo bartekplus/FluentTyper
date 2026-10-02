@@ -48,6 +48,7 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
     "germanNounCasing",
     {
       pos: [
+        ["Die Braut heiratet in weiß.", "Die Braut heiratet in Weiß."],
         [
           "Wir haben gestern den vertrag unterschrieben.",
           "Wir haben gestern den Vertrag unterschrieben.",
@@ -178,6 +179,8 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Ich bin mir nicht im klaren darüber.", "Ich bin mir nicht im Klaren darüber."],
       ],
       neg: [
+        "Das Wetter ist grau in grau.",
+        "Die Ampel ist grün.",
         "Das ende ich jetzt sofort.",
         "Die alte wohnt nebenan, die junge zieht bald weg.",
         "Er hat das recht schnell erledigt.",
@@ -330,6 +333,10 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
     "germanConfusedWords",
     {
       pos: [
+        ["Sie spielt sowohl Geige und auch Klavier.", "Sie spielt sowohl Geige als auch Klavier."],
+        ["Wir sind fasst fertig.", "Wir sind fast fertig."],
+        ["Ich brauche diene Hilfe nicht.", "Ich brauche deine Hilfe nicht."],
+        ["Wohin fährst du hin?", "Wohin fährst du?"],
         ["Heute läuft sie schneller wie gestern.", "Heute läuft sie schneller als gestern."],
         ["Mein Bruder ist größer wie ich.", "Mein Bruder ist größer als ich."],
         ["Das ist meine eigne Meinung.", "Das ist meine eigene Meinung."],
@@ -360,6 +367,9 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Sie kam immer wider zu spät.", "Sie kam immer wieder zu spät."],
       ],
       neg: [
+        "Er fasst jeden Gegenstand vorsichtig an.",
+        "Ich diene meinem Land.",
+        "Er kommt sowohl heute als auch morgen und auch übermorgen.",
         "Der Boden ist sauber wie ein Spiegel.",
         "Wir machen weiter wie bisher.",
         "Er wird im gleichen Maße besser wie sie.",

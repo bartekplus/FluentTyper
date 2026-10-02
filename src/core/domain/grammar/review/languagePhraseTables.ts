@@ -60,6 +60,16 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
       ["Wehrmutstropfen", "Wermutstropfen"],
       ["seperat", "separat"],
       ["Rethorik", "Rhetorik"],
+      // Adjectives that only stand before a noun, used as their adverb: "Bisherig ist nichts
+      // passiert" (Bisher).
+      ["bisherig", ["bisher", "bisherige"]],
+      ["vorherig", ["vorher", "vorherige"]],
+      ["seitherig", ["seither", "seitherige"]],
+      ["jetzig", ["jetzt", "jetzige"]],
+      ["obig", ["oben", "obige"]],
+      ["damalig", ["damals", "damalige"]],
+      ["dortig", ["dort", "dortige"]],
+      ["hiesig", ["hier", "hiesige"]],
     ],
     phrases: [
       // Genitive or "nach" with the dative: the two are blended.

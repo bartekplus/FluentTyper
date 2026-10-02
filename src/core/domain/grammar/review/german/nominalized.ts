@@ -33,6 +33,8 @@ const FRAMES = [
   `(?:mein|dein|sein|ihr|unser|euer)${SPACE}(?<poss>bestes|möglichstes|übriges|erspartes|liebstes)`,
   // "das schöne daran", "das wichtige an der Sache", "das gute am Plan".
   `[Dd]as${SPACE}(?<abs>\\p{Ll}+e)(?=${SPACE}(?:daran|dabei|darin|daraus|darauf|am|an${SPACE}(?:der|dem|den|diesem|dieser|ihm|ihr)))`,
+  // A colour as a noun: "in weiß heiraten", "auf grün stehen", "die Farbe rot".
+  `(?:in|auf|von|nach|[Ff]arbe)${SPACE}(?<lang>weiß|schwarz|rot|blau|grün|gelb|grau|braun|lila|rosa|orange|türkis|violett|beige)(?=[ \\t]*[.!?,;])`,
   // A language as a noun: "auf deutsch", "in englisch", "kein französisch".
   `(?:auf|in|kein)${SPACE}(?<lang>deutsch|englisch|französisch|spanisch|italienisch|polnisch|russisch|türkisch|griechisch|schwedisch|portugiesisch|kroatisch|arabisch|chinesisch|japanisch|latein)`,
 ].map((f) => `(?:${f})${WORD_END}`);
@@ -141,6 +143,9 @@ export function nominalized(ctx: DetectContext): RawFinding[] {
       if (start < ctx.from || start >= ctx.to) continue;
       const typed = ctx.text.slice(start, end);
       if (!/^\p{Ll}/u.test(typed) || LOWERCASE_OK.has(typed) || ctx.dictionary.has(typed)) continue;
+      // "grau in grau": an idiom of the colour twice.
+      if (ctx.text.slice(Math.max(0, m.index - typed.length - 1), m.index).trim() === typed)
+        continue;
       // The word must be an adjective form (the languages are listed as such).
       if (name !== "lang" && name !== "poss" && name && !adjectiveForm(typed)) continue;
       // A noun or another adjective after it: "im freien Feld", "etwas neues Wissen".

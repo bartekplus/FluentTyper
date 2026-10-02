@@ -391,6 +391,34 @@ const FRAMES: readonly Frame[] = [
       return comparative ? "als" : null;
     },
   },
+  // "sowohl Fahrrad und auch Auto" → als auch.
+  {
+    regex: re(`(?<target>(?:und|oder)${S}auch)${E}`),
+    fix: (m) => {
+      const before = m.input.slice(Math.max(0, m.index - 80), m.index);
+      const at = before.search(/(?<!\p{L})sowohl(?!\p{L})(?![^]*(?<!\p{L})als(?!\p{L}))/u);
+      return at >= 0 && !/[.!?;]/.test(before.slice(at)) ? "als auch" : null;
+    },
+  },
+  // "Ich bin fasst fertig", "in fasst allen Fällen" → fast: no subject before the verb.
+  {
+    regex: re(
+      `(?:${any("bin bist ist sind seid war waren wäre wären hätte hätten habe hat hatte hatten in zu mit von bei für")})${S}(?<target>fasst)${E}`,
+    ),
+    fix: "fast",
+  },
+  // "Ich brauche diene Hilfe" → deine: "diene" (I serve) needs "ich" before a noun object.
+  {
+    regex: re(`(?<noun>\\p{Ll}+)${S}(?<target>diene)(?=${S}\\p{Lu})`),
+    fix: (m) => (/^(?:ich|und|oder|gern|gerne)$/.test(m.groups!.noun) ? null : "deine"),
+  },
+  // "Wohin gehst du hin?" → the direction is said twice.
+  {
+    regex: re(
+      `(?:[Ww]ohin|[Ww]oher)${S}\\p{Ll}+(?:${S}\\p{Ll}+){0,3}?(?<target>[ \\t]+(?:hin|her))(?=[ \\t]*\\?)`,
+    ),
+    fix: "",
+  },
   // "Es gibt keine Features, sonder nur …" → sondern.
   { regex: re(`(?<=,${S})(?<target>sonder)(?=${S}${W})`), fix: "sondern" },
 ];
