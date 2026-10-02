@@ -55,6 +55,7 @@ test("no chunk stalls on runs of slot-opening words or spaces between them", () 
     "how did he does it is an oldest less then more ".repeat(600),
     "I have plan the we have see all the ".repeat(700),
     "tomorrow we visited the the yesterday we will call him on 27/10/2090 we visited ".repeat(500),
+    "there is not time I have not issues would no do am no going to easy achieve ".repeat(500),
     "afraid from married with a in Monday a lot people between 1 to listen the went to home ".repeat(
       500,
     ),
