@@ -12,7 +12,7 @@ import {
   words,
   type Token,
 } from "./common";
-import { finiteVerb, isNoun, plain } from "./lexicon";
+import { finiteVerb, genderedForm, isGerund, isNoun, plain } from "./lexicon";
 
 // Short closed-class frames: "de el" -> "del", "ala casa" -> "a la casa", "miles de persona"
 // -> "personas", "soy conscientes" -> "consciente", "q" -> "que".
@@ -209,6 +209,99 @@ function lesNumber(ctx: DetectContext, at: Around): RawFinding | null {
   );
 }
 
+const COMPOUND_VERB =
+  /^(?:corta|para|lava|saca|abre|guarda|limpia|porta|pasa|cuenta|rompe|mata|quita|salva|tapa|cubre|pica|lanza|toca|cumple|sujeta|chupa|espanta|trota|ciempiés)\p{L}{3,}s$/u;
+
+// Shortened adjectives and their full plural forms: "buen amigo" but "buenos amigos".
+const APOCOPE: Record<string, [string, string]> = {
+  buen: ["buenos", "buenas"],
+  mal: ["malos", "malas"],
+  gran: ["grandes", "grandes"],
+  primer: ["primeros", "primeras"],
+  tercer: ["terceros", "terceras"],
+};
+
+/** "buen amigos" -> "buenos amigos": the shortened form goes only before a singular noun. */
+function apocopePlural(ctx: DetectContext, at: Around): RawFinding | null {
+  const token = at.tokens[at.i];
+  const forms = APOCOPE[token.lower];
+  const nounToken = at.tokens[at.i + 1];
+  if (!forms || !nounToken?.word || nounToken.broken || !/^\p{Ll}+$/u.test(nounToken.text))
+    return null;
+  const noun = readNoun(nounToken.lower);
+  if (!noun?.plural || !noun.gender) return null;
+  // "gran cortafuegos", "un buen paraguas": a verb-and-noun compound is singular too.
+  if (COMPOUND_VERB.test(nounToken.lower)) return null;
+  // "Gran Bretaña" and other names are capitalized; "el mal menor" is no plural.
+  return replaceToken(
+    ctx,
+    token,
+    [forms[noun.gender === "f" ? 1 : 0]],
+    "spanishAgreement",
+    "review_msg_spanish_agreement",
+    nounToken,
+  );
+}
+
+/**
+ * "las consecuencias directas e indirectos" -> "indirectas": the second of two adjectives
+ * joined after a noun agrees with the noun the first one already agrees with.
+ */
+function coordinatedAdjective(ctx: DetectContext, at: Around): RawFinding | null {
+  const noun = readNoun(at.tokens[at.i].lower);
+  if (!noun?.gender || noun.paired || !/^\p{Ll}/u.test(at.tokens[at.i].text)) return null;
+  const first = at.next();
+  const second = at.tokens[at.i + 3];
+  if (!/^(?:y|e|o|u|ni)$/u.test(at.next(2)) || !second?.word || second.broken) return null;
+  const a = genderedForm(first);
+  const b = genderedForm(second.lower);
+  // The first adjective agreeing with the noun shows the phrase is "noun adjective y …"; a
+  // second word that is a noun too may start a phrase of its own ("faldas rojas y blanco").
+  if (!a || !b || isNoun(second.lower) || finiteVerb(second.lower)) return null;
+  const feminine = noun.gender === "f";
+  if (a.feminine !== feminine || a.plural !== noun.plural) return null;
+  if (b.feminine === feminine && b.plural === noun.plural) return null;
+  const stem = /^(\p{L}+?)(?:o|a|os|as)$/u.exec(second.lower)?.[1];
+  if (!stem || !new Around(at.tokens, at.i + 3).endsAfter()) return null;
+  const fix = `${stem}${feminine ? "a" : "o"}${noun.plural ? "s" : ""}`;
+  return replaceToken(
+    ctx,
+    second,
+    [fix],
+    "spanishAgreement",
+    "review_msg_spanish_agreement",
+    at.tokens[at.i],
+  );
+}
+
+// Verbs in -uar whose stressed forms carry "ú": unaccented, they are adjectives.
+const UAR: Record<string, string> = {
+  continua: "continúa",
+  continuas: "continúas",
+  continuan: "continúan",
+  perpetua: "perpetúa",
+  perpetuan: "perpetúan",
+};
+
+/** "Continua recibiendo apoyos", "se perpetua": the verb before a gerund or after a pronoun. */
+function uarVerb(ctx: DetectContext, at: Around): RawFinding | null {
+  const token = at.tokens[at.i];
+  const verb = UAR[token.lower];
+  if (!verb) return null;
+  const next = at.next();
+  const gerund = /(?:ando|iendo|yendo)$/u.test(next) && isGerund(next);
+  const clitic = /^(?:se|me|te|le|les|nos|os|lo)$/u.test(at.prev());
+  if (!gerund && !clitic) return null;
+  return replaceToken(
+    ctx,
+    token,
+    [verb],
+    "spanishAccents",
+    "review_msg_spanish_accent",
+    at.tokens[at.i + 1] ?? token,
+  );
+}
+
 type Check = (ctx: DetectContext, at: Around) => RawFinding | null;
 
 function frames(ctx: DetectContext, checks: Check[]): RawFinding[] {
@@ -238,9 +331,11 @@ const CONFUSIONS: Check[] = [
   cliticTwice,
   lesNumber,
 ];
-const AGREEMENT: Check[] = [amountOf, singularAttribute];
+const AGREEMENT: Check[] = [amountOf, singularAttribute, apocopePlural, coordinatedAdjective];
+const ACCENTS: Check[] = [uarVerb];
 
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
   { rules: ["spanishConfusions"], detect: (ctx) => frames(ctx, CONFUSIONS) },
   { rules: ["spanishAgreement"], detect: (ctx) => frames(ctx, AGREEMENT) },
+  { rules: ["spanishAccents"], detect: (ctx) => frames(ctx, ACCENTS) },
 ];

@@ -748,3 +748,7 @@ Lo hizo por mí y tocó una sonata en mi menor.
 Hay helado de fresa y hay heridos graves.
 Tú dale que te dale, y la dama le dio la mano.
 Nunca dejaré esta casa, aun tenga que ir a juicio.
+# Shortened adjectives, -uar adjectives and closed questions that are already right.
+Es un buen amigo; instalaron un gran cortafuegos y viajó a Gran Bretaña.
+La lluvia continua molesta y es una mejora continua; cadena perpetua para el reo.
+¿Vino el Sr. García? ¡Qué día! ¿Qué dices! Ya voy.

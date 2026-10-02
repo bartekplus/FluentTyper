@@ -2962,6 +2962,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Ten hiszpański tryb rozkazujący ma już zaimek na końcu, więc przed nim nie stawia się zaimka: dámelo, nie lo dame.",
     "Este imperativo espanhol já leva o pronome no fim, por isso nenhum vem antes: dámelo, não lo dame.",
   ],
+  review_msg_spanish_closing_mark: [
+    "A Spanish question or exclamation opened with ¿ or ¡ also closes with ? or !.",
+    "En espagnol, une question ou une exclamation ouverte par ¿ ou ¡ se ferme aussi par ? ou !.",
+    "Španjolsko pitanje ili usklik koji počinje s ¿ ili ¡ završava s ? ili !.",
+    "La pregunta o exclamación que se abre con ¿ o ¡ también se cierra con ? o !.",
+    "Μια ισπανική ερώτηση ή επιφώνηση που ανοίγει με ¿ ή ¡ κλείνει και με ? ή !.",
+    "En spansk fråga eller utrop som börjar med ¿ eller ¡ avslutas också med ? eller !.",
+    "Eine spanische Frage oder ein Ausruf, die mit ¿ oder ¡ beginnen, enden auch mit ? oder !.",
+    "Hiszpańskie pytanie lub wykrzyknienie otwarte znakiem ¿ lub ¡ zamyka się też znakiem ? lub !.",
+    "Uma pergunta ou exclamação espanhola aberta com ¿ ou ¡ também fecha com ? ou !.",
+  ],
   // French (review/french/)
   review_msg_fr_past_participle: [
     "After avoir or être, French uses the past participle (-é), not the infinitive (-er).",

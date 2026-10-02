@@ -1797,6 +1797,72 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
       ],
     },
   ],
+  [
+    "spanishAgreement",
+    "a shortened adjective before a plural, a second coordinated adjective",
+    {
+      pos: [
+        ["Son buen amigos míos.", "Son buenos amigos míos."],
+        ["Tiene gran casas en el campo.", "Tiene grandes casas en el campo."],
+        ["Fueron los primer días.", "Fueron los primeros días."],
+        [
+          "Asumió las consecuencias directas e indirectos.",
+          "Asumió las consecuencias directas e indirectas.",
+        ],
+        ["Lleva una camisa blanca y negro.", "Lleva una camisa blanca y negra."],
+      ],
+      neg: [
+        "Es un buen amigo.",
+        "Instalaron un gran cortafuegos.",
+        "Viajó a Gran Bretaña.",
+        "Los hombres altos y fuertes.",
+        "Las faldas rojas y pantalones blancos.",
+      ],
+    },
+  ],
+  [
+    "spanishAccents",
+    "continúa and perpetúa before a gerund or after a pronoun",
+    {
+      pos: [
+        ["Continua lloviendo en el norte.", "Continúa lloviendo en el norte."],
+        ["El problema se perpetua así.", "El problema se perpetúa así."],
+        ["Ella continua trabajando.", "Ella continúa trabajando."],
+        ["Lo continua mañana.", "Lo continúa mañana."],
+        ["Continuan llegando cartas.", "Continúan llegando cartas."],
+      ],
+      neg: [
+        "La lluvia continua molesta.",
+        "Es una mejora continua.",
+        "Cadena perpetua para el reo.",
+        "Hubo una lluvia continua toda la noche.",
+        "Formación continua y gratuita.",
+      ],
+    },
+  ],
+  [
+    "spanishTypography",
+    "the closing ? or ! of a question or exclamation",
+    {
+      pos: [
+        ["¿Qué es lo que pasa aquí.", "¿Qué es lo que pasa aquí?"],
+        ["¡Qué bonito", "¡Qué bonito!"],
+        ["¿Dónde vives", "¿Dónde vives?"],
+        ["¡Hola! ¿Qué tal.", "¡Hola! ¿Qué tal?"],
+        [
+          "Me preguntó ¿cuándo vienes. Le dije que mañana.",
+          "Me preguntó ¿cuándo vienes? Le dije que mañana.",
+        ],
+      ],
+      neg: [
+        "¿Vino el Sr. García?",
+        "¿Qué dices! Ya voy.",
+        "Dijo: «¿Vienes?».",
+        "¿Qué pasa? Nada.",
+        "¡Qué día!",
+      ],
+    },
+  ],
 ];
 
 test("a Spanish pronoun before an imperative that carries one is flagged without a fix", () => {

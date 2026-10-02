@@ -454,10 +454,71 @@ function missingSpace(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+/**
+ * "¿Qué es lo que pasa aquí." -> "aquí?", "¡Qué bonito" -> "bonito!": an opening mark whose
+ * sentence ends without a closing one. Either closing mark answers either opening one.
+ */
+function closingMarks(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  const text = ctx.text;
+  const opening = /[¿¡]/gu;
+  opening.lastIndex = ctx.from;
+  for (let m = opening.exec(text); m && m.index < ctx.to; m = opening.exec(text)) {
+    const close = m[0] === "¿" ? "?" : "!";
+    let end = -1;
+    let found = false;
+    for (let k = m.index + 1; k < Math.min(text.length, m.index + 400); k++) {
+      const c = text[k];
+      if (c === "?" || c === "!") {
+        found = true;
+        break;
+      }
+      if (c === "¿" || c === "¡" || c === "\n" || c === "\uFFFC" || c === "«" || c === '"') {
+        end = c === "\n" ? k : -2;
+        break;
+      }
+      // "¿Vino el Sr. García?": a period ends the sentence only before a capital or the end.
+      if (
+        (c === "." || c === "…") &&
+        /^(?:[ \t]+\p{Lu}|[ \t]*(?:\n|$))/u.test(text.slice(k + 1, k + 12))
+      ) {
+        if (/\p{Lu}\p{Ll}{0,3}$/u.test(text.slice(Math.max(0, k - 5), k))) continue;
+        end = k;
+        break;
+      }
+      if (k === text.length - 1) end = text.length;
+    }
+    if (found || end < 0 || namedExampleBefore(text, m.index)) continue;
+    if (end === text.length || text[end] === "\n") {
+      // The line ends without a mark: add the closing one after its last word.
+      let last = end - 1;
+      while (last > m.index && /\s/u.test(text[last])) last--;
+      if (!/[\p{L}\p{N}]/u.test(text[last] ?? "")) continue;
+      findings.push({
+        ruleId: RULE,
+        messageKey: "review_msg_spanish_closing_mark",
+        range: { start: last, end: last + 1 },
+        alternatives: [`${text[last]}${close}`],
+      });
+    } else if (text[end] === ".") {
+      findings.push({
+        ruleId: RULE,
+        messageKey: "review_msg_spanish_closing_mark",
+        range: { start: end, end: end + 1 },
+        alternatives: [close],
+      });
+    }
+  }
+  return findings;
+}
+
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
   {
     rules: [RULE],
-    detect: (ctx) => (ctx.lang.slice(0, 2) === "es" ? [...typography(ctx), ...marks(ctx)] : []),
+    detect: (ctx) =>
+      ctx.lang.slice(0, 2) === "es"
+        ? [...typography(ctx), ...marks(ctx), ...closingMarks(ctx)]
+        : [],
   },
   { rules: ["commaPeriodSpacing"], detect: missingSpace },
   { rules: ["emdashShortcut"], detect: dialogueDash },
