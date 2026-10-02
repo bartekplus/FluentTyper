@@ -143,3 +143,67 @@ test.each([
 test.each(["I no longer smoke.", "You no doubt know him."])("no before a non-verb: %s", (text) =>
   expect(scan(text, "englishConfusedWords")).toEqual([]),
 );
+
+test.each([
+  ["Data is not saved, so it not possible to sort it (see below).", "so it is not possible"],
+  ["It more reliable than the old one.", "It is more reliable"],
+  ["It possible the cache holds an old copy.", "It is possible"],
+  ["This not public information.", "This is not public"],
+  ["Sure, but it worth reading twice.", "it is worth reading"],
+])("a subject with no verb gets be: %s", (input, expected) => {
+  const found = scan(input, "englishSentenceStructure");
+  expect(found).toHaveLength(1);
+  expect(applyEdits(input, found[0].alternatives[0].edits)).toContain(expected);
+});
+
+test.each([
+  "I think it possible the cache holds an old copy.",
+  "I like this not that.",
+  "This not only helps but also saves time.",
+])("be frames stay silent: %s", (text) => {
+  expect(scan(text, "englishSentenceStructure")).toEqual([]);
+});
+
+test.each([
+  ["There are a theory about it.", "There is a theory about it."],
+  ["There exist a school for kids.", "There exists a school for kids."],
+  ["There are a wooden bench outside.", "There is a wooden bench outside."],
+  ["There are argument whether he is right.", "There is an argument whether he is right."],
+])("existential there with one singular noun: %s", (input, expected) => {
+  const found = scan(input, "englishExistentialAgreement");
+  expect(found).toHaveLength(1);
+  expect(applyEdits(input, found[0].alternatives[0].edits)).toBe(expected);
+});
+
+test.each([
+  "There are a cat and a dog.",
+  "There are a lot of cats.",
+  "There are a few people.",
+  "There are a number of issues.",
+  "There were a school, a church and a shop.",
+  "There are key differences.",
+  "There are research papers on it.",
+  "And there are two inside.",
+])("existential frames stay silent: %s", (text) => {
+  expect(scan(text, "englishExistentialAgreement")).toEqual([]);
+});
+
+test.each([
+  ["I fear that the script it not visible.", "I fear that the script is not visible."],
+  ["This morning nothing it working.", "This morning nothing is working."],
+  ["It says an update it available.", "It says an update is available."],
+  ["Update: this it the same issue.", "Update: this is the same issue."],
+])("it typed for is: %s", (input, expected) => {
+  const found = scan(input, "englishConfusedWords");
+  expect(found).toHaveLength(1);
+  expect(applyEdits(input, found[0].alternatives[0].edits)).toBe(expected);
+});
+
+test.each([
+  "I made the script it uses faster.",
+  "Show me the report it generated.",
+  "They use it the way it currently works.",
+  "Nothing it says is true.",
+])("it frames before a relative clause stay silent: %s", (text) => {
+  expect(scan(text, "englishConfusedWords")).toEqual([]);
+});

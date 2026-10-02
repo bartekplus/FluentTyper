@@ -1,6 +1,8 @@
 import { englishInflect } from "../../implementations/helpers/EnglishInflection";
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import { englishVerbForms } from "../../implementations/helpers/EnglishVerbForms";
+import { knownEnglishNounNumber } from "../../implementations/helpers/EnglishNounNumber";
+import { englishInitialSound } from "../../implementations/helpers/EnglishInitialSound";
 import type { PhraseRow } from "../englishPhraseTables";
 import { nounNumber } from "./nounNumberSlots";
 import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
@@ -235,7 +237,165 @@ function sinceWithSimpleTense(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+// Existential "there" opens its clause.
+const THERE_CUE =
+  /(?:^|[.!?;:,(\n"“][ \t ]*|\b(?:if|when|whether|that|because|since|so|and|but|then|where|as|while|now|also|still|think|hope|said)[ \t ]+)$/i;
+// Quantity nouns: "there are a lot/few/number of…" are plural.
+const QUANTITY_NOUNS =
+  /^(?:lot|lots|few|couple|number|bunch|variety|range|host|dozen|handful|pair|series|total|majority|minority|plethora|myriad|set|group|ton|tons|load|loads|deal|million|thousand|hundred|billion|half|third|quarter|percent|kind|type|sort|mix|collection|list|wealth|multitude|crowd|team|family|pack|flock|herd|batch|selection|combination)$/;
+const NUMBER_WORD =
+  /^(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|twenty|thirty|forty|fifty|hundred|none|plenty)$/;
+const BARE_TAIL =
+  /^(?:in|on|at|with|for|about|that|which|when|where|from|to|outside|inside|whether|under|around)$/;
+
+/**
+ * "There are a theory…", "There exist a school…", "There are argument whether…": existential
+ * there with a plural verb and one singular noun.
+ */
+function existentialSingular(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of frameMatches(
+    ctx,
+    `(?<there>there)${SPACE}(?<verb>are|were|exist)${SPACE}(?=[a-z])`,
+    "verb",
+  )) {
+    if (!THERE_CUE.test(ctx.text.slice(Math.max(0, m.index - 40), m.index))) continue;
+    const verb = m.groups!.verb;
+    const tokens = tokensAfter(ctx, m.index + m[0].length, 14);
+    const article = /^an?$/.test(tokens[0]?.lower ?? "");
+    let k = article ? 1 : 0;
+    // Up to two adjectives before the head ("a new theory").
+    while (
+      article &&
+      k < 3 &&
+      tokens[k + 1]?.kind === "word" &&
+      englishWordInfo(tokens[k].lower)?.adjective &&
+      !englishWordInfo(tokens[k].lower)?.noun
+    )
+      k++;
+    const head = tokens[k];
+    if (head?.kind !== "word" || head.text !== head.lower || ctx.dictionary.has(head.lower))
+      continue;
+    const noun = head.lower;
+    if (FUNCTION_WORDS.has(noun) || QUANTITY_NOUNS.test(noun) || NUMBER_WORD.test(noun)) continue;
+    const number = nounNumber(noun);
+    const read = englishWordInfo(noun);
+    if (number?.number !== "singular" || number.singular === number.plural) continue;
+    if (read?.adjective || read?.verbs.some((v) => v.form !== "base")) continue;
+    const next = tokens[k + 1];
+    // "a theory of…" may still be fine; "a cat and a dog" is plural; a noun after is a compound.
+    if (next?.kind === "word" && /^(?:of|and|or|nor)$/.test(next.lower)) continue;
+    if (
+      next?.kind === "word" &&
+      !FUNCTION_WORDS.has(next.lower) &&
+      (nounOnly(next.lower) || englishWordInfo(next.lower)?.noun)
+    )
+      continue;
+    // A coordination later in the clause makes the whole plural: "a school … and a library".
+    const rest = tokens.slice(k + 1);
+    const stop = rest.findIndex((t) => t.kind === "end");
+    if (
+      (stop < 0 ? rest : rest.slice(0, stop)).some(
+        (t) => t.kind === "comma" || (t.kind === "word" && /^(?:and|or|&)$/.test(t.lower)),
+      )
+    )
+      continue;
+    const singularVerb = verb === "exist" ? "exists" : verb === "were" ? "was" : "is";
+    const [start, end] = m.indices!.groups!.verb;
+    if (article) {
+      findings.push({
+        ruleId: "englishExistentialAgreement",
+        messageKey: "review_msg_existential_agreement",
+        range: { start, end },
+        alternatives: [singularVerb],
+        context: evidence(ctx, m.index, head.end),
+      });
+      continue;
+    }
+    // A bare singular the authored table leaves out: "is a problem" or "are problems".
+    if (verb === "exist" || knownEnglishNounNumber(noun)) continue;
+    if (
+      !next ||
+      !(
+        next.kind === "end" ||
+        next.kind === "comma" ||
+        (next.kind === "word" && BARE_TAIL.test(next.lower))
+      )
+    )
+      continue;
+    const a = englishInitialSound(noun) === "vowel" ? "an" : "a";
+    findings.push({
+      ruleId: "englishExistentialAgreement",
+      messageKey: "review_msg_existential_agreement",
+      range: { start, end: head.end },
+      alternatives: [`${singularVerb} ${a} ${noun}`, `${verb} ${number.plural}`],
+      requiresChoice: true,
+      context: evidence(ctx, m.index, head.end),
+    });
+  }
+  return findings;
+}
+
+const INDEFINITE = /^(?:nothing|everything|something|anything|everyone|someone|anyone|nobody)$/;
+
+/**
+ * "the script it not visible", "nothing it working", "this it the same issue": "it" typed for
+ * "is" after a subject that is a noun phrase or an indefinite pronoun.
+ */
+function itForIs(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of frameMatches(ctx, `(?<target>it)${SPACE}(?<next>[a-z]+)${WORD_END}`)) {
+    const before = wordBefore(ctx, m.index);
+    if (!before) continue;
+    const next = m.groups!.next;
+    let subject: boolean;
+    if (/^(?:this|that)$/.test(before))
+      // "this it the exact issue": a determiner-led predicate after this/that.
+      subject = /^(?:the|a|an|not)$/.test(next) && afterBreak(ctx, m.index - before.length - 1);
+    else {
+      // "the script it", "an update it", "nothing (else) it".
+      const run = /([A-Za-z]+)[ \t ]+([A-Za-z]+)[ \t ]+$/.exec(
+        ctx.text.slice(Math.max(0, m.index - 40), m.index),
+      );
+      const det = run?.[1].toLowerCase() ?? "";
+      subject =
+        INDEFINITE.test(before) ||
+        (before === "else" && INDEFINITE.test(det)) ||
+        (/^(?:the|an|a|my|your|our|their|this)$/.test(det) &&
+          (nounOnly(before) === "singular" ||
+            (!!englishWordInfo(before)?.noun && !englishWordInfo(before)?.plural)));
+    }
+    if (!subject) continue;
+    // The predicate: not + a word, an -ing form, or an adjective, then the clause ends or goes on.
+    const read = englishWordInfo(next);
+    const predicate =
+      next === "not" ||
+      /^(?:the|a|an)$/.test(next) ||
+      (!!read?.verbs.some((v) => v.form === "ing") && !read.noun) ||
+      (!!read?.adjective && !read.noun && !read.verbs.length && !/ly$/.test(next));
+    // "the way it currently…", "the time it took": a relative clause after its head.
+    if (
+      /^(?:way|time|place|day|reason|moment|amount|speed|rate|extent|year|night|morning)$/.test(
+        before,
+      )
+    )
+      continue;
+    if (!predicate) continue;
+    const [start, end] = m.indices!.groups!.target;
+    findings.push({
+      ruleId: "englishConfusedWords",
+      messageKey: "review_msg_confused_word",
+      range: { start, end },
+      alternatives: ["is"],
+      context: evidence(ctx, m.index, m.index + m[0].length),
+    });
+  }
+  return findings;
+}
+
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
+  { rules: ["englishConfusedWords"], detect: english(itForIs) },
+  { rules: ["englishExistentialAgreement"], detect: english(existentialSingular) },
   { rules: ["englishAuxiliaryBaseVerb"], detect: english(modalNoun, questionWithoutDo) },
   { rules: ["englishTenseConsistency"], detect: english(sinceWithSimpleTense) },
   { rules: ["englishItsContext"], detect: english(itBeforeNoun) },
