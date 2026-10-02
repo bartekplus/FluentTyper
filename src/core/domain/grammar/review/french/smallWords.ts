@@ -142,11 +142,44 @@ function quelQueSoit(ctx: DetectContext, m: RegExpExecArray): RawFinding | null 
   });
 }
 
+/** "elle a sept années" -> "ans": an age counts years. */
+function ageInYears(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const typed = m.groups!.years;
+  const start = m.index + m[0].length - typed.length;
+  const before = tokensBefore(ctx.text, m.index, 4).filter(
+    (t) =>
+      !["maintenant", "déjà", "bientôt", "presque", "environ", "juste", "seulement"].includes(t.w),
+  );
+  const rest = ctx.text.slice(start + typed.length);
+  // "j'ai trois années d'expérience": a span of years, not an age.
+  if (!/^[\s  ]*(?:$|[.,;:!?)]|révolu)/u.test(rest)) return null;
+  const previous = before[0]?.w ?? "";
+  const age =
+    verbReadings(previous).some((r) => r.lemma === "avoir" && typeof r.slot === "number") ||
+    (previous === "de" && /^âgée?s?$/.test(before[1]?.w ?? ""));
+  if (!age) return null;
+  return wordFinding(
+    ctx,
+    start,
+    typed,
+    [typed.toLowerCase() === "années" ? "ans" : "an"],
+    RULE,
+    MESSAGE,
+    {
+      start: m.index,
+      end: start + typed.length,
+    },
+  );
+}
+
 const SMALL =
   /(?<![\p{L}\p{M}\p{N}_'’-])(?:ni|si|ci|sans|mes|mai|mas|dans|dan|leurs|mêmes)(?![\p{L}\p{M}\p{N}_'’-])/giu;
 const DAVANTAGE = /(?<![\p{L}\p{M}\p{N}_-])d['’]avantage(?![\p{L}\p{M}\p{N}_'’-])/giu;
 const QUEL_QUE_SOIT =
   /(?<![\p{L}\p{M}\p{N}_'’-])quel(?:le)?s?[ \t]+que[ \t]+soi(?:en)?t(?![\p{L}\p{M}\p{N}_'’-])/giu;
+
+const AGE =
+  /(?<![\p{L}\p{M}\p{N}_'’-])(?:\d+|deux|trois|quatre|cinq|six|sept|huit|neuf|dix|onze|douze|vingt|trente|quarante|cinquante|soixante|cent)[ \t]+(?<years>années)(?![\p{L}\p{M}\p{N}_'’-])/giu;
 
 function smallWords(ctx: DetectContext): RawFinding[] {
   if (ctx.lang.slice(0, 2) !== "fr") return [];
@@ -155,6 +188,7 @@ function smallWords(ctx: DetectContext): RawFinding[] {
     [SMALL, smallWord],
     [DAVANTAGE, davantage],
     [QUEL_QUE_SOIT, quelQueSoit],
+    [AGE, ageInYears],
   ] as const) {
     for (const m of ownedFrenchWords(ctx, pattern)) {
       const finding = check(ctx, m);

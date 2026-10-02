@@ -240,6 +240,7 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
       ["comme par exemple", ["comme", "par exemple"]],
       ["puis ensuite", ["puis", "ensuite"]],
       ["car en effet", ["car", "en effet"]],
+      ...french.STYLE,
     ],
   },
   es: {
