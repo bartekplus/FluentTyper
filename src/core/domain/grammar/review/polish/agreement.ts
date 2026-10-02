@@ -121,6 +121,8 @@ function prepositionCase(ctx: DetectContext): RawFinding[] {
   for (const m of owned(ctx, PREPOSITION)) {
     const { prep, noun } = m.groups!;
     if (!/^\p{Ll}+$/u.test(noun) || userOrNamed(ctx, noun)) continue;
+    // A title abbreviation ("dzięki dr Kowalskiemu", "u mgr Nowak") is no noun to inflect.
+    if (!/[aeiouyąęó]/u.test(noun)) continue;
     const before = ctx.text.slice(Math.max(0, m.index - 12), m.index);
     if (!prepositionClash(prep.toLowerCase(), noun, before)) continue;
     const start = m.index + m[0].length - noun.length;
