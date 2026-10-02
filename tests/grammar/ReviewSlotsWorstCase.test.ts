@@ -31,7 +31,8 @@ function slowestChunkMs(text: string): number {
 
 const SLOT_WORDS =
   "its your it you to too two the a an this these those many much each every other have has " +
-  "had be is was were do does did can could would should there here people not no I he she we ";
+  "had be is was were do does did can could would should there here people not no I he she we " +
+  "who that me myself and ";
 
 test("no chunk stalls on runs of slot-opening words or spaces between them", () => {
   slowestChunkMs(SLOT_WORDS.repeat(40));
@@ -43,6 +44,8 @@ test("no chunk stalls on runs of slot-opening words or spaces between them", () 
     "There a lot of ".repeat(1_000),
     "could possible ".repeat(2_000),
     "people thinks ".repeat(2_000),
+    ". The tall guys who met him yesterday really ".repeat(500),
+    "Tim and me and Sam and me went ".repeat(600),
   ];
   for (const text of inputs) expect(slowestChunkMs(text)).toBeLessThan(100);
 });

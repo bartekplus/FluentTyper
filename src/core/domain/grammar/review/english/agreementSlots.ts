@@ -373,9 +373,127 @@ function invertedAuxiliary(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+const RELATIVE_SUBJECT = `(?<det>the|these|those|my|our|their|his|her|your|all|many|some|most|this|that|a|an|every|each)${SPACE}(?<head>(?:[a-z]+${SPACE}){0,2}?[a-z]+)${SPACE}(?:who|that)${SPACE}(?=[a-z])`;
+const PRONOUN_HEAD = `(?<head>anyone|anybody|someone|somebody|everyone|everybody|nobody)${SPACE}who${SPACE}(?=[a-z])`;
+// Words after which a bare verb continues the clause: "helped clean", "made me laugh".
+const CATENATIVE =
+  /^(?:help|helps|helped|let|lets|make|makes|made|watch|watched|see|saw|seen|hear|heard|have|has|had|do|does|did|will|would|can|could|shall|should|may|might|must|to|not|never|dare|rather|better)$/;
+const TIME_WORDS =
+  /^(?:yesterday|today|tonight|now|then|before|earlier|later|here|there|again|early|late|hard|fast|well)$/;
+const SINGULAR_FIX: Record<string, string> = { have: "has", are: "is", were: "was", do: "does" };
+
+const BE_OR_AUX =
+  /^(?:is|are|was|were|am|has|have|had|do|does|did|will|would|can|could|should|may|might|must)$/;
+
+/**
+ * "The ladies who talk loudly annoys me", "The tall woman that I met yesterday manage the team":
+ * the main verb after a relative clause agrees with the noun before who/that. The clause must
+ * have its own verb, and the main verb must follow an adverb, a time word or that verb.
+ */
+function relativeClauseSubject(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const pattern of [RELATIVE_SUBJECT, PRONOUN_HEAD])
+    for (const m of frameMatches(ctx, pattern, null)) {
+      if (!afterBreak(ctx, m.index) && !CLAUSE_CUE.test(wordBefore(ctx, m.index))) continue;
+      // "A new WHO report": the relative pronoun is lowercase.
+      if (!/[ \t\u00a0](?:who|that)[ \t\u00a0]+$/.test(m[0])) continue;
+      const words = m.groups!.head.split(/[ \t ]+/);
+      if (process.env.DBG) console.log("PRE", m[0]);
+      const head = words.at(-1)!;
+      if (words.some((w) => FUNCTION_WORDS.has(w) || BE_OR_AUX.test(w))) continue;
+      // Modifiers before the head are adjectives or nouns, never verbs.
+      if (words.slice(0, -1).some((w) => englishWordInfo(w)?.verbs.some((v) => v.form !== "base")))
+        continue;
+      const headRead = englishWordInfo(head);
+      const number = !m.groups!.det
+        ? { singular: head, plural: head, number: "singular" as const }
+        : (nounNumber(head) ??
+          // "guys" is also a verb the noun pairs skip: the lexicon's plural reading.
+          (headRead?.noun && headRead.plural && /s$/.test(head)
+            ? { singular: head.slice(0, -1), plural: head, number: "plural" as const }
+            : null));
+      if (!number || COLLECTIVE.has(number.singular) || NUMBERS.test(head)) continue;
+      const det = (m.groups!.det ?? "").toLowerCase();
+      const plural = number.number === "plural";
+      if (
+        plural
+          ? /^(?:a|an|this|that|every|each)$/.test(det)
+          : /^(?:these|those|many|all|most)$/.test(det)
+      )
+        continue;
+      if (process.env.DBG) console.log("REL", m[0], number);
+      const tokens = tokensAfter(ctx, m.index + m[0].length, 10);
+      // The clause's own verb; the main verb comes right after it or after adverbs.
+      let clauseVerb = -1;
+      for (let j = 0; j < tokens.length; j++) {
+        const t = tokens[j];
+        if (t.kind !== "word" || (t.text !== t.lower && t.text !== "I")) break;
+        if (/^(?:and|but|or|because|if|when|which|who|that|while)$/.test(t.lower)) break;
+        const read = englishWordInfo(t.lower);
+        const verb =
+          BE_OR_AUX.test(t.lower) || (!!read?.verbs.length && !FUNCTION_WORDS.has(t.lower));
+        if (clauseVerb < 0) {
+          if (verb) clauseVerb = j;
+          continue;
+        }
+        const prev = tokens[j - 1];
+        const prevRead = englishWordInfo(prev.lower);
+        const adverbBefore =
+          ADVERBS.has(prev.lower) ||
+          TIME_WORDS.test(prev.lower) ||
+          (!!prevRead?.adverb && !prevRead.noun && !prevRead.adjective && !prevRead.verbs.length);
+        const afterClauseVerb = j - 1 === clauseVerb && !CATENATIVE.test(prev.lower);
+        // "that he can not use", "its gonna randomly scramble": a bare verb after a modal.
+        if (
+          tokens
+            .slice(clauseVerb, j)
+            .some((w) => CATENATIVE.test(w.lower) || /^(?:gonna|wanna|gotta)$/.test(w.lower))
+        )
+          break;
+        if (!adverbBefore && !afterClauseVerb) {
+          if (verb) break;
+          continue;
+        }
+        if (!verb) continue;
+        // Right after the clause verb a noun reading may be its object ("who play sports").
+        if (adverbBefore || (!read?.noun && !read?.adjective)) {
+          let fix: string | null = null;
+          if (plural) fix = pluralOf(t, tokens[j + 1], tokens[j + 2]);
+          else if (SINGULAR_FIX[t.lower]) fix = SINGULAR_FIX[t.lower];
+          else if (
+            read?.verbs.some((v) => v.form === "base" && v.lemma === t.lower) &&
+            (adverbBefore || !read.adjective) &&
+            (!read.noun || closedAfter(tokens[j + 1]))
+          )
+            fix = englishInflect(t.lower, "third");
+          if (fix && fix !== t.lower) push(ctx, findings, t, fix, m.index);
+        } else if (read?.noun) continue; // "who answers calls rarely forget": an object.
+        break;
+      }
+    }
+  return findings;
+}
+
+/** An object, particle, preposition, adverb or the clause end after a verb that is also a noun. */
+function closedAfter(t: Token | undefined): boolean {
+  if (!t || t.kind === "end") return true;
+  if (t.kind !== "word") return false;
+  return (
+    /^(?:the|a|an|my|your|his|her|our|their|it|them|me|us|him|you|this|that|to|in|on|at|with|for|up|down|out|off|through|into|again|every|each)$/.test(
+      t.lower,
+    ) || ADVERBS.has(t.lower)
+  );
+}
+
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
   {
     rules: ["englishSubjectVerbAgreement"],
-    detect: english(nounSubject, irregularPlurals, demonstratives, invertedAuxiliary),
+    detect: english(
+      nounSubject,
+      irregularPlurals,
+      demonstratives,
+      invertedAuxiliary,
+      relativeClauseSubject,
+    ),
   },
 ];

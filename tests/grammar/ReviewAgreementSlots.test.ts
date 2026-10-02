@@ -33,6 +33,20 @@ test("a noun-phrase subject agrees with its verb", () => {
     ["The rules of chess seems simple.", "The rules of chess seem simple."],
     ["Most hikers in Norway carries a map.", "Most hikers in Norway carry a map."],
     ["The kettles whistles loudly.", "The kettles whistle loudly."],
+    // After a relative clause.
+    [
+      "The tourists who arrive late usually misses the bus.",
+      "The tourists who arrive late usually miss the bus.",
+    ],
+    [
+      "The cooks that she hired yesterday prepares lunch.",
+      "The cooks that she hired yesterday prepare lunch.",
+    ],
+    [
+      "The clerk who answers calls rarely forget a name.",
+      "The clerk who answers calls rarely forgets a name.",
+    ],
+    ["Anyone who tries hard succeed in the end.", "Anyone who tries hard succeeds in the end."],
   ]) {
     const found = scan(input);
     expect({ input, count: found.length }).toEqual({ input, count: 1 });
@@ -44,6 +58,11 @@ test("a noun-phrase subject agrees with its verb", () => {
 test("collectives, objects, subjunctives and compound nouns stay silent", () => {
   for (const text of [
     "The dog barks at night.",
+    "The man who saw the dogs run away left.",
+    "The nurse who helped clean the ward left.",
+    "The girls who play sports.",
+    "A clerk that can not find it.",
+    "A new WHO report found gaps.",
     "The config files still listed the old host.",
     "The public demands answers.",
     "The pale lamps burn all night.",
