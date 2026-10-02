@@ -105,12 +105,17 @@ describe("native field eligibility and interaction evidence", () => {
   ])("cannot activate protected or locked controls: %s", (html) => {
     expect(detector.classify(field(html)).kind).toBe("blocked");
   });
-  test.each(['<input name="username">', '<input inputmode="numeric">', '<input inputmode="tel">'])(
-    "structured account and input-mode hints stay manual: %s",
-    (html) => {
-      expect(detector.classify(field(html))).toEqual({ kind: "manual", reason: "structured" });
-    },
-  );
+  test.each([
+    '<input name="username">',
+    '<input name="login_username">',
+    '<input id="account-username-field">',
+    '<input id="usernameInput">',
+    '<input name="login_user-name">',
+    '<input inputmode="numeric">',
+    '<input inputmode="tel">',
+  ])("structured account and input-mode hints stay manual: %s", (html) => {
+    expect(detector.classify(field(html))).toEqual({ kind: "manual", reason: "structured" });
+  });
   test("ambiguous selectors are manual", () => {
     expect(detector.classify(field('<input role="combobox">'))).toEqual({
       kind: "manual",

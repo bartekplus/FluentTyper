@@ -118,7 +118,7 @@ export class NativeAutocompleteConflictDetector {
     if (element.tagName === "INPUT") {
       const input = element as HTMLInputElement;
       if (
-        [input.name, input.id].some((value) => /^user[-_]?name$/i.test(value)) ||
+        [input.name, input.id].some((value) => /user[-_]?name/i.test(value)) ||
         ["email", "url", "tel", "numeric", "decimal"].includes(input.inputMode.toLowerCase())
       )
         return { kind: "manual", reason: "structured" };
