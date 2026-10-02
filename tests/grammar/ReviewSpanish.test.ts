@@ -1985,6 +1985,49 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
       ],
     },
   ],
+  [
+    "spanishAccents",
+    "esté before a feminine participle or a la after a subjunctive trigger",
+    {
+      pos: [
+        ["Avísame cuando tu factura este pagada.", "Avísame cuando tu factura esté pagada."],
+        ["Para que la tarea este terminada.", "Para que la tarea esté terminada."],
+        [
+          "Permite que cualquier tienda este a la última.",
+          "Permite que cualquier tienda esté a la última.",
+        ],
+        ["Cuando la sopa este servida, come.", "Cuando la sopa esté servida, come."],
+        ["Ojalá que mi carta este enviada.", "Ojalá que mi carta esté enviada."],
+      ],
+      neg: [
+        "Dijo que el libro está a la venta.",
+        "Quiero que este lista sea útil.",
+        "Cuando este coche llegue, avísame.",
+        "Para que este plan funcione.",
+        "Creo que este a la larga gana.",
+      ],
+    },
+  ],
+  [
+    "spanishConfusions",
+    "haber after a modal, años before a plural time word",
+    {
+      pos: [
+        ["Podría a ver más gente.", "Podría haber más gente."],
+        ["Debería a verlo sabido.", "Debería haberlo sabido."],
+        ["Pudo a ver otra salida.", "Pudo haber otra salida."],
+        ["Los anos siguientes fueron duros.", "Los años siguientes fueron duros."],
+        ["Los anos pasados fueron mejores.", "Los años pasados fueron mejores."],
+      ],
+      neg: [
+        "Vamos a ver la película.",
+        "Fue a ver a su madre.",
+        "Podemos ir a ver el partido.",
+        "Volvió a ver a su hermano.",
+        "Quiere a ver si llueve.",
+      ],
+    },
+  ],
 ];
 
 test("a Spanish pronoun before an imperative that carries one is flagged without a fix", () => {

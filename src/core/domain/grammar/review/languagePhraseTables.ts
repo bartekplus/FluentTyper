@@ -569,6 +569,22 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
       ["cuales quiera", "cualesquiera"],
     ],
     style: [
+      // The 2010 spelling drops the accent of "solo" and the demonstrative pronouns.
+      ["sólo", "solo"],
+      ...[
+        ["éste", "este"],
+        ["ésta", "esta"],
+        ["éstos", "estos"],
+        ["éstas", "estas"],
+        ["ése", "ese"],
+        ["ésa", "esa"],
+        ["ésos", "esos"],
+        ["ésas", "esas"],
+        ["aquél", "aquel"],
+        ["aquélla", "aquella"],
+        ["aquéllos", "aquellos"],
+        ["aquéllas", "aquellas"],
+      ].map(([typed, fixed]): PhraseRow => [typed, fixed]),
       ["subir arriba", "subir"],
       ["bajar abajo", "bajar"],
       ["salir afuera", "salir"],

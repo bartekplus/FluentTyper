@@ -47,6 +47,7 @@ function yearReading(at: Around): boolean {
   const plural = tokens[at.i].lower === "anos";
   if (isNumber(tokens[at.i - 1]) && !tokens[at.i].broken) return true;
   if (/^(?:pasado|próximo|siguiente|anterior|entrante|nuevo|que)$/u.test(next)) return true;
+  if (plural && /^(?:pasados|próximos|siguientes|anteriores|venideros)$/u.test(next)) return true;
   if (
     /^(?:cada|este|ese|aquel|primer|último|próximo|pasado|medio|nuevo|todo|esos|estos|aquellos|varios|muchos|pocos|algunos|siguientes|últimos|primeros)$/u.test(
       prev,
@@ -323,6 +324,9 @@ function aVer(tokens: Token[], i: number): { end: number; fix: string } | null {
   const prev = new Around(tokens, i);
   if (!prev.starts && !PERFECT_BEFORE.test(prev.prev())) return null;
   const next = tokens[i + 2];
+  // "Podría a ver otros", "debería a verlo": a modal takes no "a", so "haber" is meant.
+  if (/^(?:pod|deb|pued|pud)\p{L}*$/u.test(prev.prev()) && !next?.broken)
+    return { end: ver.end, fix: `hab${m[1] === "vér" ? "é" : "e"}r${m[2]}` };
   if (!next?.word || next.broken || !isPerfectParticiple(next.lower) || isNoun(next.lower))
     return null;
   return { end: ver.end, fix: `hab${m[1] === "vér" ? "é" : "e"}r${m[2]}` };

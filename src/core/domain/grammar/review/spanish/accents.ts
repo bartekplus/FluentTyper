@@ -316,6 +316,8 @@ function estarReading(at: Around, plural: boolean): boolean {
 // "que esté", "cuando esté", "tal vez esté": subjunctive triggers right before "este".
 const SUBJUNCTIVE_TRIGGERS = words("que cuando aunque mientras ojalá quizá quizás");
 
+const plural0 = (at: Around) => at.tokens[at.i].lower !== "este";
+
 function subjunctiveReading(at: Around): boolean {
   const prev = at.prev();
   const prev2 = at.prev(2);
@@ -329,6 +331,23 @@ function subjunctiveReading(at: Around): boolean {
     // "que no esté", "cuando el niño esté", "que su país esté".
     (prev === "no" && SUBJUNCTIVE_TRIGGERS.has(prev2)) ||
     (SUBJUNCTIVE_TRIGGERS.has(prev3) && DETERMINERS.has(prev2) && !!prev && !CLITICS.has(prev2));
+  const next0 = at.next();
+  // "para que la cuenta este configurada", "que cualquier negocio este a la vanguardia": a
+  // trigger a few words back, and what follows cannot go with masculine "este".
+  if (
+    !trigger &&
+    at.tokens[at.i].lower === "este" &&
+    [2, 3, 4].some(
+      (k) =>
+        SUBJUNCTIVE_TRIGGERS.has(at.prev(k)) &&
+        // "Dijo que el libro está a la venta": a report keeps the indicative.
+        !/^(?:dij|dic|dec|cre|pens|piens|sab|sé|afirm|asegur|explic|cuent|cont)\p{L}*$/u.test(
+          at.prev(k + 1),
+        ),
+    ) &&
+    ((participle(next0)?.feminine && !isNoun(next0)) || (next0 === "a" && at.next(2) === "la"))
+  )
+    return true;
   if (!trigger) return false;
   const next = at.next();
   if (!next) return clitic && at.endsAfter();
@@ -337,6 +356,8 @@ function subjunctiveReading(at: Around): boolean {
   if (next === "de") return ESTAR_DE.has(at.next(2));
   if (ESTAR_PREPOSITIONS.has(next) || next === "al") return !PARENTHETICAL.has(at.next(2));
   if (next === "por" || next === "a") return /^(?:encima|debajo|punto|tiempo)$/u.test(at.next(2));
+  // "cuando tu orden este procesada": a feminine participle cannot follow masculine "este".
+  if (!plural0(at) && participle(next)?.feminine && !isNoun(next)) return true;
   if (next === "cerca" || next === "lejos") return at.next(2) === "de";
   if (DEGREE.has(next)) return !!attributeOf(at.next(2)) && closes(at, 2);
   const reading = attributeOf(next);
