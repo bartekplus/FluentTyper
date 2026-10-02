@@ -103,8 +103,13 @@
         min-height: 80px;
       }
 
-      #test-lexical-editor {
+      #test-lexical-editor,
+      #test-prosemirror-editor,
+      #test-tinymce {
         min-height: 80px;
+      }
+      .ProseMirror {
+        white-space: pre-wrap;
       }
     </style>
   </head>
@@ -184,6 +189,14 @@
         <label for="test-lexical-editor">Lexical</label>
         <div id="test-lexical-editor" contenteditable="true"></div>
       </div>
+      <div class="input-group" id="test-prosemirror-group">
+        <label for="test-prosemirror-editor">ProseMirror</label>
+        <div id="test-prosemirror"></div>
+      </div>
+      <div class="input-group" id="test-tinymce-group">
+        <label for="test-tinymce">TinyMCE</label>
+        <div id="test-tinymce"></div>
+      </div>
     </div>
     <script>
       const params = new URLSearchParams(window.location.search);
@@ -191,6 +204,7 @@
       const enableCkEditor = params.get("enableCkEditor") === "1";
       const enableQuill = params.get("enableQuill") === "1";
       const enableLexical = params.get("enableLexical") === "1";
+      const enableProseMirror = params.get("enableProseMirror") === "1";
       if (testName) {
         document.getElementById("test-name").textContent = testName;
       }
@@ -344,6 +358,22 @@
         script.onerror = () => {
           window.__testLexicalError = "Failed to load Lexical test editor script";
         };
+        document.head.appendChild(script);
+      }
+      const proseMirrorGroup = document.getElementById("test-prosemirror-group");
+      if (!enableProseMirror) {
+        proseMirrorGroup.style.display = "none";
+      } else {
+        const script = document.createElement("script");
+        script.src = "/test-prosemirror-editor.js";
+        document.head.appendChild(script);
+      }
+      const tinyMceGroup = document.getElementById("test-tinymce-group");
+      if (!params.has("tinyMceMode")) {
+        tinyMceGroup.style.display = "none";
+      } else {
+        const script = document.createElement("script");
+        script.src = "/test-tinymce-editor.js";
         document.head.appendChild(script);
       }
     </script>

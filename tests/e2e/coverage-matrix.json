@@ -1544,6 +1544,11 @@
       "description": "Extension discovers and attaches to inputs inside open shadow roots, shows suggestions on typing.",
       "coverage": [
         {
+          "layer": "unit",
+          "file": "tests/SuggestionElementDiscovery.test.ts",
+          "test": "queryCandidates(%s host) reports and scans its shadow root"
+        },
+        {
           "layer": "e2e-smoke",
           "file": "tests/e2e/smoke.e2e.test.ts",
           "test": "attaches to input inside open shadow root and shows suggestions on typing"
@@ -4270,6 +4275,28 @@
           "layer": "unit",
           "file": "tests/grammar/ReviewSpellingLanguages.test.ts",
           "test": "an unresolved auto-detect language asks no dictionary"
+        }
+      ]
+    },
+    {
+      "id": "prosemirror_editor_transactions",
+      "description": "Real ProseMirror autocomplete and text expansion update the document model across paragraph breaks, select a non-first expansion in an above-caret menu, preserve bold/link marks, and undo restores the prefix or shortcut.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "ProseMirror predictions and expansions update the model, preserve formatting and undo"
+        }
+      ]
+    },
+    {
+      "id": "tinymce_editor_transactions",
+      "description": "Real TinyMCE inline and iframe editors discover suggestions, accept autocomplete and text expansions across paragraph breaks, preserve bold/links, and undo restores the prefix or shortcut.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "TinyMCE %s predictions and expansions preserve formatting and undo"
         }
       ]
     }

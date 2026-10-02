@@ -58,8 +58,15 @@
     "oxlint": "1.85.0",
     "oxlint-tsgolint": "7.0.2002",
     "prettier": "3.9.9",
+    "prosemirror-commands": "1.7.2",
+    "prosemirror-history": "1.5.1",
+    "prosemirror-keymap": "1.2.3",
+    "prosemirror-schema-basic": "1.2.5",
+    "prosemirror-state": "1.4.4",
+    "prosemirror-view": "1.42.6",
     "puppeteer": "25.12.0",
     "quill": "^2.0.3",
+    "tinymce": "8.9.2",
     "typescript": "7.0.2"
   },
   "dependencies": {
