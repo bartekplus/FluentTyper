@@ -221,7 +221,7 @@ export function installWordReviewMainWorld(doc: Document = document): () => void
         isCredentialField(input) ||
         isNonWritingControl(input) ||
         input.matches("[readonly], [disabled]") ||
-        input.closest('[aria-readonly="true"], [hidden], [inert], [aria-hidden="true"]') ||
+        input.closest('[aria-readonly="true"], [aria-disabled="true"], [inert]') ||
         root.closest('[hidden], [inert], [aria-hidden="true"]') ||
         (typeof root.checkVisibility === "function" &&
           !root.checkVisibility({ visibilityProperty: true }))

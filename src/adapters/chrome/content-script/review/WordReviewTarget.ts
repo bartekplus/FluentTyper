@@ -20,6 +20,7 @@ export class WordReviewTarget implements ReviewTargetHandle {
   readonly capabilities = { inline: true, apply: true, bulk: true, undo: "single-step" as const };
   composing = false;
   private snapshot: WordReviewSnapshot | null = null;
+  private startupSnapshot: WordReviewSnapshot | null = null;
   private disposed = false;
   private initialFailure: ReviewTargetRead | null = null;
   private segments: RenderedSegment[] | null | undefined;
@@ -100,11 +101,28 @@ export class WordReviewTarget implements ReviewTargetHandle {
     return !!reply && "matchesSelection" in reply && reply.matchesSelection;
   }
 
+  /** Capture scope before UI focus; the synchronous session start consumes this read. */
+  captureSelection(): void {
+    this.read(true);
+    const initial = this.snapshot;
+    if (!initial) return;
+    this.startupSnapshot = initial;
+    queueMicrotask(() => {
+      if (this.startupSnapshot === initial) this.startupSnapshot = null;
+    });
+  }
+
   read(selection = false): ReviewTargetRead {
     if (this.disposed || !this.element.isConnected) return { ok: false, reason: "detached" };
     if (this.composing) return { ok: false, reason: "composing" };
     // A selection we could not map never widens to the whole document on the next read.
     if (this.initialFailure) return this.initialFailure;
+    const initial = !selection ? this.startupSnapshot : null;
+    this.startupSnapshot = null;
+    if (initial) {
+      if (this.observer.takeRecords().length) this.segments = undefined;
+      else if (this.matchesSelection()) return initial;
+    }
     const result = this.request({ action: "read", selection });
     if (result && "ok" in result) {
       if (
@@ -125,6 +143,7 @@ export class WordReviewTarget implements ReviewTargetHandle {
   }
 
   sourceChanged(text: string): boolean {
+    this.startupSnapshot = null;
     const signature = this.snapshot?.signature;
     const read = this.read();
     return (
@@ -141,6 +160,7 @@ export class WordReviewTarget implements ReviewTargetHandle {
     if (this.disposed || !this.element.isConnected)
       return Promise.resolve({ status: "rejected", reason: "detached" });
     const token = this.snapshot?.token;
+    this.startupSnapshot = null;
     this.snapshot = null;
     if (!token || request.edits.length === 0)
       return Promise.resolve({ status: "rejected", reason: "unsupported" });
@@ -279,6 +299,7 @@ export class WordReviewTarget implements ReviewTargetHandle {
   dispose(): void {
     if (this.disposed) return;
     this.request({ action: "close" });
+    this.startupSnapshot = null;
     this.snapshot = null;
     this.segments = undefined;
     this.observer.disconnect();

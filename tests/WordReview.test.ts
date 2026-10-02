@@ -555,6 +555,8 @@ test("Word explicit Review recovers a replaced editor root without replaying its
 
 test("Word Review runs native proofreading while its input proxy stays unmanaged", async () => {
   const h = fixture(["We saw teh cat."]);
+  // Accessibility-hidden proxy plumbing does not make the visible model read-only.
+  h.target.inputProxy.setAttribute("aria-hidden", "true");
   expect(
     new NativeAutocompleteConflictDetector().classify(
       document.getElementById("WACViewPanel_EditingElement")!,
@@ -584,6 +586,57 @@ test("Word Review resolves the document instead of its empty input proxy", () =>
   expect(result.ok && result.target.kind).toBe("model-editor");
   expect(result.ok && result.target.element.id).toBe("EditorContainer");
   if (result.ok) result.target.dispose();
+});
+
+test("Word session startup reuses its captured selection snapshot once", async () => {
+  const h = fixture(Array.from({ length: 400 }, () => "teh"));
+  h.target.dispose();
+  const resolved = resolveReviewTarget();
+  if (!resolved.ok) throw new Error("did not resolve");
+  const characters = h.rangeReadCharacters;
+  const session = new ReviewSession({
+    target: resolved.target,
+    initialScope: resolved.scope,
+    engine: new LocalReviewEngine(),
+    options: {
+      lang: "en_US",
+      enabledRules: ["englishTypoWhitelistCorrection"],
+      userDictionary: [],
+    },
+    onChange: () => {},
+  });
+  try {
+    const starting = session.start();
+    expect(h.rangeReadCharacters).toBe(characters);
+    await starting;
+    h.paragraphs[0].text = "the";
+    const next = resolved.target.read();
+    if (!next.ok) throw new Error("read failed");
+    expect(next.text.startsWith("the")).toBe(true);
+    expect(h.rangeReadCharacters).toBeGreaterThan(characters);
+  } finally {
+    session.close();
+    resolved.target.dispose();
+  }
+});
+
+test("Word startup snapshot expires after a microtask and rechecks proxy eligibility", async () => {
+  for (const mode of ["later", "disabled"]) {
+    const h = fixture(["teh"]);
+    h.target.dispose();
+    const resolved = resolveReviewTarget();
+    if (!resolved.ok) throw new Error("did not resolve");
+    if (mode === "later") {
+      await Promise.resolve();
+      h.paragraphs[0].text = "the";
+      const read = resolved.target.read();
+      expect(read.ok && read.text).toBe("the");
+    } else {
+      h.target.inputProxy.setAttribute("aria-disabled", "true");
+      expect(resolved.target.read()).toEqual({ ok: false, reason: "ineligible" });
+    }
+    resolved.target.dispose();
+  }
 });
 
 test("Word repeated resolution preserves the active target and its single-use correction token", async () => {
@@ -965,12 +1018,20 @@ test("Word note eligibility follows the initiating proxy on reads and before wri
   const note = document.createElement("textarea");
   note.id = "WACViewPanel_FootnoteEndnoteEditControl_EditingElement";
   document.getElementById("WACViewPanel")!.append(note);
-  const target = new WordReviewTarget(h.target.element, note);
+  const noteBox = document.createElement("div");
+  note.replaceWith(noteBox);
+  noteBox.append(note);
   note.focus();
-  note.setAttribute("aria-readonly", "true");
-  expect(target.read(true)).toEqual({ ok: false, reason: "ineligible" });
-  target.dispose();
-  note.removeAttribute("aria-readonly");
+  for (const [element, attribute] of [
+    [note, "aria-readonly"],
+    [noteBox, "aria-disabled"],
+  ] as const) {
+    element.setAttribute(attribute, "true");
+    const target = new WordReviewTarget(h.target.element, note);
+    expect(target.read(true)).toEqual({ ok: false, reason: "ineligible" });
+    target.dispose();
+    element.removeAttribute(attribute);
+  }
   const editable = new WordReviewTarget(h.target.element, note);
   const before = editable.read(true);
   if (!before.ok) throw new Error("read failed");

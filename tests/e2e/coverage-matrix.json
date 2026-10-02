@@ -4675,6 +4675,16 @@
         {
           "layer": "unit",
           "file": "tests/WordReview.test.ts",
+          "test": "Word startup snapshot expires after a microtask and rechecks proxy eligibility"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/WordReview.test.ts",
+          "test": "Word session startup reuses its captured selection snapshot once"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/WordReview.test.ts",
           "test": "Word repeated controller invocation reuses the active target without another model read"
         },
         {

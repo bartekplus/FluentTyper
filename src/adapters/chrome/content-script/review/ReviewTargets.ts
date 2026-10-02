@@ -147,7 +147,7 @@ export function resolveReviewTarget(
       return { ok: true, target: current, scope: current.scope };
     if (current instanceof WordReviewTarget) current.dispose();
     const target = new WordReviewTarget(word, active);
-    target.read(true);
+    target.captureSelection();
     return { ok: true, target, scope: target.scope };
   }
 
