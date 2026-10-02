@@ -97,3 +97,58 @@ test("a mixed dash pair offers both consistent styles", () => {
     "Wiem — dodała cicho — że się spóźnię.",
   ]);
 });
+
+describe("Polish commas set by fixed words", () => {
+  const RULES = ["polishMissingComma", "polishMisplacedComma"];
+  const fixed = (text: string) => {
+    const found = detectReviewDiagnostics(
+      { id: "pl", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
+      {
+        enabledRules: RULES as never,
+        lang: "pl_PL",
+        userDictionary: [],
+        insertSpaceAfterAutocomplete: true,
+      },
+    ).diagnostics;
+    return applyEdits(
+      text,
+      found.flatMap((d) => d.alternatives[0].edits),
+    );
+  };
+  test.each([
+    ["Nie wiem co mam zrobić.", "Nie wiem, co mam zrobić."],
+    ["Sprawdź czy drzwi są zamknięte.", "Sprawdź, czy drzwi są zamknięte."],
+    ["Zastanawiam się dlaczego nie dzwoni.", "Zastanawiam się, dlaczego nie dzwoni."],
+    ["Szukam kogoś kto zna niemiecki.", "Szukam kogoś kto zna niemiecki."],
+    ["To jest ktoś kto zawsze pomoże.", "To jest ktoś, kto zawsze pomoże."],
+    ["Zrobię wszystko czego potrzebujesz.", "Zrobię wszystko, czego potrzebujesz."],
+    ["Tam gdzie rosną sosny, jest cień.", "Tam, gdzie rosną sosny, jest cień."],
+    [
+      "Im dłużej czekam tym bardziej się denerwuję.",
+      "Im dłużej czekam, tym bardziej się denerwuję.",
+    ],
+    ["Nie lubił ani kawy ani herbaty.", "Nie lubił ani kawy, ani herbaty."],
+    ["Krótko mówiąc nie mamy czasu.", "Krótko mówiąc, nie mamy czasu."],
+    ["Jednak, nikt nie przyszedł.", "Jednak nikt nie przyszedł."],
+    ["Ponadto, warto o tym pamiętać.", "Ponadto warto o tym pamiętać."],
+    ["To był więc, sukces.", "To był więc sukces."],
+    ["To pokój, w którym, śpi babcia.", "To pokój, w którym śpi babcia."],
+    ["Nie mam czasu, ani pieniędzy.", "Nie mam czasu ani pieniędzy."],
+  ])("%p", (text, expected) => {
+    expect(fixed(text)).toBe(expected);
+  });
+  test.each([
+    "Nie wiem, co mam zrobić.",
+    "Zrób to jak najszybciej.",
+    "Wiem co nieco o ogrodach.",
+    "A to co?",
+    "Dajcie mi coś co zjeść.",
+    "Bądź co bądź to prawda.",
+    "Ponadto, jak już wspomniałem, wyjeżdżamy.",
+    "Nie jem ani mięsa, ani ryb.",
+    "To dom, w którym, jak sądzę, mieszka.",
+    "Wie, ale nie powie dlaczego.",
+  ])("leaves %p", (text) => {
+    expect(fixed(text)).toBe(text);
+  });
+});
