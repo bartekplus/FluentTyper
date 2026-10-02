@@ -89,6 +89,14 @@ function degrees(ctx: DetectContext): RawFinding[] {
       continue;
     }
     if (ctx.rules && !ctx.rules.has(STYLE)) continue;
+    // "coraz bardziej popularna" and "mniej i bardziej poważnych" keep the analytic form.
+    const longer = ctx.text.slice(Math.max(0, m.index - 24), m.index);
+    if (
+      /(?:^|[^\p{L}])(?:coraz|(?:naj)?mniej[ \t\u00a0]+(?:i|lub|albo|czy))[ \t\u00a0]+$/iu.test(
+        longer,
+      )
+    )
+      continue;
     const naj = lower === "najbardziej" ? "naj" : "";
     const adverb = ADVERBS[word] ?? (word.endsWith("nie") ? word : null);
     let fixed: string | null = null;
