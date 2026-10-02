@@ -77,6 +77,8 @@ export function participle(word: string): Agreement | null {
 
 /** The gender and number of an adjective form with -o/-a forms ("llena", "españoles"), or null. */
 export function genderedForm(word: string): Agreement | null {
+  // "mejor", "mayores", "superior": comparatives have one form for both genders.
+  if (/^(?:mejor|peor|mayor|menor|\p{L}+ior)(?:es)?$/u.test(word)) return null;
   const m = /^(\p{L}+?)(o|a|os|as|es)?$/u.exec(word);
   if (!m) return null;
   const [, stem, ending = ""] = m;

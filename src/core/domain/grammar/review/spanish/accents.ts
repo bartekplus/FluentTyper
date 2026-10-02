@@ -141,9 +141,21 @@ function estarReading(at: Around, plural: boolean): boolean {
   const prev = at.prev();
   const prev2 = at.prev(2);
   const next = at.next();
-  // "por ser esta la casa", "de esta manera", "combinar esta con", "como esta": a pronoun.
+  // "Deja la habitación como esta.": left as it is.
+  if (
+    prev === "como" &&
+    !next &&
+    at.endsAfter() &&
+    [2, 3, 4, 5].some((k) => /^(?:d[eé]j|qued)\p{L}*$/u.test(at.prev(k)))
+  )
+    return true;
+  // "por ser esta la casa", "de esta manera", "combinar esta con", "como esta", "toda esta
+  // recogida": a pronoun or a determiner.
   if (PREPOSITIONS.has(prev) || SER.has(prev) || isInfinitive(prev) || prev === "como")
     return false;
+  if (/^tod[oa]s?$/u.test(prev)) return false;
+  // "Escrito está.", "Lo hecho, hecho está": a participle and the verb closing the clause.
+  if (!next && at.endsAfter() && !plural && participle(prev)?.feminine === false) return true;
   // "Finalizada esta en 1445": an absolute participle clause, then the pronoun.
   if (participle(prev) && new Around(at.tokens, at.i - 1).starts) return false;
   // "lo esta", "se le esta", "¿no lo estás?": a clitic only comes before a verb.
@@ -185,7 +197,10 @@ function estarReading(at: Around, plural: boolean): boolean {
   if (afterNoun && reading && !reading.plural && !QUANTIFIERS.has(next) && closes(at, 1))
     return true;
   // The rest needs a verb-like slot: a subject, a name, "no", a time adverb or a clause start.
+  // "¿A qué altura esta la calle?": a question phrase is the verb's slot too.
+  const asked = /^(?:qué|cuál|cuánto|cuánta|cuántos|cuántas)$/u.test(prev2) && isNoun(prev);
   const slot =
+    asked ||
     at.starts ||
     at.prevIsName ||
     afterNoun ||
@@ -198,11 +213,12 @@ function estarReading(at: Around, plural: boolean): boolean {
   // a conjunction or a relative is the verb's attribute.
   if (
     !slot &&
-    RELATIVES.has(prev) &&
+    (RELATIVES.has(prev) || prev === "que") &&
     reading &&
     !reading.plural &&
     !!participle(next) &&
-    !isNoun(next) &&
+    // The dictionary lists "basada" and "pegada" as nouns too; the everyday ones are listed.
+    (!isNoun(next) || /[ai]da$/u.test(next)) &&
     !PARTICIPLE_NOUNS.has(next) &&
     !verbLike(next) &&
     closes(at, 1)
@@ -239,7 +255,8 @@ function estarReading(at: Around, plural: boolean): boolean {
     !QUANTIFIERS.has(next) &&
     !PARTICIPLE_NOUNS.has(next) &&
     !verbLike(next) &&
-    (!isNoun(next) || INVARIANT.has(next)) &&
+    // "basada", "pegada": participles the dictionary lists as nouns too.
+    (!isNoun(next) || INVARIANT.has(next) || (!!participle(next) && /[ai]da$/u.test(next))) &&
     closes(at, 1)
   )
     return true;

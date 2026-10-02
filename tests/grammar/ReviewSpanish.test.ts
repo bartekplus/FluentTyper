@@ -1490,6 +1490,32 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
       ],
     },
   ],
+  [
+    "spanishAccents",
+    "está closing a clause after a participle or como, and after que before a participle",
+    {
+      pos: [
+        ["Dicho esta.", "Dicho está."],
+        ["Déjalo como esta.", "Déjalo como está."],
+        ["Es la pieza que esta pegada por dentro.", "Es la pieza que está pegada por dentro."],
+        [
+          "Una casa que esta basada en planos antiguos.",
+          "Una casa que está basada en planos antiguos.",
+        ],
+        [
+          "La caja de la cual esta sellada con cinta.",
+          "La caja de la cual está sellada con cinta.",
+        ],
+      ],
+      neg: [
+        "Después de toda esta recogida de datos.",
+        "Me gusta como esta.",
+        "Dijo que esta salida es mejor.",
+        "Finalizada esta en 1445, se mudó.",
+        "La casa es mejor que esta.",
+      ],
+    },
+  ],
 ];
 
 describe.each(FIXTURES)("%s: %s", (ruleId, _family, fixture) => {
