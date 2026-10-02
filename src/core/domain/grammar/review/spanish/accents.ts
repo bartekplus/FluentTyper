@@ -5,6 +5,8 @@ import {
   CLITICS,
   CONJUNCTIONS,
   DETERMINERS,
+  endsQuestion,
+  greetingSlot,
   GIVEN_NAMES,
   INVARIANT,
   isBoundary,
@@ -63,6 +65,7 @@ const TIME_NOUNS = words(
 const RELATIVES = words("y e pero cual cuales quien quienes donde cuando");
 const INTERROGATIVES = words("dónde adónde cómo quién quiénes cuándo");
 const SUBJECTS_3 = words("él ella usted");
+const COUNTS = words("dos tres cuatro cinco seis siete ocho nueve diez veinte treinta cien mil");
 const SUBJECTS_2 = words("tú vos");
 
 /** A capitalized sentence-initial word the lexicon does not know: a name ("París está"). */
@@ -149,6 +152,9 @@ function estarReading(at: Around, plural: boolean): boolean {
     [2, 3, 4, 5].some((k) => /^(?:d[eé]j|qued)\p{L}*$/u.test(at.prev(k)))
   )
     return true;
+  // "Hola, como estas?": a greeting asked without its opening mark.
+  if (prev === "como" && greetingSlot(new Around(at.tokens, at.i - 1)) && endsQuestion(at))
+    return true;
   // "por ser esta la casa", "de esta manera", "combinar esta con", "como esta", "toda esta
   // recogida": a pronoun or a determiner.
   if (PREPOSITIONS.has(prev) || SER.has(prev) || isInfinitive(prev) || prev === "como")
@@ -161,6 +167,17 @@ function estarReading(at: Around, plural: boolean): boolean {
   // "lo esta", "se le esta", "¿no lo estás?": a clitic only comes before a verb.
   if (CLITICS.has(prev) && prev !== "la" && prev !== "las") return true;
   const subjects = plural ? SUBJECTS_2 : SUBJECTS_3;
+  // "esta 100 % seguro", "El cabo esta 30 millas al sur", "Esta cien por cien seguro": no
+  // singular demonstrative counts more than one.
+  const count = at.tokens[at.i + 1];
+  if (
+    !plural &&
+    count &&
+    !count.broken &&
+    ((/^\p{N}+$/u.test(count.text) && count.text !== "1") || COUNTS.has(count.lower)) &&
+    ((at.tokens[at.i + 2]?.word && at.next(2) !== "de") || at.tokens[at.i + 2]?.text === "%")
+  )
+    return true;
   if (!next) {
     // "¿Dónde está?", "no está.", "tú estás.": a verb closing its clause.
     if (!at.endsAfter()) return false;
@@ -225,6 +242,16 @@ function estarReading(at: Around, plural: boolean): boolean {
   )
     return true;
   if (!slot) return false;
+  // "¿A qué distancia esta la calle?", "¿a qué altura esta Lima?": after the asked phrase a
+  // noun phrase is the verb's subject, even one that reads as a verb too ("calle").
+  const nextToken = at.tokens[at.i + 1];
+  if (
+    asked &&
+    !plural &&
+    ((/^(?:el|la|los|las|mi|su|tu)$/u.test(next) && isNoun(at.next(2))) ||
+      (/^\p{Lu}\p{Ll}/u.test(nextToken.text) && !nextToken.broken))
+  )
+    return true;
   // "En el cerro esta la catedral": a determiner cannot follow the demonstrative, so "está"
   // introduces the subject; "esta la tiene" is a pronoun and its clitic.
   if (
@@ -279,7 +306,10 @@ function estarReading(at: Around, plural: boolean): boolean {
   if (prev === "no") return !isNoun(next) && !CLITICS.has(next);
   // "¿Dónde esta tu padre?", "Tom está feliz": a question word or subject right before it.
   if (INTERROGATIVES.has(prev) || subjects.has(prev) || (prev === "tal" && prev2 === "qué"))
-    return (!isNoun(next) || DETERMINERS.has(next)) && !CLITICS.has(next);
+    return (
+      (!isNoun(next) || DETERMINERS.has(next) || /^\p{Lu}/u.test(nextToken.text)) &&
+      !CLITICS.has(next)
+    );
   return false;
 }
 

@@ -5,6 +5,8 @@ import {
   CLITICS,
   CONJUNCTIONS,
   DETERMINERS,
+  endsQuestion,
+  greetingSlot,
   INVARIANT,
   isInfinitive,
   PREPOSITIONS,
@@ -212,6 +214,56 @@ function inQuestion(at: Around): boolean {
   return false;
 }
 
+const QUANTITY = words(
+  "mucho mucha muchos muchas poco poca pocos pocas varios varias algunos algunas algún alguna " +
+    "ningún ninguna tantos tantas bastantes demasiados demasiadas dos tres cuatro cinco cien mil",
+);
+const EXISTS = words("hay había habrá hubo habría");
+const PLACE_START = words(
+  "en a al dentro detrás debajo encima fuera delante tras bajo sobre aquí allí ahí allá",
+);
+const EVENT = /^(?:pas|ocurr|suced)(?:a|ó|aba|ará|ará|ía|e|ió|erá|irá|ado|ido)$/u;
+const AFTER_EVENT = words(
+  "aquí allí ahí allá ahora hoy ayer entonces realmente exactamente después antes luego",
+);
+
+/** "que hay en la caja.": "hay" and a place, then the clause ends with nothing that exists. */
+function missingThing(at: Around): boolean {
+  if (!EXISTS.has(at.next()) || !PLACE_START.has(at.next(2))) return false;
+  // Words of the place phrase since its last preposition or determiner: a bare noun takes
+  // one ("en casa"), an article up to three ("en aquella enorme caja azul"); more is the
+  // thing that exists ("en casa comida", "en la sala un piano").
+  let content = 0;
+  let room = 1;
+  for (let k = 3; k <= 9; k++) {
+    if (at.endsAfter(k - 1)) return true;
+    const word = at.next(k);
+    if (!word) return false;
+    if (PREPOSITIONS.has(word)) {
+      content = 0;
+      room = /^(?:al|del)$/u.test(word) ? 3 : 1;
+    } else if (DETERMINERS.has(word) || SUBJECTS.has(word) || QUANTITY.has(word)) {
+      if (content) return false;
+      room = 3;
+    } else if (FINITE_NOT_NOUN(word) && !isNoun(word)) return false;
+    else if (++content > room) return false;
+  }
+  return false;
+}
+
+/** "que ocurrió.", "que le pasa aquí", "que ha pasado": an event with no subject after it. */
+function untoldEvent(at: Around): boolean {
+  let k = 1;
+  if (CLITICS.has(at.next(k))) k++;
+  if (/^(?:ha|había|habrá|habría)$/u.test(at.next(k))) k++;
+  if (!EVENT.test(at.next(k))) return false;
+  if (AFTER_EVENT.has(at.next(k + 1))) k++;
+  return at.endsAfter(k);
+}
+
+/** A "¿" opens the sentence before tokens[i]. */
+const mark0 = (at: Around) => opensQuestion(at) !== null || inQuestion(at);
+
 function interrogative(at: Around): string | null {
   const word = at.tokens[at.i].lower;
   const accented = INTERROGATIVE[word];
@@ -225,6 +277,23 @@ function interrogative(at: Around): string | null {
     !/^cua(?:n|l|les)$/u.test(word) &&
     ((at.endsAfter() && word !== "que") || /^(?:sino|ni|y|e|o|u)$/u.test(next)) &&
     !nextToken?.broken
+  )
+    return accented;
+  // "Hola, como estas?": "cómo" and "estar" closing a question without its opening mark.
+  if (
+    word === "como" &&
+    !mark0(at) &&
+    greetingSlot(at) &&
+    /^(?:estas|esta|estás|está|están|estan|estáis|estais)$/u.test(next) &&
+    endsQuestion(new Around(at.tokens, at.i + 1))
+  )
+    return accented;
+  // "en qué y cómo influía", "cómo y qué": a question word paired with another.
+  const asked = (w: string) => /[áéíóú]/u.test(w) && Object.values(INTERROGATIVE).includes(w);
+  if (
+    word === "que" &&
+    ((/^(?:y|e|o|u|ni)$/u.test(next) && asked(at.next(2))) ||
+      (/^(?:y|e|o|u|ni)$/u.test(prev) && asked(at.prev(2))))
   )
     return accented;
   const mark = opensQuestion(at);
@@ -301,6 +370,14 @@ function interrogative(at: Around): string | null {
     FINITE_NOT_NOUN(next) &&
     !isNoun(next) &&
     !subjunctiveLike(next)
+  )
+    return accented;
+  // "no sabía qué había en la caja", "explícame qué ocurrió": an existential or an event
+  // verb that leaves its subject or object unsaid is asked about.
+  if (
+    word === "que" &&
+    (KNOWING.test(prev) || /^(?:ver|veamos|mira|mirar)$/u.test(prev)) &&
+    (missingThing(at) || untoldEvent(at))
   )
     return accented;
   // "no sé qué hacer", "sabes qué libro", "pregunta dónde vive".
@@ -466,6 +543,35 @@ function plainSentence(at: Around): boolean {
   return false;
 }
 
+/** A "no" earlier in the sentence, before the "pero" right ahead of tokens[i]. */
+function deniedBefore(at: Around): boolean {
+  for (let j = at.i - 2; j >= Math.max(0, at.i - 16); j--) {
+    const token = at.tokens[j];
+    if (/^[.!?;]$/u.test(token.text) || at.tokens[j + 1].broken) return false;
+    if (token.lower === "no") return true;
+  }
+  return false;
+}
+
+/** Finite verbs (that are no nouns) from tokens[i] to the full stop. */
+function finiteCount(at: Around): number {
+  let count = 0;
+  for (let j = at.i + 1; j < at.tokens.length && j < at.i + 16; j++) {
+    const token = at.tokens[j];
+    if (token.broken || /^[.!?]$/u.test(token.text)) break;
+    if (token.word && FINITE_FORM(token.lower) && !isNoun(token.lower)) count++;
+    // "dímelo", "házmelo": an imperative carrying its pronouns.
+    else if (
+      token.word &&
+      /^\p{L}*[áéíóú]\p{L}*(?:me|te|se|lo|la|le|nos|os|los|las|les)$/u.test(token.lower) &&
+      !isInfinitive(token.lower) &&
+      !/(?:ándo|iéndo|yéndo)/u.test(token.lower)
+    )
+      count++;
+  }
+  return count;
+}
+
 /** A finite verb before the clause ends: "pero si hay casos" is a condition. */
 function verbAhead(at: Around): boolean {
   for (let k = 1; k <= 8; k++) {
@@ -602,6 +708,15 @@ function monosyllable(at: Around): string | null {
       // "el té de menta".
       if (next === "te" && (TEA.has(at.next(2)) || at.endsAfter(1))) return null;
       if (CLITICS.has(next) && next !== "la" && next !== "lo") return "él";
+      // "si el la tiene", "el lo sabe": "la"/"lo" before a verb that is no noun ("el la
+      // menor" is the note).
+      if (
+        (next === "la" || next === "lo") &&
+        FINITE_FORM(at.next(2)) &&
+        !isNoun(at.next(2)) &&
+        !PREPOSITIONS.has(at.next(2))
+      )
+        return "él";
       if (COMMON_VERBS.has(next) || (ONE_OFF.has(next) && next !== "mismo" && next !== "misma"))
         return "él";
       if (
@@ -702,7 +817,23 @@ function monosyllable(at: Around): string | null {
       if (prev === "en" && (next === "de" || ends)) return "sí";
       // "Sí, me gusta.", "Sí, pero…": an answer; "Si, como dices, llueve" opens a condition.
       if (nextToken?.text === "," && at.starts && ANSWER_AFTER.has(at.next(2))) return "sí";
+      // "Si pero no quiero": no condition starts with "pero".
+      if (next === "pero" && at.starts) return "sí";
+      // "Pasó esto, si, ¿y ahora?": an affirmation set off by commas ("si, y solo si," is not).
+      if (nextToken?.text === "," && at.tokens[at.i - 1]?.text === ",") {
+        const after = at.tokens[at.i + 2];
+        if (
+          after &&
+          !after.broken &&
+          (/^[¿¡]$/u.test(after.text) || /^(?:pero|claro|aunque)$/u.test(after.lower))
+        )
+          return "sí";
+      }
       if (nextToken?.text === ",") return PLAIN_SI_PREV.has(prev) ? "sí" : null;
+      // "No tengo casos, pero si hay otros.": after a denial, "pero sí" and one verb running
+      // to the full stop; a condition would need its main clause too.
+      if (prev === "pero" && deniedBefore(at) && plainSentence(at) && finiteCount(at) === 1)
+        return "sí";
       // "Aquello sí era felicidad": an emphatic yes after a demonstrative subject.
       if (
         /^(?:esto|eso|aquello)$/u.test(prev) &&

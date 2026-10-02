@@ -4,6 +4,7 @@ import {
   CLITICS,
   DETERMINERS,
   isInfinitive,
+  PREPOSITIONS,
   replaceToken,
   tokenize,
   words,
@@ -33,6 +34,9 @@ const RULE = "spanishConfusions" as const;
 const EXISTENTIAL = words("había hubo habrá haya hubiera hubiese habría haber habiendo");
 const ESTAR = words("estoy estás está estamos estáis están estaba estabas estábamos estaban");
 const PERFECT = words("he has ha hemos habéis han había habías habíamos habían");
+const QUANTIFIER_AFTER = words(
+  "todos todas ambos ambas dos tres cuatro cinco seis siete ocho nueve diez cien mil varios varias",
+);
 
 /** The gerund of a regular participle's verb: "aumentado" -> "aumentando", "leído" -> "leyendo". */
 function gerundOf(word: string): string | null {
@@ -91,9 +95,27 @@ function check(at: Around): string[] | null {
   // "1.900 ha desarboladas" is the hectare.
   const unit = /^\p{N}/u.test(at.tokens[at.i - 2]?.text ?? "");
   if (HABER.has(prev) && !unit) {
-    const existential = EXISTENTIAL.has(prev);
-    const fix =
-      perfectOf(word, existential || isNoun(next)) ?? (existential ? null : finitePerfect(word));
+    // "pueden haber cambiado", "se puede haber dicho": existential "haber" takes a singular
+    // modal and no "se", so after these the infinitive is the perfect's ("pueden haber
+    // muertos" is a plural modal before existential "haber" and a noun).
+    const existential =
+      EXISTENTIAL.has(prev) &&
+      !(
+        prev === "haber" &&
+        !isNoun(word) &&
+        (/^(?:\p{L}+(?:mos|is)|puedo|debo|podría|debería)$/u.test(at.prev(2)) ||
+          // "Los precios pueden haber…": a plural modal after its subject ("Pueden haber
+          // heridos" lacks one and is existential).
+          (/^\p{L}+n$/u.test(at.prev(2)) &&
+            ((isNoun(at.prev(3)) && DETERMINERS.has(at.prev(4)) && !PREPOSITIONS.has(at.prev(5))) ||
+              /^(?:ellos|ellas|ustedes)$/u.test(at.prev(3)))) ||
+          at.prev(3) === "se")
+      );
+    // "habían clasificados todos los papeles": a quantifier or number starts no noun phrase
+    // the participle could describe.
+    const nominal =
+      existential || (isNoun(next) && !QUANTIFIER_AFTER.has(next) && !/^\p{N}/u.test(next));
+    const fix = perfectOf(word, nominal) ?? (existential ? null : finitePerfect(word));
     if (fix && fix !== word) return [fix];
   }
   // "ha ido aumentado", "ha estado intentado", "me estoy acostumbrado": a gerund.
@@ -153,6 +175,15 @@ function check(at: Around): string[] | null {
   if (word === "ha" && next) {
     const after = at.tokens[at.i + 1];
     if (isInfinitive(next) && next !== "haber") return ["a"];
+    // "volver ha casa", "voy ha Sevilla": a verb of motion or an infinitive, then a place;
+    // "comer ha sido" keeps the auxiliary before its participle.
+    if (
+      (IR.has(prev) || /^(?:volver|regresar|llegar|venir|ir)$/u.test(prev)) &&
+      after.word &&
+      !isPerfectParticiple(next) &&
+      !/^(?:de|que|sido|estado)$/u.test(next)
+    )
+      return ["a"];
     if (
       /^(?:este|esta|estos|estas|ese|esa|esos|esas|los|las|el|la)$/u.test(next) &&
       !/^\p{Lu}/u.test(after.text)

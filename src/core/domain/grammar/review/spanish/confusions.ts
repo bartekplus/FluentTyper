@@ -12,7 +12,7 @@ import {
   words,
   type Token,
 } from "./common";
-import { attribute, isGerund, isNoun, participle } from "./lexicon";
+import { attribute, finiteVerb, isGerund, isNoun, participle } from "./lexicon";
 
 // Spanish homophones decided by a closed-class frame around them: "cada ves" (vez), "el ano
 // pasado" (año), "ha echo" (hecho), "a ver estudiado" (haber). The typed word is a real word,
@@ -169,6 +169,18 @@ const CHECKS: Record<string, Check> = {
       ? ["hola"]
       : null;
   },
+  // "Fue el la plaza": an article cannot precede another; before a noun it is "en".
+  el: (at) => {
+    const noun = at.next(2);
+    return /^(?:la|las)$/u.test(at.next()) &&
+      at.tokens[at.i + 2]?.text === noun &&
+      isNoun(noun) &&
+      !finiteVerb(noun) &&
+      !verbLike(noun) &&
+      !/^(?:bemol|sostenido|mayor|menor|natural)$/u.test(noun)
+      ? ["en"]
+      : null;
+  },
   // "una gran hola": the wave.
   hola: (at) =>
     /^(?:una|la|gran|esta|esa|aquella|otra|cada|primera|segunda|nueva)$/u.test(at.prev())
@@ -184,9 +196,21 @@ const CHECKS: Record<string, Check> = {
         return ["a ver"];
       if (nextToken?.text === ",") return ["a ver"];
     }
-    return IR.has(at.prev()) && next && !isPerfectParticiple(next) && !CLITICS.has(next)
-      ? ["a ver"]
-      : null;
+    // "fue haber a su abuela", "empezó haber la serie": "ir"/"empezar" take "a"; before a
+    // noun phrase it may be "a haber" too ("va haber una fiesta").
+    const prev = at.prev();
+    const motion =
+      IR.has(prev) || prev === "fue" || /^(?:llev|acompañ|mand|envi|vin|vien)\p{L}+$/u.test(prev);
+    if (
+      !(motion || /^(?:empez|comenz|empiez|comienz)\p{L}+$/u.test(prev)) ||
+      !next ||
+      isPerfectParticiple(next)
+    )
+      return null;
+    // "La causa fue haber un error": "ser" before an existential infinitive.
+    if (DETERMINERS.has(next) || /^(?:buen|buenos|buenas|mucho|mucha|muchos|muchas)$/u.test(next))
+      return prev === "fue" ? null : IR.has(prev) || !motion ? ["a ver", "a haber"] : ["a ver"];
+    return CLITICS.has(next) || !motion ? null : ["a ver"];
   },
 };
 

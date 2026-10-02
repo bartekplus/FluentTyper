@@ -316,6 +316,8 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
       ["idiosincracia", "idiosincrasia"],
       ["aereopuerto", "aeropuerto"],
       ["vagamundo", "vagabundo"],
+      // "ser" in the imperfect keeps its accent: "éramos", "érase".
+      ["eramos", "éramos"],
       // Irregular participles built as if regular: "rompido" -> "roto", "volvido" -> "vuelto".
       ...(
         [
@@ -377,9 +379,16 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
           "la ~ pasada",
           "la ~ anterior",
           "la ~ siguiente",
+          "la ~ primera",
+          "la ~ última",
+          "esta ~",
+          "esa ~",
+          "da la ~",
         ] as const
       ).map((form): PhraseRow => [form.replace("~", "ves"), form.replace("~", "vez")]),
       ["ala vez", "a la vez"],
+      ["erase una vez", "érase una vez"],
+      ["tú ere", "tú eres"],
       ["de echo", "de hecho"],
       ["vamos haber", "vamos a ver"],
       ["hay de mí", "ay de mí"],

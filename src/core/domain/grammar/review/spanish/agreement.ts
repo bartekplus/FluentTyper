@@ -544,6 +544,8 @@ function cardinalNoun(ctx: DetectContext, tokens: Token[], i: number): RawFindin
   const prev = at.prev(k);
   const det = DETERMINER.get(prev);
   if ((prev && readNoun(prev) && !verbLike(prev)) || (det && det.slot < 2)) return null;
+  // "cien por cien seguro": a percentage grading the word after.
+  if (prev === "por" && CARDINALS.has(at.prev(k + 1))) return null;
   // "dos punto cero", "tres coma cinco".
   const after = at.next(2);
   if (after && (NUMBER_WORDS.has(after) || /^\p{N}/u.test(tokens[i + 2]?.text ?? ""))) return null;
