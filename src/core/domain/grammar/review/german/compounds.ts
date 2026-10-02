@@ -187,7 +187,42 @@ function phrasePlace(ctx: DetectContext, start: number, end: number, article: bo
 const ZU_JOINED = re(
   `(?<=,${SPACE}(?:(?:das|es|dies)${SPACE})?|(?:mich|dich|ihn|uns|euch)${SPACE})(?<target>zu(?<verb>\\p{Ll}{3,}))(?=[ \\t]*(?:[.!?;]|,${SPACE}(?:dass|ob|wie|was|wo|wer|wann|warum|bevor|hinter)${WORD_END}))`,
 );
+// "Nach dem er gewonnen hatte": "dem" before a subject pronoun at the start of a sentence is
+// the conjunction "nachdem" or "seitdem" (after a comma it may open a relative clause: "der
+// Schlüssel, nach dem ich suche"). "So weit ich weiß", "so bald das Wetter …": "soweit",
+// "sobald", "solange".
+const CONJUNCTION = re(
+  `(?:^|[.!?\\n„"])[ \\t]*(?<target>(?<first>Nach|Seit)${SPACE}dem)(?=${SPACE}(?:ich|du|er|sie|es|wir|ihr|man)${WORD_END})`,
+);
+const SO_CONJUNCTION = re(
+  `(?:^|[.!?,;:\\n„"])[ \\t]*(?<target>(?<first>[Ss]o)${SPACE}(?<second>weit|bald|lange|lang))(?=${SPACE}(?:ich|du|er|sie|es|wir|ihr|man|der|die|das)${WORD_END})`,
+);
+// "ihr zu Liebe.", "den Eltern zu gute kommen", "Berichten zu Folge", "zu Nichte machen": fixed
+// adverbs written apart, in the frames where "zu" is no preposition ("zu Liebe statt Hass",
+// "von Folge zu Folge", "zu gute Noten").
+const ZU_ADVERB = re(
+  `(?<target>zu${SPACE}(?:(?<liebe>Liebe)(?=[ \\t]*[.!?]|,${SPACE}(?:weil|da|dass|obwohl|denn))|(?<gute>gute)(?=[ \\t]*[.,!?;]|${SPACE}(?:kommen|kommt|kam|kamen|halten|hält|hielt|hielten)${WORD_END})|(?<folge>Folge)(?=[ \\t]*[,.;]|${SPACE}\\p{Ll})|(?<nichte>Nichte)(?=[ \\t]*[.!?]|${SPACE}(?:mach|gemacht))))`,
+);
 const FRAMES: Array<[RegExp, Fix]> = [
+  [CONJUNCTION, (m) => `${m.groups!.first}dem`],
+  [SO_CONJUNCTION, (m) => `${m.groups!.first}${m.groups!.second}`],
+  [
+    ZU_ADVERB,
+    (m, ctx) => {
+      const { liebe, gute, folge } = m.groups!;
+      const prior = tokensBefore(ctx.text, m.index, 1)[0] ?? "";
+      // "ihr zu Liebe", "den Eltern zu Liebe": a dative before it.
+      if (
+        (liebe || gute) &&
+        !/^(?:mir|dir|ihm|ihr|uns|euch|ihnen|Ihnen|\p{Lu}\p{Ll}+n?)$/u.test(prior)
+      )
+        return null;
+      // "Berichten zu Folge", not "von Folge zu Folge".
+      if (folge && (!/^\p{Lu}\p{Ll}+(?:en|n|ung|e)$/u.test(prior) || prior === "Folge"))
+        return null;
+      return liebe ? "zuliebe" : gute ? "zugute" : folge ? "zufolge" : "zunichte";
+    },
+  ],
   [
     ZU_JOINED,
     (m, ctx) => {

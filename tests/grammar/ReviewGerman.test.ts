@@ -794,6 +794,11 @@ describe("germanCompounds", () => {
     ["Vielen Dank für das Fenster putzen!", "Vielen Dank für das Fensterputzen!"],
     ["Er freute sich, das zulesen.", "Er freute sich, das zu lesen."],
     ["Ist es klug unter zu tauchen?", "Ist es klug unterzutauchen?"],
+    ["Nach dem er angekommen war, aßen wir.", "Nachdem er angekommen war, aßen wir."],
+    ["So weit ich weiß, stimmt das.", "Soweit ich weiß, stimmt das."],
+    ["Er tat es ihr zu Liebe.", "Er tat es ihr zuliebe."],
+    ["Den Berichten zu Folge war es kalt.", "Den Berichten zufolge war es kalt."],
+    ["Das kam ihm zu gute.", "Das kam ihm zugute."],
     [
       "Nachdem sie das vor geschlagen hatte, war es still.",
       "Nachdem sie das vorgeschlagen hatte, war es still.",
@@ -830,6 +835,12 @@ describe("germanCompounds", () => {
     "Er bat mich, zuzuhören.",
     "Bitte, zuhören!",
     "Die Sonne ging unter zu dieser Zeit.",
+    "Ich fand den Schlüssel, nach dem ich suchte.",
+    "Es wurde zu Liebe statt zu Hass aufgerufen.",
+    "Die Spannung steigt von Folge zu Folge.",
+    "Er hat zu gute Noten.",
+    "Er hält Kontakt zu Nichte und Neffe.",
+    "So weit, so gut.",
     "Er war zu gelassen, um sich zu ärgern.",
   ])("leaves %p alone", (input) => {
     expect(findings("germanCompounds", input)).toEqual([]);
