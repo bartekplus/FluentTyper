@@ -3,8 +3,11 @@ import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDe
 import {
   adjectiveReadings,
   finitePersons,
+  IL,
+  ILS,
   isFrenchWord,
   isInflectedNoun,
+  isVerbHomograph,
   JE,
   verbReadings,
 } from "./frenchLexicon";
@@ -181,13 +184,31 @@ const S_AFTER = new Set(["il", "ils", "en", "y", "est", "était"]);
 const D_AFTER = new Set(["un", "une", "en", "où", "autres", "abord", "accord", "ailleurs"]);
 const QU_AFTER = new Set(["il", "ils", "elle", "elles", "on", "un", "une", "en"]);
 
+const SIL_DETERMINERS = new Set("le les un des du au aux ce ces son ses mon ton leur".split(" "));
+const SIL_CLITICS = new Set(
+  "ne n' te t' vous nous me m' le la les l' lui leur y en se s'".split(" "),
+);
+
+/** "sil vient", "sil vous plaît": the noun "sil" (a clay) only after a determiner and never
+ * before a verb or a pronoun the way "s'il" is. */
+function silIsElided(ctx: DetectContext, m: RegExpExecArray): boolean {
+  const before = tokensBefore(ctx.text, m.index, 1)[0];
+  if (before && SIL_DETERMINERS.has(before.w)) return false;
+  const next = tokensAfter(ctx.text, m.index + m[0].length, 1)[0];
+  if (!next) return false;
+  if (SIL_CLITICS.has(next.w) || ["est", "a", "fait", "faut"].includes(next.w)) return true;
+  return (finitePersons(next.w) & (IL | ILS)) > 0 && !isVerbHomograph(next.w);
+}
+
 /** "jarrive", "sil", "nen", "dun": an elided word glued to the next without its apostrophe. */
 function gluedElision(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   const typed = m[0];
   const word = typed.toLowerCase();
-  if (GLUED_LOOKALIKES.has(word) || ctx.dictionary.has(word) || isFrenchWord(word)) return null;
+  const sil = (word === "sil" || word === "sils") && silIsElided(ctx, m);
+  if (GLUED_LOOKALIKES.has(word) || ctx.dictionary.has(word) || (!sil && isFrenchWord(word)))
+    return null;
   // "nait", "connait": the 1990 spelling of a word with a circumflex.
-  if (isFrenchWord(word.replace(/i(?=t$)/, "î").replace(/u(?=t$)/, "û"))) return null;
+  if (!sil && isFrenchWord(word.replace(/i(?=t$)/, "î").replace(/u(?=t$)/, "û"))) return null;
   if (adjectiveReadings(word).length || namedExampleBefore(ctx.text, m.index)) return null;
   // "Sil vient": a capital only at a sentence start; other capitals are names.
   if (

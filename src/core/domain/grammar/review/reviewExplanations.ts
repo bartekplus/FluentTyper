@@ -2908,6 +2908,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Po avoir lub être francuski wymaga imiesłowu (-é), a nie bezokolicznika (-er).",
     "Depois de avoir ou être, o francês usa o particípio passado (-é), não o infinitivo (-er).",
   ],
+  review_msg_fr_noun_participle: [
+    "A verb describing the noun before it is its past participle (-é), not the infinitive (-er).",
+    "Un verbe qui qualifie le nom qui le précède se met au participe passé (-é), pas à l’infinitif (-er).",
+    "Glagol koji opisuje prethodnu imenicu stoji u participu prošlom (-é), a ne u infinitivu (-er).",
+    "Un verbo que describe al sustantivo anterior va en participio pasado (-é), no en infinitivo (-er).",
+    "Ένα ρήμα που προσδιορίζει το προηγούμενο ουσιαστικό μπαίνει σε μετοχή αορίστου (-é), όχι σε απαρέμφατο (-er).",
+    "Ett verb som beskriver substantivet före står i perfekt particip (-é), inte i infinitiv (-er).",
+    "Ein Verb, das das vorangehende Nomen beschreibt, steht im Partizip Perfekt (-é), nicht im Infinitiv (-er).",
+    "Czasownik opisujący poprzedni rzeczownik ma formę imiesłowu (-é), a nie bezokolicznika (-er).",
+    "Um verbo que descreve o substantivo anterior fica no particípio passado (-é), não no infinitivo (-er).",
+  ],
   review_msg_fr_infinitive: [
     "After a preposition or a verb such as vouloir or pouvoir, French uses the infinitive (-er).",
     "Après une préposition ou un verbe comme vouloir ou pouvoir, on emploie l’infinitif (-er).",
