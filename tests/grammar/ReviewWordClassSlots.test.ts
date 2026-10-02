@@ -280,3 +280,24 @@ test.each([
 ])("article frames stay silent: %s", (text) => {
   expect(scan(text, "englishSentenceStructure")).toEqual([]);
 });
+
+test.each([
+  ["He does not usually cuts the bread.", "He does not usually cut the bread."],
+  ["That does makes sense.", "That does make sense."],
+  ["Sam doesn't usually does this.", "Sam doesn't usually do this."],
+  ["It will never going to work.", "It will never go to work."],
+  ["I would definitely has that.", "I would definitely have that."],
+  ["We would greatly appreciated a reply.", "We would greatly appreciate a reply."],
+])("a verb after do or a modal and an adverb takes the base: %s", (input, expected) => {
+  const found = scan(input, "englishAuxiliaryBaseVerb");
+  expect(found).toHaveLength(1);
+  expect(applyEdits(input, found[0].alternatives[0].edits)).toBe(expected);
+});
+
+test.each([
+  "He did walks to his house.",
+  "She did experiments to test it.",
+  "She does nails at the salon.",
+])("lexical do with a plural noun stays silent: %s", (text) => {
+  expect(scan(text, "englishAuxiliaryBaseVerb")).toEqual([]);
+});

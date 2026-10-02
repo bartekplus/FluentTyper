@@ -318,7 +318,7 @@ function getWithBase(ctx: DetectContext): RawFinding[] {
 }
 
 /** A finite or -ing form after do-support or a modal, mapped to its base, or null. */
-function baseOf(word: string): string | null {
+function baseOf(word: string, nounToo = false): string | null {
   const read = englishWordInfo(word);
   if (!read) return null;
   if (word.endsWith("ing")) {
@@ -326,12 +326,16 @@ function baseOf(word: string): string | null {
     return englishLemma(word, "ing");
   }
   if (word.endsWith("s")) {
-    if (read.plural || read.noun) return null;
-    return englishLemma(word, "third");
+    if ((read.plural || read.noun) && !nounToo) return null;
+    if (!read.verbs.some((v) => v.form === "third")) return null;
+    return englishVerbForms(word)?.third === word
+      ? englishVerbForms(word)!.lemma
+      : englishLemma(word, "third");
   }
-  if (read.noun || read.adjective) return null;
+  if ((read.noun || read.adjective) && !nounToo) return null;
   const forms = englishVerbForms(word);
   if (forms && (forms.ambiguous.includes(word) || forms.lemma === word)) return null;
+  if (forms?.past === word) return forms.lemma;
   if (!read.verbs.some((v) => v.form === "past" || v.form === "participle")) return null;
   return englishLemma(word, "past");
 }
@@ -356,12 +360,12 @@ function doSupport(ctx: DetectContext): RawFinding[] {
     )
       continue;
     if (verb === "thanks") continue;
+    const negated = /\bnot\b/i.test(m[0]);
     if (/^(?:has|is|was|does|did|have)$/.test(verb)) {
-      // "does not has" -> have; "does is" is a cleft.
-      if (verb !== "has") continue;
+      // "does not has" -> have, "doesn't usually does" -> do; "does is" is a cleft.
+      if (verb !== "has" && !(verb === "does" && negated)) continue;
     }
     const before = ctx.text.slice(Math.max(0, m.index - 96), m.index);
-    const negated = /\bnot\b/i.test(m[0]);
     // "What it does makes sense": a fronted clause owns the second verb.
     if (!negated && (GAP.test(before) || /^(?:who|which|that)$/i.test(wordBefore(ctx, m.index))))
       continue;
@@ -370,7 +374,12 @@ function doSupport(ctx: DetectContext): RawFinding[] {
     // or irregular past form.
     if (!negated) {
       if (verb.endsWith("ing")) continue;
-      if (!/^(?:i|you|we|they|he|she|it|this|that)$/i.test(subject)) continue;
+      if (
+        !/^(?:i|you|we|they|he|she|it|this|that|someone|somebody|anyone|anybody|everyone|nobody)$/i.test(
+          subject,
+        )
+      )
+        continue;
       // "The research I did showed…": an object-gap relative after a noun.
       const head = wordBefore(ctx, m.index);
       if (head && !FUNCTION_WORDS.has(head) && (nounOnly(head) || englishWordInfo(head)?.noun))
@@ -379,7 +388,18 @@ function doSupport(ctx: DetectContext): RawFinding[] {
       if (!verb.endsWith("s") && !(forms && forms.past === verb && forms.participle !== verb))
         continue;
     }
-    const lemma = verb === "has" ? "have" : baseOf(verb);
+    // An -s word that is also a plural noun ("does makes sense", "doesn't necessarily means")
+    // is the verb when negated, or before to, an object pronoun, "sense" or an adjective.
+    const after = nextToken(ctx, m.index + m[0].length);
+    const afterRead = after?.kind === "word" ? englishWordInfo(after.lower) : null;
+    const verbEvidence =
+      negated ||
+      (after?.kind === "word" &&
+        (/^(?:that|it|them|me|us|him|you|sense)$/.test(after.lower) ||
+          (!!afterRead?.adjective && !afterRead.noun && !afterRead.verbs.length) ||
+          // "does sounds solid": a linking verb before an adjective.
+          (/^(?:sounds|looks|seems|feels|smells|tastes)$/.test(verb) && !!afterRead?.adjective)));
+    const lemma = verb === "has" ? "have" : verb === "does" ? "do" : baseOf(verb, verbEvidence);
     if (!lemma || lemma === verb) continue;
     const [start, end] = m.indices!.groups!.verb;
     push(
