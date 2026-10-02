@@ -19,8 +19,9 @@ export function* words(ctx: DetectContext): Generator<RegExpExecArray> {
   }
 }
 
-// Words (with "_" or "/" joins: "Pädagog_in", "Partner/in"), line breaks and single marks.
-const TOKEN = /\n|[\p{L}\p{M}\p{N}_]+(?:\/[\p{L}\p{M}\p{N}_]+)*|[^\s\p{L}\p{M}\p{N}_]/gu;
+// Words (with "_", "/" or "-" joins: "Pädagog_in", "Partner/in", "Grammatik-Regeln"), line
+// breaks and single marks; a hyphen at a word edge ("Vor- und") stays a mark.
+const TOKEN = /\n|[\p{L}\p{M}\p{N}_]+(?:[-/][\p{L}\p{M}\p{N}_]+)*|[^\s\p{L}\p{M}\p{N}_]/gu;
 
 /** Up to `n` tokens right before `index`, nearest last; a line break is a token. */
 export function tokensBefore(text: string, index: number, n: number): string[] {

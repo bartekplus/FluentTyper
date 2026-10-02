@@ -13,6 +13,7 @@ import {
   germanNounReading,
   germanVerbLike,
 } from "../../src/core/domain/grammar/review/german/germanLexicon";
+import { tokensAfter } from "../../src/core/domain/grammar/review/german/shared";
 import {
   REVIEW_SUPPORTED_RULE_IDS,
   reviewRuleIds,
@@ -611,6 +612,19 @@ test("the committed lexicon matches de_DE.dic/.aff (bun run generate:german-lexi
   check(infinitive, "infinitive");
   // Only the authored extra nouns read otherwise.
   expect(wrong.sort()).toEqual(["eile", "mühe", "träne", "weile", "zeit"]);
+});
+
+test("German tokens keep hyphenated compounds whole and a dangling hyphen apart", () => {
+  expect(tokensAfter("Grammatik-Regeln sollten - wie Vor- und Nachteile", 0, 9)).toEqual([
+    "Grammatik-Regeln",
+    "sollten",
+    "-",
+    "wie",
+    "Vor",
+    "-",
+    "und",
+    "Nachteile",
+  ]);
 });
 
 // Needs python3 with marisa-trie and numpy (scripts/requirements.txt) to read the n-gram trie.
