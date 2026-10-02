@@ -243,6 +243,8 @@ export type ReviewMessageKey =
   | "review_msg_arabic_case_ending"
   | "review_msg_arabic_jussive"
   | "review_msg_arabic_subjunctive"
+  | "review_msg_arabic_indicative"
+  | "review_msg_arabic_counted_singular"
   // Portuguese.
   | "review_msg_pt_accent_paronym"
   | "review_msg_pt_confusions"
