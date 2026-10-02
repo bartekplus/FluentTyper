@@ -88,6 +88,14 @@ const POSITIVES: Array<[string, string, string | null]> = [
   ["W koszyku leżą trzy jabłek.", "jabłek", "W koszyku leżą trzy jabłka."],
   ["Za bilet zapłaciłem 15 złoty.", "złoty", "Za bilet zapłaciłem 15 złotych."],
   ["Budżet wynosi 3 mln złoty.", "złoty", "Budżet wynosi 3 mln złotych."],
+  // "uznać" takes "za" + accusative.
+  [
+    "Film został uznany najlepszą komedią roku.",
+    "najlepszą komedią",
+    "Film został uznany za najlepszą komedię roku.",
+  ],
+  ["Uznała go zdrajcą.", "zdrajcą", "Uznała go za zdrajcę."],
+  ["Projekt został uznany jako zbędny.", "jako", "Projekt został uznany za zbędny."],
   // An adjective that does not agree with its noun.
   ["To była ciekawą wycieczka.", "ciekawą wycieczka", "To była ciekawa wycieczka."],
   ["Rozmawiałam z ważna osobą.", "ważna osobą", "Rozmawiałam z ważną osobą."],
@@ -141,6 +149,9 @@ const NEGATIVES = [
   "W folderze są pliki i kilka zdjęć.",
   "Bez urazy, ale w zamian chcę spokoju.",
   "Bilet kosztował 1 złoty, a karnet 2 złote.",
+  "Był uznanym aktorem i reżyserem.",
+  "Została uznana za najlepszą zawodniczkę.",
+  "Uznany przez krytyków film trafił do kin.",
   "W 2010 papież odwiedził nasze miasto.",
   "Matka była zajęta pracą.",
   "Dzbanek był pełen wody, a szklanka pełna mleka.",

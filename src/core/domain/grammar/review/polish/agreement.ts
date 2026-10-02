@@ -758,6 +758,76 @@ function adjectives(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+/* --------------------------------------------------------------- "uznany za" */
+
+/** "uznany", "uznawana", "uznał go": "uznać" names what one is taken for with "za" + accusative. */
+const CONSIDERED = new RegExp(
+  `(?<![\\p{L}])(?:uzna(?:wa)?n(?:y|a|e|i)|uzna(?:wa)?(?:ł|ła|ło|li|ły)[ \\t\\u00a0]{1,8}(?:go|ją|je|ich|mnie|cię|nas|was|się))[ \\t\\u00a0]{1,8}(?<phrase>(?:(?<adj>\\p{Ll}{3,})[ \\t\\u00a0]{1,8})?(?<noun>\\p{Ll}{3,}))${WORD}`,
+  "giu",
+);
+const INSTRUMENTAL = cases("Is Ip");
+/** "uznany jako wielki aktor": "za", not "jako". */
+const CONSIDERED_AS = new RegExp(
+  `(?<=(?<![\\p{L}])(?:uzna(?:wa)?n(?:y|a|e|i)|uzna(?:wa)?(?:ł|ła|ło|li|ły|łem|łam)[ \\t\\u00a0]{1,8}(?:go|ją|je|ich|mnie|cię|nas|was|się))[ \\t\\u00a0]{1,8})jako(?=[ \\t\\u00a0]{1,8}\\p{L})`,
+  "giu",
+);
+
+/** "uznany wielkim aktorem" -> "uznany za wielkiego aktora". */
+function consideredAs(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of owned(ctx, CONSIDERED)) {
+    const { phrase, adj, noun } = m.groups!;
+    if (userOrNamed(ctx, phrase)) continue;
+    const tags = nounTags(noun);
+    if (!onlyNoun(tags) || !(tags & INSTRUMENTAL) || tags & ~INSTRUMENTAL & ALL_CASES) continue;
+    const adjective = adj ? adjectiveOf(adj) : null;
+    if (adj && (!adjective || !/^(?:ym|ą|ymi)$/u.test(adjective.ending))) continue;
+    const plural = (tags & cases("Ip")) !== 0;
+    const fixes = inflect(noun, cases(plural ? "Ap" : "As")).flatMap((form) => {
+      if (!adjective) return [`za ${form}`];
+      const formTags = nounTags(form);
+      // The accusative of a man or an animal is the genitive form ("za wielkiego aktora").
+      const ending = plural
+        ? formTags & cases("Gp")
+          ? "ych"
+          : "e"
+        : formTags & FEMININE
+          ? "ą"
+          : formTags & NEUTER
+            ? "e"
+            : formTags & cases("Gs")
+              ? "ego"
+              : "y";
+      return [`za ${adjectiveForm(adjective.lemma, ending)} ${form}`];
+    });
+    if (fixes.length === 0 || fixes.length > 2) continue;
+    const start = m.index + m[0].length - phrase.length;
+    findings.push({
+      ...findingAt(
+        ctx,
+        start,
+        start + phrase.length,
+        fixes,
+        RULE,
+        "review_msg_pl_preposition_case",
+      ),
+      context: { start: m.index, end: start + phrase.length },
+    });
+  }
+  for (const m of owned(ctx, CONSIDERED_AS))
+    findings.push(
+      findingAt(
+        ctx,
+        m.index,
+        m.index + m[0].length,
+        [caseLike(m[0], "za")],
+        RULE,
+        "review_msg_pl_preposition_case",
+      ),
+    );
+  return findings;
+}
+
 export const DETECTORS = [
   {
     rules: [RULE] as RawFinding["ruleId"][],
@@ -771,6 +841,7 @@ export const DETECTORS = [
             ...negatedObjects(ctx),
             ...fixedGenders(ctx),
             ...adjectives(ctx),
+            ...consideredAs(ctx),
           ]
         : [],
   },
