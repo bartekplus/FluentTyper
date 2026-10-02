@@ -155,6 +155,7 @@ describe("review rule coverage map", () => {
             "greekPunctuation",
             "portugueseTypographyStyle",
             "portugueseAO90",
+            "frenchMissingNe",
           ].includes(id),
       ),
     );
