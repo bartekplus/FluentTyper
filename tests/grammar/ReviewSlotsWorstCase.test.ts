@@ -49,6 +49,52 @@ test("no chunk stalls on runs of slot-opening words or spaces between them", () 
     "better a b c d e then ".repeat(800),
     "an ever by then were where ".repeat(700),
     "there is many a few there are no ".repeat(700),
+    "didn't see not never no nothing nobody ".repeat(700),
+    "a very good nice fine advice less much people ".repeat(600),
+    "the tools that runs which is who make ".repeat(700),
+    "how did he does it is an oldest less then more ".repeat(600),
+    "I have plan the we have see all the ".repeat(700),
   ];
   for (const text of inputs) expect(slowestChunkMs(text)).toBeLessThan(100);
+});
+
+// JavaScriptCore may run a regex in its interpreter (late in the full unit suite it does): a
+// lookbehind with an unbounded run of spaces then rereads the run at every position. A child
+// process without the regex JIT makes that cost visible for the slot and clause frames. A space
+// run is one chunk, so the interpreter's time grows with it: doubling the run must about double
+// the time (a quadratic frame quadruples it).
+test("slot frames stay linear on long space runs without the regex JIT", () => {
+  const module = `${import.meta.dir}/../../src/core/domain/grammar/review/reviewDiagnostics.ts`;
+  const script = `
+    const { prepareReview, reviewChunks, scanReviewChunk } = await import(${JSON.stringify(module)});
+    const words = " didn't see nothing. a very good advice. less people. tools that runs. " +
+      "how did he went. is best choice. I have plan the trip. If I would not have known. Do it. ";
+    const rules = [
+      "englishCountability", "englishUsagePhrases", "englishSubjectVerbAgreement",
+      "englishAuxiliaryBaseVerb", "englishSentenceStructure", "englishDoubledDegree",
+      "englishThenThan", "englishPerfectParticiples", "englishConfusedWords",
+      "englishVerbComplements",
+    ];
+    const slowest = (n) => {
+      const text = "x." + "\\t ".repeat(n) + words + " \\n".repeat(n) + words;
+      let ms = 0;
+      for (let run = 0; run < 2; run++) {
+        const prepared = prepareReview(
+          { id: "jit", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
+          { lang: "en_US", enabledRules: rules, userDictionary: [], insertSpaceAfterAutocomplete: true },
+        );
+        for (const chunk of reviewChunks(prepared)) {
+          const start = performance.now();
+          scanReviewChunk(prepared, chunk);
+          if (run) ms = Math.max(ms, performance.now() - start);
+        }
+      }
+      return ms;
+    };
+    console.log(slowest(3000) / slowest(1500));`;
+  const child = Bun.spawnSync([process.execPath, "-e", script], {
+    env: { ...process.env, BUN_JSC_useRegExpJIT: "0" },
+  });
+  expect(child.exitCode).toBe(0);
+  expect(Number(child.stdout.toString().trim())).toBeLessThan(3);
 });

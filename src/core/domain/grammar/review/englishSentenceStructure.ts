@@ -255,6 +255,12 @@ function missingBe(ctx: DetectContext): Finding[] {
     // "could kind of see": a noun before "of" is a hedge, not a predicate.
     const tail = m.indices!.groups!.adjective[1];
     if (info.noun && /^[ \t\u00a0]+of\b/i.test(ctx.text.slice(tail, tail + 12))) continue;
+    // "it cannot due to the bug": an elided verb before "due to"; "I may due that" is "do".
+    if (
+      word === "due" &&
+      /^[ \t\u00a0]+(?:to|that|it|this)\b/i.test(ctx.text.slice(tail, tail + 12))
+    )
+      continue;
     // "can be able" is itself awkward; "I can able to" wants "I am able to" or "I can".
     if (/^(?:can|could)/i.test(modal) && /able$/i.test(adjective)) continue;
     if (hasUserOrCasedWord(ctx, m[0])) continue;

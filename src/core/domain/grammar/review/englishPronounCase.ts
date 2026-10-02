@@ -25,14 +25,16 @@ const PRONOUN = "(?:me|him|her|them|I|you|he|she|they|we)";
 const CONJUNCT = `(?:${PRONOUN}|(?:my|your|his|her|our|their|the)${SPACE}(?:${WORD}${SPACE})?${WORD}|${WORD})`;
 const ADVERB = "(?:both|all|also|always|never|just|still|often|already|then|actually|finally)";
 // Also after an opening comma or a subordinator: "However, Tim and me work", "that me and Sam are".
+// Cheap first: an "and" within the next three words, so the clause lookbehind runs only there.
+const AND_AHEAD = `(?=[A-Za-z]+(?:[ \\t\\u00a0]{1,8}[A-Za-z]+){0,2}[ \\t\\u00a0]{1,8}and(?![\\p{L}]))`;
 const COORDINATION_START = `(?:${CLAUSE_START}|(?<=(?:,|\\b(?:that|when|because|if|since|while|whenever|until))${SPACE}))`;
 const COORDINATION = frame(
-  `${COORDINATION_START}(?<a>${CONJUNCT}|myself)${SPACE}and${SPACE}(?<b>${CONJUNCT}|myself)(?:${SPACE}${ADVERB})?${SPACE}(?<verb>${FINITE})${WORD_END}`,
+  `${AND_AHEAD}${COORDINATION_START}(?<a>${CONJUNCT}|myself)${SPACE}and${SPACE}(?<b>${CONJUNCT}|myself)(?:${SPACE}${ADVERB})?${SPACE}(?<verb>${FINITE})${WORD_END}`,
 );
 // A present base verb after a pair of single words: "Tim and me work", "Me and Sam live".
 const ONE_WORD = `(?:${PRONOUN}|myself|(?:my|your|his|her|our|their|the)${SPACE}${WORD}|${WORD})`;
 const COORDINATION_BASE = frame(
-  `${COORDINATION_START}(?<a>${ONE_WORD})${SPACE}and${SPACE}(?<b>${ONE_WORD})(?:${SPACE}${ADVERB})?${SPACE}(?<verb>[a-z]+)${WORD_END}`,
+  `${AND_AHEAD}${COORDINATION_START}(?<a>${ONE_WORD})${SPACE}and${SPACE}(?<b>${ONE_WORD})(?:${SPACE}${ADVERB})?${SPACE}(?<verb>[a-z]+)${WORD_END}`,
 );
 const FINITE_VERB = new RegExp(`^${FINITE}$`, "i");
 
@@ -260,13 +262,13 @@ const AND_I_OBJECT = frame(
 );
 // "told Mary and I that…", "to Tom and I before you go": an object pair before a closed word.
 const AND_I_BEFORE = frame(
-  `(?<lead>[a-z]+)${SPACE}(?<a>${CONJUNCT})${SPACE}(?:and|or)${SPACE}(?<i>I)${WORD_END}(?=${SPACE}(?<next>[a-z]+)${WORD_END})`,
+  `(?=[a-z]+(?:[ \\t\\u00a0]{1,8}[a-z]+){1,3}[ \\t\\u00a0]{1,8}(?:and|or)[ \\t\\u00a0]{1,8}I(?![\\p{L}]))(?<lead>[a-z]+)${SPACE}(?<a>${CONJUNCT})${SPACE}(?:and|or)${SPACE}(?<i>I)${WORD_END}(?=${SPACE}(?<next>[a-z]+)${WORD_END})`,
 );
 // Words after which "X and I" cannot be a subject: they need no verb from the pair.
 const OBJECT_NEXT =
   /^(?:that|about|before|after|into|with|without|tonight|today|tomorrow|yesterday|here|there|but|for|on|at|in|to|from|by|over|again|together)$/;
 const US_SUBJECT = frame(
-  `${CLAUSE_START}(?<pronoun>us)${SPACE}(?<noun>[a-z]+)(?:${SPACE}${ADVERB})?${SPACE}${FINITE}${WORD_END}`,
+  `(?=us(?![\\p{L}]))${CLAUSE_START}(?<pronoun>us)${SPACE}(?<noun>[a-z]+)(?:${SPACE}${ADVERB})?${SPACE}${FINITE}${WORD_END}`,
 );
 
 /** Subject pronouns after a preposition take the object form; "us" before a subject noun, "we". */

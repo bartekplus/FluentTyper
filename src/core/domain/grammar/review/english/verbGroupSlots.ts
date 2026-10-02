@@ -6,6 +6,7 @@ import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import {
   afterBreak,
+  AUXILIARIES,
   caseLike,
   english,
   evidence,
@@ -14,6 +15,7 @@ import {
   tokensAfter,
   wordBefore,
 } from "./slotWords";
+import { MASS } from "./nounNumberSlots";
 
 // Verb groups whose second verb has the wrong form, read from the lexicon: "have finish",
 // "was establish", "got mislead", "does makes", "can you sent", "is requires", "I seen".
@@ -92,6 +94,41 @@ function objectFollows(ctx: DetectContext, end: number): boolean {
   return first?.kind === "word" && OBJECT.test(first.lower);
 }
 
+// Nouns a person "has" bare, before a time phrase or a determiner: "I have work the next day",
+// "We have practice this week".
+const HAVE_NOUNS = new Set(
+  "work practice class school lunch dinner breakfast time fun access control power trouble help need contact experience support care faith hope love respect permission rest sleep charge chance training rehearsal homework sex reason cause priority".split(
+    " ",
+  ),
+);
+const TIME_NOUNS =
+  /^(?:day|days|week|weeks|weekend|morning|afternoon|evening|night|month|year|time|semester|term|summer|winter)$/;
+
+/**
+ * A determiner and a non-time noun after a noun-or-verb base: "has hire several traders",
+ * "have see any problems". Not "I have work the next day".
+ */
+function determinerFollows(ctx: DetectContext, end: number, verb: string): boolean {
+  if (HAVE_NOUNS.has(verb) || MASS.has(verb)) return false;
+  const [first, second, third] = tokensAfter(ctx, end, 3);
+  // "you have evidence the shop knows…": the determiner opens a clause of its own.
+  const read = third?.kind === "word" ? englishWordInfo(third.lower) : null;
+  const clause =
+    third?.kind === "word" &&
+    (AUXILIARIES.has(third.lower) ||
+      (!read?.plural &&
+        (/ed$/.test(third.lower) ||
+          !!read?.verbs.some((v) => v.form === "third" || v.form === "past"))));
+  return (
+    first?.kind === "word" &&
+    /^(?:the|a|an|this|these|those|my|your|his|her|our|their|its|several|all|any|some|many|every|each)$/.test(
+      first.lower,
+    ) &&
+    !(second?.kind === "word" && TIME_NOUNS.test(second.lower)) &&
+    !clause
+  );
+}
+
 /** "I have finish", "could have change", "Have you use…": a perfect with a bare verb. */
 function perfectWithBase(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
@@ -117,9 +154,12 @@ function perfectWithBase(ctx: DetectContext): RawFinding[] {
       if (/^(?:to|been|better|got|gotten|had|done)$/.test(verb)) continue;
       const lead = m[0].slice(0, m.indices!.groups!.adverbs[0] - m.index).toLowerCase();
       // A noun subject before has/have needs a verb-only word ("The man has work at five").
+      // A capitalized word the lexicon does not know is a name, as good as a pronoun ("Tom has").
+      const name = /^[A-Z][a-z]+\s/.test(m[0]) && !englishWordInfo(lead.split(/\s+/)[0]);
       const nounSubject =
         /^[a-z]+\s+(?:has|have|had)$/.test(lead) &&
-        !/^(?:i|you|we|they|he|she|it|who)\s/.test(lead);
+        !/^(?:i|you|we|they|he|she|it|who)\s/.test(lead) &&
+        !name;
       if (
         nounSubject &&
         /^(?:what|all|which|that|to|i|you|we|they|he|she|it|who|not)$/.test(lead.split(/\s+/)[0])
@@ -133,7 +173,17 @@ function perfectWithBase(ctx: DetectContext): RawFinding[] {
       else {
         const base = bareBase(verb);
         if (!base) continue;
-        if (!base.verbOnly && !objectFollows(ctx, m.index + m[0].length)) continue;
+        if (
+          !base.verbOnly &&
+          !objectFollows(ctx, m.index + m[0].length) &&
+          (nounSubject ||
+            // "Who do I have review the contract?": a causative have after do-support.
+            /\b(?:do|does|did)[ \t\u00a0]+$/i.test(
+              ctx.text.slice(Math.max(0, m.index - 12), m.index),
+            ) ||
+            !determinerFollows(ctx, m.index + m[0].length, verb))
+        )
+          continue;
         // "should have write access": a compound noun after the verb.
         const after = nextToken(ctx, m.index + m[0].length);
         if (
@@ -171,8 +221,32 @@ function passiveWithBase(ctx: DetectContext): RawFinding[] {
   )) {
     const verb = m.groups!.verb;
     if (!plainWord(ctx, verb)) continue;
+    // "We are please to announce": the participle adjective.
+    if (
+      verb === "please" &&
+      /^[ \t\u00a0]{1,8}(?:to|with|that)\b/i.test(ctx.text.slice(m.index + m[0].length))
+    ) {
+      const [start, end] = m.indices!.groups!.verb;
+      push(
+        ctx,
+        findings,
+        "englishPerfectParticiples",
+        "review_msg_be_participle",
+        start,
+        end,
+        ["pleased"],
+        m.index,
+      );
+      continue;
+    }
     const base = bareBase(verb);
     if (!base) continue;
+    // "was recently release", "is completely rebuild": a manner or time adverb modifies a
+    // verb, so a word that is also a noun is the verb here.
+    const verbal =
+      /\b(?:recently|completely|fully|newly|successfully|already|properly|automatically|correctly|quickly|slowly|carefully|badly|poorly|widely|partially|accidentally|immediately|permanently)\b/i.test(
+        m.groups!.adverbs ?? "",
+      );
     const before = ctx.text.slice(Math.max(0, m.index - 96), m.index);
     // "All you do is install it", "what I want is…": a bare infinitive after a pseudo-cleft.
     if (GAP.test(before) || /\b(?:do|does|did|to)\b[^.!?;:,\n]*$/i.test(before)) continue;
@@ -181,7 +255,8 @@ function passiveWithBase(ctx: DetectContext): RawFinding[] {
     const word = next?.kind === "word" ? next.lower : "";
     const agentNoun = tokensAfter(ctx, m.index + m[0].length, 2)[1];
     const agent = /^(?:by|via)$/.test(word) && agentNoun?.kind === "word";
-    if (!base.verbOnly && (!agent || englishWordInfo(verb)?.adjective)) continue;
+    const adjective = englishWordInfo(verb)?.adjective;
+    if (!base.verbOnly && !(verbal && !adjective) && (!agent || adjective)) continue;
     if (
       !agent &&
       !(next?.kind === "end" || next?.kind === "comma") &&
@@ -475,7 +550,7 @@ function bareParticiple(ctx: DetectContext): RawFinding[] {
     const modal = m.groups!.modal.toLowerCase();
     if (
       modal === "to" &&
-      !/\bused[ \t ]+$/i.test(ctx.text.slice(Math.max(0, m.index - 8), m.index))
+      !/\bused[ \t\u00a0]+$/i.test(ctx.text.slice(Math.max(0, m.index - 8), m.index))
     )
       continue;
     const [start, end] = m.indices!.groups!.target;

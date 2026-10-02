@@ -59,6 +59,9 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Foi um trabalho tão pratico.", "Foi um trabalho tão prático."],
         ["Toda critica ajuda.", "Toda crítica ajuda."],
         ["Tenho duvidas sobre o plano.", "Tenho dúvidas sobre o plano."],
+        ["A musica tocou a noite toda.", "A música tocou a noite toda."],
+        ["Choveu. O transito parou na ponte.", "Choveu. O trânsito parou na ponte."],
+        ["As duvidas ficaram para amanhã.", "As dúvidas ficaram para amanhã."],
       ],
       neg: [
         "Por último publica os dados.",
@@ -70,6 +73,8 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         "Um critica, o outro elogia.",
         "A secretaria da escola fecha cedo.",
         "Ele a fabrica em casa.",
+        "Ela, como sempre, o critica em público.",
+        "Quem a pratica sabe disso.",
         "Fiquei na dúvida até o fim.",
         "Isso seria uma boa ideia.",
         "A palavra “duvida” é um verbo.",
@@ -84,6 +89,11 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
     {
       pos: [
         ["Ainda à pouco que fazer aqui.", "Ainda há pouco que fazer aqui."],
+        ["Fizemos uma viajem ao Peru.", "Fizemos uma viagem ao Peru."],
+        ["A viajem atrasou duas horas.", "A viagem atrasou duas horas."],
+        ["Espero que vocês viagem tranquilos.", "Espero que vocês viajem tranquilos."],
+        ["Comprei um sinto de couro.", "Comprei um cinto de couro."],
+        ["A grade de asso enferrujou.", "A grade de aço enferrujou."],
         ["Em relação a proposta, nada mudou.", "Em relação à proposta, nada mudou."],
         ["Graças a ajuda dos vizinhos, saímos.", "Graças à ajuda dos vizinhos, saímos."],
         ["Ela tem acesso as informações.", "Ela tem acesso às informações."],
@@ -170,6 +180,11 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Prefiro praia do que montanha.", "Prefiro praia a montanha."],
       ],
       neg: [
+        "Eu sinto muito pelo atraso.",
+        "Gosto de quando sinto o vento.",
+        "Que viagem incrível foi aquela!",
+        "Talvez viagem seja a palavra certa.",
+        "Não sei se ela sinta frio.",
         "Ela trabalha tanto quanto a irmã.",
         "O atraso foi devido a problemas técnicos.",
         "Em relação a isso, nada mudou.",
@@ -250,6 +265,11 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
     {
       pos: [
         ["Deixei a chave em a gaveta.", "Deixei a chave na gaveta."],
+        ["Moro em China há dois anos.", "Moro na China há dois anos."],
+        ["Ele voltou de Estados Unidos ontem.", "Ele voltou dos Estados Unidos ontem."],
+        ["Vamos a Peru nas férias.", "Vamos ao Peru nas férias."],
+        ["Viajou para Costa Rica sozinha.", "Viajou para a Costa Rica sozinha."],
+        ["Passamos por Brasil e Chile.", "Passamos pelo Brasil e Chile."],
         ["O preço de este carro subiu.", "O preço deste carro subiu."],
         ["Entreguei o livro a o professor.", "Entreguei o livro ao professor."],
         ["Não volto mais a aquele lugar.", "Não volto mais àquele lugar."],
@@ -259,6 +279,11 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Não pense mais em isso agora.", "Não pense mais nisso agora."],
       ],
       neg: [
+        "Visitei a Argentina no verão.",
+        "Vou para Portugal amanhã.",
+        "Moramos em França há anos.",
+        "O Banco de Brasil Seguros ligou.",
+        "Ela é a China que todos conhecem.",
         "Antes de o sol nascer, saímos.",
         "Gosto de o ouvir cantar.",
         "Apesar de a casa ser antiga, é confortável.",
@@ -286,6 +311,17 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Moro no 8° andar.", "Moro no 8º andar."],
         ["A cidade fica a 40 Km daqui.", "A cidade fica a 40 km daqui."],
         ["O terreno tem 300 m2 de área.", "O terreno tem 300 m² de área."],
+        ["A fatura soma 12,480.75 reais.", "A fatura soma 12.480,75 reais."],
+        ["Foram 3,215,900.5 votos válidos.", "Foram 3.215.900,5 votos válidos."],
+        ["A mochila pesa 4.5 kg vazia.", "A mochila pesa 4,5 kg vazia."],
+        ["O lago cobre 12.75 km² do parque.", "O lago cobre 12,75 km² do parque."],
+        ["A febre chegou a 38,5º ontem.", "A febre chegou a 38,5° ontem."],
+        ["A cidade fica a 23º sul do equador.", "A cidade fica a 23° sul do equador."],
+        ["O navio seguiu a 40o N por dias.", "O navio seguiu a 40° N por dias."],
+        ["Desenhe um ângulo de 45º.", "Desenhe um ângulo de 45°."],
+        ["O farol fica a 23º 32' 51\" S.", "O farol fica a 23°\u202f32′\u202f51″ S."],
+        ["A ilha fica a 8º15’ de latitude.", "A ilha fica a 8°\u202f15′ de latitude."],
+        ["Ontem fez 31º, que calor.", "Ontem fez 31°, que calor."],
       ].filter(([typed, fixed]) => typed !== fixed) as Array<[string, string]>,
       neg: [
         "O ônibus sai às 18h.",
@@ -298,6 +334,16 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         "Comprei um HB20 usado.",
         "A sala 2a fica no fim do corredor.",
         "Use a chave Km3 no arquivo.",
+        "Instale a versão 4.12.3 do pacote.",
+        "O roteador responde em 192.168.10.254 sempre.",
+        "Custou 12.480,75 reais.",
+        "A tabela 4.5 mostra os dados.",
+        "Saímos às 17.40 h em ponto.",
+        "Atualize para 1,234.5.6 hoje.",
+        "Ele ficou em 3º lugar na prova.",
+        "O 2º sul-americano a vencer foi ele.",
+        "Ficou em 2º, atrás do João.",
+        "Fez o 5º gol da partida.",
       ],
     },
   ],
@@ -684,6 +730,12 @@ describe("portugueseCommas", () => {
     ["Caro Doutor Santos!", "Caro Doutor Santos,"],
     ["O que é que aconteceu aqui.", "O que é que aconteceu aqui?"],
     ["Como é que vocês chegaram tão cedo.", "Como é que vocês chegaram tão cedo?"],
+    ["Chegou cedo e além disso, trouxe o bolo.", "Chegou cedo e, além disso, trouxe o bolo."],
+    ["Ficou caro, e, no fundo ninguém ligou.", "Ficou caro, e, no fundo, ninguém ligou."],
+    ["Correu muito mas ao mesmo tempo, sorriu.", "Correu muito mas, ao mesmo tempo, sorriu."],
+    ["Ela estuda e, em geral trabalha à noite.", "Ela estuda e, em geral, trabalha à noite."],
+    ["Feliz natal Rui!", "Feliz natal, Rui!"],
+    ["Bem-vinda Joana.", "Bem-vinda, Joana."],
   ])("fixes %p", (text, expected) => {
     expect(repaired("portugueseCommas", text)).toBe(expected);
     expect(findings("portugueseCommas", expected)).toEqual([]);
@@ -708,8 +760,36 @@ describe("portugueseCommas", () => {
     "A carta terminava com atenciosamente e a assinatura.",
     "Como é que ele descobriu ainda é um mistério.",
     "O que é que ele quer eu não sei.",
+    "A pedra caiu no fundo, e sumiu.",
+    "Trabalha e ao mesmo tempo estuda.",
+    "Chegaram ao mesmo tempo, e saíram juntos.",
+    "E além disso, ninguém reclamou.",
+    "Os carros, em geral caros, venderam bem.",
   ])("leaves %p alone", (text) => {
     expect(findings("portugueseCommas", text)).toEqual([]);
+  });
+});
+
+describe("infinitive after an auxiliary", () => {
+  test.each([
+    ["As crianças vão dormi cedo hoje.", "As crianças vão dormir cedo hoje."],
+    ["Você pode fala mais devagar?", "Você pode falar mais devagar?"],
+    ["Amanhã vou come na casa da avó.", "Amanhã vou comer na casa da avó."],
+    ["Eles não conseguem termina a obra.", "Eles não conseguem terminar a obra."],
+    ["Ela vai lembra-se disso.", "Ela vai lembrar-se disso."],
+  ])("fixes %p", (text, expected) => {
+    expect(repaired("portugueseAgreement", text)).toBe(expected);
+    expect(findings("portugueseAgreement", expected)).toEqual([]);
+  });
+  test.each([
+    "Vou para casa depois da aula.",
+    "Você quer ajuda com as malas?",
+    "Ele deve conta ao banco.",
+    "Ela vai bem, obrigada.",
+    "Vamos agora mesmo.",
+    "Isso não vai nada bem.",
+  ])("leaves %p alone", (text) => {
+    expect(findings("portugueseAgreement", text)).toEqual([]);
   });
 });
 
@@ -740,8 +820,30 @@ describe("portugueseDates", () => {
     "Atualize para a versão 10.13.2024.",
     "Faltam 31 mais coisas.",
     "Ela nasceu em 29/02/2000.",
+    "A prova é na sexta-feira, 2 de outubro de 2026.",
+    "Abrimos no domingo (dia 4/10/2026) cedo.",
+    "Na quarta, 7 de outubro, saímos.",
   ])("leaves %p alone", (text) => {
     expect(findings("portugueseDates", text)).toEqual([]);
+  });
+  test.each([
+    [
+      "A prova é na quinta-feira, 2 de outubro de 2026.",
+      "quinta-feira, 2",
+      ["sexta-feira, 2", "quinta-feira, 1"],
+    ],
+    [
+      "Abrimos no sábado (dia 4/10/2026) cedo.",
+      "sábado (dia 4",
+      ["domingo (dia 4", "sábado (dia 3"],
+    ],
+    ["Seg, 6 out 2026: reunião.", "Seg, 6", ["Terça-feira, 6", "Seg, 5"]],
+  ])("checks the weekday in %p", (text, typed, alternatives) => {
+    const [finding, ...rest] = findings("portugueseDates", text);
+    expect(rest).toEqual([]);
+    expect(finding.original).toBe(typed);
+    expect(finding.alternatives.map((alternative) => alternative.preview)).toEqual(alternatives);
+    expect(finding.requiresChoice).toBe(true);
   });
 });
 
@@ -835,4 +937,20 @@ test("Portuguese frames stay fast on long runs of trigger words and spaces", () 
   const start = performance.now();
   findLiveGrammarProposals(TRIGGERS.repeat(5), live);
   expect(performance.now() - start).toBeLessThan(50);
+});
+
+test("grouped decimals are prose; versions and addresses stay technical", () => {
+  const technical = (text: string) =>
+    prepareReview(
+      { id: "pt", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
+      { enabledRules: [], lang: LANG, userDictionary: [], insertSpaceAfterAutocomplete: true },
+    )
+      .protectedRanges.filter((range) => range.reason === "technical")
+      .map((range) => text.slice(range.start, range.end));
+  expect(technical("Pagou 12,480.75 e 3,215,900.5 no total.")).toEqual([]);
+  expect(technical("Use 4.12.3 em 192.168.10.254 ou 1,234.5.6.")).toEqual([
+    "4.12.3",
+    "192.168.10.254",
+    "1,234.5.6",
+  ]);
 });
