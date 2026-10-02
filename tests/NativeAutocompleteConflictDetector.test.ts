@@ -39,6 +39,8 @@ describe("native field eligibility and interaction evidence", () => {
     '<input id="project_name">',
     '<input id="compassion">',
     '<input name="passage">',
+    '<input id="footpath">',
+    '<input id="snapshotpreview">',
     '<textarea role="combobox"></textarea>',
     '<input type="search" role="combobox">',
   ])("automatically enables writing fields: %s", (html) => {
@@ -123,6 +125,16 @@ describe("native field eligibility and interaction evidence", () => {
     '<input id="login_passphrase">',
     '<input name="login_pass">',
     '<input id="passInput">',
+    '<input id="otp">',
+    '<input id="login_otp">',
+    '<input id="totp">',
+    '<input id="hotp">',
+    '<input id="otp1">',
+    '<input id="OTPInput">',
+    '<input id="pwdInput">',
+    '<input id="payment_cvc">',
+    '<input id="payment_cvv">',
+    '<input id="payment_csc">',
     '<input autocomplete="one-time-code">',
     '<input autocomplete="cc-number">',
     '<input id="verification-code">',
@@ -151,6 +163,7 @@ describe("native field eligibility and interaction evidence", () => {
   });
   test("Review and formatting retain their existing pass exclusions", () => {
     expect(isSensitiveField(field('<input id="passage">'))).toBe(true);
+    expect(isSensitiveField(field('<input id="footpath">'))).toBe(true);
   });
   test("linked actionable visibility outranks stale ARIA; unrelated and empty UI is ignored", () => {
     const input = field('<input type="search" aria-controls="choices" aria-expanded="false">');
