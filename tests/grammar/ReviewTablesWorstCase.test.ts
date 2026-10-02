@@ -52,6 +52,7 @@ test("no chunk stalls on runs of frame-opening words", () => {
     "If I can with it I Do you know, if neither a, nor ".repeat(400),
     "June 16,1963 Friday July 15 October, 1958 ".repeat(400),
     "in Big Blue Green Sea is oldest city in lot of ".repeat(400),
+    "I all ready the later we can here he barley yet alone ".repeat(400),
   ];
   // Warm-up: the first scan compiles every frame and decodes the lexicon.
   for (const text of inputs) slowestChunkMs(text);

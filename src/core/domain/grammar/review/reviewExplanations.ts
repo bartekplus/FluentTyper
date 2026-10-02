@@ -1947,6 +1947,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Przecinek zwykle oddziela słowo lub wyrażenie wprowadzające od reszty zdania.",
     "Uma vírgula costuma separar a palavra ou expressão inicial do resto da frase.",
   ],
+  review_msg_tag_question: [
+    'A question tag repeats the sentence\'s auxiliary: "You don\'t know, do you?", "It isn\'t late, is it?"',
+    "Une question tag reprend l’auxiliaire de la phrase : « You don't know, do you? », « It isn't late, is it? »",
+    'Upitni dodatak ponavlja pomoćni glagol rečenice: "You don\'t know, do you?", "It isn\'t late, is it?"',
+    "La coletilla interrogativa repite el auxiliar de la oración: «You don't know, do you?», «It isn't late, is it?»",
+    "Η ερώτηση-ουρά επαναλαμβάνει το βοηθητικό ρήμα της πρότασης: «You don't know, do you?», «It isn't late, is it?»",
+    "En svansfråga upprepar meningens hjälpverb: ”You don't know, do you?”, ”It isn't late, is it?”",
+    "Ein Frageanhängsel wiederholt das Hilfsverb des Satzes: „You don't know, do you?“, „It isn't late, is it?“",
+    "Pytanie rozłączne powtarza czasownik posiłkowy zdania: „You don't know, do you?”, „It isn't late, is it?”",
+    "A question tag repete o auxiliar da frase: “You don't know, do you?”, “It isn't late, is it?”",
+  ],
   review_msg_word_boundary: [
     "The space in these words looks misplaced or extra.",
     "L’espace dans ces mots semble mal placée ou en trop.",
