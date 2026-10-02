@@ -149,6 +149,9 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["La ferme se trouve prés du lac.", "La ferme se trouve près du lac."],
         ["Je ne la connais guerre.", "Je ne la connais guère."],
         ["Tachez de finir avant midi.", "Tâchez de finir avant midi."],
+        ["Ce son nos voisins qui ont appelé.", "Ce sont nos voisins qui ont appelé."],
+        ["Mes cousins son ici depuis lundi.", "Mes cousins sont ici depuis lundi."],
+        ["Deux trains son annulés ce matin.", "Deux trains sont annulés ce matin."],
         ["Mais ou sont passées mes lunettes ?", "Mais où sont passées mes lunettes ?"],
         ["Vous habitez ou maintenant ?", "Vous habitez où maintenant ?"],
         ["C'est un quartier ou les loyers baissent.", "C'est un quartier où les loyers baissent."],
@@ -181,6 +184,8 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Ont dit que c'est facile.", "On dit que c'est facile."],
       ],
       neg: [
+        "Ce son des cloches me réveille chaque matin.",
+        "Les voisins aiment son jardin.",
         "Tu veux une maison ou tu préfères un appartement ?",
         "Tu restes ici ou tu pars avec nous ?",
         "Vous habitez Paris ou Lyon ?",

@@ -607,28 +607,51 @@ const PREPOSITIONS = new Set(
 const PLURAL_DETERMINERS = new Set("les des ces mes tes ses nos vos leurs".split(" "));
 
 /** "les épaules son larges": "sont" after a plural noun subject, before what is no noun. */
+/** Participles no finite form spells: "fui", "parlé", not "fait". */
+const participleOnly = (word: string) =>
+  readingsOf(word).length > 0 && readingsOf(word).every((r) => r.slot === "Q");
+
+// After "ce", words that open a plural noun phrase: "ce sont les enfants".
+const CE_SONT_NEXT = new Set("les mes tes ses nos vos leurs eux elles".split(" "));
+// Plural pronoun subjects: "certains son partis".
+const PLURAL_SUBJECTS = new Set("ils elles certains certaines plusieurs toutes".split(" "));
+
+/** "les enfants son là", "ce son eux": "sont". */
 function sonToSont(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
-  const before = tokensBefore(ctx.text, m.index, 3);
+  const before = tokensBefore(ctx.text, m.index, 4);
   const next = tokensAfter(ctx.text, m.index + m[0].length, 1)[0];
-  if (!before[1] || !PLURAL_DETERMINERS.has(before[1].w) || !/[sx]$/.test(before[0].w)) return null;
-  if (before[2] && !CONJUNCTIONS.has(before[2].w)) return null;
+  // "Ce son des enfants", "ce son eux": "ce sont" before a plural noun phrase.
+  if (before[0]?.w === "ce" && !before[1] && next && CE_SONT_NEXT.has(next.w))
+    return wordFinding(ctx, m.index, m[0], ["sont"], RULE, MESSAGE, {
+      start: before[0].start,
+      end: next.end,
+    });
+  // "les personnes invitées son là": an adjective or participle may follow the noun.
+  const plural = (t?: Token) => !!t && /[sx]$/.test(t.w);
+  let h = 0;
+  if (plural(before[0]) && plural(before[1]) && participleOnly(before[0].w)) h = 1;
+  const det = before[h + 1];
+  const pronoun = h === 0 && PLURAL_SUBJECTS.has(before[0]?.w ?? "") && !det;
+  if (!pronoun) {
+    if (!det || !(PLURAL_DETERMINERS.has(det.w) || NUMBERS.test(det.w)) || !plural(before[h]))
+      return null;
+    if (before[h + 2] && !CONJUNCTIONS.has(before[h + 2].w)) return null;
+  }
   if (!next || next.hyphen || /^\p{Lu}/u.test(ctx.text[next.start])) return null;
   const nounLike = nounGender(next.w) || nounGender(next.w.replace(/[sx]$/, ""));
   const predicate =
     adjectiveReadings(next.w).length ||
     readingsOf(next.w).some((r) => r.slot === "Q") ||
-    ADVERBS.has(next.w);
+    ADVERBS.has(next.w) ||
+    next.w === "là" ||
+    next.w === "ici";
   // "son" never stands before a plural: "les épaules son larges".
   if (nounLike || (!predicate && !/[sx]$/.test(next.w))) return null;
   return wordFinding(ctx, m.index, m[0], ["sont"], RULE, MESSAGE, {
-    start: before[1].start,
+    start: (det ?? before[0]).start,
     end: next.end,
   });
 }
-
-/** Participles no finite form spells: "fui", "parlé", not "fait". */
-const participleOnly = (word: string) =>
-  readingsOf(word).length > 0 && readingsOf(word).every((r) => r.slot === "Q");
 
 /** "ceux qui on fait", "les habitants on parlé": "ont" before a participle. */
 function onToOnt(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
