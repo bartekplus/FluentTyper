@@ -262,7 +262,7 @@ const EITHER_GENDER = new Set(
     "tour livre poste mode manche voile page moule somme vase critique mémoire physique pendule " +
     "crêpe greffe merci pupille radio solde office espace œuvre orge hymne foudre enseigne faune " +
     "finale geste mousse ombre parallèle platine pourpre relâche vague gens amour délice orgue " +
-    "pâque couple interview chose personne propre"
+    "pâque couple interview chose personne propre comptable coupable contribuable notable"
   ).split(" "),
 );
 const EITHER_ENDINGS = /(?:iste|logue|graphe|naute|aire|crate|phile|phobe|cide)$/;
