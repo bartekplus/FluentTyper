@@ -1,4 +1,5 @@
 import puppeteer from "puppeteer";
+import { assertCompletePlayback } from "./playback-validation.mjs";
 import { createServer } from "node:http";
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
@@ -24,10 +25,11 @@ const results = [];
 try {
   const page = await browser.newPage();
   await page.setViewport({ width: 960, height: 540 });
-  await page.goto("http://127.0.0.1:" + server.address().port);
-  await page.waitForFunction(() => document.querySelector("video").readyState >= 3);
   await mkdir(resolve(dir, "renders/qa"), { recursive: true });
   for (const muted of [false, true]) {
+    // A fresh video element keeps frame counters independent of the previous run.
+    await page.goto("http://127.0.0.1:" + server.address().port);
+    await page.waitForFunction(() => document.querySelector("video").readyState >= 3);
     await page.evaluate(async (muted) => {
       const v = document.querySelector("video");
       v.currentTime = 0;
@@ -66,8 +68,7 @@ try {
     resolve(dir, "evidence/playback.json"),
     JSON.stringify({ normalSpeed: true, viewport: "960x540", results }, null, 2),
   );
-  if (results.some((r) => r.error || r.currentTime < 41.9))
-    throw new Error("Playback did not complete");
+  for (const result of results) assertCompletePlayback(result);
 } finally {
   await browser.close();
   server.close();
