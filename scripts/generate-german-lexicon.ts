@@ -680,6 +680,10 @@ export function deriveNgramNouns(dic: string, aff: string, ngrams: string): stri
 
 export function buildGermanUsage(dic: string, aff: string, ngrams: string): string {
   const { dative, accusative } = deriveGovernedVerbs(dic, aff, ngrams);
+  const overAdjectives = new Set(deriveNounsOverAdjectives(dic, aff, ngrams));
+  const adjectiveNouns = deriveGermanLexicon(dic, aff).adjectiveNouns.filter(
+    (w) => !overAdjectives.has(w),
+  );
   const line = (name: string, value: string) => {
     const one = `export const ${name} = ${JSON.stringify(value)};`;
     return one.length <= 100 ? one : `export const ${name} =\n  ${JSON.stringify(value)};`;
@@ -698,6 +702,8 @@ export function buildGermanUsage(dic: string, aff: string, ngrams: string): stri
         ].sort(),
       ),
     ),
+    "// The other noun forms that are also adjective forms (wunder, defekt).",
+    line("ADJECTIVE_NOUNS", frontCode(adjectiveNouns)),
     "// Nouns the dictionary lacks, as the n-gram counts show them after determiners.",
     line("NGRAM_NOUNS", frontCode(deriveNgramNouns(dic, aff, ngrams))),
     line("DATIVE_VERBS", frontCode(dative)),

@@ -3,6 +3,7 @@ import { namedExampleBefore } from "../exampleCues";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import {
   germanAdjective,
+  germanAdjectiveNoun,
   germanInfinitive,
   germanNounOverAdjective,
   germanNounReading,
@@ -489,6 +490,85 @@ function adjectiveNounHolds(kind: Trigger, before: string[], at: number, after: 
   );
 }
 
+/** The weak or mixed adjective endings a determiner leaves for an adjective after it. */
+function endingsAfter(det: string): readonly string[] | null {
+  const d = det.toLowerCase();
+  if (/^(?:der|die|dieser|diese|jener|jene|welcher|welche)$/.test(d)) return ["e", "en"];
+  if (/^(?:das|dieses|jenes|welches|ins|ans|aufs|fürs|übers|ums|durchs)$/.test(d)) return ["e"];
+  if (/^(?:den|dem|des|im|am|zum|zur|vom|beim)$/.test(d)) return ["en"];
+  if (/^(?:dies|jen|welch)(?:en|em)$/.test(d)) return ["en"];
+  const ein = /^(?:k?ein|mein|dein|sein|ihr|unser|euer|eur)(e|en|em|er|es|)$/.exec(d);
+  if (!ein) return null;
+  if (ein[1] === "") return ["er", "es"];
+  if (ein[1] === "e") return ["e", "en"];
+  return ["en"];
+}
+
+/**
+ * Whether a form that is a noun and an adjective form cannot be the adjective after this
+ * determiner or adjective: "keine wunder" (the adjective would be "wunden"), "kein defekt",
+ * "in heißem fett" (an adjective there takes an ending).
+ */
+function endingRulesOutAdjective(typed: string, kind: Trigger, det: string): boolean {
+  const m = /^(\p{Ll}+?)(e|en|er|es|em)$/u.exec(typed);
+  const ending = m && (germanAdjective(m[1]) || germanAdjective(`${m[1]}e`)) ? m[2] : "";
+  if (kind === "adjective") return ending === "";
+  if (kind !== "article") return false;
+  const allowed = endingsAfter(det);
+  return allowed !== null && !allowed.includes(ending);
+}
+
+// Words in the noun-or-adjective list that are function words or particles here: "sein", "ein",
+// "unter", "weiß" (knows), "fern" (sieht fern), "klein" (sieht klein aus).
+const EITHER_EXCEPTIONS = wordSet("weiß fern fest frei klein groß dicht nah nahe hoch tief weit");
+// Comparatives used as adverbs before a particle or adjective ("lieber fern").
+const ADVERB_COMPARATIVES = wordSet("lieber eher besser mehr weniger länger weiter öfter");
+
+/**
+ * A noun form that is also an adjective form ("wunder", "defekt", "bar") reads as the noun right
+ * after a determiner or adjective whose ending it cannot have as an adjective ("keine wunder",
+ * "an der bar", "in heißem fett"), where the phrase ends after it.
+ */
+function eitherNounHolds(
+  typed: string,
+  kind: Trigger,
+  before: string[],
+  at: number,
+  after: string[],
+): boolean {
+  if (EITHER_EXCEPTIONS.has(typed) || PREPOSITIONS.has(typed) || ARTICLES.has(typed)) return false;
+  if (/^(?:k?ein|mein|dein|sein|ihr|unser|euer|eur)\p{Ll}*$/u.test(typed)) return false;
+  // "getrieben", "gehalten", "verletzt": a participle, as much an adjective as a verb.
+  if (/^(?:ge|be|ver|er|ent|zer)\p{Ll}{3,}(?:t|en)$/u.test(typed)) return false;
+  const det = before[at] ?? "";
+  // "mit ihr halb und halb": the pronoun "ihr", not the possessive.
+  if (det.toLowerCase() === "ihr") return false;
+  // An adjective between the determiner and the word sets the ending: "ein notwendiges übel".
+  if (kind === "article" && at !== before.length - 1) kind = "adjective";
+  if (kind === "article") {
+    // No relative pronoun after a comma and preposition (", in das dicht an dicht …").
+    if (DEMONSTRATIVES.has(det.toLowerCase()) && before[at - 2] === ",") return false;
+  } else if (kind === "adjective") {
+    // "lieber fern", "am liebsten schwarz": an adverb before it, not an attribute.
+    if (ADVERB_COMPARATIVES.has(lower(before.at(-1))) || /sten$/.test(lower(before.at(-1))))
+      return false;
+  } else return false;
+  if (!endingRulesOutAdjective(typed, kind, det)) return false;
+  const next = lower(after[0]);
+  const clauseVerb =
+    /^(?:\p{Ll}*ge\p{Ll}+(?:t|en)|\p{Ll}+iert|\p{Ll}+en)$/u.test(next) &&
+    BOUNDARY.test(after[1] ?? "");
+  return (
+    BOUNDARY.test(next) ||
+    COORDINATORS.has(next) ||
+    PREPOSITIONS.has(next) ||
+    ARTICLES.has(next) ||
+    DEMONSTRATIVES.has(next) ||
+    next === "mehr" ||
+    clauseVerb
+  );
+}
+
 function nounCasing(ctx: DetectContext): RawFinding[] {
   if (!isGerman(ctx)) return [];
   const findings: RawFinding[] = [];
@@ -505,7 +585,9 @@ function nounCasing(ctx: DetectContext): RawFinding[] {
         ? "noun"
         : germanNounOverAdjective(typed)
           ? "adjective"
-          : null);
+          : germanAdjectiveNoun(typed)
+            ? "either"
+            : null);
     if (!reading || ctx.dictionary.has(typed) || hasCanonicalCasing(typed)) continue;
     const end = m.index + typed.length;
     // Glued to a hyphen, apostrophe or slash; an abbreviation ("den sog. Strudel").
@@ -536,7 +618,12 @@ function nounCasing(ctx: DetectContext): RawFinding[] {
     const nextFirst = next.split("-")[0];
     if (/^\p{Lu}/u.test(next) && nextFirst !== nextFirst.toUpperCase()) continue;
     if (IDIOMS.test(ctx.text.slice(m.index, m.index + 24))) continue;
-    if (reading === "adjective") {
+    if (reading === "either") {
+      // After a preposition and an adjective ("in heißem fett"), as after an adjective alone.
+      const kind =
+        found.kind === "preposition" && found.at < before.length - 1 ? "adjective" : found.kind;
+      if (!eitherNounHolds(typed, kind, before, found.at, after)) continue;
+    } else if (reading === "adjective") {
       if (!adjectiveNounHolds(found.kind, before, found.at, after)) continue;
     } else if (
       reading !== "noun" &&

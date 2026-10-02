@@ -35,7 +35,7 @@ function joins(first: string, second: string, noun: boolean): boolean {
     let tail = low.slice(i);
     if (noun) {
       if (!knownNoun(tail)) continue;
-      if (knownNoun(first.toLowerCase() + tail)) return true;
+      if (tail.length >= 4 && knownNoun(first.toLowerCase() + tail)) return true;
       // "Vor und Nachteile", "Neu und Gebrauchtwagen": two modifiers on one noun, as the
       // dictionary lists few compounds whole.
       // A short adjective-like piece ("ger|undium") is no modifier.
@@ -62,6 +62,8 @@ function suspendedHyphen(ctx: DetectContext): RawFinding[] {
     const capital = /^\p{Lu}/u.test(first);
     // Both parts nouns ("Vor und Nachteile") or both lowercase ("ein und auszuloggen").
     if (capital !== /^\p{Lu}/u.test(second) || first.length > 14) continue;
+    // "die Unterlagen bis Freitag": "bis" between nouns is a range, not a shortened part.
+    if (capital && /bis/.test(m.groups!.join)) continue;
     if (ctx.dictionary.has(first.toLowerCase())) continue;
     let sure = false;
     if (capital) {

@@ -48,6 +48,11 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
     "germanNounCasing",
     {
       pos: [
+        // A noun that is also an adjective form, where the ending rules out the adjective.
+        ["Auch ich kann keine wunder bewirken.", "Auch ich kann keine Wunder bewirken."],
+        ["Hier liegt wohl kein defekt vor.", "Hier liegt wohl kein Defekt vor."],
+        ["Wir trafen uns an der bar.", "Wir trafen uns an der Bar."],
+        ["Das war ein notwendiges übel.", "Das war ein notwendiges Übel."],
         ["Die Braut heiratet in weiß.", "Die Braut heiratet in Weiß."],
         [
           "Wir haben gestern den vertrag unterschrieben.",
@@ -179,6 +184,13 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Ich bin mir nicht im klaren darüber.", "Ich bin mir nicht im Klaren darüber."],
       ],
       neg: [
+        "Der Weg wird kein leichter sein.",
+        "Das dürfte fürs erste reichen.",
+        "Ich schaue lieber fern.",
+        "Er macht mit ihr halb und halb.",
+        "Wir mieten ein fest installiertes Display.",
+        "Er trinkt seinen Kaffee am liebsten schwarz.",
+        "Sie hat ihm die Treue gehalten und ist geblieben.",
         "Das Wetter ist grau in grau.",
         "Die Ampel ist grün.",
         "Das ende ich jetzt sofort.",
@@ -491,6 +503,7 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ],
       ],
       neg: [
+        "Bitte schicken Sie mir die Unterlagen bis Freitag.",
         "Im Spanischen steht das Pronomen nach Infinitiv oder Gerundium.",
         "Wir feiern Peters und Marias Hochzeitstag.",
         "Sie rotteten das Unkraut mit Stumpf und Stiel aus.",

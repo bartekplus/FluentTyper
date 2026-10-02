@@ -9,6 +9,7 @@ import {
 import * as GENDER_DATA from "./germanGender.generated";
 import {
   ACCUSATIVE_VERBS,
+  ADJECTIVE_NOUNS,
   DATIVE_VERBS,
   NGRAM_NOUNS,
   NOUNS_OVER_ADJECTIVES,
@@ -149,6 +150,13 @@ let accusativeVerbs: Set<string> | undefined;
 export function germanNounOverAdjective(word: string): boolean {
   nounsOverAdjectives ??= frontDecoded(NOUNS_OVER_ADJECTIVES);
   return nounsOverAdjectives.has(word.normalize("NFC"));
+}
+
+let adjectiveNouns: Set<string> | undefined;
+/** A lowercase noun form that is also an adjective form, read either way ("wunder", "defekt"). */
+export function germanAdjectiveNoun(word: string): boolean {
+  adjectiveNouns ??= frontDecoded(ADJECTIVE_NOUNS);
+  return adjectiveNouns.has(word.normalize("NFC"));
 }
 
 /** The case of the one object a finite verb form takes ("hilft": dative, "fragt": accusative). */
