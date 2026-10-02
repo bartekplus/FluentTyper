@@ -2633,7 +2633,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           ["ftsig", "Other signature"],
           ["ftsignature", "Best regards"],
         ]);
-        await setGrammarRulesAndWait(worker!, []);
+        await setGrammarRulesAndWaitStable(worker!, [], 3, browserTimeout(5000, 7000));
         await applyConfigChange(browser, worker!);
         await gotoTestPage(page, { enableProseMirror: true });
         await page.bringToFront();
@@ -2677,7 +2677,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         expect((await readModel()).blocks[1]).toMatch(/[ \xa0]$/);
         expect((await readModel()).first).toEqual(original.first);
 
-        await page.evaluate(() => window.__testProseMirrorUndo!());
+        expect(await page.evaluate(() => window.__testProseMirrorUndo!())).toBe(true);
         await waitUntil(
           "ProseMirror undo restores prefix",
           async () => (await readModel()).blocks[1] === "w",
@@ -7432,7 +7432,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     "I think the GitHub release is ready, but there is one problem. We could have shipped on Monday with a lot of fixes. Run `teh build` first.";
 
   async function prepareReviewPage(
-    options: { enableQuill?: boolean; enableLexical?: boolean } = {},
+    options: { enableQuill?: boolean; enableLexical?: boolean; enableProseMirror?: boolean } = {},
   ) {
     await setGrammarRulesAndWaitStable(
       worker!,
@@ -9269,6 +9269,221 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       expect(panel.marks[0].top).toBeGreaterThan(box.top);
       expect(panel.marks[0].top + panel.marks[0].height).toBeLessThan(box.bottom);
       await finishReview();
+    },
+    browserTimeout(50000, 70000),
+  );
+
+  test(
+    "ProseMirror typing correction preserves marks and native undo without replay",
+    async () => {
+      await prepareReviewPage({ enableProseMirror: true });
+      await setGrammarRulesAndWait(worker!, ["englishTypoWhitelistCorrection"]);
+      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 20);
+      await applyConfigChange(browser, worker!);
+      await page.evaluate(() => {
+        const view = window.__testProseMirror!;
+        const doc = view.state.schema.nodeFromJSON({
+          type: "doc",
+          content: [
+            {
+              type: "paragraph",
+              content: [
+                {
+                  type: "text",
+                  text: "We saw ",
+                  marks: [
+                    { type: "strong" },
+                    { type: "link", attrs: { href: "https://example.com/keep", title: "Keep" } },
+                  ],
+                },
+              ],
+            },
+          ],
+        });
+        view.dispatch(view.state.tr.replaceWith(0, view.state.doc.content.size, doc.content));
+        view.focus();
+      });
+      await page.keyboard.press("End");
+      await page.keyboard.type("teh ");
+      await waitUntil(
+        "ProseMirror live correction updates model",
+        async () =>
+          await page.evaluate(
+            () => window.__testProseMirror!.state.doc.textContent === "We saw the ",
+          ),
+      );
+      expect(
+        await page.evaluate(() =>
+          window
+            .__testProseMirror!.state.doc.child(0)
+            .child(0)
+            .marks.map((mark) => mark.toJSON()),
+        ),
+      ).toEqual([
+        { type: "link", attrs: { href: "https://example.com/keep", title: "Keep" } },
+        { type: "strong" },
+      ]);
+      expect(
+        await page.evaluate(() => window.__testProseMirror!.state.doc.child(0).lastChild!.toJSON()),
+      ).toEqual({ type: "text", text: "the ", marks: [{ type: "strong" }] });
+      await pressNativeUndo(page, PROSEMIRROR_SELECTOR);
+      await waitUntil(
+        "ProseMirror correction undo keeps typed text",
+        async () =>
+          await page.evaluate(
+            () => window.__testProseMirror!.state.doc.textContent === "We saw teh ",
+          ),
+      );
+      await page.keyboard.type("cat.");
+      await waitUntil(
+        "ProseMirror typing after undo stays consistent",
+        async () =>
+          await page.evaluate(
+            () => window.__testProseMirror!.state.doc.textContent === "We saw teh cat.",
+          ),
+      );
+      await finishReview();
+      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+    },
+    browserTimeout(30000, 50000),
+  );
+
+  test(
+    "ProseMirror Review applies individual and batch corrections with split marks, model integrity and native history",
+    async () => {
+      await prepareReviewPage({ enableProseMirror: true });
+      await page.evaluate(() => {
+        const view = window.__testProseMirror!;
+        const schema = view.state.schema;
+        const doc = schema.nodeFromJSON({
+          type: "doc",
+          content: [
+            {
+              type: "paragraph",
+              content: [
+                { type: "text", text: "We saw " },
+                { type: "text", text: "te", marks: [{ type: "strong" }] },
+                { type: "text", text: "h", marks: [{ type: "em" }] },
+                { type: "text", text: " cat and " },
+                {
+                  type: "text",
+                  text: "teh",
+                  marks: [
+                    { type: "link", attrs: { href: "https://example.com/keep", title: "Keep" } },
+                  ],
+                },
+                { type: "text", text: " dog." },
+              ],
+            },
+            { type: "code_block", content: [{ type: "text", text: "teh protected" }] },
+            {
+              type: "paragraph",
+              content: [
+                { type: "image", attrs: { src: "/favicon.ico", alt: "keep", title: "keep" } },
+              ],
+            },
+          ],
+        });
+        view.dispatch(view.state.tr.replaceWith(0, view.state.doc.content.size, doc.content));
+      });
+      // Real browser click, not the fixture's view.focus(): exercise normal discovery.
+      await page.click(`${PROSEMIRROR_SELECTOR} p`);
+      const model = () => page.evaluate(() => window.__testProseMirror!.state.doc.toJSON());
+      const original = await model();
+      await triggerReview(worker!);
+      const panel = await waitForReview(
+        page,
+        "ProseMirror findings",
+        (p) => p.items.filter((item) => item.text === "teh → the").length === 2,
+      );
+      expect(panel.notes).not.toContain("Review only");
+      expect(panel.fixAll.hidden).toBe(false);
+      const finding = panel.items.find((item) => item.text === "teh → the")!;
+      await clickReviewControl(page, `.item[data-id="${finding.id}"]`);
+      await waitForReview(
+        page,
+        "ProseMirror individual card",
+        (p) => p.card.open && !p.card.applyDisabled,
+      );
+      await clickReviewControl(page, '.card [data-action="apply"]');
+      await waitUntil(
+        "ProseMirror individual corrected in model",
+        async () =>
+          await page.evaluate(
+            () =>
+              window.__testProseMirror!.state.doc.child(0).textContent ===
+              "We saw the cat and teh dog.",
+          ),
+      );
+      const individual = await model();
+      expect(individual.content[0].content.slice(1, 3)).toEqual([
+        { type: "text", text: "th", marks: [{ type: "strong" }] },
+        { type: "text", text: "e", marks: [{ type: "em" }] },
+      ]);
+      await finishReview();
+      await page.focus(PROSEMIRROR_SELECTOR);
+      await pressNativeUndo(page, PROSEMIRROR_SELECTOR);
+      await waitUntil(
+        "ProseMirror individual native undo",
+        async () => JSON.stringify(await model()) === JSON.stringify(original),
+      );
+      await setGrammarRulesAndWaitStable(
+        worker!,
+        DEFAULT_CURRENT_GRAMMAR_RULES,
+        3,
+        browserTimeout(5000, 7000),
+      );
+      await applyConfigChange(browser, worker!);
+      await page.focus(PROSEMIRROR_SELECTOR);
+      await triggerReview(worker!);
+      await waitForReview(
+        page,
+        "ProseMirror batch ready",
+        (p) =>
+          !p.fixAll.disabled && p.items.filter((item) => item.text === "teh → the").length === 2,
+      );
+      await clickReviewControl(page, '[data-action="fix-all"]');
+      await waitUntil(
+        "ProseMirror batch corrected in model",
+        async () =>
+          await page.evaluate(
+            () =>
+              window.__testProseMirror!.state.doc.child(0).textContent ===
+              "We saw the cat and the dog.",
+          ),
+      );
+      const corrected = await model();
+      expect(corrected.content.slice(1)).toEqual(original.content.slice(1));
+      expect(
+        corrected.content[0].content.find((node: { marks?: { type: string }[] }) =>
+          node.marks?.some((mark) => mark.type === "link"),
+        ),
+      ).toEqual({
+        type: "text",
+        text: "the",
+        marks: [{ type: "link", attrs: { href: "https://example.com/keep", title: "Keep" } }],
+      });
+      await page.evaluate(() => {
+        const view = window.__testProseMirror!;
+        view.updateState(view.state.reconfigure({ plugins: view.state.plugins }));
+      });
+      expect(await model()).toEqual(corrected);
+      await finishReview();
+      await pressNativeUndo(page, PROSEMIRROR_SELECTOR);
+      await waitUntil(
+        "ProseMirror batch native undo",
+        async () => JSON.stringify(await model()) === JSON.stringify(original),
+      );
+      const modifier = process.platform === "darwin" ? "Meta" : "Control";
+      await page.keyboard.down(modifier);
+      await page.keyboard.down("Shift");
+      await page.keyboard.press("z");
+      await page.keyboard.up("Shift");
+      await page.keyboard.up(modifier);
+      await waitUntil(
+        "ProseMirror batch native redo",
+        async () => JSON.stringify(await model()) === JSON.stringify(corrected),
+      );
     },
     browserTimeout(50000, 70000),
   );

@@ -52,13 +52,14 @@ function buildElementSnapshot(
   };
 }
 
-type DomEditResult = { didMutateDom: boolean; didDispatchInput: boolean };
-type EditResult = ContentEditableEditResult | DomEditResult;
+type DomEditResult = { didMutateDom: boolean; didDispatchInput: boolean; unverified?: boolean };
+type EditResult = (ContentEditableEditResult | DomEditResult) & { unverified?: boolean };
 
 interface TextEditApplyResult {
   applied: boolean;
   didDispatchInput: boolean;
   suppressedByManualRevert?: boolean;
+  unverified?: boolean;
 }
 
 interface AcceptedSuggestionEditResult {
@@ -66,6 +67,7 @@ interface AcceptedSuggestionEditResult {
   insertedText: string;
   cursorAfter: number;
   cursorAfterIsBlockLocal: boolean;
+  unverified?: boolean;
 }
 
 interface GrammarEditApplyContext {
@@ -316,6 +318,49 @@ export class SuggestionTextEditService {
     },
   ): boolean {
     if (!entry.pendingExtensionEdit) {
+      return false;
+    }
+
+    if (entry.elem.matches(".ProseMirror")) {
+      // The host owns undo. Keep FluentTyper's suppression/personalization bookkeeping,
+      // but let the chord/beforeinput reach its history instead of reversing the DOM.
+      const pending = entry.pendingExtensionEdit;
+      const snapshot = TextTargetAdapter.snapshot(entry.elem);
+      const fullText = `${snapshot.beforeCursor}${snapshot.afterCursor}`;
+      const block = pending.blockScoped
+        ? this.contentEditableAdapter.getBlockContext(entry.elem)
+        : null;
+      const start =
+        pending.replaceStart + (block ? snapshot.cursorOffset - block.beforeCursor.length : 0);
+      const end = start + pending.replacementText.length;
+      const expected = fullText.slice(0, start) + pending.originalText + fullText.slice(end);
+      entry.pendingExtensionEdit = null;
+      if (
+        fullText.slice(start, end) === pending.replacementText &&
+        TextTargetAdapter.matchesPostEditFingerprint(
+          entry.elem,
+          pending.postEditFingerprint,
+          snapshot,
+        )
+      ) {
+        if (pending.source === "grammar")
+          entry.manualAutoFixSuppression = this.createManualAutoFixSuppression({
+            ruleKey: this.resolveAutoFixRuleKey(
+              pending.sourceRuleId,
+              pending.originalText,
+              pending.replacementText,
+            ),
+            replaceStart: start,
+            fullText: expected,
+            cursorOffset: pending.cursorBefore,
+          });
+        clearSuggestions();
+        entry.elem.ownerDocument.defaultView?.requestAnimationFrame(() => {
+          if (!entry.elem.isConnected) return;
+          const after = TextTargetAdapter.snapshot(entry.elem);
+          if (`${after.beforeCursor}${after.afterCursor}` === expected) onSuccessfulUndo?.(pending);
+        });
+      }
       return false;
     }
 
@@ -646,6 +691,9 @@ export class SuggestionTextEditService {
             cursorAfter: blockCursorAfter,
           });
         }
+        if (applyResult === null && hostEditorSession && entry.elem.matches(".ProseMirror")) {
+          return { applied: false, didDispatchInput: false };
+        }
         if (applyResult === null) {
           applyResult = this.tryHostGrammarEditWithMatchingBlockText(
             entry.elem,
@@ -741,6 +789,7 @@ export class SuggestionTextEditService {
       "appliedBy" in applyResult && applyResult.appliedBy === "fallback-dom";
     if (
       edit.cursorOffset !== undefined &&
+      !applyResult.unverified &&
       !TextTargetAdapter.isTextValue(entry.elem) &&
       !caretPlacedSynchronously
     ) {
@@ -786,6 +835,7 @@ export class SuggestionTextEditService {
     }
 
     let postEditSnapshot: SuggestionSnapshot =
+      !applyResult.unverified &&
       !TextTargetAdapter.isTextValue(entry.elem) &&
       activeBlock !== null &&
       expectedBlockText !== null &&
@@ -798,6 +848,7 @@ export class SuggestionTextEditService {
         : TextTargetAdapter.snapshot(entry.elem);
     if (
       isStrictEdit &&
+      !applyResult.unverified &&
       !this.matchesExpectedGrammarResult(postEditSnapshot, expectedFullText, cursorAfter)
     ) {
       return { applied: false, didDispatchInput: applyResult.didDispatchInput };
@@ -806,6 +857,7 @@ export class SuggestionTextEditService {
 
     if (
       !isStrictEdit &&
+      !applyResult.unverified &&
       !TextTargetAdapter.isTextValue(entry.elem) &&
       !this.shouldPreferDomMutationForGrammar(entry.elem) &&
       !this.matchesExpectedGrammarResult(postEditSnapshot, expectedFullText, cursorAfter)
@@ -837,8 +889,9 @@ export class SuggestionTextEditService {
       sourceRuleId: edit.sourceRuleId,
     };
     return {
-      applied: true,
+      applied: !applyResult.unverified,
       didDispatchInput: finalApplyResult.didDispatchInput,
+      ...(applyResult.unverified ? { unverified: true } : {}),
     };
   }
 
@@ -943,7 +996,6 @@ export class SuggestionTextEditService {
           })
         : null;
 
-    consumeKeyboardEvent(event);
     logger.debug("Applying delayed post-accept spacing", {
       suggestionId: entry.id,
       key,
@@ -961,12 +1013,13 @@ export class SuggestionTextEditService {
         replacementText,
         cursorAfter,
       });
-      if (result.applied) {
+      if (result.applied || result.unverified) {
+        consumeKeyboardEvent(event);
         return;
       }
     }
 
-    this.replaceTextByOffsets(
+    const result = this.replaceTextByOffsets(
       entry.elem,
       fullText,
       replaceStart,
@@ -977,6 +1030,8 @@ export class SuggestionTextEditService {
         scopeRoot: activeBlock,
       },
     );
+    if (result.didMutateDom || ("appliedBy" in result && result.appliedBy === "host-beforeinput"))
+      consumeKeyboardEvent(event);
   }
 
   private clearMissingTrailingSpaceState(entry: SuggestionEntry): void {
@@ -1304,6 +1359,12 @@ export class SuggestionTextEditService {
     request: Parameters<HostEditorSession["applyBlockReplacement"]>[0],
   ): DomEditResult | null {
     const hostResult = session.applyBlockReplacement(request);
+    if (hostResult.unverified)
+      return {
+        didMutateDom: true,
+        didDispatchInput: hostResult.didDispatchInput,
+        unverified: true,
+      };
     return hostResult.applied
       ? { didMutateDom: true, didDispatchInput: hostResult.didDispatchInput }
       : null;
@@ -1358,16 +1419,14 @@ export class SuggestionTextEditService {
     hostEditorSession: HostEditorSession | null;
   }): EditResult {
     if (hostEditorSession) {
-      const result = hostEditorSession.applyBlockReplacement({
-        replaceStart,
-        replaceEnd,
-        replacementText,
-        cursorAfter,
-      });
-      return {
-        didMutateDom: result.applied,
-        didDispatchInput: result.didDispatchInput,
-      };
+      return (
+        this.applyHostReplacement(hostEditorSession, {
+          replaceStart,
+          replaceEnd,
+          replacementText,
+          cursorAfter,
+        }) ?? { didMutateDom: false, didDispatchInput: false }
+      );
     }
 
     // When the primary host session match failed (e.g. BR-separated line
@@ -1548,7 +1607,11 @@ export class SuggestionTextEditService {
         postEditBlockContext?.beforeCursor.length ??
         cursorAfter);
 
-    if (hostEditorApplied && activeBlock.textContent === postEditBlockText) {
+    if (
+      hostEditorApplied &&
+      !applyResult.unverified &&
+      activeBlock.textContent === postEditBlockText
+    ) {
       this.contentEditableAdapter.setCaret(activeBlock, postEditCursorAfter);
     }
 
@@ -1590,6 +1653,7 @@ export class SuggestionTextEditService {
       insertedText: replacementText,
       cursorAfter: postEditCursorAfter,
       cursorAfterIsBlockLocal: true,
+      ...(applyResult.unverified ? { unverified: true } : {}),
     };
   }
 

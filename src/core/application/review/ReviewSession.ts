@@ -82,7 +82,7 @@ export interface ReviewCapabilities {
   undo: "single-step" | "per-edit" | "host-history" | "none";
 }
 
-interface ReviewTargetText {
+export interface ReviewTargetText {
   text: string;
   /** Code, non-editable islands and virtual block separators, in `text` offsets. */
   protectedRanges: ProtectedRange[];

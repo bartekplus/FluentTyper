@@ -1,3 +1,5 @@
+import type { ReviewTargetText, ReviewApplyResult } from "@core/application/review/ReviewSession";
+import type { ReviewEdit } from "@core/domain/grammar/review/types";
 import type { HostEditorApplyResult } from "./HostEditorAdapterResolver";
 import type { LineEditorBlockContext } from "./HostEditorControllerUtils";
 import {
@@ -20,6 +22,14 @@ export interface HostEditorPageBridge {
 }
 
 type BridgeRequest =
+  | { action: "readProseMirror" }
+  | {
+      action: "applyProseMirror";
+      edits: ReviewEdit[];
+      before: string;
+      after: string;
+      signature: string;
+    }
   | {
       action: "getBlockContext";
     }
@@ -28,6 +38,8 @@ type BridgeRequest =
     } & HostEditorBridgeApplyArgs);
 
 type BridgeResponse =
+  | { ok: true; snapshot: ReviewTargetText }
+  | { ok: true; reviewResult: ReviewApplyResult }
   | {
       ok: true;
       blockContext: LineEditorBlockContext;
@@ -42,6 +54,26 @@ type BridgeResponse =
 
 export class InjectedHostEditorPageBridge implements HostEditorPageBridge {
   constructor(private readonly doc: Document = document) {}
+
+  public readProseMirror(elem: HTMLElement): ReviewTargetText | null {
+    const response = this.dispatchRequest(elem, { action: "readProseMirror" });
+    return response?.ok && "snapshot" in response ? response.snapshot : null;
+  }
+
+  public applyProseMirror(
+    elem: HTMLElement,
+    request: {
+      edits: ReviewEdit[];
+      before: string;
+      after: string;
+      signature: string;
+    },
+  ): ReviewApplyResult {
+    const response = this.dispatchRequest(elem, { action: "applyProseMirror", ...request });
+    return response?.ok && "reviewResult" in response
+      ? response.reviewResult
+      : { status: "rejected", reason: "unsupported" };
+  }
 
   public getBlockContextAtSelection(elem: HTMLElement): LineEditorBlockContext | null {
     const response = this.dispatchRequest(elem, { action: "getBlockContext" });
