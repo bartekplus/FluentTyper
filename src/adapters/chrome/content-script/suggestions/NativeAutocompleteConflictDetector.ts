@@ -117,7 +117,12 @@ function hasUsableDatalist(element: HTMLElement): boolean {
 }
 
 export function reservesAutocompleteArrow(element: HTMLElement, event: KeyboardEvent): boolean {
-  if (event.key !== "ArrowDown" && !(event.altKey && event.key.startsWith("Arrow"))) return false;
+  if (
+    event.key !== "ArrowDown" &&
+    event.key !== "ArrowUp" &&
+    !(event.altKey && event.key.startsWith("Arrow"))
+  )
+    return false;
   return (
     hasUsableDatalist(element) ||
     // Explicit comboboxes may populate their popup only after the opening gesture.

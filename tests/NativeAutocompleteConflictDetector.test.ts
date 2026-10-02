@@ -60,7 +60,11 @@ describe("native field eligibility and interaction evidence", () => {
     '<input aria-haspopup="false">',
   ])("does not reserve opening arrows for unusable metadata: %s", (html) => {
     const input = field(html);
-    for (const init of [{ key: "ArrowDown" }, { key: "ArrowUp", altKey: true }]) {
+    for (const init of [
+      { key: "ArrowDown" },
+      { key: "ArrowUp" },
+      { key: "ArrowUp", altKey: true },
+    ]) {
       expect(reservesAutocompleteArrow(input, new window.KeyboardEvent("keydown", init))).toBe(
         false,
       );
@@ -88,6 +92,18 @@ describe("native field eligibility and interaction evidence", () => {
     expect(reservesAutocompleteArrow(input, arrow)).toBe(false);
   });
   test.each([
+    '<input list="choices"><datalist id="choices"><option value="Paris"></option></datalist>',
+    '<input type="search" role="combobox">',
+    '<input aria-controls="choices"><div id="choices" role="listbox" hidden><div role="option">Choice</div></div>',
+  ])("reserves plain ArrowUp for autocomplete widgets: %s", (html) => {
+    expect(
+      reservesAutocompleteArrow(
+        field(html),
+        new window.KeyboardEvent("keydown", { key: "ArrowUp" }),
+      ),
+    ).toBe(true);
+  });
+  test.each([
     "name",
     "given-name",
     "email",
@@ -103,6 +119,8 @@ describe("native field eligibility and interaction evidence", () => {
   test.each([
     '<input type="password">',
     '<input name="pass">',
+    '<input name="passcode">',
+    '<input id="login_passphrase">',
     '<input name="login_pass">',
     '<input id="passInput">',
     '<input autocomplete="one-time-code">',

@@ -1075,11 +1075,17 @@ describe("Google Docs cross-world fixture (not live Docs)", () => {
     await waitUntil("docs card", async () => (await reviewPanel()).cardOpen);
     await clickInReview(".card [data-action=apply]");
     await expectText("See the plan.");
+    // The model changes before the cross-world apply finishes. A programmatic
+    // click restores keyboard focus to the panel only after that acknowledgement.
+    await waitUntil("restart fix completed", async () =>
+      (await reviewPanel()).status.includes("Fixed: 1."),
+    );
     // Typing in Docs still rechecks the review, without touching the panel.
     await page.evaluate(() => {
       (window as unknown as { focusEditor: () => void }).focusEditor();
     });
     await page.keyboard.type(" teh ", { delay: TYPING_DELAY_MS });
+    await expectText("See the plan. teh ");
     await waitUntil("recheck after restart", async () =>
       (await reviewPanel()).items.includes("teh \u2192 the"),
     ).catch(async (error) => {

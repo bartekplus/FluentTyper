@@ -1,7 +1,7 @@
 const SECRET_AUTOCOMPLETE =
   /(?:^|\s)(?:current-password|new-password|one-time-code|cc-[a-z-]+)(?:\s|$)/;
 const SECRET_NAME =
-  /pass(?:word|wd)|(?<![a-z0-9])pass(?![a-z0-9])|pwd|otp|one.?time|cvc|cvv|csc|card.?num|cc.?num|security.?code|\bpin\b|(?<![a-z0-9])(?:ssn|[2m]fa)(?![a-z0-9])|social.?security|totp|verif(?:y|ication).?code|auth.?code/i;
+  /pass(?:word|wd|code|phrase)|(?<![a-z0-9])pass(?![a-z0-9])|pwd|otp|one.?time|cvc|cvv|csc|card.?num|cc.?num|security.?code|\bpin\b|(?<![a-z0-9])(?:ssn|[2m]fa)(?![a-z0-9])|social.?security|totp|verif(?:y|ication).?code|auth.?code/i;
 
 /**
  * Fields whose content is a secret or not prose: passwords, one-time codes,
