@@ -243,6 +243,13 @@ const FRAMES: Frame[] = [
     alternatives: ["está"],
     messageKey: "review_msg_pt_homophone",
   },
+  // "esta a fazer" is the European progressive "está a fazer": a demonstrative never stands
+  // before "a" and an infinitive.
+  {
+    pattern: `(?<target>esta)${S}(?=a${S}\\p{Ll}{2,}(?:ar|er|ir|or)(?:-\\p{Ll}+)?${W})`,
+    alternatives: ["está"],
+    messageKey: "review_msg_pt_homophone",
+  },
   // "poço" (well) before an infinitive or an object pronoun is "posso" (I can).
   {
     pattern: `(?<!(?:o|um|do|no|ao|pelo|esse|este|aquele|seu|meu|nosso|teu|cada|algum|nenhum|qualquer|grande|pequeno|fundo|velho)${S})(?<target>poço)${S}(?=(?:me|te|lhe|lhes|nos|vos|se|\\p{Ll}+[aeiô]r)${W})`,

@@ -11,6 +11,8 @@ import type { DetectContext, RawFinding } from "../reviewDetectors";
  * - A greeting or thanks before the name it addresses ("Bom dia Ana" -> "Bom dia, Ana").
  * - A repeated "não" or "sim" answering a question ("Não não quero" -> "Não, não quero").
  * - "Por exemplo" opening a sentence ("Por exemplo hoje choveu").
+ * - An emphatic "sim" between a modal and its infinitive ("Devemos, sim, lutar"), the
+ *   addressee after an answer ("sim, senhor!") and "mas" before an aside ("bem, mas, como").
  * - A letter's greeting or closing on a line of its own ("Prezado Senhor", "Atenciosamente").
  * - A question opened by a question word and "é que" ends with "?" ("O que é que houve.").
  */
@@ -52,6 +54,17 @@ const LINE_END = `(?=[ \\t\\u00a0]{0,8}(?:\\n|$))`;
 const CLOSING = `(?<=^|\\n)[ \\t\\u00a0]{0,8}(?=(?:${CLOSINGS})[.;]?${LINE_END})(?:\\p{L}{1,30}${S}){0,6}(?<target>\\p{L}{1,30}[.;]?)${LINE_END}`;
 const GREETING_LINE = `(?<=^|\\n)[ \\t\\u00a0]{0,8}(?:prezad[oa]s?|car[oa]s?|estimad[oa]s?|querid[oa]s?)(?:${S}(?:senhor(?:a|es|as)?|sr\\.?|sra\\.?|dr\\.?|dra\\.?|doutor(?:a)?|professor(?:a)?|\\p{Lu}[\\p{L}.]*|e|senhores|senhoras|colegas|amigos|amigas|clientes)){0,4}${S}(?<target>[\\p{L}.]{1,30}!?)${LINE_END}`;
 const ASKS = `(?<=^|[.!?;\\n][ \\t\\u00a0]{0,8})(?:quem|o${S}que|que|como|onde|de${S}onde|aonde|quando|por${S}que|qual|quanto|quantos|quantas)${S}(?:foi|é|era)${S}que${W}[^.!?\\n]{1,160}?(?<target>\\.)(?=[ \\t\\u00a0]*(?:\\n|$|\\p{Lu}))`;
+
+// "Devemos sim lutar" -> "Devemos, sim, lutar": an emphatic "sim" between a modal and its
+// infinitive stands between commas.
+const MODALS =
+  "devo|deve|devemos|devem|deveria|deveríamos|deveriam|posso|pode|podemos|podem|poderia|poderíamos|poderiam|quero|quer|queremos|querem|vou|vai|vamos|vão|preciso|precisa|precisamos|precisam";
+const EMPHATIC_SIM = `(?:${MODALS})(?<before>,?)${S}sim(?<after>,?)(?=${S}\\p{Ll}+(?:ar|er|ir|or)${W})`;
+// "sim senhor!", "não senhora.": the addressee after the answer.
+const ANSWER_ADDRESS = `(?:sim|não)(?<target>${S})(?=senhor(?:a|es|as)?[ \\t\\u00a0]{0,8}[.!?,;])`;
+// "as melhores intenções mas, porque..." -> ", mas,": an aside after "mas" means "mas" opens a
+// clause, which takes a comma before it.
+const MAS_ASIDE = `(?<lead>\\p{L}+|\\d+|\\))(?<target>${S})mas(?=,)`;
 
 const SUBJECTS = new Set("eu tu ele ela você nós eles elas vocês".split(" "));
 // "Como é que ele descobriu é um mistério", "O que ele quer eu não sei": an indirect question
@@ -105,6 +118,26 @@ export function commas(ctx: DetectContext): RawFinding[] {
   }
   for (const m of frameMatches(ctx, REPEATED)) push(findings, m, (typed) => `,${typed}`);
   for (const m of frameMatches(ctx, OPENER)) push(findings, m, (typed) => `,${typed}`);
+  for (const m of frameMatches(ctx, ANSWER_ADDRESS)) push(findings, m, (typed) => `,${typed}`);
+  for (const m of frameMatches(ctx, MAS_ASIDE)) {
+    if (/^(?:e|ou|nem)$/iu.test(m.groups!.lead)) continue;
+    push(findings, m, (typed) => `,${typed}`);
+  }
+  for (const m of frameMatches(ctx, EMPHATIC_SIM, null)) {
+    const { before, after } = m.groups!;
+    if (before && after) continue;
+    const [start] = m.indices!.groups!.before;
+    const end = m.index + m[0].length;
+    if (start < ctx.from || start >= ctx.to) continue;
+    const typed = ctx.text.slice(start, end);
+    findings.push({
+      ruleId: "portugueseCommas",
+      messageKey: "review_msg_pt_comma",
+      range: { start, end },
+      alternatives: [`, ${typed.replace(/^,?[ \t ]+/, "").replace(/,$/, "")},`],
+      context: { start: m.index, end },
+    });
+  }
   for (const m of frameMatches(ctx, CLOSING))
     push(findings, m, (typed) => typed.replace(/[.;]?$/, ","));
   for (const m of frameMatches(ctx, GREETING_LINE)) {

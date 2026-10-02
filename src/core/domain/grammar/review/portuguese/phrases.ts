@@ -1,4 +1,5 @@
 import type { PhraseRow } from "../englishPhraseTables";
+import { PORTUGUESE_STYLE_EXTRA } from "./style";
 
 /**
  * Portuguese fixed frames for the `pt` phrase table (englishPhraseCorrections):
@@ -62,7 +63,62 @@ export const PORTUGUESE_WORDS: PhraseRow[] = [
   ["atras", "atrás"],
 ];
 
+/**
+ * "melhor educado" -> "mais bem-educado", "pior humorados" -> "mais mal-humorados": before an
+ * adjective compounded with bem- or mal-, the comparative keeps "mais" and the compound.
+ */
+const COMPARED_COMPOUNDS: PhraseRow[] = (
+  [
+    ["melhor", "bem-", ["educad", "humorad", "sucedid", "intencionad", "comportad"]],
+    ["pior", "mal-", ["educad", "humorad", "intencionad", "comportad"]],
+    ["pior", "mal", ["sucedid"]],
+  ] as Array<[string, string, string[]]>
+).flatMap(([comparative, prefix, stems]) =>
+  stems.flatMap((stem) =>
+    ["o", "a", "os", "as"].flatMap((ending): PhraseRow[] => {
+      const word = `${stem}${ending}`;
+      const typed = ending.length > 1 ? [comparative, `${comparative}es`] : [comparative];
+      return typed.flatMap((form): PhraseRow[] => [
+        [`${form} ${word}`, `mais ${prefix}${word}`],
+        [`${form}-${word}`, `mais ${prefix}${word}`],
+      ]);
+    }),
+  ),
+);
+
+/**
+ * "na aquela hora" -> "naquela", "do este lado" -> "deste": a contracted article never stands
+ * before a demonstrative, which takes the preposition itself. "da" may also be the verb "dá".
+ */
+const DOUBLED_DETERMINERS: PhraseRow[] = [
+  ..."aquele aquela aqueles aquelas aquilo este esta estes estas isto esse essa esses essas isso".split(
+    " ",
+  ),
+].flatMap((demonstrative): PhraseRow[] => [
+  ...["no", "na", "nos", "nas"].map((article): PhraseRow => [
+    `${article} ${demonstrative}`,
+    `n${demonstrative}`,
+  ]),
+  ...["do", "dos", "das"].map((article): PhraseRow => [
+    `${article} ${demonstrative}`,
+    `d${demonstrative}`,
+  ]),
+  [`da ${demonstrative}`, [`d${demonstrative}`, `dá ${demonstrative}`]],
+  ...["pelo", "pela", "pelos", "pelas"].map((article): PhraseRow => [
+    `${article} ${demonstrative}`,
+    `por ${demonstrative}`,
+  ]),
+  ...(demonstrative.startsWith("aque")
+    ? ["ao", "à", "aos", "às"].map((article): PhraseRow => [
+        `${article} ${demonstrative}`,
+        `à${demonstrative.slice(1)}`,
+      ])
+    : []),
+]);
+
 export const PORTUGUESE_PHRASES: PhraseRow[] = [
+  ...COMPARED_COMPOUNDS,
+  ...DOUBLED_DETERMINERS,
   // No crase before a masculine noun, a pronoun or a verb: "a pé", "a mim", "a esta", "a partir".
   ...swap("à", "a", [
     "pé",
@@ -477,7 +533,7 @@ function regular(infinitive: string): string[] {
       infinitive,
       `${stem}a`,
       `${stem}am`,
-      `${stem}ei`,
+      `${stem.replace(/c$/, "qu").replace(/g$/, "gu").replace(/ç$/, "c")}ei`,
       `${stem}ou`,
       `${stem}aram`,
       `${stem}ando`,
@@ -584,7 +640,14 @@ const PLEONASMS: PhraseRow[] = [
   ] as PhraseRow[]),
 ];
 
-export const PORTUGUESE_STYLE: PhraseRow[] = [
+const STYLE: PhraseRow[] = [
+  ["subir para cima", "subir"],
+  ["descer para baixo", "descer"],
+  ["entrar para dentro", "entrar"],
+  ["sair para fora", "sair"],
+  ["elo de ligação", "elo"],
+  ["encarar de frente", "encarar"],
+  ["há anos atrás", ["há anos", "anos atrás"]],
   ...["considerado", "considerada", "considerados", "consideradas"].flatMap((form): PhraseRow[] => [
     [`${form} como sendo`, form],
     [`${form} como`, form],
@@ -716,4 +779,15 @@ export const PORTUGUESE_STYLE: PhraseRow[] = [
   ["agr", "agora"],
   ["obg", ["obrigado", "obrigada"]],
   ["pq", ["porque", "por que", "por quê"]],
+];
+
+const listed = new Set(
+  [...PORTUGUESE_WORDS, ...PORTUGUESE_PHRASES, ...STYLE].flatMap(([typed]) =>
+    [typed].flat().map((form) => form.toLowerCase()),
+  ),
+);
+/** Optional wording advice for the `pt` style table (stylePhrasing). */
+export const PORTUGUESE_STYLE: PhraseRow[] = [
+  ...STYLE,
+  ...PORTUGUESE_STYLE_EXTRA.filter(([typed]) => !listed.has([typed].flat()[0].toLowerCase())),
 ];
