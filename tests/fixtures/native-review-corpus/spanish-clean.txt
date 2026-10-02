@@ -731,3 +731,13 @@ No vino, pero si viene mañana lo verás.
 La empresa fabrica coches y mi madre critica eso.
 En el año 2010 practicas más que ahora.
 Estoy cien por cien convencido de que funcionará.
+# Compounds, contractions, amounts and abbreviations that are already right.
+Vive cerca del río y se lo dio al que llegó antes; habló de él.
+El ala derecha del avión y el ala delta del club.
+Grabé una macro nueva y compramos un minibar.
+Nos hemos ido cansados y lo dije de veras.
+Ganó millones de dinero público; hay miles de millones de estrellas.
+Somos conscientes del problema y soy todo oídos.
+Habló con el Dr. Pérez sobre la pág. 12 del informe n.º 7.
+El portal mide 5 m y pagamos 300 euros.
+Es la casa de al lado y dijo que de su casa salió.

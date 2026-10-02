@@ -463,10 +463,24 @@ const PLAIN_SI_PREV = words("que pues eso claro ahora creo");
 const TEA = words("verde negro rojo blanco chino japonés inglés frío caliente helado con y de del");
 
 // Bare objects "dar" takes in set phrases: "dé cuenta", "dé voz", "dé las gracias".
-const GIVEN = words("cuenta voz gracias permiso asentimiento golpecitos crédito importancia");
-const giveObject = (at: Around) =>
-  (GIVEN.has(at.next()) && (at.endsAfter(1) || /^(?:de|del|a|al|por|para|y)$/u.test(at.next(2)))) ||
-  (at.next() === "a" && at.next(2) === "luz");
+const GIVEN = words(
+  "cuenta voz gracias permiso asentimiento golpecitos crédito importancia consentimiento " +
+    "aprobación apoyo bendición",
+);
+// What "dar" gives with an article: "que Dios dé una respuesta", "que dé un alarido".
+const GIVEN_WITH_ARTICLE = words("respuesta alarido abrazo beso consejo");
+const giveObject = (at: Around) => {
+  // "que no dé su asentimiento": a possessive before the bare object.
+  const k = /^(?:su|sus|tu|tus|mi|mis)$/u.test(at.next()) ? 2 : 1;
+  return (
+    (GIVEN.has(at.next(k)) &&
+      (at.endsAfter(k) || /^(?:de|del|a|al|por|para|y)$/u.test(at.next(k + 1)))) ||
+    (/^(?:un|una)$/u.test(at.next()) && GIVEN_WITH_ARTICLE.has(at.next(2))) ||
+    (at.next() === "a" && at.next(2) === "luz") ||
+    // "que cada uno dé según su corazón": "de" governs no other preposition.
+    /^(?:con|según)$/u.test(at.next())
+  );
+};
 // Subjects that may stand between the subjunctive trigger and "dé".
 const SUBJECT_FILLERS = words("él ella usted alguien nadie dios uno cada mismo ahora no nunca ya");
 

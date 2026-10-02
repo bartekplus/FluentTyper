@@ -164,8 +164,17 @@ const CHECKS: Record<string, Check> = {
   // "¡Ola!", "Ola, Juan": a greeting.
   ola: (at) => {
     const next = at.tokens[at.i + 1];
+    // "decir ola", "¿Ola, qué tal?", "Ola qué tal": a greeting said or opening a question.
+    if (
+      /^(?:decir|decirle|decirte|dije|dijo|digo|dice|saludar)$/u.test(at.prev()) &&
+      at.endsAfter()
+    )
+      return ["hola"];
     return at.starts &&
-      (!next || /^[,!]$/u.test(next.text) || (next.word && /^\p{Lu}/u.test(next.text)))
+      (!next ||
+        /^[,!]$/u.test(next.text) ||
+        (next.word && /^\p{Lu}/u.test(next.text)) ||
+        /^(?:qué|cómo|quién)$/u.test(next.lower))
       ? ["hola"]
       : null;
   },

@@ -116,7 +116,8 @@ const FEMININE_MA = words(
 );
 // Nouns in -o that are feminine.
 const FEMININE_O = words(
-  "mano foto moto libido seo nao dinamo dínamo polio demo expo info porno quimio crono " + "eco",
+  "mano foto moto libido seo nao dinamo dínamo polio demo expo info porno quimio crono " +
+    "eco macro",
 );
 const FEMININE_OR = words("flor labor coliflor sor");
 // Either gender: a person noun ("el/la atleta", "el/la testigo"), a colour ("el rosa"), or
@@ -390,7 +391,9 @@ function determinerNoun(ctx: DetectContext, tokens: Token[], i: number): RawFind
   // "Esta situado": "está" before a participle.
   if (/^(?:esta|estas|este)$/u.test(detToken.lower) && participle(word)) return null;
   // "de unos recompensa", "otras cultural": a pronoun before a verb or an adjective.
-  if (ELLIPTIC.has(detToken.lower) && (finiteVerb(word) || !noun.gender)) return null;
+  // "unos recepcionista": a person noun of either gender still has a number.
+  const person = !noun.gender && !noun.plural && EITHER_ENDING.test(word);
+  if (ELLIPTIC.has(detToken.lower) && (finiteVerb(word) || (!noun.gender && !person))) return null;
   // "el mano a mano", "el boca a boca": a fixed pair.
   if (tokens[i + 3]?.lower === word && /^(?:a|con|por)$/u.test(tokens[i + 2]?.lower ?? ""))
     return null;

@@ -1639,7 +1639,125 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
       ],
     },
   ],
+  [
+    "spanishConfusions",
+    "contractions, a la, y demás, q, compounds after a determiner or in quotes, irse + gerund",
+    {
+      pos: [
+        ["Vivo cerca de el río.", "Vivo cerca del río."],
+        ["Dáselo a el que llegue antes.", "Dáselo al que llegue antes."],
+        ["Mañana voy ala oficina.", "Mañana voy a la oficina."],
+        ["Trajeron pan, queso y de más.", "Trajeron pan, queso y demás."],
+        ["No sé q decir.", "No sé que decir."],
+        ["Compramos un mini bar.", "Compramos un minibar."],
+        ["Sus tíos la sobre protegen.", "Sus tíos la sobreprotegen."],
+        ["Necesito un abre-latas.", "Necesito un abrelatas."],
+        ["Es un «saca corchos» viejo.", "Es un «sacacorchos» viejo."],
+        ["Nos hemos ido alejado del centro.", "Nos hemos ido alejando del centro."],
+        ["Lo supe desde es niño.", "Lo supe desde que es niño."],
+        ["Fui a decirle ola.", "Fui a decirle hola."],
+      ],
+      neg: [
+        "Habló de el.",
+        "Y A el área le sumamos B.",
+        "Vuela en ala delta.",
+        "El ala derecha del avión.",
+        "La letra q es rara.",
+        "Grabé una macro nueva.",
+        "Usa una macro para eso.",
+        "Escribe sobre animales.",
+        "Nos hemos ido cansados.",
+        "Lo dije de veras.",
+        "La de es la cuarta letra.",
+        "Una ola gigante.",
+      ],
+    },
+  ],
+  [
+    "spanishAccents",
+    "dé before con, según, a possessive object or an article and its object",
+    {
+      pos: [
+        ["Que de con generosidad.", "Que dé con generosidad."],
+        ["Que cada uno de según pueda.", "Que cada uno dé según pueda."],
+        ["Espero que no de su permiso.", "Espero que no dé su permiso."],
+        ["Ojalá que alguien de una respuesta.", "Ojalá que alguien dé una respuesta."],
+        ["Pide que nadie de su aprobación.", "Pide que nadie dé su aprobación."],
+      ],
+      neg: [
+        "Es la casa de al lado.",
+        "Dijo que de su casa salió.",
+        "Espero que de una vez llegue.",
+        "Que de un golpe lo rompió.",
+        "Lo sé de su madre.",
+      ],
+    },
+  ],
+  [
+    "spanishAgreement",
+    "a person noun's number, nouns counted by miles or decenas, a singular copula's attribute",
+    {
+      pos: [
+        ["Hablé con unos periodista.", "Hablé con un periodista."],
+        ["Lo vio otras dentista.", "Lo vio otra dentista."],
+        ["Cayeron decenas de árbol.", "Cayeron decenas de árboles."],
+        ["Asistieron miles de estudiante.", "Asistieron miles de estudiantes."],
+        ["Soy conscientes del problema.", "Soy consciente del problema."],
+        ["Estoy cansados de esperar.", "Estoy cansado de esperar."],
+        ["Eres capaces de todo.", "Eres capaz de todo."],
+      ],
+      neg: [
+        "Ganó millones de dinero público.",
+        "Miles de millones de estrellas.",
+        "Soy todo oídos.",
+        "Tú y yo estamos cansados.",
+        "Somos conscientes del problema.",
+        "Unos dicen que sí.",
+      ],
+    },
+  ],
+  [
+    "spanishTypography",
+    "the number sign, abbreviation periods, a glued count, a capitalized opening article",
+    {
+      pos: [
+        ["Vive en el portal n° 7.", "Vive en el portal n.º 7."],
+        ["Habló con el Dr Pérez.", "Habló con el Dr. Pérez."],
+        ["Está en la pág 12.", "Está en la pág. 12."],
+        ["Pagamos 300euros.", "Pagamos 300 euros."],
+        ["LA reunión fue larga.", "La reunión fue larga."],
+      ],
+      neg: [
+        "Vive en el portal n.º 7.",
+        "N° 12 del registro.",
+        "Habló con el Dr. Pérez.",
+        "Mide 5km de largo.",
+        "EL PAÍS publicó la noticia.",
+        "LAS 3 LEYES DE NEWTON.",
+      ],
+    },
+  ],
 ];
+
+test("a Spanish preposition before a conjugated verb is flagged without a fix", () => {
+  for (const text of [
+    "De debería probar otra vez.",
+    "Lo hizo en cantaba.",
+    "Es de llegaron tarde.",
+  ]) {
+    const found = findings("spanishConfusions", text);
+    expect(found).toHaveLength(1);
+    expect(found[0].alternatives).toEqual([]);
+  }
+  for (const text of [
+    "Lo dije de veras.",
+    "Ganó con creces.",
+    "Vamos de compras.",
+    "Vuelve de arriba abajo.",
+    "Viene de la oficina.",
+  ])
+    expect(findings("spanishConfusions", text)).toEqual([]);
+});
 
 describe.each(FIXTURES)("%s: %s", (ruleId, _family, fixture) => {
   test("at least 5 positives and 5 negatives", () => {

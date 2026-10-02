@@ -374,6 +374,11 @@ export type ReviewMessageKey =
   | "review_msg_spanish_quotes"
   | "review_msg_spanish_doubled_pronoun"
   | "review_msg_spanish_alta"
+  | "review_msg_spanish_preposition_verb"
+  | "review_msg_spanish_contraction"
+  | "review_msg_spanish_abbreviation_period"
+  | "review_msg_spanish_number_space"
+  | "review_msg_spanish_capital_article"
   // French (review/french/)
   | "review_msg_fr_past_participle"
   | "review_msg_fr_infinitive"

@@ -366,8 +366,37 @@ function marks(ctx: DetectContext): RawFinding[] {
     },
     "review_msg_spanish_unit",
   );
+  // "n° 18", "n°18": the number sign is "n.º", with the raised o, not a degree.
+  scan(new RegExp(NUMBER_SIGN), ([, n]) => `${n}.º `, "review_msg_spanish_ordinal");
+  // "el Sr García", "en el núm 25": an abbreviation before a name or a number takes its period.
+  scan(
+    new RegExp(BARE_ABBREVIATION),
+    ([abbreviation]) => `${abbreviation}.`,
+    "review_msg_spanish_abbreviation_period",
+  );
+  // "2000euros", "5000habitantes": a number glued to the noun it counts.
+  scan(
+    new RegExp(GLUED_COUNT),
+    ([, n, noun]) => (isNoun(noun) && noun.endsWith("s") ? `${n} ${noun}` : null),
+    "review_msg_spanish_number_space",
+  );
+  // "LA semana pasada", "EL 2 de diciembre": an article in capitals opening a sentence of
+  // lowercase words.
+  scan(
+    new RegExp(SHOUTED_ARTICLE),
+    ([article]) => `${article[0]}${article.slice(1).toLowerCase()}`,
+    "review_msg_spanish_capital_article",
+  );
   return findings;
 }
+
+// A degree sign right after a lowercase "n" ("n° 18"); "N° 54" heads forms and is left alone.
+const NUMBER_SIGN = /(?<![\p{L}\p{N}])(n)[ \t]?°[ \t]?(?=\p{N})/gu;
+const BARE_ABBREVIATION =
+  /(?<![\p{L}\p{N}.])(?:(?:Sr|Sra|Srta|Dr|Dra|Avda|Av|Lic|Ing|Prof)(?=[ \t]\p{Lu}\p{Ll})|(?:núm|pág|págs)(?=[ \t]\p{N}))(?![.\p{L}])/gu;
+const GLUED_COUNT = /(?<![\p{L}\p{N}.,])(\p{N}+(?:[.,]\p{N}{3})*)(\p{Ll}{4,})(?![\p{L}\p{N}])/gu;
+const SHOUTED_ARTICLE =
+  /(?<=(?:^|[.!?¡¿][ \t]{0,8}|\n))(?:EL|LA|LOS|LAS|UN|UNA|UNOS|UNAS)(?=[ \t]{1,8}(?:\p{N}+[ \t]{1,8})?\p{Ll}\p{Ll})/gu;
 
 /** "Ven -dijo.", "-¿Perdón?": the dialogue dash, an optional typography check like the dash. */
 function dialogueDash(ctx: DetectContext): RawFinding[] {

@@ -118,6 +118,17 @@ function check(at: Around): string[] | null {
     const fix = perfectOf(word, nominal) ?? (existential ? null : finitePerfect(word));
     if (fix && fix !== word) return [fix];
   }
+  // "nos hemos ido cansado": after a plural "haber" + "ido", a singular participle agrees with
+  // nothing, so it is the gerund (or the plural adjective).
+  if (
+    prev === "ido" &&
+    /^(?:hemos|habéis|han|habíamos|habíais|habían)$/u.test(at.prev(2)) &&
+    /[ai]do$/u.test(word) &&
+    participle(word)
+  ) {
+    const gerund = gerundOf(word);
+    if (gerund) return [gerund, `${word}s`];
+  }
   // "ha ido aumentado", "ha estado intentado", "me estoy acostumbrado": a gerund.
   // "ha estado interesado", "se fue cansado": an adjective may follow; only a plain participle
   // ("aumentado", "intentado") wants the gerund.
@@ -410,6 +421,43 @@ function governedVerb(at: Around): string | null {
 
 const VERB = "review_msg_spanish_verb_form" as const;
 
+// Words that read as finite verbs but close set phrases after these prepositions: "de veras",
+// "con creces".
+const AFTER_PREPOSITION = words("veras creces sobra sobras");
+const PAST_OR_CONDITIONAL =
+  /(?:aba|abas|aban|ábamos|rías?|rían|ríamos|aron|ieron|asteis|isteis|aste|iste)$/u;
+
+/**
+ * "de debería probar", "desde es adulto", "en sueles": a preposition right before a form that
+ * is only a finite verb. "desde" lost its "que"; the others hide a mistyped word.
+ */
+function strayFinite(at: Around): boolean {
+  const word = at.tokens[at.i].lower;
+  const prev = at.prev();
+  if (!/^(?:de|del|en|con|desde|sin)$/u.test(prev) || !/^\p{Ll}+$/u.test(at.tokens[at.i].text))
+    return false;
+  if (at.tokens[at.i - 2]?.text === "-" || AFTER_PREPOSITION.has(word)) return false;
+  // "la de es la cuarta letra": the letter's name.
+  if (/^(?:la|una|letra)$/u.test(at.prev(2))) return false;
+  // "desde es adulto": "es" is the letter's name too, but no preposition takes that.
+  if (/^(?:es|eres|soy|somos|estoy|hay|fue|fui|fueron)$/u.test(word)) return true;
+  // Only endings no noun or adverb shares ("debería", "cantaba", "llegaron"); a present form
+  // ("arriba", "sede") is too often a word the lexicon does not list as a noun.
+  return (
+    PAST_OR_CONDITIONAL.test(word) &&
+    finiteVerb(word) &&
+    !isNoun(word) &&
+    !attribute(word) &&
+    !isInfinitive(word) &&
+    !isGerund(word) &&
+    !CLITICS.has(word) &&
+    !DETERMINERS.has(word) &&
+    !DETERMINER.has(word) &&
+    !PREPOSITIONS.has(word) &&
+    !/^(?:que|como|cuando|donde|si|no|ya|más|menos|bien|mal|tal|tan|sí)$/u.test(word)
+  );
+}
+
 function verbForms(ctx: DetectContext): RawFinding[] {
   if (ctx.lang.slice(0, 2) !== "es") return [];
   const tokens = tokenize(ctx);
@@ -434,6 +482,21 @@ function verbForms(ctx: DetectContext): RawFinding[] {
     if (infinitive) {
       const finding = replaceToken(ctx, token, [infinitive], RULE, VERB, tokens[i - 1]);
       if (finding) findings.push(finding);
+      continue;
+    }
+    if (strayFinite(new Around(tokens, i))) {
+      const prep = tokens[i - 1];
+      const span = { ...prep, end: token.end, text: ctx.text.slice(prep.start, token.end) };
+      const desde = prep.lower === "desde";
+      const finding = replaceToken(
+        ctx,
+        desde ? prep : span,
+        desde ? ["desde que"] : [],
+        RULE,
+        desde ? VERB : "review_msg_spanish_preposition_verb",
+        token,
+      );
+      if (finding) findings.push(desde ? finding : { ...finding, warningOnly: true });
       continue;
     }
     const fixes = check(new Around(tokens, i));
