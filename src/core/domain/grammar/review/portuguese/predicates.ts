@@ -157,3 +157,40 @@ export function relativeAgreement(ctx: DetectContext): RawFinding[] {
   }
   return findings;
 }
+
+// "Estamos muitos contentes" -> "muito contentes": before an adjective "muito" is an adverb.
+const QUANTIFIED = `(?:${COPULAS.ser}|${COPULAS.estar}|somos|estamos|ficamos|fomos|éramos|estávamos)${S}(?<target>muit[oa]s|pouc[oa]s|muita|pouca|demasiad[oa]s?|bastantes)${S}(?<adjective>\\p{Ll}{3,}[oa]s?|contentes|felizes|tristes|alegres|doentes|inteligentes|diferentes|ansiosos)${W}`;
+
+export function quantifiedAdjectives(ctx: DetectContext): RawFinding[] {
+  if (ctx.lang.slice(0, 2) !== "pt") return [];
+  const findings: RawFinding[] = [];
+  for (const m of frameMatches(ctx, QUANTIFIED)) {
+    const { target, adjective } = m.groups!;
+    if (target !== target.toLowerCase() || adjective !== adjective.toLowerCase()) continue;
+    const stem = adjective.replace(/[oa]s?$/, "");
+    // After "ser" a participle may be a noun: "São muitos interessados".
+    const participle =
+      /\p{Ll}{2}(?:ad|id)$/u.test(stem) &&
+      !NOUNS_IN_DO.has(stem) &&
+      !/^(?:é|são|era|eram|foi|foram|será|serão|seria|seriam|somos|fomos|éramos)\s/iu.test(m[0]);
+    if (!ADJECTIVE_STEMS.has(stem) && !participle && !/es$/.test(adjective)) continue;
+    const [, end] = m.indices!.groups!.adjective;
+    if (!CLAUSE_GOES_ON.test(ctx.text.slice(end, end + 24))) continue;
+    const wanted = target.startsWith("muit")
+      ? "muito"
+      : target.startsWith("pouc")
+        ? "pouco"
+        : target.startsWith("demasiad")
+          ? "demasiado"
+          : "bastante";
+    const [start, targetEnd] = m.indices!.groups!.target;
+    findings.push({
+      ruleId: "portugueseAgreement",
+      messageKey: "review_msg_pt_noun_agreement",
+      range: { start, end: targetEnd },
+      alternatives: [wanted],
+      context: { start: m.index, end },
+    });
+  }
+  return findings;
+}

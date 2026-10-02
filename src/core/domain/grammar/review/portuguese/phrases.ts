@@ -57,6 +57,9 @@ export const PORTUGUESE_WORDS: PhraseRow[] = [
   ["cobrido", "coberto"],
   ["descobrido", "descoberto"],
   ["ponhado", "posto"],
+  // Accents that only these words lack.
+  ["apos", "após"],
+  ["atras", "atrás"],
 ];
 
 export const PORTUGUESE_PHRASES: PhraseRow[] = [
@@ -355,6 +358,28 @@ export const PORTUGUESE_PHRASES: PhraseRow[] = [
   ["em anexos", "em anexo"],
   ["em anexa", "em anexo"],
   ["em anexas", "em anexo"],
+  // "melhor" and "pior" before a participle are adverbs: "os mais bem colocados".
+  ...[
+    "colocad",
+    "classificad",
+    "qualificad",
+    "preparad",
+    "avaliad",
+    "remunerad",
+    "posicionad",
+    "equipad",
+    "informad",
+    "treinad",
+    "cotad",
+    "conservad",
+    "dotad",
+    "organizad",
+  ].flatMap((stem): PhraseRow[] =>
+    ["os", "as"].flatMap((ending): PhraseRow[] => [
+      [`melhores ${stem}${ending}`, [`mais bem ${stem}${ending}`, `melhor ${stem}${ending}`]],
+      [`piores ${stem}${ending}`, [`mais mal ${stem}${ending}`, `pior ${stem}${ending}`]],
+    ]),
+  ),
   // "senso" is judgement, "censo" a count of the population.
   ["bom censo", "bom senso"],
   ["censo comum", "senso comum"],

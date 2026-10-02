@@ -82,6 +82,8 @@ function analyses(word: string): Analysis[] {
         // "estar" and "dar" are irregular.
         if (conjugation === "ar" && /^(?:est|d)$/.test(stem)) return;
         if (conjugation !== "ar" && IRREGULAR_STEM.test(stem)) return;
+        // "sair", "construir", "roer": a stem ending in a vowel conjugates on its own.
+        if (conjugation !== "ar" && /(?:[aeoi]|(?<![gq])u)$/.test(stem)) return;
         // "conheço", "sinto": the first person present has its own stem.
         if (conjugation !== "ar" && tense === "present" && index === 0) return;
         const existing = found.find(

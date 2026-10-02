@@ -72,7 +72,7 @@ const OCCURRENCE_MODIFIER =
 const IS_ADJECTIVE =
   "(?:melhor|pior|possível|impossível|verdade|necessário|necessária|preciso|fácil|difícil|bom|boa|certo|errado|claro|importante|normal|obrigatório)";
 const STATE =
-  "(?:bem|mal|certo|certa|errado|errada|pronto|pronta|ótimo|ótima|cheio|cheia|cansado|cansada|feliz|triste|doente|ocupado|ocupada|com|sem|em|no|na|nos|nas|muito|tão|sendo|quase|perto|longe|frio|quente|melhor|pior)";
+  "(?:bem|mal|certo|certa|errado|errada|pronto|pronta|ótimo|ótima|cheio|cheia|cansado|cansada|feliz|triste|doente|ocupado|ocupada|com|sem|em|no|na|nos|nas|muito|tão|sendo|quase|perto|longe|frio|quente|melhor|pior|confus[oa]s?|\\p{Ll}{3,}(?:ad|id)[oa]s?)";
 
 const NUMBER_WORD = `(?:\\d+|uns|umas|dois|duas|três|quatro|cinco|seis|sete|oito|nove|dez|onze|doze|quinze|vinte|trinta|quarenta|cinquenta|sessenta|cem|duzentos|duzentas|trezentos|quinhentos|mil|meia|mei[oa]${S}hora)`;
 const HAVER_SINGULAR: Record<string, string> = {
@@ -582,6 +582,32 @@ const FRAMES: Frame[] = [
     pattern: `(?:penso|pensei|pensamos|acho|achei|achamos|creio|acredito|acreditamos|afirmo|afirmou|afirmaram|garanto|garantiu|espero|esperamos|sei|sabemos|parece|parecia|disse|disseram|imagino|suponho)${S}(?<target>de${S})(?=que${W})`,
     alternatives: [""],
     messageKey: "review_msg_pt_regency",
+  },
+  // "O que houve com ela?": "ouve" (hears) asked about something that happened.
+  {
+    pattern: `(?:o${S}que|algo|alguma${S}coisa)${S}(?<target>ouve)(?=${S}com${W}|[ \\t\\u00a0]{0,2}\\?)`,
+    alternatives: ["houve"],
+    messageKey: "review_msg_pt_homophone",
+  },
+  {
+    pattern: `(?<target>ouve)${S}(?=(?:algo|alguma${S}coisa|algum${S}problema)${S}(?:errado${S}|estranho${S})?com${W})`,
+    alternatives: ["houve"],
+    messageKey: "review_msg_pt_homophone",
+  },
+  // "Eu saí" (past) or "eu saio" (present): "sai" is "he leaves".
+  {
+    pattern: `eu${S}(?:(?:não|já|também|nunca|quase)${S})?(?<target>sai|cai|trai|atrai|distrai|contribui|possui|destrui|inclui|conclui|constrói|construi|influi|substitui|distribui|atribui|diminui)${W}(?!-)`,
+    alternatives: (typed) => {
+      const lower = typed.toLowerCase().replace("ó", "o");
+      return [`${lower.slice(0, -1)}í`, lower.replace(/i$/, /ai$/.test(lower) ? "io" : "o")];
+    },
+    messageKey: "review_msg_pt_agreement",
+  },
+  // "tão" (so) before an adjective or adverb; "tao" is no Portuguese word outside "o Tao".
+  {
+    pattern: `(?<!(?:o|do|no|ao)${S})(?<target>tao)${S}(?=\\p{Ll}{3,}${W})`,
+    alternatives: ["tão"],
+    messageKey: "review_msg_pt_homophone",
   },
   // "pôr" (to put) after a modal: "por" + article would contract to "pelo".
   {
