@@ -1,6 +1,7 @@
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
 import type { PhraseRow } from "../englishPhraseTables";
+import { BRITISH_ROWS } from "./britishUsage";
 import { frameMatches, hasUserOrCasedWord, SPACE, WORD_END } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 
@@ -286,7 +287,11 @@ export const OPTIONAL_TABLES: readonly {
     messageKey: "review_msg_american_spelling",
   },
   {
-    rows: [...BOTH.map(([british, american]): PhraseRow => [american, british]), ...BRITISH_ONLY],
+    rows: [
+      ...BOTH.map(([british, american]): PhraseRow => [american, british]),
+      ...BRITISH_ONLY,
+      ...BRITISH_ROWS,
+    ],
     ruleId: "englishBritishSpelling",
     messageKey: "review_msg_british_spelling",
   },
