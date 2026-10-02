@@ -1,5 +1,14 @@
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import { cases, FEMININE, finiteVerb, MASCULINE, NEUTER, nounTags, onlyNoun } from "./lexicon";
+import {
+  cases,
+  FEMININE,
+  finiteVerb,
+  impersonalVerb,
+  MASCULINE,
+  NEUTER,
+  nounTags,
+  onlyNoun,
+} from "./lexicon";
 import { findingAt, isPl, owned, PREPOSITIONS, userOrNamed } from "./shared";
 
 /*
@@ -17,6 +26,15 @@ const SP = "[ \\t\\u00a0]{1,8}";
 const END = "(?![\\p{L}\\p{N}])";
 /** A clause starts here; the look-back is bounded so whitespace runs stay linear. */
 const CLAUSE_START = '(?<=(?:^|[.!?…:;]["”’»)]{0,3}[ \\t\\u00a0]{1,8}|\\n[ \\t\\u00a0]{0,8}))';
+
+/** Opening phrases that are asides and may keep their comma ("Na szczęście,", "Po pierwsze,"). */
+const ASIDE_PHRASE =
+  /^(?:po (?:pierwsze|drugie|trzecie|czwarte|piąte|ostatnie|prostu|kolei|czym|co)|z (?:jednej|drugiej|innej|mojej|twojej|naszej) strony|w (?:końcu|ogóle|sumie|skrócie|zasadzie|rezultacie|efekcie|praktyce|rzeczywistości|istocie|gruncie rzeczy|każdym razie|przeciwnym razie|takim razie|tym razie|tym przypadku|tym wypadku|związku z tym|dodatku|zamian|zamian za to|ten sposób|szczególności|przeciwieństwie|porównaniu|skrócie|razie czego|razie potrzeby|razie wątpliwości|międzyczasie|tym czasie)|na (?:szczęście|nieszczęście|koniec|początek|przykład|razie|pewno|marginesie|wstępie|zakończenie|dodatek|ogół|odwrót|wszelki wypadek|domiar złego|przyszłość|tym etapie|wszelki)|przede wszystkim|mimo (?:to|wszystko)|pomimo to|bez (?:wątpienia|względu|dwóch zdań)|dla (?:przykładu|porządku|jasności|ścisłości)|ponad (?:to|wszystko)|poza tym|z (?:tego|tej) (?:powodu|przyczyny)|od (?:razu|tego czasu|teraz|dziś|jutra)|do (?:tego|rzeczy)|przy (?:tym|okazji)|za (?:to|chwilę|moment)|o (?:dziwo|ile))$/u;
+/** Words that open a clause or an aside after the comma ("Po chwili, gdy…", "W domu, który…"). */
+const OPENS_CLAUSE =
+  /^(?:gdy|kiedy|jak|jeśli|jeżeli|że|iż|żeby|aby|by|bo|gdzie|dokąd|skąd|co|kto|czy|choć|chociaż|zanim|odkąd|dopóki|póki|skoro|ponieważ|gdyż|zwłaszcza|szczególnie|czyli|oraz|i|a|ale|lecz|albo|lub|bądź|ani|natomiast|jednak|więc|zatem|tj|np|tzn|około|mniej|więcej|między|jako|niż|tak|to|któr\p{L}*|jak\p{L}*|czyj\p{L}*)$/u;
+
+const PREPOSITION_WORDS = new Set(PREPOSITIONS.split("|"));
 
 interface CommaFrame {
   ruleId: typeof MISSING | typeof EXTRA;
@@ -102,6 +120,116 @@ export const FRAMES: readonly CommaFrame[] = [
       "gud",
     ),
     fix: (m) => `, ${m.groups!.target.trim()}`,
+  },
+  // "Tak jak wczoraj tak i dziś" -> "Tak jak wczoraj, tak i dziś".
+  {
+    ruleId: MISSING,
+    messageKey: "review_msg_pl_missing_comma",
+    regex: new RegExp(
+      `${CLAUSE_START}Tak${SP}jak${SP}(?:[^,.!?;\\n ]+${SP}){0,4}?[^,.!?;\\n ]+(?<target>${SP}tak)(?=${SP}(?:i|też|samo)${END})`,
+      "gud",
+    ),
+    fix: (m) => `, ${m.groups!.target.trim()}`,
+  },
+  // "Była to tak czy inaczej porażka" -> "Była to, tak czy inaczej, porażka": the aside is set off
+  // inside the sentence too (not "czy tak czy owak", the repeated question).
+  {
+    ruleId: MISSING,
+    messageKey: "review_msg_pl_comma_aside",
+    regex: new RegExp(
+      `(?<=(?<![\\p{L}])(?!czy${END})\\p{Ll}+)(?<target>${SP}tak${SP}czy${SP}(?:inaczej|siak|owak)${SP})(?=\\p{L})`,
+      "gud",
+    ),
+    fix: (m) => `, ${m.groups!.target.trim().replace(/\s+/gu, " ")}, `,
+  },
+  // "nie jest twoja tylko moja" -> "twoja, tylko moja": "tylko" contrasting with a denial.
+  {
+    ruleId: MISSING,
+    messageKey: "review_msg_pl_missing_comma",
+    regex: new RegExp(
+      `(?<![\\p{L}])nie${SP}(?:(?:jest|są|był|była|było|były|byli|jako|dla|do|na|w|z|o)${SP})?(?<target>\\p{Ll}+)(?=${SP}tylko${SP}\\p{Ll})`,
+      "giud",
+    ),
+    fix: (m) => {
+      const word = m.groups!.target;
+      // "nie mam tylko czasu", "nie tylko": "tylko" means "only" after a verb.
+      if (finiteVerb(word) || /^(?:tylko|ma|mam|mamy|chodzi|wiem|ten|to|ta|się)$/u.test(word))
+        return null;
+      return `${word},`;
+    },
+  },
+  // "kawę a nie herbatę" -> "kawę, a nie herbatę"; "ciekawy a to dzięki" -> "ciekawy, a to dzięki".
+  {
+    ruleId: MISSING,
+    messageKey: "review_msg_pl_missing_comma",
+    regex: new RegExp(
+      `(?<![\\p{L}])(?<target>\\p{Ll}{2,})(?=${SP}a${SP}(?:nie${SP}\\p{L}|to${SP}(?:z${SP}powodu|dzięki|dlatego|ze${SP}względu|przez|z${SP}uwagi)${END}))`,
+      "gud",
+    ),
+    fix: (m, ctx) => {
+      const word = m.groups!.target;
+      // "taki a nie inny" is one phrase.
+      if (
+        /^(?:czy|i|a|albo|lub|ani|oraz|nie|że|to|tak(?:i|a|ie|iego|iej|iemu|ą|im|ich|imi))$/u.test(
+          word,
+        )
+      )
+        return null;
+      // "między domem a nie szkołą" keeps "między X a Y" whole.
+      const sentence = ctx.text
+        .slice(Math.max(0, m.index - 60), m.index)
+        .split(/[.!?;:,\n]/u)
+        .at(-1)!;
+      if (/(?:^|[^\p{L}])(?:po)?między(?![\p{L}])/iu.test(sentence)) return null;
+      return `${word},`;
+    },
+  },
+  // "Po zakończeniu prac, biuro zamknięto" -> no comma after an opening prepositional phrase;
+  // not after a set aside ("Na szczęście,", "Z drugiej strony,") or before a clause ("Po
+  // chwili, gdy…"), and only when nothing else in the sentence could pair with the comma.
+  {
+    ruleId: EXTRA,
+    messageKey: "review_msg_pl_extra_comma",
+    regex: new RegExp(
+      `${CLAUSE_START}(?<phrase>(?:${PREPOSITIONS})${SP}(?:\\p{L}+${SP})?(?<noun>\\p{L}+))(?<target>,)(?=${SP}(?<rest>\\p{L}[^,;:()"„”—–\\n]*)[.!?])`,
+      "giud",
+    ),
+    fix: (m) => {
+      const { phrase, noun, rest } = m.groups!;
+      const lower = phrase.toLowerCase().replace(/\s+/gu, " ");
+      if (ASIDE_PHRASE.test(lower)) return null;
+      // A noun, or a name ("W Krakowie,").
+      if (!onlyNoun(nounTags(noun.toLowerCase()), true) && !/^\p{Lu}\p{Ll}+$/u.test(noun))
+        return null;
+      const words = rest.toLowerCase().match(/\p{L}+/gu) ?? [];
+      const first = words[0] ?? "";
+      if (OPENS_CLAUSE.test(first) || /ąc$/u.test(first)) return null;
+      // "W pracy, w domu i w szkole": a list of phrases.
+      if (PREPOSITION_WORDS.has(first)) return null;
+      // "W rolnictwie, przemyśle i budownictwie": a list goes on in the same case.
+      const fold = (tags: number) => (tags | (tags >> 7)) & 0x7f;
+      const verb = words.findIndex((word) => finiteVerb(word));
+      if (
+        fold(nounTags(noun.toLowerCase())) & fold(nounTags(first)) &&
+        words
+          .slice(1, verb < 0 ? undefined : verb)
+          .some((word) => /^(?:i|oraz|lub|albo|ani)$/u.test(word))
+      )
+        return null;
+      return words.some((word) => finiteVerb(word) || impersonalVerb(word) || /ć$/u.test(word))
+        ? ""
+        : null;
+    },
+  },
+  // "między Pawłem, a Gawłem" -> "między Pawłem a Gawłem".
+  {
+    ruleId: EXTRA,
+    messageKey: "review_msg_pl_extra_comma",
+    regex: new RegExp(
+      `(?<![\\p{L}])(?:po)?między${SP}(?:\\p{L}+${SP}){0,2}\\p{L}+(?<target>,)${SP}a${SP}\\p{L}`,
+      "giud",
+    ),
+    fix: () => "",
   },
   // "Ani prośby ani groźby" -> "Ani prośby, ani groźby".
   {

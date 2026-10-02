@@ -164,14 +164,16 @@ export function ambiguousVerb(word: string): boolean {
  * form ("szorował", "zrobił") is a verb and the word itself is no noun ("siano", "wino").
  */
 export function impersonalVerb(word: string): boolean {
-  const past = /ano$|[iyu]to$/u.test(word)
-    ? `${word.slice(0, -2)}ł`
-    : word.endsWith("iono")
-      ? `${word.slice(0, -3)}ł`
+  if (word.length < 5 || nounTags(word) || adjectiveOf(word)) return false;
+  const base = word.slice(0, -3);
+  const pasts = /ano$|[iyu]to$/u.test(word)
+    ? [`${word.slice(0, -2)}ł`]
+    : word.endsWith("ono")
+      ? [`${base}ył`, `${base}ił`, `${base}ł`]
       : word.endsWith("ęto")
-        ? `${word.slice(0, -3)}ął`
-        : "";
-  return past.length > 3 && !nounTags(word) && !adjectiveOf(word) && finiteVerb(past);
+        ? [`${base}ął`]
+        : [];
+  return pasts.some((past) => past.length > 3 && finiteVerb(past));
 }
 
 let places: Set<string> | undefined;
