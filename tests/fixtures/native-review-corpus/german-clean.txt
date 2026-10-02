@@ -138,3 +138,14 @@ Der Kunde ist König, sagt man, und die Kunde von seinem Erfolg verbreitete sich
 Gestern habe ich im Bus einen alten Freund getroffen.
 Die Autos der Nachbarn standen vor den Häusern.
 Er dankte dem Arzt und half der Krankenschwester beim Tragen.
+# Lowercase words next to nouns: adverbs, verb particles, fixed phrases and verbs that end a clause.
+Am Abend waren wir endlich wieder zuhause und hatten keine Lust mehr auf Besuch.
+Das Konzert findet trotz des Regens statt, und wir nehmen selbstverständlich teil.
+Als er die Nachricht hörte, stand er vor Freude fast kopf.
+Solche Ausreden sind in unserem Büro leider gang und gäbe.
+Wenn Sie ein neues Kennwort eingeben, wird das alte sofort ungültig.
+Den Zähler auf 0 setzen, um die Messung neu zu beginnen.
+Ein über die Jahre gewachsenes Vertrauen lässt sich nicht einfach ersetzen.
+Ich düse gleich los und hole die Kinder ab.
+Wir hatten keine Angst, denn am Morgen schien wieder die Sonne.
+Gib dir etwas Mühe, dann klappt es auch mit der Geduld.

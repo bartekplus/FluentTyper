@@ -65,7 +65,7 @@ const NOT_ADJECTIVES = wordSet(
     "vorne zusammen trotzdem seitdem außerdem ebenso eben wieder immer nimmer sondern aber " +
     "oder weder später früher näher weiter selten offen gegen neben unter hinter über wider " +
     "bisschen ihnen denen deren dessen wessen habe hatte hätte werde wurde würde wäre sei " +
-    "könne müsse solle wolle dürfe möge wisse gebe",
+    "könne müsse solle wolle dürfe möge wisse gebe hier eher",
 );
 // The finite verb after a sentence-initial noun phrase ("Der zugriff wurde …").
 const AUXILIARIES = wordSet(
@@ -88,11 +88,18 @@ const CLAUSE_LINKS = wordSet(
     "während bis falls sobald solange da wie wo was wer sodass",
 );
 // Fixed phrases with a lowercase word that is no noun there.
-const IDIOMS = /^(?:kreuz und quer|sage und schreibe|zeit (?:seines|ihres|meines|deines))\b/iu;
+const IDIOMS =
+  /^(?:kreuz und quer|sage und schreibe|gang und gäbe|zeit (?:seines|ihres|meines|deines))\b/iu;
 
+// "darüber", "hierunter", "worüber": a preposition joined to da-, hier- or wo-.
+const PRONOMINAL_ADVERB =
+  /^(?:da|dar|hier|wo|wor)(?:an|auf|aus|bei|durch|für|gegen|hinter|in|mit|nach|neben|über|um|unter|von|vor|zu|zwischen)$/u;
 const lower = (token: string | undefined) => token?.toLowerCase() ?? "";
 const isAdjective = (token: string) =>
   /^\p{Ll}{2,}(?:e|en|er|es|em)$/u.test(token) &&
+  !PRONOMINAL_ADVERB.test(token) &&
+  // "daher", "bisher", "nacheinander"
+  !/^(?:da|wo|bis|seit|vor|nach|um|hier|dort|ein|neben|hinter)her$|einander$/u.test(token) &&
   !NOT_ADJECTIVES.has(token) &&
   !ARTICLES.has(token) &&
   !DEMONSTRATIVES.has(token) &&
@@ -135,7 +142,55 @@ function genitiveThenVerb(after: string[]): boolean {
 const PARTICLE =
   /^(?:an|auf|aus|ab|ein|mit|nach|vor|zu|zurück|weg|bei|los|fest|hin|her)(?=\p{Ll}{3})/u;
 
-type Trigger = "article" | "demonstrative" | "quantifier" | "preposition" | "number";
+type Trigger = "article" | "demonstrative" | "quantifier" | "preposition" | "number" | "bare";
+
+// Nouns that end a clause as the particle of a separable verb: "er steht kopf", "sie gibt
+// nichts preis", "das findet statt", "er hält stand" (authored).
+const VERB_PARTICLE_NOUNS = wordSet("kopf preis statt stand eis haus hof maß not acht kehrt hohn");
+
+/**
+ * Whether a noun form that is no other word stands lowercase inside a sentence with no
+ * determiner to show it: "wir geben uns mühe", "ich habe viel zeit". The word before it must be
+ * a lowercase word, so a heading, list item or sentence start is left to other checks.
+ */
+function bareNoun(typed: string, before: string[], after: string[]): boolean {
+  const prior = before.at(-1) ?? "";
+  const next = after[0] ?? "";
+  if (typed.length < 4 || BARE_EXCEPTIONS.has(typed) || !/^\p{Ll}+$/u.test(prior)) return false;
+  const ends = BOUNDARY.test(next) || COORDINATORS.has(next);
+  if (VERB_PARTICLE_NOUNS.has(typed) && ends) return false;
+  // "ich düse los": a verb form the dictionary lacks, before its particle.
+  if (VERB_PARTICLES.has(next) && BOUNDARY.test(after[1] ?? "")) return false;
+  // Both neighbours are German words, so the word is no foreign or Latin one ("opus manuum").
+  return (
+    germanWord(prior) && (ends || germanWord(lower(next)) || /^ge\p{Ll}+(?:t|en)$/u.test(next))
+  );
+}
+
+// Lowercase words the dictionary lists only as nouns that are also adverbs ("wir sind zuhause").
+const BARE_EXCEPTIONS = wordSet("zuhause topp");
+const VERB_PARTICLES = wordSet("los ab an auf aus ein mit vor weg zu zurück hin her fest");
+// Frequent German function words that are no noun, adjective or verb form.
+const FUNCTION_WORDS = wordSet(
+  "nicht auch noch schon nur viel wenig mehr genug etwas nichts kein gern gerne bitte immer " +
+    "wieder dann jetzt heute hier da dort ja doch mal gerade nie oft ihm ihnen ihn uns euch " +
+    "selbst bloß eben halt wohl kaum fast sogar gar ganz endlich bereits meist erst zuerst",
+);
+const germanWord = (w: string) =>
+  FUNCTION_WORDS.has(w) ||
+  PRONOUNS.has(w) ||
+  VERB_GOVERNORS.has(w) ||
+  AUXILIARIES.has(w) ||
+  PREPOSITIONS.has(w) ||
+  ARTICLES.has(w) ||
+  DEMONSTRATIVES.has(w) ||
+  QUANTIFIERS.has(w) ||
+  CLAUSE_LINKS.has(w) ||
+  DEGREE_WORDS.has(w) ||
+  finiteVerb(w) ||
+  germanInfinitive(w) ||
+  germanAdjective(w) ||
+  germanAdjective(w.replace(/(?:e|en|er|es|em)$/, ""));
 
 /** The determiner, preposition or number before the word, across up to two adjectives. */
 function trigger(before: string[]): { kind: Trigger; at: number } | null {
@@ -187,6 +242,8 @@ function nounReadingHolds(
   const next = lower(after[0]);
   const prior = before[at - 1];
   if (typed === "bitte" && kind !== "article") return false;
+  // "auf 0 setzen": no plural noun follows 0 or 1, so this is the verb.
+  if (reading === "infinitive" && /^[01]$/.test(before[at])) return false;
   // "die beide passen", ", die kosten": a pronoun, or a relative pronoun.
   if (kind === "demonstrative" && prior !== undefined && /^[,;:(–—-]$/.test(prior)) return false;
   const clauseStart =
@@ -261,7 +318,21 @@ function nounReadingHolds(
   if (kind === "preposition" && lower(before[at]) === "zu") return false;
   // "wenn man eine stellen darf", "ich möchte das öffnen können": a verb chain.
   if (VERB_GOVERNORS.has(next)) return false;
-  return !(BOUNDARY.test(next) || COORDINATORS.has(next)) || !governedBefore(before, at);
+  if (!(BOUNDARY.test(next) || COORDINATORS.has(next))) return true;
+  // "wenn Sie ein neues eingeben": the verb that ends the clause.
+  if (reading === "infinitive" && subordinate(before, at)) return false;
+  return !governedBefore(before, at);
+}
+
+const SUBORDINATORS = wordSet(
+  "dass weil wenn ob obwohl damit nachdem bevor falls sobald solange sodass",
+);
+/** Whether the clause opens with a subordinator, so its verb comes last. */
+function subordinate(before: string[], at: number): boolean {
+  for (let i = at - 1; i >= 0 && !BOUNDARY.test(before[i]); i--) {
+    if (SUBORDINATORS.has(before[i].toLowerCase())) return true;
+  }
+  return false;
 }
 
 /**
@@ -314,10 +385,14 @@ function nounCasing(ctx: DetectContext): RawFinding[] {
       continue;
     }
     const before = tokensBefore(ctx.text, m.index, 12);
-    const found = trigger(before);
-    if (!found) continue;
     const after = tokensAfter(ctx.text, end, 6);
     const next = after[0] ?? "";
+    const found =
+      trigger(before) ??
+      (reading === "noun" && bareNoun(typed, before, after)
+        ? { kind: "bare" as const, at: before.length - 1 }
+        : null);
+    if (!found) continue;
     // "für strafentlassene, obdachlose oder …": one of several adjectives.
     if ((next === "," || COORDINATORS.has(next)) && attributive(lower(after[1]))) continue;
     // "von der leben sie", "mit der bürste ich": a verb; "in der marine Lebensformen",
