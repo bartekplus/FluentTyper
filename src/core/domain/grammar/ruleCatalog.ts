@@ -854,6 +854,19 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     recommended: false,
     priority: 145,
   },
+  {
+    id: "styleClauseComma",
+    typing: false,
+    name: "Comma between joined clauses",
+    titleI18nKey: "review_msg_clause_comma",
+    descriptionI18nKey: "review_msg_clause_comma",
+    exampleI18nKey: "",
+    languageScope: "en_US",
+    safetyTier: "advanced",
+    defaultRollout: "off",
+    recommended: false,
+    priority: 145,
+  },
   // Polish-only Review checks (review/polish/); languages are set in reviewCatalog.
   {
     id: "polishNumerals",

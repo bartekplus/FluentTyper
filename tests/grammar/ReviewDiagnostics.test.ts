@@ -136,6 +136,7 @@ describe("review rule coverage map", () => {
             "englishTypography",
             "stylePassiveVoice",
             "styleIntroductoryComma",
+            "styleClauseComma",
             "primeSymbols",
             "stylePhrasing",
             "styleContractions",

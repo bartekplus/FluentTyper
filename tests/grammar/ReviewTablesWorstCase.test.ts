@@ -53,6 +53,8 @@ test("no chunk stalls on runs of frame-opening words", () => {
     "June 16,1963 Friday July 15 October, 1958 ".repeat(400),
     "in Big Blue Green Sea is oldest city in lot of ".repeat(400),
     "I all ready the later we can here he barley yet alone ".repeat(400),
+    "I was here and we left but they stay so I can or the van is ".repeat(400),
+    "and ".repeat(3_000),
   ];
   // Warm-up: the first scan compiles every frame and decodes the lexicon.
   for (const text of inputs) slowestChunkMs(text);
@@ -66,8 +68,8 @@ test("clause frames stay linear on long space runs without the regex JIT", () =>
   const module = `${import.meta.dir}/../../src/core/domain/grammar/review/reviewDiagnostics.ts`;
   const script = `
     const { prepareReview, reviewChunks, scanReviewChunk } = await import(${JSON.stringify(module)});
-    const text = "x." + "\\t ".repeat(6000) + " However it works. On going work.";
-    const rules = ["styleIntroductoryComma", "englishTypography", "englishContextualCompounds"];
+    const text = "x." + "\\t ".repeat(6000) + " However it works. On going work. We left and I. " + "x.  and ".repeat(1500);
+    const rules = ["styleIntroductoryComma", "styleClauseComma", "englishTypography", "englishContextualCompounds"];
     let slowest = 0;
     for (let run = 0; run < 2; run++) {
       const prepared = prepareReview(

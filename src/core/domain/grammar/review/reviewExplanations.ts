@@ -1947,6 +1947,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Przecinek zwykle oddziela słowo lub wyrażenie wprowadzające od reszty zdania.",
     "Uma vírgula costuma separar a palavra ou expressão inicial do resto da frase.",
   ],
+  review_msg_clause_comma: [
+    "A comma usually goes before and, but, or, so or yet when it joins two complete clauses.",
+    "Une virgule précède d’ordinaire and, but, or, so ou yet quand ils relient deux propositions complètes.",
+    "Zarez obično dolazi ispred and, but, or, so ili yet kad povezuju dvije potpune rečenice.",
+    "Suele ir una coma antes de and, but, or, so o yet cuando unen dos oraciones completas.",
+    "Συνήθως μπαίνει κόμμα πριν από τα and, but, or, so ή yet όταν ενώνουν δύο πλήρεις προτάσεις.",
+    "Ett kommatecken står oftast före and, but, or, so eller yet när de binder ihop två fullständiga satser.",
+    "Vor and, but, or, so oder yet steht meist ein Komma, wenn sie zwei vollständige Sätze verbinden.",
+    "Przed and, but, or, so lub yet zwykle stawia się przecinek, gdy łączą dwa pełne zdania.",
+    "Costuma haver vírgula antes de and, but, or, so ou yet quando ligam duas orações completas.",
+  ],
   review_msg_tag_question: [
     'A question tag repeats the sentence\'s auxiliary: "You don\'t know, do you?", "It isn\'t late, is it?"',
     "Une question tag reprend l’auxiliaire de la phrase : « You don't know, do you? », « It isn't late, is it? »",

@@ -151,6 +151,204 @@ function introductoryCommas(ctx: DetectContext): Finding[] {
   return out;
 }
 
+// ---------------------------------------------------------------------------- styleClauseComma
+
+// "I voted early and I plan to vote again" -> "early, and I": two complete clauses joined by a
+// coordinator take a comma. Both sides must read as clauses: the first opens with its subject
+// and has a finite verb; the second opens with a subject and its verb, an inverted question,
+// or "please" + a request.
+const JOINERS =
+  /(?<=[\p{L}\p{N}%)'’])(?<gap>[ \t\u00a0]+)(?<conj>and|but|or|so|yet|although)(?=[ \t\u00a0])/gu;
+const CLAUSE_WORD = /[\p{L}\p{N}$][\p{L}\p{N}'’$.&/-]*/gu;
+// A clause boundary: a sentence mark before a capital, other stops, a comma or protected text.
+const CLAUSE_BREAK = /[.!?]["”’)]*(?=[ \t\u00a0]+["“(]?\p{Lu}|$)|[;:\n\uFFFC]|,(?!\d)/gu;
+const AUX = new Set(
+  "am is are was were has have had do does did will would can could shall should may might must isn't aren't wasn't weren't hasn't haven't hadn't don't doesn't didn't won't wouldn't can't cannot couldn't shouldn't mustn't".split(
+    " ",
+  ),
+);
+const SUBJECTS = new Set("i you he she we they it".split(" "));
+const OPENING_SUBJECTS = new Set(
+  "i you he she it we they this that there these those the my your his her our their its some most many all both each every no one nobody everyone everybody someone somebody nothing everything something".split(
+    " ",
+  ),
+);
+const DETERMINERS = new Set(
+  "the my your his her our their its this these those some every each no most many several".split(
+    " ",
+  ),
+);
+// A subordinate opening or an embedded clause makes the coordinator ambiguous: "I think Tom and
+// I agree", "Tell me if you go and I will come". Only when a clause follows the word.
+const SUBORDINATE = new Set(
+  "if whether when whenever because since while although though unless until till before after where which who whom whose what how why than once either neither between whereas that think thought believe believed know knew guess hope hoped say said says feel felt suppose expect mean wonder wondered realize realized assume assumed heard tell told sure wish".split(
+    " ",
+  ),
+);
+// After a subordinator these leave nothing for it to govern: "I know that", "once before".
+const INERT = new Set("it that this them so too then before yet again now".split(" "));
+// Words that cannot end a complete first clause before the coordinator.
+const NOT_CLAUSE_END = new Set(
+  "to of for with at by from in on into about as the a an my your his her our their its both either neither between than rather more less not just only even very too so and or but i he she we they".split(
+    " ",
+  ),
+);
+const LEAD_ADVERBS = new Set(
+  "so therefore then again hopefully instead now thus still also immediately honestly".split(" "),
+);
+const MID_ADVERBS = new Set(
+  "often just really also never already still always only actually probably usually even then all both".split(
+    " ",
+  ),
+);
+const WH = new Set("what why how when where who which".split(" "));
+const POLITE_OPENING = /^(?:thank you|thanks|sorry|pardon me|excuse me)\b/i;
+const CONTRACTED =
+  /^[\p{L}]+'(?:m|re|ve|ll|d)$|^(?:it|he|she|that|there|what|who|here|let)'s$|n't$/iu;
+const PURPOSE = /^(?:can|could|may|might|would|will|won't|wouldn't|can't|couldn't)$/;
+
+const words = (text: string): string[] =>
+  [...text.matchAll(CLAUSE_WORD)].map((m) => m[0].replace(/’/g, "'"));
+const adverb = (word: string) => MID_ADVERBS.has(word) || /^[a-z]{3,}ly$/.test(word);
+
+/** The word reads as a finite verb after the subject word `subject`. */
+function finiteVerb(word: string, subject: string | undefined, opening: boolean): boolean {
+  const lower = word.toLowerCase();
+  if (AUX.has(lower) || CONTRACTED.test(lower)) return true;
+  if (subject && DETERMINERS.has(subject)) return false;
+  const verbs = englishWordInfo(lower)?.verbs ?? [];
+  if (verbs.some((v) => v.form === "past")) return true;
+  if (subject && SUBJECTS.has(subject))
+    return verbs.some((v) => v.form === (/^(?:he|she|it)$/.test(subject) ? "third" : "base"));
+  // "Something happens", "The plug works": a -s verb right after a one-word opening subject.
+  return opening && verbs.some((v) => v.form === "third");
+}
+
+/** Index of the word governing position i, skipping adverbs in between. */
+function subjectBefore(lower: string[], i: number): number {
+  let at = i - 1;
+  while (at > 0 && adverb(lower[at])) at--;
+  return at;
+}
+
+/** The text before the coordinator reads as a complete clause with its own subject and verb. */
+function firstClause(segment: string, conj: string, question: boolean): boolean {
+  let ws = words(segment);
+  if (/^(?:and|but|or|so|yet|then)$/i.test(ws[0] ?? "")) ws = ws.slice(1);
+  const lower = ws.map((w) => w.toLowerCase());
+  const polite = POLITE_OPENING.test(lower.join(" "));
+  // "I'm 27" counts as three words.
+  const size = ws.length + lower.filter((w) => CONTRACTED.test(w)).length;
+  if (size < 2 && !polite) return false;
+  const last = lower[lower.length - 1];
+  if (NOT_CLAUSE_END.has(last) || AUX.has(last)) return false;
+  for (let i = question ? 1 : 0; i < lower.length; i++)
+    if (SUBORDINATE.has(lower[i]) && lower.slice(i + 1).some((w) => !INERT.has(w))) return false;
+  if (conj === "so" && lower.some((w) => w === "so" || w === "such")) return false;
+  if (conj === "yet" && lower.some((w) => w === "not" || w.endsWith("n't"))) return false;
+  if (polite) return true;
+  // An imperative ("Rake the leaves and we'll burn them") has no subject of its own.
+  const head = lower[0];
+  const asks = question && (AUX.has(head) || WH.has(head));
+  if (!asks && !OPENING_SUBJECTS.has(head)) {
+    if (!/^\p{Lu}/u.test(ws[0])) return false;
+    // An all-capitals acronym ("BOD") is a name, not a verb.
+    const verbs = /^\p{Lu}+$/u.test(ws[0]) ? [] : (englishWordInfo(head)?.verbs ?? []);
+    if (verbs.some((v) => v.form === "base") && !finiteVerb(ws[1], undefined, false)) return false;
+  }
+  if (asks || CONTRACTED.test(head)) return true;
+  return ws.some((w, i) => {
+    if (i === 0) return false;
+    const at = subjectBefore(lower, i);
+    return finiteVerb(w, lower[at], at === 0);
+  });
+}
+
+/** The text after the coordinator opens a complete clause. */
+function secondClause(rest: string, conj: string, question: boolean): boolean {
+  let ws = words(rest);
+  if (conj !== "so" && LEAD_ADVERBS.has(ws[0]?.toLowerCase())) ws = ws.slice(1);
+  const lower = ws.map((w) => w.toLowerCase());
+  if (ws.length < 2) return false;
+  // "and I was too", "but she wasn't either": an elliptical echo, not a full clause.
+  if (ws.length <= 4 && /^(?:too|either|neither)$/.test(lower[ws.length - 1])) return false;
+  const [first, second] = lower;
+  if (conj === "although") return subjectAndVerb(ws, lower, conj);
+  if (first === "please") {
+    const verb = lower[adverb(second) ? 2 : 1];
+    return englishWordInfo(verb ?? "")?.verbs.some((v) => v.form === "base") ?? false;
+  }
+  // "and thanks for", "so apologies for".
+  if (/^(?:thanks|sorry|apologies)$/.test(first) && second === "for") return true;
+  if (question) {
+    const at = WH.has(first) ? 1 : 0;
+    const next = lower[at + 1];
+    if (AUX.has(lower[at]) && next && (at === 1 || SUBJECTS.has(next) || DETERMINERS.has(next)))
+      return true;
+  }
+  return subjectAndVerb(ws, lower, conj);
+}
+
+function subjectAndVerb(ws: string[], lower: string[], conj: string): boolean {
+  const [first, second] = lower;
+  if (first === "there") return AUX.has(second);
+  if (CONTRACTED.test(first) && !first.endsWith("n't"))
+    // "so I'll", "so you'd" usually state a purpose.
+    return !(conj === "so" && /'(?:ll|d)$/.test(first));
+  if (SUBJECTS.has(first) || /^th(?:is|ese|ose)$/.test(first)) {
+    const at = adverb(second) ? 2 : 1;
+    const verb = lower[at];
+    if (!verb || !finiteVerb(ws[at], SUBJECTS.has(first) ? first : "it", false)) return false;
+    // "so I can see", "so they would know": a purpose clause, no comma.
+    return !(conj === "so" && PURPOSE.test(verb));
+  }
+  // "and the game was", "but its owners left", "but Google isn't": a short subject and a verb.
+  // "so Max's sister is happy" may state a purpose: "so" takes only a pronoun subject.
+  const named = /^\p{Lu}/u.test(ws[0]) && !SUBJECTS.has(first);
+  if (conj !== "so" && (DETERMINERS.has(first) || named || /'s?$/.test(first))) {
+    for (let at = 1; at <= 5 && at < lower.length; at++) {
+      const word = lower[at];
+      if (AUX.has(word) || CONTRACTED.test(word)) return !(conj === "so" && PURPOSE.test(word));
+      if (adverb(word)) continue;
+      const read = englishWordInfo(word);
+      if (at > 1 && read?.verbs.some((v) => v.form === "past" || v.form === "third"))
+        return read.noun !== true || read.verbs.some((v) => v.form === "past");
+      // Unknown words, possessives and -ing modifiers can sit in the subject phrase.
+      if (NOT_CLAUSE_END.has(word) || /^(?:that|who|which|whose)$/.test(word)) return false;
+      if (read && !read.noun && !read.adjective && !/'s?$|ing$/.test(word)) return false;
+    }
+  }
+  return false;
+}
+
+function clauseCommas(ctx: DetectContext): Finding[] {
+  const out: Finding[] = [];
+  for (const m of owned(ctx, JOINERS)) {
+    const { gap, conj } = m.groups!;
+    const before = ctx.text.slice(Math.max(0, m.index - 256), m.index);
+    let cut = 0;
+    for (const b of before.matchAll(CLAUSE_BREAK)) cut = b.index + b[0].length;
+    const after = m.index + gap.length + conj.length;
+    if (conj === "so" && /^[ \t\u00a0]+that\b/i.test(ctx.text.slice(after, after + 8))) continue;
+    const tail = ctx.text.slice(after, after + 240);
+    const end = tail.search(/[.!?;:,\n\uFFFC]/);
+    const rest = end < 0 ? tail : tail.slice(0, end);
+    const question = /^[^.!\n]*\?/.test(tail);
+    if (!firstClause(before.slice(cut), conj, question)) continue;
+    if (!secondClause(rest, conj, question)) continue;
+    // "you and I went": a coordinated subject, not two clauses.
+    if (/\byou$/i.test(before) && !/thank you$/i.test(before) && /^[ \t\u00a0]*I\b/.test(tail))
+      continue;
+    out.push({
+      ruleId: "styleClauseComma",
+      messageKey: "review_msg_clause_comma",
+      range: { start: m.index, end: m.index + gap.length },
+      alternatives: [`,${gap}`],
+    });
+  }
+  return out;
+}
+
 /** English only; findings inside a quoted or parenthesized example are dropped. */
 const english =
   (detect: (ctx: DetectContext) => Finding[]) =>
@@ -161,4 +359,5 @@ const english =
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
   { rules: ["englishPunctuation"], detect: english(punctuation) },
   { rules: ["styleIntroductoryComma"], detect: english(introductoryCommas) },
+  { rules: ["styleClauseComma"], detect: english(clauseCommas) },
 ];
