@@ -178,7 +178,9 @@ function perfectWithBase(ctx: DetectContext): RawFinding[] {
           !objectFollows(ctx, m.index + m[0].length) &&
           (nounSubject ||
             // "Who do I have review the contract?": a causative have after do-support.
-            /\b(?:do|does|did)[ \t ]+$/i.test(ctx.text.slice(Math.max(0, m.index - 12), m.index)) ||
+            /\b(?:do|does|did)[ \t\u00a0]+$/i.test(
+              ctx.text.slice(Math.max(0, m.index - 12), m.index),
+            ) ||
             !determinerFollows(ctx, m.index + m[0].length, verb))
         )
           continue;
@@ -219,8 +221,32 @@ function passiveWithBase(ctx: DetectContext): RawFinding[] {
   )) {
     const verb = m.groups!.verb;
     if (!plainWord(ctx, verb)) continue;
+    // "We are please to announce": the participle adjective.
+    if (
+      verb === "please" &&
+      /^[ \t\u00a0]{1,8}(?:to|with|that)\b/i.test(ctx.text.slice(m.index + m[0].length))
+    ) {
+      const [start, end] = m.indices!.groups!.verb;
+      push(
+        ctx,
+        findings,
+        "englishPerfectParticiples",
+        "review_msg_be_participle",
+        start,
+        end,
+        ["pleased"],
+        m.index,
+      );
+      continue;
+    }
     const base = bareBase(verb);
     if (!base) continue;
+    // "was recently release", "is completely rebuild": a manner or time adverb modifies a
+    // verb, so a word that is also a noun is the verb here.
+    const verbal =
+      /\b(?:recently|completely|fully|newly|successfully|already|properly|automatically|correctly|quickly|slowly|carefully|badly|poorly|widely|partially|accidentally|immediately|permanently)\b/i.test(
+        m.groups!.adverbs ?? "",
+      );
     const before = ctx.text.slice(Math.max(0, m.index - 96), m.index);
     // "All you do is install it", "what I want is…": a bare infinitive after a pseudo-cleft.
     if (GAP.test(before) || /\b(?:do|does|did|to)\b[^.!?;:,\n]*$/i.test(before)) continue;
@@ -229,7 +255,8 @@ function passiveWithBase(ctx: DetectContext): RawFinding[] {
     const word = next?.kind === "word" ? next.lower : "";
     const agentNoun = tokensAfter(ctx, m.index + m[0].length, 2)[1];
     const agent = /^(?:by|via)$/.test(word) && agentNoun?.kind === "word";
-    if (!base.verbOnly && (!agent || englishWordInfo(verb)?.adjective)) continue;
+    const adjective = englishWordInfo(verb)?.adjective;
+    if (!base.verbOnly && !(verbal && !adjective) && (!agent || adjective)) continue;
     if (
       !agent &&
       !(next?.kind === "end" || next?.kind === "comma") &&
@@ -523,7 +550,7 @@ function bareParticiple(ctx: DetectContext): RawFinding[] {
     const modal = m.groups!.modal.toLowerCase();
     if (
       modal === "to" &&
-      !/\bused[ \t ]+$/i.test(ctx.text.slice(Math.max(0, m.index - 8), m.index))
+      !/\bused[ \t\u00a0]+$/i.test(ctx.text.slice(Math.max(0, m.index - 8), m.index))
     )
       continue;
     const [start, end] = m.indices!.groups!.target;

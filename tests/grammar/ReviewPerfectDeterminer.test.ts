@@ -22,6 +22,8 @@ test.each([
   ["She has watch every episode.", "She has watched every episode."],
   ["I've answer all the emails.", "I've answered all the emails."],
   ["They have paint the fence.", "They have painted the fence."],
+  ["We are please to welcome you.", "We are pleased to welcome you."],
+  ["The bridge was completely repair.", "The bridge was completely repaired."],
   [
     "If we would not have left early, we would have won.",
     "If we had not left early, we would have won.",
@@ -42,4 +44,7 @@ test.each([
   "Which form do I have sign the clerk?",
   "We have dinner the same time every day.",
   "I have time this week.",
+  "She was previously director of sales.",
+  "It is just magic.",
+  "Please be quiet.",
 ])("have + noun stays silent: %s", (text) => expect(scan(text)).toEqual([]));
