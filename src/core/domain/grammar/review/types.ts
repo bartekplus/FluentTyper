@@ -297,6 +297,7 @@ export type ReviewMessageKey =
   | "review_msg_oclock"
   | "review_msg_geographic_the"
   | "review_msg_superlative_the"
+  | "review_msg_adverb_position"
   | "review_msg_passive_voice"
   | "review_msg_stray_comma"
   | "review_msg_introductory_comma"

@@ -1,4 +1,7 @@
-import { englishLexiconInflect } from "../../implementations/helpers/EnglishLexicon";
+import {
+  englishLexiconInflect,
+  englishWordInfo,
+} from "../../implementations/helpers/EnglishLexicon";
 import { STYLE_PHRASES, type PhraseRow } from "../englishPhraseTables";
 import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
@@ -500,6 +503,45 @@ function whomAfterPrepositions(ctx: DetectContext): Finding[] {
   return findings;
 }
 
+// "I always will love you" -> "will always love"; "it often is" -> "is often"; "we go often to
+// bed" -> "often go": a frequency adverb goes after a modal or "be" and before a main verb.
+const FREQUENCY =
+  "always|never|often|sometimes|usually|rarely|seldom|frequently|normally|generally";
+const AUX_AFTER = `(?<subject>I|you|he|she|it|we|they|[a-z]+s)${S}(?<adv>${FREQUENCY})${S}(?<aux>will|would|can|could|should|must|might|am|is|are|was|were)${E}`;
+const VERB_BEFORE = `(?<subject>I|you|he|she|it|we|they)${S}(?<verb>[a-z]+)${S}(?<adv>often|sometimes|always|usually|rarely|seldom|hardly)${S}(?<next>to|about|in|at|on|as|into|during|here|there)${E}`;
+
+function adverbPositions(ctx: DetectContext): Finding[] {
+  const findings: Finding[] = [];
+  const add = (start: number, end: number, replacement: string) =>
+    findings.push({
+      ruleId: "stylePhrasing",
+      messageKey: "review_msg_adverb_position",
+      range: { start, end },
+      alternatives: [replacement],
+    });
+  for (const m of frameMatches(ctx, AUX_AFTER, "adv")) {
+    const { subject, adv, aux } = m.groups!;
+    // A noun subject only when it is a plain lowercase plural ("appearances often are").
+    if (!/^(?:I|you|he|she|it|we|they)$/i.test(subject) && !englishWordInfo(subject)?.plural)
+      continue;
+    const [start] = m.indices!.groups!.adv;
+    const [, end] = m.indices!.groups!.aux;
+    add(start, end, `${aux} ${adv}`);
+  }
+  for (const m of frameMatches(ctx, VERB_BEFORE, "verb")) {
+    const { verb, adv } = m.groups!;
+    const read = englishWordInfo(verb);
+    // A main verb in the present or past, not a form of "be" or an auxiliary.
+    if (!read?.verbs.some((v) => v.form === "base" || v.form === "past" || v.form === "third"))
+      continue;
+    if (/^(?:am|is|are|was|were|be|been|have|has|had|do|does|did)$/i.test(verb)) continue;
+    const [start] = m.indices!.groups!.verb;
+    const [, end] = m.indices!.groups!.adv;
+    add(start, end, `${adv} ${verb}`);
+  }
+  return findings;
+}
+
 /** English only; findings inside a quoted or parenthesized example are dropped. */
 const english =
   (...detectors: ((ctx: DetectContext) => Finding[])[]) =>
@@ -510,5 +552,8 @@ const english =
 
 /** Context detectors appended to REVIEW_DETECTORS. */
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  { rules: ["stylePhrasing"], detect: english(negativeQuestions, whomAfterPrepositions) },
+  {
+    rules: ["stylePhrasing"],
+    detect: english(negativeQuestions, whomAfterPrepositions, adverbPositions),
+  },
 ];

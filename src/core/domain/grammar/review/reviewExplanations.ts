@@ -1870,6 +1870,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Stopień najwyższy przed rzeczownikiem wymaga „the”: „the hottest city”, „the best choice”.",
     "Um superlativo antes do substantivo leva “the”: “the hottest city”, “the best choice”.",
   ],
+  review_msg_adverb_position: [
+    "A frequency adverb usually goes after a modal or “be” and before the main verb: “will always love”, “is often”.",
+    "Un adverbe de fréquence se place d’ordinaire après un modal ou « be » et avant le verbe principal : « will always love », « is often ».",
+    "Prilog učestalosti obično dolazi iza modalnog glagola ili „be” i ispred glavnog glagola: „will always love”, „is often”.",
+    "Un adverbio de frecuencia suele ir tras un modal o «be» y antes del verbo principal: «will always love», «is often».",
+    "Ένα επίρρημα συχνότητας μπαίνει συνήθως μετά από βοηθητικό ρήμα ή το «be» και πριν από το κύριο ρήμα: «will always love», «is often».",
+    "Ett frekvensadverb står oftast efter ett modalt hjälpverb eller ”be” och före huvudverbet: ”will always love”, ”is often”.",
+    "Ein Häufigkeitsadverb steht meist nach einem Modalverb oder „be“ und vor dem Hauptverb: „will always love“, „is often“.",
+    "Przysłówek częstotliwości stoi zwykle po czasowniku modalnym lub „be” i przed czasownikiem głównym: „will always love”, „is often”.",
+    "Um advérbio de frequência costuma vir depois de um modal ou de “be” e antes do verbo principal: “will always love”, “is often”.",
+  ],
   review_msg_passive_voice: [
     "Passive voice: an active verb with the doer as its subject is often clearer.",
     "Voix passive : un verbe actif dont le sujet fait l’action est souvent plus clair.",

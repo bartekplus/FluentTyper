@@ -55,6 +55,9 @@ describe("optional plain style", () => {
     ["Can not we stay longer?", "Can't we stay longer?"],
     ["With who you shared lunch?", "With whom you shared lunch?"],
     ["Ten guests came, most of who were late.", "Ten guests came, most of whom were late."],
+    ["We always will remember it.", "We will always remember it."],
+    ["Trains often are late here.", "Trains are often late here."],
+    ["They walk often to school.", "They often walk to school."],
   ])("fixes %p", (text, expected) => {
     expect(fixAll(text, scan(text, "stylePhrasing"))).toBe(expected);
   });
@@ -65,6 +68,8 @@ describe("optional plain style", () => {
     "Tell me who you are.",
     "We merged the branches.",
     "That is not it.",
+    "We will always remember it.",
+    "They walk to school often.",
   ])("keeps %p", (text) => {
     expect(scan(text, "stylePhrasing")).toEqual([]);
   });
