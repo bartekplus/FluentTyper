@@ -2413,6 +2413,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "To zdanie brzmi jak pytanie: zakończ je znakiem zapytania.",
     "Esta frase é uma pergunta: termine-a com ponto de interrogação.",
   ],
+  review_msg_german_idiom_case: [
+    "In this fixed phrase the word is a noun, or no noun, and changes its capital: im Ernst, mir ist es recht.",
+    "Dans cette locution, le mot est un nom ou n’en est pas un, et sa majuscule change : im Ernst, mir ist es recht.",
+    "U ovom ustaljenom izrazu riječ je imenica ili nije, pa joj se mijenja veliko slovo: im Ernst, mir ist es recht.",
+    "En esta expresión fija la palabra es un sustantivo, o no lo es, y cambia la mayúscula: im Ernst, mir ist es recht.",
+    "Σε αυτή τη στερεότυπη φράση η λέξη είναι ή δεν είναι ουσιαστικό και αλλάζει το κεφαλαίο: im Ernst, mir ist es recht.",
+    "I det här fasta uttrycket är ordet ett substantiv, eller inte, och byter versal: im Ernst, mir ist es recht.",
+    "In dieser festen Wendung ist das Wort ein Nomen oder keines und ändert seine Schreibung: im Ernst, mir ist es recht.",
+    "W tym stałym wyrażeniu słowo jest rzeczownikiem albo nie i zmienia wielką literę: im Ernst, mir ist es recht.",
+    "Nesta expressão fixa a palavra é ou não é um substantivo e muda a maiúscula: im Ernst, mir ist es recht.",
+  ],
 };
 
 /**

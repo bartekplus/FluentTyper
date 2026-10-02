@@ -7,6 +7,7 @@ import {
   germanVerbLike,
   type GermanNounReading,
 } from "./germanLexicon";
+import { idioms } from "./idioms";
 import { nominalized } from "./nominalized";
 import {
   BOUNDARY,
@@ -204,5 +205,8 @@ function nounCasing(ctx: DetectContext): RawFinding[] {
 }
 
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  { rules: ["germanNounCasing"], detect: (ctx) => [...nounCasing(ctx), ...nominalized(ctx)] },
+  {
+    rules: ["germanNounCasing"],
+    detect: (ctx) => [...nounCasing(ctx), ...nominalized(ctx), ...idioms(ctx)],
+  },
 ];
