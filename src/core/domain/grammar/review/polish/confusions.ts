@@ -1,6 +1,6 @@
 import type { PhraseRow } from "../englishPhraseTables";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import { cases, nounTags, onlyNoun } from "./lexicon";
+import { cases, inflect, nounTags, onlyNoun } from "./lexicon";
 import {
   caseLike,
   CLAUSE_START,
@@ -36,9 +36,35 @@ export const WORDS: readonly PhraseRow[] = [
   ["palcówce", "placówce"],
   ["jago", "jego"],
   ["pastwo", "państwo"],
+  // "tylny" is a hard-stem adjective: no "tylni", "tylnim".
+  ...([
+    ["tylni", "tylny"],
+    ["tylnia", "tylna"],
+    ["tylniego", "tylnego"],
+    ["tylniej", "tylnej"],
+    ["tylniemu", "tylnemu"],
+    ["tylnią", "tylną"],
+    ["tylnim", "tylnym"],
+    ["tylnich", "tylnych"],
+    ["tylnimi", "tylnymi"],
+  ] as PhraseRow[]),
+  // The locative of "światło" alternates its vowel; "kulisy" has the genitive "kulis".
+  ["światle", "świetle"],
+  ["kulisów", "kulis"],
 ];
 
 export const PHRASES: readonly PhraseRow[] = [
+  // A plural-only name after "do", "od raza" for "od razu", "po pół" with the genitive.
+  ["do Niemczech", "do Niemiec"],
+  ["z Niemczech", "z Niemiec"],
+  ["od raza", "od razu"],
+  ["po pół godzinie", "po pół godziny"],
+  ["po pół minucie", "po pół minuty"],
+  ["po pół dniu", "po pół dnia"],
+  // "z dużej litery" is a calque: a capital is "wielka litera", written "wielką literą".
+  ["z dużej litery", "wielką literą"],
+  ["z wielkiej litery", "wielką literą"],
+  ["z małej litery", "małą literą"],
   // "powinnam byłam": the past auxiliary takes no second person ending.
   ["powinnam byłam", "powinnam była"],
   ["powinienem byłem", "powinienem był"],
@@ -629,6 +655,67 @@ export const FRAMES: readonly Frame[] = [
       if (!onlyNoun(tags) || !(tags & cases("As Ap")) || tags & cases("Ls Lp")) return null;
       return `za${m.groups!.target.toLowerCase()}`;
     },
+    ...CONFUSION,
+  },
+  // "kilka meczy" -> "meczów" ("koza meczy" bleats).
+  {
+    pattern: `(?<=(?:wiele|kilka|kilku|kilkanaście|kilkunastu|kilkadziesiąt|dużo|mało|sporo|parę|pięć|sześć|siedem|osiem|dziewięć|dziesięć|liczba|liczby|liczbę|seria|serii|serię|setki|tysiące|wszystkich|ostatnich|kolejnych|rozegranych|wygranych|przegranych|domowych|wyjazdowych)${S})(?<target>meczy)${NOT_LETTER}`,
+    fix: "meczów",
+    ...CONFUSION,
+  },
+  // "w Zakopanym" -> "w Zakopanem": the town keeps its old locative.
+  {
+    pattern: `(?<=(?:w|we|o|po|przy)${S})(?<target>Zakopanym)${NOT_LETTER}`,
+    fix: "Zakopanem",
+    ...CONFUSION,
+    verbatim: true,
+  },
+  // "Tak, proszę panią," -> "proszę pani": the address takes the genitive ("proszę panią o
+  // pomoc" asks her for help).
+  {
+    pattern: `(?<=(?<![\\p{L}])proszę${S})(?<target>panią)(?=[ \\t\\u00a0]*(?:[,.!?…—–]|$))`,
+    fix: "pani",
+    ...CONFUSION,
+  },
+  // "ani raz nie" -> "ani razu nie": the negation takes the genitive.
+  {
+    pattern: `(?<=(?<![\\p{L}])ani${S})(?<target>raz)(?=${S}nie${NOT_LETTER})`,
+    fix: "razu",
+    ...CONFUSION,
+  },
+  // "w szeregu przypadkach" -> "w szeregu przypadków": "szereg" (a number of) takes the genitive.
+  {
+    pattern: `(?<=(?<![\\p{L}])w${S}szeregu${S})(?<target>\\p{Ll}+ach)${NOT_LETTER}`,
+    fix: (m) => {
+      const forms = inflect(m.groups!.target, cases("Gp"));
+      return onlyNoun(nounTags(m.groups!.target)) && forms.length === 1 ? forms[0] : null;
+    },
+    ...CONFUSION,
+  },
+  // "roku dwutysięcznego drugiego" -> "dwa tysiące drugiego": only the last word is ordinal.
+  {
+    pattern: `(?<target>dwutysięczn(?:y|ego|ym|emu|a|ej|ą|e)${S}(?<last>(?:pierwsz|drug|trzec|czwart|piąt|szóst|siódm|ósm|dziewiąt|dziesiąt)\\p{Ll}*))${NOT_LETTER}`,
+    fix: (m) => `dwa tysiące ${m.groups!.last}`,
+    ...CONFUSION,
+  },
+  // "Możliwym jest" -> "Możliwe jest": the predicate adjective takes the neuter nominative.
+  {
+    pattern: `${CLAUSE_START}(?<target>(?<stem>Możliw|Prawdopodobn|Konieczn|Wskazan|Niezbędn|Oczywist|Wiadom|Zrozumiał|Pewn|Jasn)ym)(?=${S}(?:jest|było|będzie)${NOT_LETTER})`,
+    fix: (m) => `${m.groups!.stem}e`,
+    ...CONFUSION,
+  },
+  // "na początku XX" -> "na początku XX wieku": a century in Roman numerals needs its noun.
+  {
+    pattern: `(?<=(?<![\\p{L}])(?:na${S}początku|w${S}połowie|pod${S}koniec|u${S}schyłku|u${S}zarania|w${S}pierwszej${S}połowie|w${S}drugiej${S}połowie)${S})(?<target>[IVX]{1,5})(?![\\p{L}\\p{N}])(?![ \\t\\u00a0]*(?:[–—-]|w\\.|wiek|stuleci|tysiącleci|i${S}[IVX]|lub|albo|,${S}[IVX]))`,
+    // Frames match case-insensitively: "na początku i nie" is no numeral.
+    fix: (m) => (/^[IVX]+$/u.test(m.groups!.target) ? `${m.groups!.target} wieku` : null),
+    ...CONFUSION,
+    verbatim: true,
+  },
+  // "dwadzieścia %" -> "dwadzieścia procent": the sign goes with digits only.
+  {
+    pattern: `(?<=(?<![\\p{L}])(?:dwa|trzy|cztery|pięć|sześć|siedem|osiem|dziewięć|dziesięć|\\p{Ll}+naście|\\p{Ll}+dzieścia?|\\p{Ll}+dziesiąt|sto|kilka|kilkanaście|kilkadziesiąt|pół)${S})(?<target>%)`,
+    fix: "procent",
     ...CONFUSION,
   },
   // "anie" (no word) for "a nie".

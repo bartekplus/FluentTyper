@@ -246,6 +246,22 @@ export const STYLE: readonly PhraseRow[] = [
     ["byli w posiadaniu", "mieli"],
     ["być w posiadaniu", "mieć"],
   ] as PhraseRow[]),
+  // "uczynić szczęśliwym" is "uszczęśliwić".
+  ...([
+    ["uczynić szczęśliwym", "uszczęśliwić"],
+    ["uczyniło mnie szczęśliwym", "uszczęśliwiło mnie"],
+    ["uczyniło mnie szczęśliwą", "uszczęśliwiło mnie"],
+    ["uczynił ją szczęśliwą", "uszczęśliwił ją"],
+    ["uczyniła go szczęśliwym", "uszczęśliwiła go"],
+  ] as PhraseRow[]),
+  // "mimo tego, że" is wordy for "mimo że".
+  ["pomimo tego, że", "mimo że"],
+  ["mimo tego, że", "mimo że"],
+  ["pomimo tego że", "mimo że"],
+  ["mimo tego że", "mimo że"],
+  // "w bliskiej odległości" pairs two ideas of near: "w niewielkiej odległości" or "blisko".
+  ["w bliskiej odległości od", ["w niewielkiej odległości od", "blisko"]],
+  ["w bliskiej odległości", ["w niewielkiej odległości", "blisko"]],
   // "uczynić możliwym" is "umożliwić"; "uczynić niemożliwym" is "uniemożliwić".
   ...(
     [
