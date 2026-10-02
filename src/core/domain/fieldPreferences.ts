@@ -42,7 +42,8 @@ export function isFieldLabel(value: unknown): value is string {
 export function sanitizeFieldPreferences(raw: unknown): FieldPreference[] {
   if (!Array.isArray(raw)) return [];
   const result: FieldPreference[] = [];
-  for (const item of raw.slice(0, FIELD_PREFERENCE_LIMIT)) {
+  for (const item of raw) {
+    if (result.length === FIELD_PREFERENCE_LIMIT) break;
     if (
       !isObjectRecord(item) ||
       item.version !== 1 ||

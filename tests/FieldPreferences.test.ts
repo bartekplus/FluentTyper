@@ -1,5 +1,8 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { sanitizeFieldPreferences } from "../src/core/domain/fieldPreferences";
+import {
+  FIELD_PREFERENCE_LIMIT,
+  sanitizeFieldPreferences,
+} from "../src/core/domain/fieldPreferences";
 import {
   fieldSignatureSource,
   hashFieldSignature,
@@ -119,6 +122,25 @@ describe("background field preferences", () => {
       Object.defineProperty(globalThis, "crypto", cryptoDescriptor);
       chrome.runtime.sendMessage = send;
     }
+  });
+
+  test("invalid and duplicate records do not displace valid preferences during updates", async () => {
+    const valid = Array.from({ length: FIELD_PREFERENCE_LIMIT + 1 }, (_, i) => ({
+      ...record,
+      signature: i.toString(16).padStart(64, "0"),
+    }));
+    const raw = [
+      ...Array.from({ length: FIELD_PREFERENCE_LIMIT }, () => null),
+      ...Array.from({ length: FIELD_PREFERENCE_LIMIT }, () => valid[0]),
+      ...valid,
+    ];
+    const expected = valid.slice(0, FIELD_PREFERENCE_LIMIT);
+    expect(sanitizeFieldPreferences(raw)).toEqual(expected);
+    const { call, stored } = setup(raw);
+    expect((await call({ action: "rename", ...valid[0], label: "Subject" }, options)).ok).toBe(
+      true,
+    );
+    expect(stored()).toEqual([{ ...valid[0], label: "Subject" }, ...expected.slice(1)]);
   });
 
   test("trusted origin scope, serialization, no raw URLs and settings-only management", async () => {
