@@ -57,6 +57,9 @@ test.each([
   "It nowhere states that.",
   "It auto plays.",
   "It errors out when I open it.",
+  "The council has taken its time to respond.",
+  "There are ten seats on its A list.",
+  "With this deal, its largest to date, they grew.",
 ])("it frames stay silent: %s", (text) => {
   expect(scan(text, "englishItsContext")).toEqual([]);
 });
@@ -78,3 +81,65 @@ test("a compound noun subject of a question stays", () => {
     [],
   );
 });
+
+test.each([
+  ["When leave you for work?", "When do you leave for work?"],
+  ["Where went they after lunch?", "Where did they go after lunch?"],
+  ["How cooks she rice so fast?", "How does she cook rice so fast?"],
+])("a fronted verb in a question takes do-support: %s", (input, expected) => {
+  const found = scan(input, "englishAuxiliaryBaseVerb");
+  expect(found).toHaveLength(1);
+  expect(applyEdits(input, found[0].alternatives[0].edits)).toBe(expected);
+});
+
+test.each(["How come you are late?", "How dare you say that?", "When go you home."])(
+  "fixed inversions and statements stay silent: %s",
+  (text) => expect(scan(text, "englishAuxiliaryBaseVerb")).toEqual([]),
+);
+
+test.each([
+  ["I live here since 2010.", "I have lived here since 2010."],
+  ["We were there since 9 am.", "We have been there since 9 am."],
+  ["The kids play here since 3.", "The kids have played here since 3."],
+])("since with a starting point takes the present perfect: %s", (input, expected) => {
+  const found = scan(input, "englishTenseConsistency");
+  expect(found).toHaveLength(1);
+  expect(applyEdits(input, found[0].alternatives[0].edits)).toBe(expected);
+});
+
+test.each([
+  "He left since 10 people complained.",
+  "This is the best season since 2002.",
+  "I have lived here since 2010.",
+])("since frames stay silent: %s", (text) =>
+  expect(scan(text, "englishTenseConsistency")).toEqual([]),
+);
+
+test("of it before an owned plural is of its", () => {
+  const input = "Most of it efforts were wasted.";
+  const found = scan(input, "englishItsContext");
+  expect(found).toHaveLength(1);
+  expect(applyEdits(input, found[0].alternatives[0].edits)).toBe(
+    "Most of its efforts were wasted.",
+  );
+});
+
+test.each(["Because of it people left early.", "Most of it beta decays to lead."])(
+  "of it before a new clause stays: %s",
+  (text) => expect(scan(text, "englishItsContext")).toEqual([]),
+);
+
+test.each([
+  ["Why you no speak English?", "Why don't you speak English?"],
+  ["I no like eggs.", "I don't like eggs."],
+  ["She no like spinach.", "She doesn't like spinach."],
+  ["I no can find my keys!", "I cannot find my keys!"],
+])("no for a missing do or not: %s", (input, expected) => {
+  const found = scan(input, "englishConfusedWords");
+  expect(found).toHaveLength(1);
+  expect(applyEdits(input, found[0].alternatives[0].edits)).toBe(expected);
+});
+
+test.each(["I no longer smoke.", "You no doubt know him."])("no before a non-verb: %s", (text) =>
+  expect(scan(text, "englishConfusedWords")).toEqual([]),
+);

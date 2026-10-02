@@ -47,6 +47,12 @@ test.each([
   ["A recipe like this one need fresh herbs.", "needs"],
   ["Phones such as these often breaks easily.", "break"],
   ["Anything like that annoy me.", "annoys"],
+  // Prepositional phrases, comma openings and list bullets before the subject's verb.
+  ["The houses near the lake has a dock.", "have"],
+  ["All files in Dropbox gets synced.", "get"],
+  ["As such, each page include a footer.", "includes"],
+  ["- The report indicate a problem.", "indicates"],
+  ["After the storm, the roads was closed.", "were"],
 ])("the verb after the clause agrees with its subject: %s", (input, fix) => {
   const found = scan(input);
   expect(found).toHaveLength(1);
@@ -87,6 +93,13 @@ test.each([
   "Anything like this exist?",
   "Looks like this is live already!",
   "Sounds like that works.",
+  "The man with the dogs walks fast.",
+  "The plans for Monday include a hike.",
+  "When we left, the doors were open.",
+  "The oceans, our wealth, our military power have made us strong.",
+  "Right now the city and, especially, the state are the obstacles.",
+  "In the book, the word ares is used for battle.",
+  "All people from Jersey do is complain.",
 ])("correct clauses stay silent: %s", (text) => {
   expect(scan(text)).toEqual([]);
 });
