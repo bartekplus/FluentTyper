@@ -480,6 +480,11 @@ const GENITIVE_VERBS = new RegExp(
   )})[ \\t\\u00a0]{1,8}(?:(?<adj>\\p{Ll}{3,})[ \\t\\u00a0]{1,8})?(?<noun>\\p{Ll}{3,})${WORD}`,
   "giud",
 );
+/** "Używają je", "szukam ją": the object pronoun of a genitive-taking verb. */
+const GENITIVE_VERB_PRONOUN = new RegExp(
+  `${GENITIVE_VERBS.source.slice(0, GENITIVE_VERBS.source.indexOf(")[ \\t\\u00a0]{1,8}") + 1)}[ \\t\\u00a0]{1,8}(?<pronoun>je|ją)(?![\\p{L}])`,
+  "giu",
+);
 const GENITIVE_CASES = cases("Gs Gp");
 const TIME_SPAN =
   /^(?:raz|razy|czas|dzień|dni|rok|lata|tydzień|tygodnie|miesiąc|miesiące|chwilę|godzinę|godziny|minutę|minuty|noc|wieczór|weekend|ranek|popołudnie|sobotę|niedzielę|wiosnę|lato|jesień|zimę)$/u;
@@ -489,6 +494,22 @@ const ACCUSATIVE = cases("As Ap");
 /** "Używam młotek", "przestrzega przepisy": an accusative object where the verb wants the genitive. */
 function genitiveObjects(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
+  for (const m of owned(ctx, GENITIVE_VERB_PRONOUN)) {
+    const pronoun = m.groups!.pronoun;
+    const start = m.index + m[0].length - pronoun.length;
+    const fixes = pronoun.toLowerCase() === "ją" ? ["jej"] : ["ich", "go"];
+    findings.push({
+      ...findingAt(
+        ctx,
+        start,
+        start + pronoun.length,
+        fixes.map((fix) => caseLike(pronoun, fix)),
+        RULE,
+        "review_msg_pl_preposition_case",
+      ),
+      context: { start: m.index, end: start + pronoun.length },
+    });
+  }
   for (const m of owned(ctx, GENITIVE_VERBS)) {
     const { adj, noun } = m.groups!;
     if (userOrNamed(ctx, noun)) continue;
@@ -935,6 +956,69 @@ function consideredAs(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+/* ------------------------------------------------------- fixed small frames */
+
+/** Prepositions that take only the genitive, so "niemu", "nim", "nią", "nimi" cannot follow. */
+const GENITIVE_ONLY =
+  "dla|do|od|bez|u|według|wg|oprócz|prócz|zamiast|obok|koło|wokół|wśród|spośród|spod|znad|zza|sprzed";
+const PRONOUN_GENITIVE: Record<string, string> = {
+  niemu: "niego",
+  nim: "niego",
+  nią: "niej",
+  nimi: "nich",
+};
+const SMALL_FRAMES: Array<[RegExp, (m: RegExpExecArray) => string | null]> = [
+  // "wg niemu", "dla nią" -> "wg niego", "dla niej".
+  [
+    new RegExp(
+      `(?<=(?<![\\p{L}])(?:${GENITIVE_ONLY})[ \\t\\u00a0]{1,8})(?:niemu|nim|nią|nimi)(?![\\p{L}])`,
+      "giu",
+    ),
+    (m) => PRONOUN_GENITIVE[m[0].toLowerCase()],
+  ],
+  // "w twoi mózgu" -> "w twoim mózgu": the dropped "m" (or "-ej" before a feminine noun).
+  [
+    /(?<=(?<![\p{L}])(?:w|we|po|o|na|przy)[ \t\u00a0]{1,8})(?:moi|twoi|swoi)(?=[ \t\u00a0]{1,8}(\p{Ll}+))/giu,
+    (m) => {
+      const tags = nounTags(m[1]);
+      if (!onlyNoun(tags) || !(tags & cases("Ls Lp"))) return null;
+      if (tags & cases("Lp")) return `${m[0]}ch`;
+      return tags & FEMININE ? `${m[0].slice(0, -1)}jej` : `${m[0]}m`;
+    },
+  ],
+  // "po litewskiemu" -> "po litewsku" (not "po swojemu", "po staremu").
+  [
+    /(?<=(?<![\p{L}])po[ \t\u00a0]{1,8})\p{Ll}+(?:sk|ck|dzk)iemu(?![\p{L}])/giu,
+    (m) => `${m[0].slice(0, -4)}u`,
+  ],
+  // "godzina temu" -> "godzinę temu": "temu" counts back from an accusative.
+  [
+    // Not "temu" the dative of "ten" before its noun ("ta chwila temu panu umknęła").
+    /(?<![\p{L}])(?:godzina|minuta|sekunda|chwila|doba)(?=[ \t\u00a0]{1,8}temu(?![\p{L}])(?![ \t\u00a0]+\p{Ll}+(?:owi|u|emu)(?![\p{L}])))/giu,
+    (m) => `${m[0].slice(0, -1)}ę`,
+  ],
+];
+
+function smallFrames(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const [regex, fix] of SMALL_FRAMES)
+    for (const m of owned(ctx, regex)) {
+      const fixed = fix(m);
+      if (!fixed || userOrNamed(ctx, m[0])) continue;
+      findings.push(
+        findingAt(
+          ctx,
+          m.index,
+          m.index + m[0].length,
+          [caseLike(m[0], fixed)],
+          RULE,
+          "review_msg_pl_preposition_case",
+        ),
+      );
+    }
+  return findings;
+}
+
 /* ------------------------------------------------- "Bruno Schulza" -> "Brunona" */
 
 /** Foreign first names in -o and their genitive, dative and instrumental stems. */
@@ -1129,6 +1213,7 @@ export const DETECTORS = [
             ...consideredAs(ctx),
             ...relatives(ctx),
             ...uninflectedNames(ctx),
+            ...smallFrames(ctx),
           ]
         : [],
   },

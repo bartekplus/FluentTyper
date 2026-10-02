@@ -119,6 +119,13 @@ const POSITIVES: Array<[string, string, string | null]> = [
   // A count after a genitive-taking word stands in the genitive.
   ["Na koncert przyszło około trzysta osób.", "trzysta", "Na koncert przyszło około trzystu osób."],
   ["Czekaliśmy do cztery godzin.", "cztery", "Czekaliśmy do czterech godzin."],
+  // Small fixed frames: a pronoun after a genitive preposition, "twoi" for "twoim", "po
+  // -sku", "godzinę temu", a genitive verb's pronoun.
+  ["Według niemu nic się nie stało.", "niemu", "Według niego nic się nie stało."],
+  ["Myślę o twoi siostrze.", "twoi", "Myślę o twojej siostrze."],
+  ["Rozmawiali po francuskiemu.", "francuskiemu", "Rozmawiali po francusku."],
+  ["Minuta temu dzwonił.", "Minuta", "Minutę temu dzwonił."],
+  ["Szukamy ją od rana.", "ją", "Szukamy jej od rana."],
   // A first name in -o follows its surname's case.
   ["Lubię opowiadania Bruno Schulza.", "Bruno", "Lubię opowiadania Brunona Schulza."],
   ["Wręczono nagrodę Hugo Nowakowi.", "Hugo", "Wręczono nagrodę Hugonowi Nowakowi."],
@@ -207,6 +214,9 @@ const NEGATIVES = [
   "Dodaj do tego dwa jajka.",
   "Spóźniła się o około trzy minuty.",
   "Wrócę za około dwa dni.",
+  "Z nim nie rozmawiam.",
+  "Zrób to po swojemu.",
+  "Ta chwila temu chłopcu umknęła.",
   "Pablo Neruda pisał wiersze.",
   "Bruno Schulz mieszkał w Drohobyczu.",
   "Poznałem córkę sąsiada, która gra na skrzypcach.",
