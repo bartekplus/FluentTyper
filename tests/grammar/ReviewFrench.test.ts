@@ -615,6 +615,13 @@ test.each([
   ["frenchAdjectiveAgreement", "La lettre que j'ai voulu t'envoyer est perdue."],
   ["frenchAdjectiveAgreement", "Un camion qui passait nous a éclaboussés."],
   ["frenchAdjectiveAgreement", "Elles ont été invitées au mariage."],
+  ["frenchHomophones", "À qui on parlé de cette affaire ?"],
+  ["frenchHomophones", "Quelqu'un peut m'aider ?"],
+  ["frenchHomophones", "Il est trop peut-être, mais il a raison."],
+  ["frenchHomophones", "Quant à moi, je reste ici."],
+  ["frenchHomophones", "Je la vois tous les jours."],
+  ["frenchHomophones", "Do ré mi fa sol la."],
+  ["frenchHomophones", "Les enfants de son frère jouent dehors."],
 ] as Array<[CatalogRuleId, string]>)("%s stays silent on %p", (ruleId, text) => {
   expect(findings(ruleId, text).map((d) => d.original)).toEqual([]);
 });
@@ -657,6 +664,20 @@ test.each([
     "Le roman qu'elle a lue était passionnant.",
     "Le roman qu'elle a lu était passionnant.",
   ],
+  ["frenchHomophones", "Mes cousins son très gentils.", "Mes cousins sont très gentils."],
+  [
+    "frenchHomophones",
+    "Je salue ceux qui on fui la guerre.",
+    "Je salue ceux qui ont fui la guerre.",
+  ],
+  ["frenchHomophones", "Elle mange trop peut le soir.", "Elle mange trop peu le soir."],
+  ["frenchHomophones", "Il est passé il y a peut.", "Il est passé il y a peu."],
+  ["frenchHomophones", "Peut de gens le savent.", "Peu de gens le savent."],
+  ["frenchHomophones", "Ici, ont peut tout acheter.", "Ici, on peut tout acheter."],
+  ["frenchHomophones", "Tu reviendras quant ?", "Tu reviendras quand ?"],
+  ["frenchHomophones", "C'est la que tout a commencé.", "C'est là que tout a commencé."],
+  ["frenchHomophones", "Ton frère est la ?", "Ton frère est là ?"],
+  ["englishPhraseCorrections", "Elles ne son pas prêtes.", "Elles ne sont pas prêtes."],
 ] as Array<[CatalogRuleId, string, string]>)("%s fixes %p", (ruleId, text, fixed) => {
   const [finding, ...rest] = findings(ruleId, text);
   expect(rest).toEqual([]);

@@ -405,6 +405,8 @@ function finiteAfterAvoir(ctx: DetectContext, m: RegExpExecArray): RawFinding | 
   if (ctx.text.slice(word.start, word.end) !== word.w || isVerbHomograph(word.w)) return null;
   const readings = verbReadings(word.w);
   if (!readings.length || !readings.every(isFinite)) return null;
+  // "ils ont peut être raison": "peut-être" missing its hyphen.
+  if (word.w === "peut" && tokensAfter(ctx.text, word.end, 1)[0]?.w === "être") return null;
   const participles = [...new Set(readings.map((r) => pastParticiple(r.lemma)))];
   if (participles.length !== 1 || !participles[0] || participles[0] === word.w) return null;
   // "-er" present forms are participleAfterAuxiliary's ("il a manger"); this one takes the rest.

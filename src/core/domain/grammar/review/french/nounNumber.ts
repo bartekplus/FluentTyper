@@ -107,6 +107,14 @@ function nounNumber(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     ["de", "le", "un", "du", "ce", "au"].includes(previous[0].w)
   )
     return null;
+  // "les épaules son larges": "sont" misspelt after a plural subject.
+  if (
+    determiner === "son" &&
+    previous[1] &&
+    PLURAL.has(previous[1].w) &&
+    /[sx]$/.test(previous[0].w)
+  )
+    return null;
   // "vos nom et prénom", "les premier et deuxième": singulars sharing one determiner.
   const [start] = m.indices!.groups!.noun;
   const rest = ctx.text.slice(start + typed.length);
