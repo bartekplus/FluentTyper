@@ -16,6 +16,7 @@ import {
   TU,
   verbReadings,
 } from "./frenchLexicon";
+import { firstNameGender } from "./firstNames";
 import { ownedFrenchWords, type Token, tokensAfter, tokensBefore, withCase } from "./frenchTokens";
 
 // An adjective or a past participle takes the gender and number of its noun: right after it
@@ -576,6 +577,27 @@ function afterPronoun(ctx: DetectContext, m: RegExpExecArray, pronoun: string): 
   return word ? predicateFinding(ctx, word, allowed, m.index) : null;
 }
 
+const FIRST_NAME =
+  /(?<![\p{L}\p{M}\p{N}_'’-])\p{Lu}\p{Ll}+(?:-\p{Lu}\p{Ll}+)?(?![\p{L}\p{M}\p{N}_'’-])/gu;
+
+/** "Martine est marié", "Antoine n'est pas mariée": a first name of one gender opening its clause,
+ * être and an adjective or participle. */
+function afterName(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const gender = firstNameGender(m[0]);
+  if (!gender) return null;
+  const before = tokensBefore(ctx.text, m.index, 1)[0];
+  if (before && !OPENERS.has(before.w)) return null;
+  let tokens = tokensAfter(ctx.text, m.index + m[0].length, 9);
+  // "Martine Dupont": a surname.
+  if (tokens[0] && /^\p{Lu}/u.test(ctx.text[tokens[0].start])) tokens = tokens.slice(1);
+  const j = tokens[0]?.w === "ne" || tokens[0]?.w === "n'" ? 1 : 0;
+  const allowed: Inflection[] = [gender === "m" ? "ms" : "fs"];
+  const end = linkingEnd(tokens, j, IL);
+  if (end < 0) return reflexiveFinding(ctx, tokens, j, IL, allowed, m.index);
+  const word = tokens[skipAdverbs(tokens, end)];
+  return word ? predicateFinding(ctx, word, allowed, m.index) : null;
+}
+
 const REFLEXIVE = new Set(["se", "s'", "me", "m'", "te", "t'", "nous", "vous"]);
 // Verbs whose reflexive pronoun is an indirect object, so their participle stays invariable:
 // "ils se sont parlé", "elles se sont plu".
@@ -946,6 +968,11 @@ function adjectives(ctx: DetectContext): RawFinding[] {
       word in SUBJECTS
         ? afterPronoun(ctx, m, word)
         : (afterNoun(ctx, m, word) ?? longSubject(ctx, m, word));
+    if (f) findings.push(f);
+  }
+  for (const m of ownedFrenchWords(ctx, FIRST_NAME)) {
+    if (namedExampleBefore(ctx.text, m.index)) continue;
+    const f = afterName(ctx, m);
     if (f) findings.push(f);
   }
   for (const m of ownedFrenchWords(ctx, AVOIR)) {
