@@ -1506,6 +1506,19 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     recommended: false,
     priority: 110,
   },
+  {
+    id: "germanVerbAgreement",
+    typing: false,
+    name: "German verb agreement",
+    titleI18nKey: "review_msg_german_verb_agreement",
+    descriptionI18nKey: "review_msg_german_verb_agreement",
+    exampleI18nKey: "",
+    languageScope: "all",
+    safetyTier: "advanced",
+    defaultRollout: "off",
+    recommended: false,
+    priority: 120,
+  },
 ] as const;
 
 export type CatalogRuleId = (typeof GRAMMAR_RULE_CATALOG)[number]["id"];

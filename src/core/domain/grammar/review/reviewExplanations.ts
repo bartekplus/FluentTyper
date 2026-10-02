@@ -2391,6 +2391,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Niemiecki oddziela przecinkiem zdanie podrzędne lub grupę bezokolicznikową: Er bleibt, weil es regnet.",
     "O alemão separa com vírgula a oração subordinada ou o grupo infinitivo: Er bleibt, weil es regnet.",
   ],
+  review_msg_german_verb_agreement: [
+    "The verb does not match its subject: wir haben, du kannst, ich habe.",
+    "Le verbe ne s’accorde pas avec son sujet : wir haben, du kannst, ich habe.",
+    "Glagol se ne slaže sa subjektom: wir haben, du kannst, ich habe.",
+    "El verbo no concuerda con su sujeto: wir haben, du kannst, ich habe.",
+    "Το ρήμα δεν συμφωνεί με το υποκείμενό του: wir haben, du kannst, ich habe.",
+    "Verbet stämmer inte med subjektet: wir haben, du kannst, ich habe.",
+    "Das Verb passt nicht zum Subjekt: wir haben, du kannst, ich habe.",
+    "Czasownik nie zgadza się z podmiotem: wir haben, du kannst, ich habe.",
+    "O verbo não concorda com o sujeito: wir haben, du kannst, ich habe.",
+  ],
 };
 
 /**

@@ -302,6 +302,31 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
       ],
     },
   ],
+  [
+    "germanVerbAgreement",
+    {
+      pos: [
+        ["Wir muss morgen früh los.", "Wir müssen morgen früh los."],
+        ["Du kann gern mitkommen.", "Du kannst gern mitkommen."],
+        ["Ich hat keine Ahnung.", "Ich habe keine Ahnung."],
+        ["Morgen werde wir es sehen.", "Morgen werden wir es sehen."],
+        ["Ihr wartest schon lange.", "Ihr wartet schon lange."],
+        ["Er fährst morgen.", "Er fährt morgen."],
+      ],
+      neg: [
+        "Er habe keine Zeit, sagte sie.",
+        "Sie hast du gestern getroffen?",
+        "Ihr habe ich das Buch geliehen.",
+        "Es sind schon alle da.",
+        "Du und ich sind ein gutes Team.",
+        "Sei du doch still!",
+        "Ich weiß du kannst das.",
+        "Ich wollt' dir nur danken.",
+        "Wir selbst haben es gebaut.",
+        "Ich glaube, dass ich haben will, was du hast.",
+      ],
+    },
+  ],
 ];
 
 describe.each(RULES)("%s", (ruleId, { pos, neg }) => {
@@ -455,6 +480,7 @@ test("no German chunk stalls on repeated determiners and lowercase nouns", () =>
     "ihr seit mir dem seid den mich ".repeat(300),
     `der ${"\t ".repeat(3_000)}vertrag`,
     "ich glaube weil um zu wissen was ob sondern ".repeat(300),
+    "Wir habe. Sollte wir du kann ich hast ".repeat(300),
   ];
   slowest(inputs.join("\n"));
   for (const text of inputs) expect(slowest(text)).toBeLessThan(100);
