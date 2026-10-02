@@ -776,8 +776,30 @@ describe("portugueseDates", () => {
     "Atualize para a versão 10.13.2024.",
     "Faltam 31 mais coisas.",
     "Ela nasceu em 29/02/2000.",
+    "A prova é na sexta-feira, 2 de outubro de 2026.",
+    "Abrimos no domingo (dia 4/10/2026) cedo.",
+    "Na quarta, 7 de outubro, saímos.",
   ])("leaves %p alone", (text) => {
     expect(findings("portugueseDates", text)).toEqual([]);
+  });
+  test.each([
+    [
+      "A prova é na quinta-feira, 2 de outubro de 2026.",
+      "quinta-feira, 2",
+      ["sexta-feira, 2", "quinta-feira, 1"],
+    ],
+    [
+      "Abrimos no sábado (dia 4/10/2026) cedo.",
+      "sábado (dia 4",
+      ["domingo (dia 4", "sábado (dia 3"],
+    ],
+    ["Seg, 6 out 2026: reunião.", "Seg, 6", ["Terça-feira, 6", "Seg, 5"]],
+  ])("checks the weekday in %p", (text, typed, alternatives) => {
+    const [finding, ...rest] = findings("portugueseDates", text);
+    expect(rest).toEqual([]);
+    expect(finding.original).toBe(typed);
+    expect(finding.alternatives.map((alternative) => alternative.preview)).toEqual(alternatives);
+    expect(finding.requiresChoice).toBe(true);
   });
 });
 

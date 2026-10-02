@@ -277,6 +277,7 @@ export type ReviewMessageKey =
   | "review_msg_pt_mesoclisis"
   | "review_msg_pt_pronoun_case"
   | "review_msg_pt_invalid_date"
+  | "review_msg_pt_weekday_date"
   | "review_msg_pt_comma"
   | "review_msg_pt_agreement"
   | "review_msg_pt_noun_agreement"

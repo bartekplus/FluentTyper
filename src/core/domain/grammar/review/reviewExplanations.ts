@@ -2179,6 +2179,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Taka data nie istnieje: miesiąc ma mniej dni albo 29 lutego wypada w roku, który nie jest przestępny.",
     "Esta data não existe: o mês tem menos dias, ou 29 de fevereiro cai num ano que não é bissexto.",
   ],
+  review_msg_pt_weekday_date: [
+    "That date fell on a different day of the week: either the weekday or the day number is wrong.",
+    "Cette date tombait un autre jour de la semaine : le jour de la semaine ou le quantième est faux.",
+    "Taj je datum pao na drugi dan u tjednu: pogrešan je ili dan u tjednu ili broj dana.",
+    "Esa fecha cayó en otro día de la semana: el día de la semana o el número del día está mal.",
+    "Αυτή η ημερομηνία έπεφτε σε άλλη ημέρα της εβδομάδας: λάθος είναι είτε η ημέρα είτε ο αριθμός της.",
+    "Det datumet inföll en annan veckodag: antingen veckodagen eller datumet är fel.",
+    "Dieses Datum fiel auf einen anderen Wochentag: Entweder der Wochentag oder die Tageszahl stimmt nicht.",
+    "Ta data wypadała w inny dzień tygodnia: błędny jest dzień tygodnia albo numer dnia.",
+    "Essa data caiu noutro dia da semana: está errado o dia da semana ou o número do dia.",
+  ],
   review_msg_pt_comma: [
     "Portuguese sets an aside such as no entanto or por outro lado between two commas, and puts a comma before the name a greeting addresses (Bom dia, Ana).",
     "Le portugais encadre une incise comme no entanto ou por outro lado par deux virgules et met une virgule avant le nom salué (Bom dia, Ana).",
