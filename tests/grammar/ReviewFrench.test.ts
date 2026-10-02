@@ -664,8 +664,14 @@ test("no French chunk stalls on adversarial input", () => {
     "tout toute tous toutes les le la ceux ça ".repeat(250),
     "il faut que bien qu' si s'ils j'aurai aimé je viendrais demain ".repeat(150),
     "j'ai pas on sait jamais il y a rien c'est pas ".repeat(200),
+    "il ni si sans mes dans leurs mêmes d'avantage quel que soit anti sur sous néo-x ".repeat(150),
   ])
     expect(slowest(text)).toBeLessThan(100);
+});
+
+test("French keeps glued hours but spaces other units and currencies", () => {
+  expect(findings("measurementUnitFormatting", "Il a couru 10km hier.")).toHaveLength(1);
+  expect(findings("currencySpacing", "Le livre coûte 5€.")).toHaveLength(1);
 });
 
 test("French time zones and pronoun + article pairs stay clean", () => {
@@ -700,6 +706,18 @@ test("the clean French corpus has no findings", () => {
 });
 
 test.each([
+  ["measurementUnitFormatting", "Rendez-vous à 14h devant la gare, ou à 9h demain."],
+  ["frenchHomophones", "Le 3 mai il pleuvait."],
+  ["frenchHomophones", "Ce sont les mêmes si je me souviens bien."],
+  ["frenchHomophones", "Il a tiré avantage de la situation."],
+  ["frenchHomophones", "Il n'y a pas d'avantage à attendre."],
+  ["frenchHomophones", "Ils ont fini leurs devoirs."],
+  ["frenchHomophones", "Quels que soient le lieu de livraison et le mode de paiement."],
+  ["frenchHyphenation", "Il compte sur tout le monde."],
+  ["frenchHyphenation", "Elle est sous pression."],
+  ["frenchHyphenation", "Un verre anti-reflets et un écran auto-bronzant."],
+  ["frenchHyphenation", "Ce texte peut être utile."],
+  ["frenchHyphenation", "Il est peut-être là."],
   ["frenchElision", "Le sigle vient de also known as, en anglais."],
   ["frenchElision", "Il épelle son nom : d o r a."],
   ["frenchSubjectVerbAgreement", "« Je est un autre » reste une formule célèbre."],
@@ -742,6 +760,31 @@ test.each([
 });
 
 test.each([
+  ["frenchHomophones", "Il ni comprend rien.", "Il n'y comprend rien."],
+  ["frenchHomophones", "Elle si prend bien.", "Elle s'y prend bien."],
+  ["frenchHomophones", "Il sans va demain.", "Il s'en va demain."],
+  ["frenchHomophones", "Il est fatigué, mes je continue.", "Il est fatigué, mais je continue."],
+  ["frenchHomophones", "Je viens dans prendre.", "Je viens d'en prendre."],
+  ["frenchHomophones", "Cela leurs permet de partir.", "Cela leur permet de partir."],
+  ["frenchHomophones", "Il viendra mêmes si tu refuses.", "Il viendra même si tu refuses."],
+  ["frenchHomophones", "Je pense d'avantage à toi.", "Je pense davantage à toi."],
+  ["frenchHomophones", "Quel que soit sa raison, il part.", "Quelle que soit sa raison, il part."],
+  [
+    "frenchHomophones",
+    "Quelles que soit ses idées, on écoute.",
+    "Quelles que soient ses idées, on écoute.",
+  ],
+  ["frenchHyphenation", "Un rapport néo-rural.", "Un rapport néorural."],
+  ["frenchHyphenation", "Ils sont sur exploités.", "Ils sont surexploités."],
+  ["frenchHyphenation", "Les pays sous développés.", "Les pays sous-développés."],
+  ["frenchHyphenation", "Il veut contre attaquer.", "Il veut contre-attaquer."],
+  ["frenchHyphenation", "Il n'est peut être pas venu.", "Il n'est peut-être pas venu."],
+  [
+    "frenchHyphenation",
+    "Ainsi, peut être que tout ira bien.",
+    "Ainsi, peut-être que tout ira bien.",
+  ],
+  ["frenchHyphenation", "Il peut-être têtu.", "Il peut être têtu."],
   ["frenchHomophones", "Il est venu comme même.", "Il est venu quand même."],
   ["frenchHomophones", "C'est comme même bizarre.", "C'est quand même bizarre."],
   ["frenchHyphenation", "Il viendra peu être demain.", "Il viendra peut-être demain."],
