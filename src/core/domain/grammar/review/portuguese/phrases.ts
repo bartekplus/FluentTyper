@@ -468,6 +468,122 @@ export const PORTUGUESE_PHRASES: PhraseRow[] = [
 ];
 
 /** Optional wording advice for the `pt` style table (stylePhrasing): shorter equivalents. */
+/** Infinitive, present (3sg, 3pl), preterite (1sg, 3sg, 3pl) and gerund of a regular verb. */
+function regular(infinitive: string): string[] {
+  const stem = infinitive.slice(0, -2);
+  const ending = infinitive.slice(-2);
+  if (ending === "ar")
+    return [
+      infinitive,
+      `${stem}a`,
+      `${stem}am`,
+      `${stem}ei`,
+      `${stem}ou`,
+      `${stem}aram`,
+      `${stem}ando`,
+    ];
+  const vowel = ending[0];
+  return [
+    infinitive,
+    `${stem}e`,
+    `${stem}em`,
+    `${stem}i`,
+    `${stem}${vowel}u`,
+    `${stem}${vowel}ram`,
+    `${stem}${vowel}ndo`,
+  ];
+}
+/** Each form of `verb` (regular, or a list of forms) followed by `tail` drops the tail. */
+const verbTail = (verb: string | string[], tails: string[]): PhraseRow[] =>
+  (typeof verb === "string" ? regular(verb) : verb).flatMap((form) =>
+    tails.map((tail): PhraseRow => [`${form} ${tail}`, form]),
+  );
+/**
+ * Pleonasms: the second part says again what the first already does ("recuar para trás",
+ * "hemorragia de sangue"). Opt-in wording advice (stylePhrasing).
+ */
+const PLEONASMS: PhraseRow[] = [
+  ...verbTail("recuar", ["para trás"]),
+  ...verbTail("retornar", ["de novo", "novamente"]),
+  ...verbTail("recomeçar", ["de novo", "novamente"]),
+  ...verbTail("reiniciar", ["de novo", "novamente"]),
+  ...verbTail("reconsiderar", ["de novo", "novamente"]),
+  ...verbTail("repetir", ["de novo", "novamente"]),
+  ...verbTail(
+    ["refazer", "refaz", "refazem", "refiz", "refez", "refizeram", "refazendo"],
+    ["de novo", "novamente"],
+  ),
+  ...verbTail(
+    ["reler", "relê", "releem", "reli", "releu", "releram", "relendo"],
+    ["de novo", "novamente"],
+  ),
+  ...verbTail("adiar", ["para depois", "para mais tarde"]),
+  ...verbTail("prevenir", ["antes", "de antemão"]),
+  ...verbTail(
+    ["prever", "prevê", "preveem", "previ", "previu", "previram", "prevendo"],
+    ["antes", "de antemão", "antecipadamente"],
+  ),
+  ...verbTail("preparar", ["de antemão"]),
+  ...verbTail("planejar", ["com antecedência"]),
+  ...verbTail("planear", ["antecipadamente", "com antecedência"]),
+  ...verbTail("enfrentar", ["de frente"]),
+  ...verbTail("anexar", ["junto"]),
+  ...verbTail("introduzir", ["dentro"]),
+  ...verbTail("pisar", ["com os pés"]),
+  ...verbTail("cheirar", ["com o nariz"]),
+  ...verbTail("lamber", ["com a língua"]),
+  ...verbTail("morder", ["com os dentes"]),
+  ...verbTail("decapitar", ["a cabeça"]),
+  ...verbTail("degolar", ["a cabeça", "o pescoço"]),
+  ...verbTail("arder", ["em chamas"]),
+  ...verbTail("ganhar", ["de graça"]),
+  ...verbTail("exultar", ["de alegria"]),
+  ...verbTail("projetar", ["para o futuro"]),
+  ...verbTail("avançar", ["para a frente", "para frente"]),
+  ...verbTail("estrear", ["pela primeira vez"]),
+  ...verbTail(["estreia", "estreiam"], ["pela primeira vez"]),
+  // A noun with a modifier that only repeats it.
+  ...([
+    ["hemorragia de sangue", "hemorragia"],
+    ["multidão de gente", "multidão"],
+    ["inesperada surpresa", "surpresa"],
+    ["conclusão final", "conclusão"],
+    ["abertura inaugural", "abertura"],
+    ["erário público", "erário"],
+    ["panorama geral", "panorama"],
+    ["detalhes minuciosos", "detalhes"],
+    ["unanimidade de todos", "unanimidade"],
+    ["unânime de todos", "unânime"],
+    ["fato verídico", "fato"],
+    ["facto verídico", "facto"],
+    ["facto real", "facto"],
+    ["metades iguais", "metades"],
+    ["cardume de peixes", "cardume"],
+    ["enxame de abelhas", "enxame"],
+    ["goteira no teto", "goteira"],
+    ["goteiras no teto", "goteiras"],
+    ["almirante da marinha", "almirante"],
+    ["general do exército", "general"],
+    ["viúva do falecido", "viúva"],
+    ["viúva da falecida", "viúva"],
+    ["sorriso nos lábios", "sorriso"],
+    ["superávit positivo", "superávit"],
+    ["déficit negativo", "déficit"],
+    ["cego dos olhos", "cego"],
+    ["surdo dos ouvidos", "surdo"],
+    ["própria autobiografia", "autobiografia"],
+    ["plebiscito popular", "plebiscito"],
+    ["escolha opcional", "escolha"],
+    ["monocultura exclusiva", "monocultura"],
+    ["demente mental", "demente"],
+    ["defunto morto", "defunto"],
+    ["segredo secreto", "segredo"],
+    ["possivelmente poderá", "poderá"],
+    ["possivelmente poderia", "poderia"],
+    ["amanhecer do dia", "amanhecer"],
+  ] as PhraseRow[]),
+];
+
 export const PORTUGUESE_STYLE: PhraseRow[] = [
   ...["considerado", "considerada", "considerados", "consideradas"].flatMap((form): PhraseRow[] => [
     [`${form} como sendo`, form],
@@ -512,8 +628,6 @@ export const PORTUGUESE_STYLE: PhraseRow[] = [
   ["três vezes mais", "o triplo"],
   ["a grande maioria", "a maioria"],
   ["planejar antecipadamente", "planejar"],
-  ["repetir de novo", "repetir"],
-  ["repetir novamente", "repetir"],
   ["voltar atrás", "voltar"],
   ["surpresa inesperada", "surpresa"],
   ["acabamento final", "acabamento"],
@@ -573,4 +687,5 @@ export const PORTUGUESE_STYLE: PhraseRow[] = [
   ["deadline", "prazo"],
   ["budget", "orçamento"],
   ["meeting", "reunião"],
+  ...PLEONASMS,
 ];
