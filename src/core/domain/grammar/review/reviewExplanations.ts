@@ -2046,6 +2046,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Portugalskie pytanie zaczynające się od słowa pytającego i „é que” kończy się znakiem zapytania: O que é que houve?",
     "Uma pergunta aberta por palavra interrogativa e “é que” termina com ponto de interrogação: O que é que houve?",
   ],
+  review_msg_pt_enclitic_accent: [
+    "Before -lo or -la, a Portuguese infinitive drops its r and its last vowel takes an accent: fazê-lo, puxá-la, pô-lo, distraí-los.",
+    "Devant -lo ou -la, l’infinitif portugais perd son r et sa dernière voyelle prend un accent : fazê-lo, puxá-la, pô-lo, distraí-los.",
+    "Ispred -lo ili -la portugalski infinitiv gubi r, a zadnji samoglasnik dobiva naglasak: fazê-lo, puxá-la, pô-lo, distraí-los.",
+    "Ante -lo o -la, el infinitivo portugués pierde la r y su última vocal lleva acento: fazê-lo, puxá-la, pô-lo, distraí-los.",
+    "Πριν από -lo ή -la το πορτογαλικό απαρέμφατο χάνει το r και το τελευταίο φωνήεν παίρνει τόνο: fazê-lo, puxá-la, pô-lo, distraí-los.",
+    "Före -lo eller -la tappar den portugisiska infinitiven sitt r och sista vokalen får accent: fazê-lo, puxá-la, pô-lo, distraí-los.",
+    "Vor -lo oder -la verliert der portugiesische Infinitiv sein r, und der letzte Vokal bekommt einen Akzent: fazê-lo, puxá-la, pô-lo, distraí-los.",
+    "Przed -lo lub -la portugalski bezokolicznik traci r, a ostatnia samogłoska dostaje akcent: fazê-lo, puxá-la, pô-lo, distraí-los.",
+    "Antes de -lo ou -la, o infinitivo perde o r e a vogal final leva acento: fazê-lo, puxá-la, pô-lo, distraí-los.",
+  ],
   review_msg_pt_ao90: [
     "1990 Portuguese spelling: prefixes join their word unless it starts with h or the same vowel (autoestima, micro-ondas), and months and weekdays are lowercase.",
     "Orthographe portugaise de 1990 : les préfixes se soudent au mot sauf devant h ou la même voyelle (autoestima, micro-ondas), et mois et jours s’écrivent en minuscules.",

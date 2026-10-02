@@ -41,6 +41,13 @@ const ELEMENT =
   "(?:H|He|Li|Be|B|C|N|O|F|Ne|Na|Mg|Al|Si|P|S|Cl|Ar|K|Ca|Ti|Cr|Mn|Fe|Co|Ni|Cu|Zn|Br|Ag|I|Ba|Pt|Au|Hg|Pb|U)";
 
 const NUMBER_FORMAT: Frame[] = [
+  // "1 999 349.56": an English decimal point after a spaced thousands group.
+  {
+    pattern: `(?<![\\d.,])\\d{1,3}(?:[ \\u00a0]\\d{3})+(?<target>\\.)\\d+(?![\\d.,]*\\d)`,
+    replace: ",",
+    ruleId: "portugueseNumberFormat",
+    messageKey: "review_msg_pt_number_format",
+  },
   // "12hrs", "15 hs", "01 hr": the hour symbol is "h".
   {
     pattern: `(?<!:)\\d{1,2}${GAP}(?<target>${HOUR_TYPOS})${W}`,

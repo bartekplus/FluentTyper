@@ -68,7 +68,8 @@ function push(
   ctx: DetectContext,
   m: RegExpExecArray,
   replacement: string,
-  messageKey: "review_msg_pt_proclisis" | "review_msg_pt_mesoclisis",
+  messageKey:
+    "review_msg_pt_proclisis" | "review_msg_pt_mesoclisis" | "review_msg_pt_enclitic_accent",
 ): void {
   const target = m.groups!.target;
   if (ctx.dictionary.has(target.toLowerCase())) return;
@@ -81,6 +82,13 @@ function push(
     context: { start: m.index, end },
   });
 }
+
+// An infinitive before "-lo/-la" drops its r and accents the vowel left: "escrevê-lo",
+// "puxá-las", "pô-lo", "distraí-los" (only after a vowel: "parti-lo"). The verb is an infinitive
+// after a modal, a preposition or "a" ("tu vende-lo" is the second person, so they must lead).
+const INFINITIVE_LEAD = `vai|vou|vamos|vão|ia|iam|irá|quero|queria|quer|querem|queremos|pode|posso|podemos|podem|podia|poderia|deve|devo|devemos|devem|deveria|preciso|precisa|precisamos|precisam|consegue|consigo|conseguimos|tento|tenta|tentar|gostaria|gosto|sei|sabe|de|para|pra|a|sem|ao|até|por|após|antes${SPACE}de|depois${SPACE}de|que`;
+const ENCLITIC_INFINITIVE = `(?:${INFINITIVE_LEAD})${SPACE}(?:(?:não|já|também|sempre)${SPACE})?(?<target>(?<stem>\\p{Ll}*(?:[aeo]|[aeiou]i))-(?<pronoun>l[oa]s?))${WORD_END}`;
+const ACCENT: Record<string, string> = { a: "á", e: "ê", o: "ô", i: "í" };
 
 export function cliticPlacement(ctx: DetectContext): RawFinding[] {
   if (ctx.lang.slice(0, 2) !== "pt") return [];
@@ -104,6 +112,17 @@ export function cliticPlacement(ctx: DetectContext): RawFinding[] {
         : null;
     if (!base) continue;
     push(findings, ctx, m, `${plainObject(pronoun)} ${base}${ending}`, "review_msg_pt_proclisis");
+  }
+  for (const m of frameMatches(ctx, ENCLITIC_INFINITIVE)) {
+    const { stem, pronoun } = m.groups!;
+    if (stem.length < 2 || stem !== stem.toLowerCase()) continue;
+    push(
+      findings,
+      ctx,
+      m,
+      `${stem.slice(0, -1)}${ACCENT[stem.slice(-1)]}-${pronoun}`,
+      "review_msg_pt_enclitic_accent",
+    );
   }
   const proclitic = new Set(findings.map((finding) => finding.range.start));
   for (const m of frameMatches(ctx, ENCLITIC_FUTURE)) {

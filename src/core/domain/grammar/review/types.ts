@@ -281,6 +281,7 @@ export type ReviewMessageKey =
   | "review_msg_pt_regency"
   | "review_msg_pt_participle"
   | "review_msg_pt_question_mark"
+  | "review_msg_pt_enclitic_accent"
   | "review_msg_pt_ao90"
   | "review_msg_weekday_mismatch"
   | "review_msg_impossible_date"

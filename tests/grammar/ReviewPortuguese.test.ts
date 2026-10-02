@@ -312,6 +312,10 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
       pos: [
         ["Não diga-me isso agora.", "Não me diga isso agora."],
         ["Já eu conhecia-te naquela época.", "Já eu te conhecia naquela época."],
+        ["Ele vai escreve-lo amanhã.", "Ele vai escrevê-lo amanhã."],
+        ["Vim para ajuda-la.", "Vim para ajudá-la."],
+        ["Não quero distrai-los.", "Não quero distraí-los."],
+        ["Preciso compo-la hoje.", "Preciso compô-la hoje."],
         ["Todos eles deram-lhe razão.", "Todos eles lhe deram razão."],
         ["Nunca contou-lhe a verdade.", "Nunca lhe contou a verdade."],
         ["Ninguém lembrou-se do prazo.", "Ninguém se lembrou do prazo."],
@@ -334,6 +338,10 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Por favor, não esperem-nos para o jantar.", "Por favor, não nos esperem para o jantar."],
       ],
       neg: [
+        "Quero parti-lo ao meio.",
+        "Tu vende-lo caro.",
+        "Amamo-la muito.",
+        "Quero fazê-lo já.",
         "Nunca quis comprá-lo.",
         "O caso passou-se em 1990.",
         "Que bom revê-la!",
