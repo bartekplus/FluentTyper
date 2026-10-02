@@ -556,6 +556,9 @@ test("no French chunk stalls on adversarial input", () => {
     "mangé ".repeat(800),
     "il à a ou où sa se ce la ma sont du ont ".repeat(150),
     "un maison la problème cette arbre du réunion ma vélo comme même que also ".repeat(150),
+    "les rues était calmes et les dossiers triées que j'ai aidée nous avons mangés ".repeat(120),
+    "c'est moi qui ceux qui le la les un une ".repeat(250),
+    "ont peut quant la son on peux là ".repeat(250),
   ])
     expect(slowest(text)).toBeLessThan(100);
 });

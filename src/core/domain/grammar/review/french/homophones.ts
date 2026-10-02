@@ -476,7 +476,9 @@ function peutToPeu(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   if (/^-/.test(rest) || next?.w === "être") return null;
   const final = /^[\s\u00a0]*(?:[.!?…,;:)]|$)/u.test(rest);
   // "quelqu'un peut", "l'un peut": the pronoun "un" is a subject.
-  const pronounUn = before[0]?.w === "un" && /['’]/.test(ctx.text[before[0].start - 1] ?? "");
+  const pronounUn =
+    before[0]?.w === "un" &&
+    (/['’"]/.test(ctx.text[before[0].start - 1] ?? "") || /^quelqu/.test(before[1]?.w ?? ""));
   const degree =
     before[0] && DEGREE.has(before[0].w) && !pronounUn && !SUBJECT_PRONOUNS.has(before[1]?.w ?? "");
   const ilYA = before[0]?.w === "a" && before[1]?.w === "y" && final;

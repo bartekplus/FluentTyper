@@ -328,8 +328,19 @@ function loadAdjectives() {
   }
 }
 
+const adjectiveCache = new Map<string, AdjectiveReading[]>();
+
 /** The gender and number readings of a lowercase adjective (or gendered noun) form. */
 export function adjectiveReadings(word: string): AdjectiveReading[] {
+  const cached = adjectiveCache.get(word);
+  if (cached) return cached;
+  if (adjectiveCache.size > 5_000) adjectiveCache.clear();
+  const out = adjectiveReadingsOf(word);
+  adjectiveCache.set(word, out);
+  return out;
+}
+
+function adjectiveReadingsOf(word: string): AdjectiveReading[] {
   loadAdjectives();
   const out: AdjectiveReading[] = [];
   for (const [flag, rules] of adjectiveRules!) {
