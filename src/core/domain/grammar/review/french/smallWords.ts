@@ -1,6 +1,12 @@
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
-import { isInflectedNoun, nounGender, verbReadings } from "./frenchLexicon";
-import { ownedFrenchWords, tokensAfter, tokensBefore, wordFinding } from "./frenchTokens";
+import { adjectiveReadings, isInflectedNoun, nounGender, verbReadings } from "./frenchLexicon";
+import {
+  ownedFrenchWords,
+  tokensAfter,
+  tokensBefore,
+  wordFinding,
+  type Token,
+} from "./frenchTokens";
 
 // More sound-alike small words told apart by a neighbour: "il ni arrive pas" (n'y), "il si
 // prend bien" (s'y), "il sans va" (s'en), "mes je" (mais), "dans prendre" (d'en), "cela leurs
@@ -76,6 +82,8 @@ function smallWord(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     return fix("dans");
   // "cela leurs permet" -> "leur".
   if (lower === "leurs" && verbOnly(n) && !DETERMINERS.has(n)) return fix("leur");
+  if (lower === "et") return etToEst(ctx, m, before, after);
+  if (lower === "est") return estToEt(ctx, m, before, after);
   // "mêmes si", "ils sont mêmes grands" -> "même" (the adverb).
   if (lower === "mêmes") {
     if (previous && DETERMINERS.has(previous)) return null;
@@ -84,6 +92,87 @@ function smallWord(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     return null;
   }
   return null;
+}
+
+const STRESSED = new Set("moi toi lui elle eux nous vous elles soi".split(" "));
+// What "est" may introduce: a place, a degree or a time adverb.
+const AFTER_EST = new Set(
+  "sur sous dans là ici très déjà bien trop plus toujours encore vraiment assez si devant derrière loin près".split(
+    " ",
+  ),
+);
+const participleOrAdjective = (word: string) =>
+  verbReadings(word).some((r) => r.slot === "Q") ||
+  (adjectiveReadings(word).length > 0 && !nounGender(word));
+
+/** "il et parti", "le garçon et arrivé", "ceci et une table" -> "est". */
+function etToEst(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  before: Token[],
+  after: Token[],
+): RawFinding | null {
+  const next = after[0];
+  if (!next || /^\p{Lu}/u.test(ctx.text.slice(next.start, next.end))) return null;
+  const typed = m[0];
+  const fix = () =>
+    wordFinding(ctx, m.index, typed, ["est"], RULE, MESSAGE, {
+      start: before[0]?.start ?? m.index,
+      end: next.end,
+    });
+  const subject = before[0]?.w;
+  if (!subject || STRESSED.has(next.w)) return null;
+  // "chez elle et fait": a stressed pronoun after a preposition is no subject.
+  const opensClause =
+    !before[1] || ["et", "mais", "que", "qu'", "car", "donc"].includes(before[1].w);
+  const attribute = participleOrAdjective(next.w) || AFTER_EST.has(next.w);
+  // The word after the attribute closes the clause or opens a complement.
+  const closes = !after[1] || /^(?:à|au|aux|en|dans|sur|par|de|d'|du|pour|avec)$/.test(after[1].w);
+  if (subject === "il" || subject === "on" || subject === "qui")
+    return attribute || DETERMINERS.has(next.w) ? fix() : null;
+  if (["ceci", "cela", "ça"].includes(subject))
+    return (attribute && closes) || /^(?:un|une|le|la|les)$/.test(next.w) ? fix() : null;
+  if (subject === "elle" && !opensClause) return null;
+  if (subject === "elle") return AFTER_EST.has(next.w) || (attribute && closes) ? fix() : null;
+  // "Le garçon et arrivé.": a determiner + noun opening the clause.
+  if (before.length === 2 && DETERMINERS.has(before[1].w) && nounLike(subject))
+    return AFTER_EST.has(next.w) ||
+      (verbReadings(next.w).some((r) => r.slot === "Q") && !nounGender(next.w) && closes)
+      ? fix()
+      : null;
+  return null;
+}
+
+/** "il est marié est a trois enfants", "il partit est ne revint pas" -> "et". */
+function estToEt(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  before: Token[],
+  after: Token[],
+): RawFinding | null {
+  const next = after[0];
+  if (
+    !next ||
+    !before[0] ||
+    ["c'", "n'", "qu'", "ce", "qui", "plus", "de", "on", "il", "elle", "tout"].includes(before[0].w)
+  )
+    return null;
+  // "L'aile est n'est que", "la partie est fut": the noun "est" (east).
+  if (before[1] && DETERMINERS.has(before[1].w)) return null;
+  const clitic = ["ne", "n'", "se", "s'"].includes(next.w);
+  const verb = clitic ? after[1] : next;
+  if (!verb || verb.hyphen || /^\p{Lu}/u.test(ctx.text.slice(verb.start, verb.end))) return null;
+  // Only a verb that cannot follow "est": a plural one, or one after ne/se ("est a une cause"
+  // reads as "what is has a cause").
+  if (!clitic && !/(?:ent|ont)$/.test(verb.w)) return null;
+  if (verb.w === "est") return null;
+  const readings = verbReadings(verb.w);
+  if (!readings.length || !readings.every((r) => typeof r.slot === "number")) return null;
+  if (nounLike(verb.w) || adjectiveReadings(verb.w).length) return null;
+  return wordFinding(ctx, m.index, m[0], ["et"], RULE, MESSAGE, {
+    start: before[0].start,
+    end: verb.end,
+  });
 }
 
 /** "je pense d'avantage à toi" -> "davantage" (more); "tirer avantage" keeps the noun. */
@@ -173,7 +262,7 @@ function ageInYears(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
 }
 
 const SMALL =
-  /(?<![\p{L}\p{M}\p{N}_'’-])(?:ni|si|ci|sans|mes|mai|mas|dans|dan|leurs|mêmes)(?![\p{L}\p{M}\p{N}_'’-])/giu;
+  /(?<![\p{L}\p{M}\p{N}_'’-])(?:ni|si|ci|sans|mes|mai|mas|dans|dan|leurs|mêmes|et|est)(?![\p{L}\p{M}\p{N}_'’-])/giu;
 const DAVANTAGE = /(?<![\p{L}\p{M}\p{N}_-])d['’]avantage(?![\p{L}\p{M}\p{N}_'’-])/giu;
 const QUEL_QUE_SOIT =
   /(?<![\p{L}\p{M}\p{N}_'’-])quel(?:le)?s?[ \t]+que[ \t]+soi(?:en)?t(?![\p{L}\p{M}\p{N}_'’-])/giu;
