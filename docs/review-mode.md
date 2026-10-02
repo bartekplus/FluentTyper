@@ -708,14 +708,15 @@ signature and invalidate pending fixes.
 
 ## Editor support
 
-| Editor                                                                                 | Highlights                                                              | Apply one                               | Fix all | Undo                                     |
-| -------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- | --------------------------------------- | ------- | ---------------------------------------- |
-| `<textarea>`, text `<input>`                                                           | overlay measured through a hidden mirror in FluentTyper's shadow root   | yes                                     | yes     | one native undo step for the whole batch |
-| `contenteditable`                                                                      | CSS Custom Highlights (overlay fallback, e.g. inside shadow DOM)        | yes                                     | yes     | one native undo step per fix             |
-| Quill                                                                                  | CSS Custom Highlights                                                   | yes                                     | yes     | Quill history (a batch is one step)      |
-| ProseMirror, Lexical, Slate, Draft.js, CKEditor 4/5, Trix, TinyMCE, Froala, Summernote | yes                                                                     | no: review-only, the panel explains     | no      | —                                        |
-| Google Docs (existing bridge)                                                          | overlay over the text Docs shows; list only where Docs has not drawn it | yes: one verified replacement at a time | no      | Docs history                             |
-| Code editors, sensitive and ineligible fields                                          | refused with an explanation                                             | —                                       | —       | —                                        |
+| Editor                                                                    | Highlights                                                              | Apply one                               | Fix all | Undo                                     |
+| ------------------------------------------------------------------------- | ----------------------------------------------------------------------- | --------------------------------------- | ------- | ---------------------------------------- |
+| `<textarea>`, text `<input>`                                              | overlay measured through a hidden mirror in FluentTyper's shadow root   | yes                                     | yes     | one native undo step for the whole batch |
+| `contenteditable`                                                         | CSS Custom Highlights (overlay fallback, e.g. inside shadow DOM)        | yes                                     | yes     | one native undo step per fix             |
+| Quill                                                                     | CSS Custom Highlights                                                   | yes                                     | yes     | Quill history (a batch is one step)      |
+| ProseMirror (verified host bridge)                                        | yes                                                                     | yes                                     | yes     | one host undo step for the batch         |
+| Lexical, Slate, Draft.js, CKEditor 4/5, Trix, TinyMCE, Froala, Summernote | yes                                                                     | no: review-only, the panel explains     | no      | —                                        |
+| Google Docs (existing bridge)                                             | overlay over the text Docs shows; list only where Docs has not drawn it | yes: one verified replacement at a time | no      | Docs history                             |
+| Code editors, sensitive and ineligible fields                             | refused with an explanation                                             | —                                       | —       | —                                        |
 
 Highlights never change the page's editor DOM. CSS highlights are registered
 under FluentTyper's own names (`fluenttyper-review-*`); the page's and other
@@ -737,7 +738,22 @@ Before every write, review re-reads the editor and checks all of these:
 
 Findings are located by offsets into that snapshot, never by searching for the text.
 
-Writes go through the browser's native editing command, so native undo works.
+ProseMirror writes go through its owning view's document transactions, with one
+history event per correction or Fix-all batch. The bridge discovers the view during
+normal focus, selection and document updates, without test globals. If its private
+DOM descriptor is unavailable or the owning view has not been verified, it stays
+review-only. Edits are prepared before dispatch and the complete resulting model
+is checked, including marks, links, attributes, structure and protected nodes.
+The selection is mapped by the host transaction. Composition and stale snapshots
+are refused. An unexpected host rewrite is reported as unverified and never retried.
+
+Plain contenteditable snapshots also capture formatting wrappers and attributes.
+Equal-grapheme replacements retain each original grapheme's formatting. When a
+replacement changes the grapheme count, its changed span must have one formatting
+run; ambiguous mixed-format replacements are refused before writing. Post-write
+checks verify formatting of unchanged text as well as replacement text.
+
+Other supported fields use the browser's native editing command, so native undo works.
 A text field that refuses that command is reported as refused rather than
 written another way that undo would not restore, and so is a fix that would
 make it longer than its `maxlength` (the browser would cut it). Focusing the editor can run

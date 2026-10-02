@@ -771,6 +771,105 @@ describe("contenteditable writes", () => {
     }
   });
 
+  test("bold, link destinations and styles invalidate same-text pending fixes", async () => {
+    for (const [beforeHtml, afterHtml] of [
+      ["<p>teh</p>", "<p><b>teh</b></p>"],
+      ['<p><a href="#old">teh</a></p>', '<p><a href="#new">teh</a></p>'],
+      ['<p><span style="color:red">teh</span></p>', '<p><span style="color:blue">teh</span></p>'],
+    ]) {
+      const root = createEditor(beforeHtml);
+      const target = new ContentEditableReviewTarget(root);
+      const read = target.read();
+      if (!read.ok) throw new Error("unreadable");
+      root.innerHTML = afterHtml;
+      expect(
+        await target.apply({
+          edits: [edit(0, 3, "teh", "the")],
+          before: "teh",
+          after: "the",
+          signature: read.signature,
+        }),
+      ).toEqual({ status: "stale" });
+      expect(root.innerHTML).toBe(afterHtml);
+    }
+  });
+
+  test("split formatting is retained and ambiguous batches are refused before any write", async () => {
+    setExecCommand(contentEditableInsert);
+    const root = createEditor("<p><b>te</b><i>h</i> and teh</p>");
+    const target = new ContentEditableReviewTarget(root);
+    let read = target.read();
+    if (!read.ok) throw new Error("unreadable");
+    expect(
+      await target.apply({
+        edits: [edit(0, 3, "teh", "the")],
+        before: read.text,
+        after: "the and teh",
+        signature: read.signature,
+      }),
+    ).toEqual({ status: "applied" });
+    expect(root.innerHTML).toBe("<p><b>th</b><i>e</i> and teh</p>");
+    read = target.read();
+    if (!read.ok) throw new Error("unreadable");
+    expect(
+      await target.apply({
+        edits: [edit(0, 3, "the", "wonderful"), edit(8, 11, "teh", "the")],
+        before: read.text,
+        after: "wonderful and the",
+        signature: read.signature,
+      }),
+    ).toEqual({ status: "rejected", reason: "host-refused" });
+    expect(root.innerHTML).toBe("<p><b>th</b><i>e</i> and teh</p>");
+  });
+
+  test("protected spans and split graphemes are refused before native writes", async () => {
+    const writes = jest.fn(contentEditableInsert);
+    setExecCommand(writes);
+    for (const [html, original, replacement, start] of [
+      ["<p><code>teh</code></p>", "teh", "the", 0],
+      ["<p>😀teh</p>", "\ude00", "x", 1],
+    ] as const) {
+      const root = createEditor(html);
+      const target = new ContentEditableReviewTarget(root);
+      const read = target.read();
+      if (!read.ok) throw new Error("unreadable");
+      expect(
+        await target.apply({
+          edits: [edit(start, start + original.length, original, replacement)],
+          before: read.text,
+          after: read.text.slice(0, start) + replacement + read.text.slice(start + original.length),
+          signature: read.signature,
+        }),
+      ).toEqual({ status: "rejected", reason: "host-refused" });
+      expect(root.innerHTML).toBe(html);
+    }
+    expect(writes).not.toHaveBeenCalled();
+  });
+
+  test("post-write verification checks link destinations and style attributes", async () => {
+    for (const attribute of ["href", "style"]) {
+      const root = createEditor('<p><a href="#keep" style="color:red">teh</a></p>');
+      setExecCommand((command, ui, value) => {
+        contentEditableInsert(command, ui, value);
+        root
+          .querySelector("a")!
+          .setAttribute(attribute, attribute === "href" ? "#changed" : "color:blue");
+        return true;
+      });
+      const target = new ContentEditableReviewTarget(root);
+      const read = target.read();
+      if (!read.ok) throw new Error("unreadable");
+      expect(
+        await target.apply({
+          edits: [edit(0, 3, "teh", "the")],
+          before: read.text,
+          after: "the",
+          signature: read.signature,
+        }),
+      ).toEqual({ status: "unverified" });
+    }
+  });
+
   test("model-backed editors are review-only; Quill is writable", () => {
     const prose = createEditor("<p>x</p>");
     prose.className = "ProseMirror";

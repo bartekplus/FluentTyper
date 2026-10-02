@@ -17,6 +17,7 @@ import { ancestorContext } from "../suggestions/CodeContextResolver";
  */
 export interface TextSegment {
   node: Text;
+  formatting: string;
   /** Offset in node.data of snapshot offset `start`. */
   nodeStart: number;
   start: number;
@@ -73,6 +74,29 @@ function whitespaceOf(element: Element): Whitespace {
   return collapse === "preserve-breaks" ? "preserve-breaks" : "preserve";
 }
 
+/** Semantic wrappers and their attributes, including link destinations and styles. */
+function formattingKey(node: Node, root: HTMLElement): string {
+  const wrappers: unknown[] = [];
+  for (
+    let element = node.parentElement;
+    element && element !== root;
+    element = element.parentElement
+  ) {
+    const attributes = [...element.attributes]
+      .filter((attribute) => !attribute.name.startsWith("data-ft-") && attribute.name !== "id")
+      .map((attribute) => [attribute.name, attribute.value])
+      .sort(([a], [b]) => a.localeCompare(b));
+    wrappers.push([element.tagName, attributes]);
+  }
+  wrappers.push([
+    "root",
+    root.getAttribute("style"),
+    root.getAttribute("lang"),
+    root.getAttribute("dir"),
+  ]);
+  return JSON.stringify(wrappers);
+}
+
 export function buildContentEditableTextMap(root: HTMLElement): ContentEditableTextMap {
   const parts: string[] = [];
   let length = 0;
@@ -110,7 +134,13 @@ export function buildContentEditableTextMap(root: HTMLElement): ContentEditableT
     ) {
       previous.end += text.length;
     } else {
-      segments.push({ node, nodeStart, start, end: start + text.length });
+      segments.push({
+        node,
+        nodeStart,
+        start,
+        end: start + text.length,
+        formatting: formattingKey(node, root),
+      });
     }
     if (code) protect(start, start + text.length, "code");
     emit(text);
@@ -214,9 +244,10 @@ export function buildContentEditableTextMap(root: HTMLElement): ContentEditableT
     text,
     protectedRanges,
     segments,
-    signature: protectedRanges
-      .map((range) => `${range.reason[0]}${range.start}-${range.end}`)
-      .join(","),
+    signature: JSON.stringify([
+      protectedRanges,
+      segments.map((segment) => [segment.start, segment.end, segment.formatting]),
+    ]),
     nodeStarts,
     nodeEnds,
   };
@@ -285,7 +316,7 @@ export function domPositionToOffset(
   return map.nodeEnds.get(container) ?? null;
 }
 
-function segmentContaining(map: ContentEditableTextMap, index: number): TextSegment | null {
+export function segmentContaining(map: ContentEditableTextMap, index: number): TextSegment | null {
   let low = 0;
   let high = map.segments.length - 1;
   while (low <= high) {

@@ -1,3 +1,9 @@
+import {
+  expectedFormatting,
+  formattingPreservingEdits,
+  formattingBefore,
+} from "./RichTextFormatting";
+import { InjectedHostEditorPageBridge } from "../suggestions/HostEditorPageBridge";
 import type {
   ReviewApplyResult,
   ReviewCapabilities,
@@ -6,6 +12,7 @@ import type {
 } from "@core/application/review/ReviewSession";
 import type { ReviewEdit, TextRange } from "@core/domain/grammar/review/types";
 import {
+  applyEdits,
   commonAffixes,
   editTouches,
   isGraphemeBoundary,
@@ -26,7 +33,8 @@ import {
   type ContentEditableTextMap,
 } from "./ContentEditableTextMap";
 
-export type ReviewEditorKind = "text-control" | "contenteditable" | "quill" | "model-editor";
+export type ReviewEditorKind =
+  "text-control" | "contenteditable" | "quill" | "prosemirror" | "model-editor";
 
 /** Editors that own a document model; writing their DOM behind their back is not safe. */
 const MODEL_EDITOR_SELECTOR = [
@@ -461,14 +469,19 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
   readonly capabilities: ReviewCapabilities;
   composing = false;
   private map: ContentEditableTextMap | null = null;
+  private readonly pageBridge = new InjectedHostEditorPageBridge();
 
   constructor(readonly element: HTMLElement) {
     const quill = element.classList.contains("ql-editor") && !!element.closest(".ql-container");
-    this.kind = quill
-      ? "quill"
-      : element.matches(MODEL_EDITOR_SELECTOR) || element.closest(MODEL_EDITOR_SELECTOR)
-        ? "model-editor"
-        : "contenteditable";
+    const proseMirror =
+      element.matches(".ProseMirror") && !!this.pageBridge.readProseMirror(element);
+    this.kind = proseMirror
+      ? "prosemirror"
+      : quill
+        ? "quill"
+        : element.matches(MODEL_EDITOR_SELECTOR) || element.closest(MODEL_EDITOR_SELECTOR)
+          ? "model-editor"
+          : "contenteditable";
     const writable = this.kind !== "model-editor";
     this.capabilities = {
       inline: true,
@@ -476,7 +489,14 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
       bulk: writable,
       // Quill's history module merges quick successive changes; plain
       // contenteditable keeps one native undo step per edit.
-      undo: this.kind === "quill" ? "host-history" : writable ? "per-edit" : "none",
+      undo:
+        this.kind === "prosemirror"
+          ? "single-step"
+          : this.kind === "quill"
+            ? "host-history"
+            : writable
+              ? "per-edit"
+              : "none",
     };
   }
 
@@ -486,6 +506,10 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
     }
     if (this.composing) return { ok: false, reason: "composing" };
     this.map = buildContentEditableTextMap(this.element);
+    if (this.kind === "prosemirror") {
+      const snapshot = this.pageBridge.readProseMirror(this.element);
+      return snapshot ? { ok: true, ...snapshot } : { ok: false, reason: "unsupported" };
+    }
     return {
       ok: true,
       text: this.map.text,
@@ -506,10 +530,20 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
     if (!win || !this.capabilities.apply) return { status: "rejected", reason: "unsupported" };
     if (!isReviewEligible(root)) return { status: "rejected", reason: "ineligible" };
     if (this.composing) return { status: "rejected", reason: "composing" };
+    if (this.kind === "prosemirror") {
+      const result = this.pageBridge.applyProseMirror(root, request);
+      await nextFrame(win);
+      const snapshot = this.pageBridge.readProseMirror(root);
+      return result.status === "applied" && snapshot?.text !== request.after
+        ? { status: "unverified" }
+        : result;
+    }
     let map = buildContentEditableTextMap(root);
     if (map.text !== request.before || map.signature !== request.signature) {
       return { status: "stale" };
     }
+    if (applyEdits(map.text, request.edits) !== request.after)
+      return { status: "rejected", reason: "host-refused" };
     const selection = doc.getSelection();
     // Inside a shadow root the document selection is retargeted; read the scoped one.
     const saved = this.captureSelection(map, readSelectionRange(root));
@@ -529,12 +563,16 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
     if (map.text !== request.before || map.signature !== request.signature) {
       return { status: "stale" };
     }
+    const planned = formattingPreservingEdits(map, request.edits);
+    if (!planned) return { status: "rejected", reason: "host-refused" };
+    const expectedStyles = expectedFormatting(map, planned);
+    const startingMap = map;
     const protectedAtStart = map.protectedRanges;
     let current = request.before;
     // Each write is verified in its own block when that block reads the same
     // on its own; a final full read-back below verifies the whole result.
     let written: BlockText | null = null;
-    const edits = [...request.edits].sort((a, b) => b.start - a.start);
+    const edits = [...planned].sort((a, b) => b.start - a.start);
     let sliceStart = win.performance.now();
     for (let index = 0; index < edits.length; index += 1) {
       // Stopping before the first edit changed nothing; later, say how far it got.
@@ -555,6 +593,7 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
         const limit = index === 0 ? Number.POSITIVE_INFINITY : edits[index - 1].start;
         if (
           !isReviewEligible(root) ||
+          formattingBefore(map, limit) !== formattingBefore(startingMap, limit) ||
           protectionKey(map.protectedRanges, limit) !== protectionKey(protectedAtStart, limit) ||
           edits
             .slice(index)
@@ -630,7 +669,8 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
     // Let a model-backed host (Quill) reconcile, then confirm it kept the text.
     await nextFrame(win);
     const final = buildContentEditableTextMap(root);
-    if (final.text !== current) return { status: "unverified" };
+    if (final.text !== current || expectedFormatting(final, []) !== expectedStyles)
+      return { status: "unverified" };
     this.map = final;
     this.restoreSelection(final, saved, request.edits);
     return { status: "applied" };

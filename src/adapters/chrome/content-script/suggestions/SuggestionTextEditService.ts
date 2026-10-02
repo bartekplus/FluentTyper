@@ -319,6 +319,49 @@ export class SuggestionTextEditService {
       return false;
     }
 
+    if (entry.elem.matches(".ProseMirror")) {
+      // The host owns undo. Keep FluentTyper's suppression/personalization bookkeeping,
+      // but let the chord/beforeinput reach its history instead of reversing the DOM.
+      const pending = entry.pendingExtensionEdit;
+      const snapshot = TextTargetAdapter.snapshot(entry.elem);
+      const fullText = `${snapshot.beforeCursor}${snapshot.afterCursor}`;
+      const block = pending.blockScoped
+        ? this.contentEditableAdapter.getBlockContext(entry.elem)
+        : null;
+      const start =
+        pending.replaceStart + (block ? snapshot.cursorOffset - block.beforeCursor.length : 0);
+      const end = start + pending.replacementText.length;
+      const expected = fullText.slice(0, start) + pending.originalText + fullText.slice(end);
+      entry.pendingExtensionEdit = null;
+      if (
+        fullText.slice(start, end) === pending.replacementText &&
+        TextTargetAdapter.matchesPostEditFingerprint(
+          entry.elem,
+          pending.postEditFingerprint,
+          snapshot,
+        )
+      ) {
+        if (pending.source === "grammar")
+          entry.manualAutoFixSuppression = this.createManualAutoFixSuppression({
+            ruleKey: this.resolveAutoFixRuleKey(
+              pending.sourceRuleId,
+              pending.originalText,
+              pending.replacementText,
+            ),
+            replaceStart: start,
+            fullText: expected,
+            cursorOffset: pending.cursorBefore,
+          });
+        clearSuggestions();
+        entry.elem.ownerDocument.defaultView?.requestAnimationFrame(() => {
+          if (!entry.elem.isConnected) return;
+          const after = TextTargetAdapter.snapshot(entry.elem);
+          if (`${after.beforeCursor}${after.afterCursor}` === expected) onSuccessfulUndo?.(pending);
+        });
+      }
+      return false;
+    }
+
     if (
       entry.pendingExtensionEdit.blockScoped &&
       !TextTargetAdapter.isTextValue(entry.elem) &&
@@ -645,6 +688,9 @@ export class SuggestionTextEditService {
             replacementText: replacement,
             cursorAfter: blockCursorAfter,
           });
+        }
+        if (applyResult === null && hostEditorSession && entry.elem.matches(".ProseMirror")) {
+          return { applied: false, didDispatchInput: false };
         }
         if (applyResult === null) {
           applyResult = this.tryHostGrammarEditWithMatchingBlockText(

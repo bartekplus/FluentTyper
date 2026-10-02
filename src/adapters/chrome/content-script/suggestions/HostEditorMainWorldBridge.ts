@@ -1,4 +1,12 @@
 import {
+  observeProseMirror,
+  readProseMirror,
+  applyProseMirror,
+  proseMirrorBlockContext,
+  replaceProseMirrorBlock,
+} from "./ProseMirrorEditor";
+import type { ReviewEdit } from "@core/domain/grammar/review/types";
+import {
   CURSOR_MOVE_COUNT_ATTR,
   CURSOR_MOVE_EVENT,
   HOST_EDITOR_MAIN_WORLD_FLAG,
@@ -15,6 +23,14 @@ import {
 } from "./HostEditorControllerUtils";
 
 type BridgeRequest =
+  | { action: "readProseMirror" }
+  | {
+      action: "applyProseMirror";
+      edits: ReviewEdit[];
+      before: string;
+      after: string;
+      signature: string;
+    }
   | {
       action: "getBlockContext";
     }
@@ -507,6 +523,23 @@ export function installHostEditorMainWorldBridge(doc: Document = document): void
 
   (win as BridgeWindow)[HOST_EDITOR_MAIN_WORLD_FLAG] = true;
 
+  doc.querySelectorAll<HTMLElement>(".ProseMirror").forEach(observeProseMirror);
+  const observe = (event: Event) => {
+    const source = event.composedPath()[0];
+    const root = source instanceof Element ? source.closest<HTMLElement>(".ProseMirror") : null;
+    if (root) observeProseMirror(root);
+  };
+  for (const name of ["focus", "keydown", "pointerdown", "beforeinput", "input"])
+    doc.addEventListener(name, observe, true);
+  doc.addEventListener(
+    "selectionchange",
+    () => {
+      const root = doc.activeElement?.closest<HTMLElement>(".ProseMirror");
+      if (root) observeProseMirror(root);
+    },
+    true,
+  );
+
   // Cursor movement bridge: content script (isolated world) dispatches this
   // event when it needs to reposition the cursor in the main world. Running
   // Selection.modify() in the main world triggers native selectionchange events
@@ -550,12 +583,20 @@ export function installHostEditorMainWorldBridge(doc: Document = document): void
       let response: unknown = { ok: false };
       try {
         const request = JSON.parse(rawRequest) as BridgeRequest;
+        observeProseMirror(source);
         const controller = findLineEditorController(source);
         const ckEditor = controller ? null : findCKEditor5Instance(source);
-        if (request.action === "getBlockContext") {
+        if (request.action === "readProseMirror") {
+          const snapshot = readProseMirror(source);
+          if (snapshot) response = { ok: true, snapshot };
+        } else if (request.action === "applyProseMirror") {
+          response = { ok: true, reviewResult: applyProseMirror(source, request) };
+        } else if (request.action === "getBlockContext") {
           const blockContext = controller
             ? readLineEditorBlockContext(controller)
-            : ckEditor && getCKEditor5BlockContext(ckEditor);
+            : ckEditor
+              ? getCKEditor5BlockContext(ckEditor)
+              : proseMirrorBlockContext(source);
           if (blockContext) {
             response = { ok: true, blockContext };
           }
@@ -563,6 +604,8 @@ export function installHostEditorMainWorldBridge(doc: Document = document): void
           response = { ok: true, result: applyBlockReplacement(controller, source, request) };
         } else if (ckEditor) {
           response = { ok: true, result: applyCKEditor5BlockReplacement(ckEditor, request) };
+        } else {
+          response = { ok: true, result: replaceProseMirrorBlock(source, request) };
         }
       } catch {
         response = { ok: false };

@@ -58,6 +58,11 @@ export class ContentEditableAdapter {
       scopeRoot = null,
     }: { preferDomMutation?: boolean; scopeRoot?: HTMLElement | null } = {},
   ): ContentEditableEditResult {
+    // ProseMirror owns its model and history. The host bridge is its only writer;
+    // a refused or unavailable host transaction must never fall through to DOM edits.
+    if (elem.matches(".ProseMirror")) {
+      return { appliedBy: "host-beforeinput", didMutateDom: false, didDispatchInput: false };
+    }
     const editScope = scopeRoot ?? elem;
     const selectionAnchors = this.captureSelectionOffsetAnchors(editScope);
     const startPosition = this.resolveContentEditablePosition(
