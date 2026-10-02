@@ -1024,6 +1024,15 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     languages: ["fr_FR"],
     note: "Optional: spoken French drops the ne of a negation.",
   },
+  frenchOrdinals: {
+    review: "supported",
+    defaultEnabled: false,
+    category: "typography",
+    kind: "numbers",
+    bulk: "individual",
+    languages: ["fr_FR"],
+    note: "Optional: 2ème and 1ère are common; typographic usage writes 2e and 1re.",
+  },
   // German-only Review checks (review/german/).
   germanNounCasing: {
     review: "supported",
@@ -1114,6 +1123,14 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     languages: ["de_DE"],
   },
   germanVerbAgreement: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "grammar",
+    kind: "agreement",
+    bulk: "individual",
+    languages: ["de_DE"],
+  },
+  germanArticleGender: {
     review: "supported",
     defaultEnabled: true,
     category: "grammar",

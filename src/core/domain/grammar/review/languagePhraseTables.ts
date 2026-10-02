@@ -89,6 +89,15 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
       ["schneller wie", "schneller als"],
       ["älter wie", "älter als"],
       ["kleiner wie", "kleiner als"],
+      // Fixed pairs whose first part is shortened and takes a hyphen.
+      ["niet und nagelfest", "niet- und nagelfest"],
+      ["sang und klanglos", "sang- und klanglos"],
+      ["hieb und stichfest", "hieb- und stichfest"],
+      ["hieb und stichfeste", "hieb- und stichfeste"],
+      ["Hals und Beinbruch", "Hals- und Beinbruch"],
+      ["Maul und Klauenseuche", "Maul- und Klauenseuche"],
+      ["Dreh und Angelpunkt", "Dreh- und Angelpunkt"],
+      ["Buß und Bettag", "Buß- und Bettag"],
     ],
     compounds: [
       ["aufwiedersehen", "auf Wiedersehen"],

@@ -241,6 +241,46 @@ const BARE_SUBJECT_BEFORE = words(
     "while unless",
 );
 
+// "about the problem's it causes", "the one's I tested", "to user's that don't": a noun with
+// 's, then a relative clause (a subject and its verb, or that/who and a verb), is a plural.
+// Only as an object (after a preposition or a verb of being): "The problem's it fails" could
+// be "the problem is (that) it fails".
+const RELATIVE_PLURAL = `(?:(?<det>the|these|those|all|any|some|many|our|your|their|my)${S})?(?<w>[a-z]{3,})${A}s${S}(?:(?<pron>I|we|you|they|he|she|it)${S}(?<verb>[a-z]+(?:['’]t)?)|(?<rel>that|who)${S}(?<verb2>[a-z]+(?:['’]t)?))${E}`;
+const OBJECT_SLOT = words(
+  "about of to in on for with from at by into among between are were is was all any none many " +
+    "some most each see saw like read fix fixed tested check checked",
+);
+const CLAUSE_VERB = words(
+  "had have has did do does was were is are will would can could made make got get use used " +
+    "tested wrote write need needed want wanted know knew see saw found find don't didn't doesn't " +
+    "can't won't haven't hasn't",
+);
+
+function relativePlurals(ctx: DetectContext): Finding[] {
+  const findings: Finding[] = [];
+  for (const m of frameMatches(ctx, RELATIVE_PLURAL, "w")) {
+    const { w, verb, verb2 } = m.groups!;
+    if (!OBJECT_SLOT.has(previousWord(ctx, m.index)) || ctx.dictionary.has(w)) continue;
+    const v = (verb ?? verb2).toLowerCase().replace("’", "'");
+    const read = info(v);
+    const finite =
+      CLAUSE_VERB.has(v) || !!read?.verbs.some((x) => x.form === "past" || x.form === "third");
+    if (!finite) continue;
+    // The lexicon leaves out long plain nouns ("problem"): their plural is the plain -s one.
+    const plural = pluralOf(w) ?? (!info(w) && /[^s]$/.test(w) && w.length > 5 ? `${w}s` : null);
+    if (!plural) continue;
+    const [start] = m.indices!.groups!.w;
+    findings.push({
+      ruleId: "englishApostrophes",
+      messageKey: "review_msg_plural_apostrophe",
+      range: { start, end: start + w.length + 2 },
+      alternatives: [plural],
+      context: context(ctx, m.index, m.index + m[0].length),
+    });
+  }
+  return findings;
+}
+
 function pluralSubjects(ctx: DetectContext): Finding[] {
   const findings: Finding[] = [];
   for (const m of frameMatches(ctx, PLURAL_SUBJECT, "w")) {
@@ -473,6 +513,7 @@ export const DETECTORS: readonly ReviewDetectorEntry[] = [
     detect: english(
       quantifiedPlurals,
       pluralSubjects,
+      relativePlurals,
       verbApostrophes,
       doubledApostrophes,
       spacedApostrophes,

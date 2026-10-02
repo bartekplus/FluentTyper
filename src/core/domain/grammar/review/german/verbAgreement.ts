@@ -1,6 +1,6 @@
 import { namedExampleBefore } from "../exampleCues";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
-import { germanInfinitive } from "./germanLexicon";
+import { germanInfinitive, germanNounReading, germanVerbLike } from "./germanLexicon";
 import { englishLine, isGerman, tokensAfter, tokensBefore, words, wordSet } from "./shared";
 
 // A pronoun subject and a finite verb that does not fit it: "wir habe" (haben), "du kann"
@@ -212,6 +212,68 @@ function verbAgreement(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+// The finite verb written twice in one clause: "Max wird Wirt wird." (the second goes), "dass
+// er hat Hunger hat" (the first goes, a subordinate clause ends in its verb).
+const CLAUSE_END_WORD = /(?<![\p{L}\p{M}\p{N}_'’-])(\p{Ll}{3,})(?=[ \t]*[.!?,;:])/gu;
+// Words that open a new clause or link two: the repeat may belong to it ("Es ist, wie es ist").
+const CLAUSE_LINKS = wordSet(
+  "und oder aber sondern denn sowie bzw wie was wer wo wann warum wieso weshalb dass ob weil " +
+    "wenn falls obwohl je desto umso der die das dem den denen dessen deren welche welcher",
+);
+const SUBORDINATORS = wordSet(
+  "dass ob weil wenn falls obwohl warum wieso weshalb wie was wer wo wann nachdem bevor sobald",
+);
+// Infinitives that follow their own finite form: "Sie werden Ärzte werden", "das kann sein".
+const SELF_GOVERNED = wordSet(
+  "sein haben werden können müssen wollen sollen dürfen mögen lassen wissen",
+);
+
+function doubledVerb(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  CLAUSE_END_WORD.lastIndex = ctx.from;
+  for (
+    let m = CLAUSE_END_WORD.exec(ctx.scanText);
+    m && m.index < ctx.to;
+    m = CLAUSE_END_WORD.exec(ctx.scanText)
+  ) {
+    const verb = m[1];
+    if (SELF_GOVERNED.has(verb) || NOT_VERBS.has(verb)) continue;
+    if (!FORMS.has(verb) && !(germanVerbLike(verb) && germanNounReading(verb) === null)) continue;
+    const before = tokensBefore(ctx.text, m.index, 16);
+    let from = before.length;
+    while (from > 0 && !/^(?:[.!?,;:()"„“”»«–—]|\n)$/.test(before[from - 1])) from--;
+    const clause = before.slice(from);
+    const first = clause.indexOf(verb);
+    // Adjacent ("ist ist") is a doubled word; "zu kaufen" a zu-infinitive.
+    if (first < 0 || first === clause.length - 1 || clause.at(-1) === "zu") continue;
+    if (clause.slice(first + 1).some((t) => CLAUSE_LINKS.has(t.toLowerCase()))) continue;
+    if (clause.slice(first + 1).includes(verb)) continue;
+    if (englishLine(ctx.text, m.index) || namedExampleBefore(ctx.text, m.index)) continue;
+    const subordinate = SUBORDINATORS.has(clause[0]?.toLowerCase() ?? "");
+    // The repeat's position: the clause's tokens joined back as typed.
+    let firstStart = m.index;
+    for (let i = clause.length - 1; i >= first; i--) {
+      firstStart = ctx.text.lastIndexOf(clause[i], firstStart - 1);
+    }
+    if (firstStart < 0) continue;
+    const range = subordinate
+      ? { start: firstStart, end: firstStart + verb.length + 1 }
+      : { start: m.index - 1, end: m.index + verb.length };
+    if (!/^[ \t]/.test(ctx.text.slice(subordinate ? range.end - 1 : range.start))) continue;
+    findings.push({
+      ruleId: "germanVerbAgreement",
+      messageKey: "review_msg_german_double_verb",
+      range,
+      alternatives: [""],
+      context: { start: firstStart, end: m.index + verb.length },
+    });
+  }
+  return findings;
+}
+
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  { rules: ["germanVerbAgreement"], detect: verbAgreement },
+  {
+    rules: ["germanVerbAgreement"],
+    detect: (ctx) => (isGerman(ctx) ? [...verbAgreement(ctx), ...doubledVerb(ctx)] : []),
+  },
 ];

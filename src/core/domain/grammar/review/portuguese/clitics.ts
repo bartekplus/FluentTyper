@@ -21,7 +21,7 @@ const ATTRACTORS =
 const SIMPLE = "me|te|se|lhe|lhes|nos|vos";
 // "bebemo-lo", "dão-no", "conhecia-a": the forms "o/a" take after -r/-s/-z, a nasal or a vowel.
 const OBJECT = "l[oa]s?|n[oa]s?|[oa]s?";
-const PROCLISIS = `(?<attractor>${ATTRACTORS})${SPACE}(?<target>(?<verb>\\p{Ll}+)-(?<pronoun>${SIMPLE}|${OBJECT}))${WORD_END}`;
+const PROCLISIS = `(?<attractor>${ATTRACTORS})${SPACE}(?:(?:eu|tu|ele|ela|eles|elas|nós|vós|você|vocês)${SPACE})?(?<target>(?<verb>\\p{Ll}+)-(?<pronoun>${SIMPLE}|${OBJECT}))${WORD_END}`;
 // "dir-lhe-ei", "amá-la-ei", "far-nos-iam".
 const FUTURE_ENDINGS = "ei|ás|á|emos|eis|ão|ia|ias|íamos|íeis|iam";
 const MESOCLITIC = `(?:${ATTRACTORS})${SPACE}(?<target>(?<stem>\\p{Ll}+)-(?<pronoun>${SIMPLE}|l[oa]s?)-(?<ending>${FUTURE_ENDINGS}))${WORD_END}`;
@@ -68,7 +68,11 @@ function push(
   ctx: DetectContext,
   m: RegExpExecArray,
   replacement: string,
-  messageKey: "review_msg_pt_proclisis" | "review_msg_pt_mesoclisis",
+  messageKey:
+    | "review_msg_pt_proclisis"
+    | "review_msg_pt_mesoclisis"
+    | "review_msg_pt_enclitic_accent"
+    | "review_msg_pt_object_form",
 ): void {
   const target = m.groups!.target;
   if (ctx.dictionary.has(target.toLowerCase())) return;
@@ -80,6 +84,27 @@ function push(
     alternatives: [applyWordCase(replacement, detectWordCase(target))],
     context: { start: m.index, end },
   });
+}
+
+// An infinitive before "-lo/-la" drops its r and accents the vowel left: "escrevê-lo",
+// "puxá-las", "pô-lo", "distraí-los" (only after a vowel: "parti-lo"). The verb is an infinitive
+// after a modal, a preposition or "a" ("tu vende-lo" is the second person, so they must lead).
+const INFINITIVE_LEAD = `vai|vou|vamos|vão|ia|iam|irá|quero|queria|quer|querem|queremos|pode|posso|podemos|podem|podia|poderia|deve|devo|devemos|devem|deveria|preciso|precisa|precisamos|precisam|consegue|consigo|conseguimos|tento|tenta|tentar|gostaria|gosto|sei|sabe|de|para|pra|a|sem|ao|até|por|após|antes${SPACE}de|depois${SPACE}de|que`;
+const ENCLITIC_INFINITIVE = `(?:${INFINITIVE_LEAD})${SPACE}(?:(?:não|já|também|sempre)${SPACE})?(?<target>(?<stem>\\p{Ll}*(?:[aeo]|[aeiou]i))-(?<pronoun>l[oa]s?))${WORD_END}`;
+const ACCENT: Record<string, string> = { a: "á", e: "ê", o: "ô", i: "í" };
+
+// "o/a" after a verb ending in r, s or z becomes "lo/la" and the consonant falls ("comer-o" ->
+// "comê-lo", "fez-o" -> "fê-lo", "fizemos-o" -> "fizemo-lo"); after a nasal it becomes "no/na"
+// ("tinham-o" -> "tinham-no", "põe-as" -> "põe-nas").
+const PLAIN_OBJECT = `(?<target>(?<verb>\\p{Ll}{2,}(?:[rsz]|m)|\\p{Ll}+(?:ão|õe))-(?<pronoun>[oa]s?))${WORD_END}(?!-)`;
+const STRESSED: Record<string, string> = { a: "á", e: "ê", o: "ô" };
+
+/** "comer" -> "comê", "fez" -> "fê", "fizemos" -> "fizemo", "partir" -> "parti". */
+function withoutConsonant(verb: string): string {
+  const bare = verb.slice(0, -1);
+  if (/s$/.test(verb)) return bare;
+  // A stressed final a, e or o is written with its accent: dá-lo, fê-lo, pô-lo.
+  return bare.replace(/[aeo]$/, (vowel) => STRESSED[vowel]).replace(/^p[oô]$/, "pô");
 }
 
 export function cliticPlacement(ctx: DetectContext): RawFinding[] {
@@ -104,6 +129,32 @@ export function cliticPlacement(ctx: DetectContext): RawFinding[] {
         : null;
     if (!base) continue;
     push(findings, ctx, m, `${plainObject(pronoun)} ${base}${ending}`, "review_msg_pt_proclisis");
+  }
+  for (const m of frameMatches(ctx, ENCLITIC_INFINITIVE)) {
+    const { stem, pronoun } = m.groups!;
+    if (stem.length < 2 || stem !== stem.toLowerCase()) continue;
+    push(
+      findings,
+      ctx,
+      m,
+      `${stem.slice(0, -1)}${ACCENT[stem.slice(-1)]}-${pronoun}`,
+      "review_msg_pt_enclitic_accent",
+    );
+  }
+  for (const m of frameMatches(ctx, PLAIN_OBJECT)) {
+    const { pronoun } = m.groups!;
+    const verb = m.groups!.verb.toLowerCase();
+    if (m.groups!.verb.slice(1) !== verb.slice(1)) continue;
+    const nasal = /(?:m|ão|õe)$/.test(verb);
+    // "-s" that is no verb ending ("lápis", "país") and short words stay out.
+    if (/s$/.test(verb) && !/(?:mos|is|es|as|us)$/.test(verb)) continue;
+    push(
+      findings,
+      ctx,
+      m,
+      nasal ? `${verb}-n${pronoun}` : `${withoutConsonant(verb)}-l${pronoun}`,
+      "review_msg_pt_object_form",
+    );
   }
   const proclitic = new Set(findings.map((finding) => finding.range.start));
   for (const m of frameMatches(ctx, ENCLITIC_FUTURE)) {

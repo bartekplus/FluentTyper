@@ -1,6 +1,6 @@
 import { namedExampleBefore } from "../exampleCues";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
-import { isInflectedNoun, isVerbHomograph, verbReadings } from "./frenchLexicon";
+import { adjectiveReadings, isInflectedNoun, isVerbHomograph, verbReadings } from "./frenchLexicon";
 import { ownedFrenchWords, SUBJECT_PRONOUNS, tokensBefore } from "./frenchTokens";
 
 // A determiner and the noun or adjective right after it share their number: "mes livres",
@@ -86,6 +86,28 @@ function nounNumber(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   const word = typed.toLowerCase();
   if (typed !== word || word.length < 3 || ctx.dictionary.has(word)) return null;
   if (NOT_NOUNS.has(word) || namedExampleBefore(ctx.text, m.index)) return null;
+  // "quatre enfant": a number from two up is a plural determiner, unless a determiner or a
+  // label before makes it a name or a rank ("le numéro deux allemand", "les trois été").
+  if (NUMBER_DETERMINERS.has(determiner)) {
+    const before = tokensBefore(ctx.text, m.index, 1)[0];
+    if (before && (PLURAL.has(before.w) || SINGULAR.has(before.w) || RANKS.has(before.w)))
+      return null;
+    // "cinq et six", "cent pour cent", "à neuf": parts of a number, a ratio, an adjective.
+    if (before && (before.w === "et" || before.w === "pour" || NUMBER_DETERMINERS.has(before.w)))
+      return null;
+    if (adjectiveReadings(word).length) return null;
+    if (isVerbForm(word) || /[sxz]$/.test(word) || !isInflectedNoun(word)) return null;
+    const [start] = m.indices!.groups!.noun;
+    const after = ctx.text.slice(start + typed.length, start + typed.length + 12);
+    if (/^[-'’]|^[\s ]{0,8}(?:,|et\b|ou\b)/u.test(after)) return null;
+    return {
+      ruleId: RULE,
+      messageKey: MESSAGE,
+      range: { start, end: start + typed.length },
+      alternatives: [plural(word)],
+      context: { start: m.index, end: start + typed.length },
+    };
+  }
   // "deux cent une personnes", "soixante et un ans": a number, not an article. "de ton
   // distincts": the noun "ton" (tone), "son" (sound).
   const previous = tokensBefore(ctx.text, m.index, 2);
@@ -159,8 +181,19 @@ function nounNumber(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   };
 }
 
+const NUMBER_DETERMINERS = new Set(
+  (
+    "deux trois quatre cinq six sept huit dix onze douze treize quatorze quinze seize vingt " +
+    "trente quarante cinquante soixante cent mille"
+  ).split(" "),
+);
+// Labels a number names a rank or an item after: "numéro deux", "page trois", "chapitre dix".
+const RANKS = new Set(
+  "numéro page chapitre article tome acte scène étage rang n° volume livre partie leçon".split(" "),
+);
+
 const DETERMINER_NOUN = new RegExp(
-  `(?<![\\p{L}\\p{M}\\p{N}_'’-])(?<det>${[...PLURAL, ...SINGULAR].join("|")})(?=[ \\t]+(?<noun>\\p{L}+)(?![\\p{L}\\p{M}\\p{N}_'’-]))`,
+  `(?<![\\p{L}\\p{M}\\p{N}_'’-])(?<det>${[...PLURAL, ...SINGULAR, ...NUMBER_DETERMINERS].join("|")})(?=[ \\t]+(?<noun>\\p{L}+)(?![\\p{L}\\p{M}\\p{N}_'’-]))`,
   "dgiu",
 );
 

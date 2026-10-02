@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 import {
   buildPortugueseLexicon,
   buildPortugueseVerbLexicon,
+  buildPortugueseVerbStems,
   PORTUGUESE_LEXICON_SOURCES,
 } from "../../scripts/generate-portuguese-lexicon";
 import { findLiveGrammarProposals } from "../../src/core/domain/grammar/review/liveProposals";
@@ -58,6 +59,9 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Foi um trabalho tão pratico.", "Foi um trabalho tão prático."],
         ["Toda critica ajuda.", "Toda crítica ajuda."],
         ["Tenho duvidas sobre o plano.", "Tenho dúvidas sobre o plano."],
+        ["A musica tocou a noite toda.", "A música tocou a noite toda."],
+        ["Choveu. O transito parou na ponte.", "Choveu. O trânsito parou na ponte."],
+        ["As duvidas ficaram para amanhã.", "As dúvidas ficaram para amanhã."],
       ],
       neg: [
         "Por último publica os dados.",
@@ -69,6 +73,8 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         "Um critica, o outro elogia.",
         "A secretaria da escola fecha cedo.",
         "Ele a fabrica em casa.",
+        "Ela, como sempre, o critica em público.",
+        "Quem a pratica sabe disso.",
         "Fiquei na dúvida até o fim.",
         "Isso seria uma boa ideia.",
         "A palavra “duvida” é um verbo.",
@@ -83,6 +89,48 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
     {
       pos: [
         ["Ainda à pouco que fazer aqui.", "Ainda há pouco que fazer aqui."],
+        ["Fizemos uma viajem ao Peru.", "Fizemos uma viagem ao Peru."],
+        ["A viajem atrasou duas horas.", "A viagem atrasou duas horas."],
+        ["Espero que vocês viagem tranquilos.", "Espero que vocês viajem tranquilos."],
+        ["Comprei um sinto de couro.", "Comprei um cinto de couro."],
+        ["A grade de asso enferrujou.", "A grade de aço enferrujou."],
+        ["Em relação a proposta, nada mudou.", "Em relação à proposta, nada mudou."],
+        ["Graças a ajuda dos vizinhos, saímos.", "Graças à ajuda dos vizinhos, saímos."],
+        ["Ela tem acesso as informações.", "Ela tem acesso às informações."],
+        ["O valor é superior a média.", "O valor é superior à média."],
+        ["Amanhã vamos a praia.", "Amanhã vamos à praia."],
+        ["Quanto a viagem, decidimos depois.", "Quanto à viagem, decidimos depois."],
+        ["Ela se candidatou a vaga.", "Ela se candidatou à vaga."],
+        ["Fui à uma festa ontem.", "Fui a uma festa ontem."],
+        ["Pergunte à Sua Excelência.", "Pergunte a Sua Excelência."],
+        ["O ingresso equivale à R$ 50.", "O ingresso equivale a R$ 50."],
+        ["E tudo isso porque?", "E tudo isso por quê?"],
+        ["Juntei dinheiro afim de viajar.", "Juntei dinheiro a fim de viajar."],
+        ["Falamos com ele acerca de dez minutos.", "Falamos com ele há cerca de dez minutos."],
+        ["Vieram acerca de 300 pessoas.", "Vieram cerca de 300 pessoas."],
+        ["Aonde você mora agora?", "Onde você mora agora?"],
+        ["Senão fosse por ela, ninguém viria.", "Se não fosse por ela, ninguém viria."],
+        ["Não só estudou, mais também trabalhou.", "Não só estudou, mas também trabalhou."],
+        ["Não dá pra mim sair hoje.", "Não dá pra eu sair hoje."],
+        ["Já fazem dois anos que não o vejo.", "Já faz dois anos que não o vejo."],
+        ["Enquanto houverem dúvidas, pergunte.", "Enquanto houver dúvidas, pergunte."],
+        ["Case eles não venham, cancelamos.", "Caso eles não venham, cancelamos."],
+        ["O dinheiro foi gastado em festas.", "O dinheiro foi gasto em festas."],
+        ["A conta foi pagada ontem.", "A conta foi paga ontem."],
+        ["Ele saiu ás cinco horas.", "Ele saiu às cinco horas."],
+        ["De uma olhada nisso.", "Dê uma olhada nisso."],
+        ["Não de ouvidos a ele.", "Não dê ouvidos a ele."],
+        ["Ele esta de saída.", "Ele está de saída."],
+        ["Conheço a Ana à quase 30 anos.", "Conheço a Ana há quase 30 anos."],
+        ["Vou na praia amanhã.", "Vou à praia amanhã."],
+        ["Vamos no cinema hoje.", "Vamos ao cinema hoje."],
+        ["Devem haver baratas ali.", "Deve haver baratas ali."],
+        ["Eu evito de comer fritos.", "Eu evito comer fritos."],
+        ["Penso de que estamos bem.", "Penso que estamos bem."],
+        ["O que ouve com ela?", "O que houve com ela?"],
+        ["Ouve algo com ele?", "Houve algo com ele?"],
+        ["Isso esta confuso.", "Isso está confuso."],
+        ["Fiquei tao cansada.", "Fiquei tão cansada."],
         ["Não nos falamos a muito tempo.", "Não nos falamos há muito tempo."],
         ["Moro aqui dês que nasci.", "Moro aqui desde que nasci."],
         ["Chove dês da manhã.", "Chove desde a manhã."],
@@ -132,6 +180,43 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Prefiro praia do que montanha.", "Prefiro praia a montanha."],
       ],
       neg: [
+        "Eu sinto muito pelo atraso.",
+        "Gosto de quando sinto o vento.",
+        "Que viagem incrível foi aquela!",
+        "Talvez viagem seja a palavra certa.",
+        "Não sei se ela sinta frio.",
+        "Ela trabalha tanto quanto a irmã.",
+        "O atraso foi devido a problemas técnicos.",
+        "Em relação a isso, nada mudou.",
+        "Saímos à uma hora da manhã.",
+        "Devido a muita chuva, ficamos em casa.",
+        "Em relação a minha proposta, nada mudou.",
+        "Isso equivale a dizer que não.",
+        "Devido a Maria, chegamos tarde.",
+        "Lá vai a bola.",
+        "Refere-se a um caso antigo.",
+        "Quero entender o porquê do atraso.",
+        "O teu porquê não me convence.",
+        "Ela é uma pessoa afim às artes.",
+        "Falamos acerca de dois assuntos importantes.",
+        "Aonde você vai?",
+        "Não faz nada senão reclamar.",
+        "Venha cedo, senão perdemos o ônibus.",
+        "Isso é para mim, obrigado.",
+        "Os gêmeos fazem dez anos amanhã.",
+        "Eles haviam saído cedo.",
+        "Case com ela logo.",
+        "Ele tinha pagado a conta.",
+        "De um lado, o rio.",
+        "De uma forma ou de outra.",
+        "Prefiro esta de vidro.",
+        "O ás do volante venceu.",
+        "Ele deve haver chegado cedo.",
+        "Ele foi na praia que a conheceu.",
+        "Como você está indo na escola?",
+        "Ele acredita no que ouve.",
+        "Você ouve algo?",
+        "O tao é antigo.",
         "Daqui a muito tempo ninguém lembra.",
         "Quero que me dês do teu chá.",
         "Ele saiu por fim de manhã.",
@@ -180,6 +265,11 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
     {
       pos: [
         ["Deixei a chave em a gaveta.", "Deixei a chave na gaveta."],
+        ["Moro em China há dois anos.", "Moro na China há dois anos."],
+        ["Ele voltou de Estados Unidos ontem.", "Ele voltou dos Estados Unidos ontem."],
+        ["Vamos a Peru nas férias.", "Vamos ao Peru nas férias."],
+        ["Viajou para Costa Rica sozinha.", "Viajou para a Costa Rica sozinha."],
+        ["Passamos por Brasil e Chile.", "Passamos pelo Brasil e Chile."],
         ["O preço de este carro subiu.", "O preço deste carro subiu."],
         ["Entreguei o livro a o professor.", "Entreguei o livro ao professor."],
         ["Não volto mais a aquele lugar.", "Não volto mais àquele lugar."],
@@ -189,6 +279,11 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Não pense mais em isso agora.", "Não pense mais nisso agora."],
       ],
       neg: [
+        "Visitei a Argentina no verão.",
+        "Vou para Portugal amanhã.",
+        "Moramos em França há anos.",
+        "O Banco de Brasil Seguros ligou.",
+        "Ela é a China que todos conhecem.",
         "Antes de o sol nascer, saímos.",
         "Gosto de o ouvir cantar.",
         "Apesar de a casa ser antiga, é confortável.",
@@ -216,6 +311,17 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Moro no 8° andar.", "Moro no 8º andar."],
         ["A cidade fica a 40 Km daqui.", "A cidade fica a 40 km daqui."],
         ["O terreno tem 300 m2 de área.", "O terreno tem 300 m² de área."],
+        ["A fatura soma 12,480.75 reais.", "A fatura soma 12.480,75 reais."],
+        ["Foram 3,215,900.5 votos válidos.", "Foram 3.215.900,5 votos válidos."],
+        ["A mochila pesa 4.5 kg vazia.", "A mochila pesa 4,5 kg vazia."],
+        ["O lago cobre 12.75 km² do parque.", "O lago cobre 12,75 km² do parque."],
+        ["A febre chegou a 38,5º ontem.", "A febre chegou a 38,5° ontem."],
+        ["A cidade fica a 23º sul do equador.", "A cidade fica a 23° sul do equador."],
+        ["O navio seguiu a 40o N por dias.", "O navio seguiu a 40° N por dias."],
+        ["Desenhe um ângulo de 45º.", "Desenhe um ângulo de 45°."],
+        ["O farol fica a 23º 32' 51\" S.", "O farol fica a 23°\u202f32′\u202f51″ S."],
+        ["A ilha fica a 8º15’ de latitude.", "A ilha fica a 8°\u202f15′ de latitude."],
+        ["Ontem fez 31º, que calor.", "Ontem fez 31°, que calor."],
       ].filter(([typed, fixed]) => typed !== fixed) as Array<[string, string]>,
       neg: [
         "O ônibus sai às 18h.",
@@ -228,6 +334,16 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         "Comprei um HB20 usado.",
         "A sala 2a fica no fim do corredor.",
         "Use a chave Km3 no arquivo.",
+        "Instale a versão 4.12.3 do pacote.",
+        "O roteador responde em 192.168.10.254 sempre.",
+        "Custou 12.480,75 reais.",
+        "A tabela 4.5 mostra os dados.",
+        "Saímos às 17.40 h em ponto.",
+        "Atualize para 1,234.5.6 hoje.",
+        "Ele ficou em 3º lugar na prova.",
+        "O 2º sul-americano a vencer foi ele.",
+        "Ficou em 2º, atrás do João.",
+        "Fez o 5º gol da partida.",
       ],
     },
   ],
@@ -265,6 +381,17 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
     {
       pos: [
         ["Não diga-me isso agora.", "Não me diga isso agora."],
+        ["Já eu conhecia-te naquela época.", "Já eu te conhecia naquela época."],
+        ["Ele vai escreve-lo amanhã.", "Ele vai escrevê-lo amanhã."],
+        ["Vim para ajuda-la.", "Vim para ajudá-la."],
+        ["Não quero distrai-los.", "Não quero distraí-los."],
+        ["Preciso compo-la hoje.", "Preciso compô-la hoje."],
+        ["Muitos tinham-o como amigo.", "Muitos tinham-no como amigo."],
+        ["Põe-as na gaveta.", "Põe-nas na gaveta."],
+        ["Você precisa partir-o ao meio.", "Você precisa parti-lo ao meio."],
+        ["E fez-o de maneira estranha.", "E fê-lo de maneira estranha."],
+        ["Vamos comer-as agora.", "Vamos comê-las agora."],
+        ["Todos eles deram-lhe razão.", "Todos eles lhe deram razão."],
         ["Nunca contou-lhe a verdade.", "Nunca lhe contou a verdade."],
         ["Ninguém lembrou-se do prazo.", "Ninguém se lembrou do prazo."],
         ["Todos admiram-se da coragem dela.", "Todos se admiram da coragem dela."],
@@ -286,6 +413,13 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Por favor, não esperem-nos para o jantar.", "Por favor, não nos esperem para o jantar."],
       ],
       neg: [
+        "Quero parti-lo ao meio.",
+        "Tu vende-lo caro.",
+        "Amamo-la muito.",
+        "Quero fazê-lo já.",
+        "Ele fez-se de bobo.",
+        "Venda porta-a-porta.",
+        "O boca-a-boca funcionou.",
         "Nunca quis comprá-lo.",
         "O caso passou-se em 1990.",
         "Que bom revê-la!",
@@ -369,6 +503,46 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Espero que vocês estão bem.", "Espero que vocês estejam bem."],
         ["Peço que ele chega mais cedo.", "Peço que ele chegue mais cedo."],
         ["Embora tem dinheiro, não viaja.", "Embora tenha dinheiro, não viaja."],
+        ["Desejo que a reunião termina cedo.", "Desejo que a reunião termine cedo."],
+        ["Queria que ele vem amanhã.", "Queria que ele viesse amanhã."],
+        ["Gostaria que vocês ficam para o jantar.", "Gostaria que vocês ficassem para o jantar."],
+        ["Duvido que a Maria Clara sabe a resposta.", "Duvido que a Maria Clara saiba a resposta."],
+        ["Caso você precisa de ajuda, ligue.", "Caso você precise de ajuda, ligue."],
+        ["Talvez ele conhece o caminho.", "Talvez ele conheça o caminho."],
+        ["Esperava que os alunos estudavam mais.", "Esperava que os alunos estudassem mais."],
+        ["Sugiro que vocês passeiam na praia.", "Sugiro que vocês passeiem na praia."],
+        ["Exijo que a empresa devolve o dinheiro.", "Exijo que a empresa devolva o dinheiro."],
+        ["Não acho que ele mente.", "Não acho que ele minta."],
+        ["A palavra está correto.", "A palavra está correta."],
+        ["Elas são altos.", "Elas são altas."],
+        ["A porta está fechado.", "A porta está fechada."],
+        ["A comida estava muito gostoso.", "A comida estava muito gostosa."],
+        ["Ele está cansada hoje.", "Ele está cansado hoje."],
+        ["A reunião foi marcado para amanhã.", "A reunião foi marcada para amanhã."],
+        ["Eu passeiam na praia.", "Eu passeio na praia."],
+        ["Tu não falam inglês.", "Tu não falas inglês."],
+        ["Nós come muito bem.", "Nós comemos muito bem."],
+        ["Eu e a Rita viajam amanhã.", "Eu e a Rita viajamos amanhã."],
+        ["Você falas muito.", "Você fala muito."],
+        ["Eu comiam pouco.", "Eu comia pouco."],
+        ["Nós comia ali todo dia.", "Nós comíamos ali todo dia."],
+        ["Eles fiquei em casa.", "Eles ficaram em casa."],
+        ["Eu conhece a cidade.", "Eu conheço a cidade."],
+        ["As crianças da escola brinca no pátio.", "As crianças da escola brincam no pátio."],
+        ["O preço das passagens aumentaram ontem.", "O preço das passagens aumentou ontem."],
+        ["Meus primos de Recife chega amanhã.", "Meus primos de Recife chegam amanhã."],
+        ["Já aconteceu erros parecidos.", "Já aconteceram erros parecidos."],
+        ["Falta muitos detalhes no projeto.", "Faltam muitos detalhes no projeto."],
+        ["Tem existido muitas dúvidas.", "Têm existido muitas dúvidas."],
+        ["Pode nunca mais sobrar tantas vagas.", "Podem nunca mais sobrar tantas vagas."],
+        ["Existe pessoas boas.", "Existem pessoas boas."],
+        ["Esta foi a razão pelo qual saí.", "Esta foi a razão pela qual saí."],
+        ["Foi um dos motivos pelas quais saí.", "Foi um dos motivos pelos quais saí."],
+        ["Aqui vende-se casas antigas.", "Aqui vendem-se casas antigas."],
+        ["Aluga-se apartamentos.", "Alugam-se apartamentos."],
+        ["Estamos muitos contentes.", "Estamos muito contentes."],
+        ["Elas estão muitas cansadas.", "Elas estão muito cansadas."],
+        ["Ele sempre segui os meus passos.", "Ele sempre seguiu os meus passos."],
         ["É necessário uma revisão completa.", "É necessária uma revisão completa."],
         ["Será proibido as visitas no domingo.", "Serão proibidas as visitas no domingo."],
         ["Foi necessária um novo teste.", "Foi necessário um novo teste."],
@@ -389,7 +563,6 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         "Nós é que pagamos a conta.",
         "Conheço eles faz muitos anos.",
         "Vi elas hoje cedo.",
-        "Nós comia ali todo dia.",
         "Eles se encontraram.",
         "Eles realmente precisam de ajuda.",
         "Ele também viajou.",
@@ -434,6 +607,50 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         "O casarão ontem pegou fogo.",
         "Acho que você está certo.",
         "Espero que você esteja bem.",
+        "O desejo que tenho é viajar.",
+        "Espera que eu já volto.",
+        "Disse o mesmo que ele disse.",
+        "Quero que ele venda o carro.",
+        "Espero que ele cobre o valor justo.",
+        "Espero que a sala limpa esteja pronta.",
+        "Espero que o que ele disse seja verdade.",
+        "Desde que cheguei, chove.",
+        "Ainda acho que ele mente.",
+        "Contei antes que ela chegou.",
+        "A gente está cansado.",
+        "A cidade é palco de festivais.",
+        "A crise é resultado de erros.",
+        "A modelo está cansada.",
+        "As borboletas são ótimos indicadores.",
+        "Ela estava junto à porta.",
+        "Ele não é nada além de um tolo.",
+        "As pessoas ficam demasiado imersas.",
+        "Ela e eu trabalhamos juntos.",
+        "Estes nós representam ligações.",
+        "Elas nada sabem.",
+        "Ele sabe mais do que eu conseguiria.",
+        "Eu cria em fadas quando criança.",
+        "Ela trabalho é tudo.",
+        "Eu estou cansada.",
+        "Os livros de capa dura custam caro.",
+        "A maioria dos alunos passaram.",
+        "Um bilhão de pessoas falam inglês.",
+        "As regras nas quais se baseia o texto.",
+        "A chance de prosseguir trilhas é pequena.",
+        "Falta de dinheiro atrapalha.",
+        "A polícia chegou alguns instantes depois.",
+        "Ocorreu diversas vezes.",
+        "Basta pensarmos nisso.",
+        "Ele tem existido em paz.",
+        "A empresa na qual trabalho fechou.",
+        "O estudo ou a metodologia pelo qual foi feito.",
+        "Precisa-se de garçons.",
+        "Vende-se esta casa.",
+        "Leva-se anos para aprender.",
+        "Leia-se superstições.",
+        "Ele sai cedo.",
+        "Estamos muitos aqui.",
+        "São muitos interessados no curso.",
         "Os meninos é que sabem.",
         "É proibido o uso de celulares.",
         "É necessário os alunos estudarem mais.",
@@ -452,6 +669,10 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["O vice diretor chegou.", "O vice-diretor chegou."],
         ["Tomei um anti inflamatório.", "Tomei um anti-inflamatório."],
         ["O prazo vence em 28 de Janeiro.", "O prazo vence em 28 de janeiro."],
+        ["Vivem em regime de co-dependência.", "Vivem em regime de codependência."],
+        ["O pacto de não-agressão foi assinado.", "O pacto de não agressão foi assinado."],
+        ["São penta-campeões do mundo.", "São pentacampeões do mundo."],
+        ["As crenças pan-teístas são antigas.", "As crenças panteístas são antigas."],
         ["Até o próximo Domingo.", "Até o próximo domingo."],
       ],
       neg: [
@@ -462,6 +683,9 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         "Ela faz a pós em Direito.",
         "O caso está sub judice.",
         "Somos anti Marco.",
+        "O time pan-americano venceu.",
+        "A circum-navegação durou anos.",
+        "Comprei um não-me-toques.",
       ],
     },
   ],
@@ -499,6 +723,19 @@ describe("portugueseCommas", () => {
     ["Boa noite Carla.", "Boa noite, Carla."],
     ["Obrigada Pedro!", "Obrigada, Pedro!"],
     ["Não não vou.", "Não, não vou."],
+    ["Por exemplo hoje choveu muito.", "Por exemplo, hoje choveu muito."],
+    ["Atenciosamente\nMarta", "Atenciosamente,\nMarta"],
+    ["Com os melhores cumprimentos.", "Com os melhores cumprimentos,"],
+    ["Prezado Senhor Silva\nEscrevo para", "Prezado Senhor Silva,\nEscrevo para"],
+    ["Caro Doutor Santos!", "Caro Doutor Santos,"],
+    ["O que é que aconteceu aqui.", "O que é que aconteceu aqui?"],
+    ["Como é que vocês chegaram tão cedo.", "Como é que vocês chegaram tão cedo?"],
+    ["Chegou cedo e além disso, trouxe o bolo.", "Chegou cedo e, além disso, trouxe o bolo."],
+    ["Ficou caro, e, no fundo ninguém ligou.", "Ficou caro, e, no fundo, ninguém ligou."],
+    ["Correu muito mas ao mesmo tempo, sorriu.", "Correu muito mas, ao mesmo tempo, sorriu."],
+    ["Ela estuda e, em geral trabalha à noite.", "Ela estuda e, em geral, trabalha à noite."],
+    ["Feliz natal Rui!", "Feliz natal, Rui!"],
+    ["Bem-vinda Joana.", "Bem-vinda, Joana."],
   ])("fixes %p", (text, expected) => {
     expect(repaired("portugueseCommas", text)).toBe(expected);
     expect(findings("portugueseCommas", expected)).toEqual([]);
@@ -515,8 +752,44 @@ describe("portugueseCommas", () => {
     "Disse que não, não quero.",
     "Não via nada além disso, nem queria.",
     "Aumenta muito, por exemplo se dobrar a carga.",
+    "Por favor de quem?",
+    "Atenciosamente, João.",
+    "Caro amigo, tudo bem?",
+    "Prezado Senhor,",
+    "Não sei o que é que aconteceu.",
+    "A carta terminava com atenciosamente e a assinatura.",
+    "Como é que ele descobriu ainda é um mistério.",
+    "O que é que ele quer eu não sei.",
+    "A pedra caiu no fundo, e sumiu.",
+    "Trabalha e ao mesmo tempo estuda.",
+    "Chegaram ao mesmo tempo, e saíram juntos.",
+    "E além disso, ninguém reclamou.",
+    "Os carros, em geral caros, venderam bem.",
   ])("leaves %p alone", (text) => {
     expect(findings("portugueseCommas", text)).toEqual([]);
+  });
+});
+
+describe("infinitive after an auxiliary", () => {
+  test.each([
+    ["As crianças vão dormi cedo hoje.", "As crianças vão dormir cedo hoje."],
+    ["Você pode fala mais devagar?", "Você pode falar mais devagar?"],
+    ["Amanhã vou come na casa da avó.", "Amanhã vou comer na casa da avó."],
+    ["Eles não conseguem termina a obra.", "Eles não conseguem terminar a obra."],
+    ["Ela vai lembra-se disso.", "Ela vai lembrar-se disso."],
+  ])("fixes %p", (text, expected) => {
+    expect(repaired("portugueseAgreement", text)).toBe(expected);
+    expect(findings("portugueseAgreement", expected)).toEqual([]);
+  });
+  test.each([
+    "Vou para casa depois da aula.",
+    "Você quer ajuda com as malas?",
+    "Ele deve conta ao banco.",
+    "Ela vai bem, obrigada.",
+    "Vamos agora mesmo.",
+    "Isso não vai nada bem.",
+  ])("leaves %p alone", (text) => {
+    expect(findings("portugueseAgreement", text)).toEqual([]);
   });
 });
 
@@ -547,8 +820,30 @@ describe("portugueseDates", () => {
     "Atualize para a versão 10.13.2024.",
     "Faltam 31 mais coisas.",
     "Ela nasceu em 29/02/2000.",
+    "A prova é na sexta-feira, 2 de outubro de 2026.",
+    "Abrimos no domingo (dia 4/10/2026) cedo.",
+    "Na quarta, 7 de outubro, saímos.",
   ])("leaves %p alone", (text) => {
     expect(findings("portugueseDates", text)).toEqual([]);
+  });
+  test.each([
+    [
+      "A prova é na quinta-feira, 2 de outubro de 2026.",
+      "quinta-feira, 2",
+      ["sexta-feira, 2", "quinta-feira, 1"],
+    ],
+    [
+      "Abrimos no sábado (dia 4/10/2026) cedo.",
+      "sábado (dia 4",
+      ["domingo (dia 4", "sábado (dia 3"],
+    ],
+    ["Seg, 6 out 2026: reunião.", "Seg, 6", ["Terça-feira, 6", "Seg, 5"]],
+  ])("checks the weekday in %p", (text, typed, alternatives) => {
+    const [finding, ...rest] = findings("portugueseDates", text);
+    expect(rest).toEqual([]);
+    expect(finding.original).toBe(typed);
+    expect(finding.alternatives.map((alternative) => alternative.preview)).toEqual(alternatives);
+    expect(finding.requiresChoice).toBe(true);
   });
 });
 
@@ -575,14 +870,18 @@ test("the clean Portuguese corpus has no default-on findings", () => {
 });
 
 test("the committed paronym and verb tables match pt_BR.dic/.aff (bun run generate:portuguese-lexicon)", async () => {
-  const [dic, aff, paronyms, verbs] = await Promise.all([
+  const [dic, aff, paronyms, verbs, stems, trie, counts] = await Promise.all([
     readFile(PORTUGUESE_LEXICON_SOURCES.dic),
     readFile(PORTUGUESE_LEXICON_SOURCES.aff),
     readFile(PORTUGUESE_LEXICON_SOURCES.out, "utf8"),
     readFile(PORTUGUESE_LEXICON_SOURCES.verbsOut, "utf8"),
+    readFile(PORTUGUESE_LEXICON_SOURCES.stemsOut, "utf8"),
+    Bun.file(PORTUGUESE_LEXICON_SOURCES.trie).arrayBuffer(),
+    Bun.file(PORTUGUESE_LEXICON_SOURCES.counts).arrayBuffer(),
   ]);
   expect(buildPortugueseLexicon(dic, aff)).toBe(paronyms);
   expect(buildPortugueseVerbLexicon(dic, aff)).toBe(verbs);
+  expect(buildPortugueseVerbStems(dic, aff, trie, counts)).toBe(stems);
 });
 
 // Adversarial input in the worst-case style of ReviewWorstCase.test.ts, for pt_BR.
@@ -598,7 +897,8 @@ const TRIGGERS =
   "de Niterói/RJ 31 de abril de 2023 30/02/2024 para mim fazer esta coberto " +
   "Uma problema dos cidade os situações o nossa mesma todo os erros não querem-na " +
   "Os meninos dança. Já deu dez horas foi eu Enviarão ontem espero que você está " +
-  "É necessário uma festa às 10.00 h a política econômico Grande distancia ";
+  "É necessário uma festa às 10.00 h a política econômico Grande distancia " +
+  "Queria que a Maria Clara de Souza estudava Caso talvez ele conhece ";
 
 function slowestChunkMs(text: string): number {
   const prepared = prepareReview(
@@ -627,6 +927,9 @@ test("Portuguese frames stay fast on long runs of trigger words and spaces", () 
     "palavra , no entanto , no entanto portanto, ".repeat(400),
     "os o as a uma um da do nos ".repeat(400),
     "o nossa os mesma uns outro ".repeat(500),
+    "espero que quero que embora caso talvez que a ".repeat(300),
+    "devido a quanto a vou a à uma acesso as se refere a ".repeat(300),
+    "eu falo tu e eu nós comia eles fiquei a palavra está correto ".repeat(250),
   ];
   for (const text of inputs) expect(slowestChunkMs(text)).toBeLessThan(100);
   const live = { ...options, liveRules: [] };
@@ -634,4 +937,20 @@ test("Portuguese frames stay fast on long runs of trigger words and spaces", () 
   const start = performance.now();
   findLiveGrammarProposals(TRIGGERS.repeat(5), live);
   expect(performance.now() - start).toBeLessThan(50);
+});
+
+test("grouped decimals are prose; versions and addresses stay technical", () => {
+  const technical = (text: string) =>
+    prepareReview(
+      { id: "pt", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
+      { enabledRules: [], lang: LANG, userDictionary: [], insertSpaceAfterAutocomplete: true },
+    )
+      .protectedRanges.filter((range) => range.reason === "technical")
+      .map((range) => text.slice(range.start, range.end));
+  expect(technical("Pagou 12,480.75 e 3,215,900.5 no total.")).toEqual([]);
+  expect(technical("Use 4.12.3 em 192.168.10.254 ou 1,234.5.6.")).toEqual([
+    "4.12.3",
+    "192.168.10.254",
+    "1,234.5.6",
+  ]);
 });

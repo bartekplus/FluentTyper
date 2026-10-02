@@ -161,9 +161,10 @@ function repairAfterAuxiliary(
     if (isDo || NOUN_LIKE_ING.test(word) || !englishWordInfo(word)) return null;
     const lemma = englishLemma(word, "ing");
     if (!lemma) return null;
-    return lemma === "be"
-      ? { forms: [lemma] }
-      : { forms: [lemma, `be ${word}`], be: true, choice: true };
+    if (lemma === "be") return { forms: [lemma] };
+    // "would willing": an -ing adjective wants be first.
+    const forms = englishWordInfo(word)?.adjective ? [`be ${word}`, lemma] : [lemma, `be ${word}`];
+    return { forms, be: true, choice: true };
   }
   const lemma = inflectedLemma(word);
   if (!lemma) return null;

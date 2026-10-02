@@ -41,7 +41,7 @@ const TO_SINGULAR: Record<string, string> = {
   "weren't": "wasn't",
 };
 // Nouns that take a plural verb in British use or name a group: "The team are…".
-const COLLECTIVE = new Set(
+export const COLLECTIVE = new Set(
   "team staff family police government committee crew band audience public class group majority rest number couple pair lot jury army navy board council club company firm management media data total variety range series species means news remainder masters woods belt".split(
     " ",
   ),
@@ -519,7 +519,8 @@ function closedAfter(t: Token | undefined): boolean {
 
 // Words after which he/she/it opens its own clause; never a causative ("make it work").
 const PRONOUN_CUE =
-  /^(?:and|but|so|because|when|whenever|while|since|until|although|though|if|think|thought|hope|hoped|assume|assumed|guess|believe|believed|said|says|sure|suppose|know|knew|bet|wish)$/;
+  /^(?:and|but|so|because|when|whenever|while|since|until|although|though|if|think|thought|hope|hoped|assume|assumed|guess|believe|believed|said|says|sure|suppose|know|knew|bet|wish|hoping|hopes)$/;
+const LINKING_BASE = /^(?:become|go|get|turn|seem|look|feel|sound|stay|grow|remain|make)$/;
 const BETWEEN_ADVERBS =
   /^(?:only|really|just|also|always|never|still|usually|often|probably|suddenly|actually|finally|sometimes|already|even|simply)$/;
 
@@ -552,25 +553,36 @@ function thirdPersonBase(ctx: DetectContext): RawFinding[] {
     if (!read?.verbs.some((v) => v.form === "base" && v.lemma === word) || read.adjective) continue;
     // "he put", "he come home": the same spelling is a past or participle (dialect use).
     const forms = englishVerbForms(word);
-    if (forms && (forms.past === word || forms.participle === word)) continue;
+    const next = tokens[k + 1];
+    // "it become dark", "it go crazy", "it make sense": a linking verb before an adjective (or
+    // "sense") is the verb, whatever else its spelling reads as.
+    const nextWord = next?.kind === "word" ? englishWordInfo(next.lower) : null;
+    const linked =
+      LINKING_BASE.test(word) &&
+      next?.kind === "word" &&
+      (next.lower === "sense" || (!!nextWord?.adjective && !nextWord.verbs.length));
+    if (!linked && forms && (forms.past === word || forms.participle === word)) continue;
     if (read.plural) continue;
     // "he hand wrote", "she dose not", "it time to", "so it sort of": a verb after it, or a noun
     // reading before not/of/to, belongs to another error.
-    const next = tokens[k + 1];
     const nextRead = next?.kind === "word" ? englishWordInfo(next.lower) : null;
     if (nextRead?.verbs.some((v) => v.form === "past" || v.form === "third")) continue;
     if (
+      !linked &&
       read.noun &&
       (!closedAfter(next) || /^(?:not|of|to)$/.test(next?.kind === "word" ? next.lower : ""))
     )
       continue;
     const fix = englishInflect(word, "third");
     if (!fix || fix === word) continue;
+    // "and it become dark" may be a past: "become" is spelled like its participle.
+    const past = forms && forms.participle === word && forms.past !== word ? forms.past : null;
     findings.push({
       ruleId: "englishPronounVerbWhitelistAgreement",
       messageKey: "review_msg_pronoun_verb",
       range: { start: verb.start, end: verb.end },
-      alternatives: [fix],
+      alternatives: past ? [fix, past] : [fix],
+      ...(past ? { requiresChoice: true as const } : {}),
       context: evidence(ctx, m.index, verb.end),
     });
   }

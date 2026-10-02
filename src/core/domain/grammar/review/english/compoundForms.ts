@@ -325,14 +325,15 @@ const ARTICLE_HEADS = new Set(["back", "chin"]);
 const PHRASAL_KEYS = Object.keys(PHRASAL_NOUNS)
   .map((key) => key.replace(" ", S))
   .join("|");
-const PHRASAL_PLURAL = `(?<target>${Object.keys(PHRASAL_NOUNS)
+// "(?=\\p{L})" opens the long frames: off words (on runs of spaces) their alternations never run.
+const PHRASAL_PLURAL = `(?=\\p{L})(?<target>${Object.keys(PHRASAL_NOUNS)
   .filter((key) => !/^(?:left|how|opt|catch|back) /.test(key))
   .map((key) => `${key.replace(" ", S)}s`)
   .join("|")})${E}`;
 const PREMODIFIER =
   /^(?:first|second|third|final|last|next|quick|big|small|major|minor|huge|brief|daily|weekly|monthly|annual|usual|regular|complete|full|proper|good|great|real|official|early|late|short|long|new|old|initial|informal|formal|official|massive|total)$/i;
 const ARTICLE = "a|an|the|my|your|his|our|their|its|another|every|no|any|first|this|that";
-const PHRASAL_NOUN = `(?<det>${ARTICLE}|(?:after|before|during|since|of|from|with|about|for|in|on)${S}her)${S}(?:(?<adj>[a-z]+)${S})?(?<target>${PHRASAL_KEYS})${E}`;
+const PHRASAL_NOUN = `(?=\\p{L})(?<det>${ARTICLE}|(?:after|before|during|since|of|from|with|about|for|in|on)${S}her)${S}(?:(?<adj>[a-z]+)${S})?(?<target>${PHRASAL_KEYS})${E}`;
 
 function phrasalNouns(ctx: DetectContext): Finding[] {
   const findings: Finding[] = [];
@@ -447,7 +448,7 @@ const SLOT =
   `|${CLAUSE}(?<subject>I|you|we|they|he|she)` +
   `|(?<have>have|has|had|(?:I|you|we|they)['’](?:ve|d))` +
   `|(?<be>am|is|are|was|were|be|been|point|(?:I|you|we|they|he|she)['’](?:m|re|s)))`;
-const COMPOUND_VERB = `${SLOT}${S}${ADVERB}(?<target>${VERB_KEYS})${E}`;
+const COMPOUND_VERB = `(?=\\p{L})${SLOT}${S}${ADVERB}(?<target>${VERB_KEYS})${E}`;
 // Words after "to" that make the compound a verb with an object: "to peer review your work".
 const TO_OBJECT =
   /^(?:the|a|an|this|that|these|those|my|your|his|her|its|our|their|me|him|us|them|it|you|everything|something|anything|someone|everyone|today|tomorrow|now|again|yet|before|online|myself|yourself|himself|herself|ourselves|themselves)$/i;
@@ -568,7 +569,7 @@ Object.assign(ARTICLE_NOUNS, {
   "check box": "checkbox",
   "over use": "overuse",
 });
-const MODIFIER = `(?<target>${MODIFIER_KEYS})${E}`;
+const MODIFIER = `(?=\\p{L})(?<target>${MODIFIER_KEYS})${E}`;
 const DETERMINER =
   "a|an|the|my|your|his|her|our|their|its|this|these|those|very|more|most|best|(?!(?:let|it|that|there|what|he|she|who|here|where)['’]s)\\p{L}+['’]s";
 const ARTICLE_MODIFIER = `(?<det>${DETERMINER})${S}(?<target>${alternation([
