@@ -2424,6 +2424,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "W tym stałym wyrażeniu słowo jest rzeczownikiem albo nie i zmienia wielką literę: im Ernst, mir ist es recht.",
     "Nesta expressão fixa a palavra é ou não é um substantivo e muda a maiúscula: im Ernst, mir ist es recht.",
   ],
+  review_msg_german_numbers: [
+    "German writes numbers below a million as one lowercase word, with a plural noun after them: sechsundzwanzig, achtmal, zwei Millionen.",
+    "L’allemand écrit les nombres inférieurs au million en un seul mot en minuscules, suivis d’un nom au pluriel : sechsundzwanzig, achtmal, zwei Millionen.",
+    "Njemački piše brojeve manje od milijun jednom riječju malim slovima, s imenicom u množini iza njih: sechsundzwanzig, achtmal, zwei Millionen.",
+    "El alemán escribe los números menores de un millón en una sola palabra en minúscula, con el sustantivo en plural detrás: sechsundzwanzig, achtmal, zwei Millionen.",
+    "Τα γερμανικά γράφουν τους αριθμούς κάτω του εκατομμυρίου ως μία λέξη με πεζά, με ουσιαστικό στον πληθυντικό μετά: sechsundzwanzig, achtmal, zwei Millionen.",
+    "Tyskan skriver tal under en miljon som ett ord med gemener, med substantivet i plural efter: sechsundzwanzig, achtmal, zwei Millionen.",
+    "Zahlen unter einer Million schreibt man klein und zusammen, das Nomen danach im Plural: sechsundzwanzig, achtmal, zwei Millionen.",
+    "Niemiecki zapisuje liczby poniżej miliona jednym słowem małymi literami, z rzeczownikiem w liczbie mnogiej: sechsundzwanzig, achtmal, zwei Millionen.",
+    "O alemão escreve os números abaixo de um milhão numa só palavra em minúsculas, com o substantivo no plural depois: sechsundzwanzig, achtmal, zwei Millionen.",
+  ],
 };
 
 /**

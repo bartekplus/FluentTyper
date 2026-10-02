@@ -338,6 +338,30 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
     },
   ],
   [
+    "germanNumbers",
+    {
+      pos: [
+        ["Das kostet vier und dreißig Euro.", "Das kostet vierunddreißig Euro."],
+        ["Es kamen fünf hundert Gäste.", "Es kamen fünfhundert Gäste."],
+        ["Ich habe zehn mal angerufen.", "Ich habe zehnmal angerufen."],
+        ["Wir warteten zwei an halb Stunden.", "Wir warteten zweieinhalb Stunden."],
+        ["Sie zählte bis Zwanzig.", "Sie zählte bis zwanzig."],
+        ["Wir haben drei Lösung gefunden.", "Wir haben drei Lösungen gefunden."],
+        ["Das Projekt kostet 4 Milliarde Euro.", "Das Projekt kostet 4 Milliarden Euro."],
+      ],
+      neg: [
+        "Es dauerte zwei, drei Tage.",
+        "Zwischen vier und dreißig Grad ist es angenehm.",
+        "Das ist ein hundert Jahre alter Baum.",
+        "Vier mal fünf ist zwanzig.",
+        "Noch einmal zwei Tage sind zu viel.",
+        "Sie bekam eine Drei.",
+        "Er hat einige Erfahrung damit.",
+        "Wir lasen Tausend und eine Nacht.",
+      ],
+    },
+  ],
+  [
     "germanQuestionMarks",
     {
       pos: [
@@ -548,6 +572,7 @@ test("no German chunk stalls on repeated determiners and lowercase nouns", () =>
     "ich glaube weil um zu wissen was ob sondern ".repeat(300),
     "Wir habe. Sollte wir du kann ich hast ".repeat(300),
     "mir ist zu recht Ernst nach Links riesen Dank im arm die schuld ".repeat(250),
+    "zwei und zwanzig hundert tausend mal drei an halb viele Lösung ".repeat(250),
     `Wann ${"kommst du ".repeat(2_000)}. Wie viel kostet das. Hast du Zeit, oder.`,
   ];
   slowest(inputs.join("\n"));

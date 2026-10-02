@@ -1532,6 +1532,19 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     recommended: false,
     priority: 100,
   },
+  {
+    id: "germanNumbers",
+    typing: false,
+    name: "German numbers in words",
+    titleI18nKey: "review_msg_german_numbers",
+    descriptionI18nKey: "review_msg_german_numbers",
+    exampleI18nKey: "",
+    languageScope: "all",
+    safetyTier: "advanced",
+    defaultRollout: "off",
+    recommended: false,
+    priority: 120,
+  },
 ] as const;
 
 export type CatalogRuleId = (typeof GRAMMAR_RULE_CATALOG)[number]["id"];
