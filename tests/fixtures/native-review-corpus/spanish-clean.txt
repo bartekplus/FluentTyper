@@ -392,7 +392,7 @@ El martes pasado llovió.
 Tu casa es muy bonita.
 Tu hermano trabaja en un banco.
 Tú cuentas las monedas y yo los billetes.
-El cuenta cuentos llegó a la escuela.
+El cuentacuentos llegó a la escuela.
 Nuestros abuelos vivieron la guerra.
 Vuestras ideas son buenas.
 Su majestad el rey inauguró el puente.
@@ -533,3 +533,54 @@ Se puso seria de repente.
 Supone una seria amenaza.
 Lo empujó hacia la puerta.
 Hacía mucho que no nos veíamos.
+# Sentence marks, dotted names, decimals and dates.
+Llegamos tarde. La cena ya estaba fría.
+Escríbeme a info.ventas@ejemplo.es o visita ejemplo.es para más datos.
+El archivo se llama informe.final.pdf y pesa 2.5 MB.
+Lo firmó J. R. Tolkien en persona.
+¿Te gustó? Mucho. ¡Qué frío! Cierra la ventana.
+Nació el 30.04.1989 y se casó el 29.02.2000.
+La tasa subió el 30.2 por ciento en un año.
+Ganaron por tres a dos en la prórroga.
+# Clitics, articles and verb forms.
+Le vino bien el descanso y les traje un regalo.
+Yo le valido la entrada y él le olvida siempre las llaves.
+Les tenías miedo a los perros.
+Pidió un té helado en la terraza.
+Me he olvidado de todo y te he llamado dos veces.
+Al marcharse, cerró la puerta.
+Va a casa de su madre todos los domingos.
+# Accents read from their frames.
+Esta la compré en Roma y aquella me la regalaron.
+Esta los domingos no abre.
+Compré pan y esta revista.
+No sé que sea para tanto.
+Lo que de verdad importa es la salud.
+Más que de cuenta, hablo de dinero.
+La gente critica sin saber y la empresa valida los datos.
+Por este motivo solicito una revisión.
+Él la practica cada día.
+Aun así, fue a trabajar. Aun cuando llueve, sale a correr.
+Aún no ha llegado y aún hoy lo recuerdo.
+Se vende piso con terraza.
+Si, como dices, llueve, no iremos.
+Te lo doy si lo necesitas.
+Lo haré, pero si a ti te parece bien.
+Lo sé porque me lo dijo ella.
+Lucha por que haya paz en el mundo.
+# Compounds, names and agreement.
+Al que mal vive, el miedo le sigue.
+Habló sobre protección de datos.
+El socio fundador firmó el acta.
+Le dio al guarda unas monedas.
+Dio a su prima regalos de cumpleaños.
+Padece beta-talasemia desde niño.
+Rosa trabajo es lo que quiero.
+Quizás tienen razón y ojalá vengan pronto.
+Creo que Juan y Ana vienen mañana.
+Una vez pasados los exámenes, descansamos.
+La vez pasada fue mejor.
+Terminó la carrera más cansado que nunca.
+Volvió de las vacaciones más relajado.
+Una de mis hermanos vino a verme.
+Este año fue uno de muchas novedades.

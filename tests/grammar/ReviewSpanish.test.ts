@@ -254,8 +254,22 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         ["Las ex-colonias británicas.", "Las excolonias británicas."],
         ["Trabaja en ciber seguridad.", "Trabaja en ciberseguridad."],
         ["Una reunión inter departamental.", "Una reunión interdepartamental."],
+        ["Es la co autora del libro.", "Es la coautora del libro."],
+        ["Estudia micro biología.", "Estudia microbiología."],
+        ["Ocupa dos mega-bytes.", "Ocupa dos megabytes."],
+        ["Compré un saca corchos nuevo.", "Compré un sacacorchos nuevo."],
+        ["Los niños llevaban un pasa montañas.", "Los niños llevaban un pasamontañas."],
+        ["Siempre mal gasta la paga.", "Siempre malgasta la paga."],
       ],
       neg: [
+        "Al que mal vive, el miedo le sigue.",
+        "Terminará mal para todos.",
+        "Habló sobre protección de datos.",
+        "El socio fundador firmó el acta.",
+        "Le dio al guarda unas monedas.",
+        "Vio un caza moderno en la base.",
+        "Dio a su prima regalos.",
+        "Padece beta-talasemia.",
         "Era el vice primer ministro del país.",
         "El ex presidente dio una rueda de prensa.",
         "Es una campaña anti-OTAN.",
@@ -412,6 +426,8 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         ["Pedro nunca contesto el correo.", "Pedro nunca contestó el correo."],
         ["Mi jefe pago la cena.", "Mi jefe pagó la cena."],
         ["Ana Belén canto en el teatro.", "Ana Belén cantó en el teatro."],
+        ["Rosa contesto enseguida.", "Rosa contestó enseguida."],
+        ["Pilar compro el pan.", "Pilar compró el pan."],
       ],
       neg: [
         "En Madrid trabajo mucho.",
@@ -420,6 +436,7 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         "El niño modelo saluda al público.",
         "Últimamente aprecio más el silencio.",
         "Luis, trabajo mañana.",
+        "Rosa trabajo es lo que quiero.",
         "El precio medio de la vivienda subió.",
         "Un árbol repleto de frutas.",
       ],
@@ -431,6 +448,9 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
     {
       pos: [
         ["Los vecinos tiene un perro.", "Los vecinos tienen un perro."],
+        ["Juan tienen dos gatos.", "Juan tiene dos gatos."],
+        ["Dijo que Iker vienen mañana.", "Dijo que Iker viene mañana."],
+        ["Marta Ruiz llegan hoy.", "Marta Ruiz llega hoy."],
         ["Ellas llega mañana.", "Ellas llegan mañana."],
         ["Mi hermano no se levantan temprano.", "Mi hermano no se levanta temprano."],
         ["Este pastel están riquísimo.", "Este pastel está riquísimo."],
@@ -456,6 +476,10 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         "Son resultado de mucho trabajo.",
         "No eran pecado.",
         "Mi amigo Eren es de Turquía.",
+        "Quizás tienen razón.",
+        "Ojalá vengan pronto.",
+        "Creo que Juan y Ana vienen.",
+        "Oye, vienen ya.",
         "Ella es médico en un hospital.",
         "Su profesión es abogado.",
         "La vida es puro teatro.",
@@ -489,6 +513,334 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
       ],
     },
   ],
+  [
+    "spanishAccents",
+    "está before an article or coordinated participles, qué closing a clause, dé with its object",
+    {
+      pos: [
+        [
+          "Detrás del ayuntamiento esta la biblioteca.",
+          "Detrás del ayuntamiento está la biblioteca.",
+        ],
+        ["¿Dónde esta ese libro?", "¿Dónde está ese libro?"],
+        ["Mi prima esta casada y separada.", "Mi prima está casada y separada."],
+        ["Vino tarde y esta agotada.", "Vino tarde y está agotada."],
+        ["¡Qué lejos esta!", "¡Qué lejos está!"],
+        ["El pueblo esta más allá del río.", "El pueblo está más allá del río."],
+        ["¿Me lo cambias a cambio de que?", "¿Me lo cambias a cambio de qué?"],
+        ["Al final no recuerdo que.", "Al final no recuerdo qué."],
+        ["No sé que quieres de mí.", "No sé qué quieres de mí."],
+        ["No sé que le pasa al coche.", "No sé qué le pasa al coche."],
+        ["Ojalá que él de permiso para salir.", "Ojalá que él dé permiso para salir."],
+        ["Espero que alguien de cuenta del error.", "Espero que alguien dé cuenta del error."],
+        ["Los arboles daban sombra.", "Los árboles daban sombra."],
+        ["Estudiamos las formulas.", "Estudiamos las fórmulas."],
+        ["Vive en una zona critica.", "Vive en una zona crítica."],
+        [
+          "Necesitamos soluciones practicas y baratas.",
+          "Necesitamos soluciones prácticas y baratas.",
+        ],
+      ],
+      neg: [
+        "Esta la compré en Roma.",
+        "Esta los domingos no abre.",
+        "Compré pan y esta revista.",
+        "Pero esta la ganó él.",
+        "¿Crees que no sé que me mientes?",
+        "No sé que sea para tanto.",
+        "Es más fácil de lo que parece.",
+        "Lo que de verdad importa es la salud.",
+        "Más que de cuenta, hablo de dinero.",
+        "La gente critica sin saber.",
+        "Es algo que la gente critica.",
+        "La empresa valida los datos.",
+        "La termino de una vez.",
+        "Por este motivo solicito una revisión.",
+        "Él la practica cada día.",
+        "Quiero que las ordenes ya.",
+      ],
+    },
+  ],
+  [
+    "spanishAgreement",
+    "an adjective after a time noun or in a superlative",
+    {
+      pos: [
+        ["El martes pasada no hubo clase.", "El martes pasado no hubo clase."],
+        ["Nos vemos la semana próximo.", "Nos vemos la semana próxima."],
+        ["En los meses pasado subió el pan.", "En los meses pasados subió el pan."],
+        ["La canción más escuchado del verano.", "La canción más escuchada del verano."],
+        ["Los platos más pedido son caros.", "Los platos más pedidos son caros."],
+        [
+          "Eligieron la obra más votado por los lectores.",
+          "Eligieron la obra más votada por los lectores.",
+        ],
+      ],
+      neg: [
+        "Una vez pasados los exámenes, descansamos.",
+        "La vez pasada fue mejor.",
+        "Terminó la carrera más cansado que nunca.",
+        "Volvió de las vacaciones más relajado.",
+        "Tomó la curva más rápido de lo normal.",
+        "Es la casa más bonita del barrio.",
+        "La explicación es mucho más complicada.",
+        "El domingo pasado llovió.",
+      ],
+    },
+  ],
+  [
+    "spanishAccents",
+    "aún/aun, sé/se and sí/si from the words around them",
+    {
+      pos: [
+        ["Aún sin dormir, siguió trabajando.", "Aun sin dormir, siguió trabajando."],
+        ["Aún herido, terminó la carrera.", "Aun herido, terminó la carrera."],
+        ["Mi abuelo aun trabaja en el campo.", "Mi abuelo aún trabaja en el campo."],
+        ["Estábamos aun cenando.", "Estábamos aún cenando."],
+        ["Tenía las manos aun mojadas.", "Tenía las manos aún mojadas."],
+        ["Se de qué me hablas.", "Sé de qué me hablas."],
+        ["Mi hermana también se tocar la guitarra.", "Mi hermana también sé tocar la guitarra."],
+        ["Se paciente con ella.", "Sé paciente con ella."],
+        ["Si, me encanta.", "Sí, me encanta."],
+        ["Eso si es un buen plan.", "Eso sí es un buen plan."],
+        ["No tengo coche, pero si una moto.", "No tengo coche, pero sí una moto."],
+      ],
+      neg: [
+        "Aún no ha llegado.",
+        "Aun así, fue a trabajar.",
+        "Aun cuando llueve, sale.",
+        "Aun niños, ya trabajaban.",
+        "¿Aun muerto sigues pensando en eso?",
+        "Se vende piso.",
+        "Se casó muy joven.",
+        "Si, como dices, llueve, no iremos.",
+        "Te lo doy si lo necesitas.",
+        "Eso si es necesario lo hacemos.",
+        "Lo haré, pero si a ti te parece bien.",
+        "Dijo que «si» es una conjunción.",
+      ],
+    },
+  ],
+  [
+    "spanishConfusions",
+    "por qué after a question mark, a negated verb of knowing or a noun that asks",
+    {
+      pos: [
+        ["¿Porque no me llamaste?", "¿Por qué no me llamaste?"],
+        ["No sé porque se enfadó.", "No sé por qué se enfadó."],
+        ["La duda es porque nadie avisó.", "La duda es por qué nadie avisó."],
+        ["No tengo idea de por que vino.", "No tengo idea de por qué vino."],
+        ["Entiendo perfectamente porqué lo hizo.", "Entiendo perfectamente por qué lo hizo."],
+      ],
+      neg: [
+        "¿Porque no lo hice vas a odiarme?",
+        "Lo sé porque me lo dijo.",
+        "No lo sé porque nadie me lo dijo.",
+        "Lucha por que haya paz.",
+        "Los premios por que competían eran buenos.",
+        "Vine porque quise.",
+      ],
+    },
+  ],
+  [
+    "spanishAgreement",
+    "a pronoun picking one from a group of nouns",
+    {
+      pos: [
+        ["Uno de sus hijas vive aquí.", "Una de sus hijas vive aquí."],
+        ["Muchos de mis plantas murieron.", "Muchas de mis plantas murieron."],
+        ["Alguna de estos libros es tuyo.", "Alguno de estos libros es tuyo."],
+        ["Pocas de aquellos problemas quedan.", "Pocos de aquellos problemas quedan."],
+        ["Cada una de los coches tiene seguro.", "Cada uno de los coches tiene seguro."],
+      ],
+      neg: [
+        "Una de mis hermanos vino.",
+        "Una de nosotros ganó.",
+        "Este año fue uno de muchas novedades.",
+        "Uno de sus mejores amigos.",
+        "Una de sus manos.",
+        "Uno de los problemas.",
+      ],
+    },
+  ],
+  [
+    "spanishTypography",
+    "ordinal abbreviations and unit symbols",
+    {
+      pos: [
+        ["Vivo en el 3ro izquierda.", "Vivo en el 3.º izquierda."],
+        ["Quedó en 2da posición.", "Quedó en 2.ª posición."],
+        ["Es su 1er libro.", "Es su 1.er libro."],
+        ["En el 4to. piso hay goteras.", "En el 4.º piso hay goteras."],
+        ["Abre a las 9 hrs. de la mañana.", "Abre a las 9 h de la mañana."],
+        ["Añade 200grs de harina.", "Añade 200 g de harina."],
+      ],
+      neg: [
+        "Vivo en el 3.º izquierda.",
+        "Llegó el 2 de mayo.",
+        "Vivían 500 h. de distintas nacionalidades.",
+        "Añade 200 g de harina.",
+        "El modelo B2do no existe.",
+        "A las 15 h.",
+      ],
+    },
+  ],
+  [
+    "emdashShortcut",
+    "the Spanish dialogue dash",
+    {
+      pos: [
+        ["Ya voy -contestó desde la cocina.", "Ya voy —contestó desde la cocina."],
+        ["-¿Quién es?", "—¿Quién es?"],
+        ["-Buenos días, señora.", "—Buenos días, señora."],
+        ["Pasa -dijo-, que hace frío.", "Pasa —dijo-, que hace frío."],
+        ["No lo sé –respondió.", "No lo sé —respondió."],
+      ],
+      neg: [
+        "- Primer punto del orden del día.",
+        "Es un ex-ministro del ramo.",
+        "Llámame -si puedes- mañana.",
+        "El tramo Madrid-Toledo.",
+        "—¿Quién es?",
+      ],
+    },
+  ],
+  [
+    "spanishConfusions",
+    "sino and si no",
+    {
+      pos: [
+        ["No lo pintó ella si no su hermano.", "No lo pintó ella sino su hermano."],
+        ["No es para hoy si no para el lunes.", "No es para hoy sino para el lunes."],
+        ["No pido que vuelva, si no que me escriba.", "No pido que vuelva, sino que me escriba."],
+        ["Sino vienes, me enfado.", "Si no vienes, me enfado."],
+        ["No lo dijo él si no ella.", "No lo dijo él sino ella."],
+      ],
+      neg: [
+        "No iré si no para de llover.",
+        "No lo compro si no está barato.",
+        "No lo hago si no me pagas.",
+        "No fue hace un siglo, sino hace dos meses.",
+        "Su sino es fracasar.",
+        "No quiero agua sino vino.",
+        "Hazlo hoy; si no, mañana.",
+      ],
+    },
+  ],
+  [
+    "spanishAccents",
+    "relatives after their antecedent, el before a bare noun, hacía before an amount of time",
+    {
+      pos: [
+        ["No tengo nada qué decir.", "No tengo nada que decir."],
+        ["Busca a alguien en quién apoyarse.", "Busca a alguien en quien apoyarse."],
+        ["Me gusta la manera cómo lo explica.", "Me gusta la manera como lo explica."],
+        ["No encuentro el sitio por dónde entrar.", "No encuentro el sitio por donde entrar."],
+        ["Lo aprobaron con él permiso de todos.", "Lo aprobaron con el permiso de todos."],
+        ["Al llegar, él tren ya se había ido.", "Al llegar, el tren ya se había ido."],
+        ["Hacia ya cinco años que vivía allí.", "Hacía ya cinco años que vivía allí."],
+        ["Hacia más o menos un mes que no llovía.", "Hacía más o menos un mes que no llovía."],
+      ],
+      neg: [
+        "No tengo qué comer.",
+        "Me pregunto de qué manera lo hizo.",
+        "¿Qué hora es?",
+        "Con él voto yo.",
+        "Vine con él ayer.",
+        "Él solo lo hizo.",
+        "Para él regalos no.",
+        "Caminó hacia unos árboles que había.",
+        "Fueron hacia un pueblo lejano.",
+        "Vino hacia la una.",
+      ],
+    },
+  ],
+  [
+    "spanishAgreement",
+    "nouns whose ending hides their gender, -sis nouns, tanto and cuánto",
+    {
+      pos: [
+        ["Abrieron el sucursal nueva.", "Abrieron la sucursal nueva."],
+        ["Pintamos el pared del salón.", "Pintamos la pared del salón."],
+        ["Defendió un tesis brillante.", "Defendió una tesis brillante."],
+        ["Plantaron las árboles ayer.", "Plantaron los árboles ayer."],
+        ["Nunca vi tanto gente junta.", "Nunca vi tanta gente junta."],
+        ["No sé cuanto horas faltan.", "No sé cuantas horas faltan."],
+      ],
+      neg: [
+        "Hay tanto hombres como mujeres.",
+        "¿Cuánto cuesta?",
+        "¿Cuántos coches ha tenido él?",
+        "La mar estaba en calma.",
+        "En todos los cruces de ferrocarril.",
+        "La misión del piel roja.",
+        "Las crisis económicas.",
+        "El análisis fue largo.",
+        "En cuanto llegues, avísame.",
+      ],
+    },
+  ],
+  [
+    "spanishConfusions",
+    "a clitic before an infinitive, a bare participle or a noun",
+    {
+      pos: [
+        ["Este libro te gustar mucho.", "Este libro te gusta mucho."],
+        ["A Luis le preocupar el examen.", "A Luis le preocupa el examen."],
+        ["Nos levantarnos temprano.", "Nos levantamos temprano."],
+        ["Ya le dicho que no.", "Ya le ha dicho que no."],
+        ["¿Quién te llamado?", "¿Quién te ha llamado?"],
+        ["Me olvidado las llaves.", "Me he olvidado las llaves."],
+        ["Recoge les libros del suelo.", "Recoge los libros del suelo."],
+        ["Le coche no arranca.", "El coche no arranca."],
+        ["Os niños ya duermen.", "Los niños ya duermen."],
+        [
+          "Volvió sin despedirse y al marchase lloró.",
+          "Volvió sin despedirse y al marcharse lloró.",
+        ],
+        ["Vamos a prepara la cena.", "Vamos a preparar la cena."],
+      ],
+      neg: [
+        "Le vino bien el descanso.",
+        "Les traje un regalo.",
+        "Yo le valido la entrada.",
+        "Le duele la espalda.",
+        "Les cuento un secreto.",
+        "Te quiero ver mañana.",
+        "Pidió un té helado.",
+        "Les tenías miedo.",
+        "Fue a casa de su madre.",
+        "La clase de hoy fue larga.",
+        "Me he olvidado de todo.",
+        "Lo dicho, nos vemos.",
+      ],
+    },
+  ],
+  [
+    "commaPeriodSpacing",
+    "a sentence mark glued to the next sentence",
+    {
+      pos: [
+        ["Llegamos tarde.La cena ya estaba fría.", "Llegamos tarde. La cena ya estaba fría."],
+        ["No vino nadie.Pero da igual.", "No vino nadie. Pero da igual."],
+        ["Pasa.¿Quieres café?", "Pasa. ¿Quieres café?"],
+        ["¿Te gustó?Mucho.", "¿Te gustó? Mucho."],
+        ["¡Qué frío!Cierra la ventana.", "¡Qué frío! Cierra la ventana."],
+        ["Y entonces…nada.", "Y entonces… nada."],
+        ["Lo pensé mucho .Al final dije que no.", "Lo pensé mucho. Al final dije que no."],
+      ],
+      neg: [
+        "Visita la web ejemplo.es para más datos.",
+        "Abre el archivo datos.Final antes de salir.",
+        "Lo firmó J.R.Tolkien en persona.",
+        "Viajó a EE.UU.Hoy vuelve.",
+        "El valor es 3.5 metros.",
+        "Guarda el fichero como .txt y ciérralo.",
+        "Añade buscar?tema=uno al final del enlace.",
+        "Llegamos tarde. La cena ya estaba fría.",
+      ],
+    },
+  ],
 ];
 
 describe.each(FIXTURES)("%s: %s", (ruleId, _family, fixture) => {
@@ -508,6 +860,30 @@ describe.each(FIXTURES)("%s: %s", (ruleId, _family, fixture) => {
   });
 });
 
+test("a Spanish subject pronoun with a verb of another person is flagged without a fix", () => {
+  for (const text of [
+    "Yo tienes razón.",
+    "Tú quiero ir.",
+    "Vosotros vamos al cine.",
+    "Nosotros sabéis poco.",
+  ]) {
+    const found = findings("spanishAgreement", text);
+    expect(found).toHaveLength(1);
+    expect(found[0].warningOnly).toBe(true);
+  }
+  for (const text of [
+    "Yo tenía frío.",
+    "Tú solo puedes hacerlo.",
+    "Yo mismo lo hice.",
+    "Nosotros hace años que no nos vemos.",
+    "Donde nosotros nieva en enero.",
+    "Nadie más que nosotros sabe lo que pasa.",
+    "Yo apenas dormí.",
+    "Tú calla.",
+  ])
+    expect(findings("spanishAgreement", text)).toEqual([]);
+});
+
 test("Spanish checks run only on Spanish text and are on by default", () => {
   for (const ruleId of SPANISH_RULES) {
     expect(runsInReviewLanguage(ruleId, "es_ES")).toBe(true);
@@ -522,6 +898,7 @@ test("an impossible Spanish date is flagged without a guessed fix", () => {
     "Llegó el 34 de marzo.",
     "La cita es el 14/45/2025.",
     "Firmado el 33.12.2020.",
+    "Se casaron el 250 de mayo.",
   ]) {
     const found = findings("spanishTypography", text);
     expect(found).toHaveLength(1);
@@ -532,8 +909,21 @@ test("an impossible Spanish date is flagged without a guessed fix", () => {
     "Cédula: 6-51-2032",
     "Pedido N° 99/73/2022",
     "Pagó el 12/31/2025.",
+    "La tasa subió el 30.2 por ciento.",
+    "Ganaron el 3-2 en la final.",
+    "Tengo 31.4 euros.",
+    "Nació el 29.02.88.",
   ])
     expect(findings("spanishTypography", text)).toEqual([]);
+  // A two-digit year, no year where the clause ends, a short month name.
+  for (const [text, fixed] of [
+    ["Se fue el 31.06.97.", "Se fue el 30.06.97."],
+    ["Volvió el 31.09.", "Volvió el 30.09."],
+    ["Firmó el 30-feb-2021.", "Firmó el 28-feb-2021."],
+  ])
+    expect(applyEdits(text, findings("spanishTypography", text)[0].alternatives[0].edits)).toBe(
+      fixed,
+    );
   expect(
     applyEdits(
       "Nació el 31.11.1989.",
@@ -595,7 +985,10 @@ test("no Spanish chunk stalls on repeated trigger words", () => {
   };
   const triggers =
     "¿Que esta este estas el tu mi si se de aun mas? ¡Que bonito! No se si esta bien. " +
-    "La casas del uno de las la primer dos perro. Los amigos tiene me gusta las son cansado. ";
+    "La casas del uno de las la primer dos perro. Los amigos tiene me gusta las son cansado. " +
+    "Una frase.Y así?Siempre…nada le dado te ayudar les medidas un saca leches sobre salían " +
+    "micro biología uno de sus casas aun recuerdo se tocar Si, pero eso si es ¿Porque no? " +
+    "El domingo pasada la serie más seguido. Juan tienen esta la casa que de cuenta. ";
   slowest(triggers.repeat(50));
   for (const text of [
     triggers.repeat(60),

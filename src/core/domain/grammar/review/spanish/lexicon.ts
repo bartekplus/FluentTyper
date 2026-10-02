@@ -29,9 +29,11 @@ export const isGenderedEntry = (masculine: string) => has(`a${masculine}`);
 export type Agreement = { feminine: boolean; plural: boolean };
 
 const IRREGULAR_PARTICIPLES = new Set(
-  "abierto absuelto cubierto descubierto dicho escrito frito hecho impreso muerto puesto " +
+  (
+    "abierto absuelto cubierto descubierto dicho escrito frito hecho impreso muerto puesto " +
     "compuesto dispuesto expuesto propuesto supuesto resuelto roto satisfecho visto vuelto " +
-    "devuelto envuelto previsto deshecho",
+    "devuelto envuelto previsto deshecho"
+  ).split(" "),
 );
 
 /** The gender and number of a past participle ("cansadas"), or null. */
