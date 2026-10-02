@@ -354,6 +354,8 @@ export const POLISH_CASES: Array<[CatalogRuleId, string, Case]> = [
         ["Usiadła przy oknie by się ogrzać.", "Usiadła przy oknie, by się ogrzać."],
         ["Opowiedz o planach jakie masz na lato.", "Opowiedz o planach, jakie masz na lato."],
         ["Trudno sobie wyobrazić jaka to była ulga.", "Trudno sobie wyobrazić, jaka to była ulga."],
+        ["Wszystko zależy od tego czy zdąży.", "Wszystko zależy od tego, czy zdąży."],
+        ["Nie zwracaj uwagi na to gdzie mieszka.", "Nie zwracaj uwagi na to, gdzie mieszka."],
       ],
       neg: [
         "Myślę, że masz rację.",
@@ -389,6 +391,9 @@ export const POLISH_CASES: Array<[CatalogRuleId, string, Case]> = [
         "Jaki piękny dzień dziś mamy!",
         "Taki sam jaki był wczoraj.",
         "Czekaliśmy jakie pół godziny.",
+        "Kupował to czy tamto.",
+        "To co mam teraz zrobić?",
+        "Było tego co niemiara.",
       ],
     },
   ],

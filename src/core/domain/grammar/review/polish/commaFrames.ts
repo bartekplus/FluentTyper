@@ -71,6 +71,17 @@ export const FRAMES: readonly CommaFrame[] = [
     ),
     fix: (m) => `${m.groups!.target},`,
   },
+  // "zależy od tego czy", "pytanie co", "kwestia gdzie" -> "tego, czy": an indirect question
+  // after a pronoun or a noun asking it; not "to czy tamto", "tego czy owego", "kiedy indziej".
+  {
+    ruleId: MISSING,
+    messageKey: "review_msg_pl_missing_comma",
+    regex: new RegExp(
+      `(?<![\\p{L}])(?<target>tego|(?<=(?:na|o|przez|za|w|pod|nad|przed)${SP})to|tym|temu|pytanie|pytania|pytaniu|kwestia|kwestii|kwestię)(?=${SP}(?:czy|gdzie|kiedy|dlaczego|skąd|dokąd|ile|co)${SP}\\p{L})(?!${SP}\\p{L}+${SP}(?:tamto|tamtego|tamtym|owo|owego|owym|inne|innego|innym|nie|indziej)${END})(?!${SP}co${SP}(?:do|nieco|niemiara|najmniej|najwyżej|prawda|innego|chwila|rusz|raz)${END})`,
+      "giud",
+    ),
+    fix: (m) => `${m.groups!.target},`,
+  },
   // "Tam gdzie nie ma dróg" -> "Tam, gdzie".
   {
     ruleId: MISSING,
