@@ -217,7 +217,7 @@ const ARROWS: Record<string, string> = {
 const SIGNS = /(?<pre>Copyright[  ]+)?(?<s>\((?:c|C|R|TM|tm)\))/gu;
 const PLUS_MINUS = /(?<=\d[  ]?)(?:\+-|-\+|\+\/-)(?=[  ]?\d)/gu;
 const SUBSCRIPTS = "₀₁₂₃₄₅₆₇₈₉";
-const HYPOTHESIS = /(?<=^|\n|[.!?][ \t]+)H(?<n>[0-9])(?=:[ \t])/gu;
+const HYPOTHESIS = /(?<=^|\n|[.!?][ \t]{1,8})H(?<n>[0-9])(?=:[ \t])/gu;
 const LOW_QUOTES = /[„“]/gu;
 const RANGE_UNIT = "(?:[ \\u00a0]?(?:BC|AD|BCE|CE|am|pm|AM|PM))?";
 // "1901 - 1978", "8am - 5pm", "30 BC - AD 284", "1990-1995": a range takes an en dash.

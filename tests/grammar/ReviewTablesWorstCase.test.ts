@@ -57,3 +57,33 @@ test("no chunk stalls on runs of frame-opening words", () => {
   for (const text of inputs) slowestChunkMs(text);
   for (const text of inputs) expect(slowestChunkMs(text)).toBeLessThan(100);
 });
+
+// JavaScriptCore may run a regex in its interpreter (late in the full unit suite it did): a
+// clause lookbehind with an unbounded run of spaces then rereads the run at every position.
+// A child process without the regex JIT makes that cost visible.
+test("clause frames stay linear on long space runs without the regex JIT", () => {
+  const module = `${import.meta.dir}/../../src/core/domain/grammar/review/reviewDiagnostics.ts`;
+  const script = `
+    const { prepareReview, reviewChunks, scanReviewChunk } = await import(${JSON.stringify(module)});
+    const text = "x." + "\\t ".repeat(6000) + " However it works. On going work.";
+    const rules = ["styleIntroductoryComma", "englishTypography", "englishContextualCompounds"];
+    let slowest = 0;
+    for (let run = 0; run < 2; run++) {
+      const prepared = prepareReview(
+        { id: "jit", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
+        { lang: "en_US", enabledRules: rules, userDictionary: [], insertSpaceAfterAutocomplete: true },
+      );
+      for (const chunk of reviewChunks(prepared)) {
+        const start = performance.now();
+        scanReviewChunk(prepared, chunk);
+        if (run) slowest = Math.max(slowest, performance.now() - start);
+      }
+    }
+    console.log(slowest);`;
+  const child = Bun.spawnSync([process.execPath, "-e", script], {
+    env: { ...process.env, BUN_JSC_useRegExpJIT: "0" },
+  });
+  expect(child.exitCode).toBe(0);
+  // Quadratic frames took 100-300 ms a chunk here; linear ones take a few.
+  expect(Number(child.stdout.toString().trim())).toBeLessThan(60);
+});
