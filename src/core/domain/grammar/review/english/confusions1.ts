@@ -213,7 +213,7 @@ const TO_HEAD = set(
 );
 // What a causing "effect" takes: "effect change", "effect a transformation".
 const EFFECT_OBJECT = set(
-  "change changes reform reforms substitution substitutions transformation transformations improvement improvements repair repairs cure escape rescue transfer transfers entry compromise reconciliation merger restoration recovery",
+  "change changes reform reforms substitution substitutions transformation transformations improvement improvements repair repairs cure escape rescue transfer transfers entry compromise reconciliation merger restoration recovery transaction transactions payment payments sale sales settlement settlements arrest arrests",
 );
 
 function isAdverb(w: string): boolean {
@@ -964,8 +964,13 @@ function its(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   )
     return its;
   // "The engine lost it's compression.": a verb that takes no clause, then one noun.
+  // "he recognizes it's Bob", "whose hands it's in": a name or a stranded preposition.
   if (
     nounOnly &&
+    n.text === n.w &&
+    !/^(?:in|on|at|for|from|with|by|about|of|to|up|down|out|off|over|under|there|here)$/.test(
+      n.w,
+    ) &&
     ends(a[1]) &&
     isWord(b[0]) &&
     !CLAUSE_VERB.has(b[0].w) &&
@@ -1001,7 +1006,12 @@ function lets(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   if (!info?.verbs.some((v) => v.form === "base") || info.plural || OBJECT_START.has(n.w))
     return null;
   // "lets staff restore", "Let chance decide": a noun reading needs an object after the verb.
-  if ((info.noun || info.adjective) && !(isWord(a[1]) && OBJECT_START.has(a[1].w))) return null;
+  // "Let angle A be x": a capital letter after it is a variable, not an article.
+  if (
+    (info.noun || info.adjective) &&
+    !(isWord(a[1]) && OBJECT_START.has(a[1].w) && a[1].text === a[1].w)
+  )
+    return null;
   if (
     t.w === "let" &&
     (/^(?:go|slip|fly|pass|drop|fall|rip|loose|be|know)$/.test(n.w) || !opens(b[0]))

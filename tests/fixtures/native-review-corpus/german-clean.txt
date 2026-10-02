@@ -1,0 +1,140 @@
+# Correct German prose: Review's default checks must stay silent on every line.
+# Everyday narration with nouns, verbs and adjectives that share a spelling.
+Am Montagmorgen fuhr ich mit dem Fahrrad zur Arbeit, weil die Straßenbahn ausgefallen war.
+Die Kosten für das neue Dach waren höher, als wir gedacht hatten.
+Die Äpfel kosten heute weniger als letzte Woche.
+Das stelle ich mir schwierig vor, aber wir versuchen es trotzdem.
+Kannst du das Fenster öffnen, bevor die Gäste kommen?
+Er griff nach dem Glas und trank es in einem Zug leer.
+Der Griff der Pfanne ist beim Kochen heiß geworden.
+Sie fällt nie auf, obwohl sie jeden Tag die besten Ideen hat.
+In vielen Fällen hilft ein kurzer Anruf mehr als eine lange E-Mail.
+Wir haben uns im Großen und Ganzen gut verstanden.
+Beim Laufen höre ich am liebsten Hörbücher.
+Zum Glück hatte niemand etwas Wichtiges vergessen.
+Alles Gute zum Geburtstag und viel Erfolg im neuen Job!
+Gibt es etwas Neues aus der Nachbarschaft?
+Im Freien ist es heute angenehm kühl.
+Wir sollten uns auf das Schlimmste einstellen und auf das Beste hoffen.
+Die meisten Gäste blieben bis nach Mitternacht.
+Am besten rufst du morgen früh noch einmal an.
+# Subordinate clauses, commas and conjunctions.
+Ich glaube, dass er heute nicht mehr kommt.
+Sie fragte, ob wir am Wochenende Zeit hätten.
+Wir blieben zu Hause, weil es den ganzen Tag regnete.
+Obwohl der Zug pünktlich war, kam sie zu spät zum Termin.
+Nachdem wir gegessen hatten, gingen wir noch spazieren.
+Er spricht leise, damit das Baby nicht aufwacht.
+Wenn du willst, kannst du bei uns übernachten.
+Es regnete so stark, dass die Keller vollliefen.
+Er tat so, als ob er nichts gehört hätte.
+Sie lernt jeden Abend, um die Prüfung zu bestehen.
+Ohne lange zu überlegen, sagte er sofort zu.
+Statt zu warten, nahmen wir ein Taxi.
+Das Haus, das wir gekauft haben, steht am Waldrand.
+Das ist das Buch, von dem ich dir erzählt habe.
+Er weiß, was er will, und er sagt es auch.
+Ich hoffe, du hast dich gut erholt.
+Sowohl die Kinder als auch die Eltern waren begeistert.
+Je länger ich darüber nachdenke, desto besser gefällt mir die Idee.
+Er ist nicht nur klug, sondern auch hilfsbereit.
+# Separable verbs, split in main clauses and joined in subordinate ones.
+Der Zug fährt um acht Uhr ab.
+Wir kommen morgen gegen Mittag an.
+Ruf mich bitte an, wenn du angekommen bist.
+Sie hat gestern ihre Wohnung aufgeräumt.
+Ich weiß nicht, wann der Bus abfährt.
+Er schlug vor, das Treffen zu verschieben.
+Wir haben vor, im Sommer nach Italien zu fahren.
+Bitte schalte das Licht aus, bevor du gehst.
+Die Sonne geht im Winter früh unter.
+Kommst du heute Abend mit ins Kino?
+# Pronoun subjects and their verbs.
+Ich arbeite seit drei Jahren in Hamburg.
+Du arbeitest zu viel und schläfst zu wenig.
+Er liest gern Krimis, sie liest lieber Gedichte.
+Wir fahren im Herbst an die Ostsee.
+Ihr habt das wirklich gut gemacht.
+Sie sind gestern Abend spät nach Hause gekommen.
+Seid ihr schon lange hier?
+Seit gestern ist das Wetter wieder besser.
+Man sieht sich immer zweimal im Leben.
+# Prepositions with their cases.
+Mit einer Freundin ging sie ins Theater.
+Wegen des Streiks fielen viele Flüge aus.
+Trotz des schlechten Wetters fand das Fest statt.
+Für meinen Bruder habe ich ein Buch gekauft.
+Nach dem Essen trinken wir einen Kaffee.
+Meiner Meinung nach ist das eine gute Lösung.
+Bis zu zwanzig Personen passen in den Raum.
+Ab und zu gönnen wir uns ein Eis.
+Hierzu brauchen Sie nur Ihre Kundennummer.
+Seit einem Monat wohnen wir in der neuen Wohnung.
+Während der Ferien ist die Bibliothek geschlossen.
+# Adjectives with their endings.
+Ein kleines Haus mit einem großen Garten ist unser Traum.
+Mit freundlichen Grüßen und bis bald!
+Sie trug ein rotes Kleid und schwarze Schuhe.
+Der alte Mann fütterte die Tauben im Park.
+Das ist ein echt gutes Angebot.
+Die Wand ist rosa gestrichen, die Tür lila.
+Wir trinken am liebsten grünen Tee.
+# Numbers, units, dates and abbreviations.
+Der Rucksack wiegt 12 kg und kostet 49,90 €.
+Das Grundstück ist etwa 800 m² groß.
+Die Sitzung beginnt um 14:30 Uhr.
+Am 3. Oktober 1990 wurde Deutschland wiedervereinigt.
+Der 24. Dezember 2024 war ein Dienstag.
+Wir treffen uns am Freitag, dem 13. Juni.
+Bitte bringen Sie z. B. einen Ausweis oder Reisepass mit.
+Das gilt u. a. für Studierende und Auszubildende.
+Dr. Müller hat heute keine Sprechstunde.
+Die Temperatur stieg auf 35 °C.
+# Quotation marks.
+Er sagte: „Ich komme gleich wieder.“
+Der Titel des Buches lautet „Die Vermessung der Welt“.
+Sie fragte: „Hast du ‚Ja‘ gesagt?“
+Der Song „Yesterday“ stammt von den Beatles.
+Auf dem Schild stand “Keep calm and carry on”, ein englischer Spruch.
+# Questions and imperatives.
+Wann fährt der nächste Zug nach Berlin?
+Warum hast du mir nichts davon erzählt?
+Wo wohnst du eigentlich?
+Wer zuletzt lacht, lacht am besten.
+Was du heute kannst besorgen, das verschiebe nicht auf morgen.
+Komm doch einfach vorbei, wenn du Zeit hast.
+# Das and dass.
+Das Auto, das vor der Tür steht, gehört meiner Schwester.
+Ich wusste nicht, dass das so lange dauert.
+Dass er kommt, freut mich sehr.
+Das wichtigste Argument hat er gar nicht erwähnt.
+Das freut mich wirklich sehr.
+# Wieder and wider.
+Wir sehen uns bald wieder.
+Das widerspricht allem, was wir besprochen haben.
+Er hat sich mit Widerwillen entschuldigt.
+# Longer passage.
+Als die Familie im Frühjahr in das alte Bauernhaus zog, war vieles noch nicht fertig.
+Die Heizung funktionierte nur in zwei Zimmern, und im Bad fehlten die Fliesen.
+Trotzdem fühlten sich alle sofort wohl, denn der Garten war groß und die Nachbarn freundlich.
+Der Vater reparierte am Wochenende das Dach, während die Mutter die Wände strich.
+Die Kinder halfen beim Streichen und hatten dabei mehr Farbe an den Händen als an der Wand.
+Am Ende des Sommers war das Haus kaum wiederzuerkennen.
+Heute erinnern sie sich gern an diese Zeit zurück.
+# Articles and nouns of every gender, cases after prepositions, pronoun uses of der/die/das.
+Der See lag ruhig da, und an der See im Norden wehte ein kräftiger Wind.
+Das Teil passte nicht, also bestellte er den passenden Teil noch einmal.
+Die Lehrer und die Lehrerinnen trafen sich im Lehrerzimmer der Schule.
+Wer Auto fährt, sollte die Regeln kennen, und die Rad fahren, ebenso.
+Ich habe dem Kind ein Buch geschenkt und der Mutter einen Brief geschrieben.
+Er ist ein Mann, dem man vertrauen kann, und sie ist eine Frau, der alle zuhören.
+Die Hälfte der Zimmer war belegt, und in den Zimmern roch es nach Farbe.
+Was ist das für ein Lärm?
+Ist das Liebe oder nur Gewohnheit?
+Ich bleibe ein Freund, egal was passiert.
+Auf der einen Seite lockt das Geld, auf der anderen die Freiheit.
+Wir haben einen Tisch am Fenster reserviert und ein Glas Wein bestellt.
+Der Kunde ist König, sagt man, und die Kunde von seinem Erfolg verbreitete sich schnell.
+Gestern habe ich im Bus einen alten Freund getroffen.
+Die Autos der Nachbarn standen vor den Häusern.
+Er dankte dem Arzt und half der Krankenschwester beim Tragen.

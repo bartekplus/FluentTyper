@@ -1,0 +1,435 @@
+import { namedExampleBefore } from "../exampleCues";
+import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import {
+  Around,
+  attributeOf,
+  carryCase,
+  replaceToken,
+  tokenize,
+  words,
+  type Token,
+} from "./common";
+import { isGenderedEntry, isNoun } from "./lexicon";
+import { verbLike } from "./common";
+
+const known = (word: string) =>
+  isNoun(word) || !!attributeOf(word) || isGenderedEntry(word) || verbLike(word);
+
+// Spanish writing conventions: "y" -> "e" before an /i/ sound and "o" -> "u" before /o/,
+// years without a thousands point, lowercase months and weekdays, invariable acronyms.
+
+const RULE = "spanishTypography" as const;
+
+const MONTHS = words(
+  "enero febrero marzo abril mayo junio julio agosto septiembre setiembre octubre noviembre diciembre",
+);
+const WEEKDAYS = words("lunes martes miércoles jueves viernes sábado domingo");
+// Spanish acronyms that stay invariable in the plural ("las ONG", "los ERE").
+const ACRONYMS = words("ong tic ere ett dni");
+
+/** The word starts with the vowel sound /i/ (not the /j/ of "hielo", "iones"). */
+const iSound = (word: string) => /^h?[ií](?![aeoáéó])/iu.test(word);
+const oSound = (word: string) => /^h?[oó]/iu.test(word) || /^8/u.test(word);
+
+function conjunction(at: Around, token: Token): string | null {
+  const next = at.tokens[at.i + 1];
+  if (!next || next.broken || (!next.word && !/^\p{N}/u.test(next.text))) return null;
+  const after = next.text;
+  // "¿Y Inés?": a stressed "y" opening a question keeps its form.
+  if (at.tokens[at.i - 1]?.text === "¿") return null;
+  // English names keep the English sound: "Ryanair y easyJet".
+  if (/^\p{Ll}+\p{Lu}/u.test(after)) return null;
+  // An "h" in a foreign word is sounded: "y Hitler", "y hip-hop", "o hobbies".
+  const foreignH =
+    /^h/iu.test(after) &&
+    (/^\p{Lu}/u.test(after) && token.lower === "y"
+      ? true
+      : /^\p{Ll}/u.test(after) &&
+        (!known(after.toLowerCase()) || at.tokens[at.i + 2]?.text === "-"));
+  if (foreignH) return null;
+  if (token.lower === "y" && iSound(after)) return "e";
+  if (token.lower === "e" && !iSound(after) && /^h?[ií]/iu.test(after)) return "y";
+  if (
+    token.lower === "o" &&
+    oSound(after) &&
+    (!/^\p{N}/u.test(after) || /^\p{N}/u.test(at.tokens[at.i - 1]?.text ?? ""))
+  )
+    return "u";
+  // "hobbys u hobbies"; "la u" is the letter.
+  const prev = at.prev();
+  if (
+    token.text === "u" &&
+    next.word &&
+    prev &&
+    !/^(?:la|una|letra|vocal)$/u.test(prev) &&
+    known(after.toLowerCase()) &&
+    !oSound(after)
+  )
+    return "o";
+  return null;
+}
+
+/** "del año 1.989": a year is written without the thousands point. */
+function yearDot(at: Around, token: Token): string | null {
+  const m = /^([12])\.(\d{3})$/u.exec(token.text);
+  if (!m) return null;
+  const year = Number(m[1] + m[2]);
+  if (year < 1100 || year > 2099) return null;
+  const prev = at.tokens[at.i - 1]?.text.toLowerCase() ?? "";
+  if (/^(?:año|años|del)$/u.test(prev)) return m[1] + m[2];
+  if (!/^(?:de|en|para|desde|hasta|y|-)$/u.test(prev)) return null;
+  // "de 2.000 euros", "en 1.500 metros": an amount with its unit.
+  const next = at.next();
+  return !next || (!isNoun(next) && !attributeOf(next)) ? m[1] + m[2] : null;
+}
+
+/** "el 4 de Julio", "todos los Lunes": months and weekdays are common nouns. */
+function capitalName(at: Around, token: Token): string | null {
+  if (!/^\p{Lu}\p{Ll}+$/u.test(token.text) || at.starts) return null;
+  const word = token.lower;
+  const prev = at.prev();
+  const before = at.tokens[at.i - 2];
+  if (MONTHS.has(word)) {
+    // "4 de Julio de 2020", "en Agosto.", "de Julio del año pasado".
+    const dated = prev === "de" && !!before && /^\p{N}/u.test(before.text);
+    const yearAfter =
+      /^(?:de|del)$/u.test(at.next()) && /^\p{N}|^año$/u.test(at.tokens[at.i + 2]?.text ?? "");
+    const alone = /^(?:en|de|desde|hasta|y)$/u.test(prev) && at.endsAfter();
+    return dated || yearAfter || alone ? word : null;
+  }
+  // "Viernes de Dolores", "Domingo de Ramos": holidays keep their capital.
+  if (WEEKDAYS.has(word))
+    return /^(?:el|los|cada|este|próximo|pasado|del|al)$/u.test(prev) &&
+      !/^\p{Lu}/u.test(at.tokens[at.i + 1]?.text ?? "") &&
+      !(at.next() === "de" && /^\p{Lu}/u.test(at.tokens[at.i + 2]?.text ?? ""))
+      ? word
+      : null;
+  return null;
+}
+
+/** "las ONGs", "los ERE's": a Spanish acronym takes no plural ending. */
+function acronymPlural(token: Token): string | null {
+  const m = /^(\p{Lu}{2,})(?:['’]?s|S)$/u.exec(token.text);
+  return m && ACRONYMS.has(m[1].toLowerCase()) ? m[1] : null;
+}
+
+const MONTH_LIST = [...MONTHS].filter((month) => month !== "setiembre");
+const monthNumber = (month: string) =>
+  month.toLowerCase() === "setiembre" ? 9 : MONTH_LIST.indexOf(month.toLowerCase()) + 1;
+const MONTH_NAMES = `${[...MONTHS].join("|")}`;
+const WEEKDAY_LIST = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
+/** Days in a month; February without a year allows 29. */
+const daysIn = (month: number, year?: number) =>
+  month === 2
+    ? year === undefined || (year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0))
+      ? 29
+      : 28
+    : [4, 6, 9, 11].includes(month)
+      ? 30
+      : 31;
+
+// "31 de abril de 2020", "29 de febrero 2023", "31/11/1988", "30-2-2001", and a weekday before
+// a full date ("lunes, 7 de octubre de 2014"). Numeric dates need a four-digit year:
+// "30/2" alone is a ratio.
+const NAMED_DATE = new RegExp(
+  `(?<![\\p{L}\\p{N}.,/-])(?:(${WEEKDAY_LIST.join("|")})(,?[ \\t]+))?(\\d{1,2})(?:[ \\t]+de)?[ \\t]+(${MONTH_NAMES})(?:[ \\t]+(?:de|del)?[ \\t]*(\\d{4}))?(?![\\p{L}\\p{N}])`,
+  "giu",
+);
+// Short month names in numeric dates: "29-feb-2005".
+const MONTH_SHORT = "ene|feb|mar|abr|may|jun|jul|ago|sep|sept|set|oct|nov|dic";
+const shortMonth = (month: string) =>
+  ({ sept: 9, set: 9 })[month.toLowerCase()] ??
+  MONTH_SHORT.split("|").indexOf(month.toLowerCase()) + 1;
+// Where a date goes: "Cédula: 6-51-2032" and "N° 99/73/2022" are numbers.
+const DATED = /(?:^|\s)(?:el|del|al|día|fecha|desde|hasta)\s{1,8}$/iu;
+// A two-digit year ("31.11.89") or none ("el 31.04.") only where a date goes.
+const NUMERIC_DATE = new RegExp(
+  `(?<![\\p{N}/.:-])(\\d{1,3})([/.-])(\\d{1,2}|${MONTH_NAMES}|${MONTH_SHORT})(?:\\2(\\d{4}|\\d{2}(?![\\p{N}])))?(?![\\p{N}/:-]|\\.\\p{N}|,\\p{N})`,
+  "giu",
+);
+// "el 32 de enero": a day no month has, after the article a date takes.
+const NO_SUCH_DAY = new RegExp(
+  `(?<=(?:^|[\\s(])(?:el|del|al|El|Del|Al)[ \\t]{1,8})(3[2-9]|[4-9]\\d|\\d{3})(?:[ \\t]{1,8}de)?[ \\t]{1,8}(?:${MONTH_NAMES})(?![\\p{L}\\p{N}])`,
+  "gu",
+);
+
+function impossibleDates(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  const dayFinding = (start: number, day: string, month: number, year?: number) => {
+    const max = daysIn(month, year);
+    if (Number(day) <= max || Number(day) > 31 || month < 1) return;
+    if (namedExampleBefore(ctx.text, start)) return;
+    const alternatives = month === 2 && year === undefined ? ["28", "29"] : [String(max)];
+    findings.push({
+      ruleId: RULE,
+      messageKey: "review_msg_spanish_date",
+      range: { start, end: start + day.length },
+      alternatives,
+      bulkBlock: "ambiguous",
+      ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+    });
+  };
+  const named = new RegExp(NAMED_DATE);
+  named.lastIndex = Math.max(0, ctx.from - 16);
+  for (let m = named.exec(ctx.scanText); m && m.index < ctx.to; m = named.exec(ctx.scanText)) {
+    const [whole, weekday, gap, day, month, year] = m;
+    const dayStart = m.index + (weekday ? weekday.length + gap.length : 0);
+    if (dayStart < ctx.from) continue;
+    const monthIndex = monthNumber(month);
+    const yearNumber = year ? Number(year) : undefined;
+    dayFinding(dayStart, day, monthIndex, yearNumber);
+    // The weekday of a full date is fixed: "lunes, 7 de octubre de 2014" was a Tuesday.
+    if (weekday && yearNumber && Number(day) <= daysIn(monthIndex, yearNumber)) {
+      const actual =
+        WEEKDAY_LIST[new Date(Date.UTC(yearNumber, monthIndex - 1, Number(day))).getUTCDay()];
+      if (actual !== weekday.toLowerCase() && !namedExampleBefore(ctx.text, m.index))
+        findings.push({
+          ruleId: RULE,
+          messageKey: "review_msg_spanish_date",
+          range: { start: m.index, end: m.index + weekday.length },
+          alternatives: [carryCase(weekday, actual)],
+          context: { start: m.index, end: m.index + whole.length },
+          bulkBlock: "ambiguous",
+        });
+    }
+  }
+  const noDay = new RegExp(NO_SUCH_DAY);
+  noDay.lastIndex = Math.max(0, ctx.from - 16);
+  for (let m = noDay.exec(ctx.scanText); m && m.index < ctx.to; m = noDay.exec(ctx.scanText)) {
+    if (m.index < ctx.from || namedExampleBefore(ctx.text, m.index)) continue;
+    findings.push({
+      ruleId: RULE,
+      messageKey: "review_msg_spanish_date",
+      range: { start: m.index, end: m.index + m[0].length },
+      alternatives: [],
+      warningOnly: true,
+    });
+  }
+  const numeric = new RegExp(NUMERIC_DATE);
+  numeric.lastIndex = Math.max(0, ctx.from - 16);
+  for (let m = numeric.exec(ctx.scanText); m && m.index < ctx.to; m = numeric.exec(ctx.scanText)) {
+    if (m.index < ctx.from) continue;
+    const [whole, , separator, monthText, yearText = ""] = m;
+    const month = /^\d/u.test(monthText)
+      ? Number(monthText)
+      : MONTHS.has(monthText.toLowerCase())
+        ? monthNumber(monthText)
+        : shortMonth(monthText);
+    const day = Number(m[1]);
+    const dated = DATED.test(ctx.text.slice(Math.max(0, m.index - 12), m.index));
+    if (yearText.length !== 4) {
+      // "el 31.04.", "el 30/2": a day and month only where a date goes and the clause ends;
+      // "el 30.2 por ciento" and the score "el 3-2" are numbers.
+      const after = ctx.text.slice(m.index + whole.length);
+      if (!dated || (!yearText && (separator === "-" || !/^(?:[.;:!?)]|\s{0,8}$)/u.test(after))))
+        continue;
+    }
+    // "01/32/2014", "31.13.2014": no day-month or month-day reading.
+    if ((month > 12 || day > 31) && (day > 12 || month > 31)) {
+      if (!dated || namedExampleBefore(ctx.text, m.index)) continue;
+      findings.push({
+        ruleId: RULE,
+        messageKey: "review_msg_spanish_date",
+        range: { start: m.index, end: m.index + m[0].length },
+        alternatives: [],
+        warningOnly: true,
+      });
+      continue;
+    }
+    if (month < 1 || month > 12) continue;
+    // "29.02.89": a two-digit year keeps its leap years ("00" may be 1900 or 2000).
+    const year =
+      yearText.length === 4
+        ? Number(yearText)
+        : yearText && yearText !== "00"
+          ? 2000 + Number(yearText)
+          : undefined;
+    dayFinding(m.index, m[1], month, year);
+  }
+  return findings;
+}
+
+function typography(ctx: DetectContext): RawFinding[] {
+  if (ctx.lang.slice(0, 2) !== "es") return [];
+  const tokens = tokenize(ctx);
+  const findings: RawFinding[] = [];
+  for (let i = 0; i < tokens.length; i++) {
+    const token = tokens[i];
+    if (token.start < ctx.from || token.start >= ctx.to) continue;
+    const at = new Around(tokens, i);
+    let fix: string | null = null;
+    let key: RawFinding["messageKey"] = "review_msg_spanish_conjunction";
+    if (token.word && /^[yeou]$/iu.test(token.text)) fix = conjunction(at, token);
+    else if (/^\p{N}/u.test(token.text)) {
+      fix = yearDot(at, token);
+      key = "review_msg_spanish_year";
+    } else if (token.word) {
+      fix = capitalName(at, token);
+      key = "review_msg_spanish_lowercase_name";
+    }
+    if (!fix && /^\p{Lu}{2,}(?:s|S)?$/u.test(token.text)) {
+      // The tokenizer splits "ONG's" at the apostrophe: read the raw text after it.
+      const raw = /^\p{Lu}{2,}(?:['’]s|s|S)(?!\p{L})/u.exec(ctx.text.slice(token.start));
+      if (raw) {
+        const acronym = acronymPlural({ ...token, text: raw[0] });
+        if (acronym) {
+          const span = { ...token, end: token.start + raw[0].length, text: raw[0] };
+          const finding = replaceToken(
+            ctx,
+            span,
+            [acronym],
+            RULE,
+            "review_msg_spanish_acronym",
+            span,
+            true,
+          );
+          if (finding) findings.push(finding);
+        }
+      }
+      continue;
+    }
+    if (!fix) continue;
+    const exact = key === "review_msg_spanish_lowercase_name";
+    const finding = replaceToken(ctx, token, [fix], RULE, key, tokens[i + 1] ?? token, exact);
+    if (finding) findings.push(finding);
+  }
+  findings.push(...impossibleDates(ctx));
+  // "etc..." and "etc…": the abbreviation ends in one point.
+  const etc = /(?<!\p{L})etc(?:\.{2,}|…|\.…)/giu;
+  etc.lastIndex = ctx.from;
+  for (let m = etc.exec(ctx.scanText); m && m.index < ctx.to; m = etc.exec(ctx.scanText))
+    findings.push({
+      ruleId: RULE,
+      messageKey: "review_msg_spanish_abbreviation",
+      range: { start: m.index, end: m.index + m[0].length },
+      alternatives: [`${m[0].slice(0, 3)}.`],
+    });
+  return findings;
+}
+
+// "2do", "5ta.", "1er": ordinal abbreviations take a period and a raised letter: "2.º", "1.er".
+const ORDINAL =
+  /(?<![\p{L}\p{N}.,])(\d{1,3})(do|da|ro|ra|to|ta|vo|va|no|na|mo|ma|ero|era|er|r)(\.(?=[ \t]{1,8}\p{Ll}))?(?![\p{L}\p{N}])/gu;
+// "5 hrs", "48hrs", "15 h. será", "5grs": unit symbols take no plural and no period.
+const UNIT =
+  /(?<![\p{L}\p{N}.,])(\d+(?:[.,:]\d+)?)([ \t]?)(hrs|hr|hs|HRS|HS|grs|gr|GRS|h)(\.(?=[ \t]{1,8}\p{Ll}))?(?![\p{L}\p{N}])/gu;
+// Verbs of saying after a dialogue line: "Ven -dijo." uses the long dash.
+const SAYING =
+  "dijo|dije|dice|digo|respondió|contestó|preguntó|añadió|exclamó|gritó|susurró|murmuró|explicó|comentó|replicó|insistió|pensó|repuso|admitió|aclaró";
+const DIALOGUE = new RegExp(
+  `(?<=[\\p{L}.,!?…][ \\t]?)[-–‒](?=(?:${SAYING})(?![\\p{L}]))|(?<=^|\\n)[-–‒](?=[¿¡]|\\p{Lu}\\p{Ll})|(?<=[ \\t]|^)--(?=[ \\t]|$)`,
+  "gu",
+);
+
+/** Ordinal and unit abbreviations and the dialogue dash, written the Spanish way. */
+function marks(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  const scan = (
+    regex: RegExp,
+    fix: (m: RegExpExecArray) => string | null,
+    key: RawFinding["messageKey"],
+  ) => {
+    regex.lastIndex = Math.max(0, ctx.from - 8);
+    for (let m = regex.exec(ctx.scanText); m && m.index < ctx.to; m = regex.exec(ctx.scanText)) {
+      if (m.index < ctx.from || namedExampleBefore(ctx.text, m.index)) continue;
+      const replacement = fix(m);
+      if (!replacement || replacement === m[0]) continue;
+      findings.push({
+        ruleId: RULE,
+        messageKey: key,
+        range: { start: m.index, end: m.index + m[0].length },
+        alternatives: [replacement],
+      });
+    }
+  };
+  scan(
+    new RegExp(ORDINAL),
+    ([, n, suffix]) =>
+      /^e?r$/u.test(suffix) ? `${n}.er` : `${n}.${suffix.endsWith("a") ? "ª" : "º"}`,
+    "review_msg_spanish_ordinal",
+  );
+  scan(
+    new RegExp(UNIT),
+    (m) => {
+      const [, n, gap, unit, dot] = m;
+      if (/^g/iu.test(unit)) return `${n} g`;
+      // Hours only where a time goes ("a las 15 h. será", "a las 5 hrs."): "500 h." may be
+      // inhabitants, and a glued "5hrs" is left to the spacing check.
+      if (
+        !gap ||
+        !/(?:^|\s)(?:las|la|sobre|hacia|desde|hasta|durante|en)\s{1,8}$/iu.test(
+          ctx.text.slice(Math.max(0, m.index - 12), m.index),
+        )
+      )
+        return null;
+      return unit === "h" && !dot ? null : `${n} h`;
+    },
+    "review_msg_spanish_unit",
+  );
+  return findings;
+}
+
+/** "Ven -dijo.", "-¿Perdón?": the dialogue dash, an optional typography check like the dash. */
+function dialogueDash(ctx: DetectContext): RawFinding[] {
+  if (ctx.lang.slice(0, 2) !== "es") return [];
+  const findings: RawFinding[] = [];
+  const regex = new RegExp(DIALOGUE);
+  regex.lastIndex = Math.max(0, ctx.from - 8);
+  for (let m = regex.exec(ctx.scanText); m && m.index < ctx.to; m = regex.exec(ctx.scanText)) {
+    if (m.index < ctx.from || namedExampleBefore(ctx.text, m.index)) continue;
+    findings.push({
+      ruleId: "emdashShortcut",
+      messageKey: "review_msg_spanish_dialogue_dash",
+      range: { start: m.index, end: m.index + m[0].length },
+      alternatives: ["—"],
+    });
+  }
+  return findings;
+}
+
+// Words that open a Spanish sentence and never a dotted name's next part ("frase.Y otra").
+const STARTERS =
+  "El|La|Los|Las|Lo|Un|Una|Unos|Unas|Y|Pero|Es|Son|Era|Fue|Está|Hay|No|Sí|Yo|Tú|Él|Ella|Ellos|" +
+  "Ellas|Nosotros|Usted|Este|Esta|Estos|Estas|Eso|Esto|Ese|Esa|Se|Me|Te|Le|Les|Nos|Mi|Su|Sus|" +
+  "Tu|En|Del|Al|Con|Por|Para|Sin|Como|Cuando|Si|Que|Qué|Cómo|Dónde|Cuándo|Pues|Así|Luego|" +
+  "Después|Entonces|Ahora|Hoy|Ayer|También|Además|Ya|Todo|Siempre|Nunca|Aquí|Allí|Hola|" +
+  "Gracias|Bueno|Claro|Aunque|Porque|Mientras|Desde|Hasta|Según";
+/** "frase.Y", "Ven.Como": two sentences glued at a period, prose rather than a dotted name. */
+export const SPANISH_PROSE_DOTTED_TOKEN = new RegExp(`^\\p{L}*\\p{Ll}{2}\\.(?:${STARTERS})$`, "u");
+// "frase.Y otra", "así?Siempre", "Ven.¿Como…?", "así…siempre", and "así .Siempre" with the
+// space on the wrong side. Lowercase only after "…": "archivo .txt" and "web?id" are not prose.
+const MISSING_SPACE = new RegExp(
+  `(?<=\\p{L}\\p{Ll})(?:\\.(?=(?:${STARTERS})(?![\\p{L}\\p{N}])|[¿¡])|[?!](?=[¿¡]|\\p{Lu}\\p{Ll})|…(?=[¿¡]|\\p{L}))|(?<=\\p{L})[ \\t]+(?:[.?!]|…)(?=[¿¡]|\\p{Lu}\\p{Ll})`,
+  "gu",
+);
+
+/** A sentence mark glued to the next sentence: "frase.Y otra" -> "frase. Y otra". */
+function missingSpace(ctx: DetectContext): RawFinding[] {
+  if (ctx.lang.slice(0, 2) !== "es") return [];
+  const findings: RawFinding[] = [];
+  const regex = new RegExp(MISSING_SPACE);
+  regex.lastIndex = ctx.from;
+  for (let m = regex.exec(ctx.scanText); m && m.index < ctx.to; m = regex.exec(ctx.scanText)) {
+    // "P.A.Čerenkov", "EE.UU.Hoy": initials and abbreviations stay glued.
+    if (/\.\p{L}{1,3}$/u.test(ctx.text.slice(Math.max(0, m.index - 4), m.index))) continue;
+    if (namedExampleBefore(ctx.text, m.index)) continue;
+    findings.push({
+      ruleId: "commaPeriodSpacing",
+      messageKey: "review_msg_space_after_mark",
+      range: { start: m.index, end: m.index + m[0].length },
+      alternatives: [`${m[0].trim()} `],
+      context: { start: Math.max(0, m.index - 16), end: Math.min(ctx.text.length, m.index + 16) },
+      bulkBlock: "context-dependent",
+    });
+  }
+  return findings;
+}
+
+export const DETECTORS: readonly ReviewDetectorEntry[] = [
+  {
+    rules: [RULE],
+    detect: (ctx) => (ctx.lang.slice(0, 2) === "es" ? [...typography(ctx), ...marks(ctx)] : []),
+  },
+  { rules: ["commaPeriodSpacing"], detect: missingSpace },
+  { rules: ["emdashShortcut"], detect: dialogueDash },
+];
