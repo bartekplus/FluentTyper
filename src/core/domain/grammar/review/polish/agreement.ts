@@ -333,6 +333,139 @@ function genitiveObjects(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+/* ---------------------------------------------------------- negated objects */
+
+/**
+ * Transitive verbs a negation turns to the genitive ("nie mam czasu"): first- and second-person
+ * present forms, third-person ones, the masculine past stem, the virile past stem, imperatives.
+ */
+const NEGATED_VERBS: ReadonlyArray<[string, string, string, string, string?]> = [
+  ["mam masz mamy macie", "ma mają", "miał", "miel"],
+  ["widzę widzisz widzimy widzicie", "widzi widzą", "widział", "widziel"],
+  ["lubię lubisz lubimy lubicie", "lubi lubią", "lubił", "lubil", "lub lubcie"],
+  ["znam znasz znamy znacie", "zna znają", "znał", "znal"],
+  ["kocham kochasz kochamy kochacie", "kocha kochają", "kochał", "kochal"],
+  ["rozumiem rozumiesz rozumiemy rozumiecie", "rozumie rozumieją", "rozumiał", "rozumiel"],
+  ["kupię kupisz kupimy kupicie", "kupi kupią", "kupił", "kupil"],
+  ["kupuję kupujesz kupujemy kupujecie", "kupuje kupują", "kupował", "kupowal", "kupuj kupujcie"],
+  ["robię robisz robimy robicie", "robi robią", "robił", "robil", "rób róbcie"],
+  ["zrobię zrobisz zrobimy zrobicie", "zrobi zrobią", "zrobił", "zrobil"],
+  ["czytam czytasz czytamy czytacie", "czyta czytają", "czytał", "czytal", "czytaj czytajcie"],
+  [
+    "przeczytam przeczytasz przeczytamy przeczytacie",
+    "przeczyta przeczytają",
+    "przeczytał",
+    "przeczytal",
+  ],
+  ["jem jesz jemy jecie", "jedzą", "jadł", "jedl", "jedz jedzcie"],
+  ["zjem zjesz zjemy zjecie", "zje zjedzą", "zjadł", "zjedl"],
+  ["piję pijesz pijemy pijecie", "pije piją", "pił", "pil", "pij pijcie"],
+  ["wypiję wypijesz wypijemy wypijecie", "wypije wypiją", "wypił", "wypil"],
+  ["słyszę słyszysz słyszymy słyszycie", "słyszy słyszą", "słyszał", "słyszel"],
+  ["chcę chcesz chcemy chcecie", "chce chcą", "chciał", "chciel"],
+  [
+    "oglądam oglądasz oglądamy oglądacie",
+    "ogląda oglądają",
+    "oglądał",
+    "oglądal",
+    "oglądaj oglądajcie",
+  ],
+  ["piszę piszesz piszemy piszecie", "pisze piszą", "pisał", "pisal", "pisz piszcie"],
+  ["napiszę napiszesz napiszemy napiszecie", "napisze napiszą", "napisał", "napisal"],
+  ["czuję czujesz czujemy czujecie", "czuje czują", "czuł", "czul"],
+  ["pamiętam pamiętasz pamiętamy pamiętacie", "pamięta pamiętają", "pamiętał", "pamiętal"],
+  ["dostanę dostaniesz dostaniemy dostaniecie", "dostanie dostaną", "dostał", "dostal"],
+  ["znajdę znajdziesz znajdziemy znajdziecie", "znajdzie znajdą", "znalazł", "znaleźl"],
+  ["zauważę zauważysz zauważymy zauważycie", "zauważy zauważą", "zauważył", "zauważyl"],
+  ["noszę nosisz nosimy nosicie", "nosi noszą", "nosił", "nosil", "noś noście"],
+  ["biorę bierzesz bierzemy bierzecie", "bierze biorą", "brał", "bral", "bierz bierzcie"],
+  ["płacę płacisz płacimy płacicie", "płaci płacą", "płacił", "płacil", "płać płaćcie"],
+  ["odwiedzę odwiedzisz odwiedzimy odwiedzicie", "odwiedzi odwiedzą", "odwiedził", "odwiedzil"],
+  ["otworzę otworzysz otworzymy otworzycie", "otworzy otworzą", "otworzył", "otworzyl"],
+];
+/** Verb form -> whether its subject is the speaker or the hearer (so a noun after it is no subject). */
+const NEGATED_FORMS = new Map<string, boolean>();
+for (const [present, third, past, virile, imperative = ""] of NEGATED_VERBS) {
+  const personal = [
+    ...present.split(" "),
+    ...imperative.split(" "),
+    ...["em", "eś", "am", "aś", "yśmy", "yście"].map((ending) => past + ending),
+    ...["iśmy", "iście"].map((ending) => virile + ending),
+  ];
+  for (const form of personal) if (form) NEGATED_FORMS.set(form, true);
+  for (const form of [...third.split(" "), past, `${past}a`, `${past}o`, `${virile}i`, `${past}y`])
+    NEGATED_FORMS.set(form, false);
+}
+const NEGATED = new RegExp(
+  `(?<![\\p{L}\\p{N}_'’-])nie[ \\t\\u00a0]{1,8}(?<verb>\\p{Ll}{2,})[ \\t\\u00a0]{1,8}(?:(?<adj>\\p{Ll}{3,})[ \\t\\u00a0]{1,8})?(?<noun>\\p{Ll}{2,})${WORD}`,
+  "giud",
+);
+const NOMINATIVES = cases("Ns Np");
+const OBJECT_PRONOUNS: Record<string, string> = { ją: "jej", je: "ich" };
+
+/** "nie mam czas", "nie lubię ją": an accusative object after a negated verb. */
+function negatedObjects(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of owned(ctx, NEGATED)) {
+    const { verb } = m.groups!;
+    // "nie mam czas teraz": a first word that is no adjective is the noun itself.
+    const between = m.groups!.adj && adjectiveOf(m.groups!.adj) ? m.groups!.adj : undefined;
+    const adj = between;
+    const personal = NEGATED_FORMS.get(verb.toLowerCase());
+    if (personal === undefined) continue;
+    // Overlapping frames: the next scan may start at the noun's own "nie".
+    NEGATED.lastIndex = m.index + 3;
+    const noun = m.groups!.adj && !adj ? m.groups!.adj : m.groups!.noun;
+    const end = m.indices!.groups![noun === m.groups!.noun ? "noun" : "adj"][1];
+    const pronoun = adj ? undefined : OBJECT_PRONOUNS[noun.toLowerCase()];
+    if (pronoun) {
+      findings.push({
+        ...findingAt(
+          ctx,
+          end - noun.length,
+          end,
+          [caseLike(noun, pronoun)],
+          RULE,
+          "review_msg_pl_negated_genitive",
+        ),
+        context: { start: m.index, end },
+      });
+      continue;
+    }
+    // A span of time is no object ("nie widział cały rok"); "nie mam czas" is.
+    if (
+      userOrNamed(ctx, noun) ||
+      (noun !== "czas" && TIME_SPAN.test(noun)) ||
+      (adj && TIME_ADJECTIVE.test(adj))
+    )
+      continue;
+    const tags = nounTags(noun);
+    if (!onlyNoun(tags) || tags & GENITIVE_CASES || !(tags & ACCUSATIVE)) continue;
+    // After "ma", "widzi"… a nominative may be the subject ("nie widzi pies"): accusative only.
+    if (!personal && tags & NOMINATIVES) continue;
+    const forms = recased(noun, GENITIVE_CASES);
+    let start = end - noun.length;
+    let fixes = forms.length === 1 ? forms : [];
+    if (adj) {
+      const reading = adjectiveOf(adj)!;
+      if (ambiguousAdjective(adj) || !adjectiveAgrees(reading.ending, tags)) continue;
+      // The adjective takes the genitive of the noun's own gender and number.
+      const genitive = tags & SINGULAR ? cases("Gs") : cases("Gp");
+      const endings = fixes.length ? agreeingEndings((tags & ~ALL_CASES) | genitive) : [];
+      start = m.indices!.groups!.adj[0];
+      fixes =
+        endings.length === 1
+          ? [`${caseLike(adj, adjectiveForm(reading.lemma, endings[0]))} ${fixes[0]}`]
+          : [];
+    }
+    findings.push({
+      ...findingAt(ctx, start, end, fixes, RULE, "review_msg_pl_negated_genitive"),
+      context: { start: m.index, end },
+    });
+  }
+  return findings;
+}
+
 /* --------------------------------------------------------------- adjectives */
 
 /** Cases an adjective can govern ("pełna wody", "zajęta pracą"): such a noun may not be its own. */
@@ -488,6 +621,7 @@ export const DETECTORS = [
             ...demonstratives(ctx),
             ...numerals(ctx),
             ...genitiveObjects(ctx),
+            ...negatedObjects(ctx),
             ...adjectives(ctx),
           ]
         : [],
