@@ -208,7 +208,6 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
         ["quelque soient", "quelques soient"],
         ["quels que soient", "quelles que soient"],
       ],
-      ["comme même", "quand même"],
       ["en faite", "en fait"],
       ["sa va", "ça va"],
       ...french.PHRASES,
@@ -351,13 +350,6 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
         ["en la medida de que", "en medida de que", "en medida que", "en medida en que"],
         "en la medida en que",
       ],
-      // "existential haber" has no plural: "ha habido varios casos".
-      ["han habido", "ha habido"],
-      ["habían habido", "había habido"],
-      ["habrán habido", "habrá habido"],
-      ["habrían habido", "habría habido"],
-      ["hubieran habido", "hubiera habido"],
-      ["hubiesen habido", "hubiese habido"],
       // "detrás mío": the adverb takes "de" and a pronoun.
       ...[
         "detrás",

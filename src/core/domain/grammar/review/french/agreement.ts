@@ -1,7 +1,10 @@
 import { namedExampleBefore } from "../exampleCues";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import {
+  adjectiveReadings,
   conjugate,
+  isInflectedNoun,
+  nounGender,
   IL,
   ILS,
   isVerbHomograph,
@@ -12,7 +15,14 @@ import {
   VOUS,
   type VerbReading,
 } from "./frenchLexicon";
-import { CLITICS, ownedFrenchWords, tokensAfter, tokensBefore, withCase } from "./frenchTokens";
+import {
+  CLITICS,
+  ownedFrenchWords,
+  type Token,
+  tokensAfter,
+  tokensBefore,
+  withCase,
+} from "./frenchTokens";
 
 // A personal pronoun subject and its verb agree in person and number: "je peux", "tu manges",
 // "ils mangent". The verb's possible persons come from the dictionary's conjugations.
@@ -40,6 +50,9 @@ const OPENERS = new Set(
   ),
 );
 const NEGATION = new Set(["ne", "n'"]);
+const SUBJECT_PRONOUNS_ALL = new Set("je j' tu il elle on nous vous ils elles".split(" "));
+/** Words that name the pronoun after them rather than let it be a subject. */
+const NAMING = new Set(["pronom", "personnel", "mot", "terme", "le", "un", "du", "au"]);
 const COORDINATING_OR_RELATIVE = new Set(["et", "ou", "que", "qu'", "où"]);
 
 const finite = (r: VerbReading) => typeof r.slot === "number";
@@ -50,6 +63,8 @@ function agreement(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   const person = PERSON[pronoun];
   if (ctx.text[m.index - 1] === "-" || namedExampleBefore(ctx.text, m.index)) return null;
   const previous = tokensBefore(ctx.text, m.index, 1)[0];
+  // "le pronom tu n'est pas omis", "le je": the pronoun named, not a subject.
+  if (previous && NAMING.has(previous.w)) return null;
   // "elle", "nous", "vous" open a clause only at its start or after a conjunction; "que vous
   // offrent ces cours", "Pierre et elle étaient" make them objects or a coordinated subject.
   const stressed = !ALWAYS_SUBJECT.has(pronoun);
@@ -67,6 +82,8 @@ function agreement(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   while (after[i] && (NEGATION.has(after[i].w) || CLITICS.has(after[i].w))) i++;
   const verb = after[i];
   if (!verb || verb.hyphen || ctx.dictionary.has(verb.w)) return null;
+  // "Je est un autre": "je" as a noun, a third person; an elided "j'est" is a slip.
+  if (pronoun === "je" && i === 0 && verb.w === "est") return null;
   const typed = ctx.text.slice(verb.start, verb.end);
   // A name or an acronym is no verb form.
   if (/\p{Lu}/u.test(typed)) return null;
@@ -176,11 +193,167 @@ function participleAgreement(ctx: DetectContext, m: RegExpExecArray): RawFinding
   };
 }
 
+const SINGULAR_DETERMINERS = new Set(
+  "le la l' un une ce cet cette mon ton son ma ta sa notre votre chaque".split(" "),
+);
+const PLURAL_DETERMINERS = new Set("les des ces mes tes ses nos vos leurs plusieurs".split(" "));
+// Nouns of quantity whose verb follows their complement ("la plupart des gens pensent").
+const COLLECTIVES = new Set(
+  (
+    "plupart peu nombre majorité minorité reste foule totalité ensemble moitié tiers quart " +
+    "dizaine douzaine vingtaine trentaine centaine millier million milliard partie infinité " +
+    "quantité multitude série masse tas"
+  ).split(" "),
+);
+/** Stressed pronouns before "qui", with the person they give its verb. */
+const STRESSED: Record<string, number> = {
+  moi: JE,
+  toi: TU,
+  lui: IL,
+  nous: NOUS,
+  vous: VOUS,
+  eux: ILS,
+  ceux: ILS,
+  celles: ILS,
+  celui: IL,
+  celle: IL,
+};
+const CLAUSE_OPENERS = new Set(
+  "mais car donc que qu' quand si lorsque lorsqu' puisque puisqu' alors".split(" "),
+);
+// "aussi bien que", "plus vite que", "ne connaissent que": "que" compares or restricts there.
+const COMPARING = new Set(
+  "plus moins aussi autant si tant bien mieux pire même autre autres ainsi ne n' rien".split(" "),
+);
+const NOT_HEADS = new Set("plus moins mieux tant trop peu que qu' dont qui quoi ne n'".split(" "));
+
+/** The verb at `i` (past ne and object pronouns) with another person than `person`. */
+function verbFinding(
+  ctx: DetectContext,
+  tokens: Token[],
+  i: number,
+  person: number,
+  from: number,
+): RawFinding | null {
+  let j = i;
+  let marked = tokens[i - 1]?.w === "qui";
+  // "Ce soir nous allons", "Ces choses, nous les partageons": the pronoun is the subject.
+  if (tokens[j] && SUBJECT_PRONOUNS_ALL.has(tokens[j].w) && !marked) return null;
+  while (tokens[j] && (NEGATION.has(tokens[j].w) || CLITICS.has(tokens[j].w))) {
+    // "une intoxication en cours": "en" is as often the preposition.
+    if (tokens[j].w !== "en") marked = true;
+    j++;
+  }
+  const verb = tokens[j];
+  if (!verb || verb.hyphen || ctx.dictionary.has(verb.w) || NOT_HEADS.has(verb.w)) return null;
+  const typed = ctx.text.slice(verb.start, verb.end);
+  if (typed !== verb.w) return null;
+  // "les enfants joue" may be a noun phrase ("la joue"): only a pronoun or ne marks the verb.
+  if (isVerbHomograph(verb.w) && !marked) return null;
+  const readings = verbReadings(verb.w);
+  if (!readings.length || !readings.every(finite)) return null;
+  const persons = readings.reduce((mask, r) => mask | (r.slot as number), 0);
+  if (persons & person) return null;
+  // "Notre Père qui êtes aux cieux", "rappelons-le": an address or an imperative.
+  if ((person === IL || person === ILS) && !(persons & ~(NOUS | VOUS))) return null;
+  // "votre site précèdent peut": a finite verb right after shows the word was no verb.
+  const after = tokens[j + 1];
+  if (after && !isVerbHomograph(after.w) && verbReadings(after.w).some(finite)) return null;
+  // "un exemple pertinent sont les projets": an inverted attribute.
+  if (["est", "sont"].includes(verb.w) && after && ["les", "des", "ces"].includes(after.w))
+    return null;
+  const alternatives = [...new Set(readings.flatMap((r) => conjugate(r, person).slice(0, 1)))];
+  if (!alternatives.length || alternatives.length > 2) return null;
+  const fixed = alternatives.map((alt) => withCase(typed, alt));
+  return {
+    ruleId: RULE,
+    messageKey: MESSAGE,
+    range: { start: verb.start, end: verb.end },
+    alternatives: fixed,
+    context: { start: from, end: verb.end },
+    ...(fixed.length > 1 ? { requiresChoice: true as const } : {}),
+  };
+}
+
+/** "les rues était calmes", "mon enfant qui ne peux pas": a noun subject opening its clause, or
+ * "moi qui", "ceux qui", and its verb. */
+function nounSubject(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const word = m[0].toLowerCase().replace("’", "'");
+  if (namedExampleBefore(ctx.text, m.index)) return null;
+  const tokens = tokensAfter(ctx.text, m.index, 8);
+  if (tokens[0]?.w !== word) return null;
+  if (word in STRESSED) {
+    if (tokens[1]?.w !== "qui" || ctx.text[m.index - 1] === "-") return null;
+    // "c'est moi qui", "ce sont eux qui": a focused subject; "plus vieux que moi qui" is not.
+    const [verb, ce] = tokensBefore(ctx.text, m.index, 3).filter((t) => t.w !== "pas");
+    const focus =
+      word === "ceux" ||
+      word === "celles" ||
+      word === "celui" ||
+      word === "celle" ||
+      (verb &&
+        ["est", "sont", "était", "étaient", "fut"].includes(verb.w) &&
+        ce &&
+        ["c'", "ce"].includes(ce.w));
+    if (!focus) return null;
+    return verbFinding(ctx, tokens, 2, STRESSED[word], m.index);
+  }
+  const previous = tokensBefore(ctx.text, m.index, 4);
+  const before = previous[0];
+  if (before && !CLAUSE_OPENERS.has(before.w)) return null;
+  if (before && (before.w === "que" || before.w === "qu'")) {
+    if (previous.slice(1, 4).some((t) => COMPARING.has(t.w))) return null;
+  }
+  // A clause start: the text's start, a sentence end or a line, not a quote or a comma.
+  if (
+    !before &&
+    !/(?:^|[.!?…:\n])[\s\u00a0]*$/u.test(ctx.text.slice(Math.max(0, m.index - 4), m.index))
+  )
+    return null;
+  const noun = tokens[1];
+  if (!noun || noun.hyphen || COLLECTIVES.has(noun.w) || NOT_HEADS.has(noun.w)) return null;
+  const plural = PLURAL_DETERMINERS.has(word);
+  const nounTyped = ctx.text.slice(noun.start, noun.end);
+  // "Les Misérables est un roman": a title.
+  if (nounTyped !== noun.w && (plural || !/^\p{Lu}\p{Ll}+$/u.test(nounTyped))) return null;
+  // "Le faire est simple": an infinitive or a verb, not a noun.
+  if (verbReadings(noun.w).length && !isVerbHomograph(noun.w)) return null;
+  if (plural && !/[sx]$/.test(noun.w)) return null;
+  const singular = noun.w.replace(/aux$/, "al").replace(/[sx]$/, "");
+  const nounLike =
+    nounGender(noun.w) ||
+    nounGender(singular) ||
+    isInflectedNoun(noun.w) ||
+    isInflectedNoun(singular) ||
+    nounTyped !== noun.w;
+  if (!nounLike) return null;
+  let i = 2;
+  // One adjective may follow the noun: "les flux financiers crée".
+  if (tokens[i] && adjectiveReadings(tokens[i].w).length && !verbReadings(tokens[i].w).length) i++;
+  if (tokens[i]?.w === "qui") i++;
+  return verbFinding(ctx, tokens, i, plural ? ILS : IL, m.index);
+}
+
+const NOUN_SUBJECT = new RegExp(
+  `(?<![\\p{L}\\p{M}\\p{N}_'’-])(?:l['’](?=\\p{L})|(?:${[
+    ...SINGULAR_DETERMINERS,
+    ...PLURAL_DETERMINERS,
+    ...Object.keys(STRESSED),
+  ]
+    .filter((w) => w !== "l'")
+    .join("|")})(?![\\p{L}\\p{M}\\p{N}_'’-]))`,
+  "giu",
+);
+
 function subjectVerbAgreement(ctx: DetectContext): RawFinding[] {
   if (ctx.lang.slice(0, 2) !== "fr") return [];
   const findings: RawFinding[] = [];
   for (const m of ownedFrenchWords(ctx, PRONOUN)) {
     const finding = agreement(ctx, m) ?? participleAgreement(ctx, m);
+    if (finding) findings.push(finding);
+  }
+  for (const m of ownedFrenchWords(ctx, NOUN_SUBJECT)) {
+    const finding = nounSubject(ctx, m);
     if (finding) findings.push(finding);
   }
   return findings;

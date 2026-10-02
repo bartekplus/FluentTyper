@@ -479,6 +479,38 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     bulk: "individual",
     languages: ["pl_PL"],
   },
+  polishCaseAgreement: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "grammar",
+    kind: "agreement",
+    bulk: "individual",
+    languages: ["pl_PL"],
+  },
+  polishTypography: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "typography",
+    kind: "spacing",
+    bulk: "individual",
+    languages: ["pl_PL"],
+  },
+  polishQuotes: {
+    review: "supported",
+    defaultEnabled: false,
+    category: "typography",
+    kind: "marks",
+    bulk: "individual",
+    languages: ["pl_PL"],
+  },
+  polishCapitalization: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "typography",
+    kind: "capitalization",
+    bulk: "individual",
+    languages: ["pl_PL"],
+  },
 
   englishDateConsistency: {
     review: "supported",
@@ -832,6 +864,14 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     bulk: "individual",
     languages: ["es_ES"],
   },
+  spanishAgreement: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "grammar",
+    kind: "agreement",
+    bulk: "individual",
+    languages: ["es_ES"],
+  },
   // French (review/french/)
   frenchVerbForms: {
     review: "supported",
@@ -882,6 +922,22 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     languages: ["fr_FR"],
   },
   frenchNounNumber: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "grammar",
+    kind: "agreement",
+    bulk: "individual",
+    languages: ["fr_FR"],
+  },
+  frenchNounGender: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "grammar",
+    kind: "agreement",
+    bulk: "individual",
+    languages: ["fr_FR"],
+  },
+  frenchAdjectiveAgreement: {
     review: "supported",
     defaultEnabled: true,
     category: "grammar",

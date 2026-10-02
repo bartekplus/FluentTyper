@@ -12,6 +12,7 @@ import { REVIEW_DETECTORS, type RawFinding } from "./reviewDetectors";
 import { toDiagnostic } from "./reviewFindings";
 import { PROSE_DOTTED_TOKEN } from "./english/grammarStyle1";
 import { isGermanAbbreviationToken } from "./german/abbreviations";
+import { SPANISH_PROSE_DOTTED_TOKEN } from "./spanish/typography";
 import { PROSE_SLASH_TOKEN } from "./english/dialects";
 import { NUMERIC_DATE_TOKEN } from "./english/dates";
 import { slashedProseWord } from "./english/remaining";
@@ -84,7 +85,7 @@ export function prepareReview(
       end,
       reason: "code" as const,
     })),
-    ...technicalRanges(source, readStart, readEnd),
+    ...technicalRanges(source, readStart, readEnd, options.lang),
   ].sort((a, b) => a.start - b.start);
 
   let text = source;
@@ -171,11 +172,12 @@ const MAX_PROSE_TOKEN_CHARS = 100;
 
 /** A period-decimal quantity ("2.5", "2.5kg", "3.50€") is prose, not a dotted name. */
 const DECIMAL_QUANTITY = /^\p{Nd}{1,9}\.\p{Nd}{1,9}(?:\p{L}{1,4}|[€$£¥%])?$/u;
-/** A day.month(.year) date ("23.08.2014", "31.4.") is prose, not a dotted name. */
-const DOTTED_DATE = /^\d{1,3}\.\d{1,2}\.(?:\d{2}|\d{4})?$/;
+/** A day.month(.year) date ("23.08.2014", "31.4.", Polish "11.XI.1918") is prose, not a dotted name. */
+const DOTTED_DATE = /^\d{1,3}\.(?:\d{1,2}|[IVX]{1,4})\.(?:\d{2}|\d{4})?$/;
 
 /** URLs, e-mail addresses, paths, mentions, dotted names and overlong tokens in [from, to). */
-function technicalRanges(source: string, from: number, to: number): ProtectedRange[] {
+function technicalRanges(source: string, from: number, to: number, lang: string): ProtectedRange[] {
+  const spanish = lang.startsWith("es");
   const ranges: ProtectedRange[] = [];
   const token = /\S+/g;
   token.lastIndex = from;
@@ -194,6 +196,7 @@ function technicalRanges(source: string, from: number, to: number): ProtectedRan
       !DECIMAL_QUANTITY.test(bare) &&
       !DOTTED_DATE.test(bare) &&
       !PROSE_DOTTED_TOKEN.test(bare) &&
+      !(spanish && SPANISH_PROSE_DOTTED_TOKEN.test(bare)) &&
       !isGermanAbbreviationToken(bare) &&
       !PROSE_SLASH_TOKEN.test(bare) &&
       !PLACE_STATE_TOKEN.test(bare) &&

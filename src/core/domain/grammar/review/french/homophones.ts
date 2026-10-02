@@ -1,5 +1,14 @@
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
-import { IL, isVerbHomograph, JE, TU, verbReadings, type VerbReading } from "./frenchLexicon";
+import {
+  adjectiveReadings,
+  IL,
+  isVerbHomograph,
+  JE,
+  nounGender,
+  TU,
+  verbReadings,
+  type VerbReading,
+} from "./frenchLexicon";
 import {
   CLITICS,
   ownedFrenchWords,
@@ -133,6 +142,8 @@ function aToGrave(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   // A capital "A" without its accent is tolerated typography: left alone.
   if (m[0] === "A" || LATIN.has(next.w) || next.w === "t" || next.w === "t'") return null;
   if (RELATIVES.has(next.w)) return fix(undefined);
+  // "elle a l'air ravie": avoir l'air.
+  if (next.w === "l'" && after[1]?.w === "air") return null;
   const previous = before[0];
   if (!previous) return null;
   // "de 6 a 10": between numbers.
@@ -345,6 +356,9 @@ function sEstToCEst(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   // "ce que s'est dit Leo" inverts the subject: only a sentence start has none.
   if (before.length || !sentenceStart(ctx.text, m.index)) return null;
   if (/^[-–]/.test(ctx.text.slice(m.index + m[0].length))) return null;
+  // "S'est dit aussi de…": a reflexive verb whose subject the fragment leaves out.
+  const next = tokensAfter(ctx.text, m.index + m[0].length, 1)[0];
+  if (next && readingsOf(next.w).some((r) => r.slot === "Q")) return null;
   const elided = m[0].slice(0, 2);
   return wordFinding(ctx, m.index, elided, [`c${elided[1]}`], RULE, MESSAGE, {
     start: m.index,
@@ -367,6 +381,8 @@ function saToCa(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   if (!final && !(next && !next.hyphen && NOT_AFTER_POSSESSIVE.has(next.w))) return null;
   const before = tokensBefore(ctx.text, m.index, 1)[0];
   if (!before && !final) return null;
+  // "sa : 8h-12h": an abbreviated Saturday in opening hours.
+  if (!before && /^[\s ]*:/u.test(rest)) return null;
   return wordFinding(ctx, m.index, m[0], ["ça"], RULE, MESSAGE);
 }
 
@@ -403,6 +419,122 @@ function elidedAuxiliary(ctx: DetectContext, m: RegExpExecArray): RawFinding | n
 const PREPOSITIONS = new Set(
   "de à avec pour dans par sur sous chez sans selon depuis pendant malgré".split(" "),
 );
+
+const PLURAL_DETERMINERS = new Set("les des ces mes tes ses nos vos leurs".split(" "));
+
+/** "les épaules son larges": "sont" after a plural noun subject, before what is no noun. */
+function sonToSont(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const before = tokensBefore(ctx.text, m.index, 3);
+  const next = tokensAfter(ctx.text, m.index + m[0].length, 1)[0];
+  if (!before[1] || !PLURAL_DETERMINERS.has(before[1].w) || !/[sx]$/.test(before[0].w)) return null;
+  if (before[2] && !CONJUNCTIONS.has(before[2].w)) return null;
+  if (!next || next.hyphen || /^\p{Lu}/u.test(ctx.text[next.start])) return null;
+  const nounLike = nounGender(next.w) || nounGender(next.w.replace(/[sx]$/, ""));
+  const predicate =
+    adjectiveReadings(next.w).length ||
+    readingsOf(next.w).some((r) => r.slot === "Q") ||
+    ADVERBS.has(next.w);
+  // "son" never stands before a plural: "les épaules son larges".
+  if (nounLike || (!predicate && !/[sx]$/.test(next.w))) return null;
+  return wordFinding(ctx, m.index, m[0], ["sont"], RULE, MESSAGE, {
+    start: before[1].start,
+    end: next.end,
+  });
+}
+
+/** Participles no finite form spells: "fui", "parlé", not "fait". */
+const participleOnly = (word: string) =>
+  readingsOf(word).length > 0 && readingsOf(word).every((r) => r.slot === "Q");
+
+/** "ceux qui on fait", "les habitants on parlé": "ont" before a participle. */
+function onToOnt(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const before = tokensBefore(ctx.text, m.index, 3);
+  const after = tokensAfter(ctx.text, m.index + m[0].length, 3);
+  const word = after[after[0] && ADVERBS.has(after[0].w) ? 1 : 0];
+  if (!word || !participleOnly(word.w) || isVerbHomograph(word.w)) return null;
+  const previous = before[0];
+  if (!previous) return null;
+  // "à qui on parle": after a preposition "qui on" is a clause of its own.
+  const relative =
+    previous.w === "qui" && !(before[1] && (PREPOSITIONS.has(before[1].w) || before[1].w === "à"));
+  const plural = /[sx]$/.test(previous.w) && !!before[1] && PLURAL_DETERMINERS.has(before[1].w);
+  if (!relative && !plural) return null;
+  return wordFinding(ctx, m.index, m[0], ["ont"], RULE, MESSAGE, {
+    start: previous.start,
+    end: word.end,
+  });
+}
+
+const DEGREE = new Set(["un", "très", "trop", "si", "assez", "petit", "bien"]);
+
+/** "trop peut", "un peux", "il y a peut", "Peut d'amis": the adverb "peu". */
+function peutToPeu(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const before = tokensBefore(ctx.text, m.index, 3);
+  const next = tokensAfter(ctx.text, m.index + m[0].length, 1)[0];
+  const rest = ctx.text.slice(m.index + m[0].length);
+  // "peut-être", "peut être" (the adverb missing its hyphen).
+  if (/^-/.test(rest) || next?.w === "être") return null;
+  const final = /^[\s\u00a0]*(?:[.!?…,;:)]|$)/u.test(rest);
+  // "quelqu'un peut", "l'un peut": the pronoun "un" is a subject.
+  const pronounUn =
+    before[0]?.w === "un" &&
+    (/['’"]/.test(ctx.text[before[0].start - 1] ?? "") || /^quelqu/.test(before[1]?.w ?? ""));
+  const degree =
+    before[0] && DEGREE.has(before[0].w) && !pronounUn && !SUBJECT_PRONOUNS.has(before[1]?.w ?? "");
+  const ilYA = before[0]?.w === "a" && before[1]?.w === "y" && final;
+  const opening =
+    !before.length && sentenceStart(ctx.text, m.index) && (next?.w === "de" || next?.w === "d'");
+  if (!degree && !ilYA && !opening) return null;
+  return wordFinding(ctx, m.index, m[0], ["peu"], RULE, MESSAGE);
+}
+
+/** "Ainsi, ont peut acheter": "on peut". */
+function ontPeut(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const next = tokensAfter(ctx.text, m.index + m[0].length, 2);
+  if (!["peut", "peux"].includes(next[0]?.w ?? "") || next[0].hyphen || next[1]?.w === "être")
+    return null;
+  const previous = tokensBefore(ctx.text, m.index, 1)[0];
+  if (previous && SUBJECT_PRONOUNS.has(previous.w)) return null;
+  return wordFinding(ctx, m.index, m[0], ["on"], RULE, MESSAGE, {
+    start: m.index,
+    end: next[0].end,
+  });
+}
+
+/** "Il viendra quant ?", "quant viendras-tu ?": "when". */
+function quantToQuand(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const rest = ctx.text.slice(m.index + m[0].length);
+  const next = tokensAfter(ctx.text, m.index + m[0].length, 1)[0];
+  const question = /^[\s\u00a0]*\?/u.test(rest);
+  const inverted = next?.hyphen && readingsOf(next.w).some(isFinite);
+  if (!question && !inverted) return null;
+  return wordFinding(ctx, m.index, m[0], ["quand"], RULE, MESSAGE);
+}
+
+/** "Quand à moi", "Quand elle, elle est partie": "quant à". */
+function quandToQuant(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const rest = ctx.text.slice(m.index + m[0].length);
+  if (!/^[ \t]+(?:moi|toi|lui|elle|nous|vous|eux|elles)[ \t]*,/u.test(rest)) return null;
+  if (!sentenceStart(ctx.text, m.index)) return null;
+  const typed = ctx.text.slice(m.index, m.index + m[0].length);
+  return wordFinding(ctx, m.index, typed, ["quant à"], RULE, MESSAGE);
+}
+
+/** "C'est la que", "il est la.": the adverb "là". */
+function laToLa(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const rest = ctx.text.slice(m.index + m[0].length);
+  const before = tokensBefore(ctx.text, m.index, 2);
+  const cEst = before[0]?.w === "est" && before[1]?.w === "c'";
+  const next = tokensAfter(ctx.text, m.index + m[0].length, 1)[0];
+  if (cEst && (next?.w === "que" || next?.w === "qu'"))
+    return wordFinding(ctx, m.index, m[0], ["là"], RULE, MESSAGE);
+  // A clause ending on "la" after être or "tous": the article and the pronoun never end one.
+  const final = /^[\s\u00a0]*(?:[.!?…]|$)/u.test(rest);
+  if (!final || !before[0]) return null;
+  const etre = readingsOf(before[0].w).some((r) => isFinite(r) && r.lemma === "être");
+  if (!etre && !["tous", "toutes", "deux", "trois"].includes(before[0].w)) return null;
+  return wordFinding(ctx, m.index, m[0], ["là"], RULE, MESSAGE);
+}
 
 /** "avec sont frère": the possessive "son". */
 function sontToSon(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
@@ -465,8 +597,25 @@ function ontToOn(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   return wordFinding(ctx, m.index, m[0], ["on"], RULE, MESSAGE);
 }
 
+const AFTER_EVEN = new Set([...DETERMINERS, ...STRESSED, ...SUBJECT_PRONOUNS, ...PREPOSITIONS]);
+
+/** "il est venu comme même": "quand même"; "comme même ses amis" (like even) stays. */
+function commeMeme(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const next = tokensAfter(ctx.text, m.index + m[0].length, 1)[0];
+  const rest = ctx.text.slice(m.index + m[0].length);
+  if (next && /^[\s ]*\p{L}/u.test(rest)) {
+    const typed = ctx.text.slice(next.start, next.end);
+    if (AFTER_EVEN.has(next.w) || /^\p{Lu}/u.test(typed) || next.w === "si") return null;
+  } else if (/^[\s ]*\d/u.test(rest)) return null;
+  return wordFinding(ctx, m.index, m[0].slice(0, 5), ["quand"], RULE, MESSAGE, {
+    start: m.index,
+    end: m.index + m[0].length,
+  });
+}
+const COMME_MEME = /(?<![\p{L}\p{M}\p{N}_'’-])comme[ \t]+même(?![\p{L}\p{M}\p{N}_'’-])/giu;
+
 const CANDIDATE =
-  /(?<![\p{L}\p{M}\p{N}_'’-])(?:à|a|A|ou|Ou|où|sûre?s?|sure?s?|[cC]e|[sS]e|[sS]['’](?:est|était)|[sS]a|ma|ta|la|sont|du|[oO]nt)(?![\p{L}\p{M}\p{N}_'’])/gu;
+  /(?<![\p{L}\p{M}\p{N}_'’-])(?:à|a|A|ou|Ou|où|sûre?s?|sure?s?|[cC]e|[sS]e|[sS]['’](?:est|était)|[sS]a|ma|ta|la|sont|son|on|[pP]eut|[pP]eux|[qQ]uant|[qQ]uand|du|[oO]nt)(?![\p{L}\p{M}\p{N}_'’])/gu;
 
 function homophones(ctx: DetectContext): RawFinding[] {
   if (ctx.lang.slice(0, 2) !== "fr") return [];
@@ -486,10 +635,20 @@ function homophones(ctx: DetectContext): RawFinding[] {
     else if (lower === "se") finding = seToCe(ctx, m);
     else if (lower.startsWith("s'")) finding = sEstToCEst(ctx, m);
     else if (lower === "sa") finding = saToCa(ctx, m);
-    else if (lower === "ma" || lower === "ta" || lower === "la") finding = elidedAuxiliary(ctx, m);
+    else if (lower === "ma" || lower === "ta" || lower === "la")
+      finding = elidedAuxiliary(ctx, m) ?? (lower === "la" ? laToLa(ctx, m) : null);
     else if (lower === "sont") finding = sontToSon(ctx, m);
+    else if (lower === "son") finding = sonToSont(ctx, m);
+    else if (lower === "on") finding = onToOnt(ctx, m);
+    else if (lower === "peut" || lower === "peux") finding = peutToPeu(ctx, m);
+    else if (lower === "quant") finding = quantToQuand(ctx, m);
+    else if (lower === "quand") finding = quandToQuant(ctx, m);
     else if (lower === "du") finding = duToDu(ctx, m);
-    else if (lower === "ont") finding = ontToOn(ctx, m);
+    else if (lower === "ont") finding = ontToOn(ctx, m) ?? ontPeut(ctx, m);
+    if (finding) findings.push(finding);
+  }
+  for (const m of ownedFrenchWords(ctx, COMME_MEME)) {
+    const finding = commeMeme(ctx, m);
     if (finding) findings.push(finding);
   }
   return findings;

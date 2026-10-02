@@ -119,6 +119,10 @@ export interface GrammarRuleCatalogEntry {
     | "polishMisplacedComma"
     | "polishMissingComma"
     | "polishPrepositionForms"
+    | "polishCaseAgreement"
+    | "polishTypography"
+    | "polishQuotes"
+    | "polishCapitalization"
     // French (review/french/)
     | "frenchVerbForms"
     | "frenchHomophones"
@@ -127,6 +131,8 @@ export interface GrammarRuleCatalogEntry {
     | "frenchElision"
     | "frenchDates"
     | "frenchNounNumber"
+    | "frenchNounGender"
+    | "frenchAdjectiveAgreement"
     | "quoteSpacing"
     | "primeSymbols"
     // German-only Review checks (review/german/).
@@ -163,7 +169,8 @@ export interface GrammarRuleCatalogEntry {
     // Spanish Review checks (review/spanish/).
     | "spanishAccents"
     | "spanishConfusions"
-    | "spanishTypography";
+    | "spanishTypography"
+    | "spanishAgreement";
   /** Absent for existing typing rules; false for native Review-only checks. */
   typing?: false;
   name: string;

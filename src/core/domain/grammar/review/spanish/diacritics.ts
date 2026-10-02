@@ -3,7 +3,9 @@ import {
   Around,
   attributeOf,
   CLITICS,
+  CONJUNCTIONS,
   DETERMINERS,
+  INVARIANT,
   isInfinitive,
   PREPOSITIONS,
   replaceToken,
@@ -12,7 +14,16 @@ import {
   words,
   type Token,
 } from "./common";
-import { isGenderedEntry, isGerund, isNoun, secondPersonVerb, subjunctiveLike } from "./lexicon";
+import {
+  finiteVerb,
+  genderedForm,
+  isGenderedEntry,
+  isGerund,
+  isNoun,
+  participle,
+  secondPersonVerb,
+  subjunctiveLike,
+} from "./lexicon";
 
 /** Any noun or adjective the lexicon knows: "mente", "retrato", "asistencia". */
 const known = (word: string) => isNoun(word) || !!attributeOf(word) || isGenderedEntry(word);
@@ -112,10 +123,41 @@ function echoQuestion(at: Around): boolean {
     if (j === at.i + 1 || (CLITICS.has(at.tokens[j - 1].lower) && !haber)) {
       if (subjunctiveLike(word)) return true;
     }
-    if (attributeOf(word) && !haber && !isGerund(word)) return true;
+    // "te pasa" is a verb after its clitic, not the adjective "pasa".
+    const afterClitic = CLITICS.has(at.tokens[j - 1].lower) && verbLike(word);
+    if (attributeOf(word) && !haber && !isGerund(word) && !afterClitic) return true;
     if (solidNoun(word) && !afterPreposition) return true;
     haber = /^(?:he|has|ha|hemos|habéis|han|había|habías|habían)$/u.test(word);
     afterPreposition = PREPOSITIONS.has(word);
+  }
+  return false;
+}
+
+// Gerunds whose missing object "qué" asks for: "¿Qué estás haciendo?". Any other progressive
+// right after "¿Que" reads as an echo: "¿Que estás temblando?" (you say you are…?).
+const ASKED_GERUNDS = words(
+  "haciendo diciendo pensando buscando mirando viendo leyendo comiendo bebiendo escribiendo " +
+    "esperando tramando planeando preparando cocinando escuchando insinuando sugiriendo " +
+    "intentando tomando estudiando contando pidiendo vendiendo comprando ocultando " +
+    "escondiendo pasando ocurriendo sucediendo aprendiendo celebrando proponiendo",
+);
+// Verbs of affection whose object is the clitic before them: "¿Que me adora?" (that she…?).
+const AFFECTION =
+  /^(?:quier[eo]|quieres|quieren|ama|amas|aman|adora|adoras|adoran|odia|odias|odian)$/u;
+
+/**
+ * "¿Que nos odian?", "¿Que estás temblando?": a clause that leaves nothing for "qué" to ask,
+ * either a clitic object of a verb of affection or a progressive of a verb rarely asked about.
+ */
+function echoClause(at: Around): boolean {
+  let k = 1;
+  if (at.next(k) === "no") k++;
+  const first = at.next(k);
+  if (/^(?:me|te|lo|la|nos|os|los|las)$/u.test(first) && AFFECTION.test(at.next(k + 1)))
+    return at.endsAfter(k + 1);
+  if (/^(?:estás|está|están|estáis|estamos|estaba|estabas|estaban)$/u.test(first)) {
+    const gerund = at.next(k + 1);
+    return isGerund(gerund) && !ASKED_GERUNDS.has(gerund) && at.endsAfter(k + 1);
   }
   return false;
 }
@@ -147,6 +189,20 @@ function shortClause(at: Around, k: number): boolean {
   return false;
 }
 
+/** A finite verb form: "pasa", "piensas", "ha", "hay", "quiere". */
+const FINITE_NOT_NOUN = (word: string) =>
+  FINITE.has(word) || /^(?:hay|he|has|ha|hemos|han|había|habían)$/u.test(word) || finiteVerb(word);
+
+/** Inside a question opened by "¿": "¿Crees que no sé que me mientes?" states a fact. */
+function inQuestion(at: Around): boolean {
+  for (let j = at.i - 1; j >= Math.max(0, at.i - 16); j--) {
+    const text = at.tokens[j].text;
+    if (text === "¿") return true;
+    if (/^[.!?;]$/u.test(text) || at.tokens[j + 1].broken) return false;
+  }
+  return false;
+}
+
 function interrogative(at: Around): string | null {
   const word = at.tokens[at.i].lower;
   const accented = INTERROGATIVE[word];
@@ -167,7 +223,7 @@ function interrogative(at: Around): string | null {
     // "¿Con que esta era la felicidad?" (so this was…) introduces a clause.
     if (PREPOSITIONS.has(prev)) return purposeClause(at) || DETERMINERS.has(next) ? null : accented;
     if (next === "tal" || (solidNoun(next) && !DETERMINERS.has(next))) return accented;
-    return echoQuestion(at) ? null : accented;
+    return echoQuestion(at) || echoClause(at) ? null : accented;
   }
   if (mark === "!") {
     if (word !== "que" && word !== "como" && word !== "cuan") return null;
@@ -203,6 +259,22 @@ function interrogative(at: Around): string | null {
     (!next || !wishAfter(at))
   )
     return accented;
+  // "a cambio de qué.", "Para hacer qué.", "no recordaba qué.": a "que" closing the sentence
+  // after a preposition, an infinitive or a verb of knowing asks.
+  if (
+    word === "que" &&
+    /^[.!?]$/u.test(nextToken?.text ?? "") &&
+    !nextToken.broken &&
+    at.tokens[at.i + 2]?.text !== "." &&
+    (PREPOSITIONS.has(prev) || KNOWING.test(prev) || isInfinitive(prev))
+  )
+    return accented;
+  // "No sé qué pasa", "no sé qué le pasa": present "no sé" cannot state what it denies knowing,
+  // so an indicative after it is asked about ("No sé que sea así" keeps the conjunction).
+  if (word === "que" && prev === "sé" && /^(?:no|ni)$/u.test(at.prev(2)) && !inQuestion(at)) {
+    const verb = CLITICS.has(next) ? at.next(2) : next;
+    if (verb && FINITE_NOT_NOUN(verb) && !subjunctiveLike(verb)) return accented;
+  }
   // "no sé qué hacer", "sabes qué libro", "pregunta dónde vive".
   if (KNOWING.test(prev) || (prev === "se" && /^(?:no|yo|lo|ya)$/u.test(at.prev(2)))) {
     if (!next) return null;
@@ -254,6 +326,100 @@ const COMMON_VERBS = words(
 const PRONOUNS = words("yo tú ella usted nosotros nosotras vosotros ellos ellas ti mí él");
 const PLAIN_SI_PREV = words("que pues eso claro ahora creo");
 const TEA = words("verde negro rojo blanco chino japonés inglés frío caliente helado con y de del");
+
+// Bare objects "dar" takes in set phrases: "dé cuenta", "dé voz", "dé las gracias".
+const GIVEN = words("cuenta voz gracias permiso asentimiento golpecitos crédito importancia");
+const giveObject = (at: Around) =>
+  (GIVEN.has(at.next()) && (at.endsAfter(1) || /^(?:de|del|a|al|por|para|y)$/u.test(at.next(2)))) ||
+  (at.next() === "a" && at.next(2) === "luz");
+// Subjects that may stand between the subjunctive trigger and "dé".
+const SUBJECT_FILLERS = words("él ella usted alguien nadie dios uno cada mismo ahora no nunca ya");
+
+/** "que (alguien) de": a subjunctive trigger, with at most two subject words between. */
+function subjunctiveSlot(at: Around): boolean {
+  let k = 1;
+  while (k <= 3 && SUBJECT_FILLERS.has(at.prev(k))) k++;
+  // "más que de cuenta": a comparison.
+  return (
+    /^(?:que|ojalá|quien|aunque|cuando)$/u.test(at.prev(k)) &&
+    !/^(?:más|menos|antes|mejor|peor|tal|así|ya)$/u.test(at.prev(k + 1))
+  );
+}
+
+// What follows an answer's "Sí,": "Sí, me gusta", "Sí, pero…", "Sí, claro".
+const ANSWER_AFTER = words(
+  "pero claro gracias señor señora vale bueno ya también me te nos lo la le es son está hay " +
+    "tengo quiero puedo creo exacto correcto perfecto efectivamente desde seguro",
+);
+const FINITE_FORM = (word: string) => !!word && (FINITE.has(word) || finiteVerb(word));
+const participleOf = (word: string) => !!word && !!participle(word);
+const isPlainInfinitive = (word: string) => /^\p{L}+[aeií]r$/u.test(word) && isInfinitive(word);
+
+/** A comma closes the phrase after tokens[i] before any finite verb: "Aún sin saberlo, se fue". */
+function concessive(at: Around): boolean {
+  for (let k = 1; k <= 6; k++) {
+    const token = at.tokens[at.i + k];
+    if (!token || token.broken || /^[.;:!?]$/u.test(token.text)) return false;
+    if (token.text === ",") return k > 1;
+    if (k > 1 && token.word && FINITE.has(token.lower)) return false;
+  }
+  return false;
+}
+
+/** The sentence ends after tokens[i + k] within a few words, with no comma or finite verb. */
+function endsPlainly(at: Around, k: number): boolean {
+  for (let n = k; n <= k + 5; n++) {
+    const token = at.tokens[at.i + n];
+    if (!token || token.broken || /^[.!?]$/u.test(token.text)) return true;
+    if (!token.word || FINITE.has(token.lower) || finiteVerb(token.lower)) return false;
+  }
+  return false;
+}
+
+/** A finite verb before the clause ends: "pero si hay casos" is a condition. */
+function verbAhead(at: Around): boolean {
+  for (let k = 1; k <= 8; k++) {
+    const token = at.tokens[at.i + k];
+    if (!token || token.broken || /^[.;:!?,]$/u.test(token.text)) return false;
+    const word = token.lower;
+    if (DETERMINERS.has(word) || PREPOSITIONS.has(word) || CLITICS.has(word)) continue;
+    if (token.word && (FINITE.has(word) || (finiteVerb(word) && !isNoun(word)))) return true;
+  }
+  return false;
+}
+
+// Relatives written as question words after their antecedent: "nada qué hacer" -> "que",
+// "el modo cómo" -> "como", "la fecha cuándo" -> "cuando", "el lugar dónde" -> "donde".
+const QUANTITY_ANTECEDENTS = words("nada algo nadie alguien mucho poco bastante");
+const NOUN_ANTECEDENTS: Record<string, Set<string>> = {
+  cómo: words("modo manera forma"),
+  cuándo: words("fecha día momento época hora año"),
+  dónde: words("lugar sitio casa ciudad zona pueblo país parte punto"),
+};
+const PLAIN_RELATIVE: Record<string, string> = {
+  qué: "que",
+  quién: "quien",
+  quiénes: "quienes",
+  dónde: "donde",
+  cómo: "como",
+  cuándo: "cuando",
+};
+
+/** "No tengo nada qué hacer", "alguien en quién confiar": a relative after its antecedent. */
+function relative(at: Around): string | null {
+  const word = at.tokens[at.i].lower;
+  const plainForm = PLAIN_RELATIVE[word];
+  if (!plainForm || at.tokens[at.i - 1]?.text === "¿") return null;
+  const k = PREPOSITIONS.has(at.prev()) ? 2 : 1;
+  const antecedent = at.prev(k);
+  if (QUANTITY_ANTECEDENTS.has(antecedent) && isInfinitive(at.next())) return plainForm;
+  // "el lugar por donde"; a preposition before "cómo" or "cuándo" keeps the question.
+  const placed = k === 1 || word === "dónde";
+  return NOUN_ANTECEDENTS[word]?.has(antecedent) && placed && !!at.next() ? plainForm : null;
+}
+
+// Masculine adjectives that follow a subject "él": "él solo", "él mismo", "él propio".
+const NOT_AFTER_EL = words("solo sólo mismo propio único entero solito junto todo bueno");
 
 /** The words of a monosyllable check: [typed, replacement] or null. */
 function monosyllable(at: Around): string | null {
@@ -308,6 +474,8 @@ function monosyllable(at: Around): string | null {
       // "a tú pie", "aprobará mí envío": a possessive before a noun takes no accent.
       // After a verb it may be the subject: "eres tú", "pones tú".
       if (verbLike(prev) || FINITE.has(prev) || /^(?:como|que|entre)$/u.test(prev)) return null;
+      // "Tú cuentas las monedas": a second-person verb that is also a plural noun.
+      if (word === "tú" && next.endsWith("s") && finiteVerb(next)) return null;
       return solidNoun(next) && !/^(?:bemol|menor|mayor)$/u.test(next)
         ? word === "tú"
           ? "tu"
@@ -337,16 +505,51 @@ function monosyllable(at: Around): string | null {
       return (next === "y" || next === "o") && PRONOUNS.has(at.next(2)) && PREPOSITIONS.has(prev)
         ? "él"
         : null;
-    case "él":
-      // "Él coche lo dejé": a bare noun after it wants the article.
-      if (!at.starts) return null;
-      return solidNoun(next) && !verbLike(next) ? "el" : null;
+    case "él": {
+      // "Él coche lo dejé", "con él voto de", "Él mismo susto": a bare singular noun after it
+      // wants the article. "a él", "de él", "para él" and "por él" take objects after them.
+      const governed =
+        /^(?:con|en|sin|sobre|entre|hacia|desde|hasta|tras|según|ante|bajo|contra|durante|mediante)$/u.test(
+          prev,
+        );
+      if (!at.starts && !governed) return null;
+      const k = next === "mismo" ? 2 : 1;
+      const noun = at.next(k);
+      if (!noun || noun.endsWith("s") || /^\p{Lu}/u.test(at.tokens[at.i + k].text)) return null;
+      const form = genderedForm(noun);
+      const masculineNoun =
+        solidNoun(noun) ||
+        (!!form && !form.feminine && !form.plural && !participle(noun) && !NOT_AFTER_EL.has(noun));
+      // "Con él voto yo": a verb form after the pronoun, unless "de" makes it a noun.
+      const verbForm = verbLike(noun) || finiteVerb(noun);
+      return masculineNoun &&
+        (!verbForm || /^(?:de|del)$/u.test(at.next(k + 1))) &&
+        (k === 1 || isNoun(noun))
+        ? "el"
+        : null;
+    }
     case "se":
       // "yo no sé", "lo sé.", "no sé si", "no sé cómo".
       // "se" + an accented question word, "lo se": no clitic reading ("lo" never precedes it).
       if (/[áéíóú]/u.test(next) && Object.values(INTERROGATIVE).includes(next)) return "sé";
       if (prev === "lo" || prev === "me")
         return /^(?:te|le|les|lo|la|los|las)$/u.test(next) ? null : "sé";
+      // "Sé de qué hablo": "de" and a question word.
+      if (next === "de" && /^(?:qué|quién|quiénes|dónde|cuál|cuáles)$/u.test(at.next(2)))
+        return "sé";
+      // "yo también sé nadar": a bare infinitive takes no clitic before it.
+      if (isPlainInfinitive(next) && !PREPOSITIONS.has(prev) && prev !== "para") return "sé";
+      // "Sé amable": the imperative of "ser" before an adjective closing the sentence.
+      if (
+        at.starts &&
+        /^\p{Lu}/u.test(at.tokens[at.i].text) &&
+        (INVARIANT.has(next) ||
+          /(?:ble|nte|z)$/u.test(next) ||
+          (!!genderedForm(next) && !participleOf(next))) &&
+        !finiteVerb(next) &&
+        (at.endsAfter(1) || PREPOSITIONS.has(at.next(2)))
+      )
+        return "sé";
       if (!/^(?:no|yo|ya|tampoco|bien)$/u.test(prev)) return null;
       if (ends) return "sé";
       // "no sé la lección", "no sé lo que dices": "se lo/la" with a noun or "que" after.
@@ -360,6 +563,8 @@ function monosyllable(at: Around): string | null {
     case "de":
       // "cuando le dé esto", "que te dé tiempo": a clitic only goes before a verb.
       if (ends && prev) return "dé";
+      // "que alguien dé cuenta", "espero que dé a luz": "dar" and its bare object.
+      if (giveObject(at) && subjunctiveSlot(at)) return "dé";
       // "cuando te las dé": a clitic pair before it.
       if (/^(?:lo|la|los|las)$/u.test(prev) && /^(?:me|te|se|le|les|nos|os)$/u.test(at.prev(2)))
         return "dé";
@@ -385,7 +590,27 @@ function monosyllable(at: Around): string | null {
       // "sí que me gusta", "en sí de alegría".
       if (next === "que" && !at.endsAfter(1) && prev !== "como") return "sí";
       if (prev === "en" && (next === "de" || ends)) return "sí";
+      // "Sí, me gusta.", "Sí, pero…": an answer; "Si, como dices, llueve" opens a condition.
+      if (nextToken?.text === "," && at.starts && ANSWER_AFTER.has(at.next(2))) return "sí";
       if (nextToken?.text === ",") return PLAIN_SI_PREV.has(prev) ? "sí" : null;
+      // "Aquello sí era felicidad": an emphatic yes after a demonstrative subject.
+      if (
+        /^(?:esto|eso|aquello)$/u.test(prev) &&
+        new Around(at.tokens, at.i - 1).starts &&
+        /^(?:es|era|fue|será|sería|está|estaba)$/u.test(next) &&
+        endsPlainly(at, 2)
+      )
+        return "sí";
+      // "No tengo coche, pero sí moto": "pero sí" and a phrase with no verb of its own.
+      if (prev === "pero" && /^(?:a|al|un|una|unos|unas)$/u.test(next) && !verbAhead(at))
+        return "sí";
+      // "«Sí», le dijimos.": closed by its quote.
+      if (
+        /^[»”"]$/u.test(nextToken?.text ?? "") &&
+        /^[«“"]$/u.test(at.tokens[at.i - 1]?.text ?? "") &&
+        at.tokens[at.i + 2]?.text === ","
+      )
+        return "sí";
       return ends ? "sí" : null;
     }
     case "aun":
@@ -395,13 +620,34 @@ function monosyllable(at: Around): string | null {
       if (/^(?:más|menos)$/u.test(prev)) return "aún";
       // "Aún recuerdo", "aún se desconoce": still, before the verb or its clitic.
       if (CLITICS.has(next) && next !== "la" && next !== "las" && next !== "los") return "aún";
+      // "Estaban aún durmiendo": between "estar" and its gerund.
+      if (isGerund(next) && /^est[aá]/u.test(prev)) return "aún";
+      // "aun así", "aun cuando", "aun si" and "aun siendo" (even) take no verb.
+      if (/^(?:así|cuando|si|con|sin|a|al|en)$/u.test(next) || CONJUNCTIONS.has(next)) return null;
+      // "Aún recuerdo aquel día", "que aún lucha": still, before a finite verb, even one that is
+      // also a noun when no comma closes it ("aun niños, trabajaban").
+      if (
+        FINITE_FORM(next) &&
+        !participle(next) &&
+        (!attributeOf(next) || isNoun(next)) &&
+        (!isNoun(next) || (/[oae]$/u.test(next) && at.tokens[at.i + 2]?.text !== ","))
+      )
+        return "aún";
+      // "con los ojos aún abiertos": still, before a participle inside the clause.
+      if (!at.starts && participleOf(next) && at.tokens[at.i + 2]?.text !== ",") return "aún";
       return ends && !at.starts ? "aún" : null;
     case "aún":
       if (prev === "ni") return "aun";
       // "aun así,", "aun si", "aun siendo": even.
       // "más aún si" (even more) keeps the accent.
       if (/^(?:más|menos|mejor|peor|mayor|menor)$/u.test(prev) || /mente$/u.test(prev)) return null;
-      if (next === "si" || next === "cuando" || isGerund(next)) return "aun";
+      // "estaban aún durmiendo" keeps "still" between "estar" and its gerund.
+      if (next === "si" || next === "cuando" || (isGerund(next) && !/^est[aá]/u.test(prev)))
+        return "aun";
+      // "Aún sin saberlo, se fue", "Aún cansado, lo intentó": a concessive phrase opening the
+      // sentence and closed by a comma before its verb.
+      if (at.starts && (PREPOSITIONS.has(next) || participleOf(next)) && concessive(at))
+        return "aun";
       return next === "así" && at.tokens[at.i + 2]?.text === "," ? "aun" : null;
     case "mas":
       // "lo más", "no hay más que", "más tarde": "mas" (but) only starts a clause.
@@ -425,7 +671,7 @@ function diacritics(ctx: DetectContext): RawFinding[] {
     if (!token.word || token.start < ctx.from || token.start >= ctx.to) continue;
     const at = new Around(tokens, i);
     const question = interrogative(at);
-    const fix = question ?? monosyllable(at);
+    const fix = question ?? relative(at) ?? monosyllable(at);
     if (!fix) continue;
     const key = question
       ? "review_msg_spanish_interrogative"

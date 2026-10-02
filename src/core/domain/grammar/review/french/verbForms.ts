@@ -6,6 +6,7 @@ import {
   isVerbHomograph,
   JE,
   NOUS,
+  pastParticiple,
   TU,
   verbReadings,
   VOUS,
@@ -263,6 +264,8 @@ function verbGoverns(tokens: Token[], i: number): boolean {
   const adverb =
     previous === "en" || ((previous === "à" || previous === "a") && tokens[i + 2]?.w === "tout");
   if (governor.w === "fait" && adverb) return false;
+  // "ils ont bien entendu gêné": "bien entendu" (of course) is an adverb.
+  if (governor.w === "entendu" && previous === "bien") return false;
   const readings = verbReadings(governor.w);
   const lemmas = new Set(readings.map((r) => r.lemma));
   const plain = [...lemmas].some((l) => GOVERNING.has(l));
@@ -381,6 +384,43 @@ function finiteAfterSubjectVous(ctx: DetectContext, m: RegExpExecArray): RawFind
   });
 }
 
+const AVOIR =
+  /(?<![\p{L}\p{M}\p{N}_-])(?:ai|as|a|avons|avez|ont|avais|avait|avions|aviez|avaient|aurai|auras|aura|aurons|aurez|auront|aurais|aurait|aurions|auriez|auraient)(?![\p{L}\p{M}\p{N}_'’])/giu;
+
+/** "j'ai comprit", "il a reçut", "on a mange": a finite form after avoir for its participle. */
+function finiteAfterAvoir(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const inverted = ctx.text[m.index + m[0].length] === "-";
+  const before = tokensBefore(ctx.text, m.index);
+  const subject = subjectAt(before, 0);
+  // "a" and "as" are also a preposition and a noun: only after their subject or inverted.
+  const subjects = ["je", "j'", "tu", "il", "elle", "on", "nous", "vous", "ils", "elles", "qui"];
+  if (!inverted && !(subject && [...subjects, "ça", "cela"].includes(subject.w))) return null;
+  // "il y a", "il n'y en a": "y" makes "a" introduce a noun.
+  if (before.slice(0, 3).some((t) => t.w === "y")) return null;
+  const after = tokensAfter(ctx.text, m.index + m[0].length, 6).filter(
+    (t, i) => !(inverted && i < 2 && (SUBJECT_PRONOUNS.has(t.w) || t.w === "t")),
+  );
+  const word = after[skip(after, 0, [ADVERBS])];
+  if (!word || word.hyphen || capitalizedName(ctx.text, word.start, word.w)) return null;
+  if (ctx.text.slice(word.start, word.end) !== word.w || isVerbHomograph(word.w)) return null;
+  const readings = verbReadings(word.w);
+  if (!readings.length || !readings.every(isFinite)) return null;
+  // "ils ont peut être raison": "peut-être" missing its hyphen.
+  if (word.w === "peut" && tokensAfter(ctx.text, word.end, 1)[0]?.w === "être") return null;
+  const participles = [...new Set(readings.map((r) => pastParticiple(r.lemma)))];
+  if (participles.length !== 1 || !participles[0] || participles[0] === word.w) return null;
+  // "-er" present forms are participleAfterAuxiliary's ("il a manger"); this one takes the rest.
+  return wordFinding(
+    ctx,
+    word.start,
+    word.w,
+    [participles[0]],
+    RULE,
+    "review_msg_fr_past_participle",
+    { start: m.index, end: word.end },
+  );
+}
+
 const CANDIDATE = /(?<![\p{L}\p{M}\p{N}_-])\p{L}+(?:er|é|ez|re|ir|oir)(?![\p{L}\p{M}\p{N}_-])/giu;
 
 function verbForms(ctx: DetectContext): RawFinding[] {
@@ -396,6 +436,10 @@ function verbForms(ctx: DetectContext): RawFinding[] {
         : lower.endsWith("er")
           ? (participleAfterAuxiliary(ctx, m) ?? finiteAfterSubjectVous(ctx, m))
           : finiteAfterSubjectVous(ctx, m);
+    if (finding) findings.push(finding);
+  }
+  for (const m of ownedFrenchWords(ctx, AVOIR)) {
+    const finding = finiteAfterAvoir(ctx, m);
     if (finding) findings.push(finding);
   }
   return findings;

@@ -197,3 +197,390 @@ Ojalá se sentara a mi lado.
 La lluvia continua estropeó la cosecha.
 Tiene una sonrisa amplia.
 Su ira no tenía límites.
+# Noun-phrase agreement: determiners, numerals, pronouns before verbs, fixed pairs.
+El agua del pozo estaba helada y el hambre apretaba.
+Un águila sobrevoló el valle mientras el alma del pueblo dormía.
+Mi tía es la mejor médico del hospital y su hermana, la jueza, también trabaja allí.
+La modelo y la testigo llegaron juntas al juicio.
+El cura bendijo la cura que había preparado la curandera.
+Los lunes y los martes cierro la tienda a las dos.
+El análisis de la crisis llenó tres páginas.
+Treinta y un años después, volvió a la casa de sus padres.
+Veintiún días tardaron en llegar las cartas.
+Las personas mayores necesitan más atención.
+Los bien pagados no siempre son los más felices.
+Llegaron los recién casados con las maletas.
+Unos frente a otros, los equipos esperaban la señal.
+Hubo un antes y un después en su carrera.
+Es un problema que tiene muchas soluciones.
+El tema del idioma surgió en la reunión.
+Tú la cuentas mejor que yo, así que cuéntala.
+Juan las casa a todas con buenos partidos.
+Cuando uno las mira de cerca, se notan los defectos.
+Si no las rechazo, pierdo la oportunidad.
+Este cuenta con el apoyo de todos; aquel, con nadie.
+Estas son las fotos de la boda.
+Esos solo existen en los cuentos.
+Ella es una de nosotros desde el primer día.
+Uno de los dos tiene que ceder.
+Una de las ventajas es el precio.
+La primera vez que la vi, llevaba un sombrero.
+Es el primer paso de un largo camino.
+Tengo dos perros y tres gatos.
+Vendieron cinco mil entradas en una hora.
+El capítulo dos página tres explica el método.
+La versión dos punto cero sale mañana.
+Cuesta el diez por ciento menos que el año pasado.
+Lo hizo mano a mano con su socio.
+Le hizo el boca a boca hasta que llegó la ambulancia.
+El cabeza de familia firmó el contrato.
+Sobrino nieto del papa, nunca pisó el Vaticano.
+Pidió una papa asada y un té.
+El mapa del tesoro estaba en el sofá.
+El día que llegues, te esperaré en el andén.
+La foto de la moto salió borrosa.
+Me duele la mano derecha desde ayer.
+Es demasiado pequeña para su edad.
+Son mucho mayores que nosotros.
+Hay demasiado pocos voluntarios este año.
+Unas veces está contento y otras, melancólico.
+Me perdonó sin pregunta alguna.
+¿Puede alguno de estos ser real?
+Salimos de esta vivos de milagro.
+En la sonata en la mayor destaca el segundo movimiento.
+Los jóvenes salen los viernes por la noche.
+Las imágenes del satélite muestran los márgenes del río.
+Los exámenes de junio fueron difíciles.
+Las órdenes del capitán se cumplieron.
+El orden de los factores no altera el producto.
+La capital del país tiene mucho capital extranjero.
+El frente frío llegó por la tarde y le dolía la frente.
+La radio informó del radio de la explosión.
+El arte moderno y las artes plásticas.
+Hay que comprar azúcar, sal y aceite.
+Le gusta el rosa y el naranja más que el azul.
+El guía nos enseñó la guía de la ciudad.
+La policía detuvo al policía corrupto.
+El pianista y la periodista se casaron en mayo.
+Un artista nunca deja de aprender.
+La gente del barrio organizó una fiesta.
+El virus se propagó por todo el país.
+Los paraguas se quedaron en el coche.
+El cumpleaños de mi madre es en abril.
+Esa canción me recuerda a mi infancia.
+Estas camisas son de algodón y aquellos pantalones, de lino.
+Mis amigos viven en el centro de la ciudad.
+Nuestro equipo ganó el partido del domingo.
+La mayoría de los alumnos aprobó el examen.
+El resto de la clase se quedó en casa.
+Los demás llegaron tarde.
+A los pocos días recibió la carta.
+Una vez al mes visita a su abuela.
+De vez en cuando sale a correr.
+El inglés y el francés son idiomas oficiales.
+Su interés por la música creció con los años.
+Las tic han cambiado la educación.
+La ONG repartió comida en la zona.
+Hizo un pasatiempo de la fotografía.
+La autorregulación del mercado es un mito.
+Ordenamos las sillas por colores.
+De la casa salió un perro enorme.
+Le dio el sí delante de todo el pueblo.
+Al final del pasillo está el despacho.
+Al menos lo intentó.
+Del todo imposible, respondió el técnico.
+Por lo menos dos veces al día.
+A la vez que cocina, escucha la radio.
+Los pros y los contras de la propuesta.
+El porqué de su decisión sigue siendo un misterio.
+El poder de la palabra es enorme.
+Los deberes de matemáticas me llevaron dos horas.
+Un ser humano necesita dormir.
+El mañana es incierto, pero la mañana fue soleada.
+El sida sigue siendo una amenaza en muchas regiones.
+El planeta azul visto desde la nave.
+El pijama de rayas estaba en el armario.
+La calle principal está cortada por obras.
+Un hacha vieja colgaba de la pared.
+Esta agua no es potable.
+Esta área está reservada para el personal.
+Dame esa hacha, por favor.
+La cuenta, por favor.
+Los alemanes y las alemanas votaron.
+El español es una lengua romance.
+Las españolas ganaron el torneo.
+Me compré unos zapatos y una chaqueta.
+Algunos días no tengo ganas de nada.
+Ningún alumno faltó a clase.
+Alguna vez lo intentaré.
+Cada uno de los invitados trajo algo.
+Varios de ellos no vinieron.
+Muchas de las casas eran de madera.
+Doscientas de las plazas siguen libres.
+El sartén y la sartén se usan en distintas regiones.
+El mar estaba en calma y la mar de gente esperaba en la playa.
+Las dos mitades del pastel eran iguales.
+Los tres cerditos construyeron sus casas.
+Durante las vacaciones leí cuatro novelas.
+Las afueras de la ciudad crecen cada año.
+Con las tijeras cortó las cintas.
+Se puso las gafas para leer el periódico.
+El reloj de la torre marca las doce.
+Las relaciones entre los dos países mejoran.
+Los peces del acuario eran de colores.
+La luz del faro se veía desde lejos.
+Las llamó a todas por teléfono.
+La quiero mucho, pero la echo de menos.
+Los pienso visitar en verano.
+Las cuento cada noche antes de dormir.
+No la cuido como debería.
+Te la presto mañana.
+Se lo dije a la cara.
+Lo primero es lo primero.
+El primero en llegar fue Luis.
+Fue la primera en salir del edificio.
+Era el tercero de cinco hermanos.
+Llegó el primero y se sentó en la primera fila.
+Ocupa el tercer puesto de la clasificación.
+Uno de cada tres alumnos suspendió.
+Una de cada cuatro personas lee a diario.
+Dos de los tres testigos mintieron.
+Tengo dos hijas y un hijo.
+Cuatro años más tarde volvió.
+Son las tres menos cuarto.
+Nos vemos a las nueve y media.
+Ganó tres veces seguidas.
+Pesa dos kilos y medio.
+Mide tres metros de largo.
+El siete es mi número de la suerte.
+El dos de mayo es fiesta en Madrid.
+Página veinte, párrafo tercero.
+Tiene veinte años y vive sola.
+Me costó cien euros.
+Ciento un dálmatas corrían por el parque.
+Mil gracias por todo.
+Hay dos tipos de personas en el mundo.
+Te lo he dicho mil veces.
+Dicho esto, pasemos al siguiente punto.
+Ha dicho palabras muy duras.
+Me queda poco tiempo.
+Bebe demasiado café.
+Trabaja mucho y descansa poco.
+Habla poco pero dice mucho.
+Tiene mucha paciencia con los niños.
+Son pocas las veces que sale.
+Comió demasiados dulces.
+Tanto ellos como ellas estaban de acuerdo.
+Tanto hombres como mujeres participaron.
+Otro día te lo cuento.
+Otros prefieren quedarse en casa.
+Unos dicen que sí y otros que no.
+Algunos piensan que es tarde.
+Muchos creen que lloverá.
+Pocos saben la verdad.
+Ese es el problema.
+Esta es mi casa.
+Este es el mejor libro que he leído.
+Aquel fue un buen año.
+Esto es todo por hoy.
+Este viene conmigo y aquella se queda.
+Esa vive en el tercero.
+Estos cantan muy bien.
+Aquellos tiempos fueron mejores.
+Este lunes empiezo el curso.
+El martes pasado llovió.
+Tu casa es muy bonita.
+Tu hermano trabaja en un banco.
+Tú cuentas las monedas y yo los billetes.
+El cuentacuentos llegó a la escuela.
+Nuestros abuelos vivieron la guerra.
+Vuestras ideas son buenas.
+Su majestad el rey inauguró el puente.
+Sus padres llegan mañana.
+Mi madre y mis tías cocinan juntas.
+Del mismo modo, actuó con prudencia.
+Al principio no entendía nada.
+Al contrario de lo que piensas, es fácil.
+Del dicho al hecho hay mucho trecho.
+A lo largo del día.
+Por las mañanas corre por el parque.
+Tenía las manos frías.
+Me lavé los dientes.
+Lleva el pelo largo.
+Hay un sinfín de opciones.
+Un montón de gente esperaba fuera.
+Una pareja de ancianos paseaba por la orilla.
+La pareja de baile perfecta.
+El grupo de amigos se reunió.
+Una serie de problemas retrasó el proyecto.
+El dilema era evidente.
+El idioma oficial es el español.
+El clima de la zona es templado.
+Los temas pendientes se tratarán mañana.
+Las razones son obvias.
+La razón de ser del proyecto.
+La canción del verano sonaba en todas partes.
+Las canciones de cuna me dan sueño.
+Las ciudades grandes tienen más tráfico.
+La verdad es que no lo sé.
+El paisaje era precioso.
+Los viajes largos me cansan.
+El color del cielo cambió.
+La flor del almendro es blanca.
+Los colores del otoño.
+La labor del voluntario es esencial.
+El valor de la empresa subió.
+Un mal día lo tiene cualquiera.
+El bien común está por encima de todo.
+Los males del siglo.
+Los bienes de la familia.
+El hecho es que no vino.
+Los hechos hablan por sí solos.
+Estaba de buen humor.
+Una buena noticia.
+Un gran día para la ciencia.
+Una gran casa en el campo.
+La única opción es esperar.
+Su propia casa.
+Las mismas personas de siempre.
+El mismo día.
+Las demás opciones eran peores.
+El otro lado del río.
+La otra orilla.
+Cualquier día de estos.
+Cierta persona me lo contó.
+# porque, porqué, por qué, por que.
+Lo haré porque me apetece.
+¿Porque llegué tarde ya no me hablas?
+Se entendería porque era evidente.
+Votaron por que se repitiera la prueba.
+No tienes nada por que disculparte.
+Nadie conoce la razón del porqué no vino.
+Quiero saber el porqué.
+No tienes más razón porque grites.
+La causa por que luchamos es justa.
+Lo sé porque lo vi con mis ojos.
+Estaban deseosos por que llegara el verano.
+Nadie sabe por qué se marchó.
+El porqué de su silencio sigue sin aclararse.
+Me fui porque estaba cansada.
+# Commas after connectors and before the person greeted.
+Sin embargo, nadie protestó.
+Además de caro, es lento.
+Por tanto esfuerzo merece un premio.
+O sea que no vienes.
+Al contrario de lo que dicen, funciona.
+Por otro lado del puente pasa el tren.
+¡Hola a todos!
+Buenos días tenga usted.
+Hola, Marta, ¿qué tal?
+Saludos cordiales.
+Un beso grande.
+En primer lugar, gracias a todos.
+De hecho y de derecho le pertenece.
+Felicidades por el premio.
+Hasta luego, cocodrilo.
+# First-person present after a fronted place, time or object.
+En Madrid trabajo mucho.
+El pan compro yo.
+Ahora limpio la cocina.
+El niño modelo saluda al público.
+Últimamente aprecio más el silencio.
+Luis, trabajo mañana.
+El precio medio de la vivienda subió.
+Un árbol repleto de frutas.
+Esta semana no puedo quedar.
+Mañana trabajo en casa.
+El documento anexo es largo.
+Cualquier signo de cansancio preocupa.
+# Subject and verb number.
+El problema son los precios.
+Su pasión han sido los viajes.
+Las manzanas las compra mi padre.
+Los domingos abre a las diez.
+La mayoría votaron en contra.
+Me gustan el cine y la música.
+No me gustan esa clase de bromas.
+Ellos hace años que no se ven.
+Las cosas parece que mejoran.
+Son resultado de mucho trabajo.
+Mi amigo Eren es de Turquía.
+Los niños juegan en el parque.
+Ella tiene razón y ellos lo saben.
+Me encantan las fresas con nata.
+Estamos cansados de esperar.
+Los españoles somos así.
+Esta noche salen todos juntos.
+# Adjectives and participles after a copula.
+Ella es médico en un hospital.
+Su profesión es abogado.
+La vida es puro teatro.
+La casa está justo enfrente.
+La sala estaba mal iluminada.
+La reunión fue cancelada por la lluvia.
+Mi padre es alto y mi madre es baja.
+Las calles están vacías.
+El coche está roto.
+La sopa es otro mundo.
+# hacia and seria.
+Caminamos hacia el río.
+Miró hacia atrás.
+Se construyó hacia 1900.
+Avanzan hacia más derechos.
+Una mujer seria.
+Es una persona seria la que necesitamos.
+Se puso seria de repente.
+Supone una seria amenaza.
+Lo empujó hacia la puerta.
+Hacía mucho que no nos veíamos.
+# Sentence marks, dotted names, decimals and dates.
+Llegamos tarde. La cena ya estaba fría.
+Escríbeme a info.ventas@ejemplo.es o visita ejemplo.es para más datos.
+El archivo se llama informe.final.pdf y pesa 2.5 MB.
+Lo firmó J. R. Tolkien en persona.
+¿Te gustó? Mucho. ¡Qué frío! Cierra la ventana.
+Nació el 30.04.1989 y se casó el 29.02.2000.
+La tasa subió el 30.2 por ciento en un año.
+Ganaron por tres a dos en la prórroga.
+# Clitics, articles and verb forms.
+Le vino bien el descanso y les traje un regalo.
+Yo le valido la entrada y él le olvida siempre las llaves.
+Les tenías miedo a los perros.
+Pidió un té helado en la terraza.
+Me he olvidado de todo y te he llamado dos veces.
+Al marcharse, cerró la puerta.
+Va a casa de su madre todos los domingos.
+# Accents read from their frames.
+Esta la compré en Roma y aquella me la regalaron.
+Esta los domingos no abre.
+Compré pan y esta revista.
+No sé que sea para tanto.
+Lo que de verdad importa es la salud.
+Más que de cuenta, hablo de dinero.
+La gente critica sin saber y la empresa valida los datos.
+Por este motivo solicito una revisión.
+Él la practica cada día.
+Aun así, fue a trabajar. Aun cuando llueve, sale a correr.
+Aún no ha llegado y aún hoy lo recuerdo.
+Se vende piso con terraza.
+Si, como dices, llueve, no iremos.
+Te lo doy si lo necesitas.
+Lo haré, pero si a ti te parece bien.
+Lo sé porque me lo dijo ella.
+Lucha por que haya paz en el mundo.
+# Compounds, names and agreement.
+Al que mal vive, el miedo le sigue.
+Habló sobre protección de datos.
+El socio fundador firmó el acta.
+Le dio al guarda unas monedas.
+Dio a su prima regalos de cumpleaños.
+Padece beta-talasemia desde niño.
+Rosa trabajo es lo que quiero.
+Quizás tienen razón y ojalá vengan pronto.
+Creo que Juan y Ana vienen mañana.
+Una vez pasados los exámenes, descansamos.
+La vez pasada fue mejor.
+Terminó la carrera más cansado que nunca.
+Volvió de las vacaciones más relajado.
+Una de mis hermanos vino a verme.
+Este año fue uno de muchas novedades.
