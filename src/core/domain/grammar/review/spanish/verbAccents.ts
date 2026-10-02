@@ -4,6 +4,7 @@ import {
   CLITICS,
   CONJUNCTIONS,
   DETERMINERS as COMMON_DETERMINERS,
+  GIVEN_NAMES,
   isInfinitive,
   PREPOSITIONS,
   SER,
@@ -11,6 +12,7 @@ import {
   tokenize,
   words,
 } from "./common";
+import { readNoun } from "./agreement";
 import {
   ACCENTED_NOMINAL,
   attribute,
@@ -46,6 +48,42 @@ const FUNCTION_WORDS = words(
     "luego tampoco sino demasiado medio esto eso aquello",
 );
 
+/**
+ * After a noun it agrees with, where that noun cannot be the verb's subject: a preposition, an
+ * indefinite article or a verb before it ("en una zona crítica", "hace tareas específicas"),
+ * and the phrase closing after the adjective ("crítica.", "válida y", "íntegro de").
+ */
+function postponedAdjective(at: Around, accented: string): boolean {
+  const ending = /(o|a)(s?)$/u.exec(accented);
+  const noun = ending && readNoun(at.prev());
+  if (!ending || !noun?.gender || at.tokens[at.i - 1].broken) return false;
+  if ((noun.gender === "f") !== (ending[1] === "a") || noun.plural !== (ending[2] === "s"))
+    return false;
+  const before = at.prev(2);
+  const article = /^(?:un|una|unos|unas)$/u.test(before);
+  // Where the governing preposition stands: "en zona", "en esta zona".
+  const preposition = PREPOSITIONS.has(before)
+    ? 2
+    : COMMON_DETERMINERS.has(before) && PREPOSITIONS.has(at.prev(3))
+      ? 3
+      : 0;
+  const governed =
+    article ||
+    preposition > 0 ||
+    (!!before && finiteVerb(before) && !isNoun(before) && !readNoun(before));
+  if (!governed) return false;
+  const after = at.next();
+  // "Por este motivo solicito desde…": after a fronted phrase the word may be the main verb.
+  if (!article && preposition && new Around(at.tokens, at.i - preposition).starts)
+    return at.endsAfter();
+  return (
+    at.endsAfter() ||
+    ((after === "y" || after === "e") && !COMMON_DETERMINERS.has(at.next(2))) ||
+    (PREPOSITIONS.has(after) && after !== "a") ||
+    /^\p{L}{4,}mente$/u.test(after)
+  );
+}
+
 /** "termino" -> "término" where a noun or adjective goes, not a verb. */
 function nominal(at: Around): string | null {
   const word = at.tokens[at.i].lower;
@@ -63,14 +101,29 @@ function nominal(at: Around): string | null {
   if (DEMONSTRATIVES.has(prev) && PREPOSITIONS.has(at.prev(2))) return accented;
   // "en la página", "parar la máquina", "la máquina del tiempo": "la" is no clitic there.
   if (/^(?:la|las|los)$/u.test(prev)) {
+    // "la termino": a feminine article cannot take the masculine noun.
+    if (prev !== "los" && /os?$/u.test(accented)) return null;
     const before = at.prev(2);
     return PREPOSITIONS.has(before) ||
       isInfinitive(before) ||
       /(?:ado|ido)$/u.test(before) ||
-      (!!before && (next === "de" || next === "del"))
+      (!!before && (next === "de" || next === "del")) ||
+      // "Memorizarás las fórmulas": a clitic goes before its verb, not after another one.
+      (!!before && finiteVerb(before) && !isNoun(before) && !CLITICS.has(at.prev(3))) ||
+      // "La fábrica produjo…": two finite verbs never stand side by side.
+      (!!next &&
+        finiteVerb(next) &&
+        !isNoun(next) &&
+        !attribute(next) &&
+        !CLITICS.has(next) &&
+        !PREPOSITIONS.has(next) &&
+        !CONJUNCTIONS.has(next) &&
+        !COMMON_DETERMINERS.has(next))
       ? accented
       : null;
   }
+  // "una situación crítica.", "hace tareas específicas": an adjective after its noun.
+  if (postponedAdjective(at, accented)) return accented;
   // A preposition never governs a finite verb: "de termino", "en linea", "por ultimo".
   return PREPOSITIONS.has(prev) && prev !== "a" ? accented : null;
 }
@@ -87,14 +140,15 @@ const SUBJECT_DETERMINERS = words(
 );
 // Capitalized words that are no name: "Me quedo", "Al contrario", "Mañana trabajo".
 const notName = (word: string) =>
-  CLITICS.has(word) ||
-  PREPOSITIONS.has(word) ||
-  CONJUNCTIONS.has(word) ||
-  COMMON_DETERMINERS.has(word) ||
-  CLOSED.has(word) ||
-  /mente$/u.test(word) ||
-  !!attribute(word) ||
-  finiteVerb(word);
+  !GIVEN_NAMES.has(word) &&
+  (CLITICS.has(word) ||
+    PREPOSITIONS.has(word) ||
+    CONJUNCTIONS.has(word) ||
+    COMMON_DETERMINERS.has(word) ||
+    CLOSED.has(word) ||
+    /mente$/u.test(word) ||
+    !!attribute(word) ||
+    finiteVerb(word));
 const CLOSED = words(
   "al del lo yo tú él ella usted nosotros ellos ellas ustedes no ya hoy ayer anoche mañana aquí " +
     "allí así también tampoco muy más menos siempre nunca entonces luego después antes ahora " +
@@ -221,8 +275,10 @@ const DIRECTIONS = words(
   "abajo arriba adelante atrás afuera adentro allá acá aquí allí delante donde dónde",
 );
 const WEATHER = words("calor frío sol viento fresco bueno malo buen mal");
-const AMOUNTS = words("mucho muchos tanto tantos poco pocos demasiado casi unos unas");
-const TIME_NOUNS = words("tiempo años días meses semanas horas minutos rato siglos");
+const AMOUNTS = words("mucho muchos tanto tantos poco pocos demasiado casi unos unas más una un");
+const TIME_NOUNS = words(
+  "tiempo años días meses semanas horas minutos rato siglos año día mes semana hora minuto",
+);
 const OBJECT_CLITICS = words("lo la los las le les me te se nos os");
 
 /** "Hacia dos años que…", "lo que hacia", "la hacia otra empresa": the imperfect "hacía". */
@@ -239,12 +295,17 @@ function hacia(at: Around): string | null {
   if ((prev === "qué" || (prev === "que" && at.prev(2) === "lo")) && !/^(?:más|ya)$/u.test(next))
     return "hacía";
   if (WEATHER.has(next) || (next === "las" && at.next(2) === "veces")) return "hacía";
-  // An amount of time: "hacia mucho tiempo", "hacia dos años que no se veían".
-  if (AMOUNTS.has(next) || NUMBERS.has(next)) {
-    for (let k = 1; k <= 5; k++) {
-      const word = at.next(k);
-      if (TIME_NOUNS.has(word) || word === "que") return "hacía";
-      if (!word) break;
+  // An amount of time: "hacia mucho tiempo", "hacia dos años que no se veían", "hacia ya
+  // treinta días", "hacia muchos, muchos meses que".
+  const start = next === "ya" ? 2 : 1;
+  const amount = at.next(start);
+  if (AMOUNTS.has(amount) || NUMBERS.has(amount)) {
+    for (let j = at.i + start, n = 0; j < at.tokens.length && n < 7; j++, n++) {
+      const token = at.tokens[j];
+      if (token.broken || /^[.;:!?]$/u.test(token.text)) break;
+      if (TIME_NOUNS.has(token.lower)) return "hacía";
+      // "hacía mucho que no se veían": the amount alone, then "que".
+      if (token.lower === "que" && j === at.i + start + 1) return "hacía";
     }
   }
   return null;

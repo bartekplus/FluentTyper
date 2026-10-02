@@ -1,18 +1,25 @@
 import { describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import {
+  buildFrenchAdjectives,
+  buildFrenchGender,
   buildFrenchLexicon,
   buildFrenchNouns,
   FRENCH_LEXICON_SOURCES,
+  readDeterminerBigrams,
 } from "../../scripts/generate-french-lexicon";
 import {
+  adjectiveReadings,
   conjugate,
   finitePersons,
   IL,
   ILS,
+  inflect,
   isInflectedNoun,
   isVerbHomograph,
   JE,
+  nounGender,
   NOUS,
   TU,
   verbReadings,
@@ -331,6 +338,65 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
       ],
     },
   ],
+  [
+    "frenchNounGender",
+    {
+      pos: [
+        ["Nous avons visité un maison ancienne.", "Nous avons visité une maison ancienne."],
+        ["Elle a résolu cette problème hier.", "Elle a résolu ce problème hier."],
+        ["Il conduit un voiture neuve.", "Il conduit une voiture neuve."],
+        ["Le réunion commence à neuf heures.", "La réunion commence à neuf heures."],
+        ["Je pense à cet idée depuis lundi.", "Je pense à cette idée depuis lundi."],
+        ["Il parle du situation actuelle.", "Il parle de la situation actuelle."],
+        ["Ma vélo est garé devant la porte.", "Mon vélo est garé devant la porte."],
+        ["On a parlé de la gouvernement.", "On a parlé du gouvernement."],
+        ["Elle pense à la projet.", "Elle pense au projet."],
+      ],
+      neg: [
+        "Elle est une élève brillante et un enfant curieux l'admire.",
+        "Je la porte tous les jours.",
+        "Ce base sur quoi, ton avis ?",
+        "Mon amie arrive demain.",
+        "Le Monde a publié un article.",
+        "Un unique sommet domine la vallée.",
+        "C'est une tout autre histoire.",
+        "Il a lu le tour de France et visité la tour Eiffel.",
+        "Le sixième jour, elle est partie.",
+        "Dans un après-midi pluvieux, rien ne bouge.",
+        "La une du journal était consacrée au sport.",
+      ],
+    },
+  ],
+  [
+    "frenchAdjectiveAgreement",
+    {
+      pos: [
+        ["Nous traversons une forêt tropical.", "Nous traversons une forêt tropicale."],
+        ["Nous avons un climat chaude.", "Nous avons un climat chaud."],
+        ["Range les dossiers triées dans l'armoire.", "Range les dossiers triés dans l'armoire."],
+        ["Cette réunion est annulé.", "Cette réunion est annulée."],
+        ["La maison semble très grand.", "La maison semble très grande."],
+        ["Ils sont françaises depuis toujours.", "Ils sont français depuis toujours."],
+        ["Elle est vraiment heureux de venir.", "Elle est vraiment heureuse de venir."],
+        ["Les routes sont dangereux ce matin.", "Les routes sont dangereuses ce matin."],
+      ],
+      neg: [
+        "Elle a l'air fatiguée ce soir.",
+        "Ils sont bien sûr partis à l'heure.",
+        "Il porte une chemise bleu clair et un pull rouge.",
+        "Thomas passe ses journées enfermé dans sa chambre.",
+        "La loi contraint chacun à payer.",
+        "Une main tenant un flambeau orne la façade.",
+        "Elle porte des chaussures marron.",
+        "Les drapeaux français et italien flottent au vent.",
+        "Pierre et elle étaient fiancés depuis un an.",
+        "Je suis un peu perdue ce matin.",
+        "Les voitures dernier cri coûtent cher.",
+        "Ils sont très avares de compliments.",
+        "Avec une jupe et un pull noirs, elle était élégante.",
+      ],
+    },
+  ],
 ];
 
 describe.each(FIXTURES)("%s", (ruleId, { pos, neg }) => {
@@ -409,6 +475,49 @@ describe("French lexicon", () => {
     expect(buildFrenchNouns(dic, aff)).toBe(committed);
   });
 
+  // Needs python3 with marisa-trie and numpy (scripts/requirements.txt) to read the n-gram trie.
+  const bigrams = readDeterminerBigrams();
+  test.skipIf(bigrams === null)(
+    "the committed gender lists match fr_FR.dic/.aff and the n-gram counts",
+    async () => {
+      const [dic, aff, committed] = await Promise.all(
+        [FRENCH_LEXICON_SOURCES.dic, FRENCH_LEXICON_SOURCES.aff, FRENCH_LEXICON_SOURCES.gender].map(
+          (path) => readFile(path, "utf8"),
+        ),
+      );
+      expect(buildFrenchGender(dic, aff, bigrams!)).toBe(committed);
+    },
+  );
+
+  test("nouns get their gender from the lists or their ending, never for either-gender words", () => {
+    for (const word of ["maison", "voiture", "réunion", "liberté", "soif"])
+      expect(nounGender(word)).toBe("f");
+    for (const word of ["arbre", "problème", "gouvernement", "camion", "silence"])
+      expect(nounGender(word)).toBe("m");
+    for (const word of ["élève", "tour", "journaliste", "xyzzy"])
+      expect(nounGender(word)).toBe(null);
+  });
+
+  test("the committed adjective forms match fr_FR.dic/.aff", async () => {
+    const [dic, aff, committed] = await Promise.all(
+      [
+        FRENCH_LEXICON_SOURCES.dic,
+        FRENCH_LEXICON_SOURCES.aff,
+        FRENCH_LEXICON_SOURCES.adjectives,
+      ].map((path) => readFile(path, "utf8")),
+    );
+    expect(buildFrenchAdjectives(dic, aff)).toBe(committed);
+  });
+
+  test("adjective readings give gender and number, and the other forms", () => {
+    const [tropicale] = adjectiveReadings("tropicale");
+    expect([tropicale.lemma, tropicale.slot]).toEqual(["tropical", "fs"]);
+    expect(inflect(tropicale, "mp")).toEqual(["tropicaux"]);
+    expect(adjectiveReadings("vieux").map((r) => r.slot)).toEqual(["ms", "mp"]);
+    expect(inflect(adjectiveReadings("blanc")[0], "fs")).toEqual(["blanche"]);
+    expect(adjectiveReadings("maison")).toEqual([]);
+  });
+
   test("homographs are verb forms that another entry also spells", () => {
     expect(isVerbHomograph("passé")).toBe(true);
     expect(isVerbHomograph("dîner")).toBe(true);
@@ -446,6 +555,10 @@ test("no French chunk stalls on adversarial input", () => {
     `x${" ".repeat(3_800)}${triggers}`,
     "mangé ".repeat(800),
     "il à a ou où sa se ce la ma sont du ont ".repeat(150),
+    "un maison la problème cette arbre du réunion ma vélo comme même que also ".repeat(150),
+    "les rues était calmes et les dossiers triées que j'ai aidée nous avons mangés ".repeat(120),
+    "c'est moi qui ceux qui le la les un une ".repeat(250),
+    "ont peut quant la son on peux là ".repeat(250),
   ])
     expect(slowest(text)).toBeLessThan(100);
 });
@@ -456,4 +569,153 @@ test("French time zones and pronoun + article pairs stay clean", () => {
   expect(findings("englishContractionNormalization", "Je pense que cest vrai.")).toHaveLength(1);
   expect(findings("englishRepeatedWords", "Je m'en achèterai un un jour.")).toEqual([]);
   expect(findings("englishRepeatedWords", "Il a pris les les clés.")).toHaveLength(1);
+});
+
+const FRENCH_ON = REVIEW_SUPPORTED_RULE_IDS.filter(
+  (id) =>
+    runsInReviewLanguage(id, "fr_FR") &&
+    !["capitalizeSentenceStart", "capitalizeAfterLineBreak", "styleLongSentence"].includes(id),
+);
+
+test("the clean French corpus has no findings", () => {
+  const text = readFileSync("tests/fixtures/native-review-corpus/french-clean.txt", "utf8")
+    .split("\n")
+    .filter((line) => !line.startsWith("#"))
+    .join("\n");
+  const found = detectReviewDiagnostics(
+    { id: "clean", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
+    {
+      enabledRules: FRENCH_ON,
+      lang: "fr_FR",
+      userDictionary: [],
+      insertSpaceAfterAutocomplete: true,
+    },
+  ).diagnostics;
+  expect(found.map((d) => `${d.ruleId}: ${d.original} @ ${d.range.start}`)).toEqual([]);
+});
+
+test.each([
+  ["frenchElision", "Le sigle vient de also known as, en anglais."],
+  ["frenchElision", "Il épelle son nom : d o r a."],
+  ["frenchSubjectVerbAgreement", "« Je est un autre » reste une formule célèbre."],
+  ["frenchSubjectVerbAgreement", "Le pronom personnel tu n'est pas toujours exprimé."],
+  ["frenchHomophones", "Il a l'air ravi de sa journée."],
+  ["frenchHomophones", "S'est dit d'un outil qu'on emporte partout."],
+  ["frenchHomophones", "Comme même les plus prudents se trompent, restons humbles."],
+  ["frenchVerbForms", "Ces travaux ont bien entendu gêné les riverains."],
+  ["frenchNounNumber", "Un tiens vaut mieux que deux tu l'auras."],
+  ["frenchHyphenation", "Ce texte devra peu à peu être corrigé."],
+  ["englishPhraseCorrections", "La créatrice Mary Quant, Quant on la cite, fait sourire."],
+  ["duplicatePunctuationCollapse", "Jean Dupont (1960-....) est peintre."],
+  ["frenchVerbForms", "Il a peur des orages depuis l'enfance."],
+  ["frenchVerbForms", "Il y a trait à la santé publique."],
+  ["frenchVerbForms", "Elle a envie de partir loin."],
+  ["frenchAdjectiveAgreement", "Je les ai vus hier soir."],
+  ["frenchAdjectiveAgreement", "Quelles pommes vous avez mangées ?"],
+  ["frenchAdjectiveAgreement", "Les musiciennes que j'ai entendu chanter étaient douées."],
+  ["frenchAdjectiveAgreement", "La maison que j'ai eu la chance de visiter est vendue."],
+  ["frenchAdjectiveAgreement", "Une humiliation qu'elle a réussi à cacher."],
+  ["frenchAdjectiveAgreement", "La lettre que j'ai voulu t'envoyer est perdue."],
+  ["frenchAdjectiveAgreement", "Un camion qui passait nous a éclaboussés."],
+  ["frenchAdjectiveAgreement", "Elles ont été invitées au mariage."],
+  ["frenchHomophones", "À qui on parlé de cette affaire ?"],
+  ["frenchHomophones", "Quelqu'un peut m'aider ?"],
+  ["frenchHomophones", "Il est trop peut-être, mais il a raison."],
+  ["frenchHomophones", "Quant à moi, je reste ici."],
+  ["frenchHomophones", "Je la vois tous les jours."],
+  ["frenchHomophones", "Do ré mi fa sol la."],
+  ["frenchHomophones", "Les enfants de son frère jouent dehors."],
+  ["frenchSubjectVerbAgreement", "Le policier le plus proche intervient."],
+  ["frenchSubjectVerbAgreement", "Ce matin nous avons froid."],
+  ["frenchSubjectVerbAgreement", "Des copains plus vieux que moi qui fumaient."],
+  ["frenchSubjectVerbAgreement", "Notre Père qui êtes aux cieux."],
+  ["frenchSubjectVerbAgreement", "Un exemple frappant sont les nouvelles lois."],
+  ["frenchSubjectVerbAgreement", "Les habitants comme le maire ont voté."],
+  ["frenchSubjectVerbAgreement", "Une intoxication en cours peut être grave."],
+] as Array<[CatalogRuleId, string]>)("%s stays silent on %p", (ruleId, text) => {
+  expect(findings(ruleId, text).map((d) => d.original)).toEqual([]);
+});
+
+test.each([
+  ["frenchHomophones", "Il est venu comme même.", "Il est venu quand même."],
+  ["frenchHomophones", "C'est comme même bizarre.", "C'est quand même bizarre."],
+  ["frenchHyphenation", "Il viendra peu être demain.", "Il viendra peut-être demain."],
+  ["frenchHyphenation", "C'est peu être la bonne réponse.", "C'est peut-être la bonne réponse."],
+  ["frenchElision", "Il parle de un ami.", "Il parle d'un ami."],
+  [
+    "frenchVerbForms",
+    "Hier, j'ai enfin comprit le problème.",
+    "Hier, j'ai enfin compris le problème.",
+  ],
+  ["frenchVerbForms", "Elle a reçut un colis ce matin.", "Elle a reçu un colis ce matin."],
+  ["frenchVerbForms", "Nous avons prit le dernier train.", "Nous avons pris le dernier train."],
+  [
+    "frenchVerbForms",
+    "Ils ont beaucoup rit pendant le film.",
+    "Ils ont beaucoup ri pendant le film.",
+  ],
+  [
+    "frenchAdjectiveAgreement",
+    "Nous avons visités le château hier.",
+    "Nous avons visité le château hier.",
+  ],
+  [
+    "frenchAdjectiveAgreement",
+    "Elle n'a rien répondue à ma lettre.",
+    "Elle n'a rien répondu à ma lettre.",
+  ],
+  [
+    "frenchAdjectiveAgreement",
+    "Les fleurs que j'ai cueilli sont fanées.",
+    "Les fleurs que j'ai cueillies sont fanées.",
+  ],
+  [
+    "frenchAdjectiveAgreement",
+    "Le roman qu'elle a lue était passionnant.",
+    "Le roman qu'elle a lu était passionnant.",
+  ],
+  ["frenchHomophones", "Mes cousins son très gentils.", "Mes cousins sont très gentils."],
+  [
+    "frenchHomophones",
+    "Je salue ceux qui on fui la guerre.",
+    "Je salue ceux qui ont fui la guerre.",
+  ],
+  ["frenchHomophones", "Elle mange trop peut le soir.", "Elle mange trop peu le soir."],
+  ["frenchHomophones", "Il est passé il y a peut.", "Il est passé il y a peu."],
+  ["frenchHomophones", "Peut de gens le savent.", "Peu de gens le savent."],
+  ["frenchHomophones", "Ici, ont peut tout acheter.", "Ici, on peut tout acheter."],
+  ["frenchHomophones", "Tu reviendras quant ?", "Tu reviendras quand ?"],
+  ["frenchHomophones", "C'est la que tout a commencé.", "C'est là que tout a commencé."],
+  ["frenchHomophones", "Ton frère est la ?", "Ton frère est là ?"],
+  ["englishPhraseCorrections", "Elles ne son pas prêtes.", "Elles ne sont pas prêtes."],
+  [
+    "frenchSubjectVerbAgreement",
+    "Les routes était glissantes ce matin.",
+    "Les routes étaient glissantes ce matin.",
+  ],
+  ["frenchSubjectVerbAgreement", "Mon voisin ne peux pas venir.", "Mon voisin ne peut pas venir."],
+  [
+    "frenchSubjectVerbAgreement",
+    "Les trains n'arrive plus à l'heure.",
+    "Les trains n'arrivent plus à l'heure.",
+  ],
+  [
+    "frenchSubjectVerbAgreement",
+    "Ma sœur qui habitent à Lyon viendra.",
+    "Ma sœur qui habite à Lyon viendra.",
+  ],
+  [
+    "frenchSubjectVerbAgreement",
+    "C'est toi qui a gagné la partie.",
+    "C'est toi qui as gagné la partie.",
+  ],
+  [
+    "frenchSubjectVerbAgreement",
+    "Celles qui travaille ici sont contentes.",
+    "Celles qui travaillent ici sont contentes.",
+  ],
+] as Array<[CatalogRuleId, string, string]>)("%s fixes %p", (ruleId, text, fixed) => {
+  const [finding, ...rest] = findings(ruleId, text);
+  expect(rest).toEqual([]);
+  expect(applyEdits(text, finding.alternatives[0].edits)).toBe(fixed);
 });

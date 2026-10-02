@@ -29,7 +29,9 @@ const NOT_NOUNS = new Set(
     "multi anti ex néo " +
     // "les lundi et mardi": days and months stay singular after a distributive "les".
     "lundi mardi mercredi jeudi vendredi samedi dimanche janvier février mars avril mai juin " +
-    "juillet août septembre octobre novembre décembre"
+    "juillet août septembre octobre novembre décembre " +
+    // "un tiens vaut mieux que deux tu l'auras": the proverb's noun.
+    "tiens"
   ).split(" "),
 );
 // "-al" and "-au/-eu" plurals that take an s.
@@ -105,12 +107,22 @@ function nounNumber(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     ["de", "le", "un", "du", "ce", "au"].includes(previous[0].w)
   )
     return null;
+  // "les épaules son larges": "sont" misspelt after a plural subject.
+  if (
+    determiner === "son" &&
+    previous[1] &&
+    PLURAL.has(previous[1].w) &&
+    /[sx]$/.test(previous[0].w)
+  )
+    return null;
   // "vos nom et prénom", "les premier et deuxième": singulars sharing one determiner.
   const [start] = m.indices!.groups!.noun;
   const rest = ctx.text.slice(start + typed.length);
   if (/^[\s\u00a0]*(?:,|et\b|ou\b)/u.test(rest)) return null;
   // "étudiant*es", "résistant(e)s": inclusive endings.
   if (/^[*·(.]\p{L}/u.test(rest)) return null;
+  // "ces don Juan": a title before a name.
+  if (PLURAL.has(determiner) && /^[ \t]+\p{Lu}/u.test(rest)) return null;
   // "je les aime", "tu la portes", "ce sont": a pronoun before its verb. A word that is
   // also a noun ("la routes", "des porte") counts as one where no verb can follow: after a
   // preposition, a verb or at a clause start, or after a determiner that is no pronoun.
@@ -147,15 +159,15 @@ function nounNumber(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   };
 }
 
-const DETERMINER_NOUN =
-  /(?<![\p{L}\p{M}\p{N}_'’-])(?<det>\p{L}+)(?=[ \t]+(?<noun>\p{L}+)(?![\p{L}\p{M}\p{N}_'’-]))/dgiu;
+const DETERMINER_NOUN = new RegExp(
+  `(?<![\\p{L}\\p{M}\\p{N}_'’-])(?<det>${[...PLURAL, ...SINGULAR].join("|")})(?=[ \\t]+(?<noun>\\p{L}+)(?![\\p{L}\\p{M}\\p{N}_'’-]))`,
+  "dgiu",
+);
 
 function nounNumbers(ctx: DetectContext): RawFinding[] {
   if (ctx.lang.slice(0, 2) !== "fr") return [];
   const findings: RawFinding[] = [];
   for (const m of ownedFrenchWords(ctx, DETERMINER_NOUN)) {
-    const det = m.groups!.det.toLowerCase();
-    if (!PLURAL.has(det) && !SINGULAR.has(det)) continue;
     const finding = nounNumber(ctx, m);
     if (finding) findings.push(finding);
   }
