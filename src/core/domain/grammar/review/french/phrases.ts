@@ -10,6 +10,11 @@ const one = (frames: string[], typed: string, fixed: string): PhraseRow[] =>
 
 /** Rows for englishPhraseCorrections (contextual grammar). */
 export const PHRASES: readonly PhraseRow[] = [
+  // "et" after an elided pronoun is always the verb "est": "c'et", "n'et", "s'et".
+  ["c'et", "c'est"],
+  ["n'et", "n'est"],
+  ["s'et", "s'est"],
+  ["qu'et", "qu'est"],
   // "à": prepositional locutions whose "a" can never be the verb.
   ...one(
     [

@@ -497,21 +497,84 @@ function surToSur(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   return null;
 }
 
-/** "il ce lève": the reflexive pronoun after a subject. */
+// Words before an infinitive that governs it: "de se placer", "pour se lancer", "doit se lever".
+const INFINITIVE_GOVERNORS = new Set("de d' pour sans à par".split(" "));
+
+/** "il ce lève", "qui ce cache", "de ce placer", "en ce parlant": the reflexive pronoun. */
 function ceToSe(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   const before = tokensBefore(ctx.text, m.index, 3);
-  const next = tokensAfter(ctx.text, m.index + m[0].length, 1)[0];
+  const [next, after] = tokensAfter(ctx.text, m.index + m[0].length, 2);
+  if (!next || next.hyphen) return null;
+  const fix = (from: Token | undefined) =>
+    wordFinding(ctx, m.index, m[0], ["se"], RULE, MESSAGE, {
+      start: from?.start ?? m.index,
+      end: next.end,
+    });
   let i = 0;
   if (before[0]?.w === "ne" || before[0]?.w === "n'") i = 1;
   const subject = before[i];
-  if (!subject || !["il", "elle", "on", "ils", "elles"].includes(subject.w)) return null;
-  if (ctx.text[subject.start - 1] === "-") return null;
-  if (!next || !plainVerb(next.w, isFinite)) return null;
-  return wordFinding(ctx, m.index, m[0], ["se"], RULE, MESSAGE, {
-    start: subject.start,
-    end: next.end,
-  });
+  if (subject && ["il", "elle", "on", "ils", "elles"].includes(subject.w)) {
+    if (ctx.text[subject.start - 1] === "-") return null;
+    return plainVerb(next.w, isFinite) ? fix(subject) : null;
+  }
+  const previous = before[0];
+  // An infinitive after a preposition or a verb: "pour ce lancer", "il devrait ce placer". "Pour
+  // ce faire," (to do so) keeps its "ce".
+  const infinitive =
+    readingsOf(next.w).some((r) => r.slot === "I" && r.lemma === next.w) &&
+    !NOUN_INFINITIVES.has(next.w) &&
+    !["lever", "coucher", "toucher", "parler", "devenir", "souvenir"].includes(next.w);
+  if (infinitive && previous) {
+    // "Pour ce faire, il faut un algorithme": the idiom, unless "faire" takes an infinitive or an
+    // attribute ("pour se faire pardonner", "pour se faire belle").
+    const reflexiveFaire =
+      !!after &&
+      !DETERMINERS.has(after.w) &&
+      (readingsOf(after.w).some((r) => r.slot === "I" || r.slot === "Q") ||
+        adjectiveReadings(after.w).length > 0);
+    const idiom = next.w === "faire" && previous.w === "pour" && !reflexiveFaire;
+    const governor =
+      INFINITIVE_GOVERNORS.has(previous.w) ||
+      (plainVerb(previous.w, isFinite) && !isAuxiliary(previous.w));
+    return governor && !idiom ? fix(previous) : null;
+  }
+  // "en ce parlant": a present participle.
+  if (previous?.w === "en" && readingsOf(next.w).some((r) => r.slot === "G")) return fix(previous);
+  // "qui ce cache", "cela ce passe": after a subject pronoun a verb follows, never a noun.
+  if (previous && ["qui", "cela", "ça"].includes(previous.w)) {
+    const third = readingsOf(next.w).some((r) => isFinite(r) && (r.slot as number) & IL);
+    // "qui ce type pouvait être", "c'est qui ce type ?": a noun the verb or the question follows.
+    const noun =
+      isVerbHomograph(next.w) &&
+      (!after ||
+        readingsOf(after.w).some(isFinite) ||
+        /^[\s\u00a0]*[?!.…]/u.test(ctx.text.slice(next.end, next.end + 3)));
+    if (third && !noun && !DETERMINERS.has(after?.w ?? "")) return fix(previous);
+  }
+  return null;
 }
+
+/** "Il c'en rend compte", "elle c'est trompée", "ne c'était": the reflexive "s'". */
+function cToS(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const before = tokensBefore(ctx.text, m.index, 1);
+  const subject = before[0];
+  if (!subject || ctx.text[subject.start - 1] === "-") return null;
+  if (!["il", "elle", "on", "ils", "elles", "ne", "n'"].includes(subject.w)) return null;
+  const elided = m[0].slice(0, 2);
+  return wordFinding(
+    ctx,
+    m.index,
+    elided,
+    [`${elided[0] === "C" ? "S" : "s"}${elided[1]}`],
+    RULE,
+    MESSAGE,
+    {
+      start: subject.start,
+      end: m.index + m[0].length,
+    },
+  );
+}
+const C_ELIDED = /(?<![\p{L}\p{M}\p{N}_'’-])[cC]['’](?=\p{L})\p{L}+/gu;
 
 const ETRE_THIRD = new Set(["sont", "sera", "serait", "seront", "seraient", "fut", "furent"]);
 
@@ -519,6 +582,16 @@ const ETRE_THIRD = new Set(["sont", "sera", "serait", "seront", "seraient", "fut
 function seToCe(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   const before = tokensBefore(ctx.text, m.index, 2);
   const [next, complement] = tokensAfter(ctx.text, m.index + m[0].length, 2);
+  // "Pour se faire, il faudra…": the idiom "pour ce faire" (to do so) before a comma.
+  if (
+    before[0]?.w === "pour" &&
+    next?.w === "faire" &&
+    /^[\s\u00a0]*,/u.test(ctx.text.slice(next.end, next.end + 4))
+  )
+    return wordFinding(ctx, m.index, m[0], ["ce"], RULE, MESSAGE, {
+      start: before[0].start,
+      end: next.end,
+    });
   if (!next || !ETRE_THIRD.has(next.w) || next.hyphen) return null;
   // A sentence start (or "car"): after a comma or "mais" the subject may be left out
   // ("les musiciens se séparent, mais se sont réunis").
@@ -537,8 +610,9 @@ function seToCe(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
 /** "S'est bien de venir", "Dépêche-toi, s'est urgent": "c'est" with no subject before. */
 function sEstToCEst(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   const before = tokensBefore(ctx.text, m.index, 2);
-  // "ce que s'est dit Leo" inverts the subject: only a sentence start has none.
-  if (before.length || !sentenceStart(ctx.text, m.index)) return null;
+  // "ce que s'est dit Leo" inverts the subject: only a sentence start or a comma has none.
+  const comma = /,[\s\u00a0]{0,8}$/u.test(ctx.text.slice(Math.max(0, m.index - 9), m.index));
+  if (before.length || !(sentenceStart(ctx.text, m.index) || comma)) return null;
   if (/^[-–]/.test(ctx.text.slice(m.index + m[0].length))) return null;
   // "S'est dit aussi de…": a reflexive verb whose subject the fragment leaves out.
   const next = tokensAfter(ctx.text, m.index + m[0].length, 1)[0];
@@ -993,6 +1067,10 @@ function homophones(ctx: DetectContext): RawFinding[] {
     else if (lower === "prés") finding = presToPres(ctx, m);
     else if (lower === "guerre" || lower === "guerres") finding = guerreToGuere(ctx, m);
     else if (lower === "ont") finding = ontToOn(ctx, m) ?? ontPeut(ctx, m);
+    if (finding) findings.push(finding);
+  }
+  for (const m of ownedFrenchWords(ctx, C_ELIDED)) {
+    const finding = cToS(ctx, m);
     if (finding) findings.push(finding);
   }
   for (const m of ownedFrenchWords(ctx, TACHER)) {
