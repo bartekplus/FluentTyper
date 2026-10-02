@@ -213,7 +213,10 @@ function nounCasing(ctx: DetectContext): RawFinding[] {
     if (PRONOUNS.has(next.toLowerCase()) || /^\p{N}/u.test(next)) continue;
     // "eine zwiebeln zu dürfen": a verb before its zu-infinitive.
     if (next === "zu" && VERB_GOVERNORS.has(lower(after[1]))) continue;
-    if (/^\p{Lu}/u.test(next) && next !== next.toUpperCase()) continue;
+    // A capitalized word after it ("in der marine Lebensformen"), but not an acronym
+    // ("im dritten schritt POS-Tags").
+    const nextFirst = next.split("-")[0];
+    if (/^\p{Lu}/u.test(next) && nextFirst !== nextFirst.toUpperCase()) continue;
     if (IDIOMS.test(ctx.text.slice(m.index, m.index + 24))) continue;
     if (
       reading !== "noun" &&

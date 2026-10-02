@@ -9,7 +9,7 @@ import {
   words,
   type Token,
 } from "./common";
-import { readNoun } from "./agreement";
+import { DETERMINER, readNoun } from "./agreement";
 import { HABER, IR, isPerfectParticiple } from "./confusions";
 import {
   finiteVerb,
@@ -18,6 +18,7 @@ import {
   isNoun,
   isVerb,
   participle,
+  presentInfinitive,
   subjunctiveLike,
 } from "./lexicon";
 
@@ -307,6 +308,37 @@ function prepositionVerb(at: Around): string | null {
   return null;
 }
 
+// Verbs whose complement is an infinitive: "debería funcionar", "suele llegar", "me gusta comer".
+const MODALS =
+  /^(?:deb(?:e|en|o|es|emos|ía|ían|ería|erían|erías|eríamos|ió|ieron)|suel(?:e|en|o|es)|sol(?:ía|ían|íamos)|pued(?:e|en|o|es)|pod(?:emos|ía|ían|ría|rían)|gust(?:a|aba|aría|aban|an))$/u;
+// "tener que", "hay que", "haber de": the phrase's last word comes right before the infinitive.
+const TENER = /^(?:t(?:ien|eng|en|uv|endr)\p{L}*|hay|había|habrá|habría)$/u;
+const HABER_DE = words("he has ha hemos habéis han había habían habrá habrán");
+// Words after a modal that are no verb form, though they look like one: "no me gusta nada".
+const NOT_GOVERNED = words(
+  "nada cada toda nunca siempre ahora entre sobre bajo este esta ese esa aquella otra otro " +
+    "cerca fuera dentro arriba abajo delante detrás antes mientras tarde pronto alguna ninguna " +
+    "mucha poca demasiada tanta cuanta media mitad que",
+);
+// Subordinators after which "puede"/"quiere" stand alone: "cuando puede, intenta escapar".
+const ALONE_AFTER = words("cuando como si donde quien quienes mientras según");
+
+/** "debería funciona" -> "funcionar", "tiene que considera" -> "considerar". */
+function governedVerb(at: Around): string | null {
+  const word = at.tokens[at.i].lower;
+  const prev = at.prev();
+  if (!prev || !/^\p{Ll}/u.test(at.tokens[at.i].text) || NOT_GOVERNED.has(word)) return null;
+  const governs =
+    (MODALS.test(prev) &&
+      !ALONE_AFTER.has(at.prev(2)) &&
+      (!/^gust/u.test(prev) || (CLITICS.has(at.prev(2)) && !ALONE_AFTER.has(at.prev(3))))) ||
+    (prev === "que" && TENER.test(at.prev(2))) ||
+    (prev === "de" && HABER_DE.has(at.prev(2)));
+  if (!governs || CLITICS.has(word) || DETERMINERS.has(word) || DETERMINER.has(word)) return null;
+  if (isNoun(word) || genderedForm(word) || participle(word) || isInfinitive(word)) return null;
+  return presentInfinitive(word);
+}
+
 const VERB = "review_msg_spanish_verb_form" as const;
 
 function verbForms(ctx: DetectContext): RawFinding[] {
@@ -328,7 +360,8 @@ function verbForms(ctx: DetectContext): RawFinding[] {
       if (finding) findings.push(finding);
       continue;
     }
-    const infinitive = prepositionVerb(new Around(tokens, i));
+    const infinitive =
+      prepositionVerb(new Around(tokens, i)) ?? governedVerb(new Around(tokens, i));
     if (infinitive) {
       const finding = replaceToken(ctx, token, [infinitive], RULE, VERB, tokens[i - 1]);
       if (finding) findings.push(finding);

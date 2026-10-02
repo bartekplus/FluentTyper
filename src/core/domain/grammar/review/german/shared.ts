@@ -1,6 +1,27 @@
+import { requiredLiteral } from "../phraseTemplates";
 import type { DetectContext } from "../reviewDetectors";
 
 export const isGerman = (ctx: DetectContext) => ctx.lang.slice(0, 2) === "de";
+
+const LITERALS = new Map<RegExp, string>();
+const SCANNED = new WeakMap<DetectContext, string>();
+/**
+ * False when the chunk's scan lacks a word every match of `regex` consumes, so the frame need
+ * not run: frames that open with a lookbehind would otherwise try it at every position, which
+ * is slow without the regex JIT.
+ */
+export function mayRun(ctx: DetectContext, regex: RegExp): boolean {
+  let literal = LITERALS.get(regex);
+  if (literal === undefined) {
+    LITERALS.set(regex, (literal = requiredLiteral(regex.source).toLowerCase()));
+  }
+  if (literal.length < 3) return true;
+  let scanned = SCANNED.get(ctx);
+  if (scanned === undefined) {
+    SCANNED.set(ctx, (scanned = ctx.scanText.slice(Math.max(0, ctx.from - 256)).toLowerCase()));
+  }
+  return scanned.includes(literal);
+}
 
 export const wordSet = (list: string) => new Set(list.split(" "));
 
@@ -19,8 +40,9 @@ export function* words(ctx: DetectContext): Generator<RegExpExecArray> {
   }
 }
 
-// Words (with "_" or "/" joins: "Pädagog_in", "Partner/in"), line breaks and single marks.
-const TOKEN = /\n|[\p{L}\p{M}\p{N}_]+(?:\/[\p{L}\p{M}\p{N}_]+)*|[^\s\p{L}\p{M}\p{N}_]/gu;
+// Words (with "_", "/" or "-" joins: "Pädagog_in", "Partner/in", "Grammatik-Regeln"), line
+// breaks and single marks; a hyphen at a word edge ("Vor- und") stays a mark.
+const TOKEN = /\n|[\p{L}\p{M}\p{N}_]+(?:[-/][\p{L}\p{M}\p{N}_]+)*|[^\s\p{L}\p{M}\p{N}_]/gu;
 
 /** Up to `n` tokens right before `index`, nearest last; a line break is a token. */
 export function tokensBefore(text: string, index: number, n: number): string[] {

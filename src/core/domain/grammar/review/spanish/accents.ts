@@ -10,6 +10,7 @@ import {
   isBoundary,
   isInfinitive,
   PREPOSITIONS,
+  PRENOMINAL,
   replaceToken,
   SER,
   tokenize,
@@ -119,6 +120,19 @@ function closes(at: Around, k: number): boolean {
   );
 }
 
+/** "Su nueva novela esta…": a determiner, one or two adjectives and a noun before the word. */
+function nounPhraseBefore(at: Around): boolean {
+  const noun = at.prev();
+  if (!noun || !isNoun(noun)) return false;
+  for (let k = 2; k <= 3; k++) {
+    const word = at.prev(k);
+    if (DETERMINERS.has(word)) return k > 2;
+    if (!PRENOMINAL.has(word.replace(/s$/u, "")) && (!attributeOf(word) || finiteVerb(word)))
+      return false;
+  }
+  return false;
+}
+
 /**
  * "esta"/"estas" read as the verb "está"/"estás" from the words around them. `plural` is the
  * demonstrative's number: "estas" + a singular attribute cannot agree.
@@ -166,7 +180,8 @@ function estarReading(at: Around, plural: boolean): boolean {
   // "la tienda esta cerrada": after a determiner and its noun, "esta" cannot start another
   // noun phrase (the colloquial "la chica esta" is followed by its verb).
   const afterNoun =
-    DETERMINERS.has(prev2) && !!prev && !PREPOSITIONS.has(prev) && !CONJUNCTIONS.has(prev);
+    (DETERMINERS.has(prev2) && !!prev && !PREPOSITIONS.has(prev) && !CONJUNCTIONS.has(prev)) ||
+    nounPhraseBefore(at);
   if (afterNoun && reading && !reading.plural && !QUANTIFIERS.has(next) && closes(at, 1))
     return true;
   // The rest needs a verb-like slot: a subject, a name, "no", a time adverb or a clause start.
@@ -240,6 +255,9 @@ function estarReading(at: Around, plural: boolean): boolean {
     );
   }
   if (ESTAR_PREPOSITIONS.has(next)) return !PARENTHETICAL.has(at.next(2));
+  // "La ciudad esta al este", "La casa esta a dos calles": a place after a subject.
+  if ((next === "al" || next === "a") && (afterNoun || subjects.has(prev)))
+    return !CLITICS.has(at.next(2)) && !isInfinitive(at.next(2));
   // "no esta casa": "no" before a verb, unless a noun follows.
   if (prev === "no") return !isNoun(next) && !CLITICS.has(next);
   // "¿Dónde esta tu padre?", "Tom está feliz": a question word or subject right before it.

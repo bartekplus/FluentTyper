@@ -185,3 +185,52 @@ Ten samochód jest najlepszy w swojej klasie.
 Spędziliśmy w górach letni dzień, jeden z najpiękniejszych.
 Jego postawa odgrywa ważną rolę w zespole.
 Ten temat wraca co jakiś czas.
+# Numerals with the case they govern, and counts governed by a word before them.
+Na zebranie przyszły 23 osoby, a po przerwie zostało ich tylko 15.
+W klasie jest dwudziestu dwóch uczniów i 24 uczennice.
+Od 3 lat mieszkamy w tym samym mieszkaniu na drugim piętrze.
+Nie było na sali 4 osób z zarządu, więc głosowanie przełożono.
+Projekt dotyczy 2 gmin i obejmuje ponad 30 wsi.
+W ciągu ostatnich 4 tygodni przeczytałam trzy książki i pięć opowiadań.
+Rozdział 7 książki opisuje podróż przez 12 krajów.
+Bilet kosztował 3 złote, a karnet na miesiąc 120 złotych.
+Grupa 3 osób czekała przy wejściu przez dwie godziny.
+Mamy dwa koty, trzy psy i cztery chomiki.
+Wróciła po 2 latach i 5 miesiącach spędzonych za granicą.
+Firma zatrudnia 22 inżynierów oraz 43 księgowe.
+# Clause boundaries: run-on checks and participle phrases must stay silent here.
+Kupiłem chleb, ale zapomniałem o mleku, więc wróciłem do sklepu.
+Dom, który kupili w zeszłym roku, stoi tuż nad rzeką.
+Zrobiwszy zakupy, wróciła do domu i zaczęła gotować obiad.
+Szedł powoli, rozglądając się na boki, jakby czegoś szukał.
+Jadł stojąc, bo bardzo się spieszył.
+Będzie długo pracował nad tym projektem, zanim go skończy.
+Powinien był to zrobić wcześniej, ale nie miał czasu.
+Marek czytał książkę, a Jurek pisał list do babci.
+Jechaliśmy pociągiem między Krakowem a Warszawą przez trzy godziny.
+Trzeba będzie to zrobić jeszcze dziś.
+Można było przyjść wcześniej i pomóc przy stole.
+Począwszy od jutra, sklep będzie otwarty dłużej.
+Chcąc nie chcąc, musiał iść do dentysty.
+Krótko mówiąc, projekt się nie udał.
+Wiem, kiedy przyjdzie, i wiem, co przyniesie.
+Ludzie, którzy mieszkają na wsi, często wstają wcześnie.
+To znaczy, że wszystko poszło zgodnie z planem.
+Wyjechał z kraju, to znaczy zerwał kontakt z rodziną.
+Szukali prezentu na chybił trafił.
+Nie mogąc zasnąć, czytała do rana.
+Wróciwszy z pracy, zjadł kolację i położył się spać.
+Robiła to, co musiała, i nie narzekała.
+Był to nowszy model, ciekawszy od poprzedniego.
+Pierwszy przyszedł Marek, a po nim reszta grupy.
+Nie wiadomo kiedy minęło lato i zrobiło się zimno.
+# Place names after prepositions, and the lowercase words they resemble.
+Wróciliśmy z Gdańska do Warszawy przez Toruń i Płock.
+Rybacy spali w łodzi, a rano wypłynęli w morze.
+Mówił po gdańsku, a pisał po krakowsku.
+W poznaniu świata pomaga ciekawość.
+Do dania głównego podano sałatkę.
+Nie rozmawiam z tych, którzy kłamią, ani o tych sprawach.
+Wyszła wcześniej, by zdążyć na autobus, ale można by było poczekać.
+Rozmawiałam z Joyce'em i z Charliem o Stevie.
+Lodówka, jak zwykle, była pusta, a herbata, mówiła babcia, stygła na stole.
