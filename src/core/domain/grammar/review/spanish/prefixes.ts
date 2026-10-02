@@ -49,7 +49,7 @@ function prefixes(ctx: DetectContext): RawFinding[] {
     )
       continue;
     // "vice primer ministro", "ex alto cargo": the prefix takes a whole phrase.
-    const after = /^[ \t]+(\p{L}+)/u.exec(ctx.text.slice(m.index + typed.length))?.[1] ?? "";
+    const after = /^[ \t]{1,8}(\p{L}+)/u.exec(ctx.text.slice(m.index + typed.length))?.[1] ?? "";
     if (/^\p{Lu}/u.test(word)) continue;
     const apocope = /^(?:primer|tercer|gran|buen|mal|algún|ningún|alto|alta)$/u.test(word);
     if (

@@ -1,3 +1,5 @@
+import { hasActiveAutocompletePopup } from "./NativeAutocompleteConflictDetector";
+import { isCredentialField, isLockedField } from "./FieldEligibility";
 import {
   EARLY_TAB_ACCEPT_BRIDGE_TARGET_ATTR,
   EARLY_TAB_ACCEPT_ENABLED_ATTR,
@@ -83,6 +85,16 @@ export function installEarlyTabAcceptMainWorldBridge(doc: Document = document): 
     if (!target) {
       return;
     }
+
+    const editable =
+      target === doc.documentElement && doc.body.isContentEditable ? doc.body : target;
+    if (
+      isCredentialField(editable) ||
+      isLockedField(editable) ||
+      (target.getAttribute("data-ft-avoid-conflicts") !== "false" &&
+        hasActiveAutocompletePopup(editable))
+    )
+      return;
 
     const entryId = target.getAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR);
     if (!entryId) {

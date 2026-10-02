@@ -1805,6 +1805,182 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   });
 
   test(
+    "Native datalists only hold writing fields while usable options exist",
+    async () => {
+      await gotoTestPage(page);
+      await waitForInputReady(page, "#test-input");
+      await page.evaluate(() => {
+        const input = document.querySelector<HTMLInputElement>("#test-native-list")!;
+        input.list!.replaceChildren();
+      });
+      await waitForInputReady(page, "#test-native-list");
+      await page.evaluate(() => {
+        const input = document.querySelector<HTMLInputElement>("#test-native-list")!;
+        const option = document.createElement("option");
+        option.value = "Example";
+        input.list!.append(option);
+      });
+      await page.waitForFunction(
+        () => !document.querySelector("#test-native-list")!.hasAttribute("data-suggestion"),
+      );
+      expect(
+        await page.$eval(
+          "#test-native-list",
+          (element) => !!element.parentElement!.querySelector(".ft-manual-attach-button"),
+        ),
+      ).toBe(true);
+      await page.evaluate(
+        () =>
+          ((
+            document.querySelector<HTMLInputElement>("#test-native-list")!.list!
+              .firstElementChild as HTMLOptionElement
+          ).disabled = true),
+      );
+      await waitForInputReady(page, "#test-native-list");
+      await page.evaluate(() =>
+        document.querySelector<HTMLInputElement>("#test-native-list")!.list!.remove(),
+      );
+      await typeInInput(page, "#test-native-list", "th");
+      expect(await waitForVisibleSuggestions(page)).toBeGreaterThan(0);
+    },
+    browserTimeout(10000, 15000),
+  );
+
+  test(
+    "Writing fields automatically yield to site suggestions and resume after closure",
+    async () => {
+      await gotoTestPage(page);
+      await waitForInputReady(page, "#test-input");
+      await page.evaluate(() => {
+        const input = document.querySelector<HTMLInputElement>("#test-input")!;
+        input.setAttribute("aria-autocomplete", "list");
+        input.setAttribute("aria-controls", "writing-choices");
+        const popup = document.createElement("div");
+        popup.id = "writing-choices";
+        popup.setAttribute("role", "listbox");
+        popup.innerHTML = '<div role="option">Website choice</div>';
+        popup.hidden = true;
+        input.parentElement!.append(popup);
+      });
+      await typeInInput(page, "#test-input", "th");
+      await waitForVisibleSuggestions(page);
+      const before = await getInputContent(page, "#test-input");
+      const keyState = await page.evaluate(() => {
+        document.querySelector<HTMLElement>("#writing-choices")!.hidden = false;
+        // Same task, before MutationObserver: Tab must remain the website's.
+        const input = document.querySelector<HTMLInputElement>("#test-input")!;
+        const event = new KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true });
+        input.dispatchEvent(event);
+        return {
+          prevented: event.defaultPrevented,
+          attached: input.hasAttribute("data-suggestion"),
+          value: input.value,
+        };
+      });
+      expect(keyState).toEqual({ prevented: false, attached: true, value: before });
+      await waitForNoVisibleSuggestions(page);
+      await page.evaluate(() => document.querySelector("#writing-choices")!.remove());
+      await page.keyboard.press("Escape");
+      await waitForNoVisibleSuggestions(page);
+      await page.type("#test-input", "e");
+      expect(await waitForVisibleSuggestions(page)).toBeGreaterThan(0);
+      // These widgets keep options and layout rectangles after visually collapsing.
+      for (const style of [
+        "position:fixed;left:-10000px;top:10px",
+        "clip-path:inset(50%)",
+        "height:0;overflow:hidden",
+      ]) {
+        await page.evaluate((css) => {
+          const wrapper = document.createElement("div");
+          wrapper.id = "collapsed-widget";
+          wrapper.style.cssText = css;
+          wrapper.innerHTML =
+            '<div id="writing-choices" role="listbox"><div role="option">Website choice</div></div>';
+          document.querySelector("#test-input")!.parentElement!.append(wrapper);
+        }, style);
+        await typeInInput(page, "#test-input", "th");
+        expect(await waitForVisibleSuggestions(page)).toBeGreaterThan(0);
+        await page.evaluate(() => document.querySelector("#collapsed-widget")!.remove());
+      }
+    },
+    browserTimeout(12000, 20000),
+  );
+
+  test(
+    "Remembered writing fields survive reload and can be forgotten in settings",
+    async () => {
+      await setSetting(worker!, "fieldPreferences", []);
+      await applyConfigChange(browser, worker!);
+      await gotoTestPage(page);
+      await waitForInputReady(page, "#test-input");
+      const selector = "#test-semantic-email";
+      await page.waitForFunction(
+        () =>
+          !!document
+            .querySelector("#test-semantic-email")
+            ?.parentElement?.querySelector(".ft-manual-attach-button"),
+      );
+      await page.evaluate(() =>
+        (
+          document
+            .querySelector("#test-semantic-email")!
+            .parentElement!.querySelector(".ft-manual-attach-button") as HTMLButtonElement
+        ).click(),
+      );
+      await page.waitForFunction(() =>
+        Array.from(document.querySelectorAll("button")).some(
+          (button) => button.textContent === "Remember for this field",
+        ),
+      );
+      await page.evaluate(() =>
+        Array.from(document.querySelectorAll("button"))
+          .find((button) => button.textContent === "Remember for this field")!
+          .click(),
+      );
+      await waitUntil(
+        "field preference saved",
+        async () => (await getSetting<unknown[]>(worker!, "fieldPreferences"))?.length === 1,
+        { timeoutMs: 7000, intervalMs: 50 },
+      );
+      await gotoTestPage(page);
+      await waitForInputReady(page, selector);
+      const settingsPage = await openOptionsPage(browser, worker!);
+      try {
+        const response = await settingsPage.evaluate(async () =>
+          chrome.runtime.sendMessage({
+            command: "CMD_FIELD_PREFERENCES",
+            context: { action: "list" },
+          }),
+        );
+        expect(response.ok).toBe(true);
+        const record = response.records[0];
+        expect(record.signature).toMatch(/^[a-f0-9]{64}$/);
+        expect(record.topOrigin).not.toContain("?");
+        const removed = await settingsPage.evaluate(
+          async (entry) =>
+            chrome.runtime.sendMessage({
+              command: "CMD_FIELD_PREFERENCES",
+              context: {
+                action: "forget",
+                topOrigin: entry.topOrigin,
+                frameOrigin: entry.frameOrigin,
+                signature: entry.signature,
+              },
+            }),
+          record,
+        );
+        expect(removed.ok).toBe(true);
+        await page.waitForFunction(
+          () => !document.querySelector("#test-semantic-email")?.hasAttribute("data-suggestion"),
+        );
+      } finally {
+        await settingsPage.close();
+      }
+    },
+    browserTimeout(20000, 30000),
+  );
+
+  test(
     "Extension installs and new installation page is reachable",
     async () => {
       expect(worker).toBeDefined();

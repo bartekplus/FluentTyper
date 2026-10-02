@@ -35,6 +35,17 @@ const PREFIXES: Record<string, string> = {
   hiper: "r",
   inter: "r",
   sub: "rb",
+  bi: "i",
+  tri: "i",
+  tetra: "a",
+  penta: "a",
+  hexa: "a",
+  euro: "o",
+  // "pan" and "circum" keep it before a vowel, m and n too: pan-americano, circum-navegação.
+  pan: "aeiouáéíóúmn",
+  circum: "aeiouáéíóúmn",
+  // "co" always joins, dropping an h: coautor, coerdeiro, cooperar.
+  co: "",
 };
 // Prefixes that are never words on their own, so "anti inflamatório" is one word split.
 const NEVER_ALONE = ["anti", "intra", "infra", "pseudo", "proto", "semi", "multi", "sub", "neo"];
@@ -43,6 +54,7 @@ const LETTERS = "[a-zçáéíóúâêôãõà]+";
 
 function joined(prefix: string, word: string): string | null {
   const first = word[0];
+  if (prefix === "co") return `co${first === "h" ? word.slice(1) : word}`;
   if (first === "h" || PREFIXES[prefix].includes(first)) return `${prefix}-${word}`;
   // A prefix ending in a vowel doubles a following r or s: antirrugas, minissaia.
   if (/[aeiou]$/.test(prefix) && /^[rs]/.test(word)) return `${prefix}${first}${word}`;
@@ -53,6 +65,9 @@ const HYPHENATED = new RegExp(
   `(?<![\\p{L}\\p{N}-])(?<prefix>${Object.keys(PREFIXES).join("|")})-(?<word>${LETTERS})(?![\\p{L}\\p{N}-])`,
   "gu",
 );
+// "não-agressão" -> "não agressão": the 1990 Agreement drops the hyphen after "não" ("não-me-toques"
+// is a plant).
+const NAO = `(?<target>não-(?<word>${LETTERS}))${WORD_END}(?!-)`;
 const SPACED = `(?<target>(?<prefix>${NEVER_ALONE.join("|")})${SPACE}(?<word>${LETTERS}))${WORD_END}`;
 const SPACED_ALWAYS = `(?<target>(?<prefix>${ALWAYS_HYPHEN})${SPACE}(?<word>${LETTERS}))${WORD_END}`;
 // Latin phrases and words that only look prefixed.
@@ -101,6 +116,11 @@ export function ao90(ctx: DetectContext): RawFinding[] {
       const fixed = pattern === SPACED ? joined(prefix, word) : `${prefix}-${word}`;
       if (fixed) push(m.index, m.index + target.length, fixed);
     }
+  }
+  for (const m of frameMatches(ctx, NAO)) {
+    const { word, target } = m.groups!;
+    if (target !== target.toLowerCase() || word === "me") continue;
+    push(m.index, m.index + target.length, `não ${word}`);
   }
   for (const pattern of [MONTH_DATE, MONTH_YEAR, WEEKDAY_AFTER]) {
     for (const m of frameMatches(ctx, pattern)) {

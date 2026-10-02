@@ -471,7 +471,17 @@ function eachWithPlural(ctx: DetectContext): RawFinding[] {
     const forms = nounNumber(noun.lower);
     if (forms?.number !== "plural" || /(?:wards|doors|stairs)$/.test(noun.lower)) continue;
     // "They each take…": a pronoun "each" before a verb.
-    if (k === 0 && englishWordInfo(noun.lower)?.verbs.some((v) => v.form === "third")) continue;
+    const third = englishWordInfo(noun.lower)?.verbs.some((v) => v.form === "third");
+    if (k === 0 && third) continue;
+    // "Every body part hurts": a noun head, then its -s verb, unless a plural verb follows.
+    if (
+      third &&
+      info(tokens[k - 1].lower)?.noun &&
+      !/^(?:are|were|have|do|aren['’]t|weren['’]t|haven['’]t|don['’]t)$/.test(
+        tokens[k + 1]?.lower ?? "",
+      )
+    )
+      continue;
     if (!phraseEnds(ctx, tokens, k, true)) continue;
     findings.push(
       finding(ctx, "review_msg_noun_count", noun.start, noun.end, [forms.singular], m.index),

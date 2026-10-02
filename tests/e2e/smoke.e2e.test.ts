@@ -1565,7 +1565,7 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
   );
 
   test(
-    "attaches to email and url inputs",
+    "keeps email and url inputs manual by default",
     async () => {
       page = await prepareReusableTestPage(browser, page);
 
@@ -1574,8 +1574,8 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
         url: document.querySelector("#test-url")?.hasAttribute("data-suggestion") ?? false,
       }));
 
-      expect(results.email).toBe(true);
-      expect(results.url).toBe(true);
+      expect(results.email).toBe(false);
+      expect(results.url).toBe(false);
     },
     suiteTimeout(10000, 15000),
   );
@@ -1712,6 +1712,11 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
           { timeoutMs: suiteTimeout(3000, 6000), intervalMs: 50 },
         );
 
+        // Activation enables writing, but an actual website picker still takes priority.
+        if (selector === "#test-combobox")
+          await page.evaluate(() => {
+            document.querySelector<HTMLElement>("#test-combobox-list")!.hidden = true;
+          });
         await typeInInput(page, selector, "th");
         const suggestions = await waitForSuggestionTexts(page);
         expect(suggestions.length).toBeGreaterThan(0);

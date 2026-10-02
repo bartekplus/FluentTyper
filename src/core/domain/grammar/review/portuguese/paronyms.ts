@@ -58,6 +58,9 @@ const VERB_LED = `(?<lead>${VERBS})(?=${SPACE}(?<target>[a-zçãõáéíóúâê
 const COPULA_LED = `(?<lead>é|era|eram|foi|foram|fui|ser|será|seria|sou|torna|tornou|tornam|tornaram|tornar|dava|davam)(?=${SPACE}(?<target>[a-zçãõáéíóúâêô]+)${WORD_END})`;
 // One of those adjectives opening a sentence: "Grande distancia" -> "distância".
 const OPENING = `(?<lead>${ADJECTIVES})(?=${SPACE}(?<target>[a-zçãõáéíóúâêô]+)${WORD_END})`;
+// A bare article opening a sentence: a clitic "o/a" never starts written prose ("A
+// arvore caiu" -> "árvore"), so there it is the article.
+const ARTICLE_OPENING = `(?<lead>[aoAO]s?)(?=${SPACE}(?<target>[a-zçãõáéíóúâêô]+)${WORD_END})`;
 const SENTENCE_START = /(?:^|[.!?;:\n]["'”’»)]*)[ \t\u00a0]*["'“‘«(]?[ \t\u00a0]*$/u;
 // "Um critica, o outro elogia": indefinite "um/uma" as a pronoun with "outro" later on.
 const RECIPROCAL = /^[^.!?;\n]{0,80}(?<![\p{L}])outr[oa]s?(?![\p{L}])/iu;
@@ -70,7 +73,7 @@ export function accentParonyms(ctx: DetectContext): RawFinding[] {
     ...frameMatches(ctx, MODIFIED),
     ...frameMatches(ctx, VERB_LED),
     ...frameMatches(ctx, COPULA_LED),
-    ...[...frameMatches(ctx, OPENING)].filter((m) =>
+    ...[...frameMatches(ctx, OPENING), ...frameMatches(ctx, ARTICLE_OPENING)].filter((m) =>
       SENTENCE_START.test(ctx.text.slice(Math.max(0, m.index - 8), m.index)),
     ),
   ]) {

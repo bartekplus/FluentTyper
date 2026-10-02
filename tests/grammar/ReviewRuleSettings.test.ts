@@ -13,6 +13,7 @@ const OPTIONAL_REVIEW_IDS: readonly string[] = [
   "germanQuestionMarks",
   "germanStraightQuotes",
   "polishQuotes",
+  "spanishQuotes",
   "styleRedundancy",
   "styleLongSentence",
   "ellipsisShortcut",

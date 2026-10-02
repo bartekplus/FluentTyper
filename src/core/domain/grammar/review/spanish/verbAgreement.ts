@@ -4,6 +4,7 @@ import {
   Around,
   CONJUNCTIONS,
   GIVEN_NAMES,
+  INVARIANT,
   PREPOSITIONS,
   replaceToken,
   tokenize,
@@ -297,6 +298,48 @@ function copulaParticiple(ctx: DetectContext, tokens: Token[], i: number): RawFi
   return replaceToken(ctx, token, [`${next}s`], RULE, MESSAGE, tokens[i]);
 }
 
+// "Somos consciente", "Debemos estar atento": a plural subject's "ser"/"estar" before a
+// singular adjective. Participles are copulaParticiple's.
+const FIRST_PLURAL_COPULA = words(
+  "somos seamos éramos fuimos seremos seríamos estamos estemos estábamos estuvimos estaremos " +
+    "estaríamos",
+);
+// Singular words after a plural copula that are no adjective of the subject: "somos solo dos",
+// "estamos mejor", "somos tanto".
+const NOT_PLURAL_ATTRIBUTES = words(
+  "solo sola mismo misma medio media todo toda tanto tanta poco poca mucho mucha mejor peor " +
+    "uno una cada",
+);
+
+function pluralAttribute(ctx: DetectContext, tokens: Token[], i: number): RawFinding | null {
+  const at = new Around(tokens, i);
+  const word = tokens[i].lower;
+  let plural = FIRST_PLURAL_COPULA.has(word);
+  // "Debemos ser", "Tenemos que estar", "Acabarán por ser": a plural verb before the infinitive.
+  if (!plural && /^(?:ser|estar)$/u.test(word)) {
+    const verb = /^(?:que|por|de|a)$/u.test(at.prev()) ? at.prev(2) : at.prev();
+    plural = /(?:mos|[aeá]n)$/u.test(verb) && finiteVerb(verb) && !isNoun(verb);
+  }
+  if (!plural) return null;
+  let k = 1;
+  if (/^(?:muy|tan|bastante|plenamente|totalmente|siempre|todos|todas)$/u.test(at.next(k))) k++;
+  const adjective = at.next(k);
+  const token = tokens[i + k];
+  if (!adjective || NOT_PLURAL_ATTRIBUTES.has(adjective) || ctx.dictionary.has(adjective))
+    return null;
+  // "Quieren ser médico": each one's profession.
+  if (PROFESSIONS.has(adjective) || PROFESSION_ENDING.test(adjective)) return null;
+  // "Somos buena gente": an adjective before its noun.
+  const after = new Around(tokens, i + k).next();
+  if (after && readNoun(after) && !PREPOSITIONS.has(after)) return null;
+  let fix: string | null = null;
+  const form = genderedForm(adjective);
+  if (form && !form.plural && !participle(adjective))
+    fix = /[oa]$/u.test(adjective) ? `${adjective}s` : pluralOf(adjective);
+  else if (INVARIANT.has(adjective) && !/s$/u.test(adjective)) fix = pluralOf(adjective);
+  return fix ? replaceToken(ctx, token, [fix], RULE, MESSAGE, tokens[i]) : null;
+}
+
 // "La casa es bonito", "Ellos son bella", "Su madre estaba casado": an adjective after a
 // copula agrees with the subject opening the clause.
 const COPULA = words(
@@ -305,6 +348,8 @@ const COPULA = words(
     "estarían estén parecen parecían resultan resultaron quedan quedaron",
 );
 const ESTAR = /^(?:est\p{L}+|qued\p{L}+)$/u;
+const PROFESSION_ENDING = /(?:ólogo|ógrafo|ero|ario)$/u;
+const PERFECT_AUX = words("ha han había habían habrá habrán habría habrían haya hayan");
 const DEGREE = words("muy tan bastante demasiado más menos siempre ya bien mal casi");
 // Adjectives that lead a noun phrase of their own: "La vida es puro teatro", "es otro mundo".
 const LEADING = words(
@@ -323,7 +368,8 @@ const PROFESSIONS = words(
 /** The form of a paired adjective for a gender and number: "bonito" -> "bonitas". */
 function adjectiveFor(word: string, feminine: boolean, plural: boolean): string | null {
   const m = /^(\p{L}+?)(?:o|a|os|as)$/u.exec(word);
-  if (m && isGenderedEntry(`${m[1]}o`)) return `${m[1]}${feminine ? "a" : "o"}${plural ? "s" : ""}`;
+  if (m && (isGenderedEntry(`${m[1]}o`) || participle(word)))
+    return `${m[1]}${feminine ? "a" : "o"}${plural ? "s" : ""}`;
   const base = /^(\p{L}+?)(?:a|as|es)?$/u.exec(word)?.[1];
   if (!base || !isGenderedEntry(base) || /[aeiouáéíóú]$/u.test(base)) return null;
   if (feminine) return `${base}a${plural ? "s" : ""}`;
@@ -354,7 +400,13 @@ function attribute(ctx: DetectContext, tokens: Token[], i: number): RawFinding |
     k = i + 2;
   }
   if (tokens[k]?.lower === "no") k++;
-  const copula = tokens[k]?.lower ?? "";
+  let copula = tokens[k]?.lower ?? "";
+  // "Su obra ha sido traducido": the perfect of "ser" and "estar" too.
+  if (PERFECT_AUX.has(copula) && /^(?:sido|estado)$/u.test(tokens[k + 1]?.lower ?? "")) {
+    if (tokens[k + 1].broken) return null;
+    copula = /n$/u.test(copula) ? "son" : tokens[k + 1].lower === "sido" ? "es" : "está";
+    k++;
+  }
   if (!COPULA.has(copula) || tokens[k].broken) return null;
   const copulaPlural = /n$/u.test(copula);
   if (copulaPlural !== plural) return null;
@@ -364,16 +416,24 @@ function attribute(ctx: DetectContext, tokens: Token[], i: number): RawFinding |
   if (!adjToken?.word || adjToken.broken || !/^\p{Ll}/u.test(adjToken.text)) return null;
   const word = adjToken.lower;
   if (LEADING.has(word) || ctx.dictionary.has(word)) return null;
-  const form = genderedForm(word);
+  const form = genderedForm(word) ?? participle(word);
   if (!form) return null;
   // "La vida es puro teatro": the adjective leads a noun after it.
   const after = new Around(tokens, k).next();
-  if (after && (DETERMINER.has(after) || (readNoun(after) && !readNoun(after)?.paired)))
+  if (
+    after &&
+    !participle(word) &&
+    (DETERMINER.has(after) || (readNoun(after) && !readNoun(after)?.paired))
+  )
     return null;
   const numberClash = form.plural !== plural;
   // "Ella es médico", "Su profesión es abogado": with "ser", a masculine form after a
   // feminine subject may name a profession.
-  const profession = feminine && !ESTAR.test(copula) && (pronoun || PROFESSIONS.has(word));
+  // A pronoun names a person, but only a noun names a profession: "Ella es hermoso" is wrong.
+  const profession =
+    feminine &&
+    !ESTAR.test(copula) &&
+    (PROFESSIONS.has(word) || (pronoun && PROFESSION_ENDING.test(word)));
   const genderClash = feminine !== null && form.feminine !== feminine && !profession;
   if (!numberClash && !genderClash) return null;
   const fix = adjectiveFor(word, genderClash ? !form.feminine : form.feminine, plural);
@@ -392,7 +452,8 @@ function verbAgreement(ctx: DetectContext): RawFinding[] {
       subjectVerb(ctx, tokens, i) ??
       pronounPerson(ctx, tokens, i) ??
       liking(ctx, tokens, i) ??
-      copulaParticiple(ctx, tokens, i);
+      copulaParticiple(ctx, tokens, i) ??
+      pluralAttribute(ctx, tokens, i);
     if (finding) findings.push(finding);
     const adjective = attribute(ctx, tokens, i);
     if (adjective) attributes.push(adjective);

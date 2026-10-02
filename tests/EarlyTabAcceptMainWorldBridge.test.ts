@@ -37,12 +37,46 @@ describe("EarlyTabAcceptMainWorldBridge", () => {
     resetEarlyTabAcceptMainWorldBridgeForTests(document);
   });
 
+  test("does not capture Tab when a linked site popup opens before observers run", () => {
+    installEarlyTabAcceptMainWorldBridge(document);
+    const input = document.createElement("div");
+    input.setAttribute("contenteditable", "true");
+    Object.defineProperty(input, "isContentEditable", { value: true });
+    input.setAttribute("data-suggestion", "true");
+    input.setAttribute(EARLY_TAB_ACCEPT_ENABLED_ATTR, "true");
+    input.setAttribute(EARLY_TAB_ACCEPT_BRIDGE_TARGET_ATTR, "true");
+    input.setAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR, "race");
+    input.setAttribute(EARLY_TAB_ACCEPT_VISIBLE_ATTR, "true");
+    input.setAttribute("aria-controls", "site-list");
+    const popup = document.createElement("div");
+    popup.id = "site-list";
+    popup.setAttribute("role", "listbox");
+    popup.innerHTML = '<div role="option">Site choice</div>';
+    for (const node of [popup, popup.firstElementChild!])
+      node.getClientRects = () =>
+        [
+          { left: 10, top: 10, right: 20, bottom: 20, width: 10, height: 10 },
+        ] as unknown as DOMRectList;
+    document.body.append(input, createMenu("race"), popup);
+    const post = jest.spyOn(window, "postMessage");
+    const event = new window.KeyboardEvent("keydown", {
+      key: "Tab",
+      bubbles: true,
+      cancelable: true,
+    });
+    input.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(false);
+    expect(post).not.toHaveBeenCalled();
+    post.mockRestore();
+  });
+
   test("posts an early accept request before a later page capture listener stops propagation", () => {
     installEarlyTabAcceptMainWorldBridge(document);
     const postMessageSpy = jest.spyOn(window, "postMessage");
 
     const input = document.createElement("div");
     input.setAttribute("contenteditable", "true");
+    Object.defineProperty(input, "isContentEditable", { value: true, configurable: true });
     input.setAttribute("data-suggestion", "true");
     input.setAttribute(EARLY_TAB_ACCEPT_ENABLED_ATTR, "true");
     input.setAttribute(EARLY_TAB_ACCEPT_BRIDGE_TARGET_ATTR, "true");
@@ -82,6 +116,7 @@ describe("EarlyTabAcceptMainWorldBridge", () => {
 
     const input = document.createElement("div");
     input.setAttribute("contenteditable", "true");
+    Object.defineProperty(input, "isContentEditable", { value: true, configurable: true });
     input.setAttribute("data-suggestion", "true");
     input.setAttribute(EARLY_TAB_ACCEPT_ENABLED_ATTR, "true");
     input.setAttribute(EARLY_TAB_ACCEPT_BRIDGE_TARGET_ATTR, "true");
@@ -121,6 +156,7 @@ describe("EarlyTabAcceptMainWorldBridge", () => {
 
     const input = document.createElement("div");
     input.setAttribute("contenteditable", "true");
+    Object.defineProperty(input, "isContentEditable", { value: true, configurable: true });
     input.setAttribute("data-suggestion", "true");
     input.setAttribute(EARLY_TAB_ACCEPT_ENABLED_ATTR, "true");
     input.setAttribute(EARLY_TAB_ACCEPT_BRIDGE_TARGET_ATTR, "true");
@@ -147,6 +183,7 @@ describe("EarlyTabAcceptMainWorldBridge", () => {
 
     const input = document.createElement("div");
     input.setAttribute("contenteditable", "true");
+    Object.defineProperty(input, "isContentEditable", { value: true, configurable: true });
     input.setAttribute("data-suggestion", "true");
     input.setAttribute(EARLY_TAB_ACCEPT_ENABLED_ATTR, "false");
     input.setAttribute(EARLY_TAB_ACCEPT_BRIDGE_TARGET_ATTR, "true");
@@ -199,6 +236,7 @@ describe("EarlyTabAcceptMainWorldBridge", () => {
 
     const input = document.createElement("div");
     input.setAttribute("contenteditable", "true");
+    Object.defineProperty(input, "isContentEditable", { value: true, configurable: true });
     input.setAttribute("data-suggestion", "true");
     input.setAttribute(EARLY_TAB_ACCEPT_ENABLED_ATTR, "true");
     input.setAttribute(EARLY_TAB_ACCEPT_BRIDGE_TARGET_ATTR, "true");
@@ -226,6 +264,7 @@ describe("EarlyTabAcceptMainWorldBridge", () => {
 
     const input = document.createElement("div");
     input.setAttribute("contenteditable", "true");
+    Object.defineProperty(input, "isContentEditable", { value: true, configurable: true });
     input.setAttribute("data-suggestion", "true");
     input.setAttribute(EARLY_TAB_ACCEPT_ENABLED_ATTR, "true");
     input.setAttribute(EARLY_TAB_ACCEPT_BRIDGE_TARGET_ATTR, "true");

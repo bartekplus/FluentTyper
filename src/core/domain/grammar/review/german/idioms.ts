@@ -2,7 +2,7 @@ import { namedExampleBefore } from "../exampleCues";
 import { frameMatches, SPACE, WORD_END, WORD_START } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { germanAdjective } from "./germanLexicon";
-import { isGerman } from "./shared";
+import { isGerman, mayRun } from "./shared";
 
 // Fixed phrases whose words change case: a word that is a noun only in the phrase ("die
 // Schuld", "im Ernst", "in den Arm", "zum Dank", "ein Riesenerfolg") and a noun that is an
@@ -15,6 +15,7 @@ const re = (source: string) => new RegExp(`${WORD_START}(?:${source})${E}`, "gdu
 const DATIVES = "[Mm]ir|[Dd]ir|[Ii]hm|ihr|[Uu]ns|[Ee]uch|ihnen|Ihnen";
 const POSSESSIVES = "mein|dein|sein|ihr|unser|euer|Ihr";
 const SEIN = "ist|war|wäre|wird|wurde|sei|sein|bin|bist|sind|seid|waren|wären";
+const MONTHS = "Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember";
 // Verbs "zurecht" belongs to: zurechtkommen, -legen, -finden, -machen, -rücken, -weisen.
 const ZURECHT_VERBS =
   /(?<!\p{L})(?:ge)?(?:komm|kam|käm|leg|find|fand|fänd|mach|rück|weis|wies|stell|schneid|schnitt|bieg|bog|setz|zupf|richt)\p{Ll}*/u;
@@ -40,7 +41,7 @@ const FRAMES: Frame[] = [
   ],
   [
     re(
-      `(?<=(?:${SEIN})(?:${S}(?:doch|nicht|auch|selbst|allein))*${S})(?<target>Schuld)(?=${S}daran)`,
+      `(?<=(?:${SEIN})(?:${S}(?:doch|nicht|auch|selbst|allein)){0,3}${S})(?<target>Schuld)(?=${S}daran)`,
     ),
     () => "schuld",
   ],
@@ -96,7 +97,7 @@ const FRAMES: Frame[] = [
   // "mir ist Recht", "es geschah ihm Recht", "Recht und billig", "alles Recht machen".
   [
     re(
-      `(?<=(?:${DATIVES})(?:${S}(?:ganz|nicht|auch|aber|wirklich|durchaus|doch|schon|nur))*${S})(?<target>Recht)(?=${S}(?:sein|ist|war|wäre|so)${E}|[ \\t]*[,.!?])`,
+      `(?<=(?:${DATIVES})(?:${S}(?:ganz|nicht|auch|aber|wirklich|durchaus|doch|schon|nur)){0,3}${S})(?<target>Recht)(?=${S}(?:sein|ist|war|wäre|so)${E}|[ \\t]*[,.!?])`,
     ),
     (m, ctx) =>
       /\b(?:haben|hat|hast|habe|hatte|gibt|gab|geben|gegeben|gebe|gebt|gib)\b/.test(
@@ -119,7 +120,7 @@ const FRAMES: Frame[] = [
   ],
   // "ich bin ihr Gram" → gram.
   [
-    re(`(?<=(?:${SEIN})${S}(?:${DATIVES})(?:${S}(?:nicht|wirklich))*${S})(?<target>Gram)`),
+    re(`(?<=(?:${SEIN})${S}(?:${DATIVES})(?:${S}(?:nicht|wirklich)){0,2}${S})(?<target>Gram)`),
     () => "gram",
   ],
   // "mir ist Angst und Bange" → angst und bange; "macht mir angst und bange" → Angst und Bange.
@@ -132,7 +133,7 @@ const FRAMES: Frame[] = [
   ],
   [
     re(
-      `(?<=(?:mach|macht|machen|machte|machten|gemacht)${S}(?:\\p{Ll}+${S})?(?:${DATIVES}|mich|dich|ihn|sie|uns|euch)(?:${S}nicht)?${S})(?<target>[Aa]ngst${S}und${S}[Bb]ange)`,
+      `(?<=(?:mach|macht|machen|machte|machten|gemacht)${S}(?:\\p{Ll}{1,40}${S})?(?:${DATIVES}|mich|dich|ihn|sie|uns|euch)(?:${S}nicht)?${S})(?<target>[Aa]ngst${S}und${S}[Bb]ange)`,
     ),
     (m) =>
       m.groups!.target === m.groups!.target.replace(/^a/, "A").replace(/ b/, " B")
@@ -161,6 +162,36 @@ const FRAMES: Frame[] = [
       return verb ? "zurecht" : "zu Recht";
     },
   ],
+  // "bis ende Januar", "ende des Jahres", "kein ende", "zu ende", "ende gut": the noun; "das
+  // ende ich jetzt" is the verb.
+  [
+    re(
+      `(?<!(?:ich|[Ii]ch)${S})(?<target>ende)(?=${S}(?:${MONTHS}|des|der|dieser|diesen|nächster|nächsten|letzter|letzten|kommender|vergangener|\\d+|[Zz]wanzig|[Dd]reißig|[Vv]ierzig|[Ff]ünfzig|[Ss]echzig|gut)${E})|` +
+        `(?<=(?:[Dd]as|kein|ein|am|zum|vom|zu|bis)${S})(?<t2>ende)(?!${S}(?:ich|du|wir|ihr)${E})`,
+    ),
+    () => "Ende",
+  ],
+  // "auf dem weg", "aus dem weg", "über den weg", "den weg zeigen": the noun.
+  [
+    re(
+      `(?<=(?:auf|aus|über|[Aa]uf|[Aa]us|[Üü]ber)${S}(?:dem|den|halbem|halben)${S})(?<target>weg)|` +
+        `(?<=den${S})(?<t2>weg)(?=${S}(?:gezeigt|zeigen|zeigt|zeigte|finden|findet|fand|gefunden|weisen|gewiesen|kennen|kennt|bahnen|ebnen|geebnet)${E})`,
+    ),
+    () => "Weg",
+  ],
+  // "ein schönes paar", "ein zusätzliches paar Augen": "Paar" after an inflected adjective.
+  [
+    re(`(?<=(?:[Ee]in|[Dd]as|[Dd]ieses|[Jj]edes)${S}\\p{Ll}{1,30}es${S})(?<target>paar)`),
+    () => "Paar",
+  ],
+  // "im aus", "ins aus gerollt", "das aus für": the noun.
+  [
+    re(
+      `(?<=(?:im|ins)${S})(?<target>aus)(?=[ \\t]*[.!?,;]|${S}(?:\\p{Ll}*ge\\p{Ll}+t|landete|landet|rollte|rollt|ging|geht|gehen|gerät|geriet)${E})|` +
+        `(?<=[Dd]as${S})(?<t2>aus)(?=${S}für${E})`,
+    ),
+    () => "Aus",
+  ],
 ];
 
 /** Run by germanNounCasing's detector (nounCasing.ts). */
@@ -168,6 +199,7 @@ export function idioms(ctx: DetectContext): RawFinding[] {
   if (!isGerman(ctx)) return [];
   const findings: RawFinding[] = [];
   for (const [regex, fix] of FRAMES) {
+    if (!mayRun(ctx, regex)) continue;
     // The typed words are in "target", or in "t2"–"t4" for a frame's other branches.
     const named = (m: RegExpExecArray) =>
       ["target", "t2", "t3", "t4"].find((k) => m.groups![k] !== undefined)!;

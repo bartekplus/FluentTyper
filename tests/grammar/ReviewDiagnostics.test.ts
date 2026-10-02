@@ -151,6 +151,7 @@ describe("review rule coverage map", () => {
             "germanQuestionMarks",
             "germanStraightQuotes",
             "polishQuotes",
+            "spanishQuotes",
             "greekStrictFinalNu",
             "greekPunctuation",
             "portugueseTypographyStyle",
@@ -251,7 +252,13 @@ describe("review detectors: capitalization and typography", () => {
       [33, 34],
       [43, 44],
     ]);
-    for (const text of ["i.e. this", "i. First item", "  i. Second item", "See Part i. Next"]) {
+    for (const text of [
+      "i.e. this",
+      "Bring fruit, i. e. apples.",
+      "i. First item",
+      "  i. Second item",
+      "See Part i. Next",
+    ]) {
       expect(only(text, rule)).toEqual([]);
     }
     // A loop variable can end a sentence too: one at a time.
@@ -655,6 +662,22 @@ describe("adversarial review regressions: detection", () => {
     ]);
     expect(only("Is it ? Yes.", "commaPeriodSpacing")).toEqual([
       ["commaPeriodSpacing", " ?", [5, 7], "?"],
+    ]);
+    // Every Review language names keys and symbols with its own words.
+    const enabledRules: CatalogRuleId[] = ["commaPeriodSpacing", "capitalizeSentenceStart"];
+    for (const [lang, named] of [
+      ["es_ES", "Para repetir, pulsa . y luego escribe ? para pedir ayuda."],
+      ["de_DE", "Drücke . zum Wiederholen oder tippe ? für die Hilfe."],
+      ["pt_BR", "Pressione . para repetir ou digite ? para ajuda."],
+      ["pl_PL", "Naciśnij . aby powtórzyć albo wpisz ? po pomoc."],
+      ["sv_SE", "Tryck . för att upprepa eller skriv ? för hjälp."],
+      ["hr_HR", "Pritisni . za ponavljanje ili upiši ? za pomoć."],
+      ["fr_FR", "Tapez . pour répéter la commande."],
+      ["es_ES", "El signo « ? » abre una pregunta."],
+    ] as const)
+      expect(review(named, { enabledRules, lang })).toEqual([]);
+    expect(only("Hola ! qué tal", "commaPeriodSpacing", { lang: "es_ES" })).toEqual([
+      ["commaPeriodSpacing", " !", [4, 6], "!"],
     ]);
     // French spaces "?" and "!" on purpose, so what follows starts a sentence.
     expect(only("Vraiment ? oui.", "capitalizeSentenceStart", { lang: "fr_FR" })).toEqual([

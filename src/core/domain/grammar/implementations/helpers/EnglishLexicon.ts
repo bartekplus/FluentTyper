@@ -143,6 +143,18 @@ function readings(word: string): Reading[] {
  */
 export function englishWordInfo(word: string): EnglishWordInfo | null {
   const w = word.toLowerCase();
+  let info = INFO.get(w);
+  if (info === undefined) {
+    // Review asks about the same words from many frames: one reading per word.
+    if (INFO.size >= 50_000) INFO.clear();
+    info = readWordInfo(w);
+    INFO.set(w, info);
+  }
+  return info;
+}
+const INFO = new Map<string, EnglishWordInfo | null>();
+
+function readWordInfo(w: string): EnglishWordInfo | null {
   if (!/^[a-z]+$/.test(w)) return null;
   const list = readings(w);
   const irregular = load().irregular.get(w) ?? [];
@@ -206,7 +218,7 @@ export function englishWordInfo(word: string): EnglishWordInfo | null {
     }
   }
   for (const reading of irregular) verb(reading.lemma, reading.form);
-  return { verbs: [...verbs.values()], ...info };
+  return Object.freeze({ verbs: Object.freeze([...verbs.values()]), ...info });
 }
 
 function suffix(lemma: string, flag: string): string | false {

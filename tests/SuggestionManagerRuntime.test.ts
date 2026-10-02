@@ -1093,7 +1093,12 @@ describe("SuggestionManagerRuntime", () => {
     expect(entry.requestId).toBe(initialRequestId + 1);
   });
 
-  const makeRuntime = (selectors = "textarea, input, [contentEditable]") =>
+  const makeRuntime = (
+    selectors = "textarea, input, [contentEditable]",
+    overrides: Partial<
+      import("../src/adapters/chrome/content-script/suggestions/types").SuggestionManagerOptions
+    > = {},
+  ) =>
     new SuggestionManagerRuntime({
       selectors,
       minWordLengthToPredict: 1,
@@ -1109,20 +1114,185 @@ describe("SuggestionManagerRuntime", () => {
       enabledGrammarRules: [],
       userDictionaryList: [],
       getPrediction: jest.fn(),
+      ...overrides,
     });
 
+  test("pauses an attached writing field for a late popup, rejects stale answers and resumes on typing", () => {
+    const runtime = makeRuntime();
+    document.body.innerHTML =
+      '<input id="subject" aria-autocomplete="list" aria-controls="choices"><div id="choices" role="listbox" hidden><div role="option">Choice</div></div>';
+    const input = document.querySelector("input")!;
+    const popup = document.querySelector<HTMLElement>("#choices")!;
+    for (const node of [popup, popup.firstElementChild!])
+      node.getClientRects = () =>
+        [
+          { left: 10, top: 10, right: 110, bottom: 30, width: 100, height: 20 },
+        ] as unknown as DOMRectList;
+    runtime.queryAndAttachHelper();
+    input.focus();
+    input.value = "hel";
+    input.setSelectionRange(3, 3);
+    const internals = runtime as unknown as {
+      entryRegistry: { getByElement: (e: Element) => SuggestionEntry };
+      predictionCoordinator: { schedule: (...args: unknown[]) => void };
+    };
+    const entry = internals.entryRegistry.getByElement(input);
+    const session = getAttachedSession(runtime, entry.id);
+    const requestId = entry.requestId;
+    entry.suggestions = ["hello"];
+    popup.hidden = false;
+    // No observer delivery: the acceptance path must still refuse the edit.
+    expect(session.acceptSuggestion?.("hello")).toBe(false);
+    expect(input.value).toBe("hel");
+    expect(entry.suggestions).toEqual([]);
+    expect(input.getAttribute("data-suggestion")).toBe("true");
+    runtime.fulfillPrediction({
+      suggestionId: entry.id,
+      requestId,
+      predictions: ["hello"],
+      text: "hel",
+      nextChar: "",
+      lang: "en_US",
+      tabId: 1,
+      frameId: 0,
+    });
+    expect(entry.suggestions).toEqual([]);
+    const schedule = jest.spyOn(internals.predictionCoordinator, "schedule");
+    input.value = "website choice";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    expect(schedule).not.toHaveBeenCalled();
+    popup.remove();
+    runtime.removeHelpersNotInDocument();
+    const protectedSession = session as unknown as {
+      allowsAutomaticEdit: (edit: { deleteBackwards: number; replacement: string }) => boolean;
+    };
+    expect(
+      protectedSession.allowsAutomaticEdit({ deleteBackwards: 6, replacement: "Choice" }),
+    ).toBe(false);
+    expect(schedule).not.toHaveBeenCalled();
+    input.value += " h";
+    input.setSelectionRange(input.value.length, input.value.length);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    expect(schedule).toHaveBeenCalled();
+    runtime.detachAllHelpers();
+  });
+
+  test.each([
+    '<input list="missing">',
+    '<input list="choices"><datalist id="choices"></datalist>',
+    '<input aria-autocomplete="list">',
+  ])("keeps FluentTyper arrow navigation with unusable autocomplete metadata: %s", (html) => {
+    const runtime = makeRuntime();
+    document.body.innerHTML = html;
+    const input = document.querySelector("input")!;
+    runtime.queryAndAttachHelper();
+    input.focus();
+    const internal = runtime as unknown as {
+      entryRegistry: { getByElement: (e: Element) => SuggestionEntry };
+    };
+    const entry = internal.entryRegistry.getByElement(input);
+    entry.suggestions = ["hello", "help"];
+    entry.selectedIndex = 0;
+    entry.menu.style.display = "block";
+    const arrow = new window.KeyboardEvent("keydown", {
+      key: "ArrowDown",
+      bubbles: true,
+      cancelable: true,
+    });
+    input.dispatchEvent(arrow);
+    expect(arrow.defaultPrevented).toBe(true);
+    expect(entry.selectedIndex).toBe(1);
+    expect(entry.suggestions).toEqual(["hello", "help"]);
+    expect(entry.menu.style.display).toBe("block");
+    runtime.detachAllHelpers();
+  });
+
+  test("search keeps Space and widget opening arrows native while explicit acceptance works", () => {
+    const runtime = makeRuntime();
+    document.body.innerHTML = '<input type="search" role="combobox" aria-autocomplete="list">';
+    const input = document.querySelector("input")!;
+    runtime.queryAndAttachHelper();
+    input.focus();
+    input.value = "hel";
+    input.setSelectionRange(3, 3);
+    const internal = runtime as unknown as {
+      entryRegistry: { getByElement: (e: Element) => SuggestionEntry };
+    };
+    const entry = internal.entryRegistry.getByElement(input);
+    entry.suggestions = ["hello"];
+    const space = new window.KeyboardEvent("keydown", {
+      key: " ",
+      bubbles: true,
+      cancelable: true,
+    });
+    input.dispatchEvent(space);
+    expect(space.defaultPrevented).toBe(false);
+    expect(input.value).toBe("hel");
+    const arrow = new window.KeyboardEvent("keydown", {
+      key: "ArrowDown",
+      bubbles: true,
+      cancelable: true,
+    });
+    input.dispatchEvent(arrow);
+    expect(arrow.defaultPrevented).toBe(false);
+    expect(getAttachedSession(runtime, entry.id).acceptSuggestion?.("hello")).toBe(true);
+    expect(input.value).toContain("hello");
+    runtime.detachAllHelpers();
+  });
+
+  test("manual activation cannot bypass dynamic credential protection", () => {
+    const runtime = makeRuntime();
+    document.body.innerHTML = '<input autocomplete="email">';
+    const input = document.querySelector("input")!;
+    runtime.queryAndAttachHelper();
+    clickManualAttachButton(getManualAttachButton()!);
+    const internal = runtime as unknown as {
+      entryRegistry: { getByElement: (e: Element) => SuggestionEntry };
+    };
+    const entry = internal.entryRegistry.getByElement(input);
+    input.setAttribute("autocomplete", "one-time-code");
+    input.value = "123";
+    expect(getAttachedSession(runtime, entry.id).acceptSuggestion?.("1234")).toBe(false);
+    expect(entry.lastBeforeCursorText).toBeNull();
+    runtime.removeHelpersNotInDocument();
+    expect(input.hasAttribute("data-suggestion")).toBe(false);
+    expect(getManualAttachButton()).toBeNull();
+    runtime.detachAllHelpers();
+  });
+
+  test("remembered choices restore replacement fields but refuse duplicate anchors", async () => {
+    const { fieldSignatureSource, hashFieldSignature } =
+      await import("../src/adapters/chrome/content-script/suggestions/FieldSignature");
+    document.body.innerHTML = '<input id="recipient" autocomplete="email">';
+    let input = document.querySelector("input")!;
+    const signature = await hashFieldSignature(fieldSignatureSource(input)!);
+    const runtime = makeRuntime("input", { loadFieldPreferences: async () => [signature] });
+    // Flush WebCrypto completion using its own promise rather than a timer.
+    for (let i = 0; i < 10 && !input.hasAttribute("data-suggestion"); i++)
+      await hashFieldSignature("flush");
+    expect(input.getAttribute("data-suggestion")).toBe("true");
+    input.outerHTML = '<input id="recipient" autocomplete="email">';
+    input = document.querySelector("input")!;
+    runtime.removeHelpersNotInDocument();
+    runtime.queryAndAttachHelper();
+    for (let i = 0; i < 10 && !input.hasAttribute("data-suggestion"); i++)
+      await hashFieldSignature("flush");
+    expect(input.getAttribute("data-suggestion")).toBe("true");
+    document.body.append(input.cloneNode());
+    runtime.removeHelpersNotInDocument();
+    runtime.queryAndAttachHelper();
+    expect(input.hasAttribute("data-suggestion")).toBe(false);
+    runtime.detachAllHelpers();
+  });
   describe("input type eligibility", () => {
-    test.each(["email", "url", "text", "search"])(
-      'attaches to input[type="%s"]',
-      (type: string) => {
-        const runtime = makeRuntime();
-        const input = document.createElement("input");
-        input.type = type;
-        document.body.appendChild(input);
-        runtime.queryAndAttachHelper();
-        expect(input.getAttribute("data-suggestion")).toBe("true");
-      },
-    );
+    test.each(["text", "search"])('attaches to input[type="%s"]', (type: string) => {
+      const runtime = makeRuntime();
+      const input = document.createElement("input");
+      input.type = type;
+      document.body.appendChild(input);
+      runtime.queryAndAttachHelper();
+      expect(input.getAttribute("data-suggestion")).toBe("true");
+    });
 
     test.each(["number", "password", "hidden", "checkbox", "radio", "file", "color", "tel"])(
       'does not attach to input[type="%s"]',
@@ -1217,6 +1387,7 @@ describe("SuggestionManagerRuntime", () => {
     test("shows a manual attach icon for datalist conflicts when preferNativeAutocomplete is enabled", () => {
       const runtime = makeRuntime();
       const list = document.createElement("datalist");
+      list.innerHTML = '<option value="Paris"></option>';
       list.id = "cities";
       const input = document.createElement("input");
       input.type = "text";
@@ -1228,7 +1399,7 @@ describe("SuggestionManagerRuntime", () => {
       expect(input.hasAttribute("data-suggestion")).toBe(false);
       const button = getManualAttachButton(input.parentElement ?? document);
       expect(button).not.toBeNull();
-      expect(button?.title).toBe("Click to enable FluentTyper for this field.");
+      expect(button?.title).toContain("Enable writing assistance here");
       expect(input.style.paddingRight).not.toBe("");
     });
 
@@ -1491,6 +1662,7 @@ describe("SuggestionManagerRuntime", () => {
       const runtime = makeRuntime();
       const parent = document.createElement("div");
       const list = document.createElement("datalist");
+      list.innerHTML = '<option value="Paris"></option>';
       list.id = "cities";
       const input = document.createElement("input");
       input.type = "text";
@@ -1520,6 +1692,7 @@ describe("SuggestionManagerRuntime", () => {
       const textarea = document.createElement("textarea");
       textarea.dir = "rtl";
       textarea.setAttribute("role", "combobox");
+      textarea.setAttribute("autocomplete", "street-address");
       textarea.setAttribute("aria-expanded", "true");
       textarea.setAttribute("aria-controls", "cities");
       parent.append(textarea);
@@ -1542,6 +1715,7 @@ describe("SuggestionManagerRuntime", () => {
       try {
         const runtime = makeRuntime();
         const list = document.createElement("datalist");
+        list.innerHTML = '<option value="Paris"></option>';
         list.id = "cities";
         const input = document.createElement("input");
         input.type = "text";
@@ -1658,6 +1832,7 @@ describe("SuggestionManagerRuntime", () => {
     test("detaches helper and replaces it with the manual attach icon when input gains native conflict attributes", () => {
       const runtime = makeRuntime();
       const list = document.createElement("datalist");
+      list.innerHTML = '<option value="Paris"></option>';
       list.id = "cities";
       const input = document.createElement("input");
       input.type = "text";
@@ -1676,6 +1851,7 @@ describe("SuggestionManagerRuntime", () => {
     test("reattaches helper after native autocomplete conflict is removed and clears the icon", () => {
       const runtime = makeRuntime();
       const list = document.createElement("datalist");
+      list.innerHTML = '<option value="Paris"></option>';
       list.id = "cities";
       const input = document.createElement("input");
       input.type = "text";
@@ -1711,6 +1887,7 @@ describe("SuggestionManagerRuntime", () => {
         getPrediction: jest.fn(),
       });
       const list = document.createElement("datalist");
+      list.innerHTML = '<option value="Paris"></option>';
       list.id = "cities";
       const input = document.createElement("input");
       input.type = "text";
@@ -1750,6 +1927,7 @@ describe("SuggestionManagerRuntime", () => {
     test("removes the manual attach icon when a conflicting field becomes readonly", () => {
       const runtime = makeRuntime();
       const list = document.createElement("datalist");
+      list.innerHTML = '<option value="Paris"></option>';
       list.id = "cities";
       const input = document.createElement("input");
       input.type = "text";
@@ -1845,6 +2023,7 @@ describe("SuggestionManagerRuntime", () => {
       document.body.appendChild(host);
       const shadow = host.attachShadow({ mode: "open" });
       const list = document.createElement("datalist");
+      list.innerHTML = '<option value="Paris"></option>';
       list.id = "cities";
       const shadowInput = document.createElement("input");
       shadowInput.type = "text";
@@ -1863,6 +2042,7 @@ describe("SuggestionManagerRuntime", () => {
       document.body.appendChild(host);
       const shadow = host.attachShadow({ mode: "open" });
       const list = document.createElement("datalist");
+      list.innerHTML = '<option value="Paris"></option>';
       list.id = "cities";
       const shadowInput = document.createElement("input");
       shadowInput.type = "text";
@@ -1886,6 +2066,7 @@ describe("SuggestionManagerRuntime", () => {
       document.body.appendChild(host);
       const shadow = host.attachShadow({ mode: "open" });
       const list = document.createElement("datalist");
+      list.innerHTML = '<option value="Paris"></option>';
       list.id = "cities";
       const shadowInput = document.createElement("input");
       shadowInput.type = "text";
@@ -1905,6 +2086,7 @@ describe("SuggestionManagerRuntime", () => {
       document.body.appendChild(host);
       const shadow = host.attachShadow({ mode: "open" });
       const list = document.createElement("datalist");
+      list.innerHTML = '<option value="Paris"></option>';
       list.id = "cities";
       const shadowInput = document.createElement("input");
       shadowInput.type = "text";

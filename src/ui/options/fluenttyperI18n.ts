@@ -2396,10 +2396,10 @@ i18n.extend({
     pr: "Promove palavras que você escolhe com frequência. As palavras aprendidas ficam neste dispositivo e podem ser apagadas a qualquer momento.",
   },
   prefer_native_autocomplete_label: {
-    en: "Prefer native autocomplete in conflict fields",
+    en: "Automatically avoid autocomplete conflicts",
   },
   prefer_native_autocomplete_desc: {
-    en: "Yield to native or page-provided autocomplete when a field clearly exposes its own suggestion UI.",
+    en: "FluentTyper pauses while website suggestions are active and resumes as you type. Structured fields and browser-managed suggestions may need manual activation.",
   },
   code_mode_label: {
     en: "Code mode",

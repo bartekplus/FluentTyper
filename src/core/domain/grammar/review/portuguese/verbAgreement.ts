@@ -11,9 +11,8 @@ import { PORTUGUESE_R_STEMS } from "./verbs.generated";
  * - hours take the plural: "Já deu dez horas" -> "deram", "Está dando 10h" -> "Estão";
  * - "ser" agrees with the pronoun after it: "Quem fez foi eu" -> "fui";
  * - "trata-se de" and "precisa-se de" stay singular;
- * - a past or future verb right next to "ontem" or "amanhã": "Enviarão ontem" -> "Enviaram";
- * - after "espero que", "quero que", "embora"... the subjunctive: "Espero que você está bem"
- *   -> "esteja".
+ * - a past or future verb right next to "ontem" or "amanhã": "Enviarão ontem" -> "Enviaram".
+ * The subjunctive after "espero que", "embora"... is in subjunctive.ts.
  */
 
 const S = SPACE;
@@ -226,96 +225,6 @@ function tenses(ctx: DetectContext, findings: RawFinding[]): void {
   }
 }
 
-// -------------------------------------------------------------- subjunctive
-
-// Indicative -> present subjunctive of frequent irregular verbs.
-const SUBJUNCTIVE: Record<string, string> = {
-  é: "seja",
-  são: "sejam",
-  sou: "seja",
-  somos: "sejamos",
-  está: "esteja",
-  estão: "estejam",
-  estou: "esteja",
-  estamos: "estejamos",
-  tem: "tenha",
-  têm: "tenham",
-  tenho: "tenha",
-  temos: "tenhamos",
-  vai: "vá",
-  vou: "vá",
-  vem: "venha",
-  vêm: "venham",
-  venho: "venha",
-  pode: "possa",
-  podem: "possam",
-  posso: "possa",
-  podemos: "possamos",
-  sabe: "saiba",
-  sabem: "saibam",
-  sei: "saiba",
-  faz: "faça",
-  fazem: "façam",
-  faço: "faça",
-  diz: "diga",
-  dizem: "digam",
-  quer: "queira",
-  querem: "queiram",
-  há: "haja",
-  dá: "dê",
-  dão: "deem",
-  vê: "veja",
-  veem: "vejam",
-  traz: "traga",
-  trazem: "tragam",
-  consegue: "consiga",
-  conseguem: "consigam",
-  sente: "sinta",
-  sentem: "sintam",
-  chove: "chova",
-};
-// Verbs that take the subjunctive after "que" (wishes, requests, doubt), and concessive
-// conjunctions that take it directly.
-const GOVERNORS =
-  "espero|esperamos|esperam|espera-se|desejo|desejamos|quero|queremos|peço|pedimos|exijo|proíbo|duvido|duvidamos|prefiro|preferimos|sugiro|sugerimos|recomendo|recomendamos|tomara";
-const PRONOUN = "eu|tu|ele|ela|você|nós|eles|elas|vocês|a gente";
-const AFTER_GOVERNOR = `${S}(?:(?<pronoun>${PRONOUN})${S})?(?:(?:não|já|ainda|também|realmente|sempre|nunca)${S}){0,2}(?:(?:me|te|se|lhe|nos|o|a|os|as)${S})?(?<target>\\p{Ll}+|é|há|dá|dão|vê)${W}(?!-)`;
-const SUBJUNCTIVE_FRAMES = [
-  `(?:${GOVERNORS})${S}que${AFTER_GOVERNOR}`,
-  `(?:embora|conquanto)${AFTER_GOVERNOR}`,
-];
-
-// Frequent regular -ar verbs (stems). Only these are told apart: in general "-a" after a
-// pronoun is as often the subjunctive of an -er/-ir verb ("ele beba", "ela tenha").
-const AR_STEMS = new Set(
-  `cheg precis gost fic ach ajud começ continu pass volt trabalh estud lig pag compr fal cham
-  deix lev olh pens tent us encontr mostr ger aceit lembr entr jog mand tom acab cuid cant
-  danç viaj esper ganh mor fech ocup prepar`.split(/\s+/),
-);
-
-/** The present subjunctive of a frequent regular -ar indicative ("chega" -> "chegue"). */
-function regularSubjunctive(verb: string): string | undefined {
-  const plural = verb.endsWith("am");
-  const stem = verb.slice(0, plural ? -2 : -1);
-  if (!/am?$/.test(verb) || !AR_STEMS.has(stem)) return undefined;
-  const spelled = stem.replace(/c$/, "qu").replace(/g$/, "gu").replace(/ç$/, "c");
-  return `${spelled}${plural ? "em" : "e"}`;
-}
-
-function subjunctives(ctx: DetectContext, findings: RawFinding[]): void {
-  for (const pattern of SUBJUNCTIVE_FRAMES) {
-    for (const m of frameMatches(ctx, pattern)) {
-      const target = m.groups!.target;
-      if (target !== target.toLowerCase()) continue;
-      let wanted: string | undefined = SUBJUNCTIVE[target];
-      // A regular -ar verb is only told from a noun after a pronoun subject.
-      if (!wanted && m.groups!.pronoun && !NOT_VERBS.has(target))
-        wanted = regularSubjunctive(target);
-      if (wanted) push(findings, ctx, m, "target", [wanted], "review_msg_pt_subjunctive");
-    }
-  }
-}
-
 export function verbAgreement(ctx: DetectContext): RawFinding[] {
   if (ctx.lang.slice(0, 2) !== "pt") return [];
   const findings: RawFinding[] = [];
@@ -330,6 +239,5 @@ export function verbAgreement(ctx: DetectContext): RawFinding[] {
     push(findings, ctx, m, "target", [m.groups!.target.slice(0, -1)]);
   }
   tenses(ctx, findings);
-  subjunctives(ctx, findings);
   return findings;
 }

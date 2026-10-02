@@ -1,3 +1,4 @@
+import type { FieldEligibility } from "./NativeAutocompleteConflictDetector";
 import { clampColorChannel, relativeLuminance } from "@core/domain/color";
 import { isInDocument } from "@core/application/dom-utils";
 
@@ -53,6 +54,7 @@ interface ManualAttachUiHandle {
 }
 
 export class ManualAttachUiManager {
+  private readonly notices = new Map<ManualAttachTarget, { node: HTMLElement; passive: boolean }>();
   private readonly handles = new Map<ManualAttachTarget, ManualAttachUiHandle>();
   private readonly parentPositionStates = new Map<HTMLElement, ParentPositionState>();
 
@@ -63,7 +65,7 @@ export class ManualAttachUiManager {
     },
   ) {}
 
-  public ensureForElement(element: ManualAttachTarget): void {
+  public ensureForElement(element: ManualAttachTarget, eligibility?: FieldEligibility): void {
     if (!isInDocument(element)) {
       this.removeForElement(element);
       return;
@@ -81,6 +83,15 @@ export class ManualAttachUiManager {
 
     const mountTarget = this.resolveMountTarget(element);
     const handle = this.createHandle(element, mountTarget);
+    if (eligibility?.kind === "manual") {
+      const reason = {
+        structured: "This field expects structured information.",
+        selector: "This field may select an item from a list.",
+        browser: "This field has browser-managed suggestions.",
+      }[eligibility.reason];
+      handle.button.title = `${reason} Enable writing assistance here.`;
+      handle.button.setAttribute("aria-label", handle.button.title);
+    }
     this.handles.set(element, handle);
     this.updatePlacement(element, handle);
     if (this.shouldReserveInlinePadding(element)) {
@@ -106,9 +117,105 @@ export class ManualAttachUiManager {
   }
 
   public removeAll(): void {
+    for (const element of this.notices.keys()) this.removeNotice(element);
     for (const element of [...this.handles.keys()]) {
       this.removeForElement(element);
     }
+  }
+
+  public showNotice(
+    element: ManualAttachTarget,
+    message: string,
+    remember?: () => Promise<void>,
+    passive = false,
+  ): void {
+    if (passive && this.notices.get(element)?.passive === false) return;
+    this.removeNotice(element);
+    const node = element.ownerDocument.createElement("div");
+    node.setAttribute("data-ft-suggestion-owned", "true");
+    node.setAttribute("role", "status");
+    const rect = element.getBoundingClientRect();
+    Object.assign(node.style, {
+      position: "fixed",
+      left: `${Math.max(4, Math.min(rect.left, element.ownerDocument.defaultView!.innerWidth - 290))}px`,
+      top: `${Math.min(rect.bottom + 4, element.ownerDocument.defaultView!.innerHeight - 110)}px`,
+      zIndex: "2147483001",
+      maxWidth: "280px",
+      padding: "8px",
+      background: "Canvas",
+      color: "CanvasText",
+      border: "1px solid GrayText",
+      borderRadius: "6px",
+      font: "13px system-ui",
+      pointerEvents: "auto",
+    });
+    const text = element.ownerDocument.createElement("span");
+    text.style.display = "block";
+    text.style.marginBottom = passive ? "0" : "8px";
+    text.textContent = passive ? "FT paused" : message;
+    if (passive) {
+      node.setAttribute("aria-label", message);
+      node.title = message;
+      Object.assign(node.style, {
+        top: `${Math.max(0, rect.top - 22)}px`,
+        padding: "2px 5px",
+        fontSize: "11px",
+        pointerEvents: "none",
+      });
+    }
+    node.append(text);
+    if (remember) {
+      const button = element.ownerDocument.createElement("button");
+      button.type = "button";
+      button.textContent = "Remember for this field";
+      button.addEventListener("click", () => {
+        void (async () => {
+          button.disabled = true;
+          try {
+            await remember();
+            text.textContent = "Remembered. Manage saved fields in Site settings.";
+            button.remove();
+          } catch (error) {
+            text.textContent =
+              error instanceof Error ? error.message : "Could not remember this field.";
+            button.disabled = false;
+          }
+        })();
+      });
+      node.append(button);
+    }
+    if (!passive) {
+      const close = element.ownerDocument.createElement("button");
+      close.type = "button";
+      close.textContent = "Dismiss";
+      close.addEventListener("click", () => this.removeNotice(element));
+      node.append(close);
+    }
+    for (const button of node.querySelectorAll("button")) {
+      Object.assign(button.style, {
+        font: "inherit",
+        padding: "5px 8px",
+        marginRight: "6px",
+        border: "1px solid GrayText",
+        borderRadius: "4px",
+        background: "ButtonFace",
+        color: "ButtonText",
+        cursor: "pointer",
+      });
+    }
+    element.ownerDocument.documentElement.append(node);
+    this.notices.set(element, { node, passive });
+  }
+
+  public removeNotice(element: ManualAttachTarget, passiveOnly = false): void {
+    const notice = this.notices.get(element);
+    if (!notice || (passiveOnly && !notice.passive)) return;
+    notice.node.remove();
+    this.notices.delete(element);
+  }
+
+  public pruneNotices(): void {
+    for (const element of this.notices.keys()) if (!element.isConnected) this.removeNotice(element);
   }
 
   public targets(): IterableIterator<ManualAttachTarget> {
@@ -133,6 +240,7 @@ export class ManualAttachUiManager {
 
     const container = element.ownerDocument.createElement("div");
     container.className = "ft-manual-attach";
+    container.setAttribute("data-ft-suggestion-owned", "true");
     Object.assign(container.style, {
       position: mountTarget.positioningParent === null ? "fixed" : "absolute",
       zIndex: "2147483000",

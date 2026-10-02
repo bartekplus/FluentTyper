@@ -14,6 +14,7 @@ export class DomObserver {
     }
     this.observer.observe(this.node, {
       childList: true,
+      characterData: true,
       attributes: true,
       // Include visibility-related and interactivity-related attributes so state
       // transitions (hidden↔visible, disabled↔enabled, readonly↔editable) trigger rescans.
@@ -29,6 +30,16 @@ export class DomObserver {
         "aria-expanded",
         "aria-controls",
         "aria-owns",
+        "aria-activedescendant",
+        "aria-hidden",
+        "aria-disabled",
+        "aria-busy",
+        "aria-readonly",
+        "aria-multiline",
+        "aria-haspopup",
+        "inputmode",
+        "value",
+        "inert",
         "style",
         "class",
         "hidden",

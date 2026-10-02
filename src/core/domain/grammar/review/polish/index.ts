@@ -3,6 +3,7 @@ import type { LanguagePhraseTables } from "../languagePhraseTables";
 import type { ReviewDetectorEntry } from "../reviewDetectors";
 import * as agreement from "./agreement";
 import * as casing from "./casing";
+import * as clauses from "./clauses";
 import * as commaFrames from "./commaFrames";
 import * as commas from "./commas";
 import * as compounds from "./compounds";
@@ -37,4 +38,5 @@ export const POLISH_DETECTORS: readonly ReviewDetectorEntry[] = [
   ...commaFrames.DETECTORS,
   ...casing.DETECTORS,
   ...conjunctions.DETECTORS,
+  ...clauses.DETECTORS,
 ];

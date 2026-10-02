@@ -360,7 +360,7 @@ export const FRAMES: readonly Frame[] = [
   },
   // "a tym czasem" opens a contrast; "tym czasem się nie przejmuj" is the instrumental.
   {
-    pattern: `(?<=(?:^|[.!?]\\s+|(?:^|[^\\p{L}])a${S}))(?<target>tym${S}czasem)(?!${S}(?:się|nie|przejm\\p{L}*|zajm\\p{L}*|martw\\p{L}*)(?![\\p{L}]))(?![\\p{L}])`,
+    pattern: `(?<=(?:^|[.!?]\\s{1,8}|(?:^|[^\\p{L}])a${S}))(?<target>tym${S}czasem)(?!${S}(?:się|nie|przejm\\p{L}*|zajm\\p{L}*|martw\\p{L}*)(?![\\p{L}]))(?![\\p{L}])`,
     fix: "tymczasem",
     ...COMPOUND,
   },

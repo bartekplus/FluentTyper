@@ -89,6 +89,15 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
       ["schneller wie", "schneller als"],
       ["älter wie", "älter als"],
       ["kleiner wie", "kleiner als"],
+      // Fixed pairs whose first part is shortened and takes a hyphen.
+      ["niet und nagelfest", "niet- und nagelfest"],
+      ["sang und klanglos", "sang- und klanglos"],
+      ["hieb und stichfest", "hieb- und stichfest"],
+      ["hieb und stichfeste", "hieb- und stichfeste"],
+      ["Hals und Beinbruch", "Hals- und Beinbruch"],
+      ["Maul und Klauenseuche", "Maul- und Klauenseuche"],
+      ["Dreh und Angelpunkt", "Dreh- und Angelpunkt"],
+      ["Buß und Bettag", "Buß- und Bettag"],
     ],
     compounds: [
       ["aufwiedersehen", "auf Wiedersehen"],
@@ -274,6 +283,29 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
       ["idiosincracia", "idiosincrasia"],
       ["aereopuerto", "aeropuerto"],
       ["vagamundo", "vagabundo"],
+      // Irregular participles built as if regular: "rompido" -> "roto", "volvido" -> "vuelto".
+      ...(
+        [
+          ["rompid", "rot"],
+          ["escribid", "escrit"],
+          ["describid", "descrit"],
+          ["inscribid", "inscrit"],
+          ["cubrid", "cubiert"],
+          ["descubrid", "descubiert"],
+          ["morid", "muert"],
+          ["ponid", "puest"],
+          ["componid", "compuest"],
+          ["volvid", "vuelt"],
+          ["devolvid", "devuelt"],
+          ["envolvid", "envuelt"],
+          ["resolvid", "resuelt"],
+          ["hacid", "hech"],
+          ["deshacid", "deshech"],
+          ["satisfacid", "satisfech"],
+        ] as const
+      ).flatMap(([typed, fixed]) =>
+        ["o", "a", "os", "as"].map((end): PhraseRow => [`${typed}${end}`, `${fixed}${end}`]),
+      ),
     ],
     // Existential "haber" is singular; "hubieron de" and "habían llegado" are not matched.
     phrases: [
@@ -386,9 +418,43 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
         ["miles de persona", "miles de personas"],
         ["millones de persona", "millones de personas"],
         ["cientos de persona", "cientos de personas"],
+        ["fracción de segundos", "fracción de segundo"],
+        ["fracciones de segundos", "fracciones de segundo"],
+        ["golpe de estados", "golpe de estado"],
+        ["golpes de estados", "golpes de estado"],
+        ["medios de comunicaciones", "medios de comunicación"],
+        ["puntos de partidas", "puntos de partida"],
         ["millones de euro", "millones de euros"],
         ["miles de euro", "miles de euros"],
       ].map(([typed, fixed]): PhraseRow => [typed, fixed]),
+      // "miles", "cientos", "millares" are masculine nouns: "los miles de personas".
+      ...["miles", "cientos", "millares", "centenares"].flatMap((amount): PhraseRow[] => [
+        [`las ${amount}`, `los ${amount}`],
+        [`unas ${amount}`, `unos ${amount}`],
+      ]),
+      ["estado unidos", "estados unidos"],
+      // "estar de acuerdo" keeps the noun singular.
+      ...["estoy", "estás", "está", "estamos", "estáis", "están", "estaba", "estaban", "estar"].map(
+        (form): PhraseRow => [`${form} de acuerdos`, `${form} de acuerdo`],
+      ),
+
+      // Set phrases with a word swapped for a sound-alike or a wrong link word.
+      ["loor de multitudes", "olor de multitudes"],
+      ["obediencia de vida", "obediencia debida"],
+      [["cuota de nieve", "cuotas de nieve"], "cota de nieve"],
+      ["al igual de", "al igual que"],
+      ["al igual del", "al igual que el"],
+      ["por tal de", "con tal de"],
+      ["tal es así que", "tanto es así que"],
+      ["sin en cambio", ["sin embargo", "en cambio"]],
+      ["ni si quiera", "ni siquiera"],
+      ["debido que", "debido a que"],
+      ["sin ecuánime", "sine qua non"],
+      // "surtir efecto" (to take effect), not "surgir" (to arise).
+      ...["surge", "surgen", "surgió", "surgieron", "surgir"].map((form): PhraseRow => [
+        `${form} efecto`,
+        `${form.replace("surg", "surt")} efecto`,
+      ]),
       // The relative "cual" after its article never takes the accent.
       ["el cuál", "el cual"],
       ["la cuál", "la cual"],
@@ -427,13 +493,39 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
       ["ultra violetas", "ultravioleta"],
       ["estado unidenses", "estadounidenses"],
       ["estado unidense", "estadounidense"],
+      ["a contra corriente", "a contracorriente"],
+      ["a contra pie", "a contrapié"],
+      ["boca bajo", ["boca abajo", "bocabajo"]],
+      ["el hazme reír", "el hazmerreír"],
+      ["un hazme reír", "un hazmerreír"],
+      ["cuál quier", "cualquier"],
+      ["cual quier", "cualquier"],
+      ["cual quiera", "cualquiera"],
+      ["cuales quiera", "cualesquiera"],
     ],
     style: [
       ["subir arriba", "subir"],
       ["bajar abajo", "bajar"],
       ["salir afuera", "salir"],
       ["entrar adentro", "entrar"],
-      ["hace años atrás", ["hace años", "años atrás"]],
+      ["en relación a", ["en relación con", "con relación a"]],
+      ["en relación al", ["en relación con el", "con relación al"]],
+      ["en base a", ["con base en", "sobre la base de"]],
+      ["en base al", ["con base en el", "sobre la base del"]],
+      // "Han relacionado a los dos casos" takes the personal "a": the masculine singular is read
+      // only after "estar".
+      ...[
+        "relacionada",
+        "relacionados",
+        "relacionadas",
+        "está relacionado",
+        "estaba relacionado",
+      ].flatMap((form): PhraseRow[] => [
+        [`${form} a`, `${form} con`],
+        [`${form} al`, `${form} con el`],
+      ]),
+      ["orografía del terreno", "orografía"],
+      ["de gratis", "gratis"],
     ],
   },
   pt: {

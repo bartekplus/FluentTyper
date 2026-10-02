@@ -16,6 +16,7 @@ import {
   reviewChunks,
   scanReviewChunk,
 } from "../../src/core/domain/grammar/review/reviewDiagnostics";
+import { finiteVerb, subjunctiveLike } from "../../src/core/domain/grammar/review/spanish/lexicon";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
 
@@ -841,6 +842,400 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
       ],
     },
   ],
+  [
+    "spanishAgreement",
+    "adjectives after a subject's or an attribute's noun, and after an article and más",
+    {
+      pos: [
+        ["Los coches rojas están aparcados fuera.", "Los coches rojos están aparcados fuera."],
+        ["Es una película muy aburrido.", "Es una película muy aburrida."],
+        ["Eran ventanas pequeños.", "Eran ventanas pequeñas."],
+        ["El agua helado me despertó.", "El agua helada me despertó."],
+        ["Son soluciones posible.", "Son soluciones posibles."],
+        ["Mi abuela es la más simpático de todas.", "Mi abuela es la más simpática de todas."],
+        ["Elige los menos maduro.", "Elige los menos maduros."],
+        [
+          "Todos dan por hecho la victoria del equipo.",
+          "Todos dan por hecha la victoria del equipo.",
+        ],
+        ["Damos por supuesto las disculpas.", "Damos por supuestas las disculpas."],
+      ],
+      neg: [
+        "Juan dejó la oficina cansado.",
+        "Llegó a la fiesta contento.",
+        "La gente mayor vive en el centro.",
+        "El pez espada nada rápido.",
+        "La mujer piloto aterrizó sin problemas.",
+        "Es una camiseta blanco y negro.",
+        "Las chicas solo quieren bailar.",
+        "La casa junto al río está vacía.",
+        "Aparecieron diez perros, la mayoría cachorros.",
+        "El jefe valida la propuesta.",
+        "Lo da por hecho el ministro.",
+        "Es el más allá de la vida.",
+      ],
+    },
+  ],
+  [
+    "spanishAgreement",
+    "plural subjects before a singular attribute",
+    {
+      pos: [
+        ["Somos consciente del riesgo.", "Somos conscientes del riesgo."],
+        ["Estamos muy contento con el resultado.", "Estamos muy contentos con el resultado."],
+        ["Debemos estar atento a las señales.", "Debemos estar atentos a las señales."],
+        ["Tenemos que ser capaz de resolverlo.", "Tenemos que ser capaces de resolverlo."],
+        ["Ellas son guapo.", "Ellas son guapas."],
+        ["Ella es muy simpático.", "Ella es muy simpática."],
+        ["Mi novela ha sido publicado en Chile.", "Mi novela ha sido publicada en Chile."],
+      ],
+      neg: [
+        "Somos buena gente.",
+        "Estamos mejor así.",
+        "Somos solo cuatro.",
+        "Queremos ser médico de familia.",
+        "Ella es médico.",
+        "Ella es ingeniero de caminos.",
+        "Su obra ha sido traducida al francés.",
+      ],
+    },
+  ],
+  [
+    "spanishConfusions",
+    "an infinitive after a modal, tener que and haber de",
+    {
+      pos: [
+        ["A mi hermano le gusta dibuja paisajes.", "A mi hermano le gusta dibujar paisajes."],
+        ["Esto debería arregla el problema.", "Esto debería arreglar el problema."],
+        ["Tenemos que termina antes del lunes.", "Tenemos que terminar antes del lunes."],
+        ["Suelen madruga los domingos.", "Suelen madrugar los domingos."],
+        ["Hay que vuelve a empezar.", "Hay que volver a empezar."],
+        ["Los socios han de aprueban las cuentas.", "Los socios han de aprobar las cuentas."],
+      ],
+      neg: [
+        "No me gusta nada.",
+        "Me gusta este libro.",
+        "Cuando puede, intenta ayudar.",
+        "Llegó al poder hace años.",
+        "Aún pueden verse las ruinas.",
+        "Si te gusta comparte el enlace.",
+        "Debe de haber un error.",
+        "Puede que venga mañana.",
+      ],
+    },
+  ],
+  [
+    "spanishConfusions",
+    "a pronoun written apart from its gerund or infinitive",
+    {
+      pos: [
+        ["Estaba leyendo lo en el tren.", "Estaba leyéndolo en el tren."],
+        ["Siguió repitiendo la hasta el final.", "Siguió repitiéndola hasta el final."],
+        ["Vengo a ver te.", "Vengo a verte."],
+        ["Voy a llevar las a casa.", "Voy a llevarlas a casa."],
+        ["Está explicándose lo a sus alumnos.", "Está explicándoselo a sus alumnos."],
+      ],
+      neg: [
+        "Voy a hacer lo que quieras.",
+        "Prefiero comer la de chocolate.",
+        "Estaba cantando la canción.",
+        "Al llegar se fue a dormir.",
+        "Quiero ver lo bien que lo haces.",
+        "Al terminar, se fue a casa.",
+      ],
+    },
+  ],
+  [
+    "spanishAccents",
+    "para qué before an indicative",
+    {
+      pos: [
+        ["No sé para que sirve este botón.", "No sé para qué sirve este botón."],
+        ["Pregúntale para que quiere el dinero.", "Pregúntale para qué quiere el dinero."],
+        ["No entiendo para que estudia tanto.", "No entiendo para qué estudia tanto."],
+        ["Explica para que lo usas.", "Explica para qué lo usas."],
+        ["¿Para que llamas tan tarde?", "¿Para qué llamas tan tarde?"],
+      ],
+      neg: [
+        "Lo hago para que sepas la verdad.",
+        "Vino para que habláramos.",
+        "Para que podamos ganar más.",
+        "Te lo digo para que lo pienses.",
+        "Ahorra para que sus hijos estudien.",
+      ],
+    },
+  ],
+  [
+    "spanishAgreement",
+    "a plural verb before the impersonal haber",
+    {
+      pos: [
+        ["Pueden haber varios problemas.", "Puede haber varios problemas."],
+        ["Tienen que haber más opciones.", "Tiene que haber más opciones."],
+        ["Deben de haber muchos errores.", "Debe de haber muchos errores."],
+        ["Van a haber dos turnos.", "Va a haber dos turnos."],
+        ["Podrían haber 30 personas.", "Podría haber 30 personas."],
+      ],
+      neg: [
+        "Pueden haber cambiado de opinión.",
+        "Deben haber salido ya.",
+        "Puede haber varios problemas.",
+        "Tienen que haberlo visto.",
+        "Van a haber terminado para entonces.",
+      ],
+    },
+  ],
+  [
+    "spanishTypography",
+    "commas around sino que, pero no, a subject and the person addressed",
+    {
+      pos: [
+        ["No lo pagó ella sino que lo pagué yo.", "No lo pagó ella, sino que lo pagué yo."],
+        ["Lo intentamos pero no salió bien.", "Lo intentamos, pero no salió bien."],
+        ["El problema, es que no hay tiempo.", "El problema es que no hay tiempo."],
+        ["Los vecinos nuevos, son muy ruidosos.", "Los vecinos nuevos son muy ruidosos."],
+        ["Muchas gracias señora.", "Muchas gracias, señora."],
+        ["¡Un abrazo Lucía!", "¡Un abrazo, Lucía!"],
+        ["Os deseo buenas noches amigos.", "Os deseo buenas noches, amigos."],
+        ["¿Cómo estás Marta?", "¿Cómo estás, Marta?"],
+        ["Afortunadamente nadie se hizo daño.", "Afortunadamente, nadie se hizo daño."],
+      ],
+      neg: [
+        "No te pido sino que te escuches.",
+        "No es azul sino verde.",
+        "Estaba cansado pero feliz.",
+        "Mi amor, está lista la cena.",
+        "El lunes, llegaron todos.",
+        "El problema, dice Juan, es grave.",
+        "¿Este método, es seguro?",
+        "¿Cómo está Marta?",
+        "Gracias por todo.",
+        "Francamente bueno.",
+      ],
+    },
+  ],
+  [
+    "stylePhrasing",
+    "hace and atrás together",
+    {
+      pos: [
+        ["Lo compré hace dos años atrás.", "Lo compré hace dos años."],
+        ["Hace unos meses atrás vivía aquí.", "Hace unos meses vivía aquí."],
+        ["Se fue hace un rato atrás.", "Se fue hace un rato."],
+        ["Pasó hace casi una década atrás.", "Pasó hace casi una década."],
+        ["Llegó hace una semana y media atrás.", "Llegó hace una semana y media."],
+      ],
+      neg: [
+        "Lo compré hace dos años.",
+        "Lo compré dos años atrás.",
+        "Hace frío y nos vamos atrás.",
+        "Mira hacia atrás.",
+        "Hace tiempo que no miro atrás.",
+      ],
+    },
+  ],
+  [
+    "spanishConfusions",
+    "a punto de",
+    {
+      pos: [
+        ["Estaba apunto de salir.", "Estaba a punto de salir."],
+        ["Está apunto de llover.", "Está a punto de llover."],
+        ["Estuve apunto de llamarte.", "Estuve a punto de llamarte."],
+        ["Apunto de cerrar, llegó un cliente.", "A punto de cerrar, llegó un cliente."],
+        ["Estamos apunto de terminar.", "Estamos a punto de terminar."],
+      ],
+      neg: [
+        "Lo apunto de memoria.",
+        "Siempre apunto de nuevo la dirección.",
+        "Estaba a punto de salir.",
+        "Apunto la hora en la agenda.",
+        "Te apunto el número.",
+      ],
+    },
+  ],
+  [
+    "spanishAccents",
+    "nouns and adjectives that look like verbs, before a noun, after an adjective or haber",
+    {
+      pos: [
+        ["La ultima vez nos reímos mucho.", "La última vez nos reímos mucho."],
+        ["Esa magnifica actuación ganó el premio.", "Esa magnífica actuación ganó el premio."],
+        ["Fue un solo termino el que falló.", "Fue un solo término el que falló."],
+        ["Inventaron una nueva formula de pago.", "Inventaron una nueva fórmula de pago."],
+        ["No había numero de teléfono.", "No había número de teléfono."],
+        ["Hay que poner limite a los gastos.", "Hay que poner límite a los gastos."],
+        ["La maquina de café no funciona.", "La máquina de café no funciona."],
+      ],
+      neg: [
+        "Ella la practica de vez en cuando.",
+        "Juan la practica de vez en cuando.",
+        "La autora critica de arriba abajo a los jóvenes.",
+        "La termino mañana.",
+        "Antes de salir practico yoga.",
+        "La practica a diario.",
+      ],
+    },
+  ],
+  [
+    "spanishAccents",
+    "mí before an adjective closing the phrase, está after a longer subject",
+    {
+      pos: [
+        ["Es un tema para mi imposible.", "Es un tema para mí imposible."],
+        ["Fue para mi más difícil de lo esperado.", "Fue para mí más difícil de lo esperado."],
+        ["Se acercó a mi asustado por el ruido.", "Se acercó a mí asustado por el ruido."],
+        ["Esto es para mi preferible.", "Esto es para mí preferible."],
+        [
+          "Su última película esta basada en un libro.",
+          "Su última película está basada en un libro.",
+        ],
+        ["La vieja casa esta cerrada.", "La vieja casa está cerrada."],
+        ["La tienda esta al final de la calle.", "La tienda está al final de la calle."],
+      ],
+      neg: [
+        "Te doy mi más sincero pésame.",
+        "Vino con mi querido amigo.",
+        "Hola de parte de mi hermano.",
+        "Es para mi nuevo proyecto.",
+        "Lo guardo en mi mueble.",
+        "Me gusta la casa esta a la que vamos.",
+        "Esta preciosa casa es de mi tía.",
+      ],
+    },
+  ],
+  [
+    "spanishAgreement",
+    "este/ese for esto/eso before a noun, determiners across an adjective, doubled pronouns",
+    {
+      pos: [
+        ["En esto momento no puedo atenderte.", "En este momento no puedo atenderte."],
+        ["Todo eso dinero es tuyo.", "Todo ese dinero es tuyo."],
+        ["Con esto calor no se puede dormir.", "Con este calor no se puede dormir."],
+        ["De aquel gran ilusión no quedó nada.", "De aquella gran ilusión no quedó nada."],
+        ["Los principales razones son dos.", "Las principales razones son dos."],
+        ["A mí no te gusta el café.", "A mí no me gusta el café."],
+        ["A ellos le encanta bailar.", "A ellos les encanta bailar."],
+      ],
+      neg: [
+        "Esto cuenta mucho.",
+        "Haz eso mañana.",
+        "Eso significa mucho.",
+        "Por eso mismo lo hice.",
+        "El gran hacha cayó.",
+        "La mejor parte llega ahora.",
+        "A él me lo presentaron ayer.",
+        "A ella la vi ayer.",
+        "A ti te encanta.",
+      ],
+    },
+  ],
+  [
+    "spanishAccents",
+    "inglés, París, sería and -ar futures read from their frame",
+    {
+      pos: [
+        ["Mi ingles mejora cada día.", "Mi inglés mejora cada día."],
+        ["Tengo clase de ingles los lunes.", "Tengo clase de inglés los lunes."],
+        ["Este verano viajamos a Paris.", "Este verano viajamos a París."],
+        ["No sé quién seria capaz de hacerlo.", "No sé quién sería capaz de hacerlo."],
+        ["Esperar seria lo mejor.", "Esperar sería lo mejor."],
+        ["Llegara mañana a las diez.", "Llegará mañana a las diez."],
+        ["¿Cuándo terminaras el informe?", "¿Cuándo terminarás el informe?"],
+      ],
+      neg: [
+        "Le dolían las ingles.",
+        "Depilación de ingles.",
+        "Vino con Paris Hilton.",
+        "El juicio de Paris.",
+        "Es una mujer seria y formal.",
+        "Es una persona seria lo que buscamos.",
+        "Si me llamara mañana, iría.",
+        "Quería que cantara mañana.",
+      ],
+    },
+  ],
+  [
+    "spanishAgreement",
+    "aquel and esos before a paired noun of another gender or number",
+    {
+      pos: [
+        ["Aquellos abogadas ganaron el juicio.", "Aquellas abogadas ganaron el juicio."],
+        ["Esos niñas juegan en el parque.", "Esas niñas juegan en el parque."],
+        ["Aquella vecinos se mudaron.", "Aquellos vecinos se mudaron."],
+        ["Aquel abuela era muy alegre.", "Aquella abuela era muy alegre."],
+        ["Esas alumnos aprobaron.", "Esos alumnos aprobaron."],
+      ],
+      neg: [
+        "Aquellos interesados pueden venir.",
+        "Se escribe con ese mayúscula.",
+        "Esas cansadas de esperar se fueron.",
+        "La médico llegó tarde.",
+        "Aquellas enfermeras trabajaban de noche.",
+      ],
+    },
+  ],
+  [
+    "spanishConfusions",
+    "dar de alta takes lo/la, dar el alta takes le",
+    {
+      pos: [
+        ["Ayer la dieron el alta.", "Ayer le dieron el alta."],
+        ["A los pacientes los darán el alta mañana.", "A los pacientes les darán el alta mañana."],
+        ["No las han dado la baja todavía.", "No les han dado la baja todavía."],
+        ["Les van a dar de alta hoy.", "Los van a dar de alta hoy."],
+        ["Ya les dieron de baja.", "Ya los dieron de baja."],
+      ],
+      neg: [
+        "Le dieron de alta ayer.",
+        "Se le dio de alta ayer.",
+        "Le dieron el alta.",
+        "Ya lo dieron de alta.",
+        "La dieron de baja en el gimnasio.",
+      ],
+    },
+  ],
+  [
+    "spanishConfusions",
+    "permitir a + infinitive, and a preposition before a present form",
+    {
+      pos: [
+        ["El plan permite que los vecinos opinar.", "El plan permite a los vecinos opinar."],
+        ["No dejó que el perro salir.", "No dejó al perro salir."],
+        ["Lo supimos al informa.", "Lo supimos al informar."],
+        ["Se rio del multiplica.", "Se rio del multiplicar."],
+        ["Lo dijo al termina.", "Lo dijo al terminar."],
+      ],
+      neg: [
+        "El plan permite que los vecinos opinen.",
+        "Desde hace años vive aquí.",
+        "Lo vi de cerca.",
+        "Hablamos de política.",
+        "Hay un botón de descarga.",
+        "Permitió que el niño jugara.",
+      ],
+    },
+  ],
+  [
+    "stylePhrasing",
+    "the same adverb twice in a short clause",
+    {
+      pos: [
+        ["También lo sabe también Juan.", "También lo sabe Juan."],
+        ["Ya lo tenía ya preparado.", "Ya lo tenía preparado."],
+        ["Aún no ha llegado aún.", "Aún no ha llegado."],
+        ["Nunca lo vi nunca.", "Nunca lo vi."],
+        ["Siempre llega siempre tarde.", "Siempre llega tarde."],
+      ],
+      neg: [
+        "Ya sea uno ya sea otro.",
+        "También, también.",
+        "Ya lo sé. Ya voy.",
+        "Siempre lo dice y lo hace bien siempre.",
+        "Nunca jamás lo haré.",
+      ],
+    },
+  ],
 ];
 
 describe.each(FIXTURES)("%s: %s", (ruleId, _family, fixture) => {
@@ -954,6 +1349,36 @@ test("the clean Spanish corpus has no findings", () => {
   expect(found.map((d) => `${d.ruleId}: ${d.original} @ ${d.range.start}`)).toEqual([]);
 });
 
+test("Spanish stem alternations apply only to the paradigms that have them", () => {
+  // Plural nouns whose stem would need another class's alternation stay nouns.
+  for (const noun of ["cajas", "sillas", "hijas", "vigas"]) expect(finiteVerb(noun)).toBe(false);
+  for (const verb of ["busqué", "empiece", "cojo", "elija", "piensa", "vuelve", "pidió", "sirve"])
+    expect(finiteVerb(verb)).toBe(true);
+  expect(subjunctiveLike("pague")).toBe(true);
+  expect(subjunctiveLike("pie")).toBe(false);
+});
+
+test("Spanish typewriter quote pairs get angle and curly single quotes, opt-in", () => {
+  expect(reviewRuleIds({ codeMode: false })).not.toContain("spanishQuotes");
+  const fix = (text: string) => {
+    let out = text;
+    for (const d of findings("spanishQuotes", text).reverse())
+      out = applyEdits(out, d.alternatives[0].edits) ?? out;
+    return out;
+  };
+  expect(fix('Lo llaman "el jefe" en la oficina.')).toBe("Lo llaman «el jefe» en la oficina.");
+  expect(fix('("Hasta luego"), dijo.')).toBe("(«Hasta luego»), dijo.");
+  expect(fix("Es un asunto 'urgente' de verdad.")).toBe("Es un asunto ‘urgente’ de verdad.");
+  for (const text of [
+    "Sotheby's subasta cuadros.",
+    "Mide 5' 10\" de alto.",
+    "Lo llaman «el jefe».",
+    'Un "\n" salto',
+    "D'Artagnan y O'Connor llegaron.",
+  ])
+    expect(findings("spanishQuotes", text)).toEqual([]);
+});
+
 test("the committed Spanish lexicon matches es_ES.dic/.aff (bun run generate:spanish-lexicon)", async () => {
   const [dic, aff, committed] = await Promise.all(
     [SPANISH_LEXICON_SOURCES.dic, SPANISH_LEXICON_SOURCES.aff, SPANISH_LEXICON_SOURCES.out].map(
@@ -961,6 +1386,35 @@ test("the committed Spanish lexicon matches es_ES.dic/.aff (bun run generate:spa
     ),
   );
   expect(buildSpanishLexicon(dic, aff)).toBe(committed);
+});
+
+// JavaScriptCore may run a regex in its interpreter (late in the full suite it did): a frame
+// with an unbounded run of spaces in a lookbehind then rereads the run at every position. A
+// child process without the regex JIT makes that cost visible.
+test("Spanish frames stay linear on long space runs without the regex JIT", () => {
+  const module = `${import.meta.dir}/../../src/core/domain/grammar/review/reviewDiagnostics.ts`;
+  const script = `
+    const { prepareReview, reviewChunks, scanReviewChunk } = await import(${JSON.stringify(module)});
+    const rules = ${JSON.stringify(SPANISH_ON)};
+    const text = "el." + "\\t ".repeat(6000) + " el 32 de enero. Vino a las 5 hrs. y el 2do. Son casas rojos.";
+    let slowest = 0;
+    for (let run = 0; run < 2; run++) {
+      const prepared = prepareReview(
+        { id: "jit", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
+        { lang: "es_ES", enabledRules: rules, userDictionary: [], insertSpaceAfterAutocomplete: true },
+      );
+      for (const chunk of reviewChunks(prepared)) {
+        const start = performance.now();
+        scanReviewChunk(prepared, chunk);
+        if (run) slowest = Math.max(slowest, performance.now() - start);
+      }
+    }
+    console.log(slowest);`;
+  const child = Bun.spawnSync([process.execPath, "-e", script], {
+    env: { ...process.env, BUN_JSC_useRegExpJIT: "0" },
+  });
+  expect(child.exitCode).toBe(0);
+  expect(Number(child.stdout.toString().trim())).toBeLessThan(100);
 });
 
 test("no Spanish chunk stalls on repeated trigger words", () => {
@@ -988,7 +1442,10 @@ test("no Spanish chunk stalls on repeated trigger words", () => {
     "La casas del uno de las la primer dos perro. Los amigos tiene me gusta las son cansado. " +
     "Una frase.Y así?Siempre…nada le dado te ayudar les medidas un saca leches sobre salían " +
     "micro biología uno de sus casas aun recuerdo se tocar Si, pero eso si es ¿Porque no? " +
-    "El domingo pasada la serie más seguido. Juan tienen esta la casa que de cuenta. ";
+    "El domingo pasada la serie más seguido. Juan tienen esta la casa que de cuenta. " +
+    "Son casas rojos. La más rojo dan por hecho la Somos consciente debería funciona tiene que " +
+    "considera para que sirve cantando lo en pueden haber dos. No lo hice yo sino que pero no " +
+    "fue. El problema, es Hola amigo cómo estás Ella es hermoso ha sido traducido. ";
   slowest(triggers.repeat(50));
   for (const text of [
     triggers.repeat(60),

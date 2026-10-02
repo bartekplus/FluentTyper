@@ -72,6 +72,70 @@ const MODAL_BEFORE =
   /(?<![\p{L}])(?:pode|posso|podemos|podem|podia|quero|queremos|quer|queria|deve|devemos|devem|deveria|preciso|precisamos|precisa|precisam|para|sem|que|de|há|hei)[ \t ]+$/iu;
 const SENTENCE_START = /(?:^|[.!?:;]["”»)]?[ \t ]*|\n[ \t ]*)$/;
 
+// Countries whose name always takes the article, in Brazil and in Portugal alike ("no Brasil",
+// "da China", "aos Estados Unidos"). France, Spain, Italy and England stay out: European
+// Portuguese also writes "em França", "de Espanha".
+const COUNTRIES: Record<string, "o" | "a" | "os"> = {
+  Brasil: "o",
+  Japão: "o",
+  Canadá: "o",
+  México: "o",
+  Peru: "o",
+  Chile: "o",
+  Uruguai: "o",
+  Paraguai: "o",
+  Equador: "o",
+  Egito: "o",
+  Egipto: "o",
+  Iraque: "o",
+  Irã: "o",
+  Irão: "o",
+  Afeganistão: "o",
+  Paquistão: "o",
+  Vietnã: "o",
+  Vietname: "o",
+  Vaticano: "o",
+  "Reino Unido": "o",
+  China: "a",
+  Índia: "a",
+  Argentina: "a",
+  Bolívia: "a",
+  Colômbia: "a",
+  Venezuela: "a",
+  Rússia: "a",
+  Austrália: "a",
+  "Nova Zelândia": "a",
+  "Nova Guiné": "a",
+  "Costa Rica": "a",
+  "Costa do Marfim": "a",
+  "África do Sul": "a",
+  Suíça: "a",
+  Suécia: "a",
+  Noruega: "a",
+  Finlândia: "a",
+  Holanda: "a",
+  Bélgica: "a",
+  Turquia: "a",
+  Coreia: "a",
+  Tailândia: "a",
+  Indonésia: "a",
+  Nigéria: "a",
+  "Estados Unidos": "os",
+  EUA: "os",
+};
+const WITH_ARTICLE: Record<string, Record<"o" | "a" | "os", string>> = {
+  em: { o: "no", a: "na", os: "nos" },
+  de: { o: "do", a: "da", os: "dos" },
+  a: { o: "ao", a: "à", os: "aos" },
+  para: { o: "para o", a: "para a", os: "para os" },
+  por: { o: "pelo", a: "pela", os: "pelos" },
+};
+// "em China" -> "na China".
+const COUNTRY = `(?<target>(?<first>em|de|a|para|por)${SPACE}(?<country>${Object.keys(COUNTRIES)
+  .sort((x, y) => y.length - x.length)
+  .map((name) => name.replace(/ /g, SPACE))
+  .join("|")}))(?![\\p{L}\\p{N}-])`;
+
 export function contractions(ctx: DetectContext): RawFinding[] {
   if (ctx.lang.slice(0, 2) !== "pt") return [];
   const findings: RawFinding[] = [];
@@ -93,6 +157,25 @@ export function contractions(ctx: DetectContext): RawFinding[] {
       range: { start: m.index, end },
       alternatives: [applyWordCase(fused, detectWordCase(first))],
       context: { start: m.index, end: Math.min(ctx.text.length, end + 24) },
+    });
+  }
+  for (const m of frameMatches(ctx, COUNTRY)) {
+    const { first, country } = m.groups!;
+    // Frames ignore case: the preposition is lowercase and the name capitalized as listed.
+    if (first !== first.toLowerCase()) continue;
+    const name = country.replace(/[ \t\u00a0]+/g, " ");
+    const article = COUNTRIES[name];
+    // "a China" already is the article.
+    if (!article || (first === "a" && article === "a") || ctx.dictionary.has(name.toLowerCase()))
+      continue;
+    const [start, end] = m.indices!.groups!.target;
+    // A capitalized word after continues a name: "Banco de Brasil Seguros", "Coreia do Sul".
+    if (/^[ \t\u00a0]+\p{Lu}/u.test(ctx.text.slice(end, end + 3))) continue;
+    findings.push({
+      ruleId: "portugueseContractions",
+      messageKey: "review_msg_pt_country_article",
+      range: { start, end },
+      alternatives: [`${WITH_ARTICLE[first][article]} ${country}`],
     });
   }
   return findings;
