@@ -646,6 +646,11 @@ describe("germanCompounds", () => {
     ["Beim Rasen mähen trage ich Ohrenschützer.", "Beim Rasenmähen trage ich Ohrenschützer."],
     ["Zum Brot backen braucht man Geduld.", "Zum Brotbacken braucht man Geduld."],
     ["Vielen Dank für das Fenster putzen!", "Vielen Dank für das Fensterputzen!"],
+    ["Er freute sich, das zulesen.", "Er freute sich, das zu lesen."],
+    [
+      "Es wundert mich zusehen, wie schnell das geht.",
+      "Es wundert mich zu sehen, wie schnell das geht.",
+    ],
   ])("repairs %p", (input, output) => {
     expect(findings("germanCompounds", input)).toHaveLength(1);
     expect(fixed("germanCompounds", input)).toBe(output);
@@ -670,6 +675,9 @@ describe("germanCompounds", () => {
     "Sie war beim Training laufen.",
     "Wir gehen zum Essen holen.",
     "Du kannst mit dem Lehrer sprechen, wenn du willst.",
+    "Wir sollten, statt zu reden, zuhören.",
+    "Er bat mich, zuzuhören.",
+    "Bitte, zuhören!",
   ])("leaves %p alone", (input) => {
     expect(findings("germanCompounds", input)).toEqual([]);
   });

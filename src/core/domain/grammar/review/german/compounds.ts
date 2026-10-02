@@ -1,7 +1,7 @@
 import { frameMatches, SPACE, WORD_END, WORD_START } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { germanInfinitive, germanNounReading, germanVerbLike } from "./germanLexicon";
-import { isGerman, mayRun, tokensBefore, wordSet } from "./shared";
+import { isGerman, mayRun, tokensBefore, VERB_GOVERNORS, wordSet } from "./shared";
 import { germanInfinitiveOf, isAuxiliary } from "./verbAgreement";
 
 // German compounds written apart or with the wrong joints: separable verbs ("auf zu bauen" →
@@ -170,7 +170,32 @@ function phrasePlace(ctx: DetectContext, start: number, end: number, article: bo
   if (isAuxiliary(next) || germanVerbLike(next)) return true;
   return /\p{Ll}{2,}e?t$/u.test(next) && germanInfinitive(`${next.replace(/e?t$/, "")}en`);
 }
+// "Er freute sich, das zuhören.": an infinitive clause after a comma, its zu written onto the
+// verb ("zu hören"); the clause ends after it or opens a dass-clause.
+const ZU_JOINED = re(
+  `(?<=,${SPACE}(?:(?:das|es|dies)${SPACE})?|(?:mich|dich|ihn|uns|euch)${SPACE})(?<target>zu(?<verb>\\p{Ll}{3,}))(?=[ \\t]*(?:[.!?;]|,${SPACE}(?:dass|ob|wie|was|wo|wer|wann|warum|bevor|hinter)${WORD_END}))`,
+);
 const FRAMES: Array<[RegExp, Fix]> = [
+  [
+    ZU_JOINED,
+    (m, ctx) => {
+      const { verb } = m.groups!;
+      if (!germanInfinitive(verb) || isAuxiliary(verb) || verb.startsWith("zu")) return null;
+      // The main clause before the comma has its verb ("freute", "gelang"); "Bitte, zuhören!"
+      // is an instruction.
+      const clause = ctx.text
+        .slice(Math.max(0, m.index - 80), m.index)
+        .split(/[.!?;:\n]/)
+        .at(-1)!;
+      const words = clause.match(/\p{L}+/gu) ?? [];
+      // "Wir sollten, statt zu reden, zuhören": a modal takes the bare infinitive.
+      if (words.some((w) => VERB_GOVERNORS.has(w.toLowerCase()))) return null;
+      if (words.length < 2 || /!/.test(ctx.text.slice(m.indices!.groups!.target[1]).slice(0, 2))) {
+        return null;
+      }
+      return `zu ${verb}`;
+    },
+  ],
   [
     NOMINAL_PHRASE,
     (m, ctx) => {
