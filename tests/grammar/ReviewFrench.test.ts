@@ -257,8 +257,42 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Ce matin, il terminé son rapport.", "Ce matin, il a terminé son rapport."],
         ["Hier, j'aperçu un renard.", "Hier, j'ai aperçu un renard."],
         ["Elle s'en souvenu.", "Elle s'en est souvenu."],
+        // Names, longer noun phrases, relative clauses and "et" between two clauses.
+        ["Hier soir, Nathalie viens de rentrer.", "Hier soir, Nathalie vient de rentrer."],
+        [
+          "Je crois que Lucas et Inès arrive demain.",
+          "Je crois que Lucas et Inès arrivent demain.",
+        ],
+        [
+          "Les colis que tu as commandés hier arrive ce soir.",
+          "Les colis que tu as commandés hier arrivent ce soir.",
+        ],
+        [
+          "Le jardin dont je m'occupe chaque été fleurissent en mai.",
+          "Le jardin dont je m'occupe chaque été fleurit en mai.",
+        ],
+        [
+          "Les voisins qui habitent au fond de la rue me salue souvent.",
+          "Les voisins qui habitent au fond de la rue me saluent souvent.",
+        ],
+        [
+          "Les tarifs postaux actuels augmente encore.",
+          "Les tarifs postaux actuels augmentent encore.",
+        ],
+        [
+          "Il pleuvait fort et les rivières déborde.",
+          "Il pleuvait fort et les rivières débordent.",
+        ],
       ],
       neg: [
+        "Paul viens ici !",
+        "Le pain et le vin sont bons.",
+        "Les deux tiers des habitants votent.",
+        "Les peintres tels que Picasso sont rares.",
+        "Agathe, Léo ainsi que Rudy vont l'aider.",
+        "Elle et Mrs. Smith sont là.",
+        "Les hommes avec lesquels tu parles sont partis.",
+        "Il connaît Berlin, Londres et Rome qui ont changé.",
         "Le prix du pain et du lait augmente.",
         "La plupart des invités sont partis.",
         "Un groupe de touristes attendent devant le musée.",
@@ -462,6 +496,12 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Ils sont françaises depuis toujours.", "Ils sont français depuis toujours."],
         ["Elle est vraiment heureux de venir.", "Elle est vraiment heureuse de venir."],
         ["Les routes sont dangereux ce matin.", "Les routes sont dangereuses ce matin."],
+        // Past "de" complements, two subjects joined by "et", a participle that is also a noun.
+        ["La couleur des volets du salon est passé.", "La couleur des volets du salon est passée."],
+        ["Le niveau de la rivière était inquiétante.", "Le niveau de la rivière était inquiétant."],
+        ["La lampe et la table sont cassés.", "La lampe et la table sont cassées."],
+        ["Le vase et la tasse sont cassées.", "Le vase et la tasse sont cassés."],
+        ["Est-il entrée sans frapper ?", "Est-il entré sans frapper ?"],
         // After "été", after je/tu/nous, a demonstrative or an inversion.
         ["Les ponts ont été construites en 1900.", "Les ponts ont été construits en 1900."],
         ["Ce matin, la séance a été reporté.", "Ce matin, la séance a été reportée."],

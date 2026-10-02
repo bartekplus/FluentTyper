@@ -39,6 +39,9 @@ const inputs = [
   ("Les" + pad(300) + "12" + pad(300) + "candidats attend, ").repeat(6),
   ("la porte" + pad(200) + "," + pad(200) + "des voisins claquaient ").repeat(8),
   ("un" + pad(400) + "à" + pad(400) + "1 ").repeat(4),
+  ("Les enfants que" + pad(300) + "je" + pad(300) + "garde arrive, ").repeat(6),
+  (", Marie" + pad(400) + "et" + pad(400) + "Paul part ").repeat(4),
+  ("La durée de" + pad(300) + "la pièce" + pad(300) + "est passé, ").repeat(6),
 ];
 const blank = "x" + pad(3_900);
 for (const text of [blank, ...inputs]) slowest(text);

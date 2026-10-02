@@ -158,6 +158,22 @@ Ce mot a un double sens, et son indigne frère le sait bien.
 Dès sa sortie de l'hôpital, il a repris le travail.
 Ce jour-là, celui-là même qui riait est resté là-bas.
 Il est là, tout le temps là, et je ne sais pas ce qu'il fait là.
+# Names, relative clauses and long noun phrases before their verb.
+Les enfants que je garde le mercredi arrivent à midi, et le dossier que vous m'avez envoyé est complet.
+Les livres dont tu m'as parlé sont épuisés depuis que Marie et Paul les ont achetés.
+Hier, Sophie a réparé le vélo de son frère ; Lucie part demain et Marc reste ici.
+Il travaille beaucoup et les résultats suivent, c'est pourquoi les élèves révisent chaque soir.
+Les données collectées chaque jour servent à améliorer le service.
+Les rapports annuels publiés en mars présentent les comptes de l'année.
+Les invités dont nous attendions la venue sont enfin arrivés.
+Le directeur que les employés apprécient beaucoup part à la retraite.
+Le professeur dont les élèves parlent tant arrive demain, et Thomas et moi irons le saluer.
+Les enfants qui jouent dans la cour crient fort ; la fille qui chante s'appelle Léa.
+Je crois que Nicolas sait nager, et il pense que Julie et Marc viendront.
+La moitié des invités sont partis, mais le reste des élèves est resté.
+Le prix de ces maisons est élevé, et les feuilles de l'arbre sont tombées.
+Le groupe de filles est arrivé ; le livre et la revue sont posés sur la table.
+La porte du garage est fermée, et la mère et la fille sont contentes.
 # Compounds and the free phrases next to them.
 Range l'argent dans le coffre-fort, puis éteins le lave-vaisselle.
 Ma grand-mère se lève tôt et lit le compte rendu de la réunion.
