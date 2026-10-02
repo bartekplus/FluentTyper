@@ -91,3 +91,37 @@ test("collectives, objects, subjunctives and compound nouns stay silent", () => 
   ])
     expect({ text, found: scan(text).map((d) => d.original) }).toEqual({ text, found: [] });
 });
+
+test("he/she/it before a bare verb takes the -s form where the pronoun opens its clause", () => {
+  const pronounVerb = (text: string) =>
+    detectReviewDiagnostics(
+      { id: "he", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
+      {
+        lang: "en_US",
+        enabledRules: ["englishPronounVerbWhitelistAgreement"],
+        userDictionary: [],
+        insertSpaceAfterAutocomplete: true,
+      },
+    ).diagnostics;
+  for (const [input, expected] of [
+    ["I hope she arrive soon.", "I hope she arrives soon."],
+    [
+      "It only cost us a dollar and it work every time.",
+      "It only cost us a dollar and it works every time.",
+    ],
+    ["The door opened and it squeak loudly.", "The door opened and it squeaks loudly."],
+  ]) {
+    const found = pronounVerb(input);
+    expect({ input, count: found.length }).toEqual({ input, count: 1 });
+    expect(applyEdits(input, found[0].alternatives[0].edits)).toBe(expected);
+  }
+  for (const text of [
+    "Let it go.",
+    "We saw it happen.",
+    "It need not matter.",
+    "She hand stitched it.",
+    "After Sam and he meet, we start.",
+    "It time to go.",
+  ])
+    expect({ text, found: pronounVerb(text).length }).toEqual({ text, found: 0 });
+});

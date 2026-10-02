@@ -511,11 +511,77 @@ function closedAfter(t: Token | undefined): boolean {
   return (
     /^(?:the|a|an|my|your|his|her|our|their|it|them|me|us|him|you|this|that|to|in|on|at|with|for|up|down|out|off|through|into|again|every|each)$/.test(
       t.lower,
-    ) || ADVERBS.has(t.lower)
+    ) ||
+    ADVERBS.has(t.lower) ||
+    (/ly$/.test(t.lower) && !!englishWordInfo(t.lower)?.adverb)
   );
 }
 
+// Words after which he/she/it opens its own clause; never a causative ("make it work").
+const PRONOUN_CUE =
+  /^(?:and|but|so|because|when|whenever|while|since|until|although|though|if|think|thought|hope|hoped|assume|assumed|guess|believe|believed|said|says|sure|suppose|know|knew|bet|wish)$/;
+const BETWEEN_ADVERBS =
+  /^(?:only|really|just|also|always|never|still|usually|often|probably|suddenly|actually|finally|sometimes|already|even|simply)$/;
+
+/** "It only matter to me", "I hope he go away", "and it become dark": he/she/it + a bare verb. */
+function thirdPersonBase(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of frameMatches(ctx, `(?<target>he|she|it)${SPACE}(?=[a-z])`)) {
+    const pronoun = m.groups!.target;
+    if (pronoun !== pronoun.toLowerCase() && !afterBreak(ctx, m.index)) continue;
+    const cue = wordBefore(ctx, m.index);
+    if (!afterBreak(ctx, m.index) && !PRONOUN_CUE.test(cue)) continue;
+    // "you and he work", "after Stan and he meet": a coordinated subject is plural.
+    if (
+      /^(?:and|or)$/.test(cue) &&
+      /(?:\b(?:I|[Yy]ou|[Ww]e|[Tt]hey|[Hh]e|[Ss]he|me|him|her|us|them)|\b\p{Lu}\p{L}*)[ \t\u00a0]+(?:and|or)[ \t\u00a0]+$/u.test(
+        ctx.text.slice(Math.max(0, m.index - 40), m.index),
+      )
+    )
+      continue;
+    const tokens = tokensAfter(ctx, m.index + m[0].length, 5);
+    let k = 0;
+    while (k < 2 && tokens[k]?.kind === "word" && BETWEEN_ADVERBS.test(tokens[k].lower)) k++;
+    const verb = tokens[k];
+    if (verb?.kind !== "word" || verb.text !== verb.lower || ctx.dictionary.has(verb.lower))
+      continue;
+    const word = verb.lower;
+    // "it need not", "it better be": modal uses.
+    if (FUNCTION_WORDS.has(word) || /^(?:be|please|need|dare|better|don)$/.test(word)) continue;
+    const read = englishWordInfo(word);
+    if (!read?.verbs.some((v) => v.form === "base" && v.lemma === word) || read.adjective) continue;
+    // "he put", "he come home": the same spelling is a past or participle (dialect use).
+    const forms = englishVerbForms(word);
+    if (forms && (forms.past === word || forms.participle === word)) continue;
+    if (read.plural) continue;
+    // "he hand wrote", "she dose not", "it time to", "so it sort of": a verb after it, or a noun
+    // reading before not/of/to, belongs to another error.
+    const next = tokens[k + 1];
+    const nextRead = next?.kind === "word" ? englishWordInfo(next.lower) : null;
+    if (nextRead?.verbs.some((v) => v.form === "past" || v.form === "third")) continue;
+    if (
+      read.noun &&
+      (!closedAfter(next) || /^(?:not|of|to)$/.test(next?.kind === "word" ? next.lower : ""))
+    )
+      continue;
+    const fix = englishInflect(word, "third");
+    if (!fix || fix === word) continue;
+    findings.push({
+      ruleId: "englishPronounVerbWhitelistAgreement",
+      messageKey: "review_msg_pronoun_verb",
+      range: { start: verb.start, end: verb.end },
+      alternatives: [fix],
+      context: evidence(ctx, m.index, verb.end),
+    });
+  }
+  return findings;
+}
+
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
+  {
+    rules: ["englishPronounVerbWhitelistAgreement"],
+    detect: english(thirdPersonBase),
+  },
   {
     rules: ["englishSubjectVerbAgreement"],
     detect: english(
