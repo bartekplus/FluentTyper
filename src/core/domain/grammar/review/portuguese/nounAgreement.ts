@@ -142,7 +142,7 @@ const BOTH = new Set(
 const CERTAIN_GENDER = new Map<string, boolean>([
   ...`dor cor flor mão lei fé mulher noite morte arte fonte febre árvore chave fase crise tese
   hipótese síntese rede paz voz raiz nuvem ordem fome frase classe ponte gente carne parede
-  questão gestão sugestão digestão opinião região religião união reunião legião ocasião`
+  questão gestão sugestão digestão opinião região religião união reunião legião ocasião razão`
     .split(/\s+/)
     .map((word) => [word, true] as const),
   ...`coração tição cação tesão talismã ímã afã divã clã sutiã islã ecrã imã satã rabecã xadrez leite
@@ -207,7 +207,7 @@ const SINGULAR_IN_S = new Set(
 type Noun = { feminine: boolean | null; plural: boolean; certain: boolean };
 
 /** What the spelling of a noun tells about it, or null when it may be no noun. */
-function analyze(word: string): Noun | null {
+export function analyze(word: string): Noun | null {
   if (NOT_NOUNS.has(word) || SINGULAR_IN_S.has(word) || word.length < 3) return null;
   const one = /s$/.test(word) ? singular(word) : word;
   const isPlural = one !== word;
