@@ -522,6 +522,12 @@ function articleBeforeCount(ctx: DetectContext): RawFinding[] {
 function muchWithPlural(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   for (const m of frames(ctx, `(?:too|so|as|are|were)${SPACE}(?<target>much)${SPACE}(?=[a-z])`)) {
+    // "Thanks so much people!", "love you so much guys": an adverb, then a term of address.
+    if (
+      !/^(?:are|were)/i.test(m[0]) &&
+      /^(?:thanks|thx|you|it|them|him|her|me|us)$/.test(wordBefore(ctx, m.index))
+    )
+      continue;
     const tokens = tokensAfter(ctx, m.index + m[0].length, 5);
     const k = nounAfterModifiers(ctx, tokens, true);
     if (k < 0) continue;

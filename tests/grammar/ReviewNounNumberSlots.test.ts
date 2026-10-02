@@ -87,6 +87,8 @@ test("compounds, pronoun counts and invariant nouns keep their number", () => {
     "It was a problem students kept raising.",
     "A fish swims in the tank.",
     "Thank you so much guys!",
+    "Thanks so much people!",
+    "We miss them so much people say we should visit.",
     "The storm hit force 9 winds.",
     "You two look tired.",
     "One of the jury spoke.",
