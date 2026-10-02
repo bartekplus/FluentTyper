@@ -23,7 +23,7 @@ type Case = { pos: Array<[string, string]>; neg: string[] };
 export const POLISH_CASES: Array<[CatalogRuleId, string, Case]> = [
   [
     "stylePhrasing",
-    '"dwie lub więcej" with its noun recased',
+    '"dwie lub więcej" with its noun recased, "pełnić rolę", "posiadać brodę"',
     {
       pos: [
         ["Czekał na nią dwie lub więcej godzin.", "Czekał na nią co najmniej dwie godziny."],
@@ -38,8 +38,20 @@ export const POLISH_CASES: Array<[CatalogRuleId, string, Case]> = [
         ],
         ["Przyszło pięć lub więcej osób.", "Przyszło co najmniej pięć osób."],
         ["Weź dwa lub więcej.", "Weź co najmniej dwa."],
+        ["Muzyka pełni w filmie ważną rolę.", "Muzyka pełni w filmie ważną funkcję."],
+        ["Pełni ona kluczową rolę w zespole.", "Pełni ona kluczową funkcję w zespole."],
+        ["Jaką rolę pełni ten przycisk?", "Jaką funkcję pełni ten przycisk?"],
+        ["Mój dziadek posiada siwą brodę.", "Mój dziadek ma siwą brodę."],
+        ["Posiadając talent, mało ćwiczył.", "Mając talent, mało ćwiczył."],
       ],
-      neg: ["Weź dwa albo trzy.", "Wypił więcej niż dwie kawy.", "Kupił dwie lub trzy bułki."],
+      neg: [
+        "Weź dwa albo trzy.",
+        "Wypił więcej niż dwie kawy.",
+        "Kupił dwie lub trzy bułki.",
+        "Pełni funkcję skarbnika.",
+        "Odgrywa ważną rolę w zespole.",
+        "Posiada dom i dwa samochody.",
+      ],
     },
   ],
   [

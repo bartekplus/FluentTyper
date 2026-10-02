@@ -1,7 +1,7 @@
 import type { PhraseRow } from "../englishPhraseTables";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { adjectiveForm, adjectiveOf, cases, inflect, nounTags, onlyNoun, VIRILE } from "./lexicon";
-import { caseLike, findingAt, isPl, owned, userOrNamed } from "./shared";
+import { caseLike, findingAt, isPl, owned, S, userOrNamed } from "./shared";
 
 /*
  * Pleonasms and wordy officialese (optional `stylePhrasing`), in the inflected
@@ -163,30 +163,6 @@ export const STYLE: readonly PhraseRow[] = [
       [`${typed} ${verb}`, `${plain} ${verb}`],
     ]),
   ),
-  // "pełnić" goes with a function; a role is played ("odgrywać rolę").
-  ...(
-    [
-      ["pełni", "odgrywa"],
-      ["pełnią", "odgrywają"],
-      ["pełnił", "odgrywał"],
-      ["pełniła", "odgrywała"],
-      ["pełniło", "odgrywało"],
-      ["pełnili", "odgrywali"],
-      ["pełniły", "odgrywały"],
-      ["pełnić", "odgrywać"],
-      ["pełniący", "odgrywający"],
-      ["pełniąca", "odgrywająca"],
-      ["pełniące", "odgrywające"],
-      ["spełnia", "odgrywa"],
-      ["spełniać", "odgrywać"],
-      ["spełniając", "odgrywając"],
-    ] as const
-  ).flatMap(([verb, plays]): PhraseRow[] => [
-    [`${verb} rolę`, [`${verb} funkcję`, `${plays} rolę`]],
-    [`${verb} ważną rolę`, [`${verb} ważną funkcję`, `${plays} ważną rolę`]],
-    [`${verb} istotną rolę`, [`${verb} istotną funkcję`, `${plays} istotną rolę`]],
-    [`${verb} swoją rolę`, [`${verb} swoją funkcję`, `${plays} swoją rolę`]],
-  ]),
   // Moving back "w tył" or "wstecz" is already "cofać się".
   ...words(
     "cofam cofa cofają cofał cofała cofali cofaj cofnij cofnijcie cofnął cofnęła cofnęli cofnie cofną",
@@ -563,6 +539,95 @@ export const DETECTORS = [
   {
     rules: ["stylePhrasing"] as RawFinding["ruleId"][],
     detect: (ctx: DetectContext) =>
-      isPl(ctx) && (!ctx.rules || ctx.rules.has("stylePhrasing")) ? orMore(ctx) : [],
+      isPl(ctx) && (!ctx.rules || ctx.rules.has("stylePhrasing"))
+        ? [...orMore(ctx), ...verbChoices(ctx)]
+        : [],
   },
 ];
+
+/* ------------------------------------------------- "pełnić rolę", "posiadać brodę" */
+
+/** "pełnić" goes with a function; a role is played ("odgrywać rolę"). */
+const PLAYS: Record<string, string> = {
+  pełni: "odgrywa",
+  pełnią: "odgrywają",
+  pełnił: "odgrywał",
+  pełniła: "odgrywała",
+  pełniło: "odgrywało",
+  pełnili: "odgrywali",
+  pełniły: "odgrywały",
+  pełnić: "odgrywać",
+  pełniący: "odgrywający",
+  pełniąca: "odgrywająca",
+  pełniące: "odgrywające",
+  pełniąc: "odgrywając",
+  spełnia: "odgrywa",
+  spełniają: "odgrywają",
+  spełniał: "odgrywał",
+  spełniała: "odgrywała",
+  spełniać: "odgrywać",
+  spełniając: "odgrywając",
+};
+/** "posiadać" is owning; a beard, a talent or a sister one simply has ("ma brodę"). */
+const HAS: Record<string, string> = {
+  posiadam: "mam",
+  posiadasz: "masz",
+  posiada: "ma",
+  posiadamy: "mamy",
+  posiadacie: "macie",
+  posiadają: "mają",
+  posiadał: "miał",
+  posiadała: "miała",
+  posiadali: "mieli",
+  posiadały: "miały",
+  posiadać: "mieć",
+  posiadając: "mając",
+};
+const FEATURES =
+  "brodę|wąsy|oczy|włosy|nos|uszy|zęby|wymiary|wzrost|talent|zdolności|poczucie|cierpliwość|odwagę|charakter|temperament|rodzinę|dzieci|rodzeństwo|siostrę|brata|braci|siostry|córkę|syna|przyjaciół|czas|ochotę|pomysł|pomysły|nadzieję|wątpliwości|problem|problemy|wadę|wady|zalety|kota|psa";
+/** Words that may stand between the verb and its noun: a pronoun, an adverb, adjectives. */
+const FILLER = `(?:${S}(?:on|ona|ono|oni|one|nadal|wciąż|też|także|również|zawsze|często|naprawdę|bardzo|niezwykle|wyjątkowo|szczególnie|dość|coraz|swoją|swój|swoje|jakąś|żadnej|(?:w|we|na|dla|przy|wśród|u)${S}\\p{Ll}+|\\p{Ll}+(?:ną|ową|ską|cką|ką|ą|ej|e|y|ie))){0,3}`;
+const ROLE = new RegExp(
+  `(?<![\\p{L}\\p{N}_'’-])(?:(?<verb>${Object.keys(PLAYS).join("|")})(?<mid>${FILLER})${S}(?<noun>rolę|roli)|(?<before>rolę|roli)${S}(?<after>${Object.keys(PLAYS).join("|")}))(?![\\p{L}\\p{N}_'’-])`,
+  "giu",
+);
+const POSSESS = new RegExp(
+  `(?<![\\p{L}\\p{N}_'’-])(?<verb>${Object.keys(HAS).join("|")})(?<mid>${FILLER})${S}(?<noun>${FEATURES})(?![\\p{L}\\p{N}_'’-])`,
+  "giu",
+);
+
+/** Opt-in: "pełni istotną rolę" -> "pełni istotną funkcję" or "odgrywa istotną rolę"; "posiada brodę" -> "ma brodę". */
+function verbChoices(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  const push = (start: number, end: number, fixes: string[]) => {
+    const typed = ctx.source.slice(start, end);
+    if (userOrNamed(ctx, typed)) return;
+    findings.push(
+      findingAt(
+        ctx,
+        start,
+        end,
+        fixes.map((fix) => caseLike(typed, fix)),
+        "stylePhrasing",
+        "review_msg_style_phrasing",
+      ),
+    );
+  };
+  for (const m of owned(ctx, ROLE)) {
+    const { verb, mid, noun, before, after } = m.groups!;
+    const end = m.index + m[0].length;
+    if (verb) {
+      const fn = noun.toLowerCase() === "rolę" ? "funkcję" : "funkcji";
+      const plays = PLAYS[verb.toLowerCase()];
+      push(m.index, end, [`${verb}${mid} ${fn}`, `${plays}${mid} ${noun}`]);
+    } else {
+      const fn = before.toLowerCase() === "rolę" ? "funkcję" : "funkcji";
+      push(m.index, end, [`${fn} ${after}`, `${before} ${PLAYS[after.toLowerCase()]}`]);
+    }
+  }
+  for (const m of owned(ctx, POSSESS)) {
+    const { verb, mid, noun } = m.groups!;
+    push(m.index, m.index + m[0].length, [`${HAS[verb.toLowerCase()]}${mid} ${noun}`]);
+  }
+  return findings;
+}
