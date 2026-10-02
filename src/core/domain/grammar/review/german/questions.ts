@@ -1,6 +1,6 @@
 import { namedExampleBefore } from "../exampleCues";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
-import { germanInfinitive } from "./germanLexicon";
+import { germanGender, germanInfinitive } from "./germanLexicon";
 import { englishLine, isGerman, wordSet } from "./shared";
 import { germanInfinitiveOf, isAuxiliary } from "./verbAgreement";
 
@@ -28,6 +28,9 @@ const OPENERS = wordSet("Und Aber Oder Na Also");
 const STATEMENT = wordSet("doch ja jedenfalls halt eben wohl");
 const PLURAL_2 = wordSet("seid habt werdet könnt müsst sollt wollt dürft mögt wisst");
 const PARTICIPLE_PREFIX = /^(?:ge|be|er|ver|ent|zer|miss)\p{Ll}+(?:t|en)$/u;
+// "Kann mir jemand sagen, ob …", "Weißt du, wie …": a question that holds an indirect one.
+const ASKS =
+  /^(?:Kann|Kannst|Könnte|Könntest|Könnten|Weiß|Weißt|Wisst|Wissen|Gibt)[ \t]+(?:mir|uns|jemand|du|ihr|Sie|es)(?!\p{L})[^,]*,[ \t]*(?:ob|wie|was|wann|wo|warum|wer|welche\p{Ll}*)(?!\p{L})/u;
 const TAG = /,[ \t]*(?:oder(?:[ \t]+nicht)?|nicht[ \t]+wahr|gell|gelle)[ \t]*$/u;
 
 /** A finite verb form: listed, a "du" form, or a regular present form of a known verb. */
@@ -35,7 +38,8 @@ function finite(token: string): boolean {
   if (isAuxiliary(token) || germanInfinitiveOf(token)) return true;
   if (!/^\p{Ll}+$/u.test(token) || PARTICIPLE_PREFIX.test(token)) return false;
   const stem = /^(.+?)(?:st|t|et|est)$/u.exec(token)?.[1];
-  return !!stem && germanInfinitive(`${stem}en`);
+  // "dauert": an infinitive in -n ("dauern").
+  return !!stem && (germanInfinitive(`${stem}en`) || germanInfinitive(`${stem}n`));
 }
 
 function isQuestion(words: string[]): boolean {
@@ -51,22 +55,34 @@ function isQuestion(words: string[]): boolean {
     if (PLURAL_2.has(low) && next !== "ihr") return false;
     if (/st$/.test(low) && low !== "ist" && next !== "du") return false;
     const rest = words.slice(2);
-    return (
-      (SUBJECTS.has(next) || DETERMINERS.test(next)) &&
-      !rest.some((w) => STATEMENT.has(w) || isAuxiliary(w))
-    );
+    // "Ist Peter krank.": a name as the subject ("Muss Ihre Anfrage …", "Kann Spuren …" drop
+    // theirs).
+    const name =
+      /^\p{Lu}\p{Ll}+$/u.test(next) &&
+      !DETERMINERS.test(next.toLowerCase()) &&
+      !germanInfinitive(words.at(-1)!) &&
+      germanGender(next) === null;
+    const subject = SUBJECTS.has(next) || DETERMINERS.test(next) || name;
+    return subject && !rest.some((w) => STATEMENT.has(w) || isAuxiliary(w));
   }
   if (W_PREPOSITIONS.has(low) && W_WORDS.has(words[i + 1]?.toLowerCase() ?? "")) i++;
   else if (!W_WORDS.has(low)) return false;
   i++;
-  // "An welchem Tag starb er": the noun after "welch-".
-  if (/^welch/.test(words[i - 1].toLowerCase()) && /^\p{Lu}/u.test(words[i] ?? "")) i++;
+  // "An welchem Tag starb er", "Wessen Auto ist das": the noun after "welch-", "wessen".
+  if (/^(?:welch|wessen)/.test(words[i - 1].toLowerCase()) && /^\p{Lu}/u.test(words[i] ?? "")) {
+    i++;
+  }
   if (DEGREES.has(words[i] ?? "")) i++;
   const rest = words.slice(i);
   // "Was bin ich doch für ein Glückspilz": an exclamation.
   if (rest.length === 0 || rest.some((w) => STATEMENT.has(w) || w === "für")) return false;
   if (rest.every((w) => PARTICLES.has(w))) return true;
-  if (!finite(rest[0])) return false;
+  // "fuhr sie", "starb Cäsar": a verb form the lexicon lacks, then its subject.
+  const subjectAfter =
+    rest.length <= 3 &&
+    /^\p{Ll}+$/u.test(rest[0]) &&
+    (SUBJECTS.has(rest[1] ?? "") || /^\p{Lu}/u.test(rest[1] ?? ""));
+  if (!finite(rest[0]) && !subjectAfter) return false;
   // "Was zählt ist Erfolg", "Wer A sagt muss B sagen": a second finite verb.
   return !rest.slice(1).some((w) => isAuxiliary(w) && !/en$/.test(w));
 }
@@ -86,7 +102,9 @@ function questions(ctx: DetectContext): RawFinding[] {
     if (/(?:^|\s)\p{Lu}\p{Ll}?$/u.test(sentence)) continue;
     // "egal, ob er kommt, oder nicht.": the alternative of an "ob" clause.
     const tagged = TAG.test(sentence) && !/(?<!\p{L})ob(?!\p{L})/u.test(sentence);
-    if (!tagged) {
+    if (ASKS.test(sentence.trimStart())) {
+      // An indirect question inside.
+    } else if (!tagged) {
       // Clauses joined or quoted: "Wer bremst, verliert.", "Er fragte: Wann …".
       if (/[,;:"„“”«»()]/.test(sentence)) continue;
       const words = sentence.match(/\p{L}+/gu) ?? [];

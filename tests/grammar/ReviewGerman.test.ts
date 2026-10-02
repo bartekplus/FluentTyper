@@ -520,6 +520,13 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Wieso denn nicht.", "Wieso denn nicht?"],
         ["Das passt so, oder.", "Das passt so, oder?"],
         ["Mit wem gehst du hin.", "Mit wem gehst du hin?"],
+        ["Mit wessen Rad fuhr er.", "Mit wessen Rad fuhr er?"],
+        ["Ist Anna schon da.", "Ist Anna schon da?"],
+        [
+          "Kann mir jemand sagen, wo der Bahnhof ist.",
+          "Kann mir jemand sagen, wo der Bahnhof ist?",
+        ],
+        ["Wie lange dauert das noch.", "Wie lange dauert das noch?"],
       ],
       neg: [
         "Wie besprochen. Bis morgen.",
@@ -529,6 +536,9 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         "Habt Geduld.",
         "Hätte ich das gewusst wäre ich gekommen.",
         "Er fragte: Wann kommst du.",
+        "Kann Spuren von Sesam enthalten.",
+        "Werde Ihre Mail morgen lesen.",
+        "Wie schön das ist!",
       ],
     },
   ],
