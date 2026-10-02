@@ -435,8 +435,11 @@ function rebelReveal(ctx: DetectContext): RawFinding[] {
     )
       continue;
     const next = at.next();
-    const fix =
-      m[2] === "v" && next === "contra"
+    // "el misterio rebelado por el detective": "rebelarse" has no passive; "revelar" does.
+    const passive = m[2] === "b" && /^el(?:ado|ada|ados|adas)$/u.test(m[3]) && next === "por";
+    const fix = passive
+      ? `rev${m[3]}`
+      : m[2] === "v" && next === "contra"
         ? `reb${m[3]}`
         : m[2] === "b" &&
             (next === "que" ||

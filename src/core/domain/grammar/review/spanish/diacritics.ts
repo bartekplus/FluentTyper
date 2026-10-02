@@ -397,7 +397,7 @@ function interrogative(at: Around): string | null {
   // "no sé a qué se refiere", "me pregunto con qué ideas vendrá": a verb of knowing, a
   // preposition and "que"; "saber de que" is no conjunction ("darse cuenta de que" is).
   if (
-    word === "que" &&
+    (word === "que" || word === "quien" || word === "quienes") &&
     /^(?:a|de|con|en|sobre)$/u.test(prev) &&
     KNOWING.test(at.prev(2)) &&
     !inQuestion(at) &&

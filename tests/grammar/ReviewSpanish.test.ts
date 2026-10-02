@@ -1863,6 +1863,68 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
       ],
     },
   ],
+  [
+    "spanishAgreement",
+    "toda las, lo before a feminine noun, el mismo área, a participle before its subject",
+    {
+      pos: [
+        ["Leí toda las páginas.", "Leí todas las páginas."],
+        ["Vendrá por lo noche.", "Vendrá por la noche."],
+        ["Es del mismo área.", "Es de la misma área."],
+        ["Queda garantizado la entrega.", "Queda garantizada la entrega."],
+        ["Ya está hecho la cama.", "Ya está hecha la cama."],
+        ["Está previsto la reunión.", "Está prevista la reunión."],
+      ],
+      neg: [
+        "Eran sobre todo las charlas del profesor.",
+        "Se eliminan del todo las diferencias.",
+        "¿Tienen todos el mismo precio?",
+        "Por lo general, llega tarde.",
+        "El libro está considerado la mejor obra.",
+        "Estoy harto la verdad.",
+      ],
+    },
+  ],
+  [
+    "englishRepeatedWords",
+    "two Spanish words typed twice",
+    {
+      pos: [
+        ["Volvimos a casa a casa.", "Volvimos a casa."],
+        ["Lo pongo como un como un ejemplo.", "Lo pongo como un ejemplo."],
+        ["Me dijo que vino que vino ayer.", "Me dijo que vino ayer."],
+        ["Es muy bueno muy bueno.", "Es muy bueno."],
+        ["Nos vemos el lunes el lunes.", "Nos vemos el lunes."],
+      ],
+      neg: [
+        "Sube paso a paso a la montaña.",
+        "De dos en dos en el árbol.",
+        "A diferencia de los de los pájaros.",
+        "Sea quien sea quien venga.",
+        "Más y más y más.",
+      ],
+    },
+  ],
+  [
+    "spanishConfusions",
+    "revelado before its agent",
+    {
+      pos: [
+        ["El secreto rebelado por la prensa.", "El secreto revelado por la prensa."],
+        ["Los datos rebelados por el estudio.", "Los datos revelados por el estudio."],
+        ["La verdad fue rebelada por un testigo.", "La verdad fue revelada por un testigo."],
+        ["Las cifras rebeladas por el ministerio.", "Las cifras reveladas por el ministerio."],
+        ["Un plan rebelado por error.", "Un plan revelado por error."],
+      ],
+      neg: [
+        "El pueblo se ha rebelado contra el rey.",
+        "Los soldados rebelados huyeron.",
+        "Se rebeló por la injusticia.",
+        "Lo ha revelado por fin.",
+        "Las tropas se rebelaron.",
+      ],
+    },
+  ],
 ];
 
 test("a Spanish pronoun before an imperative that carries one is flagged without a fix", () => {

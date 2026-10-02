@@ -1,18 +1,18 @@
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
-import { pluralOf, readNoun } from "./agreement";
+import { DETERMINER, pluralOf, readNoun } from "./agreement";
 import {
   Around,
   attributeOf,
   CLITICS,
   INVARIANT,
   isInfinitive,
-  isBoundary,
+  PREPOSITIONS,
   replaceToken,
   tokenize,
   words,
   type Token,
 } from "./common";
-import { finiteVerb, genderedForm, isGerund, isNoun, plain } from "./lexicon";
+import { finiteVerb, genderedForm, isGerund, isNoun, participle, plain } from "./lexicon";
 
 // Short closed-class frames: "de el" -> "del", "ala casa" -> "a la casa", "miles de persona"
 // -> "personas", "soy conscientes" -> "consciente", "q" -> "que".
@@ -77,7 +77,9 @@ function deMas(ctx: DetectContext, at: Around): RawFinding | null {
   const tokens = at.tokens;
   if (tokens[at.i].lower !== "de" || at.next() !== "más" || !/^(?:y|e)$/u.test(at.prev()))
     return null;
-  if (!isBoundary(tokens[at.i + 2]) || tokens[at.i + 2]?.text === "?") return null;
+  // The list ends there: "y de más." ("y de más «peso»" compares).
+  const after = tokens[at.i + 2];
+  if (after && !after.broken && !/^[.,;:!…)]$/u.test(after.text)) return null;
   return replaceToken(
     ctx,
     span(ctx, tokens[at.i], tokens[at.i + 1]),
@@ -302,6 +304,131 @@ function uarVerb(ctx: DetectContext, at: Around): RawFinding | null {
   );
 }
 
+const PLURAL_DETERMINERS = words("los las estos estas esos esas aquellos aquellas mis tus sus");
+
+/** "Toda las frases" -> "Todas", "todos el día" -> "todo": "todo" takes its noun's number. */
+function todoNumber(ctx: DetectContext, at: Around): RawFinding | null {
+  const token = at.tokens[at.i];
+  const m = /^(tod)(o|a)(s?)$/u.exec(token.lower);
+  if (!m || at.tokens[at.i + 1]?.broken) return null;
+  const det = at.next();
+  const plural = PLURAL_DETERMINERS.has(det);
+  // Only "toda las": "tienen todos el mismo precio" floats the quantifier after its verb.
+  if (!plural || m[3] === "s") return null;
+  // "sobre todo las charlas", "del todo las diferencias", "habla de todo las tardes": "todo"
+  // stands alone there.
+  if (/^(?:sobre|del|ante|de|con|en|por|para|lo)$/u.test(at.prev())) return null;
+  // "todos el mismo día"? The noun after the determiner settles the number.
+  const noun = readNoun(at.next(2));
+  if (!noun || noun.plural !== plural) return null;
+  return replaceToken(
+    ctx,
+    token,
+    [`tod${m[2]}${plural ? "s" : ""}`],
+    "spanishAgreement",
+    "review_msg_spanish_agreement",
+    at.tokens[at.i + 2],
+  );
+}
+
+/** "por lo noche" -> "la noche": the neuter "lo" takes no feminine noun. */
+function loFeminine(ctx: DetectContext, at: Around): RawFinding | null {
+  const token = at.tokens[at.i];
+  if (token.text !== "lo" || !PREPOSITIONS_BEFORE_LO.has(at.prev())) return null;
+  const word = at.next();
+  const noun = readNoun(word);
+  if (!noun || noun.plural || noun.gender !== "f" || noun.paired) return null;
+  if (!isNoun(word) || attributeOf(word) || finiteVerb(word) || isInfinitive(word)) return null;
+  return replaceToken(
+    ctx,
+    token,
+    ["la"],
+    "spanishAgreement",
+    "review_msg_spanish_agreement",
+    at.tokens[at.i + 1],
+  );
+}
+const PREPOSITIONS_BEFORE_LO = words("de por en con para sin desde hasta sobre entre");
+
+// Feminine nouns with a stressed first "a": "el área", but "la misma área".
+const STRESSED_A = words("área agua alma arma aula águila hambre hacha hada ala ancla arca");
+
+/** "El mismo área" -> "La misma área": "el" serves the noun, not the adjective before it. */
+function stressedAdjective(ctx: DetectContext, at: Around): RawFinding | null {
+  const det = at.tokens[at.i];
+  const article = { el: "la", un: "una", del: "de la", al: "a la" }[det.lower];
+  if (!article || !STRESSED_A.has(at.next(2))) return null;
+  const adjective = at.next();
+  const m = /^(\p{L}+)o$/u.exec(adjective);
+  const form = genderedForm(adjective);
+  if (!m || !form || form.feminine || form.plural || at.tokens[at.i + 2].broken) return null;
+  return replaceToken(
+    ctx,
+    span(ctx, det, at.tokens[at.i + 1]),
+    [`${article} ${m[1]}a`],
+    "spanishAgreement",
+    "review_msg_spanish_agreement",
+    at.tokens[at.i + 2],
+  );
+}
+
+// Copulas whose participle agrees with a subject placed after it: "queda garantizada la entrega".
+const COPULAS = words(
+  "queda quedan quedó quedaron quedaba quedaban está están estaba estaban estuvo estuvieron " +
+    "resulta resultan resultó resultaron",
+);
+// Participles that name or rank: "está considerado la mejor obra" (the subject is before).
+const NAMING =
+  /^(?:considerad|llamad|conocid|nombrad|elegid|declarad|proclamad|reconocid|catalogad|calificad|denominad|tenid|situad|ubicad)[oa]s?$/u;
+
+/** "Queda garantizado la entrega" -> "garantizada": the participle agrees with the subject after it. */
+function postposedSubject(ctx: DetectContext, at: Around): RawFinding | null {
+  if (!COPULAS.has(at.tokens[at.i].lower)) return null;
+  const token = at.tokens[at.i + 1];
+  if (!token?.word || token.broken || NAMING.test(token.lower)) return null;
+  const form = participle(token.lower);
+  const m = /^(\p{L}+?)(o|a|os|as)$/u.exec(token.lower);
+  if (!form || !m) return null;
+  // Only a clause start or a subordinator before: "Ya está pagada la cuenta", "que quede…".
+  if (!at.starts && !/^(?:ya|que|no|así|también|ahora|hoy|y)$/u.test(at.prev())) return null;
+  const det = DETERMINER.get(at.next(2));
+  const noun = readNoun(at.next(3));
+  if (!det || !noun || /^(?:del|al)$/u.test(at.next(2)) || at.next(3) === "verdad") return null;
+  const plural = det.slot >= 2;
+  const feminine = noun.gender ? noun.gender === "f" : det.slot % 2 === 1;
+  if (noun.plural !== plural && !noun.invariant) return null;
+  if (form.feminine === feminine && form.plural === plural) return null;
+  return replaceToken(
+    ctx,
+    token,
+    [`${m[1]}${feminine ? "a" : "o"}${plural ? "s" : ""}`],
+    "spanishAgreement",
+    "review_msg_spanish_agreement",
+    at.tokens[at.i + 3],
+  );
+}
+
+/** "a casa a casa" -> "a casa": two words typed twice in a row. */
+function repeatedPair(ctx: DetectContext, at: Around): RawFinding | null {
+  const t = at.tokens;
+  const a = t[at.i];
+  const b = t[at.i + 1];
+  if (!b?.word || a.lower === b.lower || /^(?:y|e|o|u|ni|que)$/u.test(b.lower)) return null;
+  // "paso a paso a la cima", "de dos en dos en", "los de los pájaros", "sea quien sea quien":
+  // distributive pairs and set phrases repeat their words.
+  if (/^(?:y|e|o|u|ni|de|sea|quien)$/u.test(a.lower) || PREPOSITIONS.has(b.lower)) return null;
+  if (t[at.i + 2]?.lower !== a.lower || t[at.i + 3]?.lower !== b.lower) return null;
+  if ([1, 2, 3].some((k) => t[at.i + k].broken || !t[at.i + k].word)) return null;
+  if (t[at.i + 4]?.lower === a.lower) return null;
+  return replaceToken(
+    ctx,
+    span(ctx, a, t[at.i + 3]),
+    [ctx.text.slice(a.start, b.end)],
+    "englishRepeatedWords",
+    "review_msg_repeated_words",
+  );
+}
+
 type Check = (ctx: DetectContext, at: Around) => RawFinding | null;
 
 function frames(ctx: DetectContext, checks: Check[]): RawFinding[] {
@@ -331,11 +458,21 @@ const CONFUSIONS: Check[] = [
   cliticTwice,
   lesNumber,
 ];
-const AGREEMENT: Check[] = [amountOf, singularAttribute, apocopePlural, coordinatedAdjective];
+const AGREEMENT: Check[] = [
+  amountOf,
+  singularAttribute,
+  apocopePlural,
+  coordinatedAdjective,
+  todoNumber,
+  loFeminine,
+  stressedAdjective,
+  postposedSubject,
+];
 const ACCENTS: Check[] = [uarVerb];
 
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
   { rules: ["spanishConfusions"], detect: (ctx) => frames(ctx, CONFUSIONS) },
   { rules: ["spanishAgreement"], detect: (ctx) => frames(ctx, AGREEMENT) },
   { rules: ["spanishAccents"], detect: (ctx) => frames(ctx, ACCENTS) },
+  { rules: ["englishRepeatedWords"], detect: (ctx) => frames(ctx, [repeatedPair]) },
 ];
