@@ -158,3 +158,9 @@ Ce mot a un double sens, et son indigne frère le sait bien.
 Dès sa sortie de l'hôpital, il a repris le travail.
 Ce jour-là, celui-là même qui riait est resté là-bas.
 Il est là, tout le temps là, et je ne sais pas ce qu'il fait là.
+# Compounds and the free phrases next to them.
+Range l'argent dans le coffre-fort, puis éteins le lave-vaisselle.
+Ma grand-mère se lève tôt et lit le compte rendu de la réunion.
+Une petite fille joue dans le parc pendant que le nord est balayé par le vent.
+Les équations non linéaires sont étudiées l'après-midi.
+Visez-le sans faute, et revenez chez vous à cent pour cent.

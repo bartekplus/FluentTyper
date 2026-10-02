@@ -3,6 +3,7 @@ import { VERB_HOMOGRAPHS, VERB_LEMMAS, VERB_RULES } from "./frenchLexicon.genera
 import { ADJECTIVE_LEMMAS, ADJECTIVE_RULES } from "./frenchAdjectives.generated";
 import { FEMININE, MASCULINE } from "./frenchGender.generated";
 import { NOUN_BLOOM } from "./frenchNouns.generated";
+import { COMPOUNDS } from "./frenchCompounds.generated";
 
 /** Subject persons as bits: je, tu, il/elle/on, nous, vous, ils/elles. */
 export const JE = 1;
@@ -159,6 +160,14 @@ export function isVerbLemma(lemma: string): boolean {
 export function isVerbHomograph(word: string): boolean {
   load();
   return homographs!.has(word);
+}
+
+let compounds: Set<string> | null = null;
+
+/** Whether the dictionary spells this lowercase two-part compound with a hyphen. */
+export function isDictionaryCompound(word: string): boolean {
+  compounds ??= new Set(decodeFrontCoded(COMPOUNDS));
+  return compounds.has(word);
 }
 
 let nounBloom: Uint8Array | null = null;

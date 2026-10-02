@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import {
   buildFrenchAdjectives,
+  buildFrenchCompounds,
   buildFrenchGender,
   buildFrenchLexicon,
   buildFrenchNouns,
@@ -16,6 +17,7 @@ import {
   IL,
   ILS,
   inflect,
+  isDictionaryCompound,
   isInflectedNoun,
   isVerbHomograph,
   JE,
@@ -706,6 +708,18 @@ describe("French lexicon", () => {
     expect(buildFrenchAdjectives(dic, aff)).toBe(committed);
   });
 
+  test("the committed compounds match fr_FR.dic and leave free phrases out", async () => {
+    const [dic, committed] = await Promise.all(
+      [FRENCH_LEXICON_SOURCES.dic, FRENCH_LEXICON_SOURCES.compounds].map((path) =>
+        readFile(path, "utf8"),
+      ),
+    );
+    expect(buildFrenchCompounds(dic)).toBe(committed);
+    expect(isDictionaryCompound("coffre-fort")).toBe(true);
+    expect(isDictionaryCompound("petite-fille")).toBe(false);
+    expect(isDictionaryCompound("compte-rendu")).toBe(false);
+  });
+
   test("adjective readings give gender and number, and the other forms", () => {
     const [tropicale] = adjectiveReadings("tropicale");
     expect([tropicale.lemma, tropicale.slot]).toEqual(["tropical", "fs"]);
@@ -838,6 +852,14 @@ test.each([
   ["frenchHyphenation", "Un verre anti-reflets et un écran auto-bronzant."],
   ["frenchHyphenation", "Ce texte peut être utile."],
   ["frenchHyphenation", "Il est peut-être là."],
+  ["frenchHyphenation", "Il se lève tôt le matin."],
+  ["frenchHyphenation", "Le nord est froid en hiver."],
+  ["frenchHyphenation", "Une petite fille joue dans le parc."],
+  ["frenchHyphenation", "Il a rédigé un compte rendu."],
+  ["frenchHyphenation", "Les équations non linéaires sont difficiles."],
+  ["frenchHyphenation", "Je l'ai vu chez vous."],
+  ["frenchHyphenation", "Visez le sans faute !"],
+  ["frenchHyphenation", "Il est arrivé à cent pour cent."],
   ["frenchElision", "Le sigle vient de also known as, en anglais."],
   ["frenchElision", "Il épelle son nom : d o r a."],
   ["frenchSubjectVerbAgreement", "« Je est un autre » reste une formule célèbre."],
@@ -927,6 +949,19 @@ test.each([
   ["frenchHyphenation", "Ils sont sur exploités.", "Ils sont surexploités."],
   ["frenchHyphenation", "Les pays sous développés.", "Les pays sous-développés."],
   ["frenchHyphenation", "Il veut contre attaquer.", "Il veut contre-attaquer."],
+  [
+    "frenchHyphenation",
+    "Range l'argent dans le coffre fort.",
+    "Range l'argent dans le coffre-fort.",
+  ],
+  ["frenchHyphenation", "Il a acheté un porte monnaie.", "Il a acheté un porte-monnaie."],
+  ["frenchHyphenation", "Les sous titres sont lisibles.", "Les sous-titres sont lisibles."],
+  [
+    "frenchHyphenation",
+    "Le secteur agro alimentaire recrute.",
+    "Le secteur agro-alimentaire recrute.",
+  ],
+  ["frenchHyphenation", "Ma grand mère tricote.", "Ma grand-mère tricote."],
   ["frenchHyphenation", "Il n'est peut être pas venu.", "Il n'est peut-être pas venu."],
   [
     "frenchHyphenation",
