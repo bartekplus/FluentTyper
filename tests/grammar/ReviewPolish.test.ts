@@ -232,6 +232,10 @@ export const POLISH_CASES: Array<[CatalogRuleId, string, Case]> = [
     {
       pos: [
         ["Wygrał już 3-ci raz.", "Wygrał już 3. raz."],
+        ["Cena wzrosła trzy krotnie.", "Cena wzrosła trzykrotnie."],
+        ["Zysk był 4. krotnie wyższy.", "Zysk był 4-krotnie wyższy."],
+        ["Zatrudnili 30 - letniego kierowcę.", "Zatrudnili 30-letniego kierowcę."],
+        ["Plan 3—letni przyjęto.", "Plan 3-letni przyjęto."],
         ["Przyjechał 12-go czerwca.", "Przyjechał 12 czerwca."],
         ["Moda z lat 80-tych wraca.", "Moda z lat 80. wraca."],
         ["Zaprosiłem 7-miu gości.", "Zaprosiłem siedmiu gości."],
