@@ -549,6 +549,21 @@ function timeAdverbs(
   return findings;
 }
 
+/**
+ * "الجهاز عبارة عن صندوق" -> "الجهاز صندوق": عبارة عن adds nothing to the
+ * predicate. After هو/هي the table rows keep the pronoun.
+ */
+function amountsTo(list: readonly StyleToken[], at: (start: number) => boolean): Finding[] {
+  const findings: Finding[] = [];
+  for (let i = 0; i + 2 < list.length; i++) {
+    if (list[i].word !== "عبارة" || list[i + 1].word !== "عن" || !adjacent(list[i + 1])) continue;
+    if (!adjacent(list[i + 2]) || !at(list[i].start)) continue;
+    if (i > 0 && /^(?:هو|هي|هم)$/u.test(list[i - 1].word)) continue;
+    findings.push(style(list[i].start, list[i + 2].start, ""));
+  }
+  return findings;
+}
+
 /** "فأما أن تحفظه وأما أن تضيعه" -> "فإما ... وإما": the choice is إمّا. */
 function eitherOr(list: readonly StyleToken[], at: (start: number) => boolean): Finding[] {
   const findings: Finding[] = [];
@@ -595,6 +610,9 @@ function important(
 const DIRECT_LI = /^[وف]?(?:أعطى|أعطت|أعطوا|يعطي|تعطي|يعطون|نعطي)$/u;
 const DIRECT_BI = /^[وف]?(?:كلف|كلفت|كلفوا|يكلف|تكلف|يكلفون|غرم|غرمت|يغرم)(?:ه|ها|هم|ني|نا|ك|كم)$/u;
 
+// One trades in (في) goods. Not the bare "تاجر", also "a merchant".
+const TRADE = /^[وف]?(?:تاجرت|تاجروا|يتاجر|تتاجر|يتاجرون|نتاجر|أتاجر)$/u;
+
 /** "أعطى لصاحبه كتابا" -> "أعطى صاحبه", "كلفه بالعمل" -> "كلفه العمل". */
 function directObjects(list: readonly StyleToken[], at: (start: number) => boolean): Finding[] {
   const findings: Finding[] = [];
@@ -615,6 +633,8 @@ function directObjects(list: readonly StyleToken[], at: (start: number) => boole
     }
     if (DIRECT_BI.test(list[i].word) && /^بال\p{L}{2,}$/u.test(object.word))
       findings.push(style(object.start, object.end, object.word.slice(1)));
+    else if (TRADE.test(list[i].word) && /^ب\p{L}{3,}$/u.test(object.word))
+      findings.push(style(object.start, object.end, "في " + object.word.slice(1)));
   }
   return findings;
 }
@@ -640,5 +660,6 @@ export function styleFrames(
     ...eitherOr(list, at),
     ...important(text, list, at),
     ...directObjects(list, at),
+    ...amountsTo(list, at),
   ];
 }
