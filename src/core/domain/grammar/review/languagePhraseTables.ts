@@ -446,7 +446,6 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
         `${form} efecto`,
         `${form.replace("surg", "surt")} efecto`,
       ]),
-      ["sao paulo", "são paulo"],
       // The relative "cual" after its article never takes the accent.
       ["el cuál", "el cual"],
       ["la cuál", "la cual"],
