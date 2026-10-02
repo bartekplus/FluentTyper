@@ -247,6 +247,12 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
       ["etwa ungefähr", ["etwa", "ungefähr"]],
       ["kostenlos gratis", ["kostenlos", "gratis"]],
       ["eventuell vielleicht", ["eventuell", "vielleicht"]],
+      // "wegen" with a personal pronoun is spoken German; writing joins the pronoun's form.
+      ["wegen mir", "meinetwegen"],
+      ["wegen dir", "deinetwegen"],
+      ["wegen ihm", "seinetwegen"],
+      ["wegen uns", "unseretwegen"],
+      ["wegen euch", "euretwegen"],
       ["vielleicht möglicherweise", ["vielleicht", "möglicherweise"]],
       ["möglicherweise vielleicht", ["möglicherweise", "vielleicht"]],
       ["eventuell möglicherweise", ["eventuell", "möglicherweise"]],

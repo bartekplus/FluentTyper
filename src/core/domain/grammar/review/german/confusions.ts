@@ -1,6 +1,6 @@
 import { frameMatches, SPACE, WORD_END, WORD_START } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
-import { germanInfinitive } from "./germanLexicon";
+import { germanAdjective, germanInfinitive } from "./germanLexicon";
 import { isGerman, mayRun } from "./shared";
 import { isAuxiliary } from "./verbAgreement";
 
@@ -357,6 +357,39 @@ const FRAMES: readonly Frame[] = [
       /^(?:der|den|dem|des|einen|einem|eines|ein|kein|mein|dein|sein)$/i.test(m.groups!.noun)
         ? null
         : ["kann", "kam"],
+  },
+  // "besser wie du", "klüger wie Computer" → als: a comparative takes "als" ("so gut wie" stays;
+  // "sauber wie", "teuer wie": lemmas in -er are no comparatives).
+  {
+    regex: re(`(?<noun>\\p{Ll}+er|anders)${S}(?<target>wie)${E}`),
+    fix: (m) => {
+      const word = m.groups!.noun;
+      const before = m.input.slice(Math.max(0, m.index - 12), m.index);
+      if (/(?:^|[^\p{L}])(?:so|ein|eine|einer)\s+$/u.test(before)) return null;
+      // "im gleichen Maße besser wie sie", "genauso … wie": a comparison of equals.
+      const clause = m.input
+        .slice(Math.max(0, m.index - 60), m.index)
+        .split(/[.!?;,]/)
+        .at(-1)!;
+      if (/(?:^|[^\p{L}])(?:genauso|ebenso|gleiche[mnrs]?|gleich|so)(?!\p{L})/u.test(clause))
+        return null;
+      // "weiter wie bisher", "später wie sein Vater", "eher wie": adverbs of time and manner.
+      if (
+        /^(?:weiter|später|früher|eher|öfter|immer|wieder|aber|oder|über|unter|hinter|wider)$/.test(
+          word,
+        )
+      )
+        return null;
+      if (/^(?:besser|lieber|mehr|weniger|anders)$/.test(word)) return "als";
+      const stem = word.slice(0, -2);
+      const plain = stem.replace(/ä/g, "a").replace(/ö/g, "o").replace(/ü/g, "u");
+      // "klüger" (klug), "größer" (groß): an umlaut the lemma lacks marks the comparative.
+      const comparative =
+        (plain !== stem && germanAdjective(plain)) ||
+        (!germanAdjective(word) &&
+          [stem, `${stem}e`].some((s) => s.length >= 2 && germanAdjective(s)));
+      return comparative ? "als" : null;
+    },
   },
   // "Es gibt keine Features, sonder nur …" → sondern.
   { regex: re(`(?<=,${S})(?<target>sonder)(?=${S}${W})`), fix: "sondern" },

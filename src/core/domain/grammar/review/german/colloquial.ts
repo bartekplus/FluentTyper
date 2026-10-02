@@ -39,9 +39,44 @@ function verbAfter(rest: string): boolean {
   return !!participle && [`${participle[1]}en`, `${participle[1]}n`].some(germanInfinitive);
 }
 
+// A preposition with an interrogative "was" is spoken German; writing uses the wo(r)- adverb:
+// "Für was kämpft er?" (Wofür), "um was es geht" (worum). Not the indefinite "was" ("für was
+// Neues", "gegen was neues").
+const WHAT =
+  /(?<![\p{L}\p{M}\p{N}_-])(?<prep>[Aa]us|[Uu]m|[Aa]uf|[Ff]ür|[Dd]urch|[Mm]it|[Üü]ber|[Aa]n|[Vv]on|[Nn]ach|[Zz]u|[Ii]n|[Bb]ei|[Gg]egen|[Vv]or)[ \t]+was(?![\p{L}\p{M}\p{N}_-])/gu;
+const WO = (prep: string) => (/^[aeiouü]/.test(prep) ? `wor${prep}` : `wo${prep}`);
+function prepositionWhat(ctx: DetectContext, findings: RawFinding[]): void {
+  WHAT.lastIndex = ctx.from;
+  for (let m = WHAT.exec(ctx.scanText); m && m.index < ctx.to; m = WHAT.exec(ctx.scanText)) {
+    const after = ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 30);
+    // "was Neues", "was neues", "was anderes": "etwas"; "Auf was für einem …": "was für".
+    if (/^[ \t]+(?:\p{Lu}|\p{Ll}+(?:es|e)(?![\p{L}])|für(?![\p{L}]))/u.test(after)) continue;
+    // "um was zu essen", "um was aufzubauen": "um … zu" with "etwas".
+    const clause = /^[^.!?,;:\n]*/.exec(after)![0];
+    if (
+      /^[Uu]m$/.test(m.groups!.prep) &&
+      /(?<![\p{L}])zu(?![\p{L}])|\p{Ll}+zu\p{Ll}+en(?![\p{L}])/u.test(clause)
+    )
+      continue;
+    const before = ctx.text.slice(Math.max(0, m.index - 2), m.index);
+    // The clause opens with it: a question or an indirect question after a comma.
+    if (m.index > 0 && !/(?:^|[,;:\n„"]\s*|[.!?]\s+)$/.test(before)) continue;
+    const prep = m.groups!.prep;
+    const adverb = WO(prep.toLowerCase());
+    findings.push({
+      ruleId: "germanColloquial",
+      messageKey: "review_msg_german_colloquial",
+      range: { start: m.index, end: m.index + m[0].length },
+      alternatives: [/^\p{Lu}/u.test(prep) ? adverb[0].toUpperCase() + adverb.slice(1) : adverb],
+      context: { start: Math.max(0, m.index - 40), end: m.index + m[0].length + 20 },
+    });
+  }
+}
+
 function colloquial(ctx: DetectContext): RawFinding[] {
   if (!isGerman(ctx)) return [];
   const findings: RawFinding[] = [];
+  prepositionWhat(ctx, findings);
   WORD.lastIndex = ctx.from;
   for (let m = WORD.exec(ctx.scanText); m && m.index < ctx.to; m = WORD.exec(ctx.scanText)) {
     const { short, rest } = m.groups!;

@@ -330,6 +330,8 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
     "germanConfusedWords",
     {
       pos: [
+        ["Heute läuft sie schneller wie gestern.", "Heute läuft sie schneller als gestern."],
+        ["Mein Bruder ist größer wie ich.", "Mein Bruder ist größer als ich."],
         ["Das ist meine eigne Meinung.", "Das ist meine eigene Meinung."],
         ["Ich glaube, ihr seit müde.", "Ich glaube, ihr seid müde."],
         ["Wir wohnen hier seid drei Jahren.", "Wir wohnen hier seit drei Jahren."],
@@ -358,6 +360,10 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Sie kam immer wider zu spät.", "Sie kam immer wieder zu spät."],
       ],
       neg: [
+        "Der Boden ist sauber wie ein Spiegel.",
+        "Wir machen weiter wie bisher.",
+        "Er wird im gleichen Maße besser wie sie.",
+        "Das ist so gut wie neu.",
         "Die eignen sich gut.",
         "Der Kamm liegt im Bad.",
         "Er handelte wider besseres Wissen.",
@@ -623,6 +629,8 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
     "germanColloquial",
     {
       pos: [
+        ["Für was brauchst du das?", "Wofür brauchst du das?"],
+        ["Ich weiß nicht, um was es geht.", "Ich weiß nicht, worum es geht."],
         ["Nach dem Regen gehen wir wieder raus.", "Nach dem Regen gehen wir wieder heraus."],
         ["Die Kinder sitzen den ganzen Tag rum.", "Die Kinder sitzen den ganzen Tag herum."],
         ["Kannst du die Datei runterladen?", "Kannst du die Datei herunterladen?"],
@@ -631,6 +639,9 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Das ist nur zum Rumprobieren gedacht.", "Das ist nur zum Herumprobieren gedacht."],
       ],
       neg: [
+        "Er kämpft gegen was Neues.",
+        "In was für einem Haus wohnst du?",
+        "Wir sind gekommen, um was zu essen.",
         "Sie stand an der Spitze der Rangliste.",
         "Der Zug muss noch rangieren.",
         "Wir reinigen das Bad.",
