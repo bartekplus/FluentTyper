@@ -136,6 +136,35 @@ function makeSession({
   });
 }
 
+test("session closes unverified acceptance without learning or running follow-up grammar", () => {
+  const entry = createSuggestionEntry({ suggestions: ["the"], latestMentionText: "teh" });
+  const recordSuggestionAccepted = jest.fn();
+  const recordPersonalizationAccepted = jest.fn(() => "event");
+  const applyGrammarEdit = jest.fn(() => ({ applied: false, didDispatchInput: false }));
+  const session = makeSession({
+    entry,
+    recordSuggestionAccepted,
+    recordPersonalizationAccepted,
+    textEditService: {
+      acceptSuggestion: jest.fn(() => ({
+        triggerText: "teh",
+        insertedText: "the",
+        cursorAfter: 3,
+        cursorAfterIsBlockLocal: true,
+        unverified: true,
+      })),
+      applyGrammarEdit,
+      syncManualAutoFixSuppression: jest.fn(),
+    },
+  });
+  expect(session.acceptSuggestion("the")).toBe(true);
+  expect(entry.suggestions).toEqual([]);
+  expect(entry.missingTrailingSpace).toBe(false);
+  expect(recordSuggestionAccepted).not.toHaveBeenCalled();
+  expect(recordPersonalizationAccepted).not.toHaveBeenCalled();
+  expect(applyGrammarEdit).not.toHaveBeenCalled();
+});
+
 test("session resolves one edit context and suppresses processing for unstable selection", () => {
   const editableContextResolver = {
     resolve: jest.fn(() => ({

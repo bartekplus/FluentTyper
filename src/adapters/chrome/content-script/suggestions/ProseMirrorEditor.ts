@@ -15,6 +15,7 @@ import {
 } from "../review/ContentEditableTextMap";
 import { isLockedField, isSensitiveField } from "./FieldEligibility";
 import type { LineEditorBlockContext } from "./HostEditorControllerUtils";
+import type { HostEditorApplyResult } from "./HostEditorAdapterResolver";
 
 type HostView = EditorView & { docView: Descriptor; domObserver: { flush(): void } };
 
@@ -192,7 +193,7 @@ export function replaceProseMirrorBlock(
     cursorAfter: number;
     expectedBlockText: string;
   },
-): { applied: boolean; didDispatchInput: boolean } {
+): HostEditorApplyResult {
   const context = proseMirrorBlockContext(root);
   const view = owningView(root);
   const snapshot = readProseMirror(root);
@@ -233,6 +234,8 @@ export function replaceProseMirrorBlock(
     after,
     signature: snapshot.signature,
   });
+  if (result.status === "unverified")
+    return { applied: false, didDispatchInput: false, unverified: true };
   if (result.status !== "applied") return { applied: false, didDispatchInput: false };
   const position = $head.start() + request.cursorAfter;
   const Selection = view.state.selection

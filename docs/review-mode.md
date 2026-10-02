@@ -746,6 +746,9 @@ review-only. Edits are prepared before dispatch and the complete resulting model
 is checked, including marks, links, attributes, structure and protected nodes.
 The selection is mapped by the host transaction. Composition and stale snapshots
 are refused. An unexpected host rewrite is reported as unverified and never retried.
+Typing and suggestion acceptance also retain that unverified outcome: native keys
+are not replayed after a landed transaction, the actual result is kept for undo
+bookkeeping, and no acceptance learning or follow-up correction is run.
 
 Plain contenteditable snapshots also capture formatting wrappers and attributes.
 Equal-grapheme replacements retain each original grapheme's formatting. When a

@@ -244,6 +244,77 @@ describe("real ProseMirror corrections", () => {
     ).toBe(false);
   });
 
+  test.each(["grammar", "suggestion", "spacing"])(
+    "host normalization is unverified without losing mutation state: %s",
+    (mode) => {
+      editor(
+        [paragraph("teh", [{ type: "strong" }])],
+        [
+          new Plugin({
+            appendTransaction(transactions, previous, state) {
+              if (
+                !transactions.some((tr) => tr.docChanged) ||
+                previous.doc.rangeHasMark(1, previous.doc.content.size - 1, schema.marks.color)
+              )
+                return null;
+              const tr = state.tr.insertText("!", state.doc.content.size - 1);
+              return tr.addMark(
+                1,
+                tr.doc.content.size - 1,
+                schema.marks.color.create({ color: "blue" }),
+              );
+            },
+          }),
+        ],
+      );
+      let writes = 0;
+      const dispatch = view!.dispatch.bind(view);
+      view!.dispatch = (tr) => {
+        if (tr.docChanged) writes++;
+        dispatch(tr);
+      };
+      const service = new SuggestionTextEditService({
+        findMentionToken: (before) => ({ token: before, start: 0 }),
+        isSeparator: (value) => /\s/.test(value),
+      });
+      const entry = createSuggestionEntry({ elem: view!.dom, latestMentionText: "teh" });
+      if (mode === "grammar") {
+        expect(
+          service.applyGrammarEdit(entry, { replacement: "the", deleteBackwards: 3 }),
+        ).toMatchObject({
+          applied: false,
+          unverified: true,
+        });
+      } else if (mode === "suggestion") {
+        expect(service.acceptSuggestion(entry, "the")).toMatchObject({ unverified: true });
+      } else {
+        Object.assign(entry, {
+          missingTrailingSpace: true,
+          expectedCursorPos: 3,
+          expectedCursorPosIsBlockLocal: true,
+          expectedCursorPosBlockElement: view!.dom.querySelector("p"),
+          expectedCursorPosBlockText: "teh",
+        });
+        const keyboard = new window.KeyboardEvent("keydown", { key: "x", cancelable: true });
+        service.handleMissingSpaceAfterAccept(entry, keyboard, (event) => event.preventDefault());
+        expect(keyboard.defaultPrevented).toBe(true);
+      }
+      expect(writes).toBe(1);
+      expect(view!.state.doc.textContent).toBe(mode === "spacing" ? "teh x!" : "the!");
+      expect(
+        view!.state.doc.rangeHasMark(1, view!.state.doc.content.size - 1, schema.marks.color),
+      ).toBe(true);
+      if (mode !== "spacing") {
+        expect(entry.pendingExtensionEdit).not.toBeNull();
+        expect(entry.pendingExtensionEdit?.postEditFingerprint.fullText).toBe("the!");
+      }
+      const normalized = view!.state.doc;
+      view!.dispatch(view!.state.tr.insertText("y", view!.state.doc.content.size - 1));
+      expect(undo(view!.state, view!.dispatch)).toBe(true);
+      expect(view!.state.doc.eq(normalized)).toBe(true);
+    },
+  );
+
   test("UTF-16 offsets preserve emoji and refuse edits inside a grapheme", async () => {
     const target = editor([paragraph("😀teh", [{ type: "strong" }])]);
     expect(await apply(target, [edit(2, "teh", "the")])).toEqual({ status: "applied" });

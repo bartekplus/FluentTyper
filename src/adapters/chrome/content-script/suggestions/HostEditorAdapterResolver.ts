@@ -13,6 +13,8 @@ import type { PostEditFingerprint } from "./types";
 export interface HostEditorApplyResult {
   applied: boolean;
   didDispatchInput: boolean;
+  /** A host transaction landed but could not be verified; never retry it. */
+  unverified?: boolean;
 }
 
 export interface HostEditorSession {

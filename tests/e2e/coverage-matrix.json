@@ -4440,6 +4440,16 @@
         {
           "layer": "unit",
           "file": "tests/ProseMirrorReview.test.ts",
+          "test": "host normalization is unverified without losing mutation state: %s"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionEntrySession.test.ts",
+          "test": "session closes unverified acceptance without learning or running follow-up grammar"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ProseMirrorReview.test.ts",
           "test": "typing uses the same host transaction in a later paragraph and preserves styled prefix and undo"
         },
         {
