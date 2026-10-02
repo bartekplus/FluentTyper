@@ -33,6 +33,9 @@ test("a clause without its verb gets be, and no/not swap where a verb or noun fo
     ["She going to call later.", "She is going to call later."],
     ["We now building a shed.", "We are now building a shed."],
     ["What they doing?", "What are they doing?"],
+    ["Honestly, it normal to worry.", "Honestly, it is normal to worry."],
+    ["If it dark then the light turns on.", "If it is dark then the light turns on."],
+    ["How it possible?", "How is it possible?"],
     ["Lena and I leaving at noon.", "Lena and I are leaving at noon."],
   ]) {
     const found = scan(input);
@@ -65,6 +68,8 @@ test("objects, gapping, idioms and verbs stay silent", () => {
     "We kindly ask you to wait.",
     "The cooks there are not chefs.",
     "How are Lena and I doing?",
+    "I think it fun.",
+    "Keep it safe for later.",
     "Lena and I cooking dinner was fun.",
     "The meeting rooms they booking left.",
   ])
