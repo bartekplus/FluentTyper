@@ -41,7 +41,7 @@ const FRAMES: Frame[] = [
   ],
   [
     re(
-      `(?<=(?:${SEIN})(?:${S}(?:doch|nicht|auch|selbst|allein))*${S})(?<target>Schuld)(?=${S}daran)`,
+      `(?<=(?:${SEIN})(?:${S}(?:doch|nicht|auch|selbst|allein)){0,3}${S})(?<target>Schuld)(?=${S}daran)`,
     ),
     () => "schuld",
   ],
@@ -97,7 +97,7 @@ const FRAMES: Frame[] = [
   // "mir ist Recht", "es geschah ihm Recht", "Recht und billig", "alles Recht machen".
   [
     re(
-      `(?<=(?:${DATIVES})(?:${S}(?:ganz|nicht|auch|aber|wirklich|durchaus|doch|schon|nur))*${S})(?<target>Recht)(?=${S}(?:sein|ist|war|wäre|so)${E}|[ \\t]*[,.!?])`,
+      `(?<=(?:${DATIVES})(?:${S}(?:ganz|nicht|auch|aber|wirklich|durchaus|doch|schon|nur)){0,3}${S})(?<target>Recht)(?=${S}(?:sein|ist|war|wäre|so)${E}|[ \\t]*[,.!?])`,
     ),
     (m, ctx) =>
       /\b(?:haben|hat|hast|habe|hatte|gibt|gab|geben|gegeben|gebe|gebt|gib)\b/.test(
@@ -120,7 +120,7 @@ const FRAMES: Frame[] = [
   ],
   // "ich bin ihr Gram" → gram.
   [
-    re(`(?<=(?:${SEIN})${S}(?:${DATIVES})(?:${S}(?:nicht|wirklich))*${S})(?<target>Gram)`),
+    re(`(?<=(?:${SEIN})${S}(?:${DATIVES})(?:${S}(?:nicht|wirklich)){0,2}${S})(?<target>Gram)`),
     () => "gram",
   ],
   // "mir ist Angst und Bange" → angst und bange; "macht mir angst und bange" → Angst und Bange.
@@ -133,7 +133,7 @@ const FRAMES: Frame[] = [
   ],
   [
     re(
-      `(?<=(?:mach|macht|machen|machte|machten|gemacht)${S}(?:\\p{Ll}+${S})?(?:${DATIVES}|mich|dich|ihn|sie|uns|euch)(?:${S}nicht)?${S})(?<target>[Aa]ngst${S}und${S}[Bb]ange)`,
+      `(?<=(?:mach|macht|machen|machte|machten|gemacht)${S}(?:\\p{Ll}{1,40}${S})?(?:${DATIVES}|mich|dich|ihn|sie|uns|euch)(?:${S}nicht)?${S})(?<target>[Aa]ngst${S}und${S}[Bb]ange)`,
     ),
     (m) =>
       m.groups!.target === m.groups!.target.replace(/^a/, "A").replace(/ b/, " B")
@@ -180,7 +180,10 @@ const FRAMES: Frame[] = [
     () => "Weg",
   ],
   // "ein schönes paar", "ein zusätzliches paar Augen": "Paar" after an inflected adjective.
-  [re(`(?<=(?:[Ee]in|[Dd]as|[Dd]ieses|[Jj]edes)${S}\\p{Ll}+es${S})(?<target>paar)`), () => "Paar"],
+  [
+    re(`(?<=(?:[Ee]in|[Dd]as|[Dd]ieses|[Jj]edes)${S}\\p{Ll}{1,30}es${S})(?<target>paar)`),
+    () => "Paar",
+  ],
   // "im aus", "ins aus gerollt", "das aus für": the noun.
   [
     re(

@@ -129,14 +129,14 @@ const FRAMES: readonly Frame[] = [
   // "Seit ihr schon fertig?", "Seit bitte leise!"
   {
     regex: re(
-      `(?<=(?:^|[.!?:]\\s+|\\n)[„"]?)(?<target>Seit)(?=${S}(?:ihr${S}[^,.!?\\n]*\\?|(?:bitte|mir|uns|ruhig|leise|vorsichtig|wachsam|still|willkommen|nett|brav|froh|dankbar|gespannt|bereit|gegrüßt|nicht|doch|bloß|mal)${E}[^,\\n]*[!.]))`,
+      `(?<=(?:^|[.!?:]\\s{1,8}|\\n)[„"]?)(?<target>Seit)(?=${S}(?:ihr${S}[^,.!?\\n]*\\?|(?:bitte|mir|uns|ruhig|leise|vorsichtig|wachsam|still|willkommen|nett|brav|froh|dankbar|gespannt|bereit|gegrüßt|nicht|doch|bloß|mal)${E}[^,\\n]*[!.]))`,
     ),
     fix: "Seid",
   },
   // "seid gestern", "seid zwei Tagen", "Seid dem letzten Mittwoch" → seit (no "ihr" around).
   {
     regex: re(
-      `(?<!(?<![\\p{L}])[iI]hr${S}(?:\\p{L}+${S}){0,2})(?<target>${ci("seid")})${E}(?!${S}ihr${E})(?=${S}(?:(?:${TIME_WORDS.replace(/ /g, "|")}|ein${S}paar|mehr${S}als|\\p{N}+)${E}|(?:dem|einem|diesem|dieser|der|einer|letztem|letzter|letzten|vergangenem|vergangenen|vorigem|vorigen)${S}(?:\\p{Ll}+${S})?(?:${TIME_NOUN})${E}))`,
+      `(?<!(?<![\\p{L}])[iI]hr${S}(?:\\p{L}{1,40}${S}){0,2})(?<target>${ci("seid")})${E}(?!${S}ihr${E})(?=${S}(?:(?:${TIME_WORDS.replace(/ /g, "|")}|ein${S}paar|mehr${S}als|\\p{N}+)${E}|(?:dem|einem|diesem|dieser|der|einer|letztem|letzter|letzten|vergangenem|vergangenen|vorigem|vorigen)${S}(?:\\p{Ll}+${S})?(?:${TIME_NOUN})${E}))`,
     ),
     fix: "seit",
   },
@@ -155,7 +155,7 @@ const FRAMES: readonly Frame[] = [
     ),
     fix: "mit",
   },
-  { regex: re(`(?<=(?:^|[.!?]\\s+))(?<target>Mir)(?=${S}wem${E})`), fix: "Mit" },
+  { regex: re(`(?<=(?:^|[.!?]\\s{1,8}))(?<target>Mir)(?=${S}wem${E})`), fix: "Mit" },
   // "tut mit leid", "gefällt mit gut", "Sag mit bitte", "Kann mit jemand" → mir.
   {
     regex: re(
@@ -214,21 +214,21 @@ const FRAMES: readonly Frame[] = [
   },
   {
     regex: re(
-      `(?<=(?:^|[.!?]\\s+|\\n))(?<target>Das)(?=${S}(?:ich|du|er|sie|es|wir|man)${S}\\p{Ll})`,
+      `(?<=(?:^|[.!?]\\s{1,8}|\\n))(?<target>Das)(?=${S}(?:ich|du|er|sie|es|wir|man)${S}\\p{Ll})`,
     ),
     fix: "Dass",
   },
   // "Das dem Mann ein Zahn fehlt, ist bedauerlich": a subject clause, its verb last.
   {
     regex: re(
-      `(?<=(?:^|[.!?]\\s+|\\n))(?<target>Das)(?=${S}(?:dem|der|den|die|ein\\p{Ll}*|mein\\p{Ll}*|dein\\p{Ll}*|sein\\p{Ll}*|ihr\\p{Ll}*|unser\\p{Ll}*|alle|alles|jemand|niemand|hier|so)${S}(?<clause>[^.!?\\n,]*\\p{Ll}),${S}(?:ist|war|wäre|freut|ärgert|stört|wundert|zeigt|bedeutet|macht|liegt|hat|gefällt|beweist|spricht|überrascht)${E})`,
+      `(?<=(?:^|[.!?]\\s{1,8}|\\n))(?<target>Das)(?=${S}(?:dem|der|den|die|ein\\p{Ll}*|mein\\p{Ll}*|dein\\p{Ll}*|sein\\p{Ll}*|ihr\\p{Ll}*|unser\\p{Ll}*|alle|alles|jemand|niemand|hier|so)${S}(?<clause>[^.!?\\n,]*\\p{Ll}),${S}(?:ist|war|wäre|freut|ärgert|stört|wundert|zeigt|bedeutet|macht|liegt|hat|gefällt|beweist|spricht|überrascht)${E})`,
     ),
     fix: (m) => (subjectClause(m.groups!.clause) ? "Dass" : null),
   },
   // "Gut das du da bist" → "Gut, dass": an adjective that opens a sentence before a clause.
   {
     regex: re(
-      `(?<=(?:^|[.!?]\\s+|\\n))(?<target>(?<adj>(?:(?:${any("sehr wirklich echt ganz")})${S})?(?:${any("gut schön super toll schade klasse prima wichtig komisch seltsam klar logisch merkwürdig erstaunlich interessant")}))${S}das)(?=${S}(?!(?:ist|war|wäre|wird|kann|muss|soll|hat|hatte|sei|bleibt)${E})(?:nicht|jetzt|erst|selbst|fast|endlich|\\p{Ll}+(?<!t))${E}[^.!?\\n,]*\\p{Ll}[ \\t]*[.!?…])`,
+      `(?<=(?:^|[.!?]\\s{1,8}|\\n))(?<target>(?<adj>(?:(?:${any("sehr wirklich echt ganz")})${S})?(?:${any("gut schön super toll schade klasse prima wichtig komisch seltsam klar logisch merkwürdig erstaunlich interessant")}))${S}das)(?=${S}(?!(?:ist|war|wäre|wird|kann|muss|soll|hat|hatte|sei|bleibt)${E})(?:nicht|jetzt|erst|selbst|fast|endlich|\\p{Ll}+(?<!t))${E}[^.!?\\n,]*\\p{Ll}[ \\t]*[.!?…])`,
     ),
     fix: (m) => `${m.groups!.adj}, dass`,
   },
@@ -256,7 +256,9 @@ const FRAMES: readonly Frame[] = [
     fix: "denn",
   },
   {
-    regex: re(`(?<=(?:^|[.!?]\\s+|\\n))(?<target>Den)(?=${S}(?:ich|du|er|wir|ihr|man)${S}\\p{Ll})`),
+    regex: re(
+      `(?<=(?:^|[.!?]\\s{1,8}|\\n))(?<target>Den)(?=${S}(?:ich|du|er|wir|ihr|man)${S}\\p{Ll})`,
+    ),
     fix: "Denn",
   },
   // "einen schonen Tag", "Die schone Frau" → schön-; "ganz schon teuer" → schön.
@@ -289,7 +291,7 @@ const FRAMES: readonly Frame[] = [
   // "Ja schneller …, desto" → Je; "aller 3 Monate" → alle; "immer wen ich" → wenn.
   {
     regex: re(
-      `(?<=(?:^|[.!?]\\s+|\\n))(?<target>Ja)(?=${S}\\p{Ll}+er${E}[^.!?\\n]*,${S}(?:desto|umso)${E})`,
+      `(?<=(?:^|[.!?]\\s{1,8}|\\n))(?<target>Ja)(?=${S}\\p{Ll}+er${E}[^.!?\\n]*,${S}(?:desto|umso)${E})`,
     ),
     fix: "Je",
   },

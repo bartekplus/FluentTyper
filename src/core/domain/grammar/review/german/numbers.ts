@@ -66,8 +66,8 @@ const CAPITAL = re(
 // ("einige Übung", "wenige Hoffnung" take a mass noun in the singular.)
 const QUANTITY = `zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf|zwanzig|hundert|tausend|viele|mehrere|beide|zahlreiche|unzählige`;
 const SINGULAR = re(
-  `(?<=(?:(?:${QUANTITY})|(?:Vielzahl|Reihe|Menge|Anzahl|Fülle)${S}(?:von|an))(?:${S}\\p{Ll}+(?:e|en))?${S})(?<target>\\p{Lu}\\p{Ll}+(?:ung|heit|keit|schaft|ion|tät))(?!\\p{L})|` +
-    `(?<=(?:${QUANTITY}|[2-9]|\\d{2,}(?:,\\d+)?)${S})(?<t2>Million|Milliarde|Billion)(?!\\p{L})`,
+  `(?<=(?:(?:${QUANTITY})|(?:Vielzahl|Reihe|Menge|Anzahl|Fülle)${S}(?:von|an))(?:${S}\\p{Ll}{1,30}(?:e|en))?${S})(?<target>\\p{Lu}\\p{Ll}+(?:ung|heit|keit|schaft|ion|tät))(?!\\p{L})|` +
+    `(?<=(?:${QUANTITY}|[2-9]|\\d{2,12}(?:,\\d{1,6})?)${S})(?<t2>Million|Milliarde|Billion)(?!\\p{L})`,
 );
 
 // "eine halbe Millionen", "eine Viertelmilliarden": a half or a quarter is one.

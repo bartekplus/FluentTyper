@@ -51,7 +51,7 @@ const WEEKDAY_DATE = new RegExp(
 );
 const LONE_DATE = new RegExp(`(?<![\\d.])(?<target>${DATE})`, "gdu");
 const NO_DOT = new RegExp(
-  `(?<=(?:^|[^\\p{L}])(?:am|vom|zum|bis|dem|den|seit)[ \\t\\u00a0]+)(?<target>(?<day>\\d{1,2})\\.(?<month>\\d{1,2}))(?=[ \\t\\u00a0]+[^\\d\\s.]|[ \\t\\u00a0]*[,)]|$)`,
+  `(?<=(?:^|[^\\p{L}])(?:am|vom|zum|bis|dem|den|seit)[ \\t\\u00a0]{1,8})(?<target>(?<day>\\d{1,2})\\.(?<month>\\d{1,2}))(?=[ \\t\\u00a0]+[^\\d\\s.]|[ \\t\\u00a0]*[,)]|$)`,
   "gdu",
 );
 

@@ -14,16 +14,9 @@ import {
   germanVerbLike,
 } from "../../src/core/domain/grammar/review/german/germanLexicon";
 import { tokensAfter } from "../../src/core/domain/grammar/review/german/shared";
-import {
-  REVIEW_SUPPORTED_RULE_IDS,
-  reviewRuleIds,
-} from "../../src/core/domain/grammar/review/reviewCatalog";
-import {
-  detectReviewDiagnostics,
-  prepareReview,
-  reviewChunks,
-  scanReviewChunk,
-} from "../../src/core/domain/grammar/review/reviewDiagnostics";
+import { GERMAN_WORST_CASES, slowestGermanChunkMs } from "./germanWorstCase.fixture";
+import { reviewRuleIds } from "../../src/core/domain/grammar/review/reviewCatalog";
+import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
 
@@ -722,40 +715,19 @@ test.each([
 });
 
 test("no German chunk stalls on repeated determiners and lowercase nouns", () => {
-  const slowest = (text: string) => {
-    const prepared = prepareReview(
-      { id: "worst", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-      {
-        lang: "de_DE",
-        enabledRules: [...REVIEW_SUPPORTED_RULE_IDS],
-        userDictionary: [],
-        insertSpaceAfterAutocomplete: true,
-      },
-    );
-    let ms = 0;
-    for (const chunk of reviewChunks(prepared)) {
-      const start = performance.now();
-      scanReviewChunk(prepared, chunk);
-      ms = Math.max(ms, performance.now() - start);
-    }
-    return ms;
-  };
-  const inputs = [
-    "die kosten die kosten ".repeat(400),
-    "mit den schönen hohen ".repeat(400),
-    "ihr seit mir dem seid den mich ".repeat(300),
-    `der ${"\t ".repeat(3_000)}vertrag`,
-    "ich glaube weil um zu wissen was ob sondern ".repeat(300),
-    "Wir habe. Sollte wir du kann ich hast ".repeat(300),
-    "mir ist zu recht Ernst nach Links riesen Dank im arm die schuld ".repeat(250),
-    "zwei und zwanzig hundert tausend mal drei an halb viele Lösung ".repeat(250),
-    "Der Auto mit dem Frau eine sehr schönes Haus ich habe ein Tisch ".repeat(250),
-    `Ich ${"habe ein schöne neue ".repeat(400)}Haustürschlüsselbundanhänger.`,
-    `Wann ${"kommst du ".repeat(2_000)}. Wie viel kostet das. Hast du Zeit, oder.`,
-  ];
-  slowest(inputs.join("\n"));
-  for (const text of inputs) expect(slowest(text)).toBeLessThan(100);
+  slowestGermanChunkMs(GERMAN_WORST_CASES.join("\n"));
+  for (const text of GERMAN_WORST_CASES) expect(slowestGermanChunkMs(text)).toBeLessThan(100);
 });
+
+// Without the JIT, a lookbehind with an unbounded quantifier goes quadratic on a run of
+// spaces (seconds per chunk); bounded ones stay near linear.
+test("no German chunk goes quadratic with the regex JIT off", () => {
+  const run = Bun.spawnSync(["bun", "tests/grammar/germanWorstCase.fixture.ts"], {
+    env: { ...process.env, BUN_JSC_useRegExpJIT: "0" },
+  });
+  expect(run.exitCode).toBe(0);
+  expect(Number(run.stdout.toString())).toBeLessThan(800);
+}, 60_000);
 
 test("the clean German corpus has no findings from the default rules", () => {
   const text = readFileSync("tests/fixtures/native-review-corpus/german-clean.txt", "utf8")
