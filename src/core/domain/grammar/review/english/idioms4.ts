@@ -215,7 +215,7 @@ const CLOSES = `(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:)"”]|$))`;
  * (`(?=word)`): tried at every position of a long run of spaces, this lookbehind rereads the
  * run each time in JavaScriptCore.
  */
-const SENTENCE = `(?<=(?:^|[.!?\\n]["”’)]*)[ \\t\\u00a0]*["“'‘(]?)`;
+const SENTENCE = `(?<=(?:^|[.!?\\n]["”’)]{0,3})[ \\t\\u00a0]{0,8}["“'‘(]?)`;
 const DETERMINER =
   "the|a|an|this|that|these|those|my|your|his|her|its|our|their|some|any|all|every|each";
 const OBJECT = new Set(
@@ -278,7 +278,7 @@ const FRAMES: readonly Frame[] = [
     // "did the mistake" is "made"; "Did that mistake…" and "where did the mistake…" ask.
     // The core table owns "do/did/doing a mistake".
     rule: "englishPhraseCorrections",
-    pattern: `(?=do|did)(?<!(?:^|[.!?\\n]["”’)]*)[ \\t\\u00a0]*["“'‘(]?)${notAfter("where|when|why|how|what|which|whose")}(?!(?:do|did|doing)${S}a${S}mistake${E})(?<target>do|does|did|doing|done)${S}(?:(?:${DETERMINER}|several|many|no|few|more|fewer|such|same|lots${S}of|so${S}many|too${S}many)${S})(?:\\p{L}+${S})?mistakes?${E}`,
+    pattern: `(?=do|did)(?<!(?:^|[.!?\\n]["”’)]{0,3})[ \\t\\u00a0]{0,8}["“'‘(]?)${notAfter("where|when|why|how|what|which|whose")}(?!(?:do|did|doing)${S}a${S}mistake${E})(?<target>do|does|did|doing|done)${S}(?:(?:${DETERMINER}|several|many|no|few|more|fewer|such|same|lots${S}of|so${S}many|too${S}many)${S})(?:\\p{L}+${S})?mistakes?${E}`,
     fix: (m) => MAKE[m.groups!.target.toLowerCase()],
   },
   {
