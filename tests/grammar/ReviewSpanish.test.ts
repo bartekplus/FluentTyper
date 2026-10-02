@@ -1516,6 +1516,46 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
       ],
     },
   ],
+  [
+    "spanishAccents",
+    "a preterite after a subject pronoun, past a noun or adjective twin",
+    {
+      pos: [
+        ["Él trabajo dos turnos seguidos.", "Él trabajó dos turnos seguidos."],
+        ["Ella limpio la cocina.", "Ella limpió la cocina."],
+        ["Él no le hablo en todo el día.", "Él no le habló en todo el día."],
+        ["Ella dibujo un mapa del barrio.", "Ella dibujó un mapa del barrio."],
+        ["Él no me contesto.", "Él no me contestó."],
+      ],
+      neg: [
+        "Él tranquilo, ella nerviosa.",
+        "Él solo lo sabe.",
+        "Él mismo lo dijo.",
+        "Ella, creo, no lo sabe.",
+        "Para él trabajo es todo.",
+      ],
+    },
+  ],
+  [
+    "spanishConfusions",
+    "se before a possessive or a participle",
+    {
+      pos: [
+        ["Es la foto se mi abuela.", "Es la foto de mi abuela."],
+        ["Pueden se reparados mañana.", "Pueden ser reparados mañana."],
+        ["Deben se revisadas cada año.", "Deben ser revisadas cada año."],
+        ["Ya se terminado la función.", "Ya se ha terminado la función."],
+        ["La tienda se cerrado por obras.", "La tienda se ha cerrado por obras."],
+      ],
+      neg: [
+        "Se ha cerrado la tienda.",
+        "No lo sé, dado que llueve.",
+        "Se lo dio a su madre.",
+        "Se cansa de esperar.",
+        "Pueden ser reparados.",
+      ],
+    },
+  ],
 ];
 
 describe.each(FIXTURES)("%s: %s", (ruleId, _family, fixture) => {

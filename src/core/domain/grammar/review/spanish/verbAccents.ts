@@ -316,7 +316,12 @@ function verbAccent(at: Around): string | null {
   };
   const pronounSubject =
     (SUBJECTS.has(prev) && opens(1)) ||
-    (SUBJECTS.has(at.prev(2)) && /^(?:no|le|les|lo|la|me|te|nos)$/u.test(prev) && opens(2));
+    (SUBJECTS.has(at.prev(2)) && /^(?:no|le|les|lo|la|me|te|nos)$/u.test(prev) && opens(2)) ||
+    // "Él no le hablo": "no" and a clitic between.
+    (SUBJECTS.has(at.prev(3)) &&
+      at.prev(2) === "no" &&
+      /^(?:le|les|lo|la|me|te|nos|se)$/u.test(prev) &&
+      opens(3));
   // After a named subject, a noun twin ("Mi madre trabajo en…") is the verb when what follows
   // goes with a verb; "el niño modelo saluda" keeps its noun.
   const named =
@@ -335,7 +340,13 @@ function verbAccent(at: Around): string | null {
     const aside =
       FUNCTION_WORDS.has(word) ||
       (subject && /^(?:creo|pienso|supongo|digo|imagino|opino)$/u.test(word));
-    const nominal = pronounSubject && (isNoun(word) || attribute(word));
+    // "Él tranquilo, ella nerviosa" leaves the copula out; "él trabajo varias horas" and "él
+    // limpio la herida" go on as a verb does.
+    const nominal =
+      pronounSubject &&
+      (isNoun(word) || attribute(word)) &&
+      !AFTER_VERB.has(at.next()) &&
+      !/^(?:varias|varios|muchas|muchos|dos|tres|cuatro|cinco|algunas|algunos)$/u.test(at.next());
     if (m && word.length > 3 && !aside && !nominal) {
       if (isVerb(`${m[1]}ar`)) return `${m[1]}ó`;
       if ((isVerb(`${m[1]}er`) || isVerb(`${m[1]}ir`)) && !isNoun(word)) return `${m[1]}ió`;
