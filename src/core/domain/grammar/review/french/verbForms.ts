@@ -155,15 +155,25 @@ function etreEndings(subject: string | undefined): string[] {
 }
 
 /** "il a manger", "elle est arriver", "avez-vous signez": a participle after avoir or être. */
+const DEGREE = new Set("très bien trop si assez vraiment plutôt tellement".split(" "));
+// Words that may follow "c'est" + a participle in its clause: "c'est arrivé hier".
+const AFTER_CEST_PARTICIPLE = new Set(
+  "hier comment aujourd'hui ici là quand où pourquoi récemment ce cette".split(" "),
+);
+
 function participleAfterAuxiliary(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   const word = m[0].toLowerCase();
   const lemma = word.endsWith("ez") ? firstGroupLemma(word, VOUS) : firstGroupLemma(word, "I");
   if (!lemma) return null;
   const tokens = tokensBefore(ctx.text, m.index);
-  let i = skip(tokens, 0, [ADVERBS]);
+  let i = skip(tokens, 0, [ADVERBS, DEGREE]);
   // Inversion: "avez-vous (déjà) signé", "a-t-il".
   let inverted: string | undefined;
-  if (tokens[i] && SUBJECT_PRONOUNS.has(tokens[i].w) && tokens[i + 1]?.hyphen) {
+  if (
+    tokens[i] &&
+    (SUBJECT_PRONOUNS.has(tokens[i].w) || tokens[i].w === "ce") &&
+    tokens[i + 1]?.hyphen
+  ) {
     inverted = tokens[i].w;
     i++;
   }
@@ -184,6 +194,22 @@ function participleAfterAuxiliary(ctx: DetectContext, m: RegExpExecArray): RawFi
       !["il", "elle", "on", "qui", "ça", "cela", "tu"].includes(subject ?? "")
     )
       return null;
+  } else if (subject === "c'" || subject === "ce") {
+    // "c'est compliquer", "comment est-ce arriver ?": with no infinitive as its topic
+    // ("partir, c'est mourir") and nothing after it, the infinitive is the participle.
+    if (isVerbHomograph(word) || !word.endsWith("er")) return null;
+    const ce = inverted ? tokens[i - 1] : tokens[before];
+    if (!ce || /,[\s ]*$/u.test(ctx.text.slice(Math.max(0, ce.start - 9), ce.start))) return null;
+    const topic = inverted ? tokens.slice(i + 1) : tokens.slice(before + 1);
+    if (topic.some((t) => verbReadings(t.w).some((r) => r.slot === "I"))) return null;
+    // "c'est rêver" is a phrase of its own: only a degree adverb, a time or manner word after
+    // it, or a question tells the participle ("c'est bien compliquer", "c'est arriver hier").
+    const next = tokensAfter(ctx.text, m.index + m[0].length, 1)[0];
+    if (next && !AFTER_CEST_PARTICIPLE.has(next.w)) return null;
+    const degree = tokens.slice(0, i).some((t) => DEGREE.has(t.w));
+    const question = /^[^.!…\n]{0,40}\?/u.test(ctx.text.slice(m.index));
+    if (!next && !degree && !question) return null;
+    subject = "il";
   } else {
     // "c'est manger", "partir, c'est mourir": an infinitive is the complement there. A noun
     // complement ("il est boucher") is no participle either.

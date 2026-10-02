@@ -87,6 +87,9 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
           "Quand vous arrivez à la gare, appelez-moi.",
         ],
         ["Vous aimer marcher le long du canal.", "Vous aimez marcher le long du canal."],
+        // "c'est" + an infinitive with a degree adverb, a time word or a question.
+        ["Ce n'est pas très compliquer.", "Ce n'est pas très compliqué."],
+        ["Comment c'est arriver ?", "Comment c'est arrivé ?"],
         // An infinitive right after a noun for its participle.
         [
           "Elle portait une robe froisser par le voyage.",
@@ -95,6 +98,10 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Il a les mains geler.", "Il a les mains gelées."],
       ],
       neg: [
+        "C'est rêver.",
+        "Partir, c'est mourir un peu.",
+        "Ce qui compte, c'est gagner.",
+        "C'est manger des pommes qui compte.",
         "Elle a senti son cœur cogner.",
         "Dans cette pièce fumer est interdit.",
         "Il peut de cette manière trier les fiches.",
