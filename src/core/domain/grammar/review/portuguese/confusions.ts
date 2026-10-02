@@ -150,7 +150,49 @@ const MODAL_SINGULAR: Record<string, string> = {
   continuam: "continua",
 };
 
+// Verb forms typed for the noun that sounds the same: after a determiner only the noun fits.
+const NOUN_TWIN: Record<string, string> = {
+  viajem: "viagem",
+  viajens: "viagens",
+  extirpe: "estirpe",
+  extirpes: "estirpes",
+  profetiza: "profetisa",
+  profetizas: "profetisas",
+  poetiza: "poetisa",
+  poetizas: "poetisas",
+  sinto: "cinto",
+  sintos: "cintos",
+  sinta: "cinta",
+  sintas: "cintas",
+  asso: "aço",
+  assos: "aços",
+  cerras: "serras",
+};
+// Prepositions and determiners never come right before a finite verb; bare o/a/os/as could
+// be its object pronoun, so they count only where a sentence opens.
+const NOUN_LEAD =
+  "(?:de|em|com|sem|um|uma|uns|umas|d[oa]s?|n[oa]|nas|pel[oa]s?|num|numa|dum|duma|est[ae]s?|ess[ae]s?|sua|suas|seu|seus|minha|minhas|meu|meus|nossa|nossas|nosso|nossos|cada|outra|outras|outro|outros|toda|longa|longas|nova|novas|boa|boas|primeira|última)";
+const NOUN_TWINS = Object.keys(NOUN_TWIN).join("|");
+
 const FRAMES: Frame[] = [
+  // "uma viajem longa" -> "viagem", "do asso" -> "aço".
+  {
+    pattern: `${NOUN_LEAD}${S}(?<target>${NOUN_TWINS})${W}(?!-)`,
+    alternatives: (typed) => [NOUN_TWIN[typed.toLowerCase()]],
+    messageKey: "review_msg_pt_homophone",
+  },
+  {
+    pattern: `(?<![\\p{L}][ \\t\\u00a0]{0,8})[oa]s?${S}(?<target>${NOUN_TWINS})${W}(?!-)`,
+    alternatives: (typed) => [NOUN_TWIN[typed.toLowerCase()]],
+    messageKey: "review_msg_pt_homophone",
+    clauseStart: true,
+  },
+  // "que eles viagem" -> "viajem", "Não viagem sem seguro": the subjunctive is spelled with j.
+  {
+    pattern: `(?:(?:que|embora|caso)${S}(?:eles|elas|vocês)|(?<!uma${S})não)${S}(?<target>viagem)${W}(?!${S}(?:é|foi|era|será)${W})`,
+    alternatives: ["viajem"],
+    messageKey: "review_msg_pt_homophone",
+  },
   // "assistir ao filme" (to watch); "assistir o paciente" (to help) keeps its object.
   {
     pattern: `${ASSISTIR}${S}(?<target>os?|as?(?=${S}${NOT_ARTICLE_NEXT}))${S}(?=(?:\\p{Ll}+${S})?(?:${SHOWS})${W})`,

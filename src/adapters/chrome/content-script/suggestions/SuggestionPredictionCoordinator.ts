@@ -1,3 +1,4 @@
+import { isSearchField } from "./NativeAutocompleteConflictDetector";
 import { TextTargetAdapter } from "./TextTargetAdapter";
 import { resolveCodeContext } from "./CodeContextResolver";
 import type { PredictionRequest, PredictionResponse, SuggestionEntry } from "./types";
@@ -20,6 +21,7 @@ export type PredictionSessionState = Pick<
   Partial<Pick<SuggestionEntry, "elem">>;
 
 interface SuggestionPredictionCoordinatorOptions {
+  canPredict?: (entry: PredictionSessionState) => boolean;
   debounceByAction: {
     insert: number;
     delete: number;
@@ -35,11 +37,13 @@ export class SuggestionPredictionCoordinator {
   private readonly debounceByAction: SuggestionPredictionCoordinatorOptions["debounceByAction"];
   private readonly getPrediction: (context: PredictionRequest) => void;
 
+  private readonly canPredict: (entry: PredictionSessionState) => boolean;
   private lang: string;
   private minWordLengthToPredict: number;
   private separatorRegex: RegExp;
 
   constructor(options: SuggestionPredictionCoordinatorOptions) {
+    this.canPredict = options.canPredict ?? (() => true);
     this.debounceByAction = options.debounceByAction;
     this.getPrediction = options.getPrediction;
     this.lang = options.lang;
@@ -177,6 +181,7 @@ export class SuggestionPredictionCoordinator {
     afterCursorOverride?: string,
     traceContext: PredictionTraceContext = createPredictionTraceContext(),
   ): void {
+    if (!this.canPredict(entry)) return;
     const snapshot =
       beforeCursorOverride === undefined || afterCursorOverride === undefined
         ? entry.elem
@@ -221,7 +226,7 @@ export class SuggestionPredictionCoordinator {
     });
 
     this.getPrediction({
-      ...(entry.elem && resolveCodeContext(entry.elem) !== "prose"
+      ...(entry.elem && (isSearchField(entry.elem) || resolveCodeContext(entry.elem) !== "prose")
         ? { suppressAutoCapitalize: true }
         : {}),
       text: beforeCursor,

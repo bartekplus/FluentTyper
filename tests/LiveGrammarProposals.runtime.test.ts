@@ -125,6 +125,36 @@ describe("grammar proposals while typing", () => {
     runtime.detachAllHelpers();
   });
 
+  test("a slow focus baseline does not swallow a newly typed grammar finding", async () => {
+    const engine = new LocalReviewEngine();
+    const find = engine.liveProposals.bind(engine);
+    let releaseBaseline!: () => void;
+    const baseline = new Promise<void>((resolve) => {
+      releaseBaseline = resolve;
+    });
+    engine.liveProposals = async (...args) => {
+      if (args[0] === "") await baseline;
+      return find(...args);
+    };
+    const runtime = makeRuntime(undefined, engine);
+    const field = document.createElement("textarea");
+    document.body.append(field);
+    runtime.queryAndAttachHelper();
+    field.focus();
+    await answers();
+    const internals = runtime as unknown as {
+      entryRegistry: { getByElement: (element: Element) => SuggestionEntry };
+      sessionRegistry: Map<number, SessionInternals>;
+    };
+    const entry = internals.entryRegistry.getByElement(field);
+    const session = internals.sessionRegistry.get(entry.id)!;
+    await typeAndPause(field, session, "We is ready. ");
+    releaseBaseline();
+    await answers();
+    expect(entry.grammarProposal?.original).toBe("is");
+    runtime.detachAllHelpers();
+  });
+
   test("the row's explanation comes from the background in the popup's UI language", async () => {
     const engine = new LocalReviewEngine();
     const asked: string[] = [];
@@ -221,9 +251,9 @@ describe("grammar proposals while typing", () => {
     const otp = document.createElement("input");
     otp.type = "text";
     otp.name = "otp";
-    const guarded = await attach(sensitive, otp);
-    await typeAndPause(otp, guarded.session, "We is ready. ");
-    expect(guarded.entry.grammarProposal ?? null).toBeNull();
+    document.body.append(otp);
+    sensitive.queryAndAttachHelper();
+    expect(otp.hasAttribute("data-suggestion")).toBe(false);
     sensitive.detachAllHelpers();
 
     const off = makeRuntime([]);

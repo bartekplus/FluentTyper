@@ -1,122 +1,214 @@
 import { beforeEach, describe, expect, test } from "bun:test";
-import { NativeAutocompleteConflictDetector } from "../src/adapters/chrome/content-script/suggestions/NativeAutocompleteConflictDetector";
+import { isSensitiveField } from "../src/adapters/chrome/content-script/suggestions/FieldEligibility";
+import {
+  hasActiveAutocompletePopup,
+  reservesAutocompleteArrow,
+  NativeAutocompleteConflictDetector,
+} from "../src/adapters/chrome/content-script/suggestions/NativeAutocompleteConflictDetector";
 
-describe("NativeAutocompleteConflictDetector", () => {
-  const detector = new NativeAutocompleteConflictDetector();
+const detector = new NativeAutocompleteConflictDetector();
+function field(html: string): HTMLElement {
+  document.body.innerHTML = html;
+  return document.body.firstElementChild as HTMLElement;
+}
+function visible(element: Element): void {
+  element.getClientRects = () =>
+    [
+      { left: 10, top: 10, right: 110, bottom: 30, width: 100, height: 20 },
+    ] as unknown as DOMRectList;
+}
+function popup(): HTMLElement {
+  const node = document.createElement("div");
+  node.id = "choices";
+  node.setAttribute("role", "listbox");
+  node.innerHTML = '<div role="option">Choice</div>';
+  visible(node);
+  visible(node.firstElementChild!);
+  document.body.append(node);
+  return node;
+}
 
+describe("native field eligibility and interaction evidence", () => {
   beforeEach(() => {
     document.body.innerHTML = "";
   });
-
-  test("blocks datalist-backed inputs", () => {
-    const list = document.createElement("datalist");
-    list.id = "cities";
-    const input = document.createElement("input");
-    input.type = "text";
-    input.setAttribute("list", "cities");
-    document.body.append(list, input);
-
-    expect(detector.isNativeAutocompletePreferred(input)).toBe(true);
-  });
-
-  test("blocks combobox widgets and aria list autocomplete on text controls", () => {
-    const combobox = document.createElement("input");
-    combobox.type = "text";
-    combobox.setAttribute("role", "combobox");
-
-    const ariaAutocomplete = document.createElement("input");
-    ariaAutocomplete.type = "text";
-    ariaAutocomplete.setAttribute("aria-autocomplete", "both");
-
-    expect(detector.isNativeAutocompletePreferred(combobox)).toBe(true);
-    expect(detector.isNativeAutocompletePreferred(ariaAutocomplete)).toBe(true);
-  });
-
-  test("allows rich contenteditable editors that expose aria autocomplete metadata", () => {
-    const editor = document.createElement("div");
-    editor.contentEditable = "true";
-    editor.setAttribute("role", "textbox");
-    editor.setAttribute("aria-autocomplete", "list");
-    editor.setAttribute("aria-expanded", "true");
-    editor.setAttribute("aria-controls", "emoji-suggestion");
-    const listbox = document.createElement("div");
-    listbox.id = "emoji-suggestion";
-    listbox.setAttribute("role", "listbox");
-    document.body.append(editor, listbox);
-
-    expect(detector.isNativeAutocompletePreferred(editor)).toBe(false);
-  });
-
-  test("blocks explicit contenteditable combobox editors", () => {
-    const editor = document.createElement("div");
-    editor.contentEditable = "true";
-    editor.setAttribute("role", "combobox");
-
-    expect(detector.isNativeAutocompletePreferred(editor)).toBe(true);
-  });
-
-  test("blocks expanded controls wired to a popup listbox", () => {
-    const input = document.createElement("input");
-    input.type = "text";
-    input.setAttribute("aria-expanded", "true");
-    input.setAttribute("aria-controls", "city-list");
-    const listbox = document.createElement("div");
-    listbox.id = "city-list";
-    listbox.setAttribute("role", "listbox");
-    document.body.append(input, listbox);
-
-    expect(detector.isNativeAutocompletePreferred(input)).toBe(true);
-  });
-
   test.each([
-    "username",
-    "email",
+    '<input list="missing">',
+    '<input list="empty"><datalist id="empty"></datalist>',
+    '<input aria-autocomplete="list">',
+    '<input id="project_name">',
+    '<input id="compassion">',
+    '<input name="passage">',
+    '<input id="footpath">',
+    '<input id="snapshotpreview">',
+    '<textarea role="combobox"></textarea>',
+    '<input type="search" role="combobox">',
+  ])("automatically enables writing fields: %s", (html) => {
+    expect(detector.classify(field(html))).toEqual({ kind: "automatic" });
+  });
+  test("only usable datalist options hold a field", () => {
+    const input = field(
+      '<input list="choices"><datalist id="choices"><option disabled value="Paris"></option><option value=""></option></datalist>',
+    );
+    expect(detector.classify(input).kind).toBe("automatic");
+    document.querySelector("option")!.disabled = false;
+    expect(detector.classify(input)).toEqual({ kind: "manual", reason: "browser" });
+  });
+  test.each([
+    '<input list="missing">',
+    '<input list="choices"><datalist id="choices"><option disabled value="Paris"></option><option value=""></option></datalist>',
+    '<input aria-autocomplete="list" aria-controls="missing">',
+    '<input aria-autocomplete="inline">',
+    '<input aria-haspopup="false">',
+  ])("does not reserve opening arrows for unusable metadata: %s", (html) => {
+    const input = field(html);
+    for (const init of [
+      { key: "ArrowDown" },
+      { key: "ArrowUp" },
+      { key: "ArrowUp", altKey: true },
+    ]) {
+      expect(reservesAutocompleteArrow(input, new window.KeyboardEvent("keydown", init))).toBe(
+        false,
+      );
+    }
+  });
+  test("reserves opening arrows for usable datalists and closed website widgets", () => {
+    const arrow = new window.KeyboardEvent("keydown", { key: "ArrowDown" });
+    const input = field(
+      '<input list="choices"><datalist id="choices"><option value="Paris"></option></datalist>',
+    );
+    expect(reservesAutocompleteArrow(input, arrow)).toBe(true);
+    document.querySelector("option")!.disabled = true;
+    expect(reservesAutocompleteArrow(input, arrow)).toBe(false);
+    input.setAttribute("role", "combobox");
+    expect(reservesAutocompleteArrow(input, arrow)).toBe(true);
+    input.removeAttribute("role");
+    document.querySelector("datalist")!.remove();
+    input.setAttribute("aria-controls", "choices");
+    const list = popup();
+    list.hidden = true;
+    expect(reservesAutocompleteArrow(input, arrow)).toBe(true);
+    list.firstElementChild!.setAttribute("aria-disabled", "true");
+    expect(reservesAutocompleteArrow(input, arrow)).toBe(false);
+    list.remove();
+    expect(reservesAutocompleteArrow(input, arrow)).toBe(false);
+  });
+  test.each([
+    '<input list="choices"><datalist id="choices"><option value="Paris"></option></datalist>',
+    '<input type="search" role="combobox">',
+    '<input aria-controls="choices"><div id="choices" role="listbox" hidden><div role="option">Choice</div></div>',
+  ])("reserves plain ArrowUp for autocomplete widgets: %s", (html) => {
+    expect(
+      reservesAutocompleteArrow(
+        field(html),
+        new window.KeyboardEvent("keydown", { key: "ArrowUp" }),
+      ),
+    ).toBe(true);
+  });
+  test.each([
     "name",
-    "honorific-prefix",
     "given-name",
-    "additional-name",
-    "family-name",
-    "honorific-suffix",
-    "nickname",
-    "tel",
-    "tel-national",
+    "email",
     "street-address",
-    "address-line1",
-    "postal-code",
-    "cc-number",
-    "one-time-code",
-    "current-password",
-    "new-password",
     "url",
-  ])('blocks semantic autocomplete token "%s"', (token) => {
-    const input = document.createElement("input");
-    input.type = "text";
-    input.setAttribute("autocomplete", token);
-
-    expect(detector.isNativeAutocompletePreferred(input)).toBe(true);
+    "tel-national",
+    "section-checkout shipping family-name",
+  ])("structured purpose remains manual: %s", (purpose) => {
+    const input = field("<input>");
+    input.setAttribute("autocomplete", purpose);
+    expect(detector.classify(input)).toEqual({ kind: "manual", reason: "structured" });
   });
-
-  test("blocks standard semantic tokens when mixed with section/shipping prefixes", () => {
-    const input = document.createElement("input");
-    input.type = "text";
-    input.setAttribute("autocomplete", "section-checkout shipping given-name");
-
-    expect(detector.isNativeAutocompletePreferred(input)).toBe(true);
+  test.each([
+    '<input type="password">',
+    '<input name="pass">',
+    '<input name="passcode">',
+    '<input id="login_passphrase">',
+    '<input name="login_pass">',
+    '<input id="passInput">',
+    '<input id="otp">',
+    '<input id="login_otp">',
+    '<input id="totp">',
+    '<input id="hotp">',
+    '<input id="otp1">',
+    '<input id="OTPInput">',
+    '<input id="otpinput">',
+    '<input id="pwdinput">',
+    '<input id="cvvfield">',
+    '<input id="otpcode">',
+    '<input id="inputotp">',
+    '<input id="pwdInput">',
+    '<input id="payment_cvc">',
+    '<input id="payment_cvv">',
+    '<input id="payment_csc">',
+    '<input autocomplete="one-time-code">',
+    '<input autocomplete="cc-number">',
+    '<input id="verification-code">',
+    "<input readonly>",
+    "<input disabled>",
+    '<div role="combobox"></div>',
+  ])("cannot activate protected or locked controls: %s", (html) => {
+    expect(detector.classify(field(html)).kind).toBe("blocked");
   });
-
-  test("ignores plain on/off autocomplete and generic text fields", () => {
-    const onInput = document.createElement("input");
-    onInput.type = "text";
-    onInput.setAttribute("autocomplete", "on");
-
-    const offInput = document.createElement("input");
-    offInput.type = "search";
-    offInput.setAttribute("autocomplete", "off");
-
-    const textarea = document.createElement("textarea");
-
-    expect(detector.isNativeAutocompletePreferred(onInput)).toBe(false);
-    expect(detector.isNativeAutocompletePreferred(offInput)).toBe(false);
-    expect(detector.isNativeAutocompletePreferred(textarea)).toBe(false);
+  test.each([
+    '<input name="username">',
+    '<input name="login_username">',
+    '<input id="account-username-field">',
+    '<input id="usernameInput">',
+    '<input name="login_user-name">',
+    '<input inputmode="numeric">',
+    '<input inputmode="tel">',
+  ])("structured account and input-mode hints stay manual: %s", (html) => {
+    expect(detector.classify(field(html))).toEqual({ kind: "manual", reason: "structured" });
+  });
+  test("ambiguous selectors are manual", () => {
+    expect(detector.classify(field('<input role="combobox">'))).toEqual({
+      kind: "manual",
+      reason: "selector",
+    });
+  });
+  test("Review and formatting retain their existing pass exclusions", () => {
+    expect(isSensitiveField(field('<input id="passage">'))).toBe(true);
+    expect(isSensitiveField(field('<input id="footpath">'))).toBe(true);
+  });
+  test("linked actionable visibility outranks stale ARIA; unrelated and empty UI is ignored", () => {
+    const input = field('<input type="search" aria-controls="choices" aria-expanded="false">');
+    const list = popup();
+    expect(hasActiveAutocompletePopup(input)).toBe(true);
+    list.hidden = true;
+    input.setAttribute("aria-expanded", "true");
+    expect(hasActiveAutocompletePopup(input)).toBe(false);
+    list.hidden = false;
+    list.firstElementChild!.setAttribute("aria-disabled", "true");
+    expect(hasActiveAutocompletePopup(input)).toBe(false);
+    list.innerHTML = "No results";
+    expect(hasActiveAutocompletePopup(input)).toBe(false);
+    list.remove();
+    popup();
+    input.removeAttribute("aria-controls");
+    expect(hasActiveAutocompletePopup(input)).toBe(false);
+  });
+  test("ancestor hiding, owned UI, active descendants and shadow-local references", () => {
+    const input = field('<input aria-activedescendant="choice">');
+    const list = popup();
+    list.firstElementChild!.id = "choice";
+    expect(hasActiveAutocompletePopup(input)).toBe(true);
+    list.setAttribute("data-ft-suggestion-owned", "true");
+    expect(hasActiveAutocompletePopup(input)).toBe(false);
+    list.removeAttribute("data-ft-suggestion-owned");
+    const host = document.createElement("section");
+    host.id = "editor";
+    document.body.append(host);
+    const shadow = host.attachShadow({ mode: "open" });
+    shadow.append(input, list);
+    expect(hasActiveAutocompletePopup(input)).toBe(true);
+    host.style.display = "none";
+    expect(hasActiveAutocompletePopup(input)).toBe(false);
+  });
+  test("off-screen rectangles do not create an active conflict", () => {
+    const input = field('<input aria-controls="choices">');
+    const list = popup();
+    list.getClientRects = () =>
+      [{ left: -10000, right: -9900, top: 10, bottom: 30 }] as unknown as DOMRectList;
+    expect(hasActiveAutocompletePopup(input)).toBe(false);
   });
 });

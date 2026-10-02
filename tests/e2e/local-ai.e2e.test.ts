@@ -318,6 +318,9 @@ describeE2E(`Local AI Review E2E [${BROWSER_TYPE}]`, () => {
             return original(...args);
           };
         });
+        // Revealing the card selects its parent tab and can rewrite the fragment
+        // before instrumentation is installed. Reload the original setup deep link.
+        await optionsPage.evaluate(() => history.replaceState(null, "", "#local-ai"));
         await optionsPage.reload({ waitUntil: "domcontentloaded" });
         await optionsPage.waitForFunction(
           () =>

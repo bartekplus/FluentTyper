@@ -210,6 +210,10 @@ export interface ProductivityDashboardStats {
 
 // Discriminated union for Message
 export type Message =
+  | {
+      command: "CMD_FIELD_PREFERENCES";
+      context: import("./fieldPreferences").FieldPreferenceRequest;
+    }
   | { command: "CMD_BACKGROUND_PAGE_SET_CONFIG"; context: SetConfigContext }
   | {
       command: "CMD_BACKGROUND_PAGE_PREDICT_REQ";

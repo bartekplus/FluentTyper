@@ -1,3 +1,4 @@
+import type { FieldPreference } from "../fieldPreferences";
 import type { PreferredTerminology } from "../grammar/review/preferredTerminology";
 import type { GrammarRuleOverrides } from "../grammar/GrammarRuleSettings";
 import {
@@ -39,6 +40,7 @@ import {
   KEY_SELECT_BY_DIGIT,
   KEY_HORIZONTAL_SUGGESTIONS,
   KEY_SITE_PROFILES,
+  KEY_FIELD_PREFERENCES,
   KEY_TEXT_EXPANSIONS,
   KEY_TIME_FORMAT,
   KEY_SUGGESTION_BG_DARK,
@@ -60,6 +62,7 @@ import type { LogLevel, ObservabilityModuleOverride } from "../observability";
 import type { SiteProfiles } from "../siteProfiles";
 
 const SETTINGS_KEYS = {
+  fieldPreferences: KEY_FIELD_PREFERENCES,
   enabled: "enable",
   domainList: "domainBlackList",
   domainListMode: KEY_DOMAIN_LIST_MODE,
@@ -123,6 +126,7 @@ export type SettingField = keyof typeof SETTINGS_KEYS;
 export type DomainListMode = "blackList" | "whiteList";
 
 export interface SettingsSchema {
+  fieldPreferences: FieldPreference[];
   enabled: boolean;
   domainList: string[];
   domainListMode: DomainListMode;

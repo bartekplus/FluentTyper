@@ -48,6 +48,20 @@ const NUMBER_FORMAT: Frame[] = [
     ruleId: "portugueseNumberFormat",
     messageKey: "review_msg_pt_number_format",
   },
+  // "21,349.56", "4,500.00": English separators; Portuguese swaps them.
+  {
+    pattern: `(?<![\\d.,])(?<target>\\d{1,3}(?:,\\d{3}){1,6}\\.\\d{1,6})(?![\\d.,]{0,12}\\d)`,
+    replace: (m) => m.groups!.target.replace(/[.,]/g, (c) => (c === "," ? "." : ",")),
+    ruleId: "portugueseNumberFormat",
+    messageKey: "review_msg_pt_number_format",
+  },
+  // "896.96 km²", "2.5 kg": a decimal point before a unit (a thousands group has 3 digits).
+  {
+    pattern: `(?<![\\d.,])\\d{1,3}(?<target>\\.)\\d{1,2}(?=${GAP}(?:km²?|m[²³]?|cm|mm|kg|g|mg|ml|l|L|t|ha|GB|MB|TB|kW|W|V|°C|%)(?![\\p{L}\\p{N}]))`,
+    replace: ",",
+    ruleId: "portugueseNumberFormat",
+    messageKey: "review_msg_pt_number_format",
+  },
   // "12hrs", "15 hs", "01 hr": the hour symbol is "h".
   {
     pattern: `(?<!:)\\d{1,2}${GAP}(?<target>${HOUR_TYPOS})${W}`,
@@ -89,9 +103,34 @@ const NUMBER_FORMAT: Frame[] = [
     ruleId: "portugueseNumberFormat",
     messageKey: "review_msg_pt_number_format",
   },
-  // "25º 29' 49\"": degrees before minutes.
+  // "25º 29' 49\"" -> "25° 29′ 49″": degrees before minutes, and the primes that mark them.
   {
-    pattern: `\\d{1,3}${GAP}(?<target>º)${GAP}(?=\\d{1,2}(?:,\\d+)?${GAP}['’′])`,
+    pattern: `(?<target>\\d{1,3}${GAP}º${GAP}\\d{1,2}(?:,\\d+)?${GAP}['’′](?:${GAP}\\d{1,2}(?:,\\d+)?${GAP}(?:["”″]|['’′]{1,2}))?)`,
+    replace: (m) => {
+      const [deg, min, sec] = m.groups!.target.match(/\d+(?:,\d+)?/g)!;
+      // Narrow no-break spaces keep the coordinate on one line.
+      return `${deg}° ${min}′${sec ? ` ${sec}″` : ""}`;
+    },
+    ruleId: "portugueseNumberFormat",
+    messageKey: "review_msg_pt_number_format",
+  },
+  // "38,8º", "3,5o": an ordinal is a whole number, so a decimal takes the degree sign.
+  {
+    pattern: `[−-]?\\d{1,3},\\d{1,3}(?<target>[ºo])(?![\\p{L}\\p{N}])`,
+    replace: "°",
+    ruleId: "portugueseNumberFormat",
+    messageKey: "review_msg_pt_number_format",
+  },
+  // "18º norte", "55o N", "39º de calor": a bearing, a latitude or a temperature.
+  {
+    pattern: `\\d{1,3}(?<target>[ºo])(?=${GAP}(?:N|S|E|W|L|NE|NO|NW|SE|SO|SW)(?![\\p{L}\\p{N}-])|${S}(?:(?:ao|a)${S})?(?:norte|sul|leste|oeste|nordeste|noroeste|sudeste|sudoeste|de${S}(?:latitude|longitude|calor|frio))(?![\\p{L}\\p{N}-]))`,
+    replace: "°",
+    ruleId: "portugueseNumberFormat",
+    messageKey: "review_msg_pt_number_format",
+  },
+  // "um ângulo de 137º.", "ontem fez 25º.": an angle or the weather closes the phrase.
+  {
+    pattern: `(?:ângulos?|temperaturas?|fez|faz|fazia|fará|marcou|marca|atingiu|atinge|chegou${S}a|chegam${S}a|chegar${S}a)${S}(?:de${S})?[−-]?\\d{1,3}(?:,\\d{1,3})?(?<target>[ºo])(?=[ \\t\\u00a0]{0,2}(?:[.,;:!?)]|$))`,
     replace: "°",
     ruleId: "portugueseNumberFormat",
     messageKey: "review_msg_pt_number_format",
