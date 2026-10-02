@@ -1,6 +1,6 @@
 import type { PhraseRow } from "../englishPhraseTables";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import { cases, nounTags, onlyNoun } from "./lexicon";
+import { cases, finiteVerb, inflect, nounTags, onlyNoun } from "./lexicon";
 import {
   caseLike,
   CLAUSE_START,
@@ -36,9 +36,114 @@ export const WORDS: readonly PhraseRow[] = [
   ["palcówce", "placówce"],
   ["jago", "jego"],
   ["pastwo", "państwo"],
+  // "tylny" is a hard-stem adjective: no "tylni", "tylnim".
+  ...([
+    ["tylni", "tylny"],
+    ["tylnia", "tylna"],
+    ["tylniego", "tylnego"],
+    ["tylniej", "tylnej"],
+    ["tylniemu", "tylnemu"],
+    ["tylnią", "tylną"],
+    ["tylnim", "tylnym"],
+    ["tylnich", "tylnych"],
+    ["tylnimi", "tylnymi"],
+  ] as PhraseRow[]),
+  // The locative of "światło" alternates its vowel; "kulisy" has the genitive "kulis".
+  ["światle", "świetle"],
+  ["kulisów", "kulis"],
+  // Misspellings that are no Polish words.
+  ...([
+    ["Austryjak", "Austriak"],
+    ["Austryjaka", "Austriaka"],
+    ["Austryjacy", "Austriacy"],
+    ["Austryjaków", "Austriaków"],
+    ["Austryjaczka", "Austriaczka"],
+    ["kórz", "kurz"],
+    ["kórzu", "kurzu"],
+    ["rąby", "romby"],
+    ["rąbów", "rombów"],
+    ["duł", "dół"],
+    ["puki", "póki"],
+    ["siedzią", "siedzibą"],
+  ] as PhraseRow[]),
 ];
 
 export const PHRASES: readonly PhraseRow[] = [
+  // "ogół" (the whole) against "ogól" (shave!).
+  ["na ogól", "na ogół"],
+  ["w ogól", "w ogóle"],
+  ["ogól społeczeństwa", "ogół społeczeństwa"],
+  // "łaska" is grace, "laska" a cane.
+  ["boża laska", "boża łaska"],
+  ["bożej laski", "bożej łaski"],
+  ["bożą laskę", "bożą łaskę"],
+  ...["dostąpić", "dostąpił", "dostąpiła", "dostąpili", "dostąpiły", "dostąpi"].map(
+    (verb): PhraseRow => [`${verb} laski`, `${verb} łaski`],
+  ),
+  // "cześć" is a greeting or honour, "część" a part.
+  ["oddać część", "oddać cześć"],
+  ["oddali część", "oddali cześć"],
+  // Garbled set phrases.
+  ["raz zarazem", "raz za razem"],
+  ["a pro po", "à propos"],
+  ["a propo", "à propos"],
+  ["apropo", "à propos"],
+  ["co róż", "co rusz"],
+  ["co i róż", "co rusz"],
+  ["bul głowy", "ból głowy"],
+  ["bul zęba", "ból zęba"],
+  ["bul brzucha", "ból brzucha"],
+  ["z na przeciwka", "z naprzeciwka"],
+  ["zna przeciwka", "z naprzeciwka"],
+  ["wkoło Macieju", "w koło Macieju"],
+  ["osobą trzecim", "osobom trzecim"],
+  ["pot wpływem", "pod wpływem"],
+  ["w monotonnie", "w monotonię"],
+  ["czół się", "czuł się"],
+  ["nie czół", "nie czuł"],
+  ["niemniej niż", "nie mniej niż"],
+  ["a'la", "à la"],
+  ["w te i na zad", "w tę i nazad"],
+  ["w tę i na zad", "w tę i nazad"],
+  ["z oo", "z o.o."],
+  ["skłam życzenia", "składam życzenia"],
+  ["skłamy życzenia", "składamy życzenia"],
+  // A Morse code is named for Samuel Morse: "Morse'a".
+  ...["kod", "kodu", "kodem", "kodzie", "alfabet", "alfabetu", "alfabetem", "alfabecie"].map(
+    (noun): PhraseRow => [`${noun} Morsa`, `${noun} Morse'a`],
+  ),
+  // A camping stove is a "kuchenka".
+  ...["turystyczna", "gazowa", "elektryczna", "indukcyjna", "mikrofalowa"].flatMap(
+    (kind): PhraseRow[] => [
+      [`kochanka ${kind}`, `kuchenka ${kind}`],
+      [`kochankę ${kind.slice(0, -1)}ą`, `kuchenkę ${kind.slice(0, -1)}ą`],
+      [`kochanki ${kind.slice(0, -1)}ej`, `kuchenki ${kind.slice(0, -1)}ej`],
+    ],
+  ),
+  // "w porównaniu mną" drops the "z" the comparison takes.
+  ...(
+    [
+      ["mną", "ze mną"],
+      ["tobą", "z tobą"],
+      ["nią", "z nią"],
+    ] as const
+  ).map(([typed, fixed]): PhraseRow => [`w porównaniu ${typed}`, `w porównaniu ${fixed}`]),
+  // "Wieżę w cuda" is "wierzę w cuda" (a tower is "wieża").
+  ...["cuda", "ciebie", "siebie", "Boga", "ludzi", "miłość"].map((object): PhraseRow => [
+    `wieżę w ${object}`,
+    `wierzę w ${object}`,
+  ]),
+  // A plural-only name after "do", "od raza" for "od razu", "po pół" with the genitive.
+  ["do Niemczech", "do Niemiec"],
+  ["z Niemczech", "z Niemiec"],
+  ["od raza", "od razu"],
+  ["po pół godzinie", "po pół godziny"],
+  ["po pół minucie", "po pół minuty"],
+  ["po pół dniu", "po pół dnia"],
+  // "z dużej litery" is a calque: a capital is "wielka litera", written "wielką literą".
+  ["z dużej litery", "wielką literą"],
+  ["z wielkiej litery", "wielką literą"],
+  ["z małej litery", "małą literą"],
   // "powinnam byłam": the past auxiliary takes no second person ending.
   ["powinnam byłam", "powinnam była"],
   ["powinienem byłem", "powinienem był"],
@@ -353,7 +458,7 @@ export const FRAMES: readonly Frame[] = [
   },
   // "część" (part) and "cześć" (honour, hello).
   {
-    pattern: `(?<=(?:^|[^\\p{L}])(?:pierwsz|drug|trzeci|czwart|piąt|ostatni|kolejn|następn|dalsz|większ|mniejsz|spor|duż|znaczn|niewielk|integraln|główn|zasadnicz|dolni|górn|przedni|tyln|środkow|północn|południow|wschodni|zachodni|każd|tę|ta)(?:a|ą)?${S})(?<target>cześć)${NOT_LETTER}`,
+    pattern: `(?<=(?:^|[^\\p{L}])(?:pierwsz|drug|trzeci|czwart|piąt|kolejn|następn|dalsz|większ|mniejsz|spor|duż|znaczn|niewielk|integraln|główn|zasadnicz|dolni|górn|przedni|tyln|środkow|północn|południow|wschodni|zachodni|każd|tę|ta)(?:a|ą)?${S})(?<target>cześć)${NOT_LETTER}`,
     fix: "część",
     ...CONFUSION,
   },
@@ -612,6 +717,165 @@ export const FRAMES: readonly Frame[] = [
   {
     pattern: `(?:${CLAUSE_START}|(?<=,${S}))(?<target>w${S}zależność)(?=${S}od${NOT_LETTER})`,
     fix: "w zależności",
+    ...CONFUSION,
+  },
+  // "Zarówno X, jak Y" -> "jak i Y": the pair is "zarówno …, jak i …" (not an aside "jak wiadomo").
+  {
+    pattern: `(?<=(?<![\\p{L}])zarówno${S}[^,.;:!?\\n]{1,80},${S})(?<target>jak)(?=${S}(?!(?:i|też|również|także|wiadomo|widać|sądzę|myślę|się|już|mówiono|wspomniano|wiesz|wiecie)${NOT_LETTER})\\p{L})`,
+    fix: "jak i",
+    ...CONFUSION,
+  },
+  // "opatrzył w podpis" -> "zaopatrzył w" (supply with); "opatrzyć" takes the instrumental
+  // ("opatrzył podpisem"). Not "opatrzono w szpitalu", a place.
+  {
+    pattern: `(?<target>opatrz(?:yć|ył\\p{L}{0,4}|yli|yły|ę|y|ymy|ycie|ą|ony|ona|one|eni|ono|ywać|ywał\\p{L}{0,4}|uje|ują))(?=${S}w${S}(?:\\p{Ll}+${S})?(?<noun>\\p{Ll}{3,})${NOT_LETTER})`,
+    fix: (m) => {
+      const tags = nounTags(m.groups!.noun);
+      if (!onlyNoun(tags) || !(tags & cases("As Ap")) || tags & cases("Ls Lp")) return null;
+      return `za${m.groups!.target.toLowerCase()}`;
+    },
+    ...CONFUSION,
+  },
+  // "kilka meczy" -> "meczów" ("koza meczy" bleats).
+  {
+    pattern: `(?<=(?:wiele|kilka|kilku|kilkanaście|kilkunastu|kilkadziesiąt|dużo|mało|sporo|parę|pięć|sześć|siedem|osiem|dziewięć|dziesięć|liczba|liczby|liczbę|seria|serii|serię|setki|tysiące|wszystkich|ostatnich|kolejnych|rozegranych|wygranych|przegranych|domowych|wyjazdowych)${S})(?<target>meczy)${NOT_LETTER}`,
+    fix: "meczów",
+    ...CONFUSION,
+  },
+  // "w Zakopanym" -> "w Zakopanem": the town keeps its old locative.
+  {
+    pattern: `(?<=(?:w|we|o|po|przy)${S})(?<target>Zakopanym)${NOT_LETTER}`,
+    fix: "Zakopanem",
+    ...CONFUSION,
+    verbatim: true,
+  },
+  // "Tak, proszę panią," -> "proszę pani": the address takes the genitive ("proszę panią o
+  // pomoc" asks her for help).
+  {
+    pattern: `(?<=(?<![\\p{L}])proszę${S})(?<target>panią)(?=[ \\t\\u00a0]*(?:[,.!?…—–]|$))`,
+    fix: "pani",
+    ...CONFUSION,
+  },
+  // "ani raz nie" -> "ani razu nie": the negation takes the genitive.
+  {
+    pattern: `(?<=(?<![\\p{L}])ani${S})(?<target>raz)(?=${S}nie${NOT_LETTER})`,
+    fix: "razu",
+    ...CONFUSION,
+  },
+  // "w szeregu przypadkach" -> "w szeregu przypadków": "szereg" (a number of) takes the genitive.
+  {
+    pattern: `(?<=(?<![\\p{L}])w${S}szeregu${S})(?<target>\\p{Ll}+ach)${NOT_LETTER}`,
+    fix: (m) => {
+      const forms = inflect(m.groups!.target, cases("Gp"));
+      return onlyNoun(nounTags(m.groups!.target)) && forms.length === 1 ? forms[0] : null;
+    },
+    ...CONFUSION,
+  },
+  // "roku dwutysięcznego drugiego" -> "dwa tysiące drugiego": only the last word is ordinal.
+  {
+    pattern: `(?<target>dwutysięczn(?:y|ego|ym|emu|a|ej|ą|e)${S}(?<last>(?:pierwsz|drug|trzec|czwart|piąt|szóst|siódm|ósm|dziewiąt|dziesiąt)\\p{Ll}*))${NOT_LETTER}`,
+    fix: (m) => `dwa tysiące ${m.groups!.last}`,
+    ...CONFUSION,
+  },
+  // "Możliwym jest" -> "Możliwe jest": the predicate adjective takes the neuter nominative.
+  {
+    pattern: `${CLAUSE_START}(?<target>(?<stem>Możliw|Prawdopodobn|Konieczn|Wskazan|Niezbędn|Oczywist|Wiadom|Zrozumiał|Pewn|Jasn)ym)(?=${S}(?:jest|było|będzie)${NOT_LETTER})`,
+    fix: (m) => `${m.groups!.stem}e`,
+    ...CONFUSION,
+  },
+  // "na początku XX" -> "na początku XX wieku": a century in Roman numerals needs its noun.
+  {
+    pattern: `(?<=(?<![\\p{L}])(?:na${S}początku|w${S}połowie|pod${S}koniec|u${S}schyłku|u${S}zarania|w${S}pierwszej${S}połowie|w${S}drugiej${S}połowie)${S})(?<target>[IVX]{1,5})(?![\\p{L}\\p{N}])(?![ \\t\\u00a0]*(?:[–—-]|w\\.|wiek|stuleci|tysiącleci|i${S}[IVX]|lub|albo|,${S}[IVX]))`,
+    // Frames match case-insensitively: "na początku i nie" is no numeral.
+    fix: (m) => (/^[IVX]+$/u.test(m.groups!.target) ? `${m.groups!.target} wieku` : null),
+    ...CONFUSION,
+    verbatim: true,
+  },
+  // "dwadzieścia %" -> "dwadzieścia procent": the sign goes with digits only.
+  {
+    pattern: `(?<=(?<![\\p{L}])(?:dwa|trzy|cztery|pięć|sześć|siedem|osiem|dziewięć|dziesięć|\\p{Ll}+naście|\\p{Ll}+dzieścia?|\\p{Ll}+dziesiąt|sto|kilka|kilkanaście|kilkadziesiąt|pół)${S})(?<target>%)`,
+    fix: "procent",
+    ...CONFUSION,
+  },
+  // "hyperłącze" -> "hiperłącze": Polish spells the Greek prefix with "i".
+  {
+    pattern: `(?<![\\p{L}])(?<target>hyper(?<rest>\\p{Ll}{4,}))${NOT_LETTER}`,
+    fix: (m) => (/^\p{Ll}/u.test(m.groups!.target) ? `hiper${m.groups!.rest}` : null),
+    ...CONFUSION,
+  },
+  // "100 tyś. żołnierzy" -> "tys.": the abbreviation of "tysięcy" has no "ś".
+  {
+    pattern: `(?<=\\p{N}${S})(?<target>tyś\\.?)${NOT_LETTER}`,
+    fix: "tys.",
+    ...CONFUSION,
+    verbatim: true,
+  },
+  // "Ile warzy ten monitor?", "warzy 2 kilo" -> "waży" ("warzyć" is to brew).
+  {
+    pattern: `(?<=(?<![\\p{L}])ile(?:${S}\\p{L}+){0,2}${S})(?<target>warzy|warzą)${NOT_LETTER}`,
+    fix: (m) => m.groups!.target.replace("rz", "ż"),
+    ...CONFUSION,
+  },
+  {
+    pattern: `(?<target>warzy|warzą)(?=${S}(?:\\d|około|ok\\.|ponad|prawie|niecałe|niemal|tylko|zaledwie|aż)${NOT_LETTER})`,
+    fix: (m) => m.groups!.target.replace("rz", "ż"),
+    ...CONFUSION,
+  },
+  // "odbywają się zagranicą" -> "za granicą" after a verb; "z zagranicą", "bliską zagranicą"
+  // are the noun.
+  {
+    pattern: `(?<=(?<![\\p{L}])(?<verb>\\p{Ll}+)${S})(?<target>zagranicą)${NOT_LETTER}`,
+    fix: (m) => {
+      const verb = m.groups!.verb.toLowerCase();
+      return verb === "się" || finiteVerb(verb) ? "za granicą" : null;
+    },
+    ...CONFUSION,
+  },
+  // "Zmianie podleją" -> "podlegają" ("podleją" is "they will water").
+  {
+    pattern: `(?<=(?<![\\p{L}])(?:zmianie|zmianom|ochronie|karze|opodatkowaniu|kontroli|regulacji|przepisom|ustawie)${S})(?<target>podleją)${NOT_LETTER}`,
+    fix: "podlegają",
+    ...CONFUSION,
+  },
+  {
+    pattern: `(?<target>podleją)(?=${S}(?:zmianie|zmianom|ochronie|karze|opodatkowaniu|kontroli|regulacji|przepisom|ustawie)${NOT_LETTER})`,
+    fix: "podlegają",
+    ...CONFUSION,
+  },
+  // "Gliwice leża w województwie" -> "leżą" ("leża" is a lair's genitive).
+  {
+    pattern: `(?<target>leża)(?=${S}(?:w|we|na|nad|pod|przy|obok|blisko|niedaleko)${NOT_LETTER})`,
+    fix: "leżą",
+    ...CONFUSION,
+  },
+  // "Zrobiłem to od tak." -> "ot tak" ("od tak dawna" is the preposition).
+  {
+    pattern: `(?<target>od${S}tak)(?=[ \\t\\u00a0]*(?:[.,!?…;]|$))`,
+    fix: "ot tak",
+    ...CONFUSION,
+  },
+  // "naważyli sobie piwa" -> "nawarzyli": one brews ("warzy") the beer of the idiom.
+  {
+    pattern: `(?<target>naważ\\p{Ll}*)(?=(?:${S}\\p{Ll}+){0,2}${S}piw\\p{Ll}*${NOT_LETTER})`,
+    fix: (m) => m.groups!.target.replace("naważ", "nawarz"),
+    ...CONFUSION,
+  },
+  {
+    pattern: `(?<=piw\\p{Ll}*(?:,?${S}\\p{Ll}+){0,3}${S})(?<target>naważ\\p{Ll}*)`,
+    fix: (m) => m.groups!.target.replace("naważ", "nawarz"),
+    ...CONFUSION,
+  },
+  // "cześć druga", "Cześć IV" -> "część": an ordinal after the noun counts parts too.
+  {
+    pattern: `(?<target>cześć)(?=${S}(?:pierwsz|drug|trzeci|czwart|piąt|szóst|końcow)\\p{Ll}{0,3}${NOT_LETTER}|${S}(?<numeral>[IVX]{1,4})${NOT_LETTER})`,
+    // Frames ignore case: a Roman numeral must be capitals ("cześć i chwała" stays).
+    fix: (m) => (!m.groups!.numeral || /^[IVX]+$/u.test(m.groups!.numeral) ? "część" : null),
+    ...CONFUSION,
+  },
+  // "na jednaj z ławek" -> "jednej" ("jednaj" is "win over!").
+  {
+    pattern: `(?<target>jednaj)(?=${S}(?:z|ze|\\p{Ll}+(?:i|y|ej))${NOT_LETTER})`,
+    fix: "jednej",
     ...CONFUSION,
   },
   // "anie" (no word) for "a nie".
