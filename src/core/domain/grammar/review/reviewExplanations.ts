@@ -2455,6 +2455,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "W hiszpańskim zaimek przed czasownikiem powtarza osobę wprowadzoną przez „a”: a mí me gusta, a ellas les gusta.",
     "Em espanhol, o pronome antes do verbo repete a pessoa introduzida por “a”: a mí me gusta, a ellas les gusta.",
   ],
+  review_msg_spanish_alta: [
+    "In Spanish, “dar de alta” takes the person as its object (lo, la), while “dar el alta” gives it to them (le).",
+    "En espagnol, « dar de alta » a la personne pour complément direct (lo, la), « dar el alta » pour complément indirect (le).",
+    "U španjolskom „dar de alta” ima osobu kao izravni objekt (lo, la), a „dar el alta” kao neizravni (le).",
+    "«Dar de alta» lleva a la persona como complemento directo (lo, la); «dar el alta», como indirecto (le).",
+    "Στα ισπανικά το «dar de alta» παίρνει το πρόσωπο ως άμεσο αντικείμενο (lo, la), ενώ το «dar el alta» ως έμμεσο (le).",
+    "På spanska har ”dar de alta” personen som direkt objekt (lo, la), medan ”dar el alta” har den som indirekt (le).",
+    "Im Spanischen steht bei „dar de alta“ die Person im Akkusativ (lo, la), bei „dar el alta“ im Dativ (le).",
+    "W hiszpańskim „dar de alta” ma osobę jako dopełnienie bliższe (lo, la), a „dar el alta” jako dalsze (le).",
+    "Em espanhol, “dar de alta” leva a pessoa como objeto direto (lo, la) e “dar el alta” como indireto (le).",
+  ],
   review_msg_spanish_impersonal_haber: [
     "Spanish “haber” meaning “there is/are” stays singular, and so does the verb before it: puede haber dos.",
     "En espagnol, « haber » au sens de « il y a » reste au singulier, tout comme le verbe qui le précède : puede haber dos.",

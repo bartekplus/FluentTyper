@@ -1175,6 +1175,26 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
       ],
     },
   ],
+  [
+    "spanishConfusions",
+    "dar de alta takes lo/la, dar el alta takes le",
+    {
+      pos: [
+        ["Ayer la dieron el alta.", "Ayer le dieron el alta."],
+        ["A los pacientes los darán el alta mañana.", "A los pacientes les darán el alta mañana."],
+        ["No las han dado la baja todavía.", "No les han dado la baja todavía."],
+        ["Les van a dar de alta hoy.", "Los van a dar de alta hoy."],
+        ["Ya les dieron de baja.", "Ya los dieron de baja."],
+      ],
+      neg: [
+        "Le dieron de alta ayer.",
+        "Se le dio de alta ayer.",
+        "Le dieron el alta.",
+        "Ya lo dieron de alta.",
+        "La dieron de baja en el gimnasio.",
+      ],
+    },
+  ],
 ];
 
 describe.each(FIXTURES)("%s: %s", (ruleId, _family, fixture) => {

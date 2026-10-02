@@ -282,6 +282,44 @@ function framedAccent(ctx: DetectContext, tokens: Token[], i: number): RawFindin
   );
 }
 
+// ------------------------------------------------------------------ dar de alta / dar el alta
+
+const DAR = /^d(?:a|as|an|ar|ado|ando|aba|aban|ió|ieron|ará|arán|aría|arían|é|en|iera|ieran)$/u;
+const ALTA_AUXILIARIES =
+  /^(?:ha|han|he|has|hemos|había|habían|habrán|va|van|iba|iban|a|puede|pueden|deben|debe|quieren|quiere)$/u;
+
+/**
+ * "No les han dado de alta" -> "los"/"las", "No la dieron el alta" -> "le": "dar de alta" takes
+ * the person as its object, "dar el alta" gives the discharge to them.
+ */
+function altaClitic(ctx: DetectContext, tokens: Token[], i: number): RawFinding | null {
+  const clitic = tokens[i].lower;
+  if (!/^(?:le|les|lo|la|los|las)$/u.test(clitic)) return null;
+  const at = new Around(tokens, i);
+  // "se le dio de alta": the impersonal "se" takes "le".
+  if (at.prev() === "se") return null;
+  // Only auxiliaries between the clitic and "dar": "les han dado", "los iban a dar".
+  let k = 1;
+  while (k <= 3 && ALTA_AUXILIARIES.test(at.next(k))) k++;
+  if (!DAR.test(at.next(k))) return null;
+  const phrase = `${at.next(k + 1)} ${at.next(k + 2)}`;
+  const plural = clitic.endsWith("s");
+  let fixes: string[] = [];
+  // "le" for a man ("le dieron de alta") is accepted leísmo; "les" for a group is not.
+  if (/^de (?:alta|baja)$/u.test(phrase) && clitic === "les") fixes = ["los", "las"];
+  else if (/^(?:el alta|la baja)$/u.test(phrase) && !clitic.startsWith("le"))
+    fixes = [plural ? "les" : "le"];
+  if (!fixes.length) return null;
+  return replaceToken(
+    ctx,
+    tokens[i],
+    fixes,
+    "spanishConfusions",
+    "review_msg_spanish_alta",
+    tokens[i + k + 2],
+  );
+}
+
 type Frame = (ctx: DetectContext, tokens: Token[], i: number) => RawFinding | null;
 
 function scan(...frames: Frame[]) {
@@ -302,7 +340,7 @@ function scan(...frames: Frame[]) {
 
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
   { rules: ["spanishAccents"], detect: scan(paraQue, framedAccent) },
-  { rules: ["spanishConfusions"], detect: scan(separatedEnclitic, aPunto) },
+  { rules: ["spanishConfusions"], detect: scan(separatedEnclitic, aPunto, altaClitic) },
   { rules: ["stylePhrasing"], detect: scan(agoBack) },
   { rules: ["spanishAgreement"], detect: scan(impersonalHaber, doubledPronoun) },
 ];

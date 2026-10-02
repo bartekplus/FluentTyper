@@ -407,6 +407,12 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
         ["miles de persona", "miles de personas"],
         ["millones de persona", "millones de personas"],
         ["cientos de persona", "cientos de personas"],
+        ["fracción de segundos", "fracción de segundo"],
+        ["fracciones de segundos", "fracciones de segundo"],
+        ["golpe de estados", "golpe de estado"],
+        ["golpes de estados", "golpes de estado"],
+        ["medios de comunicaciones", "medios de comunicación"],
+        ["puntos de partidas", "puntos de partida"],
         ["millones de euro", "millones de euros"],
         ["miles de euro", "miles de euros"],
       ].map(([typed, fixed]): PhraseRow => [typed, fixed]),
@@ -416,6 +422,11 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
         [`unas ${amount}`, `unos ${amount}`],
       ]),
       ["estado unidos", "estados unidos"],
+      // "estar de acuerdo" keeps the noun singular.
+      ...["estoy", "estás", "está", "estamos", "estáis", "están", "estaba", "estaban", "estar"].map(
+        (form): PhraseRow => [`${form} de acuerdos`, `${form} de acuerdo`],
+      ),
+
       // Set phrases with a word swapped for a sound-alike or a wrong link word.
       ["loor de multitudes", "olor de multitudes"],
       ["obediencia de vida", "obediencia debida"],
