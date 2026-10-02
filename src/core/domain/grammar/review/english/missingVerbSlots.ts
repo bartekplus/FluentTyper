@@ -33,9 +33,9 @@ const BE: Record<string, string> = {
 };
 // Words after which a subject opens a clause.
 const CLAUSE_CUE =
-  /^(?:and|but|so|because|if|when|that|think|thought|know|knew|hope|guess|maybe|since|though|although|while|whether|sure|said|says|unless|once|until|why|how)$/;
+  /^(?:and|but|so|because|if|when|that|think|thought|know|knew|hope|guess|maybe|since|though|although|while|whether|sure|said|says|unless|once|until|why|how|what)$/;
 const ADVERB_RUN = new Set(
-  "not really very so still also only just totally too much always probably rarely never definitely already partially properly completely pretty quite".split(
+  "not really very so still also only just totally too much always probably rarely never definitely already partially properly completely pretty quite now first maybe currently actually finally".split(
     " ",
   ),
 );
@@ -138,16 +138,36 @@ function subjectWithoutBe(ctx: DetectContext): RawFinding[] {
       );
     else if (
       read?.verbs.some((v) => v.form === "ing") &&
-      !read.noun &&
+      // A gerund noun ("going", "doing") needs a verb-like run after it.
+      (!read.noun || !next || next.kind !== "word" || !nounLike(next.lower)) &&
       !/^(?:being|having)$/.test(word) &&
       lower !== "this" &&
-      // "You dithering idiot!": an -ing adjective before a noun.
-      !(next?.kind === "word" && (nounOnly(next.lower) || englishWordInfo(next.lower)?.noun)) &&
-      // "You and I getting together makes sense": a gerund clause.
-      !/^(?:and|or)$/.test(before)
+      // "You dithering idiot!": an -ing adjective right before a noun.
+      !(
+        k === 0 &&
+        next?.kind === "word" &&
+        (nounOnly(next.lower) || englishWordInfo(next.lower)?.noun)
+      ) &&
+      !/^or$/.test(before) &&
+      // "You and I getting together makes sense": a gerund clause before its verb.
+      !(
+        before === "and" &&
+        tokens
+          .slice(k + 1)
+          .some(
+            (t) =>
+              t.kind === "word" &&
+              englishWordInfo(t.lower)?.verbs.some((v) => v.form === "third" || v.form === "past"),
+          )
+      )
     )
       ok = true;
     if (!ok || finiteLater(tokens, k + 1)) continue;
+    // "How are Tom and I doing?": be already stands before the subject.
+    const inverted = /\b(?:am|is|are|was|were)((?:[ \t]+[A-Za-z]+){0,3})[ \t]+$/i.exec(
+      ctx.text.slice(Math.max(0, m.index - 48), m.index),
+    );
+    if (inverted && !/\b(?:so|if|that|because|when|hope|think|but)\b/i.test(inverted[1])) continue;
     // A word right before that takes the pronoun as its object: "make it easy".
     if (
       !afterBreak(ctx, m.index) &&
@@ -157,19 +177,47 @@ function subjectWithoutBe(ctx: DetectContext): RawFinding[] {
     )
       continue;
     const [start, end] = m.indices!.groups!.target;
-    push(
-      ctx,
-      findings,
-      "englishSentenceStructure",
-      "review_msg_clause_be",
-      start,
-      end,
-      [`${subject} ${BE[lower]}`],
-      head.end,
-    );
+    // "Adam and I going": a coordinated subject is plural.
+    const be = before === "and" && read?.verbs.some((v) => v.form === "ing") ? "are" : BE[lower];
+    // "What they doing?": a direct question inverts.
+    const wh = /\b(what|when|how|why)[ \t]+$/i.exec(ctx.text.slice(Math.max(0, start - 8), start));
+    const question = wh && /^[^.!\n]*\?/.test(ctx.text.slice(head.end, head.end + 120));
+    if (question) {
+      const whStart = start - wh[0].length;
+      push(
+        ctx,
+        findings,
+        "englishSentenceStructure",
+        "review_msg_clause_be",
+        whStart,
+        end,
+        [`${wh[1]} ${be} ${subject}`],
+        head.end,
+      );
+    } else
+      push(
+        ctx,
+        findings,
+        "englishSentenceStructure",
+        "review_msg_clause_be",
+        start,
+        end,
+        [`${subject} ${be}`],
+        head.end,
+      );
   }
   return findings;
 }
+
+/** A noun that is no adverb: after a gerund noun it continues a compound ("meeting rooms"). */
+const nounLike = (word: string) => {
+  const read = englishWordInfo(word);
+  return (
+    !!read?.noun &&
+    !read.adverb &&
+    !/^(?:well|there|here|home|today|tonight|tomorrow|now|fine|great|okay|ok|out|back)$/.test(word)
+  );
+};
 
 /** "There a lot of ways", "Here my new song", "if there any questions": there/here + no verb. */
 function existentialWithoutBe(ctx: DetectContext): RawFinding[] {

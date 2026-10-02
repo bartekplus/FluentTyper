@@ -30,6 +30,10 @@ test("a clause without its verb gets be, and no/not swap where a verb or noun fo
     ["It would very helpful.", "It would be very helpful."],
     ["She could no hear you.", "She could not hear you."],
     ["I have not idea.", "I have no idea."],
+    ["She going to call later.", "She is going to call later."],
+    ["We now building a shed.", "We are now building a shed."],
+    ["What they doing?", "What are they doing?"],
+    ["Lena and I leaving at noon.", "Lena and I are leaving at noon."],
   ]) {
     const found = scan(input);
     expect({ input, count: found.length }).toEqual({ input, count: 1 });
@@ -60,6 +64,9 @@ test("objects, gapping, idioms and verbs stay silent", () => {
     "You dithering fool!",
     "We kindly ask you to wait.",
     "The cooks there are not chefs.",
+    "How are Lena and I doing?",
+    "Lena and I cooking dinner was fun.",
+    "The meeting rooms they booking left.",
   ])
     expect({ text, found: scan(text).map((d) => d.original) }).toEqual({ text, found: [] });
 });
