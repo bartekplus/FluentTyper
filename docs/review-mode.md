@@ -217,6 +217,7 @@ Supported (**Typing** is the rule's default for typing; Review has separate swit
 | `englishWereWhere`                     | English        | unavailable | grammar     | confused words     | individual only                                                                                                                                |
 | `englishIrregularForms`                | English        | unavailable | grammar     | word form          | individual only                                                                                                                                |
 | `englishPossessiveNouns`               | English        | unavailable | grammar     | word form          | individual only                                                                                                                                |
+| `englishDateConsistency`               | English        | unavailable | grammar     | numbers            | individual only                                                                                                                                |
 | `englishAuxiliaryBaseVerb`             | English        | unavailable | grammar     | word form          | individual only                                                                                                                                |
 | `englishPronounCase`                   | English        | unavailable | grammar     | word form          | individual only                                                                                                                                |
 | `englishSentenceStructure`             | English        | unavailable | grammar     | usage              | individual only                                                                                                                                |
@@ -390,6 +391,9 @@ left-out long nouns (a Bloom filter, so they only ever tell words from typos):
   "meatloafs") or misses a listed spelling rule ("heros", "kittys") offers the irregular form;
   a past needs its subject or auxiliary right before it ("I eated", "had runned"), and a
   plural also offers the singular possessive ("child's").
+- `englishDateConsistency`: a weekday beside a full date (with its year) that falls on another
+  weekday ("Monday, 7 October 2014") offers the right weekday or the nearest date on the typed
+  one; a day the month does not have ("June 31", "2/30/2024") is marked without a fix.
 - `englishPossessiveNouns`: a plural noun between a determiner and the noun it owns ("the cats
   tail is long", "a teachers lounge") offers "cat's" or "cats'" when the frame allows no
   other reading: the owned noun is followed by its verb, the phrase ends after a preposition
