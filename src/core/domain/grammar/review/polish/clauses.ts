@@ -1,6 +1,17 @@
 import { namedExampleBefore } from "../exampleCues";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import { adjectiveOf, ALL_CASES, finiteVerb, hasAdjective, nounTags } from "./lexicon";
+import {
+  adjectiveOf,
+  ALL_CASES,
+  ambiguousVerb,
+  cases,
+  finiteVerb,
+  hasAdjective,
+  impersonalVerb,
+  NEUTER,
+  nounTags,
+  onlyNoun,
+} from "./lexicon";
 import { findingAt, isPl, userOrNamed } from "./shared";
 
 /*
@@ -68,7 +79,7 @@ function compound(list: readonly Word[], a: number, b: number): boolean {
 }
 /** A form no noun or adjective shares: the past, "jest", "będzie", "powinien", "można". */
 const CERTAIN =
-  /(?:ł|ła|ło|li|ły)(?:em|am|eś|aś|śmy|ście|by\p{L}*)?$|^(?:jest|są|będ|powin|można|trzeba|może$)/u;
+  /(?:ł|ła|ło|li|ły)(?:em|am|eś|aś|śmy|ście|by\p{L}*)?$|^(?:jest|są|będ|powin|można|trzeba|należ|może$)|(?:ano|iono|[iyuę]to)$/u;
 
 /** The finite verb (or the predicative "można", "trzeba") of a clause stands at `i`. */
 function verbAt(list: readonly Word[], i: number): boolean {
@@ -80,8 +91,19 @@ function verbAt(list: readonly Word[], i: number): boolean {
   if (/^(?:chybił|trafił)$/u.test(word)) return false;
   // "może" is also "maybe", unless an infinitive follows ("może być").
   if (word === "może") return INFINITIVE.test(list[i + 1]?.lower ?? "");
-  return /^(?:można|trzeba)$/u.test(word) || finiteVerb(word);
+  if (PREDICATIVE.test(word) || finiteVerb(word) || impersonalVerb(word)) return true;
+  // "miał" (also coal dust): a verb before an infinitive or after a personal pronoun.
+  if (!ambiguousVerb(word) || joins(word)) return false;
+  const next = list[i + 1]?.lower ?? "";
+  return (
+    (PAST.test(word) && INFINITIVE_FORM.test(next) && !nounTags(next)) ||
+    /^(?:ja|ty|on|ona|ono|my|wy|oni|one)$/u.test(list[i - 1]?.lower ?? "")
+  );
 }
+/** Impersonal predicates: "można", "trzeba", "należy zrobić". */
+const PREDICATIVE = /^(?:można|trzeba|należy|należało|należałoby|wypada|wypadało)$/u;
+/** An infinitive form: "zrobić", "móc", "pomóc", "biec". */
+const INFINITIVE_FORM = /(?:ć|móc|biec|wlec|strzec|piec|rzec|tłuc)$/u;
 
 /* -------------------------------------------------------------- participles */
 
@@ -201,9 +223,59 @@ function participles(ctx: DetectContext, list: Word[], segment: [number, number]
   return findings;
 }
 
+/* ------------------------------------------------------------ purpose openers */
+
+/**
+ * "Aby zdać egzamin student musi się uczyć": a purpose phrase opening the sentence ends with a
+ * comma before the main clause. Warns at the main clause's verb.
+ */
+function purposeOpeners(ctx: DetectContext, list: Word[], segment: [number, number]): RawFinding[] {
+  const first = /^(?:ale|a|i|lecz|więc|zatem)$/u.test(list[0].lower) ? 1 : 0;
+  if (!/^(?:aby|żeby|ażeby|by)$/u.test(list[first]?.lower ?? "")) return [];
+  const before = ctx.text.slice(Math.max(0, segment[0] - 8), segment[0]);
+  if (segment[0] > 0 && !/(?:^|[.!?…,;:]["”’»)]*|\n)[ \t\u00a0]*$/u.test(before)) return [];
+  let at = first + 1;
+  while (at < first + 3 && /^(?:się|nie|sobie|to|tego|ją|go|je)$/u.test(list[at]?.lower ?? ""))
+    at++;
+  const infinitive = list[at];
+  if (!infinitive || !INFINITIVE_FORM.test(infinitive.lower) || nounTags(infinitive.lower))
+    return [];
+  const verb = list.findIndex((w, j) => j > at && w.verb);
+  if (verb < 0) return [];
+  if (
+    list
+      .slice(at + 1, verb)
+      .some(
+        (w) => w.participle || (joins(w.lower) && !COORDINATE.test(w.lower) && w.lower !== "to"),
+      )
+  )
+    return [];
+  return [warning(ctx, list[verb], segment, "review_msg_pl_run_on")];
+}
+
 /* ------------------------------------------------------------------ run-ons */
 
 const RUN_ON = "review_msg_pl_run_on" as const;
+
+/** Conjunctions opening a clause that a correlative "to" answers. */
+const CONDITIONAL =
+  /^(?:jeśli|jeżeli|jeśliby|jeżeliby|gdy|gdyby|kiedy|skoro|ponieważ|chociaż|choć)$/u;
+
+/**
+ * The "to" at `at` answers a conditional clause opening the segment, not a pronoun: not right
+ * after the verb ("Jeśli zrobisz to dobrze") and not before a neuter noun ("to zdjęcie").
+ */
+function correlativeTo(list: readonly Word[], verb: number, at: number): boolean {
+  if (list[at].lower !== "to" || at <= verb + 1) return false;
+  const first = /^(?:a|i|ale|lecz)$/u.test(list[0].lower) ? 1 : 0;
+  if (!CONDITIONAL.test(list[first].lower) || first >= verb) return false;
+  if (list.slice(first + 1, verb).some((w) => joins(w.lower) && !COORDINATE.test(w.lower)))
+    return false;
+  let k = at + 1;
+  while (k < list.length && adjectiveOf(list[k].lower) && !nounTags(list[k].lower)) k++;
+  const tags = list[k] ? nounTags(list[k].lower) : 0;
+  return !(onlyNoun(tags) && tags & NEUTER && tags & cases("Ns As"));
+}
 
 function runOns(
   ctx: DetectContext,
@@ -215,10 +287,24 @@ function runOns(
   for (let k = 1; k < verbs.length; k++) {
     const [a, b] = [verbs[k - 1], verbs[k]];
     if (compound(list, a, b)) continue;
-    // Two present forms may hide a noun or an adjective ("bawię się muszą nóżką").
-    if (!CERTAIN.test(list[a].lower) && !CERTAIN.test(list[b].lower)) continue;
+    // "Jak się okazało pociąg odjechał": the aside's own comma frame asks for it.
+    if (
+      /^jak (?:się )?(?:okazało|widać|wiadomo)$/u.test(
+        list
+          .slice(0, a + 1)
+          .map((w) => w.lower)
+          .join(" "),
+      )
+    )
+      continue;
     if (list.slice(0, b).some((w) => w.participle)) return [];
     const between = list.slice(a + 1, b).flatMap((w, j) => (joins(w.lower) ? [a + 1 + j] : []));
+    // "Jeżeli pada deszcz to rano są kałuże": "to" answering a conditional opener.
+    const linking = between.filter((j) => !COORDINATE.test(list[j].lower));
+    if (linking.length === 1 && correlativeTo(list, a, linking[0]))
+      return [commaBefore(ctx, list, linking[0], segment, RUN_ON, true)];
+    // Two present forms may hide a noun or an adjective ("bawię się muszą nóżką").
+    if (!CERTAIN.test(list[a].lower) && !CERTAIN.test(list[b].lower)) continue;
     if (between.length === 1 && CONTRAST.test(list[between[0]].lower)) {
       // "Marek czytał a Jurek pisał": a contrasting "a" between clauses takes a comma; not
       // "między domem a szkołą".
@@ -264,6 +350,7 @@ function clauses(ctx: DetectContext): RawFinding[] {
     const afterComma = ctx.text[m.index - 1] === ",";
     for (const finding of [
       ...participles(ctx, list, segment),
+      ...purposeOpeners(ctx, list, segment),
       ...runOns(ctx, list, segment, afterComma),
     ])
       if (finding.range.start >= ctx.from && finding.range.start < ctx.to) findings.push(finding);

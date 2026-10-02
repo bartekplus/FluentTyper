@@ -119,12 +119,24 @@ export const FRAMES: readonly CommaFrame[] = [
     regex: new RegExp(`${CLAUSE_START}(?<target>${SET_OFF})(?=${SP}\\p{L})`, "gud"),
     fix: (m) => `${m.groups!.target},`,
   },
-  // "Jednak, miałem rację" -> "Jednak miałem rację".
+  // "Jak widać nikt nie przyszedł" -> "Jak widać, nikt": the aside ends before the clause; not
+  // "Jak widać na wykresie, …" or "Jak wiadomo z historii".
+  {
+    ruleId: MISSING,
+    messageKey: "review_msg_pl_comma_aside",
+    regex: new RegExp(
+      `${CLAUSE_START}(?<target>Jak${SP}(?:widać|wiadomo|się${SP}okazało))(?=${SP}\\p{L}[^,;:\\n.!?]*[.!?])(?!${SP}(?:${PREPOSITIONS}|że|iż|później|potem|wcześniej|dotąd|dziś|dzisiaj|wczoraj)${END})`,
+      "gud",
+    ),
+    fix: (m) => `${m.groups!.target},`,
+  },
+  // "Jednak, miałem rację" -> "Jednak miałem rację"; not before a phrase set off as an aside
+  // ("Poza tym, ze względu na koszty …").
   {
     ruleId: EXTRA,
     messageKey: "review_msg_pl_extra_comma",
     regex: new RegExp(
-      `${CLAUSE_START}${LINKING}(?<target>,)(?=${SP}\\p{Ll}[^,;:\\n]*[.!?])`,
+      `${CLAUSE_START}${LINKING}(?<target>,)(?!${SP}(?:${PREPOSITIONS})${END})(?=${SP}\\p{Ll}[^,;:\\n]*[.!?])`,
       "gud",
     ),
     fix: () => "",

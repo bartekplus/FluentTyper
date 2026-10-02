@@ -310,6 +310,11 @@ export const POLISH_CASES: Array<[CatalogRuleId, string, Case]> = [
         ["Lodówka, jest pusta od tygodnia.", "Lodówka jest pusta od tygodnia."],
         ["Każdy pracownik, dostał premię.", "Każdy pracownik dostał premię."],
         ["Herbata, to mój ulubiony napój.", "Herbata to mój ulubiony napój."],
+        ["Pojechał tam mimo, że lało.", "Pojechał tam, mimo że lało."],
+        ["Zgodzę się pod warunkiem, że zapłacisz.", "Zgodzę się, pod warunkiem że zapłacisz."],
+        ["Pod warunkiem, że zdążysz.", "Pod warunkiem że zdążysz."],
+        ["Tyle, że nikt mu nie wierzył.", "Tyle że nikt mu nie wierzył."],
+        ["Był bogaty, tyle, że skąpy.", "Był bogaty, tyle że skąpy."],
       ],
       neg: [
         "Zostałem w domu, mimo że chciałem iść.",
@@ -322,6 +327,8 @@ export const POLISH_CASES: Array<[CatalogRuleId, string, Case]> = [
         "Lodówka, jak zwykle, jest pusta.",
         "Ustawa, powiedział, wchodzi w życie jutro.",
         "Herbata, kawa i sok stały na stole.",
+        "Poza tym, ze względu na pogodę, mecz przełożono.",
+        "Wypił tyle, że zasnął.",
       ],
     },
   ],
@@ -356,6 +363,16 @@ export const POLISH_CASES: Array<[CatalogRuleId, string, Case]> = [
         ["Trudno sobie wyobrazić jaka to była ulga.", "Trudno sobie wyobrazić, jaka to była ulga."],
         ["Wszystko zależy od tego czy zdąży.", "Wszystko zależy od tego, czy zdąży."],
         ["Nie zwracaj uwagi na to gdzie mieszka.", "Nie zwracaj uwagi na to, gdzie mieszka."],
+        ["Wrócił do domu zatem żeby odpocząć.", "Wrócił do domu zatem, żeby odpocząć."],
+        ["Pobiegł na stację tylko żeby zdążyć.", "Pobiegł na stację, tylko żeby zdążyć."],
+        [
+          "Ustawił krzesła tak żeby wszyscy widzieli.",
+          "Ustawił krzesła, tak żeby wszyscy widzieli.",
+        ],
+        ["Okna umyto by nie było smug.", "Okna umyto, by nie było smug."],
+        ["Pracuję by dzieci miały co jeść.", "Pracuję, by dzieci miały co jeść."],
+        ["Jak widać nikt nie przyszedł.", "Jak widać, nikt nie przyszedł."],
+        ["Jak wiadomo koty lubią spać.", "Jak wiadomo, koty lubią spać."],
       ],
       neg: [
         "Myślę, że masz rację.",
@@ -394,6 +411,11 @@ export const POLISH_CASES: Array<[CatalogRuleId, string, Case]> = [
         "Kupował to czy tamto.",
         "To co mam teraz zrobić?",
         "Było tego co niemiara.",
+        "Zrobiłbym tak by było lepiej.",
+        "Nie tylko żeby pomóc.",
+        "Jak widać na wykresie ceny rosną.",
+        "Jak wiadomo z historii wojny się kończą.",
+        "Dusza jak gdyby uleciała.",
       ],
     },
   ],
@@ -562,6 +584,9 @@ test('",," before a quoted word is the Polish opening quote', () => {
     'Nazwał to „lekką porażką" i wyszedł.',
   ]);
   expect(fix("Film ,,Rejs” znam na pamięć.")).toEqual(["Film „Rejs” znam na pamięć."]);
+  expect(fix("Mówił o ,,przygodzie’’ cały wieczór.")).toEqual([
+    "Mówił o „przygodzie’’ cały wieczór.",
+  ]);
   expect(fix("Kupiłem chleb,, mleko i masło.")).toEqual(["Kupiłem chleb, mleko i masło."]);
   expect(fix("Pisał ,,coś bez końca i tyle.")).toEqual(["Pisał ,coś bez końca i tyle."]);
 });
@@ -571,4 +596,13 @@ test("a Polish style row skips a capitalized name inside the sentence", () => {
   expect(findings("stylePhrasing", "Wczoraj była Wysoka frekwencja w klubie.")).toEqual([]);
   expect(findings("stylePhrasing", "Wysoka frekwencja cieszy organizatorów.")).toHaveLength(1);
   expect(findings("stylePhrasing", "Cieszy nas wysoka frekwencja.")).toHaveLength(1);
+});
+
+test('Polish "ok." before a numeral and "im." before a title start no sentence', () => {
+  const starts = (text: string) => findings("capitalizeSentenceStart", text).map((d) => d.original);
+  expect(starts("Czekałem ok. trzech godzin na autobus.")).toEqual([]);
+  expect(starts("Przyszło ok. dwudziestu osób.")).toEqual([]);
+  expect(starts("Pracuje w szpitalu im. dr. Wandy Błeńskiej.")).toEqual([]);
+  expect(starts("Wszystko jest ok. potem pogadamy.")).toEqual(["p"]);
+  expect(starts("Oddałem im. potem wyszedłem.")).toEqual(["p"]);
 });

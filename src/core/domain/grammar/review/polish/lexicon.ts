@@ -153,6 +153,27 @@ export function finiteVerb(word: string): boolean {
   return false;
 }
 
+/** A finite verb form that is also another word ("miał" coal dust, "należy"); context decides. */
+export function ambiguousVerb(word: string): boolean {
+  verbs ??= loadVerbs();
+  return verbs.ambiguous.has(word) || (nounTags(word) & VERB) !== 0;
+}
+
+/**
+ * The impersonal past in -no/-to ("szorowano", "zrobiono", "wypito", "zaczęto"): its past
+ * form ("szorował", "zrobił") is a verb and the word itself is no noun ("siano", "wino").
+ */
+export function impersonalVerb(word: string): boolean {
+  const past = /ano$|[iyu]to$/u.test(word)
+    ? `${word.slice(0, -2)}ł`
+    : word.endsWith("iono")
+      ? `${word.slice(0, -3)}ł`
+      : word.endsWith("ęto")
+        ? `${word.slice(0, -3)}ął`
+        : "";
+  return past.length > 3 && !nounTags(word) && !adjectiveOf(word) && finiteVerb(past);
+}
+
 let places: Set<string> | undefined;
 
 /** A lowercased case form of a common place name that is no other word ("gdańsku"). */

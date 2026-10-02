@@ -1,5 +1,5 @@
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import { nounTags, onlyNoun } from "./lexicon";
+import { ambiguousVerb, finiteVerb, impersonalVerb, nounTags, onlyNoun } from "./lexicon";
 import { findingAt, isPl, owned, PREPOSITIONS, sentenceStartAt, userOrNamed } from "./shared";
 
 /*
@@ -23,6 +23,9 @@ const COMPOUNDS: Record<string, string> = {
   jeszcze: "zanim",
   a: "więc",
   o: "ile",
+  "pod warunkiem": "że|iż",
+  // Only after a comma or at the sentence start: "Zjadł tyle, że pękł" (so much that).
+  tyle: "że",
 };
 const INSIDE = new RegExp(
   `(?<![\\p{L}\\p{N}])(?:(?<prev>\\p{L}+)(?<gap>[ \\t\\u00a0]+))?(?<head>${Object.keys(COMPOUNDS)
@@ -53,8 +56,20 @@ function commaInsideConjunction(ctx: DetectContext): RawFinding[] {
     )
       continue;
     const headStart = m.index + (prev ? prev.length + gap.length : 0);
-    // "wtedy nawet, gdy" (even then, when) and "czy tak, czy owak" keep their comma.
-    if (prev && /^(?:wtedy|wówczas|tylko|właśnie|tam|tu|czy)$/iu.test(prev)) continue;
+    // "wtedy nawet, gdy" (even then, when) and "czy tak, czy owak" keep their comma; "mimo",
+    // "podczas" and "pod warunkiem" are never read apart ("tam mimo, że" -> "tam, mimo że").
+    if (
+      prev &&
+      !/^(?:mimo|pomimo|podczas|pod)/iu.test(headKey) &&
+      /^(?:wtedy|wówczas|tylko|właśnie|tam|tu|czy)$/iu.test(prev)
+    )
+      continue;
+    if (
+      headKey === "tyle" &&
+      (prev ||
+        !/(?:^|[,.!?…]\s*|\n\s*)$/u.test(ctx.text.slice(Math.max(0, headStart - 8), headStart)))
+    )
+      continue;
     const joined = `${head} ${tail}`;
     if (prev && !NO_COMMA_AFTER.has(prev.toLowerCase()) && !userOrNamed(ctx, prev)) {
       // "tam mimo, że" -> "tam, mimo że": the comma moves before the conjunction.
@@ -234,15 +249,26 @@ function missingCommas(ctx: DetectContext): RawFinding[] {
         next === "się"
           ? (/^[ \t ]+się[ \t ]+(\p{L}+)/u.exec(ctx.text.slice(end, end + 60))?.[1] ?? "")
           : next;
+      // "Pokład szorowano by nie zostały ślady", "Pracuję by dzieci miały co jeść": after an
+      // impersonal or present verb, "by" with a past form opens a clause of purpose too.
+      const clause = /^[ \t ]+(?:\p{L}+[ \t ]+){0,2}?(\p{Ll}+(?:ł|ła|ło|li|ły))(?![\p{L}])/u.exec(
+        ctx.text.slice(end, end + 60),
+      )?.[1];
+      const purpose =
+        clause !== undefined &&
+        (finiteVerb(clause) || ambiguousVerb(clause)) &&
+        (impersonalVerb(lowerPrev) ||
+          (finiteVerb(lowerPrev) && !/(?:ł|ła|ło|li|ły)$/u.test(lowerPrev)));
       if (
-        !/(?:ć|móc|biec|wlec|strzec|piec|rzec|tłuc)$/u.test(verb) ||
-        nounTags(verb.toLowerCase()) ||
-        /^(?:można|trzeba|warto|wolno|lepiej|dobrze|trudno|łatwo|należy|należało|wypada|wypadało|opłacało|coś|nic)$/iu.test(
-          prev,
-        ) ||
-        /^(?:mógł|mogł|mogl|chcia|chcie|musia|musie|miał|miel|umiał|umiel|potrafi|wola|wole|zdoła|powin)/iu.test(
-          prev,
-        )
+        !purpose &&
+        (!/(?:ć|móc|biec|wlec|strzec|piec|rzec|tłuc)$/u.test(verb) ||
+          nounTags(verb.toLowerCase()) ||
+          /^(?:można|trzeba|warto|wolno|lepiej|dobrze|trudno|łatwo|należy|należało|wypada|wypadało|opłacało|coś|nic)$/iu.test(
+            prev,
+          ) ||
+          /^(?:mógł|mogł|mogl|chcia|chcie|musia|musie|miał|miel|umiał|umiel|potrafi|wola|wole|zdoła|powin)/iu.test(
+            prev,
+          ))
       )
         continue;
     }
@@ -281,6 +307,37 @@ function missingCommas(ctx: DetectContext): RawFinding[] {
         MISSING,
         "review_msg_pl_missing_comma",
       ),
+    );
+  }
+  return findings;
+}
+
+/**
+ * "wstąpił zatem żeby się przebrać" -> "zatem, żeby"; "poszedł do domu tylko żeby" -> "domu,
+ * tylko żeby" or "domu tylko, żeby" (the writer chooses where the stress falls).
+ */
+const ADVERB_PURPOSE = new RegExp(
+  `(?<![\\p{L}\\p{N}_'’-])(?<prev>\\p{Ll}+)(?<gap>[ \\t\\u00a0]+)(?<adverb>tylko|tak|zatem|więc|przeto)(?<gap2>[ \\t\\u00a0]+)(?<sub>żeby|ażeby|aby|by)[ \\t\\u00a0]+(?:się[ \\t\\u00a0]+)?(?<next>\\p{L}+)`,
+  "gu",
+);
+
+function adverbBeforePurpose(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of owned(ctx, ADVERB_PURPOSE)) {
+    const { prev, gap, adverb, gap2, sub, next } = m.groups!;
+    if (OPENS_COMPOUND.has(prev) || PREPOSITION_SET.has(prev) || userOrNamed(ctx, prev)) continue;
+    // "tak by było lepiej": the conditional "by" goes with a finite verb, not an infinitive.
+    if (
+      sub === "by" &&
+      (!/(?:ć|móc|biec|wlec|strzec|piec|rzec|tłuc)$/u.test(next) || nounTags(next))
+    )
+      continue;
+    const alternatives = /^(?:tylko|tak)$/u.test(adverb)
+      ? [`${prev},${gap}${adverb}${gap2}${sub}`, `${prev}${gap}${adverb},${gap2}${sub}`]
+      : [`${prev}${gap}${adverb},${gap2}${sub}`];
+    const end = m.index + prev.length + gap.length + adverb.length + gap2.length + sub.length;
+    findings.push(
+      findingAt(ctx, m.index, end, alternatives, MISSING, "review_msg_pl_missing_comma"),
     );
   }
   return findings;
@@ -347,6 +404,8 @@ export const DETECTORS = [
   {
     rules: [MISSING] as RawFinding["ruleId"][],
     detect: (ctx: DetectContext) =>
-      isPl(ctx) ? [...missingCommas(ctx), ...missingCompoundCommas(ctx)] : [],
+      isPl(ctx)
+        ? [...missingCommas(ctx), ...missingCompoundCommas(ctx), ...adverbBeforePurpose(ctx)]
+        : [],
   },
 ];
