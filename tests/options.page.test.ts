@@ -91,8 +91,8 @@ describe("options page scripts", () => {
     expect(firstMainSection?.textContent).toContain(
       "Need our predictions anyway? Just click the corner icon.",
     );
-    expect(firstMainSection?.textContent).toContain(
-      "Try enabling FluentTyper on the native autocomplete field",
+    expect(firstMainSection?.textContent?.replace(/\s+/g, " ")).toContain(
+      "Try enabling FluentTyper on the browser-managed autocomplete field",
     );
 
     expect(permissionButton!.compareDocumentPosition(demoSection!)).toBe(

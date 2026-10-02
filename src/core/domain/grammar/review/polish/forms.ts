@@ -107,16 +107,55 @@ export const FRAMES: readonly Frame[] = [
  * ("SMS-ów", "PKP-u"). Names ending in a silent "-e" keep the apostrophe.
  */
 const NAME_ENDING =
-  /(?<![\p{L}\p{N}'’-])(?<name>\p{Lu}\p{Ll}+)(?<mark>['’])(?<end>a|u|owi|em|iem|ie|om|ów|ach|ami|y|i|ego|emu|m|im|ym)(?![\p{L}\p{N}])/gu;
+  /(?<![\p{L}\p{N}'’-])(?<name>\p{Lu}\p{Ll}+)(?<mark>['’])(?<end>a|u|owi|em|iem|ie|om|ów|ach|ami|y|i|ego|emu|go|mu|m|im|ym)(?![\p{L}\p{N}])/gu;
 const ACRONYM_ENDING =
   /(?<![\p{L}\p{N}'’-])(?<name>\p{Lu}{2,}|\p{Lu}\p{Ll}?\p{Lu}+)(?<mark>['’])?(?<end>a|u|owi|em|ie|om|ów|ach|ami|y|ach)(?![\p{L}\p{N}])/gu;
+
+/**
+ * The right spelling of a name ending in a vowel letter with its case ending, or "" when the
+ * typed one is right; undefined when the name ends in no such letter.
+ * - "-ie" sounds [i] ("Charlie"): adjective endings join without the apostrophe ("Charliego",
+ *   "Charliemu", "Charliem").
+ * - A silent "-e" ("Joyce", "Steve") keeps the apostrophe before a vowel ending ("Joyce'a",
+ *   "Joyce'em", not "Joyce'm"), but the locative "-ie" replaces it ("Stevie", "Stonie");
+ *   "-ke" names vary ("Locke'm", "Lockiem") and are left alone.
+ * - "-y" sounds [i] ("Andy"): the short "-m" joins without the apostrophe ("Andym").
+ */
+function silentEnding(name: string, end: string): string | undefined {
+  if (/[^aeiouy]ie$/u.test(name)) {
+    const short = { ego: "go", go: "go", emu: "mu", mu: "mu", em: "m", m: "m" }[end];
+    return short ? name + short : "";
+  }
+  if (/[^aeiouy]e$/u.test(name)) {
+    // "-ke" names vary ("Locke'm", "Lockiem"), so they are left alone.
+    if (end === "m") return /ke$/u.test(name) ? "" : `${name}'em`;
+    if (end === "ie" && /[nvmbpf]e$/u.test(name)) return `${name.slice(0, -1)}ie`;
+    return "";
+  }
+  if (/e$/u.test(name)) return "";
+  if (/[^aeiouy]y$/u.test(name) && end === "m") return `${name}m`;
+  return undefined;
+}
 
 function inflectedNames(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   for (const m of owned(ctx, NAME_ENDING)) {
     const { name, end } = m.groups!;
-    // "Joyce'em", "Locke'a": the final "e" is silent, so the apostrophe stays.
-    if (/e$/u.test(name)) continue;
+    const silent = silentEnding(name, end);
+    if (silent !== undefined) {
+      if (silent && !userOrNamed(ctx, name))
+        findings.push(
+          findingAt(
+            ctx,
+            m.index,
+            m.index + m[0].length,
+            [silent],
+            RULE,
+            "review_msg_pl_inflected_name",
+          ),
+        );
+      continue;
+    }
     // Silent French endings ("Jacques'a", "Charles'a") and a pronounced "-y" after a
     // consonant ("Kennedy'ego") keep it too.
     if (/(?:ques|les|ges|ois|eux|aux|oix|ault|eau|[^aeiouy]y)$/u.test(name)) continue;

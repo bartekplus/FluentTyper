@@ -66,9 +66,21 @@ const CAPITAL = re(
 // ("einige Übung", "wenige Hoffnung" take a mass noun in the singular.)
 const QUANTITY = `zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf|zwanzig|hundert|tausend|viele|mehrere|beide|zahlreiche|unzählige`;
 const SINGULAR = re(
-  `(?<=(?:(?:${QUANTITY})|(?:Vielzahl|Reihe|Menge|Anzahl|Fülle)${S}(?:von|an))(?:${S}\\p{Ll}+(?:e|en))?${S})(?<target>\\p{Lu}\\p{Ll}+(?:ung|heit|keit|schaft|ion|tät))(?!\\p{L})|` +
-    `(?<=(?:${QUANTITY}|[2-9]|\\d{2,}(?:,\\d+)?)${S})(?<t2>Million|Milliarde|Billion)(?!\\p{L})`,
+  `(?<=(?:(?:${QUANTITY})|(?:Vielzahl|Reihe|Menge|Anzahl|Fülle)${S}(?:von|an))(?:${S}\\p{Ll}{1,30}(?:e|en))?${S})(?<target>\\p{Lu}\\p{Ll}+(?:ung|heit|keit|schaft|ion|tät))(?!\\p{L})|` +
+    `(?<=(?:${QUANTITY}|[2-9]|\\d{2,12}(?:,\\d{1,6})?)${S})(?<t2>Million|Milliarde|Billion)(?!\\p{L})`,
 );
+
+// "eine halbe Millionen", "eine Viertelmilliarden": a half or a quarter is one.
+const HALF = re(
+  `(?<=(?:[Hh]albe|[Hh]alben|[Hh]alber)${S})(?<target>Millionen|Milliarden|Billionen|Billiarden)|` +
+    `(?<=(?:[Ee]ine|[Ee]iner|[Dd]ie|[Dd]er)${S})(?<t2>Viertel(?:millionen|milliarden))`,
+);
+const ONE: Readonly<Record<string, string>> = {
+  millionen: "million",
+  milliarden: "milliarde",
+  billionen: "billion",
+  billiarden: "billiarde",
+};
 
 function written(first: string, rest: string, mal?: string): string | null {
   const words = [first, ...rest.trim().split(/[ \t ]+/)];
@@ -146,6 +158,20 @@ function numbers(ctx: DetectContext): RawFinding[] {
       if (next && germanNounReading(next.toLowerCase()) === null) continue;
       push(m, "t2", [noun === "Milliarde" ? "Milliarden" : `${noun}en`]);
     } else push(m, "target", [`${m.groups!.target}en`]);
+  }
+  for (const m of frameMatches(ctx, HALF, owner)) {
+    const name = m.groups!.target ? "target" : "t2";
+    const typed = m.groups![name];
+    // "zwei halbe Millionen": several halves.
+    const before = ctx.text.slice(Math.max(0, m.index - 30), m.index);
+    if (/(?:\d|zwei|drei|vier|fünf|viele|mehrere|beide)[ \t]+halbe[nr]?[ \t]+$/iu.test(before)) {
+      continue;
+    }
+    const fixed = typed.replace(/(millionen|milliarden|billionen|billiarden)$/i, (plural) => {
+      const one = ONE[plural.toLowerCase()];
+      return /^\p{Lu}/u.test(plural) ? one[0].toUpperCase() + one.slice(1) : one;
+    });
+    push(m, name, [fixed]);
   }
   return findings;
 }

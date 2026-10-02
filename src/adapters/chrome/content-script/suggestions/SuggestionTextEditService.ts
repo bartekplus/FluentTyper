@@ -78,6 +78,11 @@ interface GrammarEditApplyContext {
 }
 
 export class SuggestionTextEditService {
+  private readonly canEdit: (
+    entry: SuggestionEntry,
+    automatic: boolean,
+    edit?: GrammarEdit,
+  ) => boolean;
   private readonly findMentionToken: (beforeCursor: string) => { token: string; start: number };
   private readonly isSeparator: (value: string) => boolean;
   private readonly contentEditableAdapter: ContentEditableAdapter;
@@ -87,14 +92,17 @@ export class SuggestionTextEditService {
   constructor({
     findMentionToken,
     isSeparator,
+    canEdit = () => true,
     contentEditableAdapter = new ContentEditableAdapter(),
     hostEditorAdapterResolver = new HostEditorAdapterResolver(),
   }: {
+    canEdit?: (entry: SuggestionEntry, automatic: boolean, edit?: GrammarEdit) => boolean;
     findMentionToken: (beforeCursor: string) => { token: string; start: number };
     isSeparator: (value: string) => boolean;
     contentEditableAdapter?: ContentEditableAdapter;
     hostEditorAdapterResolver?: HostEditorAdapterResolver;
   }) {
+    this.canEdit = canEdit;
     this.findMentionToken = findMentionToken;
     this.isSeparator = isSeparator;
     this.contentEditableAdapter = contentEditableAdapter;
@@ -105,6 +113,7 @@ export class SuggestionTextEditService {
     entry: SuggestionEntry,
     suggestion: string,
   ): AcceptedSuggestionEditResult | null {
+    if (!this.canEdit(entry, false)) return null;
     entry.pendingExtensionEdit = null;
     entry.manualAutoFixSuppression = null;
     const isTextValueTarget = TextTargetAdapter.isTextValue(entry.elem);
@@ -479,6 +488,8 @@ export class SuggestionTextEditService {
     edit: GrammarEdit,
     context: GrammarEditApplyContext = {},
   ): TextEditApplyResult {
+    if (!this.canEdit(entry, !edit.strict, edit))
+      return { applied: false, didDispatchInput: false };
     let replacement = typeof edit.replacement === "string" ? edit.replacement : "";
     const isStrictEdit = edit.strict === true;
     const deleteBackwards = Number.isFinite(edit.deleteBackwards)
@@ -836,7 +847,7 @@ export class SuggestionTextEditService {
     event: KeyboardEvent,
     consumeKeyboardEvent: (event: KeyboardEvent) => void,
   ): void {
-    if (!entry.missingTrailingSpace) {
+    if (!this.canEdit(entry, true) || !entry.missingTrailingSpace) {
       return;
     }
 

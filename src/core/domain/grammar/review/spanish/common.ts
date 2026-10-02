@@ -125,6 +125,13 @@ export const INVARIANT = words(
     "presente pendiente consciente capaz dispuesto dispuesta",
 );
 
+// Adjectives that go before their noun: "un solo término", "la extraña máquina".
+export const PRENOMINAL = words(
+  "nuevo nueva viejo vieja solo sola único única último última extraño extraña simple mero " +
+    "mera pequeño pequeña buen buena mal mala feliz lamentable verdadero verdadera falso falsa " +
+    "propio propia mismo misma antiguo antigua breve enorme largo larga corto corta",
+);
+
 // Given names that are also common words ("Rosa", "Luz", "Pilar", "Marcos"): capitalized, they
 // name a person even at the start of a sentence, where every word is capitalized.
 export const GIVEN_NAMES = words(

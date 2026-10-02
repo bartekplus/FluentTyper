@@ -1,7 +1,8 @@
-// Derives the Polish noun and adjective forms behind Review's case and agreement checks from the
-// Hunspell dictionary the extension ships (pl_PL.dic/.aff), keeping the forms the bundled
-// Presage n-gram model counts as common (ngrams.trie/.counts), so the table stays small.
-// Writes src/core/domain/grammar/review/polish/lexicon.generated.ts.
+// Derives the Polish noun, adjective and finite verb forms behind Review's case, agreement and
+// clause checks from the Hunspell dictionary the extension ships (pl_PL.dic/.aff), keeping the
+// forms the bundled Presage n-gram model counts as common (ngrams.trie/.counts), so the tables
+// stay small.
+// Writes src/core/domain/grammar/review/polish/lexicon.generated.ts and words.generated.ts.
 // Usage: bun run generate:polish-lexicon
 import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
@@ -27,6 +28,7 @@ export const POLISH_LEXICON_SOURCES = {
   trie: resolve(root, "resources_js/pl_PL/ngrams_db/ngrams.trie"),
   counts: resolve(root, "resources_js/pl_PL/ngrams_db/ngrams.counts"),
   out: resolve(root, "src/core/domain/grammar/review/polish/lexicon.generated.ts"),
+  words: resolve(root, "src/core/domain/grammar/review/polish/words.generated.ts"),
 };
 
 /* ------------------------------------------------------------ n-gram counts */
@@ -53,7 +55,7 @@ interface LoudsTrie {
 const bitAt = (bits: Bits | Uint8Array, i: number) =>
   ((bits instanceof Uint8Array ? bits : bits.units)[i >> 3] >> (i & 7)) & 1;
 
-function readMarisa(buffer: ArrayBuffer): string[] {
+export function readMarisa(buffer: ArrayBuffer): string[] {
   const view = new DataView(buffer);
   let pos = 16; // "We love Marisa."
   const u32 = () => ((pos += 4), view.getUint32(pos - 4, true));
@@ -172,30 +174,45 @@ const PLURAL_OBLIQUE: Array<[RegExp, number]> = [
   [/ch$/, c("Lp")],
 ];
 const NOM_PLURAL = c("Np Ap Vp");
-const GEN_PLURAL = c("Gp Ap");
+// A masculine noun's genitive plural is also its accusative when it names men ("studentów");
+// `spell` adds that, as the flags do not tell persons apart reliably.
+const GEN_PLURAL = c("Gp");
 
-/** The cases a form spelled by `flag` can carry, by its ending. Unknown: every case. */
-export function flagCases(flag: string, form: string, lemma: string): number {
+/**
+ * The cases a form spelled by `flag` can carry, by its ending and (for M) by what else the
+ * entry spells: `flags` are the entry's flags, `siblings` the other forms of the same flag.
+ * Unknown: every case.
+ */
+export function flagCases(
+  flag: string,
+  form: string,
+  lemma: string,
+  flags = "",
+  siblings: readonly string[] = [],
+): number {
   for (const [ending, mask] of PLURAL_OBLIQUE)
     if (ending.test(form) && /[NZWVrij]/.test(flag)) return mask;
   switch (flag) {
+    // q spells virile plurals ("doktorzy") and others ("komentarze") alike.
     case "s":
     case "z":
     case "A":
     case "q":
+      return NOM_PLURAL;
+    // Virile plurals ("Rosjanie", "panowie"): the accusative is the genitive form.
     case "t":
     case "o":
     case "w":
-      return NOM_PLURAL;
+      return c("Np Vp");
+    // "miesięcy", "pieniędzy", "tygodni" (C; "dni" is also the nominative: EXTRA).
     case "T":
     case "S":
     case "l":
     case "D":
     case "m":
     case "n":
-      return GEN_PLURAL;
     case "C":
-      return NOM_PLURAL | GEN_PLURAL;
+      return GEN_PLURAL;
     case "O":
     case "Q":
     case "P":
@@ -211,7 +228,8 @@ export function flagCases(flag: string, form: string, lemma: string): number {
       return ALL_CASES;
     case "U":
       if (/em$/.test(form)) return c("Is");
-      if (/a$/.test(form)) return c("Gs") | NOM_PLURAL;
+      // "imienia", "zwierzęcia": an -ę noun's plural is spelled apart ("imiona").
+      if (/a$/.test(form)) return c("Gs") | (lemma.endsWith("ę") ? 0 : NOM_PLURAL);
       if (/u$/.test(form)) return c("Ds Ls");
       if (/e$/.test(form)) return c("Ls");
       return ALL_CASES;
@@ -235,8 +253,19 @@ export function flagCases(flag: string, form: string, lemma: string): number {
       if (/o$/.test(form)) return c("Vs");
       if (/u$/.test(form)) return c("Vs");
       if (/ej$/.test(form)) return ALL_CASES;
-      // "osoby", "kości": the genitive singular is also the plural's nominative (and genitive).
-      if (/[iy]$/.test(form)) return c("Gs Ds Ls Vs") | NOM_PLURAL | GEN_PLURAL;
+      if (/[iy]$/.test(form)) {
+        if (flag !== "M") return c("Gs Ds Ls Vs") | NOM_PLURAL | c("Gp Ap");
+        // The genitive singular ("osoby", "ulicy", "kości") is also each cell the entry
+        // spells no other way: the dative and locative ("osobie"), the vocative ("osobo"),
+        // the nominative plural ("ulice", flag A) and the genitive plural ("osób", m/n; a
+        // -ja/-ia noun's "lekcji" stands beside the rare "lekcyj").
+        let mask = c("Gs");
+        if (!siblings.some((other) => other.endsWith("e"))) mask |= c("Ds Ls");
+        if (!siblings.some((other) => /[ou]$/.test(other))) mask |= c("Vs");
+        if (!flags.includes("A") || /[qoT]/.test(flags)) mask |= NOM_PLURAL;
+        if (!/[mnT]/.test(flags) || /(?:[^aeiouy]j|i)a$/.test(lemma)) mask |= GEN_PLURAL;
+        return mask;
+      }
       if (/e$/.test(form)) return c("Ds Ls");
       return c("Gs Ds Ls Vs");
     default:
@@ -248,7 +277,7 @@ export function flagCases(flag: string, form: string, lemma: string): number {
 export function lemmaTags(word: string, flags: string): number {
   const consonant = /[^aeiouyąęó]$/.test(word);
   if (/[OQPRu]/.test(flags) || (consonant && /[NTsSZzDC]/.test(flags) && !/M/.test(flags)))
-    return c("Ns As") | MASCULINE | (/[ow]/.test(flags) ? VIRILE : 0);
+    return c("Ns As") | MASCULINE | (/[owt]/.test(flags) ? VIRILE : 0);
   if (/[Wl]/.test(flags)) return NOM_PLURAL | (word.endsWith("i") ? GEN_PLURAL : 0);
   if (/(?:um|[oeę])$/.test(word) && /[UV]/.test(flags))
     return (word.endsWith("um") ? c("Ns Gs Ds As Is Ls Vs") : c("Ns As Vs")) | NEUTER;
@@ -267,15 +296,23 @@ export function lemmaTags(word: string, flags: string): number {
 // "tysiąc" read as a number, "lada" (a counter) beside the particle, the pronoun "sam", "warta"
 // (worth) beside the noun (a guard), the
 // adverbs "zbyt", "prawo", "lewo", the prepositions "poza", "koło", "dzięki", and
-// abbreviations written without their dot.
+// abbreviations written without their dot, and "zamian", "przemian" read as the adverbs "w
+// zamian", "na przemian".
 const NOT_NOUNS = (
   "jak bez niż tam ktoś coś kilka tysiąc lada sam warta gratis zbyt prawo lewo brutto netto " +
-  "poza koło dzięki ul nr art akt pkt ust lit"
+  "poza koło dzięki ul nr art akt pkt ust lit zamian przemian"
 ).split(" ");
 /** Irregular plurals the paradigm flags do not spell. */
-const EXTRA: Record<string, string> = { ręce: "Np Ap Vp", razy: "Gp", procent: "Gp" };
+const EXTRA: Record<string, string> = {
+  ręce: "Np Ap Vp",
+  razy: "Gp",
+  procent: "Gp",
+  dni: "Np Ap Vp",
+};
 /** How common (summed over its forms) a noun must be to be listed. */
 const MIN_COUNT = 200;
+/** A homograph whose own forms are rarer than this beside a common word is not read. */
+const RARE_COUNT = 20;
 /** How common (summed over its forms) an adjective or passive participle must be to be listed. */
 const MIN_ADJECTIVE_COUNT = 300;
 // Participles inflect like adjectives; the other verb flags spell finite forms.
@@ -297,14 +334,18 @@ function* spell(
   const spelled: string[] = [];
   for (const flag of flags) {
     if (flag === "b" || flag === "Y") continue;
-    for (const rule of affixes.get(flag) ?? []) {
-      if (!word.endsWith(rule.strip) || !rule.cond.test(word)) continue;
-      const form = word.slice(0, word.length - rule.strip.length) + rule.add;
+    const forms = (affixes.get(flag) ?? [])
+      .filter((rule) => word.endsWith(rule.strip) && rule.cond.test(word))
+      .map((rule) => word.slice(0, word.length - rule.strip.length) + rule.add);
+    for (const form of forms) {
       spelled.push(form);
+      const siblings = forms.filter((other) => other !== form);
       if (flag === "i" || flag === "j")
         yield [form, flagCases(flag, form, word) | NEUTER, "gerund"];
-      else if (NOUN_FLAGS.includes(flag))
-        yield own ? [form, flagCases(flag, form, word) | gender, "noun"] : [form, NOT_NOUN, null];
+      else if (NOUN_FLAGS.includes(flag) && own) {
+        const mask = flagCases(flag, form, word, flags, siblings);
+        yield [form, mask | (gender & MASCULINE && mask & c("Gp") ? c("Ap") : 0) | gender, "noun"];
+      } else if (NOUN_FLAGS.includes(flag)) yield [form, NOT_NOUN, null];
       else if (ADJECTIVE_FLAGS.includes(flag) || PARTICIPLE_FLAGS.includes(flag))
         yield [form, ADJECTIVE, null];
       else yield [form, VERB_FLAGS.includes(flag) ? VERB : NOT_NOUN, null];
@@ -354,24 +395,53 @@ export async function buildPolishLexicon(
     .map((line) => line.trim().split("/") as [string, string?])
     .filter(([word]) => word && !/\p{Lu}/u.test(word));
 
-  // 1. The paradigms of common nouns (and of verbal nouns): form -> tags.
-  const paradigms: Array<Map<string, number>> = [];
-  for (const [word, flags = ""] of entries) {
-    const [nouns, gerunds] = entryTables(affixes, word, flags);
-    for (const table of [nouns, gerunds]) {
-      let total = 0;
-      for (const form of table.keys()) total += frequency.get(form) ?? 0;
-      if (total >= MIN_COUNT) paradigms.push(table);
+  // 1. The paradigms of common nouns (and of verbal nouns): form -> tags. A homograph whose own
+  // forms (those no other lemma spells) are rare beside another's ("plika" beside "plik",
+  // "kota" beside "kot") is neither listed nor read into the common word's forms.
+  const tables = entries.map(([word, flags = ""]) => entryTables(affixes, word, flags));
+  const lemmas = new Map<string, Set<string>>();
+  entries.forEach(([word], i) => {
+    for (const table of tables[i].slice(0, 2))
+      for (const form of table.keys())
+        (lemmas.get(form) ?? lemmas.set(form, new Set()).get(form)!).add(word);
+  });
+  const ownCount = new Map<string, number>();
+  for (const [form, owners] of lemmas)
+    if (owners.size === 1) {
+      const [word] = owners;
+      ownCount.set(word, (ownCount.get(word) ?? 0) + (frequency.get(form) ?? 0));
     }
-  }
+  const paradigms: Array<Map<string, number>> = [];
+  const rare = new Set<Map<string, number>>();
+  entries.forEach(([word], i) => {
+    for (const table of tables[i].slice(0, 2)) {
+      let total = 0;
+      const rivals = new Set<string>();
+      for (const form of table.keys()) {
+        total += frequency.get(form) ?? 0;
+        for (const other of lemmas.get(form)!) if (other !== word) rivals.add(other);
+      }
+      // What tells this paradigm apart from a rival: its forms the rival does not spell.
+      const homograph = [...rivals].some((rival) => {
+        const strong = ownCount.get(rival) ?? 0;
+        if (strong < MIN_COUNT) return false;
+        let apart = 0;
+        for (const form of table.keys())
+          if (!lemmas.get(form)!.has(rival)) apart += frequency.get(form) ?? 0;
+        return apart < RARE_COUNT && strong > 10 * apart;
+      });
+      if (homograph) rare.add(table);
+      else if (total >= MIN_COUNT) paradigms.push(table);
+    }
+  });
 
   // 2. What every entry says about those forms; what the paradigms miss is an exception.
   const listed = new Map<string, number>();
   for (const table of paradigms)
     for (const [form, mask] of table) listed.set(form, (listed.get(form) ?? 0) | mask);
   const full = new Map(listed);
-  for (const [word, flags = ""] of entries)
-    for (const table of entryTables(affixes, word, flags))
+  for (const table of tables.flat())
+    if (!rare.has(table))
       for (const [form, mask] of table) if (full.has(form)) full.set(form, full.get(form)! | mask);
   for (const word of NOT_NOUNS) if (full.has(word)) full.set(word, full.get(word)! | NOT_NOUN);
   for (const [word, spec] of Object.entries(EXTRA))
@@ -456,6 +526,135 @@ ${[...exceptions]
   });
 }
 
+/* ------------------------------------------------------------------ places */
+
+// Common place names whose case forms Review capitalizes after a preposition ("w gdańsku"):
+// Polish cities and towns, regions and mountains, countries and continents. A form that is
+// also a common word in lowercase ("łódź", a boat; "piła", a saw) is left out.
+const PLACES = (
+  "Warszawa Kraków Gdańsk Gdynia Sopot Poznań Wrocław Szczecin Bydgoszcz Toruń Lublin " +
+  "Katowice Białystok Rzeszów Kielce Olsztyn Opole Gorzów Częstochowa Radom Sosnowiec Gliwice " +
+  "Zabrze Bytom Rybnik Tychy Elbląg Płock Wałbrzych Włocławek Tarnów Chorzów Koszalin Kalisz " +
+  "Legnica Grudziądz Słupsk Jaworzno Siedlce Mysłowice Konin Piotrków Inowrocław Lubin " +
+  "Suwałki Stargard Gniezno Głogów Pabianice Leszno Zamość Łomża Żory Pruszków Przemyśl Tczew " +
+  "Ełk Świdnica Będzin Zgierz Racibórz Legionowo Ostrołęka Wejherowo Zakopane Kołobrzeg " +
+  "Malbork Sandomierz Wieliczka Oświęcim Augustów Giżycko Mikołajki Ustka Międzyzdroje " +
+  "Świnoujście Szczyrk Karpacz Krynica Łeba Kazimierz Chełm Biłgoraj Puławy Mielec Krosno " +
+  "Sanok Jasło Nysa Kłodzko Bolesławiec Zgorzelec Cieszyn Wadowice Bochnia Gorlice " +
+  "Mazury Tatry Bieszczady Karkonosze Beskidy Pieniny Sudety Śląsk Pomorze Kaszuby Podhale " +
+  "Mazowsze Małopolska Wielkopolska Kujawy Podlasie Warmia Żuławy Suwalszczyzna Roztocze " +
+  "Polska Niemcy Francja Anglia Hiszpania Włochy Czechy Słowacja Ukraina Rosja Litwa Łotwa " +
+  "Estonia Białoruś Węgry Austria Szwajcaria Holandia Belgia Dania Szwecja Norwegia Finlandia " +
+  "Irlandia Szkocja Portugalia Grecja Turcja Rumunia Bułgaria Chorwacja Serbia Słowenia " +
+  "Albania Japonia Chiny Indie Kanada Meksyk Brazylia Argentyna Australia Egipt Izrael Wietnam " +
+  "Tajlandia Korea Islandia Gruzja Ameryka Afryka Azja Europa Londyn Paryż Berlin Rzym Praga " +
+  "Wiedeń Madryt Lizbona Budapeszt Wilno Kijów Lwów Moskwa Amsterdam Bruksela Sztokholm Oslo"
+).split(" ");
+/** What a flagless entry adds to a place name when it is one of its case forms ("Wrocławiu"). */
+const CASE_ENDING = /^(?:a|e|u|y|i|o|ą|ę|em|ie|owi|iem|iu|ia|iowi|ach|ami|om|ów|ego|emu|m)$/u;
+// Places whose lowercase twin is a rare word or a brand ("warszawa" the car, "lublin" the van,
+// "szczecina" bristle), so the place is meant; "łódź" (a boat), "dania" (dishes), "kijów"
+// (sticks), "mikołajki" (St Nicholas' Day), "tych" (Tychy, the pronoun) and the like stay out.
+const PLACE_FIRST = (
+  "Warszawa Lublin Berlin Mazury Tatry Szczecin Kanada Afryka Chiny Gdańsk Włochy Sosnowiec " +
+  "Włocławek Opole Konin Meksyk Radom Śląsk Wrocław Słupsk Płock Kłodzko Giżycko Europa Bytom " +
+  "Malbork Legionowo Kaszuby Ameryka Mielec Bolesławiec Szczyrk Nysa"
+).split(" ");
+
+/* ------------------------------------------------------------------- words */
+
+// The flags spelling finite forms: the past and conditional (H, F) and the present or
+// perfective future (I, J, h). Imperatives (B, k) and impersonals (d, e) are left out.
+const FINITE_FLAGS = "HFIJh";
+/** How common (summed over its finite forms) a verb must be to be listed. */
+const MIN_VERB_COUNT = 20;
+
+/**
+ * The finite forms of common verbs, as paradigm classes of endings with their stems, and those
+ * forms another dictionary entry spells as something else ("stanie" is also a noun's locative);
+ * and the lowercased case forms of common place names.
+ */
+export async function buildPolishWords(
+  dic: string,
+  aff: string,
+  trie: ArrayBuffer,
+  counts: ArrayBuffer,
+): Promise<string> {
+  const frequency = unigrams(trie, counts);
+  const affixes = parseAffixes(aff);
+  const spelled = (word: string, flags: string) =>
+    [...flags].flatMap((flag) =>
+      (affixes.get(flag) ?? [])
+        .filter((rule) => word.endsWith(rule.strip) && rule.cond.test(word))
+        .map((rule) => [flag, word.slice(0, word.length - rule.strip.length) + rule.add]),
+    );
+  const other = new Set<string>();
+  const lowercase = new Set<string>();
+  const tables: string[][] = [];
+  const capitalized: Array<[string, string]> = [];
+  for (const line of dic.split("\n").slice(1)) {
+    const [word, flags = ""] = line.trim().split("/");
+    if (!word) continue;
+    if (/\p{Lu}/u.test(word)) {
+      capitalized.push([word, flags]);
+      continue;
+    }
+    other.add(word);
+    lowercase.add(word);
+    const finite: string[] = [];
+    for (const [flag, form] of spelled(word, flags)) {
+      lowercase.add(form);
+      if (FINITE_FLAGS.includes(flag)) finite.push(form);
+      else other.add(flag === "b" ? `nie${form}` : form);
+    }
+    const total = finite.reduce((sum, form) => sum + (frequency.get(form) ?? 0), 0);
+    if (total >= MIN_VERB_COUNT) tables.push(finite);
+  }
+  const classes = new Map<string, string[]>();
+  for (const forms of tables) {
+    const stem = stemOf(forms);
+    const key = [...new Set(forms.map((form) => form.slice(stem.length)))].sort().join(" ");
+    (classes.get(key) ?? classes.set(key, []).get(key)!).push(stem);
+  }
+  const ambiguous = tables.flat().filter((form) => other.has(form));
+
+  // A place's forms: those its flags spell, or (a name listed without flags, "Wrocław") the
+  // flagless entries that extend it ("Wrocławia", "Wrocławiu").
+  const places = new Set<string>();
+  const names = new Set(PLACES);
+  const wins = new Set(PLACE_FIRST);
+  for (const [word, flags] of capitalized) {
+    if (!names.has(word)) continue;
+    const forms = [word, ...spelled(word, flags).map(([, form]) => form)];
+    if (!flags) {
+      const prefix = /[aeiouy]$/u.test(word) ? word.slice(0, -1) : word;
+      for (const [other, otherFlags] of capitalized)
+        if (!otherFlags && other.startsWith(prefix) && CASE_ENDING.test(other.slice(prefix.length)))
+          forms.push(other);
+    }
+    for (const form of forms) {
+      if (!lowercase.has(form.toLowerCase()) || wins.has(word)) places.add(form.toLowerCase());
+    }
+  }
+
+  const constant = (name: string, value: string) =>
+    `export const ${name} = ${JSON.stringify(value)};`;
+  const source = `// Generated by bun scripts/generate-polish-lexicon.ts from pl_PL.dic/.aff and the n-gram counts. Do not edit.
+/** Finite verb paradigm classes: their endings, one class per line. */
+${constant("VERB_CLASSES", [...classes.keys()].join("\n"))}
+/** Each class's front-coded stems, one class per line. */
+${constant("VERB_STEMS", [...classes.values()].map((stems) => encodeWords(stems)).join("\n"))}
+/** Finite forms that another entry spells as another word ("stanie", "je"). */
+${constant("AMBIGUOUS_VERBS", encodeWords([...new Set(ambiguous)]))}
+/** Front-coded lowercased case forms of common place names ("gdańsku", "niemczech"). */
+${constant("PLACES", encodeWords([...places]))}
+`;
+  return format(source, {
+    ...(await resolveConfig(POLISH_LEXICON_SOURCES.words)),
+    parser: "typescript",
+  });
+}
+
 if (import.meta.main) {
   const S = POLISH_LEXICON_SOURCES;
   const [dic, aff] = await Promise.all([readFile(S.dic, "utf8"), readFile(S.aff, "utf8")]);
@@ -466,4 +665,7 @@ if (import.meta.main) {
   const out = await buildPolishLexicon(dic, aff, trie, counts);
   await writeFile(S.out, out);
   console.log(`wrote ${S.out} (${Buffer.byteLength(out)} bytes)`);
+  const words = await buildPolishWords(dic, aff, trie, counts);
+  await writeFile(S.words, words);
+  console.log(`wrote ${S.words} (${Buffer.byteLength(words)} bytes)`);
 }

@@ -140,6 +140,9 @@ export interface GrammarRuleCatalogEntry {
     | "frenchNounNumber"
     | "frenchNounGender"
     | "frenchAdjectiveAgreement"
+    | "frenchTout"
+    | "frenchMood"
+    | "frenchMissingNe"
     | "quoteSpacing"
     | "primeSymbols"
     // German-only Review checks (review/german/).
@@ -155,6 +158,7 @@ export interface GrammarRuleCatalogEntry {
     | "germanCompounds"
     | "germanCommas"
     | "germanVerbAgreement"
+    | "germanArticleGender"
     | "germanQuestionMarks"
     | "germanNumbers"
     | "germanStraightQuotes"
@@ -182,7 +186,8 @@ export interface GrammarRuleCatalogEntry {
     | "spanishAccents"
     | "spanishConfusions"
     | "spanishTypography"
-    | "spanishAgreement";
+    | "spanishAgreement"
+    | "spanishQuotes";
   /** Absent for existing typing rules; false for native Review-only checks. */
   typing?: false;
   name: string;

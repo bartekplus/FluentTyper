@@ -7,6 +7,7 @@ import {
   STEMS,
   TAGS,
 } from "./lexicon.generated";
+import { AMBIGUOUS_VERBS, PLACES, VERB_CLASSES, VERB_STEMS } from "./words.generated";
 
 /*
  * The paradigms of common Polish nouns with the cases each form can carry, derived from the
@@ -111,6 +112,53 @@ export function inflect(word: string, wanted: number): string[] {
 /** A form only ever read as a noun (or, `verbs`, as a noun or a finite verb). */
 export function onlyNoun(tags: number, verbs = false): boolean {
   return (tags & ALL_CASES) !== 0 && (tags & (ADJECTIVE | NOT_NOUN | (verbs ? 0 : VERB))) === 0;
+}
+
+/* -------------------------------------------------------------------- verbs */
+
+interface Verbs {
+  endings: Map<string, number[]>;
+  stems: Array<Set<string>>;
+  longest: number;
+  ambiguous: Set<string>;
+}
+let verbs: Verbs | undefined;
+
+function loadVerbs(): Verbs {
+  const endings = new Map<string, number[]>();
+  let longest = 0;
+  VERB_CLASSES.split("\n").forEach((line, id) => {
+    for (const ending of line.split(" ")) {
+      longest = Math.max(longest, ending.length);
+      endings.set(ending, [...(endings.get(ending) ?? []), id]);
+    }
+  });
+  const stems = VERB_STEMS.split("\n").map((line) => new Set(decodeWords(line)));
+  return { endings, stems, longest, ambiguous: new Set(decodeWords(AMBIGUOUS_VERBS)) };
+}
+
+/** "być", "mieć", "iść" and their compounds, which the dictionary lists without flags. */
+const IRREGULAR =
+  /^(?:jest|są|jestem|jesteś|jesteśmy|jesteście|wie|wiesz|wiemy|wiecie|wiedzą|będ(?:ę|ziesz|zie|ziemy|ziecie|ą)|ma|masz|macie|mają|id(?:ę|ziesz|zie|ziemy|ziecie|ą)|(?:po|przy|wy|w|we|od|ode|do|z|ze|nad|pod|prze|ob|roz|za)?sz(?:edł|ła|ło|li|ły)(?:em|am|eś|aś|śmy|ście)?|powin(?:ien(?:em|eś)?|n(?:a|am|aś|o|i|iśmy|iście|y|yśmy|yście)))$/u;
+
+/** A lowercase word that is only ever a finite verb form ("kupiłem", "przegrywały", "jest"). */
+export function finiteVerb(word: string): boolean {
+  if (IRREGULAR.test(word)) return true;
+  verbs ??= loadVerbs();
+  if (verbs.ambiguous.has(word) || nounTags(word) || adjectiveOf(word)) return false;
+  for (let cut = Math.max(0, word.length - verbs.longest); cut <= word.length; cut++) {
+    const classes = verbs.endings.get(word.slice(cut));
+    if (classes?.some((id) => verbs!.stems[id].has(word.slice(0, cut)))) return true;
+  }
+  return false;
+}
+
+let places: Set<string> | undefined;
+
+/** A lowercased case form of a common place name that is no other word ("gdańsku"). */
+export function placeForm(word: string): boolean {
+  places ??= new Set(decodeWords(PLACES));
+  return places.has(word);
 }
 
 /* --------------------------------------------------------------- adjectives */

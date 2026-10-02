@@ -50,6 +50,8 @@ export type SuggestionElement = (HTMLInputElement | HTMLTextAreaElement | HTMLEl
 };
 
 export interface SuggestionManagerOptions {
+  loadFieldPreferences?: () => Promise<string[]>;
+  rememberField?: (signature: string, label: string) => Promise<void>;
   selectors: string;
   minWordLengthToPredict: number;
   autocomplete: boolean;
@@ -179,6 +181,8 @@ export interface SuggestionEntry {
 }
 
 export interface SuggestionEntrySessionOptions {
+  canInteract?: () => boolean;
+  onPauseChange?: (paused: boolean) => void;
   entry: SuggestionEntry;
   editableContextResolver: {
     resolve(elem: SuggestionElement): EditableContext | null;

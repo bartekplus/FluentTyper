@@ -41,6 +41,7 @@ import {
   DEFAULT_LOCAL_AI_REVIEW_ENABLED,
   KEY_EXTENSION_LANGUAGE,
   KEY_SITE_PROFILES,
+  KEY_FIELD_PREFERENCES,
   KEY_PREFER_NATIVE_AUTOCOMPLETE,
   KEY_CODE_MODE,
   KEY_SUGGESTION_BG_LIGHT,
@@ -591,6 +592,13 @@ const manifest: ManifestDefinition = {
       name: KEY_SITE_PROFILES,
       type: "valueOnly",
       default: {},
+    },
+    {
+      tab: "site_mgmt_tab",
+      group: i18n.get("site_profiles"),
+      name: KEY_FIELD_PREFERENCES,
+      type: "valueOnly",
+      default: [],
     },
 
     // =========================================================================

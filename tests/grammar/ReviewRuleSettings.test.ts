@@ -13,6 +13,7 @@ const OPTIONAL_REVIEW_IDS: readonly string[] = [
   "germanQuestionMarks",
   "germanStraightQuotes",
   "polishQuotes",
+  "spanishQuotes",
   "styleRedundancy",
   "styleLongSentence",
   "ellipsisShortcut",
@@ -35,6 +36,7 @@ const OPTIONAL_REVIEW_IDS: readonly string[] = [
   "greekPunctuation",
   "portugueseTypographyStyle",
   "portugueseAO90",
+  "frenchMissingNe",
 ];
 const DEFAULT_REVIEW_IDS = REVIEW_SUPPORTED_RULE_IDS.filter(
   (id) => !OPTIONAL_REVIEW_IDS.includes(id),

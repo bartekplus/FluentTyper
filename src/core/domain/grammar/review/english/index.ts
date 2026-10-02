@@ -22,6 +22,11 @@ import * as determinerSlots from "./determinerSlots";
 import * as agreementSlots from "./agreementSlots";
 import * as adverbSlots from "./adverbSlots";
 import * as confusionSlots from "./confusionSlots";
+import * as countSlots from "./countSlots";
+import * as negationSlots from "./negationSlots";
+import * as relativeSlots from "./relativeSlots";
+import * as questionSlots from "./questionSlots";
+import * as comparisonSlots from "./comparisonSlots";
 import * as dialects from "./dialects";
 import * as lexical from "./lexical";
 import * as remaining from "./remaining";
@@ -63,6 +68,11 @@ const MODULES = [
   agreementSlots,
   adverbSlots,
   confusionSlots,
+  countSlots,
+  negationSlots,
+  relativeSlots,
+  questionSlots,
+  comparisonSlots,
   apostrophes,
   properNames,
   typography,

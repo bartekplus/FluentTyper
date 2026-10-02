@@ -611,6 +611,19 @@ ranked for the words before it.
   long. One pass checks at most 2,000 different words, and stops early once 100
   are unknown; the panel then says spelling was checked only in the first part,
   and a recheck continues from there.
+  A known word costs about a millisecond; an unknown one 15–60 ms in most
+  languages and up to about 200 ms in French (the request still finishes the
+  word it started). To get there, the engine tunes the bundled Hunspell affix
+  files in memory when it loads them (`PresageFiles.tunedAffix`): affix files
+  without compounding skip the compound suggestion passes, which find nothing
+  there (same suggestions, French up to twice as fast), and dictionaries over 2 MB
+  (pt_BR, pl_PL, el_GR, ar_SA, sv_SE) skip the n-gram pass that compares the
+  word with every entry (first suggestions for near-miss typos unchanged; the
+  far-fetched entries it offered for foreign words are gone). A lookup also
+  asks Presage for each predictor's whole list at once instead of in up to 17
+  growing rounds. Typing suggestions use the same engine and get the same
+  speedup. `bun scripts/benchmark-review-spelling.ts [--predictors]` times
+  lookups per language.
   It does not run in code mode, and it needs a Presage dictionary for the
   language; without one the panel says spelling suggestions are unavailable.
 - **Other languages.** A paragraph (line) with at least 8 looked-up words of

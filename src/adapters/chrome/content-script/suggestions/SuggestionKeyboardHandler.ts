@@ -1,3 +1,4 @@
+import { isSearchField } from "./NativeAutocompleteConflictDetector";
 import { isNativeUndoChord } from "./keyboardShortcuts";
 import { isSuggestionMenuReversed } from "./SuggestionMenuHost";
 import type { SuggestionEntry } from "./types";
@@ -40,7 +41,8 @@ export class SuggestionKeyboardHandler {
   constructor(private readonly options: SuggestionKeyboardHandlerOptions) {}
 
   public handle(entry: SuggestionEntry, keyboardEvent: KeyboardEvent): void {
-    this.options.handleMissingSpaceAfterAccept(entry, keyboardEvent);
+    if (!isSearchField(entry.elem))
+      this.options.handleMissingSpaceAfterAccept(entry, keyboardEvent);
 
     if (keyboardEvent.defaultPrevented) {
       return;
@@ -59,7 +61,7 @@ export class SuggestionKeyboardHandler {
     const isAcceptKey =
       (key === "Tab" && this.options.autocompleteOnTab) ||
       (key === "Enter" && this.options.autocompleteOnEnter) ||
-      (key === " " && this.options.autocompleteOnSpace);
+      (key === " " && this.options.autocompleteOnSpace && !isSearchField(entry.elem));
     const isActiveKey =
       key === "Escape" || key === "ArrowUp" || key === "ArrowDown" || key === " " || isAcceptKey;
 

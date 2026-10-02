@@ -18,6 +18,9 @@ export const GERMAN_LEXICON_SOURCES = {
   dic: resolve(root, "resources_js/de_DE/hunspell/de_DE.dic"),
   aff: resolve(root, "resources_js/de_DE/hunspell/de_DE.aff"),
   out: resolve(root, "src/core/domain/grammar/review/german/germanLexicon.generated.ts"),
+  gender: resolve(root, "src/core/domain/grammar/review/german/germanGender.generated.ts"),
+  trie: resolve(root, "resources_js/de_DE/ngrams_db/ngrams.trie"),
+  counts: resolve(root, "resources_js/de_DE/ngrams_db/ngrams.counts"),
 };
 
 // The igerman98 suffix flags that spell finite verb endings; the others spell noun and
@@ -244,6 +247,126 @@ export function buildGermanLexicon(dic: string, aff: string): string {
   ].join("\n");
 }
 
+// Determiners whose form shows one gender of a singular noun, or rules one out. "der", "die"
+// and "den" also serve other cases and the plural, so "den" only counts before a noun that no
+// dative plural spells and "die" only marks a form that may be plural.
+const FEMININE_DETERMINERS = ["eine", "einer", "jede"];
+const MASCULINE_DETERMINERS = ["einen", "jeden"];
+const NEUTER_DETERMINERS = ["das", "dieses", "jedes"];
+const NOT_FEMININE_DETERMINERS = [
+  "ein",
+  "einem",
+  "eines",
+  "dem",
+  "des",
+  "kein",
+  "keinem",
+  "keines",
+];
+// Masculine and neuter nouns in these endings are often their own plural ("der Lehrer",
+// "die Lehrer"; "das Gebirge", "die Gebirge"), and a noun + s may be an -s plural
+// ("des Autos", "die Autos").
+const OWN_PLURAL = /(?:e|er|el|en|chen|lein)$/;
+const CLEAR_MAJORITY = 20;
+
+/**
+ * "det word count" lines for every determiner + word bigram of the n-gram database the extension
+ * ships (resources_js/de_DE/ngrams_db, lowercased), read with the marisa-trie Python package the
+ * n-gram scripts already use (scripts/requirements.txt). Null when Python or the package is missing.
+ */
+export function readGermanDeterminerBigrams(): string | null {
+  const program = [
+    "import sys, marisa_trie, numpy",
+    "t = marisa_trie.Trie(); t.load(sys.argv[1])",
+    "c = numpy.fromfile(sys.argv[2], dtype=numpy.int32)",
+    "d = set(sys.argv[3].split())",
+    "rows = sorted(f'{k[2:]} {c[i + 1]}' for k, i in t.items('2 ') if k.split()[1] in d)",
+    "print('\\n'.join(rows))",
+  ].join("\n");
+  const determiners = [
+    ...FEMININE_DETERMINERS,
+    ...MASCULINE_DETERMINERS,
+    ...NEUTER_DETERMINERS,
+    ...NOT_FEMININE_DETERMINERS,
+    "den",
+    "die",
+  ];
+  try {
+    const run = Bun.spawnSync([
+      "python3",
+      "-c",
+      program,
+      GERMAN_LEXICON_SOURCES.trie,
+      GERMAN_LEXICON_SOURCES.counts,
+      determiners.join(" "),
+    ]);
+    return run.exitCode === 0 ? run.stdout.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Noun genders the n-gram counts show, for lowercase forms that are only nouns. A form is
+ * feminine when only feminine determiners precede it, masculine or neuter when only that
+ * gender's and the shared ones do, "x" (masculine or neuter) when only the shared ones do; a
+ * form seen with determiners of two genders is left out. Upper case marks a masculine or neuter
+ * form that may also be a plural ("die Lehrer"): its ending allows it or "die" precedes it.
+ */
+export function buildGermanGender(dic: string, aff: string, bigrams: string): string {
+  // Any infinitive is also a neuter noun ("das Wagen"): those forms are left out.
+  const { nounOnly, finite } = deriveGermanLexicon(dic, aff);
+  const verbForms = new Set(finite);
+  const nouns = new Set([...nounOnly, ...finite]);
+  const counts = new Map<string, Map<string, number>>();
+  for (const line of bigrams.split("\n")) {
+    const [det, word, count] = line.split(" ");
+    if (!nouns.has(word)) continue;
+    let row = counts.get(word);
+    if (!row) counts.set(word, (row = new Map()));
+    row.set(det, Number(count));
+  }
+  const lists: Record<string, string[]> = { f: [], m: [], M: [], n: [], N: [], x: [], X: [] };
+  for (const [word, row] of counts) {
+    const sum = (dets: string[]) => dets.reduce((total, det) => total + (row.get(det) ?? 0), 0);
+    // "jeden Tages", "dieses Jahres": a genitive, not the accusative or the neuter.
+    const genitive = word.endsWith("s");
+    const feminine = sum(FEMININE_DETERMINERS);
+    const masculine =
+      sum(genitive ? ["einen"] : MASCULINE_DETERMINERS) + (/[ns]$/.test(word) ? 0 : sum(["den"]));
+    // "das macht", "das würde": the pronoun before a verb form spelled like a noun.
+    const verbForm = verbForms.has(word);
+    const neuter =
+      sum(genitive ? ["das"] : NEUTER_DETERMINERS) - (verbForm ? (row.get("das") ?? 0) : 0);
+    const notFeminine = sum(NOT_FEMININE_DETERMINERS);
+    // One gender's evidence must outweigh the others' twentyfold: "auf der einen Seite" puts
+    // an adjective "einen" before a feminine noun now and then.
+    const clear = (own: number, others: number) => own > 0 && own >= others * CLEAR_MAJORITY;
+    let gender: string;
+    if (clear(feminine, masculine + neuter + notFeminine)) gender = "f";
+    else if (clear(masculine, feminine + neuter)) gender = "m";
+    else if (clear(neuter, feminine + masculine)) gender = "n";
+    else if (clear(notFeminine, feminine) && !masculine && !neuter) gender = "x";
+    else continue;
+    const sPlural = word.endsWith("s") && nouns.has(word.slice(0, -1));
+    const plural = gender !== "f" && (OWN_PLURAL.test(word) || sPlural || row.has("die"));
+    lists[plural ? gender.toUpperCase() : gender].push(word);
+  }
+  const line = (name: string, value: string) => {
+    const one = `export const ${name} = ${JSON.stringify(value)};`;
+    return one.length <= 100 ? one : `export const ${name} =\n  ${JSON.stringify(value)};`;
+  };
+  return [
+    "// Generated by bun scripts/generate-german-lexicon.ts from de_DE.dic/.aff and the de_DE",
+    "// n-gram database. Do not edit.",
+    '// Noun forms by the gender their determiners show, front-coded: "x" is masculine or neuter;',
+    "// upper case, the form may also be a plural.",
+    line("GENDERS", Object.keys(lists).join("")),
+    ...Object.values(lists).map((words, i) => line(`GENDER_${i}`, frontCode(words.sort()))),
+    "",
+  ].join("\n");
+}
+
 if (import.meta.main) {
   const [dic, aff] = await Promise.all([
     readFile(GERMAN_LEXICON_SOURCES.dic, "utf8"),
@@ -252,4 +375,9 @@ if (import.meta.main) {
   const source = buildGermanLexicon(dic, aff);
   await writeFile(GERMAN_LEXICON_SOURCES.out, source);
   console.log(`wrote ${GERMAN_LEXICON_SOURCES.out} (${source.length} bytes)`);
+  const bigrams = readGermanDeterminerBigrams();
+  if (bigrams === null) throw new Error("python3 with marisa-trie and numpy is required");
+  const gender = buildGermanGender(dic, aff, bigrams);
+  await writeFile(GERMAN_LEXICON_SOURCES.gender, gender);
+  console.log(`wrote ${GERMAN_LEXICON_SOURCES.gender} (${gender.length} bytes)`);
 }

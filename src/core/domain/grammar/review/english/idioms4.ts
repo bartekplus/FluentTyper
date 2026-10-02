@@ -435,12 +435,13 @@ const FRAMES: readonly Frame[] = [
     // "if I would've known": the past conditional takes "had". After "know" or "wonder",
     // "if" means "whether": "I don't know if he would have done it".
     rule: "englishPhraseCorrections",
-    pattern: `(?=if${S})(?<!(?:know|knows|knew|wonder|wondered|wondering|ask|asked|asking|sure|doubt|see|check|tell|decide)${S})if${S}(?:I|you|we|they|he|she|it|(?:the|that|this|my|your|his|her|our|their)${S}\\p{L}+)${S}(?<target>would['’]ve|would${S}have|would${S}of|had['’]ve|hadve|had${S}of|had${S}have)${S}(?<done>\\p{L}+)${E}`,
+    pattern: `(?=if${S})(?<!(?:know|knows|knew|wonder|wondered|wondering|ask|asked|asking|sure|doubt|see|check|tell|decide)${S})if${S}(?:I|you|we|they|he|she|it|(?:the|that|this|my|your|his|her|our|their)${S}\\p{L}+)${S}(?<target>(?<not>would${S}not${S}have|wouldn['’]t${S}have)|would['’]ve|would${S}have|would${S}of|had['’]ve|hadve|had${S}of|had${S}have)${S}(?<done>\\p{L}+)${E}`,
     fix: (m) => {
       const done = m.groups!.done.toLowerCase();
-      return done === "been" || info(done)?.verbs.some((v) => v.form === "participle")
-        ? "had"
-        : null;
+      const not = m.groups!.not;
+      if (done !== "been" && !info(done)?.verbs.some((v) => v.form === "participle")) return null;
+      // "would not have known" -> "had not known"; "wouldn't have" -> "hadn't".
+      return not ? (/n['’]t/i.test(not) ? `hadn${not.match(/['’]/)![0]}t` : "had not") : "had";
     },
   },
   {
