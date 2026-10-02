@@ -1,4 +1,5 @@
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import { readNoun } from "./agreement";
 import {
   Around,
   attributeOf,
@@ -314,6 +315,8 @@ function interrogative(at: Around): string | null {
   if (mark === "!") {
     if (word !== "que" && word !== "como" && word !== "cuan") return null;
     if (CLITICS.has(next) && word === "que") return null;
+    // "¡Cómo no!", "¡Pero cómo no le va a gustar!"; "¡Como no vengas…!" threatens.
+    if (word === "como" && next === "no" && !wishAfter(at)) return accented;
     // "¡Cómo me gusta!"; "¡Como le he dicho!" (as) and "¡Como se lo digo!" (if) are not.
     if (word === "como")
       return /^(?:me|te|nos|os)$/u.test(next) &&
@@ -770,7 +773,9 @@ function monosyllable(at: Around): string | null {
         (!!form && !form.feminine && !form.plural && !participle(noun) && !NOT_AFTER_EL.has(noun));
       // "Con él voto yo": a verb form after the pronoun, unless "de" makes it a noun.
       const verbForm = verbLike(noun) || finiteVerb(noun);
+      // "Él vera lo que quiere": a feminine noun ("la vera") takes no "el".
       return masculineNoun &&
+        readNoun(noun)?.gender !== "f" &&
         (!verbForm || /^(?:de|del)$/u.test(at.next(k + 1))) &&
         (k === 1 || isNoun(noun))
         ? "el"

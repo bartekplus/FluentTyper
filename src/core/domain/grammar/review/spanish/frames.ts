@@ -429,6 +429,64 @@ function repeatedPair(ctx: DetectContext, at: Around): RawFinding | null {
   );
 }
 
+// Accented demonstratives (pronouns in the old spelling) and their determiner forms.
+const DEMONSTRATIVE: Record<string, string> = {
+  éste: "este",
+  ésta: "esta",
+  éstos: "estos",
+  éstas: "estas",
+  ése: "ese",
+  ésa: "esa",
+  ésos: "esos",
+  ésas: "esas",
+  aquél: "aquel",
+  aquélla: "aquella",
+  aquéllos: "aquellos",
+  aquéllas: "aquellas",
+};
+
+/** "Éste señor" -> "Este señor": a demonstrative before its noun never takes an accent. */
+function accentedDeterminer(ctx: DetectContext, at: Around): RawFinding | null {
+  const token = at.tokens[at.i];
+  const plain = DEMONSTRATIVE[token.lower];
+  const nounToken = at.tokens[at.i + 1];
+  if (!plain || !nounToken?.word || nounToken.broken || !/^\p{Ll}/u.test(nounToken.text))
+    return null;
+  const noun = readNoun(nounToken.lower);
+  const nominal = isNoun(nounToken.lower) || noun?.paired;
+  if (!noun || !nominal || (finiteVerb(nounToken.lower) && !isNoun(nounToken.lower))) return null;
+  // The noun agrees with the demonstrative: "ésta casa", "éstos libros".
+  if (noun.plural !== plain.endsWith("s")) return null;
+  return replaceToken(
+    ctx,
+    token,
+    [plain],
+    "spanishAccents",
+    "review_msg_spanish_accent_extra",
+    nounToken,
+  );
+}
+
+/** "a favor de uno acreedores" -> "unos": the plural noun takes the plural article. */
+function unoPlural(ctx: DetectContext, at: Around): RawFinding | null {
+  const token = at.tokens[at.i];
+  if (token.lower !== "uno") return null;
+  const next = at.tokens[at.i + 1];
+  if (!next?.word || next.broken || !/^\p{Ll}+s$/u.test(next.text)) return null;
+  const noun = readNoun(next.lower);
+  if (!noun?.plural || noun.gender === "f" || finiteVerb(next.lower)) return null;
+  // "cada uno sus cosas", "uno mismos"? Only a noun or adjective plural after it.
+  if (DETERMINER.has(next.lower) || /^(?:más|menos|tras|cuantos)$/u.test(next.lower)) return null;
+  return replaceToken(
+    ctx,
+    token,
+    ["unos"],
+    "spanishAgreement",
+    "review_msg_spanish_agreement",
+    next,
+  );
+}
+
 type Check = (ctx: DetectContext, at: Around) => RawFinding | null;
 
 function frames(ctx: DetectContext, checks: Check[]): RawFinding[] {
@@ -467,8 +525,9 @@ const AGREEMENT: Check[] = [
   loFeminine,
   stressedAdjective,
   postposedSubject,
+  unoPlural,
 ];
-const ACCENTS: Check[] = [uarVerb];
+const ACCENTS: Check[] = [uarVerb, accentedDeterminer];
 
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
   { rules: ["spanishConfusions"], detect: (ctx) => frames(ctx, CONFUSIONS) },

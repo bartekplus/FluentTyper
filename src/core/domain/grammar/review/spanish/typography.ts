@@ -366,6 +366,9 @@ function marks(ctx: DetectContext): RawFinding[] {
     },
     "review_msg_spanish_unit",
   );
+  // "25ºC", "1 ºC": a degree sign, not the ordinal o, and a space before it ("3º C" is a
+  // floor and a door).
+  scan(new RegExp(ORDINAL_DEGREE), ([, n, unit]) => `${n} °${unit}`, "review_msg_spanish_unit");
   // "n° 18", "n°18": the number sign is "n.º", with the raised o, not a degree.
   scan(new RegExp(NUMBER_SIGN), ([, n]) => `${n}.º `, "review_msg_spanish_ordinal");
   // "el Sr García", "en el núm 25": an abbreviation before a name or a number takes its period.
@@ -391,6 +394,7 @@ function marks(ctx: DetectContext): RawFinding[] {
 }
 
 // A degree sign right after a lowercase "n" ("n° 18"); "N° 54" heads forms and is left alone.
+const ORDINAL_DEGREE = /(?<![\p{L}\p{N}.,])(\p{N}+(?:[.,]\p{N}+)?)[ \t]?º([CF])(?![\p{L}\p{N}])/gu;
 const NUMBER_SIGN = /(?<![\p{L}\p{N}])(n)[ \t]?°[ \t]?(?=\p{N})/gu;
 const BARE_ABBREVIATION =
   /(?<![\p{L}\p{N}.])(?:(?:Sr|Sra|Srta|Dr|Dra|Avda|Av|Lic|Ing|Prof)(?=[ \t]\p{Lu}\p{Ll})|(?:núm|pág|págs)(?=[ \t]\p{N}))(?![.\p{L}])/gu;

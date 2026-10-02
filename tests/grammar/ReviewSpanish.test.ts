@@ -1925,6 +1925,66 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
       ],
     },
   ],
+  [
+    "spanishAccents",
+    "a demonstrative before its noun, cómo no in an exclamation",
+    {
+      pos: [
+        ["Éste señor es mi vecino.", "Este señor es mi vecino."],
+        ["Compré éstas sillas ayer.", "Compré estas sillas ayer."],
+        ["Aquél día llovió mucho.", "Aquel día llovió mucho."],
+        ["Ésa idea me gusta.", "Esa idea me gusta."],
+        ["¡Pero como no le va a gustar!", "¡Pero cómo no le va a gustar!"],
+      ],
+      neg: [
+        "Ésta es la casa.",
+        "Éste trabaja aquí.",
+        "De todas, ésa me gusta.",
+        "¡Como no vengas, me enfado!",
+        "¡Cómo no!",
+      ],
+    },
+  ],
+  [
+    "spanishAgreement",
+    "uno before a plural noun",
+    {
+      pos: [
+        ["Votó a favor de uno acreedores.", "Votó a favor de unos acreedores."],
+        ["Había uno libros en la mesa.", "Había unos libros en la mesa."],
+        ["Trajo uno platos nuevos.", "Trajo unos platos nuevos."],
+        ["Vimos uno barcos lejos.", "Vimos unos barcos lejos."],
+        ["Pidió uno días libres.", "Pidió unos días libres."],
+      ],
+      neg: [
+        "Cada uno sus cosas.",
+        "Uno más y nos vamos.",
+        "Uno tras otro llegaron.",
+        "Es uno de los mejores.",
+        "Uno a uno, entraron.",
+      ],
+    },
+  ],
+  [
+    "spanishTypography",
+    "the degree sign in temperatures",
+    {
+      pos: [
+        ["Hace 25ºC fuera.", "Hace 25 °C fuera."],
+        ["El agua hierve a 100 ºC.", "El agua hierve a 100 °C."],
+        ["Bajó a 3,5ºC anoche.", "Bajó a 3,5 °C anoche."],
+        ["Marca 70ºF ahora.", "Marca 70 °F ahora."],
+        ["Estamos a 30ºC.", "Estamos a 30 °C."],
+      ],
+      neg: [
+        "Hace 25 °C fuera.",
+        "El 1º de mayo.",
+        "Vive en el 3º C.",
+        "El 2º Congreso.",
+        "Llegó el 5º.",
+      ],
+    },
+  ],
 ];
 
 test("a Spanish pronoun before an imperative that carries one is flagged without a fix", () => {

@@ -388,6 +388,13 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
       ).map((form): PhraseRow => [form.replace("~", "ves"), form.replace("~", "vez")]),
       ["ala vez", "a la vez"],
       ["erase una vez", "érase una vez"],
+      // The future of "ver" keeps its accent: "ya verás", "él verá".
+      ["ya vera", "ya verá"],
+      ["tú veras", "tú verás"],
+      ["él vera", "él verá"],
+      ["ella vera", "ella verá"],
+      ["usted vera", "usted verá"],
+      ["correo electrónica", "correo electrónico"],
       // Feminine nouns with a stressed first "a" take "el": "el agua", "el alma".
       ...["agua", "aula", "área", "águila", "hambre", "hacha", "hada", "haba", "alga"].map(
         (noun): PhraseRow => [`la ${noun}`, `el ${noun}`],
