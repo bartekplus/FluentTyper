@@ -14,7 +14,7 @@ import { BOUNDARY, isGerman, tokensAfter, tokensBefore, wordSet } from "./shared
 // where they cannot, both forms are offered and nothing is preselected.
 
 type Case = "dative" | "genitive" | "accusative";
-const DATIVE = "mit von bei aus nach zu seit samt nebst außer gemäß nahe";
+const DATIVE = "mit von bei aus nach zu seit samt nebst außer gemäß nahe entsprechend";
 const GENITIVE =
   "wegen trotz während statt anstatt aufgrund bezüglich angesichts mangels infolge " +
   "abzüglich zuzüglich inklusive exklusive hinsichtlich";
@@ -25,7 +25,7 @@ const CASES = new Map<string, Case>([
   ...ACCUSATIVE.split(" ").map((p) => [p, "accusative"] as const),
 ]);
 // Prepositions that also follow their noun: "meiner Meinung nach", "dem Plan gemäß".
-const POSTPOSITIONS = wordSet("nach gemäß nahe");
+const POSTPOSITIONS = wordSet("nach gemäß nahe entsprechend");
 const anyCase = (words: string) =>
   words
     .split(" ")
@@ -84,6 +84,15 @@ const COUNTED_PLURAL = new RegExp(
   `${WORD_START}${DATIVE_ONLY}${SPACE}(?:zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf|[2-9]|[1-9]\\d{1,2}|vielen|mehreren|beiden|zahlreichen|wenigen|einigen|\\p{Ll}{3,}en)(?:${SPACE}\\p{Ll}+en)?${SPACE}(?<target>\\p{Lu}\\p{Ll}+(?:e|er|el))${WORD_END}`,
   "gdu",
 );
+// An adjective in -e with no article after a dative preposition, before a noun whose gender or
+// plural is known: "mit perfekte Make-up" (perfektem), "mit tageslichtabhängige Steuerung"
+// (-er), "mit neue Felder" (neuen Feldern). "-e" is no dative ending.
+const BARE_E = new RegExp(
+  `${WORD_START}(?<prep>[Mm]it|[Vv]on|[Bb]ei|[Aa]us|[Aa]ußer|[Ss]amt)${SPACE}(?<target>(?<adj>\\p{Ll}{3,}?)e${SPACE}(?<noun>\\p{Lu}\\p{L}*(?:-\\p{L}+)*))${WORD_END}`,
+  "gdu",
+);
+const DETERMINER_STEMS =
+  /^(?:all|viel|wenig|ander|beid|einig|mehrer|solch|welch|manch|mein|dein|sein|ihr|unser|eur|dies|jen|jed|kein|ein|d)$/;
 // An adjective in -e before a noun whose ending only a plural has ("Ausstellungen").
 const BARE_PLURAL = new RegExp(
   `${WORD_START}${DATIVE_ONLY}${SPACE}(?<target>\\p{Ll}{3,}e)${SPACE}\\p{Lu}\\p{Ll}+(?:ungen|heiten|keiten|schaften|ionen|täten|innen)${WORD_END}`,
@@ -421,6 +430,23 @@ function prepositionCase(ctx: DetectContext): RawFinding[] {
     // "in 12 Monate eingeteilt": "in" with the accusative of a division.
     if (/^[Ii]n$/.test(m.groups!.prep) && /^\p{Ll}+t$/u.test(next)) continue;
     push(m, { replacements: [`${m.groups!.target}n`] });
+  }
+  for (const m of frameMatches(ctx, BARE_E)) {
+    const { adj, noun } = m.groups!;
+    if (
+      DETERMINER_STEMS.test(adj) ||
+      !(germanAdjective(adj) || /^(?:ge|ver|be|er|ent)\p{Ll}+t$/u.test(adj))
+    )
+      continue;
+    if (/(?:ungen|heiten|keiten|schaften|ionen|täten|innen)$/.test(noun)) continue;
+    const next = tokensAfter(ctx.text, m.indices!.groups!.noun[1], 1)[0] ?? "";
+    if (/^\p{Lu}/u.test(next) || ctx.dictionary.has(`${adj}e`)) continue;
+    const reading = germanGender(noun.split("-").at(-1)!);
+    let fix: string | null = null;
+    if (reading && !reading.plural) fix = `${adj}${reading.gender === "f" ? "er" : "em"} ${noun}`;
+    else if (pluralForm(noun)) fix = `${adj}en ${noun}n`;
+    if (!fix || !guarded(ctx, m, "dative")) continue;
+    push(m, { replacements: [fix] });
   }
   // "mit spannende Ausstellungen" → spannenden: a plural without an article.
   for (const m of frameMatches(ctx, BARE_PLURAL)) {

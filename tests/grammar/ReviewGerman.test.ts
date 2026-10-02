@@ -281,6 +281,9 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
     "germanPrepositionCase",
     {
       pos: [
+        ["Er kam mit große Freude.", "Er kam mit großer Freude."],
+        ["Das Brett mit neue Felder ist fertig.", "Das Brett mit neuen Feldern ist fertig."],
+        ["Entsprechend meine Erwartung kam er spät.", "Entsprechend meiner Erwartung kam er spät."],
         ["Ich fahre mit eine Kollegin nach Hause.", "Ich fahre mit einer Kollegin nach Hause."],
         ["Wir spielen mit anderen Kinder.", "Wir spielen mit anderen Kindern."],
         ["Wir sprachen lange von Düfte und Farben.", "Wir sprachen lange von Düften und Farben."],
@@ -304,6 +307,7 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Mit neue Lösungen geht es.", "Mit neuen Lösungen geht es."],
       ],
       neg: [
+        "Dem Plan entsprechend keine Farbe zu verwenden, war klug.",
         "Er arbeitet bei Ärzte ohne Grenzen.",
         "Das Jahr wird in 12 Monate eingeteilt.",
         "Er ist zu Tode erschrocken.",
