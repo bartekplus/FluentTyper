@@ -869,6 +869,52 @@ describe("portugueseDates", () => {
   });
 });
 
+describe("cujo, esta a + infinitive and bem-/mal- compounds", () => {
+  test.each([
+    [
+      "portugueseAgreement",
+      "Conheci a autora cuja livro ganhou o prêmio.",
+      "Conheci a autora cujo livro ganhou o prêmio.",
+    ],
+    [
+      "portugueseAgreement",
+      "Visitei o bairro cujo praça foi reformada.",
+      "Visitei o bairro cuja praça foi reformada.",
+    ],
+    [
+      "portugueseConfusions",
+      "A equipa esta a preparar o relatório.",
+      "A equipa está a preparar o relatório.",
+    ],
+    [
+      "portugueseConfusions",
+      "O motor esta a aquecer-se demais.",
+      "O motor está a aquecer-se demais.",
+    ],
+    [
+      "englishPhraseCorrections",
+      "Era o aluno melhor educado da turma.",
+      "Era o aluno mais bem-educado da turma.",
+    ],
+    [
+      "englishPhraseCorrections",
+      "Hoje acordou pior humorada que ontem.",
+      "Hoje acordou mais mal-humorada que ontem.",
+    ],
+  ] as Array<[CatalogRuleId, string, string]>)("%s: %p", (ruleId, text, fixed) => {
+    expect(repaired(ruleId, text)).toBe(fixed);
+  });
+  test.each([
+    ["portugueseAgreement", "A cidade cuja população cresce pede mais escolas."],
+    ["portugueseAgreement", "Uma empresa cujo principal objetivo é o lucro."],
+    ["portugueseConfusions", "Esta é a casa; esta a que me referi ontem."],
+    ["portugueseConfusions", "Prefiro esta à outra."],
+    ["englishPhraseCorrections", "Ele é o mais bem-educado da turma."],
+  ] as Array<[CatalogRuleId, string]>)("%s leaves %p alone", (ruleId, text) => {
+    expect(findings(ruleId, text)).toEqual([]);
+  });
+});
+
 describe("Portuguese wording advice (stylePhrasing)", () => {
   // Idioms and hidden verbs are listed by infinitive; the plain wording follows the tense.
   test.each([

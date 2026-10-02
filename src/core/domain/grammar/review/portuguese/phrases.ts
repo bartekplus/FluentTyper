@@ -63,7 +63,31 @@ export const PORTUGUESE_WORDS: PhraseRow[] = [
   ["atras", "atrás"],
 ];
 
+/**
+ * "melhor educado" -> "mais bem-educado", "pior humorados" -> "mais mal-humorados": before an
+ * adjective compounded with bem- or mal-, the comparative keeps "mais" and the compound.
+ */
+const COMPARED_COMPOUNDS: PhraseRow[] = (
+  [
+    ["melhor", "bem-", ["educad", "humorad", "sucedid", "intencionad", "comportad"]],
+    ["pior", "mal-", ["educad", "humorad", "intencionad", "comportad"]],
+    ["pior", "mal", ["sucedid"]],
+  ] as Array<[string, string, string[]]>
+).flatMap(([comparative, prefix, stems]) =>
+  stems.flatMap((stem) =>
+    ["o", "a", "os", "as"].flatMap((ending): PhraseRow[] => {
+      const word = `${stem}${ending}`;
+      const typed = ending.length > 1 ? [comparative, `${comparative}es`] : [comparative];
+      return typed.flatMap((form): PhraseRow[] => [
+        [`${form} ${word}`, `mais ${prefix}${word}`],
+        [`${form}-${word}`, `mais ${prefix}${word}`],
+      ]);
+    }),
+  ),
+);
+
 export const PORTUGUESE_PHRASES: PhraseRow[] = [
+  ...COMPARED_COMPOUNDS,
   // No crase before a masculine noun, a pronoun or a verb: "a pé", "a mim", "a esta", "a partir".
   ...swap("à", "a", [
     "pé",
