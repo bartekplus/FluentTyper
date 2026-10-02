@@ -24,6 +24,7 @@ export const PORTUGUESE_WORST_CASES = [
   `${"\n ".repeat(1_500)}Por exemplo hoje`,
   "1 999 349.56 ".repeat(300),
   "21,349.56 4.5 kg ".repeat(250),
+  "vai fala pode come vão dormi em China ".repeat(100),
   `e,${" ".repeat(3_000)}no fundo ficou e ${" ".repeat(500)}além disso,`,
   "A arvore e, no fundo ficou e além disso, e, em geral ".repeat(80),
   "eu e a Rita viajam as crianças da escola brinca vende-se casas ".repeat(60),

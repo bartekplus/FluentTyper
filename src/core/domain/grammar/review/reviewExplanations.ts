@@ -2201,6 +2201,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "W portugalskim nazwa tego kraju zawsze ma rodzajnik, który łączy się z przyimkiem (em China → na China, de Brasil → do Brasil).",
     "O nome deste país leva sempre artigo, que se contrai com a preposição (em China → na China, de Brasil → do Brasil).",
   ],
+  review_msg_pt_auxiliary_infinitive: [
+    "After this auxiliary (ir for the future, poder, conseguir) Portuguese uses the infinitive, which ends in -r (vão dormir, pode falar).",
+    "Après cet auxiliaire (ir pour le futur, poder, conseguir), le portugais emploie l’infinitif, terminé en -r (vão dormir, pode falar).",
+    "Iza ovog pomoćnog glagola (ir za budućnost, poder, conseguir) portugalski koristi infinitiv, koji završava na -r (vão dormir, pode falar).",
+    "Tras este auxiliar (ir para el futuro, poder, conseguir) el portugués usa el infinitivo, que termina en -r (vão dormir, pode falar).",
+    "Μετά από αυτό το βοηθητικό ρήμα (ir για τον μέλλοντα, poder, conseguir) τα πορτογαλικά χρησιμοποιούν απαρέμφατο, που λήγει σε -r (vão dormir, pode falar).",
+    "Efter det här hjälpverbet (ir för futurum, poder, conseguir) använder portugisiskan infinitiv, som slutar på -r (vão dormir, pode falar).",
+    "Nach diesem Hilfsverb (ir für das Futur, poder, conseguir) steht im Portugiesischen der Infinitiv auf -r (vão dormir, pode falar).",
+    "Po tym czasowniku posiłkowym (ir w czasie przyszłym, poder, conseguir) portugalski używa bezokolicznika zakończonego na -r (vão dormir, pode falar).",
+    "Depois deste auxiliar (ir no futuro, poder, conseguir) usa-se o infinitivo, terminado em -r (vão dormir, pode falar).",
+  ],
   review_msg_pt_comma: [
     "Portuguese sets an aside such as no entanto or por outro lado between two commas, and puts a comma before the name a greeting addresses (Bom dia, Ana).",
     "Le portugais encadre une incise comme no entanto ou por outro lado par deux virgules et met une virgule avant le nom salué (Bom dia, Ana).",

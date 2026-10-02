@@ -770,6 +770,29 @@ describe("portugueseCommas", () => {
   });
 });
 
+describe("infinitive after an auxiliary", () => {
+  test.each([
+    ["As crianças vão dormi cedo hoje.", "As crianças vão dormir cedo hoje."],
+    ["Você pode fala mais devagar?", "Você pode falar mais devagar?"],
+    ["Amanhã vou come na casa da avó.", "Amanhã vou comer na casa da avó."],
+    ["Eles não conseguem termina a obra.", "Eles não conseguem terminar a obra."],
+    ["Ela vai lembra-se disso.", "Ela vai lembrar-se disso."],
+  ])("fixes %p", (text, expected) => {
+    expect(repaired("portugueseAgreement", text)).toBe(expected);
+    expect(findings("portugueseAgreement", expected)).toEqual([]);
+  });
+  test.each([
+    "Vou para casa depois da aula.",
+    "Você quer ajuda com as malas?",
+    "Ele deve conta ao banco.",
+    "Ela vai bem, obrigada.",
+    "Vamos agora mesmo.",
+    "Isso não vai nada bem.",
+  ])("leaves %p alone", (text) => {
+    expect(findings("portugueseAgreement", text)).toEqual([]);
+  });
+});
+
 describe("portugueseDates", () => {
   test("runs only for Portuguese", () => {
     expect(runsInReviewLanguage("portugueseDates", LANG)).toBe(true);
