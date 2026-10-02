@@ -7,7 +7,7 @@ import {
   STEMS,
   TAGS,
 } from "./lexicon.generated";
-import { AMBIGUOUS_VERBS, VERB_CLASSES, VERB_STEMS } from "./verbs.generated";
+import { AMBIGUOUS_VERBS, PLACES, VERB_CLASSES, VERB_STEMS } from "./words.generated";
 
 /*
  * The paradigms of common Polish nouns with the cases each form can carry, derived from the
@@ -151,6 +151,14 @@ export function finiteVerb(word: string): boolean {
     if (classes?.some((id) => verbs!.stems[id].has(word.slice(0, cut)))) return true;
   }
   return false;
+}
+
+let places: Set<string> | undefined;
+
+/** A lowercased case form of a common place name that is no other word ("gdańsku"). */
+export function placeForm(word: string): boolean {
+  places ??= new Set(decodeWords(PLACES));
+  return places.has(word);
 }
 
 /* --------------------------------------------------------------- adjectives */

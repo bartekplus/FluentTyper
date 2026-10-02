@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import {
   buildPolishLexicon,
-  buildPolishVerbs,
+  buildPolishWords,
   POLISH_LEXICON_SOURCES,
 } from "../../scripts/generate-polish-lexicon";
 import {
@@ -229,15 +229,15 @@ test("the lexicon reads cases, genders and other parts of speech", () => {
 
 test("the committed lexicon matches pl_PL.dic/.aff and the n-gram counts (bun run generate:polish-lexicon)", async () => {
   const S = POLISH_LEXICON_SOURCES;
-  const [dic, aff, committed, committedVerbs] = await Promise.all(
-    [S.dic, S.aff, S.out, S.verbs].map((path) => readFile(path, "utf8")),
+  const [dic, aff, committed, committedWords] = await Promise.all(
+    [S.dic, S.aff, S.out, S.words].map((path) => readFile(path, "utf8")),
   );
   const [trie, counts] = await Promise.all([
     Bun.file(S.trie).arrayBuffer(),
     Bun.file(S.counts).arrayBuffer(),
   ]);
   expect(await buildPolishLexicon(dic, aff, trie, counts)).toBe(committed);
-  expect(await buildPolishVerbs(dic, aff, trie, counts)).toBe(committedVerbs);
+  expect(await buildPolishWords(dic, aff, trie, counts)).toBe(committedWords);
   // Expanding the whole dictionary takes a few seconds.
 }, 60_000);
 

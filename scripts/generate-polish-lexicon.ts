@@ -2,7 +2,7 @@
 // clause checks from the Hunspell dictionary the extension ships (pl_PL.dic/.aff), keeping the
 // forms the bundled Presage n-gram model counts as common (ngrams.trie/.counts), so the tables
 // stay small.
-// Writes src/core/domain/grammar/review/polish/lexicon.generated.ts and verbs.generated.ts.
+// Writes src/core/domain/grammar/review/polish/lexicon.generated.ts and words.generated.ts.
 // Usage: bun run generate:polish-lexicon
 import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
@@ -28,7 +28,7 @@ export const POLISH_LEXICON_SOURCES = {
   trie: resolve(root, "resources_js/pl_PL/ngrams_db/ngrams.trie"),
   counts: resolve(root, "resources_js/pl_PL/ngrams_db/ngrams.counts"),
   out: resolve(root, "src/core/domain/grammar/review/polish/lexicon.generated.ts"),
-  verbs: resolve(root, "src/core/domain/grammar/review/polish/verbs.generated.ts"),
+  words: resolve(root, "src/core/domain/grammar/review/polish/words.generated.ts"),
 };
 
 /* ------------------------------------------------------------ n-gram counts */
@@ -526,7 +526,42 @@ ${[...exceptions]
   });
 }
 
-/* ------------------------------------------------------------------ verbs */
+/* ------------------------------------------------------------------ places */
+
+// Common place names whose case forms Review capitalizes after a preposition ("w gdańsku"):
+// Polish cities and towns, regions and mountains, countries and continents. A form that is
+// also a common word in lowercase ("łódź", a boat; "piła", a saw) is left out.
+const PLACES = (
+  "Warszawa Kraków Gdańsk Gdynia Sopot Poznań Wrocław Szczecin Bydgoszcz Toruń Lublin " +
+  "Katowice Białystok Rzeszów Kielce Olsztyn Opole Gorzów Częstochowa Radom Sosnowiec Gliwice " +
+  "Zabrze Bytom Rybnik Tychy Elbląg Płock Wałbrzych Włocławek Tarnów Chorzów Koszalin Kalisz " +
+  "Legnica Grudziądz Słupsk Jaworzno Siedlce Mysłowice Konin Piotrków Inowrocław Lubin " +
+  "Suwałki Stargard Gniezno Głogów Pabianice Leszno Zamość Łomża Żory Pruszków Przemyśl Tczew " +
+  "Ełk Świdnica Będzin Zgierz Racibórz Legionowo Ostrołęka Wejherowo Zakopane Kołobrzeg " +
+  "Malbork Sandomierz Wieliczka Oświęcim Augustów Giżycko Mikołajki Ustka Międzyzdroje " +
+  "Świnoujście Szczyrk Karpacz Krynica Łeba Kazimierz Chełm Biłgoraj Puławy Mielec Krosno " +
+  "Sanok Jasło Nysa Kłodzko Bolesławiec Zgorzelec Cieszyn Wadowice Bochnia Gorlice " +
+  "Mazury Tatry Bieszczady Karkonosze Beskidy Pieniny Sudety Śląsk Pomorze Kaszuby Podhale " +
+  "Mazowsze Małopolska Wielkopolska Kujawy Podlasie Warmia Żuławy Suwalszczyzna Roztocze " +
+  "Polska Niemcy Francja Anglia Hiszpania Włochy Czechy Słowacja Ukraina Rosja Litwa Łotwa " +
+  "Estonia Białoruś Węgry Austria Szwajcaria Holandia Belgia Dania Szwecja Norwegia Finlandia " +
+  "Irlandia Szkocja Portugalia Grecja Turcja Rumunia Bułgaria Chorwacja Serbia Słowenia " +
+  "Albania Japonia Chiny Indie Kanada Meksyk Brazylia Argentyna Australia Egipt Izrael Wietnam " +
+  "Tajlandia Korea Islandia Gruzja Ameryka Afryka Azja Europa Londyn Paryż Berlin Rzym Praga " +
+  "Wiedeń Madryt Lizbona Budapeszt Wilno Kijów Lwów Moskwa Amsterdam Bruksela Sztokholm Oslo"
+).split(" ");
+/** What a flagless entry adds to a place name when it is one of its case forms ("Wrocławiu"). */
+const CASE_ENDING = /^(?:a|e|u|y|i|o|ą|ę|em|ie|owi|iem|iu|ia|iowi|ach|ami|om|ów|ego|emu|m)$/u;
+// Places whose lowercase twin is a rare word or a brand ("warszawa" the car, "lublin" the van,
+// "szczecina" bristle), so the place is meant; "łódź" (a boat), "dania" (dishes), "kijów"
+// (sticks), "mikołajki" (St Nicholas' Day), "tych" (Tychy, the pronoun) and the like stay out.
+const PLACE_FIRST = (
+  "Warszawa Lublin Berlin Mazury Tatry Szczecin Kanada Afryka Chiny Gdańsk Włochy Sosnowiec " +
+  "Włocławek Opole Konin Meksyk Radom Śląsk Wrocław Słupsk Płock Kłodzko Giżycko Europa Bytom " +
+  "Malbork Legionowo Kaszuby Ameryka Mielec Bolesławiec Szczyrk Nysa"
+).split(" ");
+
+/* ------------------------------------------------------------------- words */
 
 // The flags spelling finite forms: the past and conditional (H, F) and the present or
 // perfective future (I, J, h). Imperatives (B, k) and impersonals (d, e) are left out.
@@ -536,9 +571,10 @@ const MIN_VERB_COUNT = 20;
 
 /**
  * The finite forms of common verbs, as paradigm classes of endings with their stems, and those
- * forms another dictionary entry spells as something else ("stanie" is also a noun's locative).
+ * forms another dictionary entry spells as something else ("stanie" is also a noun's locative);
+ * and the lowercased case forms of common place names.
  */
-export async function buildPolishVerbs(
+export async function buildPolishWords(
   dic: string,
   aff: string,
   trie: ArrayBuffer,
@@ -546,20 +582,31 @@ export async function buildPolishVerbs(
 ): Promise<string> {
   const frequency = unigrams(trie, counts);
   const affixes = parseAffixes(aff);
+  const spelled = (word: string, flags: string) =>
+    [...flags].flatMap((flag) =>
+      (affixes.get(flag) ?? [])
+        .filter((rule) => word.endsWith(rule.strip) && rule.cond.test(word))
+        .map((rule) => [flag, word.slice(0, word.length - rule.strip.length) + rule.add]),
+    );
   const other = new Set<string>();
+  const lowercase = new Set<string>();
   const tables: string[][] = [];
+  const capitalized: Array<[string, string]> = [];
   for (const line of dic.split("\n").slice(1)) {
     const [word, flags = ""] = line.trim().split("/");
-    if (!word || /\p{Lu}/u.test(word)) continue;
+    if (!word) continue;
+    if (/\p{Lu}/u.test(word)) {
+      capitalized.push([word, flags]);
+      continue;
+    }
     other.add(word);
+    lowercase.add(word);
     const finite: string[] = [];
-    for (const flag of flags)
-      for (const rule of affixes.get(flag) ?? []) {
-        if (!word.endsWith(rule.strip) || !rule.cond.test(word)) continue;
-        const form = word.slice(0, word.length - rule.strip.length) + rule.add;
-        if (FINITE_FLAGS.includes(flag)) finite.push(form);
-        else other.add(flag === "b" ? `nie${form}` : form);
-      }
+    for (const [flag, form] of spelled(word, flags)) {
+      lowercase.add(form);
+      if (FINITE_FLAGS.includes(flag)) finite.push(form);
+      else other.add(flag === "b" ? `nie${form}` : form);
+    }
     const total = finite.reduce((sum, form) => sum + (frequency.get(form) ?? 0), 0);
     if (total >= MIN_VERB_COUNT) tables.push(finite);
   }
@@ -570,6 +617,26 @@ export async function buildPolishVerbs(
     (classes.get(key) ?? classes.set(key, []).get(key)!).push(stem);
   }
   const ambiguous = tables.flat().filter((form) => other.has(form));
+
+  // A place's forms: those its flags spell, or (a name listed without flags, "Wrocław") the
+  // flagless entries that extend it ("Wrocławia", "Wrocławiu").
+  const places = new Set<string>();
+  const names = new Set(PLACES);
+  const wins = new Set(PLACE_FIRST);
+  for (const [word, flags] of capitalized) {
+    if (!names.has(word)) continue;
+    const forms = [word, ...spelled(word, flags).map(([, form]) => form)];
+    if (!flags) {
+      const prefix = /[aeiouy]$/u.test(word) ? word.slice(0, -1) : word;
+      for (const [other, otherFlags] of capitalized)
+        if (!otherFlags && other.startsWith(prefix) && CASE_ENDING.test(other.slice(prefix.length)))
+          forms.push(other);
+    }
+    for (const form of forms) {
+      if (!lowercase.has(form.toLowerCase()) || wins.has(word)) places.add(form.toLowerCase());
+    }
+  }
+
   const constant = (name: string, value: string) =>
     `export const ${name} = ${JSON.stringify(value)};`;
   const source = `// Generated by bun scripts/generate-polish-lexicon.ts from pl_PL.dic/.aff and the n-gram counts. Do not edit.
@@ -579,9 +646,11 @@ ${constant("VERB_CLASSES", [...classes.keys()].join("\n"))}
 ${constant("VERB_STEMS", [...classes.values()].map((stems) => encodeWords(stems)).join("\n"))}
 /** Finite forms that another entry spells as another word ("stanie", "je"). */
 ${constant("AMBIGUOUS_VERBS", encodeWords([...new Set(ambiguous)]))}
+/** Front-coded lowercased case forms of common place names ("gdańsku", "niemczech"). */
+${constant("PLACES", encodeWords([...places]))}
 `;
   return format(source, {
-    ...(await resolveConfig(POLISH_LEXICON_SOURCES.verbs)),
+    ...(await resolveConfig(POLISH_LEXICON_SOURCES.words)),
     parser: "typescript",
   });
 }
@@ -596,7 +665,7 @@ if (import.meta.main) {
   const out = await buildPolishLexicon(dic, aff, trie, counts);
   await writeFile(S.out, out);
   console.log(`wrote ${S.out} (${Buffer.byteLength(out)} bytes)`);
-  const verbs = await buildPolishVerbs(dic, aff, trie, counts);
-  await writeFile(S.verbs, verbs);
-  console.log(`wrote ${S.verbs} (${Buffer.byteLength(verbs)} bytes)`);
+  const words = await buildPolishWords(dic, aff, trie, counts);
+  await writeFile(S.words, words);
+  console.log(`wrote ${S.words} (${Buffer.byteLength(words)} bytes)`);
 }

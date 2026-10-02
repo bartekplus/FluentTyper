@@ -342,6 +342,7 @@ export const POLISH_CASES: Array<[CatalogRuleId, string, Case]> = [
         ["Zapytaj szefa dlaczego zwlekał.", "Zapytaj szefa, dlaczego zwlekał."],
         ["Leżał na kanapie zamiast sprzątać.", "Leżał na kanapie, zamiast sprzątać."],
         ["Martwi mnie to że milczy.", "Martwi mnie to, że milczy."],
+        ["Nie wiadomo kiedy wróci z delegacji.", "Nie wiadomo, kiedy wróci z delegacji."],
       ],
       neg: [
         "Myślę, że masz rację.",
@@ -369,6 +370,8 @@ export const POLISH_CASES: Array<[CatalogRuleId, string, Case]> = [
         "Ja czytałem, podczas gdy on spał.",
         "Zjadł wszystko, mimo że nie był głodny.",
         "Chodzi o to, że nie mamy czasu.",
+        "Nie wiadomo kiedy zrobiło się ciemno.",
+        "Nie wiadomo skąd pojawił się na progu kot.",
       ],
     },
   ],

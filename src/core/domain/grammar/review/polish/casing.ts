@@ -1,4 +1,5 @@
 import type { DetectContext, RawFinding } from "../reviewDetectors";
+import { placeForm } from "./lexicon";
 import { findingAt, isPl, owned, sentenceStartAt, userOrNamed } from "./shared";
 
 /*
@@ -12,6 +13,11 @@ const MESSAGE = "review_msg_pl_capitals" as const;
 /** Spaces between words, bounded so look-behinds stay linear on whitespace runs. */
 const SP = "[ \\t\\u00a0]{1,8}";
 const END = "(?![\\p{L}\\p{N}])";
+
+const PLACE_PREPOSITIONS = (
+  "w we do z ze na od ode przez pod nad przy koło około spod znad u dla obok wokół niedaleko " +
+  "ku przed za między pomiędzy"
+).split(" ");
 
 const lower = (word: string) => word.toLowerCase();
 const capital = (word: string) =>
@@ -146,6 +152,17 @@ const SWAPS: Swap[] = [
   {
     regex: new RegExp(`(?<=\\p{Lu}\\p{Ll}+${SP})(?:Nad|Pod)(?=${SP}\\p{Lu}\\p{Ll}+)`, "gu"),
     fix: (m) => lower(m[0]),
+  },
+  // "w gdańsku", "do niemiec", "na mazurach" -> a place name takes a capital (not "po
+  // gdańsku", the Gdańsk way).
+  {
+    regex: new RegExp(
+      `(?<=(?<![\\p{L}\\p{N}_'’.@/-])(?:${PLACE_PREPOSITIONS.map(
+        (prep) => `[${prep[0]}${prep[0].toUpperCase()}]${prep.slice(1)}`,
+      ).join("|")})${SP})\\p{Ll}+(?:-\\p{Ll}+)?${END}`,
+      "gu",
+    ),
+    fix: (m) => (placeForm(m[0]) ? capital(m[0]) : null),
   },
 ];
 

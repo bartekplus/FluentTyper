@@ -36,6 +36,11 @@ const ASKING = [
   `ustalić|zdecydować|pamiętam|pamiętasz|rozumiem|wyobraź${SP}sobie|powiedz|pokaż`,
 ].join("|");
 const QUESTION_WORD = "czy|co|jak|gdzie|kiedy|dlaczego|skąd|dokąd|ile|kto|którędy|czemu";
+/**
+ * "Nie wiadomo kiedy zrobiło się ciemno", "nie wiadomo skąd pojawił się kot": the idiom (before
+ * one noticed, out of nowhere) before a verb of passing or appearing asks nothing.
+ */
+const UNNOTICED = `(?<=nie${SP}wiadomo)${SP}(?:kiedy|skąd|jak)${SP}(?:się${SP})?(?:zrobił|minął|minęł|upłynął|upłynęł|zleciał|przeleciał|przemknął|przemknęł|wyrósł|wyrosł|pojawił|zjawił|znalazł|zniknął|zniknęł|nastał|nadszedł|nadeszł|zapadł|przeminął|przeminęł|ściemnił|wyskoczył|wyrwał)\\p{L}*${END}`;
 
 const SET_OFF =
   "(?:Co więcej|Innymi słowy|Jednym słowem|Krótko mówiąc|Szczerze mówiąc|Nawiasem mówiąc|Ogólnie mówiąc|Prawdę mówiąc|Po pierwsze|Po drugie|Po trzecie|Tak czy siak|Tak czy owak)";
@@ -51,7 +56,7 @@ export const FRAMES: readonly CommaFrame[] = [
     ruleId: MISSING,
     messageKey: "review_msg_pl_missing_comma",
     regex: new RegExp(
-      `(?<![\\p{L}])(?<target>(?:${ASKING}))(?=${SP}(?:${QUESTION_WORD})${SP}\\p{L})(?!${SP}(?:jak${SP}naj|co${SP}nieco|co${SP}do${END}|jak${SP}i${END}))`,
+      `(?<![\\p{L}])(?<target>(?:${ASKING}))(?=${SP}(?:${QUESTION_WORD})${SP}\\p{L})(?!${SP}(?:jak${SP}naj|co${SP}nieco|co${SP}do${END}|jak${SP}i${END}))(?!${UNNOTICED})`,
       "giud",
     ),
     fix: (m) => `${m.groups!.target},`,

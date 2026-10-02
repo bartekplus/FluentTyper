@@ -167,6 +167,10 @@ describe("polishCapitalization", () => {
     ["Głośnik ma moc 50 Wattów.", "Głośnik ma moc 50 watów."],
     ["Od razu przeszli na Ty.", "Od razu przeszli na ty."],
     ["Mieszka w Krakowie, Ul. Floriańska 3.", "Mieszka w Krakowie, ul. Floriańska 3."],
+    ["Na weekend pojechaliśmy do gdyni.", "Na weekend pojechaliśmy do Gdyni."],
+    ["Studiowała w toruniu i w gdańsku.", "Studiowała w Toruniu i w Gdańsku."],
+    ["Wakacje spędzimy na mazurach.", "Wakacje spędzimy na Mazurach."],
+    ["Paczka przyszła z niemiec.", "Paczka przyszła z Niemiec."],
   ])("fixes %p", (text, fixed) => {
     expect(fixAll("polishCapitalization", text)).toBe(fixed);
   });
@@ -182,6 +186,10 @@ describe("polishCapitalization", () => {
     "Mówi po polsku i po angielsku.",
     "Kocham Cię, Twoja Ania.",
     "Jestem z Kazimierza nad Wisłą.",
+    "Mówi po gdańsku, jak jego dziadek.",
+    "Łowili ryby w łodzi przy brzegu.",
+    "Pracuje nad poznaniem świata i w poznaniu widzi sens.",
+    "Do dania dodaj szczyptę soli.",
   ])("leaves %p", (text) => {
     expect(findings("polishCapitalization", text)).toEqual([]);
   });
