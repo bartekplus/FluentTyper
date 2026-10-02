@@ -275,8 +275,10 @@ const DIRECTIONS = words(
   "abajo arriba adelante atrás afuera adentro allá acá aquí allí delante donde dónde",
 );
 const WEATHER = words("calor frío sol viento fresco bueno malo buen mal");
-const AMOUNTS = words("mucho muchos tanto tantos poco pocos demasiado casi unos unas");
-const TIME_NOUNS = words("tiempo años días meses semanas horas minutos rato siglos");
+const AMOUNTS = words("mucho muchos tanto tantos poco pocos demasiado casi unos unas más una un");
+const TIME_NOUNS = words(
+  "tiempo años días meses semanas horas minutos rato siglos año día mes semana hora minuto",
+);
 const OBJECT_CLITICS = words("lo la los las le les me te se nos os");
 
 /** "Hacia dos años que…", "lo que hacia", "la hacia otra empresa": the imperfect "hacía". */
@@ -293,12 +295,17 @@ function hacia(at: Around): string | null {
   if ((prev === "qué" || (prev === "que" && at.prev(2) === "lo")) && !/^(?:más|ya)$/u.test(next))
     return "hacía";
   if (WEATHER.has(next) || (next === "las" && at.next(2) === "veces")) return "hacía";
-  // An amount of time: "hacia mucho tiempo", "hacia dos años que no se veían".
-  if (AMOUNTS.has(next) || NUMBERS.has(next)) {
-    for (let k = 1; k <= 5; k++) {
-      const word = at.next(k);
-      if (TIME_NOUNS.has(word) || word === "que") return "hacía";
-      if (!word) break;
+  // An amount of time: "hacia mucho tiempo", "hacia dos años que no se veían", "hacia ya
+  // treinta días", "hacia muchos, muchos meses que".
+  const start = next === "ya" ? 2 : 1;
+  const amount = at.next(start);
+  if (AMOUNTS.has(amount) || NUMBERS.has(amount)) {
+    for (let j = at.i + start, n = 0; j < at.tokens.length && n < 7; j++, n++) {
+      const token = at.tokens[j];
+      if (token.broken || /^[.;:!?]$/u.test(token.text)) break;
+      if (TIME_NOUNS.has(token.lower)) return "hacía";
+      // "hacía mucho que no se veían": the amount alone, then "que".
+      if (token.lower === "que" && j === at.i + start + 1) return "hacía";
     }
   }
   return null;

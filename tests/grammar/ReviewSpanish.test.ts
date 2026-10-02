@@ -728,6 +728,34 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
     },
   ],
   [
+    "spanishAccents",
+    "relatives after their antecedent, el before a bare noun, hacía before an amount of time",
+    {
+      pos: [
+        ["No tengo nada qué decir.", "No tengo nada que decir."],
+        ["Busca a alguien en quién apoyarse.", "Busca a alguien en quien apoyarse."],
+        ["Me gusta la manera cómo lo explica.", "Me gusta la manera como lo explica."],
+        ["No encuentro el sitio por dónde entrar.", "No encuentro el sitio por donde entrar."],
+        ["Lo aprobaron con él permiso de todos.", "Lo aprobaron con el permiso de todos."],
+        ["Al llegar, él tren ya se había ido.", "Al llegar, el tren ya se había ido."],
+        ["Hacia ya cinco años que vivía allí.", "Hacía ya cinco años que vivía allí."],
+        ["Hacia más o menos un mes que no llovía.", "Hacía más o menos un mes que no llovía."],
+      ],
+      neg: [
+        "No tengo qué comer.",
+        "Me pregunto de qué manera lo hizo.",
+        "¿Qué hora es?",
+        "Con él voto yo.",
+        "Vine con él ayer.",
+        "Él solo lo hizo.",
+        "Para él regalos no.",
+        "Caminó hacia unos árboles que había.",
+        "Fueron hacia un pueblo lejano.",
+        "Vino hacia la una.",
+      ],
+    },
+  ],
+  [
     "spanishConfusions",
     "a clitic before an infinitive, a bare participle or a noun",
     {

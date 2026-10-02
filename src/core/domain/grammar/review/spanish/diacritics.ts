@@ -388,6 +388,39 @@ function verbAhead(at: Around): boolean {
   return false;
 }
 
+// Relatives written as question words after their antecedent: "nada qué hacer" -> "que",
+// "el modo cómo" -> "como", "la fecha cuándo" -> "cuando", "el lugar dónde" -> "donde".
+const QUANTITY_ANTECEDENTS = words("nada algo nadie alguien mucho poco bastante");
+const NOUN_ANTECEDENTS: Record<string, Set<string>> = {
+  cómo: words("modo manera forma"),
+  cuándo: words("fecha día momento época hora año"),
+  dónde: words("lugar sitio casa ciudad zona pueblo país parte punto"),
+};
+const PLAIN_RELATIVE: Record<string, string> = {
+  qué: "que",
+  quién: "quien",
+  quiénes: "quienes",
+  dónde: "donde",
+  cómo: "como",
+  cuándo: "cuando",
+};
+
+/** "No tengo nada qué hacer", "alguien en quién confiar": a relative after its antecedent. */
+function relative(at: Around): string | null {
+  const word = at.tokens[at.i].lower;
+  const plainForm = PLAIN_RELATIVE[word];
+  if (!plainForm || at.tokens[at.i - 1]?.text === "¿") return null;
+  const k = PREPOSITIONS.has(at.prev()) ? 2 : 1;
+  const antecedent = at.prev(k);
+  if (QUANTITY_ANTECEDENTS.has(antecedent) && isInfinitive(at.next())) return plainForm;
+  // "el lugar por donde"; a preposition before "cómo" or "cuándo" keeps the question.
+  const placed = k === 1 || word === "dónde";
+  return NOUN_ANTECEDENTS[word]?.has(antecedent) && placed && !!at.next() ? plainForm : null;
+}
+
+// Masculine adjectives that follow a subject "él": "él solo", "él mismo", "él propio".
+const NOT_AFTER_EL = words("solo sólo mismo propio único entero solito junto todo bueno");
+
 /** The words of a monosyllable check: [typed, replacement] or null. */
 function monosyllable(at: Around): string | null {
   const word = at.tokens[at.i].lower;
@@ -472,10 +505,29 @@ function monosyllable(at: Around): string | null {
       return (next === "y" || next === "o") && PRONOUNS.has(at.next(2)) && PREPOSITIONS.has(prev)
         ? "él"
         : null;
-    case "él":
-      // "Él coche lo dejé": a bare noun after it wants the article.
-      if (!at.starts) return null;
-      return solidNoun(next) && !verbLike(next) ? "el" : null;
+    case "él": {
+      // "Él coche lo dejé", "con él voto de", "Él mismo susto": a bare singular noun after it
+      // wants the article. "a él", "de él", "para él" and "por él" take objects after them.
+      const governed =
+        /^(?:con|en|sin|sobre|entre|hacia|desde|hasta|tras|según|ante|bajo|contra|durante|mediante)$/u.test(
+          prev,
+        );
+      if (!at.starts && !governed) return null;
+      const k = next === "mismo" ? 2 : 1;
+      const noun = at.next(k);
+      if (!noun || noun.endsWith("s") || /^\p{Lu}/u.test(at.tokens[at.i + k].text)) return null;
+      const form = genderedForm(noun);
+      const masculineNoun =
+        solidNoun(noun) ||
+        (!!form && !form.feminine && !form.plural && !participle(noun) && !NOT_AFTER_EL.has(noun));
+      // "Con él voto yo": a verb form after the pronoun, unless "de" makes it a noun.
+      const verbForm = verbLike(noun) || finiteVerb(noun);
+      return masculineNoun &&
+        (!verbForm || /^(?:de|del)$/u.test(at.next(k + 1))) &&
+        (k === 1 || isNoun(noun))
+        ? "el"
+        : null;
+    }
     case "se":
       // "yo no sé", "lo sé.", "no sé si", "no sé cómo".
       // "se" + an accented question word, "lo se": no clitic reading ("lo" never precedes it).
@@ -619,7 +671,7 @@ function diacritics(ctx: DetectContext): RawFinding[] {
     if (!token.word || token.start < ctx.from || token.start >= ctx.to) continue;
     const at = new Around(tokens, i);
     const question = interrogative(at);
-    const fix = question ?? monosyllable(at);
+    const fix = question ?? relative(at) ?? monosyllable(at);
     if (!fix) continue;
     const key = question
       ? "review_msg_spanish_interrogative"
