@@ -130,6 +130,19 @@ export function closesAbbreviation(text: string, index: number, lang?: string): 
   if (/^[IVXLC]{2,}$/.test(token) && ORDINAL_PERIOD_LOCALES.has(lang ?? "")) return true;
   // Portuguese and Spanish ordinals: "o 3o. lugar", "la 2a. edición".
   if (/^\p{N}+[oaºª]$/u.test(token) && /^(pt|es)/.test(lang ?? "")) return true;
+  // Polish "ok." (about) before a numeral and "im." (named after) before a title: "ok. dwustu",
+  // "im. dr. Jana". Elsewhere they end sentences ("Jest ok.", "Dałem im.").
+  if (lang?.startsWith("pl") && /^(?:ok|im)$/.test(token)) {
+    const next = text.slice(index + 1, index + 40);
+    if (
+      token === "ok"
+        ? /^\s+(?:dw|trz|czter|pięć|pięci|sześ|siedem|siedmi|osiem|ośmi|dziewię|dziesię|jedenast|kilk|pół|stu|tysi)/u.test(
+            next,
+          )
+        : /^\s+(?:dr|prof|ks|św|gen|płk|mjr|kpt|bp|kard|abp|marsz|hm|inż|mgr)\./u.test(next)
+    )
+      return true;
+  }
   return (
     token.length <= 1 || token.includes(".") || abbreviationsFor(lang).has(token.toLowerCase())
   );

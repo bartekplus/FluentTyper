@@ -13,6 +13,7 @@ import {
   S,
   userOrNamed,
 } from "./shared";
+import { adjectiveOf, finiteVerb, nounTags } from "./lexicon";
 
 /*
  * Words Polish spelling writes as one, typed apart. A row is here only when its
@@ -179,6 +180,16 @@ export const COMPOUNDS: readonly PhraseRow[] = [
   ...adjectiveRows("anglo języczn", "anglojęzyczn"),
   ...adjectiveRows("anglo-języczn", "anglojęzyczn"),
   ...adjectiveRows("polsko języczn", "polskojęzyczn"),
+  ...adjectiveRows("pół nag", "półnag"),
+  ["pod czas", "podczas"],
+  ["niemal że", "niemalże"],
+  ...["ważyć", "ważył", "ważyła", "ważyli", "ważyły", "waży", "ważą", "ważę", "ważenie"].map(
+    (verb): PhraseRow => [`lekce ${verb}`, `lekce${verb}`],
+  ),
+  ["mass-media", "mass media"],
+  ["mass-mediów", "mass mediów"],
+  ["mass-mediach", "mass mediach"],
+  ["mass-mediami", "mass mediami"],
   ...["jasno", "ciemno", "blado"].flatMap((shade) =>
     COLORS.flatMap((color) => adjectiveRows(`${shade} ${color}`, `${shade}${color}`)),
   ),
@@ -452,6 +463,39 @@ export const FRAMES: readonly Frame[] = [
       if ((end === "o") !== /ow$/.test(word) && (end === "o" || end === "ie")) return null;
       return `co${word}${end}`;
     },
+    ...COMPOUND,
+  },
+  // "się do czekać", "od stresować": a verb prefix typed apart (a preposition never takes a
+  // verb). Not a noun or a numeral in -ć ("do miłość", "od pięć"), nor "wy" (you).
+  {
+    pattern: `(?<![\\p{L}])(?<target>(?<prefix>do|od|za|po|przy|roz|prze|pod|nad)${S}(?<verb>\\p{Ll}{3,}))(?![\\p{L}])`,
+    fix: (m) => {
+      const { prefix, verb } = m.groups!;
+      if (
+        nounTags(verb) ||
+        adjectiveOf(verb) ||
+        /(?:ść|ęć)$|^(?:pięć|sześć|siedem|osiem|mać|chęć|płeć|nić|sieć)$/u.test(verb)
+      )
+        return null;
+      const infinitive = /(?:ać|eć|ić|yć|uć|ąć)$/u.test(verb);
+      if (!infinitive && !finiteVerb(verb)) return null;
+      // "za był", "do jest": a verb that takes no prefix stays apart (and stays wrong).
+      if (/^(?:był\p{L}*|jest|są|będ\p{L}*|ma|mam|mieć|może)$/u.test(verb)) return null;
+      return `${prefix.toLowerCase()}${verb}`;
+    },
+    ...COMPOUND,
+  },
+  // "eks-mąż", "mini-spódniczka", "quasi-nauka": a prefix joins the word it opens.
+  {
+    pattern: `(?<![\\p{L}])(?<target>(?<prefix>eks|mini|maksi|maxi|super|ultra|mega|anty|pseudo|quasi|neo|post|wice)-(?<word>\\p{Ll}{3,}))(?![\\p{L}-])`,
+    // Frames ignore case: "anty-Polak" keeps its hyphen before a capital.
+    fix: (m) => (/^\p{Ll}/u.test(m.groups!.word) ? `${m.groups!.prefix}${m.groups!.word}` : null),
+    ...COMPOUND,
+  },
+  // "v-ce prezes" -> "wiceprezes".
+  {
+    pattern: `(?<![\\p{L}])(?<target>v-ce${S}(?<word>\\p{Ll}{3,}))(?![\\p{L}])`,
+    fix: (m) => `wice${m.groups!.word}`,
     ...COMPOUND,
   },
   // "wciągu" is also the hoist ("wciąg"); before a span of time it is "w ciągu".

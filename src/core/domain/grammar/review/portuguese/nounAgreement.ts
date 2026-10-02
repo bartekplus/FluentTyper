@@ -54,6 +54,7 @@ const DETERMINER_ROWS = [
   "- - diversos diversas",
   "- - tantos tantas",
   "- - certos certas",
+  "cujo cuja cujos cujas",
 ].map((row) => row.split(" "));
 type Cell = { row: string[]; index: number };
 const DETERMINERS = new Map<string, Cell>();
@@ -67,7 +68,8 @@ const PRONOUN_LIKE = new Set(["o", "a", "os", "as", "nos"]);
 // todo verdade"): they only count before a noun whose ending no verb or adjective has.
 const STANDALONE = new Set([
   ...DETERMINER_ROWS.slice(8, 17).flat(),
-  ...DETERMINER_ROWS.slice(23).flat(),
+  // The last row, "cujo", only ever stands before its noun.
+  ...DETERMINER_ROWS.slice(23, -1).flat(),
 ]);
 const POSSESSIVE_DETERMINERS = new Set(DETERMINER_ROWS.slice(17, 22).flat());
 // Possessives and the like agree with the article before them: "o nosso", "as mesmas".

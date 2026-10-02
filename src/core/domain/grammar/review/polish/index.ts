@@ -39,4 +39,5 @@ export const POLISH_DETECTORS: readonly ReviewDetectorEntry[] = [
   ...casing.DETECTORS,
   ...conjunctions.DETECTORS,
   ...clauses.DETECTORS,
+  ...style.DETECTORS,
 ];

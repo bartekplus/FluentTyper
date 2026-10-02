@@ -1,10 +1,13 @@
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import { readNoun } from "./agreement";
 import {
   Around,
   attributeOf,
   CLITICS,
   CONJUNCTIONS,
   DETERMINERS,
+  endsQuestion,
+  greetingSlot,
   INVARIANT,
   isInfinitive,
   PREPOSITIONS,
@@ -212,6 +215,56 @@ function inQuestion(at: Around): boolean {
   return false;
 }
 
+const QUANTITY = words(
+  "mucho mucha muchos muchas poco poca pocos pocas varios varias algunos algunas algún alguna " +
+    "ningún ninguna tantos tantas bastantes demasiados demasiadas dos tres cuatro cinco cien mil",
+);
+const EXISTS = words("hay había habrá hubo habría");
+const PLACE_START = words(
+  "en a al dentro detrás debajo encima fuera delante tras bajo sobre aquí allí ahí allá",
+);
+const EVENT = /^(?:pas|ocurr|suced)(?:a|ó|aba|ará|ará|ía|e|ió|erá|irá|ado|ido)$/u;
+const AFTER_EVENT = words(
+  "aquí allí ahí allá ahora hoy ayer entonces realmente exactamente después antes luego",
+);
+
+/** "que hay en la caja.": "hay" and a place, then the clause ends with nothing that exists. */
+function missingThing(at: Around): boolean {
+  if (!EXISTS.has(at.next()) || !PLACE_START.has(at.next(2))) return false;
+  // Words of the place phrase since its last preposition or determiner: a bare noun takes
+  // one ("en casa"), an article up to three ("en aquella enorme caja azul"); more is the
+  // thing that exists ("en casa comida", "en la sala un piano").
+  let content = 0;
+  let room = 1;
+  for (let k = 3; k <= 9; k++) {
+    if (at.endsAfter(k - 1)) return true;
+    const word = at.next(k);
+    if (!word) return false;
+    if (PREPOSITIONS.has(word)) {
+      content = 0;
+      room = /^(?:al|del)$/u.test(word) ? 3 : 1;
+    } else if (DETERMINERS.has(word) || SUBJECTS.has(word) || QUANTITY.has(word)) {
+      if (content) return false;
+      room = 3;
+    } else if (FINITE_NOT_NOUN(word) && !isNoun(word)) return false;
+    else if (++content > room) return false;
+  }
+  return false;
+}
+
+/** "que ocurrió.", "que le pasa aquí", "que ha pasado": an event with no subject after it. */
+function untoldEvent(at: Around): boolean {
+  let k = 1;
+  if (CLITICS.has(at.next(k))) k++;
+  if (/^(?:ha|había|habrá|habría)$/u.test(at.next(k))) k++;
+  if (!EVENT.test(at.next(k))) return false;
+  if (AFTER_EVENT.has(at.next(k + 1))) k++;
+  return at.endsAfter(k);
+}
+
+/** A "¿" opens the sentence before tokens[i]. */
+const mark0 = (at: Around) => opensQuestion(at) !== null || inQuestion(at);
+
 function interrogative(at: Around): string | null {
   const word = at.tokens[at.i].lower;
   const accented = INTERROGATIVE[word];
@@ -225,6 +278,23 @@ function interrogative(at: Around): string | null {
     !/^cua(?:n|l|les)$/u.test(word) &&
     ((at.endsAfter() && word !== "que") || /^(?:sino|ni|y|e|o|u)$/u.test(next)) &&
     !nextToken?.broken
+  )
+    return accented;
+  // "Hola, como estas?": "cómo" and "estar" closing a question without its opening mark.
+  if (
+    word === "como" &&
+    !mark0(at) &&
+    greetingSlot(at) &&
+    /^(?:estas|esta|estás|está|están|estan|estáis|estais)$/u.test(next) &&
+    endsQuestion(new Around(at.tokens, at.i + 1))
+  )
+    return accented;
+  // "en qué y cómo influía", "cómo y qué": a question word paired with another.
+  const asked = (w: string) => /[áéíóú]/u.test(w) && Object.values(INTERROGATIVE).includes(w);
+  if (
+    word === "que" &&
+    ((/^(?:y|e|o|u|ni)$/u.test(next) && asked(at.next(2))) ||
+      (/^(?:y|e|o|u|ni)$/u.test(prev) && asked(at.prev(2))))
   )
     return accented;
   const mark = opensQuestion(at);
@@ -245,6 +315,8 @@ function interrogative(at: Around): string | null {
   if (mark === "!") {
     if (word !== "que" && word !== "como" && word !== "cuan") return null;
     if (CLITICS.has(next) && word === "que") return null;
+    // "¡Cómo no!", "¡Pero cómo no le va a gustar!"; "¡Como no vengas…!" threatens.
+    if (word === "como" && next === "no" && !wishAfter(at)) return accented;
     // "¡Cómo me gusta!"; "¡Como le he dicho!" (as) and "¡Como se lo digo!" (if) are not.
     if (word === "como")
       return /^(?:me|te|nos|os)$/u.test(next) &&
@@ -303,6 +375,14 @@ function interrogative(at: Around): string | null {
     !subjunctiveLike(next)
   )
     return accented;
+  // "no sabía qué había en la caja", "explícame qué ocurrió": an existential or an event
+  // verb that leaves its subject or object unsaid is asked about.
+  if (
+    word === "que" &&
+    (KNOWING.test(prev) || /^(?:ver|veamos|mira|mirar)$/u.test(prev)) &&
+    (missingThing(at) || untoldEvent(at))
+  )
+    return accented;
   // "no sé qué hacer", "sabes qué libro", "pregunta dónde vive".
   if (KNOWING.test(prev) || (prev === "se" && /^(?:no|yo|lo|ya)$/u.test(at.prev(2)))) {
     if (!next) return null;
@@ -320,7 +400,7 @@ function interrogative(at: Around): string | null {
   // "no sé a qué se refiere", "me pregunto con qué ideas vendrá": a verb of knowing, a
   // preposition and "que"; "saber de que" is no conjunction ("darse cuenta de que" is).
   if (
-    word === "que" &&
+    (word === "que" || word === "quien" || word === "quienes") &&
     /^(?:a|de|con|en|sobre)$/u.test(prev) &&
     KNOWING.test(at.prev(2)) &&
     !inQuestion(at) &&
@@ -386,10 +466,24 @@ const PLAIN_SI_PREV = words("que pues eso claro ahora creo");
 const TEA = words("verde negro rojo blanco chino japonés inglés frío caliente helado con y de del");
 
 // Bare objects "dar" takes in set phrases: "dé cuenta", "dé voz", "dé las gracias".
-const GIVEN = words("cuenta voz gracias permiso asentimiento golpecitos crédito importancia");
-const giveObject = (at: Around) =>
-  (GIVEN.has(at.next()) && (at.endsAfter(1) || /^(?:de|del|a|al|por|para|y)$/u.test(at.next(2)))) ||
-  (at.next() === "a" && at.next(2) === "luz");
+const GIVEN = words(
+  "cuenta voz gracias permiso asentimiento golpecitos crédito importancia consentimiento " +
+    "aprobación apoyo bendición",
+);
+// What "dar" gives with an article: "que Dios dé una respuesta", "que dé un alarido".
+const GIVEN_WITH_ARTICLE = words("respuesta alarido abrazo beso consejo");
+const giveObject = (at: Around) => {
+  // "que no dé su asentimiento": a possessive before the bare object.
+  const k = /^(?:su|sus|tu|tus|mi|mis)$/u.test(at.next()) ? 2 : 1;
+  return (
+    (GIVEN.has(at.next(k)) &&
+      (at.endsAfter(k) || /^(?:de|del|a|al|por|para|y)$/u.test(at.next(k + 1)))) ||
+    (/^(?:un|una)$/u.test(at.next()) && GIVEN_WITH_ARTICLE.has(at.next(2))) ||
+    (at.next() === "a" && at.next(2) === "luz") ||
+    // "que cada uno dé según su corazón": "de" governs no other preposition.
+    /^(?:con|según)$/u.test(at.next())
+  );
+};
 // Subjects that may stand between the subjunctive trigger and "dé".
 const SUBJECT_FILLERS = words("él ella usted alguien nadie dios uno cada mismo ahora no nunca ya");
 
@@ -466,6 +560,35 @@ function plainSentence(at: Around): boolean {
   return false;
 }
 
+/** A "no" earlier in the sentence, before the "pero" right ahead of tokens[i]. */
+function deniedBefore(at: Around): boolean {
+  for (let j = at.i - 2; j >= Math.max(0, at.i - 16); j--) {
+    const token = at.tokens[j];
+    if (/^[.!?;]$/u.test(token.text) || at.tokens[j + 1].broken) return false;
+    if (token.lower === "no") return true;
+  }
+  return false;
+}
+
+/** Finite verbs (that are no nouns) from tokens[i] to the full stop. */
+function finiteCount(at: Around): number {
+  let count = 0;
+  for (let j = at.i + 1; j < at.tokens.length && j < at.i + 16; j++) {
+    const token = at.tokens[j];
+    if (token.broken || /^[.!?]$/u.test(token.text)) break;
+    if (token.word && FINITE_FORM(token.lower) && !isNoun(token.lower)) count++;
+    // "dímelo", "házmelo": an imperative carrying its pronouns.
+    else if (
+      token.word &&
+      /^\p{L}*[áéíóú]\p{L}*(?:me|te|se|lo|la|le|nos|os|los|las|les)$/u.test(token.lower) &&
+      !isInfinitive(token.lower) &&
+      !/(?:ándo|iéndo|yéndo)/u.test(token.lower)
+    )
+      count++;
+  }
+  return count;
+}
+
 /** A finite verb before the clause ends: "pero si hay casos" is a condition. */
 function verbAhead(at: Around): boolean {
   for (let k = 1; k <= 8; k++) {
@@ -525,6 +648,8 @@ function monosyllable(at: Around): string | null {
     case "mi":
       // "a mí me gusta", "para mí, …", "confía en mí", "aparta de mí este cáliz".
       if (!PREPOSITIONS.has(prev)) return null;
+      // "en mi menor", "en mi bemol": the note.
+      if (/^(?:bemol|sostenido|mayor|menor)$/u.test(next)) return null;
       if (ends || /^(?:mismo|misma|me|que|no|el|la|los|las|lo)$/u.test(next)) return "mí";
       // "en mi contra" is the possessive idiom; "en mi era" the noun.
       if (next === "era" && (prev === "en" || prev === "de")) return null;
@@ -578,6 +703,13 @@ function monosyllable(at: Around): string | null {
       return secondPersonVerb(next) ? "tú" : null;
     case "tú":
     case "mí":
+      // "en mí bemol", "sonata en mí menor": the note.
+      if (
+        word === "mí" &&
+        (/^(?:bemol|sostenido)$/u.test(next) ||
+          (/^(?:mayor|menor)$/u.test(next) && /^(?:en|de)$/u.test(prev) && at.endsAfter(1)))
+      )
+        return "mi";
       // "a tú pie", "aprobará mí envío": a possessive before a noun takes no accent.
       // After a verb it may be the subject: "eres tú", "pones tú".
       if (verbLike(prev) || FINITE.has(prev) || /^(?:como|que|entre)$/u.test(prev)) return null;
@@ -602,6 +734,15 @@ function monosyllable(at: Around): string | null {
       // "el té de menta".
       if (next === "te" && (TEA.has(at.next(2)) || at.endsAfter(1))) return null;
       if (CLITICS.has(next) && next !== "la" && next !== "lo") return "él";
+      // "si el la tiene", "el lo sabe": "la"/"lo" before a verb that is no noun ("el la
+      // menor" is the note).
+      if (
+        (next === "la" || next === "lo") &&
+        FINITE_FORM(at.next(2)) &&
+        !isNoun(at.next(2)) &&
+        !PREPOSITIONS.has(at.next(2))
+      )
+        return "él";
       if (COMMON_VERBS.has(next) || (ONE_OFF.has(next) && next !== "mismo" && next !== "misma"))
         return "él";
       if (
@@ -632,7 +773,9 @@ function monosyllable(at: Around): string | null {
         (!!form && !form.feminine && !form.plural && !participle(noun) && !NOT_AFTER_EL.has(noun));
       // "Con él voto yo": a verb form after the pronoun, unless "de" makes it a noun.
       const verbForm = verbLike(noun) || finiteVerb(noun);
+      // "Él vera lo que quiere": a feminine noun ("la vera") takes no "el".
       return masculineNoun &&
+        readNoun(noun)?.gender !== "f" &&
         (!verbForm || /^(?:de|del)$/u.test(at.next(k + 1))) &&
         (k === 1 || isNoun(noun))
         ? "el"
@@ -702,7 +845,23 @@ function monosyllable(at: Around): string | null {
       if (prev === "en" && (next === "de" || ends)) return "sí";
       // "Sí, me gusta.", "Sí, pero…": an answer; "Si, como dices, llueve" opens a condition.
       if (nextToken?.text === "," && at.starts && ANSWER_AFTER.has(at.next(2))) return "sí";
+      // "Si pero no quiero": no condition starts with "pero".
+      if (next === "pero" && at.starts) return "sí";
+      // "Pasó esto, si, ¿y ahora?": an affirmation set off by commas ("si, y solo si," is not).
+      if (nextToken?.text === "," && at.tokens[at.i - 1]?.text === ",") {
+        const after = at.tokens[at.i + 2];
+        if (
+          after &&
+          !after.broken &&
+          (/^[¿¡]$/u.test(after.text) || /^(?:pero|claro|aunque)$/u.test(after.lower))
+        )
+          return "sí";
+      }
       if (nextToken?.text === ",") return PLAIN_SI_PREV.has(prev) ? "sí" : null;
+      // "No tengo casos, pero si hay otros.": after a denial, "pero sí" and one verb running
+      // to the full stop; a condition would need its main clause too.
+      if (prev === "pero" && deniedBefore(at) && plainSentence(at) && finiteCount(at) === 1)
+        return "sí";
       // "Aquello sí era felicidad": an emphatic yes after a demonstrative subject.
       if (
         /^(?:esto|eso|aquello)$/u.test(prev) &&
@@ -749,6 +908,15 @@ function monosyllable(at: Around): string | null {
         !participle(next) &&
         (!attributeOf(next) || isNoun(next)) &&
         (!isNoun(next) || (/[oae]$/u.test(next) && at.tokens[at.i + 2]?.text !== ","))
+      )
+        return "aún";
+      // "que el gobierno aún tenga": still, inside a "que" clause before a subjunctive that is
+      // no other word; "aun tenga que ir" opening a clause is concessive (even if).
+      if (
+        subjunctiveLike(next) &&
+        !isNoun(next) &&
+        !attributeOf(next) &&
+        [1, 2, 3].some((k) => at.prev(k) === "que")
       )
         return "aún";
       // "con los ojos aún abiertos": still, before a participle inside the clause.

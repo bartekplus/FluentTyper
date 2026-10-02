@@ -1,3 +1,4 @@
+import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
 import { frameMatches, gluedAfter, SPACE, WORD_END } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { PORTUGUESE_PARONYMS } from "./paronyms.generated";
@@ -22,6 +23,12 @@ const PLAIN_VOWEL: Record<string, string> = {
 const plain = (word: string) => word.replace(/[áâéêíóôú]/g, (vowel) => PLAIN_VOWEL[vowel]);
 
 let twins: Map<string, string[]> | undefined;
+let accented: Set<string> | undefined;
+/** The unaccented verb form of an accented noun or adjective twin ("cópia" -> "copia"). */
+function verbTwin(word: string): string | undefined {
+  accented ??= new Set(PORTUGUESE_PARONYMS.split(/[ |]/));
+  return accented.has(word) ? plain(word) : undefined;
+}
 function accentedTwins(word: string): string[] | undefined {
   twins ??= new Map(
     PORTUGUESE_PARONYMS.split(" ").map((row) => {
@@ -65,9 +72,57 @@ const SENTENCE_START = /(?:^|[.!?;:\n]["'”’»)]*)[ \t\u00a0]*["'“‘«(]?[
 // "Um critica, o outro elogia": indefinite "um/uma" as a pronoun with "outro" later on.
 const RECIPROCAL = /^[^.!?;\n]{0,80}(?<![\p{L}])outr[oa]s?(?![\p{L}])/iu;
 
+/**
+ * The other way round: "Ele influência quem", "Você cópia os dados", "Prática-se muito". After a
+ * singular subject pronoun, with a verb ending of that person and more words after it, or
+ * before a hyphenated object pronoun, the accented noun twin stands for its verb form.
+ * "nós médicos" (an apposition) and a pronoun after a preposition ("dei a ela prática") stay out.
+ */
+const PERSON_ENDING: Record<string, RegExp> = {
+  eu: /o$/,
+  tu: /[ae]s$/,
+  ele: /[ae]$/,
+  ela: /[ae]$/,
+  você: /[ae]$/,
+};
+const SUBJECT_LED = `(?<lead>eu|tu|ele|ela|você)(?:${SPACE}(?:não|já|também|sempre|nunca|ainda|só|me|te|se|lhe|lhes|nos|vos))?${SPACE}(?<target>\\p{Ll}*[áâéêíóôú]\\p{Ll}*)${WORD_END}`;
+const PREPOSITION_BEFORE =
+  /(?:^|[^\p{L}])(?:a|à|ante|até|com|contra|de|desde|em|entre|para|perante|por|sem|sob|sobre|após|como|que nem)[ \t\u00a0]+$/iu;
+// A word after it, not "de": "Ele médico, ela enfermeira" and "eu, cópia de" stay out.
+const OBJECT_AFTER = /^[ \t\u00a0]+(?!(?:de|da|do|das|dos)(?![\p{L}]))[\p{L}\d"“«]/u;
+const HYPHEN_LED = `(?<target>\\p{L}*[áâéêíóôúÁÂÉÊÍÓÔÚ]\\p{L}*)(?=-(?:me|te|se|lhe|lhes|nos|vos)${WORD_END})`;
+
+function verbForms(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  const push = (start: number, end: number, typed: string, context: RawFinding["context"]) => {
+    const verb = verbTwin(typed.toLowerCase());
+    if (!verb || ctx.dictionary.has(typed.toLowerCase())) return;
+    findings.push({
+      ruleId: "portugueseAccentParonyms",
+      messageKey: "review_msg_pt_accent_verb",
+      range: { start, end },
+      alternatives: [applyWordCase(verb, detectWordCase(typed))],
+      context,
+    });
+  };
+  for (const m of frameMatches(ctx, SUBJECT_LED)) {
+    const { lead, target } = m.groups!;
+    const [start, end] = m.indices!.groups!.target;
+    if (!PERSON_ENDING[lead.toLowerCase()].test(plain(target))) continue;
+    if (PREPOSITION_BEFORE.test(ctx.text.slice(Math.max(0, m.index - 12), m.index))) continue;
+    if (!OBJECT_AFTER.test(ctx.text.slice(end, end + 12))) continue;
+    push(start, end, target, { start: m.index, end });
+  }
+  for (const m of frameMatches(ctx, HYPHEN_LED)) {
+    const [start, end] = m.indices!.groups!.target;
+    push(start, end, m.groups!.target, { start, end: end + 4 });
+  }
+  return findings;
+}
+
 export function accentParonyms(ctx: DetectContext): RawFinding[] {
   if (ctx.lang.slice(0, 2) !== "pt") return [];
-  const findings: RawFinding[] = [];
+  const findings: RawFinding[] = verbForms(ctx);
   for (const m of [
     ...frameMatches(ctx, PATTERN),
     ...frameMatches(ctx, MODIFIED),

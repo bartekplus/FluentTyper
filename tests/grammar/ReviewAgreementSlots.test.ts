@@ -33,6 +33,8 @@ test("a noun-phrase subject agrees with its verb", () => {
     ["The rules of chess seems simple.", "The rules of chess seem simple."],
     ["Most hikers in Norway carries a map.", "Most hikers in Norway carry a map."],
     ["The kettles whistles loudly.", "The kettles whistle loudly."],
+    ["This puppy have soft ears.", "This puppy has soft ears."],
+    ["My neighbor don't mow the lawn.", "My neighbor doesn't mow the lawn."],
     // After a relative clause.
     [
       "The tourists who arrive late usually misses the bus.",
@@ -60,6 +62,9 @@ test("a noun-phrase subject agrees with its verb", () => {
 
 test("collectives, objects, subjunctives and compound nouns stay silent", () => {
   for (const text of [
+    "This week do you want to rest?",
+    "We ask that the tenant have a key.",
+    "The team have won again.",
     "The dog barks at night.",
     "The man who saw the dogs run away left.",
     "Your ticket please.",
