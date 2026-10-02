@@ -1,4 +1,5 @@
 import type { PhraseRow } from "../englishPhraseTables";
+import { PORTUGUESE_STYLE_EXTRA } from "./style";
 
 /**
  * Portuguese fixed frames for the `pt` phrase table (englishPhraseCorrections):
@@ -477,7 +478,7 @@ function regular(infinitive: string): string[] {
       infinitive,
       `${stem}a`,
       `${stem}am`,
-      `${stem}ei`,
+      `${stem.replace(/c$/, "qu").replace(/g$/, "gu").replace(/ç$/, "c")}ei`,
       `${stem}ou`,
       `${stem}aram`,
       `${stem}ando`,
@@ -584,7 +585,14 @@ const PLEONASMS: PhraseRow[] = [
   ] as PhraseRow[]),
 ];
 
-export const PORTUGUESE_STYLE: PhraseRow[] = [
+const STYLE: PhraseRow[] = [
+  ["subir para cima", "subir"],
+  ["descer para baixo", "descer"],
+  ["entrar para dentro", "entrar"],
+  ["sair para fora", "sair"],
+  ["elo de ligação", "elo"],
+  ["encarar de frente", "encarar"],
+  ["há anos atrás", ["há anos", "anos atrás"]],
   ...["considerado", "considerada", "considerados", "consideradas"].flatMap((form): PhraseRow[] => [
     [`${form} como sendo`, form],
     [`${form} como`, form],
@@ -716,4 +724,15 @@ export const PORTUGUESE_STYLE: PhraseRow[] = [
   ["agr", "agora"],
   ["obg", ["obrigado", "obrigada"]],
   ["pq", ["porque", "por que", "por quê"]],
+];
+
+const listed = new Set(
+  [...PORTUGUESE_WORDS, ...PORTUGUESE_PHRASES, ...STYLE].flatMap(([typed]) =>
+    [typed].flat().map((form) => form.toLowerCase()),
+  ),
+);
+/** Optional wording advice for the `pt` style table (stylePhrasing). */
+export const PORTUGUESE_STYLE: PhraseRow[] = [
+  ...STYLE,
+  ...PORTUGUESE_STYLE_EXTRA.filter(([typed]) => !listed.has([typed].flat()[0].toLowerCase())),
 ];

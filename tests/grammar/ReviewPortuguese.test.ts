@@ -62,9 +62,21 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["A musica tocou a noite toda.", "A música tocou a noite toda."],
         ["Choveu. O transito parou na ponte.", "Choveu. O trânsito parou na ponte."],
         ["As duvidas ficaram para amanhã.", "As dúvidas ficaram para amanhã."],
+        ["Ele sempre cópia as respostas do colega.", "Ele sempre copia as respostas do colega."],
+        ["Eu cálculo que faltam dez minutos.", "Eu calculo que faltam dez minutos."],
+        ["Ela não influência ninguém na equipe.", "Ela não influencia ninguém na equipe."],
+        ["Tu últimas o relatório hoje?", "Tu ultimas o relatório hoje?"],
+        ["Prática-se muito esporte aqui.", "Pratica-se muito esporte aqui."],
+        ["A empresa diz que providência-se tudo.", "A empresa diz que providencia-se tudo."],
       ],
       neg: [
         "Por último publica os dados.",
+        "Ele médico, ela enfermeira.",
+        "Entreguei a ela prática suficiente para a prova.",
+        "Nós médicos sabemos disso.",
+        "Eu cópia de mim mesmo? Nunca.",
+        "Ela secretária, ele diretor.",
+        "Ele a cópia fiel do pai.",
         "O velho critica tudo.",
         "Ela própria critica o texto.",
         "Ela pratica natação toda semana.",
@@ -844,6 +856,31 @@ describe("portugueseDates", () => {
     expect(finding.original).toBe(typed);
     expect(finding.alternatives.map((alternative) => alternative.preview)).toEqual(alternatives);
     expect(finding.requiresChoice).toBe(true);
+  });
+});
+
+describe("Portuguese wording advice (stylePhrasing)", () => {
+  // Idioms and hidden verbs are listed by infinitive; the plain wording follows the tense.
+  test.each([
+    ["No fim, eles pagaram o pato pelo erro.", "No fim, eles levaram a culpa pelo erro."],
+    ["Ela pôs lenha na fogueira ontem.", "Ela agravou a situação ontem."],
+    ["Os técnicos chegaram a uma conclusão.", "Os técnicos concluíram."],
+    ["O time trabalhou de forma rápida.", "O time trabalhou rapidamente."],
+    ["Ele sempre puxa o saco do chefe.", "Ele sempre bajula o chefe."],
+    ["Eles deram início à reunião.", "Eles iniciaram a reunião."],
+    ["Ele perdeu as estribeiras na reunião.", "Ele descontrolou-se na reunião."],
+    ["Quero dar uma olhada no relatório.", "Quero olhar o relatório."],
+  ])("%p -> %p", (text, fixed) => {
+    expect(repaired("stylePhrasing", text)).toBe(fixed);
+  });
+  test.each([
+    "A temperatura pode descer abaixo de zero.",
+    "A galera atracou no porto antes do amanhecer.",
+    "É mais fácil acreditar numa boa mentira.",
+    "Eles abriram os olhos de manhã.",
+    "O pintor deu uma mão de tinta na parede.",
+  ])("%p stays clean", (text) => {
+    expect(findings("stylePhrasing", text)).toEqual([]);
   });
 });
 

@@ -2091,6 +2091,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Po rodzajniku lub przyimku to rzeczownik albo przymiotnik, który ma akcent graficzny (fábrica, a nie forma czasownika fabrica).",
     "Depois de artigo ou preposição, a palavra é substantivo ou adjetivo e leva acento (fábrica, não a forma verbal fabrica).",
   ],
+  review_msg_pt_accent_verb: [
+    "After a subject pronoun, or before a hyphenated pronoun, this is the verb, written without an accent (ele copia, not the noun cópia).",
+    "Après un pronom sujet, ou devant un pronom lié par un trait d'union, c'est le verbe, écrit sans accent (ele copia, et non le nom cópia).",
+    "Nakon zamjenice u službi subjekta ili ispred zamjenice sa spojnicom ovo je glagol, koji se piše bez naglaska (ele copia, a ne imenica cópia).",
+    "Tras un pronombre sujeto, o ante un pronombre unido con guion, es el verbo, que se escribe sin tilde (ele copia, no el sustantivo cópia).",
+    "Μετά από αντωνυμία-υποκείμενο ή πριν από αντωνυμία με ενωτικό είναι το ρήμα, που γράφεται χωρίς τόνο (ele copia, όχι το ουσιαστικό cópia).",
+    "Efter ett subjektspronomen, eller före ett pronomen med bindestreck, är det verbet, som skrivs utan accent (ele copia, inte substantivet cópia).",
+    "Nach einem Subjektpronomen oder vor einem mit Bindestrich angehängten Pronomen steht hier das Verb ohne Akzent (ele copia, nicht das Substantiv cópia).",
+    "Po zaimku w funkcji podmiotu lub przed zaimkiem dołączonym łącznikiem to czasownik, pisany bez akcentu (ele copia, a nie rzeczownik cópia).",
+    "Depois de pronome sujeito, ou antes de pronome ligado por hífen, a palavra é verbo e não leva acento (ele copia, não o substantivo cópia).",
+  ],
   review_msg_pt_confusions: [
     "Portuguese words that sound alike or differ by an accent, chosen by the words around them: crase, por que, é/e, está/esta.",
     "Mots portugais qui se prononcent pareil ou ne diffèrent que par un accent, choisis selon le contexte : crase, por que, é/e, está/esta.",
