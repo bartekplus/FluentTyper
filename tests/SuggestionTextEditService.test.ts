@@ -371,6 +371,34 @@ describe("SuggestionTextEditService", () => {
     expect(input.value).toBe("function");
   });
 
+  test("refuses unverified ProseMirror suggestions without recording an accepted edit", () => {
+    const service = new SuggestionTextEditService({
+      findMentionToken,
+      isSeparator: (value) => /\s/.test(value),
+    });
+    const editable = document.createElement("div");
+    editable.className = "ProseMirror";
+    editable.setAttribute("contenteditable", "true");
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    editable.innerHTML = "<p><strong>fun</strong></p>";
+    document.body.appendChild(editable);
+    setContentEditableCursor(editable, 3);
+    const original = editable.innerHTML;
+    let events = 0;
+    for (const type of ["beforeinput", "input"]) editable.addEventListener(type, () => events++);
+    const entry = createSuggestionEntry({
+      elem: editable,
+      latestMentionText: "fun",
+      latestMentionStart: 0,
+    });
+
+    expect(service.acceptSuggestion(entry, "function")).toBeNull();
+    expect(entry.pendingExtensionEdit).toBeNull();
+    expect(editable.innerHTML).toBe(original);
+    expect(events).toBe(0);
+    expect(window.getSelection()?.anchorOffset).toBe(3);
+  });
+
   test("dispatches one input event for input/textarea replacement paths", () => {
     const service = new SuggestionTextEditService({
       findMentionToken,

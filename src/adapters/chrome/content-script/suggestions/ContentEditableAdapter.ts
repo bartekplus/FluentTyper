@@ -41,7 +41,7 @@ interface BoundaryCandidate {
 }
 
 export interface ContentEditableEditResult {
-  appliedBy: "host-beforeinput" | "fallback-dom";
+  appliedBy: "host-beforeinput" | "fallback-dom" | "refused";
   didMutateDom: boolean;
   didDispatchInput: boolean;
 }
@@ -61,7 +61,7 @@ export class ContentEditableAdapter {
     // ProseMirror owns its model and history. The host bridge is its only writer;
     // a refused or unavailable host transaction must never fall through to DOM edits.
     if (elem.matches(".ProseMirror")) {
-      return { appliedBy: "host-beforeinput", didMutateDom: false, didDispatchInput: false };
+      return { appliedBy: "refused", didMutateDom: false, didDispatchInput: false };
     }
     const editScope = scopeRoot ?? elem;
     const selectionAnchors = this.captureSelectionOffsetAnchors(editScope);
