@@ -3195,6 +3195,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "W nazwie wielowyrazowej przymiotnik też piszemy wielką literą: der Erste Weltkrieg, die Französische Revolution.",
     "Num nome de várias palavras, o adjetivo também leva maiúscula: der Erste Weltkrieg, die Französische Revolution.",
   ],
+  review_msg_german_colloquial: [
+    "This short form is spoken German; in writing use the full particle: hineingehen, herausbekommen, herum.",
+    "Cette forme courte relève de l’oral ; à l’écrit, employez la particule complète : hineingehen, herausbekommen, herum.",
+    "Ovaj kratki oblik pripada govoru; u pisanju upotrijebite punu česticu: hineingehen, herausbekommen, herum.",
+    "Esta forma corta es propia del habla; por escrito use la partícula completa: hineingehen, herausbekommen, herum.",
+    "Αυτή η σύντομη μορφή είναι προφορική· στον γραπτό λόγο χρησιμοποιήστε το πλήρες μόριο: hineingehen, herausbekommen, herum.",
+    "Den här korta formen hör till talspråket; i skrift används hela partikeln: hineingehen, herausbekommen, herum.",
+    "Diese Kurzform ist umgangssprachlich; schriftlich steht die volle Partikel: hineingehen, herausbekommen, herum.",
+    "Ta krótka forma należy do mowy potocznej; w piśmie użyj pełnej partykuły: hineingehen, herausbekommen, herum.",
+    "Esta forma curta é da fala; por escrito use a partícula completa: hineingehen, herausbekommen, herum.",
+  ],
   review_msg_german_idiom_case: [
     "In this fixed phrase the word is a noun, or no noun, and changes its capital: im Ernst, mir ist es recht.",
     "Dans cette locution, le mot est un nom ou n’en est pas un, et sa majuscule change : im Ernst, mir ist es recht.",

@@ -480,6 +480,29 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
     },
   ],
   [
+    "germanColloquial",
+    {
+      pos: [
+        ["Nach dem Regen gehen wir wieder raus.", "Nach dem Regen gehen wir wieder heraus."],
+        ["Die Kinder sitzen den ganzen Tag rum.", "Die Kinder sitzen den ganzen Tag herum."],
+        ["Kannst du die Datei runterladen?", "Kannst du die Datei herunterladen?"],
+        ["Wir sind auf den Trick reingefallen.", "Wir sind auf den Trick hereingefallen."],
+        ["Sie hat sich langsam rangetastet.", "Sie hat sich langsam herangetastet."],
+        ["Das ist nur zum Rumprobieren gedacht.", "Das ist nur zum Herumprobieren gedacht."],
+      ],
+      neg: [
+        "Der Zug muss noch rangieren.",
+        "Wir reinigen das Bad.",
+        "Das war rein zufällig.",
+        "Im Glas ist Rum.",
+        "Der Bach rauscht leise.",
+        "Er wollte ans Telefon rangehen.",
+        "Sie hat sich an ihn rangemacht.",
+        "Man kann bequem rein- und rausschlüpfen.",
+      ],
+    },
+  ],
+  [
     "germanQuestionMarks",
     {
       pos: [
