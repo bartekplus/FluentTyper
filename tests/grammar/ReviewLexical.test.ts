@@ -114,6 +114,13 @@ const negatives = [
   "It ran like an overwound clock.",
   "Our onboarding flow is long.",
   "Offences against the law.",
+  // Closed compounds the lexicon lacks stay with dictionary spelling; a capitalized one is a name.
+  "The rainforests shelter rare zebrafish and crawfish.",
+  "Our homeschool group meets in the roadstead cafe.",
+  "Haslam signed the contract.",
+  // A dropped "had" and a bare "not" are no agreement errors with a non-word fix.
+  "It better be ready by noon.",
+  "He not ready yet.",
   // "You" before plurals and verbs.
   "You guys of all people.",
   "You fool of a man.",

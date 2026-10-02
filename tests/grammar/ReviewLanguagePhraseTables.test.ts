@@ -32,6 +32,7 @@ const LANGS: Record<string, string> = {
   sv: "sv_SE",
   hr: "hr_HR",
   el: "el_GR",
+  ar: "ar_SA",
 };
 const ALL_LANGS = ["en_US", ...Object.values(LANGS), "ar_SA", "auto_detect"];
 /** A plain sentence in each language around the typed form. */
@@ -44,6 +45,7 @@ const FRAMES: Record<string, (form: string) => string> = {
   sv: (form) => `I går sa hon ${form} här.`,
   hr: (form) => `Jučer je rekla ${form} ovdje.`,
   el: (form) => `Χθες είπε ${form} εδώ.`,
+  ar: (form) => `كتب أحمد ${form} هنا.`,
 };
 const KINDS: Array<[keyof LanguagePhraseTables, CatalogRuleId]> = [
   ["words", "englishPhraseCorrections"],

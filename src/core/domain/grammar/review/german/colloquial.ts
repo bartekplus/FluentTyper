@@ -1,0 +1,90 @@
+import { namedExampleBefore } from "../exampleCues";
+import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import { germanInfinitive, germanNounReading, germanVerbLike } from "./germanLexicon";
+import { englishLine, isGerman } from "./shared";
+
+// The spoken short forms of her-/hin- particles before a verb: "reingehen" (hineingehen),
+// "rausbekommen" (herausbekommen or hinausbekommen), "rumsitzen" (herumsitzen), and "rum",
+// "rüber", "runter", "rauf", "raus" on their own. Opt-in: fine in speech and casual writing.
+
+const FULL: Readonly<Record<string, string[]>> = {
+  ran: ["heran"],
+  rum: ["herum"],
+  raus: ["heraus", "hinaus"],
+  rein: ["herein", "hinein"],
+  rauf: ["herauf", "hinauf"],
+  runter: ["herunter", "hinunter"],
+  rüber: ["herüber", "hinüber"],
+};
+// "rein" and "ran" alone are an adjective ("rein zufällig") and a call ("ran an die Arbeit").
+const ALONE = new Set(["rum", "raus", "rauf", "runter", "rüber"]);
+const WORD =
+  /(?<![\p{L}\p{M}\p{N}_\-'’])(?<short>[Rr](?:an|um|aus|ein|auf|unter|über))(?<rest>\p{Ll}*)(?![\p{L}\p{M}\p{N}_\-'’])/gu;
+
+/** A verb form: an infinitive, a 1st singular or past form, a present form in -t or -st. */
+function verbForm(word: string): boolean {
+  if (word.length < 3) return false;
+  if (germanVerbLike(word) || germanInfinitive(word)) return true;
+  return [`${word.replace(/e?s?t$/, "")}en`, `${word.replace(/t$/, "")}n`].some(
+    (infinitive) => infinitive !== word && germanInfinitive(infinitive),
+  );
+}
+
+/** The verb after the particle: "bekommen", "zubekommen" (zu-infinitive), "gefallen". */
+function verbAfter(rest: string): boolean {
+  if (verbForm(rest)) return true;
+  if (rest.startsWith("zu") && verbForm(rest.slice(2))) return true;
+  // A participle: "ge" + stem + "t" or "en" ("gegangen", "getastet").
+  const participle = /^ge(\p{Ll}{2,}?)(?:et|t|en)$/u.exec(rest);
+  return !!participle && [`${participle[1]}en`, `${participle[1]}n`].some(germanInfinitive);
+}
+
+function colloquial(ctx: DetectContext): RawFinding[] {
+  if (!isGerman(ctx)) return [];
+  const findings: RawFinding[] = [];
+  WORD.lastIndex = ctx.from;
+  for (let m = WORD.exec(ctx.scanText); m && m.index < ctx.to; m = WORD.exec(ctx.scanText)) {
+    const { short, rest } = m.groups!;
+    const word = m[0];
+    const low = word.toLowerCase();
+    const key = short.toLowerCase();
+    const capital = short !== key;
+    if (rest) {
+      // A dictionary word of its own ("rangieren", "Ranzen"); the dictionary also
+      // lists a few colloquial raus- verbs ("rauslassen"), which stay checked.
+      const known = germanVerbLike(low) || germanInfinitive(low) || germanNounReading(low) !== null;
+      if (known && key === "ran") continue;
+      if (!verbAfter(rest)) continue;
+    } else {
+      // "Rum" is the drink; a capital at a sentence start may be either.
+      if (capital || !ALONE.has(key)) continue;
+    }
+    // Idioms with no written twin: "sich an jemanden ranmachen", "ans Telefon rangehen",
+    // "jemandem eine runterhauen", "rum wie num"; and "rein- und rausschlüpfen".
+    const before = ctx.text.slice(Math.max(0, m.index - 60), m.index);
+    const after = ctx.text.slice(m.index + word.length, m.index + word.length + 12);
+    if (/^ran(?:zu|ge)?mach/.test(low) || (/^rum$/.test(low) && /^\s+wie\s/.test(after))) continue;
+    if (/^ran(?:zu|ge)?geh|^ranging/.test(low) && /Telefon|Handy/.test(before)) continue;
+    if (/^runter/.test(low) && /(?<!\p{L})einen?\s+$/u.test(before)) continue;
+    if (/-\s+(?:und|oder)\s+$/.test(before)) continue;
+    if (ctx.dictionary.has(low) || namedExampleBefore(ctx.text, m.index)) continue;
+    if (englishLine(ctx.text, m.index)) continue;
+    const alternatives = FULL[key].map((full) => {
+      const spelled = full + rest;
+      return capital ? spelled[0].toUpperCase() + spelled.slice(1) : spelled;
+    });
+    findings.push({
+      ruleId: "germanColloquial",
+      messageKey: "review_msg_german_colloquial",
+      range: { start: m.index, end: m.index + word.length },
+      alternatives,
+      context: { start: Math.max(0, m.index - 40), end: m.index + word.length },
+      ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+    });
+  }
+  return findings;
+}
+
+export const DETECTORS: readonly ReviewDetectorEntry[] = [
+  { rules: ["germanColloquial"], detect: colloquial },
+];

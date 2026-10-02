@@ -26,31 +26,49 @@ const ABBREVIATIONS_BY_LANGUAGE: Record<string, readonly string[]> = {
     ...["approx", "fig", "resp", "est", "min", "max", "mr", "mrs", "ms", "jr", "sr", "prof"],
     ...["inc", "ltd", "co", "corp", "dept", "univ", "ave", "blvd", "st", "mt", "ft", "sgt"],
     ...["capt", "lt", "col", "rev", "esp", "ref", "vol", "ch", "pp", "eq", "rd"],
+    // Months, editors and translators, "circa", "Bros.", degrees and short units.
+    ...["jan", "feb", "mar", "apr", "jun", "jul", "aug", "sep", "sept", "oct", "nov", "dec"],
+    ...["ca", "ed", "eds", "tr", "trans", "bros", "phd", "govt", "intl", "misc", "nos", "viz"],
+    ...["mm", "cm", "km", "kg", "lb", "lbs", "oz", "sec", "msec", "hr", "hrs", "mins", "yr"],
+    ...["yrs", "wk", "wks"],
   ],
   de: [
     ...["usw", "bzw", "evtl", "ggf", "vgl", "inkl", "ca", "bspw", "nr", "hr", "fr", "sog"],
     ...["bzgl", "zzgl", "tel", "str", "geb", "jh", "mio", "mrd", "abb", "kap", "bd", "aufl"],
     ...["hrsg", "prof", "tsd", "std", "min", "sek", "chr", "st", "dipl", "ing", "fa", "hbf"],
     ...["pkt", "anm", "abs", "bsp", "ebd", "insb", "einschl", "usf", "etw", "jmd", "od"],
-    "gegr",
+    ...["gegr", "co", "lt", "abk", "allg", "betr", "dgl", "ehem", "eigtl", "entspr", "gem"],
+    ...["ggü", "jhd", "lfd", "mind", "näml", "rd", "urspr", "zzt", "jew", "gest", "verh"],
+    // Months (not "Mai"), academic degrees ("Dr. med."), languages and denominations.
+    ...["jan", "feb", "mär", "apr", "jun", "jul", "aug", "sep", "sept", "okt", "nov", "dez"],
+    ...["med", "rer", "nat", "phil", "jur", "dent", "vet", "habil", "theol", "oec"],
+    ...["engl", "franz", "frz", "lat", "griech", "ital", "röm", "kath", "evang"],
+    ...["idr", "btw", "inc"],
   ],
   pl: [
     ...["np", "tzn", "itd", "itp", "tj", "mgr", "inż", "ul", "godz", "wg", "św", "tys"],
     ...["mln", "mld", "tzw", "zob", "wyd", "ks", "hab", "pkt", "poz", "str", "nr", "tel"],
     ...["prof", "pl", "os", "ds", "dyr", "mjr", "płk", "kpt", "ppor", "sierż", "cz", "rozdz"],
     ...["tłum", "oprac", "red", "dot", "dn", "ob", "ang", "niem", "łac", "przyp", "jw"],
-    ...["wsp", "bp"],
+    ...["wsp", "bp", "br", "proc", "ew", "ww", "ub", "dz", "nast", "wym", "mkw", "art"],
+    ...["tab", "pt", "prez", "doc", "zw", "wł", "płn", "płd", "wsch", "zach", "zał", "ryc"],
   ],
   es: [
     ...["sr", "sra", "srta", "ej", "aprox", "pág", "núm", "ud", "uds", "dra", "avda"],
     ...["tel", "art", "cap", "vol", "máx", "mín", "dña", "lic", "ing", "prof", "págs"],
     ...["fig", "pp", "dpto", "gral", "arq", "sto", "admón", "apdo", "atte", "cía", "vda"],
-    ...["dcha", "izq", "izda", "tfno", "hnos", "prov"],
+    ...["dcha", "izq", "izda", "tfno", "hnos", "prov", "ed", "esq", "excmo", "ilmo", "ldo"],
+    ...["lda", "sres", "sras", "vd", "vds", "nro", "pdo", "ppal", "pte", "sig", "trad", "cód"],
+    // Months; "mar" (sea) and "may" stay out.
+    ...["ene", "abr", "ago", "sept", "oct", "nov", "dic"],
   ],
   pt: [
     ...["sr", "sra", "srta", "pág", "núm", "av", "dra", "profa", "tel", "art", "cap"],
     ...["vol", "exmo", "ltda", "cia", "prof", "págs", "fig", "pp", "eng", "arq", "sto"],
-    ...["sta", "apto", "aprox", "máx", "mín", "obs", "ilmo", "séc", "cel"],
+    ...["sta", "apto", "aprox", "máx", "mín", "obs", "ilmo", "séc", "cel", "pg", "inc"],
+    ...["ed", "trad", "hab", "proc", "ass", "dir", "gen", "ten", "ref", "op", "cit"],
+    // Months; "mar" (sea) and "dez" (ten) stay out.
+    ...["jan", "fev", "abr", "jun", "jul", "ago", "set", "out", "nov"],
   ],
   sv: [
     ...["dvs", "osv", "tys", "ca", "nr", "bl", "st", "kl", "jfr", "resp", "tel", "ang"],
@@ -65,7 +83,9 @@ const ABBREVIATIONS_BY_LANGUAGE: Record<string, readonly string[]> = {
   fr: [
     ...["env", "av", "apr", "mme", "mlle", "mm", "chap", "tél", "fig", "éd", "réf", "ste"],
     ...["st", "pp", "hab", "min", "sq", "sqq", "suiv", "ibid", "op", "cit", "boul", "dép"],
-    ...["dir", "coll", "trad", "arr", "adj", "gén", "cie", "mgr", "pr"],
+    ...["dir", "coll", "trad", "arr", "adj", "gén", "cie", "mgr", "pr", "resp", "max"],
+    ...["janv", "févr", "avr", "juil", "sept", "oct", "nov", "déc"],
+    ...["vol", "ex", "éq", "suppl", "intr", "trim"],
   ],
   el: [
     ...["κλπ", "δηλ", "βλ", "σελ", "αρ", "κα", "τηλ", "οδ", "χλμ", "δρ", "κκ", "βλπ"],
@@ -106,6 +126,10 @@ export function closesAbbreviation(text: string, index: number, lang?: string): 
     // "2026." and "12." end sentences in English; elsewhere they are ordinals.
     return token.length > 0 && ORDINAL_PERIOD_LOCALES.has(lang ?? "");
   }
+  // So are Roman numerals there: "Ludwig XIV. regierte".
+  if (/^[IVXLC]{2,}$/.test(token) && ORDINAL_PERIOD_LOCALES.has(lang ?? "")) return true;
+  // Portuguese and Spanish ordinals: "o 3o. lugar", "la 2a. edición".
+  if (/^\p{N}+[oaºª]$/u.test(token) && /^(pt|es)/.test(lang ?? "")) return true;
   return (
     token.length <= 1 || token.includes(".") || abbreviationsFor(lang).has(token.toLowerCase())
   );
