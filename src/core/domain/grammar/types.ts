@@ -148,6 +148,7 @@ export interface GrammarRuleCatalogEntry {
     | "germanCompounds"
     | "germanCommas"
     | "germanVerbAgreement"
+    | "germanArticleGender"
     | "germanQuestionMarks"
     | "germanNumbers"
     | "germanStraightQuotes"

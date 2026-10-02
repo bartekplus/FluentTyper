@@ -1,6 +1,6 @@
 import { frameMatches, SPACE, WORD_END, WORD_START } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
-import { germanNounReading } from "./germanLexicon";
+import { germanGender, type GermanGenderReading, germanNounReading } from "./germanLexicon";
 import { BOUNDARY, isGerman, tokensAfter, tokensBefore, wordSet } from "./shared";
 
 // The case a preposition governs, read from the article after it: "mit eine Freundin" (dative:
@@ -144,9 +144,15 @@ const withoutGenitive = (word: string) =>
   /(?:ss|ß|z|x|ch|t|d|g)es$/.test(word) ? word.slice(0, -2) : word.replace(/s$/, "");
 
 type Fix = { replacements: string[]; choice?: true };
-type Fixer = (stem: string, ending: string, adjs: string, noun: string) => Fix | null;
+type Fixer = (
+  stem: string,
+  ending: string,
+  adjs: string,
+  noun: string,
+  gender: GermanGenderReading | null,
+) => Fix | null;
 
-const dativeFix: Fixer = (stem, end, adjs, word) => {
+const dativeFix: Fixer = (stem, end, adjs, word, gender) => {
   const singular = `${join(stem, "em")}${weak(adjs)} ${word}`;
   const feminine = `${join(stem, "er")}${weak(adjs)} ${word}`;
   const plural = `${join(stem, "en")}${weak(adjs)} ${/[^ns]$/.test(word) ? `${word}n` : word}`;
@@ -165,6 +171,9 @@ const dativeFix: Fixer = (stem, end, adjs, word) => {
   }
   if (end !== "e") return null;
   if (dativePlural(word) || stem === "all") return { replacements: [plural] };
+  // The noun's gender decides between the feminine and the masculine or neuter.
+  if (gender?.gender === "f") return { replacements: [feminine] };
+  if (gender && !gender.plural) return { replacements: [singular] };
   if (/(?:er|el)$/.test(word)) return { replacements: [feminine, plural], choice: true };
   if (stem === "ein" || stem === "kein") {
     // "eine" has no plural: feminine, unless the noun is not.
@@ -176,7 +185,7 @@ const dativeFix: Fixer = (stem, end, adjs, word) => {
   return { replacements: [feminine] };
 };
 
-const genitiveFix: Fixer = (stem, end, adjs, word) => {
+const genitiveFix: Fixer = (stem, end, adjs, word, gender) => {
   const singular = `${join(stem, "es")}${weak(adjs)} ${genitiveNoun(word)}`;
   if (end === "em") return { replacements: [singular] };
   if (end === "en") {
@@ -195,13 +204,16 @@ const genitiveFix: Fixer = (stem, end, adjs, word) => {
     return { replacements: [singular] };
   }
   // Feminine or plural: -er for both ("wegen einer Stelle", "wegen der Leute").
+  if (end === "e" && stem !== "all" && gender && gender.gender !== "f" && !gender.plural) {
+    return { replacements: [singular] };
+  }
   if (end === "e" && stem !== "all") {
     return { replacements: [`${join(stem, "er")}${weak(adjs)} ${word}`] };
   }
   return null;
 };
 
-const accusativeFix: Fixer = (stem, end, adjs, word) => {
+const accusativeFix: Fixer = (stem, end, adjs, word, gender) => {
   // "für deiner Frau", "wider aller Vernunft", "betreffend der Adresse": dative or genitive.
   if (end === "er" && !/(?:er|el|en|n|s)$/.test(word)) {
     return { replacements: [`${join(stem, "e")}${ending(adjs, "e")} ${word}`] };
@@ -209,6 +221,8 @@ const accusativeFix: Fixer = (stem, end, adjs, word) => {
   if (end === "em") {
     const masculine = `${join(stem, "en")}${ending(adjs, "en")} ${word}`;
     const neuterForm = `${neuter(stem)}${ending(adjs, stem === "d" ? "e" : "es")} ${word}`;
+    if (gender?.gender === "m") return { replacements: [masculine] };
+    if (gender?.gender === "n") return { replacements: [neuterForm] };
     return { replacements: [masculine, neuterForm], choice: true };
   }
   // "für den Männern": a dative plural.
@@ -302,7 +316,7 @@ function prepositionCase(ctx: DetectContext): RawFinding[] {
     if (/^(?:und|oder|sowie|&|\/)$/.test(next) && /^\p{Lu}/u.test(after[1] ?? "")) continue;
     // "durch der Natur innewohnende Kräfte".
     if (/^\p{Ll}+end(?:e|en|er|es|em)?$/u.test(next)) continue;
-    const fix = FIXERS[kind](stem, end, adjs, word);
+    const fix = FIXERS[kind](stem, end, adjs, word, germanGender(word.split("-").at(-1)!));
     if (!fix) continue;
     // A date ("seit den 13. Jahrhundert") keeps its ordinal.
     if (ordinal)

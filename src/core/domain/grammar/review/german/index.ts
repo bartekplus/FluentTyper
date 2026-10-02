@@ -1,6 +1,7 @@
 // German-only Review checks, one module per area.
 import * as abbreviations from "./abbreviations";
 import * as adjectiveForms from "./adjectiveForms";
+import * as articleGender from "./articleGender";
 import * as confusions from "./confusions";
 import * as nounCasing from "./nounCasing";
 import * as prepositionCase from "./prepositionCase";
@@ -22,6 +23,7 @@ const MODULES = [
   prepositionCase,
   confusions,
   adjectiveForms,
+  articleGender,
   suspendedHyphen,
   abbreviations,
   quotes,

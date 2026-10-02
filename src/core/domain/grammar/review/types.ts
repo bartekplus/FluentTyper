@@ -231,6 +231,8 @@ export type ReviewMessageKey =
   | "review_msg_german_date_punctuation"
   | "review_msg_german_comma"
   | "review_msg_german_verb_agreement"
+  | "review_msg_german_article_gender"
+  | "review_msg_german_object_case"
   | "review_msg_german_question_mark"
   | "review_msg_german_idiom_case"
   | "review_msg_german_numbers"

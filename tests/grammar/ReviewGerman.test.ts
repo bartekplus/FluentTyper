@@ -2,11 +2,14 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import {
+  buildGermanGender,
   buildGermanLexicon,
   deriveGermanLexicon,
   GERMAN_LEXICON_SOURCES,
+  readGermanDeterminerBigrams,
 } from "../../scripts/generate-german-lexicon";
 import {
+  germanGender,
   germanNounReading,
   germanVerbLike,
 } from "../../src/core/domain/grammar/review/german/germanLexicon";
@@ -433,6 +436,34 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
       ],
     },
   ],
+  [
+    "germanArticleGender",
+    {
+      pos: [
+        ["Der Fahrrad steht im Keller.", "Das Fahrrad steht im Keller."],
+        ["Sie kam mit dem Tochter ihres Nachbarn.", "Sie kam mit der Tochter ihres Nachbarn."],
+        ["Er hat eine neues Fahrrad gekauft.", "Er hat ein neues Fahrrad gekauft."],
+        ["Die Wald hinter dem Haus ist dicht.", "Der Wald hinter dem Haus ist dicht."],
+        ["Ich gehe heute zum Schule.", "Ich gehe heute zur Schule."],
+        ["Sie wohnt jetzt im Großstadt.", "Sie wohnt jetzt in der Großstadt."],
+        ["Ich habe gestern ein Brief bekommen.", "Ich habe gestern einen Brief bekommen."],
+        ["Wenn du ein Termin brauchst, ruf an.", "Wenn du einen Termin brauchst, ruf an."],
+      ],
+      neg: [
+        "Der Mann, der Auto fährt, wohnt hier.",
+        "Ich gebe der Lehrerin das Heft.",
+        "Die Lehrer haben heute frei.",
+        "Das ist der Wagen meiner Eltern.",
+        "Ich bin ein Mensch, der gern liest.",
+        "Er wurde ein guter Arzt.",
+        "Auf der einen Seite stimmt das.",
+        "Die Hälfte der Zimmer war frei.",
+        "Sie hat der Freundin geholfen.",
+        "Mit den Autos fahren wir los.",
+        "Ich kenne das Buch des Autors.",
+      ],
+    },
+  ],
 ];
 
 describe.each(RULES)("%s", (ruleId, { pos, neg }) => {
@@ -577,6 +608,41 @@ test("the committed lexicon matches de_DE.dic/.aff (bun run generate:german-lexi
   expect(wrong.sort()).toEqual(["eile", "mühe", "träne", "weile", "zeit"]);
 });
 
+// Needs python3 with marisa-trie and numpy (scripts/requirements.txt) to read the n-gram trie.
+const bigrams = readGermanDeterminerBigrams();
+test.skipIf(bigrams === null)(
+  "the committed noun genders match de_DE.dic/.aff and the n-gram counts",
+  async () => {
+    const [dic, aff, committed] = await Promise.all(
+      [GERMAN_LEXICON_SOURCES.dic, GERMAN_LEXICON_SOURCES.aff, GERMAN_LEXICON_SOURCES.gender].map(
+        (path) => readFile(path, "utf8"),
+      ),
+    );
+    expect(buildGermanGender(dic, aff, bigrams!)).toBe(committed);
+  },
+);
+
+test.each([
+  ["Auto", "n", false],
+  ["Frau", "f", false],
+  ["Tisch", "m", false],
+  ["Lehrerin", "f", false],
+  ["Haustür", "f", false],
+  ["Schreibtisch", "m", false],
+  ["Freiheit", "f", false],
+  ["Brötchen", "n", true],
+  ["Zimmer", "x", true],
+])("%s has gender %p (plural form: %p)", (word, gender, plural) => {
+  expect(germanGender(word)).toEqual({ gender: gender as never, plural });
+});
+
+test.each(["See", "Teil", "Heirat", "Armut", "Legende", "Kuchen", "Kirchen", "Menschen", "Xyzzy"])(
+  "%s has no single gender",
+  (word) => {
+    expect(germanGender(word)).toBeNull();
+  },
+);
+
 test.each([
   ["zugriff", "finite"],
   ["kosten", "infinitive"],
@@ -626,6 +692,8 @@ test("no German chunk stalls on repeated determiners and lowercase nouns", () =>
     "Wir habe. Sollte wir du kann ich hast ".repeat(300),
     "mir ist zu recht Ernst nach Links riesen Dank im arm die schuld ".repeat(250),
     "zwei und zwanzig hundert tausend mal drei an halb viele Lösung ".repeat(250),
+    "Der Auto mit dem Frau eine sehr schönes Haus ich habe ein Tisch ".repeat(250),
+    `Ich ${"habe ein schöne neue ".repeat(400)}Haustürschlüsselbundanhänger.`,
     `Wann ${"kommst du ".repeat(2_000)}. Wie viel kostet das. Hast du Zeit, oder.`,
   ];
   slowest(inputs.join("\n"));
