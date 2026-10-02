@@ -1,6 +1,6 @@
 import { frameMatches, SPACE, WORD_END, WORD_START } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
-import { germanAdjective, germanNounReading } from "./germanLexicon";
+import { germanAdjective, germanGender, germanNounReading } from "./germanLexicon";
 import { ARTICLES, DEMONSTRATIVES, PREPOSITIONS } from "./nounCasing";
 import { isGerman, tokensAfter, tokensBefore, wordSet } from "./shared";
 
@@ -83,7 +83,8 @@ function endingAfter(det: string, prior: string, word: string): string[] | null 
 function inflect(lemma: string, ending: string): string {
   let stem = lemma;
   if (stem === "hoch") stem = "hoh";
-  else if (/[^aeiou]el$/.test(stem) || /(?:eu|au)er$/.test(stem))
+  // "edel" → "edle", "teuer" → "teure"; "parallel" keeps its stressed -el.
+  else if (/[^aeioul]el$/.test(stem) || /(?:eu|au)er$/.test(stem))
     stem = stem.slice(0, -2) + stem.at(-1);
   if (stem.endsWith("e")) return stem + ending.slice(1);
   return stem + ending;
@@ -158,8 +159,14 @@ function bareAdjectives(ctx: DetectContext): RawFinding[] {
       continue;
     }
     if (/^(?:ich|wir|sie|die)$/i.test(prior) && /^(?:meine|meinen|seine)$/.test(low)) continue;
-    const endings = endingAfter(det, prior, noun);
+    let endings = endingAfter(det, prior, noun);
     if (!endings) continue;
+    // "ein klein Haus" (kleines), "ein nett Mann" (netter): the noun's gender picks one. The
+    // bare form is also an old poetic one ("dein schmiegsam Weib"), rare enough to flag.
+    const gender = germanGender(noun.split("-").at(-1)!)?.gender;
+    if (endings.length > 1 && (gender === "m" || gender === "n")) {
+      endings = [gender === "m" ? "er" : "es"];
+    }
     findings.push({
       ruleId: "germanAdjectiveForms",
       messageKey: "review_msg_german_adjective_ending",

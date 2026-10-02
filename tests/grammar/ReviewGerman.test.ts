@@ -225,6 +225,8 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Wir kaufen nur bei dem lokalem Händler.", "Wir kaufen nur bei dem lokalen Händler."],
         ["Die Daten kommen in echt Zeit.", "Die Daten kommen in Echtzeit."],
         ["Sie trägt eine rund Brille.", "Sie trägt eine runde Brille."],
+        ["Mein klein Haus ist gemütlich.", "Mein kleines Haus ist gemütlich."],
+        ["Wir flogen in ein parallel Universum.", "Wir flogen in ein paralleles Universum."],
       ],
       neg: [
         "Er ist ein völlig Fremder.",
