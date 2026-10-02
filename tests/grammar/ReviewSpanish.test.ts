@@ -1195,6 +1195,47 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
       ],
     },
   ],
+  [
+    "spanishConfusions",
+    "permitir a + infinitive, and a preposition before a present form",
+    {
+      pos: [
+        ["El plan permite que los vecinos opinar.", "El plan permite a los vecinos opinar."],
+        ["No dejó que el perro salir.", "No dejó al perro salir."],
+        ["Lo supimos al informa.", "Lo supimos al informar."],
+        ["Se rio del multiplica.", "Se rio del multiplicar."],
+        ["Lo dijo al termina.", "Lo dijo al terminar."],
+      ],
+      neg: [
+        "El plan permite que los vecinos opinen.",
+        "Desde hace años vive aquí.",
+        "Lo vi de cerca.",
+        "Hablamos de política.",
+        "Hay un botón de descarga.",
+        "Permitió que el niño jugara.",
+      ],
+    },
+  ],
+  [
+    "stylePhrasing",
+    "the same adverb twice in a short clause",
+    {
+      pos: [
+        ["También lo sabe también Juan.", "También lo sabe Juan."],
+        ["Ya lo tenía ya preparado.", "Ya lo tenía preparado."],
+        ["Aún no ha llegado aún.", "Aún no ha llegado."],
+        ["Nunca lo vi nunca.", "Nunca lo vi."],
+        ["Siempre llega siempre tarde.", "Siempre llega tarde."],
+      ],
+      neg: [
+        "Ya sea uno ya sea otro.",
+        "También, también.",
+        "Ya lo sé. Ya voy.",
+        "Siempre lo dice y lo hace bien siempre.",
+        "Nunca jamás lo haré.",
+      ],
+    },
+  ],
 ];
 
 describe.each(FIXTURES)("%s: %s", (ruleId, _family, fixture) => {
@@ -1345,6 +1386,35 @@ test("the committed Spanish lexicon matches es_ES.dic/.aff (bun run generate:spa
     ),
   );
   expect(buildSpanishLexicon(dic, aff)).toBe(committed);
+});
+
+// JavaScriptCore may run a regex in its interpreter (late in the full suite it did): a frame
+// with an unbounded run of spaces in a lookbehind then rereads the run at every position. A
+// child process without the regex JIT makes that cost visible.
+test("Spanish frames stay linear on long space runs without the regex JIT", () => {
+  const module = `${import.meta.dir}/../../src/core/domain/grammar/review/reviewDiagnostics.ts`;
+  const script = `
+    const { prepareReview, reviewChunks, scanReviewChunk } = await import(${JSON.stringify(module)});
+    const rules = ${JSON.stringify(SPANISH_ON)};
+    const text = "el." + "\\t ".repeat(6000) + " el 32 de enero. Vino a las 5 hrs. y el 2do. Son casas rojos.";
+    let slowest = 0;
+    for (let run = 0; run < 2; run++) {
+      const prepared = prepareReview(
+        { id: "jit", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
+        { lang: "es_ES", enabledRules: rules, userDictionary: [], insertSpaceAfterAutocomplete: true },
+      );
+      for (const chunk of reviewChunks(prepared)) {
+        const start = performance.now();
+        scanReviewChunk(prepared, chunk);
+        if (run) slowest = Math.max(slowest, performance.now() - start);
+      }
+    }
+    console.log(slowest);`;
+  const child = Bun.spawnSync([process.execPath, "-e", script], {
+    env: { ...process.env, BUN_JSC_useRegExpJIT: "0" },
+  });
+  expect(child.exitCode).toBe(0);
+  expect(Number(child.stdout.toString().trim())).toBeLessThan(100);
 });
 
 test("no Spanish chunk stalls on repeated trigger words", () => {

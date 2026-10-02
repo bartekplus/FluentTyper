@@ -10,7 +10,16 @@ import {
   words,
   type Token,
 } from "./common";
-import { finiteVerb, isGerund, isNoun, isVerb, participle, subjunctiveLike } from "./lexicon";
+import { readNoun } from "./agreement";
+import {
+  finiteVerb,
+  isGerund,
+  isNoun,
+  isVerb,
+  participle,
+  presentInfinitive,
+  subjunctiveLike,
+} from "./lexicon";
 
 // Clause-level frames: "para que" before an indicative asks ("para qué sirve"), a pronoun
 // written apart from the gerund or infinitive it hangs on ("cantando lo" -> "cantándolo"), and
@@ -320,6 +329,114 @@ function altaClitic(ctx: DetectContext, tokens: Token[], i: number): RawFinding 
   );
 }
 
+// ------------------------------------------------------------------ permitir a + infinitive
+
+// Verbs whose person takes an infinitive after "a": "permitió a los niños conocer".
+const LETTING = /^(?:permit|dej|impid|imped|prohib)\p{L}*$/u;
+
+/**
+ * "Permitió que los niños conocer" -> "a los niños conocer": after "que" the verb would be a
+ * subjunctive; with an infinitive the person is introduced by "a".
+ */
+function permitQue(ctx: DetectContext, tokens: Token[], i: number): RawFinding | null {
+  const at = new Around(tokens, i);
+  if (tokens[i].lower !== "que" || !LETTING.test(at.prev())) return null;
+  const det = at.next();
+  if (!/^(?:el|la|los|las|mi|mis|tu|tus|su|sus|este|esta|estos|estas)$/u.test(det)) return null;
+  const noun = at.next(2);
+  if (!noun || !readNoun(noun) || isInfinitive(noun) || !isInfinitive(at.next(3))) return null;
+  if (det === "el") {
+    const span = {
+      ...tokens[i],
+      end: tokens[i + 1].end,
+      text: ctx.text.slice(tokens[i].start, tokens[i + 1].end),
+    };
+    return replaceToken(
+      ctx,
+      span,
+      ["al"],
+      "spanishConfusions",
+      "review_msg_spanish_verb_form",
+      tokens[i + 3],
+    );
+  }
+  return replaceToken(
+    ctx,
+    tokens[i],
+    ["a"],
+    "spanishConfusions",
+    "review_msg_spanish_verb_form",
+    tokens[i + 3],
+  );
+}
+
+// ------------------------------------------------------------------ repeated adverbs
+
+const REPEATABLE_ADVERBS = words("también tampoco ya solo sólo aún todavía siempre nunca");
+
+/** "También se llama también así" -> drop one: the same adverb twice in a short clause. */
+function repeatedAdverb(ctx: DetectContext, tokens: Token[], i: number): RawFinding | null {
+  const word = tokens[i].lower;
+  // "ya sea uno, ya sea otro": the correlative repeats on purpose.
+  if (!REPEATABLE_ADVERBS.has(word) || (word === "ya" && tokens[i + 1]?.lower === "sea"))
+    return null;
+  for (let k = 2; k <= 4; k++) {
+    const token = tokens[i + k];
+    if (!token || token.broken || !tokens[i + k - 1]?.word || !token.word) return null;
+    if (token.lower !== word) continue;
+    // Remove the second one with the space before it.
+    const start = tokens[i + k - 1].end;
+    const span = { ...token, start, text: ctx.text.slice(start, token.end) };
+    return replaceToken(
+      ctx,
+      span,
+      [""],
+      "stylePhrasing",
+      "review_msg_style_phrasing",
+      tokens[i],
+      true,
+    );
+  }
+  return null;
+}
+
+// ------------------------------------------------------------------ preposition + finite verb
+
+// The contractions before a masculine noun, where a feminine-looking present form cannot be
+// one ("al informa"); after "de" or "en" the lexicon misses too many nouns ("de descarga").
+const GOVERNING = words("del al");
+// Adverbs and nouns that look like verb forms after a preposition: "de cerca", "desde hace".
+const NOT_FINITE_HERE = words(
+  "hace cerca fuera dentro arriba abajo delante detrás antes encima debajo afuera adentro este " +
+    "atrás adelante nada toda cada media mitad sobre bajo entre tarde pronto mientras",
+);
+
+/**
+ * "al informa." -> "al informar": "al" and "del" take a masculine noun or an infinitive, never
+ * a present form, when nothing but a preposition or the clause end follows it.
+ */
+function prepositionFinite(ctx: DetectContext, tokens: Token[], i: number): RawFinding | null {
+  const at = new Around(tokens, i);
+  const word = tokens[i].lower;
+  if (!GOVERNING.has(at.prev()) || NOT_FINITE_HERE.has(word) || tokens[i].broken) return null;
+  if (!/^\p{Ll}/u.test(tokens[i].text) || word.length < 4) return null;
+  if (isNoun(word) || readNoun(word) || participle(word) || isInfinitive(word)) return null;
+  // An -e form may be a noun the lexicon misses ("del deporte"); an -a one after "al" cannot.
+  if (!finiteVerb(word) || !/a$/u.test(word)) return null;
+  if (!at.endsAfter() && !PREPOSITIONS.has(at.next())) return null;
+  const infinitive = presentInfinitive(word);
+  return infinitive
+    ? replaceToken(
+        ctx,
+        tokens[i],
+        [infinitive],
+        "spanishConfusions",
+        "review_msg_spanish_verb_form",
+        tokens[i - 1],
+      )
+    : null;
+}
+
 type Frame = (ctx: DetectContext, tokens: Token[], i: number) => RawFinding | null;
 
 function scan(...frames: Frame[]) {
@@ -340,7 +457,10 @@ function scan(...frames: Frame[]) {
 
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
   { rules: ["spanishAccents"], detect: scan(paraQue, framedAccent) },
-  { rules: ["spanishConfusions"], detect: scan(separatedEnclitic, aPunto, altaClitic) },
-  { rules: ["stylePhrasing"], detect: scan(agoBack) },
+  {
+    rules: ["spanishConfusions"],
+    detect: scan(separatedEnclitic, aPunto, altaClitic, permitQue, prepositionFinite),
+  },
+  { rules: ["stylePhrasing"], detect: scan(agoBack, repeatedAdverb) },
   { rules: ["spanishAgreement"], detect: scan(impersonalHaber, doubledPronoun) },
 ];
