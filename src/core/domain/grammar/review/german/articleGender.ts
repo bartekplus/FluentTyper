@@ -365,6 +365,81 @@ function articleGender(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+// An adjective with no article before its noun takes the strong ending that shows the case:
+// "schönes Wetter", "mit großer Freude", "herzlichen Dank".
+const STRONG: Readonly<Record<Gender, readonly string[]>> = {
+  m: ["er", "en", "em", "en"],
+  f: ["e", "e", "er", "er"],
+  n: ["es", "es", "em", "en"],
+  pl: ["e", "e", "en", "er"],
+};
+const BARE = new RegExp(
+  `${WORD_START}(?<adj>\\p{L}+(?:e|en|er|es|em))${SPACE}(?<noun>\\p{Lu}[\\p{L}\\p{M}]*(?:-[\\p{L}\\p{M}]+)*)${WORD_END}`,
+  "gdu",
+);
+// Verbs after which a bare noun phrase is the subject or object: "es gibt", "ist", "hat".
+const BARE_AFTER = wordSet(
+  "ist sind war waren gibt gab hat habe haben hatte hatten wird werden bietet bieten braucht " +
+    "brauchen suche suchen wünsche wünschen",
+);
+
+// Determiners and quantifiers spelled like adjectives, and prepositions in -e ("inklusive").
+const QUANTIFIER =
+  /^(?:(?:dies|jen|jed|welch|manch|all|viel|wenig|einig|mehrer|beid|etlich|sämtlich|irgendwelch)\p{Ll}*|inklusive|exklusive)$/u;
+
+function bareAdjective(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of frameMatches(ctx, BARE, "adj")) {
+    const { adj, noun } = m.groups!;
+    const low = adj.toLowerCase();
+    // "-er", "-en" and "-em" are left out: "früher", "voller", "weniger" and "vor allem" are
+    // adverbs or idioms.
+    if (!/[^e]es$|[^e]e$/.test(low) || DETERMINER_WORDS.test(low) || QUANTIFIER.test(low)) continue;
+    if (!isAdjective(low)) continue;
+    const head = noun.split("-").at(-1)!;
+    if (head.length < 3 || !/^\p{Lu}/u.test(head)) continue;
+    if (ctx.dictionary.has(low) || ctx.dictionary.has(head.toLowerCase())) continue;
+    const reading = germanGender(head);
+    if (!reading) continue;
+    const before = tokensBefore(ctx.text, m.index, 1);
+    const prior = (before.at(-1) ?? "").toLowerCase();
+    const start = sentenceStart(before);
+    // Only a sentence start, a preposition or a verb before: after an article, an adverb or
+    // another adjective the ending follows other rules.
+    // "zu verstehende Bestimmung": a gerundive, no preposition.
+    const governed = prior === "zu" ? undefined : GOVERNED.get(prior);
+    if (!start && !governed && !BARE_AFTER.has(prior)) continue;
+    if (start && adj === low) continue;
+    const next = tokensAfter(ctx.text, m.indices!.groups!.noun[1], 1)[0] ?? "";
+    if (/^\p{Lu}/u.test(next) && !BOUNDARY.test(next)) continue;
+    const cases: Case[] = governed ?? ["nom", "acc"];
+    const genders: Gender[] = reading.gender === "x" ? ["m", "n"] : [reading.gender];
+    if (reading.plural) genders.push("pl");
+    const typed = endingOf(low);
+    const allowed = new Set<string>();
+    for (const g of genders) {
+      for (const c of cases)
+        if (fits(head, reading, g, c)) allowed.add(STRONG[g][CASE_ORDER.indexOf(c)]);
+    }
+    if (!allowed.size || allowed.has(typed)) continue;
+    // Every ending the case allows ("herzliche Dank": herzlicher or herzlichen).
+    const stem = adj.slice(0, adj.length - typed.length);
+    const [adjStart, end] = m.indices!.groups!.adj;
+    findings.push({
+      ruleId: "germanArticleGender",
+      messageKey: "review_msg_german_adjective_ending",
+      range: { start: adjStart, end },
+      alternatives: [...allowed].map((e) => stem + e),
+      context: { start: m.index, end: m.indices!.groups!.noun[1] },
+      ...(allowed.size > 1 ? { requiresChoice: true as const } : {}),
+    });
+  }
+  return findings;
+}
+
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  { rules: ["germanArticleGender"], detect: articleGender },
+  {
+    rules: ["germanArticleGender"],
+    detect: (ctx) => (isGerman(ctx) ? [...articleGender(ctx), ...bareAdjective(ctx)] : []),
+  },
 ];
