@@ -2,6 +2,7 @@ import { frameMatches, SPACE, WORD_END, WORD_START } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { germanAdjective, germanGender, germanNounReading } from "./germanLexicon";
 import { ARTICLES, DEMONSTRATIVES, PREPOSITIONS } from "./nounCasing";
+import { salutationEndings } from "./salutations";
 import { isGerman, tokensAfter, tokensBefore, wordSet } from "./shared";
 
 // An adjective before a noun without its ending: "eine lang Reise" (lange), "ein edel Kraut"
@@ -335,6 +336,9 @@ function strongAfterArticle(ctx: DetectContext): RawFinding[] {
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
   {
     rules: ["germanAdjectiveForms"],
-    detect: (ctx) => (isGerman(ctx) ? [...bareAdjectives(ctx), ...strongAfterArticle(ctx)] : []),
+    detect: (ctx) =>
+      isGerman(ctx)
+        ? [...bareAdjectives(ctx), ...strongAfterArticle(ctx), ...salutationEndings(ctx)]
+        : [],
   },
 ];

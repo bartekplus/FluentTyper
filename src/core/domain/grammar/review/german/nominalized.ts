@@ -16,8 +16,9 @@ const FRAMES = [
   `(?:das|dem|den|des)${SPACE}(?<sup>\\p{L}+?(?:st|ßt)(?:e|en))`,
   // "des weiteren", "des öfteren", "von neuem", "seit längerem", "um ein vielfaches".
   `(?:des${SPACE}(?:weiteren|öfteren|näheren)|von${SPACE}neuem|um${SPACE}ein${SPACE}vielfaches|als${SPACE}(?:erstes|nächstes|letztes)|fürs${SPACE}erste|im${SPACE}großen${SPACE}und${SPACE}(?<ganzen>ganzen))`,
-  // "etwas neues", "nichts gutes", "viel schönes"; "alles gute".
-  `(?:etwas|nichts|viel|wenig|allerlei|genug)${SPACE}(?<es>\\p{L}+es)|alles${SPACE}(?<e>\\p{L}+e)`,
+  // "etwas neues", "nichts gutes", "viel schönes", "etwas ganz besonderes", "nichts allzu
+  // gutes"; "alles gute", "manches schöne".
+  `(?:etwas|nichts|viel|wenig|allerlei|genug)(?:${SPACE}(?:sehr|ganz|wirklich|total|allzu|besonders|ziemlich|richtig|echt|ganz${SPACE}schön)){0,2}${SPACE}(?<es>\\p{L}+es)|(?:alles|manches)${SPACE}(?<e>\\p{L}+e)`,
   // A language as a noun: "auf deutsch", "in englisch", "kein französisch".
   `(?:auf|in|kein)${SPACE}(?<lang>deutsch|englisch|französisch|spanisch|italienisch|polnisch|russisch|türkisch|griechisch|schwedisch|portugiesisch|kroatisch|arabisch|chinesisch|japanisch|latein)`,
 ].map((f) => `(?:${f})${WORD_END}`);
