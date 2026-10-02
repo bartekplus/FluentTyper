@@ -1,5 +1,5 @@
 import type Quill from "quill";
-import type { Browser, Page } from "puppeteer";
+import type { Browser, Frame, Page } from "puppeteer";
 import path from "path";
 import * as fs from "fs";
 import type { Server } from "http";
@@ -55,17 +55,12 @@ import {
 } from "./e2e-helpers";
 
 const TEST_PAGE_PATH = path.resolve(__dirname, "test-page.html");
-const TEST_LEXICAL_EDITOR_ENTRY_PATH = path.resolve(
-  __dirname,
-  "fixtures",
-  "lexical-test-editor.ts",
-);
-const TEST_LEXICAL_EDITOR_BUNDLE_PATH = "/test-lexical-editor.js";
 const TEST_HOST = "localhost";
 const SETTINGS_PREFIX = "store.settings.";
 const CKEDITOR_SELECTOR = ".ck-editor__editable";
 const QUILL_SELECTOR = ".ql-editor";
 const LEXICAL_SELECTOR = "#test-lexical-editor";
+const PROSEMIRROR_SELECTOR = "#test-prosemirror-editor";
 const GENERIC_INPUT_SELECTORS = ["#test-input"] as const;
 const timeoutProfile = getTimeoutProfile();
 
@@ -84,9 +79,9 @@ function browserTimeout(chromeTimeoutMs: number, firefoxTimeoutMs: number) {
   return suiteTimeout(chromeTimeoutMs, firefoxTimeoutMs);
 }
 
-async function bundleLexicalTestEditor(): Promise<Buffer> {
+async function bundleTestEditor(editor: "lexical" | "prosemirror" | "tinymce"): Promise<Buffer> {
   const buildResult = await Bun.build({
-    entrypoints: [TEST_LEXICAL_EDITOR_ENTRY_PATH],
+    entrypoints: [path.resolve(__dirname, "fixtures", `${editor}-test-editor.ts`)],
     target: "browser",
     format: "iife",
     minify: false,
@@ -105,12 +100,12 @@ async function bundleLexicalTestEditor(): Promise<Buffer> {
         return `[${log.level}] ${location} ${log.message}`;
       })
       .join("\n");
-    throw new Error(`Failed to bundle Lexical test editor:\n${errors}`);
+    throw new Error(`Failed to bundle ${editor} test editor:\n${errors}`);
   }
 
   const bundle = buildResult.outputs[0];
   if (!bundle) {
-    throw new Error("Lexical test editor bundle output is missing");
+    throw new Error(`${editor} test editor bundle output is missing`);
   }
 
   return Buffer.from(await bundle.arrayBuffer());
@@ -1063,7 +1058,13 @@ async function pressNativeUndo(page: Page, selector: string): Promise<void> {
 
 async function gotoTestPage(
   page: Page,
-  options: { enableCkEditor?: boolean; enableQuill?: boolean; enableLexical?: boolean } = {},
+  options: {
+    enableCkEditor?: boolean;
+    enableQuill?: boolean;
+    enableLexical?: boolean;
+    enableProseMirror?: boolean;
+    tinyMceMode?: "iframe" | "inline";
+  } = {},
 ) {
   const params = new URLSearchParams({ testName: currentE2ETestName });
   if (options.enableCkEditor) {
@@ -1074,6 +1075,12 @@ async function gotoTestPage(
   }
   if (options.enableLexical) {
     params.set("enableLexical", "1");
+  }
+  if (options.enableProseMirror) {
+    params.set("enableProseMirror", "1");
+  }
+  if (options.tinyMceMode) {
+    params.set("tinyMceMode", options.tinyMceMode);
   }
   // Use a local HTTP server instead of file:// so host permissions apply consistently.
   const targetUrl = `${domainTestUrl}?${params.toString()}`;
@@ -1093,7 +1100,7 @@ async function gotoTestPage(
   }
 }
 
-async function waitForInputReady(page: Page, selector: string) {
+async function waitForInputReady(page: Page | Frame, selector: string) {
   if (selector === CKEDITOR_SELECTOR) {
     await waitUntil(
       `CKEditor readiness for ${selector}`,
@@ -1232,10 +1239,11 @@ async function waitForInputReady(page: Page, selector: string) {
   await waitUntil(
     `input helper attach for ${selector}`,
     async () => {
-      const isAttached = await page.evaluate(
-        (sel) => document.querySelector(sel)?.hasAttribute("data-suggestion") ?? false,
-        selector,
-      );
+      const isAttached = await page.evaluate((sel) => {
+        const target = document.querySelector(sel);
+        const stateHost = target === document.body ? document.documentElement : target;
+        return stateHost?.hasAttribute("data-suggestion") ?? false;
+      }, selector);
       return isAttached ? true : false;
     },
     { timeoutMs: INPUT_READY_TIMEOUT_MS, intervalMs: 50 },
@@ -1250,7 +1258,7 @@ async function waitForVisibleSuggestions(
   return suggestions.length;
 }
 
-async function getVisibleSuggestionTexts(page: Page): Promise<string[]> {
+async function getVisibleSuggestionTexts(page: Page | Frame): Promise<string[]> {
   return await page.evaluate(() => {
     const getMenuRoot = (container: Element): ParentNode =>
       (container as HTMLElement).shadowRoot ?? container;
@@ -1319,7 +1327,7 @@ async function getVisibleSuggestionTexts(page: Page): Promise<string[]> {
 }
 
 async function waitForVisibleSuggestionTexts(
-  page: Page,
+  page: Page | Frame,
   timeoutMs = SUGGESTION_TIMEOUT_MS,
 ): Promise<string[]> {
   return await waitUntil(
@@ -1565,7 +1573,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   let worker: BackgroundContext;
   let domainTestServer: Server;
   let domainTestHtml: string;
-  let lexicalTestEditorBundle: Buffer;
+  const editorBundles = new Map<string, Buffer>();
   let startupFirefoxInstallationPage: Page | null = null;
 
   beforeAll(async () => {
@@ -1580,15 +1588,32 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     worker = await reacquireWorkerContext(browser, "initial background worker context");
     page = await ensurePrimaryPage(browser);
     domainTestHtml = fs.readFileSync(TEST_PAGE_PATH, "utf8");
-    lexicalTestEditorBundle = await bundleLexicalTestEditor();
+    for (const editor of ["lexical", "prosemirror", "tinymce"] as const) {
+      editorBundles.set(`/test-${editor}-editor.js`, await bundleTestEditor(editor));
+    }
 
     domainTestServer = createServer((req, res) => {
-      if (req.url === TEST_LEXICAL_EDITOR_BUNDLE_PATH) {
+      const editorBundle = editorBundles.get(req.url ?? "");
+      if (editorBundle) {
         res.writeHead(200, {
           "Content-Type": "application/javascript; charset=utf-8",
-          "Content-Length": lexicalTestEditorBundle.length,
+          "Content-Length": editorBundle.length,
         });
-        res.end(lexicalTestEditorBundle);
+        res.end(editorBundle);
+        return;
+      }
+      if (req.url?.startsWith("/tinymce-skin/")) {
+        const filename = path.basename(req.url);
+        if (["skin.min.css", "content.min.css", "content.inline.min.css"].includes(filename)) {
+          const css = fs.readFileSync(
+            path.resolve(__dirname, "../../node_modules/tinymce/skins/ui/oxide", filename),
+          );
+          res.writeHead(200, { "Content-Type": "text/css; charset=utf-8" });
+          res.end(css);
+          return;
+        }
+        res.writeHead(404);
+        res.end();
         return;
       }
       if (req.url && (req.url.includes("ckeditor5.umd.js") || req.url.includes("ckeditor.js"))) {
@@ -2348,6 +2373,247 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       });
     },
     browserTimeout(45000, 70000),
+  );
+
+  test(
+    "ProseMirror predictions and expansions update the model, preserve formatting and undo",
+    async () => {
+      const readModel = () =>
+        page.evaluate(() => {
+          const doc = window.__testProseMirror!.state.doc;
+          return {
+            first: doc.child(0).toJSON(),
+            blocks: Array.from(
+              { length: doc.childCount },
+              (_, index) => doc.child(index).textContent,
+            ),
+          };
+        });
+      try {
+        await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+        await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
+        await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+        await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
+        await setSettingAndWait(worker!, KEY_TEXT_EXPANSIONS, [["ftsig", "Best regards"]]);
+        await setGrammarRulesAndWait(worker!, []);
+        await applyConfigChange(browser, worker!);
+        await gotoTestPage(page, { enableProseMirror: true });
+        await page.bringToFront();
+        await waitForInputReady(page, PROSEMIRROR_SELECTOR);
+        await page.evaluate(() => window.__testProseMirror!.focus());
+        const original = await readModel();
+
+        await page.keyboard.type("w");
+        const prediction = await waitUntil(
+          "ProseMirror prediction for the typed prefix",
+          async () => {
+            const text = (await getVisibleSuggestionTexts(page))[0];
+            return text && /^w\S*[ \xa0]$/i.test(text) ? text : false;
+          },
+          { timeoutMs: SUGGESTION_TIMEOUT_MS },
+        );
+        await page.evaluate(() => window.__testProseMirrorCloseHistory!());
+        await page.keyboard.press("Tab");
+        await waitUntil(
+          "ProseMirror model contains accepted prediction",
+          async () =>
+            normalizeSuggestionText((await readModel()).blocks[1]) ===
+            normalizeSuggestionText(prediction),
+          { timeoutMs: SUGGESTION_TIMEOUT_MS },
+        ).catch(async (error) => {
+          throw new Error(
+            `${String(error)}: ${JSON.stringify({ prediction, model: await readModel(), dom: await page.$eval(PROSEMIRROR_SELECTOR, (el) => el.innerHTML) })}`,
+          );
+        });
+        expect(
+          await page.$eval(`${PROSEMIRROR_SELECTOR} p:nth-child(2)`, (el) => el.textContent),
+        ).toBe((await readModel()).blocks[1]);
+        expect((await readModel()).blocks[1]).toMatch(/[ \xa0]$/);
+        expect((await readModel()).first).toEqual(original.first);
+
+        await page.evaluate(() => window.__testProseMirrorUndo!());
+        await waitUntil(
+          "ProseMirror undo restores prefix",
+          async () => (await readModel()).blocks[1] === "w",
+        ).catch(async (error) => {
+          throw new Error(`${String(error)}: ${JSON.stringify(await readModel())}`);
+        });
+        await page.keyboard.press("Enter");
+        await waitUntil(
+          "ProseMirror Enter creates a paragraph",
+          async () => (await readModel()).blocks.length === 3,
+        );
+        await page.keyboard.type("ftsig");
+        const expansionIndex = await waitUntil(
+          "ProseMirror expansion suggestion",
+          async () => {
+            const index = (await getVisibleSuggestionTexts(page)).findIndex(
+              (text) => normalizeSuggestionText(text) === "best regards",
+            );
+            return index >= 0 ? index : false;
+          },
+          { timeoutMs: SUGGESTION_TIMEOUT_MS },
+        );
+        for (let index = 0; index < expansionIndex; index++) {
+          await page.keyboard.press("ArrowDown");
+        }
+        await page.evaluate(() => window.__testProseMirrorCloseHistory!());
+        await page.keyboard.press("Tab");
+        await waitUntil(
+          "ProseMirror model contains expansion in the new paragraph",
+          async () => (await readModel()).blocks[2]?.trim() === "Best regards",
+          { timeoutMs: SUGGESTION_TIMEOUT_MS },
+        );
+        expect((await readModel()).blocks.slice(0, 2).map(normalizeSuggestionText)).toEqual([
+          "original reference",
+          "w",
+        ]);
+        expect((await readModel()).first).toEqual(original.first);
+        await page.evaluate(() => window.__testProseMirrorUndo!());
+        await waitUntil(
+          "ProseMirror expansion undo restores shortcut",
+          async () => (await readModel()).blocks[2] === "ftsig",
+        );
+      } finally {
+        await setSettingAndWait(worker!, KEY_TEXT_EXPANSIONS, []);
+        await applyConfigChange(browser, worker!);
+      }
+    },
+    browserTimeout(30000, 50000),
+  );
+
+  test.each(["iframe", "inline"] as const)(
+    "TinyMCE %s predictions and expansions preserve formatting and undo",
+    async (mode) => {
+      try {
+        await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+        await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
+        await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+        await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
+        await setSettingAndWait(worker!, KEY_TEXT_EXPANSIONS, [["ftsig", "Best regards"]]);
+        await setGrammarRulesAndWait(worker!, []);
+        await applyConfigChange(browser, worker!);
+        await gotoTestPage(page, { tinyMceMode: mode });
+        await page.bringToFront();
+        await waitUntil(
+          "TinyMCE initialization",
+          async () =>
+            page.evaluate(() => {
+              if (window.__testTinyMCEError) throw new Error(window.__testTinyMCEError);
+              return !!window.__testTinyMCE;
+            }),
+          { timeoutMs: INPUT_READY_TIMEOUT_MS },
+        );
+        const editorPage: Page | Frame =
+          mode === "inline"
+            ? page
+            : await waitUntil(
+                "TinyMCE editing frame",
+                async () => (await (await page.$("#test-tinymce_ifr"))?.contentFrame()) ?? false,
+                { timeoutMs: INPUT_READY_TIMEOUT_MS },
+              );
+        const selector = mode === "inline" ? "#test-tinymce" : "body";
+        if (mode === "iframe") await page.waitForSelector(".tox-tinymce", { visible: true });
+        await waitForInputReady(editorPage, selector);
+        await editorPage.click(`${selector} p:last-child`);
+        await page.evaluate(() => {
+          const editor = window.__testTinyMCE!;
+          editor.selection.setCursorLocation(editor.getBody().lastElementChild!, 0);
+        });
+        const readContent = () =>
+          page.evaluate(() => {
+            const editor = window.__testTinyMCE!;
+            return {
+              html: editor.getContent(),
+              blocks: Array.from(editor.getBody().children, (el) => el.textContent ?? ""),
+              first: editor.getBody().firstElementChild!.innerHTML,
+            };
+          });
+        const original = await readContent();
+        await page.keyboard.type("w");
+        const prediction = await waitUntil(
+          "TinyMCE prediction for the typed prefix",
+          async () => {
+            const text = (await getVisibleSuggestionTexts(editorPage))[0];
+            return text && /^w\S*[ \xa0]$/i.test(text) ? text : false;
+          },
+          { timeoutMs: SUGGESTION_TIMEOUT_MS },
+        ).catch(async (error) => {
+          throw new Error(
+            `${String(error)}: ${JSON.stringify({ content: await readContent(), suggestions: await getVisibleSuggestionTexts(editorPage), focused: await editorPage.evaluate(() => document.hasFocus()) })}`,
+          );
+        });
+        await page.evaluate(() => window.__testTinyMCE!.undoManager.add());
+        await page.keyboard.press("Tab");
+        await waitUntil(
+          "TinyMCE contains accepted prediction",
+          async () =>
+            normalizeSuggestionText((await readContent()).blocks[1]) ===
+            normalizeSuggestionText(prediction),
+          { timeoutMs: SUGGESTION_TIMEOUT_MS },
+        ).catch(async (error) => {
+          throw new Error(
+            `${String(error)}: ${JSON.stringify({ prediction, content: await readContent() })}`,
+          );
+        });
+        expect((await readContent()).first).toBe(original.first);
+        expect(normalizeSuggestionText((await readContent()).html)).toContain(
+          normalizeSuggestionText(prediction),
+        );
+        expect((await readContent()).blocks[1]).toMatch(/[ \xa0]$/);
+
+        await page.evaluate(() => window.__testTinyMCE!.undoManager.undo());
+        await waitUntil(
+          "TinyMCE undo restores prefix",
+          async () => (await readContent()).blocks[1] === "w",
+        );
+        await editorPage.click(`${selector} p:last-child`);
+        await page.evaluate(() => {
+          const editor = window.__testTinyMCE!;
+          editor.selection.setCursorLocation(editor.getBody().lastElementChild!, 1);
+        });
+        await page.keyboard.press("Enter");
+        await waitUntil(
+          "TinyMCE Enter creates a paragraph",
+          async () => (await readContent()).blocks.length === 3,
+        );
+        await page.keyboard.type("ftsig");
+        const expansionIndex = await waitUntil(
+          "TinyMCE expansion suggestion",
+          async () => {
+            const index = (await getVisibleSuggestionTexts(editorPage)).findIndex(
+              (text) => normalizeSuggestionText(text) === "best regards",
+            );
+            return index >= 0 ? index : false;
+          },
+          { timeoutMs: SUGGESTION_TIMEOUT_MS },
+        );
+        for (let index = 0; index < expansionIndex; index++) {
+          await page.keyboard.press("ArrowDown");
+        }
+        await page.evaluate(() => window.__testTinyMCE!.undoManager.add());
+        await page.keyboard.press("Tab");
+        await waitUntil(
+          "TinyMCE contains expansion in the new paragraph",
+          async () => (await readContent()).blocks[2]?.trim() === "Best regards",
+          { timeoutMs: SUGGESTION_TIMEOUT_MS },
+        );
+        expect((await readContent()).blocks.slice(0, 2).map(normalizeSuggestionText)).toEqual([
+          "original reference",
+          "w",
+        ]);
+        expect((await readContent()).first).toBe(original.first);
+        await page.evaluate(() => window.__testTinyMCE!.undoManager.undo());
+        await waitUntil(
+          "TinyMCE expansion undo restores shortcut",
+          async () => (await readContent()).blocks[2] === "ftsig",
+        );
+      } finally {
+        await setSettingAndWait(worker!, KEY_TEXT_EXPANSIONS, []);
+        await applyConfigChange(browser, worker!);
+      }
+    },
+    browserTimeout(30000, 50000),
   );
 
   test(

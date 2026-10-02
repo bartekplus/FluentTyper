@@ -4277,6 +4277,28 @@
           "test": "an unresolved auto-detect language asks no dictionary"
         }
       ]
+    },
+    {
+      "id": "prosemirror_editor_transactions",
+      "description": "Real ProseMirror autocomplete and text expansion update the document model across paragraph breaks, preserve bold/link marks, and undo restores the prefix or shortcut.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "ProseMirror predictions and expansions update the model, preserve formatting and undo"
+        }
+      ]
+    },
+    {
+      "id": "tinymce_editor_transactions",
+      "description": "Real TinyMCE inline and iframe editors discover suggestions, accept autocomplete and text expansions across paragraph breaks, preserve bold/links, and undo restores the prefix or shortcut.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "TinyMCE %s predictions and expansions preserve formatting and undo"
+        }
+      ]
     }
   ]
 }
