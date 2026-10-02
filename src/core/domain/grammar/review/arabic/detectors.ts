@@ -3,6 +3,7 @@ import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDe
 import { arabicDates } from "./dates";
 import { FEMININE_PLURAL_STEMS } from "./lexicon.generated";
 import { styleFrames } from "./styleFrames";
+import { gappedUsage } from "./usage";
 
 type Finding = Omit<RawFinding, "ruleId">;
 type Token = { word: string; start: number; end: number; gap: string };
@@ -661,6 +662,7 @@ export const DETECTORS: readonly ReviewDetectorEntry[] = [
     detect: as("stylePhrasing", (ctx, list) => [
       ...arabicStyle(ctx),
       ...styleFrames(ctx.text, list, (start) => owns(ctx, start)),
+      ...gappedUsage(list, (start) => owns(ctx, start)),
     ]),
   },
 ];
