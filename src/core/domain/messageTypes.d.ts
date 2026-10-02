@@ -125,7 +125,7 @@ export type ContentScriptUsageEventContext =
       language: string;
     };
 
-export type DonationPromptAction = "shown" | "supported" | "snooze";
+export type DonationPromptAction = "shown" | "support_clicked" | "snooze" | "dismiss";
 
 export interface PopupAckDonationMilestoneContext {
   promptId: string;
@@ -188,7 +188,6 @@ export interface DonationPromptSummary {
   promptId: string;
   kind: "first_value" | "milestone" | "weekly_recap";
   milestoneHours: number | null;
-  message: string;
 }
 
 export interface ProductivityDashboardStats {

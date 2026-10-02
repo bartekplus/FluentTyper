@@ -215,6 +215,7 @@
     "review_language_matrix",
     "review_spelling_languages",
     "prosemirror_editor_transactions",
-    "tinymce_editor_transactions"
+    "tinymce_editor_transactions",
+    "support_prompt_dismissal"
   ]
 }

@@ -1,3 +1,4 @@
+import type { DonationPromptAction } from "@core/domain/messageTypes";
 import { SettingsEngine, type SettingsRegistry } from "@ui/settings-engine/SettingsEngine.js";
 import { createLogger, installObservabilityRelay } from "@core/application/logging/Logger";
 import { Store } from "@core/application/storage/Store.js";
@@ -8,7 +9,10 @@ import { TextAssetsPanel } from "@ui/options/TextAssetsPanel";
 import { SiteManagementPanel } from "@ui/options/SiteManagementPanel";
 import { AppearanceStudio } from "@ui/options/AppearanceStudio";
 import { renderDataDiagnosticsPanel } from "@ui/options/DataDiagnosticsPanel";
-import { renderAboutWorkspacePanel } from "@ui/options/AboutWorkspacePanel";
+import {
+  renderAboutWorkspacePanel,
+  renderSupportWorkspacePanel,
+} from "@ui/options/AboutWorkspacePanel";
 import { formatMetricNumber, formatWeekRange } from "@ui/shared/formatMetrics.js";
 import {
   acknowledgeDonationPrompt,
@@ -82,7 +86,7 @@ import {
 } from "@core/domain/constants";
 import { PERSONALIZATION_STORAGE_KEY } from "@core/application/personalization/PersonalizationRepository";
 import { DEFAULT_SUGGESTION_THEME_SETTINGS } from "@core/domain/themeDefaults";
-import { i18n } from "./fluenttyperI18n.js";
+import { formatTranslation, i18n } from "./fluenttyperI18n.js";
 import { manifest } from "./settingsManifest.js";
 import { languageLabel } from "@ui/shared/siteProfileEditor";
 import { createWorkspaceShell, downloadBlob, formatLooseText } from "./workspacePanelUtils.js";
@@ -485,7 +489,7 @@ function formatTrendDayLabel(dateKey: unknown) {
 
 async function handleDonationPromptAction(
   prompt: Record<string, unknown>,
-  action: "shown" | "supported" | "snooze",
+  action: DonationPromptAction,
 ) {
   if (!prompt || typeof prompt.promptId !== "string" || !prompt.promptId) {
     return;
@@ -779,7 +783,10 @@ function renderProductivityInsights(root: HTMLElement, stats: ProductivityStats)
     const donationSection = document.createElement("div");
     donationSection.className = "productivity-insights-donation";
     const donationText = document.createElement("span");
-    donationText.textContent = String(donationPrompt.message);
+    const lifetime = stats.lifetime as Record<string, unknown>;
+    donationText.textContent = formatTranslation("support_saved_time", {
+      minutes: formatMetricNumber(lifetime.estimatedMinutesSaved),
+    });
     const donationActions = document.createElement("div");
     donationActions.className = "productivity-insights-donation-actions";
     const laterButton = document.createElement("button");
@@ -796,10 +803,17 @@ function renderProductivityInsights(root: HTMLElement, stats: ProductivityStats)
     donationLink.rel = "noopener noreferrer";
     donationLink.textContent = t("popup_donation_support");
     donationLink.onclick = () => {
-      void handleDonationPromptAction(donationPrompt, "supported");
+      void handleDonationPromptAction(donationPrompt, "support_clicked");
     };
-    donationActions.appendChild(laterButton);
-    donationActions.appendChild(donationLink);
+    const dismissButton = document.createElement("button");
+    dismissButton.type = "button";
+    dismissButton.className = "popup-text-button";
+    dismissButton.textContent = t("support_dismiss");
+    dismissButton.onclick = async () => {
+      await handleDonationPromptAction(donationPrompt, "dismiss");
+      await loadProductivityInsights(root);
+    };
+    donationActions.append(donationLink, laterButton, dismissButton);
     donationSection.appendChild(donationText);
     donationSection.appendChild(donationActions);
     shell.appendChild(donationSection);
@@ -2022,6 +2036,7 @@ window.addEventListener("DOMContentLoaded", function () {
     if (IS_DEV_BUILD && registry.observabilityWorkspacePanel?.element) {
       renderObservabilityWorkspacePanel(registry.observabilityWorkspacePanel.element, registry);
     }
+    renderSupportWorkspacePanel(registry.supportWorkspacePanel.element);
     renderAboutWorkspacePanel(registry.aboutWorkspacePanel.element);
     applyOptionsObservabilityRuntime(registry);
 

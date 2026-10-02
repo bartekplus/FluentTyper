@@ -707,6 +707,9 @@ function renderMilestoneHint(stats: ProductivityDashboardStats): void {
     lastMarkedDonationPromptId = null;
     return;
   }
+  const dismissButton = document.getElementById(
+    "dashboardMilestoneDismissBtn",
+  ) as HTMLButtonElement;
   const donationPrompt = stats.donationPrompt;
 
   if (lastMarkedDonationPromptId !== donationPrompt.promptId) {
@@ -715,11 +718,21 @@ function renderMilestoneHint(stats: ProductivityDashboardStats): void {
   }
 
   container.classList.remove("is-hidden");
-  textNode.textContent = donationPrompt.message;
+  textNode.textContent = formatTranslation("support_saved_time", {
+    minutes: formatNumber(stats.lifetime.estimatedMinutesSaved),
+  });
+  dismissButton.onclick = () => {
+    void acknowledgeDonationPrompt(
+      donationPrompt.promptId,
+      "dismiss",
+      donationPrompt.milestoneHours,
+    );
+    container.classList.add("is-hidden");
+  };
   linkNode.onclick = () => {
     void acknowledgeDonationPrompt(
       donationPrompt.promptId,
-      "supported",
+      "support_clicked",
       donationPrompt.milestoneHours,
     );
   };

@@ -304,7 +304,11 @@ export class ProductivityStatsService {
 
   async resetStats(): Promise<void> {
     const operation = this.mutationQueue.then(async () => {
-      await this.repository.saveState(this.sanitizer.createDefaultStatsState());
+      const { donationPromptsDisabled } = await this.loadState();
+      await this.repository.saveState({
+        ...this.sanitizer.createDefaultStatsState(),
+        donationPromptsDisabled,
+      });
     });
 
     this.mutationQueue = operation.catch((error: unknown) => {

@@ -4975,6 +4975,62 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   );
 
   test(
+    "Support prompts can be dismissed permanently while support stays visible",
+    async () => {
+      await setSettingAndWait(worker!, KEY_PRODUCTIVITY_STATS, {
+        acceptedSuggestions: 50,
+        charactersSaved: 3600,
+        daily: {},
+      });
+      try {
+        const popup = await openPopupPage(browser, worker!);
+        await popup.waitForSelector("#dashboardMilestoneHint:not(.is-hidden)");
+        expect(await popup.$eval("#supportDevelopmentLink", (el) => el.textContent)).toContain(
+          "Support FluentTyper",
+        );
+        expect(await popup.$eval("#dashboardMilestoneText", (el) => el.textContent)).toContain(
+          "estimated",
+        );
+        // Firefox BiDi cannot dispatch pointer input inside extension pages.
+        await popup.$eval("#dashboardMilestoneDismissBtn", (el) =>
+          (el as HTMLButtonElement).click(),
+        );
+        await waitForSettingMatch<{ donationPromptsDisabled: boolean }>(
+          worker!,
+          KEY_PRODUCTIVITY_STATS,
+          (value) => value?.donationPromptsDisabled === true,
+        );
+        await popup.close();
+        const reopened = await openPopupPage(browser, worker!);
+        await reopened.waitForSelector("#supportDevelopmentLink", { visible: true });
+        await reopened.waitForFunction(() =>
+          document.getElementById("dashboardPeriodSummary")?.textContent?.includes("Last 7 days:"),
+        );
+        expect(
+          await reopened.$eval("#dashboardMilestoneHint", (el) =>
+            el.classList.contains("is-hidden"),
+          ),
+        ).toBe(true);
+        await reopened.close();
+        const options = await openOptionsPage(browser, worker!);
+        if (!isFirefox()) await options.setViewport({ width: 1200, height: 900 });
+        await options.$eval('a[href="#advanced_tab"]', (el) => (el as HTMLAnchorElement).click());
+        await options.waitForSelector(".support-card", { visible: true });
+        expect(
+          await options.$eval(
+            ".support-card",
+            (el) => el.getBoundingClientRect().top < window.innerHeight,
+          ),
+        ).toBe(true);
+        await options.close();
+      } finally {
+        await setSettingAndWait(worker!, KEY_PRODUCTIVITY_STATS, {});
+      }
+    },
+    browserTimeout(10000, 20000),
+  );
+
+  test(
     "Productivity dashboard shows compact popup summary and advanced stats in options",
     async () => {
       const { today, yesterday } = await worker!.evaluate(() => {
