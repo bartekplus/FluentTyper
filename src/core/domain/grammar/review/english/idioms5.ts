@@ -277,7 +277,8 @@ const before = (ctx: DetectContext, index: number, chars = 80) =>
 const group = (m: RegExpExecArray, name: string) => m.indices!.groups![name];
 const matchEnd = (m: RegExpExecArray) => m.index + m[0].length;
 /** A lookbehind: none of the whole `words` (an alternation) right before the frame. */
-const notAfter = (words: string) => `(?<!(?<![\\p{L}'’])(?:${words})${S})`;
+// A letter first: off words (on long runs of spaces) the lookbehind is never tried.
+const notAfter = (words: string) => `(?=\\p{L})(?<!(?<![\\p{L}'’])(?:${words})${S})`;
 /** A frame that may also start right after a slash ("source/reason of saving"). */
 const SLASH_START = (pattern: string) =>
   new RegExp(`(?<![.])(?<![\\p{L}\\p{M}\\p{N}_'’@#\\\\-])${pattern}`, "gidu");
