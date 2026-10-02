@@ -140,6 +140,7 @@ export interface GrammarRuleCatalogEntry {
     | "germanAbbreviationSpacing"
     | "germanDates"
     | "germanCompounds"
+    | "germanCommas"
     | "greekFinalNu"
     | "greekStrictFinalNu"
     | "greekQuestionAccent"

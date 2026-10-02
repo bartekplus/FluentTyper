@@ -9,6 +9,7 @@ import * as suspendedHyphen from "./suspendedHyphen";
 
 import * as dates from "./dates";
 
+import * as commas from "./commas";
 import * as compounds from "./compounds";
 
 const MODULES = [
@@ -21,5 +22,6 @@ const MODULES = [
   suspendedHyphen,
   abbreviations,
   quotes,
+  commas,
 ];
 export const GERMAN_DETECTORS = MODULES.flatMap((m) => m.DETECTORS);

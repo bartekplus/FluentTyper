@@ -2380,6 +2380,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Niemieckie daty oddzielają dzień tygodnia przecinkiem, a dzień i miesiąc kończą kropką: Samstag, 23.8.",
     "As datas alemãs separam o dia da semana com vírgula e terminam dia e mês com ponto: Samstag, 23.8.",
   ],
+  review_msg_german_comma: [
+    "German sets off a subordinate clause or an infinitive group with a comma: Er bleibt, weil es regnet.",
+    "L’allemand sépare la subordonnée ou le groupe infinitif par une virgule : Er bleibt, weil es regnet.",
+    "Njemački odvaja zavisnu rečenicu ili infinitivnu skupinu zarezom: Er bleibt, weil es regnet.",
+    "El alemán separa con coma la oración subordinada o el grupo de infinitivo: Er bleibt, weil es regnet.",
+    "Τα γερμανικά χωρίζουν με κόμμα τη δευτερεύουσα πρόταση ή την απαρεμφατική φράση: Er bleibt, weil es regnet.",
+    "Tyskan skiljer bisatser och infinitivfraser med komma: Er bleibt, weil es regnet.",
+    "Nebensätze und Infinitivgruppen werden mit Komma abgetrennt: Er bleibt, weil es regnet.",
+    "Niemiecki oddziela przecinkiem zdanie podrzędne lub grupę bezokolicznikową: Er bleibt, weil es regnet.",
+    "O alemão separa com vírgula a oração subordinada ou o grupo infinitivo: Er bleibt, weil es regnet.",
+  ],
 };
 
 /**

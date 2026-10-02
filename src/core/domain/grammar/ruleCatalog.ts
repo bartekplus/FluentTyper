@@ -1493,6 +1493,19 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     recommended: false,
     priority: 125,
   },
+  {
+    id: "germanCommas",
+    typing: false,
+    name: "Commas before German clauses",
+    titleI18nKey: "review_msg_german_comma",
+    descriptionI18nKey: "review_msg_german_comma",
+    exampleI18nKey: "",
+    languageScope: "all",
+    safetyTier: "advanced",
+    defaultRollout: "off",
+    recommended: false,
+    priority: 110,
+  },
 ] as const;
 
 export type CatalogRuleId = (typeof GRAMMAR_RULE_CATALOG)[number]["id"];

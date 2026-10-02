@@ -268,6 +268,40 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
       ],
     },
   ],
+  [
+    "germanCommas",
+    {
+      pos: [
+        ["Wir blieben drinnen weil es stürmte.", "Wir blieben drinnen, weil es stürmte."],
+        ["Sie weiß nicht ob der Laden offen hat.", "Sie weiß nicht, ob der Laden offen hat."],
+        [
+          "Er sparte jeden Cent um ein Rad zu kaufen.",
+          "Er sparte jeden Cent, um ein Rad zu kaufen.",
+        ],
+        ["Um pünktlich zu sein nahm sie das Taxi.", "Um pünktlich zu sein, nahm sie das Taxi."],
+        ["Ich glaube der Zug ist schon weg.", "Ich glaube, der Zug ist schon weg."],
+        ["Meinst du das reicht für heute?", "Meinst du, das reicht für heute?"],
+        ["Er fragte wie spät es sei.", "Er fragte, wie spät es sei."],
+        ["Das war kein Zufall sondern Absicht.", "Das war kein Zufall, sondern Absicht."],
+        ["Gut dass du angerufen hast.", "Gut, dass du angerufen hast."],
+      ],
+      neg: [
+        "Er tat so, als ob er schliefe.",
+        "Sie lachte, sodass alle mitlachten, und auch wenn es spät war, blieben wir.",
+        "Ich komme, wenn möglich früher, und je nachdem ob es regnet.",
+        "Zwei Tage nachdem sie abgereist war, kam der Brief.",
+        "Es geht um das Recht zu schweigen.",
+        "Er kümmert sich um den Garten, ohne Handschuhe zu tragen.",
+        "Ich fange um acht Uhr zu arbeiten an.",
+        "Ich glaube an dich und denke oft an dich.",
+        "Ich finde den Vorschlag gut.",
+        "Ich bin erstaunt ob deiner Geduld.",
+        "Die Drüsen sondern ein Sekret ab.",
+        "Weißt du was? Wir gehen.",
+        "Er weiß so viel wie ich.",
+      ],
+    },
+  ],
 ];
 
 describe.each(RULES)("%s", (ruleId, { pos, neg }) => {
@@ -420,6 +454,7 @@ test("no German chunk stalls on repeated determiners and lowercase nouns", () =>
     "mit den schönen hohen ".repeat(400),
     "ihr seit mir dem seid den mich ".repeat(300),
     `der ${"\t ".repeat(3_000)}vertrag`,
+    "ich glaube weil um zu wissen was ob sondern ".repeat(300),
   ];
   slowest(inputs.join("\n"));
   for (const text of inputs) expect(slowest(text)).toBeLessThan(100);
