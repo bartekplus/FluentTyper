@@ -338,6 +338,14 @@
           }
         ]
       }
+    },
+    {
+      "files": ["marketing/promo/scripts/**/*.{ts,mjs}"],
+      "env": {
+        "node": true,
+        "browser": true,
+        "webextensions": true
+      }
     }
   ]
 }

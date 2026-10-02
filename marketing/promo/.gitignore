@@ -1,0 +1,24 @@
+# Generated media, compositions, captured evidence and dependency copies.
+assets/
+compositions/
+index.html
+evidence/
+capture/
+meta.json
+node_modules/
+renders/
+snapshots/
+.hyperframes/
+.browser-profile/
+.release-source/
+*.log
+
+# Local skill/scaffold records; not needed to reproduce the film.
+.media/
+AGENTS.md
+CLAUDE.md
+BRIEF.md
+frame.md
+user_script.txt
+.thumbnails/
+.waveform-cache/

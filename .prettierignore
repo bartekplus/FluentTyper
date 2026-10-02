@@ -4,3 +4,15 @@ node_modules/
 public/third_party/
 src/third_party/
 .claude/
+
+# Generated HyperFrames output and local workflow/cache records.
+marketing/promo/.*
+marketing/promo/assets/
+marketing/promo/capture/
+marketing/promo/compositions/
+marketing/promo/evidence/
+marketing/promo/renders/
+marketing/promo/snapshots/
+marketing/promo/index.html
+marketing/promo/meta.json
+marketing/promo/frame.md
