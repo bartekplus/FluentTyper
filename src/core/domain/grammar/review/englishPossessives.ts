@@ -55,7 +55,7 @@ export function contextualPossessives(ctx: DetectContext): RawFinding[] {
     {
       ruleId: "englishItsContext",
       messageKey: "review_msg_its_contraction",
-      pattern: `(?<=(?:think|thinks|hope|hopes|guess|assume|doubt|suppose|believe|bet)${SPACE})(?<target>its)${SPACE}[a-z]+(?:${SPACE}[a-z]+)?${END}`,
+      pattern: `(?=its${WORD_END})(?<=(?:think|thinks|hope|hopes|guess|assume|doubt|suppose|believe|bet)${SPACE})(?<target>its)${SPACE}[a-z]+(?:${SPACE}[a-z]+)?${END}`,
       replacement: "it's",
       name: true,
     },
@@ -63,7 +63,7 @@ export function contextualPossessives(ctx: DetectContext): RawFinding[] {
     {
       ruleId: "englishItsContext",
       messageKey: "review_msg_its_possessive",
-      pattern: `(?<!(?:how|what)${SPACE}about${SPACE})(?<=(?:of|for|with|from|into|onto|about|by|on|in|at|to|under|over|through|during|without|within|despite|toward|towards|against|among)${SPACE})(?<target>it['’]s)${SPACE}(?!(?:not|also|still|just|really|never|always|so|too|very|already|probably|a|an|the|all|been|going|getting|time|what|how|why|where|when|who|this|that|here|there|now|over|done|ok|okay|fine|true|possible|important|like)(?!${EDGE}))[a-z]+`,
+      pattern: `(?=it['’]s)(?<!(?:how|what)${SPACE}about${SPACE})(?<=(?:of|for|with|from|into|onto|about|by|on|in|at|to|under|over|through|during|without|within|despite|toward|towards|against|among)${SPACE})(?<target>it['’]s)${SPACE}(?!(?:not|also|still|just|really|never|always|so|too|very|already|probably|a|an|the|all|been|going|getting|time|what|how|why|where|when|who|this|that|here|there|now|over|done|ok|okay|fine|true|possible|important|like)(?!${EDGE}))[a-z]+`,
       replacement: "its",
     },
     {
@@ -75,7 +75,7 @@ export function contextualPossessives(ctx: DetectContext): RawFinding[] {
     {
       ruleId: "englishItsContext",
       messageKey: "review_msg_its_possessive",
-      pattern: `(?<=[a-z]{3,}ed${SPACE})(?<target>it['’]s)${SPACE}[0-9]{1,4}(?:st|nd|rd|th)`,
+      pattern: `(?=it['’]s)(?<=[a-z]{3,30}ed${SPACE})(?<target>it['’]s)${SPACE}[0-9]{1,4}(?:st|nd|rd|th)`,
       replacement: "its",
     },
     {

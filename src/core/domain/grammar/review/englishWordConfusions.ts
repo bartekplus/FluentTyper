@@ -243,7 +243,7 @@ function comparisonAndDegree(ctx: DetectContext, findings: RawFinding[]): RawFin
     );
   for (const match of frameMatches(
     ctx,
-    `(?<!(?:more|most|less)${SPACE})(?:${COMPARATIVE}|${COMPARISON_WORDS}|(?:more|less)${SPACE}(?![a-z]+er${END_WORD})[a-z]+|(?<=(?:no${SPACE}one|nobody|nothing|anything|anyone|someone|something|none|no)${SPACE})other)${SPACE}(?<target>then)${SPACE}(?:${COMPARED}|(?:(?:the|a|an|my|your|our|their|its|this|that|those|these)(?:${SPACE}(?!(?:[a-z]+ed)${END_WORD})[a-z]+){1,3}|you|her)(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:)]|$)|${SPACE}(?:at|in|for|on|with|by|when|so)${END_WORD}))${END_WORD}`,
+    `(?=[a-z]+(?:[ \\t\\u00a0]{1,8}[a-z]+)?[ \\t\\u00a0]{1,8}then(?![\\p{L}]))(?<!(?:more|most|less)${SPACE})(?:${COMPARATIVE}|${COMPARISON_WORDS}|(?:more|less)${SPACE}(?![a-z]+er${END_WORD})[a-z]+|(?<=(?:no${SPACE}one|nobody|nothing|anything|anyone|someone|something|none|no)${SPACE})other)${SPACE}(?<target>then)${SPACE}(?:${COMPARED}|(?:(?:the|a|an|my|your|our|their|its|this|that|those|these)(?:${SPACE}(?!(?:[a-z]+ed)${END_WORD})[a-z]+){1,3}|you|her)(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:)]|$)|${SPACE}(?:at|in|for|on|with|by|when|so)${END_WORD}))${END_WORD}`,
   ))
     if (!conditional(match)) push(match, "englishThenThan", "review_msg_then_than", "than");
   for (const match of frameMatches(
