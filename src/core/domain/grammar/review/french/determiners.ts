@@ -143,6 +143,9 @@ export function accentedNoun(word: string): string | null {
   return noun ? accented : null;
 }
 
+const AFTER_VERB = new Set(["pas", "plus", "jamais", "rien"]);
+const CLITIC_BEFORE = new Set(["ne", "n'"]);
+
 const vowel = (word: string) => /^[aeiouyâàéèêîïôûœh]/.test(word);
 
 /** A noun written like a verb form or participle after a determiner: the noun's spelling. */
@@ -150,16 +153,23 @@ function nounAfter(ctx: DetectContext, m: RegExpExecArray, det: string): RawFind
   const typed = m.groups!.noun;
   const word = typed.toLowerCase();
   if (typed !== word || word.length < 3 || ctx.dictionary.has(word)) return null;
-  const [gender, number] = DETERMINERS[det];
+  const [detGender, number] = DETERMINERS[det];
+  // "son issue", "mon amie": a possessive in -on also goes before a feminine vowel.
+  const gender = ["mon", "ton", "son"].includes(det) && vowel(word) ? null : detGender;
   // "le", "la", "les" are also pronouns before a verb ("il le coupe"): only after a preposition,
-  // a conjunction or at a sentence start are they articles.
+  // a conjunction, a negation or a verb, or at a sentence start are they articles; never after
+  // a subject or another object pronoun.
   if (!ONLY_DETERMINERS.has(det)) {
     const previous = tokensBefore(ctx.text, m.index, 1)[0];
-    if (
-      previous
-        ? !OPENERS.has(previous.w)
-        : !/(?:^|[.!?…]\s{0,8})$/u.test(ctx.text.slice(Math.max(0, m.index - 9), m.index))
-    )
+    const article = previous
+      ? OPENERS.has(previous.w) ||
+        (AFTER_VERB.has(previous.w) && !CLITIC_BEFORE.has(previous.w)) ||
+        (verbReadings(previous.w).length > 0 && !isVerbHomograph(previous.w))
+      : /(?:^|[.!?…]\s{0,8})$/u.test(ctx.text.slice(Math.max(0, m.index - 9), m.index));
+    if (!article) return null;
+    // After a verb, only a noun spelled like a verb form or participle is read here.
+    const finiteWord = verbReadings(word).some((r) => typeof r.slot === "number");
+    if (previous && !OPENERS.has(previous.w) && finiteWord && !/it(?:e|ée)$/.test(word))
       return null;
   }
   const readings = verbReadings(word);
@@ -177,6 +187,16 @@ function nounAfter(ctx: DetectContext, m: RegExpExecArray, det: string): RawFind
   const finite = readings.filter((r) => typeof r.slot === "number");
   const participle = readings.some((r) => r.slot === "Q");
   // "un développent", "le maintient": a verb form for the noun in -ment or the bare stem.
+  // "la facilite", "la citée": the feminine noun in -ité.
+  if (
+    gender !== "m" &&
+    /it(?:e|ée)$/.test(word) &&
+    !isInflectedNoun(word) &&
+    !isVerbHomograph(word)
+  ) {
+    const noun = word.replace(/it(?:e|ée)$/, "ité");
+    if (nounGender(noun) === "f" && isVerbHomograph(noun)) return finding([noun]);
+  }
   if (finite.length === readings.length && !isVerbHomograph(word)) {
     for (const noun of [word.replace(/ent$/, "ement"), word.replace(/t$/, "")]) {
       if (noun !== word && nounGender(noun) && (!gender || nounGender(noun) === gender))
@@ -207,20 +227,27 @@ function nounAfter(ctx: DetectContext, m: RegExpExecArray, det: string): RawFind
     }
     return finding([accented]);
   }
-  // Only a participle from here: "sa sorti", "des traversé", "mon déjeuné".
-  if (/e$|es$/.test(word)) return null;
-  if (gender === "f" || (number === "p" && !/[sx]$/.test(word) && !gender)) {
-    const noun = `${word}e`;
-    if (!isVerbHomograph(noun) || nounGender(noun) === "m") return null;
-    if (adjectiveReadings(word).length) return null;
-    return finding([number === "p" ? `${noun}s` : noun]);
-  }
-  if (gender === "m" && word.endsWith("é") && !isVerbHomograph(word) && !isInflectedNoun(word)) {
+  // Only a participle from here: "sa sorti", "des traversé", "mes pensés", "l'arrivé", "un
+  // musé", "mon déjeuné".
+  const plural = number === "p";
+  if (gender === "m" && !plural && word.endsWith("é") && !isVerbHomograph(word)) {
+    // "un musé": a masculine noun in -ée.
+    if (nounGender(`${word}e`) === "m" && isVerbHomograph(`${word}e`)) return finding([`${word}e`]);
     // "mon déjeuné": the infinitive used as a noun.
     const infinitive = `${word.slice(0, -1)}er`;
-    if (isVerbHomograph(infinitive) && isInflectedNoun(infinitive)) return finding([infinitive]);
+    if (!isInflectedNoun(word) && isVerbHomograph(infinitive) && isInflectedNoun(infinitive))
+      return finding([infinitive]);
+    return null;
   }
-  return null;
+  if (gender === "m") return null;
+  const base = plural && /[^s]s$/.test(word) ? word.slice(0, -1) : word;
+  if (/e$/.test(base) || (plural && base === word && /[sx]$/.test(word))) return null;
+  const noun = `${base}e`;
+  if (!isVerbHomograph(noun) || nounGender(noun) === "m") return null;
+  // "l'invité", "leur vécu", "les élus": the participle is a noun of its own.
+  if (adjectiveReadings(base).length || isVerbHomograph(base)) return null;
+  if (!gender && isInflectedNoun(base)) return null;
+  return finding([plural ? `${noun}s` : noun]);
 }
 
 const NAMES = Object.keys(DETERMINERS)
@@ -231,7 +258,7 @@ const PAIR = new RegExp(
   "giu",
 );
 const NOUN_AFTER = new RegExp(
-  `(?<![\\p{L}\\p{M}\\p{N}_'’-])(?<det>${NAMES})[ \\t]{1,8}(?<noun>\\p{L}[\\p{L}\\p{M}]*)(?![\\p{L}\\p{M}\\p{N}_])`,
+  `(?<![\\p{L}\\p{M}\\p{N}_'’-])(?<det>(?:${NAMES})(?=[ \\t])|l['’])[ \\t]{0,8}(?<noun>\\p{L}[\\p{L}\\p{M}]*)(?![\\p{L}\\p{M}\\p{N}_])`,
   "dgiu",
 );
 
@@ -245,7 +272,7 @@ function determiners(ctx: DetectContext): RawFinding[] {
     if (finding) findings.push(finding);
   }
   for (const m of ownedFrenchWords(ctx, NOUN_AFTER)) {
-    const det = m.groups!.det.toLowerCase();
+    const det = m.groups!.det.toLowerCase().replace("’", "'");
     if (vowel(m.groups!.noun.toLowerCase()) && (det === "le" || det === "la")) continue;
     // "ce sont", "ce fut": the pronoun before être.
     if (det === "ce") continue;
