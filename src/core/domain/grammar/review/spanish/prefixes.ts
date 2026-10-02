@@ -1,7 +1,16 @@
 import { namedExampleBefore } from "../exampleCues";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { DETERMINER, readNoun } from "./agreement";
-import { Around, carryCase, CLITICS, keepsTyped, tokenize, words } from "./common";
+import {
+  Around,
+  attributeOf,
+  carryCase,
+  CLITICS,
+  keepsTyped,
+  PRENOMINAL,
+  tokenize,
+  words,
+} from "./common";
 import {
   attribute,
   finiteVerb,
@@ -32,6 +41,7 @@ const PATTERN = new RegExp(
   "giu",
 );
 const FREE_SET = new Set(FREE.split("|"));
+const SIZE = new Set(["macro", "micro", "mini", "mega", "maxi"]);
 
 /**
  * A noun or adjective the dictionary lists: "microbiología", "hispanohablantes". A noun ending
@@ -68,10 +78,23 @@ function prefixes(ctx: DetectContext): RawFinding[] {
       !DETERMINER.has(before?.[1].toLowerCase() ?? "");
     // "ex presidente" was the rule until 2010 and is still everywhere: only "ex-" is joined.
     if (!hyphen && prefix.toLowerCase() === "ex") continue;
+    // "un macro análisis", "una mini falda": between a determiner and a noun of its number,
+    // a size prefix can only be part of the noun.
+    const det = DETERMINER.get(before?.[1].toLowerCase() ?? "");
+    const noun = readNoun(lower);
+    const sized =
+      SIZE.has(prefix.toLowerCase()) &&
+      !!det &&
+      !!noun &&
+      !noun.paired &&
+      !attributeOf(lower) &&
+      !PRENOMINAL.has(lower) &&
+      (noun.invariant || noun.plural === det.slot >= 2);
     if (
       !hyphen &&
       FREE_SET.has(prefix.toLowerCase()) &&
       !graded &&
+      !sized &&
       !knownWord(join(prefix.toLowerCase(), word))
     )
       continue;
@@ -123,16 +146,26 @@ function splitCompounds(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   for (let i = 1; i + 1 < tokens.length; i++) {
     const first = tokens[i];
-    const second = tokens[i + 1];
-    if (!first.word || !second.word || second.broken || first.start < ctx.from) continue;
+    // "un lanza-misiles": a hyphen between the two halves.
+    const hyphen =
+      tokens[i + 1].text === "-" && first.end === tokens[i + 1].start && !!tokens[i + 2];
+    const second = hyphen ? tokens[i + 2] : tokens[i + 1];
+    // The tokenizer marks a word after a hyphen as glued; its letters still count here.
+    if (!first.word || (!second.word && !hyphen) || second.broken || first.start < ctx.from)
+      continue;
     if (first.start >= ctx.to) break;
-    if (ctx.text.slice(first.end, second.start) !== " ") continue;
+    if (hyphen && (ctx.text[second.end] === "-" || ctx.text[first.start - 1] === "-")) continue;
+    const gap = ctx.text.slice(first.end, second.start);
+    if (gap !== " " && !(hyphen && gap === "-")) continue;
     if (!/^\p{Ll}+$/u.test(second.text) || !/^\p{Ll}+$/u.test(first.text)) continue;
     const at = new Around(tokens, i);
     const head = first.lower;
     const tail = second.lower;
+    // "un «apaga fuegos»": the determiner before an opening quote.
+    const quoted = /^[«“"]$/u.test(tokens[i - 1].text) && !tokens[i].broken;
+    const det = quoted ? new Around(tokens, i - 1).prev() : at.prev();
     let joined: string | null = null;
-    if (MASCULINE.has(at.prev()) && /[^aeiou][ae]$/u.test(head) && finiteVerb(head)) {
+    if (MASCULINE.has(det) && /[^aeiou][ae]$/u.test(head) && finiteVerb(head)) {
       // The noun after is the object: plural, or a mass noun the compound keeps singular.
       const noun = readNoun(tail);
       const nounHead = readNoun(head);
@@ -145,12 +178,22 @@ function splitCompounds(ctx: DetectContext): RawFinding[] {
       )
         joined = join(head, tail);
     } else if (
+      !hyphen &&
       (head === "sobre" || (head === "mal" && MAL_VERBS.test(tail))) &&
       !isNoun(tail) &&
       !attribute(tail)
     ) {
       const compound = join(head, tail);
       if (finiteVerb(tail) && finiteVerb(compound) && !CLITICS.has(tail)) joined = compound;
+      // "la sobre protegen": a clitic before "sobre" makes the whole a verb.
+      else if (
+        head === "sobre" &&
+        CLITICS.has(at.prev()) &&
+        finiteVerb(tail) &&
+        !isNoun(tail) &&
+        !CLITICS.has(tail)
+      )
+        joined = compound;
     }
     if (!joined || keepsTyped(ctx, head) || ctx.dictionary.has(tail)) continue;
     if (namedExampleBefore(ctx.text, first.start)) continue;
@@ -161,7 +204,7 @@ function splitCompounds(ctx: DetectContext): RawFinding[] {
       alternatives: [joined],
       bulkBlock: "context-dependent",
     });
-    i++;
+    i += hyphen ? 2 : 1;
   }
   return findings;
 }

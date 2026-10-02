@@ -6,6 +6,7 @@ import * as clauses from "./clauses";
 import * as commas from "./commas";
 import * as confusions from "./confusions";
 import * as diacritics from "./diacritics";
+import * as frames from "./frames";
 import * as porque from "./porque";
 import * as prefixes from "./prefixes";
 import * as quotes from "./quotes";
@@ -30,6 +31,7 @@ for (const entry of [
   ...verbAgreement.DETECTORS,
   ...clauses.DETECTORS,
   ...quotes.DETECTORS,
+  ...frames.DETECTORS,
 ])
   byRule.set(entry.rules.join(), [...(byRule.get(entry.rules.join()) ?? []), entry]);
 

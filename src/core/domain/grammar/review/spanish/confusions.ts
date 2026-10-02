@@ -12,7 +12,7 @@ import {
   words,
   type Token,
 } from "./common";
-import { attribute, isGerund, isNoun, participle } from "./lexicon";
+import { attribute, finiteVerb, isGerund, isNoun, participle } from "./lexicon";
 
 // Spanish homophones decided by a closed-class frame around them: "cada ves" (vez), "el ano
 // pasado" (año), "ha echo" (hecho), "a ver estudiado" (haber). The typed word is a real word,
@@ -47,6 +47,7 @@ function yearReading(at: Around): boolean {
   const plural = tokens[at.i].lower === "anos";
   if (isNumber(tokens[at.i - 1]) && !tokens[at.i].broken) return true;
   if (/^(?:pasado|próximo|siguiente|anterior|entrante|nuevo|que)$/u.test(next)) return true;
+  if (plural && /^(?:pasados|próximos|siguientes|anteriores|venideros)$/u.test(next)) return true;
   if (
     /^(?:cada|este|ese|aquel|primer|último|próximo|pasado|medio|nuevo|todo|esos|estos|aquellos|varios|muchos|pocos|algunos|siguientes|últimos|primeros)$/u.test(
       prev,
@@ -94,7 +95,18 @@ const CHECKS: Record<string, Check> = {
     const next = at.next();
     if (at.tokens[at.i - 1]?.text === "¡" && next === "de") return ["ay"];
     if (!isPerfectParticiple(next) || isNoun(next)) return null;
-    return CLITICS.has(at.prev()) || at.prev() === "no" || !attribute(next) ? ["ha"] : null;
+    // "Hay venido tarde", "Hay dicho que no": opening the sentence, before what a verb takes
+    // ("Hay helado de fresa" names a thing).
+    const verbal =
+      at.starts &&
+      (isInfinitive(at.next(2)) ||
+        DETERMINERS.has(at.next(2)) ||
+        /^(?:que|muy|tarde|pronto|temprano|ya|bien|mal|mucho|hoy|ayer|aquí|allí)$/u.test(
+          at.next(2),
+        ));
+    return CLITICS.has(at.prev()) || at.prev() === "no" || verbal || !attribute(next)
+      ? ["ha"]
+      : null;
   },
   // "haz hecho": "haz" (do!) takes no participle; "haz de venir" is "has de".
   haz: (at) => {
@@ -164,9 +176,30 @@ const CHECKS: Record<string, Check> = {
   // "¡Ola!", "Ola, Juan": a greeting.
   ola: (at) => {
     const next = at.tokens[at.i + 1];
+    // "decir ola", "¿Ola, qué tal?", "Ola qué tal": a greeting said or opening a question.
+    if (
+      /^(?:decir|decirle|decirte|dije|dijo|digo|dice|saludar)$/u.test(at.prev()) &&
+      at.endsAfter()
+    )
+      return ["hola"];
     return at.starts &&
-      (!next || /^[,!]$/u.test(next.text) || (next.word && /^\p{Lu}/u.test(next.text)))
+      (!next ||
+        /^[,!]$/u.test(next.text) ||
+        (next.word && /^\p{Lu}/u.test(next.text)) ||
+        /^(?:qué|cómo|quién)$/u.test(next.lower))
       ? ["hola"]
+      : null;
+  },
+  // "Fue el la plaza": an article cannot precede another; before a noun it is "en".
+  el: (at) => {
+    const noun = at.next(2);
+    return /^(?:la|las)$/u.test(at.next()) &&
+      at.tokens[at.i + 2]?.text === noun &&
+      isNoun(noun) &&
+      !finiteVerb(noun) &&
+      !verbLike(noun) &&
+      !/^(?:bemol|sostenido|mayor|menor|natural)$/u.test(noun)
+      ? ["en"]
       : null;
   },
   // "una gran hola": the wave.
@@ -184,9 +217,21 @@ const CHECKS: Record<string, Check> = {
         return ["a ver"];
       if (nextToken?.text === ",") return ["a ver"];
     }
-    return IR.has(at.prev()) && next && !isPerfectParticiple(next) && !CLITICS.has(next)
-      ? ["a ver"]
-      : null;
+    // "fue haber a su abuela", "empezó haber la serie": "ir"/"empezar" take "a"; before a
+    // noun phrase it may be "a haber" too ("va haber una fiesta").
+    const prev = at.prev();
+    const motion =
+      IR.has(prev) || prev === "fue" || /^(?:llev|acompañ|mand|envi|vin|vien)\p{L}+$/u.test(prev);
+    if (
+      !(motion || /^(?:empez|comenz|empiez|comienz)\p{L}+$/u.test(prev)) ||
+      !next ||
+      isPerfectParticiple(next)
+    )
+      return null;
+    // "La causa fue haber un error": "ser" before an existential infinitive.
+    if (DETERMINERS.has(next) || /^(?:buen|buenos|buenas|mucho|mucha|muchos|muchas)$/u.test(next))
+      return prev === "fue" ? null : IR.has(prev) || !motion ? ["a ver", "a haber"] : ["a ver"];
+    return CLITICS.has(next) || !motion ? null : ["a ver"];
   },
 };
 
@@ -279,6 +324,9 @@ function aVer(tokens: Token[], i: number): { end: number; fix: string } | null {
   const prev = new Around(tokens, i);
   if (!prev.starts && !PERFECT_BEFORE.test(prev.prev())) return null;
   const next = tokens[i + 2];
+  // "Podría a ver otros", "debería a verlo": a modal takes no "a", so "haber" is meant.
+  if (/^(?:pod|deb|pued|pud)\p{L}*$/u.test(prev.prev()) && !next?.broken)
+    return { end: ver.end, fix: `hab${m[1] === "vér" ? "é" : "e"}r${m[2]}` };
   if (!next?.word || next.broken || !isPerfectParticiple(next.lower) || isNoun(next.lower))
     return null;
   return { end: ver.end, fix: `hab${m[1] === "vér" ? "é" : "e"}r${m[2]}` };
@@ -391,8 +439,11 @@ function rebelReveal(ctx: DetectContext): RawFinding[] {
     )
       continue;
     const next = at.next();
-    const fix =
-      m[2] === "v" && next === "contra"
+    // "el misterio rebelado por el detective": "rebelarse" has no passive; "revelar" does.
+    const passive = m[2] === "b" && /^el(?:ado|ada|ados|adas)$/u.test(m[3]) && next === "por";
+    const fix = passive
+      ? `rev${m[3]}`
+      : m[2] === "v" && next === "contra"
         ? `reb${m[3]}`
         : m[2] === "b" &&
             (next === "que" ||
