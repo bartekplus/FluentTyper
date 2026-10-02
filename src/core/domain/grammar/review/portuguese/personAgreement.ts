@@ -1,7 +1,7 @@
 import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
 import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import { NOT_SUBJECT, NOT_VERBS } from "./agreement";
+import { FORM_ROWS, NOT_SUBJECT, NOT_VERBS } from "./agreement";
 import { firstPersonStem, IRREGULAR_STEM, verbStems } from "./subjunctive";
 
 /**
@@ -148,6 +148,24 @@ const NOT_PRONOUN_SUBJECT =
   /(?:(?:^|[^\p{L}])(?:e|em|estes|estas|esses|essas|aqueles|aquelas|dos|pelos|seus|meus|nossos|vários|muitos)|(?:do|mais|menos|melhor|pior|maior|menor|tanto|tão)[ \t ]+que)[ \t ]+$/iu;
 const CLAUSE_START = /(?:^|[.!?;:\n]["'”’»)]*)[ \t ]*["'“‘«(]?[ \t ]*$/u;
 
+// A noun-phrase subject opening the sentence, with a prepositional phrase before its verb:
+// "As crianças da escola brinca" -> "brincam". Without one, verbAgreement.ts's subjects() decide.
+const SINGULAR_LEAD = "o|a|um|uma|este|esta|esse|essa|aquele|aquela|meu|minha|seu|sua|nosso|nossa";
+const PLURAL_LEAD =
+  "os|as|uns|umas|estes|estas|esses|essas|aqueles|aquelas|meus|minhas|seus|suas|nossos|nossas|alguns|algumas|muitos|muitas|vários|várias";
+// The phrase's noun is no infinitive ("de prosseguir") nor a relative ("nas quais").
+const PHRASE = `${S}(?:de|do|da|dos|das|no|na|nos|nas|em|com)${S}(?:(?:o|a|os|as|um|uma|meu|minha|meus|minhas|seu|sua|seus|suas|nosso|nossa)${S})?(?!(?:qual|quais|que|quem|cujo|cuja|cujos|cujas|onde)${W})\\p{L}{2,}(?<![aeiô]r)`;
+const NP_SUBJECT = `(?<lead>${SINGULAR_LEAD}|${PLURAL_LEAD})${S}(?<noun>\\p{Ll}{3,})${PHRASE}${S}${ADVERBS}${CLITIC}(?<target>\\p{Ll}{3,})${W}(?!-)`;
+// Heads that may agree with the plural after them: "A maioria dos alunos passaram".
+const COLLECTIVE = new Set(
+  "maioria minoria parte metade grupo porcentagem percentagem conjunto série totalidade resto número quantidade multidão bando dezena centena milhar milhão bilhão trilhão".split(
+    " ",
+  ),
+);
+
+/** Whether `word` reads as a finite verb: then the word before it was no verb. */
+const isVerb = (word: string) => FORM_ROWS.has(word) || analyses(word).length > 0;
+
 function check(
   ctx: DetectContext,
   m: RegExpExecArray,
@@ -194,6 +212,22 @@ export function personAgreement(ctx: DetectContext): RawFinding[] {
     const after = ctx.text.slice(m.indices!.groups!.pronoun[1], m.indices!.groups!.pronoun[1] + 8);
     if (/^[ \t ]+e(?![\p{L}])/u.test(after)) continue;
     check(ctx, m, PRONOUNS[pronoun.toLowerCase()], findings);
+  }
+  for (const m of frameMatches(ctx, NP_SUBJECT)) {
+    const { lead, noun } = m.groups!;
+    if (!CLAUSE_START.test(ctx.text.slice(Math.max(0, m.index - 8), m.index))) continue;
+    if (lead.slice(1) !== lead.slice(1).toLowerCase() || noun !== noun.toLowerCase()) continue;
+    if (COLLECTIVE.has(noun) || NOT_VERBS.has(noun)) continue;
+    const plural = new RegExp(`^(?:${PLURAL_LEAD})$`, "i").test(lead);
+    if (/s$/.test(noun) !== plural) continue;
+    // "Os livros de capa dura custam": an adjective, not the verb, when a verb follows.
+    const [, end] = m.indices!.groups!.target;
+    const next = /^[ \t ]+(\p{Ll}+)/u.exec(ctx.text.slice(end, end + 30))?.[1];
+    if (next && isVerb(next)) continue;
+    // Only third persons trade places here: "-as" or "-o" after a noun may be no verb.
+    if (!analyses(m.groups!.target).every((a) => a.persons.has("3s") || a.persons.has("3p")))
+      continue;
+    check(ctx, m, plural ? "3p" : "3s", findings);
   }
   for (const m of frameMatches(ctx, WE_SUBJECT)) {
     const before = ctx.text.slice(Math.max(0, m.index - 24), m.index);
