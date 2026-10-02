@@ -169,6 +169,15 @@ function fits(noun: string, reading: GermanGenderReading, gender: Gender, c: Cas
   return c !== "gen" || gender === "f" || /[sn]$/.test(noun);
 }
 
+/** Whether a determiner can stand before a noun; null when either is unknown. */
+export function determinerFits(typed: string, noun: string): boolean | null {
+  const det = parse(typed);
+  const head = noun.split("-").at(-1)!;
+  const reading = det && germanGender(head);
+  if (!det || !reading) return null;
+  return readings(det).some(([g, c]) => fits(head, reading, g, c));
+}
+
 const sentenceStart = (before: string[]) => {
   const prior = before.at(-1) ?? "";
   return prior === "" || /^[.!?:\n„"“»«]$/.test(prior);
@@ -323,6 +332,9 @@ function articleGender(ctx: DetectContext): RawFinding[] {
     if (/^\p{Lu}/u.test(next) && !BOUNDARY.test(next)) continue;
     // "die Rad fahren": a pronoun and a bare object.
     if (det.kind !== "ein" && !det.prep && germanInfinitive(next)) continue;
+    // "die Gewinn und Verlustrechnung": a compound part missing its hyphen, whose article
+    // belongs to the compound after "und" (germanSuspendedHyphen).
+    if (/^(?:und|oder|sowie|bzw)$/.test(next) && determinerFits(typed, after[1] ?? "")) continue;
     // The cases left: the typed article's, narrowed by the preposition or the sentence start.
     let cases = [...new Set(typedReadings.map(([, c]) => c))];
     const governed = det.prep ? undefined : afterPreposition ? GOVERNED.get(prior) : undefined;

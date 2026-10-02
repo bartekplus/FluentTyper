@@ -253,8 +253,16 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
           "Ich habe versucht, mich an- und abzumelden.",
         ],
         ["Die Ein und Ausfahrt ist frei.", "Die Ein- und Ausfahrt ist frei."],
+        [
+          "Wir prüfen die Gewinn und Verlustrechnung.",
+          "Wir prüfen die Gewinn- und Verlustrechnung.",
+        ],
+        ["Er ist gelernter Groß und Einzelhändler.", "Er ist gelernter Groß- und Einzelhändler."],
       ],
       neg: [
+        "Sie rotteten das Unkraut mit Stumpf und Stiel aus.",
+        "Ein Fest für Jung und Alt.",
+        "Die Firma und Kunden sind zufrieden.",
         "Wir sind für Umwelt und Naturschutz.",
         "Vor und nach dem Essen.",
         "Er ging ein und aus.",
