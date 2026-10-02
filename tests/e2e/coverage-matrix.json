@@ -4280,7 +4280,7 @@
     },
     {
       "id": "prosemirror_editor_transactions",
-      "description": "Real ProseMirror autocomplete and text expansion update the document model across paragraph breaks, preserve bold/link marks, and undo restores the prefix or shortcut.",
+      "description": "Real ProseMirror autocomplete and text expansion update the document model across paragraph breaks, select a non-first expansion in an above-caret menu, preserve bold/link marks, and undo restores the prefix or shortcut.",
       "coverage": [
         {
           "layer": "e2e-full",
