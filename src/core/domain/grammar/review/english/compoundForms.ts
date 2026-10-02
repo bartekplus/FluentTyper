@@ -706,11 +706,12 @@ function numberUnits(ctx: DetectContext): Finding[] {
       // "one hour" is a duration far more often than a modifier.
       if (/^(?:1|one)$/i.test(n)) continue;
       if (!isNounNext(next ?? "") || NOT_A_HEAD.test(next ?? "")) continue;
-      // "exceeded 100,000 page edits": a large count needs "a" or "the" to be a modifier.
+      // "exceeded 100,000 page edits", "over 100,000 day trip passengers": a large count
+      // needs "a" or "the" to be a modifier ("an over 5,000 year history").
       if (
         /^[0-9,]{4,}$/.test(n) &&
-        !/\b(?:a|an|the|over|under|nearly|almost|about)[ \t ]+$/i.test(
-          ctx.text.slice(Math.max(0, m.index - 8), m.index),
+        !/\b(?:a|an|the)[ \t\u00a0]+(?:(?:over|under|nearly|almost|about)[ \t\u00a0]+)?$/i.test(
+          ctx.text.slice(Math.max(0, m.index - 16), m.index),
         )
       )
         continue;

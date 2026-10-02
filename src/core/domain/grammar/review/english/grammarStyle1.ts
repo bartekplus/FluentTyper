@@ -433,9 +433,13 @@ function doubleBe(ctx: DetectContext): Finding[] {
     if (/^(?:I|you|we|they|he|she|it|there)$/i.test(nextWord(ctx, m.index + m[0].length))) continue;
     // "Let's be", and "Mateo's are": after a name, "'s" is a possessive standing for its noun.
     if (/^['’]/.test(first) && lower(second) === "be") continue;
+    // So is a noun after a determiner ("these one's are", "my aunt's are"): never "is".
     if (
       /^['’]s$/.test(first) &&
-      /\p{Lu}\p{L}*$/u.test(ctx.text.slice(Math.max(0, m.index - 24), m.index))
+      (/\p{Lu}\p{L}*$/u.test(ctx.text.slice(Math.max(0, m.index - 24), m.index)) ||
+        /(?:^|[^\p{L}'’])(?:the|a|an|these|those|this|that|my|your|his|her|our|their|its|some|all|both|many|several|few|other)(?:[ \t\u00a0]+\p{L}+){1,2}$/iu.test(
+          ctx.text.slice(Math.max(0, m.index - 40), m.index),
+        ))
     )
       continue;
     findings.push(found(ctx, m, "englishSentenceStructure", "review_msg_sentence_structure", [""]));

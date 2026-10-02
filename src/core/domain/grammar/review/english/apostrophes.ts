@@ -244,8 +244,13 @@ const BARE_SUBJECT_BEFORE = words(
 function pluralSubjects(ctx: DetectContext): Finding[] {
   const findings: Finding[] = [];
   for (const m of frameMatches(ctx, PLURAL_SUBJECT, "w")) {
-    const { w } = m.groups!;
-    if (!BARE_SUBJECT_BEFORE.has(previousWord(ctx, m.index)) || ctx.dictionary.has(w)) continue;
+    const { w, verb } = m.groups!;
+    const before = previousWord(ctx, m.index);
+    // "The car's are cheap", "those file's were": a plural verb right after the article.
+    const article =
+      /^(?:these|those)$/.test(before) ||
+      (before === "the" && /^(?:are|were|aren't|weren't)$/.test(verb.replace("’", "'")));
+    if ((!article && !BARE_SUBJECT_BEFORE.has(before)) || ctx.dictionary.has(w)) continue;
     const plural = pluralOf(w);
     if (!plural) continue;
     const [start] = m.indices!.groups!.w;

@@ -428,7 +428,9 @@ const pronounI: Detector = (ctx) => {
       contextEnd += 1;
     } else if (/^\.(?:\s|$)/u.test(rest)) {
       // Unlike typing, what follows the period is here: not "i.e.", so "than i." ends
-      // a sentence. A roman numeral opening a list line or naming a part is not.
+      // a sentence. A roman numeral opening a list line or naming a part is not, nor is
+      // a spaced-out "i. e.".
+      if (/^\.\s+e\./i.test(rest)) continue;
       const lineStart = ctx.text.lastIndexOf("\n", start - 1) + 1;
       if (ctx.text.slice(lineStart, start).trim() === "") continue;
       if (NUMERAL_BEFORE.test(ctx.text.slice(Math.max(0, start - 24), start))) continue;
