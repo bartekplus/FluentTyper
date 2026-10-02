@@ -622,6 +622,13 @@ test.each([
   ["frenchHomophones", "Je la vois tous les jours."],
   ["frenchHomophones", "Do ré mi fa sol la."],
   ["frenchHomophones", "Les enfants de son frère jouent dehors."],
+  ["frenchSubjectVerbAgreement", "Le policier le plus proche intervient."],
+  ["frenchSubjectVerbAgreement", "Ce matin nous avons froid."],
+  ["frenchSubjectVerbAgreement", "Des copains plus vieux que moi qui fumaient."],
+  ["frenchSubjectVerbAgreement", "Notre Père qui êtes aux cieux."],
+  ["frenchSubjectVerbAgreement", "Un exemple frappant sont les nouvelles lois."],
+  ["frenchSubjectVerbAgreement", "Les habitants comme le maire ont voté."],
+  ["frenchSubjectVerbAgreement", "Une intoxication en cours peut être grave."],
 ] as Array<[CatalogRuleId, string]>)("%s stays silent on %p", (ruleId, text) => {
   expect(findings(ruleId, text).map((d) => d.original)).toEqual([]);
 });
@@ -678,6 +685,32 @@ test.each([
   ["frenchHomophones", "C'est la que tout a commencé.", "C'est là que tout a commencé."],
   ["frenchHomophones", "Ton frère est la ?", "Ton frère est là ?"],
   ["englishPhraseCorrections", "Elles ne son pas prêtes.", "Elles ne sont pas prêtes."],
+  [
+    "frenchSubjectVerbAgreement",
+    "Les routes était glissantes ce matin.",
+    "Les routes étaient glissantes ce matin.",
+  ],
+  ["frenchSubjectVerbAgreement", "Mon voisin ne peux pas venir.", "Mon voisin ne peut pas venir."],
+  [
+    "frenchSubjectVerbAgreement",
+    "Les trains n'arrive plus à l'heure.",
+    "Les trains n'arrivent plus à l'heure.",
+  ],
+  [
+    "frenchSubjectVerbAgreement",
+    "Ma sœur qui habitent à Lyon viendra.",
+    "Ma sœur qui habite à Lyon viendra.",
+  ],
+  [
+    "frenchSubjectVerbAgreement",
+    "C'est toi qui a gagné la partie.",
+    "C'est toi qui as gagné la partie.",
+  ],
+  [
+    "frenchSubjectVerbAgreement",
+    "Celles qui travaille ici sont contentes.",
+    "Celles qui travaillent ici sont contentes.",
+  ],
 ] as Array<[CatalogRuleId, string, string]>)("%s fixes %p", (ruleId, text, fixed) => {
   const [finding, ...rest] = findings(ruleId, text);
   expect(rest).toEqual([]);
