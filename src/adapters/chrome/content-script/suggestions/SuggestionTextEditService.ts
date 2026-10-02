@@ -989,7 +989,6 @@ export class SuggestionTextEditService {
           })
         : null;
 
-    consumeKeyboardEvent(event);
     logger.debug("Applying delayed post-accept spacing", {
       suggestionId: entry.id,
       key,
@@ -1008,11 +1007,12 @@ export class SuggestionTextEditService {
         cursorAfter,
       });
       if (result.applied) {
+        consumeKeyboardEvent(event);
         return;
       }
     }
 
-    this.replaceTextByOffsets(
+    const result = this.replaceTextByOffsets(
       entry.elem,
       fullText,
       replaceStart,
@@ -1023,6 +1023,8 @@ export class SuggestionTextEditService {
         scopeRoot: activeBlock,
       },
     );
+    if (result.didMutateDom || ("appliedBy" in result && result.appliedBy === "host-beforeinput"))
+      consumeKeyboardEvent(event);
   }
 
   private clearMissingTrailingSpaceState(entry: SuggestionEntry): void {

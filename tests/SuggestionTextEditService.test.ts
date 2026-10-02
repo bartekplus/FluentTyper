@@ -1534,6 +1534,44 @@ describe("SuggestionTextEditService", () => {
     expect(entry.pendingExtensionEdit?.awaitingHostInputEcho).toBe(true);
   });
 
+  test.each([false, true])(
+    "delayed spacing preserves the typed key when ProseMirror refuses (bridge available: %s)",
+    (available) => {
+      const editable = document.createElement("div");
+      editable.className = "ProseMirror";
+      editable.setAttribute("contenteditable", "true");
+      Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+      editable.innerHTML = "<p><strong>cat</strong></p>";
+      document.body.appendChild(editable);
+      setContentEditableCursor(editable, 3);
+      const block = editable.querySelector("p")!;
+      const service = new SuggestionTextEditService({
+        findMentionToken,
+        isSeparator: (value) => /\s/.test(value),
+        hostEditorAdapterResolver: new HostEditorAdapterResolver({
+          getBlockContextAtSelection: () =>
+            available ? { beforeCursor: "cat", afterCursor: "", blockText: "cat" } : null,
+          applyBlockReplacement: () => ({ applied: false, didDispatchInput: false }),
+        }),
+      });
+      const entry = createSuggestionEntry({
+        elem: editable,
+        missingTrailingSpace: true,
+        expectedCursorPos: 3,
+        expectedCursorPosIsBlockLocal: true,
+        expectedCursorPosBlockElement: block,
+        expectedCursorPosBlockText: "cat",
+      });
+      const keyboard = new window.KeyboardEvent("keydown", { key: "x", cancelable: true });
+      service.handleMissingSpaceAfterAccept(entry, keyboard, (event) => event.preventDefault());
+
+      expect(keyboard.defaultPrevented).toBe(false);
+      expect(editable.innerHTML).toBe("<p><strong>cat</strong></p>");
+      expect(entry.missingTrailingSpace).toBe(false);
+      expect(window.getSelection()?.anchorOffset).toBe(3);
+    },
+  );
+
   test("uses the host editor path for delayed post-accept spacing in host-owned contenteditables", () => {
     const hostModel = createHostModelEditable({ text: "What is the best", cursor: 16 });
     const service = new SuggestionTextEditService({

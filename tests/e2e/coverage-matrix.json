@@ -4355,6 +4355,11 @@
           "test": "refuses unverified ProseMirror suggestions without recording an accepted edit"
         },
         {
+          "layer": "unit",
+          "file": "tests/SuggestionTextEditService.test.ts",
+          "test": "delayed spacing preserves the typed key when ProseMirror refuses (bridge available: %s)"
+        },
+        {
           "layer": "e2e-full",
           "file": "tests/e2e/full.e2e.test.ts",
           "test": "ProseMirror predictions and expansions update the model, preserve formatting and undo"
