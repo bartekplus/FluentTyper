@@ -730,6 +730,39 @@ body:not([data-page-kind="actionable"]) #permissionBanner {
   gap: 0.5rem;
 }
 
+/* Support stays discoverable without interrupting writing. */
+.popup-support-notice {
+  display: block;
+}
+
+.support-title {
+  color: var(--text-color);
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin-bottom: 0.375rem;
+}
+
+.popup-support-notice .popup-notice-actions {
+  flex-wrap: wrap;
+  margin-top: 0.75rem;
+}
+
+.popup-support {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.375rem 0.75rem;
+  padding: 0.625rem 0;
+  margin-bottom: 0.375rem;
+  border-top: 1px solid var(--divider-color);
+}
+
+.popup-support .field-help {
+  margin: 0;
+  color: var(--text-color);
+}
+
 /* Footer */
 
 .toolbar {
@@ -773,6 +806,14 @@ body:not([data-page-kind="actionable"]) #permissionBanner {
 .toolbar-link--primary {
   margin-right: auto;
   color: var(--text-color);
+}
+
+.toolbar-link--support {
+  height: auto;
+  min-height: 2rem;
+  padding: 0.375rem 0.625rem;
+  color: var(--accent-color);
+  background: color-mix(in srgb, var(--accent-color) 10%, var(--box-background-color));
 }
 
 .toolbar-link svg {
@@ -964,6 +1005,7 @@ body.fluenttyper-options {
 
 .fluenttyper-options .productivity-insights-donation-actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.35rem;
 }

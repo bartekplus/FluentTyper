@@ -1,9 +1,40 @@
+import { i18n } from "@ui/options/fluenttyperI18n";
+import { onboardingTranslations } from "./translations";
 import {
   WebsiteAccessPermissionController,
   WebsiteAccessPermissionService,
 } from "@ui/shared/websiteAccessPermission";
 
+i18n.extend(onboardingTranslations);
+
+export function translateOnboarding(): void {
+  // The shared catalog uses "pr" for Portuguese; HTML language tags use "pt".
+  if (i18n.lang === "pt") i18n.lang = "pr";
+  const language = Object.hasOwn(onboardingTranslations.onboarding_title, i18n.lang)
+    ? (i18n.lang as keyof typeof onboardingTranslations.onboarding_title)
+    : "en";
+  document.documentElement.lang = language === "pr" ? "pt" : language;
+
+  document.querySelectorAll("[data-i18n]").forEach((element) => {
+    element.textContent = i18n.get(element.getAttribute("data-i18n")!);
+  });
+  document.querySelectorAll("[data-i18n-html]").forEach((element) => {
+    const key = element.getAttribute("data-i18n-html")!;
+    // I18n.get returns unknown keys verbatim; only bundled copy may be parsed as HTML.
+    if (Object.hasOwn(onboardingTranslations, key)) {
+      element.innerHTML =
+        onboardingTranslations[key as keyof typeof onboardingTranslations][language];
+    }
+  });
+  for (const attribute of ["aria-label", "placeholder", "value"]) {
+    document.querySelectorAll(`[data-i18n-${attribute}]`).forEach((element) => {
+      element.setAttribute(attribute, i18n.get(element.getAttribute(`data-i18n-${attribute}`)!));
+    });
+  }
+}
+
 document.addEventListener("DOMContentLoaded", () => {
+  translateOnboarding();
   void (async () => {
     const browserAPI = window.browser || window.chrome;
     const testWindow = window as Window & {

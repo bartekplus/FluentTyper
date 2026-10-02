@@ -1,3 +1,4 @@
+import type { DonationPromptAction } from "@core/domain/messageTypes";
 import {
   CMD_GET_AUTO_LANGUAGE_STATUS,
   CMD_POPUP_ACK_DONATION_MILESTONE,
@@ -31,7 +32,7 @@ export async function acknowledgeWeeklyRecap(weekKey: string): Promise<void> {
 
 export async function acknowledgeDonationPrompt(
   promptId: string,
-  action: "shown" | "supported" | "snooze",
+  action: DonationPromptAction,
   milestoneHours: number | null,
 ): Promise<void> {
   const message: PopupAckDonationMilestoneMessage = {

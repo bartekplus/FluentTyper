@@ -72,19 +72,29 @@ export function renderAboutWorkspacePanel(root: HTMLElement): void {
   links.className = "support-action-list";
   appendSupportActions(links);
 
+  body.append(productCopy, version, links);
+  root.replaceChildren(card);
+}
+
+export function renderSupportWorkspacePanel(root: HTMLElement): void {
+  const support = createWorkspaceCard(i18n.get("support_title"));
+  support.card.classList.add("support-card");
   const donateNote = document.createElement("p");
   donateNote.className = "settings-inline-help";
   donateNote.textContent = i18n.get("support_donate_note");
   const donateLink = document.createElement("a");
-  donateLink.className = "button";
+  donateLink.className = "button is-primary";
   donateLink.href = "https://www.buymeacoffee.com/FluentTyper";
   donateLink.target = "_blank";
   donateLink.rel = "noopener noreferrer";
-  donateLink.textContent = i18n.get("support_donate_link");
+  donateLink.textContent = i18n.get("support_cta");
   const donate = document.createElement("div");
   donate.className = "support-donate";
-  donate.append(donateNote, donateLink);
+  const paymentNote = document.createElement("p");
+  paymentNote.className = "settings-inline-help";
+  paymentNote.textContent = i18n.get("support_payment_note");
+  donate.append(donateLink, paymentNote);
+  support.body.append(donateNote, donate);
 
-  body.append(productCopy, version, links, donate);
-  root.replaceChildren(card);
+  root.replaceChildren(support.card);
 }

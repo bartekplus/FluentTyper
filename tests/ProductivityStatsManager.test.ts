@@ -268,11 +268,24 @@ describe("ProductivityStatsManager", () => {
     const afterSnooze = await manager.getDashboardStats();
     expect(afterSnooze.donationPrompt?.promptId).toBe("first_value");
 
-    await manager.handleDonationPromptAction("first_value", "supported", null);
+    await manager.handleDonationPromptAction("first_value", "support_clicked", null);
     const rawState = state[KEY_PRODUCTIVITY_STATS] as {
       firstValuePromptAcknowledged: boolean;
     };
     expect(rawState.firstValuePromptAcknowledged).toBe(true);
+  });
+
+  test("dismissed support prompts stay disabled after restart and stats reset", async () => {
+    const { manager: settingsManager, state } = createSettingsManagerMock();
+    const manager = new ProductivityStatsManager(settingsManager);
+    await manager.handleDonationPromptAction("first_value", "dismiss", null);
+    const restarted = new ProductivityStatsManager(settingsManager);
+    await restarted.resetStats();
+    expect(state[KEY_PRODUCTIVITY_STATS]).toMatchObject({
+      donationPromptsDisabled: true,
+      acceptedSuggestions: 0,
+    });
+    expect((await restarted.getDashboardStats()).donationPrompt).toBeNull();
   });
 
   test("resetStats clears local counters and survives restart", async () => {

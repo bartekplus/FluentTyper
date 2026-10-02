@@ -190,8 +190,8 @@ function devRuntimeEach<T>(cases: readonly T[]) {
 async function captureOnboardingViewportSnapshot(page: Page): Promise<OnboardingViewportSnapshot> {
   return await page.evaluate(() => {
     const permissionButton = document.getElementById("grant-permissions-btn");
-    const rationale = document.querySelector(".hero-lead");
-    const nextAction = document.querySelector("[aria-label='Next action']");
+    const rationale = document.getElementById("permissions-copy");
+    const nextAction = document.getElementById("practice-help");
 
     const isMeaningfullyVisibleInViewport = (element: Element | null) => {
       if (!(element instanceof HTMLElement)) {
@@ -2027,7 +2027,21 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         // ---- Permission flow test ----
         // Wait for the button to be ready and visible
         await newInstallationPage.waitForSelector("#grant-permissions-btn", { visible: true });
-        await newInstallationPage.waitForSelector("[aria-label='Next action']", { visible: true });
+        // The welcome offers a direct setup action and three explorable examples.
+        for (const feature of ["popup", "inline", "review"]) {
+          await newInstallationPage.click(`label:has(input[value="${feature}"])`);
+          expect(
+            await newInstallationPage.$$eval(".feature-panel", (panels) =>
+              panels
+                .filter((panel) => getComputedStyle(panel).display !== "none")
+                .map((panel) => panel.getAttribute("aria-labelledby")),
+            ),
+          ).toEqual([`${feature}-title`]);
+        }
+        await newInstallationPage.click('a.button[href="#setup"]');
+        await newInstallationPage.waitForFunction(
+          () => (document.getElementById("setup")?.getBoundingClientRect().top ?? Infinity) < 100,
+        );
 
         const viewportSnapshot = await captureOnboardingViewportSnapshot(newInstallationPage);
         expect(viewportSnapshot).toMatchObject({
@@ -2121,15 +2135,22 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
               ? (document.getElementById("grant-permissions-btn") as HTMLButtonElement).hidden
               : null,
           containsRequest: testWindow.__lastPermissionContainsRequest,
+          scrollY: window.scrollY,
         };
       });
 
       expect(onboardingState).toEqual({
-        activeElementId: "try-me-textarea",
+        scrollY: 0,
+        activeElementId: "",
         permissionState: "granted",
         permissionButtonHidden: true,
         containsRequest: { origins: ["<all_urls>"] },
       });
+
+      await onboardingPage.keyboard.press("Tab");
+      expect(
+        await onboardingPage.evaluate(() => document.activeElement?.matches(".skip-link")),
+      ).toBe(true);
 
       await onboardingPage.close();
     },
@@ -4972,6 +4993,62 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       expect(enabledLanguages).toEqual(["en_US", "de_DE"]);
     },
     browserTimeout(5000, 15000),
+  );
+
+  test(
+    "Support prompts can be dismissed permanently while support stays visible",
+    async () => {
+      await setSettingAndWait(worker!, KEY_PRODUCTIVITY_STATS, {
+        acceptedSuggestions: 50,
+        charactersSaved: 3600,
+        daily: {},
+      });
+      try {
+        const popup = await openPopupPage(browser, worker!);
+        await popup.waitForSelector("#dashboardMilestoneHint:not(.is-hidden)");
+        expect(await popup.$eval("#supportDevelopmentLink", (el) => el.textContent)).toContain(
+          "Support FluentTyper",
+        );
+        expect(await popup.$eval("#dashboardMilestoneText", (el) => el.textContent)).toContain(
+          "estimated",
+        );
+        // Firefox BiDi cannot dispatch pointer input inside extension pages.
+        await popup.$eval("#dashboardMilestoneDismissBtn", (el) =>
+          (el as HTMLButtonElement).click(),
+        );
+        await waitForSettingMatch<{ donationPromptsDisabled: boolean }>(
+          worker!,
+          KEY_PRODUCTIVITY_STATS,
+          (value) => value?.donationPromptsDisabled === true,
+        );
+        await popup.close();
+        const reopened = await openPopupPage(browser, worker!);
+        await reopened.waitForSelector("#supportDevelopmentLink", { visible: true });
+        await reopened.waitForFunction(() =>
+          document.getElementById("dashboardPeriodSummary")?.textContent?.includes("Last 7 days:"),
+        );
+        expect(
+          await reopened.$eval("#dashboardMilestoneHint", (el) =>
+            el.classList.contains("is-hidden"),
+          ),
+        ).toBe(true);
+        await reopened.close();
+        const options = await openOptionsPage(browser, worker!);
+        if (!isFirefox()) await options.setViewport({ width: 1200, height: 900 });
+        await options.$eval('a[href="#advanced_tab"]', (el) => (el as HTMLAnchorElement).click());
+        await options.waitForSelector(".support-card", { visible: true });
+        expect(
+          await options.$eval(
+            ".support-card",
+            (el) => el.getBoundingClientRect().top < window.innerHeight,
+          ),
+        ).toBe(true);
+        await options.close();
+      } finally {
+        await setSettingAndWait(worker!, KEY_PRODUCTIVITY_STATS, {});
+      }
+    },
+    browserTimeout(10000, 20000),
   );
 
   test(

@@ -106,6 +106,7 @@ export class StatsSanitizer {
       firstValuePromptAcknowledged: false,
       lastWeeklyRecapWeek: null,
       lastDonationPromptAt: null,
+      donationPromptsDisabled: false,
       donationSnoozedUntil: null,
     };
   }
@@ -229,6 +230,7 @@ export class StatsSanitizer {
       lastWeeklyRecapWeek:
         typeof value.lastWeeklyRecapWeek === "string" ? value.lastWeeklyRecapWeek : null,
       lastDonationPromptAt: lastDonationPromptAt ? (value.lastDonationPromptAt as string) : null,
+      donationPromptsDisabled: value.donationPromptsDisabled === true,
       donationSnoozedUntil: donationSnoozedUntil ? (value.donationSnoozedUntil as string) : null,
     };
   }

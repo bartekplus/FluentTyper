@@ -114,11 +114,7 @@ describe("DonationPromptPolicy", () => {
   const policy = new DonationPromptPolicy(sanitizer);
   const recap = new RecapPolicy(sanitizer, new StatsAggregator(sanitizer));
 
-  test.each([
-    [1, "You just saved your 1st hour. Buy the dev a coffee?"],
-    [5, "You just saved your 5th hours. Buy the dev a coffee?"],
-    [25, "You just saved your 25th hours. Buy the dev a coffee?"],
-  ])("milestone %i uses an English ordinal", (hours, message) => {
+  test.each([1, 5, 25])("offers each reached milestone once (%i hours)", (hours) => {
     const state = {
       ...sanitizer.createDefaultStatsState(),
       firstValuePromptAcknowledged: true,
@@ -130,9 +126,37 @@ describe("DonationPromptPolicy", () => {
       estimatedMinutesSaved: hours * 60,
     };
     const weeklyRecap = recap.summarizeWeek({}, new Date(2026, 0, 5));
-    expect(policy.toDonationPrompt(state, lifetime, new Date(), weeklyRecap, false)?.message).toBe(
-      message,
+    const now = new Date(2026, 0, 12);
+    expect(policy.toDonationPrompt(state, lifetime, now, weeklyRecap, false)?.milestoneHours).toBe(
+      hours,
     );
+    policy.applyAction(state, `milestone_${hours}`, "support_clicked", hours, now);
+    expect(
+      policy.toDonationPrompt(state, lifetime, new Date(2026, 1, 12), weeklyRecap, false),
+    ).toBeNull();
+  });
+
+  test("dismissal survives sanitization and suppresses every prompt including weekly recaps", () => {
+    const state = sanitizer.createDefaultStatsState();
+    const lifetime = {
+      acceptedSuggestions: 50,
+      charactersSaved: 2000,
+      estimatedMinutesSaved: 1500,
+    };
+    const weeklyRecap = recap.summarizeWeek({}, new Date(2026, 0, 5));
+    const now = new Date(2026, 0, 12);
+    policy.applyAction(state, "first_value", "dismiss", null, now);
+    const reloaded = sanitizer.sanitizeStatsState(state);
+    expect(reloaded.donationPromptsDisabled).toBe(true);
+    for (const weekly of [false, true]) {
+      expect(
+        policy.toDonationPrompt(reloaded, lifetime, new Date(2027, 0, 12), weeklyRecap, weekly),
+      ).toBeNull();
+    }
+    expect(sanitizer.sanitizeStatsState({}).donationPromptsDisabled).toBe(false);
+    expect(
+      sanitizer.sanitizeStatsState({ donationPromptsDisabled: "true" }).donationPromptsDisabled,
+    ).toBe(false);
   });
 
   test("weekly recap reveals only after the reveal hour on Monday", () => {

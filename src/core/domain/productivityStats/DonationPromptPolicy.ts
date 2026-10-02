@@ -11,7 +11,6 @@ import {
   DONATION_PROMPT_COOLDOWN_DAYS,
   DONATION_SNOOZE_DAYS,
 } from "./constants";
-import { ordinalSuffix } from "../grammar/implementations/EnglishOrdinalSuffixRule";
 import type { StatsSanitizer } from "./StatsSanitizer";
 import type { ProductivityStatsState } from "./types";
 
@@ -25,6 +24,8 @@ export class DonationPromptPolicy {
     weeklyRecap: WeeklyRecapSummary,
     shouldShowWeeklyRecapCard: boolean,
   ): DonationPromptSummary | null {
+    if (state.donationPromptsDisabled) return null;
+
     const snoozedUntilDate = this.sanitizer.parseIsoDate(state.donationSnoozedUntil);
     if (snoozedUntilDate && now < snoozedUntilDate) {
       return null;
@@ -37,8 +38,6 @@ export class DonationPromptPolicy {
         kind: "weekly_recap",
         milestoneHours:
           weeklyRecap.milestonesCrossedHours[weeklyRecap.milestonesCrossedHours.length - 1] || null,
-        message:
-          "Your weekly recap is ready. If FluentTyper is saving you time, support development.",
       };
     }
 
@@ -63,8 +62,6 @@ export class DonationPromptPolicy {
         promptId: "first_value",
         kind: "first_value",
         milestoneHours: null,
-        message:
-          "You are saving real time already. If this helps your workflow, support FluentTyper.",
       };
     }
 
@@ -76,13 +73,10 @@ export class DonationPromptPolicy {
       return null;
     }
 
-    const hoursLabel = nextMilestone === 1 ? "hour" : "hours";
-    const ordinal = `${nextMilestone}${ordinalSuffix(String(nextMilestone))}`;
     return {
       promptId: `milestone_${nextMilestone}`,
       kind: "milestone",
       milestoneHours: nextMilestone,
-      message: `You just saved your ${ordinal} ${hoursLabel}. Buy the dev a coffee?`,
     };
   }
 
@@ -93,7 +87,14 @@ export class DonationPromptPolicy {
     milestoneHours: number | null,
     now: Date,
   ): void {
+    if (!["shown", "snooze", "dismiss", "support_clicked"].includes(action)) return;
+
     state.lastDonationPromptAt = now.toISOString();
+
+    if (action === "dismiss") {
+      state.donationPromptsDisabled = true;
+      return;
+    }
 
     if (action === "shown") {
       return;

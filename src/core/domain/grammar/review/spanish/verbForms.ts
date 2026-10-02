@@ -12,6 +12,7 @@ import {
 import { DETERMINER, readNoun } from "./agreement";
 import { HABER, IR, isPerfectParticiple } from "./confusions";
 import {
+  attribute,
   finiteVerb,
   genderedForm,
   isGerund,
@@ -59,6 +60,24 @@ function perfectOf(word: string, nominal: boolean): string | null {
   return m && (isVerb(`${m[1]}er`) || isVerb(`${m[1]}ir`)) ? `${m[1]}ido` : null;
 }
 
+/** "he intenta", "me he cansa", "he decido", "he quedé" -> "intentado", "cansado", "decidido". */
+function finitePerfect(word: string): string | null {
+  // "volver ha casa" is the preposition and "ha desecho" a misspelled "deshecho": a noun
+  // reading leaves the word alone (an adjective one, "intenta", does not).
+  if (word.length < 4 || !finiteVerb(word) || isInfinitive(word) || isGerund(word)) return null;
+  if (isNoun(word)) return null;
+  if (participle(word)?.feminine === false && /[ai]do$/u.test(word)) return null;
+  const found = new Set<string>();
+  const ar = /^(\p{L}{2,}?)(?:o|a|as|an|e|es|en|é|ó|aste|ad|amos)$/u.exec(word);
+  if (ar && isVerb(`${ar[1]}ar`)) found.add(`${ar[1]}ado`);
+  const erIr = /^(\p{L}{2,}?)(?:o|e|es|en|í|ió|iste|ed|id|emos|imos)$/u.exec(word);
+  if (erIr && (isVerb(`${erIr[1]}er`) || isVerb(`${erIr[1]}ir`))) found.add(`${erIr[1]}ido`);
+  return found.size === 1 ? [...found][0] : null;
+}
+
+const BEFORE_AUXILIARY = words(
+  "él ella usted ello me te se nos os le les lo la no ya siempre nunca también todavía",
+);
 // "huele a quemado", "sabe a podrido": a smell or taste, not the auxiliary.
 const SENSES = /^(?:huel\p{L}*|ol\p{L}*|sab\p{L}*|sup\p{L}*)$/u;
 
@@ -72,7 +91,9 @@ function check(at: Around): string[] | null {
   // "1.900 ha desarboladas" is the hectare.
   const unit = /^\p{N}/u.test(at.tokens[at.i - 2]?.text ?? "");
   if (HABER.has(prev) && !unit) {
-    const fix = perfectOf(word, EXISTENTIAL.has(prev) || isNoun(next));
+    const existential = EXISTENTIAL.has(prev);
+    const fix =
+      perfectOf(word, existential || isNoun(next)) ?? (existential ? null : finitePerfect(word));
     if (fix && fix !== word) return [fix];
   }
   // "ha ido aumentado", "ha estado intentado", "me estoy acostumbrado": a gerund.
@@ -94,10 +115,12 @@ function check(at: Around): string[] | null {
     }
   }
   // "el atleta a corrido": the preposition before a participle is "ha".
-  // "de acusador a acusado", "Serie A", "a templado-frescos" are not.
+  // "de acusador a acusado", "Serie A", "a templado-frescos" are not, nor "sujetos a borrado",
+  // where a plural adjective before governs the preposition (and "ha" would not agree).
   const nextToken = at.tokens[at.i + 1];
   if (
     word === "a" &&
+    !attribute(prev)?.plural &&
     (at.tokens[at.i].text === "a" || at.starts) &&
     isPerfectParticiple(next) &&
     !isNoun(next) &&
@@ -109,6 +132,21 @@ function check(at: Around): string[] | null {
     ![1, 2, 3, 4].some((k) => at.prev(k) === "de")
   )
     return ["ha"];
+  // "se a ido", "ella a vuelto", "nos e incluido", "siempre e ido": after a clitic, a subject
+  // pronoun or a verb's adverb only the auxiliary fits, even before a participle that is a noun
+  // too ("dicho", "estado"); "a cubierto" is the idiom.
+  if (
+    (word === "a" || word === "e") &&
+    at.tokens[at.i].text === word &&
+    isPerfectParticiple(next) &&
+    next !== "cubierto" &&
+    (BEFORE_AUXILIARY.has(prev) || (word === "e" && prev === "yo")) &&
+    !(word === "a" && prev === "yo")
+  )
+    return [word === "a" ? "ha" : "he"];
+  // "E invitado a un amigo": a sentence opens with the auxiliary, not with "and".
+  if (word === "e" && at.starts && at.tokens[at.i].text === "E" && isPerfectParticiple(next))
+    return ["he"];
   // "siempre e comido": "e" (and) only goes before an i- sound.
   if (word === "e" && isPerfectParticiple(next) && !/^h?i/u.test(next)) return ["he"];
   // "lo ha vuelto ha hacer", "ha estos": the preposition "a".

@@ -632,6 +632,15 @@ const manifest: ManifestDefinition = {
     // =========================================================================
     {
       tab: "advanced_tab",
+      group: i18n.get("support_development_group"),
+      name: "supportWorkspacePanel",
+      type: "customPanel",
+      label: i18n.get("support_cta"),
+      description: i18n.get("support_donate_note"),
+      keywords: [i18n.get("support_donate_link")],
+    },
+    {
+      tab: "advanced_tab",
       group: i18n.get("options_tab_data"),
       name: "dataDiagnosticsPanel",
       type: "customPanel",
