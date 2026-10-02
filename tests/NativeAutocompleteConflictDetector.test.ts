@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import {
   hasActiveAutocompletePopup,
+  reservesAutocompleteArrow,
   NativeAutocompleteConflictDetector,
 } from "../src/adapters/chrome/content-script/suggestions/NativeAutocompleteConflictDetector";
 
@@ -44,6 +45,41 @@ describe("native field eligibility and interaction evidence", () => {
     expect(detector.classify(input).kind).toBe("automatic");
     document.querySelector("option")!.disabled = false;
     expect(detector.classify(input)).toEqual({ kind: "manual", reason: "browser" });
+  });
+  test.each([
+    '<input list="missing">',
+    '<input list="choices"><datalist id="choices"><option disabled value="Paris"></option><option value=""></option></datalist>',
+    '<input aria-autocomplete="list" aria-controls="missing">',
+    '<input aria-autocomplete="inline">',
+    '<input aria-haspopup="false">',
+  ])("does not reserve opening arrows for unusable metadata: %s", (html) => {
+    const input = field(html);
+    for (const init of [{ key: "ArrowDown" }, { key: "ArrowUp", altKey: true }]) {
+      expect(reservesAutocompleteArrow(input, new window.KeyboardEvent("keydown", init))).toBe(
+        false,
+      );
+    }
+  });
+  test("reserves opening arrows for usable datalists and closed website widgets", () => {
+    const arrow = new window.KeyboardEvent("keydown", { key: "ArrowDown" });
+    const input = field(
+      '<input list="choices"><datalist id="choices"><option value="Paris"></option></datalist>',
+    );
+    expect(reservesAutocompleteArrow(input, arrow)).toBe(true);
+    document.querySelector("option")!.disabled = true;
+    expect(reservesAutocompleteArrow(input, arrow)).toBe(false);
+    input.setAttribute("role", "combobox");
+    expect(reservesAutocompleteArrow(input, arrow)).toBe(true);
+    input.removeAttribute("role");
+    document.querySelector("datalist")!.remove();
+    input.setAttribute("aria-controls", "choices");
+    const list = popup();
+    list.hidden = true;
+    expect(reservesAutocompleteArrow(input, arrow)).toBe(true);
+    list.firstElementChild!.setAttribute("aria-disabled", "true");
+    expect(reservesAutocompleteArrow(input, arrow)).toBe(false);
+    list.remove();
+    expect(reservesAutocompleteArrow(input, arrow)).toBe(false);
   });
   test.each([
     "name",

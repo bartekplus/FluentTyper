@@ -57,8 +57,7 @@ function isActionable(element: Element): boolean {
   return !element.closest('[aria-disabled="true"], [disabled]') && isVisible(element);
 }
 
-/** DOM-only: also used before the MAIN-world bridge captures Tab. */
-export function hasActiveAutocompletePopup(element: HTMLElement): boolean {
+function linkedAutocompletePopups(element: HTMLElement): Element[] {
   const ids =
     `${element.getAttribute("aria-controls") ?? ""} ${element.getAttribute("aria-owns") ?? ""}`
       .trim()
@@ -73,7 +72,12 @@ export function hasActiveAutocompletePopup(element: HTMLElement): boolean {
     const popup = active.closest(POPUP_SELECTOR);
     if (popup) popups.push(popup);
   }
-  return popups.some(
+  return popups;
+}
+
+/** DOM-only: also used before the MAIN-world bridge captures Tab. */
+export function hasActiveAutocompletePopup(element: HTMLElement): boolean {
+  return linkedAutocompletePopups(element).some(
     (popup) =>
       isVisible(popup) &&
       ((popup.getAttribute("role") === "dialog" &&
@@ -82,13 +86,24 @@ export function hasActiveAutocompletePopup(element: HTMLElement): boolean {
   );
 }
 
-export function reservesAutocompleteArrow(element: HTMLElement, event: KeyboardEvent): boolean {
+function hasUsableDatalist(element: HTMLElement): boolean {
+  const list = element.tagName === "INPUT" ? (element as HTMLInputElement).list : null;
   return (
-    (element.getAttribute("role") === "combobox" ||
-      element.hasAttribute("aria-autocomplete") ||
-      element.hasAttribute("aria-haspopup") ||
-      element.hasAttribute("list")) &&
-    (event.key === "ArrowDown" || (event.altKey && event.key.startsWith("Arrow")))
+    !!list && Array.from(list.options).some((option) => !option.disabled && !!option.value.trim())
+  );
+}
+
+export function reservesAutocompleteArrow(element: HTMLElement, event: KeyboardEvent): boolean {
+  if (event.key !== "ArrowDown" && !(event.altKey && event.key.startsWith("Arrow"))) return false;
+  return (
+    hasUsableDatalist(element) ||
+    // Explicit comboboxes may populate their popup only after the opening gesture.
+    element.getAttribute("role") === "combobox" ||
+    linkedAutocompletePopups(element).some((popup) =>
+      Array.from(popup.querySelectorAll(ITEM_SELECTOR)).some(
+        (item) => !item.closest('[aria-disabled="true"], [disabled], [data-ft-suggestion-owned]'),
+      ),
+    )
   );
 }
 
@@ -115,14 +130,7 @@ export class NativeAutocompleteConflictDetector {
         ["email", "url", "tel"].includes((element as HTMLInputElement).type))
     )
       return { kind: "manual", reason: "structured" };
-    if (element.tagName === "INPUT") {
-      const list = (element as HTMLInputElement).list;
-      if (
-        list &&
-        Array.from(list.options).some((option) => !option.disabled && option.value.trim())
-      )
-        return { kind: "manual", reason: "browser" };
-    }
+    if (hasUsableDatalist(element)) return { kind: "manual", reason: "browser" };
     const writing =
       element.tagName === "TEXTAREA" ||
       element.getAttribute("aria-multiline") === "true" ||

@@ -1174,6 +1174,36 @@ describe("SuggestionManagerRuntime", () => {
     runtime.detachAllHelpers();
   });
 
+  test.each([
+    '<input list="missing">',
+    '<input list="choices"><datalist id="choices"></datalist>',
+    '<input aria-autocomplete="list">',
+  ])("keeps FluentTyper arrow navigation with unusable autocomplete metadata: %s", (html) => {
+    const runtime = makeRuntime();
+    document.body.innerHTML = html;
+    const input = document.querySelector("input")!;
+    runtime.queryAndAttachHelper();
+    input.focus();
+    const internal = runtime as unknown as {
+      entryRegistry: { getByElement: (e: Element) => SuggestionEntry };
+    };
+    const entry = internal.entryRegistry.getByElement(input);
+    entry.suggestions = ["hello", "help"];
+    entry.selectedIndex = 0;
+    entry.menu.style.display = "block";
+    const arrow = new window.KeyboardEvent("keydown", {
+      key: "ArrowDown",
+      bubbles: true,
+      cancelable: true,
+    });
+    input.dispatchEvent(arrow);
+    expect(arrow.defaultPrevented).toBe(true);
+    expect(entry.selectedIndex).toBe(1);
+    expect(entry.suggestions).toEqual(["hello", "help"]);
+    expect(entry.menu.style.display).toBe("block");
+    runtime.detachAllHelpers();
+  });
+
   test("search keeps Space and widget opening arrows native while explicit acceptance works", () => {
     const runtime = makeRuntime();
     document.body.innerHTML = '<input type="search" role="combobox" aria-autocomplete="list">';
