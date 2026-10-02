@@ -143,6 +143,7 @@ describe("review rule coverage map", () => {
             "styleWordChoice",
             "styleSpelledNumbers",
             "germanAbbreviationSpacing",
+            "polishQuotes",
             "greekStrictFinalNu",
             "greekPunctuation",
             "portugueseTypographyStyle",

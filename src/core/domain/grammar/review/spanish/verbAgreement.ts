@@ -3,6 +3,7 @@ import { DETERMINER, pluralOf, readNoun } from "./agreement";
 import {
   Around,
   CONJUNCTIONS,
+  GIVEN_NAMES,
   PREPOSITIONS,
   replaceToken,
   tokenize,
@@ -102,6 +103,84 @@ function verbAfter(tokens: Token[], i: number): number {
   return token?.word && !token.broken && !tokens[i + 1].broken ? j : -1;
 }
 
+/** A capitalized given name, or mid-sentence a capitalized word the lexicon does not know. */
+function personName(token: Token, sentenceStart: boolean): boolean {
+  if (!/^\p{Lu}\p{Ll}+$/u.test(token.text)) return false;
+  const word = token.lower;
+  if (GIVEN_NAMES.has(word)) return true;
+  // Every word is capitalized at the start: "Quizás", "Ojalá" and "Oye" name no one.
+  if (sentenceStart) return false;
+  return (
+    word.length > 2 &&
+    !isNoun(word) &&
+    !isGenderedEntry(word) &&
+    !genderedForm(word) &&
+    !finiteVerb(word) &&
+    !DETERMINER.has(word) &&
+    !PREPOSITIONS.has(word) &&
+    !CONJUNCTIONS.has(word) &&
+    !CLOSED_WORDS.has(word) &&
+    !/mente$/u.test(word)
+  );
+}
+const CLOSED_WORDS = words(
+  "yo tú él ella usted nosotros nosotras vosotros vosotras ellos ellas ustedes no ya hoy ayer " +
+    "mañana aquí allí así también tampoco muy más menos siempre nunca entonces luego después " +
+    "antes ahora todavía aún quien quienes cual cuales donde cuando como qué quién cómo dónde " +
+    "cuándo cuál todo todos todas nada nadie algo alguien eso esto aquello ambos varios",
+);
+
+type Person = "1s" | "2s" | "1p" | "2p" | "3p" | "vowel";
+const FIRST_SINGULAR = words("soy estoy voy doy he sé");
+
+/** The person a verb form's ending shows, or null; "vowel" is a 1st or 3rd singular. */
+function personOf(word: string): Person | null {
+  if (FIRST_SINGULAR.has(word)) return "1s";
+  if (/mos$/u.test(word)) return "1p";
+  if (/(?:áis|éis|ís)$/u.test(word)) return "2p";
+  if (/n$/u.test(word)) return "3p";
+  if (/(?:as|es|ás|és|ste)$/u.test(word)) return "2s";
+  if (/[^aeiouáéíóú]o$/u.test(word)) return "1s";
+  return /[aeéí]$/u.test(word) ? "vowel" : null;
+}
+// What each subject pronoun's verb may show: "yo tenía" shares the 3rd person's form.
+const PERSONS: Record<string, Person[]> = {
+  yo: ["1s", "vowel"],
+  tú: ["2s"],
+  nosotros: ["1p"],
+  nosotras: ["1p"],
+  vosotros: ["2p"],
+  vosotras: ["2p"],
+};
+const NOT_VERBS = words(
+  "solo sola mismo misma mismos mismas también tampoco todo todos todas ahora siempre nunca " +
+    "antes después aquí allí bien mal más menos tanto apenas casi",
+);
+
+/** "Yo vienes", "Tú vengo", "Vosotros venimos": a subject pronoun and a verb of another person. */
+function pronounPerson(ctx: DetectContext, tokens: Token[], i: number): RawFinding | null {
+  const allowed = PERSONS[tokens[i].lower];
+  if (!allowed || !clauseStart(tokens, i)) return null;
+  // "donde nosotros nieva" (where we live), "nadie más que nosotros sabe": no subject.
+  const at = new Around(tokens, i);
+  if (at.prev() === "donde" || /^(?:más|menos|tanto|igual|mejor|peor)$/u.test(at.prev(2)))
+    return null;
+  const v = verbAfter(tokens, i);
+  if (v < 0 || /^\p{Lu}/u.test(tokens[v].text)) return null;
+  const verb = tokens[v].lower;
+  if (NOT_VERBS.has(verb) || CONJUNCTIONS.has(verb) || PREPOSITIONS.has(verb)) return null;
+  // "Nosotros hace dos años…", "nieva": impersonal verbs take no subject.
+  if (IMPERSONAL.test(verb) || /^(?:llueve|nieva|graniza|truena|amanece|anochece)$/u.test(verb))
+    return null;
+  if (!finiteVerb(verb) || isNoun(verb) || genderedForm(verb) || participle(verb)) return null;
+  const person = personOf(verb);
+  if (!person || allowed.includes(person)) return null;
+  // "tú" before a vowel-final form may be an imperative's subject: "Tú calla".
+  if (tokens[i].lower === "tú" && person === "vowel") return null;
+  const finding = replaceToken(ctx, tokens[v], [], RULE, MESSAGE, tokens[i]);
+  return finding && { ...finding, warningOnly: true };
+}
+
 /** Subject (pronoun, or determiner + noun) at clause start and the verb after it. */
 function subjectVerb(ctx: DetectContext, tokens: Token[], i: number): RawFinding | null {
   const token = tokens[i];
@@ -110,11 +189,18 @@ function subjectVerb(ctx: DetectContext, tokens: Token[], i: number): RawFinding
   let last = i;
   if (SINGULAR_PRONOUNS.has(token.lower)) subject = "singular";
   else if (PLURAL_PRONOUNS.has(token.lower)) subject = "plural";
-  else {
+  else if (personName(token, new Around(tokens, i).starts)) {
+    // "Juan tienen", "Marta Ruiz llegan": a person's name, with up to two more name parts.
+    subject = "singular";
+    while (last < i + 2 && /^\p{Lu}\p{Ll}+$/u.test(tokens[last + 1]?.text ?? "")) last++;
+    if (tokens[last + 1]?.broken) return null;
+  } else {
     const det = DETERMINER.get(token.lower);
     const nounToken = tokens[i + 1];
     if (!det || !nounToken?.word || nounToken.broken || det.forms[0].includes(" ")) return null;
     if (/^(?:del|al)$/u.test(token.lower) || NOT_SUBJECTS.has(nounToken.lower)) return null;
+    // "¿Cuántos coches ha tenido?", "Tantas cosas ha visto": a fronted object.
+    if (/^(?:tant|cuant|cuánt)/u.test(token.lower)) return null;
     const noun = readNoun(nounToken.lower);
     if (!noun || noun.plural !== det.slot >= 2) return null;
     subject = noun.plural ? "plural" : "singular";
@@ -259,7 +345,8 @@ function attribute(ctx: DetectContext, tokens: Token[], i: number): RawFinding |
     const det = DETERMINER.get(token.lower);
     const nounToken = tokens[i + 1];
     if (!det || det.forms[0].includes(" ") || !nounToken?.word || nounToken.broken) return null;
-    if (NOT_SUBJECTS.has(nounToken.lower)) return null;
+    if (NOT_SUBJECTS.has(nounToken.lower) || /^(?:tant|cuant|cuánt)/u.test(token.lower))
+      return null;
     const noun = readNoun(nounToken.lower);
     if (!noun || noun.plural !== det.slot >= 2) return null;
     feminine = noun.gender ? noun.gender === "f" : null;
@@ -302,7 +389,10 @@ function verbAgreement(ctx: DetectContext): RawFinding[] {
   for (let i = 0; i < tokens.length; i++) {
     if (!tokens[i].word || tokens[i].start < ctx.from - 64 || tokens[i].start >= ctx.to) continue;
     const finding =
-      subjectVerb(ctx, tokens, i) ?? liking(ctx, tokens, i) ?? copulaParticiple(ctx, tokens, i);
+      subjectVerb(ctx, tokens, i) ??
+      pronounPerson(ctx, tokens, i) ??
+      liking(ctx, tokens, i) ??
+      copulaParticiple(ctx, tokens, i);
     if (finding) findings.push(finding);
     const adjective = attribute(ctx, tokens, i);
     if (adjective) attributes.push(adjective);

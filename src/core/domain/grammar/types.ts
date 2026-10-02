@@ -119,6 +119,10 @@ export interface GrammarRuleCatalogEntry {
     | "polishMisplacedComma"
     | "polishMissingComma"
     | "polishPrepositionForms"
+    | "polishCaseAgreement"
+    | "polishTypography"
+    | "polishQuotes"
+    | "polishCapitalization"
     // French (review/french/)
     | "frenchVerbForms"
     | "frenchHomophones"
