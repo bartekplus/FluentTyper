@@ -49,6 +49,9 @@ const PARADIGMS = [
   "mucho mucha muchos muchas",
   "poco poca pocos pocas",
   "demasiado demasiada demasiados demasiadas",
+  "tanto tanta tantos tantas",
+  "cuánto cuánta cuántos cuántas",
+  "cuanto cuanta cuantos cuantas",
   "mi mi mis mis",
   "tu tu tus tus",
   "su su sus sus",
@@ -70,7 +73,8 @@ const CLITIC = words("la las los");
 const STANDALONE = words(
   "el tu este esta estos estas ese esa esos esas aquel aquella aquellos aquellas otro otra " +
     "otros otras mucho mucha muchos muchas poco poca pocos pocas demasiado demasiada " +
-    "demasiados demasiadas",
+    "demasiados demasiadas tanto tanta tantos tantas cuanto cuanta cuantos cuantas cuánto " +
+    "cuánta cuántos cuántas",
 );
 // Plural pronouns that drop a repeated verb: "unos piden problemas y otros oportunidades".
 const ELLIPTIC = words("unos unas otros otras algunos algunas muchos muchas pocos pocas");
@@ -133,12 +137,17 @@ const EITHER_ENDING = /(?:ista|asta|crata|iatra|auta|cida|arca|ita|ota)$/u;
 // Nouns in -e (or another ending that decides nothing) with a fixed gender.
 const FEMININE_OTHER = words(
   "madre mujer gente calle noche tarde leche muerte suerte fuente mente llave nave " +
-    "clase nieve sangre torre carne",
+    "clase nieve sangre torre carne sucursal cárcel miel señal catedral sal col " +
+    "credencial luz voz paz vez nariz raíz nuez interfaz tez hoz red pared sed merced " +
+    "ley imagen razón sien flor",
 );
 const MASCULINE_OTHER = words(
   "padre hombre coche nombre puente diente aceite bosque cine valle pie baile golpe parque " +
-    "postre billete",
+    "postre billete árbol papel hotel nivel animal hospital lápiz pez arroz reloj sol " +
+    "país mes análisis énfasis paréntesis éxtasis apocalipsis",
 );
+// Greek nouns in -sis and medical ones in -itis: feminine, the same in both numbers.
+const INVARIANT_FEMININE = /(?:[^l]sis|itis)$/u;
 
 function nounGender(word: string): Gender | null {
   if (EITHER.has(word)) return null;
@@ -204,6 +213,8 @@ export type Noun = {
   /** -o/-a pairs ("niño", "española"): the form shows the gender. */
   paired: boolean;
   singular: string;
+  /** "tesis", "crisis": the same form in both numbers. */
+  invariant?: boolean;
 };
 
 function pairedForm(word: string): Noun | null {
@@ -245,6 +256,15 @@ export function readNoun(word: string): Noun | null {
 function readForm(word: string): Noun | null {
   if (word.endsWith("s")) {
     if (INVARIANT_S.has(word)) return null;
+    // "la tesis", "las crisis": one form for both numbers; the determiner says which.
+    if (INVARIANT_FEMININE.test(word) && word.length >= 5)
+      return {
+        plural: false,
+        gender: MASCULINE_OTHER.has(word) ? "m" : "f",
+        paired: false,
+        singular: word,
+        invariant: true,
+      };
     // "ingles" is "inglés" without its accent before it is the plural of "ingle".
     const accented = accentLast(word);
     if (accented !== word && (isNounEntry(accented) || isGenderedEntry(accented))) return null;
@@ -337,6 +357,11 @@ function determinerNoun(ctx: DetectContext, tokens: Token[], i: number): RawFind
   const prev = new Around(tokens, i).prev();
   // "sean estos montañas": a pronoun before its predicate.
   if (SER.has(prev)) return null;
+  // "tanto hombres como mujeres": the correlative, not a determiner.
+  if (/^(?:tant|cuant|cuánt)/u.test(detToken.lower)) {
+    if ([2, 3, 4].some((k) => new Around(tokens, i).next(k) === "como")) return null;
+    if (prev === "en" || prev === "por") return null;
+  }
   // "treinta y un años", "ciento un días": the numeral "un" counts.
   if (detToken.lower === "un" && (prev === "y" || NUMBER_WORDS.has(prev))) return null;
   // "la ex-ministra", "los e-mails": a compound.
@@ -371,7 +396,7 @@ function determinerNoun(ctx: DetectContext, tokens: Token[], i: number): RawFind
     return null;
   // "un saca leches", "un lanza misiles": a verb and its object written apart.
   if (afterNoun && /[ae]$/u.test(word) && finiteVerb(word)) return null;
-  const numberClash = detPlural !== noun.plural;
+  const numberClash = !noun.invariant && detPlural !== noun.plural;
   let genderClash = !!detGender && !!noun.gender && detGender !== noun.gender;
   if (genderClash) {
     // "la médico", "la modelo": a feminine determiner before a masculine form names a woman.

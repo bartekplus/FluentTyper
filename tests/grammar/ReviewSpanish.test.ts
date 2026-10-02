@@ -756,6 +756,31 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
     },
   ],
   [
+    "spanishAgreement",
+    "nouns whose ending hides their gender, -sis nouns, tanto and cuánto",
+    {
+      pos: [
+        ["Abrieron el sucursal nueva.", "Abrieron la sucursal nueva."],
+        ["Pintamos el pared del salón.", "Pintamos la pared del salón."],
+        ["Defendió un tesis brillante.", "Defendió una tesis brillante."],
+        ["Plantaron las árboles ayer.", "Plantaron los árboles ayer."],
+        ["Nunca vi tanto gente junta.", "Nunca vi tanta gente junta."],
+        ["No sé cuanto horas faltan.", "No sé cuantas horas faltan."],
+      ],
+      neg: [
+        "Hay tanto hombres como mujeres.",
+        "¿Cuánto cuesta?",
+        "¿Cuántos coches ha tenido él?",
+        "La mar estaba en calma.",
+        "En todos los cruces de ferrocarril.",
+        "La misión del piel roja.",
+        "Las crisis económicas.",
+        "El análisis fue largo.",
+        "En cuanto llegues, avísame.",
+      ],
+    },
+  ],
+  [
     "spanishConfusions",
     "a clitic before an infinitive, a bare participle or a noun",
     {

@@ -199,6 +199,8 @@ function subjectVerb(ctx: DetectContext, tokens: Token[], i: number): RawFinding
     const nounToken = tokens[i + 1];
     if (!det || !nounToken?.word || nounToken.broken || det.forms[0].includes(" ")) return null;
     if (/^(?:del|al)$/u.test(token.lower) || NOT_SUBJECTS.has(nounToken.lower)) return null;
+    // "¿Cuántos coches ha tenido?", "Tantas cosas ha visto": a fronted object.
+    if (/^(?:tant|cuant|cuánt)/u.test(token.lower)) return null;
     const noun = readNoun(nounToken.lower);
     if (!noun || noun.plural !== det.slot >= 2) return null;
     subject = noun.plural ? "plural" : "singular";
@@ -343,7 +345,8 @@ function attribute(ctx: DetectContext, tokens: Token[], i: number): RawFinding |
     const det = DETERMINER.get(token.lower);
     const nounToken = tokens[i + 1];
     if (!det || det.forms[0].includes(" ") || !nounToken?.word || nounToken.broken) return null;
-    if (NOT_SUBJECTS.has(nounToken.lower)) return null;
+    if (NOT_SUBJECTS.has(nounToken.lower) || /^(?:tant|cuant|cuánt)/u.test(token.lower))
+      return null;
     const noun = readNoun(nounToken.lower);
     if (!noun || noun.plural !== det.slot >= 2) return null;
     feminine = noun.gender ? noun.gender === "f" : null;
