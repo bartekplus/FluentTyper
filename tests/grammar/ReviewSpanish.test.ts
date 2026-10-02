@@ -19,7 +19,12 @@ import {
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
 
-const SPANISH_RULES: CatalogRuleId[] = ["spanishAccents", "spanishConfusions", "spanishTypography"];
+const SPANISH_RULES: CatalogRuleId[] = [
+  "spanishAccents",
+  "spanishConfusions",
+  "spanishTypography",
+  "spanishAgreement",
+];
 const SPANISH_ON = REVIEW_SUPPORTED_RULE_IDS.filter(
   (id) =>
     runsInReviewLanguage(id, "es_ES") &&
@@ -85,6 +90,8 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         ["¿Donde vives ahora?", "¿Dónde vives ahora?"],
         ["¿Como se llama tu perro?", "¿Cómo se llama tu perro?"],
         ["¿Por que no viniste?", "¿Por qué no viniste?"],
+        ["¿Que estás haciendo?", "¿Qué estás haciendo?"],
+        ["¿Que te pasa?", "¿Qué te pasa?"],
         ["¡Que bonito día!", "¡Qué bonito día!"],
         ["No sé que decir.", "No sé qué decir."],
         ["¿Sabes que hora es?", "¿Sabes qué hora es?"],
@@ -109,6 +116,10 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         "¡Que aproveche!",
         "¿A que no sabes quién ha venido?",
         "¿Que has visto un fantasma?",
+        "¿Que te odian tus vecinos?",
+        "¿Que nos adora?",
+        "¿Que estás temblando?",
+        "¿Que no están durmiendo?",
         "Sé que tienes razón.",
         "Sé que bajar música sin pagar está mal.",
         "Si, por ejemplo, llueve, nos quedamos.",
@@ -206,6 +217,7 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         ["Francia y Italia jugarán la final.", "Francia e Italia jugarán la final."],
         ["Siete o ocho personas esperaban.", "Siete u ocho personas esperaban."],
         ["Agua e hielo en el vaso.", "Agua y hielo en el vaso."],
+        ["Mezcla sodio e iones de cloro.", "Mezcla sodio y iones de cloro."],
         ["Nació en el año 1.989.", "Nació en el año 1989."],
         ["Volvimos el 4 de Julio de 2020.", "Volvimos el 4 de julio de 2020."],
         ["Nos vemos el Lunes por la tarde.", "Nos vemos el lunes por la tarde."],
@@ -271,9 +283,12 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         ["Estoy seguro que vendrá.", "Estoy seguro de que vendrá."],
         ["Pienso de que tienes razón.", "Pienso que tienes razón."],
         ["Es posible de que llueva.", "Es posible que llueva."],
+        ["Han habido muchas quejas.", "Ha habido muchas quejas."],
+        ["Dicen que habían habido dos heridos.", "Dicen que había habido dos heridos."],
       ],
       neg: [
         "Había llamadas perdidas en el móvil.",
+        "Los socios han habido de pagar la multa.",
         "Espero que no haya malentendidos.",
         "Ha estado cerrado todo el verano.",
         "Está permitido aparcar aquí.",
@@ -283,6 +298,194 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         "Me alegro de que hayas venido.",
         "Seguro que mañana hace sol.",
         "No me acuerdo de qué dijo.",
+      ],
+    },
+  ],
+  [
+    "spanishAgreement",
+    "determiner and noun, uno de, primer, cardinals",
+    {
+      pos: [
+        ["Compré la camisas azules.", "Compré las camisas azules."],
+        ["Guardé las taza en el armario.", "Guardé la taza en el armario."],
+        ["Mis vecinos tienen un perros enormes.", "Mis vecinos tienen unos perros enormes."],
+        ["Me prestó el bicicleta de su hermano.", "Me prestó la bicicleta de su hermano."],
+        ["Pinté la techo de blanco.", "Pinté el techo de blanco."],
+        ["En este casa hace frío.", "En esta casa hace frío."],
+        ["Bajaron cajas del camiones.", "Bajaron cajas de los camiones."],
+        ["Tengo miedo del canción.", "Tengo miedo de la canción."],
+        ["Hablé con aquellos personas.", "Hablé con aquellas personas."],
+        ["Llenó un vaso de este agua.", "Llenó un vaso de esta agua."],
+        ["La problema es el precio.", "El problema es el precio."],
+        ["Uno de las niñas lloraba.", "Una de las niñas lloraba."],
+        ["Muchos de ellas no vinieron.", "Muchas de ellas no vinieron."],
+        ["Es la primer vez que nado.", "Es la primera vez que nado."],
+        ["Será el primero ministro en dimitir.", "Será el primer ministro en dimitir."],
+        ["Adoptamos tres gato.", "Adoptamos tres gatos."],
+      ],
+      neg: [
+        "El agua del pozo estaba helada.",
+        "Un hacha vieja colgaba de la pared.",
+        "Tú la cuentas mejor que yo.",
+        "Este cuenta con el apoyo de todos.",
+        "Estas son las fotos de la boda.",
+        "Juan las casa a todas.",
+        "La modelo y la testigo llegaron juntas.",
+        "Ella es una de nosotros.",
+        "Treinta y un años después, volvió.",
+        "Los lunes cierro la tienda.",
+        "El análisis de la crisis fue largo.",
+        "Los bien pagados no siempre son felices.",
+        "Unos frente a otros esperaban.",
+        "Es demasiado pequeña para su edad.",
+        "Lo hizo mano a mano con su socio.",
+        "La versión dos punto cero sale mañana.",
+        "El cura bendijo la cura.",
+        "Hizo un macro análisis del mercado.",
+        "Salimos de esta vivos de milagro.",
+      ],
+    },
+  ],
+  [
+    "spanishConfusions",
+    "porque, porqué, por qué, por que",
+    {
+      pos: [
+        ["Nadie entiende el porque.", "Nadie entiende el porqué."],
+        ["Explícame el por qué de tu enfado.", "Explícame el porqué de tu enfado."],
+        ["Conoce los por qués de la crisis.", "Conoce los porqués de la crisis."],
+        ["¿Y porqué no llamaste?", "¿Y por qué no llamaste?"],
+        ["No entiendo porqué lo dijo.", "No entiendo por qué lo dijo."],
+        ["Dime porque te ríes.", "Dime por qué te ríes."],
+        ["No hay porque asustarse.", "No hay por qué asustarse."],
+        ["No tienes por que venir.", "No tienes por qué venir."],
+        ["Nadie sabe por que se fue.", "Nadie sabe por qué se fue."],
+        ["Ignoro por que razón lo hizo.", "Ignoro por qué razón lo hizo."],
+      ],
+      neg: [
+        "Lo haré porque me apetece.",
+        "¿Porque llegué tarde ya no me hablas?",
+        "Se entendería porque era evidente.",
+        "Votaron por que se repitiera la prueba.",
+        "No tienes nada por que disculparte.",
+        "Nadie conoce la razón del porqué no vino.",
+        "Quiero saber el porqué.",
+        "No tienes más razón porque grites.",
+        "La causa por que luchamos es justa.",
+        "Lo sé porque lo vi con mis ojos.",
+      ],
+    },
+  ],
+  [
+    "spanishTypography",
+    "comma after an opening connector and before the person greeted",
+    {
+      pos: [
+        ["Sin embargo nadie protestó.", "Sin embargo, nadie protestó."],
+        ["Además cobra menos que antes.", "Además, cobra menos que antes."],
+        ["Hace frío, por tanto me quedo.", "Hace frío, por tanto, me quedo."],
+        ["Por otra parte conviene esperar.", "Por otra parte, conviene esperar."],
+        ["Es decir nadie lo sabía.", "Es decir, nadie lo sabía."],
+        ["Hola Marta, ¿qué tal?", "Hola, Marta, ¿qué tal?"],
+        ["¡Buenas noches vecinos!", "¡Buenas noches, vecinos!"],
+      ],
+      neg: [
+        "Además de caro, es lento.",
+        "Por tanto esfuerzo merece un premio.",
+        "O sea que no vienes.",
+        "Al contrario de lo que dicen, funciona.",
+        "Por otro lado del puente pasa el tren.",
+        "¡Hola a todos!",
+        "Buenos días tenga usted.",
+        "Gracias por tanto.",
+        "Sin embargo, nadie protestó.",
+      ],
+    },
+  ],
+  [
+    "spanishAccents",
+    "preterite after a named or noun subject",
+    {
+      pos: [
+        ["Marta llamo a su madre.", "Marta llamó a su madre."],
+        ["El tren paro en la estación.", "El tren paró en la estación."],
+        ["Pedro nunca contesto el correo.", "Pedro nunca contestó el correo."],
+        ["Mi jefe pago la cena.", "Mi jefe pagó la cena."],
+        ["Ana Belén canto en el teatro.", "Ana Belén cantó en el teatro."],
+      ],
+      neg: [
+        "En Madrid trabajo mucho.",
+        "El pan compro yo.",
+        "Ahora limpio la cocina.",
+        "El niño modelo saluda al público.",
+        "Últimamente aprecio más el silencio.",
+        "Luis, trabajo mañana.",
+        "El precio medio de la vivienda subió.",
+        "Un árbol repleto de frutas.",
+      ],
+    },
+  ],
+  [
+    "spanishAgreement",
+    "subject and verb, gustar, plural copula and participle",
+    {
+      pos: [
+        ["Los vecinos tiene un perro.", "Los vecinos tienen un perro."],
+        ["Ellas llega mañana.", "Ellas llegan mañana."],
+        ["Mi hermano no se levantan temprano.", "Mi hermano no se levanta temprano."],
+        ["Este pastel están riquísimo.", "Este pastel está riquísimo."],
+        ["Las tiendas ha cerrado ya.", "Las tiendas han cerrado ya."],
+        ["Nos encanta las películas de miedo.", "Nos encantan las películas de miedo."],
+        ["Les preocupa los exámenes.", "Les preocupan los exámenes."],
+        ["Estamos agotado después del viaje.", "Estamos agotados después del viaje."],
+        ["La sala es estrecho.", "La sala es estrecha."],
+        ["Mi abuela estaba muy cansado.", "Mi abuela estaba muy cansada."],
+        ["Ellos son simpáticas.", "Ellos son simpáticos."],
+        ["La carta fue escrito a mano.", "La carta fue escrita a mano."],
+      ],
+      neg: [
+        "El problema son los precios.",
+        "Su pasión han sido los viajes.",
+        "Las manzanas las compra mi padre.",
+        "Los domingos abre a las diez.",
+        "La mayoría votaron en contra.",
+        "Me gustan el cine y la música.",
+        "No me gustan esa clase de bromas.",
+        "Ellos hace años que no se ven.",
+        "Las cosas parece que mejoran.",
+        "Son resultado de mucho trabajo.",
+        "No eran pecado.",
+        "Mi amigo Eren es de Turquía.",
+        "Ella es médico en un hospital.",
+        "Su profesión es abogado.",
+        "La vida es puro teatro.",
+        "La casa está justo enfrente.",
+        "La sala estaba mal iluminada.",
+      ],
+    },
+  ],
+  [
+    "spanishAccents",
+    "hacia/hacía and seria/sería",
+    {
+      pos: [
+        ["Hacia tres meses que no llovía.", "Hacía tres meses que no llovía."],
+        ["Aquel invierno hacia frío.", "Aquel invierno hacía frío."],
+        ["El pan lo hacia mi abuelo.", "El pan lo hacía mi abuelo."],
+        ["Nadie sabía lo que hacia en casa.", "Nadie sabía lo que hacía en casa."],
+        ["Este plan seria perfecto.", "Este plan sería perfecto."],
+        ["Sin ti todo seria más triste.", "Sin ti todo sería más triste."],
+        ["La propuesta seria aprobada mañana.", "La propuesta sería aprobada mañana."],
+      ],
+      neg: [
+        "Caminamos hacia el río.",
+        "Miró hacia atrás.",
+        "Se construyó hacia 1900.",
+        "Avanzan hacia más derechos.",
+        "Una mujer seria.",
+        "Es una persona seria la que necesitamos.",
+        "Se puso seria de repente.",
+        "Supone una seria amenaza.",
       ],
     },
   ],
@@ -312,6 +515,31 @@ test("Spanish checks run only on Spanish text and are on by default", () => {
       expect(runsInReviewLanguage(ruleId, lang)).toBe(false);
     expect(reviewRuleIds({ codeMode: false, overrides: {} })).toContain(ruleId);
   }
+});
+
+test("an impossible Spanish date is flagged without a guessed fix", () => {
+  for (const text of [
+    "Llegó el 34 de marzo.",
+    "La cita es el 14/45/2025.",
+    "Firmado el 33.12.2020.",
+  ]) {
+    const found = findings("spanishTypography", text);
+    expect(found).toHaveLength(1);
+    expect(found[0].warningOnly).toBe(true);
+  }
+  for (const text of [
+    "Vendimos 45 de marzo y 30 de abril.",
+    "Cédula: 6-51-2032",
+    "Pedido N° 99/73/2022",
+    "Pagó el 12/31/2025.",
+  ])
+    expect(findings("spanishTypography", text)).toEqual([]);
+  expect(
+    applyEdits(
+      "Nació el 31.11.1989.",
+      findings("spanishTypography", "Nació el 31.11.1989.")[0].alternatives[0].edits,
+    ),
+  ).toBe("Nació el 30.11.1989.");
 });
 
 test("a user-dictionary word and a cited example stay as typed", () => {
@@ -366,7 +594,8 @@ test("no Spanish chunk stalls on repeated trigger words", () => {
     return ms;
   };
   const triggers =
-    "¿Que esta este estas el tu mi si se de aun mas? ¡Que bonito! No se si esta bien. ";
+    "¿Que esta este estas el tu mi si se de aun mas? ¡Que bonito! No se si esta bien. " +
+    "La casas del uno de las la primer dos perro. Los amigos tiene me gusta las son cansado. ";
   slowest(triggers.repeat(50));
   for (const text of [
     triggers.repeat(60),

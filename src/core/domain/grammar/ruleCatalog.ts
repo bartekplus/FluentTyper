@@ -1401,6 +1401,19 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     recommended: false,
     priority: 168,
   },
+  {
+    id: "spanishAgreement",
+    typing: false,
+    name: "Spanish noun-phrase agreement",
+    titleI18nKey: "review_msg_spanish_agreement",
+    descriptionI18nKey: "review_msg_spanish_agreement",
+    exampleI18nKey: "",
+    languageScope: "all",
+    safetyTier: "advanced",
+    defaultRollout: "off",
+    recommended: false,
+    priority: 169,
+  },
   // German-only Review checks (review/german/).
   {
     id: "germanNounCasing",
