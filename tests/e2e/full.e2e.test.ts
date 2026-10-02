@@ -699,7 +699,9 @@ async function notifyConfigChange(browser: Browser, worker: BackgroundContext): 
                     return;
                   }
                   if (!response?.ok) {
-                    reject(new Error("Config change ACK returned not ok"));
+                    reject(
+                      new Error(`Config change ACK returned not ok: ${JSON.stringify(response)}`),
+                    );
                     return;
                   }
                   resolve();
@@ -726,7 +728,9 @@ async function notifyConfigChange(browser: Browser, worker: BackgroundContext): 
                       return;
                     }
                     if (!response?.ok) {
-                      reject(new Error("Config change ACK returned not ok"));
+                      reject(
+                        new Error(`Config change ACK returned not ok: ${JSON.stringify(response)}`),
+                      );
                       return;
                     }
                     resolve();
@@ -795,7 +799,7 @@ async function sendOptionsPageConfigChange(optionsPage: Page): Promise<void> {
             return;
           }
           if (!response?.ok) {
-            reject(new Error("Config change ACK returned not ok"));
+            reject(new Error(`Config change ACK returned not ok: ${JSON.stringify(response)}`));
             return;
           }
           resolve();
@@ -2887,7 +2891,14 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       const acceptThroughFromMenu = async (minimumScore: number): Promise<void> => {
         await openReadyInput();
         await typeInInput(page, "#test-input", "th");
-        const suggestions = await waitForVisibleSuggestionTexts(page);
+        const suggestions = await waitUntil(
+          "personalization training candidate through",
+          async () => {
+            const texts = await getVisibleSuggestionTexts(page);
+            return texts.map(normalizeSuggestionText).includes("through") ? texts : false;
+          },
+          { timeoutMs: SUGGESTION_TIMEOUT_MS, intervalMs: 50 },
+        );
         const throughIndex = suggestions.map(normalizeSuggestionText).indexOf("through");
         expect(throughIndex).toBeGreaterThanOrEqual(0);
 
@@ -2907,8 +2918,16 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       const expectFirstMenuSuggestion = async (expected: string): Promise<void> => {
         await openReadyInput();
         await typeInInput(page, "#test-input", "th");
-        const [firstSuggestion] = await waitForVisibleSuggestionTexts(page);
-        expect(normalizeSuggestionText(firstSuggestion ?? "")).toBe(expected);
+        // Typing "th" can show the response for "t" before the final request settles.
+        const firstSuggestion = await waitUntil(
+          `first personalized menu suggestion ${expected}`,
+          async () => {
+            const [first] = await getVisibleSuggestionTexts(page);
+            return normalizeSuggestionText(first ?? "") === expected ? first : false;
+          },
+          { timeoutMs: SUGGESTION_TIMEOUT_MS, intervalMs: 50 },
+        );
+        expect(normalizeSuggestionText(firstSuggestion)).toBe(expected);
       };
 
       const expectInlineThrough = async (): Promise<void> => {

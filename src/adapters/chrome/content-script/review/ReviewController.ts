@@ -315,8 +315,7 @@ export class ReviewController {
         const observer = new MutationObserver(() => {
           // Word also mutates its caret, selections and page layout. Those move
           // highlights without changing the model or restarting proofreading.
-          if (target instanceof WordReviewTarget && !target.sourceChanged(session.sourceText))
-            this.scheduleLayout();
+          if (target instanceof WordReviewTarget) this.scheduleLayout();
           else session.notifySourceChanged();
         });
         observer.observe(element, {

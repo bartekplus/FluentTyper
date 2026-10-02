@@ -4711,6 +4711,16 @@
           "layer": "e2e-full",
           "file": "tests/e2e/full.e2e.test.ts",
           "test": "Word Review reads its model, highlights, batches fixes and rechecks model changes"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/WordReview.test.ts",
+          "test": "Word Review only resolves recognized editor proxies"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/WordReview.test.ts",
+          "test": "Word caret layout mutations do not read the document model"
         }
       ]
     }

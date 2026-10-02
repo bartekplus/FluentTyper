@@ -418,6 +418,63 @@ test("Word repeated controller invocation reuses the active target without anoth
   }
 });
 
+test("Word Review only resolves recognized editor proxies", () => {
+  const h = fixture(["teh"]);
+  const reads = jest.spyOn(WordReviewTarget.prototype, "read");
+  try {
+    for (const id of [
+      "WACViewPanel_ClipboardElement",
+      "WACViewPanel_FootnoteEndnoteEditControl_EditingElement",
+    ]) {
+      const proxy = document.createElement("textarea");
+      proxy.id = id;
+      h.target.element.append(proxy);
+      proxy.focus();
+      const result = resolveReviewTarget(document);
+      expect(result.ok && result.target.kind).toBe("model-editor");
+      if (result.ok) result.target.dispose();
+    }
+    const control = document.createElement("button");
+    h.target.element.append(control);
+    control.focus();
+    reads.mockClear();
+    expect(resolveReviewTarget(document, h.target)).toEqual({ ok: false, reason: "no-editor" });
+    expect(reads.mock.calls).toHaveLength(0);
+  } finally {
+    h.target.dispose();
+    reads.mockRestore();
+  }
+});
+
+test("Word caret layout mutations do not read the document model", async () => {
+  const h = fixture(["teh"]);
+  h.target.dispose();
+  const review = new ReviewController({
+    createEngine: () => new LocalReviewEngine(),
+    getOptions: () => ({ lang: "en_US", enabledRules: GRAMMAR_RULE_IDS, userDictionary: [] }),
+    suspend: () => {},
+    resume: () => {},
+    addToDictionary: async () => true,
+    getDocsSurface: () => null,
+    uiLanguage: "en",
+  });
+  const read = jest.spyOn(WordReviewTarget.prototype, "read");
+  try {
+    review.invoke();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const reads = read.mock.calls.length;
+    for (let i = 0; i < 5; i++) {
+      h.target.element.classList.toggle("caret-blink");
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+    expect(read.mock.calls.length).toBe(reads);
+    expect(review.reviewedElement).toBe(h.target.element);
+  } finally {
+    review.close();
+    read.mockRestore();
+  }
+});
+
 test("Word Fix all commits multiple offsets and paragraphs in one native transaction", async () => {
   const h = fixture(["teh teh", "teh"]);
   const before = h.target.read();

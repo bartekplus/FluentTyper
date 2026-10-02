@@ -20,10 +20,10 @@ import {
   positionThroughEdits,
 } from "@core/domain/grammar/review/textRanges";
 import { getDeepActiveElement, isInDocument } from "@core/application/dom-utils";
-import { ancestorContext } from "../suggestions/CodeContextResolver";
+import { ancestorContext, isWordInputProxy } from "../suggestions/CodeContextResolver";
 import { isLockedField, isSensitiveField } from "../suggestions/FieldEligibility";
 import { rangeInsideTarget } from "../suggestions/TextTargetAdapter";
-import { wordEditor, WORD_INPUT_ID } from "./WordReviewProtocol";
+import { wordEditor } from "./WordReviewProtocol";
 import { WordReviewTarget } from "./WordReviewTarget";
 import {
   buildContentEditableTextMap,
@@ -135,10 +135,7 @@ export function resolveReviewTarget(
   if (!(active instanceof HTMLElement)) return { ok: false, reason: "no-editor" };
 
   const word = wordEditor(doc);
-  if (
-    word &&
-    (active.id === WORD_INPUT_ID || doc.getElementById("EditorContainer")?.contains(active))
-  ) {
+  if (word && isWordInputProxy(active)) {
     // Reopening the same review must not replace its single-use model token
     // or create another mutation observer.
     if (current instanceof WordReviewTarget && current.element === word)
