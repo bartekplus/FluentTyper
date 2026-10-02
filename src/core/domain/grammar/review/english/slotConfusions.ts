@@ -130,6 +130,23 @@ export const PHRASES: readonly PhraseRow[] = [
   ["save and sound", "safe and sound"],
   ["safe the date", "save the date"],
   ["in any from", "in any form"],
+  ["with all do respect", "with all due respect"],
+  ["health car", "health care"],
+  [
+    ["consolation price", "consolation prices"],
+    ["consolation prize", "consolation prizes"],
+  ],
+  [["nobel price", "noble prize"], "Nobel Prize"],
+  ["nobel prices", "Nobel Prizes"],
+  ["by any mans", "by any means"],
+  ["by all mans", "by all means"],
+  ["by no mans", "by no means"],
+  ["by mans of", "by means of"],
+  ["ever once in a while", "every once in a while"],
+  ["happily every after", "happily ever after"],
+  ["bet wishes", "best wishes"],
+  ["first off all", "first of all"],
+  ["of the top of my head", "off the top of my head"],
   ["comprise of", ["comprise", "consist of"]],
   ...["look", "looks", "looked", "looking"].flatMap((look) =>
     ["that", "this", "it"].map((what): PhraseRow => [
@@ -403,6 +420,273 @@ const FRAMES: readonly Frame[] = [
     cue: ["form"],
     pattern: `(?:letter|email|message|gift|income|money|news|greetings|hello)${S}(?<target>form)${S}(?:my|your|his|her|our|their|the|this|him|them|us)${E}`,
     fix: "from",
+  },
+  // "I am so curios", "Are you curios?": "curious" (curios are trinkets).
+  {
+    rule: TYPO,
+    cue: ["curios"],
+    pattern: `(?:so|very|am|are|is|was|were|be|been|really|just|too|quite|pretty|extremely|['’]m|['’]re)${S}(?<target>curios)(?=[ \\t]*[.!?,]|${S}(?:if|what|about|to|whether|why|how|person|people|cat|child|kid|mind|one)${E})`,
+    fix: "curious",
+  },
+  // "I red a book", "have red the email": "read".
+  {
+    rule: TYPO,
+    cue: ["red"],
+    pattern: `(?:I|you|we|they|he|she|can|could|will|would|should|have|has|had|didn['’]t|don['’]t|to|never|already|just)${S}(?<target>red)${S}(?:a|an|the|this|that|it|my|your|his|their|our|about|some|books?|articles?|emails?|messages?|reviews?)${E}`,
+    fix: "read",
+  },
+  // "I will past it into the field": "paste".
+  {
+    rule: TYPO,
+    cue: ["past"],
+    pattern: `(?:will|can|could|would|should|to|then|just|and|I|you|we|they|users|please)${S}(?<target>past)${S}(?:(?:it|this|that|them|text|code|the${S}[a-z]+|your${S}[a-z]+|my${S}[a-z]+)${S})?(?:into|in${S}(?:the|a|your|my)|here)${E}`,
+    fix: "paste",
+  },
+  // "it's event possible", "Event I make mistakes": "even".
+  {
+    rule: TYPO,
+    cue: ["event"],
+    pattern: `(?:(?:it['’]s|is|was|isn['’]t|wasn['’]t|get|be|not)${S}(?<target>event)${S}(?:possible|impossible|more|less|better|worse|usually|harder|easier|bigger|though|if|when|after)|(?<=(?:^|[.!?]["”’)]?[ \\t]{1,8}|\\n|(?:but|and)[ \\t]{1,8}))(?<target2>[Ee]vent)${S}(?:I|we|you|they|he|she|if|though|so|now))${E}`,
+    fix: (m) => {
+      const g = m.indices!.groups!;
+      return { alternatives: ["even"], range: g.target ?? g.target2 };
+    },
+  },
+  // "closed do to the storm": "due to".
+  {
+    rule: TYPO,
+    cue: ["do"],
+    pattern: `(?:close|closed|closing|is|was|are|were|delayed|cancelled|canceled|postponed|there|mainly|partly|largely|probably|possibly)${S}(?<target>do${S}to)${S}(?:the|a|an|covid|bad|heavy|high|low|his|her|their|our|my|its|this|that|lack|[A-Z][a-z]+)`,
+    fix: "due to",
+  },
+  // "on may different fronts", "May thanks": "many"; "cancel may subscription": "my".
+  {
+    rule: TYPO,
+    cue: ["may"],
+    pattern: `(?:(?:on|in|so|too|how|and|very|for|of|with)${S}(?<target>may)${S}(?:different|more|other|people|times|ways|years|things|reasons|of${S}(?:them|us|you|the))|(?<=(?:^|[.!?]["”’)]?[ \\t]{1,8}|\\n))(?<target2>May)${S}thanks)${E}`,
+    fix: (m) => {
+      const g = m.indices!.groups!;
+      if (g.target && m.groups!.target !== "may") return null;
+      return { alternatives: ["many"], range: g.target ?? g.target2 };
+    },
+  },
+  {
+    rule: TYPO,
+    cue: ["may"],
+    pattern: `(?:cancel|on|in|to|from|with|for|of|at|into)${S}(?<target>may)${S}(?:subscription|account|list|head|mind|life|house|car|phone|computer|wife|husband|mother|father|order|name|email|friend|friends|family|job|own)${E}`,
+    fix: (m) => (m.groups!.target === "may" ? "my" : null),
+  },
+  // "I ave no idea", "should ave been": "have".
+  {
+    rule: TYPO,
+    cue: ["ave"],
+    pattern: `(?:(?:I|you|we|they|should|could|would|will|must|might|to)${S}(?<target>ave)${S}(?:been|no|a|an|the|to|many|any|some|it|this|that|done|seen|had|got|known|gone|made|taken|told|said|thought)|(?<=(?:^|[.!?]["”’)]?[ \\t]{1,8}|\\n))(?<target2>Ave)${S}(?:you|we|they)${S}(?:been|got|seen|had|done|ever))${E}`,
+    fix: (m) => {
+      const g = m.indices!.groups!;
+      return { alternatives: ["have"], range: g.target ?? g.target2 };
+    },
+  },
+  // "Send it to is.": "us"; "That us so cool": "is".
+  {
+    rule: TYPO,
+    cue: ["is"],
+    pattern: `(?:to|with|for|from|believes|believe|told|gave|give|send|sent|join|help)${S}(?<target>is)(?=[ \\t]*[.!?])`,
+    fix: "us",
+  },
+  {
+    rule: TYPO,
+    cue: ["us"],
+    pattern: `(?:he|she|that|this|there|what)${S}(?<target>us)${S}(?:going|so|right|wrong|not|very|good|great|true|fine|ok|okay|done|coming)${E}`,
+    fix: "is",
+  },
+  // "Take car!": "care".
+  {
+    rule: TYPO,
+    cue: ["car"],
+    pattern: `take${S}(?<target>car)(?=[ \\t]*[.!?,]|[ \\t]*$)`,
+    fix: "care",
+  },
+  // "We have these to problems", "the to new developers": "two".
+  {
+    rule: TYPO,
+    cue: ["to"],
+    pattern: `(?:the|these|those|first|last|next|only|other)${S}(?<target>to)${S}(?:new|old|main|other|different|big|small|problems|issues|options|people|ones|developers|things|days|weeks|years|times|charts|files)${E}`,
+    fix: "two",
+  },
+  // "He cam to help", "Can you com and help": "came", "come".
+  {
+    rule: TYPO,
+    cue: ["cam"],
+    pattern: `(?:he|she|it|they|we|I|you)${S}(?<target>cam)${S}(?:to|here|home|back|in|over|out|up|down|across)${E}`,
+    fix: "came",
+  },
+  {
+    rule: TYPO,
+    cue: ["com"],
+    pattern: `(?:can|could|will|would|to|please|has|have|had|you)${S}(?<target>com)${S}(?:and|to|here|home|back|in|over|with|along|up)${E}`,
+    fix: "come",
+  },
+  // "It is really hart", "a hart time": "hard".
+  {
+    rule: TYPO,
+    cue: ["hart"],
+    pattern: `(?:really|very|so|too|it|be|is|was|a|pretty|quite)${S}(?<target>hart)(?=[ \\t]*[.!?,]|${S}(?:to|time|times|work|day|days|thing|one|part)${E})`,
+    fix: "hard",
+  },
+  // "the wurst case", "the wurst is yet to come": "worst".
+  {
+    rule: TYPO,
+    cue: ["wurst"],
+    pattern: `the${S}(?<target>wurst)${S}(?:case|scenario|thing|part|day|time|player|game|movie|idea|ever|of${S}(?:all|the|it|them)|I${S}(?:have|had|ever)|is${S}yet)${E}`,
+    fix: "worst",
+  },
+  // "Than you for your help": "Thank you".
+  {
+    rule: TYPO,
+    cue: ["than"],
+    pattern: `(?:(?<=(?:^|[.!?,]["”’)]?[ \\t]{1,8}|\\n))|(?:say|but|and|just|oh|ok|okay)${S})(?<target>than)${S}you(?=[ \\t]*[.!?,]|${S}(?:so|very|for|all)${E})`,
+    fix: "thank",
+  },
+  // "She ads value", "would ad a new one": "adds", "add".
+  {
+    rule: TYPO,
+    cue: ["ad"],
+    pattern: `(?:I|you|we|they|would|wouldn['’]t|could|can|will|should|usually|always|please|just|also)${S}(?<target>ad)${S}(?:a|an|the|some|more|it|them|this|that|ketchup|salt|sugar|value|to)${E}`,
+    fix: "add",
+  },
+  {
+    rule: TYPO,
+    cue: ["ads"],
+    pattern: `(?:he|she|it|this|which|who)${S}(?:(?:also|really|usually|always)${S})?(?<target>ads)${S}(?:a|an|the|some|more|value|to|up)${E}`,
+    fix: "adds",
+  },
+  // "I have work to due", "All I can due is": "do".
+  {
+    rule: TYPO,
+    cue: ["due"],
+    pattern: `(?:can|could|will|would|should|must|to|didn['’]t|don['’]t)${S}(?<target>due)(?=[ \\t]*[.!?]|${S}(?:is|his|her|my|your|their|our|it|this|that|the${S}(?:dishes|work|job|homework|same)|what|something|anything|nothing)${E})`,
+    fix: "do",
+  },
+  // "Be quite!", "a quite word": "quiet"; "I am quiet sure": "quite".
+  {
+    rule: TYPO,
+    cue: ["quite"],
+    pattern: `(?:be${S}(?<target>quite)(?=[ \\t]*[.!])|a${S}(?<target2>quite)${S}(?:word|place|night|evening|room|moment|life|spot|street|corner|neighborhood|neighbourhood|town|village|weekend|voice)${E})`,
+    fix: (m) => {
+      const g = m.indices!.groups!;
+      return { alternatives: ["quiet"], range: g.target ?? g.target2 };
+    },
+  },
+  {
+    rule: TYPO,
+    cue: ["quiet"],
+    pattern: `(?:am|is|are|was|were|['’]s|['’]m|['’]re)${S}(?<target>quiet)${S}(?:sure|new|different|right|simple|easy|difficult|interesting|good|nice|certain)${E}`,
+    fix: "quite",
+  },
+  // "I loss a friend", "could loss his life", "always losses his keys", "a lose tooth".
+  {
+    rule: TYPO,
+    cue: ["loss"],
+    pattern: `(?<lead>I|you|we|they|he|she|could|would|will|can|might|to|not|never|didn['’]t|don['’]t)${S}(?<target>loss)${S}(?:a|an|the|my|your|his|her|their|our|it|them|weight|money|time|control|track|interest|sight|hope|games?|friends?|football)${E}`,
+    fix: (m) => {
+      const lead = m.groups!.lead.toLowerCase();
+      if (/^(?:he|she)$/.test(lead)) return "lost";
+      return /^(?:i|you|we|they)$/.test(lead) ? ["lost", "lose"] : "lose";
+    },
+  },
+  {
+    rule: TYPO,
+    cue: ["losses"],
+    pattern: `(?:he|she|it|always|never|usually|often)${S}(?<target>losses)${S}(?:his|her|its|their|the|a|my)${E}`,
+    fix: "loses",
+  },
+  {
+    rule: TYPO,
+    cue: ["lose"],
+    pattern: `(?:a|the)${S}(?<target>lose)${S}(?:tooth|thread|end|ends|screw|connection|wire|cable|cannon|fit|leaf|grip)${E}`,
+    fix: "loose",
+  },
+  // "I hope to here from you": "hear".
+  {
+    rule: TYPO,
+    cue: ["here"],
+    pattern: `(?:to|don['’]t|do${S}not|won['’]t|didn['’]t|will|would|can|could|never)${S}(?<target>here)${S}from${S}(?:you|me|him|her|them|us)${E}`,
+    fix: "hear",
+  },
+  // "received your massage", "sent different massages": "message".
+  {
+    rule: TYPO,
+    cue: ["massage", "massages"],
+    pattern: `(?:received|got|read|sent|forwarded|deleted|answered|reply${S}to|answer${S}to)${S}(?:(?:your|my|his|her|our|their|the|different|several|many|some|two|three)${S})?(?:(?:last|previous|earlier|recent|text|voice)${S})?(?<target>massages?)${E}`,
+    fix: (m) => (/s$/.test(m.groups!.target) ? "messages" : "message"),
+  },
+  // "against his principals", "principals of the Constitution": "principles".
+  {
+    rule: TYPO,
+    cue: ["principals"],
+    pattern: `(?:(?:against|to|with)${S}(?:my|his|her|your|our|their)${S}(?<target>principals)|(?<target2>principals)${S}of${S}the${S}(?:constitution|law|physics|design|democracy|game|faith))${E}`,
+    fix: (m) => {
+      const g = m.indices!.groups!;
+      return { alternatives: ["principles"], range: g.target ?? g.target2 };
+    },
+  },
+  // "That peaked my interest": "piqued".
+  {
+    rule: TYPO,
+    cue: ["peaked", "peeked", "peaks", "peeks", "peaking", "peeking"],
+    pattern: `(?<target>peaked|peeked|peaks|peeks|peaking|peeking)${S}(?:(?:my|your|his|her|their|our|the|public|everyone['’]s|[a-z]+['’]s?)${S})?(?:(?:intense|lasting|and|immediate|keen|own|constitutional|judges['’]?)${S})*(?:interest|curiosity|attention|suspicions?)${E}`,
+    fix: (m) => {
+      const typed = m.groups!.target.toLowerCase();
+      // The phrase table owns "peaked my interest" and its siblings.
+      if (/^peak\w*\s+(?:my|your|his|her|our|their)\s+interest$/i.test(m[0])) return null;
+      return /ed$/.test(typed) ? "piqued" : /s$/.test(typed) ? "piques" : "piquing";
+    },
+  },
+  // "I did not man to", "what we man?": "mean".
+  {
+    rule: TYPO,
+    cue: ["man"],
+    pattern: `(?:(?:not|didn['’]t|don['’]t|doesn['’]t|never)${S}(?<target>man)${S}to|what${S}(?:we|you|they|I|he|she)${S}(?<target2>man)(?=[ \\t]*[?.]))${E}`,
+    fix: (m) => {
+      const g = m.indices!.groups!;
+      return { alternatives: ["mean"], range: g.target ?? g.target2 };
+    },
+  },
+  // "the greatest jokes every told", "would every be": "ever".
+  {
+    rule: TYPO,
+    cue: ["every"],
+    pattern: `(?:(?:greatest|best|worst|biggest|first|only|most|least)${S}(?:[a-z]+${S})?(?<target>every)${S}(?:told|made|seen|written|lived|played|recorded|built|created|sold|produced|known)|(?:would|could|will|can|might|should|if|hardly|nor)${S}(?<target2>every)${S}(?:be|been|get|see|happen|make|want|need|seen|go|come|find|know|use))${E}`,
+    fix: (m) => {
+      const g = m.indices!.groups!;
+      return { alternatives: ["ever"], range: g.target ?? g.target2 };
+    },
+  },
+  // "All the bet", "wish you the bet": "best".
+  {
+    rule: TYPO,
+    cue: ["bet"],
+    pattern: `(?:all${S}the${S}(?<target>bet)(?=[ \\t]*[.!,]|[ \\t]*$)|wish${S}(?:you|him|her|them|us)${S}(?:all${S})?the${S}(?<target2>bet))${E}`,
+    fix: (m) => {
+      const g = m.indices!.groups!;
+      return { alternatives: ["best"], range: g.target ?? g.target2 };
+    },
+  },
+  // "As off yesterday", "aware off.": "of"; "pulled of an upset": "off".
+  {
+    rule: TYPO,
+    cue: ["off"],
+    pattern: `(?:as${S}(?<target>off)${S}(?:yesterday|today|now|tomorrow|this|last|next|monday|tuesday|wednesday|thursday|friday|saturday|sunday|january|february|march|april|june|july|august|september|october|november|december|[0-9])|aware${S}(?<target2>off)(?=[ \\t]*[.!?]))${E}`,
+    fix: (m) => {
+      const g = m.indices!.groups!;
+      return { alternatives: ["of"], range: g.target ?? g.target2 };
+    },
+  },
+  {
+    rule: TYPO,
+    cue: ["of"],
+    pattern: `(?:pulled|pull|pulls|pulling)${S}(?<target>of)${S}(?:an?|the)${S}(?:upset|win|victory|trick|stunt|heist|miracle|comeback)${E}`,
+    fix: "off",
   },
   // "I think id rather wait", "Id like that": "I'd" with its apostrophe dropped.
   {

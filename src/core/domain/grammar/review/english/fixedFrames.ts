@@ -334,6 +334,20 @@ const GUARDS: Record<
   payed: { after: /^[ \t\u00a0]+(?:out\b|the[ \t\u00a0]+(?:deck|seams?|hull)\b)/i },
   // "When did a mistake appear?": a question, not "make a mistake".
   "did a mistake": { after: /^[ \t\u00a0]+(?:appear|happen|occur|make|cause|get|go|come)\b/i },
+  // "Keep quiet a while": still the adjective after keep/stay.
+  "quiet a while": {
+    before:
+      /\b(?:keep|keeps|kept|keeping|stay|stays|stayed|staying|remain|remained|sit|sat|lie|lay)[ \t\u00a0]+$/i,
+  },
+  "quiet a bit": {
+    before:
+      /\b(?:keep|keeps|kept|keeping|stay|stays|stayed|staying|remain|remained|sit|sat|lie|lay)[ \t\u00a0]+$/i,
+  },
+  // "First off all animals were safe": "first off", then the subject.
+  "first off all": {
+    after:
+      /^[ \t\u00a0]+(?!(?:I|we|you|they|he|she|it|the|my|our|let|thank|thanks|please)\b)\p{L}/iu,
+  },
   "quiet a lot": { after: /^[ \t\u00a0]+of[ \t\u00a0]+times\b/i },
   "dog eat dog": {
     before:

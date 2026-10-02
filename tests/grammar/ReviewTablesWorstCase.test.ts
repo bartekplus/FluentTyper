@@ -61,6 +61,9 @@ test("no chunk stalls on runs of frame-opening words", () => {
     "found anther tanks for lets just is save how to us one if an see this from letter form ".repeat(
       200,
     ),
+    "so curios I red past it event do to may ave told is take car the to cam com hart wurst than you ad due quite quiet loss lose here massage peaked man every bet as off ".repeat(
+      100,
+    ),
   ];
   // Warm-up: the first scan compiles every frame and decodes the lexicon.
   for (const text of inputs) slowestChunkMs(text);
