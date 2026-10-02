@@ -43,6 +43,7 @@ const ABBREVIATIONS_BY_LANGUAGE: Record<string, readonly string[]> = {
     ...["jan", "feb", "mär", "apr", "jun", "jul", "aug", "sep", "sept", "okt", "nov", "dez"],
     ...["med", "rer", "nat", "phil", "jur", "dent", "vet", "habil", "theol", "oec"],
     ...["engl", "franz", "frz", "lat", "griech", "ital", "röm", "kath", "evang"],
+    ...["idr", "btw", "inc"],
   ],
   pl: [
     ...["np", "tzn", "itd", "itp", "tj", "mgr", "inż", "ul", "godz", "wg", "św", "tys"],
