@@ -48,6 +48,11 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
     "germanNounCasing",
     {
       pos: [
+        ["Das einzige, was zählt, ist Ehrlichkeit.", "Das Einzige, was zählt, ist Ehrlichkeit."],
+        [
+          "Das erste, worauf sie achtet, ist der Preis.",
+          "Das Erste, worauf sie achtet, ist der Preis.",
+        ],
         // A noun that is also an adjective form, where the ending rules out the adjective.
         ["Auch ich kann keine wunder bewirken.", "Auch ich kann keine Wunder bewirken."],
         ["Hier liegt wohl kein defekt vor.", "Hier liegt wohl kein Defekt vor."],
@@ -184,6 +189,7 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Ich bin mir nicht im klaren darüber.", "Ich bin mir nicht im Klaren darüber."],
       ],
       neg: [
+        "Dieser Vorschlag ist das beste, was wir haben.",
         "Der Weg wird kein leichter sein.",
         "Das dürfte fürs erste reichen.",
         "Ich schaue lieber fern.",

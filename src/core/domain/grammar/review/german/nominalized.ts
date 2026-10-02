@@ -33,6 +33,9 @@ const FRAMES = [
   `(?:mein|dein|sein|ihr|unser|euer)${SPACE}(?<poss>bestes|möglichstes|übriges|erspartes|liebstes)`,
   // "das schöne daran", "das wichtige an der Sache", "das gute am Plan".
   `[Dd]as${SPACE}(?<abs>\\p{Ll}+e)(?=${SPACE}(?:daran|dabei|darin|daraus|darauf|am|an${SPACE}(?:der|dem|den|diesem|dieser|ihm|ihr)))`,
+  // "das beste, was …", "das erste, worauf …": a superlative or ordinal with "was" or a
+  // wo-word after it is a noun ("Von den Bildern ist das das schönste, das …" may refer back).
+  `[Dd]as${SPACE}(?<what>\\p{Ll}+(?:st|ßt)e|erste|letzte|einzige|nächste)(?=,${SPACE}(?:was|wo|wor)\\p{Ll}*${WORD_END})`,
   // A colour as a noun: "in weiß heiraten", "auf grün stehen", "die Farbe rot".
   `(?:in|auf|von|nach|[Ff]arbe)${SPACE}(?<lang>weiß|schwarz|rot|blau|grün|gelb|grau|braun|lila|rosa|orange|türkis|violett|beige)(?=[ \\t]*[.!?,;])`,
   // A language as a noun: "auf deutsch", "in englisch", "kein französisch".
@@ -133,7 +136,7 @@ export function nominalized(ctx: DetectContext): RawFinding[] {
   for (const frame of FRAMES) {
     for (const m of frameMatches(ctx, frame, null)) {
       const groups = m.indices!.groups ?? {};
-      const name = ["target", "sup", "es", "e", "lang", "ganzen", "poss", "abs"].find(
+      const name = ["target", "sup", "es", "e", "lang", "ganzen", "poss", "abs", "what"].find(
         (k) => groups[k],
       );
       // The fixed phrases: capitalize the last word.
@@ -142,12 +145,22 @@ export function nominalized(ctx: DetectContext): RawFinding[] {
         : [m.index + m[0].search(/\p{L}+$/u), m.index + m[0].length];
       if (start < ctx.from || start >= ctx.to) continue;
       const typed = ctx.text.slice(start, end);
-      if (!/^\p{Ll}/u.test(typed) || LOWERCASE_OK.has(typed) || ctx.dictionary.has(typed)) continue;
+      if (!/^\p{Ll}/u.test(typed) || ctx.dictionary.has(typed)) continue;
+      if (LOWERCASE_OK.has(typed) && name !== "what") continue;
+      // "Dieses Konzept ist das beste, was …": a noun earlier in the sentence it may refer to.
+      if (name === "what") {
+        const sentence = ctx.text
+          .slice(Math.max(0, start - 120), start)
+          .split(/[.!?\n]/)
+          .at(-1)!;
+        if (/[ \t]\p{Lu}/u.test(sentence)) continue;
+      }
       // "grau in grau": an idiom of the colour twice.
       if (ctx.text.slice(Math.max(0, m.index - typed.length - 1), m.index).trim() === typed)
         continue;
       // The word must be an adjective form (the languages are listed as such).
-      if (name !== "lang" && name !== "poss" && name && !adjectiveForm(typed)) continue;
+      if (name !== "lang" && name !== "poss" && name !== "what" && name && !adjectiveForm(typed))
+        continue;
       // A noun or another adjective after it: "im freien Feld", "etwas neues Wissen".
       const [next = "", second = ""] = tokensAfter(ctx.text, end, 2);
       // Coordinated or parenthesized adjectives: "im privaten und beruflichen Bereich",
