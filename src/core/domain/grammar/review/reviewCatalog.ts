@@ -579,6 +579,14 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     bulk: "individual",
     note: "Optional: many writers leave out the comma after a short opening phrase.",
   },
+  styleClauseComma: {
+    review: "supported",
+    defaultEnabled: false,
+    category: "punctuation",
+    kind: "marks",
+    bulk: "individual",
+    note: "Optional: short joined clauses often go without the comma.",
+  },
 
   englishPronounCase: {
     review: "supported",

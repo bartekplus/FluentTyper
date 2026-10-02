@@ -30,6 +30,7 @@ const OPTIONAL_REVIEW_IDS: readonly string[] = [
   "englishTypography",
   "stylePassiveVoice",
   "styleIntroductoryComma",
+  "styleClauseComma",
   "englishAmericanSpelling",
   "englishBritishSpelling",
   "styleWordChoice",

@@ -218,3 +218,24 @@ export const isInfinitive = (word: string) => {
   const m = /^(\p{L}+?[aeií]r)(?:me|te|se|nos|os|le|les|lo|los|la|las){0,2}$/u.exec(word);
   return !!m && isVerb(m[1].replace("í", "i"));
 };
+
+/** "como" in a greeting with no "¿": "hola" or a name addressed shortly before it. */
+export function greetingSlot(at: Around): boolean {
+  for (let j = at.i - 1; j >= Math.max(0, at.i - 6); j--) {
+    const token = at.tokens[j];
+    if (/^[.!?¿;]$/u.test(token.text) || at.tokens[j + 1].broken) return false;
+    if (/^(?:hola|buenas|oye)$/u.test(token.lower)) return true;
+  }
+  return false;
+}
+
+/** A "?" right after tokens[i], or after "hoy", "ahora" or a name: "como estas hoy?". */
+export function endsQuestion(at: Around): boolean {
+  const after = at.tokens[at.i + 1];
+  if (after?.text === "?") return true;
+  return (
+    !!after?.word &&
+    (/^(?:hoy|ahora|usted|ustedes)$/u.test(after.lower) || /^\p{Lu}\p{Ll}/u.test(after.text)) &&
+    at.tokens[at.i + 2]?.text === "?"
+  );
+}

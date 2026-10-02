@@ -34,7 +34,8 @@ const RULE = "spanishAccents" as const;
 // Determiners that are never clitics: "el termino", "su numero", "dos practicas".
 const DETERMINERS = words(
   "el un una unos unas del al mi mis tus su sus cada nuestro nuestra nuestros nuestras dos tres cuatro " +
-    "cinco varios varias muchas muchos pocas pocos otra otro otras otros toda todo",
+    "cinco varios varias muchas muchos pocas pocos otra otro otras otros toda todo cuyo cuya " +
+    "cuyos cuyas",
 );
 const DEGREE = words("muy más tan bastante");
 // Demonstratives are also subject pronouns ("este opera"): only after a preposition.
@@ -70,10 +71,23 @@ function postponedAdjective(at: Around, accented: string): boolean {
     : COMMON_DETERMINERS.has(before) && PREPOSITIONS.has(at.prev(3))
       ? 3
       : 0;
+  const after0 = at.next();
   const governed =
     article ||
     preposition > 0 ||
-    (!!before && finiteVerb(before) && !isNoun(before) && !readNoun(before));
+    (!!before && finiteVerb(before) && !isNoun(before) && !readNoun(before)) ||
+    // "La especie domestica vive aquí": a finite verb right after, so the word is no verb.
+    (COMMON_DETERMINERS.has(before) &&
+      !!after0 &&
+      finiteVerb(after0) &&
+      !isNoun(after0) &&
+      !attribute(after0) &&
+      !CLITICS.has(after0) &&
+      !PREPOSITIONS.has(after0) &&
+      !CONJUNCTIONS.has(after0)) ||
+    // "Las disposiciones explicitas", "el método practico": a first-person or a second-person
+    // form cannot have the noun before it as its subject ("La gente critica" can).
+    (COMMON_DETERMINERS.has(before) && /(?:o|as|os)$/u.test(at.tokens[at.i].lower));
   if (!governed) return false;
   const after = at.next();
   // "Por este motivo solicito desde…": after a fronted phrase the word may be the main verb.
@@ -117,6 +131,19 @@ function agreesWithNext(at: Around, accented: string): boolean {
   return (noun.gender === "f") === own.feminine;
 }
 
+const DEMONSTRATIVE_FORM: Record<string, { feminine: boolean | null; plural: boolean }> = {};
+for (const [forms, feminine] of [
+  ["este ese aquel", false],
+  ["esta esa aquella", true],
+] as const)
+  for (const form of forms.split(" ")) {
+    DEMONSTRATIVE_FORM[form] = { feminine, plural: false };
+    DEMONSTRATIVE_FORM[form === "aquel" ? "aquellos" : `${form.replace(/e$/u, "o")}s`] = {
+      feminine,
+      plural: true,
+    };
+  }
+
 const isPerfectParticipleLike = (word: string) => /(?:ado|ido)$/u.test(word) && !!participle(word);
 
 /** No finite verb after the word before the sentence ends: "Critica de cine.". */
@@ -151,6 +178,37 @@ function nominal(at: Around): string | null {
   )
     return null;
   if (DETERMINERS.has(prev) || DEGREE.has(prev) || SER.has(prev)) return accented;
+  // "lo ultimo que quiero", "lo incomodo que es": the neuter "lo" and a relative.
+  if (prev === "lo" && next === "que" && /o$/u.test(accented)) return accented;
+  // "tu numero": "tú" takes no first or third person verb, so "tu" is the possessive.
+  if (prev === "tu" && !word.endsWith("s")) return accented;
+  // "Tengo 2 practicas": a count before a plural.
+  const count = at.tokens[at.i - 1];
+  if (
+    count &&
+    !at.tokens[at.i].broken &&
+    /^\p{N}{1,3}$/u.test(count.text) &&
+    count.text !== "1" &&
+    accented.endsWith("s")
+  )
+    return accented;
+  // "le pondría ese titulo": after a verb the demonstrative is its object's determiner.
+  if (
+    DEMONSTRATIVES.has(prev) &&
+    ((finiteVerb(at.prev(2)) && !isNoun(at.prev(2))) || isInfinitive(at.prev(2))) &&
+    agrees(DEMONSTRATIVE_FORM[prev], accented)
+  )
+    return accented;
+  // "Un destacado interprete": a determiner and an adjective before the word.
+  const adjective = genderedForm(prev);
+  if (
+    adjective &&
+    !finiteVerb(prev) &&
+    DETERMINERS.has(at.prev(2)) &&
+    adjective.plural === accented.endsWith("s") &&
+    (!formOf(accented) || formOf(accented)!.feminine === adjective.feminine)
+  )
+    return accented;
   // "Capitulo 3", "las paginas 3 y 4": a number after it counts or labels a noun.
   const numbered = /^\p{N}/u.test(at.tokens[at.i + 1]?.text ?? "") && !at.tokens[at.i + 1].broken;
   if (numbered && (at.starts || /^(?:la|las|los)$/u.test(prev))) return accented;
@@ -203,7 +261,12 @@ function nominal(at: Around): string | null {
     // "la termino": a feminine article cannot take the masculine noun.
     if (prev !== "los" && /os?$/u.test(accented)) return null;
     const before = at.prev(2);
+    const opens = !!at.tokens[at.i - 1] && new Around(at.tokens, at.i - 1).starts;
     return PREPOSITIONS.has(before) ||
+      // "es la valida": "ser" takes no clitic.
+      (SER.has(before) && agreesWithArticle(prev, accented)) ||
+      // "La critica que haces": a relative after the noun opening the clause.
+      (opens && next === "que" && agreesWithArticle(prev, accented)) ||
       isInfinitive(before) ||
       // "La maquina del tiempo.", "Las nauseas no se pasan": a clitic never opens a clause
       // before "de" or "no".

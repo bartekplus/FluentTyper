@@ -1422,7 +1422,7 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
       ],
       neg: [
         "He de irme pronto.",
-        "Volver ha casa es un deseo.",
+        "Ha de volver a casa.",
         "Puede haber cambios mañana.",
         "Lo ha dicho su madre.",
         "Ha bendecido la mesa.",
@@ -1556,7 +1556,524 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
       ],
     },
   ],
+  [
+    "spanishConfusions",
+    "a perfect participle before a quantifier, a ver after a verb of motion, a before a place",
+    {
+      pos: [
+        ["Ya habían vendidos todos los billetes.", "Ya habían vendido todos los billetes."],
+        ["Se han reparadas tres farolas.", "Se han reparado tres farolas."],
+        ["Los precios pueden haber subidos.", "Los precios pueden haber subido."],
+        ["Mañana fue haber a su tía.", "Mañana fue a ver a su tía."],
+        ["Los llevaron haber el partido.", "Los llevaron a ver el partido."],
+        ["Quiero volver ha casa pronto.", "Quiero volver a casa pronto."],
+        ["Voy ha Sevilla mañana.", "Voy a Sevilla mañana."],
+        ["Nos vimos el la plaza mayor.", "Nos vimos en la plaza mayor."],
+      ],
+      neg: [
+        "Pueden haber heridos en la sala.",
+        "En la sala pueden haber muertos.",
+        "Había determinadas personas esperando.",
+        "La causa fue haber un error de cálculo.",
+        "Lo peor fue haber dicho eso.",
+        "Ir ha sido un error.",
+        "Volver ha costado mucho esfuerzo.",
+        "Toca el la de la orquesta.",
+        "Afinó el la con cuidado.",
+      ],
+    },
+  ],
+  [
+    "spanishAccents",
+    "qué before a missing thing or event, está before a count, cómo estás in a greeting, sí",
+    {
+      pos: [
+        ["Nunca supe que había en el sótano.", "Nunca supe qué había en el sótano."],
+        ["Vamos a ver que hay detrás de la puerta.", "Vamos a ver qué hay detrás de la puerta."],
+        ["Nadie sabe que ocurrió ayer.", "Nadie sabe qué ocurrió ayer."],
+        ["No sé en que o cómo influyó.", "No sé en qué o cómo influyó."],
+        ["El faro esta 20 millas al norte.", "El faro está 20 millas al norte."],
+        ["¿A qué distancia esta Lima de Quito?", "¿A qué distancia está Lima de Quito?"],
+        ["Hola, como está usted?", "Hola, cómo está usted?"],
+        ["A ver si el la tiene.", "A ver si él la tiene."],
+        ["Si pero no quiero.", "Sí pero no quiero."],
+        ["No tengo coche, pero si tengo moto.", "No tengo coche, pero sí tengo moto."],
+        ["Pasó esto, si, ¿y ahora qué?", "Pasó esto, sí, ¿y ahora qué?"],
+      ],
+      neg: [
+        "Es fácil ver que hay en la ciudad muchos parques.",
+        "Sé que hay en la sala un piano.",
+        "Sé que pasó el tren.",
+        "Sabemos que hay gente buena.",
+        "Esta 2.ª edición es mejor.",
+        "¿Como estas?",
+        "¿Quieres manzanas verdes, como estas?",
+        "Lo haré, si, y solo si, me pagas.",
+        "No vino, pero si viene mañana lo verás.",
+        "No lo sé, pero si lo sabes dímelo.",
+        "Ella cantó el la de la obra.",
+      ],
+    },
+  ],
+  [
+    "spanishAccents",
+    "nouns and adjectives after a possessive, a count, cuyo, ser + article or before a verb",
+    {
+      pos: [
+        ["La fabrica produjo lo necesario.", "La fábrica produjo lo necesario."],
+        ["La critica que haces es injusta.", "La crítica que haces es injusta."],
+        ["¿Le pondrías ese titulo?", "¿Le pondrías ese título?"],
+        ["Un destacado interprete tocó ayer.", "Un destacado intérprete tocó ayer."],
+        ["Tengo 3 practicas esta semana.", "Tengo 3 prácticas esta semana."],
+        ["A cuyo termino se fue.", "A cuyo término se fue."],
+        ["Dame tu numero de teléfono.", "Dame tu número de teléfono."],
+        ["De las dos, esta es la valida.", "De las dos, esta es la válida."],
+      ],
+      neg: [
+        "La empresa fabrica coches.",
+        "Mi madre critica eso.",
+        "El jefe valida los datos.",
+        "La gente critica mucho.",
+        "En el año 2010 practicas más.",
+        "Tú practicas mucho.",
+      ],
+    },
+  ],
+  [
+    "spanishConfusions",
+    "contractions, a la, y demás, q, compounds after a determiner or in quotes, irse + gerund",
+    {
+      pos: [
+        ["Vivo cerca de el río.", "Vivo cerca del río."],
+        ["Dáselo a el que llegue antes.", "Dáselo al que llegue antes."],
+        ["Mañana voy ala oficina.", "Mañana voy a la oficina."],
+        ["Trajeron pan, queso y de más.", "Trajeron pan, queso y demás."],
+        ["No sé q decir.", "No sé que decir."],
+        ["Compramos un mini bar.", "Compramos un minibar."],
+        ["Sus tíos la sobre protegen.", "Sus tíos la sobreprotegen."],
+        ["Necesito un abre-latas.", "Necesito un abrelatas."],
+        ["Es un «saca corchos» viejo.", "Es un «sacacorchos» viejo."],
+        ["Nos hemos ido alejado del centro.", "Nos hemos ido alejando del centro."],
+        ["Lo supe desde es niño.", "Lo supe desde que es niño."],
+        ["Fui a decirle ola.", "Fui a decirle hola."],
+      ],
+      neg: [
+        "Habló de el.",
+        "Y A el área le sumamos B.",
+        "Vuela en ala delta.",
+        "El ala derecha del avión.",
+        "La letra q es rara.",
+        "Grabé una macro nueva.",
+        "Usa una macro para eso.",
+        "Escribe sobre animales.",
+        "Nos hemos ido cansados.",
+        "Lo dije de veras.",
+        "La de es la cuarta letra.",
+        "Una ola gigante.",
+      ],
+    },
+  ],
+  [
+    "spanishAccents",
+    "dé before con, según, a possessive object or an article and its object",
+    {
+      pos: [
+        ["Que de con generosidad.", "Que dé con generosidad."],
+        ["Que cada uno de según pueda.", "Que cada uno dé según pueda."],
+        ["Espero que no de su permiso.", "Espero que no dé su permiso."],
+        ["Ojalá que alguien de una respuesta.", "Ojalá que alguien dé una respuesta."],
+        ["Pide que nadie de su aprobación.", "Pide que nadie dé su aprobación."],
+      ],
+      neg: [
+        "Es la casa de al lado.",
+        "Dijo que de su casa salió.",
+        "Espero que de una vez llegue.",
+        "Que de un golpe lo rompió.",
+        "Lo sé de su madre.",
+      ],
+    },
+  ],
+  [
+    "spanishAgreement",
+    "a person noun's number, nouns counted by miles or decenas, a singular copula's attribute",
+    {
+      pos: [
+        ["Hablé con unos periodista.", "Hablé con un periodista."],
+        ["Lo vio otras dentista.", "Lo vio otra dentista."],
+        ["Cayeron decenas de árbol.", "Cayeron decenas de árboles."],
+        ["Asistieron miles de estudiante.", "Asistieron miles de estudiantes."],
+        ["Soy conscientes del problema.", "Soy consciente del problema."],
+        ["Estoy cansados de esperar.", "Estoy cansado de esperar."],
+        ["Eres capaces de todo.", "Eres capaz de todo."],
+      ],
+      neg: [
+        "Ganó millones de dinero público.",
+        "Miles de millones de estrellas.",
+        "Soy todo oídos.",
+        "Tú y yo estamos cansados.",
+        "Somos conscientes del problema.",
+        "Unos dicen que sí.",
+      ],
+    },
+  ],
+  [
+    "spanishTypography",
+    "the number sign, abbreviation periods, a glued count, a capitalized opening article",
+    {
+      pos: [
+        ["Vive en el portal n° 7.", "Vive en el portal n.º 7."],
+        ["Habló con el Dr Pérez.", "Habló con el Dr. Pérez."],
+        ["Está en la pág 12.", "Está en la pág. 12."],
+        ["Pagamos 300euros.", "Pagamos 300 euros."],
+        ["LA reunión fue larga.", "La reunión fue larga."],
+      ],
+      neg: [
+        "Vive en el portal n.º 7.",
+        "N° 12 del registro.",
+        "Habló con el Dr. Pérez.",
+        "Mide 5km de largo.",
+        "EL PAÍS publicó la noticia.",
+        "LAS 3 LEYES DE NEWTON.",
+      ],
+    },
+  ],
+  [
+    "spanishAgreement",
+    "a count after a verb, a plural adjective after two singular nouns joined by de",
+    {
+      pos: [
+        ["Compré tres libro usados.", "Compré tres libros usados."],
+        ["Vendieron cincuenta casa en un año.", "Vendieron cincuenta casas en un año."],
+        ["Pesa dos kilo exactos.", "Pesa dos kilos exactos."],
+        ["La mesa de madera blancas.", "La mesa de madera blanca."],
+        ["El coche de mi padre rojos.", "El coche de mi padre rojo."],
+      ],
+      neg: [
+        "A las tres llamo a mi madre.",
+        "Son las dos y trabajo.",
+        "Somos tres, trabajo mucho.",
+        "La casa del pueblo blanca.",
+        "El jefe de ventas nuevos.",
+      ],
+    },
+  ],
+  [
+    "spanishAccents",
+    "lo + adjective + que, mi before a note, aún before a subjunctive",
+    {
+      pos: [
+        ["Lo ultimo que pido es calma.", "Lo último que pido es calma."],
+        ["No sabes lo incomodo que fue.", "No sabes lo incómodo que fue."],
+        ["Tocó un concierto en mí bemol.", "Tocó un concierto en mi bemol."],
+        ["Es una sonata en mí menor.", "Es una sonata en mi menor."],
+        ["Me duele que aun tenga dudas.", "Me duele que aún tenga dudas."],
+      ],
+      neg: [
+        "Lo hizo por mí.",
+        "Pensó en mí mayor parte del día.",
+        "Ni aun tenga razón.",
+        "Lo practico cada día.",
+        "Lo termino mañana.",
+      ],
+    },
+  ],
+  [
+    "spanishConfusions",
+    "ha opening a perfect, an article before a number",
+    {
+      pos: [
+        ["Hay venido muy tarde.", "Ha venido muy tarde."],
+        ["Hay dicho que no.", "Ha dicho que no."],
+        ["Les 20 primeros ganan.", "Los 20 primeros ganan."],
+        ["Hay debido perderse.", "Ha debido perderse."],
+        ["Les 3 mejores pasan.", "Los 3 mejores pasan."],
+      ],
+      neg: [
+        "Hay helado de fresa.",
+        "Hay helado.",
+        "Les di 20 euros.",
+        "Les 1 de mayo.",
+        "Hay heridos graves.",
+      ],
+    },
+  ],
+  [
+    "spanishAgreement",
+    "a shortened adjective before a plural, a second coordinated adjective",
+    {
+      pos: [
+        ["Son buen amigos míos.", "Son buenos amigos míos."],
+        ["Tiene gran casas en el campo.", "Tiene grandes casas en el campo."],
+        ["Fueron los primer días.", "Fueron los primeros días."],
+        [
+          "Asumió las consecuencias directas e indirectos.",
+          "Asumió las consecuencias directas e indirectas.",
+        ],
+        ["Lleva una camisa blanca y negro.", "Lleva una camisa blanca y negra."],
+      ],
+      neg: [
+        "Es un buen amigo.",
+        "Instalaron un gran cortafuegos.",
+        "Viajó a Gran Bretaña.",
+        "Los hombres altos y fuertes.",
+        "Las faldas rojas y pantalones blancos.",
+      ],
+    },
+  ],
+  [
+    "spanishAccents",
+    "continúa and perpetúa before a gerund or after a pronoun",
+    {
+      pos: [
+        ["Continua lloviendo en el norte.", "Continúa lloviendo en el norte."],
+        ["El problema se perpetua así.", "El problema se perpetúa así."],
+        ["Ella continua trabajando.", "Ella continúa trabajando."],
+        ["Lo continua mañana.", "Lo continúa mañana."],
+        ["Continuan llegando cartas.", "Continúan llegando cartas."],
+      ],
+      neg: [
+        "La lluvia continua molesta.",
+        "Es una mejora continua.",
+        "Cadena perpetua para el reo.",
+        "Hubo una lluvia continua toda la noche.",
+        "Formación continua y gratuita.",
+      ],
+    },
+  ],
+  [
+    "spanishTypography",
+    "the closing ? or ! of a question or exclamation",
+    {
+      pos: [
+        ["¿Qué es lo que pasa aquí.", "¿Qué es lo que pasa aquí?"],
+        ["¡Qué bonito", "¡Qué bonito!"],
+        ["¿Dónde vives", "¿Dónde vives?"],
+        ["¡Hola! ¿Qué tal.", "¡Hola! ¿Qué tal?"],
+        [
+          "Me preguntó ¿cuándo vienes. Le dije que mañana.",
+          "Me preguntó ¿cuándo vienes? Le dije que mañana.",
+        ],
+      ],
+      neg: [
+        "¿Vino el Sr. García?",
+        "¿Qué dices! Ya voy.",
+        "Dijo: «¿Vienes?».",
+        "¿Qué pasa? Nada.",
+        "¡Qué día!",
+      ],
+    },
+  ],
+  [
+    "spanishAgreement",
+    "toda las, lo before a feminine noun, el mismo área, a participle before its subject",
+    {
+      pos: [
+        ["Leí toda las páginas.", "Leí todas las páginas."],
+        ["Vendrá por lo noche.", "Vendrá por la noche."],
+        ["Es del mismo área.", "Es de la misma área."],
+        ["Queda garantizado la entrega.", "Queda garantizada la entrega."],
+        ["Ya está hecho la cama.", "Ya está hecha la cama."],
+        ["Está previsto la reunión.", "Está prevista la reunión."],
+      ],
+      neg: [
+        "Eran sobre todo las charlas del profesor.",
+        "Se eliminan del todo las diferencias.",
+        "¿Tienen todos el mismo precio?",
+        "Por lo general, llega tarde.",
+        "El libro está considerado la mejor obra.",
+        "Estoy harto la verdad.",
+      ],
+    },
+  ],
+  [
+    "englishRepeatedWords",
+    "two Spanish words typed twice",
+    {
+      pos: [
+        ["Volvimos a casa a casa.", "Volvimos a casa."],
+        ["Lo pongo como un como un ejemplo.", "Lo pongo como un ejemplo."],
+        ["Me dijo que vino que vino ayer.", "Me dijo que vino ayer."],
+        ["Es muy bueno muy bueno.", "Es muy bueno."],
+        ["Nos vemos el lunes el lunes.", "Nos vemos el lunes."],
+      ],
+      neg: [
+        "Sube paso a paso a la montaña.",
+        "De dos en dos en el árbol.",
+        "A diferencia de los de los pájaros.",
+        "Sea quien sea quien venga.",
+        "Más y más y más.",
+      ],
+    },
+  ],
+  [
+    "spanishConfusions",
+    "revelado before its agent",
+    {
+      pos: [
+        ["El secreto rebelado por la prensa.", "El secreto revelado por la prensa."],
+        ["Los datos rebelados por el estudio.", "Los datos revelados por el estudio."],
+        ["La verdad fue rebelada por un testigo.", "La verdad fue revelada por un testigo."],
+        ["Las cifras rebeladas por el ministerio.", "Las cifras reveladas por el ministerio."],
+        ["Un plan rebelado por error.", "Un plan revelado por error."],
+      ],
+      neg: [
+        "El pueblo se ha rebelado contra el rey.",
+        "Los soldados rebelados huyeron.",
+        "Se rebeló por la injusticia.",
+        "Lo ha revelado por fin.",
+        "Las tropas se rebelaron.",
+      ],
+    },
+  ],
+  [
+    "spanishAccents",
+    "a demonstrative before its noun, cómo no in an exclamation",
+    {
+      pos: [
+        ["Éste señor es mi vecino.", "Este señor es mi vecino."],
+        ["Compré éstas sillas ayer.", "Compré estas sillas ayer."],
+        ["Aquél día llovió mucho.", "Aquel día llovió mucho."],
+        ["Ésa idea me gusta.", "Esa idea me gusta."],
+        ["¡Pero como no le va a gustar!", "¡Pero cómo no le va a gustar!"],
+      ],
+      neg: [
+        "Ésta es la casa.",
+        "Éste trabaja aquí.",
+        "De todas, ésa me gusta.",
+        "¡Como no vengas, me enfado!",
+        "¡Cómo no!",
+      ],
+    },
+  ],
+  [
+    "spanishAgreement",
+    "uno before a plural noun",
+    {
+      pos: [
+        ["Votó a favor de uno acreedores.", "Votó a favor de unos acreedores."],
+        ["Había uno libros en la mesa.", "Había unos libros en la mesa."],
+        ["Trajo uno platos nuevos.", "Trajo unos platos nuevos."],
+        ["Vimos uno barcos lejos.", "Vimos unos barcos lejos."],
+        ["Pidió uno días libres.", "Pidió unos días libres."],
+      ],
+      neg: [
+        "Cada uno sus cosas.",
+        "Uno más y nos vamos.",
+        "Uno tras otro llegaron.",
+        "Es uno de los mejores.",
+        "Uno a uno, entraron.",
+      ],
+    },
+  ],
+  [
+    "spanishTypography",
+    "the degree sign in temperatures",
+    {
+      pos: [
+        ["Hace 25ºC fuera.", "Hace 25 °C fuera."],
+        ["El agua hierve a 100 ºC.", "El agua hierve a 100 °C."],
+        ["Bajó a 3,5ºC anoche.", "Bajó a 3,5 °C anoche."],
+        ["Marca 70ºF ahora.", "Marca 70 °F ahora."],
+        ["Estamos a 30ºC.", "Estamos a 30 °C."],
+      ],
+      neg: [
+        "Hace 25 °C fuera.",
+        "El 1º de mayo.",
+        "Vive en el 3º C.",
+        "El 2º Congreso.",
+        "Llegó el 5º.",
+      ],
+    },
+  ],
+  [
+    "spanishAccents",
+    "esté before a feminine participle or a la after a subjunctive trigger",
+    {
+      pos: [
+        ["Avísame cuando tu factura este pagada.", "Avísame cuando tu factura esté pagada."],
+        ["Para que la tarea este terminada.", "Para que la tarea esté terminada."],
+        [
+          "Permite que cualquier tienda este a la última.",
+          "Permite que cualquier tienda esté a la última.",
+        ],
+        ["Cuando la sopa este servida, come.", "Cuando la sopa esté servida, come."],
+        ["Ojalá que mi carta este enviada.", "Ojalá que mi carta esté enviada."],
+      ],
+      neg: [
+        "Dijo que el libro está a la venta.",
+        "Quiero que este lista sea útil.",
+        "Cuando este coche llegue, avísame.",
+        "Para que este plan funcione.",
+        "Creo que este a la larga gana.",
+      ],
+    },
+  ],
+  [
+    "spanishConfusions",
+    "haber after a modal, años before a plural time word",
+    {
+      pos: [
+        ["Podría a ver más gente.", "Podría haber más gente."],
+        ["Debería a verlo sabido.", "Debería haberlo sabido."],
+        ["Pudo a ver otra salida.", "Pudo haber otra salida."],
+        ["Los anos siguientes fueron duros.", "Los años siguientes fueron duros."],
+        ["Los anos pasados fueron mejores.", "Los años pasados fueron mejores."],
+      ],
+      neg: [
+        "Vamos a ver la película.",
+        "Fue a ver a su madre.",
+        "Podemos ir a ver el partido.",
+        "Volvió a ver a su hermano.",
+        "Quiere a ver si llueve.",
+      ],
+    },
+  ],
 ];
+
+test("a Spanish pronoun before an imperative that carries one is flagged without a fix", () => {
+  for (const text of [
+    "Lo dame ahora.",
+    "Le dale el libro.",
+    "Te dímelo luego.",
+    "Lo hazlo bien.",
+  ]) {
+    const found = findings("spanishConfusions", text);
+    expect(found).toHaveLength(1);
+    expect(found[0].alternatives).toEqual([]);
+  }
+  for (const text of [
+    "Tú dale que te dale.",
+    "Se vende piso.",
+    "La dama llegó.",
+    "Le dio la mano.",
+  ])
+    expect(findings("spanishConfusions", text)).toEqual([]);
+});
+
+test("a Spanish preposition before a conjugated verb is flagged without a fix", () => {
+  for (const text of [
+    "De debería probar otra vez.",
+    "Lo hizo en cantaba.",
+    "Es de llegaron tarde.",
+    "De lo debemos todo.",
+    "Viven en los estamos juntos.",
+  ]) {
+    const found = findings("spanishConfusions", text);
+    expect(found).toHaveLength(1);
+    expect(found[0].alternatives).toEqual([]);
+  }
+  for (const text of [
+    "Lo dije de veras.",
+    "Ganó con creces.",
+    "Vamos de compras.",
+    "Vuelve de arriba abajo.",
+    "Viene de la oficina.",
+    "Es de lo mejor.",
+    "Habló de lo que sabía.",
+    "Pensó en los demás.",
+  ])
+    expect(findings("spanishConfusions", text)).toEqual([]);
+});
 
 describe.each(FIXTURES)("%s: %s", (ruleId, _family, fixture) => {
   test("at least 5 positives and 5 negatives", () => {

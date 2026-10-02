@@ -258,9 +258,43 @@ const IRREGULAR_FINITE = new Set(
   ).split(" "),
 );
 
+// Strong preterite stems and the infinitive ending they belong to: "produjo" (producir),
+// "compuso" (componer), "obtuvo" (obtener), "deshizo" (deshacer), "previno" (prevenir).
+const STRONG_PRETERITE =
+  /^(\p{L}*?)(duj|pus|tuv|hic|hiz|vin|traj)(e|iste|o|imos|isteis|ieron|eron)$/u;
+const STRONG_INFINITIVE: Record<string, string> = {
+  duj: "ducir",
+  pus: "poner",
+  tuv: "tener",
+  hic: "hacer",
+  hiz: "hacer",
+  vin: "venir",
+  traj: "traer",
+};
+// Future and conditional stems that drop or change a vowel: "pondría", "tendrá", "dirán".
+const SHORT_FUTURE =
+  /^(\p{L}*?)(pondr|tendr|vendr|saldr|valdr|podr|sabr|cabr|querr|har|dir)(é|ás|á|emos|éis|án|ía|ías|íamos|íais|ían)$/u;
+const SHORT_INFINITIVE: Record<string, string> = {
+  pondr: "poner",
+  tendr: "tener",
+  vendr: "venir",
+  saldr: "salir",
+  valdr: "valer",
+  podr: "poder",
+  sabr: "saber",
+  cabr: "caber",
+  querr: "querer",
+  har: "hacer",
+  dir: "decir",
+};
+
 /** A finite verb form ("cuenta", "mejoran", "ordenamos", "cantará"), noun homographs included. */
 export function finiteVerb(word: string): boolean {
   if (IRREGULAR_FINITE.has(word)) return true;
+  const strong = STRONG_PRETERITE.exec(word);
+  if (strong && isVerb(`${strong[1]}${STRONG_INFINITIVE[strong[2]]}`)) return true;
+  const short = SHORT_FUTURE.exec(word);
+  if (short && isVerb(`${short[1]}${SHORT_INFINITIVE[short[2]]}`)) return true;
   for (const [pattern, infinitives] of FINITE_ENDINGS) {
     const m = pattern.exec(word);
     if (m && conjugates(m[1], m[2], infinitives)) return true;
