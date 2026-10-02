@@ -9,6 +9,7 @@ import { WordReviewTarget } from "../src/adapters/chrome/content-script/review/W
 import {
   WORD_REVIEW_EVENT,
   WORD_REVIEW_RESPONSE,
+  WORD_REVIEW_MAX_MESSAGE,
   type WordReviewReply,
   type WordReviewRequest,
 } from "../src/adapters/chrome/content-script/review/WordReviewProtocol";
@@ -251,6 +252,64 @@ test("Word paragraph offsets read linear native ranges and retain gap and orderi
   expect(before.protectedRanges).toContainEqual({ start: 18, end: 20, reason: "structure" });
   h.paragraphs[499].getRange = () => h.paragraphs[498].getRange(1);
   expect(h.target.read()).toEqual({ ok: false, reason: "unsupported" });
+  expect(h.writes).toBe(0);
+});
+
+test("Word maximum paragraph snapshots fit the transport with bounded native identifiers", () => {
+  const h = fixture(Array.from({ length: 10_000 }, () => "teh"));
+  h.paragraphs.forEach((p, i) => {
+    p.uniqueLocalId = `00000000-0000-0000-0000-${i.toString(16).padStart(12, "0")}`;
+  });
+  const before = h.target.read();
+  expect(before.ok).toBe(true);
+  if (!before.ok) throw new Error("read failed");
+  expect(before.text).toBe(h.model.body.text.replace(/\r/g, "\n"));
+  expect(before.protectedRanges).toHaveLength(9_999);
+  expect(h.rangeReadCharacters).toBeLessThanOrEqual(before.text.length);
+  h.paragraphs[0].uniqueLocalId = "x".repeat(65);
+  expect(h.target.read()).toEqual({ ok: false, reason: "unsupported" });
+  expect(h.writes).toBe(0);
+}, 20_000);
+
+test("Word maximum text snapshots and escaped native edit requests fit the transport", async () => {
+  const prefix = "\v".repeat(199_997);
+  const h = fixture([`${prefix}teh`]);
+  const before = h.target.read();
+  expect(before.ok).toBe(true);
+  if (!before.ok) throw new Error("read failed");
+  expect(before.text).toHaveLength(200_000);
+  expect(before.protectedRanges).toHaveLength(199_997);
+  expect(
+    await h.target.apply({
+      before: before.text,
+      after: `${prefix}the`,
+      signature: before.signature,
+      edits: [{ start: 199_997, end: 200_000, original: "teh", replacement: "the" }],
+    }),
+  ).toEqual({ status: "applied" });
+  expect(h.paragraphs[0].text).toBe(`${prefix}the`);
+  expect(h.commits).toBe(1);
+});
+
+test("Word oversized transport messages invalidate pending write tokens", async () => {
+  const h = fixture(["teh"]);
+  const before = h.target.read();
+  if (!before.ok) throw new Error("read failed");
+  h.target.element.dispatchEvent(
+    new CustomEvent(WORD_REVIEW_EVENT, {
+      bubbles: true,
+      detail: " ".repeat(WORD_REVIEW_MAX_MESSAGE + 1),
+    }),
+  );
+  expect(h.target.element.hasAttribute(WORD_REVIEW_RESPONSE)).toBe(false);
+  expect(
+    await h.target.apply({
+      before: before.text,
+      after: "the",
+      signature: before.signature,
+      edits: [{ start: 0, end: 3, original: "teh", replacement: "the" }],
+    }),
+  ).toEqual({ status: "stale" });
   expect(h.writes).toBe(0);
 });
 

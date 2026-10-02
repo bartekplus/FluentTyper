@@ -11,6 +11,7 @@ import {
   WORD_INPUT_ID,
   WORD_REVIEW_EVENT,
   WORD_REVIEW_RESPONSE,
+  WORD_REVIEW_MAX_MESSAGE,
   type WordReviewRequest,
   type WordReviewReply,
   type WordReviewSnapshot,
@@ -94,6 +95,7 @@ function readModel(
       typeof paragraph.text !== "string" ||
       typeof paragraph.uniqueLocalId !== "string" ||
       !paragraph.uniqueLocalId ||
+      paragraph.uniqueLocalId.length > 64 ||
       seen.has(paragraph.uniqueLocalId)
     )
       throw new Error("unsupported");
@@ -188,7 +190,10 @@ export function installWordReviewMainWorld(doc: Document = document): () => void
     let reply: WordReviewReply = { ok: false, reason: "unsupported" };
     try {
       const detail: unknown = (event as CustomEvent<unknown>).detail;
-      if (typeof detail !== "string" || detail.length > 1_000_000) return;
+      if (typeof detail !== "string" || detail.length > WORD_REVIEW_MAX_MESSAGE) {
+        pending = null;
+        return;
+      }
       const request = JSON.parse(detail) as WordReviewRequest;
       if (request.action === "close") {
         pending = null;

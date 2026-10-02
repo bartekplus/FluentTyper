@@ -4755,6 +4755,21 @@
         {
           "layer": "unit",
           "file": "tests/WordReview.test.ts",
+          "test": "Word maximum paragraph snapshots fit the transport with bounded native identifiers"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/WordReview.test.ts",
+          "test": "Word maximum text snapshots and escaped native edit requests fit the transport"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/WordReview.test.ts",
+          "test": "Word oversized transport messages invalidate pending write tokens"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/WordReview.test.ts",
           "test": "Word highlights map sibling footnote views and active non-header stories"
         }
       ]

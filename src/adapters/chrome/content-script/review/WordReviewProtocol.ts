@@ -3,6 +3,8 @@ import type { ReviewEdit, TextRange } from "@core/domain/grammar/review/types";
 
 export const WORD_REVIEW_EVENT = "fluenttyper:word-review";
 export const WORD_REVIEW_RESPONSE = "data-ft-word-review-response";
+// Covers 200k escaped characters, 200k protection ranges and 10k bounded identifiers.
+export const WORD_REVIEW_MAX_MESSAGE = 20_000_000;
 export const WORD_INPUT_ID = "WACViewPanel_EditingElement";
 
 export type WordReviewRequest =

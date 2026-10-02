@@ -5,6 +5,7 @@ import type { ReviewTargetHandle } from "./ReviewTargets";
 import {
   WORD_REVIEW_EVENT,
   WORD_REVIEW_RESPONSE,
+  WORD_REVIEW_MAX_MESSAGE,
   type WordReviewRequest,
   type WordReviewReply,
   type WordReviewSnapshot,
@@ -47,7 +48,7 @@ export class WordReviewTarget implements ReviewTargetHandle {
         new win.CustomEvent(WORD_REVIEW_EVENT, { bubbles: true, detail: JSON.stringify(request) }),
       );
       const raw = this.element.getAttribute(WORD_REVIEW_RESPONSE);
-      if (!raw || raw.length > 1_000_000) return null;
+      if (!raw || raw.length > WORD_REVIEW_MAX_MESSAGE) return null;
       const reply = JSON.parse(raw) as WordReviewReply;
       if ("matchesSelection" in reply)
         return typeof reply.matchesSelection === "boolean" ? reply : null;
