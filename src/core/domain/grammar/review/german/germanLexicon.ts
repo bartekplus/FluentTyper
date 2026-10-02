@@ -171,7 +171,7 @@ const TWO_GENDERS = new Set(
     "steuer tor hut mark bund bauer otter junge gefallen verdienst moment golf schild band teil " +
     "single gummi joghurt liter meter virus filter radar spray blog event curry ketchup keks " +
     "bonbon dotter lasso cola mail email sakko pyjama account web laptop yoga tunnel match " +
-    "pony silvester gelee biotop radio butter tram gulasch messer fuß"
+    "pony silvester gelee biotop radio butter tram gulasch messer fuß morgen"
   ).split(" "),
 );
 // Compound heads whose compounds differ in gender ("der Mut", "die Armut"; "das Ende",

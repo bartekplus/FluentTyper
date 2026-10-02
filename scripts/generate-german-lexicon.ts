@@ -317,6 +317,9 @@ export function readGermanDeterminerBigrams(): string | null {
   }
 }
 
+const NUMBER_WORDS =
+  /^(?:null|eins|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf)(?:er|ern)?$|(?:zig|ßig)(?:er|ern)$/;
+
 /**
  * Noun genders the n-gram counts show, for lowercase forms that are only nouns. A form is
  * feminine when only feminine determiners precede it, masculine or neuter when only that
@@ -326,9 +329,16 @@ export function readGermanDeterminerBigrams(): string | null {
  */
 export function buildGermanGender(dic: string, aff: string, bigrams: string): string {
   // Any infinitive is also a neuter noun ("das Wagen"): those forms are left out.
+  // Noun forms that are also an uninflected word count too ("freund", "weg"), but not the ones
+  // that are also adjective forms ("alter", "wert", which would name the gender of "Schalter"
+  // and "Schwert" as compound heads) or numbers ("die Vier", "ein vierter").
   const { nounOnly, finite } = deriveGermanLexicon(dic, aff);
   const verbForms = new Set(finite);
-  const nouns = new Set([...nounOnly, ...finite]);
+  const nouns = new Set([
+    ...nounOnly,
+    ...finite,
+    ...deriveNounsAfterArticles(dic, aff).filter((w) => !NUMBER_WORDS.test(w)),
+  ]);
   const counts = new Map<string, Map<string, number>>();
   for (const line of bigrams.split("\n")) {
     const [det, word, count] = line.split(" ");

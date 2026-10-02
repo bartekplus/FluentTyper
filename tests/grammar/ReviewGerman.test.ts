@@ -639,6 +639,7 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
     {
       pos: [
         ["Der Fahrrad steht im Keller.", "Das Fahrrad steht im Keller."],
+        ["Sie vertraute ihren Freund blind.", "Sie vertraute ihrem Freund blind."],
         ["Sie kam mit dem Tochter ihres Nachbarn.", "Sie kam mit der Tochter ihres Nachbarn."],
         ["Er hat eine neues Fahrrad gekauft.", "Er hat ein neues Fahrrad gekauft."],
         ["Die Wald hinter dem Haus ist dicht.", "Der Wald hinter dem Haus ist dicht."],
@@ -660,6 +661,8 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Kennst du diesem Fahrer?", "Kennst du diesen Fahrer?"],
       ],
       neg: [
+        "Weder ich noch mein Freund können Auto fahren.",
+        "Das Morgen gehört uns.",
         "Ich helfe den Kindern beim Lesen.",
         "Wir danken den Gästen für ihr Kommen.",
         "Er hilft den Schrank tragen.",
@@ -926,6 +929,8 @@ test.each([
   ["Freiheit", "f", false],
   ["Brötchen", "n", true],
   ["Zimmer", "x", true],
+  ["Freund", "m", false],
+  ["Schulweg", "m", false],
 ])("%s has gender %p (plural form: %p)", (word, gender, plural) => {
   expect(germanGender(word)).toEqual({ gender: gender as never, plural });
 });

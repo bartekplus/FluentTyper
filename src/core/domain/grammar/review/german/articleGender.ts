@@ -239,6 +239,8 @@ function objectCase(
   if (!clause.some((t) => SUBJECTS.has(t.toLowerCase()))) return null;
   const prior = (clause.at(-1) ?? "").toLowerCase();
   if (PREPOSITIONS.has(prior) || DETERMINER_WORDS.test(prior)) return null;
+  // "Weder ich noch mein Freund können …": joined to the subject.
+  if (/^(?:und|oder|noch|sowie|sondern|bzw)$/.test(prior)) return null;
   const rest = ctx.text.slice(nounEnd, nounEnd + 120).split(/[.!?;:,\n–—]/)[0];
   const restWords = rest.match(/\p{L}+/gu) ?? [];
   // Lowercase words only: "Fehler" is no form of "fehlen".
