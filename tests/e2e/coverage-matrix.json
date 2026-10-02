@@ -4690,6 +4690,11 @@
         {
           "layer": "unit",
           "file": "tests/WordReview.test.ts",
+          "test": "Word open Review keeps its original story after caret moves and polling"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/WordReview.test.ts",
           "test": "Word Fix all commits multiple offsets and paragraphs in one native transaction"
         },
         {

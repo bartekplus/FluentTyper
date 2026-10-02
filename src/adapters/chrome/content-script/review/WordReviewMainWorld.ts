@@ -71,8 +71,10 @@ interface ModelSnapshot {
 }
 
 /** Named Word automation methods only; no minified properties or rendered-DOM writes. */
-function readModel(model: WordDocument): ModelSnapshot {
-  const body = model.getSelection().parentBody ?? model.body;
+function readModel(
+  model: WordDocument,
+  body = model.getSelection().parentBody ?? model.body,
+): ModelSnapshot {
   const raw = body.text;
   // ponytail: bound model enumeration; a windowed reader is needed above the existing DOM-map ceiling.
   if (typeof raw !== "string" || raw.length > 200_000) throw new Error("unsupported");
@@ -170,6 +172,7 @@ function selectionScope(model: WordDocument, snapshot: ModelSnapshot) {
 
 /** Page messages grant no extension APIs. Text exists only for the explicitly opened review. */
 export function installWordReviewMainWorld(doc: Document = document): () => void {
+  let story: { body: WordBody; root: HTMLElement; url: string } | null = null;
   let pending: { token: string; snapshot: ModelSnapshot; root: HTMLElement; url: string } | null =
     null;
   let composing = false;
@@ -189,6 +192,7 @@ export function installWordReviewMainWorld(doc: Document = document): () => void
       const request = JSON.parse(detail) as WordReviewRequest;
       if (request.action === "close") {
         pending = null;
+        story = null;
         return;
       }
       const input = doc.getElementById(WORD_INPUT_ID)!;
@@ -209,10 +213,14 @@ export function installWordReviewMainWorld(doc: Document = document): () => void
         const extension = (doc.defaultView as WordWindow | null)?.WordEditor?.Extension;
         const model = extension?.AutomationUtility?.getDocument();
         if (!model) throw new Error("unsupported");
-        const current = readModel(model);
+        if (story && (story.root !== root || story.url !== doc.URL)) throw new Error("unsupported");
+        // The caret can move between stories while a panel stays open. Retain
+        // the native body selected on first read until that review closes.
+        const current = readModel(model, story?.body);
         if (request.action === "read") {
           const token = crypto.randomUUID();
           const selection = request.selection ? selectionScope(model, current) : null;
+          story ??= { body: current.body, root, url: doc.URL };
           pending = { token, snapshot: current, root, url: doc.URL };
           const snapshot: WordReviewSnapshot = {
             ok: true,
@@ -272,7 +280,7 @@ export function installWordReviewMainWorld(doc: Document = document): () => void
                 throw new Error("unsupported");
               const transaction = new Transaction();
               try {
-                const fresh = readModel(extension!.AutomationUtility!.getDocument());
+                const fresh = readModel(extension!.AutomationUtility!.getDocument(), current.body);
                 if (fresh.text !== current.text || fresh.signature !== current.signature)
                   throw new Error("stale");
                 // Validate every native range before the first write. Descending offsets
@@ -299,7 +307,7 @@ export function installWordReviewMainWorld(doc: Document = document): () => void
                 transaction.dispose(); // One native Undo step for the complete batch.
               }
               if (writing) {
-                const after = readModel(extension!.AutomationUtility!.getDocument());
+                const after = readModel(extension!.AutomationUtility!.getDocument(), current.body);
                 reply =
                   after.text === request.after && after.signature === current.signature
                     ? { status: "applied" }
@@ -320,6 +328,7 @@ export function installWordReviewMainWorld(doc: Document = document): () => void
   doc.addEventListener("compositionend", composition, true);
   return () => {
     pending = null;
+    story = null;
     doc.removeEventListener(WORD_REVIEW_EVENT, listener);
     doc.removeEventListener("compositionstart", composition, true);
     doc.removeEventListener("compositionend", composition, true);

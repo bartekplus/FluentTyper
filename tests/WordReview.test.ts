@@ -27,6 +27,7 @@ afterEach(() => {
 });
 
 function fixture(texts = ["We saw teh cat.", "We saw teh cat."], separator = "\r") {
+  cleanup();
   document.body.innerHTML = `<input aria-label="Document title" value="Do not review me"><div id="EditorContainer"><div id="WACViewPanel">${texts.map(() => `<p class="Paragraph"><b></b></p>`).join("")}<div id="WACViewPanel_EditingElement" contenteditable="true" tabindex="0"></div></div></div>`;
   const empty = { length: () => 0 };
   let writes = 0;
@@ -369,6 +370,41 @@ test("Word Review reads and fixes the active body without touching the main body
   expect(activeBody.text).toBe("the");
   expect(h.model.body.text).toBe("Main body stays unchanged.");
   expect(h.commits).toBe(1);
+});
+
+test("Word open Review keeps its original story after caret moves and polling", async () => {
+  const h = fixture(["teh"]);
+  const originalBody = h.model.body;
+  const initial = h.target.read();
+  if (!initial.ok) throw new Error("read failed");
+  const otherBody = { ...originalBody, type: 7, text: "teh" };
+  const selection = h.model.getSelection.bind(h.model);
+  h.model.getSelection = () => ({ ...selection(), parentBody: otherBody });
+  expect(h.target.sourceChanged(initial.text)).toBe(false);
+  const before = h.target.read();
+  if (!before.ok) throw new Error("read failed");
+  expect(before.signature).toBe(initial.signature);
+  expect(
+    await h.target.apply({
+      before: before.text,
+      after: "the",
+      signature: before.signature,
+      edits: [{ start: 0, end: 3, original: "teh", replacement: "the" }],
+    }),
+  ).toEqual({ status: "applied" });
+  expect(originalBody.text).toBe("the");
+  expect(otherBody.text).toBe("teh");
+  expect(h.commits).toBe(1);
+  h.target.dispose();
+  const reopened = new WordReviewTarget(
+    document.getElementById("EditorContainer")!,
+    document.getElementById("WACViewPanel_EditingElement")!,
+  );
+  otherBody.text = originalBody.text;
+  const next = reopened.read();
+  expect(next.ok).toBe(true);
+  expect(next.ok && next.signature).not.toBe(initial.signature);
+  reopened.dispose();
 });
 
 test("Word Review rejects composing and detached editors and never retries an unverified write", async () => {
