@@ -1057,11 +1057,17 @@ const duplicatePunctuation: Detector = (ctx) => {
     const start = match.index;
     const end = start + match[0].length;
     if (isGluedToTechnical(ctx.text, start, start)) continue;
+    // Polish typists write ",," for the opening „ when a word and a closing quote follow.
+    const polishQuote =
+      ctx.lang.startsWith("pl") &&
+      match[0] === ",," &&
+      /^$|\s$/u.test(ctx.text.slice(Math.max(0, start - 1), start)) &&
+      /^[\p{L}\p{N}][^\n„]{0,200}?[\p{L}\p{N}.!?…](?:”|"|'')/u.test(ctx.text.slice(end, end + 210));
     findings.push({
       ruleId: "duplicatePunctuationCollapse",
       messageKey: "review_msg_duplicate_punctuation",
       range: { start, end },
-      alternatives: [match[1]],
+      alternatives: [polishQuote ? "„" : match[1]],
     });
   }
   // "word.." (never "..." or "../"): a doubled period or a short ellipsis that trails off.

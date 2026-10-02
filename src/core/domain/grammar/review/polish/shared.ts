@@ -9,7 +9,8 @@ export const END = "(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])";
 /** No letter before: the frame starts a word. */
 export const START = "(?<![\\p{L}\\p{M}\\p{N}_'’@/#\\\\.-])";
 /** A clause or text starts here: the text start, or sentence punctuation and spaces. */
-export const CLAUSE_START = '(?<=(?:^|[.!?…:;]["”’»)]*[ \\t\\u00a0\\n]{1,8}|\\n[ \\t\\u00a0]*))';
+export const CLAUSE_START =
+  '(?<=(?:^|[.!?…:;]["”’»)]{0,3}[ \\t\\u00a0\\n]{1,8}|\\n[ \\t\\u00a0]{0,8}))';
 /** The prepositions after which a word must be a noun phrase. */
 export const PREPOSITIONS =
   "w|we|z|ze|na|do|od|ode|po|za|przy|przed|przede|nad|nade|pod|pode|dla|bez|u|ku|przez|przeze|między|o|wśród|spod|znad|zza|sprzed";
