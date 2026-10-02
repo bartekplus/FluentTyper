@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { readFile } from "node:fs/promises";
 import {
   buildPortugueseLexicon,
+  buildPortugueseVerbLexicon,
   PORTUGUESE_LEXICON_SOURCES,
 } from "../../scripts/generate-portuguese-lexicon";
 import { findLiveGrammarProposals } from "../../src/core/domain/grammar/review/liveProposals";
@@ -263,6 +264,9 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Depois veremo-nos na praia.", "Depois ver-nos-emos na praia."],
         ["Se der, faria-o com gosto.", "Se der, fá-lo-ia com gosto."],
         ["Os vizinhos venderão-na logo.", "Os vizinhos vendê-la-ão logo."],
+        ["Os alunos não querem-na como chefe.", "Os alunos não a querem como chefe."],
+        ["Nunca preferes-me aos outros.", "Nunca me preferes aos outros."],
+        ["Por favor, não esperem-nos para o jantar.", "Por favor, não nos esperem para o jantar."],
       ],
       neg: [
         "Nunca quis comprá-lo.",
@@ -277,6 +281,9 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         "Ele disse-me a verdade.",
         "Para não dizer-lhe nada, saí.",
         "Não querendo-se expor, calou.",
+        "É melhor não fazerem-no sozinhos.",
+        "Para não saberes-lhe o nome, sai.",
+        "Seria pior não pararem-se ali.",
         "Não me diga isso.",
         "Diga-me, não esqueça.",
         "Não, diga-me depois.",
@@ -446,13 +453,15 @@ describe("portugueseDates", () => {
   });
 });
 
-test("the committed paronym table matches pt_BR.dic/.aff (bun run generate:portuguese-lexicon)", async () => {
-  const [dic, aff, committed] = await Promise.all([
+test("the committed paronym and verb tables match pt_BR.dic/.aff (bun run generate:portuguese-lexicon)", async () => {
+  const [dic, aff, paronyms, verbs] = await Promise.all([
     readFile(PORTUGUESE_LEXICON_SOURCES.dic),
     readFile(PORTUGUESE_LEXICON_SOURCES.aff),
     readFile(PORTUGUESE_LEXICON_SOURCES.out, "utf8"),
+    readFile(PORTUGUESE_LEXICON_SOURCES.verbsOut, "utf8"),
   ]);
-  expect(buildPortugueseLexicon(dic, aff)).toBe(committed);
+  expect(buildPortugueseLexicon(dic, aff)).toBe(paronyms);
+  expect(buildPortugueseVerbLexicon(dic, aff)).toBe(verbs);
 });
 
 // Adversarial input in the worst-case style of ReviewWorstCase.test.ts, for pt_BR.
