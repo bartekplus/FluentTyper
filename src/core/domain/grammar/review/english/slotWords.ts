@@ -3,6 +3,7 @@ import {
   englishWordInfo,
   type EnglishWordInfo,
 } from "../../implementations/helpers/EnglishLexicon";
+import { detectAll } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { quotedMention } from "./grammarStyle1";
 
@@ -148,8 +149,6 @@ export const english =
   (ctx: DetectContext): RawFinding[] =>
     ctx.lang !== "en_US"
       ? []
-      : detectors
-          .flatMap((detect) => detect(ctx))
-          .filter(
-            (f) => f.range.start >= ctx.from && f.range.start < ctx.to && !quotedMention(ctx, f),
-          );
+      : detectAll(ctx, detectors).filter(
+          (f) => f.range.start >= ctx.from && f.range.start < ctx.to && !quotedMention(ctx, f),
+        );

@@ -101,6 +101,8 @@ import { POLISH_DETECTORS } from "./polish";
 import { SPANISH_DETECTORS } from "./spanish";
 import { FRENCH_DETECTORS } from "./french";
 
+import { detectAll } from "./phraseTemplates";
+
 export { MASK_CHAR };
 export { minimalEdits } from "./textRanges";
 
@@ -502,7 +504,13 @@ const wordSpelling: Detector = (ctx) => {
       : normalizeContractionToken(word, before);
     // "the im tag", "an ive file": after a determiner it is a word, not "I'm".
     const pronounForm = /^i(?:m|ve)$/i.test(word);
-    if (contraction && !(pronounForm && DETERMINER_BEFORE.test(before))) {
+    // "by Ive Mažuran": mid-sentence, a capitalized "Ive"/"Im" before a capitalized word is a name.
+    const name =
+      pronounForm &&
+      /^I[a-z]/.test(word) &&
+      !/(?:^|[.!?:;"“\n])[ \t]*$/.test(before) &&
+      /^[ \t]+\p{Lu}\p{Ll}/u.test(ctx.text.slice(end, end + 4));
+    if (contraction && !name && !(pronounForm && DETERMINER_BEFORE.test(before))) {
       findings.push({
         ruleId: "englishContractionNormalization",
         messageKey: "review_msg_contraction",
@@ -1481,7 +1489,7 @@ export const REVIEW_DETECTORS: ReadonlyArray<ReviewDetectorEntry> = [
       "styleAlternativePhrasing",
       "englishPossibleErrors",
     ],
-    detect: (ctx) => [...canonicalCasing(ctx), ...phraseCorrections(ctx)],
+    detect: (ctx) => detectAll(ctx, [canonicalCasing, phraseCorrections]),
   },
   {
     rules: ["unclosedQuotation"],
@@ -1529,10 +1537,13 @@ export const REVIEW_DETECTORS: ReadonlyArray<ReviewDetectorEntry> = [
       "englishAlotCorrection",
     ],
     // English word lists; other languages have their own tables.
-    detect: (ctx) => [
-      ...(ctx.lang === "en_US" ? wordSpelling(ctx) : [...splitWords(ctx), ...frenchElisions(ctx)]),
-      ...markedApostrophes(ctx),
-    ],
+    detect: (ctx) =>
+      detectAll(
+        ctx,
+        ctx.lang === "en_US"
+          ? [wordSpelling, markedApostrophes]
+          : [splitWords, frenchElisions, markedApostrophes],
+      ),
   },
   { rules: ["englishModalOfCorrection"], detect: modalOf },
   { rules: ["englishYourWelcomeCorrection"], detect: yourWelcome },
@@ -1555,11 +1566,13 @@ export const REVIEW_DETECTORS: ReadonlyArray<ReviewDetectorEntry> = [
   { rules: ["emdashShortcut"], detect: typedDashes },
   {
     rules: ["measurementUnitFormatting"],
-    detect: (ctx) => [...measurementLike(ctx, "measurementUnitFormatting"), ...kelvinDegree(ctx)],
+    detect: (ctx) =>
+      detectAll(ctx, [(c) => measurementLike(c, "measurementUnitFormatting"), kelvinDegree]),
   },
   {
     rules: ["currencySpacing"],
-    detect: (ctx) => [...measurementLike(ctx, "currencySpacing"), ...currencyPlacement(ctx)],
+    detect: (ctx) =>
+      detectAll(ctx, [(c) => measurementLike(c, "currencySpacing"), currencyPlacement]),
   },
   ...EXTENSION_DETECTORS,
   ...GERMAN_DETECTORS,

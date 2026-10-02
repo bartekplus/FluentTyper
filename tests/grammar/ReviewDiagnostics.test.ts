@@ -15,7 +15,9 @@ import { EXTENSION_DETECTORS } from "../../src/core/domain/grammar/review/englis
 import {
   LANGUAGE_DETECTORS,
   REVIEW_DETECTORS,
+  type ReviewDetectorEntry,
 } from "../../src/core/domain/grammar/review/reviewDetectors";
+import { detectAll } from "../../src/core/domain/grammar/review/phraseTemplates";
 import {
   MAX_REVIEW_CHARS,
   REVIEW_CHUNK_CHARS,
@@ -1175,5 +1177,51 @@ describe("review scope and protection", () => {
     ]);
     expect(result.coverage.failedRules).toEqual(["englishTypoWhitelistCorrection"]);
     expect(result.coverage.skipped["rule-error"]).toBe(1);
+  });
+
+  test("a failing part of a composite detector keeps its siblings' and other detectors' findings", () => {
+    const text = "We could of left. Irregardless, it rained.";
+    const fail = () => {
+      throw new Error("broken part");
+    };
+    const list = REVIEW_DETECTORS as ReviewDetectorEntry[];
+    const injected: ReviewDetectorEntry[] = [
+      {
+        rules: ["englishPhraseCorrections"],
+        detect: (ctx) =>
+          detectAll(ctx, [
+            fail,
+            () => [
+              {
+                ruleId: "englishPhraseCorrections",
+                messageKey: "review_msg_typo",
+                range: { start: text.indexOf("rained"), end: text.length - 1 },
+                alternatives: ["poured"],
+              },
+            ],
+          ]),
+      },
+      { rules: ["englishModalOfCorrection"], detect: fail },
+    ];
+    list.unshift(...injected);
+    try {
+      const result = detectReviewDiagnostics(
+        { id: "s", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
+        options(),
+      );
+      const found = result.diagnostics.map(
+        (d) => `${d.ruleId}:${text.slice(d.range.start, d.range.end)}`,
+      );
+      // The sibling part and the rule's regular detectors still report.
+      expect(found).toContain("englishPhraseCorrections:rained");
+      expect(found).toContain("englishPhraseCorrections:Irregardless");
+      expect(found).toContain("englishModalOfCorrection:could of");
+      expect(result.coverage.failedRules.sort()).toEqual([
+        "englishModalOfCorrection",
+        "englishPhraseCorrections",
+      ]);
+    } finally {
+      list.splice(0, injected.length);
+    }
   });
 });

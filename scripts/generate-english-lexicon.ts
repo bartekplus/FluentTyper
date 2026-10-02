@@ -60,13 +60,17 @@ function unsuffixed(word: string, rules: Rule[], lex: Map<string, Set<string>>, 
   return out;
 }
 
+// Nouns whose -ly (presently) belongs to an equally common adjective: "the members present".
+const NOUN_ADJECTIVES = new Set(["present"]);
+
 const fromLy = (word: string): string[] =>
   [
     word.slice(0, -2), // quick-ly
     `${word.slice(0, -3)}y`, // happi-ly
     `${word.slice(0, -1)}e`, // possibl-y, gentl-y, tru-ly
-    word.slice(0, -4), // basic-ally
-    word.slice(0, -1), // full-y
+    // basic-ally, full-y; only those endings ("understandably" is not understand + -ably).
+    /ally$/.test(word) ? word.slice(0, -4) : "",
+    /lly$/.test(word) ? word.slice(0, -1) : "",
   ].filter((base) => base.length > 2);
 
 export function buildEnglishLexicon(dic: string, aff: string): string {
@@ -216,6 +220,7 @@ export function deriveEnglishLexicon(
     // un-/in- (U/I) on an adjective-shaped non-verb: available, accessible.
     const shaped = /(?:al|ic|ous|ive|ful|less|[ai]ble)$/.test(word);
     if (
+      NOUN_ADJECTIVES.has(word) ||
       flags.has("T") ||
       flags.has("P") ||
       lyAdjectives.has(word) ||

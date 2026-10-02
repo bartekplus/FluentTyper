@@ -25,6 +25,8 @@ test("the lexicon derives -ion and -ment nouns from flagged verbs", () => {
 test("a determiner before a bare verb or a verb phrase is repaired", () => {
   for (const [input, expected] of [
     ["The translate into French took a week.", "The translation into French took a week."],
+    ["The blast was a loud explode.", "The blast was a loud explosion."],
+    ["The vet gave us the diagnose.", "The vet gave us the diagnosis."],
     ["We admired the protect of the old forest.", "We admired the protection of the old forest."],
     ["The cannot attend tomorrow.", "They cannot attend tomorrow."],
     ["The will bring snacks.", "They will bring snacks."],

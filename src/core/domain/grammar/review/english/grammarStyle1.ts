@@ -6,6 +6,7 @@ import { SPECIALIST } from "../englishCountability";
 import { doubledDegree } from "../englishDegree";
 import type { PhraseRow } from "../englishPhraseTables";
 import {
+  detectAll,
   EDGE,
   frame,
   frameMatches,
@@ -1289,9 +1290,7 @@ export function quotedMention(ctx: DetectContext, finding: Finding): boolean {
 const english =
   (...detectors: ((ctx: DetectContext) => Finding[])[]) =>
   (ctx: DetectContext): Finding[] =>
-    ctx.lang !== "en_US"
-      ? []
-      : detectors.flatMap((detect) => detect(ctx)).filter((f) => !quotedMention(ctx, f));
+    ctx.lang !== "en_US" ? [] : detectAll(ctx, detectors).filter((f) => !quotedMention(ctx, f));
 
 /** Context detectors appended to REVIEW_DETECTORS. */
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
