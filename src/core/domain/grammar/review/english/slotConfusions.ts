@@ -178,7 +178,8 @@ const INFINITIVE_LEAD =
   "need|needs|needed|want|wants|wanted|plan|plans|planned|try|tries|tried|trying|able|unable|how|going|forgot|forget|remember|allowed|asked|ask|tell|told";
 // A verb slot: a modal, "please", a negation, "who", "let me", a subject pronoun, an inverted
 // auxiliary or an infinitive lead ("need to", "ask the guests to").
-const VERB_LEAD = `(?:${MODAL}|please|${NEGATION}|who|let${S}(?:me|us|them|him|her)|(?:I|we|they|you)|(?:can|could|will|would|should|do|does|did|can['’]t|won['’]t|don['’]t|doesn['’]t|didn['’]t|wouldn['’]t|couldn['’]t)${S}(?:I|you|we|they|he|she|it)|(?:${INFINITIVE_LEAD})${S}to|(?:${INFINITIVE_LEAD})${S}(?:[\\p{L}'’]+${S}){1,2}to)`;
+// A modal opening its sentence asks about a noun: "Would login work here?"
+const VERB_LEAD = `(?:(?<!(?:^|[.!?]["”’)]?[ \\t]{1,8}|\\n))(?:${MODAL})|please|${NEGATION}|who|let${S}(?:me|us|them|him|her)|(?:I|we|they|you)|(?:can|could|will|would|should|do|does|did|can['’]t|won['’]t|don['’]t|doesn['’]t|didn['’]t|wouldn['’]t|couldn['’]t)${S}(?:I|you|we|they|he|she|it)|(?:${INFINITIVE_LEAD})${S}to|(?:${INFINITIVE_LEAD})${S}(?:[\\p{L}'’]+${S}){1,2}to)`;
 // What follows a verb use: an object, a particle-like word or the clause end.
 const VERB_FOLLOW = `(?=${S}(?:${OBJECT_START}|again|with|to|before|after|using|here|there|now|first|via|through|every|daily|into|from|by|on|at|in|without|automatically|successfully|early|late|today|tomorrow|once|twice|files?|data)${E}|[ \\t]*[.!?,;:])`;
 // The sentence goes on in plain words to its punctuation: not typed half-way ("Please login
