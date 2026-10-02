@@ -6,6 +6,7 @@ import {
   NOUN_CASCADE,
   VERB_BLOOM,
 } from "./germanLexicon.generated";
+import * as GENDER_DATA from "./germanGender.generated";
 
 /**
  * What a lowercase German word is when it is also a noun form: only a noun ("zugriff" is not
@@ -133,4 +134,102 @@ export function germanNounReading(word: string): GermanNounReading | null {
 export function germanAdjective(word: string): boolean {
   adjectiveBloom ??= decode(ADJECTIVE_BLOOM);
   return has(adjectiveBloom, word.normalize("NFC"));
+}
+
+/** A noun form's gender ("x": masculine or neuter) and whether it may also be a plural. */
+export type GermanGender = "f" | "m" | "n" | "x";
+export type GermanGenderReading = { gender: GermanGender; plural: boolean };
+
+// Nouns of two genders by meaning or region ("der/die See", "der/das Teil", "die/das Mail"),
+// which one sense's counts may hide (authored).
+const TWO_GENDERS = new Set(
+  (
+    "kunde see leiter heide kiefer mangel weise flur marsch tau mast laster erbe gehalt " +
+    "steuer tor hut mark bund bauer otter junge gefallen verdienst moment golf schild band teil " +
+    "single gummi joghurt liter meter virus filter radar spray blog event curry ketchup keks " +
+    "bonbon dotter lasso cola mail email sakko pyjama account web laptop yoga tunnel match " +
+    "pony silvester gelee biotop radio butter tram gulasch messer fuß"
+  ).split(" "),
+);
+// Compound heads whose compounds differ in gender ("der Mut", "die Armut"; "das Ende",
+// "die Legende"; "der Aufwand", "die Leinwand"; "der Rat", "die Heirat").
+const MIXED_HEADS = new Set("mut ende wand rat gift wort macht mal art".split(" "));
+// Particles and prepositions that start verb-made nouns of their own gender ("der Einwand").
+const PARTICLES = new Set(
+  (
+    "ab an auf aus bei da durch ein empor fort gegen her hin hinter mit nach neben ob " +
+    "über um unter vor weg wider zu zurück zusammen"
+  ).split(" "),
+);
+const SUFFIX_GENDERS: Array<[RegExp, GermanGenderReading]> = [
+  // "der Sprung", "der Schwung", "der Dung": no -ung nouns made from verbs.
+  [/(?<!spr|schw|^d)(?:ung|heit|keit|schaft|tion|sion|tät)$/, { gender: "f", plural: false }],
+  [/ismus$/, { gender: "m", plural: false }],
+];
+const FEMININE = { gender: "f", plural: false } as const;
+const DIMINUTIVE = { gender: "n", plural: true } as const;
+const deumlaut = (stem: string) => stem.replace(/ä/g, "a").replace(/ö/g, "o").replace(/ü/g, "u");
+const isNoun = (stem: string) =>
+  stem.length >= 3 && (germanNounReading(stem) !== null || germanNounReading(`${stem}e`) !== null);
+let genders: Map<string, GermanGenderReading> | undefined;
+
+function genderTable(): Map<string, GermanGenderReading> {
+  if (genders) return genders;
+  genders = new Map();
+  const lists = GENDER_DATA as unknown as Record<string, string>;
+  for (const [i, code] of [...GENDER_DATA.GENDERS].entries()) {
+    const gender = code.toLowerCase() as GermanGender;
+    const reading = { gender, plural: code !== gender };
+    for (const word of frontDecoded(lists[`GENDER_${i}`])) genders.set(word, reading);
+  }
+  return genders;
+}
+
+/**
+ * Whether a word can open a compound: a noun (with its linking -s, -es, -n or -en), an
+ * adjective or a verb stem ("Haus|tür", "Verkehrs|schild", "Groß|stadt", "Schreib|tisch").
+ */
+function compoundStart(first: string): boolean {
+  if (PARTICLES.has(first)) return false;
+  for (const stem of new Set([first, first.replace(/(?:e?s|e?n)$/, "")])) {
+    if (stem.length < 3) continue;
+    if (germanNounReading(stem) !== null || germanAdjective(stem)) return true;
+    if (germanInfinitive(`${stem}en`) || germanInfinitive(`${stem}n`)) return true;
+  }
+  return false;
+}
+
+/**
+ * The gender of a noun form, from the n-gram table, its compound head ("Haustür" as "Tür"), the
+ * feminine -in of a masculine noun, or a suffix that fixes it ("-ung" is left out: "der
+ * Sprung"). Null when unknown or of two genders.
+ */
+export function germanGender(word: string): GermanGenderReading | null {
+  const w = word.toLowerCase().normalize("NFC");
+  if (TWO_GENDERS.has(w)) return null;
+  const table = genderTable();
+  const known = table.get(w);
+  if (known) return known;
+  for (let i = 3; i <= w.length - 3; i++) {
+    const head = w.slice(i);
+    const mixed = TWO_GENDERS.has(head) || MIXED_HEADS.has(head);
+    if (!mixed && !table.has(head)) continue;
+    // A long head after a long first part needs no check of the first part
+    // ("Kostenvoran|schlag").
+    if ((head.length < 5 || i < 4) && !compoundStart(w.slice(0, i))) continue;
+    return mixed ? null : table.get(head)!;
+  }
+  // "Lehrerin", "Polizistin": the feminine of a person noun.
+  if (/(?:er|ist|ent|ant|eur|or|at|oge)in$/.test(w) && isNoun(w.slice(0, -2))) return FEMININE;
+  // "Häuschen", "Brötchen", "Fräulein": a diminutive ("Kuchen", "Kirchen" are not).
+  // "Kirchen" is the plural of "Kirche".
+  const small = /^(.+)(?:chen|lein)$/.exec(w);
+  if (
+    small &&
+    germanNounReading(w.slice(0, -1)) === null &&
+    (isNoun(small[1]) || isNoun(deumlaut(small[1])))
+  ) {
+    return DIMINUTIVE;
+  }
+  return SUFFIX_GENDERS.find(([suffix]) => suffix.test(w))?.[1] ?? null;
 }
