@@ -47,6 +47,9 @@ test("a noun-phrase subject agrees with its verb", () => {
       "The clerk who answers calls rarely forgets a name.",
     ],
     ["Anyone who tries hard succeed in the end.", "Anyone who tries hard succeeds in the end."],
+    // A singular head and a verb-only bare form.
+    ["My uncle arrive.", "My uncle arrives."],
+    ["The outcome depend on the weather.", "The outcome depends on the weather."],
   ]) {
     const found = scan(input);
     expect({ input, count: found.length }).toEqual({ input, count: 1 });
@@ -59,6 +62,10 @@ test("collectives, objects, subjunctives and compound nouns stay silent", () => 
   for (const text of [
     "The dog barks at night.",
     "The man who saw the dogs run away left.",
+    "Your ticket please.",
+    "We ask that the user restart the app.",
+    "The bus stop at the corner.",
+    "The man let us in.",
     "The nurse who helped clean the ward left.",
     "The girls who play sports.",
     "A clerk that can not find it.",

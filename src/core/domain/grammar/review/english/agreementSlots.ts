@@ -166,6 +166,9 @@ function nounSubject(ctx: DetectContext): RawFinding[] {
         !(read.plural && englishWordInfo(head)?.adjective && /s$/.test(tokens[i + 1]?.lower ?? ""))
       )
         break;
+      // A bare verb with no noun reading after a singular head: "The dog eat.", "Our success
+      // depend on…".
+      if (head && !number && bareVerbOnly(word)) break;
       // A postmodifier after the head ("the solvents present in…") or an adjective used as a
       // noun ("the rich"): not this frame.
       if (head && (!number || read?.adjective)) {
@@ -224,7 +227,16 @@ function nounSubject(ctx: DetectContext): RawFinding[] {
       const fix = pluralOf(verb, tokens[verbAt + 1], tokens[verbAt + 2]);
       if (fix) push(ctx, findings, verb, fix, m.index);
     } else if (!/^(?:these|those|many|several|both|some|most)$/.test(det)) {
-      const fix = TO_SINGULAR[normal(verb.lower)];
+      let fix = TO_SINGULAR[normal(verb.lower)];
+      // "We ask that the user restart": a mandative subjunctive keeps the bare verb.
+      if (
+        !fix &&
+        verbAt === i &&
+        !/^(?:that|lest)$/.test(wordBefore(ctx, m.index)) &&
+        bareVerbOnly(verb.lower) &&
+        closedAfter(tokens[verbAt + 1])
+      )
+        fix = englishInflect(verb.lower, "third") ?? "";
       if (fix) push(ctx, findings, verb, fix, m.index);
     }
   }
@@ -472,6 +484,24 @@ function relativeClauseSubject(ctx: DetectContext): RawFinding[] {
       }
     }
   return findings;
+}
+
+/** A base verb and nothing else: no noun, adjective or same-spelled past ("let", "put"). */
+function bareVerbOnly(word: string): boolean {
+  // "Your ticket please.": a politeness word, not a verb.
+  if (FUNCTION_WORDS.has(word) || /s$|^(?:please|thank|beware)$/.test(word)) return false;
+  const read = englishWordInfo(word);
+  const forms = englishVerbForms(word);
+  return (
+    !!read &&
+    read.verbs.some((v) => v.form === "base" && v.lemma === word) &&
+    read.verbs.every((v) => v.form === "base") &&
+    !read.noun &&
+    !read.adjective &&
+    !read.adverb &&
+    !nounNumber(word) &&
+    !(forms && (forms.past === word || forms.participle === word))
+  );
 }
 
 /** An object, particle, preposition, adverb or the clause end after a verb that is also a noun. */
