@@ -197,9 +197,11 @@ const EXTENSIONS: Array<[CatalogRuleId, Record<string, Fixture>]> = [
           ["Apartir de hoje.", "A partir de hoje."],
           ["Porisso fui.", "Por isso fui."],
           ["Faz denovo.", "Faz de novo."],
+          ["Ele ficou atoa o dia inteiro.", "Ele ficou à toa o dia inteiro."],
         ],
         neg: [
           "De repente choveu.",
+          "O rebocador atoa o barco até o cais.",
           "O agente chegou.",
           "Embaixo da mesa.",
           "A palavra “derrepente” não existe.",
