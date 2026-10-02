@@ -1595,6 +1595,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Po quando, se lub enquanto portugalski używa trybu łączącego czasu przyszłego, który w czasownikach nieregularnych różni się od bezokolicznika (quando eu vir, se nós fizermos).",
     "Depois de quando, se ou enquanto usa-se o futuro do subjuntivo, que nos verbos irregulares difere do infinitivo (quando eu vir, se nós fizermos).",
   ],
+  review_msg_pt_regency: [
+    "This verb takes the preposition a: assistir ao filme (to watch), obedecer aos pais, preferir uma coisa a outra.",
+    "Ce verbe se construit avec la préposition a : assistir ao filme (regarder), obedecer aos pais, preferir uma coisa a outra.",
+    "Ovaj glagol traži prijedlog a: assistir ao filme (gledati), obedecer aos pais, preferir uma coisa a outra.",
+    "Este verbo rige la preposición a: assistir ao filme (ver), obedecer aos pais, preferir uma coisa a outra.",
+    "Αυτό το ρήμα συντάσσεται με την πρόθεση a: assistir ao filme (παρακολουθώ), obedecer aos pais, preferir uma coisa a outra.",
+    "Verbet styr prepositionen a: assistir ao filme (titta på), obedecer aos pais, preferir uma coisa a outra.",
+    "Dieses Verb verlangt die Präposition a: assistir ao filme (ansehen), obedecer aos pais, preferir uma coisa a outra.",
+    "Ten czasownik łączy się z przyimkiem a: assistir ao filme (oglądać), obedecer aos pais, preferir uma coisa a outra.",
+    "Regência: este verbo pede a preposição a — assistir ao filme (ver), obedecer aos pais, preferir uma coisa a outra.",
+  ],
   review_msg_pt_ao90: [
     "1990 Portuguese spelling: prefixes join their word unless it starts with h or the same vowel (autoestima, micro-ondas), and months and weekdays are lowercase.",
     "Orthographe portugaise de 1990 : les préfixes se soudent au mot sauf devant h ou la même voyelle (autoestima, micro-ondas), et mois et jours s’écrivent en minuscules.",

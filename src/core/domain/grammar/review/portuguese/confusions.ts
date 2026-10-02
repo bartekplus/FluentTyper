@@ -73,7 +73,43 @@ const IS_ADJECTIVE =
 const STATE =
   "(?:bem|mal|certo|certa|errado|errada|pronto|pronta|ótimo|ótima|cheio|cheia|cansado|cansada|feliz|triste|doente|ocupado|ocupada|com|sem|em|no|na|nos|nas|muito|tão|sendo|quase|perto|longe|frio|quente|melhor|pior)";
 
+// "a" fused with the article that follows it.
+const WITH_A: Record<string, string> = { o: "ao", a: "à", os: "aos", as: "às" };
+const SHOWS =
+  "filmes?|jogos?|programas?|shows?|espetáculos?|aulas?|novelas?|séries?|vídeos?|partidas?|apresentaç(?:ão|ões)|peças?|concertos?|palestras?|missas?|desfiles?|televisão|tv|telejornal|final|finais|corrida|luta|treino|ensaio";
+// After these "a" is the bare preposition ("assistir a uma aula", "obedecer a
+// leis"), or the crase is optional ("obedecer a sua mãe"); "o" and "os" are always the article.
+const NOT_ARTICLE_NEXT =
+  "(?!\\p{Ll}+s(?![\\p{L}]))(?!(?:um|uma|uns|umas|est[ea]s?|ess[ea]s?|aquel[ea]s?|tod[oa]s?|cada|qualquer|nenhum|nenhuma|cert[oa]s?|vári[oa]s|muit[oa]s?|pouc[oa]s?|dois|duas|três|seus?|suas?|meus?|minhas?|teus?|tuas?|nossos?|nossas?)(?![\\p{L}]))";
+const ASSISTIR =
+  "assist(?:o|e|es|imos|em|i|iu|iram|ia|iam|ir|indo|irei|irá|iremos|irão|iria|iriam|a|am)";
+const OBEDECER =
+  "(?:des)?obedec(?:e|em|emos|i|eu|eram|ia|iam|er|endo|erei|erá|eremos|erão|eria|eriam)|(?:des)?obedeço|(?:des)?obedeça|(?:des)?obedeçam";
+const PREFERIR =
+  "prefiro|prefere|preferes|preferimos|preferem|preferia|preferiam|preferiria|preferiríamos|preferi|preferiu|preferiram|preferir|preferível";
+
 const FRAMES: Frame[] = [
+  // "assistir ao filme" (to watch); "assistir o paciente" (to help) keeps its object.
+  {
+    pattern: `${ASSISTIR}${S}(?<target>os?|as?(?=${S}${NOT_ARTICLE_NEXT}))${S}(?=(?:\\p{Ll}+${S})?(?:${SHOWS})${W})`,
+    alternatives: (typed) => [WITH_A[typed.toLowerCase()]],
+    messageKey: "review_msg_pt_regency",
+  },
+  // "obedecer aos pais", "desobedecer à lei".
+  {
+    pattern: `(?:${OBEDECER})${S}(?<target>os?|as?(?=${S}${NOT_ARTICLE_NEXT}))${S}(?=\\p{Ll}{2,})`,
+    alternatives: (typed) => [WITH_A[typed.toLowerCase()]],
+    messageKey: "review_msg_pt_regency",
+  },
+  // "prefiro chá a café", not "do que café".
+  {
+    pattern: `(?:${PREFERIR})${S}(?:[^\\s.,;:!?]+${S}){1,5}(?<!(?:mais|menos|melhor|pior|maior|menor|antes|tanto)${S})(?<target>do${S}que(?:${S}(?:o|a|os|as)(?=${S}))?)${W}`,
+    alternatives: (typed) => {
+      const article = /\s(o|a|os|as)$/i.exec(typed)?.[1].toLowerCase();
+      return [article ? WITH_A[article] : "a"];
+    },
+    messageKey: "review_msg_pt_regency",
+  },
   // "eles tem" -> "eles têm", "elas contém" -> "elas contêm".
   {
     pattern: `${PLURAL_SUBJECT}${SPACE}${SUBJECT_ADVERB}(?<target>${TER_VIR})${W}`,

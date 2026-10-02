@@ -231,6 +231,7 @@ export type ReviewMessageKey =
   | "review_msg_pt_comma"
   | "review_msg_pt_agreement"
   | "review_msg_pt_future_subjunctive"
+  | "review_msg_pt_regency"
   | "review_msg_pt_ao90";
 
 export type BulkDecision =
