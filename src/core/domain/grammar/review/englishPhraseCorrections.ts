@@ -238,6 +238,16 @@ function toFinding(
   const curly =
     typed.includes("’") ||
     (!typed.includes("'") && ctx.text.slice(Math.max(0, start - 200), end + 200).includes("’"));
+  // A Polish style row on a capital inside the sentence meets a name ("w Wysokiej Cenie").
+  if (
+    phrase.ruleId === "stylePhrasing" &&
+    ctx.lang.startsWith("pl") &&
+    typed !== typed.toUpperCase() &&
+    (typed.match(/\p{L}+/gu) ?? []).some(
+      (word, i) => /^\p{Lu}/u.test(word) && (i > 0 || !sentenceStart),
+    )
+  )
+    return null;
   const abbreviation =
     (phrase.ruleId === "stylePhrasing" || phrase.ruleId === "styleWordChoice") && !/\s/.test(typed);
   if (

@@ -2212,6 +2212,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Po „żeby”, „aby” i „gdyby” końcówkę osobową dołączamy do spójnika, a czasownik zostaje w formie bez niej: „żebym zrobił”, „gdybyś przyszła”.",
     "Depois de “żeby”, “aby” ou “gdyby”, a desinência de pessoa vai na conjunção e o verbo fica na forma simples do passado: “żebym zrobił”, “gdybyś przyszła”.",
   ],
+  review_msg_pl_negated_genitive: [
+    "In Polish, a negated verb takes its direct object in the genitive: “nie mam czasu”, “nie widzę tej książki”.",
+    "En polonais, un verbe à la forme négative met son complément d’objet direct au génitif : « nie mam czasu », « nie widzę tej książki ».",
+    "U poljskom zanijekani glagol traži izravni objekt u genitivu: „nie mam czasu”, „nie widzę tej książki”.",
+    "En polaco, un verbo negado lleva el complemento directo en genitivo: «nie mam czasu», «nie widzę tej książki».",
+    "Στα πολωνικά, ένα ρήμα σε άρνηση παίρνει το άμεσο αντικείμενο σε γενική: «nie mam czasu», «nie widzę tej książki».",
+    "På polska står objektet till ett nekat verb i genitiv: ”nie mam czasu”, ”nie widzę tej książki”.",
+    "Im Polnischen steht das direkte Objekt eines verneinten Verbs im Genitiv: „nie mam czasu“, „nie widzę tej książki“.",
+    "Po zaprzeczonym czasowniku dopełnienie bliższe przechodzi w dopełniacz: „nie mam czasu”, „nie widzę tej książki”.",
+    "Em polonês, um verbo negado leva o objeto direto no genitivo: “nie mam czasu”, “nie widzę tej książki”.",
+  ],
   review_msg_pl_agreement: [
     "In Polish, a demonstrative, adjective or numeral agrees with its noun in case, number and gender: “tę książkę”, “to dziecko”, “pięć plików”.",
     "En polonais, le démonstratif, l’adjectif ou le numéral s’accorde avec son nom en cas, nombre et genre : « tę książkę », « to dziecko », « pięć plików ».",
