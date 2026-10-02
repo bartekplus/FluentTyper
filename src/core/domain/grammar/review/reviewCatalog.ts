@@ -479,6 +479,38 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     bulk: "individual",
     languages: ["pl_PL"],
   },
+  polishCaseAgreement: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "grammar",
+    kind: "agreement",
+    bulk: "individual",
+    languages: ["pl_PL"],
+  },
+  polishTypography: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "typography",
+    kind: "spacing",
+    bulk: "individual",
+    languages: ["pl_PL"],
+  },
+  polishQuotes: {
+    review: "supported",
+    defaultEnabled: false,
+    category: "typography",
+    kind: "marks",
+    bulk: "individual",
+    languages: ["pl_PL"],
+  },
+  polishCapitalization: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "typography",
+    kind: "capitalization",
+    bulk: "individual",
+    languages: ["pl_PL"],
+  },
 
   englishDateConsistency: {
     review: "supported",

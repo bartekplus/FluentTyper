@@ -17,6 +17,7 @@
     "generate:arabic-lexicon": "bun scripts/generate-arabic-lexicon.ts",
     "generate:portuguese-lexicon": "bun scripts/generate-portuguese-lexicon.ts",
     "generate:spanish-lexicon": "bun scripts/generate-spanish-lexicon.ts",
+    "generate:polish-lexicon": "bun scripts/generate-polish-lexicon.ts",
     "generate:french-lexicon": "bun scripts/generate-french-lexicon.ts",
     "lint": "oxlint --type-aware --deny-warnings --report-unused-disable-directives .",
     "typecheck": "bun tsc --noEmit",
