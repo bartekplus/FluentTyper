@@ -1,4 +1,5 @@
 import type { DetectContext, RawFinding } from "../reviewDetectors";
+import { nounTags, onlyNoun } from "./lexicon";
 import { findingAt, isPl, owned, PREPOSITIONS, sentenceStartAt, userOrNamed } from "./shared";
 
 /*
@@ -139,7 +140,8 @@ function extraCommas(ctx: DetectContext): RawFinding[] {
 const RELATIVE = "który|która|które|którego|której|któremu|którą|którym|których|którymi|którzy";
 /** Question words that open an indirect question or a clause of place: "nie wiem, gdzie". */
 const QUESTION_WORDS = "dlaczego|gdzie|kiedy";
-const SUBORDINATORS = `że|iż|żeby|ażeby|aby|ponieważ|gdyż|jeśli|jeżeli|gdyby|zanim|dopóki|gdy|zamiast|ale|lecz|${QUESTION_WORDS}|${RELATIVE}`;
+const JAKI = "jaki|jaka|jakie|jakiego|jakiej|jakiemu|jaką|jakim|jakich|jakimi";
+const SUBORDINATORS = `że|iż|żeby|ażeby|aby|by|ponieważ|gdyż|jeśli|jeżeli|gdyby|zanim|dopóki|gdy|zamiast|ale|lecz|${QUESTION_WORDS}|${RELATIVE}|${JAKI}`;
 /** What makes the word after a subordinator part of a set phrase: "kiedy indziej", "póki co". */
 const SET_AFTER: Record<string, RegExp> = {
   kiedy: /^(?:indziej|niekiedy|bądź)$/iu,
@@ -225,6 +227,38 @@ function missingCommas(ctx: DetectContext): RawFinding[] {
     if (SET_AFTER[sub]?.test(next)) continue;
     // A bare question word ends the sentence without a comma: "Nie powie dlaczego."
     if (!next && new RegExp(`^(?:${QUESTION_WORDS})$`).test(sub)) continue;
+    // "by" opens a clause of purpose before an infinitive ("wstąpił do domu, by się przebrać");
+    // "można by zrobić", "mógł by zrobić" (split "mógłby") keep the conditional particle.
+    if (sub === "by") {
+      const verb =
+        next === "się"
+          ? (/^[ \t ]+się[ \t ]+(\p{L}+)/u.exec(ctx.text.slice(end, end + 60))?.[1] ?? "")
+          : next;
+      if (
+        !/(?:ć|móc|biec|wlec|strzec|piec|rzec|tłuc)$/u.test(verb) ||
+        nounTags(verb.toLowerCase()) ||
+        /^(?:można|trzeba|warto|wolno|lepiej|dobrze|trudno|łatwo|należy|należało|wypada|wypadało|opłacało|coś|nic)$/iu.test(
+          prev,
+        ) ||
+        /^(?:mógł|mogł|mogl|chcia|chcie|musia|musie|miał|miel|umiał|umiel|potrafi|wola|wole|zdoła|powin)/iu.test(
+          prev,
+        )
+      )
+        continue;
+    }
+    // "jaki" opens a clause after a noun or an infinitive ("założeń, jakie mamy", "wyobrazić,
+    // jakie to było"), not as a question or an exclamation ("Jaki piękny dzień!").
+    if (
+      new RegExp(`^(?:${JAKI})$`).test(sub) &&
+      (!(/ć$/u.test(prev) || onlyNoun(nounTags(prev.toLowerCase()))) ||
+        !next ||
+        // "jakich trzydziestu tysięcy", "jakiej pół godziny": "some", before a number.
+        /^(?:\d|pół|półtor|jed|dw|trz|czter|pięć|pięci|sześ|siedem|siedmi|osiem|ośmi|dziewię|dziesię|kilk|par|set|stu|sto|tysi)/iu.test(
+          next,
+        ) ||
+        /^[^.!\n]*[?!]/u.test(ctx.text.slice(end, end + 200)))
+    )
+      continue;
     // "zamiast" opens a clause only before an infinitive ("zamiast pracować"), not a noun.
     if (sub === "zamiast" && !/(?:ć|c)$/u.test(next)) continue;
     // A direct question keeps its question word: "A ty gdzie idziesz?".

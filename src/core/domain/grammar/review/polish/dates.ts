@@ -249,7 +249,7 @@ function abbreviatedMonths(ctx: DetectContext): RawFinding[] {
  */
 const DECADE_WORDS = "lata|lat|latach|latami|latom";
 const FULL_DECADE = new RegExp(
-  `(?<=(?:^|[^\\p{L}])(?:${DECADE_WORDS})[ \\t\\u00a0]+)(?<year>1\\d[1-9]0|20[1-9]0)\\.`,
+  `(?<=(?:^|[^\\p{L}])(?:${DECADE_WORDS})[ \\t\\u00a0]{1,8})(?<year>1\\d[1-9]0|20[1-9]0)\\.`,
   "giu",
 );
 const ROMAN_CENTURY = [

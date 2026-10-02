@@ -251,7 +251,13 @@ describe("review detectors: capitalization and typography", () => {
       [33, 34],
       [43, 44],
     ]);
-    for (const text of ["i.e. this", "i. First item", "  i. Second item", "See Part i. Next"]) {
+    for (const text of [
+      "i.e. this",
+      "Bring fruit, i. e. apples.",
+      "i. First item",
+      "  i. Second item",
+      "See Part i. Next",
+    ]) {
       expect(only(text, rule)).toEqual([]);
     }
     // A loop variable can end a sentence too: one at a time.
