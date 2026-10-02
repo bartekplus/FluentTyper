@@ -7,7 +7,12 @@ import {
   VERB_BLOOM,
 } from "./germanLexicon.generated";
 import * as GENDER_DATA from "./germanGender.generated";
-import { ACCUSATIVE_VERBS, DATIVE_VERBS, NOUNS_OVER_ADJECTIVES } from "./germanUsage.generated";
+import {
+  ACCUSATIVE_VERBS,
+  DATIVE_VERBS,
+  NGRAM_NOUNS,
+  NOUNS_OVER_ADJECTIVES,
+} from "./germanUsage.generated";
 
 /**
  * What a lowercase German word is when it is also a noun form: only a noun ("zugriff" is not
@@ -122,7 +127,7 @@ export function germanVerbLike(word: string): boolean {
 export function germanNounReading(word: string): GermanNounReading | null {
   const w = word.normalize("NFC");
   finite ??= frontDecoded(FINITE_NOUNS);
-  extra ??= new Set(EXTRA_NOUNS.split(" "));
+  extra ??= new Set([...EXTRA_NOUNS.split(" "), ...frontDecoded(NGRAM_NOUNS)]);
   if (finite.has(w)) return "finite";
   if (extra.has(w)) return "noun";
   nounCascade ??= decodeCascade(NOUN_CASCADE);

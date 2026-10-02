@@ -643,6 +643,41 @@ export function deriveNounsAfterArticles(dic: string, aff: string): string[] {
   return deriveGermanLexicon(dic, aff).otherNouns.filter((w) => !NOT_NOUNS_AFTER_ARTICLES.has(w));
 }
 
+// The n-gram counts a word must show after determiners, and the share of its counts that is,
+// to be read as a noun the dictionary lacks.
+const NGRAM_NOUN_EVIDENCE = 100;
+const NGRAM_NOUN_SHARE = 0.5;
+// Endings of adjective and participle forms, which follow a determiner too ("die
+// umweltfreundlichste", "die eingereichten").
+const ADJECTIVE_LIKE = /(?:lich|ig|isch|bar|sam|haft|los|voll|end|t|st)(?:e|en|er|es|em)?$/;
+
+/**
+ * Lowercase words the dictionary lists in no form (it builds compounds such as "vorstellung",
+ * "kühlschrank" from parts) that the n-gram counts show mostly right after a determiner
+ * ("die vorstellung", "im kühlschrank"): nouns.
+ */
+export function deriveNgramNouns(dic: string, aff: string, ngrams: string): string[] {
+  const { lowercaseWords, nounOnly, finite, infinitive, ambiguous } = deriveGermanLexicon(dic, aff);
+  const known = new Set([...lowercaseWords, ...nounOnly, ...finite, ...infinitive, ...ambiguous]);
+  const determiners = new Set([...NOUN_DETERMINERS, ...PRONOUN_DETERMINERS, "dieser", "diesen"]);
+  const afterDeterminer = new Map<string, number>();
+  const total = new Map<string, number>();
+  for (const line of ngrams.split("\n")) {
+    const parts = line.split(" ");
+    if (parts.length !== 3) continue;
+    const [a, b, count] = parts;
+    if (known.has(b) || b.length < 4 || !/^[a-zäöüß]+$/.test(b) || ADJECTIVE_LIKE.test(b)) {
+      continue;
+    }
+    total.set(b, (total.get(b) ?? 0) + Number(count));
+    if (determiners.has(a)) afterDeterminer.set(b, (afterDeterminer.get(b) ?? 0) + Number(count));
+  }
+  return [...afterDeterminer]
+    .filter(([w, n]) => n >= NGRAM_NOUN_EVIDENCE && n >= NGRAM_NOUN_SHARE * total.get(w)!)
+    .map(([w]) => w)
+    .sort();
+}
+
 export function buildGermanUsage(dic: string, aff: string, ngrams: string): string {
   const { dative, accusative } = deriveGovernedVerbs(dic, aff, ngrams);
   const line = (name: string, value: string) => {
@@ -663,6 +698,8 @@ export function buildGermanUsage(dic: string, aff: string, ngrams: string): stri
         ].sort(),
       ),
     ),
+    "// Nouns the dictionary lacks, as the n-gram counts show them after determiners.",
+    line("NGRAM_NOUNS", frontCode(deriveNgramNouns(dic, aff, ngrams))),
     line("DATIVE_VERBS", frontCode(dative)),
     line("ACCUSATIVE_VERBS", frontCode(accusative)),
     "",

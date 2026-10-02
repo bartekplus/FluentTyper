@@ -134,6 +134,7 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Am frühen morgen fuhren wir los.", "Am frühen Morgen fuhren wir los."],
         ["Sie vergoss keine tränen darüber.", "Sie vergoss keine Tränen darüber."],
         ["Gib dir bitte etwas mühe.", "Gib dir bitte etwas Mühe."],
+        ["Die Milch steht im kühlschrank.", "Die Milch steht im Kühlschrank."],
         ["Für die Prüfung brauchst du viel geduld.", "Für die Prüfung brauchst du viel Geduld."],
         // Adjectives used as nouns with no noun after them.
         ["Was habt ihr heute schönes erlebt?", "Was habt ihr heute Schönes erlebt?"],
@@ -947,6 +948,8 @@ test.each([
   ["kosten", "infinitive"],
   ["vertrag", "finite"],
   ["zeit", "noun"],
+  ["kühlschrank", "noun"],
+  ["vorstellung", "noun"],
   ["gute", null],
   ["morgen", null],
   ["schnell", null],
