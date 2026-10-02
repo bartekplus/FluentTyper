@@ -88,25 +88,36 @@ describe("SuggestionElementDiscovery", () => {
     host.remove();
   });
 
-  test("queryCandidates(host) scans inside the host's shadow root", () => {
-    const host = document.createElement("div");
-    document.body.appendChild(host);
-    const shadow = host.attachShadow({ mode: "open" });
-    const shadowInput = document.createElement("input");
-    shadowInput.type = "text";
-    shadow.appendChild(shadowInput);
+  test.each(["div", "section"])(
+    "queryCandidates(%s host) reports and scans its shadow root",
+    (tag) => {
+      const host = document.createElement(tag);
+      document.body.appendChild(host);
+      const shadow = host.attachShadow({ mode: "open" });
+      const discovered: ShadowRoot[] = [];
+      const discovery = new SuggestionElementDiscovery({
+        selectors: "input, section",
+        isCandidateElement: (elem: HTMLElement): elem is SuggestionElement =>
+          elem.tagName === "INPUT" || elem.tagName === "SECTION",
+        onShadowRootDiscovered: (root) => discovered.push(root),
+      });
 
-    const discovery = new SuggestionElementDiscovery({
-      selectors: "input",
-      isCandidateElement: (elem: HTMLElement): elem is SuggestionElement =>
-        elem.tagName === "INPUT",
-    });
+      // Register even an empty root so fields added later can be observed.
+      expect(discovery.queryCandidates(host)).toEqual(tag === "section" ? [host] : []);
+      expect(discovered).toEqual([shadow]);
+      discovered.length = 0;
 
-    const candidates = discovery.queryCandidates(host);
-    expect(candidates).toContain(shadowInput);
+      const shadowInput = document.createElement("input");
+      shadowInput.type = "text";
+      shadow.appendChild(shadowInput);
 
-    host.remove();
-  });
+      const candidates = discovery.queryCandidates(host);
+      expect(candidates).toContain(shadowInput);
+      expect(discovered).toEqual([shadow]);
+
+      host.remove();
+    },
+  );
 
   test("discovers inputs nested in doubly-recursive shadow trees", () => {
     const outerHost = document.createElement("div");
