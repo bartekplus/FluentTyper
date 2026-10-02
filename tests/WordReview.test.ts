@@ -430,6 +430,58 @@ test("Word Review rejects composing and detached editors and never retries an un
   expect(h.target.read()).toEqual({ ok: false, reason: "detached" });
 });
 
+test("Word explicit Review recovers a replaced editor root without replaying its old token", async () => {
+  const h = fixture(["teh"]);
+  const before = h.target.read();
+  if (!before.ok) throw new Error("read failed");
+  const token = bridge({ action: "read", selection: false });
+  if (!("ok" in token) || !token.ok) throw new Error("read failed");
+  document
+    .getElementById("WACViewPanel_EditingElement")!
+    .dispatchEvent(new Event("compositionstart", { bubbles: true }));
+  h.target.element.replaceWith(h.target.element.cloneNode(true));
+  expect(bridge({ action: "read", selection: false })).toEqual({
+    ok: false,
+    reason: "unsupported",
+  });
+  document.getElementById("WACViewPanel_EditingElement")!.focus();
+  document
+    .getElementById("WACViewPanel_EditingElement")!
+    .dispatchEvent(new Event("compositionstart", { bubbles: true }));
+  expect(bridge({ action: "read", selection: true })).toEqual({ ok: false, reason: "composing" });
+  document
+    .getElementById("WACViewPanel_EditingElement")!
+    .dispatchEvent(new Event("compositionend", { bubbles: true }));
+  const resolved = resolveReviewTarget(document, h.target);
+  if (!resolved.ok) throw new Error("new root did not resolve");
+  const initial = resolved.target.read();
+  expect(initial.ok).toBe(true);
+  const edit = { start: 0, end: 3, original: "teh", replacement: "the" };
+  expect(
+    bridge({
+      action: "apply",
+      token: token.token,
+      before: before.text,
+      after: "the",
+      signature: before.signature,
+      edits: [edit],
+    }),
+  ).toEqual({ status: "stale" });
+  expect(h.writes).toBe(0);
+  const fresh = resolved.target.read();
+  if (!fresh.ok) throw new Error("read failed");
+  expect(
+    await resolved.target.apply({
+      before: fresh.text,
+      after: "the",
+      signature: fresh.signature,
+      edits: [edit],
+    }),
+  ).toEqual({ status: "applied" });
+  expect(h.paragraphs[0].text).toBe("the");
+  resolved.target.dispose();
+});
+
 test("Word Review runs native proofreading while its input proxy stays unmanaged", async () => {
   const h = fixture(["We saw teh cat."]);
   expect(

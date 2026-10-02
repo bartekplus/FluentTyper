@@ -175,10 +175,10 @@ export function installWordReviewMainWorld(doc: Document = document): () => void
   let story: { body: WordBody; root: HTMLElement; url: string } | null = null;
   let pending: { token: string; snapshot: ModelSnapshot; root: HTMLElement; url: string } | null =
     null;
-  let composing = false;
+  let composing: HTMLElement | null = null;
   const composition = (event: Event) => {
     if (!(event.target instanceof HTMLElement) || !isWordInputProxy(event.target)) return;
-    composing = event.type === "compositionstart";
+    composing = event.type === "compositionstart" ? event.target : null;
     pending = null;
   };
   const listener = (event: Event) => {
@@ -196,7 +196,7 @@ export function installWordReviewMainWorld(doc: Document = document): () => void
         return;
       }
       const input = doc.getElementById(WORD_INPUT_ID)!;
-      if (composing) {
+      if (composing?.isConnected && root.contains(composing)) {
         reply = { ok: false, reason: "composing" };
         pending = null;
       } else if (
@@ -213,7 +213,19 @@ export function installWordReviewMainWorld(doc: Document = document): () => void
         const extension = (doc.defaultView as WordWindow | null)?.WordEditor?.Extension;
         const model = extension?.AutomationUtility?.getDocument();
         if (!model) throw new Error("unsupported");
-        if (story && (story.root !== root || story.url !== doc.URL)) throw new Error("unsupported");
+        if (story && (story.root !== root || story.url !== doc.URL)) {
+          pending = null;
+          const active = doc.activeElement;
+          if (
+            request.action !== "read" ||
+            request.selection !== true ||
+            !(active instanceof HTMLElement) ||
+            !root.contains(active) ||
+            !isWordInputProxy(active)
+          )
+            throw new Error("unsupported");
+          story = null; // Only a focused initial Review read can bind a replacement editor.
+        }
         if (request.action === "matches-selection") {
           const selected = model.getSelection().parentBody ?? model.body;
           const id = selected.paragraphs.getFirst().uniqueLocalId;

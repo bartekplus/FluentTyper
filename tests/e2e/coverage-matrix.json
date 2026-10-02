@@ -4700,6 +4700,11 @@
         {
           "layer": "unit",
           "file": "tests/WordReview.test.ts",
+          "test": "Word explicit Review recovers a replaced editor root without replaying its old token"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/WordReview.test.ts",
           "test": "Word Fix all commits multiple offsets and paragraphs in one native transaction"
         },
         {
