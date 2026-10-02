@@ -519,6 +519,13 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     kind: "numbers",
     bulk: "individual",
   },
+  englishTenseConsistency: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "grammar",
+    kind: "wordForm",
+    bulk: "individual",
+  },
   // English tables and typography (review/english/, en-tables2).
   englishApostrophes: {
     review: "supported",
@@ -564,6 +571,14 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     kind: "marks",
     bulk: "individual",
     note: "Optional: many writers leave out the comma after a short opening phrase.",
+  },
+  styleClauseComma: {
+    review: "supported",
+    defaultEnabled: false,
+    category: "punctuation",
+    kind: "marks",
+    bulk: "individual",
+    note: "Optional: short joined clauses often go without the comma.",
   },
 
   englishPronounCase: {

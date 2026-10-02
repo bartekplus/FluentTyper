@@ -87,8 +87,26 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
           "Quand vous arrivez à la gare, appelez-moi.",
         ],
         ["Vous aimer marcher le long du canal.", "Vous aimez marcher le long du canal."],
+        // "c'est" + an infinitive with a degree adverb, a time word or a question.
+        ["Ce n'est pas très compliquer.", "Ce n'est pas très compliqué."],
+        ["Comment c'est arriver ?", "Comment c'est arrivé ?"],
+        // An infinitive right after a noun for its participle.
+        [
+          "Elle portait une robe froisser par le voyage.",
+          "Elle portait une robe froissée par le voyage.",
+        ],
+        ["Il a les mains geler.", "Il a les mains gelées."],
       ],
       neg: [
+        "C'est rêver.",
+        "Partir, c'est mourir un peu.",
+        "Ce qui compte, c'est gagner.",
+        "C'est manger des pommes qui compte.",
+        "Elle a senti son cœur cogner.",
+        "Dans cette pièce fumer est interdit.",
+        "Il peut de cette manière trier les fiches.",
+        "Elle laisse les enfants jouer dehors.",
+        "Ma mère aimer le chocolat.",
         "Il a une machine a laver toute neuve.",
         "Il y a dîner chez Paul ce soir.",
         "Il est boucher depuis vingt ans.",
@@ -195,8 +213,15 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Il partira peut être demain.", "Il partira peut-être demain."],
         ["Vous avez peut être raison.", "Vous avez peut-être raison."],
         ["Peut être viendra-t-il.", "Peut-être viendra-t-il."],
+        // Hyphenated names and compounds of three parts.
+        ["Elle a grandi à Aix en Provence.", "Elle a grandi à Aix-en-Provence."],
+        ["Le colis est pour Anne Sophie.", "Le colis est pour Anne-Sophie."],
+        ["Le bureau est au rez de chaussée.", "Le bureau est au rez-de-chaussée."],
       ],
       neg: [
+        "Tout Paris est à la fête.",
+        "Ils luttent corps à corps.",
+        "Il est parti sur le champ de bataille.",
         "Quand tu viens tu manges ?",
         "Le but est ce que tu dis.",
         "C'est ce que je pense ?",
@@ -257,8 +282,45 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Ce matin, il terminé son rapport.", "Ce matin, il a terminé son rapport."],
         ["Hier, j'aperçu un renard.", "Hier, j'ai aperçu un renard."],
         ["Elle s'en souvenu.", "Elle s'en est souvenu."],
+        // Names, longer noun phrases, relative clauses and "et" between two clauses.
+        ["Hier soir, Nathalie viens de rentrer.", "Hier soir, Nathalie vient de rentrer."],
+        // A participle after a demonstrative with an object; an -ir/-re infinitive.
+        ["Cela coûté une fortune.", "Cela a coûté une fortune."],
+        ["Tu lui écrire demain.", "Tu lui écris demain."],
+        [
+          "Je crois que Lucas et Inès arrive demain.",
+          "Je crois que Lucas et Inès arrivent demain.",
+        ],
+        [
+          "Les colis que tu as commandés hier arrive ce soir.",
+          "Les colis que tu as commandés hier arrivent ce soir.",
+        ],
+        [
+          "Le jardin dont je m'occupe chaque été fleurissent en mai.",
+          "Le jardin dont je m'occupe chaque été fleurit en mai.",
+        ],
+        [
+          "Les voisins qui habitent au fond de la rue me salue souvent.",
+          "Les voisins qui habitent au fond de la rue me saluent souvent.",
+        ],
+        [
+          "Les tarifs postaux actuels augmente encore.",
+          "Les tarifs postaux actuels augmentent encore.",
+        ],
+        [
+          "Il pleuvait fort et les rivières déborde.",
+          "Il pleuvait fort et les rivières débordent.",
+        ],
       ],
       neg: [
+        "Paul viens ici !",
+        "Le pain et le vin sont bons.",
+        "Les deux tiers des habitants votent.",
+        "Les peintres tels que Picasso sont rares.",
+        "Agathe, Léo ainsi que Rudy vont l'aider.",
+        "Elle et Mrs. Smith sont là.",
+        "Les hommes avec lesquels tu parles sont partis.",
+        "Il connaît Berlin, Londres et Rome qui ont changé.",
         "Le prix du pain et du lait augmente.",
         "La plupart des invités sont partis.",
         "Un groupe de touristes attendent devant le musée.",
@@ -312,8 +374,11 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["J ai froid.", "J'ai froid."],
         ["Il n arrive jamais.", "Il n'arrive jamais."],
         ["Ils ont beaucoup d’ enfants.", "Ils ont beaucoup d’enfants."],
+        ["Passe-moi le sel sil te plaît.", "Passe-moi le sel s'il te plaît."],
+        ["On sortira sil fait beau.", "On sortira s'il fait beau."],
       ],
       neg: [
+        "Le sil est une argile ocre.",
         "Le oui l'emporte.",
         "La une du journal.",
         "De un à dix.",
@@ -462,6 +527,28 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Ils sont françaises depuis toujours.", "Ils sont français depuis toujours."],
         ["Elle est vraiment heureux de venir.", "Elle est vraiment heureuse de venir."],
         ["Les routes sont dangereux ce matin.", "Les routes sont dangereuses ce matin."],
+        // Past "de" complements, two subjects joined by "et", a participle that is also a noun.
+        ["La couleur des volets du salon est passé.", "La couleur des volets du salon est passée."],
+        ["Le niveau de la rivière était inquiétante.", "Le niveau de la rivière était inquiétant."],
+        ["La lampe et la table sont cassés.", "La lampe et la table sont cassées."],
+        ["Le vase et la tasse sont cassées.", "Le vase et la tasse sont cassés."],
+        ["Est-il entrée sans frapper ?", "Est-il entré sans frapper ?"],
+        // Reflexive verbs agree with their subject; quantifiers as subjects.
+        ["Elle s'est endormi dans le salon.", "Elle s'est endormie dans le salon."],
+        ["Les invités se sont installé au salon.", "Les invités se sont installés au salon."],
+        ["Certaines étaient arrivé en avance.", "Certaines étaient arrivées en avance."],
+        // Avoir l'air: the subject's inflection or the masculine singular of "air".
+        ["Ses voisines ont l'air ravie.", "Ses voisines ont l'air ravies."],
+        ["Il a l'air inquiète ce matin.", "Il a l'air inquiet ce matin."],
+        // Two adjectives joined by "et" or "ou" share their noun's gender and number.
+        ["Un hiver long et rigoureuse.", "Un hiver long et rigoureux."],
+        ["Une offre claire et avantageuses.", "Une offre claire et avantageuse."],
+        // A color with a shade is invariable.
+        ["Elle porte des gants verts foncés.", "Elle porte des gants vert foncé."],
+        // A modal before être or "avoir été".
+        ["Cette erreur peut être corrigé.", "Cette erreur peut être corrigée."],
+        ["Les murs semblent avoir été repeint.", "Les murs semblent avoir été repeints."],
+        ["Elle doit être arrivés tôt.", "Elle doit être arrivée tôt."],
         // After "été", after je/tu/nous, a demonstrative or an inversion.
         ["Les ponts ont été construites en 1900.", "Les ponts ont été construits en 1900."],
         ["Ce matin, la séance a été reporté.", "Ce matin, la séance a été reportée."],
@@ -477,6 +564,18 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Mes parents ont vendus leur maison.", "Mes parents ont vendu leur maison."],
       ],
       neg: [
+        "Elles se sont lavé les mains.",
+        "Elle a l'air content de son sort.",
+        "Les politiques économique et sociale du pays.",
+        "Les verts clairs dominent la toile.",
+        "Un ciel bleu clair.",
+        "Face à une situation incongrue et pris de panique, il fuit.",
+        "L'hiver est neigeux et dure longtemps.",
+        "Elles avaient l'air sérieux.",
+        "Ils se sont parlé hier soir.",
+        "Elles se sont vu refuser l'entrée.",
+        "Elles se sont rendu compte du problème.",
+        "La moitié des invités sont partis.",
         "Nous sommes fin prêts pour le départ.",
         "Ils avaient été pendant des années voisins.",
         "Se sont-elles écrit depuis ?",

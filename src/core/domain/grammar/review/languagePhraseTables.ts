@@ -591,16 +591,7 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
       ["houveram várias", "houve várias"],
       ...PORTUGUESE_PHRASES,
     ],
-    style: [
-      ["subir para cima", "subir"],
-      ["descer para baixo", "descer"],
-      ["entrar para dentro", "entrar"],
-      ["sair para fora", "sair"],
-      ["elo de ligação", "elo"],
-      ["encarar de frente", "encarar"],
-      ["há anos atrás", ["há anos", "anos atrás"]],
-      ...PORTUGUESE_STYLE,
-    ],
+    style: PORTUGUESE_STYLE,
   },
   pl: {
     // Feminine "poszłam" is correct; only the masculine blends are listed.

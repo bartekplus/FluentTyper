@@ -102,6 +102,7 @@ import { SPANISH_DETECTORS } from "./spanish";
 import { FRENCH_DETECTORS } from "./french";
 
 import { detectAll } from "./phraseTemplates";
+import { cacheable } from "./nativeReviewCache";
 
 export { MASK_CHAR };
 export { minimalEdits } from "./textRanges";
@@ -1549,11 +1550,11 @@ export const REVIEW_DETECTORS: ReadonlyArray<ReviewDetectorEntry> = [
     rules: ["englishItsContext", "englishLetsContext", "englishElsePossessive"],
     detect: contextualPossessives,
   },
-  { rules: ["englishFixedPrepositions"], detect: fixedPrepositions },
+  cacheable({ rules: ["englishFixedPrepositions"], detect: fixedPrepositions }),
   { rules: ["englishVerbComplements"], detect: verbComplements },
   { rules: ["englishPerfectParticiples"], detect: perfectParticiples },
   { rules: ["englishNounNumber"], detect: nounNumberConstructions },
-  { rules: ["englishUsagePhrases"], detect: usagePhrases },
+  cacheable({ rules: ["englishUsagePhrases"], detect: usagePhrases }),
   {
     rules: ["englishDoubledDegree"],
     detect: (ctx) => (ctx.lang === "en_US" ? doubledDegree(ctx) : doubledDegreeByLanguage(ctx)),

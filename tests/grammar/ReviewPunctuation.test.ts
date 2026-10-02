@@ -70,6 +70,47 @@ describe("styleIntroductoryComma (optional)", () => {
   });
 });
 
+describe("styleClauseComma (optional)", () => {
+  test.each([
+    ["The bus was late and we missed the start.", "The bus was late, and we missed the start."],
+    ["I called twice but she never picked up.", "I called twice, but she never picked up."],
+    [
+      "Our printer jammed again so I fixed it myself.",
+      "Our printer jammed again, so I fixed it myself.",
+    ],
+    [
+      "He packed the tent or the kids would complain.",
+      "He packed the tent, or the kids would complain.",
+    ],
+    ["I'm tired but there's still work to do.", "I'm tired, but there's still work to do."],
+    ["It rained all week and the river rose fast.", "It rained all week, and the river rose fast."],
+    [
+      "Thanks for the map and please call when you land.",
+      "Thanks for the map, and please call when you land.",
+    ],
+    ["Is the shop open today or should we wait?", "Is the shop open today, or should we wait?"],
+    ["Mia sold her bike and so she walks to work.", "Mia sold her bike, and so she walks to work."],
+    ["I liked the film although it ran too long.", "I liked the film, although it ran too long."],
+  ])("fixes %p", (text, expected) => {
+    expect(fixAll(text, scan(text, "styleClauseComma"))).toBe(expected);
+  });
+
+  test.each([
+    "I think Sam and I agree.",
+    "Water the plants and you will see buds by June.",
+    "Tell me if you go and I will join.",
+    "She left early and I did too.",
+    "Bring a coat so you can stay warm.",
+    "I saved money so that we could travel.",
+    "My sister and I painted the fence.",
+    "We sang, danced and laughed.",
+    "He was tired, and he went home.",
+    "Ask whether Ben or Lucy has the key.",
+  ])("keeps %p", (text) => {
+    expect(scan(text, "styleClauseComma")).toEqual([]);
+  });
+});
+
 describe("date commas and abbreviations (englishNotation)", () => {
   test.each([
     ["She flew on June 16,1963 alone.", "She flew on June 16, 1963 alone."],

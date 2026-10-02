@@ -218,12 +218,14 @@ Supported (**Typing** is the rule's default for typing; Review has separate swit
 | `englishIrregularForms`                | English        | unavailable | grammar     | word form          | individual only                                                                                                                                |
 | `englishPossessiveNouns`               | English        | unavailable | grammar     | word form          | individual only                                                                                                                                |
 | `englishDateConsistency`               | English        | unavailable | grammar     | numbers            | individual only                                                                                                                                |
+| `englishTenseConsistency`              | English        | unavailable | grammar     | word form          | individual only                                                                                                                                |
 | `englishApostrophes`                   | English        | unavailable | punctuation | marks              | individual only                                                                                                                                |
 | `englishNotation`                      | English        | unavailable | typography  | numbers            | individual only                                                                                                                                |
 | `englishTypography`                    | English        | unavailable | typography  | marks              | individual only; off by default in Review (optional typesetting)                                                                               |
 | `stylePassiveVoice`                    | English        | unavailable | style       | readability        | individual only; off by default in Review (optional style note)                                                                                |
 | `englishPunctuation`                   | English        | unavailable | punctuation | marks              | individual only                                                                                                                                |
 | `styleIntroductoryComma`               | English        | unavailable | punctuation | marks              | individual only; off by default in Review (optional comma style)                                                                               |
+| `styleClauseComma`                     | English        | unavailable | punctuation | marks              | individual only; off by default in Review (optional comma style)                                                                               |
 | `englishAuxiliaryBaseVerb`             | English        | unavailable | grammar     | word form          | individual only                                                                                                                                |
 | `englishPronounCase`                   | English        | unavailable | grammar     | word form          | individual only                                                                                                                                |
 | `englishSentenceStructure`             | English        | unavailable | grammar     | usage              | individual only                                                                                                                                |
@@ -400,6 +402,11 @@ left-out long nouns (a Bloom filter, so they only ever tell words from typos):
 - `englishDateConsistency`: a weekday beside a full date (with its year) that falls on another
   weekday ("Monday, 7 October 2014") offers the right weekday or the nearest date on the typed
   one; a day the month does not have ("June 31", "2/30/2024") is marked without a fix.
+- `englishTenseConsistency`: a past verb with "tomorrow" or "next week" at the clause's start
+  or end ("Tomorrow we cleaned", offers "will clean"), "will" + verb with "yesterday", "last
+  week" or "two days ago" (offers the past), both with no choice preselected; a past verb on a
+  full date that has not come yet ("We visited the client on 27/10/2090") is marked without a
+  fix. Reporting, planning and conditional sentences stay silent.
 - `englishApostrophes`: a plural written with 's after a plural quantifier ("two CD's",
   "several guest's") or before a verb ("most driver's would"), a verb with 's after its subject
   ("he see's", "it work's"), a doubled or spaced apostrophe ("we''ll", "I' m"), "other's" with
@@ -424,6 +431,11 @@ left-out long nouns (a Bloom filter, so they only ever tell words from typos):
   "In addition"; "However" only before a subject), between a phrase ending in an object pronoun and
   a new clause ("With it I can"), after a short condition ("If I can I will") and before a name
   addressed ("Thanks Maria").
+- `styleClauseComma`: optional comma before and/but/or/so/yet/although when both sides are complete
+  clauses: the first opens with its subject and has a finite verb, the second opens with a subject
+  and its verb, an inverted question, or "please" + a request. Subordinate or reported first
+  clauses, purpose "so I can", names before the coordinator and short echoes ("and I was too")
+  are left alone.
 - `englishPossessiveNouns`: a plural noun between a determiner and the noun it owns ("the cats
   tail is long", "a teachers lounge") offers "cat's" or "cats'" when the frame allows no
   other reading: the owned noun is followed by its verb, the phrase ends after a preposition

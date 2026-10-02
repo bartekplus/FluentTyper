@@ -52,8 +52,33 @@ function verbOnly(word: string): boolean {
 const isNoun = (word: string) =>
   !!englishWordInfo(word)?.noun || (word.length >= 8 && nounOnly(word) === "singular");
 
+// Nouns no suffix rule reaches from their verb.
+const VERB_NOUNS = new Map(
+  (
+    "respond:response prove:proof grow:growth succeed:success fail:failure choose:choice " +
+    "lose:loss believe:belief advise:advice receive:receipt withdraw:withdrawal arrive:arrival " +
+    "renew:renewal approve:approval deny:denial propose:proposal survive:survival " +
+    "remind:reminder resign:resignation invent:invention acknowledge:acknowledgment " +
+    "extend:extent|extension expire:expiry assemble:assembly publish:publication depart:departure " +
+    "injure:injury deploy:deployment understand:understanding begin:beginning " +
+    "complain:complaint pursue:pursuit maintain:maintenance perform:performance " +
+    "appear:appearance exist:existence rely:reliance insist:insistence explain:explanation " +
+    "describe:description decide:decision admit:admission submit:submission " +
+    "compare:comparison conclude:conclusion solve:solution pronounce:pronunciation " +
+    "occur:occurrence refer:reference prefer:preference behave:behavior relieve:relief " +
+    "emphasize:emphasis immigrate:immigration"
+  )
+    .split(" ")
+    .map((pair) => pair.split(":"))
+    .map(([verb, nouns]) => [verb, nouns.split("|")]),
+);
+// A verb that stands before another noun as its modifier: "the depart time" (departure time).
+const MODIFIER_NOUNS = new Set("depart arrive expire assemble".split(" "));
+
 /** Nouns built from a verb: the dictionary's own -ion/-ment, then common suffixes it lists. */
 function derivedNouns(verb: string): string[] {
+  const authored = VERB_NOUNS.get(verb);
+  if (authored) return authored;
   const flagged = englishVerbNouns(verb);
   if (flagged.length) return flagged;
   const stem = verb.replace(/e$/, "");
@@ -112,12 +137,27 @@ function verbAsNoun(ctx: DetectContext): RawFinding[] {
     // elsewhere ("the install script"); only a phrase end, preposition or verb follows.
     if (
       next?.kind === "word" &&
-      !/^(?:of|for|to|in|into|on|at|by|as|with|from|was|is|were|are|has|had|will|would|can|could|should|didn['’]t|did|does|and|but|or)$/.test(
+      !/^(?:of|for|to|in|into|on|at|by|as|with|from|was|is|were|are|has|had|will|would|can|could|should|didn['’]t|did|does|and|but|or|while|after|before|when|because|yesterday|today|wasn['’]t|isn['’]t|doesn['’]t|hasn['’]t)$/.test(
         next.lower,
-      )
+      ) &&
+      // "The withdraw succeeded": a past verb after an authored one ("an oxygenate used in"
+      // is a reduced relative); "the depart time": a listed modifier.
+      !(
+        VERB_NOUNS.has(word) &&
+        englishWordInfo(next.lower)?.verbs.some((v) => v.form === "past") &&
+        !englishWordInfo(next.lower)?.noun &&
+        !englishWordInfo(next.lower)?.verbs.some((v) => v.form === "base")
+      ) &&
+      !(MODIFIER_NOUNS.has(word) && (!!nounOnly(next.lower) || !!englishWordInfo(next.lower)?.noun))
     )
       continue;
     if (next?.kind === "other") continue;
+    // "on the lose" is "loose".
+    if (
+      word === "lose" &&
+      /on[ \t]+the[ \t]+$/i.test(ctx.text.slice(Math.max(0, m.index - 8), m.index + 4))
+    )
+      continue;
     const nouns = derivedNouns(word);
     if (!nouns.length) continue;
     const [start, end] = skip ? m.indices!.groups!.second : m.indices!.groups!.first;

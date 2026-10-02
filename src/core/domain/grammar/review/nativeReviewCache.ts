@@ -2,8 +2,14 @@ import type { PreparedReview } from "./reviewDiagnostics";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 import type { CatalogRuleId } from "../ruleCatalog";
 
-// Only these two detectors use the audited phraseTemplates/frameMatches read contract.
-const ELIGIBLE = new Set<CatalogRuleId>(["englishFixedPrepositions", "englishUsagePhrases"]);
+// Only detector entries marked here use the audited phraseTemplates/frameMatches read contract.
+// Marked by entry, not rule id: other detectors serve the same rules and must not share keys.
+const AUDITED = new WeakSet<object>();
+/** Marks a detector entry whose reads stay inside the window below, so its results are cached. */
+export function cacheable<T extends object>(entry: T): T {
+  AUDITED.add(entry);
+  return entry;
+}
 const MAX_ENTRIES = 64;
 const MAX_UNITS = 500_000;
 
@@ -24,8 +30,7 @@ export class NativeReviewCache {
   ): RawFinding[] {
     const snapshot = prepared.snapshot;
     if (
-      detector.rules.length !== 1 ||
-      !ELIGIBLE.has(detector.rules[0]) ||
+      !AUDITED.has(detector) ||
       snapshot.selection ||
       snapshot.incomplete ||
       snapshot.scope.start !== 0 ||
