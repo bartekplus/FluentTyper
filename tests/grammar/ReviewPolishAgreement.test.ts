@@ -1,7 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
-import { buildPolishLexicon, POLISH_LEXICON_SOURCES } from "../../scripts/generate-polish-lexicon";
+import {
+  buildPolishLexicon,
+  buildPolishWords,
+  POLISH_LEXICON_SOURCES,
+} from "../../scripts/generate-polish-lexicon";
 import {
   adjectiveOf,
   cases,
@@ -61,6 +65,8 @@ const POSITIVES: Array<[string, string, string | null]> = [
   ["Prosiła, żeby szybko wróciłem.", "żeby szybko wróciłem", "Prosiła, żebym szybko wrócił."],
   ["Chcą, aby to zrobiliście.", "aby to zrobiliście", "Chcą, abyście to zrobili."],
   ["Gdybyś wiedziałaś, nie pytałabyś.", "Gdybyś wiedziałaś", "Gdybyś wiedziała, nie pytałabyś."],
+  ["Mama prosi, żebyś posprząta pokój.", "posprząta", null],
+  ["Zrobię wszystko, aby będzie dobrze.", "będzie", null],
   // A verb that takes the genitive with an accusative object.
   ["Na budowie używamy młotek.", "młotek", null],
   ["Kierowcy muszą przestrzegać przepisy.", "przepisy", "Kierowcy muszą przestrzegać przepisów."],
@@ -73,9 +79,25 @@ const POSITIVES: Array<[string, string, string | null]> = [
   ["Jedne jabłko spadło z drzewa.", "Jedne", "Jedno jabłko spadło z drzewa."],
   ["Znam ten dziewczynę ze szkoły.", "ten", "Znam tę dziewczynę ze szkoły."],
   // A numeral from five up with a nominative noun.
-  ["Mam w torbie kilka książka.", "książka", null],
+  ["Mam w torbie kilka książka.", "książka", "Mam w torbie kilka książek."],
   ["Na półce stało pięć kubki.", "kubki", "Na półce stało pięć kubków."],
   ["Zamówiłem 15 pierogi z mięsem.", "pierogi", "Zamówiłem 15 pierogów z mięsem."],
+  ["Na przystanku czekało 37 osoby.", "osoby", "Na przystanku czekało 37 osób."],
+  ["Przeczytałem pięć książki.", "książki", "Przeczytałem pięć książek."],
+  // Two to four (and 22-24, 32-34…) take the nominative plural.
+  ["Do finału awansowały 22 drużyn.", "drużyn", "Do finału awansowały 22 drużyny."],
+  ["Zostały mi cztery minut.", "minut", "Zostały mi cztery minuty."],
+  ["W koszyku leżą trzy jabłek.", "jabłek", "W koszyku leżą trzy jabłka."],
+  ["Za bilet zapłaciłem 15 złoty.", "złoty", "Za bilet zapłaciłem 15 złotych."],
+  ["Budżet wynosi 3 mln złoty.", "złoty", "Budżet wynosi 3 mln złotych."],
+  // "uznać" takes "za" + accusative.
+  [
+    "Film został uznany najlepszą komedią roku.",
+    "najlepszą komedią",
+    "Film został uznany za najlepszą komedię roku.",
+  ],
+  ["Uznała go zdrajcą.", "zdrajcą", "Uznała go za zdrajcę."],
+  ["Projekt został uznany jako zbędny.", "jako", "Projekt został uznany za zbędny."],
   // An adjective that does not agree with its noun.
   ["To była ciekawą wycieczka.", "ciekawą wycieczka", "To była ciekawa wycieczka."],
   ["Rozmawiałam z ważna osobą.", "ważna osobą", "Rozmawiałam z ważną osobą."],
@@ -118,6 +140,22 @@ const NEGATIVES = [
   "Wśród zebranych prezes wygłosił przemówienie.",
   "Byłem tam pięć razy.",
   "Wzrost wyniósł kilka procent.",
+  "Od 3 lat pracuję w tej firmie.",
+  "Nie widziałem 2 osób z naszej grupy.",
+  "Przeczytałem rozdział 5 książki.",
+  "Zapłaciłem dwa procent prowizji.",
+  "Zatrudnili 4 nauczycieli.",
+  "W ciągu ostatnich 3 lat sporo się zmieniło.",
+  "Grupa 3 osób czekała przed wejściem.",
+  "Straciła większość z posiadanych wtedy 23 sklepów.",
+  "W folderze są pliki i kilka zdjęć.",
+  "Bez urazy, ale w zamian chcę spokoju.",
+  "Bilet kosztował 1 złoty, a karnet 2 złote.",
+  "Był uznanym aktorem i reżyserem.",
+  "Chcę, żeby się udało i żeby nie padało.",
+  "Trzeba by mieć więcej czasu, aby zdążyć.",
+  "Została uznana za najlepszą zawodniczkę.",
+  "Uznany przez krytyków film trafił do kin.",
   "W 2010 papież odwiedził nasze miasto.",
   "Matka była zajęta pracą.",
   "Dzbanek był pełen wody, a szklanka pełna mleka.",
@@ -191,6 +229,14 @@ test("the lexicon reads cases, genders and other parts of speech", () => {
   expect(onlyNoun(nounTags("dobra"))).toBe(false); // also the adjective
   expect(onlyNoun(nounTags("jak"))).toBe(false); // the conjunction, not a yak
   expect(nounTags("zielony")).toBe(0);
+  // Paradigm cells: "osoby" is no genitive plural ("osób"), "ulicy" no nominative plural
+  // ("ulice"); "kości" is both. A rare homograph ("plika") does not add its cases to "pliki".
+  expect(nounTags("osoby") & cases("Gp")).toBe(0);
+  expect(nounTags("osoby") & cases("Gs Np")).toBe(cases("Gs Np"));
+  expect(nounTags("ulicy") & cases("Np Gp")).toBe(0);
+  expect(nounTags("kości") & cases("Np Gp")).toBe(cases("Np Gp"));
+  expect(nounTags("pliki") & cases("Gs")).toBe(0);
+  expect(nounTags("miesięcy") & cases("Np")).toBe(0);
   expect(adjectiveOf("polskiego")).toEqual({ lemma: "polski", ending: "ego" });
   expect(adjectiveOf("ostatnią")).toEqual({ lemma: "ostatni", ending: "ą" });
   expect(adjectiveOf("sklepie")).toBeNull();
@@ -198,14 +244,15 @@ test("the lexicon reads cases, genders and other parts of speech", () => {
 
 test("the committed lexicon matches pl_PL.dic/.aff and the n-gram counts (bun run generate:polish-lexicon)", async () => {
   const S = POLISH_LEXICON_SOURCES;
-  const [dic, aff, committed] = await Promise.all(
-    [S.dic, S.aff, S.out].map((path) => readFile(path, "utf8")),
+  const [dic, aff, committed, committedWords] = await Promise.all(
+    [S.dic, S.aff, S.out, S.words].map((path) => readFile(path, "utf8")),
   );
   const [trie, counts] = await Promise.all([
     Bun.file(S.trie).arrayBuffer(),
     Bun.file(S.counts).arrayBuffer(),
   ]);
   expect(await buildPolishLexicon(dic, aff, trie, counts)).toBe(committed);
+  expect(await buildPolishWords(dic, aff, trie, counts)).toBe(committedWords);
   // Expanding the whole dictionary takes a few seconds.
 }, 60_000);
 
@@ -251,6 +298,7 @@ test("no chunk stalls on long runs of adjectives, nouns and prepositions", () =>
   const inputs = [
     "ważną sprawa ".repeat(400),
     "przed sklepie tą książkę pięć kubki ".repeat(150),
+    "ostatnich obecnie 23 osób nie 98 osoby ".repeat(150),
     "najpiękniejszymi przedsiębiorstwami ".repeat(150),
     "w ".repeat(3_000),
   ];

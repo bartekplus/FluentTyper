@@ -1,5 +1,5 @@
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import { nounTags, onlyNoun } from "./lexicon";
+import { cases, FEMININE, finiteVerb, MASCULINE, NEUTER, nounTags, onlyNoun } from "./lexicon";
 import { findingAt, isPl, owned, PREPOSITIONS, userOrNamed } from "./shared";
 
 /*
@@ -36,6 +36,11 @@ const ASKING = [
   `ustalić|zdecydować|pamiętam|pamiętasz|rozumiem|wyobraź${SP}sobie|powiedz|pokaż`,
 ].join("|");
 const QUESTION_WORD = "czy|co|jak|gdzie|kiedy|dlaczego|skąd|dokąd|ile|kto|którędy|czemu";
+/**
+ * "Nie wiadomo kiedy zrobiło się ciemno", "nie wiadomo skąd pojawił się kot": the idiom (before
+ * one noticed, out of nowhere) before a verb of passing or appearing asks nothing.
+ */
+const UNNOTICED = `(?<=nie${SP}wiadomo)${SP}(?:kiedy|skąd|jak)${SP}(?:się${SP})?(?:zrobił|minął|minęł|upłynął|upłynęł|zleciał|przeleciał|przemknął|przemknęł|wyrósł|wyrosł|pojawił|zjawił|znalazł|zniknął|zniknęł|nastał|nadszedł|nadeszł|zapadł|przeminął|przeminęł|ściemnił|wyskoczył|wyrwał)\\p{L}*${END}`;
 
 const SET_OFF =
   "(?:Co więcej|Innymi słowy|Jednym słowem|Krótko mówiąc|Szczerze mówiąc|Nawiasem mówiąc|Ogólnie mówiąc|Prawdę mówiąc|Po pierwsze|Po drugie|Po trzecie|Tak czy siak|Tak czy owak)";
@@ -51,7 +56,7 @@ export const FRAMES: readonly CommaFrame[] = [
     ruleId: MISSING,
     messageKey: "review_msg_pl_missing_comma",
     regex: new RegExp(
-      `(?<![\\p{L}])(?<target>(?:${ASKING}))(?=${SP}(?:${QUESTION_WORD})${SP}\\p{L})(?!${SP}(?:jak${SP}naj|co${SP}nieco|co${SP}do${END}|jak${SP}i${END}))`,
+      `(?<![\\p{L}])(?<target>(?:${ASKING}))(?=${SP}(?:${QUESTION_WORD})${SP}\\p{L})(?!${SP}(?:jak${SP}naj|co${SP}nieco|co${SP}do${END}|jak${SP}i${END}))(?!${UNNOTICED})`,
       "giud",
     ),
     fix: (m) => `${m.groups!.target},`,
@@ -62,6 +67,17 @@ export const FRAMES: readonly CommaFrame[] = [
     messageKey: "review_msg_pl_missing_comma",
     regex: new RegExp(
       `(?<![\\p{L}])(?<target>${PRONOUN_HEAD})(?=${SP}(?:${PRONOUN_RELATIVE})${SP}[^.!?\\n]*[.!…]?)(?!${SP}(?:${PRONOUN_RELATIVE})${SP}[^.!?\\n]*\\?)(?!${SP}co${SP}(?:do|nieco|niemiara|najmniej|najwyżej|prawda|innego|chwila|dzień|roku|rusz|raz)${END})(?!${SP}\\p{L}+${SP}\\p{L}+ć${END})`,
+      "giud",
+    ),
+    fix: (m) => `${m.groups!.target},`,
+  },
+  // "zależy od tego czy", "pytanie co", "kwestia gdzie" -> "tego, czy": an indirect question
+  // after a pronoun or a noun asking it; not "to czy tamto", "tego czy owego", "kiedy indziej".
+  {
+    ruleId: MISSING,
+    messageKey: "review_msg_pl_missing_comma",
+    regex: new RegExp(
+      `(?<![\\p{L}])(?<target>tego|(?<=(?:na|o|przez|za|w|pod|nad|przed)${SP})to|tym|temu|pytanie|pytania|pytaniu|kwestia|kwestii|kwestię)(?=${SP}(?:czy|gdzie|kiedy|dlaczego|skąd|dokąd|ile|co)${SP}\\p{L})(?!${SP}\\p{L}+${SP}(?:tamto|tamtego|tamtym|owo|owego|owym|inne|innego|innym|nie|indziej)${END})(?!${SP}co${SP}(?:do|nieco|niemiara|najmniej|najwyżej|prawda|innego|chwila|rusz|raz)${END})`,
       "giud",
     ),
     fix: (m) => `${m.groups!.target},`,
@@ -132,6 +148,33 @@ export const FRAMES: readonly CommaFrame[] = [
       "gud",
     ),
     fix: () => "",
+  },
+  // "Gazeta, jest źródłem", "Każdy uczeń, wie": no comma between a subject and its verb. Only
+  // a noun that cannot be a vocative ("Mamo, jest obiad"), or one after "każdy", is the subject.
+  {
+    ruleId: EXTRA,
+    messageKey: "review_msg_pl_extra_comma",
+    regex: new RegExp(
+      `${CLAUSE_START}(?:(?<det>każdy|każda|każde|Każdy|Każda|Każde|ten|ta|Ten|Ta)${SP})?(?<noun>\\p{L}\\p{Ll}+)(?<target>,)${SP}(?<verb>\\p{Ll}+)${END}(?<aside>,)?`,
+      "gud",
+    ),
+    fix: (m) => {
+      const tags = nounTags(m.groups!.noun.toLowerCase());
+      if (!onlyNoun(tags) || !(tags & cases("Ns"))) return null;
+      if (!m.groups!.det && tags & cases("Vs")) return null;
+      // A form of two nouns may be a name too ("Marek, przyszedł list").
+      if ([MASCULINE, FEMININE, NEUTER].filter((gender) => tags & gender).length !== 1) return null;
+      const verb = m.groups!.verb;
+      // "Uchwała, powiedział, ustala…": a reporting verb set off inside the sentence.
+      if (
+        m.groups!.aside &&
+        /^(?:powiedzia|mówi|twierdz|doda|zauważy|podkreśli|stwierdzi|zaznaczy|napisa|wyjaśni|przyzna|uważa|sądz|odpowiedzia|zapewni)/u.test(
+          verb,
+        )
+      )
+        return null;
+      return verb === "to" || finiteVerb(verb) ? "" : null;
+    },
   },
   // "gruszek, ani jabłek", "gruszek, lub jabłek": no comma before a single joining conjunction.
   {

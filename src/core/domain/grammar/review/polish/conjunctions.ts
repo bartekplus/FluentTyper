@@ -1,5 +1,5 @@
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import { nounTags } from "./lexicon";
+import { finiteVerb, nounTags } from "./lexicon";
 import { caseLike, findingAt, isPl, owned, userOrNamed } from "./shared";
 
 /*
@@ -62,9 +62,28 @@ function conjunctionEndings(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+/** "żebyś przeczyta", "by będzie": a present or future form where the past one goes. */
+const PRESENT_AFTER = new RegExp(
+  `(?<![\\p{L}])(?:żeby|ażeby|aby|by)(?:m|ś|śmy|ście)?[ \\t\\u00a0]{1,8}(?:(?:nie|się)[ \\t\\u00a0]{1,8})?(?<verb>\\p{Ll}{2,})(?![\\p{L}])`,
+  "giu",
+);
+const PAST = /(?:ł|ła|ło|li|ły)$/u;
+
+function presentAfterConjunction(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of owned(ctx, PRESENT_AFTER)) {
+    const { verb } = m.groups!;
+    if (PAST.test(verb) || !finiteVerb(verb) || userOrNamed(ctx, verb)) continue;
+    const start = m.index + m[0].length - verb.length;
+    findings.push(findingAt(ctx, start, start + verb.length, [], RULE, MESSAGE));
+  }
+  return findings;
+}
+
 export const DETECTORS = [
   {
     rules: [RULE] as RawFinding["ruleId"][],
-    detect: (ctx: DetectContext) => (isPl(ctx) ? conjunctionEndings(ctx) : []),
+    detect: (ctx: DetectContext) =>
+      isPl(ctx) ? [...conjunctionEndings(ctx), ...presentAfterConjunction(ctx)] : [],
   },
 ];
