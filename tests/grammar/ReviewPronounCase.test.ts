@@ -97,6 +97,10 @@ const positives = [
   ["Omar and myself were late.", "Omar and I were late."],
   ["The coach thanked Omar and myself.", "The coach thanked Omar and me."],
   ["It stays between you and myself, okay?", "It stays between you and me, okay?"],
+  // An object pair before a closed word.
+  ["The guide led Omar and I into the cave.", "The guide led Omar and me into the cave."],
+  ["She emailed Nadia or I before noon.", "She emailed Nadia or me before noon."],
+  ["Write to Omar and I about it.", "Write to Omar and me about it."],
 ] as const;
 test.each(positives)("repairs %s", (source, expected) => {
   const findings = review(source);
@@ -139,6 +143,9 @@ const negatives = [
   "We met Ana, Omar and me waved.",
   "I asked that Omar and myself sit together.",
   "I paid for Omar and myself.",
+  "I think Omar and I about agree.",
+  "When Omar and I left, it rained.",
+  "Can Omar and I come along?",
   "Us and them fought.",
   // Possessive "her" sharing a noun.
   "Her and my parents met in Lisbon.",

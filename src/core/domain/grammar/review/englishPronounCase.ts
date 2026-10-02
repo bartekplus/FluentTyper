@@ -258,6 +258,13 @@ const WE_OBJECT = frame(
 const AND_I_OBJECT = frame(
   `${preposed(`(?:${OBJECT_PREPOSITION}|for)`)}(?<a>${CONJUNCT})${SPACE}and${SPACE}(?<i>I)${WORD_END}${CLOSES}`,
 );
+// "told Mary and I that…", "to Tom and I before you go": an object pair before a closed word.
+const AND_I_BEFORE = frame(
+  `(?<lead>[a-z]+)${SPACE}(?<a>${CONJUNCT})${SPACE}(?:and|or)${SPACE}(?<i>I)${WORD_END}(?=${SPACE}(?<next>[a-z]+)${WORD_END})`,
+);
+// Words after which "X and I" cannot be a subject: they need no verb from the pair.
+const OBJECT_NEXT =
+  /^(?:that|about|before|after|into|with|without|tonight|today|tomorrow|yesterday|here|there|but|for|on|at|in|to|from|by|over|again|together)$/;
 const US_SUBJECT = frame(
   `${CLAUSE_START}(?<pronoun>us)${SPACE}(?<noun>[a-z]+)(?:${SPACE}${ADVERB})?${SPACE}${FINITE}${WORD_END}`,
 );
@@ -292,6 +299,26 @@ function pronounObjects(ctx: DetectContext): RawFinding[] {
     const [iStart, end] = m.indices!.groups!.i;
     // "between" is left to the fixed "between you and me" phrase; "me and I" has no fix.
     if (/^(?:I|me)$/i.test(a)) continue;
+    const first = Object.hasOwn(OBJECT_FORM, a.toLowerCase()) ? object(a) : a;
+    push(m, [start, end], `${first}${ctx.source.slice(aEnd, iStart)}me`);
+  }
+  for (const m of frameMatches(ctx, AND_I_BEFORE, "a")) {
+    const { lead, a, next } = m.groups!;
+    if (/^(?:I|me)$/i.test(a) || lead === "between" || !OBJECT_NEXT.test(next)) continue;
+    // The lead takes the pair as its object: a preposition or a verb that is no auxiliary.
+    const read = englishWordInfo(lead);
+    const governs =
+      new RegExp(`^${OBJECT_PREPOSITION}$`).test(lead) ||
+      lead === "for" ||
+      (!new RegExp(`^${AUX}$`).test(lead) &&
+        !/^(?:and|or|but|that|if|when|because|so|think|thought|know|knew|said|says|hope|guess)$/.test(
+          lead,
+        ) &&
+        !!read?.verbs.some((v) => v.form === "past" || v.form === "base" || v.form === "third"));
+    if (!governs) continue;
+    const [start, aEnd] = m.indices!.groups!.a;
+    const [iStart, end] = m.indices!.groups!.i;
+    if (findings.some((f) => f.range.start === start)) continue;
     const first = Object.hasOwn(OBJECT_FORM, a.toLowerCase()) ? object(a) : a;
     push(m, [start, end], `${first}${ctx.source.slice(aEnd, iStart)}me`);
   }
