@@ -146,7 +146,7 @@ function finding(ctx: DetectContext, word: Token, target: Inflection, from: numb
   if (after && COMPOUND_SECOND.has(after.w)) return null;
   // "rouge et blanc", "noir, blanc": coordinated adjectives may share out a plural noun;
   // "petites fleurs": an adjective before its own noun.
-  if (/^[\s\u00a0]*,/u.test(ctx.text.slice(word.end))) return null;
+  if (/^[\s\u00a0]{0,8},/u.test(ctx.text.slice(word.end, word.end + 9))) return null;
   if (after && (["et", "ou"].includes(after.w) || nounGender(after.w))) return null;
   const form = agreeing(word.w, target);
   if (!form) return null;
@@ -301,7 +301,7 @@ function afterNoun(ctx: DetectContext, m: RegExpExecArray, det: string): RawFind
     const clause = tokensBefore(ctx.text, m.index, 6);
     const avoir = clause.some((t) => verbReadings(t.w).some((r) => r.lemma === "avoir"));
     if (avoir && !adjectiveReadings(next.w).length) return null;
-    if (/^[\s\u00a0]*\//u.test(ctx.text.slice(next.end))) return null;
+    if (/^[\s\u00a0]{0,8}\//u.test(ctx.text.slice(next.end, next.end + 9))) return null;
     return finding(ctx, next, target, m.index);
   }
   return null;

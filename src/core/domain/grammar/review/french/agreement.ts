@@ -451,7 +451,9 @@ function numberedTokens(text: string, m: RegExpExecArray): Token[] {
   const word = m[0].toLowerCase().replace("’", "'");
   const end = m.index + m[0].length;
   const digits = /^\d/.test(word);
-  const number = digits ? null : /^[ \t ]+\d+(?=[ \t ]+\p{L})/u.exec(text.slice(end));
+  const number = digits
+    ? null
+    : /^[ \t\u00a0]{1,8}\d{1,9}(?=[ \t\u00a0]{1,8}\p{L})/u.exec(text.slice(end, end + 30));
   if (!digits && !number) return tokensAfter(text, m.index, 12);
   const lead: Token[] = [{ w: word, start: m.index, end, hyphen: false }];
   if (number) lead.push({ w: "deux", start: end, end: end + number[0].length, hyphen: false });
@@ -516,7 +518,7 @@ function nounSubject(ctx: DetectContext, m: RegExpExecArray): RawFinding | null 
   const singular = noun.w.replace(/[sx]$/, "");
   if (TIME_OR_MEASURE.has(noun.w) || TIME_OR_MEASURE.has(singular)) return null;
   // ", des bois et des pâtures": after a comma, a noun phrase may continue a list.
-  if (!before && /,[\s ]*$/u.test(ctx.text.slice(0, m.index))) {
+  if (!before && /,[\s\u00a0]{0,8}$/u.test(ctx.text.slice(Math.max(0, m.index - 9), m.index))) {
     if (word === "des" || word === "du" || listBefore(ctx.text, m.index)) return null;
   }
   // One adjective and one complement may follow the noun: "les flux financiers crée", "le prix
@@ -546,7 +548,7 @@ function nounSubject(ctx: DetectContext, m: RegExpExecArray): RawFinding | null 
 /** Whether a noun phrase that no preposition governs ends right before the comma before `index`:
  * "une activité, un écrit" lists subjects, "après son régime, Marie" does not. */
 function listBefore(text: string, index: number): boolean {
-  const comma = text.slice(0, index).lastIndexOf(",");
+  const comma = text.lastIndexOf(",", index);
   const words = tokensBefore(text, comma, 4);
   const k = words.findIndex((t) => ALL_DETERMINERS.has(t.w) || t.w === "des" || t.w === "du");
   if (k < 0 || k > 2) return false;

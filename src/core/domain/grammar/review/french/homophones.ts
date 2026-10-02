@@ -148,8 +148,8 @@ function aToGrave(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   if (!previous) return null;
   // "de 6 a 10": between numbers.
   if (
-    /\d$/.test(ctx.text.slice(0, m.index).trimEnd()) &&
-    /^\s*\d/.test(ctx.text.slice(m.index + 1))
+    /\d[ \t\u00a0]{0,8}$/.test(ctx.text.slice(Math.max(0, m.index - 9), m.index)) &&
+    /^[ \t\u00a0]{0,8}\d/.test(ctx.text.slice(m.index + 1, m.index + 10))
   )
     return fix(undefined);
   // "rien a faire", "beaucoup a apprendre".
@@ -255,9 +255,11 @@ function ouGraveToOu(ctx: DetectContext, m: RegExpExecArray): RawFinding | null 
   const before = tokensBefore(ctx.text, m.index, 2);
   const after = tokensAfter(ctx.text, m.index + m[0].length, 2);
   const previousNumber =
-    NUMBERS.test(before[0]?.w ?? "") || /\d\s*$/.test(ctx.text.slice(0, m.index));
+    NUMBERS.test(before[0]?.w ?? "") ||
+    /\d[ \t\u00a0]{0,8}$/.test(ctx.text.slice(Math.max(0, m.index - 9), m.index));
   const nextNumber =
-    NUMBERS.test(after[0]?.w ?? "") || /^\s*\d/.test(ctx.text.slice(m.index + m[0].length));
+    NUMBERS.test(after[0]?.w ?? "") ||
+    /^[ \t\u00a0]{0,8}\d/.test(ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 9));
   const negation =
     (after[0]?.w === "pas" || after[0]?.w === "non") &&
     /^[\s  ]*[?!.]/u.test(ctx.text.slice(after[0].end));

@@ -85,7 +85,7 @@ function missingElision(ctx: DetectContext, m: RegExpExecArray): RawFinding | nu
   // "de un à dix": a number in a range.
   if (
     (nextLower === "un" || nextLower === "une") &&
-    /^\s+(?:à|a)(?=\s|$)|^\s*\d/u.test(ctx.text.slice(end))
+    /^[ \t\u00a0]{1,8}(?:à|a)(?=\s|$)|^[ \t\u00a0]{0,8}\d/u.test(ctx.text.slice(end, end + 12))
   )
     return null;
   // "la une", "le un": the noun "une" or the numeral after an article.
