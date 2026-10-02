@@ -16,7 +16,8 @@ const CANONICAL = new Map(
 // file extension or a field name and stays. English only: Portuguese and German write "a Nasa",
 // "die Nato", and "Hr." (Herr), "Cia." (Companhia) or the name "Ai" are words elsewhere.
 const ACRONYMS = new Set(
-  "NASA IKEA LEGO NATO FBI CIA HIV DNA RNA CPU GPU HTML URL FAQ PDF CEO CFO HR AI UFO".split(" "),
+  // Not IKEA or LEGO (house styles often write "Ikea", "Lego") nor AI ("Ai" is a place and a name).
+  "NASA NATO FBI CIA HIV DNA RNA CPU GPU HTML URL FAQ PDF CEO CFO HR UFO".split(" "),
 );
 
 /** A word this check spells its own way ("javascript" → "JavaScript"). */

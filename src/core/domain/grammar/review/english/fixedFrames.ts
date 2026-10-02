@@ -316,6 +316,15 @@ const GUARDS: Record<
       /\b(?:went|go|goes|going|gone|came|come|comes|walked|ran|run|stepped|jumped|got|get|moved|rushed|barged|let|broke)[ \t\u00a0]+$/i,
   },
   // "Why won't my dog eat dog food?"
+  // "a lat pulldown machine leaning back"
+  "machine leaning": { after: /^[ \t\u00a0]+(?:back|forward|against|on|over|to)\b/i },
+  // "over the whether there was just cause": a stray "the", not the weather.
+  "the whether": { after: /^[ \t\u00a0]+(?:there|or|to|it|this|that|they|we|he|she|I)\b/ },
+  // Sailors pay a deck or a seam with tar, and pay out a rope.
+  payed: { after: /^[ \t\u00a0]+(?:out\b|the[ \t\u00a0]+(?:deck|seams?|hull)\b)/i },
+  // "When did a mistake appear?": a question, not "make a mistake".
+  "did a mistake": { after: /^[ \t\u00a0]+(?:appear|happen|occur|make|cause|get|go|come)\b/i },
+  "quiet a lot": { after: /^[ \t\u00a0]+of[ \t\u00a0]+times\b/i },
   "dog eat dog": {
     before:
       /\b(?:my|your|his|her|our|their|won't|will|can|did|does|do|let|make|watch|see)[ \t\u00a0]+$/i,
@@ -330,6 +339,15 @@ const GUARDS: Record<
 
 /** True when a phrase row's text sits in a frame that gives its words their ordinary reading. */
 export function rowGuarded(text: string, typed: string, start: number, end: number): boolean {
+  // "serve(d)" continues the word; "Free Reign Entertainment" is a company's name.
+  if (text[end] === "(") return true;
+  if (
+    /^\p{Lu}/u.test(typed) &&
+    /^[ \t\u00a0]+(?:Entertainment|Inc|Ltd|Group|Records|Studios?|Productions|Media|Company|Corp|LLC)\b/.test(
+      text.slice(end, end + 20),
+    )
+  )
+    return true;
   const guard = GUARDS[typed.toLowerCase().replace(/[ \t\u00a0]+/g, " ")];
   if (!guard) return false;
   return (
