@@ -32,13 +32,17 @@ function findings(text: string, lang = "pl_PL", rules: string[] = [RULE]) {
 /** [text, the flagged words, one of the fixes applied (null: a warning without a fix)]. */
 const POSITIVES: Array<[string, string, string | null]> = [
   // A noun in a case the preposition does not govern.
-  ["Czekałem przed sklepie na autobus.", "sklepie", null],
+  ["Czekałem przed sklepie na autobus.", "sklepie", "Czekałem przed sklepem na autobus."],
   ["Schowaj klucze pod wycieraczką albo pod kamieniach.", "kamieniach", null],
-  ["Napisała list do mamie.", "mamie", null],
-  ["Dostałem prezent od siostrą.", "siostrą", null],
-  ["Wszystko to przez pogodą.", "pogodą", null],
-  ["Byliśmy przy grobem dziadka.", "grobem", null],
-  ["Poszedł tam wraz z kolegi.", "kolegi", null],
+  ["Napisała list do mamie.", "mamie", "Napisała list do mamy."],
+  ["Dostałem prezent od siostrą.", "siostrą", "Dostałem prezent od siostry."],
+  ["Wszystko to przez pogodą.", "pogodą", "Wszystko to przez pogodę."],
+  ["Byliśmy przy grobem dziadka.", "grobem", "Byliśmy przy grobie dziadka."],
+  ["Poszedł tam wraz z kolegi.", "kolegi", "Poszedł tam wraz z kolegą."],
+  // A verb that takes the genitive with an accusative object.
+  ["Na budowie używamy młotek.", "młotek", null],
+  ["Kierowcy muszą przestrzegać przepisy.", "przepisy", "Kierowcy muszą przestrzegać przepisów."],
+  ["Potrzebuję szybką pomoc.", "pomoc", null],
   // A demonstrative that does not agree with its noun.
   ["Kupiłem tą książkę wczoraj.", "tą", "Kupiłem tę książkę wczoraj."],
   ["Przeczytaj tą krótką notatkę.", "tą", "Przeczytaj tę krótką notatkę."],
@@ -48,8 +52,8 @@ const POSITIVES: Array<[string, string, string | null]> = [
   ["Znam ten dziewczynę ze szkoły.", "ten", "Znam tę dziewczynę ze szkoły."],
   // A numeral from five up with a nominative noun.
   ["Mam w torbie kilka książka.", "książka", null],
-  ["Na półce stało pięć kubki.", "kubki", null],
-  ["Zamówiłem 15 pierogi z mięsem.", "pierogi", null],
+  ["Na półce stało pięć kubki.", "kubki", "Na półce stało pięć kubków."],
+  ["Zamówiłem 15 pierogi z mięsem.", "pierogi", "Zamówiłem 15 pierogów z mięsem."],
   // An adjective that does not agree with its noun.
   ["To była ciekawą wycieczka.", "ciekawą wycieczka", "To była ciekawa wycieczka."],
   ["Rozmawiałam z ważna osobą.", "ważna osobą", "Rozmawiałam z ważną osobą."],
@@ -95,6 +99,9 @@ const NEGATIVES = [
   "Wraz z por. Nowakiem przyszedł kapitan.",
   "Tej wysokiej nikt nie przegapi.",
   "Ta kobieta jest piękna urodą i silna wolą.",
+  "Na budowie używamy młotka.",
+  "Szukam pracy od miesiąca.",
+  "Potrzebuje opieki dziecko sąsiadów.",
 ];
 
 describe("polishCaseAgreement", () => {

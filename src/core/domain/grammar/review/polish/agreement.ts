@@ -9,10 +9,13 @@ import {
   ALL_CASES,
   cases,
   FEMININE,
+  inflect,
   MASCULINE,
   NEUTER,
   nounTags,
   onlyNoun,
+  PLURAL,
+  SINGULAR,
 } from "./lexicon";
 import { caseLike, findingAt, isPl, owned, sentenceStartAt, userOrNamed } from "./shared";
 
@@ -121,12 +124,24 @@ function prepositionCase(ctx: DetectContext): RawFinding[] {
     const before = ctx.text.slice(Math.max(0, m.index - 12), m.index);
     if (!prepositionClash(prep.toLowerCase(), noun, before)) continue;
     const start = m.index + m[0].length - noun.length;
+    const fixes = recased(noun, governedBy(prep.toLowerCase(), before)!);
     findings.push({
-      ...findingAt(ctx, start, start + noun.length, [], RULE, "review_msg_pl_preposition_case"),
+      ...findingAt(ctx, start, start + noun.length, fixes, RULE, "review_msg_pl_preposition_case"),
       context: { start: m.index, end: start + noun.length },
     });
   }
   return findings;
+}
+
+/**
+ * The noun's forms in the `wanted` cases and its own number ("sklepie" -> "sklepem", "sklep"
+ * before "przed"); none when more than two would fit.
+ */
+function recased(noun: string, wanted: number): string[] {
+  const tags = nounTags(noun);
+  const number = tags & SINGULAR ? SINGULAR : PLURAL;
+  const forms = inflect(noun, wanted & number);
+  return forms.length <= 2 ? forms.map((form) => caseLike(noun, form)) : [];
 }
 
 /* ------------------------------------------------------------ demonstratives */
@@ -260,8 +275,58 @@ function numerals(ctx: DetectContext): RawFinding[] {
       continue;
     if (!numeralClash(num.toLowerCase(), nounTags(noun))) continue;
     const start = m.index + m[0].length - noun.length;
+    const plural = inflect(noun, cases("Gp"));
+    const fixes = plural.length === 1 ? plural.map((form) => caseLike(noun, form)) : [];
     findings.push({
-      ...findingAt(ctx, start, start + noun.length, [], RULE, "review_msg_pl_agreement"),
+      ...findingAt(ctx, start, start + noun.length, fixes, RULE, "review_msg_pl_agreement"),
+      context: { start: m.index, end: start + noun.length },
+    });
+  }
+  return findings;
+}
+
+/* ------------------------------------------------------- verbs taking the genitive */
+
+/** Forms of verbs whose object stands in the genitive ("używam młotka", "szukam pracy"). */
+const GENITIVE_VERBS = new RegExp(
+  `(?<![\\p{L}])(?<verb>${[
+    "używ(?:am|asz|a|amy|acie|ają|ał\\p{L}*|ali|ać|aj|ajcie|ając)",
+    "unik(?:am|asz|a|amy|acie|ają|ał\\p{L}*|ali|ać|aj|ajcie|ając)",
+    "szuk(?:am|asz|a|amy|acie|ają|ał\\p{L}*|ali|ać|aj|ajcie|ając)",
+    "przestrzeg(?:am|asz|a|amy|acie|ają|ał\\p{L}*|ali|ać|aj|ajcie|ając)",
+    "potrzebuj(?:ę|esz|e|emy|ecie|ą)|potrzebował\\p{L}*|potrzebować",
+    "pilnuj(?:ę|esz|e|emy|ecie|ą)?|pilnował\\p{L}*|pilnować",
+    "wymag(?:am|a|ają|ał\\p{L}*|ali|ać)",
+    "nienawidz(?:ę|isz|i|imy|icie|ą)|nienawidził\\p{L}*",
+    "żału(?:ję|jesz|je|jemy|jecie|ją)|żałował\\p{L}*|żałować",
+  ].join(
+    "|",
+  )})[ \\t\\u00a0]{1,8}(?:(?<adj>\\p{Ll}{3,})[ \\t\\u00a0]{1,8})?(?<noun>\\p{Ll}{3,})${WORD}`,
+  "giu",
+);
+const GENITIVE_CASES = cases("Gs Gp");
+const TIME_SPAN =
+  /^(?:raz|razy|czas|dzień|dni|rok|lata|tydzień|tygodnie|miesiąc|miesiące|chwilę|godzinę|godziny|minutę|minuty|noc|wieczór|weekend|ranek|popołudnie|sobotę|niedzielę|wiosnę|lato|jesień|zimę)$/u;
+const TIME_ADJECTIVE = /^(?:cał|każd|ostatni|następn|zeszł|przyszł|poprzedni)/u;
+const ACCUSATIVE = cases("As Ap");
+
+/** "Używam młotek", "przestrzega przepisy": an accusative object where the verb wants the genitive. */
+function genitiveObjects(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of owned(ctx, GENITIVE_VERBS)) {
+    const { adj, noun } = m.groups!;
+    if (userOrNamed(ctx, noun)) continue;
+    // A span of time in the accusative is no object ("szukał cały dzień", "raz po raz").
+    if (TIME_SPAN.test(noun) || (adj && TIME_ADJECTIVE.test(adj))) continue;
+    const tags = nounTags(noun);
+    if (!onlyNoun(tags) || tags & GENITIVE_CASES || !(tags & ACCUSATIVE)) continue;
+    // An adjective between must belong to the noun ("stare żelazko").
+    if (adj && (!adjectiveOf(adj) || !adjectiveAgrees(adjectiveOf(adj)!.ending, tags))) continue;
+    const start = m.index + m[0].length - noun.length;
+    const forms = adj ? [] : recased(noun, GENITIVE_CASES);
+    const fixes = forms.length === 1 ? forms : [];
+    findings.push({
+      ...findingAt(ctx, start, start + noun.length, fixes, RULE, "review_msg_pl_preposition_case"),
       context: { start: m.index, end: start + noun.length },
     });
   }
@@ -418,7 +483,13 @@ export const DETECTORS = [
     rules: [RULE] as RawFinding["ruleId"][],
     detect: (ctx: DetectContext) =>
       isPl(ctx)
-        ? [...prepositionCase(ctx), ...demonstratives(ctx), ...numerals(ctx), ...adjectives(ctx)]
+        ? [
+            ...prepositionCase(ctx),
+            ...demonstratives(ctx),
+            ...numerals(ctx),
+            ...genitiveObjects(ctx),
+            ...adjectives(ctx),
+          ]
         : [],
   },
 ];

@@ -44,6 +44,8 @@ interface Lexicon {
   endings: Map<string, Array<[number, number]>>;
   /** Class -> its stems. */
   stems: Array<Set<string>>;
+  /** Class -> its endings with their tags. */
+  paradigms: Array<Array<[string, number]>>;
   longest: number;
   exceptions: Map<string, number>;
 }
@@ -53,20 +55,23 @@ function load(): Lexicon {
   const endings = new Map<string, Array<[number, number]>>();
   const tags = TAGS.split(" ").map((mask) => parseInt(mask, 36));
   let longest = 0;
+  const paradigms: Array<Array<[string, number]>> = [];
   CLASSES.split("\n").forEach((line, id) => {
+    paradigms[id] = [];
     for (const pair of line.split(" ")) {
       const [ending, mask] = pair.split(":");
       longest = Math.max(longest, ending.length);
       const list = endings.get(ending) ?? [];
       list.push([id, tags[parseInt(mask, 36)]]);
       endings.set(ending, list);
+      paradigms[id].push([ending, tags[parseInt(mask, 36)]]);
     }
   });
   const stems = STEMS.split("\n").map((line) => new Set(decodeWords(line)));
   const exceptions = new Map<string, number>();
   for (const [mask, packed] of Object.entries(EXCEPTIONS))
     for (const form of decodeWords(packed)) exceptions.set(form, parseInt(mask, 36));
-  return { endings, stems, longest, exceptions };
+  return { endings, stems, paradigms, longest, exceptions };
 }
 
 /** The tags of a lowercase word, or 0 when it is not a form of a listed noun. */
@@ -81,6 +86,26 @@ export function nounTags(word: string): number {
   }
   if (!tags) return 0;
   return tags | (lexicon.exceptions.get(word) ?? 0) | (adjectiveOf(word) ? ADJECTIVE : 0);
+}
+
+/**
+ * The forms of the noun(s) `word` belongs to that carry one of the `wanted` tags, in the
+ * paradigm's own number when `wanted` names cases of both ("sklepie", Is -> "sklepem").
+ */
+export function inflect(word: string, wanted: number): string[] {
+  lexicon ??= load();
+  const forms = new Set<string>();
+  for (let cut = Math.max(0, word.length - lexicon.longest); cut <= word.length; cut++) {
+    const classes = lexicon.endings.get(word.slice(cut));
+    if (!classes) continue;
+    const stem = word.slice(0, cut);
+    for (const [id] of classes) {
+      if (!lexicon.stems[id].has(stem)) continue;
+      for (const [ending, mask] of lexicon.paradigms[id])
+        if (mask & wanted && stem + ending !== word) forms.add(stem + ending);
+    }
+  }
+  return [...forms];
 }
 
 /** A form only ever read as a noun (or, `verbs`, as a noun or a finite verb). */

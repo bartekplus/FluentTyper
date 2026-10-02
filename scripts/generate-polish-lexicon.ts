@@ -315,6 +315,21 @@ function* spell(
     for (const form of [word, ...spelled]) yield [`nie${form}`, NOT_NOUN, null];
 }
 
+/**
+ * An entry's noun paradigm, verbal-noun paradigm and other forms. */
+function entryTables(
+  affixes: Map<string, Rule[]>,
+  word: string,
+  flags: string,
+): [Map<string, number>, Map<string, number>, Map<string, number>] {
+  const tables = [new Map<string, number>(), new Map<string, number>(), new Map<string, number>()];
+  for (const [form, mask, paradigm] of spell(affixes, word, flags)) {
+    const table = tables[paradigm === "noun" ? 0 : paradigm === "gerund" ? 1 : 2];
+    table.set(form, (table.get(form) ?? 0) | mask);
+  }
+  return tables as [Map<string, number>, Map<string, number>, Map<string, number>];
+}
+
 /** The longest prefix the forms share. */
 function stemOf(forms: Iterable<string>): string {
   let stem: string | undefined;
@@ -342,12 +357,7 @@ export async function buildPolishLexicon(
   // 1. The paradigms of common nouns (and of verbal nouns): form -> tags.
   const paradigms: Array<Map<string, number>> = [];
   for (const [word, flags = ""] of entries) {
-    const nouns = new Map<string, number>();
-    const gerunds = new Map<string, number>();
-    for (const [form, mask, paradigm] of spell(affixes, word, flags)) {
-      const table = paradigm === "noun" ? nouns : paradigm === "gerund" ? gerunds : null;
-      table?.set(form, (table.get(form) ?? 0) | mask);
-    }
+    const [nouns, gerunds] = entryTables(affixes, word, flags);
     for (const table of [nouns, gerunds]) {
       let total = 0;
       for (const form of table.keys()) total += frequency.get(form) ?? 0;
@@ -361,8 +371,8 @@ export async function buildPolishLexicon(
     for (const [form, mask] of table) listed.set(form, (listed.get(form) ?? 0) | mask);
   const full = new Map(listed);
   for (const [word, flags = ""] of entries)
-    for (const [form, mask] of spell(affixes, word, flags))
-      if (full.has(form)) full.set(form, full.get(form)! | mask);
+    for (const table of entryTables(affixes, word, flags))
+      for (const [form, mask] of table) if (full.has(form)) full.set(form, full.get(form)! | mask);
   for (const word of NOT_NOUNS) if (full.has(word)) full.set(word, full.get(word)! | NOT_NOUN);
   for (const [word, spec] of Object.entries(EXTRA))
     if (full.has(word)) full.set(word, full.get(word)! | c(spec));
