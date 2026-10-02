@@ -243,7 +243,10 @@ function nounAfter(ctx: DetectContext, m: RegExpExecArray, det: string): RawFind
   const base = plural && /[^s]s$/.test(word) ? word.slice(0, -1) : word;
   if (/e$/.test(base) || (plural && base === word && /[sx]$/.test(word))) return null;
   const noun = `${base}e`;
-  if (!isVerbHomograph(noun) || nounGender(noun) === "m") return null;
+  // "la duré", "une entré": a feminine noun in -ée; "des musés": after a determiner of either
+  // gender, a masculine one too.
+  const nounIs = nounGender(noun);
+  if (!(nounIs === "f" || isVerbHomograph(noun)) || (nounIs === "m" && gender)) return null;
   // "l'invité", "leur vécu", "les élus": the participle is a noun of its own.
   if (adjectiveReadings(base).length || isVerbHomograph(base)) return null;
   if (!gender && isInflectedNoun(base)) return null;
