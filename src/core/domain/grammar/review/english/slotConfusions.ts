@@ -126,6 +126,21 @@ export const PHRASES: readonly PhraseRow[] = [
   ["ensues that", "ensures that"],
   ["ensued that", "ensured that"],
   ["ensuing that", "ensuring that"],
+  // Set phrases with a real word typed for its neighbour.
+  ["save and sound", "safe and sound"],
+  ["safe the date", "save the date"],
+  ["in any from", "in any form"],
+  ["comprise of", ["comprise", "consist of"]],
+  ...["look", "looks", "looked", "looking"].flatMap((look) =>
+    ["that", "this", "it"].map((what): PhraseRow => [
+      `${look} in to ${what}`,
+      `${look} into ${what}`,
+    ]),
+  ),
+  ...["split", "divided", "translated", "converted"].map((verb): PhraseRow => [
+    `${verb} in to`,
+    `${verb} into`,
+  ]),
 ];
 export const COMPOUNDS: readonly PhraseRow[] = [];
 export const STYLE: readonly PhraseRow[] = [];
@@ -269,6 +284,126 @@ const ID_VERB =
 const CASING: Rule = { ruleId: "englishCanonicalCasing", messageKey: "review_msg_name_casing" };
 
 const FRAMES: readonly Frame[] = [
+  // "I found anther problem": "another" after a verb or preposition (the flower's anther
+  // follows "the", an adjective or a list comma).
+  {
+    rule: TYPO,
+    cue: ["anther"],
+    pattern: `(?:found|find|see|saw|seen|add|have|has|had|need|want|got|get|buy|try|take|use|make|give|is|was|there['’]s|here['’]s|meant|mean|emailing|send|sending|write|wrote|and|or|just|also|still|for|with|from|to|at|into)${S}(?<target>anther)(?=[ \\t]*[.!?,;:]|${S}[a-z]+${E})`,
+    fix: (m) => (m.groups!.target === "anther" ? "another" : null),
+  },
+  // "Many tanks for your help", "Tank you": "thanks", "thank".
+  {
+    rule: TYPO,
+    cue: ["tank", "tanks"],
+    pattern: `(?:(?<=(?:^|[.!?]["”’)]?[ \\t]{1,8}|\\n))(?<target>tanks)${S}(?:so${S}much|a${S}lot|for${S}(?:your|the|all|nothing|everything|helping|coming|this|that|it)|again)|many${S}(?<target2>tanks)${S}for)${E}`,
+    fix: (m) => {
+      const g = m.indices!.groups!;
+      return { alternatives: ["thanks"], range: g.target ?? g.target2 };
+    },
+  },
+  {
+    rule: TYPO,
+    cue: ["tank"],
+    pattern: `(?<=(?:^|[.!?,]["”’)]?[ \\t]{1,8}|\\n))(?<target>tank)${S}you(?=[ \\t]*[.!?,]|${S}(?:very|so|for|all)${E})`,
+    fix: "thank",
+  },
+  // "Thank, that helps", "Many thank for", "Thank to the rain": "thanks".
+  {
+    rule: TYPO,
+    cue: ["thank"],
+    pattern: `(?:(?<=(?:^|[.!?]["”’)]?[ \\t]{1,8}|\\n))(?<target>thank)(?=[ \\t]*[,!]|${S}to${E})|many${S}(?<target2>thank)${S}for)${E}`,
+    fix: (m) => {
+      const g = m.indices!.groups!;
+      return { alternatives: ["thanks"], range: g.target ?? g.target2 };
+    },
+  },
+  // "It's not save to eat", "Are we save?", "feel save": the adjective "safe".
+  {
+    rule: TYPO,
+    cue: ["save"],
+    pattern: `(?:(?:is|was|are|were|it['’]s|isn['’]t|wasn['’]t|aren['’]t|feel|feels|felt|stay|stays|stayed|be|been|am)(?:${S}not)?(?:${S}(?:very|so|too|completely|totally|perfectly|quite|really))?|(?:is|are|am)${S}(?:it|that|this|we|I|you|they|he|she))${S}(?<target>save)(?=[ \\t]*[.!?]|${S}(?:to|for|in|here|there|from|enough|now)${E})`,
+    fix: "safe",
+  },
+  {
+    rule: TYPO,
+    cue: ["safes"],
+    pattern: `(?<target>safes)${S}(?:my|your|his|her|our|their|the|lives|time|money)${E}`,
+    fix: "saves",
+  },
+  // "Lets all go home", "Now lets leave": the suggestion "let's".
+  {
+    rule: TYPO,
+    cue: ["lets"],
+    pattern: `(?:(?<=(?:^|[.!?,;:]["”’)]?[ \\t]{1,8}|\\n))|(?:now|so|ok|okay|but|and|then|please)${S})(?<target>lets)${S}(?:all|just|go|do|get|try|see|make|take|start|stay|leave|have|be|not|keep|finally|hope|say|talk|meet|move|wait|eat|play|celebrate|focus|begin|find|check|look|put)${E}`,
+    fix: (m) =>
+      m.groups!.target === "Lets" ? "Let's" : m.groups!.target === "lets" ? "let's" : null,
+  },
+  // "Learn how to us a semicolon": the verb "use".
+  {
+    rule: TYPO,
+    cue: ["us"],
+    pattern: `(?:going|have|has|had|need|needs|needed|want|wants|wanted|required|able|how|try|trying|tried|easy|hard|free|ready|decided)${S}to${S}(?<target>us)${S}(?:a|an|the|this|that|it|them|my|your|our|their|his|her|some|any)${E}`,
+    fix: "use",
+  },
+  // "the number or workers", "a list or guidelines": "of".
+  {
+    rule: TYPO,
+    cue: ["or"],
+    // Not "the number or types of sounds": two heads sharing "of".
+    pattern: `number${S}(?<target>or)${S}(?<n>[a-z]{3,}s)${E}(?=[ \\t]*[.,:;]|${S}(?:who|that|which|by|per|in|on|for|at|is|are|was|were|has|have)${E})`,
+    fix: (m) => (info(m.groups!.n)?.plural || info(m.groups!.n.slice(0, -1))?.noun ? "of" : null),
+  },
+  // "one if the best", "a couple if days", "if course": "of".
+  {
+    rule: TYPO,
+    cue: ["if"],
+    pattern: `(?:one${S}(?<target>if)${S}the${S}(?:most|best|worst|biggest|largest|few|first|last|main|top|greatest|only|many)|(?:couple|lots?|bunch|(?:this|that|what|some|any|the|a)${S}(?:kind|sort))${S}(?<target2>if)${S}(?!(?:you|I|we|they|he|she|it)${E})[a-z])`,
+    fix: (m) => {
+      const g = m.indices!.groups!;
+      return { alternatives: ["of"], range: g.target ?? g.target2 };
+    },
+  },
+  {
+    rule: TYPO,
+    cue: ["if"],
+    pattern: `(?<target>if)${S}course(?=[ \\t]*[.!?,])`,
+    fix: "of",
+  },
+  // "drop by an see", "the cards an chips": "and" before a word no article takes.
+  {
+    rule: TYPO,
+    cue: ["an"],
+    pattern: `(?<![.,;:!?][ \\t]{0,8})(?<target>an)${S}(?<w>[b-df-hj-np-tv-z][a-z]+)${S}(?:what|where|how|the|a|an|another|other|it|them|some|my|your|his|her|our|their|this|that|if|whether)${E}`,
+    fix: (m) => {
+      if (m.groups!.target !== "an") return null;
+      const read = info(m.groups!.w);
+      if (!read) return null;
+      const verbOnly =
+        /^(?:see|do|go|get|make|take|join|try|play|eat|run|say|tell|ask|stay|leave|come|look|watch|keep|give|send|bring|call)$/.test(
+          m.groups!.w,
+        ) ||
+        (!read.noun &&
+          !read.adjective &&
+          !read.adverb &&
+          read.verbs.some((v) => v.form === "base"));
+      return verbOnly ? "and" : null;
+    },
+  },
+  // "Fill in this from", "a letter form my friend": "form" and "from" swapped.
+  {
+    rule: TYPO,
+    cue: ["from"],
+    // Not "Where is this from?": a stranded preposition ends many questions.
+    pattern: `(?:fill${S}(?:in|out)|submit|complete|sign|in)${S}(?:this|that|the|our|your|a)${S}(?<target>from)(?=[ \\t]*[.!?]|${S}(?:on|below|above)${E})`,
+    fix: "form",
+  },
+  {
+    rule: TYPO,
+    cue: ["form"],
+    pattern: `(?:letter|email|message|gift|income|money|news|greetings|hello)${S}(?<target>form)${S}(?:my|your|his|her|our|their|the|this|him|them|us)${E}`,
+    fix: "from",
+  },
   // "I think id rather wait", "Id like that": "I'd" with its apostrophe dropped.
   {
     rule: TYPO,

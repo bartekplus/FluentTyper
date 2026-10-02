@@ -51,6 +51,24 @@ test.each([
   ["Please login before you post.", "Please log in before you post."],
   ["I guess id rather walk.", "I guess I'd rather walk."],
   ["That is were we met.", "That is where we met."],
+  ["Lets just walk home.", "Let's just walk home."],
+  ["The ice is not save to cross.", "The ice is not safe to cross."],
+  ["We are all save and sound.", "We are all safe and sound."],
+  ["She safes her money.", "She saves her money."],
+  ["Many tanks for the ride!", "Many thanks for the ride!"],
+  ["Tank you for coming.", "Thank you for coming."],
+  ["We tried anther route.", "We tried another route."],
+  ["Learn how to us the oven.", "Learn how to use the oven."],
+  ["It is one if the best parks.", "It is one of the best parks."],
+  ["I waited a couple if hours.", "I waited a couple of hours."],
+  ["Yes, if course.", "Yes, of course."],
+  ["Come by an see the garden.", "Come by and see the garden."],
+  ["Please fill in this from.", "Please fill in this form."],
+  ["We got an email form our bank.", "We got an email from our bank."],
+  ["I will look in to it.", "I will look into it."],
+  ["The cake was divided in to slices.", "The cake was divided into slices."],
+  ["Copying it in any from is banned.", "Copying it in any form is banned."],
+  ["The number or cars is growing.", "The number of cars is growing."],
   ["I have no idea were to park.", "I have no idea where to park."],
   ["Were else could it be?", "Where else could it be?"],
   ["The guests where leaving early.", "The guests were leaving early."],
@@ -124,6 +142,12 @@ test.each([
   expect(repaired(text)).toEqual([[fixed]]);
 });
 
+test("comprise of offers both repairs", () => {
+  expect(repaired("Our team will comprise of five people.")).toEqual([
+    ["Our team will comprise five people.", "Our team will consist of five people."],
+  ]);
+});
+
 test.each([
   "Moths gathered around the porch light.",
   "Two moths flew in last night.",
@@ -157,6 +181,19 @@ test.each([
   "The setup is easy.",
   "The login screen froze.",
   "The bikes were the cheapest.",
+  "Where did you get this from?",
+  "Tell me who you bought it from.",
+  "Pollen forms on the anther.",
+  "The stamen, anther, and filament differ.",
+  "The tank you filled is leaking.",
+  "Tanks crossed the river.",
+  "I could not save to the server.",
+  "He lets all of us in.",
+  "It means a lot to us the most.",
+  "Use one if the other fails.",
+  "It is an honest answer.",
+  "There is no limit to the number or types of files.",
+  "We helped form the club.",
   "Where were you?",
   "Students where learning is fun.",
   "We need an already tested plan.",
