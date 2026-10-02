@@ -75,6 +75,7 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
       ["wieder Willen", "wider Willen"],
       ["wieder besseres Wissen", "wider besseres Wissen"],
       ["das Für und Wieder", "das Für und Wider"],
+      ["für und wieder", "für und wider"],
       ["Angaben ohne Gewehr", "Angaben ohne Gewähr"],
       ["zu späht", "zu spät"],
       ["ich siehe", "ich sehe"],

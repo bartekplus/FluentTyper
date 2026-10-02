@@ -145,6 +145,8 @@ describe("review rule coverage map", () => {
             "styleWordChoice",
             "styleSpelledNumbers",
             "germanAbbreviationSpacing",
+            "germanQuestionMarks",
+            "germanStraightQuotes",
             "polishQuotes",
             "greekStrictFinalNu",
             "greekPunctuation",
