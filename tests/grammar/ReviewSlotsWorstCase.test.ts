@@ -53,6 +53,7 @@ test("no chunk stalls on runs of slot-opening words or spaces between them", () 
     "a very good nice fine advice less much people ".repeat(600),
     "the tools that runs which is who make ".repeat(700),
     "how did he does it is an oldest less then more ".repeat(600),
+    "I have plan the we have see all the ".repeat(700),
   ];
   for (const text of inputs) expect(slowestChunkMs(text)).toBeLessThan(100);
 });
