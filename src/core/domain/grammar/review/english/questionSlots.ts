@@ -166,9 +166,59 @@ function repeatedAuxiliary(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+/**
+ * "make it works", "let me knows": a causative's verb stays bare. Not help ("the help it
+ * needs", "help them includes"), whose object may end a clause.
+ */
+function causativeThird(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of frameMatches(
+    ctx,
+    `(?<head>make|makes|made|making|let|lets|letting)${SPACE}(?:me|him|her|it|us|them|you)${SPACE}(?<verb>[a-z]+s)${WORD_END}`,
+    "verb",
+  )) {
+    const verb = m.groups!.verb;
+    if (ctx.dictionary.has(verb)) continue;
+    // "the board you made me has been\u2026": an auxiliary there is the outer clause's verb.
+    if (/^(?:has|is|was|does)$/.test(verb) && !/^let/i.test(m.groups!.head)) continue;
+    // "The person who made it seems happy": a relative clause ends at the object.
+    if (
+      /\b(?:who|that|which|whom)[ \t\u00a0]{1,8}$/i.test(
+        ctx.text.slice(Math.max(0, m.index - 12), m.index),
+      )
+    )
+      continue;
+    const read = englishWordInfo(verb);
+    if (!read?.verbs.some((v) => v.form === "third")) continue;
+    if (/^[ \t\u00a0]{1,8}of\b/i.test(ctx.text.slice(m.index + m[0].length))) continue;
+    // "made us friends", "makes them objects of lust", "makes me nuts": a plural noun
+    // complement; only an adverb, adjective or particle after it shows the verb.
+    if (read.noun || read.plural) {
+      const next = /^[ \t\u00a0]{1,8}([a-z]+)/.exec(ctx.text.slice(m.index + m[0].length))?.[1];
+      if (!next) continue;
+      const after = englishWordInfo(next);
+      if (!/^(?:up|out|down|like|well|better|fine|again|now)$/.test(next)) {
+        if (!after || after.noun || after.plural || after.verbs.length) continue;
+      }
+    }
+    const base = englishLemma(verb, "third");
+    if (!base || base === verb) continue;
+    const [start, end] = m.indices!.groups!.verb;
+    findings.push({
+      ruleId: "englishVerbComplements",
+      messageKey: "review_msg_causative_base",
+      range: { start, end },
+      alternatives: [caseLike(verb, base)],
+      context: evidence(ctx, m.index, end),
+    });
+  }
+  return findings;
+}
+
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
   {
     rules: ["englishAuxiliaryBaseVerb"],
     detect: english(whDoQuestion, doBeforeModal, didBeforePerfect, repeatedAuxiliary),
   },
+  { rules: ["englishVerbComplements"], detect: english(causativeThird) },
 ];

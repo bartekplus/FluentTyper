@@ -61,3 +61,32 @@ test.each([
   "She was a best friend to me.",
   "He bought a latest model phone.",
 ])("question and comparison forms stay silent: %s", (text) => expect(scan(text)).toEqual([]));
+
+const complements = (text: string) =>
+  detectReviewDiagnostics(
+    { id: "causative", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
+    {
+      lang: "en_US",
+      enabledRules: reviewRuleIds({ codeMode: false }),
+      userDictionary: [],
+      insertSpaceAfterAutocomplete: true,
+    },
+  ).diagnostics.filter((d) => d.ruleId === "englishVerbComplements");
+
+test.each([
+  ["The new cable made it charges faster.", "The new cable made it charge faster."],
+  ["Please let me knows the time.", "Please let me know the time."],
+  ["That song makes her sings along.", "That song makes her sing along."],
+])("causative verb stays bare: %s", (input, expected) => {
+  const found = complements(input);
+  expect(found).toHaveLength(1);
+  expect(applyEdits(input, found[0].alternatives[0].edits)).toBe(expected);
+});
+
+test.each([
+  "Years of work made us friends.",
+  "It makes them objects of study.",
+  "The help it needs is small.",
+  "The cake you made me has gone.",
+  "Their jokes make me nuts.",
+])("causative frame stays silent: %s", (text) => expect(complements(text)).toEqual([]));
