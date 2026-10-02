@@ -699,6 +699,12 @@ describe("portugueseCommas", () => {
     ["Caro Doutor Santos!", "Caro Doutor Santos,"],
     ["O que é que aconteceu aqui.", "O que é que aconteceu aqui?"],
     ["Como é que vocês chegaram tão cedo.", "Como é que vocês chegaram tão cedo?"],
+    ["Chegou cedo e além disso, trouxe o bolo.", "Chegou cedo e, além disso, trouxe o bolo."],
+    ["Ficou caro, e, no fundo ninguém ligou.", "Ficou caro, e, no fundo, ninguém ligou."],
+    ["Correu muito mas ao mesmo tempo, sorriu.", "Correu muito mas, ao mesmo tempo, sorriu."],
+    ["Ela estuda e, em geral trabalha à noite.", "Ela estuda e, em geral, trabalha à noite."],
+    ["Feliz natal Rui!", "Feliz natal, Rui!"],
+    ["Bem-vinda Joana.", "Bem-vinda, Joana."],
   ])("fixes %p", (text, expected) => {
     expect(repaired("portugueseCommas", text)).toBe(expected);
     expect(findings("portugueseCommas", expected)).toEqual([]);
@@ -723,6 +729,11 @@ describe("portugueseCommas", () => {
     "A carta terminava com atenciosamente e a assinatura.",
     "Como é que ele descobriu ainda é um mistério.",
     "O que é que ele quer eu não sei.",
+    "A pedra caiu no fundo, e sumiu.",
+    "Trabalha e ao mesmo tempo estuda.",
+    "Chegaram ao mesmo tempo, e saíram juntos.",
+    "E além disso, ninguém reclamou.",
+    "Os carros, em geral caros, venderam bem.",
   ])("leaves %p alone", (text) => {
     expect(findings("portugueseCommas", text)).toEqual([]);
   });
