@@ -143,7 +143,48 @@ function infinitiveClause(ctx: DetectContext, index: number): boolean {
         /^(?:fing|gab|bot|nahm|sah|schlug|hielt|ließ|kam|ging|fingen|gaben|hörten)$/.test(t)),
   );
 }
+// "beim Haare schneiden", "zum Auto fahren", "für das Korrektur lesen": a verb phrase made a
+// noun is one word ("beim Haareschneiden").
+const NOMINAL_PHRASE = re(
+  `(?<=(?:[Bb]eim|[Zz]um|[Vv]om|[Ff]ürs|(?:[Ff]ür|[Üü]ber|[Nn]ach|[Vv]or|[Bb]ei|[Mm]it)${SPACE}d(?:as|em))${SPACE})(?<target>(?<noun>\\p{Lu}\\p{Ll}+)${SPACE}(?<verb>\\p{Ll}+(?:en|ern|eln)))`,
+);
+// Where the phrase stands: opening the sentence before the clause's verb ("Beim Haare
+// schneiden kommen mir …", not "Beim Bäcker kaufen wir Brot", where "kaufen" is the verb), or
+// after "für das" at the end of a clause ("Danke für das Korrektur lesen."). "Sie war beim
+// Training laufen", "wir gehen zum Essen holen" keep the verb apart.
+function phrasePlace(ctx: DetectContext, start: number, end: number, article: boolean): boolean {
+  const rest = ctx.text.slice(end, end + 40);
+  if (article) {
+    // Only thanks for an activity: "mit dem Chef sprechen", "für das Auto zahlen" are a phrase
+    // and its verb.
+    const thanks = /[Dd]anke?[ \t]+(?:sch(?:ö|oe)n[ \t]+)?für[ \t]+das[ \t]+$/;
+    return (
+      thanks.test(ctx.text.slice(Math.max(0, start - 30), start)) &&
+      /^[ \t]*(?:[,.!?;:)]|$)/.test(rest)
+    );
+  }
+  const opener = ctx.text.slice(Math.max(0, start - 16), start);
+  if (!/(?:^|[.!?:\n„"])[ \t]*\p{L}+[ \t]+$/u.test(opener)) return false;
+  const next = /^[ \t]+(\p{Ll}+)/u.exec(rest)?.[1] ?? "";
+  if (!next || /^(?:die|der|das|den|dem|wir|sie|ich|er|es|man)$/.test(next)) return false;
+  if (isAuxiliary(next) || germanVerbLike(next)) return true;
+  return /\p{Ll}{2,}e?t$/u.test(next) && germanInfinitive(`${next.replace(/e?t$/, "")}en`);
+}
 const FRAMES: Array<[RegExp, Fix]> = [
+  [
+    NOMINAL_PHRASE,
+    (m, ctx) => {
+      const { noun, verb } = m.groups!;
+      if (!germanInfinitive(verb) || isAuxiliary(verb) || /^(?:lassen|gehen)$/.test(verb)) {
+        return null;
+      }
+      if (germanNounReading(noun.toLowerCase()) === null) return null;
+      const [start, end] = m.indices!.groups!.target;
+      const article = /d(?:as|em)[ \t]+$/.test(ctx.text.slice(Math.max(0, start - 8), start));
+      if (!phrasePlace(ctx, start, end, article)) return null;
+      return `${noun}${verb}`;
+    },
+  ],
   // "zulange gewartet" → "zu lange"; "wenn ich da zulange" is "zulangen" (help oneself).
   [
     re(`(?<target>[Zz]ulange)`),
