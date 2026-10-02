@@ -1,6 +1,7 @@
 import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
 import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
+import { PORTUGUESE_R_STEMS } from "./verbs.generated";
 
 /**
  * Object pronoun placement.
@@ -35,6 +36,12 @@ const NOT_INFINITIVE =
 
 // Infinitives (personal ones too) and gerunds allow enclisis after an attractor.
 const NON_FINITE = /(?:[aeioô]r|[aeio]rem|[aeio]rmos|[aeio]res|ndo)$/;
+// "querem", "esperes", "preferem" end like a personal infinitive (fazerem, saberes), but their
+// stem is no infinitive: "quer" is the stem of "querer".
+let rStems: Set<string> | undefined;
+const finiteLookalike = (verb: string) =>
+  /[aeio]r(?:em|es)$/.test(verb) &&
+  (rStems ??= new Set(PORTUGUESE_R_STEMS.split(" "))).has(verb.slice(0, -2));
 const ACCENTED_STEM: Record<string, string> = { á: "a", ê: "e", í: "i", ô: "o" };
 const STEM_ACCENT: Record<string, string> = { a: "á", e: "ê", i: "i", o: "ô" };
 /** "lo" -> "o", "nas" -> "as"; "nos" (us) stays. */
@@ -43,7 +50,7 @@ const plainObject = (pronoun: string) =>
 
 /** The verb a hyphenated object pronoun was attached to, or null when it cannot be told. */
 function finiteVerb(verb: string, pronoun: string): string | null {
-  if (NON_FINITE.test(verb)) return null;
+  if (NON_FINITE.test(verb) && !finiteLookalike(verb)) return null;
   // "encontramo-nos", "bebemo-lo": the first person plural drops its -s.
   if (verb.endsWith("mo") && (pronoun === "nos" || /^l[oa]s?$/.test(pronoun))) return `${verb}s`;
   // "fi-lo", "comprá-lo": an -r, -s or -z fell off; "comprá-lo" may be an infinitive.
