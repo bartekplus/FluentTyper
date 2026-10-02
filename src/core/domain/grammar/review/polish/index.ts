@@ -10,6 +10,7 @@ import * as forms from "./forms";
 import * as numbers from "./numbers";
 import * as prepositions from "./prepositions";
 import * as style from "./style";
+import * as typography from "./typography";
 
 export const POLISH_TABLES: Required<LanguagePhraseTables> = {
   words: confusions.WORDS,
@@ -27,4 +28,5 @@ export const POLISH_DETECTORS: readonly ReviewDetectorEntry[] = [
   ...prepositions.DETECTORS,
   ...forms.DETECTORS,
   ...agreement.DETECTORS,
+  ...typography.DETECTORS,
 ];

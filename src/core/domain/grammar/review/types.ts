@@ -285,6 +285,8 @@ export type ReviewMessageKey =
   | "review_msg_pl_decade"
   | "review_msg_pl_preposition_case"
   | "review_msg_pl_agreement"
+  | "review_msg_pl_typography"
+  | "review_msg_pl_quotes"
   // Spanish Review checks (review/spanish/).
   | "review_msg_spanish_accent"
   | "review_msg_spanish_accent_extra"

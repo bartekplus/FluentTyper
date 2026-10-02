@@ -120,6 +120,8 @@ export interface GrammarRuleCatalogEntry {
     | "polishMissingComma"
     | "polishPrepositionForms"
     | "polishCaseAgreement"
+    | "polishTypography"
+    | "polishQuotes"
     // French (review/french/)
     | "frenchVerbForms"
     | "frenchHomophones"
