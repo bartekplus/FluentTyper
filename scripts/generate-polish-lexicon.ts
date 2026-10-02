@@ -53,7 +53,7 @@ interface LoudsTrie {
 const bitAt = (bits: Bits | Uint8Array, i: number) =>
   ((bits instanceof Uint8Array ? bits : bits.units)[i >> 3] >> (i & 7)) & 1;
 
-function readMarisa(buffer: ArrayBuffer): string[] {
+export function readMarisa(buffer: ArrayBuffer): string[] {
   const view = new DataView(buffer);
   let pos = 16; // "We love Marisa."
   const u32 = () => ((pos += 4), view.getUint32(pos - 4, true));
@@ -172,30 +172,45 @@ const PLURAL_OBLIQUE: Array<[RegExp, number]> = [
   [/ch$/, c("Lp")],
 ];
 const NOM_PLURAL = c("Np Ap Vp");
-const GEN_PLURAL = c("Gp Ap");
+// A masculine noun's genitive plural is also its accusative when it names men ("studentów");
+// `spell` adds that, as the flags do not tell persons apart reliably.
+const GEN_PLURAL = c("Gp");
 
-/** The cases a form spelled by `flag` can carry, by its ending. Unknown: every case. */
-export function flagCases(flag: string, form: string, lemma: string): number {
+/**
+ * The cases a form spelled by `flag` can carry, by its ending and (for M) by what else the
+ * entry spells: `flags` are the entry's flags, `siblings` the other forms of the same flag.
+ * Unknown: every case.
+ */
+export function flagCases(
+  flag: string,
+  form: string,
+  lemma: string,
+  flags = "",
+  siblings: readonly string[] = [],
+): number {
   for (const [ending, mask] of PLURAL_OBLIQUE)
     if (ending.test(form) && /[NZWVrij]/.test(flag)) return mask;
   switch (flag) {
+    // q spells virile plurals ("doktorzy") and others ("komentarze") alike.
     case "s":
     case "z":
     case "A":
     case "q":
+      return NOM_PLURAL;
+    // Virile plurals ("Rosjanie", "panowie"): the accusative is the genitive form.
     case "t":
     case "o":
     case "w":
-      return NOM_PLURAL;
+      return c("Np Vp");
+    // "miesięcy", "pieniędzy", "tygodni" (C; "dni" is also the nominative: EXTRA).
     case "T":
     case "S":
     case "l":
     case "D":
     case "m":
     case "n":
-      return GEN_PLURAL;
     case "C":
-      return NOM_PLURAL | GEN_PLURAL;
+      return GEN_PLURAL;
     case "O":
     case "Q":
     case "P":
@@ -211,7 +226,8 @@ export function flagCases(flag: string, form: string, lemma: string): number {
       return ALL_CASES;
     case "U":
       if (/em$/.test(form)) return c("Is");
-      if (/a$/.test(form)) return c("Gs") | NOM_PLURAL;
+      // "imienia", "zwierzęcia": an -ę noun's plural is spelled apart ("imiona").
+      if (/a$/.test(form)) return c("Gs") | (lemma.endsWith("ę") ? 0 : NOM_PLURAL);
       if (/u$/.test(form)) return c("Ds Ls");
       if (/e$/.test(form)) return c("Ls");
       return ALL_CASES;
@@ -235,8 +251,19 @@ export function flagCases(flag: string, form: string, lemma: string): number {
       if (/o$/.test(form)) return c("Vs");
       if (/u$/.test(form)) return c("Vs");
       if (/ej$/.test(form)) return ALL_CASES;
-      // "osoby", "kości": the genitive singular is also the plural's nominative (and genitive).
-      if (/[iy]$/.test(form)) return c("Gs Ds Ls Vs") | NOM_PLURAL | GEN_PLURAL;
+      if (/[iy]$/.test(form)) {
+        if (flag !== "M") return c("Gs Ds Ls Vs") | NOM_PLURAL | c("Gp Ap");
+        // The genitive singular ("osoby", "ulicy", "kości") is also each cell the entry
+        // spells no other way: the dative and locative ("osobie"), the vocative ("osobo"),
+        // the nominative plural ("ulice", flag A) and the genitive plural ("osób", m/n; a
+        // -ja/-ia noun's "lekcji" stands beside the rare "lekcyj").
+        let mask = c("Gs");
+        if (!siblings.some((other) => other.endsWith("e"))) mask |= c("Ds Ls");
+        if (!siblings.some((other) => /[ou]$/.test(other))) mask |= c("Vs");
+        if (!flags.includes("A") || /[qoT]/.test(flags)) mask |= NOM_PLURAL;
+        if (!/[mnT]/.test(flags) || /(?:[^aeiouy]j|i)a$/.test(lemma)) mask |= GEN_PLURAL;
+        return mask;
+      }
       if (/e$/.test(form)) return c("Ds Ls");
       return c("Gs Ds Ls Vs");
     default:
@@ -248,7 +275,7 @@ export function flagCases(flag: string, form: string, lemma: string): number {
 export function lemmaTags(word: string, flags: string): number {
   const consonant = /[^aeiouyąęó]$/.test(word);
   if (/[OQPRu]/.test(flags) || (consonant && /[NTsSZzDC]/.test(flags) && !/M/.test(flags)))
-    return c("Ns As") | MASCULINE | (/[ow]/.test(flags) ? VIRILE : 0);
+    return c("Ns As") | MASCULINE | (/[owt]/.test(flags) ? VIRILE : 0);
   if (/[Wl]/.test(flags)) return NOM_PLURAL | (word.endsWith("i") ? GEN_PLURAL : 0);
   if (/(?:um|[oeę])$/.test(word) && /[UV]/.test(flags))
     return (word.endsWith("um") ? c("Ns Gs Ds As Is Ls Vs") : c("Ns As Vs")) | NEUTER;
@@ -267,15 +294,23 @@ export function lemmaTags(word: string, flags: string): number {
 // "tysiąc" read as a number, "lada" (a counter) beside the particle, the pronoun "sam", "warta"
 // (worth) beside the noun (a guard), the
 // adverbs "zbyt", "prawo", "lewo", the prepositions "poza", "koło", "dzięki", and
-// abbreviations written without their dot.
+// abbreviations written without their dot, and "zamian", "przemian" read as the adverbs "w
+// zamian", "na przemian".
 const NOT_NOUNS = (
   "jak bez niż tam ktoś coś kilka tysiąc lada sam warta gratis zbyt prawo lewo brutto netto " +
-  "poza koło dzięki ul nr art akt pkt ust lit"
+  "poza koło dzięki ul nr art akt pkt ust lit zamian przemian"
 ).split(" ");
 /** Irregular plurals the paradigm flags do not spell. */
-const EXTRA: Record<string, string> = { ręce: "Np Ap Vp", razy: "Gp", procent: "Gp" };
+const EXTRA: Record<string, string> = {
+  ręce: "Np Ap Vp",
+  razy: "Gp",
+  procent: "Gp",
+  dni: "Np Ap Vp",
+};
 /** How common (summed over its forms) a noun must be to be listed. */
 const MIN_COUNT = 200;
+/** A homograph whose own forms are rarer than this beside a common word is not read. */
+const RARE_COUNT = 20;
 /** How common (summed over its forms) an adjective or passive participle must be to be listed. */
 const MIN_ADJECTIVE_COUNT = 300;
 // Participles inflect like adjectives; the other verb flags spell finite forms.
@@ -297,14 +332,18 @@ function* spell(
   const spelled: string[] = [];
   for (const flag of flags) {
     if (flag === "b" || flag === "Y") continue;
-    for (const rule of affixes.get(flag) ?? []) {
-      if (!word.endsWith(rule.strip) || !rule.cond.test(word)) continue;
-      const form = word.slice(0, word.length - rule.strip.length) + rule.add;
+    const forms = (affixes.get(flag) ?? [])
+      .filter((rule) => word.endsWith(rule.strip) && rule.cond.test(word))
+      .map((rule) => word.slice(0, word.length - rule.strip.length) + rule.add);
+    for (const form of forms) {
       spelled.push(form);
+      const siblings = forms.filter((other) => other !== form);
       if (flag === "i" || flag === "j")
         yield [form, flagCases(flag, form, word) | NEUTER, "gerund"];
-      else if (NOUN_FLAGS.includes(flag))
-        yield own ? [form, flagCases(flag, form, word) | gender, "noun"] : [form, NOT_NOUN, null];
+      else if (NOUN_FLAGS.includes(flag) && own) {
+        const mask = flagCases(flag, form, word, flags, siblings);
+        yield [form, mask | (gender & MASCULINE && mask & c("Gp") ? c("Ap") : 0) | gender, "noun"];
+      } else if (NOUN_FLAGS.includes(flag)) yield [form, NOT_NOUN, null];
       else if (ADJECTIVE_FLAGS.includes(flag) || PARTICIPLE_FLAGS.includes(flag))
         yield [form, ADJECTIVE, null];
       else yield [form, VERB_FLAGS.includes(flag) ? VERB : NOT_NOUN, null];
@@ -354,24 +393,53 @@ export async function buildPolishLexicon(
     .map((line) => line.trim().split("/") as [string, string?])
     .filter(([word]) => word && !/\p{Lu}/u.test(word));
 
-  // 1. The paradigms of common nouns (and of verbal nouns): form -> tags.
-  const paradigms: Array<Map<string, number>> = [];
-  for (const [word, flags = ""] of entries) {
-    const [nouns, gerunds] = entryTables(affixes, word, flags);
-    for (const table of [nouns, gerunds]) {
-      let total = 0;
-      for (const form of table.keys()) total += frequency.get(form) ?? 0;
-      if (total >= MIN_COUNT) paradigms.push(table);
+  // 1. The paradigms of common nouns (and of verbal nouns): form -> tags. A homograph whose own
+  // forms (those no other lemma spells) are rare beside another's ("plika" beside "plik",
+  // "kota" beside "kot") is neither listed nor read into the common word's forms.
+  const tables = entries.map(([word, flags = ""]) => entryTables(affixes, word, flags));
+  const lemmas = new Map<string, Set<string>>();
+  entries.forEach(([word], i) => {
+    for (const table of tables[i].slice(0, 2))
+      for (const form of table.keys())
+        (lemmas.get(form) ?? lemmas.set(form, new Set()).get(form)!).add(word);
+  });
+  const ownCount = new Map<string, number>();
+  for (const [form, owners] of lemmas)
+    if (owners.size === 1) {
+      const [word] = owners;
+      ownCount.set(word, (ownCount.get(word) ?? 0) + (frequency.get(form) ?? 0));
     }
-  }
+  const paradigms: Array<Map<string, number>> = [];
+  const rare = new Set<Map<string, number>>();
+  entries.forEach(([word], i) => {
+    for (const table of tables[i].slice(0, 2)) {
+      let total = 0;
+      const rivals = new Set<string>();
+      for (const form of table.keys()) {
+        total += frequency.get(form) ?? 0;
+        for (const other of lemmas.get(form)!) if (other !== word) rivals.add(other);
+      }
+      // What tells this paradigm apart from a rival: its forms the rival does not spell.
+      const homograph = [...rivals].some((rival) => {
+        const strong = ownCount.get(rival) ?? 0;
+        if (strong < MIN_COUNT) return false;
+        let apart = 0;
+        for (const form of table.keys())
+          if (!lemmas.get(form)!.has(rival)) apart += frequency.get(form) ?? 0;
+        return apart < RARE_COUNT && strong > 10 * apart;
+      });
+      if (homograph) rare.add(table);
+      else if (total >= MIN_COUNT) paradigms.push(table);
+    }
+  });
 
   // 2. What every entry says about those forms; what the paradigms miss is an exception.
   const listed = new Map<string, number>();
   for (const table of paradigms)
     for (const [form, mask] of table) listed.set(form, (listed.get(form) ?? 0) | mask);
   const full = new Map(listed);
-  for (const [word, flags = ""] of entries)
-    for (const table of entryTables(affixes, word, flags))
+  for (const table of tables.flat())
+    if (!rare.has(table))
       for (const [form, mask] of table) if (full.has(form)) full.set(form, full.get(form)! | mask);
   for (const word of NOT_NOUNS) if (full.has(word)) full.set(word, full.get(word)! | NOT_NOUN);
   for (const [word, spec] of Object.entries(EXTRA))

@@ -73,9 +73,17 @@ const POSITIVES: Array<[string, string, string | null]> = [
   ["Jedne jabłko spadło z drzewa.", "Jedne", "Jedno jabłko spadło z drzewa."],
   ["Znam ten dziewczynę ze szkoły.", "ten", "Znam tę dziewczynę ze szkoły."],
   // A numeral from five up with a nominative noun.
-  ["Mam w torbie kilka książka.", "książka", null],
+  ["Mam w torbie kilka książka.", "książka", "Mam w torbie kilka książek."],
   ["Na półce stało pięć kubki.", "kubki", "Na półce stało pięć kubków."],
   ["Zamówiłem 15 pierogi z mięsem.", "pierogi", "Zamówiłem 15 pierogów z mięsem."],
+  ["Na przystanku czekało 37 osoby.", "osoby", "Na przystanku czekało 37 osób."],
+  ["Przeczytałem pięć książki.", "książki", "Przeczytałem pięć książek."],
+  // Two to four (and 22-24, 32-34…) take the nominative plural.
+  ["Do finału awansowały 22 drużyn.", "drużyn", "Do finału awansowały 22 drużyny."],
+  ["Zostały mi cztery minut.", "minut", "Zostały mi cztery minuty."],
+  ["W koszyku leżą trzy jabłek.", "jabłek", "W koszyku leżą trzy jabłka."],
+  ["Za bilet zapłaciłem 15 złoty.", "złoty", "Za bilet zapłaciłem 15 złotych."],
+  ["Budżet wynosi 3 mln złoty.", "złoty", "Budżet wynosi 3 mln złotych."],
   // An adjective that does not agree with its noun.
   ["To była ciekawą wycieczka.", "ciekawą wycieczka", "To była ciekawa wycieczka."],
   ["Rozmawiałam z ważna osobą.", "ważna osobą", "Rozmawiałam z ważną osobą."],
@@ -118,6 +126,17 @@ const NEGATIVES = [
   "Wśród zebranych prezes wygłosił przemówienie.",
   "Byłem tam pięć razy.",
   "Wzrost wyniósł kilka procent.",
+  "Od 3 lat pracuję w tej firmie.",
+  "Nie widziałem 2 osób z naszej grupy.",
+  "Przeczytałem rozdział 5 książki.",
+  "Zapłaciłem dwa procent prowizji.",
+  "Zatrudnili 4 nauczycieli.",
+  "W ciągu ostatnich 3 lat sporo się zmieniło.",
+  "Grupa 3 osób czekała przed wejściem.",
+  "Straciła większość z posiadanych wtedy 23 sklepów.",
+  "W folderze są pliki i kilka zdjęć.",
+  "Bez urazy, ale w zamian chcę spokoju.",
+  "Bilet kosztował 1 złoty, a karnet 2 złote.",
   "W 2010 papież odwiedził nasze miasto.",
   "Matka była zajęta pracą.",
   "Dzbanek był pełen wody, a szklanka pełna mleka.",
@@ -191,6 +210,14 @@ test("the lexicon reads cases, genders and other parts of speech", () => {
   expect(onlyNoun(nounTags("dobra"))).toBe(false); // also the adjective
   expect(onlyNoun(nounTags("jak"))).toBe(false); // the conjunction, not a yak
   expect(nounTags("zielony")).toBe(0);
+  // Paradigm cells: "osoby" is no genitive plural ("osób"), "ulicy" no nominative plural
+  // ("ulice"); "kości" is both. A rare homograph ("plika") does not add its cases to "pliki".
+  expect(nounTags("osoby") & cases("Gp")).toBe(0);
+  expect(nounTags("osoby") & cases("Gs Np")).toBe(cases("Gs Np"));
+  expect(nounTags("ulicy") & cases("Np Gp")).toBe(0);
+  expect(nounTags("kości") & cases("Np Gp")).toBe(cases("Np Gp"));
+  expect(nounTags("pliki") & cases("Gs")).toBe(0);
+  expect(nounTags("miesięcy") & cases("Np")).toBe(0);
   expect(adjectiveOf("polskiego")).toEqual({ lemma: "polski", ending: "ego" });
   expect(adjectiveOf("ostatnią")).toEqual({ lemma: "ostatni", ending: "ą" });
   expect(adjectiveOf("sklepie")).toBeNull();
@@ -251,6 +278,7 @@ test("no chunk stalls on long runs of adjectives, nouns and prepositions", () =>
   const inputs = [
     "ważną sprawa ".repeat(400),
     "przed sklepie tą książkę pięć kubki ".repeat(150),
+    "ostatnich obecnie 23 osób nie 98 osoby ".repeat(150),
     "najpiękniejszymi przedsiębiorstwami ".repeat(150),
     "w ".repeat(3_000),
   ];

@@ -246,25 +246,74 @@ const FIVE_UP = [
   ..."sto dwieście trzysta czterysta pięćset sześćset siedemset osiemset dziewięćset".split(" "),
   ..."kilka kilkanaście kilkadziesiąt kilkaset parę".split(" "),
 ];
-const GENITIVE = cases("Gs Gp");
+/** "dwa", "trzy", "cztery" (alone or ending "dwadzieścia trzy"): the nominative plural. */
+const TWO_TO_FOUR = ["dwa", "dwie", "trzy", "cztery", "oba", "obie"];
 const NOMINATIVE_FORMS = cases("Ns Np");
 
 const NUMERAL = new RegExp(
-  `(?<![\\p{L}\\p{N}_'’.,@/-])(?<num>${FIVE_UP.join("|")}|\\d+)[ \\t\\u00a0]+(?<noun>\\p{Ll}+)${WORD}`,
+  `(?<![\\p{L}\\p{N}_'’.,@/–—-])(?<num>${[...FIVE_UP, ...TWO_TO_FOUR].join("|")}|\\d+)[ \\t\\u00a0]+(?<noun>\\p{Ll}+)${WORD}`,
   "giu",
 );
 
-/** "pięć pliki", "kilka godzina", "15 baloniki": a nominative where the genitive plural goes. */
-export function numeralClash(num: string, tags: number): boolean {
-  if (!/^\d+$/.test(num) && !FIVE_UP.includes(num)) return false;
-  if (!onlyNoun(tags) || tags & GENITIVE || !(tags & NOMINATIVE_FORMS)) return false;
-  if (!/^\d+$/.test(num)) return true;
-  // Digits: a plural noun only ("15 baloniki"), since a year or a house number may come before
-  // a subject ("w 2010 papież"), and only where the number asks for the genitive (not 22-24).
+/** What a number asks of its noun: the genitive plural (5-21), the nominative (2-4) or nothing. */
+function numeralNeeds(num: string): "Gp" | "Np" | null {
+  if (TWO_TO_FOUR.includes(num)) return "Np";
+  if (FIVE_UP.includes(num)) return "Gp";
+  if (!/^\d{1,3}$/.test(num)) return null;
   const n = Number(num);
-  if (num.length > 3 || tags & cases("Ns")) return false;
-  return n >= 5 && !(n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14));
+  if (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14)) return "Np";
+  return n >= 5 ? "Gp" : null;
 }
+
+/** "pięć pliki", "kilka godzina", "15 baloniki", "98 osoby", "23 osób", "trzy godzin". */
+export function numeralClash(num: string, tags: number): boolean {
+  const needs = numeralNeeds(num);
+  if (!needs || !onlyNoun(tags)) return false;
+  // A genitive plural only where the nominative goes, of a feminine or neuter noun: "dwa
+  // procent" and men ("24 policjantów", "trzech studentów") are left alone.
+  if (needs === "Np") return !(tags & (NOMINATIVE_FORMS | MASCULINE)) && (tags & cases("Gp")) !== 0;
+  if (tags & cases("Gp") || !(tags & NOMINATIVE_FORMS)) return false;
+  // Digits: a plural noun only ("15 baloniki"), since a year or a house number may come before
+  // a subject ("w 2010 papież").
+  return !/^\d/.test(num) || !(tags & cases("Ns"));
+}
+
+/** Words before a number that put it in the genitive ("od 3 lat", "około 3 lat", "brak"). */
+const GOVERNING = new RegExp(
+  `^(?:${Object.keys(GOVERNS).join("|")}|około|ponad|powyżej|poniżej|blisko|niespełna|koło|naprzeciw|kosztem|brak|braku|wiele|ile|tyle)$`,
+  "iu",
+);
+/** Verbs whose object stands in the genitive ("dotyczy 3 osób", "brakuje 2 głosów"). */
+const GENITIVE_VERB =
+  /^(?:dotycz|potrzeb|wymag|szuk|używ|unik|brak|zabrak|żąd|udziel|życz|nabr|nabier|ubył|przybył|naucz|słuch|pilnow|pilnuj|trzeba|starcz|wystarcz)/iu;
+
+/**
+ * A count stands free here: no preposition, noun, genitive adjective ("ostatnich"), verb taking
+ * the genitive or negation before it, so the noun's case is the number's own.
+ */
+function freeCount(text: string, at: number): boolean {
+  const before = text.slice(Math.max(0, at - 48), at);
+  const clause = before.split(/[,;:.!?()„”"–—]/u).pop()!;
+  if (/(?:^|[^\p{L}])nie[ \t\u00a0]/iu.test(clause)) return false;
+  const words = (clause.match(/\p{L}+/gu) ?? []).slice(-3).map((word) => word.toLowerCase());
+  // "z posiadanych obecnie 43 miejsc": a preposition or genitive a few words back, unless a noun
+  // or a verb stands between ("na przystanku czekało 37 osób").
+  for (const word of [...words].reverse()) {
+    if (GOVERNING.test(word) || /(?:ch|ego|ej)$/u.test(word)) return false;
+    if (nounTags(word) & ALL_CASES || /(?:ł|ła|ło|li|ły)$/u.test(word)) break;
+  }
+  const prev = words.at(-1);
+  if (!prev) return true;
+  // A noun or verbal noun governs it ("grupa 3 os\u00f3b", "sprywatyzowanie 2 tysi\u0119cy").
+  if (GENITIVE_VERB.test(prev) || /(?:ni|ci)e$/u.test(prev)) return false;
+  return !(nounTags(prev) & ALL_CASES);
+}
+
+/** "5 złoty", "2 mln złoty": after a count from five up, or a large unit, it is "złotych". */
+const ZLOTY = new RegExp(
+  `(?<![\\p{L}\\p{N}_'’.,@/–—-])(?<num>${FIVE_UP.join("|")}|\\d+)(?:[ \\t\\u00a0]+(?<unit>tys\\.|mln|mld|tysięcy|milionów|miliardów))?[ \\t\\u00a0]+(?<noun>złoty)${WORD}`,
+  "giu",
+);
 
 function numerals(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
@@ -273,14 +322,39 @@ function numerals(ctx: DetectContext): RawFinding[] {
     if (!/^\p{Ll}+$/u.test(noun) || userOrNamed(ctx, noun)) continue;
     // A decimal, a number in a code or a list ("1,5", "art. 5", "5.") is not a count.
     const before = ctx.text.slice(Math.max(0, m.index - 6), m.index);
-    if (/^\d/.test(num) && /(?:[\d,.:/§-]|\p{L}\.|nr|pkt|art|poz)[ \t\u00a0]*$/u.test(before))
+    if (/^\d/.test(num) && /(?:[\d,.:/§–—-]|\p{L}\.|nr|pkt|art|poz)[ \t\u00a0]*$/u.test(before))
       continue;
-    if (!numeralClash(num.toLowerCase(), nounTags(noun))) continue;
+    const lower = num.toLowerCase();
+    const tags = nounTags(noun);
+    if (!numeralClash(lower, tags)) continue;
+    const needs = numeralNeeds(lower)!;
+    // Only a bare count says which case it wants: "od 3 lat", "rozdział 5 książki" and "nie ma
+    // 2 osób" are right ("parę" is also a noun's accusative).
+    const loose = /^\d/.test(num) || lower === "parę";
+    if (loose && (needs === "Np" || tags & cases("Gs")) && !freeCount(ctx.text, m.index)) continue;
     const start = m.index + m[0].length - noun.length;
-    const plural = inflect(noun, cases("Gp"));
-    const fixes = plural.length === 1 ? plural.map((form) => caseLike(noun, form)) : [];
+    const forms = inflect(noun, cases(needs));
+    const fixes = forms.length === 1 ? forms.map((form) => caseLike(noun, form)) : [];
     findings.push({
       ...findingAt(ctx, start, start + noun.length, fixes, RULE, "review_msg_pl_agreement"),
+      context: { start: m.index, end: start + noun.length },
+    });
+  }
+  for (const m of owned(ctx, ZLOTY)) {
+    const { num, unit, noun } = m.groups!;
+    const before = ctx.text.slice(Math.max(0, m.index - 6), m.index);
+    if (/[\d,.:/§–—-][ \t ]*$/u.test(before) || userOrNamed(ctx, noun)) continue;
+    if (!unit && numeralNeeds(num.toLowerCase()) !== "Gp") continue;
+    const start = m.index + m[0].length - noun.length;
+    findings.push({
+      ...findingAt(
+        ctx,
+        start,
+        start + noun.length,
+        [caseLike(noun, "złotych")],
+        RULE,
+        "review_msg_pl_agreement",
+      ),
       context: { start: m.index, end: start + noun.length },
     });
   }
