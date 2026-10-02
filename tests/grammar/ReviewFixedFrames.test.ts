@@ -48,7 +48,28 @@ test.each([
 });
 
 test.each([
+  ["Come a long with us.", "Come along with us."],
+  ["We found an out of the way inn.", "We found an out-of-the-way inn."],
+  ["She is a well known painter.", "She is a well-known painter."],
+  ["That plan is do able.", "That plan is doable."],
+])("joins or hyphenates %p", (text, expected) => {
+  const ds = detectReviewDiagnostics(
+    { id: "frames", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
+    {
+      lang: "en_US",
+      enabledRules: [...REVIEW_SUPPORTED_RULE_IDS],
+      userDictionary: [],
+      insertSpaceAfterAutocomplete: true,
+    },
+  ).diagnostics.filter((d) => d.ruleId === "englishClosedCompounds");
+  expect(fixAll(text, ds)).toBe(expected);
+});
+
+test.each([
   "How does jogging help the heart?",
+  "The last minute of the game was wild.",
+  "Will a god send help?",
+  "There was a drop in sales.",
   "Did running make you tired?",
   "We went to Home Depot.",
   "Look, the door is open.",

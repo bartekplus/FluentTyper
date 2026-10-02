@@ -77,6 +77,8 @@ export const NAMES: readonly PhraseRow[] = [
       ["zwave", "Z-Wave"],
       ["wi fi", "Wi-Fi"],
       ["7 eleven", "7-Eleven"],
+      [["node js", "nodejs"], "Node.js"],
+      ["astra zeneca", "AstraZeneca"],
       [["ipad os", "ipados"], "iPadOS"],
       [["watch os", "watchos"], "watchOS"],
       [["covid 19", "covid19", "covid-19"], "COVID-19"],

@@ -268,6 +268,23 @@ export const PHRASES: readonly PhraseRow[] = [
   ["aimed on", "aimed at"],
   ["ashamed from", "ashamed of"],
 ];
-export const COMPOUNDS: readonly PhraseRow[] = [];
+export const COMPOUNDS: readonly PhraseRow[] = [
+  ["a long with", "along with"],
+  ["go a long with", "go along with"],
+  ["a long the way", "along the way"],
+  ["a long the road", "along the road"],
+  ["a long for the ride", "along for the ride"],
+  ["do able", "doable"],
+  ["cumber som", "cumbersome"],
+  ["cumber some", "cumbersome"],
+  ["from the getgo", "from the get-go"],
+  [["x rated", "x-rated"], "X-rated"],
+  ["at anytime", "at any time"],
+  ["president elect", "president-elect"],
+  ...["jotting", "jotted", "penned", "writing", "noting", "noted"].map((verb): PhraseRow => [
+    `${verb}-down`,
+    `${verb} down`,
+  ]),
+];
 export const STYLE: readonly PhraseRow[] = [];
 export const DETECTORS: readonly ReviewDetectorEntry[] = [];
