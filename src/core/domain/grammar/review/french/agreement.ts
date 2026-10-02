@@ -42,7 +42,25 @@ const PERSON: Record<string, number> = {
   vous: VOUS,
   ils: ILS,
   elles: ILS,
+  // Demonstratives and "personne ne", subjects at a clause start: "ça fonctionne", "ceux-ci
+  // partent", "personne ne peut".
+  ça: IL,
+  cela: IL,
+  ceci: IL,
+  personne: IL,
+  "celui-ci": IL,
+  "celui-là": IL,
+  "celle-ci": IL,
+  "celle-là": IL,
+  "ceux-ci": ILS,
+  "ceux-là": ILS,
+  "celles-ci": ILS,
+  "celles-là": ILS,
 };
+/** The personal pronouns, as against the demonstratives and "personne". */
+const PARTICIPLE_PERSONS: Record<string, true> = Object.fromEntries(
+  "je j' tu il elle on nous vous ils elles".split(" ").map((w) => [w, true]),
+);
 /** Pronouns that are always subjects; the others may be objects or stressed ("pour elle"). */
 const ALWAYS_SUBJECT = new Set(["je", "j'", "tu", "il", "on", "ils"]);
 const OPENERS = new Set(
@@ -87,6 +105,9 @@ function agreement(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     (!OPENERS.has(previous.w) || COORDINATING_OR_RELATIVE.has(previous.w))
   )
     return null;
+  // "comme celui-ci", "comme cela": a comparison, not a subject.
+  const demonstrative = !(pronoun in PARTICIPLE_PERSONS);
+  if (demonstrative && previous?.w === "comme") return null;
   // "Peux tu aller", "que veut tu": an unhyphenated inversion.
   if (previous && !isVerbHomograph(previous.w) && verbReadings(previous.w).some(finite))
     return null;
@@ -126,9 +147,18 @@ function agreement(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   } else if (readings.every(finite)) {
     const persons = readings.reduce((mask, r) => mask | (r.slot as number), 0);
     if (persons & person) return null;
+    // "Ça, vous devez le demander": a pronoun after the demonstrative is the subject.
+    if (demonstrative && after.slice(0, i).some((t) => PERSON[t.w] && persons & PERSON[t.w]))
+      return null;
     // "Nous sont parvenus des parchemins", "(je) vous raconterai": with a third person or a
     // "je" verb, "nous"/"vous" is an object.
-    if ((person === NOUS || person === VOUS) && persons & (JE | IL | ILS)) return null;
+    // At the very start of a clause no other subject can come before: only "Nous sont
+    // parvenus", an inverted subject, keeps "nous" an object there.
+    const opens =
+      !previous &&
+      /(?:^|[.!?…\n])\s{0,8}$/u.test(ctx.text.slice(Math.max(0, m.index - 9), m.index));
+    if ((person === NOUS || person === VOUS) && persons & (opens ? ILS : JE | IL | ILS))
+      return null;
     alternatives = [...new Set(readings.flatMap((r) => conjugate(r, person).slice(0, 1)))];
   } else if (
     readings.every((r) => r.slot === "I") &&
@@ -249,7 +279,7 @@ function nonVerbAlternatives(
 }
 
 const PRONOUN =
-  /(?<![\p{L}\p{M}\p{N}_'’-])(?:(?:je|tu|il|elle|on|nous|vous|ils|elles)(?![\p{L}\p{M}\p{N}_-])|j['’](?=\p{L}))/giu;
+  /(?<![\p{L}\p{M}\p{N}_'’-])(?:(?:je|tu|il|elle|on|nous|vous|ils|elles|ça|cela|ceci)(?![\p{L}\p{M}\p{N}_-])|personne(?=[ \t]{1,8}n(?:e\b|['’]))|ce(?:lui|lle|ux|lles)-(?:ci|là)(?![\p{L}\p{M}\p{N}_-])|j['’](?=\p{L}))/giu;
 
 const ETRE_FORMS = new Set(
   "est sont était étaient sera seront serait seraient fut furent soit soient".split(" "),

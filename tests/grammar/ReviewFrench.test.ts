@@ -245,6 +245,11 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         // A noun or a bare participle where the verb goes.
         ["Tu sorts", "Tu sors"],
         ["Ce soir, je sorts avec Paul.", "Ce soir, je sors avec Paul."],
+        // Demonstratives, "personne ne" and a sentence-initial "nous"/"vous".
+        ["Ça marchent très bien.", "Ça marche très bien."],
+        ["Personne ne veux partir.", "Personne ne veut partir."],
+        ["Celles-ci coûte trop cher.", "Celles-ci coûtent trop cher."],
+        ["Nous ne comprends pas.", "Nous ne comprenons pas."],
         ["Il voit loin et il oubli tout.", "Il voit loin et il oublie tout."],
         ["Ce matin, il terminé son rapport.", "Ce matin, il a terminé son rapport."],
         ["Hier, j'aperçu un renard.", "Hier, j'ai aperçu un renard."],
@@ -259,6 +264,11 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         "Le nom des joueurs qui ont gagné est affiché.",
         "Une pomme, une poire et une banane suffisent.",
         "Nous deux partirons demain.",
+        "Ça, vous devez le demander au guichet.",
+        "Des outils comme celui-ci servent souvent.",
+        "La force qui, semblable au vent, nous pousse.",
+        "Personne n'est venu ce matin.",
+        "Je fais ça tous les jours.",
         "Il s'est tu pendant des heures.",
         "Elle partie, la maison sembla vide.",
         "Je soussigné certifie l'exactitude de ces informations.",
