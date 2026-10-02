@@ -729,7 +729,7 @@ test("no German chunk goes quadratic with the regex JIT off", () => {
     env: { ...process.env, BUN_JSC_useRegExpJIT: "0" },
   });
   expect(run.exitCode).toBe(0);
-  expect(Number(run.stdout.toString())).toBeLessThan(800);
+  expect(Number(run.stdout.toString())).toBeLessThan(400);
 }, 60_000);
 
 test("the clean German corpus has no findings from the default rules", () => {
