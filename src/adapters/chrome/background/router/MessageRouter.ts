@@ -1,4 +1,7 @@
+import { FieldPreferenceService } from "../FieldPreferenceService";
+import { FieldPreferenceRepository } from "@core/application/repositories/FieldPreferenceRepository";
 import {
+  CMD_FIELD_PREFERENCES,
   CMD_BACKGROUND_PAGE_PREDICT_REQ,
   CMD_CONTENT_SCRIPT_ADD_TO_DICTIONARY,
   CMD_CONTENT_SCRIPT_DISABLE_REVIEW_RULE,
@@ -73,6 +76,7 @@ const LOCAL_AI_COMMANDS = [
 ] as const;
 
 const ROUTED_MESSAGE_COMMANDS = [
+  CMD_FIELD_PREFERENCES,
   CMD_CONTENT_SCRIPT_PREDICT_REQ,
   CMD_CONTENT_SCRIPT_ADD_TO_DICTIONARY,
   CMD_CONTENT_SCRIPT_DISABLE_REVIEW_RULE,
@@ -163,6 +167,7 @@ export class MessageRouter {
       payload.sendResponse(mappedError.response);
     },
   );
+  private readonly fieldPreferences = new FieldPreferenceService();
   private readonly domainSettingsCache = new DomainSettingsCache();
   // Review detection answers without waiting for the prediction engine to start.
   private readonly reviewEngines = new ReviewEngineHost();
@@ -179,6 +184,18 @@ export class MessageRouter {
       );
     };
 
+    register(CMD_FIELD_PREFERENCES, async ({ request, sender, sendResponse, worker }) => {
+      sendResponse(
+        await this.fieldPreferences.handle(
+          request.context,
+          sender,
+          new FieldPreferenceRepository(worker.settingsManager),
+          async () => {
+            await worker.updatePresageConfig();
+          },
+        ),
+      );
+    });
     register(CMD_CONTENT_SCRIPT_PREDICT_REQ, this.handleContentScriptPredictReq.bind(this));
     register(CMD_OPTIONS_PAGE_CONFIG_CHANGE, this.handleOptionsPageConfigChange.bind(this));
     register(

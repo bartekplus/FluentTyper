@@ -1,3 +1,4 @@
+import { renderFieldPreferencesPanel } from "./FieldPreferencesPanel";
 import type { SettingsRegistry } from "@ui/settings-engine/SettingsEngine.js";
 import type { Store } from "@core/application/storage/Store.js";
 import {
@@ -6,6 +7,7 @@ import {
   KEY_INLINE_SUGGESTION,
   KEY_NUM_SUGGESTIONS,
   KEY_SITE_PROFILES,
+  KEY_FIELD_PREFERENCES,
 } from "@core/domain/constants";
 import { normalizeDomainHost } from "@core/domain/siteProfiles";
 import { SiteProfilesManager } from "./siteProfiles.js";
@@ -49,6 +51,7 @@ export class SiteManagementPanel {
     bindRerender(this.registry.domainBlackList, () => this.render());
     bindRerender(this.registry[KEY_ENABLED_LANGUAGES], () => this.render());
     bindRerender(this.registry[KEY_SITE_PROFILES], () => this.render());
+    bindRerender(this.registry[KEY_FIELD_PREFERENCES], () => this.render());
     bindRerender(this.registry[KEY_NUM_SUGGESTIONS], () => this.siteProfilesManager.render());
     bindRerender(this.registry[KEY_INLINE_SUGGESTION], () => this.siteProfilesManager.render());
 
@@ -80,6 +83,10 @@ export class SiteManagementPanel {
 
     this.root.replaceChildren(shell);
     await this.siteProfilesManager.render();
+    const fields = document.createElement("section");
+    fields.className = "settings-inline-card";
+    shell.append(fields);
+    await renderFieldPreferencesPanel(fields);
   }
 
   private createAccessCard(mode: DomainListMode, domainList: string[]): HTMLElement {
