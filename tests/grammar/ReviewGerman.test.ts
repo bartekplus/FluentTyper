@@ -144,6 +144,9 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Die Milch steht im kühlschrank.", "Die Milch steht im Kühlschrank."],
         // An object after its verb, closed by the clause's end or a genitive.
         ["Die Neuigkeit machte die runde.", "Die Neuigkeit machte die Runde."],
+        // The polite imperative.
+        ["Nehmen sie bitte Platz!", "Nehmen Sie bitte Platz!"],
+        ["Bitte warten sie hier!", "Bitte warten Sie hier!"],
         // The object of "haben" that ends its clause.
         ["Wir hatten schulden bei der Bank.", "Wir hatten Schulden bei der Bank."],
         ["Ich habe fragen zum Vertrag.", "Ich habe Fragen zum Vertrag."],
@@ -200,6 +203,9 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         "Wir wollen frische kaufen.",
         "Ich habe vergessen.",
         "Neue kommen.",
+        "Kommen sie heute?",
+        "Die Kinder spielen, wenn sie wollen!",
+        "Wir fragen sie morgen!",
         "Ich habe ihn fragen wollen.",
         "Ich weiß, dass neue kommen.",
         "Das Argument kann ich nicht gelten lassen.",
@@ -272,6 +278,7 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
           "Die Polizei handelte nach Erkenntnissen der Ermittler.",
         ],
         ["Er starrte sie mit ernsten Blick an.", "Er starrte sie mit ernstem Blick an."],
+        ["Wir sehen uns in 10 Tage wieder.", "Wir sehen uns in 10 Tagen wieder."],
         ["Ich war schon bei drei Zahnärzte.", "Ich war schon bei drei Zahnärzten."],
         ["Wir sprechen später mit diesen Mann.", "Wir sprechen später mit diesem Mann."],
         ["Das Paket kam von das Amt.", "Das Paket kam von dem Amt."],
@@ -287,6 +294,7 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
       ],
       neg: [
         "Er arbeitet bei Ärzte ohne Grenzen.",
+        "Das Jahr wird in 12 Monate eingeteilt.",
         "Er ist zu Tode erschrocken.",
         "Das Paket kommt von Müller.",
         "Wir grüßen mit freundlichen Grüßen.",
@@ -653,6 +661,8 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
     {
       pos: [
         ["Wir muss morgen früh los.", "Wir müssen morgen früh los."],
+        ["Morgen will ich ein Fahrrad kaufe.", "Morgen will ich ein Fahrrad kaufen."],
+        ["Er möchte später Arzt werde.", "Er möchte später Arzt werden."],
         ["Die Gäste war sehr zufrieden.", "Die Gäste waren sehr zufrieden."],
         ["Die Lehrerinnen hat geholfen.", "Die Lehrerinnen haben geholfen."],
         ["Du kann gern mitkommen.", "Du kannst gern mitkommen."],
@@ -664,6 +674,10 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Ich glaube, dass sie hat keine Zeit hat.", "Ich glaube, dass sie keine Zeit hat."],
       ],
       neg: [
+        "Das Haus wird gebaut.",
+        "Das wird leicht.",
+        "Ich will das Buch, das du hast.",
+        "Weil sie die Arbeit planen kann als auch den Bericht vorlegt, bleibt sie.",
         "Die Nachbarin hat geholfen.",
         "Die Polizei war schnell da.",
         "Sie werden bald Eltern werden.",

@@ -130,6 +130,12 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
       ["in Winter", "im Winter"],
       ["in Begriff", "im Begriff"],
       ["in Nu", "im Nu"],
+      // One million is singular.
+      ["eine Millionen", "eine Million"],
+      ["einer Millionen", "einer Million"],
+      ["eine Milliarden", "eine Milliarde"],
+      ["einer Milliarden", "einer Milliarde"],
+      ["eine Billionen", "eine Billion"],
     ],
     compounds: [
       ["aufwiedersehen", "auf Wiedersehen"],

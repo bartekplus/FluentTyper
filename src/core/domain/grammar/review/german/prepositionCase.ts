@@ -43,6 +43,11 @@ const PHRASE = new RegExp(
 );
 // Pronouns, "keinen der …", "das, was …" and "ohne allem".
 const DATIVE_ONLY = "(?<prep>[Mm]it|[Vv]on|[Bb]ei|[Zz]u|[Aa]us|[Nn]ach|[Ss]eit|[Aa]ußer)";
+// A span of time after a number, in the dative: "in 10 Tage" (Tagen), "ab 18 Jahre" (Jahren).
+const COUNTED_TIME = new RegExp(
+  `${WORD_START}(?<prep>[Ii]n|[Vv]or|[Aa]b|[Bb]innen)${SPACE}(?:[2-9]|[1-9]\\d{1,3}|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf|zwanzig|dreißig|hundert)${SPACE}(?<target>Tage|Jahre|Monate)${WORD_END}`,
+  "gdu",
+);
 // A plural noun with no article: "zu Götter", "nach Erkenntnisse", "bei Bilder".
 const PLAIN_PLURAL = new RegExp(
   `${WORD_START}${DATIVE_ONLY}${SPACE}(?<target>\\p{Lu}\\p{Ll}+(?:e|er))${WORD_END}`,
@@ -408,6 +413,14 @@ function prepositionCase(ctx: DetectContext): RawFinding[] {
     if (/^\p{Lu}/u.test(next) || ctx.dictionary.has(`${adj}en`)) continue;
     if (!guarded(ctx, m, "dative")) continue;
     push(m, { replacements: [`${adj}${reading.gender === "f" ? "er" : "em"}`] });
+  }
+  for (const m of frameMatches(ctx, COUNTED_TIME)) {
+    const next = tokensAfter(ctx.text, m.indices!.groups!.target[1], 1)[0] ?? "";
+    // "vor 3 Jahre alt", "in 2 Jahre aufgeteilt": a measure, not a time.
+    if (/^(?:alt|jung|älter|lang|später|früher)$/.test(next) || /^\p{Lu}/u.test(next)) continue;
+    // "in 12 Monate eingeteilt": "in" with the accusative of a division.
+    if (/^[Ii]n$/.test(m.groups!.prep) && /^\p{Ll}+t$/u.test(next)) continue;
+    push(m, { replacements: [`${m.groups!.target}n`] });
   }
   // "mit spannende Ausstellungen" → spannenden: a plural without an article.
   for (const m of frameMatches(ctx, BARE_PLURAL)) {

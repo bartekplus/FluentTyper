@@ -1,5 +1,6 @@
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import { isGerman } from "./shared";
+import { germanInfinitive } from "./germanLexicon";
+import { isGerman, tokensBefore } from "./shared";
 
 // Letter salutations: "Lieber Herr Müller", "Liebe Frau Weber", "Sehr geehrte Damen und
 // Herren" take the title's gender ("Liebe Herr" → Lieber); after a greeting the adjective is
@@ -40,6 +41,42 @@ export function salutationEndings(ctx: DetectContext): RawFinding[] {
       range: { start: m.index, end: m.index + adj.length },
       alternatives: [wanted],
       context: { start: m.index, end: m.index + adj.length + title.length + 1 },
+    });
+  }
+  return findings;
+}
+
+// A verb in -en right before a lowercase "sie": "Kommen sie bitte herein!".
+const VERB_SIE =
+  /(?<![\p{L}\p{M}\p{N}_-])(?<verb>\p{L}+en)[ \t]+(?<sie>sie)(?![\p{L}\p{M}\p{N}_-])/gu;
+// Words that may open an imperative clause before its verb.
+const OPENERS = /^(?:bitte|so|und|oder|aber|dann|jetzt|nun|doch|also)$/i;
+
+/**
+ * The polite imperative: the verb opens its clause and the sentence ends in "!", so "sie" is
+ * the polite "Sie" ("Kommen sie schnell!", "…, oder fügen sie ihn hier ein!"); "Kommen sie
+ * heute?" asks about "them". Run by germanNounCasing.
+ */
+export function politeImperative(ctx: DetectContext): RawFinding[] {
+  if (!isGerman(ctx)) return [];
+  const findings: RawFinding[] = [];
+  for (const m of owned(ctx, VERB_SIE)) {
+    const { verb } = m.groups!;
+    if (!germanInfinitive(verb.toLowerCase())) continue;
+    const start = m.index + m[0].length - 3;
+    const end = /[.!?\n]/.exec(ctx.text.slice(start))?.[0];
+    if (end !== "!") continue;
+    const before = tokensBefore(ctx.text, m.index, 2);
+    const prior = before.at(-1) ?? "";
+    const opens = (token: string | undefined) =>
+      token === undefined || /^(?:[.!?:,;„“"»«]|\n)$/.test(token);
+    if (!opens(before.at(-1)) && !(OPENERS.test(prior) && opens(before.at(-2)))) continue;
+    findings.push({
+      ruleId: "germanNounCasing",
+      messageKey: "review_msg_german_polite_sie",
+      range: { start, end: start + 1 },
+      alternatives: ["S"],
+      context: { start: m.index, end: start + 3 },
     });
   }
   return findings;

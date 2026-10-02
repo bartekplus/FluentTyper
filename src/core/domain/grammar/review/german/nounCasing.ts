@@ -11,7 +11,7 @@ import {
 } from "./germanLexicon";
 import { idioms } from "./idioms";
 import { names } from "./names";
-import { salutationCase } from "./salutations";
+import { politeImperative, salutationCase } from "./salutations";
 import { nominalized } from "./nominalized";
 import {
   BOUNDARY,
@@ -523,6 +523,7 @@ export const DETECTORS: readonly ReviewDetectorEntry[] = [
       ...idioms(ctx),
       ...names(ctx),
       ...salutationCase(ctx),
+      ...politeImperative(ctx),
     ],
   },
 ];
