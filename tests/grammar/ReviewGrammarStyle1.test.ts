@@ -147,6 +147,8 @@ const negatives: [CatalogRuleId, string][] = [
   ["englishSentenceStructure", "What it is is unclear."],
   ["englishSentenceStructure", "Let's be clear."],
   ["englishSentenceStructure", "Tom's are better."],
+  ["englishSentenceStructure", "Those little one's are asleep."],
+  ["englishSentenceStructure", "Mine are new but my sister's are old."],
   ["englishSentenceStructure", "The question is are we done?"],
   ["englishDoubledDegree", "We hired more older workers."],
   ["englishDoubledDegree", "This is the most honest reply."],

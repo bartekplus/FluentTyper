@@ -3,7 +3,13 @@ import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/re
 import { REVIEW_SUPPORTED_RULE_IDS } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 
-const RULES = new Set(["englishPhraseCorrections", "englishClosedCompounds", "stylePhrasing"]);
+// "go ahead an book" is also a confused word; either rule may explain the same repair.
+const RULES = new Set([
+  "englishPhraseCorrections",
+  "englishClosedCompounds",
+  "stylePhrasing",
+  "englishConfusedWords",
+]);
 function findings(text: string) {
   return detectReviewDiagnostics(
     { id: "idioms1", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
