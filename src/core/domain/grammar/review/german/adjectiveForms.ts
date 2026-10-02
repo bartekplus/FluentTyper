@@ -9,8 +9,11 @@ import { isGerman, tokensAfter, tokensBefore, wordSet } from "./shared";
 // ending after an article that already shows the case: "im mentalem Lexikon" (mentalen).
 
 const NOUN = "\\p{Lu}[\\p{L}\\p{M}]*(?:-[\\p{L}\\p{M}]+)*";
+// A degree word may stand between the article and the adjective ("eine sehr schön Frau").
+const DEGREE =
+  "sehr|ziemlich|recht|ganz|besonders|wirklich|unglaublich|äußerst|echt|so|relativ|extrem";
 const BARE = new RegExp(
-  `${WORD_START}(?<det>\\p{L}+)${SPACE}(?<target>(?<adj>\\p{Ll}+)${SPACE}(?<noun>${NOUN}))${WORD_END}`,
+  `${WORD_START}(?<det>\\p{L}+)(?:${SPACE}(?:${DEGREE}))?${SPACE}(?<target>(?<adj>\\p{Ll}+)${SPACE}(?<noun>${NOUN}))${WORD_END}`,
   "gdu",
 );
 const STRONG_AFTER_ARTICLE = new RegExp(
@@ -28,7 +31,8 @@ const STRONG_AFTER_ARTICLE = new RegExp(
 // "die erst Mitte der 1920er erschienene"), and invariable ones.
 const ADVERBIAL = wordSet(
   "erst ganz gleich sehr recht fast viel wenig mehr weniger genug eben allein halb besonders " +
-    "ziemlich völlig gut ausgerechnet lila rosa prima super klasse sexy beige orange extra",
+    "ziemlich völlig ausgerechnet lila rosa prima super klasse sexy beige orange extra " +
+    "genügend maximal minimal hauptsächlich",
 );
 // Adjectives that often open a compound noun ("Rotwein", "Süßwasser", "Neuwagen"), and
 // superlative stems that only stand in one ("Mindestlohn", "Höchstform"): written apart before
@@ -37,12 +41,17 @@ const ADVERBIAL = wordSet(
 const COMPOUND_FIRST = wordSet(
   "rot blau grün gelb schwarz grau braun bunt süß sauer bitter mager trocken weich hart " +
     "frisch alt neu falsch klein groß hoch tief kurz voll leer fein echt mehrfach doppelt " +
-    "universal exklusiv alternativ brachial schwarzweiß best mindest höchst kleinst größt",
+    "universal exklusiv alternativ brachial schwarzweiß best mindest höchst kleinst größt " +
+    "national zentral parallel rund warm kalt schwer frei direkt dunkel hell privat fertig " +
+    "nackt geheim negativ positiv komplett original gesamt total extrem flüssig fest eigen " +
+    "digital fremd passiv aktiv primär spezial normal",
 );
 const COMPOUND_ALONE = wordSet(
   "rot blau grün gelb schwarz grau braun bunt süß sauer bitter mager trocken weich " +
     "brachial universal schwarzweiß best mindest höchst kleinst größt",
 );
+// Determiners and pronouns the adjective filter accepts ("bei ihr Rat", "für ihr Werk").
+const PRONOUN_LIKE = /^(?:k?ein|[dms]ein|ihr|unser|euer|dies|jen|jed|welch|manch|solch|all|viel)$/;
 // Words the adjective filter accepts that are articles, prepositions or fixed in idioms.
 const NOT_ADJECTIVES = wordSet(
   "ein eine einer unter ober laut eigen inner äußer hinter vorder mittler weiß weiss",
@@ -103,12 +112,56 @@ function inflect(lemma: string, ending: string): string {
   return stem + ending;
 }
 
-const nounKnown = (word: string) => germanNounReading(word.toLowerCase()) !== null;
+// "Vorstellung" is no dictionary word but a noun of a known gender.
+const nounKnown = (word: string) =>
+  germanNounReading(word.toLowerCase()) !== null || germanGender(word) !== null;
 /** "Fremder", "Kranken": a noun made from an adjective. */
 const nominalized = (word: string) => {
   const m = /^(.+?)(?:e|er|en|es|em)$/.exec(word.toLowerCase());
   return !!m && germanAdjective(m[1]);
 };
+
+// Strong endings by gender, in the order nominative, accusative, dative, genitive.
+const STRONG: Readonly<Record<string, readonly string[]>> = {
+  m: ["er", "en", "em", "en"],
+  f: ["e", "e", "er", "er"],
+  n: ["es", "es", "em", "en"],
+  pl: ["e", "e", "en", "er"],
+};
+// The cases (indexes into STRONG) a preposition governs; two-way ones take two.
+const PREPOSITION_CASES = new Map<string, number[]>([
+  ...wordSetList("mit von bei aus nach seit samt nebst außer", [2]),
+  ...wordSetList("für gegen durch ohne um wider", [1]),
+  ...wordSetList("in an auf über unter vor hinter neben zwischen", [1, 2]),
+  ...wordSetList("wegen trotz während statt anstatt", [3]),
+]);
+function wordSetList(words: string, cases: number[]): Array<[string, number[]]> {
+  return words.split(" ").map((w) => [w, cases]);
+}
+
+/** The strong endings an adjective takes after a preposition before this noun, or null. */
+function strongEndings(preposition: string, noun: string): string[] | null {
+  const cases = PREPOSITION_CASES.get(preposition);
+  const head = noun.split("-").at(-1)!;
+  const reading = germanGender(head);
+  if (!cases) return null;
+  let genders: string[];
+  if (reading) {
+    genders = reading.gender === "x" ? ["m", "n"] : [reading.gender];
+    if (reading.plural) genders.push("pl");
+  } else if (
+    [head.slice(0, -1), head.slice(0, -2)].some(
+      (singular) => /n$/.test(head) && singular.length >= 3 && nounKnown(singular),
+    )
+  ) {
+    // "Anlagen", "Regeln", "Preisen": a plural in -n or -en of a known noun.
+    genders = ["pl"];
+  } else return null;
+  // Only a plural: before a singular the word is as often an adverb ("mit maximal Tempo").
+  if (!genders.includes("pl") || genders.length > 1) return null;
+  const endings = new Set(cases.flatMap((c) => genders.map((g) => STRONG[g][c])));
+  return endings.size <= 2 ? [...endings] : null;
+}
 
 function bareAdjectives(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
@@ -118,7 +171,8 @@ function bareAdjectives(ctx: DetectContext): RawFinding[] {
     const isDeterminer =
       (ARTICLES.has(low) ||
         DEMONSTRATIVES.has(low) ||
-        /^(?:ein|kein|mein|dein|sein|unser|euer)$/.test(low)) &&
+        /^(?:ein|kein|mein|dein|sein|unser|euer)$/.test(low) ||
+        /^(?:k?ein|[dms]ein|ihr|unser|eur|jed)(?:er|es)$/.test(low)) &&
       !(
         det !== low &&
         m.index > 0 &&
@@ -184,7 +238,25 @@ function bareAdjectives(ctx: DetectContext): RawFinding[] {
       });
       continue;
     }
-    if (!isDeterminer || ADVERBIAL.has(adj) || nominalized(noun) || !nounKnown(noun)) continue;
+    if (ADVERBIAL.has(adj) || nominalized(noun) || !nounKnown(noun) || adj.endsWith("e")) continue;
+    if (isPreposition) {
+      // "in öffentlich Anlagen": the strong ending the preposition's case calls for, before a
+      // plural. "für wichtig halten", "um … zu", "die Jahre über": no preposition there.
+      if (/^(?:für|um|über|zu|bis|ab)$/.test(low) || PRONOUN_LIKE.test(adj)) continue;
+      const endings = strongEndings(low, noun);
+      if (!endings) continue;
+      const fixes = endings.map((e) => `${inflect(adj, e)} ${noun}`);
+      if (COMPOUND_FIRST.has(adj) && !noun.includes("-")) fixes.push(glued);
+      findings.push({
+        ruleId: "germanAdjectiveForms",
+        messageKey: "review_msg_german_adjective_ending",
+        range: { start, end },
+        alternatives: fixes,
+        context: { start: m.index, end },
+        ...(fixes.length > 1 ? { requiresChoice: true as const } : {}),
+      });
+      continue;
+    }
     const before = tokensBefore(ctx.text, m.index, 2);
     const prior = before.at(-1) ?? "";
     const comma = before.length > 1 ? before[0] : "";
@@ -201,6 +273,8 @@ function bareAdjectives(ctx: DetectContext): RawFinding[] {
     ) {
       continue;
     }
+    // "macht einem richtig Lust": the pronoun "one", not an article.
+    if (/^ein(?:em|er)$/.test(low) && !PREPOSITIONS.has(prior.toLowerCase())) continue;
     if (/^(?:ich|wir|sie|die)$/i.test(prior) && /^(?:meine|meinen|seine)$/.test(low)) continue;
     let endings = endingAfter(det, prior, noun);
     if (!endings) continue;
