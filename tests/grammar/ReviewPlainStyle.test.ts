@@ -1,0 +1,84 @@
+import { describe, expect, test } from "bun:test";
+import { REVIEW_SUPPORTED_RULE_IDS } from "../../src/core/domain/grammar/review/reviewCatalog";
+import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
+import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
+import type { ReviewDiagnostic } from "../../src/core/domain/grammar/review/types";
+
+// english/plainStyle.ts: set phrases, optional plain style, slang, intensifiers, dialect
+// vocabulary and formal negative questions. All sentences are our own.
+function scan(text: string, rule: string): ReviewDiagnostic[] {
+  return detectReviewDiagnostics(
+    { id: "plain", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
+    {
+      lang: "en_US",
+      enabledRules: [...REVIEW_SUPPORTED_RULE_IDS],
+      userDictionary: [],
+      insertSpaceAfterAutocomplete: true,
+    },
+  ).diagnostics.filter((d) => d.ruleId === rule);
+}
+const fixAll = (text: string, ds: ReviewDiagnostic[]) =>
+  applyEdits(
+    text,
+    ds.flatMap((d) => d.alternatives[0].edits),
+  );
+
+describe("set phrases (englishPhraseCorrections)", () => {
+  test.each([
+    ["Her plan makes since to me.", "Her plan makes sense to me."],
+    ["All and all, we won.", "All in all, we won."],
+    ["We go sailing ever so often.", "We go sailing every so often."],
+    ["Prices rise now and days.", "Prices rise nowadays."],
+  ])("fixes %p", (text, expected) => {
+    expect(fixAll(text, scan(text, "englishPhraseCorrections"))).toBe(expected);
+  });
+
+  test.each(["One for all and all for one.", "It has grown since 2010 and makes sense."])(
+    "keeps %p",
+    (text) => {
+      expect(scan(text, "englishPhraseCorrections")).toEqual([]);
+    },
+  );
+});
+
+describe("optional plain style", () => {
+  test.each([
+    ["The teams merged together last spring.", "The teams merged last spring."],
+    ["He reverts back to old habits.", "He reverts to old habits."],
+    ["We utilize three servers.", "We use three servers."],
+    ["She facilitated the meeting.", "She helped the meeting."],
+    ["They are able to swim.", "They can swim."],
+    ["I wanna leave early.", "I want to leave early."],
+    ["She wanna stay home.", "She wants to stay home."],
+    ["Lemme check the list.", "Let me check the list."],
+    ["Why do not you call her?", "Why don't you call her?"],
+    ["Can not we stay longer?", "Can't we stay longer?"],
+    ["With who you shared lunch?", "With whom you shared lunch?"],
+    ["Ten guests came, most of who were late.", "Ten guests came, most of whom were late."],
+  ])("fixes %p", (text, expected) => {
+    expect(fixAll(text, scan(text, "stylePhrasing"))).toBe(expected);
+  });
+
+  test.each([
+    "Love me for who I am.",
+    "Had not they left, we would stay.",
+    "Tell me who you are.",
+    "We merged the branches.",
+    "That is not it.",
+  ])("keeps %p", (text) => {
+    expect(scan(text, "stylePhrasing")).toEqual([]);
+  });
+
+  test("an intensified plain adjective suggests a stronger one", () => {
+    expect(
+      fixAll("We were extremely tired.", scan("We were extremely tired.", "styleWordChoice")),
+    ).toBe("We were exhausted.");
+  });
+
+  test("regional vocabulary follows the chosen dialect", () => {
+    const us = "We take a bath at night.";
+    expect(fixAll(us, scan(us, "englishBritishSpelling"))).toBe("We have a bath at night.");
+    const uk = "We meet at the weekend.";
+    expect(fixAll(uk, scan(uk, "englishAmericanSpelling"))).toBe("We meet on the weekend.");
+  });
+});

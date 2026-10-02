@@ -11,6 +11,7 @@ import {
 import { EXTENSION_COMPOUNDS, EXTENSION_PHRASES, EXTENSION_STYLE } from "./english";
 import { OPTIONAL_TABLES } from "./english/dialects";
 import { NAMES } from "./english/properNames";
+import { OPTIONAL as PLAIN_OPTIONAL } from "./english/plainStyle";
 import { LANGUAGE_PHRASE_TABLES } from "./languagePhraseTables";
 import { EDGE, SPACE } from "./phraseTemplates";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
@@ -112,7 +113,8 @@ function buildIndexes() {
     "review_msg_closed_compound",
   );
   // Before style: a dialect row outranks a style row on the same word when both are on.
-  for (const { rows, ruleId, messageKey } of OPTIONAL_TABLES) index("en", rows, ruleId, messageKey);
+  for (const { rows, ruleId, messageKey } of [...OPTIONAL_TABLES, ...PLAIN_OPTIONAL])
+    index("en", rows, ruleId, messageKey);
   index("en", [...STYLE_PHRASES, ...EXTENSION_STYLE], "stylePhrasing", "review_msg_style_phrasing");
   index(
     "en",

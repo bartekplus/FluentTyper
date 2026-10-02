@@ -46,6 +46,8 @@ test("no chunk stalls on runs of frame-opening words", () => {
     "U.S.A e.g PH.D ".repeat(1_000),
     '4 x 5 -> "a" (c) 1914-1918 '.repeat(600),
     "cold - very ".repeat(1_500),
+    "Why do not you with who you ".repeat(800),
+    "combined together wanna ".repeat(1_000),
   ];
   // Warm-up: the first scan compiles every frame and decodes the lexicon.
   for (const text of inputs) slowestChunkMs(text);
