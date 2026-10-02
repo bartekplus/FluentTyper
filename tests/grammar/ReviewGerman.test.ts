@@ -478,6 +478,7 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Mit große Freude haben wir zugesagt.", "Mit großer Freude haben wir zugesagt."],
         ["Die Haus Tür klemmt.", "Die Haustür klemmt."],
         ["Wo liegt der Auto Schlüssel?", "Wo liegt der Autoschlüssel?"],
+        ["Der Vorsitzender eröffnete die Sitzung.", "Der Vorsitzende eröffnete die Sitzung."],
       ],
       neg: [
         "Der Mann, der Auto fährt, wohnt hier.",
@@ -493,6 +494,8 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         "Ich kenne das Buch des Autors.",
         "Er hat früher Bier getrunken.",
         "Sie schenkte der Mutter Blumen.",
+        "Ein Bekannter hat angerufen.",
+        "Der Lehrer hat angerufen.",
         "Er war Schüler einer Berliner Schule.",
         "Schönes Wetter heute!",
         "Gute Nacht und bis morgen.",

@@ -326,6 +326,75 @@ function splitCompound(
   };
 }
 
+// An adjective used as a noun keeps the adjective's ending after its article: "der
+// Angestellte" (not "Angestellter"), "ein Abgeordneter" or "eine Abgeordnete" (not "ein
+// Abgeordnete"). Any gender fits a person, so the article's own readings decide.
+function nominalizedAdjective(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  det: Determiner,
+  typed: string,
+  noun: string,
+): RawFinding | null {
+  const low = noun.toLowerCase();
+  if (det.prep || noun.includes("-") || germanNounReading(low) !== null) return null;
+  const parts = /^(\p{Ll}{3,}?)(e|en|er|es|em)$/u.exec(low);
+  if (!parts) return null;
+  const [, stem, typedEnding] = parts;
+  // Only "-er" after "der" and "-e" after a bare ein-word: "des Gebietes", "seiner Spitze",
+  // "das Machen" are nouns of their own.
+  const bareEin = det.kind === "ein" && det.ending === "";
+  if (typedEnding !== (bareEin ? "e" : "er") || (!bareEin && det.kind === "ein")) return null;
+  // Person words: participles ("Angestellte", "Verrückte") and adjectives in -lich, -ig,
+  // -los, -isch ("Jugendliche", "Obdachlose"); "Alter", "Junge", "Tauber" are nouns.
+  const participle =
+    (/^\p{Ll}*ge\p{Ll}+t$/u.test(stem) &&
+      germanInfinitive(`${stem.replace(/^\p{Ll}*?ge/u, "").slice(0, -1)}en`)) ||
+    (/^(?:ver|be|er|zer|ent)\p{Ll}+t$/u.test(stem) && germanInfinitive(`${stem.slice(0, -1)}en`));
+  // "Vorsitzende", "Reisende": a present participle.
+  const present = /\p{Ll}{3,}end$/u.test(stem) && germanInfinitive(stem.slice(0, -1));
+  const personAdjective = present || (/(?:lich|ig|los|isch)$/.test(stem) && germanAdjective(stem));
+  if (!participle && !personAdjective) return null;
+  const before = tokensBefore(ctx.text, m.index, 2);
+  const start = sentenceStart(before);
+  // ", der Abgeordneter war": a relative pronoun before a predicate noun.
+  if (before.at(-1) === "," && det.kind === "d") return null;
+  let pairs = readings(det);
+  if (start && pairs.some(([, c]) => c === "nom")) pairs = pairs.filter(([, c]) => c === "nom");
+  // "ein Abgeordneter": a person, so no neuter fix.
+  if (pairs.some(([g]) => g === "m")) pairs = pairs.filter(([g]) => g !== "n");
+  const kind = det.kind === "ein" ? "mixed" : "weak";
+  const allowed = new Set(
+    readings(det).map(([g, c]) => ADJECTIVE_ENDINGS[kind][g][CASE_ORDER.indexOf(c)]),
+  );
+  if (allowed.has(typedEnding)) return null;
+  // A capitalized word after it: a name or an open compound.
+  const nounEnd = m.indices!.groups!.noun[1];
+  const next = tokensAfter(ctx.text, nounEnd, 1)[0] ?? "";
+  if (/^\p{Lu}/u.test(next) || ctx.dictionary.has(low)) return null;
+  // "Ein Abgeordnete betreffendes Problem", "Ein Verrückte zu … provozierendes": the noun is
+  // the object of a participle that the article belongs to.
+  if (next === "zu" || /^(?:\p{Ll}+nd|\p{Ll}*ge\p{Ll}+t)(?:e|en|er|es|em)$/u.test(next))
+    return null;
+  const head = noun.slice(0, stem.length);
+  const fixes = new Set(
+    pairs.map(([g, c]) => `${typed} ${head}${ADJECTIVE_ENDINGS[kind][g][CASE_ORDER.indexOf(c)]}`),
+  );
+  // "Ein Abgeordnete": a woman ("Eine Abgeordnete") as much as a man ("Ein Abgeordneter").
+  if (det.kind === "ein" && det.ending === "" && typedEnding === "e" && start) {
+    fixes.add(`${spell(det, "f", "nom", typed)} ${noun}`);
+  }
+  const [detStart] = m.indices!.groups!.det;
+  return {
+    ruleId: "germanArticleGender",
+    messageKey: "review_msg_german_adjective_ending",
+    range: { start: detStart, end: nounEnd },
+    alternatives: [...fixes],
+    context: { start: m.index, end: nounEnd },
+    ...(fixes.size > 1 ? { requiresChoice: true as const } : {}),
+  };
+}
+
 function articleGender(ctx: DetectContext): RawFinding[] {
   if (!isGerman(ctx)) return [];
   const findings: RawFinding[] = [];
@@ -343,6 +412,11 @@ function articleGender(ctx: DetectContext): RawFinding[] {
       continue;
     }
     const reading = germanGender(head);
+    if (!reading && !mods.trim()) {
+      const nominal = nominalizedAdjective(ctx, m, det, typed, noun);
+      if (nominal) findings.push(nominal);
+      continue;
+    }
     // "Die Bild": the newspaper.
     if (!reading || /^die bild$/i.test(`${typed} ${noun}`)) continue;
     const adjectives = mods.trim() ? mods.trim().split(/[ \t\u00a0]+/) : [];
