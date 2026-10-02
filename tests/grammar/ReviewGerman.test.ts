@@ -138,6 +138,8 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Wir warten seit den letzten Monat.", "Wir warten seit dem letzten Monat."],
         ["Er wohnt bei seine alte Oma.", "Er wohnt bei seiner alten Oma."],
         ["Das gilt gemäß des Vertrages.", "Das gilt gemäß dem Vertrag."],
+        ["Sie kam mit drei Koffer an.", "Sie kam mit drei Koffern an."],
+        ["Mit neue Lösungen geht es.", "Mit neuen Lösungen geht es."],
       ],
       neg: [
         "Das ist mit die beste Idee.",
@@ -151,6 +153,9 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         "Wir rechnen mit keinen Problemen.",
         "Er spricht mit ihr Deutsch.",
         "Das ist der Grund, wegen dem Anna geht.",
+        "Man darf bis zu drei Bücher ausleihen.",
+        "Seit 2010 Lehrer, jetzt Rektor.",
+        "Sie kam mit großer Freude.",
       ],
     },
   ],
