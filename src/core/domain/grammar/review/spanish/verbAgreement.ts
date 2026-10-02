@@ -3,6 +3,7 @@ import { DETERMINER, pluralOf, readNoun } from "./agreement";
 import {
   Around,
   CONJUNCTIONS,
+  GIVEN_NAMES,
   PREPOSITIONS,
   replaceToken,
   tokenize,
@@ -102,6 +103,33 @@ function verbAfter(tokens: Token[], i: number): number {
   return token?.word && !token.broken && !tokens[i + 1].broken ? j : -1;
 }
 
+/** A capitalized given name, or mid-sentence a capitalized word the lexicon does not know. */
+function personName(token: Token, sentenceStart: boolean): boolean {
+  if (!/^\p{Lu}\p{Ll}+$/u.test(token.text)) return false;
+  const word = token.lower;
+  if (GIVEN_NAMES.has(word)) return true;
+  // Every word is capitalized at the start: "Quizás", "Ojalá" and "Oye" name no one.
+  if (sentenceStart) return false;
+  return (
+    word.length > 2 &&
+    !isNoun(word) &&
+    !isGenderedEntry(word) &&
+    !genderedForm(word) &&
+    !finiteVerb(word) &&
+    !DETERMINER.has(word) &&
+    !PREPOSITIONS.has(word) &&
+    !CONJUNCTIONS.has(word) &&
+    !CLOSED_WORDS.has(word) &&
+    !/mente$/u.test(word)
+  );
+}
+const CLOSED_WORDS = words(
+  "yo tú él ella usted nosotros nosotras vosotros vosotras ellos ellas ustedes no ya hoy ayer " +
+    "mañana aquí allí así también tampoco muy más menos siempre nunca entonces luego después " +
+    "antes ahora todavía aún quien quienes cual cuales donde cuando como qué quién cómo dónde " +
+    "cuándo cuál todo todos todas nada nadie algo alguien eso esto aquello ambos varios",
+);
+
 /** Subject (pronoun, or determiner + noun) at clause start and the verb after it. */
 function subjectVerb(ctx: DetectContext, tokens: Token[], i: number): RawFinding | null {
   const token = tokens[i];
@@ -110,7 +138,12 @@ function subjectVerb(ctx: DetectContext, tokens: Token[], i: number): RawFinding
   let last = i;
   if (SINGULAR_PRONOUNS.has(token.lower)) subject = "singular";
   else if (PLURAL_PRONOUNS.has(token.lower)) subject = "plural";
-  else {
+  else if (personName(token, new Around(tokens, i).starts)) {
+    // "Juan tienen", "Marta Ruiz llegan": a person's name, with up to two more name parts.
+    subject = "singular";
+    while (last < i + 2 && /^\p{Lu}\p{Ll}+$/u.test(tokens[last + 1]?.text ?? "")) last++;
+    if (tokens[last + 1]?.broken) return null;
+  } else {
     const det = DETERMINER.get(token.lower);
     const nounToken = tokens[i + 1];
     if (!det || !nounToken?.word || nounToken.broken || det.forms[0].includes(" ")) return null;

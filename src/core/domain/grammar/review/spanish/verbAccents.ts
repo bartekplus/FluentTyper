@@ -4,6 +4,7 @@ import {
   CLITICS,
   CONJUNCTIONS,
   DETERMINERS as COMMON_DETERMINERS,
+  GIVEN_NAMES,
   isInfinitive,
   PREPOSITIONS,
   SER,
@@ -139,14 +140,15 @@ const SUBJECT_DETERMINERS = words(
 );
 // Capitalized words that are no name: "Me quedo", "Al contrario", "Mañana trabajo".
 const notName = (word: string) =>
-  CLITICS.has(word) ||
-  PREPOSITIONS.has(word) ||
-  CONJUNCTIONS.has(word) ||
-  COMMON_DETERMINERS.has(word) ||
-  CLOSED.has(word) ||
-  /mente$/u.test(word) ||
-  !!attribute(word) ||
-  finiteVerb(word);
+  !GIVEN_NAMES.has(word) &&
+  (CLITICS.has(word) ||
+    PREPOSITIONS.has(word) ||
+    CONJUNCTIONS.has(word) ||
+    COMMON_DETERMINERS.has(word) ||
+    CLOSED.has(word) ||
+    /mente$/u.test(word) ||
+    !!attribute(word) ||
+    finiteVerb(word));
 const CLOSED = words(
   "al del lo yo tú él ella usted nosotros ellos ellas ustedes no ya hoy ayer anoche mañana aquí " +
     "allí así también tampoco muy más menos siempre nunca entonces luego después antes ahora " +

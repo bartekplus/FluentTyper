@@ -426,6 +426,8 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         ["Pedro nunca contesto el correo.", "Pedro nunca contestó el correo."],
         ["Mi jefe pago la cena.", "Mi jefe pagó la cena."],
         ["Ana Belén canto en el teatro.", "Ana Belén cantó en el teatro."],
+        ["Rosa contesto enseguida.", "Rosa contestó enseguida."],
+        ["Pilar compro el pan.", "Pilar compró el pan."],
       ],
       neg: [
         "En Madrid trabajo mucho.",
@@ -434,6 +436,7 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         "El niño modelo saluda al público.",
         "Últimamente aprecio más el silencio.",
         "Luis, trabajo mañana.",
+        "Rosa trabajo es lo que quiero.",
         "El precio medio de la vivienda subió.",
         "Un árbol repleto de frutas.",
       ],
@@ -445,6 +448,9 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
     {
       pos: [
         ["Los vecinos tiene un perro.", "Los vecinos tienen un perro."],
+        ["Juan tienen dos gatos.", "Juan tiene dos gatos."],
+        ["Dijo que Iker vienen mañana.", "Dijo que Iker viene mañana."],
+        ["Marta Ruiz llegan hoy.", "Marta Ruiz llega hoy."],
         ["Ellas llega mañana.", "Ellas llegan mañana."],
         ["Mi hermano no se levantan temprano.", "Mi hermano no se levanta temprano."],
         ["Este pastel están riquísimo.", "Este pastel está riquísimo."],
@@ -470,6 +476,10 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         "Son resultado de mucho trabajo.",
         "No eran pecado.",
         "Mi amigo Eren es de Turquía.",
+        "Quizás tienen razón.",
+        "Ojalá vengan pronto.",
+        "Creo que Juan y Ana vienen.",
+        "Oye, vienen ya.",
         "Ella es médico en un hospital.",
         "Su profesión es abogado.",
         "La vida es puro teatro.",
@@ -508,7 +518,10 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
     "está before an article or coordinated participles, qué closing a clause, dé with its object",
     {
       pos: [
-        ["Detrás del ayuntamiento esta la biblioteca.", "Detrás del ayuntamiento está la biblioteca."],
+        [
+          "Detrás del ayuntamiento esta la biblioteca.",
+          "Detrás del ayuntamiento está la biblioteca.",
+        ],
         ["¿Dónde esta ese libro?", "¿Dónde está ese libro?"],
         ["Mi prima esta casada y separada.", "Mi prima está casada y separada."],
         ["Vino tarde y esta agotada.", "Vino tarde y está agotada."],
@@ -523,7 +536,10 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         ["Los arboles daban sombra.", "Los árboles daban sombra."],
         ["Estudiamos las formulas.", "Estudiamos las fórmulas."],
         ["Vive en una zona critica.", "Vive en una zona crítica."],
-        ["Necesitamos soluciones practicas y baratas.", "Necesitamos soluciones prácticas y baratas."],
+        [
+          "Necesitamos soluciones practicas y baratas.",
+          "Necesitamos soluciones prácticas y baratas.",
+        ],
       ],
       neg: [
         "Esta la compré en Roma.",
@@ -559,7 +575,10 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         ["Recoge les libros del suelo.", "Recoge los libros del suelo."],
         ["Le coche no arranca.", "El coche no arranca."],
         ["Os niños ya duermen.", "Los niños ya duermen."],
-        ["Volvió sin despedirse y al marchase lloró.", "Volvió sin despedirse y al marcharse lloró."],
+        [
+          "Volvió sin despedirse y al marchase lloró.",
+          "Volvió sin despedirse y al marcharse lloró.",
+        ],
         ["Vamos a prepara la cena.", "Vamos a preparar la cena."],
       ],
       neg: [

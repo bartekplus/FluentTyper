@@ -326,8 +326,7 @@ const TEA = words("verde negro rojo blanco chino japonés inglés frío caliente
 // Bare objects "dar" takes in set phrases: "dé cuenta", "dé voz", "dé las gracias".
 const GIVEN = words("cuenta voz gracias permiso asentimiento golpecitos crédito importancia");
 const giveObject = (at: Around) =>
-  (GIVEN.has(at.next()) &&
-    (at.endsAfter(1) || /^(?:de|del|a|al|por|para|y)$/u.test(at.next(2)))) ||
+  (GIVEN.has(at.next()) && (at.endsAfter(1) || /^(?:de|del|a|al|por|para|y)$/u.test(at.next(2)))) ||
   (at.next() === "a" && at.next(2) === "luz");
 // Subjects that may stand between the subjunctive trigger and "dé".
 const SUBJECT_FILLERS = words("él ella usted alguien nadie dios uno cada mismo ahora no nunca ya");

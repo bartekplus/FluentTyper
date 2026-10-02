@@ -5,6 +5,7 @@ import {
   CLITICS,
   CONJUNCTIONS,
   DETERMINERS,
+  GIVEN_NAMES,
   INVARIANT,
   isBoundary,
   isInfinitive,
@@ -68,6 +69,7 @@ function nameLike(at: Around): boolean {
   const before = at.tokens[at.i - 1];
   if (!before?.word || at.tokens[at.i].broken || !/^\p{Lu}\p{Ll}/u.test(before.text)) return false;
   const word = before.lower;
+  if (GIVEN_NAMES.has(word)) return true;
   return (
     word.length > 2 &&
     !isNoun(word) &&

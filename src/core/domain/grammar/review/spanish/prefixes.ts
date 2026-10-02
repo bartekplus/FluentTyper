@@ -2,14 +2,7 @@ import { namedExampleBefore } from "../exampleCues";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { readNoun } from "./agreement";
 import { Around, carryCase, CLITICS, keepsTyped, tokenize, words } from "./common";
-import {
-  attribute,
-  finiteVerb,
-  genderedForm,
-  isGenderedEntry,
-  isNoun,
-  plain,
-} from "./lexicon";
+import { attribute, finiteVerb, genderedForm, isGenderedEntry, isNoun, plain } from "./lexicon";
 
 // Spanish prefixes join the word they modify: "anti ruso" -> "antirruso", "ex-colonias" ->
 // "excolonias". Apart or hyphenated only before a capital, a number or a phrase.
@@ -49,7 +42,11 @@ function prefixes(ctx: DetectContext): RawFinding[] {
   for (let m = regex.exec(ctx.scanText); m && m.index < ctx.to; m = regex.exec(ctx.scanText)) {
     if (m.index < ctx.from) continue;
     const [typed, prefix, hyphen, word] = m;
-    if (!hyphen && FREE_SET.has(prefix.toLowerCase()) && !knownWord(join(prefix.toLowerCase(), word)))
+    if (
+      !hyphen &&
+      FREE_SET.has(prefix.toLowerCase()) &&
+      !knownWord(join(prefix.toLowerCase(), word))
+    )
       continue;
     // "vice primer ministro", "ex alto cargo": the prefix takes a whole phrase.
     const after = /^[ \t]+(\p{L}+)/u.exec(ctx.text.slice(m.index + typed.length))?.[1] ?? "";
@@ -145,6 +142,7 @@ function splitCompounds(ctx: DetectContext): RawFinding[] {
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
   {
     rules: [RULE],
-    detect: (ctx) => (ctx.lang.slice(0, 2) === "es" ? [...prefixes(ctx), ...splitCompounds(ctx)] : []),
+    detect: (ctx) =>
+      ctx.lang.slice(0, 2) === "es" ? [...prefixes(ctx), ...splitCompounds(ctx)] : [],
   },
 ];

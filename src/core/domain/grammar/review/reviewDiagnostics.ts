@@ -176,12 +176,7 @@ const DECIMAL_QUANTITY = /^\p{Nd}{1,9}\.\p{Nd}{1,9}(?:\p{L}{1,4}|[€$£¥%])?$/
 const DOTTED_DATE = /^\d{1,3}\.\d{1,2}\.(?:\d{2}|\d{4})?$/;
 
 /** URLs, e-mail addresses, paths, mentions, dotted names and overlong tokens in [from, to). */
-function technicalRanges(
-  source: string,
-  from: number,
-  to: number,
-  lang: string,
-): ProtectedRange[] {
+function technicalRanges(source: string, from: number, to: number, lang: string): ProtectedRange[] {
   const spanish = lang.startsWith("es");
   const ranges: ProtectedRange[] = [];
   const token = /\S+/g;
