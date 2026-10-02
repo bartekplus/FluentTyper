@@ -275,6 +275,7 @@ export type ReviewMessageKey =
   | "review_msg_arabic_counted_singular"
   // Portuguese.
   | "review_msg_pt_accent_paronym"
+  | "review_msg_pt_accent_verb"
   | "review_msg_pt_confusions"
   | "review_msg_pt_crase"
   | "review_msg_pt_por_que"

@@ -30,6 +30,9 @@ export const PORTUGUESE_WORST_CASES = [
   "eu e a Rita viajam as crianças da escola brinca vende-se casas ".repeat(60),
   "devido a quanto a vou na praia a razão pelo qual ".repeat(80),
   `${" ".repeat(3_900)}x`.repeat(2),
+  `devemos${" ".repeat(3_000)}sim${" ".repeat(500)}lutar`,
+  `Ele${" ".repeat(3_000)}não${" ".repeat(500)}cópia os dados`,
+  "bem mas, sim senhor! eu cálculo que Prática-se pagou o pato de forma rápida ".repeat(60),
 ];
 
 function slowestChunkMs(text: string): number {
