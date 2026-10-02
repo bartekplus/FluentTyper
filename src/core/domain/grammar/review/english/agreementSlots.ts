@@ -321,7 +321,7 @@ function invertedAuxiliary(ctx: DetectContext): RawFinding[] {
   const plural: Record<string, string> = { does: "do", has: "have", is: "are", was: "were" };
   for (const m of frameMatches(
     ctx,
-    `(?<aux>do|does|have|has|is|are|was|were)${SPACE}(?:the|your|my|his|her|our|their)${SPACE}(?<noun>[a-z]+)(?:${SPACE}(?<verb>[a-z]+))?${WORD_END}`,
+    `(?<aux>do|does|have|has|is|are|was|were)${SPACE}(?:the|your|my|his|her|our|their)${SPACE}(?<noun>[a-z]+)(?:${SPACE}(?:ever|never|already|really|just|always|also|still|actually)(?=${SPACE}[a-z]+${WORD_END}))?(?:${SPACE}(?<verb>[a-z]+))?${WORD_END}`,
     "aux",
   )) {
     const before = wordBefore(ctx, m.index);
@@ -330,15 +330,31 @@ function invertedAuxiliary(ctx: DetectContext): RawFinding[] {
     const { aux, noun, verb } = m.groups!;
     const a = aux.toLowerCase();
     const number = nounNumber(noun);
-    if (!number || COLLECTIVE.has(number.singular) || NUMBERS.test(noun)) continue;
-    const read = verb ? englishWordInfo(verb) : null;
+    // A plural collective ("the teams") takes a plural verb like any plural.
+    if (
+      !number ||
+      (COLLECTIVE.has(number.singular) && number.number === "singular") ||
+      NUMBERS.test(noun)
+    )
+      continue;
+    // "Where were the book I lent you?": a relative clause after the subject.
+    const relative =
+      /^(?:i|you|we|they|he|she)$/i.test(verb ?? "") &&
+      /^(?:what|where|when|why|how|who|which)$/.test(before);
+    const read = verb && !relative ? englishWordInfo(verb) : null;
     // A verb must follow do/have ("Do your homework" is an order); be may end the question.
     if (/^(?:do|does)$/.test(a) && !read?.verbs.some((v) => v.form === "base" && v.lemma === verb))
       continue;
-    if (/^(?:have|has)$/.test(a) && !read?.verbs.some((v) => v.form === "participle")) continue;
+    if (
+      /^(?:have|has)$/.test(a) &&
+      verb !== "been" &&
+      !read?.verbs.some((v) => v.form === "participle")
+    )
+      continue;
     if (
       /^(?:is|are|was|were)$/.test(a) &&
       verb &&
+      !relative &&
       !read?.verbs.some((v) => v.form === "ing" || v.form === "participle")
     )
       continue;

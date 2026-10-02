@@ -37,11 +37,21 @@ test.each([
   ["Lisa, whose brother plays drums, sing in a choir.", "sings"],
   ["The old bridges, mostly built of stone, needs repair.", "need"],
   ["The kids in my class, for example, likes pizza.", "like"],
+  // A subject wh-word, an inverted auxiliary, "like this" between subject and verb.
+  ["Who send the invoices to finance?", "sends"],
+  ["What cause the delays at the airport?", "causes"],
+  ["Who own the red car?", "owns"],
+  ["How does the teams do it?", "do"],
+  ["When has the designers ever been clear?", "have"],
+  ["Where were the book I lent you?", "was"],
+  ["A recipe like this one need fresh herbs.", "needs"],
+  ["Phones such as these often breaks easily.", "break"],
+  ["Anything like that annoy me.", "annoys"],
 ])("the verb after the clause agrees with its subject: %s", (input, fix) => {
   const found = scan(input);
   expect(found).toHaveLength(1);
   const fixed = applyEdits(input, found[0].alternatives[0].edits);
-  expect(fixed).toContain(` ${fix} `);
+  expect(fixed).toMatch(new RegExp(`\\b${fix}\\b`));
   expect(scan(fixed)).toEqual([]);
 });
 
@@ -69,6 +79,14 @@ test.each([
   "The fish, for instance, swim fast.",
   "The plan, of course, needs work.",
   "His work, in particular, stands out.",
+  "Who put the cat out?",
+  "What time the shop opens is unclear.",
+  "Who else knows the answer?",
+  "A study like this research shows growth.",
+  "Plans like these rarely work.",
+  "Anything like this exist?",
+  "Looks like this is live already!",
+  "Sounds like that works.",
 ])("correct clauses stay silent: %s", (text) => {
   expect(scan(text)).toEqual([]);
 });

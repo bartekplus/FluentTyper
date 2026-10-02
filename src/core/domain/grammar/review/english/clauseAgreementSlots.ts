@@ -436,6 +436,108 @@ function asideSubject(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+function agreementFinding(ctx: DetectContext, verb: Token, fix: string, from: number): RawFinding {
+  return {
+    ruleId: "englishSubjectVerbAgreement",
+    messageKey: "review_msg_subject_verb",
+    range: { start: verb.start, end: verb.end },
+    alternatives: [caseLike(verb.text, fix)],
+    context: evidence(ctx, from, verb.end),
+  };
+}
+
+// "What time the shop opens…", "What size shoes…": nouns that "what" modifies.
+const WHAT_NOUNS =
+  /^(?:time|kind|sort|type|size|colou?r|way|place|part|use|name|number|day|year|age|price|level|page|line|version|model|brand|course|book|song|film|movie|team|language|shape|form|stage|step|role|job|work|food|sport|subject)$/;
+
+/** "Who send the invoices?", "What make the sky blue?": a subject wh-word takes the -s form. */
+function whSubject(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of frameMatches(ctx, `(?<wh>who|what)${SPACE}(?=[a-z])`, null)) {
+    if (!afterBreak(ctx, m.index)) continue;
+    const wh = m.groups!.wh.toLowerCase();
+    const [verb, next] = tokensAfter(ctx, m.index + m[0].length, 2);
+    if (verb?.kind !== "word" || verb.text !== verb.lower || ctx.dictionary.has(verb.lower))
+      continue;
+    if (
+      (FUNCTION_WORDS.has(verb.lower) && verb.lower !== "own") ||
+      AUX.test(verb.lower) ||
+      MODAL.test(verb.lower)
+    )
+      continue;
+    // A determiner or object pronoun next: the word between is the verb.
+    if (
+      next?.kind !== "word" ||
+      !/^(?:the|a|an|my|your|our|their|his|its|this|these|those|me|him|us|them)$/.test(next.lower)
+    )
+      continue;
+    const r = englishWordInfo(verb.lower);
+    if (!r?.verbs.some((v) => v.form === "base" && v.lemma === verb.lower) || r.adjective) continue;
+    if (englishVerbForms(verb.lower)?.past === verb.lower) continue;
+    if (wh === "what" && r.noun && WHAT_NOUNS.test(verb.lower)) continue;
+    const fix = englishInflect(verb.lower, "third");
+    if (fix && fix !== verb.lower) findings.push(agreementFinding(ctx, verb, fix, m.index));
+  }
+  return findings;
+}
+
+/**
+ * "A study like this one rely on…", "Cars like these only takes…": "like this" or "such as
+ * that one" between a subject and its verb.
+ */
+function likeThisSubject(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of frameMatches(
+    ctx,
+    `(?:(?<pronoun>anything|something|nothing|everything|anyone|someone)|(?:(?<det>the|a|an|my|your|our|their|his|her|this|that|these|those|any|every|each|some)${SPACE})?(?<head>[a-z]+))${SPACE}(?:like|such${SPACE}as)${SPACE}(?:this|that|these|those)(?<one>${SPACE}ones?)?${SPACE}(?=[a-z])`,
+    null,
+  )) {
+    if (!afterBreak(ctx, m.index) && !CLAUSE_CUE.test(wordBefore(ctx, m.index))) continue;
+    const { det, pronoun, one } = m.groups!;
+    const head = m.groups!.head?.toLowerCase();
+    let plural = false;
+    if (head) {
+      const number = nounNumber(head);
+      if (!number || COLLECTIVE.has(number.singular) || SAME_PLURAL.test(head)) continue;
+      plural = number.number === "plural";
+      // Without a determiner, only a plural noun opening its clause: "Phones such as these…",
+      // not a verb ("Looks like this is live").
+      if (
+        !det &&
+        (!plural ||
+          !afterBreak(ctx, m.index) ||
+          (!/such/i.test(m[0]) && englishWordInfo(head)?.verbs.some((v) => v.form === "third")))
+      )
+        continue;
+      if (
+        det &&
+        (plural ? /^(?:a|an|this|that|every|each|any)$/i.test(det) : /^(?:these|those)$/i.test(det))
+      )
+        continue;
+    } else if (!pronoun) continue;
+    // "Anything like this exist?": a question that dropped its "does".
+    if (/^[^.!?\n]*\?/.test(ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 200)))
+      continue;
+    const tokens = tokensAfter(ctx, m.index + m[0].length, 3);
+    let j = 0;
+    while (j < 2 && adverbish(tokens[j])) j++;
+    const verb = tokens[j];
+    if (verb?.kind !== "word" || verb.text !== verb.lower || ctx.dictionary.has(verb.lower))
+      continue;
+    // Without "one" or an adverb, "like this" may be a determiner: "like this research shows".
+    const r = englishWordInfo(verb.lower);
+    if (!one && j === 0 && !AUX.test(normal(verb.lower)) && (r?.noun || r?.adjective || r?.plural))
+      continue;
+    if (!plural && verb.lower === "were") continue;
+    const fix = fixFor(verb, tokens[j + 1], plural, true, true);
+    if (fix && fix !== verb.lower) findings.push(agreementFinding(ctx, verb, fix, m.index));
+  }
+  return findings;
+}
+
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  { rules: ["englishSubjectVerbAgreement"], detect: english(relativeClauseVerb, asideSubject) },
+  {
+    rules: ["englishSubjectVerbAgreement"],
+    detect: english(relativeClauseVerb, asideSubject, whSubject, likeThisSubject),
+  },
 ];
