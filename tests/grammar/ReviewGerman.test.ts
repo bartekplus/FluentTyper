@@ -183,6 +183,8 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
     {
       pos: [
         ["Ich fahre mit eine Kollegin nach Hause.", "Ich fahre mit einer Kollegin nach Hause."],
+        ["Wir spielen mit anderen Kinder.", "Wir spielen mit anderen Kindern."],
+        ["Ich war schon bei drei Zahnärzte.", "Ich war schon bei drei Zahnärzten."],
         ["Wir sprechen später mit diesen Mann.", "Wir sprechen später mit diesem Mann."],
         ["Das Paket kam von das Amt.", "Das Paket kam von dem Amt."],
         ["Wegen dem Regen bleiben wir drinnen.", "Wegen des Regens bleiben wir drinnen."],
@@ -196,6 +198,9 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Mit neue Lösungen geht es.", "Mit neuen Lösungen geht es."],
       ],
       neg: [
+        "Die zu fällenden Bäume sind markiert.",
+        "Das sind viel zu knappe Mittel.",
+        "Sie geht mit ihren Freundinnen aus.",
         "Das ist mit die beste Idee.",
         "Er ist der Sache wegen dem Bruder begegnet.",
         "Er half, ohne dem Nachbarn etwas zu sagen.",
