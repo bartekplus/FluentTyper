@@ -214,6 +214,22 @@ export function installWordReviewMainWorld(doc: Document = document): () => void
         const model = extension?.AutomationUtility?.getDocument();
         if (!model) throw new Error("unsupported");
         if (story && (story.root !== root || story.url !== doc.URL)) throw new Error("unsupported");
+        if (request.action === "matches-selection") {
+          const selected = model.getSelection().parentBody ?? model.body;
+          const id = selected.paragraphs.getFirst().uniqueLocalId;
+          root.setAttribute(
+            WORD_REVIEW_RESPONSE,
+            JSON.stringify({
+              matchesSelection:
+                !!story &&
+                selected.type === story.body.type &&
+                typeof id === "string" &&
+                id.length > 0 &&
+                id === story.body.paragraphs.getFirst().uniqueLocalId,
+            }),
+          );
+          return; // Identity probe never scans text or replaces a pending token.
+        }
         // The caret can move between stories while a panel stays open. Retain
         // the native body selected on first read until that review closes.
         const current = readModel(model, story?.body);

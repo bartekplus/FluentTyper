@@ -7,6 +7,7 @@ export const WORD_INPUT_ID = "WACViewPanel_EditingElement";
 
 export type WordReviewRequest =
   | { action: "read"; selection: boolean }
+  | { action: "matches-selection" }
   | {
       action: "apply";
       token: string;
@@ -23,7 +24,10 @@ export type WordReviewSnapshot = Extract<ReviewTargetRead, { ok: true }> & {
   bodyType: number | null;
 };
 export type WordReviewReply =
-  WordReviewSnapshot | Extract<ReviewTargetRead, { ok: false }> | ReviewApplyResult;
+  | WordReviewSnapshot
+  | Extract<ReviewTargetRead, { ok: false }>
+  | ReviewApplyResult
+  | { matchesSelection: boolean };
 
 /** Word's input proxy and rendered pages belong to one model-backed editor. */
 export function wordEditor(doc: Document): HTMLElement | null {

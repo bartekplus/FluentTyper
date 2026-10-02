@@ -170,7 +170,7 @@ export class ReviewController {
       this.active?.target instanceof WordReviewTarget &&
       focused instanceof HTMLElement &&
       isWordInputProxy(focused) &&
-      focused !== this.active.target.inputProxy
+      (focused !== this.active.target.inputProxy || !this.active.target.matchesSelection())
     )
       this.close();
     const resolution = docs ? null : resolveReviewTarget(document, this.active?.target);

@@ -141,9 +141,11 @@ export function resolveReviewTarget(
     if (
       current instanceof WordReviewTarget &&
       current.element === word &&
-      current.inputProxy === active
+      current.inputProxy === active &&
+      current.matchesSelection()
     )
       return { ok: true, target: current, scope: current.scope };
+    if (current instanceof WordReviewTarget) current.dispose();
     const target = new WordReviewTarget(word, active);
     target.read(true);
     return { ok: true, target, scope: target.scope };

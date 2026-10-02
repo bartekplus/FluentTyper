@@ -49,6 +49,8 @@ export class WordReviewTarget implements ReviewTargetHandle {
       const raw = this.element.getAttribute(WORD_REVIEW_RESPONSE);
       if (!raw || raw.length > 1_000_000) return null;
       const reply = JSON.parse(raw) as WordReviewReply;
+      if ("matchesSelection" in reply)
+        return typeof reply.matchesSelection === "boolean" ? reply : null;
       if ("ok" in reply) {
         if (!reply.ok)
           return ["unsupported", "detached", "ineligible", "composing"].includes(reply.reason)
@@ -87,6 +89,11 @@ export class WordReviewTarget implements ReviewTargetHandle {
     } finally {
       this.element.removeAttribute(WORD_REVIEW_RESPONSE);
     }
+  }
+
+  matchesSelection(): boolean {
+    const reply = this.request({ action: "matches-selection" });
+    return !!reply && "matchesSelection" in reply && reply.matchesSelection;
   }
 
   read(selection = false): ReviewTargetRead {
@@ -239,6 +246,7 @@ export class WordReviewTarget implements ReviewTargetHandle {
       this.inputProxy.focus({ preventScroll: true });
   }
   dispose(): void {
+    if (this.disposed) return;
     this.request({ action: "close" });
     this.snapshot = null;
     this.segments = undefined;

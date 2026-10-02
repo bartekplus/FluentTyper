@@ -467,9 +467,13 @@ test("Word repeated resolution preserves the active target and its single-use co
   const h = fixture(["teh"]);
   const before = h.target.read();
   if (!before.ok) throw new Error("read failed");
+  const selection = h.model.getSelection.bind(h.model);
+  h.model.getSelection = () => ({ ...selection(), parentBody: { ...h.model.body } });
+  const characters = h.rangeReadCharacters;
   const again = resolveReviewTarget(document, h.target);
   try {
     expect(again.ok && again.target).toBe(h.target);
+    expect(h.rangeReadCharacters).toBe(characters);
     expect(
       await h.target.apply({
         before: before.text,
@@ -505,6 +509,53 @@ test("Word repeated controller invocation reuses the active target without anoth
     review.invoke();
     expect(read.mock.calls.length).toBe(reads);
     expect(review.reviewedElement).toBe(h.target.element);
+    expect(document.querySelectorAll("[data-fluenttyper-review]")).toHaveLength(1);
+  } finally {
+    review.close();
+    read.mockRestore();
+  }
+});
+
+test("Word explicit Review reopens a different story sharing the same input proxy", () => {
+  const h = fixture(["teh"]);
+  h.target.read();
+  const selection = h.model.getSelection.bind(h.model);
+  const otherBody = {
+    ...h.model.body,
+    paragraphs: {
+      ...h.model.body.paragraphs,
+      getFirst: () => ({ ...h.paragraphs[0], uniqueLocalId: "other-story-paragraph" }),
+    },
+  };
+  h.model.getSelection = () => ({ ...selection(), parentBody: otherBody });
+  const next = resolveReviewTarget(document, h.target);
+  expect(next.ok).toBe(true);
+  if (!next.ok) throw new Error("other story did not resolve");
+  expect(next.target).not.toBe(h.target);
+  expect(h.target.read()).toEqual({ ok: false, reason: "detached" });
+  const selected = next.target.read();
+  expect(selected.ok && selected.signature).toContain("other-story-paragraph");
+  next.target.dispose();
+
+  h.model.getSelection = selection;
+  const read = jest.spyOn(WordReviewTarget.prototype, "read");
+  const review = new ReviewController({
+    createEngine: () => new LocalReviewEngine(),
+    getOptions: () => ({ lang: "en_US", enabledRules: GRAMMAR_RULE_IDS, userDictionary: [] }),
+    suspend: () => {},
+    resume: () => {},
+    addToDictionary: async () => true,
+    getDocsSurface: () => null,
+    uiLanguage: "en",
+  });
+  try {
+    document.getElementById("WACViewPanel_EditingElement")!.focus();
+    review.invoke();
+    const reads = read.mock.calls.length;
+    document.getElementById("WACViewPanel_EditingElement")!.focus();
+    h.model.getSelection = () => ({ ...selection(), parentBody: otherBody });
+    review.invoke();
+    expect(read.mock.calls.length).toBeGreaterThan(reads);
     expect(document.querySelectorAll("[data-fluenttyper-review]")).toHaveLength(1);
   } finally {
     review.close();
