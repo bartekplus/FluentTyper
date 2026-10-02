@@ -284,7 +284,11 @@ export type ReviewMessageKey =
   | "review_msg_typographic_symbol"
   | "review_msg_english_quotes"
   | "review_msg_range_dash"
+  | "review_msg_date_comma"
+  | "review_msg_oclock"
   | "review_msg_passive_voice"
+  | "review_msg_stray_comma"
+  | "review_msg_introductory_comma"
   // Polish-only checks (review/polish/).
   | "review_msg_pl_numeral_suffix"
   | "review_msg_pl_numeral_hyphen"

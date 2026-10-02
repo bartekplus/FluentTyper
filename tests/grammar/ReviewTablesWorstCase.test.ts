@@ -49,6 +49,8 @@ test("no chunk stalls on runs of frame-opening words", () => {
     "Why do not you with who you ".repeat(800),
     "combined together wanna ".repeat(1_000),
     "was not always generally quickly made up by ".repeat(500),
+    "If I can with it I Do you know, if neither a, nor ".repeat(400),
+    "June 16,1963 Friday July 15 October, 1958 ".repeat(400),
   ];
   // Warm-up: the first scan compiles every frame and decodes the lexicon.
   for (const text of inputs) slowestChunkMs(text);

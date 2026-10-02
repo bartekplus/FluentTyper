@@ -148,8 +148,48 @@ function notation(ctx: DetectContext): Finding[] {
     );
     add("review_msg_degree_abbreviation", m.index, m.index + m[0].length, [d, dotted]);
   }
+  for (const m of owned(ctx, SPACED_ABBREVIATION)) {
+    add("review_msg_initialism_period", m.index, m.index + m[0].length, [
+      m[0].replace(/[  ]/g, ""),
+    ]);
+  }
+  for (const m of owned(ctx, DATE_COMMAS)) {
+    const at = (name: string) => m.indices!.groups![name]?.[0];
+    const glued = at("glued");
+    const monthComma = at("monthComma");
+    const gap = at("dayGap") ?? at("weekGap");
+    if (glued !== undefined) add("review_msg_date_comma", glued, glued + 1, [", "]);
+    else if (monthComma !== undefined)
+      add("review_msg_date_comma", monthComma, monthComma + 1, [""]);
+    else if (gap !== undefined) add("review_msg_date_comma", gap, gap + 1, [", "]);
+  }
+  for (const m of owned(ctx, CLOCK_OCLOCK)) {
+    const { h, mm } = m.groups!;
+    add(
+      "review_msg_oclock",
+      m.index,
+      m.index + m[0].length,
+      mm === "00" ? [`${h}:00`, `${h} o'clock`] : [`${h}:${mm}`],
+    );
+  }
   return out;
 }
+
+// "e. g.", "i. e.", "o' clock": abbreviations without their inner spaces.
+const SPACED_ABBREVIATION = /(?<![\p{L}.])(?:e\.[  ]g\.|i\.[  ]e\.|o['’][  ]clock)(?![\p{L}])/gu;
+const MONTH_NAME =
+  "January|February|March|April|May|June|July|August|September|October|November|December";
+const WEEKDAY_NAME = "Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday";
+// "June 16,1963", "October, 1958", "October 18 1983", "Friday July 15".
+const DATE_COMMAS = new RegExp(
+  `(?<![\\p{L}])(?:(?:${MONTH_NAME})(?<monthComma>,)(?=[ \\u00a0](?:1[5-9]|20)\\d\\d(?![\\p{N},]|[.:]\\p{N}))` +
+    `|(?:${MONTH_NAME})[ \\u00a0]\\d{1,2}(?<glued>,)(?=(?:1[5-9]|20)\\d\\d(?!\\p{N}))` +
+    `|(?:${MONTH_NAME})[ \\u00a0]\\d{1,2}(?<dayGap>)(?=[ \\u00a0](?:1[5-9]|20)\\d\\d(?![\\p{N}:]|[.,]\\p{N}))` +
+    `|(?:${WEEKDAY_NAME})(?<weekGap>)(?=[ \\u00a0](?:${MONTH_NAME})[ \\u00a0]\\d))`,
+  "gdu",
+);
+// "7:00 o'clock": a clock time or "o'clock", not both.
+const CLOCK_OCLOCK = /(?<![\p{N}:])(?<h>\d{1,2}):(?<mm>[0-5]\d)[  ]o['’][  ]?clock(?![\p{L}])/gu;
 
 // ---------------------------------------------------------------------------- englishTypography
 

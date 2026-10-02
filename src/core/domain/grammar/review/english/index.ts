@@ -5,6 +5,7 @@ import * as properNames from "./properNames";
 import * as plainStyle from "./plainStyle";
 import * as passiveVoice from "./passiveVoice";
 import * as fixedFrames from "./fixedFrames";
+import * as punctuation from "./punctuation";
 import * as typography from "./typography";
 import * as confusions1 from "./confusions1";
 import * as dates from "./dates";
@@ -63,6 +64,7 @@ const MODULES = [
   plainStyle,
   passiveVoice,
   fixedFrames,
+  punctuation,
 ];
 export const EXTENSION_PHRASES = MODULES.flatMap((m) => m.PHRASES);
 export const EXTENSION_COMPOUNDS = MODULES.flatMap((m) => m.COMPOUNDS);

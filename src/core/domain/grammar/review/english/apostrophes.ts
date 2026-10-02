@@ -312,7 +312,7 @@ function spacedApostrophes(ctx: DetectContext): Finding[] {
   for (const m of frameMatches(ctx, SPACED, "gap")) {
     const { w, gap, s } = m.groups!;
     const allowed = ENDINGS[w.toLowerCase()];
-    if (allowed ? !allowed.split(" ").includes(s) : s !== "s") continue;
+    if (allowed ? !allowed.split(" ").includes(s) : s !== "s" || !/^[A-Z][a-z]+$/.test(w)) continue;
     // A name's possessive needs the owned word right after it.
     if (!allowed && !/^[ \t ]+[a-z]/.test(ctx.text.slice(m.index + m[0].length))) continue;
     if (w !== "I" && !allowed && ctx.dictionary.has(w.toLowerCase())) continue;

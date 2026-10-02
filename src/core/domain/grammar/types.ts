@@ -118,6 +118,8 @@ export interface GrammarRuleCatalogEntry {
     | "englishNotation"
     | "englishTypography"
     | "stylePassiveVoice"
+    | "englishPunctuation"
+    | "styleIntroductoryComma"
     // Polish-only Review checks (review/polish/).
     | "polishNumerals"
     | "polishDates"

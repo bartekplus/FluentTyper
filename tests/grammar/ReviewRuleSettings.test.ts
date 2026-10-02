@@ -23,6 +23,7 @@ const OPTIONAL_REVIEW_IDS: readonly string[] = [
   "englishPossibleErrors",
   "englishTypography",
   "stylePassiveVoice",
+  "styleIntroductoryComma",
   "englishAmericanSpelling",
   "englishBritishSpelling",
   "styleWordChoice",

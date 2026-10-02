@@ -222,6 +222,8 @@ Supported (**Typing** is the rule's default for typing; Review has separate swit
 | `englishNotation`                      | English        | unavailable | typography  | numbers            | individual only                                                                                                                                |
 | `englishTypography`                    | English        | unavailable | typography  | marks              | individual only; off by default in Review (optional typesetting)                                                                               |
 | `stylePassiveVoice`                    | English        | unavailable | style       | readability        | individual only; off by default in Review (optional style note)                                                                                |
+| `englishPunctuation`                   | English        | unavailable | punctuation | marks              | individual only                                                                                                                                |
+| `styleIntroductoryComma`               | English        | unavailable | punctuation | marks              | individual only; off by default in Review (optional comma style)                                                                               |
 | `englishAuxiliaryBaseVerb`             | English        | unavailable | grammar     | word form          | individual only                                                                                                                                |
 | `englishPronounCase`                   | English        | unavailable | grammar     | word form          | individual only                                                                                                                                |
 | `englishSentenceStructure`             | English        | unavailable | grammar     | usage              | individual only                                                                                                                                |
@@ -415,6 +417,13 @@ left-out long nouns (a Bloom filter, so they only ever tell words from typos):
 - `stylePassiveVoice`: optional note without a fix on a form of "be" with a past participle ("was
   broken by", "is said to", "have been finalized"); participles that usually describe a state ("is
   closed", "was tired") count only with a "by" agent.
+- `englishPunctuation`: a comma right before a sentence mark (",." ",!"), a comma inside a closing
+  parenthesis (",)"), a comma splitting "neither … nor" with two items, or an indirect question or
+  polite "if" from the verb that governs it ("Do you know, if", "It would be great, if you").
+- `styleIntroductoryComma`: optional comma after an opening linking word or phrase ("Nevertheless",
+  "In addition"; "However" only before a subject), between a phrase ending in an object pronoun and
+  a new clause ("With it I can"), after a short condition ("If I can I will") and before a name
+  addressed ("Thanks Maria").
 - `englishPossessiveNouns`: a plural noun between a determiner and the noun it owns ("the cats
   tail is long", "a teachers lounge") offers "cat's" or "cats'" when the frame allows no
   other reading: the owned noun is followed by its verb, the phrase ends after a preposition

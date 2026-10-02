@@ -238,7 +238,14 @@ function productNames(ctx: DetectContext): Finding[] {
   for (const m of frameMatches(ctx, PRODUCT, "w")) {
     const { w, n } = m.groups!;
     const product = PRODUCT_NOUNS.get(w);
-    if (!product || !product.nouns.has(n) || ctx.dictionary.has(w)) continue;
+    // Lowercase only: "WORD DOCUMENT" is emphasis, "Word document" is already right.
+    if (
+      !product ||
+      w !== w.toLowerCase() ||
+      !product.nouns.has(n.toLowerCase()) ||
+      ctx.dictionary.has(w)
+    )
+      continue;
     // "to excel", "to react": the verb.
     if (
       VERBS.has(w) &&

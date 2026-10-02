@@ -518,6 +518,21 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     bulk: "individual",
     note: "Optional style note without a fix: the passive is often the right choice.",
   },
+  englishPunctuation: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "punctuation",
+    kind: "marks",
+    bulk: "individual",
+  },
+  styleIntroductoryComma: {
+    review: "supported",
+    defaultEnabled: false,
+    category: "punctuation",
+    kind: "marks",
+    bulk: "individual",
+    note: "Optional: many writers leave out the comma after a short opening phrase.",
+  },
 
   englishPronounCase: {
     review: "supported",
