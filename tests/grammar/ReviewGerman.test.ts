@@ -121,6 +121,13 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ],
         ["Der wiener Kongress ordnete Europa neu.", "Der Wiener Kongress ordnete Europa neu."],
         ["Wir kaufen schweizer Käse.", "Wir kaufen Schweizer Käse."],
+        // Adjectives that are no part of a name stay lowercase inside a sentence.
+        ["Am Abend trinke ich Grünen Tee.", "Am Abend trinke ich grünen Tee."],
+        [
+          "Der Vortrag handelte von Künstlicher Intelligenz.",
+          "Der Vortrag handelte von künstlicher Intelligenz.",
+        ],
+        ["Viele Liebe Grüße aus Bonn.", "Viele liebe Grüße aus Bonn."],
         [
           "Im Urlaub wanderten wir in der hohen Tatra.",
           "Im Urlaub wanderten wir in der Hohen Tatra.",
@@ -171,6 +178,9 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         "Das Produkt ist das einzige am Markt.",
         "Sie trinkt gern kaltes Wasser.",
         "Das ist ein Berliner Bär.",
+        "Grüner Tee ist gesund.",
+        "Liebe Grüße aus Bonn.",
+        "Frohes neues Jahr!",
         "Er hat einen englischen Garten angelegt.",
         "Die Burg hat einen schiefen Turm.",
         "Mit dem leben wir schon lange.",

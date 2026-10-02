@@ -3316,6 +3316,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "W nazwie wielowyrazowej przymiotnik też piszemy wielką literą: der Erste Weltkrieg, die Französische Revolution.",
     "Num nome de várias palavras, o adjetivo também leva maiúscula: der Erste Weltkrieg, die Französische Revolution.",
   ],
+  review_msg_german_adjective_lowercase: [
+    "This adjective is no part of a name, so it stays lowercase: grüner Tee, künstliche Intelligenz.",
+    "Cet adjectif ne fait pas partie d’un nom propre et reste en minuscule : grüner Tee, künstliche Intelligenz.",
+    "Ovaj pridjev nije dio imena pa se piše malim slovom: grüner Tee, künstliche Intelligenz.",
+    "Este adjetivo no forma parte de un nombre propio y va en minúscula: grüner Tee, künstliche Intelligenz.",
+    "Αυτό το επίθετο δεν ανήκει σε όνομα, γι’ αυτό γράφεται με πεζό: grüner Tee, künstliche Intelligenz.",
+    "Adjektivet ingår inte i ett namn och skrivs därför med liten bokstav: grüner Tee, künstliche Intelligenz.",
+    "Das Adjektiv gehört zu keinem Namen und wird kleingeschrieben: grüner Tee, künstliche Intelligenz.",
+    "Ten przymiotnik nie jest częścią nazwy, więc piszemy go małą literą: grüner Tee, künstliche Intelligenz.",
+    "Este adjetivo não faz parte de um nome próprio e fica em minúscula: grüner Tee, künstliche Intelligenz.",
+  ],
   review_msg_german_colloquial: [
     "This short form is spoken German; in writing use the full particle: hineingehen, herausbekommen, herum.",
     "Cette forme courte relève de l’oral ; à l’écrit, employez la particule complète : hineingehen, herausbekommen, herum.",

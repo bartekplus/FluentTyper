@@ -57,6 +57,23 @@ const NAME = new RegExp(
   "gdu",
 );
 
+// Adjective and noun pairs that are no names, so the adjective stays lowercase inside a sentence:
+// "grüner Tee", "künstliche Intelligenz", "mit freundlichen Grüßen" (authored).
+const LOWER_PAIRS = new Set(
+  (
+    "grün:Tee schwarz:Tee klein:Einmaleins groß:Einmaleins olympisch:Feuer linear:Algebra " +
+    "analytisch:Geometrie englisch:Rasen künstlich:Intelligenz sozial:Netzwerk sozial:Netzwerke " +
+    "sozial:Medien erneuerbar:Energien erneuerbar:Energie öffentlich:Dienst mittler:Reife " +
+    "rot:Faden kalt:Buffet höher:Gewalt freundlich:Grüße freundlich:Grüßen herzlich:Grüße " +
+    "herzlich:Grüßen lieb:Grüße lieb:Grüßen best:Grüße best:Grüßen neu:Jahr"
+  ).split(" "),
+);
+const LOWER_NOUNS = [...new Set([...LOWER_PAIRS].map((p) => p.split(":")[1]))].join("|");
+const CAPITALIZED = new RegExp(
+  `${WORD_START}(?<adj>\\p{Lu}\\p{Ll}+?(?:e|en|er|es|em))${SPACE}(?<noun>(?:${LOWER_NOUNS})(?:es|s|n)?)${WORD_END}`,
+  "gdu",
+);
+
 const stemOf = (adj: string) => adj.toLowerCase().replace(/(?:e|en|er|es|em)$/, "");
 
 /** Run by germanNounCasing's detector (nounCasing.ts). */
@@ -81,6 +98,24 @@ export function names(ctx: DetectContext): RawFinding[] {
     const context = { start: m.index, end: m.index + m[0].length };
     push(m.indices!.groups!.first[0], context);
     push(m.indices!.groups!.second[0], context);
+  }
+  for (const m of frameMatches(ctx, CAPITALIZED, "adj")) {
+    const { adj, noun } = m.groups!;
+    const lemma = [noun, noun.replace(/(?:es|s|n)$/, "")].find((n) =>
+      LOWER_PAIRS.has(`${stemOf(adj)}:${n}`),
+    );
+    const start = m.index + m[0].indexOf(adj);
+    // Not at the start of a sentence, line or quotation, where the capital is due anyway.
+    const before = ctx.text.slice(Math.max(0, start - 4), start);
+    if (!lemma || start === 0 || /(?:^|[.!?:\n„“"»«])[ \t]*$/.test(before)) continue;
+    if (ctx.dictionary.has(adj.toLowerCase()) || namedExampleBefore(ctx.text, start)) continue;
+    findings.push({
+      ruleId: "germanNounCasing",
+      messageKey: "review_msg_german_adjective_lowercase",
+      range: { start, end: start + 1 },
+      alternatives: [adj[0].toLowerCase()],
+      context: { start, end: m.index + m[0].length },
+    });
   }
   for (const regex of [NATION, PLACE_ADJECTIVE]) {
     for (const m of frameMatches(ctx, regex)) {
