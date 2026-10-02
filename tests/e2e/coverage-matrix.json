@@ -3057,7 +3057,7 @@
     },
     {
       "id": "review_sensitive_and_review_only",
-      "description": "Sensitive fields are refused with an explanation; model-backed editors are review-only and never written.",
+      "description": "Sensitive fields are refused; model-backed editors without a verified host writer stay review-only. ProseMirror uses its separately verified transaction path.",
       "coverage": [
         {
           "layer": "e2e-full",
@@ -3598,7 +3598,7 @@
     },
     {
       "id": "local_ai_setup_offer",
-      "description": "The Review panel shows a one-time Local AI setup offer with the download size; \"Not now\" dismisses it for good; \"Set up local AI…\" opens the options Local AI section focused, whose page only asks for status and installs only after an inline confirm.",
+      "description": "The Review panel shows a one-time Local AI setup offer with the download size; \"Not now\" dismisses it for good; \"Set up local AI\u2026\" opens the options Local AI section focused, whose page only asks for status and installs only after an inline confirm.",
       "coverage": [
         {
           "layer": "e2e-full",
@@ -3613,7 +3613,7 @@
         {
           "layer": "e2e-full",
           "file": "tests/e2e/local-ai.e2e.test.ts",
-          "test": "\"Set up local AI…\" opens the Local AI settings; installing needs the inline confirm"
+          "test": "\"Set up local AI\u2026\" opens the Local AI settings; installing needs the inline confirm"
         },
         {
           "layer": "unit",
@@ -4347,12 +4347,27 @@
     },
     {
       "id": "prosemirror_editor_transactions",
-      "description": "Real ProseMirror autocomplete and text expansion update the document model across paragraph breaks, select a non-first expansion in an above-caret menu, preserve bold/link marks, and undo restores the prefix or shortcut.",
+      "description": "Real ProseMirror autocomplete and text expansion update the document model across paragraph breaks, select a non-first expansion in an above-caret menu, preserve bold/link marks, and undo restores the prefix or shortcut. Typing corrections preserve the edited text marks; native undo restores the typo without replay.",
       "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionTextEditService.test.ts",
+          "test": "refuses unverified ProseMirror suggestions without recording an accepted edit"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionTextEditService.test.ts",
+          "test": "delayed spacing preserves the typed key when ProseMirror refuses (bridge available: %s)"
+        },
         {
           "layer": "e2e-full",
           "file": "tests/e2e/full.e2e.test.ts",
           "test": "ProseMirror predictions and expansions update the model, preserve formatting and undo"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "ProseMirror typing correction preserves marks and native undo without replay"
         }
       ]
     },
@@ -4390,6 +4405,98 @@
           "layer": "e2e-full",
           "file": "tests/e2e/full.e2e.test.ts",
           "test": "Support prompts can be dismissed permanently while support stays visible"
+        }
+      ]
+    },
+    {
+      "id": "prosemirror_review_transactions",
+      "description": "Real ProseMirror Review applies individual and batch corrections through one host transaction; model JSON, split marks, links, color, table/list attributes and protected atoms/code survive, with one-step native undo/redo, stale-snapshot refusal and host-filter protection.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "ProseMirror Review applies individual and batch corrections with split marks, model integrity and native history"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ProseMirrorReview.test.ts",
+          "test": "Review batch preserves marks, links, tables, lists, protected atoms and one-step undo/redo"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ProseMirrorReview.test.ts",
+          "test": "split marks retain each character's formatting; ambiguous expansion refuses the entire batch"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ProseMirrorReview.test.ts",
+          "test": "same-text mark changes invalidate pending fixes"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ProseMirrorReview.test.ts",
+          "test": "host filters, composition, protected code, structural ranges and malformed edits never fall through"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ProseMirrorReview.test.ts",
+          "test": "host normalization is unverified without losing mutation state: %s"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionEntrySession.test.ts",
+          "test": "session closes unverified acceptance without learning or running follow-up grammar"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ProseMirrorReview.test.ts",
+          "test": "typing uses the same host transaction in a later paragraph and preserves styled prefix and undo"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ProseMirrorReview.test.ts",
+          "test": "Undo reaches host history and suppresses reapplying the same correction"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ProseMirrorReview.test.ts",
+          "test": "UTF-16 offsets preserve emoji and refuse edits inside a grapheme"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ProseMirrorReview.test.ts",
+          "test": "zero-width insertions preserve inclusive and non-inclusive marks at start, end and a mark boundary"
+        }
+      ]
+    },
+    {
+      "id": "review_rich_text_formatting_integrity",
+      "description": "Rich-text snapshots include semantic wrappers and attributes; aligned split-format replacements preserve each grapheme's formatting, ambiguous batches are refused before writes, and post-write verification checks link targets and style attributes.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "zero-width insertions use the caret-side formatting: %s"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "bold, link destinations and styles invalidate same-text pending fixes"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "split formatting is retained and ambiguous batches are refused before any write"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "post-write verification checks link destinations and style attributes"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "protected spans and split graphemes are refused before native writes"
         }
       ]
     }

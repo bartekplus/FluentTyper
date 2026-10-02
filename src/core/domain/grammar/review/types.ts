@@ -326,6 +326,7 @@ export type ReviewMessageKey =
   | "review_msg_passive_voice"
   | "review_msg_stray_comma"
   | "review_msg_introductory_comma"
+  | "review_msg_clause_comma"
   | "review_msg_tag_question"
   // Polish-only checks (review/polish/).
   | "review_msg_pl_numeral_suffix"

@@ -120,6 +120,7 @@ export interface GrammarRuleCatalogEntry {
     | "stylePassiveVoice"
     | "englishPunctuation"
     | "styleIntroductoryComma"
+    | "styleClauseComma"
     // Polish-only Review checks (review/polish/).
     | "polishNumerals"
     | "polishDates"

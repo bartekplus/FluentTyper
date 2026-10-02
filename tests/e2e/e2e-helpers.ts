@@ -641,7 +641,7 @@ export async function waitForReview(
 export async function clickReviewControl(page: Page, selector: string): Promise<void> {
   const point = await waitUntil(`enabled Review control ${selector}`, () =>
     page.evaluate(
-      (hostSelector, selectorInner) => {
+      async (hostSelector, selectorInner) => {
         const element = document
           .querySelector(hostSelector)
           ?.shadowRoot?.querySelector<HTMLElement>(selectorInner);
@@ -653,7 +653,21 @@ export async function clickReviewControl(page: Page, selector: string): Promise<
         )
           return false;
         element.scrollIntoView({ block: "nearest" });
+        // Opening More queues a details toggle that repositions the card. Wait
+        // for stable geometry before sending a real mouse click to its coordinates.
+        const before = element.getBoundingClientRect();
+        await new Promise<void>((resolve) =>
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+        );
+        if (!element.isConnected) return false;
         const rect = element.getBoundingClientRect();
+        if (
+          before.x !== rect.x ||
+          before.y !== rect.y ||
+          before.width !== rect.width ||
+          before.height !== rect.height
+        )
+          return false;
         let left = Math.max(0, rect.left);
         let right = Math.min(innerWidth, rect.right);
         let top = Math.max(0, rect.top);

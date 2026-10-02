@@ -1,5 +1,5 @@
 import { baseKeymap } from "prosemirror-commands";
-import { closeHistory, history, undo } from "prosemirror-history";
+import { closeHistory, history, undo, redo } from "prosemirror-history";
 import { keymap } from "prosemirror-keymap";
 import { schema } from "prosemirror-schema-basic";
 import { EditorState, TextSelection } from "prosemirror-state";
@@ -24,7 +24,7 @@ const view = new EditorView(document.getElementById("test-prosemirror")!, {
   state: EditorState.create({
     doc,
     selection: TextSelection.atEnd(doc),
-    plugins: [history(), keymap({ "Mod-z": undo, ...baseKeymap })],
+    plugins: [history(), keymap({ "Mod-z": undo, "Mod-Shift-z": redo, ...baseKeymap })],
   }),
   attributes: { id: "test-prosemirror-editor", role: "textbox" },
 });

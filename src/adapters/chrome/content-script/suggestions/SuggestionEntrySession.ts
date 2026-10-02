@@ -1029,6 +1029,10 @@ export class SuggestionEntrySession {
         snapshot: predictionContext.snapshot,
         contentEditableContext: predictionContext.applyContext,
       });
+      if (applyResult.unverified) {
+        this.handleSuppressedInput();
+        return true;
+      }
       if (
         this.dispatchAdjustedGrammarPrediction({
           beforeCursor: predictionContext.beforeCursor,
@@ -1256,6 +1260,10 @@ export class SuggestionEntrySession {
         snapshot: cursorContext.snapshot,
         contentEditableContext: cursorContext.applyContext,
       });
+      if (applyResult.unverified) {
+        this.handleSuppressedInput();
+        return;
+      }
       if (applyResult.applied) {
         this.clearSuggestions();
         if (applyResult.didDispatchInput) {
@@ -1464,6 +1472,14 @@ export class SuggestionEntrySession {
       return false;
     }
     this.lastAcceptedSuggestion = suggestion;
+    if (accepted.unverified) {
+      this.clearPendingFallback();
+      this.predictionCoordinator.cancelPending(this.entry);
+      this.clearPendingRequestTimer();
+      this.entry.missingTrailingSpace = false;
+      this.handleSuppressedInput();
+      return true;
+    }
     // A snippet is user content (an address, an email), not a word to learn. The
     // background only recognises exact-shortcut triggers, so skip it here.
     const personalizationEventId = this.snippetSuggestions.has(suggestion)
@@ -1793,7 +1809,7 @@ export class SuggestionEntrySession {
       snapshot: grammarContext.snapshot,
       contentEditableContext: grammarContext.applyContext,
     });
-    if (applyResult.applied) {
+    if (applyResult.applied || applyResult.unverified) {
       this.clearSuggestions();
     }
   }
@@ -1820,6 +1836,10 @@ export class SuggestionEntrySession {
           contentEditableContext: grammarContext.applyContext,
         })
       : null;
+    if (applyResult?.unverified) {
+      this.handleSuppressedInput();
+      return;
+    }
     if (!applyResult?.applied) {
       // Automatic fixes first; what only Review would fix is then offered, never applied.
       this.refreshGrammarProposal();
