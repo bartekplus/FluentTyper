@@ -132,6 +132,7 @@ describe("review rule coverage map", () => {
             "ellipsisShortcut",
             "emdashShortcut",
             "englishTypography",
+            "stylePassiveVoice",
             "primeSymbols",
             "stylePhrasing",
             "styleContractions",

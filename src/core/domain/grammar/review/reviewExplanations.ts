@@ -1804,6 +1804,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Zakres zapisuje się półpauzą: „1990–1995”, „Monday–Friday”.",
     "Um intervalo leva meia-risca: “1990–1995”, “Monday–Friday”.",
   ],
+  review_msg_passive_voice: [
+    "Passive voice: an active verb with the doer as its subject is often clearer.",
+    "Voix passive : un verbe actif dont le sujet fait l’action est souvent plus clair.",
+    "Pasiv: aktivni glagol kojemu je vršitelj radnje subjekt često je jasniji.",
+    "Voz pasiva: un verbo activo con quien realiza la acción como sujeto suele ser más claro.",
+    "Παθητική φωνή: ένα ενεργητικό ρήμα με υποκείμενο αυτόν που ενεργεί είναι συχνά πιο σαφές.",
+    "Passiv form: ett aktivt verb med den som handlar som subjekt är ofta tydligare.",
+    "Passiv: Ein aktives Verb mit dem Handelnden als Subjekt ist oft klarer.",
+    "Strona bierna: czasownik w stronie czynnej z wykonawcą jako podmiotem bywa jaśniejszy.",
+    "Voz passiva: um verbo ativo com quem faz a ação como sujeito costuma ser mais claro.",
+  ],
   review_msg_word_boundary: [
     "The space in these words looks misplaced or extra.",
     "L’espace dans ces mots semble mal placée ou en trop.",

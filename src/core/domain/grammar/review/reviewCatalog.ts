@@ -510,6 +510,14 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     bulk: "individual",
     note: "Optional typography: x, ->, (c) and straight quotes are correct too.",
   },
+  stylePassiveVoice: {
+    review: "supported",
+    defaultEnabled: false,
+    category: "style",
+    kind: "readability",
+    bulk: "individual",
+    note: "Optional style note without a fix: the passive is often the right choice.",
+  },
 
   englishPronounCase: {
     review: "supported",

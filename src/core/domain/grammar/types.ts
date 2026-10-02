@@ -117,6 +117,7 @@ export interface GrammarRuleCatalogEntry {
     | "englishApostrophes"
     | "englishNotation"
     | "englishTypography"
+    | "stylePassiveVoice"
     // Polish-only Review checks (review/polish/).
     | "polishNumerals"
     | "polishDates"

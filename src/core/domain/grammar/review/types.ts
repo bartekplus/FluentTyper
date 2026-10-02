@@ -284,6 +284,7 @@ export type ReviewMessageKey =
   | "review_msg_typographic_symbol"
   | "review_msg_english_quotes"
   | "review_msg_range_dash"
+  | "review_msg_passive_voice"
   // Polish-only checks (review/polish/).
   | "review_msg_pl_numeral_suffix"
   | "review_msg_pl_numeral_hyphen"

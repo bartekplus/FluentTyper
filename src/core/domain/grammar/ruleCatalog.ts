@@ -685,6 +685,19 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     recommended: false,
     priority: 142,
   },
+  {
+    id: "stylePassiveVoice",
+    typing: false,
+    name: "Passive voice",
+    titleI18nKey: "review_msg_passive_voice",
+    descriptionI18nKey: "review_msg_passive_voice",
+    exampleI18nKey: "",
+    languageScope: "en_US",
+    safetyTier: "advanced",
+    defaultRollout: "off",
+    recommended: false,
+    priority: 143,
+  },
   // Polish-only Review checks (review/polish/); languages are set in reviewCatalog.
   {
     id: "polishNumerals",

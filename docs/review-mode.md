@@ -221,6 +221,7 @@ Supported (**Typing** is the rule's default for typing; Review has separate swit
 | `englishApostrophes`                   | English        | unavailable | punctuation | marks              | individual only                                                                                                                                |
 | `englishNotation`                      | English        | unavailable | typography  | numbers            | individual only                                                                                                                                |
 | `englishTypography`                    | English        | unavailable | typography  | marks              | individual only; off by default in Review (optional typesetting)                                                                               |
+| `stylePassiveVoice`                    | English        | unavailable | style       | readability        | individual only; off by default in Review (optional style note)                                                                                |
 | `englishAuxiliaryBaseVerb`             | English        | unavailable | grammar     | word form          | individual only                                                                                                                                |
 | `englishPronounCase`                   | English        | unavailable | grammar     | word form          | individual only                                                                                                                                |
 | `englishSentenceStructure`             | English        | unavailable | grammar     | usage              | individual only                                                                                                                                |
@@ -411,6 +412,9 @@ left-out long nouns (a Bloom filter, so they only ever tell words from typos):
   "->", ©, ®, ™ for "(c)", "(R)", "(TM)", ± for "+-", H₀ in hypotheses, curly double quotes for
   German ones, an en dash in number, weekday and month ranges ("1914-1918", "9am - 6pm")
   and an em dash for a spaced hyphen between words.
+- `stylePassiveVoice`: optional note without a fix on a form of "be" with a past participle ("was
+  broken by", "is said to", "have been finalized"); participles that usually describe a state ("is
+  closed", "was tired") count only with a "by" agent.
 - `englishPossessiveNouns`: a plural noun between a determiner and the noun it owns ("the cats
   tail is long", "a teachers lounge") offers "cat's" or "cats'" when the frame allows no
   other reading: the owned noun is followed by its verb, the phrase ends after a preposition

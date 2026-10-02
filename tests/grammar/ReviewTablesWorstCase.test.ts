@@ -48,6 +48,7 @@ test("no chunk stalls on runs of frame-opening words", () => {
     "cold - very ".repeat(1_500),
     "Why do not you with who you ".repeat(800),
     "combined together wanna ".repeat(1_000),
+    "was not always generally quickly made up by ".repeat(500),
   ];
   // Warm-up: the first scan compiles every frame and decodes the lexicon.
   for (const text of inputs) slowestChunkMs(text);

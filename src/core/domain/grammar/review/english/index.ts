@@ -3,6 +3,7 @@ import * as apostrophes from "./apostrophes";
 import * as compoundForms from "./compoundForms";
 import * as properNames from "./properNames";
 import * as plainStyle from "./plainStyle";
+import * as passiveVoice from "./passiveVoice";
 import * as typography from "./typography";
 import * as confusions1 from "./confusions1";
 import * as dates from "./dates";
@@ -59,6 +60,7 @@ const MODULES = [
   properNames,
   typography,
   plainStyle,
+  passiveVoice,
 ];
 export const EXTENSION_PHRASES = MODULES.flatMap((m) => m.PHRASES);
 export const EXTENSION_COMPOUNDS = MODULES.flatMap((m) => m.COMPOUNDS);

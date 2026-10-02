@@ -82,3 +82,30 @@ describe("optional plain style", () => {
     expect(fixAll(uk, scan(uk, "englishAmericanSpelling"))).toBe("We meet on the weekend.");
   });
 });
+
+describe("stylePassiveVoice (optional note)", () => {
+  test.each([
+    ["The window was broken by a ball.", "was broken"],
+    ["He is said to be rich.", "is said"],
+    ["It was announced that we won.", "was announced"],
+    ["The report has not yet been finalized.", "been finalized"],
+    ["The cake is being baked.", "is being baked"],
+    ["Mistakes were made.", "were made"],
+  ])("notes %p", (text, original) => {
+    const [d] = scan(text, "stylePassiveVoice");
+    expect(d.original).toBe(original);
+    expect(d.warningOnly).toBe(true);
+    expect(d.alternatives).toEqual([]);
+  });
+
+  test.each([
+    "The door is closed.",
+    "She was tired.",
+    "I am used to it.",
+    "We are supposed to go.",
+    "He was born in May.",
+    "They are interested in art.",
+  ])("keeps %p", (text) => {
+    expect(scan(text, "stylePassiveVoice")).toEqual([]);
+  });
+});
