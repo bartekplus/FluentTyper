@@ -1,7 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
-import { buildGermanLexicon, GERMAN_LEXICON_SOURCES } from "../../scripts/generate-german-lexicon";
+import {
+  buildGermanLexicon,
+  deriveGermanLexicon,
+  GERMAN_LEXICON_SOURCES,
+} from "../../scripts/generate-german-lexicon";
 import {
   germanNounReading,
   germanVerbLike,
@@ -353,6 +357,22 @@ test("the committed lexicon matches de_DE.dic/.aff (bun run generate:german-lexi
     ),
   );
   expect(buildGermanLexicon(dic, aff)).toBe(committed);
+  // The cascades read every lowercase dictionary word exactly.
+  const { nounOnly, finite, infinitive, lowercaseWords } = deriveGermanLexicon(dic, aff);
+  const wrong: string[] = [];
+  const check = (words: string[], reading: string | null) => {
+    for (const w of words) if (germanNounReading(w) !== reading) wrong.push(w);
+  };
+  const nouns = new Set([...nounOnly, ...finite, ...infinitive]);
+  check(
+    lowercaseWords.filter((w) => !nouns.has(w)),
+    null,
+  );
+  check(nounOnly, "noun");
+  check(finite, "finite");
+  check(infinitive, "infinitive");
+  // Only the authored extra nouns read otherwise.
+  expect(wrong.sort()).toEqual(["eile", "mühe", "träne", "weile", "zeit"]);
 });
 
 test.each([
