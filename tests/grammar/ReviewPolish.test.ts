@@ -673,7 +673,9 @@ describe.each(POLISH_CASES)("%s: %s", (ruleId, _name, { pos, neg }) => {
 // Polish frames with clause lookbehinds must not reread long runs at every position.
 const POLISH_TRIGGERS =
   "na prawdę za razem za pewne po woli z resztą co raz dla tego dla czego w prawdzie " +
-  "tam ten widzi mi się zrobił by zrobili śmy za zwyczaj co miesięcznie wciągu bezsensu ";
+  "tam ten widzi mi się zrobił by zrobili śmy za zwyczaj co miesięcznie wciągu bezsensu " +
+  "zarówno ojciec, jak pełni ona istotną rolę dwie lub więcej godzin Oto co Tak jak tak i " +
+  "nie jest twoja tylko Po zakończeniu prac, biuro do czekać ile warzy około pięć który, która ";
 
 function slowestChunkMs(text: string): number {
   const prepared = prepareReview(
