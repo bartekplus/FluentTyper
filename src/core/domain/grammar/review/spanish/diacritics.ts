@@ -92,7 +92,7 @@ export function solidNoun(word: string): boolean {
 }
 // Irregular finite verbs and adverbs the dictionary also lists as nouns.
 const FINITE = words(
-  "es son era fue fui vino dijo hizo puso tuvo estuvo quiso supo pudo trajo anduvo ve ven " +
+  "es son era fue fui vino dije dijo hizo puso tuvo estuvo quiso supo pudo trajo anduvo ve ven " +
     "eres soy somos sois estás " +
     "da dan haz pon sal ten di va van ha han hay",
 );

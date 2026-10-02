@@ -16,6 +16,7 @@ import {
   reviewChunks,
   scanReviewChunk,
 } from "../../src/core/domain/grammar/review/reviewDiagnostics";
+import { finiteVerb, subjunctiveLike } from "../../src/core/domain/grammar/review/spanish/lexicon";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
 
@@ -952,6 +953,15 @@ test("the clean Spanish corpus has no findings", () => {
     },
   ).diagnostics;
   expect(found.map((d) => `${d.ruleId}: ${d.original} @ ${d.range.start}`)).toEqual([]);
+});
+
+test("Spanish stem alternations apply only to the paradigms that have them", () => {
+  // Plural nouns whose stem would need another class's alternation stay nouns.
+  for (const noun of ["cajas", "sillas", "hijas", "vigas"]) expect(finiteVerb(noun)).toBe(false);
+  for (const verb of ["busqué", "empiece", "cojo", "elija", "piensa", "vuelve", "pidió", "sirve"])
+    expect(finiteVerb(verb)).toBe(true);
+  expect(subjunctiveLike("pague")).toBe(true);
+  expect(subjunctiveLike("pie")).toBe(false);
 });
 
 test("the committed Spanish lexicon matches es_ES.dic/.aff (bun run generate:spanish-lexicon)", async () => {
