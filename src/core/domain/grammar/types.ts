@@ -159,6 +159,7 @@ export interface GrammarRuleCatalogEntry {
     | "germanCompounds"
     | "germanCommas"
     | "germanVerbAgreement"
+    | "germanArticleGender"
     | "germanQuestionMarks"
     | "germanNumbers"
     | "germanStraightQuotes"
@@ -186,7 +187,8 @@ export interface GrammarRuleCatalogEntry {
     | "spanishAccents"
     | "spanishConfusions"
     | "spanishTypography"
-    | "spanishAgreement";
+    | "spanishAgreement"
+    | "spanishQuotes";
   /** Absent for existing typing rules; false for native Review-only checks. */
   typing?: false;
   name: string;

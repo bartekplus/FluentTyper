@@ -70,8 +70,10 @@ const LINKING =
   "Consequently|Meanwhile|Otherwise|Additionally|Finally|Firstly|Secondly|Lastly|Unfortunately|" +
   "Fortunately|Of course|For example|For instance|In fact|In addition|In conclusion|In summary|" +
   "On the other hand|As a result|In other words|By default|That said|Indeed|Instead|Likewise";
+// Bounded gaps: an unbounded run in the lookbehind is reread at every position of a long run
+// of spaces (quadratic, and 100+ ms a chunk once JavaScriptCore runs the regex interpreted).
 const OPENER = new RegExp(
-  `(?<=(?:^|[.!?]["”’)]?[ \\t\\u00a0]+|\\n[ \\t\\u00a0]*))(?<w>${LINKING})(?<gap>[ \\t\\u00a0]+)(?<next>[\\p{L}]+)`,
+  `(?<=(?:^|[.!?]["”’)]?[ \\t\\u00a0]{1,8}|\\n[ \\t\\u00a0]{0,8}))(?<w>${LINKING})(?<gap>[ \\t\\u00a0]+)(?<next>[\\p{L}]+)`,
   "gu",
 );
 // "However large errors can occur" reads as "in whatever way large": only before a subject.

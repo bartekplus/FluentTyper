@@ -47,6 +47,19 @@ export const PORTUGUESE_WORDS: PhraseRow[] = [
   ["compadras", "comadres"],
   ["princeza", "princesa"],
   ["duqueza", "duquesa"],
+  // Verbs whose only participle is the short one.
+  ["fazido", "feito"],
+  ["fazidos", "feitos"],
+  ["dizido", "dito"],
+  ["escrevido", "escrito"],
+  ["escrevidos", "escritos"],
+  ["abrido", "aberto"],
+  ["cobrido", "coberto"],
+  ["descobrido", "descoberto"],
+  ["ponhado", "posto"],
+  // Accents that only these words lack.
+  ["apos", "após"],
+  ["atras", "atrás"],
 ];
 
 export const PORTUGUESE_PHRASES: PhraseRow[] = [
@@ -70,7 +83,6 @@ export const PORTUGUESE_PHRASES: PhraseRow[] = [
     "princípio",
     "partir",
     "fim de",
-    "nível de",
     "menos que",
     "seguir",
     "mim",
@@ -112,6 +124,8 @@ export const PORTUGUESE_PHRASES: PhraseRow[] = [
     "teu",
     "nosso",
   ]),
+  // "a nível de" is itself a calque (see the style table).
+  ["à nível de", ["em nível de", "ao nível de"]],
   // A repeated noun joins with a bare "a": "dia a dia", "passo a passo".
   ...[
     "dia",
@@ -183,6 +197,8 @@ export const PORTUGUESE_PHRASES: PhraseRow[] = [
       "inúmeras",
       "tantos",
       "tantas",
+      "uns",
+      "umas",
     ].map((word): PhraseRow => [`${plural} ${word}`, `${singular} ${word}`]),
   ),
   ["até por que", "até porque"],
@@ -192,10 +208,29 @@ export const PORTUGUESE_PHRASES: PhraseRow[] = [
   ["sera que", "será que"],
   ["a traves", "através"],
   ["em case de", "em caso de"],
-  // The participle of "chegar" is "chegado".
-  ...["tinha", "tinham", "tenho", "tem", "havia"].map((verb): PhraseRow => [
-    `${verb} chego`,
-    `${verb} chegado`,
+  // The participles of "chegar" and "trazer" are "chegado" and "trazido".
+  ...[
+    "tinha",
+    "tinham",
+    "tínhamos",
+    "tenho",
+    "tem",
+    "têm",
+    "temos",
+    "havia",
+    "haviam",
+    "teria",
+    "teriam",
+    "terá",
+    "tenha",
+    "tenham",
+    "tivesse",
+    "tivessem",
+    "ter",
+    "tendo",
+  ].flatMap((verb): PhraseRow[] => [
+    [`${verb} chego`, `${verb} chegado`],
+    [`${verb} trago`, `${verb} trazido`],
   ]),
   ...["é", "ser", "foi", "seja", "era"].map((verb): PhraseRow => [
     `${verb} capas de`,
@@ -251,6 +286,163 @@ export const PORTUGUESE_PHRASES: PhraseRow[] = [
   ["mau sucedido", "malsucedido"],
   ["mau criado", "malcriado"],
   ...swap("mau", "mal", ["servido", "pago", "resolvido", "interpretado", "feito"]),
+  // "mal" before a participle, in every gender and number: "má servida" -> "mal servida".
+  ...[
+    "servid",
+    "resolvid",
+    "interpretad",
+    "aconselhad",
+    "acondicionad",
+    "conservad",
+    "explicad",
+    "informad",
+    "remunerad",
+    "preparad",
+    "planejad",
+    "tratad",
+    "cuidad",
+    "alimentad",
+    "dormid",
+    "aproveitad",
+    "executad",
+    "acabad",
+    "lavad",
+  ].flatMap((stem): PhraseRow[] => [
+    [`má ${stem}a`, `mal ${stem}a`],
+    [`maus ${stem}os`, `mal ${stem}os`],
+    [`más ${stem}as`, `mal ${stem}as`],
+    ...(["servid", "resolvid", "interpretad", "cuidad"].includes(stem)
+      ? []
+      : [[`mau ${stem}o`, `mal ${stem}o`] as PhraseRow]),
+  ]),
+  // "mau" before a noun: "mal exemplo" -> "mau exemplo", "mal conselhos" -> "maus conselhos".
+  ...swap("mal", "mau", ["princípio", "conselho", "hábito", "negócio", "sinal", "presságio"]),
+  ...["exemplos", "conselhos", "hábitos", "negócios", "momentos", "resultados", "pensamentos"].map(
+    (noun): PhraseRow => [`mal ${noun}`, `maus ${noun}`],
+  ),
+  ["de mal gosto", "de mau gosto"],
+  ["em mal estado", "em mau estado"],
+  ["mal-olhado", "mau-olhado"],
+  ["mal olhado", "mau-olhado"],
+  ["de mal grado", "de mau grado"],
+  ["mal tratos", "maus-tratos"],
+  // "dar à luz" (to give birth) takes the crase.
+  ...["deu", "dar", "deram", "dá", "dará", "dando", "dei", "dera", "desse"].flatMap(
+    (verb): PhraseRow[] =>
+      ["a", "ao", "um", "uma", "gêmeos", "trigêmeos"].map((next): PhraseRow => [
+        `${verb} a luz ${next}`,
+        `${verb} à luz ${next}`,
+      ]),
+  ),
+  // "desde" split in two.
+  ...["o", "a", "os", "as", "aquela", "aquele", "essa", "esse", "esta", "este", "então"].map(
+    (next): PhraseRow => [`des d${next === "então" ? "e então" : next}`, `desde ${next}`],
+  ),
+  ...["saiu", "saíram", "sair", "saem", "sai", "saía", "saíam", "saímos", "foram", "vão"].map(
+    (verb): PhraseRow => [`${verb} as ruas`, `${verb} às ruas`],
+  ),
+  ["meio-dia e meio", "meio-dia e meia"],
+  ["meia-noite e meio", "meia-noite e meia"],
+  ["quaisquer que seja", "qualquer que seja"],
+  ["qualquer que sejam", ["quaisquer que sejam", "qualquer que seja"]],
+  // "cujo" takes no article and agrees with what follows it.
+  ["cujo o", "cujo"],
+  ["cuja a", "cuja"],
+  ["cujos os", "cujos"],
+  ["cujas as", "cujas"],
+  ["cujo a", "cuja"],
+  ["cujo os", "cujos"],
+  ["cujo as", "cujas"],
+  ["cuja o", "cujo"],
+  // "em anexo" does not vary.
+  ["em anexos", "em anexo"],
+  ["em anexa", "em anexo"],
+  ["em anexas", "em anexo"],
+  // "melhor" and "pior" before a participle are adverbs: "os mais bem colocados".
+  ...[
+    "colocad",
+    "classificad",
+    "qualificad",
+    "preparad",
+    "avaliad",
+    "remunerad",
+    "posicionad",
+    "equipad",
+    "informad",
+    "treinad",
+    "cotad",
+    "conservad",
+    "dotad",
+    "organizad",
+  ].flatMap((stem): PhraseRow[] =>
+    ["os", "as"].flatMap((ending): PhraseRow[] => [
+      [`melhores ${stem}${ending}`, [`mais bem ${stem}${ending}`, `melhor ${stem}${ending}`]],
+      [`piores ${stem}${ending}`, [`mais mal ${stem}${ending}`, `pior ${stem}${ending}`]],
+    ]),
+  ),
+  // "senso" is judgement, "censo" a count of the population.
+  ["bom censo", "bom senso"],
+  ["censo comum", "senso comum"],
+  ["censo crítico", "senso crítico"],
+  ["censo de humor", "senso de humor"],
+  ["censo de justiça", "senso de justiça"],
+  ["censo de responsabilidade", "senso de responsabilidade"],
+  ["censo de direção", "senso de direção"],
+  ["senso demográfico", "censo demográfico"],
+  ["sensos demográficos", "censos demográficos"],
+  ["senso populacional", "censo populacional"],
+  ["senso escolar", "censo escolar"],
+  ["senso do IBGE", "censo do IBGE"],
+  // "mandado" is a court order, "mandato" a term of office.
+  ...["captura", "prisão", "busca", "segurança", "injunção", "despejo", "penhora"].flatMap(
+    (what): PhraseRow[] => [
+      [`mandato de ${what}`, `mandado de ${what}`],
+      [`mandatos de ${what}`, `mandados de ${what}`],
+    ],
+  ),
+  ["mandato judicial", "mandado judicial"],
+  ["mandatos judiciais", "mandados judiciais"],
+  ...["parlamentar", "presidencial", "eletivo", "legislativo"].flatMap((kind): PhraseRow[] => [
+    [`mandado ${kind}`, `mandato ${kind}`],
+  ]),
+  ["mandados parlamentares", "mandatos parlamentares"],
+  // "ás" is the card or the champion; "às" fuses "a" with "as".
+  ["um às", "um ás"],
+  ["às na manga", "ás na manga"],
+  ["ás vezes", "às vezes"],
+  // Shoes are "calçados", clothes "vestidos".
+  ...[
+    ["vestir", "calçar"],
+    ["veste", "calça"],
+    ["vestiu", "calçou"],
+    ["vesti", "calcei"],
+    ["vestia", "calçava"],
+    ["vista", "calce"],
+  ].flatMap(([dress, shoe]): PhraseRow[] =>
+    [
+      "os sapatos",
+      "o sapato",
+      "as meias",
+      "os tênis",
+      "as botas",
+      "as sandálias",
+      "os chinelos",
+    ].map((item): PhraseRow => [`${dress} ${item}`, `${shoe} ${item}`]),
+  ),
+  ...[
+    ["calçar", "vestir"],
+    ["calçou", "vestiu"],
+    ["calcei", "vesti"],
+  ].flatMap(([shoe, dress]): PhraseRow[] =>
+    ["a camisa", "o casaco", "o blusão", "a blusa", "o vestido", "a jaqueta", "o paletó"].map(
+      (item): PhraseRow => [`${shoe} ${item}`, `${dress} ${item}`],
+    ),
+  ),
+  // "mais" (more) where "mas" (but) was written, and back.
+  ["mas ou menos", "mais ou menos"],
+  ["cada vez mas", "cada vez mais"],
+  ["sem mas nem menos", "sem mais nem menos"],
+  ["nunca mas", "nunca mais"],
   ...["das", "nas", "pelas", "várias", "todas as"].map((word): PhraseRow => [
     `${word} fazes`,
     `${word} fases`,
@@ -339,4 +531,46 @@ export const PORTUGUESE_STYLE: PhraseRow[] = [
   ["tô", "estou"],
   ["né", "não é"],
   ["conviver junto", "conviver"],
+  // "a nível de" is a calque; "em nível de" for a level, otherwise "quanto a" or "em".
+  ["a nível de", ["em nível de", "quanto a"]],
+  ["a nível do", ["em nível do", "quanto ao"]],
+  ["a nível da", ["em nível da", "quanto à"]],
+  ["a nível dos", ["em nível dos", "quanto aos"]],
+  ["a nível das", ["em nível das", "quanto às"]],
+  // A verb hidden in a noun: "fazer uma análise de" -> "analisar".
+  ["levar em conta", "considerar"],
+  ["leva em conta", "considera"],
+  ["levou em conta", "considerou"],
+  ["fazer uma análise de", "analisar"],
+  ["fez uma análise de", "analisou"],
+  ["realizar uma análise de", "analisar"],
+  ["fazer uma visita a", "visitar"],
+  ["fazer a entrega de", "entregar"],
+  ["efetuar o pagamento de", "pagar"],
+  ["efetuar o pagamento", "pagar"],
+  ["realizar o pagamento", "pagar"],
+  ["efetuar a compra de", "comprar"],
+  ["fazer a limpeza de", "limpar"],
+  ["dar uma resposta", "responder"],
+  ["deu uma resposta", "respondeu"],
+  ["fazer contato com", "contatar"],
+  ["fazer contacto com", "contactar"],
+  ["no presente momento", "agora"],
+  ["neste exato momento", "agora"],
+  ["no atual momento", "agora"],
+  ["com o objetivo de", "para"],
+  ["com a finalidade de", "para"],
+  ["apesar do fato de que", "embora"],
+  ["devido ao fato de que", "porque"],
+  ["em função do fato de que", "porque"],
+  // English verbs dressed as Portuguese, and loanwords with a Portuguese twin.
+  ["deletar", "apagar"],
+  ["deletou", "apagou"],
+  ["deletado", "apagado"],
+  ["deletada", "apagada"],
+  ["startar", "iniciar"],
+  ["startou", "iniciou"],
+  ["deadline", "prazo"],
+  ["budget", "orçamento"],
+  ["meeting", "reunião"],
 ];

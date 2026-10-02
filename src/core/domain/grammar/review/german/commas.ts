@@ -128,11 +128,9 @@ const PAIRS: Readonly<Record<string, readonly string[]>> = {
   statt: ["dass"],
 };
 
-/** The tokens of the clause after `index`, up to its end (at most `n`); "Grammatik-Regeln"
- * stays one token. */
+/** The tokens of the clause after `index`, up to its end (at most `n`). */
 function clauseAfter(text: string, index: number, n: number): string[] {
-  const window = text.slice(index, index + 16 * n).replace(/(\p{L})-(\p{L})/gu, "$1$2");
-  const tokens = tokensAfter(window, 0, n);
+  const tokens = tokensAfter(text, index, n);
   const end = tokens.findIndex((t) => isClauseEnd(t));
   return end < 0 ? tokens : tokens.slice(0, end);
 }

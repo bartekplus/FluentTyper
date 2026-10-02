@@ -2,24 +2,21 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import {
+  buildGermanGender,
   buildGermanLexicon,
   deriveGermanLexicon,
   GERMAN_LEXICON_SOURCES,
+  readGermanDeterminerBigrams,
 } from "../../scripts/generate-german-lexicon";
 import {
+  germanGender,
   germanNounReading,
   germanVerbLike,
 } from "../../src/core/domain/grammar/review/german/germanLexicon";
-import {
-  REVIEW_SUPPORTED_RULE_IDS,
-  reviewRuleIds,
-} from "../../src/core/domain/grammar/review/reviewCatalog";
-import {
-  detectReviewDiagnostics,
-  prepareReview,
-  reviewChunks,
-  scanReviewChunk,
-} from "../../src/core/domain/grammar/review/reviewDiagnostics";
+import { tokensAfter } from "../../src/core/domain/grammar/review/german/shared";
+import { GERMAN_WORST_CASES, slowestGermanChunkMs } from "./germanWorstCase.fixture";
+import { reviewRuleIds } from "../../src/core/domain/grammar/review/reviewCatalog";
+import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
 
@@ -83,8 +80,16 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Die kosten steigen jedes Jahr.", "Die Kosten steigen jedes Jahr."],
         ["Das gerät, mit dem wir messen, ist neu.", "Das Gerät, mit dem wir messen, ist neu."],
         ["Es gab ein ziemlich seltsames verhalten.", "Es gab ein ziemlich seltsames Verhalten."],
+        ["Bis ende Mai ist die Halle geschlossen.", "Bis Ende Mai ist die Halle geschlossen."],
+        ["Wir sind schon auf dem weg.", "Wir sind schon auf dem Weg."],
+        ["Der Schuss ging ins aus.", "Der Schuss ging ins Aus."],
+        ["Die beiden sind ein ungleiches paar.", "Die beiden sind ein ungleiches Paar."],
       ],
       neg: [
+        "Das ende ich jetzt sofort.",
+        "Er wohnt im aus Holz gebauten Haus.",
+        "Wir bleiben ein paar Tage.",
+        "Ich räume den Müll weg.",
         "Die Schuld liegt bei mir.",
         "Er nimmt das Leben ernst.",
         "Ernst zu nehmende Einwände gab es keine.",
@@ -165,6 +170,9 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
       pos: [
         ["Ich glaube, ihr seit müde.", "Ich glaube, ihr seid müde."],
         ["Wir wohnen hier seid drei Jahren.", "Wir wohnen hier seit drei Jahren."],
+        ["Seid er umgezogen ist, schreibt er öfter.", "Seit er umgezogen ist, schreibt er öfter."],
+        ["Das Café hat seid letzten Montag zu.", "Das Café hat seit letzten Montag zu."],
+        ["Er wartet seid 45 Minuten.", "Er wartet seit 45 Minuten."],
         ["Sie kommt mir einem Freund.", "Sie kommt mit einem Freund."],
         ["Ich freue mir auf den Urlaub.", "Ich freue mich auf den Urlaub."],
         ["Er sagt, das er später kommt.", "Er sagt, dass er später kommt."],
@@ -221,6 +229,8 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Wir kaufen nur bei dem lokalem Händler.", "Wir kaufen nur bei dem lokalen Händler."],
         ["Die Daten kommen in echt Zeit.", "Die Daten kommen in Echtzeit."],
         ["Sie trägt eine rund Brille.", "Sie trägt eine runde Brille."],
+        ["Mein klein Haus ist gemütlich.", "Mein kleines Haus ist gemütlich."],
+        ["Wir flogen in ein parallel Universum.", "Wir flogen in ein paralleles Universum."],
       ],
       neg: [
         "Er ist ein völlig Fremder.",
@@ -247,8 +257,16 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
           "Ich habe versucht, mich an- und abzumelden.",
         ],
         ["Die Ein und Ausfahrt ist frei.", "Die Ein- und Ausfahrt ist frei."],
+        [
+          "Wir prüfen die Gewinn und Verlustrechnung.",
+          "Wir prüfen die Gewinn- und Verlustrechnung.",
+        ],
+        ["Er ist gelernter Groß und Einzelhändler.", "Er ist gelernter Groß- und Einzelhändler."],
       ],
       neg: [
+        "Sie rotteten das Unkraut mit Stumpf und Stiel aus.",
+        "Ein Fest für Jung und Alt.",
+        "Die Firma und Kunden sind zufrieden.",
         "Wir sind für Umwelt und Naturschutz.",
         "Vor und nach dem Essen.",
         "Er ging ein und aus.",
@@ -374,8 +392,13 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Sie zählte bis Zwanzig.", "Sie zählte bis zwanzig."],
         ["Wir haben drei Lösung gefunden.", "Wir haben drei Lösungen gefunden."],
         ["Das Projekt kostet 4 Milliarde Euro.", "Das Projekt kostet 4 Milliarden Euro."],
+        [
+          "Die Renovierung kostet eine halbe Millionen.",
+          "Die Renovierung kostet eine halbe Million.",
+        ],
       ],
       neg: [
+        "Zwei halbe Millionen ergeben eine ganze.",
         "Es dauerte zwei, drei Tage.",
         "Zwischen vier und dreißig Grad ist es angenehm.",
         "Das ist ein hundert Jahre alter Baum.",
@@ -418,8 +441,14 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Morgen werde wir es sehen.", "Morgen werden wir es sehen."],
         ["Ihr wartest schon lange.", "Ihr wartet schon lange."],
         ["Er fährst morgen.", "Er fährt morgen."],
+        ["Die Brücke ist seit Jahren gesperrt ist.", "Die Brücke ist seit Jahren gesperrt."],
+        ["Ich glaube, dass sie hat keine Zeit hat.", "Ich glaube, dass sie keine Zeit hat."],
       ],
       neg: [
+        "Sie werden bald Eltern werden.",
+        "Wir kaufen, was es zu kaufen gibt.",
+        "Es ist, wie es ist.",
+        "Das kann sein Fehler sein.",
         "Er habe keine Zeit, sagte sie.",
         "Sie hast du gestern getroffen?",
         "Ihr habe ich das Buch geliehen.",
@@ -430,6 +459,46 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         "Ich wollt' dir nur danken.",
         "Wir selbst haben es gebaut.",
         "Ich glaube, dass ich haben will, was du hast.",
+      ],
+    },
+  ],
+  [
+    "germanArticleGender",
+    {
+      pos: [
+        ["Der Fahrrad steht im Keller.", "Das Fahrrad steht im Keller."],
+        ["Sie kam mit dem Tochter ihres Nachbarn.", "Sie kam mit der Tochter ihres Nachbarn."],
+        ["Er hat eine neues Fahrrad gekauft.", "Er hat ein neues Fahrrad gekauft."],
+        ["Die Wald hinter dem Haus ist dicht.", "Der Wald hinter dem Haus ist dicht."],
+        ["Ich gehe heute zum Schule.", "Ich gehe heute zur Schule."],
+        ["Sie wohnt jetzt im Großstadt.", "Sie wohnt jetzt in der Großstadt."],
+        ["Ich habe gestern ein Brief bekommen.", "Ich habe gestern einen Brief bekommen."],
+        ["Wenn du ein Termin brauchst, ruf an.", "Wenn du einen Termin brauchst, ruf an."],
+        ["Wir haben neue Projekt gestartet.", "Wir haben neues Projekt gestartet."],
+        ["Mit große Freude haben wir zugesagt.", "Mit großer Freude haben wir zugesagt."],
+        ["Die Haus Tür klemmt.", "Die Haustür klemmt."],
+        ["Wo liegt der Auto Schlüssel?", "Wo liegt der Autoschlüssel?"],
+        ["Der Vorsitzender eröffnete die Sitzung.", "Der Vorsitzende eröffnete die Sitzung."],
+      ],
+      neg: [
+        "Der Mann, der Auto fährt, wohnt hier.",
+        "Ich gebe der Lehrerin das Heft.",
+        "Die Lehrer haben heute frei.",
+        "Das ist der Wagen meiner Eltern.",
+        "Ich bin ein Mensch, der gern liest.",
+        "Er wurde ein guter Arzt.",
+        "Auf der einen Seite stimmt das.",
+        "Die Hälfte der Zimmer war frei.",
+        "Sie hat der Freundin geholfen.",
+        "Mit den Autos fahren wir los.",
+        "Ich kenne das Buch des Autors.",
+        "Er hat früher Bier getrunken.",
+        "Sie schenkte der Mutter Blumen.",
+        "Ein Bekannter hat angerufen.",
+        "Der Lehrer hat angerufen.",
+        "Er war Schüler einer Berliner Schule.",
+        "Schönes Wetter heute!",
+        "Gute Nacht und bis morgen.",
       ],
     },
   ],
@@ -466,6 +535,7 @@ describe("germanCompounds", () => {
     ["Sie hat das Paket ab geschickt.", "Sie hat das Paket abgeschickt."],
     ["Ob er es zu gibt, weiß niemand.", "Ob er es zugibt, weiß niemand."],
     ["Du musst gut auf passen.", "Du musst gut aufpassen."],
+    ["Die Sitzung hat zulange gedauert.", "Die Sitzung hat zu lange gedauert."],
   ])("repairs %p", (input, output) => {
     expect(findings("germanCompounds", input)).toHaveLength(1);
     expect(fixed("germanCompounds", input)).toBe(output);
@@ -485,6 +555,7 @@ describe("germanCompounds", () => {
     "Wir wollten immer hin.",
     "Er ist mir über den weg gelaufen.",
     "Ich weiß, wo ich hin muss.",
+    "Beim Buffet greife ich gern zu, wenn ich zulange, wird es teuer.",
   ])("leaves %p alone", (input) => {
     expect(findings("germanCompounds", input)).toEqual([]);
   });
@@ -577,6 +648,54 @@ test("the committed lexicon matches de_DE.dic/.aff (bun run generate:german-lexi
   expect(wrong.sort()).toEqual(["eile", "mühe", "träne", "weile", "zeit"]);
 });
 
+test("German tokens keep hyphenated compounds whole and a dangling hyphen apart", () => {
+  expect(tokensAfter("Grammatik-Regeln sollten - wie Vor- und Nachteile", 0, 9)).toEqual([
+    "Grammatik-Regeln",
+    "sollten",
+    "-",
+    "wie",
+    "Vor",
+    "-",
+    "und",
+    "Nachteile",
+  ]);
+});
+
+// Needs python3 with marisa-trie and numpy (scripts/requirements.txt) to read the n-gram trie.
+const bigrams = readGermanDeterminerBigrams();
+test.skipIf(bigrams === null)(
+  "the committed noun genders match de_DE.dic/.aff and the n-gram counts",
+  async () => {
+    const [dic, aff, committed] = await Promise.all(
+      [GERMAN_LEXICON_SOURCES.dic, GERMAN_LEXICON_SOURCES.aff, GERMAN_LEXICON_SOURCES.gender].map(
+        (path) => readFile(path, "utf8"),
+      ),
+    );
+    expect(buildGermanGender(dic, aff, bigrams!)).toBe(committed);
+  },
+);
+
+test.each([
+  ["Auto", "n", false],
+  ["Frau", "f", false],
+  ["Tisch", "m", false],
+  ["Lehrerin", "f", false],
+  ["Haustür", "f", false],
+  ["Schreibtisch", "m", false],
+  ["Freiheit", "f", false],
+  ["Brötchen", "n", true],
+  ["Zimmer", "x", true],
+])("%s has gender %p (plural form: %p)", (word, gender, plural) => {
+  expect(germanGender(word)).toEqual({ gender: gender as never, plural });
+});
+
+test.each(["See", "Teil", "Heirat", "Armut", "Legende", "Kuchen", "Kirchen", "Menschen", "Xyzzy"])(
+  "%s has no single gender",
+  (word) => {
+    expect(germanGender(word)).toBeNull();
+  },
+);
+
 test.each([
   ["zugriff", "finite"],
   ["kosten", "infinitive"],
@@ -599,38 +718,19 @@ test.each([
 });
 
 test("no German chunk stalls on repeated determiners and lowercase nouns", () => {
-  const slowest = (text: string) => {
-    const prepared = prepareReview(
-      { id: "worst", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-      {
-        lang: "de_DE",
-        enabledRules: [...REVIEW_SUPPORTED_RULE_IDS],
-        userDictionary: [],
-        insertSpaceAfterAutocomplete: true,
-      },
-    );
-    let ms = 0;
-    for (const chunk of reviewChunks(prepared)) {
-      const start = performance.now();
-      scanReviewChunk(prepared, chunk);
-      ms = Math.max(ms, performance.now() - start);
-    }
-    return ms;
-  };
-  const inputs = [
-    "die kosten die kosten ".repeat(400),
-    "mit den schönen hohen ".repeat(400),
-    "ihr seit mir dem seid den mich ".repeat(300),
-    `der ${"\t ".repeat(3_000)}vertrag`,
-    "ich glaube weil um zu wissen was ob sondern ".repeat(300),
-    "Wir habe. Sollte wir du kann ich hast ".repeat(300),
-    "mir ist zu recht Ernst nach Links riesen Dank im arm die schuld ".repeat(250),
-    "zwei und zwanzig hundert tausend mal drei an halb viele Lösung ".repeat(250),
-    `Wann ${"kommst du ".repeat(2_000)}. Wie viel kostet das. Hast du Zeit, oder.`,
-  ];
-  slowest(inputs.join("\n"));
-  for (const text of inputs) expect(slowest(text)).toBeLessThan(100);
+  slowestGermanChunkMs(GERMAN_WORST_CASES.join("\n"));
+  for (const text of GERMAN_WORST_CASES) expect(slowestGermanChunkMs(text)).toBeLessThan(100);
 });
+
+// Without the JIT, a lookbehind with an unbounded quantifier goes quadratic on a run of
+// spaces (seconds per chunk); bounded ones stay near linear.
+test("no German chunk goes quadratic with the regex JIT off", () => {
+  const run = Bun.spawnSync(["bun", "tests/grammar/germanWorstCase.fixture.ts"], {
+    env: { ...process.env, BUN_JSC_useRegExpJIT: "0" },
+  });
+  expect(run.exitCode).toBe(0);
+  expect(Number(run.stdout.toString())).toBeLessThan(400);
+}, 60_000);
 
 test("the clean German corpus has no findings from the default rules", () => {
   const text = readFileSync("tests/fixtures/native-review-corpus/german-clean.txt", "utf8")

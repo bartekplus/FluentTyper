@@ -101,25 +101,61 @@ export const ACCENTED_NOMINAL = new Map(
   SPANISH_ACCENTED_NOMINALS.split(" ").map((word) => [plain(word), word]),
 );
 
-/** Stems a regular ending may sit on: "busqu" -> "busc", "empiec" -> "empez", "piens" -> "pens". */
-function stems(stem: string): string[] {
+// Ending sets the stem alternations below belong to.
+const STRESSED = /^(?:o|as|a|an|es|e|en)$/u; // present forms that stress the stem: "piensa", "vuelve"
+const FRONT = /^[eé]/u; // "busqué", "pague", "empiece" (-car, -gar, -zar verbs only)
+const BACK = /^[oa]/u; // "cojo", "elija" (-ger, -gir verbs only)
+const I_TO_E = /^(?:o|as|a|an|es|e|en|amos|áis|ió|ieron|iendo)$/u; // "pide", "sirvió" (-ir only)
+
+/**
+ * Stems a regular ending may sit on for one infinitive class: "busqu" + "é" -> "busc" (-ar),
+ * "empiec" + "e" -> "empez" (-ar), "coj" + "o" -> "cog" (-er), "piens" + "a" -> "pens", "pid" +
+ * "ió" -> "ped" (-ir). Each alternation applies only to the endings and paradigm that have it,
+ * so a noun like "cajas" or "sillas" never reads as "cagar" or "sellar".
+ */
+function stems(stem: string, ending: string, infinitive: string): string[] {
   const out = [stem];
-  if (stem.endsWith("qu")) out.push(`${stem.slice(0, -2)}c`);
-  if (stem.endsWith("gu")) out.push(`${stem.slice(0, -2)}g`);
-  if (stem.endsWith("c")) out.push(`${stem.slice(0, -1)}z`);
-  if (stem.endsWith("j")) out.push(`${stem.slice(0, -1)}g`);
+  if (infinitive === "ar" && FRONT.test(ending)) {
+    if (stem.endsWith("qu")) out.push(`${stem.slice(0, -2)}c`);
+    if (stem.endsWith("gu")) out.push(`${stem.slice(0, -2)}g`);
+    if (stem.endsWith("c")) out.push(`${stem.slice(0, -1)}z`);
+  }
+  if (infinitive !== "ar" && BACK.test(ending) && stem.endsWith("j"))
+    out.push(`${stem.slice(0, -1)}g`);
   for (const base of [...out]) {
-    const ie = base.lastIndexOf("ie");
-    if (ie > 0) out.push(`${base.slice(0, ie)}e${base.slice(ie + 2)}`);
-    const ue = base.lastIndexOf("ue");
-    if (ue > 0) out.push(`${base.slice(0, ue)}o${base.slice(ue + 2)}`);
-    const i = base.lastIndexOf("i");
-    if (i > 0) out.push(`${base.slice(0, i)}e${base.slice(i + 1)}`);
+    if (STRESSED.test(ending)) {
+      const ie = base.lastIndexOf("ie");
+      if (ie > 0) out.push(`${base.slice(0, ie)}e${base.slice(ie + 2)}`);
+      const ue = base.lastIndexOf("ue");
+      if (ue > 0) out.push(`${base.slice(0, ue)}o${base.slice(ue + 2)}`);
+    }
+    if (infinitive === "ir" && I_TO_E.test(ending)) {
+      const i = base.lastIndexOf("i");
+      if (i > 0) out.push(`${base.slice(0, i)}e${base.slice(i + 1)}`);
+    }
   }
   return out;
 }
-const conjugates = (stem: string, endings: string[]) =>
-  stems(stem).some((base) => endings.some((ending) => isVerb(`${base}${ending}`)));
+const conjugates = (stem: string, ending: string, infinitives: string[]) =>
+  infinitives.some((infinitive) =>
+    stems(stem, ending, infinitive).some((base) => isVerb(`${base}${infinitive}`)),
+  );
+
+/**
+ * The infinitive of a present form when only one verb fits: "intenta" -> "intentar", "vuelve"
+ * -> "volver", "continúa" -> "continuar", "hable" -> "hablar", "coman" -> "comer".
+ */
+export function presentInfinitive(word: string): string | null {
+  const m = /^(\p{L}{2,}?)(a|an|e|en)$/u.exec(word);
+  if (!m) return null;
+  const [, typed, ending] = m;
+  const found = new Set<string>();
+  for (const stem of new Set([typed, plain(typed)]))
+    for (const infinitive of ["ar", "er", "ir"])
+      for (const base of stems(stem, ending, infinitive))
+        if (isVerb(`${base}${infinitive}`)) found.add(`${base}${infinitive}`);
+  return found.size === 1 ? [...found][0] : null;
+}
 
 const IRREGULAR_SUBJUNCTIVE = new Set(
   (
@@ -137,9 +173,14 @@ export function subjunctiveLike(word: string): boolean {
   if (INDICATIVE.has(word)) return false;
   // "podemos" is "poder" before it is "podar": a form both ways reads as indicative.
   const ar = /^(\p{L}+?)(e|es|en|emos)$/u.exec(word);
-  if (ar && conjugates(ar[1], ["ar"]) && !conjugates(ar[1], ["er", "ir"])) return true;
+  // A one-vowel -iar stem stresses its "i" and writes it: "píe", "críe"; "pie" is the noun.
+  if (ar && /^[^aeiouáéíóú]*i$/u.test(ar[1])) return false;
+  if (ar && conjugates(ar[1], ar[2], ["ar"]) && !conjugates(ar[1], ar[2], ["er", "ir"]))
+    return true;
   const erIr = /^(\p{L}+?)(a|as|an|amos)$/u.exec(word);
-  return !!erIr && !conjugates(erIr[1], ["ar"]) && conjugates(erIr[1], ["er", "ir"]);
+  return (
+    !!erIr && !conjugates(erIr[1], erIr[2], ["ar"]) && conjugates(erIr[1], erIr[2], ["er", "ir"])
+  );
 }
 
 const INDICATIVE = new Set("va vas van vamos da das dan ha has han he es está estás".split(" "));
@@ -162,20 +203,20 @@ export function secondPersonVerb(word: string): boolean {
   let m = /^(\p{L}+?[aeií]r)(ás|ías|as|ias)$/u.exec(word);
   if (m && isVerb(m[1].replace("í", "i"))) return true;
   m = /^(\p{L}+?)(aste|abas)$/u.exec(word);
-  if (m) return conjugates(m[1], ["ar"]);
+  if (m) return conjugates(m[1], m[2], ["ar"]);
   m = /^(\p{L}+?)(iste|ías)$/u.exec(word);
-  if (m) return conjugates(m[1], ["er", "ir"]);
-  m = /^(\p{L}+?)as$/u.exec(word);
-  if (m) return conjugates(m[1], ["ar"]);
-  m = /^(\p{L}+?)es$/u.exec(word);
-  return !!m && conjugates(m[1], ["er", "ir"]);
+  if (m) return conjugates(m[1], m[2], ["er", "ir"]);
+  m = /^(\p{L}+?)(as)$/u.exec(word);
+  if (m) return conjugates(m[1], m[2], ["ar"]);
+  m = /^(\p{L}+?)(es)$/u.exec(word);
+  return !!m && conjugates(m[1], m[2], ["er", "ir"]);
 }
 
 // Person endings over a regular stem, with the infinitives they may come from.
 const FINITE_ENDINGS: [RegExp, string[]][] = [
-  [/^(\p{L}+?)(?:o|as|a|an|es|e|en)$/u, ["ar", "er", "ir"]],
-  [/^(\p{L}+?)(?:amos|áis|é|aste|ó|asteis|aron|aba|abas|ábamos|abais|aban)$/u, ["ar"]],
-  [/^(\p{L}+?)(?:emos|éis|imos|ís|í|iste|ió|isteis|ieron|ía|ías|íamos|íais|ían)$/u, ["er", "ir"]],
+  [/^(\p{L}+?)(o|as|a|an|es|e|en)$/u, ["ar", "er", "ir"]],
+  [/^(\p{L}+?)(amos|áis|é|aste|ó|asteis|aron|aba|abas|ábamos|abais|aban)$/u, ["ar"]],
+  [/^(\p{L}+?)(emos|éis|imos|ís|í|iste|ió|isteis|ieron|ía|ías|íamos|íais|ían)$/u, ["er", "ir"]],
 ];
 const IRREGULAR_FINITE = new Set(
   (
@@ -192,7 +233,7 @@ export function finiteVerb(word: string): boolean {
   if (IRREGULAR_FINITE.has(word)) return true;
   for (const [pattern, infinitives] of FINITE_ENDINGS) {
     const m = pattern.exec(word);
-    if (m && conjugates(m[1], infinitives)) return true;
+    if (m && conjugates(m[1], m[2], infinitives)) return true;
   }
   // Future and conditional, accented or not: "cantará", "comerían", "seras".
   const m = /^(\p{L}+?[aei]r)(?:é|ás|á|emos|éis|án|ía|ías|íamos|íais|ían|as|an|ia|ias|ian)$/u.exec(

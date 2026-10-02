@@ -918,6 +918,14 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     bulk: "individual",
     languages: ["es_ES"],
   },
+  spanishQuotes: {
+    review: "supported",
+    defaultEnabled: false,
+    category: "typography",
+    kind: "marks",
+    bulk: "individual",
+    languages: ["es_ES"],
+  },
   // French (review/french/)
   frenchVerbForms: {
     review: "supported",
@@ -1115,6 +1123,14 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     languages: ["de_DE"],
   },
   germanVerbAgreement: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "grammar",
+    kind: "agreement",
+    bulk: "individual",
+    languages: ["de_DE"],
+  },
+  germanArticleGender: {
     review: "supported",
     defaultEnabled: true,
     category: "grammar",

@@ -354,8 +354,19 @@ const MARK_NAMING_WORDS = new Set([
   ...["hits", "tap", "taps", "enter", "enters", "use", "uses", "key", "keys", "add", "adds"],
   ...["insert", "inserts", "put", "puts", "remove", "removes", "delete", "deletes", "the"],
   ...["a", "an", "character", "char", "symbol", "sign", "dot", "mark", "punctuation"],
+  // The same keys and symbols named in the other Review languages: "pulsa ? para ver la ayuda".
+  ...["pulsa", "pulse", "presiona", "presione", "escribe", "escriba", "teclea", "teclee", "usa"],
+  ...["tecla", "signo", "símbolo", "carácter", "inserta", "inserte", "añade", "añada"],
+  ...["appuyez", "appuie", "tapez", "tape", "saisissez", "saisis", "utilisez", "touche"],
+  ...["caractère", "symbole", "signe", "insérez", "ajoutez", "drücke", "drücken", "drück"],
+  ...["tippe", "tippen", "gib", "verwende", "verwenden", "taste", "zeichen", "füge"],
+  ...["pressione", "aperte", "digite", "tecle", "caractere", "sinal", "insira", "adicione"],
+  ...["naciśnij", "wciśnij", "wpisz", "użyj", "klawisz", "znak", "wstaw", "dodaj", "tryck"],
+  ...["skriv", "använd", "tangenten", "tecknet", "tecken", "symbolen", "pritisni", "pritisnite"],
+  ...["upiši", "upišite", "koristi", "koristite", "tipku", "simbol", "πατήστε", "πάτα"],
+  ...["πληκτρολογήστε", "γράψτε", "πλήκτρο", "σύμβολο", "χαρακτήρα", "اضغط", "اكتب", "رمز"],
 ]);
-const MARK_QUOTES = /^["'“”‘’`]$/u;
+const MARK_QUOTES = /^["'“”‘’`«»„‚‹›]$/u;
 const LINE_SPACE = /^[ \t ]$/u;
 
 /**
@@ -372,7 +383,7 @@ function namesMark(text: string, index: number): boolean {
   // "It was late . we left" is a stray space: only a naming word makes it a symbol.
   if (before === index - 1) return false;
   let wordStart = before + 1;
-  while (wordStart > 0 && /[A-Za-z]/.test(text[wordStart - 1])) wordStart -= 1;
+  while (wordStart > 0 && /\p{L}/u.test(text[wordStart - 1])) wordStart -= 1;
   if (WORD_CHAR.test(text[wordStart - 1] ?? "")) return false;
   return MARK_NAMING_WORDS.has(text.slice(wordStart, before + 1).toLowerCase());
 }
@@ -428,7 +439,9 @@ const pronounI: Detector = (ctx) => {
       contextEnd += 1;
     } else if (/^\.(?:\s|$)/u.test(rest)) {
       // Unlike typing, what follows the period is here: not "i.e.", so "than i." ends
-      // a sentence. A roman numeral opening a list line or naming a part is not.
+      // a sentence. A roman numeral opening a list line or naming a part is not, nor is
+      // a spaced-out "i. e.".
+      if (/^\.\s+e\./i.test(rest)) continue;
       const lineStart = ctx.text.lastIndexOf("\n", start - 1) + 1;
       if (ctx.text.slice(lineStart, start).trim() === "") continue;
       if (NUMERAL_BEFORE.test(ctx.text.slice(Math.max(0, start - 24), start))) continue;
@@ -562,9 +575,14 @@ interface PhraseMatch {
   end: number;
 }
 
+// JavaScript's \s by code unit: phrase windows test it once per character they widen over.
 function isWhitespaceAt(text: string, index: number): boolean {
-  return /\s/.test(text[index] ?? "");
+  const code = text.charCodeAt(index);
+  return code === 32 || (code >= 9 && code <= 13) || (code > 127 && /\s/.test(text[index]));
 }
+
+// Stateless (no g or y flag) copies of the typing rules' patterns, compiled once each.
+const PHRASE_REGEX = new WeakMap<RegExp, RegExp>();
 
 /**
  * Runs a typing rule's end-anchored pattern at every word end of the chunk.
@@ -577,7 +595,12 @@ function* phraseMatches(
   pattern: RegExp,
   tokens: number,
 ): Generator<PhraseMatch> {
-  const regex = new RegExp(pattern.source, `${pattern.flags.replace(/[gy]/g, "")}d`);
+  let regex = PHRASE_REGEX.get(pattern);
+  if (!regex)
+    PHRASE_REGEX.set(
+      pattern,
+      (regex = new RegExp(pattern.source, `${pattern.flags.replace(/[gy]/g, "")}d`)),
+    );
   for (const word of asciiWords(ctx, PHRASE_WINDOW)) {
     const limit = Math.max(0, word.end - PHRASE_WINDOW);
     let windowStart = word.start;
@@ -890,7 +913,8 @@ const properNoun: Detector = (ctx) => {
 // ------------------------------------------------------ punctuation and spacing
 
 // Spaces and a lowercase word (after an optional opening mark) on the same line.
-const STANDALONE_MARK_FOLLOWER = /^[ \t\u00A0]+["'“‘([¿¡]?\p{Ll}/u;
+// Scripts without case (Arabic) have no capital to start a sentence with: any letter counts.
+const STANDALONE_MARK_FOLLOWER = /^[ \t\u00A0]+["'“‘«„([¿¡]?[\p{Ll}\p{Lo}]/u;
 
 // A fullwidth "，" or ideographic "、" comma between words of an alphabetic
 // script ("red，green") is an input-method slip; CJK text keeps its own.

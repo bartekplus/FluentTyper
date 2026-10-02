@@ -1,4 +1,5 @@
 import type { Presage, PresageModule, PresageCallback } from "./PresageTypes";
+import { tuneHunspellSuggestions } from "./PresageFiles";
 
 export interface PresageEngineConfig {
   numSuggestions: number;
@@ -8,9 +9,14 @@ export interface PresageEngineConfig {
 // Suggestions a lookup returns for an unknown word.
 const SPELLING_CANDIDATES = 20;
 // Candidates searched for the word itself as typed: every predictor's whole partial
-// list (MAX_PARTIAL_PREDICTION_SIZE each), so a short known word ("ad", "app") still
-// counts as known when many more frequent words start with it.
+// list, so a short known word ("ad", "app") still counts as known when many more
+// frequent words start with it.
 const SPELLING_POOL = 1000;
+// Presage asks every predictor again, with a larger partial list each time, while it
+// has fewer candidates than it was asked for. With typing's partial lists (60), a
+// short prefix ("naj", "na") took up to 17 rounds, each running the spellers' slow
+// suggestion step again: a lookup asks for the whole pool in the first round.
+const PARTIAL_PREDICTION_SIZE = "Presage.PredictorActivator.MAX_PARTIAL_PREDICTION_SIZE";
 
 /**
  * Time a review lookup from a page may take before it stops starting words.
@@ -95,31 +101,49 @@ export class PresageEngine {
     words: ReadonlyArray<{ word: string; before: string }>,
     { budgetMs = Infinity, now = () => performance.now() }: SpellingLookupOptions = {},
   ): Array<string[] | null> {
+    const partialSize = this.libPresage.config(PARTIAL_PREDICTION_SIZE);
     this.libPresage.config("Presage.Selector.SUGGESTIONS", String(SPELLING_POOL));
     this.libPresage.config("Presage.ContextTracker.PREFIX_ONLY_MODE", "no");
+    this.libPresage.config(PARTIAL_PREDICTION_SIZE, String(SPELLING_POOL));
     try {
       const started = now();
       const results: Array<string[] | null> = [];
       for (const { word, before } of words) {
         if (results.length > 0 && now() - started >= budgetMs) break;
-        const pool = this.predict(`${before}${word}`).map((candidate) => candidate.trim());
-        const candidates = pool.slice(0, SPELLING_CANDIDATES);
-        const key = word.toLowerCase();
-        // Hunspell offers a word it knows as typed, however rare; any casing counts only
-        // among the top candidates, so a speller's "WA" does not vouch for "wa".
-        const known =
-          pool.includes(word) || candidates.some((candidate) => candidate.toLowerCase() === key);
-        results.push(known ? null : candidates);
+        let answer = this.spellingAnswer(`${before}${word}`, word);
+        // A full pool may hold only completions more frequent than the word itself
+        // ("Re" under a thousand words starting with "re"): asked again in the
+        // typing-sized rounds, where the spellers' lists get their share.
+        if (answer && answer.length >= SPELLING_POOL && partialSize) {
+          this.libPresage.config(PARTIAL_PREDICTION_SIZE, partialSize);
+          answer = this.spellingAnswer(`${before}${word}`, word);
+          this.libPresage.config(PARTIAL_PREDICTION_SIZE, String(SPELLING_POOL));
+        }
+        results.push(answer && answer.slice(0, SPELLING_CANDIDATES));
       }
       return results;
     } finally {
       // Nothing of the reviewed text stays in the engine.
       this.callback.pastStream = "";
+      if (partialSize) this.libPresage.config(PARTIAL_PREDICTION_SIZE, partialSize);
       this.setConfig(this.config);
     }
   }
 
+  /** Null when the dictionary knows `word`, else the whole candidate pool for it. */
+  private spellingAnswer(input: string, word: string): string[] | null {
+    const pool = this.predict(input).map((candidate) => candidate.trim());
+    const key = word.toLowerCase();
+    // Hunspell offers a word it knows as typed, however rare; any casing counts only
+    // among the top candidates, so a speller's "WA" does not vouch for "wa".
+    const known =
+      pool.includes(word) ||
+      pool.slice(0, SPELLING_CANDIDATES).some((candidate) => candidate.toLowerCase() === key);
+    return known ? null : pool;
+  }
+
   private createLibPresage(): Presage {
+    tuneHunspellSuggestions(this.module, this.lang);
     return new this.module.Presage(this.callbackImpl, `resources_js/${this.lang}/presage.xml`);
   }
 

@@ -1,7 +1,7 @@
 import { frameMatches, SPACE, WORD_END, WORD_START } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { germanInfinitive, germanNounReading, germanVerbLike } from "./germanLexicon";
-import { isGerman, tokensBefore, wordSet } from "./shared";
+import { isGerman, mayRun, tokensBefore, wordSet } from "./shared";
 import { germanInfinitiveOf, isAuxiliary } from "./verbAgreement";
 
 // German compounds written apart or with the wrong joints: separable verbs ("auf zu bauen" →
@@ -144,6 +144,17 @@ function infinitiveClause(ctx: DetectContext, index: number): boolean {
   );
 }
 const FRAMES: Array<[RegExp, Fix]> = [
+  // "zulange gewartet" → "zu lange"; "wenn ich da zulange" is "zulangen" (help oneself).
+  [
+    re(`(?<target>[Zz]ulange)`),
+    (m, ctx) => {
+      const clause = ctx.text
+        .slice(Math.max(0, m.index - 80), m.index)
+        .split(/[.!?;,:\n]/)
+        .at(-1)!;
+      return /(?<!\p{L})ich(?!\p{L})/iu.test(clause) ? null : "zu lange";
+    },
+  ],
   [
     ZU_INFINITIVE,
     (m, ctx) => {
@@ -230,6 +241,7 @@ function compounds(ctx: DetectContext): RawFinding[] {
   if (!isGerman(ctx)) return [];
   const findings: RawFinding[] = [];
   for (const [regex, fix] of FRAMES) {
+    if (!mayRun(ctx, regex)) continue;
     for (const m of frameMatches(ctx, regex)) {
       const typed = m.groups!.target;
       const replacement = fix(m, ctx);
