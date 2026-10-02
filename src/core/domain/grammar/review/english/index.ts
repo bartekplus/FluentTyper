@@ -15,6 +15,8 @@ import * as confusionSlots from "./confusionSlots";
 import * as countSlots from "./countSlots";
 import * as negationSlots from "./negationSlots";
 import * as relativeSlots from "./relativeSlots";
+import * as questionSlots from "./questionSlots";
+import * as comparisonSlots from "./comparisonSlots";
 import * as dialects from "./dialects";
 import * as lexical from "./lexical";
 import * as remaining from "./remaining";
@@ -59,6 +61,8 @@ const MODULES = [
   countSlots,
   negationSlots,
   relativeSlots,
+  questionSlots,
+  comparisonSlots,
 ];
 export const EXTENSION_PHRASES = MODULES.flatMap((m) => m.PHRASES);
 export const EXTENSION_COMPOUNDS = MODULES.flatMap((m) => m.COMPOUNDS);
