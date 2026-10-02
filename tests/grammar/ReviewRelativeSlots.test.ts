@@ -34,6 +34,39 @@ test.each([
   expect(scan(expected)).toEqual([]);
 });
 
+const pronouns = (text: string) =>
+  detectReviewDiagnostics(
+    { id: "pronouns", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
+    {
+      lang: "en_US",
+      enabledRules: reviewRuleIds({ codeMode: false }),
+      userDictionary: [],
+      insertSpaceAfterAutocomplete: true,
+    },
+  ).diagnostics.filter((d) => d.ruleId === "englishPronounVerbWhitelistAgreement");
+
+test.each([
+  ["I think they is late.", "I think they are late."],
+  ["We seldom does that. I always has tea.", "We seldom does that. I always have tea."],
+  ["Once you finds it, call me.", "Once you find it, call me."],
+  ["Was you there?", "Were you there?"],
+  ["Where is they now?", "Where are they now?"],
+])("pronoun verb form repaired: %s", (input, expected) => {
+  const found = pronouns(input);
+  expect(found).toHaveLength(1);
+  expect(applyEdits(input, found[0].alternatives[0].edits)).toBe(expected);
+});
+
+test.each([
+  "The coat I lent you is warm.",
+  "Everyone but you has signed.",
+  "Phase I covers setup.",
+  "Mom and I is a film title I like.",
+  "Here, i is the index.",
+  "Is you book on the shelf?",
+  "Is that you?",
+])("pronoun verb forms stay silent: %s", (text) => expect(pronouns(text)).toEqual([]));
+
 test.each([
   ["I guess it get cold at night.", "I guess it gets cold at night."],
   ["The fog lifted and it turn bright.", "The fog lifted and it turns bright."],

@@ -13,6 +13,7 @@ import {
   english,
   evidence,
   FUNCTION_WORDS,
+  nounOnly,
   PREPOSITIONS,
   tokensAfter,
 } from "./slotWords";
@@ -232,6 +233,100 @@ function nameSubjects(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+// The be/have/do form each subject pronoun takes.
+const PRONOUN_FORMS: Record<string, Record<string, string>> = {
+  i: { is: "am", has: "have", does: "do" },
+  you: { is: "are", was: "were", has: "have", does: "do" },
+  we: { is: "are", was: "were", has: "have", does: "do" },
+  they: { is: "are", was: "were", has: "have", does: "do" },
+};
+// Words after which a pronoun opens its own clause ("I hope you is", "as soon as you hears").
+const CLAUSE_CUE =
+  /^(?:so|because|when|whenever|while|since|until|although|though|if|unless|once|that|feel|hope|think|guess|believe|know|sure|wish|maybe|perhaps)$/;
+
+/**
+ * "I hope you is happy", "I rarely has", "as soon as you hears", "Is you crazy?", "What has you
+ * done?": a subject pronoun and its be/have/do or -s verb.
+ */
+function pronounForms(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  const push = (start: number, end: number, typed: string, fix: string, from: number) =>
+    findings.push({
+      ruleId: "englishPronounVerbWhitelistAgreement",
+      messageKey: "review_msg_pronoun_verb",
+      range: { start, end },
+      alternatives: [caseLike(typed, fix)],
+      context: evidence(ctx, from, end),
+    });
+  for (const m of frameMatches(
+    ctx,
+    `(?<pronoun>I|you|we|they)(?<adverb>${SPACE}(?:rarely|never|always|often|usually|sometimes|really|also|still|just|only|all))?${SPACE}(?<verb>[a-z]+s)${WORD_END}`,
+    "verb",
+  )) {
+    const { pronoun, verb } = m.groups!;
+    const p = pronoun === "I" ? "i" : pronoun;
+    if (pronoun !== "I" && pronoun !== pronoun.toLowerCase() && !afterBreak(ctx, m.index)) continue;
+    // "the gift I gave you is lost": an object you belongs to the clause before.
+    const cue = /([A-Za-z]+)[ \t\u00a0]{1,8}$/.exec(
+      ctx.text.slice(Math.max(0, m.index - 24), m.index),
+    )?.[1];
+    // The pronoun opens its clause: not "Phase I corresponds", "singular they has", "My
+    // Husband and I has been released" (a title), "Everyone but you has".
+    if (!afterBreak(ctx, m.index) && !(cue && CLAUSE_CUE.test(cue.toLowerCase()))) continue;
+    // A lowercase "i" is a variable ("where i is the number").
+    if (pronoun === "i") continue;
+    if (ctx.dictionary.has(verb)) continue;
+    let fix = PRONOUN_FORMS[p][verb];
+    if (!fix) {
+      const read = englishWordInfo(verb);
+      // Only a verb-only -s form: "you guys" or "they all means" with a plural noun abstain.
+      if (!read?.verbs.some((v) => v.form === "third")) continue;
+      // "you guys", "they all means": a plural noun reading needs an object after it.
+      const object = tokensAfter(ctx, m.index + m[0].length, 1)[0];
+      if (
+        (read.noun || read.plural) &&
+        !(object?.kind === "word" && VERB_EVIDENCE.test(object.lower))
+      )
+        continue;
+      fix = englishLemma(verb, "third") ?? "";
+    }
+    if (!fix || fix === verb) continue;
+    const [start, end] = m.indices!.groups!.verb;
+    push(start, end, verb, fix, m.index);
+  }
+  for (const m of frameMatches(
+    ctx,
+    `(?<verb>is|was|has|does)${SPACE}(?<pronoun>I|you|we|they)${WORD_END}`,
+    "verb",
+  )) {
+    const { verb, pronoun } = m.groups!;
+    const p = pronoun === "I" ? "i" : pronoun.toLowerCase();
+    // A question: the clause opens with the verb or a wh-word right before it.
+    const lead = /([A-Za-z]+)[ \t\u00a0]{1,8}$/.exec(
+      ctx.text.slice(Math.max(0, m.index - 16), m.index),
+    )?.[1];
+    if (!afterBreak(ctx, m.index) && !/^(?:what|where|why|how|when|who|which)$/i.test(lead ?? ""))
+      continue;
+    if (!/^[^.!\n]{0,120}\?/.test(ctx.text.slice(m.index))) continue;
+    if (pronoun === "i") continue;
+    // "Is you question related…": "you" for "your" before a noun is another slip.
+    const after = tokensAfter(ctx, m.index + m[0].length, 1)[0];
+    const read = after?.kind === "word" ? englishWordInfo(after.lower) : null;
+    if (
+      after?.kind === "word" &&
+      !FUNCTION_WORDS.has(after.lower) &&
+      (nounOnly(after.lower) || (read?.noun && !read.adjective))
+    )
+      continue;
+    const fix = PRONOUN_FORMS[p][verb.toLowerCase()];
+    if (!fix) continue;
+    const [start, end] = m.indices!.groups!.verb;
+    push(start, end, verb, fix, m.index);
+  }
+  return findings;
+}
+
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
   { rules: ["englishSubjectVerbAgreement"], detect: english(relativeAgreement, nameSubjects) },
+  { rules: ["englishPronounVerbWhitelistAgreement"], detect: english(pronounForms) },
 ];
