@@ -13,9 +13,11 @@ import {
   type Token,
 } from "./common";
 import {
+  attribute,
   finiteVerb,
   genderedForm,
   isGerund,
+  isNoun,
   participle,
   isGenderedEntry,
   isNounEntry,
@@ -893,6 +895,69 @@ function determinerAcross(ctx: DetectContext, tokens: Token[], i: number): RawFi
   return replaceToken(ctx, tokens[i], [fix], RULE, MESSAGE, nounToken);
 }
 
+/**
+ * "a favor de lo acreedores", "Lo pequeños roedores" -> "los": the neuter "lo" takes a
+ * singular adjective and the clitic a verb; a plural in -os after it wants the article.
+ */
+function neuterBeforePlural(ctx: DetectContext, tokens: Token[], i: number): RawFinding | null {
+  if (tokens[i].lower !== "lo") return null;
+  const next = tokens[i + 1];
+  if (!next?.word || next.broken || !/^\p{Ll}/u.test(next.text) || ctx.dictionary.has(next.lower))
+    return null;
+  const word = next.lower;
+  // "lo hacemos", "lo vimos", "lo comes": verbs end in -os and -es too.
+  if (!/[oe]s$/u.test(word) || /mos$/u.test(word) || finiteVerb(word)) return null;
+  if (secondPersonVerb(word)) return null;
+  const read = readNoun(word);
+  if (!(read?.plural || attribute(word)?.plural) || NUMBER_WORDS.has(word)) return null;
+  // "Lo pequeños que son": how small they are.
+  if (new Around(tokens, i + 1).next() === "que") return null;
+  return replaceToken(ctx, tokens[i], ["los"], RULE, MESSAGE, next);
+}
+
+// Words before a noun that are determiners or adverbs rather than adjectives: "solo hombres",
+// "todo hombre", "medio día".
+const NOT_PRENOMINAL =
+  /^(?:tod|much|poc|otr|mism|tant|cuant|vari|cierto|ciert|demasiad|medi|sol|ambos|ambas|cual|dich|propi|semejant)/u;
+const APOCOPE: Record<string, string> = {
+  buen: "bueno",
+  mal: "malo",
+  primer: "primero",
+  tercer: "tercero",
+};
+
+/**
+ * "Con magníficos cucharas", "Buen amigos." -> "magníficas", "Buenos": an adjective opening a
+ * noun phrase with no determiner, after a preposition or at the sentence start, agrees with
+ * the noun right after it.
+ */
+function bareAdjectiveNoun(ctx: DetectContext, tokens: Token[], i: number): RawFinding | null {
+  const at = new Around(tokens, i);
+  if (!at.starts && !PREPOSITIONS.has(at.prev())) return null;
+  const adjToken = tokens[i];
+  const nounToken = tokens[i + 1];
+  if (!nounToken?.word || nounToken.broken || /^\p{Lu}/u.test(nounToken.text)) return null;
+  if (ctx.dictionary.has(adjToken.lower) || ctx.dictionary.has(nounToken.lower)) return null;
+  const typed = adjToken.lower;
+  if (NOT_PRENOMINAL.test(typed) || DETERMINER.has(typed)) return null;
+  const base = APOCOPE[typed];
+  const forms = adjectiveForms(base ?? typed);
+  if (!forms || forms.feminine === null || isNoun(typed) || verbLike(typed)) return null;
+  if (finiteVerb(typed) || SER.has(typed)) return null;
+  const noun = readNoun(nounToken.lower);
+  if (!noun?.gender || noun.invariant || EITHER.has(noun.singular)) return null;
+  if (verbLike(nounToken.lower) || participle(nounToken.lower)) return null;
+  // The phrase closes after the noun or goes on with a preposition or a verb.
+  const after = new Around(tokens, i + 1);
+  if (!after.endsAfter() && !PREPOSITIONS.has(after.next()) && !CONJUNCTIONS.has(after.next()))
+    return null;
+  const feminine = noun.gender === "f";
+  const plural = base ? false : forms.plural;
+  if (feminine === forms.feminine && plural === noun.plural) return null;
+  const fix = forms.form(feminine, noun.plural);
+  return replaceToken(ctx, adjToken, [fix], RULE, MESSAGE, nounToken);
+}
+
 function agreement(ctx: DetectContext): RawFinding[] {
   if (ctx.lang.slice(0, 2) !== "es") return [];
   const tokens = tokenize(ctx);
@@ -906,6 +971,8 @@ function agreement(ctx: DetectContext): RawFinding[] {
       determinerNoun(ctx, tokens, i) ??
       determinerAdjectiveNoun(ctx, tokens, i) ??
       determinerAcross(ctx, tokens, i) ??
+      neuterBeforePlural(ctx, tokens, i) ??
+      bareAdjectiveNoun(ctx, tokens, i) ??
       postponedAdjective(ctx, tokens, i) ??
       articleSuperlative(ctx, tokens, i) ??
       darPorParticiple(ctx, tokens, i) ??

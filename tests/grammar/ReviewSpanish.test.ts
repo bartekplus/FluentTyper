@@ -1469,6 +1469,27 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
       ],
     },
   ],
+  [
+    "spanishAgreement",
+    "lo before a plural, and an adjective opening a noun phrase without determiner",
+    {
+      pos: [
+        ["Votaron a favor de lo trabajadores.", "Votaron a favor de los trabajadores."],
+        ["Lo viejos tiempos no vuelven.", "Los viejos tiempos no vuelven."],
+        ["Lo cocinó con frescos verduras.", "Lo cocinó con frescas verduras."],
+        ["Viajó en contadas ocasión.", "Viajó en contada ocasión."],
+        ["Hermosas paisajes.", "Hermosos paisajes."],
+      ],
+      neg: [
+        "Lo pequeños que son.",
+        "Lo hacemos mañana.",
+        "Lo comes todos los días.",
+        "Con buenas intenciones no basta.",
+        "Somos rubias.",
+        "Solo hombres en la sala.",
+      ],
+    },
+  ],
 ];
 
 describe.each(FIXTURES)("%s: %s", (ruleId, _family, fixture) => {
