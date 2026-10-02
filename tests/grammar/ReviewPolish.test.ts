@@ -22,6 +22,27 @@ type Case = { pos: Array<[string, string]>; neg: string[] };
 
 export const POLISH_CASES: Array<[CatalogRuleId, string, Case]> = [
   [
+    "stylePhrasing",
+    '"dwie lub więcej" with its noun recased',
+    {
+      pos: [
+        ["Czekał na nią dwie lub więcej godzin.", "Czekał na nią co najmniej dwie godziny."],
+        [
+          "Pisał o trzech lub więcej ciekawych książek.",
+          "Pisał o co najmniej trzech ciekawych książkach.",
+        ],
+        ["Pomógł czterem lub więcej rodzin.", "Pomógł co najmniej czterem rodzinom."],
+        [
+          "Opiekował się dwoma lub więcej kotów sąsiadów.",
+          "Opiekował się co najmniej dwoma kotami sąsiadów.",
+        ],
+        ["Przyszło pięć lub więcej osób.", "Przyszło co najmniej pięć osób."],
+        ["Weź dwa lub więcej.", "Weź co najmniej dwa."],
+      ],
+      neg: ["Weź dwa albo trzy.", "Wypił więcej niż dwie kawy.", "Kupił dwie lub trzy bułki."],
+    },
+  ],
+  [
     "englishClosedCompounds",
     "guarded split words",
     {

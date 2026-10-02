@@ -1,4 +1,7 @@
 import type { PhraseRow } from "../englishPhraseTables";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
+import { adjectiveForm, adjectiveOf, cases, inflect, nounTags, onlyNoun, VIRILE } from "./lexicon";
+import { caseLike, findingAt, isPl, owned, userOrNamed } from "./shared";
 
 /*
  * Pleonasms and wordy officialese (optional `stylePhrasing`), in the inflected
@@ -184,10 +187,6 @@ export const STYLE: readonly PhraseRow[] = [
     [`${verb} istotną rolę`, [`${verb} istotną funkcję`, `${plays} istotną rolę`]],
     [`${verb} swoją rolę`, [`${verb} swoją funkcję`, `${plays} swoją rolę`]],
   ]),
-  // "dwie lub więcej godzin" mixes two governments: "co najmniej dwie".
-  ...words(
-    "dwa dwie dwóch dwom dwóm dwoma trzy trzech trzem trzema cztery czterech czterem czterema pięć pięciu",
-  ).map((numeral): PhraseRow => [`${numeral} lub więcej`, `co najmniej ${numeral}`]),
   // Moving back "w tył" or "wstecz" is already "cofać się".
   ...words(
     "cofam cofa cofają cofał cofała cofali cofaj cofnij cofnijcie cofnął cofnęła cofnęli cofnie cofną",
@@ -463,4 +462,107 @@ export const PHRASES: readonly PhraseRow[] = [
       ]),
     ];
   }),
+];
+
+/* ----------------------------------------------------------- "dwie lub więcej" */
+
+/** The plural case a numeral puts its noun in, by the numeral's own form. */
+const OR_MORE_CASE: Record<string, string> = {
+  dwa: "Np",
+  dwie: "Np",
+  trzy: "Np",
+  cztery: "Np",
+  dwom: "Dp",
+  dwóm: "Dp",
+  trzem: "Dp",
+  czterem: "Dp",
+  dwoma: "Ip",
+  trzema: "Ip",
+  czterema: "Ip",
+  dwóch: "Gp",
+  trzech: "Gp",
+  czterech: "Gp",
+  pięć: "Gp",
+  pięciu: "Gp",
+};
+/** The adjective ending of a non-virile plural in each case. */
+const PLURAL_ENDING: Record<string, string> = {
+  Np: "e",
+  Gp: "ych",
+  Dp: "ym",
+  Ip: "ymi",
+  Lp: "ych",
+};
+const OR_MORE = new RegExp(
+  `(?<![\\p{L}\\p{N}_'’-])(?<numeral>${Object.keys(OR_MORE_CASE).join("|")})[ \\t\\u00a0]{1,8}lub[ \\t\\u00a0]{1,8}więcej(?<words>(?:[ \\t\\u00a0]{1,8}\\p{Ll}+){0,3})(?![\\p{L}\\p{N}_'’-])`,
+  "giu",
+);
+
+/**
+ * "dwie lub więcej godzin" mixes two governments: "co najmniej dwie godziny". The noun (and its
+ * adjectives) follow the numeral's case; when they cannot be read, only the numeral is fixed.
+ */
+function orMore(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of owned(ctx, OR_MORE)) {
+    const numeral = m.groups!.numeral;
+    const lower = numeral.toLowerCase();
+    let wanted = OR_MORE_CASE[lower];
+    // "w dwóch lub więcej krajów": the locative after "w", "o", "na", "przy", "po".
+    if (
+      wanted === "Gp" &&
+      /(?:^|[^\p{L}])(?:w|we|o|na|przy|po)[ \t\u00a0]+$/iu.test(
+        ctx.text.slice(Math.max(0, m.index - 8), m.index),
+      )
+    )
+      wanted = "Lp";
+    const words = m.groups!.words;
+    const wordsStart = m.index + m[0].length - words.length;
+    const head = `co najmniej ${numeral}`;
+    let fixed = head;
+    let end = wordsStart;
+    const tokens = [...words.matchAll(/\p{L}+/gu)];
+    const plural = (adj: string) => adjectiveForm(adjectiveOf(adj)!.lemma, PLURAL_ENDING[wanted]);
+    // Genitive plural adjectives: "wieczornych godzin", "godzin wieczornych".
+    const adjectiveAt = (i: number) =>
+      i < tokens.length && !nounTags(tokens[i][0]) && adjectiveOf(tokens[i][0])?.ending === "ych";
+    let at = 0;
+    while (adjectiveAt(at)) at++;
+    const noun = tokens[at]?.[0] ?? "";
+    const tags = nounTags(noun);
+    if (onlyNoun(tags) && tags & cases("Gp") && !(wanted === "Np" && tags & VIRILE)) {
+      const forms = tags & cases(wanted) ? [noun] : inflect(noun, cases(wanted));
+      let last = at;
+      while (adjectiveAt(last + 1)) last++;
+      // An unknown "-ych" word after the phrase may be one more adjective: leave the noun alone.
+      const unread = /(?:ych|ich)$/u.test(tokens[last + 1]?.[0] ?? "") && !adjectiveAt(last + 1);
+      if (forms.length === 1 && !unread) {
+        const before = tokens.slice(0, at).map((t) => plural(t[0]));
+        const after = tokens.slice(at + 1, last + 1).map((t) => plural(t[0]));
+        fixed = [head, ...before, forms[0], ...after].join(" ");
+        end = wordsStart + tokens[last].index + tokens[last][0].length;
+      }
+    }
+    const typed = ctx.source.slice(m.index, end);
+    if (userOrNamed(ctx, typed)) continue;
+    findings.push(
+      findingAt(
+        ctx,
+        m.index,
+        end,
+        [caseLike(typed, fixed)],
+        "stylePhrasing",
+        "review_msg_style_phrasing",
+      ),
+    );
+  }
+  return findings;
+}
+
+export const DETECTORS = [
+  {
+    rules: ["stylePhrasing"] as RawFinding["ruleId"][],
+    detect: (ctx: DetectContext) =>
+      isPl(ctx) && (!ctx.rules || ctx.rules.has("stylePhrasing")) ? orMore(ctx) : [],
+  },
 ];
