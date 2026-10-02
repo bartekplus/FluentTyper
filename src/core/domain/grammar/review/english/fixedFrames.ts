@@ -301,6 +301,13 @@ const GUARDS: Record<
   // "It was very responsible of you to call": considerate of the person, not "for".
   "responsible of": { after: /^[ \t\u00a0]+(?:you|him|her|them|us|me)\b/i },
   "responsable of": { after: /^[ \t\u00a0]+(?:you|him|her|them|us|me)\b/i },
+  // "member and ETC director": a name goes on; the list ending stands last.
+  "and etc": {
+    after:
+      /^[ \t\u00a0]+(?!(?:is|are|was|were|will|would|can|could|should|has|have|had|that|which)\b)\p{L}/iu,
+  },
+  // "While the boat was towed the line broke": the passive, then a new clause.
+  "towed the line": { before: /\b(?:was|were|is|are|be|been|being|get|gets|got)[ \t\u00a0]+$/i },
   // "Best of all though, …"
   "all though": { before: /\bof[ \t\u00a0]+$/i },
   // "beaten up coming home"
