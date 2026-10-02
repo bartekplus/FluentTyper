@@ -46,7 +46,7 @@ const SUBJECT_ADVERB = `(?:(?:não|já|também|ainda|nunca|sempre|só|apenas|rea
 // "tem/vem" and their compounds take a circumflex in the plural: têm, vêm, contêm, intervêm.
 const TER_VIR =
   "(?:con|de|man|ob|re|abs|sus|en|entre)?t[eé]m|(?:con|pro|inter|ad|sobre|pro)?v[eé]m";
-const INFINITIVE_AHEAD = `\\p{Ll}+[aeiô]r(?:em|mos|es)?${WORD_END}`;
+const INFINITIVE_AHEAD = `\\p{Ll}*[aeiô]r(?:em|mos|es)?${WORD_END}`;
 const IMPERSONAL: Record<string, string> = {
   fazem: "faz",
   faziam: "fazia",
@@ -73,6 +73,42 @@ const IS_ADJECTIVE =
   "(?:melhor|pior|possível|impossível|verdade|necessário|necessária|preciso|fácil|difícil|bom|boa|certo|errado|claro|importante|normal|obrigatório)";
 const STATE =
   "(?:bem|mal|certo|certa|errado|errada|pronto|pronta|ótimo|ótima|cheio|cheia|cansado|cansada|feliz|triste|doente|ocupado|ocupada|com|sem|em|no|na|nos|nas|muito|tão|sendo|quase|perto|longe|frio|quente|melhor|pior)";
+
+const NUMBER_WORD = `(?:\\d+|uns|umas|dois|duas|três|quatro|cinco|seis|sete|oito|nove|dez|onze|doze|quinze|vinte|trinta|quarenta|cinquenta|sessenta|cem|duzentos|duzentas|trezentos|quinhentos|mil|meia|mei[oa]${S}hora)`;
+const HAVER_SINGULAR: Record<string, string> = {
+  haviam: "havia",
+  haverão: "haverá",
+  haveriam: "haveria",
+  houvessem: "houvesse",
+  houverem: "houver",
+  hajam: "haja",
+  haverem: "haver",
+};
+// Long participle stem -> short participle stem (gender and number follow).
+const SHORT_PARTICIPLE: Record<string, string> = {
+  gast: "gast",
+  pag: "pag",
+  ganh: "ganh",
+  aceit: "aceit",
+  eleg: "eleit",
+  prend: "pres",
+  acend: "aces",
+  suspend: "suspens",
+  expuls: "expuls",
+  imprim: "impress",
+  limp: "limp",
+  salv: "salv",
+  solt: "solt",
+  morr: "mort",
+  benz: "bent",
+  enxug: "enxut",
+  extingu: "extint",
+};
+/** "gastadas" -> "gastas", "imprimido" -> "impresso". */
+function shortParticiple(long: string): string {
+  const m = /^(\p{Ll}+?)[ai]d([oa]s?)$/u.exec(long)!;
+  return `${SHORT_PARTICIPLE[m[1]]}${m[2]}`;
+}
 
 // "a" fused with the article that follows it.
 const WITH_A: Record<string, string> = { o: "ao", a: "à", os: "aos", as: "às" };
@@ -271,13 +307,13 @@ const FRAMES: Frame[] = [
   },
   // "por quê" closes a question; before more words it is "por que" (or "porque").
   {
-    pattern: `(?<!(?:o|um|nenhum|seu|qualquer)${S})(?<target>por${S}quê)${S}(?=\\p{Ll})`,
+    pattern: `(?<!(?<![\\p{L}])(?:o|um|nenhum|seu|qualquer)${S})(?<target>por${S}quê)${S}(?=\\p{Ll})`,
     alternatives: ["por que", "porque"],
     messageKey: "review_msg_pt_por_que",
   },
   // "porque?" and "por que?" at the end of a question are "por quê?".
   {
-    pattern: `(?<!(?:o|um|nenhum|seu|qualquer)${S})(?<target>porque|por${S}que)(?=[ \\t\\u00a0]{0,2}\\?)`,
+    pattern: `(?<!(?<![\\p{L}])(?:o|um|nenhum|seu|qualquer)${S})(?<target>porque|por${S}que)(?=[ \\t\\u00a0]{0,2}\\?)`,
     alternatives: ["por quê"],
     messageKey: "review_msg_pt_por_que",
   },
@@ -385,6 +421,89 @@ const FRAMES: Frame[] = [
     pattern: `(?:aqui|ali|lá|cá|aí|está|estava|ficou|pôs|caiu|subiu)${S}(?<target>encima)(?=[ \\t\\u00a0]{0,2}[.,;!?])`,
     alternatives: ["em cima"],
     messageKey: "review_msg_pt_homophone",
+  },
+  // "porquê" is the noun; before a clause it is "porque" (because) or "por que" (why).
+  {
+    pattern: `(?<!(?<![\\p{L}])(?:o|um|nenhum|seu|teu|meu|nosso|vosso|qualquer|cada|esse|este|aquele|sem|do|no|ao|pelo|dum|num|grande|verdadeiro|próprio)${S})(?<target>porquê)${S}(?=\\p{Ll}{2,}${W})(?!(?:de|da|do|das|dos)${W})`,
+    alternatives: ["porque", "por que"],
+    messageKey: "review_msg_pt_por_que",
+  },
+  // "a fim de" (in order to); "afim" is the adjective "related".
+  {
+    pattern: `(?<target>afim)${S}(?=de${S}(?:que${W}|\\p{Ll}+[aeiô]r(?:em|mos)?${W}))`,
+    alternatives: ["a fim"],
+    messageKey: "review_msg_pt_homophone",
+  },
+  // "acerca de" means "about a subject"; before an amount of time it is "há cerca de" (ago) or
+  // "a cerca de" (ahead), before a distance "a cerca de", before a count "cerca de".
+  {
+    pattern: `(?<target>acerca)${S}(?=de${S}${NUMBER_WORD}${S}(?:anos|meses|dias|horas|minutos|semanas|segundos|décadas|séculos|ano|mês|dia|hora|minuto|semana)${W})`,
+    alternatives: ["há cerca", "a cerca"],
+    messageKey: "review_msg_pt_homophone",
+  },
+  {
+    pattern: `(?<target>acerca)${S}(?=de${S}${NUMBER_WORD}${S}(?:km|quilômetros?|metros?|milhas?|léguas?|quadras?)${W})`,
+    alternatives: ["a cerca"],
+    messageKey: "review_msg_pt_homophone",
+  },
+  {
+    pattern: `(?<target>acerca)${S}(?=de${S}${NUMBER_WORD}${S}(?:pessoas|alunos|reais|dólares|euros|quilos|kg|toneladas|litros|casos|mortos|vítimas|participantes|habitantes|exemplares)${W})`,
+    alternatives: ["cerca"],
+    messageKey: "review_msg_pt_homophone",
+  },
+  // "aonde" asks where to; with a verb of being somewhere it is "onde".
+  {
+    pattern: `(?<target>aonde)${S}(?=(?:(?:você|vocês|ele|ela|eles|elas|eu|nós|tu|a${S}gente)${S})?(?:(?:não|já|ainda)${S})?(?:mora|moras|moram|moro|moramos|morava|moravam|fica|ficam|ficava|ficavam|está|estão|estava|estavam|estou|estás|trabalha|trabalham|trabalho|trabalhava|vive|vivem|vivo|vivia|estuda|estudam|estudo|nasceu|nasceram|nasci|reside|residem|se${S}encontra|se${S}encontram|fica)${W})`,
+    alternatives: ["onde"],
+    messageKey: "review_msg_pt_homophone",
+  },
+  // "se não" (if not) before a subjunctive: "senão fosse por ele" -> "se não fosse".
+  {
+    pattern: `(?<target>senão)${S}(?=(?:(?:me|te|se|lhe|nos|o|a)${S})?(?:fosse|fossem|for|forem|fores|tivesse|tivessem|tiver|tiverem|houvesse|houver|puder|puderem|pudesse|quiser|quiserem|quisesse|estiver|estiverem|estivesse|fizer|fizerem|fizesse|der|derem|desse|vier|vierem|viesse|souber|soubesse|disser|dissesse|\\p{Ll}{2,}(?:asse|esse|isse)m?|\\p{Ll}{2,}[aei]rem)${W})`,
+    alternatives: ["se não"],
+    messageKey: "review_msg_pt_homophone",
+  },
+  // "não só ... mas também": the second half is "mas" (but).
+  {
+    pattern: `não${S}(?:só|somente|apenas)${S}[^.!?;\\n]{1,80}?(?<target>mais)(?=,?${S}também${W})`,
+    alternatives: ["mas"],
+    messageKey: "review_msg_pt_homophone",
+  },
+  // "Dá pra mim fazer", "é pra mim ir": the subject of the infinitive is "eu".
+  {
+    pattern: `(?:dá|dava|deu|dar|daria|dará|é|era|foi|será|seria)${S}(?:para|pra)${S}(?<target>mim)${S}(?=${INFINITIVE_AHEAD})`,
+    alternatives: ["eu"],
+    messageKey: "review_msg_pt_pronoun_case",
+  },
+  // "Já fazem dois anos": elapsed-time "fazer" has no subject.
+  {
+    pattern: `já${S}(?<target>fazem|faziam|fizeram|farão|fariam)${S}${AMOUNT}${SPAN_NOUN}${W}`,
+    alternatives: (typed) => [IMPERSONAL[typed.toLowerCase()]],
+    messageKey: "review_msg_pt_homophone",
+  },
+  {
+    pattern: `(?<target>fazem|faziam|fizeram|farão|fariam)${S}já${S}${AMOUNT}${SPAN_NOUN}${S}(?:que|desde)${W}`,
+    alternatives: (typed) => [IMPERSONAL[typed.toLowerCase()]],
+    messageKey: "review_msg_pt_homophone",
+  },
+  // Existential "haver" stays singular before a bare plural: "Enquanto houverem erros".
+  {
+    pattern: `(?<target>haviam|haverão|haveriam|houvessem|houverem|hajam|haverem)${S}(?=(?!(?:todos|todas|ambos|ambas|mesmos|mesmas|próprios|próprias|nos|vos|os|as|los|las|já|sido|estado|ele|elas|eles)${W})\\p{Ll}{3,}s${W})`,
+    alternatives: (typed) => [HAVER_SINGULAR[typed.toLowerCase()]],
+    messageKey: "review_msg_pt_homophone",
+  },
+  // "Caso" (in case) opening a conditional; "Case" is a form of "casar".
+  {
+    pattern: `(?<target>case)${S}(?=(?:eles|elas|ele|ela|você|vocês|eu|nós|alguém|algo|ninguém|nada|tudo|não|os|as|boas|bons|muitos|muitas|haja|seja|tenha|queira|precise|precisem)${W})`,
+    alternatives: ["caso"],
+    messageKey: "review_msg_pt_homophone",
+    clauseStart: true,
+  },
+  // Verbs whose short participle goes with "ser" and "estar": "foi gastado" -> "foi gasto".
+  {
+    pattern: `(?:é|são|foi|foram|era|eram|será|serão|seria|seriam|seja|sejam|fosse|fossem|sido|ser|está|estão|estava|estavam|estar|esteja|estejam|ficou|ficaram|fica|ficam)${S}(?:(?:já|não|todo|toda|todos|todas|bem)${S})?(?<target>(?:${Object.keys(SHORT_PARTICIPLE).join("|")})[ai]d[oa]s?)${W}`,
+    alternatives: (typed) => [shortParticiple(typed.toLowerCase())],
+    messageKey: "review_msg_pt_participle",
   },
   // "pôr" (to put) after a modal: "por" + article would contract to "pelo".
   {

@@ -2024,6 +2024,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Ten czasownik łączy się z przyimkiem a: assistir ao filme (oglądać), obedecer aos pais, preferir uma coisa a outra.",
     "Regência: este verbo pede a preposição a — assistir ao filme (ver), obedecer aos pais, preferir uma coisa a outra.",
   ],
+  review_msg_pt_participle: [
+    "This Portuguese verb has a short participle for ser and estar, and some verbs only have that one: foi gasto, está limpo, tinha feito, tinha trazido.",
+    "Ce verbe portugais a un participe court avec ser et estar, et certains n’ont que celui-là : foi gasto, está limpo, tinha feito, tinha trazido.",
+    "Ovaj portugalski glagol uz ser i estar ima kratki particip, a neki glagoli samo njega: foi gasto, está limpo, tinha feito, tinha trazido.",
+    "Este verbo portugués tiene un participio corto con ser y estar, y algunos verbos solo tienen ese: foi gasto, está limpo, tinha feito, tinha trazido.",
+    "Αυτό το πορτογαλικό ρήμα έχει σύντομη μετοχή με τα ser και estar, και κάποια ρήματα έχουν μόνο αυτήν: foi gasto, está limpo, tinha feito, tinha trazido.",
+    "Det här portugisiska verbet har ett kort particip med ser och estar, och vissa verb har bara det: foi gasto, está limpo, tinha feito, tinha trazido.",
+    "Dieses portugiesische Verb hat bei ser und estar ein kurzes Partizip, manche Verben nur dieses: foi gasto, está limpo, tinha feito, tinha trazido.",
+    "Ten portugalski czasownik ma z ser i estar krótki imiesłów, a niektóre czasowniki tylko ten: foi gasto, está limpo, tinha feito, tinha trazido.",
+    "Particípio: com ser e estar usa-se a forma curta, e alguns verbos só têm essa — foi gasto, está limpo, tinha feito, tinha trazido.",
+  ],
   review_msg_pt_ao90: [
     "1990 Portuguese spelling: prefixes join their word unless it starts with h or the same vowel (autoestima, micro-ondas), and months and weekdays are lowercase.",
     "Orthographe portugaise de 1990 : les préfixes se soudent au mot sauf devant h ou la même voyelle (autoestima, micro-ondas), et mois et jours s’écrivent en minuscules.",

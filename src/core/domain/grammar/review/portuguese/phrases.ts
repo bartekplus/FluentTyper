@@ -47,6 +47,16 @@ export const PORTUGUESE_WORDS: PhraseRow[] = [
   ["compadras", "comadres"],
   ["princeza", "princesa"],
   ["duqueza", "duquesa"],
+  // Verbs whose only participle is the short one.
+  ["fazido", "feito"],
+  ["fazidos", "feitos"],
+  ["dizido", "dito"],
+  ["escrevido", "escrito"],
+  ["escrevidos", "escritos"],
+  ["abrido", "aberto"],
+  ["cobrido", "coberto"],
+  ["descobrido", "descoberto"],
+  ["ponhado", "posto"],
 ];
 
 export const PORTUGUESE_PHRASES: PhraseRow[] = [
@@ -183,6 +193,8 @@ export const PORTUGUESE_PHRASES: PhraseRow[] = [
       "inúmeras",
       "tantos",
       "tantas",
+      "uns",
+      "umas",
     ].map((word): PhraseRow => [`${plural} ${word}`, `${singular} ${word}`]),
   ),
   ["até por que", "até porque"],
@@ -192,10 +204,29 @@ export const PORTUGUESE_PHRASES: PhraseRow[] = [
   ["sera que", "será que"],
   ["a traves", "através"],
   ["em case de", "em caso de"],
-  // The participle of "chegar" is "chegado".
-  ...["tinha", "tinham", "tenho", "tem", "havia"].map((verb): PhraseRow => [
-    `${verb} chego`,
-    `${verb} chegado`,
+  // The participles of "chegar" and "trazer" are "chegado" and "trazido".
+  ...[
+    "tinha",
+    "tinham",
+    "tínhamos",
+    "tenho",
+    "tem",
+    "têm",
+    "temos",
+    "havia",
+    "haviam",
+    "teria",
+    "teriam",
+    "terá",
+    "tenha",
+    "tenham",
+    "tivesse",
+    "tivessem",
+    "ter",
+    "tendo",
+  ].flatMap((verb): PhraseRow[] => [
+    [`${verb} chego`, `${verb} chegado`],
+    [`${verb} trago`, `${verb} trazido`],
   ]),
   ...["é", "ser", "foi", "seja", "era"].map((verb): PhraseRow => [
     `${verb} capas de`,
@@ -251,6 +282,51 @@ export const PORTUGUESE_PHRASES: PhraseRow[] = [
   ["mau sucedido", "malsucedido"],
   ["mau criado", "malcriado"],
   ...swap("mau", "mal", ["servido", "pago", "resolvido", "interpretado", "feito"]),
+  // "mal" before a participle, in every gender and number: "má servida" -> "mal servida".
+  ...[
+    "servid",
+    "resolvid",
+    "interpretad",
+    "aconselhad",
+    "acondicionad",
+    "conservad",
+    "explicad",
+    "informad",
+    "remunerad",
+    "preparad",
+    "planejad",
+    "tratad",
+    "cuidad",
+    "alimentad",
+    "dormid",
+    "aproveitad",
+    "executad",
+    "acabad",
+    "lavad",
+  ].flatMap((stem): PhraseRow[] => [
+    [`má ${stem}a`, `mal ${stem}a`],
+    [`maus ${stem}os`, `mal ${stem}os`],
+    [`más ${stem}as`, `mal ${stem}as`],
+    ...(["servid", "resolvid", "interpretad", "cuidad"].includes(stem)
+      ? []
+      : [[`mau ${stem}o`, `mal ${stem}o`] as PhraseRow]),
+  ]),
+  // "mau" before a noun: "mal exemplo" -> "mau exemplo", "mal conselhos" -> "maus conselhos".
+  ...swap("mal", "mau", ["princípio", "conselho", "hábito", "negócio", "sinal", "presságio"]),
+  ...["exemplos", "conselhos", "hábitos", "negócios", "momentos", "resultados", "pensamentos"].map(
+    (noun): PhraseRow => [`mal ${noun}`, `maus ${noun}`],
+  ),
+  ["de mal gosto", "de mau gosto"],
+  ["em mal estado", "em mau estado"],
+  ["mal-olhado", "mau-olhado"],
+  ["mal olhado", "mau-olhado"],
+  ["de mal grado", "de mau grado"],
+  ["mal tratos", "maus-tratos"],
+  // "mais" (more) where "mas" (but) was written, and back.
+  ["mas ou menos", "mais ou menos"],
+  ["cada vez mas", "cada vez mais"],
+  ["sem mas nem menos", "sem mais nem menos"],
+  ["nunca mas", "nunca mais"],
   ...["das", "nas", "pelas", "várias", "todas as"].map((word): PhraseRow => [
     `${word} fazes`,
     `${word} fases`,
