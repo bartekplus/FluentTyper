@@ -80,10 +80,10 @@ const monthOf = (word: string): number => {
   return genitive >= 0 ? genitive + 1 : NOMINATIVE.indexOf(lower) + 1;
 };
 
-// "27 sierpnia 2014", "27 VIII 2014", "31 września" (dotted dates are protected as tokens).
+// "27 sierpnia 2014", "27 VIII 2014", "31 września", and dotted "27.08.2014".
 const MONTH_WORD = `${GENITIVE.join("|")}|${NOMINATIVE.join("|")}|${ROMAN.slice().reverse().join("|")}`;
 const DATE = new RegExp(
-  `(?<![\\p{L}\\p{N}.,/-])(?<day>\\d{1,2})[ \\t\\u00a0]+(?<mword>${MONTH_WORD})(?:[ \\t\\u00a0]+(?<year>\\d{3,4})(?![\\p{N}]))?(?![\\p{L}\\p{N}])`,
+  `(?<![\\p{L}\\p{N}.,/-])(?:(?<day>\\d{1,2})[ \\t\\u00a0]+(?<mword>${MONTH_WORD})(?:[ \\t\\u00a0]+(?<year>\\d{3,4})(?![\\p{N}]))?(?![\\p{L}\\p{N}])|(?<dday>\\d{1,2})\\.(?<dmonth>\\d{1,2})\\.(?<dyear>\\d{4})(?![\\p{N}]|\\.\\p{N}))`,
   "giu",
 );
 
@@ -96,11 +96,13 @@ function weekdayOf(word: string): number | null {
 function impossibleDates(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   for (const m of owned(ctx, DATE)) {
-    const { day, mword, year } = m.groups!;
+    const { mword, dmonth } = m.groups!;
+    const day = m.groups!.day ?? m.groups!.dday;
+    const year = m.groups!.year ?? m.groups!.dyear;
     // A Roman month needs a year, or it may be a chapter or a list number.
     if (mword && /^[IVX]+$/.test(mword) && !year) continue;
     if (mword && /^[ivx]+$/.test(mword)) continue;
-    const month = monthOf(mword);
+    const month = mword ? monthOf(mword) : Number(dmonth);
     const y = year ? Number(year) : undefined;
     const d = Number(day);
     const start = m.index;

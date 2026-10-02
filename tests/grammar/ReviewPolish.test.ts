@@ -374,7 +374,20 @@ const POLISH_WARNINGS: Array<[CatalogRuleId, string, string]> = [
   ["polishDates", "Było to w piątek, 1 października 2026.", "piątek, 1 października 2026"],
   ["polishDates", "Obóz trwa 20–3 lipca.", "20–3 lipca"],
   ["polishDates", "Wojna trwała w latach 1918–1914.", "1918–1914"],
+  ["polishDates", "Faktura z dnia 31.06.2024 jest błędna.", "31.06.2024"],
+  ["polishDates", "Zebranie zwołano na 12.15.2025.", "12.15.2025"],
+  ["polishDates", "Było to w sobotę, 3.05.2023.", "sobotę, 3.05.2023"],
 ];
+
+test("dotted dates that exist, and dotted numbers that are not dates, stay clean", () => {
+  for (const text of [
+    "Spotkanie jest w środę, 3.05.2023.",
+    "Urodził się 29.02.2024 w Krakowie.",
+    "Serwer ma adres 10.12.2023.4 w sieci.",
+    "Wydano wersję 2.10.2024.",
+  ])
+    expect(findings("polishDates", text)).toEqual([]);
+});
 
 test.each(POLISH_WARNINGS)("%s warns on %p", (ruleId, text, original) => {
   const found = findings(ruleId, text);
