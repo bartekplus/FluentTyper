@@ -24,6 +24,16 @@ The browser smoke suite defaults to Chrome.
 - Full regression e2e: `bun run test:e2e:full`
 - Dev-runtime e2e: `bun run test:e2e:dev`
 - Coverage matrix validation: `bun run check:e2e:coverage`
+- Gutenberg fixtures: `bun run test:e2e:wordpress --platform=chrome` or `--platform=firefox`
+
+The Gutenberg fixture suite uses pinned WordPress packages. It starts no server and requires no Docker.
+The full regression suite includes these tests on both browsers.
+For native saving and history checks, use `--runtime=playground` with Node.js 22 or 24.
+Set `WORDPRESS_NODE_BIN` if that executable is not the default `node`.
+Playground uses a temporary local PHP/WASM site with WordPress 7.1.2.
+The optional `--runtime=docker` uses `@wordpress/env` and requires a running Docker daemon.
+A requested native suite fails if its environment cannot start.
+See the [Gutenberg support matrix](../gutenberg-support.md) for feature evidence and open gaps.
 
 ## Regression Tests for Bug Fixes
 

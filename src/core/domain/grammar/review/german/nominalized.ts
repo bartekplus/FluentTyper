@@ -185,7 +185,9 @@ export function nominalized(ctx: DetectContext): RawFinding[] {
       // "im folgenden korrigierten Artikel": an attribute before its noun.
       if (fixed) {
         const after = tokensAfter(ctx.text, end, 1)[0] ?? "";
-        if (/^\p{Ll}+(?:e|en|er|es|em)$/u.test(after) && !germanInfinitive(after)) continue;
+        // "die im folgenden beschriebene Geschichte", "im folgenden die Ursachen": an "-e" word
+        // cannot follow "im" as its attribute.
+        if (/^\p{Ll}+(?:en|er|es|em)$/u.test(after) && !germanInfinitive(after)) continue;
       }
       if (LOWERCASE_OK.has(typed) && name !== "what" && !fixed) continue;
       // "Dieses Konzept ist das beste, was …": a noun earlier in the sentence it may refer to.
@@ -234,7 +236,7 @@ export function nominalized(ctx: DetectContext): RawFinding[] {
         !germanVerbLike(next) &&
         !PRONOMINAL_ADVERB.test(next) &&
         !/^(?:hinter|unter|über|wider|aber|oder|sondern|weder|immer|wieder|gegen|ohne)$/.test(next);
-      if (adjectiveNext && name !== "es" && name !== "e") continue;
+      if (adjectiveNext && name !== "es" && name !== "e" && !fixed) continue;
       // "als erstes und einziges", "als letztes der Gase", "mehr als letztes?".
       if (!name && /^als/.test(m[0]) && !/^\p{Ll}+$/u.test(next)) continue;
       if (!name && /^als/.test(m[0]) && /^(?:der|des|die|das)$/.test(next)) continue;

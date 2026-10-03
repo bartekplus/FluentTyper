@@ -1528,6 +1528,7 @@ const repeatedWords: Detector = (ctx) => {
 
 /** Per-language modules: they may add context detectors to shared rules or serve their own. */
 export const LANGUAGE_DETECTORS: readonly ReviewDetectorEntry[] = [
+  ...GERMAN_DETECTORS,
   ...GREEK_DETECTORS,
   ...SWEDISH_DETECTORS,
   ...ARABIC_DETECTORS,
@@ -1660,6 +1661,5 @@ export const REVIEW_DETECTORS: ReadonlyArray<ReviewDetectorEntry> = [
       ]),
   },
   ...EXTENSION_DETECTORS,
-  ...GERMAN_DETECTORS,
   ...LANGUAGE_DETECTORS,
 ];

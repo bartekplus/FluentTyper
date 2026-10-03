@@ -85,6 +85,7 @@ English · Spanish · French · Croatian · Greek · Swedish · Polish · German
 | ----------------------------- | ---------------------------------------------------------------------- |
 | Change how suggestions appear | [Popup and inline modes](docs/typing.md)                               |
 | Adjust one website            | [Site settings](docs/site-settings.md)                                 |
+| Check Gutenberg support       | [Implementation status and test coverage](docs/gutenberg-support.md)   |
 | Write in Google Docs          | [Google Docs help and browser limits](docs/google-docs-integration.md) |
 | Format numbers and units      | [Measurement spacing](docs/measurement-formatting.md)                  |
 | Understand optional Local AI  | [Availability and privacy](docs/local-ai-review.md)                    |

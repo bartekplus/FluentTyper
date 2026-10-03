@@ -17,6 +17,9 @@ import * as ordinals from "./ordinals";
 import * as commas from "./commas";
 import * as countries from "./countries";
 import * as auxiliary from "./auxiliary";
+import * as questions from "./questions";
+import * as imperative from "./imperative";
+import * as invariables from "./invariables";
 
 const MODULES = [
   verbForms,
@@ -37,5 +40,8 @@ const MODULES = [
   commas,
   countries,
   auxiliary,
+  questions,
+  imperative,
+  invariables,
 ];
 export const FRENCH_DETECTORS = MODULES.flatMap((m) => m.DETECTORS);

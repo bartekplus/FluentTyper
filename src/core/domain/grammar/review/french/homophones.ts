@@ -7,6 +7,7 @@ import {
   ILS,
   inflect,
   isDictionaryCompound,
+  isFrenchWord,
   isInflectedNoun,
   isNounLemma,
   isVerbHomograph,
@@ -29,6 +30,7 @@ import {
 import { finding } from "../finding";
 import { carryCase } from "../../implementations/helpers/GenericRuleShared";
 import { isLang } from "../phraseTemplates";
+import { firstNameGender } from "./firstNames";
 
 // Small words that sound alike (a/à, ou/où, ce/se, sa/ça, sûr/sur, son/sont, du/dû, on/ont, ma/m'a)
 // told apart by the words around them. Fixed frames that need no context are phrase rows
@@ -76,6 +78,38 @@ function sentenceStart(text: string, index: number): boolean {
   return /(?:^|[.!?…]|\n|[«"“(—–-])[\s  ]*$/u.test(text.slice(Math.max(0, index - 6), index));
 }
 
+/** The words before "à" from index `i` are a subject opening the sentence: a name ("Pierre",
+ * "Maman") or a determiner and a noun ("La maison"). */
+function subjectOpens(text: string, before: Token[], i: number): boolean {
+  const words = before.slice(i);
+  const first = words.at(-1);
+  if (!first || !sentenceStart(text, first.start)) {
+    // "Hier, Pierre à raison": a name inside the sentence.
+    return (
+      words.length === 1 && /^\p{Lu}/u.test(text[words[0].start]) && !readingsOf(words[0].w).length
+    );
+  }
+  // "Marie", "Pierre": a first name, even one spelled like a verb form.
+  const typed = text.slice(first.start, first.end);
+  if (words.length === 1 && firstNameGender(typed)) return true;
+  if (words.length === 1)
+    return (
+      /^\p{Lu}/u.test(text[first.start]) &&
+      // "Face à une demande": a French word opening the sentence is no name.
+      !isFrenchWord(first.w) &&
+      !ADVERBS.has(first.w) &&
+      !CONJUNCTIONS.has(first.w) &&
+      !STRESSED.has(first.w)
+    );
+  const [noun, det] = words;
+  return (
+    words.length === 2 &&
+    DETERMINERS.has(det.w) &&
+    isInflectedNoun(noun.w) &&
+    (!readingsOf(noun.w).length || isVerbHomograph(noun.w))
+  );
+}
+
 /** "il à mangé", "Paul à travaillé", "ça à l'air": the verb "a" written as the preposition. */
 function graveToA(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   const before = tokensBefore(ctx.text, m.index);
@@ -106,6 +140,25 @@ function graveToA(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     (DETERMINERS.has(next.w) || isParticiple(next.w))
   )
     return fix("a");
+  // A name or a noun phrase opening the sentence, then what only avoir takes: "Pierre à
+  // raison", "La maison à toujours une fuite", "Maman à le bras cassé", "Marie à un ami".
+  if (!clitics.length && next && subjectOpens(ctx.text, before, i)) {
+    const name = before.length === 1 && /^\p{Lu}/u.test(ctx.text[subject.start]);
+    const adverbs = j > 0;
+    const bare = AVOIR_BARE_NOUNS.has(next.w) && !["de", "d'"].includes(after[j + 1]?.w ?? "");
+    const article =
+      (next.w === "le" || next.w === "les") &&
+      !!after[j + 1] &&
+      isInflectedNoun(after[j + 1].w) &&
+      !readingsOf(after[j + 1].w).length;
+    const determiner =
+      DETERMINERS.has(next.w) && (adverbs || (name && (next.w === "un" || next.w === "une")));
+    if (
+      !["tort", "froid", "chaud", "part", "main", "pied", "cheval"].includes(next.w) &&
+      (bare || article || determiner || (adverbs && isParticiple(next.w)))
+    )
+      return fix("a");
+  }
   // A name or "qui", then a participle. A noun + "à" + participle is as often an infinitive
   // misspelt ("une eau à captée"), and "à tout" a locution ("réponse à tout").
   if (!after[0] || !isParticiple(after[0].w) || clitics.length) return null;
@@ -888,6 +941,9 @@ const NOT_AFTER_POSSESSIVE = new Set(
 function saToCa(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   const rest = ctx.text.slice(m.index + m[0].length);
   const next = tokensAfter(ctx.text, m.index + m[0].length, 1)[0];
+  // "à sa faire des amis": the possessive never stands before an infinitive; "se" does.
+  if (next && !next.hyphen && isInfinitive(next.w) && next.w !== "devoir" && !nounGender(next.w))
+    return wordFinding(ctx, m.index, m[0], ["se"], RULE, MESSAGE);
   const final = /^[\s  ]*(?:[.!?…,;:)]|$)/u.test(rest);
   if (!final && !(next && !next.hyphen && NOT_AFTER_POSSESSIVE.has(next.w))) return null;
   const before = tokensBefore(ctx.text, m.index, 1)[0];

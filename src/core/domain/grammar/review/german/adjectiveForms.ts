@@ -441,6 +441,47 @@ function strongAfterArticle(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+// "Beamter" declines like an adjective and has no feminine "die Beamte": "der Beamte", "ein
+// Beamter", "den Beamten", "die Beamten" (plural). The determiner sets the ending.
+const POSSESSIVE_STEMS = "k?ein|mein|dein|sein|ihr|unser|euer";
+const OFFICIAL = new RegExp(
+  `${WORD_START}(?<det>[Dd](?:er|ie|en|em|es)|[Dd]ies(?:er|e|en|em|es)|[Jj]ede[rnms]|(?:[Kk]?[Ee]in|[Mm]ein|[Dd]ein|[Ss]ein|[Ii]hr|[Uu]nser|[Ee]uer)(?:en|em|es|er)?)(?:${SPACE}\\p{Ll}+(?:e|en|er|es|em))?${SPACE}(?<target>\\p{L}*[Bb]eamte[rn]?)${WORD_END}`,
+  "gdu",
+);
+function officialEndings(det: string): string[] {
+  const d = det.toLowerCase();
+  if (d === "der" || d === "dieser" || d === "jeder") return ["e", "en"];
+  if (new RegExp(`^(?:${POSSESSIVE_STEMS})$`).test(d)) return ["er"];
+  return ["en"];
+}
+function officials(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of frameMatches(ctx, OFFICIAL, "target")) {
+    const { det, target } = m.groups!;
+    // "Beamte", "Beamter", "Beamten": the typed ending after "Beamt".
+    const stem = target.replace(/e[rn]?$/, "");
+    const endings = officialEndings(det);
+    if (endings.includes(target.slice(stem.length)) || ctx.dictionary.has(target.toLowerCase()))
+      continue;
+    const [start, end] = m.indices!.groups!.target;
+    const alternatives = endings.map((e) => stem + e);
+    findings.push(
+      finding(
+        "germanAdjectiveForms",
+        "review_msg_german_adjective_ending",
+        start,
+        end,
+        alternatives,
+        {
+          context: { start: m.index, end },
+          ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+        },
+      ),
+    );
+  }
+  return findings;
+}
+
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
   {
     rules: ["germanAdjectiveForms"],
@@ -451,6 +492,7 @@ export const DETECTORS: readonly ReviewDetectorEntry[] = [
             ...strongAfterArticle(ctx),
             ...salutationEndings(ctx),
             ...predicative(ctx),
+            ...officials(ctx),
           ]
         : [],
   },

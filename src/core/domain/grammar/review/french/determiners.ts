@@ -94,7 +94,15 @@ function doubleDeterminer(
     isInflectedNoun(next.w) &&
     !verbReadings(next.w).some((r) => typeof r.slot === "number"),
   );
-  if (KEPT_SECOND.has(second) && !(nounNext && (second === "notre" || second === "votre")))
+  // "le leurs", "des leur": a possessive pronoun that does not take the article's number.
+  const mismatched =
+    (second === "leurs" && DETERMINERS[first][1] === "s") ||
+    (second === "leur" && ["les", "aux", "des"].includes(first));
+  if (
+    KEPT_SECOND.has(second) &&
+    !mismatched &&
+    !(nounNext && (second === "notre" || second === "votre"))
+  )
     return null;
   if ((first === "un" || first === "une") && second === "des") return null;
   // "le la du diapason": the note.
@@ -107,13 +115,22 @@ function doubleDeterminer(
   if (/\p{Lu}/u.test(typedSecond)) return null;
   // "dépose le au courrier": an object pronoun after an imperative.
   const previous = tokensBefore(ctx.text, m.index, 1)[0];
-  if (["le", "la", "les"].includes(first) && previous && verbReadings(previous.w).length)
+  // "c'est le mon livre": être takes no object pronoun.
+  if (
+    ["le", "la", "les"].includes(first) &&
+    previous &&
+    verbReadings(previous.w).length &&
+    !verbReadings(previous.w).some((r) => r.lemma === "être")
+  )
     return null;
   if (namedExampleBefore(ctx.text, m.index)) return null;
   const alternatives = [typedFirst, typedSecond];
   const lower = (word: string) => carryCase(typedFirst, word);
   const space = second.endsWith("'") ? "" : " ";
-  if (first === "des")
+  if (first === "des" && second === "leur")
+    alternatives.unshift(`${lower("dès")} ${typedSecond}`, `${typedFirst} leurs`);
+  else if (mismatched && second === "leurs") alternatives.unshift(`${lower("les")} leurs`);
+  else if (first === "des")
     alternatives.unshift(`${lower("dès")} ${typedSecond}`, `${lower("de")} ${typedSecond}`);
   if (first === "du") alternatives.unshift(`${lower("de")} ${typedSecond}`);
   if (first === "au" || first === "aux") alternatives.unshift(`${lower("à")} ${typedSecond}`);
@@ -281,6 +298,45 @@ const NOUN_AFTER = new RegExp(
   "dgiu",
 );
 
+// Quantifiers and prepositions that never follow these words: "des plusieurs pays", "les
+// certaines règles", "de des enfants", "à aux enfants", "des toutes les catégories".
+const QUANTIFIERS = new Set(["plusieurs", "certains", "certaines"]);
+const QUANTIFIER_PAIR =
+  /(?<![\p{L}\p{M}\p{N}_'’-])(?<first>des|les|ces|mes|tes|ses|nos|vos|de|du|à)[ \t]{1,8}(?<second>plusieurs|certains|certaines|toutes|tous|des|de|aux|entre)(?![\p{L}\p{M}\p{N}_'’-])/giu;
+const PLURAL_DETERMINERS = new Set(["les", "ces", "mes", "tes", "ses", "nos", "vos"]);
+
+/** "des plusieurs" -> "de plusieurs", "de des" -> "de" or "des", "à aux" -> "aux" or "à". */
+function quantifierPair(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const { first: typedFirst, second: typedSecond } = m.groups!;
+  const first = typedFirst.toLowerCase();
+  const second = typedSecond.toLowerCase();
+  const end = m.index + m[0].length;
+  if (ctx.text[m.index - 1] === "-" || namedExampleBefore(ctx.text, m.index)) return null;
+  const lower = (word: string) => carryCase(typedFirst, word);
+  let alternatives: string[];
+  if (QUANTIFIERS.has(second)) {
+    // "ces plusieurs jours" is literary; only "des plusieurs" and "les certaines" are slips.
+    if (first !== "des" && !(first === "les" && second !== "plusieurs")) return null;
+    alternatives = first === "des" ? [`${lower("de")} ${typedSecond}`, typedSecond] : [typedSecond];
+  } else if (second === "toutes" || second === "tous") {
+    // "des toutes petites": "toutes" is the adverb before an adjective; only "des toutes les".
+    const next = tokensAfter(ctx.text, end, 1)[0];
+    if (first !== "des" || !next || !PLURAL_DETERMINERS.has(next.w)) return null;
+    alternatives = [`${lower("de")} ${typedSecond}`];
+  } else if (first === "de" && second === "des") {
+    // "la Source de des Trois Caños": a name.
+    const next = tokensAfter(ctx.text, end, 1)[0];
+    if (next && /^\p{Lu}/u.test(ctx.text[next.start])) return null;
+    alternatives = [typedFirst, typedSecond];
+  } else if (first === "du" && second === "de") alternatives = [typedFirst, typedSecond];
+  else if (first === "à" && (second === "aux" || second === "entre"))
+    alternatives = [typedSecond, typedFirst];
+  else return null;
+  return finding(RULE, DOUBLE, m.index, end, alternatives, {
+    ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+  });
+}
+
 function determiners(ctx: DetectContext): RawFinding[] {
   if (!isLang(ctx, "fr")) return [];
   const findings: RawFinding[] = [];
@@ -288,6 +344,10 @@ function determiners(ctx: DetectContext): RawFinding[] {
     const first = m.groups!.first.toLowerCase();
     const second = m.groups!.second.toLowerCase().replaceAll("’", "'");
     const finding = doubleDeterminer(ctx, m, first, second);
+    if (finding) findings.push(finding);
+  }
+  for (const m of ownedFrenchWords(ctx, QUANTIFIER_PAIR)) {
+    const finding = quantifierPair(ctx, m);
     if (finding) findings.push(finding);
   }
   for (const m of ownedFrenchWords(ctx, NOUN_AFTER)) {
