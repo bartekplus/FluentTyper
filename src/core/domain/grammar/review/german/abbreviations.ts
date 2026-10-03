@@ -65,6 +65,12 @@ const DIPLOMA = new RegExp(
   `${WORD_START}(?<target>Dipl(?:\\.?-|\\.[ \\t]|[ \\t]?-[ \\t]?)(?<subject>\\p{Lu}\\p{Ll}{1,10})\\.?)${WORD_END}`,
   "gdu",
 );
+// "max 5 Leute", "min 3 Tage": the abbreviation before a number takes its dot.
+const MAX_MIN = new RegExp(`${WORD_START}(?<target>max|min)(?=[ \\t]\\p{N})`, "gdu");
+const LATIN = new RegExp(
+  `${WORD_START}(?<target>et[ \\t]al|ad[ \\t]lib)(?![\\p{L}\\p{N}.])`,
+  "gdu",
+);
 // "2 mio", "3 Mrd": the abbreviated numbers take a capital and a dot.
 const LARGE_NUMBER = new RegExp(
   `(?<=\\p{N}[ \\t\\u00a0])(?<target>[mM](?:io|rd)|Mill|Bill)(?![\\p{L}\\p{N}.])`,
@@ -97,7 +103,13 @@ function abbreviations(ctx: DetectContext): RawFinding[] {
       // ("zB", "idR", "eV."); "so." and "u a" are words.
       const joined = typed.replace(/[.\s]/g, "");
       const firstDot = typed.startsWith(`${typed.slice(0, parts[0].length)}.`);
-      if (!firstDot && !/^(?:zB|idR|eV|zT|uU)$/.test(joined)) continue;
+      // "u a.", "n Chr", "o Ä.": a single letter first, spaced, with a later dot or a later
+      // part no word could be ("Chr", "Hdn", "Ä").
+      const letterFirst =
+        parts[0].length === 1 &&
+        /^\p{L}[ \t]/u.test(typed) &&
+        (dots > 0 || parts.slice(1).some((p) => p.length > 1 || /\p{Lu}/u.test(p)));
+      if (!firstDot && !letterFirst && !/^(?:zB|idR|eV|zT|uU)$/.test(joined)) continue;
       const canonical = parts.map((p, i) => `${i === 0 ? typed[0] + p.slice(1) : p}.`).join(NBSP);
       // Every dot and every space already there: the writer's spacing stays.
       if (dots === parts.length && typed.split(/[ \t ]/).length === parts.length) continue;
@@ -110,6 +122,15 @@ function abbreviations(ctx: DetectContext): RawFinding[] {
         finding(start, end, canonical, spacingOnly ? "germanAbbreviationSpacing" : undefined),
       );
     }
+  }
+  // "Müller et al (2021)", "ad lib": the Latin abbreviation takes its dot.
+  for (const m of frameMatches(ctx, MAX_MIN)) {
+    const [start, end] = m.indices!.groups!.target;
+    findings.push(finding(start, end, `${m.groups!.target}.`));
+  }
+  for (const m of frameMatches(ctx, LATIN)) {
+    const [start, end] = m.indices!.groups!.target;
+    findings.push(finding(start, end, `${m.groups!.target}.`));
   }
   for (const m of frameMatches(ctx, DIPLOMA)) {
     const [start, end] = m.indices!.groups!.target;

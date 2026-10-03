@@ -1384,11 +1384,14 @@ function measurementLike(
     if (!parsed || parsed.unitStart !== parsed.numberEnd) continue;
     const unit = prefix.slice(parsed.unitStart);
     if (ruleId === "measurementUnitFormatting" && /^([A-Z]|[dg])$/.test(unit)) continue;
-    // Brazilian usage writes clock times and durations glued: "às 10h", "20min"; French
-    // writes "14h" and "14h30" as often as "14 h", so hours stay as typed there.
+    // Brazilian usage writes clock times and durations glued: "às 10h", "20min", and a new car
+    // is "0km"; French writes "14h" and "14h30" as often as "14 h", so hours stay as typed there.
     if (
       ruleId === "measurementUnitFormatting" &&
-      ((ctx.lang === "pt_BR" && /^(?:h|min)$/.test(unit)) || (ctx.lang === "fr_FR" && unit === "h"))
+      ((ctx.lang === "pt_BR" &&
+        (/^(?:h|min)$/.test(unit) ||
+          (unit === "km" && prefix.slice(parsed.start, parsed.numberEnd) === "0"))) ||
+        (ctx.lang === "fr_FR" && unit === "h"))
     )
       continue;
     // "100m users" counts millions; "Type 42s" and "the 1990s" are plurals, not seconds.

@@ -116,6 +116,14 @@ const DOUBLED_DETERMINERS: PhraseRow[] = [
     : []),
 ]);
 
+// "mau-acondicionado", "más-educadas": the hyphenated participle compounds take "mal-".
+const MAU_FORMS = [
+  ["mau", "o"],
+  ["má", "a"],
+  ["maus", "os"],
+  ["más", "as"],
+] as const;
+
 export const PORTUGUESE_PHRASES: PhraseRow[] = [
   ...COMPARED_COMPOUNDS,
   ...DOUBLED_DETERMINERS,
@@ -210,9 +218,20 @@ export const PORTUGUESE_PHRASES: PhraseRow[] = [
       [`${verb} a inteira disposição`, `${verb} à inteira disposição`],
     ],
   ),
-  ...["está", "estão", "estava", "estavam", "colocar", "colocou", "pôs", "pôr"].map(
-    (verb): PhraseRow => [`${verb} a venda`, `${verb} à venda`],
-  ),
+  ...[
+    "está",
+    "estão",
+    "estava",
+    "estavam",
+    "esteja",
+    "estejam",
+    "ficou",
+    "ficaram",
+    "colocar",
+    "colocou",
+    "pôs",
+    "pôr",
+  ].map((verb): PhraseRow => [`${verb} a venda`, `${verb} à venda`]),
   ...["hoje", "amanhã", "ontem", "logo"].flatMap((day): PhraseRow[] => [
     [`${day} a noite`, `${day} à noite`],
     [`${day} a tarde`, `${day} à tarde`],
@@ -339,6 +358,10 @@ export const PORTUGUESE_PHRASES: PhraseRow[] = [
   ]),
   ["má educada", "mal-educada"],
   ["más educadas", "mal-educadas"],
+  ...MAU_FORMS.map(([adjective, end]): PhraseRow => [
+    `${adjective}-educad${end}`,
+    `mal-educad${end}`,
+  ]),
   ["mau sucedido", "malsucedido"],
   ["mau criado", "malcriado"],
   ...swap("mau", "mal", ["servido", "pago", "resolvido", "interpretado", "feito"]),
@@ -365,8 +388,12 @@ export const PORTUGUESE_PHRASES: PhraseRow[] = [
     "lavad",
   ].flatMap((stem): PhraseRow[] => [
     [`má ${stem}a`, `mal ${stem}a`],
-    [`maus ${stem}os`, `mal ${stem}os`],
-    [`más ${stem}as`, `mal ${stem}as`],
+    [[`maus ${stem}os`, `mau ${stem}os`], `mal ${stem}os`],
+    [[`más ${stem}as`, `má ${stem}as`, `mau ${stem}as`], `mal ${stem}as`],
+    ...MAU_FORMS.map(([adjective, end]): PhraseRow => [
+      `${adjective}-${stem}${end}`,
+      `mal-${stem}${end}`,
+    ]),
     ...(["servid", "resolvid", "interpretad", "cuidad"].includes(stem)
       ? []
       : [[`mau ${stem}o`, `mal ${stem}o`] as PhraseRow]),
@@ -410,6 +437,32 @@ export const PORTUGUESE_PHRASES: PhraseRow[] = [
   ["cujo os", "cujos"],
   ["cujo as", "cujas"],
   ["cuja o", "cujo"],
+  // Words run apart or swapped for a lookalike: "às vezes", "atrás", "de trás", "talvez".
+  ["hás vezes", "às vezes"],
+  ["a trás", "atrás"],
+  ["de traz", "de trás"],
+  ["para traz", "para trás"],
+  ["por traz", "por trás"],
+  ["tal vez", "talvez"],
+  ["em vês", "em vez"],
+  ["de ante mão", "de antemão"],
+  ["tão vem como", "tão bem como"],
+  ["tão vem quanto", "tão bem quanto"],
+  ["per capta", "per capita"],
+  ["notas ficais", "notas fiscais"],
+  ["nota ficais", "notas fiscais"],
+  ["a quando da", "aquando da"],
+  ["a quando do", "aquando do"],
+  ["há frente do", "à frente do"],
+  ["há frente da", "à frente da"],
+  ["há frente dos", "à frente dos"],
+  ["há frente das", "à frente das"],
+  ["da sobre mesa", "da sobremesa"],
+  ["uma sobre mesa", "uma sobremesa"],
+  ["de sobre mesa", "de sobremesa"],
+  // "imprevisto" is one word.
+  ["em previsto", "imprevisto"],
+  ["em previstos", "imprevistos"],
   // "em anexo" does not vary.
   ["em anexos", "em anexo"],
   ["em anexa", "em anexo"],

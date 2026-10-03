@@ -30,6 +30,10 @@ const ORDINAL: Record<string, string> = { o: "º", a: "ª", os: "ºs", as: "ªs"
 const ARTICLE =
   "(?:[oaOA]s?|d[oa]s?|n[oa]s?|ao|aos|à|às|pel[oa]s?|seus?|suas?|meu|minha|nosso|nossa|est[ea]|ess[ea])";
 const MASCULINE = "(?:[oO]s?|dos?|nos?|aos?|pelos?|seus?|meu|nosso|este|esse|aquele)";
+const MASCULINE_DET =
+  "(?:[oO]|[dDnN]o|[aA]o|[pP]elo|[uU]m|[sS]eu|[mM]eu|[nN]osso|[eE]ste|[eE]sse|[aA]quele|[dDnN]este|[dDnN]esse|[dDnN]aquele)";
+const FEMININE_DET =
+  "(?:[dDnN]a|[àÀ]|[pP]ela|[uU]ma|[sS]ua|[mM]inha|[nN]ossa|[eE]sta|[eE]ssa|[aA]quela|[dDnN]esta|[dDnN]essa|[dDnN]aquela)";
 // The 27 Brazilian federative units.
 const UF = "(?:AC|AL|AP|AM|BA|CE|DF|ES|GO|MA|MT|MS|MG|PA|PB|PR|PE|PI|RJ|RN|RS|RO|RR|SC|SP|SE|TO)";
 /** "Niterói/RJ": a place and its state code, prose rather than a path. */
@@ -90,15 +94,16 @@ const NUMBER_FORMAT: Frame[] = [
     ruleId: "portugueseNumberFormat",
     messageKey: "review_msg_pt_number_format",
   },
-  // "25ºC", "40º de febre": the ordinal indicator stands in for the degree sign.
+  // "25ºC", "40º de febre": the ordinal indicator stands in for the degree sign. "o 25.º F"
+  // (a dot before it) is an ordinal: the F there is a grade.
   {
-    pattern: `${NUM}${GAP}(?<target>[ºo])${GAP}(?=[CF]${W})`,
+    pattern: `${NUM}(?<!\\.)${GAP}(?<target>[ºo])${GAP}(?=[CF]${W})`,
     replace: "°",
     ruleId: "portugueseNumberFormat",
     messageKey: "review_msg_pt_number_format",
   },
   {
-    pattern: `${NUM}(?<target>º)(?=${S}de${S}(?:febre|temperatura|latitude|longitude)${W})`,
+    pattern: `${NUM}(?<!\\.)(?<target>º)(?=${S}de${S}(?:febre|temperatura|latitude|longitude)${W})`,
     replace: "°",
     ruleId: "portugueseNumberFormat",
     messageKey: "review_msg_pt_number_format",
@@ -139,6 +144,19 @@ const NUMBER_FORMAT: Frame[] = [
   {
     pattern: `${ARTICLE}${S}\\d{1,4}\\.?(?<target>os|as|o|a)(?=${W}(?:${S}\\p{Ll}|[ \\t\\u00a0]{0,2}[.,;:!?]))`,
     replace: (m) => ORDINAL[m.groups!.target],
+    ruleId: "portugueseNumberFormat",
+    messageKey: "review_msg_pt_number_format",
+  },
+  // "no 1ª lugar" -> "1º", "na 2º posição" -> "2ª": the ordinal agrees with its determiner.
+  {
+    pattern: `(?<![\\dºª°][ \\t\\u00a0]{0,8})${MASCULINE_DET}${S}\\d{1,4}\\.?(?<target>ª)(?=${S}\\p{L})`,
+    replace: "º",
+    ruleId: "portugueseNumberFormat",
+    messageKey: "review_msg_pt_number_format",
+  },
+  {
+    pattern: `(?<![\\dºª°][ \\t\\u00a0]{0,8})(?:${FEMININE_DET}|(?<=(?:^|[.!?][ \\t\\u00a0]{0,8}|(?:é|será|foi|era|ser|seria|como)${S}))[aA])${S}\\d{1,4}\\.?(?<target>º)(?=${S}\\p{Ll})(?!${S}(?:de|graus?|à|no|na|em|celsius)${W})`,
+    replace: "ª",
     ruleId: "portugueseNumberFormat",
     messageKey: "review_msg_pt_number_format",
   },

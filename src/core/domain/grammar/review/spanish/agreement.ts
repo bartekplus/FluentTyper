@@ -300,7 +300,10 @@ function otherGender(noun: Noun, word: string): string | null {
 // ------------------------------------------------------------------ verbs in disguise
 
 /** The word may be a verb the determiner is the subject or object of: "este cuenta", "la cuentas". */
-function verbReading(det: string, word: string): boolean {
+function verbReading(det: string, word: string, opens = false): boolean {
+  // "La relaciones entre…": a subjunctive needs its trigger, so a clitic opening the sentence
+  // before one is the article ("Lo sepas o no" is concessive).
+  if (opens && CLITIC.has(det) && subjunctiveLike(word)) return false;
   if (CLITIC.has(det) || det === "tu") return finiteVerb(word) || secondPersonVerb(word);
   if (!STANDALONE.has(det)) return false;
   const plural = DETERMINER.get(det)!.slot >= 2;
@@ -358,8 +361,8 @@ function determinerNoun(ctx: DetectContext, tokens: Token[], i: number): RawFind
   const det = DETERMINER.get(detToken.lower);
   if (!det) return null;
   const prev = new Around(tokens, i).prev();
-  // "sean estos montañas": a pronoun before its predicate.
-  if (SER.has(prev)) return null;
+  // "sean estos montañas": a pronoun before its predicate; "son demasiadas niñas" counts.
+  if (SER.has(prev) && !/^(?:much|poc|demasiad)/u.test(detToken.lower)) return null;
   // "tanto hombres como mujeres": the correlative, not a determiner.
   if (/^(?:tant|cuant|cuánt)/u.test(detToken.lower)) {
     if ([2, 3, 4].some((k) => new Around(tokens, i).next(k) === "como")) return null;
@@ -374,7 +377,9 @@ function determinerNoun(ctx: DetectContext, tokens: Token[], i: number): RawFind
   const word = nounToken.lower;
   if (ctx.dictionary.has(word)) return null;
   const noun = readNoun(word);
-  if (!noun || (verbReading(detToken.lower, word) && !nounFrame(tokens, i))) return null;
+  const opens =
+    new Around(tokens, i).starts && !/^(?:o|u)$/u.test(new Around(tokens, i + 1).next());
+  if (!noun || (verbReading(detToken.lower, word, opens) && !nounFrame(tokens, i))) return null;
   // An adjective after a word that also stands alone: "salir de esta vivos" (pronoun),
   // "otras nostálgica" (otras veces), "demasiado pequeña" (adverb), "las hechas" (clitic).
   // "vivos" is a noun too, but its gender forms make it an adjective here.
@@ -494,7 +499,8 @@ function pickerGroup(ctx: DetectContext, tokens: Token[], i: number): RawFinding
   const feminine = picker.slot % 2 === 1;
   if (feminine === (group === "f")) return null;
   // "una de nosotros", "una de mis hermanos": a woman picked from a mixed group of people.
-  if (feminine && (!noun || noun.paired || noun.gender !== "m")) return null;
+  if (feminine && (!noun || noun.paired || isGenderedEntry(noun.singular) || noun.gender !== "m"))
+    return null;
   const fix = picker.forms[(feminine ? 0 : 1) + (picker.slot >= 2 ? 2 : 0)];
   return replaceToken(ctx, tokens[i], [fix], RULE, MESSAGE, tokens[i + 2]);
 }
@@ -563,6 +569,28 @@ function cardinalNoun(ctx: DetectContext, tokens: Token[], i: number): RawFindin
   if (participle(word) && PREPOSITIONS.has(at.next(2))) return null;
   const plural = pluralOf(word);
   return plural ? replaceToken(ctx, nounToken, [plural], RULE, MESSAGE, tokens[i]) : null;
+}
+
+/**
+ * "unos 200 citaciones" -> "unas 200", "las 3 libros" -> "los 3": a plural determiner agrees
+ * with the counted noun past the number ("unas 200 mil personas" counts thousands of them).
+ */
+function countedDeterminer(ctx: DetectContext, tokens: Token[], i: number): RawFinding | null {
+  const det = DETERMINER.get(tokens[i].lower);
+  if (!det || det.slot < 2 || genderless(det) || /^(?:del|al)$/u.test(tokens[i].lower)) return null;
+  const count = tokens[i + 1];
+  if (!count || count.broken || !/^\p{N}+(?:[.,]\p{N}+)*$/u.test(count.text)) return null;
+  let n = i + 2;
+  if (tokens[n]?.lower === "mil" && !tokens[n].broken) n++;
+  const nounToken = tokens[n];
+  if (!nounToken?.word || nounToken.broken || ctx.dictionary.has(nounToken.lower)) return null;
+  const noun = readNoun(nounToken.lower);
+  if (!noun?.plural || !noun.gender || EITHER.has(noun.singular)) return null;
+  // "los 3 primeros", "las 5 de la tarde" never reach here; "unos 200 millones" agrees.
+  const detGender: Gender = det.slot % 2 ? "f" : "m";
+  if (detGender === noun.gender) return null;
+  const fix = det.forms[noun.gender === "f" ? 3 : 2];
+  return replaceToken(ctx, tokens[i], [fix], RULE, MESSAGE, nounToken);
 }
 
 // ------------------------------------------------------------------ adjectives after the noun
@@ -1023,7 +1051,8 @@ function agreement(ctx: DetectContext): RawFinding[] {
       neuterDemonstrative(ctx, tokens, i) ??
       pickerGroup(ctx, tokens, i) ??
       ordinal(ctx, tokens, i) ??
-      cardinalNoun(ctx, tokens, i);
+      cardinalNoun(ctx, tokens, i) ??
+      countedDeterminer(ctx, tokens, i);
     if (finding) findings.push(finding);
   }
   return findings;

@@ -1,7 +1,8 @@
 import { namedExampleBefore } from "../exampleCues";
 import { frameMatches, SPACE, WORD_END, WORD_START } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import { germanAdjective } from "./germanLexicon";
+import type { ReviewMessageKey } from "../types";
+import { germanAdjective, germanGender, germanInfinitive } from "./germanLexicon";
 import { isGerman, mayRun } from "./shared";
 
 // Fixed phrases whose words change case: a word that is a noun only in the phrase ("die
@@ -20,7 +21,22 @@ const MONTHS = "Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktobe
 const ZURECHT_VERBS =
   /(?<!\p{L})(?:ge)?(?:komm|kam|käm|leg|find|fand|fänd|mach|rück|weis|wies|stell|schneid|schnitt|bieg|bog|setz|zupf|richt)\p{Ll}*/u;
 
-type Frame = [RegExp, (m: RegExpExecArray, ctx: DetectContext) => string | string[] | null];
+type Frame = [
+  RegExp,
+  (m: RegExpExecArray, ctx: DetectContext) => string | string[] | null,
+  ReviewMessageKey?,
+];
+
+const cap = (word: string) => word[0].toUpperCase() + word.slice(1);
+const ORDINALS =
+  "ersten|zweiten|dritten|vierten|fünften|sechsten|siebten|achten|neunten|zehnten|elften|" +
+  "zwölften|fünfzehnten|zwanzigsten|dreißigsten|letzten";
+const DEGREE =
+  "sehr|ganz|ziemlich|echt|wirklich|total|so|zu|nicht|überhaupt|recht|richtig|extrem|" +
+  "besonders|gar|nie|immer|doch|auch|schon|eher|absolut|einfach|unheimlich|wahnsinnig";
+// Languages, which are nouns after "ist": "Das ist Englisch".
+const LANGUAGES =
+  /(?:deutsch|^englisch|französisch|spanisch|italienisch|russisch|polnisch|türkisch|griechisch|chinesisch|japanisch|arabisch|niederländisch|schwedisch|portugiesisch|latein)$/;
 
 /** The rest of the clause after the match, to the next stop. */
 const clauseRest = (ctx: DetectContext, m: RegExpExecArray) =>
@@ -32,6 +48,227 @@ const clauseBefore = (ctx: DetectContext, m: RegExpExecArray) =>
     .at(-1) ?? "";
 
 const FRAMES: Frame[] = [
+  // "das importieren der Klassen", "beim erstellen einfacher Regeln": an infinitive after an
+  // article with a genitive after it is a noun.
+  [
+    re(
+      `(?<=(?:[Dd]as|[Dd]em|[Bb]eim|[Zz]um|[Vv]om|[Ii]ns|[Ii]m)(?:${S}\\p{Ll}{2,30}(?:e|en))?${S})(?<target>\\p{Ll}{3,}(?:en|ern|eln))(?=${S}(?:des|eines|einer|meines|meiner|seines|seiner|ihres|ihrer|unseres|unserer|dieses|dieser|der|\\p{Ll}{2,30}er${S}\\p{Lu}\\p{Ll}*)${E})`,
+    ),
+    (m, ctx) => {
+      const word = m.groups!.target;
+      if (
+        !germanInfinitive(word) ||
+        /^(?:sein|haben|werden|können|müssen|sollen|wollen|dürfen)$/.test(word)
+      )
+        return null;
+      // "Das sagen der Lehrer und …": "das" opening a clause may be the subject pronoun, so
+      // "der" counts only after a preposition or contraction.
+      const next = /^[ \t]+(\p{L}+)/u.exec(ctx.text.slice(m.index + word.length))?.[1];
+      const before = ctx.text.slice(Math.max(0, m.index - 40), m.index);
+      if (next === "der" && /(?:^|[.!?:\n„"])[ \t]*[Dd]as[ \t]+(?:\p{Ll}+[ \t]+)?$/u.test(before))
+        return null;
+      return cap(word);
+    },
+  ],
+  // "beim Suchen und finden", "ein Kennenlernen oder treffen": a lowercase infinitive joined
+  // to one made a noun.
+  [
+    re(
+      `(?<=(?:[Bb]eim|[Zz]um|[Vv]om|[Dd]as|[Dd]em|[Ii]m|[Ii]ns|[Ee]in|\\p{Ll}{2,30}es)${S}\\p{Lu}\\p{Ll}{2,}(?:en|ern|eln)${S}(?:und|oder|bzw\\.|sowie)${S})(?<target>\\p{Ll}{3,}(?:en|ern|eln))(?=[ \\t]*[.!?,;:]|${S}(?:des|der|von|würde|wird|ist|war|einladen|\\p{Ll}{2,}t)${E})`,
+    ),
+    (m, ctx) => {
+      const word = m.groups!.target;
+      const noun = /(\p{Lu}\p{Ll}+)[ \t]+\S+[ \t]+$/u.exec(
+        ctx.text.slice(Math.max(0, m.index - 60), m.index),
+      )?.[1];
+      if (!noun || !germanInfinitive(noun.toLowerCase()) || !germanInfinitive(word)) return null;
+      return cap(word);
+    },
+  ],
+  // "Die Uhr ist nichts Wert", "was das Wert ist": the adjective "wert".
+  [
+    re(
+      `(?<=(?:nichts|viel|wenig|mehr|einiges|etwas|das|es|nicht|kaum|einen${S}Versuch|keinen${S}Cent)${S})(?<target>Wert)(?=${S}(?:ist|sind|war|waren|sein|wäre|wären|scheint)${E}|[ \\t]*[.!?,;])`,
+    ),
+    (m, ctx) => {
+      // "Darauf lege ich viel Wert.": the noun after "legen"; the adjective needs "sein".
+      const clause = ctx.text
+        .slice(Math.max(0, m.index - 60), m.index)
+        .split(/[.!?;,\n]/)
+        .at(-1)!;
+      const after = /^[ \t]+(?:ist|sind|war|waren|sein|wäre|wären|scheint)(?!\p{L})/u.test(
+        ctx.text.slice(m.index + 4, m.index + 16),
+      );
+      if (
+        !after &&
+        !/(?<!\p{L})(?:ist|sind|war|waren|wäre|wären|bin|bist|seid)(?!\p{L})/u.test(clause)
+      )
+        return null;
+      return "wert";
+    },
+  ],
+  // "bis spät Abends" → spätabends; "Wir essen Abends" → abends: the adverbs of the time of day
+  // are lowercase ("eines Abends", "des Morgens" are nouns).
+  [
+    re(
+      `(?<target>(?<degree>spät|früh)${S}(?<time>Abends?|Morgens?|Nachts?|abends|morgens|nachts))|` +
+        `(?<!(?:[Dd]es|[Ee]ines|[Jj]eden|[Aa]m|[Zz]um|[Vv]om|bis${S}zum|[Ee]ines${S}\\p{Ll}{1,20}en)${S})(?<=\\p{Ll}${S})(?<t2>Morgens|Abends|Nachts|Mittags|Vormittags|Nachmittags)${E}`,
+    ),
+    (m) => {
+      if (m.groups!.t2) return m.groups!.t2.toLowerCase();
+      const time = m.groups!.time.toLowerCase().replace(/(?<!s)$/, "s");
+      return `${m.groups!.degree}${time}`;
+    },
+  ],
+  // "Der angestellte wurde entlassen", "Die jugendlichen benahmen sich": a person named by an
+  // adjective or participle, before the clause's verb.
+  [
+    re(
+      `(?<=(?:[Dd]er|[Dd]ie|[Dd]en|[Dd]em|[Ee]in|[Ee]ine|[Ee]inen|[Ee]inem|[Kk]ein|[Kk]eine|[Ss]ein|[Ss]eine|[Mm]ein|[Mm]eine|[Ii]hr|[Ii]hre)${S})(?<target>(?:angestellt|obdachlos|jugendlich|erwachsen|verletzt|verwundet|abgeordnet|bekannt|verwandt|vorsitzend|reisend|studierend|arbeitslos|gefangen|verdächtig|überlebend|behindert|geliebt|verstorben|beschuldigt|angeklagt|auszubildend|selbstständig|selbständig|gläubig|minderjährig|volljährig)(?:e|en|er))(?=${S}(?:wurde|wurden|ist|sind|war|waren|hat|haben|hatte|hatten|wird|werden|kam|kamen|kann|können|muss|müssen|soll|sollen|benahm|benahmen|sagte|sagten|ging|gingen|starb|starben|bekam|bekamen|darf|dürfen)${E})`,
+    ),
+    (m) => cap(m.groups!.target),
+  ],
+  // "Angst und schrecken verbreiten" → Angst und Schrecken.
+  [
+    re(
+      `(?<target>[Aa]ngst${S}und${S}[Ss]chrecken)(?=${S}(?:verbreiten|verbreitet|verbreitete|verbreiteten|versetzen|versetzt|versetzte|auslösen|ausgelöst)${E}|[ \\t]*[.!?,;])`,
+    ),
+    () => "Angst und Schrecken",
+  ],
+  // "Hey liebes,", "Hallo ihr lieben": the addressed person is a noun.
+  [
+    re(
+      `(?<=(?:^|\\n)[ \\t]{0,8}(?:Hey|Hallo|Hi|Moin|Servus|Guten${S}(?:Morgen|Abend|Tag)|Gute${S}Nacht)(?:${S}(?:ihr|mein|meine))?${S})(?<target>liebes|lieben|lieber|liebe|süße|süßer|süßes)(?=[ \\t]*(?:[,!.\\n]|$))`,
+    ),
+    (m) => cap(m.groups!.target),
+  ],
+  // "zu ehren der Gäste", "zur ehre Gottes", "in ehren": the noun "Ehre".
+  [
+    re(
+      `(?<=(?:[Zz]u|[Ii]n)${S})(?<target>ehren)(?=${S}(?:des|der|dem|meines|meiner|seines|seiner|ihres|ihrer|unseres|unserer|\\p{Lu})|${S}\\p{Ll}+(?:te|ten|ter|tes|ene|enen|ener)${E}|[ \\t]*[.!?,;])|(?<=[Zz]ur${S})(?<t2>ehre)${E}`,
+    ),
+    (m) => cap(m.groups!.target ?? m.groups!.t2),
+  ],
+  // "Ich mache mir sorgen", "sich keine sorgen machen": the noun "Sorgen".
+  [
+    re(
+      `(?<=(?:mir|dir|sich|uns|euch|ihm|ihr|keine|viele|große|ernste|unnötige|andere|ganz${S}andere|solche|mehr)${S})(?<target>sorgen)(?=${S}(?:machen|machst|macht|machte|machten|gemacht|zu${S}machen|mache)${E}|[ \\t]*[.!?,;])`,
+    ),
+    (m, ctx) => {
+      // "weil sie sich sorgen.": a verb at the end of a clause after "sich".
+      const before = ctx.text
+        .slice(Math.max(0, m.index - 80), m.index)
+        .split(/[.!?;,\n]/)
+        .at(-1)!;
+      const ending = /^[ \t]*[.!?,;]/.test(ctx.text.slice(m.index + m[0].length));
+      if (
+        ending &&
+        !/(?<!\p{L})(?:mach\p{Ll}*|gemacht|habe|hast|hat|haben|keine|viele|andere)(?!\p{L})/iu.test(
+          before,
+        )
+      )
+        return null;
+      return "Sorgen";
+    },
+  ],
+  // "außer acht lassen", "sich in acht nehmen": the noun "Acht".
+  [
+    re(
+      `(?<=[Aa]ußer${S})(?<target>acht)(?=${S}(?:lassen|lässt|ließ|ließen|gelassen|zu${S}lassen|ließe)${E}|[ \\t]*[.!?,;])|(?<=(?:sich|dich|mich|euch|uns)${S}in${S})(?<t2>acht)(?=${S}(?:nehmen|nimmt|nahm|genommen|nimm)${E})`,
+    ),
+    () => "Acht",
+  ],
+  // "Das tut mir Leid" → leid ("leidtun"); "Leid tun" → leidtun.
+  [
+    re(
+      `(?<=(?:tut|tat|täte|tun|getan|tue)${S}(?:mir|dir|ihm|ihr|uns|euch|ihnen|Ihnen)(?:${S}(?:sehr|wirklich|so|echt|furchtbar|aufrichtig|ehrlich|schrecklich|unendlich|total|auch|nicht|schon|doch|ja)){0,2}${S})(?<target>Leid)(?=[ \\t]*[.!?,;]|${S}(?:dass|für|um|wegen)${E})|` +
+        `(?<=(?:mir|dir|ihm|ihr|uns|euch|ihnen|Ihnen|noch|sehr|wirklich)${S})(?<t2>Leid${S}tun)(?=[ \\t]*[.!?,;])`,
+    ),
+    (m) => (m.groups!.target ? "leid" : "leidtun"),
+  ],
+  // "jedes mal", "beim nächsten mal", "ein für alle mal", "die letzten male": the noun "Mal"
+  // after a determiner or an ordinal; "von Mal zu Mal", "Mal für Mal".
+  [
+    re(
+      `(?<=(?:[Jj]edes|[Dd]ieses|[Nn]ächstes|[Ll]etztes|[Ee]rstes|[Zz]weites|[Dd]rittes|[Ee]inziges|[Mm]anches|einige|etliche|[Bb]eim${S}(?:nächsten|ersten|letzten|zweiten)|[Zz]um${S}(?:${ORDINALS}|wiederholten|x-ten|hundertsten|tausendsten)|[Dd]as${S}(?:erste|zweite|dritte|letzte|nächste|einzige)|ein${S}für${S}alle)${S})(?<target>mal)${E}|(?<=(?:[Dd]ie${S}(?:ersten|letzten|nächsten)|einige|etliche|viele|mehrere)${S})(?<t4>male)${E}|` +
+        `(?<t2>mal)(?=${S}(?:zu|für)${S}[Mm]al${E})|(?<=[Mm]al${S}(?:zu|für)${S})(?<t3>mal)${E}`,
+    ),
+    (m, ctx) => {
+      // "von mal zu mal": only after "von" ("komm mal zu mir" is the particle).
+      const zu = /^[ \t]+zu/.test(ctx.text.slice(m.index + m[0].length));
+      const von = /(?<!\p{L})[Vv]on[ \t]+$/u.test(
+        ctx.text.slice(Math.max(0, m.index - 6), m.index),
+      );
+      if (m.groups!.t2 && zu && !von) return null;
+      return cap(m.groups!.target ?? m.groups!.t2 ?? m.groups!.t3 ?? m.groups!.t4);
+    },
+  ],
+  // "mit ja antworten", "ein klares nein": the answer as a noun.
+  [
+    re(
+      `(?<=(?:mit|einem|kein|(?:\\p{Ll}{3,20}(?:es|en))|(?:Ja|Nein)${S}(?:oder|und))${S})(?<target>ja|nein)(?=[ \\t]*[.,!?;:]|${S}(?:oder|und|beantworten|beantwortet|beantwortete|hätte|hat|war|ist|sagen|gesagt|stimmen|stimmte|gestimmt|antworten|antwortete|geantwortet)${E})`,
+    ),
+    (m, ctx) => {
+      // The word before must be "mit", an article or an inflected adjective after one.
+      const before = ctx.text.slice(Math.max(0, m.index - 40), m.index);
+      if (
+        !/(?:[Mm]it|[Ee]in(?:e[mn]?)?|[Kk]ein|(?<=\p{L}[ \t]+)(?:Ja|Nein)[ \t]+(?:oder|und))[ \t]+(?:\p{Ll}+(?:es|en)[ \t]+(?:und[ \t]+\p{Ll}+(?:es|en)[ \t]+)?)?$/u.test(
+          before,
+        )
+      )
+        return null;
+      return cap(m.groups!.target);
+    },
+  ],
+  // "Ich bin sehr Stolz auf euch", "Das ist nicht Fair.": a predicative adjective stays
+  // lowercase.
+  [
+    re(
+      `(?<=(?:ist|sind|war|waren|bin|bist|seid|wäre|wären|wird|wurde|bleibt|blieb)(?:${S}(?:du|ihr|er|sie|es|wir|ich|man))?(?<degree>(?:${S}(?:${DEGREE})){0,3})${S})(?<target>\\p{Lu}\\p{Ll}{2,})(?=[ \\t]*[.!?,;]|${S}(?:auf|über|für|mit|zu|von|gegenüber|darauf|damit|dafür|davon)${E})`,
+    ),
+    (m) => {
+      const word = m.groups!.target;
+      const low = word.toLowerCase();
+      if (!germanAdjective(low) || LANGUAGES.test(low)) return null;
+      // "Das ist Stolz.": with no degree word only a preposition after it ("stolz auf")
+      // shows the adjective.
+      const preposition = /^[ \t]+\p{Ll}/u.test(m.input.slice(m.index + m[0].length));
+      if (!m.groups!.degree && (!preposition || germanGender(word))) return null;
+      return low;
+    },
+    "review_msg_german_adjective_lowercase",
+  ],
+  // "die Rechte dritter", "an dritte weitergeben", "am ersten jedes Monats", "der erste, der
+  // …": ordinals as nouns.
+  [
+    re(
+      `(?<=(?:an|für|gegenüber|durch|vor)${S})(?<target>dritte[nr]?)(?!${S}\\p{Lu}|\\p{L})|` +
+        `(?<=\\p{Lu}\\p{Ll}{2,}${S})(?<t2>dritter)(?=[ \\t]*[.,;!?])|` +
+        `(?<=(?:[Aa]m|[Zz]um|[Vv]om)${S})(?<t3>${ORDINALS})(?=${S}(?:jedes|eines|des|dieses|nächsten)${E})|` +
+        `(?<=(?:der|die|das)${S})(?<t4>erste|zweite|dritte|letzte|einzige|nächste)(?=,${S}(?<relative>der|die|das|den|dem|welche[rs]?)${S}\\p{L}+)`,
+    ),
+    (m, ctx) => {
+      const word = m.groups!.target ?? m.groups!.t2 ?? m.groups!.t3 ?? m.groups!.t4;
+      if (m.groups!.t4) {
+        // "die erste, die zweite und …", "die erste, das Gebiet umfassende …": an enumeration
+        // or an attribute, not a relative clause of the same gender.
+        const article = /(\p{L}+)[ \t]+$/u.exec(
+          m.input.slice(Math.max(0, m.index - 8), m.index),
+        )?.[1];
+        const next =
+          /^,[ \t]+\p{L}+[ \t]+(\p{L}+)/u.exec(m.input.slice(m.index + m[0].length))?.[1] ?? "";
+        if (article?.toLowerCase() !== m.groups!.relative || /^\p{Ll}+e[nmrs]?$/u.test(next))
+          return null;
+        // "Von den Zügen ist der erste, der …": a noun earlier in the sentence it may refer to.
+        const sentence = ctx.text
+          .slice(Math.max(0, m.index - 120), m.index)
+          .split(/[.!?\n]/)
+          .at(-1)!;
+        if (/[ \t]\p{Lu}/u.test(sentence)) return null;
+      }
+      return cap(word);
+    },
+  ],
   // "die schuld", "keine schuld", "deine schuld": the noun; "ist Schuld daran": the adjective.
   [
     re(
@@ -118,6 +355,32 @@ const FRAMES: Frame[] = [
     ),
     () => "recht",
   ],
+  // "Das ist mir Wurst!", "Das kann ihm doch Wurscht sein": "egal" is lowercase; "Das ist
+  // Wurst." with no one it is egal to may be the food.
+  [
+    re(
+      `(?=Wurs)(?<=(?:${SEIN}|ist|kann|könnte|dürfte)(?:${S}\\p{Ll}{2,12}){0,3}${S}(?:${DATIVES}|dem|doch|eh|ja|völlig|total|echt|herzlich)(?:${S}\\p{Ll}{2,12}){0,2}${S})(?<target>Wurs(?:ch)?t)(?=(?:${S}sein)?[ \\t]*[.!?,;])`,
+    ),
+    (m) => m.groups!.target.toLowerCase(),
+  ],
+  // "Er stand Kopf.", "Ich nehme daran nicht Teil.": the particle of "kopfstehen" and
+  // "teilnehmen" closing a main clause ("den Teil", "am Kopf" are nouns).
+  [
+    re(
+      `(?=Kopf)(?<=(?:steht|stand|standen|stehen|stehst|stehe)${E}[^.!?;:,\\n]{0,40}${S})(?<!(?:der|die|das|den|dem|des|am|im|zum|beim|vom|auf|über|an|bis|von|mit|ohne|pro|je|kein|ein|mein|dein|sein)${S})(?<target>Kopf)(?=[ \\t]*[.!?,;])|` +
+        `(?=Teil)(?<=(?:nehme|nimmst|nimmt|nehmen|nehmt|nahm|nahmen|nahmst)${E}[^.!?;:,\\n]{0,40}${S})(?<!(?:der|die|das|den|dem|des|am|im|zum|beim|vom|kein|ein|mein|dein|sein|ihr)${S})(?<t2>Teil)(?=[ \\t]*[.!?,;])`,
+    ),
+    (m, ctx) => {
+      // "den großen Teil", "mit dem Kopf": an inflected adjective before it ("gerne" is none).
+      const prior = /(?<!\p{L})(\p{Ll}+)[ \t]+$/u.exec(
+        ctx.text.slice(Math.max(0, m.index - 24), m.index),
+      );
+      const stem = prior?.[1].replace(/e[mnrs]?$/, "") ?? "";
+      const adjective = germanAdjective(stem) || /\p{Ll}{2}(?:e?s|ß)t$/u.test(stem);
+      if (prior && stem !== prior[1] && adjective && !/^(?:gern|lang)$/.test(stem)) return null;
+      return (m.groups!.target ?? m.groups!.t2).toLowerCase();
+    },
+  ],
   // "ich bin ihr Gram" → gram.
   [
     re(`(?<=(?:${SEIN})${S}(?:${DATIVES})(?:${S}(?:nicht|wirklich)){0,2}${S})(?<target>Gram)`),
@@ -198,7 +461,7 @@ const FRAMES: Frame[] = [
 export function idioms(ctx: DetectContext): RawFinding[] {
   if (!isGerman(ctx)) return [];
   const findings: RawFinding[] = [];
-  for (const [regex, fix] of FRAMES) {
+  for (const [regex, fix, messageKey] of FRAMES) {
     if (!mayRun(ctx, regex)) continue;
     // The typed words are in "target", or in "t2"–"t4" for a frame's other branches.
     const named = (m: RegExpExecArray) =>
@@ -214,7 +477,7 @@ export function idioms(ctx: DetectContext): RawFinding[] {
       if (replacements.length === 0) continue;
       findings.push({
         ruleId: "germanNounCasing",
-        messageKey: "review_msg_german_idiom_case",
+        messageKey: messageKey ?? "review_msg_german_idiom_case",
         range: { start, end },
         alternatives: replacements,
         ...(replacements.length > 1 ? { requiresChoice: true as const } : {}),

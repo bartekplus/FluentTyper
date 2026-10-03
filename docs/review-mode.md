@@ -1209,6 +1209,6 @@ Explicitly named quoted error examples remain unchanged by native grammar and sp
 Ordinary dialogue still receives checks. Finite rules do not infer narrative tense,
 article definiteness, dialect intent or the meaning of ambiguous effect/affect uses.
 See [the corpus evaluation](native-review-corpus-evaluation.md) for measured coverage
-and remaining gaps.
+and remaining gaps, and [the LanguageTool evaluation](languagetool-parity-evaluation.md) for per-language coverage of LanguageTool's rule examples.
 
 Some checks were inspired by Harper (https://github.com/Automattic/harper).

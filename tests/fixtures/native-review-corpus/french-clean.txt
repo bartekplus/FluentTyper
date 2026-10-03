@@ -192,3 +192,19 @@ La porte a une serrure neuve et ce que tu portes a une grande valeur.
 Les vaches paissent dans les prés du village ; il a du pouvoir et ne part guère en guerre.
 Pour ce faire, prenons une feuille ; celui qui ce matin a appelé s'est trompé.
 Elles sont toutes heureuses, ils sont tous contents et elle est tout entière à sa tâche.
+# Quantities, relatives and avoir before a bare noun.
+Beaucoup de voisins pensent que le chat a faim, et la plupart des enfants rient.
+La réunion a lieu demain ; ce que tu dis a du sens et le public a accès au jardin.
+Je connais un homme qui parle six langues et voici les livres qui manquent.
+Les invités, qui arrivent de loin, sont fatigués, mais les ouvriers font du bruit.
+Il range sa boîte à outils, puis il pense qu'elle ira à la plage avec ses amis.
+# Commas that set off and commas that do not part a phrase.
+Lui, il sait tout ; elle, elle reste ici, et nous partirons demain, dit-elle, sans bruit.
+Le plus grand, c'est Pierre, et ces photos, je les aime beaucoup.
+Il a, bien sûr, réussi l'examen parce qu'il travaille, mais il ne mange jamais de viande.
+Les chèvres ont du foin, Paul et Léa ont gagné, et eux non plus ne viendront pas.
+Ce pont est sûr, nous en sommes sûrs, et le stylo est sur ou sous le cahier.
+C'est un ami qui travaille beaucoup, et nous ne sortons jamais sans lui ; nous deux partirons demain.
+Mon copilote décrit un écosystème fragile ; la télé est allumée et ce produit bio frais coûte cher.
+Se baigner est agréable ; ce virus se propage vite, ces fleurs sont fanées et ce sont des amis fidèles.
+Il a quand même terminé, il espère être arrivé à temps et l'être aimé sourit.

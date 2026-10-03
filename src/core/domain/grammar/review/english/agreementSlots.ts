@@ -510,7 +510,6 @@ function relativeClauseSubject(ctx: DetectContext): RawFinding[] {
       // "A new WHO report": the relative pronoun is lowercase.
       if (!/[ \t\u00a0](?:who|that)[ \t\u00a0]+$/.test(m[0])) continue;
       const words = m.groups!.head.split(/[ \t ]+/);
-      if (process.env.DBG) console.log("PRE", m[0]);
       const head = words.at(-1)!;
       if (words.some((w) => FUNCTION_WORDS.has(w) || BE_OR_AUX.test(w))) continue;
       // Modifiers before the head are adjectives or nouns, never verbs.
@@ -533,7 +532,6 @@ function relativeClauseSubject(ctx: DetectContext): RawFinding[] {
           : /^(?:these|those|many|all|most)$/.test(det)
       )
         continue;
-      if (process.env.DBG) console.log("REL", m[0], number);
       const tokens = tokensAfter(ctx, m.index + m[0].length, 10);
       // The clause's own verb; the main verb comes right after it or after adverbs.
       let clauseVerb = -1;

@@ -2,6 +2,7 @@ import { namedExampleBefore } from "../exampleCues";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { accentedNoun } from "./determiners";
 import { type Gender, nounGender, verbReadings } from "./frenchLexicon";
+import { sontForSon } from "./homophones";
 import { ownedFrenchWords, tokensAfter, tokensBefore, withCase } from "./frenchTokens";
 
 // A singular determiner takes its noun's gender: "une maison", "un arbre", "cette idée". Genders
@@ -72,6 +73,8 @@ function gender(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   // "Sur ce, maman, je m'en vais": the phrase "sur ce" with its comma left out.
   if (det === "ce" && previous?.w === "sur" && tokensBefore(ctx.text, m.index, 2).length === 1)
     return null;
+  // "les filles son arrivé": "sont" misspelt, no determiner.
+  if (det === "son" && sontForSon(ctx.text, m.index)) return null;
   // "de ton", "le son": the nouns "ton" and "son".
   if (
     (det === "son" || det === "ton") &&
