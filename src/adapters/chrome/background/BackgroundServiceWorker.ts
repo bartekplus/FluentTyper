@@ -30,6 +30,7 @@ import {
   sanitizeSiteProfilesSetting,
 } from "./config/runtimeSettings";
 import { ConfigAssembler } from "./config/ConfigAssembler";
+import { DomainSettingsCache } from "./config/DomainSettingsCache";
 import { ObservabilityService } from "./ObservabilityService";
 import { ChromeStorageBackend } from "@core/application/storage/ChromeStorageBackend";
 import { PersonalizationRepository } from "@core/application/personalization/PersonalizationRepository";
@@ -52,6 +53,7 @@ export class BackgroundServiceWorker {
   configAssembler!: ConfigAssembler;
   personalizationService!: PersonalizationService;
   localAiController!: LocalAiController;
+  domainSettingsCache!: DomainSettingsCache;
   language!: string;
   private runtimeConfigReady = false;
   private runtimeConfigLoadPromise: Promise<void> | null = null;
@@ -91,6 +93,7 @@ export class BackgroundServiceWorker {
       new LocalAiSettingsRepository(this.settingsManager),
       localAiEngine,
     );
+    this.domainSettingsCache = new DomainSettingsCache();
     this.language = "auto_detect";
     BackgroundServiceWorker.instance = this;
   }
@@ -259,6 +262,8 @@ export class BackgroundServiceWorker {
         }
       }
       const nextLang = await rotateLanguageForDomain(this.settingsManager, effectiveDomainURL);
+      // The next prediction request must read the new language, not a cached one.
+      this.domainSettingsCache.invalidate();
       return {
         language: nextLang,
         tabId,

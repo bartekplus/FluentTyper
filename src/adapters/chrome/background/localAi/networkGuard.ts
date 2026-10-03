@@ -46,6 +46,7 @@ export function createNetworkGuard(
         response.url !== request.url &&
         !matchesDownloadOrigin(response.url, downloadOrigins);
       if (!allowed || redirectedOff) {
+        await response.body?.cancel();
         throw new NetworkBlockedError();
       }
       return response;

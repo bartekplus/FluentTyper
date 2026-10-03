@@ -55,7 +55,6 @@ import {
 } from "@core/domain/error";
 import { CoreSettingsRepository } from "@core/application/repositories/CoreSettingsRepository";
 import { parseSpellingRequest } from "@core/domain/grammar/review/reviewSpelling";
-import { DomainSettingsCache } from "../config/DomainSettingsCache";
 import type { BackgroundServiceWorker } from "../BackgroundServiceWorker";
 import type { PredictionConfigOverride } from "../PredictionTypes";
 import { REVIEW_SPELLING_BUDGET_MS } from "../PresageEngine";
@@ -162,7 +161,6 @@ function requireSenderRoutingContext(
 export class MessageRouter {
   private readonly getWorker: () => BackgroundServiceWorker;
   private readonly fieldPreferences = new FieldPreferenceService();
-  private readonly domainSettingsCache = new DomainSettingsCache();
   // Review detection answers without waiting for the prediction engine to start.
   private readonly reviewEngines = new ReviewEngineHost();
   private readonly handlers: CommandHandlers;
@@ -371,7 +369,7 @@ export class MessageRouter {
     const domainURL = getDomain(sender.tab?.url || "");
 
     const domainSettings = await rethrowAs(
-      () => this.domainSettingsCache.resolve(worker.settingsManager, domainURL),
+      () => worker.domainSettingsCache.resolve(worker.settingsManager, domainURL),
       (cause) =>
         new ConfigError("Failed to resolve domain runtime settings", {
           code: "message_resolve_domain_runtime_settings_failed",
@@ -483,7 +481,7 @@ export class MessageRouter {
     );
     // Settings changed — flush cached domain settings so the next prediction
     // request picks up the new values without waiting for the TTL to expire.
-    this.domainSettingsCache.invalidate();
+    worker.domainSettingsCache.invalidate();
   }
 
   /**
