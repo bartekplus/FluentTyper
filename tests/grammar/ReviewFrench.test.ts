@@ -141,6 +141,8 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
     "frenchHomophones",
     {
       pos: [
+        ["Ils suivent aveuglement leur chef.", "Ils suivent aveuglément leur chef."],
+        ["Leur aveuglément les a perdus.", "Leur aveuglement les a perdus."],
         ["Il à mangé toute la tarte.", "Il a mangé toute la tarte."],
         ["Je confie cette mission a ton frère.", "Je confie cette mission à ton frère."],
         ["Le match a du être reporté.", "Le match a dû être reporté."],
@@ -189,6 +191,7 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Ont dit que c'est facile.", "On dit que c'est facile."],
       ],
       neg: [
+        "Cet aveuglement collectif inquiète.",
         "S'était une fois encore distingué par son calme.",
         "Prenons pour ce faire une feuille blanche.",
         "Pour ce faire, il suffit d'attendre.",

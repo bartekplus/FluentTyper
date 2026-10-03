@@ -993,6 +993,20 @@ function ontToOn(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
 
 const AFTER_EVEN = new Set([...DETERMINERS, ...STRESSED, ...SUBJECT_PRONOUNS, ...PREPOSITIONS]);
 
+/** "il croit aveuglement" (the adverb aveuglément), "son aveuglément" (the noun aveuglement). */
+function aveuglement(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const previous = tokensBefore(ctx.text, m.index, 1)[0];
+  if (!previous) return null;
+  const noun = DETERMINERS.has(previous.w) || ["sans", "cet", "l'"].includes(previous.w);
+  const adverb = m[0].toLowerCase() === "aveuglément";
+  if (adverb && noun)
+    return wordFinding(ctx, m.index, m[0], [`${m[0].slice(0, 6)}ement`], RULE, MESSAGE);
+  if (!adverb && !noun && readingsOf(previous.w).length && !isVerbHomograph(previous.w))
+    return wordFinding(ctx, m.index, m[0], [`${m[0].slice(0, 6)}ément`], RULE, MESSAGE);
+  return null;
+}
+const AVEUGLEMENT = /(?<![\p{L}\p{M}\p{N}_'’-])[aA]veugl[eé]ment(?![\p{L}\p{M}\p{N}_'’-])/gu;
+
 /** "Tache de partir tôt", "il tache que tout aille bien": tâcher (to try), not tacher (to stain). */
 function tacherToTacher(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   const word = m[0].toLowerCase();
@@ -1078,6 +1092,10 @@ function homophones(ctx: DetectContext): RawFinding[] {
   }
   for (const m of ownedFrenchWords(ctx, C_ELIDED)) {
     const finding = cToS(ctx, m);
+    if (finding) findings.push(finding);
+  }
+  for (const m of ownedFrenchWords(ctx, AVEUGLEMENT)) {
+    const finding = aveuglement(ctx, m);
     if (finding) findings.push(finding);
   }
   for (const m of ownedFrenchWords(ctx, TACHER)) {
