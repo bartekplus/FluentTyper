@@ -988,6 +988,11 @@ describe("French lexicon", () => {
       expect(isInflectedNoun(word)).toBe(false);
   });
 
+  test("authored genders fill what the n-gram counts miss", () => {
+    for (const word of ["rumeur", "chaleur", "voix", "cerise"]) expect(nounGender(word)).toBe("f");
+    for (const word of ["ouragan", "temps", "honneur", "musée"]) expect(nounGender(word)).toBe("m");
+  });
+
   test("the noun filter leaves out function words in s and x", () => {
     for (const word of ["dans", "depuis", "désormais", "les", "nous", "très", "toujours", "chez"])
       expect(isInflectedNoun(word)).toBe(false);

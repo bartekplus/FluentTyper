@@ -354,6 +354,29 @@ export function suffixGender(word: string): Gender | null {
   return null;
 }
 
+// Common nouns whose gender neither the n-gram counts nor an ending tell (authored; the
+// generated lists win where they know the word).
+const AUTHORED_MASCULINE =
+  "temps mois prix pays euro bras avis choix repas corps match record poids taux litre humour " +
+  "mouton alcool milliard drap copain canard procès honneur habit virus volcan devis excès " +
+  "décès chœur horizon colis atlas légume tennis succès croc algorithme jambon abandon pneu " +
+  "accès kilo jazz moine bienfait rocher dégât champignon complot bourg univers hibou " +
+  "semestre minuit appétit bisou pignon progrès bonbon bond refus pronom gant hydrocarbure " +
+  "repos processus oncle ouragan violon ongle pieu biscuit uniforme trombone artifice trophée " +
+  "rail ennui crampon rein hospice flanc atome gabarit auditoire grief chaos aéroport flux " +
+  "escroc palais référendum coupon arbuste vison printemps diapason bandit renne faîte accroc " +
+  "aluminium patio lupin brigand azur canon zeppelin océan écran ruban tympan cadran divan " +
+  "musée lycée trophée scarabée mausolée apogée athée caducée";
+const AUTHORED_FEMININE =
+  "voix paix rumeur croix onde ballade amande compagne aile corvée cape cerise averse " +
+  "psychose autoroute arête dune datte molécule grange contrepartie olive artère madeleine " +
+  "hélice secousse dynastie myrtille larme glacière falaise humeur berline bravoure " +
+  "bourrasque ordure patate sacoche cotte améthyste perdrix contrebasse horreur peur couleur " +
+  "chaleur valeur odeur fleur douleur saveur lueur erreur faveur largeur longueur hauteur " +
+  "profondeur épaisseur grandeur lenteur vigueur terreur splendeur candeur ardeur pâleur " +
+  "rougeur blancheur fraîcheur douceur noirceur minceur grosseur clameur torpeur stupeur " +
+  "langueur rancœur teneur moiteur tiédeur froideur laideur raideur rondeur senteur vapeur";
+
 let genders: Map<string, Gender> | null = null;
 
 /** A singular noun's gender from the generated lists or its ending; null when either or unknown. */
@@ -363,6 +386,11 @@ export function nounGender(word: string): Gender | null {
     genders = new Map();
     for (const w of decodeFrontCoded(MASCULINE)) genders.set(w, "m");
     for (const w of decodeFrontCoded(FEMININE)) genders.set(w, "f");
+    for (const [list, gender] of [
+      [AUTHORED_MASCULINE, "m"],
+      [AUTHORED_FEMININE, "f"],
+    ] as const)
+      for (const w of list.split(" ")) if (!genders.has(w)) genders.set(w, gender);
   }
   const listed = genders.get(word);
   if (listed || !isInflectedNoun(word)) return listed ?? null;
