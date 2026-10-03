@@ -202,6 +202,12 @@ const AMERICAN_ONLY: readonly Pair[] = [
 ];
 
 /** American words with a distinct British one: [American, British]. */
+/** Authored accepted spellings. Dictionary fallback must not turn these into dialect corrections. */
+const DIALECT_WORDS = new Set([...BOTH, ...AMERICAN_ONLY].flat().map((word) => word.toLowerCase()));
+export function isAcceptedEnglishDialectWord(word: string): boolean {
+  return DIALECT_WORDS.has(word.toLowerCase());
+}
+
 const BRITISH_ONLY: readonly PhraseRow[] = [
   ["pacifier", "dummy"],
   ["pacifiers", "dummies"],

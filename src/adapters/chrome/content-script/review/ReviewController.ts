@@ -1,3 +1,5 @@
+import type { ProtectedRange } from "@core/domain/grammar/review/types";
+import type { ReviewLanguageChoice } from "@core/domain/lang";
 import type { CatalogRuleId } from "@core/domain/grammar/ruleCatalog";
 import { getDeepActiveElement } from "@core/application/dom-utils";
 import { createLogger } from "@core/application/logging/Logger";
@@ -58,7 +60,12 @@ export interface ReviewControllerDependencies {
   /** Local identification of the reviewed text's language (language setting "auto_detect"). */
   detectLanguage?(text: string): Promise<string | null>;
   /** The "auto_detect" language setting resolved to an enabled language for the text. */
-  resolveAutoLanguage?(text: string): Promise<string>;
+  resolveAutoLanguage?(text: string): Promise<string | ReviewLanguageChoice>;
+  languageRegions?: (
+    text: string,
+    language: string,
+    requireEvidence: boolean,
+  ) => Promise<ProtectedRange[]>;
 }
 
 type HighlightRegistry = Map<string, unknown>;
@@ -257,6 +264,7 @@ export class ReviewController {
       lookupSpelling: this.deps.lookupSpelling,
       ai,
       detectLanguage: this.deps.detectLanguage && ((text) => this.deps.detectLanguage!(text)),
+      languageRegions: this.deps.languageRegions,
       resolveAutoLanguage:
         this.deps.resolveAutoLanguage && ((text) => this.deps.resolveAutoLanguage!(text)),
     });
@@ -502,6 +510,10 @@ export class ReviewController {
       this.lang,
       {
         close: () => this.close(),
+        setLanguage: (language) => this.active?.session.setLanguage(language),
+        retry: () => {
+          void this.active?.session.retry();
+        },
         select: (id, options) => this.select(id, options),
         apply: (id, alternative, viaKeyboard) => void this.apply(id, alternative, viaKeyboard),
         ignore: (id) => this.ignore(id),

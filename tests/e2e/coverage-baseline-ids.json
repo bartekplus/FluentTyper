@@ -245,6 +245,7 @@
     "quill_snapshot_model_parity",
     "performance_lifecycle_bounds",
     "inline_contenteditable_baseline",
-    "review_conservative_correctness"
+    "review_conservative_correctness",
+    "review_language_coverage"
   ]
 }

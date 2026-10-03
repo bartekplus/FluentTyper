@@ -27,10 +27,13 @@ The language of FluentTyper's controls is a separate setting from the language o
 | Punctuation and typography | Language-specific checks where supported.                     |
 | Optional Local AI          | English only in the development implementation. Not released. |
 
-**Auto detect** must identify a language before dictionary spelling can run.
-If a short passage gets unexpected results, select its language explicitly.
+**Auto detect** uses reliable detection or an enabled, configured fallback for uncertain text.
+The Review panel identifies fallback use and incomplete coverage. Select a language to override the choice for that Review session.
+See [language selection and recovery](review-language-fallback.md) for precedence, limits, and Retry checks.
 
-The English dictionary uses American English. Some British spellings can appear as unknown words.
+The English dictionary uses American English. Review preserves accepted dialect spellings from its authored tables.
+Other English variants use this dictionary with a visible limitation. Corrections are limited to the authored typo whitelist.
+The dialect tables are not exhaustive.
 Names and specialist terms can also need **Add to dictionary** in Review.
 
 ## Understand a Review result

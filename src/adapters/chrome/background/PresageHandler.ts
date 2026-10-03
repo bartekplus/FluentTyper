@@ -1,3 +1,6 @@
+import { correctWhitelistedTypo } from "@core/domain/grammar/implementations/EnglishTypoWhitelistCorrectionRule";
+import { reviewDictionaryLanguage } from "@core/domain/lang";
+import { isAcceptedEnglishDialectWord } from "@core/domain/grammar/review/english/dialects";
 import { SUPPORTED_LANGUAGES, TEXT_EXPANDER_LANG } from "@core/domain/lang";
 import { isWhiteSpace } from "@core/application/domain-utils";
 import { createLogger } from "@core/application/logging/Logger";
@@ -20,6 +23,7 @@ import { SPACING_RULES, Spacing } from "@core/domain/spacingRules";
 import { rankPersonalizedCandidates } from "@core/domain/personalization/PersonalizationRanker";
 import type { PersonalizationRankingSnapshot } from "@core/domain/personalization/types";
 const SUGGESTION_COUNT = 5;
+const NO_DICTIONARY_WORDS: ReadonlySet<string> = new Set();
 const logger = createLogger("PresageHandler");
 
 // Shorter tokens are often real words one edit from a shortcut ("the" -> "thx").
@@ -220,8 +224,21 @@ export class PresageHandler {
     words: ReadonlyArray<{ word: string; before: string }>,
     options?: SpellingLookupOptions,
   ): Array<string[] | null> | null {
-    if (!this.hasLanguageEngine(lang)) return null;
-    return this.presageEngines[lang].lookupWords(words, options);
+    const resource = reviewDictionaryLanguage(lang);
+    if (!resource || !this.hasLanguageEngine(resource)) return null;
+    const results = this.presageEngines[resource].lookupWords(words, options);
+    // A fallback dictionary cannot prove that an unlisted dialect form is wrong.
+    return resource === "en_US"
+      ? results.map((result, index) => {
+          const word = words[index].word;
+          if (isAcceptedEnglishDialectWord(word)) return null;
+          if (resource !== lang && result !== null) {
+            const typo = correctWhitelistedTypo(word, NO_DICTIONARY_WORDS);
+            return typo ? [typo] : [];
+          }
+          return result;
+        })
+      : results;
   }
 
   hasLanguageEngine(lang: string): boolean {

@@ -1,3 +1,4 @@
+import { SUPPORTED_LANGUAGES } from "@core/domain/lang";
 import { isReviewSupportedRule, reviewKind } from "@core/domain/grammar/review/reviewCatalog";
 import { getDeepActiveElement } from "@core/application/dom-utils";
 import type { ReviewViewState } from "@core/application/review/ReviewSession";
@@ -24,6 +25,8 @@ import {
 
 export interface ReviewUiCallbacks {
   close(): void;
+  setLanguage?(language: string): void;
+  retry?(): void;
   select(id: string | null, options: { openCard: boolean; focusList: boolean }): void;
   /** `viaKeyboard`: activated without a pointer, so focus should stay in the panel. */
   apply(id: string, alternative: number, viaKeyboard: boolean): void;
@@ -404,6 +407,32 @@ export class ReviewUi {
       nav,
       close,
     );
+    const language = element(doc, "select", {
+      "aria-label": this.t("review_language_label"),
+      "data-action": "language",
+    });
+    for (const [value, label] of Object.entries({
+      ...SUPPORTED_LANGUAGES,
+      en_GB: "English (UK)",
+      en_AU: "English (Australia)",
+      en_CA: "English (Canada)",
+    })) {
+      language.append(element(doc, "option", { value }, label));
+    }
+    language.addEventListener("change", (event) => {
+      if (event.isTrusted) this.callbacks.setLanguage?.(language.value);
+    });
+    const retry = element(
+      doc,
+      "button",
+      { type: "button", "data-action": "retry" },
+      this.t("review_retry"),
+    );
+    retry.addEventListener("click", (event) => {
+      if (event.isTrusted) this.callbacks.retry?.();
+    });
+    const languageControls = element(doc, "div", { class: "language-controls" });
+    languageControls.append(language, retry);
     this.modes = element(doc, "div", {
       class: "modes",
       role: "group",
@@ -522,6 +551,7 @@ export class ReviewUi {
     this.body.append(this.list, this.batch, this.ai, this.notes);
     this.panel.append(
       header,
+      languageControls,
       this.modes,
       this.status,
       this.announcer,
@@ -749,6 +779,15 @@ export class ReviewUi {
     this.scopeLabel.hidden = state.scopeKind !== "selection" && state.unread === 0;
     this.status.textContent = this.statusText(state);
     // Whether suggestions for unknown words may still join the results.
+    this.panel.dataset.checking = state.checking;
+    const languageSelect = this.panel.querySelector<HTMLSelectElement>('[data-action="language"]');
+    if (languageSelect) {
+      languageSelect.value =
+        state.language.source === "explicit" ? state.language.language : "auto_detect";
+      languageSelect.disabled = state.status === "applying";
+    }
+    const retry = this.panel.querySelector<HTMLButtonElement>('[data-action="retry"]');
+    if (retry) retry.disabled = state.status === "applying";
     this.panel.dataset.spelling = state.status === "ready" ? state.spelling : "idle";
     this.notesState = state;
     this.renderNotes(state);
@@ -771,6 +810,7 @@ export class ReviewUi {
     const done =
       !rewriting &&
       state.status === "ready" &&
+      state.checking === "checked" &&
       !state.noRules &&
       !filtered &&
       state.diagnostics.length === 0;
@@ -1132,7 +1172,8 @@ export class ReviewUi {
       default:
         break;
     }
-    if (state.noRules && state.diagnostics.length === 0) return this.t("review_status_no_rules");
+    if (state.noRules && state.checking === "inactive" && state.diagnostics.length === 0)
+      return this.t("review_status_no_rules");
     const notice = this.noticeText(state);
     const advice = state.diagnostics.filter((d) => d.category === "style").length;
     const count = state.diagnostics.length - advice;
@@ -1142,8 +1183,17 @@ export class ReviewUi {
     else if (state.resolvedCount > 0)
       summary = this.t("review_status_all_resolved", { count: state.resolvedCount });
     else summary = this.t("review_status_none");
+    if (count === 0 && state.checking !== "checked") {
+      summary = this.t(
+        state.checking === "checking" ? "review_status_loading" : "review_status_incomplete",
+      );
+    }
     // "All resolved" already reports the fixes; don't say it twice.
-    const redundant = count === 0 && state.ignoredCount === 0 && state.notice?.kind === "applied";
+    const redundant =
+      state.checking === "checked" &&
+      count === 0 &&
+      state.ignoredCount === 0 &&
+      state.notice?.kind === "applied";
     if (advice > 0) summary += ` ${this.t("review_status_advice", { count: advice })}`;
     return notice && !redundant ? `${notice} ${summary}` : summary;
   }
@@ -1190,6 +1240,15 @@ export class ReviewUi {
   private renderNotes(state: ReviewViewState): void {
     const lines: string[] = this.capabilityKeys.map((key) => this.t(key));
     if (state.status === "ready") {
+      lines.push(
+        this.t("review_language_status", {
+          language: state.language.language,
+          source: this.t(`review_language_${state.language.source}`),
+          resource: state.language.resource ?? this.t("review_language_unavailable"),
+        }),
+      );
+      if (state.language.resource && state.language.resource !== state.language.language)
+        lines.push(this.t("review_language_dictionary_fallback"));
       if (state.nativeGrammarDisabled) lines.push(this.t("review_status_grammar_off"));
       const skipped = state.coverage?.skipped ?? {};
       const protectedChars = (skipped.code ?? 0) + (skipped.structure ?? 0);
@@ -1199,10 +1258,16 @@ export class ReviewUi {
         lines.push(this.t("review_status_size_limit", { count: state.truncated }));
       if (state.unread > 0) lines.push(this.t("review_status_window", { count: state.unread }));
       if (state.spelling === "checking") lines.push(this.t("review_status_spelling_checking"));
+      if (state.spelling === "failed" || state.language.failure)
+        lines.push(this.t("review_status_resource_failed"));
       if (state.spelling === "unavailable") {
         lines.push(this.t("review_status_spelling_unavailable"));
       }
       if (state.spelling === "partial") lines.push(this.t("review_status_spelling_partial"));
+      if (skipped["language-uncertain"])
+        lines.push(
+          this.t("review_status_language_uncertain", { count: skipped["language-uncertain"] }),
+        );
       if (skipped["other-language"])
         lines.push(this.t("review_status_other_language", { count: skipped["other-language"] }));
       if ((state.coverage?.failedRules.length ?? 0) > 0)

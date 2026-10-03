@@ -259,3 +259,42 @@ describe("PresageHandler live review spelling", () => {
     }
   });
 });
+
+describe("Review dictionary compatibility with packaged resources", () => {
+  test("every shipped dictionary is available offline and English fallback preserves dialect words", async () => {
+    const handler = await createLiveHandler();
+    handler.setConfig(createLiveConfig([]));
+    const words: Record<string, string> = {
+      en_US: "the",
+      fr_FR: "bonjour",
+      hr_HR: "dobro",
+      es_ES: "hola",
+      el_GR: "καλημέρα",
+      sv_SE: "hej",
+      de_DE: "gut",
+      pl_PL: "dom",
+      pt_BR: "bom",
+      ar_SA: "كتاب",
+    };
+    for (const [lang, word] of Object.entries(words)) {
+      expect(handler.lookupSpelling(lang, [{ word, before: "" }])).toHaveLength(1);
+    }
+    const lookup = (lang: string) =>
+      handler.lookupSpelling(lang, [
+        { word: "recieve", before: "I " },
+        { word: "colour", before: "the " },
+        { word: "center", before: "the " },
+      ]);
+    expect(lookup("en_US")![0]).toContain("receive");
+    expect(lookup("en_GB")![0]).toEqual(["receive"]);
+    // No general suggestions under a variant fallback: an unknown word can be a valid dialect form.
+    expect(handler.lookupSpelling("en_GB", [{ word: "adress", before: "the " }])).toEqual([[]]);
+    expect(handler.lookupSpelling("en_US", [{ word: "adress", before: "the " }])![0]).toContain(
+      "address",
+    );
+    expect(lookup("en_GB")![0]).toContain("receive");
+    expect(lookup("en_GB")!.slice(1)).toEqual([null, null]);
+    expect(handler.lookupSpelling("ja", [{ word: "日本語", before: "" }])).toBeNull();
+    expect(handler.lookupSpelling("pt_PT", [{ word: "bom", before: "" }])).toBeNull();
+  });
+});
