@@ -54,10 +54,15 @@ export function additionalPronounAgreement(ctx: DetectContext): RawFinding[] {
   // numeral: "Part I is", "World War I") or a coordination ("Sam and I are") abstains.
   // A lowercase "i" is a variable as often as the pronoun; "i are" can only be the pronoun.
   const subjectI = (match: RegExpExecArray, before: string) =>
-    (match.groups!.subject === "i"
+    ((match.groups!.subject === "i"
       ? /^are$/i.test(match.groups!.verb)
       : match.groups!.subject === "I" && !/\p{Lu}[\p{L}.]*[ \t\u00a0]+$/u.test(before)) &&
-    !/\b(?:and|or|nor)[ \t\u00a0]+$/i.test(before);
+      !/\b(?:and|or|nor)[ \t\u00a0]+$/i.test(before)) ||
+    // "I hope he go away": a clause after a verb of thinking or saying (not "I suggest he go").
+    (/^(?:he|she|it)$/.test(match.groups!.subject) &&
+      /\b(?:hope|hoped|think|thought|guess|believe|believed|sure|glad|afraid)[ \t\u00a0]+$/i.test(
+        before,
+      ));
   for (const match of clauseMatches(ctx, pattern, subjectI)) {
     const { subject, verb, gap, next } = match.groups!;
     const pronoun = subject.toLowerCase();

@@ -5,6 +5,8 @@ import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 
 // english/wordFormSlots.ts and nearby slot fixes. All sentences are our own.
 const RULES = new Set([
+  "englishSubjectVerbAgreement",
+  "englishPronounVerbWhitelistAgreement",
   "englishNounNumber",
   "englishConfusedWords",
   "englishContextualCompounds",
@@ -47,6 +49,8 @@ test.each([
   ["IM not sure about it.", "I'm not sure about it."],
   ["The book your using is mine.", "The book you're using is mine."],
   ["I think your all set now.", "I think you're all set now."],
+  ["Have Omar booked the room?", "Has Omar booked the room?"],
+  ["I hope she go home early.", "I hope she goes home early."],
 ])("repairs %s", (input, expected) => {
   const found = scan(input);
   expect({ input, count: found.length }).toEqual({ input, count: 1 });
@@ -70,6 +74,9 @@ test.each([
   "Send me an IM later.",
   "This means of transport is old.",
   "I liked your writing.",
+  "Have Omar call me later.",
+  "I heard it rain all night.",
+  "I suggest he go now.",
   "Stop your whining now.",
   "It is no use your pretending.",
   "If your testing of it is done, tell me.",

@@ -293,7 +293,41 @@ function youAre(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+// "Have Mary bought a ticket?": a name takes has; "Have Tom report to me" is causative.
+const HAVE_NAME = `(?<target>have|haven['’]t)${S}(?<name>[A-Z][a-z]+)${S}(?<part>[a-z]+)${E}`;
+
+function haveName(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of frameMatches(ctx, HAVE_NAME)) {
+    const { target, name, part } = m.groups!;
+    if (!/^[A-Z][a-z]+$/.test(name) || englishWordInfo(name.toLowerCase())) continue;
+    if (!/^[A-Za-z]/.test(target) || ctx.dictionary.has(name.toLowerCase())) continue;
+    // At a question's start or after a wh-word.
+    if (
+      !afterBreak(ctx, m.index) &&
+      !/^(?:when|why|where|how|what|who)$/.test(wordBefore(ctx, m.index))
+    )
+      continue;
+    const read = englishWordInfo(part);
+    if (
+      !read?.verbs.some((v) => v.form === "participle") ||
+      read.verbs.some((v) => v.form === "base") ||
+      read.noun
+    )
+      continue;
+    push(
+      ctx,
+      findings,
+      { ruleId: "englishSubjectVerbAgreement", messageKey: "review_msg_subject_verb" },
+      m,
+      /n['’]t$/.test(target) ? `hasn${target.slice(-2)}` : "has",
+    );
+  }
+  return findings;
+}
+
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
+  { rules: ["englishSubjectVerbAgreement"], detect: english(haveName) },
   { rules: ["englishYourYouAre"], detect: english(youAre) },
   { rules: ["englishNounNumber"], detect: english(pluralSlots) },
   { rules: ["englishConfusedWords"], detect: english(confusedSlots) },

@@ -187,6 +187,13 @@ function perfectWithBase(ctx: DetectContext): RawFinding[] {
       )
         continue;
       if (subject && !afterBreak(ctx, m.index) && /^(?:have|has)/i.test(m[0])) continue;
+      // "Have Tom call me later.": with a name and no question mark, have is causative.
+      if (
+        subject &&
+        !SUBJECT_PRONOUN.test(subject.toLowerCase()) &&
+        !/^[^.!\n]*\?/.test(ctx.text.slice(m.index, m.index + 160))
+      )
+        continue;
       // "Have Tom and I done enough?": the question owns the participle.
       if (!plainWord(ctx, verb) || (/\bnot\b/.test(m[0]) && verb === "to")) continue;
       // "have to", "have been", "had better" are other constructions.
