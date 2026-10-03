@@ -130,10 +130,10 @@ function isLocalAi(diagnostic: ReviewDiagnostic): boolean {
   return diagnostic.ruleId === REVIEW_LOCAL_AI_CHECK;
 }
 
-/** A number in the UI language ("pr" is how the options page stores Portuguese). */
+/** A number in the UI language (a config code such as "de_DE" or a browser tag). */
 function formatNumber(value: number, lang: string, options: Intl.NumberFormatOptions): string {
   try {
-    return new Intl.NumberFormat(lang === "pr" ? "pt" : lang, options).format(value);
+    return new Intl.NumberFormat(lang.replace("_", "-"), options).format(value);
   } catch {
     return new Intl.NumberFormat("en", options).format(value);
   }

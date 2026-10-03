@@ -263,7 +263,8 @@ export function docsRangeRects(runs: readonly LocatedRun[], start: number, end: 
     if (from >= to) continue;
     const label = run.label;
     const rightToLeft = RTL_LETTER_REGEX.test(label);
-    if (rightToLeft && /\p{L}/u.test(label.replace(RTL_LETTERS, ""))) continue;
+    // U+0640 TATWEEL (kashida) is a Common-script letter inside Arabic words.
+    if (rightToLeft && /(?!ـ)\p{L}/u.test(label.replace(RTL_LETTERS, ""))) continue;
     const whole = measure(label, run.font);
     const share = (offset: number, edge: "start" | "end") => {
       const position = labelPosition(run, offset, edge);
