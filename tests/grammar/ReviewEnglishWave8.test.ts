@@ -81,6 +81,11 @@ test.each([
   ["We found many bug in the code.", "We found many bugs in the code."],
   ["A few week ago, we moved.", "A few weeks ago, we moved."],
   ["There are three kind of tests.", "There are three kinds of tests."],
+  // A coordinated object with I.
+  ["She sat down with Ben and I and talked.", "She sat down with Ben and me and talked."],
+  ["Call Rita or I if you need help.", "Call Rita or me if you need help."],
+  ["Please invite Lena and I.", "Please invite Lena and me."],
+  ["If you ask Omar and I, it works.", "If you ask Omar and me, it works."],
 ])("fixes %s", (input, expected) => {
   expect({ input, ...fixed(input) }).toEqual({ input, count: 1, text: expected });
 });
@@ -106,8 +111,18 @@ test.each([
   "We won a prize yesterday.",
   "Lots of rice is left.",
   "The team showed a lot of spark.",
+  "I think Tom and I should go.",
+  "Then came Tom and I.",
+  "When Kim and I arrived, we ate.",
+  "We need to monitor the server.",
+  "I want to partner with you.",
 ])("keeps %s", (input) => {
   expect({ input, found: scan(input).map((d) => d.original) }).toEqual({ input, found: [] });
+});
+
+test("to + a derived noun before an object is a warning without a fix", () => {
+  const found = scan("We need to priority the climate work.");
+  expect(found.map((d) => [d.original, d.alternatives.length])).toEqual([["to priority", 0]]);
 });
 
 test("a lot of + a lexicon count noun is an opt-in possible error", () => {

@@ -69,11 +69,13 @@ const TO_HEAD =
   /^(?:want|wants|wanted|need|needs|needed|have|has|had|able|try|tries|tried|trying|decide|decides|decided|supposed|ought|planned|like|going)$/;
 const TO_PATTERN = frame(`to(?<adverb>${SPACE}[a-z]+ly)?${SPACE}(?<verb>[A-Za-z]+)${WORD_END}`);
 const NEED_TO_PATTERN = frame(
-  `(?<head>need|needs|needed|needing|want|wants|wanted|wanting)${SPACE}(?<target>to${SPACE}(?<noun>[a-z]+))${WORD_END}`,
+  `(?<head>need|needs|needed|needing|want|wants|wanted|wanting|try|tries|tried|trying)${SPACE}(?<target>to${SPACE}(?<noun>[a-z]+))${WORD_END}`,
 );
 // Nouns the lexicon leaves out for length; their endings are never verb endings.
 const NOUN_ENDING = /(?:tion|sion|ness|ity|ance|ence|ship|ism)$/;
 const ADJECTIVE_ENDING = /(?:al|ic|ive|ous|ful|less|ary|ish|ian)$/;
+// Endings that only form nouns (with the noun-only reading checked): priority, developer.
+const DERIVED_NOUN = /(?:tion|sion|ness|ity|ance|ence|ship|ism|ment|[^e]er|or|ist)$/;
 
 function nextWord(ctx: DetectContext, end: number): string {
   return (
@@ -504,11 +506,24 @@ function needToNoun(ctx: DetectContext): RawFinding[] {
     if (toVerb && englishWordInfo(toVerb)?.verbs.some((v) => v.form === "base")) continue;
     // "to apologies" is a typo of the -ize verb (clauseSlots' toIesVerb).
     if (/ies$/.test(noun) && englishWordInfo(`${noun.slice(0, -3)}ize`)?.verbs.length) continue;
+    // A derived noun the dictionary lists as nothing else is no verb, whatever follows: "need
+    // to priority the work", "trying to developer a tool".
+    const read = englishWordInfo(noun);
+    const derived =
+      DERIVED_NOUN.test(noun) &&
+      !!read?.noun &&
+      !read.verbs.length &&
+      !read.adjective &&
+      !read.adverb;
     // "need to unit test it", "need to reposition the button": a compound or unlisted verb.
-    if (OBJECT_PRONOUN.test(next) || DETERMINER_WORD.test(next)) continue;
-    if (nextInfo?.verbs.some((v) => v.form === "base") && !nextInfo.adjective) continue;
-    // "want to proxy websockets": a noun right after reads as the object of a verb.
-    if (contentWord(next) && (!nextInfo || nextInfo.noun || nextInfo.plural)) continue;
+    // "want to proxy websockets": a noun right after reads as the object of a verb. After a
+    // derived noun these show a verb was meant, which only the writer knows: a warning.
+    const objectNext =
+      OBJECT_PRONOUN.test(next) ||
+      DETERMINER_WORD.test(next) ||
+      (!!nextInfo?.verbs.some((v) => v.form === "base") && !nextInfo.adjective) ||
+      (contentWord(next) && (!nextInfo || nextInfo.noun || nextInfo.plural));
+    if (objectNext && !derived) continue;
     // "need to override": the dictionary lists "overriding", so it is a verb too.
     if ([`${noun.replace(/e$/, "")}ing`, noun.replace(/e?$/, "ed")].some(englishWordInfo)) continue;
     const info = englishWordInfo(noun);
@@ -528,8 +543,8 @@ function needToNoun(ctx: DetectContext): RawFinding[] {
       ruleId: "englishAuxiliaryBaseVerb",
       messageKey: "review_msg_to_noun",
       range: { start, end },
-      alternatives: [`the ${original}`, original],
-      requiresChoice: true,
+      alternatives: objectNext ? [] : [`the ${original}`, original],
+      ...(objectNext ? { warningOnly: true as const } : { requiresChoice: true as const }),
       context: { start: match.index, end: Math.min(ctx.text.length, end + 32) },
     });
   }
