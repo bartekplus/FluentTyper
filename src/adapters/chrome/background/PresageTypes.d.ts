@@ -10,10 +10,13 @@ export interface Presage {
   predictWithProbability: () => {
     size: () => number;
     get: (i: number) => { prediction: string };
+    delete?: () => void;
   };
   config(key: string, value: string): void;
   /** The current value of a setting. */
   config(key: string): string;
+  /** Frees the native instance; Embind objects are not garbage collected. */
+  delete?: () => void;
 }
 
 export interface PresageModule {

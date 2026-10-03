@@ -1,5 +1,13 @@
 import { readQuill, applyQuill } from "./QuillEditor";
 import {
+  readGutenberg,
+  applyGutenberg,
+  gutenbergBlockContext,
+  replaceGutenbergBlock,
+  setGutenbergComposing,
+} from "./GutenbergEditor";
+import { isGutenbergField } from "./GutenbergEnvironment";
+import {
   observeProseMirror,
   setProseMirrorObservationEnabled,
   readProseMirror,
@@ -30,9 +38,9 @@ import type { TinyMCEReplacement } from "./HostEditorPageBridge";
 
 type BridgeRequest =
   | ({ action: "applyTinyMCE" } & TinyMCEReplacement)
-  | { action: "readProseMirror" | "readQuill" }
+  | { action: "readProseMirror" | "readQuill" | "readGutenberg" | "readGutenbergSelection" }
   | {
-      action: "applyProseMirror" | "applyQuill";
+      action: "applyProseMirror" | "applyQuill" | "applyGutenberg";
       edits: ReviewEdit[];
       before: string;
       after: string;
@@ -552,6 +560,10 @@ export function installHostEditorMainWorldBridge(doc: Document = document): void
   let enabled = false;
   const observe = (event: Event) => {
     const source = event.composedPath()[0];
+    if (source instanceof HTMLElement && isGutenbergField(source)) {
+      if (event.type === "compositionstart" || event.type === "compositionend")
+        setGutenbergComposing(source, event.type === "compositionstart");
+    }
     const root = source instanceof Element ? source.closest<HTMLElement>(".ProseMirror") : null;
     if (root) observeProseMirror(root);
   };
@@ -559,7 +571,15 @@ export function installHostEditorMainWorldBridge(doc: Document = document): void
     const root = doc.activeElement?.closest<HTMLElement>(".ProseMirror");
     if (root) observeProseMirror(root);
   };
-  const names = ["focus", "keydown", "pointerdown", "beforeinput", "input"];
+  const names = [
+    "focus",
+    "keydown",
+    "pointerdown",
+    "beforeinput",
+    "input",
+    "compositionstart",
+    "compositionend",
+  ];
   doc.addEventListener(HOST_EDITOR_ENABLED_EVENT, () => {
     const next = doc.documentElement.getAttribute(HOST_EDITOR_ENABLED_ATTR) === "true";
     if (next === enabled) return;
@@ -623,7 +643,17 @@ export function installHostEditorMainWorldBridge(doc: Document = document): void
         observeProseMirror(source);
         const controller = findLineEditorController(source);
         const ckEditor = controller ? null : findCKEditor5Instance(source);
-        if (request.action === "applyTinyMCE") {
+        if (request.action === "readGutenberg" || request.action === "readGutenbergSelection") {
+          const snapshot = readGutenberg(source, request.action === "readGutenbergSelection");
+          if (snapshot) response = { ok: true, snapshot };
+        } else if (request.action === "applyGutenberg") {
+          response = { ok: true, reviewResult: applyGutenberg(source, request) };
+        } else if (request.action === "getBlockContext" && isGutenbergField(source)) {
+          const blockContext = gutenbergBlockContext(source);
+          if (blockContext) response = { ok: true, blockContext };
+        } else if (request.action === "applyBlockReplacement" && isGutenbergField(source)) {
+          response = { ok: true, result: replaceGutenbergBlock(source, request) };
+        } else if (request.action === "applyTinyMCE") {
           response = { ok: true, result: applyTinyMCE(source, request) };
         } else if (request.action === "readQuill") {
           const snapshot = readQuill(source);

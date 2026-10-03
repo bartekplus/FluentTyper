@@ -2028,3 +2028,344 @@ describe("German wave 10 frames", () => {
     expect(findings(ruleId, input)).toEqual([]);
   });
 });
+
+describe("German wave 11 frames", () => {
+  test.each([
+    [
+      "germanNounCasing",
+      "Wir halten durch Dick und dünn zusammen.",
+      "Wir halten durch dick und dünn zusammen.",
+    ],
+    [
+      "germanNounCasing",
+      "Über Kurz oder lang ziehen wir um.",
+      "Über kurz oder lang ziehen wir um.",
+    ],
+    ["germanNounCasing", "Gäste kamen von Nah und Fern.", "Gäste kamen von nah und fern."],
+    [
+      "germanNounCasing",
+      "Sie hat sich sorgen um ihn gemacht.",
+      "Sie hat sich Sorgen um ihn gemacht.",
+    ],
+    [
+      "germanNounCasing",
+      "Im Kurs wurden viele fragen gestellt.",
+      "Im Kurs wurden viele Fragen gestellt.",
+    ],
+    ["germanNounCasing", "Gibt es bedarf an Stühlen?", "Gibt es Bedarf an Stühlen?"],
+    ["germanNounCasing", "Auf dem hinweg regnete es.", "Auf dem Hinweg regnete es."],
+    [
+      "germanNounCasing",
+      "Nach seinem aus bei Bayern wechselte er.",
+      "Nach seinem Aus bei Bayern wechselte er.",
+    ],
+    ["germanNounCasing", "Die Farbe grün beruhigt.", "Die Farbe Grün beruhigt."],
+    [
+      "germanNounCasing",
+      "Er verspricht ihr das blaue vom Himmel.",
+      "Er verspricht ihr das Blaue vom Himmel.",
+    ],
+    ["germanNounCasing", "Ihm sollte Angst und Bange sein.", "Ihm sollte angst und bange sein."],
+    [
+      "germanNounCasing",
+      "Sie hat ihm angst und bange gemacht.",
+      "Sie hat ihm Angst und Bange gemacht.",
+    ],
+    [
+      "germanNounCasing",
+      "Das Dreieck hat einen Rechten Winkel.",
+      "Das Dreieck hat einen rechten Winkel.",
+    ],
+    ["germanNounCasing", "Der Geschmack des Grünen Tees.", "Der Geschmack des grünen Tees."],
+    ["germanNounCasing", "Ich bin euch Allen dankbar.", "Ich bin euch allen dankbar."],
+    ["germanNounCasing", "Hier ist Alles dabei.", "Hier ist alles dabei."],
+    ["germanConfusedWords", "Der Lärm ging uns auf dem Keks.", "Der Lärm ging uns auf den Keks."],
+    ["germanConfusedWords", "Sie erstarrte zur Salzkeule.", "Sie erstarrte zur Salzsäule."],
+    [
+      "germanConfusedWords",
+      "Die Stürmer wollen Tore scheißen.",
+      "Die Stürmer wollen Tore schießen.",
+    ],
+    ["germanConfusedWords", "Er redet ohne Punk und Komma.", "Er redet ohne Punkt und Komma."],
+    ["germanConfusedWords", "Ich weis nicht, wo er ist.", "Ich weiß nicht, wo er ist."],
+    ["germanConfusedWords", "Weiß du, wann der Zug fährt?", "Weißt du, wann der Zug fährt?"],
+    ["germanConfusedWords", "Der Ausgang ist hinten link.", "Der Ausgang ist hinten links."],
+    [
+      "germanConfusedWords",
+      "Er kauft sowohl Brot sowie auch Käse.",
+      "Er kauft sowohl Brot als auch Käse.",
+    ],
+    [
+      "germanConfusedWords",
+      "Die Retter sind seit Stunden in Einsatz.",
+      "Die Retter sind seit Stunden im Einsatz.",
+    ],
+    ["germanConfusedWords", "Wir trafen uns auf halben Weg.", "Wir trafen uns auf halbem Weg."],
+    [
+      "germanConfusedWords",
+      "Ich fliege nach Vereinigte Staaten.",
+      "Ich fliege in die Vereinigten Staaten.",
+    ],
+    ["germanCommas", "Du hast heute frei oder?", "Du hast heute frei, oder?"],
+    ["germanCommas", "Wir sehen uns später nicht wahr?", "Wir sehen uns später, nicht wahr?"],
+    ["germanCommas", "Der Plan ist glaube ich gut.", "Der Plan ist, glaube ich, gut."],
+    [
+      "germanCommas",
+      "Das Spiel war teils spannend teils lang.",
+      "Das Spiel war teils spannend, teils lang.",
+    ],
+    [
+      "germanCommas",
+      "Je länger ich warte desto nervöser werde ich.",
+      "Je länger ich warte, desto nervöser werde ich.",
+    ],
+    ["germanCommas", "So weit so gut.", "So weit, so gut."],
+    [
+      "germanCompounds",
+      "Wir haben es acht hundertmal versucht.",
+      "Wir haben es achthundertmal versucht.",
+    ],
+    [
+      "germanCompounds",
+      "Er versuchte, es hinunter zu ziehen.",
+      "Er versuchte, es hinunterzuziehen.",
+    ],
+    ["germanAdjectiveForms", "Sehen Sie den Beamter dort?", "Sehen Sie den Beamten dort?"],
+    [
+      "germanAdjectiveForms",
+      "Ein Zollbeamte kontrollierte uns.",
+      "Ein Zollbeamter kontrollierte uns.",
+    ],
+    [
+      "germanTypography",
+      "Das Stadion fasst 250000 Menschen.",
+      "Das Stadion fasst 250.000 Menschen.",
+    ],
+    [
+      "englishPhraseCorrections",
+      "Wir haben alle Mitgliederinnen informiert.",
+      "Wir haben alle Mitglieder informiert.",
+    ],
+  ] as Array<[CatalogRuleId, string, string]>)("%s repairs %p", (ruleId, input, output) => {
+    expect(fixed(ruleId, input)).toBe(output);
+    expect(findings(ruleId, output)).toEqual([]);
+  });
+  test.each([
+    ["germanNounCasing", "Sie sorgen sich um die Kinder."],
+    ["germanNounCasing", "Die Eltern sorgen für Ruhe und haben Zeit."],
+    ["germanNounCasing", "Der Text bedarf einer Kürzung."],
+    ["germanNounCasing", "Er sah über den Zaun hinweg."],
+    ["germanNounCasing", "Er richtet sich nach dem aus, was sie sagt."],
+    ["germanNounCasing", "Die Farbe ist grün."],
+    ["germanNounCasing", "Sie ist mein Ein und Alles."],
+    ["germanNounCasing", "Es war Allen Moyer."],
+    ["germanNounCasing", "Fazit: Alles gut."],
+    ["germanConfusedWords", "Der Fokus liegt auf dem Geist der Zeit."],
+    ["germanConfusedWords", "Das macht er mir weis."],
+    ["germanConfusedWords", "Ich weiß du kommst morgen."],
+    ["germanConfusedWords", "Herr Weis kommt morgen."],
+    ["germanConfusedWords", "Die Band spielt Punk für Fans."],
+    ["germanConfusedWords", "Sie ging auf halben Wegen zurück."],
+    ["germanConfusedWords", "Er lebt in den Vereinigten Staaten."],
+    ["germanCommas", "Ist das nicht wahr?"],
+    ["germanCommas", "Das ist nicht wahr?"],
+    ["germanCommas", "Willst du Tee oder Kaffee?"],
+    ["germanCommas", "Er ist, glaube ich, krank."],
+    ["germanCommas", "Einerseits gut und andererseits schlecht."],
+    ["germanCommas", "Sie standen zwischen Büchern einerseits und Heften andererseits."],
+    ["germanCommas", "Das ist halb so schlimm."],
+    ["germanCompounds", "Er ist ein tausendmal besserer Spieler."],
+    ["germanAdjectiveForms", "Wir sprachen mit dem netten Beamten."],
+    ["germanAdjectiveForms", "Ein Beamter kam."],
+    ["germanTypography", "Sie wohnt in 10115 Berlin."],
+    ["germanTypography", "Die Stadt hat 85000 Einwohner."],
+    ["germanTypography", "Ihre Kundennummer lautet 4711123."],
+  ] as Array<[CatalogRuleId, string]>)("%s leaves %p alone", (ruleId, input) => {
+    expect(findings(ruleId, input)).toEqual([]);
+  });
+});
+
+describe("German wave 11 recommended spellings", () => {
+  test.each([
+    ["Er war tiefbetrübt.", "Er war tief betrübt."],
+    ["Der Träger ist aus nichtrostendem Stahl.", "Der Träger ist aus nicht rostendem Stahl."],
+    ["Es war ein wohl erzogenes Kind.", "Es war ein wohlerzogenes Kind."],
+    ["Sie hatte wirklich Recht.", "Sie hatte wirklich recht."],
+    ["Er gab ihm Recht.", "Er gab ihm recht."],
+    ["Er bleibt bis auf weiteres hier.", "Er bleibt bis auf Weiteres hier."],
+  ])("germanRecommendedSpelling repairs %p", (input, output) => {
+    expect(fixed("germanRecommendedSpelling", input)).toBe(output);
+  });
+  test.each([
+    "Er ist wohl erzogen worden.",
+    "Er hat das Recht, zu schweigen.",
+    "Sie hat Recht auf Urlaub.",
+    "Das Haus steht frei.",
+  ])("germanRecommendedSpelling leaves %p alone", (input) => {
+    expect(findings("germanRecommendedSpelling", input)).toEqual([]);
+  });
+  test("germanNounCasing reads ihr before Recht as the possessive", () => {
+    expect(findings("germanNounCasing", "Sie kennt ihr Recht.")).toEqual([]);
+  });
+});
+
+describe("German wave 11 nouns, adverbs and conjunctions", () => {
+  test.each([
+    ["germanConfusedWords", "Das Projekt lauft richtig gut.", "Das Projekt läuft richtig gut."],
+    ["germanConfusedWords", "War die Tür verschossen?", "War die Tür verschlossen?"],
+    [
+      "germanConfusedWords",
+      "Die Firmen schossen sich zusammen.",
+      "Die Firmen schlossen sich zusammen.",
+    ],
+    [
+      "germanConfusedWords",
+      "Nach dem der Regen aufgehört hatte, gingen wir los.",
+      "Nachdem der Regen aufgehört hatte, gingen wir los.",
+    ],
+    [
+      "germanConfusedWords",
+      "Er sah Felder, soweit das Auge reicht.",
+      "Er sah Felder, so weit das Auge reicht.",
+    ],
+    ["germanConfusedWords", "Es ist soweit.", "Es ist so weit."],
+    [
+      "germanConfusedWords",
+      "Wir fangen sobald wie möglich an.",
+      "Wir fangen so bald wie möglich an.",
+    ],
+    [
+      "germanNounCasing",
+      "Sie hat zwei Kinder aus erster ehe.",
+      "Sie hat zwei Kinder aus erster Ehe.",
+    ],
+    ["germanNounCasing", "Es ist kein wunder.", "Es ist kein Wunder."],
+    [
+      "germanNounCasing",
+      "Der Laden hat Montags geschlossen.",
+      "Der Laden hat montags geschlossen.",
+    ],
+    ["germanNounCasing", "Eines dienstags kam er.", "Eines Dienstags kam er."],
+    [
+      "germanNounCasing",
+      "Ich werde im folgenden die Ursachen nennen.",
+      "Ich werde im Folgenden die Ursachen nennen.",
+    ],
+  ] as Array<[CatalogRuleId, string, string]>)("%s repairs %p", (ruleId, input, output) => {
+    expect(fixed(ruleId, input)).toBe(output);
+    expect(findings(ruleId, output)).toEqual([]);
+  });
+  test.each([
+    ["germanConfusedWords", "Ihr lauft zu langsam."],
+    ["germanConfusedWords", "Kinder, lauft!"],
+    ["germanConfusedWords", "Er hat den Elfmeter verschossen."],
+    ["germanConfusedWords", "Das ist das Buch, nach dem die Kinder fragten."],
+    ["germanConfusedWords", "Soweit ich weiß, kommt er."],
+    ["germanConfusedWords", "Sobald er kommt, essen wir."],
+    ["germanCommas", "Wir fangen so bald wie möglich an."],
+    ["germanNounCasing", "Wir aßen, ehe die Gäste kamen."],
+    ["germanNounCasing", "Er hält sich für wunder was."],
+    ["germanNounCasing", "Das ist ein wunder Punkt."],
+    ["germanNounCasing", "Eines Montags kam er."],
+    ["germanNounCasing", "Im folgenden Kapitel lesen wir mehr."],
+    ["germanNounCasing", "Er ist im allgemeinen guten Zustand."],
+  ] as Array<[CatalogRuleId, string]>)("%s leaves %p alone", (ruleId, input) => {
+    expect(findings(ruleId, input)).toEqual([]);
+  });
+});
+
+describe("German wave 11 look-alike words in their frames", () => {
+  test.each([
+    ["germanConfusedWords", "Das kann doch nicht seien.", "Das kann doch nicht sein."],
+    [
+      "germanConfusedWords",
+      "Der Traum kann schnell war werden.",
+      "Der Traum kann schnell wahr werden.",
+    ],
+    ["germanConfusedWords", "Er gibt zu fiel Geld aus.", "Er gibt zu viel Geld aus."],
+    ["germanConfusedWords", "Er starte ins Leere.", "Er starrte ins Leere."],
+    ["germanConfusedWords", "Das bin ich so gewöhnt.", "Das bin ich so gewohnt."],
+    ["germanConfusedWords", "Deine Iden sind gut.", "Deine Ideen sind gut."],
+    ["germanConfusedWords", "Wir tranken ein Glas Champagne.", "Wir tranken ein Glas Champagner."],
+    [
+      "germanConfusedWords",
+      "Die Kugelschreibermiene ist leer.",
+      "Die Kugelschreibermine ist leer.",
+    ],
+    [
+      "germanConfusedWords",
+      "Dagegen bestehen ethnische Bedenken.",
+      "Dagegen bestehen ethische Bedenken.",
+    ],
+    ["germanConfusedWords", "Die Sache hat nur einen Hacken.", "Die Sache hat nur einen Haken."],
+    ["germanConfusedWords", "Hans lies die Tür offen.", "Hans ließ die Tür offen."],
+    ["germanConfusedWords", "Nach am selben Tag kam er.", "Noch am selben Tag kam er."],
+    [
+      "germanConfusedWords",
+      "Ich ging, weil sei die Antwort wusste.",
+      "Ich ging, weil sie die Antwort wusste.",
+    ],
+    [
+      "germanConfusedWords",
+      "Das Gesetz ist strickt einzuhalten.",
+      "Das Gesetz ist strikt einzuhalten.",
+    ],
+    ["germanConfusedWords", "Ich muss mich jetzt spurten!", "Ich muss mich jetzt sputen!"],
+    [
+      "germanConfusedWords",
+      "Von Berlin ach München fährt der Zug.",
+      "Von Berlin nach München fährt der Zug.",
+    ],
+    ["germanConfusedWords", "Weit und bereit war niemand.", "Weit und breit war niemand."],
+    ["germanConfusedWords", "Er hat soviel gewonnen.", "Er hat so viel gewonnen."],
+    ["germanConfusedWords", "Es geht steil Berg ab.", "Es geht steil bergab."],
+    ["germanConfusedWords", "Wir feiern den 80gsten Geburtstag.", "Wir feiern den 80. Geburtstag."],
+    ["germanConfusedWords", "Die beide Brüder kamen.", "Die beiden Brüder kamen."],
+    ["germanConfusedWords", "Er wollte sich bei im bedanken.", "Er wollte sich bei ihm bedanken."],
+    [
+      "germanConfusedWords",
+      "Das ist eine Fehler Hafte Abbuchung.",
+      "Das ist eine fehlerhafte Abbuchung.",
+    ],
+    ["germanCommas", "Hallo wie geht es euch?", "Hallo, wie geht es euch?"],
+  ] as Array<[CatalogRuleId, string, string]>)("%s repairs %p", (ruleId, input, output) => {
+    expect(fixed(ruleId, input)).toBe(output);
+    expect(findings(ruleId, output)).toEqual([]);
+  });
+  test.each([
+    ["germanConfusedWords", "Ich bin an die Kälte gewöhnt."],
+    ["germanConfusedWords", "Bitte lies den Text."],
+    ["germanConfusedWords", "Sie strickte einen Schal."],
+    ["germanConfusedWords", "Die Feuerwehr ist ausgerückt."],
+    ["germanConfusedWords", "Soviel ich weiß, kommt er."],
+    ["germanConfusedWords", "Der Name heißt soviel wie Esche."],
+    ["germanConfusedWords", "Er hatte zwei Söhne, die beide Lehrer wurden."],
+    ["germanConfusedWords", "Er ist im zu kleinen Zimmer."],
+    ["germanConfusedWords", "Er bekam fünf Jahre Haft."],
+    ["germanConfusedWords", "Er weiß, dass es so war."],
+    ["germanCommas", "Hallo ihr beiden, kommt rein."],
+  ] as Array<[CatalogRuleId, string]>)("%s leaves %p alone", (ruleId, input) => {
+    expect(findings(ruleId, input)).toEqual([]);
+  });
+});
+
+// A lowercase month name in an impossible date gets the date finding and the casing finding.
+describe("German wave 11 lowercase month dates", () => {
+  const rules = (text: string) =>
+    scan(text, { enabledRules: ["germanDates", "englishProperNounCapitalization"], lang: "de_DE" })
+      .map((d) => d.ruleId)
+      .sort();
+  test.each([
+    "Wir treffen uns am 31. april 2020 im Büro.",
+    "Die Frist endet am 30. februar.",
+    "Er kam am 31. juni 2019 zurück.",
+  ])("%p gets both findings", (text) => {
+    expect(rules(text)).toEqual(["englishProperNounCapitalization", "germanDates"]);
+  });
+  test.each(["Wir treffen uns am 30. april 2020 im Büro.", "Kapitel 31. april ist kein Datum."])(
+    "%p gets no date finding",
+    (text) => {
+      expect(rules(text)).not.toContain("germanDates");
+    },
+  );
+});

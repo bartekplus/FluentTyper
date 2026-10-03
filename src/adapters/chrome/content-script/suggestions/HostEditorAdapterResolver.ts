@@ -33,9 +33,7 @@ export interface HostEditorSession {
 type BlockReplacementArgs = Parameters<HostEditorSession["applyBlockReplacement"]>[0];
 
 export class HostEditorAdapterResolver {
-  constructor(
-    private readonly pageBridge: HostEditorPageBridge = new InjectedHostEditorPageBridge(),
-  ) {}
+  constructor(private readonly pageBridge?: HostEditorPageBridge) {}
 
   public resolve(elem: HTMLElement): HostEditorSession | null {
     if (!elem.isContentEditable) {
@@ -52,11 +50,12 @@ export class HostEditorAdapterResolver {
         TextTargetAdapter.findBackingTextValueTarget(elem),
       );
     }
-    const bridgedBlockContext = this.pageBridge.getBlockContextAtSelection(elem);
+    const pageBridge = this.pageBridge ?? new InjectedHostEditorPageBridge(elem.ownerDocument);
+    const bridgedBlockContext = pageBridge.getBlockContextAtSelection(elem);
     return bridgedBlockContext
       ? new BridgedLineEditorHostSession(
           elem,
-          this.pageBridge,
+          pageBridge,
           bridgedBlockContext.blockText,
           TextTargetAdapter.findBackingTextValueTarget(elem),
         )
