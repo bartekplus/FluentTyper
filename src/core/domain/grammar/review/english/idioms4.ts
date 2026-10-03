@@ -2,11 +2,15 @@ import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
 import type { CatalogRuleId } from "../../ruleCatalog";
 import type { PhraseRow } from "../englishPhraseTables";
-import { frameMatches, hasUserOrCasedWord, SPACE, WORD_END } from "../phraseTemplates";
+import {
+  frameMatches,
+  hasUserOrCasedWord,
+  isLang,
+  SPACE as S,
+  WORD_END as E,
+} from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
-
-const S = SPACE;
-const E = WORD_END;
+import { finding } from "../finding";
 
 /** One row per pair: `~` stands for the pair's first word in typed forms, its second in replacements. */
 const forms = (
@@ -593,17 +597,15 @@ function detectFrames(ctx: DetectContext, frames: readonly Frame[]): RawFinding[
       if (value === null) continue;
       const style = detectWordCase(m.groups!.target.trim());
       const alternatives = [value].flat().map((alt) => (raw ? alt : applyWordCase(alt, style)));
-      findings.push({
-        ruleId: rule,
-        messageKey: MESSAGES[rule],
-        range: { start, end },
-        alternatives,
-        ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
-        context: {
-          start: Math.max(0, m.index - 40),
-          end: Math.min(ctx.text.length, m.index + m[0].length + 20),
-        },
-      });
+      findings.push(
+        finding(rule, MESSAGES[rule], start, end, alternatives, {
+          ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+          context: {
+            start: Math.max(0, m.index - 40),
+            end: Math.min(ctx.text.length, m.index + m[0].length + 20),
+          },
+        }),
+      );
     }
   }
   return findings;
@@ -612,5 +614,5 @@ function detectFrames(ctx: DetectContext, frames: readonly Frame[]): RawFinding[
 /** Context detectors appended to REVIEW_DETECTORS. */
 export const DETECTORS: readonly ReviewDetectorEntry[] = [...BY_RULE].map(([rule, frames]) => ({
   rules: [rule],
-  detect: (ctx) => (ctx.lang.startsWith("en") ? detectFrames(ctx, frames) : []),
+  detect: (ctx) => (isLang(ctx, "en") ? detectFrames(ctx, frames) : []),
 }));

@@ -1,7 +1,8 @@
 import { namedExampleBefore } from "./exampleCues";
 import { POLISH_SPLIT_WORDS } from "./polish";
-import { SPACE, WORD_START as EDGE_BEFORE } from "./phraseTemplates";
+import { SPACE, WORD_START as EDGE_BEFORE, isLang } from "./phraseTemplates";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
+import { carryCase } from "../implementations/helpers/GenericRuleShared";
 
 /**
  * Review-only extensions of English rules to the other supported languages.
@@ -10,12 +11,6 @@ import type { DetectContext, RawFinding } from "./reviewDetectors";
  */
 
 const EDGE_AFTER = "(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]|\\.[\\p{L}\\p{N}])";
-
-/** The replacement in the typed word's case: all capitals, or its leading capital. */
-function withLeadingCase(typed: string, replacement: string): string {
-  if (typed.length > 1 && typed === typed.toUpperCase()) return replacement.toUpperCase();
-  return /^\p{Lu}/u.test(typed) ? replacement[0].toUpperCase() + replacement.slice(1) : replacement;
-}
 
 function wordTable(entries: Record<string, string>): { regex: RegExp; map: Map<string, string> } {
   const map = new Map(Object.entries(entries));
@@ -111,7 +106,7 @@ export function doubledDegreeByLanguage(ctx: DetectContext): RawFinding[] {
       ruleId: "englishDoubledDegree",
       messageKey: "review_msg_doubled_degree",
       range: { start, end },
-      alternatives: [withLeadingCase(marker, word)],
+      alternatives: [carryCase(marker, word)],
       context: { start: Math.max(0, start - 64), end },
       bulkBlock: "context-dependent",
     });
@@ -248,7 +243,7 @@ export function splitWords(ctx: DetectContext): RawFinding[] {
       ruleId: "englishAlotCorrection",
       messageKey: "review_msg_split_words",
       range: { start: m.index, end: m.index + typed.length },
-      alternatives: [withLeadingCase(typed, replacement)],
+      alternatives: [carryCase(typed, replacement)],
       dictionaryWord: typed,
       bulkBlock: "context-dependent",
     });
@@ -285,7 +280,7 @@ function apostropheAt(ctx: DetectContext, index: number): string {
 
 /** "cest", "jai", "aujourdhui": a French elision missing its apostrophe. */
 export function frenchElisions(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "fr") return [];
+  if (!isLang(ctx, "fr")) return [];
   const findings: RawFinding[] = [];
   for (const m of ownedWords(ctx, FRENCH_ELISIONS.regex)) {
     const typed = m[0];
@@ -299,7 +294,7 @@ export function frenchElisions(ctx: DetectContext): RawFinding[] {
       ruleId: "englishContractionNormalization",
       messageKey: "review_msg_contraction",
       range: { start: m.index, end: m.index + typed.length },
-      alternatives: [withLeadingCase(typed, replacement)],
+      alternatives: [carryCase(typed, replacement)],
       bulkBlock: "context-dependent",
     });
   }
@@ -381,7 +376,7 @@ const AUGUST_CONTEXT =
 
 /** "am montag", "im märz": German days, months and holidays are nouns. */
 export function germanNounCapitals(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "de") return [];
+  if (!isLang(ctx, "de")) return [];
   const findings: RawFinding[] = [];
   for (const m of ownedWords(ctx, GERMAN_NOUNS)) {
     const typed = m[0];

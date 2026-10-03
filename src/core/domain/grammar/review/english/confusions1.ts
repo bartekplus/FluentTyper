@@ -1,9 +1,10 @@
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
 import type { PhraseRow } from "../englishPhraseTables";
-import { frameMatches, wordSet as set } from "../phraseTemplates";
+import { frameMatches, wordSet as set, isLang } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import type { ReviewMessageKey } from "../types";
+import { finding } from "../finding";
 
 // Lookalike words decided by their syntactic slot: "I thing" is a verb slot, "good advise" a
 // noun slot. Every frame reads at most a few words on each side of the target, within its block.
@@ -329,14 +330,10 @@ function make(
     return alt;
   });
   if (cased.includes(typed)) return null;
-  return {
-    ruleId: RULE,
-    messageKey,
-    range: { start, end },
-    alternatives: cased,
+  return finding(RULE, messageKey, start, end, cased, {
     ...(cased.length > 1 ? { requiresChoice: true as const } : {}),
     context: { start: Math.max(0, start - 80), end: Math.min(ctx.text.length, end + 80) },
-  };
+  });
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -1141,7 +1138,7 @@ function mentioned(ctx: Ctx, h: Hit): boolean {
 }
 
 function confusedWords(ctx: DetectContext): RawFinding[] {
-  if (!ctx.lang.startsWith("en")) return [];
+  if (!isLang(ctx, "en")) return [];
   const findings: RawFinding[] = [];
   for (const m of frameMatches(ctx, TARGET, (x) => x.index)) {
     const text = m[0];

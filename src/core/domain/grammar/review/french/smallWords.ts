@@ -14,6 +14,7 @@ import {
   wordFinding,
   type Token,
 } from "./frenchTokens";
+import { isLang } from "../phraseTemplates";
 
 // More sound-alike small words told apart by a neighbour: "il ni arrive pas" (n'y), "il si
 // prend bien" (s'y), "il sans va" (s'en), "mes je" (mais), "dans prendre" (d'en), "cela leurs
@@ -409,7 +410,7 @@ const HUNDREDS =
   /(?<![\p{L}\p{M}\p{N}_'’-])(?<times>\p{L}+)[ \t-]+(?<unit>cents?|vingts?)(?![\p{L}\p{M}\p{N}_'’])/giu;
 
 function smallWords(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "fr") return [];
+  if (!isLang(ctx, "fr")) return [];
   const findings: RawFinding[] = [];
   for (const [pattern, check] of [
     [SMALL, smallWord],

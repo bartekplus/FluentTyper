@@ -23,10 +23,12 @@ import {
   SUBJECT_PRONOUNS,
   tokensAfter,
   tokensBefore,
-  withCase,
   wordFinding,
   type Token,
 } from "./frenchTokens";
+import { finding } from "../finding";
+import { carryCase } from "../../implementations/helpers/GenericRuleShared";
+import { isLang } from "../phraseTemplates";
 
 // Small words that sound alike (a/à, ou/où, ce/se, sa/ça, sûr/sur, son/sont, du/dû, on/ont, ma/m'a)
 // told apart by the words around them. Fixed frames that need no context are phrase rows
@@ -798,7 +800,7 @@ function cToS(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
       (nounGender(noun.w.slice(0, -1)) || isInflectedNoun(noun.w.slice(0, -1))) &&
       plainVerb(verb.w, (r) => isFinite(r) && ((r.slot as number) & ILS) > 0)
     )
-      return wordFinding(ctx, m.index, m[0], [withCase(m[0], "ces")], RULE, MESSAGE, {
+      return wordFinding(ctx, m.index, m[0], [carryCase(m[0], "ces")], RULE, MESSAGE, {
         start: m.index,
         end: verb.end,
       });
@@ -1200,13 +1202,9 @@ function hyphenLa(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     return null;
   if (namedExampleBefore(ctx.text, m.index)) return null;
   const typed = ctx.text.slice(m.index, start + 2);
-  return {
-    ruleId: RULE,
-    messageKey: MESSAGE,
-    range: { start: m.index, end: start + 2 },
-    alternatives: [`-${withCase(typed.slice(-2), "là")}`],
+  return finding(RULE, MESSAGE, m.index, start + 2, [`-${carryCase(typed.slice(-2), "là")}`], {
     context: { start: head.start, end: start + 2 },
-  };
+  });
 }
 const HYPHEN_LA = /(?<=\p{L})(?:-|[ \t])la(?![\p{L}\p{M}\p{N}_'’-])/gu;
 
@@ -1375,15 +1373,12 @@ function anToAnnee(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   if (masculine) feminine = inflect(masculine, plural ? "fp" : "fs")[0];
   else if (EPICENE_ADJECTIVE.test(adj) && /s$/.test(adj) === plural) feminine = adj;
   if (!feminine) return null;
-  const typedDet = withCase(det, AN_DETERMINERS[lowerDet]);
+  const typedDet = carryCase(det, AN_DETERMINERS[lowerDet]);
   const space = lowerDet === "l'" ? "" : " ";
   const noun = plural ? "années" : "année";
-  return {
-    ruleId: RULE,
-    messageKey: "review_msg_contextual_grammar",
-    range: { start: m.index, end: m.index + m[0].length },
-    alternatives: [`${typedDet}${space}${noun} ${feminine}`],
-  };
+  return finding(RULE, "review_msg_contextual_grammar", m.index, m.index + m[0].length, [
+    `${typedDet}${space}${noun} ${feminine}`,
+  ]);
 }
 const AN_ADJECTIVE =
   /(?<![\p{L}\p{M}\p{N}_'’-])(?<det>un|[lL]['’]|cet|les|des|mes|ces|nos|vos|ses|Un|Les|Mes|Ces)[ \t]{0,8}(?<=['’]|[ \t])(?<an>ans?)[ \t]{1,8}(?<adj>\p{Ll}+)(?![\p{L}\p{M}\p{N}_'’-])/gu;
@@ -1622,7 +1617,7 @@ const CANDIDATE =
   /(?<![\p{L}\p{M}\p{N}_'’-])(?:à|a|A|ou|Ou|où|sûre?s?|sure?s?|[cC]e|[sS]e|[sS]['’](?:est|était)|[sS]a|ma|ta|la|sont|son|on|non|[pP]eut|[pP]eux|[qQ]uant|[qQ]uand|du|[oO]nt|[pP]rés|guerres?)(?![\p{L}\p{M}\p{N}_'’])/gu;
 
 function homophones(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "fr") return [];
+  if (!isLang(ctx, "fr")) return [];
   const findings: RawFinding[] = [];
   for (const m of ownedFrenchWords(ctx, CANDIDATE)) {
     const word = m[0];

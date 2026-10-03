@@ -101,13 +101,6 @@ export function bloom(keys: readonly string[], bitsPerKey: number, hashes?: numb
   return filter;
 }
 
-/** Whether the Bloom filter `filter` (see bloom) answers yes for `key`. */
-export function bloomHas(filter: string, key: string, hashes?: number): boolean {
-  return bloomBits(key, filter.length * 6, hashes).every(
-    (bit) => (BLOOM_ALPHABET.indexOf(filter[(bit / 6) | 0]) >> (bit % 6)) & 1,
-  );
-}
-
 /* ------------------------------------------------------------ n-gram model */
 
 // A minimal reader for the marisa-trie file Presage loads: it walks the LOUDS tree in order and

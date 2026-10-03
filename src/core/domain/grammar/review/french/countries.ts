@@ -1,6 +1,7 @@
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { verbReadings } from "./frenchLexicon";
 import { ownedFrenchWords, tokensBefore, wordFinding } from "./frenchTokens";
+import { isLang } from "../phraseTemplates";
 
 // "Je vais au France" -> "en France", "il vit en Portugal" -> "au Portugal": a country takes
 // "en" when feminine or vowel-initial, "au" when masculine, "aux" when plural, and "à" when it
@@ -77,7 +78,7 @@ function countryPreposition(ctx: DetectContext, m: RegExpExecArray): RawFinding 
 }
 
 function countries(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "fr") return [];
+  if (!isLang(ctx, "fr")) return [];
   const findings: RawFinding[] = [];
   for (const m of ownedFrenchWords(ctx, PATTERN)) {
     const finding = countryPreposition(ctx, m);

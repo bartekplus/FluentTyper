@@ -1,27 +1,7 @@
-import { requiredLiteral, wordSet } from "../phraseTemplates";
+import { wordSet, isLang } from "../phraseTemplates";
 import type { DetectContext } from "../reviewDetectors";
 
-export const isGerman = (ctx: DetectContext) => ctx.lang.slice(0, 2) === "de";
-
-const LITERALS = new Map<RegExp, string>();
-const SCANNED = new WeakMap<DetectContext, string>();
-/**
- * False when the chunk's scan lacks a word every match of `regex` consumes, so the frame need
- * not run: frames that open with a lookbehind would otherwise try it at every position, which
- * is slow without the regex JIT.
- */
-export function mayRun(ctx: DetectContext, regex: RegExp): boolean {
-  let literal = LITERALS.get(regex);
-  if (literal === undefined) {
-    LITERALS.set(regex, (literal = requiredLiteral(regex.source).toLowerCase()));
-  }
-  if (literal.length < 3) return true;
-  let scanned = SCANNED.get(ctx);
-  if (scanned === undefined) {
-    SCANNED.set(ctx, (scanned = ctx.scanText.slice(Math.max(0, ctx.from - 256)).toLowerCase()));
-  }
-  return scanned.includes(literal);
-}
+export const isGerman = (ctx: DetectContext) => isLang(ctx, "de");
 
 export { wordSet };
 

@@ -1,8 +1,9 @@
 import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
-import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
+import { frameMatches, isLang, SPACE as S, WORD_END as W } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { FORM_ROWS, NOT_SUBJECT, NOT_VERBS } from "./agreement";
 import { firstPersonStem, IRREGULAR_STEM, verbStems } from "./subjunctive";
+import { SENTENCE_START } from "./nounAgreement";
 
 /**
  * A regular verb in the person of its pronoun subject, in the present, imperfect and preterite:
@@ -12,9 +13,6 @@ import { firstPersonStem, IRREGULAR_STEM, verbStems } from "./subjunctive";
  * different persons stays alone, and so does the first person singular after a third-person
  * pronoun ("ele trabalho" may be the noun).
  */
-
-const S = SPACE;
-const W = WORD_END;
 
 type Person = "1s" | "2s" | "3s" | "1p" | "3p";
 type Conjugation = "ar" | "er" | "ir";
@@ -148,7 +146,6 @@ function namesCapitalized(subject: string): boolean {
 // "e eu" belongs to WE_SUBJECT; "em nós", "estes nós" (knots), "mais do que eu" are no subject.
 const NOT_PRONOUN_SUBJECT =
   /(?:(?:^|[^\p{L}])(?:e|em|estes|estas|esses|essas|aqueles|aquelas|dos|pelos|seus|meus|nossos|vários|muitos)|(?:do|mais|menos|melhor|pior|maior|menor|tanto|tão)[ \t ]+que)[ \t ]+$/iu;
-const CLAUSE_START = /(?:^|[.!?;:\n]["'”’»)]*)[ \t ]*["'“‘«(]?[ \t ]*$/u;
 
 // A noun-phrase subject opening the sentence, with a prepositional phrase before its verb:
 // "As crianças da escola brinca" -> "brincam". Without one, verbAgreement.ts's subjects() decide.
@@ -203,21 +200,21 @@ function check(
 }
 
 export function personAgreement(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "pt") return [];
+  if (!isLang(ctx, "pt")) return [];
   const findings: RawFinding[] = [];
   for (const m of frameMatches(ctx, PRONOUN_SUBJECT)) {
     const pronoun = m.groups!.pronoun;
     const before = ctx.text.slice(Math.max(0, m.index - 24), m.index);
     if (NOT_SUBJECT.test(before) || NOT_PRONOUN_SUBJECT.test(before)) continue;
     // "Eu" capitalized inside a sentence is a noun; "e eu" belongs to WE_SUBJECT.
-    if (/^\p{Lu}/u.test(pronoun) && !CLAUSE_START.test(before)) continue;
+    if (/^\p{Lu}/u.test(pronoun) && !SENTENCE_START.test(before)) continue;
     const after = ctx.text.slice(m.indices!.groups!.pronoun[1], m.indices!.groups!.pronoun[1] + 8);
     if (/^[ \t ]+e(?![\p{L}])/u.test(after)) continue;
     check(ctx, m, PRONOUNS[pronoun.toLowerCase()], findings);
   }
   for (const m of frameMatches(ctx, NP_SUBJECT)) {
     const { lead, noun } = m.groups!;
-    if (!CLAUSE_START.test(ctx.text.slice(Math.max(0, m.index - 8), m.index))) continue;
+    if (!SENTENCE_START.test(ctx.text.slice(Math.max(0, m.index - 8), m.index))) continue;
     if (lead.slice(1) !== lead.slice(1).toLowerCase() || noun !== noun.toLowerCase()) continue;
     if (COLLECTIVE.has(noun) || NOT_VERBS.has(noun)) continue;
     const plural = new RegExp(`^(?:${PLURAL_LEAD})$`, "i").test(lead);
@@ -233,7 +230,7 @@ export function personAgreement(ctx: DetectContext): RawFinding[] {
   }
   for (const m of frameMatches(ctx, WE_SUBJECT)) {
     const before = ctx.text.slice(Math.max(0, m.index - 24), m.index);
-    if (NOT_SUBJECT.test(before) && !CLAUSE_START.test(before)) continue;
+    if (NOT_SUBJECT.test(before) && !SENTENCE_START.test(before)) continue;
     if (!namesCapitalized(m.groups!.we)) continue;
     check(ctx, m, "1p", findings);
   }

@@ -1,4 +1,4 @@
-import { BLOOM_ALPHABET, bloomBits } from "../../implementations/helpers/EnglishLexicon";
+import { bloomHas, decodeBits } from "../../implementations/helpers/EnglishLexicon";
 import { graphWords } from "../wordGraph";
 import {
   SPANISH_ACCENTED_NOMINALS,
@@ -14,17 +14,8 @@ import {
 
 export const SPANISH_BLOOM_HASHES = 11;
 let filter: Uint8Array | undefined;
-function has(key: string): boolean {
-  if (!filter) {
-    filter = new Uint8Array(SPANISH_BLOOM.length);
-    for (let i = 0; i < SPANISH_BLOOM.length; i++)
-      filter[i] = BLOOM_ALPHABET.indexOf(SPANISH_BLOOM[i]);
-  }
-  const bits = filter;
-  return bloomBits(key, bits.length * 6, SPANISH_BLOOM_HASHES).every(
-    (bit) => (bits[(bit / 6) | 0] >> (bit % 6)) & 1,
-  );
-}
+const has = (key: string) =>
+  bloomHas((filter ??= decodeBits(SPANISH_BLOOM)), key, SPANISH_BLOOM_HASHES);
 
 // Verbs the dictionary lists without conjugation flags (their forms are separate entries).
 const UNFLAGGED_VERBS = ["ser", "estar", "haber", "ir", "poder", "dar"];

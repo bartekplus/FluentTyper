@@ -5,7 +5,7 @@ import {
 import { ENGLISH_VERB_FORMS } from "../../implementations/helpers/EnglishVerbForms";
 import type { PhraseRow } from "../englishPhraseTables";
 import { dateSide, dayCount, recentPast } from "../reviewClock";
-import { frameMatches, hasUserOrCasedWord, SPACE, WORD_END } from "../phraseTemplates";
+import { frameMatches, hasUserOrCasedWord, SPACE as S, WORD_END } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import {
   DETERMINERS,
@@ -16,6 +16,7 @@ import {
   OBJECT_PRONOUNS,
   wordBefore,
 } from "./slotWords";
+import { finding } from "../finding";
 
 // A tense the sentence's own time word rules out: "Tomorrow we visited the client" (will visit),
 // "Last week I will call him" (called), and a past verb on a date that has not come yet ("We
@@ -26,7 +27,6 @@ export const PHRASES: readonly PhraseRow[] = [];
 export const COMPOUNDS: readonly PhraseRow[] = [];
 export const STYLE: readonly PhraseRow[] = [];
 
-const S = SPACE;
 const SUBJECT = "(?:I|we|you|he|she|they)";
 const DAY_NAME = "(?:mon|tues|wednes|thurs|fri|satur|sun)day";
 const UNIT = "(?:week|month|year|weekend|summer|winter|spring|autumn|fall|semester|term)";
@@ -94,15 +94,13 @@ function push(
     "review_msg_tense_time_word" | "review_msg_future_date_past" | "review_msg_past_date_future",
   from: number,
 ): void {
-  findings.push({
-    ruleId: "englishTenseConsistency",
-    messageKey,
-    range: { start, end },
-    alternatives,
-    // The time word may be the slip instead: nothing is preselected.
-    ...(alternatives.length ? { requiresChoice: true as const } : { warningOnly: true as const }),
-    context: evidence(ctx, from, end),
-  });
+  findings.push(
+    finding("englishTenseConsistency", messageKey, start, end, alternatives, {
+      // The time word may be the slip instead: nothing is preselected.
+      ...(alternatives.length ? { requiresChoice: true as const } : { warningOnly: true as const }),
+      context: evidence(ctx, from, end),
+    }),
+  );
 }
 
 /** "Tomorrow we visited", "We visited them tomorrow": the future asks for "will". */

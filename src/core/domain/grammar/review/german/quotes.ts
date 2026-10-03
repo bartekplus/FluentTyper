@@ -1,5 +1,6 @@
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { englishWords, isGerman } from "./shared";
+import { finding } from "../finding";
 
 // German quotes open low and close high: „so“. English marks typed in German text get the
 // German ones: “so” → „so“, ”so” → „so“, ,,so“ → „so“, ''so'' → „so“; a straight or English
@@ -12,14 +13,10 @@ const OPENING_AT = (text: string, at: number, length: number) =>
   /^$|[\s([{–—/]$/u.test(text.slice(Math.max(0, at - 1), at)) &&
   /^[\p{L}\p{N}]/u.test(text.slice(at + length, at + length + 1));
 
-function finding(start: number, end: number, replacement: string): RawFinding {
-  return {
-    ruleId: "germanQuotes",
-    messageKey: "review_msg_german_quotes",
-    range: { start, end },
-    alternatives: [replacement],
+function quoteFinding(start: number, end: number, replacement: string): RawFinding {
+  return finding("germanQuotes", "review_msg_german_quotes", start, end, [replacement], {
     context: { start: Math.max(0, start - 40), end: end + 40 },
-  };
+  });
 }
 
 function quotes(ctx: DetectContext): RawFinding[] {
@@ -62,7 +59,7 @@ function quotes(ctx: DetectContext): RawFinding[] {
     if (mark === '"') {
       // A straight mark only closes a German opening one: „so" → „so“.
       if (open > 0 && !opening) {
-        findings.push(finding(at, at + 1, CLOSE));
+        findings.push(quoteFinding(at, at + 1, CLOSE));
         open--;
       }
       continue;
@@ -72,26 +69,26 @@ function quotes(ctx: DetectContext): RawFinding[] {
         if (open > 0) open--;
         continue;
       }
-      findings.push(finding(at, at + 1, OPEN));
+      findings.push(quoteFinding(at, at + 1, OPEN));
       open++;
       continue;
     }
     if (mark === "”") {
       if (opening && open === 0) {
-        findings.push(finding(at, at + 1, OPEN));
+        findings.push(quoteFinding(at, at + 1, OPEN));
         open++;
       } else {
-        findings.push(finding(at, at + 1, CLOSE));
+        findings.push(quoteFinding(at, at + 1, CLOSE));
         if (open > 0) open--;
       }
       continue;
     }
     // ",,so" and "''so''": doubled commas or apostrophes as quotes.
     if (opening && open === 0) {
-      findings.push(finding(at, at + 2, OPEN));
+      findings.push(quoteFinding(at, at + 2, OPEN));
       open++;
     } else if (mark === "''" && open > 0 && /[\p{L}\p{N}.!?)]$/u.test(ctx.text.slice(at - 1, at))) {
-      findings.push(finding(at, at + 2, CLOSE));
+      findings.push(quoteFinding(at, at + 2, CLOSE));
       open--;
     }
   }
@@ -130,8 +127,8 @@ function nested(ctx: DetectContext): RawFinding[] {
           else {
             // Only once the outer quotation closes too: an unclosed one may be the slip.
             for (const [a, b] of inner) {
-              if (a >= ctx.from && a < ctx.to) findings.push(finding(a, a + 1, innerOpen));
-              if (b >= ctx.from && b < ctx.to) findings.push(finding(b, b + 1, innerClose));
+              if (a >= ctx.from && a < ctx.to) findings.push(quoteFinding(a, a + 1, innerOpen));
+              if (b >= ctx.from && b < ctx.to) findings.push(quoteFinding(b, b + 1, innerClose));
             }
             inner = [];
           }
@@ -162,7 +159,7 @@ function straight(ctx: DetectContext): RawFinding[] {
         [b, CLOSE],
       ] as const) {
         if (at >= ctx.from && at < ctx.to)
-          findings.push({ ...finding(at, at + 1, mark), ruleId: "germanStraightQuotes" });
+          findings.push({ ...quoteFinding(at, at + 1, mark), ruleId: "germanStraightQuotes" });
       }
     }
   }
@@ -199,7 +196,7 @@ function speech(ctx: DetectContext): RawFinding[] {
     )
       continue;
     const replacement = period || after ? "" : "“,";
-    findings.push(finding(m.index, m.index + m[0].length, replacement));
+    findings.push(quoteFinding(m.index, m.index + m[0].length, replacement));
   }
   return findings;
 }
@@ -240,13 +237,11 @@ function innerSpacing(ctx: DetectContext): RawFinding[] {
     // A smiley ":(" or ";-(" is no bracket.
     const open = opening ? start - 1 : lineStart + at;
     if (ctx.text[open] === "(" && /[:;=-]/.test(ctx.text[open - 1] ?? "")) continue;
-    findings.push({
-      ruleId: "germanQuotes",
-      messageKey: "review_msg_german_inner_spacing",
-      range: { start, end },
-      alternatives: [""],
-      context: { start: Math.max(0, start - 20), end: end + 20 },
-    });
+    findings.push(
+      finding("germanQuotes", "review_msg_german_inner_spacing", start, end, [""], {
+        context: { start: Math.max(0, start - 20), end: end + 20 },
+      }),
+    );
   }
   return findings;
 }

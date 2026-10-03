@@ -1,4 +1,4 @@
-import { frameMatches, SPACE, WORD_END, WORD_START } from "../phraseTemplates";
+import { frameMatches, SPACE as S, WORD_END as E, WORD_START } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import {
   deumlaut,
@@ -9,15 +9,13 @@ import {
   germanVerbLike,
 } from "./germanLexicon";
 import { determinerFits } from "./articleGender";
-import { isGerman, mayRun, NOT_BLANK, VERB_GOVERNORS } from "./shared";
+import { isGerman, NOT_BLANK, VERB_GOVERNORS } from "./shared";
 import { germanInfinitiveOf, isAuxiliary } from "./verbAgreement";
 
 // Real words in a frame where only their look-alike fits: "ihr seit" (seid), "seid gestern"
 // (seit), "ich freue mir" (mich), "mir dem Bus" (mit), ", das er kommt" (dass), "in denn
 // Garten" (den). Each frame is narrowed to contexts where the typed word cannot be meant.
 
-const S = SPACE;
-const E = WORD_END;
 const W = "\\p{L}+";
 const re = (source: string) => new RegExp(`${NOT_BLANK}${WORD_START}(?:${source})`, "gdu");
 // Case-insensitive on the first letter only, so "\p{Lu}" in a frame keeps meaning a capital.
@@ -1405,7 +1403,6 @@ function confusions(ctx: DetectContext): RawFinding[] {
   if (!isGerman(ctx)) return [];
   const findings: RawFinding[] = [];
   for (const { regex, fix } of FRAMES) {
-    if (!mayRun(ctx, regex)) continue;
     const owner = (m: RegExpExecArray) => {
       const groups = m.indices!.groups!;
       const name = Object.keys(groups).find((k) => k !== "noun" && groups[k]);

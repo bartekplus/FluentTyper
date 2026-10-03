@@ -25,6 +25,7 @@ import {
   secondPersonVerb,
   subjunctiveLike,
 } from "./lexicon";
+import { isLang } from "../phraseTemplates";
 
 // Noun-phrase agreement: a determiner and the noun right after it ("la sillas", "el
 // bicicleta", "unos coche"), "uno de las", "la primer vez" and "dos perro". Number comes from
@@ -1043,7 +1044,7 @@ function bareAdjectiveNoun(ctx: DetectContext, tokens: Token[], i: number): RawF
 }
 
 function agreement(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "es") return [];
+  if (!isLang(ctx, "es")) return [];
   const tokens = tokenize(ctx);
   const findings: RawFinding[] = [];
   for (let i = 0; i < tokens.length; i++) {

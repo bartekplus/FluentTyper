@@ -1,12 +1,11 @@
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import type { PhraseRow } from "../englishPhraseTables";
-import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
+import { frameMatches, SPACE as S, WORD_END as E } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import {
   afterBreak,
-  caseLike,
+  pushSlot,
   english,
-  evidence,
   FUNCTION_WORDS,
   nounOnly,
   tokensAfter,
@@ -19,9 +18,6 @@ import { MASS, nounNumber } from "./nounNumberSlots";
 // "drop by an see" (and), "a number of book" (books), "the worlds best" (world's),
 // "58 years-old" (years old), "wash ones hands" (one's), "too all the" (to all).
 
-const S = SPACE;
-const E = WORD_END;
-
 export const PHRASES: readonly PhraseRow[] = [];
 export const COMPOUNDS: readonly PhraseRow[] = [];
 export const STYLE: readonly PhraseRow[] = [];
@@ -31,23 +27,6 @@ const CONFUSED: Rule = { ruleId: "englishConfusedWords", messageKey: "review_msg
 const NUMBER: Rule = { ruleId: "englishNounNumber", messageKey: "review_msg_noun_count" };
 const COMPOUND: Rule = { ruleId: "englishContextualCompounds", messageKey: "review_msg_compounds" };
 const POSSESSIVE: Rule = { ruleId: "englishApostrophes", messageKey: "review_msg_noun_possessive" };
-
-function push(
-  ctx: DetectContext,
-  findings: RawFinding[],
-  rule: Rule,
-  m: RegExpExecArray,
-  replacement: string,
-  group = "target",
-): void {
-  const [start, end] = m.indices!.groups![group];
-  findings.push({
-    ...rule,
-    range: { start, end },
-    alternatives: [caseLike(ctx.source.slice(start, end), replacement)],
-    context: evidence(ctx, m.index, end),
-  });
-}
 
 /** The regular plural of a plain singular count noun ("chair"), or null. */
 function countPlural(noun: string): string | null {
@@ -92,7 +71,7 @@ function pluralSlots(ctx: DetectContext): RawFinding[] {
       if (!plural || !closes(ctx, m.index + m[0].length)) continue;
       // After "there are", a noun that is also a verb ("water") is the existential check's.
       if (pattern === THERE_ARE && englishWordInfo(noun)?.verbs.length) continue;
-      push(ctx, findings, NUMBER, m, plural);
+      pushSlot(ctx, findings, NUMBER, m, plural);
     }
   return findings;
 }
@@ -115,7 +94,7 @@ function confusedSlots(ctx: DetectContext): RawFinding[] {
   for (const m of frameMatches(ctx, KNOW)) {
     const next = m.groups!.next;
     if (next !== "being" && !englishWordInfo(next)?.verbs.some((v) => v.form === "ing")) continue;
-    push(ctx, findings, CONFUSED, m, "now");
+    pushSlot(ctx, findings, CONFUSED, m, "now");
   }
   for (const m of frameMatches(ctx, OTHER)) {
     const next = m.groups!.next;
@@ -132,13 +111,13 @@ function confusedSlots(ctx: DetectContext): RawFinding[] {
       const after = tokensAfter(ctx, m.indices!.groups!.next[1], 1)[0];
       if (after?.kind === "word" && !FUNCTION_WORDS.has(after.lower)) continue;
     }
-    push(ctx, findings, CONFUSED, m, "others");
+    pushSlot(ctx, findings, CONFUSED, m, "others");
   }
   for (const m of frameMatches(ctx, THE_ARE)) {
     if (!afterBreak(ctx, m.index)) continue;
-    push(ctx, findings, CONFUSED, m, "there");
+    pushSlot(ctx, findings, CONFUSED, m, "there");
   }
-  for (const m of frameMatches(ctx, I_SENSE)) push(ctx, findings, CONFUSED, m, "it");
+  for (const m of frameMatches(ctx, I_SENSE)) pushSlot(ctx, findings, CONFUSED, m, "it");
   for (const m of frameMatches(ctx, MAYBE)) {
     const next = m.groups!.next;
     const read = englishWordInfo(next);
@@ -157,7 +136,7 @@ function confusedSlots(ctx: DetectContext): RawFinding[] {
         !/^(?:and|but|so|that|if|think|because)$/.test(wordBefore(ctx, m.index)))
     )
       continue;
-    push(ctx, findings, CONFUSED, m, "may be");
+    pushSlot(ctx, findings, CONFUSED, m, "may be");
   }
   for (const m of frameMatches(ctx, AN_VERB)) {
     const verb = m.groups!.verb;
@@ -186,7 +165,7 @@ function confusedSlots(ctx: DetectContext): RawFinding[] {
     // "an" then a bare verb: only after a word that could take "and" ("by an see", "go an get").
     const before = wordBefore(ctx, m.index);
     if (!before || /^(?:a|the|is|was|be|such|what|quite|half)$/.test(before)) continue;
-    push(ctx, findings, CONFUSED, m, "and");
+    pushSlot(ctx, findings, CONFUSED, m, "and");
   }
   return findings;
 }
@@ -202,10 +181,10 @@ function compoundSlots(ctx: DetectContext): RawFinding[] {
     const noun = m.groups!.noun;
     const read = englishWordInfo(noun);
     if (FUNCTION_WORDS.has(noun) || !(read?.noun || nounOnly(noun))) continue;
-    push(ctx, findings, COMPOUND, m, `must-${m.groups!.verb}`);
+    pushSlot(ctx, findings, COMPOUND, m, `must-${m.groups!.verb}`);
   }
   for (const m of frameMatches(ctx, YEARS_OLD))
-    push(ctx, findings, COMPOUND, m, m.groups!.target.replace("-", " "));
+    pushSlot(ctx, findings, COMPOUND, m, m.groups!.target.replace("-", " "));
   return findings;
 }
 
@@ -216,7 +195,7 @@ const ONES = `(?:wash|brush|clean|change|mind|lose|lost|keep|know|follow|raise|u
 
 function possessiveSlots(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
-  for (const m of frameMatches(ctx, WORLDS)) push(ctx, findings, POSSESSIVE, m, "world's");
+  for (const m of frameMatches(ctx, WORLDS)) pushSlot(ctx, findings, POSSESSIVE, m, "world's");
   for (const m of frameMatches(ctx, ONES)) {
     const noun = m.groups!.noun;
     if (noun !== "own") {
@@ -230,7 +209,7 @@ function possessiveSlots(ctx: DetectContext): RawFinding[] {
         continue;
     }
     // "the old ones": a determiner makes "ones" the pronoun.
-    push(ctx, findings, POSSESSIVE, m, "one's");
+    pushSlot(ctx, findings, POSSESSIVE, m, "one's");
   }
   return findings;
 }
@@ -243,7 +222,7 @@ function tooAll(ctx: DetectContext): RawFinding[] {
   for (const m of frameMatches(ctx, TOO_ALL)) {
     // "gone with her too all those years ago": "too" closes the clause before it.
     if (/^(?:me|you|him|her|us|them|it)$/.test(wordBefore(ctx, m.index))) continue;
-    push(ctx, findings, { ruleId: "englishToToo", messageKey: "review_msg_to_too" }, m, "to");
+    pushSlot(ctx, findings, { ruleId: "englishToToo", messageKey: "review_msg_to_too" }, m, "to");
   }
   return findings;
 }
@@ -287,9 +266,9 @@ function youAre(ctx: DetectContext): RawFinding[] {
       (nounOnly(next.lower) || !!englishWordInfo(next.lower)?.plural)
     )
       continue;
-    push(ctx, findings, rule, m, "you're");
+    pushSlot(ctx, findings, rule, m, "you're");
   }
-  for (const m of frameMatches(ctx, YOUR_ALL)) push(ctx, findings, rule, m, "you're");
+  for (const m of frameMatches(ctx, YOUR_ALL)) pushSlot(ctx, findings, rule, m, "you're");
   return findings;
 }
 
@@ -315,7 +294,7 @@ function haveName(ctx: DetectContext): RawFinding[] {
       read.noun
     )
       continue;
-    push(
+    pushSlot(
       ctx,
       findings,
       { ruleId: "englishSubjectVerbAgreement", messageKey: "review_msg_subject_verb" },

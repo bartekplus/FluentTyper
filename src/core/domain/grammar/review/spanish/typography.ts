@@ -21,6 +21,8 @@ import {
   YEAR_DIGITS,
 } from "../reviewClock";
 import { verbLike } from "./common";
+import { finding } from "../finding";
+import { isLang } from "../phraseTemplates";
 
 const known = (word: string) =>
   isNoun(word) || !!attributeOf(word) || isGenderedEntry(word) || verbLike(word);
@@ -168,14 +170,12 @@ function impossibleDates(ctx: DetectContext): RawFinding[] {
     if (Number(day) <= max || Number(day) > 31 || month < 1) return;
     if (namedExampleBefore(ctx.text, start)) return;
     const alternatives = month === 2 && year === undefined ? ["28", "29"] : [String(max)];
-    findings.push({
-      ruleId: RULE,
-      messageKey: "review_msg_spanish_date",
-      range: { start, end: start + day.length },
-      alternatives,
-      bulkBlock: "ambiguous",
-      ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
-    });
+    findings.push(
+      finding(RULE, "review_msg_spanish_date", start, start + day.length, alternatives, {
+        bulkBlock: "ambiguous",
+        ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+      }),
+    );
   };
   const named = new RegExp(NAMED_DATE);
   named.lastIndex = Math.max(0, ctx.from - 16);
@@ -197,13 +197,11 @@ function impossibleDates(ctx: DetectContext): RawFinding[] {
         ctx.text.slice(Math.max(0, dayStart - 12), dayStart),
       );
     if ((fullDate || (weekday && dayNumber === 0)) && !namedExampleBefore(ctx.text, m.index))
-      findings.push({
-        ruleId: RULE,
-        messageKey: "review_msg_spanish_date",
-        range: { start: dayStart, end: m.index + whole.length },
-        alternatives: [],
-        warningOnly: true,
-      });
+      findings.push(
+        finding(RULE, "review_msg_spanish_date", dayStart, m.index + whole.length, [], {
+          warningOnly: true,
+        }),
+      );
     // The weekday of a full date is fixed: "lunes, 7 de octubre de 2014" was a Tuesday.
     if (
       weekday &&
@@ -253,13 +251,11 @@ function impossibleDates(ctx: DetectContext): RawFinding[] {
   noDay.lastIndex = Math.max(0, ctx.from - 16);
   for (let m = noDay.exec(ctx.scanText); m && m.index < ctx.to; m = noDay.exec(ctx.scanText)) {
     if (m.index < ctx.from || namedExampleBefore(ctx.text, m.index)) continue;
-    findings.push({
-      ruleId: RULE,
-      messageKey: "review_msg_spanish_date",
-      range: { start: m.index, end: m.index + m[0].length },
-      alternatives: [],
-      warningOnly: true,
-    });
+    findings.push(
+      finding(RULE, "review_msg_spanish_date", m.index, m.index + m[0].length, [], {
+        warningOnly: true,
+      }),
+    );
   }
   const numeric = new RegExp(NUMERIC_DATE);
   numeric.lastIndex = Math.max(0, ctx.from - 16);
@@ -293,13 +289,11 @@ function impossibleDates(ctx: DetectContext): RawFinding[] {
         month <= 39 &&
         !CODE_LABEL.test(ctx.text.slice(Math.max(0, m.index - 16), m.index));
       if (!(dated || fullDate) || namedExampleBefore(ctx.text, m.index)) continue;
-      findings.push({
-        ruleId: RULE,
-        messageKey: "review_msg_spanish_date",
-        range: { start: m.index, end: m.index + m[0].length },
-        alternatives: [],
-        warningOnly: true,
-      });
+      findings.push(
+        finding(RULE, "review_msg_spanish_date", m.index, m.index + m[0].length, [], {
+          warningOnly: true,
+        }),
+      );
       continue;
     }
     if (month < 1 || month > 12) continue;
@@ -324,7 +318,7 @@ function impossibleDates(ctx: DetectContext): RawFinding[] {
 }
 
 function typography(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "es") return [];
+  if (!isLang(ctx, "es")) return [];
   const tokens = tokenize(ctx);
   const findings: RawFinding[] = [];
   for (let i = 0; i < tokens.length; i++) {
@@ -372,12 +366,11 @@ function typography(ctx: DetectContext): RawFinding[] {
   const etc = /(?<!\p{L})etc(?:\.{2,}|…|\.…)/giu;
   etc.lastIndex = ctx.from;
   for (let m = etc.exec(ctx.scanText); m && m.index < ctx.to; m = etc.exec(ctx.scanText))
-    findings.push({
-      ruleId: RULE,
-      messageKey: "review_msg_spanish_abbreviation",
-      range: { start: m.index, end: m.index + m[0].length },
-      alternatives: [`${m[0].slice(0, 3)}.`],
-    });
+    findings.push(
+      finding(RULE, "review_msg_spanish_abbreviation", m.index, m.index + m[0].length, [
+        `${m[0].slice(0, 3)}.`,
+      ]),
+    );
   return findings;
 }
 
@@ -408,12 +401,7 @@ function marks(ctx: DetectContext): RawFinding[] {
       if (m.index < ctx.from || namedExampleBefore(ctx.text, m.index)) continue;
       const replacement = fix(m);
       if (!replacement || replacement === m[0]) continue;
-      findings.push({
-        ruleId: RULE,
-        messageKey: key,
-        range: { start: m.index, end: m.index + m[0].length },
-        alternatives: [replacement],
-      });
+      findings.push(finding(RULE, key, m.index, m.index + m[0].length, [replacement]));
     }
   };
   scan(
@@ -478,18 +466,13 @@ const SHOUTED_ARTICLE =
 
 /** "Ven -dijo.", "-¿Perdón?": the dialogue dash, an optional typography check like the dash. */
 function dialogueDash(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "es") return [];
+  if (!isLang(ctx, "es")) return [];
   const findings: RawFinding[] = [];
   const seen = new Set<number>();
   const add = (start: number, end: number) => {
     if (start < ctx.from || start >= ctx.to || seen.has(start)) return;
     seen.add(start);
-    findings.push({
-      ruleId: "emdashShortcut",
-      messageKey: "review_msg_spanish_dialogue_dash",
-      range: { start, end },
-      alternatives: ["—"],
-    });
+    findings.push(finding("emdashShortcut", "review_msg_spanish_dialogue_dash", start, end, ["—"]));
   };
   const regex = new RegExp(DIALOGUE);
   regex.lastIndex = Math.max(0, ctx.from - 8);
@@ -524,7 +507,7 @@ const DECIMAL_POINT = new RegExp(
 
 /** "Pesa 1.4 kg" -> "1,4 kg", "9,349.5" -> "9.349,5": the Spanish decimal comma. */
 function decimalComma(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "es") return [];
+  if (!isLang(ctx, "es")) return [];
   const findings: RawFinding[] = [];
   for (const pattern of [ENGLISH_GROUPS, DECIMAL_POINT]) {
     const regex = new RegExp(pattern);
@@ -560,7 +543,7 @@ const MISSING_SPACE = new RegExp(
 
 /** A sentence mark glued to the next sentence: "frase.Y otra" -> "frase. Y otra". */
 function missingSpace(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "es") return [];
+  if (!isLang(ctx, "es")) return [];
   const findings: RawFinding[] = [];
   const regex = new RegExp(MISSING_SPACE);
   regex.lastIndex = ctx.from;
@@ -641,19 +624,11 @@ function closingMarks(ctx: DetectContext): RawFinding[] {
       let last = end - 1;
       while (last > m.index && /\s/u.test(text[last])) last--;
       if (!/[\p{L}\p{N}]/u.test(text[last] ?? "")) continue;
-      findings.push({
-        ruleId: RULE,
-        messageKey: "review_msg_spanish_closing_mark",
-        range: { start: last, end: last + 1 },
-        alternatives: [`${text[last]}${close}`],
-      });
+      findings.push(
+        finding(RULE, "review_msg_spanish_closing_mark", last, last + 1, [`${text[last]}${close}`]),
+      );
     } else if (text[end] === ".") {
-      findings.push({
-        ruleId: RULE,
-        messageKey: "review_msg_spanish_closing_mark",
-        range: { start: end, end: end + 1 },
-        alternatives: [close],
-      });
+      findings.push(finding(RULE, "review_msg_spanish_closing_mark", end, end + 1, [close]));
     }
   }
   return findings;
@@ -677,12 +652,9 @@ function decades(ctx: DetectContext): RawFinding[] {
       [m.index, first, m[1]],
       ...(m[2] ? [[second, m[0].slice(second - m.index), m[2]] as const] : []),
     ] as const)
-      findings.push({
-        ruleId: RULE,
-        messageKey: "review_msg_spanish_decade",
-        range: { start, end: start + typed.length },
-        alternatives: [fixed],
-      });
+      findings.push(
+        finding(RULE, "review_msg_spanish_decade", start, start + typed.length, [fixed]),
+      );
   }
   return findings;
 }
@@ -691,7 +663,7 @@ export const DETECTORS: readonly ReviewDetectorEntry[] = [
   {
     rules: [RULE],
     detect: (ctx) =>
-      ctx.lang.slice(0, 2) === "es"
+      isLang(ctx, "es")
         ? [...typography(ctx), ...marks(ctx), ...closingMarks(ctx), ...decades(ctx)]
         : [],
   },

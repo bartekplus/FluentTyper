@@ -8,8 +8,10 @@ import {
   WORD_END,
   WORD_START,
   wordSet as words,
+  isLang,
 } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import { finding } from "../finding";
 
 /** One row per form: `~` stands for each form in both columns. */
 const each = (forms: readonly string[], typed: string, replacement: string): PhraseRow[] =>
@@ -354,14 +356,10 @@ function emit(
     const cased = applyWordCase(replacement, casing);
     return curly ? cased.replace(/'/g, "’") : cased;
   });
-  return {
-    ruleId,
-    messageKey,
-    range: { start, end },
-    alternatives,
+  return finding(ruleId, messageKey, start, end, alternatives, {
     ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
     context: { start: Math.max(0, from - 48), end: Math.min(ctx.text.length, to + 16) },
-  };
+  });
 }
 const typo = (hit: Hit, replacement: string | readonly string[], first?: Word, last?: Word) =>
   emit(hit, hit.start, hit.end, "englishUsagePhrases", "review_msg_typo", [replacement].flat(), [
@@ -949,7 +947,7 @@ const TRIGGER = new RegExp(
 
 /** Typo-like confusions resolved by the words around one trigger word. */
 function contextualConfusions(ctx: DetectContext): RawFinding[] {
-  if (!ctx.lang.startsWith("en")) return [];
+  if (!isLang(ctx, "en")) return [];
   const findings: RawFinding[] = [];
   const regex = new RegExp(TRIGGER);
   // "all ready" starts one word before its trigger.

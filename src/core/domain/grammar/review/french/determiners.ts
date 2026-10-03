@@ -11,7 +11,10 @@ import {
   verbReadings,
 } from "./frenchLexicon";
 import { sontForSon } from "./homophones";
-import { ownedFrenchWords, tokensAfter, tokensBefore, withCase } from "./frenchTokens";
+import { ownedFrenchWords, tokensAfter, tokensBefore } from "./frenchTokens";
+import { finding } from "../finding";
+import { carryCase } from "../../implementations/helpers/GenericRuleShared";
+import { isLang } from "../phraseTemplates";
 
 // What follows a determiner is a noun phrase. Two determiners in a row keep one ("nos cette
 // langue", "des sa naissance" for "dès"); a verb form or participle after one is a noun spelled
@@ -108,20 +111,14 @@ function doubleDeterminer(
     return null;
   if (namedExampleBefore(ctx.text, m.index)) return null;
   const alternatives = [typedFirst, typedSecond];
-  const lower = (word: string) => withCase(typedFirst, word);
+  const lower = (word: string) => carryCase(typedFirst, word);
   const space = second.endsWith("'") ? "" : " ";
   if (first === "des")
     alternatives.unshift(`${lower("dès")} ${typedSecond}`, `${lower("de")} ${typedSecond}`);
   if (first === "du") alternatives.unshift(`${lower("de")} ${typedSecond}`);
   if (first === "au" || first === "aux") alternatives.unshift(`${lower("à")} ${typedSecond}`);
   if (first === "sa") alternatives.unshift(`${lower("ça")}${space}${typedSecond}`);
-  return {
-    ruleId: RULE,
-    messageKey: DOUBLE,
-    range: { start: m.index, end },
-    alternatives: [...new Set(alternatives)],
-    requiresChoice: true,
-  };
+  return finding(RULE, DOUBLE, m.index, end, [...new Set(alternatives)], { requiresChoice: true });
 }
 
 const FEMININE_OF: Record<string, string> = {
@@ -180,13 +177,10 @@ function nounAfter(ctx: DetectContext, m: RegExpExecArray, det: string): RawFind
   const end = m.index + m[0].length;
   if (/^[-'’]/.test(ctx.text.slice(end, end + 1))) return null;
   if (namedExampleBefore(ctx.text, m.index)) return null;
-  const finding = (alternatives: string[]): RawFinding => ({
-    ruleId: RULE,
-    messageKey: NOUN,
-    range: { start: m.indices!.groups!.noun[0], end },
-    alternatives,
-    context: { start: m.index, end },
-  });
+  const nounFinding = (alternatives: string[]): RawFinding =>
+    finding(RULE, NOUN, m.indices!.groups!.noun[0], end, alternatives, {
+      context: { start: m.index, end },
+    });
   const finite = readings.filter((r) => typeof r.slot === "number");
   const participle = readings.some((r) => r.slot === "Q");
   // "un développent", "le maintient": a verb form for the noun in -ment or the bare stem.
@@ -198,14 +192,14 @@ function nounAfter(ctx: DetectContext, m: RegExpExecArray, det: string): RawFind
     !isVerbHomograph(word)
   ) {
     const noun = word.replace(/it(?:e|ée)$/, "ité");
-    if (nounGender(noun) === "f" && isVerbHomograph(noun)) return finding([noun]);
+    if (nounGender(noun) === "f" && isVerbHomograph(noun)) return nounFinding([noun]);
   }
   if (finite.length === readings.length && !isVerbHomograph(word)) {
     // "demandaient": an imperfect ending spells no noun in -ement.
     const ment = /aient$/.test(word) ? word : word.replace(/ent$/, "ement");
     for (const noun of [ment, word.replace(/t$/, "")]) {
       if (noun !== word && nounGender(noun) && (!gender || nounGender(noun) === gender))
-        return finding([noun]);
+        return nounFinding([noun]);
     }
     return null;
   }
@@ -222,7 +216,7 @@ function nounAfter(ctx: DetectContext, m: RegExpExecArray, det: string): RawFind
     isInflectedNoun(lemma) &&
     nounGender(lemma) !== "f"
   )
-    return finding([number === "p" ? `${lemma}s` : lemma]);
+    return nounFinding([number === "p" ? `${lemma}s` : lemma]);
   // "les sortis": a simple past that is also a participle reads as the participle here.
   const pastOnly = finite.every((r) => (r.slot as number) & (JE | TU));
   if (!participle || (finite.length && !(number === "p" && pastOnly))) {
@@ -241,23 +235,24 @@ function nounAfter(ctx: DetectContext, m: RegExpExecArray, det: string): RawFind
     if (nounGender(word) === "f" && swapped) {
       const typedDet = m.groups!.det;
       return {
-        ...finding([`${typedDet} ${accented}`, `${withCase(typedDet, swapped)} ${word}`]),
+        ...nounFinding([`${typedDet} ${accented}`, `${carryCase(typedDet, swapped)} ${word}`]),
         range: { start: m.index, end },
         requiresChoice: true,
       };
     }
-    return finding([accented]);
+    return nounFinding([accented]);
   }
   // Only a participle from here: "sa sorti", "des traversé", "mes pensés", "l'arrivé", "un
   // musé", "mon déjeuné".
   const plural = number === "p";
   if (gender === "m" && !plural && word.endsWith("é") && !isVerbHomograph(word)) {
     // "un musé": a masculine noun in -ée.
-    if (nounGender(`${word}e`) === "m" && isVerbHomograph(`${word}e`)) return finding([`${word}e`]);
+    if (nounGender(`${word}e`) === "m" && isVerbHomograph(`${word}e`))
+      return nounFinding([`${word}e`]);
     // "mon déjeuné": the infinitive used as a noun.
     const infinitive = `${word.slice(0, -1)}er`;
     if (!isInflectedNoun(word) && isVerbHomograph(infinitive) && isInflectedNoun(infinitive))
-      return finding([infinitive]);
+      return nounFinding([infinitive]);
     return null;
   }
   if (gender === "m") return null;
@@ -271,7 +266,7 @@ function nounAfter(ctx: DetectContext, m: RegExpExecArray, det: string): RawFind
   // "l'invité", "leur vécu", "les élus": the participle is a noun of its own.
   if (adjectiveReadings(base).length || isVerbHomograph(base)) return null;
   if (!gender && isInflectedNoun(base)) return null;
-  return finding([plural ? `${noun}s` : noun]);
+  return nounFinding([plural ? `${noun}s` : noun]);
 }
 
 const NAMES = Object.keys(DETERMINERS)
@@ -287,7 +282,7 @@ const NOUN_AFTER = new RegExp(
 );
 
 function determiners(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "fr") return [];
+  if (!isLang(ctx, "fr")) return [];
   const findings: RawFinding[] = [];
   for (const m of ownedFrenchWords(ctx, PAIR)) {
     const first = m.groups!.first.toLowerCase();

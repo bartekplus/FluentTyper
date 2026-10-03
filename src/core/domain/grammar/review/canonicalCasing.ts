@@ -1,6 +1,8 @@
 import { englishWordInfo } from "../implementations/helpers/EnglishLexicon";
 import { namedExampleBefore, OPENING_QUOTES } from "./exampleCues";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
+import { finding } from "./finding";
+import { isLang } from "./phraseTemplates";
 
 const CANONICAL = new Map(
   [
@@ -95,7 +97,7 @@ export function canonicalCasing(ctx: DetectContext): RawFinding[] {
     match = words.exec(ctx.scanText)
   ) {
     const typed = match[0];
-    const acronym = typed.length < 5 && ctx.lang.startsWith("en") ? typed.toUpperCase() : "";
+    const acronym = typed.length < 5 && isLang(ctx, "en") ? typed.toUpperCase() : "";
     const canonical =
       CANONICAL.get(typed.toLowerCase()) ??
       (ACRONYMS.has(acronym) &&
@@ -116,13 +118,11 @@ export function canonicalCasing(ctx: DetectContext): RawFinding[] {
       continue;
     if (namedExampleBefore(ctx.text, start)) continue;
     if (VERB_BRANDS.has(typed) && !brandNoun(ctx.lang.slice(0, 2), ctx.text, start, end)) continue;
-    findings.push({
-      ruleId: "englishCanonicalCasing",
-      messageKey: "review_msg_canonical_casing",
-      range: { start, end },
-      alternatives: [canonical],
-      context: { start: Math.max(0, start - 128), end: Math.min(ctx.text.length, end + 2) },
-    });
+    findings.push(
+      finding("englishCanonicalCasing", "review_msg_canonical_casing", start, end, [canonical], {
+        context: { start: Math.max(0, start - 128), end: Math.min(ctx.text.length, end + 2) },
+      }),
+    );
   }
   return findings;
 }

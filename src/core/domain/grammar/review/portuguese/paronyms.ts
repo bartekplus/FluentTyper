@@ -1,9 +1,10 @@
 import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
-import { frameMatches, gluedAfter, SPACE, WORD_END } from "../phraseTemplates";
+import { frameMatches, gluedAfter, SPACE, WORD_END, isLang } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import { analyze } from "./nounAgreement";
+import { analyze, SENTENCE_START } from "./nounAgreement";
 import { graphWords } from "../wordGraph";
 import { PORTUGUESE_PARONYMS } from "./paronyms.generated";
+import { finding } from "../finding";
 
 /**
  * "da fabrica", "uma duvida", "em pratica": after a determiner or a preposition a
@@ -70,7 +71,6 @@ const OPENING = `(?<lead>${ADJECTIVES})(?=${SPACE}(?<target>[a-zçãõáéíóú
 // A bare article opening a sentence: a clitic "o/a" never starts written prose ("A
 // arvore caiu" -> "árvore"), so there it is the article.
 const ARTICLE_OPENING = `(?<lead>[aoAO]s?)(?=${SPACE}(?<target>[a-zçãõáéíóúâêô]+)${WORD_END})`;
-const SENTENCE_START = /(?:^|[.!?;:\n]["'”’»)]*)[ \t\u00a0]*["'“‘«(]?[ \t\u00a0]*$/u;
 // "Um critica, o outro elogia": indefinite "um/uma" as a pronoun with "outro" later on.
 const RECIPROCAL = /^[^.!?;\n]{0,80}(?<![\p{L}])outr[oa]s?(?![\p{L}])/iu;
 
@@ -168,19 +168,17 @@ function afterNoun(ctx: DetectContext): RawFinding[] {
           : info.plural,
     );
     if (fits.length !== 1) continue;
-    findings.push({
-      ruleId: "portugueseAccentParonyms",
-      messageKey: "review_msg_pt_accent_paronym",
-      range: { start, end },
-      alternatives: fits,
-      context: { start: m.index, end },
-    });
+    findings.push(
+      finding("portugueseAccentParonyms", "review_msg_pt_accent_paronym", start, end, fits, {
+        context: { start: m.index, end },
+      }),
+    );
   }
   return findings;
 }
 
 export function accentParonyms(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "pt") return [];
+  if (!isLang(ctx, "pt")) return [];
   const findings: RawFinding[] = [...verbForms(ctx), ...afterNoun(ctx)];
   for (const m of [
     ...frameMatches(ctx, PATTERN),

@@ -1,13 +1,12 @@
 import { englishInflect, englishLemma } from "../../implementations/helpers/EnglishInflection";
 import { englishNounPair, englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import type { PhraseRow } from "../englishPhraseTables";
-import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
+import { frameMatches, SPACE as S, WORD_END as E } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import {
   afterBreak,
-  caseLike,
+  pushSlot,
   english,
-  evidence,
   FUNCTION_WORDS,
   nounOnly,
   tokensAfter,
@@ -19,9 +18,6 @@ import { nounNumber } from "./nounNumberSlots";
 // "going be" (to be), "makes me thinking" (think), "Was there many…" (Were), "reading though
 // the contract" (through), "give me advise" (advice), "would we helpful" (be), "do not us
 // this" (use), "take sometime" (some time), "went good" (well), "Do anyone know" (Does).
-
-const S = SPACE;
-const E = WORD_END;
 
 const WOLD_NEXT =
   "you|have|be|like|love|not|never|rather|prefer|need|want|go|do|make|get|take|say|see|help";
@@ -47,23 +43,6 @@ const AGREEMENT: Rule = {
   ruleId: "englishSubjectVerbAgreement",
   messageKey: "review_msg_subject_verb",
 };
-
-function push(
-  ctx: DetectContext,
-  findings: RawFinding[],
-  rule: Rule,
-  m: RegExpExecArray,
-  replacement: string,
-  group = "target",
-): void {
-  const [start, end] = m.indices!.groups![group];
-  findings.push({
-    ...rule,
-    range: { start, end },
-    alternatives: [caseLike(ctx.source.slice(start, end), replacement)],
-    context: evidence(ctx, m.index, end),
-  });
-}
 
 /** A base verb with no noun, adjective or other form: "see", "send", "explain". */
 function bareVerb(word: string): boolean {
@@ -111,7 +90,7 @@ function verbFrames(ctx: DetectContext): RawFinding[] {
       continue;
     const ing = englishInflect(verb, "ing");
     if (ing)
-      push(
+      pushSlot(
         ctx,
         findings,
         { ruleId: "englishVerbComplements", messageKey: "review_msg_gerund_complement" },
@@ -122,7 +101,7 @@ function verbFrames(ctx: DetectContext): RawFinding[] {
   for (const m of frameMatches(ctx, GOING)) {
     const verb = m.groups!.target;
     if (ctx.dictionary.has(verb) || (verb !== "be" && !bareVerb(verb))) continue;
-    push(
+    pushSlot(
       ctx,
       findings,
       { ruleId: "englishVerbComplements", messageKey: "review_msg_missing_to" },
@@ -146,7 +125,7 @@ function verbFrames(ctx: DetectContext): RawFinding[] {
       continue;
     const base = englishLemma(verb, "ing");
     if (base && base !== verb)
-      push(
+      pushSlot(
         ctx,
         findings,
         { ruleId: "englishVerbComplements", messageKey: "review_msg_causative_base" },
@@ -168,7 +147,7 @@ function wasThereMany(ctx: DetectContext): RawFinding[] {
     // "Is there a lot of water?": only a plural noun after "of" needs the plural verb.
     if (/of$/i.test(quantity) && nounNumber(noun)?.number !== "plural" && noun !== "people")
       continue;
-    push(
+    pushSlot(
       ctx,
       findings,
       {
@@ -197,7 +176,7 @@ function thoughThrough(ctx: DetectContext): RawFinding[] {
       const read = englishWordInfo(t.lower);
       return !!read?.verbs.some((v) => v.form === "past" || v.form === "third") && !read.noun;
     });
-    if (!clause) push(ctx, findings, CONFUSED, m, "through");
+    if (!clause) pushSlot(ctx, findings, CONFUSED, m, "through");
   }
   return findings;
 }
@@ -218,17 +197,23 @@ function wordPairs(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   for (const m of frameMatches(ctx, ADVISE)) {
     if (ctx.dictionary.has("advise")) continue;
-    push(ctx, findings, CONFUSED, m, "advice");
+    pushSlot(ctx, findings, CONFUSED, m, "advice");
   }
   for (const m of frameMatches(ctx, WE_BE)) {
     // "Would we be…?": at a clause start the modal opens a question.
     if (afterBreak(ctx, m.index)) continue;
-    push(ctx, findings, CONFUSED, m, "be");
+    pushSlot(ctx, findings, CONFUSED, m, "be");
   }
-  for (const m of frameMatches(ctx, US_USE)) push(ctx, findings, CONFUSED, m, "use");
+  for (const m of frameMatches(ctx, US_USE)) pushSlot(ctx, findings, CONFUSED, m, "use");
   for (const m of frameMatches(ctx, DOE)) {
     if (!afterBreak(ctx, m.index)) continue;
-    push(ctx, findings, CONFUSED, m, /^(?:he|she|it)$/i.test(m.groups!.subject) ? "does" : "do");
+    pushSlot(
+      ctx,
+      findings,
+      CONFUSED,
+      m,
+      /^(?:he|she|it)$/i.test(m.groups!.subject) ? "does" : "do",
+    );
   }
   return findings;
 }
@@ -239,7 +224,7 @@ const GOT_DID = `(?:got|get|gets|getting)${S}(?:it|them|this|that|everything|all
 function gotItDone(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   for (const m of frameMatches(ctx, GOT_DID))
-    push(
+    pushSlot(
       ctx,
       findings,
       { ruleId: "englishIrregularForms", messageKey: "review_msg_irregular_form" },
@@ -261,7 +246,7 @@ function phrases(ctx: DetectContext): RawFinding[] {
   };
   for (const m of frameMatches(ctx, REGARD)) {
     if (!afterBreak(ctx, m.index)) continue;
-    push(ctx, findings, rule, m, "regards");
+    pushSlot(ctx, findings, rule, m, "regards");
   }
   for (const m of frameMatches(ctx, EVERY_ONE)) {
     // "warn everyone of the danger": a verb that takes "of" after its object.
@@ -271,7 +256,7 @@ function phrases(ctx: DetectContext): RawFinding[] {
       )
     )
       continue;
-    push(ctx, findings, rule, m, "every one");
+    pushSlot(ctx, findings, rule, m, "every one");
   }
   return findings;
 }
@@ -286,9 +271,9 @@ const TIME_WORDS = /^(?:today|tonight|tomorrow|yesterday|now|then|though|either|
 
 function splitCompounds(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
-  for (const m of frameMatches(ctx, ANY_WAY)) push(ctx, findings, COMPOUND, m, "any way");
+  for (const m of frameMatches(ctx, ANY_WAY)) pushSlot(ctx, findings, COMPOUND, m, "any way");
   for (const m of frameMatches(ctx, SOME_TIME, (match) => match.index))
-    push(ctx, findings, COMPOUND, m, "some time", m.groups!.target ? "target" : "target2");
+    pushSlot(ctx, findings, COMPOUND, m, "some time", m.groups!.target ? "target" : "target2");
   for (const m of frameMatches(ctx, ANY_MORE)) {
     const noun = m.groups!.noun;
     if (FUNCTION_WORDS.has(noun) || TIME_WORDS.test(noun)) continue;
@@ -302,7 +287,7 @@ function splitCompounds(ctx: DetectContext): RawFinding[] {
         !read.verbs.some((v) => v.form !== "base" && v.form !== "third"))
     ))
       continue;
-    push(ctx, findings, COMPOUND, m, "any more");
+    pushSlot(ctx, findings, COMPOUND, m, "any more");
   }
   return findings;
 }
@@ -314,7 +299,7 @@ function wentGood(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   for (const m of frameMatches(ctx, WENT_GOOD)) {
     // "This one works good enough for us" still wants well; "a good one" is no frame here.
-    push(
+    pushSlot(
       ctx,
       findings,
       { ruleId: "englishConfusedWords", messageKey: "review_msg_adverb_form" },
@@ -338,7 +323,7 @@ function moreSingular(ctx: DetectContext): RawFinding[] {
       continue;
     const plural = noun === "person" ? "people" : englishNounPair(noun)?.plural;
     if (!plural) continue;
-    push(
+    pushSlot(
       ctx,
       findings,
       { ruleId: "englishNounNumber", messageKey: "review_msg_noun_count" },
@@ -363,7 +348,7 @@ function doSingular(ctx: DetectContext): RawFinding[] {
     const read = englishWordInfo(verb);
     if (!read?.verbs.some((v) => v.form === "base" && v.lemma === verb)) continue;
     if (!/\?/.test(ctx.text.slice(m.index, m.index + 160).split(/[.!\n]/)[0])) continue;
-    push(ctx, findings, AGREEMENT, m, does(m.groups!.target));
+    pushSlot(ctx, findings, AGREEMENT, m, does(m.groups!.target));
   }
   for (const m of frameMatches(ctx, TAG, "target")) {
     // "He doesn't live here, do he?": the tag repeats the clause's own auxiliary.
@@ -371,7 +356,7 @@ function doSingular(ctx: DetectContext): RawFinding[] {
       const clause = ctx.text.slice(Math.max(0, m.index - 80), m.index);
       if (!/\b(?:does|doesn['’]t|he|she|it)\b/i.test(clause)) continue;
     }
-    push(ctx, findings, AGREEMENT, m, does(m.groups!.target));
+    pushSlot(ctx, findings, AGREEMENT, m, does(m.groups!.target));
   }
   return findings;
 }
@@ -391,7 +376,7 @@ function latter(ctx: DetectContext): RawFinding[] {
       englishWordInfo(after.lower)?.noun
     )
       continue;
-    push(ctx, findings, CONFUSED, m, "latter");
+    pushSlot(ctx, findings, CONFUSED, m, "latter");
   }
   return findings;
 }

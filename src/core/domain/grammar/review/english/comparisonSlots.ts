@@ -3,6 +3,7 @@ import type { PhraseRow } from "../englishPhraseTables";
 import { frameMatches, hasUserOrCasedWord, SPACE, WORD_END } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { caseLike, english, evidence, FUNCTION_WORDS, nounOnly, tokensAfter } from "./slotWords";
+import { finding } from "../finding";
 
 // Comparison forms: a superlative before its noun takes "the" ("is hottest city", "an oldest
 // city"), "less"/"least" take the plain adjective ("less harder"), and a comparative's "then"
@@ -89,13 +90,11 @@ function lessComparative(ctx: DetectContext): RawFinding[] {
       (degree.toLowerCase() === "least" ? plainAdjective(adjective, "est") : null);
     if (!plain || hasUserOrCasedWord(ctx, adjective)) continue;
     const [start, end] = m.indices!.groups!.adjective;
-    findings.push({
-      ruleId: "englishDoubledDegree",
-      messageKey: "review_msg_doubled_degree",
-      range: { start, end },
-      alternatives: [plain],
-      context: evidence(ctx, m.index, end),
-    });
+    findings.push(
+      finding("englishDoubledDegree", "review_msg_doubled_degree", start, end, [plain], {
+        context: evidence(ctx, m.index, end),
+      }),
+    );
   }
   return findings;
 }

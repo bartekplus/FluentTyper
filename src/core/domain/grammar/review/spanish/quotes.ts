@@ -1,5 +1,7 @@
 import { namedExampleBefore } from "../exampleCues";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import { finding } from "../finding";
+import { isLang } from "../phraseTemplates";
 
 // Spanish typography quotes with angle marks first («así»), and with curly single marks inside
 // them (‘así’). Typewriter pairs typed on one line get the typographic ones. Opt-in: straight
@@ -15,17 +17,13 @@ const SINGLE =
   /(?<=^|[\s([{¿¡—–-])'(?=[\p{L}\p{N}¿¡])([^'\n]{1,200}?)(?<=[\p{L}\p{N}.!?…])'(?![\p{L}\p{N}])/gu;
 
 function mark(start: number, replacement: string, pairEnd: number): RawFinding {
-  return {
-    ruleId: RULE,
-    messageKey: "review_msg_spanish_quotes",
-    range: { start, end: start + 1 },
-    alternatives: [replacement],
+  return finding(RULE, "review_msg_spanish_quotes", start, start + 1, [replacement], {
     context: { start: Math.max(0, start - 1), end: pairEnd },
-  };
+  });
 }
 
 function quotes(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "es") return [];
+  if (!isLang(ctx, "es")) return [];
   const findings: RawFinding[] = [];
   for (const [regex, open, close] of [
     [DOUBLE, "«", "»"],

@@ -1,5 +1,5 @@
 import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
-import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
+import { frameMatches, SPACE, WORD_END, isLang } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { graphWords } from "../wordGraph";
 import { PORTUGUESE_R_STEMS } from "./verbs.generated";
@@ -115,7 +115,7 @@ function withoutConsonant(verb: string): string {
 }
 
 export function cliticPlacement(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "pt") return [];
+  if (!isLang(ctx, "pt")) return [];
   const findings: RawFinding[] = [];
   for (const m of frameMatches(ctx, PROCLISIS)) {
     const { verb, pronoun } = m.groups!;

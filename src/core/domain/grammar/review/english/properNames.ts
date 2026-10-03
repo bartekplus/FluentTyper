@@ -1,14 +1,12 @@
 import type { PhraseRow } from "../englishPhraseTables";
-import { frameMatches, SPACE, WORD_END, wordSet as words } from "../phraseTemplates";
+import { frameMatches, SPACE as S, WORD_END as E, wordSet as words } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { quotedMention } from "./grammarStyle1";
+import { finding } from "../finding";
 
 // Names written the way their owners do not: brands split, joined or cased wrongly ("You Tube",
 // "Power Point"), misspelled famous names, and nationality or language adjectives in lowercase
 // ("french", "the dutch government").
-
-const S = SPACE;
-const E = WORD_END;
 
 /** Rows for englishPhraseCorrections, englishClosedCompounds and stylePhrasing. */
 export const PHRASES: readonly PhraseRow[] = [
@@ -431,13 +429,11 @@ function placeNames(ctx: DetectContext): Finding[] {
     const typed = m.groups!.w;
     // Lowercase only; a capitalized first word is already a name or the writer's choice.
     if (typed !== typed.toLowerCase() || ctx.dictionary.has(typed)) return;
-    findings.push({
-      ruleId: "englishProperNounCapitalization",
-      messageKey,
-      range: { start, end },
-      alternatives: [name],
-      context: context(ctx, m.index, end),
-    });
+    findings.push(
+      finding("englishProperNounCapitalization", messageKey, start, end, [name], {
+        context: context(ctx, m.index, end),
+      }),
+    );
   };
   for (const m of frameMatches(ctx, PLACE, "w"))
     push(m, PLACE_WORDS[m.groups!.w.toLowerCase().replace(/\s+/g, " ")], "review_msg_name_casing");
@@ -464,13 +460,11 @@ function superBowl(ctx: DetectContext): Finding[] {
     const n = Number(m.groups!.n);
     if (n === 50) continue;
     const [start, end] = m.indices!.groups!.n;
-    findings.push({
-      ruleId: "englishCanonicalCasing",
-      messageKey: "review_msg_roman_numeral_name",
-      range: { start, end },
-      alternatives: [roman(n)],
-      context: context(ctx, m.index, end),
-    });
+    findings.push(
+      finding("englishCanonicalCasing", "review_msg_roman_numeral_name", start, end, [roman(n)], {
+        context: context(ctx, m.index, end),
+      }),
+    );
   }
   return findings;
 }

@@ -11,6 +11,7 @@ import {
 } from "./germanLexicon";
 import { PREPOSITIONS } from "./nounCasing";
 import { BOUNDARY, isGerman, tokensAfter, tokensBefore, VERB_GOVERNORS, wordSet } from "./shared";
+import { finding } from "../finding";
 
 // An article or ein-word no gender of its noun takes: "der Auto" (das), "mit dem Frau" (der),
 // "eine schönes Haus" (ein). Noun genders come from the bundled n-gram counts and compound
@@ -664,14 +665,12 @@ function articleGender(ctx: DetectContext): RawFinding[] {
     if (!wrongCase && typedReadings.some(([g, c]) => fits(head, reading, g, c))) {
       const verb = verbObjectCase(ctx, m.index, nounEnd, det, typed, head, reading, adjectives);
       if (verb) {
-        findings.push({
-          ruleId: "germanArticleGender",
-          messageKey: "review_msg_german_verb_case",
-          range: { start: detStart, end },
-          alternatives: verb.fixes,
-          context: { start: m.index, end: nounEnd },
-          ...(verb.fixes.length > 1 ? { requiresChoice: true as const } : {}),
-        });
+        findings.push(
+          finding("germanArticleGender", "review_msg_german_verb_case", detStart, end, verb.fixes, {
+            context: { start: m.index, end: nounEnd },
+            ...(verb.fixes.length > 1 ? { requiresChoice: true as const } : {}),
+          }),
+        );
         continue;
       }
       const recipient = indirectObject(
@@ -696,13 +695,11 @@ function articleGender(ctx: DetectContext): RawFinding[] {
       }
       const object = objectCase(ctx, m.index, nounEnd, det, typed, reading, adjectives);
       if (object) {
-        findings.push({
-          ruleId: "germanArticleGender",
-          messageKey: "review_msg_german_object_case",
-          range: { start: detStart, end },
-          alternatives: [object],
-          context: { start: m.index, end: nounEnd },
-        });
+        findings.push(
+          finding("germanArticleGender", "review_msg_german_object_case", detStart, end, [object], {
+            context: { start: m.index, end: nounEnd },
+          }),
+        );
       }
       continue;
     }
@@ -1052,13 +1049,11 @@ function onTheWay(ctx: DetectContext): RawFinding[] {
       continue;
     }
     const [start, end] = m.indices!.groups!.target;
-    findings.push({
-      ruleId: "germanArticleGender",
-      messageKey: "review_msg_german_preposition_case",
-      range: { start, end },
-      alternatives: ["den"],
-      context: { start: m.index, end: m.index + m[0].length },
-    });
+    findings.push(
+      finding("germanArticleGender", "review_msg_german_preposition_case", start, end, ["den"], {
+        context: { start: m.index, end: m.index + m[0].length },
+      }),
+    );
   }
   return findings;
 }

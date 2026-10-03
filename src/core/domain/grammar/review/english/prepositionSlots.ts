@@ -1,6 +1,6 @@
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import type { PhraseRow } from "../englishPhraseTables";
-import { SPACE, WORD_END } from "../phraseTemplates";
+import { SPACE as S, WORD_END as E } from "../phraseTemplates";
 import type { ReviewDetectorEntry } from "../reviewDetectors";
 import { COMPOUND, frameDetector, type Frame, type Rule } from "./idioms5";
 import { afterBreak, nounOnly } from "./slotWords";
@@ -9,8 +9,6 @@ import { afterBreak, nounOnly } from "./slotWords";
 // (about), "accused him for lying" (of), "participate to" (in), "arrived on the beach" (at),
 // "came in the house" (into), "ask to the user" (ask the user), "a trip in Paris" (to).
 
-const S = SPACE;
-const E = WORD_END;
 const PREPOSITION: Rule = {
   ruleId: "englishFixedPrepositions",
   messageKey: "review_msg_fixed_prepositions",

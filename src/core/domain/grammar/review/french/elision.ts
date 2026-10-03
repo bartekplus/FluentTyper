@@ -13,7 +13,10 @@ import {
   nounGender,
   verbReadings,
 } from "./frenchLexicon";
-import { ownedFrenchWords, tokensAfter, tokensBefore, withCase } from "./frenchTokens";
+import { ownedFrenchWords, tokensAfter, tokensBefore, SENTENCE_START } from "./frenchTokens";
+import { finding } from "../finding";
+import { carryCase } from "../../implementations/helpers/GenericRuleShared";
+import { isLang } from "../phraseTemplates";
 
 // Elision: "le", "de", "que", "je", "ne", "me", "te", "se", "la" drop their vowel before a word
 // that starts with a vowel ("l'arbre", "qu'il"), written with an apostrophe and no space.
@@ -38,7 +41,6 @@ const ARTICLES = new Set(["le", "la", "les", "un", "une", "du", "des", "ce"]);
 const NOT_AFTER_ARTICLE = new Set(
   "il ils elle elles on aussi encore avec ici ensuite alors après aujourd'hui".split(" "),
 );
-const SENTENCE_START = /(?:^|[.!?…\n])[\s\u00a0]*$/u;
 // Letters a text may use as variables ("si c divise a, alors c est premier").
 const VARIABLE_LETTERS = new Set(["c", "d", "l", "m", "n", "s", "t"]);
 /** Conjunctions ending in "que" elide only before these. */
@@ -107,13 +109,8 @@ function missingElision(ctx: DetectContext, m: RegExpExecArray): RawFinding | nu
     return null;
   if (ctx.dictionary.has(lower) || namedExampleBefore(ctx.text, m.index)) return null;
   const apostrophe = apostropheNear(ctx, m.index);
-  const fixed = withCase(typed, ELIDED[lower]) + apostrophe + next;
-  return {
-    ruleId: RULE,
-    messageKey: MESSAGE,
-    range: { start: m.index, end },
-    alternatives: [fixed],
-  };
+  const fixed = carryCase(typed, ELIDED[lower]) + apostrophe + next;
+  return finding(RULE, MESSAGE, m.index, end, [fixed]);
 }
 
 /** "l arbre", "qu il", "d’ enfants": the apostrophe missing, or followed by a space. */
@@ -157,12 +154,7 @@ function spacedElision(ctx: DetectContext, m: RegExpExecArray): RawFinding | nul
   }
   if (namedExampleBefore(ctx.text, m.index)) return null;
   const apostrophe = mark?.trim() || apostropheNear(ctx, m.index);
-  return {
-    ruleId: RULE,
-    messageKey: MESSAGE,
-    range: { start: m.index, end: m.index + m[0].length },
-    alternatives: [letter + apostrophe + next],
-  };
+  return finding(RULE, MESSAGE, m.index, m.index + m[0].length, [letter + apostrophe + next]);
 }
 
 const FULL =
@@ -252,14 +244,9 @@ function gluedElision(ctx: DetectContext, m: RegExpExecArray): RawFinding | null
     const next = tokensAfter(ctx.text, m.index + typed.length, 1)[0];
     if (!next || !verbReadings(next.w).length) return null;
   }
-  return {
-    ruleId: RULE,
-    messageKey: MESSAGE,
-    range: { start: m.index, end: m.index + typed.length },
-    alternatives: [
-      typed.slice(0, letter.length) + apostropheNear(ctx, m.index) + typed.slice(letter.length),
-    ],
-  };
+  return finding(RULE, MESSAGE, m.index, m.index + typed.length, [
+    typed.slice(0, letter.length) + apostropheNear(ctx, m.index) + typed.slice(letter.length),
+  ]);
 }
 const GLUED =
   /(?<![\p{L}\p{M}\p{N}_'’-])(?:[cCjJsSnNmMtTdDlL]|[qQ]u)\p{Ll}+(?![\p{L}\p{M}\p{N}_'’-])/gu;
@@ -317,18 +304,15 @@ function wrongElision(ctx: DetectContext, m: RegExpExecArray): RawFinding | null
     full = gender === "f" ? "la" : "le";
   }
   if (!full) return null;
-  return {
-    ruleId: RULE,
-    messageKey: MESSAGE,
-    range: { start: m.index, end: m.index + m[0].length },
-    alternatives: [`${withCase(letter, full)} ${next}`],
-  };
+  return finding(RULE, MESSAGE, m.index, m.index + m[0].length, [
+    `${carryCase(letter, full)} ${next}`,
+  ]);
 }
 const ELIDED_BEFORE =
   /(?<![\p{L}\p{M}\p{N}_'’-])(?<letter>[jJdDlLmMtTsSnN]|[qQ]u)['’](?<next>\p{L}[\p{L}\p{M}]*)(?![\p{L}\p{M}\p{N}_'’-])/gu;
 
 function elision(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "fr") return [];
+  if (!isLang(ctx, "fr")) return [];
   const findings: RawFinding[] = [];
   for (const m of ownedFrenchWords(ctx, GLUED)) {
     const finding = gluedElision(ctx, m);

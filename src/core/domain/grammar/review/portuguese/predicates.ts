@@ -1,9 +1,10 @@
 import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
-import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
+import { frameMatches, isLang, SPACE as S, WORD_END as W } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { TIME } from "./agreement";
-import { analyze } from "./nounAgreement";
+import { analyze, SENTENCE_START } from "./nounAgreement";
 import { verbStems } from "./subjunctive";
+import { finding } from "../finding";
 
 /**
  * An adjective after "ser", "estar", "ficar" or "parecer" agrees with the subject opening the
@@ -12,9 +13,6 @@ import { verbStems } from "./subjunctive";
  * "ser" a bare noun may follow ("A cidade é palco de"), so only listed adjectives count there;
  * after "estar" and "ficar" participles count too ("A porta está fechado").
  */
-
-const S = SPACE;
-const W = WORD_END;
 
 const ADJECTIVE_STEMS = new Set(
   `corret errad cert bonit fei alt baix gord magr pront nov velh chei vazi ric lind car barat limp
@@ -37,7 +35,6 @@ const PRONOUN = "ele|ela|eles|elas";
 const ARTICLE = "o|a|os|as";
 const SUBJECT = `(?:(?<pronoun>${PRONOUN})|(?<article>${ARTICLE})${S}(?<noun>\\p{Ll}{3,}))`;
 const PATTERN = `${SUBJECT}${S}(?:não${S})?(?<copula>${COPULAS.ser}|${COPULAS.estar})${S}${ADVERBS}(?<target>\\p{Ll}{3,}[oa]s?)${W}(?![-\\p{L}])`;
-const SENTENCE_START = /(?:^|[.!?;:\n]["'”’»)]*)[ \t ]*["'“‘«(]?[ \t ]*$/u;
 // What may follow a predicate adjective: the end of the clause or a word that cannot be its noun.
 const CLAUSE_GOES_ON =
   /^(?:[ \t\u00a0]*(?:[.,;:!?)"”»…]|$)|[ \t\u00a0]+(?:e|ou|mas|de|do|da|dos|das|com|para|pra|em|no|na|nos|nas|por|pelo|pela|a|ao|à|aos|às|hoje|agora|ontem|amanhã|demais|também|ainda|sempre|que|quando|porque|pois|se|como|depois|antes|aqui|ali|lá|mesmo|logo|desde|até|sem|nesta|neste|nessa|nesse)(?![\p{L}]))/u;
@@ -52,7 +49,7 @@ const NOUNS_IN_DO = new Set(
 const NOT_SUBJECT = new Set(["gente", "maioria", "minoria", "metade", "parte", "porcentagem"]);
 
 export function subjectPredicates(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "pt") return [];
+  if (!isLang(ctx, "pt")) return [];
   const findings: RawFinding[] = [];
   for (const m of frameMatches(ctx, PATTERN)) {
     const { pronoun, article, noun, copula, target } = m.groups!;
@@ -113,7 +110,7 @@ const GOVERNS_A_SE = new Set(
 const PASSIVE_SE = `(?<verb>\\p{Ll}{3,}[ae])-se${S}(?:(?<det>os|as|muitos|muitas|vários|várias|alguns|algumas|novos|novas|diversos|diversas|\\d+)${S})?(?<noun>\\p{Ll}{3,}s)${W}`;
 
 export function relativeAgreement(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "pt") return [];
+  if (!isLang(ctx, "pt")) return [];
   const findings: RawFinding[] = [];
   for (const m of frameMatches(ctx, RELATIVE)) {
     const { noun, target, qual } = m.groups!;
@@ -130,13 +127,11 @@ export function relativeAgreement(ctx: DetectContext): RawFinding[] {
     const wanted = row[(info.plural ? 2 : 0) + (info.feminine ? 1 : 0)];
     if (wanted === target) continue;
     const [start, end] = m.indices!.groups!.target;
-    findings.push({
-      ruleId: "portugueseAgreement",
-      messageKey: "review_msg_pt_noun_agreement",
-      range: { start, end },
-      alternatives: [wanted],
-      context: { start: m.index, end: m.index + m[0].length },
-    });
+    findings.push(
+      finding("portugueseAgreement", "review_msg_pt_noun_agreement", start, end, [wanted], {
+        context: { start: m.index, end: m.index + m[0].length },
+      }),
+    );
   }
   // "Vende-se casas" -> "Vendem-se casas": with "se" the plural noun after the verb is its
   // subject. "Precisa-se de", "Trata-se de" have none.
@@ -170,7 +165,7 @@ export function relativeAgreement(ctx: DetectContext): RawFinding[] {
 const QUANTIFIED = `(?:${COPULAS.ser}|${COPULAS.estar}|somos|estamos|ficamos|fomos|éramos|estávamos)${S}(?<target>muit[oa]s|pouc[oa]s|muita|pouca|demasiad[oa]s?|bastantes|meias?)${S}(?<adjective>\\p{Ll}{3,}[oa]s?|contentes|felizes|tristes|alegres|doentes|inteligentes|diferentes|ansiosos)${W}`;
 
 export function quantifiedAdjectives(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "pt") return [];
+  if (!isLang(ctx, "pt")) return [];
   const findings: RawFinding[] = [];
   for (const m of frameMatches(ctx, QUANTIFIED)) {
     const { target, adjective } = m.groups!;
@@ -194,13 +189,11 @@ export function quantifiedAdjectives(ctx: DetectContext): RawFinding[] {
             ? "meio"
             : "bastante";
     const [start, targetEnd] = m.indices!.groups!.target;
-    findings.push({
-      ruleId: "portugueseAgreement",
-      messageKey: "review_msg_pt_noun_agreement",
-      range: { start, end: targetEnd },
-      alternatives: [wanted],
-      context: { start: m.index, end },
-    });
+    findings.push(
+      finding("portugueseAgreement", "review_msg_pt_noun_agreement", start, targetEnd, [wanted], {
+        context: { start: m.index, end },
+      }),
+    );
   }
   return findings;
 }
@@ -265,7 +258,7 @@ const ANNEX = `(?:segue|seguem|seguiu|seguiram|vai|vão|envio|enviamos|remeto|re
 
 /** Fixed agreements: masculine millions, "muito poucos", "segue anexa". */
 export function fixedAgreements(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "pt") return [];
+  if (!isLang(ctx, "pt")) return [];
   const findings: RawFinding[] = [];
   const push = (m: RegExpExecArray, group: string, wanted: string) => {
     const [start, end] = m.indices!.groups![group];

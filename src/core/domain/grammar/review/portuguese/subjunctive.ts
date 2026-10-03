@@ -1,5 +1,5 @@
 import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
-import { frameMatches, SPACE } from "../phraseTemplates";
+import { frameMatches, isLang, SPACE as S } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { graphWords } from "../wordGraph";
 import {
@@ -20,8 +20,6 @@ import {
  * from nouns through the stems of everyday verbs (verbStems.generated.ts); a stem shared by an
  * -ar and an -er/-ir verb (sentar/sentir: "sente") stays out.
  */
-
-const S = SPACE;
 
 // Present and imperfect subjunctive of the irregular indicatives (present, and imperfect for
 // past governors). "vão" and "vamos" are spelled alike in both moods.
@@ -332,7 +330,7 @@ const FRAMES: Array<{ pattern: string; past: boolean }> = [
 ];
 
 export function subjunctives(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "pt") return [];
+  if (!isLang(ctx, "pt")) return [];
   const findings: RawFinding[] = [];
   for (const { pattern, past } of FRAMES) {
     for (const m of frameMatches(ctx, pattern, "lead")) {

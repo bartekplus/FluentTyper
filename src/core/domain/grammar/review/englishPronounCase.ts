@@ -4,6 +4,7 @@ import { applyWordCase, detectWordCase } from "../implementations/helpers/Generi
 import { pluralNoun } from "./englishSentenceStructure";
 import { frame, frameMatches, hasUserOrCasedWord, SPACE, WORD_END } from "./phraseTemplates";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
+import { finding } from "./finding";
 
 // Irregular simple-past forms with one owner ("lay" is lay's lemma and lie's past).
 const PASTS = ENGLISH_VERB_FORMS.filter((entry) => englishVerbForms(entry.past) === entry).map(
@@ -161,13 +162,11 @@ function coordinatedSubjects(ctx: DetectContext): RawFinding[] {
     const typed = ctx.source.slice(aStart, rangeEnd);
     if (typed === typed.toUpperCase()) phrase = phrase.toUpperCase();
     if (phrase === typed) continue;
-    findings.push({
-      ruleId: "englishPronounCase",
-      messageKey: "review_msg_pronoun_subject_case",
-      range: { start: aStart, end: rangeEnd },
-      alternatives: [phrase],
-      context: { start: Math.max(0, start - 32), end: Math.min(ctx.text.length, end + 16) },
-    });
+    findings.push(
+      finding("englishPronounCase", "review_msg_pronoun_subject_case", aStart, rangeEnd, [phrase], {
+        context: { start: Math.max(0, start - 32), end: Math.min(ctx.text.length, end + 16) },
+      }),
+    );
   }
   return findings;
 }

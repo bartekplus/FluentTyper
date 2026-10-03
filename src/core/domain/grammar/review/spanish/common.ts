@@ -2,6 +2,7 @@ import { applyWordCase, detectWordCase } from "../../implementations/helpers/Gen
 import { namedExampleBefore } from "../exampleCues";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { attribute, isVerb } from "./lexicon";
+import { finding } from "../finding";
 
 /** A word, number or punctuation mark of the read window, with its lowercase form. */
 export interface Token {
@@ -90,17 +91,13 @@ export function replaceToken(
   if (namedExampleBefore(ctx.text, token.start)) return null;
   const alternatives = exact ? replacements : replacements.map((r) => carryCase(token.text, r));
   if (alternatives.includes(token.text)) return null;
-  return {
-    ruleId,
-    messageKey,
-    range: { start: token.start, end: token.end },
-    alternatives,
+  return finding(ruleId, messageKey, token.start, token.end, alternatives, {
     context: {
       start: Math.min(token.start, evidence.start),
       end: Math.max(token.end, evidence.end),
     },
     ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
-  };
+  });
 }
 
 /** Space-separated words as a set. */

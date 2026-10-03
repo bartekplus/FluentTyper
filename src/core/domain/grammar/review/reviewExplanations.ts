@@ -9,7 +9,7 @@ import type { ReviewMessageKey } from "./types";
  * so content scripts never parse it. The explanations of findings the page
  * builds itself stay in reviewMessages.ts.
  */
-const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translations> = {
+const EXPLANATIONS = {
   review_msg_phrase_correction: [
     "Use the conventional form of this fixed English phrase.",
     "Utilisez la forme usuelle de cette expression figée anglaise.",
@@ -3888,7 +3888,10 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Składany tekst niemiecki używa znaku mnożenia: 3 × 4 lub 3 · 4, nie 3 x 4 ani 3 * 4.",
     "Um texto alemão composto usa o sinal de multiplicação: 3 × 4 ou 3 · 4, não 3 x 4 nem 3 * 4.",
   ],
-};
+} satisfies Record<string, Translations> & Partial<Record<PageMessageKey, never>>;
+
+/** The finding messages the background explains. */
+export type ExplainedMessageKey = keyof typeof EXPLANATIONS;
 
 /**
  * A finding's explanation in the UI language `lang` (English when it has

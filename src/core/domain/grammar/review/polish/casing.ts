@@ -1,6 +1,6 @@
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { placeForm } from "./lexicon";
-import { findingAt, isPl, owned, sentenceStartAt, userOrNamed } from "./shared";
+import { findingAt, isPl, owned, S as SP, sentenceStartAt, userOrNamed } from "./shared";
 
 /*
  * Polish capitals: weekdays, months and language or regional adjectives take a small letter
@@ -11,7 +11,6 @@ import { findingAt, isPl, owned, sentenceStartAt, userOrNamed } from "./shared";
 const RULE = "polishCapitalization" as const;
 const MESSAGE = "review_msg_pl_capitals" as const;
 /** Spaces between words, bounded so look-behinds stay linear on whitespace runs. */
-const SP = "[ \\t\\u00a0]{1,8}";
 const END = "(?![\\p{L}\\p{N}])";
 
 const PLACE_PREPOSITIONS = (

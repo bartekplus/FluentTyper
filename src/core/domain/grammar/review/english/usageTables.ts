@@ -1,13 +1,16 @@
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import type { PhraseRow } from "../englishPhraseTables";
-import { frameMatches, hasUserOrCasedWord, SPACE, WORD_END } from "../phraseTemplates";
+import {
+  frameMatches,
+  hasUserOrCasedWord,
+  isLang,
+  SPACE as S,
+  WORD_END as E,
+} from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 
 // Contractions split by a space, holiday names with their apostrophes, and optional plain-style
 // rewrites of wordy phrases.
-
-const S = SPACE;
-const E = WORD_END;
 
 /** Rows for englishPhraseCorrections, englishClosedCompounds and stylePhrasing. */
 export const PHRASES: readonly PhraseRow[] = [
@@ -165,7 +168,7 @@ const SEND_EMAIL = `(?<target>(?<verb>send|sends|sent|sending)${S}(?<object>me|y
 const NOT_ADJECTIVE = `(?:is|are|was|were|be|been|being|seems?|seemed|looks?|looked)${S}(?<target>not${S}(?<adjective>[a-z]{4,}))${E}(?![ \\t\\u00a0]+(?:enough|only|just|as|so|but)${E})`;
 
 function frames(ctx: DetectContext): RawFinding[] {
-  if (!ctx.lang.startsWith("en") || (ctx.rules && !ctx.rules.has("stylePhrasing"))) return [];
+  if (!isLang(ctx, "en") || (ctx.rules && !ctx.rules.has("stylePhrasing"))) return [];
   const findings: RawFinding[] = [];
   const push = (m: RegExpExecArray, alternatives: string[]) => {
     const [start, end] = m.indices!.groups!.target;
@@ -211,7 +214,7 @@ const CONTRACTION_CASE =
   /(?<![\p{L}\p{N}_'’])(?<head>\p{L}+)(?<mark>['’])(?<tail>s|t|re|ve|ll|d|m)(?![\p{L}\p{N}_])/giu;
 
 function contractionCase(ctx: DetectContext): RawFinding[] {
-  if (!ctx.lang.startsWith("en")) return [];
+  if (!isLang(ctx, "en")) return [];
   const findings: RawFinding[] = [];
   for (const m of frameMatches(ctx, CONTRACTION_CASE, (match) => match.index)) {
     const { head, mark, tail } = m.groups!;

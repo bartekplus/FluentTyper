@@ -1,18 +1,17 @@
 import { namedExampleBefore } from "../exampleCues";
-import { frameMatches, SPACE, WORD_END, WORD_START } from "../phraseTemplates";
+import { frameMatches, SPACE as S, WORD_END as E, WORD_START } from "../phraseTemplates";
 import { lookupMeasurementUnit } from "../../measurement/registry";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import type { ReviewMessageKey } from "../types";
 import { germanNounReading } from "./germanLexicon";
 import { isGerman, NOT_BLANK } from "./shared";
+import { finding } from "../finding";
 
 // German numbers written in words: one word up to a million ("sechs und zwanzig" →
 // "sechsundzwanzig", "drei hundert" → "dreihundert", "acht mal" → "achtmal", "zwei an halb"
 // → "zweieinhalb"), lowercase as numbers ("bis Drei zählen" → "drei"), and a plural noun
 // after a plural number ("zwei Million" → "Millionen", "viele Möglichkeit" → "Möglichkeiten").
 
-const S = SPACE;
-const E = WORD_END;
 const re = (source: string) => new RegExp(`${NOT_BLANK}${WORD_START}(?:${source})${E}`, "gdu");
 
 const UNITS = "ein|eins|zwei|drei|vier|fünf|sechs|sieben|acht|neun";
@@ -108,14 +107,10 @@ function written(first: string, rest: string, mal?: string): string | null {
   return /^\p{Lu}/u.test(first) ? out[0].toUpperCase() + out.slice(1) : out;
 }
 
-function finding(start: number, end: number, alternatives: string[]): RawFinding {
-  return {
-    ruleId: "germanNumbers",
-    messageKey: "review_msg_german_numbers",
-    range: { start, end },
-    alternatives,
+function numberFinding(start: number, end: number, alternatives: string[]): RawFinding {
+  return finding("germanNumbers", "review_msg_german_numbers", start, end, alternatives, {
     context: { start: Math.max(0, start - 30), end: end + 30 },
-  };
+  });
 }
 
 function numbers(ctx: DetectContext): RawFinding[] {
@@ -129,7 +124,7 @@ function numbers(ctx: DetectContext): RawFinding[] {
     if (ctx.dictionary.has(typed.toLowerCase())) return;
     // "hundert tausend mal" already covers its "tausend mal".
     if (findings.some((f) => f.range.start < end && start < f.range.end)) return;
-    findings.push(finding(start, end, alternatives));
+    findings.push(numberFinding(start, end, alternatives));
   };
   for (const m of frameMatches(ctx, APART)) {
     const { first, rest, mal } = m.groups!;
@@ -194,7 +189,7 @@ function numbers(ctx: DetectContext): RawFinding[] {
     const [start, end] = m.indices!.groups!.target;
     if (namedExampleBefore(ctx.text, start)) continue;
     findings.push({
-      ...finding(start, end, [`${m.groups!.target}.`]),
+      ...numberFinding(start, end, [`${m.groups!.target}.`]),
       messageKey: "review_msg_german_ordinal_dot",
     });
   }
@@ -211,7 +206,7 @@ function numbers(ctx: DetectContext): RawFinding[] {
     if (namedExampleBefore(ctx.text, start) || ctx.dictionary.has(m.groups!.target.toLowerCase()))
       continue;
     findings.push({
-      ...finding(start, end, [`${from} ${between ? "und" : "bis"} ${to}`]),
+      ...numberFinding(start, end, [`${from} ${between ? "und" : "bis"} ${to}`]),
       messageKey: "review_msg_german_range",
     });
   }

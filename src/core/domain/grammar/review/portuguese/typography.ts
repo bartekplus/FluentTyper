@@ -1,4 +1,11 @@
-import { frameMatches, SPACE, WORD_END, WORD_START } from "../phraseTemplates";
+import {
+  frameMatches,
+  isLang,
+  SPACE,
+  SPACE as S,
+  WORD_END as W,
+  WORD_START,
+} from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import type { ReviewMessageKey } from "../types";
 
@@ -20,8 +27,6 @@ type Frame = {
   messageKey: ReviewMessageKey;
 };
 
-const S = SPACE;
-const W = WORD_END;
 const GAP = "[ \\t\\u00a0]?";
 const NUM = "\\d[\\d.,]*";
 const SUPER: Record<string, string> = { "2": "²", "3": "³" };
@@ -302,11 +307,11 @@ function formulas(ctx: DetectContext): RawFinding[] {
 }
 
 export function numberFormat(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "pt") return [];
+  if (!isLang(ctx, "pt")) return [];
   return frameFindings(ctx, NUMBER_FORMAT);
 }
 
 export function typographyStyle(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "pt") return [];
+  if (!isLang(ctx, "pt")) return [];
   return [...frameFindings(ctx, STYLE), ...formulas(ctx)];
 }

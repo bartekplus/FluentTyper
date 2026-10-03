@@ -18,6 +18,7 @@ import {
   wordBefore,
 } from "./slotWords";
 import { MASS } from "./nounNumberSlots";
+import { finding } from "../finding";
 
 // Verb groups whose second verb has the wrong form, read from the lexicon: "have finish",
 // "was establish", "got mislead", "does makes", "can you sent", "is requires", "I seen".
@@ -76,14 +77,12 @@ function push(
   requiresChoice = false,
 ): void {
   if (findings.some((f) => f.range.start === start && f.range.end === end)) return;
-  findings.push({
-    ruleId,
-    messageKey,
-    range: { start, end },
-    alternatives,
-    ...(requiresChoice ? { requiresChoice: true as const } : {}),
-    context: evidence(ctx, from, end),
-  });
+  findings.push(
+    finding(ruleId, messageKey, start, end, alternatives, {
+      ...(requiresChoice ? { requiresChoice: true as const } : {}),
+      context: evidence(ctx, from, end),
+    }),
+  );
 }
 
 const nextToken = (ctx: DetectContext, end: number) => tokensAfter(ctx, end, 1)[0];

@@ -1,5 +1,5 @@
 import type { PhraseRow } from "../englishPhraseTables";
-import { frameMatches, SPACE } from "../phraseTemplates";
+import { frameMatches, isLang, SPACE as S } from "../phraseTemplates";
 import { invalidIsoDates } from "../isoDates";
 import { NO_WORD_BEFORE } from "../markdownEmphasis";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
@@ -12,6 +12,7 @@ import {
   yearsFor,
   YEAR_DIGITS,
 } from "../reviewClock";
+import { finding } from "../finding";
 
 // Calendar checks: a weekday that does not fall on the date written next to it, and a day the
 // month does not have ("June 31", "2/30/2024"). A date with no year uses the Review clock.
@@ -21,7 +22,6 @@ export const PHRASES: readonly PhraseRow[] = [];
 export const COMPOUNDS: readonly PhraseRow[] = [];
 export const STYLE: readonly PhraseRow[] = [];
 
-const S = SPACE;
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 // Abbreviations, longest first; two-letter ones only with the comma after them ("Mo, 7").
 const WEEKDAY_FORMS: readonly (readonly [string, number])[] = [
@@ -180,14 +180,12 @@ function weekdayMismatch(ctx: DetectContext): RawFinding[] {
       .map((step) => year + step)
       .find((y) => valid(month, day, y) && weekdayOf(y, month, day) === named);
     if (other !== undefined) alternatives.push(edit(yearStart, yearEnd, String(other)));
-    findings.push({
-      ruleId: "englishDateConsistency",
-      messageKey: "review_msg_weekday_mismatch",
-      range: { start, end },
-      alternatives,
-      requiresChoice: true,
-      context: { start, end: m.index + m[0].length },
-    });
+    findings.push(
+      finding("englishDateConsistency", "review_msg_weekday_mismatch", start, end, alternatives, {
+        requiresChoice: true,
+        context: { start, end: m.index + m[0].length },
+      }),
+    );
   }
   return findings;
 }
@@ -224,26 +222,20 @@ function weekdayNoYear(
         String(near).padStart(dayEnd - dayStart, "0") + (suffix ? ordinal(near) : ""),
       ),
     );
-  return {
-    ruleId: "englishDateConsistency",
-    messageKey: "review_msg_weekday_no_year",
-    range: { start, end },
-    alternatives,
+  return finding("englishDateConsistency", "review_msg_weekday_no_year", start, end, alternatives, {
     requiresChoice: true,
     context: { start, end: m.index + m[0].length },
-  };
+  });
 }
 
 function impossibleDates(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   const flag = (start: number, end: number) =>
-    findings.push({
-      ruleId: "englishDateConsistency",
-      messageKey: "review_msg_impossible_date",
-      range: { start, end },
-      alternatives: [],
-      warningOnly: true,
-    });
+    findings.push(
+      finding("englishDateConsistency", "review_msg_impossible_date", start, end, [], {
+        warningOnly: true,
+      }),
+    );
   for (const m of frameMatches(ctx, MONTH_DAY)) {
     const g = m.groups!;
     const monthName = g.month1 ?? g.month2;
@@ -276,7 +268,7 @@ function impossibleDates(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 function detect(ctx: DetectContext): RawFinding[] {
-  if (!ctx.lang.startsWith("en")) return [];
+  if (!isLang(ctx, "en")) return [];
   return [...weekdayMismatch(ctx), ...impossibleDates(ctx)];
 }
 

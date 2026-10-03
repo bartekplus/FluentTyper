@@ -3,6 +3,7 @@ import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDe
 import { germanGender, germanInfinitive } from "./germanLexicon";
 import { englishLine, isGerman, wordSet } from "./shared";
 import { germanInfinitiveOf, isAuxiliary } from "./verbAgreement";
+import { finding } from "../finding";
 
 // A question that ends in a full stop: "Wann kommst du." → "?", "Hast du Zeit." → "?",
 // "Er ist schon weg, oder." → "?". Opt-in: a w-word or a verb first is a question in most
@@ -146,13 +147,11 @@ function questions(ctx: DetectContext): RawFinding[] {
       if (words.length < 2 || /(?:^|\s)\p{L}$/u.test(sentence)) continue;
       if (!isQuestion(words)) continue;
     }
-    findings.push({
-      ruleId: "germanQuestionMarks",
-      messageKey: "review_msg_german_question_mark",
-      range: { start: at, end: at + 1 },
-      alternatives: ["?"],
-      context: { start, end: at + 1 },
-    });
+    findings.push(
+      finding("germanQuestionMarks", "review_msg_german_question_mark", at, at + 1, ["?"], {
+        context: { start, end: at + 1 },
+      }),
+    );
   }
   return findings;
 }

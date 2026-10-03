@@ -1,6 +1,14 @@
-import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
+import {
+  applyWordCase,
+  detectWordCase,
+  carryCase,
+} from "../../implementations/helpers/GenericRuleShared";
 import { namedExampleBefore } from "../exampleCues";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
+import { finding } from "../finding";
+
+/** Text before a sentence start: the text start or sentence punctuation, then spaces. */
+export const SENTENCE_START = /(?:^|[.!?…\n])[\s\u00a0]*$/u;
 
 /** A word of the clause before a target, nearest first. */
 export interface Token {
@@ -121,27 +129,16 @@ export function wordFinding(
   if (ctx.dictionary.has(typed.toLowerCase())) return null;
   if (applyWordCase(typed, detectWordCase(typed)) !== typed) return null;
   if (namedExampleBefore(ctx.text, start)) return null;
-  const cased = [...new Set(alternatives.map((alt) => withCase(typed, alt)))];
+  const cased = [...new Set(alternatives.map((alt) => carryCase(typed, alt)))];
   if (cased.includes(typed) || !cased.length) return null;
-  return {
-    ruleId,
-    messageKey,
-    range: { start, end: start + typed.length },
-    alternatives: cased,
+  return finding(ruleId, messageKey, start, start + typed.length, cased, {
     ...(context ? { context } : {}),
     ...(cased.length > 1 ? { requiresChoice: true as const } : {}),
-  };
+  });
 }
 
 /** A capitalized word inside a sentence: a name ("Vitré", "Rodez"), not a verb. */
 export function capitalizedName(text: string, index: number, word: string): boolean {
   if (!/^\p{Lu}/u.test(word)) return false;
   return !/(?:^|[.!?…:;«»"“”—–-]|\n)[\s  ]*$/u.test(text.slice(Math.max(0, index - 6), index));
-}
-
-/** The typed word's capitalization on a replacement. */
-export function withCase(typed: string, replacement: string): string {
-  if (typed.length > 1 && typed === typed.toUpperCase()) return replacement.toUpperCase();
-  if (/^\p{Lu}/u.test(typed)) return replacement[0].toUpperCase() + replacement.slice(1);
-  return replacement;
 }

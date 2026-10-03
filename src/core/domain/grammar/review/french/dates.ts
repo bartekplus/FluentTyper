@@ -10,7 +10,10 @@ import {
   yearsFor,
   YEAR_DIGITS,
 } from "../reviewClock";
-import { ownedFrenchWords, withCase } from "./frenchTokens";
+import { ownedFrenchWords } from "./frenchTokens";
+import { finding } from "../finding";
+import { carryCase } from "../../implementations/helpers/GenericRuleShared";
+import { isLang } from "../phraseTemplates";
 
 // Dates the calendar rules out: a day past the month's end ("31 septembre", "29 février 2023")
 // and a weekday that contradicts a full date ("vendredi 28 août 2014" was a Thursday). A weekday
@@ -137,26 +140,18 @@ function checkDate(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   const last = daysInMonth(monthNumber + 1, yearNumber);
   if (dayNumber > last) {
     const choices = monthNumber === 1 && yearNumber === undefined ? ["28", "29"] : [String(last)];
-    return {
-      ruleId: RULE,
-      messageKey: MESSAGE,
-      range: { start: dayStart, end: dayStart + day.length },
-      alternatives: choices,
+    return finding(RULE, MESSAGE, dayStart, dayStart + day.length, choices, {
       context: { start: m.index, end: m.index + m[0].length },
       ...(choices.length > 1 ? { requiresChoice: true as const } : {}),
-    };
+    });
   }
   if (!weekday || (year && yearNumber === undefined)) return null;
   if (yearNumber === undefined) return weekdayNoYear(ctx, m, monthNumber + 1, dayNumber);
   const actual = WEEKDAYS[weekdayOf(yearNumber, monthNumber + 1, dayNumber)];
   if (actual === weekday.toLowerCase()) return null;
-  return {
-    ruleId: RULE,
-    messageKey: MESSAGE,
-    range: { start: m.index, end: m.index + weekday.length },
-    alternatives: [withCase(weekday, actual)],
+  return finding(RULE, MESSAGE, m.index, m.index + weekday.length, [carryCase(weekday, actual)], {
     context: { start: m.index, end: m.index + m[0].length },
-  };
+  });
 }
 
 /** "lundi 7 octobre" with no year: the weekday of each year it can mean, or the nearest day. */
@@ -174,21 +169,21 @@ function weekdayNoYear(
   const [dayStart, dayEnd] = m.indices!.groups!.day;
   const between = ctx.text.slice(m.index + weekday.length, dayStart);
   const near = nearestDayOn(years[0], month, day, typed);
-  return {
-    ruleId: RULE,
-    messageKey: "review_msg_weekday_no_year",
-    range: { start: m.index, end: dayEnd },
-    alternatives: [
-      ...weekdays.map((w) => `${withCase(weekday, WEEKDAYS[w])}${between}${m.groups!.day}`),
+  return finding(
+    RULE,
+    "review_msg_weekday_no_year",
+    m.index,
+    dayEnd,
+    [
+      ...weekdays.map((w) => `${carryCase(weekday, WEEKDAYS[w])}${between}${m.groups!.day}`),
       ...(near === null ? [] : [`${weekday}${between}${near}`]),
     ],
-    requiresChoice: true,
-    context: { start: m.index, end: m.index + m[0].length },
-  };
+    { requiresChoice: true, context: { start: m.index, end: m.index + m[0].length } },
+  );
 }
 
 function dates(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "fr") return [];
+  if (!isLang(ctx, "fr")) return [];
   const findings: RawFinding[] = [];
   for (const pattern of DATES)
     for (const m of ownedFrenchWords(ctx, pattern)) {

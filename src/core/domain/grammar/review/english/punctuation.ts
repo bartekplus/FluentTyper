@@ -1,9 +1,10 @@
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import type { PhraseRow } from "../englishPhraseTables";
-import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
+import { frameMatches, SPACE as S, WORD_END as E } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { namedExampleBefore } from "../exampleCues";
 import { quotedMention } from "./grammarStyle1";
+import { finding } from "../finding";
 
 // English commas and stray marks.
 // englishPunctuation (on by default): a comma right before a sentence mark (",." ",!"), a comma
@@ -18,8 +19,6 @@ export const PHRASES: readonly PhraseRow[] = [];
 export const COMPOUNDS: readonly PhraseRow[] = [];
 export const STYLE: readonly PhraseRow[] = [];
 
-const S = SPACE;
-const E = WORD_END;
 type Finding = RawFinding;
 
 /** Matches of a global regex starting in [from, to), outside named examples. */
@@ -57,12 +56,11 @@ const BEFORE_THANKS = new Set(
 function asideCommas(ctx: DetectContext): Finding[] {
   const out: Finding[] = [];
   const add = (start: number, gap: string) =>
-    out.push({
-      ruleId: "styleClauseComma",
-      messageKey: "review_msg_aside_comma",
-      range: { start, end: start + gap.length },
-      alternatives: [`,${gap.replace(/^[ \t ]*/, " ")}`],
-    });
+    out.push(
+      finding("styleClauseComma", "review_msg_aside_comma", start, start + gap.length, [
+        `,${gap.replace(/^[ \t ]*/, " ")}`,
+      ]),
+    );
   for (const m of owned(ctx, TAG)) {
     // The statement before the tag opens its sentence with neither an auxiliary nor a wh-word.
     const before = ctx.text.slice(Math.max(0, m.index - 200), m.index);
@@ -91,13 +89,11 @@ function asideCommas(ctx: DetectContext): Finding[] {
 function punctuation(ctx: DetectContext): Finding[] {
   const out: Finding[] = [];
   const add = (start: number, end: number, alternatives: string[]) =>
-    out.push({
-      ruleId: "englishPunctuation",
-      messageKey: "review_msg_stray_comma",
-      range: { start, end },
-      alternatives,
-      ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
-    });
+    out.push(
+      finding("englishPunctuation", "review_msg_stray_comma", start, end, alternatives, {
+        ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+      }),
+    );
   for (const m of owned(ctx, COMMA_MARK)) add(m.index, m.index + 1, [""]);
   for (const m of owned(ctx, COMMA_PAREN)) add(m.index, m.index + 2, ["),", ")"]);
   for (const m of owned(ctx, NEITHER)) {
@@ -411,12 +407,11 @@ function correlativeCommas(ctx: DetectContext): Finding[] {
     )
       continue;
     const [start] = m.indices!.groups!.gap;
-    out.push({
-      ruleId: "styleClauseComma",
-      messageKey: "review_msg_clause_comma",
-      range: { start, end: start + m.groups!.gap.length },
-      alternatives: [`,${m.groups!.gap}`],
-    });
+    out.push(
+      finding("styleClauseComma", "review_msg_clause_comma", start, start + m.groups!.gap.length, [
+        `,${m.groups!.gap}`,
+      ]),
+    );
   }
   return out;
 }
@@ -440,12 +435,11 @@ function clauseCommas(ctx: DetectContext): Finding[] {
     // "you and I went": a coordinated subject, not two clauses.
     if (/\byou$/i.test(before) && !/thank you$/i.test(before) && /^[ \t\u00a0]*I\b/.test(tail))
       continue;
-    out.push({
-      ruleId: "styleClauseComma",
-      messageKey: "review_msg_clause_comma",
-      range: { start: m.index, end: m.index + gap.length },
-      alternatives: [`,${gap}`],
-    });
+    out.push(
+      finding("styleClauseComma", "review_msg_clause_comma", m.index, m.index + gap.length, [
+        `,${gap}`,
+      ]),
+    );
   }
   return out;
 }

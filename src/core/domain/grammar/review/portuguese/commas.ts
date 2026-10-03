@@ -1,5 +1,6 @@
-import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
+import { frameMatches, isLang, SPACE as S, WORD_END as W } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
+import { finding } from "../finding";
 
 /**
  * Commas Portuguese requires in pairs or before a name.
@@ -18,8 +19,6 @@ import type { DetectContext, RawFinding } from "../reviewDetectors";
  * - "mas" opening a clause after a word ("Adoro doce mas engorda" -> "doce, mas").
  */
 
-const S = SPACE;
-const W = WORD_END;
 // Expressions that only ever stand apart from the clause. Left out because they also
 // read as ordinary words: "em geral" ("os carros, em geral caros,"), "no fundo" ("no fundo
 // do mar"), "isto é" ("isto é o que quero"), "de fato" ("um casal de fato").
@@ -100,13 +99,11 @@ function push(
 ) {
   const [start, end] = m.indices!.groups!.target;
   const typed = m.groups!.target;
-  findings.push({
-    ruleId: "portugueseCommas",
-    messageKey,
-    range: { start, end },
-    alternatives: [replace(typed)],
-    context: { start: m.index, end: Math.max(end, m.index + m[0].length) },
-  });
+  findings.push(
+    finding("portugueseCommas", messageKey, start, end, [replace(typed)], {
+      context: { start: m.index, end: Math.max(end, m.index + m[0].length) },
+    }),
+  );
 }
 
 // styleIntroductoryComma (opt-in): an opening phrase that the comma usually sets off ("Por
@@ -115,7 +112,7 @@ const OPENING_PHRASES = `por${S}favor|além${S}disso|no${S}entanto|na${S}verdade
 const OPENING = `(?<=^|[.!?;\\n][ \\t\\u00a0]{0,8})(?:${OPENING_PHRASES})(?<target>${S})(?=\\p{Ll}+${W})(?!(?:de|do|da|dos|das|que|tudo)${W})`;
 
 export function introductoryCommas(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "pt") return [];
+  if (!isLang(ctx, "pt")) return [];
   return [...frameMatches(ctx, OPENING)].map((m) => {
     const [start, end] = m.indices!.groups!.target;
     return {
@@ -129,7 +126,7 @@ export function introductoryCommas(ctx: DetectContext): RawFinding[] {
 }
 
 export function commas(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "pt") return [];
+  if (!isLang(ctx, "pt")) return [];
   const findings: RawFinding[] = [];
   for (const m of frameMatches(ctx, UNCLOSED)) push(findings, m, (typed) => `${typed},`);
   for (const m of frameMatches(ctx, CONJUNCTION_UNOPENED))

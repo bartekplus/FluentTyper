@@ -5,6 +5,7 @@ import { arabicDates } from "./dates";
 import { FEMININE_PLURAL_STEMS, WORD_CLASSES } from "./lexicon.generated";
 import { styleFrames } from "./styleFrames";
 import { gappedUsage } from "./usage";
+import { isLang } from "../phraseTemplates";
 
 type Finding = Omit<RawFinding, "ruleId">;
 type Token = { word: string; start: number; end: number; gap: string };
@@ -1029,7 +1030,7 @@ function arabicStyle(ctx: DetectContext): Finding[] {
 const as =
   (ruleId: RawFinding["ruleId"], detect: (ctx: DetectContext, list: Token[]) => Finding[]) =>
   (ctx: DetectContext): RawFinding[] =>
-    !ctx.lang.startsWith("ar") || (ctx.rules && !ctx.rules.has(ruleId))
+    !isLang(ctx, "ar") || (ctx.rules && !ctx.rules.has(ruleId))
       ? []
       : detect(ctx, tokens(ctx)).map((f) => ({ ruleId, ...f }));
 

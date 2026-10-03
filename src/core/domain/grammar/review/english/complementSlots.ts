@@ -15,6 +15,7 @@ import {
   tokensAfter,
   wordBefore,
 } from "./slotWords";
+import { finding } from "../finding";
 
 // Verb complements decided by the lexicon: a missing "to" ("I want go"), a gerund where an
 // infinitive belongs ("can't afford buying") and the reverse ("enjoy to swim").
@@ -91,13 +92,11 @@ function push(
   from: number,
 ): void {
   if (findings.some((f) => f.range.start === start)) return;
-  findings.push({
-    ruleId: "englishVerbComplements",
-    messageKey,
-    range: { start, end },
-    alternatives,
-    context: evidence(ctx, from, end),
-  });
+  findings.push(
+    finding("englishVerbComplements", messageKey, start, end, alternatives, {
+      context: evidence(ctx, from, end),
+    }),
+  );
 }
 
 /** "I want go", "try get", "would like see", "needs be there": an infinitive without "to". */

@@ -1,14 +1,19 @@
 import { englishInflect } from "../../implementations/helpers/EnglishInflection";
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import type { PhraseRow } from "../englishPhraseTables";
-import { frameMatches, hasUserOrCasedWord, SPACE, WORD_END } from "../phraseTemplates";
+import {
+  frameMatches,
+  hasUserOrCasedWord,
+  isLang,
+  SPACE as S,
+  WORD_END as E,
+} from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import { finding } from "../finding";
+import { carryCase } from "../../implementations/helpers/GenericRuleShared";
 
 // Open, closed and hyphenated compounds: rows for forms that are never right written apart,
 // and slot frames for the ones that are a phrase in one position and a compound in another.
-
-const S = SPACE;
-const E = WORD_END;
 
 /** "a b" -> "ab" (or "a-b"), once per ending added to the second part. */
 const rows = (pairs: string, joiner: "" | "-", endings: readonly string[] = [""]): PhraseRow[] =>
@@ -193,12 +198,6 @@ const nextWord = (ctx: DetectContext, end: number) =>
 const OBJECT =
   /^(?:the|a|an|this|that|these|those|my|your|his|her|its|our|their|me|him|us|them|it|you|some|any|every|each|all|no|one|two|three|other|another|more|less)$/i;
 
-/** The typed casing on a replacement: capitals, an initial capital, or lowercase. */
-function recase(typed: string, fix: string): string {
-  if (typed.length > 1 && typed === typed.toUpperCase()) return fix.toUpperCase();
-  return /^\p{Lu}/u.test(typed) ? fix.charAt(0).toUpperCase() + fix.slice(1) : fix;
-}
-
 function found(
   ctx: DetectContext,
   m: RegExpExecArray,
@@ -209,19 +208,15 @@ function found(
   const [start, end] = group(m, "target");
   const typed = ctx.text.slice(start, end);
   if (hasUserOrCasedWord(ctx, typed) || titled(typed)) return null;
-  const cased = alternatives.map((alt) => recase(typed, alt));
+  const cased = alternatives.map((alt) => carryCase(typed, alt));
   if (cased.includes(typed)) return null;
-  return {
-    ruleId,
-    messageKey,
-    range: { start, end },
-    alternatives: cased,
+  return finding(ruleId, messageKey, start, end, cased, {
     ...(cased.length > 1 ? { requiresChoice: true as const } : {}),
     context: {
       start: Math.max(0, m.index - 24),
       end: Math.min(ctx.text.length, m.index + m[0].length + 24),
     },
-  };
+  });
 }
 
 // Phrasal verbs whose noun is joined or hyphenated: "a warm up" is "a warm-up". A word after
@@ -766,7 +761,7 @@ function mayBe(ctx: DetectContext): Finding[] {
       ruleId: "englishContextualCompounds",
       messageKey: "review_msg_compounds",
       range: { start, end },
-      alternatives: [recase(typed, "maybe")],
+      alternatives: [carryCase(typed, "maybe")],
       context: { start: Math.max(0, start - 24), end: Math.min(ctx.text.length, end + 24) },
     });
   }
@@ -828,7 +823,7 @@ function smallFrames(ctx: DetectContext): Finding[] {
 }
 
 function detect(ctx: DetectContext): RawFinding[] {
-  if (!ctx.lang.startsWith("en")) return [];
+  if (!isLang(ctx, "en")) return [];
   const findings: Finding[] = [];
   const closed = !ctx.rules || ctx.rules.has("englishClosedCompounds");
   const contextual = !ctx.rules || ctx.rules.has("englishContextualCompounds");

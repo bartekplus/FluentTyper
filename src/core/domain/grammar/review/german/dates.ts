@@ -94,7 +94,7 @@ function parse(g: Record<string, string | undefined>): Parsed | null {
 const valid = ({ day, month, year }: Parsed) =>
   month >= 1 && month <= 12 && day >= 1 && day <= daysInMonth(month, year);
 
-function finding(
+function dateFinding(
   start: number,
   end: number,
   alternatives: string[],
@@ -125,7 +125,12 @@ function dates(ctx: DetectContext): RawFinding[] {
     if (!g.sep.startsWith(",")) {
       const weekdayStart = m.indices!.groups!.weekday[0];
       findings.push(
-        finding(weekdayStart, weekdayEnd, [`${g.weekday},`], "review_msg_german_date_punctuation"),
+        dateFinding(
+          weekdayStart,
+          weekdayEnd,
+          [`${g.weekday},`],
+          "review_msg_german_date_punctuation",
+        ),
       );
     }
     // A year before the Gregorian calendar ("4004 v. Chr."): nothing to compare.
@@ -156,7 +161,7 @@ function dates(ctx: DetectContext): RawFinding[] {
     const end = m.indices!.groups!.date[0] + dayEnd;
     const head = typedDate.slice(0, dayStart);
     findings.push(
-      finding(
+      dateFinding(
         start,
         end,
         [
@@ -195,17 +200,17 @@ function dates(ctx: DetectContext): RawFinding[] {
       g.name && !g.year2 && !SHORT_MONTHS.has(g.name.toLowerCase())
         ? m.indices!.groups!.name[1]
         : targetEnd;
-    findings.push(finding(start, end, [], "review_msg_german_invalid_date"));
+    findings.push(dateFinding(start, end, [], "review_msg_german_invalid_date"));
   }
   for (const { start, end } of invalidIsoDates(ctx))
-    findings.push(finding(start, end, [], "review_msg_german_invalid_date"));
+    findings.push(dateFinding(start, end, [], "review_msg_german_invalid_date"));
   for (const m of frameMatches(ctx, NO_DOT)) {
     const day = Number(m.groups!.day);
     const month = Number(m.groups!.month);
     if (!valid({ day, month })) continue;
     const [start, end] = m.indices!.groups!.target;
     findings.push(
-      finding(start, end, [`${m.groups!.target}.`], "review_msg_german_date_punctuation"),
+      dateFinding(start, end, [`${m.groups!.target}.`], "review_msg_german_date_punctuation"),
     );
   }
   return findings;

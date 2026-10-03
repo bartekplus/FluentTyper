@@ -3,18 +3,16 @@ import {
   englishWordInfo,
 } from "../../implementations/helpers/EnglishLexicon";
 import { STYLE_PHRASES, type PhraseRow } from "../englishPhraseTables";
-import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
+import { frameMatches, SPACE as S, WORD_END as E } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { quotedMention } from "./grammarStyle1";
+import { finding } from "../finding";
 
 // Plain and informal English, all optional except a few set phrases nobody means as typed:
 // redundant pairs in every verb form ("combined together"), wordy officialese ("utilize",
 // "for the purpose of"), slang reductions ("wanna", "gotta"), weak intensifiers ("extremely
 // tired" -> "exhausted"), regional vocabulary under the dialect rules, and formal negative
 // questions ("Why do not you" -> "Why don't you").
-
-const S = SPACE;
-const E = WORD_END;
 
 /** Every form of a regular or listed verb: base, -s, past, -ing. */
 function verbForms(lemma: string): string[] {
@@ -505,12 +503,9 @@ function negativeQuestions(ctx: DetectContext): Finding[] {
     let contracted = CONTRACTED[lower] ?? `${lower}n't`;
     if (/^[A-Z]/.test(aux)) contracted = contracted[0].toUpperCase() + contracted.slice(1);
     const end = m.index + aux.length + m[0].slice(aux.length).search(/not/) + 3;
-    findings.push({
-      ruleId: "stylePhrasing",
-      messageKey: "review_msg_style_phrasing",
-      range: { start: m.index, end },
-      alternatives: [contracted],
-    });
+    findings.push(
+      finding("stylePhrasing", "review_msg_style_phrasing", m.index, end, [contracted]),
+    );
   }
   return findings;
 }
@@ -541,12 +536,11 @@ function whomAfterPrepositions(ctx: DetectContext): Finding[] {
     )
       continue;
     const [start, end] = m.indices!.groups!.who;
-    findings.push({
-      ruleId: "stylePhrasing",
-      messageKey: "review_msg_style_phrasing",
-      range: { start, end },
-      alternatives: [who === "whoever" ? "whomever" : "whom"],
-    });
+    findings.push(
+      finding("stylePhrasing", "review_msg_style_phrasing", start, end, [
+        who === "whoever" ? "whomever" : "whom",
+      ]),
+    );
   }
   return findings;
 }
@@ -561,12 +555,9 @@ const VERB_BEFORE = `(?<subject>I|you|he|she|it|we|they)${S}(?<verb>[a-z]+)${S}(
 function adverbPositions(ctx: DetectContext): Finding[] {
   const findings: Finding[] = [];
   const add = (start: number, end: number, replacement: string) =>
-    findings.push({
-      ruleId: "stylePhrasing",
-      messageKey: "review_msg_adverb_position",
-      range: { start, end },
-      alternatives: [replacement],
-    });
+    findings.push(
+      finding("stylePhrasing", "review_msg_adverb_position", start, end, [replacement]),
+    );
   for (const m of frameMatches(ctx, AUX_AFTER, "adv")) {
     const { subject, adv, aux } = m.groups!;
     // A noun subject only when it is a plain lowercase plural ("appearances often are").
@@ -620,13 +611,11 @@ function adjectiveInDimension(ctx: DetectContext): RawFinding[] {
     const { adj, dim } = m.groups!;
     if (!DIMENSIONS[dim.toLowerCase()]?.test(adj)) continue;
     const [start, end] = m.indices!.groups!.target;
-    findings.push({
-      ruleId: "stylePhrasing",
-      messageKey: "review_msg_style_phrasing",
-      range: { start, end },
-      alternatives: [""],
-      context: { start: m.index, end },
-    });
+    findings.push(
+      finding("stylePhrasing", "review_msg_style_phrasing", start, end, [""], {
+        context: { start: m.index, end },
+      }),
+    );
   }
   return findings;
 }
@@ -637,13 +626,9 @@ const RETURN_BACK = `(?:return|returns|returned|returning)${S}(?:it|them|me|you|
 function returnBack(ctx: DetectContext): RawFinding[] {
   return [...frameMatches(ctx, RETURN_BACK)].map((m): RawFinding => {
     const [start, end] = m.indices!.groups!.target;
-    return {
-      ruleId: "stylePhrasing",
-      messageKey: "review_msg_style_phrasing",
-      range: { start, end },
-      alternatives: [""],
+    return finding("stylePhrasing", "review_msg_style_phrasing", start, end, [""], {
       context: { start: m.index, end: m.index + m[0].length },
-    };
+    });
   });
 }
 
@@ -659,13 +644,9 @@ function doubledAmounts(ctx: DetectContext): RawFinding[] {
     ),
   ].map((m): RawFinding => {
     const [start, end] = m.indices!.groups!.dollars ?? m.indices!.groups!.plus;
-    return {
-      ruleId: "stylePhrasing",
-      messageKey: "review_msg_style_phrasing",
-      range: { start, end },
-      alternatives: [""],
+    return finding("stylePhrasing", "review_msg_style_phrasing", start, end, [""], {
       context: { start: m.index, end },
-    };
+    });
   });
 }
 

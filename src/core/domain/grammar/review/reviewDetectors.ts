@@ -103,8 +103,9 @@ import { SPANISH_DETECTORS } from "./spanish";
 import { FRENCH_DETECTORS } from "./french";
 import { DETECTORS as DATE_TENSE_DETECTORS } from "./dateTense";
 
-import { detectAll, PSEUDO_CLEFT_BEFORE } from "./phraseTemplates";
+import { detectAll, PSEUDO_CLEFT_BEFORE, isLang } from "./phraseTemplates";
 import { cacheable } from "./nativeReviewCache";
+import { finding } from "./finding";
 
 export { MASK_CHAR };
 export { minimalEdits } from "./textRanges";
@@ -490,16 +491,14 @@ const pronounI: Detector = (ctx) => {
         contextEnd += next[0].length;
       }
     }
-    findings.push({
-      ruleId: "englishPronounICapitalization",
-      messageKey: "review_msg_pronoun_i",
-      range: { start, end: start + 1 },
-      alternatives: ["I"],
-      // The word before decided it as well as the one after.
-      context: { start: previousTokensStart(ctx.text, start, 1), end: contextEnd },
-      // "increment i." can still be a variable: one at a time.
-      bulkBlock: sentenceEnd ? "context-dependent" : undefined,
-    });
+    findings.push(
+      finding("englishPronounICapitalization", "review_msg_pronoun_i", start, start + 1, ["I"], {
+        // The word before decided it as well as the one after.
+        context: { start: previousTokensStart(ctx.text, start, 1), end: contextEnd },
+        // "increment i." can still be a variable: one at a time.
+        bulkBlock: sentenceEnd ? "context-dependent" : undefined,
+      }),
+    );
   }
   return findings;
 };
@@ -721,12 +720,11 @@ const theirThere: Detector = (ctx) => {
     const their = phrase.split(/\s+/)[0];
     const [there, verb] = correctTheirBeVerb(their, match[1]);
     const gap = phrase.slice(their.length, phrase.length - match[1].length);
-    findings.push({
-      ruleId: "englishTheirThereBeVerb",
-      messageKey: "review_msg_their_there",
-      range: { start, end },
-      alternatives: [`${there}${gap}${verb}`],
-    });
+    findings.push(
+      finding("englishTheirThereBeVerb", "review_msg_their_there", start, end, [
+        `${there}${gap}${verb}`,
+      ]),
+    );
   }
   return findings;
 };
@@ -873,13 +871,11 @@ const ordinal: Detector = (ctx) => {
     )
       continue;
     if (overlapsSortedRanges(ctx.quotationRanges ?? [], { start, end })) continue;
-    findings.push({
-      ruleId: "englishOrdinalSuffix",
-      messageKey: "review_msg_ordinal",
-      context: { start: 0, end },
-      range: { start, end },
-      alternatives: [`${digits}${expected}`],
-    });
+    findings.push(
+      finding("englishOrdinalSuffix", "review_msg_ordinal", start, end, [`${digits}${expected}`], {
+        context: { start: 0, end },
+      }),
+    );
   }
   return findings;
 };
@@ -924,15 +920,15 @@ const properNoun: Detector = (ctx) => {
     ) {
       continue;
     }
-    findings.push({
-      ruleId: "englishProperNounCapitalization",
-      messageKey: "review_msg_proper_noun",
-      range: { start, end },
-      alternatives: [replaced],
-      // may/march/august needed a date or a clause end next to them; that is evidence.
-      context: found.contextual ? { start: Math.max(0, start - 16), end: wordEnd + 16 } : undefined,
-      bulkBlock: found.contextual ? "context-dependent" : undefined,
-    });
+    findings.push(
+      finding("englishProperNounCapitalization", "review_msg_proper_noun", start, end, [replaced], {
+        // may/march/august needed a date or a clause end next to them; that is evidence.
+        context: found.contextual
+          ? { start: Math.max(0, start - 16), end: wordEnd + 16 }
+          : undefined,
+        bulkBlock: found.contextual ? "context-dependent" : undefined,
+      }),
+    );
   }
   // "christmas" is found at its own end and again inside "christmas eve": keep the longer name.
   return findings.filter(
@@ -1001,14 +997,12 @@ const commaPeriodSpacing: Detector = (ctx) => {
     ) {
       continue;
     }
-    findings.push({
-      ruleId: "commaPeriodSpacing",
-      messageKey: "review_msg_space_before_mark",
-      range: { start, end },
-      alternatives: [match[1]],
-      context: { start: start - 1, end },
-      bulkBlock: /[.?!]/.test(match[1]) ? undefined : "context-dependent",
-    });
+    findings.push(
+      finding("commaPeriodSpacing", "review_msg_space_before_mark", start, end, [match[1]], {
+        context: { start: start - 1, end },
+        bulkBlock: /[.?!]/.test(match[1]) ? undefined : "context-dependent",
+      }),
+    );
   }
 
   // Spanish opening marks hug their sentence: "¿ Qué?" is "¿Qué?".
@@ -1088,12 +1082,11 @@ const repeatedSpaces: Detector = (ctx) => {
     if (aligned.get(lineStart)) continue;
     const end = start + match[0].length;
     // Keep the first space: a no-break space placed on purpose stays.
-    findings.push({
-      ruleId: "collapseRepeatedSpaces",
-      messageKey: "review_msg_repeated_spaces",
-      range: { start, end },
-      alternatives: [ctx.source[start]],
-    });
+    findings.push(
+      finding("collapseRepeatedSpaces", "review_msg_repeated_spaces", start, end, [
+        ctx.source[start],
+      ]),
+    );
   }
   return findings;
 };
@@ -1108,18 +1101,17 @@ const duplicatePunctuation: Detector = (ctx) => {
     if (isGluedToTechnical(ctx.text, start, start)) continue;
     // Polish typists write ",," for the opening „ when a word and a closing quote follow.
     const polishQuote =
-      ctx.lang.startsWith("pl") &&
+      isLang(ctx, "pl") &&
       match[0] === ",," &&
       /^$|\s$/u.test(ctx.text.slice(Math.max(0, start - 1), start)) &&
       /^[\p{L}\p{N}][^\n„]{0,200}?[\p{L}\p{N}.!?…](?:”|"|''|’’)/u.test(
         ctx.text.slice(end, end + 210),
       );
-    findings.push({
-      ruleId: "duplicatePunctuationCollapse",
-      messageKey: "review_msg_duplicate_punctuation",
-      range: { start, end },
-      alternatives: [polishQuote ? "„" : match[1]],
-    });
+    findings.push(
+      finding("duplicatePunctuationCollapse", "review_msg_duplicate_punctuation", start, end, [
+        polishQuote ? "„" : match[1],
+      ]),
+    );
   }
   // "word.." (never "..." or "../"): a doubled period or a short ellipsis that trails off.
   // Before a lowercase word the sentence goes on, so only the ellipsis fits; elsewhere
@@ -1129,7 +1121,7 @@ const duplicatePunctuation: Detector = (ctx) => {
     const start = match.index;
     // German "am 30.11.." ends a sentence on a date: its own dot, then the period.
     const before = ctx.text.slice(Math.max(0, start - 8), start);
-    if (ctx.lang.startsWith("de") && /(?:^|[^\d.])\d{1,2}\.\d{1,2}$/.test(before)) continue;
+    if (isLang(ctx, "de") && /(?:^|[^\d.])\d{1,2}\.\d{1,2}$/.test(before)) continue;
     const range = { start, end: start + 2 };
     if (/^\s+\p{Ll}/u.test(ctx.text.slice(start + 2, start + 12))) {
       findings.push({
@@ -1205,13 +1197,11 @@ const quoteSpacing: Detector = (ctx) => {
       const opened = paragraph.split(mark).length % 2 === 0;
       alternatives = opened ? [spaceAfter, spaceBefore] : [spaceBefore, spaceAfter];
     }
-    findings.push({
-      ruleId: "quoteSpacing",
-      messageKey: "review_msg_quote_spacing",
-      range: { start, end: start + 1 },
-      alternatives,
-      context: { start: Math.max(0, start - 1), end: start + 2 },
-    });
+    findings.push(
+      finding("quoteSpacing", "review_msg_quote_spacing", start, start + 1, alternatives, {
+        context: { start: Math.max(0, start - 1), end: start + 2 },
+      }),
+    );
   }
   return findings;
 };
@@ -1240,13 +1230,11 @@ const primeSymbols: Detector = (ctx) => {
   }
   for (const match of ownedMatches(ctx, DEGREE_MINUTE)) {
     const start = match.index;
-    findings.push({
-      ruleId: "primeSymbols",
-      messageKey: "review_msg_prime_symbols",
-      range: { start, end: start + 1 },
-      alternatives: ["′"],
-      context: { start: Math.max(0, start - 8), end: Math.min(ctx.text.length, start + 2) },
-    });
+    findings.push(
+      finding("primeSymbols", "review_msg_prime_symbols", start, start + 1, ["′"], {
+        context: { start: Math.max(0, start - 8), end: Math.min(ctx.text.length, start + 2) },
+      }),
+    );
   }
   return findings;
 };
@@ -1262,12 +1250,9 @@ const ellipsisCharacter: Detector = (ctx) => {
     const start = match.index;
     if (/[[({]/.test(ctx.text[start - 1] ?? "") && /[\p{L}_$]/u.test(ctx.text[start + 3] ?? ""))
       continue;
-    findings.push({
-      ruleId: "ellipsisShortcut",
-      messageKey: "review_msg_ellipsis_character",
-      range: { start, end: start + 3 },
-      alternatives: ["…"],
-    });
+    findings.push(
+      finding("ellipsisShortcut", "review_msg_ellipsis_character", start, start + 3, ["…"]),
+    );
   }
   return findings;
 };
@@ -1281,7 +1266,7 @@ const ellipsisCharacter: Detector = (ctx) => {
  */
 const typedDashes: Detector = (ctx) => {
   const findings: RawFinding[] = [];
-  const english = ctx.lang.startsWith("en");
+  const english = isLang(ctx, "en");
   for (const match of ownedMatches(ctx, /(?<![-<!])-{2,3}(?![->])/gu)) {
     const start = match.index;
     const end = start + match[0].length;
@@ -1298,13 +1283,11 @@ const typedDashes: Detector = (ctx) => {
           : english
             ? ["—", "–"]
             : ["–", "—"];
-    findings.push({
-      ruleId: "emdashShortcut",
-      messageKey: "review_msg_typed_dash",
-      range: { start, end },
-      alternatives,
-      context: { start: Math.max(0, start - 1), end: Math.min(ctx.text.length, end + 1) },
-    });
+    findings.push(
+      finding("emdashShortcut", "review_msg_typed_dash", start, end, alternatives, {
+        context: { start: Math.max(0, start - 1), end: Math.min(ctx.text.length, end + 1) },
+      }),
+    );
   }
   return findings;
 };
@@ -1525,7 +1508,7 @@ const repeatedWords: Detector = (ctx) => {
     if (CUE_AND_QUOTE.test(before)) continue;
     if (word === "to" && !doubledTo(before, ctx.text.slice(end, end + 16))) continue;
     // "What it is is a mess": a pseudo-cleft's clause ends on the first verb.
-    if (/^(?:is|was)$/.test(word) && ctx.lang.startsWith("en") && PSEUDO_CLEFT_BEFORE.test(before))
+    if (/^(?:is|was)$/.test(word) && isLang(ctx, "en") && PSEUDO_CLEFT_BEFORE.test(before))
       continue;
     // "the The Beatles album": a capitalized repeat after a lowercase word opens a name;
     // "P A O L A A N": a spelled-out run of single letters.

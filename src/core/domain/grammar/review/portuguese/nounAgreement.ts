@@ -1,5 +1,5 @@
 import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
-import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
+import { frameMatches, isLang, SPACE as S, WORD_END as W } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { graphWords } from "../wordGraph";
 import { PORTUGUESE_FINITE_LOOKALIKES } from "./verbs.generated";
@@ -17,9 +17,6 @@ import { PORTUGUESE_FINITE_LOOKALIKES } from "./verbs.generated";
  *   alimento"), so after those only an ending no verb has counts, or the start of a sentence
  *   or a preposition before them.
  */
-
-const S = SPACE;
-const W = WORD_END;
 
 // Rows: masculine singular, feminine singular, masculine plural, feminine plural.
 const DETERMINER_ROWS = [
@@ -254,7 +251,8 @@ export function analyze(word: string): Noun | null {
 // Words before an article that leave it no pronoun: a preposition, or a sentence start.
 const PREPOSITION_BEFORE =
   /(?:^|[^\p{L}])(?:para|com|sem|sobre|entre|contra|até|após|perante|desde|mediante|durante|conforme|segundo)[ \t\u00a0]+$/iu;
-const SENTENCE_START = /(?:^|[.!?;:\n]["'”’»)]*)[ \t\u00a0]*["'“‘«(]?[ \t\u00a0]*$/u;
+/** Text before a sentence or clause start: punctuation, closing marks, an opening quote. */
+export const SENTENCE_START = /(?:^|[.!?;:\n]["'”’»)]*)[ \t\u00a0]*["'“‘«(]?[ \t\u00a0]*$/u;
 // "cada um ajuda", "isso da trabalho" (dá), "esta cansado" (está).
 const RECIPROCAL = /^[^.!?;\n]{0,80}(?<![\p{L}])outr[oa]s?(?![\p{L}])/iu;
 const PRONOUN_UM = /(?:^|[^\p{L}])(?:cada|nem|qualquer|algum|nenhum|tal|o)[ \t\u00a0]+$/iu;
@@ -490,7 +488,7 @@ function predicateAgreement(
 }
 
 export function nounAgreement(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "pt") return [];
+  if (!isLang(ctx, "pt")) return [];
   const findings: RawFinding[] = [];
   for (const m of frameMatches(ctx, PATTERN)) {
     const typed = m.groups!.target;

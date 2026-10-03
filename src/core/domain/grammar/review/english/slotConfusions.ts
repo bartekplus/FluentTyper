@@ -1,6 +1,6 @@
 import { englishListedNoun, englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import type { PhraseRow } from "../englishPhraseTables";
-import { SPACE, WORD_END } from "../phraseTemplates";
+import { SPACE as S, WORD_END as E } from "../phraseTemplates";
 import type { DetectContext, ReviewDetectorEntry } from "../reviewDetectors";
 import { FUNCTION_WORDS } from "./slotWords";
 import {
@@ -18,12 +18,10 @@ import {
 // "I barley moved", "we can discus it", "the former and the later", "has setup the tent".
 // Each frame names the slot (the words around it), so the word keeps its own meaning elsewhere.
 
-const S = SPACE;
 const TAG_QUESTION: Rule = {
   ruleId: "englishSentenceStructure",
   messageKey: "review_msg_tag_question",
 };
-const E = WORD_END;
 
 /** Fixed phrases with a wrong word in them; matched as whole words by the phrase table. */
 export const PHRASES: readonly PhraseRow[] = [

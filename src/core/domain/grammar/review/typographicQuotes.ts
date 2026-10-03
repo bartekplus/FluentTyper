@@ -1,6 +1,7 @@
 import { resolveTypographyProfile } from "../typographyProfiles";
 import { ELIDED_QUOTE_START } from "./quotationWarnings";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "./reviewDetectors";
+import { finding } from "./finding";
 
 // Straight quotes and apostrophes become the typographic marks of the text language, from the
 // same profiles as the typing rule (smartQuoteNormalization): "so" → “so” (en), „so“ (de),
@@ -19,14 +20,10 @@ const CLOSE_BEFORE = /[\s.,;:!?…)\]}>\-–—/"'“”„«»‹›‘’]/u;
 
 type Open = { at: number; kind: "double" | "single" | "typographic"; nested: boolean };
 
-function finding(at: number, replacement: string, context: [number, number]): RawFinding {
-  return {
-    ruleId: RULE,
-    messageKey: "review_msg_typographic_quotes",
-    range: { start: at, end: at + 1 },
-    alternatives: [replacement],
+function quoteFinding(at: number, replacement: string, context: [number, number]): RawFinding {
+  return finding(RULE, "review_msg_typographic_quotes", at, at + 1, [replacement], {
     context: { start: context[0], end: context[1] + 1 },
-  };
+  });
 }
 
 /** The lines that overlap the chunk, as [start, end) offsets. */
@@ -53,7 +50,7 @@ function quotes(ctx: DetectContext): RawFinding[] {
   const text = ctx.text;
   const findings: RawFinding[] = [];
   const keep = (at: number, replacement: string, context: [number, number]) => {
-    if (at >= ctx.from && at < ctx.to) findings.push(finding(at, replacement, context));
+    if (at >= ctx.from && at < ctx.to) findings.push(quoteFinding(at, replacement, context));
   };
 
   for (const [start, end] of lines(ctx)) {

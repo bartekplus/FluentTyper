@@ -9,7 +9,10 @@ import {
   verbReadings,
 } from "./frenchLexicon";
 import { sontForSon } from "./homophones";
-import { ownedFrenchWords, SUBJECT_PRONOUNS, tokensBefore, withCase } from "./frenchTokens";
+import { ownedFrenchWords, SUBJECT_PRONOUNS, tokensBefore } from "./frenchTokens";
+import { finding } from "../finding";
+import { carryCase } from "../../implementations/helpers/GenericRuleShared";
+import { isLang } from "../phraseTemplates";
 
 // A determiner and the noun or adjective right after it share their number: "mes livres",
 // "la route". Which words are nouns comes from the dictionary (a Bloom filter of its inflected
@@ -108,13 +111,9 @@ function nounNumber(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     const [start] = m.indices!.groups!.noun;
     const after = ctx.text.slice(start + typed.length, start + typed.length + 12);
     if (/^[-'’]|^[\s ]{0,8}(?:,|et\b|ou\b)/u.test(after)) return null;
-    return {
-      ruleId: RULE,
-      messageKey: MESSAGE,
-      range: { start, end: start + typed.length },
-      alternatives: [plural(word)],
+    return finding(RULE, MESSAGE, start, start + typed.length, [plural(word)], {
       context: { start: m.index, end: start + typed.length },
-    };
+    });
   }
   // "deux cent une personnes", "soixante et un ans": a number, not an article. "de ton
   // distincts": the noun "ton" (tone), "son" (sound).
@@ -180,13 +179,9 @@ function nounNumber(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     fixed = singular(word);
   }
   if (!fixed) return null;
-  return {
-    ruleId: RULE,
-    messageKey: MESSAGE,
-    range: { start, end: start + typed.length },
-    alternatives: [fixed],
+  return finding(RULE, MESSAGE, start, start + typed.length, [fixed], {
     context: { start: m.index, end: start + typed.length },
-  };
+  });
 }
 
 const NUMBER_DETERMINERS = new Set(
@@ -263,13 +258,9 @@ function adjectiveNounNumber(ctx: DetectContext, m: RegExpExecArray): RawFinding
     fixed = singular(word);
   }
   if (!fixed) return null;
-  return {
-    ruleId: RULE,
-    messageKey: MESSAGE,
-    range: { start, end: start + typed.length },
-    alternatives: [fixed],
+  return finding(RULE, MESSAGE, start, start + typed.length, [fixed], {
     context: { start: before.start, end: start + typed.length },
-  };
+  });
 }
 
 const ADJECTIVE_NOUN = new RegExp(
@@ -326,17 +317,13 @@ function superlativeDeterminer(ctx: DetectContext, m: RegExpExecArray): RawFindi
   // "je les plus": a pronoun before a verb is no determiner.
   if (CLITIC.has(det) && tokensBefore(ctx.text, m.index, 1).some((t) => SUBJECT_PRONOUNS.has(t.w)))
     return null;
-  return {
-    ruleId: RULE,
-    messageKey: MESSAGE,
-    range: { start: m.index, end: m.index + typed.length },
-    alternatives: [withCase(typed, right)],
+  return finding(RULE, MESSAGE, m.index, m.index + typed.length, [carryCase(typed, right)], {
     context: { start: m.index, end: m.indices!.groups!.noun[1] },
-  };
+  });
 }
 
 function nounNumbers(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "fr") return [];
+  if (!isLang(ctx, "fr")) return [];
   const findings: RawFinding[] = [];
   for (const m of ownedFrenchWords(ctx, DETERMINER_NOUN)) {
     const finding = nounNumber(ctx, m);

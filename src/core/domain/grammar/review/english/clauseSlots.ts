@@ -1,7 +1,7 @@
 import { englishNounPair, englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import { englishVerbForms } from "../../implementations/helpers/EnglishVerbForms";
 import type { PhraseRow } from "../englishPhraseTables";
-import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
+import { frameMatches, SPACE as S, WORD_END as E } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import {
   afterBreak,
@@ -19,9 +19,6 @@ import {
 // Small clause frames where only one word fits the slot: "hear form you" (from), "at there
 // house" (their), "Peter though he…" (thought), "That sound great" (sounds), "All car are"
 // (cars), "Please sent it" (send), "I no good at" (am not), "According Anna" (according to).
-
-const S = SPACE;
-const E = WORD_END;
 
 // "She wold like…": would after a subject; "the wold" stays (open country).
 export const PHRASES: readonly PhraseRow[] = ["i", "you", "he", "she", "we", "they", "it"].map(

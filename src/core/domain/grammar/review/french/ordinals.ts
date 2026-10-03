@@ -1,6 +1,8 @@
 import { namedExampleBefore } from "../exampleCues";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { ownedFrenchWords } from "./frenchTokens";
+import { finding } from "../finding";
+import { isLang } from "../phraseTemplates";
 
 // Ordinal abbreviations (opt-in): typographic French writes "2e", "1re", "1er", "2d", not "2ème",
 // "2eme", "2ième", "1ère" or "2nd".
@@ -23,20 +25,18 @@ function suffixFor(number: string, typed: string): string | null {
 }
 
 function ordinals(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "fr") return [];
+  if (!isLang(ctx, "fr")) return [];
   const findings: RawFinding[] = [];
   for (const m of ownedFrenchWords(ctx, ORDINAL)) {
     const { number, suffix } = m.groups!;
     const fixed = suffixFor(number, suffix);
     if (!fixed || namedExampleBefore(ctx.text, m.index)) continue;
     const start = m.index + number.length;
-    findings.push({
-      ruleId: RULE,
-      messageKey: MESSAGE,
-      range: { start, end: start + suffix.length },
-      alternatives: [fixed],
-      context: { start: m.index, end: start + suffix.length },
-    });
+    findings.push(
+      finding(RULE, MESSAGE, start, start + suffix.length, [fixed], {
+        context: { start: m.index, end: start + suffix.length },
+      }),
+    );
   }
   return findings;
 }

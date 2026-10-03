@@ -1,10 +1,15 @@
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import type { PhraseRow } from "../englishPhraseTables";
-import { COMPLETE, frameMatches, hasUserOrCasedWord, SPACE, WORD_END } from "../phraseTemplates";
+import {
+  COMPLETE,
+  frameMatches,
+  hasUserOrCasedWord,
+  isLang,
+  SPACE as S,
+  WORD_END as E,
+} from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 
-const S = SPACE;
-const E = WORD_END;
 const POSSESSIVES = ["my", "your", "his", "her", "its", "our", "their"];
 
 /** Every combination of the word lists, joined by spaces ("" drops a slot). */
@@ -487,6 +492,6 @@ function detectFrames(ctx: DetectContext): RawFinding[] {
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
   {
     rules: ["englishPhraseCorrections", "englishFixedPrepositions", "stylePhrasing"],
-    detect: (ctx) => (ctx.lang.startsWith("en") ? detectFrames(ctx) : []),
+    detect: (ctx) => (isLang(ctx, "en") ? detectFrames(ctx) : []),
   },
 ];

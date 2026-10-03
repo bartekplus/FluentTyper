@@ -1,11 +1,11 @@
 import { namedExampleBefore } from "../exampleCues";
-import { frameMatches } from "../phraseTemplates";
+import { frameMatches, isLang } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
+import { finding } from "../finding";
+import { carryCase } from "../../implementations/helpers/GenericRuleShared";
 
-/** Spaces between two words of a frame. */
-export const S = "[ \\t\\u00a0]{1,8}";
-/** No letter, digit or word glue continues the word. */
-export const END = "(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])";
+/** Spaces between two words of a frame; no letter, digit or word glue continues the word. */
+export { SPACE as S, WORD_END as END } from "../phraseTemplates";
 /** No letter before: the frame starts a word. */
 export const START = "(?<![\\p{L}\\p{M}\\p{N}_'’@/#\\\\.-])";
 /** A clause or text starts here: the text start, or sentence punctuation and spaces. */
@@ -15,19 +15,13 @@ export const CLAUSE_START =
 export const PREPOSITIONS =
   "w|we|z|ze|na|do|od|ode|po|za|przy|przed|przede|nad|nade|pod|pode|dla|bez|u|ku|przez|przeze|między|o|wśród|spod|znad|zza|sprzed";
 
-export const isPl = (ctx: DetectContext) => ctx.lang.slice(0, 2) === "pl";
+export const isPl = (ctx: DetectContext) => isLang(ctx, "pl");
 
 /** Polish abbreviations mistyped with a slash ("d/s", "w/w", "w/g"): prose, not a path. */
 export const SLASH_ABBREVIATION = /^(?:d\/s|w\/w|w\/g)$/iu;
 
-/** `replacement` in the casing of `typed`: shouted, capitalized or as written. */
-export function caseLike(typed: string, replacement: string): string {
-  const letters = typed.replace(/\P{L}/gu, "");
-  if (letters.length > 1 && letters === letters.toUpperCase()) return replacement.toUpperCase();
-  return /^\P{L}*\p{Lu}/u.test(typed)
-    ? replacement.replace(/\p{L}/u, (letter) => letter.toUpperCase())
-    : replacement;
-}
+/** `replacement` in the case of the letters of `typed`. */
+export const caseLike = (typed: string, replacement: string) => carryCase(typed, replacement, true);
 
 /** A word the user added, or mixed casing that names something ("McDonald"). */
 export function userOrNamed(ctx: DetectContext, typed: string): boolean {
@@ -67,11 +61,7 @@ export function findingAt(
   ruleId: RawFinding["ruleId"],
   messageKey: RawFinding["messageKey"],
 ): RawFinding {
-  return {
-    ruleId,
-    messageKey,
-    range: { start, end },
-    alternatives: [...alternatives],
+  return finding(ruleId, messageKey, start, end, [...alternatives], {
     ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
     // No single fix (an impossible date): the finding only warns.
     ...(alternatives.length === 0 ? { warningOnly: true as const } : {}),
@@ -79,7 +69,7 @@ export function findingAt(
       start: Math.max(0, start - 96),
       end: Math.min(ctx.text.length, end + 32),
     },
-  };
+  });
 }
 
 /** Runs guarded frames; a match yields the fix of its `target` group. */

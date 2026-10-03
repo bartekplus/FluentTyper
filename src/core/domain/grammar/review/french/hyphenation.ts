@@ -20,9 +20,12 @@ import {
   SUBJECT_PRONOUNS,
   tokensAfter,
   tokensBefore,
-  withCase,
+  SENTENCE_START,
 } from "./frenchTokens";
 import { namedExampleBefore } from "../exampleCues";
+import { finding } from "../finding";
+import { carryCase } from "../../implementations/helpers/GenericRuleShared";
+import { isLang } from "../phraseTemplates";
 
 // Hyphens French grammar requires: the inverted subject of a question ("pouvez-vous",
 // "a-t-il", "est-ce") and the adverb "peut-être".
@@ -45,7 +48,6 @@ const QUESTION_WORDS = new Set(
   "que qu' où comment pourquoi quand combien quel quelle quels quelles quoi qui".split(" "),
 );
 const CE_VERBS = new Set(["est", "était", "sera", "serait", "fut"]);
-const SENTENCE_START = /(?:^|[.!?…\n])[\s\u00a0]*$/u;
 // After an inverted "ce": a clause, a pronoun or a common attribute ("est-ce possible ?").
 const CE_FOLLOWERS = new Set(
   (
@@ -129,12 +131,7 @@ function inversion(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   const typed = ctx.source.slice(start, end);
   const fixed = `${verb}${joiner}${m.groups!.pronoun}`;
   if (fixed === typed) return null;
-  return {
-    ruleId: RULE,
-    messageKey: MESSAGE,
-    range: { start, end },
-    alternatives: [fixed],
-  };
+  return finding(RULE, MESSAGE, start, end, [fixed]);
 }
 
 /** "il partira peut être demain", "peu être": the adverb "peut-être". */
@@ -182,12 +179,7 @@ function maybe(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     /^[\s  ]*[?!,.…]/u.test(rest) ||
     (previous && ["avec", "ainsi", "bientôt", "voire", "ou"].includes(previous.w));
   if (!sentenceStart && !afterVerb && !peu && !afterAuxiliary && !adverbial) return null;
-  return {
-    ruleId: RULE,
-    messageKey: MESSAGE,
-    range: { start, end: start + m[0].length },
-    alternatives: [withCase(m[0], "peut-être")],
-  };
+  return finding(RULE, MESSAGE, start, start + m[0].length, [carryCase(m[0], "peut-être")]);
 }
 
 /** "il peut-être têtu" -> "peut être": pouvoir + être after a subject pronoun. */
@@ -202,13 +194,9 @@ function verbalMaybe(ctx: DetectContext, m: RegExpExecArray): RawFinding | null 
   const next = tokensAfter(ctx.text, m.index + m[0].length, 1)[0];
   if (!next || verbReadings(next.w).some((r) => typeof r.slot === "number")) return null;
   if (namedExampleBefore(ctx.text, m.index)) return null;
-  return {
-    ruleId: RULE,
-    messageKey: MESSAGE,
-    range: { start: m.index, end: m.index + m[0].length },
-    alternatives: [withCase(m[0], "peut être")],
+  return finding(RULE, MESSAGE, m.index, m.index + m[0].length, [carryCase(m[0], "peut être")], {
     context: { start: before[i].start, end: next.end },
-  };
+  });
 }
 
 // Prefixes that never stand alone: "anti inflation" -> "anti-inflation", "néo-rural" ->
@@ -275,12 +263,9 @@ function prefixCompound(ctx: DetectContext, m: RegExpExecArray): RawFinding | nu
   )
     fixed = hyphenated;
   if (!fixed) return null;
-  return {
-    ruleId: RULE,
-    messageKey: "review_msg_closed_compound",
-    range: { start: m.index, end: m.index + typed.length },
-    alternatives: [withCase(typed, fixed)],
-  };
+  return finding(RULE, "review_msg_closed_compound", m.index, m.index + typed.length, [
+    carryCase(typed, fixed),
+  ]);
 }
 const PREFIX_COMPOUND = new RegExp(
   `(?<![\\p{L}\\p{M}\\p{N}_'’-])(?<prefix>${PREFIXES.split(" ").join("|")}|sur|sous|contre)(?:[ \\t]+|-)(?<word>\\p{L}{3,})(?![\\p{L}\\p{M}\\p{N}_'’-])`,
@@ -357,12 +342,7 @@ function imperative(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     }
   }
   const typedPronoun = m.groups!.pronoun;
-  return {
-    ruleId: RULE,
-    messageKey: "review_msg_closed_compound",
-    range: { start, end },
-    alternatives: [`${verbTyped}-${typedPronoun}`],
-  };
+  return finding(RULE, "review_msg_closed_compound", start, end, [`${verbTyped}-${typedPronoun}`]);
 }
 const IMPERATIVE =
   /(?<![\p{L}\p{M}\p{N}_'’-])(?<verb>\p{L}+)[ \t]+(?<pronoun>moi|toi|lui|nous|vous|leur|le|la|les|en|y|m['’]en|t['’]en)(?![\p{L}\p{M}\p{N}_'’-])/giu;
@@ -377,7 +357,7 @@ const PEU_BEFORE = new Set(
 const MAYBE = /(?<![\p{L}\p{M}\p{N}_'’-])peut?[ \t]+être(?![\p{L}\p{M}\p{N}_'’-])/giu;
 
 function hyphenation(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "fr") return [];
+  if (!isLang(ctx, "fr")) return [];
   const findings: RawFinding[] = [];
   for (const m of ownedFrenchWords(ctx, INVERSION)) {
     const finding = inversion(ctx, m);
@@ -439,12 +419,9 @@ function longCompound(ctx: DetectContext, m: RegExpExecArray): RawFinding | null
     if (namedExampleBefore(ctx.text, m.index) || ctx.dictionary.has(compound.toLowerCase()))
       return null;
     const apostrophe = /’/.test(hit[0]) ? "’" : "'";
-    return {
-      ruleId: RULE,
-      messageKey: MESSAGE,
-      range: { start: m.index, end: m.index + hit[0].length },
-      alternatives: [compound.replaceAll("'", apostrophe)],
-    };
+    return finding(RULE, MESSAGE, m.index, m.index + hit[0].length, [
+      compound.replaceAll("'", apostrophe),
+    ]);
   }
   return null;
 }
@@ -495,13 +472,7 @@ function spacedCompound(ctx: DetectContext, m: RegExpExecArray): RawFinding | nu
   const gapStart = m.index + first.length;
   const secondStart = ctx.text.indexOf(second, gapStart);
   const end = secondStart + second.length;
-  return {
-    ruleId: RULE,
-    messageKey: MESSAGE,
-    range: { start: gapStart, end: secondStart },
-    alternatives: ["-"],
-    context: { start: m.index, end },
-  };
+  return finding(RULE, MESSAGE, gapStart, secondStart, ["-"], { context: { start: m.index, end } });
 }
 const PREFIX_WORDS = new Set(PREFIXES.split(" "));
 const ARTICLE_CONTEXT = new Set(

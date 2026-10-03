@@ -143,6 +143,27 @@ export const evidence = (ctx: DetectContext, start: number, end: number) => ({
   end: Math.min(ctx.text.length, end + 40),
 });
 
+/** The rule and message of a slot finding. */
+export type SlotRule = Pick<RawFinding, "ruleId" | "messageKey">;
+
+/** Replaces the `group` of `m` with `replacement`, in the case the user typed. */
+export function pushSlot(
+  ctx: DetectContext,
+  findings: RawFinding[],
+  rule: SlotRule,
+  m: RegExpExecArray,
+  replacement: string,
+  group = "target",
+): void {
+  const [start, end] = m.indices!.groups![group];
+  findings.push({
+    ...rule,
+    range: { start, end },
+    alternatives: [caseLike(ctx.source.slice(start, end), replacement)],
+    context: evidence(ctx, m.index, end),
+  });
+}
+
 /**
  * English only; findings inside a quoted or parenthesized example are dropped, and only
  * findings that start in the chunk are kept.

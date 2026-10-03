@@ -13,6 +13,7 @@ import {
   WORD_END,
 } from "./phraseTemplates";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
+import { finding } from "./finding";
 
 const ADJECTIVE = `(?:(?:new|old|missing|broken|small|large|updated)${SPACE})?`;
 const STATUS = "(?:missing|broken|ready|new|old|available|useful)";
@@ -81,17 +82,15 @@ export function nounNumberConstructions(ctx: DetectContext): RawFinding[] {
       }
       if (start < ctx.from || start >= ctx.to) continue;
       if (findings.some((f) => f.range.start === start)) continue;
-      findings.push({
-        ruleId: "englishNounNumber",
-        messageKey,
-        range: { start, end },
-        alternatives,
-        requiresChoice,
-        context: {
-          start: Math.max(0, m.index - 96),
-          end: Math.min(ctx.text.length, m.index + m[0].length + 9),
-        },
-      });
+      findings.push(
+        finding("englishNounNumber", messageKey, start, end, alternatives, {
+          requiresChoice,
+          context: {
+            start: Math.max(0, m.index - 96),
+            end: Math.min(ctx.text.length, m.index + m[0].length + 9),
+          },
+        }),
+      );
     }
   }
   return [...findings, ...decadePlurals(ctx)];

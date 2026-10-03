@@ -1,6 +1,7 @@
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { germanInfinitive } from "./germanLexicon";
 import { isGerman, tokensBefore } from "./shared";
+import { finding } from "../finding";
 
 // Letter salutations: "Lieber Herr Müller", "Liebe Frau Weber", "Sehr geehrte Damen und
 // Herren" take the title's gender ("Liebe Herr" → Lieber); after a greeting the adjective is
@@ -77,13 +78,11 @@ export function politeImperative(ctx: DetectContext): RawFinding[] {
     const opens = (token: string | undefined) =>
       token === undefined || /^(?:[.!?:,;„“"»«]|\n)$/.test(token);
     if (!opens(before.at(-1)) && !(OPENERS.test(prior) && opens(before.at(-2)))) continue;
-    findings.push({
-      ruleId: "germanNounCasing",
-      messageKey: "review_msg_german_polite_sie",
-      range: { start, end: start + 1 },
-      alternatives: ["S"],
-      context: { start: m.index, end: start + 3 },
-    });
+    findings.push(
+      finding("germanNounCasing", "review_msg_german_polite_sie", start, start + 1, ["S"], {
+        context: { start: m.index, end: start + 3 },
+      }),
+    );
   }
   return findings;
 }
@@ -93,13 +92,11 @@ export function salutationCase(ctx: DetectContext): RawFinding[] {
   if (!isGerman(ctx)) return [];
   const findings: RawFinding[] = [];
   for (const m of owned(ctx, AFTER_GREETING)) {
-    findings.push({
-      ruleId: "germanNounCasing",
-      messageKey: "review_msg_german_idiom_case",
-      range: { start: m.index, end: m.index + 1 },
-      alternatives: ["l"],
-      context: { start: m.index, end: m.index + m[0].length },
-    });
+    findings.push(
+      finding("germanNounCasing", "review_msg_german_idiom_case", m.index, m.index + 1, ["l"], {
+        context: { start: m.index, end: m.index + m[0].length },
+      }),
+    );
   }
   return findings;
 }
