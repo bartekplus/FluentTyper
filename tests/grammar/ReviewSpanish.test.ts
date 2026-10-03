@@ -360,8 +360,13 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         ["Adoptamos tres gato.", "Adoptamos tres gatos."],
         ["La operaciones de rescate siguen.", "Las operaciones de rescate siguen."],
         ["Eran demasiados preguntas a la vez.", "Eran demasiadas preguntas a la vez."],
+        ["Recibió unos 300 cartas.", "Recibió unas 300 cartas."],
+        ["Leí las 2 libros que me diste.", "Leí los 2 libros que me diste."],
       ],
       neg: [
+        "Vinieron unas 20 mil personas.",
+        "Quedamos a las 3 de la tarde.",
+        "Son unos 200 millones de euros.",
         "Lo sepas o no, la reunión sigue.",
         "Es mucho dinero para tan poco.",
         "El agua del pozo estaba helada.",

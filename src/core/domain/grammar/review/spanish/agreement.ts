@@ -571,6 +571,28 @@ function cardinalNoun(ctx: DetectContext, tokens: Token[], i: number): RawFindin
   return plural ? replaceToken(ctx, nounToken, [plural], RULE, MESSAGE, tokens[i]) : null;
 }
 
+/**
+ * "unos 200 citaciones" -> "unas 200", "las 3 libros" -> "los 3": a plural determiner agrees
+ * with the counted noun past the number ("unas 200 mil personas" counts thousands of them).
+ */
+function countedDeterminer(ctx: DetectContext, tokens: Token[], i: number): RawFinding | null {
+  const det = DETERMINER.get(tokens[i].lower);
+  if (!det || det.slot < 2 || genderless(det) || /^(?:del|al)$/u.test(tokens[i].lower)) return null;
+  const count = tokens[i + 1];
+  if (!count || count.broken || !/^\p{N}+(?:[.,]\p{N}+)*$/u.test(count.text)) return null;
+  let n = i + 2;
+  if (tokens[n]?.lower === "mil" && !tokens[n].broken) n++;
+  const nounToken = tokens[n];
+  if (!nounToken?.word || nounToken.broken || ctx.dictionary.has(nounToken.lower)) return null;
+  const noun = readNoun(nounToken.lower);
+  if (!noun?.plural || !noun.gender || EITHER.has(noun.singular)) return null;
+  // "los 3 primeros", "las 5 de la tarde" never reach here; "unos 200 millones" agrees.
+  const detGender: Gender = det.slot % 2 ? "f" : "m";
+  if (detGender === noun.gender) return null;
+  const fix = det.forms[noun.gender === "f" ? 3 : 2];
+  return replaceToken(ctx, tokens[i], [fix], RULE, MESSAGE, nounToken);
+}
+
 // ------------------------------------------------------------------ adjectives after the noun
 
 // Time nouns and their gender: "el domingo pasado", "la semana próxima".
@@ -1029,7 +1051,8 @@ function agreement(ctx: DetectContext): RawFinding[] {
       neuterDemonstrative(ctx, tokens, i) ??
       pickerGroup(ctx, tokens, i) ??
       ordinal(ctx, tokens, i) ??
-      cardinalNoun(ctx, tokens, i);
+      cardinalNoun(ctx, tokens, i) ??
+      countedDeterminer(ctx, tokens, i);
     if (finding) findings.push(finding);
   }
   return findings;
