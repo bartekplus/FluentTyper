@@ -173,7 +173,7 @@ const GENDER = new Map<string, boolean>([
 // Endings that make a person noun of either gender: o/a jornalista, pediatra, terapeuta.
 const TWO_GENDER_ENDING = /(?:[ií]sta|iatra|euta|nauta|crata|pata|icida|ícola|ígena)$/;
 const FEMININE_ENDING =
-  /(?:ção|ssão|[aeiloun]são|dade|tude|[aiu]gem|ância|ência|eza|idão|idez|vez|atez|ã)$/;
+  /(?:ície|écie|érie|árie|ção|ssão|[aeiloun]são|dade|tude|[aiu]gem|ância|ência|eza|idão|idez|vez|atez|ã)$/;
 // "-ice" without a written accent: tolice, velhice (but índice, cálice).
 const FEMININE_ICE = /^[a-zç]+ice$/;
 // "-ema" and "-oma" are masculine ("o tema", "o idioma") except the feminine nouns listed in
@@ -189,6 +189,8 @@ const finiteLookalike = (word: string) =>
 /** The singular of a plural noun, or null when `word` is no regular plural. */
 function singular(word: string): string | null {
   if (/(?:ões|ães|ãos)$/.test(word)) return `${word.slice(0, -3)}ão`;
+  // "anzóis" -> "anzol", "papéis" -> "papel" ("heróis" is the plural of "herói").
+  if (/[^r]óis$|éis$/.test(word)) return `${word.slice(0, -3)}${word.at(-3) === "ó" ? "o" : "e"}l`;
   if (/ns$/.test(word)) return `${word.slice(0, -2)}m`;
   // "valores" -> "valor", but "árvores" -> "árvore": a written accent marks the latter.
   if (/[aeiou]res$/.test(word)) return /[áéíóúâêô]/.test(word) ? null : word.slice(0, -2);

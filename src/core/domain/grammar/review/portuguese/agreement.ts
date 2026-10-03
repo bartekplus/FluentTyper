@@ -65,12 +65,16 @@ const PERFECT: Record<string, string> = {
   estava: "estavam",
   esteve: "estiveram",
   esteja: "estejam",
+  havia: "haviam",
+  haveria: "haveriam",
+  haja: "hajam",
+  houvesse: "houvessem",
 };
 const PARTICIPLES =
   "existido|acontecido|ocorrido|surgido|restado|bastado|sobrado|faltado|chegado|existindo|acontecendo|ocorrendo|surgindo|restando|sobrando|faltando|chegando";
 const BETWEEN = `(?:(?:ainda|já|também|sempre|nunca${S}mais|nunca|talvez)${S})?`;
 const PLURAL_DETERMINER =
-  "muitos|muitas|vários|várias|alguns|algumas|poucos|poucas|diversos|diversas|inúmeros|inúmeras|tantos|tantas|uns|umas|os|as|dois|duas|três|quatro|cinco|seis|sete|oito|nove|dez|vinte|cem|[2-9]|\\d{2,}";
+  "mais|muitos|muitas|vários|várias|alguns|algumas|poucos|poucas|diversos|diversas|inúmeros|inúmeras|tantos|tantas|uns|umas|os|as|dois|duas|três|quatro|cinco|seis|sete|oito|nove|dez|vinte|cem|[2-9]|\\d{2,}";
 // "Acontece muitas vezes", "ocorre dois dias depois": a span of time is no subject.
 export const TIME =
   "vezes|anos|meses|semanas|dias|horas|minutos|segundos|tempos|décadas|séculos|instantes|momentos";
@@ -79,8 +83,10 @@ const SUBJECT_AFTER = `${ADVERB}(?:${PLURAL_DETERMINER})${W}${S}(?!(?:${TIME}|ma
 const POSTPOSED = `(?<target>${Object.keys(PLURAL).join("|")})${S}(?=${SUBJECT_AFTER})`;
 const PERIPHRASIS = `(?<target>${Object.keys(AUXILIARY).join("|")})${S}(?=${BETWEEN}(?:${INFINITIVES})${W}${S}${SUBJECT_AFTER})`;
 const PERFECT_FRAME = `(?<target>${Object.keys(PERFECT).join("|")})${S}(?=${BETWEEN}(?:${PARTICIPLES})${W}${S}${SUBJECT_AFTER})`;
-// A bare plural after the verb: "Já aconteceu erros" -> "aconteceram". Checked in code.
+// A bare plural after the verb: "Já aconteceu erros" -> "aconteceram", "tenha surgido dúvidas"
+// -> "tenham". Checked in code.
 const BARE = `(?<target>${Object.keys(PLURAL).join("|")})${S}${ADVERB}(?<noun>\\p{Ll}{3,}s)${W}`;
+const BARE_PERFECT = `(?<target>${Object.keys(PERFECT).join("|")})${S}${BETWEEN}(?:${PARTICIPLES})${S}${ADVERB}(?<noun>\\p{Ll}{3,}s)${W}`;
 // A subject before the verb ("Ele resta...", "quem existe") makes it agree with that one.
 const SUBJECT_BEFORE =
   /(?<![\p{L}])(?:eu|tu|ele|ela|você|nós|eles|elas|vocês|que|quem|o|a|isso|isto|tudo|nada|algo|ninguém)[ \t ]+$/iu;
@@ -89,8 +95,10 @@ const SUBJECT_BEFORE =
 // depois"): they only agree with one after them when nothing but an adverb comes before.
 const SUBJECTLESS =
   /(?:^|[.!?;:,\n]["'”’»)]*[ \t\u00a0]*|(?:^|[^\p{L}])(?:já|ontem|hoje|então|ainda|agora|aí|enfim|finalmente|não)[ \t\u00a0]+)$/iu;
+// "cheg-" or "falt-" as the verb, or as the participle after "tem", "está" and the like.
+const ARRIVE_OR_LACK = /^(?:\p{L}+[ \t\u00a0]+(?:\p{L}+[ \t\u00a0]+)?)?(?:cheg|falt)/iu;
 function subjectless(ctx: DetectContext, m: RegExpExecArray): boolean {
-  if (!/^(?:cheg|falt)/i.test(m.groups!.target)) return true;
+  if (!ARRIVE_OR_LACK.test(ctx.text.slice(m.index, m.index + 40))) return true;
   return SUBJECTLESS.test(ctx.text.slice(Math.max(0, m.index - 16), m.index));
 }
 
@@ -273,17 +281,25 @@ export function agreement(ctx: DetectContext): RawFinding[] {
       push(findings, ctx, m, table[m.groups!.target.toLowerCase()]);
     }
   }
-  for (const m of frameMatches(ctx, BARE)) {
-    const noun = m.groups!.noun;
-    if (noun !== noun.toLowerCase() || /mos$/.test(noun) || new RegExp(`^(?:${TIME})$`).test(noun))
-      continue;
-    if (new RegExp(`^(?:${PLURAL_DETERMINER})$`).test(noun)) continue;
-    const info = analyze(noun);
-    if (!info?.plural || info.feminine === null) continue;
-    if (SUBJECT_BEFORE.test(ctx.text.slice(Math.max(0, m.index - 16), m.index))) continue;
-    if (!subjectless(ctx, m)) continue;
-    push(findings, ctx, m, PLURAL[m.groups!.target.toLowerCase()]);
-  }
+  for (const [pattern, table] of [
+    [BARE, PLURAL],
+    [BARE_PERFECT, PERFECT],
+  ] as const)
+    for (const m of frameMatches(ctx, pattern)) {
+      const noun = m.groups!.noun;
+      if (
+        noun !== noun.toLowerCase() ||
+        /mos$/.test(noun) ||
+        new RegExp(`^(?:${TIME})$`).test(noun)
+      )
+        continue;
+      if (new RegExp(`^(?:${PLURAL_DETERMINER})$`).test(noun)) continue;
+      const info = analyze(noun);
+      if (!info?.plural || info.feminine === null) continue;
+      if (SUBJECT_BEFORE.test(ctx.text.slice(Math.max(0, m.index - 16), m.index))) continue;
+      if (!subjectless(ctx, m)) continue;
+      push(findings, ctx, m, table[m.groups!.target.toLowerCase()]);
+    }
   for (const m of frameMatches(ctx, PROPRIO)) {
     const pronoun = m.groups!.pronoun.toLowerCase().replace(/^[nd]/, "");
     const typed = m.groups!.target.toLowerCase();

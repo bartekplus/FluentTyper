@@ -107,6 +107,20 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
     {
       pos: [
         ["Está escola é nova.", "Esta escola é nova."],
+        ["Levei as crianças á praia.", "Levei as crianças à praia."],
+        ["Eu acho que agente já sabe a resposta.", "Eu acho que a gente já sabe a resposta."],
+        ["Agente nunca desiste.", "A gente nunca desiste."],
+        ["Isso é muito caro para agente.", "Isso é muito caro para a gente."],
+        ["Ela concluiu a pos-graduação.", "Ela concluiu a pós-graduação."],
+        ["Os recem-chegados esperam.", "Os recém-chegados esperam."],
+        ["Então ela já si arrependeu.", "Então ela já se arrependeu."],
+        ["Será que algum de voz sabe a senha?", "Será que algum de vós sabe a senha?"],
+        ["No verão passado tivemos de férias.", "No verão passado estivemos de férias."],
+        ["Ele tinha de folga até segunda.", "Ele estava de folga até segunda."],
+        ["Ela sera transferida em breve.", "Ela será transferida em breve."],
+        ["Acho que você tera sorte.", "Acho que você terá sorte."],
+        ["O que sera feito agora?", "O que será feito agora?"],
+        ["Apôs 2010, a empresa cresceu.", "Após 2010, a empresa cresceu."],
         ["Gostei do filme, mais não do final.", "Gostei do filme, mas não do final."],
         ["Saiu cedo e mas tarde voltou.", "Saiu cedo e mais tarde voltou."],
         ["Tu não vez o problema?", "Tu não vês o problema?"],
@@ -232,6 +246,16 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
       ],
       neg: [
         "Está difícil hoje.",
+        "O nome dela começa com um á agudo.",
+        "O agente vai investigar o caso.",
+        "Agente secreto não revela nada.",
+        "Ela trabalha como agente.",
+        "Ela só pensa em si mesma.",
+        "Ele tem um tom de voz grave.",
+        "Tive de sair mais cedo.",
+        "Ela tinha de férias apenas uma semana.",
+        "O notário apôs o selo no documento.",
+        "Que sera, sera, cantava a avó.",
         "Está chovendo desde cedo.",
         "Uma vez o vi na praça.",
         "Eu sou feliz aqui.",
@@ -454,6 +478,11 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
     "portugueseCliticPlacement",
     {
       pos: [
+        ["Quero vender-lo ainda hoje.", "Quero vendê-lo ainda hoje."],
+        ["Depois, analisa-mos os dados.", "Depois, analisamos os dados."],
+        ["Daqui vê-mos a serra.", "Daqui vemos a serra."],
+        ["Ela tentou abrir-la sem a chave.", "Ela tentou abri-la sem a chave."],
+        ["Então fiz-los esperar.", "Então fi-los esperar."],
         ["Não diga-me isso agora.", "Não me diga isso agora."],
         ["Já eu conhecia-te naquela época.", "Já eu te conhecia naquela época."],
         ["Ele vai escreve-lo amanhã.", "Ele vai escrevê-lo amanhã."],
@@ -497,6 +526,7 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
       ],
       neg: [
         "Quero parti-lo ao meio.",
+        "Ele dá-mos sempre que pode.",
         "Tu vende-lo caro.",
         "Amamo-la muito.",
         "Quero fazê-lo já.",
@@ -531,6 +561,19 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
     "portugueseAgreement",
     {
       pos: [
+        ["Foram adiado o jogo e a festa.", "Foi adiado o jogo e a festa."],
+        ["Ela voltou a bebe depois da festa.", "Ela voltou a beber depois da festa."],
+        ["Eles vão trazerem os documentos.", "Eles vão trazer os documentos."],
+        ["As duas começaram a correrem cedo.", "As duas começaram a correr cedo."],
+        ["O estudo trata numa séries de casos.", "O estudo trata numas séries de casos."],
+        ["As notas vieram da papéis antigos.", "As notas vieram dos papéis antigos."],
+        ["Foi vendidos os carros antigos.", "Foram vendidos os carros antigos."],
+        [
+          "Se forem necessário os dois testes, avise.",
+          "Se forem necessários os dois testes, avise.",
+        ],
+        ["Talvez haja surgido dúvidas no caminho.", "Talvez hajam surgido dúvidas no caminho."],
+        ["Pode ainda faltar mais cadeiras.", "Podem ainda faltar mais cadeiras."],
         ["Já comecei a lendo o livro.", "Já comecei a ler o livro."],
         ["Uma sapatos estão sujos.", "Uns sapatos estão sujos."],
         ["Tem muita pessoas aqui.", "Tem muitas pessoas aqui."],
@@ -655,6 +698,14 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
       ],
       neg: [
         "Dirige-se as mesas do fundo sem pressa.",
+        "O destaque foi convidados de honra.",
+        "Ele passa a bola para o colega.",
+        "Os heróis voltaram cansados.",
+        "As crianças são resultado de muito esforço.",
+        "Eles são cara de pau.",
+        "Os documentos foram enviados ontem.",
+        "Maria tem faltado aulas demais.",
+        "Foram dados os avisos.",
         "A cidade fica a milhares de quilômetros.",
         "Duas mil pessoas vieram ao show.",
         "Segue anexo o contrato assinado.",
@@ -1111,8 +1162,11 @@ describe("Portuguese wording advice (stylePhrasing)", () => {
 });
 
 test("an article and a possessive before a noun of either gender offer both repairs", () => {
-  const [finding] = findings("portugueseAgreement", "Ele é o último da seu espécie.");
+  const [finding] = findings("portugueseAgreement", "Ele é o último da seu estirpe.");
   expect(finding.alternatives.map((a) => a.preview)).toEqual(["do seu", "da sua"]);
+  // "-écie" tells the gender, so only the possessive is wrong.
+  const [known] = findings("portugueseAgreement", "Ele é o último da seu espécie.");
+  expect(known.alternatives.map((a) => a.preview)).toEqual(["sua"]);
   expect(finding.requiresChoice).toBe(true);
 });
 
@@ -1173,6 +1227,7 @@ test("Portuguese frames stay fast on long runs of trigger words and spaces", () 
     "eu falo tu e eu nós comia eles fiquei a palavra está correto ".repeat(250),
     "a uns a dois a mais bom de que o a b c d direito ".repeat(300),
     "Serviço continuo. Aulas praticas. O apoio continuo ".repeat(300),
+    "foram corrigido o já si que agente vai á tira-mos as vão fazerem ".repeat(250),
   ];
   for (const text of inputs) expect(slowestChunkMs(text, "pt_BR")).toBeLessThan(100);
   const live = { ...options, liveRules: [] };

@@ -76,6 +76,8 @@ export function subjectPredicates(ctx: DetectContext): RawFinding[] {
     const [, targetEnd] = m.indices!.groups!.target;
     if (!CLAUSE_GOES_ON.test(ctx.text.slice(targetEnd, targetEnd + 24))) continue;
     if (!ADJECTIVE_STEMS.has(stem) && !participle) continue;
+    // "Eles são cara de pau": "cara de" is the noun "face".
+    if (stem === "car" && /^[ \t ]+de(?![\p{L}])/u.test(ctx.text.slice(targetEnd))) continue;
     const wanted = `${stem}${feminine ? "a" : "o"}${plural ? "s" : ""}`;
     if (wanted === target) continue;
     // A plural copula with a singular subject (or back) is verbAgreement's to fix.
@@ -193,6 +195,61 @@ export function quantifiedAdjectives(ctx: DetectContext): RawFinding[] {
       finding("portugueseAgreement", "review_msg_pt_noun_agreement", start, targetEnd, [wanted], {
         context: { start: m.index, end },
       }),
+    );
+  }
+  return findings;
+}
+
+// "Foram corrigido o valor" -> "Foi corrigido", "Foi pagos os juros" -> "Foram pagos": a
+// participle or adjective after "ser" takes the verb's number. The subject after them tells which
+// word is wrong, so a determiner must follow: "O destaque foi convidados de honra" has a noun.
+const COPULA_NUMBER = new Map<string, string>();
+for (const pair of "foi:foram é:são era:eram será:serão seria:seriam for:forem fosse:fossem seja:sejam".split(
+  " ",
+)) {
+  const [one, many] = pair.split(":");
+  COPULA_NUMBER.set(one, many).set(many, one);
+}
+const SHORT_PARTICIPLES = new Set(
+  "feit dit escrit abert cobert pag ganh gast entregu aceit".split(" "),
+);
+const PASSIVE = `(?<copula>${[...COPULA_NUMBER.keys()].join("|")})${S}(?<target>\\p{Ll}{3,}[oa]s?)${W}(?![-\\p{L}])`;
+const SUBJECT_AFTER =
+  /^[ \t ]+(?:(?<one>o|um|uma)|os|as|uns|umas|outros|outras|todos|todas|muitos|muitas|vários|várias|alguns|algumas|novos|novas)[ \t ]/u;
+
+export function passiveNumber(ctx: DetectContext): RawFinding[] {
+  if (!isLang(ctx, "pt")) return [];
+  const findings: RawFinding[] = [];
+  for (const m of frameMatches(ctx, PASSIVE)) {
+    const { copula, target } = m.groups!;
+    if (target !== target.toLowerCase() || copula.slice(1) !== copula.slice(1).toLowerCase())
+      continue;
+    const stem = target.replace(/[oa]s?$/, "");
+    const participle =
+      (/\p{Ll}{2}(?:ad|id)$/u.test(stem) && !NOUNS_IN_DO.has(stem)) || SHORT_PARTICIPLES.has(stem);
+    if (!participle && !ADJECTIVE_STEMS.has(stem)) continue;
+    const pluralCopula = /(?:ão|am|em)$/.test(copula);
+    if (pluralCopula === target.endsWith("s")) continue;
+    const [start] = m.indices!.groups!.copula;
+    const [, end] = m.indices!.groups!.target;
+    const subject = SUBJECT_AFTER.exec(ctx.text.slice(end, end + 24));
+    // With the subject before them, subjectPredicates fixes the participle.
+    if (!subject || ctx.dictionary.has(ctx.text.slice(start, end).toLowerCase())) continue;
+    // The subject's number decides which of the two words disagrees with it.
+    const lower = copula.toLowerCase();
+    const fixed =
+      !!subject.groups!.one === pluralCopula
+        ? `${COPULA_NUMBER.get(lower)} ${target}`
+        : `${lower} ${pluralCopula ? `${target}s` : target.slice(0, -1)}`;
+    findings.push(
+      finding(
+        "portugueseAgreement",
+        "review_msg_pt_passive_number",
+        start,
+        end,
+        [applyWordCase(fixed, detectWordCase(copula))],
+        { context: { start, end } },
+      ),
     );
   }
   return findings;
