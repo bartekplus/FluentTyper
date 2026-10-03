@@ -1352,6 +1352,10 @@ describe("germanDates", () => {
     "Das war der 30.02.2023.",
     "Der 29.2.2023 fiel aus.",
     "Der Termin 32.13.2020 fällt aus.",
+    // A full date with a zero day or month.
+    "Am 0.5.2020 begann es.",
+    "Am 1.0.2020 begann es.",
+    "Am 00.05.2020 begann es.",
   ])("warns about the impossible date in %p", (input) => {
     const [warning, ...rest] = findings("germanDates", input);
     expect(rest).toEqual([]);
@@ -1367,6 +1371,10 @@ describe("germanDates", () => {
     // No part can be a day or a month: the dotted number is not a date.
     "Der Code 45.67.2020 gilt.",
     "Pi ist ungefähr 3.14.",
+    // With no year, "0.5." and "1.0." are decimals or versions.
+    "Der Wert ist 0.5. Danach steigt er.",
+    "Wir nutzen 1.0. Danach kommt 2.0.",
+    "Installiere Version 1.0.2020 jetzt.",
     "Sonntag, den 23. Oktober 4004 v. Chr.",
     "Am Freitag, 3. Mai 2024 regnete es.",
   ])("leaves %p alone", (input) => {
