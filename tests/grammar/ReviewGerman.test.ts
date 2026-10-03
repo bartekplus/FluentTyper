@@ -2422,3 +2422,32 @@ describe("German wave 12 singular subjects after a possessive", () => {
     );
   });
 });
+
+describe("German wave 12 pleonasms (stylePhrasing)", () => {
+  test.each([
+    ["Im Garten stand eine runde Kugel aus Stein.", "Im Garten stand eine Kugel aus Stein."],
+    ["Wir fanden zwei tote Leichen.", "Wir fanden zwei Leichen."],
+    ["Das ist eine seltene Rarität.", "Das ist eine Rarität."],
+    ["Die Firma stellte eine neue Innovation vor.", "Die Firma stellte eine Innovation vor."],
+    ["Meine Tante ist eine weibliche Ärztin.", "Meine Tante ist eine Ärztin."],
+    ["Die weiblichen Lehrerinnen kamen.", "Die Lehrerinnen kamen."],
+    ["Er stellte die Tassen in die Glasvitrine.", "Er stellte die Tassen in die Vitrine."],
+    ["Sie trat fest auf das Fußpedal.", "Sie trat fest auf das Pedal."],
+    ["Es gab lange Zeitverzögerungen.", "Es gab lange Verzögerungen."],
+    ["Wir arbeiten in gemeinsamer Zusammenarbeit.", "Wir arbeiten in Zusammenarbeit."],
+  ])("%p loses its repeated word", (input, output) => {
+    expect(fixed("stylePhrasing", input)).toBe(output);
+  });
+  test.each([
+    "Er hat eine runde Summe gezahlt.",
+    "Die weibliche Form des Wortes ist selten.",
+    "Die weibliche Disziplin beginnt morgen.",
+    "Das Glas steht neben der Vitrine.",
+    "Er drückte mit dem Fuß auf das Pedal.",
+    "Ein toter Winkel ist gefährlich.",
+    "Der Fall ist ein neuer Rekord.",
+    "Sie kaufte einen Glasschrank.",
+  ])("stylePhrasing leaves %p alone", (input) => {
+    expect(findings("stylePhrasing", input)).toEqual([]);
+  });
+});
