@@ -58,6 +58,10 @@ const PORTUGUESE = [
   `Ele${" ".repeat(3_000)}não${" ".repeat(500)}cópia os dados`,
   "bem mas, sim senhor! eu cálculo que Prática-se pagou o pato de forma rápida ".repeat(60),
   `foi${" ".repeat(3_000)}a${" ".repeat(500)}dois anos.`,
+  "foram corrigido o já si que agente vai á tira-mos as vão fazerem tem acontecido erros ".repeat(
+    60,
+  ),
+  `foram${" ".repeat(3_000)}corrigido${" ".repeat(500)}o valor`,
   `Isso.${" ".repeat(3_000)}Por que${" ".repeat(500)}saiu.`,
   `no${" ".repeat(3_000)}1ª lugar, ${" ".repeat(500)}mais não`,
   "Serviço continuo. Este gatos estão mais bom de que tem direito na termos ".repeat(60),

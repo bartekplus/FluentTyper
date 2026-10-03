@@ -14,6 +14,7 @@ import { verbAgreement } from "./verbAgreement";
 import { subjunctives } from "./subjunctive";
 import {
   fixedAgreements,
+  passiveNumber,
   quantifiedAdjectives,
   relativeAgreement,
   subjectPredicates,
@@ -42,6 +43,7 @@ export const PORTUGUESE_DETECTORS: ReviewDetectorEntry[] = [
   { rules: ["portugueseAgreement"], detect: relativeAgreement },
   { rules: ["portugueseAgreement"], detect: quantifiedAdjectives },
   { rules: ["portugueseAgreement"], detect: fixedAgreements },
+  { rules: ["portugueseAgreement"], detect: passiveNumber },
   { rules: ["portugueseAgreement"], detect: personAgreement },
   { rules: ["portugueseAgreement"], detect: auxiliaryInfinitives },
   { rules: ["stylePhrasing"], detect: actionNouns },
