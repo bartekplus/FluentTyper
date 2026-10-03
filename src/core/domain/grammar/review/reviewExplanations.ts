@@ -3558,6 +3558,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Dopuszczalne są obie pisownie; Duden zaleca tę: Geografie, Mikrofon, aufgrund, zu Hause.",
     "As duas grafias são admitidas; o Duden recomenda esta: Geografie, Mikrofon, aufgrund, zu Hause.",
   ],
+  review_msg_german_ordinal_dot: [
+    "A number that counts in order takes a dot in German: im 20. Jahrhundert, am 3. Mai.",
+    "Un nombre ordinal prend un point en allemand : im 20. Jahrhundert, am 3. Mai.",
+    "Redni broj u njemačkom dobiva točku: im 20. Jahrhundert, am 3. Mai.",
+    "Un número ordinal lleva punto en alemán: im 20. Jahrhundert, am 3. Mai.",
+    "Ένας τακτικός αριθμός παίρνει τελεία στα γερμανικά: im 20. Jahrhundert, am 3. Mai.",
+    "Ett ordningstal får punkt på tyska: im 20. Jahrhundert, am 3. Mai.",
+    "Eine Ordnungszahl bekommt einen Punkt: im 20. Jahrhundert, am 3. Mai.",
+    "Liczebnik porządkowy dostaje w niemieckim kropkę: im 20. Jahrhundert, am 3. Mai.",
+    "Um número ordinal leva ponto em alemão: im 20. Jahrhundert, am 3. Mai.",
+  ],
 };
 
 /**

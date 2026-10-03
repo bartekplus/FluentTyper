@@ -50,6 +50,7 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
       pos: [
         ["Das einzige, was zählt, ist Ehrlichkeit.", "Das Einzige, was zählt, ist Ehrlichkeit."],
         ["Die Noten sind mir völlig Wurst.", "Die Noten sind mir völlig wurst."],
+        ["Bitte schicken sie mir die Unterlagen.", "Bitte schicken Sie mir die Unterlagen."],
         [
           "Diesmal klappt es, nicht wie beim letzten mal.",
           "Diesmal klappt es, nicht wie beim letzten Mal.",
@@ -201,6 +202,7 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Ich bin mir nicht im klaren darüber.", "Ich bin mir nicht im Klaren darüber."],
       ],
       neg: [
+        "Kommen sie bitte morgen?",
         "Dieser Vorschlag ist das beste, was wir haben.",
         "Sie fuhr 1990 als erstes nach der Wende gebautes Modell vom Band.",
         "Zum Abendbrot gibt es Käse und Wurst.",
@@ -597,6 +599,8 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
     "germanAbbreviations",
     {
       pos: [
+        ["Das Kloster wurde 800 n Chr. gegründet.", "Das Kloster wurde 800 n. Chr. gegründet."],
+        ["Schmidt et al zeigen das.", "Schmidt et al. zeigen das."],
         ["Wir arbeiten idR bis vier.", "Wir arbeiten i. d. R. bis vier."],
         ["Er kam u.a mit Anna.", "Er kam u. a. mit Anna."],
         ["Sie ist Dipl-Ing. bei uns.", "Sie ist Dipl.-Ing. bei uns."],
@@ -604,6 +608,7 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Das gilt z B. für alle.", "Das gilt z.\u00a0B. für alle."],
       ],
       neg: [
+        "Die Variablen u a b sind gesetzt.",
         "Das gilt z. B. für alle.",
         "Er ging so. Dann kam er.",
         "Sie ist Dipl.-Ing. bei uns.",
@@ -638,11 +643,17 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
       pos: [
         ["Er sagte: “Hallo“.", "Er sagte: „Hallo“."],
         ["Sie las „Faust”.", "Sie las „Faust“."],
+        ["„Wir fahren morgen.“, sagte sie.", "„Wir fahren morgen“, sagte sie."],
+        ["„Das stimmt nicht,“ meinte er.", "„Das stimmt nicht“, meinte er."],
+        ["„Wo bist du?“ rief sie.", "„Wo bist du?“, rief sie."],
         [",,Gut“, sagte er.", "„Gut“, sagte er."],
         ['Er rief „Halt" und blieb stehen.', "Er rief „Halt“ und blieb stehen."],
         ["Das Album ”Blau“ kam 2010.", "Das Album „Blau“ kam 2010."],
       ],
       neg: [
+        "Sie kennt den Film „Quo vadis?“.",
+        "Der Operator „,“ trennt Werte.",
+        "„Komm her!“, rief sie.",
         "„Hallo“, sagte er.",
         'Ein 16"-Monitor reicht.',
         'Er schrieb "Hallo".',
@@ -697,10 +708,15 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
           "Wir kaufen den Tisch, den du ausgesucht hast.",
         ],
         ["Stell dir mal vor wir gewinnen.", "Stell dir mal vor, wir gewinnen."],
+        [
+          "Sehr geehrte Frau Weber\nwir danken Ihnen.",
+          "Sehr geehrte Frau Weber,\nwir danken Ihnen.",
+        ],
         ["Gestern dachte ich mir ich rufe dich an.", "Gestern dachte ich mir, ich rufe dich an."],
         ["Ich finde es seltsam wie er redet.", "Ich finde es seltsam, wie er redet."],
       ],
       neg: [
+        "Liebe Grüße\nAnna",
         "Er tat so, als ob er schliefe.",
         "Sie lachte, sodass alle mitlachten, und auch wenn es spät war, blieben wir.",
         "Ich komme, wenn möglich früher, und je nachdem ob es regnet.",
@@ -741,6 +757,11 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
     {
       pos: [
         ["Das kostet vier und dreißig Euro.", "Das kostet vierunddreißig Euro."],
+        [
+          "Das Schloss stammt aus dem 16 Jahrhundert.",
+          "Das Schloss stammt aus dem 16. Jahrhundert.",
+        ],
+        ["Wir treffen uns am 3 Oktober.", "Wir treffen uns am 3. Oktober."],
         ["Es kamen fünf hundert Gäste.", "Es kamen fünfhundert Gäste."],
         ["Ich habe zehn mal angerufen.", "Ich habe zehnmal angerufen."],
         ["Wir warteten zwei an halb Stunden.", "Wir warteten zweieinhalb Stunden."],
@@ -757,6 +778,8 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Er wohnte zwischen 1990 - 1995 dort.", "Er wohnte zwischen 1990 und 1995 dort."],
       ],
       neg: [
+        "Die 20 Minuten vergingen schnell.",
+        "Er wohnt im Haus 12.",
         "Zwei halbe Millionen ergeben eine ganze.",
         "Wir rechnen mit Kosten von 20–30 Euro.",
         "Die Strecke zwischen A und B ist kurz.",

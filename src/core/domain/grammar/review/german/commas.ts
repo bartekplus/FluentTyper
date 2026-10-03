@@ -11,6 +11,7 @@ import {
   words,
   wordSet,
 } from "./shared";
+import { salutationComma } from "./salutations";
 import { germanInfinitiveOf, isAuxiliary } from "./verbAgreement";
 
 // The comma German sets before a clause or an infinitive group: "Er bleibt, weil es regnet",
@@ -700,5 +701,5 @@ function commas(ctx: DetectContext): RawFinding[] {
 }
 
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  { rules: ["germanCommas"], detect: commas },
+  { rules: ["germanCommas"], detect: (ctx) => [...commas(ctx), ...salutationComma(ctx)] },
 ];

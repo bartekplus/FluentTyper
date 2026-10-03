@@ -81,6 +81,15 @@ const RANGE_END = `(?:[1-9]\\d{0,3}|0)\\.?|\\p{Lu}`;
 const RANGE = re(
   `(?<=(?:[Vv]on|[Vv]om|[Zz]wischen)${S}(?:(?:\\p{Lu}\\p{Ll}{2,12}|S\\.|Nr\\.)${S})?)(?<target>(?<from>${RANGE_END})[ \\t]?[-–][ \\t]?(?<to>${RANGE_END}))(?![-–\\d])`,
 );
+// "im 20 Jahrhundert", "am 3 Mai", "in den 4 Stock": a numeral between a definite article and
+// a noun that counts in order is an ordinal and takes its dot.
+const ORDINAL_NOUNS =
+  "Jahrhundert|Jahrhunderts|Jahrtausend|Stock|Stockwerk|Etage|Minute|Platz|Geburtstag|" +
+  "Jahrestag|Lebensjahr|Klasse|Spieltag|Runde|Liga|Etappe|Auflage|Kapitel|Januar|Februar|" +
+  "März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember";
+const ORDINAL = re(
+  `(?<=(?:[Ii]m|[Aa]m|[Zz]um|[Vv]om|[Bb]eim|[Dd]em|[Dd]en|[Dd]er|[Dd]as|[Ss]eit${S}dem|[Ii]n${S}den|[Ii]n${S}der|[Aa]b${S}der|[Aa]b${S}dem)${S})(?<target>[1-9]\\d{0,2})(?=${S}(?:${ORDINAL_NOUNS})${E})`,
+);
 const ONE: Readonly<Record<string, string>> = {
   millionen: "million",
   milliarden: "milliarde",
@@ -178,6 +187,14 @@ function numbers(ctx: DetectContext): RawFinding[] {
       return /^\p{Lu}/u.test(plural) ? one[0].toUpperCase() + one.slice(1) : one;
     });
     push(m, name, [fixed]);
+  }
+  for (const m of frameMatches(ctx, ORDINAL)) {
+    const [start, end] = m.indices!.groups!.target;
+    if (namedExampleBefore(ctx.text, start)) continue;
+    findings.push({
+      ...finding(start, end, [`${m.groups!.target}.`]),
+      messageKey: "review_msg_german_ordinal_dot",
+    });
   }
   for (const m of frameMatches(ctx, RANGE)) {
     const { from, to } = m.groups!;
