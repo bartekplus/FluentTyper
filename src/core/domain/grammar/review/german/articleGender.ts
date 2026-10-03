@@ -543,7 +543,26 @@ function articleGender(ctx: DetectContext): RawFinding[] {
     const [detStart] = m.indices!.groups!.det;
     const end = adjectives.length ? m.indices!.groups!.mods[1] : m.indices!.groups!.det[1];
     const typedReadings = readings(det);
-    if (typedReadings.some(([g, c]) => fits(head, reading, g, c))) {
+    // "über sein Umzug", "um kein Tisch": a bare ein-word before a masculine noun is only a
+    // nominative, which no preposition governs. Not "was für ein Lärm", "ohne ein Titel zu
+    // sein", "meiner Ansicht nach kein Konflikt", "ein Server internes Problem".
+    const clauseRest = /^[^.!?;,\n]*/.exec(ctx.text.slice(nounEnd))![0];
+    const wrongCase =
+      det.kind === "ein" &&
+      det.ending === "" &&
+      reading.gender === "m" &&
+      !(det.stem === "kein" && prior === "ohne") &&
+      !reading.plural &&
+      /^(?:für|um|gegen|ohne|durch|über|auf|in|an|unter|vor|hinter|neben|zwischen|mit|von|zu|bei|aus)$/.test(
+        prior,
+      ) &&
+      !/(?<!\p{L})was(?!\p{L})/iu.test(ctx.text.slice(Math.max(0, m.index - 30), m.index)) &&
+      !/(?<!\p{L})(?:sein|werden|bleiben|nach)(?!\p{L})/u.test(clauseRest) &&
+      !/^[ \t]+\p{Ll}+(?:e|es|en|er|em)[ \t]+\p{Lu}/u.test(clauseRest) &&
+      !/(?<!\p{L})(?:nach|und)[ \t]+$/u.test(
+        ctx.text.slice(Math.max(0, m.index - 12), m.index - prior.length - 1),
+      );
+    if (!wrongCase && typedReadings.some(([g, c]) => fits(head, reading, g, c))) {
       const verb = verbObjectCase(ctx, m.index, nounEnd, det, typed, head, reading, adjectives);
       if (verb) {
         findings.push({
@@ -577,7 +596,7 @@ function articleGender(ctx: DetectContext): RawFinding[] {
     if (det.kind === "ein") {
       if (DETERMINER_WORDS.test(prior) || /^(?:ans|aufs|durchs|fürs|ums)$/.test(prior)) continue;
       if (det.stem === "ihr" || (det.stem === "mein" && /^(?:ich|wir|sie)$/.test(prior))) continue;
-      if (det.stem === "sein" && det.ending === "") continue;
+      if (det.stem === "sein" && det.ending === "" && !afterPreposition) continue;
       if (det.ending === "er" && /^k?ein$/.test(det.stem) && !afterPreposition) continue;
     }
     const after = tokensAfter(ctx.text, nounEnd, 2);

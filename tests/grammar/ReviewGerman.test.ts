@@ -48,6 +48,10 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
     "germanNounCasing",
     {
       pos: [
+        ["Wir feiern zu ehren unserer Gäste.", "Wir feiern zu Ehren unserer Gäste."],
+        ["Du musst dir keine sorgen machen.", "Du musst dir keine Sorgen machen."],
+        ["Das darf man nicht außer acht lassen.", "Das darf man nicht außer Acht lassen."],
+        ["Es tut mir sehr Leid.", "Es tut mir sehr leid."],
         ["Das einzige, was zählt, ist Ehrlichkeit.", "Das Einzige, was zählt, ist Ehrlichkeit."],
         ["Die Noten sind mir völlig Wurst.", "Die Noten sind mir völlig wurst."],
         ["Bitte schicken sie mir die Unterlagen.", "Bitte schicken Sie mir die Unterlagen."],
@@ -202,6 +206,11 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Ich bin mir nicht im klaren darüber.", "Ich bin mir nicht im Klaren darüber."],
       ],
       neg: [
+        "Wir ehren die Toten.",
+        "Weil sie sich sorgen.",
+        "Um acht Uhr geht es los.",
+        "Das Leid der Tiere ist groß.",
+        "Worin zeigt sich dieses Leidtun?",
         "Kommen sie bitte morgen?",
         "Dieser Vorschlag ist das beste, was wir haben.",
         "Sie fuhr 1990 als erstes nach der Wende gebautes Modell vom Band.",
@@ -381,6 +390,9 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
     "germanConfusedWords",
     {
       pos: [
+        ["Aber dass ist nicht wahr.", "Aber das ist nicht wahr."],
+        ["Das Haus, dass dort steht, ist alt.", "Das Haus, das dort steht, ist alt."],
+        ["Wir sind schon soweit gelaufen.", "Wir sind schon so weit gelaufen."],
         ["Sie spielt sowohl Geige und auch Klavier.", "Sie spielt sowohl Geige als auch Klavier."],
         ["Wir sind fasst fertig.", "Wir sind fast fertig."],
         ["Mein Vornahme steht auf dem Ausweis.", "Mein Vorname steht auf dem Ausweis."],
@@ -432,6 +444,8 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Sie kam immer wider zu spät.", "Sie kam immer wieder zu spät."],
       ],
       neg: [
+        "Ich weiß, dass er kommt.",
+        "Soweit ich weiß, stimmt das.",
         "Er fasst jeden Gegenstand vorsichtig an.",
         "Ich diene meinem Land.",
         "Ich zeige der Nachbarin das Zimmer.",
@@ -599,6 +613,7 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
     "germanAbbreviations",
     {
       pos: [
+        ["Es passen max 4 Personen hinein.", "Es passen max. 4 Personen hinein."],
         ["Das Kloster wurde 800 n Chr. gegründet.", "Das Kloster wurde 800 n. Chr. gegründet."],
         ["Schmidt et al zeigen das.", "Schmidt et al. zeigen das."],
         ["Wir arbeiten idR bis vier.", "Wir arbeiten i. d. R. bis vier."],
@@ -608,6 +623,7 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Das gilt z B. für alle.", "Das gilt z.\u00a0B. für alle."],
       ],
       neg: [
+        "Mad Max 3 lief im Kino.",
         "Die Variablen u a b sind gesetzt.",
         "Das gilt z. B. für alle.",
         "Er ging so. Dann kam er.",
@@ -924,6 +940,7 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
     "germanArticleGender",
     {
       pos: [
+        ["Es geht um kein Vertrag.", "Es geht um keinen Vertrag."],
         ["Der Fahrrad steht im Keller.", "Das Fahrrad steht im Keller."],
         ["Die Idee als solches ist gut.", "Die Idee als solche ist gut."],
         ["Dazu bedarf es einem neuen Gesetz.", "Dazu bedarf es eines neuen Gesetzes."],
@@ -952,6 +969,8 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Kennst du diesem Fahrer?", "Kennst du diesen Fahrer?"],
       ],
       neg: [
+        "Was ist das für ein Lärm?",
+        "Er dehnte nach und nach seinen Einfluss aus.",
         "Sie gilt in der Branche als solche Expertin.",
         "Sie ist in der Stadt als solche bekannt.",
         "Er gedachte den Vertrag zu kündigen.",
@@ -1026,6 +1045,7 @@ describe("germanCompounds", () => {
     ["Zum Brot backen braucht man Geduld.", "Zum Brotbacken braucht man Geduld."],
     ["Vielen Dank für das Fenster putzen!", "Vielen Dank für das Fensterputzen!"],
     ["Danke fürs Auto waschen.", "Danke fürs Autowaschen."],
+    ["Wir gehen heute in's Kino.", "Wir gehen heute ins Kino."],
     ["Habt ihr euch gut unter halten?", "Habt ihr euch gut unterhalten?"],
     ["Der Damm hat dem Hochwasser stand gehalten.", "Der Damm hat dem Hochwasser standgehalten."],
     ["Bitte prüfe deine Spam-Emails.", "Bitte prüfe deine Spam-E-Mails."],

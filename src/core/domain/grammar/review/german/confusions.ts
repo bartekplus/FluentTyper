@@ -576,6 +576,37 @@ const FRAMES: readonly Frame[] = [
       return typed === "Rate" ? "Ratte" : "Ratten";
     },
   },
+  // "Aber dass ist richtig", "Er sagt, dass sei falsch" → das: a conjunction never stands
+  // right before the finite verb. "Das Kind, dass dort spielt" → das: a relative clause after
+  // a noun, with no subject of its own before its verb.
+  {
+    regex: re(
+      `(?<target>[Dd]ass)(?=${S}(?:ist|sind|war|wäre|sei|hat|hast|hatte|hätte|kann|kannst|muss|musst|soll|sollte|wird|würde|scheint|scheinst|bleibt|klingt|stimmt|geht)${E})|` +
+        `(?<=\\p{Lu}\\p{Ll}+,${S})(?<t2>dass)(?=${S}(?:(?:nicht|dort|hier|gerade|schon|noch|nie|immer|sehr|zu|auch|kaum|oft)${S}){0,3}(?:\\p{Ll}+${S}){0,2}\\p{Ll}+(?:t|te)[ \\t]*[.!?,;])`,
+    ),
+    fix: (m) => {
+      if (m.groups!.target) return "das";
+      // The relative "das" needs a neuter noun before the comma, and the clause no subject.
+      const noun = /(\p{Lu}\p{Ll}+),[ \t]+$/u.exec(
+        m.input.slice(Math.max(0, m.index - 40), m.index),
+      )![1];
+      const reading = germanGender(noun);
+      if (!reading || (reading.gender !== "n" && reading.gender !== "x")) return null;
+      const clause = /^[^.!?,;]*/.exec(m.input.slice(m.index + 4))![0];
+      if (
+        /(?<!\p{L})(?:ich|du|er|sie|es|wir|ihr|man|der|die|den|dem|ein|eine)(?!\p{L})/u.test(clause)
+      )
+        return null;
+      return "das";
+    },
+  },
+  // "schon soweit gekommen", "Soweit, so gut" → so weit: the distance, not the conjunction.
+  {
+    regex: re(
+      `(?<target>[Ss]oweit)(?=,${S}so${S}gut|${S}(?:gekommen|gegangen|gelaufen|gefahren|entfernt|weg|weggelaufen)${E}|[ \\t]*[.!?])`,
+    ),
+    fix: (m) => (m.groups!.target[0] === "S" ? "So weit" : "so weit"),
+  },
   // "Es gibt keine Features, sonder nur …" → sondern.
   { regex: re(`(?<=,${S})(?<target>sonder)(?=${S}${W})`), fix: "sondern" },
 ];

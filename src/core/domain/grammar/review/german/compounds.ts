@@ -129,6 +129,11 @@ const EMAIL_NOUN = re(
 const DIN = re(
   `(?<target>(?:DIN|Din|din)(?:-|${SPACE})?[Aa](?<size>[0-8])(?<rest>(?:-|${SPACE})?Blatt|-\\p{L}+)?)`,
 );
+// "in's Kino", "auf's Dach", "vor'm Haus": a preposition fused with its article takes no
+// apostrophe.
+const FUSED = re(
+  `(?<target>(?<prep>[Ii]n|[Aa]n|[Aa]uf|[Ff]ür|[Dd]urch|[Uu]m|[Hh]inter|[Üü]ber|[Uu]nter|[Vv]or)['’](?<article>s|n|m))`,
+);
 const ADD_ON = re(`(?<target>(?:AddOn|Addon|addon|AddOns|Addons|addons)(?<rest>-\\p{L}+)?)`);
 
 type Fix = (m: RegExpExecArray, ctx: DetectContext) => string | null;
@@ -379,6 +384,7 @@ const FRAMES: Array<[RegExp, Fix]> = [
         ? `${m.groups!.acronym}-${m.groups!.noun}`
         : null,
   ],
+  [FUSED, (m) => `${m.groups!.prep}${m.groups!.article}`],
   [EMAIL_ANY, (m) => `E-Mail${emailRest(m.groups!.rest)}`],
   [
     EMAIL_TAIL,

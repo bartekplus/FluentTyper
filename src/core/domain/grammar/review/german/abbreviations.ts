@@ -65,6 +65,8 @@ const DIPLOMA = new RegExp(
   `${WORD_START}(?<target>Dipl(?:\\.?-|\\.[ \\t]|[ \\t]?-[ \\t]?)(?<subject>\\p{Lu}\\p{Ll}{1,10})\\.?)${WORD_END}`,
   "gdu",
 );
+// "max 5 Leute", "min 3 Tage": the abbreviation before a number takes its dot.
+const MAX_MIN = new RegExp(`${WORD_START}(?<target>max|min)(?=[ \\t]\\p{N})`, "gdu");
 const LATIN = new RegExp(
   `${WORD_START}(?<target>et[ \\t]al|ad[ \\t]lib)(?![\\p{L}\\p{N}.])`,
   "gdu",
@@ -122,6 +124,10 @@ function abbreviations(ctx: DetectContext): RawFinding[] {
     }
   }
   // "Müller et al (2021)", "ad lib": the Latin abbreviation takes its dot.
+  for (const m of frameMatches(ctx, MAX_MIN)) {
+    const [start, end] = m.indices!.groups!.target;
+    findings.push(finding(start, end, `${m.groups!.target}.`));
+  }
   for (const m of frameMatches(ctx, LATIN)) {
     const [start, end] = m.indices!.groups!.target;
     findings.push(finding(start, end, `${m.groups!.target}.`));

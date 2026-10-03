@@ -48,6 +48,50 @@ const clauseBefore = (ctx: DetectContext, m: RegExpExecArray) =>
     .at(-1) ?? "";
 
 const FRAMES: Frame[] = [
+  // "zu ehren der Gäste", "zur ehre Gottes", "in ehren": the noun "Ehre".
+  [
+    re(
+      `(?<=(?:[Zz]u|[Ii]n)${S})(?<target>ehren)(?=${S}(?:des|der|dem|meines|meiner|seines|seiner|ihres|ihrer|unseres|unserer|\\p{Lu})|${S}\\p{Ll}+(?:te|ten|ter|tes|ene|enen|ener)${E}|[ \\t]*[.!?,;])|(?<=[Zz]ur${S})(?<t2>ehre)${E}`,
+    ),
+    (m) => cap(m.groups!.target ?? m.groups!.t2),
+  ],
+  // "Ich mache mir sorgen", "sich keine sorgen machen": the noun "Sorgen".
+  [
+    re(
+      `(?<=(?:mir|dir|sich|uns|euch|ihm|ihr|keine|viele|große|ernste|unnötige|andere|ganz${S}andere|solche|mehr)${S})(?<target>sorgen)(?=${S}(?:machen|machst|macht|machte|machten|gemacht|zu${S}machen|mache)${E}|[ \\t]*[.!?,;])`,
+    ),
+    (m, ctx) => {
+      // "weil sie sich sorgen.": a verb at the end of a clause after "sich".
+      const before = ctx.text
+        .slice(Math.max(0, m.index - 80), m.index)
+        .split(/[.!?;,\n]/)
+        .at(-1)!;
+      const ending = /^[ \t]*[.!?,;]/.test(ctx.text.slice(m.index + m[0].length));
+      if (
+        ending &&
+        !/(?<!\p{L})(?:mach\p{Ll}*|gemacht|habe|hast|hat|haben|keine|viele|andere)(?!\p{L})/iu.test(
+          before,
+        )
+      )
+        return null;
+      return "Sorgen";
+    },
+  ],
+  // "außer acht lassen", "sich in acht nehmen": the noun "Acht".
+  [
+    re(
+      `(?<=[Aa]ußer${S})(?<target>acht)(?=${S}(?:lassen|lässt|ließ|ließen|gelassen|zu${S}lassen|ließe)${E}|[ \\t]*[.!?,;])|(?<=(?:sich|dich|mich|euch|uns)${S}in${S})(?<t2>acht)(?=${S}(?:nehmen|nimmt|nahm|genommen|nimm)${E})`,
+    ),
+    (m) => "Acht",
+  ],
+  // "Das tut mir Leid" → leid ("leidtun"); "Leid tun" → leidtun.
+  [
+    re(
+      `(?<=(?:tut|tat|täte|tun|getan|tue)${S}(?:mir|dir|ihm|ihr|uns|euch|ihnen|Ihnen)(?:${S}(?:sehr|wirklich|so|echt|furchtbar|aufrichtig|ehrlich|schrecklich|unendlich|total|auch|nicht|schon|doch|ja)){0,2}${S})(?<target>Leid)(?=[ \\t]*[.!?,;]|${S}(?:dass|für|um|wegen)${E})|` +
+        `(?<=(?:mir|dir|ihm|ihr|uns|euch|ihnen|Ihnen|noch|sehr|wirklich)${S})(?<t2>Leid${S}tun)(?=[ \\t]*[.!?,;])`,
+    ),
+    (m) => (m.groups!.target ? "leid" : "leidtun"),
+  ],
   // "jedes mal", "beim nächsten mal", "ein für alle mal", "die letzten male": the noun "Mal"
   // after a determiner or an ordinal; "von Mal zu Mal", "Mal für Mal".
   [
